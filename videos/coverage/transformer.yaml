@@ -1,0 +1,190 @@
+version: 1
+lesson: transformer
+promise: Follow a prompt through a causal decoder and use its full-prefix read and vocabulary scores
+  to decide whether a cached query used the right history.
+objectives:
+  - id: state
+    can: Construct positioned rows and preserve each token’s feature identity through residual updates
+    scenes:
+      - intro
+      - embedding
+      - position-designs
+      - normalization
+      - residual
+      - norm-contracts
+  - id: read
+    can: Compute scaled masked attention, explain head shapes and distinguish a mixture of value features
+      from the probability of a vocabulary token
+    scenes:
+      - mask
+      - matching-scale
+      - attention
+      - parallel-heads
+      - fresh-decoder
+  - id: local
+    can: Locate the bend introduced by an activation, fit a gated FFN to a fixed weight budget and distinguish normalization orders
+    scenes:
+      - feed-forward
+      - ffn-variants
+      - norm-contracts
+  - id: causal
+    can: Align shifted targets, test for leakage through the block and check a cached query against its absolute position and full-prefix read
+    scenes:
+      - causality
+      - causal-training
+      - api-alignment
+      - failure-contract
+      - fresh-decoder
+  - id: output
+    can: Project every position to vocabulary scores, apply temperature correctly and preserve tokenizer/table
+      identity in the next step
+    scenes:
+      - logits
+      - feedback
+      - vocabulary-contract
+      - fresh-decoder
+      - executable-contracts
+  - id: scope
+    can: Select encoder/decoder visibility and read actual checkpoint dimensions without treating tiny execution
+      checks as learned quality
+    scenes:
+      - architecture-visibility
+      - real-scale
+      - executable-contracts
+sections:
+  - heading: Tokens become positioned vectors
+    status: taught
+    scenes:
+      - embedding
+      - position-designs
+  - heading: Attention lets a token read earlier tokens
+    status: taught
+    scenes:
+      - mask
+      - attention
+      - matching-scale
+  - heading: Scale before softmax
+    status: taught
+    scenes:
+      - mask
+      - matching-scale
+  - heading: The causal mask prevents answer leakage
+    status: taught
+    scenes:
+      - mask
+      - causal-training
+  - heading: Heads run in parallel; blocks run in sequence
+    status: taught
+    scenes:
+      - parallel-heads
+  - heading: A block alternates communication and local transformation
+    status: taught
+    scenes:
+      - residual
+      - feed-forward
+      - ffn-variants
+  - heading: Residual paths and normalization
+    status: taught
+    scenes:
+      - normalization
+      - norm-contracts
+      - residual
+      - failure-contract
+  - heading: Implement masked attention in PyTorch
+    status: taught
+    scenes:
+      - api-alignment
+      - executable-contracts
+      - fresh-decoder
+  - heading: Assemble one decoder block
+    status: taught
+    scenes:
+      - executable-contracts
+      - residual
+      - feed-forward
+  - heading: Project the final position into a vocabulary
+    status: taught
+    scenes:
+      - logits
+      - feedback
+      - vocabulary-contract
+      - fresh-decoder
+      - executable-contracts
+  - heading: Encoder, decoder, and encoder-decoder visibility
+    status: taught
+    scenes:
+      - architecture-visibility
+  - heading: Diagnose a broken forward pass
+    status: taught
+    scenes:
+      - failure-contract
+      - api-alignment
+      - fresh-decoder
+  - heading: Test causality through the whole block
+    status: taught
+    scenes:
+      - causality
+      - causal-training
+      - failure-contract
+quiz:
+  - n: 1
+    status: taught
+    scenes:
+      - embedding
+      - position-designs
+  - n: 2
+    status: taught
+    scenes:
+      - mask
+      - matching-scale
+      - attention
+      - fresh-decoder
+  - n: 3
+    status: taught
+    scenes:
+      - api-alignment
+      - fresh-decoder
+  - n: 4
+    status: taught
+    scenes:
+      - parallel-heads
+  - n: 5
+    status: taught
+    scenes:
+      - norm-contracts
+  - n: 6
+    status: taught
+    scenes:
+      - ffn-variants
+  - n: 7
+    status: taught
+    scenes:
+      - vocabulary-contract
+  - n: 8
+    status: taught
+    scenes:
+      - architecture-visibility
+  - n: 9
+    status: taught
+    scenes:
+      - causal-training
+      - causality
+      - failure-contract
+  - n: 10
+    status: taught
+    scenes:
+      - vocabulary-contract
+removed: []
+reviews:
+  closed_book:
+    script: 8f1799f0e1cbb7ee
+    taught: 10
+    partial: 0
+    absent: 0
+    reviewer: /root/upgrade_shard2
+    evidence: build/video-delivery-20261106/script-reviews/transformer.json
+  fact_check:
+    script: 8f1799f0e1cbb7ee
+    open_findings: 0
+    reviewer: /root/upgrade_shard2
+    evidence: build/video-delivery-20261106/script-reviews/transformer.json

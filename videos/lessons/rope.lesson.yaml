@@ -1,0 +1,2867 @@
+version: 1
+id: rope
+title: How Position Changes Attention
+source: fundamentals/positional-encoding-rope-alibi/content.md
+sources:
+  - title: "RoFormer: Enhanced Transformer with Rotary Position Embedding"
+    url: https://arxiv.org/abs/2104.09864
+  - title: "Train Short, Test Long: Attention with Linear Biases Enables Input Length Extrapolation"
+    url: https://arxiv.org/abs/2108.12409
+  - title: Extending Context Window of Large Language Models via Positional Interpolation
+    url: https://arxiv.org/abs/2306.15595
+  - title: Attention Is All You Need
+    url: https://arxiv.org/abs/1706.03762
+  - title: "YaRN: Efficient Context Window Extension"
+    url: https://arxiv.org/abs/2309.00071
+  - title: Qwen2.5-VL Technical Report
+    url: https://arxiv.org/abs/2502.13923
+  - title: Llama3.1 pinned rotary implementation
+    url: https://github.com/meta-llama/llama-models/blob/f45cdfd624b98b6655540f7101d8d9cb432e631c/models/llama3_1/reference_impl/model.py
+  - title: Transformers5.17.0 rotary utilities
+    url: https://github.com/huggingface/transformers/blob/v5.17.0/src/transformers/modeling_rope_utils.py
+scenes:
+  - id: intro
+    title: Dogs and cats trade places
+    visual: Keep the first sentence and its blue output in view while the nouns cross in a second sentence.
+      Reveal the matching coordinate under dogs, then slide the words along a position ruler.
+    beats:
+      - say: Swap dogs and cats. The blue number under dogs is part of its attention output. Every word can
+          see all three, with no position signal. Where does that number go now?
+        hold: 2.2
+        caption_starts:
+          - The blue number under dogs
+          - Every word can see all three
+        visual_cues:
+          - id: swap-nouns
+            phrase: Swap dogs and cats
+            targets: [nouns]
+            color: yellow
+            linger: 0.25
+          - id: mark-output
+            phrase: The blue number under dogs
+            targets:
+              - output-row
+            color: cyan
+            linger: 0.25
+          - id: track-output
+            phrase: Where does that number go now
+            targets:
+              - output-row
+              - nouns
+            color: cyan
+            linger: 0.25
+            caption_boundary: true
+      - say: Under dogs. Its query meets the same three keys and mixes the same values. Its first output
+          coordinate is still point eight zero two.
+        hold: 0.7
+        visual_cues:
+          - id: dogs-output
+            phrase: Under dogs
+            targets:
+              - output-row
+            color: cyan
+            linger: 0.25
+            caption_boundary: true
+      - say: Slide the whole sentence eight places to the right. Dogs is still two places after cats. Rotary
+          position embedding, or RoPE, turns a query and a key according to their positions. We'll see how
+          their dot product picks up that two-place gap.
+        hold: 0.7
+        visual_cues:
+          - id: move-sentence
+            phrase: Slide the whole sentence eight places to the right
+            targets:
+              - sentence-positions
+            color: pink
+            linger: 0.25
+            caption_boundary: true
+  - id: permutation
+    title: Content follows its token
+    visual: Three token identities and their computed unmasked attention outputs exchange rows. A miniature
+      attention matrix permutes both rows and columns, while the same output numbers travel with their colored
+      tokens.
+    beats:
+      - say: Replay the swap with all three outputs in view. Begin with attention that has neither a position signal nor a mask. A query compares its content with
+          each key. Those comparisons become weights, and the weights mix the corresponding values.
+        hold: 0.4
+        visual_cues:
+          - id: permutation-permuted-output-0-b1-1
+            phrase: weights mix the corresponding values
+            targets:
+              - permuted-output-0
+            color: cyan
+            linger: 0.6
+          - id: rp-permutation-0-0
+            phrase: Begin with attention that has neither a position signal nor a mask.
+            targets:
+              - permutation-construction
+            color: blue
+            linger: 0.25
+          - id: rp-permutation-0-1
+            phrase: A query compares its content with each key.
+            targets:
+              - permutation-construction
+            color: blue
+            linger: 0.25
+          - id: rp-permutation-0-2
+            phrase: Those comparisons become weights, and the weights mix the corresponding values.
+            targets:
+              - permutation-construction
+            color: green
+            linger: 0.25
+      - say: Shuffle the token rows and carry their vectors along. The same content comparisons happen in a different
+          arrangement. The outputs move with their tokens. This property is called permutation equivariance.
+        hold: 0.6
+        visual_cues:
+          - id: permutation-permuted-token-0-b2-1
+            phrase: outputs move with their tokens
+            targets:
+              - permuted-token-0
+              - permuted-output-0
+            color: blue
+            linger: 0.6
+          - id: rp-permutation-1-0
+            phrase: Shuffle the token rows and carry their vectors along.
+            targets:
+              - permutation-construction
+            color: blue
+            linger: 0.25
+          - id: rp-permutation-1-1
+            phrase: The same content comparisons happen in a different arrangement.
+            targets:
+              - permutation-construction
+            color: blue
+            linger: 0.25
+          - id: rp-permutation-1-2
+            phrase: The outputs move with their tokens.
+            targets:
+              - permutation-construction
+            color: blue
+            linger: 0.25
+          - id: rp-permutation-1-3
+            phrase: This property is called permutation equivariance.
+            targets:
+              - permutation-construction
+            color: green
+            linger: 0.25
+      - say: Our test deliberately uses unmasked attention. A decoder's causal mask changes which earlier tokens are
+          visible and therefore changes this symmetry. We'll keep that visibility rule separate from the
+          position signal we are about to construct.
+        hold: 0.5
+        visual_cues:
+          - id: permutation-content-weight-0-2-b3-1
+            phrase: unmasked attention
+            targets:
+              - content-weight-0-2
+            color: yellow
+            linger: 0.6
+          - id: rp-permutation-2-0
+            phrase: Our test deliberately uses unmasked attention.
+            targets:
+              - permutation-construction
+            color: blue
+            linger: 0.25
+          - id: rp-permutation-2-1
+            phrase: A decoder's causal mask changes which earlier tokens are visible and therefore changes this symmetry.
+            targets:
+              - permutation-construction
+            color: blue
+            linger: 0.25
+          - id: rp-permutation-2-2
+            phrase: We'll keep that visibility rule separate from the position signal we are about to construct.
+            targets:
+              - permutation-construction
+            color: green
+            linger: 0.25
+  - id: mask-and-prefill
+    title: Parallel work keeps causal visibility
+    visual: The same three tokens move through an unmasked calculation, then a fixed lower-triangular visibility
+      grid. The row at position two cannot read position three even when all queries execute together.
+    beats:
+      - say: The unmasked equality follows through every matrix. Permuting token rows permutes queries, keys and
+          values. The score matrix permutes both axes, row-wise softmax follows those permutations, and the
+          value mixture gives the same permutation of the original output. An exact comparison disables
+          dropout or carries its sampled mask along too.
+        hold: 0.5
+        visual_cues:
+          - id: rp-mask-and-prefill-0-0
+            phrase: The unmasked equality follows through every matrix.
+            targets:
+              - mask-and-prefill-construction
+            color: blue
+            linger: 0.25
+          - id: rp-mask-and-prefill-0-1
+            phrase: Permuting token rows permutes queries, keys and values.
+            targets:
+              - mask-and-prefill-construction
+            color: blue
+            linger: 0.25
+          - id: rp-mask-and-prefill-0-2
+            phrase: The score matrix permutes both axes, row-wise softmax follows those permutations, and the value
+              mixture gives the same permutation of the original output.
+            targets:
+              - mask-and-prefill-construction
+            color: blue
+            linger: 0.25
+          - id: rp-mask-and-prefill-0-3
+            phrase: An exact comparison disables dropout or carries its sampled mask along too.
+            targets:
+              - mask-and-prefill-construction
+            color: green
+            linger: 0.25
+      - say: Look down the rows of the causal mask. Query two can read the first two keys. The third key
+          is hidden. During parallel prefill, all three queries run together with those same
+          permissions. Some decoders trained with this mask learn approximate positions even without a
+          position encoding. With identical value rows, though, the average is the same whether one row or three
+          are visible.
+        hold: 0.5
+        visual_cues:
+          - id: rp-mask-and-prefill-1-0
+            phrase: Look down the rows of the causal mask.
+            targets:
+              - mask-and-prefill-construction
+            color: blue
+            linger: 0.25
+          - id: rp-mask-and-prefill-1-1
+            phrase: Query two can read the first two keys. The third key is hidden.
+            targets:
+              - mask-and-prefill-construction
+            color: blue
+            linger: 0.25
+          - id: rp-mask-and-prefill-1-2
+            phrase: During parallel prefill, all three queries run together with those same permissions.
+            targets:
+              - mask-and-prefill-construction
+            color: blue
+            linger: 0.25
+          - id: rp-mask-and-prefill-1-3
+            phrase: Some decoders trained with this mask learn approximate positions even without a position encoding.
+            targets:
+              - mask-and-prefill-construction
+            color: blue
+            linger: 0.25
+          - id: rp-mask-and-prefill-1-4
+            phrase: With identical value rows, though, the average is the same whether one row or three are
+              visible.
+            targets:
+              - mask-and-prefill-construction
+            color: green
+            linger: 0.25
+  - id: insertion
+    title: Where can position enter?
+    visual: A large three-lane tensor pipeline separates embedding addition, Q/K rotation, and score bias. A
+      position marker travels to each method's actual insertion point; values retain a separate straight
+      aggregation route.
+    beats:
+      - say: An absolute encoding gives each slot a vector and adds it to the token embedding. Learned position tables
+          and the original Transformer's sine and cosine waves take this early route.
+        hold: 0.4
+        visual_cues:
+          - id: insertion-embedding-insertion-0-b1-1
+            phrase: adds it to the token embedding
+            targets:
+              - embedding-insertion-0
+            color: blue
+            linger: 0.6
+          - id: rp-insertion-0-0
+            phrase: An absolute encoding gives each slot a vector and adds it to the token embedding.
+            targets:
+              - insertion-construction
+            color: blue
+            linger: 0.25
+          - id: rp-insertion-0-1
+            phrase: Learned position tables and the original Transformer's sine and cosine waves take this early route.
+            targets:
+              - insertion-construction
+            color: green
+            linger: 0.25
+      - say: RoPE enters later. First the model projects content into queries and keys. Then position rotates those
+          vectors, just before their dot products determine attention weights.
+        hold: 0.4
+        visual_cues:
+          - id: insertion-qk-insertion-1-b2-1
+            phrase: position rotates those vectors
+            targets:
+              - qk-insertion-1
+            color: cyan
+            linger: 0.6
+          - id: rp-insertion-1-0
+            phrase: RoPE enters later.
+            targets:
+              - insertion-construction
+            color: blue
+            linger: 0.25
+          - id: rp-insertion-1-1
+            phrase: First the model projects content into queries and keys.
+            targets:
+              - insertion-construction
+            color: blue
+            linger: 0.25
+          - id: rp-insertion-1-2
+            phrase: Then position rotates those vectors, just before their dot products determine attention weights.
+            targets:
+              - insertion-construction
+            color: green
+            linger: 0.25
+      - say: Another method, ALiBi, adds a distance bias directly to the scores. These insertion points matter. We'll
+          concentrate on RoPE's middle route, where a small rotation produces an exact relationship between
+          two positions.
+        hold: 0.5
+        visual_cues:
+          - id: insertion-score-insertion-2-b3-1
+            phrase: distance bias directly to the scores
+            targets:
+              - score-insertion-2
+            color: yellow
+            linger: 0.6
+          - id: rp-insertion-2-0
+            phrase: Another method, ALiBi, adds a distance bias directly to the scores.
+            targets:
+              - insertion-construction
+            color: blue
+            linger: 0.25
+          - id: rp-insertion-2-1
+            phrase: These insertion points matter.
+            targets:
+              - insertion-construction
+            color: blue
+            linger: 0.25
+          - id: rp-insertion-2-2
+            phrase: We'll concentrate on RoPE's middle route, where a small rotation produces an exact relationship
+              between two positions.
+            targets:
+              - insertion-construction
+            color: green
+            linger: 0.25
+  - id: absolute-waves
+    title: One slot drives several wave pairs
+    visual: The four retained frequency clocks construct sine-first position rows at zero and two, then add one
+      row coordinate by coordinate to the same content vector.
+    beats:
+      - say: Build the original Transformer's absolute signal before returning to rotary attention. An
+          eight-coordinate position vector contains four sine-cosine pairs with frequencies one, one-tenth,
+          one-hundredth and one-thousandth. Multiply the slot index by each frequency, then store its sine
+          followed by its cosine. At position zero the row alternates zero and one.
+        hold: 0.5
+        visual_cues:
+          - id: rp-absolute-waves-0-0
+            phrase: Build the original Transformer's absolute signal before returning to rotary attention.
+            targets:
+              - absolute-waves-construction
+            color: blue
+            linger: 0.25
+          - id: rp-absolute-waves-0-1
+            phrase: An eight-coordinate position vector contains four sine-cosine pairs with frequencies one, one-tenth,
+              one-hundredth and one-thousandth.
+            targets:
+              - absolute-waves-construction
+            color: blue
+            linger: 0.25
+          - id: rp-absolute-waves-0-2
+            phrase: Multiply the slot index by each frequency, then store its sine followed by its cosine.
+            targets:
+              - absolute-waves-construction
+            color: blue
+            linger: 0.25
+          - id: rp-absolute-waves-0-3
+            phrase: At position zero the row alternates zero and one.
+            targets:
+              - absolute-waves-construction
+            color: green
+            linger: 0.25
+      - say: "At position two, the first pair becomes sine two and cosine two: about zero point nine zero nine and
+          minus zero point four one six. Slower pairs have turned less. Their combined fingerprint is added
+          coordinate by coordinate to the token embedding, before all three projections. That means position
+          can directly enter the value projection as well as queries and keys."
+        hold: 0.5
+        visual_cues:
+          - id: rp-absolute-waves-1-0
+            phrase: "At position two, the first pair becomes sine two and cosine two: about zero point nine zero nine and
+              minus zero point four one six."
+            targets:
+              - absolute-waves-construction
+            color: blue
+            linger: 0.25
+          - id: rp-absolute-waves-1-1
+            phrase: Slower pairs have turned less.
+            targets:
+              - absolute-waves-construction
+            color: blue
+            linger: 0.25
+          - id: rp-absolute-waves-1-2
+            phrase: Their combined fingerprint is added coordinate by coordinate to the token embedding, before all three
+              projections.
+            targets:
+              - absolute-waves-construction
+            color: blue
+            linger: 0.25
+          - id: rp-absolute-waves-1-3
+            phrase: That means position can directly enter the value projection as well as queries and keys.
+            targets:
+              - absolute-waves-construction
+            color: green
+            linger: 0.25
+      - say: A wavelength is two pi divided by frequency. In the original five-hundred-twelve-wide schedule, dimension
+          pairs beginning at zero, sixty-four and five hundred ten have wavelengths about six, twenty and
+          sixty thousand six hundred eleven positions. Keep the first coordinate index distinct from the pair
+          index. With sine stored first, a shared offset acts through the corresponding sine-first rotation
+          convention.
+        hold: 0.5
+        visual_cues:
+          - id: rp-absolute-waves-2-0
+            phrase: A wavelength is two pi divided by frequency.
+            targets:
+              - absolute-waves-construction
+            color: blue
+            linger: 0.25
+          - id: rp-absolute-waves-2-1
+            phrase: In the original five-hundred-twelve-wide schedule, dimension pairs beginning at zero, sixty-four and
+              five hundred ten have wavelengths about six, twenty and sixty thousand six hundred eleven
+              positions.
+            targets:
+              - absolute-waves-construction
+            color: blue
+            linger: 0.25
+          - id: rp-absolute-waves-2-2
+            phrase: Keep the first coordinate index distinct from the pair index.
+            targets:
+              - absolute-waves-construction
+            color: blue
+            linger: 0.25
+          - id: rp-absolute-waves-2-3
+            phrase: With sine stored first, a shared offset acts through the corresponding sine-first rotation convention.
+            targets:
+              - absolute-waves-construction
+            color: green
+            linger: 0.25
+  - id: absolute-mixture
+    title: Addition creates four score terms
+    visual: The same content and position components make four actual dot-product contributions, including both
+      cross terms. A shared shift preserves the position-only dot under identity projection but changes a
+      supplied cross term.
+    beats:
+      - say: Addition preserves hidden width, but mixes two sources before projection. Expand a query from content
+          plus position against a key from content plus position. The dot product has content-content,
+          content-position, position-content and position-position terms. The two cross terms do not vanish
+          merely because the waves are paired.
+        hold: 0.5
+        visual_cues:
+          - id: rp-absolute-mixture-0-0
+            phrase: Addition preserves hidden width, but mixes two sources before projection.
+            targets:
+              - absolute-mixture-construction
+            color: blue
+            linger: 0.25
+          - id: rp-absolute-mixture-0-1
+            phrase: Expand a query from content plus position against a key from content plus position.
+            targets:
+              - absolute-mixture-construction
+            color: blue
+            linger: 0.25
+          - id: rp-absolute-mixture-0-2
+            phrase: The dot product has content-content, content-position, position-content and position-position terms.
+            targets:
+              - absolute-mixture-construction
+            color: blue
+            linger: 0.25
+          - id: rp-absolute-mixture-0-3
+            phrase: The two cross terms do not vanish merely because the waves are paired.
+            targets:
+              - absolute-mixture-construction
+            color: green
+            linger: 0.25
+      - say: If the combined query-key projection is the identity, each position-only pair contributes the cosine of
+          its offset. A general learned projection need not preserve that shared-shift relationship. In
+          column-vector notation, transpose the shared-offset rotation, multiply by the learned bilinear
+          matrix, then multiply by the rotation. Shared-shift invariance requires that result to equal the
+          original bilinear matrix. Even equal query and key projection matrices do not guarantee it.
+        hold: 0.5
+        visual_cues:
+          - id: rp-absolute-mixture-1-0
+            phrase: If the combined query-key projection is the identity, each position-only pair contributes the cosine
+              of its offset.
+            targets:
+              - absolute-mixture-construction
+            color: blue
+            linger: 0.25
+          - id: rp-absolute-mixture-1-1
+            phrase: A general learned projection need not preserve that shared-shift relationship.
+            targets:
+              - absolute-mixture-construction
+            color: blue
+            linger: 0.25
+          - id: rp-absolute-mixture-1-2
+            phrase: In column-vector notation, transpose the shared-offset rotation, multiply by the learned bilinear
+              matrix, then multiply by the rotation.
+            targets:
+              - absolute-mixture-construction
+            color: blue
+            linger: 0.25
+          - id: rp-absolute-mixture-1-3
+            phrase: Shared-shift invariance requires that result to equal the original bilinear matrix.
+            targets:
+              - absolute-mixture-construction
+            color: blue
+            linger: 0.25
+          - id: rp-absolute-mixture-1-4
+            phrase: Even equal query and key projection matrices do not guarantee it.
+            targets:
+              - absolute-mixture-construction
+            color: green
+            linger: 0.25
+      - say: This differs from the fixed-content rotary identity we will derive. Adding two width-d vectors keeps
+          width d. Concatenating them produces width two d unless another projection reduces it. If the whole
+          transformer keeps that doubled width, square query, key and value matrices have four times as many
+          entries. For a supplied width two hundred fifty-six, doubling to five hundred twelve changes each
+          square from sixty-five thousand five hundred thirty-six entries to two hundred sixty-two thousand
+          one hundred forty-four.
+        hold: 0.5
+        visual_cues:
+          - id: rp-absolute-mixture-2-0
+            phrase: This differs from the fixed-content rotary identity we will derive.
+            targets:
+              - absolute-mixture-construction
+            color: blue
+            linger: 0.25
+          - id: rp-absolute-mixture-2-1
+            phrase: Adding two width-d vectors keeps width d.
+            targets:
+              - absolute-mixture-construction
+            color: blue
+            linger: 0.25
+          - id: rp-absolute-mixture-2-2
+            phrase: Concatenating them produces width two d unless another projection reduces it.
+            targets:
+              - absolute-mixture-construction
+            color: blue
+            linger: 0.25
+          - id: rp-absolute-mixture-2-3
+            phrase: If the whole transformer keeps that doubled width, square query, key and value matrices have four
+              times as many entries.
+            targets:
+              - absolute-mixture-construction
+            color: blue
+            linger: 0.25
+          - id: rp-absolute-mixture-2-4
+            phrase: For a supplied width two hundred fifty-six, doubling to five hundred twelve changes each square from
+              sixty-five thousand five hundred thirty-six entries to two hundred sixty-two thousand one
+              hundred forty-four.
+            targets:
+              - absolute-mixture-construction
+            color: green
+            linger: 0.25
+  - id: finite-table
+    title: A learned table has a real last row
+    visual: A4096-row learned table admits4095 and rejects4096. A sinusoidal formula produces a new row outside
+      that table while separate task-evaluation receipts remain pending.
+    beats:
+      - say: A learned absolute table with four thousand ninety-six rows supplies indices zero through four thousand
+          ninety-five. Index four thousand ninety-six is already missing. Extending or remapping it changes
+          the design and needs adaptation. A sinusoidal formula can be evaluated beyond its training range,
+          although a cached implementation may still need a larger buffer.
+        hold: 0.5
+        visual_cues:
+          - id: rp-finite-table-0-0
+            phrase: A learned absolute table with four thousand ninety-six rows supplies indices zero through four
+              thousand ninety-five.
+            targets:
+              - finite-table-construction
+            color: blue
+            linger: 0.25
+          - id: rp-finite-table-0-1
+            phrase: Index four thousand ninety-six is already missing.
+            targets:
+              - finite-table-construction
+            color: blue
+            linger: 0.25
+          - id: rp-finite-table-0-2
+            phrase: Extending or remapping it changes the design and needs adaptation.
+            targets:
+              - finite-table-construction
+            color: blue
+            linger: 0.25
+          - id: rp-finite-table-0-3
+            phrase: A sinusoidal formula can be evaluated beyond its training range, although a cached implementation may
+              still need a larger buffer.
+            targets:
+              - finite-table-construction
+            color: green
+            linger: 0.25
+      - say: Look at the row on the right. Each coordinate lies between minus one and one, even at
+          position four thousand ninety-six. To find out how well the model uses that row, try a task
+          at that length. The original Transformer compared fixed and learned positions with nearly
+          identical translation results in that experiment. Reproduce the checkpoint's insertion point
+          first, then test the lengths and tasks you intend to serve.
+        hold: 0.5
+        visual_cues:
+          - id: rp-finite-table-1-0
+            phrase: Look at the row on the right. Each coordinate lies between minus one and one, even at
+              position four thousand ninety-six.
+            targets:
+              - finite-table-construction
+            color: blue
+            linger: 0.25
+          - id: rp-finite-table-1-1
+            phrase: To find out how well the model uses that row, try a task at that length.
+            targets:
+              - finite-table-construction
+            color: blue
+            linger: 0.25
+          - id: rp-finite-table-1-2
+            phrase: The original Transformer compared fixed and learned positions with nearly identical translation
+              results in that experiment.
+            targets:
+              - finite-table-construction
+            color: blue
+            linger: 0.25
+          - id: rp-finite-table-1-3
+            phrase: Reproduce the checkpoint's insertion point first, then test the lengths and tasks you intend to serve.
+            targets:
+              - finite-table-construction
+            color: green
+            linger: 0.25
+  - id: rotation
+    title: A position becomes an angle
+    visual: A large query arrow turns around a fixed Cartesian origin through an angle equal to position times
+      frequency. Its trail, coordinate projections, and norm remain tied to the same exact rotated vector.
+    beats:
+      - say: Take two coordinates from a query and draw them as an arrow. Moving around this circle changes its
+          direction while preserving its length. That's the operation RoPE applies to the pair.
+        hold: 0.4
+        visual_cues:
+          - id: rotation-rotating-coordinate-pair-b1-1
+            phrase: preserving its length
+            targets:
+              - rotating-coordinate-pair
+            color: cyan
+            linger: 0.6
+          - id: rp-rotation-0-0
+            phrase: Take two coordinates from a query and draw them as an arrow.
+            targets:
+              - rotation-construction
+            color: blue
+            linger: 0.25
+          - id: rp-rotation-0-1
+            phrase: Moving around this circle changes its direction while preserving its length.
+            targets:
+              - rotation-construction
+            color: blue
+            linger: 0.25
+          - id: rp-rotation-0-2
+            phrase: That's the operation RoPE applies to the pair.
+            targets:
+              - rotation-construction
+            color: green
+            linger: 0.25
+      - say: "Choose a frequency: the angle added for each position step. Multiply that frequency by the token's
+          position. Advance the position slider and the arrow turns by exactly the resulting angle."
+        hold: 0.5
+        visual_cues:
+          - id: rotation-position-frequency-product-b2-1
+            phrase: Multiply that frequency
+            targets:
+              - position-frequency-product
+            color: yellow
+            linger: 0.6
+          - id: rp-rotation-1-0
+            phrase: "Choose a frequency: the angle added for each position step."
+            targets:
+              - rotation-construction
+            color: blue
+            linger: 0.25
+          - id: rp-rotation-1-1
+            phrase: Multiply that frequency by the token's position.
+            targets:
+              - rotation-construction
+            color: blue
+            linger: 0.25
+          - id: rp-rotation-1-2
+            phrase: Advance the position slider and the arrow turns by exactly the resulting angle.
+            targets:
+              - rotation-construction
+            color: green
+            linger: 0.25
+      - say: The horizontal and vertical coordinates change together. They still describe the same length, so this
+          operation introduces position without amplifying the vector. We can write the entire motion as one
+          small matrix.
+        hold: 0.5
+        visual_cues:
+          - id: rotation-preserved-vector-length-b3-1
+            phrase: same length
+            targets:
+              - preserved-vector-length
+            color: green
+            linger: 0.6
+          - id: rp-rotation-2-0
+            phrase: The horizontal and vertical coordinates change together.
+            targets:
+              - rotation-construction
+            color: blue
+            linger: 0.25
+          - id: rp-rotation-2-1
+            phrase: They still describe the same length, so this operation introduces position without amplifying the
+              vector.
+            targets:
+              - rotation-construction
+            color: blue
+            linger: 0.25
+          - id: rp-rotation-2-2
+            phrase: We can write the entire motion as one small matrix.
+            targets:
+              - rotation-construction
+            color: green
+            linger: 0.25
+  - id: matrix
+    title: The matrix is the moving picture
+    visual: The two basis arrows rotate through the same angle. Their exact cosine/sine coordinates appear as the
+      rotation matrix columns, then combine to form a rotated arbitrary query with two colored component
+      paths.
+    beats:
+      - say: Start with the horizontal unit arrow. After rotation, its coordinates are cosine and sine. The vertical
+          unit arrow turns by the same angle, giving negative sine and cosine.
+        hold: 0.5
+        visual_cues:
+          - id: matrix-rotated-horizontal-basis-b1-1
+            phrase: horizontal unit arrow
+            targets:
+              - rotated-horizontal-basis
+            color: cyan
+            linger: 0.6
+          - id: matrix-rotated-vertical-basis-b1-2
+            phrase: vertical unit arrow
+            targets:
+              - rotated-vertical-basis
+            color: yellow
+            linger: 0.6
+          - id: rp-matrix-0-0
+            phrase: Start with the horizontal unit arrow.
+            targets:
+              - matrix-construction
+            color: blue
+            linger: 0.25
+          - id: rp-matrix-0-1
+            phrase: After rotation, its coordinates are cosine and sine.
+            targets:
+              - matrix-construction
+            color: blue
+            linger: 0.25
+          - id: rp-matrix-0-2
+            phrase: The vertical unit arrow turns by the same angle, giving negative sine and cosine.
+            targets:
+              - matrix-construction
+            color: green
+            linger: 0.25
+      - say: Those two results are the columns of the rotation matrix. Every other arrow is a combination of the two
+          basis directions, so multiplying by this matrix rotates that arrow too.
+        hold: 0.5
+        visual_cues:
+          - id: matrix-rotation-matrix-b2-1
+            phrase: columns of the rotation matrix
+            targets:
+              - rotation-matrix
+            color: cyan
+            linger: 0.6
+          - id: rp-matrix-1-0
+            phrase: Those two results are the columns of the rotation matrix.
+            targets:
+              - matrix-construction
+            color: blue
+            linger: 0.25
+          - id: rp-matrix-1-1
+            phrase: Every other arrow is a combination of the two basis directions, so multiplying by this matrix rotates
+              that arrow too.
+            targets:
+              - matrix-construction
+            color: green
+            linger: 0.25
+      - say: For a query at position m, the angle is m times the frequency. A key at position n uses n times that same
+          frequency. Their individual directions now carry absolute position. Watch what happens when we
+          compare them.
+        hold: 0.5
+        visual_cues:
+          - id: matrix-rotated-horizontal-basis-b3-1
+            phrase: m times the frequency
+            targets:
+              - rotated-horizontal-basis
+            color: cyan
+            linger: 0.6
+          - id: rp-matrix-2-0
+            phrase: For a query at position m, the angle is m times the frequency.
+            targets:
+              - matrix-construction
+            color: blue
+            linger: 0.25
+          - id: rp-matrix-2-1
+            phrase: A key at position n uses n times that same frequency.
+            targets:
+              - matrix-construction
+            color: blue
+            linger: 0.25
+          - id: rp-matrix-2-2
+            phrase: Their individual directions now carry absolute position.
+            targets:
+              - matrix-construction
+            color: blue
+            linger: 0.25
+          - id: rp-matrix-2-3
+            phrase: Watch what happens when we compare them.
+            targets:
+              - matrix-construction
+            color: green
+            linger: 0.25
+  - id: dot-product
+    title: Measuring alignment
+    visual: A perpendicular from the yellow key meets the cyan query axis. A green marker on a signed ruler
+      reads off their dot product as the key turns.
+    beats:
+      - say: Start with two unit arrows pointing right. The green mark lies one unit out along the query. Turn
+          the key a quarter turn. Its tip is directly above the origin, so its projection is zero. Turn it
+          another quarter turn. The mark reaches minus one. That signed reading is the dot product for
+          these two unit arrows.
+        hold: 0.8
+        visual_cues:
+          - id: quarter-turn
+            phrase: Turn the key a quarter turn
+            targets:
+              - alignment
+            color: yellow
+            linger: 0.25
+            caption_boundary: true
+          - id: half-turn
+            phrase: Turn it another quarter turn
+            targets:
+              - projection-score
+            color: green
+            linger: 0.25
+            caption_boundary: true
+      - say: Bring the key back alongside the query. Use half a radian per position. Rotate the query for
+          position five and the key for position three. From the yellow tip, drop a perpendicular onto the
+          blue query. The green mark tells us how much of the key points along it.
+        hold: 0.6
+        visual_cues:
+          - id: reset-key
+            phrase: Bring the key back alongside the query
+            targets:
+              - alignment
+            color: cyan
+            linger: 0.25
+            caption_boundary: true
+          - id: position-the-pair
+            phrase: Rotate the query for position five and the key for position three
+            targets:
+              - alignment
+            color: yellow
+            linger: 0.25
+            caption_boundary: true
+      - say: From query to key, that's three minus five, times one half. The key trails by one radian. The cosine
+          of minus one is about point five four. We started these unit vectors in the same direction so we
+          could isolate what position contributed.
+        hold: 0.6
+        visual_cues:
+          - id: read-projection
+            phrase: cosine of minus one is about point five four
+            targets:
+              - projection-score
+            color: green
+            linger: 0.25
+            caption_boundary: true
+  - id: shared-shift
+    title: Move both positions
+    visual: A fixed bracket joins the positions of cats and dogs. Both arrows rotate under a common
+      translation. A separate trial doubles the query length with the two indices held still.
+    beats:
+      - say: Here are cats and dogs again, at three and five. Use the same unit key for cats and the same unit
+          query for dogs. Their dot product is point five four. What will it be if we move both positions
+          eight places forward?
+        hold: 2.1
+        visual_cues:
+          - id: shift-prediction
+            phrase: What will it be if we move both positions eight places forward
+            targets:
+              - paired-positions
+            color: pink
+            linger: 0.25
+            caption_boundary: true
+      - say: Slide them together. Both arrows turn. The key is still two places behind the query. The green
+          projection turns with them and keeps its length. The dot product is still point five four.
+        hold: 0.8
+        caption_starts:
+          - The dot product is still point five four
+        visual_cues:
+          - id: shift-both
+            phrase: Slide them together. Both arrows turn
+            targets:
+              - paired-positions
+            color: pink
+            linger: 0.25
+            caption_boundary: true
+          - id: read-offset
+            phrase: The key is still two places behind the query
+            targets:
+              - shifted-score
+            color: green
+            linger: 0.25
+            caption_boundary: true
+      - say: In the dot product, transposing the query rotation undoes its turn. Combine that with the key
+          rotation and only the difference of the angles remains. This works for fixed query and key
+          content when both use the same frequency schedule.
+        hold: 0.6
+        visual_cues:
+          - id: cancel-rotations
+            phrase: only the difference of the angles remains
+            targets:
+              - shifted-score
+            color: pink
+            linger: 0.25
+            caption_boundary: true
+      - say: Now keep the positions still and double the length of the query. The projection of the unit key
+          stays where it was. Multiply that projection by the new query length, two, and the dot product
+          rises to about one point zero eight. Earlier layers can change the content of these arrows when
+          you change the surrounding text.
+        hold: 0.7
+        visual_cues:
+          - id: double-query
+            phrase: double the length of the query
+            targets:
+              - shifted-arrows
+            color: cyan
+            linger: 0.25
+            caption_boundary: true
+  - id: frequencies
+    title: Four pairs, one offset
+    visual: Four dials face their respective query directions. The same two-position move turns a key at four
+      angular speeds. Its four projections become signed contributions to one scaled logit.
+    beats:
+      - say: Give one head eight coordinates. Each neighboring pair can turn at its own speed. On each dial the
+          blue query points right in its own frame. The yellow key starts aligned with it. The rates under
+          the dials are radians per position. Suppose the query stays at four and the key moves back to two.
+          Which pair will contribute a negative dot product?
+        hold: 2.2
+        visual_cues:
+          - id: compare-rates
+            phrase: Which pair will contribute a negative dot product
+            targets:
+              - pair-0
+              - pair-1
+              - pair-2
+              - pair-3
+            color: cyan
+            linger: 0.25
+            caption_boundary: true
+      - say: Take those two steps back. The first key turns clockwise by two radians and crosses the vertical
+          line. Look at its projection. It lands to the left of zero and contributes about minus point four
+          two. Each successive pair turns a tenth as far. Those other three projections still point right.
+        hold: 0.8
+        caption_starts:
+          - The first key turns clockwise
+          - It lands to the left of zero
+        visual_cues:
+          - id: separate-positions
+            phrase: Take those two steps back
+            targets:
+              - pair-0
+              - pair-1
+              - pair-2
+              - pair-3
+            color: yellow
+            linger: 0.25
+            caption_boundary: true
+          - id: read-projections
+            phrase: Look at its projection
+            targets:
+              - pair-0
+            color: green
+            linger: 0.25
+            caption_boundary: true
+      - say: Add all four contributions. The dot product is about two point five six. Divide by the square root
+          of eight, the head width, and the logit is about point nine one. These rates come from base ten
+          thousand with rotary width eight. To reproduce a checkpoint, use its base, rotary width, scaling
+          rule and coordinate pairing.
+        hold: 0.8
+        visual_cues:
+          - id: sum-pairs
+            phrase: Add all four contributions
+            targets:
+              - head-total
+            color: green
+            linger: 0.25
+            caption_boundary: true
+          - id: scale-head
+            phrase: Divide by the square root of eight
+            targets:
+              - head-total
+            color: green
+            linger: 0.25
+            caption_boundary: true
+          - id: base-schedule
+            phrase: base ten thousand with rotary width eight
+            targets:
+              - schedule-rule
+              - pair-0
+              - pair-1
+              - pair-2
+              - pair-3
+            color: blue
+            linger: 0.25
+  - id: full-head-contract
+    title: Rotate the configured prefix and sum every part
+    visual: An eight-channel head is split into a four-channel rotary prefix and untouched suffix. Actual pair
+      products and the suffix dot add to the full score; a complex multiplication yields the same rotated
+      pair.
+    beats:
+      - say: The original angular schedule for pair i is base raised to minus two i divided by the rotary width, with
+          i starting at zero. The rotary width is positive and even. It can be smaller than the full head
+          width. In that partial case, rotate only the configured prefix and leave the remaining coordinates
+          unchanged. The full dot product includes both rotated pair contributions and the untouched suffix.
+        hold: 0.5
+        visual_cues:
+          - id: rp-full-head-contract-0-0
+            phrase: The original angular schedule for pair i is base raised to minus two i divided by the rotary width,
+              with i starting at zero.
+            targets:
+              - full-head-contract-construction
+            color: blue
+            linger: 0.25
+          - id: rp-full-head-contract-0-1
+            phrase: The rotary width is positive and even.
+            targets:
+              - full-head-contract-construction
+            color: blue
+            linger: 0.25
+          - id: rp-full-head-contract-0-2
+            phrase: It can be smaller than the full head width.
+            targets:
+              - full-head-contract-construction
+            color: blue
+            linger: 0.25
+          - id: rp-full-head-contract-0-3
+            phrase: In that partial case, rotate only the configured prefix and leave the remaining coordinates unchanged.
+            targets:
+              - full-head-contract-construction
+            color: blue
+            linger: 0.25
+          - id: rp-full-head-contract-0-4
+            phrase: The full dot product includes both rotated pair contributions and the untouched suffix.
+            targets:
+              - full-head-contract-construction
+            color: green
+            linger: 0.25
+      - say: The full attention logit divides that dot product by the square root of the head dimension, not
+          automatically the smaller rotary width. A pair can also be written as the complex number x plus i y,
+          multiplied by cosine angle plus i sine angle. Elementwise sine and cosine operations implement that
+          same rotation without constructing a large sparse matrix. A pure rotation preserves the vector norm
+          in exact arithmetic; a later amplitude multiplier is a different operation.
+        hold: 0.5
+        visual_cues:
+          - id: rp-full-head-contract-1-0
+            phrase: The full attention logit divides that dot product by the square root of the head dimension, not
+              automatically the smaller rotary width.
+            targets:
+              - full-head-contract-construction
+            color: blue
+            linger: 0.25
+          - id: rp-full-head-contract-1-1
+            phrase: A pair can also be written as the complex number x plus i y, multiplied by cosine angle plus i sine
+              angle.
+            targets:
+              - full-head-contract-construction
+            color: blue
+            linger: 0.25
+          - id: rp-full-head-contract-1-2
+            phrase: Elementwise sine and cosine operations implement that same rotation without constructing a large
+              sparse matrix.
+            targets:
+              - full-head-contract-construction
+            color: blue
+            linger: 0.25
+          - id: rp-full-head-contract-1-3
+            phrase: A pure rotation preserves the vector norm in exact arithmetic; a later amplitude multiplier is a
+              different operation.
+            targets:
+              - full-head-contract-construction
+            color: green
+            linger: 0.25
+  - id: pair-sum
+    title: The head adds the pair scores
+    visual: Two rotating query/key pairs feed separately computed signed cosine contributions into a running sum.
+      Varying the relative distance moves both dials, bars and the exact total together; the displayed score
+      includes both frequencies.
+    beats:
+      - say: Each coordinate pair contributes a dot product. The head's full dot product adds those contributions, so
+          its position response combines several frequencies with the query and key content.
+        hold: 0.4
+        visual_cues:
+          - id: pair-sum-head-summed-score-b1-1
+            phrase: adds those contributions
+            targets:
+              - head-summed-score
+            color: green
+            linger: 0.6
+          - id: rp-pair-sum-0-0
+            phrase: Each coordinate pair contributes a dot product.
+            targets:
+              - pair-sum-construction
+            color: blue
+            linger: 0.25
+          - id: rp-pair-sum-0-1
+            phrase: The head's full dot product adds those contributions, so its position response combines several
+              frequencies with the query and key content.
+            targets:
+              - pair-sum-construction
+            color: green
+            linger: 0.25
+      - say: Here two pairs start with unit content vectors. As the distance changes, the fast contribution oscillates
+          and the slow contribution changes gradually. Their sum follows both motions. All the displayed
+          values come from these actual angles.
+        hold: 0.6
+        motion_check:
+          region:
+            - 210
+            - 370
+            - 1590
+            - 470
+          minimumChangedFraction: 0.002
+        visual_cues:
+          - id: pair-sum-frequency-contribution-0-b2-1
+            phrase: fast contribution oscillates
+            targets:
+              - frequency-contribution-0
+            color: cyan
+            linger: 0.6
+          - id: pair-sum-frequency-contribution-1-b2-2
+            phrase: slow contribution changes gradually
+            targets:
+              - frequency-contribution-1
+            color: yellow
+            linger: 0.6
+          - id: rp-pair-sum-1-0
+            phrase: Here two pairs start with unit content vectors.
+            targets:
+              - pair-sum-construction
+            color: blue
+            linger: 0.25
+          - id: rp-pair-sum-1-1
+            phrase: As the distance changes, the fast contribution oscillates and the slow contribution changes gradually.
+            targets:
+              - pair-sum-construction
+            color: blue
+            linger: 0.25
+          - id: rp-pair-sum-1-2
+            phrase: Their sum follows both motions.
+            targets:
+              - pair-sum-construction
+            color: blue
+            linger: 0.25
+          - id: rp-pair-sum-1-3
+            phrase: All the displayed values come from these actual angles.
+            targets:
+              - pair-sum-construction
+            color: green
+            linger: 0.25
+      - say: General content vectors change each contribution's amplitude and phase. With the usual attention scaling
+          and softmax, these scores become weights among all permitted keys. A single pair's cosine gives us a
+          useful microscope on that larger calculation.
+        hold: 0.5
+        visual_cues:
+          - id: pair-sum-frequency-dot-pair-1-b3-1
+            phrase: amplitude and phase
+            targets:
+              - frequency-dot-pair-1
+            color: yellow
+            linger: 0.6
+          - id: rp-pair-sum-2-0
+            phrase: General content vectors change each contribution's amplitude and phase.
+            targets:
+              - pair-sum-construction
+            color: blue
+            linger: 0.25
+          - id: rp-pair-sum-2-1
+            phrase: With the usual attention scaling and softmax, these scores become weights among all permitted keys.
+            targets:
+              - pair-sum-construction
+            color: blue
+            linger: 0.25
+          - id: rp-pair-sum-2-2
+            phrase: A single pair's cosine gives us a useful microscope on that larger calculation.
+            targets:
+              - pair-sum-construction
+            color: green
+            linger: 0.25
+  - id: pairing-contract
+    title: Equal norms can hide different coordinate pairings
+    visual: Retain Q[1,2,3,4] and K[4,3,2,1], construct adjacent and split-half pair connections, compute wrong
+      score, then permute both projection outputs to recover the original score. A suffix remains fixed.
+    beats:
+      - say: A checkpoint also specifies which coordinates belong together. Adjacent pairing reads x zero, y zero, x
+          one, y one. Split-half pairing stores x zero, x one, y zero, y one, and its partner transform is
+          minus y zero, minus y one, x zero, x one. Cosine and sine arrays must follow the same convention.
+        hold: 0.5
+        visual_cues:
+          - id: rp-pairing-contract-0-0
+            phrase: A checkpoint also specifies which coordinates belong together.
+            targets:
+              - pairing-contract-construction
+            color: blue
+            linger: 0.25
+          - id: rp-pairing-contract-0-1
+            phrase: Adjacent pairing reads x zero, y zero, x one, y one.
+            targets:
+              - pairing-contract-construction
+            color: blue
+            linger: 0.25
+          - id: rp-pairing-contract-0-2
+            phrase: Split-half pairing stores x zero, x one, y zero, y one, and its partner transform is minus y zero,
+              minus y one, x zero, x one.
+            targets:
+              - pairing-contract-construction
+            color: blue
+            linger: 0.25
+          - id: rp-pairing-contract-0-3
+            phrase: Cosine and sine arrays must follow the same convention.
+            targets:
+              - pairing-contract-construction
+            color: green
+            linger: 0.25
+      - say: The article's supplied four-coordinate example gives an adjacent score of about minus zero point seven
+          six. Switching the helper to split halves without converting the coordinates gives about minus one
+          point six one six, even though both rotations preserve norms. Reordering both vectors consistently
+          restores the original score. A norm-only check would miss this defect.
+        hold: 0.5
+        visual_cues:
+          - id: rp-pairing-contract-1-0
+            phrase: The article's supplied four-coordinate example gives an adjacent score of about minus zero point seven
+              six.
+            targets:
+              - pairing-contract-construction
+            color: blue
+            linger: 0.25
+          - id: rp-pairing-contract-1-1
+            phrase: Switching the helper to split halves without converting the coordinates gives about minus one point
+              six one six, even though both rotations preserve norms.
+            targets:
+              - pairing-contract-construction
+            color: blue
+            linger: 0.25
+          - id: rp-pairing-contract-1-2
+            phrase: Reordering both vectors consistently restores the original score.
+            targets:
+              - pairing-contract-construction
+            color: blue
+            linger: 0.25
+          - id: rp-pairing-contract-1-3
+            phrase: A norm-only check would miss this defect.
+            targets:
+              - pairing-contract-construction
+            color: green
+            linger: 0.25
+      - say: For a real checkpoint conversion, permute the output coordinates of every affected query and key
+          projection, including biases if present. Keep that permutation inside the rotary prefix for partial
+          RoPE. Changing only the helper or old cached keys does not convert the model. Compare numerical
+          scores and outputs against the reference design.
+        hold: 0.5
+        visual_cues:
+          - id: rp-pairing-contract-2-0
+            phrase: For a real checkpoint conversion, permute the output coordinates of every affected query and key
+              projection, including biases if present.
+            targets:
+              - pairing-contract-construction
+            color: blue
+            linger: 0.25
+          - id: rp-pairing-contract-2-1
+            phrase: Keep that permutation inside the rotary prefix for partial RoPE.
+            targets:
+              - pairing-contract-construction
+            color: blue
+            linger: 0.25
+          - id: rp-pairing-contract-2-2
+            phrase: Changing only the helper or old cached keys does not convert the model.
+            targets:
+              - pairing-contract-construction
+            color: blue
+            linger: 0.25
+          - id: rp-pairing-contract-2-3
+            phrase: Compare numerical scores and outputs against the reference design.
+            targets:
+              - pairing-contract-construction
+            color: green
+            linger: 0.25
+  - id: routing
+    title: Position steers which values arrive
+    visual: One query compares three distinct rotated keys. Exact scaled dot products feed a softmax and
+      proportional flow paths to three fixed value tiles. As query position advances, the weighted value
+      mixture changes from the computed weights.
+    beats:
+      - say: Let's reconnect the geometry to attention. Rotate a query and several keys using their positions. Compute
+          their dot products, scale them, and apply softmax across the visible keys.
+        hold: 0.4
+        visual_cues:
+          - id: routing-routed-query-b1-1
+            phrase: Rotate a query
+            targets:
+              - routed-query
+            color: cyan
+            linger: 0.6
+          - id: rp-routing-0-0
+            phrase: Let's reconnect the geometry to attention.
+            targets:
+              - routing-construction
+            color: blue
+            linger: 0.25
+          - id: rp-routing-0-1
+            phrase: Rotate a query and several keys using their positions.
+            targets:
+              - routing-construction
+            color: blue
+            linger: 0.25
+          - id: rp-routing-0-2
+            phrase: Compute their dot products, scale them, and apply softmax across the visible keys.
+            targets:
+              - routing-construction
+            color: green
+            linger: 0.25
+      - say: As our query moves, its weights change. The thicker streams carry more of the corresponding values into
+          the output. Their widths follow the computed attention weights, keeping each contribution tied to
+          the changing positions.
+        hold: 0.6
+        visual_cues:
+          - id: routing-rotary-source-weight-0-b2-1
+            phrase: weights change
+            targets:
+              - rotary-source-weight-0
+            color: yellow
+            linger: 0.6
+          - id: rp-routing-1-0
+            phrase: As our query moves, its weights change.
+            targets:
+              - routing-construction
+            color: blue
+            linger: 0.25
+          - id: rp-routing-1-1
+            phrase: The thicker streams carry more of the corresponding values into the output.
+            targets:
+              - routing-construction
+            color: blue
+            linger: 0.25
+          - id: rp-routing-1-2
+            phrase: Their widths follow the computed attention weights, keeping each contribution tied to the changing
+              positions.
+            targets:
+              - routing-construction
+            color: green
+            linger: 0.25
+      - say: Standard RoPE directly rotates queries and keys in this step. The values keep their orientation and
+          supply the information being mixed. Position has changed the routing; earlier layers can already
+          have made those values depend on context.
+        hold: 0.5
+        visual_cues:
+          - id: routing-unrotated-value-0-b3-1
+            phrase: values keep their orientation
+            targets:
+              - unrotated-value-0
+            color: blue
+            linger: 0.6
+          - id: rp-routing-2-0
+            phrase: Standard RoPE directly rotates queries and keys in this step.
+            targets:
+              - routing-construction
+            color: blue
+            linger: 0.25
+          - id: rp-routing-2-1
+            phrase: The values keep their orientation and supply the information being mixed.
+            targets:
+              - routing-construction
+            color: blue
+            linger: 0.25
+          - id: rp-routing-2-2
+            phrase: Position has changed the routing; earlier layers can already have made those values depend on context.
+            targets:
+              - routing-construction
+            color: green
+            linger: 0.25
+  - id: phase-wrap
+    title: A rotating score can rise again
+    visual: A single pair rotates through more than one turn while a probe traces its exact cosine against
+      increasing distance. Highlight the trough and subsequent rise; a slower second phase stays visibly
+      distinct when the first completes a turn.
+    beats:
+      - say: Keep increasing the distance. One rotating pair eventually comes around again. Its score falls, reaches a
+          trough, and then rises. A single rotary pair therefore has an oscillating response to distance.
+        hold: 0.5
+        visual_cues:
+          - id: phase-wrap-wrapping-frequency-pair-b1-1
+            phrase: comes around again
+            targets:
+              - wrapping-frequency-pair
+            color: cyan
+            linger: 0.6
+          - id: rp-phase-wrap-0-0
+            phrase: Keep increasing the distance.
+            targets:
+              - phase-wrap-construction
+            color: blue
+            linger: 0.25
+          - id: rp-phase-wrap-0-1
+            phrase: One rotating pair eventually comes around again.
+            targets:
+              - phase-wrap-construction
+            color: blue
+            linger: 0.25
+          - id: rp-phase-wrap-0-2
+            phrase: Its score falls, reaches a trough, and then rises.
+            targets:
+              - phase-wrap-construction
+            color: blue
+            linger: 0.25
+          - id: rp-phase-wrap-0-3
+            phrase: A single rotary pair therefore has an oscillating response to distance.
+            targets:
+              - phase-wrap-construction
+            color: green
+            linger: 0.25
+      - say: Different frequencies help distinguish offsets that look similar to one pair. The full head adds those
+          responses along with content. This richer pattern still needs a model trained to use it.
+        hold: 0.5
+        visual_cues:
+          - id: phase-wrap-slower-frequency-pair-b2-1
+            phrase: Different frequencies
+            targets:
+              - slower-frequency-pair
+            color: yellow
+            linger: 0.6
+          - id: rp-phase-wrap-1-0
+            phrase: Different frequencies help distinguish offsets that look similar to one pair.
+            targets:
+              - phase-wrap-construction
+            color: blue
+            linger: 0.25
+          - id: rp-phase-wrap-1-1
+            phrase: The full head adds those responses along with content.
+            targets:
+              - phase-wrap-construction
+            color: blue
+            linger: 0.25
+          - id: rp-phase-wrap-1-2
+            phrase: This richer pattern still needs a model trained to use it.
+            targets:
+              - phase-wrap-construction
+            color: green
+            linger: 0.25
+      - say: At longer lengths, slower bands can enter less familiar phase ranges, and the model also faces more
+          distractors. That combination makes distant retrieval an empirical question. First, compare this
+          rotating geometry with a method that applies a direct recency penalty.
+        hold: 0.5
+        visual_cues:
+          - id: phase-wrap-current-distance-score-b3-1
+            phrase: less familiar phase ranges
+            targets:
+              - current-distance-score
+            color: pink
+            linger: 0.6
+          - id: rp-phase-wrap-2-0
+            phrase: At longer lengths, slower bands can enter less familiar phase ranges, and the model also faces more
+              distractors.
+            targets:
+              - phase-wrap-construction
+            color: blue
+            linger: 0.25
+          - id: rp-phase-wrap-2-1
+            phrase: That combination makes distant retrieval an empirical question.
+            targets:
+              - phase-wrap-construction
+            color: blue
+            linger: 0.25
+          - id: rp-phase-wrap-2-2
+            phrase: First, compare this rotating geometry with a method that applies a direct recency penalty.
+            targets:
+              - phase-wrap-construction
+            color: green
+            linger: 0.25
+  - id: axial-coordinates
+    title: Image patches have two independent offsets
+    visual: The same two patch identities move through a2D grid while height/width dials remain separate. A shared
+      spatial shift preserves score1.877583; discarding height makes the patches falsely colocated and changes
+      score2. Raster gaps change with grid width.
+    beats:
+      - say: An image patch has height and width coordinates, even if storage flattens it into a token row. A simple
+          axial construction gives one set of rotary pairs to height and another to width. Its fixed-vector
+          score then depends on both coordinate differences. A shared spatial shift cancels on each axis.
+        hold: 0.5
+        visual_cues:
+          - id: rp-axial-coordinates-0-0
+            phrase: An image patch has height and width coordinates, even if storage flattens it into a token row.
+            targets:
+              - axial-coordinates-construction
+            color: blue
+            linger: 0.25
+          - id: rp-axial-coordinates-0-1
+            phrase: A simple axial construction gives one set of rotary pairs to height and another to width.
+            targets:
+              - axial-coordinates-construction
+            color: blue
+            linger: 0.25
+          - id: rp-axial-coordinates-0-2
+            phrase: Its fixed-vector score then depends on both coordinate differences.
+            targets:
+              - axial-coordinates-construction
+            color: blue
+            linger: 0.25
+          - id: rp-axial-coordinates-0-3
+            phrase: A shared spatial shift cancels on each axis.
+            targets:
+              - axial-coordinates-construction
+            color: green
+            linger: 0.25
+      - say: "Use two unit pairs, each with frequency one-half. Query patch one, one and key patch zero, one differ
+          only in height. Their score is cosine one-half plus one, about one point eight seven eight. Shift
+          both by height four and width seven: that score stays fixed. Discard height IDs instead and both
+          patches appear colocated, producing two. The changed score comes from the lost coordinate."
+        hold: 0.5
+        visual_cues:
+          - id: rp-axial-coordinates-1-0
+            phrase: Use two unit pairs, each with frequency one-half.
+            targets:
+              - axial-coordinates-construction
+            color: blue
+            linger: 0.25
+          - id: rp-axial-coordinates-1-1
+            phrase: Query patch one, one and key patch zero, one differ only in height.
+            targets:
+              - axial-coordinates-construction
+            color: blue
+            linger: 0.25
+          - id: rp-axial-coordinates-1-2
+            phrase: Their score is cosine one-half plus one, about one point eight seven eight.
+            targets:
+              - axial-coordinates-construction
+            color: blue
+            linger: 0.25
+          - id: rp-axial-coordinates-1-3
+            phrase: "Shift both by height four and width seven: that score stays fixed."
+            targets:
+              - axial-coordinates-construction
+            color: blue
+            linger: 0.25
+          - id: rp-axial-coordinates-1-4
+            phrase: Discard height IDs instead and both patches appear colocated, producing two.
+            targets:
+              - axial-coordinates-construction
+            color: blue
+            linger: 0.25
+          - id: rp-axial-coordinates-1-5
+            phrase: The changed score comes from the lost coordinate.
+            targets:
+              - axial-coordinates-construction
+            color: green
+            linger: 0.25
+      - say: "A vertical neighbor's raster-index gap equals grid width, so resizing a grid changes that
+          one-dimensional gap. This two-axis toy is distinct from a complete multimodal checkpoint. Qwen two
+          point five V L's report uses temporal, height and width axes: text repeats its position on all axes,
+          while images keep a constant temporal ID and spatial patch IDs. Preserve processor axis allocation
+          and continuation rules rather than advancing every axis by cache token count."
+        hold: 0.5
+        visual_cues:
+          - id: rp-axial-coordinates-2-0
+            phrase: A vertical neighbor's raster-index gap equals grid width, so resizing a grid changes that
+              one-dimensional gap.
+            targets:
+              - axial-coordinates-construction
+            color: blue
+            linger: 0.25
+          - id: rp-axial-coordinates-2-1
+            phrase: This two-axis toy is distinct from a complete multimodal checkpoint.
+            targets:
+              - axial-coordinates-construction
+            color: blue
+            linger: 0.25
+          - id: rp-axial-coordinates-2-2
+            phrase: "Qwen two point five V L's report uses temporal, height and width axes: text repeats its position on
+              all axes, while images keep a constant temporal ID and spatial patch IDs."
+            targets:
+              - axial-coordinates-construction
+            color: blue
+            linger: 0.25
+          - id: rp-axial-coordinates-2-3
+            phrase: Preserve processor axis allocation and continuation rules rather than advancing every axis by cache
+              token count.
+            targets:
+              - axial-coordinates-construction
+            color: green
+            linger: 0.25
+  - id: alibi
+    title: Four positions back
+    visual: Two heads compare the same self-key and a second key four positions back. The computed penalty
+      and the resulting softmax share sit on the same row as each head slope.
+    beats:
+      - say: Keep the query and its self-key at ten. The yellow key starts one position back. Both keys have a
+          content logit of four after scaling. We'll move the yellow key to six. One head subtracts a half
+          per position and the other subtracts a sixteenth. Which head will
+          give that older key the larger share?
+        hold: 2
+        visual_cues:
+          - id: compare-slopes
+            phrase: Which head will give that older key the larger share
+            targets:
+              - slope-0
+              - slope-1
+            color: blue
+            linger: 0.25
+            caption_boundary: true
+      - say: Move the key back to six. In the first row the head subtracts four halves, leaving two. The gentler
+          head subtracts only a quarter, leaving three point seven five. Compare each with the self-key's
+          four. The gentler head gives the older key almost forty-four percent of its two-key softmax.
+          That's the recency bias called ALiBi. A stronger content match can overcome a finite penalty.
+        hold: 0.7
+        caption_starts:
+          - In the first row
+          - The gentler head subtracts
+        visual_cues:
+          - id: move-key-back
+            phrase: Move the key back to six
+            targets:
+              - key-distance
+            color: yellow
+            linger: 0.25
+            caption_boundary: true
+          - id: read-shares
+            phrase: The gentler head gives the older key almost forty-four percent
+            targets:
+              - slope-1
+            color: blue
+            linger: 0.25
+            caption_boundary: true
+      - say: Now consider a key at eleven. It's in the future for query ten. The causal mask sets that logit to
+          minus infinity and its weight to zero. The head applies the distance penalty to permitted keys
+          after scaling. RoPE turned the vectors. ALiBi changes the number that enters softmax.
+        hold: 0.7
+        visual_cues:
+          - id: mask-future
+            phrase: causal mask sets that logit to minus infinity
+            targets:
+              - future-mask
+            color: red
+            linger: 0.25
+            caption_boundary: true
+  - id: alibi-spectrum
+    title: A head slope gives an odds penalty
+    visual: Eight actual geometric slopes construct distance penalties. A separate three-head schedule appends the
+      correct reference extra slope. Far-versus-self odds remain distinguished from normalized probabilities.
+    beats:
+      - say: For a power-of-two head count H, the reference ALiBi slope for head h is two raised to minus eight h
+          divided by H, counting h from one through H. Eight heads therefore range from one-half to one
+          two-hundred-fifty-sixth. The largest slope changes with head count; the smallest in this schedule is
+          one two-hundred-fifty-sixth.
+        hold: 0.5
+        visual_cues:
+          - id: rp-alibi-spectrum-0-0
+            phrase: For a power-of-two head count H, the reference ALiBi slope for head h is two raised to minus eight h
+              divided by H, counting h from one through H.
+            targets:
+              - alibi-spectrum-construction
+            color: blue
+            linger: 0.25
+          - id: rp-alibi-spectrum-0-1
+            phrase: Eight heads therefore range from one-half to one two-hundred-fifty-sixth.
+            targets:
+              - alibi-spectrum-construction
+            color: blue
+            linger: 0.25
+          - id: rp-alibi-spectrum-0-2
+            phrase: The largest slope changes with head count; the smallest in this schedule is one
+              two-hundred-fifty-sixth.
+            targets:
+              - alibi-spectrum-construction
+            color: green
+            linger: 0.25
+      - say: Suppose we need three slopes. Start with the schedule for two heads, the largest power of two
+          below three. For the remaining head, take the first slope from the four-head schedule. If you
+          need more entries, take every other one. Three heads produce one-sixteenth, one
+          two-hundred-fifty-sixth and one-quarter. The steepest slope comes last because we appended
+          it.
+        hold: 0.5
+        visual_cues:
+          - id: rp-alibi-spectrum-1-0
+            phrase: Suppose we need three slopes. Start with the schedule for two heads, the largest power of
+              two below three.
+            targets:
+              - alibi-spectrum-construction
+            color: blue
+            linger: 0.25
+          - id: rp-alibi-spectrum-1-1
+            phrase: For the remaining head, take the first slope from the four-head schedule. If you need
+              more entries, take every other one.
+            targets:
+              - alibi-spectrum-construction
+            color: blue
+            linger: 0.25
+          - id: rp-alibi-spectrum-1-2
+            phrase: Three heads produce one-sixteenth, one two-hundred-fifty-sixth and one-quarter.
+            targets:
+              - alibi-spectrum-construction
+            color: blue
+            linger: 0.25
+          - id: rp-alibi-spectrum-1-3
+            phrase: The steepest slope comes last because we appended it.
+            targets:
+              - alibi-spectrum-construction
+            color: green
+            linger: 0.25
+      - say: Ten places back, a slope of one half subtracts five. With equal content scores, the older key
+          gets about point zero zero six seven times the weight of the self-key. Read the pink share of
+          the top strip. The older key gets about two thirds of one percent. Add a third visible key
+          with the same final score as the self-key. Now the older key gets about one third of one
+          percent. Its share shrank, but its weight divided by the self-key's weight stayed the same.
+        hold: 0.5
+        caption_starts:
+          - Read the pink share of the top strip
+          - Add a third visible key
+          - Now the older key gets
+        visual_cues:
+          - id: rp-alibi-spectrum-2-0
+            phrase: Ten places back, a slope of one half subtracts five. With equal content scores, the older
+              key gets about point zero zero six seven times the weight of the self-key.
+            targets:
+              - alibi-spectrum-construction
+            color: blue
+            linger: 0.25
+          - id: rp-alibi-spectrum-2-1
+            phrase: Read the pink share of the top strip. The older key gets about two thirds of one percent.
+            targets:
+              - alibi-spectrum-construction
+            color: blue
+            linger: 0.25
+          - id: rp-alibi-spectrum-2-2
+            phrase: Add a third visible key with the same final score as the self-key.
+            targets:
+              - alibi-spectrum-construction
+            color: blue
+            linger: 0.25
+          - id: rp-alibi-spectrum-2-3
+            phrase: Now the older key gets about one third of one percent. Its share shrank, but its weight
+              divided by the self-key's weight stayed the same.
+            targets:
+              - alibi-spectrum-construction
+            color: green
+            linger: 0.25
+  - id: far-content
+    title: A finite penalty can be overcome
+    visual: Keep far and self keys on the same two-entry softmax. Construct64-point penalty, then add a65-point
+      content advantage and recompute odds/mass; future key remains hard-masked.
+    beats:
+      - say: At distance sixteen thousand three hundred eighty-four, the gentlest of those eight heads subtracts
+          sixty-four. With equal content, its far-to-self odds are e to the minus sixty-four. Give that far
+          key a content advantage of sixty-five, however, and its net logit is one above self. In this
+          supplied two-key comparison, it receives about seventy-three percent of the mass.
+        hold: 0.5
+        visual_cues:
+          - id: rp-far-content-0-0
+            phrase: At distance sixteen thousand three hundred eighty-four, the gentlest of those eight heads subtracts
+              sixty-four.
+            targets:
+              - far-content-construction
+            color: blue
+            linger: 0.25
+          - id: rp-far-content-0-1
+            phrase: With equal content, its far-to-self odds are e to the minus sixty-four.
+            targets:
+              - far-content-construction
+            color: blue
+            linger: 0.25
+          - id: rp-far-content-0-2
+            phrase: Give that far key a content advantage of sixty-five, however, and its net logit is one above self.
+            targets:
+              - far-content-construction
+            color: blue
+            linger: 0.25
+          - id: rp-far-content-0-3
+            phrase: In this supplied two-key comparison, it receives about seventy-three percent of the mass.
+            targets:
+              - far-content-construction
+            color: green
+            linger: 0.25
+      - say: The distant key is still eligible, and here its content wins. Other heads and layers can also
+          pass information forward from earlier tokens. The ALiBi authors trained a
+          one-point-three-billion-parameter model at length one thousand twenty-four. At length two
+          thousand forty-eight it matched the perplexity of their longer-trained sinusoidal baseline.
+          In that comparison they used about eleven percent less memory and reached the same validation
+          perplexity about eleven percent faster.
+        hold: 0.5
+        visual_cues:
+          - id: rp-far-content-1-0
+            phrase: The distant key is still eligible, and here its content wins.
+            targets:
+              - far-content-construction
+            color: blue
+            linger: 0.25
+          - id: rp-far-content-1-1
+            phrase: Other heads and layers can also pass information forward from earlier tokens.
+            targets:
+              - far-content-construction
+            color: blue
+            linger: 0.25
+          - id: rp-far-content-1-2
+            phrase: The ALiBi authors trained a one-point-three-billion-parameter model at length one
+              thousand twenty-four. At length two thousand forty-eight it matched the perplexity of
+              their longer-trained sinusoidal baseline.
+            targets:
+              - far-content-construction
+            color: blue
+            linger: 0.25
+          - id: rp-far-content-1-3
+            phrase: In that comparison they used about eleven percent less memory and reached the same
+              validation perplexity about eleven percent faster.
+            targets:
+              - far-content-construction
+            color: green
+            linger: 0.25
+  - id: interpolation
+    title: A longer ruler changes local spacing
+    visual: A target position ruler four times the training length contracts continuously into the training
+      coordinate range. Actual mapped positions and adjacent phase angles change together; a pair of close
+      arrows demonstrates the reduced angular separation under scale four.
+    beats:
+      - say: Suppose we want a rotary checkpoint to handle a window four times longer. Position Interpolation divides
+          each position by four before computing its angles. The longer ruler compresses into the original
+          coordinate range.
+        hold: 0.5
+        visual_cues:
+          - id: interpolation-position-interpolation-rule-b1-1
+            phrase: divides each position by four
+            targets:
+              - position-interpolation-rule
+            color: cyan
+            linger: 0.6
+          - id: rp-interpolation-0-0
+            phrase: Suppose we want a rotary checkpoint to handle a window four times longer.
+            targets:
+              - interpolation-construction
+            color: blue
+            linger: 0.25
+          - id: rp-interpolation-0-1
+            phrase: Position Interpolation divides each position by four before computing its angles.
+            targets:
+              - interpolation-construction
+            color: blue
+            linger: 0.25
+          - id: rp-interpolation-0-2
+            phrase: The longer ruler compresses into the original coordinate range.
+            targets:
+              - interpolation-construction
+            color: green
+            linger: 0.25
+      - say: That also compresses the angular difference between adjacent tokens. They remain distinct, but their
+          local spacing changes. The displayed mapping is a geometric calculation; adapting the checkpoint and
+          testing its behavior are separate steps.
+        hold: 0.6
+        visual_cues:
+          - id: interpolation-adjacent-interpolated-phase-b2-1
+            phrase: angular difference between adjacent tokens
+            targets:
+              - adjacent-interpolated-phase
+            color: cyan
+            linger: 0.6
+          - id: rp-interpolation-1-0
+            phrase: That also compresses the angular difference between adjacent tokens.
+            targets:
+              - interpolation-construction
+            color: blue
+            linger: 0.25
+          - id: rp-interpolation-1-1
+            phrase: They remain distinct, but their local spacing changes.
+            targets:
+              - interpolation-construction
+            color: blue
+            linger: 0.25
+          - id: rp-interpolation-1-2
+            phrase: The displayed mapping is a geometric calculation; adapting the checkpoint and testing its behavior are
+              separate steps.
+            targets:
+              - interpolation-construction
+            color: green
+            linger: 0.25
+      - say: Other approaches treat frequency bands differently. Their exact schedules belong to the checkpoint
+          configuration. During cached generation, query positions and stored keys must use compatible logical
+          positions, coordinate pairing, and frequencies so their relative geometry stays consistent.
+        hold: 0.5
+        visual_cues:
+          - id: interpolation-compressed-position-2-b3-1
+            phrase: compatible logical positions
+            targets:
+              - compressed-position-2
+            color: yellow
+            linger: 0.6
+          - id: rp-interpolation-2-0
+            phrase: Other approaches treat frequency bands differently.
+            targets:
+              - interpolation-construction
+            color: blue
+            linger: 0.25
+          - id: rp-interpolation-2-1
+            phrase: Their exact schedules belong to the checkpoint configuration.
+            targets:
+              - interpolation-construction
+            color: blue
+            linger: 0.25
+          - id: rp-interpolation-2-2
+            phrase: During cached generation, query positions and stored keys must use compatible logical positions,
+              coordinate pairing, and frequencies so their relative geometry stays consistent.
+            targets:
+              - interpolation-construction
+            color: green
+            linger: 0.25
+  - id: position-precision
+    title: Keep distinct indices distinct before cosine
+    visual: ActualCPU BF16 conversion collapses4096/4097 before phase calculation. Restore integer IDs and FP32
+      phases so their computed cosines differ; changing only cosine output dtype fails to repair lost inputs.
+    beats:
+      - say: A correct formula can receive already damaged indices. The CPU example casts integers four thousand
+          ninety-six and four thousand ninety-seven to bfloat sixteen. Both round to four thousand ninety-six.
+          Their fastest-pair phases and cosines become identical. Computing the cosine in float thirty-two
+          afterward cannot recover the missing distinction.
+        hold: 0.5
+        visual_cues:
+          - id: rp-position-precision-0-0
+            phrase: A correct formula can receive already damaged indices.
+            targets:
+              - position-precision-construction
+            color: blue
+            linger: 0.25
+          - id: rp-position-precision-0-1
+            phrase: The CPU example casts integers four thousand ninety-six and four thousand ninety-seven to bfloat
+              sixteen.
+            targets:
+              - position-precision-construction
+            color: blue
+            linger: 0.25
+          - id: rp-position-precision-0-2
+            phrase: Both round to four thousand ninety-six.
+            targets:
+              - position-precision-construction
+            color: blue
+            linger: 0.25
+          - id: rp-position-precision-0-3
+            phrase: Their fastest-pair phases and cosines become identical.
+            targets:
+              - position-precision-construction
+            color: blue
+            linger: 0.25
+          - id: rp-position-precision-0-4
+            phrase: Computing the cosine in float thirty-two afterward cannot recover the missing distinction.
+            targets:
+              - position-precision-construction
+            color: green
+            linger: 0.25
+      - say: Start again with the two integer IDs. Keep them as integers until you compute their phases in
+          float thirty-two. Now the two arrows point in different directions. Their cosines are about
+          point eight zero four and point nine three five. Check the data type where the angles are
+          computed. The activations and the cache can each use a different type. For a longer window,
+          try two neighboring IDs at its far end and check that they still produce distinct phases.
+        hold: 0.5
+        visual_cues:
+          - id: rp-position-precision-1-0
+            phrase: Start again with the two integer IDs. Keep them as integers until you compute their
+              phases in float thirty-two.
+            targets:
+              - position-precision-construction
+            color: blue
+            linger: 0.25
+          - id: rp-position-precision-1-1
+            phrase: Now the two arrows point in different directions. Their cosines are about point eight
+              zero four and point nine three five.
+            targets:
+              - position-precision-construction
+            color: blue
+            linger: 0.25
+          - id: rp-position-precision-1-2
+            phrase: Check the data type where the angles are computed. The activations and the cache can each
+              use a different type.
+            targets:
+              - position-precision-construction
+            color: blue
+            linger: 0.25
+          - id: rp-position-precision-1-3
+            phrase: For a longer window, try two neighboring IDs at its far end and check that they still
+              produce distinct phases.
+            targets:
+              - position-precision-construction
+            color: green
+            linger: 0.25
+  - id: ntk-schedule
+    title: Compare uniform and uneven frequency stretching
+    visual: Retain four clocks at1/.1/.01/.001, compute PI ratios1/4 and NTK8D ratios1/.62996/.39685/.25. Neighbor
+      and distant-pair geometry changes using the actual selected schedule.
+    beats:
+      - say: Position Interpolation divides every frequency by the same scale, equivalently dividing every position.
+          Our four-times-longer example maps position sixteen thousand three hundred eighty-three to four
+          thousand ninety-five point seven five. That is below four thousand ninety-six, but slightly beyond
+          the last integer training index. Every adjacent phase step is divided by four without becoming
+          identical.
+        hold: 0.5
+        visual_cues:
+          - id: rp-ntk-schedule-0-0
+            phrase: Position Interpolation divides every frequency by the same scale, equivalently dividing every
+              position.
+            targets:
+              - ntk-schedule-construction
+            color: blue
+            linger: 0.25
+          - id: rp-ntk-schedule-0-1
+            phrase: Our four-times-longer example maps position sixteen thousand three hundred eighty-three to four
+              thousand ninety-five point seven five.
+            targets:
+              - ntk-schedule-construction
+            color: blue
+            linger: 0.25
+          - id: rp-ntk-schedule-0-2
+            phrase: That is below four thousand ninety-six, but slightly beyond the last integer training index.
+            targets:
+              - ntk-schedule-construction
+            color: blue
+            linger: 0.25
+          - id: rp-ntk-schedule-0-3
+            phrase: Every adjacent phase step is divided by four without becoming identical.
+            targets:
+              - ntk-schedule-construction
+            color: green
+            linger: 0.25
+      - say: NTK-aware scaling raises the base shared by these four clocks. The exponent depends on the
+          rotary width, which must be even and greater than two. With eight coordinates the exponent is
+          eight divided by six. Turn the extension scale from one to four. The first clock keeps its rate.
+          The last slows to a quarter of its rate. The two in between slow by different amounts.
+        hold: 0.5
+        caption_starts:
+          - With eight coordinates
+          - Turn the extension scale from one to four
+          - The first clock keeps its rate
+        visual_cues:
+          - id: rp-ntk-schedule-1-0
+            phrase: NTK-aware scaling raises the base shared by these four clocks.
+            targets:
+              - ntk-schedule-construction
+            color: blue
+            linger: 0.25
+          - id: rp-ntk-schedule-1-1
+            phrase: The exponent depends on the rotary width, which must be even and greater than two.
+            targets:
+              - ntk-schedule-construction
+            color: blue
+            linger: 0.25
+          - id: rp-ntk-schedule-1-2
+            phrase: Turn the extension scale from one to four.
+            targets:
+              - ntk-schedule-construction
+            color: blue
+            linger: 0.25
+          - id: rp-ntk-schedule-1-3
+            phrase: The first clock keeps its rate. The last slows to a quarter of its rate.
+            targets:
+              - ntk-schedule-construction
+            color: green
+            linger: 0.25
+      - say: Keep our eight-coordinate four-clock example and scale four. The frequency ratios are one,
+          about zero point six three, zero point three nine seven and one-quarter. Uniform
+          interpolation instead uses one-quarter in every lane. For rotary width one hundred
+          twenty-eight, base ten thousand becomes about forty thousand eight hundred ninety. Code Llama
+          chose its base manually, raising it to one million during long-context fine-tuning. To test
+          either choice, move a fact farther from the question and see whether the model still
+          retrieves it.
+        hold: 0.5
+        visual_cues:
+          - id: rp-ntk-schedule-2-0
+            phrase: Keep our eight-coordinate four-clock example and scale four.
+            targets:
+              - ntk-schedule-construction
+            color: blue
+            linger: 0.25
+          - id: rp-ntk-schedule-2-1
+            phrase: The frequency ratios are one, about zero point six three, zero point three nine seven and one-quarter.
+            targets:
+              - ntk-schedule-construction
+            color: blue
+            linger: 0.25
+          - id: rp-ntk-schedule-2-2
+            phrase: Uniform interpolation instead uses one-quarter in every lane.
+            targets:
+              - ntk-schedule-construction
+            color: blue
+            linger: 0.25
+          - id: rp-ntk-schedule-2-3
+            phrase: For rotary width one hundred twenty-eight, base ten thousand becomes about forty thousand eight
+              hundred ninety.
+            targets:
+              - ntk-schedule-construction
+            color: blue
+            linger: 0.25
+          - id: rp-ntk-schedule-2-4
+            phrase: Code Llama chose its base manually, raising it to one million during long-context
+              fine-tuning.
+            targets:
+              - ntk-schedule-construction
+            color: blue
+            linger: 0.25
+          - id: rp-ntk-schedule-2-5
+            phrase: To test either choice, move a fact farther from the question and see whether the model
+              still retrieves it.
+            targets:
+              - ntk-schedule-construction
+            color: green
+            linger: 0.25
+  - id: yarn-bands
+    title: Which frequency needs a blend?
+    visual: Four rates from the same head acquire turn counts for a 4,096-position window. Each row pairs the
+      original rate with its preserved share and new frequency. The third row exposes the difference
+      between two ramps.
+    beats:
+      - say: Return to the four pairs that turned at different speeds. YaRN's paper counts how many turns each
+          would make across the original window. Multiply the rate by four thousand ninety-six, then divide
+          by two pi, the radians in one turn. A pair that completes more than thirty-two turns keeps its rate.
+          A pair that completes less than one turn uses a quarter of its rate. Which pair falls between those thresholds?
+        hold: 2.1
+        visual_cues:
+          - id: count-turns
+            phrase: Which pair falls between those thresholds
+            targets:
+              - band-0
+              - band-1
+              - band-2
+              - band-3
+            color: cyan
+            linger: 0.25
+            caption_boundary: true
+      - say: The third pair makes about six and a half turns. To find the share of the original rate to keep,
+          subtract one turn, divide by thirty-one, and clip the result between zero and one. Fill the bars
+          with that share. The two fast pairs keep their rates. The slowest uses quarter speed throughout.
+          Look at the short yellow bar. About eighteen percent of that pair keeps the original rate. The
+          rest uses a quarter of it. The mix gives about point zero zero three eight radians per position.
+        hold: 0.8
+        visual_cues:
+          - id: blend-bands
+            phrase: Fill the bars with that share
+            targets:
+              - band-0
+              - band-1
+              - band-2
+              - band-3
+            color: green
+            linger: 0.25
+            caption_boundary: true
+          - id: inspect-blend
+            phrase: Look at the short yellow bar
+            targets:
+              - band-2
+            color: yellow
+            linger: 0.25
+            caption_boundary: true
+      - say: Those thresholds count rotations across the original window. An implementation can use a different
+          ramp. The article checks Transformers version five point seventeen. With its rounded correction
+          bounds, the ramp runs over pair indices and gives a different rate for this same yellow pair.
+          Match the checkpoint's implementation, then test whether short tasks still work and distant facts
+          can be retrieved.
+        hold: 0.7
+        visual_cues:
+          - id: index-ramp
+            phrase: the ramp runs over pair indices
+            targets:
+              - band-2
+            color: yellow
+            linger: 0.25
+            caption_boundary: true
+  - id: yarn-temperature
+    title: Amplitude changes logits as well as vector lengths
+    visual: Keep actual vectors and a two-entry logit distribution. Scale both arrows by a and compute actual
+      squared logit factor and softmax shares without scaling completed answers by reveal progress.
+    beats:
+      - say: YaRN also applies an empirical attention adjustment. Its reported fit for tested LLaMA and Llama two
+          models uses amplitude one plus zero point one times the natural logarithm of the extension scale.
+          Multiplying both rotated queries and keys by that amplitude multiplies their dot products by
+          amplitude squared. This extra scaling changes norms, unlike the pure rotation.
+        hold: 0.5
+        visual_cues:
+          - id: rp-yarn-temperature-0-0
+            phrase: YaRN also applies an empirical attention adjustment.
+            targets:
+              - yarn-temperature-construction
+            color: blue
+            linger: 0.25
+          - id: rp-yarn-temperature-0-1
+            phrase: Its reported fit for tested LLaMA and Llama two models uses amplitude one plus zero point one times
+              the natural logarithm of the extension scale.
+            targets:
+              - yarn-temperature-construction
+            color: blue
+            linger: 0.25
+          - id: rp-yarn-temperature-0-2
+            phrase: Multiplying both rotated queries and keys by that amplitude multiplies their dot products by amplitude
+              squared.
+            targets:
+              - yarn-temperature-construction
+            color: blue
+            linger: 0.25
+          - id: rp-yarn-temperature-0-3
+            phrase: This extra scaling changes norms, unlike the pure rotation.
+            targets:
+              - yarn-temperature-construction
+            color: green
+            linger: 0.25
+      - say: For scale four, amplitude is about one point one three nine, the logit factor about one point two nine
+          six, and equivalent temperature about zero point seven seven one. Divide logits by temperature
+          before softmax; equivalently multiply them by its reciprocal. For nonuniform logits this sharpens
+          the shares. Equal logits stay equal.
+        hold: 0.5
+        visual_cues:
+          - id: rp-yarn-temperature-1-0
+            phrase: For scale four, amplitude is about one point one three nine, the logit factor about one point two nine
+              six, and equivalent temperature about zero point seven seven one.
+            targets:
+              - yarn-temperature-construction
+            color: blue
+            linger: 0.25
+          - id: rp-yarn-temperature-1-1
+            phrase: Divide logits by temperature before softmax; equivalently multiply them by its reciprocal.
+            targets:
+              - yarn-temperature-construction
+            color: blue
+            linger: 0.25
+          - id: rp-yarn-temperature-1-2
+            phrase: For nonuniform logits this sharpens the shares.
+            targets:
+              - yarn-temperature-construction
+            color: blue
+            linger: 0.25
+          - id: rp-yarn-temperature-1-3
+            phrase: Equal logits stay equal.
+            targets:
+              - yarn-temperature-construction
+            color: green
+            linger: 0.25
+      - say: Add a third key with a logit of ten. The new key takes almost all the weight. With three
+          choices, attention is now more concentrated and its entropy is lower. After adapting a
+          checkpoint, test short tasks as well as retrieval at longer distances. With long-context
+          training, the Position Interpolation authors reported results at thirty-two thousand tokens
+          and the YaRN authors at one hundred twenty-eight thousand.
+        hold: 0.5
+        visual_cues:
+          - id: rp-yarn-temperature-2-0
+            phrase: Add a third key with a logit of ten.
+            targets:
+              - yarn-temperature-construction
+            color: blue
+            linger: 0.25
+          - id: rp-yarn-temperature-2-1
+            phrase: The new key takes almost all the weight. With three choices, attention is now more
+              concentrated and its entropy is lower.
+            targets:
+              - yarn-temperature-construction
+            color: blue
+            linger: 0.25
+          - id: rp-yarn-temperature-2-2
+            phrase: After adapting a checkpoint, test short tasks as well as retrieval at longer distances.
+            targets:
+              - yarn-temperature-construction
+            color: blue
+            linger: 0.25
+          - id: rp-yarn-temperature-2-3
+            phrase: With long-context training, the Position Interpolation authors reported results at
+              thirty-two thousand tokens and the YaRN authors at one hundred twenty-eight thousand.
+            targets:
+              - yarn-temperature-construction
+            color: green
+            linger: 0.25
+  - id: checkpoint-contract
+    title: Testing a checkpoint's working window
+    visual: Inspect Llama 3.1 frequency bands and the Gemma 3 layer pattern. In a separate illustrative retrieval trial, move the same passkey away from the question while the prompt and generation budgets stay fixed.
+    beats:
+      - say: "Read the full configuration: head and rotary widths, pairing, base, frequency ramp,
+          amplitude, position IDs and cache policy. Our article's pinned Llama three point one
+          reference starts with base five hundred thousand and original length eight thousand one
+          hundred ninety-two. Wavelengths below two thousand forty-eight stay unchanged; wavelengths
+          above eight thousand one hundred ninety-two divide frequency by eight; the middle blends.
+          Eight is the frequency divisor for the slow pairs. Llama's longer window also involved
+          training at increasing lengths."
+        hold: 0.5
+        visual_cues:
+          - id: rp-checkpoint-contract-0-0
+            phrase: "Read the full configuration: head and rotary widths, pairing, base, frequency ramp, amplitude,
+              position IDs and cache policy."
+            targets:
+              - checkpoint-contract-construction
+            color: blue
+            linger: 0.25
+          - id: rp-checkpoint-contract-0-1
+            phrase: Our article's pinned Llama three point one reference starts with base five hundred thousand and
+              original length eight thousand one hundred ninety-two.
+            targets:
+              - checkpoint-contract-construction
+            color: blue
+            linger: 0.25
+          - id: rp-checkpoint-contract-0-2
+            phrase: Wavelengths below two thousand forty-eight stay unchanged; wavelengths above eight thousand one
+              hundred ninety-two divide frequency by eight; the middle blends.
+            targets:
+              - checkpoint-contract-construction
+            color: blue
+            linger: 0.25
+          - id: rp-checkpoint-contract-0-3
+            phrase: Eight is the frequency divisor for the slow pairs. Llama's longer window also involved
+              training at increasing lengths.
+            targets:
+              - checkpoint-contract-construction
+            color: green
+            linger: 0.25
+      - say: Gemma three's report uses five local attention layers for every global layer, with local base ten
+          thousand and global base one million. Its larger models combine global rescaling with a final
+          long-context training stage. LongRoPE two searches per-dimension scaling using loss on synthetic
+          needle-answer tokens, then mixes original short-context and rescaled long-context training. These
+          published designs combine geometry and training evidence.
+        hold: 0.5
+        visual_cues:
+          - id: rp-checkpoint-contract-1-0
+            phrase: Gemma three's report uses five local attention layers for every global layer, with local base ten
+              thousand and global base one million.
+            targets:
+              - checkpoint-contract-construction
+            color: blue
+            linger: 0.25
+          - id: rp-checkpoint-contract-1-1
+            phrase: Its larger models combine global rescaling with a final long-context training stage.
+            targets:
+              - checkpoint-contract-construction
+            color: blue
+            linger: 0.25
+          - id: rp-checkpoint-contract-1-2
+            phrase: LongRoPE two searches per-dimension scaling using loss on synthetic needle-answer tokens, then mixes
+              original short-context and rescaled long-context training.
+            targets:
+              - checkpoint-contract-construction
+            color: blue
+            linger: 0.25
+          - id: rp-checkpoint-contract-1-3
+            phrase: These published designs combine geometry and training evidence.
+            targets:
+              - checkpoint-contract-construction
+            color: green
+            linger: 0.25
+      - say: Rotary settings can differ by layer type, so read the installed schema alongside the checkpoint.
+          Now try a retrieval check. Reserve
+          two thousand forty-eight tokens for generation. That leaves thirty thousand seven hundred twenty for
+          the prompt. Near its end is the passkey, lime seven. The example answer matches.
+        hold: 0.7
+        visual_cues:
+          - id: check-schema
+            phrase: read the installed schema alongside the checkpoint
+            targets:
+              - checkpoint-contract-construction
+            color: blue
+            linger: 0.25
+            caption_boundary: true
+          - id: set-window
+            phrase: Now try a retrieval check
+            targets:
+              - near-trial
+            color: yellow
+            linger: 0.25
+            caption_boundary: true
+      - say: Keep the question and the token budget in place. In a second prompt, move the passkey near the
+          start. The expected answer is still lime seven. Suppose this time the answer is lime four. Would you
+          count that second trial as successful retrieval?
+        hold: 2.1
+        visual_cues:
+          - id: move-fact
+            phrase: move the passkey near the start
+            targets:
+              - far-trial
+            color: yellow
+            linger: 0.25
+            caption_boundary: true
+          - id: distant-answer
+            phrase: this time the answer is lime four
+            targets:
+              - far-trial
+            color: cyan
+            linger: 0.25
+            caption_boundary: true
+      - say: Compare the two answers with the passkey. Only the nearer trial matches. A model can predict most
+          words well and still miss the fact you asked for. Before claiming the longer window, vary the
+          distance, add distractors, and include prompts where the fact is missing. Repeat your short tasks and
+          test generation and your target tasks at the deployed length. Those results also depend on serving
+          the cache the same way you evaluated it.
+        hold: 0.8
+        caption_starts:
+          - Only the nearer trial matches
+          - Before claiming the longer window
+          - Repeat your short tasks
+        visual_cues:
+          - id: check-answers
+            phrase: Only the nearer trial matches
+            targets:
+              - near-trial
+              - far-trial
+            color: green
+            linger: 0.25
+            caption_boundary: true
+  - id: cached-layer
+    title: The cached key keeps its logical position
+    visual: Execute the actual fixed one-layer CPU fixture at positions800/801/802. Retain token IDs and rotated
+      keys in prefix storage, append one row and compare output against the full causal pass.
+    beats:
+      - say: Cache storage does not replace logical position. A retained key may live at physical slot zero while
+          representing token eight hundred. Rotate it using its actual position and keep that identity when
+          storage moves, pads or slides. Rotate a new query at its own position. A key already stored after
+          rotation must not receive the same rotation again.
+        hold: 0.5
+        visual_cues:
+          - id: rp-cached-layer-0-0
+            phrase: Cache storage does not replace logical position.
+            targets:
+              - cached-layer-construction
+            color: blue
+            linger: 0.25
+          - id: rp-cached-layer-0-1
+            phrase: A retained key may live at physical slot zero while representing token eight hundred.
+            targets:
+              - cached-layer-construction
+            color: blue
+            linger: 0.25
+          - id: rp-cached-layer-0-2
+            phrase: Rotate it using its actual position and keep that identity when storage moves, pads or slides.
+            targets:
+              - cached-layer-construction
+            color: blue
+            linger: 0.25
+          - id: rp-cached-layer-0-3
+            phrase: Rotate a new query at its own position.
+            targets:
+              - cached-layer-construction
+            color: blue
+            linger: 0.25
+          - id: rp-cached-layer-0-4
+            phrase: A key already stored after rotation must not receive the same rotation again.
+            targets:
+              - cached-layer-construction
+            color: green
+            linger: 0.25
+      - say: The article's fixed one-layer CPU fixture uses positions eight hundred, eight hundred one and eight
+          hundred two, two rotary pairs and identity value rows. The full causal pass and three token-by-token
+          cached steps agree numerically. Each single query reads exactly its own current prefix. Resetting
+          the final query's position to zero breaks that agreement.
+        hold: 0.5
+        visual_cues:
+          - id: rp-cached-layer-1-0
+            phrase: The article's fixed one-layer CPU fixture uses positions eight hundred, eight hundred one and eight
+              hundred two, two rotary pairs and identity value rows.
+            targets:
+              - cached-layer-construction
+            color: blue
+            linger: 0.25
+          - id: rp-cached-layer-1-1
+            phrase: The full causal pass and three token-by-token cached steps agree numerically.
+            targets:
+              - cached-layer-construction
+            color: blue
+            linger: 0.25
+          - id: rp-cached-layer-1-2
+            phrase: Each single query reads exactly its own current prefix.
+            targets:
+              - cached-layer-construction
+            color: blue
+            linger: 0.25
+          - id: rp-cached-layer-1-3
+            phrase: Resetting the final query's position to zero breaks that agreement.
+            targets:
+              - cached-layer-construction
+            color: green
+            linger: 0.25
+      - say: Compare the bottom rows. They use the same stored keys and values. Resetting the query to
+          zero changed its angle to each key and changed the mixture on the right. Compare the position
+          IDs, coordinate pairs and frequencies with the full pass. Then check which keys each query
+          was allowed to read.
+        hold: 0.5
+        visual_cues:
+          - id: rp-cached-layer-2-0
+            phrase: Compare the bottom rows. They use the same stored keys and values.
+            targets:
+              - cached-layer-construction
+            color: blue
+            linger: 0.25
+          - id: rp-cached-layer-2-1
+            phrase: Resetting the query to zero changed its angle to each key and changed the mixture on the
+              right.
+            targets:
+              - cached-layer-construction
+            color: blue
+            linger: 0.25
+          - id: rp-cached-layer-2-2
+            phrase: Compare the position IDs, coordinate pairs and frequencies with the full pass.
+            targets:
+              - cached-layer-construction
+            color: blue
+            linger: 0.25
+          - id: rp-cached-layer-2-3
+            phrase: Then check which keys each query was allowed to read.
+            targets:
+              - cached-layer-construction
+            color: green
+            linger: 0.25
+  - id: cached-chunk
+    title: Three keys in physical memory
+    visual: Two query rows inspect the same keys in physical order 802, 800, 801. Compare the weight carried
+      by value 802 with its full-pass reference, then remove and restore the mask.
+    beats:
+      - say: Keep the same three keys and values, but put key eight hundred two in the first physical slot.
+          Compute queries eight hundred one and eight hundred two together. Look at the first query. Which
+          slot must it hide? Use the position on each key.
+        hold: 2.1
+        visual_cues:
+          - id: reorder-slots
+            phrase: put key eight hundred two in the first physical slot
+            targets:
+              - slot-0
+              - slot-1
+              - slot-2
+            color: cyan
+            linger: 0.25
+            caption_boundary: true
+          - id: locate-future
+            phrase: Which slot must it hide
+            targets:
+              - slot-0
+              - slot-1
+              - slot-2
+              - cell-1-0
+              - cell-1-1
+              - cell-1-2
+            color: yellow
+            linger: 0.25
+            caption_boundary: true
+      - say: Compare each key position with the query position. A key at or before the query is allowed. In this
+          PyTorch mask, true means allow. Query eight hundred one must hide slot zero. Query eight hundred
+          two can use all three. Compare the outputs with the full pass. Our values are identity rows, so
+          the last output coordinate tells us exactly how much weight went to key eight hundred two.
+        hold: 0.7
+        caption_starts:
+          - Query eight hundred one must hide slot zero
+          - Query eight hundred two can use all three
+        visual_cues:
+          - id: build-mask
+            phrase: Compare each key position with the query position
+            targets:
+              - cell-1-0
+              - cell-2-0
+            color: cyan
+            linger: 0.25
+            caption_boundary: true
+          - id: mask-first-row
+            phrase: Query eight hundred one must hide slot zero
+            targets: [cell-1-0]
+            color: red
+            linger: 0.25
+          - id: mask-next-row
+            phrase: Query eight hundred two can use all three
+            targets: [cell-2-0, cell-2-1, cell-2-2]
+            color: cyan
+            linger: 0.25
+          - id: compare-chunk
+            phrase: Compare the outputs with the full pass
+            targets:
+              - output-1
+              - output-2
+            color: green
+            linger: 0.25
+            caption_boundary: true
+      - say: Remove the mask and keep every rotation fixed. Look at the first query's output. More than half its
+          weight now comes from a future token. The second query still agrees with the reference because
+          that same key is legal for it.
+        hold: 1.2
+        visual_cues:
+          - id: omit-mask
+            phrase: Remove the mask
+            targets:
+              - cell-1-0
+            color: red
+            linger: 0.25
+            caption_boundary: true
+          - id: inspect-leak
+            phrase: More than half its weight
+            targets:
+              - output-1
+            color: red
+            linger: 0.25
+            caption_boundary: true
+      - say: Restore the logical-position mask. The first query gives the future key zero again, and both full
+          output rows match the causal reference. For a rectangular chunk, a generic causal flag can align
+          the mask to the wrong end. Compare the actual query and key positions.
+        hold: 0.7
+        visual_cues:
+          - id: restore-mask
+            phrase: Restore the logical-position mask
+            targets:
+              - cell-1-0
+              - output-1
+            color: green
+            linger: 0.25
+            caption_boundary: true
+      - say: Keep only the final query, eight hundred two. Every supplied key is now in its prefix, so this
+          single-token call needs no extra future exclusion. Computing two queries together was fine. Each
+          still needed its own visibility boundary.
+        hold: 0.7
+        visual_cues:
+          - id: single-query
+            phrase: only the final query
+            targets:
+              - output-2
+            color: cyan
+            linger: 0.25
+            caption_boundary: true
+  - id: changing-schedule
+    title: A new schedule changes cached computation
+    visual: Same fixed keys retain their old rotations while only query frequency changes, producing a mismatch.
+      Inverse-old then new rotation repairs the fixed-layer comparison; deeper feature recomputation remains
+      explicit.
+    beats:
+      - say: Changing only the new query's frequency schedule leaves old keys in a different coordinate system. The
+          article's fixed-layer comparison fails. For fixed unrotated keys, inverse-rotate each old key and
+          then rotate it with the new schedule at the same logical position. In exact arithmetic this repairs
+          that rotation. The supplied CPU layer then matches its new full pass.
+        hold: 0.5
+        visual_cues:
+          - id: rp-changing-schedule-0-0
+            phrase: Changing only the new query's frequency schedule leaves old keys in a different coordinate system.
+            targets:
+              - changing-schedule-construction
+            color: blue
+            linger: 0.25
+          - id: rp-changing-schedule-0-1
+            phrase: The article's fixed-layer comparison fails.
+            targets:
+              - changing-schedule-construction
+            color: blue
+            linger: 0.25
+          - id: rp-changing-schedule-0-2
+            phrase: For fixed unrotated keys, inverse-rotate each old key and then rotate it with the new schedule at the
+              same logical position.
+            targets:
+              - changing-schedule-construction
+            color: blue
+            linger: 0.25
+          - id: rp-changing-schedule-0-3
+            phrase: In exact arithmetic this repairs that rotation.
+            targets:
+              - changing-schedule-construction
+            color: blue
+            linger: 0.25
+          - id: rp-changing-schedule-0-4
+            phrase: The supplied CPU layer then matches its new full pass.
+            targets:
+              - changing-schedule-construction
+            color: green
+            linger: 0.25
+      - say: A multilayer decoder has a further dependency. Different earlier attention can change later
+          key and value features themselves. Even after you correct the rotation, that later key can
+          still contain the old features. Use the supported cache policy or recompute the prefix when
+          full-pass equivalence is required. YaRN suggests caching unrotated keys when schedules
+          change. Compare the resulting outputs with a fresh pass through all the layers.
+        hold: 0.5
+        visual_cues:
+          - id: rp-changing-schedule-1-0
+            phrase: A multilayer decoder has a further dependency.
+            targets:
+              - changing-schedule-construction
+            color: blue
+            linger: 0.25
+          - id: rp-changing-schedule-1-1
+            phrase: Different earlier attention can change later key and value features themselves.
+            targets:
+              - changing-schedule-construction
+            color: blue
+            linger: 0.25
+          - id: rp-changing-schedule-1-2
+            phrase: Even after you correct the rotation, that later key can still contain the old features.
+            targets:
+              - changing-schedule-construction
+            color: blue
+            linger: 0.25
+          - id: rp-changing-schedule-1-3
+            phrase: Use the supported cache policy or recompute the prefix when full-pass equivalence is required.
+            targets:
+              - changing-schedule-construction
+            color: blue
+            linger: 0.25
+          - id: rp-changing-schedule-1-4
+            phrase: YaRN suggests caching unrotated keys when schedules change. Compare the resulting outputs
+              with a fresh pass through all the layers.
+            targets:
+              - changing-schedule-construction
+            color: green
+            linger: 0.25
+  - id: evaluation
+    title: Which version of the key belongs here?
+    visual: The full pass shows the correct rotated pair. A cache builder tries a saved key from the earlier
+      sentence, then rebuilds the key at its new position. A white tick marks the reference dot product.
+    beats:
+      - say: Return to cats and dogs after the sentence moved eight places. Cats is at eleven, dogs is at
+          thirteen, and we're back to two unit arrows at half a radian per position. The full pass on the
+          left gives point five four. The cache builder still has the key it rotated for cats at three. Can
+          it reuse that vector here and match the white tick?
+        hold: 2.1
+        visual_cues:
+          - id: old-copy-question
+            phrase: Can it reuse that vector here and match the white tick
+            targets:
+              - reference-key
+              - cached-key
+              - cache-score
+            color: yellow
+            linger: 0.25
+            caption_boundary: true
+      - say: Try the old key. With the query at thirteen and the key rotated at three, the effective gap is ten
+          places. Its relative phase is minus five radians. The green mark now sits at point two eight
+          four. The word stayed the same, but the stored key carries its earlier turn.
+        hold: 1.3
+        visual_cues:
+          - id: try-old-key
+            phrase: Try the old key
+            targets:
+              - cached-key
+            color: yellow
+            linger: 0.25
+            caption_boundary: true
+          - id: inspect-old-score
+            phrase: point two eight four
+            targets:
+              - cache-score
+            color: green
+            linger: 0.25
+            caption_boundary: true
+      - say: Go back to the unrotated key and rotate it at eleven. Now the gap is two places again. The mark
+          lands on the reference. We can use the logical position to rebuild a key. What if the only thing
+          that moves is its storage address?
+        hold: 1
+        visual_cues:
+          - id: rebuild-key
+            phrase: rotate it at eleven
+            targets:
+              - cached-key
+              - cache-score
+            color: green
+            linger: 0.25
+            caption_boundary: true
+  - id: fresh-position-contract
+    title: Moving a stored key
+    visual: A new fixed unit pair separates a physical cache slot from a logical key ID. Test the two
+      indices, then move the already rotated key between physical slots and compare copying it with
+      rotating it again.
+    beats:
+      - say: Try this one. Both arrows start as horizontal unit vectors. The query is at twenty-one. The key
+          belongs to position eighteen and lives in slot two. Each position adds point four radians. To
+          build the key from scratch, which number goes in the blank? What dot product do you expect?
+        hold: 2.5
+        visual_cues:
+          - id: choose-input
+            phrase: which number goes in the blank
+            targets:
+              - cache-slots
+              - builder-input
+              - phase-calculation
+            color: yellow
+            linger: 0.25
+            caption_boundary: true
+      - say: Use eighteen. From twenty-one back to eighteen is minus three steps. Multiply by point four and the
+          relative phase is minus one point two radians. Its cosine is about point three six two. Now move
+          both logical positions forty places forward. Fifty-eight minus sixty-one is still minus three.
+          The score holds.
+        hold: 0.8
+        visual_cues:
+          - id: rp-fresh-position-contract-1-0
+            phrase: Use eighteen. From twenty-one back to eighteen is minus three steps. Multiply by point four and
+              the relative phase is minus one point two radians
+            targets:
+              - phase-calculation
+            color: pink
+            linger: 0.25
+            caption_boundary: true
+          - id: rp-fresh-position-contract-1-1
+            phrase: Its cosine is about point three six two
+            targets:
+              - phase-calculation
+            color: green
+            linger: 0.25
+            caption_boundary: true
+          - id: rp-fresh-position-contract-1-2
+            phrase: move both logical positions forty places forward
+            targets:
+              - phase-dial
+              - cache-slots
+            color: cyan
+            linger: 0.25
+            caption_boundary: true
+      - say: Back at twenty-one and eighteen, try the slot number as the key's rotation index. Two minus
+          twenty-one gives minus nineteen steps. At point four radians per step the phase becomes minus
+          seven point six. Its cosine is about point two five one. Rebuild the key at eighteen and you
+          recover the reference score.
+        hold: 0.9
+        caption_starts:
+          - Its cosine is about point two five one
+        visual_cues:
+          - id: rp-fresh-position-contract-2-0
+            phrase: try the slot number as the key's rotation index
+            targets:
+              - builder-input
+              - phase-dial
+            color: red
+            linger: 0.25
+            caption_boundary: true
+          - id: rp-fresh-position-contract-2-1
+            phrase: Rebuild the key at eighteen
+            targets:
+              - builder-input
+              - phase-calculation
+            color: green
+            linger: 0.25
+            caption_boundary: true
+      - say: This time the key is already rotated correctly. Move it from slot two to slot zero. Its logical
+          position is still eighteen. Which operation will match the full pass when the cache reads it
+          back, copying the stored vector or rotating it at eighteen again?
+        hold: 2.3
+        visual_cues:
+          - id: move-in-memory
+            phrase: Move it from slot two to slot zero
+            targets:
+              - cache-slots
+            color: yellow
+            linger: 0.25
+            caption_boundary: true
+          - id: choose-copy
+            phrase: copying the stored vector or rotating it at eighteen again
+            targets:
+              - cache-slots
+              - builder-input
+            color: cyan
+            linger: 0.25
+            caption_boundary: true
+      - say: Copy the stored vector. It gives the same point three six two as the full pass. Now turn the
+          copy by the position-eighteen angle again. Watch the yellow key swing almost onto the blue query.
+          The dot product jumps to about point nine six. Moving the key to slot zero changed its address.
+          It already carried the turn for position eighteen.
+        hold: 0.9
+        caption_starts:
+          - It gives the same point three six two
+          - The dot product jumps to about point nine six
+          - Moving the key to slot zero changed its address
+        visual_cues:
+          - id: copy-key
+            phrase: Copy the stored vector
+            targets:
+              - builder-input
+            color: green
+            linger: 0.25
+            caption_boundary: true
+          - id: rotate-again
+            phrase: Now turn the copy by the position-eighteen angle again
+            targets:
+              - cache-read
+            color: red
+            linger: 0.25
+            caption_boundary: true
+          - id: second-score
+            phrase: about point nine six
+            targets: [builder-input, cache-read]
+            color: red
+            linger: 0.25

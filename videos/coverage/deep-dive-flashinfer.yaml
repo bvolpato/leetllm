@@ -1,0 +1,334 @@
+version: 1
+lesson: deep-dive-flashinfer
+promise: Follow a packed query to the keys it may read, merge the workers' answers with their correct weights,
+  and decide whether the next call may reuse a plan or a cache page. Check the selected backend before using
+  that result in a serving benchmark.
+objectives:
+  - id: intro
+    can: Identify the owner of a zero-based row as the scheduler packs queries
+    scenes:
+      - intro
+  - id: project-lineage
+    can: Identify the owner and version of a claimed capability
+    scenes:
+      - project-lineage
+  - id: pointers
+    can: Use separate prefix sums to slice packed query rows and entries in the ordered page list
+    scenes:
+      - intro
+      - pointers
+  - id: layout-payload
+    can: Derive payload axes and separate them from page indirection
+    scenes:
+      - layout-payload
+  - id: pages
+    can: Map a logical token through ordered physical pages
+    scenes:
+      - pages
+  - id: page-permutation
+    can: Diagnose an in-bounds mapping that retrieves the wrong token
+    scenes:
+      - page-permutation
+  - id: causal
+    can: Determine the last readable key for each new query after the entire chunk has been appended
+    scenes:
+      - causal
+  - id: causal-rule
+    can: Compute a bottom-right causal row for a changed request
+    scenes:
+      - causal-rule
+  - id: merge
+    can: Explain why changing one score can change the merge shares while the partition and key count stay fixed
+    scenes:
+      - merge
+  - id: merge-recurrence
+    can: Recover the output and parent log mass from the two worker records using a common shift
+    scenes:
+      - merge-recurrence
+  - id: merge-units
+    can: Convert natural-log statistics exactly once
+    scenes:
+      - merge-units
+  - id: merge-domain
+    can: Separate the CPU reference domain from a GPU operator contract
+    scenes:
+      - merge-domain
+  - id: merge-partition
+    can: Expose overlap and compare split attention with a direct reference
+    scenes:
+      - merge-partition
+  - id: planning
+    can: Locate the first key beyond a stale plan and refresh the dependent metadata through the wrapper
+    scenes:
+      - planning
+      - fresh-tail
+  - id: wrapper-call
+    can: Match shapes, index types and head grouping to the pinned wrapper
+    scenes:
+      - wrapper-call
+  - id: offset-migration
+    can: Calculate each tensor’s element offset and identify which output row a copied query offset would overwrite
+    scenes:
+      - offset-migration
+  - id: graph-contract
+    can: Choose metadata refresh or a new prepared wrapper from its declared contract
+    scenes:
+      - graph-contract
+  - id: synthesis
+    can: Separate a work-cost model from reader-completion ticks
+    scenes:
+      - synthesis
+  - id: split-schedule
+    can: Calculate the critical path under limited worker capacity
+    scenes:
+      - split-schedule
+  - id: backend-support
+    can: Distinguish backend support, JIT availability and serving integration
+    scenes:
+      - backend-support
+  - id: startup-logging
+    can: Separate cold compilation and logging effects from warmed execution
+    scenes:
+      - startup-logging
+  - id: integration-lease
+    can: Predict which value a pending load returns when the same slot changes owners before or after the read
+    scenes:
+      - integration-lease
+  - id: correctness-matrix
+    can: Design output and state checks with explicit limits
+    scenes:
+      - correctness-matrix
+  - id: profile-boundary
+    can: Calculate whole-call savings and choose a profiler boundary
+    scenes:
+      - profile-boundary
+  - id: paper-evidence
+    can: Interpret a historical latency result without converting its metric
+    scenes:
+      - paper-evidence
+  - id: source-route
+    can: Locate the wrapper, scheduled work and merge ownership in source
+    scenes:
+      - source-route
+  - id: feature-limits
+    can: Assess the benefits and costs of the library boundary
+    scenes:
+      - feature-limits
+  - id: fresh-tail
+    can: Work out the new length, move the plan boundary, and identify the first safe handoff after cancellation
+    scenes:
+      - fresh-tail
+sections:
+  - heading: Who ships it, who calls it
+    status: taught
+    scenes:
+      - project-lineage
+  - heading: Why inference attention becomes irregular
+    status: taught
+    scenes:
+      - intro
+      - pointers
+  - heading: Layouts are an API, not an implementation detail
+    status: taught
+    scenes:
+      - layout-payload
+  - heading: Ragged prefill and paged decode
+    status: taught
+    scenes:
+      - causal
+      - wrapper-call
+  - heading: Causality uses logical positions, not page numbers
+    status: taught
+    scenes:
+      - causal
+      - causal-rule
+  - heading: BSR as a memory-access contract
+    status: taught
+    scenes:
+      - layout-payload
+      - page-permutation
+  - heading: "Core mechanism: schedule work around state"
+    status: taught
+    scenes:
+      - merge
+      - merge-recurrence
+      - merge-units
+      - merge-domain
+  - heading: A worked split-KV example
+    status: taught
+    scenes:
+      - merge
+      - merge-recurrence
+      - merge-partition
+  - heading: "Plan then run: inspector-executor for GPU kernels"
+    status: taught
+    scenes:
+      - planning
+      - wrapper-call
+      - offset-migration
+      - graph-contract
+  - heading: Load balancing and split-KV decisions
+    status: taught
+    scenes:
+      - synthesis
+      - split-schedule
+  - heading: What split-KV changes
+    status: taught
+    scenes:
+      - split-schedule
+  - heading: Backends and JIT compilation
+    status: taught
+    scenes:
+      - backend-support
+      - startup-logging
+  - heading: Where FlashInfer sits in a serving stack
+    status: taught
+    scenes:
+      - project-lineage
+      - integration-lease
+  - heading: A release checklist at the boundary
+    status: taught
+    scenes:
+      - integration-lease
+      - correctness-matrix
+      - source-route
+  - heading: Strengths
+    status: taught
+    scenes:
+      - feature-limits
+  - heading: One vocabulary for many inference phases
+    status: taught
+    scenes:
+      - project-lineage
+      - feature-limits
+  - heading: Explicit composability
+    status: taught
+    scenes:
+      - merge-recurrence
+      - feature-limits
+  - heading: Customization without abandoning fast paths
+    status: taught
+    scenes:
+      - backend-support
+      - feature-limits
+  - heading: Hardware breadth with caveats
+    status: taught
+    scenes:
+      - backend-support
+  - heading: Weaknesses and failure modes
+    status: taught
+    scenes:
+      - feature-limits
+  - heading: Metadata complexity moves upward
+    status: taught
+    scenes:
+      - planning
+      - integration-lease
+      - feature-limits
+  - heading: JIT is a release dependency
+    status: taught
+    scenes:
+      - startup-logging
+      - feature-limits
+  - heading: Kernel breadth raises test burden
+    status: taught
+    scenes:
+      - correctness-matrix
+      - feature-limits
+  - heading: GPU specificity limits portability
+    status: taught
+    scenes:
+      - feature-limits
+  - heading: A kernel library isn't a training stack
+    status: taught
+    scenes:
+      - correctness-matrix
+      - feature-limits
+  - heading: What the paper actually measured
+    status: taught
+    scenes:
+      - paper-evidence
+  - heading: Correctness is part of benchmark coverage
+    status: taught
+    scenes:
+      - correctness-matrix
+  - heading: Diagnose the path before tuning the kernel
+    status: taught
+    scenes:
+      - profile-boundary
+  - heading: A small code-reading route
+    status: taught
+    scenes:
+      - source-route
+  - heading: What an integration review must defend
+    status: taught
+    scenes:
+      - source-route
+      - fresh-tail
+  - heading: Follow-up questions
+    status: taught
+    scenes:
+      - planning
+      - merge-partition
+      - fresh-tail
+quiz:
+  - n: 1
+    status: taught
+    scenes:
+      - intro
+      - pointers
+  - n: 2
+    status: taught
+    scenes:
+      - pages
+      - page-permutation
+      - fresh-tail
+  - n: 3
+    status: taught
+    scenes:
+      - merge
+      - merge-recurrence
+  - n: 4
+    status: taught
+    scenes:
+      - merge-units
+  - n: 5
+    status: taught
+    scenes:
+      - merge-domain
+  - n: 6
+    status: taught
+    scenes:
+      - page-permutation
+      - causal
+      - causal-rule
+  - n: 7
+    status: taught
+    scenes:
+      - offset-migration
+  - n: 8
+    status: taught
+    scenes:
+      - graph-contract
+  - n: 9
+    status: taught
+    scenes:
+      - split-schedule
+      - synthesis
+      - integration-lease
+      - fresh-tail
+  - n: 10
+    status: taught
+    scenes:
+      - profile-boundary
+      - startup-logging
+removed: []
+reviews:
+  closed_book:
+    script: b12218c4bc4cf712
+    taught: 10
+    partial: 0
+    absent: 0
+  fact_check:
+    script: b12218c4bc4cf712
+    open_findings: 0

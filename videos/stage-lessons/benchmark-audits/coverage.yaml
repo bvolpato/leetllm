@@ -1,0 +1,198 @@
+version: 1
+lesson: benchmark-audits
+promise: Decide whether to release a replacement by tracing its scores to the actual answers, comparing paired cases, and applying the declared critical and operational gates.
+framing: []
+objectives:
+  - id: gold
+    can: Validate unique case IDs and supported gold requirements, then diagnose a
+      context-versus-response failure.
+    scenes:
+      - gold-contract
+      - checker
+      - rag-stage
+  - id: metrics
+    can: Calculate ranked context precision, reference recall and claim faithfulness without confusing
+      support with completeness.
+    scenes:
+      - rag-metrics
+  - id: public
+    can: Compare models on a matched task, split, parser and attempt budget. Read the selected tests, omitted cases and denominators behind the reported result.
+    scenes:
+      - knowledge-contract
+      - math-frontier
+      - code-contract
+      - benchmark-audit
+      - preference-ratings
+  - id: samples
+    can: Count the pairs that contain a passing program, run the deployed selector on those same pairs, and average availability across problems at a stated budget.
+    scenes:
+      - candidates
+      - sample-estimator
+  - id: judges
+    can: Normalize swapped-order verdicts to answer identity and retain independent correctness and
+      exposure checks.
+    scenes:
+      - judge-controls
+      - exposure
+      - exposure-screen
+  - id: uncertainty
+    can: Find the Wilson lower endpoint for one pass rate and use the discordant cases to test a paired change under the stated sampling assumptions.
+    scenes:
+      - uncertainty
+      - wilson-construction
+      - paired-diagnosis
+      - fresh-report
+  - id: release
+    can: Explain a tied overall score using case identities, enforce critical and operational gates on valid measurements, and trace a blocked release to a retained answer.
+    scenes:
+      - intro
+      - slices
+      - gates
+      - finite-report
+      - reproducible-package
+      - synthesis
+      - fresh-report
+sections:
+  - heading: Start with questions you must answer correctly
+    status: taught
+    scenes:
+      - gold-contract
+  - heading: A score is only meaningful with its contract
+    status: taught
+    scenes:
+      - contract
+      - reproducible-package
+  - heading: "First gate: preserve policy evidence"
+    status: taught
+    scenes:
+      - checker
+      - rag-metrics
+  - heading: Diagnose retrieval and generation separately
+    status: taught
+    scenes:
+      - rag-stage
+      - rag-metrics
+      - fresh-report
+  - heading: Public benchmarks answer narrower questions
+    status: taught
+    note: The library loan-period patch illustrates selected repair and regression tests. Its textbook assertion is outside the selected harness.
+    scenes:
+      - knowledge-contract
+      - math-frontier
+      - code-contract
+      - benchmark-audit
+      - preference-ratings
+  - heading: The pass@k metric separates sample coverage from selection accuracy
+    status: taught
+    note: The film enumerates 28 equally likely pairs for one problem. Thirteen contain a passing program. Returning the lower index succeeds on eight. The article supplies the 100-sample estimate and the separate four-pass and four-failure pools.
+    scenes:
+      - candidates
+      - sample-estimator
+  - heading: Open-ended answers need controlled judgment
+    status: taught
+    scenes:
+      - judge-controls
+  - heading: Goodhart's law and benchmark contamination
+    status: taught
+    scenes:
+      - exposure
+      - exposure-screen
+  - heading: Production release gates balance quality, latency, and cost
+    status: taught
+    scenes:
+      - gates
+      - finite-report
+  - heading: Inspect failure slices, not the average alone
+    status: taught
+    note: The library example pairs Q91 through Q100 across assistants. Seven extra renewal passes offset seven lost ordinary passes. Q100 remains a miss for both.
+    scenes:
+      - intro
+      - slices
+      - synthesis
+      - fresh-report
+  - heading: Small samples need an uncertainty margin
+    status: taught
+    note: The article supplies the Wilson intervals and the paired-test assumptions. The archive exercise applies them to 10 fixes, two breaks and nine correct permission answers in ten cases. F031's context and answer are an authored trace for diagnosing the miss.
+    scenes:
+      - uncertainty
+      - wilson-construction
+      - paired-diagnosis
+      - fresh-report
+  - heading: Write down enough to reproduce the claim
+    status: taught
+    scenes:
+      - reproducible-package
+      - synthesis
+  - heading: Failure patterns to diagnose
+    status: taught
+    scenes:
+      - rag-stage
+      - judge-controls
+      - exposure-screen
+      - finite-report
+  - heading: Try a release report that hides the failure
+    status: taught
+    scenes:
+      - reproducible-package
+      - fresh-report
+quiz:
+  - n: 1
+    status: taught
+    scenes:
+      - gold-contract
+  - n: 2
+    status: taught
+    scenes:
+      - rag-metrics
+  - n: 3
+    status: taught
+    scenes:
+      - knowledge-contract
+      - contract
+  - n: 4
+    status: taught
+    scenes:
+      - candidates
+      - sample-estimator
+  - n: 5
+    status: taught
+    scenes:
+      - judge-controls
+  - n: 6
+    status: taught
+    scenes:
+      - exposure
+      - exposure-screen
+  - n: 7
+    status: taught
+    scenes:
+      - finite-report
+  - n: 8
+    status: taught
+    scenes:
+      - wilson-construction
+  - n: 9
+    status: taught
+    scenes:
+      - paired-diagnosis
+      - fresh-report
+  - n: 10
+    status: taught
+    scenes:
+      - slices
+      - gates
+      - fresh-report
+removed: []
+reviews:
+  closed_book:
+    script: 4fe3d14adedbc9c4
+    taught: 10
+    partial: 0
+    absent: 0
+    reviewer: independent closed-book review
+    evidence: videos/reviews/script-renewal/benchmark-audits.json
+  fact_check:
+    script: 4fe3d14adedbc9c4
+    open_findings: 0
+    reviewer: independent factual review
+    evidence: videos/reviews/script-renewal/benchmark-audits.json

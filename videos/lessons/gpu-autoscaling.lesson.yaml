@@ -1,0 +1,1900 @@
+version: 1
+id: gpu-autoscaling
+opening: lesson
+title: Capacity That Arrives Before the Queue Expires
+source: llmops/llm-deployment-gpu-serving-autoscaling/content.md
+sources:
+  - title: Pinned Qwen3.6 config
+    url: https://huggingface.co/Qwen/Qwen3.6-27B/blob/6a9e13bd6fc8f0983b9b99948120bc37f49c13e9/config.json
+  - title: Qwen3.6 model and text-only mode
+    url: https://huggingface.co/Qwen/Qwen3.6-27B
+  - title: vLLM metric units and eligibility
+    url: https://docs.vllm.ai/en/stable/design/metrics/
+  - title: KEDA2.20 activation and HPA
+    url: https://keda.sh/docs/2.20/concepts/scaling-deployments/
+  - title: KEDA2.20 cooldown contract
+    url: https://keda.sh/docs/2.20/reference/scaledobject-spec/
+  - title: Kubernetes probe semantics
+    url: https://kubernetes.io/docs/tasks/configure-pod-container/configure-liveness-readiness-startup-probes/
+  - title: Karpenter unschedulable node supply
+    url: https://karpenter.sh/docs/concepts/
+  - title: NVIDIA H100 SXM specification
+    url: https://www.nvidia.com/en-us/data-center/h100/
+  - title: MIG supported products and instance limits
+    url: https://docs.nvidia.com/datacenter/tesla/mig-user-guide/supported-gpus.html
+  - title: TensorRT-LLM current backend migration
+    url: https://nvidia.github.io/TensorRT-LLM/latest/legacy/tensorrt-backend-removal.html
+  - title: Dynamo phase ownership and transfer
+    url: https://docs.nvidia.com/dynamo/dev/knowledge-base/concepts/system-architecture/disaggregated-serving
+  - title: AWS best-effort stop/terminate notice
+    url: https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/spot-instance-termination-notices.html
+  - title: Azure best-effort scheduled eviction
+    url: https://learn.microsoft.com/en-us/azure/virtual-machines/spot-vms
+  - title: Google Cloud configurable preemption notice
+    url: https://docs.cloud.google.com/compute/docs/instances/spot
+  - title: Orca iteration scheduling
+    url: https://www.usenix.org/conference/osdi22/presentation/yu
+  - title: PagedAttention original paper
+    url: https://arxiv.org/abs/2309.06180
+  - title: Megatron tensor parallel boundaries
+    url: https://arxiv.org/abs/1909.08053
+  - title: S-LoRA shared-base serving
+    url: https://arxiv.org/abs/2311.03285
+scenes:
+  - id: intro
+    title: Will your summary start in time?
+    visual: Put queue ticket 21 beside the five slots on the warm GPU. Follow the same five slots across the
+      ten-second refills. Keep the ticket pinned and the thirty-second start deadline in view.
+    beats:
+      - say: Your incident summary is number twenty-one in the queue. It has thirty seconds to start. The first
+          five requests take the five slots on the only warm GPU. Each holds a slot for ten seconds. The next
+          GPU will be ready in two hundred seven seconds.
+        hold: 0.7
+        caption_starts:
+          - The first five requests
+          - The next GPU
+        visual_cues:
+          - id: find-request
+            phrase: Your incident summary is number twenty-one in the queue
+            targets:
+              - arrival-order
+            color: yellow
+            linger: 0.25
+          - id: first-five
+            phrase: The first five requests take the five slots on the only warm GPU
+            targets:
+              - start-grid
+            color: cyan
+            linger: 0.25
+          - id: cold-clock
+            phrase: The next GPU will be ready in two hundred seven seconds
+            targets:
+              - cold-worker
+            color: cyan
+            linger: 0.25
+      - say: Everyone arrived together. The slots refill in queue order at ten seconds and again at twenty. A
+          request can still start on the thirty-second tick. Does request twenty-one get a slot in time?
+        hold: 2.6
+        visual_cues:
+          - id: two-refills
+            phrase: refill in queue order at ten seconds and again at twenty
+            targets:
+              - start-grid
+            color: cyan
+            linger: 0.25
+          - id: last-tick-question
+            phrase: Does request twenty-one get a slot in time
+            targets:
+              - arrival-order
+              - start-gate
+              - queue-decision
+              - start-grid
+            color: yellow
+            linger: 0.25
+      - say: At thirty seconds, requests sixteen through twenty take the last five starts. Your first chance
+          would be at forty seconds. Your request expires ten seconds before a slot opens. To serve you in
+          time, another worker would have to be ready by the thirty-second deadline.
+        caption_starts:
+          - Your request expires ten seconds before a slot opens
+        hold: 1.1
+        visual_cues:
+          - id: last-five
+            phrase: requests sixteen through twenty take the last five starts
+            targets:
+              - start-grid
+              - start-gate
+            color: cyan
+            linger: 0.25
+            caption_boundary: true
+          - id: turn-too-late
+            phrase: Your first chance would be at forty seconds
+            targets:
+              - arrival-order
+              - queue-decision
+            color: pink
+            linger: 0.25
+            caption_boundary: true
+  - id: token-clocks
+    title: What an admitted caller waits for
+    visual: Draw an admitted request's queue and prompt intervals, then mark the four
+      individual token deliveries on one millisecond scale. Measure the long last gap alongside the mean.
+    beats:
+      - say: Here's a caller who did get a slot. Start the server clock when the request arrives. It spends
+          a hundred eighty milliseconds in the queue. The worker reads the prompt and sends the first token
+          at three hundred milliseconds. That whole wait is the time to first token.
+        hold: 0.8
+        visual_cues:
+          - id: first-delivery
+            phrase: It spends a hundred eighty milliseconds in the queue. The worker reads the prompt and sends the
+              first token at three hundred milliseconds
+            targets:
+              - request-clock
+            color: cyan
+            linger: 0.25
+      - say: Watch the next three tokens arrive. The first two come close together, then the caller waits a hundred
+          twenty milliseconds for the last one. Those marks are the times the server recorded each token. A
+          client can see a different pattern if the network buffers the stream.
+        hold: 0.8
+        visual_cues:
+          - id: later-deliveries
+            phrase: Watch the next three tokens arrive
+            targets:
+              - request-clock
+            color: cyan
+            linger: 0.25
+      - say: After the first token we have two hundred milliseconds spread across three gaps. The mean time per
+          output token is about sixty-six point seven milliseconds. With a single token there is no gap to
+          average. For this caller the mean hides that last stall. If the first token is slow instead,
+          separate queueing, cold starts and prompt processing before asking for another GPU.
+        hold: 0.9
+        visual_cues:
+          - id: mean-gap
+            phrase: The mean time per output token is about sixty-six point seven milliseconds
+            targets:
+              - request-clock
+              - clock-result
+            color: cyan
+            linger: 0.25
+            caption_boundary: true
+  - id: event-units
+    title: Two timestamps for four tokens
+    visual: Show one event carrying one token and the next carrying three in a separate trace. Connect the two
+      event timestamps while keeping the three bundled tokens inside the same boundary.
+    beats:
+      - say: Here is a different trace. This recorder stamps an entire output event. The first event carries one
+          token at three hundred milliseconds. The next event carries three tokens at three hundred forty.
+          There are four tokens on screen. How many gaps did the recorder actually time?
+        hold: 1.8
+        visual_cues:
+          - id: second-packet
+            phrase: The next event carries three tokens at three hundred forty
+            targets:
+              - output-events
+            color: cyan
+            linger: 0.25
+      - say: One gap between events, forty milliseconds. The request average divides those forty milliseconds by
+          four tokens minus one. That gives about thirteen point three milliseconds per output token. We have
+          no timestamp for each token inside the second event. Draft verification or network buffering can
+          produce bundles like this.
+        hold: 0.9
+        visual_cues:
+          - id: event-gap
+            phrase: One gap between events, forty milliseconds
+            targets:
+              - output-events
+            color: yellow
+            linger: 0.25
+            caption_boundary: true
+          - id: bundle-mean
+            phrase: That gives about thirteen point three milliseconds per output token
+            targets:
+              - event-result
+            color: cyan
+            linger: 0.25
+            caption_boundary: true
+      - say: Read the instrument before setting an alert. In the vLLM definitions used here, the gap histogram gets
+          one entry per interval between output events. The pacing histogram gets one mean per finished
+          request. Its Prometheus metric records zero for completions with at most one token. The benchmark
+          leaves them out of its pacing sample. Even the cache gauge needs a unit check. A reading of point
+          eight five means eighty-five percent.
+        hold: 0.8
+        visual_cues: []
+  - id: two-loops
+    title: Trace current admission separately from future capacity
+    visual: CarryR21 through boundedqueue/batch/stream while a linked controlpath requestsreplicas and
+      unschedulableGPU nodes; retainoriginaldeadline.
+    beats:
+      - say: "The data path handles work available now: authenticated gateway, bounded admission and queue, scheduler,
+          loaded model and streamed output. The control loop watches demand and asks for future replicas. If a
+          pod cannot fit available GPU nodes, a node controller must obtain suitable hardware. Only loaded,
+          warm and healthy engines contribute new serving capacity."
+        hold: 0.7
+        visual_cues:
+          - id: ga-two-loops-b0
+            phrase: "The data path handles work available now: authenticated gateway, bounded admission and queue,
+              scheduler, loaded model and streamed output."
+            targets:
+              - two-loops-mechanism
+            color: cyan
+            linger: 0.3
+      - say: A fast overload response can bound current waste while signaling that control loop. Retry keeps the
+          original deadline and uses one of a limited number of attempts. Keep the queue bounded while the
+          replicas load. Before routing a request, check the serving engine itself. Its sidecar can answer
+          a health check even while the model is still loading.
+        hold: 0.7
+        visual_cues:
+          - id: ga-two-loops-b1
+            phrase: A fast overload response can bound current waste while signaling that control loop.
+            targets:
+              - two-loops-mechanism
+            color: yellow
+            linger: 0.3
+  - id: readiness
+    title: Loaded, warmed and healthy must all agree
+    visual: An executable worker state machine rejects before loading, rejects before warmup, then admits two
+      requests and rejects a third at capacity while remaining healthy and ready.
+    beats:
+      - say: >
+          A scheduled worker has a place to run, but this first worker has no loaded weights. Its readiness
+          predicate fails and admission returns unavailable. A sidecar responding to a health check would miss
+          this condition if the actual engine had failed to initialize.
+        visual_cues:
+          - id: weights-missing
+            phrase: no loaded weights
+            targets:
+              - readiness-readout
+            color: pink
+          - id: not-ready
+            phrase: readiness predicate fails
+            targets:
+              - readiness-readout-2
+            color: yellow
+        hold: 0.65
+      - say: >
+          Finish loading and check again. Warmup is still incomplete, so the worker remains outside new
+          traffic. Startup checks should allow a measured initialization period while still exposing a real
+          failure. Readiness should represent the serving engine's ability to take the intended work.
+        visual_cues:
+          - id: warmup-pending
+            phrase: Warmup is still incomplete
+            targets:
+              - readiness-readout
+            color: yellow
+          - id: engine-readiness
+            phrase: ability to take the intended work
+            targets:
+              - readiness-readout-2
+            color: yellow
+        hold: 0.65
+      - say: >
+          Complete warmup and admit two requests. A third exceeds the local slot budget and receives an
+          overload response. The engine remains healthy. Separating admission capacity from liveness prevents
+          a full but useful worker from being restarted precisely when users need its active streams
+          preserved.
+        visual_cues:
+          - id: admit-two
+            phrase: admit two requests
+            targets:
+              - readiness-request-r1
+              - readiness-request-r2
+            color: green
+          - id: overload-third
+            phrase: third exceeds the local slot budget
+            targets:
+              - readiness-request-r3
+            color: pink
+        hold: 0.65
+  - id: probe-contract
+    title: Keep full capacity separate from failed initialization
+    visual: Use actualWorker two slots and status codes503/200/409/429; closeadmissionondrain
+      withoutreleasingactiveR1/R2.
+    beats:
+      - say: This worker returns five-oh-three while it loads and warms up. Once ready, two request IDs receive
+          two hundred. A duplicate ID receives four-oh-nine. A third independent request receives
+          four-twenty-nine because both slots are busy. Restarting this healthy worker would cut off both
+          callers in midstream.
+        hold: 0.7
+        visual_cues:
+          - id: ga-probe-contract-b0
+            phrase: This worker returns five-oh-three while it loads and warms up.
+            targets:
+              - probe-contract-mechanism
+            color: cyan
+            linger: 0.3
+          - id: ga-probe-ready
+            phrase: two request IDs receive two hundred
+            targets:
+              - probe-contract-mechanism
+            color: yellow
+            linger: 0.3
+          - id: ga-probe-duplicate
+            phrase: A duplicate ID receives four-oh-nine
+            targets:
+              - probe-contract-mechanism
+            color: yellow
+            linger: 0.3
+          - id: ga-probe-full
+            phrase: a third independent request receives four-twenty-nine
+            targets:
+              - probe-contract-mechanism
+            color: yellow
+            linger: 0.3
+      - say: Give startup enough time to load the model. Readiness tells the router where to send new traffic.
+          Liveness tells Kubernetes when a restart can help. When you drain a worker, close local intake
+          immediately. The router takes time to see the change. If two requests race for the last slot,
+          admission has to check and claim it in one operation.
+        hold: 0.7
+        visual_cues:
+          - id: ga-probe-contract-b1
+            phrase: Give startup enough time to load the model.
+            targets:
+              - probe-contract-mechanism
+            color: yellow
+            linger: 0.3
+  - id: static-refill
+    title: Who gets the short reply's slot?
+    visual: Follow two slots through the same four replies. Color one cell per decode step and mark elapsed
+      empty slots. Keep the static schedule visible while the second scheduler refills at step two.
+    beats:
+      - say: Four replies are ready to generate. Two slots take the first pair. One reply needs eight steps,
+          the other just two. In a static batch the short reply finishes, but the next caller waits for the
+          eight-step reply to finish too. Then the five-step and three-step replies start together.
+        hold: 0.7
+        visual_cues:
+          - id: ga-static-refill-b0
+            phrase: One reply needs eight steps, the other just two.
+            targets:
+              - static-refill-mechanism
+            color: cyan
+            linger: 0.3
+          - id: static-wait
+            phrase: the next caller waits for the eight-step reply to finish too
+            targets: [static-refill-mechanism]
+            color: yellow
+          - id: static-last-pair
+            phrase: Then the five-step and three-step replies start together
+            targets: [static-refill-mechanism]
+            color: cyan
+      - say: Now refill the short reply's slot as soon as it opens. Count the empty spaces on the two schedules.
+          Static needs thirteen steps with eight empty slot-steps. Continuous needs ten with two empty
+          slot-steps. Each column here is one decode step. On a GPU its duration depends on the shape of
+          the batch.
+        hold: 0.7
+        caption_starts:
+          - Static needs thirteen steps
+          - Continuous needs ten
+        visual_cues:
+          - id: ga-static-refill-b1
+            phrase: Now refill the short reply's slot as soon as it opens.
+            targets:
+              - static-refill-mechanism
+            color: yellow
+            linger: 0.3
+          - id: ga-static-count
+            phrase: static needs thirteen steps with eight empty slot-steps
+            targets:
+              - static-refill-mechanism
+            color: green
+            linger: 0.3
+          - id: ga-continuous-count
+            phrase: continuous needs ten with two empty slot-steps
+            targets:
+              - static-refill-mechanism
+            color: green
+            linger: 0.3
+      - say: Orca developed iteration-level scheduling; modern serving engines combine it with admission and KV
+          budgets. Before filling an empty slot with a long prompt, check its token budget, cache space and
+          admission policy. Track how long callers wait as you increase the batch size.
+        hold: 0.7
+        visual_cues:
+          - id: ga-static-refill-b2
+            phrase: Orca developed iteration-level scheduling; modern serving engines combine it with admission and KV
+              budgets.
+            targets:
+              - static-refill-mechanism
+            color: cyan
+            linger: 0.3
+  - id: logical-pages
+    title: Follow logical token order through scattered physical blocks
+    visual: BuildL0/L1/L2toP5/P2/P8table with16slotblocks
+      andanindependentlyfreeP1;moveactualKVreferencesratherthanreorderinglogicaltokens.
+    beats:
+      - say: PagedAttention separates logical token pages from their physical storage. The model reads logical L zero,
+          L one and L two in order, while the block table points to physical five, two and eight. Another free
+          block can supply the next page. The block table keeps the tokens in order even when their
+          storage is scattered.
+        hold: 0.7
+        visual_cues:
+          - id: ga-logical-pages-b0
+            phrase: PagedAttention separates logical token pages from their physical storage.
+            targets:
+              - logical-pages-mechanism
+            color: cyan
+            linger: 0.3
+      - say: The systems in the PagedAttention paper's comparison reserved a contiguous region for each
+          request's maximum length. A short reply left much of it empty. Scattered free space could leave
+          no single region large enough for the next request. Paging grows the allocation one block at a
+          time. Only the last block of a sequence can be partly empty. Reusing a computed
+          prefix takes one more step, finding a compatible cached prefix.
+        hold: 0.7
+        visual_cues:
+          - id: ga-logical-pages-b1
+            phrase: A short reply left much of it empty.
+            targets:
+              - logical-pages-mechanism
+            color: yellow
+            linger: 0.3
+  - id: allocation-slack
+    title: Compute reserved slots from each current sequence
+    visual: Construct320/75/900/250tokens into20/5/57/16blocks;sum98blocks1568slots1545used23slack
+      againstfixed512blocks.
+    beats:
+      - say: For the article’s four sequences, three hundred twenty tokens need twenty sixteen-slot blocks;
+          seventy-five need five; nine hundred need fifty-seven; two hundred fifty need sixteen. Add
+          ninety-eight blocks, or one thousand five hundred sixty-eight slots, for one thousand five hundred
+          forty-five stored tokens. Twenty-three slots remain empty at the ends.
+        hold: 0.7
+        visual_cues:
+          - id: ga-allocation-slack-b0
+            phrase: For the article’s four sequences, three hundred twenty tokens need twenty sixteen-slot blocks;
+              seventy-five need five; nine hundred need fifty-seven; two hundred fifty need sixteen.
+            targets:
+              - allocation-slack-mechanism
+            color: cyan
+            linger: 0.3
+          - id: ga-slack-total
+            phrase: Twenty-three slots remain empty at the ends
+            targets:
+              - allocation-slack-mechanism
+            color: green
+            linger: 0.3
+      - say: Four fixed two-thousand-forty-eight-token reservations would allocate five hundred twelve blocks, or
+          eight thousand one hundred ninety-two slots. Paging avoids six thousand six hundred twenty-four
+          reserved slots in this worksheet. Generally sum each request’s ceiling of stored tokens divided by
+          block size; shared prefixes and speculative lookahead require separate accounting.
+        hold: 0.7
+        visual_cues:
+          - id: ga-allocation-slack-b1
+            phrase: Four fixed two-thousand-forty-eight-token reservations would allocate five hundred twelve blocks, or
+              eight thousand one hundred ninety-two slots.
+            targets:
+              - allocation-slack-mechanism
+            color: yellow
+            linger: 0.3
+          - id: ga-fixed-saving
+            phrase: Paging avoids six thousand six hundred twenty-four reserved slots
+            targets:
+              - allocation-slack-mechanism
+            color: green
+            linger: 0.3
+  - id: prefix-state
+    title: Keep cache residency, active references and exact reuse distinct
+    visual: Retainphysicalpagesthenquery sameprefix/currenttenant,earlyedit,coldreplica and wrongsalt
+      asseparatecontrolled cases.
+    beats:
+      - say: Prefix caching reuses already computed full blocks for exact leading token IDs under compatible model,
+          adapter, tokenizer and isolation scope. Paging alone does not skip prefill. Active references
+          protect current readers; unreferenced cached contents may be evictable. A large warm cache therefore
+          differs from an exhausted live allocation budget.
+        hold: 0.7
+        visual_cues:
+          - id: ga-prefix-state-b0
+            phrase: Prefix caching reuses already computed full blocks for exact leading token IDs under compatible model,
+              adapter, tokenizer and isolation scope.
+            targets:
+              - prefix-state-mechanism
+            color: cyan
+            linger: 0.3
+      - say: Scale-out can route requests from hot replicas onto cold ones and initially increase first-token latency.
+          Compare both queue wait and cache hits before declaring a regression. Approved warmup must use the
+          eventual model, template, adapter and trusted sharing identity. Different early tokens or a
+          different tenant salt do not warm the intended compatible entry.
+        hold: 0.7
+        visual_cues:
+          - id: ga-prefix-state-b1
+            phrase: Scale-out can route requests from hot replicas onto cold ones and initially increase first-token
+              latency.
+            targets:
+              - prefix-state-mechanism
+            color: yellow
+            linger: 0.3
+  - id: engine-contract
+    title: Compare one request trace under an installed engine contract
+    visual: Keepone incidentprompt/schema andfiveengine boundaries; isolatecurrentTensorRTbackend/TGIstatus
+      frommeasuredserviceevidence.
+    beats:
+      - say: Hold request shape, objectives, hardware, precision and correctness fixed before choosing an engine. vLLM
+          offers continuous scheduling, paged KV and prefix reuse; SGLang combines prefix-tree reuse with its
+          scheduler. llama dot cpp has GGUF and multiple hardware paths whose actual model layout and
+          target-machine latency still need checking.
+        hold: 0.7
+        visual_cues:
+          - id: ga-engine-contract-b0
+            phrase: Hold request shape, objectives, hardware, precision and correctness fixed before choosing an engine.
+            targets:
+              - engine-contract-mechanism
+            color: cyan
+            linger: 0.3
+      - say: The current TensorRT-LLM migration guide removes its TensorRT engine backend and makes PyTorch the sole
+          execution backend; old separate engine-build instructions no longer describe that API. Hugging Face
+          labels TGI maintenance mode. Record the installed release rather than combining current names with
+          legacy deployment steps.
+        hold: 0.7
+        visual_cues:
+          - id: ga-engine-contract-b1
+            phrase: The current TensorRT-LLM migration guide removes its TensorRT engine backend and makes PyTorch the
+              sole execution backend; old separate engine-build instructions no longer describe that API.
+            targets:
+              - engine-contract-mechanism
+            color: yellow
+            linger: 0.3
+      - say: Take this example vLLM configuration. One GPU rank handles requests up to eight thousand one
+          hundred ninety-two tokens long. Chunked prefill and prefix reuse are on. The scheduler can batch
+          up to sixteen thousand three hundred eighty-four tokens per iteration. Use the checkpoint's chat
+          template, replay your prompts and check both latency and answer quality as you tune.
+        hold: 0.7
+        visual_cues:
+          - id: ga-engine-contract-b2
+            phrase: Take this example vLLM configuration
+            targets:
+              - engine-contract-mechanism
+            color: cyan
+            linger: 0.3
+  - id: request-benchmark
+    title: Freeze arrivals, lengths and quality before measuring capacity
+    visual: Constructversionedinteractive60/long25/background15requesttrace;holdhardware/release/cachebaseline
+      andboundclientqueuebeforecurves.
+    beats:
+      - say: A representative incident trace includes arrival times, prompt-token counts, output limits, shared-prefix
+          IDs, tenant or priority class and streaming flags. The article supplies sixty-percent interactive
+          summaries, twenty-five-percent long reviews and fifteen-percent background work as a scenario.
+          Identical short prompts cannot expose the same prefill contention, prefix misses and streaming
+          tails.
+        hold: 0.7
+        visual_cues:
+          - id: ga-request-benchmark-b0
+            phrase: A representative incident trace includes arrival times, prompt-token counts, output limits,
+              shared-prefix IDs, tenant or priority class and streaming flags.
+            targets:
+              - request-benchmark-mechanism
+            color: cyan
+            linger: 0.3
+      - say: Warm the model, tokenizer, cache and scheduler under a declared rule. Sweep concurrency and then bounded
+          offered request rates while preserving arrivals and stop conditions. If offered work outruns
+          completion, bound the client queue and retain send lag, rejection and timeout evidence. An
+          accumulating unbounded harness queue changes later latency measurements.
+        hold: 0.7
+        visual_cues:
+          - id: ga-request-benchmark-b1
+            phrase: Warm the model, tokenizer, cache and scheduler under a declared rule.
+            targets:
+              - request-benchmark-mechanism
+            color: yellow
+            linger: 0.3
+      - say: Bind GPU count and topology, engine/model/tokenizer/driver revisions, precision, quantization, batch and
+          parallelism settings, exact baseline and correctness results. Give the baseline the same tuning
+          effort. Preserve citations, tools, refusal and schema checks as applicable. A faster configuration
+          that changes what counts as a correct incident summary has changed the comparison.
+        hold: 0.7
+        visual_cues:
+          - id: ga-request-benchmark-b2
+            phrase: Bind GPU count and topology, engine/model/tokenizer/driver revisions, precision, quantization, batch
+              and parallelism settings, exact baseline and correctness results.
+            targets:
+              - request-benchmark-mechanism
+            color: cyan
+            linger: 0.3
+  - id: goodput-curve
+    title: Which load can this service promise?
+    visual: Place two ten-second trials on the same fraction axis. Align each workload, its exact numerator and
+      denominator, and its qualified rate against a fixed ninety-percent attainment mark.
+    beats:
+      - say: Before we call a GPU worker a five-slot worker, measure the experience its callers get. In these two
+          ten-second trials, a request qualifies only if it meets both the first-token and decode targets. Our
+          rule is ninety percent of everyone who tried. In the first trial, ninety-two of a hundred qualify.
+          That is nine point two qualified requests per second.
+        hold: 0.8
+        visual_cues:
+          - id: first-trial
+            phrase: In the first trial, ninety-two of a hundred qualify
+            targets:
+              - service-trials
+            color: cyan
+            linger: 0.25
+      - say: Increase the load to twelve requests a second. This time a hundred five of a hundred twenty qualify.
+          More requests finished within both targets per second. Look where the second bar ends relative to
+          ninety percent. Which offered rate would you use for planning?
+        hold: 2.1
+        visual_cues:
+          - id: higher-load
+            phrase: This time a hundred five of a hundred twenty qualify
+            targets:
+              - service-trials
+            color: cyan
+            linger: 0.25
+      - say: Use ten offered requests per second. The higher rate qualifies only eighty-seven and a half percent.
+          Ten is the highest passing rate we tested here. If that load is sustainable, it is our goodput
+          point. Keep failed, rejected and late requests in the denominator. DistServe uses mean time per
+          output token for its decode target. If your promise covers long stream gaps, measure those gaps too.
+          Compare that whole curve and the cost per successful request.
+        hold: 1.1
+        visual_cues:
+          - id: tested-capacity
+            phrase: Use ten offered requests per second
+            targets:
+              - service-trials
+              - trial-decision
+            color: cyan
+            linger: 0.25
+            caption_boundary: true
+  - id: workload
+    title: Can the fifth request still fit?
+    visual: Place five adjacent per-request KV allocations on a byte scale. Lengthen every history while the
+      eight-GiB pool boundary stays fixed. The fifth allocation moves beyond the pool.
+    beats:
+      - say: Those five slots also depend on what people ask. Give five callers the same short history, just over
+          four thousand tokens each. Every token adds a key and a value in each full-attention layer. This
+          model uses a hundred twenty-eight kibibytes per retained token. Each history takes half a gibibyte.
+          All five fit inside the eight gibibytes set aside for this cache.
+        hold: 0.85
+        visual_cues:
+          - id: kv-bytes
+            phrase: a hundred twenty-eight kibibytes per retained token
+            targets:
+              - history-length
+              - cache-pool
+            color: cyan
+            linger: 0.25
+      - say: Keep all five callers. Give each one four times as much history. The model and the cache pool stay the
+          same. How many of the five longer requests still fit?
+        hold: 2.2
+        visual_cues:
+          - id: extend-history
+            phrase: Give each one four times as much history
+            targets:
+              - history-length
+              - cache-pool
+            color: cyan
+            linger: 0.25
+      - say: Only four fit. Each long history needs two gibibytes. The fifth would take us from eight to ten. A
+          controller that counts five requests sees the same demand both times. Look at live cache allocation,
+          queue age and rejections for that prompt class. High GPU activity can mean useful work when those
+          requests fit and callers get their tokens on time.
+        hold: 0.9
+        visual_cues:
+          - id: four-fit
+            phrase: Only four fit
+            targets:
+              - cache-pool
+              - cache-decision
+            color: cyan
+            linger: 0.25
+            caption_boundary: true
+  - id: weight-state
+    title: Build weights, growing KV and overhead separately
+    visual: Construct8Btwo-byteweights16GB thenactual32×8×128×4096×8×2×2KV4GiB
+      and15%allowance;keepdecimalGBversusGiBexplicit.
+    beats:
+      - say: The memory budget adds resident weights, sequence-growing KV, fixed hybrid state and runtime overhead. In
+          the executed eight-billion-weight example, two bytes per weight use sixteen decimal gigabytes.
+          Growing KV counts two for K and V, thirty-two full-attention layers, eight KV heads, dimension one
+          hundred twenty-eight, four thousand ninety-six positions, eight active requests and two bytes.
+        hold: 0.7
+        visual_cues:
+          - id: ga-weight-state-b0
+            phrase: The memory budget adds resident weights, sequence-growing KV, fixed hybrid state and runtime overhead.
+            targets:
+              - weight-state-mechanism
+            color: cyan
+            linger: 0.3
+      - say: That KV payload is four gibibytes, or about four point two nine five decimal gigabytes. Add weights and
+          the supplied fifteen-percent allowance to obtain about twenty-three point three decimal gigabytes.
+          Use that total to shortlist cards, then measure the free memory after loading the model.
+        hold: 0.7
+        visual_cues:
+          - id: ga-weight-state-b1
+            phrase: That KV payload is four gibibytes, or about four point two nine five decimal gigabytes.
+            targets:
+              - weight-state-mechanism
+            color: yellow
+            linger: 0.3
+          - id: ga-memory-total
+            phrase: about twenty-three point three decimal gigabytes
+            targets:
+              - weight-state-mechanism
+            color: green
+            linger: 0.3
+      - say: GQA and MQA count the smaller K/V head set rather than all query heads. Only full-attention layers append
+          this growing tensor. Larger histories, generated output, concurrent requests, fixed recurrent
+          states, graph buffers and allocator behavior all change capacity. On several GPUs, check the
+          weights and state assigned to each card against that card's free memory.
+        hold: 0.7
+        visual_cues:
+          - id: ga-weight-state-b2
+            phrase: GQA and MQA count the smaller K/V head set rather than all query heads.
+            targets:
+              - weight-state-mechanism
+            color: cyan
+            linger: 0.3
+  - id: hybrid-budget
+    title: Count full-attention and recurrent layers with their real shapes
+    visual: ConstructpinnedQwen64blocks3linear/1full;build16fullKV2GiB and48FP32matrices144MiB/request
+      before4requests and65.3GBscreen.
+    beats:
+      - say: "The inspected Qwen three point six twenty-seven-B language layout has sixty-four blocks: sixteen groups
+          of three Gated DeltaNet blocks followed by one full-attention block. The full-attention head
+          dimension is two hundred fifty-six, with four KV heads. Only the sixteen full-attention layers
+          add growing KV."
+        hold: 0.7
+        visual_cues:
+          - id: ga-hybrid-budget-b0
+            phrase: "The inspected Qwen three point six twenty-seven-B language layout has sixty-four blocks: sixteen
+              groups of three Gated DeltaNet blocks followed by one full-attention block."
+            targets:
+              - hybrid-budget-mechanism
+            color: cyan
+            linger: 0.3
+      - say: For the article’s four active eight-thousand-one-hundred-ninety-two-token histories, growing KV is two
+          gibibytes. The forty-eight linear layers have sixteen key heads, forty-eight value heads and
+          dimensions one hundred twenty-eight. Their supplied FP-thirty-two recurrent-matrix lower bound is
+          one hundred forty-four mebibytes per request, or about point six zero four decimal gigabytes for
+          four.
+        hold: 0.7
+        visual_cues:
+          - id: ga-hybrid-budget-b1
+            phrase: For the article’s four active eight-thousand-one-hundred-ninety-two-token histories, growing KV is two
+              gibibytes.
+            targets:
+              - hybrid-budget-mechanism
+            color: yellow
+            linger: 0.3
+          - id: ga-recurrent-bytes
+            phrase: one hundred forty-four mebibytes per request
+            targets:
+              - hybrid-budget-mechanism
+            color: green
+            linger: 0.3
+      - say: "The language-only worksheet adds fifty-four decimal gigabytes of BF-sixteen weights, that KV and
+          recurrent term, then fifteen percent: about sixty-five point three gigabytes. The pinned
+          configuration also has a vision encoder and a prediction layer; the model card documents a text-only
+          mode that skips vision. Add any loaded vision, prediction, convolution state and buffers separately.
+          Check that each GPU has room for its share. Then time a request on the loaded model."
+        hold: 0.7
+        visual_cues:
+          - id: ga-hybrid-budget-b2
+            phrase: "The language-only worksheet adds fifty-four decimal gigabytes of BF-sixteen weights, that KV and
+              recurrent term, then fifteen percent: about sixty-five point three gigabytes."
+            targets:
+              - hybrid-budget-mechanism
+            color: cyan
+            linger: 0.3
+          - id: ga-hybrid-total
+            phrase: about sixty-five point three gigabytes
+            targets:
+              - hybrid-budget-mechanism
+            color: green
+            linger: 0.3
+  - id: resident-v-active
+    title: Use resident bytes for fit and active traffic for decode
+    visual: KeeponeMoEexpertpoolresidentwhileselectedexpertslightupforeach
+      token;separatecheckpointpayload,KVorhybridstate,HBMtraffic andcommunication.
+    beats:
+      - say: "Keep four budgets apart: checkpoint residency, active weight bytes read per token, attention or
+          recurrent state, and communication. A mixture-of-experts model can keep a large expert pool resident
+          even when each token selects only a few experts. Three billion active parameters is not a
+          six-gigabyte BF-sixteen residency estimate. Offloading changes residency by adding transfers."
+        hold: 0.7
+        visual_cues:
+          - id: ga-resident-v-active-b0
+            phrase: "Keep four budgets apart: checkpoint residency, active weight bytes read per token, attention or
+              recurrent state, and communication."
+            targets:
+              - resident-v-active-mechanism
+            color: cyan
+            linger: 0.3
+      - say: Packed weights also include scales and metadata, while some tensors stay at higher precision and
+          temporary dequantization uses space. FP-eight or integer-eight raw weights use one byte instead of
+          two; four-bit uses half a byte. Weight compression and KV precision are separate choices. Measure
+          actual loaded and accessed bytes, supported kernels and quality before extrapolating a capacity or
+          speed benefit.
+        hold: 0.7
+        visual_cues:
+          - id: ga-resident-v-active-b1
+            phrase: Packed weights also include scales and metadata, while some tensors stay at higher precision and
+              temporary dequantization uses space.
+            targets:
+              - resident-v-active-mechanism
+            color: yellow
+            linger: 0.3
+  - id: mig-slices
+    title: Check each hardware slice before counting independent replicas
+    visual: PartitionasupporteddevicebydocumentedMIGprofiles;tryoneweight+KVbudgetineachslicewithdedicatedcompute/memory
+      insteaddividingGPUpricealone.
+    beats:
+      - say: Multi-Instance GPU partitions supported devices into hardware-isolated compute and memory slices. The
+          inspected NVIDIA table lists up to seven instances on specified A-one-hundred, H-one-hundred and
+          H-two-hundred products. Each supported profile gives its slice a particular memory and compute
+          budget.
+        hold: 0.7
+        visual_cues:
+          - id: ga-mig-slices-b0
+            phrase: Multi-Instance GPU partitions supported devices into hardware-isolated compute and memory slices.
+            targets:
+              - mig-slices-mechanism
+            color: cyan
+            linger: 0.3
+      - say: Budget each selected profile’s weights, live state and execution needs before counting replicas. Hardware
+          partitioning lets small services share a GPU. Check kernel support and benchmark latency on the
+          chosen slice. The serving layer still authenticates tenants and schedules their requests.
+        hold: 0.7
+        visual_cues:
+          - id: ga-mig-slices-b1
+            phrase: Budget each selected profile’s weights, live state and execution needs before counting replicas.
+            targets:
+              - mig-slices-mechanism
+            color: yellow
+            linger: 0.3
+  - id: bandwidth-ceiling
+    title: How long does one weight read take?
+    visual: Time one complete weight read on a millisecond ruler. Keep the 54 GB result visible when the
+      same weights take 27 GB. Compare a 16 GB model on the same scale.
+    beats:
+      - say: Follow one caller generating one token. The GPU reads all fifty-four gigabytes of this dense
+          model's weights from memory. At the peak bandwidth of an H one hundred SXM, three thousand three
+          hundred fifty gigabytes per second, that read takes about sixteen milliseconds.
+        hold: 0.85
+        visual_cues:
+          - id: full-read
+            phrase: At the peak bandwidth of an H one hundred SXM, three thousand three hundred fifty gigabytes
+              per second, that read takes about sixteen milliseconds
+            targets: [full-weights]
+            color: blue
+        caption_starts:
+          - that read takes about sixteen milliseconds
+      - say: A second holds about sixty-two reads that long. With one read per token, that gives us a
+          weight-only ceiling of sixty-two tokens a second. Pack the same weights into twenty-seven gigabytes.
+          At the same bandwidth, how long will the read take?
+        hold: 2.3
+        visual_cues:
+          - id: full-rate
+            phrase: A second holds about sixty-two reads that long
+            targets: [full-weights]
+            color: blue
+          - id: packed-input
+            phrase: Pack the same weights into twenty-seven gigabytes
+            targets: [packed-weights]
+            color: yellow
+        caption_starts:
+          - Pack the same weights into twenty-seven gigabytes
+          - At the same bandwidth
+      - say: About eight milliseconds. Half the bytes cross in half the time. The ceiling doubles to about a
+          hundred twenty-four tokens per second. For a smaller model with sixteen gigabytes of weights, one
+          read takes just under five milliseconds. That's about two hundred nine tokens per second.
+        hold: 1.1
+        visual_cues:
+          - id: packed-read
+            phrase: About eight milliseconds
+            targets: [packed-weights]
+            color: cyan
+          - id: packed-rate
+            phrase: The ceiling doubles to about a hundred twenty-four tokens per second
+            targets: [packed-weights]
+            color: cyan
+          - id: small-read
+            phrase: For a smaller model with sixteen gigabytes of weights, one read takes just under five milliseconds
+            targets: [small-weights]
+            color: green
+          - id: small-rate
+            phrase: That's about two hundred nine tokens per second
+            targets: [small-weights]
+            color: green
+        caption_starts:
+          - The ceiling doubles
+          - For a smaller model
+          - one read takes just under five milliseconds
+          - That's about two hundred nine tokens per second
+      - say: To find the rate callers get, time the whole decode step. The GPU also reads the KV cache, runs
+          attention and samples the next token. A batch can share a weight read across requests. For a
+          mixture of experts, count the shared weights and the experts selected for this token. Every
+          resident expert still takes up memory.
+        hold: 1
+  - id: parallel-bytes
+    title: Count where tensor and pipeline splits communicate
+    visual: Build80layersacrossfourdeviceswithtwoTPcollectivesperblock
+      versus4×20layerPPstages;count5120/96across32stepswithoutclaimingbytespeed.
+    beats:
+      - say: "Tensor parallelism shards matrix dimensions across devices and exchanges partial results within layers.
+          In the standard Megatron-style block, count two collective boundaries: attention output and
+          feed-forward output. Pipeline parallelism assigns layer ranges to stages and sends activations
+          between them, introducing fill and drain bubbles. Exact collectives and placement depend on the
+          runtime."
+        hold: 0.7
+        visual_cues:
+          - id: ga-parallel-bytes-b0
+            phrase: Tensor parallelism shards matrix dimensions across devices and exchanges partial results within
+              layers.
+            targets:
+              - parallel-bytes-mechanism
+            color: cyan
+            linger: 0.3
+      - say: Count the exchanges for eighty layers and thirty-two decode steps. Two tensor
+          collectives per layer give five thousand one hundred twenty events. Three pipeline boundaries per
+          step between four stages give ninety-six transfers. To compare time, check the size of each
+          message, the speed of its link and how much transfer overlaps computation.
+        hold: 0.7
+        visual_cues:
+          - id: ga-parallel-bytes-b1
+            phrase: Count the exchanges for eighty layers and thirty-two decode steps.
+            targets:
+              - parallel-bytes-mechanism
+            color: yellow
+            linger: 0.3
+          - id: ga-tp-events
+            phrase: five thousand one hundred twenty events
+            targets:
+              - parallel-bytes-mechanism
+            color: green
+            linger: 0.3
+          - id: ga-pp-events
+            phrase: ninety-six transfers
+            targets:
+              - parallel-bytes-mechanism
+            color: green
+            linger: 0.3
+      - say: NVLink or NVSwitch within a node can make frequent collectives cheaper than a slower cross-node fabric.
+          Pipeline bubbles can harm tail latency even with fewer boundaries. Match sharding, replicated KV,
+          supported kernels and topology, then measure the same service curve. Aggregate HBM fit and
+          communication frequency are separate screens.
+        hold: 0.7
+        visual_cues:
+          - id: ga-parallel-bytes-b2
+            phrase: NVLink or NVSwitch within a node can make frequent collectives cheaper than a slower cross-node
+              fabric.
+            targets:
+              - parallel-bytes-mechanism
+            color: cyan
+            linger: 0.3
+  - id: metric-units
+    title: Distinguish waiting work from useful GPU activity
+    visual: Keep95%dutycyclewithshortqueue/healthySLO
+      thenholdutilizationwhilequeueageoractiveKVmoves;separatestale metricsand evictablewarmblocks.
+    beats:
+      - say: The GPU is busy ninety-five percent of the time. The queue is short, and active requests use
+          forty-five percent of the KV cache. If callers get their tokens on time, that busy GPU is doing
+          its job. DCGM reports hardware activity, clocks and power. The engine tells us who's waiting,
+          how long tokens take and how much cache those requests hold.
+        hold: 0.7
+        visual_cues:
+          - id: ga-metric-units-b0
+            phrase: The GPU is busy ninety-five percent of the time.
+            targets:
+              - metric-units-mechanism
+            color: cyan
+            linger: 0.3
+      - say: Look at the same GPU now. Its duty cycle still reads ninety-five percent. Active requests hold
+          ninety-two percent of the cache, and the oldest request has been waiting longer. Check what is
+          blocking admission. Unused prefix blocks can be reclaimed. A failed dependency needs repair. If
+          the queue gauge stops reporting, hold capacity and check the collector.
+        hold: 0.7
+        visual_cues:
+          - id: ga-metric-units-b1
+            phrase: Active requests hold ninety-two percent of the cache
+            targets:
+              - metric-units-mechanism
+            color: yellow
+            linger: 0.3
+  - id: controller
+    title: The next poll
+    visual: Line up the twenty running requests with four occupied five-slot workers. Thirty waiting requests
+      have no workers below them. Assemble six hollow workers beneath that queue and retain their identities
+      through the next poll and a missing sample.
+    beats:
+      - say: Take a fresh snapshot of this service. Twenty streams fill four ready workers. Thirty more requests are
+          waiting. They have the same workload as the streams already running, so use the same five slots per
+          replica. How many replicas should the controller request in total?
+        hold: 2.3
+        visual_cues:
+          - id: waiting-snapshot
+            phrase: Thirty more requests are waiting
+            targets:
+              - demand-sample
+            color: yellow
+            linger: 0.25
+      - say: Ten in total. Four workers already own streams. Request six more. Those empty outlines are orders for
+          capacity. A worker may still need a GPU node, its model weights and a warmup before the router can
+          give it a request.
+        hold: 0.9
+        visual_cues:
+          - id: desired-replicas
+            phrase: Ten in total
+            targets:
+              - poll-decision
+            color: cyan
+            linger: 0.25
+            caption_boundary: true
+          - id: place-order
+            phrase: Request six more
+            targets:
+              - worker-order
+            color: blue
+            linger: 0.25
+            caption_boundary: true
+      - say: Poll again. The same thirty requests are waiting. Four workers are ready, and the same six are
+          starting. How many additional workers should this poll request?
+        hold: 2.4
+        visual_cues:
+          - id: next-poll
+            phrase: Poll again
+            targets:
+              - demand-sample
+              - worker-order
+            color: cyan
+            linger: 0.25
+      - say: Zero additional workers. The order already covers all fifty requests. The router keeps enforcing its
+          queue limit while those six start. Now the demand sample goes missing. Hold the desired count at ten
+          and alert on the collector. A missing reading tells you nothing about how many people are waiting.
+        hold: 1
+        visual_cues:
+          - id: pending-counted
+            phrase: Zero additional workers
+            targets:
+              - worker-order
+              - poll-decision
+            color: cyan
+            linger: 0.25
+            caption_boundary: true
+          - id: missing-telemetry
+            phrase: Now the demand sample goes missing
+            targets:
+              - demand-sample
+            color: yellow
+            linger: 0.25
+  - id: controller-boundaries
+    title: When can one worker go?
+    visual: Add six waiting requests to the controller snapshot. Follow all twelve workers into a quiet period
+      and advance the same clock from 100 to 399 to 400 seconds. Mark the selected worker as draining at the
+      boundary.
+    beats:
+      - say: Now six more people join the queue. Twenty streams are running and thirty-six requests are waiting.
+          Eleven workers would have only fifty-five slots. Round up to twelve desired workers. This rule is
+          for one class of requests, with a floor of one replica and a cap of twenty.
+        hold: 0.8
+        visual_cues:
+          - id: desired-twelve
+            phrase: Round up to twelve desired workers
+            targets:
+              - replica-fleet
+            color: cyan
+            linger: 0.25
+            caption_boundary: true
+      - say: Later, all twelve are ready. Low demand starts at one hundred seconds. This controller needs three
+          hundred seconds of fresh low readings before it removes a worker. Move the clock to three hundred
+          ninety-nine. Can one worker leave yet?
+        hold: 2.1
+        visual_cues:
+          - id: low-window
+            phrase: Low demand starts at one hundred seconds
+            targets:
+              - low-clock
+              - replica-fleet
+            color: cyan
+            linger: 0.25
+          - id: still-low
+            phrase: Move the clock to three hundred ninety-nine
+            targets:
+              - low-clock
+            color: yellow
+            linger: 0.25
+      - say: At three hundred ninety-nine we have only two hundred ninety-nine seconds of evidence. At four hundred,
+          drain one worker. That leaves eleven desired. Stop the selected worker from taking new requests and
+          let its streams finish within the shutdown budget. A new rise in demand can still trigger an
+          immediate scale-up.
+        hold: 1
+        visual_cues:
+          - id: drain-one
+            phrase: At four hundred, drain one worker
+            targets:
+              - low-clock
+              - replica-fleet
+            color: yellow
+            linger: 0.25
+            caption_boundary: true
+      - say: A missing sample resets the quiet-period clock. So does a sample from the future or one older than
+          thirty seconds. Hold capacity and alert on the telemetry. Pending workers also clear the timer. At
+          the other extreme, suppose two hundred requests need slots and twenty workers are already desired.
+          Hold at the twenty-worker cap and enforce admission. These are choices in this controller. Check the
+          activation and cooldown rules in the one you operate.
+        hold: 0.9
+        visual_cues:
+          - id: upper-bound
+            phrase: twenty workers are already desired
+            targets:
+              - replica-fleet
+              - low-clock
+            color: yellow
+            linger: 0.25
+  - id: keda-phases
+    title: Separate activation, HPA scaling and node supply
+    visual: BuildKEDA0↔1activationthenHPA1↔NtargetloopandKarpenterunschedulableGPUnodepath;attachcooldownonlyzeroboundaryandstabilizationtodecrease.
+    beats:
+      - say: The inspected KEDA two point twenty documentation separates activation between zero and one from HPA
+          scaling among running replicas. KEDA exposes metrics and creates the HPA configuration; Karpenter or
+          another node autoscaler supplies hardware for pods marked unschedulable. A scheduled pod still has
+          to load and warm its engine.
+        hold: 0.7
+        visual_cues:
+          - id: ga-keda-phases-b0
+            phrase: The inspected KEDA two point twenty documentation separates activation between zero and one from HPA
+              scaling among running replicas.
+            targets:
+              - keda-phases-mechanism
+            color: cyan
+            linger: 0.3
+      - say: KEDA’s cooldownPeriod concerns return to zero, not a global pause after every scale event. HPA behavior
+          configures downscale stabilization separately from scale-up. A five-minute pause applied
+          indiscriminately in both directions can strand a burst. Check the actual installed version’s
+          contract rather than copying a timer label.
+        hold: 0.7
+        visual_cues:
+          - id: ga-keda-phases-b1
+            phrase: KEDA’s cooldownPeriod concerns return to zero, not a global pause after every scale event.
+            targets:
+              - keda-phases-mechanism
+            color: yellow
+            linger: 0.3
+      - say: Scaling from zero also needs an always-available gateway, durable queue or other demand source. Scraping
+          only nonexistent engine pods cannot reveal a new HTTP request, and KEDA does not automatically
+          buffer it. Desired, starting, ready, draining and failed replicas should remain distinct counts with
+          their own owners and clocks.
+        hold: 0.7
+        visual_cues:
+          - id: ga-keda-phases-b2
+            phrase: Scaling from zero also needs an always-available gateway, durable queue or other demand source.
+            targets:
+              - keda-phases-mechanism
+            color: cyan
+            linger: 0.3
+  - id: coldpath
+    title: When does the new worker reach the queue?
+    visual: Keep arrival at zero and the inclusive thirty-second deadline fixed. Build the serial node, image,
+      weight and warmup trace. Slide that same trace two minutes and then four minutes earlier and compare its
+      endpoint with both clocks.
+    beats:
+      - say: One of the ordered workers starts cold. Follow it through node provisioning, the image pull, loading
+          the weights and warming the engine. Measure all four on the same clock. In this trace the worker can
+          first serve at two hundred seven seconds.
+        hold: 0.8
+        visual_cues:
+          - id: startup-chain
+            phrase: node provisioning, the image pull, loading the weights and warming the engine
+            targets:
+              - startup-phases
+            color: cyan
+            linger: 0.25
+          - id: ready-boundary
+            phrase: the worker can first serve at two hundred seven seconds
+            targets:
+              - startup-result
+            color: cyan
+            linger: 0.25
+            caption_boundary: true
+      - say: Suppose the release freeze is scheduled. Start the same worker two minutes before nine. The queue still
+          opens at nine and the last caller can wait thirty seconds. Does this worker get there in time?
+        hold: 2.1
+        visual_cues:
+          - id: two-minute-lead
+            phrase: Start the same worker two minutes before nine
+            targets:
+              - startup-phases
+              - burst-boundaries
+            color: yellow
+            linger: 0.25
+      - say: It becomes ready eighty-seven seconds after nine. That misses the last start by fifty-seven seconds. At
+          nine, the worker already had a node and an image. It still had most of the weights to load and the
+          whole warmup ahead of it.
+        hold: 0.9
+        visual_cues:
+          - id: late-readiness
+            phrase: That misses the last start by fifty-seven seconds
+            targets:
+              - startup-phases
+              - startup-result
+            color: yellow
+            linger: 0.25
+            caption_boundary: true
+      - say: Try starting four minutes before nine. The phases take just as long. Watch where warmup ends this time.
+        hold: 1.3
+        visual_cues:
+          - id: four-minute-lead
+            phrase: starting four minutes before nine
+            targets:
+              - startup-phases
+              - burst-boundaries
+            color: cyan
+            linger: 0.25
+      - say: Now it is ready thirty-three seconds before the burst. You can count that worker in the warm pool at
+          nine. For a fleet, measure the whole path under concurrent starts, including supply failures. Phase
+          timings help locate delays. Adding separate phase percentiles cannot tell you how often the whole
+          fleet will be ready on time.
+        hold: 1
+        visual_cues:
+          - id: ready-margin
+            phrase: it is ready thirty-three seconds before the burst
+            targets:
+              - startup-phases
+              - startup-result
+            color: cyan
+            linger: 0.25
+            caption_boundary: true
+  - id: startup-mitigation
+    title: Keep each startup mitigation on its measured critical path
+    visual: Retain95node/22image/78weights/12warmup chainandburstdeadline;movecontainerstreamingfetchonto
+      firstrequest ascounterexample andparallelfleetreadsonto sharedcache.
+    beats:
+      - say: "The supplied serial startup takes ninety-five node seconds, twenty-two image seconds, seventy-eight
+          weight seconds and twelve warmup seconds: two hundred seven total. Warm pools and reserved capacity
+          address supply; lazy pulling or container streaming changes image delivery; approved local NVMe or
+          shared caches change weight fetch; readiness warmups cover actual engine preparation."
+        hold: 0.7
+        visual_cues:
+          - id: ga-startup-mitigation-b0
+            phrase: "The supplied serial startup takes ninety-five node seconds, twenty-two image seconds, seventy-eight
+              weight seconds and twelve warmup seconds: two hundred seven total."
+            targets:
+              - startup-mitigation-mechanism
+            color: cyan
+            linger: 0.3
+          - id: ga-startup-total
+            phrase: two hundred seven total
+            targets:
+              - startup-mitigation-mechanism
+            color: green
+            linger: 0.3
+      - say: Starting before the whole image arrives can shorten apparent startup while moving required fetches onto
+          the first request. A shared weight cache has throughput and availability limits when many nodes
+          start together. Snapshots and prebuilt artifacts need platform compatibility and release freshness.
+          Measure end-to-end readiness and first-request service with concurrent fleet loads, not a sum of
+          independent phase percentiles.
+        hold: 0.7
+        visual_cues:
+          - id: ga-startup-mitigation-b1
+            phrase: Starting before the whole image arrives can shorten apparent startup while moving required fetches
+              onto the first request.
+            targets:
+              - startup-mitigation-mechanism
+            color: yellow
+            linger: 0.3
+  - id: burst
+    title: Replay the nine o’clock queue
+    visual: Rewind the same queue with one, three and twenty already-warm workers. Keep R21 pinned. On the
+      three-worker schedule, its second wave lands on GPU 2. All twenty workers accept a first wave together
+      in the last replay.
+    beats:
+      - say: Here is the morning queue again. With one warm worker, request twenty-one is just behind the last group
+          that gets in. Twenty start and eighty expire. Everyone had the same thirty seconds to start, even
+          the people whose requests expired.
+        hold: 0.9
+        visual_cues:
+          - id: one-warm-outcome
+            phrase: Twenty start and eighty expire
+            targets:
+              - arrival-order
+            color: cyan
+            linger: 0.25
+      - say: Rewind with three workers already warm. Now fifteen requests start at once. Watch request twenty-one.
+          Which worker takes it when the slots reopen at ten seconds? Fill the first worker from the front of
+          the line, then the second, then the third.
+        hold: 2.3
+        visual_cues:
+          - id: three-warm
+            phrase: Rewind with three workers already warm
+            targets:
+              - start-grid
+              - arrival-order
+            color: cyan
+            linger: 0.25
+      - say: Request twenty-one starts on the second worker at ten seconds. This time the gate opens for fifteen
+          people at each tick. By the deadline sixty have started and forty expire. We changed the warm pool.
+          The cold workers still take two hundred seven seconds.
+        hold: 1
+        visual_cues:
+          - id: more-admitted
+            phrase: Request twenty-one starts on the second worker at ten seconds
+            targets:
+              - start-grid
+            color: cyan
+            linger: 0.25
+            caption_boundary: true
+          - id: queue-expiry
+            phrase: By the deadline sixty have started and forty expire
+            targets:
+              - arrival-order
+              - queue-decision
+            color: pink
+            linger: 0.25
+            caption_boundary: true
+      - say: For a different promise, have twenty workers ready before nine. All one hundred requests start
+          immediately. That buys zero queue wait for this burst, at the price of keeping twenty model copies
+          warm. A promise that allows thirty seconds of waiting gives each warm slot time to serve more than
+          one person.
+        hold: 1
+        visual_cues:
+          - id: twenty-ready
+            phrase: have twenty workers ready before nine
+            targets:
+              - start-grid
+            color: cyan
+            linger: 0.25
+          - id: all-at-once
+            phrase: All one hundred requests start immediately
+            targets:
+              - start-grid
+              - arrival-order
+            color: cyan
+            linger: 0.25
+            caption_boundary: true
+  - id: burst-rate
+    title: Convert slots to rate under the declared service time
+    visual: Keepsamefive10secondslotsand20replicas;contrast100simultaneousrequeststo10RPSsustained
+      andfinite300secondqueueadmissionat190.
+    beats:
+      - say: Five matching active slots with ten-second residence imply at most point five completed requests per
+          second per replica in this slot model. Twenty replicas offer one hundred concurrent slots and ten
+          requests per second. Concurrency is a count; offered rate has a time denominator. Five short
+          summaries and five long histories do not necessarily share either capacity.
+        hold: 0.7
+        visual_cues:
+          - id: ga-burst-rate-b0
+            phrase: Five matching active slots with ten-second residence imply at most point five completed requests per
+              second per replica in this slot model.
+            targets:
+              - burst-rate-mechanism
+            color: cyan
+            linger: 0.3
+      - say: A finite burst can drain before cold workers arrive when its queue budget is generous. One warm replica
+          starts its last group of the hundred at one hundred ninety seconds under a three-hundred-second
+          queue allowance. The cold GPU is still loading. Now send one new request every second. At half
+          a request per second, the warm worker falls further behind even as it finishes replies.
+        hold: 0.7
+        visual_cues:
+          - id: ga-burst-rate-b1
+            phrase: A finite burst can drain before cold workers arrive when its queue budget is generous.
+            targets:
+              - burst-rate-mechanism
+            color: yellow
+            linger: 0.3
+          - id: ga-last-admission
+            phrase: one hundred ninety seconds
+            targets:
+              - burst-rate-mechanism
+            color: green
+            linger: 0.3
+          - id: continuing-arrivals
+            phrase: Now send one new request every second
+            targets: [burst-rate-mechanism]
+            color: cyan
+        caption_starts:
+          - Now send one new request every second
+  - id: drain
+    title: Remove a worker without abandoning its ownership
+    visual: An actual worker disables local admission while retaining two active IDs. One completion removes only
+      its own ID; the last completion makes termination safe. The model keeps readiness and active ownership
+      separate throughout.
+    beats:
+      - say: >
+          Scale-down begins by closing local admission and withdrawing readiness. Endpoint updates take time,
+          so the worker must reject new arrivals itself. The two active request identities remain owned here.
+          Changing a desired count does not transfer their attention state or finish their responses.
+        visual_cues:
+          - id: closed-admission
+            phrase: closing local admission and withdrawing readiness
+            targets:
+              - readiness-readout-2
+            color: yellow
+          - id: owned-requests
+            phrase: two active request identities remain owned here
+            targets:
+              - drain-request-r1
+              - drain-request-r2
+            color: cyan
+        hold: 0.65
+      - say: >
+          One request completes and releases only its own slot. The other stays active. Wait within the
+          earliest shutdown deadline and reserve cleanup time. Remaining generation duration is an estimate,
+          so a drain policy also needs explicit interruption behavior when completion cannot fit.
+        visual_cues:
+          - id: release-one
+            phrase: One request completes and releases only its own slot
+            targets:
+              - drain-request-r1
+              - drain-request-r2
+            color: green
+          - id: still-active
+            phrase: other stays active
+            targets:
+              - drain-request-r1
+              - drain-request-r2
+            color: cyan
+        hold: 0.65
+      - say: >
+          The final request completes and the active set becomes empty. The worker can now shut down.
+          Use downscale stabilization to avoid repeatedly paying a long startup after brief traffic lulls. A
+          stream interrupted by termination needs an explicit failure or a supported resumption protocol that
+          preserves its meaning.
+        visual_cues:
+          - id: empty-active-set
+            phrase: active set becomes empty
+            targets:
+              - drain-request-r1
+              - drain-request-r2
+            color: green
+          - id: safe-termination
+            phrase: The worker can now shut down
+            targets:
+              - readiness-readout-5
+            color: yellow
+        hold: 0.65
+  - id: spot-deadline
+    title: Respect the earliest shutdown budget and streamed-state boundary
+    visual: Take120secondwarningminus20cleanup=100;compare12/84/170estimatedworkandstreamflag;thenchangeproviderwarningwithoutchangingestimates.
+    beats:
+      - say: The executed drain rule takes the earliest actual shutdown deadline and reserves cleanup. With one
+          hundred twenty seconds and twenty cleanup, one hundred remain. Twelve- and eighty-four-second
+          estimates fit. A one-hundred-seventy-second unstreamed request may retry within its original budget;
+          an active stream needs explicit interruption or supported resumption. Exactly one hundred fits the
+          supplied rule; one hundred one does not.
+        hold: 0.7
+        visual_cues:
+          - id: ga-spot-deadline-b0
+            phrase: The executed drain rule takes the earliest actual shutdown deadline and reserves cleanup.
+            targets:
+              - spot-deadline-mechanism
+            color: cyan
+            linger: 0.3
+          - id: ga-drain-budget
+            phrase: one hundred remain
+            targets:
+              - spot-deadline-mechanism
+            color: green
+            linger: 0.3
+      - say: Warnings vary. The inspected AWS EC-two stop-or-terminate notice is best effort at two minutes;
+          hibernation starts immediately. Azure scheduled eviction events are best effort up to thirty
+          seconds. Google Cloud defaults to zero dedicated notice, optionally one hundred twenty, followed by
+          a best-effort shutdown of up to thirty. The Kubernetes grace period can be earlier than the
+          provider’s warning.
+        hold: 0.7
+        visual_cues:
+          - id: ga-spot-deadline-b1
+            phrase: Warnings vary.
+            targets:
+              - spot-deadline-mechanism
+            color: yellow
+            linger: 0.3
+      - say: Remaining generation is an estimate, so enforce the real deadline and stop local admission immediately.
+          On a thirty-second warning with twenty cleanup, only ten seconds remain; even the earlier
+          twelve-second request no longer fits. Do not append a fresh model sample invisibly to an old partial
+          answer. Test interruption, cleanup and supported recovery while load returns.
+        hold: 0.7
+        visual_cues:
+          - id: ga-spot-deadline-b2
+            phrase: Remaining generation is an estimate, so enforce the real deadline and stop local admission
+              immediately.
+            targets:
+              - spot-deadline-mechanism
+            color: cyan
+            linger: 0.3
+          - id: ga-short-warning
+            phrase: only ten seconds remain
+            targets:
+              - spot-deadline-mechanism
+            color: green
+            linger: 0.3
+  - id: operating-model
+    title: Price warm capacity and operational ownership together
+    visual: Keepbaselineon-demandpoolwithretryable spot overflow;comparemanaged/privateKubernetesownership
+      atsameSLOinsteadofGPUhourprice.
+    beats:
+      - say: A stable on-demand or reserved pool can protect baseline objectives while spot capacity handles retryable
+          overflow. Warm headroom costs money between bursts but avoids missed deadlines during startup. Tune
+          gradual drain and stabilization against measured lull lengths, readiness cost and useful work
+          served. Rapid removal and reload can raise both cost and user delay.
+        hold: 0.7
+        visual_cues:
+          - id: ga-operating-model-b0
+            phrase: A stable on-demand or reserved pool can protect baseline objectives while spot capacity handles
+              retryable overflow.
+            targets:
+              - operating-model-mechanism
+            color: cyan
+            linger: 0.3
+      - say: Managed inference may operate much of instance lifecycle; GPU instances leave engine health and queues to
+          your team; managed Kubernetes still leaves device plugins, drivers, workers, storage and application
+          scaling to an operator. Compare total cost at the required service objective, including failed work,
+          interruption and recovery. An isolated hourly device price does not settle platform ownership or
+          useful-request cost.
+        hold: 0.7
+        visual_cues:
+          - id: ga-operating-model-b1
+            phrase: Managed inference may operate much of instance lifecycle; GPU instances leave engine health and queues
+              to your team; managed Kubernetes still leaves device plugins, drivers, workers, storage and
+              application scaling to an operator.
+            targets:
+              - operating-model-mechanism
+            color: yellow
+            linger: 0.3
+  - id: failure-diagnosis
+    title: Choose the intervention from the first failed boundary
+    visual: Replayflappingnewworker,longtailhiddenby800msmean,retry-amplificationandinteractive/batchinterference;retainR21originaldeadlineinallcases.
+    beats:
+      - say: If a ready replica disappears during each brief lull, compare startup timestamps, lull duration and
+          useful work before termination. If successful requests average eight hundred milliseconds while some
+          users wait thirty seconds, inspect queue age and first-token tails by prompt length, plus request
+          pacing and stream-gap tails. Keep rejects and timeouts in the attainment population.
+        hold: 0.7
+        visual_cues:
+          - id: ga-failure-diagnosis-b0
+            phrase: If a ready replica disappears during each brief lull, compare startup timestamps, lull duration and
+              useful work before termination.
+            targets:
+              - failure-diagnosis-mechanism
+            color: cyan
+            linger: 0.3
+      - say: If callers immediately retry into full workers, bound admission, preserve original deadlines, limit
+          attempts and apply backoff while future capacity loads. If interactive first-token delay appears
+          only with batch analytics, compare traffic classes and tenant fairness or separate pools. More
+          desired replicas alone cannot rescue requests whose waiting budgets will expire first.
+        hold: 0.7
+        visual_cues:
+          - id: ga-failure-diagnosis-b1
+            phrase: If callers immediately retry into full workers, bound admission, preserve original deadlines, limit
+              attempts and apply backoff while future capacity loads.
+            targets:
+              - failure-diagnosis-mechanism
+            color: yellow
+            linger: 0.3
+      - say: "When long prompts disturb streams, compare chunk budgets under the same replay: smaller chunks produce
+          shorter but more frequent interruptions, without removing prompt work. When longer histories exhaust
+          admission, recompute growing and hybrid state. When paging saves memory but prefill repeats, inspect
+          reuse separately. Change one cause while retaining the same request and release identity."
+        hold: 0.7
+        visual_cues:
+          - id: ga-failure-diagnosis-b2
+            phrase: "When long prompts disturb streams, compare chunk budgets under the same replay: smaller chunks
+              produce shorter but more frequent interruptions, without removing prompt work."
+            targets:
+              - failure-diagnosis-mechanism
+            color: cyan
+            linger: 0.3
+  - id: split-ownership
+    title: Transfer compatible KV between phase-specific pools
+    visual: CarryR21promptKVfromprefillthroughmetadata/transferreadytogateddecode;propagatebackpressure and
+      cancellationtoconsistentownersbeforepoolsaturates.
+    beats:
+      - say: First tune mixed continuous batches, chunking, prefix reuse and queue policy. The vertical
+          line allows fifteen hundred milliseconds for the first token. The horizontal line allows sixty
+          milliseconds per later token on average. Under decode pressure the first token arrives in time,
+          but the stream is slow. The policy surge misses both targets. Only short chat meets both.
+          When a tuned pool misses either target, trace the contention and compare a split.
+        hold: 0.7
+        visual_cues:
+          - id: ga-split-ownership-b0
+            phrase: First tune mixed continuous batches, chunking, prefix reuse and queue policy.
+            targets:
+              - split-ownership-mechanism
+            color: cyan
+            linger: 0.3
+          - id: ga-joint-service-gate
+            phrase: Only short chat meets both
+            targets:
+              - split-ownership-mechanism
+            color: green
+            linger: 0.3
+      - say: A prefill worker creates initial KV. Transfer carries actual tensors and backend metadata to a compatible
+          decode owner. Model, dtype, block size, positions and layout must agree, with valid readiness before
+          consuming that state. Cancellation and timeout release both sides; backpressure reaches the router
+          before either pool accumulates impossible work. A slow exposed handoff can erase the scheduling
+          gain.
+        hold: 0.7
+        visual_cues:
+          - id: ga-split-ownership-b1
+            phrase: A prefill worker creates initial KV.
+            targets:
+              - split-ownership-mechanism
+            color: yellow
+            linger: 0.3
+          - id: ga-transfer-ready
+            phrase: valid readiness before consuming that state
+            targets:
+              - split-ownership-mechanism
+            color: green
+            linger: 0.3
+          - id: ga-transfer-cancel
+            phrase: Cancellation and timeout release both sides
+            targets:
+              - split-ownership-mechanism
+            color: yellow
+            linger: 0.3
+      - say: DistServe and Splitwise study this split. Dynamo handles routing and state transfers for
+          supported backends. Size the prefill pool from prompt work and first-token delay. Size the decode
+          pool from active streams, their KV and their pacing. Replay the same traffic on both designs and
+          include the time spent moving state.
+        hold: 0.7
+        visual_cues:
+          - id: ga-split-ownership-b2
+            phrase: DistServe and Splitwise study this split.
+            targets:
+              - split-ownership-mechanism
+            color: cyan
+            linger: 0.3
+  - id: speculative-contract
+    title: Count the whole draft cycle under the target generation rule
+    visual: KeeptargetrequestandprovisionaldraftIDsapart;acceptgreedyprefixorprobability-ratiorulethenretaincorrectedtokenandremainingKVwork.
+    beats:
+      - say: Speculation proposes multiple tokens and verifies them together; proposals are not a second trusted
+          answer. Greedy verification keeps matching target choices up to the first mismatch.
+          Distribution-preserving sampled methods require their probability-ratio acceptance and corrected
+          rejection sample. Acceptance protects the declared generation rule, not factual correctness.
+        hold: 0.7
+        visual_cues:
+          - id: ga-speculative-contract-b0
+            phrase: Speculation proposes multiple tokens and verifies them together; proposals are not a second trusted
+              answer.
+            targets:
+              - speculative-contract-mechanism
+            color: cyan
+            linger: 0.3
+          - id: ga-greedy-mismatch
+            phrase: up to the first mismatch
+            targets:
+              - speculative-contract-mechanism
+            color: yellow
+            linger: 0.3
+      - say: Compatibility includes algorithm, backend, tokenizer mapping and supported draft or prediction module. An
+          arbitrary small model is not a valid pairing. Draft computation, rejected positions, grammar and
+          memory still cost resources; high-occupancy verification can interfere with neighboring work.
+          Measure complete first-token, decode and useful-answer evidence on the target workload rather than
+          applying a paper speedup range as fleet capacity.
+        hold: 0.7
+        visual_cues:
+          - id: ga-speculative-contract-b1
+            phrase: Compatibility includes algorithm, backend, tokenizer mapping and supported draft or prediction module.
+            targets:
+              - speculative-contract-mechanism
+            color: yellow
+            linger: 0.3
+  - id: regional-recovery
+    title: Verify a compatible ready destination before routing failover
+    visual: MoveonlyneworretryableR21worktoanallowedregion;compare
+      exactrelease/tenant/toolstateandremainingoriginaldeadlinebeforeopeningadmission.
+    beats:
+      - say: A secondary region must be healthy, allowed to serve the tenant’s data and tools, and able to meet the
+          remaining request budget. Resolve the same approved model, tokenizer, adapter, template, retrieval
+          data and safety/tool policy. Matching a model name does not establish release parity or actual ready
+          capacity.
+        hold: 0.7
+        visual_cues:
+          - id: ga-regional-recovery-b0
+            phrase: A secondary region must be healthy, allowed to serve the tenant’s data and tools, and able to meet the
+              remaining request budget.
+            targets:
+              - regional-recovery-mechanism
+            color: cyan
+            linger: 0.3
+      - say: Test regional quota, artifact access, cancellation and resumption under load. In-flight streams retain
+          their earlier output contract; new or retryable work preserves original deadlines and authorization.
+          A regional spot loss can exhaust recovery capacity too. A tested recovery-time objective connects
+          the secondary’s supply and readiness to client budgets rather than to a routing arrow.
+        hold: 0.7
+        visual_cues:
+          - id: ga-regional-recovery-b1
+            phrase: Test regional quota, artifact access, cancellation and resumption under load.
+            targets:
+              - regional-recovery-mechanism
+            color: yellow
+            linger: 0.3
+  - id: adapter-authority
+    title: Select an immutable adapter from authenticated membership
+    visual: RunactualaliceAregistry101basev7/denials;keeptrustedprincipal separatefromrawheader/paththen revoke
+      membership withsamestoredadapter.
+    beats:
+      - say: Shared-base LoRA lets tenants use different adapters on one copy of the base model. Take Alice's
+          request. The gateway has authenticated her. The service checks her membership in tenant A and
+          looks up its approved, immutable adapter. It's adapter number one hundred one on base version
+          seven. Tenant B has its own identity and adapter.
+        hold: 0.7
+        visual_cues:
+          - id: ga-adapter-authority-b0
+            phrase: Take Alice's request.
+            targets:
+              - adapter-authority-mechanism
+            color: cyan
+            linger: 0.3
+          - id: ga-adapter-selected
+            phrase: adapter number one hundred one on base version seven
+            targets:
+              - adapter-authority-mechanism
+            color: green
+            linger: 0.3
+      - say: Now revoke Alice's membership. Her next request is denied. The same check rejects a missing
+          identity, another tenant's adapter or an adapter for a different base. If the approved adapter
+          is missing, return an error too. Validate credentials at the gateway and choose the adapter from
+          the approved registry.
+        hold: 0.7
+        caption_starts:
+          - Her next request is denied
+        visual_cues:
+          - id: ga-adapter-authority-b1
+            phrase: Now revoke Alice's membership.
+            targets:
+              - adapter-authority-mechanism
+            color: yellow
+            linger: 0.3
+          - id: ga-adapter-revoked
+            phrase: Her next request is denied.
+            targets:
+              - adapter-authority-mechanism
+            color: green
+            linger: 0.3
+      - say: After selection, an installed LoRA-enabled engine can receive the approved name, numeric ID and path.
+          Use the authenticated tenant and its approved sharing group to decide which cached prefixes it
+          can reuse. Apply those permissions to prompts, retrieved context, tools, logs and result caches
+          as well.
+        hold: 0.7
+        visual_cues:
+          - id: ga-adapter-authority-b2
+            phrase: After selection, an installed LoRA-enabled engine can receive the approved name, numeric ID and path.
+            targets:
+              - adapter-authority-mechanism
+            color: cyan
+            linger: 0.3
+  - id: synthesis
+    title: How many workers should be warm at nine?
+    visual: Replay the hundred requests with four warm workers and then five. Read the occupied intervals down
+      each start tick. Follow the last request into GPU 5 at precisely thirty seconds, while its service
+      interval extends past the gate.
+    beats:
+      - say: Tomorrow the same hundred summaries will arrive at nine. You can keep four workers warm. Each has five
+          slots, and each summary takes ten seconds. Fill the slots at zero, ten and twenty seconds. There is
+          one more legal start at thirty. Will four workers get everyone in?
+        hold: 2.1
+        visual_cues:
+          - id: three-starts
+            phrase: Fill the slots at zero, ten and twenty seconds
+            targets:
+              - start-grid
+            color: cyan
+            linger: 0.25
+      - say: Four workers start eighty requests. The last twenty are still in line when the gate closes. Follow the
+          very last caller, request one hundred. A GPU ordered at nine would become ready long after that
+          caller’s deadline.
+        hold: 1.1
+        visual_cues:
+          - id: four-short
+            phrase: Four workers start eighty requests
+            targets:
+              - arrival-order
+              - start-grid
+            color: pink
+            linger: 0.25
+            caption_boundary: true
+      - say: Rewind with a fifth worker ready at nine. Fill those same start times again. The queue deadline stays
+          where it was. Where and when does request one hundred start?
+        hold: 2.2
+        visual_cues:
+          - id: fifth-ready
+            phrase: Rewind with a fifth worker ready at nine
+            targets:
+              - start-grid
+            color: cyan
+            linger: 0.25
+          - id: fill-again
+            phrase: Fill those same start times again
+            targets:
+              - start-grid
+            color: cyan
+            linger: 0.25
+      - say: On the fifth worker, at thirty seconds. That last request finishes at forty, which is fine for a
+          deadline on starting. Four workers fell short, so five is the smallest warm pool that starts
+          everyone in time. For another burst, count the start at zero and every refill through the deadline.
+          Multiply by the slots on one worker. Divide the burst by that capacity and round up. To promise the
+          first token or a smooth stream, benchmark those separately with real arrivals. Keep timeouts in the
+          count.
+        hold: 1.4
+        visual_cues:
+          - id: hundred-starts
+            phrase: On the fifth worker, at thirty seconds
+            targets:
+              - start-grid
+              - start-gate
+              - queue-decision
+            color: cyan
+            linger: 0.25
+            caption_boundary: true
+  - id: fresh-waves
+    title: The last start moves
+    visual: On a new six-second clock, pack seventy-two request IDs into four-slot replicas. Hold the
+      five-worker schedule in place while the start gate moves from eighteen to twelve seconds. Repack with
+      six workers and trace R72 to its earlier start.
+    beats:
+      - say: Try a fresh queue. Seventy-two requests arrive together. This worker handles four at a time, and each
+          keeps its slot for six seconds. Cold workers arrive at one hundred twenty seconds. Starting with
+          four warm workers, count the chances to refill through eighteen seconds, including eighteen itself.
+          What is the smallest warm pool that starts everyone?
+        hold: 3
+        visual_cues:
+          - id: fresh-input
+            phrase: count the chances to refill through eighteen seconds
+            targets:
+              - start-grid
+              - start-gate
+            color: yellow
+            linger: 0.25
+      - say: Four workers start sixty-four, and eight expire. Each slot gets four starts, at zero, six, twelve and
+          eighteen. That lets one worker start sixteen requests. Try a fifth warm worker. Five workers start
+          all seventy-two. Look down the last column. The final twelve requests use three of the workers at
+          eighteen seconds.
+        hold: 1.3
+        visual_cues:
+          - id: ga-fresh-four
+            phrase: Four workers start sixty-four, and eight expire
+            targets:
+              - start-grid
+              - arrival-order
+            color: pink
+            linger: 0.25
+            caption_boundary: true
+          - id: try-five
+            phrase: Try a fifth warm worker
+            targets:
+              - start-grid
+            color: cyan
+            linger: 0.25
+            caption_boundary: true
+          - id: ga-fresh-five
+            phrase: Five workers start all seventy-two
+            targets:
+              - start-grid
+            color: cyan
+            linger: 0.25
+            caption_boundary: true
+      - say: Keep those five workers and all the same requests. Move the last legal start from eighteen seconds to
+          twelve. Look at the old schedule under the new gate. Which requests lose their start, and how many
+          workers must be warm now?
+        hold: 2.8
+        visual_cues:
+          - id: shorter-gate
+            phrase: Move the last legal start from eighteen seconds to twelve
+            targets:
+              - start-gate
+              - start-grid
+            color: yellow
+            linger: 0.25
+      - say: With five workers, requests sixty-one through seventy-two lose their start. Sixty get in. Each worker
+          now has only three chances to fill four slots. Six workers start all seventy-two by twelve seconds.
+          Follow the last caller from the old eighteen-second start to the sixth worker at twelve. Size the
+          warm pool from the starts your deadline allows. Then check that a real worker can keep that pace. In
+          GPU failure operations, we’ll ask what to do when a worker itself stops serving.
+        hold: 1.5
+        visual_cues:
+          - id: ga-fresh-five-short
+            phrase: With five workers, requests sixty-one through seventy-two lose their start
+            targets:
+              - start-grid
+              - arrival-order
+            color: pink
+            linger: 0.25
+            caption_boundary: true
+          - id: ga-fresh-six
+            phrase: Six workers start all seventy-two by twelve seconds
+            targets:
+              - start-grid
+            color: cyan
+            linger: 0.25
+            caption_boundary: true
+          - id: track-last-request
+            phrase: from the old eighteen-second start to the sixth worker at twelve
+            targets:
+              - last-request
+              - start-grid
+            color: yellow
+            linger: 0.25

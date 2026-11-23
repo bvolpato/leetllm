@@ -1,0 +1,257 @@
+{
+  "id": "patch-conflict-detector",
+  "slug": "patch-conflict-detector",
+  "title": "Patch Conflict Detector",
+  "difficulty": "Medium",
+  "category": "Editing Systems",
+  "language": "python3",
+  "timeEstimateMinutes": 40,
+  "timeLimitMs": 2500,
+  "memoryLimitMb": 128,
+  "order": 32,
+  "tags": [
+    "patch",
+    "conflict detection",
+    "atomic update",
+    "agent edits"
+  ],
+  "source": "Cursor coding prep",
+  "summary": "Apply optimistic multi-file patches atomically while rejecting stale or overlapping edits.",
+  "starterCode": [
+    "def apply_patches(files: dict[str, str], patches: list[tuple[str, int, int, str, str]]) -> dict[str, str]:",
+    "    pass"
+  ],
+  "testCases": [
+    {
+      "name": "public applies one optimistic patch",
+      "visibility": "sample",
+      "description": "Expected old text matches the current file slice.",
+      "input": "files={\"app.py\":\"print('old')\\n\"}, patch=(\"app.py\",6,11,\"'old'\",\"'new'\")",
+      "expected": "{\"app.py\":\"print('new')\\n\"}",
+      "feedback": "Check the current slice before replacing it.",
+      "setup": [
+        "from solution import apply_patches",
+        "files = {\"app.py\": \"print('old')\\n\"}",
+        "patches = [(\"app.py\", 6, 11, \"'old'\", \"'new'\")]"
+      ],
+      "checks": [
+        {
+          "input": "files={\"app.py\":\"print('old')\\n\"}, patch=(\"app.py\",6,11,\"'old'\",\"'new'\")",
+          "expression": "apply_patches(files, patches)",
+          "operator": "==",
+          "expected": "{\"app.py\": \"print('new')\\n\"}",
+          "feedback": "Check the current slice before replacing it."
+        },
+        {
+          "input": "files={\"app.py\":\"print('old')\\n\"}, patch=(\"app.py\",6,11,\"'old'\",\"'new'\")",
+          "expression": "files",
+          "operator": "==",
+          "expected": "{\"app.py\": \"print('old')\\n\"}",
+          "feedback": "Check the current slice before replacing it."
+        }
+      ]
+    },
+    {
+      "name": "public applies multiple files",
+      "visibility": "sample",
+      "description": "Independent files can be edited in one atomic operation.",
+      "input": "files={\"a\":\"hello\",\"b\":\"world\"}",
+      "expected": "{\"a\":\"hi\",\"b\":\"earth\"}",
+      "feedback": "Validate the full patch set first, then apply per file from right to left.",
+      "setup": [
+        "from solution import apply_patches",
+        "files = {\"a\": \"hello\", \"b\": \"world\"}",
+        "patches = [(\"a\", 0, 5, \"hello\", \"hi\"), (\"b\", 0, 5, \"world\", \"earth\")]"
+      ],
+      "expression": "apply_patches(files, patches)",
+      "expectedExpression": "{\"a\": \"hi\", \"b\": \"earth\"}"
+    },
+    {
+      "name": "hidden rejects stale expected text",
+      "visibility": "hidden",
+      "setup": [
+        "from solution import apply_patches",
+        "files = {\"a\": \"hello\"}",
+        "try:",
+        "    apply_patches(files, [(\"a\", 0, 5, \"HELLO\", \"hi\")])",
+        "except ValueError:",
+        "    pass",
+        "else:",
+        "    raise AssertionError(\"expected conflict\")"
+      ],
+      "input": "files = {\"a\": \"hello\"}\ntry:\n    apply_patches(files, [(\"a\", 0, 5, \"HELLO\", \"hi\")])\nexcept ValueError:\n    pass\nelse:\n    raise AssertionError(\"expected conflict\")\nfiles",
+      "expected": "{\"a\": \"hello\"}",
+      "expression": "files"
+    },
+    {
+      "name": "hidden rejects overlaps",
+      "visibility": "hidden",
+      "code": [
+        "from solution import apply_patches",
+        "try:",
+        "    apply_patches({\"a\": \"abcdef\"}, [(\"a\", 1, 4, \"bcd\", \"X\"), (\"a\", 3, 5, \"de\", \"Y\")])",
+        "except ValueError:",
+        "    pass",
+        "else:",
+        "    raise AssertionError(\"expected overlap\")"
+      ]
+    },
+    {
+      "name": "hidden adjacent patches allowed",
+      "visibility": "hidden",
+      "setup": [
+        "from solution import apply_patches"
+      ],
+      "input": "apply_patches({\"a\": \"abcdef\"}, [(\"a\", 1, 3, \"bc\", \"BC\"), (\"a\", 3, 5, \"de\", \"DE\")])[\"a\"]",
+      "expected": "\"aBCDEf\""
+    },
+    {
+      "name": "hidden same-offset inserts preserve order",
+      "visibility": "hidden",
+      "setup": [
+        "from solution import apply_patches"
+      ],
+      "input": "apply_patches({\"a\": \"ab\"}, [(\"a\", 1, 1, \"\", \"X\"), (\"a\", 1, 1, \"\", \"Y\")])[\"a\"]",
+      "expected": "\"aXYb\"",
+      "feedback": "Sort by start and end stably, then apply edits from right to left so earlier inserts stay leftmost."
+    },
+    {
+      "name": "hidden insert and delete",
+      "visibility": "hidden",
+      "setup": [
+        "from solution import apply_patches"
+      ],
+      "input": "apply_patches({\"a\": \"012345\"}, [(\"a\", 1, 4, \"123\", \"\"), (\"a\", 6, 6, \"\", \"!\")])[\"a\"]",
+      "expected": "\"045!\""
+    },
+    {
+      "name": "hidden missing file rejected",
+      "visibility": "hidden",
+      "code": [
+        "from solution import apply_patches",
+        "try:",
+        "    apply_patches({}, [(\"missing\", 0, 0, \"\", \"x\")])",
+        "except ValueError:",
+        "    pass",
+        "else:",
+        "    raise AssertionError(\"expected missing file\")"
+      ]
+    },
+    {
+      "name": "hidden invalid ranges rejected",
+      "visibility": "hidden",
+      "description": "Negative start, inverted end, and end past length must raise before mutation.",
+      "code": [
+        "from solution import apply_patches",
+        "files = {\"a\": \"abc\"}",
+        "for patch in [(\"a\", -1, 1, \"a\", \"x\"), (\"a\", 2, 1, \"\", \"x\"), (\"a\", 0, 4, \"abcd\", \"x\")]:",
+        "    try:",
+        "        apply_patches(files, [patch])",
+        "    except ValueError:",
+        "        pass",
+        "    else:",
+        "        raise AssertionError(\"expected invalid range\")",
+        "assert files == {\"a\": \"abc\"}"
+      ]
+    },
+    {
+      "name": "public empty patch set preserves files",
+      "visibility": "sample",
+      "description": "Applying no patches returns equivalent repository contents.",
+      "setup": [
+        "from solution import apply_patches"
+      ],
+      "input": "apply_patches({\"a.txt\": \"unchanged\"}, [])",
+      "expected": "{\"a.txt\": \"unchanged\"}",
+      "feedback": "Start from a copy of files, even when there are no edits to apply."
+    },
+    {
+      "name": "hidden insertion at replacement boundary ignores input ordering",
+      "visibility": "hidden",
+      "code": [
+        "from solution import apply_patches",
+        "files = {\"a\": \"abc\"}",
+        "patches = [(\"a\", 1, 2, \"b\", \"R\"), (\"a\", 1, 1, \"\", \"L\"), (\"a\", 2, 2, \"\", \"E\")]",
+        "assert apply_patches(files, patches) == {\"a\": \"aLREc\"}",
+        "assert files == {\"a\": \"abc\"}",
+        "assert apply_patches(files, []) is not files",
+        "try:",
+        "    apply_patches({\"a\": \"abcd\"}, [(\"a\", 1, 3, \"bc\", \"R\"), (\"a\", 2, 2, \"\", \"I\")])",
+        "except ValueError:",
+        "    pass",
+        "else:",
+        "    raise AssertionError(\"expected interior insertion conflict\")"
+      ]
+    },
+    {
+      "name": "hidden later file conflict preserves every original file",
+      "visibility": "hidden",
+      "description": "A valid earlier-file edit must not commit when a later-file patch fails validation.",
+      "code": [
+        "from solution import apply_patches",
+        "files = {\"first.py\": \"old\", \"second.py\": \"stable\"}",
+        "patches = [(\"first.py\", 0, 3, \"old\", \"new\"), (\"second.py\", 0, 6, \"STALE!\", \"updated\")]",
+        "try:",
+        "    apply_patches(files, patches)",
+        "except ValueError:",
+        "    pass",
+        "else:",
+        "    raise AssertionError(\"expected stale second-file conflict\")",
+        "assert files == {\"first.py\": \"old\", \"second.py\": \"stable\"}"
+      ]
+    }
+  ],
+  "clarifyingQuestions": [
+    "Are offsets bytes, Unicode code points, or language string indexes?",
+    "Should adjacent patches be allowed?",
+    "Should a patch create a missing file?",
+    "Should expected old text be mandatory?"
+  ],
+  "followUps": [
+    "Support file creation and deletion.",
+    "Return structured conflict reasons per patch.",
+    "Add rollback/audit records for agent-generated edits."
+  ],
+  "followUpGuide": [
+    "For file creation, reserve a sentinel path state and still validate the full patch set before mutation.",
+    "",
+    "For structured conflicts, return patch index plus reason such as `missing_file`, `stale_base`, or `overlap`.",
+    "",
+    "For agent edits, store input file hash, patch hash, and resulting file hash so reviewers can audit exactly what changed."
+  ],
+  "complexityAnalysis": [
+    "- Validation. Time: O(p log p + total checked slice length + total expected text length), where p is patch count; even a mismatched short expectation can cause a long text slice to be created. Extra space: O(p + largest checked slice).",
+    "- Application with repeated Python string slicing. Time: O(file count + sum over patches of current edited-file length and replacement length). Repeated copying can be quadratic as a file grows. Extra space includes O(file count + p) references, all retained changed-file outputs and the largest temporary edited string; unchanged file contents are shared, not copied.",
+    "- Applying from the right keeps offsets stable without rewriting patch coordinates."
+  ],
+  "solutionGuide": [
+    "Group patches by file, validate ranges and expected text, reject overlaps, then apply from highest start offset to lowest.",
+    "",
+    "```python",
+    "def apply_patches(files: dict[str, str], patches: list[tuple[str, int, int, str, str]]) -> dict[str, str]:",
+    "    by_file: dict[str, list[tuple[int, int, str, str]]] = {}",
+    "    for path, start, end, expected, replacement in patches:",
+    "        if path not in files:",
+    "            raise ValueError(\"missing file\")",
+    "        text = files[path]",
+    "        if start < 0 or end < start or end > len(text):",
+    "            raise ValueError(\"invalid range\")",
+    "        if text[start:end] != expected:",
+    "            raise ValueError(\"stale patch\")",
+    "        by_file.setdefault(path, []).append((start, end, expected, replacement))",
+    "    for edits in by_file.values():",
+    "        ordered = sorted(edits, key=lambda edit: (edit[0], edit[1]))",
+    "        for left, right in zip(ordered, ordered[1:]):",
+    "            if left[1] > right[0]:",
+    "                raise ValueError(\"overlap\")",
+    "    output = dict(files)",
+    "    for path, edits in by_file.items():",
+    "        text = output[path]",
+    "        ordered = sorted(edits, key=lambda edit: (edit[0], edit[1]))",
+    "        for start, end, _, replacement in reversed(ordered):",
+    "            text = text[:start] + replacement + text[end:]",
+    "        output[path] = text",
+    "    return output",
+    "```"
+  ]
+}

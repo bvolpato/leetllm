@@ -1,0 +1,323 @@
+{
+  "id": "capstone-demand-forecasting-alerts",
+  "script": "1445d033184cbd4d",
+  "articleHash": "bd9408b6b0858b6c603c94d05119128655dc58fa3314b99cb288cad6664ff8dc",
+  "checked": "2026-11-10T01:53:56.935Z",
+  "closedBook": {
+    "taught": 10,
+    "partial": 0,
+    "absent": 0,
+    "answers": [
+      {
+        "n": 1,
+        "option": 3,
+        "coverage": "taught",
+        "quotes": [
+          {
+            "scene": "baseline",
+            "quote": "A seasonal naive forecast copies the latest available observation from the matching weekday."
+          },
+          {
+            "scene": "baseline",
+            "quote": "Search backward to the previous mature Sunday instead."
+          }
+        ],
+        "reason": "March 8 is the latest final Sunday. March 14 is a different weekday, and March 15 is unfinished.",
+        "exact": true,
+        "correct": true,
+        "grade": "taught"
+      },
+      {
+        "n": 2,
+        "option": 1,
+        "coverage": "taught",
+        "quotes": [
+          {
+            "scene": "origins",
+            "quote": "Advance to the following Sunday and rebuild the training history using only counts that have become final and readable."
+          },
+          {
+            "scene": "monitoring-contract",
+            "quote": "Append verified counts as they mature, preserving both event day and availability time."
+          }
+        ],
+        "reason": "March 6 was final and available before the fit. March 7 becomes available one hour after the fit, so it must be excluded.",
+        "exact": true,
+        "correct": true,
+        "grade": "taught"
+      },
+      {
+        "n": 3,
+        "option": 2,
+        "coverage": "taught",
+        "quotes": [
+          {
+            "scene": "metrics",
+            "quote": "Mean absolute error averages the absolute residual in parcels."
+          },
+          {
+            "scene": "evaluation-contract",
+            "quote": "The peak diagnostic charges three times the positive part of the quantity actual minus forecast only on days whose actual count is at least one hundred fifty."
+          }
+        ],
+        "reason": "The absolute error increases from 12 to 18. Across twelve rows, MAE rises by 6/12 = 0.5. Because actual 182 qualifies, peak units rise by 3 × 6 = 18.",
+        "exact": true,
+        "correct": true,
+        "grade": "taught"
+      },
+      {
+        "n": 4,
+        "option": 4,
+        "coverage": "taught",
+        "quotes": [
+          {
+            "scene": "signals",
+            "quote": "Precision is true positives divided by the sum of true and false positives. Recall is true positives divided by the sum of true positives and false negatives."
+          }
+        ],
+        "reason": "Precision is 3/(3 + 2) = 0.60. Recall is 3/(3 + 1) = 0.75.",
+        "exact": true,
+        "correct": true,
+        "grade": "taught"
+      },
+      {
+        "n": 5,
+        "option": 1,
+        "coverage": "taught",
+        "quotes": [
+          {
+            "scene": "metrics",
+            "quote": "Mean absolute error averages the absolute residual in parcels. Compare the candidate with its seasonal baseline on identical mature rows, retaining pending targets outside the denominator until their outcomes become available."
+          },
+          {
+            "scene": "evaluation-contract",
+            "quote": "Preserve each pending row and require the complete declared origin-horizon grid before a complete comparison can pass."
+          },
+          {
+            "scene": "earned-forecast-transfer",
+            "quote": "One pending record keeps completeness false."
+          }
+        ],
+        "reason": "The mature errors sum to 12, giving MAE 12/4 = 3. Three labels remain pending, so the required seven-record worksheet is incomplete.",
+        "exact": true,
+        "correct": true,
+        "grade": "taught"
+      },
+      {
+        "n": 6,
+        "option": 2,
+        "coverage": "taught",
+        "quotes": [
+          {
+            "scene": "ledger-contract",
+            "quote": "Editing a prediction changes its bytes; comparing its digest with an independently trusted expected digest detects that change. If an editor can also replace the expected digest, that reference no longer authenticates the original. Protected records, snapshots and receipts require actual storage and access controls, plus separate identities for revisions."
+          }
+        ],
+        "reason": "Separately protected evidence preserves the independent expected digest. An editable adjacent manifest or a recomputed digest cannot authenticate the original against that editor.",
+        "exact": true,
+        "correct": true,
+        "grade": "taught"
+      },
+      {
+        "n": 7,
+        "option": 3,
+        "coverage": "taught",
+        "quotes": [
+          {
+            "scene": "receipt-contract",
+            "quote": "The local comparison requires both named origins and all seven horizons with mature labels, strictly better MAE and peak diagnostic, tolerance fraction at least point eight five, and capacity precision and recall at least point six."
+          }
+        ],
+        "reason": "The tolerance fraction is 17/20 = 0.85, so it passes. Equal MAE is not strictly better, so the MAE gate and comparison fail.",
+        "exact": true,
+        "correct": true,
+        "grade": "taught"
+      },
+      {
+        "n": 8,
+        "option": 4,
+        "coverage": "taught",
+        "quotes": [
+          {
+            "scene": "receipt-contract",
+            "quote": "Even a counterfactual candidate that passes every numerical comparison still receives decision hold, reason synthetic fixture only, and live ready false. Comparison pass and operational readiness are distinct fields."
+          }
+        ],
+        "reason": "Passing the local comparison gives comparison_pass true, while the synthetic-fixture restriction keeps decision hold and live_ready false.",
+        "exact": true,
+        "correct": true,
+        "grade": "taught"
+      },
+      {
+        "n": 9,
+        "option": 2,
+        "coverage": "taught",
+        "quotes": [
+          {
+            "scene": "fit-construction",
+            "quote": "The seven weekday columns already span a constant, so this design adds no separate intercept. Fit weights by minimizing the sum of squared residuals."
+          },
+          {
+            "scene": "fit-construction",
+            "quote": "For Friday February sixth, only the Friday indicator is one among the seven weekday entries. Elapsed time is sixty-seven divided by seven weeks; the known campaign flag is one. The actual fitted contributions are about one hundred thirty-one point three one two from Friday, eleven point zero seven one from trend, and twenty point nine from campaign. Their full-precision sum is one hundred sixty-three point two eight four. Clip a negative raw forecast to zero; this is still a point regression rather than a probabilistic count model."
+          }
+        ],
+        "reason": "Sum the weighted feature contributions: 1 × 120 + 8 × 2 + 0 × 25 = 136. Nonnegative clipping leaves 136 unchanged.",
+        "exact": true,
+        "correct": true,
+        "grade": "taught"
+      },
+      {
+        "n": 10,
+        "option": 4,
+        "coverage": "taught",
+        "quotes": [
+          {
+            "scene": "cost-quantile",
+            "quote": "Dividing by the sum of the two costs gives pinball loss, with quantile level equal to underage cost divided by total cost."
+          },
+          {
+            "scene": "cost-quantile",
+            "quote": "Costs three and one give quantile level three quarters. The cumulative probability first reaches that level at one hundred sixty."
+          }
+        ],
+        "reason": "The quantile level is 4/(4 + 1) = 0.80. Cumulative probability is 0.60 at 80 and 0.90 at 140, so it first reaches 0.80 at capacity 140.",
+        "exact": true,
+        "correct": true,
+        "grade": "taught"
+      }
+    ]
+  },
+  "factCheck": {
+    "scenes": [
+      {
+        "id": "intro",
+        "evidence": "Verified against the executable fixture. The February 1 Sunday issue predicts 163.2835820895524 parcels for Friday February 6, exceeding capacity 150 by 13.2835820895524. The actual is 176, available February 7 at 06:00 UTC. Its later absolute error is 12.7164179104476. Thus the capacity comparison exists before the error can be evaluated. The remaining sentences describe the lesson’s demonstrated workflow.",
+        "sourceUrls": []
+      },
+      {
+        "id": "target",
+        "evidence": "The measurement distinction is valid. In the supplied example, 176 requests and capacity-limited completions of 150 are different targets. More generally, observing min(demand, capacity)=150 cannot distinguish demand 176 from 200. Unrecorded abandoned requests require additional evidence or assumptions. This censoring mechanism is supported by the primary [Tobit ETS paper](https://arxiv.org/html/2407.17920v1). The separate cost example correctly moves the optimal action from median 100 to capacity 160.",
+        "sourceUrls": [
+          "https://arxiv.org/html/2407.17920v1"
+        ]
+      },
+      {
+        "id": "forecast-contract",
+        "evidence": "Verified in forecast_lab.py:18–23, 125–154 and 172–196. The origins are February 1 and 8, 2026, both Sundays at 08:00 UTC. Targets are origin date plus horizons 1–7. Wednesday capacity is 140 and other days use 150. Features are seven weekday indicators, elapsed weeks and a campaign indicator, with no target lags or horizon-specific coefficients. Independent generator replay reproduced all 77 CSV counts. Its components are weekday levels, 0.15 parcels/day trend, campaign effects, integer noise and surges on February 6 and 10. It contains no weather or monthly-seasonality term. Recursive/direct mechanisms and their tradeoffs match [Ben Taieb and Hyndman](https://proceedings.mlr.press/v32/taieb14.pdf). Joint vector prediction matches the [MIMO formulation](https://arxiv.org/html/1108.3259), §2.4. Timezone and lead-time requirements are deployment design recommendations.",
+        "sourceUrls": [
+          "https://proceedings.mlr.press/v32/taieb14.pdf",
+          "https://arxiv.org/html/1108.3259"
+        ]
+      },
+      {
+        "id": "cost-quantile",
+        "evidence": "Verified algebraically and with exact rational arithmetic. Dividing Cu(y−a)+ + Co(a−y)+ by Cu+Co gives τ(y−a)+ + (1−τ)(a−y)+, where τ=Cu/(Cu+Co). The [MIT newsvendor notes](https://ocw.mit.edu/courses/15-772j-d-lab-supply-chains-fall-2014/6952be57b43aa185119c6f114908bcc5_MIT15_772JF14_Newsboy.pdf), page 3, give this critical fractile. Here τ=3/4. Cumulative probabilities are 0.55, 0.80 and 1, so the median is 100 and the 0.75-quantile is 160. At capacity 100, expected shortage is 0.25×60+0.20×140=43 and spare capacity is 0, giving absolute error 43 and cost 129. At 160, shortage is 0.20×80=16 and spare is 0.55×60=33, giving 49 and 3×16+33=81. At 240, spare is 0.55×140+0.25×80=97, giving 97 and 97. The OLS objective and selective peak diagnostic are different functions. No monetary savings are established.",
+        "sourceUrls": [
+          "https://ocw.mit.edu/courses/15-772j-d-lab-supply-chains-fall-2014/6952be57b43aa185119c6f114908bcc5_MIT15_772JF14_Newsboy.pdf"
+        ]
+      },
+      {
+        "id": "origins",
+        "evidence": "Verified by executing both fits. Filtering final counts by available_at≤origin yields 62 observations through January 31 at the first origin and 68 through February 6 at the second. February 7 remains unavailable until February 9 at 06:00 UTC. The second fit can therefore use February 2–6 outcomes from the first forecast window. [FPP3 §5.10](https://otexts.com/fpp3/toolbox.html) supports rolling-origin evaluation using prior information. Shuffling across these cutoffs would change the historical information boundary.",
+        "sourceUrls": [
+          "https://otexts.com/fpp3/toolbox.html"
+        ]
+      },
+      {
+        "id": "baseline",
+        "evidence": "Verified in issue(), which searches reversed mature history for the matching weekday. At the first origin, the February 8 Sunday target uses January 25, value 86. February 1 is incomplete and its count becomes available February 2. At the second origin, the February 14 Saturday target uses January 31, value 88, because February 7 is delayed. Each source date is retained. This matches the last-observed-season principle in [FPP3 §5.2](https://otexts.com/fpp3/toolbox.html), with the fixture’s explicit maturity filter.",
+        "sourceUrls": [
+          "https://otexts.com/fpp3/toolbox.html"
+        ]
+      },
+      {
+        "id": "fit-construction",
+        "evidence": "Reproduced with Python 3.12.15 and NumPy 2.2.6. The first matrix is 62×9 with rank 9. Independently solving exact rational normal equations reproduced its coefficients within 1.0×10⁻¹³. Seven weekday indicators sum to an all-ones column, so adding an intercept would introduce dependence. February 6 is Friday and 67 days after December 1. Its contributions are 131.31215351812372 + (67/7)×1.1567164179104594 + 20.899999999999984 = 163.2835820895524, correctly rounded to 163.284. The [NumPy 2.2 documentation](https://numpy.org/doc/2.2/reference/generated/numpy.linalg.lstsq.html) confirms the least-squares objective and returned rank. Rank-deficient and nonfinite-weight fits were rejected in memory. features() explicitly uses min(cutoff, target-day midnight). Plan records contain announcements only. The stated replay limitations and clipping interpretation are accurate.",
+        "sourceUrls": [
+          "https://numpy.org/doc/2.2/reference/generated/numpy.linalg.lstsq.html",
+          "https://otexts.com/fpp3/regression.html"
+        ]
+      },
+      {
+        "id": "issued",
+        "evidence": "Verified in features(), issue() and main(). Future calendar rows use announcements available at issue time. The issued record contains the point forecast, capacity, origin, target and horizon. The manifest construction separately retains each origin’s fitted weights and feature order. Neither evaluation nor later label arrival rewrites the forecast. Preserving separately identified revisions is a sound provenance requirement. [FPP3 §7.6](https://otexts.com/fpp3/regression.html) supports using predictor information available for ex-ante forecasts.",
+        "sourceUrls": [
+          "https://otexts.com/fpp3/regression.html"
+        ]
+      },
+      {
+        "id": "ledger-contract",
+        "evidence": "Verified in Forecast.__post_init__, load_data(), freeze(), read_frozen(), evaluate() and manifest construction. Validation enforces the stated identity, canonical UTC timestamp, integer horizon/date relationship, prior matching-weekday baseline source, at least 28 training rows, scheduled capacity, Boolean flags and finite nonnegative forecast fields. Count values are integers bounded by 2⁵³−1. The loaded maximum is only 176. Date-only joining is restricted to the single declared entity. Both fitted coefficient vectors, feature order, source hashes and runtime versions are retained by the manifest code. Ordinary reassignment raised FrozenInstanceError. Python documents [frozen dataclasses](https://docs.python.org/3.12/library/dataclasses.html) and [exclusive file creation](https://docs.python.org/3.12/library/functions.html#open) with the stated limits. Original ledger bytes passed read_frozen() in memory, while modified bytes failed against the original digest. Replacing an unprotected expected digest defeats that reference’s authenticity, consistent with [RFC 9530 §6.1](https://www.rfc-editor.org/rfc/rfc9530.html). Schema consistency does not authenticate the producer.",
+        "sourceUrls": [
+          "https://docs.python.org/3.12/library/dataclasses.html",
+          "https://docs.python.org/3.12/library/functions.html#open",
+          "https://numpy.org/doc/2.2/reference/generated/numpy.finfo.html",
+          "https://www.rfc-editor.org/rfc/rfc9530.html"
+        ]
+      },
+      {
+        "id": "metrics",
+        "evidence": "Independently recomputed on the identical fourteen mature forecast rows. Candidate absolute errors sum to 87.54937367284103, giving MAE 6.253526690917217 parcels. Baseline errors sum to 107, giving 7.642857142857143. Only February 4, 6 and 10 exceed tolerance, with signed errors −22.0169154228858, +12.7164179104476 and +34.8614816917401. The generator explicitly suppresses February 4’s campaign and adds the two surges. These explain authored fixture conditions, not independently observed real events. A fixed six-parcel diagnostic specifies no probability level. [FPP3 §5.5](https://otexts.com/fpp3/toolbox.html) distinguishes probability-bearing prediction intervals.",
+        "sourceUrls": [
+          "https://otexts.com/fpp3/toolbox.html"
+        ]
+      },
+      {
+        "id": "evaluation-contract",
+        "evidence": "Verified by execution and formulas. With no mature labels, MAE, peak diagnostic and tolerance fraction return None. Precision and recall also return None for their respective zero denominators. Completeness requires the exact two-origin, seven-horizon grid and no pending labels. The peak function is Σ3max(actual−forecast,0) over actual≥150, so actual 145 against Wednesday capacity 140 is an overload but contributes zero. Underforecasting does not imply overload, as forecast 120, actual 130 and capacity 150 demonstrate. Interval-width claims are correct under the benchmark assumptions: [FPP3 §5.5](https://otexts.com/fpp3/toolbox.html) gives mean-model forecast standard deviation σ√(1+1/T), constant in horizon, and seasonal-naive σ√(floor((h−1)/m)+1), with plateaus. Scenario intervals exclude predictor-scenario uncertainty in [FPP3 §7.6](https://otexts.com/fpp3/regression.html). Each fixture horizon has exactly two observations.",
+        "sourceUrls": [
+          "https://otexts.com/fpp3/toolbox.html",
+          "https://otexts.com/fpp3/regression.html"
+        ]
+      },
+      {
+        "id": "signals",
+        "evidence": "Recomputed with forecast>issued capacity and actual>that same capacity. February 4 is a false positive, February 6 and 13 are true positives, and February 10 is a false negative. The remaining ten rows are true negatives. Thus precision=2/(2+1)=2/3 and recall=2/(2+1)=2/3. These definitions match the official [precision](https://scikit-learn.org/stable/modules/generated/sklearn.metrics.precision_score.html) and [recall](https://scikit-learn.org/stable/modules/generated/sklearn.metrics.recall_score.html) documentation. Friday February 6 is a correct warning despite its 12.7164-parcel error. Changing later staffing changes the operational comparison but does not change the issued prediction or requested-volume forecast error.",
+        "sourceUrls": [
+          "https://scikit-learn.org/stable/modules/generated/sklearn.metrics.precision_score.html",
+          "https://scikit-learn.org/stable/modules/generated/sklearn.metrics.recall_score.html"
+        ]
+      },
+      {
+        "id": "synthesis",
+        "evidence": "Verified. Candidate MAE 6.253526690917217 is below baseline 7.642857142857143. Candidate peak units are 3×(12.7164179104476+34.8614816917401)=142.733698806563, versus baseline 3×(33+34)=201. Tolerance fraction is 11/14=0.7857142857142857<0.85, so comparison_pass is false and decision is hold. Changing a requirement using these outcomes makes the revised choice dependent on them, so they cannot also provide untouched evaluation of that choice. Broader seasons, planner utility and recovery evaluation are recommendations, not claimed results.",
+        "sourceUrls": []
+      },
+      {
+        "id": "receipt-contract",
+        "evidence": "Verified directly in evaluate(): exact complete grid, strictly lower candidate MAE and peak diagnostic, tolerance fraction≥0.85, precision≥0.60, recall≥0.60, and a nonblank previous-model name. The actual fixture fails only range_fraction. An in-memory perfect counterfactual passed every gate while still returning decision='hold', reason='synthetic_fixture_only' and live_ready=False. The previous name is only a string check, with no artifact loading or recovery execution. Reading the complete module confirmed no alert delivery, staffing change or rollout implementation. Real-data, intervention and recovery requirements are clearly proposals.",
+        "sourceUrls": []
+      },
+      {
+        "id": "monitoring-contract",
+        "evidence": "The mechanisms and qualifications are sound. Event day and availability time are separate Count fields. Missing-label fraction and arrival delay describe observation delivery, while residuals require observed outcomes. A recorded zero can represent real zero demand or failed recording, so the recorded value alone cannot distinguish them. Treating erroneous zeros as OLS targets changes the fitting objective and can bias predictions toward the recording failure. A residual likewise does not uniquely identify changed demand relationships, a changed campaign, missing predictors or noise. The 15% breach and 60% precision thresholds are explicitly proposed exercise policies. The module has no scheduler or threshold-triggered execution. Plan revision history, multiple entities and actual booking costs remain extensions.",
+        "sourceUrls": []
+      },
+      {
+        "id": "failure-construction",
+        "evidence": "Reproduced the non-writing checks. Exactly fifteen counts have availability after the first origin. Adding 10,000 to each leaves the 62-row mature history, fitted weights and all seven forecasts identical, including Friday 163.2835820895524. Adding the February 3 plan announced February 2 at 09:00 also leaves them identical. A provisional February 15 label produces one pending row. Duplicate identities, forged IDs, NaN/infinite forecasts, non-Boolean flags, naive timestamps and float-valued horizons were rejected. A partial grid and blank previous name fail their gates. Shrinking the band to zero increases breaches from three to fourteen while MAE and peak units remain unchanged. Modified serialized ledger bytes were rejected by the actual digest-verification function using an in-memory read substitute. These checks establish only the exercised properties, not universal leakage freedom or production alert delivery.",
+        "sourceUrls": [
+          "https://docs.python.org/3.12/library/dataclasses.html",
+          "https://www.rfc-editor.org/rfc/rfc9530.html"
+        ]
+      },
+      {
+        "id": "earned-forecast-transfer",
+        "evidence": "All worksheet arithmetic is correct. Initially the mature rows have errors |151−152|=1 and |120−120|=0, giving MAE 1/2 and tolerance fraction 2/2=1. The first row is a true positive and the third a true negative, so precision=recall=1. The required pending second row prevents worksheet completeness. After actual 145 arrives, its error is |145−138|=7, making MAE=(1+7+0)/3=8/3 and tolerance fraction 2/3. Forecast 138≤capacity 140 but actual 145>140 creates one false negative. Precision remains 1/(1+0)=1 and recall becomes 1/(1+1)=1/2. Since 145<150, its selective peak contribution is zero. The worksheet is explicitly separate from the real fixture’s fourteen-row completeness contract. The adjacent image-classifier lesson does teach quality checks before score-based queue routing.",
+        "sourceUrls": [
+          "https://scikit-learn.org/stable/modules/generated/sklearn.metrics.precision_score.html",
+          "https://scikit-learn.org/stable/modules/generated/sklearn.metrics.recall_score.html"
+        ]
+      }
+    ],
+    "findings": [],
+    "limitations": [
+      "No material factual error or unsupported material assertion was found across the seventeen scenes. Accepted fixture claims were checked against code, raw CSVs, generator logic and independent calculations, rather than treating the supplied article’s outputs as proof.",
+      "Local evidence came from [forecast_lab.py](/Users/bruno.volpato/.local/share/vizmatic-landing/leetllm/production/wt-published-compat/web/src/content/foundations/capstone-demand-forecasting-alerts/assets/forecast_lab.py), its adjacent CSVs and generate_fixture.py. Code and CSV hashes matched all six discovered worktree copies. This establishes the inspected local fixture, not the bytes currently served by a deployed website.",
+      "The normal uv invocation was blocked because the read-only sandbox prevented creation of its cache lock. Computations instead used an existing Python 3.12.15 interpreter and cached NumPy 2.2.6 with bytecode writing disabled. No dependency installation or file edits were performed.",
+      "The file-writing main(), exclusive-create demonstration and on-disk tampering experiment were inspected but not executed. Digest verification and frozen-record reassignment were exercised in memory. Storage permissions, retention controls and independently protected receipts were not tested.",
+      "The authored cancellation, surges, costs and thresholds establish synthetic scenarios only. Real staffing utility, latent abandoned demand, monetary savings, interval calibration, recovery compatibility and production monitoring effectiveness cannot be established from this fixture. The narration appropriately leaves these unclaimed."
+    ]
+  }
+}

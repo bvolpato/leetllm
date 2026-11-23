@@ -1,0 +1,305 @@
+name: iOS TestFlight archive
+
+on:
+  push:
+    tags:
+      - 'testflight-ios-*'
+  workflow_dispatch:
+    inputs:
+      build_number:
+        description: App Store Connect build number for this archive
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: leetllm-ios-testflight-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  release-input:
+    name: Validate release tag and build number
+    runs-on: ubuntu-latest
+    outputs:
+      build-number: ${{ steps.resolve.outputs.build_number }}
+    steps:
+      - name: Resolve build number
+        id: resolve
+        shell: bash
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          INPUT_BUILD_NUMBER: ${{ inputs.build_number || '' }}
+          REF_NAME: ${{ github.ref_name }}
+        run: |
+          set -euo pipefail
+          if [[ "$EVENT_NAME" == "workflow_dispatch" ]]; then
+            build_number="$INPUT_BUILD_NUMBER"
+          else
+            if [[ ! "$REF_NAME" =~ ^testflight-ios-([1-9][0-9]{0,17})$ ]]; then
+              echo "Tag must use testflight-ios-<positive-build-number>." >&2
+              exit 2
+            fi
+            build_number="${BASH_REMATCH[1]}"
+          fi
+          if [[ ! "$build_number" =~ ^[1-9][0-9]{0,17}$ ]]; then
+            echo "Build number must be a positive integer without leading zeroes." >&2
+            exit 2
+          fi
+          echo "build_number=$build_number" >> "$GITHUB_OUTPUT"
+
+      - name: Require a GitHub-verified annotated tag signature
+        if: github.event_name == 'push'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          ref="$(gh api "repos/${GITHUB_REPOSITORY}/git/ref/tags/${GITHUB_REF_NAME}")"
+          object_type="$(jq -r '.object.type' <<< "$ref")"
+          if [[ "$object_type" != "tag" ]]; then
+            echo "Release tags must be annotated and signed." >&2
+            exit 1
+          fi
+          tag_sha="$(jq -r '.object.sha' <<< "$ref")"
+          verification="$(gh api "repos/${GITHUB_REPOSITORY}/git/tags/${tag_sha}" --jq '.verification')"
+          if [[ "$(jq -r '.verified' <<< "$verification")" != "true" ]]; then
+            reason="$(jq -r '.reason // "signature not verified"' <<< "$verification")"
+            echo "GitHub did not verify the release tag signature: $reason" >&2
+            exit 1
+          fi
+
+  prepare-data:
+    name: Export and validate bundled iOS content
+    needs: release-input
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - name: Check out release source
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@73e46992e05b19abd31f2f3c20e0e7370d762115 # v6
+        with:
+          version: 10.33.0
+
+      - name: Set up Node.js
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7
+        with:
+          node-version: 22
+          cache: pnpm
+          cache-dependency-path: web/pnpm-lock.yaml
+
+      - name: Install locked web dependencies
+        working-directory: web
+        run: pnpm install --frozen-lockfile
+
+      - name: Install illustration video encoder
+        run: sudo apt-get update && sudo apt-get install -y --no-install-recommends ffmpeg
+
+      - name: Restore generated visual cache
+        id: generated-visual-cache
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6
+        with:
+          path: |
+            web/src/content/**/_generated
+            web/tools/illustrations/.cache
+            web/tools/diagrams/.cache
+          key: generated-visuals-v1-${{ runner.os }}-${{ hashFiles('web/src/content/**/*.md', 'web/src/content/**/illustrations/*.tsx', 'web/tools/illustrations/**/*.ts', 'web/tools/diagrams/**/*.ts', 'web/scripts/hydrate-ios-images.ts', 'web/pnpm-lock.yaml') }}
+          restore-keys: |
+            generated-visuals-v1-${{ runner.os }}-
+
+      - name: Initialize measured iOS storage budget
+        shell: bash
+        run: |
+          set -euo pipefail
+          budget_dir="${RUNNER_TEMP}/leetllm-ios-storage-budget"
+          measurement="${RUNNER_TEMP}/leetllm-ios-storage-measurement.json"
+          inventory="$(node scripts/render-storage.mjs inventory "${GITHUB_WORKSPACE}" "${RUNNER_TEMP}")"
+          jq -n --argjson inventory "${inventory}" '
+            $inventory as $measured |
+            {
+              kind: "leetllm.measured-storage-budget",
+              measuredAt: $measured.measuredAt,
+              stores: {
+                root: {
+                  path: $measured.roots[0].path,
+                  usageBytes: $measured.roots[0].allocatedBytes,
+                  legacyBytes: 0,
+                  protectedBytes: $measured.roots[0].allocatedBytes,
+                  safetyBytes: 1073741824
+                },
+                external: {
+                  path: $measured.roots[1].path,
+                  usageBytes: $measured.roots[1].allocatedBytes,
+                  legacyBytes: 0,
+                  protectedBytes: $measured.roots[1].allocatedBytes,
+                  safetyBytes: 8589934592
+                }
+              }
+            }
+          ' > "${measurement}"
+          measurement_sha="$(sha256sum "${measurement}" | awk '{print $1}')"
+          node scripts/render-storage.mjs init \
+            --budget "${budget_dir}" \
+            --measurement "${measurement}" \
+            --sha256 "${measurement_sha}"
+
+      - name: Hydrate published images and rebuild missing generated images
+        working-directory: web
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          storage_budget="${RUNNER_TEMP}/leetllm-ios-storage-budget"
+          admit_asset_command() {
+            local bytes="$1"
+            shift
+            node ../scripts/render-storage.mjs admit \
+              --budget "${storage_budget}" \
+              --store root \
+              --bytes "${bytes}" \
+              --output src/content \
+              --output tools/illustrations/.cache \
+              --output tools/diagrams/.cache \
+              -- "$@"
+          }
+
+          missing_images="${RUNNER_TEMP}/missing-generated-images.txt"
+          if LEETLLM_IOS_MISSING_IMAGES_FILE="${missing_images}" admit_asset_command 4294967296 pnpm ios:hydrate-images; then
+            exit 0
+          fi
+          if [[ ! -s "${missing_images}" ]]; then
+            echo "Image hydration failed without a recoverable missing-image list" >&2
+            exit 1
+          fi
+
+          unsupported="$(grep -Ev '^[^/]+/[^/]+/(illustrations|diagrams)/_generated/' "${missing_images}" || true)"
+          if [[ -n "${unsupported}" ]]; then
+            echo "Missing images cannot be regenerated from article sources:" >&2
+            printf '%s\n' "${unsupported}" >&2
+            exit 1
+          fi
+
+          mapfile -t illustration_bundles < <(
+            awk -F/ '$3 == "illustrations" && $4 == "_generated" { print $1 "/" $2 }' "${missing_images}" | sort -u
+          )
+          mapfile -t diagram_bundles < <(
+            awk -F/ '$3 == "diagrams" && $4 == "_generated" { print $1 "/" $2 }' "${missing_images}" | sort -u
+          )
+          fallback_bundle_count="$({ printf '%s\n' "${illustration_bundles[@]}"; printf '%s\n' "${diagram_bundles[@]}"; } | sed '/^$/d' | sort -u | wc -l)"
+          if (( fallback_bundle_count > 24 )); then
+            echo "Refusing expensive fallback for ${fallback_bundle_count} bundles" >&2
+            exit 1
+          fi
+
+          for bundle in "${illustration_bundles[@]}"; do
+            admit_asset_command 2147483648 pnpm illustrations:build:article "${bundle}"
+          done
+          for bundle in "${diagram_bundles[@]}"; do
+            admit_asset_command 2147483648 pnpm diagrams:build:article "${bundle}"
+          done
+
+      - name: Rebuild stale illustration sources
+        working-directory: web
+        shell: bash
+        run: |
+          set -euo pipefail
+          node ../scripts/render-storage.mjs admit \
+            --budget "${RUNNER_TEMP}/leetllm-ios-storage-budget" \
+            --store root \
+            --bytes 8589934592 \
+            --output src/content \
+            --output tools/illustrations/.cache \
+            -- pnpm illustrations:build
+
+      - name: Set up uv
+        uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2 # v10.3.3
+        with:
+          version: 0.13.4
+
+      - name: Validate generated illustration quality
+        run: uv run scripts/validate-illustration-quality.py --clean-stale --fail-layout-warnings
+
+      - name: Save generated visual cache
+        if: steps.generated-visual-cache.outputs.cache-hit != 'true'
+        uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6
+        with:
+          path: |
+            web/src/content/**/_generated
+            web/tools/illustrations/.cache
+            web/tools/diagrams/.cache
+          key: generated-visuals-v1-${{ runner.os }}-${{ hashFiles('web/src/content/**/*.md', 'web/src/content/**/illustrations/*.tsx', 'web/tools/illustrations/**/*.ts', 'web/tools/diagrams/**/*.ts', 'web/scripts/hydrate-ios-images.ts', 'web/pnpm-lock.yaml') }}
+
+      - name: Export and validate iOS content
+        env:
+          LEETLLM_IOS_EXPORT_MODE: ci
+        shell: bash
+        run: |
+          set -euo pipefail
+          node scripts/render-storage.mjs admit \
+            --budget "${RUNNER_TEMP}/leetllm-ios-storage-budget" \
+            --store root \
+            --bytes 4294967296 \
+            --output web/src/content \
+            --output web/src/generated \
+            --output web/tools/diagrams/.cache \
+            --output mobile/ios/LeetLLM/LeetLLM/Resources/data \
+            -- ./scripts/sync-ios-data.sh
+
+      - name: Pack prepared resources with repository-relative paths
+        shell: bash
+        run: |
+          set -euo pipefail
+          node scripts/render-storage.mjs admit \
+            --budget "${RUNNER_TEMP}/leetllm-ios-storage-budget" \
+            --store external \
+            --bytes 4294967296 \
+            --output "${RUNNER_TEMP}/leetllm-ios-resources.tar" \
+            -- tar -C mobile/ios/LeetLLM/LeetLLM/Resources \
+              -cf "${RUNNER_TEMP}/leetllm-ios-resources.tar" data
+
+      - name: Upload prepared resources for the native job
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: leetllm-ios-resources-${{ github.run_id }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/leetllm-ios-resources.tar
+          if-no-files-found: error
+          compression-level: 0
+          retention-days: 1
+
+  native-archive:
+    name: Run native tests and archive the iOS app
+    needs: [release-input, prepare-data]
+    uses: bvolpato/brutv/.github/workflows/ios-native-archive.yml@1f67eff147f52fd43efbbaad3aaf83d096bc7f34
+    with:
+      project: mobile/ios/LeetLLM/LeetLLM.xcodeproj
+      scheme: LeetLLM
+      build-number: ${{ needs.release-input.outputs.build-number }}
+      unit-test-target: ''
+      prepared-resources-artifact: leetllm-ios-resources-${{ github.run_id }}-${{ github.run_attempt }}
+      prepare-command: |
+        set -euo pipefail
+        tar -tf leetllm-ios-resources.tar >/dev/null
+        mkdir -p mobile/ios/LeetLLM/LeetLLM/Resources
+        tar -xf leetllm-ios-resources.tar -C mobile/ios/LeetLLM/LeetLLM/Resources
+        test -s mobile/ios/LeetLLM/LeetLLM/Resources/data/manifest.json
+        rm leetllm-ios-resources.tar
+        printf 'LEETLLM_IOS_DATA_ROOT=%s\n' "$GITHUB_WORKSPACE/mobile/ios/LeetLLM/LeetLLM/Resources/data" >> "$GITHUB_ENV"
+        printf 'TEST_RUNNER_LEETLLM_IOS_DATA_ROOT=%s\n' "$GITHUB_WORKSPACE/mobile/ios/LeetLLM/LeetLLM/Resources/data" >> "$GITHUB_ENV"
+        xcodebuild -showBuildSettings -json \
+          -project mobile/ios/LeetLLM/LeetLLM.xcodeproj -scheme LeetLLM \
+          -configuration Release -destination 'generic/platform=macOS,variant=Mac Catalyst' \
+          CODE_SIGNING_ALLOWED=NO > "$RUNNER_TEMP/leetllm-catalyst-settings.json"
+        catalyst_entitlements=$(jq -er \
+          '.[] | select(.target == "LeetLLM") | .buildSettings.CODE_SIGN_ENTITLEMENTS' \
+          "$RUNNER_TEMP/leetllm-catalyst-settings.json")
+        [[ "$catalyst_entitlements" == /* ]] || \
+          catalyst_entitlements="$GITHUB_WORKSPACE/mobile/ios/LeetLLM/$catalyst_entitlements"
+        /usr/libexec/PlistBuddy -c 'Print :com.apple.security.app-sandbox' \
+          "$catalyst_entitlements" | grep -Fx true
+        /usr/libexec/PlistBuddy -c 'Print :com.apple.security.network.client' \
+          "$catalyst_entitlements" | grep -Fx true

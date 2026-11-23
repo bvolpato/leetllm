@@ -1,0 +1,466 @@
+version: 1
+id: bayes
+opening: lesson
+title: How Much Evidence Earns More Traffic?
+source: foundations/bayesian-inference-priors-posteriors/content.md
+sources:
+  - title: "Berkeley: Bayes estimation"
+    url: https://stat210a.berkeley.edu/fall-2025/reader/bayes-estimation.html
+  - title: SciPy beta distribution
+    url: https://docs.scipy.org/doc/scipy/reference/generated/scipy.stats.beta.html
+scenes:
+  - id: intro
+    title: Would you give this agent more traffic?
+    visual: Eight checks and two crosses sit beside the curve for the underlying success rate. The area beyond seventy percent fills a ruler with a mark at ninety-five percent.
+    beats:
+      - say: >-
+          Eight green checks. Two red crosses. Would you give this coding agent more traffic?
+        hold: 0.7
+        visual_cues:
+          - id: read-passes
+            phrase: Eight green checks
+            targets: [intro-passes]
+            color: green
+          - id: read-failures
+            phrase: Two red crosses
+            targets: [intro-failures]
+            color: red
+      - say: >-
+          We set the yellow line before testing. We want a success rate above seventy percent on new tasks. To increase traffic, we need at least a ninety-five percent chance of clearing that line. The blue curve combines the ten results with our starting assumptions. Sweep up the area to the right of seventy percent. Does it reach the mark on the ruler?
+        hold: 2.2
+        caption_starts: [To increase traffic, The blue curve combines, Sweep up the area]
+        visual_cues:
+          - id: required-confidence
+            phrase: a ninety-five percent chance
+            targets: [release-rule]
+            color: yellow
+          - id: rate-cutoff
+            phrase: above seventy percent
+            targets: [rate-cutoff]
+            color: yellow
+          - id: opening-sweep
+            phrase: Sweep up the area to the right of seventy percent
+            targets: [opening-density, release-rule]
+            color: blue
+      - say: >-
+          About fifty-eight percent. Hold traffic. Let's build the curve that gave us that answer.
+        hold: 0.6
+        caption_starts: [Hold traffic]
+        visual_cues:
+          - id: opening-reading
+            phrase: About fifty-eight percent
+            targets: [release-rule]
+            color: blue
+          - id: opening-decision
+            phrase: Hold traffic
+            targets: [release-rule]
+            color: yellow
+  - id: prior
+    title: Which rates would you start with?
+    visual: A broad Beta(2,2) density gives middle rates more weight. A band opens under the curve, then contracts to one point against its original outline.
+    beats:
+      - say: >-
+          Pick a task at random from the traffic this agent will get. Its chance of passing is somewhere between zero and one. Before the evaluation, we'll give middle rates a little more weight than either extreme. That blue curve is our prior. We've chosen a beta distribution with both parameters equal to two.
+        hold: 0.6
+        visual_cues:
+          - id: prior-starting-shape
+            phrase: give middle rates a little more weight than either extreme
+            targets: [prior-density]
+            color: blue
+      - say: >-
+          Open a band under the curve. Its area tells us the probability we've assigned to rates in that band. The whole area is one. The height tells us how densely the probability is packed. If we squeeze this band down to exactly point six, how much probability will it keep?
+        hold: 2
+        visual_cues:
+          - id: prior-area-sweep
+            phrase: Open a band under the curve. Its area tells us the probability
+            targets: [prior-area, prior-probability]
+            color: blue
+      - say: >-
+          Bring both edges in until they meet. The height at point six is still above one. But the band has run out of width, so its area is zero. When we ask how likely a continuous rate is, we need a range to measure.
+        hold: 0.7
+        caption_starts: [But the band has run out of width]
+        visual_cues:
+          - id: prior-area-contract
+            phrase: Bring both edges in until they meet
+            targets: [prior-area, prior-probability, prior-point-density]
+            color: yellow
+  - id: likelihood
+    title: Which rate could have produced this run?
+    visual: The ten numbered results build a sequence likelihood. Two rings follow competing rates. A failure removes all weight from a certainty of passing.
+    beats:
+      - say: >-
+          Keep the agent's model, prompt, tools, retry budget, and pass criterion fixed. Suppose the tasks are distinct draws from the same population. Given their shared success rate, we treat their results as independent. Here come the first eight passes. Each pass multiplies a candidate's weight by its chance of passing. The rate of one looks unbeatable. What happens to it when task nine fails?
+        hold: 2.1
+        visual_cues:
+          - id: likelihood-pass-arrivals
+            phrase: Here come the first eight passes. Each pass multiplies a candidate's weight by its chance of passing
+            targets: [likelihood-outcomes, likelihood-curve, likelihood-powers]
+            color: green
+      - say: >-
+          Put in the first failure, then the second. A rate of one gave a failure zero chance. Its weight drops to zero. Now the curve peaks at eight tenths. Our sequence is almost seven times as likely there as at one half. This score for the data, given a proposed rate, is called the likelihood.
+        hold: 0.7
+        caption_starts: [A rate of one gave a failure zero chance, Now the curve peaks]
+        visual_cues:
+          - id: likelihood-failure-arrivals
+            phrase: Put in the first failure, then the second
+            targets: [likelihood-outcomes, likelihood-curve, likelihood-powers]
+            color: pink
+      - say: >-
+          We kept the order on the cards. If all we report is eight passes, there are forty-five places to put the pair of failures. Each arrangement has the same probability at a given rate. Multiplying by forty-five raises every candidate's score together. When we divide by the total, that shared factor cancels.
+        hold: 0.6
+        visual_cues:
+          - id: count-arrangements
+            phrase: there are forty-five places to put the pair of failures
+            targets: [count-factor]
+            color: yellow
+          - id: cancel-common-factor
+            phrase: that shared factor cancels
+            targets: [count-factor]
+            color: green
+  - id: update
+    title: What does one task change?
+    visual: One probe samples matching rates in the prior, likelihood and product. The product's vertical scale changes with normalization. The ten cards replay into the beta parameters once each.
+    beats:
+      - say: >-
+          Pick a rate. Bayes' rule multiplies its prior density by the likelihood of the results at that same rate. Slide the probe from left to right. The third curve collects those products. Its total area is the chance our prior gave this particular sequence, also called the evidence. Divide every height by that one area. The shape keeps its proportions, and the area becomes one. We now have the posterior, our updated distribution over rates.
+        hold: 0.7
+        visual_cues:
+          - id: same-rate-probe
+            phrase: Slide the probe from left to right
+            targets: [product-plot-0, product-plot-1, product-plot-2]
+            color: yellow
+          - id: normalize-product
+            phrase: Divide every height by that one area
+            targets: [product-plot-2, product-normalization]
+            color: green
+      - say: >-
+          There's a shortcut for this beta prior. Start it back at two and two. Each pass adds one to the first parameter. Each failure adds one to the second. Watch the cards go dim as they're counted. The updated curve is still a beta curve. That's what makes this a conjugate prior for the binomial model.
+        hold: 0.7
+        motion_check:
+          region: [150, 450, 1100, 370]
+          minimumChangedFraction: 0.002
+        visual_cues:
+          - id: posterior-pass-arrivals
+            phrase: Each pass adds one to the first parameter
+            targets: [posterior-outcomes, posterior-density, posterior-parameters, posterior-progress]
+            color: green
+          - id: posterior-failure-arrivals
+            phrase: Each failure adds one to the second
+            targets: [posterior-outcomes, posterior-density, posterior-parameters, posterior-progress]
+            color: pink
+      - say: >-
+          We end at beta ten, four. To find its mean, divide the first parameter by the sum of the two. That's ten over fourteen. Why is it lower than eight out of ten? The prior put a weight of four on one half. The ten real observations put a weight of ten on eight tenths. The mean balances those two.
+        hold: 0.7
+        caption_starts: [Why is it lower, The prior put a weight of four]
+        visual_cues:
+          - id: posterior-mean-b3-1
+            phrase: divide the first parameter by the sum of the two
+            targets: [posterior-mean]
+            color: green
+  - id: predictive
+    title: What do we expect on the next task?
+    visual: A common cursor pairs each rate's posterior density with its contribution to a pass forecast. A hypothetical pass updates the next forecast. A tree then rewinds to before either future result.
+    beats:
+      - say: >-
+          Suppose the next task comes from that same population. A rate of one half gives it an even chance of passing. A rate of eight tenths gives it a better chance. On the right, each rate is multiplied by its posterior density. Sweep across those contributions and add up their area. That average is our posterior predictive probability of a pass. For one task, it's the posterior mean.
+        hold: 0.7
+        motion_check:
+          region: [1070, 385, 700, 410]
+          minimumChangedFraction: 0.002
+        visual_cues:
+          - id: weighted-contribution
+            phrase: Sweep across those contributions and add up their area
+            targets: [weighted-contribution, next-forecast]
+            color: yellow
+      - say: >-
+          Suppose task eleven passes. Deliver that new result to the model once. Starting at ten, four, we end at eleven, four. There's more weight on higher rates now. The next comparable task gets a slightly better forecast, eleven over fifteen.
+        hold: 0.7
+        visual_cues:
+          - id: new-pass-arrival
+            phrase: Deliver that new result to the model once
+            targets: [new-pass, following-forecast]
+            color: green
+      - say: >-
+          Wind back to before either task runs. Follow the two-pass path. Multiply the first pass chance by the chance of a second pass given the first. That's about fifty-two percent. Both tasks share one unknown rate. Averaging its square gives the joint chance. If you square the average instead, you lose exactly the posterior variance, the amount by which uncertainty about that rate raises the two-pass probability.
+        hold: 0.8
+        visual_cues:
+          - id: two-pass-path
+            phrase: Follow the two-pass path. Multiply the first pass chance by the chance of a second pass given the first
+            targets: [two-pass-path]
+            color: green
+          - id: joint-answer
+            phrase: That's about fifty-two percent
+            caption_boundary: true
+            targets: [two-pass-path, joint-comparison]
+            color: green
+          - id: joint-variance-comparison
+            phrase: If you square the average instead
+            targets: [joint-comparison]
+            color: yellow
+  - id: threshold
+    title: What can these ten results tell us?
+    visual: The shaded tail feeds the opening probability ruler. Two quantiles bracket the rate. Five distinct orders stack into the four-pass count bar before the frozen-rate comparison.
+    beats:
+      - say: >-
+          Back to traffic. Our next-task forecast is a little above seventy percent. We need the chance that the underlying rate clears seventy percent. Shade the area to the right of the cutoff. It accounts for about fifty-eight percent of the posterior. Our rule requires ninety-five percent. Keep traffic where it is.
+        hold: 1
+        caption_starts: [It accounts for about fifty-eight percent, Keep traffic where it is]
+        visual_cues:
+          - id: threshold-area
+            phrase: Shade the area to the right of the cutoff. It accounts for about fifty-eight percent of the posterior
+            targets: [threshold-density, threshold-probability]
+            color: green
+          - id: tail-decision
+            phrase: Keep traffic where it is
+            targets: [threshold-probability]
+            color: yellow
+      - say: >-
+          How wide a range holds the middle ninety percent? Move the endpoints until five percent of the posterior lies in each outside tail. Read the bracket. From about fifty percent to eighty-nine percent. That's our credible interval for the rate. Its ends are the fifth and ninety-fifth percentiles. The variance measures the average squared distance from the posterior mean. You can get it directly from the two beta parameters.
+        hold: 0.7
+        caption_starts: [Move the endpoints, From about fifty percent, The variance measures]
+        visual_cues:
+          - id: credible-range
+            phrase: Move the endpoints until five percent of the posterior lies in each outside tail
+            targets: [credible-range]
+            color: blue
+          - id: beta-variance
+            phrase: The variance measures the average squared distance from the posterior mean
+            targets: [variance-summary]
+            color: yellow
+      - say: >-
+          Five new tasks. A bar's height gives the chance of that many passes. Look at the row on the right. The first task fails and the other four pass. Where else could that red square go and still leave four passes?
+        hold: 2.2
+        caption_starts: [Look at the row, Where else could]
+        visual_cues:
+          - id: count-build
+            phrase: A bar's height gives the chance of that many passes
+            targets: [predictive-counts]
+            color: blue
+      - say: >-
+          Count the first row. It contributes about six point seven percent. Move the failure to slot two. Slot three. Slot four. Slot five. Each row adds another equal piece to the bar. Together they give four passes about a one in three chance. Now let all five tasks pass. There's just one way to fill that row.
+        hold: 1
+        caption_starts: [It contributes about six point seven percent, Move the failure to slot two, Slot three, Slot four, Slot five, Together they give four passes, Now let all five tasks pass]
+        visual_cues:
+          - id: four-pass-count
+            phrase: Count the first row
+            targets: [predictive-counts, predictive-count-outcomes]
+            color: yellow
+          - id: second-position
+            phrase: Move the failure to slot two
+            targets: [predictive-counts, predictive-count-outcomes]
+            color: yellow
+          - id: third-position
+            phrase: Slot three
+            targets: [predictive-counts, predictive-count-outcomes]
+            color: yellow
+          - id: fourth-position
+            phrase: Slot four
+            targets: [predictive-counts, predictive-count-outcomes]
+            color: yellow
+          - id: fifth-position
+            phrase: Slot five
+            targets: [predictive-counts, predictive-count-outcomes]
+            color: yellow
+          - id: five-pass-count
+            phrase: Now let all five tasks pass
+            targets: [predictive-counts, predictive-count-outcomes]
+            color: green
+      - say: >-
+          At any one rate, a binomial distribution gives the chance of each pass count. The filled bars average those chances over the posterior. That's the beta-binomial forecast. Now fix the rate at its mean. Both forecasts expect the same number of passes. Look at the five-pass bar. Its pink outline falls short of the blue bar. When the shared rate is high, all five tasks benefit together.
+        hold: 0.8
+        caption_starts: [Now fix the rate at its mean, Its pink outline falls short]
+        visual_cues:
+          - id: retain-rate-uncertainty
+            phrase: Now fix the rate at its mean
+            targets: [predictive-counts]
+            color: pink
+  - id: evidence
+    title: Eight in ten or eighty in a hundred?
+    visual: A fixed ten-task curve and a second sample share one rate axis. As the alternative sample grows in groups of five, both its posterior and its measured tail change.
+    beats:
+      - say: >-
+          Eight out of ten. Now compare that with eighty out of a hundred. Same agent, same prior, same population of tasks. Both runs scored eighty percent. Which gives us more evidence that the rate clears seventy percent?
+        hold: 2
+      - say: >-
+          Keep the blue curve for ten tasks. Build the hundred-task curve in groups of five, with four passes in each group. The pass fraction stays at eighty percent. Watch what happens to the probability above the cutoff as those groups go in.
+        hold: 0.7
+        motion_check:
+          region: [150, 350, 1100, 480]
+          minimumChangedFraction: 0.002
+        visual_cues:
+          - id: larger-posterior-b1-1
+            phrase: Watch what happens to the probability above the cutoff as those groups go in
+            targets: [larger-posterior, posterior-tail-comparison]
+            color: yellow
+      - say: >-
+          Finish the alternative evaluation with all one hundred tasks. Just over ninety-eight percent of the area now sits past seventy percent. The larger evaluation meets our evidence rule. Those extra tasks narrowed the range of plausible rates.
+        hold: 1
+        caption_starts: [Just over ninety-eight percent, The larger evaluation meets our evidence rule]
+        visual_cues:
+          - id: release-tail-growth
+            phrase: Finish the alternative evaluation with all one hundred tasks
+            targets: [larger-posterior, posterior-tail-comparison]
+            color: green
+          - id: hundred-task-decision
+            phrase: The larger evaluation meets our evidence rule
+            targets: [posterior-tail-comparison]
+            color: green
+  - id: sensitivity
+    title: How much weight did we give the prior?
+    visual: Three priors centered at one half receive the same ten results. Their mean markers move by different amounts, and the tail probabilities determine whether the choice changes.
+    beats:
+      - say: >-
+          Return to our first ten tasks. All three priors here start with the same mean. The strong symmetric prior starts tightly around one half. Its two parameters add to forty. Where did that weight come from? Starting from a uniform beta prior, it would take nineteen earlier passes and nineteen earlier failures to reach twenty, twenty. We'd want to know whose agent ran those tasks.
+        hold: 0.7
+        visual_cues:
+          - id: compare-starting-priors
+            phrase: The strong symmetric prior starts tightly around one half
+            targets: [prior-case-2]
+            color: pink
+          - id: prior-provenance
+            phrase: it would take nineteen earlier passes and nineteen earlier failures to reach twenty, twenty
+            targets: [prior-history]
+            color: pink
+      - say: >-
+          Give each prior the same eight passes and two failures. Watch how far its mean travels. The strong prior lets ten new results pull it only a little. The means differ, but none of the three tails reaches ninety-five percent. If two defensible priors put you on opposite sides of the release rule, report both and collect more representative tasks before increasing traffic.
+        hold: 0.8
+        visual_cues:
+          - id: same-data-three-priors
+            phrase: Give each prior the same eight passes and two failures
+            targets: [prior-case-0, prior-case-1, prior-case-2]
+            color: yellow
+  - id: population
+    title: Which tasks will the agent get?
+    visual: Two family posteriors stay fixed while traffic weights rotate a boundary through their joint density. Parallel bands then collect the probability of pairs that give the same range of deployment rates.
+    beats:
+      - say: >-
+          Take apart the hundred-task run. Seventy-two passes came from eighty easy tasks. Only eight came from twenty hard ones. Give each family its own rate and its own independent prior, beta two, two. The easy-task evidence goes into the left curve. The hard-task evidence goes into the right. Now we can ask about traffic with a different mix.
+        hold: 0.7
+        visual_cues:
+          - id: fit-family-rates
+            phrase: Give each family its own rate and its own independent prior
+            targets: [easy-posterior, hard-posterior]
+            color: blue
+      - say: >-
+          A point here pairs a possible easy-task rate with a possible hard-task rate. The nested contours surround the more plausible pairs. The line separates pairs whose weighted average clears seventy percent from pairs that fall short. Keep the task results fixed. Change traffic from mostly easy to mostly hard. Look where the center of the cloud ends up relative to the line.
+        hold: 1.2
+        motion_check:
+          region: [160, 350, 840, 540]
+          minimumChangedFraction: 0.002
+        visual_cues:
+          - id: change-traffic-mix
+            phrase: Change traffic from mostly easy to mostly hard
+            targets: [traffic-boundary, traffic-shares, deployment-forecast]
+            color: yellow
+      - say: >-
+          Take the white point. Suppose the agent passes ninety percent of easy tasks and forty percent of hard ones. With one fifth easy traffic and four fifths hard, that pair gives a deployment rate of one half. Now sweep a band across the pairs. Put the probability caught by each band into the matching bar on the right. We get a distribution for the deployment rate. Its mean is near one half, and less than one percent of its probability clears the cutoff. Hold traffic here. This calculation needs known traffic shares and representative tasks within each family.
+        hold: 1
+        caption_starts: [Its mean is near one half, Hold traffic here]
+        visual_cues:
+          - id: project-example-pair
+            phrase: that pair gives a deployment rate of one half
+            targets: [family-rate-pairs, mixture-density]
+            color: blue
+          - id: propagate-family-uncertainty
+            phrase: Now sweep a band across the pairs. Put the probability caught by each band into the matching bar on the right
+            targets: [family-rate-pairs, mixture-density]
+            color: blue
+          - id: read-deployment-tail
+            phrase: less than one percent of its probability clears the cutoff
+            targets: [mixture-density, deployment-tail-summary]
+            color: yellow
+  - id: calibration
+    title: Does the forecast hold up on fresh tasks?
+    visual: A forecast line is drawn and locked before any validation outcomes arrive. The running fraction moves against that fixed line. In a second log, grouping twenty attempts by prompt exposes how few distinct prompts were sampled.
+    beats:
+      - say: >-
+          Here's a check we can run later. Take the forecast from our original ten tasks. Save it for a hundred fresh comparable tasks before opening any results. Now open those tasks in order and follow the running pass fraction. In this example it finishes close to the forecast. Across many batches, compare outcomes with forecasts made at similar probabilities. That's how we check calibration.
+        hold: 0.8
+        visual_cues:
+          - id: save-validation-forecasts
+            phrase: Save it for a hundred fresh comparable tasks before opening any results
+            targets: [saved-forecasts]
+            color: blue
+          - id: reveal-validation-outcomes
+            phrase: Now open those tasks in order and follow the running pass fraction
+            targets: [validation-results]
+            color: green
+      - say: >-
+          One batch can miss by chance. If forecasts repeatedly miss the same way, check which tasks you sampled. Here's a different log with twenty result rows. Group the rows by prompt. Five attempts at each of four prompts tell us about those four prompts. To make a claim about new prompts, sample distinct ones from the intended traffic. Also check for changes to the agent or the task mix. Record every evaluated agent and its stopping rule, including the runs that went badly.
+        hold: 0.7
+        caption_starts: [Here's a different log, Group the rows by prompt, Five attempts at each of four prompts]
+        visual_cues:
+          - id: open-retry-log
+            phrase: Here's a different log with twenty result rows
+            targets: [sample-source]
+            color: blue
+          - id: group-validation-retries
+            phrase: Group the rows by prompt. Five attempts at each of four prompts
+            targets: [retry-log, distinct-prompts]
+            color: blue
+  - id: last-task
+    title: What changes on the last task?
+    visual: A fresh evaluation has one sealed result. A pass and a replay with a failure update opposite parameters. The probability ruler magnifies the same release requirement and holds each reading before the decision.
+    beats:
+      - say: >-
+          Your turn to review a fresh evaluation. The team planned twenty-one distinct tasks from the intended traffic, with the same agent policy and the same prior. Eighteen of the first twenty passed. The blue area comes close to the required mark. The last result is still sealed.
+        hold: 1.1
+        caption_starts: [Eighteen of the first twenty passed]
+        visual_cues:
+          - id: last-task-premise
+            phrase: Eighteen of the first twenty passed
+            targets: [last-evaluation]
+            color: blue
+      - say: >-
+          Task twenty-one passes. Add this pass once to the first parameter. Measure the blue area again, keeping the cutoff where it was. Look at the mark on the ruler. Would you increase traffic?
+        hold: 2.3
+        caption_starts: [Measure the blue area again, Look at the mark on the ruler]
+        visual_cues:
+          - id: last-task-pass
+            phrase: Task twenty-one passes
+            targets: [last-result]
+            color: green
+          - id: add-last-pass
+            phrase: Add this pass once to the first parameter
+            targets: [last-parameters, last-result]
+            color: blue
+          - id: measure-pass
+            phrase: Measure the blue area again, keeping the cutoff where it was
+            targets: [last-density, last-measurement]
+            color: blue
+      - say: >-
+          Increase traffic under this rule. That last pass takes the reading from ninety-four point six to ninety-five point eight percent. We crossed the mark. How much traffic to send depends on what a failed task costs.
+        hold: 1
+        caption_starts: [That last pass takes the reading, How much traffic to send]
+        visual_cues:
+          - id: pass-decision
+            phrase: Increase traffic under this rule
+            targets: [last-decision, last-measurement]
+            color: green
+      - say: >-
+          Rewind just the last task. Keep the first twenty results. Suppose task twenty-one fails. Add that failure to the second parameter instead. Measure the area above the same cutoff. Eighteen out of twenty-one still looks strong. What would you do this time?
+        hold: 2.3
+        caption_starts: [Measure the area above the same cutoff, What would you do this time]
+        visual_cues:
+          - id: last-task-fail
+            phrase: Suppose task twenty-one fails
+            caption_boundary: true
+            targets: [last-result]
+            color: pink
+          - id: add-last-failure
+            phrase: Add that failure to the second parameter instead
+            targets: [last-parameters, last-result]
+            color: blue
+          - id: measure-failure
+            phrase: Measure the area above the same cutoff
+            targets: [last-density, last-measurement]
+            color: blue
+      - say: >-
+          Hold traffic. With a pass, the chance of clearing the cutoff was ninety-five point eight percent. With a failure, it's eighty-eight point nine. The first twenty results are the same. That last failure moved enough of the curve below seventy percent to change the decision.
+        hold: 1.1
+        caption_starts: [With a pass, With a failure, The first twenty results are the same]
+        visual_cues:
+          - id: failure-decision
+            phrase: Hold traffic
+            targets: [last-decision, last-measurement]
+            color: yellow

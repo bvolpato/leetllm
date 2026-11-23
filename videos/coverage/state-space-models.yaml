@@ -1,0 +1,220 @@
+version: 1
+lesson: state-space-models
+promise: Use an exact field lookup and a cache budget to choose a model to benchmark, then trace the state updates and buffers behind that decision.
+framing:
+  - intro
+objectives:
+  - id: read-history
+    can: Construct two files that leave the same scalar state, score the returned retry limits, and distinguish a reachable position from a correct answer.
+    scenes:
+      - intro
+      - collision
+      - release-gate
+  - id: ssm-mechanisms
+    can: Compute the carry, write and readout separately, then use fixed lag weights, ordered affine prefixes or chunk boundaries to recover the outputs.
+    scenes:
+      - recurrence
+      - kernel
+      - delta
+      - selection
+      - scan
+      - held-input
+      - structured-block
+      - prefix-construction
+      - ssd-and-refinement
+  - id: resume-stream
+    can: Identify the first incorrect suffix write and choose the complete checkpoint from which a request can resume.
+    scenes:
+      - checkpoint
+      - complete-buffers
+  - id: choose-candidate
+    can: Compare prefill and decode costs, count the hybrid cache, and specify the exact retrieval and serving measurements a candidate must pass.
+    scenes:
+      - earned-transfer
+      - release-gate
+sections:
+  - heading: A discrete recurrence you can compute by hand
+    status: taught
+    scenes:
+      - recurrence
+      - held-input
+  - heading: Walkthrough with numbers
+    status: taught
+    scenes:
+      - recurrence
+      - held-input
+  - heading: Where $\bar{A}$ and $\bar{B}$ come from
+    status: taught
+    scenes:
+      - delta
+      - held-input
+  - heading: Discretization
+    status: taught
+    scenes:
+      - delta
+      - held-input
+  - heading: "S4: structured state spaces"
+    status: taught
+    scenes:
+      - kernel
+      - structured-block
+  - heading: HiPPO initialization
+    status: taught
+    scenes:
+      - structured-block
+  - heading: Dual computation modes
+    status: taught
+    scenes:
+      - kernel
+      - structured-block
+  - heading: The LTI problem
+    status: taught
+    scenes:
+      - kernel
+      - structured-block
+  - heading: "Mamba: selective state spaces"
+    status: taught
+    scenes:
+      - selection
+      - structured-block
+  - heading: The selective mechanism
+    status: taught
+    scenes:
+      - selection
+  - heading: Architecture
+    status: taught
+    scenes:
+      - selection
+      - structured-block
+  - heading: Three debugging questions before writing a kernel
+    status: taught
+    scenes:
+      - structured-block
+      - selection
+  - heading: The hardware-aware parallel scan
+    status: taught
+    scenes:
+      - scan
+      - prefix-construction
+  - heading: "Mamba-2: state space duality"
+    status: taught
+    scenes:
+      - ssd-and-refinement
+  - heading: Mamba-1 vs. Mamba-2 comparison
+    status: taught
+    scenes:
+      - ssd-and-refinement
+  - heading: Beyond Mamba-2 toward Mamba-3
+    status: taught
+    scenes:
+      - ssd-and-refinement
+  - heading: Complexity comparison
+    status: taught
+    scenes:
+      - earned-transfer
+      - structured-block
+      - complete-buffers
+      - release-gate
+  - heading: One live state isn't the whole cache policy
+    status: taught
+    scenes:
+      - complete-buffers
+  - heading: "Hybrid architectures: combining trade-offs"
+    status: taught
+    scenes:
+      - earned-transfer
+      - release-gate
+  - heading: "Hybrid models: Jamba and Nemotron-H"
+    status: taught
+    scenes:
+      - earned-transfer
+  - heading: Why hybrids work
+    status: taught
+    scenes:
+      - earned-transfer
+      - release-gate
+  - heading: When to use SSMs vs. transformers vs. hybrids
+    status: taught
+    scenes:
+      - earned-transfer
+      - release-gate
+  - heading: Exact-retrieval release gate (NIAH / multi-needle)
+    status: taught
+    scenes:
+      - collision
+      - release-gate
+  - heading: Build a counterexample to exact recovery
+    status: taught
+    scenes:
+      - collision
+      - release-gate
+  - heading: Resume a stream, then deliberately break it
+    status: taught
+    scenes:
+      - complete-buffers
+  - heading: Rejection requires a state boundary
+    status: taught
+    scenes:
+      - checkpoint
+  - heading: Where fixed-state models lead
+    status: taught
+    scenes:
+      - earned-transfer
+      - release-gate
+quiz:
+  - n: 1
+    status: taught
+    scenes:
+      - earned-transfer
+      - collision
+      - release-gate
+  - n: 2
+    status: taught
+    scenes:
+      - recurrence
+      - held-input
+  - n: 3
+    status: taught
+    scenes:
+      - held-input
+  - n: 4
+    status: taught
+    scenes:
+      - held-input
+  - n: 5
+    status: taught
+    scenes:
+      - kernel
+      - structured-block
+  - n: 6
+    status: taught
+    scenes:
+      - selection
+      - structured-block
+  - n: 7
+    status: taught
+    scenes:
+      - scan
+      - prefix-construction
+  - n: 8
+    status: taught
+    scenes:
+      - ssd-and-refinement
+  - n: 9
+    status: taught
+    scenes:
+      - prefix-construction
+  - n: 10
+    status: taught
+    scenes:
+      - earned-transfer
+removed: []
+reviews:
+  closed_book:
+    taught: 10
+    partial: 0
+    absent: 0
+    script: 12e765adbd1dc6cf
+  fact_check:
+    open_findings: 0
+    script: 12e765adbd1dc6cf

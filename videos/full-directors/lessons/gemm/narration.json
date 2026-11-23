@@ -1,0 +1,446 @@
+[
+  {
+    "id": "c01",
+    "title": "Does the second row need another fetch?",
+    "sourceChapters": [
+      "c01"
+    ],
+    "beats": [
+      {
+        "id": "c01-b01",
+        "say": "Take the one from the middle row of B. It's the right-hand entry. Where does that one go when we multiply A by B? Look at the two empty places in the right column of the output.",
+        "hold": 1.5
+      },
+      {
+        "id": "c01-b02",
+        "say": "The top row brings a two. Two times one adds two to the top-right sum. The bottom row brings a five. Does this block need to fetch the one from global memory again?",
+        "hold": 3
+      },
+      {
+        "id": "c01-b03",
+        "say": "Keep the one in shared memory. Five times the same one adds five to the bottom-right sum. Both rows needed it, and neither left-hand output did. Neural networks spend much of their arithmetic on products like this. We'll keep track of which sums a load serves, then try removing a row.",
+        "hold": 1.1
+      }
+    ]
+  },
+  {
+    "id": "c02",
+    "title": "How does a row become one number?",
+    "sourceChapters": [
+      "c02"
+    ],
+    "beats": [
+      {
+        "id": "c02-b01",
+        "say": "A general matrix-matrix multiply is called GEMM. Here we compute C equals A times B. Multiply a matrix with two rows and three columns by one with three rows and two columns. Their shared inner dimension matches. Each output entry pairs one row from the left matrix with one column from the right and adds the elementwise products.",
+        "hold": 0.6
+      },
+      {
+        "id": "c02-b02",
+        "say": "Read the top row of A across and the left column of B down. Line the entries up by their inner coordinate, k. One times one starts the sum at one. Two times zero leaves it there. What will the last pair add?",
+        "hold": 2.5
+      },
+      {
+        "id": "c02-b03",
+        "say": "Three times two adds six. That makes seven in the top-left cell. Complete the other three dots using the same rule. These four entries are our reference for every change of schedule.",
+        "hold": 0.8
+      },
+      {
+        "id": "c02-b04",
+        "say": "Each of the four cells takes three multiply-adds. Counting one multiply and one add gives twenty-four floating-point operations. For M rows, N columns and inner width K, that's two times M times N times K. This count includes accumulating the first product into zero. Here we write a fresh output, so we never read an old C.",
+        "hold": 0.9
+      }
+    ]
+  },
+  {
+    "id": "c03",
+    "title": "Which input did two threads request?",
+    "sourceChapters": [
+      "c03"
+    ],
+    "beats": [
+      {
+        "id": "c03-b01",
+        "say": "A direct implementation gives each output cell its own accumulator. It loops through the inner dimension, loads a left value and a right value, multiplies them, and updates that accumulator. Watch the input requests from the top-left thread.",
+        "hold": 0.7
+      },
+      {
+        "id": "c03-b02",
+        "say": "Move one cell to the right. Its column of B changes, but the thread asks for that same row of A. Now run both bottom threads. Look under the one in the middle of B's right column. How many times did it get requested?",
+        "hold": 2.5
+      },
+      {
+        "id": "c03-b03",
+        "say": "Twice. Each of the twelve input words has two marks. Four threads times three pairs times two inputs gives twenty-four logical scalar loads. They do twelve multiply-adds and write four outputs. A cache can satisfy repeated requests, and a warp can merge addresses. To predict the addresses, we need to know which direction neighboring lanes take.",
+        "hold": 0.8
+      }
+    ]
+  },
+  {
+    "id": "addresses",
+    "title": "Where do adjacent lanes land?",
+    "sourceChapters": [
+      "c03"
+    ],
+    "beats": [
+      {
+        "id": "addresses-b01",
+        "say": "Use aligned, row-major floats, four bytes each, with sixty-four columns per row in both inputs. CUDA numbers thread x first. In a sixteen by sixteen block, let x select the output row. At k equal to zero, lane one reads A two hundred fifty-six bytes beyond lane zero. Lane sixteen repeats lane zero's A address.",
+        "hold": 0.8
+      },
+      {
+        "id": "addresses-b02",
+        "say": "Look at the whole warp of thirty-two lanes. Its A load touches sixteen sectors, B touches one, and the final C store touches sixteen. Now try a block thirty-two threads wide with x selecting the column. How many thirty-two-byte sectors will the B load need?",
+        "hold": 2.8
+      },
+      {
+        "id": "addresses-b03",
+        "say": "Turn the warp across the columns. All lanes share one A word. B starts on a sector boundary. Eight floats fit per sector, so thirty-two adjacent floats span four sectors. The final store spans four too. Those three instructions request nine sectors in all, compared with thirty-three before. Device-memory traffic still needs a counter.",
+        "hold": 1
+      },
+      {
+        "id": "addresses-b04",
+        "say": "Keep these six words in place. Read them as a two by three matrix in row-major order. Now read by columns. The top middle entry becomes three, although the bytes never moved. A layout tag changes the address calculation. Check the leading dimension on nonsymmetric data before timing a kernel.",
+        "hold": 1
+      }
+    ]
+  },
+  {
+    "id": "c04",
+    "title": "How many inputs fill the first panel?",
+    "sourceChapters": [
+      "c04"
+    ],
+    "beats": [
+      {
+        "id": "c04-b01",
+        "say": "Group the four outputs into a tile. Load a small panel from the left matrix and a matching panel from the right into a faster shared workspace. Our first panel covers two inner coordinates. Follow each pair of strips into the block.",
+        "hold": 0.7
+      },
+      {
+        "id": "c04-b02",
+        "say": "At each coordinate, A supplies two row values and B supplies two column values. Each row meets each column. A word can now serve both neighbors from shared memory. Four A words and four B words fill this first panel. There is one coordinate left. How many global input loads does the complete plan request?",
+        "hold": 2.8
+      },
+      {
+        "id": "c04-b03",
+        "say": "Twelve loads. The remaining coordinate needs two more A words and two more B words. That accounts for each of the six left values and six right values exactly once in this single block. Both schedules still store four outputs. Other blocks and larger products can reload panels.",
+        "hold": 1.1
+      }
+    ]
+  },
+  {
+    "id": "c05",
+    "title": "Which sums move on the last pass?",
+    "sourceChapters": [
+      "c05"
+    ],
+    "beats": [
+      {
+        "id": "c05-b01",
+        "say": "Keep the four accumulators in place. Run the first two positions through them. For the bottom-left entry, four times one and five times zero leave four. The bottom-right entry holds eight plus five, or thirteen. Has the block reached its final store?",
+        "hold": 2.5
+      },
+      {
+        "id": "c05-b02",
+        "say": "There is still a panel to come. Slide the first panel out. The new panel holds just the last column of A and the last row of B. Read the two B entries. Which column of sums will change when the products arrive?",
+        "hold": 3
+      },
+      {
+        "id": "c05-b03",
+        "say": "Add the last products. The left column gains six and twelve. The right column gains zero in both places. The four in the lower left becomes sixteen. Now store the four answers. Each matches its reference because every inner coordinate contributed once.",
+        "hold": 1.1
+      },
+      {
+        "id": "c05-b04",
+        "say": "The cells stayed put while their inputs changed. A longer row can pass through many such panels. These small integers make the bookkeeping exact. Try three FP32 terms instead. Start with two to the twenty-fourth, add one, then subtract the starting value. The first addition loses the one, leaving zero after subtraction. Group the last two terms first. This order keeps the one. A kernel that regroups terms needs a numerical tolerance.",
+        "hold": 0.9
+      }
+    ]
+  },
+  {
+    "id": "banks",
+    "title": "Which requests can a bank serve together?",
+    "sourceChapters": [
+      "c04"
+    ],
+    "beats": [
+      {
+        "id": "banks-b01",
+        "say": "Shared memory has banks. In this scalar FP32 model, number a word's bank by its word address modulo thirty-two. If thirty-two lanes read the very same word seven, bank seven broadcasts it. Now give each lane a different row in column seven. The row stride is thirty-two words. What stacks up?",
+        "hold": 2
+      },
+      {
+        "id": "banks-b02",
+        "say": "Use the distinct words. Seven, thirty-nine and seventy-one all map to bank seven. All thirty-two lanes now need separate service groups. Add one word of padding to each row. Watch where lane one lands and where the full stack goes.",
+        "hold": 0.9
+      },
+      {
+        "id": "banks-b03",
+        "say": "With stride thirty-three, lane one reads word forty in bank eight. The thirty-two distinct words spread one per bank. Padding costs space and changes alignment. These service groups describe this access pattern. Use a profiler to measure its cost.",
+        "hold": 0.8
+      },
+      {
+        "id": "banks-b04",
+        "say": "Return to thirty-two words per row. Keep every lane at logical column seven. Apply row XOR. Within each row, the physical column is seven exclusive-or the row number. Rows zero, one and two now reach banks seven, six and five. Each row starts on bank zero. XOR with seven rearranges the thirty-two row numbers, so each bank gets one request. Now follow a vector across row three. Store each logical column at its index exclusive-or three. The four entries exchange places. To read the original vector, which physical columns must the reader visit?",
+        "hold": 2.6
+      },
+      {
+        "id": "banks-b05",
+        "say": "Read columns three, two, one and zero. A contiguous read starting at three would miss the logical order and could violate alignment. The producer and consumer must agree on the permutation used by their instruction.",
+        "hold": 1
+      }
+    ]
+  },
+  {
+    "id": "c06",
+    "title": "How many sums can one thread keep?",
+    "sourceChapters": [
+      "c06"
+    ],
+    "beats": [
+      {
+        "id": "c06-b01",
+        "say": "Scale up to a full sixteen by sixteen block tile. Each A word feeds sixteen output columns. At one thread per output, a warp of thirty-two spans two rows. Sixteen inner coordinates supply eight thousand one hundred ninety-two FLOPs from two thousand forty-eight input bytes staged into shared memory.",
+        "hold": 1
+      },
+      {
+        "id": "c06-b02",
+        "say": "Look inside one thread. Give it one row of four output cells to hold in registers. One A word meets four B words at a single inner step. Eight FLOPs from twenty operand bytes gives zero point four FLOP per byte. With one output the ratio was two over eight.",
+        "hold": 0.9
+      },
+      {
+        "id": "c06-b03",
+        "say": "Try a two by three register tile. Point to the row inputs, the column inputs and every sum they feed. What is the thread's nominal operand demand per step, and how much work does that buy?",
+        "hold": 2.8
+      },
+      {
+        "id": "c06-b04",
+        "say": "Two A words and three B words cost twenty bytes. Six multiply-adds give twelve FLOPs. That's zero point six FLOP per operand byte. Expand to eight by eight and the thread needs sixteen words for sixty-four sums. The ratio rises to two, but those live sums take registers. Check block residency and spills before predicting a speedup.",
+        "hold": 1
+      }
+    ]
+  },
+  {
+    "id": "slots",
+    "title": "Who still owns slot zero?",
+    "sourceChapters": [
+      "c06"
+    ],
+    "beats": [
+      {
+        "id": "slots-b01",
+        "say": "A block must finish staging a shared panel before threads read it. After computing, they meet again before overwriting it. With two slots, the next copy can fill slot one while a matrix instruction reads slot zero. Both slots take shared memory.",
+        "hold": 0.8
+      },
+      {
+        "id": "slots-b02",
+        "say": "The copy into slot zero finished at step one. An asynchronous matrix instruction issued then and keeps reading until step three. Suppose the next writer takes slot zero at step two. Is it safe just because the previous copy completed?",
+        "hold": 3
+      },
+      {
+        "id": "slots-b03",
+        "say": "Place the write at two. Its first interval overlaps the old reader. Move it to three, after the last read, and the intervals separate. Copy completion makes a panel readable. Consumer completion releases the physical slot for reuse.",
+        "hold": 0.9
+      },
+      {
+        "id": "slots-b04",
+        "say": "On Ampere, an asynchronous copy can move data directly from global memory into shared memory. Hopper's Tensor Memory Accelerator uses a descriptor and a transaction barrier. A Hopper warp-group matrix multiply uses four warps. B lives in shared memory, A can use shared memory or registers on supported forms, and the accumulators live in registers. Check the emitted path and wait conditions.",
+        "hold": 0.9
+      }
+    ]
+  },
+  {
+    "id": "c07",
+    "title": "How much of the corner fragment is useful?",
+    "sourceChapters": [
+      "c07"
+    ],
+    "beats": [
+      {
+        "id": "c07-b01",
+        "say": "Tensor cores accelerate supported small matrix multiply-accumulate operations. A warp's thirty-two lanes cooperate on fragments with matching shapes, types and layouts. They multiply a left fragment by a right fragment and add into the prior accumulator fragment. A large product needs many of these updates.",
+        "hold": 0.7
+      },
+      {
+        "id": "c07-b02",
+        "say": "Take a seventy-three by sixty-one output. The lab uses sixteen by sixteen fragments. The last corner starts at row sixty-four, column forty-eight. Which part of the full fragment belongs to C?",
+        "hold": 2.5
+      },
+      {
+        "id": "c07-b03",
+        "say": "Subtract the starting row from seventy-three and the starting column from sixty-one. Keep nine rows and thirteen columns. The reduction width is sixty-seven. Four full panels use sixty-four positions. Just three positions remain in A and B. Zero-fill the other inputs so that the full instruction contributes only the valid products.",
+        "hold": 1
+      },
+      {
+        "id": "c07-b04",
+        "say": "The lab pads the buffers, stores a full FP32 fragment, then crops the output. Its half-precision inputs need strides divisible by eight elements. Its FP32 output stride must be divisible by four. These warp loads and stores require thirty-two-byte base alignment. Charge conversion, padding and cropping to the benchmark when the application pays for them.",
+        "hold": 1
+      }
+    ]
+  },
+  {
+    "id": "precision",
+    "title": "Where did the small update go?",
+    "sourceChapters": [
+      "c07"
+    ],
+    "beats": [
+      {
+        "id": "precision-b01",
+        "say": "The input format and accumulator format can differ. Take two operands that fit exactly in bfloat sixteen. One point one two five times one point two five is one point four zero six two five. Add it to one thousand twenty-four. FP32 retains the fraction. Rounding that sum back to bfloat sixteen gives one thousand twenty-four.",
+        "hold": 0.9
+      },
+      {
+        "id": "precision-b02",
+        "say": "Try a storage experiment with FP16 instead. Start at one thousand twenty-four. Add one quarter. Its next FP16 neighbor above is a whole unit away. Which value will the stored sum keep?",
+        "hold": 2.7
+      },
+      {
+        "id": "precision-b03",
+        "say": "FP16 rounds back to the starting tick. FP32 retains the quarter. Reset to the same start and subtract three eighths. The lower FP16 neighbor is only half a unit away. The new FP16 result is one thousand twenty-three and a half. This is rounding at a large magnitude.",
+        "hold": 0.9
+      },
+      {
+        "id": "precision-b04",
+        "say": "Now fix the accumulation precision. Subtract one from an FP32 input of about one point zero zero zero one. Keep the original inputs on one path. On the other, convert them to FP16 first. Both operands on that path become one. Compute both references in double precision. The kernel returns zero. Which reference does it match?",
+        "hold": 2.7
+      },
+      {
+        "id": "precision-b05",
+        "say": "The rounded inputs give zero. The original inputs give about one ten-thousandth. The kernel matches the rounded-input calculation and misses the entire original difference. A wider accumulator cannot recover bits lost at input conversion. Use absolute and relative tolerances, especially near zero, and check application quality separately.",
+        "hold": 1.2
+      }
+    ]
+  },
+  {
+    "id": "c08",
+    "title": "How many tokens use one weight?",
+    "sourceChapters": [
+      "c08"
+    ],
+    "beats": [
+      {
+        "id": "c08-b01",
+        "say": "Keep a six by six matrix of weights in place. Each input row holds six features for a token. With eight tokens in a prompt, one weight serves eight different output rows. Follow its column. What happens to that reuse if the next decode step has just one token?",
+        "hold": 2.4
+      },
+      {
+        "id": "c08-b02",
+        "say": "Reduce the batch to one. That same weight now has one row to serve. The kernel still needs the whole weight matrix. This difference helps explain why small-batch decoding can spend more time moving weights per unit of arithmetic.",
+        "hold": 0.8
+      },
+      {
+        "id": "c08-b03",
+        "say": "In a cold model, count each FP32 input, weight and output once. Six features plus thirty-six weights plus six outputs occupy one hundred ninety-two bytes. The six outputs take thirty-six multiply-adds, or seventy-two FLOPs. That's three eighths of a FLOP per byte. A warm cache can change the device-memory traffic.",
+        "hold": 1.1
+      }
+    ]
+  },
+  {
+    "id": "roof",
+    "title": "Where is the HBM roofline knee?",
+    "sourceChapters": [
+      "c08"
+    ],
+    "beats": [
+      {
+        "id": "roof-b01",
+        "say": "Remember the thread that got twelve FLOPs for twenty operand bytes? To put it on an HBM roofline we need the bytes that crossed high-bandwidth memory for the same work. The thread's operand count alone leaves that coordinate open.",
+        "hold": 1.1
+      },
+      {
+        "id": "roof-b02",
+        "say": "Suppose a device can move one terabyte per second and compute two hundred teraFLOPs per second. At ten FLOPs per HBM byte, bandwidth allows ten teraFLOPs per second. Where does the rising line meet the compute ceiling?",
+        "hold": 2.7
+      },
+      {
+        "id": "roof-b03",
+        "say": "Divide peak compute by peak bandwidth. They meet at two hundred FLOPs per byte. At each intensity the lower ceiling bounds the ideal rate. A real kernel can fall below both. Change the kernel's shape, layout or math mode and measure again.",
+        "hold": 0.8
+      },
+      {
+        "id": "roof-b04",
+        "say": "Verify edges, strides and numerical tolerances first. Warm up and time repeated launches with CUDA events in one stream. Wait for the ending event. Record the device, dimensions, precision, timer boundaries and which buffers were reused. Name the counters that support the claim. Separately time any application copies or conversions you excluded.",
+        "hold": 1
+      }
+    ]
+  },
+  {
+    "id": "signed-edge",
+    "title": "Can the thread outside the right edge leave?",
+    "sourceChapters": [
+      "c09"
+    ],
+    "beats": [
+      {
+        "id": "signed-edge-b01",
+        "say": "Try the article's signed matrices. Pair the bottom row, minus one, three and two, with the left column, two, one and three. The three products are minus two, three and six. The sum is seven. Now keep only column zero of the output by taking only the first column of B.",
+        "hold": 1
+      },
+      {
+        "id": "signed-edge-b02",
+        "say": "The lower-right thread owns no output now. It normally copies the three from the middle of A's bottom row. If that thread leaves and the shared slot begins at zero, what will the lower-left thread store?",
+        "hold": 2.6
+      },
+      {
+        "id": "signed-edge-b03",
+        "say": "Omit the copy. Minus two plus zero plus six gives four. Restore the three and the answer returns to seven. Zero-fill out-of-range input addresses, let the whole block reach both barriers, and predicate each final store on its own address. A CPU index model can expose the missing product. Scheduling and timing need a device.",
+        "hold": 1
+      }
+    ]
+  },
+  {
+    "id": "practice",
+    "title": "Which B words does the lower-right thread copy?",
+    "sourceChapters": [
+      "c09"
+    ],
+    "beats": [
+      {
+        "id": "practice-b01",
+        "say": "Turn the edge sideways. Keep two output columns, but give A just one row with five inner positions. For its top-right answer, read the pairs across the page. Each panel covers two positions. To copy B, add the thread's row to the panel start and use the thread's column in this block. Number both from zero. Which B entries does the lower-right thread supply? What happens at the tail?",
+        "hold": 3
+      },
+      {
+        "id": "practice-b02",
+        "say": "Group the five positions into two, two and one. The lower-right thread copies the second B word of the right column in each panel. It supplies four at position one and then minus two at position three. Its final address is outside K, so it writes a zero to shared memory.",
+        "hold": 1
+      },
+      {
+        "id": "practice-b03",
+        "say": "Add the first panel. Minus one plus eight gives seven. The next panel adds zero and minus two, leaving five. In the tail, the upper-right thread supplies the last four. One times four brings the result to nine. Only the upper output row can store. The lower threads still have to stage their valid inputs.",
+        "hold": 1.2
+      }
+    ]
+  },
+  {
+    "id": "c09",
+    "title": "Can the four survive a torn edge?",
+    "sourceChapters": [
+      "c09"
+    ],
+    "beats": [
+      {
+        "id": "c09-b01",
+        "say": "Return to the first matrices. Tear the bottom row from A. The bottom row of C comes away with it. The upper-right reference is still four. Which thread will supply the one from B to the row above the cut?",
+        "hold": 2.7
+      },
+      {
+        "id": "c09-b02",
+        "say": "Look under the torn edge. The lower-right thread owns the copy of that one. In this controlled replay, shared slots start at zero. Skip both bottom copies. Read the top-right pairs again. Two times zero replaces two times one. What does the upper thread store?",
+        "hold": 2.6
+      },
+      {
+        "id": "c09-b03",
+        "say": "It stores two. The missing two accounts for the entire error. The upper-left answer is still seven because its missing B entry was zero already. Keep the bottom stores covered. What single useful load would put the missing product back?",
+        "hold": 2.8
+      },
+      {
+        "id": "c09-b04",
+        "say": "Copy the one. After the load barrier the upper thread can multiply its two by that one again. The middle product returns. Store four. The lower-right thread has no output address, yet the row above needs its input. Follow each operand to its last consumer before you remove work from a kernel.",
+        "hold": 1.6
+      }
+    ]
+  }
+]

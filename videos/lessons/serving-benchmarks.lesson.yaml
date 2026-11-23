@@ -1,0 +1,1353 @@
+version: 1
+id: serving-benchmarks
+title: Measuring the Experience of a Model Server
+source: llmops/serving-benchmark-engineering/content.md
+voice: af_heart
+rate: +12%
+sources:
+  - title: MLPerf Inference Rules
+    url: https://github.com/mlcommons/inference_policies/blob/master/inference_rules.adoc
+  - title: vLLM generator and metric accounting, inspected November 6 2026
+    url: https://github.com/vllm-project/vllm/blob/main/vllm/benchmarks/serve.py
+  - title: Pinned vLLM endpoint observation boundaries
+    url: https://github.com/vllm-project/vllm/blob/3c062d391d15cfa41d3f321cad24f3030c892a97/vllm/benchmarks/lib/endpoint_request_func.py
+  - title: Etalon fluidity-index Algorithm 1, version 2
+    url: https://arxiv.org/html/2407.07000v2
+  - title: DistServe goodput definition, version 3
+    url: https://arxiv.org/html/2401.09670v3
+  - title: NIST Wilson intervals including one-sided construction
+    url: https://www.itl.nist.gov/div898/handbook/prc/section2/prc241.htm
+  - title: wrk2 coordinated omission mechanism
+    url: https://github.com/giltene/wrk2
+  - title: BurstGPT production trace
+    url: https://arxiv.org/abs/2401.17644
+  - title: ServeGen per-client production workload models
+    url: https://www.usenix.org/conference/nsdi26/presentation/xiang-servegen
+  - title: Little original queueing formula
+    url: https://doi.org/10.1287/opre.9.3.383
+scenes:
+  - id: intro
+    title: When can the next question leave?
+    visual: A help desk reply releases the client's next message. Follow the same handoff on a clock,
+      then replay the service times against six independent sends.
+    beats:
+      - say: Is checkout down? This test client has its next question ready. When the reply comes back,
+          it sends “Since when?” Now slow the replies. Question three goes out at one second. Its answer
+          takes another second. Can question four leave before the two-second window closes?
+        hold: 2.4
+        caption_starts:
+          - When the reply comes back
+          - Now slow the replies
+          - Can question four leave
+        visual_cues:
+          - id: desk-client
+            phrase: When the reply comes back
+            targets:
+              - desk-client
+            color: cyan
+            linger: 0.35
+          - id: desk-follow-up
+            phrase: it sends
+            targets:
+              - desk-client
+            color: cyan
+            linger: 0.35
+          - id: desk-slowdown
+            phrase: Now slow the replies
+            targets:
+              - desk-client
+            color: yellow
+            linger: 0.35
+      - say: Right at the cutoff. Only three sends count. Now replay the same
+          slow replies and send three questions a second on the desk’s clock. Six go out before the
+          cutoff. Look at how many are still waiting for a reply when the next one leaves.
+        hold: 1.1
+        caption_starts:
+          - Six go out before the cutoff
+        visual_cues:
+          - id: desk-cutoff
+            phrase: Right at the cutoff
+            targets:
+              - desk-client
+            color: cyan
+            linger: 0.35
+          - id: desk-count
+            phrase: Only three sends count
+            targets:
+              - desk-client
+            color: cyan
+            linger: 0.35
+            caption_boundary: true
+          - id: desk-schedule
+            phrase: send three questions a second on the desk’s clock
+            targets:
+              - desk-clock
+            color: cyan
+            linger: 0.35
+          - id: desk-six
+            phrase: Six go out before the cutoff
+            targets:
+              - desk-clock
+            color: cyan
+            linger: 0.35
+      - say: To size the server, replay the desk’s arrivals. One waiting client tells you what one person
+          experiences. The desk’s own clock tests whether the server can keep up as more people arrive.
+        hold: 0.7
+        visual_cues:
+          - id: desk-replay
+            phrase: Replay the desk’s arrivals
+            targets:
+              - desk-clock
+            color: cyan
+            linger: 0.35
+            caption_boundary: true
+  - id: workload-freeze
+    title: Which questions arrive together?
+    visual: The six synthetic request IDs retain their due times. Prompt lengths share a linear scale,
+      with class, prefix and the natural-stop output cap on each row.
+    beats:
+      - say: Keep six questions in two seconds. This time they’re for an incident assistant, and three
+          arrive in a burst. These are synthetic records for the local scorer. Look at the lengths of
+          the prompts the assistant has to read. Which question arrives right behind the longest prompt?
+        hold: 1.8
+        visual_cues:
+          - id: workload-lengths
+            phrase: Look at the lengths of the prompts the assistant has to read
+            targets:
+              - workload-pair
+            color: cyan
+            linger: 0.35
+      - say: Request three brings over four thousand tokens. Just sixty milliseconds later, a short question
+          is due. Those two can compete for service. Request five brings background work. One, two and
+          six share a runbook prefix that a compatible warm cache could reuse.
+        hold: 0.7
+        caption_starts:
+          - Just sixty milliseconds later
+        visual_cues:
+          - id: workload-neighbors
+            phrase: Just sixty milliseconds later, a short question is due
+            targets:
+              - workload-pair
+            color: yellow
+            linger: 0.35
+      - say: Keep the prompts the application actually sends, including retrieved context and conversation
+          history. Pin the tokenizer and chat template. The cap tells you how long an answer may grow.
+          Save the length it actually reached as well. Forcing every answer to its cap tests scheduler
+          behavior and changes the task.
+        hold: 0.6
+        visual_cues:
+          - id: workload-cap
+            phrase: The cap tells you how long an answer may grow
+            targets:
+              - workload-rows
+            color: cyan
+            linger: 0.35
+      - say: Save the realized trace and hash its bytes. A new library version can produce different rows from
+          the same seed. The download here has schedules and classes. To replay against a server, you
+          also need the prompt content. Compare length tails, output lengths, traffic classes and
+          conversation dependencies with your own traffic. BurstGPT and ServeGen offer other workload
+          patterns to test.
+        hold: 0.6
+        visual_cues:
+          - id: workload-file
+            phrase: The download here has schedules and classes
+            targets:
+              - workload-rows
+            color: cyan
+            linger: 0.35
+  - id: arrival-schedule
+    title: When does the next request go out?
+    visual: Request three occupies a client slot through 1220 ms. The stored schedule sends request four
+      at 765 ms while a single user waits for completion and another 80 ms of think time.
+    beats:
+      - say: Follow those two neighboring questions. The long request is still open when the clock calls for
+          request four. With a free client slot, four goes out almost exactly on schedule. The long
+          question can finish whenever it finishes. That’s an open-loop test.
+        hold: 0.8
+        visual_cues:
+          - id: arrival-independent
+            phrase: four goes out almost exactly on schedule
+            targets:
+              - arrival-due
+            color: cyan
+            linger: 0.35
+      - say: Give one virtual user those same questions. This user waits for the answer, then thinks for
+          eighty milliseconds. The next send moves all the way to thirteen hundred. In this closed-loop
+          test, a slow answer changes when the next question arrives.
+        hold: 0.8
+        visual_cues:
+          - id: arrival-think
+            phrase: then thinks for eighty milliseconds
+            targets:
+              - arrival-client
+            color: yellow
+            linger: 0.35
+      - say: Use the independent schedule to test an offered rate. Keep its due time even if the client falls
+          behind. That gives us two marks for request four, when it was due and when it actually left.
+        hold: 0.6
+        visual_cues:
+          - id: arrival-replay
+            phrase: when it was due and when it actually left
+            targets:
+              - arrival-due
+            color: cyan
+            linger: 0.35
+  - id: generator-clock
+    title: Where did the wait go?
+    visual: Fix the scheduled time and first token. Slide only the send mark, then read the growing
+      schedule lag and shrinking send-relative first-token wait.
+    beats:
+      - say: Zoom in on request four. The client sent it five milliseconds late. From there it waited two
+          hundred eighty-five milliseconds for the first token. All three marks come from the same
+          monotonic client clock.
+        hold: 0.8
+        visual_cues:
+          - id: generator-base
+            phrase: five milliseconds late
+            targets:
+              - generator-ruler
+            color: cyan
+            linger: 0.35
+      - say: Hold the first token and the due time still. Move just the send to eight hundred. The first-token
+          wait now looks shorter. With a twenty-millisecond lag budget, would you accept this run as a
+          test of the scheduled load?
+        hold: 2.4
+        visual_cues:
+          - id: generator-send-delay
+            phrase: Move just the send to eight hundred
+            targets:
+              - generator-ruler
+            color: yellow
+            linger: 0.35
+      - say: The token arrived at the same instant. Starting later shortens the measured wait to two hundred
+          fifty milliseconds. The client sent the request forty milliseconds late, twice its budget.
+          Keep the request in the report and rerun the load test.
+        hold: 0.9
+        visual_cues:
+          - id: generator-verdict
+            phrase: forty milliseconds late, twice its budget
+            targets:
+              - generator-ruler
+            color: yellow
+            linger: 0.35
+            caption_boundary: true
+      - say: When late or missing requests hide part of the intended wait, you have coordinated omission. Keep
+          delayed and unsent requests in the offered count. Check the generator’s CPU, connections,
+          memory and event loop. A wait in the client queue tells you about client backpressure. To
+          locate a server queue, use server-local spans. Joining absolute times across machines takes
+          measured clock synchronization.
+        hold: 0.7
+        visual_cues:
+          - id: generator-backpressure
+            phrase: client backpressure
+            targets:
+              - generator-ruler
+            color: cyan
+            linger: 0.35
+  - id: rate-and-concurrency
+    title: Read arrival rate beside in-flight work
+    visual: A three-second timed cohort shows requests enter every third of a second and exit 900 milliseconds
+      later. The highlighted live count changes over time; integrating those intervals gives a 2.7-request
+      average.
+    beats:
+      - say: Requests per second describes arrivals. Concurrency describes requests in flight. Burstiness describes
+          how arrivals cluster. A benchmark needs all three to resemble the traffic it aims to represent.
+        hold: 0.55
+        visual_cues:
+          - id: rate-and-concurrency-beat-1-focus-1
+            phrase: Concurrency describes requests in flight
+            targets:
+              - rate-and-concurrency-time-s-in-flight
+            color: cyan
+            linger: 0.65
+      - say: In a stable system, Little’s law relates average in-flight work to admitted arrival rate times average
+          time in the same system. Our supplied periodic example averages two point seven active requests over
+          three seconds, matching three requests per second times zero point nine seconds. A cap of two cannot
+          contain that mean; a cap of three may still bind bursts.
+        hold: 0.65
+        visual_cues:
+          - id: rate-and-concurrency-beat-2-focus-1
+            phrase: Little’s law relates average in-flight work to admitted arrival rate times average time in the same
+              system
+            targets:
+              - rate-active-intervals
+              - rate-average-calculation
+            color: cyan
+            linger: 0.65
+      - say: That relationship is a consistency check across a steady observation window. A growing queue shows
+          arrivals outpacing service; measure stable performance after the backlog stops growing. Report
+          scheduled, sent, completed, and still-pending requests separately. A bursty arrival pattern or
+          accumulating work changes what the average can tell us.
+        hold: 0.65
+        visual_cues:
+          - id: rate-and-concurrency-beat-3-focus-1
+            phrase: Report scheduled, sent, completed, and still-pending requests separately
+            targets:
+              - rate-and-concurrency-time-s-in-flight
+            color: cyan
+            linger: 0.65
+  - id: arrival-families
+    title: How closely do arrivals bunch together?
+    visual: Transform equal-rate regular gaps into exponential and Gamma gaps, retain the sampled timestamps, then
+      compress the exact trace and expose the changed duration.
+    beats:
+      - say: At the same mean rate, regular spacing has gap coefficient of variation zero; a Poisson process has
+          exponential gaps with coefficient one. Gamma shape k has coefficient one divided by the square root
+          of k. Shape one quarter gives coefficient two, while shape four gives one half. Real correlated
+          bursts can differ from every one of these models.
+        hold: 0.65
+        visual_cues:
+          - id: arrival-families-beat-0
+            phrase: At the same mean rate, regular spacing has gap coefficient of variation zero; a Poisson process has
+              exponential gaps with coefficient one
+            targets:
+              - arrival-families-mechanism
+            color: cyan
+            linger: 0.65
+      - say: The last of these six requests lands at one point six nine seconds. Watch this constant-rate vLLM run
+          stretch the sampled Gamma gaps. At three requests a second, it puts the last arrival at exactly
+          two seconds, six divided by three. Even with exponential gaps, that final time is now fixed.
+          In self-timed replay, the saved timestamps set every arrival.
+        hold: 0.65
+        visual_cues:
+          - id: arrival-families-beat-1
+            phrase: stretch the sampled Gamma gaps
+            targets:
+              - arrival-families-mechanism
+            color: yellow
+            linger: 0.65
+      - say: Halve the gaps in this saved trace. The same requests arrive in the same order, twice as
+          fast. Extend the trace to test for the same duration, or report the shorter window. At infinite
+          rate, everything goes out together, up to the client’s concurrency cap. MLPerf makes a similar
+          choice of clocks. Single Stream waits for completion. Server uses Poisson arrivals.
+        hold: 0.65
+        visual_cues:
+          - id: arrival-families-beat-2
+            phrase: Halve the gaps in this saved trace
+            targets:
+              - arrival-families-mechanism
+            color: cyan
+            linger: 0.65
+          - id: family-time-scale
+            phrase: Halve the gaps in this saved trace
+            targets:
+              - arrival-families-mechanism
+            color: yellow
+            linger: 0.6
+  - id: run-window
+    title: The arrival window closes before the last outcome
+    visual: Build readiness→warmup→[0,2000)arrival window→2500drain clock while every offered request retains its
+      identity; compare a separate completion interval population.
+    beats:
+      - say: "Give the run four explicit phases: readiness, warmup, measurement and drain. Warmup can include
+          connections, compilation, graph capture and scheduler initialization. Warm prefix entries only when
+          the scenario is supposed to begin with them warm."
+        hold: 0.65
+        visual_cues:
+          - id: run-window-beat-0
+            phrase: "Give the run four explicit phases: readiness, warmup, measurement and drain"
+            targets:
+              - run-window-mechanism
+            color: cyan
+            linger: 0.65
+      - say: Our arrival cohort includes requests scheduled in the half-open interval from zero through, but
+          excluding, two thousand milliseconds. Stop new arrivals there, then retain every request through
+          terminal success, rejection, cancellation, error or its predeclared timeout. Request six times out
+          at twenty-five hundred. A later answer does not undo that client timeout.
+        hold: 0.65
+        visual_cues:
+          - id: run-window-beat-1
+            phrase: Our arrival cohort includes requests scheduled in the half-open interval from zero through, but
+              excluding, two thousand milliseconds
+            targets:
+              - run-window-mechanism
+            color: yellow
+            linger: 0.65
+      - say: "The finite cohort horizon runs from the window start through the later of window end and last terminal
+          outcome: here two point five seconds. A completion-interval report instead counts outcomes inside
+          its interval, including earlier arrivals. Keep its starting and ending outstanding work. Mixing
+          those populations and elapsed times changes the rate. Finite cohort rates including drain are not
+          sustainable-capacity estimates."
+        hold: 0.65
+        visual_cues:
+          - id: run-window-beat-2
+            phrase: "The finite cohort horizon runs from the window start through the later of window end and last
+              terminal outcome: here two point five seconds"
+            targets:
+              - run-window-mechanism
+            color: cyan
+            linger: 0.65
+      - say: For sustained load, compare admitted, completed, rejected and timed-out rates and outstanding work over
+          time. A flat server queue can result from aggressive rejection while users fail. Repeat long enough
+          to expose relevant warmup, cache, thermal and traffic cycles.
+        hold: 0.65
+        visual_cues:
+          - id: run-window-beat-3
+            phrase: For sustained load, compare admitted, completed, rejected and timed-out rates and outstanding work
+              over time
+            targets:
+              - run-window-mechanism
+            color: yellow
+            linger: 0.65
+  - id: stream-timing
+    title: Follow one answer to its last event
+    visual: The send starts one clock. Five client-observed token marks expose a long middle gap. The
+      clock continues after the fifth token until the terminal event.
+    beats:
+      - say: Take request one. The clock starts when the client sends it. Now run the clock to the first
+          token. The client spent two hundred forty milliseconds waiting for output to begin.
+        hold: 0.7
+        visual_cues:
+          - id: stream-first
+            phrase: run the clock to the first token
+            targets:
+              - stream-start
+            color: cyan
+            linger: 0.35
+      - say: Let the other four tokens arrive. Look at the space between tokens three and four. That gap lasts
+          three times as long as its neighbors. Spread the same elapsed time across all four gaps and
+          the mean is sixty milliseconds. Keep the gaps in order if you want to know what the reader
+          experienced.
+        hold: 0.9
+        visual_cues:
+          - id: stream-rest
+            phrase: Let the other four tokens arrive
+            targets:
+              - stream-arrivals
+            color: cyan
+            linger: 0.35
+          - id: stream-mean
+            phrase: the mean is sixty milliseconds
+            targets:
+              - stream-arrivals
+            color: yellow
+            linger: 0.35
+      - say: The text is complete, but the request is still open. Wait for the terminal event. The last token
+          came at four eighty. The client finished at five hundred milliseconds. Use that last mark for
+          terminal end-to-end latency.
+        hold: 0.7
+        visual_cues:
+          - id: stream-done
+            phrase: Wait for the terminal event
+            targets:
+              - stream-arrivals
+            color: cyan
+            linger: 0.35
+  - id: single-token
+    title: One token has no pacing interval
+    visual: Preserve the same clock and add r02 send125/token295/terminal310; remove the absent denominator term
+      without substituting zero.
+    beats:
+      - say: For n output tokens, request-mean time per output token is final-token time minus first-token time,
+          divided by n minus one. End-to-end terminal latency is terminal time minus send. Inter-token latency
+          retains each consecutive gap separately.
+        hold: 0.65
+        visual_cues:
+          - id: single-token-beat-0
+            phrase: For n output tokens, request-mean time per output token is final-token time minus first-token time,
+              divided by n minus one
+            targets:
+              - single-token-mechanism
+            color: cyan
+            linger: 0.65
+      - say: Request two is sent at one hundred twenty-five, emits its one observed token at two hundred ninety-five,
+          and completes at three hundred ten. Its first-token wait is one hundred seventy milliseconds. There
+          are zero inter-token intervals, so its TPOT is undefined. This scorer records null, excludes it from
+          TPOT percentiles, and declares that criterion not applicable while still checking success,
+          first-token wait and quality.
+        hold: 0.65
+        visual_cues:
+          - id: single-token-beat-1
+            phrase: Request two is sent at one hundred twenty-five, emits its one observed token at two hundred
+              ninety-five, and completes at three hundred ten
+            targets:
+              - single-token-mechanism
+            color: yellow
+            linger: 0.65
+          - id: single-null
+            phrase: There are zero inter-token intervals
+            targets:
+              - single-token-mechanism
+            color: yellow
+            linger: 0.6
+      - say: An empty successful stream is invalid under this lesson’s text-response contract; another endpoint can
+          define a different contract. Equal token timestamps are allowed when the clock has finite
+          resolution. These rules must be chosen before outcomes are scored.
+        hold: 0.65
+        visual_cues:
+          - id: single-token-beat-2
+            phrase: An empty successful stream is invalid under this lesson’s text-response contract; another endpoint can
+              define a different contract
+            targets:
+              - single-token-mechanism
+            color: cyan
+            linger: 0.65
+  - id: chunk-boundaries
+    title: What did the client actually receive?
+    visual: Two aligned observation tracks build a single visible reply. Three real token events precede
+      or coincide with the first text chunk. A separate terminal event leaves the reply text intact.
+    beats:
+      - say: Replay that answer with two instruments. The upper trace can see individual tokens. Watch the
+          first three tokens reach the first text chunk. Down below, the screen fills in three words at
+          once. The client has one timestamp for that piece of text.
+        hold: 0.85
+        visual_cues:
+          - id: chunk-first
+            phrase: Watch the first three tokens reach the first text chunk
+            targets:
+              - chunk-client
+            color: cyan
+            linger: 0.35
+      - say: Now the answer and its period arrive together in the next chunk. The client saw a hundred and
+          sixty milliseconds between chunks. If you had only those two deliveries, you could report the
+          visible pause. Splitting it into token-sized pieces would invent times that the client never
+          observed.
+        hold: 0.85
+        visual_cues:
+          - id: chunk-next
+            phrase: the answer and its period arrive together in the next chunk
+            targets:
+              - chunk-client
+            color: cyan
+            linger: 0.35
+      - say: The terminal message arrives last. The request closes and the words on screen stay exactly as
+          they were. Pick the instrument that can see the event your metric names.
+        hold: 0.7
+        visual_cues:
+          - id: chunk-end
+            phrase: The terminal message arrives last
+            targets:
+              - chunk-client
+            color: cyan
+            linger: 0.35
+  - id: adapter-contract
+    title: A metric name does not identify its end event
+    visual: Retain aligned token/chunk/metadata lanes, inspect a pinned choices-bearing emptycontent event and a
+      separate Responsesreasoningdelta; show clientqueue addition as a separate span.
+    beats:
+      - say: TCP reads, server-sent events and text chunks are different boundaries. An adapter reconstructs the
+          protocol, retains timestamps and recognizes terminal and error events. A content chunk with several
+          tokens gives one observed arrival; dividing its delay by a token count invents internal token times.
+          First byte, first content chunk, server token emission and client token arrival answer different
+          questions.
+        hold: 0.65
+        visual_cues:
+          - id: adapter-contract-beat-0
+            phrase: TCP reads, server-sent events and text chunks are different boundaries
+            targets:
+              - adapter-contract-mechanism
+            color: cyan
+            linger: 0.65
+      - say: The pinned October source inspection found vLLM completion and chat clients timestamping nonempty choices
+          lists, even if their content is empty. Their reported latency ends at the last such event; later
+          usage-only events and the done marker do not extend it. The Responses client instead timestamps text
+          and reasoning deltas. A metric named ITL or end-to-end latency therefore need not mean individual
+          visible-token gaps or terminal completion.
+        hold: 0.65
+        visual_cues:
+          - id: adapter-contract-beat-1
+            phrase: The pinned October source inspection found vLLM completion and chat clients timestamping nonempty
+              choices lists, even if their content is empty
+            targets:
+              - adapter-contract-mechanism
+            color: yellow
+            linger: 0.65
+          - id: adapter-choices
+            phrase: even if their content is empty
+            targets:
+              - adapter-contract-mechanism
+            color: yellow
+            linger: 0.6
+          - id: adapter-end
+            phrase: later usage-only events and the done marker do not extend it
+            targets:
+              - adapter-contract-mechanism
+            color: yellow
+            linger: 0.6
+      - say: With a client concurrency cap and finite rate, the inspected benchmark adds client queue time to that
+          adapter latency for its including-client-queue summary. This does not independently measure
+          scheduling lateness or change the adapter’s terminal boundary. The summary uses successful requests
+          and is omitted at infinite rate. Preserve the endpoint, event rules, token-count source and exact
+          installed adapter version alongside each comparison.
+        hold: 0.65
+        visual_cues:
+          - id: adapter-contract-beat-2
+            phrase: With a client concurrency cap and finite rate, the inspected benchmark adds client queue time to that
+              adapter latency for its including-client-queue summary
+            targets:
+              - adapter-contract-mechanism
+            color: cyan
+            linger: 0.65
+  - id: playback-deadlines
+    title: Which stream can the reader follow?
+    visual: Two token streams advance on a single clock. Stop both at token four’s deadline. Resume to
+      expose the missing arrival, with all three timestamp series left in view.
+    beats:
+      - say: Play two recordings for the same reader. The reader wants token one at three hundred
+          milliseconds, then one more token every eighty. Each gold tick marks when a particular token
+          is due. The two rows underneath show when each client actually has it.
+        hold: 0.7
+        visual_cues:
+          - id: reader-cadence
+            phrase: then one more token every eighty
+            targets:
+              - reader-grid
+            color: yellow
+            linger: 0.35
+      - say: Start both recordings and stop when the reader needs token four. Look for the fourth dot in each
+          row. Which reader can keep going?
+        hold: 2.7
+        visual_cues:
+          - id: reader-to-four
+            phrase: Start both recordings and stop when the reader needs token four
+            targets:
+              - reader-grid
+            color: yellow
+            linger: 0.35
+      - say: Run A already has token four. The gap after token three lasted a hundred and twenty milliseconds.
+          Even so, the fourth token arrived a hundred milliseconds before the reader needed it. Those
+          early arrivals bought some slack. All five tokens in A make their deadlines.
+        hold: 1
+        caption_starts:
+          - The gap after token three
+          - Even so, the fourth token
+          - Those early arrivals
+        visual_cues:
+          - id: reader-gap
+            phrase: The gap after token three lasted a hundred and twenty milliseconds
+            targets:
+              - reader-run-a
+            color: cyan
+            linger: 0.35
+          - id: reader-slack
+            phrase: a hundred milliseconds before the reader needed it
+            targets:
+              - reader-run-a
+            color: cyan
+            linger: 0.35
+      - say: Let the clock finish. In run B, token four was due at five forty. It arrived at five eighty,
+          forty milliseconds late. Token five catches up. That last short gap brings the mean back to
+          eighty milliseconds per token. The average loses the wait the reader just felt.
+        hold: 1.3
+        visual_cues:
+          - id: reader-finish
+            phrase: Let the clock finish
+            targets:
+              - reader-run-b
+            color: pink
+            linger: 0.35
+          - id: reader-late
+            phrase: forty milliseconds late
+            targets:
+              - reader-run-b
+            color: pink
+            linger: 0.35
+            caption_boundary: true
+          - id: reader-mean
+            phrase: eighty milliseconds per token
+            targets:
+              - reader-run-b
+            color: pink
+            linger: 0.35
+        caption_starts:
+          - In run B, token four was due
+          - It arrived at five eighty
+          - Token five catches up
+          - That last short gap
+      - say: We kept the gold ticks fixed so you could compare the recordings. Etalon’s fluidity index counts
+          how many deadlines a stall crosses. One stall can cross several. It then restarts the clock
+          from the late arrival. With our reading speed, the next token would be due at six sixty.
+          Etalon can also set the first-token deadline from the prompt length. Use the declared algorithm
+          to score fluidity.
+        hold: 0.8
+        visual_cues:
+          - id: reader-fixed
+            phrase: We kept the gold ticks fixed
+            targets:
+              - reader-grid
+            color: yellow
+            linger: 0.35
+          - id: reader-reset
+            phrase: With our reading speed, the next token would be due at six sixty
+            targets:
+              - reader-policy
+            color: yellow
+            linger: 0.35
+  - id: request-denominator
+    title: Keep failures in the offered cohort
+    visual: Six request IDs arrive inside a half-open two-second window at three requests per second; completion
+      and timeout markers extend to the 2.5-second outcome horizon. Three qualify, two fail criteria, and one
+      times out.
+    beats:
+      - say: A small fixture offers six requests. Three satisfy the success, quality, and latency contract. Two
+          complete but miss a declared criterion, and one times out.
+        hold: 0.55
+        visual_cues:
+          - id: request-denominator-beat-1-focus-1
+            phrase: Two complete but miss a declared criterion, and one times out
+            targets:
+              - request-denominator-math-3-6-50-qquad-5-2-5-2qquad-3-2-5-1-2
+            color: cyan
+            linger: 0.65
+      - say: Attainment is three of six, or fifty percent. The protocol reports five successful responses. Over the
+          two-point-five-second cohort horizon, that is two successful requests per second and one point two
+          qualified requests per second.
+        hold: 0.65
+        visual_cues:
+          - id: request-denominator-beat-2-focus-1
+            phrase: Over the two-point-five-second cohort horizon
+            targets:
+              - request-denominator-math-3-6-50-qquad-5-2-5-2qquad-3-2-5-1-2
+            color: cyan
+            linger: 0.65
+      - say: The two-second arrival window implies three offered requests per second. These rates answer different
+          questions. Keep the offered population, elapsed boundary, quality rule, and terminal outcomes in the
+          receipt.
+        hold: 0.7
+        visual_cues:
+          - id: request-denominator-beat-3-focus-1
+            phrase: The two-second arrival window implies three offered requests per second
+            targets:
+              - request-denominator-math-3-6-50-qquad-5-2-5-2qquad-3-2-5-1-2
+            color: cyan
+            linger: 0.65
+  - id: scorer-contract
+    title: Which records can the scorer use?
+    visual: Compare three ways to write a quality judgment. Follow the accepted records through identity,
+      timing and qualification checks.
+    beats:
+      - say: Look at the three quality flags. Only the top one is a boolean. Quotation marks turn true
+          into text, and one is a number. The adapter supplies the token events. A separate quality
+          check supplies the judgment for each answer. The downloadable scorer matches those records
+          to the requests in the manifest.
+        hold: 0.65
+        caption_starts:
+          - Only the top one is a boolean
+        visual_cues:
+          - id: scorer-contract-beat-0
+            phrase: Only the top one is a boolean
+            targets:
+              - scorer-contract-mechanism
+            color: cyan
+            linger: 0.65
+      - say: Its parser rejects duplicate JSON keys and nonfinite values. Exact fields, unique known IDs, finite
+          nonnegative times and schedule-before-send-before-terminal ordering are required; token times must
+          be ordered within the request. Every offered ID needs one terminal record. An unknown, duplicated or
+          missing outcome is malformed input.
+        hold: 0.65
+        visual_cues:
+          - id: scorer-contract-beat-1
+            phrase: Its parser rejects duplicate JSON keys and nonfinite values
+            targets:
+              - scorer-contract-mechanism
+            color: yellow
+            linger: 0.65
+      - say: For qualification, require terminal success, nonempty output, passing supplied quality, first-token wait
+          at most three hundred and mean TPOT at most eighty, with the one-token exception already declared.
+          Error, timeout, rejection, cancellation and not-sent records stay in the offered denominator. A
+          not-sent record has null send, no tokens, false quality and a terminal accounting time.
+        hold: 0.65
+        visual_cues:
+          - id: scorer-contract-beat-2
+            phrase: For qualification, require terminal success, nonempty output, passing supplied quality, first-token
+              wait at most three hundred and mean TPOT at most eighty, with the one-token exception already
+              declared
+            targets:
+              - scorer-contract-mechanism
+            color: cyan
+            linger: 0.65
+      - say: Latency percentiles in this report include successful requests only; partial failed streams do not enter
+          them, but their requests still count against attainment. The report prints input byte hashes, each
+          request’s metrics and the separate populations. Its capacity estimate is null because this fixture
+          contains neither a sustained run nor a capacity sweep.
+        hold: 0.65
+        visual_cues:
+          - id: scorer-contract-beat-3
+            phrase: Latency percentiles in this report include successful requests only; partial failed streams do not
+              enter them, but their requests still count against attainment
+            targets:
+              - scorer-contract-mechanism
+            color: yellow
+            linger: 0.65
+  - id: scorer-repair
+    title: What changes when you edit one record?
+    visual: Remove the timeout, change one quality judgment, and delay one send. Restore each record
+      before the next experiment.
+    beats:
+      - say: Delete request six’s timeout record. Six requests went in and only five have outcomes.
+          The scorer stops. Restore it, then change only request five’s supplied quality judgment to true.
+          Four answers now qualify. The model gave exactly the same answers. Our edit changed the score.
+        hold: 0.65
+        visual_cues:
+          - id: scorer-repair-beat-0
+            phrase: Delete request six’s timeout record
+            targets:
+              - scorer-repair-mechanism
+            color: cyan
+            linger: 0.65
+          - id: scorer-delete
+            phrase: Delete request six’s timeout record
+            targets:
+              - scorer-repair-mechanism
+            color: yellow
+            linger: 0.6
+          - id: scorer-restore
+            phrase: Restore it
+            targets:
+              - scorer-repair-mechanism
+            color: yellow
+            linger: 0.6
+          - id: scorer-quality-change
+            phrase: change only request five’s supplied quality judgment to true
+            targets:
+              - scorer-repair-mechanism
+            color: yellow
+            linger: 0.6
+      - say: Restore that judgment, then delay request four’s send to eight hundred. The accounting is still
+          available, and its first-token wait looks shorter, but schedule validity fails. When both C L I file
+          arguments are supplied, exit zero means valid accounting and schedule checks, exit two means
+          excessive lag or unsent work, and exit one means malformed or incomplete input. Pass that status
+          through the pipeline so a command that copies the report can’t hide a failed check.
+        hold: 0.65
+        visual_cues:
+          - id: scorer-repair-beat-1
+            phrase: Restore that judgment, then delay request four’s send to eight hundred
+            targets:
+              - scorer-repair-mechanism
+            color: yellow
+            linger: 0.65
+          - id: scorer-delay
+            phrase: delay request four’s send to eight hundred
+            targets:
+              - scorer-repair-mechanism
+            color: yellow
+            linger: 0.6
+      - say: For retries, give each attempt its own record. Keep one final outcome for the user’s request.
+          This scorer rejects a repeated request ID. Keep the original logs alongside the file hashes so
+          someone can check where the timestamps came from.
+        hold: 0.65
+        visual_cues:
+          - id: scorer-repair-beat-2
+            phrase: For retries, give each attempt its own record
+            targets:
+              - scorer-repair-mechanism
+            color: cyan
+            linger: 0.65
+  - id: goodput-capacity
+    title: More useful work can accompany a worse promise
+    visual: Compute usefulcohort rates separately from attainment and maximum tested offeredload, then
+      compare1.5×.95=1.425against2×.80=1.6withdifferent denominators.
+    beats:
+      - say: Request goodput is qualified requests divided by a declared elapsed interval. SLO-constrained capacity
+          asks for the highest tested offered rate that meets the attainment threshold, reproduces the
+          intended load and remains stable. Attainment is qualified requests divided by every offered request.
+          DistServe uses per-GPU goodput for this maximum-rate interpretation, so name your definition and
+          resource count.
+        hold: 0.65
+        visual_cues:
+          - id: goodput-capacity-beat-0
+            phrase: Request goodput is qualified requests divided by a declared elapsed interval
+            targets:
+              - goodput-capacity-mechanism
+            color: cyan
+            linger: 0.65
+      - say: For an arrival-window-only illustration, two hundred requests offered at one point five per second span
+          about one hundred thirty-three seconds. One hundred ninety qualified gives about one point four
+          three useful requests per second. At two offered per second, one hundred sixty qualify over one
+          hundred seconds, giving one point six. Useful-work rate rises while attainment falls from
+          ninety-five to eighty percent and backlog grows.
+        hold: 0.65
+        visual_cues:
+          - id: goodput-capacity-beat-1
+            phrase: For an arrival-window-only illustration, two hundred requests offered at one point five per second
+              span about one hundred thirty-three seconds
+            targets:
+              - goodput-capacity-mechanism
+            color: yellow
+            linger: 0.65
+          - id: goodput-second-run
+            phrase: At two offered per second
+            targets:
+              - goodput-capacity-mechanism
+            color: yellow
+            linger: 0.6
+      - say: Both rates use just the arrival window. Let the clock run through drain and the same
+          answers take more elapsed time. Look at the faster run. One point six useful answers a second
+          came with forty misses out of two hundred. For capacity, keep the fastest offered rate that
+          stays on schedule, keeps the queue stable and meets the promise. For a per-GPU comparison,
+          keep the hardware allocation fixed and report the count.
+        hold: 0.65
+        visual_cues:
+          - id: goodput-capacity-beat-2
+            phrase: Both rates use just the arrival window
+            targets:
+              - goodput-capacity-mechanism
+            color: cyan
+            linger: 0.65
+  - id: capacity-sweep
+    title: Which offered rate would you keep?
+    visual: Five discrete tested rates reveal attainment, maximum send lag and backlog together. Hold the
+      evidence before selecting a rate, then bracket the untested interval.
+    beats:
+      - say: Here are five separate runs with the same workload mix. We promised at least ninety-five percent
+          qualified, with at most twenty milliseconds of send lag and no growing backlog. Read down each
+          tested rate. Which is the highest one that clears all three checks?
+        hold: 2.8
+        visual_cues:
+          - id: sweep-evidence
+            phrase: Read down each tested rate
+            targets:
+              - sweep-runs
+            color: cyan
+            linger: 0.35
+      - say: At two requests a second the generator kept up, but only a hundred sixty of two hundred qualified
+          and the backlog grew. Step back one column. At one and a half requests a second all three
+          checks pass. That is the highest passing rate we tested.
+        hold: 1
+        visual_cues:
+          - id: sweep-neighbor
+            phrase: only a hundred sixty of two hundred qualified and the backlog grew
+            targets:
+              - sweep-neighbor
+            color: yellow
+            linger: 0.35
+          - id: sweep-choice
+            phrase: At one and a half requests a second all three checks pass
+            targets:
+              - sweep-runs
+            color: cyan
+            linger: 0.35
+            caption_boundary: true
+      - say: There is room for another experiment between those two rates. Test inside that interval and
+          repeat long enough to see whether the queue stays stable. Set operating margin for the
+          prompts, hardware and quality checks you will actually deploy.
+        hold: 0.8
+        visual_cues:
+          - id: sweep-refine
+            phrase: Test inside that interval
+            targets:
+              - sweep-neighbor
+            color: yellow
+            linger: 0.35
+  - id: replica-budget
+    title: How many replicas for a hundred active requests?
+    visual: Divide fifteen active requests across three replicas. Compare the five-request average with
+      one instant when two more requests arrive.
+    beats:
+      - say: These three replicas together handle one and a half requests a second. At that load a
+          request spends ten seconds in the system on average. Multiply rate by time here and you get
+          fifteen active requests on average. Share them evenly. Each replica averages five active
+          requests and handles half a request per second.
+        hold: 0.65
+        visual_cues:
+          - id: replica-budget-beat-0
+            phrase: Each replica averages five active requests
+            targets:
+              - replica-budget-mechanism
+            color: cyan
+            linger: 0.65
+      - say: Now plan for a hundred active requests of the same mix. Divide a hundred by five.
+          Twenty replicas. You can use rates too. At ten seconds per request, the fleet needs
+          ten requests per second. Half a request per second per replica gives the same twenty.
+        hold: 0.65
+        caption_starts:
+          - Twenty replicas
+          - You can use rates too
+        visual_cues:
+          - id: replica-budget-beat-1
+            phrase: Now plan for a hundred active requests of the same mix
+            targets:
+              - replica-budget-mechanism
+            color: yellow
+            linger: 0.65
+          - id: replicas-twenty
+            phrase: Twenty replicas
+            targets:
+              - replica-budget-mechanism
+            color: yellow
+            linger: 0.6
+      - say: Look at one replica with five requests open. Two more arrive together. For that instant,
+          seven are open. Leave room for bursts at the load generator too. It already averages fifteen
+          open requests in the three-replica test. Rerun the sweep on the larger fleet. Routing and warm
+          prefixes can change as you scale, and longer answers keep requests open longer.
+        hold: 0.65
+        caption_starts:
+          - Two more arrive together
+          - For that instant
+        visual_cues:
+          - id: replica-budget-beat-2
+            phrase: Two more arrive together
+            targets:
+              - replica-budget-mechanism
+            color: cyan
+            linger: 0.65
+  - id: percentile-populations
+    title: Change the weighting and the tail changes
+    visual: Sort rawtimings into nearest-rank populations; construct19shortgap1plusone100, compare
+      pooledp95=1versus perrequestworst[1,100]p95=100.
+    beats:
+      - say: Put twenty observations in order. To find the nearest-rank ninety-fifth percentile,
+          multiply twenty by point nine five and round up. Take the nineteenth value. With eighty
+          observations, the ninety-ninth percentile picks the very last one. A single slow request can
+          set that number. Collect more observations across the traffic you expect.
+        hold: 0.65
+        visual_cues:
+          - id: percentile-populations-beat-0
+            phrase: Take the nineteenth value
+            targets:
+              - percentile-populations-mechanism
+            color: cyan
+            linger: 0.65
+      - say: "Construct two successful responses: one contributes nineteen gaps of one millisecond, the other
+          contributes one gap of one hundred. The pooled twenty-gap p95 is one millisecond. Across the two
+          per-request worst gaps, one and one hundred, nearest-rank p95 is one hundred. Pooled gaps weight
+          longer answers more; per-request summaries answer a different question."
+        hold: 0.65
+        visual_cues:
+          - id: percentile-populations-beat-1
+            phrase: "Construct two successful responses: one contributes nineteen gaps of one millisecond, the other
+              contributes one gap of one hundred"
+            targets:
+              - percentile-populations-mechanism
+            color: yellow
+            linger: 0.65
+          - id: percentile-pooled
+            phrase: The pooled twenty-gap p95 is one millisecond
+            targets:
+              - percentile-populations-mechanism
+            color: yellow
+            linger: 0.6
+          - id: percentile-per-request
+            phrase: Across the two per-request worst gaps
+            targets:
+              - percentile-populations-mechanism
+            color: yellow
+            linger: 0.6
+      - say: Suppose you recorded A and B in separate runs. Average their two p95 values and you get
+          fifty point five milliseconds. Pool the twenty gaps and the nineteenth is still one millisecond.
+          To combine runs, keep the samples or a distribution summary you can merge. Report the percentile
+          rule, group comparable prompts, output lengths and priorities, and keep the failures beside
+          the successful timings.
+        hold: 0.65
+        visual_cues:
+          - id: percentile-populations-beat-2
+            phrase: Pool the twenty gaps and the nineteenth is still one millisecond
+            targets:
+              - percentile-populations-mechanism
+            color: cyan
+            linger: 0.65
+  - id: uncertainty-and-quality
+    title: Give percentiles and quality a population
+    visual: A set of 200 outcomes shows 190 passing requests and ten failing ones. The observed attainment sits at
+      95 percent while a confidence interval extends below the target.
+    beats:
+      - say: A two-hundred-request run can show ninety-five-percent observed attainment with one hundred ninety
+          qualified requests. Sampling uncertainty remains around that estimate.
+        hold: 0.55
+        visual_cues:
+          - id: quality-observed-attainment
+            phrase: two-hundred-request run can show ninety-five-percent observed attainment
+            targets:
+              - quality-observed-population
+              - uncertainty-and-quality-math-95
+            color: cyan
+            linger: 0.6
+      - say: Under the fixture’s independent-trial assumptions, a one-sided ninety-five-percent Wilson lower bound is
+          ninety-one point eight percent. A rule based on that lower bound would fail a ninety-five-percent
+          floor.
+        hold: 0.65
+        visual_cues:
+          - id: quality-wilson-bound
+            phrase: a one-sided ninety-five-percent Wilson lower bound is ninety-one point eight percent
+            targets:
+              - quality-lower-bound
+            color: cyan
+            linger: 0.6
+          - id: quality-fails-floor
+            phrase: A rule based on that lower bound would fail a ninety-five-percent floor
+            targets:
+              - quality-lower-bound
+              - quality-required-floor
+            color: yellow
+            linger: 0.6
+      - say: Percentiles also need their underlying observations and a declared population. Keep successful latency
+          samples beside failures, prompt lengths, output lengths, and the quality judgments that decide
+          qualification.
+        hold: 0.7
+        visual_cues:
+          - id: quality-population
+            phrase: their underlying observations and a declared population
+            targets:
+              - quality-observed-population
+            color: cyan
+            linger: 0.6
+          - id: quality-qualification
+            phrase: the quality judgments that decide qualification
+            targets:
+              - quality-observed-population
+            color: yellow
+            linger: 0.6
+  - id: confidence-selection
+    title: A stronger evidence rule changes the fleet plan
+    visual: Derive allsuccessWilsonlowern/(n+2.706), compare200/200and20/20full0..1axis, gate.95;
+      applysamegatebacktosweepwithfreshconfirmationlimit.
+    beats:
+      - say: For the one-sided ninety-five-percent Wilson calculation, use z about one point six four five, whose
+          square is about two point seven zero six. When every one of n independent constant-probability
+          trials passes, the lower bound simplifies to n divided by the quantity n plus z squared. Two hundred
+          perfect trials give about ninety-eight point seven percent; twenty perfect trials give only
+          eighty-eight point one.
+        hold: 0.65
+        visual_cues:
+          - id: confidence-selection-beat-0
+            phrase: For the one-sided ninety-five-percent Wilson calculation, use z about one point six four five, whose
+              square is about two point seven zero six
+            targets:
+              - confidence-selection-mechanism
+            color: cyan
+            linger: 0.65
+          - id: confidence-small
+            phrase: twenty perfect trials give only eighty-eight point one
+            targets:
+              - confidence-selection-mechanism
+            color: yellow
+            linger: 0.6
+      - say: Look at the left end of each interval. Only two hundred out of two hundred clears the gold
+          line. Here confidence describes how often the method covers the true pass rate across repeated
+          samples under the same assumptions. Attainment counts the answers that qualified in this run.
+        hold: 0.65
+        visual_cues:
+          - id: confidence-selection-beat-1
+            phrase: Only two hundred out of two hundred clears the gold line
+            targets:
+              - confidence-selection-mechanism
+            color: yellow
+            linger: 0.65
+      - say: Apply that stricter rule to our supplied sweep. At one and a half requests a second, the
+          lower bound falls below our floor. At one request a second, all two hundred passed. If requests
+          still take ten seconds on average, that gives ten active requests across three replicas.
+          Keep ten thirds in the division. To carry a hundred active requests, the estimate goes from
+          twenty replicas to thirty. Check that the larger fleet can sustain the same mix and leave
+          room for bursts.
+        hold: 0.65
+        visual_cues:
+          - id: confidence-selection-beat-2
+            phrase: Apply that stricter rule to our supplied sweep
+            targets:
+              - confidence-selection-mechanism
+            color: cyan
+            linger: 0.65
+          - id: confidence-fleet
+            phrase: To carry a hundred active requests, the estimate goes from twenty replicas to thirty
+            targets:
+              - confidence-selection-mechanism
+            color: yellow
+            linger: 0.6
+            caption_boundary: true
+      - say: Choose the uncertainty rule and minimum evidence before the run. Correlated conversations or shared
+          bursts violate independent trials; resample whole runs or suitable time blocks. Picking a winner
+          across many noisy sweep points needs selection-aware analysis or fresh confirmation. Alternate
+          baseline and candidate order, keep rejected runs, separate cold and warm capacity, and consider
+          downward sweeps when thermal or cache history matters.
+        hold: 0.65
+        visual_cues:
+          - id: confidence-selection-beat-3
+            phrase: Choose the uncertainty rule and minimum evidence before the run
+            targets:
+              - confidence-selection-mechanism
+            color: yellow
+            linger: 0.65
+  - id: quality-provenance
+    title: A fast truncated answer has not met the task
+    visual: Inspect actualfinishreason,length/schema/argumentsfor everyperformance response; separately retain an
+      independently sampledsemantic suite withoutbroadcasting itslabeltoallrequests.
+    beats:
+      - say: Check protocol completion, finish reason, actual output length and required schema on every performance
+          response. Accidental truncation can look faster. A speculative decoder’s target-distribution
+          guarantee has stated assumptions; verify the implemented stop handling and output parsing and
+          measure task quality as well as throughput.
+        hold: 0.65
+        visual_cues:
+          - id: quality-provenance-beat-0
+            phrase: Check protocol completion, finish reason, actual output length and required schema on every
+              performance response
+            targets:
+              - quality-provenance-mechanism
+            color: cyan
+            linger: 0.65
+      - say: Use a stable semantic suite for factual support, correct tool arguments and appropriate abstention.
+          If only a separate sample received semantic review, report the pass rate for that sample.
+          To count a particular answer as semantically qualified, link its own judgment to its request ID.
+        hold: 0.65
+        visual_cues:
+          - id: quality-provenance-beat-1
+            phrase: Use a stable semantic suite for factual support, correct tool arguments and appropriate abstention
+            targets:
+              - quality-provenance-mechanism
+            color: yellow
+            linger: 0.65
+          - id: quality-unscored
+            phrase: If only a separate sample received semantic review
+            targets:
+              - quality-provenance-mechanism
+            color: yellow
+            linger: 0.6
+      - say: Retain model, tokenizer, template, quantization, engine, client and image identities; hardware count and
+          placement; gateway and network scope. Also retain exact workload bytes and realized timestamps;
+          warmup, cache, timeout and duration rules; raw terminal and timing records; judgments and telemetry;
+          denominators, repetitions, uncertainty and rejected runs. Keep the original logs so a second
+          engineer can trace a reported number back to the events that produced it.
+        hold: 0.65
+        visual_cues:
+          - id: quality-provenance-beat-2
+            phrase: Retain model, tokenizer, template, quantization, engine, client and image identities; hardware count
+              and placement; gateway and network scope
+            targets:
+              - quality-provenance-mechanism
+            color: cyan
+            linger: 0.65
+  - id: wrap
+    title: The arrival window has closed
+    visual: The original six requests remain on screen at the two-second cutoff. Follow r06 alone through
+      drain, then attach a qualified rate to the resulting cohort.
+    beats:
+      - say: Come back to our six help desk requests. At two seconds the desk stops sending. Five requests
+          already have outcomes. Request six is still open. If we wrote the report now, whose experience
+          would disappear?
+        hold: 2.1
+        visual_cues:
+          - id: wrap-window
+            phrase: Request six is still open
+            targets:
+              - wrap-ledger
+            color: yellow
+            linger: 0.35
+      - say: Follow request six until its timeout. It belongs to the original six because it arrived inside
+          the window. Of the five successful responses, one missed the first-token limit and one failed
+          its quality check. That leaves three qualified answers.
+        hold: 0.9
+        visual_cues:
+          - id: wrap-drain
+            phrase: Follow request six until its timeout
+            targets:
+              - wrap-ledger
+            color: yellow
+            linger: 0.35
+      - say: Three qualified answers in two and a half seconds gives us one point two per second. To reproduce
+          that number, keep the request records with their clocks, quality judgments, workload, model,
+          server, client and hardware versions. A capacity claim also needs a repeated load sweep,
+          stable queues and a declared uncertainty rule.
+        hold: 0.8
+        visual_cues:
+          - id: wrap-receipt
+            phrase: one point two per second
+            targets:
+              - wrap-ledger
+            color: cyan
+            linger: 0.35
+  - id: fresh-receipt
+    title: Would you accept this run?
+    visual: Eight new requests share a 2.5-second arrival window. Keep the eighth through timeout, derive
+      four rates, and move one send against its fixed token. Recheck the service promise after repairing
+      the clock.
+    beats:
+      - say: Try a fresh run with the same ninety-five percent promise. Eight requests arrive before the desk
+          closes at two and a half seconds. Follow the last request through drain to its timeout. Seven
+          succeeded, and six of those answers qualified. What fraction of the eight qualified? How many
+          useful answers did the desk deliver per second, including the wait for that timeout?
+        hold: 3
+        visual_cues:
+          - id: fresh-window
+            phrase: Follow the last request through drain to its timeout
+            targets:
+              - fresh-ledger
+            color: yellow
+            linger: 0.35
+      - say: Seventy-five percent qualified. The timeout ends the run four seconds after it began.
+          Divide six useful answers by those four seconds. One point five per second. Count all seven
+          successes over the same four seconds and you get one point seven five. For the offered rate,
+          use the shorter arrival window. Eight requests in two and a half seconds. Three point two
+          requests per second went in.
+        hold: 0.9
+        visual_cues:
+          - id: fresh-attainment
+            phrase: Seventy-five percent qualified
+            targets:
+              - fresh-ledger
+            color: cyan
+            linger: 0.35
+            caption_boundary: true
+          - id: fresh-qualified
+            phrase: one point five per second
+            targets:
+              - fresh-ledger
+            color: cyan
+            linger: 0.35
+          - id: fresh-success
+            phrase: one point seven five
+            targets:
+              - fresh-ledger
+            color: cyan
+            linger: 0.35
+          - id: fresh-offered
+            phrase: three point two
+            targets:
+              - fresh-ledger
+            color: cyan
+            linger: 0.35
+        caption_starts:
+          - The timeout ends the run
+          - Divide six useful answers
+          - One point five per second
+          - Count all seven successes
+          - For the offered rate
+          - Eight requests in two and a half seconds
+          - Three point two requests per second went in
+      - say: Zoom in on the second send. Move it forty-five milliseconds later. Its first token stays put, so
+          the wait after send shrinks. With a twenty-millisecond lag budget, the scorer returns two.
+          The request still counts among the eight. Put the send back on schedule. The scorer now
+          returns zero. Has fixing the clock earned the desk a capacity number?
+        hold: 2.4
+        visual_cues:
+          - id: fresh-delay
+            phrase: Move it forty-five milliseconds later
+            targets:
+              - fresh-clock
+            color: cyan
+            linger: 0.35
+          - id: fresh-invalid
+            phrase: the scorer returns two
+            targets:
+              - fresh-clock
+            color: yellow
+            linger: 0.35
+          - id: fresh-restore
+            phrase: Put the send back on schedule
+            targets:
+              - fresh-clock
+            color: cyan
+            linger: 0.35
+          - id: fresh-valid
+            phrase: The scorer now returns zero
+            targets:
+              - fresh-clock
+            color: cyan
+            linger: 0.35
+        caption_starts:
+          - With a twenty-millisecond lag budget
+          - Put the send back on schedule
+          - The scorer now returns zero
+          - Has fixing the clock
+      - say: Six of eight qualified. That misses the ninety-five percent target. One and a half useful
+          answers per second goes on this receipt. In the earlier sweep, one and a half was the rate
+          we sent in. To measure capacity, repeat the sweep under the intended load. Once a configuration
+          clears it, an online A/B test can tell us whether it helps users.
+        hold: 1.1
+        visual_cues:
+          - id: fresh-promise
+            phrase: That misses the ninety-five percent target
+            targets:
+              - fresh-gate
+            color: yellow
+            linger: 0.35
+            caption_boundary: true

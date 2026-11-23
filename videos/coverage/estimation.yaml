@@ -1,0 +1,176 @@
+version: 1
+lesson: estimation
+promise: Estimate a queue rate, construct and interpret uncertainty, and distinguish missing labels,
+  sampling design, bias, priors and calibration before deciding capacity.
+framing: []
+objectives:
+  - id: intro
+    can: Fix the sample size and staffing rule before seeing labels, then distinguish the first sample estimate from the unknown weekly share.
+    scenes:
+      - intro
+  - id: sampling
+    can: Distinguish sampling variation from a changed population
+    scenes:
+      - sampling
+  - id: score-interval
+    can: Invert a score test to form a Wilson interval
+    scenes:
+      - score-interval
+  - id: accumulating-evidence
+    can: Predict how the Wilson interval changes when more reviews give the same sample fraction.
+    scenes:
+      - accumulating-evidence
+  - id: boundary
+    can: Substitute ten and then twenty independent labels in the zero-success Wilson bound and distinguish that interval from coverage in fresh samples of one hundred.
+    scenes:
+      - boundary
+  - id: sample-design
+    can: Combine known lane rates with traffic shares and choose representative samples within lanes when the rates need measuring.
+    scenes:
+      - sample-design
+  - id: resampling
+    can: Draw bootstrap samples without claiming new evidence
+    scenes:
+      - resampling
+  - id: prior-and-calibration
+    can: Calculate the posterior mode under a binomial model and compare a fixed forecast with the outcome rate in a separate random held-out audit.
+    scenes:
+      - prior-and-calibration
+  - id: target-and-missing
+    can: Choose the denominator for resolved cases, bound the full tray's share, and calculate observed reviewer agreement from paired labels before adjudication.
+    scenes:
+      - target-and-missing
+  - id: cluster-evidence
+    can: Predict which bootstrap spread preserves dependence among signups from the same campaign.
+    scenes:
+      - cluster-evidence
+  - id: bias-and-prior
+    can: Distinguish the bias across repeated routine-only samples from a single sample's error, and distinguish posterior mean from mode.
+    scenes:
+      - bias-and-prior
+  - id: missing-label-transfer
+    can: Compute missing-label bounds for a new sample
+    scenes:
+      - missing-label-transfer
+  - id: report
+    can: Apply the prespecified Wilson upper-bound rule once, then compare the staffing decision with the actual workload.
+    scenes:
+      - intro
+      - report
+sections:
+  - heading: Start with the target behind 16%
+    status: taught
+    scenes:
+      - intro
+      - target-and-missing
+  - heading: Let the next hundred challenge the point estimate
+    status: taught
+    scenes:
+      - sampling
+  - heading: Replay sampling with the labels in hand
+    status: taught
+    scenes:
+      - resampling
+      - cluster-evidence
+  - heading: Put a scale on the movement
+    status: taught
+    scenes:
+      - sampling
+      - score-interval
+  - heading: Wald collapses at 0/10; Wilson doesn't
+    status: taught
+    scenes:
+      - boundary
+      - score-interval
+  - heading: More reviews only help if they match the queue
+    status: taught
+    scenes:
+      - accumulating-evidence
+      - sample-design
+  - heading: A domestic-only sample is precise about the wrong pile
+    status: taught
+    scenes:
+      - sample-design
+      - bias-and-prior
+  - heading: A prior pulls the center for a different reason
+    status: taught
+    scenes:
+      - prior-and-calibration
+      - bias-and-prior
+  - heading: A four-point calibration gap can still be noise
+    status: taught
+    scenes:
+      - prior-and-calibration
+      - bias-and-prior
+  - heading: Print the counts, the interval, and the sampling plan
+    status: taught
+    scenes:
+      - intro
+      - report
+      - target-and-missing
+  - heading: Tighter intervals don't fix the wrong labels
+    status: taught
+    scenes:
+      - target-and-missing
+      - bias-and-prior
+  - heading: Practice with 24/120 high-value flags
+    status: article-only
+    reason: exercise
+    note: The page supplies this independent audit practice; the film teaches a new missing-label transfer and
+      the underlying interval and design mechanisms.
+quiz:
+  - n: 1
+    status: taught
+    scenes:
+      - target-and-missing
+  - n: 2
+    status: taught
+    scenes:
+      - sampling
+      - accumulating-evidence
+      - resampling
+  - n: 3
+    status: taught
+    scenes:
+      - boundary
+      - resampling
+  - n: 4
+    status: taught
+    scenes:
+      - sample-design
+  - n: 5
+    status: taught
+    scenes:
+      - score-interval
+      - report
+  - n: 6
+    status: taught
+    scenes:
+      - prior-and-calibration
+      - bias-and-prior
+  - n: 7
+    status: taught
+    scenes:
+      - prior-and-calibration
+      - bias-and-prior
+  - n: 8
+    status: taught
+    scenes:
+      - boundary
+      - score-interval
+  - n: 9
+    status: taught
+    scenes:
+      - target-and-missing
+removed: []
+reviews:
+  closed_book:
+    taught: 9
+    partial: 0
+    absent: 0
+    script: 626f4ed05aa0c5ae
+    evidence: build/video-delivery-20261106/script-reviews/estimation.json
+  fact_check:
+    open_findings: 0
+    script: 626f4ed05aa0c5ae
+    evidence: build/video-delivery-20261106/script-reviews/estimation.json

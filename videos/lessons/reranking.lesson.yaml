@@ -1,0 +1,1335 @@
+version: 1
+id: reranking
+title: Reranking the Passages an Assistant Reads
+source: retrieval/reranking-cross-encoders-rag/content.md
+sources:
+  - title: Passage Re-ranking with BERT.
+    url: https://arxiv.org/abs/1901.04085
+  - title: "BERT: Pre-training of Deep Bidirectional Transformers for Language Understanding."
+    url: https://arxiv.org/abs/1810.04805
+  - title: Cross Encoder Usage
+    url: https://github.com/huggingface/sentence-transformers/blob/main/docs/cross_encoder/usage/usage.rst
+  - title: Learning to Rank using Gradient Descent.
+    url: https://www.microsoft.com/en-us/research/publication/learning-to-rank-using-gradient-descent/
+  - title: Document Ranking with a Pretrained Sequence-to-Sequence Model.
+    url: https://arxiv.org/abs/2003.06713
+  - title: Qwen3-Reranker-0.6B model card and scoring example
+    url: https://huggingface.co/Qwen/Qwen3-Reranker-0.6B
+  - title: BGE-reranker-v2-gemma model card and scoring example
+    url: https://huggingface.co/BAAI/bge-reranker-v2-gemma
+  - title: RankLLaMA v1 passage reranker model card
+    url: https://huggingface.co/castorini/rankllama-v1-7b-lora-passage
+  - title: Jina Reranker v3.5 model card
+    url: https://huggingface.co/jinaai/jina-reranker-v3.5
+  - title: Rerank API.
+    url: https://docs.cohere.com/v2/reference/rerank
+  - title: Probability calibration
+    url: https://scikit-learn.org/stable/modules/calibration.html
+  - title: Introduction to Information Retrieval.
+    url: https://nlp.stanford.edu/IR-book/
+  - title: "Triton Inference Server: Ragged Batching"
+    url: https://docs.nvidia.com/deeplearning/triton-inference-server/user-guide/docs/user_guide/ragged_batching.html
+  - title: "Sentence-BERT: Sentence Embeddings using Siamese BERT-Networks."
+    url: https://arxiv.org/abs/1908.10084
+  - title: "ColBERT: Efficient and Effective Passage Search via Contextualized Late Interaction over BERT."
+    url: https://arxiv.org/abs/2004.12832
+  - title: "PLAID: An Efficient Engine for Late Interaction Retrieval"
+    url: https://arxiv.org/abs/2205.09707
+  - title: cross-encoder/ms-marco-MiniLM-L6-v2
+    url: https://huggingface.co/cross-encoder/ms-marco-MiniLM-L6-v2
+  - title: "ColBERTv2: Effective and Efficient Retrieval via Lightweight Late Interaction"
+    url: https://arxiv.org/abs/2112.01488
+  - title: Is ChatGPT Good at Search? Investigating Large Language Models as Re-Ranking Agents
+    url: https://arxiv.org/abs/2304.09542
+scenes:
+  - id: subject-intro
+    title: "Library search"
+    visual: "Three library slips show their full sentences. The first two slide into the prompt. After the prediction, the hours slip trades places with the events slip, carrying its Sunday sentence across the cutoff."
+    beats:
+      - say: "Is the library open on Sunday? The assistant gets the first two slips. Can it answer from those two?"
+        hold: 3
+        caption_starts: ["The assistant gets the first two slips", "Can it answer from those two"]
+        visual_cues:
+          - id: first-two
+            phrase: "the first two slips"
+            targets: [shelf, cutoff]
+            color: blue
+          - id: which-slip
+            phrase: "Can it answer from those two"
+            targets: [shelf, cutoff, decision]
+            color: yellow
+      - say: "Move the hours slip from third to first. The library is closed on Sunday. Search found that sentence on the first try. Reranking changed which two passages the assistant read."
+        hold: 1
+        caption_starts: ["The library is closed on Sunday", "Search found that sentence"]
+        visual_cues:
+          - id: choose-hours
+            phrase: "Move the hours slip from third to first"
+            targets: [shelf, cutoff]
+            color: green
+            caption_boundary: true
+          - id: sunday-answer
+            phrase: "The library is closed on Sunday"
+            targets: [shelf, cutoff]
+            color: green
+  - id: candidate-ceiling
+    title: "What reaches the scorer?"
+    visual: "The search slips stay still. A different bracket limits the scoring input, and the receipt gains the hours ID only when the bracket reaches rank three."
+    beats:
+      - say: "Now choose how many slips the scorer gets. A fast retriever searches the collection and hands over a shortlist. Suppose that handoff stops at two. Look at the scoring input. Story time and the holiday notice can trade places all day. Neither gives Sunday’s hours."
+        hold: 1
+        visual_cues:
+          - id: shortlist
+            phrase: "a shortlist"
+            targets: [shelf, cutoff]
+            color: blue
+          - id: scoring-input
+            phrase: "Look at the scoring input"
+            targets: [receipt]
+            color: yellow
+      - say: "Let the scorer read one more passage. Now the hours slip gets compared with the question. The assistant still has room for two. One limit buys us another comparison. The other decides what the assistant can read."
+        hold: 0.9
+        visual_cues:
+          - id: expand-budget
+            phrase: "Let the scorer read one more passage"
+            targets: [cutoff, receipt]
+            color: yellow
+      - say: "These three belong to the same permitted search result. A change in access or a newer revision calls for a fresh check before scoring or packing. Raising a relevance score can move a permitted passage up the list. Access comes from the application."
+        hold: 0.6
+        visual_cues:
+          - id: same-snapshot
+            phrase: "same permitted search result"
+            targets: [shelf, receipt]
+            color: blue
+  - id: joint-input
+    title: "When does the question meet the passage?"
+    visual: "The question and passage start as separate groups with separate vectors. Special tokens join them into one BERT input, then two example cross-text links precede the final CLS state."
+    beats:
+      - say: "A dense retriever can work on the hours slip before anyone asks a question. It stores a passage vector. Later it compares that vector with a vector for the question. Encoding each side separately makes this kind of search practical across a large collection. That’s a bi-encoder."
+        hold: 0.6
+        visual_cues:
+          - id: index-passage
+            phrase: "It stores a passage vector"
+            targets: [tokens, vectors]
+            color: green
+      - say: "Now put the question and the passage into one input. This is a BERT-style cross-encoder. The special token at the front is called C L S. The separators mark the ends of the two texts. Inside this model, Sunday in the question can interact with Sunday in the passage. Open can interact with closed. Those links show comparisons the architecture permits."
+        hold: 0.7
+        visual_cues:
+          - id: join-pair
+            phrase: "put the question and the passage into one input"
+            targets: [tokens, vectors]
+            color: cyan
+          - id: match-day
+            phrase: "Sunday in the question can interact with Sunday in the passage"
+            targets: [tokens, interaction]
+            color: blue
+          - id: match-hours
+            phrase: "Open can interact with closed"
+            targets: [tokens, interaction]
+            color: blue
+      - say: "Read the final state at the first token. It has seen both sides, so it can represent this particular match. What it learns depends on training. Test questions that differ by a date, a condition or a word like “closed,” alongside passages that share the vocabulary but give the wrong rule."
+        hold: 0.7
+        visual_cues:
+          - id: read-cls
+            phrase: "Read the final state at the first token"
+            targets: [tokens, vectors]
+            color: cyan
+  - id: scalar-score
+    title: "A score for the Sunday question"
+    visual: "Two coordinates contribute along a common ruler. A backward step applies the bias before the three separate pair logits are compared."
+    beats:
+      - say: "Suppose the model represents the Sunday question and the hours slip with two coordinates, two and one. Start the marker at zero. The first weight is one. Two times one takes us to two. The second weight is a half. One times a half adds half a step. The bias is minus point two. Where does that leave the marker?"
+        hold: 2.5
+        visual_cues:
+          - id: pair-state
+            phrase: "two coordinates, two and one"
+            targets: [head]
+            color: green
+          - id: first-product
+            phrase: "Two times one takes us to two"
+            targets: [ruler, total]
+            color: blue
+          - id: second-product
+            phrase: "One times a half adds half a step"
+            targets: [ruler, total]
+            color: cyan
+          - id: subtract-bias
+            phrase: "The bias is minus point two"
+            targets: [head, ruler, total]
+            color: yellow
+      - say: "Two point three. That final number is the pair’s logit. Use the same weights and bias for each passage. The holiday notice gets point four, and story time gets point zero five. Each logit belongs to one question and one passage."
+        hold: 1
+        visual_cues:
+          - id: logit-result
+            phrase: "Two point three"
+            targets: [ruler, total]
+            color: green
+            caption_boundary: true
+          - id: compare-pairs
+            phrase: "Use the same weights and bias for each passage"
+            targets: [comparison]
+            color: blue
+      - say: "Some checkpoints apply a sigmoid to each logit. It squeezes the scale between zero and one and preserves the mathematical order. The hours slip still wins. To interpret its new number as a probability of relevance, check predictions against held-out relevance labels for that event."
+        hold: 0.8
+        visual_cues:
+          - id: apply-sigmoid
+            phrase: "apply a sigmoid to each logit"
+            targets: [comparison]
+            color: cyan
+  - id: reorder-evidence
+    title: "Across the two-passage cutoff"
+    visual: "A rank diagram traces each of the three original IDs into its new position. The receiving column shows the exact Sunday clause and the unchanged two-slot cutoff."
+    beats:
+      - say: "Put those three logits beside their original search ranks. Keep your eye on the hours slip at the bottom. Now follow each score into descending order. The hours passage travels from third to first. Its words and source ID travel with it."
+        hold: 1.1
+        visual_cues:
+          - id: compare-order
+            phrase: "beside their original search ranks"
+            targets: [order]
+            color: blue
+          - id: order-pairs
+            phrase: "follow each score into descending order"
+            targets: [order]
+            color: green
+      - say: "Send the first two passages to the assistant. Before the move, neither passage gave Sunday’s hours. Now the first one does. Candidate recall stayed at one out of one throughout. All the reranker changed was the order."
+        hold: 0.8
+        visual_cues:
+          - id: pack-two
+            phrase: "Send the first two passages to the assistant"
+            targets: [order, metrics]
+            color: yellow
+      - say: "For this query there’s one labeled relevant passage. Take one divided by its rank. Its reciprocal rank goes from one third to one. The mean across questions is mean reciprocal rank. On a held-out set, check the actual packed spans too. A later packing step could still cut the line we wanted."
+        hold: 0.8
+        visual_cues:
+          - id: rr-change
+            phrase: "from one third to one"
+            targets: [metrics]
+            color: cyan
+  - id: policy-snapshot
+    title: Which passages may the scorer read?
+    visual: Four permitted records enter hybrid search. The application checks their text, parent, revision and access before passing them on.
+    beats:
+      - say: "A service account asks whether it can use the legacy token endpoint on day ten after deprecation with audit logging active. Rule AUTH-fourteen allows that request through day fourteen while logging is active. Search returns four current passages the account may read. The governing rule is third, below troubleshooting and password reset. An admin-only rule and a superseded revision remain outside scoring."
+        hold: 0.7
+        visual_cues:
+          - id: auth-request
+            phrase: on day ten after deprecation with audit logging active
+            targets:
+              - auth-request-mark
+            color: cyan
+            linger: 0.6
+          - id: auth-rule
+            phrase: Rule AUTH-fourteen allows that request
+            targets:
+              - auth-rule-mark
+            color: cyan
+            linger: 0.6
+          - id: four-records
+            phrase: "four current passages the account may read"
+            targets:
+              - four-records-mark
+            color: cyan
+            linger: 0.6
+          - id: exclude-records
+            phrase: An admin-only rule and a superseded revision remain outside scoring
+            targets:
+              - exclude-records-mark
+            color: cyan
+            linger: 0.6
+      - say: "Compare the returned passage with the search record, including text and parent identity. The ID and revision still match, but look at the text. The clause has changed. Reject the changed record and retrieve its current revision before scoring it. Bind each score to the exact candidate sent and check that each ID appears only once."
+        hold: 0.7
+        visual_cues:
+          - id: snapshot-compare
+            phrase: including text and parent identity
+            targets:
+              - snapshot-compare-mark
+            color: cyan
+            linger: 0.6
+          - id: mutate-text
+            phrase: "look at the text"
+            targets:
+              - mutate-text-mark
+            color: cyan
+            linger: 0.6
+          - id: source-binding
+            phrase: "Bind each score to the exact candidate sent"
+            targets:
+              - source-binding-mark
+            color: cyan
+            linger: 0.6
+      - say: "The application supplied those access decisions. It rechecks access and revisions before scoring and again before packing. Here the account loses access after scoring, so the passage comes out. Before sending text to a hosted scorer, check that the application permits that processor to receive it."
+        hold: 0.7
+        visual_cues:
+          - id: recheck-access
+            phrase: "Here the account loses access after scoring"
+            targets:
+              - recheck-access-mark
+            color: cyan
+            linger: 0.6
+          - id: disclosure-check
+            phrase: "Before sending text to a hosted scorer"
+            targets:
+              - disclosure-check-mark
+            color: cyan
+            linger: 0.6
+  - id: phrase-scorer
+    title: "What earns a place in the prompt?"
+    visual: "The four permitted passages carry their scores from search order into descending order. Only AUTH-14 clears the gate. The same rule then answers three requests under two different decisions."
+    beats:
+      - say: "The reference scorer is deliberately hand-written. It awards two for the endpoint phrase, three for the requested remedy, one for service accounts, two for the fourteen-day window and two for active auditing. It subtracts six for the troubleshooting disclaimer. The governing rule receives two plus one plus two plus two, totaling seven. The audit-export note gets two despite referring to a different action. Password reset gets zero. Troubleshooting gets minus one."
+        hold: 0.7
+        visual_cues:
+          - id: endpoint-points
+            phrase: "two for the endpoint phrase"
+            targets: [terms]
+            color: blue
+          - id: actor-points
+            phrase: "one for service accounts"
+            targets: [terms]
+            color: blue
+          - id: window-points
+            phrase: "two for the fourteen-day window"
+            targets: [terms]
+            color: yellow
+          - id: audit-points
+            phrase: "two for active auditing"
+            targets: [terms]
+            color: green
+          - id: rule-seven
+            phrase: "totaling seven"
+            targets: [scores, terms]
+            color: green
+          - id: export-score
+            phrase: "The audit-export note gets two"
+            targets: [scores]
+            color: blue
+          - id: reset-score
+            phrase: "Password reset gets zero"
+            targets: [scores]
+            color: blue
+          - id: troubleshooting-score
+            phrase: "Troubleshooting gets minus one"
+            targets: [scores]
+            color: blue
+      - say: "Sort the four passages by score, highest first. If scores tie, use search rank, then chunk ID. A passage needs five points for a slot. Only the governing rule qualifies. Its parent, revision and exact text travel with it. The second slot stays empty."
+        hold: 0.8
+        caption_starts: ["A passage needs five points for a slot", "Only the governing rule qualifies", "The second slot stays empty"]
+        visual_cues:
+          - id: sort-fixture
+            phrase: "Sort the four passages by score, highest first. If scores tie, use search rank, then chunk ID"
+            targets: [order]
+            color: blue
+          - id: admission-five
+            phrase: "Only the governing rule qualifies"
+            targets: [slots]
+            color: yellow
+          - id: one-context
+            phrase: "the second slot stays empty"
+            targets: [slots]
+            color: green
+      - say: "The rule covers days zero through fourteen while audit logging is on. Move the request to day fifteen, or turn off logging on day ten. In both cases the rule still scores five. It earns a place in the prompt. Read the last column. Both requests are denied. The same passage explains each decision."
+        hold: 1
+        visual_cues:
+          - id: day-fifteen
+            phrase: "Move the request to day fifteen"
+            targets: [rule, requests]
+            color: yellow
+          - id: audit-off
+            phrase: "or turn off logging on day ten"
+            targets: [requests]
+            color: yellow
+          - id: still-five
+            phrase: "In both cases the rule still scores five"
+            targets: [requests]
+            color: green
+            caption_boundary: true
+          - id: policy-denial
+            phrase: "Both requests are denied"
+            targets: [requests, rule]
+            color: yellow
+            caption_boundary: true
+  - id: scored-span
+    title: "Where did the scorer stop reading?"
+    visual: "A prefix cuts the hours clause off a library passage. The reader edition of AUTH-14 then supplies a literal two-input audit test and a replay with the readers swapped."
+    beats:
+      - say: "The Sunday hours are at the bottom of this building guide. Cut the scorer’s copy after the services line. The generator gets the whole page. Look below the cut. Only the generator can read that Sunday sentence."
+        hold: 0.7
+        visual_cues:
+          - id: library-prefix
+            phrase: "Cut the scorer’s copy after the services line"
+            targets: [source]
+            color: yellow
+      - say: "Here’s a cut we can check word for word. In this version of the policy, the last four words are “audit logging is active.” Keep the first sixteen words for the scorer. Leave the complete rule for the generator. If we search each copy for the words “audit logging,” which reader has them?"
+        hold: 2.8
+        visual_cues:
+          - id: read-rule
+            phrase: "the last four words"
+            targets: [source]
+            color: green
+          - id: cut-after-if
+            phrase: "Keep the first sixteen words for the scorer"
+            targets: [source, readers]
+            color: yellow
+          - id: inspect-both
+            phrase: "which reader has them"
+            targets: [source, readers]
+            color: yellow
+      - say: "The scorer gets false. The generator gets true. The prefix ends on “if.” The score describes an unfinished sentence. Reverse the two inputs. Now the scorer sees the condition and the generator loses it. The two recorded spans show exactly where the condition disappeared."
+        hold: 1
+        caption_starts: ["The generator gets true", "Reverse the two inputs"]
+        visual_cues:
+          - id: prefix-result
+            phrase: "The scorer gets false"
+            targets: [readers]
+            color: yellow
+            caption_boundary: true
+          - id: check-texts
+            phrase: "The generator gets true"
+            targets: [readers]
+            color: cyan
+            caption_boundary: true
+          - id: swap-spans
+            phrase: "Reverse the two inputs"
+            targets: [readers]
+            color: yellow
+  - id: scored-token-ledger
+    title: Reserve query and special tokens before cutting a document
+    visual: The 24-position example reserves space for the query and special tokens, then compares
+      scored and packed token digests.
+    beats:
+      - say: "Fill this row with the text the scorer can read. For this count, lowercase the text and split it on whitespace. Each word gets one position. The pair capacity is twenty-four. Reserve three positions for special tokens. Keep the entire eleven-token query first. That leaves ten document tokens. Background fills those ten positions, so the scored prefix omits the decisive clause. The generator receives the whole passage."
+        hold: 0.7
+        caption_starts: ["That leaves ten document tokens"]
+        visual_cues:
+          - id: toy-capacity
+            phrase: The pair capacity is twenty-four
+            targets:
+              - toy-capacity-mark
+            color: cyan
+            linger: 0.6
+          - id: query-eleven
+            phrase: Keep the entire eleven-token query first
+            targets:
+              - query-eleven-mark
+            color: cyan
+            linger: 0.6
+          - id: document-ten
+            phrase: That leaves ten document tokens
+            targets:
+              - document-ten-mark
+            color: cyan
+            linger: 0.6
+          - id: governing-omitted
+            phrase: the scored prefix omits the decisive clause
+            targets:
+              - governing-omitted-mark
+            color: cyan
+            linger: 0.6
+      - say: "The normalized token-list digests differ. The scorer saw the prefix and the generator got the whole rule. This fixture’s release gate refuses that mismatch. Lowercasing treats “Audit” and “audit” as the same word. To recover exactly what each model read, record the immutable source revision, exact scored text and kept span separately from token counts. Count positions with each model’s own tokenizer and template."
+        hold: 0.7
+        visual_cues:
+          - id: span-digests
+            phrase: The normalized token-list digests differ
+            targets:
+              - span-digests-mark
+            color: cyan
+            linger: 0.6
+          - id: mismatch-reject
+            phrase: this fixture’s release gate refuses that mismatch
+            targets:
+              - mismatch-reject-mark
+            color: cyan
+            linger: 0.6
+          - id: source-token-separation
+            phrase: Record the immutable source revision, exact scored text and kept span separately
+            targets:
+              - source-token-separation-mark
+            color: cyan
+            linger: 0.6
+      - say: "A declared window or parent expansion can be valid if the trace names its scope. A maximum over
+          more windows gives a long document more chances to obtain a high score and can separate a
+          qualification from its rule. Keep the necessary surrounding conditions. Also test the reverse
+          mismatch: scoring a complete passage and then packing a prefix can remove the evidence that
+          earned the score."
+        hold: 0.7
+        visual_cues:
+          - id: window-scope
+            phrase: A declared window or parent expansion
+            targets:
+              - window-scope-mark
+            color: cyan
+            linger: 0.6
+          - id: window-opportunities
+            phrase: A maximum over more windows
+            targets:
+              - window-opportunities-mark
+            color: cyan
+            linger: 0.6
+          - id: reverse-truncation
+            phrase: scoring a complete passage and then packing a prefix
+            targets:
+              - reverse-truncation-mark
+            color: cyan
+            linger: 0.6
+  - id: learned-policy-check
+    title: Two requests at the same checkpoint
+    visual: The article’s recorded MiniLM results pair each request with the highest-ranked rule and its policy outcome. A fixed 512-position boundary explains the equal scores on a separate pair of long inputs.
+    beats:
+      - say: The article also runs a trained MiniLM scorer on the four reader-edition passages. For day ten with active logging, the governing rule scores nine point one three and ranks first. Change the request to day fifteen with logging disabled. It still ranks first at eight point five six. Both numbers are raw logits. The rule answers both questions, even though it permits the first request and denies the second.
+        hold: 0.7
+        visual_cues:
+          - id: actual-model
+            phrase: a trained MiniLM scorer
+            targets:
+              - actual-model-mark
+            color: cyan
+            linger: 0.6
+          - id: model-allow
+            phrase: the governing rule scores nine point one three
+            targets:
+              - model-allow-mark
+            color: cyan
+            linger: 0.6
+          - id: model-deny
+            phrase: it still ranks first at eight point five six
+            targets:
+              - model-deny-mark
+            color: cyan
+            linger: 0.6
+          - id: changed-request
+            phrase: Change the request to day fifteen with logging disabled
+            targets: [changed-request-mark]
+            color: yellow
+      - say: This checkpoint accepts five hundred twelve positions. A separate example repeats the same permissive sentence eighty times, then appends the audit requirement to one copy. Tokenizing both pairs up to the limit produces identical input-token IDs. Both rounded scores are three point zero six. The added condition was outside the input the model could read.
+        hold: 0.7
+        visual_cues:
+          - id: limit-512
+            phrase: This checkpoint accepts five hundred twelve positions
+            targets:
+              - limit-512-mark
+            color: cyan
+            linger: 0.6
+          - id: append-condition
+            phrase: then appends the audit requirement
+            targets:
+              - append-condition-mark
+            color: cyan
+            linger: 0.6
+          - id: same-input-ids
+            phrase: produces identical input-token IDs
+            targets:
+              - same-input-ids-mark
+            color: cyan
+            linger: 0.6
+          - id: same-score
+            phrase: Both rounded scores are three point zero six
+            targets:
+              - same-score-mark
+            color: cyan
+            linger: 0.6
+      - say: Keep the immutable weights and tokenizer fingerprints with that replay so another person can identify the scored inputs. Measure serving latency separately on your workload. To test quality, change one condition at a time across labeled questions. Correct context with an unsupported affirmative answer points to the way the generator interpreted the rule.
+        hold: 0.7
+        visual_cues:
+          - id: immutable-model
+            phrase: Keep the immutable weights and tokenizer fingerprints
+            targets:
+              - immutable-model-mark
+            color: cyan
+            linger: 0.6
+          - id: no-speed-inference
+            phrase: Measure serving latency separately on your workload
+            targets:
+              - no-speed-inference-mark
+            color: cyan
+            linger: 0.6
+          - id: downstream-repair
+            phrase: Correct context with an unsupported affirmative answer
+            targets:
+              - downstream-repair-mark
+            color: cyan
+            linger: 0.6
+  - id: ranking-losses
+    title: What does a wrong order cost?
+    visual: "The hours slip and the story time slip each mark a binary loss curve. On a second curve, their score gap moves through zero as the two logits trade places. At search time the same scorer reads each slip separately."
+    beats:
+      - say: "For the Sunday question, opening hours is relevant and story time is irrelevant. Suppose hours scores one point two and story time scores point two. Read the curves from left to right. A higher logit lowers the loss for hours. It raises the loss for story time. Each loss is the negative log of the probability the model assigned to the training label. Averaging these two losses gives about point five three one."
+        hold: 0.7
+        caption_starts: ["Suppose hours scores one point two", "Read the curves from left to right", "Averaging these two losses gives about point five three one"]
+        visual_cues:
+          - id: loss-pairs
+            phrase: "Suppose hours scores one point two and story time scores point two"
+            targets:
+              - loss-pairs-mark
+            color: cyan
+            linger: 0.6
+          - id: higher-hours
+            phrase: "A higher logit lowers the loss for hours"
+            targets: [higher-hours-mark]
+            color: green
+          - id: higher-events
+            phrase: "It raises the loss for story time"
+            targets: [higher-events-mark]
+            color: pink
+          - id: binary-loss
+            phrase: Averaging these two losses gives about point five three one
+            targets:
+              - binary-loss-mark
+            color: cyan
+            linger: 0.6
+      - say: "Now compare the order of the same two slips. Subtract the story time score from the hours score. Hours leads by one. Find that gap on the curve. The loss is about point three one three. Swap the scores. Follow the dot as it crosses zero and climbs the curve. With story time ahead by one, the loss reaches about one point three one three. This pairwise loss rewards the scorer for putting the useful passage first."
+        hold: 0.7
+        caption_starts: ["The loss is about point three one three", "Swap the scores", "With story time ahead by one", "the loss reaches about one point three one three"]
+        visual_cues:
+          - id: score-gap
+            phrase: "Subtract the story time score from the hours score"
+            targets:
+              - score-gap-mark
+            color: cyan
+            linger: 0.6
+          - id: gap-loss
+            phrase: The loss is about point three one three
+            targets:
+              - gap-loss-mark
+            color: cyan
+            linger: 0.6
+          - id: swap-gap
+            phrase: "Swap the scores. Follow the dot as it crosses zero and climbs the curve. With story time ahead by one, the loss reaches about one point three one three"
+            targets:
+              - swap-gap-mark
+            color: cyan
+            linger: 0.6
+      - say: "At search time, the trained weights stay fixed. Pair the Sunday question with each slip in turn. Three slips give three scores to sort. For training, look for near misses in real search results. The holiday notice mentions hours but leaves Sunday unanswered. A change of date, actor or condition can give you another near miss. Keep related questions and passages together when you split training from evaluation."
+        hold: 0.7
+        visual_cues:
+          - id: pair-work
+            phrase: "Pair the Sunday question with each slip in turn"
+            targets:
+              - pair-work-mark
+            color: cyan
+            linger: 0.6
+          - id: heldout-split
+            phrase: "Keep related questions and passages together"
+            targets:
+              - heldout-split-mark
+            color: cyan
+            linger: 0.6
+  - id: token-score-contracts
+    title: "How does this checkpoint use the logits?"
+    visual: "The yes weight stays fixed as the denominator grows from two tokens to three. A separate pair of passages then reverses order when the score changes from yes alone to yes minus no."
+    beats:
+      - say: "What counts as a score depends on the checkpoint. Mono T five runs an encoder and a decoder and compares its true and false target tokens. The Qwen three reranker example reads lowercase yes and no at the last prompt position. When each label is one token at that same position, their log odds are the yes logit minus the no logit. The binary yes score is the sigmoid of that difference."
+        hold: 0.7
+        visual_cues:
+          - id: token-rule
+            phrase: "The binary yes score is the sigmoid of that difference"
+            targets: [position]
+            color: green
+      - say: "Give this position three possible tokens. Yes gets a logit of two, no gets one, and other gets three. Exponentiate each to get the weights on screen. First divide the yes weight by just the yes and no weights added together. Its share is point seven three one. Put other back into the denominator. Will yes get a larger share or a smaller one?"
+        hold: 2.7
+        visual_cues:
+          - id: toy-logits
+            phrase: "three possible tokens"
+            targets: [masses]
+            color: blue
+          - id: binary-complete
+            phrase: "Its share is point seven three one"
+            targets: [shares]
+            color: green
+            caption_boundary: true
+          - id: restore-other
+            phrase: "Put other back into the denominator"
+            targets: [masses, shares]
+            color: yellow
+      - say: "Smaller. The yes weight stays fixed while the total grows. Across this whole vocabulary its share is point two four five. Both scores come from the same forward computation. A token scorer can read those logits without generating a long explanation. Now score passages A and B. Each row shows yes and no at the same prompt position. One checkpoint sorts on yes alone. Another subtracts no from yes. Who ranks first under each rule?"
+        hold: 3
+        visual_cues:
+          - id: full-probability
+            phrase: "its share is point two four five"
+            targets: [masses, shares]
+            color: green
+            caption_boundary: true
+          - id: second-pair
+            phrase: "Now score passages A and B"
+            targets: [passages]
+            color: blue
+      - say: "On yes alone, B wins with three. Subtract no and A wins with a gap of one. B’s gap is minus one. The BGE Gemma example uses a single Yes logit. RankLLaMA uses a scalar classification head. Check the checkpoint, template, tokenizer and output code before sorting. Even a mathematically increasing sigmoid can introduce ties in finite precision."
+        hold: 1
+        visual_cues:
+          - id: single-order
+            phrase: "On yes alone, B wins with three"
+            targets: [passages]
+            color: green
+            caption_boundary: true
+          - id: difference-order
+            phrase: "Subtract no and A wins with a gap of one"
+            targets: [passages]
+            color: green
+            caption_boundary: true
+  - id: list-input-contract
+    title: "What changes when you replace one passage?"
+    visual: "Two runs keep the Sunday question and the hours slip fixed. A holiday notice becomes an events slip. Only the whole-list input changes. A causal attention sketch then shows which earlier inputs a position can read."
+    beats:
+      - say: "Score the hours slip for the Sunday question. A pair scorer takes those two texts. A listwise scorer also takes the neighboring passages, in order. Swap the holiday notice for weekend events and run both scorers again. The pair scorer gets exactly the same input, so its score stays the same. The listwise scorer gets a different input. Even the score for hours can change."
+        hold: 0.7
+        caption_starts: ["Swap the holiday notice for weekend events", "The pair scorer gets exactly the same input", "The listwise scorer gets a different input"]
+        visual_cues:
+          - id: independent-pairs
+            phrase: "A pair scorer takes those two texts"
+            targets: [pair]
+            color: blue
+          - id: whole-list
+            phrase: "A listwise scorer also takes the neighboring passages, in order"
+            targets: [list]
+            color: cyan
+          - id: replace-neighbor
+            phrase: "Swap the holiday notice for weekend events"
+            targets: [list]
+            color: pink
+      - say: "Order matters with causal attention. Each column here stands for a stretch of text. The squares show which stretches contain tokens a row can read. The hours row can read the events slip to its left. The map comes later. Jina reranker version three point five uses causal attention, a small projection network and cosine similarity to score passages. Its model card gives the template, context limit and license for that revision."
+        hold: 0.7
+        caption_starts: ["The hours row can read the events slip to its left", "Jina reranker version three point five"]
+        visual_cues:
+          - id: causal-list
+            phrase: "The hours row can read the events slip to its left"
+            targets: [grid]
+            color: blue
+          - id: revision-contract
+            phrase: "Jina reranker version three point five"
+            targets: [model]
+            color: cyan
+      - say: "A chat model can return passage identifiers in order. Send P, Q and R. Getting Q, P, R back gives you all three. Now the last identifier is X. Reject that list. X was never a candidate. Check that each input appears exactly once, and treat instructions inside a passage as document text. Test the ranking on your own questions. If you cache the order, keep the full ordered input with it."
+        hold: 0.7
+        caption_starts: ["Now the last identifier is X", "Check that each input appears exactly once"]
+        visual_cues:
+          - id: permutation
+            phrase: "Getting Q, P, R back"
+            targets: [permutation-mark]
+            color: cyan
+          - id: foreign-id
+            phrase: "Now the last identifier is X"
+            targets: [foreign-id-mark]
+            color: pink
+          - id: permutation-validation
+            phrase: "Check that each input appears exactly once"
+            targets: [permutation-validation-mark]
+            color: cyan
+  - id: cache-input-identity
+    title: Can we reuse this score?
+    visual: "An edit, a tenant change and a new passage order each change the cache key. P and R trade places around Q. A current grant check blocks a cached result when access has been revoked."
+    beats:
+      - say: "To reuse a score, start with what the scorer actually read. Put a fingerprint of that input in the cache key. Pin the model and tokenizer revisions. Include the template, token limit and other settings that shaped the score. Add the tenant, access scope and grant revision from the application. Hash these as named fields so their boundaries stay clear. Reject unsupported settings and nonfinite numbers."
+        hold: 0.7
+        visual_cues:
+          - id: cache-operands
+            phrase: Put a fingerprint of that input in the cache key
+            targets:
+              - cache-operands-mark
+            color: cyan
+            linger: 0.6
+          - id: cache-settings
+            phrase: Include the template, token limit and other settings
+            targets:
+              - cache-settings-mark
+            color: cyan
+            linger: 0.6
+          - id: nonfinite-reject
+            phrase: Reject unsupported settings and nonfinite numbers
+            targets:
+              - nonfinite-reject-mark
+            color: cyan
+            linger: 0.6
+      - say: "Change the passage text and the key changes. Change tenant and it changes again. Now watch the middle passage, Q. Swap P and R. Q stayed put, but its neighbors changed places. A listwise scorer reads all three in order, so that order gets its own key. Store the source revisions with the result and preserve the text distinctions the scorer sees."
+        hold: 0.7
+        caption_starts: ["Swap P and R", "Q stayed put", "A listwise scorer reads all three in order"]
+        visual_cues:
+          - id: text-key-change
+            phrase: Change the passage text
+            targets:
+              - text-key-change-mark
+            color: cyan
+            linger: 0.6
+          - id: tenant-key-change
+            phrase: Change tenant
+            targets:
+              - tenant-key-change-mark
+            color: cyan
+            linger: 0.6
+          - id: list-key-change
+            phrase: Swap P and R
+            targets:
+              - list-key-change-mark
+            color: cyan
+            linger: 0.6
+          - id: pair-not-list
+            phrase: A listwise scorer reads all three in order
+            targets:
+              - pair-not-list-mark
+            color: cyan
+            linger: 0.6
+      - say: "The stored score came from grant seven. Before returning a cached ID, score or passage, check the caller’s current grant. Grant eight revoked access. Keep the result private. Check access again before generation. Authenticate callers, protect stored data and test that responses and their timing keep each tenant’s records private."
+        hold: 0.7
+        caption_starts: ["Grant eight revoked access", "Keep the result private"]
+        visual_cues:
+          - id: hash-not-access
+            phrase: The stored score came from grant seven
+            targets:
+              - hash-not-access-mark
+            color: cyan
+            linger: 0.6
+          - id: cache-access-recheck
+            phrase: check the caller’s current grant
+            targets:
+              - cache-access-recheck-mark
+            color: cyan
+            linger: 0.6
+          - id: revoke-hit
+            phrase: "Grant eight revoked access"
+            targets:
+              - revoke-hit-mark
+            color: cyan
+            linger: 0.6
+  - id: late-maxsim
+    title: "Which token wins each comparison?"
+    visual: "The two query directions pick independent document-token matches. The viewer can compare each row of dot products before its winner appears in the maximum column. A later centroid sketch shows which comparisons the example can prune."
+    beats:
+      - say: "There’s a middle ground between storing one vector per passage and reading the whole passage with the question. ColBERT stores one contextual vector per document token. When the query arrives, each query token can find its own best match among them. Original ColBERT uses unit vectors, so a dot product gives their cosine similarity. The number of coordinates depends on the configuration."
+        hold: 0.8
+        visual_cues:
+          - id: token-storage
+            phrase: "stores one contextual vector per document token"
+            targets: [token-storage-mark]
+            color: blue
+          - id: row-maxima
+            phrase: "each query token can find its own best match"
+            targets: [row-maxima-mark]
+            color: cyan
+      - say: "These three arrows are invented unit vectors for document tokens. Our first query vector points due right. Read the horizontal coordinate of each arrow across the first row. The blue arrow reaches farthest right, so its dot product wins at point nine. The second query vector points straight up. Read the vertical coordinates across row two. The blue arrow’s height is the square root of point one nine, rounded here. Which token wins row two? Add its value to the first winner."
+        hold: 3
+        visual_cues:
+          - id: maxsim-vectors
+            phrase: "Read the horizontal coordinate"
+            targets: [maxsim-vectors-mark]
+            color: blue
+          - id: maxsim-first
+            phrase: "its dot product wins at point nine"
+            targets: [maxsim-first-mark]
+            color: green
+          - id: second-row
+            phrase: "Read the vertical coordinates"
+            targets: [maxsim-vectors-mark]
+            color: blue
+      - say: "The second document token wins at point eight. Add point nine and point eight to get one point seven. That sum of row maxima is MaxSim. Both rows are free to choose the same document token if it has the best dot product for each."
+        hold: 0.8
+        caption_starts: ["to get one point seven"]
+        visual_cues:
+          - id: maxsim-second
+            phrase: "The second document token wins at point eight"
+            targets: [maxsim-second-mark]
+            color: green
+            caption_boundary: true
+          - id: maxsim-sum
+            phrase: "Add point nine and point eight to get one point seven"
+            targets: [maxsim-sum-mark]
+            color: cyan
+            caption_boundary: true
+      - say: "Picking independently saves us a joint model pass, but all those token vectors take space. ColBERT version two stores compressed residuals relative to centroids. Its study reported a sixfold to tenfold space reduction. PLAID uses centroids to prune candidates before full scoring. In our sketch, discarding the third arrow leaves both winners intact and cuts six comparisons to four. Measure the space, speed and quality on your own index."
+        hold: 0.8
+        visual_cues:
+          - id: reuse-token
+            phrase: "Picking independently"
+            targets: [reuse-token-mark]
+            color: blue
+          - id: compression-scope
+            phrase: "stores compressed residuals relative to centroids"
+            targets: [compression-scope-mark]
+            color: cyan
+          - id: centroid-pruning
+            phrase: "uses centroids to prune candidates"
+            targets: [centroid-pruning-mark]
+            color: cyan
+  - id: calibration-gates
+    title: Separate ordering, score gaps and probability claims
+    visual: A no-answer distractor0.90 and answerable evidence0.60 defeat one absolute cutoff; margin and
+      calibration are constructed as distinct decisions.
+    beats:
+      - say: A hypothetical no-answer query has a best distractor score of point nine, while a different
+          answerable query has useful evidence at point six. An absolute cutoff of point seven admits the
+          distractor and starves the useful case. Rank-first selection avoids that absolute scale but
+          still selects something when all candidates are irrelevant. Include no-answer cases when
+          evaluating admission or abstention.
+        hold: 0.7
+        visual_cues:
+          - id: two-query-scores
+            phrase: best distractor score of point nine
+            targets:
+              - two-query-scores-mark
+            color: cyan
+            linger: 0.6
+          - id: absolute-gate
+            phrase: An absolute cutoff of point seven admits the distractor
+            targets:
+              - absolute-gate-mark
+            color: cyan
+            linger: 0.6
+          - id: rank-forced
+            phrase: Rank-first selection avoids that absolute scale
+            targets:
+              - rank-forced-mark
+            color: cyan
+            linger: 0.6
+      - say: "Start with scores four, three point five and one. Keep any passage within point seven five of the leader. The first two qualify. Add ten to every score and their gaps stay the same. Double every score and the gap between first and second grows from half a point to one. Now only the leader fits the original margin. To learn whether either passage is relevant, we need labels."
+        hold: 0.7
+        caption_starts: ["The first two qualify","Now only the leader fits the original margin"]
+        visual_cues:
+          - id: margin-premises
+            phrase: scores four, three point five and one
+            targets:
+              - margin-premises-mark
+            color: cyan
+            linger: 0.6
+          - id: margin-cut
+            phrase: "The first two qualify"
+            targets:
+              - margin-cut-mark
+            color: cyan
+            linger: 0.6
+          - id: shift-ten
+            phrase: Add ten to every score
+            targets:
+              - shift-ten-mark
+            color: cyan
+            linger: 0.6
+          - id: scale-two
+            phrase: Double every score
+            targets:
+              - scale-two-mark
+            color: cyan
+            linger: 0.6
+      - say: "Give ten passages a predicted relevance probability of point eight. Check the labels. Eight are relevant. The observed fraction is eight out of ten. Check other probability groups the same way. Platt scaling fits a logistic curve, and isotonic regression fits a nondecreasing curve. Fit calibration and choose thresholds on development data separate from scorer training, then evaluate on fresh test data. To predict whether the passages support a complete answer, use labels for that question."
+        hold: 0.7
+        caption_starts: ["Eight are relevant"]
+        visual_cues:
+          - id: calibration-bin
+            phrase: "Give ten passages a predicted relevance probability of point eight"
+            targets:
+              - calibration-bin-mark
+            color: cyan
+            linger: 0.6
+          - id: observed-eight
+            phrase: eight are relevant
+            targets:
+              - observed-eight-mark
+            color: cyan
+            linger: 0.6
+          - id: calibration-splits
+            phrase: Fit calibration and choose thresholds on development data
+            targets:
+              - calibration-splits-mark
+            color: cyan
+            linger: 0.6
+  - id: metrics-construction
+    title: How much did the order improve?
+    visual: Binary rank movement grows into a three-query MRR average and a graded DCG/ideal ordering with
+      explicit denominator.
+    beats:
+      - say: "Look for the first relevant passage in each column. It ranks third, then first. The last search misses. For a hit, take one over its rank. Give a miss zero. That gives reciprocal ranks one third, one and zero. Their mean is four ninths, about point four four four. Move the first hit to the top. Now the mean is two thirds. Keep the third search in the average. Its evidence never reached the scorer. Candidate recall is the fraction of all relevant passages that made the shortlist. If a question needs two passages and retrieval finds one, even a perfect ordering can deliver only that one."
+        hold: 0.7
+        visual_cues:
+          - id: rr-premises
+            phrase: reciprocal ranks one third, one and zero
+            targets:
+              - rr-premises-mark
+            color: cyan
+            linger: 0.6
+          - id: mrr-before
+            phrase: "Their mean is four ninths, about point four four four"
+            targets:
+              - mrr-before-mark
+            color: cyan
+            linger: 0.6
+          - id: promote-first
+            phrase: "Move the first hit to the top. Now the mean is two thirds"
+            targets:
+              - promote-first-mark
+            color: cyan
+            linger: 0.6
+          - id: keep-missing
+            phrase: Keep the third search in the average
+            targets:
+              - keep-missing-mark
+            color: cyan
+            linger: 0.6
+          - id: recall-ceiling
+            phrase: If a question needs two passages and retrieval finds one
+            targets:
+              - recall-ceiling-mark
+            color: cyan
+            linger: 0.6
+      - say: "Now give each passage a relevance grade. The grades are zero, two and one. Only the first two places count. Grade zero earns nothing. Grade two earns three points, because two squared minus one is three. Those points land in second place, where we divide by log base two of three. The discounted gain is about one point eight nine three. The grade-one passage sits outside the cutoff."
+        hold: 0.7
+        caption_starts: ["Grade zero earns nothing", "The discounted gain is about one point eight nine three"]
+        visual_cues:
+          - id: graded-premises
+            phrase: The grades are zero, two and one
+            targets:
+              - graded-premises-mark
+            color: cyan
+            linger: 0.6
+          - id: dcg-terms
+            phrase: "Grade two earns three points, because two squared minus one is three. Those points land in second place, where we divide by log base two of three. The discounted gain is about one point eight nine three"
+            targets:
+              - dcg-terms-mark
+            color: cyan
+            linger: 0.6
+      - say: "Put the highest grades first. Now all three points count in first place, and the smaller gain gets the discount. The ideal gain is about three point six three one. Divide the original gain by this ideal to get normalized discounted cumulative gain. NDCG is about point five two one. This ordering earned just over half the gain available in two places. Count each passage once. For a query with no positive labels, this example records zero and checks abstention separately. Compare rankers on the same permitted candidates, report uncertainty by query family, and check which passages actually reached the prompt."
+        hold: 0.7
+        caption_starts: ["The ideal gain is about three point six three one", "NDCG is about point five two one"]
+        visual_cues:
+          - id: ideal-terms
+            phrase: "Now all three points count in first place, and the smaller gain gets the discount. The ideal gain is about three point six three one"
+            targets:
+              - ideal-terms-mark
+            color: cyan
+            linger: 0.6
+          - id: ndcg-value
+            phrase: NDCG is about point five two one
+            targets:
+              - ndcg-value-mark
+            color: cyan
+            linger: 0.6
+          - id: deduplicate-gain
+            phrase: Count each passage once
+            targets:
+              - deduplicate-gain-mark
+            color: cyan
+            linger: 0.6
+  - id: budget-prediction
+    title: "How deep should the scorer read?"
+    visual: "Borrowing, fines and the return box get pair scores as they enter the shortlist. The pair count then stays at three while input lengths change the number of dense attention entries."
+    beats:
+      - say: "Can I return a book after closing? The passage we need is the return-box guide. Borrowing and fines come ahead of it. Imagine you choose how much of the search result goes to the scorer. What’s the smallest depth that admits the return-box guide?"
+        hold: 2.8
+        visual_cues:
+          - id: new-question
+            phrase: "Can I return a book after closing"
+            targets: [return-question]
+            color: yellow
+          - id: predict-depth
+            phrase: "What’s the smallest depth that admits the return-box guide"
+            targets: [candidate-pairs, scoring-budget]
+            color: yellow
+      - say: "Read one: borrowing. Read two: fines. Read three: the return box. Three is the first depth where that guide can win. Now hold the count at three pairs and change their lengths. At sixty-four positions per pair, each dense attention grid has sixty-four squared entries. At two hundred fifty-six positions, each side is four times as long. That gives sixteen times as many attention entries across the same three pairs."
+        hold: 1
+        caption_starts: ["Read two: fines", "Read three: the return box", "Three is the first depth where that guide can win", "Now hold the count at three pairs", "That gives sixteen times as many attention entries"]
+        visual_cues:
+          - id: first-candidate
+            phrase: "Read one: borrowing"
+            targets: [candidate-pairs, scoring-budget]
+            color: blue
+          - id: second-candidate
+            phrase: "Read two: fines"
+            targets: [candidate-pairs, scoring-budget]
+            color: blue
+          - id: third-candidate
+            phrase: "Read three: the return box"
+            targets: [candidate-pairs, scoring-budget]
+            color: green
+          - id: pair-length
+            phrase: "change their lengths"
+            targets: [pair-token-lengths]
+            color: cyan
+          - id: quadratic-component
+            phrase: "each side is four times as long"
+            targets: [pair-token-lengths, pair-attention-work, pair-work-calculation]
+            color: blue
+          - id: equal-candidate-counts
+            phrase: "sixteen times as many attention entries across the same three pairs"
+            targets: [pair-work-calculation]
+            color: yellow
+      - say: "Those squares count one part of the model’s work. To pick a serving depth, measure candidate recall and end-to-end latency, including padding, scheduling and the hardware you’ll use. If scoring times out, follow a declared fallback to the authorized retrieval order or abstain. Mark that path in the trace."
+        hold: 0.7
+        visual_cues:
+          - id: serving-tradeoff
+            phrase: "measure candidate recall and end-to-end latency"
+            targets: [scoring-budget, pair-work-calculation]
+            color: blue
+  - id: serving-batches
+    title: What fits before the deadline?
+    visual: A fourth pair crosses the latency limit. Two equal-sized grids then expose the extra work spent padding a short pair to the length of its neighbor.
+    beats:
+      - say: "Suppose scoring takes four milliseconds overhead plus seven point five milliseconds per candidate, one after another. Three candidates cost twenty-six point five milliseconds and fit the thirty-millisecond budget. Four cost thirty-four and fail. Our target is third, so cutting to two loses it. On a running service, choose depth by measuring candidate recall and the whole request time, including queueing, network, tokenization, scoring and packing."
+        hold: 0.7
+        caption_starts: ["Three candidates cost twenty-six point five milliseconds","Four cost thirty-four and fail"]
+        visual_cues:
+          - id: cost-premises
+            phrase: four milliseconds overhead plus seven point five milliseconds per candidate
+            targets:
+              - cost-premises-mark
+            color: cyan
+            linger: 0.6
+          - id: cost-three
+            phrase: Three candidates cost twenty-six point five milliseconds
+            targets:
+              - cost-three-mark
+            color: cyan
+            linger: 0.6
+          - id: cost-four
+            phrase: four cost thirty-four and fail
+            targets:
+              - cost-four-mark
+            color: cyan
+            linger: 0.6
+          - id: rank-three-cost
+            phrase: cutting to two loses it
+            targets:
+              - rank-three-cost-mark
+            color: cyan
+            linger: 0.6
+      - say: Take two pairs of lengths sixty-four and two hundred fifty-six. The blue square on the left counts the short pair’s attention entries. The square on the right counts the long pair’s. Add the two blue areas for the unpadded total. Now pad the short pair to match the long one. Every pink tile is extra work. With the same two pairs, the entry count has nearly doubled. Grouping similar lengths saves padding, but waiting for a bucket adds queue delay. With Triton, configure ragged batching explicitly and check that the backend handles each sequence boundary.
+        hold: 0.7
+        visual_cues:
+          - id: length-premises
+            phrase: lengths sixty-four and two hundred fifty-six
+            targets:
+              - length-premises-mark
+            color: cyan
+            linger: 0.6
+          - id: unpadded-work
+            phrase: Add the two blue areas for the unpadded total
+            targets:
+              - unpadded-work-mark
+            color: cyan
+            linger: 0.6
+          - id: padded-work
+            phrase: pad the short pair to match the long one
+            targets:
+              - padded-work-mark
+            color: cyan
+            linger: 0.6
+          - id: bucket-wait
+            phrase: waiting for a bucket adds queue delay
+            targets:
+              - bucket-wait-mark
+            color: cyan
+            linger: 0.6
+      - say: FlashAttention improves memory access while dense attention retains its quadratic arithmetic.
+          Benchmark smaller checkpoints and quantization again for relevance after each speed change. The
+          published MiniLM card’s eighteen hundred pairs per second is tied to its V-one-hundred
+          benchmark. For a separate deployment example, three hundred pairs per second
+          and two hundred fifty milliseconds left buy at most seventy-five pairs before generation or
+          tail slack. Timeouts need a marked authorized fallback or abstention; report degraded paths
+          separately.
+        hold: 0.7
+        visual_cues:
+          - id: historical-rate
+            phrase: tied to its V-one-hundred benchmark
+            targets:
+              - historical-rate-mark
+            color: cyan
+            linger: 0.6
+          - id: deadline-rate
+            phrase: three hundred pairs per second and two hundred fifty milliseconds left
+            targets:
+              - deadline-rate-mark
+            color: cyan
+            linger: 0.6
+          - id: deadline-count
+            phrase: at most seventy-five pairs
+            targets:
+              - deadline-count-mark
+            color: cyan
+            linger: 0.6
+          - id: timeout-fallback
+            phrase: Timeouts need a marked authorized fallback or abstention
+            targets:
+              - timeout-fallback-mark
+            color: cyan
+            linger: 0.6
+  - id: trace-and-reject
+    title: Diagnose the first failed boundary from a real receipt
+    visual: Actual three-candidate release receipt retains input/output membership,versions,selected identity
+      and four offline gates; adversarial replacements are rejected.
+    beats:
+      - say: The release receipt records the actual three-candidate scoring input, all reordered identifiers, the
+          selected rule, parent and document identities, revisions, pair scores and reasons. Retriever,
+          index, sparse, dense, fusion and scorer versions explain the path. Compare ordering on that
+          very input subset, not on a different larger list. Preserve final packed spans and any explicit
+          expansion. Equal scores have the declared first-stage-rank then identifier tie-break.
+        hold: 0.7
+        visual_cues:
+          - id: trace-input
+            phrase: actual three-candidate scoring input
+            targets:
+              - trace-input-mark
+            color: cyan
+            linger: 0.6
+          - id: trace-output
+            phrase: all reordered identifiers, the selected rule
+            targets:
+              - trace-output-mark
+            color: cyan
+            linger: 0.6
+          - id: trace-spans
+            phrase: Preserve final packed spans
+            targets:
+              - trace-spans-mark
+            color: cyan
+            linger: 0.6
+      - say: The actual fixture rejects a changed text under unchanged identifier and version. It rejects a
+          scorer that returns an admin-only record with score nine hundred ninety-nine, and it rejects
+          Boolean scores or Boolean token budgets. Finite numeric scores still need the correct original
+          record. Its four offline gates check permitted current input, target in context, ordering lift
+          and the synthetic latency budget; all pass for the three-candidate fixture.
+        hold: 0.7
+        visual_cues:
+          - id: reject-text
+            phrase: rejects a changed text under unchanged identifier and version
+            targets:
+              - reject-text-mark
+            color: cyan
+            linger: 0.6
+          - id: reject-admin
+            phrase: returns an admin-only record with score nine hundred ninety-nine
+            targets:
+              - reject-admin-mark
+            color: cyan
+            linger: 0.6
+          - id: reject-bool
+            phrase: rejects Boolean scores or Boolean token budgets
+            targets:
+              - reject-bool-mark
+            color: cyan
+            linger: 0.6
+          - id: offline-gates
+            phrase: all pass for the three-candidate fixture
+            targets:
+              - offline-gates-mark
+            color: cyan
+            linger: 0.6
+      - say: "Gold target and ordering-lift checks belong to labeled offline evaluation. Live traces can still record actual input identities, versions, timings and the selected passages. This receipt passes a check for complete policy text. Short fragments or encoded text could still expose it. Protect the identifiers, scores and logs. To diagnose a bad answer, follow the evidence from retrieval through scoring and packing. Find the first place the needed words disappeared."
+        hold: 0.7
+        visual_cues:
+          - id: offline-labels
+            phrase: Gold target and ordering-lift checks belong to labeled offline evaluation
+            targets:
+              - offline-labels-mark
+            color: cyan
+            linger: 0.6
+          - id: live-trace
+            phrase: Live traces can still record actual input identities
+            targets:
+              - live-trace-mark
+            color: cyan
+            linger: 0.6
+          - id: privacy-limit
+            phrase: "Short fragments or encoded text could still expose it"
+            targets:
+              - privacy-limit-mark
+            color: cyan
+            linger: 0.6
+  - id: transfer
+    title: "Which stage needs the repair?"
+    visual: "The exact Sunday sentence sits above a hypothetical affirmative reply. Only the reply changes after the viewer identifies the first contradiction."
+    beats:
+      - say: "Back at the library, open the trace. The hours slip began at rank three. It rose to first, and its complete Sunday sentence reached the assistant. Here’s a possible reply: “Yes. The library is open on Sunday.” Look at both lines. Which stage first contradicts the source?"
+        hold: 3.1
+        visual_cues:
+          - id: packed-clause
+            phrase: "its complete Sunday sentence reached the assistant"
+            targets: [source]
+            color: green
+          - id: sample-answer
+            phrase: "Yes. The library is open on Sunday"
+            targets: [reply]
+            color: blue
+            caption_boundary: true
+          - id: diagnose-reply
+            phrase: "Which stage first contradicts the source"
+            targets: [source, reply, diagnosis]
+            color: yellow
+      - say: "The reply does. A supported answer is “No. The library is closed on Sunday.” The passage was relevant precisely because it settled the question. Keep the scored span, source revision, scorer version and packed text in the trace. Here they let you take the faulty claim straight to answer evaluation."
+        hold: 1
+        visual_cues:
+          - id: correct-answer
+            phrase: "No. The library is closed on Sunday"
+            targets: [source, reply]
+            color: green
+            caption_boundary: true
+  - id: fresh-release
+    title: "A camera at the overnight locker"
+    visual: "The member rule and locker instructions pass through a depth cutoff and a whole-passage token budget. The packed locker sentence determines whether the battery can stay in."
+    beats:
+      - say: "A member wants to return a camera tonight with the battery still installed. We need the after-hours member rule and the locker instructions. Both are current and permitted. Look at where they landed in search. Four passages go to the scorer. What’s the smallest depth that gives both rules a chance?"
+        hold: 2.8
+        caption_starts: ["Look at where they landed in search", "What’s the smallest depth"]
+        visual_cues:
+          - id: need-both
+            phrase: "the after-hours member rule and the locker instructions"
+            targets: [shortlist]
+            color: blue
+          - id: choose-depth
+            phrase: "What’s the smallest depth that gives both rules a chance"
+            targets: [shortlist]
+            color: yellow
+      - say: "Depth five. That brings in the locker instructions at rank five. We now have both required passages instead of one. In this example, scoring costs five milliseconds to start and four per pair. Five pairs cost twenty-five milliseconds, within the thirty we set aside. Now pack the results. The member rule scores eight and the locker instructions score six. The other three fall below five. We have two slots and forty tokens for whole passages. For this exercise each word separated by a space counts as one token. The member rule takes eighteen, and the locker instructions take twenty-six. Pack in score order. Which complete passages reach the assistant?"
+        hold: 3.2
+        caption_starts: ["In this example, scoring costs", "Five pairs cost twenty-five milliseconds", "Now pack the results", "The member rule takes eighteen", "Which complete passages reach the assistant"]
+        visual_cues:
+          - id: depth-five
+            phrase: "Depth five. That brings in the locker instructions at rank five"
+            targets: [shortlist]
+            color: green
+            caption_boundary: true
+          - id: cost-input
+            phrase: "scoring costs five milliseconds to start and four per pair"
+            targets: [shortlist]
+            color: blue
+          - id: cost-twenty-five
+            phrase: "Five pairs cost twenty-five milliseconds"
+            targets: [shortlist]
+            color: blue
+          - id: cost-limit-complete
+            phrase: "within the thirty we set aside"
+            targets: [shortlist]
+            color: green
+          - id: try-packing
+            phrase: "Now pack the results"
+            targets: [packing]
+            color: blue
+          - id: predict-packing
+            phrase: "Which complete passages reach the assistant"
+            targets: [packing]
+            color: yellow
+      - say: "Only the member rule fits. Eighteen tokens leave twenty-two free. The locker instructions need twenty-six. We have to hold the answer. Together they need forty-four tokens. Raising the score would still leave us four tokens short. Check how much room the prompt has for passages. This time we can reserve forty-four tokens. Now the same two passages fit in full."
+        hold: 1
+        visual_cues:
+          - id: forty-fails
+            phrase: "Only the member rule fits"
+            targets: [packing]
+            color: yellow
+            caption_boundary: true
+          - id: forty-four
+            phrase: "Together they need forty-four tokens"
+            targets: [packing]
+            color: yellow
+            caption_boundary: true
+          - id: packing-repair
+            phrase: "Check how much room the prompt has for passages. This time we can reserve forty-four tokens. Now the same two passages fit in full"
+            targets: [packing]
+            color: green
+      - say: "Read what arrived. The member wants to leave the battery in the camera. Which passage would you cite in your reply?"
+        hold: 2.8
+        caption_starts: ["Which passage would you cite in your reply"]
+        visual_cues:
+          - id: read-receipt
+            phrase: "Read what arrived"
+            targets: [packing]
+            color: green
+      - say: "The locker instructions. Their last sentence says, “Remove the battery first.” Four more tokens let that sentence reach the assistant. In the next lesson on RAG evaluation, we’ll check whether the answer follows the evidence it cites."
+        hold: 1.3
+        caption_starts: ["Their last sentence says", "Four more tokens let that sentence reach the assistant"]
+        visual_cues:
+          - id: answer-member
+            phrase: "Their last sentence says, “Remove the battery first.”"
+            targets: [packing]
+            color: green
+            caption_boundary: true

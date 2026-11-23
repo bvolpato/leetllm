@@ -1,0 +1,1306 @@
+version: 1
+id: capstone-production-ml-pipeline
+title: Build a Model Release You Can Recover
+source: foundations/capstone-production-ml-pipeline/content.md
+voice: en-US-AndrewNeural
+rate: +0%
+sources:
+  - title: "Google Cloud: MLOps architecture"
+    url: https://cloud.google.com/architecture/mlops-continuous-delivery-and-automation-pipelines-in-machine-learning
+  - title: "Scikit-learn: common pitfalls and data leakage"
+    url: https://scikit-learn.org/stable/common_pitfalls.html
+  - title: "Scikit-learn: model persistence"
+    url: https://scikit-learn.org/stable/model_persistence.html
+  - title: Argo Rollouts analysis states
+    url: https://argoproj.github.io/argo-rollouts/features/analysis/
+scenes:
+  - id: intro
+    title: Would you let this model warn customers?
+    visual: Two late critical parcels roll into view beside the cost of all four test deliveries. The warning log appears under each parcel. Both outcomes stay visible while the viewer decides whether to open the canary.
+    beats:
+      - say: Both of these critical parcels arrived late. The test log shows a warning for the first customer. The second got none.
+        caption_starts:
+          - The test log shows
+          - The second got none
+        hold: 0.45
+        visual_cues:
+          - id: intro-sent
+            phrase: a warning for the first customer
+            targets: [intro-mechanism]
+          - id: intro-miss
+            phrase: The second got none
+            targets: [intro-mechanism]
+      - say: Across all four test deliveries, cost fell from a hundred units to ninety-six. A canary would give the trial model a small share of live requests. It has to match or beat the old cost and send a warning for at least ninety percent of late critical deliveries. Would you open the canary?
+        caption_starts:
+          - It has to match
+          - Would you open the canary
+        hold: 2.1
+        visual_cues:
+          - id: intro-policy
+            phrase: It has to match or beat the old cost
+            targets: [intro-mechanism]
+          - id: intro-question
+            phrase: A canary would give the trial model a small share of live requests
+            targets: [intro-mechanism]
+      - say: Keep it offline. It warned one of the two customers who needed it. That's fifty percent recall. The four percent saving passes the cost check. Both checks have to pass before the model gets traffic.
+        caption_starts:
+          - That's fifty percent recall
+          - The four percent saving
+        hold: 0.65
+        visual_cues:
+          - id: intro-hold
+            phrase: Keep it offline
+            targets: [intro-mechanism]
+          - id: intro-recall
+            phrase: That's fifty percent recall
+            targets: [intro-mechanism]
+          - id: intro-total
+            phrase: The four percent saving passes the cost check
+            targets: [intro-mechanism]
+      - say: Keep delivery two on the failed receipt. These costs came from hand-entered records. Now fit a separate candidate, starting with the scans it could use.
+        hold: 0.65
+        visual_cues:
+          - id: intro-record
+            phrase: Keep delivery two on the failed receipt
+            targets: [intro-mechanism]
+  - id: feature-clocks
+    title: Delivery one at noon
+    visual: For eval-1, a fixed noon cutoff crosses three scan tracks. Each track connects the observed
+      time to the service availability time and keeps the recorded delay alongside it. Only a scan
+      with both marks on the eligible side can feed the model.
+    beats:
+      - say: Take delivery one from the evaluation sheet. Its prediction was due at noon. Each line starts
+          when the carrier observed a scan and ends when the service could read it. Look at scan B.
+          The carrier saw ninety-nine minutes of delay before noon. Its report arrived half an hour
+          after the prediction. Which recorded delay could the service actually use?
+        hold: 2
+        visual_cues:
+          - id: clock-a
+            phrase: Each line starts
+            targets:
+              - feature-clocks-mechanism
+          - id: clock-b
+            phrase: Look at scan B
+            targets:
+              - feature-clocks-mechanism
+          - id: clock-c
+            phrase: Which recorded delay could the service actually use
+            targets:
+              - feature-clocks-mechanism
+      - say: Use the nine minutes on scan A. It was observed at ten and available at eleven. B arrived too
+          late. C was still in the future. For this delivery, keep only scans that pass both clocks,
+          then take the most recent observation among them.
+        hold: 0.65
+        visual_cues:
+          - id: clock-chosen
+            phrase: Use the nine minutes on scan A
+            targets:
+              - feature-clocks-mechanism
+          - id: clock-b-excluded
+            phrase: B arrived too late
+            targets:
+              - feature-clocks-mechanism
+          - id: clock-c-excluded
+            phrase: C was still in the future
+            targets:
+              - feature-clocks-mechanism
+      - say: Two timestamps with different offsets can describe the same instant. Convert them to UTC before
+          checking for duplicate scans of the same entity. Match each request to exactly one outcome.
+          A duplicate outcome would count a parcel twice, so the builder rejects it. If there is no
+          eligible scan, keep the input missing. This builder also needs a separate policy to exclude
+          a scan for being too old.
+        hold: 0.6
+        visual_cues:
+          - id: clock-join
+            phrase: Match each request to exactly one outcome
+            targets:
+              - feature-clocks-mechanism
+          - id: clock-duplicate
+            phrase: the builder rejects it
+            targets:
+              - feature-clocks-mechanism
+          - id: clock-missing
+            phrase: keep the input missing
+            targets:
+              - feature-clocks-mechanism
+      - say: Labels have their own deadline. Only requests before May twenty-five with outcomes available by
+          that cutoff can enter training. For the May twenty-eight evaluation requests, the May
+          thirty-one snapshot can supply the answer key. Keep that answer on the evaluation side of
+          the ledger. It never enters the prediction. These cutoffs let us reconstruct a historical
+          request from a later snapshot.
+        hold: 0.7
+        visual_cues:
+          - id: clock-train
+            phrase: requests before May twenty-five
+            targets:
+              - feature-clocks-mechanism
+          - id: clock-eval
+            phrase: the May thirty-one snapshot
+            targets:
+              - feature-clocks-mechanism
+          - id: clock-label
+            phrase: It never enters the prediction
+            targets:
+              - feature-clocks-mechanism
+  - id: fit
+    title: A warning model fitted on six deliveries
+    visual: Training delays and their late labels share a plot. Training alone sets the transform and
+      fitted line. The eight-minute input is marked before the score appears, then its point is read
+      against the warning threshold. The four evaluation rows use the saved line.
+    beats:
+      - say: Each gray point is a training delivery. The three smallest delays belong to parcels that
+          arrived on time. The other three arrived late. All six delays add to thirty minutes. Divide
+          by six and we get five. Save that mean for missing inputs and for centering. The distance
+          from the smallest to the largest delay is ten minutes. That’s our scale.
+        hold: 0.6
+        visual_cues:
+          - id: fit-points
+            phrase: Each gray point
+            targets:
+              - fit-mechanism
+          - id: fit-mean
+            phrase: we get five
+            targets:
+              - fit-mechanism
+          - id: fit-range
+            phrase: ten minutes
+            targets:
+              - fit-mechanism
+      - say: Subtract five and divide by ten. The transformed delays now average zero. The late labels
+          average one half. To fit the line, multiply each centered feature by its centered label and
+          add the products. Their sum is one point two. The squared features sum to one. Dividing
+          those sums gives a slope of one point two. With a mean feature of zero, the intercept is the
+          mean label, one half.
+        hold: 0.65
+        visual_cues:
+          - id: fit-transform
+            phrase: Subtract five and divide by ten
+            targets:
+              - fit-mechanism
+          - id: fit-cross
+            phrase: Their sum is one point two
+            targets:
+              - fit-mechanism
+          - id: fit-square
+            phrase: The squared features sum to one
+            targets:
+              - fit-mechanism
+          - id: fit-line
+            phrase: the intercept is the mean label
+            targets:
+              - fit-mechanism
+      - say: Now bring back delivery two. Its eight-minute delay is marked on the horizontal axis. Use the
+          saved line and the warning threshold of one half. Would this fitted model send a warning?
+        hold: 2
+        visual_cues:
+          - id: fit-probe
+            phrase: Its eight-minute delay is marked
+            targets:
+              - fit-mechanism
+          - id: fit-question
+            phrase: Would this fitted model send a warning
+            targets:
+              - fit-mechanism
+      - say: Yes. Eight minus five, divided by ten, gives point three. Move up to the line. One half plus
+          one point two times point three gives a score of point eight six. The other evaluation
+          deliveries use the same transform. Look at the zero-minute input. Its score is negative
+          point one. This line can go below zero. We use it to decide which delays cross the warning threshold.
+        caption_starts:
+          - Eight minus five
+          - Move up to the line
+          - point eight six
+          - Look at the zero-minute input
+        hold: 0.8
+        visual_cues:
+          - id: fit-z
+            phrase: gives point three
+            targets:
+              - fit-mechanism
+          - id: fit-rise
+            phrase: Move up to the line
+            targets:
+              - fit-mechanism
+          - id: fit-score
+            phrase: point eight six
+            targets: [fit-mechanism]
+          - id: fit-eval
+            phrase: The other evaluation deliveries
+            targets:
+              - fit-mechanism
+          - id: fit-negative
+            phrase: the zero-minute input
+            targets:
+              - fit-mechanism
+  - id: bundle
+    title: Save enough state to reproduce a decision
+    visual: Preprocessing and model values enter one bundle, and a reload probe produces the same outputs.
+    beats:
+      - say: Saving coefficients alone leaves the computation incomplete. The fitted transformation, input schema and
+          warning threshold all affect the answer. Put them in the same retained package, together with
+          training identity and the code used to build it, then reload and compare predictions.
+        hold: 0.75
+        visual_cues:
+          - id: bundle-b1-1
+            phrase: fitted transformation
+            targets:
+              - bundle-mechanism
+            linger: 0.45
+          - id: bundle-b1-2
+            phrase: input schema and warning threshold
+            targets:
+              - bundle-mechanism
+            linger: 0.45
+          - id: bundle-b1-3
+            phrase: reload and compare predictions
+            targets:
+              - bundle-mechanism
+            linger: 0.45
+          - id: bundle-build
+            phrase: together with training identity and the code used to build it
+            targets:
+              - bundle-mechanism
+      - say: Take a request with a missing delay. The model imputes the training mean. Five minutes
+          gives a score of one half. Our rule sends a warning at threshold equality. Count those warnings
+          when you evaluate the cost of missing scans. A schema mismatch
+          or an invalid saved parameter should stop the inference path before a customer gets a warning.
+        caption_starts:
+          - The model imputes the training mean
+          - Five minutes gives
+          - Our rule sends a warning
+        hold: 0.85
+        visual_cues:
+          - id: bundle-b2-1
+            phrase: imputes the training mean
+            targets:
+              - bundle-mechanism
+            linger: 0.45
+          - id: bundle-b2-score
+            phrase: Five minutes gives a score of one half
+            targets: [bundle-mechanism]
+          - id: bundle-b2-2
+            phrase: threshold equality
+            targets:
+              - bundle-mechanism
+            linger: 0.45
+          - id: bundle-b2-3
+            phrase: schema mismatch
+            targets:
+              - bundle-mechanism
+            linger: 0.45
+          - id: bundle-stop
+            phrase: stop the inference path
+            targets:
+              - bundle-mechanism
+      - say: To recover a release, keep its data snapshot, feature version, model and action threshold
+          together. Record the promotion policy, monitor and previous release. Here the promotion policy
+          holds the monitoring thresholds. The monitor itself still needs an identity. For a vision model,
+          restore the cropper and review threshold with the weights. Register the package while the old
+          release serves. Now price the four test deliveries. Each warning costs two units. Each missed
+          late delivery costs twenty-five. The fitted model sends two warnings for four units. The silent
+          baseline misses both late deliveries for fifty.
+        hold: 2.7
+        visual_cues:
+          - id: bundle-extension-3
+            phrase: To recover a release
+            targets:
+              - bundle-mechanism
+            linger: 0.8
+          - id: pipe-result-trained-cost-receipt
+            phrase: The silent baseline misses both late deliveries for fifty
+            targets:
+              - bundle-mechanism
+            color: cyan
+            linger: 0.45
+          - id: bundle-monitor-limit
+            phrase: The monitor itself still needs an identity
+            targets:
+              - bundle-mechanism
+  - id: strict-model-loader
+    title: Verify bytes and the computation that those bytes describe
+    visual: One retained request, release and evidence identity constructs each operation and consequence;
+      predictions precede their computed outcomes.
+    beats:
+      - say: The bundle stores the input feature name, fitted imputation, center and range, slope and intercept,
+          warning threshold, training IDs and cutoff, training-row digest, builder-source digest and Python
+          version. The training digest excludes later evaluation outcomes; the separate full-fixture digest
+          includes them. Reload compares predictions from retained bytes with the pre-save computation.
+        hold: 0.8
+        visual_cues:
+          - id: strict-model-loader-b1
+            phrase: The bundle stores the input feature name, fitted imputation, center and range, slope and intercept,
+              warning threshold, training IDs and cutoff, training-row digest, builder-source digest and
+              Python version
+            targets:
+              - strict-model-loader-mechanism
+            linger: 0.8
+          - id: loader-reload
+            phrase: Reload compares predictions from retained bytes with the pre-save computation
+            targets:
+              - strict-model-loader-mechanism
+      - say: First compare the serialized bytes with the registered digest. Appending one space changes that digest
+          and stops reload. Once the bytes match, check the values inside. Reject duplicate JSON
+          keys, nonfinite numbers, a nonpositive scale, an unexpected schema or an unsupported threshold.
+          Reject Boolean or unrepresentably huge numeric inputs. At a missing delay, reuse the saved
+          imputation value from training.
+        hold: 0.8
+        visual_cues:
+          - id: strict-model-loader-b2
+            phrase: First compare the serialized bytes with the registered digest
+            targets:
+              - strict-model-loader-mechanism
+            linger: 0.8
+          - id: loader-space
+            phrase: Appending one space changes that digest and stops reload
+            targets:
+              - strict-model-loader-mechanism
+          - id: loader-contract
+            phrase: Once the bytes match
+            targets:
+              - strict-model-loader-mechanism
+          - id: loader-invalid
+            phrase: Reject duplicate JSON keys, nonfinite numbers, a nonpositive scale, an unexpected schema or an
+              unsupported threshold
+            targets:
+              - strict-model-loader-mechanism
+          - id: loader-input
+            phrase: Reject Boolean or unrepresentably huge numeric inputs
+            targets:
+              - strict-model-loader-mechanism
+          - id: loader-impute
+            phrase: At a missing delay, reuse the saved imputation value
+            targets:
+              - strict-model-loader-mechanism
+      - say: This loader reads numeric JSON. For a scikit-learn model, restore the training version
+          and its dependencies. Load pickle files only from a trusted source because loading one can
+          run code. The checksum identifies the saved bytes. Replaying a known request checks the
+          prediction those bytes produce.
+        hold: 0.8
+        visual_cues:
+          - id: strict-model-loader-b3
+            phrase: This loader reads numeric JSON
+            targets:
+              - strict-model-loader-mechanism
+            linger: 0.8
+          - id: loader-runtime
+            phrase: restore the training version and its dependencies
+            targets:
+              - strict-model-loader-mechanism
+          - id: loader-checksum-limit
+            phrase: The checksum identifies the saved bytes
+            targets:
+              - strict-model-loader-mechanism
+  - id: offline
+    title: Bind the gate to the actual rows
+    visual: The failed recall fixture stays held while a separately fitted passing package enters the offline gate.
+    beats:
+      - say: Now return to the cheaper candidate that missed a critical case. Derive recall from its row decisions and
+          compare it with the declared floor. Its cost improvement cannot erase the failed requirement. Keep a
+          separate receipt naming those exact rows and the policy that evaluated them.
+        hold: 0.75
+        visual_cues:
+          - id: offline-b1-1
+            phrase: Derive recall from its row decisions
+            targets:
+              - offline-mechanism
+            linger: 0.45
+          - id: offline-b1-2
+            phrase: cost improvement
+            targets:
+              - offline-mechanism
+            linger: 0.45
+          - id: offline-b1-3
+            phrase: failed requirement
+            targets:
+              - offline-mechanism
+            linger: 0.45
+          - id: failed-evaluation-receipt
+            phrase: Keep a separate receipt naming those exact rows and the policy that evaluated them
+            targets:
+              - offline-mechanism
+            color: pink
+            linger: 0.45
+      - say: The independently fitted package has its own evaluation outputs. A passing offline result can open a
+          limited next stage under this local policy. Bind that result to the release, model bytes and policy
+          values, so changing a package or threshold invalidates the earlier receipt.
+        hold: 0.85
+        visual_cues:
+          - id: offline-b2-1
+            phrase: own evaluation outputs
+            targets:
+              - offline-mechanism
+            linger: 0.45
+          - id: offline-b2-2
+            phrase: A passing offline result can open a limited next stage under this local policy
+            targets:
+              - offline-mechanism
+            linger: 0.45
+          - id: offline-row-build
+            phrase: The independently fitted package has its own evaluation outputs
+            targets:
+              - offline-mechanism
+            linger: 0.7
+      - say: The no-leakage gate checks intersection of training and evaluation entity IDs. A shared ID fails even
+          when recall passes. Different IDs can still hide related parcels, and the overlap gate does not
+          discover future features. The builder supplies separate clock checks. If the critical slice has no
+          positives, there are no late critical deliveries to count. Leave recall blank. If baseline cost
+          is zero, relative cost change is missing. Either missing measurement keeps the candidate offline.
+        hold: 0.8
+        visual_cues:
+          - id: offline-extension-3
+            phrase: The no-leakage gate checks intersection of training and evaluation entity IDs
+            targets:
+              - offline-mechanism
+            linger: 0.8
+          - id: offline-shared
+            phrase: A shared ID fails even when recall passes
+            targets:
+              - offline-mechanism
+          - id: offline-no-positive
+            phrase: If the critical slice has no positives
+            targets:
+              - offline-mechanism
+          - id: offline-zero-base
+            phrase: If baseline cost is zero, relative cost change is missing
+            targets:
+              - offline-mechanism
+  - id: bound-evidence
+    title: Does this receipt still describe delivery two?
+    visual: The evaluator compares the current rows with a saved receipt. A correction to one cost changes the row fingerprint. The saved fingerprint stays in view while the controller holds the release for reevaluation.
+    beats:
+      - say: The registry saves the package and its release record. Production still runs version zero.
+          The evaluator checks the row types, the list of expected delivery IDs and any overlap with
+          training. It adds up each model's costs. Divide the trial total by the positive baseline total
+          and subtract one. For critical recall, divide the number of late critical deliveries that got
+          warnings by the number that arrived late in that group.
+        hold: 0.8
+        visual_cues:
+          - id: bound-evidence-b1
+            phrase: The registry saves the package
+            targets:
+              - bound-evidence-mechanism
+            linger: 0.8
+          - id: bound-evidence-overlap
+            phrase: any overlap with training
+            targets:
+              - bound-evidence-mechanism
+            linger: 0.7
+          - id: evidence-metrics
+            phrase: by the number that arrived late in that group
+            targets:
+              - bound-evidence-mechanism
+      - say: The receipt records a fingerprint for the artifact, the release and the promotion policy.
+          The evaluator uses a consistent JSON encoding so it can compare the values later. Before
+          opening a canary, look up the receipt by ID. Check the candidate and its fingerprints, then
+          check that the previous release is still serving. If the receipt is missing or any required
+          check failed, keep the candidate offline.
+        hold: 0.8
+        visual_cues:
+          - id: bound-evidence-b2
+            phrase: The receipt records a fingerprint
+            targets:
+              - bound-evidence-mechanism
+            linger: 0.8
+          - id: evidence-open
+            phrase: check that the previous release is still serving
+            targets:
+              - bound-evidence-mechanism
+          - id: evidence-missing
+            phrase: keep the candidate offline
+            targets:
+              - bound-evidence-mechanism
+      - say: Look up a saved receipt. Delivery two cost two units when the evaluator ran. Suppose the
+          cost on that row changes to three units. The row fingerprint changes. The receipt still describes the two-unit
+          row, so hold the release and evaluate the corrected rows. In a service, protect the saved
+          receipt and the artifact. Give a trusted evaluator control of the data, model run and new receipts.
+        caption_starts:
+          - Suppose the cost on that row
+          - The row fingerprint changes
+        hold: 0.8
+        visual_cues:
+          - id: bound-evidence-b3
+            phrase: Look up a saved receipt
+            targets:
+              - bound-evidence-mechanism
+            linger: 0.8
+          - id: evidence-replace
+            phrase: the cost on that row changes to three units
+            targets:
+              - bound-evidence-mechanism
+          - id: evidence-hold
+            phrase: hold the release and evaluate the corrected rows
+            targets:
+              - bound-evidence-mechanism
+          - id: evidence-writer
+            phrase: Give a trusted evaluator control
+            targets:
+              - bound-evidence-mechanism
+  - id: canary
+    title: The canary’s observation history
+    visual: Four of twenty request marks move onto the candidate lane. Labels and paired costs attach to
+      those four identities. A second history retains an earlier positive cost change beside the same
+      favorable latest result. The canary pointer follows the decision.
+    beats:
+      - say: Imagine twenty requests arriving together. Sixteen keep the old model. These four go to version
+          one. We can already measure response time and errors. The carriers haven’t reported which
+          parcels arrived late. Should we give the candidate more traffic yet?
+        hold: 2
+        visual_cues:
+          - id: canary-four
+            phrase: These four go to version one
+            targets:
+              - canary-mechanism
+          - id: canary-fast
+            phrase: response time and errors
+            targets:
+              - canary-mechanism
+          - id: canary-pending
+            phrase: The carriers haven’t reported
+            targets:
+              - canary-mechanism
+          - id: canary-first-vote
+            phrase: Should we give the candidate more traffic yet
+            targets:
+              - canary-mechanism
+      - say: Hold the canary at its current exposure. Zero labels have arrived for four requests. The cost
+          change is still unknown. A measured cost change of zero would mean we broke even.
+        caption_starts:
+          - A measured cost change of zero
+        hold: 0.55
+        visual_cues:
+          - id: canary-hold
+            phrase: Hold the canary at its current exposure
+            targets:
+              - canary-mechanism
+      - say: Now the day-seven window arrives. Match each carrier report to the request that version one
+          served. Two parcels arrived late and two arrived on time. In this illustration each report
+          supplies twenty-three cost units for the candidate and twenty-five for the baseline. Add all
+          four pairs. Ninety-two divided by one hundred, minus one, gives minus eight percent.
+        caption_starts:
+          - Add all four pairs
+          - gives minus eight percent
+        hold: 0.65
+        visual_cues:
+          - id: canary-day-seven
+            phrase: the day-seven window arrives
+            targets:
+              - canary-mechanism
+          - id: canary-match
+            phrase: Match each carrier report
+            targets:
+              - canary-mechanism
+          - id: canary-pair
+            phrase: each report supplies twenty-three cost units
+            targets:
+              - canary-mechanism
+          - id: canary-sum
+            phrase: Add all four pairs
+            targets:
+              - canary-mechanism
+          - id: canary-delta
+            phrase: gives minus eight percent
+            targets:
+              - canary-mechanism
+      - say: Keep both windows on file. Both have healthy service, the latest has labels, and every measured
+          cost change is at or below zero. The controller can issue a ready receipt. Production still
+          selects version zero until a separate promotion call.
+        hold: 0.6
+        visual_cues:
+          - id: canary-history
+            phrase: Keep both windows on file
+            targets:
+              - canary-mechanism
+          - id: canary-ready
+            phrase: issue a ready receipt
+            targets:
+              - canary-mechanism
+      - say: Try a different history. This time the earlier window already had labels. Its cost was a
+          hundred and fourteen against a hundred. The next window again comes in at ninety-two against
+          a hundred. Both windows pass the service checks. Can this canary stay open?
+        caption_starts:
+          - The next window
+          - Can this canary stay open
+        hold: 2.2
+        visual_cues:
+          - id: canary-alternative
+            phrase: Try a different history
+            targets:
+              - canary-mechanism
+          - id: canary-earlier
+            phrase: a hundred and fourteen against a hundred
+            targets:
+              - canary-mechanism
+          - id: canary-later
+            phrase: ninety-two against a hundred
+            targets:
+              - canary-mechanism
+          - id: canary-vote
+            phrase: Can this canary stay open
+            targets:
+              - canary-mechanism
+      - say: Abort this canary. The earlier window crossed the cost limit by fourteen percent. The later
+          saving leaves that breach in the history. Remove the candidate’s canary pointer. Production
+          still selects version zero.
+        hold: 0.85
+        visual_cues:
+          - id: canary-abort
+            phrase: Abort this canary
+            targets:
+              - canary-mechanism
+          - id: canary-remove
+            phrase: Remove the candidate’s canary pointer
+            targets:
+              - canary-mechanism
+  - id: canary-window-contract
+    title: What if a window arrives without a usable measurement?
+    visual: The controller evaluates an article window at the policy boundary. A missing cost, a
+      nonfinite latency and a dictionary each change one input on an independent run. The receipt and
+      named canary show the three outcomes.
+    beats:
+      - say: The four labeled deliveries let us reconstruct a cost change. The article’s controller takes a
+          summary instead. Its day-seven record covers forty-two hundred requests and supplies a cost
+          change of minus eight percent. That online summary is separate from the fitted model’s
+          offline cost of four against fifty.
+        hold: 0.55
+        visual_cues:
+          - id: contract-record
+            phrase: day-seven record
+            targets:
+              - canary-window-contract-mechanism
+          - id: contract-delta
+            phrase: supplies a cost change of minus eight percent
+            targets:
+              - canary-window-contract-mechanism
+          - id: contract-offline
+            phrase: offline cost of four against fifty
+            targets:
+              - canary-window-contract-mechanism
+      - say: Start each run with the same accepted offline receipt, production on version zero and the
+          canary on version one. Give the evaluator the first-hour window, followed by day seven. It
+          checks the release and its bindings, unique window IDs, and strictly increasing, nonnegative
+          integer days. Each must count a positive whole number of requests. A Boolean count fails the
+          contract.
+        hold: 0.55
+        visual_cues:
+          - id: contract-start
+            phrase: Start each run
+            targets:
+              - canary-window-contract-mechanism
+          - id: contract-days
+            phrase: strictly increasing
+            targets:
+              - canary-window-contract-mechanism
+          - id: contract-count
+            phrase: a positive whole number of requests
+            targets:
+              - canary-window-contract-mechanism
+      - say: Try the limits exactly. Set the second window to one percent errors, two hundred fifty
+          milliseconds at the ninety-fifth percentile, and zero measured cost change. The policy
+          allows equality. Both windows pass, so the controller records ready. A separate promotion
+          call would still have to move production.
+        caption_starts:
+          - The policy allows equality
+          - Both windows pass
+        hold: 0.55
+        visual_cues:
+          - id: contract-limits
+            phrase: Try the limits exactly
+            targets:
+              - canary-window-contract-mechanism
+          - id: contract-zero
+            phrase: zero measured cost change
+            targets:
+              - canary-window-contract-mechanism
+          - id: contract-ready
+            phrase: records ready
+            targets:
+              - canary-window-contract-mechanism
+      - say: Now leave health at those limits and take away the latest labels and their cost. What should
+          happen to the canary?
+        hold: 1.9
+        visual_cues:
+          - id: contract-pending
+            phrase: take away the latest labels and their cost
+            targets:
+              - canary-window-contract-mechanism
+      - say: Hold it open. The measurement is due. An empty history or a single healthy window also holds.
+          Next, restore the complete pair and change only the latency to a nonfinite value. This time
+          the record itself fails validation. Abort and remove this candidate’s canary. A measured
+          breach or a binding mismatch also aborts. Another candidate’s canary stays in place.
+        caption_starts:
+          - Next, restore
+          - This time the record itself fails validation
+          - Abort and remove
+        hold: 0.65
+        visual_cues:
+          - id: contract-hold
+            phrase: Hold it open
+            targets:
+              - canary-window-contract-mechanism
+          - id: contract-invalid
+            phrase: change only the latency to a nonfinite value
+            targets:
+              - canary-window-contract-mechanism
+          - id: contract-abort
+            phrase: Abort and remove this candidate’s canary
+            targets:
+              - canary-window-contract-mechanism
+      - say: Reset the canary and send a dictionary in place of the window record. Python rejects the input
+          before it writes a receipt. The existing canary stays open. In a valid record, latency must
+          be finite and nonnegative, error rate must be between zero and one, and a supplied relative
+          cost change must be finite and at least minus one.
+        hold: 0.6
+        visual_cues:
+          - id: contract-type
+            phrase: send a dictionary
+            targets:
+              - canary-window-contract-mechanism
+          - id: contract-reject
+            phrase: Python rejects the input
+            targets:
+              - canary-window-contract-mechanism
+      - say: In a service, keep the request ID, served release, prediction time and time the outcome
+          arrived. Check how many requests have labels, how old those labels are, and whether the
+          sample can support the decision. A later passing summary alone tells you nothing about a
+          window the caller left out.
+        hold: 0.65
+        visual_cues:
+          - id: contract-audit
+            phrase: keep the request ID
+            targets:
+              - canary-window-contract-mechanism
+          - id: contract-omitted
+            phrase: a window the caller left out
+            targets:
+              - canary-window-contract-mechanism
+  - id: promotion
+    title: Follow receipt three to the production switch
+    visual: The stored canary receipt leads back to its accepted offline receipt and evaluation rows. A
+      separate promotion call reloads the packages, records the local alias move and clears the
+      canary. A nine-minute replay reads the selected model.
+    beats:
+      - say: Take history A, with the day-zero and day-seven windows. The evaluator filed ready receipt
+          three for version one. That receipt names version zero as the production base. Follow its
+          reference to the accepted offline receipt, then to the stored evaluation rows. Recheck the
+          package and policy fingerprints against the registered values.
+        hold: 0.5
+        visual_cues:
+          - id: promotion-ready
+            phrase: ready receipt three
+            targets:
+              - promotion-mechanism
+          - id: promotion-offline
+            phrase: the accepted offline receipt
+            targets:
+              - promotion-mechanism
+          - id: promotion-rows
+            phrase: the stored evaluation rows
+            targets:
+              - promotion-mechanism
+          - id: promotion-bind
+            phrase: Recheck the package and policy fingerprints
+            targets:
+              - promotion-mechanism
+      - say: Read the live pointer just before the move. If another release is already selected, leave it
+          there and hold promotion. Here the base still matches version zero. Call promote with
+          receipt three. The controller reloads both packages, moves production to version one, clears
+          the canary, and records the move with its receipt ID.
+        hold: 0.65
+        visual_cues:
+          - id: promotion-base
+            phrase: Read the live pointer
+            targets:
+              - promotion-mechanism
+          - id: promotion-match
+            phrase: the base still matches version zero
+            targets:
+              - promotion-mechanism
+          - id: promotion-call
+            phrase: Call promote with receipt three
+            targets:
+              - promotion-mechanism
+          - id: promotion-select
+            phrase: moves production to version one
+            targets:
+              - promotion-mechanism
+          - id: promotion-event
+            phrase: records the move with its receipt ID
+            targets:
+              - promotion-mechanism
+      - say: Send a nine-minute delay through the selected package. Its score is point nine eight and the
+          warning comes on. This replay checks the local selection. To confirm a deployed change,
+          check which workers loaded the package and which revision received routed requests. The
+          local check and assignment happen one after the other. What if two controllers write at
+          once?
+        hold: 0.7
+        visual_cues:
+          - id: promotion-send
+            phrase: Send a nine-minute delay
+            targets:
+              - promotion-mechanism
+          - id: promotion-probe-result
+            phrase: Its score is point nine eight
+            targets:
+              - promotion-mechanism
+          - id: promotion-workers
+            phrase: which revision received routed requests
+            targets:
+              - promotion-mechanism
+  - id: alias-generation
+    title: Make the production transition atomic with its audit event
+    visual: One retained request, release and evidence identity constructs each operation and consequence;
+      predictions precede their computed outcomes.
+    beats:
+      - say: The Python controller checks production and then assigns it sequentially. A second controller can change
+          the pointer between those actions. A transaction or compare-and-swap must check the expected release
+          and alias generation while committing the pointer and audit event together.
+        hold: 0.8
+        visual_cues:
+          - id: alias-generation-b1
+            phrase: The Python controller checks production and then assigns it sequentially
+            targets:
+              - alias-generation-mechanism
+            linger: 0.8
+      - say: Consider production v zero at generation forty-one. Another controller moves it to v two at generation
+          forty-two, then back to v zero at generation forty-three. The text label matches the old receipt
+          again, but generation forty-one is stale. Compare the expected generation as well as the release,
+          and record which rollout produced the evidence and when.
+        hold: 0.8
+        visual_cues:
+          - id: alias-generation-b2
+            phrase: Consider production v zero at generation forty-one
+            targets:
+              - alias-generation-mechanism
+            linger: 0.8
+          - id: alias-generation-away
+            phrase: Another controller moves it to v two at generation forty-two
+            targets:
+              - alias-generation-mechanism
+            linger: 0.7
+          - id: alias-generation-returned
+            phrase: then back to v zero at generation forty-three
+            targets:
+              - alias-generation-mechanism
+            linger: 0.7
+          - id: pipe-result-aba-stale-comparison
+            phrase: The text label matches the old receipt again, but generation forty-one is stale
+            targets:
+              - alias-generation-mechanism
+            color: cyan
+            linger: 0.45
+      - say: The pointer has moved. Now follow a request. Check which workers loaded the package, became
+          ready and received traffic. Time recovery through those steps, including any wait for compatible
+          features. A warning sent before recovery stays in the customer's inbox.
+        hold: 0.8
+        visual_cues:
+          - id: alias-generation-b3
+            phrase: The pointer has moved
+            targets:
+              - alias-generation-mechanism
+            linger: 0.8
+          - id: alias-workers
+            phrase: Check which workers loaded the package
+            targets:
+              - alias-generation-mechanism
+  - id: recovery
+    title: Two day-eight production reports
+    visual: Two possible day-eight reports share healthy service metrics and the same selected v1.
+      Missing quality leaves the switch in place. The labeled regression yields a rollback receipt,
+      loads v0 and changes the nine-minute probe.
+    beats:
+      - say: Return to the release that passed its checks and was promoted. Version one is selected. Send it
+          a nine-minute delay. The fitted model scores point nine eight and warns. Now imagine two
+          possible day-eight reports for this release. Both show nine hundred requests, healthy
+          latency and few errors.
+        hold: 0.5
+        visual_cues:
+          - id: recovery-probe
+            phrase: Send it a nine-minute delay
+            targets:
+              - recovery-mechanism
+          - id: recovery-windows
+            phrase: two possible day-eight reports
+            targets:
+              - recovery-mechanism
+      - say: In the first report the outcome labels are still missing. In the other they have arrived, and
+          warning cost is fourteen percent above baseline. The limit is zero regression. Which report
+          gives you a reason to restore the previous model?
+        hold: 2
+        visual_cues:
+          - id: recovery-pending
+            phrase: the outcome labels are still missing
+            targets:
+              - recovery-mechanism
+          - id: recovery-measured
+            phrase: fourteen percent above baseline
+            targets:
+              - recovery-mechanism
+          - id: recovery-vote
+            phrase: Which report gives you a reason
+            targets:
+              - recovery-mechanism
+      - say: Keep version one for the pending report. Set a deadline and fallback for missing measurements.
+          The measured increase in the second report does justify recovery. Fetch its stored rollback
+          receipt, recheck the live release and reload the previous package. Move the local pointer
+          back to version zero.
+        caption_starts:
+          - The measured increase in the second report
+          - Move the local pointer
+        hold: 0.55
+        visual_cues:
+          - id: recovery-hold
+            phrase: Keep version one for the pending report
+            targets:
+              - recovery-mechanism
+          - id: recovery-breach
+            phrase: The measured increase in the second report
+            targets:
+              - recovery-mechanism
+          - id: recovery-select
+            phrase: Move the local pointer back to version zero
+            targets:
+              - recovery-mechanism
+      - say: Replay the nine-minute delay. Its score drops to zero and the warning goes silent. That checks
+          the restored computation. A real service must also verify worker readiness and routing. A
+          warning sent yesterday stays in the customer’s inbox.
+        caption_starts:
+          - Its score drops to zero
+          - the warning goes silent
+        hold: 0.75
+        visual_cues:
+          - id: recovery-replay
+            phrase: Replay the nine-minute delay
+            targets:
+              - recovery-mechanism
+          - id: recovery-result
+            phrase: the warning goes silent
+            targets:
+              - recovery-mechanism
+          - id: recovery-score
+            phrase: Its score drops to zero
+            targets:
+              - recovery-mechanism
+  - id: production-history
+    title: Two dates in the production monitor
+    visual: A healthy day-nine measurement, a malformed day-ten report and a late day-eight report update the latest receipt and the latest valid observation independently.
+    beats:
+      - say: Start a new history with version one serving. The service looks healthy and delivery labels
+          are pending. Keep version one and set a deadline for those labels. A measured breach in cost,
+          errors or latency can trigger rollback. If a window has invalid metrics, keep the release
+          in place and investigate. The same bad metrics would close a canary. Handle a wrong record
+          type at ingestion. It raises an error before either monitor can write a receipt.
+        hold: 0.8
+        visual_cues:
+          - id: production-history-b1
+            phrase: Keep version one and set a deadline for those labels
+            targets:
+              - production-history-mechanism
+            linger: 0.8
+          - id: production-breach
+            phrase: A measured breach in cost, errors or latency
+            targets:
+              - production-history-mechanism
+          - id: production-types
+            phrase: It raises an error before either monitor can write a receipt
+            targets:
+              - production-history-mechanism
+      - say: Watch the two dates at the bottom. On day nine, service is healthy and measured cost is
+          one percent below baseline. Keep version one in production. Day ten brings an invalid
+          measurement. The latest receipt says hold on day ten. The last good measurement is still
+          day nine. Now a day-eight report arrives. It's older than day nine, so hold rollback and
+          keep the day-ten receipt. A report for another release also leaves version one in place.
+        caption_starts:
+          - Day ten brings
+          - The latest receipt says
+          - Now a day-eight report arrives
+          - It's older than day nine
+        hold: 0.8
+        visual_cues:
+          - id: production-history-b2
+            phrase: Watch the two dates at the bottom
+            targets:
+              - production-history-mechanism
+            linger: 0.8
+          - id: production-history-malformed
+            phrase: Day ten brings an invalid measurement
+            targets:
+              - production-history-mechanism
+            linger: 0.7
+          - id: production-healthy
+            phrase: service is healthy and measured cost is one percent below baseline
+            targets:
+              - production-history-mechanism
+          - id: production-keep
+            phrase: Keep version one in production
+            targets:
+              - production-history-mechanism
+          - id: production-history-older
+            phrase: Now a day-eight report arrives
+            targets:
+              - production-history-mechanism
+            linger: 0.7
+          - id: pipe-result-malformed-observation-hold
+            phrase: The latest receipt says hold on day ten
+            targets:
+              - production-history-mechanism
+            color: cyan
+            linger: 0.45
+          - id: pipe-result-older-observation-hold
+            phrase: hold rollback and keep the day-ten receipt
+            targets:
+              - production-history-mechanism
+            color: cyan
+            linger: 0.45
+      - say: A newer monitoring receipt supersedes an older rollback receipt. Before recovery, recheck the live
+          release, policy and retained previous-target fingerprints, then reload that previous package. A
+          changed target, changed policy or failed reload holds recovery. Integer days cannot order same-day
+          updates or distinguish repeated rollout attempts; production windows need timestamps and attempt
+          identity.
+        hold: 0.8
+        visual_cues:
+          - id: production-history-b3
+            phrase: A newer monitoring receipt supersedes an older rollback receipt
+            targets:
+              - production-history-mechanism
+            linger: 0.8
+          - id: production-recheck
+            phrase: recheck the live release, policy and retained previous-target fingerprints
+            targets:
+              - production-history-mechanism
+          - id: production-attempt
+            phrase: Integer days cannot order same-day updates or distinguish repeated rollout attempts
+            targets:
+              - production-history-mechanism
+  - id: product-monitoring
+    title: Carry the same evidence contract across four products
+    visual: One retained request, release and evidence identity constructs each operation and consequence;
+      predictions precede their computed outcomes.
+    beats:
+      - say: Change the product while retaining the immediate-versus-delayed distinction. Delivery warnings need scan
+          freshness now and labeled warning cost later. Ranking needs eligible candidate supply now and an
+          assignment-aware purchase or return outcome later. Forecasting needs fresh counts now and residual
+          or alert-decision cost later. Vision needs photo quality now and reviewer-confirmed damage later.
+          Restore the relevant cropper, imputer or other preprocessing with that product model.
+        hold: 0.8
+        visual_cues:
+          - id: product-monitoring-b1
+            phrase: Change the product while retaining the immediate-versus-delayed distinction
+            targets:
+              - product-monitoring-mechanism
+            linger: 0.8
+          - id: product-delivery
+            phrase: Delivery warnings need scan freshness now and labeled warning cost later
+            targets:
+              - product-monitoring-mechanism
+          - id: product-ranking
+            phrase: Ranking needs eligible candidate supply now and an assignment-aware purchase or return outcome later
+            targets:
+              - product-monitoring-mechanism
+          - id: product-forecast
+            phrase: Forecasting needs fresh counts now and residual or alert-decision cost later
+            targets:
+              - product-monitoring-mechanism
+          - id: product-vision
+            phrase: Vision needs photo quality now and reviewer-confirmed damage later
+            targets:
+              - product-monitoring-mechanism
+      - say: A canary bounds initial exposure while checking a release. To find out whether the warnings
+          helped customers, run an A B test. Randomly assign customers to the two versions and compare
+          their outcomes. The canary can be part of that experiment. A training schedule or drift trigger
+          creates another candidate, which must pass the same data, model, monitoring and promotion evidence
+          checks.
+        hold: 0.8
+        visual_cues:
+          - id: product-monitoring-b2
+            phrase: A canary bounds initial exposure while checking a release
+            targets:
+              - product-monitoring-mechanism
+            linger: 0.8
+          - id: product-ab
+            phrase: run an A B test
+            targets:
+              - product-monitoring-mechanism
+          - id: product-retrain
+            phrase: A training schedule or drift trigger creates another candidate
+            targets:
+              - product-monitoring-mechanism
+  - id: synthesis
+    title: Two models, one eight-minute delay
+    visual: The original eval-2 receipt stays beside a fresh replay of its eight-minute input. Separate
+      cost rules and both recall denominators stay attached to the candidates that produced them.
+    beats:
+      - say: Here's delivery two again. It arrived late with an eight-minute delay on its scan. Read the first
+          candidate’s receipt. That customer got no warning. The row still says twenty-four units
+          because those costs were entered by hand. The missing warning still counts against recall.
+        hold: 0.65
+        visual_cues:
+          - id: synthesis-failed
+            phrase: Read the first candidate’s receipt
+            targets:
+              - synthesis-mechanism
+          - id: synthesis-miss
+            phrase: That customer got no warning
+            targets:
+              - synthesis-mechanism
+      - say: Replay the same input through the fitted package. Eight minutes puts its score at point eight
+          six, above the warning threshold of one half. This package warns. Its cost rule charges two
+          units for a warning. Across the four evaluation rows it catches both late critical
+          deliveries for four units against fifty. Each receipt keeps its own rows and cost rule.
+        caption_starts:
+          - Eight minutes puts its score
+          - This package warns
+        hold: 0.6
+        visual_cues:
+          - id: synthesis-replay
+            phrase: Replay the same input
+            targets:
+              - synthesis-mechanism
+          - id: synthesis-score
+            phrase: point eight six
+            targets:
+              - synthesis-mechanism
+          - id: synthesis-warn
+            phrase: This package warns
+            targets:
+              - synthesis-mechanism
+          - id: synthesis-both
+            phrase: Across the four evaluation rows
+            targets:
+              - synthesis-mechanism
+      - say: Which answer would the customer get now? That depends on which complete package production
+          selects. Keep the eight-minute input for one last release decision.
+        caption_starts:
+          - That depends on which complete package production selects
+        hold: 0.7
+        visual_cues:
+          - id: synthesis-select
+            phrase: which complete package production selects
+            targets:
+              - synthesis-mechanism
+  - id: fresh-stale-receipt
+    title: Which release answers delivery two?
+    visual: The requested receipt and policy stay alongside their current values. Restoring one
+      precondition leaves the other failed. A receipt issued after reevaluation enables a separate
+      promotion call, which routes the same eight-minute probe from v0 to v1.
+    beats:
+      - say: Start a separate release attempt with version zero selected. Replay delivery two here. Its
+          eight-minute input scores zero, so the customer gets no warning. The fitted package is
+          waiting on the other side of the switch.
+        caption_starts:
+          - Its eight-minute input scores zero
+          - so the customer gets no warning
+        hold: 0.5
+        visual_cues:
+          - id: fresh-probe
+            phrase: Replay delivery two here
+            targets:
+              - fresh-stale-receipt-mechanism
+          - id: fresh-zero
+            phrase: Its eight-minute input scores zero
+            targets: [fresh-stale-receipt-mechanism]
+          - id: fresh-silent
+            phrase: the customer gets no warning
+            targets: [fresh-stale-receipt-mechanism]
+      - say: Receipt three said ready. Since then a one-window evaluation has filed receipt four, which says
+          hold. Someone also raised the latency limit from two hundred fifty to three hundred
+          milliseconds under the same policy name. What happens if we try to promote with receipt
+          three?
+        hold: 2
+        visual_cues:
+          - id: fresh-stored
+            phrase: Receipt three said ready
+            targets:
+              - fresh-stale-receipt-mechanism
+          - id: fresh-latest
+            phrase: receipt four
+            targets:
+              - fresh-stale-receipt-mechanism
+          - id: fresh-change
+            phrase: raised the latency limit
+            targets:
+              - fresh-stale-receipt-mechanism
+          - id: fresh-vote
+            phrase: What happens if we try to promote with receipt three
+            targets:
+              - fresh-stale-receipt-mechanism
+      - say: Hold promotion. The requested receipt is older than the current one, and its policy fingerprint
+          no longer matches. Restore just the original latency limit. Try receipt three again. Which
+          check still blocks it?
+        caption_starts:
+          - Restore just the original latency limit
+          - Which check still blocks it
+        hold: 2
+        visual_cues:
+          - id: fresh-hold
+            phrase: Hold promotion
+            targets:
+              - fresh-stale-receipt-mechanism
+          - id: fresh-restore
+            phrase: Restore just the original latency limit
+            targets:
+              - fresh-stale-receipt-mechanism
+          - id: fresh-retry
+            phrase: Which check still blocks it
+            targets:
+              - fresh-stale-receipt-mechanism
+      - say: The latest receipt is still four. Its hold keeps version zero selected. Delivery two still gets
+          no warning. To try again, the evaluator needs the complete ordered history under the
+          restored policy.
+        hold: 0.55
+        visual_cues:
+          - id: fresh-still
+            phrase: The latest receipt is still four
+            targets:
+              - fresh-stale-receipt-mechanism
+      - say: Give the evaluator both passing windows. It checks the offline evidence and issues receipt
+          five. That makes five current. The evaluator can reuse these observations in the lab. To
+          require observations from this rollout, a service also needs an age limit and a rollout
+          identifier.
+        caption_starts:
+          - issues receipt five
+        hold: 0.5
+        visual_cues:
+          - id: fresh-evaluate
+            phrase: Give the evaluator both passing windows
+            targets:
+              - fresh-stale-receipt-mechanism
+          - id: fresh-new
+            phrase: issues receipt five
+            targets:
+              - fresh-stale-receipt-mechanism
+      - say: Now call promote with receipt five. The controller rechecks the stored evidence and the
+          production pointer, reloads both packages and selects version one. Send the same
+          eight-minute input again. Its score is point eight six. This time the customer would get a
+          warning. The probe verifies the local switch. On a service, check which revision answered a
+          routed request before declaring the rollout complete.
+        caption_starts:
+          - selects version one
+          - Send the same eight-minute input again
+          - Its score is point eight six
+          - This time the customer would get a warning
+          - On a service
+        hold: 0.85
+        visual_cues:
+          - id: fresh-call
+            phrase: call promote with receipt five
+            targets:
+              - fresh-stale-receipt-mechanism
+          - id: fresh-switch
+            phrase: selects version one
+            targets:
+              - fresh-stale-receipt-mechanism
+          - id: fresh-rescore
+            phrase: Send the same eight-minute input again
+            targets:
+              - fresh-stale-receipt-mechanism
+          - id: fresh-warning
+            phrase: This time the customer would get a warning
+            targets:
+              - fresh-stale-receipt-mechanism
+          - id: fresh-score
+            phrase: Its score is point eight six
+            targets:
+              - fresh-stale-receipt-mechanism
+          - id: fresh-verify
+            phrase: which revision answered a routed request
+            targets:
+              - fresh-stale-receipt-mechanism

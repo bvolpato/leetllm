@@ -1,0 +1,1017 @@
+version: 1
+id: ai-lab-technical-presentation
+title: Defend an Engineering Decision in a Technical Interview
+source: interviewing/ai-lab-technical-presentation/content.md
+voice: en-US-AndrewNeural
+rate: +0%
+sources:
+  - title: OpenAI interview guide, checked November 6 2026
+    url: https://openai.com/interview-guide/
+  - title: Interviewing at Google DeepMind, checked November 6 2026
+    url: https://storage.googleapis.com/deepmind-media/DeepMind.com/Assets/Docs/interviewing-at-google-deepmind.pdf
+  - title: "NeurIPS 2026 Paper Checklist: scope and reproducibility"
+    url: https://neurips.cc/public/guides/PaperChecklist
+  - title: "Google SRE: Monitoring Distributed Systems"
+    url: https://sre.google/sre-book/monitoring-distributed-systems/
+  - title: "Google Cloud: offline and online model validation"
+    url: https://docs.cloud.google.com/architecture/mlops-continuous-delivery-and-automation-pipelines-in-machine-learning
+  - title: "OWASP Authorization Cheat Sheet: check every request"
+    url: https://cheatsheetseries.owasp.org/cheatsheets/Authorization_Cheat_Sheet.html
+scenes:
+  - id: opening
+    title: "Would you defend this interview slide?"
+    visual: "A presenter underlines the word saved on a draft slide. Two rows show twenty and six days of onboarding. The gap stays visible as the presenter revises the headline."
+    beats:
+      - say: "Would you defend this interview slide? My connector saved fourteen days. Each square marks one day of onboarding. The earlier group took twenty days. The later group took six."
+        hold: 0.6
+        caption_starts: ["My connector saved fourteen days.", "Each square marks one day"]
+      - say: "Count the gap between the two rows. Fourteen days. How much of that gap can you credit to your connector?"
+        hold: 2.6
+        caption_starts: ["Fourteen days.", "How much of that gap"]
+        visual_cues:
+          - id: gap
+            phrase: "Count the gap"
+            targets: [picture]
+          - id: ask
+            phrase: "How much of that gap can you credit to your connector?"
+            targets: [picture]
+      - say: "Try this headline. Onboarding took fourteen fewer days in the groups we compared. I can show the adapter I built. To explain the gap, I'd compare source difficulty and staff time across the groups."
+        hold: 1.1
+        caption_starts: ["Onboarding took fourteen fewer days in the groups we compared.", "I can show the adapter I built.", "I'd compare source difficulty and staff time"]
+        visual_cues:
+          - id: scope
+            phrase: "Onboarding took fourteen fewer days in the groups we compared"
+            targets: [picture]
+          - id: check
+            phrase: "To explain the gap"
+            targets: [picture]
+  - id: format-contract
+    title: "Which project fits this invitation?"
+    visual: "A public study has a matched negative result. A private trace remains outside the presentation, even after its identifier is removed."
+    beats:
+      - say: "Read the invitation before you build the deck. Who's in the room? Do questions come out of your speaking time? Which projects, materials and tools does this team allow? Fifteen minutes is our practice slot. OpenAI and DeepMind both describe formats that vary by role or team."
+        hold: 0.6
+        visual_cues:
+          - id: prompt
+            phrase: "invitation"
+            targets: [picture]
+          - id: materials
+            phrase: "materials and tools"
+            targets: [picture]
+      - say: "Suppose the panel asks for a public experiment. On the same forty examples, the baseline succeeded twenty-four times and your quantized model twenty-two. Two fewer out of forty is a drop of five percentage points. You can present the experiment and show the panel what you expected and what you saw. An infrastructure panel might ask about an operating decision instead."
+        hold: 0.8
+        visual_cues:
+          - id: method
+            phrase: "same forty examples"
+            targets: [picture]
+          - id: negative
+            phrase: "a drop of five percentage points"
+            targets: [picture]
+            caption_boundary: true
+          - id: project
+            phrase: "present the experiment"
+            targets: [picture]
+      - say: "Now open the deployment trace. There's a tenant name in it. Even if you remove the identifier, you need approval for what you share and where you send it. Use approved aggregates or a sanitized diagram and say what you withheld. Choose another project if the evidence you can share loses its meaning. Check permission for the live interview separately. DeepMind's guide permits AI preparation and asks candidates to leave it out of live tasks unless instructed otherwise."
+        hold: 0.7
+        visual_cues:
+          - id: private
+            phrase: "deployment trace"
+            targets: [picture]
+          - id: redact
+            phrase: "remove the identifier"
+            targets: [picture]
+          - id: upload
+            phrase: "where you send it"
+            targets: [picture]
+          - id: policy
+            phrase: "Check permission for the live interview"
+            targets: [picture]
+  - id: argument
+    title: "Which details belong in the talk?"
+    visual: "A six-sentence outline connects the presenter’s choice to a source receipt and the limits of a before-and-after comparison."
+    beats:
+      - say: "Try drafting six sentences before you open your slide editor. Here's our problem. Eight integrations each handled credentials and fetched pages of runbooks. The replacement had to keep each tenant's credentials separate and keep the lookup's ninety-fifth percentile below eight hundred milliseconds. I put source-specific adapters behind one contract inside the gateway."
+        hold: 0.8
+        visual_cues:
+          - id: links
+            phrase: "six sentences"
+            targets: [picture]
+          - id: sources
+            phrase: "Eight integrations"
+            targets: [picture]
+          - id: constraint
+            phrase: "keep each tenant's credentials separate"
+            targets: [picture]
+          - id: choice
+            phrase: "one contract"
+            targets: [picture]
+      - say: "A separate service could ship independently, at the cost of a network call. A limit belongs in the outline too. A different mix of sources could help explain the shorter onboarding time. Now which detail lets a listener challenge the contract itself? Two page receipts with the same cursor let them see whether an adapter can mistakenly report a complete collection."
+        hold: 0.8
+        visual_cues:
+          - id: split
+            phrase: "separate service"
+            targets: [picture]
+          - id: cost
+            phrase: "mix of sources"
+            targets: [picture]
+          - id: challenge
+            phrase: "challenge the contract itself"
+            targets: [picture]
+          - id: receipt
+            phrase: "page receipts with the same cursor"
+            targets: [picture]
+  - id: evidence-inventory
+    title: "Whose work does this evidence show?"
+    visual: "The onboarding history, contract test, and store-call span stay next to their owners and the claims each can support."
+    beats:
+      - say: "What would you open if someone interrupted here? For repeated integration work, open a source history. For a tenant-scoped lookup that failed, open a contract test. To establish where a real request spent time, open its trace. Those three artifacts answer different questions."
+        hold: 0.55
+        visual_cues:
+          - id: problem
+            phrase: "repeated integration work"
+            targets: [picture]
+          - id: correct
+            phrase: "tenant-scoped lookup that failed"
+            targets: [picture]
+          - id: sources
+            phrase: "three artifacts"
+            targets: [picture]
+      - say: "In this project I'd say, “I wrote the contract, the adapters, the gateway changes, the tests, and the trace instrumentation. The platform team owns the tenant store.” You can measure time across their interface and still give them credit for the implementation."
+        hold: 0.55
+        visual_cues:
+          - id: owner
+            phrase: "wrote the contract"
+            targets: [picture]
+          - id: store
+            phrase: "The platform team owns the tenant store"
+            targets: [picture]
+      - say: "To support the onboarding comparison, tell the panel what started and stopped the clock, how many sources you compared, and how complicated they were. The records show twenty days and six days. That's fourteen fewer days. A change in staffing or source difficulty could also explain part of the difference."
+        hold: 0.85
+        visual_cues:
+          - id: duration
+            phrase: "onboarding comparison"
+            targets: [picture]
+          - id: period
+            phrase: "started and stopped the clock"
+            targets: [picture]
+          - id: windows
+            phrase: "twenty days and six days"
+            targets: [picture]
+          - id: delta
+            phrase: "fourteen fewer days"
+            targets: [picture]
+          - id: cause
+            phrase: "staffing or source difficulty"
+            targets: [picture]
+  - id: path
+    title: "Follow one partner runbook lookup"
+    visual: "A request crosses authorization before the adapter reaches the store. Two page receipts keep the same source and request ID."
+    beats:
+      - say: "A support engineer opens a runbook in the support UI. Follow the request ID to the gateway. It checks tenant authorization before the adapter can use that tenant's credentials. The store belongs to the platform team. My instrumentation covers the call across that boundary. The trace records an ID and keeps the credentials private."
+        hold: 0.7
+        visual_cues:
+          - id: ui
+            phrase: "support UI"
+            targets: [picture]
+          - id: gateway
+            phrase: "gateway"
+            targets: [picture]
+          - id: auth
+            phrase: "tenant authorization"
+            targets: [picture]
+          - id: adapter
+            phrase: "adapter"
+            targets: [picture]
+          - id: store
+            phrase: "store belongs to the platform team"
+            targets: [picture]
+          - id: credential
+            phrase: "credentials private"
+            targets: [picture]
+      - say: "Watch the field that says which page to fetch next. The first page returns a cursor. We send it back to fetch page two. The source returns that same cursor again. My adapter reports an incomplete result and stops. Here's the regression test I wrote for that case. Here's the sanitized trace with the source and request ID so another engineer can find that execution."
+        hold: 0.95
+        visual_cues:
+          - id: first
+            phrase: "first page returns a cursor"
+            targets: [picture]
+          - id: again
+            phrase: "returns that same cursor again"
+            targets: [picture]
+          - id: stop
+            phrase: "reports an incomplete result"
+            targets: [picture]
+            caption_boundary: true
+          - id: test
+            phrase: "regression test"
+            targets: [picture]
+          - id: trace
+            phrase: "source and request ID"
+            targets: [picture]
+  - id: failure-invariant
+    title: "What should the adapter do on page three?"
+    visual: "A three-page trace returns a cursor from two pages ago. Replaying the same prefix with a terminal cursor produces the other valid stopping status."
+    beats:
+      - say: "Let's give your listener a harder trace. Start with an empty set. Page one returns C seventeen. Remember it. Use it to request page two. That returns a new cursor, C twenty-four. Now both cursors are in the set."
+        hold: 0.65
+        visual_cues:
+          - id: first
+            phrase: "C seventeen"
+            targets: [picture]
+          - id: save
+            phrase: "Remember it"
+            targets: [picture]
+          - id: second
+            phrase: "request page two"
+            targets: [picture]
+          - id: new
+            phrase: "C twenty-four"
+            targets: [picture]
+          - id: both
+            phrase: "both cursors are in the set"
+            targets: [picture]
+      - say: "We use the second cursor to request page three. The source sends back C seventeen. Do you send a fourth request, report complete, or report incomplete?"
+        hold: 2.8
+        visual_cues:
+          - id: third
+            phrase: "page three"
+            targets: [picture]
+          - id: repeat
+            phrase: "C seventeen"
+            targets: [picture]
+          - id: ask
+            phrase: "Do you send a fourth request, report complete, or report incomplete?"
+            targets: [picture]
+            caption_boundary: true
+      - say: "You saw seventeen on page one. Checking only the last cursor would miss the cycle. Stop and report incomplete. Keep the source ID and the request ID with that failure."
+        hold: 0.6
+        visual_cues:
+          - id: found
+            phrase: "saw seventeen on page one"
+            targets: [picture]
+          - id: stop
+            phrase: "Stop and report incomplete."
+            targets: [picture]
+            caption_boundary: true
+      - say: "Replay just the last response. This time its next cursor is null. That's the contract's end marker. Stop and report complete. Both traces stop at page three. The status tells the caller whether it can trust the collection to be complete. Keep these cases as tests, and take a sanitized trace to the talk in case the live demo fails. One demo shows one execution."
+        hold: 0.95
+        visual_cues:
+          - id: replay
+            phrase: "Replay just the last response"
+            targets: [picture]
+          - id: terminal
+            phrase: "null"
+            targets: [picture]
+          - id: done
+            phrase: "Stop and report complete."
+            targets: [picture]
+            caption_boundary: true
+  - id: tradeoff
+    title: "Why keep the adapter in the gateway?"
+    visual: "The adapter moves from a shared process to its own service. The same lookup now crosses a remote boundary to reach the same upstream source."
+    beats:
+      - say: "The interviewer asks why you kept the adapter in the gateway. We could ship the first migration together and debug one process. We accepted a risk. A busy adapter could starve its neighbors. Move it into a separate service. Now we can ship it separately and give it its own budget. Follow the lookup again. There's an extra network call to operate and recover when it fails."
+        hold: 0.7
+        visual_cues:
+          - id: local
+            phrase: "adapter in the gateway"
+            targets: [picture]
+          - id: risk
+            phrase: "starve its neighbors"
+            targets: [picture]
+          - id: split
+            phrase: "a separate service"
+            targets: [picture]
+          - id: isolates
+            phrase: "ship it separately and give it its own budget"
+            targets: [picture]
+          - id: hop
+            phrase: "extra network call"
+            targets: [picture]
+      - say: "What would make you revisit that choice? Suppose an engineer says the queue got slower. Start by locating the wait. If the source has a quota, moving the adapter leaves the same quota at the far end. Let's put times on that request."
+        hold: 0.85
+        visual_cues:
+          - id: reverse
+            phrase: "revisit that choice"
+            targets: [picture]
+          - id: quota
+            phrase: "source has a quota"
+            targets: [picture]
+          - id: still
+            phrase: "the same quota at the far end"
+            targets: [picture]
+  - id: source-wait
+    title: "Would a service split shorten this lookup?"
+    visual: "Two serial traces retain the same source wait. A second example shows how limiting one adapter to three of four workers lets another adapter run."
+    beats:
+      - say: "The source makes this lookup wait a thousand milliseconds. Everything else takes two hundred milliseconds. The whole request takes twelve hundred milliseconds. These are invented timings for one request whose steps run in sequence."
+        hold: 0.65
+        visual_cues:
+          - id: wait
+            phrase: "a thousand milliseconds"
+            targets: [picture]
+          - id: work
+            phrase: "two hundred milliseconds"
+            targets: [picture]
+          - id: before
+            phrase: "twelve hundred milliseconds"
+            targets: [picture]
+      - say: "Move the adapter to its own service. Keep the source wait and the other work fixed. We now have an extra twenty-millisecond remote call. What is the new total, with the source quota unchanged?"
+        hold: 2.8
+        visual_cues:
+          - id: copy
+            phrase: "Keep the source wait and the other work fixed"
+            targets: [picture]
+          - id: hop
+            phrase: "twenty-millisecond remote call"
+            targets: [picture]
+          - id: ask
+            phrase: "What is the new total, with the source quota unchanged?"
+            targets: [picture]
+            caption_boundary: true
+      - say: "Twelve hundred twenty milliseconds. That's a little slower. The long blue stretch is still there. I'd investigate the source quota and our backoff before proposing a split. Adding callers can use up the same allowance faster."
+        hold: 0.65
+        visual_cues:
+          - id: total
+            phrase: "Twelve hundred twenty milliseconds."
+            targets: [picture]
+            caption_boundary: true
+          - id: quota
+            phrase: "investigate the source quota and our backoff"
+            targets: [picture]
+      - say: "Now look inside a different gateway. In this example, adapter A occupies all four workers. Adapter B has a lookup ready and waits for a worker. That wait is inside the shared process."
+        hold: 0.9
+        visual_cues:
+          - id: other-case
+            phrase: "inside a different gateway"
+            targets: [picture]
+          - id: occupied
+            phrase: "adapter A occupies all four workers"
+            targets: [picture]
+          - id: queue
+            phrase: "Adapter B has a lookup ready"
+            targets: [picture]
+      - say: "In the next scheduling window all four workers are free again. This time cap A at three active jobs. B can start on the fourth worker. I'd compare that limit with giving B a separate process and resource budget. If isolation helps enough to justify a remote call, test compatibility and plan the migration. That's a reason to revisit the design."
+        hold: 1
+        visual_cues:
+          - id: reset
+            phrase: "all four workers are free again"
+            targets: [picture]
+          - id: cap
+            phrase: "cap A at three active jobs"
+            targets: [picture]
+          - id: admit
+            phrase: "B can start on the fourth worker"
+            targets: [picture]
+          - id: compare
+            phrase: "compare that limit"
+            targets: [picture]
+  - id: paired-evidence
+    title: "What happened to one runbook?"
+    visual: "The relevant DNS runbook crosses the top-five cutoff for one frozen query. Its lost hit becomes one mark in the paired count for all 200 queries."
+    beats:
+      - say: "The panel asks what happened to retrieval. Take query one forty-one. Its labeled runbook is the DNS guide. In this illustrative ranking the baseline puts DNS fifth. That's the last result a support engineer would see. Keep the same query and label for the candidate ranking. Watch DNS and Health trade places. Does this query still count as a top-five hit?"
+        hold: 2.5
+        visual_cues:
+          - id: old-rank
+            phrase: "baseline puts DNS fifth"
+            targets: [picture]
+          - id: compare
+            phrase: "candidate ranking"
+            targets: [picture]
+          - id: swap
+            phrase: "trade places"
+            targets: [picture]
+          - id: ask
+            phrase: "Does this query still count as a top-five hit?"
+            targets: [picture]
+            caption_boundary: true
+      - say: "It misses. The guide is still in the ranking, one place past the cutoff. If you only showed the average, the listener could never find this case."
+        hold: 0.65
+        visual_cues:
+          - id: miss
+            phrase: "It misses."
+            targets: [picture]
+            caption_boundary: true
+      - say: "Put that query back among the two hundred frozen query IDs. Each has one labeled runbook. Our DNS query is one of eight lost hits. In the other direction we have twenty-two new hits. One hundred forty hit in both runs, and thirty miss in both. Each query belongs in exactly one group."
+        hold: 0.7
+        visual_cues:
+          - id: population
+            phrase: "two hundred frozen query IDs"
+            targets: [picture]
+          - id: regress
+            phrase: "eight lost hits"
+            targets: [picture]
+          - id: improved
+            phrase: "twenty-two new hits"
+            targets: [picture]
+          - id: both
+            phrase: "One hundred forty hit in both runs"
+            targets: [picture]
+          - id: neither
+            phrase: "thirty miss in both"
+            targets: [picture]
+      - say: "Twenty-two gained minus eight lost gives fourteen additional hits. The total goes from one hundred forty-eight to one hundred sixty-two on the same two hundred queries. That's seventy-four to eighty-one percent, a seven percentage point gain. I'd keep the eight lost queries on the slide. A runbook that a tenant relies on could be one of them."
+        hold: 1
+        visual_cues:
+          - id: net
+            phrase: "fourteen additional hits"
+            targets: [picture]
+            caption_boundary: true
+          - id: rates
+            phrase: "seventy-four to eighty-one percent"
+            targets: [picture]
+  - id: paired-contract
+    title: "What counts as a successful lookup?"
+    visual: "The five displayed slots define a hit. A second relevant item changes recall, then the two rows of the paired comparison recover the baseline and candidate totals."
+    beats:
+      - say: "The DNS example also tells you what to measure. If the labeled runbook appears in the first five results, count a hit. With just one relevant item, you retrieved one out of one. Now suppose there are two relevant runbooks and the second one is outside the first five. You still have a hit. Your recall is one half, because you retrieved only one of the two relevant items."
+        hold: 0.7
+        visual_cues:
+          - id: top
+            phrase: "labeled runbook appears in the first five results"
+            targets: [picture]
+          - id: recall
+            phrase: "one out of one"
+            targets: [picture]
+          - id: many
+            phrase: "the second one is outside the first five"
+            targets: [picture]
+      - say: "Keep the query text, labels, corpus revision, and tenant permissions fixed. Record the code, configuration, model revision, and index build for each run. If the embedding model changes, you may have to rebuild its index over the same corpus. If the model and connector both changed, report the combined result. Separating their effects takes another experiment."
+        hold: 0.7
+        visual_cues:
+          - id: freeze
+            phrase: "query text, labels, corpus revision, and tenant permissions fixed"
+            targets: [picture]
+          - id: index
+            phrase: "rebuild its index over the same corpus"
+            targets: [picture]
+          - id: system
+            phrase: "combined result"
+            targets: [picture]
+      - say: "Back in our paired counts, start with the shared hits. For the baseline, add the eight it found alone. For the candidate, add the twenty-two it found alone. This arithmetic also works for a negative result. Before you generalize to a new tenant, inspect the queries that lost their runbook, check the labels and tenant coverage, and test on a suitable held-out sample. Queries used for tuning need to be identified."
+        hold: 0.8
+        visual_cues:
+          - id: table
+            phrase: "paired counts"
+            targets: [picture]
+          - id: old
+            phrase: "baseline, add the eight it found alone"
+            targets: [picture]
+          - id: new
+            phrase: "candidate, add the twenty-two it found alone"
+            targets: [picture]
+          - id: lost
+            phrase: "queries that lost their runbook"
+            targets: [picture]
+  - id: typed-comparison
+    title: "Which query lost its runbook?"
+    visual: "Two reports show the same queries in opposite orders. A line pairs each ID across the reports. A separate example puts a support question beside its labeled guide for review."
+    beats:
+      - say: "Read across the first row. Both reports say hit. Look at the IDs. The baseline hit belongs to query one forty-seven. Where is that query in the candidate report?"
+        hold: 2.6
+        caption_starts: ["Where is that query"]
+        visual_cues:
+          - id: id
+            phrase: "query one forty-seven"
+            targets: [picture]
+      - say: "On the second row. It missed. The baseline found the runbook for this query and the candidate lost it. Now follow query one sixty-six. This one went from miss to hit. Matching by row would hide both changes."
+        hold: 0.7
+        caption_starts: ["It missed.", "Now follow query one sixty-six.", "This one went from miss to hit."]
+        visual_cues:
+          - id: lookup
+            phrase: "On the second row."
+            targets: [picture]
+          - id: miss
+            phrase: "It missed."
+            targets: [picture]
+          - id: gain
+            phrase: "Now follow query one sixty-six."
+            targets: [picture]
+          - id: gained
+            phrase: "This one went from miss to hit."
+            targets: [picture]
+      - say: "An empty report has no hit rate. Reject a different set of query IDs, even if the row counts match. The hit field takes true or false. A numeric one fails that check. In the paired table, count each accepted query once. The four counts add up to two hundred."
+        hold: 1.3
+        visual_cues:
+          - id: empty
+            phrase: "empty report"
+            targets: [picture]
+          - id: different
+            phrase: "different set of query IDs"
+            targets: [picture]
+          - id: invalid
+            phrase: "A numeric one"
+            targets: [picture]
+          - id: accepted
+            phrase: "count each accepted query once"
+            targets: [picture]
+          - id: sum
+            phrase: "add up to two hundred"
+            targets: [picture]
+      - say: "For an incident rate, divide a nonnegative integer count of incidents by a positive whole number of requests. The program rejects a Boolean or half a request as the denominator."
+        hold: 0.8
+        visual_cues:
+          - id: exposure
+            phrase: "nonnegative integer count of incidents"
+            targets: [picture]
+          - id: fractional
+            phrase: "half a request"
+            targets: [picture]
+      - say: "The Python fixture checks the arithmetic. To check a label, open the support question beside the runbook. Here the engineer asks why a DNS lookup timed out. I'd ask someone who supports that tenant, “Would this guide help the engineer diagnose the timeout?”"
+        hold: 0.8
+        visual_cues:
+          - id: review
+            phrase: "To check a label"
+            targets: [picture]
+          - id: expert
+            phrase: "Would this guide help the engineer diagnose the timeout?"
+            targets: [picture]
+  - id: time-budget
+    title: "Where will the panel's questions fit?"
+    visual: "The rehearsal clock pins the six planned blocks to one fifteen-minute deadline."
+    beats:
+      - say: "Let's rehearse. In a fifteen-minute slot, try two minutes for context, four for the request path, three for the decision, three for the evidence, and one for the limit of the result. Keep two minutes for questions. That uses all fifteen minutes. If the panel reserves a separate question period, adjust the plan to match."
+        hold: 0.65
+        visual_cues:
+          - id: context
+            phrase: "two minutes for context"
+            targets: [picture]
+          - id: path
+            phrase: "four for the request path"
+            targets: [picture]
+          - id: decision
+            phrase: "three for the decision"
+            targets: [picture]
+          - id: evidence
+            phrase: "three for the evidence"
+            targets: [picture]
+          - id: limit
+            phrase: "one for the limit of the result"
+            targets: [picture]
+          - id: questions
+            phrase: "two minutes for questions"
+            targets: [picture]
+          - id: total
+            phrase: "uses all fifteen minutes"
+            targets: [picture]
+            caption_boundary: true
+      - say: "Practice a ninety-second version too. I unified how adapters fetch runbooks. I kept the first version in the gateway. My test shows how the adapter stops when a source repeats a cursor. Give the interviewer one result you can defend. With a little room on the clock, you can follow the question they actually ask."
+        hold: 0.85
+        visual_cues:
+          - id: brief
+            phrase: "ninety-second version"
+            targets: [picture]
+          - id: core
+            phrase: "one result you can defend"
+            targets: [picture]
+          - id: buffer
+            phrase: "little room on the clock"
+            targets: [picture]
+  - id: interrupted-rehearsal
+    title: "The interviewer stops you at minute six"
+    visual: "A question moves into the middle of the plan. The original ending overshoots the deadline until the presenter shortens the decision block."
+    beats:
+      - say: "You've used two minutes on the problem and four on the path. That's six minutes gone. The panel asks, “What did you change, and how do you know it helped?” You spend three minutes answering that question. Now six minutes remain. Your original ending takes seven. Look where it runs past the deadline."
+        hold: 1.4
+        visual_cues:
+          - id: six
+            phrase: "six minutes gone"
+            targets: [picture]
+          - id: interrupt
+            phrase: "spend three minutes answering that question"
+            targets: [picture]
+          - id: left
+            phrase: "six minutes remain"
+            targets: [picture]
+          - id: over
+            phrase: "original ending takes seven"
+            targets: [picture]
+      - say: "Answer their question first. If they want the paging trace, stay there. Otherwise, give the choice and your contribution two minutes. Keep three for the evidence and one for its limit. Those six minutes fit. You can omit a diagram now that the panel understands the request."
+        hold: 0.7
+        visual_cues:
+          - id: shorten
+            phrase: "give the choice and your contribution two minutes"
+            targets: [picture]
+          - id: fit
+            phrase: "Those six minutes fit"
+            targets: [picture]
+      - say: "The ninety-second version is your way back into the talk. Open a single supporting artifact if someone asks how the adapter stopped the loop. Have a listener try the interruption on you. A clock can show that you finished. The listener can tell you whose work they thought you were describing."
+        hold: 0.8
+        visual_cues:
+          - id: short
+            phrase: "ninety-second version"
+            targets: [picture]
+          - id: appendix
+            phrase: "single supporting artifact"
+            targets: [picture]
+  - id: measurement-limits
+    title: "Which requests belong in the denominator?"
+    visual: "Each quarter’s incident count is divided by its own request exposure. A separate service check counts attempts missing from the successful-request percentile."
+    beats:
+      - say: "The incident slide says five in the earlier quarter, one in the later quarter. Turn the first count into a rate. Five incidents in five million requests is one per million. Now use the later quarter's own traffic. One incident in half a million requests is two per million. The count fell, but the observed rate per request doubled."
+        hold: 0.85
+        visual_cues:
+          - id: prior
+            phrase: "Five incidents in five million requests"
+            targets: [picture]
+          - id: prior-rate
+            phrase: "one per million"
+            targets: [picture]
+          - id: later
+            phrase: "One incident in half a million requests"
+            targets: [picture]
+          - id: later-rate
+            phrase: "two per million"
+            targets: [picture]
+          - id: reverse
+            phrase: "rate per request doubled"
+            targets: [picture]
+      - say: "On a separate service check, the successful lookups have a ninety-fifth percentile of six hundred eighty milliseconds against an eight hundred millisecond limit. Which requests are missing from that percentile? Twenty of the two hundred attempts timed out. That leaves one hundred eighty successes. Ninety percent succeeded against a ninety-nine percent requirement. Both conditions have to pass. Hold promotion. Keep the failed requests and their durations in the report."
+        hold: 0.9
+        caption_starts: ["Which requests are missing from that percentile?", "Twenty of the two hundred attempts timed out."]
+        visual_cues:
+          - id: latency
+            phrase: "six hundred eighty milliseconds against an eight hundred millisecond limit"
+            targets: [picture]
+          - id: timeouts
+            phrase: "Twenty of the two hundred attempts timed out"
+            targets: [picture]
+          - id: fraction
+            phrase: "Ninety percent succeeded against a ninety-nine percent requirement"
+            targets: [picture]
+            caption_boundary: true
+          - id: hold
+            phrase: "Hold promotion."
+            targets: [picture]
+            caption_boundary: true
+  - id: metric-claims
+    title: "Which denominator goes under the gain?"
+    visual: "Two fractions use the same gain in hits. Incident and latency rows then show why a change in units changes the claim."
+    beats:
+      - say: "The interviewer points to the word percent. Fourteen additional hits, divided by two hundred queries, gives seven percentage points. For a relative improvement take the same fourteen and divide by the original one hundred forty-eight hits. That's about nine and a half percent relative improvement. Either way, there were eight regressions."
+        hold: 0.7
+        visual_cues:
+          - id: delta
+            phrase: "Fourteen additional hits"
+            targets: [picture]
+          - id: all-queries
+            phrase: "two hundred queries"
+            targets: [picture]
+          - id: points
+            phrase: "seven percentage points"
+            targets: [picture]
+            caption_boundary: true
+          - id: same-hits
+            phrase: "the same fourteen"
+            targets: [picture]
+          - id: original-hits
+            phrase: "the original one hundred forty-eight hits"
+            targets: [picture]
+          - id: relative
+            phrase: "nine and a half percent relative improvement"
+            targets: [picture]
+          - id: loss
+            phrase: "eight regressions"
+            targets: [picture]
+      - say: "For incident counts, five down to one is an eighty percent reduction. Put traffic back in, and the rate rises from one to two per million. You'd want the same incident definition, severity, exposure, and reporting practices across both quarters, plus more observation time. These two windows alone can't tell you what caused the change."
+        hold: 0.7
+        visual_cues:
+          - id: count
+            phrase: "eighty percent reduction"
+            targets: [picture]
+          - id: rate
+            phrase: "one to two per million"
+            targets: [picture]
+          - id: context
+            phrase: "severity, exposure, and reporting practices"
+            targets: [picture]
+      - say: "Lookup p95 went from seven hundred twenty to six hundred eighty milliseconds. That's forty milliseconds lower, about five point six percent of the baseline. Both percentiles meet the eight hundred millisecond target. To claim capacity for more traffic, run a load test. Include traffic mix, sample sizes, observation windows, and failures. Likewise, rerunning the same queries measures variation across runs. It doesn't sample any new tenants."
+        hold: 0.85
+        visual_cues:
+          - id: latency
+            phrase: "forty milliseconds"
+            targets: [picture]
+          - id: relative-p95
+            phrase: "five point six percent"
+            targets: [picture]
+          - id: capacity
+            phrase: "capacity for more traffic"
+            targets: [picture]
+          - id: repeat
+            phrase: "variation across runs"
+            targets: [picture]
+  - id: migration-stages
+    title: "Who actually received the candidate response?"
+    visual: "Each route delivers its output to a different destination. Offline replay and shadow output are scored or compared, while a canary begins serving users."
+    beats:
+      - say: "Where did the new code actually run? Start with a sanitized replay through both paths. Known labels let us check retrieval, pagination, authorization, and errors. The output goes to an offline comparison. We haven't served a user through the candidate yet."
+        hold: 0.65
+        visual_cues:
+          - id: replay
+            phrase: "sanitized replay"
+            targets: [picture]
+          - id: outcomes
+            phrase: "check retrieval, pagination, authorization, and errors"
+            targets: [picture]
+          - id: offline
+            phrase: "offline comparison"
+            targets: [picture]
+      - say: "For a permitted read-only shadow, copy a bounded sample of live lookups. The old path answers the user. We compare the candidate output on the side. Live traffic doesn't come with relevance labels. Even a read-only copy can consume quota, write an audit entry, or warm a cache. Stop copying if that extra load hurts the serving path."
+        hold: 0.7
+        visual_cues:
+          - id: shadow
+            phrase: "permitted read-only shadow"
+            targets: [picture]
+          - id: serves
+            phrase: "old path answers the user"
+            targets: [picture]
+          - id: compare
+            phrase: "compare the candidate output on the side"
+            targets: [picture]
+          - id: side
+            phrase: "write an audit entry, or warm a cache"
+            targets: [picture]
+      - say: "After those checks, a canary sends a small share of user traffic to the candidate. Now a real user gets its answer. Set the observation window, latency and error limits, quality checks, and a tested route back before you start. Name who can decide to increase traffic. Google Cloud's distinction between offline and online validation applies here."
+        hold: 0.85
+        visual_cues:
+          - id: canary
+            phrase: "canary sends a small share of user traffic to the candidate"
+            targets: [picture]
+          - id: owner
+            phrase: "who can decide to increase traffic"
+            targets: [picture]
+  - id: recovery-boundary
+    title: "What survives a routing change?"
+    visual: "The promotion decision and routing change leave an earlier shadow audit entry in place."
+    beats:
+      - say: "Return to our service policy. It requires both checks. Successful-request p95 was under eight hundred milliseconds. The success rate fell below ninety-nine percent. Keep the denominator in view. It's all attempts, including the timeouts that disappeared from the latency population."
+        hold: 0.6
+        visual_cues:
+          - id: both
+            phrase: "requires both checks"
+            targets: [picture]
+          - id: p95
+            phrase: "under eight hundred milliseconds"
+            targets: [picture]
+          - id: success
+            phrase: "fell below ninety-nine percent"
+            targets: [picture]
+          - id: attempts
+            phrase: "all attempts"
+            targets: [picture]
+      - say: "When either gate fails, hold promotion. Preserve the failed measurement. If you route back to the old path, follow the next request to see which code serves it. Now look at the audit log. The entry that the earlier shadow wrote is still there."
+        hold: 0.85
+        visual_cues:
+          - id: hold
+            phrase: "hold promotion"
+            targets: [picture]
+            caption_boundary: true
+          - id: rollback
+            phrase: "route back to the old path"
+            targets: [picture]
+          - id: route
+            phrase: "next request"
+            targets: [picture]
+          - id: effect
+            phrase: "The entry that the earlier shadow wrote is still there"
+            targets: [picture]
+      - say: "If your real project changes a schema or completes a write, describe its compatibility and recovery plan. Stopping the shadow ends future copies. Trace who served the responses and what was already written before you say what the rollback fixed."
+        hold: 0.85
+        visual_cues:
+          - id: separate
+            phrase: "compatibility and recovery plan"
+            targets: [picture]
+          - id: ownership
+            phrase: "who served the responses and what was already written"
+            targets: [picture]
+  - id: qa-claim-repair
+    title: "Where does the trace end?"
+    visual: "A span bounds the observed wait. The query plan stays empty until it can be obtained, then the presenter repairs a unit and a consequential claim."
+    beats:
+      - say: "Someone asks, “Does the store need an index?” Start with what your trace measured. The span covers the wait inside the store call. That time can include the network, server work, or waiting for a resource. A missing index is one hypothesis. What's the evidence that would distinguish it?"
+        hold: 1.3
+        visual_cues:
+          - id: trace
+            phrase: "what your trace measured"
+            targets: [picture]
+          - id: wait
+            phrase: "wait inside the store call"
+            targets: [picture]
+          - id: hypothesis
+            phrase: "missing index is one hypothesis"
+            targets: [picture]
+          - id: test
+            phrase: "evidence that would distinguish it"
+            targets: [picture]
+      - say: "I'd answer, “I owned the adapter tests. The store call was slow on this request. I'd ask the store team for the query plan and compare it with a faster request before recommending an index.” That's an answer you can give from the boundary you measured."
+        hold: 0.65
+        visual_cues:
+          - id: own
+            phrase: "I owned the adapter tests"
+            targets: [picture]
+          - id: plan
+            phrase: "query plan and compare it with a faster request"
+            targets: [picture]
+      - say: "What if you spot a mistake on the slide? Say what changes. On our results slide I'd correct seven percent to seven percentage points. The same queries still count. If instead we discover that a tenant lost a required runbook, that could change the rollout decision. Show which gate that tenant's case affects."
+        hold: 0.85
+        visual_cues:
+          - id: error
+            phrase: "you spot a mistake on the slide"
+            targets: [picture]
+          - id: unit
+            phrase: "seven percentage points"
+            targets: [picture]
+          - id: decision
+            phrase: "change the rollout decision"
+            targets: [picture]
+  - id: role-bridge
+    title: "What if a model chooses the lookup?"
+    visual: "A model-selected request stops at tenant authorization. Evaluation, runtime enforcement, and interview tool permission answer different questions."
+    beats:
+      - say: "An agent-platform interviewer asks what carries over. Replace the support engineer at the start with a model proposing a tool call. Leave the tenant check in front of the connector. If the tenant lacks permission, deny the request before data access. You can test that behavior with unauthorized requests. Even four passing tests leave the runtime check necessary on every call."
+        hold: 0.75
+        visual_cues:
+          - id: model
+            phrase: "model proposing a tool call"
+            targets: [picture]
+          - id: auth
+            phrase: "tenant check in front of the connector"
+            targets: [picture]
+          - id: deny
+            phrase: "deny the request before data access"
+            targets: [picture]
+          - id: tests
+            phrase: "four passing tests"
+            targets: [picture]
+      - say: "For a retrieval team, open the lost queries and their tenant coverage. For a research team, show the hypothesis those losses suggest and the controlled comparison that could test it. In each version you still own the connector work you actually did."
+        hold: 0.55
+        visual_cues:
+          - id: retrieval
+            phrase: "lost queries and their tenant coverage"
+            targets: [picture]
+          - id: research
+            phrase: "controlled comparison that could test it"
+            targets: [picture]
+      - say: "For interview tools, check what this format permits. Ask ahead if the invitation is silent. Permission to prepare with an assistant is separate from permission to use it live. A sanitized trace still needs approval before you upload it."
+        hold: 0.75
+        visual_cues:
+          - id: policy
+            phrase: "what this format permits"
+            targets: [picture]
+          - id: upload
+            phrase: "approval before you upload it"
+            targets: [picture]
+  - id: rehearsal-diagnosis
+    title: "Which claim would a listener challenge?"
+    visual: "A listener asks for a request, a denominator, and an owner, then tests the architecture claim against a timing trace and the paging failure."
+    beats:
+      - say: "Hand your first slide to a colleague. If it lists packages, ask them to find one request and the point where it can fail. If it quotes a percentage, can they find what you counted and over what window? If they credit you with the whole store, put your adapter contract and its tests beside your name."
+        hold: 0.7
+        visual_cues:
+          - id: request
+            phrase: "one request and the point where it can fail"
+            targets: [picture]
+          - id: denom
+            phrase: "what you counted and over what window"
+            targets: [picture]
+          - id: own
+            phrase: "your adapter contract and its tests"
+            targets: [picture]
+      - say: "Now give them the retrieval slide. Other code or a new index could account for the gain. What comparison would isolate the connector? Tell them where the evidence came from. A replay uses recorded inputs. A shadow observes copied traffic. A canary serves it. Open one appendix item that answers their question."
+        hold: 0.7
+        visual_cues:
+          - id: confound
+            phrase: "comparison would isolate the connector"
+            targets: [picture]
+          - id: scope
+            phrase: "replay"
+            targets: [picture]
+            caption_boundary: true
+          - id: appendix
+            phrase: "one appendix item"
+            targets: [picture]
+      - say: "Ask them to challenge your design choice. Would a split shorten the blue source wait? What would make isolation worth the extra hop? If they ask whether the adapter can return a partial collection as complete, open the two page receipts. A listener who can explain your choice, an alternative, and what would change your mind can tell you where the talk needs more work."
+        hold: 0.75
+        visual_cues:
+          - id: question
+            phrase: "challenge your design choice"
+            targets: [picture]
+          - id: reverse
+            phrase: "make isolation worth the extra hop"
+            targets: [picture]
+          - id: failure
+            phrase: "two page receipts"
+            targets: [picture]
+  - id: next-experiment
+    title: "Which change could explain the lost hits?"
+    visual: "The eight lost query IDs remain visible. The same DNS query goes to both arms of a proposed path-only replay, with empty result fields for the two measurements."
+    beats:
+      - say: "The panel asks whether your connector caused the retrieval change. In the first comparison, the path and the index could both have changed. Propose another run. Freeze the query IDs and text, corpus revision, labels, and tenant permissions. Keep the index, model, and other code and settings fixed. Switch only the connector path."
+        hold: 0.75
+        visual_cues:
+          - id: mix
+            phrase: "path and the index could both have changed"
+            targets: [picture]
+          - id: fix
+            phrase: "query IDs and text, corpus revision, labels, and tenant permissions"
+            targets: [picture]
+          - id: vary
+            phrase: "Switch only the connector path"
+            targets: [picture]
+      - say: "Rebuild the paired counts for all two hundred queries. Inspect each of the eight earlier losses alongside its new result, and look for newly broken queries too. Did the DNS guide make the top five on each path? Those two fields are what I'd record. If only the candidate loses the guide with the same index, I'd investigate how its connector fetched the runbook."
+        hold: 1
+        visual_cues:
+          - id: pairs
+            phrase: "paired counts"
+            targets: [picture]
+          - id: inspect
+            phrase: "inspect each of the eight earlier losses"
+            targets: [picture]
+          - id: unknown
+            phrase: "Those two fields are what I'd record."
+            targets: [picture]
+          - id: distinguish
+            phrase: "If only the candidate loses the guide"
+            targets: [picture]
+  - id: fresh-evidence
+    title: "What would you tell the panel?"
+    visual: "Two marked lost query IDs change to shared hits on a fresh replay. A separate board of service attempts supplies the evidence for the final promotion decision."
+    beats:
+      - say: "Take the last question yourself. Here's a fresh synthetic replay of forty queries. Eighteen find their labeled runbook on both paths. Three find it only on the baseline. Six find it only on the candidate. Thirteen miss on both."
+        hold: 0.7
+        visual_cues:
+          - id: shared
+            phrase: "Eighteen find their labeled runbook on both paths"
+            targets: [picture]
+          - id: lost
+            phrase: "Three find it only on the baseline"
+            targets: [picture]
+          - id: new
+            phrase: "Six find it only on the candidate"
+            targets: [picture]
+          - id: neither
+            phrase: "Thirteen miss on both"
+            targets: [picture]
+      - say: "Now you repair two of the three lost queries. Their candidate responses gain the runbook. Every other result stays fixed. The baseline still has twenty-one hits. After the repair, how many extra hits over the baseline can you report?"
+        hold: 3
+        caption_starts: ["how many extra hits over the baseline can you report?"]
+        visual_cues:
+          - id: repair
+            phrase: "repair two of the three lost queries"
+            targets: [picture]
+          - id: old
+            phrase: "The baseline still has twenty-one hits"
+            targets: [picture]
+          - id: ask
+            phrase: "After the repair, how many extra hits over the baseline can you report?"
+            targets: [picture]
+            caption_boundary: true
+      - say: "Move those two queries up. Now twenty hit on both paths and one still regresses. Add the six candidate-only hits to the twenty shared hits. The candidate hits on twenty-six of the forty queries. That's five more than twenty-one. Five over forty gives twelve and a half percentage points."
+        hold: 1
+        caption_starts: ["That's five more than twenty-one."]
+        visual_cues:
+          - id: move
+            phrase: "Move those two queries up"
+            targets: [picture]
+          - id: fixed
+            phrase: "Now twenty hit on both paths and one still regresses"
+            targets: [picture]
+            caption_boundary: true
+          - id: hits
+            phrase: "The candidate hits on twenty-six of the forty queries"
+            targets: [picture]
+            caption_boundary: true
+          - id: net
+            phrase: "twelve and a half percentage points"
+            targets: [picture]
+            caption_boundary: true
+      - say: "The panel wants a recommendation. You've also run a separate service check. Successful-request p95 was seven hundred eighty milliseconds against a limit of eight hundred. The policy also requires at least ninety-nine percent success. In forty attempted requests, one timed out. Would you recommend moving more traffic?"
+        hold: 3
+        visual_cues:
+          - id: service
+            phrase: "separate service check"
+            targets: [picture]
+          - id: latency
+            phrase: "seven hundred eighty milliseconds against a limit of eight hundred"
+            targets: [picture]
+          - id: policy
+            phrase: "at least ninety-nine percent success"
+            targets: [picture]
+          - id: timeout
+            phrase: "one timed out"
+            targets: [picture]
+          - id: recommend
+            phrase: "Would you recommend moving more traffic?"
+            targets: [picture]
+            caption_boundary: true
+      - say: "Thirty-nine of forty requests succeeded. That's ninety-seven and a half percent. I'd hold promotion. My repair brought back two lost runbooks. The candidate now has five more hits than the baseline on these forty queries. I'd inspect the remaining regression and trace the timeout before moving more traffic."
+        hold: 1.8
+        visual_cues:
+          - id: fraction
+            phrase: "That's ninety-seven and a half percent."
+            targets: [picture]
+            caption_boundary: true
+          - id: hold
+            phrase: "I'd hold promotion."
+            targets: [picture]
+            caption_boundary: true

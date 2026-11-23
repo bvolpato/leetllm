@@ -1,0 +1,230 @@
+version: 1
+lesson: rope
+promise: Trace where position enters attention, calculate how a change in position affects a score, and decide whether a cached key can reproduce the full pass.
+objectives:
+  - id: order-and-visibility
+    can: Derive a row-permuted attention output and distinguish parallel execution from causal visibility.
+    scenes:
+      - intro
+      - permutation
+      - mask-and-prefill
+  - id: absolute-position
+    can: Construct paired absolute waves, expand their score terms and budget learned or concatenated position
+      designs.
+    scenes:
+      - insertion
+      - absolute-waves
+      - absolute-mixture
+      - finite-table
+  - id: rotary-geometry
+    can: Read a signed key projection, account for query length, and sum the pair contributions before scaling by the full head width.
+    scenes:
+      - rotation
+      - matrix
+      - dot-product
+      - shared-shift
+      - frequencies
+      - full-head-contract
+      - pair-sum
+      - pairing-contract
+      - routing
+      - evaluation
+  - id: spatial-and-bias
+    can: Compute an axial spatial score and an ALiBi penalty while preserving the future mask.
+    scenes:
+      - axial-coordinates
+      - phase-wrap
+      - alibi
+      - alibi-spectrum
+      - far-content
+  - id: long-context-schedules
+    can: Compare PI, NTK-aware and YaRN frequency and amplitude changes, then test retrieval at different distances within a prompt-plus-generation budget.
+    scenes:
+      - interpolation
+      - position-precision
+      - ntk-schedule
+      - yarn-bands
+      - yarn-temperature
+      - checkpoint-contract
+  - id: cache-contract
+    can: Choose whether to copy or rebuild a rotated key, apply a chunk mask in physical slot order, and check the outputs against a full pass with the same frequency schedule.
+    scenes:
+      - cached-layer
+      - cached-chunk
+      - changing-schedule
+      - evaluation
+      - fresh-position-contract
+sections:
+  - heading: First, watch attention lose the order
+    status: taught
+    scenes:
+      - intro
+      - permutation
+      - mask-and-prefill
+      - insertion
+  - heading: "Absolute position: give every slot a multi-speed fingerprint"
+    status: taught
+    scenes:
+      - absolute-waves
+  - heading: What addition guarantees, and what it leaves learned
+    status: taught
+    scenes:
+      - absolute-mixture
+      - finite-table
+  - heading: "RoPE: make a shared offset visible inside QK"
+    status: taught
+    scenes:
+      - rotation
+      - matrix
+      - dot-product
+      - shared-shift
+      - frequencies
+      - evaluation
+  - heading: The 2D rotation matrix and relative offset invariance
+    status: taught
+    scenes:
+      - matrix
+      - dot-product
+      - shared-shift
+      - full-head-contract
+  - heading: Complex number formulation and implementation
+    status: taught
+    scenes:
+      - full-head-contract
+      - pairing-contract
+      - routing
+  - heading: Image patches need height and width coordinates
+    status: taught
+    scenes:
+      - axial-coordinates
+  - heading: A relative phase can rise again
+    status: taught
+    scenes:
+      - phase-wrap
+  - heading: "ALiBi: make recency a score bias"
+    status: taught
+    scenes:
+      - alibi
+  - heading: Slope schedule derivation and the recency spectrum
+    status: taught
+    scenes:
+      - alibi-spectrum
+  - heading: Extrapolation mechanics and the long-range penalty trap
+    status: taught
+    scenes:
+      - far-content
+  - heading: "Long context: a defined formula still needs evidence"
+    status: taught
+    scenes:
+      - phase-wrap
+      - position-precision
+      - checkpoint-contract
+  - heading: "PI: compress coordinates into the trained range"
+    status: taught
+    scenes:
+      - interpolation
+      - ntk-schedule
+  - heading: "NTK-aware scaling: stretch frequencies unevenly"
+    status: taught
+    scenes:
+      - ntk-schedule
+  - heading: "YaRN: treat frequency bands differently"
+    status: taught
+    scenes:
+      - frequencies
+      - yarn-bands
+      - yarn-temperature
+  - heading: Cache positions are part of the computation
+    status: taught
+    scenes:
+      - cached-layer
+      - cached-chunk
+      - changing-schedule
+      - evaluation
+      - fresh-position-contract
+  - heading: Read the whole checkpoint configuration
+    status: taught
+    scenes:
+      - checkpoint-contract
+  - heading: Choose by mechanism, then earn the window
+    status: taught
+    scenes:
+      - checkpoint-contract
+      - insertion
+  - heading: Check the three insertion points
+    status: taught
+    scenes:
+      - insertion
+      - absolute-waves
+      - routing
+      - alibi
+      - cached-chunk
+      - checkpoint-contract
+  - heading: Common misconceptions
+    status: taught
+    scenes:
+      - mask-and-prefill
+      - absolute-mixture
+      - finite-table
+      - phase-wrap
+      - checkpoint-contract
+      - changing-schedule
+quiz:
+  - n: 1
+    status: taught
+    scenes:
+      - permutation
+      - mask-and-prefill
+  - n: 2
+    status: taught
+    scenes:
+      - absolute-waves
+      - absolute-mixture
+  - n: 3
+    status: taught
+    scenes:
+      - dot-product
+      - shared-shift
+      - fresh-position-contract
+  - n: 4
+    status: taught
+    scenes:
+      - full-head-contract
+      - pairing-contract
+  - n: 5
+    status: taught
+    scenes:
+      - axial-coordinates
+  - n: 6
+    status: taught
+    scenes:
+      - alibi
+      - far-content
+  - n: 7
+    status: taught
+    scenes:
+      - ntk-schedule
+  - n: 8
+    status: taught
+    scenes:
+      - yarn-temperature
+  - n: 9
+    status: taught
+    scenes:
+      - cached-chunk
+  - n: 10
+    status: taught
+    scenes:
+      - checkpoint-contract
+      - cached-layer
+      - changing-schedule
+removed: []
+reviews:
+  closed_book:
+    taught: 10
+    partial: 0
+    absent: 0
+    script: aacaec307da37387
+  fact_check:
+    open_findings: 0
+    script: aacaec307da37387

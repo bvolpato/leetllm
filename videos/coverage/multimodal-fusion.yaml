@@ -1,0 +1,303 @@
+version: 1
+lesson: multimodal-fusion
+promise: Choose a multimodal route that fits the full request, then use the cited plot, legend and
+  event times to decide which claims the copilot can return.
+objectives:
+  - id: representation
+    can: Compute patch counts and connector outputs, trace a weighted visual read, and check which
+      chart details the decoder can recover.
+    scenes:
+      - opening
+      - patches
+      - decoded-budget
+      - encoder-directions
+      - connector
+      - multi-block-interface
+      - routes
+      - score-work
+      - attention
+      - zero-insertion
+      - closing
+  - id: training
+    can: Trace caption-loss gradients through frozen components and compare training and post-training
+      interventions
+    scenes:
+      - training-stages
+      - joint-and-posttraining
+  - id: serving
+    can: Compute full context and logical KV reservations, select bounded crops and audio groups, and
+      identify exactly which cached stages can be skipped
+    scenes:
+      - budget
+      - adaptive-crops
+      - audio-clock
+      - cache-lifetime
+      - cache-bytes
+      - fresh-incident
+  - id: evidence
+    can: Match a trace to its own legend, preserve source and clock mappings, and use inclusive
+      time bounds to decide whether an authorized region supports a chronology claim.
+    scenes:
+      - opening
+      - connector
+      - case-contract
+      - adaptive-crops
+      - evidence-time
+      - artifact-lineage
+      - safety-boundary
+      - closing
+      - fresh-incident
+  - id: operations
+    can: Choose modality-specific retry and partial behavior and diagnose failed release metrics under a
+      staged rollout
+    scenes:
+      - ready-recovery
+      - diagnosis-release
+      - route-choice
+      - fresh-incident
+sections:
+  - heading: "Product brief: an incident-evidence copilot"
+    status: taught
+    scenes:
+      - case-contract
+      - evidence-time
+  - heading: Requirements and API
+    status: taught
+    scenes:
+      - case-contract
+      - safety-boundary
+  - heading: Data flow and sizing
+    status: taught
+    scenes:
+      - case-contract
+      - artifact-lineage
+      - budget
+  - heading: Recovery, rollout, and evaluation
+    status: taught
+    scenes:
+      - ready-recovery
+      - diagnosis-release
+  - heading: "The concept: one shared evidence path"
+    status: taught
+    scenes:
+      - opening
+      - artifact-lineage
+      - closing
+  - heading: Encoders, connector, decoder
+    status: taught
+    scenes:
+      - opening
+      - encoder-directions
+      - connector
+  - heading: Adapter-based vs jointly trained stacks
+    status: taught
+    scenes:
+      - encoder-directions
+      - training-stages
+      - joint-and-posttraining
+  - heading: Modality-specific encoders
+    status: taught
+    scenes:
+      - encoder-directions
+      - audio-clock
+  - heading: Connectors and projection layers
+    status: taught
+    scenes:
+      - connector
+  - heading: Connector depth is another design choice
+    status: taught
+    scenes:
+      - multi-block-interface
+      - zero-insertion
+  - heading: The token count problem
+    status: taught
+    scenes:
+      - patches
+      - decoded-budget
+      - budget
+  - heading: Fusion strategies
+    status: taught
+    scenes:
+      - routes
+      - score-work
+  - heading: Early fusion (visual prefix or interleaving)
+    status: taught
+    scenes:
+      - routes
+      - budget
+  - heading: Late fusion
+    status: taught
+    scenes:
+      - routes
+      - route-choice
+  - heading: Cross-attention fusion (Flamingo-style)
+    status: taught
+    scenes:
+      - attention
+      - zero-insertion
+      - score-work
+  - heading: Training strategies
+    status: taught
+    scenes:
+      - training-stages
+      - joint-and-posttraining
+  - heading: Two-stage training (the 2023 LLaVA protocol)
+    status: taught
+    scenes:
+      - training-stages
+  - heading: End-to-end training
+    status: taught
+    scenes:
+      - joint-and-posttraining
+  - heading: Post-training for grounded behavior
+    status: taught
+    scenes:
+      - joint-and-posttraining
+      - diagnosis-release
+  - heading: Serving the evidence path
+    status: taught
+    scenes:
+      - cache-lifetime
+      - cache-bytes
+  - heading: "Efficient inference: token budget before parameter budget"
+    status: taught
+    scenes:
+      - cache-lifetime
+      - cache-bytes
+  - heading: Where MoE helps, and where it doesn't
+    status: taught
+    scenes:
+      - cache-bytes
+  - heading: Handling variable-length visual tokens
+    status: taught
+    scenes:
+      - adaptive-crops
+      - decoded-budget
+  - heading: Tiling and multi-crop encoding
+    status: taught
+    scenes:
+      - adaptive-crops
+  - heading: Queried reduction (Perceiver / Q-Former)
+    status: taught
+    scenes:
+      - connector
+      - adaptive-crops
+  - heading: Audio integration
+    status: taught
+    scenes:
+      - audio-clock
+  - heading: Practical considerations
+    status: taught
+    scenes:
+      - diagnosis-release
+  - heading: Training instability
+    status: taught
+    scenes:
+      - joint-and-posttraining
+  - heading: Safety & adversarial attacks
+    status: taught
+    scenes:
+      - safety-boundary
+  - heading: Reasoning after perception
+    status: taught
+    scenes:
+      - connector
+      - joint-and-posttraining
+      - diagnosis-release
+  - heading: Common pitfalls
+    status: taught
+    scenes:
+      - joint-and-posttraining
+      - cache-bytes
+      - artifact-lineage
+  - heading: Evaluation rubric
+    status: taught
+    scenes:
+      - diagnosis-release
+      - closing
+      - fresh-incident
+  - heading: Follow-up questions
+    status: taught
+    scenes:
+      - adaptive-crops
+      - evidence-time
+      - safety-boundary
+  - heading: What changes when a continuous video feed replaces the screenshot?
+    status: taught
+    scenes:
+      - adaptive-crops
+  - heading: What if an 8K dashboard exceeds memory but its tiny labels are essential?
+    status: taught
+    scenes:
+      - adaptive-crops
+  - heading: Can a 14:22 transcript sentence support a claim about a 14:02 event?
+    status: taught
+    scenes:
+      - evidence-time
+  - heading: What happens to cached evidence when an operator loses access to the case?
+    status: taught
+    scenes:
+      - safety-boundary
+  - heading: How would you distinguish a connector regression from a decoder regression?
+    status: taught
+    scenes:
+      - joint-and-posttraining
+      - artifact-lineage
+quiz:
+  - n: 1
+    status: taught
+    scenes:
+      - decoded-budget
+      - connector
+  - n: 2
+    status: taught
+    scenes:
+      - evidence-time
+      - fresh-incident
+  - n: 3
+    status: taught
+    scenes:
+      - cache-lifetime
+  - n: 4
+    status: taught
+    scenes:
+      - training-stages
+      - multi-block-interface
+  - n: 5
+    status: taught
+    scenes:
+      - patches
+      - connector
+      - adaptive-crops
+  - n: 6
+    status: taught
+    scenes:
+      - zero-insertion
+      - attention
+  - n: 7
+    status: taught
+    scenes:
+      - score-work
+  - n: 8
+    status: taught
+    scenes:
+      - diagnosis-release
+  - n: 9
+    status: taught
+    scenes:
+      - adaptive-crops
+  - n: 10
+    status: taught
+    scenes:
+      - artifact-lineage
+      - safety-boundary
+removed: []
+reviews:
+  closed_book:
+    script: b269f3c532153b09
+    taught: 10
+    partial: 0
+    absent: 0
+  fact_check:
+    script: b269f3c532153b09
+    open_findings: 0

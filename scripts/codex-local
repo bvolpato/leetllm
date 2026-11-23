@@ -1,0 +1,22 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+ROOT="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)"
+export CODEX_HOME="$ROOT/secrets/codex"
+unset CODEX_ACCESS_TOKEN OPENAI_API_KEY CODEX_AUTH_JSON_B64 GEMINI_API_KEY SUPABASE_SERVICE_ROLE_KEY
+
+umask 077
+mkdir -p "$CODEX_HOME"
+chmod 700 "$CODEX_HOME"
+
+if [[ "${1:-}" == "login" || "${1:-}" == "logout" ]]; then
+    echo "Use ./scripts/codex_auth_device_login.py to issue project credentials." >&2
+    exit 2
+fi
+
+if [[ ! -f "$CODEX_HOME/auth.json" ]]; then
+    echo "Project Codex credentials missing. Run ./scripts/codex_auth_device_login.py first." >&2
+    exit 1
+fi
+
+exec codex "$@"

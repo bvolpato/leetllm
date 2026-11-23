@@ -1,0 +1,309 @@
+version: 1
+lesson: continued-pretraining
+promise: Trace how domain text and replay change a prediction, then choose which checkpoint earns a test on reserved incidents under a declared general-perplexity limit.
+framing: []
+objectives:
+  - id: intro
+    can: Predict how raising one shared logit changes the odds of the observed words in two notes.
+    scenes:
+      - intro
+  - id: incident-controls
+    can: Test a runbook retrieval baseline and isolate the contribution of domain pretraining with matched supervised tuning.
+    scenes:
+      - incident-controls
+  - id: diagnose
+    can: Match the training method to the failure
+    scenes:
+      - diagnose
+  - id: prompt-gradient
+    can: Trace a scored response through a sum to the two prompt embeddings that supplied it.
+    scenes:
+      - prompt-gradient
+  - id: scored-objective
+    can: Count the positions the chosen causal loss can score
+    scenes:
+      - scored-objective
+  - id: fertility-cost
+    can: Measure token fertility and decide what to check on the whole corpus.
+    scenes:
+      - fertility-cost
+  - id: vocabulary-shapes
+    can: Resize both vocabulary-indexed tables and initialize a new input row from its subwords.
+    scenes:
+      - vocabulary-shapes
+  - id: vocabulary-denominator
+    can: Recompute an old target’s probability after a new output row adds mass to the denominator.
+    scenes:
+      - vocabulary-denominator
+  - id: corpus
+    can: Prepare domain text before training
+    scenes:
+      - corpus
+  - id: grouped-holdout
+    can: Keep source revisions in one split before tokenization
+    scenes:
+      - grouped-holdout
+  - id: manifest-gate
+    can: Apply the rights, privacy, reservation and type checks to a source manifest.
+    scenes:
+      - manifest-gate
+  - id: normalized-overlap
+    can: Predict which evaluation copies a normalized hash will catch and which it can miss.
+    scenes:
+      - normalized-overlap
+  - id: packed-remainder
+    can: Find the returned remainder and decide how to carry it into the next packing call.
+    scenes:
+      - packed-remainder
+  - id: objective
+    can: Identify the next tokenizer piece and use its probability to explain the loss on an observed continuation.
+    scenes:
+      - objective
+  - id: optimizer-restart
+    can: Distinguish a full-state resume from restarting AdamW and compute its first coordinate update.
+    scenes:
+      - optimizer-restart
+  - id: schedule
+    can: Choose a learning rate for the new starting point
+    scenes:
+      - schedule
+  - id: exact-schedule
+    can: Compute the warmup rate at a zero-indexed step and identify the two steps that share the peak.
+    scenes:
+      - exact-schedule
+  - id: dapt-tapt
+    can: Distinguish domain text from unlabeled task inputs when choosing the adaptation corpus.
+    scenes:
+      - dapt-tapt
+  - id: replay
+    can: Mix in examples from the original distribution
+    scenes:
+      - replay
+  - id: fixed-budget
+    can: Calculate how much domain exposure replay displaces in a fixed token window.
+    scenes:
+      - fixed-budget
+  - id: target-weighting
+    can: Compute replay’s influence after masking under pooled-target, equal-block and explicit source weighting.
+    scenes:
+      - target-weighting
+  - id: evaluation
+    can: Compare held-out text fit, task accuracy and required retained abilities at the same checkpoint.
+    scenes:
+      - evaluation
+  - id: byte-normalization
+    can: Compare two tokenizers on the same scored bytes and explain a reversal between token perplexity and bits per byte.
+    scenes:
+      - byte-normalization
+  - id: corpus-reduction
+    can: Sum the log losses before exponentiating the corpus mean
+    scenes:
+      - corpus-reduction
+  - id: retained-outcomes
+    can: Check each required ability against its own minimum on the same held-out cases.
+    scenes:
+      - retained-outcomes
+  - id: select
+    can: Exclude candidates over the retention ceiling, compare eligible task scores and confirm the choice on reserved cases.
+    scenes:
+      - select
+  - id: selection-and-stopping
+    can: Distinguish a Pareto trade-off from a product ranking and quantify a one-case accuracy change before stopping.
+    scenes:
+      - selection-and-stopping
+  - id: objective-and-parameters
+    can: Choose the training objective and trainable parameters independently, then save the state needed to resume.
+    scenes:
+      - objective-and-parameters
+  - id: earned-adaptation
+    can: Recover a pooled gradient in a fresh batch, resolve an eligible task-score tie and design the reserved incident comparison.
+    scenes:
+      - earned-adaptation
+sections:
+  - heading: What each intervention changes
+    status: taught
+    scenes:
+      - intro
+      - incident-controls
+      - diagnose
+      - prompt-gradient
+      - scored-objective
+  - heading: Diagnose the shift before spending training compute
+    status: taught
+    scenes:
+      - fertility-cost
+      - grouped-holdout
+  - heading: Vocabulary extension vs. fixed tokenizer
+    status: taught
+    scenes:
+      - vocabulary-shapes
+      - vocabulary-denominator
+  - heading: "The two failure dynamics: forgetting and underfitting"
+    status: taught
+    scenes:
+      - objective
+      - evaluation
+  - heading: Learning rate re-warming and re-decaying
+    status: taught
+    scenes:
+      - optimizer-restart
+      - schedule
+      - exact-schedule
+  - heading: "Replay: keep prior-data signal in the mix"
+    status: taught
+    scenes:
+      - replay
+      - fixed-budget
+      - target-weighting
+  - heading: When continued pretraining is the right tool
+    status: taught
+    scenes:
+      - incident-controls
+      - dapt-tapt
+  - heading: Good signals
+    status: taught
+    scenes:
+      - dapt-tapt
+  - heading: Bad signals
+    status: taught
+    scenes:
+      - diagnose
+      - dapt-tapt
+  - heading: Data for continued pretraining
+    status: taught
+    scenes:
+      - corpus
+      - manifest-gate
+  - heading: Gate the corpus before tokenization
+    status: taught
+    scenes:
+      - manifest-gate
+  - heading: Screen for evaluation overlap
+    status: taught
+    scenes:
+      - grouped-holdout
+      - normalized-overlap
+  - heading: Mixing strategy
+    status: taught
+    scenes:
+      - fixed-budget
+      - target-weighting
+  - heading: Pack blocks and preserve the mixture
+    status: taught
+    scenes:
+      - packed-remainder
+      - fixed-budget
+      - target-weighting
+  - heading: "Evaluation: domain gain without lying to yourself"
+    status: taught
+    scenes:
+      - evaluation
+      - corpus-reduction
+      - retained-outcomes
+  - heading: "Lane 1: Domain mastery"
+    status: taught
+    scenes:
+      - corpus-reduction
+  - heading: "Lane 2: General capability retention and safety checks"
+    status: taught
+    scenes:
+      - byte-normalization
+      - corpus-reduction
+      - retained-outcomes
+  - heading: Gate, then rank the surviving checkpoints
+    status: taught
+    scenes:
+      - select
+      - earned-adaptation
+      - selection-and-stopping
+  - heading: Stopping rules
+    status: taught
+    scenes:
+      - selection-and-stopping
+      - objective-and-parameters
+  - heading: Where it fits relative to LoRA and SFT
+    status: taught
+    scenes:
+      - objective-and-parameters
+  - heading: Common pitfalls
+    status: taught
+    scenes:
+      - diagnose
+      - selection-and-stopping
+  - heading: Using continued pretraining to fix assistant tone
+    status: taught
+    scenes:
+      - diagnose
+      - incident-controls
+  - heading: Over-specializing on one corpus
+    status: taught
+    scenes:
+      - replay
+      - retained-outcomes
+  - heading: Skipping the downstream check
+    status: taught
+    scenes:
+      - corpus-reduction
+      - selection-and-stopping
+quiz:
+  - n: 1
+    status: taught
+    scenes:
+      - incident-controls
+      - earned-adaptation
+  - n: 2
+    status: taught
+    scenes:
+      - vocabulary-denominator
+  - n: 3
+    status: taught
+    scenes:
+      - corpus-reduction
+  - n: 4
+    status: taught
+    scenes:
+      - manifest-gate
+  - n: 5
+    status: taught
+    scenes:
+      - exact-schedule
+  - n: 6
+    status: taught
+    scenes:
+      - scored-objective
+      - prompt-gradient
+  - n: 7
+    status: taught
+    scenes:
+      - target-weighting
+      - earned-adaptation
+  - n: 8
+    status: taught
+    scenes:
+      - byte-normalization
+  - n: 9
+    status: taught
+    scenes:
+      - select
+      - selection-and-stopping
+      - earned-adaptation
+  - n: 10
+    status: taught
+    scenes:
+      - selection-and-stopping
+removed: []
+reviews:
+  closed_book:
+    script: 25bab43d80b3a7e5
+    reviewer: /root/upgrade_shard6
+    evidence: build/video-delivery-20261106/script-reviews/continued-pretraining.json
+    evidence_sha256: 2495355fdf528810cbaf22f7552e92713e3c405500d81aabd7aae735efe00a6e
+    taught: 10
+    partial: 0
+    absent: 0
+  fact_check:
+    script: 25bab43d80b3a7e5
+    reviewer: /root/upgrade_shard6
+    evidence: build/video-delivery-20261106/script-reviews/continued-pretraining.json
+    evidence_sha256: 2495355fdf528810cbaf22f7552e92713e3c405500d81aabd7aae735efe00a6e
+    open_findings: 0

@@ -1,0 +1,214 @@
+version: 1
+lesson: tokenization
+promise: Trace how BPE, WordPiece, and SentencePiece's Unigram cut text, then use the resulting IDs to decide whether a replacement tokenizer lets a checkpoint read and write the intended pieces.
+framing: []
+objectives:
+  - id: choose-granularity
+    can: Compare words, characters, and subwords by coverage, sequence length, and attention cost.
+    scenes: [ cut ]
+  - id: trace-bpe
+    can: Train BPE merges by hand, replay them on a new word, and predict the effect of reversing two rules that compete for the same letter.
+    scenes: [ merges, unseen, your-turn ]
+  - id: limit-merges
+    can: Explain why pre-tokenization spans exist, and why token counts do not add across chunks.
+    scenes: [ boundaries ]
+  - id: byte-coverage
+    can: Say what byte-level coverage solves, what it costs, and why a token can split a character.
+    scenes: [ bytes ]
+  - id: wordpiece
+    can: Compare association scoring with raw counts, and trace greedy longest match into its dead end.
+    scenes: [ wordpiece-score, wordpiece-match, your-turn ]
+  - id: sentencepiece
+    can: Explain the space marker and raw-sentence training, and what the marker cannot recover.
+    scenes: [ sentencepiece ]
+  - id: unigram
+    can: Find the best complete cut with Viterbi, compare the probability lost when a pruned piece breaks a path, and explain training with sampled cuts.
+    scenes: [ unigram-path, unigram-prune, regularization, your-turn ]
+  - id: normalization
+    can: Tell NFC from NFKC, and explain how normalization can erase information before any cut.
+    scenes: [ normalization ]
+  - id: row-contract
+    can: Find the first mismatched input row, predict the piece that an untied output head will emit, and identify what a pure ID renumbering must move.
+    scenes: [ hook, lookup, close ]
+  - id: price-vocabulary
+    can: Calculate the memory cost of a vocabulary, and say what evidence would justify paying it.
+    scenes: [ economics ]
+  - id: production-failures
+    can: Recognize language inflation, numeric cuts, code fragmentation, glitch tokens, and overflow from the full request.
+    scenes: [ inflation, numbers, code-whitespace, glitch, request ]
+sections:
+  - heading: "The granularity trade-off: characters, subwords, and words"
+    status: taught
+    scenes: [ cut ]
+  - heading: "Why not whole words? The OOV trade-off"
+    status: taught
+    scenes: [ cut, economics ]
+  - heading: "Why not raw bytes or characters? The quadratic attention cost"
+    status: taught
+    scenes: [ cut ]
+  - heading: The subword balance
+    status: taught
+    scenes: [ cut ]
+  - heading: "Byte pair encoding: bottom-up frequency merges"
+    status: taught
+    scenes: [ merges ]
+  - heading: How BPE training works
+    status: taught
+    scenes: [ merges ]
+  - heading: Replaying merges at inference time
+    status: taught
+    scenes: [ unseen ]
+    note: Each run starts from the letters in rain. If r joins a first, the rule for a and i cannot fire. Reversing the rules leaves r on its own.
+  - heading: Byte-level BPE and UTF-8 fallbacks
+    status: taught
+    scenes: [ bytes ]
+  - heading: Why regex pre-tokenization is critical
+    status: taught
+    scenes: [ boundaries ]
+  - heading: "WordPiece: likelihood-driven subword selection"
+    status: taught
+    scenes: [ wordpiece-score ]
+  - heading: Likelihood intuition and a teaching proxy
+    status: taught
+    scenes: [ wordpiece-score ]
+  - heading: "Greedy longest-match inference and `##` continuations"
+    status: taught
+    scenes: [ wordpiece-match ]
+  - heading: The greedy dead-end failure
+    status: taught
+    scenes: [ wordpiece-match ]
+  - heading: SentencePiece and the Unigram language model
+    status: taught
+    scenes: [ sentencepiece, unigram-path ]
+  - heading: Raw stream processing and reversible whitespace detokenization
+    status: taught
+    scenes: [ sentencepiece ]
+  - heading: "The Unigram LM: top-down loss-minimizing pruning"
+    status: taught
+    scenes: [ unigram-prune ]
+    note: The worked example holds piece scores fixed. Removing in breaks one low-probability path for ▁rain. Removing ▁rain breaks the highest-probability path. The trainer estimates pruning loss across its corpus and refits the surviving probabilities.
+  - heading: Viterbi decoding on candidate lattices
+    status: taught
+    scenes: [ unigram-path ]
+  - heading: "Subword regularization: training with segmentation noise"
+    status: taught
+    scenes: [ regularization ]
+  - heading: "Vocabulary economics: parameter memory vs context efficiency"
+    status: taught
+    scenes: [ economics ]
+  - heading: Calculating the parameter memory bill
+    status: taught
+    scenes: [ economics ]
+  - heading: The sequence compression payoff
+    status: taught
+    scenes: [ economics ]
+  - heading: Modern tokenizer failure modes in production
+    status: taught
+    scenes: [ inflation, numbers, code-whitespace, glitch ]
+  - heading: '1. Multilingual token inflation ("The fertility tax")'
+    status: taught
+    scenes: [ inflation ]
+  - heading: 2. Arithmetic and numeric pre-tokenization
+    status: taught
+    scenes: [ numbers ]
+  - heading: 3. Code indentation and whitespace handling
+    status: taught
+    scenes: [ code-whitespace ]
+  - heading: 4. Glitch tokens and under-trained vocabulary entries
+    status: taught
+    scenes: [ glitch ]
+  - heading: "Unicode normalization policies: NFC vs NFKC"
+    status: taught
+    scenes: [ normalization ]
+  - heading: A tokenizer stays with its checkpoint
+    status: taught
+    scenes: [ hook, lookup, close ]
+  - heading: Why a tokenizer swap can miss the learned rows
+    status: taught
+    scenes: [ hook, lookup, close ]
+    note: Both tokenizers reconstruct rain falls softly. Their IDs first disagree on the piece that includes the space before falls. The closing example holds the hidden vector fixed to isolate the effect of moving the untied output rows.
+  - heading: Production review checklist
+    status: article-only
+    reason: reference-table
+    note: The video teaches each failure and closes with where to look. The symptom-by-symptom table is a lookup for an incident, and nobody needs to hear it read aloud.
+  - heading: Check the tokenizer contract
+    status: taught
+    scenes: [ hook, lookup, bytes, glitch, close ]
+quiz:
+  - n: 1
+    status: taught
+    scenes:
+      - lookup
+      - close
+  - n: 2
+    status: taught
+    scenes:
+      - unseen
+  - n: 3
+    status: taught
+    scenes:
+      - bytes
+  - n: 4
+    status: taught
+    scenes:
+      - normalization
+  - n: 5
+    status: taught
+    scenes:
+      - wordpiece-match
+  - n: 6
+    status: taught
+    scenes:
+      - unigram-path
+  - n: 7
+    status: taught
+    scenes:
+      - sentencepiece
+      - normalization
+  - n: 8
+    status: taught
+    scenes:
+      - economics
+  - n: 9
+    status: taught
+    scenes:
+      - merges
+  - n: 10
+    status: taught
+    scenes:
+      - hook
+      - lookup
+removed:
+  - point: The running example of plays, with the question of how many positions five letters take, and its corpus of play, plays, and plot.
+    reason: Replaced by the rain, rainy, and rail corpus, which teaches the same training and replay and matches the article and the film's computed numbers. The prediction moved to the wordpiece-match, unigram-path, and your-turn scenes.
+  - point: The cat and slept example of a replaced vocabulary file, and the two-row demonstration of swapping input and output rows together.
+    reason: Replaced by the same point on the falls and soft IDs from the running sentence. The rule that input and output rows must move together stays in the lookup scene.
+  - point: The dictionary example of playing, played, and playful collapsing into one unknown token, and playing needing seven character positions.
+    reason: Replaced by a typo or new product name, and the seventeen character positions of the running sentence.
+  - point: The comparison of Children happily played outdoors at 32, 7, and 4 positions, with score grids of 1,024 and 49 cells.
+    reason: Repeats the same quadratic point that the running sentence teaches at 17, 4, and 3 positions, with 289 and 16 comparisons.
+  - point: The pre-tokenizer example separating play from outside at a space.
+    reason: Replaced by the article's example of failed with a period and failed with an exclamation mark, which also shows why the rule exists.
+  - point: The WordPiece trap built from play, pla, and continuation ying, and the Playing with an exclamation mark cleanup example.
+    reason: Replaced by the article's rainb, rain, and continuation bow trap, which uses the same corpus theme. The cleanup steps are still named in the wordpiece-match scene.
+  - point: The good morning marker example, including why a marker appears before the first word.
+    reason: Replaced by rain falls, and the dummy prefix is still taught. The sentencepiece scene says by default one more marker goes at the start.
+  - point: The Unigram pruning example of removing ous at zero loss and house at about three nats, and the lattice for longest.
+    reason: The marker rain lattice shows why a piece can leave the best score unchanged but still contribute to the word's probability. Removing the whole piece lowers the best score twentyfold.
+  - point: The playground piece as an example of a word that saves one position.
+    reason: Replaced by a published measurement that shows the trade at real scale.
+  - point: The remark that the classroom trainer omits end-of-word markers.
+    reason: The original word-based BPE uses them, but a viewer does not need them to understand merging, and the article keeps the detail.
+  - point: The unseen word plums, including the point that repeating it in a prompt would not create a new merge.
+    reason: Replaced by rainly, a made-up word spelled from the corpus's own letters, because rainbow's B, O, and W are not in that corpus. The unseen scene still teaches that encoding replays a frozen list and invents nothing.
+  - point: The closing cards repeated the three segmentation algorithms and the four input IDs.
+    reason: The your-turn scene tests all three algorithms on new inputs. The close now tests the other direction of the same ID mapping by following a winning output row through the decoder.
+reviews:
+  closed_book:
+    taught: 10
+    partial: 0
+    absent: 0
+    script: 45319bf06cf20064
+  fact_check:
+    open_findings: 0
+    script: 45319bf06cf20064

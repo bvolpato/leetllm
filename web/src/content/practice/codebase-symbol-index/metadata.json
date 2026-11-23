@@ -1,0 +1,249 @@
+{
+  "id": "codebase-symbol-index",
+  "slug": "codebase-symbol-index",
+  "title": "Codebase Symbol Index",
+  "difficulty": "Medium",
+  "category": "Retrieval",
+  "language": "python3",
+  "timeEstimateMinutes": 40,
+  "timeLimitMs": 2500,
+  "memoryLimitMb": 128,
+  "order": 155,
+  "tags": [
+    "code search",
+    "symbol index",
+    "retrieval",
+    "incremental updates"
+  ],
+  "source": "Frontier coding prep",
+  "summary": "Build an incremental code symbol index with file replacement, deletion, case-insensitive prefix search, and stable ranking.",
+  "starterCode": [
+    "class SymbolIndex:",
+    "    def update_file(self, path: str, content: str) -> None:",
+    "        pass",
+    "",
+    "    def remove_file(self, path: str) -> None:",
+    "        pass",
+    "",
+    "    def search(self, prefix: str, limit: int = 10) -> list[dict]:",
+    "        pass"
+  ],
+  "testCases": [
+    {
+      "name": "empty prefix nonpositive limits and result snapshots",
+      "visibility": "hidden",
+      "setup": [
+        "from solution import SymbolIndex",
+        "index = SymbolIndex()",
+        "index.update_file(\"a.py\", \"def cache():\\n    pass\")",
+        "rows = index.search(\"cache\")",
+        "rows[0][\"name\"] = \"changed\""
+      ],
+      "checks": [
+        {"input": "index.search(\"\")", "expression": "index.search(\"\")", "expected": "[]"},
+        {"input": "index.search(\"cache\", limit=0)", "expression": "index.search(\"cache\", limit=0)", "expected": "[]"},
+        {"input": "index.search(\"cache\", limit=-1)", "expression": "index.search(\"cache\", limit=-1)", "expected": "[]"},
+        {"input": "index.search(\"cache\")", "expression": "index.search(\"cache\")", "expected": "[{\"name\": \"cache\", \"path\": \"a.py\", \"line\": 1}]"}
+      ]
+    },
+    {
+      "name": "public indexes Python symbols",
+      "visibility": "sample",
+      "setup": [
+        "from solution import SymbolIndex",
+        "index = SymbolIndex()",
+        "index.update_file(\"src/cache.py\", \"class Cache:\\n    pass\\ndef clear_cache():\\n    pass\")"
+      ],
+      "checks": [
+        {
+          "input": "index = SymbolIndex()\nindex.update_file(\"src/cache.py\", \"class Cache:\\n    pass\\ndef clear_cache():\\n    pass\")\nindex.search(\"Ca\")",
+          "expression": "index.search(\"Ca\")",
+          "operator": "==",
+          "expected": "[{\"name\": \"Cache\", \"path\": \"src/cache.py\", \"line\": 1}]"
+        },
+        {
+          "input": "index = SymbolIndex()\nindex.update_file(\"src/cache.py\", \"class Cache:\\n    pass\\ndef clear_cache():\\n    pass\")\nindex.search(\"Ca\")\nindex.search(\"clear\")",
+          "expression": "index.search(\"clear\")",
+          "operator": "==",
+          "expected": "[{\"name\": \"clear_cache\", \"path\": \"src/cache.py\", \"line\": 3}]"
+        }
+      ]
+    },
+    {
+      "name": "public indexes JavaScript symbols",
+      "visibility": "sample",
+      "setup": [
+        "from solution import SymbolIndex",
+        "index = SymbolIndex()",
+        "index.update_file(\"app.js\", \"function routeRequest() {}\\nconst router = {}\\nlet retries = 3\")"
+      ],
+      "input": "index = SymbolIndex()\nindex.update_file(\"app.js\", \"function routeRequest() {}\\nconst router = {}\\nlet retries = 3\")\n[item[\"name\"] for item in index.search(\"r\")]",
+      "expected": "[\"retries\", \"router\", \"routeRequest\"]",
+      "expression": "[item[\"name\"] for item in index.search(\"r\")]"
+    },
+    {
+      "name": "hidden update removes stale symbols",
+      "visibility": "hidden",
+      "setup": [
+        "from solution import SymbolIndex",
+        "index = SymbolIndex()",
+        "index.update_file(\"a.py\", \"def old_name():\\n    pass\")",
+        "index.update_file(\"a.py\", \"def new_name():\\n    pass\")"
+      ],
+      "checks": [
+        {
+          "input": "index = SymbolIndex()\nindex.update_file(\"a.py\", \"def old_name():\\n    pass\")\nindex.update_file(\"a.py\", \"def new_name():\\n    pass\")\nindex.search(\"old\")",
+          "expression": "index.search(\"old\")",
+          "operator": "==",
+          "expected": "[]"
+        },
+        {
+          "input": "index = SymbolIndex()\nindex.update_file(\"a.py\", \"def old_name():\\n    pass\")\nindex.update_file(\"a.py\", \"def new_name():\\n    pass\")\nindex.search(\"old\")\nindex.search(\"new\")",
+          "expression": "index.search(\"new\")",
+          "operator": "==",
+          "expected": "[{\"name\": \"new_name\", \"path\": \"a.py\", \"line\": 1}]"
+        }
+      ]
+    },
+    {
+      "name": "hidden remove file clears symbols",
+      "visibility": "hidden",
+      "setup": [
+        "from solution import SymbolIndex",
+        "index = SymbolIndex()",
+        "index.update_file(\"a.py\", \"class Agent:\\n    pass\")",
+        "index.remove_file(\"a.py\")"
+      ],
+      "input": "index = SymbolIndex()\nindex.update_file(\"a.py\", \"class Agent:\\n    pass\")\nindex.remove_file(\"a.py\")\nindex.search(\"Agent\")",
+      "expected": "[]",
+      "expression": "index.search(\"Agent\")"
+    },
+    {
+      "name": "hidden exact match ranks first",
+      "visibility": "hidden",
+      "setup": [
+        "from solution import SymbolIndex",
+        "index = SymbolIndex()",
+        "index.update_file(\"a.py\", \"def cache():\\n    pass\\ndef cache_store():\\n    pass\")"
+      ],
+      "input": "index = SymbolIndex()\nindex.update_file(\"a.py\", \"def cache():\\n    pass\\ndef cache_store():\\n    pass\")\n[item[\"name\"] for item in index.search(\"cache\")]",
+      "expected": "[\"cache\", \"cache_store\"]",
+      "expression": "[item[\"name\"] for item in index.search(\"cache\")]"
+    },
+    {
+      "name": "hidden limit caps results",
+      "visibility": "hidden",
+      "setup": [
+        "from solution import SymbolIndex",
+        "index = SymbolIndex()",
+        "index.update_file(\"a.py\", \"def alpha():\\n    pass\\ndef alpine():\\n    pass\\ndef also():\\n    pass\")"
+      ],
+      "input": "index = SymbolIndex()\nindex.update_file(\"a.py\", \"def alpha():\\n    pass\\ndef alpine():\\n    pass\\ndef also():\\n    pass\")\nlen(index.search(\"al\", limit=2))",
+      "expected": "2",
+      "expression": "len(index.search(\"al\", limit=2))"
+    },
+    {
+      "name": "public search is case insensitive",
+      "visibility": "sample",
+      "description": "Lowercase queries match symbols with uppercase letters.",
+      "feedback": "Normalize both indexed prefixes and search queries to the same case.",
+      "setup": [
+        "from solution import SymbolIndex",
+        "index = SymbolIndex()",
+        "index.update_file(\"cache.py\", \"class Cache:\\n    pass\")"
+      ],
+      "input": "index.search(\"cache\")",
+      "expected": "[{\"name\": \"Cache\", \"path\": \"cache.py\", \"line\": 1}]"
+    },
+    {
+      "name": "hidden equal symbols sort by path",
+      "visibility": "hidden",
+      "description": "Identical symbol names use path as their deterministic tiebreaker.",
+      "feedback": "After symbol-name ranking, compare paths alphabetically.",
+      "setup": [
+        "from solution import SymbolIndex",
+        "index = SymbolIndex()",
+        "index.update_file(\"z.py\", \"def cache():\\n    pass\")",
+        "index.update_file(\"a.py\", \"def cache():\\n    pass\")"
+      ],
+      "input": "[item[\"path\"] for item in index.search(\"cache\")]",
+      "expected": "[\"a.py\", \"z.py\"]"
+    }
+  ],
+  "clarifyingQuestions": [
+    "Which languages and symbol forms are in scope?",
+    "Should search be prefix, substring, fuzzy, or semantic?",
+    "Should ranking prefer exact names, paths, recency, or symbol type?",
+    "How should file updates remove stale symbols?"
+  ],
+  "followUps": [
+    "Use tree-sitter or language parsers to recognize full language syntax.",
+    "Add full-text search and hybrid ranking.",
+    "Version index shards by commit, branch, parser version, and chunker version."
+  ],
+  "followUpGuide": [
+    "For language parsers, keep this index API but swap extraction. That lets parser failures fall back to lexical extraction.",
+    "",
+    "For hybrid ranking, combine exact symbol hits, path matches, BM25/trigram search, and embedding results. Record which signal retrieved each file.",
+    "",
+    "For versioning, include commit SHA, branch, Merkle root, parser version, and embedding model in the shard key."
+  ],
+  "complexityAnalysis": [
+    "- Let C be content characters, m matching symbols, and s each symbol-name length. Updating a file. Time: O(C + sum(s^2) over old and new symbols), because constructing and hashing every prefix scans its characters. Space: O(C + sum(s^2) over new symbols) at peak, including split lines and stored prefix strings.",
+    "- Removing a file. Time: O(sum(s^2) over old symbols). Extra space: O(max(s)) for temporary prefix strings, beyond removed entries.",
+    "- Searching. Time: O(m log m) when name and path lengths are bounded; otherwise include string normalization and comparison costs. Space: O(m) candidate references plus returned dictionaries. A trie can share prefix characters and avoid storing a separate copy of each full prefix."
+  ],
+  "solutionGuide": [
+    "Maintain two indexes: file to symbols for replacement, and prefix to symbol keys for search.",
+    "",
+    "```python",
+    "import re",
+    "",
+    "",
+    "SYMBOL_RE = re.compile(r\"^\\s*(?:def|class|function|const|let|var)\\s+([A-Za-z_][A-Za-z0-9_]*)\")",
+    "",
+    "",
+    "class SymbolIndex:",
+    "    def __init__(self):",
+    "        self.by_file = {}",
+    "        self.symbols = {}",
+    "        self.by_prefix = {}",
+    "",
+    "    def update_file(self, path: str, content: str) -> None:",
+    "        self.remove_file(path)",
+    "        keys = []",
+    "        for line_no, line in enumerate(content.splitlines(), start=1):",
+    "            match = SYMBOL_RE.match(line)",
+    "            if not match:",
+    "                continue",
+    "            symbol = {\"name\": match.group(1), \"path\": path, \"line\": line_no}",
+    "            key = (path, line_no, symbol[\"name\"])",
+    "            self.symbols[key] = symbol",
+    "            keys.append(key)",
+    "            name = symbol[\"name\"].lower()",
+    "            for i in range(1, len(name) + 1):",
+    "                self.by_prefix.setdefault(name[:i], set()).add(key)",
+    "        self.by_file[path] = keys",
+    "",
+    "    def remove_file(self, path: str) -> None:",
+    "        for key in self.by_file.pop(path, []):",
+    "            symbol = self.symbols.pop(key, None)",
+    "            if not symbol:",
+    "                continue",
+    "            name = symbol[\"name\"].lower()",
+    "            for i in range(1, len(name) + 1):",
+    "                bucket = self.by_prefix.get(name[:i])",
+    "                if bucket:",
+    "                    bucket.discard(key)",
+    "                    if not bucket:",
+    "                        del self.by_prefix[name[:i]]",
+    "",
+    "    def search(self, prefix: str, limit: int = 10) -> list[dict]:",
+    "        wanted = prefix.lower()",
+    "        keys = self.by_prefix.get(wanted, set())",
+    "        matches = [self.symbols[key] for key in keys if key in self.symbols]",
+    "        matches.sort(key=lambda item: (item[\"name\"].lower() != wanted, item[\"name\"].lower(), item[\"path\"], item[\"line\"]))",
+    "        return [dict(item) for item in matches[:max(0, limit)]]",
+    "```"
+  ]
+}

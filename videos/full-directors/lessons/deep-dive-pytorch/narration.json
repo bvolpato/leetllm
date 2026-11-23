@@ -1,0 +1,384 @@
+[
+  {
+    "id": "view",
+    "title": "Follow the three through a transpose",
+    "sourceChapters": [
+      "c01"
+    ],
+    "beats": [
+      {
+        "id": "view-1",
+        "say": "Watch the three that starts the second row. If we turn this grid of six integers, which cell will point to those same bytes?",
+        "hold": 2.3
+      },
+      {
+        "id": "view-2",
+        "say": "Turn the grid. The three now ends the top row. Follow its wire down. Both coordinates land on the same physical slot. The new tensor shares the allocation with the old one. Only the sizes and strides have traded places.",
+        "hold": 0.9
+      },
+      {
+        "id": "view-3",
+        "say": "Try reading each view one row at a time. The original walks steadily to the right. The transpose jumps forward three slots, then back two. All six values are correct. What could make the next operator slower?",
+        "hold": 2.1
+      }
+    ]
+  },
+  {
+    "id": "route",
+    "title": "Find the operation that paid for the layout",
+    "sourceChapters": [
+      "c01"
+    ],
+    "beats": [
+      {
+        "id": "route-1",
+        "say": "Compare two calls to the same consumer. Give it the same values and mask, once from the transposed view and once from an already contiguous input. Include the cost of making that contiguous input when you time the whole path.",
+        "hold": 0.7
+      },
+      {
+        "id": "route-2",
+        "say": "Look inside the consumer in this example trace. A layout copy sits in front of its kernel. The transpose itself only changed metadata. Shared storage pointers establish the view. Allocation and profiler events around the consumer tell you whether it paid for a conversion.",
+        "hold": 0.7
+      },
+      {
+        "id": "route-3",
+        "say": "In eager Python, an operator schema describes the arguments, returns and any aliasing or mutation. Dispatch uses the tensor backend and active modes. A transformation such as autograd can handle its part and redispatch. The profiler identifies the implementation that actually ran on this device.",
+        "hold": 0.7
+      }
+    ]
+  },
+  {
+    "id": "flat",
+    "title": "Write through a view and read the copy",
+    "sourceChapters": [
+      "c02"
+    ],
+    "beats": [
+      {
+        "id": "flat-1",
+        "say": "Start with six contiguous integer values. The original view has two rows, three columns, and strides three and one. Multiply a coordinate by its stride and add the terms to the storage offset. Row one, column zero addresses element three. With eight-byte integers, that element begins at byte offset twenty-four.",
+        "hold": 0.7
+      },
+      {
+        "id": "flat-2",
+        "say": "Transpose the sizes and strides. The same cell is now row zero, column one of a three-by-two view. Flatten those rows. Could a single fixed stride take both the forward jump and the backward jump?",
+        "hold": 2.2
+      },
+      {
+        "id": "flat-3",
+        "say": "It needs two different jumps. Reshape copies these six values in row order into a second allocation. Now its second cell holds a three of its own. A reshape can return a view when the requested strides fit.",
+        "hold": 0.9
+      },
+      {
+        "id": "flat-4",
+        "say": "Suppose we write thirty through the transposed alias. Point to every three that will change.",
+        "hold": 2.5
+      },
+      {
+        "id": "flat-5",
+        "say": "Make the write. Both views now read thirty from byte twenty-four of storage A. The flattened copy still reads three from byte eight of storage B. An address needs both an allocation and an offset.",
+        "hold": 1.4
+      }
+    ]
+  },
+  {
+    "id": "tape",
+    "title": "Read the value saved for backward",
+    "sourceChapters": [
+      "c03"
+    ],
+    "beats": [
+      {
+        "id": "tape-1",
+        "say": "At three, the square function gives nine. Its slope is twice its input. In this run, multiplying a leaf by two produced that three. Autograd records the operations that actually ran. The square saves a reference to its input and remembers the version it used.",
+        "hold": 0.8
+      },
+      {
+        "id": "tape-2",
+        "say": "Detach the intermediate. Suppose we add one through that handle. The detached handle has no gradient history. Where do its bytes live, and can backward still use the saved input?",
+        "hold": 2
+      },
+      {
+        "id": "tape-3",
+        "say": "The write reached the same allocation. The current value is four at version one. The square expects version zero. Backward rejects this run when it tries to read the saved tensor. Substituting four would differentiate a different forward pass.",
+        "hold": 0.8
+      },
+      {
+        "id": "tape-4",
+        "say": "Replay the forward pass. This time clone the detached handle before the write. The clone takes the four. The saved intermediate stays at three, and its version still matches. What gradient reaches the original leaf?",
+        "hold": 2.1
+      },
+      {
+        "id": "tape-5",
+        "say": "The square sends six to the multiply. The multiply sends twelve to the leaf. That last factor comes from the earlier operation on the tape. A small double-precision numerical gradient check can test a custom reverse rule against its forward function.",
+        "hold": 1.2
+      }
+    ]
+  },
+  {
+    "id": "attention",
+    "title": "Place the query in its prefix",
+    "sourceChapters": [
+      "c04"
+    ],
+    "beats": [
+      {
+        "id": "attention-1",
+        "say": "Take one query and two keys. The first key points along the query, the second across it. Their dot products are one and zero. Divide by the square root of two, the head dimension's square root. Softmax turns the two scores into shares of a single vote.",
+        "hold": 0.7
+      },
+      {
+        "id": "attention-2",
+        "say": "Mix the value rows. The first key puts its share along the horizontal axis and the second puts its share along the vertical. The result is about six point seven by six point six. Both keys have contributed.",
+        "hold": 0.8
+      },
+      {
+        "id": "attention-3",
+        "say": "Give this one-row query an upper-left causal mask. Count the permitted keys from position zero. Where will the output land?",
+        "hold": 2
+      },
+      {
+        "id": "attention-4",
+        "say": "Only the first key can participate. Its probability is one, and the output is ten, zero. All its weight lands on the first value. Now move the query to position one, the last token of this two-token prefix. Keep the keys, values and query vector fixed. Which keys can it use now, and where will the output land?",
+        "hold": 2.2
+      },
+      {
+        "id": "attention-5",
+        "say": "Both keys are at or before position one, so both pass. Mix both value rows with their original shares. The output returns to about six point seven by six point six. The query and key shapes stayed the same through both experiments.",
+        "hold": 1
+      }
+    ]
+  },
+  {
+    "id": "padding",
+    "title": "Catch a reversed padding mask",
+    "sourceChapters": [
+      "c04"
+    ],
+    "beats": [
+      {
+        "id": "padding-1",
+        "say": "Try a migration with equal scores and a conspicuous padding value. The real tokens carry four and eight. The padding token carries one thousand. Disable dropout for this comparison. Our old padding flag is true on the padded key. Which value survives if we pass those flags directly to scaled dot-product attention?",
+        "hold": 2.4
+      },
+      {
+        "id": "padding-2",
+        "say": "One thousand survives. A true boolean entry in this interface participates. Invert the flags so that just the two real keys may contribute. What output should those equal scores give?",
+        "hold": 2.1
+      },
+      {
+        "id": "padding-3",
+        "say": "Their mean is six. A module in evaluation mode still needs an explicit dropout probability of zero for this deterministic test. Compare the output and the query, key and value gradients with the reference formula before benchmarking a backend.",
+        "hold": 0.6
+      },
+      {
+        "id": "padding-4",
+        "say": "Take one sequence of eight thousand one hundred ninety-two tokens and two attention heads. Each head pairs every query position with every key position. Across both heads, that gives just over a hundred thirty-four million scores. At two bytes per score, one dense score buffer would take two hundred fifty-six mebibytes. A tiled attention kernel still computes the dense query-key products. It updates each query's running softmax and weighted value a tile at a time, so it can avoid writing that full buffer. Device, dtype, strides and mask affect eligibility. Check the actual kernel name in a profiler on the build you plan to time.",
+        "hold": 0.7
+      }
+    ]
+  },
+  {
+    "id": "guards",
+    "title": "Match a call to a cached graph",
+    "sourceChapters": [
+      "c05"
+    ],
+    "beats": [
+      {
+        "id": "guards-1",
+        "say": "Our reference function squares each element and multiplies by a Python scale. Use this small cache with three guard fields. They are dtype, stride, and scale. The first input is one, two, with scale two. There is no entry yet.",
+        "hold": 0.7
+      },
+      {
+        "id": "guards-2",
+        "say": "Capture A. Its output is two, eight, the same as eager execution. Repeat the key with different tensor values. The cache reuses A and evaluates it on the new numbers. Which field would fail if we changed only the scale on that input?",
+        "hold": 2
+      },
+      {
+        "id": "guards-3",
+        "say": "Scale changes to three. Capture B for the new key. Its output is twelve, twenty-seven. Both elements used the new scale. Return to the first key and A works again. A change in stride would also miss these stored keys, even with the original dtype and scale.",
+        "hold": 0.8
+      },
+      {
+        "id": "guards-4",
+        "say": "A guard failure sends a new call looking for a matching variant. A graph break instead divides one execution into regions around unsupported code. Dynamo captures regions. AOTAutograd can stage forward and backward. Inductor lowers suitable graphs into optimized code.",
+        "hold": 0.6
+      },
+      {
+        "id": "guards-5",
+        "say": "The counting backend executes eagerly. Two captures alone establish no speedup. Time compilation and warm execution separately. Match the compiled backward autocast assumption to the context that backward actually uses, and compare losses and gradients under the intended precision and placement.",
+        "hold": 0.7
+      }
+    ]
+  },
+  {
+    "id": "partial",
+    "title": "Reduce matching coordinates before choosing owners",
+    "sourceChapters": [
+      "c06"
+    ],
+    "beats": [
+      {
+        "id": "partial-1",
+        "say": "Each of these two ranks holds a vector of sum-partial contributions. The two entries on the left belong to global coordinate zero. The two on the right belong to coordinate one. Predict the length and the values of the logical vector.",
+        "hold": 2.1
+      },
+      {
+        "id": "partial-2",
+        "say": "Add down each column. The result is eleven, twenty-two. Concatenation would produce four entries, and averaging would halve both sums. The placement says which operation the local values require.",
+        "hold": 0.8
+      },
+      {
+        "id": "partial-3",
+        "say": "Redistribute partial to replicated. All-reduce gives both ranks the complete reduced vector. If the next operator needs just its local coordinate, where should the same two sums go?",
+        "hold": 2.2
+      },
+      {
+        "id": "partial-4",
+        "say": "Start from the same partials and reduce-scatter. Rank zero keeps eleven and rank one keeps twenty-two. DeviceMesh names the communicating axis. DTensor describes how each local result belongs to one global tensor. Ranks in a process group must agree on collective order and compatible shapes, or a peer can wait indefinitely.",
+        "hold": 0.8
+      }
+    ]
+  },
+  {
+    "id": "pipeline",
+    "title": "Scale equal microbatches once",
+    "sourceChapters": [
+      "c06"
+    ],
+    "beats": [
+      {
+        "id": "pipeline-1",
+        "say": "Pipeline parallelism divides consecutive layers into stages. Follow three equal microbatches through two stages. The second stage waits for the first activation. At the other end the first stage has finished while the second drains the final activation.",
+        "hold": 0.7
+      },
+      {
+        "id": "pipeline-2",
+        "say": "During backward, gradients travel in the opposite direction. Suppose the three mean losses contribute gradients two, four and six for one parameter. The schedule scales accumulated gradients by the microbatch count. What full-batch mean gradient do we want?",
+        "hold": 2.3
+      },
+      {
+        "id": "pipeline-3",
+        "say": "The full-batch mean is four. The schedule divides twelve by three once. Now divide each loss by three before backward as well. Keep the schedule setting. What reaches the optimizer?",
+        "hold": 2.1
+      },
+      {
+        "id": "pipeline-4",
+        "say": "A second division leaves four thirds. For equal sizes and mean losses, give the division to one owner. Unequal sizes need weights proportional to the number of examples. A sum-reduced objective follows a different contract.",
+        "hold": 1
+      }
+    ]
+  },
+  {
+    "id": "residency",
+    "title": "Gather the parameter a module will consume",
+    "sourceChapters": [
+      "c07"
+    ],
+    "beats": [
+      {
+        "id": "residency-1",
+        "say": "Four ranks each own two rows of this eight-row, one-column weight. Rank zero holds rows zero and one at rest. A data-parallel rank will run the whole module on its own examples. Which rows does its computation require?",
+        "hold": 2.1
+      },
+      {
+        "id": "residency-2",
+        "say": "Call the module normally so its pre-forward hooks execute. All-gather supplies all eight rows to each rank. Watch the compute copy on rank zero fill in ownership order. Its persistent two-row shard stays live as well.",
+        "hold": 1
+      },
+      {
+        "id": "residency-3",
+        "say": "With reshard after forward enabled, release the full compute allocation. Rank zero returns to its shard and gathers again if backward needs the parameter. Retaining the full copy can avoid that gather at a higher memory cost. Gradient reduction then supplies the shard for the rank's optimizer update.",
+        "hold": 0.8
+      },
+      {
+        "id": "residency-4",
+        "say": "Compare colwise tensor parallelism for the same Linear weight. The stored rows are output features. Each rank computes its two output features from the same input. The four local feature slices make one output. Data parallelism gathered all eight rows for each local computation.",
+        "hold": 0.8
+      }
+    ]
+  },
+  {
+    "id": "peak",
+    "title": "Find the allocations that cross the rank limit",
+    "sourceChapters": [
+      "c07"
+    ],
+    "beats": [
+      {
+        "id": "peak-1",
+        "say": "Count simultaneous allocations in this separate rank snapshot. A sixteen-element parameter is sharded over four ranks. Keep the local four, a separate full compute allocation of sixteen, and twelve activations. The allowance is thirty-six equal-size elements. Will an eight-element prefetch fit?",
+        "hold": 2.3
+      },
+      {
+        "id": "peak-2",
+        "say": "Add the next block. Forty elements are live together, four above the allowance. Each color occupies a different allocation. The full compute parameter coexists with its shard in this snapshot.",
+        "hold": 0.8
+      },
+      {
+        "id": "peak-3",
+        "say": "Delay only the prefetch. Thirty-two remain live, leaving four slots free. The later prefetch may expose a communication wait. Real memory budgets also include gradients, optimizer state, temporary buffers and allocator overhead. Measure their lifetimes on the actual rank.",
+        "hold": 0.9
+      }
+    ]
+  },
+  {
+    "id": "restore",
+    "title": "Rebuild the destination at the saved step",
+    "sourceChapters": [
+      "c08"
+    ],
+    "beats": [
+      {
+        "id": "restore-1",
+        "say": "A job saved a complete checkpoint at step eighty and then finished seven more steps before a worker failed. Twelve logical elements used to live in three equal shards. The relaunched job has two ranks. Which progress point and which shard size belong to its destination?",
+        "hold": 2.4
+      },
+      {
+        "id": "restore-2",
+        "say": "Restart from step eighty. Each new rank receives six elements. The launcher reforms the worker group. Application code builds the model and optimizer with the target placement, then Distributed Checkpoint fills the destination state from logical names and supported shard metadata.",
+        "hold": 0.8
+      },
+      {
+        "id": "restore-3",
+        "say": "Resume from the saved data cursor and replay the seven unsaved steps. Restore the scheduler, scaler and random state along with weights and optimizer history. Test data reassignment when the world size changes. A single-process CPU reload leaves worker failure and multi-rank resharding to a distributed recovery drill.",
+        "hold": 0.8
+      }
+    ]
+  },
+  {
+    "id": "update",
+    "title": "Compare the first update after restore",
+    "sourceChapters": [
+      "c08"
+    ],
+    "beats": [
+      {
+        "id": "update-1",
+        "say": "One Adam step with gradient positive one half took this weight from one to point nine nine. The checkpoint holds both moments and the step counter. Feed each branch the same next gradient, negative one quarter. For the new first moment, take nine tenths of the old moment and add one tenth of the gradient. Adam subtracts a step with the sign of that new moment. Which branch will move up?",
+        "hold": 2.5
+      },
+      {
+        "id": "update-2",
+        "say": "Carry the saved history forward. Nine tenths of the old moment is point zero four five. Subtract point zero two five from that, and the new first moment is positive point zero two. The second moment and the incremented counter set the bias-corrected magnitude. Subtracting the step moves the uninterrupted weight down to about point nine eight seven three. A full restore lands at the same mark.",
+        "hold": 1.2
+      },
+      {
+        "id": "update-3",
+        "say": "Now start from the same saved weight with fresh Adam history. The history contributes zero. Zero minus point zero two five leaves a first moment of negative point zero two five. Subtracting a negative step moves the weight up to about one. Equal pre-update losses would have missed this difference.",
+        "hold": 0.8
+      },
+      {
+        "id": "update-4",
+        "say": "One last replay isolates the scheduler. Keep the weight, gradient, moments and counter from the complete restore. Halve just its learning rate. Which way and how far will that branch move?",
+        "hold": 2.3
+      },
+      {
+        "id": "update-5",
+        "say": "It still moves down, half as far. The next weight is about point nine eight eight seven. To verify a restart, compare the next data item, gradient, learning rate and first updated weight with the uninterrupted branch. That replay tests whether the next step really continued. Here the full restore reproduces the uninterrupted weight of about point nine eight seven three.",
+        "hold": 1.6
+      }
+    ]
+  }
+]

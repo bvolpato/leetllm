@@ -1,0 +1,1179 @@
+version: 1
+id: capstone-document-qa-product
+title: Build and Audit a Document QA and Research Product
+source: foundations/capstone-document-qa-product/content.md
+voice: en-US-AndrewNeural
+rate: +0%
+sources:
+  - title: "Lewis et al.: retrieval-augmented generation"
+    url: https://arxiv.org/abs/2005.11401
+  - title: FActScore
+    url: https://aclanthology.org/2023.emnlp-main.741/
+  - title: TRUE factual consistency
+    url: https://aclanthology.org/2022.naacl-main.287/
+  - title: Ragas
+    url: https://arxiv.org/abs/2309.15217
+  - title: Lost in the Middle
+    url: https://arxiv.org/abs/2307.03172
+  - title: BERT passage reranking
+    url: https://arxiv.org/abs/1901.04085
+  - title: FastAPI TestClient
+    url: https://fastapi.tiangolo.com/tutorial/testing/
+  - title: Google Deep Research
+    url: https://ai.google.dev/gemini-api/docs/deep-research
+  - title: Python Unicode HOWTO
+    url: https://docs.python.org/3/howto/unicode.html
+scenes:
+  - id: intro
+    title: Which document may speak for policy?
+    visual: A published access policy and private note enter separate evidence lanes before an answer can form.
+    beats:
+      - say: An assistant receives a question about restoring access. Search finds a published policy and a
+          private note that says to grant access immediately. Both contain relevant words. A useful
+          document service must establish which source may speak for policy before it chooses what to
+          return.
+        hold: 0.75
+        visual_cues:
+          - id: intro-b1-1
+            phrase: published policy
+            targets:
+              - published-source
+            linger: 0.45
+          - id: intro-b1-2
+            phrase: private note
+            targets:
+              - private-source
+            linger: 0.45
+          - id: intro-b1-3
+            phrase: which source may speak for policy
+            targets:
+              - source-identities
+            linger: 0.45
+      - say: We will build an inspectable lookup, then follow its evidence boundaries into a longer research job.
+          The local baseline returns an approved passage for an exact reviewed question. That small
+          starting point exposes authority, caller access, retrieval and answer support as separate
+          decisions.
+        hold: 0.85
+        visual_cues:
+          - id: intro-b2-1
+            phrase: approved passage
+            targets:
+              - admitted-baseline
+            linger: 0.45
+          - id: intro-b2-2
+            phrase: authority, caller access, retrieval and answer support
+            targets:
+              - published-source
+            linger: 0.45
+  - id: admission
+    title: Admit evidence from a controlled registry
+    visual: Three source records receive independent registry and content checks before two approved records
+      enter the corpus.
+    beats:
+      - say: A parser supplies text and metadata. A controlled registry supplies the publication grant and
+          expected text identity. The private note includes its own approved flag. Look for the corresponding
+          publication grant in the registry. Can this note enter the index?
+        hold: 0.75
+        visual_cues:
+          - id: admission-b1-1
+            phrase: parser supplies text and metadata
+            targets:
+              - parser-records
+            linger: 0.45
+          - id: admission-b1-2
+            phrase: controlled registry
+            targets:
+              - registry-records
+            linger: 0.45
+          - id: admission-b1-3
+            phrase: approved flag
+            targets:
+              - private-metadata
+            linger: 0.45
+      - say: The supplied registry admits the access and incident policies while excluding the note. A hash
+          detects changed bytes against its trusted reference. Protect the registry and its writers
+          separately, and preserve source versions so an admitted passage can be recovered when someone
+          questions a later answer.
+        hold: 0.85
+        visual_cues:
+          - id: admission-b2-1
+            phrase: admits the access and incident policies
+            targets:
+              - corpus-decisions
+            linger: 0.45
+          - id: admission-b2-2
+            phrase: hash detects changed bytes
+            targets:
+              - identity-check
+            linger: 0.45
+          - id: admission-b2-3
+            phrase: preserve source versions
+            targets:
+              - retained-version
+            linger: 0.45
+  - id: access
+    title: Search within the caller’s readable evidence
+    visual: A server-controlled region filter precedes scoring and changes the eligible corpus for US and EU
+      callers.
+    beats:
+      - say: Published evidence can still have access limits. Resolve the caller through the service’s trusted
+          identity path, then search within the evidence that caller may read. Our fixture uses permitted
+          regions to make the ordering visible before any retrieval score is computed.
+        hold: 0.75
+        visual_cues:
+          - id: access-b1-1
+            phrase: trusted identity path
+            targets:
+              - authenticated-caller
+            linger: 0.45
+          - id: access-b1-2
+            phrase: caller may read
+            targets:
+              - readable-corpus
+            linger: 0.45
+          - id: access-b1-3
+            phrase: before any retrieval score
+            targets:
+              - search-candidates
+            linger: 0.45
+      - say: Filtering only after a global top result can throw away a restricted passage without recovering
+          readable alternatives. Test the actual index’s filtering semantics, and apply access rules to
+          caches, citations and source fetches too. A caller-supplied region field cannot establish the
+          caller’s permissions.
+        hold: 0.85
+        visual_cues:
+          - id: access-b2-1
+            phrase: restricted passage
+            targets:
+              - readable-corpus
+            linger: 0.45
+          - id: access-b2-2
+            phrase: caller-supplied region
+            targets:
+              - principal
+            linger: 0.45
+          - id: access-result-complete
+            phrase: "Filtering only after a global top result can throw away a restricted passage without recovering readable alternatives"
+            targets:
+              - access-mechanism
+            linger: 0.5
+          - id: access-global
+            phrase: global top result
+            targets:
+              - access-mechanism
+            linger: 0.5
+          - id: access-alternative
+            phrase: recovering readable alternatives
+            targets:
+              - access-mechanism
+            linger: 0.5
+  - id: retrieval
+    title: Use shared words to find candidates
+    visual: Term intersections rank approved passages while a reviewed paraphrase exposes the lexical
+      baseline’s vocabulary gap.
+    beats:
+      - say: "Our first retriever compares normalized meaningful terms. It is easy to inspect: shared words
+          contribute to the score, and candidates below the minimum stay out. The access question finds
+          the relevant policy. The number describes token overlap under this analyzer, so inspect the
+          candidate itself. This analyzer counts unique normalized term intersections, with a minimum
+          score of two; the required question overlaps on eight terms."
+        hold: 0.75
+        visual_cues:
+          - id: retrieval-b1-1
+            phrase: normalized meaningful terms
+            targets:
+              - analyzed-terms
+            linger: 0.45
+          - id: retrieval-b1-2
+            phrase: shared words contribute
+            targets:
+              - shared-count
+            linger: 0.45
+          - id: retrieval-b1-3
+            phrase: below the minimum
+            targets:
+              - candidate-threshold
+            linger: 0.45
+      - say: "A familiar rewording can remove those shared terms and expose a recall gap. That gives a concrete
+          experiment for dense or hybrid retrieval. Recovering the passage still leaves a second task:
+          deciding whether that passage supports this exact question under the answer contract."
+        hold: 0.85
+        visual_cues:
+          - id: retrieval-b2-1
+            phrase: remove those shared terms
+            targets:
+              - analyzed-terms
+            linger: 0.45
+          - id: retrieval-b2-2
+            phrase: recall gap
+            targets:
+              - shared-count
+            linger: 0.45
+  - id: support
+    title: Shared terms can accompany opposite claims
+    visual: A negated permission retains the original terms plus one negation token, preserving high overlap
+      while reversing meaning.
+    beats:
+      - say: "Keep the policy sentence fixed and insert a negation into a proposed permission claim. Almost every
+          meaningful word survives. A word-overlap threshold would happily accept the pair, even though
+          the claim now reverses what the policy says about restoration after identity verification.
+          Jaccard similarity divides intersection size by union size: eight shared terms out of nine give
+          about zero point eight eight nine, above the unsafe zero point eight similarity gate."
+        hold: 0.75
+        motion_check:
+          region:
+            - 175
+            - 535
+            - 1570
+            - 245
+          minimumChangedFraction: 0.002
+        visual_cues:
+          - id: support-b1-1
+            phrase: policy sentence fixed
+            targets:
+              - original-policy
+            linger: 0.45
+          - id: support-b1-2
+            phrase: insert a negation
+            targets:
+              - inserted-negation
+            linger: 0.45
+          - id: support-b1-3
+            phrase: Almost every meaningful word survives
+            targets:
+              - claim-words
+            linger: 0.45
+          - id: support-b1-4
+            phrase: reverses what the policy says
+            targets:
+              - meaning-result
+            linger: 0.45
+      - say: The baseline therefore requires a separately supplied support review bound to the question and exact
+          passage. Entailed permits the extractive answer. Contradicted, unknown, missing or stale review
+          stays outside delivery. The fixture checks those bindings. Real semantic judgments require an
+          evaluated verifier or a controlled review process.
+        hold: 0.85
+        visual_cues:
+          - id: support-b2-1
+            phrase: support review bound to the question and exact passage
+            targets:
+              - support-binding
+            linger: 0.45
+          - id: support-b2-2
+            phrase: Entailed permits
+            targets:
+              - delivery-decision
+            linger: 0.45
+          - id: support-b2-3
+            phrase: Contradicted, unknown, missing or stale review
+            targets:
+              - receipt-label
+            linger: 0.45
+          - id: receipt-refusals-complete
+            phrase: "Contradicted, unknown, missing or stale review stays outside delivery"
+            targets:
+              - delivery-decision
+            linger: 0.5
+          - id: receipt-entailed
+            phrase: Entailed permits the extractive answer
+            targets:
+              - support-binding
+            linger: 0.5
+          - id: receipt-contradicted
+            phrase: Contradicted
+            targets:
+              - support-binding
+            linger: 0.5
+          - id: receipt-unknown
+            phrase: unknown
+            targets:
+              - support-binding
+            linger: 0.5
+          - id: receipt-missing
+            phrase: missing
+            targets:
+              - support-binding
+            linger: 0.5
+          - id: receipt-stale
+            phrase: stale review
+            targets:
+              - support-binding
+            linger: 0.5
+  - id: responses
+    title: Preserve a useful answer and meaningful abstentions
+    visual: A supported question returns its exact cited passage, while an admin promise and private-note
+      instruction abstain.
+    beats:
+      - say: Test useful behavior and refusals together. The required policy question returns the approved
+          passage and its source identity. A nearby question about permanent admin access still retrieves
+          the policy, but its support record is unknown, so the service abstains without attaching a
+          misleading citation.
+        hold: 0.75
+        visual_cues:
+          - id: responses-b1-1
+            phrase: required policy question
+            targets:
+              - required-answer
+            linger: 0.45
+          - id: responses-b1-2
+            phrase: nearby question about permanent admin access
+            targets:
+              - unknown-support
+            linger: 0.45
+      - say: The private-note instruction never becomes policy authority. Retain these as distinct evaluation
+          rows alongside the successful answer, including original question, response, corpus identity
+          and grading reason. A system that refuses everything would fail the useful-answer case even
+          while passing the refusal cases.
+        hold: 0.85
+        visual_cues:
+          - id: responses-b2-1
+            phrase: private-note instruction
+            targets:
+              - private-note-refusal
+            linger: 0.45
+          - id: responses-b2-2
+            phrase: successful answer
+            targets:
+              - required-answer
+            linger: 0.45
+  - id: research
+    title: Give long research an explicit lifecycle
+    visual: A bounded research job advances through search, reading and verification with persisted budget
+      and cancellation state.
+    beats:
+      - say: A comparison across several policies needs more work than one lookup. Create a background job with a
+          bounded objective, source scope and resource budget. Persist its plan, admitted source
+          snapshots and progress so a replacement worker can resume from observed state after a
+          connection or process fails.
+        hold: 0.75
+        visual_cues:
+          - id: research-b1-1
+            phrase: bounded objective, source scope and resource budget
+            targets:
+              - search-budget
+            linger: 0.45
+          - id: research-b1-2
+            phrase: Persist its plan, admitted source snapshots and progress
+            targets:
+              - durable-checkpoint
+            linger: 0.45
+          - id: research-b1-3
+            phrase: replacement worker can resume
+            targets:
+              - worker-ownership
+            linger: 0.45
+      - say: Before completing the report, bind each claim to exact source spans and a checked support judgment.
+          Cancellation must stop new scheduling, while in-flight operations may require reconciliation.
+          Worker ownership, durable checkpoints and destination idempotency need their own
+          implementation. A job identifier alone cannot supply those properties.
+        hold: 0.85
+        visual_cues:
+          - id: research-b2-1
+            phrase: bind each claim
+            targets:
+              - retained-progress
+            linger: 0.45
+          - id: research-b2-2
+            phrase: Cancellation must stop new scheduling
+            targets:
+              - cancellation-state
+            linger: 0.45
+          - id: research-b2-3
+            phrase: in-flight operations may require reconciliation
+            targets:
+              - search-budget
+            linger: 0.45
+  - id: synthesis
+    title: Make the evidence contract survive the API
+    visual: Source authority, caller access, candidate relevance and bound support converge into one typed
+      response.
+    beats:
+      - say: "We separated four decisions that often disappear inside a fluent answer: source authority, caller
+          access, retrieval relevance and claim support. Each can fail independently. Preserving them
+          lets us improve a weak retriever while keeping the original evidence and refusal behavior under
+          test."
+        hold: 0.75
+        visual_cues:
+          - id: synthesis-b1-1
+            phrase: source authority
+            targets:
+              - authority-boundary
+            linger: 0.45
+          - id: synthesis-b1-2
+            phrase: caller access
+            targets:
+              - access-boundary
+            linger: 0.45
+          - id: synthesis-b1-3
+            phrase: retrieval relevance
+            targets:
+              - relevance-boundary
+            linger: 0.45
+          - id: synthesis-b1-4
+            phrase: claim support
+            targets:
+              - support-boundary
+            linger: 0.45
+      - say: Package the lookup with a typed response and replayable rows before expanding it. Keep corpus and
+          review versions, exact citation spans and useful-answer coverage visible. Then a longer
+          research report can reuse the same evidence boundary while adding a carefully bounded
+          orchestration loop.
+        hold: 0.85
+        visual_cues:
+          - id: synthesis-b2-1
+            phrase: typed response
+            targets:
+              - typed-result
+            linger: 0.45
+          - id: synthesis-b2-2
+            phrase: same evidence boundary
+            targets:
+              - support-boundary
+            linger: 0.45
+  - id: strict-corpus
+    title: Exercise admission and snapshot boundaries
+    visual: Duplicate IDs, wrong flag types and edited bytes fail separate visible checks; a separately
+      controlled registry remains the authority.
+    beats:
+      - say: Make the corpus admission rules executable. Two candidate records sharing a document identifier are
+          both rejected, even when their text matches. Publication and effectiveness flags must be actual
+          Booleans; the string false and the integer one are invalid. Require a matching grant, approved
+          source kind, scope and text digest before creating a chunk. Preserve a decision for every
+          candidate rather than silently dropping ambiguous records.
+        hold: 0.7
+        visual_cues:
+          - id: corpus-duplicates
+            phrase: both rejected
+            targets:
+              - strict-corpus-mechanism
+            linger: 0.5
+          - id: corpus-id-pair
+            phrase: sharing a document identifier
+            targets:
+              - strict-corpus-mechanism
+            linger: 0.5
+          - id: corpus-typed-flags
+            phrase: actual Booleans
+            targets:
+              - strict-corpus-mechanism
+            linger: 0.5
+          - id: corpus-admit-checks
+            phrase: matching grant
+            targets:
+              - strict-corpus-mechanism
+            linger: 0.5
+      - say: A matching hash checks bytes against the expected value, while the registry decides policy
+          authority. If someone improperly grants the private note published-policy status, admission now
+          accepts it. Fix that authority failure before tuning ranking. A valid registry entry also does
+          not make instructions inside a document safe to execute. The document service returns evidence;
+          it never grants access.
+        hold: 0.7
+        visual_cues:
+          - id: registry-authority
+            phrase: authority failure
+            targets:
+              - strict-corpus-mechanism
+            linger: 0.5
+          - id: bad-registry-grant
+            phrase: admission now accepts it
+            targets:
+              - strict-corpus-mechanism
+            linger: 0.5
+          - id: document-data-only
+            phrase: never grants access
+            targets:
+              - strict-corpus-mechanism
+            linger: 0.5
+      - say: The downloadable runner derives a snapshot digest from the registry, admitted records and parser
+          identity. It loads files when creating the app. Editing or revoking a source does not update an
+          already running app automatically. Versioned retention, live revocation behavior and protected
+          registry writers need a real implementation; an effective fixture Boolean is not a checked
+          current date.
+        hold: 0.7
+        visual_cues:
+          - id: snapshot-lifetime
+            phrase: already running app
+            targets:
+              - strict-corpus-mechanism
+            linger: 0.5
+          - id: snapshot-components
+            phrase: registry, admitted records and parser identity
+            targets:
+              - strict-corpus-mechanism
+            linger: 0.5
+          - id: snapshot-file-edit
+            phrase: Editing or revoking a source
+            targets:
+              - strict-corpus-mechanism
+            linger: 0.5
+          - id: snapshot-held
+            phrase: does not update an already running app automatically
+            targets:
+              - strict-corpus-mechanism
+            linger: 0.5
+  - id: typed-http
+    title: Inspect an actual caller response
+    visual: The in-process HTTP response contract carries exact passage text, snapshot, citation offsets and
+      receipt, while unauthorized and malformed requests stay separate.
+    beats:
+      - say: The local runner has three pinned direct dependencies and uses FastAPI’s in-process TestClient; it
+          starts no network server for these checks. The required demo US request returns the exact
+          policy passage, grounded status, a decision reason, corpus and content-derived snapshot
+          identity, and a citation carrying document, chunk, section, text hash and character offsets.
+          The support label and receipt identify the declared judgment that permitted delivery.
+        hold: 0.7
+        visual_cues:
+          - id: http-response
+            phrase: character offsets
+            targets:
+              - typed-http-mechanism
+            linger: 0.5
+          - id: http-local
+            phrase: in-process TestClient
+            targets:
+              - typed-http-mechanism
+            linger: 0.5
+          - id: http-answer-body
+            phrase: exact policy passage
+            targets:
+              - typed-http-mechanism
+            linger: 0.5
+          - id: http-source-fields
+            phrase: document, chunk, section, text hash
+            targets:
+              - typed-http-mechanism
+            linger: 0.5
+          - id: http-support-fields
+            phrase: support label and receipt
+            targets:
+              - typed-http-mechanism
+            linger: 0.5
+      - say: The returned access-policy passage spans characters zero through one hundred thirty-eight in the
+          supplied Python string, with the end offset excluded. Check the exact text and hash together. A
+          stable document name alone cannot recover changed bytes. The response excludes rejected private
+          record identifiers. These demo identities and semantic judgments are supplied fixtures, not
+          authenticated production reviewers.
+        hold: 0.7
+        visual_cues:
+          - id: exact-span
+            phrase: end offset excluded
+            targets:
+              - typed-http-mechanism
+            linger: 0.5
+          - id: span-exact-text
+            phrase: characters zero through one hundred thirty-eight
+            targets:
+              - typed-http-mechanism
+            linger: 0.5
+          - id: span-digest
+            phrase: exact text and hash together
+            targets:
+              - typed-http-mechanism
+            linger: 0.5
+      - say: The adapter's HTTP checks expect four hundred one for missing credentials and four hundred twenty-two
+          for a blank question or an extra caller-supplied region field. For the demo EU caller, the check
+          expects an abstention with no US citation. A real identity provider and server-side access policy must
+          replace these public demo credentials. Container packaging and live HTTP deployment are later
+          checks; this local run does not establish them.
+        hold: 0.7
+        visual_cues:
+          - id: http-boundaries
+            phrase: four hundred one
+            targets:
+              - typed-http-mechanism
+            linger: 0.5
+          - id: http-validation
+            phrase: four hundred twenty-two
+            targets:
+              - typed-http-mechanism
+            linger: 0.5
+          - id: http-eu
+            phrase: demo EU caller
+            targets:
+              - typed-http-mechanism
+            linger: 0.5
+  - id: retrieval-upgrade
+    title: Earn the next retrieval experiment
+    visual: A fixed paraphrase miss remains visible while lexical, dense and fused candidate lists change
+      without authorizing an answer.
+    beats:
+      - say: The controlled rewording removes the lexical baseline’s matches and produces no candidate. The test
+          author reviews whether the rewording preserves meaning; adding a new condition would change the
+          question. BM Twenty-five combines term frequency, document frequency and length normalization.
+          A bi-encoder separately encodes query and passage. Either can improve candidate recall, but
+          neither supplies the exact-question support receipt.
+        hold: 0.7
+        visual_cues:
+          - id: known-miss
+            phrase: no candidate
+            targets:
+              - retrieval-upgrade-mechanism
+            linger: 0.5
+          - id: retrieval-bm25
+            phrase: BM Twenty-five
+            targets:
+              - retrieval-upgrade-mechanism
+            linger: 0.5
+          - id: retrieval-dual
+            phrase: separately encodes query and passage
+            targets:
+              - retrieval-upgrade-mechanism
+            linger: 0.5
+      - say: Reciprocal rank fusion adds one divided by the quantity k plus rank for each list containing a
+          document, with ranks starting at one. A missing document contributes zero. The article
+          illustrates k equal to sixty; it is a parameter to evaluate. Fusion avoids adding incompatible
+          raw scores and cannot recover a document absent from every input list.
+        hold: 0.7
+        visual_cues:
+          - id: rrf-rule
+            phrase: missing document contributes zero
+            targets:
+              - retrieval-upgrade-mechanism
+            linger: 0.5
+          - id: rrf-add
+            phrase: adds one divided by the quantity k plus rank
+            targets:
+              - retrieval-upgrade-mechanism
+            linger: 0.5
+          - id: rrf-param
+            phrase: k equal to sixty
+            targets:
+              - retrieval-upgrade-mechanism
+            linger: 0.5
+      - say: A cross-encoder jointly encodes query and passage, permitting token interactions across both, unlike
+          separately encoded vectors. It adds computation and still does not establish support. Measure
+          quality, evidence position, packing and latency on frozen fixtures. Lost in the Middle found
+          position sensitivity in its tested tasks and models, rather than a universal failure of every
+          current long-context model. No large index or millisecond retrieval benchmark is run here.
+        hold: 0.7
+        visual_cues:
+          - id: rerank-scope
+            phrase: adds computation
+            targets:
+              - retrieval-upgrade-mechanism
+            linger: 0.5
+          - id: cross-token
+            phrase: token interactions across both
+            targets:
+              - retrieval-upgrade-mechanism
+            linger: 0.5
+          - id: position-experiment
+            phrase: evidence position, packing and latency
+            targets:
+              - retrieval-upgrade-mechanism
+            linger: 0.5
+  - id: claim-scope
+    title: Keep qualifiers in a generated answer
+    visual: The same source permits manager approval for privileged scopes; a rewrite broadens all restores
+      and must earn new claim-level review.
+    beats:
+      - say: A generative rewrite creates a new claim. Our source says privileged scopes require manager approval
+          before access is queued. Saying all access restoration requires manager approval broadens that
+          condition. The question-passage receipt does not cover the new wording. Decompose the generated
+          answer into atomic claims and bind each to the actual source spans used to support it. Claim
+          extraction itself can lose qualifiers.
+        hold: 0.7
+        visual_cues:
+          - id: scope-broadening
+            phrase: broadens that condition
+            targets:
+              - claim-scope-mechanism
+            linger: 0.5
+          - id: claim-source-scope
+            phrase: privileged scopes require manager approval
+            targets:
+              - claim-scope-mechanism
+            linger: 0.5
+          - id: claim-broaden
+            phrase: all access restoration
+            targets:
+              - claim-scope-mechanism
+            linger: 0.5
+          - id: claim-atomic
+            phrase: atomic claims
+            targets:
+              - claim-scope-mechanism
+            linger: 0.5
+      - say: FActScore measures the fraction of atomic facts supported by a reliable source; Ragas evaluates
+          several retrieval and generation dimensions. TRUE found complementary results from NLI and
+          question-answering approaches on its evaluated datasets. Those results motivate evaluation of a
+          verifier; they do not make a supplied entailed label independent proof. Under this product’s
+          rule, exclude unsupported action advice, recheck the remainder and abstain when it no longer
+          answers the question.
+        hold: 0.7
+        visual_cues:
+          - id: claim-repair
+            phrase: recheck the remainder
+            targets:
+              - claim-scope-mechanism
+            linger: 0.5
+          - id: claim-factscore
+            phrase: fraction of atomic facts supported
+            targets:
+              - claim-scope-mechanism
+            linger: 0.5
+          - id: claim-drop-advice
+            phrase: exclude unsupported action advice
+            targets:
+              - claim-scope-mechanism
+            linger: 0.5
+          - id: claim-abstain
+            phrase: abstain when it no longer answers
+            targets:
+              - claim-scope-mechanism
+            linger: 0.5
+  - id: replay-rows
+    title: Replay the grader rather than trust a pass flag
+    visual: Three actual fixture rows retain useful-answer, unsupported-question and untrusted-instruction
+      outcomes; missing/duplicate/typed mutations fail.
+    beats:
+      - say: "The executed baseline exports three rows: one useful grounded answer, an unsupported admin question
+          and an untrusted-instruction query. Each row carries dataset, grader, run and corpus versions;
+          stable fixture identity and slice; expected and actual status; cited sources; answer; support
+          label and receipt; and failure codes. This preserves different failure boundaries when a
+          dashboard later aggregates the run."
+        hold: 0.7
+        visual_cues:
+          - id: row-evidence
+            phrase: three rows
+            targets:
+              - replay-rows-mechanism
+            linger: 0.5
+          - id: row-useful
+            phrase: one useful grounded answer
+            targets:
+              - replay-rows-mechanism
+            linger: 0.5
+          - id: row-safety
+            phrase: unsupported admin question and an untrusted-instruction query
+            targets:
+              - replay-rows-mechanism
+            linger: 0.5
+          - id: row-lineage
+            phrase: dataset, grader, run and corpus versions
+            targets:
+              - replay-rows-mechanism
+            linger: 0.5
+      - say: Retrieval recall at one is one out of one for the single baseline case with an expected supporting
+          document. It is undefined for the two cases without one, so their rows store null rather than
+          zero. Citation checks resolve the exact chunk metadata, and the extractive answer must equal
+          its source text. A generative answer would require different evaluated checks.
+        hold: 0.7
+        visual_cues:
+          - id: recall-denominator
+            phrase: undefined
+            targets:
+              - replay-rows-mechanism
+            linger: 0.5
+          - id: row-one-denominator
+            phrase: one out of one
+            targets:
+              - replay-rows-mechanism
+            linger: 0.5
+          - id: row-null
+            phrase: null rather than zero
+            targets:
+              - replay-rows-mechanism
+            linger: 0.5
+      - say: The release gate requires exact fixture coverage and replays the local grader against every imported
+          row. Missing a safety row or duplicating a success blocks it. Type-sensitive replay also
+          rejects integer one in place of Boolean true. An abstain label with unsafe advice fails the
+          content check; a fabricated support receipt fails support. All fourteen marked article cells
+          pass for this source revision. The standalone runner includes HTTP checks; this review could
+          not verify its pinned environment. These checks call no semantic model and do not validate
+          deployment.
+        hold: 0.7
+        visual_cues:
+          - id: row-mutations
+            phrase: Type-sensitive replay
+            targets:
+              - replay-rows-mechanism
+            linger: 0.5
+          - id: row-missing
+            phrase: Missing a safety row
+            targets:
+              - replay-rows-mechanism
+            linger: 0.5
+          - id: row-typed
+            phrase: integer one in place of Boolean true
+            targets:
+              - replay-rows-mechanism
+            linger: 0.5
+          - id: row-unsafe
+            phrase: unsafe advice
+            targets:
+              - replay-rows-mechanism
+            linger: 0.5
+  - id: research-request
+    title: Give a research plan a bounded objective
+    visual: The same access task expands into US/EU subquestions with explicit allowed corpora, sections and
+      checked request limits.
+    beats:
+      - say: A research request decomposes the comparison into shared identity requirements, regional approval
+          differences and unresolved conflicts. Freeze the objective, allowed source versions, output
+          sections and budgets before searching. The example requests at most six steps, twelve sources
+          and three hundred seconds. A host must enforce each limit, refuse a thirteenth source and stop
+          new work at the deadline. They are product controls rather than instructions the model may
+          override.
+        hold: 0.7
+        visual_cues:
+          - id: research-contract
+            phrase: six steps
+            targets:
+              - research-request-mechanism
+            linger: 0.5
+          - id: request-questions
+            phrase: shared identity requirements
+            targets:
+              - research-request-mechanism
+            linger: 0.5
+          - id: request-source-cap
+            phrase: thirteenth source
+            targets:
+              - research-request-mechanism
+            linger: 0.5
+          - id: request-time-cap
+            phrase: deadline
+            targets:
+              - research-request-mechanism
+            linger: 0.5
+      - say: Source authority, caller access and tool permissions still apply across every search, fetch, cache
+          and response. External text supplies data; it cannot authorize a broader search or privileged
+          action. The current lookup simply returns the first retrieved passage with an accepted entailed
+          review. It has no conflict detector, precedence rule or effective-date resolver. Decide the
+          applicable jurisdiction and version before treating a ranking score as policy authority.
+        hold: 0.7
+        visual_cues:
+          - id: research-precedence
+            phrase: no conflict detector
+            targets:
+              - research-request-mechanism
+            linger: 0.5
+          - id: request-first-hit
+            phrase: first retrieved passage
+            targets:
+              - research-request-mechanism
+            linger: 0.5
+          - id: request-policy-rule
+            phrase: applicable jurisdiction and version
+            targets:
+              - research-request-mechanism
+            linger: 0.5
+  - id: research-checkpoint
+    title: Reconstruct the actual checkpoint and its limits
+    visual: The real mini-lab serializes researching/source-batch-2 at2/6, reconstructs it and records
+      cancellation before another scheduling decision.
+    beats:
+      - say: The executable research mini-lab advances queued to planning to researching, retains
+          source-batch-two and two of six steps, serializes that state as JSON and reconstructs the same
+          record. It then records cancelled-by-caller and rejects attempts to resume the terminal job.
+          Counters cannot regress, and Booleans are rejected as integer budgets. This is an in-memory
+          serialization round-trip, not durable storage or a functioning research worker.
+        hold: 0.7
+        visual_cues:
+          - id: checkpoint-proof
+            phrase: in-memory serialization
+            targets:
+              - research-checkpoint-mechanism
+            linger: 0.5
+          - id: job-queued
+            phrase: queued to planning to researching
+            targets:
+              - research-checkpoint-mechanism
+            linger: 0.5
+          - id: job-roundtrip
+            phrase: reconstructs the same record
+            targets:
+              - research-checkpoint-mechanism
+            linger: 0.5
+          - id: job-cancel
+            phrase: cancelled-by-caller
+            targets:
+              - research-checkpoint-mechanism
+            linger: 0.5
+      - say: Real resume needs atomically persisted plans, admitted source snapshots, operation records and
+          budget use. Acquire worker ownership and fence stale writers with transactional checks or a
+          fencing token. A lease alone does not stop an expired worker writing. Check cancellation before
+          scheduling another call; an in-flight remote operation may still finish. Reconcile its observed
+          result, and rely on an operation key for duplicate suppression only when the destination
+          actually enforces it.
+        hold: 0.7
+        visual_cues:
+          - id: worker-fence
+            phrase: "Acquire worker ownership and fence stale writers with transactional checks or a fencing token"
+            targets:
+              - research-checkpoint-mechanism
+            linger: 0.5
+          - id: job-persist
+            phrase: atomically persisted
+            targets:
+              - research-checkpoint-mechanism
+            linger: 0.5
+          - id: job-old-writer
+            phrase: expired worker writing
+            targets:
+              - research-checkpoint-mechanism
+            linger: 0.5
+          - id: job-reconcile
+            phrase: in-flight remote operation
+            targets:
+              - research-checkpoint-mechanism
+            linger: 0.5
+      - say: The mini-lab enforces the step counter only. Source and elapsed-time limits remain requirements to
+          implement. A browser disconnect is not the server-side cancellation record. Preserve the
+          checkpoint and receipts after cancellation so a reviewer can distinguish completed work, unused
+          budget and uncertain operations.
+        hold: 0.7
+        visual_cues:
+          - id: budget-limits
+            phrase: step counter only
+            targets:
+              - research-checkpoint-mechanism
+            linger: 0.5
+          - id: job-other-limits
+            phrase: Source and elapsed-time limits
+            targets:
+              - research-checkpoint-mechanism
+            linger: 0.5
+          - id: job-browser
+            phrase: browser disconnect
+            targets:
+              - research-checkpoint-mechanism
+            linger: 0.5
+  - id: research-claims
+    title: Bind exact spans and a semantic judgment
+    visual: US/EU source snapshots build two supported claims; a negated manager claim, unknown security
+      claim and private-note claim hit different gates.
+    beats:
+      - say: The report mini-lab uses two admitted policy sources and an unadmitted private note. It constructs a
+          shared identity-verification claim from both policies and a US manager-approval claim from the
+          US source. Each claim binds exact character spans and their hashes, source snapshot digests,
+          claim identity and claim-text hash to a separate adjudication receipt and approved review path.
+          Offsets index Python characters, while the hash encodes the selected text as UTF-eight bytes.
+          For a precomposed e with an acute accent followed by capital A, a span from zero to one selects
+          only the accented e, with the end excluded. That one Unicode code point encodes as two
+          UTF-eight bytes, and the hash uses both bytes.
+        hold: 0.7
+        visual_cues:
+          - id: claim-bindings
+            phrase: Python characters
+            targets:
+              - research-claims-mechanism
+            linger: 0.5
+          - id: claim-two-sources
+            phrase: two admitted policy sources
+            targets:
+              - research-claims-mechanism
+            linger: 0.5
+          - id: claim-two-supported
+            phrase: shared identity-verification claim
+            targets:
+              - research-claims-mechanism
+            linger: 0.5
+          - id: claim-source-span
+            phrase: exact character spans
+            targets:
+              - research-claims-mechanism
+            linger: 0.5
+      - say: The source requires manager approval. A claim saying it is not required still passes the lexical
+          smoke test, because the test omits short words such as not. Its contradicted semantic receipt
+          blocks the report. A security-review requirement is unknown; a claim drawn from the private
+          note fails source admission even when its supplied semantic label says entailed. Unknown and
+          contradicted have different meanings and both block this factual report release.
+        hold: 0.7
+        visual_cues:
+          - id: claim-failures
+            phrase: contradicted semantic receipt
+            targets:
+              - research-claims-mechanism
+            linger: 0.5
+          - id: claim-not
+            phrase: not required
+            targets:
+              - research-claims-mechanism
+            linger: 0.5
+          - id: claim-smoke
+            phrase: lexical smoke test
+            targets:
+              - research-claims-mechanism
+            linger: 0.5
+          - id: claim-receipt-block
+            phrase: "Its contradicted semantic receipt blocks the report"
+            targets:
+              - research-claims-mechanism
+            linger: 0.5
+          - id: claim-unknown
+            phrase: "A security-review requirement is unknown"
+            targets:
+              - research-claims-mechanism
+            linger: 0.5
+          - id: claim-private
+            phrase: "a claim drawn from the private note fails source admission even when its supplied semantic label says entailed"
+            targets:
+              - research-claims-mechanism
+            linger: 0.5
+      - say: "Now change only the wrong claim’s declared label to entailed. The consistency checks pass. That
+          executed mutation exposes the limit: matching bindings validate consistency with the declared
+          judgment, not the judgment’s truth or authorship. Real review needs authenticated writers,
+          evaluated semantic quality and protected storage. A report may describe an unresolved
+          disagreement with citations to competing applicable sources; it must not force agreement or
+          authorize an access change."
+        hold: 0.7
+        visual_cues:
+          - id: wrong-judgment
+            phrase: consistency checks pass
+            targets:
+              - research-claims-mechanism
+            linger: 0.5
+          - id: claim-wrong-label
+            phrase: declared label to entailed
+            targets:
+              - research-claims-mechanism
+            linger: 0.5
+          - id: claim-authorship
+            phrase: judgment’s truth or authorship
+            targets:
+              - research-claims-mechanism
+            linger: 0.5
+  - id: research-lifecycle-api
+    title: Return job state before a verified report
+    visual: A202queue receipt becomes status/checkpoint/budget polling, a cancellation receipt and a
+      separately gated final or partial report.
+    beats:
+      - say: Keep the bounded lookup endpoint separate from the proposed research lifecycle. Posting a research
+          job returns two hundred two Accepted with a job identifier and status URL. Status names phase,
+          budget and checkpoint. Cancellation has a server-side receipt. The report endpoint returns a
+          verified report or an explicit partial result naming what stopped promotion. These research
+          resource endpoints are a design, not a deployed implementation in the mini-lab.
+        hold: 0.7
+        visual_cues:
+          - id: job-api
+            phrase: two hundred two
+            targets:
+              - research-lifecycle-api-mechanism
+            linger: 0.5
+          - id: api-status
+            phrase: Status names phase
+            targets:
+              - research-lifecycle-api-mechanism
+            linger: 0.5
+          - id: api-cancel
+            phrase: Cancellation has a server-side receipt
+            targets:
+              - research-lifecycle-api-mechanism
+            linger: 0.5
+          - id: api-report
+            phrase: verified report or an explicit partial result
+            targets:
+              - research-lifecycle-api-mechanism
+            linger: 0.5
+      - say: Google’s Deep Research documentation, checked for this November 2026 lesson, describes a preview
+          agent using the Interactions API with background execution, polling or streaming. A
+          disconnected stream can reconnect using the interaction identifier and last event identifier.
+          This provider interface does not establish its internal checkpoint, lease or exactly-once
+          implementation. Store product-level evidence without exposing private source contents or raw
+          internal reasoning.
+        hold: 0.7
+        visual_cues:
+          - id: provider-boundary
+            phrase: last event identifier
+            targets:
+              - research-lifecycle-api-mechanism
+            linger: 0.5
+          - id: api-background
+            phrase: background execution
+            targets:
+              - research-lifecycle-api-mechanism
+            linger: 0.5
+          - id: api-reconnect
+            phrase: reconnect
+            targets:
+              - research-lifecycle-api-mechanism
+            linger: 0.5
+      - say: Test restart after each phase, cancellation during a call, stale ownership, budget exhaustion,
+          changed source hashes, missing or mismatched citations, conflicting sources and private-note
+          injection. A valid citation can still accompany an unsupported claim. A separate approved
+          review process or evaluated verifier must check the report before completion.
+        hold: 0.7
+        visual_cues:
+          - id: research-tests
+            phrase: conflicting sources
+            targets:
+              - research-lifecycle-api-mechanism
+            linger: 0.5
+          - id: api-faults
+            phrase: restart after each phase
+            targets:
+              - research-lifecycle-api-mechanism
+            linger: 0.5
+          - id: api-verifier
+            phrase: evaluated verifier
+            targets:
+              - research-lifecycle-api-mechanism
+            linger: 0.5
+  - id: fresh-qa
+    title: Predict a new receipt failure and its response
+    visual: A new shipping-policy lookup keeps its approved passage fixed, while an exact-question revision
+      invalidates its review and changes the actual response contract.
+    beats:
+      - say: Try a separate fictional policy lookup. The admitted shipping-policy paragraph says hazardous
+          parcels require a specialist review before dispatch. Its reviewed question asks whether that
+          review is required. The exact extractive answer and citation are eligible. Now the caller adds
+          after a failed temperature check to the question, while the stored support receipt remains
+          bound to the original question. What should the service return? Pause.
+        hold: 0.7
+        visual_cues:
+          - id: fresh-predict
+            phrase: Pause
+            targets:
+              - fresh-qa-mechanism
+            linger: 0.5
+          - id: fresh-source
+            phrase: hazardous parcels require a specialist review before dispatch
+            targets:
+              - fresh-qa-mechanism
+            linger: 0.5
+          - id: fresh-question-change
+            phrase: adds after a failed temperature check
+            targets:
+              - fresh-qa-mechanism
+            linger: 0.5
+      - say: Abstain with the fixed fallback, empty citations and a reason identifying the missing question-bound
+          entailed review. The same document may still rank highly; its old receipt does not answer the
+          added condition. Obtain a new legitimate support judgment or improve the source if needed.
+          Merely recomputing a hash must not invent semantic approval.
+        hold: 0.7
+        visual_cues:
+          - id: fresh-response
+            phrase: Abstain
+            targets:
+              - fresh-qa-mechanism
+            linger: 0.5
+          - id: fresh-fallback-complete
+            phrase: "with the fixed fallback"
+            targets:
+              - fresh-qa-mechanism
+            linger: 0.5
+          - id: fresh-reason-complete
+            phrase: "a reason identifying the missing question-bound entailed review"
+            targets:
+              - fresh-qa-mechanism
+            linger: 0.5
+          - id: fresh-empty-cites
+            phrase: empty citations
+            targets:
+              - fresh-qa-mechanism
+            linger: 0.5
+          - id: fresh-repair
+            phrase: new legitimate support judgment
+            targets:
+              - fresh-qa-mechanism
+            linger: 0.5
+      - say: "Keep the failed new question as an independent regression row beside the useful original question, with source, snapshot, grader and receipt identities. That makes a later retrieval or synthesis upgrade reviewable. You can now audit a passage from controlled admission through caller access and exact support, and carry those same boundaries into a bounded research product. The evaluation-dashboard capstone next turns those question, answer and citation records into an inspectable comparison, preserving failed safety cases even when averages tie."
+        hold: 0.7
+        visual_cues:
+          - id: fresh-row
+            phrase: regression row
+            targets:
+              - fresh-qa-mechanism
+            linger: 0.5

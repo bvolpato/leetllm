@@ -1,0 +1,247 @@
+{
+  "id": "prompt-section-extractor",
+  "slug": "prompt-section-extractor",
+  "title": "Prompt Section Extractor",
+  "difficulty": "Medium",
+  "category": "Parsing",
+  "language": "python3",
+  "timeEstimateMinutes": 35,
+  "timeLimitMs": 2500,
+  "memoryLimitMb": 128,
+  "order": 260,
+  "tags": [
+    "prompting",
+    "boundaries",
+    "parser",
+    "state machine"
+  ],
+  "source": "AI lab prep",
+  "summary": "Parse explicit prompt boundary markers while detecting outside text, duplicates, and unterminated sections.",
+  "starterCode": [
+    "def extract_sections(text: str) -> dict:",
+    "    pass"
+  ],
+  "testCases": [
+    {
+      "name": "Unicode whitespace outside is blank while body whitespace is preserved",
+      "visibility": "hidden",
+      "setup": [
+        "from solution import extract_sections",
+        "blank = \"\\u00a0\\u2007\\u202f\\u0085\\u001f\\n\""
+      ],
+      "input": "(extract_sections(blank), extract_sections(blank + \"<<<a>>>\\n\\u00a0\\n<<<END>>>\"))",
+      "expected": "({\"sections\": {}, \"errors\": []}, {\"sections\": {\"a\": \"\\u00a0\"}, \"errors\": []})"
+    },
+    {
+      "name": "public extracts one section",
+      "visibility": "sample",
+      "setup": [
+        "from solution import extract_sections",
+        "result = extract_sections(\"<<<system>>>\\nBe brief.\\n<<<END>>>\\n\")"
+      ],
+      "input": "result = extract_sections(\"<<<system>>>\\nBe brief.\\n<<<END>>>\\n\")\nresult",
+      "expected": "{\"sections\": {\"system\": \"Be brief.\"}, \"errors\": []}",
+      "expression": "result"
+    },
+    {
+      "name": "public preserves internal newlines",
+      "visibility": "sample",
+      "setup": [
+        "from solution import extract_sections",
+        "text = \"<<<context>>>\\nline1\\nline2\\n<<<END>>>\""
+      ],
+      "input": "text = \"<<<context>>>\\nline1\\nline2\\n<<<END>>>\"\nextract_sections(text)[\"sections\"]",
+      "expected": "{\"context\": \"line1\\nline2\"}",
+      "expression": "extract_sections(text)[\"sections\"]"
+    },
+    {
+      "name": "private detects outside text",
+      "visibility": "hidden",
+      "setup": [
+        "from solution import extract_sections",
+        "result = extract_sections(\"hello\\n<<<a>>>\\nx\\n<<<END>>>\\n\")"
+      ],
+      "checks": [
+        {
+          "input": "result = extract_sections(\"hello\\n<<<a>>>\\nx\\n<<<END>>>\\n\")\nresult[\"sections\"]",
+          "expression": "result[\"sections\"]",
+          "operator": "==",
+          "expected": "{\"a\": \"x\"}"
+        },
+        {
+          "input": "result = extract_sections(\"hello\\n<<<a>>>\\nx\\n<<<END>>>\\n\")\nresult[\"sections\"]\nresult[\"errors\"]",
+          "expression": "result[\"errors\"]",
+          "operator": "==",
+          "expected": "[\"outside_text\"]"
+        }
+      ]
+    },
+    {
+      "name": "private reports duplicate section",
+      "visibility": "hidden",
+      "setup": [
+        "from solution import extract_sections",
+        "text = \"<<<a>>>\\n1\\n<<<END>>>\\n<<<a>>>\\n2\\n<<<END>>>\"",
+        "result = extract_sections(text)"
+      ],
+      "checks": [
+        {
+          "input": "text = \"<<<a>>>\\n1\\n<<<END>>>\\n<<<a>>>\\n2\\n<<<END>>>\"\nresult = extract_sections(text)\nresult[\"sections\"]",
+          "expression": "result[\"sections\"]",
+          "operator": "==",
+          "expected": "{\"a\": \"1\"}"
+        },
+        {
+          "input": "text = \"<<<a>>>\\n1\\n<<<END>>>\\n<<<a>>>\\n2\\n<<<END>>>\"\nresult = extract_sections(text)\nresult[\"sections\"]\nresult[\"errors\"]",
+          "expression": "result[\"errors\"]",
+          "operator": "==",
+          "expected": "[\"duplicate:a\"]"
+        }
+      ]
+    },
+    {
+      "name": "private reports unterminated section",
+      "visibility": "hidden",
+      "setup": [
+        "from solution import extract_sections",
+        "result = extract_sections(\"<<<task>>>\\nDo it\")"
+      ],
+      "checks": [
+        {
+          "input": "result = extract_sections(\"<<<task>>>\\nDo it\")\nresult[\"sections\"]",
+          "expression": "result[\"sections\"]",
+          "operator": "==",
+          "expected": "{}"
+        },
+        {
+          "input": "result = extract_sections(\"<<<task>>>\\nDo it\")\nresult[\"sections\"]\nresult[\"errors\"]",
+          "expression": "result[\"errors\"]",
+          "operator": "==",
+          "expected": "[\"unterminated:task\"]"
+        }
+      ]
+    },
+    {
+      "name": "public blank input has no sections or errors",
+      "visibility": "sample",
+      "description": "Whitespace outside sections is ignored.",
+      "setup": [
+        "from solution import extract_sections"
+      ],
+      "input": "extract_sections(\" \\n\\t\")",
+      "expected": "{\"sections\": {}, \"errors\": []}",
+      "feedback": "Only nonblank text outside a section should emit outside_text."
+    },
+    {
+      "name": "private keeps an empty section",
+      "visibility": "hidden",
+      "description": "Adjacent start and end markers define an empty string value.",
+      "setup": [
+        "from solution import extract_sections"
+      ],
+      "input": "extract_sections(\"<<<empty>>>\\n<<<END>>>\")",
+      "expected": "{\"sections\": {\"empty\": \"\"}, \"errors\": []}",
+      "feedback": "Store joined buffered lines even when the buffer is empty."
+    },
+    {
+      "name": "private preserves marker-like content inside a section",
+      "visibility": "hidden",
+      "description": "Only the exact END marker closes an active section.",
+      "setup": [
+        "from solution import extract_sections"
+      ],
+      "input": "extract_sections(\"<<<a>>>\\n<<<nested>>>\\n<<<END>>>\")",
+      "expected": "{\"sections\": {\"a\": \"<<<nested>>>\"}, \"errors\": []}",
+      "feedback": "While a section is active, preserve every line except the exact <<<END>>> marker."
+    },
+    {
+      "name": "private many duplicates before repeated outside text",
+      "visibility": "hidden",
+      "description": "An outside error discovered after many duplicates is still emitted only once without rescanning prior errors for every line.",
+      "setup": [
+        "from solution import extract_sections",
+        "text = \"<<<a>>>\\nx\\n<<<END>>>\\n\" * 30001 + \"outside\\n\" * 30000",
+        "result = extract_sections(text)"
+      ],
+      "input": "(result[\"sections\"], len(result[\"errors\"]), result[\"errors\"][0], result[\"errors\"][-1])",
+      "expected": "({\"a\": \"x\"}, 30001, \"duplicate:a\", \"outside_text\")"
+    },
+    {
+      "name": "private preserves blank lines immediately before end marker",
+      "visibility": "hidden",
+      "description": "An empty content line before END contributes a trailing newline to the joined body.",
+      "setup": [
+        "from solution import extract_sections"
+      ],
+      "input": "extract_sections(\"<<<context>>>\\nfirst line\\n\\n<<<END>>>\")",
+      "expected": "{\"sections\": {\"context\": \"first line\\n\"}, \"errors\": []}",
+      "feedback": "Join every interior line, including empty lines, before discarding only the END marker."
+    }
+  ],
+  "clarifyingQuestions": [
+    "Would a production format restrict names to a fixed allowlist? This base format preserves any nonempty name.",
+    "How would the format escape a literal END line in content?",
+    "Should nested opener-looking lines remain content or raise an error in a follow-up?"
+  ],
+  "followUps": [
+    "Validate required sections.",
+    "Support nested sections explicitly or reject them.",
+    "Track line numbers for parser errors."
+  ],
+  "followUpGuide": [
+    "Required sections are a post-parse validation pass over the parsed dictionary.",
+    "",
+    "The base parser treats opener-looking lines inside a section as content. To support nesting, define how END closes a stack frame and how child bodies appear in output; a stack alone does not define the representation. Alternatively, explicitly change the grammar to reject nested openers.",
+    "",
+    "Line numbers are easiest if the parser iterates with `enumerate`."
+  ],
+  "complexityAnalysis": [
+    "- Explicit state machine: O(n) time for n input characters, assuming expected constant-time dictionary access. Every line is scanned and every completed body joined once. Keep an outside_seen boolean; searching the growing errors list on every outside line could take quadratic time after many duplicates.",
+    "- The supplied splitlines version uses O(n) space for split lines, buffered content, stored bodies, names, and errors. It still buffers an unfinished or duplicate body until its closing marker; duplicate bodies are discarded after completion.",
+    "- Streaming follow-up can avoid holding all split lines at once, but returning every section and error still requires output space plus the current body and partial line. Memory can fall further only if the API emits completed sections/errors incrementally and defines how it tracks previously seen names."
+  ],
+  "solutionGuide": [
+    "Use explicit parser state: current section name and collected lines. Recognize openers only outside sections. Complete a body at exact END, then detect duplicates without overwriting the first completed body. Use a separate boolean for the single outside_text error so reporting stays linear even when duplicates have accumulated.",
+    "",
+    "```python",
+    "def extract_sections(text: str) -> dict:",
+    "    sections = {}",
+    "    errors = []",
+    "    outside_seen = False",
+    "    current = None",
+    "    buffer = []",
+    "",
+    "    def start_name(line):",
+    "        if line.startswith(\"<<<\") and line.endswith(\">>>\") and line != \"<<<END>>>\":",
+    "            return line[3:-3]",
+    "        return None",
+    "",
+    "    for line in text.splitlines():",
+    "        name = start_name(line)",
+    "        if current is None:",
+    "            if name:",
+    "                current = name",
+    "                buffer = []",
+    "            elif line.strip():",
+    "                if not outside_seen:",
+    "                    errors.append(\"outside_text\")",
+    "                    outside_seen = True",
+    "            continue",
+    "",
+    "        if line == \"<<<END>>>\":",
+    "            content = \"\\n\".join(buffer)",
+    "            if current in sections:",
+    "                errors.append(f\"duplicate:{current}\")",
+    "            else:",
+    "                sections[current] = content",
+    "            current = None",
+    "            buffer = []",
+    "        else:",
+    "            buffer.append(line)",
+    "",
+    "    if current is not None:",
+    "        errors.append(f\"unterminated:{current}\")",
+    "    return {\"sections\": sections, \"errors\": errors}",
+    "```"
+  ]
+}

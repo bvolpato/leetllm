@@ -1,0 +1,303 @@
+version: 1
+lesson: calling-llm-apis-production
+promise: Decide whether the server can return an eligibility result, spend time on another attempt,
+  or confirm a rotation job from the receipts it has.
+objectives:
+  - id: opening
+    can: Explain how a lost reply and a still-running provider can give the caller the same timeout
+    scenes:
+      - opening
+      - fresh-request
+  - id: secret-probe
+    can: Distinguish a startup presence check from delivery of a public setting and from permission to spend through a route
+    scenes:
+      - secret-probe
+  - id: contract-boundary
+    can: Trace authenticated intent and validated response across the server
+    scenes:
+      - contract-boundary
+  - id: domain-wire
+    can: Map a validated domain task to the actual provider schema
+    scenes:
+      - domain-wire
+  - id: candidate-validation
+    can: Compare the same candidate fields against trusted age and policy
+    scenes:
+      - candidate-validation
+  - id: parser-layers
+    can: Reject ambiguous JSON and apply both directions of eligibility
+    scenes:
+      - parser-layers
+  - id: failure-receipt
+    can: Trace failure telemetry and unknown usage without inventing a decision
+    scenes:
+      - failure-receipt
+  - id: timeout-contract
+    can: Apply separate read, first-text and total timeout milestones
+    scenes:
+      - timeout-contract
+  - id: timeout-retry
+    can: Account for attempts and waits on one task clock
+    scenes:
+      - timeout-retry
+  - id: admission-limits
+    can: Classify normalized failure causes before retry admission
+    scenes:
+      - admission-limits
+  - id: jitter-geometry
+    can: Place two retries on an elapsed-time axis and compute how the next draw depends on the delay rule
+    scenes:
+      - jitter-geometry
+  - id: deadline-floor
+    can: Decide whether the same retry reservation fits after the first attempt takes longer
+    scenes:
+      - deadline-floor
+      - fresh-request
+  - id: circuit-breaker
+    can: Route a request using dependency health and approved recovery
+    scenes:
+      - circuit-breaker
+  - id: breaker-clock
+    can: Route a second arrival while the first holds the only recovery permit and handle an unapproved fallback
+    scenes:
+      - breaker-clock
+  - id: idempotency
+    can: Recover one authorized action without duplicating its intent
+    scenes:
+      - idempotency
+  - id: write-uncertainty
+    can: Use the original action key to establish whether a job exists after its reply is lost
+    scenes:
+      - write-uncertainty
+      - fresh-request
+  - id: format-contract
+    can: Distinguish strict schema, JSON syntax and trusted policy checks
+    scenes:
+      - format-contract
+  - id: sdk-wire
+    can: Identify what the actual mock and retention flags establish
+    scenes:
+      - sdk-wire
+  - id: streaming
+    can: Distinguish visible progress from validated completion
+    scenes:
+      - streaming
+  - id: stream-events
+    can: Trace byte framing, typed events and received-delta timing
+    scenes:
+      - stream-events
+  - id: stream-failures
+    can: Use the terminal event to distinguish two streams with identical text and retain the exact draft after a drop
+    scenes:
+      - stream-failures
+  - id: cost-privacy
+    can: Compute a request and monthly cost while excluding raw secrets
+    scenes:
+      - cost-privacy
+  - id: usage-subsets
+    can: Price disjoint token categories and explain why more cache hits change cost at fixed input and output totals
+    scenes:
+      - usage-subsets
+  - id: telemetry-scope
+    can: Construct scoped operational evidence without copying private content
+    scenes:
+      - telemetry-scope
+  - id: execution-shapes
+    can: Join offline outcomes by identity and select an appropriate work shape
+    scenes:
+      - execution-shapes
+  - id: fresh-request
+    can: Reject a plausible answer with the wrong threshold, budget a retry, and resolve an uncertain write by reading its status
+    scenes:
+      - fresh-request
+sections:
+  - heading: Keep credentials on the server
+    status: taught
+    scenes:
+      - secret-probe
+      - contract-boundary
+  - heading: A task contract for the model
+    status: taught
+    scenes:
+      - domain-wire
+      - contract-boundary
+  - heading: Name the application's request
+    status: taught
+    scenes:
+      - domain-wire
+  - heading: What belongs in the wrapper
+    status: taught
+    scenes:
+      - contract-boundary
+      - domain-wire
+      - telemetry-scope
+  - heading: What the wrapper does
+    status: taught
+    scenes:
+      - failure-receipt
+      - candidate-validation
+  - heading: Validate a candidate before returning it
+    status: taught
+    scenes:
+      - parser-layers
+      - failure-receipt
+      - candidate-validation
+  - heading: Timeouts, rate limits, and resilience
+    status: taught
+    scenes:
+      - timeout-contract
+      - admission-limits
+      - timeout-retry
+  - heading: "Tiered timeouts: connect, TTFT, read, and total budget"
+    status: taught
+    scenes:
+      - timeout-contract
+      - timeout-retry
+  - heading: "Rate limit dynamics: RPM, TPM, and 429 response handling"
+    status: taught
+    scenes:
+      - admission-limits
+      - circuit-breaker
+  - heading: Exponential backoff with full and decorrelated jitter
+    status: taught
+    scenes:
+      - jitter-geometry
+  - heading: "Jitter math: full jitter vs decorrelated jitter"
+    status: taught
+    scenes:
+      - jitter-geometry
+  - heading: Respecting Retry-After and deadline caps
+    status: taught
+    scenes:
+      - deadline-floor
+      - timeout-retry
+      - fresh-request
+  - heading: Circuit breakers, fallback providers, and multi-region routing
+    status: taught
+    scenes:
+      - circuit-breaker
+      - breaker-clock
+  - heading: The three-state circuit breaker
+    status: taught
+    scenes:
+      - breaker-clock
+      - circuit-breaker
+  - heading: Fallback providers and multi-region routing
+    status: taught
+    scenes:
+      - breaker-clock
+  - heading: Idempotency and side-effect isolation
+    status: taught
+    scenes:
+      - idempotency
+      - write-uncertainty
+      - fresh-request
+  - heading: From text to typed objects
+    status: taught
+    scenes:
+      - format-contract
+      - parser-layers
+  - heading: Schema checks vs semantic checks
+    status: taught
+    scenes:
+      - candidate-validation
+      - parser-layers
+  - heading: Exercise a real SDK without spending tokens
+    status: taught
+    scenes:
+      - sdk-wire
+  - heading: Server-Sent Events streaming vs buffered responses
+    status: taught
+    scenes:
+      - stream-events
+      - streaming
+  - heading: TTFT vs inter-token latency
+    status: taught
+    scenes:
+      - stream-events
+      - timeout-contract
+  - heading: The streaming client state machine
+    status: taught
+    scenes:
+      - stream-failures
+      - streaming
+  - heading: Production telemetry and cost attribution
+    status: taught
+    scenes:
+      - telemetry-scope
+      - failure-receipt
+  - heading: Token accounting and cost attribution
+    status: taught
+    scenes:
+      - cost-privacy
+      - usage-subsets
+  - heading: Redacting customer text
+    status: taught
+    scenes:
+      - telemetry-scope
+      - cost-privacy
+  - heading: Choosing the execution shape
+    status: taught
+    scenes:
+      - execution-shapes
+  - heading: Carry the boundary into an app
+    status: taught
+    scenes:
+      - execution-shapes
+      - fresh-request
+quiz:
+  - n: 1
+    status: taught
+    scenes:
+      - secret-probe
+      - contract-boundary
+  - n: 2
+    status: taught
+    scenes:
+      - parser-layers
+  - n: 3
+    status: taught
+    scenes:
+      - deadline-floor
+      - fresh-request
+  - n: 4
+    status: taught
+    scenes:
+      - jitter-geometry
+  - n: 5
+    status: taught
+    scenes:
+      - breaker-clock
+  - n: 6
+    status: taught
+    scenes:
+      - sdk-wire
+  - n: 7
+    status: taught
+    scenes:
+      - write-uncertainty
+      - fresh-request
+  - n: 8
+    status: taught
+    scenes:
+      - timeout-contract
+      - stream-failures
+  - n: 9
+    status: taught
+    scenes:
+      - usage-subsets
+  - n: 10
+    status: taught
+    scenes:
+      - execution-shapes
+      - failure-receipt
+removed: []
+reviews:
+  closed_book:
+    taught: 10
+    partial: 0
+    absent: 0
+    script: e5153b4c21888697
+  fact_check:
+    open_findings: 0
+    script: e5153b4c21888697

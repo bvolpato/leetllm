@@ -1,0 +1,183 @@
+version: 1
+lesson: linear-algebra
+promise: Use matrix geometry, SVD, PCA and least squares to compress and fit representations while preserving
+  task-relevant distinctions and numerical stability.
+framing:
+  - intro
+  - decision
+objectives:
+  - id: svd
+    can: Reconstruct a matrix action from its input directions, singular strengths and output directions.
+    scenes:
+      - tickets
+      - basis
+      - common-output
+      - contrast-output
+      - gram
+      - gram-action
+      - svd-rotate
+      - svd-stretch
+      - svd-embed
+      - svd-sign
+  - id: compression
+    can: Choose a rank from squared singular values, then test whether the retained scores distinguish inputs that need different actions.
+    scenes:
+      - intro
+      - truncate
+      - retrieval-check
+      - energy-cutoff
+      - low-rank-update
+      - new-routing-objective
+      - decision
+  - id: pca
+    can: Identify the leading direction from centered ticket scores and apply it to new rows using the training units and mean. Choose a centering method that fits in memory.
+    scenes:
+      - pca-center
+      - pca-spread
+      - pca-new
+      - pca-sparse
+  - id: fit
+    can: Explain least-squares predictions, rank deficiency and minimum-norm weight ambiguity.
+    scenes:
+      - fit-projection
+      - rank-collapse
+      - rank-fit
+      - rank-null
+  - id: conditioning
+    can: Trace how measurement noise changes a direct fit and how rounding the normal equations changes the inferred weights again.
+    scenes:
+      - conditioning-map
+      - conditioning-noise
+      - conditioning-solve
+sections:
+  - heading: A matrix can hide repeated directions
+    status: taught
+    scenes:
+      - tickets
+      - rank-collapse
+  - heading: Coordinates come from a basis
+    status: taught
+    scenes:
+      - basis
+  - heading: The Gram matrix reveals those directions by hand
+    status: taught
+    scenes:
+      - gram
+      - gram-action
+    note: Each diagonal entry counts tickets with that flag. Both off-diagonal entries count the one ticket with both flags.
+  - heading: SVD names the directions and strengths
+    status: taught
+    scenes:
+      - svd-rotate
+      - svd-stretch
+      - svd-embed
+      - svd-sign
+  - heading: Rank counts independent patterns
+    status: taught
+    scenes:
+      - rank-collapse
+      - rank-fit
+      - rank-null
+  - heading: Truncation trades detail for a smaller matrix
+    status: taught
+    scenes:
+      - truncate
+  - heading: PCA is SVD after centering each feature
+    status: taught
+    scenes:
+      - pca-center
+      - pca-spread
+      - pca-new
+    note: Each issue present in a training ticket has one mention. The centered score products cancel across tickets. A new count row uses the same training mean and contrast direction.
+  - heading: Avoid materializing a centered sparse matrix
+    status: taught
+    scenes:
+      - pca-sparse
+  - heading: Least squares projects a target onto a feature span
+    status: taught
+    scenes:
+      - fit-projection
+  - heading: Condition number warns about solving through weak directions
+    status: taught
+    scenes:
+      - conditioning-map
+      - conditioning-noise
+  - heading: Forming AᵀA can square the condition number
+    status: taught
+    scenes:
+      - conditioning-solve
+    note: Each original column pairs with the observed readings to form one right-hand entry. The elimination uses the same readings before and after rounding.
+  - heading: Choosing a cutoff uses squared singular values
+    status: taught
+    scenes:
+      - energy-cutoff
+  - heading: Compress a retrieval matrix and check the ranking
+    status: taught
+    scenes:
+      - retrieval-check
+  - heading: Low-rank factors in LoRA and embedding retrieval
+    status: taught
+    scenes:
+      - low-rank-update
+  - heading: Practice with measured answers
+    status: article-only
+    reason: exercise
+    note: The article supplies the independent practice with measured answers; the film teaches the mechanisms and
+      a separate routing transfer.
+quiz:
+  - n: 1
+    status: taught
+    scenes:
+      - gram-action
+      - rank-collapse
+  - n: 2
+    status: taught
+    scenes:
+      - svd-rotate
+      - pca-new
+  - n: 3
+    status: taught
+    scenes:
+      - rank-collapse
+  - n: 4
+    status: taught
+    scenes:
+      - truncate
+      - energy-cutoff
+  - n: 5
+    status: taught
+    scenes:
+      - fit-projection
+  - n: 6
+    status: taught
+    scenes:
+      - pca-center
+      - pca-spread
+      - pca-new
+  - n: 7
+    status: taught
+    scenes:
+      - energy-cutoff
+  - n: 8
+    status: taught
+    scenes:
+      - retrieval-check
+  - n: 9
+    status: taught
+    scenes:
+      - conditioning-map
+      - conditioning-noise
+  - n: 10
+    status: taught
+    scenes:
+      - conditioning-solve
+removed: []
+reviews:
+  closed_book:
+    taught: 10
+    partial: 0
+    absent: 0
+    script: 252d3965ba36c49f
+  fact_check:
+    open_findings: 0
+    script: 252d3965ba36c49f

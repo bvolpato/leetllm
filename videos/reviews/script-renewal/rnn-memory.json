@@ -1,0 +1,359 @@
+{
+  "id": "rnn-memory",
+  "script": "3c3f17adc2f889df",
+  "articleHash": "cb5fdc1aad31436dbaaf07a72bee75edd929a5b65ba68cd1cb104e84fd80b8de",
+  "checked": "2026-11-10T05:26:32.926Z",
+  "closedBook": {
+    "taught": 10,
+    "partial": 0,
+    "absent": 0,
+    "answers": [
+      {
+        "n": 1,
+        "option": 3,
+        "coverage": "taught",
+        "quotes": [
+          {
+            "scene": "event-order",
+            "quote": "In the first arithmetic fixture, update state as point six times old state plus the incoming signal."
+          },
+          {
+            "scene": "shared",
+            "quote": "Every copy uses the same matrices. The weights are learned once and reused at each position, while the state changes with the input."
+          }
+        ],
+        "reason": "Apply the supplied shared rule at each step. Original: 0.8, 0.6, 0.800. Reversed: 0.5, 0.45, 1.025.",
+        "exact": true,
+        "correct": true,
+        "grade": "taught"
+      },
+      {
+        "n": 2,
+        "option": 1,
+        "coverage": "taught",
+        "quotes": [
+          {
+            "scene": "vector-build",
+            "quote": "Multiply the same recurrent matrix by the old state to obtain about point three four two and point zero six zero. Add and apply tanh: the next state is about point four nine four and point six four one."
+          },
+          {
+            "scene": "action-head",
+            "quote": "Read the displayed rounded final state, point three nine zero and point six five five, through a three-by-two action matrix. Its rows are point seven, minus point three; minus point four, point eight; and point one, point two. These correspond to ignore, rollback and escalate."
+          },
+          {
+            "scene": "action-head",
+            "quote": "Rollback has the largest logit before any exponential."
+          }
+        ],
+        "reason": "The recurrent product is [0.06,-0.24]. Adding the input projection gives [0.36,-0.14]; tanh gives approximately [0.345,-0.139]. Head multiplication yields [0.283,-0.249,0.007], so ignore wins.",
+        "exact": true,
+        "correct": true,
+        "grade": "taught"
+      },
+      {
+        "n": 3,
+        "option": 4,
+        "coverage": "taught",
+        "quotes": [
+          {
+            "scene": "gradients",
+            "quote": "Each link multiplies that signal by a local derivative. Repeated factors smaller than one can make the early contribution extremely small."
+          },
+          {
+            "scene": "truncation",
+            "quote": "Rescale both components by five divided by that norm: the clipped vector is about three point nine zero four, minus three point one two three, with norm five and the same direction."
+          }
+        ],
+        "reason": "The temporal factor is 0.7^10, approximately 0.02825. Clipping multiplies the finite gradient by target norm divided by current norm: 2/10 = 0.2.",
+        "exact": true,
+        "correct": true,
+        "grade": "taught"
+      },
+      {
+        "n": 4,
+        "option": 2,
+        "coverage": "taught",
+        "quotes": [
+          {
+            "scene": "lstm",
+            "quote": "A forget gate scales the old cell value. An input gate scales a proposed new value. Add the two contributions and we have the next stored cell state."
+          },
+          {
+            "scene": "lstm",
+            "quote": "Apply tanh to the cell, then scale by the output gate."
+          }
+        ],
+        "reason": "Cell = 0.90*0.60 + 0.25*(-0.40) = 0.4400. Hidden = 0.70*tanh(0.44), approximately 0.2896.",
+        "exact": true,
+        "correct": true,
+        "grade": "taught"
+      },
+      {
+        "n": 5,
+        "option": 1,
+        "coverage": "taught",
+        "quotes": [
+          {
+            "scene": "retention",
+            "quote": "Along the direct cell path, hold the other state inputs fixed. The local derivative is the forget gate. Across many steps, these factors multiply."
+          }
+        ],
+        "reason": "The direct-path derivative is 0.90*0.80*0.95 = 0.684.",
+        "exact": true,
+        "correct": true,
+        "grade": "taught"
+      },
+      {
+        "n": 6,
+        "option": 3,
+        "coverage": "taught",
+        "quotes": [
+          {
+            "scene": "gru",
+            "quote": "In the convention shown here, the update gate gives the fraction kept from the past. Its complement weights the candidate. Those fractions sum to one, so the resulting coordinate lies between the two proposed values."
+          }
+        ],
+        "reason": "The new coordinate is 0.70*(-0.60) + 0.30*0.40 = -0.300.",
+        "exact": true,
+        "correct": true,
+        "grade": "taught"
+      },
+      {
+        "n": 7,
+        "option": 2,
+        "coverage": "taught",
+        "quotes": [
+          {
+            "scene": "batch-boundaries",
+            "quote": "A valid-length mask skips the filler update and preserves the two-event state. In a batch with lengths three and two, packing collects only active prefixes, and the second history stops at two. Lengths must describe right padding, be positive and no greater than available timesteps. A lengths tensor is on CPU for pack-padded-sequence; enforce-sorted false lets the function sort internally."
+          },
+          {
+            "scene": "parameter-geometry",
+            "quote": "Packed input yields packed output, with each final hidden ending at its own valid prefix."
+          }
+        ],
+        "reason": "Packing CPU lengths [4,1] with enforce_sorted=False excludes filler updates. Each returned final hidden therefore ends at its valid prefix and remains invariant to changed filler values.",
+        "exact": true,
+        "correct": true,
+        "grade": "taught"
+      },
+      {
+        "n": 8,
+        "option": 4,
+        "coverage": "taught",
+        "quotes": [
+          {
+            "scene": "compression-attention",
+            "quote": "For an explicit quantized toy, two coordinates with two bits each allow sixteen distinct codes; seventeen histories must collide."
+          }
+        ],
+        "reason": "Three coordinates with two bits each provide six bits, giving 2^6 = 64 contexts. With 65 histories, at least two must share a context.",
+        "exact": true,
+        "correct": true,
+        "grade": "taught"
+      },
+      {
+        "n": 9,
+        "option": 3,
+        "coverage": "taught",
+        "quotes": [
+          {
+            "scene": "parameter-geometry",
+            "quote": "PyTorch GRU stores a six-by-three input weight matrix, a six-by-two recurrent matrix and two six-value bias vectors. Eighteen plus twelve plus twelve gives forty-two parameters."
+          },
+          {
+            "scene": "parameter-geometry",
+            "quote": "For one unidirectional layer with batch-first input four, five, three, the output is four, five, two. It keeps a hidden vector at every supplied step. The final hidden shape is one, four, two: layers times directions, batch, hidden. Batch-first changes the input and output axes, not final-state axes."
+          }
+        ],
+        "reason": "Three gate blocks at hidden width 3 give input weights 9*4, recurrent weights 9*3 and two nine-value biases: 36+27+18 = 81. Output is (5,6,3), and final hidden is (1,5,3).",
+        "exact": true,
+        "correct": true,
+        "grade": "taught"
+      },
+      {
+        "n": 10,
+        "option": 1,
+        "coverage": "taught",
+        "quotes": [
+          {
+            "scene": "compression-attention",
+            "quote": "Position four thousand ninety-six can read position one in one layer, replacing four thousand ninety-five recurrent relays."
+          },
+          {
+            "scene": "compression-attention",
+            "quote": "In an eight-position causal toy, rows expose one through eight keys, thirty-six allowed interactions. That counts allowed pairs, not measured GPU FLOPs."
+          },
+          {
+            "scene": "compression-attention",
+            "quote": "Autoregressive generation still waits for newly generated tokens."
+          }
+        ],
+        "reason": "Positions 1 to 6 require five recurrent relays. Attention can connect them in one layer; the causal mask permits 1+2+3+4+5+6 = 21 pairs. Additional generated tokens still depend on earlier outputs.",
+        "exact": true,
+        "correct": true,
+        "grade": "taught"
+      }
+    ]
+  },
+  "factCheck": {
+    "scenes": [
+      {
+        "id": "intro",
+        "evidence": "Verified. In the two active-voice sentences, swapping dog and cat swaps the grammatical agent. Identifying that agent at the sentence ending requires retaining earlier information. The recurrent update reuses the previous hidden vector, as shown in the [RNN equations](https://docs.pytorch.org/docs/2.15/generated/torch.nn.RNN.html). The subsequent narration supplies both the promised manual construction and gated-memory explanation. The sentence demonstration assumes word-level inputs.",
+        "sourceUrls": [
+          "https://docs.pytorch.org/docs/2.15/generated/torch.nn.RNN.html"
+        ]
+      },
+      {
+        "id": "recurrence",
+        "evidence": "Verified independently from h₀=0 using hₜ=tanh(xₜ+0.9hₜ₋₁). Inputs [0,0.8,0,0,0] produce [0,0.664036770,0.535363188,0.447705496,0.382457412]. The final sign therefore returns dog. Negating the actor input negates every subsequent state because tanh is odd, so the reversed sentence returns cat. With positive state and zero input, tanh(0.9h)<h, proving the stated shrinkage. Crucially, actor-role identification is supplied by the hand-coded feature. This fixture demonstrates retention rather than learning to identify grammatical roles.",
+        "sourceUrls": []
+      },
+      {
+        "id": "shared",
+        "evidence": "Verified. For column vectors, Wₓₕ∈R^(dₕ×dₓ) and Wₕₕ∈R^(dₕ×dₕ) produce the next dₕ-dimensional state. Repeating the same recurrence introduces additional applications without additional parameter copies. The [documented RNN loop](https://docs.pytorch.org/docs/2.15/generated/torch.nn.RNN.html) explicitly reuses the same parameters across timesteps. A forward unidirectional recurrence can process a stream while retaining only its current fixed-width state. Coordinates can carry different features, although learned representations need not assign one interpretable feature to each coordinate. “Learned once” is reasonable here as shorthand for one shared parameter set.",
+        "sourceUrls": [
+          "https://docs.pytorch.org/docs/2.15/generated/torch.nn.RNN.html"
+        ]
+      },
+      {
+        "id": "event-order",
+        "evidence": "Verified. For sₜ=0.6sₜ₋₁+xₜ, [1,0.4,0.9] gives [1,1,1.5], while [0.9,0.4,1] gives [0.9,0.94,1.564]. Both sums equal 2.3. Expansion gives s₃=0.36x₁+0.6x₂+x₃, directly explaining the order dependence. Collisions remain possible because different inputs can have the same weighted sum. Separately, hₜ=tanh(0.8xₜ+0.5hₜ₋₁) produces [0.664036770,0.573027162,0.764316151]. Tanh is element-wise, odd, and strictly between −1 and 1 for finite real inputs. Oddness does not force a zero batch mean, as a batch of positive inputs demonstrates.",
+        "sourceUrls": []
+      },
+      {
+        "id": "vector-build",
+        "evidence": "Verified by independent matrix arithmetic with full precision between steps. The one-hot inputs select successive columns of Wₓₕ. Error gives tanh([0.8,0.1])=[0.664036770,0.099667995]. At reproduction, Wₕₕh₁=[0.341985185,0.059800797], so h₂=tanh([0.541985185,0.759800797])=[0.494489207,0.640959611]. At rollback, Wₕₕh₂=[0.311340564,0.384575767], so h₃=tanh([0.411340564,0.784575767])=[0.389610346,0.655325238]. Every spoken rounded value agrees. Matrix dimensions remain 2×3 and 2×2, with two-coordinate state and bias vectors.",
+        "sourceUrls": []
+      },
+      {
+        "id": "action-head",
+        "evidence": "Verified using the explicitly rounded input [0.390,0.655]. Row products are 0.273−0.1965=0.0765, −0.156+0.524=0.368, and 0.039+0.131=0.170. Maximum-shifted softmax gives [0.290998466,0.389482134,0.319519401], correctly reported as [0.291,0.389,0.320] and 38.9% for rollback. Exponentiation preserves logit ordering. Parameter arithmetic is 6+4+2=12 and 6+3=9, totaling 21 under the stated one-bias convention. Sequence length changes execution and ordinary full-BPTT activation storage, not that count. [Autograd documentation](https://docs.pytorch.org/docs/2.15/notes/autograd.html#saved-tensors) confirms the need for saved intermediates. The fixture supplies no accuracy estimate, and a final-state-only head has no additional access to the prefix.",
+        "sourceUrls": [
+          "https://docs.pytorch.org/docs/2.15/notes/autograd.html#saved-tensors"
+        ]
+      },
+      {
+        "id": "actual-credit",
+        "evidence": "Verified analytically and with central finite differences. Differentiating the stated scalar cell gives Jₜ=0.5(1−hₜ²), yielding [0.279527584,0.335819936,0.207910410]. Backward products are 0.207910410, 0.069820461, and 0.019516745. For the shared recurrent weight, qₜ=(1−hₜ²)(hₜ₋₁+0.5qₜ₋₁), with q₀=0, gives q₃=0.331003331. A finite-difference step of 10⁻⁶ gives 0.331003331244. In vectors, Jₜ=diag(1−hₜ²)Wₕₕ, and backward gradient columns apply J₃ᵀ first. Loss derivatives multiply these sensitivities, and intermediate losses add contributions. The shared-weight sum-of-local-uses mechanism agrees with [Pascanu et al., equations 3–5](https://arxiv.org/html/1211.5063v2).",
+        "sourceUrls": [
+          "https://arxiv.org/html/1211.5063v2"
+        ]
+      },
+      {
+        "id": "gradients",
+        "evidence": "Verified. Repeated factors of 0.6 give 0.6¹²=0.002176782336, approximately 0.218% of the starting sensitivity. Matrix products additionally depend on direction and changing activations. Norm clipping multiplies a finite oversized gradient by a positive scalar, preserving direction in exact arithmetic. It controls excessive magnitude but cannot reconstruct a vanished temporal contribution. These mechanisms match [Pascanu et al., sections 2 and 3.2](https://arxiv.org/html/1211.5063v2). The opening causal language refers to computational sensitivity used for credit assignment, not an observational causal-inference guarantee.",
+        "sourceUrls": [
+          "https://arxiv.org/html/1211.5063v2"
+        ]
+      },
+      {
+        "id": "matrix-bound",
+        "evidence": "Verified by direct derivation. Submultiplicativity gives ||Jₜ||₂≤γσmax(W), hence a uniform q=γσmax(W)<1 gives a temporal-product bound qⁿ. This bounds the temporal path rather than all parameter-gradient terms. For W=[[0.5,1],[0,0.5]], WᵀW=[[0.25,0.5],[0.5,1.25]], so σmax=(1+√2)/2=1.207106781. W[0,1]ᵀ=[1,0.5]ᵀ has norm √1.25=1.118033989. Since W=0.5I+N and N²=0, Wⁿ=0.5ⁿI+n0.5ⁿ⁻¹N→0. Also, 0.6⁵⁰=8.082812775×10⁻¹² converts to a nonzero float32 value, 8.082813065×10⁻¹². It is far above the smallest normal float32 value, 2⁻¹²⁶≈1.175494351×10⁻³⁸, consistent with the [IEEE-format documentation](https://docs.oracle.com/cd/E19059-01/stud.10/819-0499/ncg_math.html). Gradient usefulness and update rounding therefore cannot be inferred from underflow alone.",
+        "sourceUrls": [
+          "https://docs.oracle.com/cd/E19059-01/stud.10/819-0499/ncg_math.html"
+        ]
+      },
+      {
+        "id": "truncation",
+        "evidence": "Verified. [Detach](https://docs.pytorch.org/docs/2.15/generated/torch.Tensor.detach.html) disconnects the graph while preserving values. Holding weights fixed leaves h₃=0.764316151314. Independent differentiation gives input sensitivities [0.031226791,0.111712737,0.332656657]. Cutting after h₂ removes the first two paths and leaves the third unchanged. The remaining local weight derivative is (1−h₃²)h₂=0.238276625, compared with 0.331003331 without the cut. Both LSTM state components carry history and require detachment at this boundary. Updating weights between chunks can make carried states stale. For clipping, a=1.4¹²=56.693912375 and ||[a,−0.8a]||₂=72.603632889. Scaling by 5/norm gives [3.904344047,−3.123475238], norm 5. For plain SGD, ||Δθ||=η||gclipped||≤5η. The zero, nonfinite, momentum, and adaptive-optimizer qualifications are correct. [PyTorch clipping documentation](https://docs.pytorch.org/docs/2.15/generated/torch.nn.utils.clip_grad_norm_.html) also provides explicit nonfinite checking.",
+        "sourceUrls": [
+          "https://docs.pytorch.org/docs/2.15/generated/torch.Tensor.detach.html",
+          "https://docs.pytorch.org/docs/2.15/generated/torch.nn.utils.clip_grad_norm_.html"
+        ]
+      },
+      {
+        "id": "lstm",
+        "evidence": "Verified for the standard LSTM formulation. The equations cₜ=fₜ⊙cₜ₋₁+iₜ⊙gₜ and hₜ=oₜ⊙tanh(cₜ) appear in the [official LSTM reference](https://docs.pytorch.org/docs/2.15/generated/torch.nn.LSTM.html). The illustrative amounts independently give 0.98×0.855=0.8379 and 0.02×0.10=0.002, totaling c=0.8399. Exposure is 0.8tanh(0.8399)=0.548604874. Changing only the current output gate leaves this current cell update unchanged, while changing hidden output can affect future gates. The additive storage update does not apply tanh to the resulting cell value.",
+        "sourceUrls": [
+          "https://docs.pytorch.org/docs/2.15/generated/torch.nn.LSTM.html"
+        ]
+      },
+      {
+        "id": "learned-lstm",
+        "evidence": "Verified. The concatenation is [0.4,−0.2,0,1,0], width 5. Each 2×5 projection plus two biases has the stated dimensions. The supplied rows give forget logits [1,−0.5], input logits [−1,0], candidate preactivations [0.5,0], and output logits [ln4,0]. Thus f=[0.731058579,0.377540669], i=[0.268941421,0.5], g=[0.462117157,0], and o=[0.8,0.5]. Element-wise arithmetic gives c=[0.749337530,0.037754067] and h=[0.507802853,0.018868070]. All spoken rounding agrees with the [modern equations](https://docs.pytorch.org/docs/2.15/generated/torch.nn.LSTM.html). Historically, the [original paper, section 3.2.2](https://gwern.net/doc/ai/nn/rnn/1997-hochreiter.pdf), explicitly names the identity-activation, unit-self-weight construction the constant error carousel. [Gers et al.](https://pubmed.ncbi.nlm.nih.gov/11032042/) subsequently describe the adaptive forget gate. The narration correctly separates hand-chosen parameters from learned-policy evidence.",
+        "sourceUrls": [
+          "https://docs.pytorch.org/docs/2.15/generated/torch.nn.LSTM.html",
+          "https://gwern.net/doc/ai/nn/rnn/1997-hochreiter.pdf",
+          "https://pubmed.ncbi.nlm.nih.gov/11032042/"
+        ]
+      },
+      {
+        "id": "retention",
+        "evidence": "Verified under the stated partial-derivative interpretation. Holding the previous hidden input, current input, gates, and candidate fixed gives ∂cₜ/∂cₜ₋₁=diag(fₜ). Following only that direct path multiplies forget entries. Independent examples give 0.98¹²=0.784716724 versus 0.5¹²=0.000244140625, and 0.999¹⁰⁰=0.904792147 versus 0.5¹⁰⁰≈7.888609052×10⁻³¹. Near-one gates slow decay without guaranteeing indefinite retention. The [LSTM equations](https://docs.pytorch.org/docs/2.15/generated/torch.nn.LSTM.html) also show the additional hidden-state and gate dependencies. Coordinate-wise gates permit simultaneous retention and replacement in different coordinates, but successful use remains training- and task-dependent.",
+        "sourceUrls": [
+          "https://docs.pytorch.org/docs/2.15/generated/torch.nn.LSTM.html"
+        ]
+      },
+      {
+        "id": "gru",
+        "evidence": "Verified. With 0≤z≤1, zh+(1−z)n is a coordinate-wise convex combination, so each result lies between its old and candidate values. A reset gate changes the history entering candidate computation. [Cho et al., equations 5–8](https://arxiv.org/html/1406.1078v3) use z as the keep fraction and apply reset before the recurrent matrix. The [PyTorch 2.15 reference](https://docs.pytorch.org/docs/2.15/generated/torch.nn.GRU.html) explicitly documents reset after the recurrent affine transformation. Matrix multiplication and coordinate-wise scaling generally do not commute, supporting the portability warning.",
+        "sourceUrls": [
+          "https://arxiv.org/html/1406.1078v3",
+          "https://docs.pytorch.org/docs/2.15/generated/torch.nn.GRU.html"
+        ]
+      },
+      {
+        "id": "learned-gru",
+        "evidence": "Verified independently. σ(ln19)=0.95, σ(0)=0.5, and σ(±ln9) gives 0.9 and 0.1. For h=[0.8,−0.2], r⊙h=[0.08,−0.18], so U(r⊙h)=[−0.28,−0.48]. In contrast, Uh=[0.4,1.6], so r⊙Uh=[0.04,1.44]. Tanh gives [−0.272905081,−0.446243610] and [0.039978680,0.893697727]. Blending with z=[0.95,0.5] gives [0.746354746,−0.323121805] and [0.761998934,0.346848864]. All rounded narration values agree. Equal reset entries make their diagonal scaling a scalar multiple of identity, and diagonal U commutes with that scaling. The bias qualification matters: PyTorch's r⊙bₕₙ contributes 0.1 or 0.9 for bₕₙ=1, which one fixed input bias cannot generally reproduce. This placement and reset/update/candidate storage order match the [official reference](https://docs.pytorch.org/docs/2.15/generated/torch.nn.GRU.html).",
+        "sourceUrls": [
+          "https://docs.pytorch.org/docs/2.15/generated/torch.nn.GRU.html"
+        ]
+      },
+      {
+        "id": "parameter-geometry",
+        "evidence": "Verified. One textbook block has 2(3+2)+2=12 parameters. Multiplication by one, three, and four gives 12, 36, and 48. Three equal-width blocks require three quarters of four blocks' dense projection work, without implying a fixed latency ratio. PyTorch GRU storage gives 6×3+6×2+6+6=42. Its [documented geometry](https://docs.pytorch.org/docs/2.15/generated/torch.nn.GRU.html) gives input (4,5,3), output (4,5,2), and final hidden (1,4,2) for the specified layer. Batch-first does not change hidden-state axes. Packed inputs return packed outputs and valid-prefix final states. The [LSTM reference](https://docs.pytorch.org/docs/2.15/generated/torch.nn.LSTM.html) additionally returns cell state. Layer count and directions change parameter shapes, while sequence length does not.",
+        "sourceUrls": [
+          "https://docs.pytorch.org/docs/2.15/generated/torch.nn.GRU.html",
+          "https://docs.pytorch.org/docs/2.15/generated/torch.nn.LSTM.html"
+        ]
+      },
+      {
+        "id": "padding",
+        "evidence": "Verified. Substituting zero input leaves hnext=tanh(Wₕₕh+b), which need not equal h. A state-preserving validity mask must select the previous state for inactive rows. Masking only loss values would not accomplish this. Packing valid prefixes likewise excludes filler steps, consistent with the [packing contract](https://docs.pytorch.org/docs/2.15/generated/torch.nn.utils.rnn.pack_padded_sequence.html). Resetting independent histories prevents carried-state contamination. The opening pair retains final clues ±0.382457412 under its explicitly supplied actor features.",
+        "sourceUrls": [
+          "https://docs.pytorch.org/docs/2.15/generated/torch.nn.utils.rnn.pack_padded_sequence.html"
+        ]
+      },
+      {
+        "id": "batch-boundaries",
+        "evidence": "Verified. From h₂=[0.494489207,0.640959611], the recurrent product is [0.311340564,0.384575767]. Applying tanh gives the zero-pad state [0.301656167,0.366674650]. The junk row contributes Wₓₕ[9,−9,9]ᵀ=[6.3,−1.8], producing [0.999996382,−0.888640462]. A validity mask preserves h₂ instead. Prefix packing requires right-padded valid prefixes and valid positive lengths within the available time axis. The [API documentation](https://docs.pytorch.org/docs/2.15/generated/torch.nn.utils.rnn.pack_padded_sequence.html) specifies CPU length tensors and internal sorting with enforce_sorted=False. Independently, resetting the next scalar incident gives tanh(0.32)=0.309506921, while carrying h₃ gives tanh(0.32+0.5×0.764316151)=0.605735807. Detachment preserves the latter value. Keeping state associated with sequence identity is necessary if batch positions change.",
+        "sourceUrls": [
+          "https://docs.pytorch.org/docs/2.15/generated/torch.nn.utils.rnn.pack_padded_sequence.html",
+          "https://docs.pytorch.org/docs/2.15/generated/torch.Tensor.detach.html"
+        ]
+      },
+      {
+        "id": "compression-attention",
+        "evidence": "Verified with the stated qualifications. Two coordinates with two bits each provide 2⁴=16 codes, so 17 distinct histories must collide. [Cho et al., section 2.2](https://arxiv.org/html/1406.1078v3) condition decoder transitions and predictions on fixed context, whereas [Sutskever et al., section 2](https://arxiv.org/html/1409.3215v3) initialize the decoder with the encoded representation. Standard nonlinear recurrent transitions require their preceding state. [NVIDIA's implementation discussion](https://developer.nvidia.com/blog/optimizing-recurrent-neural-networks-cudnn-5/) supports advance input projections and fusion, while its [recurrent guide](https://docs.nvidia.com/deeplearning/performance/dl-performance-recurrent/index.html) documents cached persistent weights. Thus 4,096 transitions do not imply 4,096 kernel launches. [Vaswani et al., sections 3.2, 3.5, and 4](https://arxiv.org/html/1706.03762v7) support scaled QKᵀ attention, causal masking, positional information, and short dependency paths. Position 4,096 can access position 1 through one attention layer, compared with 4,095 recurrent edges between those positions. Eight causal rows allow Σᵢ₌₁⁸i=36 pairs. Independent operation counting gives O(Td²) dense recurrence and O(T²d+Td²) full attention. [FlashAttention, Theorem 1](https://arxiv.org/html/2205.14135v2) retains O(T²d) arithmetic while avoiding full score-matrix storage in HBM. Autoregressive token generation remains sequential. [Mamba, Algorithm 2 and Appendix D](https://arxiv.org/html/2312.00752v2), prepares input-dependent affine recurrence coefficients for an associative scan. Composition (A₂,b₂)∘(A₁,b₁)=(A₂A₁,A₂b₁+b₂) explains associativity. Its fixed-model recurrent inference state and per-step work do not grow with sequence length. This does not supply an equivalent compact scan for general nonlinear GRU transitions or eliminate scan scheduling costs.",
+        "sourceUrls": [
+          "https://arxiv.org/html/1406.1078v3",
+          "https://arxiv.org/html/1409.3215v3",
+          "https://developer.nvidia.com/blog/optimizing-recurrent-neural-networks-cudnn-5/",
+          "https://docs.nvidia.com/deeplearning/performance/dl-performance-recurrent/index.html",
+          "https://arxiv.org/html/1706.03762v7",
+          "https://arxiv.org/html/2205.14135v2",
+          "https://arxiv.org/html/2312.00752v2"
+        ]
+      },
+      {
+        "id": "earned-transfer",
+        "evidence": "Verified independently. Starting at zero gives h₁=tanh(0.16)=0.158648504, h₂=tanh(0.64+0.5h₁)=0.616490555, and an erroneous padding step h₃=tanh(0.5h₂)=0.298839920. The classifier should read h₂. Detaching h₃ cannot restore h₂ because it changes graph connectivity rather than the computed value, matching the [detach contract](https://docs.pytorch.org/docs/2.15/generated/torch.Tensor.detach.html). Padding invariance and agreement with individual valid-prefix runs directly test the intended boundary behavior. Reversal and long-dependency checks assess task behavior without assuming every reversed sequence needs a different label. The [next lesson's public content](https://leetllm.com/learn/autoencoders-vaes-generative-modeling-basics) confirms its screenshot-crop example. The VAE sampling preview is supported by the explicit latent prior in [Kingma and Welling](https://arxiv.org/html/1312.6114v11), without implying guaranteed sample quality.",
+        "sourceUrls": [
+          "https://docs.pytorch.org/docs/2.15/generated/torch.Tensor.detach.html",
+          "https://leetllm.com/learn/autoencoders-vaes-generative-modeling-basics",
+          "https://arxiv.org/html/1312.6114v11"
+        ]
+      }
+    ],
+    "findings": [],
+    "limitations": [
+      "No incorrect or materially unsupported scientific claim was identified in the supplied narration under its stated assumptions. The supplied article was treated as context, not independent proof.",
+      "Arithmetic was independently executed with JavaScript double-precision calculations. Scalar input and recurrent-weight derivatives were additionally checked with central finite differences. PyTorch example programs were not executed, so their runtime behavior was checked against primary documentation rather than a local installation.",
+      "Rendered scenes, animation code, displayed matrices, plotted gate values, and synchronized audio were not supplied. Their agreement with the narration could not be checked. The mathematical retention comparisons were checked independently.",
+      "Framework claims were checked against the retrieved PyTorch 2.15 documentation. The supplied stable GRU URL redirected to that version. No CUDA performance, kernel-launch, latency, or memory benchmark was run.",
+      "The fixtures contain supplied parameters and role-aware features. They establish the stated arithmetic and mechanisms, but provide no empirical evidence of learned grammatical analysis, incident-policy accuracy, or successful long-range training."
+    ]
+  }
+}

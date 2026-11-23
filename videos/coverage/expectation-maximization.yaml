@@ -1,0 +1,142 @@
+version: 1
+lesson: expectation-maximization
+promise: Decide how much a request counts toward each latency component, use those shares to refit a mixture, and check which improvements the fit guarantees.
+objectives:
+  - id: generative-model
+    can: Use input frequency and a conditional hit rate to compute a joint frequency, and identify the trace evidence needed to name a physical cause.
+    scenes:
+      - generative-boundary
+      - mixture
+      - model-checks
+      - earned-transfer
+  - id: inference
+    can: Normalize the prior-weighted densities into membership shares, predict which component wins when only the priors change or the distances tie, and recover the shares from finite log scores after underflow.
+    scenes:
+      - responsibility
+      - nearest-limit
+      - stable-responsibilities
+      - earned-transfer
+  - id: bound-ascent
+    can: Construct the Jensen bound, measure its posterior KL gap, and tell which of the mean, memberships, bound, and likelihood changes in each step.
+    scenes:
+      - jensen-construction
+      - touching-bound
+      - likelihood
+  - id: fit-and-check
+    can: Compute weighted means and variances, apply a fixed variance floor, and compare symmetric and separated fits on held-out requests.
+    scenes:
+      - e-step
+      - m-step
+      - stable-responsibilities
+      - variance-constraint
+      - initialization
+      - model-checks
+      - takeaway
+  - id: variational-learning
+    can: Trace a reconstruction gradient through an encoder sample and distinguish the prior KL penalty from the posterior KL gap.
+    scenes:
+      - vae
+      - reparameterized-encoder
+sections:
+  - heading: Generative versus discriminative modeling
+    status: taught
+    scenes:
+      - generative-boundary
+      - takeaway
+  - heading: Latent variables and the coupled log-sum
+    status: taught
+    scenes:
+      - mixture
+      - generative-boundary
+      - intro
+  - heading: Soft responsibilities in Gaussian mixtures
+    status: taught
+    scenes:
+      - responsibility
+      - nearest-limit
+      - earned-transfer
+      - e-step
+  - heading: Expectation-Maximization as lower-bound ascent
+    status: taught
+    scenes:
+      - jensen-construction
+      - touching-bound
+      - likelihood
+  - heading: Closed-form updates and numerical stability
+    status: taught
+    scenes:
+      - e-step
+      - m-step
+      - stable-responsibilities
+      - variance-constraint
+  - heading: "Diagnosing failure modes: singularities and symmetric traps"
+    status: taught
+    scenes:
+      - initialization
+      - variance-constraint
+      - model-checks
+      - takeaway
+  - heading: From exact responsibilities to an encoder
+    status: taught
+    scenes:
+      - vae
+      - reparameterized-encoder
+quiz:
+  - n: 1
+    status: taught
+    scenes:
+      - generative-boundary
+  - n: 2
+    status: taught
+    scenes:
+      - responsibility
+      - earned-transfer
+  - n: 3
+    status: taught
+    scenes:
+      - stable-responsibilities
+      - mixture
+  - n: 4
+    status: taught
+    scenes:
+      - jensen-construction
+      - touching-bound
+  - n: 5
+    status: taught
+    scenes:
+      - nearest-limit
+  - n: 6
+    status: taught
+    scenes:
+      - variance-constraint
+      - m-step
+  - n: 7
+    status: taught
+    scenes:
+      - initialization
+  - n: 8
+    status: taught
+    scenes:
+      - model-checks
+  - n: 9
+    status: taught
+    scenes:
+      - touching-bound
+  - n: 10
+    status: taught
+    scenes:
+      - reparameterized-encoder
+removed: []
+reviews:
+  closed_book:
+    script: e92c644063082ed8
+    taught: 10
+    partial: 0
+    absent: 0
+    reviewer: /root/upgrade_shard6
+    evidence: build/video-delivery-20261106/script-reviews/expectation-maximization.json
+  fact_check:
+    script: e92c644063082ed8
+    open_findings: 0
+    reviewer: /root/upgrade_shard6
+    evidence: build/video-delivery-20261106/script-reviews/expectation-maximization.json

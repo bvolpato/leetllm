@@ -1,0 +1,766 @@
+{
+  "id": "deep-dive-tinker",
+  "script": "64feb5f2cacee5c9",
+  "articleHash": "374b1be15ab3a2a2082e3d5d2254a4604fb13c8fdfef3dcfe578fdbaf1b1a99f",
+  "checked": "2026-11-10T09:43:22.320Z",
+  "closedBook": {
+    "taught": 10,
+    "partial": 0,
+    "absent": 0,
+    "answers": [
+      {
+        "n": 1,
+        "option": 2,
+        "coverage": "taught",
+        "quotes": [
+          {
+            "scene": "capability-receipt",
+            "quote": "The SDK and Cookbook pins in this lesson identify client implementations, not the remote worker runtime. Cloning them does not provide the GPU pool, storage, model catalog or account authorization."
+          },
+          {
+            "scene": "capability-receipt",
+            "quote": "A public model checkpoint name is not automatically a hosted training identifier. Training access, inference access, loss support, modality, account eligibility and export permission need separate checks."
+          }
+        ],
+        "reason": "Inference access and local client success do not establish training entitlement or RL loss support. Hold training on M.",
+        "exact": true,
+        "correct": true,
+        "grade": "taught"
+      },
+      {
+        "n": 2,
+        "option": 4,
+        "coverage": "taught",
+        "quotes": [
+          {
+            "scene": "lora-geometry",
+            "quote": "For input width d in, output width d out and factor width r, adapter parameter count is r times the sum of those two widths."
+          },
+          {
+            "scene": "lora-evidence",
+            "quote": "The frozen base still executes its forward path. Adapter-only optimization therefore reduces trainable state without eliminating base-model computation."
+          }
+        ],
+        "reason": "The factors contain 3 × (12 + 8) = 60 trainable values. The frozen base still executes.",
+        "exact": true,
+        "correct": true,
+        "grade": "taught"
+      },
+      {
+        "n": 3,
+        "option": 1,
+        "coverage": "taught",
+        "quotes": [
+          {
+            "scene": "sft",
+            "quote": "Inputs omit the final token, and targets omit the first. Every input predicts the target at the same position."
+          },
+          {
+            "scene": "sft",
+            "quote": "The prompt occupies the first two tokens, and the answer begins at twenty. Its first target is predicted from input eleven. Put the training weight on the target role, so that first answer position stays in the loss."
+          },
+          {
+            "scene": "sft",
+            "quote": "The response weights are zero, one, one. With mean reduction, their positive values become one-half each."
+          }
+        ],
+        "reason": "Shifted targets are [6, 7, 8, 9, 10]. Only 6 is prompt; the four answer targets each receive 1/4, giving [0, 0.25, 0.25, 0.25, 0.25].",
+        "exact": true,
+        "correct": true,
+        "grade": "taught"
+      },
+      {
+        "n": 4,
+        "option": 3,
+        "coverage": "taught",
+        "quotes": [
+          {
+            "scene": "group-credit",
+            "quote": "The group rewards are one, zero, one, zero. Their mean is one-half. Subtract that baseline from each result, and the correct pair receives positive credit while the other pair receives negative credit."
+          },
+          {
+            "scene": "uniform-groups",
+            "quote": "Group centering subtracts that prompt group’s mean, not a global mean across unrelated prompts."
+          }
+        ],
+        "reason": "The group mean is (2 + 0 + 2 + 0 + 1)/5 = 1. Subtracting it gives [1, −1, 1, −1, 0].",
+        "exact": true,
+        "correct": true,
+        "grade": "taught"
+      },
+      {
+        "n": 5,
+        "option": 2,
+        "coverage": "taught",
+        "quotes": [
+          {
+            "scene": "loss-boundary",
+            "quote": "The pinned Cookbook removes the action mask before the backend training call. Observation positions already have zero advantage, which suppresses their reward term. An invalid parsed action can also receive zero mask and zero advantage while remaining visible in diagnostics. Sending a mask field without zeroing the corresponding advantage does not establish the same learning behavior."
+          },
+          {
+            "scene": "trajectory-branch",
+            "quote": "New observation tokens receive zero behavior score, zero reward advantage and zero action mask. Action tokens retain their sampled scores and the trajectory’s scalar advantage."
+          }
+        ],
+        "reason": "Zero the observation advantage so it contributes no reward term after mask removal. Retain the valid actions and their original sampled logprobs.",
+        "exact": true,
+        "correct": true,
+        "grade": "taught"
+      },
+      {
+        "n": 6,
+        "option": 4,
+        "coverage": "taught",
+        "quotes": [
+          {
+            "scene": "loss-boundary",
+            "quote": "A custom loss can differentiate returned log probabilities locally. The SDK then sends weighted cross-entropy with weights equal to the negative derivative of that custom loss with respect to each log probability. Backend loss is negative sum of weight times log probability, so its derivative matches the custom one."
+          }
+        ],
+        "reason": "The custom derivatives are [−2, +3]. Negating them gives weights [+2, −3].",
+        "exact": true,
+        "correct": true,
+        "grade": "taught"
+      },
+      {
+        "n": 7,
+        "option": 1,
+        "coverage": "taught",
+        "quotes": [
+          {
+            "scene": "chunk-order",
+            "quote": "Our actual local SDK check supplies a count limit of two. Five datums become chunks of two, two and one, with ordered request IDs zero, one and two; the next ID is three."
+          }
+        ],
+        "reason": "Applying the demonstrated count limit and one ID per chunk, ten datums at limit three form [3, 3, 3, 1]. IDs are 0 through 3, leaving next ID 4.",
+        "exact": true,
+        "correct": true,
+        "grade": "taught"
+      },
+      {
+        "n": 8,
+        "option": 3,
+        "coverage": "taught",
+        "quotes": [
+          {
+            "scene": "queue-recovery",
+            "quote": "Compute policy lag as the current trainer step minus the sampled policy step."
+          },
+          {
+            "scene": "fresh-run",
+            "quote": "The sampler lag is three steps, so the declared gate withholds that stale trajectory. Keep the step-six trajectory withheld with its original behavior scores. Publish and select the step-nine snapshot, then generate a new trajectory whose version lag is zero at trainer step nine."
+          }
+        ],
+        "reason": "At trainer step 20, the lags are 2, 1 and 0. A maximum lag of one withholds step 18 and admits steps 19 and 20.",
+        "exact": true,
+        "correct": true,
+        "grade": "taught"
+      },
+      {
+        "n": 9,
+        "option": 2,
+        "coverage": "taught",
+        "quotes": [
+          {
+            "scene": "queue-recovery",
+            "quote": "Official guidance warns against adding timeout-and-resubmit loops around SDK calls. On an application deadline, record the outstanding request and stop creating replacements. Reconcile through supported completion and error behavior. A slow request can still finish; a second request would create additional work rather than proving the first stopped."
+          },
+          {
+            "scene": "queue-recovery",
+            "quote": "External environments have their own effect boundary. A local started record cannot distinguish a crash before a remote charge from a crash after it. Persist an operation identity and use the destination’s supported idempotency or a status lookup. SDK training sequence IDs do not make an unrelated tool write replay-safe."
+          }
+        ],
+        "reason": "Reconcile the outstanding sample without creating a replacement. Resolve the charge through destination status or supported idempotency using its operation identity.",
+        "exact": true,
+        "correct": true,
+        "grade": "taught"
+      },
+      {
+        "n": 10,
+        "option": 4,
+        "coverage": "taught",
+        "quotes": [
+          {
+            "scene": "artifact-contract",
+            "quote": "A training checkpoint and a sampler checkpoint are different artifact types. Loading training weights alone does not restore optimizer moments. Use the optimizer-preserving load path when continuing a checkpoint that contains them. A sampler artifact identifies a policy for evaluation; it does not substitute for training continuation."
+          },
+          {
+            "scene": "artifact-contract",
+            "quote": "A compatible export can download an adapter, create a PEFT layout, or merge base plus scaled adapter into a Hugging Face directory. It does not preserve remote optimizer history or erase the base-model license. Pin base, tokenizer and renderer and run independent evaluation in the destination runtime."
+          }
+        ],
+        "reason": "Continue R through the optimizer-preserving load path, select S for policy sampling, and evaluate H independently in its destination runtime.",
+        "exact": true,
+        "correct": true,
+        "grade": "taught"
+      }
+    ]
+  },
+  "factCheck": {
+    "scenes": [
+      {
+        "id": "opening",
+        "evidence": "Supported as an explicitly hypothetical example. The inspected model stipulates trainer version 2 and sampler version 1. Training updates and sampler checkpoint selection are separate transitions, so this mismatch is possible. Lower loss and another incorrect answer alone would not diagnose staleness. The opening now supplies the version mismatch as an assumption, closing the prior empirical-framing issue.",
+        "sourceUrls": [
+          "https://tinker-docs.thinkingmachines.ai/tinker/howto/checkpoints/",
+          "https://raw.githubusercontent.com/thinking-machines-lab/tinker/0ce5bf2484891570b59f8d330a2daf793646917e/src/tinker/lib/public_interfaces/sampling_client.py"
+        ]
+      },
+      {
+        "id": "capability-receipt",
+        "evidence": "Supported. The pinned package declares SDK 0.27.0. Its capability schema exposes model names, context lengths, trainable status and sampleable status. It does not enumerate every loss, modality, export right or account entitlement. The live model documentation distinguishes training and inference offerings. Retaining those sources and checking additional constraints are operational requirements, not claims that this lesson performed an account lookup. A client revision does not pin the deployed runtime.",
+        "sourceUrls": [
+          "https://raw.githubusercontent.com/thinking-machines-lab/tinker/0ce5bf2484891570b59f8d330a2daf793646917e/pyproject.toml",
+          "https://raw.githubusercontent.com/thinking-machines-lab/tinker/0ce5bf2484891570b59f8d330a2daf793646917e/src/tinker/types/get_server_capabilities_response.py",
+          "https://tinker-docs.thinkingmachines.ai/tinker/models/models_and_pricing/"
+        ]
+      },
+      {
+        "id": "boundary",
+        "evidence": "Supported as an explanatory ownership split. Cookbook code constructs learning evidence locally; documented hosted operations perform model computation. ForwardBackwardOutput exposes per-datum outputs and metrics, without adapter-parameter gradient tensors. Futures distinguish successful completion from errors. The suggested troubleshooting checks are plausible starting points, not exclusive diagnoses. Control plane and data plane are teaching labels here.",
+        "sourceUrls": [
+          "https://raw.githubusercontent.com/thinking-machines-lab/tinker-cookbook/600b802d09be13e03756bfdc31e8c864fed90e7b/tinker_cookbook/rl/train.py",
+          "https://raw.githubusercontent.com/thinking-machines-lab/tinker/0ce5bf2484891570b59f8d330a2daf793646917e/src/tinker/types/forward_backward_output.py",
+          "https://raw.githubusercontent.com/thinking-machines-lab/tinker/0ce5bf2484891570b59f8d330a2daf793646917e/src/tinker/lib/api_future_impl.py"
+        ]
+      },
+      {
+        "id": "primitive-receipts",
+        "evidence": "Supported as documented contracts. Forward/backward, optimizer application, sampling and checkpoint creation are separate requests with different effects. Their receipts cannot establish that another transition occurred. The pinned optimizer documentation explicitly describes AdamW behavior and default weight decay 0.0. Single ownership and request logging are sound advice for maintaining the intended batch-to-update association.",
+        "sourceUrls": [
+          "https://raw.githubusercontent.com/thinking-machines-lab/tinker/0ce5bf2484891570b59f8d330a2daf793646917e/src/tinker/lib/public_interfaces/training_client.py",
+          "https://raw.githubusercontent.com/thinking-machines-lab/tinker/0ce5bf2484891570b59f8d330a2daf793646917e/src/tinker/resources/training.py",
+          "https://tinker-docs.thinkingmachines.ai/tinker/howto/checkpoints/"
+        ]
+      },
+      {
+        "id": "async-contract",
+        "evidence": "Correct for the pin: forward_backward_async returns an APIFuture; sample_async awaits its underlying future and returns SampleResponse. Training result_async obtains completed output. Return-shape differences do not imply different server ordering guarantees. The output schema supports the distinction between returned learning diagnostics and undisclosed parameter gradients.",
+        "sourceUrls": [
+          "https://raw.githubusercontent.com/thinking-machines-lab/tinker/0ce5bf2484891570b59f8d330a2daf793646917e/src/tinker/lib/public_interfaces/training_client.py",
+          "https://raw.githubusercontent.com/thinking-machines-lab/tinker/0ce5bf2484891570b59f8d330a2daf793646917e/src/tinker/lib/public_interfaces/sampling_client.py",
+          "https://raw.githubusercontent.com/thinking-machines-lab/tinker/0ce5bf2484891570b59f8d330a2daf793646917e/src/tinker/types/forward_backward_output.py"
+        ]
+      },
+      {
+        "id": "chunk-order",
+        "evidence": "Confirmed by configuration and chunker source. Defaults are 1,024 datums and 5,000,000 estimated bytes. Count limit 2 partitions five datums as 2+2+1, allocating local IDs 0,1,2 and then 3. Transmitted seq_id values add one. The probe datum estimates 3×4+3×8+3×4=48 bytes; a one-byte target therefore emits it intact. The private generator emits nothing for empty input, whereas public forward_backward rejects empty data. The narration correctly scopes these observations to the configuration-only probe.",
+        "sourceUrls": [
+          "https://raw.githubusercontent.com/thinking-machines-lab/tinker/0ce5bf2484891570b59f8d330a2daf793646917e/src/tinker/types/client_config_response.py",
+          "https://raw.githubusercontent.com/thinking-machines-lab/tinker/0ce5bf2484891570b59f8d330a2daf793646917e/src/tinker/lib/public_interfaces/training_client.py",
+          "https://raw.githubusercontent.com/thinking-machines-lab/tinker/0ce5bf2484891570b59f8d330a2daf793646917e/src/tinker/proto/request_conv.py"
+        ]
+      },
+      {
+        "id": "sft",
+        "evidence": "Arithmetic and alignment check out. Full tokens [10,11,20,21] produce inputs [10,11,20] and targets [11,20,21]. Full target-role weights [0,0,1,1] become [0,1,1]; dividing by their sum, 2, gives [0,0.5,0.5]. Input 11 predicts the first answer token 20 at position 1. The pinned helpers implement this shift and normalization. Optimizing an incorrectly shifted objective can reduce its loss without learning the intended relationship.",
+        "sourceUrls": [
+          "https://raw.githubusercontent.com/thinking-machines-lab/tinker-cookbook/600b802d09be13e03756bfdc31e8c864fed90e7b/tinker_cookbook/supervised/common.py",
+          "https://raw.githubusercontent.com/thinking-machines-lab/tinker-cookbook/600b802d09be13e03756bfdc31e8c864fed90e7b/tinker_cookbook/supervised/data.py"
+        ]
+      },
+      {
+        "id": "datum-validation",
+        "evidence": "I executed the supplied checker and confirmed its stated rejection branches. Additional empty-array, fractional-token and infinite-logprob cases were rejected. The pinned Datum constructor converts tensors without comparing input and target lengths, supporting the probe's deliberately mismatched example. Protobuf conversion preserves supplied positions rather than establishing token-score identity. Permuting [-0.4,-0.8] preserves length while attaching both scores incorrectly; equal lengths therefore cannot prove alignment.",
+        "sourceUrls": [
+          "https://raw.githubusercontent.com/thinking-machines-lab/tinker/0ce5bf2484891570b59f8d330a2daf793646917e/src/tinker/types/datum.py",
+          "https://raw.githubusercontent.com/thinking-machines-lab/tinker/0ce5bf2484891570b59f8d330a2daf793646917e/src/tinker/proto/request_conv.py"
+        ]
+      },
+      {
+        "id": "group-credit",
+        "evidence": "Reproduced from the actual film functions and five fixtures. Correct clamp outputs are [0,1,2,2,-3]; reversed nesting returns [2,2,2,2,-1]; returning x gives [-1,1,3,3,-4]. For lo≤hi, min(x,lo)≤hi, so reversed nesting always returns hi. Rewards are [1,0,1,0], mean 2/4=0.5 and advantages [0.5,-0.5,0.5,-0.5]. The supplied shared-parameter update yields gradient 0.5, parameter 0.125 and probabilities approximately [0.281088,0.218912,0.281088,0.218912]. This is a constructed coupling example, not hosted training evidence.",
+        "sourceUrls": [
+          "https://raw.githubusercontent.com/thinking-machines-lab/tinker-cookbook/600b802d09be13e03756bfdc31e8c864fed90e7b/tinker_cookbook/rl/data_processing.py",
+          "https://tinker-docs.thinkingmachines.ai/tinker/losses/importance-sampling/"
+        ]
+      },
+      {
+        "id": "uniform-groups",
+        "evidence": "Correct for nonempty groups: equal rewards r have mean r, giving r−r=0 everywhere. The pinned filter returns the first group with a warning when filtering removes every group; configuration defaults filtering to False. Retaining that group creates no reward contrast. A separately evaluated auxiliary objective can still have a nonzero gradient.",
+        "sourceUrls": [
+          "https://raw.githubusercontent.com/thinking-machines-lab/tinker-cookbook/600b802d09be13e03756bfdc31e8c864fed90e7b/tinker_cookbook/rl/data_processing.py",
+          "https://raw.githubusercontent.com/thinking-machines-lab/tinker-cookbook/600b802d09be13e03756bfdc31e8c864fed90e7b/tinker_cookbook/rl/train.py"
+        ]
+      },
+      {
+        "id": "trajectory-datum",
+        "evidence": "Correct. Shifting full tokens [10,11,20,21], scores [0,0,-0.4,-0.8], advantages [0,0,0.5,0.5] and mask [0,0,1,1] produces the narrated three-position rows. Token 20 retains score -0.4 and advantage 0.5 at target position 1, predicted from input 11. Observation zeros are unused placeholders, not measured behavior probabilities. All aligned fields have length 3.",
+        "sourceUrls": [
+          "https://raw.githubusercontent.com/thinking-machines-lab/tinker-cookbook/600b802d09be13e03756bfdc31e8c864fed90e7b/tinker_cookbook/rl/data_processing.py",
+          "https://raw.githubusercontent.com/thinking-machines-lab/tinker-cookbook/600b802d09be13e03756bfdc31e8c864fed90e7b/tinker_cookbook/supervised/common.py"
+        ]
+      },
+      {
+        "id": "trajectory-branch",
+        "evidence": "Supported by the converter. It compares the accumulated observation-plus-action sequence with the next observation's prefix. In the supplied model, extending [10,11,20] with observation token 30 permits merging; observation [50] requires a new datum. New observations receive zero scores, advantages and masks. Parse-error masking preserves sampled action logprobs while zeroing that action's advantage and mask. Those tokens can remain context for subsequent valid actions.",
+        "sourceUrls": [
+          "https://raw.githubusercontent.com/thinking-machines-lab/tinker-cookbook/600b802d09be13e03756bfdc31e8c864fed90e7b/tinker_cookbook/rl/data_processing.py"
+        ]
+      },
+      {
+        "id": "loss-boundary",
+        "evidence": "The prior spoken DRO error is closed. The pinned five loss names are correct. IS uses exp(ℓ−ℓ_behavior); PPO takes the minimum of clipped and unclipped surrogates; CISPO detaches its clipped ratio coefficient; DRO adds a quadratic logprob-difference penalty and requires its separate soft advantage formulation. Mask removal and zeroing the reward term match Cookbook code. For custom C, hold supplied w=−∂C/∂ℓ fixed: ∂(−Σwℓ)/∂ℓ=−w=∂C/∂ℓ. This reproduces the first derivative, without claiming identical loss values or downloaded parameter gradients.",
+        "sourceUrls": [
+          "https://raw.githubusercontent.com/thinking-machines-lab/tinker/0ce5bf2484891570b59f8d330a2daf793646917e/src/tinker/types/loss_fn_type.py",
+          "https://tinker-docs.thinkingmachines.ai/tinker/losses/importance-sampling/",
+          "https://tinker-docs.thinkingmachines.ai/tinker/losses/ppo/",
+          "https://tinker-docs.thinkingmachines.ai/tinker/losses/cispo/",
+          "https://tinker-docs.thinkingmachines.ai/tinker/losses/dro/",
+          "https://raw.githubusercontent.com/thinking-machines-lab/tinker-cookbook/600b802d09be13e03756bfdc31e8c864fed90e7b/tinker_cookbook/rl/train.py",
+          "https://raw.githubusercontent.com/thinking-machines-lab/tinker/0ce5bf2484891570b59f8d330a2daf793646917e/src/tinker/lib/public_interfaces/training_client.py"
+        ]
+      },
+      {
+        "id": "lora-path",
+        "evidence": "Supported. LoRA freezes W and trains factors contributing γBA. Increasing factor width increases parameter capacity and trainable state; realized matrix rank need not equal that width. The pinned client exposes rank and module selection. The repaired hosted-run wording describes the service contract and explicitly identifies local illustrations, closing the prior claim of an observed hosted update.",
+        "sourceUrls": [
+          "https://arxiv.org/html/2106.09685v2",
+          "https://raw.githubusercontent.com/thinking-machines-lab/tinker/0ce5bf2484891570b59f8d330a2daf793646917e/src/tinker/lib/public_interfaces/service_client.py"
+        ]
+      },
+      {
+        "id": "lora-geometry",
+        "evidence": "Recomputed and executed the actual supplied matrices. Wx=[1,2,-1,0]. Rank 2 gives Ax=[1−1,2+0]=[0,2], BAx=[0,2,-2,2], and Wx+0.5BAx=[1,3,-2,1]. Rank 4 gives Ax=[0,2,1,-2], BAx=[1,2,-4,2], and output [1.5,3,-3,1]. Factor counts are 2(6+4)=20 and 4(6+4)=40, versus 4×6=24 base values. The narration correctly calls this geometry rather than compression or a learned quality comparison.",
+        "sourceUrls": [
+          "https://arxiv.org/html/2106.09685v2"
+        ]
+      },
+      {
+        "id": "lora-evidence",
+        "evidence": "Accurately attributed and qualified. The study compares attention-only rank 256, approximately 0.25B parameters, with MLP-only rank 128, approximately 0.24B, and reports attention-only underperformance. Its mathematical-reasoning RL experiments report comparable peak performance to FullFT at ranks as low as 1, within experimental noise. These results do not establish universal equivalence. Frozen base weights still participate in computation, so adapter-only optimization does not measure a full-parameter optimizer path.",
+        "sourceUrls": [
+          "https://thinkingmachines.ai/blog/lora/",
+          "https://arxiv.org/html/2106.09685v2"
+        ]
+      },
+      {
+        "id": "clock",
+        "evidence": "Supported as the documentation's illustrative schedule: forward/backward executes in N, waiting misses admission to N+1, and optimizer execution occurs in N+2. Submitting both first permits the pair in one cycle. The narration avoids claiming a universal three-cycle latency. Cookbook train_step pipelines submissions before consuming results. Bounded queues and version logging are operational advice, not measured throughput results.",
+        "sourceUrls": [
+          "https://tinker-docs.thinkingmachines.ai/tinker/under-the-hood/",
+          "https://raw.githubusercontent.com/thinking-machines-lab/tinker-cookbook/600b802d09be13e03756bfdc31e8c864fed90e7b/tinker_cookbook/rl/train.py"
+        ]
+      },
+      {
+        "id": "queue-recovery",
+        "evidence": "Supported. Official guidance warns against additional timeout-and-resubmit wrappers. Step lag is the declared index difference, not policy divergence; the supplied model's trainer 12 and policies 9,10,11 give lags 3,2,1. For external effects, both crash-before-charge and charge-then-crash-before-recording-success can leave the same local started record. Local evidence cannot distinguish those histories. Destination-supported idempotency or authoritative reconciliation addresses that separate boundary; training sequence IDs do not.",
+        "sourceUrls": [
+          "https://tinker-docs.thinkingmachines.ai/tinker/under-the-hood/",
+          "https://aws.amazon.com/builders-library/making-retries-safe-with-idempotent-APIs/"
+        ]
+      },
+      {
+        "id": "snapshots",
+        "evidence": "Supported. Documented training checkpoints include optimizer moments, while sampler checkpoints select evaluation weights. The inspected film model constructs its save, attachment and response states locally. Its verifier arithmetic is max(3,0)=3, then min(3,2)=2, matching expected 2. The narration explicitly calls the response constructed and does not claim that training caused a hosted model to generate it.",
+        "sourceUrls": [
+          "https://tinker-docs.thinkingmachines.ai/tinker/howto/checkpoints/",
+          "https://tinker-docs.thinkingmachines.ai/cookbook/deployment/export-hf/"
+        ]
+      },
+      {
+        "id": "artifact-contract",
+        "evidence": "Supported. Weights-only loading differs from optimizer-preserving restoration. TTL controls expiry; the pinned training save API exposes overwrite. Cookbook implementations provide PEFT conversion and compatible Hugging Face merging, including shape checks. Merging adds scaled adapter deltas to base weights; it does not carry remote optimizer history or cancel model-license obligations. Destination evaluation and account/model permission checks are requirements, not claims of completed export validation.",
+        "sourceUrls": [
+          "https://tinker-docs.thinkingmachines.ai/tinker/howto/checkpoints/",
+          "https://raw.githubusercontent.com/thinking-machines-lab/tinker-cookbook/600b802d09be13e03756bfdc31e8c864fed90e7b/tinker_cookbook/weights/_adapter.py",
+          "https://raw.githubusercontent.com/thinking-machines-lab/tinker-cookbook/600b802d09be13e03756bfdc31e8c864fed90e7b/tinker_cookbook/weights/_export/__init__.py",
+          "https://raw.githubusercontent.com/thinking-machines-lab/tinker-cookbook/600b802d09be13e03756bfdc31e8c864fed90e7b/tinker_cookbook/weights/_merge.py",
+          "https://thinkingmachines.ai/legal/terms/"
+        ]
+      },
+      {
+        "id": "data-terms",
+        "evidence": "Supported by the published documents. Both pinned licenses are Apache-2.0. The service terms display January 10, 2026, allow enterprise precedence, require submitted-data rights, limit customer-content processing to the stated purpose, prohibit its use for provider technology improvement, and restrict service benchmarking or competitive analysis. LoRA memorization research supports treating adapters as potentially sensitive. Redaction, retention and agreement checks are production requirements; the narration does not claim that the fixtures implement those controls.",
+        "sourceUrls": [
+          "https://raw.githubusercontent.com/thinking-machines-lab/tinker/0ce5bf2484891570b59f8d330a2daf793646917e/LICENSE",
+          "https://raw.githubusercontent.com/thinking-machines-lab/tinker-cookbook/600b802d09be13e03756bfdc31e8c864fed90e7b/LICENSE",
+          "https://thinkingmachines.ai/legal/terms/",
+          "https://arxiv.org/html/2502.05087v3"
+        ]
+      },
+      {
+        "id": "source-responsibility",
+        "evidence": "The implementation map checks out: ServiceClient handles capability/client creation; request conversion constructs protobuf payloads; resources issue HTTP requests; futures decode completion or errors. Supervised helpers shift/reduce targets, RL processing constructs evidence, and train_step removes masks and pipelines updates. Export helpers construct downloadable layouts. CONTRIBUTING documents builders, Ruff, Pyright and tests. Public source supports these responsibilities without establishing hidden placement or contractual recovery guarantees.",
+        "sourceUrls": [
+          "https://raw.githubusercontent.com/thinking-machines-lab/tinker/0ce5bf2484891570b59f8d330a2daf793646917e/src/tinker/lib/public_interfaces/service_client.py",
+          "https://raw.githubusercontent.com/thinking-machines-lab/tinker/0ce5bf2484891570b59f8d330a2daf793646917e/src/tinker/proto/request_conv.py",
+          "https://raw.githubusercontent.com/thinking-machines-lab/tinker/0ce5bf2484891570b59f8d330a2daf793646917e/src/tinker/resources/training.py",
+          "https://raw.githubusercontent.com/thinking-machines-lab/tinker/0ce5bf2484891570b59f8d330a2daf793646917e/src/tinker/resources/sampling.py",
+          "https://raw.githubusercontent.com/thinking-machines-lab/tinker/0ce5bf2484891570b59f8d330a2daf793646917e/src/tinker/lib/api_future_impl.py",
+          "https://raw.githubusercontent.com/thinking-machines-lab/tinker-cookbook/600b802d09be13e03756bfdc31e8c864fed90e7b/CONTRIBUTING.md",
+          "https://raw.githubusercontent.com/thinking-machines-lab/tinker-cookbook/600b802d09be13e03756bfdc31e8c864fed90e7b/tinker_cookbook/weights/__init__.py"
+        ]
+      },
+      {
+        "id": "local-evidence",
+        "evidence": "I reproduced the standard-library checker: four known functions, five fixtures, the stated rewards and advantages, first-answer preservation, and nine rejected inputs comprising seven datums and two reward collections. The retained SDK receipt contains six reported passes, revision/version and source hashes. Its probe uses a configuration-only holder without ServiceClient or transport creation. The repaired attribution closes the prior spoken provenance issue; independent SDK execution remains unverified, rather than demonstrated false.",
+        "sourceUrls": [
+          "https://raw.githubusercontent.com/thinking-machines-lab/tinker/0ce5bf2484891570b59f8d330a2daf793646917e/src/tinker/types/datum.py",
+          "https://raw.githubusercontent.com/thinking-machines-lab/tinker/0ce5bf2484891570b59f8d330a2daf793646917e/src/tinker/proto/request_conv.py"
+        ]
+      },
+      {
+        "id": "transport-comparison",
+        "evidence": "Supported. DeepEP's primary documentation describes expert-parallel dispatch/combine and additional experimental communication primitives. It does not provide a hosted reward, optimizer or sampler-checkpoint service. Its repository identifies MIT licensing. Communication throughput and complete-experiment cost have different measurement boundaries, so the narration's comparison is appropriate. It makes no claim that Tinker internally uses DeepEP.",
+        "sourceUrls": [
+          "https://raw.githubusercontent.com/deepseek-ai/DeepEP/main/README.md",
+          "https://tinker-docs.thinkingmachines.ai/tinker/under-the-hood/"
+        ]
+      },
+      {
+        "id": "fresh-run",
+        "evidence": "The prior spoken freshness error is closed. Full tokens [30,31,32,40,41,42] yield inputs [30,31,32,40,41], targets [31,32,40,41,42], weights [0,0,1,1,1] and normalized weights [0,0,1/3,1/3,1/3]. Input 32 predicts action 40. Under the stipulated checkpoint-to-step mapping, 9−6=3>1, so old data remains withheld. Publication, selection and a new generation at trainer step 9 yield new-data lag 9−9=0. Light-PEFT's paper supports early importance estimation followed by structured pruning and continued fine-tuning; the closing sentence promises no universal quality gain.",
+        "sourceUrls": [
+          "https://raw.githubusercontent.com/thinking-machines-lab/tinker-cookbook/600b802d09be13e03756bfdc31e8c864fed90e7b/tinker_cookbook/supervised/common.py",
+          "https://tinker-docs.thinkingmachines.ai/tinker/howto/checkpoints/",
+          "https://aclanthology.org/2024.findings-acl.447.pdf"
+        ]
+      }
+    ],
+    "findings": [],
+    "limitations": [
+      "Reviewed all 25 scenes and 67 beats. Independently verified checkout narration hash 64feb5f2cacee5c9 and lesson SHA-256 00b42e4e2b618fd0027fb139a02f224352952cae46da551195c40ea781bc07f5. No substantive inaccurate or unsupported spoken claim remains identified.",
+      "The available Python interpreter has no tinker package. I inspected the SDK probe, retained receipt and pinned primary source, but did not independently reproduce the SDK execution. The receipt still lacks an execution timestamp, interpreter identity, dependency lock and command log. Its existence and six reported passes are verified; complete execution provenance is not.",
+      "No hosted training, sampling, capability lookup, publication, recovery or export was performed. Documented contracts and local arithmetic do not establish deployed behavior, account eligibility, quality improvement, latency or runtime equivalence.",
+      "I read and executed the actual film arithmetic and its validateModel function successfully. The stage folder has no index.mjs. No rebuilt film, layout, measured speech timing or continuous playback was available for validation.",
+      "Visual integration remains open in [fresh-run.mjs](/Users/bruno.volpato/githubworkspace/leetllm-wt-rebuild/videos/films/deep-dive-tinker/stages/fresh-run.mjs:47): the legacy painter changes its label to lag 0 without modeling another trajectory. Preserve the old step-six identity, behavior scores, lag 3 and withheld verdict; separately show publication, selection and a distinctly identified new generation at step nine. This is a visual defect, not an error in the repaired speech.",
+      "The legacy [loss picture](/Users/bruno.volpato/githubworkspace/leetllm-wt-rebuild/videos/films/deep-dive-tinker/stages/loss-boundary.mjs:30) still presents all five names above one ratio equation. The rebuild should distinguish IS weighting, PPO surrogate clipping, CISPO's detached coefficient and DRO's quadratic penalty with its own advantage. Preserve the corrected narration and allow its expanded cue duration.",
+      "The legacy [SDK-results heading](/Users/bruno.volpato/githubworkspace/leetllm-wt-rebuild/videos/films/deep-dive-tinker/stages/local-evidence.mjs:63) should explicitly attribute results to the retained SDK 0.27.0 receipt, with revision and local-only scope. The opening visual should label its stipulated versions as hypothetical. These visual-attribution requirements remain open.",
+      "The article's unqualified 09:12 opening remains a separate editorial issue; it was not used as proof of a hosted event. The prior private-chunker quiz-durability decision also remains open. Its arithmetic is supported, but this review does not constitute quiz acceptance.",
+      "Public documentation and terms were consulted on November 10, 2026 and can change independently of the pinned source. No edits, external writes or subagents were used."
+    ]
+  },
+  "reviewedNarration": {
+    "source": "videos/stage-lessons/deep-dive-tinker/lesson.yaml",
+    "script": "64feb5f2cacee5c9",
+    "scenes": [
+      {
+        "id": "opening",
+        "beats": [
+          {
+            "say": "Imagine a clamp run at 09:12 where the training loss has fallen, yet the grader still sees return x in the next sample. The worker accepted the gradient and optimizer calls. A training result and a sampled result can belong to different adapter versions.\n"
+          },
+          {
+            "say": "Imagine the trainer has advanced its adapter to version two while the sampling client still reads version one. The text is a clue about the boundary between those two states. We can trace that boundary before changing a learning rate or blaming the reward.\n"
+          },
+          {
+            "say": "We will follow a clamp example from prompt tokens to group rewards, then watch an ordered update reach a published sampler snapshot. Along the way, we will separate the work your Python loop owns from the hosted state that only the service can inspect.\n"
+          }
+        ]
+      },
+      {
+        "id": "capability-receipt",
+        "beats": [
+          {
+            "say": "Tinker has three surfaces: a company-operated hosted service, an inspectable Python SDK, and open Cookbook recipes. The SDK and Cookbook pins in this lesson identify client implementations, not the remote worker runtime. Cloning them does not provide the GPU pool, storage, model catalog or account authorization."
+          },
+          {
+            "say": "At run start, retain the actual server capability response and current model documentation. A public model checkpoint name is not automatically a hosted training identifier. Training access, inference access, loss support, modality, account eligibility and export permission need separate checks. A model name in an old tutorial is not a current capability receipt."
+          }
+        ]
+      },
+      {
+        "id": "boundary",
+        "beats": [
+          {
+            "say": "Your local process chooses prompts, renders the chat template, runs the clamp verifier, and decides which reward becomes training evidence. That is the control plane: the code that decides what the next completion should teach.\n"
+          },
+          {
+            "say": "The hosted data plane runs model computation, keeps adapter and optimizer state, and returns samples or metrics. The SDK gives your loop handles and results. A future signals that work completed, while hidden parameter gradients and worker placement remain inside the service.\n"
+          },
+          {
+            "say": "If a target tensor is malformed, inspect datum construction. If a model is unavailable, inspect the current capability response and account access. If a sample is stale, inspect which saved sampler path the client loaded. The symptom points toward an owner.\n"
+          }
+        ]
+      },
+      {
+        "id": "primitive-receipts",
+        "beats": [
+          {
+            "say": "Forward-backward computes the chosen loss and accumulates gradients for a training client’s adapter. Optimizer-step consumes the intended accumulation and advances trainable weights plus optimizer state. Sampling generates tokens from a sampling client’s selected snapshot. Saving training state creates a recovery artifact. A successful receipt from one transition does not prove the others happened."
+          },
+          {
+            "say": "The pinned optimizer documentation describes AdamW-equivalent behavior with default weight decay zero. Do not infer another library’s default decay. One loop component should own each training client and log its ordered request IDs. Accidentally mixing independent loops or another client can break the intended association between a batch and its optimizer step."
+          }
+        ]
+      },
+      {
+        "id": "async-contract",
+        "beats": [
+          {
+            "say": "The async suffix does not promise the same return shape on every method. In SDK zero point twenty-seven, awaiting forward-backward-async returns an API future. Await that future’s result-async to obtain the completed training output. By contrast, awaiting sample-async returns the completed sample response. Match the actual method contract rather than counting await keywords."
+          },
+          {
+            "say": "These handles do not download adapter-parameter gradients. They report compact outputs, metrics and completion or errors. A client future and a remote ordered training sequence are separate mechanisms. Submitting a forward-backward request and its optimizer request before waiting can preserve their order without turning the hosted service into an unbounded asynchronous parameter server."
+          }
+        ]
+      },
+      {
+        "id": "chunk-order",
+        "beats": [
+          {
+            "say": "The pinned client config defaults to one thousand twenty-four datums and five million estimated pre-compression protobuf bytes per forward-backward chunk. Server configuration can change those values. The byte estimate is a chunking target, not a guarantee that every emitted request fits that size: an individual oversized datum is not split by the chunker."
+          },
+          {
+            "say": "Our actual local SDK check supplies a count limit of two. Five datums become chunks of two, two and one, with ordered request IDs zero, one and two; the next ID is three. A separate one-byte limit still emits each oversized datum whole. Empty input yields no chunks. These checks use a configuration-only holder and create no transport or hosted model."
+          },
+          {
+            "say": "Chunk submission can be concurrent while sequence IDs preserve logical turn order for that training client. Inspect the chunk builder and take-turn path when a request association looks wrong. Count-based and byte-based admission are local protocol behavior; this CPU probe does not measure remote scheduling, retries or training execution."
+          }
+        ]
+      },
+      {
+        "id": "sft",
+        "beats": [
+          {
+            "say": "Before reinforcement learning, align one supervised answer. Our toy full sequence is ten, eleven, twenty, twenty-one. Inputs omit the final token, and targets omit the first. Every input predicts the target at the same position.\n"
+          },
+          {
+            "say": "The prompt occupies the first two tokens, and the answer begins at twenty. Its first target is predicted from input eleven. Put the training weight on the target role, so that first answer position stays in the loss.\n"
+          },
+          {
+            "say": "The response weights are zero, one, one. With mean reduction, their positive values become one-half each. Follow the target row when checking masks. A shifted target can make loss decrease while the model learns the wrong token relationship.\n"
+          }
+        ]
+      },
+      {
+        "id": "datum-validation",
+        "beats": [
+          {
+            "say": "The local contract checker rejects empty or unequal field lengths, negative or noninteger token IDs, nonfinite scores, fractional action masks, a datum with no action, positive action log probabilities, and nonzero advantage at a masked position. Those explicit checks protect the supplied training contract before expensive work is sent."
+          },
+          {
+            "say": "Equal lengths alone still cannot detect a score attached to the wrong token. Preserve sampled token IDs with their original behavior log probabilities, tokenizer revision and renderer. Decoding and retokenizing can move boundaries while leaving plausible text. Compare position identities as well as array sizes, including the first answer predicted from the last prompt input."
+          },
+          {
+            "say": "The actual pinned SDK probe constructs a datum whose input has one token while its targets and weights have two. Construction accepts it. The protobuf roundtrip preserves the first-answer weight, but serialization does not validate semantic alignment. Keep the local application gate; an SDK object existing is not evidence that its learning targets are correct."
+          }
+        ]
+      },
+      {
+        "id": "group-credit",
+        "beats": [
+          {
+            "say": "Now run four clamp completions through the local fixtures. The nested min-max function passes, the reversed nesting fails, the repeated correct form passes, and returning x fails. The grader turns those outcomes into a reward for each completion.\n"
+          },
+          {
+            "say": "The group rewards are one, zero, one, zero. Their mean is one-half. Subtract that baseline from each result, and the correct pair receives positive credit while the other pair receives negative credit.\n"
+          },
+          {
+            "say": "Group-relative credit guides which completions an update should favor, while shared parameters couple their probabilities. A one-step update couples all four completion probabilities through those parameters. When rewards tie, centered reward advantages are zero, while an auxiliary objective can still contribute a gradient.\n"
+          }
+        ]
+      },
+      {
+        "id": "uniform-groups",
+        "beats": [
+          {
+            "say": "Group centering subtracts that prompt group’s mean, not a global mean across unrelated prompts. When all rewards in a group match, its centered reward advantages are zero. That says nothing about a separately configured KL penalty or another auxiliary loss, which can still contribute gradients on retained samples."
+          },
+          {
+            "say": "The pinned optional filter removes constant-reward groups, but if all are constant it retains one with a warning so downstream code receives a nonempty list. This fallback does not manufacture reward contrast. The pinned training config disables that filtering by default. Log whether the group was kept and which objective terms actually ran."
+          }
+        ]
+      },
+      {
+        "id": "trajectory-datum",
+        "beats": [
+          {
+            "say": "A sequence-level reward still has to reach token positions. The sampler supplies generated token IDs and behavior log probabilities. The trajectory converter aligns each score with its target and copies the completion's advantage across its action tokens.\n"
+          },
+          {
+            "say": "In the worked sequence, inputs are ten, eleven, twenty and targets are eleven, twenty, twenty-one. The log probabilities are zero, negative point four, negative point eight. The mask keeps the two answer positions. Each carries an advantage of one half, while the prompt position contributes zero.\n"
+          },
+          {
+            "say": "Token twenty at target position one is the first answer token. Target eleven completes the prompt, so it receives zero action mask and zero reward advantage. If a tool observation appears between actions, it also carries no action signal. Check token, logprob, advantage, and mask lengths together before submitting the loss.\n"
+          }
+        ]
+      },
+      {
+        "id": "trajectory-branch",
+        "beats": [
+          {
+            "say": "A trajectory can contain several observations and actions. If each new observation extends the accumulated prefix, the converter can merge the turns into one datum. If a later observation is not an extension, as after a branch or compaction, it closes that datum and starts another. One trajectory can therefore produce several training datums."
+          },
+          {
+            "say": "New observation tokens receive zero behavior score, zero reward advantage and zero action mask. Action tokens retain their sampled scores and the trajectory’s scalar advantage. After constructing the full sequence, shift all aligned fields together. A parse-error turn can be withheld from learning without erasing the surrounding valid actions or hiding the error from metrics."
+          }
+        ]
+      },
+      {
+        "id": "loss-boundary",
+        "beats": [
+          {
+            "say": "The pinned SDK names cross-entropy, importance-sampling, PPO, CISPO and DRO losses. Their fields and deployment availability differ. Importance sampling weights each advantage by the current-to-behavior probability ratio. PPO clips its surrogate objective, and CISPO weights the log probability with a clipped ratio held constant during differentiation. DRO instead penalizes the squared difference between current and behavior log probabilities and requires its own soft advantage estimate rather than the centered rewards used here. The service capability and chosen loss contract govern the request."
+          },
+          {
+            "say": "The pinned Cookbook removes the action mask before the backend training call. Observation positions already have zero advantage, which suppresses their reward term. An invalid parsed action can also receive zero mask and zero advantage while remaining visible in diagnostics. Sending a mask field without zeroing the corresponding advantage does not establish the same learning behavior."
+          },
+          {
+            "say": "A custom loss can differentiate returned log probabilities locally. The SDK then sends weighted cross-entropy with weights equal to the negative derivative of that custom loss with respect to each log probability. Backend loss is negative sum of weight times log probability, so its derivative matches the custom one. These are logprob derivatives, not downloaded model-parameter gradients."
+          }
+        ]
+      },
+      {
+        "id": "lora-path",
+        "beats": [
+          {
+            "say": "Tinker trains through LoRA. A frozen base matrix still computes the forward path, while two small factors form a low-rank update. The adapted weight is W prime equals W plus gamma times B A.\n"
+          },
+          {
+            "say": "Rank controls the adapter's capacity and its trainable state. A larger rank adds directions and optimizer bookkeeping. In a hosted Tinker run, the optimizer updates LoRA factors against a compatible base topology. Our local fixtures illustrate that contract.\n"
+          },
+          {
+            "say": "Your loop controls data, rewards, loss inputs, and sampling schedule. The service owns base weights, placement, kernels, and optimizer state. This split gives a researcher a small algorithmic surface while keeping infrastructure behind the service boundary.\n"
+          }
+        ]
+      },
+      {
+        "id": "lora-geometry",
+        "beats": [
+          {
+            "say": "Use a supplied matrix worksheet rather than a hidden training claim. Input x is one, two, negative one, zero, one, negative two. Frozen W selects its first four coordinates, giving one, two, negative one, zero. A maps six input coordinates into two adapter coordinates; B expands those two into the same four output coordinates. Scale the adapter output by gamma, then add it to W x."
+          },
+          {
+            "say": "Our supplied rank-two A adds coordinates one and three into its first slot, and two and four into its second. That gives zero, two. B maps these to zero, two, negative two, two. With gamma one-half, the adapted output is one, three, negative two, one. The base output stays present while the adapter contributions accumulate."
+          },
+          {
+            "say": "Now add two supplied factor directions while keeping x and W fixed. The rank-four narrow output is zero, two, one, negative two, and its expanded output is one, two, negative four, two. After the same half scale and base addition, the result becomes one point five, three, negative three, one. This changes the constructed projection; it does not demonstrate a learned quality gain."
+          },
+          {
+            "say": "For input width d in, output width d out and factor width r, adapter parameter count is r times the sum of those two widths. Our tiny four-by-six worksheet has twenty adapter values at rank two and forty at rank four, compared with twenty-four base values. It illustrates geometry rather than compression. Large matrices at small rank can have much smaller adapter state. Target-module choice and rank both need controlled evaluation."
+          }
+        ]
+      },
+      {
+        "id": "lora-evidence",
+        "beats": [
+          {
+            "say": "Thinking Machines’ published LoRA study compares target modules as well as rank. Attention-only adaptation underperformed MLP adaptation even at matched parameter counts in their tested settings. Their math reinforcement-learning experiments matched full fine-tuning at very low ranks. These are scoped research results, not a guarantee for every task, dataset or reward."
+          },
+          {
+            "say": "Hold target modules, base revision, data and evaluation fixed when attributing a change to rank. The frozen base still executes its forward path. Adapter-only optimization therefore reduces trainable state without eliminating base-model computation. A hosted LoRA result does not answer a full-parameter optimizer-memory or stability question."
+          }
+        ]
+      },
+      {
+        "id": "clock",
+        "beats": [
+          {
+            "say": "A correct datum can still spend time waiting between requests. A training client sequences forward-backward work and its optimizer step. If the loop waits for the first result before submitting the second call, it can miss an admission boundary.\n"
+          },
+          {
+            "say": "The documentation's illustrative schedule spans three cycles for the naive loop. Submit forward-backward, then submit optim-step, before awaiting either result. The service preserves that client's request order and can admit the pair together.\n"
+          },
+          {
+            "say": "Keep the queue bounded. Too many in-flight samples can raise policy lag and complicate recovery. Record request IDs, trainer step, and sampler version. The small loop then exposes an observable clock with clear request ownership.\n"
+          }
+        ]
+      },
+      {
+        "id": "queue-recovery",
+        "beats": [
+          {
+            "say": "The documented worker clock is not internal GPU kernel overlap. Keep a bounded queue of submitted groups, with request ID, trainer step and sampler version on each. Compute policy lag as the current trainer step minus the sampled policy step. A deep queue can increase that lag even while it hides network latency. A reproducible algorithm needs both a capacity bound and a policy-staleness rule."
+          },
+          {
+            "say": "Official guidance warns against adding timeout-and-resubmit loops around SDK calls. On an application deadline, record the outstanding request and stop creating replacements. Reconcile through supported completion and error behavior. A slow request can still finish; a second request would create additional work rather than proving the first stopped."
+          },
+          {
+            "say": "External environments have their own effect boundary. A local started record cannot distinguish a crash before a remote charge from a crash after it. Persist an operation identity and use the destination’s supported idempotency or a status lookup. SDK training sequence IDs do not make an unrelated tool write replay-safe."
+          }
+        ]
+      },
+      {
+        "id": "snapshots",
+        "beats": [
+          {
+            "say": "Choose an artifact by its next job. A training checkpoint can resume with optimizer moments when loaded through the matching path. A sampler snapshot serves evaluation. A merged Hugging Face directory serves another runtime after its compatibility checks.\n"
+          },
+          {
+            "say": "A training checkpoint preserves optimizer state for resumption. For evaluation, save sampler-compatible weights under an adapter-v2 snapshot. Follow that artifact into a fresh SamplingClient, then record its selected path beside each trajectory.\n"
+          },
+          {
+            "say": "For this local clamp fixture, the saved adapter-v2 path is selected by the fresh client. Its constructed response is return min(max(x, lo), hi). Set x to three, lo to zero, and hi to two: the inner maximum returns three, then the outer minimum returns two. The local verifier compares that result with two and passes. For a real evaluation, record the policy path, base revision, tokenizer, renderer, and reward version with the provider's sample.\n"
+          }
+        ]
+      },
+      {
+        "id": "artifact-contract",
+        "beats": [
+          {
+            "say": "A training checkpoint and a sampler checkpoint are different artifact types. Loading training weights alone does not restore optimizer moments. Use the optimizer-preserving load path when continuing a checkpoint that contains them. A sampler artifact identifies a policy for evaluation; it does not substitute for training continuation."
+          },
+          {
+            "say": "Checkpoint TTL and overwrite are explicit lifecycle choices. Name the run and step, and retain dataset and reward revisions in the manifest. A path identifies stored state but does not explain which data or verifier produced it. Expiry can remove the evidence needed to investigate a later mismatch."
+          },
+          {
+            "say": "A compatible export can download an adapter, create a PEFT layout, or merge base plus scaled adapter into a Hugging Face directory. It does not preserve remote optimizer history or erase the base-model license. Pin base, tokenizer and renderer and run independent evaluation in the destination runtime. Availability and permitted export depend on the model and account."
+          }
+        ]
+      },
+      {
+        "id": "data-terms",
+        "beats": [
+          {
+            "say": "The pinned SDK and Cookbook use Apache two source licenses. That does not grant access to the hosted service, third-party weights or datasets. The January tenth, twenty twenty-six published service terms, checked for this lesson, distinguish customer content, hosted models, downloadable weights and third-party conditions. An enterprise agreement can override conflicting published terms."
+          },
+          {
+            "say": "Those published terms require rights to submitted data, permit processing for providing the service and legal compliance, and commit not to use customer content for the provider’s own model training or improvement. They also restrict service benchmarking and competitive analysis. Check the agreement applicable to the planned use; a source checkout is not the service contract."
+          },
+          {
+            "say": "Remove API keys, private user data and tool-emitted credentials from datasets and diagnostic logs before submission or storage. Set retention deliberately. Adapters can memorize rare examples, so a sampler checkpoint can be sensitive too. Residency, deletion and processing commitments need current product and agreement evidence; a local path or passing test establishes none of them."
+          }
+        ]
+      },
+      {
+        "id": "source-responsibility",
+        "beats": [
+          {
+            "say": "The exact SDK revision behind zero point twenty-seven is recorded in the article and local probe. Begin with service-client capability and client creation, then training-client chunking and take-turn sequencing. Request conversion defines the protobuf wire representation. Resource methods send it, and API futures return completion or errors. The sampler has a separate request and loaded-snapshot path."
+          },
+          {
+            "say": "In the pinned Cookbook, supervised conversion owns role-aware shifting and reduction. RL data processing owns group centering, prefix-based trajectory splitting and token evidence. The training loop removes masks, selects the loss, pipelines calls and saves artifacts. Export helpers construct the separate downloadable layouts. These are implementation responsibilities, not claims about hidden worker placement."
+          },
+          {
+            "say": "Public history supports attribution, not authority over the company-operated service. Follow the Cookbook’s builder conventions and its Ruff, Pyright and test guidance for contributions. Code review can change recipes and clients; model catalog, hosted recovery and data commitments remain with the service operator and applicable agreement."
+          }
+        ]
+      },
+      {
+        "id": "local-evidence",
+        "beats": [
+          {
+            "say": "The local clamp checker executes four known functions against five fixtures, not untrusted generated programs. It verifies the illustrated one, zero, one, zero rewards and centered credit, preserves the first answer, and rejects nine invalid inputs. These fixtures cover bounds and basic shape contracts, not arbitrary program safety or exhaustive task correctness."
+          },
+          {
+            "say": "The retained SDK execution receipt reports six passing local checks: wire dtypes, protobuf token and weight preservation, ordered count chunks, indivisible oversized datums, empty chunks and accepted mismatched lengths. No ServiceClient, HTTP transport or hosted model is created. These concrete results do not measure remote ordering, learning, latency, checkpoint recovery or exported-model equivalence."
+          }
+        ]
+      },
+      {
+        "id": "transport-comparison",
+        "beats": [
+          {
+            "say": "Tinker exposes a hosted adapter-training and sampling algorithm interface. DeepEP primarily exposes expert-parallel dispatch and combine transport for a runtime you operate; its versioned newer primitives do not turn it into a hosted reward or optimizer service. A self-hosted trainer can build policy learning above that transport, but the transport does not choose advantages or sampler snapshots."
+          },
+          {
+            "say": "The owner of compute and the meaningful measurement differ. A hosted experiment’s total cost, token receipts and reproducibility are not a communication kernel’s throughput. Keep SDK and Cookbook Apache terms, DeepEP source terms, third-party model rights and hosted agreements distinct. An incident about a stale snapshot needs different evidence from a full dispatch buffer or rank failure."
+          }
+        ]
+      },
+      {
+        "id": "fresh-run",
+        "beats": [
+          {
+            "say": "Apply the contract to a new run. The full toy sequence is thirty, thirty-one, thirty-two, forty, forty-one, forty-two. The first three tokens are prompt and the last three are actions. Trainer step nine evaluates sampler path six, under a declared maximum lag of one step. Before any new sample, predict the shifted response weights and whether that trajectory meets the policy-version gate. Pause."
+          },
+          {
+            "say": "The five target-role weights are zero, zero, one, one, one. Mean reduction makes the three positive weights one-third each. The last prompt input predicts action forty and remains trained. The sampler lag is three steps, so the declared gate withholds that stale trajectory. Keep the step-six trajectory withheld with its original behavior scores. Publish and select the step-nine snapshot, then generate a new trajectory whose version lag is zero at trainer step nine. Correcting the target weights repairs alignment separately. Neither receipt replaces the other, and neither proves a real hosted quality gain. Light-PEFT next tests which dense coordinates the task can afford to remove, turning short-run importance scores into checked physical slices before continuing fine-tuning."
+          }
+        ]
+      }
+    ]
+  }
+}

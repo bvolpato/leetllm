@@ -1,0 +1,637 @@
+version: 1
+id: distillation
+title: "Distillation: Match the Signal, Prefix and Release Contract"
+source: training/knowledge-distillation-llms/content.md
+voice: en-US-AndrewNeural
+rate: +0%
+sources:
+  - title: Hinton et al. Distilling the Knowledge in a Neural Network
+    url: https://arxiv.org/abs/1503.02531
+  - title: Gu et al. MiniLLM
+    url: https://arxiv.org/abs/2306.08543
+  - title: Agarwal et al. On-Policy Distillation of Language Models
+    url: https://arxiv.org/abs/2306.13649
+  - title: GKD
+    url: https://arxiv.org/abs/2306.13649
+  - title: MiniLLM
+    url: https://arxiv.org/abs/2306.08543
+  - title: Gemma 2
+    url: https://arxiv.org/abs/2408.00118
+  - title: DeepSeek R1 original report
+    url: https://arxiv.org/html/2501.12948v1
+  - title: TRL Distillation Trainer
+    url: https://huggingface.co/docs/trl/main/en/distillation_trainer
+scenes:
+  - id: intro
+    title: A teacher can reveal more than one answer
+    visual: A large teacher and a small student produce distributions for the same ordinary sentence prefix.
+    beats:
+      - say: Imagine a capable language model that is too expensive for the device where you need it. A smaller model can learn from its behavior. The interesting question is what information to transfer, and how the student gets practice using that information.
+        hold: 0.6
+        visual_cues:
+          - id: intro-b1-1
+            phrase: capable language model
+            targets:
+              - teacher-output
+            linger: 0.45
+      - say: A teacher can generate example answers, or expose probabilities over possible next tokens. Those alternatives give different training signals. We will start with one familiar sentence and watch a student distribution move toward a teacher distribution we can inspect in full.
+        hold: 0.6
+        visual_cues:
+          - id: intro-b2-1
+            phrase: teacher distribution
+            targets:
+              - teacher-output
+            linger: 0.45
+      - say: "This is knowledge distillation: training one model using information supplied by another. Our small vocabulary makes the arithmetic visible. It will also show why vocabulary alignment, the direction of the loss, and the prefixes used for training matter."
+        hold: 0.8
+        visual_cues:
+          - id: intro-b3-1
+            phrase: small vocabulary
+            targets:
+              - student-output
+            linger: 0.45
+  - id: distribution
+    title: A probability distribution contains relationships
+    visual: Four candidate words for The child saw a appear as probability bars; hard targets isolate the largest bar.
+    beats:
+      - say: After the prefix on screen, several words could form an ordinary continuation. Our teacher assigns probability to bird, dog, cat, and tree. These are conditional probabilities for this prefix, rather than general scores for how useful each word is.
+        hold: 0.6
+        visual_cues:
+          - id: distribution-b1-1
+            phrase: bird, dog, cat, and tree
+            targets:
+              - teacher-distribution
+            linger: 0.45
+      - say: Keeping only the most likely token gives a hard target. The rest of the distribution tells us that some alternatives are close and another is less likely. A student trained on those soft targets can receive information about several choices at once.
+        hold: 0.6
+        visual_cues:
+          - id: distribution-b2-1
+            phrase: hard target
+            targets:
+              - student-distribution
+            linger: 0.45
+      - say: Notice the student’s initial preference. It places too much mass on one alternative and too little on the teacher’s favorite. Since probabilities must sum to one, moving mass toward one word also changes how much remains for the others.
+        hold: 0.8
+        visual_cues:
+          - id: distribution-b3-1
+            phrase: student’s initial preference
+            targets:
+              - student-distribution
+            linger: 0.45
+          - id: distribution-b3-2
+            phrase: sum to one
+            targets:
+              - probability-mass
+            linger: 0.45
+  - id: temperature
+    title: Temperature changes which differences stand out
+    visual: Teacher and student logits pass through softmax at changing temperature; lower-ranked probabilities grow as the distributions flatten.
+    beats:
+      - say: Probabilities come from scores called logits. Softmax exponentiates and normalizes them. Dividing logits by a temperature before softmax changes the sharpness of the distribution. A larger temperature spreads probability more evenly and exposes relationships among lower-scoring alternatives.
+        hold: 0.6
+        visual_cues:
+          - id: temperature-b1-1
+            phrase: A larger temperature spreads probability more evenly and exposes relationships among lower-scoring alternatives
+            targets:
+              - soft-teacher
+              - soft-student
+            linger: 0.45
+      - say: Apply the same temperature to teacher and student when comparing their softened outputs. The bar changes here are computed from fixed logits. We are changing how those scores are presented to the loss, while keeping the words and prefix in place.
+        hold: 0.6
+        visual_cues:
+          - id: temperature-b2-1
+            phrase: same temperature to teacher and student
+            targets:
+              - soft-teacher
+              - soft-student
+            linger: 0.45
+      - say: Predict what happens as temperature becomes very large. The distributions approach uniformity because their score differences shrink after division. In the classic temperature-scaled objective, a squared-temperature multiplier compensates the leading change in gradient scale; the practical balance still needs tuning.
+        hold: 0.8
+        visual_cues:
+          - id: temperature-b3-1
+            phrase: The distributions approach uniformity because their score differences shrink after division
+            targets:
+              - soft-student
+            linger: 0.45
+          - id: temperature-b3-2
+            phrase: score differences shrink
+            targets:
+              - temperature-rule
+            linger: 0.45
+  - id: objective
+    title: Measure where the student is missing mass
+    visual: Forward KL contributions reveal target-weighted log ratios; signed terms sum into a nonnegative divergence.
+    beats:
+      - say: One common objective uses forward Kullback-Leibler divergence from teacher to student. For each token, multiply the teacher probability by the logarithm of teacher probability divided by student probability. Sum those contributions over the aligned vocabulary for this prefix.
+        hold: 0.6
+        visual_cues:
+          - id: objective-b1-1
+            phrase: For each token
+            targets:
+              - token-contributions
+            linger: 0.45
+          - id: objective-b1-2
+            phrase: Sum those contributions
+            targets:
+              - kl-subtotal
+            linger: 0.45
+      - say: An individual contribution can be negative when the student assigns more probability than the teacher. The full divergence is nonnegative and becomes zero when the distributions match. We show the signed terms so the total’s meaning stays connected to its actual computation.
+        hold: 0.6
+        visual_cues:
+          - id: objective-b2-1
+            phrase: An individual contribution can be negative when the student assigns more probability than the teacher
+            targets:
+              - negative-contributions
+            linger: 0.45
+          - id: objective-b2-2
+            phrase: full divergence
+            targets:
+              - kl-subtotal
+            linger: 0.45
+      - say: Look at the token with strong teacher probability and weak student probability. It produces pressure to increase the student’s score. Soft-target cross-entropy differs from forward KL by the teacher’s fixed entropy, so they give the same student gradient for fixed teacher targets.
+        hold: 0.8
+        visual_cues:
+          - id: objective-b3-1
+            phrase: same student gradient
+            targets:
+              - kl-objective
+            linger: 0.45
+  - id: learning
+    title: Move logits, then normalize again
+    visual: Student logits update by gradient descent; probability bars and a computed KL curve evolve together.
+    beats:
+      - say: For a fixed temperature of one, the gradient of soft-target cross-entropy with respect to each student logit is student probability minus teacher probability. The difference tells us which scores should rise and which should fall during gradient descent.
+        hold: 0.6
+        visual_cues:
+          - id: learning-b1-1
+            phrase: student probability minus teacher probability
+            targets:
+              - student-gradient
+            linger: 0.45
+      - say: Watch one update and then several more. We update logits and run softmax again, rather than moving each probability independently. The normalization couples the changes, keeps every probability positive, and preserves total mass while the divergence shrinks in this tiny example.
+        hold: 0.6
+        motion_check:
+          region:
+            - 1070
+            - 410
+            - 630
+            - 320
+          minimumChangedFraction: 0.002
+        visual_cues:
+          - id: learning-b2-1
+            phrase: divergence shrinks
+            targets:
+              - divergence-trajectory
+            linger: 0.45
+      - say: Pause before the next update and choose the direction of the highlighted score. If its student probability is already too large, its gradient is positive, so descent lowers the logit. The same reasoning works for every token in the vocabulary.
+        hold: 0.8
+        motion_check:
+          region:
+            - 1080
+            - 420
+            - 600
+            - 360
+          minimumChangedFraction: 0.002
+        visual_cues:
+          - id: learning-b3-1
+            phrase: next update
+            targets:
+              - divergence-trajectory
+            linger: 0.45
+          - id: distill-cat-positive
+            phrase: its gradient is positive
+            targets:
+              - divergence-trajectory
+            color: yellow
+            linger: 0.45
+          - id: distill-cat-lower
+            phrase: so descent lowers the logit
+            targets:
+              - divergence-trajectory
+            color: yellow
+            linger: 0.45
+  - id: sequences
+    title: Generated examples transfer a different signal
+    visual: A teacher generates a complete familiar answer; its tokens become supervised student targets, with other teacher bars absent.
+    beats:
+      - say: Often we can ask a teacher for text but cannot access its full logits. Generate an answer, review it, and train the student on that sequence. This transfers the selected continuation through ordinary next-token targets on the teacher-provided answer.
+        hold: 0.6
+        visual_cues:
+          - id: sequences-b1-1
+            phrase: teacher for text
+            targets:
+              - generated-answer
+            linger: 0.45
+      - say: The student now sees one realized path rather than every alternative at each step. Generating several diverse, checked responses can broaden the examples. Errors and unsupported claims in teacher outputs can also become training targets, so verification belongs before acceptance.
+        hold: 0.6
+        visual_cues:
+          - id: sequences-b2-1
+            phrase: one realized path
+            targets:
+              - sequence-targets
+            linger: 0.45
+      - say: Token-level probability matching additionally needs a meaningful alignment between teacher and student vocabularies and prefixes. Our four-word vocabulary is shared by construction. Real tokenizers may split the same text differently, requiring an explicit method instead of a coordinate-wise probability comparison.
+        hold: 0.8
+        visual_cues:
+          - id: sequences-b3-1
+            phrase: alignment
+            targets:
+              - sequence-targets
+            linger: 0.45
+  - id: prefixes
+    title: The path the student visits can drift
+    visual: A reference continuation and a different student continuation branch from the same sentence prefix.
+    beats:
+      - say: A language model chooses one token, extends the prefix, and predicts again. During training on reference responses, the student receives those reference prefixes. At generation time it receives its own earlier choices, which can lead to contexts absent from the training examples.
+        hold: 0.6
+        visual_cues:
+          - id: prefixes-b1-1
+            phrase: extends the prefix
+            targets:
+              - visited-prefix
+            linger: 0.45
+      - say: In this authored example, the student takes dog instead of bird, and the rest of its continuation changes. A teacher queried on that new prefix can provide feedback where the student actually goes. This is the central motivation for on-policy distillation methods.
+        hold: 0.6
+        visual_cues:
+          - id: prefixes-b2-1
+            phrase: continuation changes
+            targets:
+              - continuation-tokens
+            linger: 0.45
+          - id: prefixes-b2-2
+            phrase: teacher queried on that new prefix
+            targets:
+              - student-prefix-feedback
+            linger: 0.45
+      - say: The training-prefix distribution and divergence direction are independent choices. Forward KL and reverse KL penalize mismatches differently, especially with several plausible continuations. State both choices, along with the sampling and data-collection procedure, when comparing distillation recipes.
+        hold: 0.8
+        visual_cues:
+          - id: prefixes-b3-1
+            phrase: independent choices
+            targets:
+              - conditional-teacher
+            linger: 0.45
+  - id: capacity
+    title: A smaller student must prioritize
+    visual: Authored held-out task rates compare student and teacher across practiced prefixes, fresh wording and a new subject.
+    beats:
+      - say: A student has its own architecture and capacity. Matching a few training distributions does not establish that it can reproduce the teacher across every task. Choose the practice distribution around the deployment needs and measure skills on held-out cases.
+        hold: 0.6
+        visual_cues:
+          - id: capacity-b1-1
+            phrase: held-out cases
+            targets:
+              - student-rates
+            linger: 0.45
+      - say: Compare the distilled student against its starting checkpoint and against ordinary training on the same target task. Include teacher-generation or scoring cost, student training cost, and the intended deployment savings. Size alone does not determine realized latency on a particular runtime.
+        hold: 0.6
+        visual_cues:
+          - id: capacity-b2-1
+            phrase: starting checkpoint
+            targets:
+              - student-rates
+              - teacher-rates
+            linger: 0.45
+      - say: Temperature, loss weighting, and hard-label supervision are experimental choices. Keep a reliable evaluation set outside the distillation loop. When the teacher is uncertain or wrong, trusted labels and verifiers can provide a separate signal that the student should preserve.
+        hold: 0.8
+        visual_cues:
+          - id: capacity-b3-1
+            phrase: evaluation set
+            targets:
+              - student-rates
+            linger: 0.45
+  - id: transfer
+    title: Decide what the teacher can actually teach
+    visual: Soft distributions, sampled sequences, student prefixes and held-out behavior form a final information-flow diagram.
+    beats:
+      - say: You can now distinguish the information paths. Soft targets transfer relative probabilities at aligned prefixes. Generated sequences transfer selected answers. Student-generated prefixes change which situations receive feedback. Each path gives the student a different set of learning opportunities.
+        hold: 0.6
+        visual_cues:
+          - id: transfer-b1-1
+            phrase: information paths
+            targets:
+              - information-path
+            linger: 0.45
+      - say: To design a useful distillation experiment, choose the skill, the available teacher interface, and a student that fits the deployment. Build a small verified transfer set, inspect probability alignment or generated targets, then compare actual task behavior after training.
+        hold: 0.6
+        visual_cues:
+          - id: transfer-b2-1
+            phrase: probability alignment
+            targets:
+              - student-gradient
+            linger: 0.45
+      - say: The opportunity is to turn an expensive model’s behavior into focused practice for a cheaper model. Its success becomes visible when the student keeps the abilities that matter, handles fresh inputs, and earns the intended savings under the real deployment conditions.
+        hold: 0.8
+        visual_cues:
+          - id: transfer-b3-1
+            phrase: focused practice
+            targets:
+              - information-path
+            linger: 0.45
+  - id: temperature-gradient
+    title: The exact gradient explains the square
+    visual: A fixed two-token mismatch keeps its logits while temperature, the probability gap and gradient scale change independently.
+    beats:
+      - say: For a frozen teacher target q and student p at temperature T, differentiating unscaled soft cross-entropy with respect to the original student logit gives p minus q, divided by T. Scaling the soft loss by T squared gives T times p minus q. At high temperature relative to the logit spread, the probability difference itself shrinks like one over T. That supplies the second inverse-temperature factor. Center each model’s logits by its own mean when deriving the approximation.
+        hold: 1
+        visual_cues:
+          - id: gradient-square
+            phrase: Scaling the soft loss by T squared gives T times p minus q
+            targets:
+              - temperature-gradient-mechanism
+            color: yellow
+      - say: "Hold a separate two-token toy fixed: teacher logits two and zero, student zero and two. For the first token, the unscaled gradient is about minus point seven six two at T one and minus point zero six one two at T four. Multiplying by T squared gives about minus point seven six two and minus point nine eight zero. At T forty the scaled gradient approaches minus one. A negative gradient raises the first token’s student logit under gradient descent. The compensation is an asymptotic statement, not equality at every temperature. Rank is preserved by finite-temperature scaling before rounding, while individual pairwise probability gaps need not shrink monotonically."
+        hold: 1
+        visual_cues:
+          - id: gradient-one
+            phrase: minus point seven six two at T one
+            targets:
+              - temperature-gradient-mechanism
+            color: yellow
+          - id: gradient-four
+            phrase: minus point zero six one two at T four
+            targets:
+              - temperature-gradient-mechanism
+            color: yellow
+          - id: gradient-forty
+            phrase: At T forty
+            targets:
+              - temperature-gradient-mechanism
+            color: yellow
+          - id: gradient-scaled-result
+            phrase: Multiplying by T squared gives about minus point seven six two and minus point nine eight zero
+            targets:
+              - temperature-gradient-mechanism
+            color: yellow
+            linger: 0.45
+          - id: gradient-forty-result
+            phrase: At T forty the scaled gradient approaches minus one
+            targets:
+              - temperature-gradient-mechanism
+            color: yellow
+            linger: 0.45
+      - say: Hard-label cross-entropy has gradient p minus the one-hot target. Incorrect alternatives with positive student mass still receive a gradient; hard targets omit the teacher’s relative ranking of those alternatives. A usual mixture weights scaled soft loss by alpha and trusted-label loss by one minus alpha. Raising alpha gives teacher targets more influence and can reinforce teacher mistakes. Check the effect on trusted held-out cases. Use a frozen evaluation-mode teacher with detached targets; update the student and any declared alignment parameters.
+        hold: 1
+        visual_cues:
+          - id: mixture-alpha
+            phrase: weights scaled soft loss by alpha and trusted-label loss by one minus alpha
+            targets:
+              - temperature-gradient-mechanism
+            color: yellow
+  - id: alignment-mask
+    title: Token meanings and positions have to agree
+    visual: Five token slots retain prefix identities while the hard-label arrow shifts once and teacher/student soft targets stay at the same position.
+    beats:
+      - say: "Equal vocabulary sizes do not establish equal output meanings. Compare the full token-to-ID map, special tokens, chat formatting and actual input sequence. Hard causal labels shift one position: logits at t predict token t plus one. Teacher and student logits compare at the same prefix position, not one step apart. A response-only recipe masks prompt and padding targets after shifting. A full-sequence recipe can deliberately choose another supervision contract."
+        hold: 1
+        visual_cues:
+          - id: shift-hard
+            phrase: Hard causal labels shift one position
+            targets:
+              - alignment-mask-mechanism
+            color: yellow
+      - say: For the five input slots BOS, prompt, first answer, second answer and padding, supervise the predictions of the two answer tokens. The teacher and student distributions at the prompt position predict the first answer; their distributions at the first-answer position predict the second. Keep all other shifted targets ignored. PyTorch cross-entropy understands its class-label ignore index, while KL receives distributions and needs the valid-position mask explicitly. A loss mask does not replace a padding attention mask.
+        hold: 1
+        visual_cues:
+          - id: response-mask
+            phrase: supervise the predictions of the two answer tokens
+            targets:
+              - alignment-mask-mechanism
+            color: yellow
+      - say: "Flatten valid distributions into valid tokens by vocabulary, then choose a token mean. Batchmean divides by the leading dimension; on batch by sequence by vocabulary it sums token KL per sequence instead. In a separate reduction toy, microbatch means point two on one valid token and point eight on three valid tokens yield global token mean point six five, not their unweighted mean point five. Distributed and accumulated gradients need the global denominator and their averaging convention. With no targets, reject or skip the optimizer step too: AdamW weight decay can move a parameter with a zero gradient tensor; a missing gradient is treated differently."
+        hold: 1
+        visual_cues:
+          - id: token-mean
+            phrase: global token mean point six five, not their unweighted mean point five
+            targets:
+              - alignment-mask-mechanism
+            color: yellow
+          - id: empty-step
+            phrase: With no targets, reject or skip the optimizer step too
+            targets:
+              - alignment-mask-mechanism
+            color: yellow
+  - id: feature-projection
+    title: Hidden-state matching learns an alignment
+    visual: A2coordinate student state projects into a3coordinate teacher space; one held-state projection update removes an explicit squared error.
+    beats:
+      - say: Feature distillation selects a student layer and a corresponding teacher layer, which need not have the same depth index. A learned projection maps student width into the teacher’s width. Compare aligned token positions and mask padding. Detach teacher features; train the projection with the student under the chosen recipe. Summing versus averaging across tokens, features and layers changes loss scale.
+        hold: 1
+      - say: In an authored projection-only step, hold student state one, two fixed. Use projection rows one-zero, zero-one and one-one. Its output is one, two, three. The detached teacher target is one, three, two, so the summed squared error is two. Projection gradient is twice the error outer product with the held student state. A learning rate point one changes the last two rows to point two, one point four and point eight, point six. The new output is one, three, two. This exact fit verifies the small projection calculation, not learned language ability or a universal alignment.
+        hold: 1
+        visual_cues:
+          - id: projection-error
+            phrase: summed squared error is two
+            targets:
+              - feature-projection-mechanism
+            color: yellow
+          - id: projection-update
+            phrase: A learning rate point one changes the last two rows to point two, one point four and point eight, point six
+            targets:
+              - feature-projection-mechanism
+            color: yellow
+          - id: projection-output
+            phrase: The new output is one, three, two
+            targets:
+              - feature-projection-mechanism
+            color: yellow
+      - say: "Projection access supplies another training signal and consumes compute or storage. Compare held-out behavior with simpler output KD before paying for feature transfer. The teacher need not have more parameters: self-distillation can use improved targets from the same architecture. Capacity, context length and data coverage remain separate limits."
+        hold: 1
+  - id: reverse-capacity
+    title: One constrained family makes the KL direction visible
+    visual: The same bimodal teacher and three declared student candidates are scored both ways before either minimizer is revealed.
+    beats:
+      - say: Reverse KL weights log student-over-teacher ratios by student probability. A positive fixed student mass becomes expensive when teacher mass approaches zero. Forward KL instead weights by the teacher and becomes unbounded when positive teacher mass faces zero student mass. A zero numerator contributes zero in either direction. Teacher A and B each one half against student one and zero gives infinite forward KL and reverse KL natural log two, not zero.
+        hold: 1
+        visual_cues:
+          - id: zero-mass-kl
+            phrase: infinite forward KL and reverse KL natural log two
+            targets:
+              - reverse-capacity-mechanism
+            color: yellow
+      - say: "Use a separate three-outcome capacity toy: left mode, gap and right mode. Teacher probabilities are point four nine, point zero two and point four nine. The allowed student family contains only left point nine eight, point zero one, point zero one; center point two five, point five, point two five; and the mirrored right candidate. No other student is allowed. Predict which candidate each direction prefers before continuing."
+        hold: 1
+      - say: Forward KL scores each side about one point five eight one and the center about point five nine five, so it selects the center. Reverse KL scores each side about point six three three and the center about one point two seven three, so either side minimizes it. The center covers both teacher modes while assigning half its mass to a low-teacher gap; a side sacrifices a mode. These are constrained categorical candidates, not a claim about every small language model. If the family could match the teacher exactly, both divergences would be zero there. Neither objective certifies factual correctness.
+        hold: 1
+        visual_cues:
+          - id: forward-family
+            phrase: so it selects the center
+            targets:
+              - reverse-capacity-mechanism
+            color: yellow
+          - id: reverse-family
+            phrase: so either side minimizes it
+            targets:
+              - reverse-capacity-mechanism
+            color: yellow
+  - id: sequence-kl
+    title: The left distribution owns the prefix weights
+    visual: Enumerated AA,AB,BA,BB paths retain their prefix probability while the same joint KL decomposes into conditional terms.
+    beats:
+      - say: A complete-sequence KL decomposes into token KLs with prefixes weighted by the distribution on the left. Use a separate two-token example. Teacher first-token probabilities for A and B are point eight and point two; student first probabilities are one half each. After A, teacher next probabilities are point nine and point one, student one half each. After B, teacher gives point two and point eight, student point four and point six. Multiply along each path to enumerate the four joint probabilities.
+        hold: 1
+        visual_cues:
+          - id: joint-paths
+            phrase: Multiply along each path to enumerate the four joint probabilities
+            targets:
+              - sequence-kl-mechanism
+            color: yellow
+          - id: joint-first
+            phrase: student first probabilities are one half each
+            targets:
+              - sequence-kl-mechanism
+            color: yellow
+          - id: joint-after-a
+            phrase: After A, teacher next probabilities are point nine and point one, student one half each
+            targets:
+              - sequence-kl-mechanism
+            color: yellow
+          - id: joint-after-b
+            phrase: After B, teacher gives point two and point eight, student point four and point six
+            targets:
+              - sequence-kl-mechanism
+            color: yellow
+      - say: Compute forward KL over the four sequences and get about point five zero five four nine nine. The same value comes from first-token KL plus point eight times the A-prefix conditional KL plus point two times the B-prefix conditional KL. Reverse joint KL is about point five three zero eight eight one and instead uses the student’s one-half prefix weights. Uniformly weighting the forward conditional terms gives about point four two two five three five, a different objective. These are sums over exactly two tokens; a position average would divide by two.
+        hold: 1
+        visual_cues:
+          - id: joint-forward
+            phrase: point five zero five four nine nine
+            targets:
+              - sequence-kl-mechanism
+            color: yellow
+          - id: joint-prefix
+            phrase: first-token KL plus point eight times the A-prefix conditional KL plus point two times the B-prefix conditional KL
+            targets:
+              - sequence-kl-mechanism
+            color: yellow
+          - id: joint-reverse
+            phrase: point five three zero eight eight one
+            targets:
+              - sequence-kl-mechanism
+            color: yellow
+          - id: joint-student-weight
+            phrase: student’s one-half prefix weights
+            targets:
+              - sequence-kl-mechanism
+            color: yellow
+          - id: joint-uniform
+            phrase: point four two two five three five
+            targets:
+              - sequence-kl-mechanism
+            color: yellow
+      - say: On-policy collection asks the teacher to score prefixes the student actually visits. GKD treats sampled sequences as fixed data for its update and can mix them with fixed outputs. Its collection fraction and divergence are independent choices. MiniLLM optimizes sequence-level reverse KL with policy gradients, teacher/student log-probability ratios, future-token credit, teacher-mixed sampling and length normalization. Swapping two token-KL arguments alone does not implement it. Its reported ablations show that decreasing divergence can accompany repeated or meaningless text. Evaluate generation too; GKD’s best divergence also depends on task and decoding.
+        hold: 1
+        visual_cues:
+          - id: collection-choice
+            phrase: prefixes the student actually visits
+            targets:
+              - sequence-kl-mechanism
+            color: yellow
+  - id: signal-and-trainer
+    title: Choose the signal and the implementation contract together
+    visual: A response, full distribution and projected feature preserve different information; renormalizing the teacher's first two token IDs in both models hides an explicit tail error.
+    beats:
+      - say: Response KD retokenizes teacher text with the student tokenizer and can generate targets offline. It transfers selected answers, including errors, rather than automatically exposing the full distribution. Written explanations supply more supervised tokens; they do not establish the teacher’s internal reasoning. Logit KD can use complete normalized log probabilities and rescale them for a new temperature. Truncated top-k values generally cannot recover the full distribution over omitted tokens. If the retained probabilities use the original full-vocabulary normalization, one minus their sum gives the total omitted mass. A renormalized subset alone loses that total.
+        hold: 1
+      - say: In a separate tail toy, teacher probabilities are point four five, point four five and point one. Student probabilities are point zero five, point zero five and point nine. Retain the teacher’s first two token IDs in both models and renormalize that shared subset. Both conditional distributions are one half, one half, giving subset-only KL zero. Full forward KL is about one point seven five eight. The missing tail is the mismatch. Ten thousand retained token positions times fifty thousand vocabulary values times two bytes already require one decimal gigabyte of payload, before metadata. Online scoring and chunked full-vocabulary losses change peak storage without removing teacher computation.
+        hold: 1
+        visual_cues:
+          - id: tail-conditional
+            phrase: giving subset-only KL zero
+            targets:
+              - signal-and-trainer-mechanism
+            color: yellow
+          - id: tail-error
+            phrase: Full forward KL is about one point seven five eight
+            targets:
+              - signal-and-trainer-mechanism
+            color: yellow
+          - id: payload-one-gb
+            phrase: one decimal gigabyte of payload
+            targets:
+              - signal-and-trainer-mechanism
+            color: yellow
+      - say: The current TRL Distillation Trainer guide describes student-generated completions and chunked full-vocabulary generalized Jensen-Shannon loss; its agent recipe masks tool-result tokens. Its direct output-head path rejects adapters on that head and prompt-learning methods it would bypass; the guide gives modules-to-save for training the head. The experimental GKD guide separates collection fraction from divergence. Pin the exact implementation and version and verify its masks and trainable parameters. These guides inform the contract; no framework trainer is run in this film. The article’s CPU training example uses random positionwise networks rather than pretrained causal transformers. A falling toy loss verifies optimization mechanics, not language transfer.
+        hold: 1
+  - id: dataset-gates
+    title: Keep teacher errors and related families out of the targets
+    visual: An invented policy answer is retained, a duplicate avoids generation and an invalid exception is rejected before any student update.
+    beats:
+      - say: Apply the mechanism to the article’s separate invented policy assistant. A disabled production-key example has trusted answer seven days, while an expired-admin case has trusted answer not allowed. A constant fake teacher supplies seven days for both. Keep the correct answer, skip a duplicate normalized prompt before paying for generation, and reject the invalid admin answer. Lowercasing is a fixture convention, not a safe normalization rule for every case-sensitive identifier or code sample.
+        hold: 1
+        visual_cues:
+          - id: dataset-filter
+            phrase: reject the invalid admin answer
+            targets:
+              - dataset-gates-mechanism
+            color: yellow
+      - say: Seed high-quality prompts, expand varied requests, generate answers and filter them with explicit quality criteria. Split source documents, task families and seed ancestors before generating descendants, keeping siblings in the same split. Exact-string exclusion alone misses paraphrased leakage. Keep final labels outside generation, filtering and tuning. Include refusal, constraints, long-context and policy-boundary slices rather than copying a teacher’s style as a success metric.
+        hold: 1
+        visual_cues:
+          - id: dataset-family
+            phrase: keeping siblings in the same split
+            targets:
+              - dataset-gates-mechanism
+            color: yellow
+      - say: Review permitted teacher access, base-model and generated-data terms before collecting or releasing a corpus. Technical access does not establish that permission. Keep trusted labels or verifiers separate from teacher targets and test their false acceptances. A student can outperform its teacher on a narrow checked task while regressing elsewhere; evaluate both as separate artifacts.
+        hold: 1
+        visual_cues:
+          - id: dataset-access
+            phrase: Review permitted teacher access, base-model and generated-data terms
+            targets:
+              - dataset-gates-mechanism
+            color: yellow
+  - id: recipe-evidence
+    title: Historical results name their signal and budget
+    visual: Published recipe cards preserve training signal, dataset size and decoding conditions rather than collapsing them into a universal method ranking.
+    beats:
+      - say: Published recipes transfer different signals. Gemma two trains its small models with teacher token probabilities. Its controlled two-billion-parameter, five-hundred-billion-token ablation reports a three-benchmark mean of sixty-seven point seven when distilled from a seven-billion teacher, versus sixty point three from scratch. That ablation is distinct from the released teacher-student size setup. It supports that experiment, not this lesson’s deployment.
+        hold: 1
+        visual_cues:
+          - id: gemma-evidence
+            phrase: reports a three-benchmark mean of sixty-seven point seven when distilled from a seven-billion teacher, versus sixty point three from scratch
+            targets:
+              - recipe-evidence-mechanism
+            color: yellow
+      - say: "The original January twenty-twenty-five DeepSeek R one report fine-tunes smaller Qwen and Llama checkpoints on about eight hundred thousand selected examples: roughly six hundred thousand reasoning and two hundred thousand general examples. The thirty-two-billion Qwen student reports AIME twenty-twenty-four pass-at-one seventy-two point six percent and MATH five-hundred accuracy ninety-four point three percent. The setup uses temperature point six, top p point nine five and a thirty-two-thousand-seven-hundred-sixty-eight-token generation limit. These are historical reported results. Sampled correctness averaged for pass-at-one differs from majority-vote consensus over sixty-four answers."
+        hold: 1
+        visual_cues:
+          - id: r1-dataset
+            phrase: roughly six hundred thousand reasoning and two hundred thousand general examples
+            targets:
+              - recipe-evidence-mechanism
+            color: yellow
+          - id: r1-evidence
+            phrase: MATH five-hundred accuracy ninety-four point three percent
+            targets:
+              - recipe-evidence-mechanism
+            color: yellow
+      - say: Explanation-trace SFT, synthetic textbook-like pretraining and token-probability matching are different data and optimization jobs. Orca, phi one point five and Gemma two illustrate those distinctions, rather than one universal distillation recipe. GKD’s translation experiments can favor generalized Jensen-Shannon choices while its headline on-policy arithmetic comparison uses forward KL. Keep model family, collection distribution, divergence, decoding and evaluation budget together when comparing evidence.
+        hold: 1
+  - id: fresh-distillation
+    title: A fresh prefix earns an update, not an automatic release
+    visual: A changed student prefix receives a new teacher target and one computed normalized logit step before independent release gates are applied.
+    beats:
+      - say: "Try a new prefix ending in the student’s word beside. At that prefix, use the three-token vocabulary gate, garden and tree. A supplied teacher distribution is point two, point five, point three; the student begins uniform with zero logits. With temperature one and learning rate point six, predict which logit rises most. Gradient descent adds teacher minus student, scaled by point six: the new logits are minus point zero eight, point one zero and minus point zero two. Softmax gives about point three zero seven, point three six seven and point three two six. The target is defined at this new prefix; substituting the old prefix’s distribution changes the task."
+        hold: 1
+        visual_cues:
+          - id: fresh-logits
+            phrase: the new logits are minus point zero eight, point one zero and minus point zero two
+            targets:
+              - fresh-distillation-mechanism
+            color: yellow
+          - id: fresh-probability
+            phrase: Softmax gives about point three zero seven, point three six seven and point three two six
+            targets:
+              - fresh-distillation-mechanism
+            color: yellow
+      - say: Compare the initial student, trusted-label SFT baseline, distilled student and teacher on held-out cases with matched decoding budgets. Measure response length, uncertainty, long-context and policy behavior plus actual target-runtime latency and cost. Include teacher generation or scoring, student training and projection or cache expense in the economics. A smaller parameter count alone does not establish realized savings.
+        hold: 1
+      - say: "Use a fresh authored release card: required accuracy at least point nine, policy error at most point zero one, latency at most sixty milliseconds and cost at most twenty thousand units. A candidate with point nine four accuracy, point zero three policy error, fifty-two milliseconds and nineteen thousand units fails the policy gate. Faster and cheaper does not erase a missed required behavior. These assigned values are an exercise, not measured serving results. Revisit data coverage, capacity, context, target correctness and implementation before spending the final holdout again. Decision models next constrain the answer interface to a stated question and allowed choices, then test the scores and routing policy against labeled incidents."
+        hold: 1
+        visual_cues:
+          - id: fresh-release
+            phrase: fails the policy gate
+            targets:
+              - fresh-distillation-mechanism
+            color: yellow

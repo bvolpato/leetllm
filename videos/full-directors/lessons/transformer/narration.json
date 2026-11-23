@@ -1,0 +1,884 @@
+[
+  {
+    "id": "c01",
+    "title": "Which row scores the next word?",
+    "sourceChapters": [
+      "c01"
+    ],
+    "beats": [
+      {
+        "id": "c01-b01",
+        "say": "The composing stick holds the words “function returns the.” The fourth space is empty. Each piece of type carries four features. Which piece has the row we need to predict the next token?",
+        "hold": 2.5
+      },
+      {
+        "id": "c01-b02",
+        "say": "Lift “the” from position two. We count positions from zero. Its row can draw on all three pieces, including itself. We will follow those four features until they give us six possible impressions for the empty space.",
+        "hold": 0.8
+      },
+      {
+        "id": "c01-b03",
+        "say": "This little decoder uses one block and one attention head. We chose its weights by hand so we can check each impression. We will reuse the same weights on a longer prompt, then check what happens when a cached query reads the wrong history.",
+        "hold": 0.6
+      }
+    ]
+  },
+  {
+    "id": "c02",
+    "title": "Give the token its content and position",
+    "sourceChapters": [
+      "c02"
+    ],
+    "beats": [
+      {
+        "id": "c02-b01",
+        "say": "Find “the” in the type case. Its tokenizer ID is two. Pull drawer two and read the four coordinates of its embedding. A repeated token selects the same row, even when it appears elsewhere in the prompt.",
+        "hold": 0.5
+      },
+      {
+        "id": "c02-b02",
+        "say": "The token sits at position two when counting from zero. Add that position’s vector to the embedding, coordinate by coordinate. The first feature gains a tenth. So does the fourth. Content and position now share one four-number row. This toy adds positions. Other architectures can rotate queries and keys.",
+        "hold": 0.6
+      },
+      {
+        "id": "c02-b03",
+        "say": "Keep this original row. A copy will enter normalization, while the original waits for the residual addition. The other two tokens have their own positioned rows. They will supply the information that this selected position can read.",
+        "hold": 0.5
+      }
+    ]
+  },
+  {
+    "id": "c03",
+    "title": "Center and rescale one row",
+    "sourceChapters": [
+      "c03"
+    ],
+    "beats": [
+      {
+        "id": "c03-b01",
+        "say": "Layer normalization starts inside this one row. Mark the mean of its four coordinates. Subtract that mean from each coordinate. The four points move together until their mean is zero. The differences between them survive this centering step.",
+        "hold": 0.6
+      },
+      {
+        "id": "c03-b02",
+        "say": "Divide each centered coordinate by the square root of the row variance plus epsilon. The pins spread out on the same ruler. Our learned scale is one and our bias is zero.",
+        "hold": 0.6
+      },
+      {
+        "id": "c03-b03",
+        "say": "Normalization prepares a view for attention. The original row stays unchanged on its own branch. Each token is normalized across its own features, so this step keeps token identities separate. Communication between positions comes next.",
+        "hold": 0.5
+      }
+    ]
+  },
+  {
+    "id": "c04",
+    "title": "Build one query's legal read",
+    "sourceChapters": [
+      "c04"
+    ],
+    "beats": [
+      {
+        "id": "c04-b01",
+        "say": "A query describes a match to look for. Each key describes a match a position offers. To project the normalized row, multiply each feature by its coefficient in the first query column and add. The second column gives the second query coordinate. A separate map makes the keys. Our values keep all four normalized features.",
+        "hold": 0.6
+      },
+      {
+        "id": "c04-b02",
+        "say": "Compare this query with each visible key. Matching coordinates multiply, then their products add. Divide each score by the square root of two, our query and key width. These three scores decide how strongly this position will read each value row.",
+        "hold": 0.6
+      },
+      {
+        "id": "c04-b03",
+        "say": "During generation the fourth word is still missing. Switch to training on a complete four-word example. The target now has a key and a finite score. If “the” is supposed to predict that fourth word, how much weight should its key receive?",
+        "hold": 2
+      },
+      {
+        "id": "c04-b04",
+        "say": "Set its score to negative infinity before softmax. Its exponential becomes zero. For the other three keys, subtract the largest legal score and exponentiate. Divide by the shared total. The three shares become weights that sum to one. Now we can use them to mix the values.",
+        "hold": 0.8
+      }
+    ]
+  },
+  {
+    "id": "c05",
+    "title": "Where will the contextual blend land?",
+    "sourceChapters": [
+      "c05"
+    ],
+    "beats": [
+      {
+        "id": "c05-b01",
+        "say": "These three pins mark value rows. The horizontal axis shows feature one and the vertical axis shows feature four. “Returns” has the largest share. Where will the read land? Start with “function.” Pull the first arrow from the origin by its share.",
+        "hold": 0.7
+      },
+      {
+        "id": "c05-b02",
+        "say": "Now follow “returns.” Multiply its value by its own weight and lay the arrow at the first tip. The second tip marks the partial sum. The impression on the right records all four coordinates, including the two outside our drawing.",
+        "hold": 0.7
+      },
+      {
+        "id": "c05-b03",
+        "say": "The last arrow comes from the word “the.” Place it at the current tip. The tip of that third arrow marks the complete read, inside the triangle. All three positive weights sum to one, so the mixture stays inside their convex hull. Each head builds its own contextual read this way.",
+        "hold": 0.7
+      }
+    ]
+  },
+  {
+    "id": "c06",
+    "title": "Add the update to the waiting state",
+    "sourceChapters": [
+      "c06"
+    ],
+    "beats": [
+      {
+        "id": "c06-b01",
+        "say": "Shrink the complete read by point three five. This is our head's output projection. The arrow keeps its direction and scales its length. A general learned projection can mix coordinates too. Keep the token's original row waiting for the addition.",
+        "hold": 0.5
+      },
+      {
+        "id": "c06-b02",
+        "say": "Move in close to the original point. Both axes use equal units and show changes from the original coordinates. Lay the projected arrow there. Its tip marks the contextual state. You can read the starting row and the new row on the right.",
+        "hold": 0.7
+      },
+      {
+        "id": "c06-b03",
+        "say": "The row still belongs to the, at the same position and width. Its numbers have changed. A second sublayer will work inside this contextual row. It receives another normalized view while this residual result waits for the next addition.",
+        "hold": 0.5
+      }
+    ]
+  },
+  {
+    "id": "c07",
+    "title": "Expand, reshape, and return to four coordinates",
+    "sourceChapters": [
+      "c07"
+    ],
+    "beats": [
+      {
+        "id": "c07-b01",
+        "say": "The feed-forward layer uses the same weights at every position. Here it expands four inputs into six hidden features. The first four copy the inputs. The last two subtract pairs of inputs. These are the actual values before the activation, including their negative signs.",
+        "hold": 0.6
+      },
+      {
+        "id": "c07-b02",
+        "say": "Which hidden features will survive? Apply ReLU. Each negative hidden value becomes zero. Each positive value survives. Watch those bars move. This bend gives the sublayer a nonlinear response. The surviving features can contribute to the projected update.",
+        "hold": 0.7
+      },
+      {
+        "id": "c07-b03",
+        "say": "The return projection makes a four-coordinate update. Here is one of its calculations. Bring that update to the waiting contextual point. Coordinate one stays fixed in this slice while coordinate four rises. The full four-coordinate row now completes the block.",
+        "hold": 0.7
+      }
+    ]
+  },
+  {
+    "id": "c08",
+    "title": "Which way can a change travel?",
+    "sourceChapters": [
+      "c08"
+    ],
+    "beats": [
+      {
+        "id": "c08-b01",
+        "say": "Keep the weights fixed and switch dropout off. We will change only the last input. Can an earlier output move? Add four to the first feature of “the” and run the whole block again.",
+        "hold": 1.4
+      },
+      {
+        "id": "c08-b02",
+        "say": "Compare the outputs. The first two rows stay exactly equal. The selected last row changes. The causal mask preserves this direction through the complete block. Now change the first input instead. Predict which later positions can receive that change.",
+        "hold": 0.8
+      },
+      {
+        "id": "c08-b03",
+        "say": "That earlier change reaches later output rows through their legal reads. The feed-forward layer then transforms each updated row separately. Return to our original prefix and original weights. Its completed last row is ready to score the vocabulary.",
+        "hold": 0.5
+      }
+    ]
+  },
+  {
+    "id": "c09",
+    "title": "Turn the final state into a vocabulary choice",
+    "sourceChapters": [
+      "c09"
+    ],
+    "beats": [
+      {
+        "id": "c09-b01",
+        "say": "Apply final normalization to the completed last row. Each vocabulary entry has an output weight vector. For result, multiply its matching coordinates and add. That dot product is one logit. Repeat with the other entries to score all six IDs using the same state.",
+        "hold": 0.6
+      },
+      {
+        "id": "c09-b02",
+        "say": "Subtract the largest logit for numerical stability, then exponentiate. Build one shared denominator from all six weights. Divide each weight by that total. The resulting probability strip has a fixed budget of one, shared among the vocabulary entries.",
+        "hold": 0.7
+      },
+      {
+        "id": "c09-b03",
+        "say": "Look at the six probabilities. Which piece of type should we set in the empty space if we choose greedily?",
+        "hold": 2.5
+      },
+      {
+        "id": "c09-b04",
+        "say": "Greedy decoding takes the largest score. Here “result” wins. The hand-set weights let us follow that choice all the way back to the input. During training, the model compares its predictions with observed tokens and adjusts its weights.",
+        "hold": 0.8
+      }
+    ]
+  },
+  {
+    "id": "c10",
+    "title": "Feed the chosen ID into the next real step",
+    "sourceChapters": [
+      "c10"
+    ],
+    "beats": [
+      {
+        "id": "c10-b01",
+        "say": "Append result's actual ID, three. Look up its embedding and add the new position vector. This is a fresh input row for result. Its starting state comes from that lookup and position, while the prefix now contains four token IDs.",
+        "hold": 0.6
+      },
+      {
+        "id": "c10-b02",
+        "say": "Run the same block again. Result makes a new query and mixes four legal value rows. Follow its new mixture through both updates and final normalization. The earlier three block outputs stay equal. Appending a future token preserves their legal context.",
+        "hold": 0.7
+      },
+      {
+        "id": "c10-b03",
+        "say": "Keep the output weights fixed. Which word wins now? Compare “result” with “value.” Their score difference is the fourth normalized feature minus the third. On the diagonal these two scores tie.",
+        "hold": 1.3
+      },
+      {
+        "id": "c10-b04",
+        "say": "Plot the new final row. It lies on value's side. The full vocabulary calculation now selects value. Each chosen ID becomes input for the next decision. That is the decoding loop.",
+        "hold": 0.8
+      }
+    ]
+  },
+  {
+    "id": "c11",
+    "title": "Give order a declared mechanism",
+    "sourceChapters": [
+      "c11"
+    ],
+    "beats": [
+      {
+        "id": "c11-b01",
+        "say": "Slide “the” to the front. For this experiment each vector stays intact, with no new position signal, and every row can read every other row. Keys and values move together. The output for “the” reappears beside its new position with the same numbers.",
+        "hold": 0.3
+      },
+      {
+        "id": "c11-b02",
+        "say": "This is permutation equivariance. A causal mask gives that move a different effect. In the first position, “the” can now read only itself.",
+        "hold": 0.65
+      },
+      {
+        "id": "c11-b03",
+        "say": "The original Transformer added sine and cosine waves at several frequencies. GPT and BERT learned a table of position vectors. Here the table has rows zero, one and two. The next token needs position three. To use that position, extend the table and evaluate the model on longer inputs.",
+        "hold": 0.65
+      },
+      {
+        "id": "c11-b04",
+        "say": "RoPE rotates query and key coordinate pairs. In this authored two-coordinate example, begin both vectors at one, zero and rotate by point one radians per position. Positions four and one give a relative angle point three and dot product about point nine five five.",
+        "hold": 0.3
+      },
+      {
+        "id": "c11-b05",
+        "say": "Move both positions forward by two. The relative angle and dot product stay the same. Content still matters. T5 offers another design, a learned relative-position bias added to scores.",
+        "hold": 0.65
+      }
+    ]
+  },
+  {
+    "id": "c12",
+    "title": "What gives one key a larger share?",
+    "sourceChapters": [
+      "c12"
+    ],
+    "beats": [
+      {
+        "id": "c12-b01",
+        "say": "Each row serves as both a query and a key. On this worksheet, both queries can read both keys. To isolate the effect of each row’s denominator, feed the raw dot products directly into softmax. A dotted with B gives one in either order. Fill in the two self-matches. What share will key A get in each row?",
+        "hold": 3
+      },
+      {
+        "id": "c12-b02",
+        "say": "A dotted with itself gives one squared plus zero squared, or one. Row A splits the weight evenly. B dotted with itself gives one squared plus one squared, or two. Now the same score of one competes with a two. The smaller score gets about twenty-seven percent. Each query has its own denominator.",
+        "hold": 0.3
+      },
+      {
+        "id": "c12-b03",
+        "say": "A learned query and a separate learned key let the model change the matching rule. The value projection chooses what each match delivers.",
+        "hold": 0.9
+      },
+      {
+        "id": "c12-b04",
+        "say": "What happens to a dot product when a head has more coordinates? Suppose the query and key components are all independent, each with mean zero and variance one. One coordinate product then has variance one. Add one product per coordinate.",
+        "hold": 0.3
+      },
+      {
+        "id": "c12-b05",
+        "say": "The variances add, so the variance of the dot product equals the key width. Its standard deviation is the square root of that width. Dividing by that quantity keeps the score scale steady under these assumptions. Learned coordinates can be correlated.",
+        "hold": 0.7
+      },
+      {
+        "id": "c12-b06",
+        "say": "Now take a head of width sixty-four. Before scaling, its three raw scores give the first key almost every drop of ink. Divide the scores by eight and apply softmax again. Follow the boundaries between the three shares.",
+        "hold": 0.3
+      },
+      {
+        "id": "c12-b07",
+        "say": "The first key still wins, but the other two now receive about half the total weight between them. The order stayed the same. The gaps that softmax sees got smaller. Learned scores can still be far enough apart to produce a sharp read.",
+        "hold": 0.9
+      },
+      {
+        "id": "c12-b08",
+        "say": "Now change the length of the prompt. Keep the feature width fixed and go from three tokens to six. Each new token adds a query and a key, so the explicit score grid grows along both edges. Nine pair scores become thirty-six.",
+        "hold": 0.3
+      },
+      {
+        "id": "c12-b09",
+        "say": "The projected queries, keys and values each gain rows along just one axis. Each array doubles in size. A fused implementation can compute the read without storing the whole grid.",
+        "hold": 0.85
+      }
+    ]
+  },
+  {
+    "id": "c13",
+    "title": "Split projected features while preserving every token",
+    "sourceChapters": [
+      "c13"
+    ],
+    "beats": [
+      {
+        "id": "c13-b01",
+        "say": "We followed one head to keep its arithmetic visible. On this separate sheet we have one batch, three tokens, six projected features and three heads. Each projection can use all the original features. Where should we cut the sheet so each head keeps the whole history?",
+        "hold": 1.6
+      },
+      {
+        "id": "c13-b02",
+        "say": "Reshape and transpose the projected feature axis into batch, heads, tokens, head width. That gives one by three by three by two. Every head still receives all three positions. Splitting the token axis would silently change its history.",
+        "hold": 0.65
+      },
+      {
+        "id": "c13-b03",
+        "say": "Each head builds its own three-by-three score grid and its own weighted value read. Concatenate those two-feature reads into six features and apply an output map back to model width. Reverse the transpose before reshaping. Our executed split-and-merge check restores every original projected entry.",
+        "hold": 0.3
+      },
+      {
+        "id": "c13-b04",
+        "say": "The familiar model-width divided by head-count rule belongs to this equal-width projection contract. Some real architectures declare head width independently.",
+        "hold": 0.65
+      },
+      {
+        "id": "c13-b05",
+        "say": "The heads in one block all read its input in parallel. Follow the arrows between blocks. Block two takes the output of block one, and each block normally has its own learned projections. Training shapes what a head responds to.",
+        "hold": 0.3
+      },
+      {
+        "id": "c13-b06",
+        "say": "Head specialization is a hypothesis. To test a proposed syntax head, compare its reads across sentences where the grammatical relation changes and the nearby words stay similar.",
+        "hold": 0.65
+      }
+    ]
+  },
+  {
+    "id": "c14",
+    "title": "What changes inside one token’s row?",
+    "sourceChapters": [
+      "c14"
+    ],
+    "beats": [
+      {
+        "id": "c14-b01",
+        "say": "Take one feature of one token. Double it and add one, then triple that answer and subtract two. Try it on minus one. The two maps give minus five. The same straight line fits all four inputs. Its equation is six times the input plus one.",
+        "hold": 0.3
+      },
+      {
+        "id": "c14-b02",
+        "say": "Even a wider pair of affine layers collapses to one affine map. Now put ReLU between them. It clips that negative intermediate to zero. The second map returns minus two. Look at the bend on the left.",
+        "hold": 0.3
+      },
+      {
+        "id": "c14-b03",
+        "say": "That bend belongs to this branch, and the same branch acts separately on every token. Attention and normalization also contribute their own nonlinearities.",
+        "hold": 1
+      },
+      {
+        "id": "c14-b04",
+        "say": "The original Transformer used ReLU. The PyTorch block in the article uses GELU. LLaMA’s SwiGLU gives a feature two upward projections. Here one produces plus two and the other produces minus one. Apply SiLU to minus one. That gives a gate of about minus point two seven.",
+        "hold": 0.3
+      },
+      {
+        "id": "c14-b05",
+        "say": "Multiply plus two by that gate. The feature lands below zero, at about minus point five four. A gate can also amplify a feature above its original size. Do this for each coordinate, then project the products back down.",
+        "hold": 0.3
+      },
+      {
+        "id": "c14-b06",
+        "say": "The original Gemma uses GELU on the gate branch instead. That variant is called GeGLU.",
+        "hold": 0.8
+      },
+      {
+        "id": "c14-b07",
+        "say": "How wide can we make the gated branch on the same weight budget? The model has twelve features. The plain branch goes up to forty-eight and back down. Each rectangle holds twelve times forty-eight weights. Together they set the budget line.",
+        "hold": 0.3
+      },
+      {
+        "id": "c14-b08",
+        "say": "At the same inner width, the third plate sticks past the budget line. How many lanes should we keep in each plate to fit all three inside?",
+        "hold": 2.1
+      },
+      {
+        "id": "c14-b09",
+        "say": "Every inner feature now costs twelve weights in each of three matrices. Divide the budget by thirty-six. Narrow all three matrices to thirty-two features and the last one ends right at the limit.",
+        "hold": 0.3
+      },
+      {
+        "id": "c14-b10",
+        "say": "Ignoring biases, the plain branch at four times model width costs eight times model width squared. Matching that with three matrices gives an inner width of eight thirds of model width. This counts stored weights. The gate still has an activation and a multiplication to perform.",
+        "hold": 0.3
+      },
+      {
+        "id": "c14-b11",
+        "say": "In trained models, researchers have found feed-forward features that respond to patterns and influence several word scores.",
+        "hold": 1
+      }
+    ]
+  },
+  {
+    "id": "c15",
+    "title": "What does normalization change?",
+    "sourceChapters": [
+      "c15"
+    ],
+    "beats": [
+      {
+        "id": "c15-b01",
+        "say": "Give one token four identical features, all twos. Their mean is two. LayerNorm subtracts that mean from each feature. All four differences are zero. Dividing by the square root of the variance plus epsilon leaves them at zero.",
+        "hold": 0.3
+      },
+      {
+        "id": "c15-b02",
+        "say": "For any row with variance v, the centered and divided row has mean zero and variance v divided by the sum of v and epsilon. That variance is close to one when v is much larger than epsilon. LayerNorm then applies a learned scale and shift.",
+        "hold": 0.3
+      },
+      {
+        "id": "c15-b03",
+        "say": "Here the scale is one and the shift is zero. Before we try RMSNorm, predict whether those four twos will still all land on zero.",
+        "hold": 1.8
+      },
+      {
+        "id": "c15-b04",
+        "say": "Keep the same four twos. RMSNorm squares each two and averages the squares to get four. Its divisor is the square root of four plus epsilon. This time each numerator is still two. Each output is just under one.",
+        "hold": 0.3
+      },
+      {
+        "id": "c15-b05",
+        "say": "Both methods work across the features of this one token. RMSNorm usually learns a scale, while LayerNorm also learns a shift. When loading a checkpoint, use its normalization rule, epsilon and learned parameters.",
+        "hold": 0.65
+      },
+      {
+        "id": "c15-b06",
+        "say": "Follow the straight path from x to the sum. Our block and GPT-2 normalize inside the branch. The straight path carries x directly to the addition, so its derivative is the identity. The gradient also flows through the branch.",
+        "hold": 0.3
+      },
+      {
+        "id": "c15-b07",
+        "say": "Those two contributions can reinforce or cancel each other. The original Transformer used post-LayerNorm, which normalizes the sum itself. In experiments by Xiong and colleagues, their pre-normalized models trained without learning-rate warmup. LLaMA used pre-normalization with two thousand warmup steps.",
+        "hold": 0.65
+      }
+    ]
+  },
+  {
+    "id": "c16",
+    "title": "Align the target before checking the whole path",
+    "sourceChapters": [
+      "c16"
+    ],
+    "beats": [
+      {
+        "id": "c16-b01",
+        "say": "Put the complete text “function returns the result” in training memory. Each input row scores the token one place ahead. “Function” predicts “returns,” “returns” predicts “the,” and “the” predicts “result.” The shifted label gives us a target. The causal mask restricts each query to its own position and earlier ones.",
+        "hold": 0.3
+      },
+      {
+        "id": "c16-b02",
+        "say": "In generation, the fourth token is absent until chosen. This alignment makes the training information boundary match the decoding task. Sequence boundaries and loss masks decide which positions contribute.",
+        "hold": 0.65
+      },
+      {
+        "id": "c16-b03",
+        "say": "On a separate two-key worksheet, both scores start at zero. Leaving the future score at zero gives it exponential mass one. It takes half the total. Replacing that score with negative infinity removes its mass and leaves the legal key with weight one.",
+        "hold": 0.3
+      },
+      {
+        "id": "c16-b04",
+        "say": "In our explicit manual softmax, masking every entry makes maximum subtraction compute negative infinity minus negative infinity, producing NaN. Give each real query a legal key and handle fully padded queries explicitly.",
+        "hold": 0.65
+      },
+      {
+        "id": "c16-b05",
+        "say": "Inspect the entire path. A later attention mask can be perfectly triangular even if an earlier operation already mixed in a future token. Hold the weights and earlier inputs fixed. Turn dropout off and change only the last input.",
+        "hold": 0.3
+      },
+      {
+        "id": "c16-b06",
+        "say": "The two earlier outputs should stay fixed when only the last input changes. Also verify that an allowed changed row actually affects its own output so the test does not reward a block ignoring all input.",
+        "hold": 0.65
+      }
+    ]
+  },
+  {
+    "id": "c17",
+    "title": "Which mask row belongs to this query?",
+    "sourceChapters": [
+      "c17"
+    ],
+    "beats": [
+      {
+        "id": "c17-b01",
+        "say": "Look at the four token rows on the left. The digits mark feature positions inside a projection. Split its eight features between two heads. Each head keeps every token, with four features per token. The query, key and value tensors all have these four axes.",
+        "hold": 0.3
+      },
+      {
+        "id": "c17-b02",
+        "say": "The article’s layer checks that the widths divide evenly and that the input contains a token. It builds its mask on the input device and fills future scores with negative infinity. The resulting weights sum to one per query and give future keys zero.",
+        "hold": 0.3
+      },
+      {
+        "id": "c17-b03",
+        "say": "A backward pass through the example block also gives finite input gradients.",
+        "hold": 0.8
+      },
+      {
+        "id": "c17-b04",
+        "say": "Find a future key in the top row. On the left, True tells masked fill to block it. In PyTorch scaled dot-product attention, True means allow. Invert that future mask and the same key is False on the right.",
+        "hold": 0.3
+      },
+      {
+        "id": "c17-b05",
+        "say": "For a repeatable comparison, pass a dropout probability of zero to the function, even when the module is in evaluation mode. A fused kernel can avoid storing the full score grids. A math backend may store them. The function returns the mixed values.",
+        "hold": 0.3
+      },
+      {
+        "id": "c17-b06",
+        "say": "To inspect attention weights, compute them separately.",
+        "hold": 0.7
+      },
+      {
+        "id": "c17-b07",
+        "say": "Bring back the four words after our first prediction. We saved their keys and values. Keep just the query for “result.” In the sentence it sits at position three. In a tensor containing only that query, it sits in row zero.",
+        "hold": 0.3
+      },
+      {
+        "id": "c17-b08",
+        "say": "For a rectangular query and key array, this causal flag uses the upper-left corner. Place the first mask row over the four saved values. Predict which word the single query can read.",
+        "hold": 2.1
+      },
+      {
+        "id": "c17-b09",
+        "say": "Only “function” gets through. Its attention weight is one. Compare that cached read with the last read from the full prefix. They differ, yet both runs still choose the word “value.” A test that checked only the word would miss the error.",
+        "hold": 0.3
+      },
+      {
+        "id": "c17-b10",
+        "say": "Keep the query and the saved keys and values. Move the mask to absolute row three. Every key up to that position can now contribute. Repeat the comparison on the two read vectors. They agree within the numerical tolerance.",
+        "hold": 0.3
+      },
+      {
+        "id": "c17-b11",
+        "say": "A comparison of read vectors catches this mistake even when both runs print the same word. Use the actual query and key positions for each row of a cached chunk.",
+        "hold": 1
+      }
+    ]
+  },
+  {
+    "id": "c18",
+    "title": "What can the output tell us about the block?",
+    "sourceChapters": [
+      "c18"
+    ],
+    "beats": [
+      {
+        "id": "c18-b01",
+        "say": "The PyTorch example has two sequences of four tokens. Each row starts with eight features. Widen that row to twenty-four inside the feed-forward layer, then project back to eight for the residual addition. Another block can take that same shape.",
+        "hold": 0.3
+      },
+      {
+        "id": "c18-b02",
+        "say": "The example checks zero attention to future tokens and finite gradients on this input. It leaves out padding, dropout and caching. Training a deep stack would take a separate experiment.",
+        "hold": 0.8
+      },
+      {
+        "id": "c18-b03",
+        "say": "Compare two decoders on our original prompt. The film uses one head and ReLU. The seeded PyTorch decoder has two heads, a six-feature GELU layer, and its own vocabulary weights. Both have width four.",
+        "hold": 0.3
+      },
+      {
+        "id": "c18-b04",
+        "say": "Look at the score and probability each gives “result.” The PyTorch model puts about thirty-five percent on that word. The two models choose the same word, but different blocks and weights got them there.",
+        "hold": 0.85
+      },
+      {
+        "id": "c18-b05",
+        "say": "Here is a closer match. The article also has a two-block decoder you can run with standard Python. Each block uses its normalized rows as queries, keys and values, then applies a hand-built local update. Its gains and vocabulary weights were chosen to reproduce the ranking.",
+        "hold": 0.3
+      },
+      {
+        "id": "c18-b06",
+        "say": "Round the probability of “result” to one decimal place as a percentage. Both article decoders print thirty-five point three. Would their hidden rows match? Compare the first features just before final normalization. One is positive and one is negative.",
+        "hold": 0.3
+      },
+      {
+        "id": "c18-b07",
+        "say": "A matching probability tells you what came out. Comparing the states tells you where the two computations differ.",
+        "hold": 1
+      }
+    ]
+  },
+  {
+    "id": "c19",
+    "title": "How do four features score six words?",
+    "sourceChapters": [
+      "c19"
+    ],
+    "beats": [
+      {
+        "id": "c19-b01",
+        "say": "The three rows on the left have four features each. The vocabulary head gives each row six scores, one per word. The batch and token axes stay in place.",
+        "hold": 0.3
+      },
+      {
+        "id": "c19-b02",
+        "say": "To predict the next word, we can project just the last row or take the last row of the finished scores. Either way we get the same six numbers. Attention weights told us where to read.",
+        "hold": 0.3
+      },
+      {
+        "id": "c19-b03",
+        "say": "A softmax over these six scores gives the probabilities for what to write.",
+        "hold": 0.65
+      },
+      {
+        "id": "c19-b04",
+        "say": "Count one table. Six words times four features gives twenty-four weights. A separate output table brings the total to forty-eight. Tie the weights and both jobs use the same twenty-four. The input lookup reads a row by token ID. The output projection still scores every word.",
+        "hold": 0.3
+      },
+      {
+        "id": "c19-b05",
+        "say": "In general, tying saves one vocabulary-sized table of model-width rows. To feed the chosen word back, use its tokenizer ID and the row for its next position in the learned position table.",
+        "hold": 0.65
+      },
+      {
+        "id": "c19-b06",
+        "say": "Follow “result” as we change the temperature. At one half, its probability grows. At one we recover the original distribution. At two the other words take a larger share. Each time we divide the logits by the positive temperature, then apply softmax.",
+        "hold": 0.3
+      },
+      {
+        "id": "c19-b07",
+        "say": "For a stable calculation, subtract the largest logit first. Dividing probabilities instead and normalizing again would cancel the change. As positive temperature approaches zero, the probability concentrates on the largest logit. Tied winners share that mass, and greedy decoding needs a rule to choose between them.",
+        "hold": 0.3
+      },
+      {
+        "id": "c19-b08",
+        "say": "Try a smaller vocabulary. The two logits are zero and the natural logarithm of nine. At temperature two, halving that second logit gives the logarithm of three. The exponential masses are one and three, so the probabilities are one quarter and three quarters. Equal logits would stay uniform at every positive temperature.",
+        "hold": 0.65
+      }
+    ]
+  },
+  {
+    "id": "c20",
+    "title": "Change the legal reads when the task changes",
+    "sourceChapters": [
+      "c20"
+    ],
+    "beats": [
+      {
+        "id": "c20-b01",
+        "say": "Classify a complete code snippet as code or prose. An encoder-only model may read both left and right input context. Generate a continuation instead, and decoder-only self-attention reads current and prior positions.",
+        "hold": 0.3
+      },
+      {
+        "id": "c20-b02",
+        "say": "To translate a complete source into an unfinished target, the encoder reads the full source. Target self-attention stays causal. Each target query can also cross-attend to encoded source keys and values. Self-attention takes queries, keys and values from one sequence. In cross-attention, the query comes from the target and the keys and values come from the source.",
+        "hold": 0.65
+      },
+      {
+        "id": "c20-b03",
+        "say": "The original Transformer paired an encoder and decoder. BERT uses an encoder. GPT uses a decoder. Look at the middle of this sentence. T5 hides a span from the encoder and trains the decoder to write the missing text.",
+        "hold": 0.3
+      },
+      {
+        "id": "c20-b04",
+        "say": "Ordinary text also supplies training examples for a decoder like GPT. Shift the targets by one token. Each position with a following token gets a target. An instruction can go in that same stream, ahead of the response. Training teaches the model how to follow it.",
+        "hold": 0.65
+      },
+      {
+        "id": "c20-b05",
+        "say": "The target prefix grows by one each time we append a token. The self-attention cache keeps earlier keys and values. In translation, the encoded source stays fixed. Which of these two sets of keys can we prepare once for the whole translation?",
+        "hold": 0.3
+      },
+      {
+        "id": "c20-b06",
+        "say": "Every new target query can reuse the same projected source keys and values for cross-attention. Running without a cache recomputes those projections. Caching trades that repeated work for memory. Reading a longer history and processing the initial prompt still take computation.",
+        "hold": 0.3
+      },
+      {
+        "id": "c20-b07",
+        "say": "Scaling studies relate training resources to loss. To choose an architecture for a particular task, measure performance on that task.",
+        "hold": 0.65
+      }
+    ]
+  },
+  {
+    "id": "c21",
+    "title": "How wide is a real attention head?",
+    "sourceChapters": [
+      "c21"
+    ],
+    "beats": [
+      {
+        "id": "c21-b01",
+        "say": "Look at the thin blue strip. It holds the token embeddings for Llama three’s largest model. About one hundred twenty-eight thousand vocabulary entries, each with sixteen thousand three hundred eighty-four features, take about two point one billion weights.",
+        "hold": 0.3
+      },
+      {
+        "id": "c21-b02",
+        "say": "That is around half a percent of four hundred five billion. The model has one hundred twenty-six layers and one hundred twenty-eight query heads per layer. Here, dividing the model width by the head count gives one hundred twenty-eight features per head.",
+        "hold": 0.65
+      },
+      {
+        "id": "c21-b03",
+        "say": "Now look at the three widths in the gpt-oss one hundred twenty b configuration. A token enters with two thousand eight hundred eighty features. Its sixty-four query heads each have sixty-four features. Together they span four thousand ninety-six.",
+        "hold": 0.3
+      },
+      {
+        "id": "c21-b04",
+        "say": "The output projection brings the width back to two thousand eight hundred eighty so the update fits the residual row.",
+        "hold": 0.65
+      },
+      {
+        "id": "c21-b05",
+        "say": "The same model alternates eighteen sliding-attention layers with eighteen full-attention layers. Its window is one hundred twenty-eight positions. A sliding layer can read recent history. A full layer can reach farther back. Both leave future tokens out of the read.",
+        "hold": 0.3
+      },
+      {
+        "id": "c21-b06",
+        "say": "With access to the hidden rows, you can test that by changing a future input. A hosted text interface lets you test the completions and measure token use.",
+        "hold": 0.65
+      }
+    ]
+  },
+  {
+    "id": "c22",
+    "title": "Where did the forward pass go wrong?",
+    "sourceChapters": [
+      "c22"
+    ],
+    "beats": [
+      {
+        "id": "c22-b01",
+        "say": "The residual for “the” has four features. The feed-forward branch expanded it to six. Suppose someone tries to add those six back directly. With three tokens we have eighteen entries on one side and twelve on the other. A reshape cannot make that addition work.",
+        "hold": 0.3
+      },
+      {
+        "id": "c22-b02",
+        "say": "Project the six features back into the original four, then add the matching coordinates. If the error came earlier, check the head split and that the mask and scores are on the same device.",
+        "hold": 0.85
+      },
+      {
+        "id": "c22-b03",
+        "say": "A wrong read can still have the right shape. The cached query at position three returned exactly the first value. Look at which keys it was allowed to read. Select the mask for its absolute position and compare with the full prefix.",
+        "hold": 0.3
+      },
+      {
+        "id": "c22-b04",
+        "say": "For other symptoms, use the number that changed. A row of undefined weights calls for checking which keys survived masking. If the temperature setting does nothing, check whether it was applied to the logits before softmax.",
+        "hold": 0.8
+      },
+      {
+        "id": "c22-b05",
+        "say": "Now take two copies of our original three-token block. Both give every future key zero attention weight. Both have dropout off. Only the first normalization differs. On the left, the word “function” uses its own four features to compute a mean.",
+        "hold": 0.3
+      },
+      {
+        "id": "c22-b06",
+        "say": "On the right, the first feature instead uses a mean down the column, across all three words. We will change the first feature of the last word. Predict which block might change the output at “function.”",
+        "hold": 2.3
+      },
+      {
+        "id": "c22-b07",
+        "say": "Add four to that feature of “the.” On the left, the edit falls outside the highlighted row. Its mean stays put. On the right, the edit lands inside the column and moves its mean. Compare the output for “function” before and after the edit in each block.",
+        "hold": 0.3
+      },
+      {
+        "id": "c22-b08",
+        "say": "Only the right one changed. Information from the last word crossed positions during normalization, before attention ever used its mask. Restore normalization across features and repeat the comparison. Keep the input, weights, dtype and dropout settings fixed. The test checks this path through the block.",
+        "hold": 0.3
+      },
+      {
+        "id": "c22-b09",
+        "say": "A cache has another way to go wrong. It can leave out something the query should have read.",
+        "hold": 1.1
+      }
+    ]
+  },
+  {
+    "id": "c23",
+    "title": "What did the last query actually read?",
+    "sourceChapters": [
+      "c23"
+    ],
+    "beats": [
+      {
+        "id": "c23-b01",
+        "say": "Try a fresh pair of keys. The blue key picks out the first coordinate of the query. The green key picks out the second. Their values are the two points on the plot. At position one, the query can read both.",
+        "hold": 0.3
+      },
+      {
+        "id": "c23-b02",
+        "say": "The query is two, minus one. Its first coordinate is positive and its second is negative. The two value points define a line segment. Which end will be closer to the mixture? Leave your finger there while we work out the weights.",
+        "hold": 2.3
+      },
+      {
+        "id": "c23-b03",
+        "say": "The dot products are two for blue and minus one for green. Divide each by the square root of two, the key width. Apply softmax across the two scores. Blue gets about eighty-nine percent of the weight.",
+        "hold": 0.3
+      },
+      {
+        "id": "c23-b04",
+        "say": "Take that share of the blue value, then add the green contribution at its tip. Read the two coordinates at the tip of the second arrow. The short upward step is the evidence that the green key contributed. This is a pair of features.",
+        "hold": 0.3
+      },
+      {
+        "id": "c23-b05",
+        "say": "Read the tip as two features. To turn those features into word scores, we would still need an output projection.",
+        "hold": 1.1
+      },
+      {
+        "id": "c23-b06",
+        "say": "Run that same query alone against the two saved keys. Use the upper-left mask. The green key drops out. All the weight goes to blue and the read lands exactly at four, zero. Blue grew longer because its weight rose to one.",
+        "hold": 0.3
+      },
+      {
+        "id": "c23-b07",
+        "say": "The upward step disappeared because green got zero. Align the mask with position one. The upward step comes back, and the read meets the full-prefix result again.",
+        "hold": 1.1
+      },
+      {
+        "id": "c23-b08",
+        "say": "Back to our opening prompt. The full prefix gave us six scores for the blank. This time “the” makes one cached query, and the mask lets it read only “function.” Keep the original weights and run that read through the rest of the block.",
+        "hold": 0.3
+      },
+      {
+        "id": "c23-b09",
+        "say": "Read the six cached scores beside the full-prefix scores. Which piece of type will the cached run print this time?",
+        "hold": 2.2
+      },
+      {
+        "id": "c23-b10",
+        "say": "The largest cached score prints “None.” The query lost both “returns” and its own value. Restore those two openings. Compare all six pairs of scores. Each pair now agrees, and the highest score puts “result” back in the line. You can use that full-prefix comparison to test a cache. The next lesson uses shifted targets to train the scores.",
+        "hold": 2.6
+      }
+    ]
+  }
+]

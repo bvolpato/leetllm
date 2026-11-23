@@ -1,0 +1,700 @@
+version: 1
+id: gpu-profiling-correctness-benchmarking
+title: How to Trust a GPU Speedup
+source: fundamentals/gpu-profiling-correctness-benchmarking/content.md
+opening: lesson
+voice: en-US-AndrewNeural
+rate: +0%
+sources:
+  - title: NVIDIA Compute Sanitizer checker scopes and padding
+    url: https://docs.nvidia.com/compute-sanitizer/ComputeSanitizer/index.html
+  - title: NVIDIA Nsight Compute replay, caches and roofline
+    url: https://docs.nvidia.com/nsight-compute/ProfilingGuide/index.html
+  - title: NVIDIA Nsight Systems instrumentation and trace scope
+    url: https://docs.nvidia.com/nsight-systems/UserGuide/index.html
+  - title: CUDA Runtime event timing and synchronization
+    url: https://docs.nvidia.com/cuda/cuda-runtime-api/group__CUDART__EVENT.html
+  - title: NumPy reference-relative allclose contract
+    url: https://numpy.org/doc/stable/reference/generated/numpy.allclose.html
+scenes:
+  - id: intro
+    title: "When did the clock stop?"
+    visual: "Replay the three lines around a kernel launch on a CPU stopwatch, then follow the same call to GPU completion on a longer trace."
+    beats:
+      - say: "Three microseconds. Watch where the clock stops. Start the timer, launch the kernel, then stop the timer when the call returns. The old call took five point four microseconds, one point eight times as long. Did the GPU finish any sooner?"
+        caption_starts: ["Start the timer", "The old call", "Did the GPU finish"]
+        motion_check:
+          region: [220, 315, 1490, 650]
+          minimumChangedFraction: 0.002
+        hold: 2.8
+        visual_cues:
+          - id: timer-start
+            phrase: "Start the timer"
+            targets: [launch-comparison]
+            color: cyan
+            linger: 0.25
+          - id: timed-launch
+            phrase: "launch the kernel"
+            targets: [launch-comparison]
+            color: cyan
+            linger: 0.25
+          - id: compare-calls
+            phrase: "The old call took five point four microseconds"
+            targets: [launch-comparison]
+            color: blue
+            linger: 0.25
+      - say: "At three microseconds the CPU is free to do other work. Follow the same launch on the longer ruler. The kernel starts at ten and runs until seventy-five. The host wait returns at seventy-eight. To compare GPU times, measure the baseline through kernel completion too."
+        caption_starts: ["The kernel starts at ten", "The host wait returns"]
+        hold: 1.1
+        visual_cues:
+          - id: device-work
+            phrase: "The kernel starts at ten and runs until seventy-five"
+            targets: [device-trace]
+            color: cyan
+            linger: 0.25
+          - id: host-wait
+            phrase: "The host wait returns at seventy-eight"
+            targets: [device-trace]
+            color: cyan
+            linger: 0.25
+  - id: event-contract
+    title: "Where do the two event marks fall?"
+    visual: "Candidate B stays on the same ruler. Stream events bracket the gap and the kernel. Two four-operation batches then share a total while their internal boundaries differ."
+    beats:
+      - say: "Put two timing events in the same CUDA stream, one before the launch and one after it. Wait for the stop event before reading elapsed time. Here the start mark lands at five and the stop mark at seventy-five. How much time between the marks belongs to the kernel?"
+        hold: 2.5
+        visual_cues:
+          - id: event-marks
+            phrase: "the start mark lands at five and the stop mark at seventy-five"
+            targets: [event-contract-mechanism]
+            color: cyan
+            linger: 0.25
+      - say: "Sixty-five microseconds belong to the kernel. It began at ten. The events span seventy microseconds, including the five before it began. The trace gives us the length of that gap. To find its cause, inspect submissions and competing work. Queueing before the first event lies outside these marks. A device-wide wait covers preceding work in the caller's device context."
+        hold: 1
+        visual_cues:
+          - id: event-answer
+            phrase: "Sixty-five microseconds belong to the kernel"
+            targets: [event-contract-mechanism]
+            color: cyan
+            linger: 0.25
+      - say: "For tiny kernels, event resolution can make a single launch hard to time. Try one pair of events around four operations. Each batch here finishes in two hundred eighty microseconds, or seventy per operation on average. Now look inside the second batch. One operation took forty, another a hundred. The single pair of timestamps can't give you the individual latency percentiles. Keep the batch size and cache policy fixed when comparing versions."
+        hold: 1.3
+        visual_cues:
+          - id: batch-contrast
+            phrase: "look inside the second batch"
+            targets: [event-contract-mechanism]
+            color: cyan
+            linger: 0.25
+  - id: tail
+    title: A logical output can match while a store overruns
+    visual: A rounded-up two-block launch for five logical values exposes an inclusive-tail store inside a spare allocation, then shows the exact-allocation failure.
+    beats:
+      - say: "Consider a simple triad: multiply one input by a scale and add another input. Threads own individual output positions. When a grid rounds up, some threads fall beyond the logical length. A guard must exclude those positions. This small five-element fixture uses four-thread blocks so we can see the boundary clearly."
+        hold: 0.65
+        visual_cues:
+          - id: tail-beat-1-focus-1
+            phrase: When a grid rounds up, some threads fall beyond the logical length
+            targets:
+              - tail-s-illegal-store-at-i-5-beyond-shape-threads-still-launching
+            color: cyan
+            linger: 0.65
+          - id: tail-beat-1-focus-2
+            phrase: This small five-element fixture uses four-thread blocks so we can see the boundary clearly
+            targets:
+              - tail-array-from-length-8-i-string-i
+            color: yellow
+            linger: 0.65
+      - say: The faulty inclusive guard admits position five. With spare allocated space, every logical output can match while that extra store remains hidden. Tighten the allocation and the same access crosses its boundary. Poison outputs to reveal omitted stores, compare every valid position, and use memory checking to investigate illegal execution.
+        hold: 0.65
+        visual_cues:
+          - id: tail-beat-2-focus-1
+            phrase: With spare allocated space
+            targets:
+              - tail-b-0-allocation-has-spare-space-exact-sized-allocation
+            color: cyan
+            linger: 0.65
+          - id: tail-beat-2-focus-2
+            phrase: every logical output can match while that extra store remains hidden
+            targets:
+              - tail-s-illegal-store-at-i-5-beyond-shape-threads-still-launching
+            color: yellow
+            linger: 0.65
+  - id: reference-cases
+    title: "Which threads own an output?"
+    visual: "The final block of the CUDA triad has 67 writers. A separate five-value example leaves an unwritten output at its initial NaN value."
+    beats:
+      - say: "Repair the guard so that a thread writes only when its index is less than the length. The CUDA lab uses that rule on a much larger triad. For each output, multiply X by one and a quarter and add Z, with one fused multiply-add in float thirty-two. Divide a million and three elements into blocks of two hundred fifty-six and round up. The square shows the last block. Only sixty-seven threads own an output. The other hundred eighty-nine must skip the store."
+        hold: 1
+        visual_cues:
+          - id: rounded-launch
+            phrase: "The other hundred eighty-nine must skip the store"
+            targets: [reference-cases-mechanism]
+            color: cyan
+            linger: 0.25
+      - say: "Test both sides of one block boundary, as well as empty and single-element inputs. For large inputs, vary the seeds, signs, zeros and cancellation cases. Here's how you catch a missing write. Fill every output with a special value called NaN before launch. In this small example thread two skips its store. Four slots get their answers. The middle one still holds NaN."
+        hold: 1
+        visual_cues:
+          - id: poison-output
+            phrase: "thread two skips its store"
+            targets: [reference-cases-mechanism]
+            color: cyan
+            linger: 0.25
+      - say: "Compute each reference value independently on the CPU with a double-precision fused multiply-add, then cast once to float. Different rounding paths can produce different last bits. For this bounded operation we compare every output within a declared tolerance, reject nonfinite values, and keep the maximum absolute and relative errors."
+        hold: 1
+        visual_cues:
+          - id: reference-fma
+            phrase: "then cast once to float"
+            targets: [reference-cases-mechanism]
+            color: cyan
+            linger: 0.25
+  - id: tolerance
+    title: "How far can the output move?"
+    visual: "The same absolute error stays on a fixed ruler as the reference moves to zero. Increasing the error crosses the declared limit."
+    beats:
+      - say: "The dot is one output's distance from its reference. The yellow line is the allowed distance. Start with the absolute tolerance. Add the relative tolerance times the magnitude of the reference. With a reference of one tenth, the two terms each contribute two millionths. Our error is only one millionth, inside that limit. Choose the tolerances for the operation, precision, inputs and downstream requirements before ranking candidates."
+        hold: 0.9
+        visual_cues:
+          - id: tolerance-beat-1-focus-1
+            phrase: "The yellow line is the allowed distance"
+            targets: [tolerance-absolute-error]
+            color: cyan
+            linger: 0.25
+          - id: tolerance-beat-1-focus-2
+            phrase: "relative tolerance times the magnitude of the reference"
+            targets: [tolerance-absolute-error]
+            color: cyan
+            linger: 0.25
+      - say: "Move the reference down to zero. Keep the dot still. The relative allowance shrinks away. The absolute allowance still gives us two millionths, so the same error passes. Now move the error out to five millionths. It crosses the line. A long reduction accumulates rounding error differently and needs its own analysis."
+        hold: 1.1
+        visual_cues:
+          - id: tolerance-beat-2-focus-1
+            phrase: "Move the reference down to zero"
+            targets: [tolerance-absolute-error]
+            color: cyan
+            linger: 0.25
+          - id: tolerance-beat-2-focus-2
+            phrase: "move the error out to five millionths"
+            targets: [tolerance-absolute-error]
+            color: cyan
+            linger: 0.25
+  - id: sanitizer-scopes
+    title: "Which boundary does a checker see?"
+    visual: "The article's CPU index fixture tries the same inclusive guard with 512 slots and with 257. Separate CUDA checker scopes follow the bounds-checked example."
+    beats:
+      - say: "Try the article's Python index check with a length of two hundred fifty-seven. With room for five hundred twelve floats, all requested values match. One more slot has changed from NaN to two hundred fifty-seven. Give the same check exactly two hundred fifty-seven slots. Python catches the extra store at the allocation boundary. This models the index calculation. The actual CUDA program needs a device memory check."
+        hold: 1
+        visual_cues:
+          - id: logical-overrun
+            phrase: "One more slot has changed"
+            targets: [sanitizer-scopes-mechanism]
+            color: cyan
+            linger: 0.25
+          - id: exact-allocation
+            phrase: "Give the same check exactly two hundred fifty-seven slots"
+            targets: [sanitizer-scopes-mechanism]
+            color: cyan
+            linger: 0.25
+      - say: "Run memcheck first to find illegal or misaligned accesses. If the change uses shared memory, racecheck can investigate shared-memory ordering hazards. Global-memory races fall outside that scope. Initcheck looks for uninitialized global-memory reads. Synccheck examines synchronization, including invalid barriers. A clean report covers the paths and inputs that checker exercised."
+        hold: 0.9
+        visual_cues:
+          - id: checker-scopes
+            phrase: "Run memcheck first"
+            targets: [sanitizer-scopes-mechanism]
+            color: cyan
+            linger: 0.25
+      - say: "The lab asks for thirty-two bytes of sanitizer padding after supported allocations. That helps expose a store that could otherwise land in the next allocation. A checker still needs an exact-sized test to expose a write into spare space within the same buffer. With an error exit code of ninety-nine, a checker error can fail the run even if the program itself succeeds. Collect clean timings in a separate execution."
+        hold: 0.9
+        visual_cues:
+          - id: allocation-padding
+            phrase: "thirty-two bytes of sanitizer padding"
+            targets: [sanitizer-scopes-mechanism]
+            color: cyan
+            linger: 0.25
+  - id: warmup
+    title: "Where did launch four get its inputs?"
+    visual: "A fixed acquisition axis pairs each time with its buffer slot. A cursor at launch four connects two different intervals to the addresses the same kernel used."
+    beats:
+      - say: "Run the same kernel six times. The first event interval is forty-four microseconds. Follow the next five launches in order. By launch six we're down to nineteen. On your GPU, watch latency, clocks and temperature settle before choosing a warmup. For a first request, start the host clock before compilation and allocation so you include the setup the user waits for."
+        hold: 0.9
+        visual_cues:
+          - id: first-series
+            phrase: "Follow the next five launches in order"
+            targets: [warmup-trace]
+            color: cyan
+            linger: 0.25
+      - say: "Now warm the kernel first. The same-buffer row reuses the same three arrays. On the rotating row, give each launch a different set of addresses. Look at launch four. Twelve microseconds with reuse, twenty with rotation. Which slot did each launch touch?"
+        caption_starts: ["Look at launch four", "Which slot did each launch touch"]
+        hold: 2.8
+        visual_cues:
+          - id: address-series
+            phrase: "On the rotating row, give each launch a different set of addresses"
+            targets: [warmup-trace]
+            color: cyan
+            linger: 0.25
+          - id: sample-four
+            phrase: "Look at launch four"
+            targets: [warmup-trace]
+            color: cyan
+            linger: 0.25
+      - say: "Same-buffer launch four used slot zero. Rotating launch four used slot three. Reusing an address gives the cache a chance to serve the next load. To see where the loads went, collect traffic counters under the matching buffer policy. Keep the warmup fixed and save the raw launch order alongside clocks, power, temperature and competing work."
+        hold: 1
+        visual_cues:
+          - id: matching-policy
+            phrase: "collect traffic counters under the matching buffer policy"
+            targets: [warmup-trace]
+            color: cyan
+            linger: 0.25
+  - id: cache-allocation
+    title: "How many slots reach the rotation target?"
+    visual: "Nine slots end just short of the target. Add one whole slot, then follow twenty warmup visits across the ten slots."
+    beats:
+      - say: "A slot holds the two input arrays and one output array. Each float takes four bytes. At the lab's length that's just over twelve million bytes per slot. The lab takes the larger of two targets, eight whole slots or twice the reported L two capacity plus one slot. On this device the second target wins. Will nine slots reach the yellow mark?"
+        hold: 2.4
+        visual_cues:
+          - id: rotation-target
+            phrase: "twice the reported L two capacity plus one slot"
+            targets: [cache-allocation-mechanism]
+            color: cyan
+            linger: 0.25
+      - say: "Nine slots stop short. Add the tenth slot. The pool now crosses the target of roughly a hundred thirteen million bytes. Round up to whole slots. If that pool would use more than a quarter of the reported free memory, this lab stops before running the rotating benchmark."
+        hold: 1
+        visual_cues:
+          - id: ten-slot-pool
+            phrase: "Add the tenth slot"
+            targets: [cache-allocation-mechanism]
+            color: cyan
+            linger: 0.25
+      - say: "Start warmup at slot zero and cycle through the pool twice. That's twenty launches. The lab uses the larger of twenty and twice the slot count. The slot history records which addresses each launch touched. Device-memory counters count the bytes that made the trip."
+        hold: 1
+        visual_cues:
+          - id: slot-warmup
+            phrase: "cycle through the pool twice"
+            targets: [cache-allocation-mechanism]
+            color: cyan
+            linger: 0.25
+  - id: traffic
+    title: "How many bytes reached device memory?"
+    visual: "Two loads and one store fix useful bytes per element. A shorter supplied interval changes the useful rate while the device byte count stays unmeasured."
+    beats:
+      - say: "Read X, read Z, write Y. Each float takes four bytes. That gives twelve useful bytes per element. At a million and three elements the total is just over twelve million bytes. Divide by eight microseconds and you get about fifteen hundred gigabytes per second of useful bandwidth. That's the work the algorithm asked for."
+        hold: 0.9
+        visual_cues:
+          - id: traffic-two-loads-one-store
+            phrase: "Read X, read Z, write Y"
+            targets: [traffic-operand-bytes]
+            color: cyan
+            linger: 0.25
+          - id: traffic-useful-rate
+            phrase: "Divide by eight microseconds"
+            targets: [traffic-effective-rate]
+            color: cyan
+            linger: 0.25
+      - say: "Keep the same arrays and change the supplied interval to three microseconds. The useful rate climbs to about four thousand gigabytes per second. The byte count in the numerator stayed fixed. A cache can satisfy an input load, and an inefficient transaction can transfer extra bytes. To find what crossed the device-memory interface, we need its counters under the same policy."
+        hold: 1
+        visual_cues:
+          - id: traffic-interval-shrinks
+            phrase: "change the supplied interval to three microseconds"
+            targets: [traffic-elapsed-interval]
+            color: cyan
+            linger: 0.25
+          - id: traffic-rate-rises
+            phrase: "four thousand gigabytes per second"
+            targets: [traffic-effective-rate]
+            color: cyan
+            linger: 0.25
+  - id: roofline
+    title: "How fast could this triad run?"
+    visual: "Keep the twelve-byte case on the bandwidth roof as four extra bytes move the second point down the slope. Two bars compare the minimum times for the full array."
+    beats:
+      - say: "One multiply and one add for each output. Suppose both four-byte inputs and the four-byte output all cross device memory. That's two operations for twelve bytes, or one sixth of an operation per byte. This ratio, arithmetic intensity, locates the dot from left to right. Its height on the sloping roof is intensity times bandwidth. The flat roof shows peak compute. The lower ceiling sets the limit."
+        caption_starts: ["That's two operations", "This ratio"]
+        hold: 1
+        visual_cues:
+          - id: earned-intensity
+            phrase: "one sixth of an operation per byte"
+            targets: [roofline-mechanism]
+            color: cyan
+            linger: 0.25
+      - say: "Our example GPU can move three trillion bytes per second and do sixty trillion floating-point operations per second. The two roofs meet at twenty operations per byte. Our dot sits far down the slope. At one operation for every six bytes, peak bandwidth can feed half a trillion operations per second."
+        caption_starts: ["Our dot sits", "At one operation"]
+        hold: 1
+        visual_cues:
+          - id: toy-roof
+            phrase: "half a trillion operations per second"
+            targets: [roofline-mechanism]
+            color: cyan
+            linger: 0.25
+      - say: "At peak bandwidth, moving twelve bytes per element for the whole array takes about four microseconds. Now suppose the counters show sixteen bytes per element. We still do one multiply and one add. The extra traffic moves the dot down the slope. Even at full bandwidth, moving the array now takes about five and a third microseconds. If the profiler flushes the cache, pair its byte count with timing from that same profile. Time the warm kernel separately."
+        caption_starts: ["Now suppose the counters", "Even at full bandwidth", "If the profiler flushes"]
+        hold: 1
+        visual_cues:
+          - id: traffic-floor
+            phrase: "about four microseconds"
+            targets: [roofline-mechanism]
+            color: cyan
+            linger: 0.25
+          - id: sixteen-byte-floor
+            phrase: "sixteen bytes per element"
+            targets: [roofline-mechanism]
+            color: cyan
+            linger: 0.25
+          - id: longer-floor
+            phrase: "about five and a third microseconds"
+            targets: [roofline-mechanism]
+            color: yellow
+            linger: 0.25
+  - id: roofline-diagnosis
+    title: "What would you change next?"
+    visual: "A four-byte excess provides a controlled access-order experiment. A separate system trace locates long CPU preparation before a short kernel."
+    beats:
+      - say: "Sixteen device-memory bytes for twelve useful bytes leaves four to explain per element. Try changing only the access order, then remeasure the traffic and clean latency under matched conditions. Now suppose each input comes in once and each result goes out once. The counters show twelve bytes per element and throughput is close to its roof. Staging the inputs in shared memory still leaves those trips to device memory."
+        hold: 1
+        visual_cues:
+          - id: excess-traffic
+            phrase: "changing only the access order"
+            targets: [roofline-diagnosis-mechanism]
+            color: cyan
+            linger: 0.25
+          - id: near-floor
+            phrase: "The counters show twelve bytes per element"
+            targets: [roofline-diagnosis-mechanism]
+            color: cyan
+            linger: 0.25
+      - say: "A low compute percentage could come from bandwidth pressure, dependencies or too little parallel work. High memory utilization could include wasted transactions. Read throughput alongside launch resources, stalls and bytes per element. Keep the dtype and workload fixed so you can tell which change mattered."
+        hold: 0.9
+        visual_cues:
+          - id: controlled-followup
+            phrase: "Keep the dtype and workload fixed"
+            targets: [roofline-diagnosis-mechanism]
+            color: cyan
+            linger: 0.25
+      - say: "Pull back to the request. The GPU is idle while the CPU prepares the inputs. Nsight Systems shows the calls, copies, streams and waits that make up that path. Measure preparation first in this example. Once a kernel owns a critical interval, use Nsight Compute to study its internal resources and counters. Mark the region you want so setup and verification stay identifiable."
+        hold: 1
+        visual_cues:
+          - id: system-critical-path
+            phrase: "idle while the CPU prepares the inputs"
+            targets: [roofline-diagnosis-mechanism]
+            color: cyan
+            linger: 0.25
+  - id: replay-contract
+    title: "What must be put back before pass two?"
+    visual: "One device column faces a saved copy. The triad updates only Y. Its saved bytes cross back to the device before the second counter pass."
+    beats:
+      - say: "Nsight Compute needs two passes for these counters. Before the first pass it can save all three accessible arrays. X and Z are the inputs. Y starts with two minus ones. Run the triad once. Y now holds four point two five and six point five. Which array needs its saved bytes back before the next pass?"
+        hold: 2.6
+        visual_cues:
+          - id: save-accessible
+            phrase: "save all three accessible arrays"
+            targets: [replay-contract-mechanism]
+            color: cyan
+            linger: 0.25
+          - id: write-output
+            phrase: "Y now holds four point two five and six point five"
+            targets: [replay-contract-mechanism]
+            color: cyan
+            linger: 0.25
+      - say: "Restore Y from the saved copy. The first pass wrote only Y, so X and Z can stay where they are. That's kernel replay. A single pass may need no save or restore. By default the profiler flushes caches before each pass and serializes kernel launches. Warps still execute within each kernel. Range and application replay have different concurrency and setup behavior. Record the replay mode, cache and clock settings, sections and command. Use a separate clean run for latency."
+        hold: 1
+        visual_cues:
+          - id: restore-written
+            phrase: "Restore Y from the saved copy"
+            targets: [replay-contract-mechanism]
+            color: cyan
+            linger: 0.25
+          - id: replay-cache-policy
+            phrase: "flushes caches before each pass"
+            targets: [replay-contract-mechanism]
+            color: cyan
+            linger: 0.25
+      - say: "Here is what happened on the article author's shared GPU. The kernel launched. The profiler reported that access to GPU performance counters was denied. Keep the correctness results and the clean event samples. Leave device traffic unmeasured until you can collect the counters on a host with access."
+        hold: 1
+        visual_cues:
+          - id: counter-denied
+            phrase: "access to GPU performance counters was denied"
+            targets: [replay-contract-mechanism]
+            color: cyan
+            linger: 0.25
+  - id: lab-execution
+    title: "What did the recorded GPU run establish?"
+    visual: "The author's recorded checker outcomes and ordered measurements identify the tested device, observed cases and missing comparison."
+    beats:
+      - say: "The author compiled the triad with optimization and line information on a shared RTX fifty seventy Ti. Memcheck reported two errors on the inclusive guard and returned ninety-nine. With the guard fixed, the edge cases passed their reference checks and memcheck reported zero errors."
+        caption_starts: ["With the guard fixed"]
+        hold: 1
+        visual_cues:
+          - id: buggy-checker
+            phrase: "two errors on the inclusive guard and returned ninety-nine"
+            targets: [lab-execution-mechanism]
+            color: cyan
+            linger: 0.25
+          - id: fixed-checker
+            phrase: "memcheck reported zero errors"
+            targets: [lab-execution-mechanism]
+            color: cyan
+            linger: 0.25
+      - say: "After allocation, initialization and warmup, the author collected two hundred event intervals for each buffer policy. See the late spike in the rotating run? It stays in the record. After timing, the lab checked the final output in the reused slot and in all ten rotating slots. That check sees the last output left in each slot. Poison the outputs again in separate correctness runs to catch a store that only sometimes gets skipped."
+        hold: 1
+        visual_cues:
+          - id: actual-event-samples
+            phrase: "two hundred event intervals for each buffer policy"
+            targets: [lab-execution-mechanism]
+            color: cyan
+            linger: 0.25
+      - say: "Both curves came from one kernel on the shared GPU. Each curve records the times for one buffer policy. For a speedup, run both implementations in matched rounds, with the same buffer policy on each turn."
+        caption_starts: ["For a speedup"]
+        hold: 1
+        visual_cues:
+          - id: bounded-run-limit
+            phrase: "both implementations in matched rounds"
+            targets: [lab-execution-mechanism]
+            color: cyan
+            linger: 0.25
+  - id: sample-contract
+    title: "Where does the slow launch land?"
+    visual: "A copy of six event samples sorts beneath the acquisition record. A marker moves along the zero-based sorted index to interpolate three percentiles."
+    beats:
+      - say: "The lab records the sample index, buffer slot and elapsed time as each launch finishes. Take six example durations. That forty came first. Sort a copy and keep the original order. With six samples the sorted indices run from zero to five. Multiply the quantile by five to find its position. For the median, position two and a half is halfway between twelve and fourteen. That's thirteen microseconds."
+        hold: 0.9
+        visual_cues:
+          - id: sorted-copy
+            phrase: "Sort a copy and keep the original order"
+            targets: [sample-contract-mechanism]
+            color: cyan
+            linger: 0.25
+          - id: sample-median
+            phrase: "position two and a half"
+            targets: [sample-contract-mechanism]
+            color: cyan
+            linger: 0.25
+      - say: "For the tenth percentile, move to position one half. Halfway from eight to ten gives nine. Now find the ninetieth percentile. Nine tenths of five is four and a half. What duration lies halfway between the last two values?"
+        hold: 2.7
+        visual_cues:
+          - id: sample-p10
+            phrase: "move to position one half"
+            targets: [sample-contract-mechanism]
+            color: cyan
+            linger: 0.25
+          - id: sample-p90-question
+            phrase: "Now find the ninetieth percentile"
+            targets: [sample-contract-mechanism]
+            color: cyan
+            linger: 0.25
+      - say: "Twenty-eight microseconds. That's halfway between sixteen and forty. The slow launch pulls up the ninetieth percentile while the median stays at thirteen. Report the sample count and spread alongside clocks, temperature and competing work. These percentiles describe individual launches. If you batch launches, the percentiles describe batch averages. To compare implementations, keep each launch with its round."
+        caption_starts: ["That's halfway"]
+        hold: 1.2
+        visual_cues:
+          - id: sample-p90
+            phrase: "Twenty-eight microseconds"
+            targets: [sample-contract-mechanism]
+            color: cyan
+            linger: 0.25
+  - id: paired
+    title: "Did candidate B slow down?"
+    visual: "Two ABBA rounds remain on screen together. Their ratios land on opposite sides of one while B's median stays fixed."
+    beats:
+      - say: "Time a baseline, A, against candidate B with the same workload, GPU, timer and buffer policy. Both have passed the same output checks. Run A, B, B, A to give each version an early and a late turn. In this round the two A readings straddle twelve. The two B readings straddle ten. Divide twelve by ten. B wins the first round by a factor of one point two."
+        hold: 1.2
+        visual_cues:
+          - id: first-round
+            phrase: "Run A, B, B, A to give each version an early and a late turn"
+            targets: [paired-rounds]
+            color: cyan
+            linger: 0.25
+          - id: first-ratio
+            phrase: "Divide twelve by ten"
+            targets: [paired-rounds]
+            color: cyan
+            linger: 0.25
+      - say: "Keep that row. Repeat the same order in round two. Compare the medians in each column. Did B get slower in round two?"
+        hold: 2.7
+        visual_cues:
+          - id: next-round
+            phrase: "Repeat the same order in round two"
+            targets: [paired-rounds]
+            color: cyan
+            linger: 0.25
+      - say: "B's median stayed at ten microseconds. A's fell from twelve to nine. Nine divided by ten puts this round below one. The candidate lost its lead even though its median held still. Pooling the launches hides that reversal. Check clocks, temperature, power and competing work across rounds, then repeat the comparison. Use independent rounds to estimate uncertainty when the variation is between rounds."
+        hold: 1.1
+        visual_cues:
+          - id: next-ratio
+            phrase: "Nine divided by ten puts this round below one"
+            targets: [paired-rounds]
+            color: cyan
+            linger: 0.25
+  - id: receipt-parser
+    title: "Which files produced this ratio?"
+    visual: "The parser checks matched declarations and complete file digests before it reads the five rows per version. Replacing B with the literal text truncated stops the comparison."
+    beats:
+      - say: "Here are five synthetic timing rows from each version. The article's Python parser first checks the comparison conditions. Match the shape, dtype, buffer policy, slot count, GPU and timer. For each file it hashes the bytes before it reads the columns. Sample indices must be consecutive, slots must follow the rotation, and durations must be finite and positive. Each file needs at least two samples, with equal counts across the pair."
+        hold: 0.9
+        visual_cues:
+          - id: hash-before-parse
+            phrase: "hashes the bytes before it reads the columns"
+            targets: [receipt-parser-mechanism]
+            color: cyan
+            linger: 0.25
+      - say: "Give both records a Boolean length. Python lets true compare equal to one, but this parser requires a positive integer of the exact type. It also catches a wrong dtype, a rotating pool with one slot and a missing timer label."
+        hold: 0.9
+        visual_cues:
+          - id: runtime-types
+            phrase: "Give both records a Boolean length"
+            targets: [receipt-parser-mechanism]
+            color: cyan
+            linger: 0.25
+      - say: "With the original files, the baseline's middle value is a hundred two. The candidate's is eighty-two. Dividing gives about one point two four times for this pair. Replace the entire candidate file with the word truncated. Run the same comparison. The digest check stops it before it accepts a new ratio. Use a trusted collector to record who ran each binary and which GPU they used."
+        hold: 1.2
+        visual_cues:
+          - id: parser-ratio
+            phrase: "Dividing gives about one point two four times"
+            targets: [receipt-parser-mechanism]
+            color: cyan
+            linger: 0.25
+          - id: changed-artifact
+            phrase: "Replace the entire candidate file with the word truncated"
+            targets: [receipt-parser-mechanism]
+            color: cyan
+            linger: 0.25
+  - id: system-payoff
+    title: "When will the request finish?"
+    visual: "Two serial request bars share one millisecond ruler. Only the selected kernel contracts. The viewer repeats the estimate with a five-millisecond kernel."
+    beats:
+      - say: "Both kernels pass the output checks. The candidate takes half the kernel time. A user waits through sixty milliseconds of CPU preparation and forty in the kernel. Those run in sequence. If only the kernel runs twice as fast, when does the request finish?"
+        caption_starts: ["A user waits", "If only the kernel"]
+        hold: 2.5
+        visual_cues:
+          - id: request-setup
+            phrase: "sixty milliseconds of CPU preparation and forty in the kernel"
+            targets: [system-payoff-mechanism]
+            color: cyan
+            linger: 0.25
+      - say: "The kernel shrinks to twenty milliseconds. The CPU still needs sixty. Eighty milliseconds is the new request time. Divide a hundred by eighty. One point two five is the speedup for the whole request."
+        caption_starts: ["Eighty milliseconds is", "Divide a hundred", "One point two five"]
+        hold: 1
+        visual_cues:
+          - id: serial-kernel-half
+            phrase: "The kernel shrinks to twenty milliseconds"
+            targets: [system-payoff-mechanism]
+            color: cyan
+            linger: 0.25
+          - id: large-total
+            phrase: "Eighty milliseconds is the new request time"
+            targets: [system-payoff-mechanism]
+            color: yellow
+            linger: 0.25
+          - id: large-ratio
+            phrase: "One point two five"
+            targets: [system-payoff-mechanism]
+            color: yellow
+            linger: 0.25
+      - say: "Change the workload. This time the CPU takes ninety-five milliseconds and the kernel takes five. Double the kernel speed again. When does this request finish?"
+        hold: 2.6
+        visual_cues:
+          - id: small-setup
+            phrase: "the CPU takes ninety-five milliseconds and the kernel takes five"
+            targets: [system-payoff-mechanism]
+            color: cyan
+            linger: 0.25
+      - say: "The kernel now takes two and a half milliseconds. Add the ninety-five on the CPU. Ninety-seven and a half milliseconds is the new request time. Divide a hundred by the new time. About one point zero two six. The smaller kernel leaves less time to save. We can add the two intervals because they run in sequence. When work overlaps, follow the dependencies to completion on a system trace."
+        caption_starts: ["Ninety-seven and a half milliseconds", "Divide a hundred", "About one point zero two six", "We can add"]
+        hold: 1.1
+        visual_cues:
+          - id: small-scope
+            phrase: "The kernel now takes two and a half milliseconds"
+            targets: [system-payoff-mechanism]
+            color: cyan
+            linger: 0.25
+          - id: small-total
+            phrase: "Ninety-seven and a half milliseconds is the new request time"
+            targets: [system-payoff-mechanism]
+            color: yellow
+            linger: 0.25
+          - id: small-ratio
+            phrase: "one point zero two six"
+            targets: [system-payoff-mechanism]
+            color: yellow
+            linger: 0.25
+  - id: receipt
+    title: "Where did the saved time go?"
+    visual: "The five-millisecond case returns. A hypothetical system trace replaces the fixed-CPU projection, revealing where the saved kernel time went."
+    beats:
+      - say: "We predicted ninety-seven and a half milliseconds with CPU time held steady. Suppose a clean request timer on the candidate still reads one hundred. Which interval would you inspect?"
+        caption_starts: ["Suppose a clean request timer", "Which interval"]
+        hold: 2.5
+        visual_cues:
+          - id: request-clock
+            phrase: "a clean request timer on the candidate still reads one hundred"
+            targets: [receipt-request]
+            color: cyan
+            linger: 0.25
+      - say: "Open the matching system trace. CPU preparation grew by two and a half milliseconds. That used up all the time the kernel saved. Look at CPU activity during preparation to find what took longer."
+        caption_starts: ["CPU preparation grew", "That used up"]
+        hold: 1
+        visual_cues:
+          - id: measured-prep
+            phrase: "CPU preparation grew by two and a half milliseconds"
+            targets: [receipt-request]
+            color: cyan
+            linger: 0.25
+      - say: "Give the next engineer the two source and binary identities, the device and tool versions, and the exact commands. Link the numerical contract and checker logs to those builds. Save the clean samples in order with the buffer policy and observed hardware state. That lets someone rerun the kernel comparison and check the separate request measurement."
+        hold: 0.9
+        visual_cues:
+          - id: retain-runs
+            phrase: "check the separate request measurement"
+            targets: [receipt-request]
+            color: cyan
+            linger: 0.25
+  - id: fresh-artifact
+    title: "Would you sign this comparison?"
+    visual: "A close-up shows the last writer on either side of the 513-element boundary. Adding .0 to a timing row changes its hash. The closing request trace shows when both replies arrived."
+    beats:
+      - say: "Five hundred thirteen outputs, and every one matches. Look at the yellow boundary. The launch fills three blocks, and the allocation extends past the last result. The guard lets a thread write when its index equals the length. The median event times are thirteen and ten microseconds. Which thread writes into spare space?"
+        caption_starts: ["The guard lets", "The median event times", "Which thread writes"]
+        hold: 3
+        visual_cues:
+          - id: fresh-grid
+            phrase: "The median event times are thirteen and ten microseconds"
+            targets: [fresh-artifact-mechanism]
+            color: cyan
+            linger: 0.25
+      - say: "Thread five hundred thirteen writes the first spare slot. The last requested index is five hundred twelve. Hold the one point three times claim. Change the guard to strictly less than the length. Now the last writer is five hundred twelve. Verify the repaired executable on edge cases and collect new timings for that build."
+        caption_starts: ["Change the guard", "Now the last writer"]
+        hold: 1.1
+        visual_cues:
+          - id: fresh-extra-write
+            phrase: "Thread five hundred thirteen writes the first spare slot"
+            targets: [fresh-artifact-mechanism]
+            color: cyan
+            linger: 0.25
+          - id: fresh-guard-repair
+            phrase: "strictly less than the length"
+            targets: [fresh-artifact-mechanism]
+            color: cyan
+            linger: 0.25
+      - say: "Here's the last row of a timing file. Change eighty-two to eighty-two point zero and save it. It's the same duration. Compare the two file hashes. Would the saved file pass the original receipt check?"
+        caption_starts: ["Change eighty-two", "Compare the two file hashes", "Would the saved file pass"]
+        hold: 3
+        visual_cues:
+          - id: changed-byte-question
+            phrase: "Change eighty-two to eighty-two point zero and save it"
+            targets: [fresh-artifact-mechanism]
+            color: cyan
+            linger: 0.25
+      - say: "The parser stops at the hash check. Those two extra characters changed the file's bytes. Recover the original file from a trusted copy, or collect a new matched round and save its hash. Now look at the request trace. The kernel time fell from five milliseconds to two and a half. CPU preparation took up the time it saved. Both requests finished in a hundred milliseconds."
+        caption_starts: ["Those two extra characters", "Now look at the request trace", "Both requests finished"]
+        hold: 1.8
+        visual_cues:
+          - id: fresh-binding-answer
+            phrase: "The parser stops at the hash check"
+            targets: [fresh-artifact-mechanism]
+            color: cyan
+            linger: 0.25
+          - id: closing-request
+            phrase: "Now look at the request trace"
+            targets: [fresh-artifact-mechanism]
+            color: cyan
+            linger: 0.25
+          - id: both-replies
+            phrase: "Both requests finished in a hundred milliseconds"
+            targets: [fresh-artifact-mechanism]
+            color: yellow
+            linger: 0.25

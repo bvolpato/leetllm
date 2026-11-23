@@ -1,0 +1,1449 @@
+version: 1
+id: reward-modeling
+title: "Reward Modeling: Scores, Data, Calibration and the Approval Rule"
+source: training/reward-modeling-from-preference-data/content.md
+scenes:
+  - id: introduction
+    title: Which reply gets your vote?
+    visual: >-
+      A paper request for admin access slides beside two completed replies. The approval requirement
+      stays on the slip while the reviewer reads the replies and casts one vote.
+    beats:
+      - say: >-
+          An engineer asks for admin access. A asks for a review ticket and waits. B says access is
+          already enabled. Look at the slip. P-seven requires an approved ticket. Which reply gets your vote?
+        hold: 2.5
+        caption_starts:
+          - "Look at the slip"
+        visual_cues:
+          - id: opening-answers
+            phrase: "A asks for a review ticket and waits"
+            targets: [answer-a]
+            linger: 0.2
+          - id: opening-grant
+            phrase: "B says access is already enabled"
+            targets: [answer-b]
+            linger: 0.2
+          - id: opening-rule
+            phrase: "P-seven requires an approved ticket"
+            targets: [approval-lock]
+            linger: 0.2
+      - say: >-
+          Record A over B. A reward model can learn from that choice. A also uses more words.
+          If the longer reply always wins in training, what happens when the wrong reply is longer?
+        hold: 1
+        caption_starts:
+          - "A also uses more words"
+        visual_cues:
+          - id: opening-choice
+            phrase: "Record A over B"
+            targets: [human-choice]
+            linger: 0.2
+  - id: likelihood-isnt-preference
+    title: Which answer is more likely?
+    visual: Three supplied toy token probabilities arrive for each unchanged answer. Prefix products accumulate;
+      the final products stay hidden through a prediction pause before likelihood and approval rankings
+      separate.
+    beats:
+      - say: >-
+          The writer predicts one token, or piece of text, at a time. Here each reply has three tokens
+          with example probabilities. The first piece gets a probability
+          given the request. The next depends on the pieces already written. Multiply all three along
+          each row. Which complete answer gets more probability?
+        hold: 1.2
+        caption_starts:
+          - "The first piece gets a probability"
+          - "Multiply all three along each row"
+        visual_cues:
+          - id: likelihood-first-piece
+            phrase: The first piece gets a probability
+            targets:
+              - likelihood-piece-1
+            linger: 0.35
+          - id: likelihood-second-piece
+            phrase: The next depends on the pieces already written
+            targets:
+              - likelihood-piece-2
+            linger: 0.35
+          - id: likelihood-third-piece
+            phrase: Multiply all three along each row
+            targets:
+              - likelihood-piece-3
+              - likelihood-products
+            linger: 0.35
+        motion_check:
+          region:
+            - 180
+            - 450
+            - 1600
+            - 405
+          minimumChangedFraction: 0.002
+      - say: >-
+          B has twice the probability of A. The last two factors match, but the writer gave B's first
+          token twice the probability. Our approval rule selects A. That's what the reward model learns
+          from the reviewer's choice between the completed replies.
+        hold: 0.35
+        caption_starts:
+          - "Our approval rule selects A"
+        visual_cues:
+          - id: likelihood-product-result
+            phrase: B has twice the probability of A
+            targets:
+              - likelihood-products
+              - likelihood-ranking
+            linger: 0.35
+          - id: likelihood-rule-choice
+            phrase: Our approval rule selects A
+            targets:
+              - human-label
+            linger: 0.35
+  - id: human-comparisons
+    title: Two reviewers read the same replies
+    visual: >-
+      Two independent ballots open in turn. Comparing their choices produces a split vote. Both ballots
+      stay visible when the approval rubric supplies a strict label.
+    beats:
+      - say: >-
+          Two reviewers read the same pair independently. The first marks A because it waits for
+          approval. The second marks B because the migration is urgent. Compare the ballots. One vote
+          for each answer. Each reviewer picked a winner.
+        hold: 0.8
+        visual_cues:
+          - id: first-vote
+            phrase: "first marks A"
+            targets: [first-ballot]
+            linger: 0.2
+          - id: collect-votes
+            phrase: "second marks B"
+            targets: [second-ballot]
+            linger: 0.2
+          - id: compare-votes
+            phrase: "One vote for each answer"
+            targets: [labeler-votes]
+            linger: 0.2
+      - say: >-
+          For this exercise the rubric puts approval first, so the strict training label is A over B.
+          Keep both votes in the record. If you want to learn how often reviewers choose A, those two
+          votes give you a target of one half. An explicit tie or an abstention needs its own label.
+        hold: 0.6
+        visual_cues:
+          - id: resolve-rubric
+            phrase: "rubric puts approval first"
+            targets: [policy-rule]
+            linger: 0.2
+          - id: retain-votes
+            phrase: "Keep both votes in the record"
+            targets: [labeler-votes]
+            linger: 0.2
+  - id: policy-and-judge
+    title: One writer, one shared scorer
+    visual: Two identifiable prompt-answer sequences pass through the same scalar scorer one after another;
+      completed score records persist.
+    beats:
+      - say: Call the writer the policy. It produces an answer token by token. The reward model reads the prompt and
+          the completed answer, then returns one scalar, a single number.
+        hold: 0.35
+        visual_cues:
+          - id: policy-write
+            phrase: produces an answer token by token
+            targets:
+              - policy-tokens
+            linger: 0.35
+          - id: score-answer-a
+            phrase: returns one scalar
+            targets:
+              - reward-score
+            linger: 0.35
+      - say: Use the same scorer for B. These illustrative scores are one point eight for A and zero point seven for
+          B. Their order predicts a preference. These dimensionless scores describe the model's ranking.
+        hold: 0.35
+        visual_cues:
+          - id: score-answer-b
+            phrase: same scorer for B
+            targets:
+              - candidate-scores
+            linger: 0.35
+  - id: pair-contract
+    title: Check what actually reaches the scorer
+    visual: Matched context cells are verified, an identical-token counterexample yields equal scores, and
+      restoring the distinguishing answer makes the pair usable.
+    beats:
+      - say: >-
+          Start both replies with the same request. Match the system rules, available tools, and
+          conversation history too. If only one reply had access to a tool, the reviewer would be
+          comparing two different tasks.
+        hold: 0.35
+        visual_cues:
+          - id: match-shared-context
+            phrase: Match the system rules, available tools, and conversation history
+            targets:
+              - shared-context
+              - matched-prefix
+            linger: 0.35
+      - say: Use the same chat template and inspect the token IDs that actually reach the scorer. Identical inputs
+          produce identical deterministic scores. Retain the distinguishing answer token so the two scorer
+          inputs stay distinct.
+        hold: 0.35
+        visual_cues:
+          - id: inspect-scorer-input
+            phrase: same chat template and inspect the token IDs that actually reach the scorer
+            targets:
+              - scorer-prefix
+            linger: 0.35
+          - id: identical-input-scores
+            phrase: Identical inputs produce identical deterministic scores
+            targets:
+              - input-score-contract
+            linger: 0.35
+          - id: retain-answer-token
+            phrase: Retain the distinguishing answer token
+            targets:
+              - answer-token
+            linger: 0.35
+      - say: Save the generating checkpoint and annotator cohort with the pair. Keep ties separate from strict wins. A
+          clean training file still learns any systematic mistakes in its labels.
+        hold: 0.35
+        visual_cues:
+          - id: pair-contract-b3-1
+            phrase: generating checkpoint and annotator cohort
+            targets:
+              - pair-metadata
+            linger: 0.35
+  - id: format-length-boundary
+    title: A label belongs to the exact scored inputs
+    visual: One P-7 pair keeps its shared prompt while formatting, tokenization, a lost answer suffix and a strict
+      length gate change the actual candidate identities.
+    beats:
+      - say: An explicit-prompt row separates the shared prompt from chosen and rejected answers. Conversational rows
+          instead preserve identical role history and branch at the final assistant turn. In the checked TRL
+          one point seventeen point one source, conversations use the tokenizer’s chat template; ordinary
+          strings are concatenated and tokenized. Ordinary strings do not automatically become a chat
+          dialogue. Inspect the actual model inputs.
+        hold: 0.5
+        visual_cues:
+          - id: format-length-boundary-step-1
+            phrase: actual model inputs
+            targets:
+              - format-length-boundary-mechanism
+            linger: 0.45
+          - id: format-history
+            phrase: identical role history
+            targets:
+              - format-length-boundary-mechanism
+            linger: 0.4
+      - say: "If templating or truncation turns both answers into the same token IDs and masks, a deterministic shared
+          scorer returns the same value. Their margin is zero and strict-winner loss is log two. Their
+          pair-loss parameter gradients cancel: increasing one shared score increases the other identically.
+          Distinct raw text alone does not establish distinct scored inputs."
+        hold: 0.5
+        visual_cues:
+          - id: format-length-boundary-step-2
+            phrase: parameter gradients cancel
+            targets:
+              - format-length-boundary-mechanism
+            linger: 0.45
+          - id: format-equal
+            phrase: Their margin is zero
+            targets:
+              - format-length-boundary-mechanism
+            linger: 0.4
+      - say: A preference may depend on the final false statement. Cutting that suffix can erase the reason for its
+          label. The checked trainer’s maximum length defaults to one thousand twenty-four and filters the
+          entire pair if either full templated candidate exceeds it; None disables that filter. The
+          boundary-length pair survives. Report removed counts and domains because filtering also changes the
+          training distribution.
+        hold: 0.65
+        visual_cues:
+          - id: format-length-boundary-step-3
+            phrase: filters the entire pair
+            targets:
+              - format-length-boundary-mechanism
+            linger: 0.45
+          - id: format-length
+            phrase: one thousand twenty-four
+            targets:
+              - format-length-boundary-mechanism
+            linger: 0.4
+  - id: prompt-groups
+    title: Six comparisons are still one prompt
+    visual: Four answer identities construct all six edges. Moving the same edges across a split exposes leakage;
+      grouping them keeps the unseen-prompt test separate.
+    beats:
+      - say: Four candidate answers give six comparisons. Each answer appears in three pairs. All six rows share one
+          prompt.
+        hold: 0.35
+        visual_cues:
+          - id: build-six-pairs
+            phrase: six comparisons
+            targets:
+              - six-pairs
+            linger: 0.35
+      - say: Split the rows at random and the same prompt, even the same answer, can land in both training and
+          evaluation. The test has become familiar.
+        hold: 0.35
+        visual_cues:
+          - id: split-pairs
+            phrase: both training and evaluation
+            targets:
+              - split-train
+              - split-eval
+            linger: 0.35
+      - say: For unseen-prompt evaluation, keep the whole prompt group together. Put other prompt groups in evaluation
+          and check near duplicates. Testing new answers to familiar prompts is a different, legitimate goal.
+        hold: 0.35
+        visual_cues:
+          - id: group-prompts
+            phrase: whole prompt group together
+            targets:
+              - heldout-prompts
+            linger: 0.35
+  - id: group-weight-soft-target
+    title: Keep group weighting and preference uncertainty explicit
+    visual: Thirty-six edges remain attached to one nine-answer prompt; a second two-answer prompt retains one
+      edge. Loss mass changes under pair averaging versus group averaging, then a three-strength ranking is
+      constructed.
+    beats:
+      - say: Nine answers give thirty-six comparisons, while two answers give one. Averaging all thirty-seven rows
+          gives the first prompt thirty-six times as much loss weight. Average within each prompt and then
+          across the two prompts to give each one half of the loss weight. That does not equalize their
+          gradient norms. Score each answer once and reuse it across its pairs. InstructGPT grouped correlated
+          comparisons after observing overfitting from treating them independently.
+        hold: 0.5
+        visual_cues:
+          - id: group-weight-soft-target-step-1
+            phrase: one half of the loss weight
+            targets:
+              - group-weight-soft-target-mechanism
+            linger: 0.45
+          - id: group-pairs
+            phrase: thirty-six comparisons
+            targets:
+              - group-weight-soft-target-mechanism
+            linger: 0.4
+          - id: group-weights
+            phrase: one half
+            targets:
+              - group-weight-soft-target-mechanism
+            linger: 0.4
+      - say: >-
+          Plackett-Luce models a whole ranking as a sequence of choices. Give A, B and C strengths of
+          three, two and one. The chance of choosing A first is three over six. Remove A. Two of the three
+          remaining units belong to B, so its share is two over three. C is the only choice left.
+          Multiply the first two shares. The probability of the complete A, B, C order is one third.
+        hold: 0.5
+        visual_cues:
+          - id: group-weight-soft-target-step-2
+            phrase: probability of the complete
+            targets:
+              - group-weight-soft-target-mechanism
+            linger: 0.45
+          - id: pl-first
+            phrase: three over six
+            targets:
+              - group-weight-soft-target-mechanism
+            linger: 0.4
+          - id: pl-remove
+            phrase: Remove A
+            targets: [group-weight-soft-target-mechanism]
+            linger: 0.2
+          - id: pl-second
+            phrase: two over three
+            targets:
+              - group-weight-soft-target-mechanism
+            linger: 0.4
+          - id: pl-product
+            phrase: one third
+            targets:
+              - group-weight-soft-target-mechanism
+            linger: 0.4
+      - say: A strict winner label differs from repeated votes. Fix answer identities before observing votes. If a
+          fraction q chooses A, binary cross entropy can train toward that soft target; for an interior q its
+          optimum forecast is q. A split vote can reflect opposing preferences, while an explicit equally-good
+          annotation states a tie. Choose a tie-aware or cohort model when the annotation requires it.
+        hold: 0.65
+        visual_cues:
+          - id: group-weight-soft-target-step-3
+            phrase: optimum forecast is q
+            targets:
+              - group-weight-soft-target-mechanism
+            linger: 0.45
+          - id: soft-optimum
+            phrase: optimum forecast is q
+            targets:
+              - group-weight-soft-target-mechanism
+            linger: 0.4
+  - id: transformer-score-head
+    title: Build the score, one product at a time
+    visual: A causal prefix grows to the final real token. A two-component supplied hidden vector meets one shared
+      weight vector; each product and their sum appear only at its narration cue. A and B use the same head.
+    beats:
+      - say: A transformer turns each token into a hidden vector, a learned summary. In a causal decoder, an early
+          position sees only its prefix. Follow the available context as the answer arrives.
+        hold: 0.35
+        visual_cues:
+          - id: head-context
+            phrase: available context as the answer arrives
+            targets:
+              - hidden-states
+            linger: 0.35
+      - say: The final real token can use the whole answer. Select that representation and exclude padding. We will
+          use two invented vector components so the arithmetic fits on screen; a real model has many more.
+        hold: 0.35
+        visual_cues:
+          - id: head-final
+            phrase: final real token
+            targets:
+              - hidden-states
+            linger: 0.35
+      - say: "Use the supplied vector for A with one shared set of weights. The first component times its weight gives
+          one. The second contributes zero point eight. Add the products: one point eight."
+        hold: 0.35
+        visual_cues:
+          - id: head-a-first
+            phrase: The first component times its weight gives one
+            targets:
+              - scalar-head
+            linger: 0.35
+          - id: head-a-second
+            phrase: The second contributes zero point eight
+            targets:
+              - scalar-head
+            linger: 0.35
+          - id: head-a-sum
+            phrase: "Add the products: one point eight"
+            targets:
+              - reward-score
+            linger: 0.35
+          - id: head-a-result
+            phrase: one point eight
+            targets:
+              - reward-score
+            linger: 0.35
+        motion_check:
+          region:
+            - 285
+            - 595
+            - 1370
+            - 350
+          minimumChangedFraction: 0.002
+      - say: Now score B with the same weights. The first product is zero point five; the second is zero point two.
+          Their sum is zero point seven. The larger A score earns the ranking. Independent tests tell us
+          whether the model learned the rule.
+        hold: 0.35
+        visual_cues:
+          - id: head-b-first
+            phrase: The first product is zero point five
+            targets:
+              - scalar-head
+            linger: 0.35
+          - id: head-b-second
+            phrase: the second is zero point two
+            targets:
+              - scalar-head
+            linger: 0.35
+          - id: head-b-sum
+            phrase: Their sum is zero point seven
+            targets:
+              - reward-score
+            linger: 0.35
+          - id: head-b-result
+            phrase: zero point seven
+            targets:
+              - reward-score
+            linger: 0.35
+  - id: padding-and-artifact
+    title: Trace the final unmasked position
+    visual: Identical final hidden vectors move to different physical slots under left/right padding; the head
+      weights and saved feature order stay attached.
+    beats:
+      - say: Trace the mask, rather than trusting the last array slot. In the article’s right-padded sequence, mask
+          one, one, zero selects index one; left padding zero, one, one selects index two. Both select hidden
+          vector two, three. The shared head one half, one gives one plus three, or four. A padding state of
+          ninety-nine, ninety-nine must not become the readout.
+        hold: 0.5
+        visual_cues:
+          - id: padding-and-artifact-step-1
+            phrase: Both select hidden vector
+            targets:
+              - padding-and-artifact-mechanism
+            linger: 0.45
+          - id: padding-select
+            phrase: mask one, one, zero
+            targets:
+              - padding-and-artifact-mechanism
+            linger: 0.4
+          - id: padding-score
+            phrase: or four
+            targets:
+              - padding-and-artifact-mechanism
+            linger: 0.4
+      - say: For contiguous right padding starting at index zero, mask sum minus one gives the final real position.
+          For conventional left padding of a nonempty sequence, the final real token is at the end. The
+          article’s general routine takes the greatest unmasked position and rejects an empty sequence. Causal
+          attention includes the diagonal; a dedicated scoring token after the answer can also see the whole
+          preceding sequence.
+        hold: 0.5
+        visual_cues:
+          - id: padding-and-artifact-step-2
+            phrase: greatest unmasked position
+            targets:
+              - padding-and-artifact-mechanism
+            linger: 0.45
+      - say: A scalar head replaces the vocabulary projection. Train the backbone, adapters plus the head, or only the
+          head with a frozen backbone. A shared scalar bias cancels from every score difference and receives
+          zero gradient from the pair loss alone. Save the actual trainable score head with adapters, the base
+          revision, tokenizer and template, then compare held-out outputs after reloading.
+        hold: 0.65
+        visual_cues:
+          - id: padding-and-artifact-step-3
+            phrase: zero gradient from the pair loss alone
+            targets:
+              - padding-and-artifact-mechanism
+            linger: 0.45
+          - id: padding-bias
+            phrase: zero gradient
+            targets:
+              - padding-and-artifact-mechanism
+            linger: 0.4
+  - id: margin-to-probability
+    title: Turn a score gap into a forecast
+    visual: Persistent A and B markers translate through subtraction. Exponential strengths form a normalized
+      share; the sigmoid and equal-score counterexample track that same margin.
+    beats:
+      - say: Subtract the rejected score from the chosen score. One point eight minus zero point seven leaves a margin
+          of one point one. Only this difference enters the pairwise probability.
+        hold: 0.35
+        visual_cues:
+          - id: margin-to-probability-b1-1
+            phrase: chosen score
+            targets:
+              - chosen-score
+            linger: 0.35
+          - id: subtract-rejected-score
+            phrase: Subtract the rejected score
+            targets:
+              - rejected-score
+            linger: 0.35
+          - id: score-margin-result
+            phrase: margin of one point one
+            targets:
+              - score-margin
+            linger: 0.35
+      - say: Bradley-Terry exponentiates both scores into positive strengths. Divide the chosen answer's strength by
+          their total. Its share is about seventy-five percent, equivalent to the sigmoid of our margin.
+        hold: 0.35
+        visual_cues:
+          - id: exponential-strengths
+            phrase: positive strengths
+            targets:
+              - exponential-strength
+            linger: 0.35
+          - id: chosen-strength-share
+            phrase: Divide the chosen answer's strength by their total
+            targets:
+              - strength-share
+            linger: 0.35
+          - id: sigmoid-mapping
+            phrase: equivalent to the sigmoid
+            targets:
+              - sigmoid-curve
+            linger: 0.35
+      - say: "Equal scores would give an even chance. Bring A back to one point eight. Its forecast returns to
+          seventy-five percent. Now collect four votes with A and B fixed in advance. Three reviewers pick A
+          and one picks B. That matches this small sample. We need judgments across many pairs to assess
+          calibration."
+        hold: 0.35
+        visual_cues:
+          - id: equal-score-chance
+            phrase: Equal scores would give an even chance
+            targets:
+              - sigmoid-curve
+            linger: 0.35
+          - id: restore-score
+            phrase: Bring A back to one point eight
+            targets: [chosen-score, sigmoid-curve]
+            linger: 0.2
+          - id: check-human-judgments
+            phrase: Now collect four votes
+            targets:
+              - human-votes
+            linger: 0.35
+  - id: pairwise-likelihood
+    title: A confident mistake pays more loss
+    visual: The observed winner remains fixed while the margin moves through a wrong and a correct ranking.
+      Probability and the negative logarithm are calculated from the same state.
+    beats:
+      - say: The label says A won. The model assigned that outcome about zero point seven five. Negative log
+          probability gives a loss of about zero point two nine.
+        hold: 0.35
+        visual_cues:
+          - id: pairwise-likelihood-b1-1
+            phrase: label says A won
+            targets:
+              - winner-label
+            linger: 0.35
+          - id: pairwise-likelihood-b1-2
+            phrase: assigned that outcome
+            targets:
+              - winner-probability
+            linger: 0.35
+      - say: Now make the margin minus two. A receives only twelve percent, although the observed label still says A.
+          Its negative log loss rises to two point one three. Confident mistakes are expensive.
+        hold: 0.35
+        visual_cues:
+          - id: loss-wrong
+            phrase: margin minus two
+            targets:
+              - pair-loss
+            linger: 0.35
+      - say: Move the margin to plus two. A gets eighty-eight percent and loss falls to zero point one three. This is
+          binary cross entropy with the score difference as its logit, the input to the sigmoid.
+        hold: 0.35
+        visual_cues:
+          - id: loss-correct
+            phrase: margin to plus two
+            targets:
+              - loss-result
+            linger: 0.35
+  - id: stable-loss-and-margins
+    title: Separate stable evaluation from a required margin
+    visual: One logit travels from minus1000 to plus1000 without exponentiating the dangerous positive argument. A
+      rating margin shifts the same loss curve and preserves its nonzero slope.
+    beats:
+      - say: >-
+          Take a score difference of minus one thousand. If you compute the sigmoid first, it can round
+          to zero. Then its log blows up. Use binary cross entropy with logits, or softplus of the
+          negative difference. Look at the exponential in this stable scalar form. Its input is always
+          zero or negative, so its value stays at or below one. The loss is one thousand for the confident
+          mistake. At plus one thousand the loss rounds to zero.
+        hold: 0.5
+        visual_cues:
+          - id: stable-loss-and-margins-step-1
+            phrase: stable scalar form
+            targets:
+              - stable-loss-and-margins-mechanism
+            linger: 0.45
+          - id: stable-extremes
+            phrase: The loss is one thousand
+            targets:
+              - stable-loss-and-margins-mechanism
+            linger: 0.4
+      - say: >-
+          A rating-dependent margin, m, changes the training target. Subtract m from the score difference.
+          When the difference reaches m, the effective logit is zero. The probability is one half, the
+          loss is log two, and its slope is minus one half. Training still pushes the scores farther apart.
+          For a target probability rho, the required difference is m plus the log of rho divided by one minus rho.
+        hold: 0.5
+        visual_cues:
+          - id: stable-loss-and-margins-step-2
+            phrase: Training still pushes the scores farther apart
+            targets:
+              - stable-loss-and-margins-mechanism
+            linger: 0.45
+          - id: stable-boundary
+            phrase: probability is one half
+            targets:
+              - stable-loss-and-margins-mechanism
+            linger: 0.4
+      - say: >-
+          Set m to one. To get a ninety-percent effective forecast, the gap has to grow to about three
+          point one nine seven. Llama Two used the strength of a reviewer's preference to set the
+          margin. Its weakest preference got zero. In Llama Three, the benefit shrank as the dataset grew,
+          and the team dropped the margin.
+        hold: 0.65
+        visual_cues:
+          - id: stable-loss-and-margins-step-3
+            phrase: three point one nine seven
+            targets:
+              - stable-loss-and-margins-mechanism
+            linger: 0.45
+          - id: stable-target
+            phrase: three point one nine seven
+            targets:
+              - stable-loss-and-margins-mechanism
+            linger: 0.4
+  - id: score-gradients
+    title: Move weights, then check the margin
+    visual: Output derivatives oppose one another. A separate shared-weight update derives its gradient and
+      learning-rate product before recomputing both scores.
+    beats:
+      - say: The chosen-score derivative is sigmoid of the margin minus one; the rejected derivative has the opposite
+          sign. Treating scores as independent variables, descent pushes the chosen score up and the rejected
+          score down.
+        hold: 0.35
+        visual_cues:
+          - id: score-gradients-b1-1
+            phrase: chosen-score derivative
+            targets:
+              - chosen-derivative
+            linger: 0.35
+          - id: score-gradients-b1-2
+            phrase: rejected derivative
+            targets:
+              - rejected-derivative
+            linger: 0.35
+      - say: With margin minus two, the derivative magnitude is about zero point eight eight. An illustrative
+          output-space step narrows the wrong gap. Actual backpropagation updates shared model weights. Both
+          outputs can move in the same direction.
+        hold: 0.35
+        visual_cues:
+          - id: output-descent
+            phrase: step narrows the wrong gap
+            targets:
+              - score-update
+            linger: 0.35
+      - say: "Take one shared weight, minus one, and features one and two. The weight gradient is zero point two six
+          nine. Multiply by learning rate zero point one, then subtract: the weight becomes minus one point
+          zero two seven. Both scores fall, but the rejected falls farther. Their margin improves."
+        hold: 0.35
+        visual_cues:
+          - id: shared-gradient
+            phrase: weight gradient is zero point two six nine
+            targets:
+              - shared-weight
+            linger: 0.35
+          - id: shared-update
+            phrase: Multiply by learning rate zero point one, then subtract
+            targets:
+              - shared-weight
+            linger: 0.35
+          - id: shared-result
+            phrase: Their margin improves
+            targets:
+              - updated-margin
+            linger: 0.35
+  - id: fit-the-head
+    title: What did the reward head learn?
+    visual: >-
+      One training pair changes the sign of its length difference. Two fits start at zero and use those
+      rows for 300 updates. The same violating reply gains words. Each head converts its two features
+      into score contributions before all three held-out rankings are checked.
+    beats:
+      - say: >-
+          Let's give each reply two numbers we can inspect. The first says whether it follows the
+          approval rule. The second measures length on a scaled ruler. We assign both features by hand.
+          On the left, the preferred reply in each training pair gains one unit on both features. Copy
+          those pairs to the right. Now make the second winner shorter by one unit. It still follows
+          the rule.
+        hold: 0.65
+        visual_cues:
+          - id: fit-swap
+            phrase: "make the second winner shorter by one unit"
+            targets: [balanced-data]
+            linger: 0.2
+      - say: >-
+          Start both heads at zero. On the left, compliance and length get identical gradients. On the
+          right, one pair pulls the length weight up and the other pulls it down by the same amount.
+          Run three hundred gradient steps with the same learning rate and L two penalty. The left head
+          still weights both features equally. On the right the length weight stays at zero. Both heads
+          rank both training pairs correctly. The penalty shrinks weights. The opposing examples
+          explain the cancellation.
+        hold: 0.8
+        visual_cues:
+          - id: fit-updates
+            phrase: "Run three hundred gradient steps with the same learning rate and L two penalty"
+            targets: [fitted-weights]
+            linger: 0.2
+        motion_check:
+          region: [150, 650, 1590, 300]
+          minimumChangedFraction: 0.002
+      - say: >-
+          Try both heads on the same replies. A says to wait for approval. D grants access now. Give D
+          a longer explanation. It promises to request approval afterward. D now has two length units
+          and still has zero for compliance. A has one for compliance and zero for length. Multiply
+          each feature by its weight, then add. Which head will rank D above A?
+        hold: 2.8
+        visual_cues:
+          - id: fit-add-words
+            phrase: "Give D a longer explanation"
+            targets: [answer-features]
+            linger: 0.2
+      - say: >-
+          The head trained on two longer winners picks D. Its two length units earn about three point
+          two six, twice the score A earns for following the rule. The head trained with a shorter
+          winner picks A. With zero weight on length, D's extra words contribute nothing. A earns
+          about two point six seven for compliance.
+        hold: 0.9
+        caption_starts:
+          - "The head trained with a shorter winner picks A"
+        visual_cues:
+          - id: fit-confounded
+            phrase: "The head trained on two longer winners picks D"
+            targets: [confounded-scores]
+            linger: 0.2
+          - id: fit-balanced
+            phrase: "The head trained with a shorter winner picks A"
+            targets: [balanced-scores]
+            linger: 0.2
+      - say: >-
+          Try three fresh pairs. A always waits for approval. D always grants access early. In the first
+          two rows D is longer. In the last row the replies are the same length. Read down the two columns.
+          The head that rewarded length picks D twice. When the lengths match, A wins on compliance.
+          The head trained with a shorter winner picks A in all three. To reproduce the fit,
+          check the gradient against finite differences and reload the weights with the features in the same order.
+        hold: 0.9
+        caption_starts:
+          - "Read down the two columns"
+          - "The head that rewarded length"
+          - "The head trained with a shorter winner"
+          - "To reproduce the fit"
+        visual_cues:
+          - id: fit-controlled
+            phrase: "Read down the two columns"
+            targets: [controlled-rows]
+            linger: 0.2
+  - id: offset-and-scale
+    title: Separate reward origin from reward scale
+    visual: A shared offset translates both markers while probability and loss remain fixed. Recentering precedes
+      a threefold scale change that widens the margin.
+    beats:
+      - say: >-
+          The model gives A a seventy-five percent chance of winning. Add ten to both rewards.
+          The markers move to eleven point eight and ten point seven. Look at the gap.
+          Has A's chance of winning gone up?
+        hold: 1.6
+        caption_starts:
+          - "Add ten to both rewards"
+        visual_cues:
+          - id: offset-and-scale-b1-1
+            phrase: Add ten to both rewards
+            targets:
+              - reward-markers
+            linger: 0.35
+      - say: >-
+          It's still seventy-five percent. The gap is still one point one. Both scores gained ten,
+          so subtracting cancels the two tens. The loss stays fixed too. Pair labels leave the score origin free.
+          Slide back to our original scores before changing their scale.
+        hold: 0.35
+        visual_cues:
+          - id: offset-and-scale-b2-1
+            phrase: It's still seventy-five percent
+            targets:
+              - score-gap
+            linger: 0.35
+          - id: offset-recenter
+            phrase: Slide back to our original scores
+            targets:
+              - reward-markers
+            linger: 0.35
+      - say: Triple both scores. The gap becomes three point three and the forecast rises to ninety-six percent. With
+          a fixed KL penalty against reference-policy drift, larger rewards also change the optimization
+          balance. Calibrate that scale against judgment data.
+        hold: 0.35
+        visual_cues:
+          - id: offset-and-scale-b3-1
+            phrase: Triple both scores
+            targets:
+              - score-gap
+            linger: 0.35
+          - id: offset-and-scale-b3-2
+            phrase: forecast rises to ninety-six percent
+            targets:
+              - scaled-probability
+            linger: 0.35
+  - id: centering-and-kl
+    title: Center the pair midpoint without confusing its spread
+    visual: The same two score markers first translate together, then the midpoint penalty is constructed. A
+      fixed-reference objective shows a changed reward/KL balance.
+    beats:
+      - say: Track the pair midpoint separately from the margin. The checked TRL centering term is gamma times the
+          mean squared sum of chosen and rejected scores. The pair sum is twice its midpoint, so this is four
+          gamma times the squared midpoint. Scores plus one hundred and minus one hundred pay zero centering
+          penalty despite a huge margin. Joint updates through shared weights can still change margins.
+        hold: 0.5
+        visual_cues:
+          - id: centering-and-kl-step-1
+            phrase: four gamma times
+            targets:
+              - centering-and-kl-mechanism
+            linger: 0.45
+          - id: centering-extreme
+            phrase: plus one hundred and minus one hundred
+            targets:
+              - centering-and-kl-mechanism
+            linger: 0.4
+      - say: This coefficient defaults to disabled in the checked one point seventeen point one configuration; zero
+          point zero one is a suggested starting value. InstructGPT shifted demonstration rewards to mean
+          zero before reinforcement learning. Look at our centered pair. Its scores are still two hundred
+          points apart. To check a forecast, compare it with reviewer votes. To compare two scorers,
+          first align their scales and origins on shared examples.
+        hold: 0.5
+        visual_cues:
+          - id: centering-and-kl-step-2
+            phrase: two hundred points apart
+            targets:
+              - centering-and-kl-mechanism
+            linger: 0.45
+      - say: For the ideal objective, expected reward minus beta times divergence from the reference policy,
+          multiplying all rewards by three at fixed beta gives the same maximizer as dividing beta by three
+          with original rewards. Adding the same constant to every answer for one prompt also preserves
+          the ideal maximizer. In a PPO run, measure how far the policy moves. Clipping, normalization,
+          training data and the number of updates all affect that distance.
+        hold: 0.65
+        visual_cues:
+          - id: centering-and-kl-step-3
+            phrase: dividing beta by three
+            targets:
+              - centering-and-kl-mechanism
+            linger: 0.45
+  - id: shortcuts-and-calibration
+    title: Two forecasts pick the same winner
+    visual: >-
+      Four reviewer choices stay in fixed A/B order above two forecasts. Both get three winners right.
+      The final B ballot exposes the cost of near certainty. The squared error for every ballot stays
+      above its share of the mean.
+    beats:
+      - say: >-
+          A ranking tells us which answer comes first. What about the probability attached to it? Keep
+          A and B fixed before anyone votes. Four reviewers read the same pair independently. Three
+          choose A and one chooses B. Both forecasts pick A, so each gets three out of four right.
+          Which forecast fits these four votes better?
+        hold: 2.3
+        visual_cues:
+          - id: calibration-votes
+            phrase: "Three choose A and one chooses B"
+            targets: [fixed-votes]
+            linger: 0.2
+      - say: >-
+          Look at the vote for B. The target for A is zero on that ballot. A forecast of point nine
+          nine misses by almost one. Square that difference and you get point nine eight zero one. The
+          point seven five forecast pays a smaller penalty there. Now square the errors on the three A
+          votes, where the target is one. Those votes favor the more confident forecast.
+        hold: 0.7
+        visual_cues:
+          - id: calibration-miss
+            phrase: "Look at the vote for B"
+            targets: [calibration-errors]
+            linger: 0.2
+          - id: calibration-build
+            phrase: "square the errors on the three A votes"
+            targets: [calibration-errors]
+            linger: 0.2
+      - say: >-
+          For each forecast, add its four squared errors and divide by four. That mean is the Brier
+          score. The lower score goes to point seven five. The one confident miss outweighs three small
+          gains. To judge calibration on future requests, collect votes across more pairs and check how
+          the forecasts match each group.
+        hold: 0.8
+        caption_starts:
+          - "The lower score goes to point seven five"
+        visual_cues:
+          - id: calibration-average
+            phrase: "add its four squared errors and divide by four"
+            targets: [brier-mean]
+            linger: 0.2
+  - id: length-margin-counterexample
+    title: Make the proposed correction fail visibly
+    visual: A length-only direction remains attached to a longer winner while a subtracted length margin shifts
+      its loss; a separate short-good/long-wrong pair retains the wrong order.
+    beats:
+      - say: "Try a proposed correction: subtract alpha times the positive chosen-minus-rejected length gap from the
+          score difference. If the head scores only b times length and the gap is positive, its effective
+          logit is b minus alpha, multiplied by that gap. Increasing b can still drive training loss down.
+          This correction has not forced the length weight to zero."
+        hold: 0.5
+        visual_cues:
+          - id: length-margin-counterexample-step-1
+            phrase: b minus alpha
+            targets:
+              - length-margin-counterexample-mechanism
+            linger: 0.45
+      - say: >-
+          Set the length gap and alpha to one. Turn the length weight from zero to three, then six.
+          Watch the losses fall from about one point three to seven thousandths. Now test a short
+          correct reply against a long wrong one. At zero the replies tie. At three and six the longer,
+          wrong reply wins.
+        hold: 0.5
+        visual_cues:
+          - id: length-margin-counterexample-step-2
+            phrase: At zero the replies tie
+            targets:
+              - length-margin-counterexample-mechanism
+            linger: 0.45
+          - id: length-losses
+            phrase: Watch the losses fall
+            targets:
+              - length-margin-counterexample-mechanism
+            linger: 0.4
+      - say: >-
+          Vary quality and presentation independently. Include short answers that solve the problem,
+          longer ones that need the detail, and errors at both lengths. Match lengths to isolate quality.
+          To test sycophancy, keep both replies polite and vary whether they agree with a false premise.
+          Try changing the format too. In one study by Eisenstein and colleagues, about eight percent
+          of the preference data used lists. Roughly half the generated helpfulness answers used them.
+        hold: 0.65
+        visual_cues:
+          - id: length-margin-counterexample-step-3
+            phrase: quality and presentation independently
+            targets:
+              - length-margin-counterexample-mechanism
+            linger: 0.45
+          - id: length-factorial
+            phrase: quality and presentation independently
+            targets:
+              - length-margin-counterexample-mechanism
+            linger: 0.4
+  - id: fresh-policy-evaluation
+    title: The writer changes what the judge sees
+    visual: A fixed stored-test bar is compared with fresh-policy output agreement. Schematic proxy/gold curves
+      build together before diverging, without repeating the calibration scene.
+    beats:
+      - say: Keep testing new answers from the policy you are changing. These illustrative accuracies are ninety-two
+          percent on stored pairs and sixty-four on fresh pairs. Fresh-pair evaluation measures performance on
+          the writer's new outputs directly.
+        hold: 0.35
+        visual_cues:
+          - id: fresh-samples
+            phrase: sixty-four on fresh pairs
+            targets:
+              - fresh-accuracy
+            linger: 0.35
+      - say: Watch optimization continue. Proxy reward rises while the independent curve peaks and falls. Gao and
+          colleagues observed this pattern using a larger learned gold model. This schematic compares two
+          learned scorers. Human review and task checks supply separate evidence about answer quality.
+        hold: 0.35
+        visual_cues:
+          - id: optimization-first-phase
+            phrase: Watch optimization continue
+            targets:
+              - proxy-reward
+              - gold-reward
+            linger: 0.35
+          - id: fresh-policy-evaluation-b3-1
+            phrase: Proxy reward rises
+            targets:
+              - proxy-reward
+            linger: 0.35
+          - id: fresh-policy-evaluation-b3-2
+            phrase: independent curve peaks and falls
+            targets:
+              - gold-reward
+            linger: 0.35
+  - id: ensemble-disagreement
+    title: Align scorers, then expose shared error
+    visual: Three calibrated score marks build their mean and sample standard deviation; shared5/5/5marks then
+      retain a nonexistent citation and zero disagreement.
+    beats:
+      - say: Align independent scorers’ origins and scales on shared calibration data before combining their raw
+          values. Construct an ensemble with different seeds, subsets or backbones, while recognizing their
+          errors can still correlate. For supplied aligned scores two, four and six, the mean is four. Squared
+          deviations sum to eight; divide by K minus one, then take the square root. The sample standard
+          deviation is two.
+        hold: 0.5
+        visual_cues:
+          - id: ensemble-disagreement-step-1
+            phrase: sample standard deviation is two
+            targets:
+              - ensemble-disagreement-mechanism
+            linger: 0.45
+          - id: ensemble-mean
+            phrase: mean is four
+            targets:
+              - ensemble-disagreement-mechanism
+            linger: 0.4
+          - id: ensemble-sd
+            phrase: standard deviation is two
+            targets:
+              - ensemble-disagreement-mechanism
+            linger: 0.4
+      - say: >-
+          With lambda one, subtract the spread of two from the mean of four. The answer gets a two.
+          This disagreement penalty is often called a lower confidence bound. To attach a confidence
+          level to it, you'd need to measure its coverage. Try it on fresh answers from your writer and
+          check which mistakes draw a penalty.
+        hold: 0.5
+        visual_cues:
+          - id: ensemble-disagreement-step-2
+            phrase: measure its coverage
+            targets:
+              - ensemble-disagreement-mechanism
+            linger: 0.45
+      - say: >-
+          Now all three scorers give five to an answer with an invented citation. Their standard
+          deviation is zero, so the conservative aggregate remains five. The citation slipped past
+          every scorer. Checking the source would catch it. In their experiments, Eisenstein and
+          colleagues found that ensembles reduced reward hacking. Some errors still got through.
+        caption_starts:
+          - "Their standard deviation is zero"
+        hold: 0.65
+        visual_cues:
+          - id: ensemble-disagreement-step-3
+            phrase: conservative aggregate remains five
+            targets:
+              - ensemble-disagreement-mechanism
+            linger: 0.45
+          - id: ensemble-shared
+            phrase: standard deviation is zero
+            targets:
+              - ensemble-disagreement-mechanism
+            linger: 0.4
+  - id: benchmarks-and-fresh-gates
+    title: Keep benchmark construction beside the result
+    visual: External benchmark categories and one-of-four candidate geometry retain their actual metric, then a
+      small fresh-output screen blocks a seemingly strong scorer.
+    beats:
+      - say: "Original RewardBench tests chat, hard chat, safety and reasoning. RewardBench Two has six domains:
+          factuality, precise instruction following, math, safety, focus and ties. Its ordinary cases select
+          one winner among four answers, giving a twenty-five percent random baseline. Ties uses a separate
+          metric. Comparing its percentage directly with a binary-pair benchmark confuses the outcome spaces.
+          Retain the revision, checkpoint, tokenizer, template and evaluation settings."
+        hold: 0.5
+        visual_cues:
+          - id: benchmarks-and-fresh-gates-step-1
+            phrase: one winner among four
+            targets:
+              - benchmarks-and-fresh-gates-mechanism
+            linger: 0.45
+          - id: benchmark-four
+            phrase: one winner among four
+            targets:
+              - benchmarks-and-fresh-gates-mechanism
+            linger: 0.4
+      - say: In the RewardBench Two authors’ Tulu Three eight-billion-parameter SFT generator setup, scores correlated
+          with best-of-sixteen outcomes at Pearson zero point eight seven. Their PPO results were less
+          sensitive among decent scorers, and worsened with mismatched initialization or prompt distributions.
+        hold: 0.5
+        visual_cues:
+          - id: benchmarks-and-fresh-gates-step-2
+            phrase: zero point eight seven
+            targets:
+              - benchmarks-and-fresh-gates-mechanism
+            linger: 0.45
+      - say: >-
+          In this example the scorer gets ninety-two percent right on stored pairs and sixty-four
+          percent on fresh answers. Our trial requires eighty percent on fresh answers. That fresh
+          screen fails. Look at where the errors cluster. Break out long wrong answers, compare
+          reviewer votes and check how confident the scorer was. Report the counts and uncertainty
+          alongside the margins, midpoint drift and calibration for each group.
+        hold: 0.65
+        visual_cues:
+          - id: benchmarks-and-fresh-gates-step-3
+            phrase: trial requires eighty percent
+            targets:
+              - benchmarks-and-fresh-gates-mechanism
+            linger: 0.45
+          - id: benchmark-fresh
+            phrase: That fresh screen fails
+            targets:
+              - benchmarks-and-fresh-gates-mechanism
+            linger: 0.4
+  - id: signal-spectrum
+    title: Choose the signal and preserve its checked property
+    visual: The same proposed reasoning answer gains terminal, per-step, generative-verdict and executable-check
+      feedback at the exact locations those methods can inspect.
+    beats:
+      - say: A terminal scalar scores the completed rollout. PPO commonly uses a learned value baseline for
+          advantages; outcome-supervised GRPO uses relative rewards within a response group without that value
+          model. Best-of-N selects the largest score among sampled answers. That selection is often called
+          rejection sampling in post-training recipes, but it is not exact sampling from a specified target
+          distribution.
+        hold: 0.5
+        visual_cues:
+          - id: signal-spectrum-step-1
+            phrase: relative rewards within a response group
+            targets:
+              - signal-spectrum-mechanism
+            linger: 0.45
+      - say: >-
+          Follow this calculation. Two plus three is five. Double five and you get ten. The second line
+          says eleven. A process reward model can mark the first erroneous step. Lightman and colleagues
+          used step judgments to choose among solutions from a fixed generator on MATH. Labeling steps
+          takes work, and a judge can still miss an error. A generative judge can write a verdict or give
+          probabilities for verdict tokens. Check its latency, sensitivity to answer order and factual errors.
+        hold: 0.5
+        visual_cues:
+          - id: signal-spectrum-step-2
+            phrase: first erroneous step
+            targets:
+              - signal-spectrum-mechanism
+            linger: 0.45
+          - id: process-location
+            phrase: erroneous step
+            targets:
+              - signal-spectrum-mechanism
+            linger: 0.4
+      - say: >-
+          This function always returns five. It passes the test for two plus three. Try four plus four
+          and it will fail the hidden test. The expected sum is eight. An executable verifier rewards
+          whatever its tests check. A final-answer parser can accept the right number even when a step
+          in the explanation is wrong. Basic offline DPO learns directly from labeled pairs by comparing
+          the writer's log probabilities with a reference policy.
+        hold: 0.65
+        visual_cues:
+          - id: signal-spectrum-step-3
+            phrase: fail the hidden test
+            targets:
+              - signal-spectrum-mechanism
+            linger: 0.45
+          - id: verifier-hidden
+            phrase: fail the hidden test
+            targets:
+              - signal-spectrum-mechanism
+            linger: 0.4
+  - id: trainer-artifact-and-diagnosis
+    title: Reload the actual scorer before a policy trial
+    visual: A scorer package keeps backbone/adapters/head/tokenizer/template identities; a missing-head reload
+      changes actual scores before any online trial can start.
+    beats:
+      - say: >-
+          Our CPU experiment fitted two weights. To train a transformer scorer, first split the pairs
+          by prompt and pass the two datasets to the trainer. The article's TRL one point thirteen
+          example configures a sequence classifier with one output per answer. The template and length
+          rules we traced earlier come from version one point seventeen point one.
+        hold: 0.5
+        visual_cues:
+          - id: trainer-artifact-and-diagnosis-step-1
+            phrase: one output per answer
+            targets:
+              - trainer-artifact-and-diagnosis-mechanism
+            linger: 0.45
+      - say: Retain base revision, actual trained head, adapter weights when used, tokenizer, chat template, data
+          split and training settings. Reload the saved scorer and reproduce held-out pair behavior before a
+          policy trial. Saving adapters while omitting a separately trained head changes the function even
+          when the backbone and template match. Select precision, batch size, learning rate and epochs for the
+          actual hardware and data.
+        hold: 0.5
+        visual_cues:
+          - id: trainer-artifact-and-diagnosis-step-2
+            phrase: omitting a separately trained head
+            targets:
+              - trainer-artifact-and-diagnosis-mechanism
+            linger: 0.45
+          - id: artifact-missing
+            phrase: omitting a separately trained head
+            targets:
+              - trainer-artifact-and-diagnosis-mechanism
+            linger: 0.4
+          - id: artifact-replay
+            phrase: reproduce held-out pair behavior
+            targets:
+              - trainer-artifact-and-diagnosis-mechanism
+            linger: 0.4
+      - say: If training loss falls while held-out accuracy stalls, inspect label noise, overlap, held-out loss,
+          calibration and easy-pair margin growth. Check whether the same prompts occur in both splits. If raw
+          scores drift, compare midpoint and margin before choosing centering or regularization. When an
+          independent quality signal deteriorates during rising proxy reward, stop the trial, preserve
+          artifacts and inspect its failing outputs.
+        hold: 0.65
+        visual_cues:
+          - id: trainer-artifact-and-diagnosis-step-3
+            phrase: same prompts occur in both splits
+            targets:
+              - trainer-artifact-and-diagnosis-mechanism
+            linger: 0.45
+  - id: fresh-scorer-screen
+    title: Would you start the support trial?
+    visual: >-
+      An agreement grid keeps all 24 pair IDs visible. An answer cites a section alongside the complete
+      contents of a fictional support guide. Two independently computed checks decide whether to start
+      the trial.
+    beats:
+      - say: >-
+          Try a new case. This support team sets a floor of eighty percent agreement on fresh,
+          independently reviewed pairs. The scorer agrees on eighteen of twenty-four. Three aligned
+          scorers each give five to the answer on the right. It cites section four. Check the complete
+          contents of the edition it cites. Do the pair results and the citation permit a trial?
+        hold: 2.8
+        visual_cues:
+          - id: screen-pairs
+            phrase: "agrees on eighteen of twenty-four"
+            targets: [screen-pairs]
+            linger: 0.2
+          - id: screen-members
+            phrase: "each give five"
+            targets: [screen-members]
+            linger: 0.2
+          - id: screen-source
+            phrase: "It cites section four"
+            targets: [screen-source]
+            linger: 0.2
+      - say: >-
+          Eighteen out of twenty-four is seventy-five percent. The pair screen fails. The three fives
+          have a mean of five and zero spread. Subtract one standard deviation and the score stays
+          five. Now find section four. This edition ends at section three, so the citation check fails
+          too.
+        hold: 0.8
+        caption_starts:
+          - "The pair screen fails"
+          - "The three fives"
+          - "Now find section four"
+          - "This edition ends at section three"
+        visual_cues:
+          - id: fresh-pair-result
+            phrase: "The pair screen fails"
+            targets: [screen-pairs]
+            linger: 0.2
+          - id: fresh-ensemble-result
+            phrase: "the score stays five"
+            targets: [screen-members]
+            linger: 0.2
+          - id: fresh-source-result
+            phrase: "the citation check fails too"
+            targets: [screen-source]
+            linger: 0.2
+      - say: >-
+          Hold the trial. Keep the pair IDs and the edition you checked. After you repair the scorer or
+          its data, evaluate the new candidate on reserved examples. Eighty percent was this team's
+          screening rule. Passing it would earn a closer evaluation.
+        hold: 0.65
+        visual_cues:
+          - id: screen-decision
+            phrase: "Hold the trial"
+            targets: [screen-decision]
+            linger: 0.2
+  - id: rlhf-and-dpo
+    title: Would you train the writer on this reward?
+    visual: >-
+      Candidate ranking and offline DPO lead back to P7-42. Rescale the fitted head's equal weights
+      to one and compare each reply's score with its actions. Both replays start with a pending
+      ticket and receive the same approval. D's failed grant stays visible while A2 takes the check.
+    beats:
+      - say: >-
+          Suppose the writer samples three finished replies. The scorer ranks them and A wins best of
+          three. We can return A immediately. In online reinforcement learning, PPO can use
+          completed-response reward to update the writer. Now an error in the judge can change what the
+          writer learns to say.
+        hold: 0.5
+        visual_cues:
+          - id: rank-candidates
+            phrase: "A wins best of three"
+            targets: [candidate-ranking]
+            linger: 0.2
+          - id: ppo-explained
+            phrase: "PPO can use completed-response reward"
+            targets: [ppo-loop]
+            linger: 0.2
+      - say: >-
+          If you already have labeled pairs and a reference policy, basic offline DPO trains the writer
+          directly. Its loss compares the writer's likelihood of the two answers relative to the
+          reference. You can train from those pairs without fitting a separate judge. With either
+          training method, examine the answers the updated writer produces.
+        hold: 0.55
+        visual_cues:
+          - id: dpo-pairs
+            phrase: "labeled pairs"
+            targets: [offline-pairs]
+            linger: 0.2
+          - id: dpo-reference
+            phrase: "reference policy"
+            targets: [reference-policy]
+            linger: 0.2
+          - id: dpo-update
+            phrase: "trains the writer directly"
+            targets: [direct-training]
+            linger: 0.2
+      - say: >-
+          Back to the migration. We're replaying proposed actions on a test ticket. D grants access at
+          step one. The reviewer approves at step two. Our fitted head gave compliance and length equal
+          weights. Scale both weights to one. A earns one point for compliance. D earns two for length.
+          Can the approval at step two cover D's grant at step one?
+        hold: 2.6
+        visual_cues:
+          - id: final-action
+            phrase: "D grants access at step one"
+            targets: [original-action]
+            linger: 0.2
+          - id: final-approval
+            phrase: "The reviewer approves at step two"
+            targets: [original-action]
+            linger: 0.2
+          - id: final-fitted-weights
+            phrase: "gave compliance and length equal weights"
+            targets: [candidate-ranking]
+            linger: 0.2
+          - id: final-weights
+            phrase: "Scale both weights to one"
+            targets: [candidate-ranking]
+            linger: 0.2
+          - id: final-review-score
+            phrase: "A earns one"
+            targets: [candidate-ranking]
+            linger: 0.2
+          - id: final-shortcut-score
+            phrase: "D earns two"
+            targets: [candidate-ranking]
+            linger: 0.2
+      - say: >-
+          Read the check at the moment of the grant. Either we're holding access, or the ticket must
+          already be approved. At step one both conditions are false. Later approval can't undo that
+          grant. Stop the trial and keep the failing trace.
+        hold: 1.15
+        caption_starts:
+          - "At step one both conditions are false"
+        visual_cues:
+          - id: final-check-start
+            phrase: "Read the check at the moment of the grant"
+            targets: [quality-stop, action-check]
+            linger: 0.2
+          - id: final-rule-check
+            phrase: "both conditions are false"
+            targets: [quality-stop, original-action]
+            linger: 0.2
+          - id: final-stop
+            phrase: "Stop the trial"
+            targets: [trial-stop]
+            linger: 0.2
+      - say: >-
+          Change the reply and reset the ticket. A two says to hold access until the ticket is
+          approved, then grant it. The reviewer still acts at step two. At which step can the assistant
+          grant access this time?
+        hold: 2.6
+        visual_cues:
+          - id: final-revise
+            phrase: "reset the ticket"
+            targets: [candidate-text, reset-ticket]
+            linger: 0.2
+      - say: >-
+          Replay it. First the assistant holds. Then the reviewer approves. At step three the assistant
+          grants access against an approved ticket. A two passes the same check. That repairs this
+          reply. Before trying the scorer again, test it on fresh pairs where the longer answer can be
+          wrong.
+        hold: 1.4
+        caption_starts:
+          - "Then the reviewer approves"
+          - "At step three the assistant grants access"
+          - "A two passes the same check"
+          - "Before trying the scorer again"
+        visual_cues:
+          - id: final-replay
+            phrase: "First the assistant holds"
+            targets: [revised-answer]
+            linger: 0.2
+          - id: final-replay-approval
+            phrase: "Then the reviewer approves"
+            targets: [revised-answer]
+            linger: 0.2
+          - id: final-replay-grant
+            phrase: "At step three the assistant grants access"
+            targets: [revised-answer]
+            linger: 0.2
+          - id: final-pass
+            phrase: "passes the same check"
+            targets: [final-pass]
+            linger: 0.2
+          - id: final-next-test
+            phrase: "test it on fresh pairs"
+            targets: [next-test]
+            linger: 0.2
+        motion_check:
+          region: [110, 700, 1660, 310]
+          minimumChangedFraction: 0.002
+sources:
+  - title: InstructGPT
+    url: https://arxiv.org/abs/2203.02155
+  - title: DPO
+    url: https://arxiv.org/abs/2305.18290
+  - title: Reward model overoptimization
+    url: https://proceedings.mlr.press/v202/gao23h.html
+  - title: Helping or Herding ensemble study
+    url: https://arxiv.org/html/2312.09244v3
+  - title: RewardBench 2 April2026 revision
+    url: https://arxiv.org/html/2506.01937v2
+  - title: TRL1.17.1 RewardTrainer source
+    url: https://github.com/huggingface/trl/blob/v1.17.1/trl/trainer/reward_trainer.py
+  - title: TRL1.17.1 RewardConfig source
+    url: https://github.com/huggingface/trl/blob/v1.17.1/trl/trainer/reward_config.py
+  - title: Process supervision
+    url: https://arxiv.org/abs/2305.20050
+  - title: DeepSeekMath GRPO
+    url: https://arxiv.org/abs/2402.03300

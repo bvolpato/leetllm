@@ -1,0 +1,289 @@
+[
+  {
+    "id": "c01",
+    "title": "The test passes. Which tokens train?",
+    "sourceChapters": [
+      "c01"
+    ],
+    "beats": [
+      {
+        "id": "c01-b01",
+        "say": "A clean copy of last.py passes its test. Given three and seven, the repaired function returns the last item, seven. Rollout seven earns one point. Look at what the trainer is about to learn from that success.",
+        "hold": 0.7
+      },
+      {
+        "id": "c01-b02",
+        "say": "Read the three lines in order. The model asked to run the test. Before the repair, the tool replied, got three, want seven. The model then wrote the repair. Each piece of ink here stands for one token in our example vocabulary.",
+        "hold": 0.7
+      },
+      {
+        "id": "c01-b03",
+        "say": "Each one in this mask opens a target for the policy loss. Five are open. If we train on this mask, which piece of tool output will the model get credit for writing?",
+        "hold": 3
+      },
+      {
+        "id": "c01-b04",
+        "say": "Set the bit beside got three to zero. Four targets remain. Follow the input to the word return. The model could see both tool tokens when it chose that word. Changing a target bit leaves that history and the grader's point intact.",
+        "hold": 1.2
+      },
+      {
+        "id": "c01-b05",
+        "say": "SGLang sampled the model tokens with policy eleven. Slime's Data Buffer carries the grouped samples to Megatron, whose actor has advanced to twelve and computes the update. Ray places the workers. The application supplies the tool, its permissions and the clean grader. If pass rate falls, we can trace the targets and the policy that produced them.",
+        "hold": 0.8
+      },
+      {
+        "id": "c01-b06",
+        "say": "Try a verifier change with the original, broken function. Keep index zero in the code. The old test supplies three and seven and wants the last item. Now use seven and seven. Predict the reward that this new test gives the same code.",
+        "hold": 2.7
+      },
+      {
+        "id": "c01-b07",
+        "say": "It passes. Either index returns seven for that input. Regrade the same patches under both verifiers before attributing a reward gain to training. Keep the data and grader revisions with the rollout. THUDM publishes slime under the Apache two point zero license. Z.ai steers its roadmap. The project reports use in GLM training. Application teams supply the generation and reward hooks, and check the terms for their models, data and services separately from the framework source.",
+        "hold": 1
+      }
+    ]
+  },
+  {
+    "id": "c02",
+    "title": "Read the response one column at a time",
+    "sourceChapters": [
+      "c02"
+    ],
+    "beats": [
+      {
+        "id": "c02-b01",
+        "say": "The prompt contains two tokens. The response suffix contains a generated tool call, two tool observations and a generated answer. Its response length includes all six positions. The policy-loss mask selects only the four positions produced by the model, while the observations stay available as context.",
+        "hold": 0.7
+      },
+      {
+        "id": "c02-b02",
+        "say": "Align the sampled log probabilities with the same six response positions. The zeros in the two tool columns are placeholders. We want the negative mean log probability of the model's choices. Which numbers go into the sum, and what do you divide by?",
+        "hold": 2.8
+      },
+      {
+        "id": "c02-b03",
+        "say": "Add the four selected terms. Their log probabilities sum to minus one point four. Negate that sum and divide by four. The mean is point three five. Request the IDs and log probabilities from generation itself. Decoding the transcript and tokenizing it again can change those IDs.",
+        "hold": 1
+      },
+      {
+        "id": "c02-b04",
+        "say": "Shorten the mask by two positions. The handoff fails before training because neither patch token has a target weight. Also check completion status, finite reward, binary mask bits and aligned probabilities. A valid length alone would have missed the tool target you caught earlier.",
+        "hold": 0.7
+      },
+      {
+        "id": "c02-b05",
+        "say": "Keep the stop reason and serving version with each sample. In the pinned consistent-hashing path, a session key can send the next tool turn back to the same worker for prefix-cache reuse. That tells you where it ran. The generation and tool events tell you who wrote each token. Record the resolved launch, tokenizer and reward revisions with that evidence so another run can reproduce the handoff.",
+        "hold": 0.9
+      }
+    ]
+  },
+  {
+    "id": "c03",
+    "title": "Move the boundary on one execution",
+    "sourceChapters": [
+      "c03"
+    ],
+    "beats": [
+      {
+        "id": "c03-b01",
+        "say": "Start with one prompt and three independent attempts. They produce two, one and three segments. How many executions should the trainer count? Give each attempt its own rollout identity. That makes three rollout IDs, six Samples and one prompt group. Each segment also keeps the policy version that served it.",
+        "hold": 1
+      },
+      {
+        "id": "c03-b02",
+        "say": "Focus on rollout seven. Hold the per-token loss terms fixed at one, three, five and seven. These are example loss terms. In this reduction each segment divides its sum by the four trainable tokens in the whole execution. The two pairs contribute one and three. If the first segment keeps only the first token, what will its share become?",
+        "hold": 2.8
+      },
+      {
+        "id": "c03-b03",
+        "say": "Slide the divider left. One token stays on the left and three are on the right. One divided by four gives a quarter. Fifteen divided by four gives three and three quarters. The two shares still add to four. Moving the cut changes who carries the loss, while every token keeps its weight.",
+        "hold": 1
+      },
+      {
+        "id": "c03-b04",
+        "say": "Put the two segments in separate microbatches. Count all four targets across the training step before distributing the work. If you divide by local counts, one over one and fifteen over three add to six. Halving both advantages after the shared division would instead give two. Reward-to-advantage processing and the configured loss reducer determine which normalization you need.",
+        "hold": 1
+      }
+    ]
+  },
+  {
+    "id": "c04",
+    "title": "Will both working sets fit?",
+    "sourceChapters": [
+      "c04"
+    ],
+    "beats": [
+      {
+        "id": "c04-b01",
+        "say": "Ray reserves a GPU bundle. This device has sixteen gibibytes. Training needs twelve and generation needs ten. Try to place both working sets on this one device. How much of the second one can fit?",
+        "hold": 2.4
+      },
+      {
+        "id": "c04-b02",
+        "say": "Only four of its ten gibibytes fit beside training. The other six extend past the physical limit. For colocation, keep training resident for its turn. Release it before loading generation. Track the resident bytes as the device changes hands.",
+        "hold": 1
+      },
+      {
+        "id": "c04-b03",
+        "say": "Decouple the workers onto distinct device ranges. Training uses twelve of sixteen on its GPU and generation uses ten of sixteen on its own. Both can be active together. Record Ray's resolved bundle-to-device map. A reserved placeholder consumes a slot even when no engine runs there.",
+        "hold": 0.8
+      },
+      {
+        "id": "c04-b04",
+        "say": "The separated workers can overlap, but now weights must reach the serving devices. In a synchronous round, Megatron waits for a complete rollout, trains, then synchronizes the new weights before the next round. One slow verifier holds the batch open. In the pinned source, read the waits in train.py beside train_async.py to see when the next call can start. If generation starts the next rollout early, which work must finish before the next weight update?",
+        "hold": 2
+      }
+    ]
+  },
+  {
+    "id": "c05",
+    "title": "Follow the work that survives a wait",
+    "sourceChapters": [
+      "c05"
+    ],
+    "beats": [
+      {
+        "id": "c05-b01",
+        "say": "In ordinary async training, the next generation future runs on separate GPUs while the actor trains. At its update interval the caller waits for that named future. Here A and B have finished. C still runs. A sampled policy eleven and B sampled twelve. The actor has since reached thirteen. Which wait is satisfied, A and B, or B and C?",
+        "hold": 2.6
+      },
+      {
+        "id": "c05-b02",
+        "say": "A and B have both finished. The second wait still needs C. Keep eleven on A and twelve on B. A completed future covers its declared work. A persistent generation worker needs its own pause or abort boundary before a weight update.",
+        "hold": 0.75
+      },
+      {
+        "id": "c05-b03",
+        "say": "Now follow a fully async worker across training calls. Three completed groups wait for Megatron and two are running. The launch threshold is four queued groups. G four finishes. Launching closes. G five was already running. Where will it go when it finishes?",
+        "hold": 2.6
+      },
+      {
+        "id": "c05-b04",
+        "say": "G five joins the queue. All five are waiting and none are running. This unbounded completion queue lets callbacks finish even while launching is closed. The threshold controls new launches. It cannot cap the results of work already under way.",
+        "hold": 0.8
+      },
+      {
+        "id": "c05-b05",
+        "say": "Let the trainer take two groups. Three remain and the launch gate opens again. We haven't started another task in this trace. The pinned worker sorts the selected groups for handoff and requeues aborted groups. Inspect completion age, sampled versions and consumer progress before raising concurrency.",
+        "hold": 1
+      }
+    ]
+  },
+  {
+    "id": "c06",
+    "title": "When does the serving policy change?",
+    "sourceChapters": [
+      "c06"
+    ],
+    "beats": [
+      {
+        "id": "c06-b01",
+        "say": "Megatron's optimizer has produced policy twelve. SGLang is still serving eleven. For a full update with the NCCL setting, look at placement. On shared GPUs the pinned dispatcher chooses local tensor handles through CUDA IPC. On separate GPUs it chooses distributed NCCL. Delta disk requires disk transport and separate rollout GPUs.",
+        "hold": 0.7
+      },
+      {
+        "id": "c06-b02",
+        "say": "In a distributed broadcast, pause generation and flush caches before sending weight chunks. Engines finish loading and any quantization work before resuming. A restarted engine needs another source of weights. Now try full disk. Which work can happen while policy eleven still answers requests?",
+        "hold": 2.2
+      },
+      {
+        "id": "c06-b03",
+        "say": "Publish the complete weight export and pull it to the destination. Read the three version numbers. Twelve at the publisher and twelve on local disk still leave eleven in the live engine.",
+        "hold": 1
+      },
+      {
+        "id": "c06-b04",
+        "say": "Pause admissions. Flush the old cache and reload the prepared bytes. The reload succeeds. The engine now holds twelve. Verify the serving version separately. Once it matches, resume admissions. Repeat that check on each engine you intend to use.",
+        "hold": 1
+      },
+      {
+        "id": "c06-b05",
+        "say": "The transfer directory may be removed after reload. If you need it later, retain it on durable storage. Compare two runs. R kept its committed trainer checkpoint and compatible later batches, then removed the weight export. S kept only the export. Which run has the inputs to attempt training replay?",
+        "hold": 2.8
+      },
+      {
+        "id": "c06-b06",
+        "say": "R can attempt replay. It has the model, optimizer, scheduler, random state and data position together with the retained batches. S has policy parameters for transfer. It still needs the trainer state and data. To audit a deployment, follow update_weights from the actor group's selected transport to each engine's observed version.",
+        "hold": 1
+      }
+    ]
+  },
+  {
+    "id": "c07",
+    "title": "What will a second XOR do?",
+    "sourceChapters": [
+      "c07"
+    ],
+    "beats": [
+      {
+        "id": "c07-b01",
+        "say": "Take the four bytes of policy eleven and the four desired bytes of twelve. Only the third byte changes, from three to eight. Exclusive or compares the bits. A one in the patch marks a bit that must flip. What patch byte changes three into eight?",
+        "hold": 2.4
+      },
+      {
+        "id": "c07-b02",
+        "say": "The patch byte is eleven. Applying it to three flips the three marked bits and produces eight. All other patch bytes are zero, so the other positions stay put. How much this saves in transit depends on the data and its compression.",
+        "hold": 0.8
+      },
+      {
+        "id": "c07-b03",
+        "say": "Try an unguarded retry on a scratch copy. Flip those same bits again. Eight returns to three. Compare the copy with the target. A second raw application undoes the first.",
+        "hold": 0.9
+      },
+      {
+        "id": "c07-b04",
+        "say": "Two hosts receive a retry. Host A already has version twelve and the target bytes. Host B has bytes that resemble the base, but its recorded version is ten. This patch declares eleven as its base. Which host should write?",
+        "hold": 2.6
+      },
+      {
+        "id": "c07-b05",
+        "say": "Neither host writes. A already matches the destination. B must reconcile its base or restore a known full checkpoint. Persist patched bytes and their version receipt consistently. Verify per-tensor integrity before live reload. Admit only engines whose loaded version you have verified.",
+        "hold": 1
+      }
+    ]
+  },
+  {
+    "id": "c08",
+    "title": "Which batch can the trainer take next?",
+    "sourceChapters": [
+      "c08"
+    ],
+    "beats": [
+      {
+        "id": "c08-b01",
+        "say": "At checkpoint ten the trainer saved weight one and velocity zero. Use this small momentum example. Each batch multiplies the old velocity by point nine and adds its gradient. Subtract one tenth of that new velocity from the weight. Watch the uninterrupted run.",
+        "hold": 0.7
+      },
+      {
+        "id": "c08-b02",
+        "say": "Batch eleven adds a gradient of point two. Weight falls to point nine eight. Batch twelve adds minus point five. Velocity becomes minus point three two and weight ends at one point zero one two. The trainer fails before another checkpoint commits. Its log says both steps finished.",
+        "hold": 1
+      },
+      {
+        "id": "c08-b03",
+        "say": "Rewind the trainer to checkpoint ten. The retained batches stay at eleven and twelve. A surviving serving actor can supply retained data while Ray remains alive. The pinned heartbeat path restarts a failed serving engine between rounds. The newer recovery guide handles a trainer restart by explicit resubmission with the same serving session and compatible data.",
+        "hold": 0.85
+      },
+      {
+        "id": "c08-b04",
+        "say": "Before replay, check the source of the saved batches. A compatible dump from the frozen run can go through train-only replay. Hold an unknown upload before the general PyTorch loader. Its file extension tells you nothing about its producer. A local arithmetic check supplies no cluster measurements.",
+        "hold": 0.8
+      },
+      {
+        "id": "c08-b05",
+        "say": "Suppose you feed only batch twelve to the restored trainer. Start from zero velocity. Apply just the last gradient on paper. Its velocity would be minus point five and the weight would rise to one point zero five. That misses the reference on both quantities. Which retained batch must actually run first?",
+        "hold": 2.6
+      },
+      {
+        "id": "c08-b06",
+        "say": "Replay eleven first. Its gradient brings velocity to point two and weight to point nine eight. Now replay twelve. The second update inherits the first one's velocity. Compare the two traces. Both end at weight one point zero one two and velocity minus point three two.",
+        "hold": 1.2
+      },
+      {
+        "id": "c08-b07",
+        "say": "Thirteen is the next fresh batch. In a real restart, restore model, optimizer, scheduler, random state and data progress together, then compare the first resumed update. A surviving endpoint alone cannot replace missing batches. Follow the saved sample back to its policy and mask if the replay differs.",
+        "hold": 1.4
+      }
+    ]
+  }
+]

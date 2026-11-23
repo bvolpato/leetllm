@@ -1,0 +1,77 @@
+<!doctype html>
+<html lang="en">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>My first AI app</title>
+<style>
+  :root { color-scheme: light dark; font: 17px/1.6 system-ui, sans-serif; }
+  body { max-width: 42rem; margin: 3rem auto; padding: 0 1rem; }
+  h1 { line-height: 1.2; }
+  textarea { box-sizing: border-box; width: 100%; min-height: 7rem; padding: 0.8rem; font: inherit; }
+  button { margin: 1rem 0; padding: 0.7rem 1rem; font: inherit; cursor: pointer; }
+  #result { padding: 1rem; border: 1px solid #8886; border-radius: 0.5rem; }
+  .probability { display: grid; grid-template-columns: 8rem 1fr 4rem; gap: 0.7rem; align-items: center; }
+  meter { width: 100%; }
+</style>
+<h1>Where should this ticket go?</h1>
+<p>Write a support message. The model scores four categories and suggests a route.</p>
+<form id="form">
+  <label for="ticket">Support message</label>
+  <textarea id="ticket" required maxlength="1000">Charged twice on October monthly invoice after upgrading workspace tier</textarea>
+  <button id="submit">Classify ticket</button>
+</form>
+<div id="result" role="status" aria-live="polite">Ready for your first prediction.</div>
+<script>
+  const form = document.querySelector('#form');
+  const result = document.querySelector('#result');
+  const button = document.querySelector('#submit');
+  const names = { billing: 'Billing', auth_access: 'Account access', gpu_oom: 'GPU memory', latency_slo: 'Slow responses' };
+
+  form.addEventListener('submit', async (event) => {
+    event.preventDefault();
+    button.disabled = true;
+    result.textContent = 'Classifying...';
+    try {
+      const response = await fetch('/predict', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ text: document.querySelector('#ticket').value }),
+      });
+      if (!response.ok) throw new Error(response.status === 422
+        ? 'Enter a message between 1 and 1000 characters.'
+        : 'The server could not finish this prediction. Check the server terminal.');
+      const prediction = await response.json();
+      result.replaceChildren();
+      const heading = document.createElement('strong');
+      heading.textContent = prediction.route === 'human_review'
+        ? `Needs review. Best guess: ${names[prediction.category]}.`
+        : `Suggested route: ${names[prediction.category]}.`;
+      result.appendChild(heading);
+      for (const [category, probability] of Object.entries(prediction.probabilities).sort((a, b) => b[1] - a[1])) {
+        const row = document.createElement('div');
+        row.className = 'probability';
+        const label = document.createElement('span');
+        label.textContent = names[category];
+        const bar = document.createElement('meter');
+        bar.min = 0;
+        bar.max = 1;
+        bar.value = probability;
+        bar.setAttribute('aria-label', names[category]);
+        const score = document.createElement('span');
+        score.textContent = `${(100 * probability).toFixed(1)}%`;
+        row.append(label, bar, score);
+        result.appendChild(row);
+      }
+      if (prediction.id !== undefined) {
+        const saved = document.createElement('p');
+        saved.textContent = `Saved prediction #${prediction.id}. View /history to see recent results.`;
+        result.appendChild(saved);
+      }
+    } catch (error) {
+      result.textContent = error instanceof TypeError ? 'Could not reach the server. Check that it is running.' : error.message;
+    } finally {
+      button.disabled = false;
+    }
+  });
+</script>
+</html>

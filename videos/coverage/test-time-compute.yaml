@@ -1,0 +1,317 @@
+version: 1
+lesson: test-time-compute
+promise: Decide which draft the evidence supports, when another attempt earns its cost, and which branch
+  caches can be released within a serving budget.
+framing: []
+objectives:
+  - id: intro
+    can: Check a first draft against the room it describes and identify the omitted chairs
+    scenes:
+      - intro
+  - id: train-time-axis
+    can: Calculate the rough dense training budget and separate stored from active parameters
+    scenes:
+      - train-time-axis
+  - id: provider-usage
+    can: Read inclusive or separate token counts and bill each generated token once
+    scenes:
+      - provider-usage
+  - id: effort-cutoff
+    can: Trace an output cutoff, completion state and correctness check separately
+    scenes:
+      - effort-cutoff
+  - id: opaque-continuation
+    can: Retain the structured continuation state required by the chosen provider contract
+    scenes:
+      - opaque-continuation
+  - id: candidates
+    can: Apply a vote and an exact check to the same drafts and handle a set with no matching answer
+    scenes:
+      - candidates
+      - selector
+  - id: coverage
+    can: Calculate how often a pool contains a correct answer and how much of that share survives selection
+    scenes:
+      - coverage
+  - id: per-prompt-distribution
+    can: Average per-prompt coverage and diagnose changed distributions
+    scenes:
+      - per-prompt-distribution
+  - id: policy-training
+    can: Evaluate a training objective under the actual sampling and selection policy
+    scenes:
+      - policy-training
+  - id: selector
+    can: Diagnose a score increase that loses selected correctness
+    scenes:
+      - selector
+  - id: process-targets
+    can: Compute local validity, any-success and fraction-success labels without conflating them
+    scenes:
+      - process-targets
+  - id: revision
+    can: Charge the revision that reveals a plateau and return the earlier draft that passed the room check
+    scenes:
+      - revision
+  - id: search-completion
+    can: Keep active prefixes separate from completed answers at budget exhaustion
+    scenes:
+      - search-completion
+  - id: search-bound
+    can: Apply the same next step under minimum and latest-step scoring to decide when search can stop
+    scenes:
+      - search-bound
+  - id: pruning
+    can: Count generated steps and scoring calls under reliable or false pruning
+    scenes:
+      - pruning
+  - id: r1-zero
+    can: Trace the base-to-RL recipe and its actual rule-based reward scope
+    scenes:
+      - r1-zero
+  - id: r1-pipeline
+    can: Separate the R1 data-producing checkpoint from the second-SFT weight start
+    scenes:
+      - r1-pipeline
+  - id: budget
+    can: Choose the most accurate tested budget and repeat the choice when only the latency limit changes
+    scenes:
+      - budget
+  - id: scaling-evidence
+    can: Interpret empirical scaling studies within their interventions and compute denominator
+    scenes:
+      - scaling-evidence
+  - id: router-feasible
+    can: Filter by independent quality and service gates before minimizing tested cost
+    scenes:
+      - router-feasible
+  - id: memory
+    can: Count one shared prompt and separately retained continuations
+    scenes:
+      - memory
+  - id: memory-geometries
+    can: Convert full-attention KV geometry and retained owners into raw byte payload
+    scenes:
+      - memory-geometries
+  - id: hidden-ttft
+    can: Calculate the first-visible-token delay and distinguish goodput from offered load
+    scenes:
+      - hidden-ttft
+  - id: work-ledger
+    can: Conserve paid generation and scoring work when retained caches are released
+    scenes:
+      - work-ledger
+  - id: distill-benchmark
+    can: Read historical distilled-model results under their sampling protocol
+    scenes:
+      - distill-benchmark
+  - id: distill-boundary
+    can: Distinguish accepted trace information from verification and search capabilities
+    scenes:
+      - distill-boundary
+  - id: fresh-branch-repair
+    can: Check the original position count and find the smallest number of private caches to release while keeping the checked answer and all spent work
+    scenes:
+      - fresh-branch-repair
+sections:
+  - heading: The two axes of compute scaling
+    status: taught
+    scenes:
+      - train-time-axis
+  - heading: How reasoning models work
+    status: taught
+    scenes:
+      - train-time-axis
+      - effort-cutoff
+      - opaque-continuation
+  - heading: Extended chain-of-thought
+    status: taught
+    scenes:
+      - effort-cutoff
+      - opaque-continuation
+  - heading: Deliberation and search at inference time
+    status: taught
+    scenes:
+      - candidates
+      - revision
+      - search-completion
+      - search-bound
+  - heading: Provider-reported hidden reasoning
+    status: taught
+    scenes:
+      - provider-usage
+      - effort-cutoff
+  - heading: Test-time compute strategies
+    status: taught
+    scenes:
+      - candidates
+      - revision
+      - search-completion
+      - pruning
+  - heading: 1. Best-of-N sampling
+    status: taught
+    scenes:
+      - candidates
+      - coverage
+      - per-prompt-distribution
+      - selector
+  - heading: Train for the test-time policy you plan to use
+    status: taught
+    scenes:
+      - per-prompt-distribution
+      - policy-training
+  - heading: 2. Sequential revision
+    status: taught
+    scenes:
+      - revision
+      - work-ledger
+  - heading: 3. Tree search with process reward models
+    status: taught
+    scenes:
+      - search-completion
+      - search-bound
+  - heading: Process reward models vs. outcome reward models
+    status: taught
+    scenes:
+      - process-targets
+      - pruning
+  - heading: Outcome reward models (ORMs)
+    status: taught
+    scenes:
+      - process-targets
+  - heading: How PRMs work
+    status: taught
+    scenes:
+      - process-targets
+      - pruning
+  - heading: DeepSeek-R1-Zero and DeepSeek-R1
+    status: taught
+    scenes:
+      - r1-zero
+      - r1-pipeline
+  - heading: Training pipeline
+    status: taught
+    scenes:
+      - r1-zero
+      - r1-pipeline
+  - heading: Emergent reasoning
+    status: taught
+    scenes:
+      - r1-zero
+      - scaling-evidence
+  - heading: "Compute-optimal inference: when to think harder"
+    status: taught
+    scenes:
+      - budget
+      - scaling-evidence
+      - router-feasible
+  - heading: The cross-over point
+    status: taught
+    scenes:
+      - scaling-evidence
+      - router-feasible
+  - heading: Production considerations
+    status: taught
+    scenes:
+      - memory
+      - memory-geometries
+      - hidden-ttft
+      - work-ledger
+  - heading: KV cache pressure and prefix sharing
+    status: taught
+    scenes:
+      - memory
+      - memory-geometries
+      - fresh-branch-repair
+  - heading: TTFT vs. inter-token latency
+    status: taught
+    scenes:
+      - hidden-ttft
+  - heading: Latency vs. quality trade-off
+    status: taught
+    scenes:
+      - budget
+      - hidden-ttft
+      - router-feasible
+  - heading: Cost implications
+    status: taught
+    scenes:
+      - provider-usage
+      - work-ledger
+      - fresh-branch-repair
+  - heading: "Distillation: making reasoning affordable"
+    status: taught
+    scenes:
+      - distill-benchmark
+      - distill-boundary
+  - heading: Before spending on eight branches
+    status: taught
+    scenes:
+      - candidates
+      - memory
+      - fresh-branch-repair
+supplemental_subsections:
+  - heading: Scaling behavior
+    status: taught
+    scenes:
+      - coverage
+      - per-prompt-distribution
+      - policy-training
+quiz:
+  - n: 1
+    status: taught
+    scenes:
+      - provider-usage
+  - n: 2
+    status: taught
+    scenes:
+      - router-feasible
+  - n: 3
+    status: taught
+    scenes:
+      - per-prompt-distribution
+  - n: 4
+    status: taught
+    scenes:
+      - r1-pipeline
+      - distill-boundary
+  - n: 5
+    status: taught
+    scenes:
+      - process-targets
+  - n: 6
+    status: taught
+    scenes:
+      - search-bound
+  - n: 7
+    status: taught
+    scenes:
+      - revision
+      - work-ledger
+  - n: 8
+    status: taught
+    scenes:
+      - coverage
+      - selector
+      - per-prompt-distribution
+      - work-ledger
+  - n: 9
+    status: taught
+    scenes:
+      - hidden-ttft
+  - n: 10
+    status: taught
+    scenes:
+      - memory-geometries
+      - work-ledger
+      - fresh-branch-repair
+removed: []
+reviews:
+  closed_book:
+    script: 8c98cd60dc7794c8
+    taught: 10
+    partial: 0
+    absent: 0
+  fact_check:
+    script: 8c98cd60dc7794c8
+    open_findings: 0

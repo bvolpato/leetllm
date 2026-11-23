@@ -1,0 +1,470 @@
+[
+  {
+    "id": "c01",
+    "title": "First answers on the release dashboard",
+    "sourceChapters": [
+      "c01"
+    ],
+    "beats": [
+      {
+        "id": "c01-b01",
+        "say": "On their first answers, the baseline and the hybrid each passed three of the same four questions. Read each column from top to bottom. Where did the hybrid gain a pass? Where did it lose one?",
+        "hold": 3.2
+      },
+      {
+        "id": "c01-rewording",
+        "say": "Start with the rewording. It calls a production API key a live-service credential. The baseline abstained. The hybrid combines keyword and vector retrieval. Its supplied answer cites the approved policy and passes.",
+        "hold": 0.9
+      },
+      {
+        "id": "c01-b02",
+        "say": "Back to the four marks. Open the private-note case in both runs. This request for privileged access requires an abstention with no citations. The baseline abstained. The hybrid answered, “Restore access without review.” Open the citation lists. The baseline's list is empty. The hybrid cites a private workspace note. What decision would you make?",
+        "hold": 2.8
+      },
+      {
+        "id": "c01-b03",
+        "say": "Close the case. The rewording gained one pass. The private-note request lost one. Both runs still score three out of four. Hold the candidate because the private-note case is a required test.",
+        "hold": 1.3
+      }
+    ]
+  },
+  {
+    "id": "c02",
+    "title": "Open the private-note row",
+    "sourceChapters": [
+      "c02"
+    ],
+    "beats": [
+      {
+        "id": "c02-b01",
+        "say": "The saved record puts the expected and returned answers side by side. The request asks for privileged access. Its reviewed answer says, “I can't answer from approved policy evidence.” The assistant returned, “Restore access without review,” and attached a private note. Read its document ID against the empty list the reviewer specified.",
+        "hold": 0.9
+      },
+      {
+        "id": "c02-b02",
+        "say": "Keep the question, both answers, their status and document IDs, and the reason for the grade. Stamp the record with the run, dataset, corpus and grader versions. To find out how the note got there, inspect the source snapshot and the retrieval trace.",
+        "hold": 0.7
+      }
+    ]
+  },
+  {
+    "id": "c03",
+    "title": "Grade the stored answer",
+    "sourceChapters": [
+      "c03"
+    ],
+    "beats": [
+      {
+        "id": "c03-b01",
+        "say": "Compare the status. This row says grounded where the fixture says abstain. Compare the citations. One document appears where none was allowed. Compare the whole answer. Its wording changed too. Three checks failed on one first answer. Count this fixture once in the pass rate. Keep all three failure codes for inspection.",
+        "hold": 0.85
+      },
+      {
+        "id": "c03-b02",
+        "say": "Read these two sentences together. The first allows restoration before verification. The second repeats the approved wording. A substring search finds that wording. Whole-answer equality rejects the extra sentence. Here the label fixes the accepted text.",
+        "hold": 0.3
+      },
+      {
+        "id": "c03-b03",
+        "say": "If other wording is valid, have it reviewed or validate a semantic grader. Someone still needs to check the label against the source.",
+        "hold": 0.75
+      },
+      {
+        "id": "c03-b04",
+        "say": "Check the decoded fields before grading. For latency, Python accepts an integer or a float, checks that it is finite, then requires zero or greater. Zero is a valid measurement. A Boolean fails the type check even though Python lets it act like an integer.",
+        "hold": 0.3
+      },
+      {
+        "id": "c03-b05",
+        "say": "A negative duration and infinity fail too. Validate the IDs, status, reason and citation tuple as well. A type annotation alone won't run those checks.",
+        "hold": 0.8
+      }
+    ]
+  },
+  {
+    "id": "c04",
+    "title": "Check every fixture ID",
+    "sourceChapters": [
+      "c04"
+    ],
+    "beats": [
+      {
+        "id": "c04-b01",
+        "say": "Here are the four IDs we agreed to test. Remove the private-note row. Is three out of three a fair summary of the repaired candidate?",
+        "hold": 2.5
+      },
+      {
+        "id": "c04-b01-next",
+        "say": "We have no observation for the fourth question. Hold the comparison and collect its output.",
+        "hold": 0.7
+      },
+      {
+        "id": "c04-b02",
+        "say": "Add a second policy row. The packet has four rows again. Read the counts alongside the IDs. Policy occurs twice and the private-note request is still missing. Require exactly one of each frozen ID in each run. An extra easy case can't fill a different case's place.",
+        "hold": 0.85
+      }
+    ]
+  },
+  {
+    "id": "c05",
+    "title": "What can a receipt establish?",
+    "sourceChapters": [
+      "c05"
+    ],
+    "beats": [
+      {
+        "id": "c05-b01",
+        "say": "This packet has all four IDs. Its last flag says false. Grade the saved outputs again. Here the status, documents and answer all match the fixture. The grade comes back true. Hold the comparison until the stored row agrees with the recomputed one. Check every dataset, grader, corpus and run tag as well.",
+        "hold": 0.75
+      },
+      {
+        "id": "c05-b02",
+        "say": "Both snapshots say corpus version three. Read the last word of each rule. Changing required to optional changes the bytes and the digest. Choose one approved snapshot and rerun both systems against it, since retrieval may change. If only the deterministic grader changed, complete saved outputs from the same input contract can be graded again.",
+        "hold": 0.8
+      },
+      {
+        "id": "c05-b03",
+        "say": "These four replies came from the test author. Regrading accepts all four. Each green mark means a reply matched its fixture. Where would you look for the assistant's actual replies? In the run record. Have the evaluation runner save its outputs and source digests together. Use that trusted record for the decision.",
+        "hold": 0.9
+      }
+    ]
+  },
+  {
+    "id": "c06",
+    "title": "Try the repaired output",
+    "sourceChapters": [
+      "c06"
+    ],
+    "beats": [
+      {
+        "id": "c06-b01",
+        "say": "Return to the two runs. The first hybrid answered the rewording, the target for this change. It also had to answer the supported question and abstain on both boundary questions. Load hybrid two on the same four questions. Read its new private-note answer. It abstains with no citation and uses the reviewed sentence.",
+        "hold": 0.65
+      },
+      {
+        "id": "c06-b02",
+        "say": "Regrade all four. The new output clears the last failed check. Four out of four earns a larger offline evaluation. Before sending real traffic, we still need evidence about other policies and regions. These four questions were picked by hand.",
+        "hold": 0.85
+      }
+    ]
+  },
+  {
+    "id": "c07",
+    "title": "Draw four times from the same four rows",
+    "sourceChapters": [
+      "c07"
+    ],
+    "beats": [
+      {
+        "id": "c07-b01",
+        "say": "Start with the four baseline fixtures. Each tile stands for one saved first answer. Draw the policy tile. Draw the rewording. Leave the original in the set, then draw the rewording again. Finish with the unsupported question. Every draw had the same four choices. Read the four copies. What fraction passed?",
+        "hold": 2.9
+      },
+      {
+        "id": "c07-b02",
+        "say": "Two of four. Both copies of the rewording failed. This is a bootstrap resample. Count every ordered draw of four with replacement. Four choices in each of four slots give two hundred fifty-six sequences. Each bar counts sequences with the pass rate underneath. Read the percentile endpoints.",
+        "hold": 0.3
+      },
+      {
+        "id": "c07-b03",
+        "say": "The middle ninety-five percent spans pass rates from twenty-five to one hundred percent.",
+        "hold": 2
+      },
+      {
+        "id": "c07-b04",
+        "say": "Now use the four passing rows from hybrid two. Every sequence lands at one hundred percent. Both endpoints are one hundred. Try to draw a regional policy case from either deck. There isn't one. Resampling can repeat the cases we collected.",
+        "hold": 0.85
+      }
+    ]
+  },
+  {
+    "id": "c08",
+    "title": "Which fixture gained a pass?",
+    "sourceChapters": [
+      "c08"
+    ],
+    "beats": [
+      {
+        "id": "c08-b01",
+        "say": "For the change between runs, one means pass and zero means fail. Here the first hybrid file arrived in a different order. Read the numbers straight across and they all look equal. Check the letters. The second line pairs a rewording with a private note.",
+        "hold": 0.3
+      },
+      {
+        "id": "c08-b02",
+        "say": "Match the fixture IDs. Follow the two rows as they trade places. When each letter faces its twin, subtract the baseline from the candidate on each line.",
+        "hold": 0.9
+      },
+      {
+        "id": "c08-b03",
+        "say": "The rewording gained a pass. The private-note request lost one. Their mean change is zero. One gain offsets one loss. Switch to hybrid two. On the same private-note request both systems now abstain correctly. That leaves the one gain on four fixtures, or twenty-five percentage points. Shuffling the file again would leave those pairs intact.",
+        "hold": 0.7
+      },
+      {
+        "id": "c08-b04",
+        "say": "Use our earlier draw in both runs. It contains the rewording twice, so the repaired system gains two passes on these four draws. That's fifty percentage points on this draw. Across resamples, the percentile endpoints for the gain are zero and seventy-five points.",
+        "hold": 0.3
+      },
+      {
+        "id": "c08-b05",
+        "say": "A draw with no rewording has no gain. This answers a different question from how often the repaired system itself passes.",
+        "hold": 0.95
+      }
+    ]
+  },
+  {
+    "id": "c09",
+    "title": "Which answer reaches the user?",
+    "sourceChapters": [
+      "c09"
+    ],
+    "beats": [
+      {
+        "id": "c09-b01",
+        "say": "Suppose one question has five candidate answers, and two pass. Choose two distinct answers uniformly. Lay out the ten possible pairs. Count the pairs with two failures. How many pairs contain at least one pass?",
+        "hold": 2.4
+      },
+      {
+        "id": "c09-pair-count",
+        "say": "Seven of ten. Three pairs contain only failures. The other seven contain a pass, so pass at two is seventy percent.",
+        "hold": 0.8
+      },
+      {
+        "id": "c09-b02",
+        "say": "In general, count all subsets of size k, subtract the subsets made entirely of failures, then divide by the total number of subsets.",
+        "hold": 0.75
+      },
+      {
+        "id": "c09-b03",
+        "say": "Take both answers to the private-note question. The second one abstains, so this pair always contains a pass. Now follow the first answer to the user. It carries the private citation. Hold this candidate.",
+        "hold": 0.3
+      },
+      {
+        "id": "c09-b04",
+        "say": "To estimate how often a fresh pair would contain a pass, sample the answers independently from the same generator for the same question.",
+        "hold": 0.75
+      },
+      {
+        "id": "c09-b05",
+        "say": "For one random draw from that pair, one pass in two answers gives fifty percent. The first-answer selector sends the same private citation on every replay of this pair. Now suppose just one answer in ten to the seventeenth passes.",
+        "hold": 0.3
+      },
+      {
+        "id": "c09-b06",
+        "say": "Subtracting the rounded failure probability from one gives zero here. Direct division preserves the tiny probability. Look where one divided by the pool size lands on the axis.",
+        "hold": 1.2
+      },
+      {
+        "id": "c09-draw-limit",
+        "say": "Use integer counts and choose a draw size between one and the pool size. Let's draw two distinct answers again. In the private-note pair, put the failed answer in the first slot. Can another failure fill the second slot?",
+        "hold": 2.5
+      },
+      {
+        "id": "c09-b07",
+        "say": "The remaining answer passes. If the draw size exceeds the number of failures, every subset contains a pass. Return one. Now try the five-answer pool. Three answers failed. Draw answers three and four. Both fail. Three of the ten pairs contain only failures, so the chance of at least one pass is seventy percent. The article uses a product to compute the same probability without large binomial coefficients.",
+        "hold": 1.7
+      }
+    ]
+  },
+  {
+    "id": "c10",
+    "title": "Follow the winning answer",
+    "sourceChapters": [
+      "c10"
+    ],
+    "beats": [
+      {
+        "id": "c10-b01",
+        "say": "Once both answers pass the evidence checks, you could ask which one reads more clearly. Imagine a judge chooses the first slot. That's answer A. Swap their places. The judge chooses the first slot again. This time B wins. Our rule requires the same answer to win both orders.",
+        "hold": 1.8
+      },
+      {
+        "id": "c10-b01-next",
+        "say": "Record the preference as unresolved.",
+        "hold": 1.8
+      },
+      {
+        "id": "c10-b02",
+        "say": "A judge might prefer a fluent reply that cites a private note. The citation still fails. The MT Bench study found position and verbosity effects in the judges it tested. Its data left self-enhancement uncertain. Check your own evaluator against reviewed cases. Agreement after a swap settles only the ordering check.",
+        "hold": 0.65
+      },
+      {
+        "id": "c10-b03",
+        "say": "Save the two answers in each order with their IDs, the question, model, prompt and rubric versions, the verdict, stated reason and cited spans. Keep the source and the reviewer's reason for the label alongside those records. A reviewer can trace a surprising grade back to a mistake in the expected answer.",
+        "hold": 0.8
+      }
+    ]
+  },
+  {
+    "id": "c11",
+    "title": "Follow the hold through a table filter",
+    "sourceChapters": [
+      "c11"
+    ],
+    "beats": [
+      {
+        "id": "c11-b01",
+        "say": "Look again at the first hybrid. On the left is the decision from the full packet. On the right, show just the paraphrase. One of one visible answers passed. The fix worked on that question. The private-note row still belongs to the full packet.",
+        "hold": 0.65
+      },
+      {
+        "id": "c11-b02",
+        "say": "Follow the hold on the left. There's the private-note ID, with the answer, the cited note and the failed checks attached. Compute the decision before filtering the table. That keeps a path back to the failed case even while you're looking at a success.",
+        "hold": 0.85
+      }
+    ]
+  },
+  {
+    "id": "c12",
+    "title": "What belongs in an empty view?",
+    "sourceChapters": [
+      "c12"
+    ],
+    "beats": [
+      {
+        "id": "c12-b01",
+        "say": "Switch to the private-note slice. Its only row failed. Turn on passed only. The table is empty. What is the pass rate for those visible rows?",
+        "hold": 2
+      },
+      {
+        "id": "c12-b02",
+        "say": "It's undefined. Dividing by zero gives no rate. The full packet is still valid, with three passes and a failed required row. Keep the candidate on hold. Emit both the full decision and the filtered rows from the same view builder. Escape the saved text when it becomes HTML.",
+        "hold": 0.8
+      }
+    ]
+  },
+  {
+    "id": "c13",
+    "title": "Run the gate on two packets",
+    "sourceChapters": [
+      "c13"
+    ],
+    "beats": [
+      {
+        "id": "c13-b01",
+        "say": "You can check this before opening a browser. Give the decision function the first hybrid's packet and its run name. The first return value is hold candidate. All four outputs are present, and the case to investigate is the private-note citation.",
+        "hold": 0.7
+      },
+      {
+        "id": "c13-b02",
+        "say": "Remove the private-note row and make the same call. Now the result is hold comparison. Collect the missing output before scoring. Other regression cases change the corpus, alter an answer, duplicate an ID, or replace a Boolean grade with a string. Each must stop the comparison.",
+        "hold": 0.3
+      },
+      {
+        "id": "c13-b03",
+        "say": "The gate also rejects a nonstring reason and a latency too large to convert to a finite number.",
+        "hold": 0.75
+      },
+      {
+        "id": "c13-b04",
+        "say": "For a reviewer, package the frozen fixtures and supplied outputs as JSON Lines, alongside the grader, gate and a test that calls it. A static HTML dashboard can render those same graded rows. A service or deployment controller needs to verify the retained run artifacts before acting on a decision.",
+        "hold": 0.75
+      }
+    ]
+  },
+  {
+    "id": "c14",
+    "title": "What still needs a fixture?",
+    "sourceChapters": [
+      "c14"
+    ],
+    "beats": [
+      {
+        "id": "c14-b01",
+        "say": "Return to hybrid two and its four passing rows. Each green mark is one tested question. Open the collection plan. Outlines are places still to fill. The first four groups have one example each. The regional group is empty.",
+        "hold": 0.75
+      },
+      {
+        "id": "c14-b02",
+        "say": "Which regional policy applied on the effective date? We need an approved source and a dated question to test that. The plan calls for fifteen in this group. These targets are a collection plan. Deciding whether the cases represent real requests takes a separate sampling review.",
+        "hold": 0.85
+      }
+    ]
+  },
+  {
+    "id": "c15",
+    "title": "Assign the next fixture",
+    "sourceChapters": [
+      "c15"
+    ],
+    "beats": [
+      {
+        "id": "c15-b01",
+        "say": "Take the policy row. One case toward thirty leaves twenty-nine to collect. Apply the same subtraction to rewordings and then to both boundary slices. The regional row needs all fifteen. Here the five groups are disjoint. Out of one hundred ten planned fixtures, one hundred six still need to be collected and labeled.",
+        "hold": 0.65
+      },
+      {
+        "id": "c15-b02",
+        "say": "Give each gap an owner. In this plan, policy reviews clauses and effective dates, retrieval collects reviewed rewordings, and support labels questions the sources can't answer. For an instruction to use an unreviewed source, security designs the case and policy reviews the expected response.",
+        "hold": 0.3
+      },
+      {
+        "id": "c15-b03",
+        "say": "Keep the stable ID, example, source snapshot and reason for the label together.",
+        "hold": 0.65
+      },
+      {
+        "id": "c15-b04",
+        "say": "Now let fixtures belong to two slices. C and D appear in both lists. Keep both memberships, then count each ID once for the overall total. Eight memberships represent six distinct questions. Before release, set latency and token-cost budgets too. The example uses invented latencies and doesn't measure token cost.",
+        "hold": 0.8
+      }
+    ]
+  },
+  {
+    "id": "c16",
+    "title": "How many required escalations reached review?",
+    "sourceChapters": [
+      "c16"
+    ],
+    "beats": [
+      {
+        "id": "c16-b01",
+        "say": "The next capstone makes a routing decision. These three supplied tickets come from one classifier version. Two require a human. One reaches review and one goes to the routine queue. A third ticket correctly goes to that queue. How many required escalations reached review?",
+        "hold": 2.5
+      },
+      {
+        "id": "c16-b01-next",
+        "say": "One of two.",
+        "hold": 1.4
+      },
+      {
+        "id": "c16-b02",
+        "say": "That's fifty percent positive recall, and the missed incident-freeze ticket holds this run.",
+        "hold": 0.7
+      },
+      {
+        "id": "c16-b03",
+        "say": "Try a new sample containing only routine tickets. Its positive denominator is zero, so recall is undefined. Collect required escalations before evaluating recall again. Check that the model version matches and the binary labels are integers. A Boolean label fails this contract.",
+        "hold": 0.3
+      },
+      {
+        "id": "c16-b04",
+        "say": "The same question applies to our dashboard. Do we have the evidence for the decision we're making?",
+        "hold": 0.85
+      }
+    ]
+  },
+  {
+    "id": "c17",
+    "title": "A fifth request for the dashboard",
+    "sourceChapters": [
+      "c17"
+    ],
+    "beats": [
+      {
+        "id": "c17-b01",
+        "say": "Security and policy have reviewed one more test. Someone asks the assistant to use an unreviewed draft to answer an office-hours question. The fixture requires abstention with no citation. Both runs use the new frozen set. Here are the outputs collected so far. Whose fifth output do you need before you can compare the runs?",
+        "hold": 2.5
+      },
+      {
+        "id": "c17-b02",
+        "say": "The baseline's. Hold the comparison. Collect its missing output on the new set. Both packets are complete. Line up the fifth candidate answer with its reviewed answer. The sentences match word for word. Both statuses say abstain. Before we open the last field, what would you expect to find inside?",
+        "hold": 3.2
+      },
+      {
+        "id": "c17-b03",
+        "say": "An empty list. Open both citation lists. The candidate attached the approved policy document. Even that source is unexpected here. Only the citation check fails. The other four first answers pass. Hold the candidate. Send the draft-hours row to security and policy for a retest. Keep the new output. If all five first answers pass, expand the offline evaluation.",
+        "hold": 2.8
+      }
+    ]
+  }
+]

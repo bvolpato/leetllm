@@ -1,0 +1,854 @@
+{
+  "id": "design-code-completion-system",
+  "script": "65492db2f0299b14",
+  "articleHash": "536a59d20f9869cb94c407603a8915c3d9d9e62cb1dd4000dc4c4aae13131d1b",
+  "checked": "2026-11-10T10:08:49.343Z",
+  "closedBook": {
+    "taught": 10,
+    "partial": 0,
+    "absent": 0,
+    "answers": [
+      {
+        "n": 1,
+        "option": 3,
+        "coverage": "taught",
+        "quotes": [
+          {
+            "scene": "trace-quantiles",
+            "quote": "Add the immediate serial allocations: twelve client, fifty-five network, twenty-eight context, seventy-eight queue and model through a usable span, and ten paint. The total is one hundred eighty-three milliseconds, leaving seventeen against the supplied two-hundred target. Adding ordinary typing’s one hundred fifty debounce gives three hundred thirty-three. A budget allocation is not an observed percentile."
+          }
+        ],
+        "reason": "The same serial addition gives 10 + 45 + 25 + 70 + 8 = 158 ms. Adding 60 ms debounce gives 218 ms, exceeding 200 ms. These allocations do not establish measured p95.",
+        "exact": true,
+        "correct": true,
+        "grade": "taught"
+      },
+      {
+        "n": 2,
+        "option": 1,
+        "coverage": "taught",
+        "quotes": [
+          {
+            "scene": "position-units",
+            "quote": "Put the caret after the emoji in a, grinning face, b. Python’s index is two. The prefix occupies three UTF-sixteen code units and five UTF-eight bytes. The correct Python suffix is b; copying the editor’s three into that slice loses b. Cutting UTF-eight at byte three splits the emoji. One visible character can occupy several encoding units."
+          }
+        ],
+        "reason": "The new prefix adds one ordinary letter before the emoji compared with the example, giving Python/UTF-16/UTF-8 offsets 3/4/6. Python slicing at 3 preserves cd.",
+        "exact": true,
+        "correct": true,
+        "grade": "taught"
+      },
+      {
+        "n": 3,
+        "option": 4,
+        "coverage": "taught",
+        "quotes": [
+          {
+            "scene": "context",
+            "quote": "Authorize candidate files first. Reserve the edit’s suffix and framing, then spend the remaining prompt budget on nearby code and relevant definitions. Keep output capacity separately within the model’s total context limit."
+          },
+          {
+            "scene": "context",
+            "quote": "That uses seventy-five hundred of the eight-thousand-token prompt cap, leaving five hundred for a nine-hundred-token candidate snippet. Use the remaining capacity rather than silently dropping the suffix."
+          }
+        ],
+        "reason": "Fixed context uses 50 + 200 + 500 + 300 = 1050 tokens, leaving 150. Admit 150 snippet tokens, preserve the suffix, and exclude the unauthorized file.",
+        "exact": true,
+        "correct": true,
+        "grade": "taught"
+      },
+      {
+        "n": 4,
+        "option": 2,
+        "coverage": "taught",
+        "quotes": [
+          {
+            "scene": "speculative-path",
+            "quote": "For stochastic verification over the same vocabulary, accept a proposed token with the smaller of one and target probability divided by draft probability. On rejection, subtract draft from target coordinate by coordinate, clamp negatives to zero and normalize the remainder."
+          }
+        ],
+        "reason": "Acceptance is min(1, 0.1/0.4) = 1/4. Clamping p − q gives [0, 0.2, 0.1]; normalization gives [0, 2/3, 1/3].",
+        "exact": true,
+        "correct": true,
+        "grade": "taught"
+      },
+      {
+        "n": 5,
+        "option": 3,
+        "coverage": "taught",
+        "quotes": [
+          {
+            "scene": "freshness",
+            "quote": "Invalidate outstanding work immediately on edits, cursor movement and policy changes, even when no new request will be sent."
+          },
+          {
+            "scene": "fresh-cursor",
+            "quote": "No. The old request epoch still differs, and neither move submitted a replacement request or explicitly rebased the old proposal. Returning to a visible position does not undo invalidation. Drop the late reply and keep Tab empty."
+          }
+        ],
+        "reason": "The caret move invalidates epoch 55 and changes the selection. Matching document version and policy cannot make the old response current. Discard it before paint and keep Tab empty.",
+        "exact": true,
+        "correct": true,
+        "grade": "taught"
+      },
+      {
+        "n": 6,
+        "option": 1,
+        "coverage": "taught",
+        "quotes": [
+          {
+            "scene": "affinity-wait",
+            "quote": "With the earlier supplied service terms, cold finishes after its queue q plus ninety-six milliseconds. Warm finishes after q plus extra wait delta plus thirty-five. The shared q cancels."
+          },
+          {
+            "scene": "affinity-wait",
+            "quote": "Compare complete eligible routes and keep the editor’s freshness gate even when the faster route changes."
+          }
+        ],
+        "reason": "Excluding equal queue components, cold takes 60 + 20 = 80 ms. Warm takes 50 + 15 + 20 = 85 ms. Choose cold.",
+        "exact": true,
+        "correct": true,
+        "grade": "taught"
+      },
+      {
+        "n": 7,
+        "option": 2,
+        "coverage": "taught",
+        "quotes": [
+          {
+            "scene": "metric-denominators",
+            "quote": "Generalize the denominators: count distinct shown suggestion IDs with any insertion divided by distinct shown IDs. Count retained original characters divided by actually inserted characters for a declared observed window. Repeated partial-accept actions on one ID count one accepted suggestion."
+          }
+        ],
+        "reason": "Three of five IDs insert text, giving 3/5 acceptance. Inserted characters total 38 and retained originals total 24, giving 24/38 = 12/19.",
+        "exact": true,
+        "correct": true,
+        "grade": "taught"
+      },
+      {
+        "n": 8,
+        "option": 4,
+        "coverage": "taught",
+        "quotes": [
+          {
+            "scene": "cohort-work",
+            "quote": "For a general worksheet, sum each cohort’s requests per second times prompt length times one minus the skipped fraction, then divide by the assumed effective capacity and round up."
+          },
+          {
+            "scene": "fleet-work",
+            "quote": "It omits decode, late-cancel work, KV capacity, imbalance, failover and headroom. Sequence lengths change token work, so this prefill envelope does not choose an actual GPU fleet or establish the inline p ninety-five."
+          }
+        ],
+        "reason": "Raw requests are 6000 × 0.5 = 3000/s; half survive admission. Remaining prefill is 600 × 1800 × 0.5 + 900 × 800 = 1,260,000 tokens/s. Dividing by 30,000 gives 42 worksheet GPUs, a prefill-only envelope.",
+        "exact": true,
+        "correct": true,
+        "grade": "taught"
+      },
+      {
+        "n": 9,
+        "option": 1,
+        "coverage": "taught",
+        "quotes": [
+          {
+            "scene": "upload-boundary",
+            "quote": "A preexisting API_KEY placeholder raises the fixture’s collision error before any replacement. Reject this fixture before upload and leave the original source unchanged for local review."
+          }
+        ],
+        "reason": "The existing placeholder triggers the narrated collision contract. Reject before upload and preserve the source for local review.",
+        "exact": true,
+        "correct": true,
+        "grade": "taught"
+      },
+      {
+        "n": 10,
+        "option": 3,
+        "coverage": "taught",
+        "quotes": [
+          {
+            "scene": "fim-training",
+            "quote": "Our displayed PSM order is prefix marker, prefix, suffix marker, suffix, then middle marker."
+          },
+          {
+            "scene": "infill-boundaries",
+            "quote": "Keep the suffix in place and return only the generated middle to the intended range."
+          }
+        ],
+        "reason": "Use PRE, timeout =, SUF, return timeout, MID. Insert only limits.read_timeout() into the hole while preserving the existing suffix.",
+        "exact": true,
+        "correct": true,
+        "grade": "taught"
+      }
+    ]
+  },
+  "factCheck": {
+    "scenes": [
+      {
+        "id": "intro",
+        "evidence": "The stale-edit mechanism is sound: an edit constructed for buffer version v can replace newer text if applied after the buffer changes without validating its snapshot and range. The film's intro and freshness models distinguish the older response from the current buffer. Timings and events are explicitly teaching fixtures, with no product-performance claim.",
+        "sourceUrls": []
+      },
+      {
+        "id": "lanes",
+        "evidence": "Available receiver types can support member lookup without generative inference. Local execution is a proposed deployment choice, not an LSP guarantee. The [LSP documentation](https://microsoft.github.io/language-server-protocol/) supports the language-service communication claim. Lexical fallback, separate agent budgets and independent gateway enforcement are design requirements, not assertions that the supplied helpers implement them.",
+        "sourceUrls": [
+          "https://microsoft.github.io/language-server-protocol/"
+        ]
+      },
+      {
+        "id": "route-policy",
+        "evidence": "Executed the actual article routing helper. Available semantic results win for both '.' and '('. Without them, explicit 'False', None, 1 and False choose local fallback; True permits 200 ms inline or 500 ms multiline objectives. These are unmeasured allocations. [VS Code documentation](https://code.visualstudio.com/docs/editing/ai-powered-suggestions) confirms that next-edit suggestions predict another change and its location. The helper's omitted permission defaults to True, but the revised speech makes no omitted-argument claim. Gateway authentication and policy enforcement remain requirements.",
+        "sourceUrls": [
+          "https://code.visualstudio.com/docs/editing/ai-powered-suggestions"
+        ]
+      },
+      {
+        "id": "scope-recovery",
+        "evidence": "Executed nearest_def_header from the article. It returns validate_token_scope for the incomplete assignment, crosses a dedent, matches a fabricated definition inside a valid multiline string, truncates an ordinary multiline header and misses a valid definition containing a tab after def. These support every stated limitation. [Tree-sitter](https://tree-sitter.github.io/tree-sitter/) documents incremental syntax-tree updates and useful results despite syntax errors. Neither parsing nor header scanning establishes authorization. Component ownership is the proposed architecture.",
+        "sourceUrls": [
+          "https://tree-sitter.github.io/tree-sitter/",
+          "https://microsoft.github.io/language-server-protocol/"
+        ]
+      },
+      {
+        "id": "position-units",
+        "evidence": "Executed the supplied example: 'a😀' contains two Python code points, three UTF-16 units and five UTF-8 bytes. 'a😀b'[2:] is 'b', while [3:] is empty. Decoding the first three UTF-8 bytes raises UnicodeDecodeError. The [pinned VS Code declarations](https://raw.githubusercontent.com/microsoft/vscode/1fe7285a1162756215a684ee702b16d0ce42bdb4/src/vscode-dts/vscode.d.ts) specify UTF-16 position/offset units and increasing document versions, including undo/redo. Snapshot equality cannot fix an incorrectly converted boundary.",
+        "sourceUrls": [
+          "https://raw.githubusercontent.com/microsoft/vscode/1fe7285a1162756215a684ee702b16d0ce42bdb4/src/vscode-dts/vscode.d.ts"
+        ]
+      },
+      {
+        "id": "fim",
+        "evidence": "An omitted suffix cannot condition that request. The [original FIM paper, section 3](https://arxiv.org/html/2207.14255v1), supports moving the middle after its surrounding segments for causal generation. The film's fimTrace and scene preserve the suffix while returning the generated middle. The spoken prompt order is correct; checkpoint-specific sentinels and edit validation are adapter requirements.",
+        "sourceUrls": [
+          "https://arxiv.org/html/2207.14255v1"
+        ]
+      },
+      {
+        "id": "fim-training",
+        "evidence": "The [FIM paper](https://arxiv.org/html/2207.14255v1) supports span reordering, character-level boundaries and the qualified preservation of left-to-right performance. Appendix D explicitly gives the joint SPM encoding PRE, SUF, suffix, MID, prefix, middle. Stopping the inference prompt after prefix therefore leaves middle to generate. The [Qwen2.5-Coder report](https://arxiv.org/html/2409.12186v3), sections 2 and 3.2, documents FIM training and repository/file sentinels. Arbitrary marker strings do not demonstrate checkpoint support. Model choices remain evaluation candidates.",
+        "sourceUrls": [
+          "https://arxiv.org/html/2207.14255v1",
+          "https://arxiv.org/html/2409.12186v3"
+        ]
+      },
+      {
+        "id": "infill-boundaries",
+        "evidence": "Executed format_fim: its output has PRE-prefix-SUF-suffix-MID order. Its assertions exercise string construction, not tokenizer control IDs, stopping or editor application. A later 'return is_allowed' constrains a variable use but supplies no rule for deciding authorization. PolicyGraph has no real supplied implementation. Sentinel handling, ordinary-content encoding, suffix preservation, stopping and version-checked application are explicitly production requirements.",
+        "sourceUrls": []
+      },
+      {
+        "id": "context",
+        "evidence": "Closed the prior allocation issue using the actual film model. model.mjs promptParts supplies 200 + 4500 + 1000 + 1800 = 7500 tokens. An 8000-token cap leaves 500; stages/context.mjs supplies the 900-token candidate and admits at most 500. Executed these exports. The revised speech correctly identifies invented allocations, rather than measured tokenization. Authorization-first selection, protected suffix/framing and a separate output reserve within total context are coherent budgeting requirements.",
+        "sourceUrls": []
+      },
+      {
+        "id": "context-ranking",
+        "evidence": "Executed the ranking helper and inspected the film membership matrix. Scope rules scores 2/(3+3−2)=0.5; policy graph scores 1/(3+2−1)=0.25; metrics scores 0/(3+2)=0. An inclusive 0.25 threshold selects the first two. The empty-union convention returns zero. [BM25](https://doi.org/10.1561/1500000019) supports sparse ranking and [DPR](https://arxiv.org/abs/2004.04906) demonstrates indexed dense retrieval. Neither establishes this lesson's code-definition recall or latency. Iterative serial dependencies add critical-path work; the slower-route choice is a design decision.",
+        "sourceUrls": [
+          "https://doi.org/10.1561/1500000019",
+          "https://arxiv.org/abs/2004.04906"
+        ]
+      },
+      {
+        "id": "freshness",
+        "evidence": "Executed the actual film freshness predicate and article manager. Changes to version, selection, cursor, policy or epoch reject the supplied old response. A filename alone does not capture these states. A policy change after paint clears the ghost and acceptance returns None. The [pinned editor declarations](https://raw.githubusercontent.com/microsoft/vscode/1fe7285a1162756215a684ee702b16d0ce42bdb4/src/vscode-dts/vscode.d.ts) support transactional text-edit validity. Selection and policy checks remain client responsibilities; cancellation is not relied upon as the correctness gate.",
+        "sourceUrls": [
+          "https://raw.githubusercontent.com/microsoft/vscode/1fe7285a1162756215a684ee702b16d0ce42bdb4/src/vscode-dts/vscode.d.ts"
+        ]
+      },
+      {
+        "id": "debounce-history",
+        "evidence": "Executed the actual async example: sent_requests=[3] and shown_suggestions=['completion-3','fresh']. The r/o tasks are cancelled before sending; the late epoch-two response is explicitly injected. Caret-only and subsequent policy changes suppress acceptance. This checks ordering and gates, not elapsed debounce timing. [CUDA stream destruction documentation](https://docs.nvidia.com/cuda/cuda-runtime-api/cuda_runtime_api/group__CUDART__STREAM.html) shows that host-side destruction can return while device work continues. The HTTP-to-kernel conclusion is an architectural inference, not a transport experiment.",
+        "sourceUrls": [
+          "https://docs.nvidia.com/cuda/cuda-runtime-api/cuda_runtime_api/group__CUDART__STREAM.html"
+        ]
+      },
+      {
+        "id": "acceptance-race",
+        "evidence": "Selection or policy can change after paint without changing document text, so a second applicability check is necessary under this design. Explicitly rebasing a matching remainder supplies its new version and range; otherwise strict snapshot equality rejects it. The [pinned API](https://raw.githubusercontent.com/microsoft/vscode/1fe7285a1162756215a684ee702b16d0ce42bdb4/src/vscode-dts/vscode.d.ts) represents inline proposals with text/ranges and describes transactional text edits. The narration correctly says the Python accept helper returns a string rather than performing an actual editor mutation.",
+        "sourceUrls": [
+          "https://raw.githubusercontent.com/microsoft/vscode/1fe7285a1162756215a684ee702b16d0ce42bdb4/src/vscode-dts/vscode.d.ts"
+        ]
+      },
+      {
+        "id": "timing",
+        "evidence": "Executed the film validation and inspected phaseDurations and phases. The serial allocation is 12+55+28+78+10=183 ms, below 200 by 17 ms. Adding 150 ms debounce gives 333 ms. Including every elapsed component and distinguishing immediate-trigger from pause-to-suggestion objectives is consistent. The narration correctly avoids treating this budget as an observed percentile.",
+        "sourceUrls": []
+      },
+      {
+        "id": "trace-quantiles",
+        "evidence": "Executed completeTraceQuantiles and the article example. Nearest-rank p95 uses ceil(0.95×20)=19. Complete sums contain eighteen 2s and two 101s, giving p95=101. Each stage contains nineteen 1s and one 100, giving stage p95=1 and their sum=2. This directly proves that adding these stage percentiles does not recover the complete-trace percentile.",
+        "sourceUrls": []
+      },
+      {
+        "id": "request-population",
+        "evidence": "[vLLM's benchmark documentation](https://docs.vllm.ai/en/latest/benchmarking/cli/) defines client TTFT from sending a request to receiving its first streamed output and includes queue/frontend/network contributions. Adding those components again double-counts their intervals. The film's separate clock gives 280−150=130 ms TTFT within 333 ms edit-to-paint. A first token need not constitute the displayed usable span. Conditioning latency on displayed survivors can conceal cancellations, errors and stale drops, which justifies reporting their populations.",
+        "sourceUrls": [
+          "https://docs.vllm.ai/en/latest/benchmarking/cli/"
+        ]
+      },
+      {
+        "id": "cache",
+        "evidence": "[vLLM's prefix-cache design](https://docs.vllm.ai/en/stable/design/prefix_caching/) supports reuse of compatible input KV blocks. Generation of a new answer remains necessary. Exact token prefixes and compatible computation determine reuse; tenant isolation is this lesson's additional authorization policy. The film explicitly assigns unchanged decode time and lower prefill time as teaching inputs. Early edits invalidate later prefix-dependent cached states. Neither KV nor response reuse makes an old editor proposal fresh.",
+        "sourceUrls": [
+          "https://docs.vllm.ai/en/stable/design/prefix_caching/"
+        ]
+      },
+      {
+        "id": "cache-key",
+        "evidence": "Executed the actual CacheKey example: identical keys hit; changed tenant, final token ID, adapter or policy epoch miss. [vLLM documentation](https://docs.vllm.ai/en/stable/design/prefix_caching/) specifies parent hash, block tokens and extra hashes including LoRA identity and optional cache salt, with full-block caching. A shared salt partitions reuse but does not authenticate its sender. The narration correctly separates its Python compatibility/security contract from vLLM's implementation, and input KV reuse from completed-response caching.",
+        "sourceUrls": [
+          "https://docs.vllm.ai/en/stable/design/prefix_caching/"
+        ]
+      },
+      {
+        "id": "cache-order",
+        "evidence": "Checked 1200+80=1280 input tokens, 72+24=96 ms and 11+24=35 ms. These are assigned model-service times, excluding queue/network/paint. The [FIM paper, section 3.1](https://arxiv.org/html/2207.14255v1), explains suffix-first caching advantages and their reversal when the suffix changes. Actual reuse also depends on tokenization, compatible positions/layout, complete blocks and residency, as the narration states.",
+        "sourceUrls": [
+          "https://arxiv.org/html/2207.14255v1",
+          "https://docs.vllm.ai/en/stable/design/prefix_caching/"
+        ]
+      },
+      {
+        "id": "speculative-path",
+        "evidence": "Closed the prior KV-order issue. [Algorithm 1](https://arxiv.org/html/2211.17192v2) returns n accepted drafts plus one correction/bonus: four gives five outputs, one gives two, zero gives one, and five can give six before stopping. The correction is sampled after verification. Combined with the [cached generation order](https://arxiv.org/html/2309.06180), its KV is computed when a subsequent target pass processes it. The film correctly labels it KV pending. Its probability fixture gives min(1,0.1/0.4)=0.25 and normalized positive residual [0,0.3,0]→[0,1,0]. Five outputs/(one draft-cost unit+one verification unit)=2.5 under the stated invented costs. Multiple-position verification and possible contention remain real work.",
+        "sourceUrls": [
+          "https://arxiv.org/html/2211.17192v2",
+          "https://arxiv.org/html/2309.06180"
+        ]
+      },
+      {
+        "id": "speculation-gate",
+        "evidence": "Executed the helper and inspected plotted coordinates. Python passes 3.8≥2 and 178−136=42≥10 ms. SQL fails 1.1≥2 and has gain 169−176=−7 ms. Only Python passes both conditions. Invented observations do not establish release safety, tails or language-wide agreement. The additional equivalence, quality, failure and load checks are requirements. Boilerplate agreement is explicitly a hypothesis.",
+        "sourceUrls": [
+          "https://arxiv.org/html/2211.17192v2"
+        ]
+      },
+      {
+        "id": "quantized-serving",
+        "evidence": "Checked raw payload ratios 8/16=1/2 and 4/16=1/4. Three billion weights at 16 bits require 3×10^9×16/8=6×10^9 bytes, or 6 decimal GB; four bits require 1.5×10^9 bytes. The film also shows the consistent 3 GB eight-bit case. Excluded scales, metadata, layers, KV and buffers prevent interpreting these as full serving memory. The [GPTQ paper](https://arxiv.org/abs/2210.17323) and [implementation documentation](https://huggingface.co/docs/transformers/main/en/quantization/gptq) establish post-training weight quantization. Kernel-dependent speed and completion quality are correctly left to measurement.",
+        "sourceUrls": [
+          "https://arxiv.org/abs/2210.17323",
+          "https://huggingface.co/docs/transformers/main/en/quantization/gptq"
+        ]
+      },
+      {
+        "id": "value",
+        "evidence": "Read fixtures.mjs and construction.mjs suggestionPlayback, inspected the actual displayed strings, and executed model validation. The four events contain one fully removed acceptance, one unchanged acceptance, one partly edited acceptance and one nonacceptance. The third event preserves 35 original characters and displays a replacement closing parenthesis separately. Retention does not establish correctness: retaining an incorrect permission expression is a direct counterexample. An absent observation supplies no deletion evidence.",
+        "sourceUrls": []
+      },
+      {
+        "id": "metric-denominators",
+        "evidence": "Executed metrics: 3/4=75% acceptance; 18+4+42=64 inserted characters; 0+4+35=39 retained originals; 39/64=60.9375%, rounded to 60.9%. Empty denominators return None. Distinct-ID accounting prevents repeated partial actions inflating accepted suggestions. The [2022 Copilot study](https://arxiv.org/html/2205.06537v1) reports 27% acceptance and stronger association with perceived productivity than persistence measures, with substantial unexplained variance. The narration correctly labels the result historical and observational.",
+        "sourceUrls": [
+          "https://arxiv.org/html/2205.06537v1"
+        ]
+      },
+      {
+        "id": "evaluation-release",
+        "evidence": "These are evaluation recommendations rather than reported experiments. Historical availability prevents using future repository versions as context; repository/time splits reduce leakage without guaranteeing its elimination. [HumanEval](https://arxiv.org/abs/2107.03374) measures functional synthesis correctness, not editor timing or display behavior. Equivalent implementations can differ as strings. Abstaining on difficult cases can improve shown-only accuracy, and trivial suggestions can inflate acceptance without comparable useful work. Separate coverage, correctness, retained output, failures, latency and cost address those counterexamples.",
+        "sourceUrls": [
+          "https://arxiv.org/abs/2107.03374"
+        ]
+      },
+      {
+        "id": "fleet-work",
+        "evidence": "Executed the article sizing helper and actual film arithmetic. 5000×0.4=2000 requests/s; 2000×(1−0.60)=800. Remaining fraction=0.5×0.25+0.5×1=0.625. Thus 800×2048×0.625=1024000 prefill tokens/s; dividing by 20000 gives 51.2, rounded up to 52 worksheet GPUs. Pre-admission cancellation is an explicit assumption. Late work, decode, sequence-length effects, memory and operational omissions are expressly excluded, so this establishes neither deployment capacity nor inline p95.",
+        "sourceUrls": []
+      },
+      {
+        "id": "cohort-work",
+        "evidence": "Executed prefillCohortWork. Long hits: 400×3072×0.25=307200; short misses: 400×1024=409600; total=716800; ceil(716800/20000)=36. Swapped lengths give 102400+1228800=1331200 and ceil(66.56)=67. Both retain mean length 2048 and 50% request hits. Closed the prior generalized-condition issue: E[L(1−S)]−E[L](1−E[S])=−Cov(L,S), so zero request-weighted covariance is exact. Equal hit/miss mean lengths suffice here. Independently checked the dependent three-cohort counterexample, where both methods give 200/3.",
+        "sourceUrls": []
+      },
+      {
+        "id": "affinity-wait",
+        "evidence": "Checked the film operands and algebra: warm−cold=(q+δ+35)−(q+96)=δ−61 ms. Warm wins below 61 additional queue milliseconds, ties at 61 and loses above 61. This comparison assumes the other route terms are equal or included. Scope, model, residency and capacity are eligibility requirements, not consequences of that calculation. Conditional affinity and a continuing editor freshness gate follow coherently.",
+        "sourceUrls": []
+      },
+      {
+        "id": "batch-cost",
+        "evidence": "The [PagedAttention paper, sections 2.3 and 4](https://arxiv.org/html/2309.06180), supports iteration-level request admission/removal and physical KV-block management. Storage organization alone does not determine scheduler budgets or latency. Higher utilization can coexist with longer queues. The [current Hugging Face page](https://huggingface.co/docs/text-generation-inference/index) explicitly places TGI in maintenance mode and recommends engines including vLLM and SGLang going forward. This verifies documentation status, not comparative performance. Accounting for executed cancelled work and ignored suggestions is consistent.",
+        "sourceUrls": [
+          "https://arxiv.org/html/2309.06180",
+          "https://huggingface.co/docs/text-generation-inference/index"
+        ]
+      },
+      {
+        "id": "upload-boundary",
+        "evidence": "Closed the prior audit issue and checked the collision repair. Executed redact: demo_api_token_abc123 becomes <API_KEY_1>, the returned mapping contains the original, ordinary text is unchanged, and a preexisting <API_KEY_ prefix raises before mapping construction or substitution. The original string remains unchanged. Reject-before-upload is a caller requirement, not an exercised transport control. Executed audit_record with arbitrary values: it copies tenant/model/latency_bucket and excludes prompt without validation. Revised speech states that assumption explicitly. [OWASP guidance](https://cheatsheetseries.owasp.org/cheatsheets/LLM_Prompt_Injection_Prevention_Cheat_Sheet.html) supports treating comments/retrieved content as untrusted and enforcing permissions outside the model. Restoring a secret into generated logging code demonstrates the exposure risk. Frozen weights alone place no restriction on downstream collection.",
+        "sourceUrls": [
+          "https://cheatsheetseries.owasp.org/cheatsheets/LLM_Prompt_Injection_Prevention_Cheat_Sheet.html"
+        ]
+      },
+      {
+        "id": "private-deployment",
+        "evidence": "The claims are conditional architecture statements. Keeping context and inference inside an approved isolated boundary can avoid prohibited external uploads, but an endpoint designation alone establishes no identity, logging, network, licensing or supply-chain controls. Shared batching is compatible with isolation only when per-request state and observability boundaries hold. Redaction does not itself authorize disclosure of remaining proprietary context. No particular deployment is claimed to satisfy these requirements.",
+        "sourceUrls": []
+      },
+      {
+        "id": "public-matches",
+        "evidence": "The [current GitHub documentation](https://docs.github.com/en/copilot/concepts/copilot-surfaces/copilot-in-ides) confirms policy-dependent blocking/reference information, exclusion of private and non-GitHub repositories, and periodic index refresh. A missing match therefore cannot establish comprehensive provenance or license clearance. API validity, permission semantics and developer review are separate properties from matching or persistence. The proposed authorization helper remains fictional and unverified, as the narration acknowledges.",
+        "sourceUrls": [
+          "https://docs.github.com/en/copilot/concepts/copilot-surfaces/copilot-in-ides",
+          "https://code.visualstudio.com/docs/editing/ai-powered-suggestions"
+        ]
+      },
+      {
+        "id": "diagnostic-repair",
+        "evidence": "The proposed inspections follow the checked mechanisms: stale snapshot gates, available semantic information, suffix preservation, supported infill order, exact compatible cache prefixes and separately measured latency stages. The executed backward scan cannot certify scope. The narration presents inspections and experiments rather than unique diagnoses or guaranteed fixes. Changing one factor on a fixed replay helps interpretation, but a causal conclusion still requires controlling load, randomness and cache state.",
+        "sourceUrls": []
+      },
+      {
+        "id": "synthesis",
+        "evidence": "The synthesis accurately restates the proposed contracts. The executed fixtures support stale-event rejection, prompt ordering, budget arithmetic and separate insertion/paint gates. The latency worksheet includes debounce, and retention is presented alongside acceptance rather than as correctness proof. Testing event races separately from model quality is justified because local state-machine checks exercise neither real inference nor editor application.",
+        "sourceUrls": []
+      },
+      {
+        "id": "fresh-cursor",
+        "evidence": "Executed the actual article RequestManager with the additional case and sampled construction.mjs editorEpochState. Epoch 101 at version 73/caret 12/policy 9 paints. Movement to 15 advances to 102; returning advances to 103. The replayed epoch-101 response fails despite matching visible snapshot values, and accept returns None. A newly sent epoch-104 request can paint and accept. The sent list is [101,104]. The ending correctly reserves editor integration, latency and code quality for real replay. Multi-tenant isolation is an intended next design, not a demonstrated platform property.",
+        "sourceUrls": []
+      }
+    ],
+    "findings": [],
+    "limitations": [
+      "Reviewed all 35 scenes at spoken hash 65492db2f0299b14. Independently confirmed that only the five identified spoken passages changed from 6defd0dcd071a58d. All four prior narration findings are closed. The added collision/source-preservation passage is also supported. No remaining substantive factual error or unsupported implementation guarantee was established.",
+      "Local paths refer to /Users/bruno.volpato/githubworkspace/leetllm-wt-rebuild. Read the actual film model, construction, fixtures, arithmetic, validation and scene sources, and executed their relevant exports plus the article helpers. The article's explanatory prose and repair reports were not treated as independent proof.",
+      "The stage lesson has no index.mjs or rebuilt scenes directory. No stage frames, layout, motion, measured cue timing, captions, audio or full-speed playback were checked. Existing canvas source consistency does not certify the revised stage film. The remedy is to build the stage scenes, regenerate speech/captions/cue timings and inspect the resulting frames and playback.",
+      "The article-only permission discrepancy remains: route('r', False) returns REMOTE_INLINE because remote_permitted defaults to True, although article prose says missing permission stays local. The current narration does not make that claim. Resolve the article by changing the default or narrowing its prose; this is not a new spoken blocker.",
+      "The executions exercise local strings, dictionaries, state machines and arithmetic. They do not verify real editor atomic insertion, gateway enforcement, upload transport, upstream identifier validation, model output, tokenizer behavior, GPU KV state, cancellation propagation, isolation or production load.",
+      "Context sizes, service times, speculative costs, selection observations and GPU capacity are explicitly invented or assumed. No measured performance, actual prompt token counts, release qualification or deployed fleet size follows from them.",
+      "External references were consulted directly during this review. Current documentation claims are verified as of 2026-11-10, but no installed serving-engine version or deployment configuration was supplied. No files were edited, external writes performed or subagents used."
+    ]
+  },
+  "reviewedNarration": {
+    "source": "videos/stage-lessons/design-code-completion-system/lesson.yaml",
+    "script": "65492db2f0299b14",
+    "scenes": [
+      {
+        "id": "intro",
+        "beats": [
+          {
+            "say": "You pause inside an assignment and a completion request leaves your editor. Before it returns, you continue typing. The old suggestion may be reasonable for the earlier buffer and still damage the current edit if inserted. A useful completion system has to understand both code and time."
+          },
+          {
+            "say": "We will follow the keystroke through local completion, fill-in-the-middle generation, context budgeting and a freshness gate. Then we will measure the complete response path and the text that actually survives after acceptance. The supplied timings and edit events are teaching fixtures."
+          }
+        ]
+      },
+      {
+        "id": "lanes",
+        "beats": [
+          {
+            "say": "After graph dot, a language server may already know the receiver type and its valid members. That exact lookup can stay local. An open-ended assignment asks a different question: what expression fits this function and the code around it? That can justify a bounded generative request."
+          },
+          {
+            "say": "Keep those lanes explicit. Missing type information may need a lexical fallback or a permitted remote candidate. A repository-wide coding agent has a different interaction and latency budget. The gateway must independently enforce which buffers may leave the client regardless of the route the client suggests."
+          }
+        ]
+      },
+      {
+        "id": "route-policy",
+        "beats": [
+          {
+            "say": "Trace three qualified events from the same editor. Polic can use a local identifier index to finish PolicyGraph. Graph dot can use available receiver types from the language server. An open assignment can use remote infill when upload is permitted. Next-edit predicts a later change and its location; a coding agent plans and tests repository changes on another clock."
+          },
+          {
+            "say": "The actual routing fixture checks available semantic completion first for dot or an opening parenthesis. Without that result, remote permission must be the actual boolean True. String False, None and integer one choose local fallback, including after a function signature. True allows the supplied two-hundred-millisecond inline or five-hundred-millisecond multiline target. These are scenario objectives, not measured product latencies."
+          },
+          {
+            "say": "A client route does not authorize upload. The gateway independently authenticates repository access and current upload policy. Missing type data can justify lexical fallback or a permitted remote request; it does not justify reading unauthorized files. A malformed permission stays local rather than inheriting Python truthiness."
+          }
+        ]
+      },
+      {
+        "id": "scope-recovery",
+        "beats": [
+          {
+            "say": "The extension owns buffer events and selection; a context engine chooses permitted snippets; the inference server executes admitted model work. LSP standardizes communication with language-specific tools. Tree-sitter incrementally updates syntax trees and aims to remain useful with syntax errors, so a half-written assignment need not force a whole-file upload."
+          },
+          {
+            "say": "The article’s actual backward scan returns the preceding validate_token_scope header. After a dedent, it still returns a preceding header even when the cursor is outside that function. It can also match text inside a multiline string or miss a multiline definition. Use reliable syntax-node ranges for enclosing scope and language-server types where available. This small executed scan establishes neither scope visibility nor file authorization."
+          }
+        ]
+      },
+      {
+        "id": "position-units",
+        "beats": [
+          {
+            "say": "Put the caret after the emoji in a, grinning face, b. Python’s index is two. The prefix occupies three UTF-sixteen code units and five UTF-eight bytes. The correct Python suffix is b; copying the editor’s three into that slice loses b. Cutting UTF-eight at byte three splits the emoji. One visible character can occupy several encoding units."
+          },
+          {
+            "say": "The inspected VS Code declaration defines Position character and document offsets in UTF-sixteen units. Its offsetAt and positionAt share that unit; document version increases on changes, including undo and redo. Convert the position for the receiving API, then validate its range against the current snapshot. Correct version equality cannot repair an incorrectly sliced boundary. The fixture demonstrates units, not a general position-conversion implementation."
+          }
+        ]
+      },
+      {
+        "id": "fim",
+        "beats": [
+          {
+            "say": "Code is often inserted between existing lines. A prefix-only continuation cannot condition on the return statement already below the hole. Fill-in-the-middle training moves the missing span after its surrounding text so a causal decoder can generate it while seeing both boundaries."
+          },
+          {
+            "say": "Watch file order become prompt order: prefix, suffix, then the middle marker and generated insertion. The marker names here show their roles. A native adapter must use the selected checkpoint’s trained tokens and format, then verify that the returned edit fits the preserved code."
+          }
+        ]
+      },
+      {
+        "id": "fim-training",
+        "beats": [
+          {
+            "say": "For FIM training, select two span boundaries, keep prefix and suffix, and move the missing middle after them with sentinel tokens. Causal next-token prediction then learns the middle conditioned on both earlier prompt segments. The original study evaluated mixtures that preserved left-to-right capability; that result does not certify every checkpoint or training mixture. Character-level span selection can expose edits inside tokenizer pieces."
+          },
+          {
+            "say": "Our displayed PSM order is prefix marker, prefix, suffix marker, suffix, then middle marker. In the original paper’s joint-training SPM variant, prefix marker and suffix marker precede the suffix; middle marker then precedes the contiguous prefix and generated middle. At inference, stop after that prefix and generate the middle. Other SPM encodings exist, so marker placement belongs to the checkpoint contract."
+          },
+          {
+            "say": "Qwen two point five Coder is an example whose report documents FIM and repository sentinels, not a current model recommendation. A smaller trained checkpoint, a larger model and a distilled model remain candidates for measured quality and delay. An instruction-following model can attempt infill through an ordinary prefix-and-suffix task prompt; arbitrary marker strings do not establish native FIM support."
+          }
+        ]
+      },
+      {
+        "id": "infill-boundaries",
+        "beats": [
+          {
+            "say": "The suffix return is_allowed constrains how an insertion fits the file, but it does not specify authorization semantics. PolicyGraph is fictional here. Real context needs its actual signature and policy behavior. Even a syntactically fitted permission check needs security review and relevant tests; completion text does not authorize a tool or grant access."
+          },
+          {
+            "say": "The executed formatter tests prompt order only. A real adapter inserts the selected model’s sentinel IDs and encodes source as ordinary content, including text that resembles a marker. Keep the suffix in place and return only the generated middle to the intended range. Validate output boundaries and stop behavior before applying the proposal to a version-checked buffer."
+          }
+        ]
+      },
+      {
+        "id": "context",
+        "beats": [
+          {
+            "say": "The prompt needs useful context without reading the whole repository on every keystroke. Authorize candidate files first. Reserve the edit’s suffix and framing, then spend the remaining prompt budget on nearby code and relevant definitions. Keep output capacity separately within the model’s total context limit."
+          },
+          {
+            "say": "In this invented film allocation, framing takes two hundred tokens, prefix forty-five hundred, suffix one thousand and permitted definitions eighteen hundred. That uses seventy-five hundred of the eight-thousand-token prompt cap, leaving five hundred for a nine-hundred-token candidate snippet. Use the remaining capacity rather than silently dropping the suffix. Context may change the answer, but it also changes transfer and prefill work. Evaluate the complete context policy under the actual latency and privacy requirements."
+          }
+        ]
+      },
+      {
+        "id": "context-ranking",
+        "beats": [
+          {
+            "say": "Authorize candidate buffers and retrieved files before ranking them, including unsaved content. Within the article’s eight-thousand-token prompt cap, reserve suffix and framing, then fit prefix, definitions, recent edits and relevant neighbors. Output capacity is separate within the model’s total context. The maximum advertised window does not establish an acceptable keystroke prefill."
+          },
+          {
+            "say": "For Jaccard, count unique shared symbols and divide by the union. The active three symbols and scope_rules three share two, giving two divided by four, or point five. Policy_graph shares one of four, or point two five; metrics shares zero of five. At an inclusive point-two-five threshold, select the first two. The executed three-file fixture measures ranking arithmetic, not repository lookup speed."
+          },
+          {
+            "say": "BM twenty-five can search a ready sparse index; prepared dense indexes can also retrieve definitions. Measure retrieval, any reranker and assembly together. An iterative retrieve-generate-retrieve loop adds serial calls, so this design puts it on the slower route. If a known definition is missing, inspect extraction, authorization and index freshness before enlarging the prompt."
+          }
+        ]
+      },
+      {
+        "id": "freshness",
+        "beats": [
+          {
+            "say": "Invalidate outstanding work immediately on edits, cursor movement and policy changes, even when no new request will be sent. Cancellation can save work. A captured snapshot check protects the editor when cancellation arrives late or the server finishes anyway. The old response now fails that check."
+          },
+          {
+            "say": "A response matching the latest request and snapshot may paint as ghost text. Its document version, selection and policy context still travel with it. A matching filename alone is insufficient, because the same file has already passed through several different states."
+          },
+          {
+            "say": "Now policy changes after paint but before Tab. Clear the ghost and check again at acceptance, using the editor’s atomic version and range rules. A freshness check performed only when the response arrived would leave this later race open. Position units also need the editor’s documented conversion."
+          }
+        ]
+      },
+      {
+        "id": "debounce-history",
+        "beats": [
+          {
+            "say": "Replay the actual local async fixture: ordinary r and o events request a one-hundred-fifty-millisecond debounce; dot requests no delay. Each event immediately advances the epoch, captures document version, selection and policy, clears ghost text and cancels the previous pending task. Only epoch three reaches the supplied send list. No HTTP or GPU is involved."
+          },
+          {
+            "say": "The fixture deliberately delivers a late epoch-two response after the current response, then moves only the caret without sending another request. The old response cannot paint. A policy change after a fresh paint also clears the ghost before acceptance. Document version, request epoch and policy epoch describe different state; none replaces the others."
+          },
+          {
+            "say": "Propagate cancellation to queued or running server work, bound deadlines and output length, and discard late chunks. Closing the connection does not establish that a kernel stopped immediately. Work already admitted can still consume device time. Cancellation controls waste, while the snapshot and epoch gates protect editing correctness even if that cancellation loses its race."
+          }
+        ]
+      },
+      {
+        "id": "acceptance-race",
+        "beats": [
+          {
+            "say": "A ghost is a proposed edit at a range, not a completed mutation. Paint checks captured document, version, selection, policy and request epoch against current state. Tab must check again against the editor’s atomic version and range contract. Between those events, a selection expansion, caret move or policy revision can make the already painted text inapplicable."
+          },
+          {
+            "say": "A client may preserve a remaining suggestion after the developer types a matching prefix only by explicitly rebasing the remainder to the new version and range. Otherwise invalidate it. Returning to the same visible caret does not revive an earlier epoch. The actual local accept helper models the gate; it does not execute a real editor’s atomic edit API."
+          }
+        ]
+      },
+      {
+        "id": "timing",
+        "beats": [
+          {
+            "say": "A useful latency measurement begins with the qualifying edit and ends when a fresh span is painted. Include local handling, network, context assembly, queueing, enough generation to display and rendering. Our immediate-trigger worksheet totals less than the scenario’s two-hundred-millisecond objective."
+          },
+          {
+            "say": "Add the separate ordinary-typing debounce and the same serial path now exceeds that allocation. Shorten it, route locally or define a different pause-to-suggestion objective. Compute real percentiles over complete request traces, with stale drops and timeouts visible, instead of adding stage percentiles together."
+          }
+        ]
+      },
+      {
+        "id": "trace-quantiles",
+        "beats": [
+          {
+            "say": "Add the immediate serial allocations: twelve client, fifty-five network, twenty-eight context, seventy-eight queue and model through a usable span, and ten paint. The total is one hundred eighty-three milliseconds, leaving seventeen against the supplied two-hundred target. Adding ordinary typing’s one hundred fifty debounce gives three hundred thirty-three. A budget allocation is not an observed percentile."
+          },
+          {
+            "say": "The executed counterexample has twenty complete requests: one with stages one hundred and one, another with one and one hundred, and eighteen with one and one. Nearest-rank p ninety-five selects rank nineteen. Complete sums have p ninety-five of one hundred one, but each stage’s p ninety-five is one, so summing those percentiles gives two. Preserve row identity before adding stages and sorting requests."
+          }
+        ]
+      },
+      {
+        "id": "request-population",
+        "beats": [
+          {
+            "say": "Edit-to-usable-suggestion begins at the qualifying event and ends with a fresh displayed span. Client TTFT begins at request submission and ends with the first token received; it already contains transport and server waiting within that interval. Do not add TTFT to its own component stages. Generating one token may also be insufficient for the span the product displays."
+          },
+          {
+            "say": "Report the population behind latency percentiles. Timeouts, errors, cancellations and stale drops must stay visible, even when they produce no displayed completion. A low tail among a small surviving shown subset can coexist with poor service. Separate the ordinary-typing pause objective from immediate triggers instead of silently starting both clocks at HTTP submission."
+          }
+        ]
+      },
+      {
+        "id": "cache",
+        "beats": [
+          {
+            "say": "Consecutive edits often preserve the same file header. Compatible prefix caching can reuse its earlier key and value computation, leaving only the changed input delta to prefill. Exact token prefixes, model configuration and authenticated tenant scope determine whether that reuse is permitted."
+          },
+          {
+            "say": "The hit still generates the new suggestion. In our supplied service times, decode stays unchanged while prefill falls. Editing near the top invalidates later cached states, and another tenant is a miss by design. Neither prefix reuse nor response caching can bypass the current editor snapshot."
+          }
+        ]
+      },
+      {
+        "id": "cache-key",
+        "beats": [
+          {
+            "say": "The actual contract fixture keys security scope, model revision, tokenizer revision, adapter revision, KV layout and exact prefix IDs. Security scope comes from authenticated tenant, repository access and policy epoch. The same key hits; a different tenant, final ID, adapter or policy does not. This Python tuple and illustrative handle do not implement a real KV allocator or vLLM’s block hash."
+          },
+          {
+            "say": "vLLM’s documented full-block hashes include parent context and block token IDs, plus extra hashes such as adapter identity and cache salt. The salt can partition trust groups but must not be accepted as authority chosen by an arbitrary client. Cache permissions and current repository access still precede reuse. Exact visible source text alone can hide changed framing, retrieved content or tokenization."
+          },
+          {
+            "say": "KV reuse removes repeated prefill, not computation for a new generated answer. A response cache has a different contract including the full input, generation settings, model and policy. Neither cache overrides freshness at paint or insertion. Reusing a computation and reusing a finished suggestion must remain separately observable."
+          }
+        ]
+      },
+      {
+        "id": "cache-order",
+        "beats": [
+          {
+            "say": "The article’s complete prompt has twelve hundred reusable header tokens and eighty new input tokens. Supplied model-service times are seventy-two prefill plus twenty-four decode on a miss, and eleven plus the same twenty-four on a hit: ninety-six versus thirty-five milliseconds. These omit queueing, network and paint and are not TTFT measurements."
+          },
+          {
+            "say": "Change an early prefix token in PSM and later suffix states also depend on that changed context. A supported suffix-first SPM format can retain earlier suffix KV while a prefix grows; changing the suffix instead invalidates later prefix state. Count exact full blocks after real tokenization, under compatible positions and layout. Routing to a cold replica can still remove a logically possible hit."
+          }
+        ]
+      },
+      {
+        "id": "speculative-path",
+        "beats": [
+          {
+            "say": "In the five-token toy draft, graph, dot, allows, opening parenthesis and user are separate IDs. The first four survive and request replaces user, giving five emitted tokens. One accepted draft gives two with correction; immediate rejection still emits one. All five accepted may add a sixth target bonus, subject to stopping rules. The correction is emitted without its own target KV. When generation continues, the next target forward pass processes that token and computes its KV. Discard target KV states for the rejected draft token and any later draft tokens."
+          },
+          {
+            "say": "For stochastic verification over the same vocabulary, accept a proposed token with the smaller of one and target probability divided by draft probability. On rejection, subtract draft from target coordinate by coordinate, clamp negatives to zero and normalize the remainder. Greedy verification instead uses target greedy choices. A confidence cutoff cannot substitute for the specified probability rule."
+          },
+          {
+            "say": "The worksheet assumes five draft steps cost one ordinary target step and verification costs one more. Five emitted outputs for cost two gives two point five outputs per baseline cost, under those invented costs. Actual verification processes multiple target positions; at high occupancy it can take work from neighboring requests. Measure first-token and complete latency as well as accepted length."
+          }
+        ]
+      },
+      {
+        "id": "speculation-gate",
+        "beats": [
+          {
+            "say": "The executed selection fixture requires mean accepted draft length at least two and latency gain at least ten milliseconds. Python imports supplies three point eight and a forty-two-millisecond gain, from one hundred seventy-eight to one hundred thirty-six. SQL supplies one point one and loses seven, from one hundred sixty-nine to one hundred seventy-six. Only the Python fixture passes both conditions."
+          },
+          {
+            "say": "These inputs are invented and the rule is a local selection check. A release also needs compatible greedy or stochastic behavior, correct completions, failure rates, representative arrival load and enough observations for tails. Boilerplate may raise draft agreement for a slice; that remains a hypothesis to test rather than a property of every code language."
+          }
+        ]
+      },
+      {
+        "id": "quantized-serving",
+        "beats": [
+          {
+            "say": "Raw eight-bit weights take half the payload of sixteen-bit weights; four-bit takes a quarter. For a hypothetical three-billion-weight array, sixteen bits use six decimal gigabytes and four bits use one point five. Scales, metadata, unquantized layers, KV and temporary buffers remain outside that arithmetic. GPTQ is post-training weight quantization, not new infill training."
+          },
+          {
+            "say": "Efficient kernels can reduce bandwidth-bound decode traffic, while unsupported formats or other bottlenecks can remove a speed benefit. Profile prefill and decode separately and admit enough memory for the actual KV batch. Recheck syntax, insecure API behavior, acceptance, retained text and latency by language and suggestion type. Fitting compressed weights does not establish a useful editor response."
+          }
+        ]
+      },
+      {
+        "id": "value",
+        "beats": [
+          {
+            "say": "A developer is shown four suggestions. Follow what happens after each acceptance. The first is accepted, then entirely removed. The second stays as accepted. The third is partly edited, and the fourth is never accepted. Watch the totals accumulate. Count distinct accepted suggestions separately from inserted characters and characters retained after a chosen observation window."
+          },
+          {
+            "say": "These editing signals complement correctness checks. A retained permission bug is still a bug, while missing observation windows remain censored. Keep trigger and display policy fixed when comparing candidates, and measure useful edits, shown rate, stale drops and latency by language and suggestion type."
+          }
+        ]
+      },
+      {
+        "id": "metric-denominators",
+        "beats": [
+          {
+            "say": "For the four shown IDs, three have inserted text, so acceptance is three divided by four, or seventy-five percent. Inserted characters total eighteen plus four plus forty-two, or sixty-four; retained original characters total zero plus four plus thirty-five, or thirty-nine. Retained-character rate is thirty-nine divided by sixty-four, about sixty point nine percent. A new replacement character is not a retained original character."
+          },
+          {
+            "say": "Generalize the denominators: count distinct shown suggestion IDs with any insertion divided by distinct shown IDs. Count retained original characters divided by actually inserted characters for a declared observed window. Repeated partial-accept actions on one ID count one accepted suggestion. With no shown suggestions or no inserted characters, the corresponding rate is undefined; unobserved windows are censored rather than automatically deleted."
+          },
+          {
+            "say": "The early twenty-twenty-two Copilot study reported twenty-seven-percent acceptance and an observational association with perceived productivity. Acceptance correlated more strongly than persistence in that studied cohort, with unexplained variance. Our retention fixture complements that signal; it does not prove retention causes productivity or that retained permission code is correct. Shown rate and review quality still matter."
+          }
+        ]
+      },
+      {
+        "id": "evaluation-release",
+        "beats": [
+          {
+            "say": "For offline evaluation, freeze a real edit point, hide its target insertion and retrieve only files available at that time. Split by repository and time where possible to reduce duplicate leakage. Check parse behavior, relevant tests in an isolated no-secret environment and explicit permission policy. Exact-string scoring can reject valid alternatives; a standard coding benchmark does not exercise IDE timing or display behavior."
+          },
+          {
+            "say": "For online comparison, randomize at a stable user or workspace boundary and hold trigger and display policy fixed. Compare eligible, requested, shown, accepted and retained populations; retain latency, cancellations, stale drops and errors. Slice by language and suggestion class so aggregate gains cannot hide a broken supported workflow."
+          },
+          {
+            "say": "Use predefined rollback guardrails with adequate observations and preserve a known-good route for each slice. A model that shows only tiny obvious tokens can raise acceptance while reducing useful work. A model that abstains heavily can improve shown-only accuracy while failing users. Report cost per accepted-and-retained suggestion alongside correctness and coverage, not request count alone."
+          }
+        ]
+      },
+      {
+        "id": "fleet-work",
+        "beats": [
+          {
+            "say": "The article’s peak-hour worksheet begins with five thousand actively typing editors at point four remote requests per second: two thousand raw requests per second. Sixty percent cancel before GPU admission, leaving eight hundred. A cancellation after admission still burns partial work and cannot be subtracted as free. Active editors are not idle logged-in sessions."
+          },
+          {
+            "say": "Every surviving request in this first worksheet has two thousand forty-eight prompt tokens. Half hit and skip three quarters of prefill; misses keep all work. Remaining work fraction is one half times one quarter plus one half, or point six two five. Eight hundred times two thousand forty-eight times that fraction is one million twenty-four thousand prefill tokens per second."
+          },
+          {
+            "say": "Dividing by the assumed twenty thousand effective prefill tokens per GPU-second gives fifty-one point two, rounded up to fifty-two worksheet GPUs. It omits decode, late-cancel work, KV capacity, imbalance, failover and headroom. Sequence lengths change token work, so this prefill envelope does not choose an actual GPU fleet or establish the inline p ninety-five."
+          }
+        ]
+      },
+      {
+        "id": "cohort-work",
+        "beats": [
+          {
+            "say": "Keep eight hundred requests, overall mean two thousand forty-eight and fifty-percent request hits, but make the four hundred hits length three thousand seventy-two and misses length one thousand twenty-four. Hits contribute three hundred seven thousand two hundred remaining tokens per second; misses contribute four hundred nine thousand six hundred. The sum is seven hundred sixteen thousand eight hundred, or thirty-six worksheet GPUs."
+          },
+          {
+            "say": "Swap those lengths between groups. Remaining prefill becomes one million three hundred thirty-one thousand two hundred, or sixty-seven GPUs at the same assumed rate. The equal-length case gave fifty-two. These distributions share the same overall mean and request hit rate; cacheable length and hits are correlated differently."
+          },
+          {
+            "say": "For a general worksheet, sum each cohort’s requests per second times prompt length times one minus the skipped fraction, then divide by the assumed effective capacity and round up. Multiplying the global mean length by the average remaining fraction is exact when prompt length and skipped fraction have zero request-weighted covariance. That means their average product equals the product of their averages. Equal hit and miss mean lengths suffice for this two-group worksheet. Measure uncached work directly when that simplification fails."
+          }
+        ]
+      },
+      {
+        "id": "affinity-wait",
+        "beats": [
+          {
+            "say": "Routing also weighs locality, isolation and approved region. With the earlier supplied service terms, cold finishes after its queue q plus ninety-six milliseconds. Warm finishes after q plus extra wait delta plus thirty-five. The shared q cancels. Warm saves sixty-one milliseconds of service, so more than sixty-one extra queue milliseconds reverses its advantage; equality is a tie."
+          },
+          {
+            "say": "Eligibility comes first: authenticated scope, current model, residency and capacity must permit the route. A nearby region cannot override a data-residency rule. Reuse affinity is a preference under queue pressure, not a permanent pin. Compare complete eligible routes and keep the editor’s freshness gate even when the faster route changes."
+          }
+        ]
+      },
+      {
+        "id": "batch-cost",
+        "beats": [
+          {
+            "say": "Continuous batching lets requests join and leave active model work; waiting for a fixed batch can delay the first token. Paged KV storage manages physical blocks while the scheduler still needs suitable input and output budgets. More utilization can accompany worse editor queueing, so compare TTFT, edit-to-paint and throughput on the actual cancellable mix."
+          },
+          {
+            "say": "vLLM and SGLang are engine candidates whose installed contracts need checking. The current Hugging Face page labels TGI maintenance mode and points future work toward newer engines. That dated status is not a benchmark ranking. Count admitted cancelled work and ignored suggestions in cost, and measure cost per useful retained result with the same quality and shown-rate policy."
+          }
+        ]
+      },
+      {
+        "id": "upload-boundary",
+        "beats": [
+          {
+            "say": "The executed redactor recognizes only the fictional demo_api_token pattern. Before upload, it replaces the match with API_KEY one and retains the placeholder-to-secret mapping locally. A preexisting API_KEY placeholder raises the fixture’s collision error before any replacement. Reject this fixture before upload and leave the original source unchanged for local review. The detector is deliberately incomplete; production policy also needs coverage tests, upload controls and restricted logging."
+          },
+          {
+            "say": "Returned placeholder text remains visible for local review. Never automatically restore a secret into arbitrary model-chosen output. Source comments and retrieved files are untrusted context, not authority to widen upload permissions or read another repository. A shared prompt cache must honor the same authenticated scope as ingestion."
+          },
+          {
+            "say": "The audit helper copies tenant, model and latency bucket and excludes the prompt. It assumes those identifiers were validated upstream and the latency bucket came from an allowlist. The helper performs neither check. The field allowlist establishes that function’s fields, not end-to-end privacy. Proxy logs, exceptions, tracing, crash dumps and SDKs need separate inspection. Frozen inference weights do not enforce a no-training contract; downstream collection and training exports also need controls."
+          }
+        ]
+      },
+      {
+        "id": "private-deployment",
+        "beats": [
+          {
+            "say": "A private VPC, self-hosted service or fully offline deployment can satisfy different source-upload policies. In an air-gapped design, context engine, model and inference server stay local. Moving the boundary does not remove repository identity, network rules, logs, supply-chain checks or model licensing. A private endpoint alone does not establish all of those controls."
+          },
+          {
+            "say": "State what source may be uploaded, retained or used for training, and apply the policy across telemetry, batches, caches and recovery paths. Shared device batches can be compatible with isolation if actual per-request boundaries and observability are tested; otherwise partition until that evidence exists. An ordinary redacted prompt is still governed proprietary context."
+          }
+        ]
+      },
+      {
+        "id": "public-matches",
+        "beats": [
+          {
+            "say": "A suggestion can match public code. The current GitHub documentation describes blocking or showing reference information according to account or organization policy. Its public index is limited to public GitHub repositories and periodic refresh; missing a match is not proof of original provenance or license clearance. Keep review and attribution decisions with the actual accepted artifact."
+          },
+          {
+            "say": "Understanding remains separate from persistence. A completion may invent an API, use a deprecated call or preserve an insecure permission check that the developer leaves in place. Public-code matching does not establish correctness, and a retained span does not establish review. Require relevant tests and security reasoning for the proposed authorization helper before it becomes trusted application behavior."
+          }
+        ]
+      },
+      {
+        "id": "diagnostic-repair",
+        "beats": [
+          {
+            "say": "For stale suggestions, inspect immediate invalidation, late replies and both insertion gates. For slow exact members, inspect local semantic availability before spending GPU time. For fitted code that conflicts below the caret, inspect suffix preservation and the checkpoint’s infill interface. A nearest-header string cannot certify scope. Each symptom names a smaller state boundary to test."
+          },
+          {
+            "say": "For poor cache hits, compare actual leading IDs, adapter and policy scope, eviction and replica placement before enforcing affinity. For latency spikes, separate queue, context, prefill, decode and debounce. For apparent acceptance gains, inspect shown population and retained text. Change one causal lever on a fixed replay and preserve the original editor snapshot in the report."
+          }
+        ]
+      },
+      {
+        "id": "synthesis",
+        "beats": [
+          {
+            "say": "The completion path now knows which requests can stay local, what context a generated insertion needs, and when a returned suggestion has become stale. Its budget includes the user’s waiting time. Its quality report checks what developers retained as well as what they briefly accepted."
+          },
+          {
+            "say": "Build those contracts around the model before optimizing its serving kernels. Test out-of-order replies, cursor-only changes, upload-policy changes and acceptance races alongside code quality. Then a fast suggestion can remain a useful proposed edit at the exact place the developer is working."
+          }
+        ]
+      },
+      {
+        "id": "fresh-cursor",
+        "beats": [
+          {
+            "say": "Try a new supplied response for document version seventy-three, caret twelve, policy nine and request epoch one hundred one. It matches and paints. Without editing text, move the caret to fifteen: epoch one hundred two clears it. Move back to twelve under epoch one hundred three. The old one-hundred-one reply arrives again. Does the matching version, policy and returned caret make that reply safe to paint or insert? Pause."
+          },
+          {
+            "say": "No. The old request epoch still differs, and neither move submitted a replacement request or explicitly rebased the old proposal. Returning to a visible position does not undo invalidation. Drop the late reply and keep Tab empty. Now submit a new request for the actual current snapshot; a matching response may paint, followed by the atomic version-and-range check at insertion."
+          },
+          {
+            "say": "The useful artifact is a proposed edit whose context, computation, policy and measurement still belong to its current owner. Preserve the same buffer and immutable response identities while repairing the earliest failed boundary. These local contract checks earned the gate logic; an actual editor, model and serving replay must earn product latency and code quality separately. The multi-tenant platform next shares compatible model work while keeping each reader’s evidence, request state, allowance and usage records inside its own boundary."
+          }
+        ]
+      }
+    ]
+  }
+}

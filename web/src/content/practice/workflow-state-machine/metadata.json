@@ -1,0 +1,426 @@
+{
+  "id": "workflow-state-machine",
+  "slug": "workflow-state-machine",
+  "title": "Workflow State Machine",
+  "difficulty": "Medium",
+  "category": "Scheduling",
+  "language": "python3",
+  "timeEstimateMinutes": 40,
+  "timeLimitMs": 2500,
+  "memoryLimitMb": 128,
+  "order": 35,
+  "tags": [
+    "state machine",
+    "dependencies",
+    "retries",
+    "workflow"
+  ],
+  "source": "Frontier coding prep",
+  "summary": "Track dependent jobs through legal workflow states with retry and cancellation behavior.",
+  "starterCode": [
+    "class WorkflowRunner:",
+    "    def add_job(self, job_id: str, deps: list[str] | None = None, max_attempts: int = 1) -> None:",
+    "        pass",
+    "",
+    "    def ready(self) -> list[str]:",
+    "        pass",
+    "",
+    "    def transition(self, job_id: str, state: str, reason: str | None = None) -> str:",
+    "        pass",
+    "",
+    "    def status(self, job_id: str) -> dict:",
+    "        pass"
+  ],
+  "testCases": [
+    {
+      "name": "unlocks dependencies in insertion order",
+      "visibility": "sample",
+      "setup": [
+        "from solution import WorkflowRunner",
+        "runner = WorkflowRunner()",
+        "runner.add_job(\"extract\")",
+        "runner.add_job(\"train\", deps=[\"extract\"], max_attempts=2)",
+        "runner.add_job(\"report\", deps=[\"train\"])"
+      ],
+      "checks": [
+        {
+          "input": "runner = WorkflowRunner()\nrunner.add_job(\"extract\")\nrunner.add_job(\"train\", deps=[\"extract\"], max_attempts=2)\nrunner.add_job(\"report\", deps=[\"train\"])\nrunner.ready()",
+          "expression": "runner.ready()",
+          "operator": "==",
+          "expected": "[\"extract\"]"
+        },
+        {
+          "input": "runner = WorkflowRunner()\nrunner.add_job(\"extract\")\nrunner.add_job(\"train\", deps=[\"extract\"], max_attempts=2)\nrunner.add_job(\"report\", deps=[\"train\"])\nrunner.ready()\nrunner.transition(\"extract\", \"running\")",
+          "expression": "runner.transition(\"extract\", \"running\")",
+          "operator": "==",
+          "expected": "\"running\""
+        },
+        {
+          "input": "runner = WorkflowRunner()\nrunner.add_job(\"extract\")\nrunner.add_job(\"train\", deps=[\"extract\"], max_attempts=2)\nrunner.add_job(\"report\", deps=[\"train\"])\nrunner.ready()\nrunner.transition(\"extract\", \"running\")\nrunner.transition(\"extract\", \"succeeded\")",
+          "expression": "runner.transition(\"extract\", \"succeeded\")",
+          "operator": "==",
+          "expected": "\"succeeded\""
+        },
+        {
+          "input": "runner = WorkflowRunner()\nrunner.add_job(\"extract\")\nrunner.add_job(\"train\", deps=[\"extract\"], max_attempts=2)\nrunner.add_job(\"report\", deps=[\"train\"])\nrunner.ready()\nrunner.transition(\"extract\", \"running\")\nrunner.transition(\"extract\", \"succeeded\")\nrunner.ready()",
+          "expression": "runner.ready()",
+          "operator": "==",
+          "expected": "[\"train\"]"
+        },
+        {
+          "input": "runner = WorkflowRunner()\nrunner.add_job(\"extract\")\nrunner.add_job(\"train\", deps=[\"extract\"], max_attempts=2)\nrunner.add_job(\"report\", deps=[\"train\"])\nrunner.ready()\nrunner.transition(\"extract\", \"running\")\nrunner.transition(\"extract\", \"succeeded\")\nrunner.ready()\nrunner.status(\"extract\")[\"attempts\"]",
+          "expression": "runner.status(\"extract\")[\"attempts\"]",
+          "operator": "==",
+          "expected": "1"
+        }
+      ]
+    },
+    {
+      "name": "retries until attempts are exhausted",
+      "visibility": "hidden",
+      "setup": [
+        "from solution import WorkflowRunner",
+        "runner = WorkflowRunner()",
+        "runner.add_job(\"job\", max_attempts=2)",
+        "runner.transition(\"job\", \"running\")"
+      ],
+      "checks": [
+        {
+          "input": "runner = WorkflowRunner()\nrunner.add_job(\"job\", max_attempts=2)\nrunner.transition(\"job\", \"running\")\nrunner.transition(\"job\", \"failed\", \"timeout\")",
+          "expression": "runner.transition(\"job\", \"failed\", \"timeout\")",
+          "operator": "==",
+          "expected": "\"retrying\""
+        },
+        {
+          "input": "runner = WorkflowRunner()\nrunner.add_job(\"job\", max_attempts=2)\nrunner.transition(\"job\", \"running\")\nrunner.transition(\"job\", \"failed\", \"timeout\")\nrunner.ready()",
+          "expression": "runner.ready()",
+          "operator": "==",
+          "expected": "[]"
+        },
+        {
+          "input": "runner = WorkflowRunner()\nrunner.add_job(\"job\", max_attempts=2)\nrunner.transition(\"job\", \"running\")\nrunner.transition(\"job\", \"failed\", \"timeout\")\nrunner.ready()\nrunner.transition(\"job\", \"pending\")",
+          "expression": "runner.transition(\"job\", \"pending\")",
+          "operator": "==",
+          "expected": "\"pending\""
+        },
+        {
+          "input": "runner = WorkflowRunner()\nrunner.add_job(\"job\", max_attempts=2)\nrunner.transition(\"job\", \"running\")\nrunner.transition(\"job\", \"failed\", \"timeout\")\nrunner.ready()\nrunner.transition(\"job\", \"pending\")\nrunner.ready()",
+          "expression": "runner.ready()",
+          "operator": "==",
+          "expected": "[\"job\"]"
+        },
+        {
+          "input": "runner = WorkflowRunner()\nrunner.add_job(\"job\", max_attempts=2)\nrunner.transition(\"job\", \"running\")\nrunner.transition(\"job\", \"failed\", \"timeout\")\nrunner.ready()\nrunner.transition(\"job\", \"pending\")\nrunner.ready()\nrunner.transition(\"job\", \"running\")\nrunner.transition(\"job\", \"failed\", \"timeout again\")",
+          "expression": "runner.transition(\"job\", \"failed\", \"timeout again\")",
+          "operator": "==",
+          "expected": "\"failed\"",
+          "before": "runner.transition(\"job\", \"running\")"
+        },
+        {
+          "input": "runner = WorkflowRunner()\nrunner.add_job(\"job\", max_attempts=2)\nrunner.transition(\"job\", \"running\")\nrunner.transition(\"job\", \"failed\", \"timeout\")\nrunner.ready()\nrunner.transition(\"job\", \"pending\")\nrunner.ready()\nrunner.transition(\"job\", \"running\")\nrunner.transition(\"job\", \"failed\", \"timeout again\")\nstatus = runner.status(\"job\")\nstatus[\"attempts\"]",
+          "expression": "status[\"attempts\"]",
+          "operator": "==",
+          "expected": "2",
+          "before": "status = runner.status(\"job\")"
+        },
+        {
+          "input": "runner = WorkflowRunner()\nrunner.add_job(\"job\", max_attempts=2)\nrunner.transition(\"job\", \"running\")\nrunner.transition(\"job\", \"failed\", \"timeout\")\nrunner.ready()\nrunner.transition(\"job\", \"pending\")\nrunner.ready()\nrunner.transition(\"job\", \"running\")\nrunner.transition(\"job\", \"failed\", \"timeout again\")\nstatus = runner.status(\"job\")\nstatus[\"attempts\"]\nstatus[\"history\"][-1][\"state\"]",
+          "expression": "status[\"history\"][-1][\"state\"]",
+          "operator": "==",
+          "expected": "\"failed\""
+        }
+      ]
+    },
+    {
+      "name": "rejects invalid transitions",
+      "visibility": "hidden",
+      "code": [
+        "from solution import WorkflowRunner",
+        "",
+        "runner = WorkflowRunner()",
+        "runner.add_job(\"job\")",
+        "",
+        "try:",
+        "    runner.transition(\"job\", \"succeeded\")",
+        "except ValueError as exc:",
+        "    assert \"invalid transition\" in str(exc)",
+        "else:",
+        "    raise AssertionError(\"expected ValueError\")"
+      ]
+    },
+    {
+      "name": "records status history with reasons",
+      "visibility": "sample",
+      "setup": [
+        "from solution import WorkflowRunner",
+        "runner = WorkflowRunner()",
+        "runner.add_job(\"job\")"
+      ],
+      "checks": [
+        {
+          "input": "runner = WorkflowRunner()\nrunner.add_job(\"job\")\nrunner.transition(\"job\", \"running\", reason=\"picked\")",
+          "expression": "runner.transition(\"job\", \"running\", reason=\"picked\")",
+          "operator": "==",
+          "expected": "\"running\""
+        },
+        {
+          "input": "runner = WorkflowRunner()\nrunner.add_job(\"job\")\nrunner.transition(\"job\", \"running\", reason=\"picked\")\nrunner.transition(\"job\", \"succeeded\", reason=\"done\")",
+          "expression": "runner.transition(\"job\", \"succeeded\", reason=\"done\")",
+          "operator": "==",
+          "expected": "\"succeeded\""
+        },
+        {
+          "input": "runner = WorkflowRunner()\nrunner.add_job(\"job\")\nrunner.transition(\"job\", \"running\", reason=\"picked\")\nrunner.transition(\"job\", \"succeeded\", reason=\"done\")\nstatus = runner.status(\"job\")\nstatus[\"state\"]",
+          "expression": "status[\"state\"]",
+          "operator": "==",
+          "expected": "\"succeeded\"",
+          "before": "status = runner.status(\"job\")"
+        },
+        {
+          "input": "runner = WorkflowRunner()\nrunner.add_job(\"job\")\nrunner.transition(\"job\", \"running\", reason=\"picked\")\nrunner.transition(\"job\", \"succeeded\", reason=\"done\")\nstatus = runner.status(\"job\")\nstatus[\"state\"]\nstatus[\"attempts\"]",
+          "expression": "status[\"attempts\"]",
+          "operator": "==",
+          "expected": "1"
+        },
+        {
+          "input": "runner = WorkflowRunner()\nrunner.add_job(\"job\")\nrunner.transition(\"job\", \"running\", reason=\"picked\")\nrunner.transition(\"job\", \"succeeded\", reason=\"done\")\nstatus = runner.status(\"job\")\nstatus[\"state\"]\nstatus[\"attempts\"]\nstatus[\"history\"]",
+          "expression": "status[\"history\"]",
+          "operator": "==",
+          "expected": "[\n    {\"state\": \"running\", \"reason\": \"picked\", \"attempt\": 1},\n    {\"state\": \"succeeded\", \"reason\": \"done\", \"attempt\": 1},\n]"
+        }
+      ]
+    },
+    {
+      "name": "rejects duplicate jobs invalid attempts and unknown deps",
+      "visibility": "hidden",
+      "code": [
+        "from solution import WorkflowRunner",
+        "",
+        "runner = WorkflowRunner()",
+        "runner.add_job(\"a\")",
+        "checks = [",
+        "    lambda: runner.add_job(\"a\"),",
+        "    lambda: runner.add_job(\"bad\", max_attempts=0),",
+        "    lambda: runner.add_job(\"missing\", deps=[\"nope\"]),",
+        "    lambda: runner.transition(\"unknown\", \"running\"),",
+        "    lambda: runner.status(\"unknown\"),",
+        "]",
+        "for check in checks:",
+        "    try:",
+        "        check()",
+        "    except ValueError:",
+        "        pass",
+        "    else:",
+        "        raise AssertionError(\"invalid job definition or unknown job should fail\")"
+      ]
+    },
+    {
+      "name": "canceled jobs cannot be started later",
+      "visibility": "hidden",
+      "code": [
+        "from solution import WorkflowRunner",
+        "",
+        "runner = WorkflowRunner()",
+        "runner.add_job(\"job\")",
+        "assert runner.transition(\"job\", \"canceled\", reason=\"user\") == \"canceled\"",
+        "assert runner.status(\"job\")[\"state\"] == \"canceled\"",
+        "try:",
+        "    runner.transition(\"job\", \"running\")",
+        "except ValueError:",
+        "    pass",
+        "else:",
+        "    raise AssertionError(\"canceled job should not restart\")"
+      ]
+    },
+    {
+      "name": "public completes a standalone job",
+      "visibility": "sample",
+      "setup": [
+        "from solution import WorkflowRunner",
+        "runner = WorkflowRunner()",
+        "runner.add_job(\"job\")",
+        "started = runner.transition(\"job\", \"running\")",
+        "finished = runner.transition(\"job\", \"succeeded\")"
+      ],
+      "input": "(started, finished, runner.status(\"job\")[\"attempts\"])",
+      "expected": "(\"running\", \"succeeded\", 1)"
+    },
+    {
+      "name": "hidden blocked dependency cannot start",
+      "visibility": "hidden",
+      "code": [
+        "from solution import WorkflowRunner",
+        "",
+        "runner = WorkflowRunner()",
+        "runner.add_job(\"first\")",
+        "runner.add_job(\"second\", deps=[\"first\"])",
+        "try:",
+        "    runner.transition(\"second\", \"running\")",
+        "except ValueError as exc:",
+        "    assert \"dependencies\" in str(exc)",
+        "else:",
+        "    raise AssertionError(\"expected ValueError\")"
+      ]
+    },
+    {
+      "name": "hidden empty workflow has no ready jobs",
+      "visibility": "hidden",
+      "setup": [
+        "from solution import WorkflowRunner",
+        "runner = WorkflowRunner()"
+      ],
+      "input": "runner.ready()",
+      "expected": "[]"
+    },
+    {
+      "name": "hidden standalone pending job is ready",
+      "visibility": "hidden",
+      "setup": [
+        "from solution import WorkflowRunner",
+        "runner = WorkflowRunner()",
+        "runner.add_job(\"job\")"
+      ],
+      "input": "runner.ready()",
+      "expected": "[\"job\"]"
+    },
+    {
+      "name": "hidden returned history cannot change stored transitions",
+      "visibility": "hidden",
+      "description": "Copy history records as well as the outer list so callers cannot edit the audit trail.",
+      "setup": [
+        "from solution import WorkflowRunner",
+        "runner = WorkflowRunner()",
+        "runner.add_job(\"job\")",
+        "runner.transition(\"job\", \"running\", reason=\"picked\")",
+        "snapshot = runner.status(\"job\")",
+        "snapshot[\"history\"][0][\"state\"] = \"fake\"",
+        "snapshot[\"history\"][0][\"attempt\"] = 999",
+        "snapshot[\"history\"].clear()",
+        "snapshot[\"attempts\"] = 999"
+      ],
+      "input": "runner.status(\"job\")",
+      "expected": "{\"state\": \"running\", \"attempts\": 1, \"history\": [{\"state\": \"running\", \"reason\": \"picked\", \"attempt\": 1}]}"
+    },
+    {
+      "name": "hidden ready jobs keep insertion order",
+      "visibility": "hidden",
+      "setup": [
+        "from solution import WorkflowRunner",
+        "runner = WorkflowRunner()",
+        "runner.add_job(\"b\")",
+        "runner.add_job(\"a\")",
+        "runner.add_job(\"c\", deps=[\"a\"])"
+      ],
+      "input": "runner.ready()",
+      "expected": "[\"b\", \"a\"]",
+      "feedback": "ready() must walk jobs in registration order, not sort ids."
+    }
+  ],
+  "clarifyingQuestions": [
+    "Which state transitions are legal?",
+    "Do retries happen automatically or require an explicit transition back to pending?",
+    "Should canceling a job cascade to dependent jobs?"
+  ],
+  "followUps": [
+    "Cancel an entire dependency subgraph.",
+    "Add retry backoff with a priority queue of wake-up times.",
+    "Emit append-only progress events for audit and replay."
+  ],
+  "followUpGuide": [
+    "For cascading cancel, build a reverse dependency index `children_by_dep`. When a job is canceled, traverse children and cancel pending or blocked descendants deterministically.",
+    "",
+    "For retry backoff, keep retrying jobs out of `ready()` until their wake-up timestamp passes. Use `heapq` keyed by `(ready_at, insertion_sequence, job_id)` so equal deadlines preserve a chosen stable order, and inject `now` for tests. Explicitly decide whether waking a retry performs its pending transition automatically.",
+    "",
+    "For audit events, append `{job_id, state, reason, attempt, timestamp}` on every transition. Clarify retention and replay boundaries before adding persistence."
+  ],
+  "complexityAnalysis": [
+    "- `add_job()` validates and copies its d dependencies in O(d + 1) expected time. `ready()` scans j jobs and at most e dependency edges in O(j + e) time, including the case with no dependencies. Its returned list uses O(j) space.",
+    "- `transition()` takes expected amortized O(1) for ordinary edges, but starting a pending job calls `ready()`, so that path is O(j + e) time and O(j) temporary space. Checking only the target job's dependencies could reduce starting to O(d + 1). `status()` copies the job's h history entries and their dictionaries in O(h + 1) time and space.",
+    "- Stored state uses Space: O(j + e + m) for j jobs, e dependency edges, and m history entries. A reverse dependency index (follow-up) adds O(e) space and avoids rescanning every job during dependency propagation."
+  ],
+  "solutionGuide": [
+    "Keep all transition validation in one helper. That prevents scattered checks from disagreeing when retry and cancellation behavior are added.",
+    "",
+    "Attempts increment when work actually starts, not when the job is added or when it waits in `retrying`. Validate before mutation so rejected starts cannot consume attempts or append history. Copy each history dictionary on status reads to preserve the stored transition trail.",
+    "",
+    "```python",
+    "from dataclasses import dataclass, field",
+    "",
+    "",
+    "@dataclass",
+    "class Job:",
+    "    job_id: str",
+    "    deps: list[str]",
+    "    max_attempts: int",
+    "    state: str = \"pending\"",
+    "    attempts: int = 0",
+    "    history: list[dict] = field(default_factory=list)",
+    "",
+    "",
+    "class WorkflowRunner:",
+    "    def __init__(self):",
+    "        self.jobs = {}",
+    "",
+    "    def add_job(self, job_id: str, deps: list[str] | None = None, max_attempts: int = 1) -> None:",
+    "        if job_id in self.jobs:",
+    "            raise ValueError(f\"duplicate job {job_id}\")",
+    "        if max_attempts < 1:",
+    "            raise ValueError(\"max_attempts must be positive\")",
+    "        deps = list(deps or [])",
+    "        missing = [dep for dep in deps if dep not in self.jobs]",
+    "        if missing:",
+    "            raise ValueError(f\"unknown dependencies: {missing}\")",
+    "        self.jobs[job_id] = Job(job_id, deps, max_attempts)",
+    "",
+    "    def ready(self) -> list[str]:",
+    "        ready = []",
+    "        for job_id, job in self.jobs.items():",
+    "            if job.state != \"pending\":",
+    "                continue",
+    "            if all(self.jobs[dep].state == \"succeeded\" for dep in job.deps):",
+    "                ready.append(job_id)",
+    "        return ready",
+    "",
+    "    def transition(self, job_id: str, state: str, reason: str | None = None) -> str:",
+    "        job = self._job(job_id)",
+    "        current = job.state",
+    "",
+    "        if state == \"running\" and current == \"pending\":",
+    "            if job_id not in self.ready():",
+    "                raise ValueError(\"dependencies are not satisfied\")",
+    "            job.attempts += 1",
+    "            return self._set_state(job, \"running\", reason)",
+    "        if state == \"succeeded\" and current == \"running\":",
+    "            return self._set_state(job, \"succeeded\", reason)",
+    "        if state == \"failed\" and current == \"running\":",
+    "            final_state = \"retrying\" if job.attempts < job.max_attempts else \"failed\"",
+    "            return self._set_state(job, final_state, reason)",
+    "        if state == \"pending\" and current == \"retrying\":",
+    "            return self._set_state(job, \"pending\", reason)",
+    "        if state == \"canceled\" and current in {\"pending\", \"running\", \"retrying\", \"failed\"}:",
+    "            return self._set_state(job, \"canceled\", reason)",
+    "",
+    "        raise ValueError(f\"invalid transition {current} -> {state}\")",
+    "",
+    "    def status(self, job_id: str) -> dict:",
+    "        job = self._job(job_id)",
+    "        return {",
+    "            \"state\": job.state,",
+    "            \"attempts\": job.attempts,",
+    "            \"history\": [entry.copy() for entry in job.history],",
+    "        }",
+    "",
+    "    def _job(self, job_id: str) -> Job:",
+    "        if job_id not in self.jobs:",
+    "            raise ValueError(f\"unknown job {job_id}\")",
+    "        return self.jobs[job_id]",
+    "",
+    "    def _set_state(self, job: Job, state: str, reason: str | None) -> str:",
+    "        job.state = state",
+    "        job.history.append({\"state\": state, \"reason\": reason, \"attempt\": job.attempts})",
+    "        return state",
+    "```",
+    "",
+    "Complexity is O(j + e) for ready() in this simple version. Add reverse indexes only when prompt scale requires it."
+  ]
+}

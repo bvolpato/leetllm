@@ -1,0 +1,175 @@
+version: 1
+lesson: gpu-kernel-performance-engineering-lab
+promise: Decide whether to keep a CUDA transpose change by checking the copied bits, tracing the
+  addresses of one warp, and comparing repeated timings on the same GPU.
+objectives:
+  - id: exact
+    can: Expose a skipped store that passes with reused output, and verify the repair against a
+      freshly poisoned destination.
+    scenes:
+      - intro
+      - bit-contract
+      - target-build
+  - id: timing
+    can: Identify launch timing boundaries, normalize logical bytes and preserve raw repeated samples
+    scenes:
+      - timing-window
+      - logical-rate
+      - synthesis
+  - id: memory
+    can: Compute full, misaligned and masked sector coverage from actual lane addresses
+    scenes:
+      - sectors
+      - edge-sectors
+  - id: ownership
+    can: Trace a value through the producing and consuming warps of an edge tile
+    scenes:
+      - tiles
+      - edge-ownership
+      - fresh-trial
+  - id: banks
+    can: Route the same scalar column read at strides 32, 33 and 34, count distinct words per
+      bank, and calculate the extra shared storage.
+    scenes:
+      - banks
+      - stride-transfer
+  - id: resources
+    can: Separate unroll hypotheses and declared resource capacity from actual target performance
+    scenes:
+      - unroll-issue
+      - resource-budget
+  - id: repair
+    can: Trace a stale register back to its early shared read and check the barrier repair against
+      the recorded sanitizer results.
+    scenes:
+      - barrier
+      - race-recovery
+  - id: primitive
+    can: Compute reduction summaries and stable compaction offsets from a mismatch vector
+    scenes:
+      - primitives
+  - id: evidence
+    can: Compare the five paired timing rounds, distinguish a bank-mapping result from a measured
+      speed benefit, and design a control that separates padding from block geometry.
+    scenes:
+      - profile-boundary
+      - synthesis
+      - fresh-trial
+sections:
+  - heading: Keep one experiment stable
+    status: taught
+    scenes:
+      - intro
+      - bit-contract
+      - timing-window
+  - heading: Build the lab on an NVIDIA GPU
+    status: taught
+    scenes:
+      - target-build
+      - timing-window
+  - heading: Read the naive memory path
+    status: taught
+    scenes:
+      - sectors
+      - edge-sectors
+      - logical-rate
+  - heading: Profile before editing
+    status: taught
+    scenes:
+      - profile-boundary
+  - heading: Coalesce both global directions
+    status: taught
+    scenes:
+      - tiles
+      - edge-ownership
+  - heading: Check the edge-tile mapping without a GPU
+    status: taught
+    scenes:
+      - edge-ownership
+      - fresh-trial
+  - heading: Change the shared-memory stride
+    status: taught
+    scenes:
+      - banks
+      - stride-transfer
+      - fresh-trial
+  - heading: Loop unrolling and instruction-level parallelism
+    status: taught
+    scenes:
+      - unroll-issue
+  - heading: Occupancy is a constraint, not a score
+    status: taught
+    scenes:
+      - resource-budget
+  - heading: Deliberately remove the barrier
+    status: taught
+    scenes:
+      - barrier
+      - race-recovery
+  - heading: Decide between transpose, reduction, and scan
+    status: taught
+    scenes:
+      - primitives
+  - heading: Report the result you measured
+    status: taught
+    scenes:
+      - profile-boundary
+      - synthesis
+      - fresh-trial
+quiz:
+  - n: 1
+    status: taught
+    scenes:
+      - intro
+      - bit-contract
+  - n: 2
+    status: taught
+    scenes:
+      - edge-sectors
+  - n: 3
+    status: taught
+    scenes:
+      - edge-ownership
+      - fresh-trial
+  - n: 4
+    status: taught
+    scenes:
+      - banks
+      - stride-transfer
+  - n: 5
+    status: taught
+    scenes:
+      - resource-budget
+  - n: 6
+    status: taught
+    scenes:
+      - logical-rate
+      - timing-window
+  - n: 7
+    status: taught
+    scenes:
+      - barrier
+      - race-recovery
+  - n: 8
+    status: taught
+    scenes:
+      - unroll-issue
+      - synthesis
+  - n: 9
+    status: taught
+    scenes:
+      - primitives
+  - n: 10
+    status: taught
+    scenes:
+      - profile-boundary
+removed: []
+reviews:
+  closed_book:
+    script: 0f2f522faf944b7b
+    taught: 10
+    partial: 0
+    absent: 0
+  fact_check:
+    script: 0f2f522faf944b7b
+    open_findings: 0

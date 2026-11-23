@@ -1,0 +1,233 @@
+version: 1
+lesson: grouped-query-attention
+promise: Trace a query to its stored history and decide which request fits after accounting for the copies on each rank.
+framing:
+  - opening
+objectives:
+  - id: shared-readers
+    can: Route a query to its history, compute its weights and price one more cached position.
+    scenes:
+      - opening
+      - attention
+      - map
+      - architectures
+      - tensors
+      - budget
+  - id: serving-budget
+    can: Distinguish ideal read time, temporary allocations and retained bytes, then test a request against each rank's allowance.
+    scenes:
+      - roofline
+      - large-budget
+      - model-config
+      - physical-heads
+      - tradeoff
+      - kernel-route
+      - synthesis
+      - earned-transfer
+  - id: learned-representations
+    can: Check how pooling changes an output and which part of an MLA query can be reused across cached positions.
+    scenes:
+      - pooling-failure
+      - latent-store
+      - latent-score
+      - position-split
+  - id: cache-correctness
+    can: Trace an append and use absolute query positions to check single-token and chunked attention against full-prefix execution.
+    scenes:
+      - cache-step
+      - causal-repair
+      - synthesis
+sections:
+  - heading: Why KV cache memory becomes the bottleneck
+    status: taught
+    scenes: &a1
+      - roofline
+      - opening
+  - heading: The autoregressive memory wall and operational intensity
+    status: taught
+    scenes: *a1
+  - heading: Count the stored numbers first
+    status: taught
+    scenes: &a2
+      - tensors
+      - budget
+      - large-budget
+  - heading: KV cache memory with standard MHA
+    status: taught
+    scenes: *a2
+  - heading: Concrete example (72B-style decoder dimensions)
+    status: taught
+    scenes: *a2
+  - heading: Multi-query attention (MQA)
+    status: taught
+    scenes: &a3
+      - attention
+      - architectures
+  - heading: One shared K/V pair
+    status: taught
+    scenes: *a3
+  - heading: Performance vs. quality tradeoffs in MQA
+    status: taught
+    scenes: *a3
+  - heading: A minimal MQA decode step
+    status: taught
+    scenes: *a3
+  - heading: Grouped-query attention (GQA)
+    status: taught
+    scenes: &a4
+      - map
+      - architectures
+  - heading: Groups of queries, fewer K/V heads
+    status: taught
+    scenes: *a4
+  - heading: GQA in practice
+    status: taught
+    scenes:
+      - model-config
+  - heading: Tensor Parallelism interactions
+    status: taught
+    scenes: &a10
+      - physical-heads
+      - earned-transfer
+  - heading: Converting MHA to GQA via uptraining
+    status: taught
+    scenes: &a5
+      - pooling-failure
+  - heading: The mean-pooling initialization
+    status: taught
+    scenes: *a5
+  - heading: The uptraining recipe and compute budget
+    status: taught
+    scenes: *a5
+  - heading: "Beyond GQA: Multi-head latent attention (MLA)"
+    status: taught
+    scenes: &a6
+      - latent-store
+      - position-split
+  - heading: Low-rank joint KV compression and decoupled RoPE
+    status: taught
+    scenes: *a6
+  - heading: Matrix absorption for content attention
+    status: taught
+    scenes:
+      - latent-score
+  - heading: "MLA vs. GQA: exact payload comparison"
+    status: taught
+    scenes: *a6
+  - heading: Serving impact
+    status: taught
+    scenes: &a7
+      - large-budget
+      - roofline
+      - tradeoff
+      - earned-transfer
+  - heading: Memory capacity vs. memory bandwidth
+    status: taught
+    scenes: *a7
+  - heading: Concurrency ceilings (72B-style dimensions, 4K context)
+    status: taught
+    scenes: *a7
+  - heading: Long-context impact and serving ceilings
+    status: taught
+    scenes: *a7
+  - heading: How serving engines handle GQA head expansion
+    status: taught
+    scenes: &a9
+      - kernel-route
+      - synthesis
+  - heading: KV cache update correctness
+    status: taught
+    scenes: &a8
+      - cache-step
+      - causal-repair
+  - heading: Common cache update bugs and diagnostic checks
+    status: taught
+    scenes: *a8
+  - heading: Predict the visible keys
+    status: taught
+    scenes:
+      - causal-repair
+  - heading: Compare cached and recomputed outputs
+    status: taught
+    scenes: *a8
+  - heading: Common pitfalls
+    status: taught
+    scenes: &a11
+      - synthesis
+      - earned-transfer
+      - cache-step
+  - heading: Conflating model weights with KV cache memory
+    status: taught
+    scenes: *a7
+  - heading: Assuming GQA accelerates pretraining throughput
+    status: taught
+    scenes: *a9
+  - heading: Believing an 8x KV cache cut guarantees an 8x throughput speedup
+    status: taught
+    scenes:
+      - tradeoff
+      - large-budget
+  - heading: Expanding KV heads with repeat_interleave in serving kernels
+    status: taught
+    scenes: *a9
+  - heading: Overlooking KV head replication in tensor parallelism
+    status: taught
+    scenes: *a10
+  - heading: Validate a GQA conversion before rollout
+    status: taught
+    scenes: *a11
+quiz:
+  - n: 1
+    status: taught
+    scenes:
+      - map
+  - n: 2
+    status: taught
+    scenes:
+      - roofline
+  - n: 3
+    status: taught
+    scenes:
+      - tensors
+      - large-budget
+  - n: 4
+    status: taught
+    scenes:
+      - tradeoff
+  - n: 5
+    status: taught
+    scenes:
+      - latent-score
+  - n: 6
+    status: taught
+    scenes:
+      - position-split
+  - n: 7
+    status: taught
+    scenes:
+      - pooling-failure
+  - n: 8
+    status: taught
+    scenes:
+      - physical-heads
+  - n: 9
+    status: taught
+    scenes:
+      - kernel-route
+      - synthesis
+  - n: 10
+    status: taught
+    scenes:
+      - causal-repair
+removed: []
+reviews:
+  closed_book:
+    taught: 10
+    partial: 0
+    absent: 0
+    script: 94574b754b7bcf17
+  fact_check:
+    open_findings: 0
+    script: 94574b754b7bcf17
+  evidence: build/video-delivery-20261106/script-reviews/grouped-query-attention.json
+  evidence_sha256: 612eb6715d4c5d4ee0dca2d17be78786d390ab2954cfd6c6df953ce32713e468

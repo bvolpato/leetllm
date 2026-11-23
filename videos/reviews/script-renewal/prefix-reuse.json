@@ -1,0 +1,405 @@
+{
+  "id": "prefix-reuse",
+  "script": "9ed30dbc1ba37002",
+  "articleHash": "bcf3f6eaecd29f726b534ae4f02c09c85f7573368187e1b448503062822b23fa",
+  "checked": "2026-11-10T04:56:33.995Z",
+  "closedBook": {
+    "taught": 10,
+    "partial": 0,
+    "absent": 0,
+    "answers": [
+      {
+        "n": 1,
+        "option": 1,
+        "coverage": "taught",
+        "quotes": [
+          {
+            "scene": "radix-split",
+            "quote": "Divide the common-prefix length by the block size, discard the fraction, then multiply by block size."
+          },
+          {
+            "scene": "fresh-budget",
+            "quote": "Reuse stops there, so the remaining seven hundred and four guide tokens plus the sixty-four-token question need seven hundred and sixty-eight fresh positions. Identical later words cannot restart the old causal chain."
+          }
+        ],
+        "reason": "The first 4237 tokens match. Full-block reuse is floor(4237/32) × 32 = 4224 tokens. Fresh input is 4300 − 4224 = 76 tokens.",
+        "exact": true,
+        "correct": true,
+        "grade": "taught"
+      },
+      {
+        "n": 2,
+        "option": 2,
+        "coverage": "taught",
+        "quotes": [
+          {
+            "scene": "hosted-boundaries",
+            "quote": "Mark the end of the stable guide on the warmup and subsequent requests, leaving changing questions after it. Explicit-only mode with no markers performs no cache reads or writes. A selected boundary below the model minimum remains ineligible even if an unmarked suffix makes the whole request long enough."
+          }
+        ],
+        "reason": "The marked guide must itself meet the 1536-token minimum. Extending the stable guide to 1600 and marking it during warmup and reads qualifies that endpoint while leaving changing questions outside the write.",
+        "exact": true,
+        "correct": true,
+        "grade": "taught"
+      },
+      {
+        "n": 3,
+        "option": 4,
+        "coverage": "taught",
+        "quotes": [
+          {
+            "scene": "lookup-window",
+            "quote": "The current lookup window counts twenty eligible positions, including the selected breakpoint itself."
+          },
+          {
+            "scene": "lookup-window",
+            "quote": "A marker at fifteen supplies a direct lookup there, subject to the other eligibility and availability checks."
+          },
+          {
+            "scene": "lookup-window",
+            "quote": "With several eligible markers, take the longest compatible available prefix reached; overlapping prefix lengths are not added together."
+          }
+        ],
+        "reason": "Marker 31 searches positions 12–31 and reaches entry 12. Marker 60 searches 41–60 and misses entry 40. Initially reuse is 12 positions. Adding marker 40 directly reaches entry 40, making 40 the longest reusable prefix.",
+        "exact": true,
+        "correct": true,
+        "grade": "taught"
+      },
+      {
+        "n": 4,
+        "option": 1,
+        "coverage": "taught",
+        "quotes": [
+          {
+            "scene": "partial-writes",
+            "quote": "The first request writes six thousand. Each later request reads one thousand and twenty-four and writes four thousand nine hundred and seventy-six."
+          },
+          {
+            "scene": "partial-writes",
+            "quote": "Price the first row at seven thousand five hundred units. Each later row costs one hundred and two point four for its read, plus six thousand two hundred and twenty for its write: six thousand three hundred and twenty-two point four. Three such rows plus the first give twenty-six thousand four hundred and sixty-seven point two. Four cold inputs cost twenty-four thousand."
+          }
+        ],
+        "reason": "The first request costs 4000 × 1.25 = 5000 units. Each later request costs 1500 × 0.10 + 2500 × 1.25 = 3275. Total cost is 5000 + 2 × 3275 = 11550, versus 12000 uncached, saving 450.",
+        "exact": true,
+        "correct": true,
+        "grade": "taught"
+      },
+      {
+        "n": 5,
+        "option": 3,
+        "coverage": "taught",
+        "quotes": [
+          {
+            "scene": "latency-path",
+            "quote": "Estimate first-token arrival from queue plus the relevant processing and transfer dependencies, then measure it at the same request endpoints."
+          },
+          {
+            "scene": "latency-path",
+            "quote": "Remaining generation makes total completion twenty-two hundred and fifty warm versus twenty-one hundred and twenty cold."
+          }
+        ],
+        "reason": "A reaches its first token in 600 + 80 = 680 ms. B reaches it in 50 + 500 = 550 ms, so B is faster. B completes in 550 + 700 = 1250 ms.",
+        "exact": true,
+        "correct": true,
+        "grade": "taught"
+      },
+      {
+        "n": 6,
+        "option": 2,
+        "coverage": "taught",
+        "quotes": [
+          {
+            "scene": "usage-buckets",
+            "quote": "In the current OpenAI Responses usage schema, input tokens is the whole two thousand six hundred. Its detail fields supply cached tokens for reads and cache-write tokens for writes. Subtract both from the total to recover two hundred ordinary input tokens. A cache write is not also a cache read."
+          },
+          {
+            "scene": "usage-buckets",
+            "quote": "Claude uses cache-read input tokens, cache-creation input tokens, and input tokens for the ordinary portion. Here those fields are two thousand, four hundred, and two hundred. Add all three to recover the same two thousand six hundred."
+          },
+          {
+            "scene": "telemetry-slices",
+            "quote": "Compute volume-weighted reuse by summing reused input tokens, then dividing by summed input tokens across the selected requests."
+          }
+        ],
+        "reason": "OpenAI ordinary input is 4096 − 1024 − 2048 = 1024. Claude total input is 1024 + 1024 + 2048 = 4096. Both read fractions are 1024/4096 = 25%.",
+        "exact": true,
+        "correct": true,
+        "grade": "taught"
+      },
+      {
+        "n": 7,
+        "option": 4,
+        "coverage": "taught",
+        "quotes": [
+          {
+            "scene": "pool-headroom",
+            "quote": "The allocatable total is four hundred plus one hundred and fifty, or five hundred and fifty. Cached contents and availability are overlapping descriptions, not two separate pools to add to device memory."
+          },
+          {
+            "scene": "pool-headroom",
+            "quote": "A request needs two hundred new distinct blocks. In the illustrated free-first policy, consume all one hundred and fifty uncached blocks and replace fifty cached entries. Referenced blocks rise to six hundred and fifty; cached unreferenced entries fall to three hundred and fifty. The resident allocation remains one thousand."
+          }
+        ],
+        "reason": "The allocator consumes 26 uncached blocks and replaces 9 cached blocks. Referenced blocks become 53 + 35 = 88; cached unreferenced blocks become 41 − 9 = 32; uncached free blocks become 0. Available blocks total 32.",
+        "exact": true,
+        "correct": true,
+        "grade": "taught"
+      },
+      {
+        "n": 8,
+        "option": 1,
+        "coverage": "taught",
+        "quotes": [
+          {
+            "scene": "causal-keys",
+            "quote": "A serving engine also binds the relevant model, adapter, positions, and other conditioning to its cache namespace. Matching text becomes useful only within a computation contract that can safely reproduce the intended state."
+          },
+          {
+            "scene": "prompt-order",
+            "quote": "Move the variable detail after the instructions, guide, and tools. The stable sections now share their starting history."
+          },
+          {
+            "scene": "publication",
+            "quote": "Request three arrives after publication and finds the compatible guide. The stored prefix is reused, while its own question proceeds separately."
+          }
+        ],
+        "reason": "R1 changes adapter identity, so the stored guide state is incompatible. R2 preserves the guide and its preceding history under adapter A; its changed timestamp follows the guide, so the available guide entry can be reused.",
+        "exact": true,
+        "correct": true,
+        "grade": "taught"
+      },
+      {
+        "n": 9,
+        "option": 3,
+        "coverage": "taught",
+        "quotes": [
+          {
+            "scene": "diagnose-replay",
+            "quote": "If the rendered prompt still contains the old policy, fix retrieval, rollout, or rendering and replay the same request. If the prompt is fresh and the old answer survives on a verified cold run, inspect generation and any answer or semantic cache."
+          },
+          {
+            "scene": "diagnose-replay",
+            "quote": "Bypass any separate answer cache for a controlled generation check while keeping rendered input and model revision fixed."
+          }
+        ],
+        "reason": "A has stale rendered input, so repair rendering to send v4. B already has fresh input and a verified cold prefix path, so bypass any answer cache and inspect generation while holding v4 and the model revision fixed.",
+        "exact": true,
+        "correct": true,
+        "grade": "taught"
+      },
+      {
+        "n": 10,
+        "option": 2,
+        "coverage": "taught",
+        "quotes": [
+          {
+            "scene": "radix-split",
+            "quote": "Divide the common-prefix length by the block size, discard the fraction, then multiply by block size."
+          },
+          {
+            "scene": "fresh-budget",
+            "quote": "Reuse stops there, so the remaining seven hundred and four guide tokens plus the sixty-four-token question need seven hundred and sixty-eight fresh positions. Identical later words cannot restart the old causal chain."
+          },
+          {
+            "scene": "fresh-budget",
+            "quote": "Seven hundred and sixty-eight exceeds it. Defer the request or authorize that larger work budget if resources permit; pretending to reuse the changed block cannot repair the limit."
+          }
+        ],
+        "reason": "The first 4480 guide tokens match and fill 140 blocks. Fresh input is (5120 − 4480) + 80 = 720 tokens. This exceeds 700, so admission requires a limit of at least 720.",
+        "exact": true,
+        "correct": true,
+        "grade": "taught"
+      }
+    ]
+  },
+  "factCheck": {
+    "scenes": [
+      {
+        "id": "intro",
+        "evidence": "Supported for the causal Transformer setting used here. Attention computes outputs from queries, keys, and values. Causal masking prevents an appended question from changing earlier prefix states. Reusing compatible KV state avoids reconstructing that prefix while leaving suffix processing and answer generation. Availability and sharing scope remain separate requirements.",
+        "sourceUrls": [
+          "https://arxiv.org/html/1706.03762",
+          "https://arxiv.org/html/2312.07104"
+        ]
+      },
+      {
+        "id": "causal-keys",
+        "evidence": "Supported. Earlier context can affect later hidden representations and therefore deeper-layer KV state. vLLM documents parent hashes, block tokens, and conditioning extras. Independently executed the matching local fixture: the instruction digest remains 98fb7e9d…, while the guide changes from 3ec58574… to be5905bf… and tools from aef70f45… to 3a1e11b3…. These are actual structured SHA-256 calculations. The namespace statement appropriately avoids claiming that every engine embeds every setting in each block hash.",
+        "sourceUrls": [
+          "https://arxiv.org/html/1706.03762",
+          "https://docs.vllm.ai/en/latest/design/prefix_caching/"
+        ]
+      },
+      {
+        "id": "radix-split",
+        "evidence": "Supported. Comparing [11,12,13,14] with [11,12,99] yields shared edge [11,12] and distinct suffixes [13,14] and [99]. SGLang section 3 documents compressed edges, prompt and generation caching, single-token pages, reference counts, and eviction of eligible LRU leaves. Independently checked floor(6005/16) × 16 = 375 × 16 = 6000, leaving five tokens. The backend-granularity qualification is necessary and correct.",
+        "sourceUrls": [
+          "https://arxiv.org/html/2312.07104",
+          "https://docs.vllm.ai/en/latest/design/prefix_caching/"
+        ]
+      },
+      {
+        "id": "block-boundaries",
+        "evidence": "Supported. Executing the local arithmetic fixture gives common-prefix/reused lengths [9,8]. Changing token three gives [2,0]. Equivalently, floor(9/4) × 4 = 8 and floor(2/4) × 4 = 0. Later equal tokens do not restore an exact starting-prefix match. This conclusion is correctly limited to the illustrated full-block lookup.",
+        "sourceUrls": [
+          "https://docs.vllm.ai/en/latest/design/prefix_caching/"
+        ]
+      },
+      {
+        "id": "prompt-order",
+        "evidence": "Supported. The labeled arrays diverge at their first section in variable-first order and share exactly three sections in stable-first order. These are section counts, as the narration explicitly states. Chat templates serialize role-dependent control tokens before tokenization, so final serialized identity is the relevant comparison. Changed timestamps, whitespace, or literal JSON ordering can change that identity; the narration correctly says 'can,' rather than asserting every tokenizer preserves every formatting difference.",
+        "sourceUrls": [
+          "https://huggingface.co/docs/transformers/main/en/chat_templating",
+          "https://huggingface.co/docs/transformers/main/en/tokenizer_summary"
+        ]
+      },
+      {
+        "id": "rendered-identity",
+        "evidence": "Supported. A source digest omits template and conditioning choices. LF is byte 0A; CRLF is 0D 0A. A reversible byte-level tokenizer without intervening normalization cannot encode these distinct byte strings identically. Restoring the original input restores compatibility, subject to availability. RFC 8259 defines objects as unordered and arrays as ordered; application semantics still govern safe canonicalization. vLLM explicitly distinguishes image content from repeated placeholder tokens using image identity.",
+        "sourceUrls": [
+          "https://huggingface.co/docs/transformers/main/en/chat_templating",
+          "https://huggingface.co/docs/transformers/main/en/tokenizer_summary",
+          "https://www.rfc-editor.org/info/rfc8259/",
+          "https://docs.vllm.ai/en/latest/design/prefix_caching/"
+        ]
+      },
+      {
+        "id": "publication",
+        "evidence": "Supported as an authored fixture. The inspected model starts with an empty entry set and inserts the guide-boundary hash at publication; the subsequent lookup succeeds. Independently, an index storing only whole-request keys cannot find a shorter guide unless it exposes that prefix separately. Concurrent requests may therefore miss before readiness. This is not a universal requirement to await completion of the entire first response; the narration correctly distinguishes provider readiness later.",
+        "sourceUrls": [
+          "https://developers.openai.com/api/docs/guides/prompt-caching",
+          "https://platform.claude.com/docs/en/build-with-claude/prompt-caching"
+        ]
+      },
+      {
+        "id": "hosted-boundaries",
+        "evidence": "Supported by current official OpenAI documentation for GPT-5.6 and later. It documents explicit-only mode, eligible developer input_text breakpoints, no caching without markers in explicit mode, and a 1024-visible-token prefix minimum. An unmarked suffix does not enlarge the selected prefix. Supported prewarming generates no output and incurs write charges. Lifetimes are 30 minutes or 12 hours. A 30-minute read preserves max(existing expiry, read time + 30 minutes), without restarting 12 hours. These minimum lifetimes are not deletion deadlines. Earlier-model behavior differs.",
+        "sourceUrls": [
+          "https://developers.openai.com/api/docs/guides/prompt-caching"
+        ]
+      },
+      {
+        "id": "lookup-window",
+        "evidence": "Supported. Claude documents automatic and explicit placement, tools/system/messages ordering, model/platform minimums, grouped consecutive tool blocks, four slots, and automatic placement using one. Inclusive arithmetic: 34−15+1=20; 35−15+1=21. Thus position 15 is reachable from 34 but outside 35's window; its own marker reaches it. Availability begins when the response starts. Five-minute/default and one-hour TTLs refresh from request start. Longest-prefix selection avoids adding overlapping lengths.",
+        "sourceUrls": [
+          "https://platform.claude.com/docs/en/build-with-claude/prompt-caching"
+        ]
+      },
+      {
+        "id": "usage-buckets",
+        "evidence": "Supported. Arithmetic: 2000+400+200=2600 and 2600−2000−400=200. Supported OpenAI Responses models report total input_tokens with cached_tokens and cache_write_tokens details; reads exclude writes. Claude reports the same three disjoint portions using cache_read_input_tokens, cache_creation_input_tokens, and ordinary input_tokens. Output remains separate. The API-schema qualification is appropriate.",
+        "sourceUrls": [
+          "https://developers.openai.com/api/docs/guides/prompt-caching",
+          "https://platform.claude.com/docs/en/build-with-claude/prompt-caching"
+        ]
+      },
+      {
+        "id": "write-economics",
+        "evidence": "Supported. Documented tiers have the fixture's 1.25× write and 0.10× read ratios. Independently checked: 6000×1.25=7500; premium=1500; read=600; saving=5400; combined=8100 versus 12000. Algebra gives N[write+r×read] ≤ N(r+1)ordinary, equivalent to r(ordinary−read) ≥ write−ordinary for positive N. At write=2, ordinary=1, read=0.1, r≥1/0.9, requiring two whole reads. Expiry or eviction can remove those opportunities.",
+        "sourceUrls": [
+          "https://platform.claude.com/docs/en/about-claude/pricing",
+          "https://developers.openai.com/api/docs/pricing"
+        ]
+      },
+      {
+        "id": "partial-writes",
+        "evidence": "All arithmetic checks. Tail=6000−1024=4976. Later read=102.4; write=6220; row=6322.4. Total=7500+3×6322.4=26467.2, which is 10.28%, rounded to 10.3%, above 24000. Stable-only writes give first cost 1024×1.25+4976=6256; later cost 1024×0.1+4976=5078.4; total=21491.2. These conclusions correctly depend on the stipulated buckets, qualifying boundary, and excluded charges.",
+        "sourceUrls": [
+          "https://developers.openai.com/api/docs/pricing",
+          "https://platform.claude.com/docs/en/about-claude/pricing"
+        ]
+      },
+      {
+        "id": "worker-locality",
+        "evidence": "Supported. With independent initially empty caches and completed sequential requests, routing 0,1,2,0 produces three cold computations and one hit; routing 0,0,0,0 produces one cold computation and three hits. SGLang appendix A.4 explicitly describes worker subtrees and a router meta-tree with eviction updates. Bounded-load hashing constrains assignment load through capacities and forwarding, rather than predicting token latency. Mooncake explicitly compares queue, prefill, and transfer estimates. Sharing authorization remains independent of routing.",
+        "sourceUrls": [
+          "https://arxiv.org/html/2312.07104",
+          "https://arxiv.org/html/1608.01350",
+          "https://arxiv.org/html/2407.00079"
+        ]
+      },
+      {
+        "id": "latency-path",
+        "evidence": "All authored-clock calculations check: 1220+20=1240; 170+20=190; loaded warm TTFT=170+1200=1370. Computation saved=1050; extra queue=1180; net delay=130. Completion times are 1370+880=2250 and 1240+880=2120. Mooncake supports accounting for these dependencies. In full causal attention, suffix and generated queries still use prefix KV, so reused-token fraction alone cannot predict end-to-end speedup. Equal remaining-generation time is explicitly an assumption.",
+        "sourceUrls": [
+          "https://arxiv.org/html/2407.00079",
+          "https://arxiv.org/html/1706.03762"
+        ]
+      },
+      {
+        "id": "telemetry-slices",
+        "evidence": "All ratios check independently: 6000/6048=99.2063%; 600/6048=9.9206%; version seven=(600+6000)/(6048+6048)=54.5635%, rounded to 54.6%. Summed reused tokens divided by summed input tokens is the volume-weighted ratio. Binary hits cannot retain this magnitude information. OpenAI diagnostics explicitly distinguish an accounting-key reported miss from a physical miss and direct billing/reuse measurement to current usage. No live measurement is claimed.",
+        "sourceUrls": [
+          "https://developers.openai.com/api/docs/guides/prompt-caching/diagnostics"
+        ]
+      },
+      {
+        "id": "isolation",
+        "evidence": "Supported as a simulation. The inspected scopedKey function selects scope from its session table, ignores clientLabel, and hashes scope, model revision, guide version, and token IDs. Unknown sessions are rejected. Independent reconstruction confirms that A and B differ despite B claiming A; changing model or guide version also changes the structured digest. This demonstrates lookup separation under the supplied trust table, not production authentication. Hashing alone cannot establish authorization.",
+        "sourceUrls": [
+          "https://docs.vllm.ai/en/v0.31.0/usage/security/",
+          "https://arxiv.org/html/2502.07776"
+        ]
+      },
+      {
+        "id": "isolation-probes",
+        "evidence": "Supported. Primary research detects cache timing differences using repeated samples and statistical distribution comparisons while recognizing network and load variance. A tenant-derived namespace blocks the forbidden lookup path only when its selection is enforced. vLLM documents cache salts and their threat model. Hosted boundaries differ: OpenAI documents organization/region boundaries; Claude documents workspace or organization isolation by platform. An accounting label does not authenticate its caller. Output, routing, and logging access controls require their own enforcement.",
+        "sourceUrls": [
+          "https://arxiv.org/html/2502.07776",
+          "https://docs.vllm.ai/en/v0.31.0/usage/security/",
+          "https://developers.openai.com/api/docs/guides/prompt-caching",
+          "https://platform.claude.com/docs/en/build-with-claude/prompt-caching"
+        ]
+      },
+      {
+        "id": "pool",
+        "evidence": "Supported as the illustrated allocation policy. The inspected fixture contains 20 blocks: nine referenced, eight cached/unreferenced, and three uncached/free. Its allocation order is [17,18,19,9,10]. Allocating five therefore consumes three free blocks and replaces two cached blocks, leaving 14 referenced and six cached. The original referenced IDs remain protected, old entry 9 disappears, and resident block count stays 20. This validates the stated distinction between ownership, cached content, and fixed pool storage.",
+        "sourceUrls": [
+          "https://docs.vllm.ai/en/latest/design/prefix_caching/"
+        ]
+      },
+      {
+        "id": "pool-headroom",
+        "evidence": "Supported. Independently checked 450+400+150=1000 and allocatable=400+150=550. Two hundred distinct new blocks require at least max(0,200−150)=50 replacements. Free-first allocation yields 650 referenced, 350 cached/unreferenced, zero uncached/free, and 350 still allocatable. vLLM documents touching references/removing free-queue membership and removing evicted hashes. Safe storage reuse must respect pending computation. A memory-byte percentage cannot determine these logical counts or establish a universal safe threshold.",
+        "sourceUrls": [
+          "https://docs.vllm.ai/en/latest/design/prefix_caching/"
+        ]
+      },
+      {
+        "id": "savings",
+        "evidence": "Supported under the stated availability and compatibility assumptions. Prefix components sum to 600+4200+800+400=6000. Question tails sum to 48+37+51=136. Three cold inputs total 3×6000+136=18136; one cold plus two warm inputs total 6000+136=6136. Difference=12000. Every question token remains counted, while output, time, and billing remain distinct quantities.",
+        "sourceUrls": [
+          "https://arxiv.org/html/1706.03762",
+          "https://developers.openai.com/api/docs/guides/prompt-caching/diagnostics"
+        ]
+      },
+      {
+        "id": "diagnose-replay",
+        "evidence": "Supported as diagnostic reasoning. In an exact-prefix system, changed input cannot match the old changed-position/dependent-prefix identity, although an earlier unchanged prefix can remain reusable. Cache availability does not establish retrieval freshness, instruction following, or answer validity. A controlled cold run and bypass of a separate answer cache distinguish these mechanisms. Model sampling and numerical execution differences also prevent a general identical-answer guarantee. The miss checklist correctly separates identity, eligibility, availability, locality, and isolation.",
+        "sourceUrls": [
+          "https://docs.vllm.ai/en/latest/design/prefix_caching/",
+          "https://docs.vllm.ai/en/latest/features/batch_invariance/",
+          "https://developers.openai.com/api/docs/guides/prompt-caching/diagnostics"
+        ]
+      },
+      {
+        "id": "fresh-budget",
+        "evidence": "All arithmetic checks, including execution of the local guideWork function. 4800/16=300 full guide blocks; unchanged fresh input=64. Editing one-based position 4097 leaves 4096 matching tokens, or 256 blocks. Remaining guide=4800−4096=704; fresh input=704+64=768, exceeding 700 by 68 and exactly fitting a cap of 768. Output remains separate. FlashAttention's original algorithm tiles exact attention and avoids storing full score/probability matrices in HBM; it also applies to remaining attention involving cached KV.",
+        "sourceUrls": [
+          "https://arxiv.org/html/2205.14135",
+          "https://docs.vllm.ai/en/latest/design/prefix_caching/"
+        ]
+      }
+    ],
+    "findings": [],
+    "limitations": [
+      "No material factual errors were identified in the supplied narration under its stated fixture assumptions. Provider contracts were checked against current primary documentation on 2026-11-09.",
+      "No live provider requests, GPU serving experiments, billing observations, concurrency tests, eviction traces, or security probes were performed. Documentation verifies published contracts, not deployment compliance.",
+      "Arithmetic and structured hashes were independently recomputed. Matching local arithmetic and simulation source was also inspected; the rendered film, spoken audio, visual timing, and exact correspondence of every displayed element were not verified.",
+      "No production tokenizer or renderer was specified or exercised. Formatting claims are conditional possibilities; exact mismatch positions depend on preprocessing and tokenization.",
+      "The session table represents trusted authentication results. Real authentication, gateway enforcement, storage isolation, and log/output access controls were not tested.",
+      "The causal-state reasoning concerns the lesson's ordinary causal-attention setting. It does not establish identical cache behavior for sliding-window, recurrent, hybrid, or approximate-reuse architectures.",
+      "Current documentation cannot establish the article's historical October 16 verification date. The narration's current-contract claims were checked independently."
+    ]
+  }
+}

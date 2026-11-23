@@ -1,0 +1,342 @@
+{
+  "id": "webhook-idempotency-receiver",
+  "slug": "webhook-idempotency-receiver",
+  "title": "Webhook Idempotency Receiver",
+  "difficulty": "Medium",
+  "category": "Agents",
+  "language": "python3",
+  "timeEstimateMinutes": 35,
+  "timeLimitMs": 2500,
+  "memoryLimitMb": 128,
+  "order": 195,
+  "tags": [
+    "webhooks",
+    "idempotency",
+    "policy",
+    "agent triggers"
+  ],
+  "source": "Frontier coding prep",
+  "summary": "Handle retried provider events with delivery dedupe, logical idempotency keys, and repo policy checks.",
+  "starterCode": [
+    "class WebhookReceiver:",
+    "    def __init__(self, allowed_repos: set[str]):",
+    "        pass",
+    "",
+    "    def handle(self, provider: str, delivery_id: str, event: dict) -> dict:",
+    "        pass"
+  ],
+  "testCases": [
+    {
+      "name": "public creates one run for allowed event",
+      "visibility": "sample",
+      "setup": [
+        "from solution import WebhookReceiver",
+        "receiver = WebhookReceiver({\"cursor/app\"})",
+        "event = {\"org\": \"cursor\", \"repo\": \"app\", \"action\": \"issue_comment\", \"number\": 7}",
+        "response = receiver.handle(\"github\", \"delivery-1\", event)"
+      ],
+      "input": "receiver = WebhookReceiver({\"cursor/app\"})\nevent = {\"org\": \"cursor\", \"repo\": \"app\", \"action\": \"issue_comment\", \"number\": 7}\nresponse = receiver.handle(\"github\", \"delivery-1\", event)\nresponse",
+      "expected": "{\"status\": \"created\", \"code\": 202, \"run_id\": \"run-1\"}",
+      "expression": "response"
+    },
+    {
+      "name": "public duplicate logical work returns existing run",
+      "visibility": "sample",
+      "setup": [
+        "from solution import WebhookReceiver",
+        "receiver = WebhookReceiver({\"cursor/app\"})",
+        "event = {\"org\": \"cursor\", \"repo\": \"app\", \"action\": \"issue_comment\", \"number\": 7}",
+        "first = receiver.handle(\"github\", \"delivery-1\", event)",
+        "second = receiver.handle(\"github\", \"delivery-2\", dict(event))"
+      ],
+      "checks": [
+        {
+          "input": "receiver = WebhookReceiver({\"cursor/app\"})\nevent = {\"org\": \"cursor\", \"repo\": \"app\", \"action\": \"issue_comment\", \"number\": 7}\nfirst = receiver.handle(\"github\", \"delivery-1\", event)\nsecond = receiver.handle(\"github\", \"delivery-2\", dict(event))\nfirst[\"run_id\"]",
+          "expression": "first[\"run_id\"]",
+          "operator": "==",
+          "expected": "second[\"run_id\"]"
+        },
+        {
+          "input": "receiver = WebhookReceiver({\"cursor/app\"})\nevent = {\"org\": \"cursor\", \"repo\": \"app\", \"action\": \"issue_comment\", \"number\": 7}\nfirst = receiver.handle(\"github\", \"delivery-1\", event)\nsecond = receiver.handle(\"github\", \"delivery-2\", dict(event))\nfirst[\"run_id\"]\nsecond[\"status\"]",
+          "expression": "second[\"status\"]",
+          "operator": "==",
+          "expected": "\"duplicate\""
+        },
+        {
+          "input": "receiver = WebhookReceiver({\"cursor/app\"})\nevent = {\"org\": \"cursor\", \"repo\": \"app\", \"action\": \"issue_comment\", \"number\": 7}\nfirst = receiver.handle(\"github\", \"delivery-1\", event)\nsecond = receiver.handle(\"github\", \"delivery-2\", dict(event))\nfirst[\"run_id\"]\nsecond[\"status\"]\nsecond[\"code\"]",
+          "expression": "second[\"code\"]",
+          "operator": "==",
+          "expected": "200"
+        }
+      ]
+    },
+    {
+      "name": "hidden duplicate delivery returns original response",
+      "visibility": "hidden",
+      "setup": [
+        "from solution import WebhookReceiver",
+        "receiver = WebhookReceiver({\"cursor/app\"})",
+        "event = {\"org\": \"cursor\", \"repo\": \"app\", \"action\": \"push\"}",
+        "first = receiver.handle(\"github\", \"delivery\", event)",
+        "second = receiver.handle(\"github\", \"delivery\", {\"org\": \"cursor\", \"repo\": \"app\", \"action\": \"different\"})"
+      ],
+      "input": "receiver = WebhookReceiver({\"cursor/app\"})\nevent = {\"org\": \"cursor\", \"repo\": \"app\", \"action\": \"push\"}\nfirst = receiver.handle(\"github\", \"delivery\", event)\nsecond = receiver.handle(\"github\", \"delivery\", {\"org\": \"cursor\", \"repo\": \"app\", \"action\": \"different\"})\nsecond",
+      "expected": "first",
+      "expression": "second"
+    },
+    {
+      "name": "hidden blocks disallowed repo",
+      "visibility": "hidden",
+      "setup": [
+        "from solution import WebhookReceiver",
+        "receiver = WebhookReceiver({\"cursor/app\"})",
+        "response = receiver.handle(\"github\", \"delivery\", {\"org\": \"other\", \"repo\": \"app\", \"action\": \"push\"})"
+      ],
+      "input": "receiver = WebhookReceiver({\"cursor/app\"})\nresponse = receiver.handle(\"github\", \"delivery\", {\"org\": \"other\", \"repo\": \"app\", \"action\": \"push\"})\nresponse",
+      "expected": "{\"status\": \"blocked\", \"code\": 403}",
+      "expression": "response"
+    },
+    {
+      "name": "hidden validates required fields",
+      "visibility": "hidden",
+      "code": [
+        "from solution import WebhookReceiver",
+        "",
+        "receiver = WebhookReceiver({\"cursor/app\"})",
+        "for index, event in enumerate(({\"repo\": \"app\", \"action\": \"push\"}, {\"org\": \"cursor\", \"action\": \"push\"}, {\"org\": \"cursor\", \"repo\": \"app\"})):",
+        "    assert receiver.handle(\"github\", \"delivery-\" + str(index), event) == {\"status\": \"bad_request\", \"code\": 400}"
+      ]
+    },
+    {
+      "name": "hidden creates separate runs for separate logical keys",
+      "visibility": "hidden",
+      "setup": [
+        "from solution import WebhookReceiver",
+        "receiver = WebhookReceiver({\"cursor/app\"})",
+        "a = receiver.handle(\"github\", \"a\", {\"org\": \"cursor\", \"repo\": \"app\", \"action\": \"push\"})",
+        "b = receiver.handle(\"github\", \"b\", {\"org\": \"cursor\", \"repo\": \"app\", \"action\": \"issue\", \"number\": 2})"
+      ],
+      "checks": [
+        {
+          "input": "receiver = WebhookReceiver({\"cursor/app\"})\na = receiver.handle(\"github\", \"a\", {\"org\": \"cursor\", \"repo\": \"app\", \"action\": \"push\"})\nb = receiver.handle(\"github\", \"b\", {\"org\": \"cursor\", \"repo\": \"app\", \"action\": \"issue\", \"number\": 2})\na[\"run_id\"]",
+          "expression": "a[\"run_id\"]",
+          "operator": "==",
+          "expected": "\"run-1\""
+        },
+        {
+          "input": "receiver = WebhookReceiver({\"cursor/app\"})\na = receiver.handle(\"github\", \"a\", {\"org\": \"cursor\", \"repo\": \"app\", \"action\": \"push\"})\nb = receiver.handle(\"github\", \"b\", {\"org\": \"cursor\", \"repo\": \"app\", \"action\": \"issue\", \"number\": 2})\na[\"run_id\"]\nb[\"run_id\"]",
+          "expression": "b[\"run_id\"]",
+          "operator": "==",
+          "expected": "\"run-2\""
+        }
+      ]
+    },
+    {
+      "name": "public defaults a missing number in the logical key",
+      "visibility": "sample",
+      "setup": [
+        "from solution import WebhookReceiver",
+        "receiver = WebhookReceiver({\"cursor/app\"})"
+      ],
+      "input": "receiver.handle(\"github\", \"delivery-1\", {\"org\": \"cursor\", \"repo\": \"app\", \"action\": \"push\"})",
+      "expected": "{\"status\": \"created\", \"code\": 202, \"run_id\": \"run-1\"}"
+    },
+    {
+      "name": "hidden delivery ids are scoped by provider",
+      "visibility": "hidden",
+      "setup": [
+        "from solution import WebhookReceiver",
+        "receiver = WebhookReceiver({\"cursor/app\"})",
+        "event = {\"org\": \"cursor\", \"repo\": \"app\", \"action\": \"push\"}",
+        "github = receiver.handle(\"github\", \"same\", event)",
+        "gitlab = receiver.handle(\"gitlab\", \"same\", event)"
+      ],
+      "input": "(github, gitlab)",
+      "expected": "({\"status\": \"created\", \"code\": 202, \"run_id\": \"run-1\"}, {\"status\": \"created\", \"code\": 202, \"run_id\": \"run-2\"})"
+    },
+    {
+      "name": "hidden different numbers allocate distinct runs",
+      "visibility": "hidden",
+      "setup": [
+        "from solution import WebhookReceiver",
+        "receiver = WebhookReceiver({\"cursor/app\"})",
+        "a = receiver.handle(\"github\", \"d1\", {\"org\": \"cursor\", \"repo\": \"app\", \"action\": \"issue_comment\", \"number\": 7})",
+        "b = receiver.handle(\"github\", \"d2\", {\"org\": \"cursor\", \"repo\": \"app\", \"action\": \"issue_comment\", \"number\": 8})",
+        "c = receiver.handle(\"github\", \"d3\", {\"org\": \"cursor\", \"repo\": \"app\", \"action\": \"issue_comment\"})"
+      ],
+      "input": "[a[\"run_id\"], b[\"run_id\"], c[\"run_id\"]]",
+      "expected": "[\"run-1\", \"run-2\", \"run-3\"]",
+      "feedback": "The optional number belongs to the logical run key."
+    },
+    {
+      "name": "hidden bad_request is cached under delivery key",
+      "visibility": "hidden",
+      "setup": [
+        "from solution import WebhookReceiver",
+        "receiver = WebhookReceiver({\"cursor/app\"})",
+        "first = receiver.handle(\"github\", \"bad-delivery\", {\"repo\": \"app\", \"action\": \"push\"})",
+        "second = receiver.handle(\"github\", \"bad-delivery\", {\"org\": \"cursor\", \"repo\": \"app\", \"action\": \"push\"})"
+      ],
+      "checks": [
+        {
+          "input": "receiver = WebhookReceiver({\"cursor/app\"})\nfirst = receiver.handle(\"github\", \"bad-delivery\", {\"repo\": \"app\", \"action\": \"push\"})\nsecond = receiver.handle(\"github\", \"bad-delivery\", {\"org\": \"cursor\", \"repo\": \"app\", \"action\": \"push\"})\nfirst",
+          "expression": "first",
+          "operator": "==",
+          "expected": "{\"status\": \"bad_request\", \"code\": 400}"
+        },
+        {
+          "input": "receiver = WebhookReceiver({\"cursor/app\"})\nfirst = receiver.handle(\"github\", \"bad-delivery\", {\"repo\": \"app\", \"action\": \"push\"})\nsecond = receiver.handle(\"github\", \"bad-delivery\", {\"org\": \"cursor\", \"repo\": \"app\", \"action\": \"push\"})\nsecond",
+          "expression": "second",
+          "operator": "==",
+          "expected": "first"
+        }
+      ]
+    },
+    {
+      "name": "public empty-string fields are bad_request",
+      "visibility": "sample",
+      "setup": [
+        "from solution import WebhookReceiver",
+        "receiver = WebhookReceiver({\"cursor/app\"})",
+        "response = receiver.handle(\"github\", \"empty\", {\"org\": \"\", \"repo\": \"app\", \"action\": \"push\"})"
+      ],
+      "input": "receiver = WebhookReceiver({\"cursor/app\"})\nresponse = receiver.handle(\"github\", \"empty\", {\"org\": \"\", \"repo\": \"app\", \"action\": \"push\"})\nresponse",
+      "expected": "{\"status\": \"bad_request\", \"code\": 400}",
+      "expression": "response"
+    },
+    {
+      "name": "private null and zero numbers share the empty key",
+      "visibility": "hidden",
+      "description": "Missing, null, and zero numbers follow the specified empty-number default.",
+      "feedback": "Build the logical key with event.get(\"number\") or \"\" so falsey numbers share one run.",
+      "setup": [
+        "from solution import WebhookReceiver",
+        "receiver = WebhookReceiver({\"cursor/app\"})",
+        "first = receiver.handle(\"github\", \"missing\", {\"org\": \"cursor\", \"repo\": \"app\", \"action\": \"push\"})",
+        "second = receiver.handle(\"github\", \"null\", {\"org\": \"cursor\", \"repo\": \"app\", \"action\": \"push\", \"number\": None})",
+        "third = receiver.handle(\"github\", \"zero\", {\"org\": \"cursor\", \"repo\": \"app\", \"action\": \"push\", \"number\": 0})"
+      ],
+      "input": "[first, second, third]",
+      "expected": "[{\"status\": \"created\", \"code\": 202, \"run_id\": \"run-1\"}, {\"status\": \"duplicate\", \"code\": 200, \"run_id\": \"run-1\"}, {\"status\": \"duplicate\", \"code\": 200, \"run_id\": \"run-1\"}]"
+    },
+    {
+      "name": "private delivery key keeps provider and id boundaries",
+      "visibility": "hidden",
+      "description": "Provider and delivery IDs containing colons remain distinct tuple keys.",
+      "feedback": "Use a structured pair for transport dedupe so field boundaries stay explicit.",
+      "setup": [
+        "from solution import WebhookReceiver",
+        "receiver = WebhookReceiver({\"cursor/app\"})",
+        "event = {\"org\": \"cursor\", \"repo\": \"app\", \"action\": \"push\"}",
+        "first = receiver.handle(\"a:b\", \"c\", event)",
+        "second = receiver.handle(\"a\", \"b:c\", event)"
+      ],
+      "input": "[first, second]",
+      "expected": "[{\"status\": \"created\", \"code\": 202, \"run_id\": \"run-1\"}, {\"status\": \"created\", \"code\": 202, \"run_id\": \"run-2\"}]"
+    },
+    {
+      "name": "hidden logical key keeps field boundaries",
+      "visibility": "hidden",
+      "setup": [
+        "from solution import WebhookReceiver",
+        "receiver = WebhookReceiver({\"cursor/app\"})",
+        "first = receiver.handle(\"a:cursor/app\", \"d1\", {\"org\": \"cursor\", \"repo\": \"app\", \"action\": \"push\"})",
+        "second = receiver.handle(\"a\", \"d2\", {\"org\": \"cursor\", \"repo\": \"app\", \"action\": \"cursor/app:push\"})"
+      ],
+      "input": "[first, second]",
+      "expected": "[{\"status\": \"created\", \"code\": 202, \"run_id\": \"run-1\"}, {\"status\": \"created\", \"code\": 202, \"run_id\": \"run-2\"}]",
+      "feedback": "A delimiter inside provider or action must not collapse distinct logical identities. Use structured fields."
+    },
+    {
+      "name": "hidden blocked replay and response mutation",
+      "visibility": "hidden",
+      "setup": [
+        "from solution import WebhookReceiver",
+        "receiver = WebhookReceiver({\"cursor/app\"})",
+        "blocked = receiver.handle(\"github\", \"blocked\", {\"org\": \"other\", \"repo\": \"app\", \"action\": \"push\"})",
+        "blocked[\"status\"] = \"changed\"",
+        "replay = receiver.handle(\"github\", \"blocked\", {\"org\": \"cursor\", \"repo\": \"app\", \"action\": \"push\"})",
+        "created = receiver.handle(\"github\", \"new\", {\"org\": \"cursor\", \"repo\": \"app\", \"action\": \"push\"})"
+      ],
+      "input": "[replay, created]",
+      "expected": "[{\"status\": \"blocked\", \"code\": 403}, {\"status\": \"created\", \"code\": 202, \"run_id\": \"run-1\"}]"
+    },
+    {
+      "name": "hidden integer and string number normalize alike",
+      "visibility": "hidden",
+      "setup": [
+        "from solution import WebhookReceiver",
+        "receiver = WebhookReceiver({\"cursor/app\"})",
+        "first = receiver.handle(\"github\", \"integer\", {\"org\": \"cursor\", \"repo\": \"app\", \"action\": \"issue\", \"number\": 7})",
+        "second = receiver.handle(\"github\", \"string\", {\"org\": \"cursor\", \"repo\": \"app\", \"action\": \"issue\", \"number\": \"7\"})"
+      ],
+      "input": "[first, second]",
+      "expected": "[{\"status\": \"created\", \"code\": 202, \"run_id\": \"run-1\"}, {\"status\": \"duplicate\", \"code\": 200, \"run_id\": \"run-1\"}]"
+    }
+  ],
+  "clarifyingQuestions": [
+    "Should transport retries dedupe by delivery ID?",
+    "What logical fields define duplicate work?",
+    "What response shape should missing or empty org/repo/action return, and is it cached?",
+    "Should policy rejection be cached by delivery ID?",
+    "Should the handler create work synchronously or enqueue it?"
+  ],
+  "followUps": [
+    "Verify provider signatures before parsing.",
+    "Persist delivery and run records transactionally.",
+    "Add a dead-letter queue and replay tool."
+  ],
+  "followUpGuide": [
+    "For signatures, verify the raw request body before decoding JSON. Use constant-time comparison for HMAC digests.",
+    "",
+    "For durability, insert delivery, run, and durable queue/outbox records in one database transaction with unique constraints for both identities. A worker that performs external effects needs its own idempotency/reconciliation policy; database uniqueness alone doesn't make those effects exactly once.",
+    "",
+    "For replay, store the normalized trigger, failure reason, first failure, last failure, and owner. Replays should support dry-run policy checks."
+  ],
+  "complexityAnalysis": [
+    "- With bounded-size fields, handle uses O(1) average dictionary/set operations. With L total key-text length, constructing and hashing keys costs O(L) per event in addition to average lookup overhead.",
+    "- Stored dedupe state uses O(d+r) records for d deliveries and r logical runs, or O((d+r)*L) text space when key lengths aren't bounded. Returned dictionaries have constant field count.",
+    "- Durable version keeps the same key structure. Time: O(database transaction) while atomicity moves to database constraints."
+  ],
+  "solutionGuide": [
+    "Separate transport dedupe from logical work dedupe. Provider delivery IDs catch retries. Logical keys stop two equivalent events from creating two runs.",
+    "",
+    "```python",
+    "class WebhookReceiver:",
+    "    def __init__(self, allowed_repos: set[str]):",
+    "        self.allowed_repos = set(allowed_repos)",
+    "        self.responses_by_delivery = {}",
+    "        self.run_by_logical_key = {}",
+    "        self.next_run = 1",
+    "",
+    "    def handle(self, provider: str, delivery_id: str, event: dict) -> dict:",
+    "        delivery_key = (provider, delivery_id)",
+    "        if delivery_key in self.responses_by_delivery:",
+    "            return dict(self.responses_by_delivery[delivery_key])",
+    "",
+    "        if not all(event.get(field) for field in (\"org\", \"repo\", \"action\")):",
+    "            response = {\"status\": \"bad_request\", \"code\": 400}",
+    "            self.responses_by_delivery[delivery_key] = response",
+    "            return dict(response)",
+    "",
+    "        repo_key = f\"{event['org']}/{event['repo']}\"",
+    "        if repo_key not in self.allowed_repos:",
+    "            response = {\"status\": \"blocked\", \"code\": 403}",
+    "            self.responses_by_delivery[delivery_key] = response",
+    "            return dict(response)",
+    "",
+    "        number = event.get(\"number\") or \"\"",
+    "        logical_key = (provider, repo_key, event['action'], str(number))",
+    "        if logical_key in self.run_by_logical_key:",
+    "            response = {\"status\": \"duplicate\", \"code\": 200, \"run_id\": self.run_by_logical_key[logical_key]}",
+    "        else:",
+    "            run_id = f\"run-{self.next_run}\"",
+    "            self.next_run += 1",
+    "            self.run_by_logical_key[logical_key] = run_id",
+    "            response = {\"status\": \"created\", \"code\": 202, \"run_id\": run_id}",
+    "",
+    "        self.responses_by_delivery[delivery_key] = response",
+    "        return dict(response)",
+    "```"
+  ]
+}

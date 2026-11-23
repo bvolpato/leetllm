@@ -1,0 +1,829 @@
+{
+  "version": 1,
+  "lessonId": "mixed-precision",
+  "scope": "Measured course narration for the transfer scene. Word times are relative to each take. Beat times are relative to the scene entrance. Each beat ends its hold at the recorded until time.",
+  "wordFields": [
+    "text",
+    "start",
+    "end"
+  ],
+  "renewal": {
+    "previousFixtureSha256": "e0562e43e957db88b586b2f6bef3ffb9b54b7c0b52fc0521bf477a72731ed602",
+    "lessonSha256": "8e7f08d7e852d2ec1fe712e572ca56b02125078f63522005b60331247b903554",
+    "sourceFingerprint": "2a33331799bcea29b26923e6be3b5e0786d36e47895fce6361c02f43a1079bc2",
+    "timelineSha256": "ab81a28fc4b9b803c0287b07b03d3ba9a47ccf6ab5c3d8e243caeb131b0837fc",
+    "ttsAdapter": {
+      "path": "videos/adapters/course-kokoro.py",
+      "sha256": "9b656264ad9e9db7d1f56ae19f2326020bf0f82178b3e3e483f8bcd85fcc3da9"
+    },
+    "provider": "kokoro",
+    "model": "hexgrad/Kokoro-82M",
+    "voice": "af_heart",
+    "rate": "+12%",
+    "engineVersion": "0.9.4",
+    "langCode": "a",
+    "sampleRate": 24000,
+    "speed": 1.12,
+    "evidence": [
+      {
+        "scene": "transfer",
+        "beat": 0,
+        "key": "4c1169d61bbf7f8a881aaebfe19d4d40f8a40d304c541856b2e0b93f3bfe6269",
+        "audioSha256": "0c5d2889db4877c2b264a4515f0ed725beaca9870db5af7a502ef5c72d1ba063",
+        "boundariesSha256": "6364d45d3965b6e53a73694647938d1323e6afec82ec0b0da99aaff75c59c3b4",
+        "duration": 16.08
+      },
+      {
+        "scene": "transfer",
+        "beat": 1,
+        "key": "714d330f09dde1a437658c8371a52ce811dc0e4bf03e429de6da6ab5c0e0a218",
+        "audioSha256": "5779e03cd0e855129e77a7a3e9c4685c9d54d15643ac4db657038ae0cba5058f",
+        "boundariesSha256": "8670fe53ec7214ea9439b04856f918aa8e99750968a91fbfe4d1dde23f0d5274",
+        "duration": 14.84
+      },
+      {
+        "scene": "transfer",
+        "beat": 2,
+        "key": "e30f69c950ad9e6fe932d3db14a9980012d2767f8dd3ed44a0883f421eebecd9",
+        "audioSha256": "afaecfeeea7a69fc208167e4b3a872bb6d64857bd15eb63382ee76e5804d69ce",
+        "boundariesSha256": "4a40f67143389886167153057f3f7868b9f8d00f95ecbb19bcf0b776480679f6",
+        "duration": 23.08
+      }
+    ],
+    "retained": [],
+    "changed": [
+      {
+        "scene": "transfer",
+        "beat": 0,
+        "previousSay": "Take gradient 2^-26, below half the first FP16 subnormal step. Predict the stored value. FP16 rounds it to zero."
+      },
+      {
+        "scene": "transfer",
+        "beat": 1,
+        "previousSay": "Multiply by 256 before the cast. The exponent moves up eight places, from -26 to -18, so FP16 stores about 3.81 × 10^-6."
+      },
+      {
+        "scene": "transfer",
+        "beat": 2,
+        "previousSay": "Divide the stored value by 256; the backward gradient returns to 2^-26, about 1.49 × 10^-8. A separate forward value, 1.0001, already rounded to 1. Loss scaling cannot restore that input."
+      }
+    ]
+  },
+  "scenes": [
+    {
+      "id": "transfer",
+      "fps": 30,
+      "frames": 1688,
+      "duration": 56.266666666666666,
+      "start": 0,
+      "provenance": {
+        "timelineSha256": "ab81a28fc4b9b803c0287b07b03d3ba9a47ccf6ab5c3d8e243caeb131b0837fc",
+        "prior": {
+          "timelineSha256": "10c7d45825f8cefd4b8707f0ab04a466bdde0a186e4ac92446f2cc6e0f668231",
+          "sceneSha256": "8c79242d4c4a21fbc1a92b4d798e5ee35da588c7c3a4c63b13f5d23903605d6f"
+        }
+      },
+      "beats": [
+        {
+          "say": "The yellow dot marks a gradient of two to the minus twenty-six. The pink line marks half the smallest positive FP16 subnormal. The dot falls below that threshold. What value will the cast store? FP16 rounds it to zero.",
+          "start": 0.4,
+          "end": 16.479999999999997,
+          "duration": 16.08,
+          "until": 16.929999999999996
+        },
+        {
+          "say": "Scaling the loss multiplies this gradient by two hundred fifty-six before the cast. Its exponent rises by eight, from minus twenty-six to minus eighteen. FP16 stores about three point eight one times ten to the minus six.",
+          "start": 16.929999999999996,
+          "end": 31.769999999999996,
+          "duration": 14.84,
+          "until": 32.269999999999996
+        },
+        {
+          "say": "Divide the stored value by two hundred fifty-six in FP32. We recover our original gradient, two to the minus twenty-six, or about one point four nine times ten to the minus eight. The separate forward input was one point zero zero zero one. FP16 had already rounded it to one. Scaling the loss comes too late to recover that input.",
+          "start": 32.269999999999996,
+          "end": 55.349999999999994,
+          "duration": 23.08,
+          "until": 55.949999999999996
+        }
+      ],
+      "sounds": [
+        {
+          "beatIndex": 0,
+          "duration": 16.08,
+          "boundariesSha256": "6364d45d3965b6e53a73694647938d1323e6afec82ec0b0da99aaff75c59c3b4",
+          "words": [
+            [
+              "The",
+              0.225,
+              0.338
+            ],
+            [
+              "yellow",
+              0.338,
+              0.7
+            ],
+            [
+              "dot",
+              0.7,
+              1.1
+            ],
+            [
+              "marks",
+              1.1,
+              1.337
+            ],
+            [
+              "a",
+              1.337,
+              1.4
+            ],
+            [
+              "gradient",
+              1.4,
+              1.788
+            ],
+            [
+              "of",
+              1.788,
+              1.913
+            ],
+            [
+              "two",
+              1.913,
+              2.362
+            ],
+            [
+              "to",
+              2.362,
+              2.462
+            ],
+            [
+              "the",
+              2.462,
+              2.55
+            ],
+            [
+              "minus",
+              2.55,
+              2.875
+            ],
+            [
+              "twenty-six.",
+              2.875,
+              3.7
+            ],
+            [
+              "The",
+              4.32,
+              4.395
+            ],
+            [
+              "pink",
+              4.395,
+              4.67
+            ],
+            [
+              "line",
+              4.67,
+              5.12
+            ],
+            [
+              "marks",
+              5.12,
+              5.37
+            ],
+            [
+              "half",
+              5.37,
+              5.607
+            ],
+            [
+              "the",
+              5.607,
+              5.732
+            ],
+            [
+              "smallest",
+              5.732,
+              6.245
+            ],
+            [
+              "positive",
+              6.245,
+              6.758
+            ],
+            [
+              "FP16",
+              6.758,
+              7.67
+            ],
+            [
+              "subnormal.",
+              7.67,
+              8.445
+            ],
+            [
+              "The",
+              9.065,
+              9.14
+            ],
+            [
+              "dot",
+              9.14,
+              9.415
+            ],
+            [
+              "falls",
+              9.415,
+              9.69
+            ],
+            [
+              "below",
+              9.69,
+              10.002
+            ],
+            [
+              "that",
+              10.002,
+              10.165
+            ],
+            [
+              "threshold.",
+              10.165,
+              10.94
+            ],
+            [
+              "What",
+              11.61,
+              11.76
+            ],
+            [
+              "value",
+              11.76,
+              12.098
+            ],
+            [
+              "will",
+              12.098,
+              12.223
+            ],
+            [
+              "the",
+              12.223,
+              12.31
+            ],
+            [
+              "cast",
+              12.31,
+              12.585
+            ],
+            [
+              "store?",
+              12.585,
+              13.135
+            ],
+            [
+              "FP16",
+              13.78,
+              14.717
+            ],
+            [
+              "rounds",
+              14.717,
+              15.018
+            ],
+            [
+              "it",
+              15.018,
+              15.105
+            ],
+            [
+              "to",
+              15.105,
+              15.23
+            ],
+            [
+              "zero.",
+              15.23,
+              15.83
+            ]
+          ],
+          "provenance": {
+            "key": "4c1169d61bbf7f8a881aaebfe19d4d40f8a40d304c541856b2e0b93f3bfe6269",
+            "audioSha256": "0c5d2889db4877c2b264a4515f0ed725beaca9870db5af7a502ef5c72d1ba063",
+            "boundariesSha256": "6364d45d3965b6e53a73694647938d1323e6afec82ec0b0da99aaff75c59c3b4"
+          }
+        },
+        {
+          "beatIndex": 1,
+          "duration": 14.84,
+          "boundariesSha256": "8670fe53ec7214ea9439b04856f918aa8e99750968a91fbfe4d1dde23f0d5274",
+          "words": [
+            [
+              "Scaling",
+              0.25,
+              0.7
+            ],
+            [
+              "the",
+              0.7,
+              0.825
+            ],
+            [
+              "loss",
+              0.825,
+              1.188
+            ],
+            [
+              "multiplies",
+              1.188,
+              1.8
+            ],
+            [
+              "this",
+              1.8,
+              1.975
+            ],
+            [
+              "gradient",
+              1.975,
+              2.712
+            ],
+            [
+              "by",
+              2.712,
+              2.913
+            ],
+            [
+              "two",
+              2.913,
+              3.125
+            ],
+            [
+              "hundred",
+              3.125,
+              3.4
+            ],
+            [
+              "fifty-six",
+              3.4,
+              4
+            ],
+            [
+              "before",
+              4,
+              4.287
+            ],
+            [
+              "the",
+              4.287,
+              4.375
+            ],
+            [
+              "cast.",
+              4.375,
+              5
+            ],
+            [
+              "Its",
+              5.645,
+              5.845
+            ],
+            [
+              "exponent",
+              5.845,
+              6.295
+            ],
+            [
+              "rises",
+              6.295,
+              6.695
+            ],
+            [
+              "by",
+              6.695,
+              6.87
+            ],
+            [
+              "eight,",
+              6.87,
+              7.295
+            ],
+            [
+              "from",
+              7.395,
+              7.545
+            ],
+            [
+              "minus",
+              7.545,
+              7.87
+            ],
+            [
+              "twenty-six",
+              7.87,
+              8.445
+            ],
+            [
+              "to",
+              8.445,
+              8.57
+            ],
+            [
+              "minus",
+              8.57,
+              8.895
+            ],
+            [
+              "eighteen.",
+              8.895,
+              9.595
+            ],
+            [
+              "FP16",
+              10.24,
+              11.065
+            ],
+            [
+              "stores",
+              11.065,
+              11.428
+            ],
+            [
+              "about",
+              11.428,
+              11.703
+            ],
+            [
+              "three",
+              11.703,
+              11.94
+            ],
+            [
+              "point",
+              11.94,
+              12.19
+            ],
+            [
+              "eight",
+              12.19,
+              12.615
+            ],
+            [
+              "one",
+              12.615,
+              12.865
+            ],
+            [
+              "times",
+              12.865,
+              13.253
+            ],
+            [
+              "ten",
+              13.253,
+              13.565
+            ],
+            [
+              "to",
+              13.565,
+              13.652
+            ],
+            [
+              "the",
+              13.652,
+              13.727
+            ],
+            [
+              "minus",
+              13.727,
+              14.015
+            ],
+            [
+              "six.",
+              14.015,
+              14.615
+            ]
+          ],
+          "provenance": {
+            "key": "714d330f09dde1a437658c8371a52ce811dc0e4bf03e429de6da6ab5c0e0a218",
+            "audioSha256": "5779e03cd0e855129e77a7a3e9c4685c9d54d15643ac4db657038ae0cba5058f",
+            "boundariesSha256": "8670fe53ec7214ea9439b04856f918aa8e99750968a91fbfe4d1dde23f0d5274"
+          }
+        },
+        {
+          "beatIndex": 2,
+          "duration": 23.08,
+          "boundariesSha256": "4a40f67143389886167153057f3f7868b9f8d00f95ecbb19bcf0b776480679f6",
+          "words": [
+            [
+              "Divide",
+              0.225,
+              0.588
+            ],
+            [
+              "the",
+              0.588,
+              0.675
+            ],
+            [
+              "stored",
+              0.675,
+              0.975
+            ],
+            [
+              "value",
+              0.975,
+              1.4
+            ],
+            [
+              "by",
+              1.4,
+              1.587
+            ],
+            [
+              "two",
+              1.587,
+              1.8
+            ],
+            [
+              "hundred",
+              1.8,
+              2.075
+            ],
+            [
+              "fifty-six",
+              2.075,
+              2.888
+            ],
+            [
+              "in",
+              2.888,
+              3.062
+            ],
+            [
+              "FP32.",
+              3.062,
+              4.3
+            ],
+            [
+              "We",
+              4.945,
+              5.07
+            ],
+            [
+              "recover",
+              5.07,
+              5.545
+            ],
+            [
+              "our",
+              5.545,
+              5.695
+            ],
+            [
+              "original",
+              5.695,
+              6.12
+            ],
+            [
+              "gradient,",
+              6.12,
+              6.87
+            ],
+            [
+              "two",
+              6.982,
+              7.27
+            ],
+            [
+              "to",
+              7.27,
+              7.357
+            ],
+            [
+              "the",
+              7.357,
+              7.445
+            ],
+            [
+              "minus",
+              7.445,
+              7.77
+            ],
+            [
+              "twenty-six,",
+              7.77,
+              8.645
+            ],
+            [
+              "or",
+              8.745,
+              8.857
+            ],
+            [
+              "about",
+              8.857,
+              9.107
+            ],
+            [
+              "one",
+              9.107,
+              9.345
+            ],
+            [
+              "point",
+              9.345,
+              9.657
+            ],
+            [
+              "four",
+              9.657,
+              9.895
+            ],
+            [
+              "nine",
+              9.895,
+              10.145
+            ],
+            [
+              "times",
+              10.145,
+              10.532
+            ],
+            [
+              "ten",
+              10.532,
+              10.87
+            ],
+            [
+              "to",
+              10.87,
+              10.957
+            ],
+            [
+              "the",
+              10.957,
+              11.045
+            ],
+            [
+              "minus",
+              11.045,
+              11.37
+            ],
+            [
+              "eight.",
+              11.37,
+              11.87
+            ],
+            [
+              "The",
+              12.49,
+              12.603
+            ],
+            [
+              "separate",
+              12.603,
+              12.99
+            ],
+            [
+              "forward",
+              12.99,
+              13.315
+            ],
+            [
+              "input",
+              13.315,
+              13.953
+            ],
+            [
+              "was",
+              13.953,
+              14.115
+            ],
+            [
+              "one",
+              14.115,
+              14.34
+            ],
+            [
+              "point",
+              14.34,
+              14.615
+            ],
+            [
+              "zero",
+              14.615,
+              14.89
+            ],
+            [
+              "zero",
+              14.89,
+              15.165
+            ],
+            [
+              "zero",
+              15.165,
+              15.44
+            ],
+            [
+              "one.",
+              15.44,
+              15.965
+            ],
+            [
+              "FP16",
+              16.585,
+              17.635
+            ],
+            [
+              "had",
+              17.635,
+              17.773
+            ],
+            [
+              "already",
+              17.773,
+              18.11
+            ],
+            [
+              "rounded",
+              18.11,
+              18.473
+            ],
+            [
+              "it",
+              18.473,
+              18.56
+            ],
+            [
+              "to",
+              18.56,
+              18.685
+            ],
+            [
+              "one.",
+              18.685,
+              19.21
+            ],
+            [
+              "Scaling",
+              19.855,
+              20.268
+            ],
+            [
+              "the",
+              20.268,
+              20.355
+            ],
+            [
+              "loss",
+              20.355,
+              20.655
+            ],
+            [
+              "comes",
+              20.655,
+              20.918
+            ],
+            [
+              "too",
+              20.918,
+              21.13
+            ],
+            [
+              "late",
+              21.13,
+              21.567
+            ],
+            [
+              "to",
+              21.567,
+              21.668
+            ],
+            [
+              "recover",
+              21.668,
+              22.043
+            ],
+            [
+              "that",
+              22.043,
+              22.218
+            ],
+            [
+              "input.",
+              22.218,
+              22.855
+            ]
+          ],
+          "provenance": {
+            "key": "e30f69c950ad9e6fe932d3db14a9980012d2767f8dd3ed44a0883f421eebecd9",
+            "audioSha256": "afaecfeeea7a69fc208167e4b3a872bb6d64857bd15eb63382ee76e5804d69ce",
+            "boundariesSha256": "4a40f67143389886167153057f3f7868b9f8d00f95ecbb19bcf0b776480679f6"
+          }
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,1686 @@
+version: 1
+id: contrastive-learning
+title: Contrastive Comparisons That Survive Retrieval
+source: fundamentals/sentence-embeddings-contrastive-learning/content.md
+voice: en-US-AndrewNeural
+rate: +0%
+sources:
+  - title: "Reimers and Gurevych: Sentence-BERT"
+    url: https://arxiv.org/abs/1908.10084
+  - title: "van den Oord et al.: Representation Learning with Contrastive Predictive Coding"
+    url: https://arxiv.org/abs/1807.03748
+  - title: "Gao et al.: SimCSE, Simple Contrastive Learning of Sentence Embeddings"
+    url: https://arxiv.org/abs/2104.08821
+  - title: Alignment and uniformity
+    url: https://arxiv.org/abs/2005.10242
+  - title: Supervised contrastive objectives
+    url: https://arxiv.org/abs/2004.11362
+  - title: ColBERT original late interaction
+    url: https://arxiv.org/abs/2004.12832
+  - title: ColBERTv2 residual compression
+    url: https://arxiv.org/abs/2112.01488
+  - title: Matryoshka representation learning
+    url: https://arxiv.org/abs/2205.13147
+  - title: E5-base-v2 model contract
+    url: https://huggingface.co/intfloat/e5-base-v2
+  - title: BGE-base-en-v1.5 model contract
+    url: https://huggingface.co/BAAI/bge-base-en-v1.5
+  - title: Original MTEB scope
+    url: https://arxiv.org/abs/2210.07316
+  - title: MMTEB collection
+    url: https://arxiv.org/abs/2502.13595
+scenes:
+  - id: intro
+    title: Teach a representation what should match
+    visual: The query A dog is running compares with three ordinary sentences. The positive sentence
+      moves into alignment while a hard negative remains visible.
+    beats:
+      - say: "A dog is running and a puppy runs describe closely related scenes. The wording differs, yet a
+          useful search system should connect them. Contrastive learning gives a representation an
+          explicit comparison task: make a relevant partner stand out among plausible alternatives."
+        hold: 0.6
+        visual_cues:
+          - id: intro-candidate-sentence-0-b1-1
+            phrase: a puppy runs
+            targets:
+              - candidate-sentence-0
+            color: green
+            linger: 0.6
+          - id: cl-intro-partner
+            phrase: a puppy runs describe closely related scenes
+            targets:
+              - intro-mechanism
+            color: cyan
+            linger: 0.5
+      - say: We will build one complete comparison from three small vectors. Their dot products become
+          candidate probabilities, a positive pair determines the loss, and the gradient tells the
+          encoder how its scores should change. Then we will examine why choosing the alternatives
+          is part of the learning problem.
+        hold: 0.6
+        visual_cues:
+          - id: intro-candidate-sentence-0-b2-1
+            phrase: three small vectors
+            targets:
+              - candidate-sentence-0
+              - candidate-sentence-1
+              - candidate-sentence-2
+            color: cyan
+            linger: 0.6
+          - id: cl-intro-build
+            phrase: Their dot products become candidate probabilities
+            targets:
+              - intro-mechanism
+            color: cyan
+            linger: 0.5
+      - say: The vectors are constructed so their geometry and arithmetic stay visible. The same objective
+          can train sentence encoders, image encoders, and paired representations across modalities.
+          Our everyday sentences let us focus on the matching rule before introducing a large model
+          or a retrieval index.
+        hold: 0.8
+        visual_cues:
+          - id: intro-candidate-sentence-0-b3-1
+            phrase: everyday sentences
+            targets:
+              - candidate-sentence-0
+            color: green
+            linger: 0.6
+          - id: cl-intro-scope
+            phrase: Their geometry and arithmetic stay visible
+            targets:
+              - intro-mechanism
+            color: cyan
+            linger: 0.5
+  - id: order-collision
+    title: An average cannot recover the order it discarded
+    beats:
+      - say: Before training the geometry, inspect the representation. The article assigns static vectors to
+          compiler, calls and linker. Averaging compiler calls linker and linker calls compiler adds
+          the same three vectors in another order. Both produce point eight, point one three three,
+          point one. The two roles collide exactly; changing the nearest-neighbor index cannot
+          recover the missing word order.
+        visual_cues:
+          - id: cl-order-collision-tokens
+            phrase: static vectors to compiler, calls and linker
+            targets:
+              - order-collision-mechanism
+            color: cyan
+            linger: 0.5
+          - id: cl-order-collision-mean
+            phrase: Both produce point eight, point one three three, point one
+            targets:
+              - order-collision-mechanism
+            color: cyan
+            linger: 0.5
+      - say: Contextual token states can encode order before pooling. Mean pooling those states is different
+          from averaging a fixed lookup table. Raw BERT’s first-token representation also has no
+          automatic independently encoded retrieval contract. Nearly identical cosine scores can
+          come from repeated vectors, a mask bug or the score-matrix computation. Inspect those
+          paths, then compare a sentence-trained model on held-out rankings.
+        visual_cues:
+          - id: cl-order-collision-context
+            phrase: Contextual token states can encode order before pooling
+            targets:
+              - order-collision-mechanism
+            color: cyan
+            linger: 0.5
+          - id: cl-order-collision-diagnose
+            phrase: Inspect those paths
+            targets:
+              - order-collision-mechanism
+            color: cyan
+            linger: 0.5
+    visual: Two reordered compiler/calls/linker token rows carry identical supplied static vectors into
+      the same mean. Contextual token states then split the sentence representations; raw CLS
+      remains a separately tested pooling choice.
+  - id: encode
+    title: Use the same encoder contract for every item
+    visual: A query and three candidate sentences become unit vectors through parallel encoder paths.
+      The candidate IDs remain fixed across the score row.
+    beats:
+      - say: A sentence encoder maps a variable-length text to a fixed-length vector using a specified
+          pooling rule. A dual-encoder system can encode queries and documents separately, then
+          compare their vectors. Shared or compatible training makes those representations belong to
+          the intended scoring space.
+        hold: 0.6
+        visual_cues:
+          - id: encode-candidate-vector-3-b1-1
+            phrase: compare their vectors
+            targets:
+              - candidate-vector-3
+            color: yellow
+            linger: 0.6
+      - say: Our anchor sentence is a dog is running. Its positive partner is a puppy runs. The other
+          candidates describe a sleeping dog and a blue sky. We normalize the supplied vectors to
+          unit length, so each dot product is also a cosine similarity.
+        hold: 0.6
+        visual_cues:
+          - id: encode-candidate-vector-0-b2-1
+            phrase: positive partner
+            targets:
+              - candidate-vector-0
+            color: green
+            linger: 0.6
+          - id: encode-unit-vector-contract-b2-2
+            phrase: unit length
+            targets:
+              - unit-vector-contract
+            color: cyan
+            linger: 0.6
+      - say: The encoder’s input format is part of its contract. Some models use different query and passage
+          prefixes; others use paired instructions. Keep those conventions consistent during
+          training, indexing, and querying, because changing the format can change the resulting
+          vectors and rankings.
+        hold: 0.8
+        visual_cues:
+          - id: encode-candidate-vector-3-b3-1
+            phrase: resulting vectors and rankings
+            targets:
+              - candidate-vector-3
+            color: yellow
+            linger: 0.6
+  - id: pooling-tensor
+    title: Mask padding before pooling and normalize a valid vector
+    beats:
+      - say: The executed tensor cell starts from supplied token states, not a downloaded language model.
+          Zero masked padding states, sum the valid token vectors, and divide by the valid-token
+          count. Reject an empty valid-token set. The two means are point five, point five, and
+          zero, two. Normalize each finite nonzero pooled vector by its Euclidean norm. Cosine is
+          the dot product divided by both vector norms; normalized dot product equals that cosine.
+        visual_cues:
+          - id: cl-pooling-tensor-mask
+            phrase: Zero masked padding states
+            targets:
+              - pooling-tensor-mechanism
+            color: cyan
+            linger: 0.5
+          - id: cl-pooling-tensor-sum
+            phrase: sum the valid token vectors
+            targets:
+              - pooling-tensor-mechanism
+            color: cyan
+            linger: 0.5
+          - id: cl-pooling-tensor-mean
+            phrase: The two means are point five, point five, and zero, two
+            targets:
+              - pooling-tensor-mechanism
+            color: cyan
+            linger: 0.5
+          - id: cl-pooling-tensor-norm
+            phrase: Normalize each finite nonzero pooled vector by its Euclidean norm
+            targets:
+              - pooling-tensor-mechanism
+            color: cyan
+            linger: 0.5
+      - say: Multiply the normalized query matrix by the transpose of the normalized passage matrix. A row
+          is one query competing over passages; the diagonal is positive only because our paired
+          inputs were arranged that way. Cross-entropy over the two executed rows gives about point
+          three four nine nine three one. Backpropagation gives zero gradient to the masked padding
+          and a first-token gradient about negative point eight eight three eight eight three,
+          positive point eight eight three eight eight three. These are actual CPU tensor
+          derivatives through pooling and normalization, not encoder training results.
+        visual_cues:
+          - id: cl-pooling-tensor-matrix
+            phrase: Multiply the normalized query matrix by the transpose of the normalized passage matrix
+            targets:
+              - pooling-tensor-mechanism
+            color: cyan
+            linger: 0.5
+          - id: cl-pooling-tensor-loss
+            phrase: gives about point three four nine nine three one
+            targets:
+              - pooling-tensor-mechanism
+            color: cyan
+            linger: 0.5
+          - id: cl-pooling-tensor-gradient
+            phrase: negative point eight eight three eight eight three, positive point eight eight three eight
+              eight three
+            targets:
+              - pooling-tensor-mechanism
+            color: cyan
+            linger: 0.5
+    visual: Masked token-state cells feed two coordinate accumulators; padding is crossed out before
+      normalization. The resulting query/passage vectors build the computed 2-by-2 score matrix and
+      its row losses, with zero padding gradient.
+  - id: scores
+    title: Turn comparisons into a competitive distribution
+    visual: The query dot-products each candidate vector. Temperature-scaled logits feed a
+      three-candidate softmax with a checked positive probability.
+    beats:
+      - say: Compute the dot product between the anchor and each candidate. The positive gets the strongest
+          supplied score, while the sleeping-dog sentence remains a close competitor. Divide scores
+          by a positive temperature and apply softmax across this candidate set.
+        hold: 0.6
+        visual_cues:
+          - id: scores-contrastive-probabilities-b1-1
+            phrase: strongest supplied score
+            targets:
+              - contrastive-probabilities
+            color: green
+            linger: 0.6
+          - id: cl-scores-dot
+            phrase: Compute the dot product between the anchor and each candidate
+            targets:
+              - scores-mechanism
+            color: cyan
+            linger: 0.5
+          - id: cl-scores-softmax
+            phrase: Divide scores by a positive temperature and apply softmax across this candidate set
+            targets:
+              - scores-mechanism
+            color: cyan
+            linger: 0.5
+      - say: The resulting probabilities express competition within this training row. A candidate’s share
+          depends on every other candidate in the denominator. Add a difficult alternative and the
+          positive’s probability can fall even when the positive vector and its raw similarity
+          remain exactly the same.
+        hold: 0.6
+        visual_cues:
+          - id: scores-contrastive-probabilities-b2-1
+            phrase: every other candidate
+            targets:
+              - contrastive-probabilities
+            color: pink
+            linger: 0.6
+      - say: Temperature controls how strongly score gaps influence this competition. A lower value sharpens
+          the row and scales score gradients. Its effect depends on the actual similarities and
+          alternatives, so a numeric temperature has meaning only alongside the candidate
+          construction and scoring rule.
+        hold: 0.8
+        visual_cues:
+          - id: scores-contrastive-probabilities-b3-1
+            phrase: lower value sharpens the row
+            targets:
+              - contrastive-probabilities
+            color: yellow
+            linger: 0.6
+          - id: cl-scores-temperature
+            phrase: A lower value sharpens the row
+            targets:
+              - scores-mechanism
+            color: cyan
+            linger: 0.5
+  - id: objective
+    title: The positive must earn its probability
+    visual: A numerator highlights the positive exponential while the denominator includes every
+      candidate. Negative-log probability becomes the computed InfoNCE loss.
+    beats:
+      - say: InfoNCE takes the negative logarithm of the positive candidate’s softmax probability. The
+          numerator contains the positive’s exponential score. The denominator contains that same
+          term plus the alternatives. Divide each exponential mass by the sum across allowed
+          candidates. The objective rewards making the designated partner distinctive within the
+          comparison pool.
+        hold: 0.6
+        visual_cues:
+          - id: objective-exponential-term-0-b1-1
+            phrase: positive’s exponential score
+            targets:
+              - exponential-term-0
+            color: green
+            linger: 0.6
+          - id: cl-objective-divide
+            phrase: Divide each exponential mass by the sum across allowed candidates
+            targets:
+              - objective-mechanism
+            color: cyan
+            linger: 0.5
+      - say: Follow the three terms entering the denominator. Removing an easy alternative changes the loss
+          slightly; removing a close competitor changes it more. The equation makes clear why the
+          selection of negative examples shapes the training signal, rather than serving as an
+          incidental batch detail.
+        hold: 0.6
+        visual_cues:
+          - id: objective-competitive-denominator-b2-1
+            phrase: three terms entering the denominator
+            targets:
+              - competitive-denominator
+            color: yellow
+            linger: 0.6
+          - id: cl-objective-easy
+            phrase: Removing an easy alternative changes the loss slightly
+            targets:
+              - objective-mechanism
+            color: cyan
+            linger: 0.5
+          - id: cl-objective-hard
+            phrase: removing a close competitor changes it more
+            targets:
+              - objective-mechanism
+            color: cyan
+            linger: 0.5
+      - say: For a single positive, the score gradient is probability minus the positive indicator, divided
+          by temperature. Gradient descent raises the positive score and lowers competitors. The
+          encoder receives these signals through its vector computations and must share parameter
+          changes across many training rows.
+        hold: 0.8
+        visual_cues:
+          - id: objective-exponential-term-0-b3-1
+            phrase: raises the positive score
+            targets:
+              - exponential-term-0
+            color: green
+            linger: 0.6
+          - id: cl-objective-gradient
+            phrase: probability minus the positive indicator, divided by temperature
+            targets:
+              - objective-mechanism
+            color: cyan
+            linger: 0.5
+  - id: loss-numerics
+    title: Compute the row without overflowing its exponentials
+    beats:
+      - say: "Use the article’s supplied cosine matrix: first row point nine, point two; second row point
+          one five, point eight five. At temperature point zero five, the first row becomes eighteen
+          and four. Subtract the row maximum before exponentiating: zero and negative fourteen. The
+          positive mass is one; the other mass is about eight point three times ten to the negative
+          seven. Positive probability is about point nine nine nine nine nine nine one seven and
+          loss is about eight point three times ten to the negative seven. Swapping the two scores
+          gives loss about fourteen nats."
+        visual_cues:
+          - id: cl-loss-numerics-scores
+            phrase: first row point nine, point two
+            targets:
+              - loss-numerics-mechanism
+            color: cyan
+            linger: 0.5
+          - id: cl-loss-numerics-logits
+            phrase: the first row becomes eighteen and four
+            targets:
+              - loss-numerics-mechanism
+            color: cyan
+            linger: 0.5
+          - id: cl-loss-numerics-center
+            phrase: zero and negative fourteen
+            targets:
+              - loss-numerics-mechanism
+            color: cyan
+            linger: 0.5
+          - id: cl-loss-numerics-mass
+            phrase: the other mass is about eight point three times ten to the negative seven
+            targets:
+              - loss-numerics-mechanism
+            color: cyan
+            linger: 0.5
+          - id: cl-loss-numerics-prob
+            phrase: Positive probability is about point nine nine nine nine nine nine one seven
+            targets:
+              - loss-numerics-mechanism
+            color: cyan
+            linger: 0.5
+          - id: cl-loss-numerics-loss
+            phrase: loss is about eight point three times ten to the negative seven
+            targets:
+              - loss-numerics-mechanism
+            color: cyan
+            linger: 0.5
+          - id: cl-loss-numerics-swap
+            phrase: Swapping the two scores gives loss about fourteen nats
+            targets:
+              - loss-numerics-mechanism
+            color: cyan
+            linger: 0.5
+      - say: For a one-positive row, loss can be written as log-sum-exp of candidate logits minus the
+          positive logit. Our implementation first divides scores by temperature and requires finite
+          logits. It subtracts the maximum from those logits before exponentiation, then adds the
+          maximum-minus-positive gap separately. That avoids subtracting two huge nearly equal
+          log-sum-exp values; two tied logits of ten to the three hundred eight still give log two.
+          Temperature division can itself overflow, so reject nonfinite logits, nonpositive
+          temperature and mismatched widths. Stable vector normalization first scales a finite
+          vector by its maximum absolute coordinate, so a tiny nonzero vector around ten to the
+          negative three hundred can still normalize. Zero vectors remain invalid.
+        visual_cues:
+          - id: cl-loss-numerics-finite
+            phrase: requires finite logits
+            targets:
+              - loss-numerics-mechanism
+            color: cyan
+            linger: 0.5
+          - id: cl-loss-numerics-gap
+            phrase: adds the maximum-minus-positive gap separately
+            targets:
+              - loss-numerics-mechanism
+            color: cyan
+            linger: 0.5
+          - id: cl-loss-numerics-tied
+            phrase: two tied logits of ten to the three hundred eight still give log two
+            targets:
+              - loss-numerics-mechanism
+            color: cyan
+            linger: 0.5
+          - id: cl-loss-numerics-tiny
+            phrase: a tiny nonzero vector around ten to the negative three hundred can still normalize
+            targets:
+              - loss-numerics-mechanism
+            color: cyan
+            linger: 0.5
+      - say: "The loss averages rows in this query-to-passage direction. Averaging the transposed direction
+          adds a passage-to-query labeling assumption; it is not a free arithmetic rearrangement.
+          For one positive, differentiate each raw score: its row probability minus one for the
+          positive, or minus zero for a negative, all divided by temperature. Those derivatives flow
+          through the shared encoder; they are not independent promises that every candidate vector
+          can move separately."
+        visual_cues:
+          - id: cl-loss-numerics-gradient
+            phrase: its row probability minus one for the positive, or minus zero for a negative, all divided by
+              temperature
+            targets:
+              - loss-numerics-mechanism
+            color: cyan
+            linger: 0.5
+    visual: The same first score row becomes temperature-scaled logits, centered logits, exponential
+      masses and a normalized probability. Keep every candidate column aligned while separate
+      max-minus-positive arithmetic avoids catastrophic cancellation.
+  - id: triplet-margin
+    title: A distance gap must meet the declared margin
+    beats:
+      - say: Triplet loss compares distances rather than a candidate softmax. Take the maximum of zero and
+          positive distance minus negative distance plus the required margin. With positive distance
+          point two, negative point five and margin point one, the expression is negative point two,
+          so loss is zero. If positive distance becomes point five and negative point three with the
+          same margin, loss is point three.
+        visual_cues:
+          - id: cl-triplet-margin-rule
+            phrase: positive distance minus negative distance plus the required margin
+            targets:
+              - triplet-margin-mechanism
+            color: cyan
+            linger: 0.5
+          - id: cl-triplet-margin-zero
+            phrase: the expression is negative point two, so loss is zero
+            targets:
+              - triplet-margin-mechanism
+            color: pink
+            linger: 0.5
+          - id: cl-triplet-margin-active
+            phrase: the same margin, loss is point three
+            targets:
+              - triplet-margin-mechanism
+            color: cyan
+            linger: 0.5
+      - say: A zero triplet loss means this supplied gap meets this margin, not that every useful item is
+          retrieved. Fix whether the distance is Euclidean, squared Euclidean or another evaluated
+          choice. A cosine similarity is a score, so do not insert a larger-is-better similarity
+          into a smaller-is-better distance formula without translating its sign and scale. InfoNCE
+          and triplet objectives create different dependence on the other candidates.
+        visual_cues:
+          - id: cl-triplet-margin-contract
+            phrase: Fix whether the distance is Euclidean, squared Euclidean or another evaluated choice
+            targets:
+              - triplet-margin-mechanism
+            color: cyan
+            linger: 0.5
+    visual: Retain anchor, positive and negative points on an explicit distance ruler. Construct
+      d-positive minus d-negative plus margin, clip at zero, then move the supplied distances to
+      activate the hinge.
+  - id: temperature-gradient
+    title: A sharper row can have a smaller score gradient
+    beats:
+      - say: For the supplied positive point nine and negative point two, the gap is point seven. Positive
+          probability is one divided by one plus the exponential of negative gap divided by
+          temperature. Its raw-score gradient magnitude is one minus that probability, divided by
+          temperature. This combines sharpening and the explicit inverse-temperature factor.
+        visual_cues:
+          - id: cl-temperature-gradient-gap
+            phrase: the gap is point seven
+            targets:
+              - temperature-gradient-mechanism
+            color: cyan
+            linger: 0.5
+          - id: cl-temperature-gradient-rule
+            phrase: one minus that probability, divided by temperature
+            targets:
+              - temperature-gradient-mechanism
+            color: cyan
+            linger: 0.5
+      - say: The executed values show why lower temperature does not always increase the gradient. At
+          temperature one, the magnitude is about point three three one eight. At point one it is
+          about point zero zero nine one one; at point zero five it is about zero point zero zero
+          zero zero one six six three. At point zero one the already-correct row saturates and its
+          magnitude is roughly four times ten to the negative twenty-nine. A false negative
+          retaining substantial probability can still receive a damaging large gradient.
+        visual_cues:
+          - id: cl-temperature-gradient-one
+            phrase: At temperature one, the magnitude is about point three three one eight
+            targets:
+              - temperature-gradient-mechanism
+            color: cyan
+            linger: 0.5
+          - id: cl-temperature-gradient-tenth
+            phrase: At point one it is about point zero zero nine one one
+            targets:
+              - temperature-gradient-mechanism
+            color: cyan
+            linger: 0.5
+          - id: cl-temperature-gradient-fifth
+            phrase: at point zero five it is about zero point zero zero zero zero one six six three
+            targets:
+              - temperature-gradient-mechanism
+            color: cyan
+            linger: 0.5
+          - id: cl-temperature-gradient-tiny
+            phrase: roughly four times ten to the negative twenty-nine
+            targets:
+              - temperature-gradient-mechanism
+            color: cyan
+            linger: 0.5
+      - say: Among negatives in the same row, the score-gradient ratio is the exponential of their score gap
+          divided by temperature. Scores point seven two and point two at temperature point zero
+          five differ in gradient by about thirty-two thousand eight hundred sixty. That ratio says
+          which competitor dominates this row; it does not establish that the competitor’s negative
+          label is correct.
+        visual_cues:
+          - id: cl-temperature-gradient-ratio
+            phrase: differ in gradient by about thirty-two thousand eight hundred sixty
+            targets:
+              - temperature-gradient-mechanism
+            color: cyan
+            linger: 0.5
+    visual: A fixed-score gap drives a computed probability curve and a separate raw-score-gradient
+      curve over temperature. Four marked temperatures expose saturation; a second pair of negative
+      masses yields their exponential gradient ratio.
+  - id: geometry
+    title: Follow a real gradient on the unit circle
+    visual: Candidate vectors lie on the unit circle. A constrained anchor-angle gradient reduces the
+      computed positive-pair loss over successive steps.
+    beats:
+      - say: Let the anchor vector move while holding candidate vectors fixed. To keep it normalized,
+          parameterize its position by an angle on the unit circle. We can differentiate every dot
+          product with respect to that angle and obtain an exact one-dimensional loss gradient.
+        hold: 0.6
+        visual_cues:
+          - id: geometry-candidate-vector-3-b1-1
+            phrase: anchor vector move
+            targets:
+              - candidate-vector-3
+            color: yellow
+            linger: 0.6
+      - say: Watch a sequence of small gradient steps. The anchor changes direction to make the designated
+          positive more competitive against these particular negatives. The probability and loss
+          recompute at every step, so the movement is a consequence of the objective rather than an
+          illustrative attraction effect.
+        hold: 0.6
+        motion_check:
+          region:
+            - 320
+            - 320
+            - 550
+            - 550
+          minimumChangedFraction: 0.002
+        visual_cues:
+          - id: geometry-trained-positive-probability-b2-1
+            phrase: probability and loss recompute
+            targets:
+              - trained-positive-probability
+              - trained-contrastive-loss
+            color: green
+            linger: 0.6
+      - say: In a trained encoder, both sides may move and many examples interact through shared weights. A
+          meaningful representation needs more than one close pair. The broader training setup must
+          also discourage collapsed representations that give every sentence the same vector and
+          erase useful distinctions.
+        hold: 0.8
+        visual_cues:
+          - id: geometry-candidate-vector-0-b3-1
+            phrase: same vector
+            targets:
+              - candidate-vector-0
+            color: green
+            linger: 0.6
+  - id: alignment-uniformity
+    title: Separate a close positive pair from a collapsed space
+    beats:
+      - say: Alignment asks whether verified positive views have nearby features. Uniformity asks whether
+          the normalized feature population avoids crowding into one tiny region. Mapping every
+          sentence to the same unit vector gives perfect pair closeness while erasing useful
+          distinctions. In a one-positive batch of N identical candidate scores, each has
+          probability one over N and loss log N.
+        visual_cues:
+          - id: cl-alignment-uniformity-align
+            phrase: positive views have nearby features
+            targets:
+              - alignment-uniformity-mechanism
+            color: cyan
+            linger: 0.5
+          - id: cl-alignment-uniformity-collapse
+            phrase: Mapping every sentence to the same unit vector
+            targets:
+              - alignment-uniformity-mechanism
+            color: cyan
+            linger: 0.5
+          - id: cl-alignment-uniformity-loss
+            phrase: probability one over N and loss log N
+            targets:
+              - alignment-uniformity-mechanism
+            color: cyan
+            linger: 0.5
+      - say: The alignment-and-uniformity paper connects these properties to normalized contrastive learning
+          under stated asymptotic assumptions and studies them empirically. A circle of a few
+          authored points illustrates the failure and repair; it is not a proof that a model’s
+          embeddings must be exactly uniform or that every semantic class deserves equal
+          probability. Keep population geometry, label validity and downstream retrieval as separate
+          evidence.
+        visual_cues:
+          - id: cl-alignment-uniformity-spread
+            phrase: A circle of a few authored points illustrates the failure and repair
+            targets:
+              - alignment-uniformity-mechanism
+            color: cyan
+            linger: 0.5
+    visual: Pairs on a unit circle first align, then a collapsed coincident pool shares 1/N probability.
+      Retain the collapsed pool while its log-N loss reveals why alignment alone does not identify
+      an individual partner.
+  - id: pair-supervision
+    title: A positive label comes from a stated relation
+    beats:
+      - say: "Natural language inference labels entailment, contradiction or neutral. Entailment is
+          directional: all dogs are animals does not make all animals dogs. It can supply a
+          supervised positive without proving two sentences are interchangeable. Check the relation
+          your retrieval task actually needs."
+        visual_cues:
+          - id: cl-pair-supervision-entail
+            phrase: Entailment is directional
+            targets:
+              - pair-supervision-mechanism
+            color: cyan
+            linger: 0.5
+          - id: cl-pair-supervision-reverse
+            phrase: does not make all animals dogs
+            targets:
+              - pair-supervision-mechanism
+            color: cyan
+            linger: 0.5
+      - say: Original Sentence-BERT shares encoder weights, pools each sentence and trains a classifier on
+          the two embeddings plus their elementwise absolute difference for its NLI objective. It
+          also studies regression and triplet objectives. Supervised SimCSE instead uses entailment
+          pairs as positives and the corresponding contradictions as hard negatives in its
+          contrastive setup. Sentence-level training therefore need not mean InfoNCE. After
+          training, retain the independent sentence path for precomputed document retrieval.
+        visual_cues:
+          - id: cl-pair-supervision-sbert
+            phrase: two embeddings plus their elementwise absolute difference
+            targets:
+              - pair-supervision-mechanism
+            color: cyan
+            linger: 0.5
+          - id: cl-pair-supervision-simcse
+            phrase: entailment pairs as positives and the corresponding contradictions as hard negatives
+            targets:
+              - pair-supervision-mechanism
+            color: cyan
+            linger: 0.5
+    visual: Premise, entailment and contradiction sentence identities retain directional relation
+      arrows. Three vector strips build the original SBERT u/v/absolute-difference classifier
+      separately from the contrastive labeled pool.
+  - id: dropout-views
+    title: Two stochastic views preserve one sentence identity
+    beats:
+      - say: Unsupervised SimCSE feeds the same sentence through the encoder twice with different dropout
+          masks. The two text identities stay equal while different hidden units are zeroed. Other
+          batch sentences supply competitors and still need a false-negative audit. Use training
+          mode for these stochastic views; ordinary repeatable embedding inference disables dropout.
+        visual_cues:
+          - id: cl-dropout-views-masks
+            phrase: different dropout masks
+            targets:
+              - dropout-views-mechanism
+            color: cyan
+            linger: 0.5
+          - id: cl-dropout-views-off
+            phrase: ordinary repeatable embedding inference disables dropout
+            targets:
+              - dropout-views-mechanism
+            color: cyan
+            linger: 0.5
+      - say: In the revised SimCSE paper’s BERT-base STS evaluation, the unsupervised and supervised
+          variants report seventy-six point three and eighty-one point six average Spearman
+          correlation multiplied by one hundred. Those are historical suite results, not our
+          retrieval measurements. Removing dropout or fixing the same mask between views degraded
+          that reported recipe. Other encoders need their own collapse checks.
+        visual_cues:
+          - id: cl-dropout-views-historical
+            phrase: seventy-six point three and eighty-one point six
+            targets:
+              - dropout-views-mechanism
+            color: cyan
+            linger: 0.5
+      - say: Augmentations are hypotheses about meaning. Verify paraphrases, translations and
+          same-approved-document domain pairs. Deleting not, a version condition or an authorization
+          requirement can turn a false statement into a mislabeled positive. A cross-encoder can
+          help score candidates, but its label needs independent evidence too.
+        visual_cues:
+          - id: cl-dropout-views-not
+            phrase: Deleting not, a version condition or an authorization requirement
+            targets:
+              - dropout-views-mechanism
+            color: cyan
+            linger: 0.5
+    visual: One retained sentence enters two supplied dropout masks over distinct encoder passes. Two
+      masked state grids become paired views; switch to evaluation with dropout off and keep
+      augmentation meaning checks visible.
+  - id: negatives
+    title: A difficult alternative reveals the distinction
+    visual: An easy sky candidate is replaced by the near-aligned sleeping-dog vector. Positive
+      similarity stays fixed while its candidate probability decreases.
+    beats:
+      - say: Compare two pools. One contains a running-dog positive and an obviously unrelated sky sentence.
+          The other adds the sleeping dog. The second pool asks the model to distinguish the action
+          while holding much of the scene and vocabulary in common.
+        hold: 0.6
+        visual_cues:
+          - id: negatives-candidate-pool-probabilities-b1-1
+            phrase: obviously unrelated sky sentence
+            targets:
+              - candidate-pool-probabilities
+            color: blue
+            linger: 0.6
+      - say: These are hard negatives relative to our current encoder because their scores compete strongly
+          with the positive. Useful hard negatives expose a distinction the task actually needs.
+          Mining high-scoring passages can find them, but the resulting pairs still need a reliable
+          relevance rule.
+        hold: 0.6
+        visual_cues:
+          - id: negatives-candidate-pool-probabilities-b2-1
+            phrase: compete strongly with the positive
+            targets:
+              - candidate-pool-probabilities
+            color: pink
+            linger: 0.6
+      - say: A passage can look difficult because it is genuinely relevant. Treating that passage as a
+          negative would push away useful evidence. Inspect candidate labels, duplicate sources, and
+          alternate valid answers before interpreting a strong training gradient as a helpful
+          correction.
+        hold: 0.8
+        visual_cues:
+          - id: negatives-candidate-pool-probabilities-b3-1
+            phrase: useful evidence
+            targets:
+              - candidate-pool-probabilities
+            color: yellow
+            linger: 0.6
+  - id: batch-identity
+    title: Count comparisons inside the actual negative pool
+    beats:
+      - say: For N positive query-passage pairs, two N text encodings supply N times N minus one
+          off-diagonal comparisons in an N-by-N score matrix. Encodings can be batched; they are not
+          necessarily two N model calls. A single pair without extra negatives gives probability one
+          and loss zero for every geometry. The score matrix still has quadratic storage cost.
+        visual_cues:
+          - id: cl-batch-identity-matrix
+            phrase: N times N minus one off-diagonal comparisons in an N-by-N score matrix
+            targets:
+              - batch-identity-mechanism
+            color: cyan
+            linger: 0.5
+          - id: cl-batch-identity-single
+            phrase: probability one and loss zero for every geometry
+            targets:
+              - batch-identity-mechanism
+            color: cyan
+            linger: 0.5
+      - say: Plain gradient accumulation sums gradients from separate microbatches; it does not make their
+          passages compete in one shared denominator. Explicit cross-device gathering or cached
+          embedding reuse needs deliberate gradient propagation and masking. Preserve candidate IDs
+          and known equivalences across those operations.
+        visual_cues:
+          - id: cl-batch-identity-separate
+            phrase: sums gradients from separate microbatches
+            targets:
+              - batch-identity-mechanism
+            color: cyan
+            linger: 0.5
+          - id: cl-batch-identity-gather
+            phrase: "Explicit cross-device gathering or cached embedding reuse needs deliberate gradient propagation and masking"
+            targets:
+              - batch-identity-mechanism
+            color: cyan
+            linger: 0.5
+      - say: The article’s two API-key questions cite the same approved passage. Plain diagonal targets push
+          an off-diagonal copy downward. Different IDs can also be valid answers, so ID
+          deduplication alone does not finish the audit. Keep verified positives, unrelated
+          competitors and uncertain mined candidates separate before choosing the loss.
+        visual_cues:
+          - id: cl-batch-identity-duplicate
+            phrase: the same approved passage
+            targets:
+              - batch-identity-mechanism
+            color: cyan
+            linger: 0.5
+    visual: Two four-pair microbatches construct their separate diagonal-positive score matrices. Count
+      encodings and off-diagonal terms, then juxtapose an eight-pair gathered pool without
+      pretending accumulation created it.
+  - id: false-negatives
+    title: Two valid answers need a compatible objective
+    visual: Two positive sentence cards share one semantic group. The ordinary diagonal target
+      incorrectly pushes one away, then a multi-positive numerator includes both.
+    beats:
+      - say: Suppose a second candidate also correctly describes the running scene. A one-positive row
+          treats that valid alternative as a competitor and assigns it a downward score correction.
+          This is a false negative created by the objective’s label structure rather than by the
+          text itself.
+        hold: 0.6
+        visual_cues:
+          - id: false-negatives-single-positive-gradient-b1-1
+            phrase: downward score correction
+            targets:
+              - single-positive-gradient
+            color: pink
+            linger: 0.6
+          - id: cl-false-negatives-wrong
+            phrase: assigns it a downward score correction
+            targets:
+              - false-negatives-mechanism
+            color: pink
+            linger: 0.5
+      - say: Possible repairs include deduplicating shared positives, masking known equivalents, or using an
+          objective that supports several positives. One such objective sums their exponential
+          scores in the numerator. Its meaning differs from separately averaging the loss for each
+          positive, so choose and document the intended contract.
+        hold: 0.6
+        visual_cues:
+          - id: false-negatives-multiple-positive-gradient-b2-1
+            phrase: several positives
+            targets:
+              - multiple-positive-gradient
+            color: green
+            linger: 0.6
+          - id: cl-false-negatives-repair
+            phrase: sums their exponential scores in the numerator
+            targets:
+              - false-negatives-mechanism
+            color: cyan
+            linger: 0.5
+      - say: In-batch negatives are convenient because other examples already supply candidate embeddings.
+          They also inherit incomplete labels and duplicates from the batch. Ordinary gradient
+          accumulation combines gradients from separate pools; it does not automatically create one
+          larger pool of interacting negative embeddings.
+        hold: 0.8
+        visual_cues:
+          - id: false-negatives-multiple-positive-gradient-b3-1
+            phrase: separate pools
+            targets:
+              - multiple-positive-gradient
+            color: green
+            linger: 0.6
+  - id: multiple-positives
+    title: A log of positive mass and a mean of logs teach different goals
+    beats:
+      - say: The executed duplicate row has scores point eight, point eight and point one at temperature
+          point two. The second point-eight copy is relevant, but a diagonal-only loss gives it a
+          positive score derivative about two point four six two eight one five. Gradient descent
+          tries to lower that score. Masking that verified duplicate sets its derivative to zero and
+          changes loss from about point seven zero eight one three three to point zero two nine
+          seven five zero. If the identical copies remain tied, the unmasked row has a log-two loss
+          floor even when the unrelated candidate vanishes.
+        visual_cues:
+          - id: cl-multiple-positives-scores
+            phrase: scores point eight, point eight and point one at temperature point two
+            targets:
+              - multiple-positives-mechanism
+            color: cyan
+            linger: 0.5
+          - id: cl-multiple-positives-wrong
+            phrase: positive score derivative about two point four six two eight one five
+            targets:
+              - multiple-positives-mechanism
+            color: pink
+            linger: 0.5
+          - id: cl-multiple-positives-masked
+            phrase: changes loss from about point seven zero eight one three three to point zero two nine seven
+              five zero
+            targets:
+              - multiple-positives-mechanism
+            color: cyan
+            linger: 0.5
+          - id: cl-multiple-positives-floor
+            phrase: a log-two loss floor
+            targets:
+              - multiple-positives-mechanism
+            color: cyan
+            linger: 0.5
+      - say: For multiple verified positives, specify the aggregation. One objective takes negative log of
+          their summed softmax probability. A SupCon-style alternative averages each positive’s
+          negative log probability. With supplied positive probabilities point nine nine nine and
+          point zero zero zero five, the first loss is about point zero zero zero five and the
+          mean-log loss is about three point eight zero zero nine five one. Almost all positive mass
+          on one easy positive can satisfy the first while neglecting the other. Shared encoder
+          parameters still couple their updates.
+        visual_cues:
+          - id: cl-multiple-positives-mass
+            phrase: the first loss is about point zero zero zero five
+            targets:
+              - multiple-positives-mechanism
+            color: cyan
+            linger: 0.5
+          - id: cl-multiple-positives-mean
+            phrase: the mean-log loss is about three point eight zero zero nine five one
+            targets:
+              - multiple-positives-mechanism
+            color: cyan
+            linger: 0.5
+    visual: A duplicate-relevant candidate stays attached to its score while the one-positive gradient
+      pushes it down. Mask that column, then construct positive-mass and mean-log aggregations from
+      the same supplied probabilities.
+  - id: mining-loop
+    title: Audit the competitor before teaching it as wrong
+    beats:
+      - say: Our dog example separates action from shared vocabulary. In technical retrieval, the article
+          similarly contrasts an approved API-key answer, a valid replacement paraphrase, a
+          different KMS-key intent and an easy GPU document. A high score can identify either an
+          informative non-match or an unlabeled answer. Audit the intended relevance relation before
+          admitting it as a negative.
+        visual_cues:
+          - id: cl-mining-loop-audit
+            phrase: Audit the intended relevance relation
+            targets:
+              - mining-loop-mechanism
+            color: cyan
+            linger: 0.5
+      - say: The executable mining cell ranks by lexical word overlap and uses supplied teacher scores and
+          relevance labels. It loads no cross-encoder. Its candidates illustrate a BM25-like
+          vocabulary trap, not an actual BM25 benchmark or teacher inference. A separately supplied
+          point-seven-two mined score raises the executed contrastive loss from roughly one
+          millionth to point zero two six nine five eight.
+        visual_cues:
+          - id: cl-mining-loop-lexical
+            phrase: ranks by lexical word overlap
+            targets:
+              - mining-loop-mechanism
+            color: cyan
+            linger: 0.5
+          - id: cl-mining-loop-teacher
+            phrase: supplied teacher scores and relevance labels
+            targets:
+              - mining-loop-mechanism
+            color: cyan
+            linger: 0.5
+          - id: cl-mining-loop-mass
+            phrase: raises the executed contrastive loss from roughly one millionth to point zero two six nine
+              five eight
+            targets:
+              - mining-loop-mechanism
+            color: cyan
+            linger: 0.5
+      - say: An iterative mining round re-encodes and indexes with a newer checkpoint, retrieves confusing
+          passages and audits them before the next round. Keep evaluation queries and near-duplicate
+          groups outside training and mining. A teacher threshold can remove suspicious positives
+          but can also miss them or delete useful negatives. Measure those errors on independently
+          labeled samples.
+        visual_cues:
+          - id: cl-mining-loop-round
+            phrase: re-encodes and indexes with a newer checkpoint
+            targets:
+              - mining-loop-mechanism
+            color: cyan
+            linger: 0.5
+          - id: cl-mining-loop-holdout
+            phrase: Keep evaluation queries and near-duplicate groups outside training and mining
+            targets:
+              - mining-loop-mechanism
+            color: cyan
+            linger: 0.5
+    visual: A fixed query retrieves lexical candidates, receives supplied teacher labels and commits
+      verified negatives into the comparison row. The .72 competitor adds exponential mass while the
+      positive stays .90; hold-out queries remain outside mining.
+  - id: teacher-margin
+    title: Zero teacher agreement can preserve the wrong ordering
+    beats:
+      - say: MarginMSE squares the difference between the student’s positive-minus-negative score margin and
+          the teacher’s corresponding margin, then averages over training triples. If a mistaken
+          teacher gives the approved passage point two and a non-match point eight, its margin is
+          negative point six. A student copying negative point six has zero distillation loss and
+          still ranks the wrong passage first.
+        visual_cues:
+          - id: cl-teacher-margin-difference
+            phrase: teacher gives the approved passage point two and a non-match point eight
+            targets:
+              - teacher-margin-mechanism
+            color: cyan
+            linger: 0.5
+          - id: cl-teacher-margin-result
+            phrase: "its margin is negative point six"
+            targets:
+              - teacher-margin-mechanism
+            color: cyan
+            linger: 0.5
+          - id: cl-teacher-margin-wrong
+            phrase: zero distillation loss and still ranks the wrong passage first
+            targets:
+              - teacher-margin-mechanism
+            color: pink
+            linger: 0.5
+      - say: Check compatible score ranges as well as labels. Each cosine score is between negative one and
+          one, so a cosine margin is between negative two and two. It cannot exactly match an
+          arbitrary teacher-logit margin outside that interval. Use an evaluated target scaling or
+          another compatible student scoring contract; lowering temperature does not change the raw
+          cosine range. Teacher agreement and held-out relevance remain different outcomes.
+        visual_cues:
+          - id: cl-teacher-margin-range
+            phrase: a cosine margin is between negative two and two
+            targets:
+              - teacher-margin-mechanism
+            color: cyan
+            linger: 0.5
+          - id: cl-teacher-margin-scale
+            phrase: Use an evaluated target scaling
+            targets:
+              - teacher-margin-mechanism
+            color: cyan
+            linger: 0.5
+    visual: Teacher scores .2/.8 construct a negative margin and a zero-MSE but reversed student order.
+      A cosine score ruler bounds possible student gaps to [-2,2] while an unbounded teacher gap
+      needs a declared mapping.
+  - id: architectures
+    title: Choose where the query and document are allowed to interact
+    beats:
+      - say: A bi-encoder independently pools query and document vectors; documents can be encoded and
+          indexed before a query arrives. A cross-encoder jointly processes the query-document pair
+          with token interactions. Its pair-specific representation generally cannot be precomputed
+          once for every future query. Compare actual quality and cost rather than assuming one
+          architecture always wins.
+        visual_cues:
+          - id: cl-architectures-bi
+            phrase: documents can be encoded and indexed before a query arrives
+            targets:
+              - architectures-mechanism
+            color: cyan
+            linger: 0.5
+          - id: cl-architectures-cross
+            phrase: jointly processes the query-document pair with token interactions
+            targets:
+              - architectures-mechanism
+            color: cyan
+            linger: 0.5
+      - say: Late interaction takes a third route. Encode and retain document token vectors independently,
+          then perform a cheaper query-token to document-token comparison at search time. Context
+          can already be inside each token vector. The later matching function determines which
+          token-level details survive; independent precomputation does not force a single pooled
+          vector.
+        visual_cues:
+          - id: cl-architectures-late
+            phrase: query-token to document-token comparison at search time
+            targets:
+              - architectures-mechanism
+            color: cyan
+            linger: 0.5
+    visual: Retain one query and three document token sets across independent vector encoding, joint
+      pair attention and stored token-level interaction. Move only the actual interaction stage;
+      preserve what can be precomputed in each architecture.
+  - id: maxsim-readout
+    title: Each query token selects its best document-token match
+    beats:
+      - say: "In the article’s supplied two-by-three table, API has similarities point one two, point nine
+          three, point zero eight. Key has point one nine, point zero seven, point nine one. Take
+          each row’s maximum and sum them: point nine three plus point nine one equals one point
+          eight four. MaxSim is neither the mean nor one global maximum. Different query tokens may
+          choose the same document token; no one-to-one assignment is imposed."
+        visual_cues:
+          - id: cl-maxsim-readout-api
+            phrase: API has similarities point one two, point nine three, point zero eight
+            targets:
+              - maxsim-readout-mechanism
+            color: cyan
+            linger: 0.5
+          - id: cl-maxsim-readout-key
+            phrase: Key has point one nine, point zero seven, point nine one
+            targets:
+              - maxsim-readout-mechanism
+            color: cyan
+            linger: 0.5
+          - id: cl-maxsim-readout-sum
+            phrase: point nine three plus point nine one equals one point eight four
+            targets:
+              - maxsim-readout-mechanism
+            color: cyan
+            linger: 0.5
+          - id: cl-maxsim-readout-reuse
+            phrase: Different query tokens may choose the same document token
+            targets:
+              - maxsim-readout-mechanism
+            color: cyan
+            linger: 0.5
+      - say: Retaining contextual token vectors preserves more local matching opportunities but does not
+          enforce ordered phrase alignment. Raw storage depends on both count and width. One hundred
+          token vectors of width one hundred twenty-eight contain about sixteen point seven times
+          the coordinates of one width-seven-hundred-sixty-eight vector at equal precision. This is
+          raw payload only.
+        visual_cues:
+          - id: cl-maxsim-readout-bytes
+            phrase: about sixteen point seven times the coordinates
+            targets:
+              - maxsim-readout-mechanism
+            color: cyan
+            linger: 0.5
+      - say: ColBERT version two reduces storage using a nearest centroid ID and a one- or two-bit quantized
+          residual per coordinate, reconstructing an approximate vector for scoring. Compression
+          quality and index overhead need evaluation; the raw sixteen-point-seven ratio is not a
+          published compressed-index size or universal latency ratio.
+        visual_cues:
+          - id: cl-maxsim-readout-compress
+            phrase: a nearest centroid ID and a one- or two-bit quantized residual per coordinate
+            targets:
+              - maxsim-readout-mechanism
+            color: cyan
+            linger: 0.5
+    visual: Two query rows compare against three retained document-token columns. Highlight each row
+      maximum and accumulate .93 plus .91 into 1.84; allow the same document column to win twice in
+      a separate controlled row.
+  - id: task-format
+    title: The checkpoint decides which input format is meaningful
+    beats:
+      - say: "Retrieval is asymmetric: a question and an answer can be relevant without being
+          interchangeable sentences. The task format tells a trained encoder what relation to
+          represent. In the exact article helpers, E five base version two prepends query colon to
+          the query and passage colon to the document. Its official card also uses masked mean
+          pooling and normalized vectors."
+        visual_cues:
+          - id: cl-task-format-e5
+            phrase: prepends query colon to the query and passage colon to the document
+            targets:
+              - task-format-mechanism
+            color: cyan
+            linger: 0.5
+      - say: The recommended instructed B G E version-one-point-five retrieval setting adds its retrieval
+          instruction to short queries and keeps passages plain. Its card also supports an
+          uninstructed setting; choose the evaluated setting for your workload rather than treating
+          the instruction as universal. Original INSTRUCTOR’s encode interface instead takes an
+          instruction and text pair. The article checks these string formats only; it calls none of
+          these models.
+        visual_cues:
+          - id: cl-task-format-bge
+            phrase: adds its retrieval instruction to short queries and keeps passages plain
+            targets:
+              - task-format-mechanism
+            color: cyan
+            linger: 0.5
+          - id: cl-task-format-instructor
+            phrase: takes an instruction and text pair
+            targets:
+              - task-format-mechanism
+            color: cyan
+            linger: 0.5
+      - say: Bind checkpoint revision, tokenizer, pooling, normalization, input prefixes, corpus version and
+          index score function together. Changing query formatting while leaving old document
+          embeddings fixed changes the comparison contract. Re-evaluate that change rather than
+          inferring that a successful API call preserved the original retrieval behavior.
+        visual_cues:
+          - id: cl-task-format-bind
+            phrase: Bind checkpoint revision, tokenizer, pooling, normalization, input prefixes, corpus version
+              and index score function together
+            targets:
+              - task-format-mechanism
+            color: cyan
+            linger: 0.5
+    visual: Persistent query and passage strings receive checkpoint-specific E5 prefixes, BGE query
+      instruction or INSTRUCTOR instruction/text pairing. Keep formatting operations separate from
+      unexecuted neural inference.
+  - id: prefix-failure
+    title: A shorter vector can erase the deciding coordinate
+    beats:
+      - say: "The executed toy query is point six, point eight; its match is identical, and a distractor is
+          point six, negative point eight. Full cosines are one and negative point two eight. Keep
+          only the first coordinate and normalize: all three become the same positive unit value, so
+          both scores tie at one. Normalization repairs length, not the lost distinction."
+        visual_cues:
+          - id: cl-prefix-failure-full
+            phrase: Full cosines are one and negative point two eight
+            targets:
+              - prefix-failure-mechanism
+            color: cyan
+            linger: 0.5
+          - id: cl-prefix-failure-cut
+            phrase: Keep only the first coordinate and normalize
+            targets:
+              - prefix-failure-mechanism
+            color: cyan
+            linger: 0.5
+          - id: cl-prefix-failure-tie
+            phrase: both scores tie at one
+            targets:
+              - prefix-failure-mechanism
+            color: cyan
+            linger: 0.5
+      - say: A prefix of a unit vector has norm at most one. It can equal one when discarded coordinates are
+          zero, or become zero when retained coordinates are zero. Reject or explicitly handle a
+          zero prefix before cosine normalization. Arbitrarily slicing an ordinary embedding has no
+          trained quality guarantee. Use a supported shortening contract and measure each target
+          width.
+        visual_cues:
+          - id: cl-prefix-failure-zero
+            phrase: Reject or explicitly handle a zero prefix
+            targets:
+              - prefix-failure-mechanism
+            color: pink
+            linger: 0.5
+    visual: A supplied full-width query and documents have distinct cosine scores. Cut the same
+      coordinate strips to one dimension and renormalize; both positive prefixes collide at one
+      while a zero prefix is rejected.
+  - id: nested-loss
+    title: Train the selected prefixes rather than merely cutting them
+    beats:
+      - say: Matryoshka representation learning applies objectives to selected nested prefix widths of one
+          representation. The original method includes classification and other objectives. In this
+          cosine-contrastive application, slice both sides at each chosen width, normalize valid
+          nonzero prefixes, compute their InfoNCE losses and combine them with declared nonnegative
+          weights.
+        visual_cues:
+          - id: cl-nested-loss-slice
+            phrase: slice both sides at each chosen width
+            targets:
+              - nested-loss-mechanism
+            color: cyan
+            linger: 0.5
+          - id: cl-nested-loss-loss
+            phrase: compute their InfoNCE losses
+            targets:
+              - nested-loss-mechanism
+            color: cyan
+            linger: 0.5
+      - say: The executed supplied-vector toy uses widths two, four and six. Their losses round to point
+          zero zero eight eight, point zero one four seven and point zero two two five. Equal
+          weighting gives about point zero one five three. This computes a training objective on
+          constructed vectors; no encoder was trained in the cell. The weights decide the tradeoff,
+          and supported prefixes still require held-out retrieval evaluation.
+        visual_cues:
+          - id: cl-nested-loss-two
+            phrase: point zero zero eight eight
+            targets:
+              - nested-loss-mechanism
+            color: cyan
+            linger: 0.5
+          - id: cl-nested-loss-four
+            phrase: point zero one four seven
+            targets:
+              - nested-loss-mechanism
+            color: cyan
+            linger: 0.5
+          - id: cl-nested-loss-six
+            phrase: point zero two two five
+            targets:
+              - nested-loss-mechanism
+            color: cyan
+            linger: 0.5
+          - id: cl-nested-loss-mean
+            phrase: Equal weighting gives about point zero one five three
+            targets:
+              - nested-loss-mechanism
+            color: cyan
+            linger: 0.5
+      - say: A hierarchical search can index short prefixes, retrieve a shortlist and rescore those
+          candidates at full width. Ten million width-sixty-four float32 vectors have two point five
+          six decimal gigabytes of raw payload, versus thirty point seven two at width seven hundred
+          sixty-eight. IDs, graph links, metadata and full-vector storage add costs. Full width
+          cannot rescore an omitted passage, and vector width is distinct from numerical precision.
+        visual_cues:
+          - id: cl-nested-loss-bytes
+            phrase: two point five six decimal gigabytes of raw payload, versus thirty point seven two
+            targets:
+              - nested-loss-mechanism
+            color: cyan
+            linger: 0.5
+          - id: cl-nested-loss-missing
+            phrase: Full width cannot rescore an omitted passage
+            targets:
+              - nested-loss-mechanism
+            color: pink
+            linger: 0.5
+    visual: One coordinate strip exposes nested widths 2,4,6. Normalize each retained prefix, compute
+      its own comparison loss and average the three objectives. Separate raw vector bytes from index
+      overhead and duplicate full-vector storage.
+  - id: retrieval
+    title: Training comparisons become an independent search index
+    visual: Candidate document vectors are computed once and stored. A new query vector scores the fixed
+      index, then retrieved results receive held-out relevance checks.
+    beats:
+      - say: After training, encode documents and store their vectors. A query can then be encoded once and
+          compared with many stored candidates, which is the practical attraction of a dual encoder.
+          The retrieval index accelerates that search while the encoder defines its geometry.
+        hold: 0.6
+        visual_cues:
+          - id: retrieval-ranked-document-0-b1-1
+            phrase: store their vectors
+            targets:
+              - ranked-document-0
+            color: blue
+            linger: 0.6
+          - id: cl-retrieval-rank
+            phrase: compared with many stored candidates
+            targets:
+              - retrieval-mechanism
+            color: cyan
+            linger: 0.5
+      - say: Evaluate whether relevant passages enter the shortlist, then whether the ranking orders them
+          usefully. A reranker can improve ordering among retrieved candidates, but evidence missing
+          from the shortlist remains missing. Separate those measurements when deciding whether an
+          embedding change helped.
+        hold: 0.6
+        visual_cues:
+          - id: retrieval-ranked-document-0-b2-1
+            phrase: enter the shortlist
+            targets:
+              - ranked-document-0
+            color: green
+            linger: 0.6
+          - id: cl-retrieval-missing
+            phrase: evidence missing from the shortlist remains missing
+            targets:
+              - retrieval-mechanism
+            color: pink
+            linger: 0.5
+      - say: Also measure latency, storage, and performance on important languages or query types. A lower
+          training loss can come from easier negatives or changed batches. Held-out relevance
+          judgments under a stable retrieval setup tell us whether the learned comparisons transfer
+          to the intended use.
+        hold: 0.8
+        visual_cues:
+          - id: retrieval-ranked-document-0-b3-1
+            phrase: relevance judgments
+            targets:
+              - ranked-document-0
+            color: green
+            linger: 0.6
+  - id: shortlist-budget
+    title: A reranker can spend only the budget left after retrieval
+    beats:
+      - say: The actual two-stage fixture first retrieves three passages by supplied bi-encoder scores. Its
+          supplied cross-encoder lookup then orders the API answer at point nine six, replacement at
+          point nine one and KMS at point two one. Retrieving only KMS gives the reranker no route
+          to the omitted approved passage. These are authored score lookups, not actual neural
+          inference.
+        visual_cues:
+          - id: cl-shortlist-budget-scores
+            phrase: orders the API answer at point nine six, replacement at point nine one and KMS at point two
+              one
+            targets:
+              - shortlist-budget-mechanism
+            color: cyan
+            linger: 0.5
+          - id: cl-shortlist-budget-missing
+            phrase: Retrieving only KMS gives the reranker no route to the omitted approved passage
+            targets:
+              - shortlist-budget-mechanism
+            color: pink
+            linger: 0.5
+      - say: For the article’s sequential service worksheet, two million pairs at fifteen milliseconds each
+          cost thirty million milliseconds, about eight point three hours. With a
+          two-hundred-millisecond request budget, query encoding takes ten and ten shortlisted pairs
+          take one hundred fifty. Only forty milliseconds remain for lookup and other work. This
+          assumes no batching or parallelism. In general subtract query, lookup and overhead from
+          the deadline, divide by measured per-pair cost, and round the candidate count downward.
+        visual_cues:
+          - id: cl-shortlist-budget-large
+            phrase: thirty million milliseconds, about eight point three hours
+            targets:
+              - shortlist-budget-mechanism
+            color: cyan
+            linger: 0.5
+          - id: cl-shortlist-budget-pairs
+            phrase: ten shortlisted pairs take one hundred fifty
+            targets:
+              - shortlist-budget-mechanism
+            color: cyan
+            linger: 0.5
+          - id: cl-shortlist-budget-remain
+            phrase: Only forty milliseconds remain
+            targets:
+              - shortlist-budget-mechanism
+            color: cyan
+            linger: 0.5
+      - say: If recall at that affordable cutoff is inadequate, improve retrieval, evaluate a faster or
+          batched reranker, or change the declared budget. Silently widening the shortlist violates
+          the original requirement. Measure the actual deployed path under representative
+          concurrency rather than treating supplied timings as p ninety-five evidence.
+        visual_cues:
+          - id: cl-shortlist-budget-hold
+            phrase: Silently widening the shortlist violates the original requirement
+            targets:
+              - shortlist-budget-mechanism
+            color: pink
+            linger: 0.5
+    visual: A corpus rack feeds a K-sized shortlist and sequential pair-scoring clock. K=1 retains KMS
+      while omitting the approved API answer; preserve that missing approved passage through
+      rescoring, then allocate query, ANN, overhead and pair budget on one time axis.
+  - id: evaluation-scope
+    title: A benchmark name needs its task and version scope
+    beats:
+      - say: Semantic textual similarity compares sentence-pair similarity rankings with human relatedness
+          ratings, often using Spearman correlation. A relatedness score is not automatically
+          evidence that one passage answers an operational question. The original M T E B paper
+          compared thirty-three models on fifty-eight datasets in eight task categories and found no
+          model dominating every category.
+        visual_cues:
+          - id: cl-evaluation-scope-sts
+            phrase: similarity rankings with human relatedness ratings
+            targets:
+              - evaluation-scope-mechanism
+            color: cyan
+            linger: 0.5
+          - id: cl-evaluation-scope-mteb
+            phrase: thirty-three models on fifty-eight datasets in eight task categories
+            targets:
+              - evaluation-scope-mechanism
+            color: cyan
+            linger: 0.5
+      - say: That original snapshot contains fifteen retrieval, twelve classification, eleven clustering,
+          ten S T S, four reranking, three pair-classification, two bitext-mining and one
+          summarization datasets. Its reranking task sorts supplied passage lists with embedding
+          similarity, not automatically the joint cross-encoder service we just designed. The twenty
+          twenty-five M M T E B paper later expanded the collection to over five hundred tasks
+          across more than two hundred fifty languages. A selected current benchmark can be a
+          subset.
+        visual_cues:
+          - id: cl-evaluation-scope-categories
+            phrase: fifteen retrieval, twelve classification, eleven clustering, ten S T S
+            targets:
+              - evaluation-scope-mechanism
+            color: cyan
+            linger: 0.5
+          - id: cl-evaluation-scope-languages
+            phrase: over five hundred tasks across more than two hundred fifty languages
+            targets:
+              - evaluation-scope-mechanism
+            color: cyan
+            linger: 0.5
+      - say: Record the exact benchmark, dataset revisions, splits, language/domain slices, checkpoint and
+          input formatting. Use its average to screen candidates, then evaluate your own query
+          lengths, jargon, truncation, latency and storage. A passage cut off before encoding cannot
+          be rescued by a better pooling rule. Sentence-Transformers provides embedding models,
+          pooling and training losses; F A I S S searches dense vectors. Their roles do not replace
+          relevance judgments.
+        visual_cues:
+          - id: cl-evaluation-scope-truncate
+            phrase: A passage cut off before encoding cannot be rescued by a better pooling rule
+            targets:
+              - evaluation-scope-mechanism
+            color: cyan
+            linger: 0.5
+    visual: Separate a graded STS pair ranking from judged retrieval queries. Build original MTEB
+      task-category counts and a scoped multilingual task universe without turning benchmark means
+      into a universal deployment decision.
+  - id: release-metrics
+    title: A first relevant result and all relevant results use different denominators
+    beats:
+      - say: Recall at K is the number of relevant judged passages in the first K divided by all relevant
+          judgments for that query. Reciprocal rank is one divided by the first relevant position
+          inside the cutoff, or zero if none appears. Average reciprocal ranks across query
+          instances for M R R. Keep the corpus, judgment universe, cutoff and grouping fixed.
+        visual_cues:
+          - id: cl-release-metrics-recall
+            phrase: divided by all relevant judgments for that query
+            targets:
+              - release-metrics-mechanism
+            color: cyan
+            linger: 0.5
+          - id: cl-release-metrics-rr
+            phrase: one divided by the first relevant position
+            targets:
+              - release-metrics-mechanism
+            color: cyan
+            linger: 0.5
+      - say: The actual three-query cell at cutoff two gives recall and reciprocal-rank pairs one half/one
+          half, one/one and zero/zero. Both means happen to equal one half. Moving the first query’s
+          one retrieved relevant passage from second to first raises reciprocal rank to one while
+          leaving its recall at one half. Adding its other relevant passage changes recall. Neither
+          operation recovers the third query’s missing evidence.
+        visual_cues:
+          - id: cl-release-metrics-base
+            phrase: Both means happen to equal one half
+            targets:
+              - release-metrics-mechanism
+            color: cyan
+            linger: 0.5
+          - id: cl-release-metrics-move
+            phrase: raises reciprocal rank to one while leaving its recall at one half
+            targets:
+              - release-metrics-mechanism
+            color: cyan
+            linger: 0.5
+          - id: cl-release-metrics-add
+            phrase: Adding its other relevant passage changes recall
+            targets:
+              - release-metrics-mechanism
+            color: cyan
+            linger: 0.5
+      - say: Hold out queries and related source groups from training and mining. Inspect masks, vector
+          diversity and score-matrix shapes before diagnosing high cosine as anisotropy. Compare
+          easier versus harder pools before celebrating a lower loss. Accept a new checkpoint only
+          when its fixed held-out retrieval, important slices and serving constraints pass their
+          declared gates.
+        visual_cues:
+          - id: cl-release-metrics-heldout
+            phrase: Hold out queries and related source groups from training and mining
+            targets:
+              - release-metrics-mechanism
+            color: cyan
+            linger: 0.5
+    visual: A fixed relevant-document universe stays beside ranked results as Recall@K and reciprocal
+      rank are computed independently. Move the first relevant result while conserving shortlist
+      membership, then hold the candidate at its separate recall floor.
+  - id: transfer
+    title: The candidate pool is part of the lesson
+    visual: The anchor, positive, hard negative, probability row, and gradient reconnect. A new valid
+      alternative changes the objective’s required label set.
+    beats:
+      - say: We began with sentences that shared meaning across different words. Contrastive learning made
+          that relationship an explicit prediction task among candidates. Similarity supplied
+          scores, the positive label selected the numerator, and the denominator made the
+          alternatives part of the learning signal.
+        hold: 0.6
+        visual_cues:
+          - id: transfer-candidate-vector-1-b1-1
+            phrase: alternatives part of the learning signal
+            targets:
+              - candidate-vector-1
+            color: pink
+            linger: 0.6
+      - say: Try replacing the sleeping-dog negative with another correct running description. Keep the
+          vectors fixed and inspect the old gradient. Explain why its direction conflicts with the
+          desired relevance labels. Then choose a compatible multi-positive or masking rule and
+          recalculate the comparison.
+        hold: 0.6
+        visual_cues:
+          - id: transfer-relevance-label-1-b2-1
+            phrase: another correct running description
+            targets:
+              - relevance-label-1
+            color: green
+            linger: 0.6
+          - id: transfer-old-negative-gradient-b2-2
+            phrase: old gradient
+            targets:
+              - old-negative-gradient
+            color: pink
+            linger: 0.6
+          - id: cl-transfer-label
+            phrase: another correct running description
+            targets:
+              - transfer-mechanism
+            color: cyan
+            linger: 0.5
+          - id: cl-transfer-repair
+            phrase: a compatible multi-positive or masking rule
+            targets:
+              - transfer-mechanism
+            color: cyan
+            linger: 0.5
+      - say: When training embeddings, inspect examples and candidate pools alongside loss curves. Record
+          normalization, temperature, pooling, and the relevance contract. A useful representation
+          emerges when those comparisons teach the distinctions your search system must preserve,
+          and held-out retrieval confirms that it learned them.
+        hold: 0.8
+        visual_cues:
+          - id: transfer-candidate-vector-3-b3-1
+            phrase: normalization, temperature, pooling
+            targets:
+              - candidate-vector-3
+            color: yellow
+            linger: 0.6
+  - id: fresh-embedding
+    title: A new alias changes the label contract before it changes the vectors
+    beats:
+      - say: Finish with a fresh authored row. The unit anchor is one, zero. Two candidates are verified
+          aliases of the same relevant passage, each with cosine point six five; an unrelated
+          candidate has point zero five. Use temperature point one five and mark only the first
+          alias positive. Predict the gradient on the second relevant alias. Pause.
+        hold: 1.4
+        visual_cues:
+          - id: cl-fresh-embedding-premise
+            phrase: each with cosine point six five; an unrelated candidate has point zero five
+            targets:
+              - fresh-embedding-mechanism
+            color: cyan
+            linger: 0.5
+      - say: Its softmax share is about point four nine five five, so its raw-score derivative is positive,
+          about three point three zero three. Descent tries to lower the verified match.
+        visual_cues:
+          - id: cl-fresh-embedding-share
+            phrase: Its softmax share is about point four nine five five
+            targets:
+              - fresh-embedding-mechanism
+            color: cyan
+            linger: 0.5
+          - id: cl-fresh-embedding-gradient
+            phrase: positive, about three point three zero three
+            targets:
+              - fresh-embedding-mechanism
+            color: cyan
+            linger: 0.5
+      - say: The loss is about point seven zero two two six. Mask the known duplicate rather than changing
+          its relevance story. The surviving positive competes only against the unrelated candidate,
+          so the loss becomes about point zero one eight one five and the masked alias gradient is
+          zero. Alternatively retain both as verified positives under the deliberately chosen
+          multi-positive aggregation. Shared model weights still couple the vector updates.
+        visual_cues:
+          - id: cl-fresh-embedding-loss
+            phrase: The loss is about point seven zero two two six
+            targets:
+              - fresh-embedding-mechanism
+            color: cyan
+            linger: 0.5
+          - id: cl-fresh-embedding-mask
+            phrase: Mask the known duplicate
+            targets:
+              - fresh-embedding-mechanism
+            color: cyan
+            linger: 0.5
+          - id: cl-fresh-embedding-fixed
+            phrase: the loss becomes about point zero one eight one five and the masked alias gradient is zero
+            targets:
+              - fresh-embedding-mechanism
+            color: cyan
+            linger: 0.5
+      - say: "A shorter-index candidate then misses one required passage while improving the first relevant rank. Hold it if recall is below the separately declared floor; full-width rescoring cannot restore an absent candidate. Carry the complete checkpoint, formatting, normalization and index contract into a fresh evaluation. You can now explain the score, the denominator, the bad training signal and the exact change that earns a useful retrieval experiment. Embedding geometry next holds the encoder fixed and tests the scoring ruler itself, then measures what normalization or quantization changes in the retrieved shortlist."
+        visual_cues:
+          - id: cl-fresh-embedding-shortlist
+            phrase: misses one required passage while improving the first relevant rank
+            targets:
+              - fresh-embedding-mechanism
+            color: cyan
+            linger: 0.5
+          - id: cl-fresh-embedding-hold
+            phrase: Hold it if recall is below the separately declared floor
+            targets:
+              - fresh-embedding-mechanism
+            color: pink
+            linger: 0.5
+    visual: Two verified alias vectors share a fresh .65 score against a .05 unrelated candidate. Hold
+      their probabilities and gradient during prediction, reveal the bad derivative, then mask only
+      the duplicate and recompute the same row before a separate shortlist gate.

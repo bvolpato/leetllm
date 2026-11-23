@@ -1,0 +1,1208 @@
+version: 1
+id: feature-engineering
+title: Turning Measurements into Useful Features
+source: foundations/feature-engineering-production-ml/content.md
+voice: en-US-AndrewNeural
+rate: +0%
+sources:
+  - title: "scikit-learn: Common Pitfalls and Recommended Practices"
+    url: https://scikit-learn.org/stable/common_pitfalls.html
+  - title: "scikit-learn: Target Encoder Cross Fitting"
+    url: https://scikit-learn.org/stable/auto_examples/preprocessing/plot_target_encoder_cross_val.html
+  - title: "Feast: Point-in-Time Joins"
+    url: https://docs.feast.dev/getting-started/concepts/point-in-time-joins
+  - title: "Welford: Note on a Method for Calculating Corrected Sums of Squares and Products"
+    url: https://doi.org/10.1080/00401706.1962.10490022
+  - title: "Sculley et al.: Hidden Technical Debt in Machine Learning Systems"
+    url: https://papers.nips.cc/paper_files/paper/2015/hash/86df7dcfd896fcaf2674f757a2463eba-Abstract.html
+  - title: OneHotEncoder unknown handling
+    url: https://scikit-learn.org/stable/modules/generated/sklearn.preprocessing.OneHotEncoder.html
+  - title: TargetEncoder cross-fitting and splitter contract
+    url: https://scikit-learn.org/stable/modules/generated/sklearn.preprocessing.TargetEncoder.html
+scenes:
+  - id: intro
+    title: Which field could warn us at nine?
+    visual: An escalation stamp lands on a job ticket. Rewind to scoring time and the stamp lifts off
+      while the original queue count stays on the ticket. Test the two fields on four completed jobs.
+    beats:
+      - say: This job got an escalation stamp after it missed its deadline. The queue count beside it
+          was recorded at nine the day before. Which field could the scheduler use at nine to predict a miss?
+        hold: 2.2
+        caption_starts:
+          - The queue count beside it
+          - Which field could the scheduler use
+        visual_cues:
+          - id: intro-reading
+            phrase: The queue count beside it
+            targets:
+              - intro-queue
+            linger: 0.25
+          - id: intro-flags
+            phrase: an escalation stamp
+            targets:
+              - intro-outcomes
+            linger: 0.25
+      - say: The queue count. Wind the record back to nine. The stamp disappears, but those eighteen jobs
+          were already waiting. Try a rule on four past jobs. Predict a miss whenever more than ten jobs
+          are waiting. Which jobs would you flag?
+        hold: 1.9
+        caption_starts:
+          - Try a rule on four past jobs
+          - Which jobs would you flag
+        visual_cues:
+          - id: intro-rewind
+            phrase: Wind the record back to nine
+            targets:
+              - intro-outcomes
+            linger: 0.25
+          - id: intro-backlogs
+            phrase: Try a rule on four past jobs
+            targets:
+              - intro-queue
+            linger: 0.25
+      - say: The first and fourth jobs. Their backlogs were eighteen and twenty-two. Now open the outcome
+          records. The first and third jobs missed. The backlog rule got two of the four right. Copying
+          the escalation flag gets all four right because the stamp records what already happened.
+          Feeding that answer back into the prediction is leakage. Keep the finish time for the training
+          label. Build the input from what the scheduler could read at nine.
+        hold: 0.9
+        caption_starts:
+          - Now open the outcome records
+          - The first and third jobs missed
+          - The backlog rule got two
+          - Copying the escalation flag
+        visual_cues:
+          - id: intro-predict
+            phrase: The first and fourth jobs
+            targets: [intro-queue]
+            linger: 0.25
+          - id: intro-finish
+            phrase: The first and third jobs missed
+            targets:
+              - intro-outcomes
+            linger: 0.25
+          - id: intro-count
+            phrase: two of the four right
+            targets:
+              - intro-queue
+            linger: 0.25
+          - id: intro-copy
+            phrase: all four right
+            targets:
+              - intro-outcomes
+            linger: 0.25
+  - id: decision-time
+    title: Which heartbeat belongs to J-204?
+    visual: Event and readable times stay beside their delivery intervals across a fixed 09:00 line. The
+      latest eligible interval supplies the age.
+    beats:
+      - say: Look at the two pings just before nine. One left the job at eight thirty and reached the scorer a
+          minute later. The other left at eight fifty and arrived at nine fifteen. The yellow line is the
+          decision. Which ping sets the heartbeat age here?
+        hold: 2.1
+        visual_cues:
+          - id: decision-packets
+            phrase: The other left at eight fifty and arrived at nine fifteen
+            targets:
+              - decision-receipts
+            linger: 0.25
+      - say: Follow each ping to the time it became readable. The eight fifty ping crosses the line. The eight
+          thirty ping makes it through, and it is newer than the one from one o’clock. From eight thirty
+          to nine is thirty minutes, or half an hour. That is the value we put in the row.
+        hold: 0.9
+        caption_starts:
+          - The eight fifty ping crosses the line
+          - The eight thirty ping makes it through
+          - From eight thirty to nine is
+          - thirty minutes, or half an hour
+        visual_cues:
+          - id: decision-filter
+            phrase: The eight fifty ping crosses the line
+            targets:
+              - decision-receipts
+            linger: 0.25
+          - id: decision-selected
+            phrase: The eight thirty ping makes it through
+            targets: [decision-receipts]
+            linger: 0.25
+          - id: decision-time-beat-2-focus-2
+            phrase: thirty minutes, or half an hour
+            targets:
+              - decision-age
+            linger: 0.25
+      - say: A point-in-time lookup applies both tests to the same job. A noon ping would give a negative age at
+          nine. Clipping that age to zero would still tell the model about a ping from the future. Leave
+          it outside this decision.
+        hold: 0.65
+        visual_cues:
+          - id: decision-noon
+            phrase: A noon ping would give a negative age at nine
+            targets:
+              - decision-receipts
+            linger: 0.25
+  - id: temporal-contract
+    title: Two copies of the same ping
+    visual: The same job row chooses eligible revisions on two clocks while later outcome stays in a
+      separate ledger.
+    beats:
+      - say: Look inside the revision history for that eight thirty ping. One copy reached the scorer at eight
+          thirty-one. A correction to the very same ping arrived at nine oh five. There is also a ping
+          from a different job. Which revision belongs to J two oh four at nine?
+        hold: 1.9
+        visual_cues:
+          - id: temporal-contract-0
+            phrase: A correction to the very same ping
+            targets:
+              - temporal-contract-operation
+            color: cyan
+            linger: 0.5
+      - say: Keep the first copy. Filter to the same job and to records that pass both clocks, then take the
+          latest eligible event. If two eligible revisions tie, use a deterministic tie rule. If none
+          qualify, use the declared missing policy. A windowed count would count eligible events across
+          the window. In Feast, an event-time join alone can admit a late correction. The created-time
+          filter needs a supported backend and a non-null timestamp that means the scorer could read the record.
+        hold: 0.85
+        visual_cues:
+          - id: temporal-contract-1
+            phrase: Keep the first copy
+            targets:
+              - temporal-contract-operation
+            color: cyan
+            linger: 0.5
+      - say: Now let the job run. Its deadline was nine on May second. It finished on May third, so this
+          job gets a missed-deadline label of one. Keep that label outside the input row. Define a
+          separate rule for cancellations and jobs still running. To test on future scheduler traffic,
+          fit the transforms and model on earlier jobs whose labels are ready, account for related jobs,
+          then score later decisions. Random splitting can suit an exchangeable population.
+        hold: 0.85
+        visual_cues:
+          - id: temporal-contract-2
+            phrase: It finished on May third
+            targets:
+              - temporal-contract-operation
+            color: cyan
+            linger: 0.5
+  - id: numerical-scale
+    title: Choose a scale that preserves useful differences
+    visual: Eight queue waits map through standard and robust scaling; the ordinary 42-minute case and
+      the 12,000-minute tail keep their computed positions visible.
+    beats:
+      - say: Queue waits range from five minutes to twelve thousand. The extreme job pulls the mean far
+          above ordinary waits, so standardization places five and forty-two minutes only about nine
+          thousandths of a unit apart.
+        hold: 0.55
+        visual_cues:
+          - id: numerical-scale-beat-1-focus-1
+            phrase: Queue waits range from five minutes to twelve thousand
+            targets:
+              - numerical-scale-simulation-16
+            color: blue
+            linger: 0.6
+          - id: feature-standard-separation
+            phrase: so standardization places five and forty-two minutes only about nine thousandths of a unit apart.
+            targets:
+              - feature-standard-separation
+            color: cyan
+            linger: 0
+      - say: For the forty-two-minute wait, the supplied training values give a standard score near negative
+          point three seven four. Using the median and inclusive interquartile range gives a robust
+          score near point five two two.
+        hold: 0.65
+        visual_cues:
+          - id: numerical-scale-beat-2-focus-1
+            phrase: For the forty-two-minute wait
+            targets:
+              - numerical-scale-simulation-16
+            color: blue
+            linger: 0.6
+          - id: feature-robust-map
+            phrase: Using the median and inclusive interquartile range gives a robust score near point five two two.
+            targets:
+              - numerical-scale-simulation-16
+            color: cyan
+            linger: 0.45
+      - say: The same twelve-thousand-minute outlier maps to a robust score above four hundred sixteen.
+          Robust scaling centers and rescales the data, while clipping would replace extreme values
+          with a chosen boundary and needs its own justification and version.
+        hold: 0.7
+        visual_cues:
+          - id: numerical-scale-beat-3-focus-1
+            phrase: The same twelve-thousand-minute outlier maps to a robust
+            targets:
+              - numerical-scale-simulation-16
+            color: blue
+            linger: 0.6
+  - id: running-statistics
+    title: Keep a running mean as readings arrive
+    visual: Each incoming reading updates the same mean marker and adds one product to the sum of squared
+      deviations. The last state supplies both variance denominators.
+    beats:
+      - say: Suppose your training readings are two, four and six. A standardizer stores their mean and standard
+          deviation. Use that fitted pair when a new reading arrives. During evaluation, fit it inside
+          each training fold. Decide how to handle a constant feature before dividing by its zero scale.
+          Reject nonfinite readings. If you intend to update the scaler while serving, evaluate those
+          updates in the order they will happen.
+        hold: 0.7
+        visual_cues:
+          - id: running-statistics-0
+            phrase: stores their mean and standard deviation
+            targets:
+              - running-statistics-operation
+            linger: 0.25
+      - say: Watch how Welford builds that pair without rereading old values. Start with count zero, mean zero
+          and a sum of squared deviations called M two. The first reading is two. Move the mean all the
+          way to two. The reading now sits on the mean, so it adds zero to M two. With only one reading,
+          sample variance is undefined.
+        hold: 0.8
+        visual_cues:
+          - id: welford-first
+            phrase: Move the mean all the way to two
+            targets:
+              - running-statistics-operation
+            linger: 0.25
+      - say: Here comes four. Its distance from the old mean is two. Divide by the new count of two, then add
+          one to the mean. The new mean is three. Four is now one unit above it, so add two times one to M
+          two. Bring in six. Its old and new distances are three and two. That adds six more, taking M two
+          from two to eight. For population variance, divide eight by three readings. For sample variance,
+          divide by two.
+        hold: 1
+        visual_cues:
+          - id: welford-second
+            phrase: Here comes four
+            targets:
+              - running-statistics-operation
+            linger: 0.25
+          - id: welford-second-mean
+            phrase: then add one to the mean
+            targets: [running-statistics-operation]
+          - id: welford-second-product
+            phrase: add two times one to M two
+            targets: [running-statistics-operation]
+          - id: welford-third
+            phrase: Bring in six
+            targets:
+              - running-statistics-operation
+            linger: 0.25
+          - id: welford-third-mean
+            phrase: Its old and new distances are three and two
+            targets: [running-statistics-operation]
+          - id: welford-third-product
+            phrase: from two to eight
+            targets: [running-statistics-operation]
+          - id: feature-welford-variance
+            phrase: For sample variance, divide by two
+            targets:
+              - running-statistics-operation
+            linger: 0.25
+  - id: scale-artifact
+    title: Keep transform meaning and fitted parameters distinct
+    visual: The same eight observations occupy standard,robust and logarithmic rulers.
+    beats:
+      - say: For the original eight waits, subtract the training mean from the value, then divide that
+          difference by the training standard deviation. Robust score subtracts median twenty-seven
+          and divides by inclusive interquartile range twenty-eight point seven five. Quartiles
+          sixteen point five and forty-five point two five depend on the declared interpolation
+          convention. A zero interquartile range needs its own policy, just as a zero standard
+          deviation does.
+        hold: 0.85
+        visual_cues:
+          - id: scale-artifact-0
+            phrase: For the original eight waits, subtract the training mean from the value
+            targets:
+              - scale-artifact-operation
+            color: cyan
+            linger: 0.5
+      - say: "Positive affine scaling remains invertible in exact arithmetic, so the ordinary differences
+          have not vanished. Scale can change optimization conditioning, regularization and
+          numerical precision. An exact threshold tree can represent corresponding splits after an
+          invertible monotone transform. Robust scaling does not clip: the outlier remains large.
+          For nonnegative telemetry, log one plus the value compresses the right tail but still
+          grows without bound. Choose and evaluate the representation for the estimator."
+        hold: 0.85
+        visual_cues:
+          - id: scale-artifact-1
+            phrase: Positive affine scaling remains invertible in exact arithmetic, so the ordinary differences
+              have not vanished.
+            targets:
+              - scale-artifact-operation
+            color: cyan
+            linger: 0.5
+          - id: feature-scale-log
+            phrase: For nonnegative telemetry, log one plus the value compresses the right tail
+            targets:
+              - scale-artifact-operation
+            color: cyan
+            linger: 0.45
+  - id: missingness
+    title: Keep a missing reading distinct from zero
+    visual: Two queue rows both carry a numeric zero until a missingness bit separates a measured empty
+      queue from an unavailable sensor reading.
+    beats:
+      - say: A measured backlog of zero means the queue is empty. A blank reading means the sensor path
+          supplied no number. Filling both with zero gives the model identical coordinates for
+          different situations.
+        hold: 0.55
+        visual_cues:
+          - id: missingness-beat-1-focus-1
+            phrase: A measured backlog of zero means the queue is empty
+            targets:
+              - missingness-operation
+            color: blue
+            linger: 0.6
+      - say: Impute a documented value, then add a binary indicator showing that the original measurement
+          was missing. Read the pair as backlog, then missing bit. The measured zero gives zero, zero.
+          The blank gives zero, one.
+        hold: 0.6
+        visual_cues:
+          - id: missingness-beat-2-focus-1
+            phrase: Impute a documented value
+            targets:
+              - missingness-operation
+            color: blue
+            linger: 0.6
+          - id: missingness-beat-2-focus-2
+            phrase: then add a binary indicator showing that the original measurement was missing
+            targets:
+              - missingness-operation
+            color: blue
+            linger: 0.6
+      - say: The indicator can become predictive when outages correlate with an outcome, so evaluate that
+          association. It captures measurement availability; investigate outage causes separately
+          and store the imputation policy in the model artifact.
+        hold: 0.65
+        visual_cues:
+          - id: missingness-beat-3-focus-1
+            phrase: and store the imputation policy in the model
+            targets:
+              - missingness-operation
+            color: blue
+            linger: 0.6
+          - id: missingness-beat-3-focus-2
+            phrase: It captures measurement availability
+            targets:
+              - missingness-operation
+            color: blue
+            linger: 0.6
+  - id: categories
+    title: How far apart are two runner pools?
+    visual: The same three pool names exchange numeric codes on a ruler. A fixed one-hot representation
+      keeps its coordinates when the arbitrary codes change.
+    beats:
+      - say: Put three runner pools on a number line. In this codebook, A one hundred is at zero, H one hundred
+          at one, and L four at two. A model that measures distance sees H one hundred as the nearest
+          neighbor of A one hundred. Did we measure anything about those machines to earn that distance?
+        hold: 1.6
+        visual_cues:
+          - id: pool-ruler
+            phrase: H one hundred as the nearest neighbor
+            targets:
+              - pool-codes
+            linger: 0.25
+      - say: Exchange the codes for H one hundred and L four. The new nearest neighbor is L four. All we changed
+          was the numbering. For a model that treats a number as a quantity, those codes quietly introduce
+          an order and a distance.
+        hold: 0.8
+        caption_starts: [The new nearest neighbor is L four]
+        visual_cues:
+          - id: pool-exchange
+            phrase: Exchange the codes for H one hundred and L four
+            targets:
+              - pool-codes
+            linger: 0.25
+      - say: This encoder trained on two pool names. Give each known name its own coordinate. A one hundred switches on the first bit. H one
+          hundred switches on the second. This is one-hot encoding. Keep this layout with the model. We’ve
+          reserved the third slot for other. What should happen when L four first reaches this encoder?
+        hold: 1.5
+        visual_cues:
+          - id: pool-bits
+            phrase: each known name its own coordinate
+            targets:
+              - pool-bits
+            linger: 0.25
+          - id: pool-a100
+            phrase: switches on the first bit
+            targets:
+              - pool-bits
+            linger: 0.25
+          - id: pool-h100
+            phrase: switches on the second
+            targets:
+              - pool-bits
+            linger: 0.25
+  - id: category-contract
+    title: Where does a new pool go?
+    visual: L4 slides into the fitted other slot. A second encoder ignores the same name and leaves
+      all three bits at zero. A wider grid shows the sparse representation.
+    beats:
+      - say: Map L four to other. The third bit switches on. Keep those three slots in the same order
+          when the model runs. A model with native categorical support can use a code as a name.
+          A model that measures distance would treat that same code as a position on the number line.
+        hold: 0.85
+        visual_cues:
+          - id: category-contract-0
+            phrase: Keep those three slots in the same order
+            targets:
+              - category-contract-operation
+            color: cyan
+            linger: 0.5
+          - id: feature-category-map
+            phrase: Map L four to other
+            targets:
+              - category-contract-operation
+            color: cyan
+            linger: 0.45
+      - say: Send L four to an encoder set to ignore unknown names. All three bits stay at zero.
+          Our encoder lights up the other bit because we reserved that slot during fitting.
+          You could also reject an unknown name or group it with infrequent categories.
+          Use the same fitted encoder in training and serving.
+        hold: 0.85
+        caption_starts:
+          - All three bits stay at zero
+          - Our encoder lights up the other bit
+        visual_cues:
+          - id: category-contract-1
+            phrase: All three bits stay at zero
+            targets:
+              - category-contract-operation
+            color: cyan
+            linger: 0.5
+      - say: Sparse storage avoids materializing every zero, while column metadata and model parameters
+          still grow with category count. Converting a wide sparse matrix to dense can be expensive.
+          Indicator-based trees may need several splits to group categories, while native
+          categorical splitting can group categories in one split.
+        hold: 0.85
+        visual_cues:
+          - id: category-contract-2
+            phrase: Sparse storage avoids materializing every zero, while column metadata and model parameters
+              still grow with category count.
+            targets:
+              - category-contract-operation
+            color: cyan
+            linger: 0.5
+  - id: crossfit-construction
+    title: What happens if T8’s label flips?
+    visual: All eight jobs stay visible. A second calculation admits only the four fitting jobs. Flipping T8
+      updates both inputs to the full-data estimate while the held-out estimate stays in place.
+    beats:
+      - say: Suppose we represent each pool by the share of its jobs that missed the deadline. That is a
+          target encoding. Eight jobs finished. Five missed. T eight is our only L four job, and it missed. Give the overall
+          miss rate the weight of five observations. Add one miss from L four to five times five eighths,
+          then divide by six. That gives eleven sixteenths. Notice how T eight helped twice, once in the L
+          four count and again in the overall miss rate.
+        hold: 0.85
+        visual_cues:
+          - id: feature-target-prior
+            phrase: Five missed
+            targets:
+              - fold-jobs
+            linger: 0.25
+          - id: feature-target-full
+            phrase: That gives eleven sixteenths
+            targets:
+              - fold-full
+            linger: 0.25
+      - say: Set aside T eight and the rest of its fold. Four jobs remain. Three missed, and none ran on L four.
+          With no L four examples, the estimate comes entirely from those four jobs. It is three quarters.
+          Suppose we correct T eight’s label from missed to on time. Which of the two estimates will move?
+        hold: 2.2
+        visual_cues:
+          - id: fold-split
+            phrase: Set aside T eight and the rest of its fold
+            targets:
+              - fold-jobs
+            linger: 0.25
+          - id: feature-fitting-prior
+            phrase: Three missed, and none ran on L four
+            targets:
+              - fold-fit
+            linger: 0.25
+          - id: feature-target-held
+            phrase: It is three quarters
+            targets:
+              - fold-fit
+            linger: 0.25
+      - say: Flip just that one label. The full-data calculation loses the L four miss, and its overall miss
+          rate falls to four eighths. Its estimate falls to about point four one seven. The fitting four
+          are exactly the same four jobs, so T eight’s held-out value stays at three quarters. Another row
+          can change if its fitting fold includes T eight.
+        hold: 0.9
+        caption_starts:
+          - The full-data calculation loses the L four miss
+          - Its estimate falls to about point four one seven
+          - The fitting four are exactly the same four jobs
+        visual_cues:
+          - id: feature-target-flip
+            phrase: Flip just that one label
+            targets:
+              - fold-jobs
+            linger: 0.25
+          - id: fold-recompute
+            phrase: Its estimate falls to about point four one seven
+            targets:
+              - fold-full
+            linger: 0.25
+      - say: For any pool, add its allowed miss count to the smoothing weight times the allowed prior. Divide by
+          the pool’s allowed job count plus the weight. A positive weight gives an unseen pool the prior.
+          With weight zero and no jobs, you need a fallback for zero divided by zero. We chose a weight
+          of five. An empirical Bayes procedure would estimate its hyperparameters from data. Laplace
+          add-one smoothing uses a particular prior. Cross-fitting decides which jobs count. For serving, fit the map on the
+          whole allowed training set.
+        hold: 0.75
+        visual_cues:
+          - id: fold-weight
+            phrase: With weight zero and no jobs
+            targets:
+              - fold-fit
+            linger: 0.25
+  - id: matured-encoding
+    title: Which outcomes can enter the pool average?
+    visual: Two jobs share one runner pool. A clock moves along their score-to-outcome intervals. A nine
+      o'clock artifact stays pinned while a second encoder advances to the ten o'clock arrival.
+    beats:
+      - say: These two jobs ran in the same pool. Follow the first job from its prediction at six to
+          its outcome at eight. At seven the second job gets a prediction too. Neither result has
+          arrived yet. The encoder waits for its first label. Shuffling these jobs into training folds
+          could bring a later outcome into an earlier prediction.
+        hold: 0.8
+        caption_starts:
+          - At seven the second job gets a prediction too
+          - Neither result has arrived yet
+        visual_cues:
+          - id: mature-first
+            phrase: from its prediction at six to its outcome at eight
+            targets:
+              - mature-history
+            linger: 0.25
+          - id: feature-label-seven
+            phrase: Neither result has arrived yet
+            targets:
+              - mature-count
+            linger: 0.25
+      - say: Advance to nine. The first job finished on time, so it contributes a zero. The second
+          result arrives at ten. How many jobs can we count in the miss rate at nine?
+        hold: 2
+        visual_cues:
+          - id: feature-label-nine
+            phrase: Advance to nine
+            targets:
+              - mature-history
+            linger: 0.25
+      - say: One outcome. Zero misses in one job gives zero. Save that version at nine. Now advance a separate,
+          updating encoder to ten. The second outcome arrives exactly at the cutoff and counts as a miss.
+          One miss in two jobs gives one half. The saved version still reads zero. Both jobs share one
+          pool, so smoothing toward the overall rate gives the same answer.
+        hold: 1.1
+        caption_starts:
+          - Zero misses in one job gives zero
+          - Now advance a separate
+          - The second outcome arrives exactly at the cutoff
+          - One miss in two jobs gives one half
+        visual_cues:
+          - id: mature-denominator
+            phrase: One outcome
+            targets: [mature-count]
+          - id: mature-rate
+            phrase: Zero misses in one job gives zero
+            targets: [mature-count]
+          - id: mature-save
+            phrase: Save that version at nine
+            targets:
+              - mature-count
+            linger: 0.25
+          - id: mature-advance
+            phrase: advance a separate, updating encoder to ten
+            targets:
+              - mature-history
+            linger: 0.25
+          - id: feature-label-ten
+            phrase: One miss in two jobs gives one half
+            targets:
+              - mature-count
+            linger: 0.25
+      - say: To reproduce the updating encoder, keep the fitting cutoff and the version used for each decision.
+          Exclude related jobs when the task calls for it. In scikit-learn, fit transform cross-fits the
+          training rows. Fitting once and transforming those same rows gives them the full training map.
+          Its cross-fitting interface needs every row held out exactly once. A forward split that skips
+          the first row misses that requirement. A dedicated forward encoder can give that first row the
+          warm-up rule we used here.
+        hold: 0.8
+        visual_cues:
+          - id: feature-splitter-requirement
+            phrase: A forward split that skips the first row
+            targets:
+              - mature-coverage
+            linger: 0.25
+  - id: contract
+    title: Two writers, one heartbeat
+    visual: Both writers read the same 08:30 ping. One sends elapsed minutes to a slot trained on hours.
+      Converting the unit restores the slot without changing the event.
+    beats:
+      - say: Two services read the same eight thirty heartbeat. At nine, one writes thirty and the other
+          writes half. Both send a finite number. Look at the unit on the model’s slot. Which writer
+          can feed this model directly?
+        hold: 2
+        motion_check:
+          region:
+            - 140
+            - 320
+            - 1500
+            - 600
+          minimumChangedFraction: 0.002
+        visual_cues:
+          - id: contract-compare
+            phrase: one writes thirty and the other writes half
+            targets:
+              - contract-unit
+            linger: 0.25
+      - say: Writer B can. The fitted layout says hours. Divide thirty minutes by sixty. Now both services send half an hour.
+          That is one part of a feature contract. It also specifies the type, the source cutoff, the
+          missing-value rule, allowed categories and any clipping limit.
+        hold: 0.8
+        visual_cues:
+          - id: contract-unit-name
+            phrase: Writer B can
+            targets:
+              - contract-unit
+            linger: 0.25
+          - id: contract-convert
+            phrase: Divide thirty minutes by sixty
+            targets:
+              - contract-unit
+            linger: 0.25
+      - say: Keep those rules and the slot order with the model and its fitted preprocessing. If queued minutes
+          and heartbeat hours trade places, the vector keeps its length while each weight gets a different
+          measurement. First check the named row before those values lose their names.
+        hold: 0.8
+        visual_cues:
+          - id: contract-order
+            phrase: queued minutes and heartbeat hours trade places
+            targets:
+              - contract-unit
+            linger: 0.25
+  - id: row-validation
+    title: What passes the row builder?
+    visual: A named six-field row is constructed from J-204. Two equal instants produce the same heartbeat
+      age. An absent backlog and a measured zero diverge in the indicator field.
+    beats:
+      - say: Give the builder a heartbeat with an offset. Four thirty in the morning at minus four hours and
+          eight thirty UTC are the same instant. At nine, both give half an hour. A timestamp without a
+          timezone cannot tell us which instant to use. Reject it. Reject a future or absent heartbeat
+          too.
+        hold: 0.75
+        visual_cues:
+          - id: validation-offset
+            phrase: eight thirty UTC are the same instant
+            targets:
+              - row-contract
+            linger: 0.25
+          - id: validation-naive
+            phrase: A timestamp without a timezone
+            targets:
+              - row-contract
+            linger: 0.25
+      - say: Here is the named row for J two oh four. The builder trims the pool name, folds its case, and maps
+          unseen names to other. A blank pool fails. Queue and backlog must be finite, nonnegative
+          numbers. A Boolean in a numeric field fails. Priority itself must be a Boolean. The observed age
+          caps at one hundred eighty hours. Only the six named fields go to the vectorizer. The finish and
+          escalation fields stay outside.
+        hold: 0.8
+        visual_cues:
+          - id: validation-fields
+            phrase: Here is the named row
+            targets:
+              - row-contract
+            linger: 0.25
+      - say: Empty this backlog measurement. The numeric output becomes zero and the missing bit rises to one.
+          Now send a measured zero. The numeric output stays zero and the bit drops. Both rows pass,
+          assuming the other fields are valid. Whether the source was readable by nine is a separate
+          question for the historical query.
+        hold: 0.9
+        visual_cues:
+          - id: validation-blank
+            phrase: Empty this backlog measurement
+            targets:
+              - row-contract
+            linger: 0.25
+          - id: validation-zero
+            phrase: Now send a measured zero
+            targets:
+              - row-contract
+            linger: 0.25
+  - id: vector-construction
+    title: Which weight will forty-two meet?
+    visual: Eight named coordinates become one ordered vector; swapping only two values changes the same
+      dot product.
+    beats:
+      - say: "Build the actual ordered vector: the three pool bits, queued minutes, heartbeat hours,
+          backlog, backlog-missing bit and priority. J two hundred four becomes one, zero, zero,
+          forty-two, point five, eighteen, zero, zero. The category list, units, clipping limits,
+          missing policy and layout version travel with the fitted preprocessing and model."
+        hold: 0.85
+        visual_cues:
+          - id: vector-construction-0
+            phrase: "Build the actual ordered vector: the three pool bits, queued minutes, heartbeat hours,
+              backlog, backlog-missing bit and priority."
+            targets:
+              - vector-construction-operation
+            color: cyan
+            linger: 0.5
+          - id: feature-vector-build
+            phrase: J two hundred four becomes one, zero, zero, forty-two, point five, eighteen, zero, zero
+            targets:
+              - vector-construction-operation
+            color: cyan
+            linger: 0.45
+      - say: Three slots carry weight in this example. Forty-two queued minutes times one hundredth
+          gives point four two. Half an hour times two hundredths adds point zero one. Eighteen jobs
+          times one hundredth adds point one eight. Together they give a score of point six one.
+          Watch the forty-two when the slots trade places.
+        hold: 0.85
+        caption_starts:
+          - Forty-two queued minutes
+          - Half an hour times two hundredths
+          - Eighteen jobs times one hundredth
+          - Together they give a score
+        visual_cues:
+          - id: vector-construction-1
+            phrase: Three slots carry weight in this example
+            targets:
+              - vector-construction-operation
+            color: cyan
+            linger: 0.5
+          - id: feature-vector-products
+            phrase: Forty-two queued minutes times one hundredth
+            targets:
+              - vector-construction-operation
+            color: cyan
+            linger: 0.45
+          - id: feature-vector-result
+            phrase: Together they give a score of point six one
+            targets:
+              - vector-construction-operation
+            color: cyan
+            linger: 0.45
+          - id: feature-product-queued
+            phrase: gives point four two
+            targets:
+              - vector-construction-operation
+            color: cyan
+            linger: 0
+          - id: feature-product-heartbeat
+            phrase: adds point zero one
+            targets:
+              - vector-construction-operation
+            color: cyan
+            linger: 0
+          - id: feature-product-backlog
+            phrase: adds point one eight
+            targets:
+              - vector-construction-operation
+            color: cyan
+            linger: 0
+      - say: Swap the queue and heartbeat values. Leave the weights where they are. The queue slot now
+          contributes point zero zero five. Forty-two lands on twice its old weight and contributes
+          point eight four. The backlog still adds point one eight. That takes the score to one point
+          zero two five. The forty-two now supplies most of that score. Restore the declared layout and
+          the same row returns to point six one.
+          Both vectors held eight numbers. Their positions decided which weights they met.
+        hold: 0.85
+        caption_starts:
+          - The queue slot now contributes
+          - Forty-two lands on twice its old weight
+          - That takes the score to
+          - Restore the declared layout
+        visual_cues:
+          - id: vector-construction-2
+            phrase: Swap the queue and heartbeat values
+            targets:
+              - vector-construction-operation
+            color: cyan
+            linger: 0.5
+          - id: feature-layout-swap
+            phrase: That takes the score to one point zero two five
+            targets:
+              - vector-construction-operation
+            color: cyan
+            linger: 0.45
+          - id: feature-layout-restore
+            phrase: Restore the declared layout and the same row returns to point six one.
+            targets:
+              - vector-construction-operation
+            color: cyan
+            linger: 0.45
+          - id: feature-swapped-queued
+            phrase: contributes point zero zero five
+            targets:
+              - vector-construction-operation
+            color: cyan
+            linger: 0
+          - id: feature-swapped-heartbeat
+            phrase: contributes point eight four
+            targets:
+              - vector-construction-operation
+            color: cyan
+            linger: 0
+          - id: feature-swapped-backlog
+            phrase: The backlog still adds point one eight
+            targets:
+              - vector-construction-operation
+            color: cyan
+            linger: 0
+  - id: preprocessing-change
+    title: See how a preprocessing edit moves a score
+    visual: A 200-hour heartbeat is clipped at 180 or 360 with fixed weights; the authored probability
+      crosses a displayed 0.5 decision threshold only for the changed row.
+    beats:
+      - say: Job J-188 has a raw heartbeat age of two hundred hours. Training clipped this feature at one
+          hundred eighty. A serving edit raises the cap to three hundred sixty, so the model now
+          receives two hundred.
+        hold: 0.55
+        visual_cues:
+          - id: preprocessing-change-beat-1-focus-1
+            phrase: Job J-188 has a raw heartbeat age of two hundred hours
+            targets:
+              - preprocessing-change-object-raw-age-200-h-h-49
+            color: blue
+            linger: 0.6
+          - id: feature-cap-change
+            phrase: A serving edit raises the cap to three hundred sixty, so the model now receives two hundred.
+            targets:
+              - preprocessing-change-object-moving-x-moving-y-14-score-5-c-pink-c-green-47
+            color: cyan
+            linger: 0.45
+      - say: Keep the weights fixed and use the lesson’s illustrative logistic rule. Its score moves from
+          about point four four five to point five four five, crossing the selected one-half action
+          threshold.
+        hold: 0.65
+        visual_cues:
+          - id: preprocessing-change-beat-2-focus-1
+            phrase: Its score moves from about point four four
+            targets:
+              - preprocessing-change-object-moving-x-moving-y-14-score-5-c-pink-c-green-47
+            color: blue
+            linger: 0.6
+          - id: preprocessing-change-beat-2-focus-2
+            phrase: Keep the weights fixed and use the lesson’s illustrative logistic rule
+            targets:
+              - preprocessing-change-object-moving-x-moving-y-14-score-5-c-pink-c-green-47
+            color: blue
+            linger: 0.6
+          - id: feature-preprocess-score-pair
+            phrase: Its score moves from about point four four five to point five four five, crossing the selected one-half action threshold.
+            targets:
+              - feature-preprocess-score-pair
+            color: cyan
+            linger: 0
+      - say: Now try a heartbeat half an hour old. It fits under both caps, so the same weights give
+          the same score. Try the new cap on held-out jobs before deciding whether to keep it,
+          restore the old cap or retrain.
+        hold: 0.7
+        visual_cues:
+          - id: preprocessing-change-beat-3-focus-1
+            phrase: It fits under both caps
+            targets:
+              - preprocessing-change-object-moving-x-moving-y-14-score-5-c-pink-c-green-47
+            color: blue
+            linger: 0.6
+          - id: preprocessing-change-beat-3-focus-2
+            phrase: the same weights give the same score
+            targets:
+              - preprocessing-change-object-current-cap-h-fixed-teaching-weights-51
+            color: blue
+            linger: 0.6
+          - id: feature-preprocess-fresh
+            phrase: It fits under both caps, so the same weights give the same score
+            targets:
+              - feature-preprocess-fresh
+            color: cyan
+            linger: 0
+  - id: parity
+    title: Do the two copies of this row agree?
+    visual: The same three offline values are compared to three separate serving samples from the article.
+      Each sample has a distinct outcome under the parity check.
+    beats:
+      - say: Start with a captured row that matches. Same job, same nine o’clock decision, same preprocessing
+          version. The pool matches, both backlog readings are eighteen, and both priority bits are zero.
+          The comparison finds no differing fields in this sample.
+        hold: 0.75
+        visual_cues:
+          - id: parity-match
+            phrase: both backlog readings are eighteen
+            targets:
+              - parity-table
+            linger: 0.25
+      - say: Load a second capture. This one has a backlog of zero. Zero is a valid queue length. Compare it
+          with eighteen on the same row and the parity check fails. Offline validation alone never sees
+          what serving put in that slot.
+        hold: 0.8
+        visual_cues:
+          - id: parity-stale
+            phrase: This one has a backlog of zero
+            targets:
+              - parity-table
+            linger: 0.25
+      - say: Here is a third capture. The backlog matches again, but the priority key is absent. Compare the
+          union of the keys so that a missing field shows up too. Each failure tells you where to look.
+          Check the source snapshot, the transform version and the path that delivered the value.
+        hold: 0.85
+        visual_cues:
+          - id: parity-missing
+            phrase: the priority key is absent
+            targets:
+              - parity-table
+            linger: 0.25
+  - id: parity-calculation
+    title: What did the scorer actually receive?
+    visual: The captured backlog stays at zero alongside the historical source value of eighteen. A third
+      row tests the repair with the same fixed logistic rule.
+    beats:
+      - say: Return to the capture with backlog zero. Freeze it beside the replay of the eligible source, which
+          shows eighteen. Both rows have a heartbeat age of half an hour. Use the same illustrative
+          logistic rule as before. The heartbeat and intercept give minus three point nine nine. The
+          source backlog adds point one eight. The capture adds zero. Those logits give different scores
+          even though both inputs passed the numeric check.
+        hold: 0.9
+        visual_cues:
+          - id: parity-base
+            phrase: The heartbeat and intercept give minus three point nine nine
+            targets:
+              - parity-scores
+            linger: 0.25
+          - id: parity-delta
+            phrase: The source backlog adds point one eight
+            targets:
+              - parity-scores
+            linger: 0.25
+          - id: feature-parity-scores
+            phrase: Those logits give different scores
+            targets:
+              - parity-scores
+            linger: 0.25
+      - say: Keep the capture as evidence. Once you have verified the source at nine, replay the serving
+          calculation with eighteen in the backlog slot. The repaired run agrees with the historical
+          source. The original request still saw zero. The scores show the effect of that substitution.
+          Measuring its effect on accuracy takes labeled outcomes.
+        hold: 0.9
+        visual_cues:
+          - id: feature-parity-restore
+            phrase: with eighteen in the backlog slot
+            targets:
+              - parity-scores
+            linger: 0.25
+      - say: Check types separately. Python considers False equal to zero, so a value comparison can pass even
+          if a Boolean source field has become an integer. A present null also differs from an absent key.
+          Set a tolerance for cross-engine floats and a policy for nonfinite values.
+        hold: 0.75
+        visual_cues:
+          - id: parity-type
+            phrase: Python considers False equal to zero
+            targets:
+              - parity-type-check
+            linger: 0.25
+      - say: A changed score can affect later training data if a controller acts on it. For example, requeuing a
+          job could change tomorrow’s backlog. That dependency is the CACE warning. To check for feedback,
+          follow the requeued job and see which backlog the next prediction uses.
+        hold: 0.7
+        visual_cues:
+          - id: feature-parity-feedback
+            phrase: if a controller acts on it
+            targets:
+              - parity-feedback
+            linger: 0.25
+  - id: store-and-freshness
+    title: Can the online store replay yesterday?
+    visual: A new write replaces the latest backlog while the historical value stays at eighteen. A feed
+      watermark and the job's heartbeat move independently of the lag policy thresholds.
+    beats:
+      - say: The registry describes the feature. The historical path can replay its value at nine. Watch what
+          happens in a latest-only online store when a new backlog of thirty replaces eighteen. Asking for
+          J two oh four now gives thirty. The registry entry alone cannot recover eighteen or tell you
+          what the service read. Keep the serving capture and enough versioned history to check it. A
+          small system can share a preprocessing package. If you choose a feature store, check the product
+          generation and backend for the joins, synchronization and migration support you need.
+        hold: 0.9
+        visual_cues:
+          - id: store-and-freshness-0
+            phrase: The historical path can replay its value at nine
+            targets:
+              - store-and-freshness-operation
+            linger: 0.25
+          - id: feature-store-overwrite
+            phrase: a new backlog of thirty replaces eighteen
+            targets:
+              - store-and-freshness-operation
+            linger: 0.25
+          - id: feature-store-generation
+            phrase: check the product generation and backend
+            targets:
+              - store-and-freshness-operation
+            linger: 0.25
+      - say: At ten, this job’s last heartbeat is two hours old. Follow the feed watermark up to ten. The feed
+          has caught up even though the job has sent nothing since eight. Define lag using the expected
+          update schedule, watermark or age for this feed. A recent write for another job says little
+          about this one. Null rates, unknown categories and disagreements between captured and replayed
+          rows each point to a different check.
+        hold: 0.9
+        visual_cues:
+          - id: store-and-freshness-1
+            phrase: this job’s last heartbeat is two hours old
+            targets:
+              - store-and-freshness-operation
+            linger: 0.25
+          - id: feature-store-watermark
+            phrase: Follow the feed watermark up to ten
+            targets:
+              - store-and-freshness-operation
+            linger: 0.25
+      - say: Apply this example’s lag policy. Through fifteen minutes, score normally. At exactly forty-five
+          minutes, use the fallback. If the next reading is forty-five point one, abstain and alert.
+          Boolean false is an invalid measurement. Negative, nonnumeric and nonfinite values also take the
+          abstain branch. A fallback needs inputs you can still trust independently of the stale feed.
+        hold: 0.9
+        visual_cues:
+          - id: store-and-freshness-2
+            phrase: Apply this example’s lag policy
+            targets:
+              - store-and-freshness-operation
+            linger: 0.25
+          - id: feature-lag-route
+            phrase: At exactly forty-five minutes, use the fallback
+            targets:
+              - store-and-freshness-operation
+            linger: 0.25
+          - id: feature-lag-over45
+            phrase: forty-five point one, abstain and alert
+            targets:
+              - store-and-freshness-operation
+            linger: 0.25
+          - id: feature-lag-invalid
+            phrase: Negative, nonnumeric and nonfinite values also take the abstain branch
+            targets:
+              - store-and-freshness-operation
+            linger: 0.25
+  - id: wrap
+    title: What would you keep from the request?
+    visual: The original source replay and serving capture sit under the same versioned eight-slot layout.
+      Only the backlog column differs. The original capture stays available for a replay.
+    beats:
+      - say: Before we close J two oh four, save what the request actually saw. Keep the job, its scoring time,
+          the preprocessing version and the values in their original order. Which slot would you need to
+          explain to the next engineer?
+        hold: 1.7
+        visual_cues:
+          - id: wrap-compare
+            phrase: the values in their original order
+            targets:
+              - wrap-rows
+            linger: 0.25
+      - say: The backlog slot. The captured request holds zero there and the source replay holds eighteen. Keep
+          both. Tomorrow’s latest lookup could give you a third value. You need the original cutoff and
+          the versioned history to explain this difference.
+        hold: 0.85
+        visual_cues:
+          - id: wrap-backlog
+            phrase: The backlog slot
+            targets:
+              - wrap-rows
+            linger: 0.25
+  - id: earned-feature-transfer
+    title: Replay the ten o’clock request
+    visual: The same arrival ruler follows a fresh job. Compare the historical and new decision when the
+      late ping lands, then repair only the eligible backlog while the captured score stays put.
+    beats:
+      - say: Try another job. The scheduler acted at ten. Three pings are on its record now. Read across from
+          when each ping left the job to when the scorer could see it. The nine fifty ping turned up at
+          ten oh five. Which ping belongs in the ten o’clock row?
+        hold: 2.35
+        visual_cues:
+          - id: fresh-receipts
+            phrase: The nine fifty ping turned up at ten oh five
+            targets:
+              - fresh-history
+            linger: 0.25
+      - say: The nine ten ping was already readable at nine eleven. At ten it was fifty minutes old, or five
+          sixths of an hour. The new pool maps to other. Fill in twenty queued minutes and seven jobs in
+          the measured backlog. The missing and priority bits are both zero. Now the late ping arrives. A
+          new decision at ten oh five could use nine fifty, fifteen minutes ago. Replay ten o’clock and
+          you still get nine ten.
+        hold: 1.1
+        caption_starts:
+          - fifty minutes old, or five sixths of an hour
+          - The new pool maps to other
+          - Now the late ping arrives
+          - Replay ten o’clock
+        visual_cues:
+          - id: fresh-pick
+            phrase: The nine ten ping was already readable at nine eleven
+            targets: [fresh-history]
+          - id: feature-fresh-heartbeat
+            phrase: fifty minutes old, or five sixths of an hour
+            targets:
+              - fresh-vector
+            linger: 0.25
+          - id: fresh-pool
+            phrase: The new pool maps to other
+            targets: [fresh-vector]
+          - id: fresh-queued
+            phrase: twenty queued minutes
+            targets: [fresh-vector]
+          - id: fresh-backlog
+            phrase: seven jobs in the measured backlog
+            targets: [fresh-vector]
+          - id: feature-fresh-vector
+            phrase: The missing and priority bits are both zero
+            targets:
+              - fresh-vector
+            linger: 0.25
+          - id: feature-fresh-history
+            phrase: Now the late ping arrives
+            targets:
+              - fresh-history
+            linger: 0.25
+          - id: fresh-next-decision
+            phrase: could use nine fifty, fifteen minutes ago
+            targets: [fresh-history]
+      - say: Look at the original capture. It says the backlog was zero. Keep the cutoff, the other seven slots
+          and their weights fixed. In our linear worksheet, the queue and heartbeat together contribute
+          about point two one six seven. That is the whole captured score. The eligible backlog adds seven
+          hundredths, bringing the reference to about point two eight six seven. Here the rule raises an
+          alert at a quarter. Which row would raise it?
+        hold: 2.2
+        caption_starts:
+          - about point two one six seven
+          - bringing the reference to about point two eight six seven
+          - Here the rule raises an alert at a quarter
+        visual_cues:
+          - id: feature-fresh-stale
+            phrase: That is the whole captured score
+            targets:
+              - fresh-scores
+            linger: 0.25
+          - id: feature-fresh-correct
+            phrase: bringing the reference to about point two eight six seven
+            targets:
+              - fresh-scores
+            linger: 0.25
+          - id: fresh-rule
+            phrase: the rule raises an alert at a quarter
+            targets:
+              - fresh-scores
+            linger: 0.25
+      - say: Only the eligible row crosses. Keep the captured zero where it is. On a separate replay, restore
+          the seven jobs recorded by ten. Those seven jobs add seven hundredths and trigger the alert.
+          The late heartbeat stays out. The captured zero explains why the original request stayed quiet.
+        hold: 1.4
+        caption_starts:
+          - On a separate replay
+          - Those seven jobs add seven hundredths
+        visual_cues:
+          - id: feature-fresh-threshold
+            phrase: Only the eligible row crosses
+            targets:
+              - fresh-scores
+            linger: 0.25
+          - id: feature-fresh-repair
+            phrase: restore the seven jobs recorded by ten
+            targets:
+              - fresh-scores
+            linger: 0.25

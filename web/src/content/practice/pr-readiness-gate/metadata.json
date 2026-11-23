@@ -1,0 +1,196 @@
+{
+  "id": "pr-readiness-gate",
+  "slug": "pr-readiness-gate",
+  "title": "PR Readiness Gate",
+  "difficulty": "Easy",
+  "category": "Agents",
+  "language": "python3",
+  "timeEstimateMinutes": 25,
+  "timeLimitMs": 2500,
+  "memoryLimitMb": 128,
+  "order": 206,
+  "tags": [
+    "pull requests",
+    "checks",
+    "reviews",
+    "agent artifacts"
+  ],
+  "source": "Cursor coding prep",
+  "summary": "Evaluate a pull-request merge policy across required checks, review states, and required build artifacts.",
+  "starterCode": [
+    "def pr_blockers(checks: list[dict], reviews: list[dict], artifacts: list[str], required_checks: list[str]) -> list[str]:",
+    "    pass"
+  ],
+  "testCases": [
+    {
+      "name": "public ready pull request",
+      "visibility": "sample",
+      "description": "Required check passed, approval exists, and required artifacts are present.",
+      "input": "checks=test passed, review=approved, artifacts=diff/tests",
+      "expected": "[]",
+      "feedback": "A ready PR should return an empty blocker list.",
+      "setup": [
+        "from solution import pr_blockers",
+        "checks = [{\"name\": \"test\", \"status\": \"passed\"}]",
+        "reviews = [{\"user\": \"u\", \"state\": \"approved\"}]"
+      ],
+      "expression": "pr_blockers(checks, reviews, [\"diff\", \"tests\"], [\"test\"])"
+    },
+    {
+      "name": "public missing and failing checks",
+      "visibility": "sample",
+      "description": "Every required check must exist and pass.",
+      "input": "lint failed, test missing",
+      "expected": "[\"approval_required\", \"failing_check:lint\", \"missing_artifact:diff\", \"missing_artifact:tests\", \"missing_check:test\"]",
+      "feedback": "Index checks by name, then evaluate required names.",
+      "setup": [
+        "from solution import pr_blockers",
+        "checks = [{\"name\": \"lint\", \"status\": \"failed\"}]",
+        "reviews = []"
+      ],
+      "expression": "pr_blockers(checks, reviews, [], [\"lint\", \"test\"])",
+      "expectedExpression": "[\n    \"approval_required\",\n    \"failing_check:lint\",\n    \"missing_artifact:diff\",\n    \"missing_artifact:tests\",\n    \"missing_check:test\",\n]"
+    },
+    {
+      "name": "hidden changes requested blocks",
+      "visibility": "hidden",
+      "setup": [
+        "from solution import pr_blockers",
+        "checks = [{\"name\": \"test\", \"status\": \"passed\"}]",
+        "reviews = [{\"state\": \"approved\"}, {\"state\": \"changes_requested\"}]"
+      ],
+      "input": "checks = [{\"name\": \"test\", \"status\": \"passed\"}]\nreviews = [{\"state\": \"approved\"}, {\"state\": \"changes_requested\"}]\npr_blockers(checks, reviews, [\"diff\", \"tests\"], [\"test\"])",
+      "expected": "[\"changes_requested\"]",
+      "expression": "pr_blockers(checks, reviews, [\"diff\", \"tests\"], [\"test\"])"
+    },
+    {
+      "name": "hidden duplicate check uses latest",
+      "visibility": "hidden",
+      "setup": [
+        "from solution import pr_blockers",
+        "checks = [{\"name\": \"test\", \"status\": \"failed\"}, {\"name\": \"test\", \"status\": \"passed\"}]",
+        "reviews = [{\"state\": \"approved\"}]"
+      ],
+      "input": "checks = [{\"name\": \"test\", \"status\": \"failed\"}, {\"name\": \"test\", \"status\": \"passed\"}]\nreviews = [{\"state\": \"approved\"}]\npr_blockers(checks, reviews, [\"diff\", \"tests\"], [\"test\"])",
+      "expected": "[]",
+      "expression": "pr_blockers(checks, reviews, [\"diff\", \"tests\"], [\"test\"])"
+    },
+    {
+      "name": "present check with null status fails",
+      "visibility": "hidden",
+      "description": "A present required check with no status is failing, not missing.",
+      "feedback": "Distinguish an absent check from a present check whose status is not passed.",
+      "setup": [
+        "from solution import pr_blockers",
+        "checks = [{\"name\": \"test\", \"status\": None}]",
+        "reviews = [{\"state\": \"approved\"}]"
+      ],
+      "input": "pr_blockers(checks, reviews, [\"diff\", \"tests\"], [\"test\"])",
+      "expected": "[\"failing_check:test\"]"
+    },
+    {
+      "name": "hidden artifacts exact",
+      "visibility": "hidden",
+      "setup": [
+        "from solution import pr_blockers",
+        "checks = [{\"name\": \"test\", \"status\": \"passed\"}]",
+        "reviews = [{\"state\": \"approved\"}]"
+      ],
+      "input": "checks = [{\"name\": \"test\", \"status\": \"passed\"}]\nreviews = [{\"state\": \"approved\"}]\npr_blockers(checks, reviews, [\"diff\"], [\"test\"])",
+      "expected": "[\"missing_artifact:tests\"]",
+      "expression": "pr_blockers(checks, reviews, [\"diff\"], [\"test\"])"
+    },
+    {
+      "name": "hidden blocker sorting",
+      "visibility": "hidden",
+      "setup": [
+        "from solution import pr_blockers"
+      ],
+      "input": "pr_blockers([], [], [], [\"z\", \"a\"])",
+      "expected": "[\n    \"approval_required\",\n    \"missing_artifact:diff\",\n    \"missing_artifact:tests\",\n    \"missing_check:a\",\n    \"missing_check:z\",\n]"
+    },
+    {
+      "name": "hidden ignored nonrequired failing check",
+      "visibility": "hidden",
+      "setup": [
+        "from solution import pr_blockers",
+        "checks = [{\"name\": \"optional\", \"status\": \"failed\"}, {\"name\": \"test\", \"status\": \"passed\"}]",
+        "reviews = [{\"state\": \"approved\"}]"
+      ],
+      "input": "checks = [{\"name\": \"optional\", \"status\": \"failed\"}, {\"name\": \"test\", \"status\": \"passed\"}]\nreviews = [{\"state\": \"approved\"}]\npr_blockers(checks, reviews, [\"diff\", \"tests\"], [\"test\"])",
+      "expected": "[]",
+      "expression": "pr_blockers(checks, reviews, [\"diff\", \"tests\"], [\"test\"])"
+    },
+    {
+      "name": "public requires an approval",
+      "visibility": "sample",
+      "description": "Passing checks and complete artifacts are still blocked without approval.",
+      "setup": [
+        "from solution import pr_blockers",
+        "checks = [{\"name\": \"test\", \"status\": \"passed\"}]"
+      ],
+      "input": "pr_blockers(checks, [], [\"diff\", \"tests\"], [\"test\"])",
+      "expected": "[\"approval_required\"]",
+      "feedback": "Add approval_required when no review state is approved."
+    },
+    {
+      "name": "hidden latest failing check supersedes earlier success",
+      "visibility": "hidden",
+      "description": "A later failed check invalidates an earlier passing check with the same name.",
+      "setup": [
+        "from solution import pr_blockers",
+        "checks = [{\"name\": \"test\", \"status\": \"passed\"}, {\"name\": \"test\", \"status\": \"failed\"}]",
+        "reviews = [{\"state\": \"approved\"}]"
+      ],
+      "input": "pr_blockers(checks, reviews, [\"diff\", \"tests\"], [\"test\"])",
+      "expected": "[\"failing_check:test\"]",
+      "feedback": "Index check names in arrival order so the most recent status owns the merge decision."
+    }
+  ],
+  "clarifyingQuestions": [
+    "Is one approval enough when changes were also requested earlier?",
+    "Which artifacts prove agent work is reviewable?",
+    "Should pending check status count as failing for required checks?"
+  ],
+  "followUps": [
+    "Require code-owner approvals by path.",
+    "Add stale-review invalidation after new commits.",
+    "Attach blockers to user-facing PR status."
+  ],
+  "followUpGuide": [
+    "For code owners, map changed paths to owner groups and require one approval per group.",
+    "",
+    "For stale reviews, define whether a new head invalidates an approval, then compare review commit SHA against head SHA. If consuming review history, first reduce it to each reviewer's effective current state; the base problem intentionally doesn't do that.",
+    "",
+    "For agent PRs, artifacts should include diff, tests, run log, cost, and screenshots when UI changed."
+  ],
+  "complexityAnalysis": [
+    "- Building check map. Time: O(c), where c is check count. Space: O(c).",
+    "- Review and artifact scans. Time: O(r + a + k), where k is the required-check list length. Space: O(r + a) for the review-state list and artifact set.",
+    "- Sorting blockers. Time: O(b log b). Space: O(b), where b is blocker count."
+  ],
+  "solutionGuide": [
+    "Index required data first, then collect string blockers and sort at the end.",
+    "",
+    "```python",
+    "def pr_blockers(checks: list[dict], reviews: list[dict], artifacts: list[str], required_checks: list[str]) -> list[str]:",
+    "    blockers = []",
+    "    by_check = {check.get(\"name\"): check.get(\"status\") for check in checks}",
+    "    for name in required_checks:",
+    "        if name not in by_check:",
+    "            blockers.append(f\"missing_check:{name}\")",
+    "        elif by_check[name] != \"passed\":",
+    "            blockers.append(f\"failing_check:{name}\")",
+    "    states = [review.get(\"state\") for review in reviews]",
+    "    if \"approved\" not in states:",
+    "        blockers.append(\"approval_required\")",
+    "    if \"changes_requested\" in states:",
+    "        blockers.append(\"changes_requested\")",
+    "    artifact_set = set(artifacts)",
+    "    for artifact in (\"diff\", \"tests\"):",
+    "        if artifact not in artifact_set:",
+    "            blockers.append(f\"missing_artifact:{artifact}\")",
+    "    return sorted(blockers)",
+    "```"
+  ]
+}

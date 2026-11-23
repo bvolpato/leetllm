@@ -1,0 +1,173 @@
+version: 1
+lesson: llm-judge
+promise: Decide when a judge has earned a preference between two replies, which cases count toward
+  agreement, and what evidence a reviewer still needs before acting on the result.
+objectives:
+  - id: define-measurement
+    can: Choose exact checks and rubric formats, scope research evidence and calculate pairwise call
+      budgets.
+    scenes:
+      - subject-intro
+      - separate-checks
+      - evaluation-formats
+      - rubric
+      - reader-model-check
+  - id: parse-and-reconcile
+    can: Reject duplicate verdicts before decoding loses them, check a parsed reason against the actual
+      reply and follow each slot to its reply before recording a preference, tie, conflict or review request.
+    scenes:
+      - strict-receipt
+      - order-swap
+      - swap-contract
+      - fresh-decision
+  - id: measure-errors
+    can: Design matched probes, compare two independent human ballots before adjudication, and compute
+      agreement from paired cases, chance agreement from crossed labels and coverage from all attempts.
+    scenes:
+      - blind-and-probe
+      - controlled-probes
+      - human-reference
+      - agreement
+      - prevalence-trap
+      - coverage
+  - id: use-with-bounds
+    can: Check the proposed next action against the current service record, bound false acceptance on
+      independent known-bad cases and compare frozen judge configurations on one held-out labeled set.
+    scenes:
+      - state-history
+      - zero-error-bound
+      - transfer
+      - fresh-decision
+sections:
+  - heading: Decide what code can actually verify
+    status: taught
+    scenes:
+      - separate-checks
+      - reader-model-check
+  - heading: Select your judge format and anchor the rubric
+    status: taught
+    scenes:
+      - evaluation-formats
+      - rubric
+  - heading: Parse the result before believing the label
+    status: taught
+    scenes:
+      - strict-receipt
+      - reader-model-check
+  - heading: Reject an ambiguous JSON receipt
+    status: taught
+    scenes:
+      - strict-receipt
+  - heading: Swap the order and preserve disagreement
+    status: taught
+    scenes:
+      - order-swap
+      - swap-contract
+  - heading: 'Probe shortcuts instead of printing "bias: passed"'
+    status: taught
+    scenes:
+      - blind-and-probe
+      - controlled-probes
+  - heading: Verbosity bias
+    status: taught
+    scenes:
+      - controlled-probes
+  - heading: Self-enhancement and brand bias
+    status: taught
+    scenes:
+      - controlled-probes
+  - heading: Adversarial candidate injection
+    status: taught
+    scenes:
+      - blind-and-probe
+      - controlled-probes
+  - heading: Measure human agreement, including its denominator
+    status: taught
+    scenes:
+      - human-reference
+      - agreement
+      - prevalence-trap
+      - transfer
+  - heading: "The denominator trap: reporting coverage"
+    status: taught
+    scenes:
+      - coverage
+      - fresh-decision
+  - heading: Track state evolution and tool receipts in conversations
+    status: taught
+    scenes:
+      - state-history
+      - fresh-decision
+  - heading: Decide whether the measurement is ready to use
+    status: taught
+    scenes:
+      - zero-error-bound
+      - transfer
+      - fresh-decision
+  - heading: Small-sample uncertainty and binomial bounds
+    status: taught
+    scenes:
+      - zero-error-bound
+quiz:
+  - n: 1
+    status: taught
+    scenes:
+      - separate-checks
+      - reader-model-check
+  - n: 2
+    status: taught
+    scenes:
+      - evaluation-formats
+  - n: 3
+    status: taught
+    scenes:
+      - strict-receipt
+  - n: 4
+    status: taught
+    scenes:
+      - order-swap
+      - swap-contract
+      - fresh-decision
+  - n: 5
+    status: taught
+    scenes:
+      - controlled-probes
+  - n: 6
+    status: taught
+    scenes:
+      - agreement
+  - n: 7
+    status: taught
+    scenes:
+      - coverage
+      - fresh-decision
+  - n: 8
+    status: taught
+    scenes:
+      - zero-error-bound
+  - n: 9
+    status: taught
+    scenes:
+      - controlled-probes
+      - human-reference
+  - n: 10
+    status: taught
+    scenes:
+      - transfer
+      - human-reference
+      - fresh-decision
+removed: []
+reviews:
+  closed_book:
+    script: c55c2670972b27df
+    taught: 10
+    partial: 0
+    absent: 0
+    reviewer: /root/upgrade_shard1
+    evidence: build/video-delivery-20261106/script-reviews/llm-judge.json
+  fact_check:
+    script: c55c2670972b27df
+    open_findings: 0
+    reviewer: /root/upgrade_shard1
+    evidence: build/video-delivery-20261106/script-reviews/llm-judge.json
+framing: []

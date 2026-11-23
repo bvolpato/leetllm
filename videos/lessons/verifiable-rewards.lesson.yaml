@@ -1,0 +1,2263 @@
+version: 1
+id: verifiable-rewards
+title: Learning from Answers We Can Check
+source: training/rlvr-verifiable-rewards-training/content.md
+voice: af_heart
+rate: +12%
+sources:
+  - title: "Shao et al. DeepSeekMath: Pushing the Limits of Mathematical Reasoning in Open Language Models"
+    url: https://arxiv.org/abs/2402.03300
+  - title: "Lambert et al. Tülu 3: Pushing Frontiers in Open Language Model Post-Training"
+    url: https://arxiv.org/abs/2411.15124
+  - title: DeepSeek R1 original January2025 report
+    url: https://arxiv.org/abs/2501.12948v1
+  - title: DAPO method
+    url: https://arxiv.org/abs/2503.14476
+  - title: Process supervision study
+    url: https://arxiv.org/abs/2305.20050
+  - title: Learned outcome verifiers
+    url: https://arxiv.org/abs/2110.14168
+  - title: Math Verify extraction and comparison
+    url: https://github.com/huggingface/Math-Verify
+  - title: Lean axiom dependencies
+    url: https://lean-lang.org/doc/reference/latest/Axioms/
+  - title: SQLite result ordering
+    url: https://sqlite.org/lang_select.html
+  - title: Current GRPO trainer guide, edition-specific settings
+    url: https://huggingface.co/docs/trl/grpo_trainer
+scenes:
+  - id: intro
+    title: What score will submission B get?
+    visual: A pen draws a box around the revised number on submission B. Keep that sheet and the answer key in place while a one-box submission appears below it.
+    beats:
+      - say: Submission B just changed its answer. It had a hundred and sixty-eight. Now it says a hundred and forty-eight.
+        hold: 0.45
+        caption_starts:
+          - Now it says
+        visual_cues:
+          - id: intro-extra
+            phrase: Submission B just changed its answer
+            targets: [second-box]
+      - say: Fourteen times twelve is a hundred and sixty-eight. The checker awards one point if the first box matches. What does B earn?
+        hold: 2.2
+        caption_starts:
+          - The checker awards one point
+          - What does B earn
+        visual_cues:
+          - id: intro-rule
+            phrase: The checker awards one point
+            targets: [read-rule]
+      - say: Compare B with an answer that stops after one box. The checker reads the same number in both. Each gets one point. Even the answer that contradicts itself gets full credit. Using those scores to update the model is reinforcement learning with verifiable rewards.
+        hold: 0.8
+        caption_starts:
+          - The checker reads the same number
+          - Each gets one point
+          - Even the answer
+          - Using those scores
+        visual_cues:
+          - id: intro-read
+            phrase: The checker reads the same number
+            targets: [first-boxes]
+          - id: intro-award
+            phrase: Each gets one point
+            targets: [scores]
+  - id: alignment-space
+    title: Where does the feedback come from?
+    visual: Four training methods pair a source of feedback with the way it changes the model. The Tülu 3 example shows a checker reward and a separate missing-end-token penalty.
+    beats:
+      - say: Suppose we have a worked answer. Supervised fine-tuning fits its tokens by cross-entropy. If people rank two answers, we can train a reward model on those rankings and let it score new answers for reinforcement learning. Direct preference optimization, or DPO, uses the preferred and rejected answers directly.
+        hold: 0.7
+        visual_cues:
+          - id: method-sft
+            phrase: Supervised fine-tuning
+            targets: [method-sft]
+          - id: method-rlhf
+            phrase: If people rank two answers
+            targets: [method-rlhf]
+          - id: method-dpo
+            phrase: Direct preference optimization
+            targets: [method-dpo]
+      - say: With verifiable rewards, we sample new answers and run the checker on each one. PPO and GRPO are two ways to use those scores to update the policy. We could also use the checker to order a pair for DPO. In that case the training data are pairs with a recorded preference.
+        hold: 0.7
+        visual_cues:
+          - id: method-rlvr
+            phrase: With verifiable rewards
+            targets: [method-rlvr]
+      - say: Tülu three used PPO. A checked success earned ten points and a failure earned zero. A missing end token cost ten points separately. A checker can also award partial credit. The scale and the way those scores combine determine which answers earn the most.
+        hold: 0.7
+        visual_cues:
+          - id: tulu-checked
+            phrase: A checked success earned ten points and a failure earned zero
+            targets: [tulu-rewards]
+          - id: tulu-end
+            phrase: A missing end token cost ten points
+            targets: [tulu-rewards]
+  - id: contract
+    title: Define the verifier's contract
+    visual: A response passes through syntax, execution, and answer checks; candidate failure and infrastructure
+      failure route to distinct outcomes.
+    beats:
+      - say: A verifier maps a prompt and candidate answer to a reward. For a simple outcome-only design, a matching
+          checked answer earns one and a mismatch earns zero. A verifier output becomes a training label, so
+          its version and failure behavior belong in the experiment record.
+        hold: 0.55
+        visual_cues:
+          - id: contract-b1-1
+            phrase: maps a prompt and candidate answer
+            targets:
+              - answer-parser
+            linger: 0.45
+          - id: contract-b1-2
+            phrase: reward
+            targets:
+              - outcome-reward
+            linger: 0.45
+      - say: The checker can parse a final number, run tests on a program, or ask a proof system to validate a formal
+          statement. The exact contract determines what a passing answer means.
+        hold: 0.55
+        visual_cues:
+          - id: contract-b2-1
+            phrase: run tests
+            targets:
+              - verifier
+            linger: 0.45
+      - say: A checker crash leaves the candidate unmeasured. Quarantine that rollout as an infrastructure fault. A
+          wrong answer is a candidate failure; a broken test runner is missing evidence.
+        hold: 0.75
+        visual_cues:
+          - id: contract-b3-1
+            phrase: checker crash
+            targets:
+              - infrastructure-fault
+            linger: 0.45
+          - id: contract-b3-2
+            phrase: wrong answer
+            targets:
+              - candidate-failure
+            linger: 0.45
+  - id: measurement-status
+    title: Keep a broken measurement out of the reward vector
+    visual: The same rollout identity travels through reference validation, parser and bounded execution; a
+      candidate-owned failure receives zero while infrastructure faults leave an unscored hole.
+    beats:
+      - say: Validate the task and trusted reference before judging its candidate. A malformed candidate, wrong result
+          or candidate-owned runtime timeout receives zero when the verifier infrastructure is healthy. A host
+          crash, unavailable prover or invalid reference leaves that sample unscored. Store prompt, rollout
+          and verifier versions with both reward and failure type.
+        hold: 0.7
+        visual_cues:
+          - id: vr-measurement-status-b0
+            phrase: Validate the task and trusted reference before judging its candidate.
+            targets:
+              - measurement-status-mechanism
+            color: cyan
+            linger: 0.3
+          - id: vr-zero-measurement-status
+            phrase: candidate-owned runtime timeout receives zero
+            targets:
+              - measurement-status-mechanism
+            color: yellow
+            linger: 0.35
+          - id: vr-unscored-measurement-status
+            phrase: leaves that sample unscored
+            targets:
+              - measurement-status-mechanism
+            color: yellow
+            linger: 0.35
+      - say: Keep unscored identities in quarantine while excluding their missing outcomes from the reward vector. Use
+          a bounded retry policy for genuine infrastructure failures, preserving the original candidate.
+          Resampling until a passing answer appears changes the experiment. Recording missing measurements as
+          zeros can make an outage look like an all-fail group. In a mixed group, a false zero also changes
+          the baseline for the measured responses.
+        hold: 0.7
+        visual_cues:
+          - id: vr-measurement-status-b1
+            phrase: Keep unscored identities in quarantine while excluding their missing outcomes from the reward vector.
+            targets:
+              - measurement-status-mechanism
+            color: yellow
+            linger: 0.3
+          - id: vr-quarantine-measurement-status
+            phrase: excluding their missing outcomes from the reward vector
+            targets:
+              - measurement-status-mechanism
+            color: yellow
+            linger: 0.35
+          - id: vr-retry-measurement-status
+            phrase: Resampling until a passing answer appears changes the experiment
+            targets:
+              - measurement-status-mechanism
+            color: yellow
+            linger: 0.35
+      - say: Test the checker on repeated answer fields, invalid reference values, crashes, excessive output
+          and timeouts. Look at the last two records. The candidate hit its time limit on a healthy
+          runner, so its zero counts. The host crashed before it could measure the fourth response. Only
+          the first three scores go into the group mean.
+        hold: 0.7
+        visual_cues:
+          - id: vr-measurement-status-b2
+            phrase: Test the checker on repeated answer fields
+            targets:
+              - measurement-status-mechanism
+            color: cyan
+            linger: 0.3
+          - id: vr-adversarial-measurement-status
+            phrase: repeated answer fields, invalid reference values, crashes, excessive output and timeouts
+            targets:
+              - measurement-status-mechanism
+            color: yellow
+            linger: 0.35
+  - id: check
+    title: What can a final field tell us?
+    visual: Ten rows of twelve slots and four more rows supply two subtotals. They meet at 168. Two responses then
+      show different amounts of working with the same boxed value.
+    beats:
+      - say: Check the reference by counting the slots. Ten workers with twelve slots each give us a hundred and
+          twenty. Four more workers give us forty-eight. Add the two groups. Their hundred and sixty-eight slots
+          give us the capacity.
+        hold: 0.65
+        visual_cues:
+          - id: check-ten
+            phrase: Ten workers with twelve slots each give us a hundred and twenty
+            targets:
+              - ten-groups
+            linger: 0.2
+            caption_boundary: true
+          - id: check-four
+            phrase: Four more workers give us forty-eight
+            targets:
+              - four-groups
+            linger: 0.2
+            caption_boundary: true
+          - id: check-gather
+            phrase: Add the two groups
+            targets:
+              - sum
+            linger: 0.2
+            caption_boundary: true
+          - id: check-total
+            phrase: hundred and sixty-eight slots
+            targets:
+              - sum
+            linger: 0.2
+            caption_boundary: true
+      - say: Give the checker two fresh responses. The first gives only the answer. The second shows the calculation.
+          Each submits one final field. If the checker compares just that field with the reference, which
+          response earns more?
+        hold: 2.05
+        visual_cues:
+          - id: check-answer
+            phrase: The first gives only the answer
+            targets:
+              - check-answer
+            linger: 0.2
+            caption_boundary: true
+          - id: check-worked
+            phrase: The second shows the calculation
+            targets:
+              - check-worked
+            linger: 0.2
+            caption_boundary: true
+      - say: They tie. Each final field says a hundred and sixty-eight, so each response earns one. If a customer
+          needs a sound explanation too, inspect the steps separately. A reviewer can catch a faulty argument
+          even when its last number matches.
+        hold: 0.7
+        visual_cues:
+          - id: check-tie
+            phrase: They tie
+            targets:
+              - checked-scores
+            linger: 0.2
+            caption_boundary: true
+  - id: outcome-process
+    title: Which explanation for 97 would you trust?
+    visual: Both responses call 97 prime. Their outcome scores stay equal while a second number tests the first explanation.
+    beats:
+      - say: "Change the task to whether ninety-seven is prime. One answer says yes because it ends in seven. Another
+          checks the prime divisors no larger than its square root: two, three, five and seven. Both final Yes
+          fields pass an outcome-only check, although ending in seven does not establish primality."
+        hold: 0.7
+        visual_cues:
+          - id: vr-outcome-process-b0
+            phrase: Change the task to whether ninety-seven is prime.
+            targets:
+              - outcome-process-mechanism
+            color: cyan
+            linger: 0.3
+          - id: vr-bad-proof-outcome-process
+            phrase: yes because it ends in seven
+            targets:
+              - outcome-process-mechanism
+            color: yellow
+            linger: 0.35
+          - id: vr-prime-check-outcome-process
+            phrase: two, three, five and seven
+            targets:
+              - outcome-process-mechanism
+            color: yellow
+            linger: 0.35
+          - id: vr-equal-final-outcome-process
+            phrase: Both final Yes fields pass an outcome-only check
+            targets:
+              - outcome-process-mechanism
+            color: yellow
+            linger: 0.35
+      - say: A process supervisor evaluates intermediate work. Lightman and colleagues used human step labels and learned process reward models to select among generated math solutions. Cobbe and colleagues trained verifiers to score completed solutions. Those studies used learned scores for selection. Here the program checks the final field directly.
+        hold: 0.7
+        visual_cues:
+          - id: vr-outcome-process-b1
+            phrase: A process supervisor evaluates intermediate work.
+            targets:
+              - outcome-process-mechanism
+            color: yellow
+            linger: 0.3
+          - id: vr-steps-outcome-process
+            phrase: human step labels and learned process reward models
+            targets:
+              - outcome-process-mechanism
+            color: yellow
+            linger: 0.35
+      - say: Try the first explanation on seventy-seven. It ends in seven too. Seven times eleven is seventy-seven, so that rule calls a composite number prime. The other explanation tested every prime divisor up to the square root of ninety-seven. All four left a remainder. Now we can say which explanation earns credit for its steps.
+        hold: 0.7
+        caption_starts:
+          - Seven times eleven is seventy-seven
+          - The other explanation tested
+        visual_cues:
+          - id: vr-outcome-process-b2
+            phrase: Try the first explanation on seventy-seven
+            targets: [outcome-process-mechanism]
+          - id: vr-coverage-outcome-process
+            phrase: Seven times eleven is seventy-seven
+            targets: [outcome-process-mechanism]
+  - id: numeric-parser
+    title: Extract one bounded field before comparing exact values
+    visual: A character-level boxed parser counts markers and balances braces before a numeric grammar and exact
+      rational comparison; invalid gold routes away before candidate parsing.
+    beats:
+      - say: The actual mathematics program first requires one literal boxed marker in at most four thousand
+          ninety-six characters. It balances braces, accepts a field of at most sixty-four characters and
+          restricts it to a signed integer, fraction or decimal grammar. Fraction conversion makes one half
+          and zero point five equal without accepting arbitrary Python expressions.
+        hold: 0.7
+        visual_cues:
+          - id: vr-numeric-parser-b0
+            phrase: The actual mathematics program first requires one literal boxed marker in at most four thousand
+              ninety-six characters.
+            targets:
+              - numeric-parser-mechanism
+            color: cyan
+            linger: 0.3
+          - id: vr-markers-numeric-parser
+            phrase: one literal boxed marker
+            targets:
+              - numeric-parser-mechanism
+            color: yellow
+            linger: 0.35
+          - id: vr-balance-numeric-parser
+            phrase: It balances braces
+            targets:
+              - numeric-parser-mechanism
+            color: yellow
+            linger: 0.35
+          - id: vr-fraction-numeric-parser
+            phrase: Fraction conversion makes one half and zero point five equal
+            targets:
+              - numeric-parser-mechanism
+            color: yellow
+            linger: 0.35
+      - say: The trusted reference is parsed first. A zero denominator or invalid gold field quarantines the task. A
+          malformed candidate, second box or candidate zero denominator returns zero under a healthy checker.
+          The same written text can pass a permissive first-match extractor and fail this deliberately strict
+          single-field contract.
+        hold: 0.7
+        visual_cues:
+          - id: vr-numeric-parser-b1
+            phrase: The trusted reference is parsed first.
+            targets:
+              - numeric-parser-mechanism
+            color: yellow
+            linger: 0.3
+          - id: vr-gold-numeric-parser
+            phrase: The trusted reference is parsed first
+            targets:
+              - numeric-parser-mechanism
+            color: yellow
+            linger: 0.35
+          - id: vr-duplicate-numeric-parser
+            phrase: second box or candidate zero denominator returns zero
+            targets:
+              - numeric-parser-mechanism
+            color: yellow
+            linger: 0.35
+      - say: Math-Verify instead separates extraction, symbolic representation and comparison, with configurable
+          priorities and tolerance. Symbolic equivalence also needs variable domains, assumptions and time
+          limits; failed simplification does not itself prove inequality. If useful working legitimately
+          contains several boxes, define a dedicated final-answer field rather than applying our toy contract
+          blindly.
+        hold: 0.7
+        visual_cues:
+          - id: vr-numeric-parser-b2
+            phrase: Math-Verify instead separates extraction, symbolic representation and comparison, with configurable
+              priorities and tolerance.
+            targets:
+              - numeric-parser-mechanism
+            color: cyan
+            linger: 0.3
+          - id: vr-domains-numeric-parser
+            phrase: variable domains, assumptions and time limits
+            targets:
+              - numeric-parser-mechanism
+            color: yellow
+            linger: 0.35
+  - id: trusted-execution
+    title: Grade actual behavior outside the candidate process
+    visual: Fixed trusted local program strings run in child processes while the host owns tests, exact output
+      type and results; security boundaries are drawn separately from the local execution fixture.
+    beats:
+      - say: The code exercise runs fixed trusted Python strings with isolated-mode child processes. The host keeps
+          expected results and checks the parsed output with exact type int, so the Boolean true does not pass
+          as integer one. Candidate-written JSON claiming a perfect score is just output text. The grader must
+          observe behavior on its own cases.
+        hold: 0.7
+        visual_cues:
+          - id: vr-trusted-execution-b0
+            phrase: The code exercise runs fixed trusted Python strings with isolated-mode child processes.
+            targets:
+              - trusted-execution-mechanism
+            color: cyan
+            linger: 0.3
+          - id: vr-type-trusted-execution
+            phrase: the Boolean true does not pass as integer one
+            targets:
+              - trusted-execution-mechanism
+            color: yellow
+            linger: 0.35
+          - id: vr-claim-trusted-execution
+            phrase: Candidate-written JSON claiming a perfect score is just output text
+            targets:
+              - trusted-execution-mechanism
+            color: yellow
+            linger: 0.35
+      - say: This subprocess exercise does not sandbox arbitrary generated code. A production code verifier needs a
+          restricted, patched execution environment with bounded CPU, wall time, memory, filesystem, network
+          and output. Firecracker uses KVM microVMs; gVisor interposes its Sentry application kernel. Their
+          different boundaries still depend on host configuration and allowed interfaces.
+        hold: 0.7
+        visual_cues:
+          - id: vr-trusted-execution-b1
+            phrase: This subprocess exercise does not sandbox arbitrary generated code.
+            targets:
+              - trusted-execution-mechanism
+            color: yellow
+            linger: 0.3
+          - id: vr-boundary-trusted-execution
+            phrase: bounded CPU, wall time, memory, filesystem, network and output
+            targets:
+              - trusted-execution-mechanism
+            color: yellow
+            linger: 0.35
+      - say: A sleeping program can exhaust wall time without using its CPU allowance. Set an elapsed-time
+          limit and make sure cancellation covers the whole execution boundary, including child
+          processes. Keep tests and secrets on the grader's side of that boundary. Clean up the sandbox
+          after each run. If the host fails, record the missing measurement.
+        hold: 0.7
+        visual_cues:
+          - id: vr-trusted-execution-b2
+            phrase: A sleeping program can exhaust wall time without using its CPU allowance.
+            targets:
+              - trusted-execution-mechanism
+            color: cyan
+            linger: 0.3
+          - id: vr-sleep-trusted-execution
+            phrase: A sleeping program can exhaust wall time without using its CPU allowance
+            targets:
+              - trusted-execution-mechanism
+            color: yellow
+            linger: 0.35
+          - id: vr-descendant-trusted-execution
+            phrase: cancellation covers the whole execution boundary
+            targets:
+              - trusted-execution-mechanism
+            color: yellow
+            linger: 0.35
+  - id: hidden-cases
+    title: Will the lookup work on two new inputs?
+    visual: A visible two-key multiplication lookup earns2/2; a withheld pair of new keys is evaluated without
+      modifying its stored table and earns0/2.
+    beats:
+      - say: A lookup table remembers fourteen times twelve and eight times twelve. It earns two out of two on those
+          exposed examples. Hold the table fixed and ask seven times nine and eleven times thirteen. The
+          authored lookup now earns zero out of two. The visible checker rewarded matching cases without
+          establishing multiplication.
+        hold: 0.7
+        caption_starts:
+          - Hold the table fixed
+          - zero out of two
+          - The visible checker
+        visual_cues:
+          - id: vr-hidden-cases-b0
+            phrase: A lookup table remembers fourteen times twelve and eight times twelve.
+            targets:
+              - hidden-cases-mechanism
+            color: cyan
+            linger: 0.3
+          - id: vr-visible-hidden-cases
+            phrase: two out of two on those exposed examples
+            targets:
+              - hidden-cases-mechanism
+            color: yellow
+            linger: 0.35
+          - id: vr-new-hidden-cases
+            phrase: seven times nine and eleven times thirteen
+            targets:
+              - hidden-cases-mechanism
+            color: yellow
+            linger: 0.35
+          - id: vr-fail-hidden-cases
+            phrase: zero out of two
+            targets:
+              - hidden-cases-mechanism
+            color: yellow
+            linger: 0.35
+      - say: Use separate hidden inputs and varied execution conditions to test transfer. Keep duplicates and
+          near-duplicates across the optimization boundary under control. Hidden tests can also be overfit
+          through repeated reward queries, so a final held-out set needs a declared access and selection
+          policy. Secrecy alone is not an unlimited source of fresh evidence.
+        hold: 0.7
+        visual_cues:
+          - id: vr-hidden-cases-b1
+            phrase: Use separate hidden inputs and varied execution conditions to test transfer.
+            targets:
+              - hidden-cases-mechanism
+            color: yellow
+            linger: 0.3
+          - id: vr-access-hidden-cases
+            phrase: repeated reward queries
+            targets:
+              - hidden-cases-mechanism
+            color: yellow
+            linger: 0.35
+      - say: Broader checks reduce some shortcuts while leaving other inputs untested. Preserve exact test and
+          verifier versions when comparing runs. A policy that cannot see gold outputs can still infer a weak
+          grader through its feedback, so validate the full reward interface as well as each individual test.
+        hold: 0.7
+        visual_cues:
+          - id: vr-hidden-cases-b2
+            phrase: Broader checks reduce some shortcuts while leaving other inputs untested.
+            targets:
+              - hidden-cases-mechanism
+            color: cyan
+            linger: 0.3
+          - id: vr-versions-hidden-cases
+            phrase: Preserve exact test and verifier versions
+            targets:
+              - hidden-cases-mechanism
+            color: yellow
+            linger: 0.35
+  - id: instruction-contract
+    title: Count the whole response under the declared constraint
+    visual: Three actual nonempty hyphen lines are accepted, then an extra unbulleted fourth line reveals a weak
+      counter that the strict checker repairs on the same response.
+    beats:
+      - say: The instruction fixture requires exactly three lines, all nonempty and each beginning with a hyphen and a
+          space. A weak counter sees three bullet markers and accepts an extra prose line. The strict
+          whole-response check sees four nonempty lines and rejects it. Count the supplied structure rather
+          than the fragments a shortcut happens to recognize.
+        hold: 0.7
+        visual_cues:
+          - id: vr-instruction-contract-b0
+            phrase: The instruction fixture requires exactly three lines, all nonempty and each beginning with a hyphen
+              and a space.
+            targets:
+              - instruction-contract-mechanism
+            color: cyan
+            linger: 0.3
+          - id: vr-weak-instruction-contract
+            phrase: A weak counter sees three bullet markers
+            targets:
+              - instruction-contract-mechanism
+            color: yellow
+            linger: 0.35
+          - id: vr-strict-instruction-contract
+            phrase: four nonempty lines and rejects it
+            targets:
+              - instruction-contract-mechanism
+            color: yellow
+            linger: 0.35
+      - say: This program checks the explicit format. It does not score whether a story is compelling, an explanation
+          is helpful or a business recommendation is wise. An open-ended task can have verifiable subcontracts
+          for schema, authorization or secret handling while other qualities still need calibrated judgment
+          and disagreement review.
+        hold: 0.7
+        visual_cues:
+          - id: vr-instruction-contract-b1
+            phrase: This program checks the explicit format.
+            targets:
+              - instruction-contract-mechanism
+            color: yellow
+            linger: 0.3
+          - id: vr-boundary-instruction-contract
+            phrase: It does not score whether a story is compelling
+            targets:
+              - instruction-contract-mechanism
+            color: yellow
+            linger: 0.35
+      - say: Fix a parser defect before interpreting its reward as model improvement. If a low-reward base produces
+          unreadable syntax, a small supervised or distilled cold start may make useful candidates reachable.
+          If the gold or runner is broken, more model training treats a measurement failure as a capability
+          problem.
+        hold: 0.7
+        visual_cues:
+          - id: vr-instruction-contract-b2
+            phrase: Fix a parser defect before interpreting its reward as model improvement.
+            targets:
+              - instruction-contract-mechanism
+            color: cyan
+            linger: 0.3
+          - id: vr-repair-instruction-contract
+            phrase: Fix a parser defect before interpreting its reward as model improvement
+            targets:
+              - instruction-contract-mechanism
+            color: yellow
+            linger: 0.35
+  - id: formal-sql
+    title: Own the theorem and preserve query multiplicity
+    visual: An authored proof-result record compares the externally fixed theorem/imports and axiom set; a
+      parallel SQL result comparison preserves repeated rows and explicit ordering.
+    beats:
+      - say: Read this example proof record. The trusted theorem and imports stay outside candidate control.
+          The grader checks which theorem was proved, whether the proof was accepted and which axioms it
+          uses. Here Classical dot choice, propext and Quot dot sound are allowed. A dependency on
+          sorryAx fails the audit.
+        hold: 0.7
+        visual_cues:
+          - id: vr-formal-sql-b0
+            phrase: Read this example proof record
+            targets:
+              - formal-sql-mechanism
+            color: cyan
+            linger: 0.3
+          - id: vr-owned-formal-sql
+            phrase: The trusted theorem and imports stay outside candidate control
+            targets:
+              - formal-sql-mechanism
+            color: yellow
+            linger: 0.35
+          - id: vr-axiom-formal-sql
+            phrase: sorryAx fails the audit
+            targets:
+              - formal-sql-mechanism
+            color: yellow
+            linger: 0.35
+      - say: Lean lists the axioms a proof depends on, including those inherited through other theorems.
+          That list can contain an unapproved axiom even when the file compiles. Native evaluation also
+          depends on the compiler. Audit the dependencies for the exact statement and environment you
+          intend to trust.
+        hold: 0.7
+        visual_cues:
+          - id: vr-formal-sql-b1
+            phrase: Lean lists the axioms a proof depends on
+            targets:
+              - formal-sql-mechanism
+            color: yellow
+            linger: 0.3
+          - id: vr-compile-formal-sql
+            phrase: even when the file compiles
+            targets:
+              - formal-sql-mechanism
+            color: yellow
+            linger: 0.35
+      - say: For SQL, two identical returned rows are a different multiset from one row. Preserve duplicates, column
+          values, types and NULL behavior. Without an explicit order clause, SQLite does not guarantee result
+          order; equal sort keys need not fix tie order. Testing more database snapshots improves coverage but
+          does not prove two queries equivalent on all databases.
+        hold: 0.7
+        visual_cues:
+          - id: vr-formal-sql-b2
+            phrase: For SQL, two identical returned rows are a different multiset from one row.
+            targets:
+              - formal-sql-mechanism
+            color: cyan
+            linger: 0.3
+          - id: vr-multiset-formal-sql
+            phrase: two identical returned rows are a different multiset from one row
+            targets:
+              - formal-sql-mechanism
+            color: yellow
+            linger: 0.35
+          - id: vr-order-formal-sql
+            phrase: Without an explicit order clause
+            targets:
+              - formal-sql-mechanism
+            color: yellow
+            linger: 0.35
+  - id: group
+    title: Sample answers for the same prompt
+    visual: Four responses for one fixed prompt receive two correct and two incorrect outcome checks; the shared
+      prompt identity stays attached to every rollout.
+    beats:
+      - say: Reinforcement learning samples several completions for the same prompt. The checker assigns each one its
+          outcome reward, giving us a group of successes and misses. For a fair comparison, completions share
+          the same prompt, sampling setup, and reward contract.
+        hold: 0.55
+        visual_cues:
+          - id: group-b1-1
+            phrase: several completions
+            targets:
+              - rollout-identities
+            linger: 0.45
+      - say: Two responses pass and two fail. Centering outcomes around this prompt group places successes above its
+          average and misses below it.
+        hold: 0.55
+        visual_cues:
+          - id: group-b2-1
+            phrase: Two responses pass and two fail
+            targets:
+              - checked-outcomes
+            linger: 0.45
+          - id: group-b2-2
+            phrase: average
+            targets:
+              - group-average
+            linger: 0.45
+      - say: The two successful responses beat this prompt's group average; the two misses fall below it. The
+          comparison is local to one prompt, so every rollout must keep the same prompt identity. A hard
+          prompt should be compared with its own sampled group, since unrelated prompts can differ greatly in
+          difficulty.
+        hold: 0.75
+        visual_cues:
+          - id: group-b3-1
+            phrase: successful responses beat
+            targets:
+              - centered-outcomes
+            linger: 0.45
+  - id: critic-return
+    title: What return does the critic expect from this prefix?
+    visual: Two equally likely continuations share a prefix. Trace the miss from that prefix to its
+      terminal reward, then subtract the expected half point.
+    beats:
+      - say: Pause the model halfway through an answer. From here, suppose half its continuations earn one
+          point and half earn zero. It gets paid only at the end, with no discount. The expected return
+          is half a point. That's the value a PPO critic tries to predict from these tokens. Follow the
+          continuation that misses. Its reward is zero. Subtract the half point we expected. Its observed
+          advantage is minus one half.
+        hold: 0.7
+        caption_starts:
+          - The expected return is half a point
+          - Follow the continuation that misses
+          - Its observed advantage is minus one half
+        visual_cues:
+          - id: vr-critic-return-b0
+            phrase: Pause the model halfway through an answer
+            targets:
+              - critic-return-mechanism
+            color: cyan
+            linger: 0.3
+          - id: vr-expected-critic-return
+            phrase: The expected return is half a point
+            targets:
+              - critic-return-mechanism
+            color: yellow
+            linger: 0.35
+          - id: vr-observed-critic-return
+            phrase: Follow the continuation that misses
+            targets:
+              - critic-return-mechanism
+            color: yellow
+            linger: 0.35
+          - id: vr-gap-critic-return
+            phrase: Its observed advantage is minus one half
+            targets: [critic-return-mechanism]
+      - say: With tokenwise reference costs or discounting, use the corresponding remaining return; many
+          implementations use generalized advantage estimation. The critic adds parameters, optimizer state,
+          activations and work. Removing it saves that state, while sharding, offload, reference residency and
+          rollout buffers determine how much peak memory actually falls.
+        hold: 0.7
+        visual_cues:
+          - id: vr-critic-return-b1
+            phrase: With tokenwise reference costs or discounting, use the corresponding remaining return; many
+              implementations use generalized advantage estimation.
+            targets:
+              - critic-return-mechanism
+            color: yellow
+            linger: 0.3
+          - id: vr-cost-critic-return
+            phrase: parameters, optimizer state, activations and work
+            targets:
+              - critic-return-mechanism
+            color: yellow
+            linger: 0.35
+      - say: GRPO replaces that learned value baseline with statistics of responses to the same prompt. The comparison
+          is local. Mixing the easy prompt’s outcomes into a hard prompt’s baseline changes the estimator, and
+          standard-deviation scaling can change how separate prompts are weighted in the complete batch.
+        hold: 0.7
+        visual_cues:
+          - id: vr-critic-return-b2
+            phrase: GRPO replaces that learned value baseline with statistics of responses to the same prompt.
+            targets:
+              - critic-return-mechanism
+            color: cyan
+            linger: 0.3
+          - id: vr-local-critic-return
+            phrase: Mixing the easy prompt’s outcomes into a hard prompt’s baseline changes the estimator
+            targets:
+              - critic-return-mechanism
+            color: yellow
+            linger: 0.35
+  - id: grpo
+    title: Where do these four answers set the baseline?
+    visual: Four reward bars share a horizontal mean. Each answer keeps its identity as its distance from the mean
+      becomes a signed advantage. The same axis then shows two uniform groups.
+    beats:
+      - say: Take the four scores for fourteen times twelve. Two passes out of four put the mean halfway up the scale.
+          Trace the first answer down to that line. Its reward sits half a point above the group. The second
+          answer is half a point below. Group relative policy optimization, or GRPO, uses this group mean in
+          place of the return estimate from a learned critic.
+        hold: 0.65
+        visual_cues:
+          - id: grpo-mean
+            phrase: halfway up the scale
+            targets:
+              - reward-scale
+            linger: 0.2
+            caption_boundary: true
+          - id: grpo-distance
+            phrase: Trace the first answer down to that line
+            targets:
+              - reward-scale
+            linger: 0.2
+            caption_boundary: true
+          - id: grpo-below
+            phrase: half a point below
+            targets:
+              - relative-rows
+            linger: 0.2
+            caption_boundary: true
+      - say: Those gaps are all half a point in magnitude. Square them, average over the four responses, and take the
+          square root. The population standard deviation is one half. Divide each signed gap by that spread. Now
+          the first answer is one standard deviation above average, and the second is one below. Those signed
+          numbers are the advantages.
+        hold: 0.8
+        visual_cues:
+          - id: grpo-spread
+            phrase: Square them, average over the four responses, and take the square root
+            targets:
+              - spread-rule
+            linger: 0.2
+            caption_boundary: true
+          - id: grpo-normalize
+            phrase: Divide each signed gap by that spread
+            targets:
+              - relative-rows
+            linger: 0.2
+            caption_boundary: true
+      - say: Try four passes. The mean meets the top of every bar. Try four misses. The mean and the rewards are all
+          at zero. Both groups have zero spread. Guard the division, give each response zero reward advantage,
+          and log the uniform group. Other terms in the loss can still move the policy.
+        hold: 0.8
+        visual_cues:
+          - id: grpo-pass
+            phrase: Try four passes
+            targets:
+              - reward-scale
+            linger: 0.2
+            caption_boundary: true
+          - id: grpo-fail
+            phrase: Try four misses
+            targets:
+              - reward-scale
+            linger: 0.2
+            caption_boundary: true
+          - id: grpo-guard
+            phrase: Guard the division
+            targets:
+              - spread-rule
+            linger: 0.2
+            caption_boundary: true
+  - id: population-group
+    title: Construct the mean and population spread from all eight outcomes
+    visual: Eight preserved rollout identities feed a sum/8 mean, squared-deviation/8 variance and signed
+      normalized bars; a uniform intervention exercises the zero-spread guard.
+    beats:
+      - say: "Draw a fresh group of eight for the same prompt. Four responses pass. Sum four and divide by eight
+          for mean one half. Subtract that mean from every reward. Square
+          the deviations, average over all eight and take the square root for population standard deviation
+          one half."
+        hold: 0.7
+        visual_cues:
+          - id: vr-population-group-b0
+            phrase: Draw a fresh group of eight for the same prompt.
+            targets:
+              - population-group-mechanism
+            color: cyan
+            linger: 0.3
+          - id: vr-sum-population-group
+            phrase: Sum four and divide by eight for mean one half
+            targets:
+              - population-group-mechanism
+            color: yellow
+            linger: 0.35
+          - id: vr-deviation-population-group
+            phrase: Square the deviations
+            targets:
+              - population-group-mechanism
+            color: yellow
+            linger: 0.35
+          - id: vr-std-population-group
+            phrase: population standard deviation one half
+            targets:
+              - population-group-mechanism
+            color: yellow
+            linger: 0.35
+      - say: An advantage is reward minus that group mean, divided by that standard deviation. These passed responses
+          receive plus one and misses minus one. This arithmetic supports continuous rewards too. It supplies
+          loss coefficients under the active surrogate; clipping, regularizers and shared parameters still
+          determine the final parameter update.
+        hold: 0.7
+        visual_cues:
+          - id: vr-population-group-b1
+            phrase: An advantage is reward minus that group mean, divided by that standard deviation.
+            targets:
+              - population-group-mechanism
+            color: yellow
+            linger: 0.3
+          - id: vr-advantages-population-group
+            phrase: plus one and misses minus one
+            targets:
+              - population-group-mechanism
+            color: yellow
+            linger: 0.35
+      - say: Now set all eight rewards to one, then all to zero. Both have zero spread; the guard gives zero reward
+          advantages and logs the uniform group. Enabled KL, entropy or another loss may still contribute, and
+          other prompts can change shared weights.
+        hold: 0.7
+        visual_cues:
+          - id: vr-population-group-b2
+            phrase: Now set all eight rewards to one, then all to zero.
+            targets:
+              - population-group-mechanism
+            color: cyan
+            linger: 0.3
+          - id: vr-all-pass-population-group
+            phrase: set all eight rewards to one
+            targets:
+              - population-group-mechanism
+            color: yellow
+            linger: 0.35
+          - id: vr-all-fail-population-group
+            phrase: then all to zero
+            targets:
+              - population-group-mechanism
+            color: yellow
+            linger: 0.35
+          - id: vr-guard-population-group
+            phrase: the guard gives zero reward advantages
+            targets:
+              - population-group-mechanism
+            color: yellow
+            linger: 0.35
+  - id: token-surrogate
+    title: Which token incentive survives clipping?
+    visual: Two stored token choices use the same signed ruler. Plot the raw and clipped products, pick the
+      smaller, then carry each selected value into its own response mean.
+    beats:
+      - say: Pick one generated token from a response with advantage plus one. The policy that sampled it gave it
+          probability one half at that position. The current policy gives it point six five. Divide current by
+          rollout to get one point three. In code we exponentiate the difference of their log probabilities.
+        hold: 0.5
+        visual_cues:
+          - id: clip-ratio
+            phrase: Divide current by rollout
+            targets:
+              - token-input
+            linger: 0.2
+            caption_boundary: true
+      - say: Set the clipping margin to point two. The raw product lands at one point three. Clip the ratio to one
+          point two and multiply by the same advantage. Keep the smaller product. Further increases in this
+          ratio earn no more reward on this branch.
+        hold: 0.6
+        visual_cues:
+          - id: clip-raw
+            phrase: raw product lands at one point three
+            targets:
+              - raw-product
+            linger: 0.2
+            caption_boundary: true
+          - id: clip-bound
+            phrase: Clip the ratio
+            targets:
+              - clipped-product
+            linger: 0.2
+            caption_boundary: true
+          - id: clip-select
+            phrase: Keep the smaller product
+            targets:
+              - selected-term
+            linger: 0.2
+            caption_boundary: true
+      - say: Now take a token from a response with advantage minus one. Its rollout probability was also one half. Its
+          current probability is point three five. The raw ratio is point seven, and clipping lifts it to point
+          eight. Multiply both by minus one. Which product is smaller?
+        hold: 2.1
+        visual_cues:
+          - id: clip-next
+            phrase: take a token
+            targets:
+              - token-input
+            linger: 0.2
+            caption_boundary: true
+          - id: clip-negative-raw
+            phrase: raw ratio is point seven
+            targets:
+              - raw-product
+            linger: 0.2
+            caption_boundary: true
+          - id: clip-negative-bound
+            phrase: clipping lifts it to point eight
+            targets:
+              - clipped-product
+            linger: 0.2
+            caption_boundary: true
+      - say: Minus point eight is farther left. That's the term we keep. For a negative advantage the plateau is below
+          point eight. A ratio moving the other way can still change the loss. The denominator belongs to the
+          rollout policy. A reference policy enters separately if we use a drift penalty.
+        hold: 0.55
+        visual_cues:
+          - id: clip-negative-select
+            phrase: Minus point eight is farther left
+            targets:
+              - selected-term
+            linger: 0.2
+            caption_boundary: true
+      - say: Put each selected term back in its response. Suppose every other included token has ratio one. The first
+          response averages two terms. The second averages three. Skip the padding, average the two response
+          means, and negate that result for the reward loss. This is DeepSeekMath's tokenwise objective.
+          Clipping a product of ratios once for the whole response would give a different objective.
+        hold: 0.7
+        visual_cues:
+          - id: clip-reduce
+            phrase: Put each selected term back in its response
+            targets:
+              - token-rows
+            linger: 0.2
+            caption_boundary: true
+          - id: clip-average
+            phrase: average the two response means
+            targets:
+              - reduced-loss
+            linger: 0.2
+            caption_boundary: true
+  - id: kl-value-gradient
+    title: Do equal KL values give the same gradient?
+    visual: At one prefix, two weighted sums begin equal. Change only the first logit. The token terms change in
+      both sums, but only the live weights move toward the cheaper token. Return to the starting policy to
+      compare the slopes.
+    beats:
+      - say: Clipping used the policy that generated our batch. Now bring in a separate reference policy. It gives
+          these two tokens equal probability. The current policy gives the first token eighty percent. For each
+          token take the log of reference probability divided by current probability. Call it ell. Exponentiate
+          ell, subtract ell, then subtract one. Each sample term is nonnegative.
+        hold: 0.65
+        visual_cues:
+          - id: kl-input
+            phrase: separate reference policy
+            targets:
+              - kl-input
+            linger: 0.2
+            caption_boundary: true
+          - id: kl-terms
+            phrase: Exponentiate ell, subtract ell, then subtract one
+            targets:
+              - kl-input
+            linger: 0.2
+            caption_boundary: true
+      - say: Weight those two terms by how often the current policy picks each token. The sum is about point one nine
+          three. With current-policy sampling and shared full support, that expectation equals forward KL. A
+          single token gives one term. The lower copy freezes the weights at eighty and twenty percent. The sums
+          agree here. If we raise the first logit, will they still agree?
+        hold: 2.1
+        visual_cues:
+          - id: kl-weights
+            phrase: Weight those two terms
+            targets:
+              - kl-weights
+            linger: 0.2
+            caption_boundary: true
+      - say: Raise just the first logit by point two. Both copies recalculate the token terms. The upper copy also
+          shifts weight toward the cheaper first token. The lower copy misses that shift. Both sums rose, but
+          the upper one rose less.
+        hold: 0.7
+        caption_starts:
+          - Both sums rose
+        visual_cues:
+          - id: kl-shift
+            phrase: Raise just the first logit by point two
+            targets:
+              - kl-input
+              - kl-weights
+            linger: 0.2
+            caption_boundary: true
+          - id: kl-cheaper
+            phrase: shifts weight toward the cheaper first token
+            targets:
+              - kl-weights
+            linger: 0.2
+            caption_boundary: true
+      - say: Return to the starting point and measure the slope there. For the first logit, the full KL slope is about
+          point two two two. Holding the sampled-token weights fixed gives point three. The second logit has the
+          opposite derivative in each case. Before comparing updates, check which policy supplied the samples
+          and whether gradients flowed through their weights. Older rollout samples can change the weighting
+          too.
+        hold: 0.75
+        caption_starts:
+          - For the first logit
+          - point two two two
+          - Holding the sampled-token weights fixed
+          - point three
+          - The second logit has the opposite derivative
+          - Before comparing updates
+        visual_cues:
+          - id: kl-reset
+            phrase: Return to the starting point
+            targets:
+              - kl-weights
+            linger: 0.2
+            caption_boundary: true
+          - id: kl-slopes
+            phrase: the full KL slope
+            targets:
+              - kl-slopes
+            linger: 0.2
+          - id: kl-live-value
+            phrase: point two two two
+            targets: [kl-slopes]
+          - id: kl-fixed-value
+            phrase: point three
+            targets: [kl-slopes]
+  - id: sampling-budget
+    title: Calculate whether another group is likely to be informative
+    visual: A binary outcome tree separates all-pass, all-fail and mixed groups; its probability and
+      rejected-generation budget stay visible beside the uniform-group filter.
+    beats:
+      - say: Under independent binary outcomes with pass probability p and group size G, all-pass probability is p to
+          G and all-fail probability is the quantity one minus p, raised to G. Subtract both from one for the
+          chance of a mixed group. At one-percent success and sixty-four draws it is only about forty-seven
+          point four percent.
+        hold: 0.7
+        visual_cues:
+          - id: vr-sampling-budget-b0
+            phrase: Under independent binary outcomes with pass probability p and group size G, all-pass probability is p
+              to G and all-fail probability is the quantity one minus p, raised to G.
+            targets:
+              - sampling-budget-mechanism
+            color: cyan
+            linger: 0.3
+          - id: vr-mixed-sampling-budget
+            phrase: Subtract both from one for the chance of a mixed group
+            targets:
+              - sampling-budget-mechanism
+            color: yellow
+            linger: 0.35
+          - id: vr-result-sampling-budget
+            phrase: forty-seven point four percent
+            targets:
+              - sampling-budget-mechanism
+            color: yellow
+            linger: 0.35
+      - say: More samples therefore do not guarantee reward variation. Correlated outputs can change this
+          independent-draw calculation, and zero success probability remains uninformative at every finite
+          group size. Log sampled and discarded responses, wall time and token costs, not just the group
+          eventually admitted to an update.
+        hold: 0.7
+        visual_cues:
+          - id: vr-sampling-budget-b1
+            phrase: More samples therefore do not guarantee reward variation.
+            targets:
+              - sampling-budget-mechanism
+            color: yellow
+            linger: 0.3
+          - id: vr-zero-sampling-budget
+            phrase: zero success probability remains uninformative
+            targets:
+              - sampling-budget-mechanism
+            color: yellow
+            linger: 0.35
+      - say: DAPO filters uniform groups and samples more to fill an informative batch. That changes generation cost
+          and task weighting. Bound retries instead of looping forever on impossible tasks. Diagnose syntax,
+          capability, task difficulty and verifier health before choosing a cold start, a different task
+          mixture or a larger sampling budget.
+        hold: 0.7
+        visual_cues:
+          - id: vr-sampling-budget-b2
+            phrase: DAPO filters uniform groups and samples more to fill an informative batch.
+            targets:
+              - sampling-budget-mechanism
+            color: cyan
+            linger: 0.3
+          - id: vr-filter-sampling-budget
+            phrase: filters uniform groups and samples more
+            targets:
+              - sampling-budget-mechanism
+            color: yellow
+            linger: 0.35
+  - id: trainer-contract
+    title: Changing the denominator changes what a token contributes
+    visual: Two responses with lengths2and4 construct equal response means versus one global six-token mean;
+      separate controls expose clip asymmetry, overlong penalties and installed trainer configuration.
+    beats:
+      - say: DAPO divides accumulated token terms by the total active-token count rather than giving every response an
+          equal mean weight. For an authored two-token response with per-token loss two and a four-token
+          response with loss zero, equal response averaging gives one. Global token averaging gives four
+          divided by six, or two thirds.
+        hold: 0.7
+        visual_cues:
+          - id: vr-trainer-contract-b0
+            phrase: DAPO divides accumulated token terms by the total active-token count rather than giving every response
+              an equal mean weight.
+            targets:
+              - trainer-contract-mechanism
+            color: cyan
+            linger: 0.3
+          - id: vr-equal-trainer-contract
+            phrase: equal response averaging gives one
+            targets:
+              - trainer-contract-mechanism
+            color: yellow
+            linger: 0.35
+          - id: vr-global-trainer-contract
+            phrase: four divided by six, or two thirds
+            targets:
+              - trainer-contract-mechanism
+            color: yellow
+            linger: 0.35
+      - say: DAPO also separates upper and lower clipping thresholds and studies filtering and soft penalties around
+          overlong outputs. Its reported setup removes the reference KL term. These are stated design choices
+          rather than necessary properties of every trainer named GRPO. Truncation, actual ending markers and
+          additional masks affect the active token set.
+        hold: 0.7
+        visual_cues:
+          - id: vr-trainer-contract-b1
+            phrase: DAPO also separates upper and lower clipping thresholds and studies filtering and soft penalties
+              around overlong outputs.
+            targets:
+              - trainer-contract-mechanism
+            color: yellow
+            linger: 0.3
+          - id: vr-asymmetric-trainer-contract
+            phrase: separates upper and lower clipping thresholds
+            targets:
+              - trainer-contract-mechanism
+            color: yellow
+            linger: 0.35
+      - say: The article records an inspected TRL guide edition with dapo loss, group reward scaling, token-level
+          ratios and beta zero by default. No reference is loaded for that disabled KL term. Pin the installed
+          version and record reduction, scaling, masks, clipping, sampling and KL settings.
+        hold: 0.7
+        visual_cues:
+          - id: vr-trainer-contract-b2
+            phrase: The article records an inspected TRL guide edition with dapo loss, group reward scaling, token-level
+              ratios and beta zero by default.
+            targets:
+              - trainer-contract-mechanism
+            color: cyan
+            linger: 0.3
+          - id: vr-beta-trainer-contract
+            phrase: No reference is loaded for that disabled KL term
+            targets:
+              - trainer-contract-mechanism
+            color: yellow
+            linger: 0.35
+  - id: update
+    title: Will the passing pair gain probability?
+    visual: The four responses keep their group IDs across two distributions. The sum below the bars follows the
+      probability of sampling either passing response.
+    beats:
+      - say: Return to the four responses to fourteen times twelve. Give each one its own logit, starting at zero.
+          Each bar starts at one quarter. Only the first and third responses passed. Together they have half the
+          probability. What will happen to that share if we take a step with their signed advantages?
+        hold: 1.8
+        visual_cues:
+          - id: update-b1-1
+            phrase: Each bar starts at one quarter
+            targets:
+              - initial-probabilities
+            linger: 0.2
+            caption_boundary: true
+      - say: Take one gradient step. We're using a learning rate of one in this small example. The passing logits rise
+          by a quarter, and the two others fall by a quarter. Normalizing gives each passing response about
+          thirty-one percent. The two green bars now account for about sixty-two percent of the probability.
+        hold: 0.65
+        visual_cues:
+          - id: update-b2-1
+            phrase: Take one gradient step
+            targets:
+              - updated-probabilities
+            linger: 0.2
+            caption_boundary: true
+      - say: That sum is the chance of sampling either passing response from these four choices. A language model
+          shares parameters across all its generated tokens. Each included token gets a contribution from its
+          response's advantage, and the full update combines them. To find out whether new answers improve,
+          sample and check them.
+        hold: 0.65
+        visual_cues:
+          - id: update-b3-1
+            phrase: chance of sampling either passing response
+            targets:
+              - probability-mass
+            linger: 0.2
+            caption_boundary: true
+  - id: categorical-step
+    title: A zero scalar loss can still move the eight logits
+    visual: Eight actual uniform logits retain their old probabilities, compute signed gradients, perform one
+      declared SGD step and renormalize before the result is revealed.
+    beats:
+      - say: The executable eight-outcome exercise starts uniform, with one eighth probability per authored response.
+          Positive and negative advantages average to zero, so the initial reward loss is zero. Its gradient
+          is still negative advantage divided by eight. The positive and negative terms cancel in the loss.
+          Raising one logit changes the balance between those terms.
+        hold: 0.7
+        visual_cues:
+          - id: vr-categorical-step-b0
+            phrase: The executable eight-outcome exercise starts uniform, with one eighth probability per authored
+              response.
+            targets:
+              - categorical-step-mechanism
+            color: cyan
+            linger: 0.3
+          - id: vr-zero-loss-categorical-step
+            phrase: initial reward loss is zero
+            targets:
+              - categorical-step-mechanism
+            color: yellow
+            linger: 0.35
+          - id: vr-gradient-categorical-step
+            phrase: negative advantage divided by eight
+            targets:
+              - categorical-step-mechanism
+            color: yellow
+            linger: 0.35
+      - say: One gradient step with learning rate point one raises successful-response logits by point zero one two
+          five and lowers failed ones by the same amount. Exponentiate and normalize all eight. Rewarded mass
+          rises from one half to about point five zero six two five, while total probability stays one.
+        hold: 0.7
+        visual_cues:
+          - id: vr-categorical-step-b1
+            phrase: One gradient step with learning rate point one raises successful-response logits by point zero one two
+              five and lowers failed ones by the same amount.
+            targets:
+              - categorical-step-mechanism
+            color: yellow
+            linger: 0.3
+          - id: vr-step-categorical-step
+            phrase: raises successful-response logits
+            targets:
+              - categorical-step-mechanism
+            color: yellow
+            linger: 0.35
+          - id: vr-mass-categorical-step
+            phrase: point five zero six two five
+            targets:
+              - categorical-step-mechanism
+            color: yellow
+            linger: 0.35
+      - say: The initial reference and policy match here, so the sample reference term and its initial
+          gradient are zero. Four separate scalar probes check the active and plateau clipping branches.
+          The green bars tell us how often this policy will draw one of its four passing answers on its
+          next sample.
+        hold: 0.7
+        visual_cues:
+          - id: vr-categorical-step-b2
+            phrase: The initial reference and policy match here, so the sample reference term and its initial gradient are
+              zero.
+            targets:
+              - categorical-step-mechanism
+            color: cyan
+            linger: 0.3
+          - id: vr-reference-categorical-step
+            phrase: sample reference term and its initial gradient are zero
+            targets:
+              - categorical-step-mechanism
+            color: yellow
+            linger: 0.35
+  - id: r1-zero-and-metrics
+    title: Keep each reported aggregation and report edition attached
+    visual: R1-Zero starts from V3Base directly; a sampled-answer correctness matrix is averaged without voting
+      while separate16and64answer voting counts retain their own budgets.
+    beats:
+      - say: DeepSeek R1’s original January twenty-twenty-five report distinguishes R1-Zero from the
+          four-stage R1 recipe. R1-Zero began reinforcement learning directly from V3-Base. Its answers
+          sometimes mixed languages and were hard to read. For R1, the team first fine-tuned on readable
+          examples.
+        hold: 0.7
+        visual_cues:
+          - id: vr-r1-zero-and-metrics-b0
+            phrase: DeepSeek R1’s original January twenty-twenty-five report distinguishes R1-Zero from the four-stage R1
+              recipe.
+            targets:
+              - r1-zero-and-metrics-mechanism
+            color: cyan
+            linger: 0.3
+          - id: vr-base-r1-zero-and-metrics
+            phrase: directly from V3-Base
+            targets:
+              - r1-zero-and-metrics-mechanism
+            color: yellow
+            linger: 0.35
+      - say: The original R1-Zero curve reports AIME twenty-twenty-four rising from fifteen point six to seventy-one
+          percent. Its figure averages correctness labels from sixteen responses per question to estimate
+          single-answer accuracy. Table two separately reports eighty-six point seven percent for consensus
+          over sixty-four responses. Averaging correctness does not choose a modal answer.
+        hold: 0.7
+        visual_cues:
+          - id: vr-r1-zero-and-metrics-b1
+            phrase: The original R1-Zero curve reports AIME twenty-twenty-four rising from fifteen point six to
+              seventy-one percent.
+            targets:
+              - r1-zero-and-metrics-mechanism
+            color: yellow
+            linger: 0.3
+          - id: vr-single-r1-zero-and-metrics
+            phrase: fifteen point six to seventy-one percent
+            targets:
+              - r1-zero-and-metrics-mechanism
+            color: yellow
+            linger: 0.35
+          - id: vr-average-r1-zero-and-metrics
+            phrase: sixteen responses per question
+            targets:
+              - r1-zero-and-metrics-mechanism
+            color: yellow
+            linger: 0.35
+          - id: vr-consensus-r1-zero-and-metrics
+            phrase: consensus over sixty-four responses
+            targets:
+              - r1-zero-and-metrics-mechanism
+            color: yellow
+            linger: 0.35
+      - say: The expanded report changes that curve endpoint to seventy-seven point nine. Preserve edition, task,
+          aggregation and sample budget with every historical number. Consensus chooses an answer by voting;
+          an at-least-one-correct event asks another question again. Larger generation budgets and different
+          selection rules cannot be silently compared as the same evaluation.
+        hold: 0.7
+        visual_cues:
+          - id: vr-r1-zero-and-metrics-b2
+            phrase: The expanded report changes that curve endpoint to seventy-seven point nine.
+            targets:
+              - r1-zero-and-metrics-mechanism
+            color: cyan
+            linger: 0.3
+          - id: vr-edition-r1-zero-and-metrics
+            phrase: seventy-seven point nine
+            targets:
+              - r1-zero-and-metrics-mechanism
+            color: yellow
+            linger: 0.35
+  - id: r1-pipeline
+    title: Follow the actual base checkpoint and supervision through all four stages
+    visual: "Four stages retain their checkpoint lineage: small readable SFT, reasoning RL, a new V3Base SFT on
+      filtered800kdata, then mixed final rewards; source counts and judge limits attach to the actual stage."
+    beats:
+      - say: For R1, stage one fine-tunes V3-Base on several thousand readable cold-start traces. Stage two
+          uses GRPO on math, code, science and logic with well-defined solutions. Alongside accuracy, the
+          model earns reward for the fraction of words in the target language. The original ablation
+          reports a slight capability cost for readability.
+        hold: 0.7
+        visual_cues:
+          - id: vr-r1-pipeline-b0
+            phrase: For R1, stage one fine-tunes V3-Base on several thousand readable cold-start traces.
+            targets:
+              - r1-pipeline-mechanism
+            color: cyan
+            linger: 0.3
+          - id: vr-cold-r1-pipeline
+            phrase: stage one fine-tunes V3-Base
+            targets:
+              - r1-pipeline-mechanism
+            color: yellow
+            linger: 0.35
+          - id: vr-rl-r1-pipeline
+            phrase: Stage two uses GRPO
+            targets:
+              - r1-pipeline-mechanism
+            color: yellow
+            linger: 0.35
+      - say: Stage three collects roughly six hundred thousand reasoning and two hundred thousand general
+          samples. DeepSeek-V3 judges some of the reasoning examples. The combined eight hundred thousand
+          train V3-Base for two SFT epochs. Follow the lower arrow back to its starting weights. The team
+          starts again from the base model and learns from the collected responses.
+        hold: 0.7
+        visual_cues:
+          - id: vr-r1-pipeline-b1
+            phrase: Stage three collects roughly six hundred thousand reasoning and two hundred thousand general samples.
+            targets:
+              - r1-pipeline-mechanism
+            color: yellow
+            linger: 0.3
+          - id: vr-600k-r1-pipeline
+            phrase: six hundred thousand reasoning
+            targets:
+              - r1-pipeline-mechanism
+            color: yellow
+            linger: 0.35
+          - id: vr-200k-r1-pipeline
+            phrase: two hundred thousand general samples
+            targets:
+              - r1-pipeline-mechanism
+            color: yellow
+            linger: 0.35
+          - id: vr-restart-r1-pipeline
+            phrase: train V3-Base for two SFT epochs
+            targets:
+              - r1-pipeline-mechanism
+            color: yellow
+            linger: 0.35
+      - say: Stage four combines rule-based reasoning rewards with learned preference rewards for general
+          behavior. The original helpfulness reward evaluates the final summary. The harmlessness reward
+          evaluates the whole response, including the reasoning. The two scorers see different parts of
+          the same answer.
+        hold: 0.7
+        visual_cues:
+          - id: vr-r1-pipeline-b2
+            phrase: Stage four combines rule-based reasoning rewards with learned preference rewards for general behavior.
+            targets:
+              - r1-pipeline-mechanism
+            color: cyan
+            linger: 0.3
+          - id: vr-final-r1-pipeline
+            phrase: rule-based reasoning rewards with learned preference rewards
+            targets:
+              - r1-pipeline-mechanism
+            color: yellow
+            linger: 0.35
+  - id: reported-patterns
+    title: How does a response correct its own arithmetic?
+    visual: An autoregressive trace checks168, notices a mismatch, revises a written route and continues while its
+      immutable earlier tokens remain visible; length and external search state are kept separate.
+    beats:
+      - say: Reported R1-Zero outputs grew longer and showed checking, reflection and written backtracking. An
+          autoregressive response can say wait, revisit an intermediate calculation and continue with a
+          corrected plan. Its earlier tokens remain in context. Those visible text patterns do not by
+          themselves establish an external search tree or a causal explanation for the accuracy gain.
+        hold: 0.7
+        visual_cues:
+          - id: vr-reported-patterns-b0
+            phrase: Reported R1-Zero outputs grew longer and showed checking, reflection and written backtracking.
+            targets:
+              - reported-patterns-mechanism
+            color: cyan
+            linger: 0.3
+          - id: vr-backtrack-reported-patterns
+            phrase: revisit an intermediate calculation
+            targets:
+              - reported-patterns-mechanism
+            color: yellow
+            linger: 0.35
+          - id: vr-retained-reported-patterns
+            phrase: Its earlier tokens remain in context
+            targets:
+              - reported-patterns-mechanism
+            color: yellow
+            linger: 0.35
+      - say: In our multiplication example the model writes that fourteen times twelve is a hundred and
+          forty-eight. Then it breaks fourteen into ten and four. That extra calculation produces a
+          different answer. A model can learn to write “wait” during pretraining, too. To test whether
+          the extra calculation helps, compare accuracy on the same problems with and without that step.
+        hold: 0.7
+        visual_cues:
+          - id: vr-reported-patterns-b1
+            phrase: In our multiplication example
+            targets:
+              - reported-patterns-mechanism
+            color: yellow
+            linger: 0.3
+          - id: vr-authored-reported-patterns
+            phrase: breaks fourteen into ten and four
+            targets:
+              - reported-patterns-mechanism
+            color: yellow
+            linger: 0.35
+      - say: Longer traces consume generation time and tokens. Compare task accuracy, end-to-end latency and
+          budget by workload. Try a shorter budget on the easy questions. Count how many answers stay
+          correct and how much sooner they arrive.
+        hold: 0.7
+        visual_cues:
+          - id: vr-reported-patterns-b2
+            phrase: Longer traces consume generation time and tokens.
+            targets:
+              - reported-patterns-mechanism
+            color: cyan
+            linger: 0.3
+          - id: vr-budget-reported-patterns
+            phrase: Longer traces consume generation time and tokens
+            targets:
+              - reported-patterns-mechanism
+            color: yellow
+            linger: 0.35
+  - id: spurious-rewards
+    title: What changed when the rewards were random?
+    visual: Two bars show the change in MATH-500 accuracy for one base model. A bracket measures the gap
+      between random and ground-truth rewards, with the results for other model families below.
+    beats:
+      - say: In one study, Qwen two-point-five Math seven-B improved on MATH five hundred even when its
+          training rewards were random. The gain was twenty-one point four percentage points. With
+          ground-truth rewards the gain was twenty-nine point one. Look at the distance between the ends
+          of those bars.
+        hold: 0.7
+        visual_cues:
+          - id: vr-spurious-rewards-b0
+            phrase: In one study
+            targets:
+              - spurious-rewards-mechanism
+            color: cyan
+            linger: 0.3
+          - id: vr-random-spurious-rewards
+            phrase: twenty-one point four percentage points
+            targets:
+              - spurious-rewards-mechanism
+            color: yellow
+            linger: 0.35
+          - id: vr-truth-spurious-rewards
+            phrase: twenty-nine point one
+            targets:
+              - spurious-rewards-mechanism
+            color: yellow
+            linger: 0.35
+      - say: The ground-truth run gained seven point seven percentage points more than the random-reward run. Now
+          change the starting model. Random rewards had little benefit or hurt performance on the Llama
+          three and OLMo two variants the researchers tested.
+        hold: 0.7
+        visual_cues:
+          - id: vr-spurious-rewards-b1
+            phrase: The ground-truth run gained
+            targets:
+              - spurious-rewards-mechanism
+            color: yellow
+            linger: 0.3
+          - id: vr-scope-spurious-rewards
+            phrase: seven point seven percentage points
+            targets:
+              - spurious-rewards-mechanism
+            color: yellow
+            linger: 0.35
+          - id: vr-other-spurious-rewards
+            phrase: the Llama three and OLMo two variants
+            targets: [spurious-rewards-mechanism]
+      - say: To test the reward signal on your own model, hold the base model, data, sampling settings,
+          clipping and compute budget fixed. Change which reward it receives. Check both runs on the same
+          held-out questions, and score instruction following separately if the model will serve users.
+        hold: 0.7
+        visual_cues:
+          - id: vr-spurious-rewards-b2
+            phrase: hold the base model
+            targets:
+              - spurious-rewards-mechanism
+            color: cyan
+            linger: 0.3
+          - id: vr-control-spurious-rewards
+            phrase: Check both runs on the same held-out questions
+            targets:
+              - spurious-rewards-mechanism
+            color: yellow
+            linger: 0.35
+  - id: failure
+    title: Find what the checker leaves unmeasured
+    visual: A formatting signal gives partial credit to a wrong answer, a shortcut passes the declared check, and
+      an invalid test runner sends the rollout to quarantine.
+    beats:
+      - say: A separate format reward can encourage a required answer structure. A model may learn that structure
+          while still giving the wrong result, so log outcome accuracy and format compliance separately.
+        hold: 0.55
+        visual_cues:
+          - id: failure-b1-1
+            phrase: format reward
+            targets:
+              - format-score
+            linger: 0.45
+          - id: failure-b1-2
+            phrase: outcome accuracy
+            targets:
+              - answer-score
+            linger: 0.45
+      - say: Any narrow verifier creates an optimization target. If the checker awards points for a boxed number
+          alone, a lucky guess can tie a sound derivation. Broader tests reduce some shortcuts while leaving
+          untested cases.
+        hold: 0.55
+        visual_cues:
+          - id: failure-b2-1
+            phrase: narrow verifier
+            targets:
+              - combined-reward
+            linger: 0.45
+      - say: Subjective helpfulness needs judgment suited to that task. A deterministic checker is valuable when the
+          task has a reliable external criterion, such as compiled code tests or exact arithmetic. Subjective
+          feedback needs its own calibration and disagreement checks before it becomes part of the objective.
+        hold: 0.75
+        visual_cues:
+          - id: failure-b3-1
+            phrase: external criterion
+            targets:
+              - answer-score
+            linger: 0.45
+  - id: parser-pressure
+    title: Replay the two submissions
+    visual: Both original submissions go through two read passes. The first stops at the first field. The second
+      visits every marker before it admits a value for comparison.
+    beats:
+      - say: Here are the two submissions from the opening. Replay the first-box checker. It reads a hundred and
+          sixty-eight twice. Both submissions get one point, including the one that changes its answer.
+        hold: 0.7
+        visual_cues:
+          - id: replay-first
+            phrase: Replay the first-box checker
+            targets:
+              - read-heads
+            linger: 0.2
+            caption_boundary: true
+          - id: replay-weak
+            phrase: Both submissions get one point
+            targets:
+              - weak-scores
+            linger: 0.2
+            caption_boundary: true
+      - say: Keep every character. This time require exactly one box in the entire submission. Watch where the lower
+          read head goes. It reaches a second marker. The upper row has one field to compare with the reference.
+          What reward belongs on each row now?
+        hold: 1.9
+        visual_cues:
+          - id: replay-scan
+            phrase: Watch where the lower read head goes
+            targets:
+              - read-heads
+            linger: 0.2
+            caption_boundary: true
+          - id: replay-count
+            phrase: It reaches a second marker
+            targets:
+              - field-counts
+            linger: 0.2
+            caption_boundary: true
+      - say: One for the upper row. Zero for the lower row, because its two fields make the answer ambiguous. The
+          checker changed while the model stood still. Keep the original responses and their verifier versions.
+          Before another update, rescore every affected group and recompute its mean and advantages.
+        hold: 0.65
+        visual_cues:
+          - id: replay-strict
+            phrase: Zero for the lower row
+            targets:
+              - strict-scores
+            linger: 0.2
+            caption_boundary: true
+  - id: reward-priority
+    title: What earns format credit?
+    visual: Three literal submissions pass through the article’s two reward rules. Keep their text fixed as the
+      bars change height under exact boxed correctness.
+    beats:
+      - say: Which answer does this score favor? A recognized box gets seven tenths of a point. A plain response
+          containing the expected number gets three tenths. Look at the boxed wrong answer and the plain correct
+          answer. The wrong one wins.
+        hold: 0.7
+        visual_cues:
+          - id: priority-style
+            phrase: A recognized box
+            targets:
+              - priority-scores
+            linger: 0.2
+            caption_boundary: true
+          - id: priority-rank
+            phrase: The wrong one wins
+            targets:
+              - priority-scores
+            linger: 0.2
+            caption_boundary: true
+      - say: Change the contract. Require one box containing the correct number. What happens to the plain answer that
+          says one hundred sixty-eight?
+        hold: 1.9
+        visual_cues:
+          - id: priority-rule
+            phrase: Require one box containing the correct number
+            targets:
+              - priority-rule
+            linger: 0.2
+            caption_boundary: true
+      - say: It gets zero. The number is right, but the required field is missing. The boxed wrong answer also gets
+          zero. Only the boxed correct answer gets one. If you want to accept correct plain text, you need a
+          different parser. Log accuracy and format separately so you can see which one moved.
+        hold: 0.75
+        visual_cues:
+          - id: priority-rescore
+            phrase: It gets zero
+            targets:
+              - priority-scores
+            linger: 0.2
+            caption_boundary: true
+  - id: evaluate
+    title: Did the policy learn to count slots?
+    visual: A toy policy gives the same answer on three capacity prompts. Two held-out racks mark the slots lost
+      when a worker disappears or every worker loses one slot.
+    beats:
+      - say: Keep the training reward on the left and the held-out checks beside it. This toy policy prints the same
+          number on every prompt. Watch what happens when it learns the answer to its one training example.
+          Fourteen times twelve now passes. The policy carries that same answer into both new racks.
+        hold: 0.55
+        visual_cues:
+          - id: evaluate-b1-1
+            phrase: the training reward
+            targets:
+              - training-outcome
+            linger: 0.2
+            caption_boundary: true
+          - id: evaluate-b1-2
+            phrase: the held-out checks
+            targets:
+              - held-out-outcomes
+            linger: 0.2
+            caption_boundary: true
+      - say: Remove one worker from the top rack. That's twelve slots gone, so only a hundred and fifty-six jobs fit.
+          In the lower rack, remove one slot from every worker. That's fourteen slots gone. The policy still
+          says a hundred and sixty-eight. It missed both held-out cases.
+        hold: 0.55
+        visual_cues:
+          - id: evaluate-b2-1
+            phrase: Remove one worker
+            targets:
+              - missing-worker
+            linger: 0.2
+            caption_boundary: true
+          - id: evaluate-b2-2
+            phrase: remove one slot from every worker
+            targets:
+              - missing-slots
+            linger: 0.2
+            caption_boundary: true
+      - say: The training reward rose because the policy learned one answer. To measure transfer, reserve new prompts
+          and limit reuse of the final test set. Track malformed answers and other capabilities separately.
+          Audit the checker itself with ambiguous fields, hidden code tests, or a fixed proof statement, as the
+          task requires.
+        hold: 0.75
+        visual_cues:
+          - id: evaluate-b3-1
+            phrase: To measure transfer
+            targets:
+              - evaluation-choice
+            linger: 0.2
+            caption_boundary: true
+  - id: capability-gates
+    title: The same candidate can improve reasoning and fail release
+    visual: Baseline and candidate share aligned held-out cohorts for checked reasoning, instructions and refusal
+      rates; measured deltas update separate gate states without one weighted average.
+    beats:
+      - say: The article’s supplied product worksheet moves checked reasoning from sixty-one to seventy-four percent.
+          Instruction following falls from ninety-two to eighty-one percent, and unnecessary refusal rises
+          from four to thirteen percent. A rule allowing at most three percentage points of instruction
+          decline and two points of refusal rise blocks this candidate.
+        hold: 0.7
+        visual_cues:
+          - id: vr-capability-gates-b0
+            phrase: The article’s supplied product worksheet moves checked reasoning from sixty-one to seventy-four
+              percent.
+            targets:
+              - capability-gates-mechanism
+            color: cyan
+            linger: 0.3
+          - id: vr-reasoning-capability-gates
+            phrase: sixty-one to seventy-four percent
+            targets:
+              - capability-gates-mechanism
+            color: yellow
+            linger: 0.35
+          - id: vr-instruction-capability-gates
+            phrase: ninety-two to eighty-one percent
+            targets:
+              - capability-gates-mechanism
+            color: yellow
+            linger: 0.35
+          - id: vr-refusal-capability-gates
+            phrase: four to thirteen percent
+            targets:
+              - capability-gates-mechanism
+            color: yellow
+            linger: 0.35
+          - id: vr-blocked-capability-gates
+            phrase: blocks this candidate
+            targets:
+              - capability-gates-mechanism
+            color: yellow
+            linger: 0.35
+      - say: Compute each decline or increase in percentage points and apply every required gate. An eleven-point
+          decline cannot be offset by a large reasoning gain when the contract requires both. Point estimates
+          alone do not establish statistical confidence; predeclare representative cohorts, uncertainty,
+          selection and access rules for real release evidence.
+        hold: 0.7
+        visual_cues:
+          - id: vr-capability-gates-b1
+            phrase: Compute each decline or increase in percentage points and apply every required gate.
+            targets:
+              - capability-gates-mechanism
+            color: yellow
+            linger: 0.3
+          - id: vr-points-capability-gates
+            phrase: eleven-point decline
+            targets:
+              - capability-gates-mechanism
+            color: yellow
+            linger: 0.35
+      - say: Cold-start SFT, verifier RL, general-behavior data and teacher supervision can be combined to repair
+          different failures. Re-evaluate the full candidate after a repair. A correct answer checker covers a
+          useful capability, while the served assistant still owns its broader instruction, safety, latency
+          and operating contract.
+        hold: 0.7
+        visual_cues:
+          - id: vr-capability-gates-b2
+            phrase: Cold-start SFT, verifier RL, general-behavior data and teacher supervision can be combined to repair
+              different failures.
+            targets:
+              - capability-gates-mechanism
+            color: cyan
+            linger: 0.3
+          - id: vr-repair-capability-gates
+            phrase: Re-evaluate the full candidate after a repair
+            targets:
+              - capability-gates-mechanism
+            color: yellow
+            linger: 0.35
+  - id: lab-exactness
+    title: Preserve a tiny decimal difference instead of rounding it away
+    visual: The lab validates the external reference first, bounds decimal text, converts through exact fractions
+      and compares an inclusive supplied tolerance; two neighboring candidates separate exactly at the
+      boundary.
+    beats:
+      - say: The final verifier lab accepts a trusted integer or bounded decimal string, rejecting Boolean and
+          floating reference objects. It bounds the candidate field, requires exactly one box and validates a
+          nonnegative decimal-string tolerance. Each decimal has at most twenty digits before and after its
+          point, keeping conversion and comparison bounded.
+        hold: 0.7
+        visual_cues:
+          - id: vr-lab-exactness-b0
+            phrase: The final verifier lab accepts a trusted integer or bounded decimal string, rejecting Boolean and
+              floating reference objects.
+            targets:
+              - lab-exactness-mechanism
+            color: cyan
+            linger: 0.3
+          - id: vr-typed-lab-exactness
+            phrase: rejecting Boolean and floating reference objects
+            targets:
+              - lab-exactness-mechanism
+            color: yellow
+            linger: 0.35
+      - say: Convert these decimal strings to exact fractions. Pass when absolute predicted minus expected is no
+          larger than the declared tolerance. At expected fifty point three five with tolerance point zero
+          one, fifty point three six passes at equality; fifty point three six one fails. Keep the whole
+          subtraction inside the absolute value.
+        hold: 0.7
+        visual_cues:
+          - id: vr-lab-exactness-b1
+            phrase: Convert these decimal strings to exact fractions.
+            targets:
+              - lab-exactness-mechanism
+            color: yellow
+            linger: 0.3
+          - id: vr-fractions-lab-exactness
+            phrase: Convert these decimal strings to exact fractions
+            targets:
+              - lab-exactness-mechanism
+            color: yellow
+            linger: 0.35
+          - id: vr-equality-lab-exactness
+            phrase: fifty point three six passes at equality
+            targets:
+              - lab-exactness-mechanism
+            color: yellow
+            linger: 0.35
+          - id: vr-beyond-lab-exactness
+            phrase: fifty point three six one fails
+            targets:
+              - lab-exactness-mechanism
+            color: yellow
+            linger: 0.35
+      - say: A twenty-digit tail can differ exactly even when binary floating conversion would erase it. The lab
+          preserves that difference rather than broadening a zero-tolerance contract accidentally. Reference
+          validation happens before candidate scoring, so an invalid reference quarantines the task even when
+          its candidate is also malformed.
+        hold: 0.7
+        visual_cues:
+          - id: vr-lab-exactness-b2
+            phrase: A twenty-digit tail can differ exactly even when binary floating conversion would erase it.
+            targets:
+              - lab-exactness-mechanism
+            color: cyan
+            linger: 0.3
+          - id: vr-tail-lab-exactness
+            phrase: A twenty-digit tail can differ exactly
+            targets:
+              - lab-exactness-mechanism
+            color: yellow
+            linger: 0.35
+          - id: vr-gold-first-lab-exactness
+            phrase: Reference validation happens before candidate scoring
+            targets:
+              - lab-exactness-mechanism
+            color: yellow
+            linger: 0.35
+  - id: teacher-transfer
+    title: Teacher traces and rewards enter different optimization steps
+    visual: Fixed teacher traces feed a student cross-entropy target while a separate student rollout enters the
+      trusted checker; actual R1distillation counts and historical Table6scope remain attached.
+    beats:
+      - say: Distillation transfers teacher outputs, distributions or other signals through a supervised objective.
+          Response SFT fits teacher text with token cross-entropy. RLVR samples candidate behavior and uses
+          executable reward feedback for a policy update. A teacher can supply a useful cold start, and a
+          stronger verified teacher can later supply student examples.
+        hold: 0.7
+        visual_cues:
+          - id: vr-teacher-transfer-b0
+            phrase: Distillation transfers teacher outputs, distributions or other signals through a supervised objective.
+            targets:
+              - teacher-transfer-mechanism
+            color: cyan
+            linger: 0.3
+          - id: vr-supervised-teacher-transfer
+            phrase: Response SFT fits teacher text with token cross-entropy
+            targets:
+              - teacher-transfer-mechanism
+            color: yellow
+            linger: 0.35
+          - id: vr-online-teacher-transfer
+            phrase: RLVR samples candidate behavior
+            targets:
+              - teacher-transfer-mechanism
+            color: yellow
+            linger: 0.35
+      - say: The original R1 report’s roughly eight hundred thousand distillation examples combine six
+          hundred thousand reasoning and two hundred thousand general samples. Some reasoning examples
+          were selected by a model judge. Smaller Qwen and Llama students learned from that mix of
+          teacher responses.
+        hold: 0.7
+        visual_cues:
+          - id: vr-teacher-transfer-b1
+            phrase: The original R1 report’s roughly eight hundred thousand distillation examples combine six hundred
+              thousand reasoning and two hundred thousand general samples.
+            targets:
+              - teacher-transfer-mechanism
+            color: yellow
+            linger: 0.3
+          - id: vr-800k-teacher-transfer
+            phrase: six hundred thousand reasoning and two hundred thousand general samples
+            targets:
+              - teacher-transfer-mechanism
+            color: yellow
+            linger: 0.35
+      - say: Its Table six reports seventy-two point six AIME pass-at-one for the distilled Qwen
+          thirty-two-B comparison, versus forty-seven for its directly RL-trained comparison. To compare
+          the cost of getting those scores, count teacher generation, filtering and verification
+          alongside student training.
+        hold: 0.7
+        visual_cues:
+          - id: vr-teacher-transfer-b2
+            phrase: Its Table six reports seventy-two point six AIME pass-at-one for the distilled Qwen thirty-two-B
+              comparison, versus forty-seven for its directly RL-trained comparison.
+            targets:
+              - teacher-transfer-mechanism
+            color: cyan
+            linger: 0.3
+          - id: vr-distilled-teacher-transfer
+            phrase: seventy-two point six AIME pass-at-one
+            targets:
+              - teacher-transfer-mechanism
+            color: yellow
+            linger: 0.35
+          - id: vr-direct-teacher-transfer
+            phrase: forty-seven for its directly RL-trained comparison
+            targets:
+              - teacher-transfer-mechanism
+            color: yellow
+            linger: 0.35
+  - id: fresh-batch-repair
+    title: Which zero belongs in the next update?
+    visual: Four identified records share a ledger. Move the host result into quarantine, recount the measured
+      rows, then follow the second response across zero when the parser changes.
+    beats:
+      - say: A fresh cluster has eighteen workers with fourteen slots each. Again, one job takes one slot. The first
+          response boxes the product. The second boxes that same number, then changes its answer. The third runs
+          out of its own time on a healthy runner. The fourth loses its host. An old run recorded two ones and
+          two zeros. Which zero belongs in training?
+        hold: 2.15
+        visual_cues:
+          - id: batch-inputs
+            phrase: eighteen workers with fourteen slots each
+            targets:
+              - task-and-rows
+            linger: 0.2
+            caption_boundary: true
+          - id: batch-first
+            phrase: first response boxes the product
+            targets:
+              - first-record
+            linger: 0.2
+            caption_boundary: true
+          - id: batch-second
+            phrase: second boxes that same number
+            targets:
+              - second-record
+            linger: 0.2
+            caption_boundary: true
+          - id: batch-timeout
+            phrase: third runs out of its own time
+            targets:
+              - third-record
+            linger: 0.2
+            caption_boundary: true
+          - id: batch-lost
+            phrase: fourth loses its host
+            targets:
+              - fourth-record
+            linger: 0.2
+            caption_boundary: true
+          - id: batch-buffer
+            phrase: two ones and two zeros
+            targets:
+              - reward-column
+            linger: 0.2
+            caption_boundary: true
+      - say: Keep the third response's zero. Its time limit was part of the task. Move the fourth record into
+          quarantine for a bounded retry on the same submission. We have three measurements. The old first-box
+          rule pays two of them, so the mean is two thirds. The second response still sits above average.
+        hold: 0.7
+        visual_cues:
+          - id: batch-quarantine
+            phrase: Move the fourth record into quarantine
+            targets:
+              - fourth-record
+            linger: 0.2
+            caption_boundary: true
+          - id: batch-weak-stats
+            phrase: mean is two thirds
+            targets:
+              - batch-stats
+            linger: 0.2
+            caption_boundary: true
+      - say: Replay the single-box rule on the same text. The first answer has one box matching two hundred fifty-two.
+          The second answer has two boxes. Change its reward from one to zero. Now just one of the three passes.
+          The mean drops to one third. The spread stays the same because we've exchanged two passes and one miss
+          for one pass and two misses.
+        hold: 0.55
+        visual_cues:
+          - id: batch-fields
+            phrase: The second answer has two boxes
+            targets:
+              - second-record
+            linger: 0.2
+            caption_boundary: true
+          - id: batch-strict
+            phrase: Change its reward from one to zero
+            targets:
+              - reward-column
+            linger: 0.2
+            caption_boundary: true
+          - id: batch-strict-stats
+            phrase: mean drops to one third
+            targets:
+              - batch-stats
+            linger: 0.2
+            caption_boundary: true
+      - say: Read across the second row. With the first parser its advantage was positive. With the repaired parser
+          it's negative. The timeout still earned zero, yet its advantage changed too. Both answers are now
+          compared with the new mean. Which of those two versions of the group should supply the next update?
+        hold: 1.55
+        visual_cues:
+          - id: batch-flip
+            phrase: Read across the second row
+            targets:
+              - second-advantages
+            linger: 0.2
+            caption_boundary: true
+  - id: fresh-step-payoff
+    title: What will the next update reinforce?
+    visual: The three measured rows retain their identities. A common probability ruler marks one third. One
+      softmax step is replayed from that mark under each parser, exposing the sign reversal for the two-box
+      response. The last prompt adds one worker and leaves the new model answer open.
+    beats:
+      - say: Use the repaired group. Give each of its three measured responses one category in a tiny policy. Start
+          the three logits at zero. Each response has probability one third. Look at the second row again. Which
+          way should its probability move on this step?
+        hold: 1.95
+        visual_cues:
+          - id: step-start
+            phrase: Each response has probability one third
+            targets:
+              - probability-ruler
+            linger: 0.2
+            caption_boundary: true
+          - id: step-ask
+            phrase: the second row again
+            targets:
+              - second-probability
+            linger: 0.2
+            caption_boundary: true
+      - say: At the starting policy every current-to-rollout ratio is one. Negate the mean of ratio times advantage,
+          with no reference penalty. The gradient for each logit here is its negative advantage divided by
+          three. Take one step of size point three. The first logit rises. The other two each fall by about
+          seven hundredths.
+        hold: 0.45
+        visual_cues:
+          - id: step-grad
+            phrase: negative advantage divided by three
+            targets:
+              - step-arithmetic
+            linger: 0.2
+            caption_boundary: true
+          - id: step-logits
+            phrase: Take one step of size point three
+            targets:
+              - step-arithmetic
+            linger: 0.2
+            caption_boundary: true
+      - say: Exponentiate those three logits and divide each result by their sum. Watch the marks move away from one
+          third. The single-box answer now gets about thirty-eight percent of the probability. The two-box
+          answer and the timeout each get about thirty-one percent. Their unrounded shares still add to one.
+        hold: 0.7
+        visual_cues:
+          - id: step-normalize
+            phrase: Exponentiate those three logits and divide each result by their sum
+            targets:
+              - normalizer
+            linger: 0.2
+            caption_boundary: true
+          - id: step-move
+            phrase: Watch the marks move away from one third
+            targets:
+              - probability-ruler
+            linger: 0.2
+            caption_boundary: true
+      - say: What did the parser repair buy us? Start from one third again and change only the parser back. Follow the
+          second row. The old checker would push that same contradictory answer up to nearly thirty-six percent.
+          The repaired checker pushes it down. Train on the rescored group, and keep the missing host
+          measurement out. To find out whether a model learned to count slots, give it new worker counts and
+          check the answers.
+        hold: 0.95
+        caption_starts:
+          - Start from one third again
+          - Follow the second row
+          - The old checker would push
+          - nearly thirty-six percent
+          - The repaired checker pushes it down
+          - Train on the rescored group
+          - To find out whether a model learned to count slots
+        visual_cues:
+          - id: step-replay
+            phrase: change only the parser back
+            targets:
+              - second-probability
+            linger: 0.2
+          - id: step-compare
+            phrase: up to nearly thirty-six percent
+            targets:
+              - second-probability
+            linger: 0.2
+          - id: step-old-value
+            phrase: nearly thirty-six percent
+            targets: [second-probability]
+          - id: step-transfer
+            phrase: To find out whether a model learned to count slots
+            targets: [next-check]
+            linger: 0.2

@@ -1,0 +1,816 @@
+[
+  {
+    "id": "c01",
+    "title": "Ten minutes to the migration",
+    "sourceChapters": [
+      "c01"
+    ],
+    "beats": [
+      {
+        "id": "c01-b01",
+        "say": "The migration starts in ten minutes. An engineer asks for admin access. Look at the approval field. It is empty. Policy P-seven requires an approved ticket before a grant. Answer A asks for the ticket and waits. Answer B says access is enabled. Which reply gets your vote?",
+        "hold": 3
+      },
+      {
+        "id": "c01-b02",
+        "say": "Record A over B. That's one comparison we can teach a reward model. We'll fit a scorer and decide whether to use it on fresh replies. Suppose the reviewer keeps choosing answers like A, and those answers happen to be longer. What will the model do when the longer answer grants access?",
+        "hold": 1
+      }
+    ]
+  },
+  {
+    "id": "c02",
+    "title": "Which answer is more likely?",
+    "sourceChapters": [
+      "c02"
+    ],
+    "beats": [
+      {
+        "id": "c02-b01",
+        "say": "A language model predicts the next token, a piece of text. Here is a toy tokenizer with supplied probabilities for our two answers. The first piece gets a probability. The next depends on the pieces already written. Multiply all three along each row. Which complete answer gets more probability?",
+        "hold": 1.2
+      },
+      {
+        "id": "c02-b02",
+        "say": "B has twice the probability of A in this supplied example. The writer favors granting access now. Our approval rule selects A, the review-first answer. Probability records the writer's continuation tendency; human comparisons teach the reward model which completed answer we prefer.",
+        "hold": 0.35
+      }
+    ]
+  },
+  {
+    "id": "c03",
+    "title": "Two reviewers read the same replies",
+    "sourceChapters": [
+      "c03"
+    ],
+    "beats": [
+      {
+        "id": "c03-b01",
+        "say": "Two reviewers read the same pair independently. The first marks A because it waits for approval. The second marks B because the migration is urgent. Compare the ballots. One vote for each answer. Neither reviewer said the answers were equally good.",
+        "hold": 0.8
+      },
+      {
+        "id": "c03-b02",
+        "say": "For this exercise the rubric puts approval first, so the strict training label is A over B. Keep both ballots. If you want to learn how often reviewers choose A, one vote out of two gives a target of one half. A reviewer who deliberately marks equally good has supplied a different observation. File an abstention separately too.",
+        "hold": 0.6
+      }
+    ]
+  },
+  {
+    "id": "c04",
+    "title": "One writer, one shared scorer",
+    "sourceChapters": [
+      "c04"
+    ],
+    "beats": [
+      {
+        "id": "c04-b01",
+        "say": "Call the writer the policy. It produces an answer token by token. The reward model reads the prompt and the completed answer, then returns one scalar, a single number.",
+        "hold": 0.35
+      },
+      {
+        "id": "c04-b02",
+        "say": "Use the same scorer for B. These illustrative scores are one point eight for A and zero point seven for B. Their order predicts a preference. These dimensionless scores describe the model's ranking.",
+        "hold": 0.35
+      }
+    ]
+  },
+  {
+    "id": "c05",
+    "title": "Check what actually reaches the scorer",
+    "sourceChapters": [
+      "c05"
+    ],
+    "beats": [
+      {
+        "id": "c05-b01",
+        "say": "Store one shared context: system rules, request, tools and history. The system rules, available tools, and conversation history must agree. Otherwise the label compares different tasks.",
+        "hold": 0.35
+      },
+      {
+        "id": "c05-b02",
+        "say": "Use the same chat template. These example token IDs share a prefix. Cover the last token and compare the rows. Identical IDs and masks produce identical deterministic scores. Uncover the last token. Now the scorer can see which answer each reviewer read.",
+        "hold": 0.35
+      },
+      {
+        "id": "c05-b03",
+        "say": "Save the generating checkpoint and annotator cohort with the pair. Keep ties separate from strict wins. A clean training file still learns any systematic mistakes in its labels.",
+        "hold": 0.35
+      }
+    ]
+  },
+  {
+    "id": "c06",
+    "title": "A label belongs to the exact scored inputs",
+    "sourceChapters": [
+      "c06"
+    ],
+    "beats": [
+      {
+        "id": "c06-b01",
+        "say": "An explicit-prompt row separates the shared prompt from chosen and rejected answers. Conversational rows instead preserve identical role history and branch at the final assistant turn.",
+        "hold": 0.3
+      },
+      {
+        "id": "c06-b02",
+        "say": "In the checked TRL one point seventeen point one source, conversations use the tokenizer’s chat template; ordinary strings are concatenated and tokenized. Ordinary strings do not automatically become a chat dialogue. Inspect the actual model inputs.",
+        "hold": 0.5
+      },
+      {
+        "id": "c06-b03",
+        "say": "The cutoff leaves three tokens in each reply. Where do the inputs first differ? Read down each column, then compare the masks. Every entry matches. A deterministic shared scorer gives both replies the same score. Their margin is zero. A strict win at that margin has loss log two. Changing a shared weight moves both scores equally, so their contributions to the pair-loss gradient cancel. To check your own pair, line up the final token IDs and attention masks and look for the first difference.",
+        "hold": 0.9
+      },
+      {
+        "id": "c06-b04",
+        "say": "Here the rejected answer ends in a false claim. Cutting that suffix would erase the evidence for the label. The checked trainer instead filters the entire pair if either full templated candidate exceeds its maximum length. The default is one thousand twenty-four tokens. None disables the filter. Which of these three pairs survives?",
+        "hold": 2.6
+      },
+      {
+        "id": "c06-b05",
+        "say": "The boundary-length pair survives. Report removed counts and domains because filtering also changes the training distribution.",
+        "hold": 0.65
+      }
+    ]
+  },
+  {
+    "id": "c07",
+    "title": "Six comparisons are still one prompt",
+    "sourceChapters": [
+      "c07"
+    ],
+    "beats": [
+      {
+        "id": "c07-b01",
+        "say": "Four candidate answers give six comparisons. Each answer appears in three pairs. With K answers, choose any one first and any of the remaining K minus one second. Each unordered pair appears twice, so divide by two. All six rows here share one prompt.",
+        "hold": 0.35
+      },
+      {
+        "id": "c07-b02",
+        "say": "Put three comparisons in each split. Look for answer A in both piles. The same prompt, and even the same answer, can land in both training and evaluation under a random row split. The test has become familiar.",
+        "hold": 0.35
+      },
+      {
+        "id": "c07-b03",
+        "say": "For unseen-prompt evaluation, keep the whole prompt group together. Put other prompt groups in evaluation and check near duplicates. Testing new answers to familiar prompts is a different, legitimate goal.",
+        "hold": 0.35
+      }
+    ]
+  },
+  {
+    "id": "c08",
+    "title": "Keep group weighting and preference uncertainty explicit",
+    "sourceChapters": [
+      "c08"
+    ],
+    "beats": [
+      {
+        "id": "c08-b01",
+        "say": "Nine answers give thirty-six comparisons, while two answers give one. Averaging all thirty-seven rows gives the first prompt thirty-six times as much loss weight. Average within each prompt and then across the two prompts to give each one half of the loss weight.",
+        "hold": 0.3
+      },
+      {
+        "id": "c08-b02",
+        "say": "That does not equalize their gradient norms. Score each answer once and reuse it across its pairs. InstructGPT grouped correlated comparisons after observing overfitting from treating them independently.",
+        "hold": 0.5
+      },
+      {
+        "id": "c08-b03",
+        "say": "Pair expansion is one ranking model. Plackett-Luce models a full ordered choice. With supplied positive strengths three, two and one, the probability of selecting A first is three over six. Then B’s conditional share is two over three.",
+        "hold": 0.3
+      },
+      {
+        "id": "c08-b04",
+        "say": "Multiply those shares: the probability of the complete A, B, C order is one third. These are supplied strengths rather than observed human probabilities.",
+        "hold": 0.5
+      },
+      {
+        "id": "c08-b05",
+        "say": "Fix answer identities before observing repeated votes. Here three reviewers choose A and two choose B. The fraction q is three fifths. Binary cross entropy can train toward that soft target. For an interior q, the loss is smallest when the forecast equals q.",
+        "hold": 0.3
+      },
+      {
+        "id": "c08-b06",
+        "say": "A split vote can reflect opposing preferences, while an explicit equally-good annotation states a tie. Choose a tie-aware or cohort model when the annotation requires it.",
+        "hold": 0.65
+      }
+    ]
+  },
+  {
+    "id": "c09",
+    "title": "Build the score, one product at a time",
+    "sourceChapters": [
+      "c09"
+    ],
+    "beats": [
+      {
+        "id": "c09-b01",
+        "say": "A transformer turns each token into a hidden vector, a learned summary. In a causal decoder, an early position sees only its prefix. Follow the available context as the answer arrives.",
+        "hold": 0.35
+      },
+      {
+        "id": "c09-b02",
+        "say": "The final real token can use the whole answer. Select that representation and exclude padding. We will use two invented vector components so the arithmetic fits on screen; a real model has many more.",
+        "hold": 0.35
+      },
+      {
+        "id": "c09-b03",
+        "say": "Use the supplied vector for A with one shared set of weights. The first component times its weight gives one. The second contributes zero point eight. Add the products: one point eight.",
+        "hold": 0.35
+      },
+      {
+        "id": "c09-b04",
+        "say": "Now score B with the same weights. The first product is zero point five; the second is zero point two. Their sum is zero point seven. The larger A score earns the ranking. Independent tests tell us whether the model learned the rule.",
+        "hold": 0.35
+      }
+    ]
+  },
+  {
+    "id": "c10",
+    "title": "Trace the final unmasked position",
+    "sourceChapters": [
+      "c10"
+    ],
+    "beats": [
+      {
+        "id": "c10-b01",
+        "say": "Trace the ones in the attention mask. The right-padded sequence has mask one, one, zero. Index one holds its final real token. The head reads hidden vector two, three. With weights one half and one, what score will it return?",
+        "hold": 2.3
+      },
+      {
+        "id": "c10-b02",
+        "say": "One plus three gives four. Now slide the padding to the left. Watch the head follow the last real token. The mask becomes zero, one, one. Its index is now two. The vector stays two, three and the score stays four. The padding vector ninety-nine, ninety-nine never enters the sum.",
+        "hold": 0.7
+      },
+      {
+        "id": "c10-b03",
+        "say": "For contiguous right padding starting at index zero, mask sum minus one gives the final real position. For conventional left padding of a nonempty sequence, the final real token is at the end. The article’s general routine takes the greatest unmasked position and rejects an empty sequence.",
+        "hold": 0.3
+      },
+      {
+        "id": "c10-b04",
+        "say": "Causal attention includes the diagonal; a dedicated scoring token after the answer can also see the whole preceding sequence.",
+        "hold": 0.5
+      },
+      {
+        "id": "c10-b05",
+        "say": "A scalar head replaces the vocabulary projection. Train the backbone, adapters plus the head, or only the head with a frozen backbone. A shared scalar bias cancels from every score difference and receives zero gradient from the pair loss alone.",
+        "hold": 0.3
+      },
+      {
+        "id": "c10-b06",
+        "say": "Save the actual trainable score head with adapters, the base revision, tokenizer and template, then compare held-out outputs after reloading.",
+        "hold": 0.65
+      }
+    ]
+  },
+  {
+    "id": "c11",
+    "title": "Turn a score gap into a forecast",
+    "sourceChapters": [
+      "c11"
+    ],
+    "beats": [
+      {
+        "id": "c11-b01",
+        "say": "Subtract the rejected score from the chosen score. One point eight minus zero point seven leaves a margin of one point one. Only this difference enters the pairwise probability.",
+        "hold": 0.35
+      },
+      {
+        "id": "c11-b02",
+        "say": "Bradley-Terry exponentiates both scores into positive strengths. Divide the chosen answer's strength by their total. Its share is about seventy-five percent, equivalent to the sigmoid of our margin.",
+        "hold": 0.35
+      },
+      {
+        "id": "c11-b03",
+        "say": "Equal scores would give an even chance. Bring A back to one point eight. Its forecast returns to seventy-five percent. Now collect four votes with A and B fixed in advance. Three reviewers pick A and one picks B. That matches this small sample. We need judgments across many pairs to assess calibration.",
+        "hold": 0.35
+      }
+    ]
+  },
+  {
+    "id": "c12",
+    "title": "A confident mistake pays more loss",
+    "sourceChapters": [
+      "c12"
+    ],
+    "beats": [
+      {
+        "id": "c12-b01",
+        "say": "The label says A won. The model assigned that outcome about zero point seven five. Negative log probability gives a loss of about zero point two nine.",
+        "hold": 0.35
+      },
+      {
+        "id": "c12-b02",
+        "say": "Now make the margin minus two. A receives only twelve percent, although the observed label still says A. Its negative log loss rises to two point one three. Confident mistakes are expensive.",
+        "hold": 0.35
+      },
+      {
+        "id": "c12-b03",
+        "say": "Move the margin to plus two. A gets eighty-eight percent and loss falls to zero point one three. This is binary cross entropy with the score difference as its logit, the input to the sigmoid.",
+        "hold": 0.35
+      }
+    ]
+  },
+  {
+    "id": "c13",
+    "title": "Separate stable evaluation from a required margin",
+    "sourceChapters": [
+      "c13"
+    ],
+    "beats": [
+      {
+        "id": "c13-b01",
+        "say": "For a strict win, use binary cross entropy with logits, or softplus of the negative margin. Look inside the stable expression. The exponential takes the negative absolute margin. Even at a gap of a thousand, its argument stays at or below zero.",
+        "hold": 0.3
+      },
+      {
+        "id": "c13-b02",
+        "say": "A margin of minus one thousand has loss one thousand; plus one thousand rounds to zero loss without an overflow. Computing a sigmoid first and then taking its log can lose this numerical protection.",
+        "hold": 0.5
+      },
+      {
+        "id": "c13-b03",
+        "say": "A rating-dependent margin m changes the effective logit to chosen score minus rejected score minus m. At a score difference equal to m, probability is one half, loss is log two and the score-difference derivative is minus one half. Reaching m has not saturated the loss.",
+        "hold": 0.3
+      },
+      {
+        "id": "c13-b04",
+        "say": "To reach probability rho, the score difference must reach m plus log of rho divided by one minus rho.",
+        "hold": 0.5
+      },
+      {
+        "id": "c13-b05",
+        "say": "For m equal to one and a ninety-percent effective forecast, the required score difference is about three point one nine seven. Llama Two used rating-dependent margins, including zero for its weakest preference. Llama Three removed the margin after diminishing improvements with data scaling.",
+        "hold": 0.3
+      },
+      {
+        "id": "c13-b06",
+        "say": "For a weak preference, try a margin of half a point. Fit a second scorer with zero margin on the same training pairs. Compare their forecasts on a held-out pair. Suppose the first gives A a ninety percent chance and the second gives it seventy-five percent. Three reviewers picked A and one picked B. Count the loss on the B vote too. Across all four votes, the first fit averages about zero point six five five. The second averages about zero point five six two. Which margin would you keep on this evidence? The zero-margin fit has the lower log loss here. Repeat the comparison across the held-out pairs before you choose the training margin.",
+        "hold": 1.2
+      }
+    ]
+  },
+  {
+    "id": "c14",
+    "title": "Move weights, then check the margin",
+    "sourceChapters": [
+      "c14"
+    ],
+    "beats": [
+      {
+        "id": "c14-b01",
+        "say": "The chosen-score derivative is sigmoid of the margin minus one; the rejected derivative has the opposite sign. Treating scores as independent variables, descent pushes the chosen score up and the rejected score down.",
+        "hold": 0.35
+      },
+      {
+        "id": "c14-b02",
+        "say": "With margin minus two, the derivative magnitude is about zero point eight eight. An illustrative output-space step narrows the wrong gap. Actual backpropagation updates shared model weights. Both outputs can move in the same direction.",
+        "hold": 0.35
+      },
+      {
+        "id": "c14-b03",
+        "say": "Start a new calculation with one shared weight, minus one. The chosen feature is one and the rejected feature is two. That gives scores minus one and minus two, a positive margin of one. The weight gradient is zero point two six nine. Multiply by learning rate zero point one, then subtract. The weight becomes minus one point zero two seven. Both scores fall, but the rejected falls farther. Their margin improves.",
+        "hold": 2.3
+      }
+    ]
+  },
+  {
+    "id": "c15",
+    "title": "What did the reward head learn?",
+    "sourceChapters": [
+      "c15"
+    ],
+    "beats": [
+      {
+        "id": "c15-b01",
+        "say": "Let's give each reply two features we can inspect. Waiting for approval counts as one for compliance. For length, count each two words above three as one unit. We assign both features by hand so we can trace the fit.",
+        "hold": 0.3
+      },
+      {
+        "id": "c15-b02",
+        "say": "On the left, each preferred reply gains one unit of compliance and one unit of length. Copy both comparisons to the right. Shorten the second winner by four words. It still waits for approval. Now it is one length unit shorter than its partner.",
+        "hold": 0.65
+      },
+      {
+        "id": "c15-b03",
+        "say": "Start both heads at zero. On the left, compliance and length get identical gradients. On the right, one pair pulls the length weight up and the other pulls it down by the same amount.",
+        "hold": 0.3
+      },
+      {
+        "id": "c15-b04",
+        "say": "Run three hundred gradient steps with the same learning rate and L two penalty. The left head still weights both features equally. On the right the length weight stays at zero. Both heads rank both training pairs correctly. The penalty shrinks weights.",
+        "hold": 0.3
+      },
+      {
+        "id": "c15-b05",
+        "say": "The opposing examples explain the cancellation.",
+        "hold": 0.8
+      },
+      {
+        "id": "c15-b06",
+        "say": "Try both heads on the same replies. A says to wait for approval. D says admin is enabled now. Unfold D's last four words. It promises to request approval afterward. With seven words, D has two length units and still has zero for compliance.",
+        "hold": 0.3
+      },
+      {
+        "id": "c15-b07",
+        "say": "A has one for compliance and zero for length. Multiply each feature by its weight, then add. Which head will rank D above A?",
+        "hold": 2.8
+      },
+      {
+        "id": "c15-b08",
+        "say": "The head trained on two longer winners picks D. Its two length units earn about three point two six, twice the score A earns for following the rule. The head trained with a shorter winner picks A. With zero weight on length, D's extra words contribute nothing.",
+        "hold": 0.3
+      },
+      {
+        "id": "c15-b09",
+        "say": "Reply A scores about two point six seven for compliance.",
+        "hold": 0.9
+      },
+      {
+        "id": "c15-b10",
+        "say": "Keep A compliant in all three held-out pairs. In the second pair, D is longer still. In the third, the lengths match. Read down the two columns. The left head gets only the matched pair right. The right head gets all three.",
+        "hold": 0.3
+      },
+      {
+        "id": "c15-b11",
+        "say": "These results cover the three constructed pairs. To reproduce the fit, check the gradient against finite differences and reload the weights with the features in the same order.",
+        "hold": 0.9
+      }
+    ]
+  },
+  {
+    "id": "c16",
+    "title": "Separate reward origin from reward scale",
+    "sourceChapters": [
+      "c16"
+    ],
+    "beats": [
+      {
+        "id": "c16-b01",
+        "say": "Add ten to both rewards. The markers move together to eleven point eight and ten point seven. What happens to the gap, and to the forecast?",
+        "hold": 2.4
+      },
+      {
+        "id": "c16-b02",
+        "say": "The gap stays at one point one. The probability and loss stay fixed. Pair labels cannot choose the score origin. Slide back to our original scores before changing their scale.",
+        "hold": 0.35
+      },
+      {
+        "id": "c16-b03",
+        "say": "Triple both scores. The gap becomes three point three and the forecast rises to ninety-six percent. With a fixed KL penalty against reference-policy drift, larger rewards also change the optimization balance. Calibrate that scale against judgment data.",
+        "hold": 0.35
+      }
+    ]
+  },
+  {
+    "id": "c17",
+    "title": "Center the pair midpoint without confusing its spread",
+    "sourceChapters": [
+      "c17"
+    ],
+    "beats": [
+      {
+        "id": "c17-b01",
+        "say": "Track the pair midpoint separately from the margin. The checked TRL centering term is gamma times the mean squared sum of chosen and rejected scores. The pair sum is twice its midpoint, so this is four gamma times the squared midpoint.",
+        "hold": 0.3
+      },
+      {
+        "id": "c17-b02",
+        "say": "Scores plus one hundred and minus one hundred pay zero centering penalty despite a huge margin. Joint updates through shared weights can still change margins.",
+        "hold": 0.5
+      },
+      {
+        "id": "c17-b03",
+        "say": "This coefficient defaults to disabled in the checked one point seventeen point one configuration; zero point zero one is a documented starting suggestion to validate. InstructGPT shifted demonstration rewards to mean zero before reinforcement learning. Anchoring an origin neither bounds each reward nor calibrates a probability.",
+        "hold": 0.3
+      },
+      {
+        "id": "c17-b04",
+        "say": "Arbitrary raw offsets from independently trained scorers can otherwise masquerade as ensemble disagreement.",
+        "hold": 0.5
+      },
+      {
+        "id": "c17-b05",
+        "say": "Consider the ideal objective, expected reward minus beta times KL divergence from the reference policy. Triple every reward at fixed beta. Factor three out of the objective. The same policy maximizes the original rewards with beta divided by three. Adding a fixed offset for a given prompt also leaves its ideal maximizer unchanged.",
+        "hold": 0.3
+      },
+      {
+        "id": "c17-b06",
+        "say": "Actual PPO updates also depend on clipping, normalization, data and optimization budget; the identity alone does not predict measured policy drift.",
+        "hold": 0.65
+      }
+    ]
+  },
+  {
+    "id": "c18",
+    "title": "Two forecasts pick the same winner",
+    "sourceChapters": [
+      "c18"
+    ],
+    "beats": [
+      {
+        "id": "c18-b01",
+        "say": "A ranking tells us which answer comes first. What about the probability attached to it? Keep A and B fixed before anyone votes. Four reviewers read the same pair independently. Three choose A and one chooses B. Both forecasts pick A, so each gets three out of four right.",
+        "hold": 0.3
+      },
+      {
+        "id": "c18-b02",
+        "say": "Which forecast fits these four votes better?",
+        "hold": 2.3
+      },
+      {
+        "id": "c18-b03",
+        "say": "Look at the vote for B. The target for A is zero on that ballot. A forecast of point nine nine misses by almost one. Square that difference and you get point nine eight zero one. The point seven five forecast pays a smaller penalty there.",
+        "hold": 0.3
+      },
+      {
+        "id": "c18-b04",
+        "say": "Now square the errors on the three A votes, where the target is one. Those votes favor the more confident forecast.",
+        "hold": 0.7
+      },
+      {
+        "id": "c18-b05",
+        "say": "For each forecast, add its four squared errors and divide by four. That mean is the Brier score. The lower score goes to point seven five. The one confident miss outweighs three small gains. To judge calibration on future requests, collect votes across more pairs and check how the forecasts match each group.",
+        "hold": 0.8
+      }
+    ]
+  },
+  {
+    "id": "c19",
+    "title": "Make the proposed correction fail visibly",
+    "sourceChapters": [
+      "c19"
+    ],
+    "beats": [
+      {
+        "id": "c19-b01",
+        "say": "Try a proposed correction: subtract alpha times the positive chosen-minus-rejected length gap from the score difference. If the head scores only b times length and the gap is positive, its effective logit is b minus alpha, multiplied by that gap.",
+        "hold": 0.3
+      },
+      {
+        "id": "c19-b02",
+        "say": "Increasing b can still drive training loss down. This correction has not forced the length weight to zero.",
+        "hold": 0.5
+      },
+      {
+        "id": "c19-b03",
+        "say": "Use the article's gap of one and alpha of one. At length weight zero, both test answers tie. Raise the weight to three, then six. Training loss falls from one point three one three to zero point one two seven to zero point zero zero seven. At either positive weight the longer wrong reply beats the short good reply.",
+        "hold": 0.3
+      },
+      {
+        "id": "c19-b04",
+        "say": "Read across the last row. The length weight is six. The training loss is about seven thousandths. What scores does that weight give the two replies? The short correct reply scores zero. The longer error scores twelve. Every extra unit of length earns six points, even when the answer is wrong.",
+        "hold": 0.9
+      },
+      {
+        "id": "c19-b05",
+        "say": "Vary quality and presentation independently: useful short answers, necessary detailed answers, verbose errors and length-matched comparisons. Do the same for agreement with a user’s false premise and for formatting. Politeness alone is not sycophancy.",
+        "hold": 0.3
+      },
+      {
+        "id": "c19-b06",
+        "say": "Eisenstein and colleagues observed list formatting grow to roughly half of their helpfulness outputs versus about eight percent in preference data; that finding is scoped to those runs.",
+        "hold": 0.65
+      }
+    ]
+  },
+  {
+    "id": "c20",
+    "title": "The writer changes what the judge sees",
+    "sourceChapters": [
+      "c20"
+    ],
+    "beats": [
+      {
+        "id": "c20-b01",
+        "say": "Keep testing new answers from the policy you are changing. These illustrative accuracies are ninety-two percent on stored pairs and sixty-four on fresh pairs. Fresh-pair evaluation measures performance on the writer's new outputs directly.",
+        "hold": 0.35
+      },
+      {
+        "id": "c20-b02",
+        "say": "Watch optimization continue. Early on, both scores rise. Then the proxy keeps rising while the independent curve peaks and falls. Gao and colleagues observed this pattern using a larger learned gold model. These curves are schematic. Both come from learned scorers. Human review and task checks give separate evidence about quality.",
+        "hold": 0.35
+      }
+    ]
+  },
+  {
+    "id": "c21",
+    "title": "Align scorers, then expose shared error",
+    "sourceChapters": [
+      "c21"
+    ],
+    "beats": [
+      {
+        "id": "c21-b01",
+        "say": "Align independent scorers’ origins and scales on shared calibration data before combining their raw values. Construct an ensemble with different seeds, subsets or backbones, while recognizing their errors can still correlate. For supplied aligned scores two, four and six, the mean is four.",
+        "hold": 0.3
+      },
+      {
+        "id": "c21-b02",
+        "say": "Squared deviations sum to eight; divide by K minus one, then take the square root. The sample standard deviation is two.",
+        "hold": 0.5
+      },
+      {
+        "id": "c21-b03",
+        "say": "With lambda one, mean minus lambda times standard deviation returns two for that answer. The disagreement penalty lowers its score. This rule is often called a lower confidence bound, but the arithmetic alone supplies no calibrated statistical coverage.",
+        "hold": 0.3
+      },
+      {
+        "id": "c21-b04",
+        "say": "Novel answers need not cause disagreement, and familiar answers can. Validate the signal on your actual generator and prompts.",
+        "hold": 0.5
+      },
+      {
+        "id": "c21-b05",
+        "say": "Now all three scorers assign five to an answer with an invented citation. Their standard deviation is zero, so the conservative aggregate remains five. Shared errors survive complete agreement. Eisenstein and colleagues found mitigation rather than elimination of reward hacking. Inspect source evidence and independent task checks; a unanimous committee cannot authenticate a nonexistent source.",
+        "hold": 0.65
+      }
+    ]
+  },
+  {
+    "id": "c22",
+    "title": "Keep benchmark construction beside the result",
+    "sourceChapters": [
+      "c22"
+    ],
+    "beats": [
+      {
+        "id": "c22-b01",
+        "say": "Original RewardBench tests chat, hard chat, safety and reasoning. RewardBench Two has six domains: factuality, precise instruction following, math, safety, focus and ties. Its ordinary cases select one winner among four answers, giving a twenty-five percent random baseline. Ties uses a separate metric.",
+        "hold": 0.3
+      },
+      {
+        "id": "c22-b02",
+        "say": "Comparing its percentage directly with a binary-pair benchmark confuses the outcome spaces. Retain the revision, checkpoint, tokenizer, template and evaluation settings.",
+        "hold": 0.5
+      },
+      {
+        "id": "c22-b03",
+        "say": "In the RewardBench Two authors’ Tulu Three eight-billion-parameter SFT generator setup, scores correlated with best-of-sixteen outcomes at Pearson zero point eight seven. Their PPO results were less sensitive among decent scorers, and worsened with mismatched initialization or prompt distributions. This is evidence about that experiment, not certification that a leaderboard winner fits every PPO deployment.",
+        "hold": 0.5
+      },
+      {
+        "id": "c22-b04",
+        "say": "For this exercise, use eighty percent accuracy on fresh, human-reviewed pairs as the floor for further evaluation. Record the pair count, the uncertainty and where reviewers disagreed. Check score margins, midpoint drift, calibration and performance on shortcut tests. Compare the two bars with the line. Would you start the trial?",
+        "hold": 2.4
+      },
+      {
+        "id": "c22-b05",
+        "say": "Static accuracy reaches ninety-two percent. On fresh outputs the scorer agrees with reviewers sixty-four percent of the time. The fresh set falls sixteen percentage points short of the eighty percent floor. Hold the trial.",
+        "hold": 1.6
+      }
+    ]
+  },
+  {
+    "id": "c23",
+    "title": "Choose the signal and preserve its checked property",
+    "sourceChapters": [
+      "c23"
+    ],
+    "beats": [
+      {
+        "id": "c23-b01",
+        "say": "A terminal scalar scores the completed rollout. PPO commonly uses a learned value baseline for advantages; outcome-supervised GRPO uses relative rewards within a response group without that value model. Best-of-N selects the largest score among sampled answers.",
+        "hold": 0.3
+      },
+      {
+        "id": "c23-b02",
+        "say": "That selection is often called rejection sampling in post-training recipes, but it is not exact sampling from a specified target distribution.",
+        "hold": 0.5
+      },
+      {
+        "id": "c23-b03",
+        "say": "A process reward model supplies step-level judgments, locating an erroneous step in a reasoning trace. Lightman and colleagues studied best-of-N selection on MATH with a fixed generator; they did not train that generator through reinforcement learning in that experiment. Step labels cost effort and remain gameable.",
+        "hold": 0.3
+      },
+      {
+        "id": "c23-b04",
+        "say": "A generative judge can emit a verdict or probabilities for verdict tokens. Try a judge that tends to pick the first reply. With A first, it picks A. Swap the order and it picks B. The answers stayed the same. Position changed the verdict. These judges can add latency and share factual errors with the writer.",
+        "hold": 0.5
+      },
+      {
+        "id": "c23-b05",
+        "say": "An executable verifier checks a specified property. This function always returns five. Try two plus three. The visible test passes. Try four plus four. The hidden test expects eight and fails. A final-answer parser can likewise accept a number while the explanation is false.",
+        "hold": 0.3
+      },
+      {
+        "id": "c23-b06",
+        "say": "Basic offline DPO uses the policy-to-reference log-ratio relationship to learn from labeled pairs without separately fitting a scalar scorer. None of these choices removes the need to evaluate the actual generated answers.",
+        "hold": 0.65
+      }
+    ]
+  },
+  {
+    "id": "c24",
+    "title": "Reload the actual scorer before a policy trial",
+    "sourceChapters": [
+      "c24"
+    ],
+    "beats": [
+      {
+        "id": "c24-b01",
+        "say": "The article’s transformer fragment is pinned to TRL one point thirteen and assumes prepared training and evaluation datasets. It creates a one-label sequence-classification scorer; it does not construct leakage-safe prompt groups for you. The one point seventeen source checks earlier describe that later version’s preprocessing.",
+        "hold": 0.3
+      },
+      {
+        "id": "c24-b02",
+        "say": "The fragment was source-checked rather than run here. The CPU examples executed arithmetic and small feature fitting without downloading or training the transformer.",
+        "hold": 0.5
+      },
+      {
+        "id": "c24-b03",
+        "say": "Retain the base revision, actual trained head, adapter weights when used, tokenizer, chat template, data split and training settings. Reload the saved scorer and compare it on the same held-out inputs before a policy trial. Our probe vector two, three should still score four.",
+        "hold": 0.3
+      },
+      {
+        "id": "c24-b04",
+        "say": "Omit the trained head. This example substitute has zero weights. What happens to the same probe? Its score falls to zero. Restore the trained head and replay the probe. Its score returns to four. Select precision, batch size, learning rate and epochs for the actual hardware and data.",
+        "hold": 0.5
+      },
+      {
+        "id": "c24-b05",
+        "say": "If training loss falls while held-out accuracy stalls, inspect label noise, overlap, held-out loss, calibration and easy-pair margin growth. Stalled accuracy alone does not diagnose leakage. If raw scores drift, compare midpoint and margin before choosing centering or regularization.",
+        "hold": 0.3
+      },
+      {
+        "id": "c24-b06",
+        "say": "When an independent quality signal deteriorates during rising proxy reward, stop the trial, preserve artifacts and inspect its failing outputs.",
+        "hold": 0.65
+      }
+    ]
+  },
+  {
+    "id": "c25",
+    "title": "Would you start the support trial?",
+    "sourceChapters": [
+      "c25"
+    ],
+    "beats": [
+      {
+        "id": "c25-b01",
+        "say": "Try a new case. This support team sets a floor of eighty percent agreement on fresh, independently reviewed pairs. The scorer agrees on eighteen of twenty-four. Three aligned scorers each give five to the answer on the right. It cites section four.",
+        "hold": 0.3
+      },
+      {
+        "id": "c25-b02",
+        "say": "Check the complete contents of the edition it cites. Do the pair results and the citation permit a trial?",
+        "hold": 2.8
+      },
+      {
+        "id": "c25-b03",
+        "say": "Eighteen out of twenty-four is seventy-five percent. The pair screen fails. The three fives have a mean of five and zero spread. Subtract one standard deviation and the score stays five. Now find section four. This edition ends at section three, so the citation check fails too.",
+        "hold": 0.8
+      },
+      {
+        "id": "c25-b04",
+        "say": "Hold the trial. Keep the pair IDs and the edition you checked. After you repair the scorer or its data, evaluate the new candidate on reserved examples. Eighty percent was this team's screening rule. Passing it would earn a closer evaluation.",
+        "hold": 0.65
+      }
+    ]
+  },
+  {
+    "id": "c26",
+    "title": "Would you train the writer on this reward?",
+    "sourceChapters": [
+      "c26"
+    ],
+    "beats": [
+      {
+        "id": "c26-b01",
+        "say": "Suppose the writer samples three finished replies. The scorer ranks them and A wins best of three. We can return A immediately. In online reinforcement learning, PPO can use completed-response reward to update the writer. Now an error in the judge can change what the writer learns to say.",
+        "hold": 0.5
+      },
+      {
+        "id": "c26-b02",
+        "say": "If you already have labeled pairs and a reference policy, basic offline DPO trains the writer directly. Its loss compares the writer's likelihood of the two answers relative to the reference. You can train from those pairs without fitting a separate judge. With either training method, examine the answers the updated writer produces.",
+        "hold": 0.55
+      },
+      {
+        "id": "c26-b03",
+        "say": "Back to the migration. We're replaying proposed actions on a test ticket. D grants access at step one. The reviewer approves at step two. Our fitted head gave compliance and length equal weights. Scale both weights to one. A earns one point for compliance.",
+        "hold": 0.3
+      },
+      {
+        "id": "c26-b04",
+        "say": "D earns two for length. Can the approval at step two cover D's grant at step one?",
+        "hold": 2.8
+      },
+      {
+        "id": "c26-b05",
+        "say": "Read the check at the moment of the grant. Either we're holding access, or the ticket must already be approved. At step one both conditions are false. Later approval can't undo that grant. Stop the trial and keep the failing trace.",
+        "hold": 1.15
+      },
+      {
+        "id": "c26-b06",
+        "say": "Change the reply and reset the ticket. A two says to hold access until the ticket is approved, then grant it. The reviewer still acts at step two. At which step can the assistant grant access this time?",
+        "hold": 3
+      },
+      {
+        "id": "c26-b07",
+        "say": "Replay it. First the assistant holds access. Then the reviewer approves. Look at access now. It is still blocked. At step three the assistant grants access against an approved ticket. A two passes the same check. That repairs this reply. Before trying the scorer again, test it on fresh pairs where the longer answer can be wrong.",
+        "hold": 2
+      }
+    ]
+  }
+]

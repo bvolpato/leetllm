@@ -1,0 +1,626 @@
+[
+  {
+    "id": "c01",
+    "title": "A sampled token waits for its forward pass",
+    "sourceChapters": [
+      "c01"
+    ],
+    "beats": [
+      {
+        "id": "c01-b01",
+        "say": "The contract says the subscription renews in March. After reading the contract and your question, the model sends back its first answer token, March. Freeze it there. You can see the word. Has it earned a place in memory yet?",
+        "hold": 2
+      },
+      {
+        "id": "c01-b02",
+        "say": "The prompt filled five hundred twelve positions. March is waiting to go back into the model. For the next forward pass, point to every position that needs a fresh key and value. Then trace the positions the new query will read.",
+        "hold": 3.5
+      },
+      {
+        "id": "c01-b03",
+        "say": "Only March needs a new pair. Feed it back in. Its key and value join the five hundred twelve saved pairs at this head. Its query sweeps all five hundred thirteen positions, including itself. The scores against the keys set the weights for mixing their values.",
+        "hold": 1.2
+      },
+      {
+        "id": "c01-b04",
+        "say": "That's why the second answer token often comes sooner. The model reuses the prompt's keys and values at every attention layer. This memory is the key value cache. We'll size it, follow a read through scattered blocks, and decide who gets to write when memory runs short.",
+        "hold": 1
+      }
+    ]
+  },
+  {
+    "id": "c02",
+    "title": "Six passes through a growing prefix",
+    "sourceChapters": [
+      "c02"
+    ],
+    "beats": [
+      {
+        "id": "c02-b01",
+        "say": "Models generate text in tokens, which can be whole words, pieces of words, or punctuation, so I'll say tokens from here on. Remember attention.",
+        "hold": 0.3
+      },
+      {
+        "id": "c02-b02",
+        "say": "Each new token brings a query, and in this lesson that query reads the keys and values of itself and every token before it. That's full causal attention. So the naive way to generate text is to recompute all of them, at every step.",
+        "hold": 0.3
+      },
+      {
+        "id": "c02-b03",
+        "say": "Start with one token and process six positions in turn. Count the positions projected in each pass. One, two, three, four, five, six. How many pairs have we computed across those passes?",
+        "hold": 2.8
+      },
+      {
+        "id": "c02-b04",
+        "say": "Twenty one pairs, at this head. Look down the first column. In causal attention, later tokens cannot change the hidden state at that first position. Every time we project its key and value, we get the same pair. Compute it once, and keep it.",
+        "hold": 0.4
+      },
+      {
+        "id": "c02-b05",
+        "say": "With a cache, each pass projects only the new position. Six positions, six pairs. Its query still scores all visible keys. Softmax turns those scores into weights, and the weights mix the corresponding values. The last query still needs six reads.",
+        "hold": 0.9
+      }
+    ]
+  },
+  {
+    "id": "c03",
+    "title": "Prefill builds the history",
+    "sourceChapters": [
+      "c03"
+    ],
+    "beats": [
+      {
+        "id": "c03-b01",
+        "say": "Generation has two phases, and they behave differently. The prompt is known in advance, so prefill processes all of its positions together, with a mask so that each one reads only itself and earlier positions. That fills the cache. The last prompt position then produces the scores for the first answer token. From those scores, we sample March.",
+        "hold": 0.7
+      },
+      {
+        "id": "c03-b02",
+        "say": "Then decode takes over. Feed March back in. Its key and value join the prompt, and the model samples a period. The period now waits for its own turn. Each choice becomes the next step's input. The GPU works in parallel within a step, while this response advances one token at a time.",
+        "hold": 0.7
+      },
+      {
+        "id": "c03-b03",
+        "say": "The two phases stress different things. With a large prompt, prefill is usually heavy on computation, and it runs well in parallel. At common batch sizes, decode is often limited by memory bandwidth, the speed at which data moves out of GPU memory, because every step reloads the weights and a growing cache.",
+        "hold": 0.3
+      },
+      {
+        "id": "c03-b04",
+        "say": "So the wait for the first token and the gap between later tokens are two separate numbers. Time to first token also includes queueing and transport. Inter token latency reflects decode and scheduling. Measure both.",
+        "hold": 1.3
+      }
+    ]
+  },
+  {
+    "id": "c04",
+    "title": "The cost of one processed position",
+    "sourceChapters": [
+      "c04"
+    ],
+    "beats": [
+      {
+        "id": "c04-b01",
+        "say": "Here's the bill, using the shape of Llama 3's eight billion parameter model. For one token, you keep a key and a value. That's two. In every layer, thirty two of them here. For every key value head, eight.",
+        "hold": 0.3
+      },
+      {
+        "id": "c04-b02",
+        "say": "Attention splits into several heads, and in this model the query heads share eight sets of keys and values, called key value heads. Only those get stored. Each head holds one hundred twenty eight numbers, at two bytes each, the sixteen bit format called F P sixteen.",
+        "hold": 0.3
+      },
+      {
+        "id": "c04-b03",
+        "say": "Multiply it out, and you get one hundred thirty one thousand and seventy two bytes. A kibibyte is one thousand twenty four bytes, and a mebibyte and a gibibyte each step up by another factor of one thousand twenty four.",
+        "hold": 0.3
+      },
+      {
+        "id": "c04-b04",
+        "say": "So that's exactly one hundred twenty eight kibibytes, for every single token. That counts the keys and values only. A real engine also needs bookkeeping tables, buffers, and spare room, so profile it before you promise capacity.",
+        "hold": 0.9
+      },
+      {
+        "id": "c04-b05",
+        "say": "And it grows with every token. A conversation of four thousand ninety six tokens holds five hundred twelve mebibytes, half a gibibyte, of GPU memory. Give the cache forty gibibytes, and at best you can hold eighty of those.",
+        "hold": 0.9
+      },
+      {
+        "id": "c04-b06",
+        "say": "Now try one yourself. Llama 3's seventy billion parameter model has eighty layers, with the same eight key value heads, the same one hundred twenty eight numbers per head, and the same two bytes per number. Before I answer, what does one token cost?",
+        "hold": 5
+      },
+      {
+        "id": "c04-b07",
+        "say": "Two, times eighty, times eight, times one hundred twenty eight, times two. That's three hundred twenty kibibytes a token, and one and a quarter gibibytes for those same four thousand ninety six tokens. One hundred twenty eight such conversations would need one hundred sixty gibibytes.",
+        "hold": 0.3
+      },
+      {
+        "id": "c04-b08",
+        "say": "So memory can cap how many people you serve before raw compute does. For mixed lengths, add the processed positions across requests. Weights use a separate budget shared by the requests. A hybrid model can also need a separate term for fixed-size recurrent state.",
+        "hold": 0.9
+      }
+    ]
+  },
+  {
+    "id": "c05",
+    "title": "Who owns the empty slots?",
+    "sourceChapters": [
+      "c05"
+    ],
+    "beats": [
+      {
+        "id": "c05-b01",
+        "say": "So where does all this memory go? The simplest way to manage it is to give each conversation its maximum length up front, in one continuous piece, because growing a continuous buffer later can mean allocating a bigger one and copying everything across.",
+        "hold": 0.3
+      },
+      {
+        "id": "c05-b02",
+        "say": "In this twelve-block pool, A and B each reserve six contiguous blocks. Each currently uses two. C asks for two blocks. Can it use either blank tail?",
+        "hold": 2.5
+      },
+      {
+        "id": "c05-b03",
+        "say": "Every blank block already has an owner. C must wait even though only four blocks contain live data.",
+        "hold": 1.2
+      },
+      {
+        "id": "c05-b04",
+        "say": "That waste comes in three kinds. Say a request reserves four thousand ninety six slots, one slot for each token, and stops at three hundred. The other three thousand seven hundred ninety six were trapped inside its reservation, and it never used them. That's internal fragmentation.",
+        "hold": 0.3
+      },
+      {
+        "id": "c05-b05",
+        "say": "If the request is still growing, slots it will eventually use sit idle from the first step. That's reservation waste. A different problem appears when requests of different sizes finish. They leave holes between the live buffers.",
+        "hold": 0.3
+      },
+      {
+        "id": "c05-b06",
+        "say": "Here the free runs have twelve, fourteen, and ten slots. You need twenty in one run. Count the free slots, then check the longest run. Thirty six free, but the longest is fourteen. That's external fragmentation.",
+        "hold": 1.3
+      },
+      {
+        "id": "c05-b07",
+        "say": "How bad can it be? In twenty twenty three, the team behind the vLLM serving engine reported sixty to eighty percent waste in the systems it studied. That's a historical result and not a measure of your system, but it shows the size of the problem.",
+        "hold": 1
+      }
+    ]
+  },
+  {
+    "id": "c06",
+    "title": "A table for scattered blocks",
+    "sourceChapters": [
+      "c06"
+    ],
+    "beats": [
+      {
+        "id": "c06-b01",
+        "say": "Borrow an old trick from operating systems. Divide memory into equal blocks, then give one to a request only when it needs one. Positions zero through three fill physical block seven. The next two pairs land in block two. In token order these are neighbors.",
+        "hold": 0.3
+      },
+      {
+        "id": "c06-b02",
+        "say": "A table keeps that order. Positions start at zero, and each block holds four. To read position five, divide by four. Which table entry and which slot will the kernel need?",
+        "hold": 2.6
+      },
+      {
+        "id": "c06-b03",
+        "say": "One, remainder one. Table entry one holds physical block two. Slot one in that block holds position five.",
+        "hold": 0.4
+      },
+      {
+        "id": "c06-b04",
+        "say": "Replay the allocation from the first token. The prompt starts in one block. Each processed token takes the next slot. Watch the table as the fourth slot fills. Do we need another block yet?",
+        "hold": 2
+      },
+      {
+        "id": "c06-b05",
+        "say": "The first four fit. Only when the fifth position is processed does the allocator take block two and fill slot zero. The earlier pairs stay put.",
+        "hold": 0.7
+      },
+      {
+        "id": "c06-b06",
+        "say": "Return to the twelve-block pool. Allocate on demand and A and B need only two blocks apiece. C takes two of the scattered free blocks. The remaining six are free for the next request. PagedAttention uses this rule in a uniform block pool.",
+        "hold": 0.7
+      },
+      {
+        "id": "c06-b07",
+        "say": "Some waste remains. In this basic layout, a request's last block can be partly empty, by less than one block. With sixteen token blocks, a single token still takes a whole block, leaving fifteen slots unused.",
+        "hold": 0.3
+      },
+      {
+        "id": "c06-b08",
+        "say": "For seventeen tokens, compare blocks of eight with blocks of sixteen. Round up separately for each choice. Three small blocks give twenty four slots, seven empty. Two large ones give thirty two slots, fifteen empty. Finer blocks mean more table entries and finer sharing.",
+        "hold": 0.3
+      },
+      {
+        "id": "c06-b09",
+        "say": "Block size can also change kernel speed in either direction. Measure on your workload. To budget for several requests, round up each request separately, add their allocated slots, then subtract their live positions.",
+        "hold": 0.9
+      }
+    ]
+  },
+  {
+    "id": "c07",
+    "title": "Read through block 2, slot 1",
+    "sourceChapters": [
+      "c07"
+    ],
+    "beats": [
+      {
+        "id": "c07-b01",
+        "say": "The table for this six-position test reads seven, then two. A kernel that expects one continuous buffer cannot walk that table. You could gather the history into a temporary buffer first. That's an extra copy. Let's read the scattered pairs where they live.",
+        "hold": 0.4
+      },
+      {
+        "id": "c07-b02",
+        "say": "Follow the query. Four pairs come from block seven. Jump to block two for position four, then slot one for position five. Compare with all six pairs laid out in order. Their weighted values give one point nine one and one point five three in both layouts.",
+        "hold": 1.2
+      },
+      {
+        "id": "c07-b03",
+        "say": "Keep the same pairs. The next slot holds a test key with huge components and a value of nine hundred ninety nine on both axes. If the reader takes one more slot, what happens to the mix?",
+        "hold": 2.8
+      },
+      {
+        "id": "c07-bound",
+        "say": "Read seven. The planted key takes practically all the weight, and both components become nine hundred ninety nine. Restore the valid length of six. Stop just after slot one. The extra value is still in memory, but its contribution is gone. The two outputs match again, up to rounding.",
+        "hold": 1.5
+      },
+      {
+        "id": "c07-b04",
+        "say": "Walking a table isn't free. In the original twenty twenty three paper, measured alone, the paged attention kernel took about twenty to twenty six percent longer than a continuous one.",
+        "hold": 0.3
+      },
+      {
+        "id": "c07-b05",
+        "say": "In that paper's serving tests, overall throughput still rose about two to four times against its rebuilt version of an earlier system called Orca, because the recovered memory fit larger batches. That's why you measure the allocator and the kernel together.",
+        "hold": 0.9
+      },
+      {
+        "id": "c07-b06",
+        "say": "Paging isn't the only answer. A design called vAttention keeps continuous virtual addresses and maps physical pages behind them on demand. Existing continuous kernels can run on that, and the complexity moves into virtual memory management. Neither design wins by definition, so compare them on your own stack.",
+        "hold": 0.5
+      }
+    ]
+  },
+  {
+    "id": "c08",
+    "title": "When can the next writer begin?",
+    "sourceChapters": [
+      "c08"
+    ],
+    "beats": [
+      {
+        "id": "c08-b01",
+        "say": "A stops after its last token. It releases both of its references. B still owns block seven and a GPU read is in flight on block two. Which of A's old blocks can C overwrite right now?",
+        "hold": 3
+      },
+      {
+        "id": "c08-b02",
+        "say": "Neither one yet. B still needs seven. When the pending read completes, two has no owners and no readers. C can take two without moving B. The same cleanup applies on cancellation, timeout, or failure.",
+        "hold": 0.3
+      },
+      {
+        "id": "c08-b03",
+        "say": "Suppose B also finishes and all reads complete. An engine can retain the full block seven for a later request with the same prefix. Track that retained state separately. The policy can evict it when space is needed.",
+        "hold": 1.3
+      }
+    ]
+  },
+  {
+    "id": "c09",
+    "title": "The next iteration",
+    "sourceChapters": [
+      "c09"
+    ],
+    "beats": [
+      {
+        "id": "c09-b01",
+        "say": "Freed blocks matter most with the right scheduler. Say request A needs twenty decode steps and B needs two hundred. Under static batching, the batch runs until everyone is done, so A's place in the batch does nothing useful for the last one hundred eighty steps.",
+        "hold": 0.4
+      },
+      {
+        "id": "c09-b02",
+        "say": "Continuous batching looks again at the end of each iteration. When A emits its end of sequence token, it leaves, and a waiting request can join at a later iteration. Orca, the system we just compared against, made this explicit.",
+        "hold": 0.4
+      },
+      {
+        "id": "c09-b03",
+        "say": "Count the blocks as that happens. A request needs its token count divided by the block size, rounded up. With sixteen token blocks, say A holds sixty four tokens when it finishes, which takes four blocks, and B joined recently and holds ten, which still takes one.",
+        "hold": 0.3
+      },
+      {
+        "id": "c09-b04",
+        "say": "Five blocks are in use. A finishes, and after its reads complete its four come back. B keeps one. Admit C with twenty tokens. C needs two blocks, so the live total becomes three.",
+        "hold": 0.8
+      },
+      {
+        "id": "c09-b05",
+        "say": "Paging and continuous batching fit well together, but neither requires the other, and neither promises that the next request meets its deadline.",
+        "hold": 0.4
+      },
+      {
+        "id": "c09-b06",
+        "say": "Here's a trap. Your blocks look well packed, but time to first token spikes whenever one huge prompt joins the batch. Better packing can't fix that, because the prompt still has to be computed, and it competes with everyone already decoding. Check queueing and prefill first.",
+        "hold": 0.3
+      },
+      {
+        "id": "c09-b07",
+        "say": "Then compare chunked prefill, which feeds a long prompt in pieces under a token budget for each iteration, on the same traffic. Chunks can still disturb running requests, so measure the result. Very large deployments may move prefill and decode onto separate machines, which trades that interference for the cost of moving state between them.",
+        "hold": 0.8
+      }
+    ]
+  },
+  {
+    "id": "c10",
+    "title": "Two branches reach one empty slot",
+    "sourceChapters": [
+      "c10"
+    ],
+    "beats": [
+      {
+        "id": "c10-b01",
+        "say": "Fork the six-token request from our read test. Both tables point to seven and two. Each block now has two owners. The fork duplicates the table references. Both branches can read the same six cached positions.",
+        "hold": 0.3
+      },
+      {
+        "id": "c10-b02",
+        "say": "The savings can be large. Beam search, which keeps several candidate answers alive at once, shares history in the same way. Four branches of a four thousand ninety six token prompt on our first model would cost two gibibytes as private copies. Shared, the prompt takes five hundred twelve mebibytes.",
+        "hold": 0.9
+      },
+      {
+        "id": "c10-b03",
+        "say": "Come back to block two. Two valid positions leave slot two open. One branch has sampled March and the other June. On their next passes both will try that slot. If June were written after March in the same storage, which value would March's branch read?",
+        "hold": 3.1
+      },
+      {
+        "id": "c10-b04",
+        "say": "It would read June's value. Keep the shared tail intact. Before A writes, copy its two valid pairs into private block five. Redirect A's tail entry there. Now write March into slot two of five. Block seven stays shared.",
+        "hold": 0.3
+      },
+      {
+        "id": "c10-b05",
+        "say": "B is the last owner of block two. Write June in place. The branches can now read different values at the same logical position. Only one tail needed copying. What if the shared tail had already been full?",
+        "hold": 2.7
+      },
+      {
+        "id": "c10-b06",
+        "say": "After a full shared block, allocate a fresh block for each branch. Both append at slot zero. Counting that full block and the two new tails gives three, with no copies of the full block.",
+        "hold": 0.8
+      }
+    ]
+  },
+  {
+    "id": "c11",
+    "title": "Which prefix can another request reuse?",
+    "sourceChapters": [
+      "c11"
+    ],
+    "beats": [
+      {
+        "id": "c11-b01",
+        "say": "Those branches came from one request. Separate requests can share too, when they begin with the same text, such as a long system prompt. That's prefix caching. The engine keeps finished blocks, looks up each incoming prompt, and points the new request's table at the blocks that match.",
+        "hold": 0.4
+      },
+      {
+        "id": "c11-b02",
+        "say": "Compare two prompts that end with the same words, renew in. One earlier word says policies and the other says contracts. The hidden states can differ all the way downstream. Include the whole earlier prefix, this block's tokens, and the model and adapter identity in the lookup.",
+        "hold": 0.3
+      },
+      {
+        "id": "c11-b03",
+        "say": "An isolation key can restrict reuse to the same customer or trust group. A matching sentence alone cannot authorize a hit.",
+        "hold": 0.7
+      },
+      {
+        "id": "c11-b04",
+        "say": "In our example, only complete blocks are shared. Take two hundred requests with the same five hundred token prompt, and sixteen token blocks. Thirty one full blocks hold four hundred ninety six tokens. The last four tokens need one private partial block per request.",
+        "hold": 0.3
+      },
+      {
+        "id": "c11-b05",
+        "say": "Try the count before sharing. Each request takes thirty two blocks, so two hundred requests take six thousand four hundred. With a warm match, keep the thirty one full blocks once, then add two hundred private tails. That's two hundred thirty one, about ninety six percent fewer occupied blocks in this snapshot.",
+        "hold": 1.3
+      },
+      {
+        "id": "c11-b06",
+        "say": "A hit skips prefill for the matching part. The part that doesn't match still runs, and an engine typically still computes at least the last token, so that it has scores for the next one. Cached blocks can also be evicted when space runs short, so a cold cache changes the numbers.",
+        "hold": 0.5
+      }
+    ]
+  },
+  {
+    "id": "c12",
+    "title": "A failed append and two recovery costs",
+    "sourceChapters": [
+      "c12"
+    ],
+    "beats": [
+      {
+        "id": "c12-b01",
+        "say": "Watch a two-block pool. A has four processed positions in block one. B owns the other block. A needs a fifth slot, but the free list is empty. What should the failed append change?",
+        "hold": 2.5
+      },
+      {
+        "id": "c12-b02",
+        "say": "Keep both tables and both lengths. When B finishes and its reads complete, return block zero once. Retry A's append. Only now does its table grow and its length reach five.",
+        "hold": 0.4
+      },
+      {
+        "id": "c12-b03",
+        "say": "If nobody finishes in time, the scheduler can delay a request or pause one to reclaim space. One recovery is to recompute. Release its private blocks, keep its accepted token IDs, then rebuild the missing state. Shared or retained prefix blocks can survive.",
+        "hold": 0.8
+      },
+      {
+        "id": "c12-b04",
+        "say": "Another option is to swap the missing blocks out to CPU memory and bring them back before resuming. Count both trips. Engines differ in the recovery paths they support.",
+        "hold": 0.3
+      },
+      {
+        "id": "c12-b05",
+        "say": "Suppose a paused request has thirty two hundred processed positions at three hundred twenty kibibytes each. That's one thousand mebibytes. The link moves five thousand mebibytes per second in either direction. Replay runs at four thousand positions per second. Which recovery takes less time here?",
+        "hold": 3.3
+      },
+      {
+        "id": "c12-b06",
+        "say": "Swapping spends a fifth of a second going out and another fifth coming back. Four tenths total. Replay spends eight tenths rebuilding the positions. Those are recovery costs alone. A busier link can reverse the choice. Count repeated preemptions in the latency budget.",
+        "hold": 1.4
+      }
+    ]
+  },
+  {
+    "id": "c13",
+    "title": "How much state fits per GPU?",
+    "sourceChapters": [
+      "c13"
+    ],
+    "beats": [
+      {
+        "id": "c13-b01",
+        "say": "Suppose all the admitted contexts are full. They are independent, every allocated slot holds a live pair, and the raw payload is already over budget. Look for an empty slot you could recover.",
+        "hold": 1.5
+      },
+      {
+        "id": "c13-b02",
+        "say": "Smaller blocks can trim partially empty tails. All four tails here are full. Continuous batching only decides when requests run. To serve those same requests on that same memory, you have to store fewer bytes.",
+        "hold": 1
+      },
+      {
+        "id": "c13-b03",
+        "say": "Go back to the formula. The number to change is the key value heads. Llama 3's seventy billion model has sixty four query heads, but only eight key value heads.",
+        "hold": 0.3
+      },
+      {
+        "id": "c13-b04",
+        "say": "If each query head had its own, the bill would be two thousand five hundred sixty kibibytes a token. Grouped query attention, where query heads share key value heads, brings it down to three hundred twenty.",
+        "hold": 0.3
+      },
+      {
+        "id": "c13-b05",
+        "say": "Multi query attention, with a single key value head, gets to forty.",
+        "hold": 1.3
+      },
+      {
+        "id": "c13-b06",
+        "say": "That isn't a switch you flip at serving time. The weights have to change. You train the model that way, or you convert an existing model and usually train it a little more, which is called uptraining.",
+        "hold": 0.3
+      },
+      {
+        "id": "c13-b07",
+        "say": "In the conversion experiments, results depended on the group count and uptraining. Check quality on your task. There's another way to change the bill while keeping eight key value heads. Look at the last factor, the bytes per number.",
+        "hold": 0.3
+      },
+      {
+        "id": "c13-b08",
+        "say": "Store eight bit cache values instead of sixteen bit values and the raw bill halves, from three hundred twenty to one hundred sixty kibibytes. Check scale metadata, kernel support and output quality. Compressing only the model weights leaves these cache values at their original precision.",
+        "hold": 0.8
+      },
+      {
+        "id": "c13-b09",
+        "say": "Other methods keep fewer positions, evicting the tokens they judge least useful. That saves memory, but it's approximate, so a later token may need what was dropped. Long contexts make all of this urgent.",
+        "hold": 0.3
+      },
+      {
+        "id": "c13-b10",
+        "say": "At about one hundred thirty one thousand tokens, the limit of the later Llama 3.1 version, that seventy billion shape's cache reaches forty gibibytes.",
+        "hold": 0.9
+      },
+      {
+        "id": "c13-b11",
+        "say": "Several GPUs can split the load. Tensor parallelism may give each one a slice of the key value heads, so eight heads on two GPUs can become four each, if the model and the runtime allow it. Logical blocks have to stay aligned across GPUs.",
+        "hold": 0.3
+      },
+      {
+        "id": "c13-b12",
+        "say": "With evenly sharded heads, each rank holds its own slice at the same logical positions. The original vLLM design uses the same block numbers across ranks. Other layouts replicate data. For admission, profile headroom on each rank. The fullest rank sets the limit.",
+        "hold": 0.8
+      },
+      {
+        "id": "c13-b13",
+        "say": "And keep two names apart. Paged attention decides where the cache lives. Flash attention is a kernel that makes the calculation itself move less data. They solve different problems, and serving stacks often use both, or close variants.",
+        "hold": 0.5
+      }
+    ]
+  },
+  {
+    "id": "c14",
+    "title": "One new pair, a longer read",
+    "sourceChapters": [
+      "c14"
+    ],
+    "beats": [
+      {
+        "id": "c14-b01",
+        "say": "Return to March's query. One new position needs projections. Every valid position supplies a key and a value to read. Try a six-position history, including the current token. What changes if the history doubles?",
+        "hold": 2.8
+      },
+      {
+        "id": "c14-b02",
+        "say": "Six reads become twelve. The new projections still cover one position. With full attention, reads per decode step grow linearly with context. Weights, batching, kernels and scheduling also affect the time between tokens. The read count tells you which bandwidth pressure to measure.",
+        "hold": 1.3
+      }
+    ]
+  },
+  {
+    "id": "c15",
+    "title": "Count the blocks and locate position 40",
+    "sourceChapters": [
+      "c15"
+    ],
+    "beats": [
+      {
+        "id": "c15-b01",
+        "say": "Your turn, with new numbers. The block size is thirty two. Request A holds one hundred tokens, and request B holds thirty two. How many blocks are in use?",
+        "hold": 5
+      },
+      {
+        "id": "c15-b02",
+        "say": "A needs four, because one hundred over thirty two rounds up, and twenty eight of those slots are empty. B fits exactly one. That's five.",
+        "hold": 0.8
+      },
+      {
+        "id": "c15-b03",
+        "say": "A finishes and releases its blocks. B stays. C joins with seventy tokens. Count again using thirty two slots per block. How many blocks now?",
+        "hold": 3.3
+      },
+      {
+        "id": "c15-b04",
+        "say": "Four in total. B has one, and C needs three. C's table lists physical blocks five, eleven, and two. Follow position forty from its logical block to its physical slot.",
+        "hold": 3.5
+      },
+      {
+        "id": "c15-b05",
+        "say": "Forty divided by thirty two is one, remainder eight. Entry one points to physical block eleven. Slot eight in that block holds position forty.",
+        "hold": 0.9
+      },
+      {
+        "id": "c15-b06",
+        "say": "Change the load. B still holds thirty two. C now fills all ninety six of its slots. The two requests have different histories. With every slot live, would smaller blocks solve a payload shortage? Choose a change that halves the raw bill.",
+        "hold": 2.8
+      },
+      {
+        "id": "c15-b07",
+        "say": "For the seventy billion shape, switch the cache from sixteen to eight bits with a supported kernel. That halves the raw bytes per token. Check the quality. Fewer key value heads require compatible weights. If you keep the same model and precision, add memory or admit fewer requests.",
+        "hold": 1
+      }
+    ]
+  },
+  {
+    "id": "c16",
+    "title": "Which block can the next request take?",
+    "sourceChapters": [
+      "c16"
+    ],
+    "beats": [
+      {
+        "id": "c16-b01",
+        "say": "One last release. March and June share their first block, seven. March owns five. June owns two. March finishes and its last GPU read completes. Which physical block can a waiting request take while June continues?",
+        "hold": 3.2
+      },
+      {
+        "id": "c16-b02",
+        "say": "C writes its first pair in five. June still needs seven and two. Follow the live positions to size the cache, the table to find each pair, and the owners and readers to decide when a block can change hands. Next we'll look at which prefixes independent requests can safely share.",
+        "hold": 1.7
+      }
+    ]
+  }
+]

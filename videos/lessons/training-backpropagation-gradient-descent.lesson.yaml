@@ -1,0 +1,1022 @@
+version: 1
+id: training-backpropagation-gradient-descent
+title: How a Prediction Learns from Its Error
+source: preparation/training-backpropagation-gradient-descent/content.md
+voice: en-US-AndrewNeural
+rate: +0%
+sources:
+  - title: PyTorch autograd mechanics
+    url: https://docs.pytorch.org/docs/stable/notes/autograd.html
+  - title: PyTorch numerical gradient checking
+    url: https://docs.pytorch.org/docs/stable/notes/gradcheck.html
+  - title: Glorot and Bengio, understanding training difficulty
+    url: https://proceedings.mlr.press/v9/glorot10a.html
+  - title: He et al., rectifier initialization
+    url: https://arxiv.org/abs/1502.01852
+scenes:
+  - id: opening
+    title: Can one mistake improve the next prediction?
+    visual: One synthetic request, complexity two, predicts two extra milliseconds and measures six.
+      Predicted and observed latency construct in sequence; the error becomes a question about
+      adjustable parameters.
+    beats:
+      - say: A model predicts a short wait, and the request takes longer. Here it predicts two extra
+          milliseconds; the server measures six. How could that one mistake teach the model to make
+          a better prediction?
+        hold: 0.8
+        visual_cues:
+          - id: open-predict
+            phrase: predicts two extra milliseconds
+            targets:
+              - request-prediction
+            color: blue
+            linger: 0.2
+          - id: open-observe
+            phrase: server measures six
+            targets:
+              - request-observation
+            color: pink
+            linger: 0.2
+      - say: We'll follow this request through a learning step. The useful surprise is that a large network
+          can share the same small calculation across every weight. Before we update anything,
+          predict whether raising the weight and bias will raise or lower this positive-input
+          prediction. Later we will change the input and test that reasoning again.
+        hold: 0.6
+        visual_cues:
+          - id: open-question
+            phrase: through a learning step
+            targets:
+              - learning-question
+            color: yellow
+            linger: 0.2
+  - id: forward
+    title: Give the error a shape
+    visual: A complexity score passes through weight and bias. Signed residual minus four builds a
+      square of area sixteen, then half is the loss eight. Physical units stay explicit.
+    beats:
+      - say: Our small model multiplies a complexity score by a weight, then adds a bias. The weight changes
+          sensitivity to the input; the bias shifts every prediction. These are synthetic
+          measurements, chosen so we can check the entire update.
+        hold: 0.7
+        visual_cues:
+          - id: forward-weight
+            phrase: multiplies a complexity score by a weight
+            targets:
+              - affine-product
+            color: blue
+            linger: 0.2
+          - id: forward-bias
+            phrase: then adds a bias
+            targets:
+              - affine-bias
+            color: cyan
+            linger: 0.2
+      - say: Subtract the measured latency from the prediction. That signed residual is negative four.
+          Squaring it gives a positive penalty, and taking half makes the derivative simpler. The
+          loss is eight square milliseconds.
+        hold: 0.7
+        visual_cues:
+          - id: forward-error
+            phrase: signed residual is negative four
+            targets:
+              - signed-residual
+            color: pink
+            linger: 0.2
+          - id: forward-square
+            phrase: Squaring it gives a positive penalty
+            targets:
+              - error-area
+            color: pink
+            linger: 0.2
+          - id: forward-half
+            phrase: "taking half makes the derivative simpler. The loss is eight square milliseconds"
+            targets:
+              - error-area
+            color: yellow
+            linger: 0.2
+  - id: sensitivity
+    title: Which direction makes the loss smaller?
+    visual: The same prediction moves right and down its loss bowl. Equal parameter nudges have
+      different prediction effects. The local loss slope and input sensitivity multiply into the
+      parameter gradients.
+    beats:
+      - say: Imagine nudging the prediction a little toward the observation. Watch the point move down the
+          loss curve. A slope tells us how much the loss changes for a small change in the
+          prediction.
+        hold: 0.7
+        visual_cues:
+          - id: sensitivity-nudge
+            phrase: nudging the prediction a little
+            targets:
+              - loss-point
+            color: green
+            linger: 0.2
+          - id: sensitivity-slope
+            phrase: A slope tells us
+            targets:
+              - slope-ratio
+            color: yellow
+            linger: 0.2
+      - say: Here that slope is negative four. Increasing the prediction reduces the loss. Now give the
+          weight and bias equal tiny nudges. Which one moves this prediction farther?
+        hold: 1.1
+        visual_cues:
+          - id: sensitivity-slope-result
+            phrase: "Here that slope is negative four"
+            targets:
+              - slope-ratio
+            color: yellow
+            linger: 0.2
+          - id: sensitivity-compare
+            phrase: equal tiny nudges
+            targets:
+              - parameter-nudges
+            color: cyan
+            linger: 0.2
+      - say: "The weight's nudge gets multiplied by the input, so its effect is twice as large. Multiply
+          those sensitivities along each path: the weight gradient is negative eight, and the bias
+          gradient is negative four. A gradient measures local influence on the loss."
+        hold: 0.8
+        visual_cues:
+          - id: sensitivity-weight
+            phrase: effect is twice as large
+            targets:
+              - weight-sensitivity
+            color: blue
+            linger: 0.2
+          - id: sensitivity-gradients
+            phrase: "Multiply those sensitivities along each path: the weight gradient is negative eight, and the bias gradient is negative four"
+            targets:
+              - parameter-gradients
+            color: yellow
+            linger: 0.2
+  - id: reverse-mode
+    title: Reuse the local rules in reverse
+    visual: Four large forward operation stations become a reverse sweep. Seed one multiplies by the
+      residual, passes through subtraction, splits at addition, and uses saved input two on the
+      weight branch.
+    beats:
+      - say: Backpropagation organizes that calculation as a graph. First compute forward and save the
+          inputs needed by the local derivative rules. Each operation has a small job, even when the
+          whole model is enormous. Visit each output before its parents in reverse topological
+          order. Saving intermediates costs memory; checkpointing recomputes selected forward work
+          to reduce that storage.
+        hold: 0.6
+        visual_cues:
+          - id: reverse-forward
+            phrase: compute forward
+            targets:
+              - forward-graph
+            color: cyan
+            linger: 0.2
+      - say: Start at the scalar loss with a derivative of one. The half-square multiplies the incoming
+          signal by the saved residual. Subtracting the fixed target passes that signal unchanged
+          toward the prediction.
+        hold: 0.7
+        visual_cues:
+          - id: reverse-seed
+            phrase: derivative of one
+            targets:
+              - reverse-seed
+            color: yellow
+            linger: 0.2
+          - id: reverse-residual
+            phrase: multiplies the incoming signal by the saved residual
+            targets:
+              - reverse-residual
+            color: pink
+            linger: 0.2
+          - id: reverse-prediction
+            phrase: unchanged toward the prediction
+            targets:
+              - reverse-prediction
+            color: cyan
+            linger: 0.2
+      - say: Addition sends the signal to both inputs. The bias path is finished. The multiplication rule
+          uses our saved input on the weight path. One reverse sweep shares this work across all the
+          parameters connected to the loss.
+        hold: 0.8
+        visual_cues:
+          - id: reverse-branch
+            phrase: sends the signal to both inputs
+            targets:
+              - reverse-branch
+            color: green
+            linger: 0.2
+          - id: reverse-weight
+            phrase: uses our saved input on the weight path
+            targets:
+              - reverse-weight
+            color: blue
+            linger: 0.2
+  - id: one-update
+    title: Turn the gradients into a smaller error
+    visual: The gradients retain their original forward reference. One optimizer event changes both
+      parameters atomically. Re-evaluation decomposes the 2 ms prediction gain into weight 1.6 and
+      bias 0.4 contributions.
+    beats:
+      - say: Gradient descent moves against each local slope. The learning rate controls how far. With a
+          rate of one tenth, both parameters move together using the gradients from the original
+          forward pass.
+        hold: 0.7
+        visual_cues:
+          - id: update-rule
+            phrase: against each local slope
+            targets:
+              - optimizer-rule
+            color: yellow
+            linger: 0.2
+          - id: update-apply
+            phrase: both parameters move together
+            targets:
+              - updated-parameters
+            color: green
+            linger: 0.2
+      - say: "Run the request through the updated model. The weight change adds most of the improvement, and
+          the bias supplies the rest. Prediction rises to four: half the original gap, and a quarter
+          of the original loss. We can now explain where that improvement came from."
+        hold: 0.9
+        visual_cues:
+          - id: update-weight-contribution
+            phrase: weight change adds most
+            targets:
+              - prediction-contributions
+            color: blue
+            linger: 0.2
+          - id: update-bias-contribution
+            phrase: bias supplies the rest
+            targets:
+              - prediction-contributions
+            color: cyan
+            linger: 0.2
+          - id: update-payoff
+            phrase: "Prediction rises to four: half the original gap, and a quarter of the original loss"
+            targets:
+              - updated-request
+            color: green
+            linger: 0.2
+  - id: gradient-check
+    title: Check the backward rule with two forward passes
+    visual: At unchanged bias, perturb weight by plus and minus epsilon. A centered quotient compares
+      two true loss evaluations with the analytic backward gradient. Double precision and
+      smooth-point boundaries stay explicit.
+    beats:
+      - say: We can check a custom backward rule independently. Hold the bias fixed and evaluate the loss
+          with the weight nudged a little each way. Divide the loss difference by the distance
+          between those two weights.
+        hold: 0.7
+        visual_cues:
+          - id: check-minus
+            phrase: nudged a little each way
+            targets:
+              - finite-samples
+            color: cyan
+            linger: 0.2
+          - id: check-ratio
+            phrase: Divide the loss difference
+            targets:
+              - finite-ratio
+            color: yellow
+            linger: 0.2
+      - say: The numerical slope agrees with our backward result. This costs extra forward passes for each
+          checked parameter, so it's useful for verification. Use double precision and smooth
+          points; extremely tiny nudges can disappear into rounding. A large nudge can add
+          approximation error; centered differences happen to be exact for our quadratic in exact
+          arithmetic, but other objectives need not share that property.
+        hold: 0.7
+        visual_cues:
+          - id: check-match
+            phrase: agrees with our backward result
+            targets:
+              - finite-comparison
+            color: green
+            linger: 0.2
+  - id: autograd-buffer
+    title: Two paths can lead to the same parameter
+    visual: One a equals three feeds both multiplication slots. Two path contributions arrive in one
+      owned gradient buffer. Another fresh forward and backward adds again; explicit clearing starts
+      a new update.
+    beats:
+      - say: Use an explicitly isolated micro-example to inspect shared ownership. A parameter can be used
+          more than once. In a times a, both multiplication slots refer to the same value. Changing
+          that value changes both slots.
+        hold: 0.6
+        visual_cues:
+          - id: buffer-shared
+            phrase: same value
+            targets:
+              - shared-parameter
+            color: blue
+            linger: 0.2
+      - say: Each path sends back a contribution of three. Add the first contribution, then the second. The
+          shared derivative is six. This is why backward rules add into a gradient buffer whenever
+          paths meet.
+        hold: 0.7
+        visual_cues:
+          - id: buffer-first
+            phrase: first contribution
+            targets:
+              - owned-gradient-buffer
+            color: cyan
+            linger: 0.2
+          - id: buffer-second
+            phrase: then the second
+            targets:
+              - owned-gradient-buffer
+            color: pink
+            linger: 0.2
+      - say: "PyTorch keeps parameter gradient buffers across calls too. Recompute this forward pass and run
+          backward again: the buffer reaches twelve. Clear before starting a new update, or
+          accumulate deliberately across micro-batches at unchanged parameters. The article’s small
+          scalar engine instead clears every reachable buffer at each backward call. Both
+          implementations add contributions within one sweep. Keep parameter data unchanged between
+          the saved forward and backward, then build a fresh graph after an update."
+        hold: 0.7
+        visual_cues:
+          - id: buffer-repeat
+            phrase: buffer reaches twelve
+            targets:
+              - owned-gradient-buffer
+            color: pink
+            linger: 0.2
+          - id: buffer-clear
+            phrase: Clear before starting a new update
+            targets:
+              - owned-gradient-buffer
+            color: yellow
+            linger: 0.2
+  - id: local-rules
+    title: Layers route a signal using saved forward values
+    visual: Three successive full-stage constructions show dense outer product and transposed input
+      gradient, a ReLU mask, then a saved max-pool winner receiving a signed gradient.
+    beats:
+      - say: Dense layers use the same multiplication rule in arrays. Pair every incoming error component
+          with every saved input to form the weight-gradient matrix. The bias receives the incoming
+          signal, and the transposed weight matrix sends a signal toward earlier layers.
+        hold: 0.8
+        visual_cues:
+          - id: dense-outer
+            phrase: Pair every incoming error component with every saved input
+            targets:
+              - dense-weight-gradient
+            color: yellow
+            linger: 0.2
+          - id: dense-input
+            phrase: transposed weight matrix
+            targets:
+              - dense-input-gradient
+            color: blue
+            linger: 0.2
+      - say: ReLU consults the saved preactivation. A positive input passes the incoming gradient; a
+          negative input blocks it. At zero, this implementation chooses zero. The forward state
+          decides which backward paths remain open. The ordinary derivative is undefined at exactly
+          zero. A unit inactive on every example receives no gradient through this activation, while
+          upstream changes or optimizer state can still change its inputs or parameters.
+        hold: 0.8
+        visual_cues:
+          - id: relu-mask
+            phrase: positive input passes
+            targets:
+              - relu-routing
+            color: green
+            linger: 0.2
+      - say: Max pooling saves the winning location. During backward, the incoming gradient goes to that
+          location, including its sign. The other cells receive zero from this window. If windows
+          overlap, their contributions add. Ties require an explicit winner convention; this example
+          chooses the first maximum in row-major order.
+        hold: 0.8
+        visual_cues:
+          - id: pool-route
+            phrase: goes to that location
+            targets:
+              - pool-routing
+            color: pink
+            linger: 0.2
+  - id: nonlinear-request
+    title: Send the same request through a saved ReLU gate
+    visual: The original complexity-two request and six-millisecond target enter an explicit
+      two-hidden-unit network. Identified forward values remain as reverse gradients traverse the
+      same paths; one atomic SGD event recomputes prediction.
+    beats:
+      - say: Extend the original request to a different, two-layer toy model. The input is still two and the
+          target six. Hidden weights are one and minus one; hidden biases are zero and one. Their
+          preactivations are two and minus one. ReLU keeps two and blocks minus one. Output weights
+          are both one, with output bias zero, so the prediction is still two and the loss eight.
+          Save which gate was open.
+        hold: 0.9
+        visual_cues:
+          - id: network-forward
+            phrase: Save which gate was open
+            targets:
+              - network-forward
+          - id: network-z
+            phrase: preactivations are two and minus one
+            targets:
+              - network-hidden
+          - id: network-h
+            phrase: ReLU keeps two and blocks minus one
+            targets:
+              - network-gates
+          - id: network-y
+            phrase: "the prediction is still two and the loss eight"
+            targets:
+              - network-output
+      - say: The output residual is minus four. The output weight gradients are minus eight and zero; its
+          bias gradient is minus four. Both hidden activations receive minus four, but the saved
+          ReLU gate passes only the first. First-layer weight gradients are minus eight and zero,
+          and hidden bias gradients are minus four and zero. An inactive path has a zero
+          contribution because of this forward state.
+        hold: 0.9
+        visual_cues:
+          - id: network-gradient-result
+            phrase: "First-layer weight gradients are minus eight and zero, and hidden bias gradients are minus four and zero"
+            targets:
+              - network-backward
+            color: yellow
+            linger: 0.2
+          - id: network-backward
+            phrase: saved ReLU gate passes only the first
+            targets:
+              - network-backward
+      - say: "Use rate point zero five and update every parameter from that same saved forward pass. The
+          active hidden weight and output weight become one point four; the active hidden bias and
+          output bias become point two. Recompute: the active hidden value is three and prediction
+          is four point four. Loss falls from eight to one point two eight. This model has a
+          different step-size analysis from the earlier affine regressor."
+        hold: 0.9
+        visual_cues:
+          - id: network-update
+            phrase: "Recompute: the active hidden value is three and prediction is four point four"
+            targets:
+              - network-update
+          - id: network-parameters
+            phrase: "The active hidden weight and output weight become one point four; the active hidden bias and output bias become point two"
+            targets:
+              - network-parameters
+          - id: network-recompute
+            phrase: "Recompute: the active hidden value is three and prediction is four point four"
+            targets:
+              - network-hidden
+          - id: network-loss-result
+            phrase: Loss falls from eight to one point two eight
+            targets:
+              - network-output
+  - id: training-loop
+    title: A training loop keeps these states in order
+    visual: Five stages construct one iteration. Parameters stay fixed until the optimizer step. A
+      separate evaluation lane distinguishes module behavior from reverse-mode recording.
+    beats:
+      - say: These rules fit into five familiar steps. Clear the old gradients, compute predictions, reduce
+          their errors to a scalar loss, and run backward. Up to this point, the parameter values
+          have stayed fixed. Clearing to None leaves an untouched parameter with no gradient, so the
+          optimizer skips it. A zero-valued tensor can still participate in an update through
+          optimizer state or regularization. Backward normally releases saved tensors, so keeping
+          the loss reference does not make repeating that same backward valid.
+        hold: 0.7
+        visual_cues:
+          - id: loop-clear
+            phrase: Clear the old gradients
+            targets:
+              - loop-stage-0
+            color: blue
+            linger: 0.2
+          - id: loop-forward
+            phrase: compute predictions
+            targets:
+              - loop-stage-1
+            color: cyan
+            linger: 0.2
+          - id: loop-loss
+            phrase: scalar loss
+            targets:
+              - loop-stage-2
+            color: pink
+            linger: 0.2
+          - id: loop-backward
+            phrase: run backward
+            targets:
+              - loop-stage-3
+            color: yellow
+            linger: 0.2
+          - id: loop-none
+            phrase: Clearing to None leaves an untouched parameter with no gradient
+            targets:
+              - loop-buffer-contract
+          - id: loop-zero
+            phrase: zero-valued tensor can still participate in an update
+            targets:
+              - loop-buffer-contract
+          - id: loop-release
+            phrase: Backward normally releases saved tensors
+            targets:
+              - loop-buffer-contract
+      - say: The optimizer step changes the parameters. A new forward pass then measures the new prediction.
+          The step leaves the gradient buffers in place, so the next effective batch begins by
+          clearing them.
+        hold: 0.7
+        visual_cues:
+          - id: loop-step
+            phrase: changes the parameters
+            targets:
+              - loop-stage-4
+            color: green
+            linger: 0.2
+          - id: loop-next
+            phrase: begins by clearing them
+            targets:
+              - loop-stage-0
+            color: blue
+            linger: 0.2
+      - say: For validation, switch modules to evaluation behavior and disable reverse-mode recording.
+          Evaluation mode changes layers such as dropout; no-grad controls graph recording. Return
+          to training mode before the next training batch. Dropout becomes the identity. Batch
+          normalization uses stored running estimates by default, but configurations without running
+          estimates still use batch statistics. No-grad controls the current thread’s reverse-mode
+          recording; it does not change existing requires-grad flags or disable forward-mode
+          differentiation.
+        hold: 0.7
+        visual_cues:
+          - id: loop-eval
+            phrase: Evaluation mode changes layers
+            targets:
+              - evaluation-behavior
+            color: green
+            linger: 0.2
+          - id: loop-no-grad
+            phrase: no-grad controls graph recording
+            targets:
+              - evaluation-recording
+            color: blue
+            linger: 0.2
+  - id: batches
+    title: Decide how much evidence goes into one step
+    visual: At explicitly reset zero parameters, three requests have equal one-third influence.
+      Regrouping them into two-plus-one preserves individual shares only with correctly weighted
+      chunk means.
+    beats:
+      - say: Let's train on three requests, starting from zero weight and bias. A mean loss gives every
+          request one third of the influence. Full-batch descent waits for all the data; online
+          descent steps after one example. Mini-batches combine several examples per step.
+        hold: 0.7
+        visual_cues:
+          - id: batch-rows
+            phrase: every request one third
+            targets:
+              - batch-shares
+            color: cyan
+            linger: 0.2
+          - id: batch-regimes
+            phrase: Mini-batches combine several examples per step
+            targets:
+              - batch-regimes
+            color: blue
+            linger: 0.2
+      - say: Suppose memory allows two requests, then one. Weight each chunk mean by its share of the
+          examples. Accumulate at the same parameters, and take one step after both chunks. Each
+          request keeps the same influence as in the full mean. This equivalence assumes a
+          deterministic sum of independent per-example losses. Training-mode batch normalization can
+          change the forward computation when a batch is split. For a masked token mean, weight each
+          chunk mean by its valid-token count over the effective total, not its number of requests.
+        hold: 0.7
+        visual_cues:
+          - id: batch-group
+            phrase: two requests, then one
+            targets:
+              - chunk-partition
+            color: blue
+            linger: 0.2
+          - id: batch-weight
+            phrase: Weight each chunk mean by its share
+            targets:
+              - chunk-gradient-buffer
+            color: green
+            linger: 0.2
+          - id: token-mean
+            phrase: For a masked token mean
+            targets:
+              - token-weights
+          - id: token-result
+            phrase: valid-token count over the effective total
+            targets:
+              - token-weights
+      - say: "Giving each chunk half the weight overemphasizes the lone request. Autograd follows the
+          objective we wrote. Count the denominator of the actual loss, and validate the learning
+          rate when batch size changes. Batch-dependent layers can also change the computation when
+          a batch is split. Uniform independent sampling makes a mean mini-batch gradient unbiased
+          for that full gradient and divides its covariance by batch size. The update count still
+          changes: sixty presentations of six examples make ten full-batch, thirty two-example, or
+          sixty online updates. Measure validation behavior and throughput before choosing a batch
+          size."
+        hold: 0.8
+        visual_cues:
+          - id: batch-wrong
+            phrase: overemphasizes the lone request
+            targets:
+              - batch-shares
+            color: pink
+            linger: 0.2
+          - id: batch-objective
+            phrase: objective we wrote
+            targets:
+              - chunk-gradient-buffer
+            color: yellow
+            linger: 0.2
+          - id: batch-updates
+            phrase: update count still changes
+            targets:
+              - batch-regimes
+  - id: learning-rate
+    title: The same direction can take a step too far
+    visual: The original request returns. Two parameter paths form a residual multiplier. Repeated
+      updates share a prediction scale. A final negative-input counterexample keeps the prediction
+      but reverses the weight direction.
+    beats:
+      - say: Return to our original request. Moving both parameters changes its prediction through two
+          paths. Together they multiply the old residual by one minus five times the learning rate.
+          The input scale is part of that factor. For general input x in this affine half-squared
+          example, the residual multiplier is one minus the learning rate times the quantity x
+          squared plus one.
+        hold: 0.7
+        visual_cues:
+          - id: rate-paths
+            phrase: through two paths
+            targets:
+              - rate-construction
+            color: blue
+            linger: 0.2
+          - id: rate-rule
+            phrase: one minus five times the learning rate
+            targets:
+              - rate-residual-rule
+            color: yellow
+            linger: 0.2
+          - id: rate-general
+            phrase: residual multiplier is one minus the learning rate times the quantity x squared plus one
+            targets:
+              - rate-residual-rule
+      - say: Watch repeated updates. At one tenth, the gap halves each time. One fifth lands exactly on this
+          target. A rate of one half overshoots, flips the residual, and makes the next gap larger.
+          A correct derivative still needs a sensible step size. At exactly point four, the residual
+          flips without shrinking. For this nonzero-residual quadratic, convergence requires the
+          rate strictly between zero and point four. One example also leaves many parameter pairs
+          with the same fitted prediction.
+        hold: 0.8
+        visual_cues:
+          - id: rate-contract
+            phrase: gap halves each time
+            targets:
+              - rate-trajectory-0
+            color: green
+            linger: 0.2
+          - id: rate-exact
+            phrase: lands exactly on this target
+            targets:
+              - rate-trajectory-1
+            color: cyan
+            linger: 0.2
+          - id: rate-diverge
+            phrase: next gap larger
+            targets:
+              - rate-trajectory-2
+            color: pink
+            linger: 0.2
+          - id: rate-boundary
+            phrase: At exactly point four
+            targets:
+              - rate-trajectory-3
+      - say: A gradient describes influence, so the input sign matters too. Reverse the input and the
+          initial weight together, keeping the same prediction. The weight now moves downward, and
+          the prediction still rises toward the observation.
+        hold: 0.8
+        visual_cues:
+          - id: rate-sign
+            phrase: weight now moves downward
+            targets:
+              - signed-input-update
+            color: yellow
+            linger: 0.2
+          - id: rate-sign-payoff
+            phrase: prediction still rises toward the observation
+            targets:
+              - signed-input-update
+  - id: deep-gradients
+    title: A signal can shrink or grow on its way backward
+    visual: Two staged chains multiply one upstream signal through five local factors. The next
+      full-stage plot contracts a vector along its ray to the norm-five circle, with an unobstructed
+      triangular tip.
+    beats:
+      - say: "A deep network repeats these local multiplications. Follow one backward signal through five
+          contracting layers. Early layers receive very little. Repeated expansion has the opposite
+          effect: the signal grows as it travels. Real layer Jacobians can treat different
+          directions differently."
+        hold: 0.8
+        visual_cues:
+          - id: deep-contract
+            phrase: five contracting layers
+            targets:
+              - contracting-signal
+            color: cyan
+            linger: 0.2
+          - id: deep-expand
+            phrase: signal grows as it travels
+            targets:
+              - expanding-signal
+            color: pink
+            linger: 0.2
+      - say: "For an oversized finite gradient, norm clipping applies one common scale. This vector has
+          length ten. Bring it to a limit of five: both coordinates shrink together, so the
+          direction stays the same."
+        hold: 0.8
+        visual_cues:
+          - id: deep-clip
+            phrase: both coordinates shrink together
+            targets:
+              - clipped-gradient-vector
+              - clipping-result
+            color: green
+            linger: 0.2
+      - say: Clip the accumulated gradient after backward and before the optimizer step. With
+          mixed-precision scaling, unscale first. Nonfinite values require finding the numerical
+          failure upstream, and an adaptive optimizer can further change the final update.
+        hold: 0.7
+        visual_cues:
+          - id: deep-order
+            phrase: after backward and before the optimizer step
+            targets:
+              - clipping-order
+            color: yellow
+            linger: 0.2
+  - id: initialization
+    title: Choose the signal scale before learning starts
+    visual: Variance contributions form a sum. Equal-width Xavier scaling controls it. Symmetric points
+      then pass through ReLU; He widens the same identified points and restores their output second
+      moment. A fixed wide reference axis and a separately labeled fixed-scale center detail keep
+      the comparisons honest.
+    beats:
+      - say: Initialization sets the signal scale before the first update. Independent, centered inputs
+          contribute variances that add. With many inputs, unscaled weights can create a huge
+          spread. Scaling the weight variance inversely with fan-in keeps that sum controlled.
+        hold: 0.7
+        visual_cues:
+          - id: init-sum
+            phrase: variances that add
+            targets:
+              - variance-sum
+            color: cyan
+            linger: 0.2
+          - id: init-scale
+            phrase: inversely with fan-in
+            targets:
+              - initial-weight-rule
+            color: yellow
+            linger: 0.2
+      - say: Xavier balances forward fan-in and backward fan-out for roughly linear, centered activations.
+          For equal-width layers, its weight variance is one over the width. Random, independently
+          initialized weights also let hidden units learn different roles. More generally the
+          gain-one Xavier variance is two divided by fan-in plus fan-out. Its normal standard
+          deviation is the square root of that variance; a symmetric uniform distribution uses
+          endpoints plus and minus the square root of six over fan-in plus fan-out. Different
+          outgoing weights can already break the symmetry of units with equal incoming weights; zero
+          biases with independent weights are common.
+        hold: 0.7
+        visual_cues:
+          - id: init-xavier
+            phrase: balances forward fan-in and backward fan-out
+            targets:
+              - initial-weight-rule
+            color: blue
+            linger: 0.2
+      - say: Now pass a symmetric signal through ReLU. Its negative half becomes zero, halving the expected
+          squared activation. He initialization doubles the preactivation variance to compensate.
+          Watch the same points widen, then pass through ReLU. This preserves a second moment under
+          the stated assumptions. Its fan-in weight variance is two divided by fan-in, with normal
+          standard deviation the square root of that variance.
+        hold: 0.8
+        visual_cues:
+          - id: init-relu
+            phrase: negative half becomes zero
+            targets:
+              - initialization-signal
+            color: pink
+            linger: 0.2
+          - id: init-he
+            phrase: He initialization doubles the preactivation variance to compensate
+            targets:
+              - initial-weight-rule
+              - initialization-signal
+            color: yellow
+            linger: 0.2
+          - id: init-he-points
+            phrase: same points widen
+            targets:
+              - initialization-signal
+            color: green
+            linger: 0.2
+          - id: init-moment
+            phrase: preserves a second moment
+            targets:
+              - initialization-moment
+            color: green
+            linger: 0.2
+  - id: diagnosis
+    title: Find the first state that broke the update
+    visual: A reproducible single batch keeps data and parameter identities fixed. Distinct failure
+      fixtures expose stale gradients, a first nonfinite value, and compatible train/validation
+      curves.
+    beats:
+      - say: Diagnose a broken update on one reproducible batch. If gradients check but loss rises after the
+          step, inspect the learning rate and update rule. If buffers grow across batches, check
+          where they were cleared. If values become nonfinite, locate the first invalid input,
+          operation or gradient instead of expecting clipping to repair it. For early layers with
+          tiny updates, inspect saved preactivations, initialization and optimizer scale.
+        hold: 0.9
+        visual_cues:
+          - id: diagnostic-state
+            phrase: locate the first invalid
+            targets:
+              - diagnostic-state
+          - id: diagnostic-step
+            phrase: loss rises after the step
+            targets:
+              - diagnostic-state
+          - id: diagnostic-buffer
+            phrase: buffers grow across batches
+            targets:
+              - diagnostic-state
+          - id: diagnostic-small
+            phrase: early layers with tiny updates
+            targets:
+              - diagnostic-state
+      - say: Compare training and validation losses under compatible evaluation conditions. Persistently
+          high values can mean inadequate capacity, missing features, excessive regularization or
+          failed optimization; try fitting a small clean batch. Falling training loss with worsening
+          validation indicates a generalization gap and may involve noise, leakage or distribution
+          differences. Test early stopping, representative data and regularization rather than
+          attributing the curve to one cause.
+        hold: 0.9
+        visual_cues:
+          - id: diagnostic-curves
+            phrase: try fitting a small clean batch
+            targets:
+              - diagnostic-curves
+          - id: diagnostic-high
+            phrase: Persistently high values
+            targets:
+              - diagnostic-curves
+          - id: diagnostic-gap
+            phrase: Falling training loss with worsening validation
+            targets:
+              - diagnostic-curves
+  - id: validation
+    title: Keep the checkpoint that helps fresh requests
+    visual: Disjoint training, validation and test roles lead to a simulated validation curve.
+      Evaluations arrive and save the true minimum at epoch four. Three nonimproving evaluations
+      stop the run and restore that checkpoint, then the opening request closes the story.
+    beats:
+      - say: Our training error fell. To judge fresh requests, keep separate validation examples for
+          development choices and a test set for the final evaluation. For future traffic, a
+          chronological holdout may match the deployment question. Keep related requests together
+          when splitting prevents leakage. Fit preprocessing on training data. Repeated model
+          selection can overfit validation, so leave the final test out of those choices and account
+          for dependency and distribution shift.
+        hold: 0.7
+        visual_cues:
+          - id: validation-roles
+            phrase: separate validation examples
+            targets:
+              - validation-role
+            color: green
+            linger: 0.2
+          - id: validation-test
+            phrase: test set for the final evaluation
+            targets:
+              - test-role
+            color: yellow
+            linger: 0.2
+      - say: In this simulated run, save each new lowest validation loss. The best checkpoint arrives at
+          epoch four. Three later evaluations bring no improvement, so patience runs out. Restore
+          the saved weights before reporting the final test result. Save the actual lowest loss even
+          if it improves too little to reset patience. The article’s policy resets patience only
+          after progress greater than min-delta from the previous reset value. Deep-copy saved
+          weights because a state dictionary can share changing storage. Resuming training also
+          needs optimizer, scheduler and random state.
+        hold: 0.8
+        visual_cues:
+          - id: validation-build
+            phrase: each new lowest validation loss
+            targets:
+              - validation-curve
+            color: cyan
+            linger: 0.2
+          - id: validation-best
+            phrase: best checkpoint arrives at epoch four
+            targets:
+              - best-checkpoint
+            color: green
+            linger: 0.2
+          - id: validation-patience
+            phrase: patience runs out
+            targets:
+              - validation-patience
+            color: pink
+            linger: 0.2
+          - id: validation-restore
+            phrase: Restore the saved weights
+            targets:
+              - best-checkpoint
+            color: green
+            linger: 0.2
+      - say: Look back at our first checked update. We can follow its error backward, explain each
+          parameter's influence, and verify the next prediction. That same bookkeeping makes a large
+          neural network trainable, one measured step at a time.
+        hold: 1
+        visual_cues:
+          - id: validation-return
+            phrase: verify the next prediction
+            targets:
+              - final-request
+            color: green
+            linger: 0.2
+  - id: network-transfer
+    title: Predict a fresh nonlinear update
+    visual: The nonlinear network resets to its declared initial parameters. Only input and target
+      change to three and seven. The viewer predicts the active path and update before computed
+      values arrive.
+    beats:
+      - say: Try a fresh request in our nonlinear model, reset to the original network parameters. Change
+          input to three and target to seven. The hidden preactivations become three and minus two,
+          so the prediction is three and residual minus four. With rate point zero two five, predict
+          the new output. Keep the blocked path quiet and use every gradient from the old forward
+          pass.
+        hold: 0.9
+        visual_cues:
+          - id: transfer-prediction
+            phrase: predict the new output
+            targets:
+              - transfer-prediction
+          - id: transfer-forward
+            phrase: "The hidden preactivations become three and minus two, so the prediction is three and residual minus four"
+            targets:
+              - transfer-network
+      - say: The active first-layer and output weight gradients are both minus twelve; both active biases
+          receive minus four. The weights become one point three and the biases point one. The
+          hidden value becomes four, and the new prediction is five point three. Half-squared loss
+          becomes one point four four five. The observed target stays fixed throughout; this checked
+          toy update teaches the mechanism without establishing performance on unseen traffic.
+        hold: 0.9
+        visual_cues:
+          - id: transfer-result
+            phrase: "The hidden value becomes four, and the new prediction is five point three"
+            targets:
+              - transfer-result
+          - id: transfer-gradients
+            phrase: "The active first-layer and output weight gradients are both minus twelve; both active biases receive minus four"
+            targets:
+              - transfer-network
+          - id: transfer-weights
+            phrase: "The weights become one point three and the biases point one"
+            targets:
+              - transfer-network
+          - id: transfer-hidden
+            phrase: "The hidden value becomes four, and the new prediction is five point three"
+            targets:
+              - transfer-network
+          - id: transfer-loss
+            phrase: loss becomes one point four four five
+            targets:
+              - transfer-network
+  - id: next-loss
+    title: Change the objective while keeping the backward engine
+    visual: A continuous latency target gives way to three class logits. A normalized target and
+      probabilities create a concrete p-minus-y logit gradient; raw logits remain the loss input.
+    beats:
+      - say: Latency regression used half-squared error. For mutually exclusive issue classes or next
+          tokens, a classifier produces raw logits. Softmax converts them to probabilities;
+          cross-entropy rewards probability on the target. For a normalized target, the
+          single-example logit gradient is probability minus target, with extra scaling for a mean
+          reduction. For probabilities point two, point three, point five and target class two, the
+          gradient is point two, minus point seven, point five. PyTorch cross-entropy takes raw
+          logits. The next lesson derives stable max subtraction and log-space loss so naive
+          exponentiation does not overflow.
+        hold: 0.9
+        visual_cues:
+          - id: classification-gradient
+            phrase: probability minus target
+            targets:
+              - classification-gradient
+          - id: classification-probabilities
+            phrase: For probabilities point two, point three, point five
+            targets:
+              - classification-gradient
+          - id: classification-result
+            phrase: gradient is point two, minus point seven, point five
+            targets:
+              - classification-gradient
+          - id: classification-logits
+            phrase: classifier produces raw logits
+            targets:
+              - classification-gradient
+          - id: classification-softmax
+            phrase: Softmax converts them to probabilities
+            targets:
+              - classification-gradient

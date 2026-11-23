@@ -1,0 +1,190 @@
+version: 1
+lesson: gpu-primitives
+promise: Choose the GPU primitive that returns the requested output, trace its partial results, and check the arithmetic and synchronization it requires.
+objectives:
+  - id: ownership
+    can: Trace a value from its source lane to its consumer and identify when a shuffle, a block barrier or a later kernel can complete the handoff.
+    scenes:
+      - pairwise-reduction
+      - warp-communication
+      - full-warp-contract
+      - block-barrier
+      - grid-reduction
+      - hazard-proof
+  - id: prefix
+    can: Read both edges of a signed play, join block-local prefixes at the correct score and use ordered prefixes to assign write destinations. Compute segmented sums and the source of a winning value.
+    scenes:
+      - subject-intro
+      - inclusive-scan
+      - prefix-contract
+      - blelloch
+      - scan-work
+      - block-offsets
+      - lookback
+      - selection-contracts
+      - transfer
+      - fresh-odd-row
+  - id: scale-and-evidence
+    can: Rescale both the softmax denominator and the weighted output, compare each prefix with a serial reference and distinguish accuracy, repeatability and measured performance.
+    scenes:
+      - floating-point-order
+      - partial-range
+      - online-softmax
+      - normalizer-output
+      - attention-state
+      - library-baseline
+      - benchmark-evidence
+      - transfer
+sections:
+  - heading: One total or every boundary?
+    status: taught
+    scenes:
+      - subject-intro
+      - pairwise-reduction
+      - prefix-contract
+      - selection-contracts
+      - fresh-odd-row
+  - heading: Reduce within a warp using shuffle intrinsics
+    status: taught
+    scenes:
+      - warp-communication
+      - full-warp-contract
+      - block-barrier
+  - heading: "Aggregate partials across blocks: multi-pass kernels versus global atomics"
+    status: taught
+    scenes:
+      - grid-reduction
+  - heading: Floating-point trees can disagree without a race
+    status: taught
+    scenes:
+      - floating-point-order
+      - partial-range
+  - heading: "Parallel scan: Hillis-Steele step efficiency versus Blelloch work efficiency"
+    status: taught
+    scenes:
+      - inclusive-scan
+      - blelloch
+      - scan-work
+  - heading: "Propagate block offsets: multi-pass hierarchies versus decoupled look-back"
+    status: taught
+    scenes:
+      - block-offsets
+      - lookback
+      - fresh-odd-row
+  - heading: Online softmax carries a scale with its sum
+    status: taught
+    scenes:
+      - online-softmax
+      - normalizer-output
+      - attention-state
+  - heading: "Race conditions and verification: sanitizing shared-memory hazards"
+    status: taught
+    scenes:
+      - hazard-proof
+      - transfer
+  - heading: Select the primitive by its output contract
+    status: taught
+    scenes:
+      - selection-contracts
+      - library-baseline
+      - fresh-odd-row
+  - heading: Run the CUDA lab and verify correctness boundaries
+    status: taught
+    scenes:
+      - benchmark-evidence
+      - hazard-proof
+  - heading: CPU checks you can run immediately
+    status: taught
+    scenes:
+      - hazard-proof
+      - benchmark-evidence
+      - transfer
+  - heading: Interpret timing without confusing traffic and bandwidth
+    status: taught
+    scenes:
+      - benchmark-evidence
+  - heading: Review questions
+    status: taught
+    scenes:
+      - full-warp-contract
+      - scan-work
+      - partial-range
+      - lookback
+      - online-softmax
+  - heading: 1. Why does warp shuffle avoid shared memory bank conflicts during intra-warp reduction?
+    status: taught
+    scenes:
+      - full-warp-contract
+  - heading: 2. What is the fundamental algorithmic tradeoff between Hillis-Steele and Blelloch parallel scan?
+    status: taught
+    scenes:
+      - scan-work
+      - blelloch
+  - heading: 3. Why do floating-point parallel reductions yield non-identical results across different tile
+      configurations?
+    status: taught
+    scenes:
+      - partial-range
+  - heading: 4. How does decoupled look-back eliminate multi-pass kernel launches in global prefix scans?
+    status: taught
+    scenes:
+      - lookback
+  - heading: 5. Why does online softmax rescale running accumulators when updating the maximum?
+    status: taught
+    scenes:
+      - online-softmax
+      - normalizer-output
+quiz:
+  - n: 1
+    status: taught
+    scenes:
+      - pairwise-reduction
+  - n: 2
+    status: taught
+    scenes:
+      - prefix-contract
+      - fresh-odd-row
+  - n: 3
+    status: taught
+    scenes:
+      - full-warp-contract
+  - n: 4
+    status: taught
+    scenes:
+      - block-offsets
+      - lookback
+      - transfer
+  - n: 5
+    status: taught
+    scenes:
+      - online-softmax
+  - n: 6
+    status: taught
+    scenes:
+      - normalizer-output
+  - n: 7
+    status: taught
+    scenes:
+      - library-baseline
+  - n: 8
+    status: taught
+    scenes:
+      - partial-range
+  - n: 9
+    status: taught
+    scenes:
+      - selection-contracts
+  - n: 10
+    status: taught
+    scenes:
+      - selection-contracts
+removed: []
+reviews:
+  closed_book:
+    script: c2f03579178240a9
+    taught: 10
+    partial: 0
+    absent: 0
+  fact_check:
+    script: c2f03579178240a9
+    open_findings: 0

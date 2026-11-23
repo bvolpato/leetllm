@@ -1,0 +1,285 @@
+version: 1
+lesson: deep-dive-vllm
+promise: Decide how much of a prompt can join an active decode, then use a request trace to find
+  where its reader waited and check the admission decision against the available inputs and KV blocks.
+objectives:
+  - id: intro
+    can: Size a prompt slice when one decode is reserved and the prompt has one or two free KV blocks
+    scenes:
+      - intro
+  - id: entry-contract
+    can: Distinguish entrypoint convenience from model and version compatibility
+    scenes:
+      - entry-contract
+  - id: fragmentation
+    can: Identify internal and external fragmentation from the actual allocation geometry
+    scenes:
+      - fragmentation
+  - id: blocks
+    can: Resolve a logical position through its block-table entry and offset
+    scenes:
+      - blocks
+  - id: historical-evidence
+    can: State what a historical benchmark establishes and what a current comparison must measure
+    scenes:
+      - historical-evidence
+  - id: process-owners
+    can: Calculate the documented online topology and locate the owner of a delay
+    scenes:
+      - process-owners
+  - id: prefix
+    can: Compute how a matching full block changes sharing and remaining work
+    scenes:
+      - prefix
+  - id: prefix-limit
+    can: Calculate a full-attention APC hit including complete-prompt recomputation
+    scenes:
+      - prefix-limit
+  - id: hash-context
+    can: Decide whether a changed adapter path appears in the cache identity for each source revision
+    scenes:
+      - hash-context
+  - id: pool-structures
+    can: Trace a cache-hit touch and distinguish live, cached and free state
+    scenes:
+      - pool-structures
+  - id: budget
+    can: Separate computed input positions from emitted output tokens in a mixed step
+    scenes:
+      - budget
+  - id: chunk-clock
+    can: Predict which reader gets a token sooner when the cap changes on a supplied step clock
+    scenes:
+      - chunk-clock
+  - id: running-preemption
+    can: Distinguish active admission, recompute preemption and configured offload
+    scenes:
+      - running-preemption
+  - id: lifetime
+    can: Choose the slot a new writer can take by tracing the retiring request's live references
+    scenes:
+      - lifetime
+  - id: queue-order
+    can: Derive free-queue ordering from reference and cache state
+    scenes:
+      - queue-order
+  - id: admission
+    can: Check whether a proposed slice fits both the remaining token budget and its available KV cells
+    scenes:
+      - admission
+      - fresh-admission
+  - id: runner-contract
+    can: Identify which state belongs in a scheduler-to-runner handoff
+    scenes:
+      - runner-contract
+  - id: parallel-costs
+    can: Compare the resource and communication consequences of the parallel axes
+    scenes:
+      - parallel-costs
+  - id: runner-versions
+    can: Separate runner naming, functional platform support and model-specific cache behavior
+    scenes:
+      - runner-versions
+  - id: goodput
+    can: Compare passing completions per full measurement window
+    scenes:
+      - goodput
+  - id: goodput-denominator
+    can: Calculate a service rate without dropping errors or unfinished requests
+    scenes:
+      - goodput-denominator
+  - id: event-metrics
+    can: Distinguish event latency, request mean TPOT and per-request tail ITL
+    scenes:
+      - event-metrics
+  - id: route-security
+    can: Find route and network bypasses in an API-key-only deployment
+    scenes:
+      - route-security
+  - id: media-limits
+    can: Apply media capabilities and resource limits at the stage they constrain
+    scenes:
+      - media-limits
+  - id: tenant-cache
+    can: Explain what an enforced cache namespace changes and what access checks still require
+    scenes:
+      - tenant-cache
+  - id: synthesis
+    can: Locate the largest interval and use admission records to explain a specific refusal
+    scenes:
+      - synthesis
+  - id: source-diagnosis
+    can: Choose the next observation from the measured delay and ownership boundary
+    scenes:
+      - source-diagnosis
+  - id: project-identity
+    can: Identify the project’s source and contribution boundaries
+    scenes:
+      - project-identity
+  - id: fresh-admission
+    can: Compare full-prompt proposals under two requested adapters and choose the next observation from an independent first-token trace
+    scenes:
+      - fresh-admission
+sections:
+  - heading: Two entry paths, one engine loop
+    status: taught
+    scenes:
+      - entry-contract
+  - heading: "The historical idea: page KV memory"
+    status: taught
+    scenes:
+      - fragmentation
+      - blocks
+      - historical-evidence
+  - heading: PagedAttention isn't one current backend
+    status: taught
+    scenes:
+      - historical-evidence
+      - runner-contract
+      - runner-versions
+  - heading: "V1 request path: separate processes, one engine loop"
+    status: taught
+    scenes:
+      - intro
+      - process-owners
+      - synthesis
+  - heading: "The V1 scheduler: one token budget"
+    status: taught
+    scenes:
+      - intro
+      - budget
+      - chunk-clock
+      - admission
+  - heading: Continuous batching and chunked prefill
+    status: taught
+    scenes:
+      - chunk-clock
+      - running-preemption
+  - heading: Measure useful requests and token throughput
+    status: taught
+    scenes:
+      - goodput
+      - goodput-denominator
+      - event-metrics
+  - heading: Block pool, prefix cache, and eviction
+    status: taught
+    scenes:
+      - prefix
+      - prefix-limit
+      - hash-context
+      - pool-structures
+      - lifetime
+      - queue-order
+      - tenant-cache
+  - heading: From scheduler output to GPU kernels
+    status: taught
+    scenes:
+      - runner-contract
+      - parallel-costs
+      - runner-versions
+  - heading: APIs and the boundary of trust
+    status: taught
+    scenes:
+      - route-security
+      - media-limits
+      - tenant-cache
+  - heading: Project identity
+    status: taught
+    scenes:
+      - project-identity
+  - heading: Strengths and weaknesses
+    status: taught
+    scenes:
+      - project-identity
+      - parallel-costs
+      - runner-versions
+  - heading: Code-reading route
+    status: taught
+    scenes:
+      - source-diagnosis
+  - heading: A small failure drill
+    status: taught
+    scenes:
+      - source-diagnosis
+      - synthesis
+      - fresh-admission
+  - heading: Research roots and current practice
+    status: taught
+    scenes:
+      - historical-evidence
+      - runner-versions
+      - project-identity
+  - heading: Architectural summary
+    status: taught
+    scenes:
+      - synthesis
+      - fresh-admission
+  - heading: Evaluation rubric
+    status: taught
+    scenes:
+      - source-diagnosis
+      - fresh-admission
+  - heading: Follow-up questions
+    status: taught
+    scenes:
+      - prefix-limit
+      - tenant-cache
+      - source-diagnosis
+quiz:
+  - n: 1
+    status: taught
+    scenes:
+      - blocks
+  - n: 2
+    status: taught
+    scenes:
+      - process-owners
+  - n: 3
+    status: taught
+    scenes:
+      - prefix-limit
+  - n: 4
+    status: taught
+    scenes:
+      - hash-context
+  - n: 5
+    status: taught
+    scenes:
+      - pool-structures
+  - n: 6
+    status: taught
+    scenes:
+      - budget
+      - chunk-clock
+  - n: 7
+    status: taught
+    scenes:
+      - goodput-denominator
+  - n: 8
+    status: taught
+    scenes:
+      - event-metrics
+  - n: 9
+    status: taught
+    scenes:
+      - route-security
+  - n: 10
+    status: taught
+    scenes:
+      - source-diagnosis
+      - synthesis
+      - fresh-admission
+removed:
+  - point: The closing preview of the next lesson on SkyRL.
+    reason: The closing question now asks the viewer to choose the next observation for a waiting vLLM request.
+  - point: The old cache-key walkthrough used a cross-field lookup example.
+    reason: The adapter manifest comparison teaches which fields the pinned revisions record using two authorized configurations.
+reviews:
+  closed_book:
+    script: f37f8d34a860e11f
+    taught: 10
+    partial: 0
+    absent: 0
+  fact_check:
+    script: f37f8d34a860e11f
+    open_findings: 0

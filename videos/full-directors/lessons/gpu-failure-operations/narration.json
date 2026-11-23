@@ -1,0 +1,240 @@
+[
+  {
+    "id": "c01",
+    "title": "Where would the allocation fit?",
+    "sourceChapters": [
+      "c01"
+    ],
+    "beats": [
+      {
+        "id": "c01-b01",
+        "say": "A tensor needs one and a half gibibytes. Slide its outline up to the free end of this forty-gibibyte GPU. How much of the outline sticks out?",
+        "hold": 2.6
+      },
+      {
+        "id": "c01-b02",
+        "say": "The request overshoots by point eight eight gibibytes. That measures the shortage at the device boundary. Now try the same outline inside the allocator. The green spans are inactive pieces of memory the process already holds. Watch the tip of the outline as it visits each one. Which piece could take the whole request?",
+        "hold": 2.4
+      },
+      {
+        "id": "c01-b03",
+        "say": "Every outline crosses an edge. Even the widest piece ends at point eight eight. This is a possible layout for the summarizer's captured out-of-memory error. Its peers are still serving, and the node responds. Would you inspect this allocator or evict the other workloads?",
+        "hold": 2.3
+      },
+      {
+        "id": "c01-b04",
+        "say": "Inspect the allocator. Keep new work off this replica while you investigate. Bind the request to its process, GPU identity, node and failure time. The receipt has no new driver error events or uncorrectable memory errors. A node drain would evict neighbors without explaining this allocation.",
+        "hold": 1.2
+      }
+    ]
+  },
+  {
+    "id": "c02",
+    "title": "What would make two holes usable?",
+    "sourceChapters": [
+      "c02"
+    ],
+    "beats": [
+      {
+        "id": "c02-b01",
+        "say": "The native allocator holds thirty-six point seven gibibytes. Live tensors use thirty point one. Of the six point six difference, the snapshot identifies six point one in inactive split blocks. The other half gibibyte is reserve we still need to explain. Look between the first two holes. What would have to finish before that space could join up?",
+        "hold": 2.5
+      },
+      {
+        "id": "c02-b02",
+        "say": "In this replay the middle tensor reaches its last use. Its free completes on the same stream, in the same segment and pool. The adjacent pieces join. Now the allocator can place the request there and leave half a gibibyte. That's one possible mechanism. Inspect segments, pending frees, stream ordering and pools to test it against the actual failure.",
+        "hold": 1.1
+      },
+      {
+        "id": "c02-b03",
+        "say": "Pin the original layout in place. A captured failure and its size support fragmentation as a working hypothesis. Change only the operation result to success. The size field is still there, but there is no failed allocation to explain. Restore the failure and remove its size. We know it failed, but we have lost the length to compare. Go back to the original failure with its size recorded. With an asynchronous allocator, check that backend's accounting before interpreting native split statistics.",
+        "hold": 1
+      },
+      {
+        "id": "c02-b04",
+        "say": "Try another forty-gibibyte worker. This time live tensors use thirty-nine point one and a request for one more fails. Even perfect packing would need forty point one. Reduce live demand. Check batch and sequence limits, cache size and workspace lifetimes. The same alert can call for a different repair.",
+        "hold": 1.2
+      }
+    ]
+  },
+  {
+    "id": "c03",
+    "title": "Who owns the difference?",
+    "sourceChapters": [
+      "c03"
+    ],
+    "beats": [
+      {
+        "id": "c03-b01",
+        "say": "Return to the summarizer. Line up the allocator reserve with the device-wide reading from NVIDIA's Management Library. Both samples cover this GPU at the failure time. Match the partition too if the device is partitioned. How much device use lies beyond this allocator's view?",
+        "hold": 2.3
+      },
+      {
+        "id": "c03-b02",
+        "say": "The difference is two point six eight gibibytes. The subtraction gives us an amount. Attribute it to direct CUDA allocations, a communication library such as NCCL, or another process using independent ownership evidence. Now remove the device reading. The delta becomes unknown. The process still knows its reserve and live tensors.",
+        "hold": 1.2
+      },
+      {
+        "id": "c03-b03",
+        "say": "There is a second way to lose evidence. Enable allocator history before the workload, with a finite entry limit. Here a four-slot ring records events A through D. The first entry captured the failure. Two more events are about to arrive. Which entries will the snapshot still contain?",
+        "hold": 2.5
+      },
+      {
+        "id": "c03-b04",
+        "say": "E replaces A, then F replaces B. Read from the oldest slot. Events C, D, E and F survive. Dump the snapshot from this process before restart. Restrict access because stacks and paths may identify a tenant. If capture hangs at the incident deadline, retain what you have and proceed with required containment.",
+        "hold": 1.2
+      }
+    ]
+  },
+  {
+    "id": "c04",
+    "title": "Which work does readiness move?",
+    "sourceChapters": [
+      "c04"
+    ],
+    "beats": [
+      {
+        "id": "c04-b01",
+        "say": "Follow these two open streams. Their requests already belong to process seventeen on the summarizer. A healthy replica runs process eight. The router is about to withdraw the summarizer from admission. Which connections should move when readiness changes?",
+        "hold": 2.4
+      },
+      {
+        "id": "c04-b02",
+        "say": "Close the inlet to new work. The two existing streams stay with their original owner. Now a later request arrives. Follow it through the healthy inlet to process eight. Reconcile the original requests separately. Retry only when the operation is idempotent or the service can deduplicate its side effects.",
+        "hold": 1.1
+      },
+      {
+        "id": "c04-b03",
+        "say": "Compare two captured results. The summarizer failed to allocate memory. A vision worker reports an illegal address at synchronization, after the kernel launch returned. Record the first exact error, stream and time. Both workers read and clear their last error. A second read returns success, and both pass an HTTP probe. Which process still requires a relaunch?",
+        "hold": 2.5
+      },
+      {
+        "id": "c04-b04",
+        "say": "Terminate and relaunch the vision process after bounded capture. Illegal address and execution launch failure leave the process inconsistent. Clearing a thread's error record leaves that obligation in place. Ordinary allocation failure alone leaves the summarizer restart to policy. Both workers still need admission checks.",
+        "hold": 1.2
+      },
+      {
+        "id": "c04-b05",
+        "say": "The scheduler controls a different inlet. This node reports four GPUs. Mark one assigned device unhealthy. Allocatable drops to three, capacity stays four, and the assigned pod stays put. A platform cordon stops ordinary new placements across the node. An authorized drain requests eviction. Once this pod is evicted, its local ephemeral data goes with it.",
+        "hold": 1.1
+      },
+      {
+        "id": "c04-catalog",
+        "say": "The platform owner also needs the recovery instruction for the particular driver event. These two catalog entries both describe memory errors. Code ninety-four says the error is contained to the affected application. Restart that application. Code ninety-five says the error is uncontained. The platform owner isolates the GPU and resets it before applications restart. Preserve volatile evidence within the incident deadline before the reset.",
+        "hold": 1.1
+      }
+    ]
+  },
+  {
+    "id": "c05",
+    "title": "Did the peer path actually pass?",
+    "sourceChapters": [
+      "c05"
+    ],
+    "beats": [
+      {
+        "id": "c05-b01",
+        "say": "A collective stalled before a worker ran out of memory. Waiting ranks can hold buffers while more requests pile up. Test the earlier failure. Isolate the two GPUs under the platform owner's policy. A PCIe lane check and a timed transfer answer different questions. This plan requires both, with at least sixteen gigabytes per second between this pair.",
+        "hold": 1.3
+      },
+      {
+        "id": "c05-b02",
+        "say": "PCIe passes. The peer is unavailable, so bandwidth is skipped. The tool exits with zero. Would you count this run as evidence that the path sustained the required rate?",
+        "hold": 2.3
+      },
+      {
+        "id": "c05-b03",
+        "say": "There is no bandwidth measurement. Keep the gate closed. In a fresh run the peer responds. PCIe passes again. The pair reaches eleven point two gigabytes per second. The transfer falls short of sixteen, so this run also blocks the gate.",
+        "hold": 1.2
+      },
+      {
+        "id": "c05-b04",
+        "say": "A third run reaches eighteen point four. Both required tests pass. That satisfies the diagnostic part of readiness for this run. Save the entities, tool version, plugins, parameters, full results and exit status. Now suppose this same run also reports a memory failure. Can the two passes still clear coverage?",
+        "hold": 2.4
+      },
+      {
+        "id": "c05-b05",
+        "say": "Coverage becomes false. The rule requires a declared plan, every required pass, and no failure anywhere in the results. Decode the full memory error. Setup failures and device findings need different repairs. Choose deployment, memory or fabric tests for the incident and the installed plugins. Passing diagnostics still leaves the workload and soak checks to do.",
+        "hold": 1.1
+      }
+    ]
+  },
+  {
+    "id": "c06",
+    "title": "When should the burn-in stop?",
+    "sourceChapters": [
+      "c06"
+    ],
+    "beats": [
+      {
+        "id": "c06-b01",
+        "say": "Back at the summarizer, restart cleared the immediate pressure. Replay the one-and-a-half-gibibyte allocation and release on isolated hardware. Before starting, declare an abort threshold for the largest reusable block. Follow the first four cycles and watch how close each block comes to the line. The fourth block just clears it. Would one successful inference have tested this trend?",
+        "hold": 1.8
+      },
+      {
+        "id": "c06-b02",
+        "say": "Take the fifth sample. At one point four gibibytes the block is now below the replay size. Stop the test and save the trace. Free space elsewhere may still satisfy a request. Crossing this declared limit is enough to hold traffic without waiting for another allocation error.",
+        "hold": 1.3
+      },
+      {
+        "id": "c06-b03",
+        "say": "Start a separate run with a lower concurrency cap. Keep the allocation size and lifetime the same. Complete eight cycles, watching the largest block as each new point appears. All eight blocks clear the limit. At cycle eight, check the headroom on the display. Subtract the peak use of thirty-one point three gibibytes from the GPU's capacity of forty gibibytes. That leaves eight point seven gibibytes. If pressure returns, inspect cache size, graph pools and workspace lifetimes. Attribute any growth outside the reserve.",
+        "hold": 1.1
+      },
+      {
+        "id": "c06-compare",
+        "say": "Compare the two burn-in records at cycle five. With the original cap there was one link error. Under the lower cap there were none in that sample. The ninety-fifth percentile request latency was lower, too. These are observations from the same cycle in separate runs. Use the error counters and the power and temperature readings alongside the allocation trace to decide what to investigate.",
+        "hold": 1.1
+      },
+      {
+        "id": "c06-b04",
+        "say": "Suppose the failed request also used a two-rank collective. An HTTP probe exercised just one worker. For the canary, allocate the workspace, exchange the buffer with the peer, then release it. Repeat that lifecycle under bounded load. Watch memory, link errors, clocks, power, temperature and request latency. Stop on a declared limit before exposing user traffic.",
+        "hold": 1.2
+      }
+    ]
+  },
+  {
+    "id": "c07",
+    "title": "What opens the route again?",
+    "sourceChapters": [
+      "c07"
+    ],
+    "beats": [
+      {
+        "id": "c07-b01",
+        "say": "Try a fresh thirty-two-gibibyte GPU. The receipt shows live memory, reserve, device use and a failed three-gibibyte request. Separate the reserve gap from the identified inactive pieces. How much reserve is still unexplained? How much use is outside reserve, and by how much does the request exceed device free?",
+        "hold": 3.2
+      },
+      {
+        "id": "c07-b02",
+        "say": "The reserve gap is six. After accounting for inactive pieces, one gibibyte of other reserve remains. Outside reserve is three and a half. Device free is two and a half, so the request exceeds it by half a gibibyte. Investigate the layout and the outside owners. These totals alone give us no device-fault verdict.",
+        "hold": 1.2
+      },
+      {
+        "id": "c07-b03",
+        "say": "Now a decoded device memory defect arrives with an illegal-address error. The platform owner quarantines the GPU. The workload owner captures the exact error and relaunches the affected process after device repair. Keep both decisions. A driver event code also needs its catalog recovery action. Its presence can change the device investigation while the process still needs a relaunch.",
+        "hold": 1.1
+      },
+      {
+        "id": "c07-b04",
+        "say": "Key each quarantine by device and incident. Two fault reports for A and one for B produce two records. Now advance the incident clock by ten minutes. Collection succeeds with no new faults. Look at the count and the inlet for A. What changed when the clock stopped?",
+        "hold": 2.6
+      },
+      {
+        "id": "c07-b05",
+        "say": "Only the observation window changed. Both counts and both quarantines remain. For the repaired worker, check identity and process owners, the idle baseline, functional output, the memory envelope, device findings, and thermal and power limits. The bounded soak now passes. Seven of eight groups have passed. A green HTTP probe leaves the peer path untested. Where should the next arrival go?",
+        "hold": 2.6
+      },
+      {
+        "id": "c07-b06",
+        "say": "Send that arrival to the healthy replica. Run the missing fabric probe on the isolated pair. The probe passes. All eight groups now have fresh evidence, and the route is still closed. Who can open it?",
+        "hold": 2.3
+      },
+      {
+        "id": "c07-b07",
+        "say": "The workload and platform owners authorize a separate re-admission. Open the route for a small traffic share. Follow the next selected request into the repaired worker. Keep the other incident quarantined. Observe the allocation cycles and the peer path for the agreed window before expanding. Close the route again if a gate fails. The next lesson follows a request from prefill to decode.",
+        "hold": 1.3
+      }
+    ]
+  }
+]

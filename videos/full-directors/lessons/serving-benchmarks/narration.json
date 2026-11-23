@@ -1,0 +1,280 @@
+[
+  {
+    "id": "c01",
+    "title": "A test can hide the traffic that hurts",
+    "sourceChapters": ["c01"],
+    "beats": [
+      {
+        "id": "c01-b01",
+        "say": "At this help desk, three calls come due every second. The operator is still answering the first one. Watch the clock for two seconds. For a capacity test, should the benchmark send the next call on its tick or wait for the reply?",
+        "hold": 2
+      },
+      {
+        "id": "c01-b02",
+        "say": "Send it. For this capacity test, every tick brings another caller, even while the line is busy. Six calls came due in those two seconds. One is being answered. Five are waiting.",
+        "hold": 1.2
+      },
+      {
+        "id": "c01-b03",
+        "say": "Replay those same ticks with one client that waits for a reply. It sends only the first question. This is a closed-loop client. A slow server quietly reduces its own workload. That test tells us what one waiting client experiences. To find a rate the server can sustain, we need the independent clock, the response the client saw, and an outcome for every caller.",
+        "hold": 1.1
+      }
+    ]
+  },
+  {
+    "id": "c02",
+    "title": "Keep the offered workload independent",
+    "sourceChapters": ["c02"],
+    "beats": [
+      {
+        "id": "c02-b01",
+        "say": "An open-loop generator follows its saved schedule independently of earlier completions. Freeze the actual workload too. Here a four-thousand-and-ninety-six-token prompt arrives sixty milliseconds before a short one. Preserve their order, priority, shared prefixes and output caps. Record actual output length separately from its cap. Pin the tokenizer and chat template. Hash the realized trace so the next build gets the same work.",
+        "hold": 0.7
+      },
+      {
+        "id": "c02-b02",
+        "say": "Record the scheduled send and actual send on the same monotonic client clock. Request four was due at seven sixty. It went out at seven sixty-five. Its first token arrived at ten fifty. That's five milliseconds of schedule lag and two hundred eighty-five milliseconds from send to first token.",
+        "hold": 0.7
+      },
+      {
+        "id": "c02-b03",
+        "say": "Keep the due time and first token fixed. Suppose a busy generator sends at eight hundred instead. Which wait looks shorter? Does the run still meet the twenty-millisecond lag limit?",
+        "hold": 2.1
+      },
+      {
+        "id": "c02-b04",
+        "say": "Move just the send. Time to first token falls to two hundred fifty milliseconds, while the send is forty milliseconds late. Keep this request in the report and flag the run. Look for a binding client concurrency cap or a saturated generator before attributing the result to the server.",
+        "hold": 1
+      }
+    ]
+  },
+  {
+    "id": "c03",
+    "title": "Read arrival rate beside in-flight work",
+    "sourceChapters": ["c03"],
+    "beats": [
+      {
+        "id": "c03-b01",
+        "say": "Requests per second describes arrivals. Concurrency counts requests in flight at an instant. In this steady example each request stays open for nine tenths of a second. Slide the measuring line along the trace. Count the spans it cuts, including calls that began before the window.",
+        "hold": 0.8
+      },
+      {
+        "id": "c03-b02",
+        "say": "In a stable system, Little's law relates the rate of requests entering the system to the time they spend inside it. Across three seconds the occupied spans add up to eight point one request-seconds. Divide by three seconds. The mean is two point seven requests in flight, just what three admitted requests per second times point nine seconds predicts.",
+        "hold": 0.8
+      },
+      {
+        "id": "c03-b03",
+        "say": "Here are two schedules for six arrivals in two seconds. Each dot is a scheduled send. Suppose each call stays in flight for a hundred and fifty milliseconds. If the client has only two slots, which schedule would make a caller wait?",
+        "hold": 2.5
+      },
+      {
+        "id": "c03-overlap",
+        "say": "Trace the time each call would occupy a slot if every send went out on time. At eight hundred milliseconds, the calls due at seven hundred and seven sixty would both still be open. The replay needs three slots. The regular clock needs just one. A two-slot client would delay the third overlapping send and change the replay. Regular, random, and recorded arrivals can have different spacing at the same mean rate.",
+        "hold": 1
+      },
+      {
+        "id": "c03-b04",
+        "say": "Separate readiness and warmup from measurement. Declare the cache state and timeout first. Close the arrival window at two seconds and let the outstanding work drain. Report scheduled, sent, completed, and still pending. A growing backlog breaks the steady-window interpretation. Rejections can keep a queue flat, so keep their outcomes too.",
+        "hold": 0.8
+      }
+    ]
+  },
+  {
+    "id": "c04",
+    "title": "Name each timing boundary",
+    "sourceChapters": ["c04"],
+    "beats": [
+      {
+        "id": "c04-b01",
+        "say": "Start a request at zero milliseconds. Its first observed token arrives at two hundred forty, so time to first token is two hundred forty milliseconds. Both events use the same client clock in this token-granular fixture.",
+        "hold": 0.7
+      },
+      {
+        "id": "c04-b02",
+        "say": "Watch the spacing between tokens. One pause is three times as long as the others. Five tokens give four gaps. First to last spans two hundred forty milliseconds, so mean time per output token is sixty milliseconds. With a single token there are zero gaps. Report pacing as not applicable and still check the first-token and terminal times.",
+        "hold": 0.7
+      },
+      {
+        "id": "c04-b03",
+        "say": "The last token arrives before the terminal event. The last token is at four eighty. End-to-end latency includes that final wait and ends at five hundred milliseconds. Choose the boundary that matches the experience you want to measure.",
+        "hold": 0.8
+      },
+      {
+        "id": "c04-b04",
+        "say": "Does a hundred twenty milliseconds between tokens always stall a reader? Give the first token a deadline of three hundred milliseconds and allow eighty more per token. Look at the fourth token in each stream. Which reader has to wait?",
+        "hold": 2
+      },
+      {
+        "id": "c04-b05",
+        "say": "The first stream has slack. Its fourth token arrives at four forty, a hundred milliseconds before it's needed. In the second stream it arrives at five eighty, forty milliseconds late, even though the mean gap is eighty. Match each ordered event to its deadline. This fixed-clock exercise measures lateness. A playback policy can also count missed ticks and reset future deadlines after a stall.",
+        "hold": 1.1
+      }
+    ]
+  },
+  {
+    "id": "c05",
+    "title": "Measure what the client can observe",
+    "sourceChapters": ["c05"],
+    "beats": [
+      {
+        "id": "c05-b01",
+        "say": "This client receives text in chunks. Watch its display. At three twenty the first chunk writes “The answer is” all at once. At four eighty the next chunk adds “42.” A terminal metadata event closes the request at five hundred without adding text.",
+        "hold": 0.9
+      },
+      {
+        "id": "c05-b02",
+        "say": "Hold the two client arrivals in place and look behind the display. On this aligned trace, the server produced “The” at two forty. The other words were ready by three twenty, when the first chunk reached the client.",
+        "hold": 0.8
+      },
+      {
+        "id": "c05-b03",
+        "say": "Suppose the first token had been ready earlier. Keep the other tokens and both delivered chunks exactly where they were. Would the client have seen anything different?",
+        "hold": 2.1
+      },
+      {
+        "id": "c05-b04",
+        "say": "Move only “The” to one sixty. Both histories still produce the same two deliveries. From the client alone, we can report three hundred twenty milliseconds to first text and a hundred sixty between chunks. The token gaps need their own trace. Parse complete stream events, distinguish content from metadata, and record the adapter version and terminal boundary.",
+        "hold": 1.1
+      }
+    ]
+  },
+  {
+    "id": "c06",
+    "title": "Keep failures in the offered cohort",
+    "sourceChapters": ["c06"],
+    "beats": [
+      {
+        "id": "c06-b01",
+        "say": "A small fixture offers six requests. Follow the final request through drain. It produces a token and then times out at two and a half seconds. Five requests finished successfully. Which of the six should count when we ask what fraction of the offered work met the contract?",
+        "hold": 2
+      },
+      {
+        "id": "c06-b02",
+        "say": "Keep all six. Three satisfy the success, quality, and latency contract. Request three waited three hundred forty milliseconds for its first token, over the three-hundred-millisecond limit. Request five was fast but failed its task check. Request six timed out. Request two had one token, so its pacing check was inapplicable.",
+        "hold": 0.7
+      },
+      {
+        "id": "c06-b03",
+        "say": "Attainment is three of six, or fifty percent. Over the two-point-five-second cohort horizon, five successes give two successful requests per second. Three qualified responses give one point two qualified requests per second. The two-second arrival window gives three offered requests per second. Those are finite cohort rates. A capacity claim needs a sweep.",
+        "hold": 0.9
+      },
+      {
+        "id": "c06-b04",
+        "say": "Try removing the timeout record. Its ID still belongs to the manifest. Can the scorer publish five outcomes as a complete run?",
+        "hold": 1.9
+      },
+      {
+        "id": "c06-b05",
+        "say": "Missing an expected ID gives exit one and no valid report. Take a separate case. The send log confirms that request six never left the client. Record its ID with no send time, no tokens, a terminal accounting time, and failed quality. The offered count stays six. Exit two preserves the accounting and flags the invalid schedule. The complete original file records a real timeout. It exits zero because its records and schedule pass. Qualification is a separate decision.",
+        "hold": 1
+      }
+    ]
+  },
+  {
+    "id": "c07",
+    "title": "Find the highest passing tested load",
+    "sourceChapters": ["c07"],
+    "beats": [
+      {
+        "id": "c07-b01",
+        "say": "Now compare five synthetic runs at increasing offered rates. Each offers two hundred requests. For a rate to pass, at least ninety-five percent must qualify, schedule lag must stay at or below twenty milliseconds, and the queue must stay stable. Follow the queue recorder across each run.",
+        "hold": 0.8
+      },
+      {
+        "id": "c07-b02",
+        "say": "The one-point-five rate reaches ninety-five percent, its maximum lag is eleven milliseconds, and its queue stays flat. At two requests per second, only eighty percent qualify and backlog grows. At two point five, attainment falls further. Which is the highest tested load that passes all three checks?",
+        "hold": 2
+      },
+      {
+        "id": "c07-b03",
+        "say": "Mark one point five requests per second. The interval up to two still needs measurements. Test inside that interval and repeat long enough to see queue and cache behavior. Alternate baseline and candidate order, retain rejected runs, and choose margin for traffic drift and failures.",
+        "hold": 0.9
+      },
+      {
+        "id": "c07-b04",
+        "say": "For this estimate, suppose all two hundred offered calls entered the three-replica pool, including the ten that missed the service promise. An admitted call occupied the pool for ten seconds on average. One point five admitted requests per second times ten seconds gives fifteen active requests on average. With even routing, that's five per replica. At the same steady load per replica and workload mix, how many replicas would carry a hundred active requests?",
+        "hold": 1.9
+      },
+      {
+        "id": "c07-b05",
+        "say": "Twenty replicas before margin. Five is an average at this workload mix. Bursts can exceed it. Routing and cache warmth can change at larger scale, so validate that budget at the intended size.",
+        "hold": 1
+      }
+    ]
+  },
+  {
+    "id": "c08",
+    "title": "Give percentiles and quality a population",
+    "sourceChapters": ["c08"],
+    "beats": [
+      {
+        "id": "c08-b01",
+        "say": "A two-hundred-request run can show ninety-five-percent observed attainment with one hundred ninety qualified requests. Put that dot on the ninety-five-percent floor. If the rule requires the lower confidence bound to clear the same floor, would this run still pass?",
+        "hold": 1.9
+      },
+      {
+        "id": "c08-b02",
+        "say": "Each interval assumes independent trials with a constant pass probability at that load. For the first run, the one-sided ninety-five-percent Wilson lower bound is ninety-one point eight percent. The lower-bound rule fails. Two hundred out of two hundred at one request per second gives a lower bound of ninety-eight point seven percent. That clears the floor. For a separate illustration, twenty perfect trials give a lower bound of only eighty-eight point one percent. Choose the rule before testing. Shared bursts need whole-run or time-block resampling, and a winner selected across loads needs fresh confirmation.",
+        "hold": 0.9
+      },
+      {
+        "id": "c08-budget",
+        "say": "Use the lower load for a second budget. Again, assume every offered call enters the three-replica pool and occupies it for ten seconds on average. One admitted request per second times ten seconds gives ten active requests across the pool. With even routing, each replica carries ten thirds on average. A hundred active requests would take thirty replicas before margin. Confirm that lower load in a fresh run.",
+        "hold": 0.9
+      },
+      {
+        "id": "c08-b03",
+        "say": "A percentile also needs its population. One long reply contributes nineteen gaps of one millisecond. A short reply contributes one gap of a hundred. Sort the twenty gaps, multiply twenty by point nine five and round up. The nineteenth observation is one millisecond. What if each reply gets one vote for its worst gap?",
+        "hold": 2
+      },
+      {
+        "id": "c08-b04",
+        "say": "Keep the worst gap from each reply. There are now two observations. Rank two is a hundred milliseconds. Pooled gaps weight the long response nineteen times. Save the raw samples and name the population, rank rule, prompt and output lengths, and priority. A successful-request latency percentile can exclude failed streams while their failures still count against attainment.",
+        "hold": 1
+      }
+    ]
+  },
+  {
+    "id": "c09",
+    "title": "Make the benchmark a reproducible receipt",
+    "sourceChapters": ["c09"],
+    "beats": [
+      {
+        "id": "c09-b01",
+        "say": "Try a fresh receipt. Eight requests are scheduled during two and a half seconds. Six qualify, one returns an unacceptable answer, and the last times out at four seconds. What fraction met the promise, and how many qualified responses per second did this cohort deliver?",
+        "hold": 2.3
+      },
+      {
+        "id": "c09-b02",
+        "say": "Six of eight is seventy-five percent. Use four seconds including drain for the qualified rate. That's one point five qualified responses per second. Seven successes give one point seven five per second. The offered rate uses two and a half seconds, giving three point two per second. A ninety-five-percent promise fails even with a valid schedule.",
+        "hold": 1.1
+      },
+      {
+        "id": "c09-resend",
+        "say": "Replay request two with its first token fixed at four hundred milliseconds. Move the send from three hundred to three forty-five. The measured first-token wait falls to fifty-five milliseconds, but the send misses its twenty-millisecond tolerance. The scorer returns two. Restore the original send and the schedule passes again. Does that rescue the seventy-five-percent attainment?",
+        "hold": 1.8
+      },
+      {
+        "id": "c09-restore",
+        "say": "It still falls short. The original run can have sound accounting and a faithful schedule while missing its service promise. Measuring capacity would take repeated runs at different offered loads.",
+        "hold": 0.8
+      },
+      {
+        "id": "c09-b03",
+        "say": "Now suppose the timing run has protocol records only. A separate forty-item task suite passed semantic review. Which performance responses can you mark as semantically correct from that suite alone?",
+        "hold": 2
+      },
+      {
+        "id": "c09-b04",
+        "say": "The timing run still supports its measured latencies and protocol success rate. The suite supports its own quality result. Each performance response needs a linked judgment before it can count toward semantic qualification. Tie each verdict to its request ID, output and scoring rule. Check finish reasons and actual lengths too. A truncated answer can look fast.",
+        "hold": 0.8
+      },
+      {
+        "id": "c09-b05",
+        "say": "Return to the eight calls with individual task checks. The receipt keeps their scheduled sends, observed events and outcomes through drain. File the workload hash, model, tokenizer, template, server, client, hardware and cache policy alongside those records. To measure capacity, repeat the load sweep, keep rejected runs, and check queue stability, schedule lag and uncertainty against a predeclared rule. On this eight-request receipt the qualified rate is one point five per second, the promise failed, and capacity still needs measurement.",
+        "hold": 1.5
+      }
+    ]
+  }
+]

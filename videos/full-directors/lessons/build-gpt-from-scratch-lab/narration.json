@@ -1,0 +1,609 @@
+[
+  {
+    "id": "c01",
+    "title": "After the comma",
+    "sourceChapters": [
+      "c01"
+    ],
+    "beats": [
+      {
+        "id": "c01-b01",
+        "say": "Follow the type across the proof. Good, a space and sir, then a comma at the edge of the line. On the page, Speak begins below it. At the cursor, which piece comes next, the start of Speak or a line break?",
+        "hold": 2.6
+      },
+      {
+        "id": "c01-b02",
+        "say": "It's the line break. During training the printed passage supplies the successor. During generation we draw a successor from the model. If we draw the break, append just that piece. The cursor returns to the start of the next line. The first piece of Speak is still to come.",
+        "hold": 0.9
+      }
+    ]
+  },
+  {
+    "id": "c02",
+    "title": "What would this loader reward?",
+    "sourceChapters": [
+      "c02"
+    ],
+    "beats": [
+      {
+        "id": "c02-b01",
+        "say": "Here are the six pieces in source order. Five fit on the input rail. Read down from the comma. This loader has copied the inputs into the label rail. What prediction would earn full credit there?",
+        "hold": 2.2
+      },
+      {
+        "id": "c02-b02",
+        "say": "Another comma. Copying the piece already in view would earn credit. Slide the labels one place to the left. Now the comma predicts the break, and the last input, the first piece of Speak, predicts the rest of the word.",
+        "hold": 0.3
+      },
+      {
+        "id": "c02-b03",
+        "say": "All five positions can be scored in one forward pass. Check the entire label row against the source starting at its second piece, including that last label.",
+        "hold": 0.9
+      }
+    ]
+  },
+  {
+    "id": "c03",
+    "title": "The two pieces of Speak",
+    "sourceChapters": [
+      "c03"
+    ],
+    "beats": [
+      {
+        "id": "c03-b01",
+        "say": "Read down the six columns. Each piece sits above its GPT-two token ID. The dot in front of sir marks a space. Speak spans the final two slugs, S p e and a k. Dropping the last slug would lose both the end of the word and the last label.",
+        "hold": 0.3
+      },
+      {
+        "id": "c03-b02",
+        "say": "At the comma, the target is still the line break, ID one ninety-eight.",
+        "hold": 0.8
+      },
+      {
+        "id": "c03-b03",
+        "say": "A token boundary can even fall inside one character. These four bytes make a smiling face in the full tokenizer. Decode the two pieces separately and three replacement characters appear. Keep the first two bytes in a buffer.",
+        "hold": 0.3
+      },
+      {
+        "id": "c03-b04",
+        "say": "Join the next two bytes before decoding and the smile survives. A generated sequence can still contain invalid bytes. Choose explicitly whether to replace them or reject them.",
+        "hold": 0.9
+      }
+    ]
+  },
+  {
+    "id": "c04",
+    "title": "Which row holds the comma?",
+    "sourceChapters": [
+      "c04"
+    ],
+    "beats": [
+      {
+        "id": "c04-b01",
+        "say": "The comma has ID eleven in GPT-two. In the Shakespeare file, only some of those IDs occur. Sort the ones that occur and number their rows from zero. Look up eleven in that list. The comma lands in row two. That's the row the lab uses for both its input embedding and its output score.",
+        "hold": 0.7
+      },
+      {
+        "id": "c04-b02",
+        "say": "Run the lookup backwards. Find local row two and read across to its GPT-two ID. It's eleven. Decode that ID and the decoder prints a comma. The blue length below the drawer counts the seventeen thousand four hundred eighty-five active rows.",
+        "hold": 0.3
+      },
+      {
+        "id": "c04-b03",
+        "say": "An unfamiliar prompt piece can have a valid GPT-two ID and still fall outside this checkpoint. Reject it before the embedding lookup.",
+        "hold": 0.8
+      }
+    ]
+  },
+  {
+    "id": "c05",
+    "title": "Where does the missing probability go?",
+    "sourceChapters": [
+      "c05"
+    ],
+    "beats": [
+      {
+        "id": "c05-b01",
+        "say": "Each row carries ninety-six weights. Input lookup and output scoring share them, so count the table once. Shrink it to the active rows. With seventeen thousand four hundred eighty-five rows at the same width, how many weights does the matrix contain? One million six hundred seventy-eight thousand five hundred sixty. Compare the two bars. Removing the other rows cut this table by about sixty-five percent.",
+        "hold": 0.3
+      },
+      {
+        "id": "c05-b02",
+        "say": "Now compare the whole models. The vocabulary table shrank while the other layers kept their weights. The total parameter count fell by about sixty-two percent.",
+        "hold": 0.7
+      },
+      {
+        "id": "c05-b03",
+        "say": "Look at these three rows. We read row zero and want to predict row one. Row two never appears as an input or a target here. Yet its score ties for first. It takes forty-two percent of the probability.",
+        "hold": 0.3
+      },
+      {
+        "id": "c05-b04",
+        "say": "Its share times the hidden vector gives its output gradient. Training has a reason to change a piece it never saw.",
+        "hold": 0.7
+      },
+      {
+        "id": "c05-b05",
+        "say": "Take row two out. Watch the target row while the two remaining scores stay fixed. Its share rises from about sixteen percent to twenty-seven percent. The loss falls without a training step. Renumbering pieces preserves their identity. Removing competitors changes the prediction problem.",
+        "hold": 0.3
+      },
+      {
+        "id": "c05-b06",
+        "say": "The lab chose its rows using the whole file, including three hundred thirty-five IDs seen only in validation. No validation gradients were taken. For an independent evaluation, choose support in advance and decide what to do with missing pieces.",
+        "hold": 0.85
+      }
+    ]
+  },
+  {
+    "id": "c06",
+    "title": "How many predictions did training score?",
+    "sourceChapters": [
+      "c06"
+    ],
+    "beats": [
+      {
+        "id": "c06-b01",
+        "say": "The model begins with random weights. The already trained GPT-two tokenizer supplies the vocabulary and merges. Tokenize the bundled Shakespeare file once. Its four and a half million bytes give us just over a million and a quarter pieces. Split the stream in file order. The blue prefix supplies training windows.",
+        "hold": 0.3
+      },
+      {
+        "id": "c06-b02",
+        "say": "The gold suffix supplies validation windows. File order preserves neighbors within each part. Repeated phrases can still occur on both sides.",
+        "hold": 0.8
+      },
+      {
+        "id": "c06-b03",
+        "say": "One batch has twelve windows, each with forty-eight targets. That's five hundred seventy-six predictions per update. At that rate, how many targets do three hundred twenty-one updates score? One hundred eighty-four thousand eight hundred ninety-six. Compare that count with the training stream's length. It comes to about sixteen point four percent. Overlapping windows can count a target twice.",
+        "hold": 0.3
+      },
+      {
+        "id": "c06-b04",
+        "say": "The run can therefore visit fewer distinct positions than its target count suggests. Each validation estimate scores eight batches in the same way.",
+        "hold": 0.7
+      },
+      {
+        "id": "c06-b05",
+        "say": "Give every active token an equal share. The negative natural log of that share is about nine point seven seven nats per token. The first training batch measured nine point seven seven five. Now try a four-token vocabulary where every target happens to be zero.",
+        "hold": 0.3
+      },
+      {
+        "id": "c06-b06",
+        "say": "A predictor that ignores its input and puts ninety percent on zero averages about a tenth of a nat. Even a loss that low leaves the question of leakage open. We can test it by changing an input.",
+        "hold": 0.8
+      }
+    ]
+  },
+  {
+    "id": "c07",
+    "title": "Did these tokens meet in the source?",
+    "sourceChapters": [
+      "c07"
+    ],
+    "beats": [
+      {
+        "id": "c07-b01",
+        "say": "The original stream runs from zero to nineteen. Take two four-token chunks from different places. Push the second chunk against the first. At the join, which successor would the loader reward? Eight follows three on this strip. In the source, four followed three. A single cut preserves the neighbors within each portion.",
+        "hold": 0.3
+      },
+      {
+        "id": "c07-b02",
+        "say": "Leave out the transition across the cut. If your task trains on independent documents, also block attention across documents and handle the target at each boundary. Restarting position numbers alone leaves earlier keys readable.",
+        "hold": 0.75
+      },
+      {
+        "id": "c07-b03",
+        "say": "Keep the cut at sixteen. The training portion contains positions zero through fifteen. A four-input window needs a fifth training token for its last label. Slide it to the last legal start. Start eleven uses inputs eleven through fourteen and scores fifteen as the last target. Start twelve would reach into validation for its last target.",
+        "hold": 0.3
+      },
+      {
+        "id": "c07-b04",
+        "say": "Draw within each portion separately. Its length minus the context length gives the sampler's exclusive upper bound. Try the validation portion. Four tokens fill the input window, but no fifth token remains for the last label. This portion has no legal start at context four.",
+        "hold": 0.75
+      },
+      {
+        "id": "c07-b05",
+        "say": "Give the lab sampler exactly forty-nine tokens. With context forty-eight it can start only at zero. The last input is forty-seven. Its target is forty-eight. Remove that last token and the sampler must reject the stream. Checking only where the two rows overlap would miss this last label.",
+        "hold": 0.85
+      }
+    ]
+  },
+  {
+    "id": "c08",
+    "title": "Can the next input change the comma’s score?",
+    "sourceChapters": [
+      "c08"
+    ],
+    "beats": [
+      {
+        "id": "c08-b01",
+        "say": "Back at the comma, the correct label is a line break. But that very piece is sitting to its right in the training input. Which keys may the comma read? Keep the bracket through the comma itself. That's the causal mask.",
+        "hold": 0.3
+      },
+      {
+        "id": "c08-b02",
+        "say": "In this little head, readable keys share the weight equally. The line-break score is their average first coordinate. What should happen to that score if we change only the fourth input?",
+        "hold": 2
+      },
+      {
+        "id": "c08-b03",
+        "say": "Replace the line break with sir in the test copy. Leave the reference label alone. The values inside the bracket are still zero, one and two. Their mean stays one in both runs. All the prefix logits match. What if the comma could also read the fourth key?",
+        "hold": 0.3
+      },
+      {
+        "id": "c08-b04",
+        "say": "Once that fourth key can contribute, will the line-break scores still agree?",
+        "hold": 2.4
+      },
+      {
+        "id": "c08-b05",
+        "say": "Open the bracket by one key. The original run now includes a five and the test copy includes a three. The means split, two versus one and a half. Changing the future has changed a prediction in the past. Restore the causal mask and repeat the probe.",
+        "hold": 0.3
+      },
+      {
+        "id": "c08-b06",
+        "say": "Then check the labels separately. Copying the current token into its own label would pass the visibility check.",
+        "hold": 0.85
+      }
+    ]
+  },
+  {
+    "id": "c09",
+    "title": "Follow the comma through one head",
+    "sourceChapters": [
+      "c09"
+    ],
+    "beats": [
+      {
+        "id": "c09-b01",
+        "say": "Keep the shutter after the comma. This four-piece teaching head has two coordinates. Add the comma's embedding, zero, one, to its position, two, two. Its value is two, three because the value projection here is the identity. Collect the three readable values.",
+        "hold": 0.3
+      },
+      {
+        "id": "c09-b02",
+        "say": "Every allowed key gets one third here because their attention scores tie. Average each coordinate. The comma now carries one, two. The break stays outside the shutter.",
+        "hold": 0.75
+      },
+      {
+        "id": "c09-b03",
+        "say": "Turn to the tied embedding table. Take a dot product between the hidden vector and each piece's own embedding. The line-break row picks out the first coordinate, one. The comma row picks out the second, two. This head favors another comma.",
+        "hold": 0.3
+      },
+      {
+        "id": "c09-b04",
+        "say": "The source still says line break. How much probability did the head give the answer it will be scored on?",
+        "hold": 1.65
+      }
+    ]
+  },
+  {
+    "id": "c10",
+    "title": "What earns credit at the comma?",
+    "sourceChapters": [
+      "c10"
+    ],
+    "beats": [
+      {
+        "id": "c10-b01",
+        "say": "Keep those four scores. To turn them into probabilities, exponentiate each score and add the four weights. That's the softmax denominator. The display rounds the numbers. The sum and the loss use the unrounded weights. The line break gets its own weight divided by the sum, about twenty-four percent. Take the negative natural log of that target share.",
+        "hold": 0.3
+      },
+      {
+        "id": "c10-b02",
+        "say": "This one position contributes about one point four four nats. The training loss averages a penalty like this for each scored position.",
+        "hold": 0.7
+      },
+      {
+        "id": "c10-b03",
+        "say": "Treat these four scores as adjustable numbers for one step. A competitor's gradient is its probability. The target's gradient is its probability minus one. Subtract half of each gradient. Watch the gold share widen as all four weights are recomputed. The penalty falls.",
+        "hold": 0.3
+      },
+      {
+        "id": "c10-b04",
+        "say": "In the CPU lab the scores come from network parameters. Clear the gradients, backpropagate the mean cross-entropy through the tied weights and the decoder, then take an AdamW step with learning rate point zero zero two.",
+        "hold": 0.9
+      }
+    ]
+  },
+  {
+    "id": "c11",
+    "title": "Scale the same prediction to a full batch",
+    "sourceChapters": [
+      "c11"
+    ],
+    "beats": [
+      {
+        "id": "c11-b01",
+        "say": "Scale back up to the CPU lab. Each of the twelve windows has forty-eight positions and each position now has ninety-six features. One projection makes queries, keys and values. Split each into four heads of width twenty-four.",
+        "hold": 0.3
+      },
+      {
+        "id": "c11-b02",
+        "say": "Within one head, each of forty-eight queries compares with forty-eight keys. That's why the score grid is square. Divide dot products by the square root of the head width, mask future scores with minus infinity, then normalize and mix the values.",
+        "hold": 0.3
+      },
+      {
+        "id": "c11-b03",
+        "say": "Each row needs at least one allowed finite score, with finite scores on the permitted keys in this example. At query zero the only permitted key is zero, so its attention weight is one.",
+        "hold": 0.7
+      },
+      {
+        "id": "c11-b04",
+        "say": "Follow the blue path around attention. Normalize the input before the attention branch. Join the heads, project their output and add it back to the original input. Call the sum u. A second branch normalizes u and expands each position from ninety-six features to three hundred eighty-four.",
+        "hold": 0.3
+      },
+      {
+        "id": "c11-b05",
+        "say": "Apply GELU and project back to ninety-six, then add that result to u. Exact GELU multiplies its input by the standard normal cumulative probability at that value. The two shortcuts give gradients a direct path. These position-wise operations preserve the mask's boundary.",
+        "hold": 0.8
+      },
+      {
+        "id": "c11-b06",
+        "say": "Run two of those blocks and a final normalization. The output head reuses the token embeddings. Each of five hundred seventy-six positions now has a score for every active piece. Flatten the first two axes and line each row up with its one integer target for cross-entropy.",
+        "hold": 0.3
+      },
+      {
+        "id": "c11-b07",
+        "say": "Even before backward storage, those float32 scores take about forty megabytes. This lab uses exact GELU, omits dropout and skips GPT-two's depth-scaled residual initialization. The original implementation used a tanh approximation for GELU.",
+        "hold": 0.85
+      }
+    ]
+  },
+  {
+    "id": "c12",
+    "title": "What improved after 240 more updates?",
+    "sourceChapters": [
+      "c12"
+    ],
+    "beats": [
+      {
+        "id": "c12-b01",
+        "say": "Return to the real training run. At update eighty-one, look below the curve. The early model was given our fixed prompt and produced the fragment, And the I the. The loss beside update eighty-one comes from eight sampled validation batches. It measures predictions about held-out text.",
+        "hold": 0.3
+      },
+      {
+        "id": "c12-b02",
+        "say": "The generated quote comes from a separate run of the sampler.",
+        "hold": 0.9
+      },
+      {
+        "id": "c12-b03",
+        "say": "Keep training the same model for another two hundred forty updates. Validation loss is now half a nat lower per scored token, and next-token accuracy has risen. Does that tell us whether it can make a subject and a verb agree?",
+        "hold": 1.95
+      },
+      {
+        "id": "c12-b04",
+        "say": "Read the later sample. It manages the contraction in I'll do, then gives us I is the king. That verb still disagrees with its subject. Both excerpts use the same prompt, seed and sampling settings.",
+        "hold": 0.3
+      },
+      {
+        "id": "c12-b05",
+        "say": "Before choosing a checkpoint, compare several fixed prompts, check for copied training phrases, and test the task you care about. In a separate ten-prompt exercise, loss falls from four point one to three point nine, but copied continuations rise from two to seven. Keep both observations. To estimate variation, repeat the run across seeds.",
+        "hold": 0.9
+      }
+    ]
+  },
+  {
+    "id": "c13",
+    "title": "Which piece does the sampler append?",
+    "sourceChapters": [
+      "c13"
+    ],
+    "beats": [
+      {
+        "id": "c13-b01",
+        "say": "During generation the last position makes the next choice. Keep at most the latest forty-eight local IDs. The real lab keeps the eight highest-scoring pieces and drops the tail. Divide those eight scores by point nine and normalize them again. Positive temperatures keep the same ranking.",
+        "hold": 0.3
+      },
+      {
+        "id": "c13-b02",
+        "say": "Colder settings concentrate probability on the largest scores. In the limit, tied maxima share the mass. A greedy sampler at zero takes an explicit maximum.",
+        "hold": 0.7
+      },
+      {
+        "id": "c13-b03",
+        "say": "Try a separate four-score draw. Retain the two highest scores, two and one. At half temperature they become four and two. The blue interval gets about eighty-eight percent of the mass. Place the draw at point nine. Which local ID will you append?",
+        "hold": 2.4
+      },
+      {
+        "id": "c13-b04",
+        "say": "The draw crossed the first boundary. Choose local ID one. A less likely token can still win the draw. This strip shows how to sample by cumulative probability. The lab uses PyTorch's multinomial routine to sample from those probabilities.",
+        "hold": 0.75
+      },
+      {
+        "id": "c13-b05",
+        "say": "Append one to the model input. This little sampler has its own saved map. Local one maps back to GPT-two ID four sixty-one, the letters a k. Reverse-map the full sequence and decode its bytes together. Reject any missing prompt piece before lookup.",
+        "hold": 0.3
+      },
+      {
+        "id": "c13-b06",
+        "say": "The lab restarts a separate text generator at seed seventeen for each comparison. That repeats the trace for fixed weights and prompt here, and leaves the training and validation streams alone. Top-k sampling can still repeat itself.",
+        "hold": 0.85
+      }
+    ]
+  },
+  {
+    "id": "c14",
+    "title": "Which training window comes after a restart?",
+    "sourceChapters": [
+      "c14"
+    ],
+    "beats": [
+      {
+        "id": "c14-b01",
+        "say": "Here are four supplied window starts in the order the training sampler draws them. Use four, then one, and save here. If we reload only the initial seed, which starting position will the next update get?",
+        "hold": 2.3
+      },
+      {
+        "id": "c14-b02",
+        "say": "Four again. Restore the progressed sampler state instead. The next draw is nine, just as it would have been without a restart. These are supplied example draws. The principle carries to the lab's two separate generators.",
+        "hold": 0.3
+      },
+      {
+        "id": "c14-b03",
+        "say": "Keeping validation sampling on its own stream lets us inspect the model without changing the next training batch. Now give both training paths that same batch and compare the update.",
+        "hold": 0.9
+      }
+    ]
+  },
+  {
+    "id": "c15",
+    "title": "Same batch, different next weight",
+    "sourceChapters": [
+      "c15"
+    ],
+    "beats": [
+      {
+        "id": "c15-b01",
+        "say": "Save a weight of one. A shallow model state dictionary can still point to the live storage. When training moves that weight to point nine, the shallow copy reads point nine too. A snapshot serialized before the update still reads one. Freeze the checkpoint before continuing.",
+        "hold": 0.3
+      },
+      {
+        "id": "c15-b02",
+        "say": "Along with weights, keep the optimizer state, completed update, configuration, tokenizer version and row order. Match the corpus fingerprint and split. Save where both random generators stopped.",
+        "hold": 0.7
+      },
+      {
+        "id": "c15-b03",
+        "say": "Both paths now have the same weights and the same batch. Their deterministic loss agrees before the update. Try the scalar Adam example on screen. Both moment coefficients are one half. Epsilon and weight decay are zero, and the learning rate stays at one tenth.",
+        "hold": 0.3
+      },
+      {
+        "id": "c15-b04",
+        "say": "Two positive gradients brought the weight down to point eight. The next gradient is minus one. The restored first moment still remembers the positive gradients. The new weight is about point eight one four.",
+        "hold": 0.3
+      },
+      {
+        "id": "c15-b05",
+        "say": "Start the moments and counter from scratch and the weight jumps to point nine. Compare the weights after the step to catch that difference.",
+        "hold": 0.8
+      },
+      {
+        "id": "c15-b06",
+        "say": "The article checks this on the real CPU checkpoint. At update three twenty-one, restoring it reproduces the probe logits, the next batch and the loss on that batch. Then both paths take update three twenty-two. Their updated weights match exactly in that environment.",
+        "hold": 0.3
+      },
+      {
+        "id": "c15-b07",
+        "say": "A loop with dropout, CUDA randomness, a scheduler or a precision scaler needs the corresponding state. AdamW also applies weight decay separately from its adaptive update. This lab's call decays all supplied parameters, including biases and normalization scales.",
+        "hold": 0.9
+      }
+    ]
+  },
+  {
+    "id": "c16",
+    "title": "What can change inside the decoder?",
+    "sourceChapters": [
+      "c16"
+    ],
+    "beats": [
+      {
+        "id": "c16-b01",
+        "say": "Our lab borrows learned absolute positions, pre-normalization, multi-head attention, GELU and tied embeddings from GPT-two. Keep the causal next-token task and change some parts. Llama two is one historical example. It used rotary positions, RMS normalization and a gated feed-forward layer.",
+        "hold": 0.3
+      },
+      {
+        "id": "c16-b02",
+        "say": "Its seven- and thirteen-billion models used ordinary multi-head attention. Its seventy-billion model shared keys and values across groups of query heads.",
+        "hold": 0.7
+      },
+      {
+        "id": "c16-b03",
+        "say": "Give both normalizers the vector one, three. Use unit gain, zero offset and zero epsilon so you can see the arithmetic. Layer normalization subtracts the mean, two, then divides by a standard deviation of one. The first coordinate turns negative.",
+        "hold": 0.3
+      },
+      {
+        "id": "c16-b04",
+        "say": "RMS normalization divides both coordinates by the square root of five. Both stay positive. It measures mean square without subtracting the mean. Rotary positions make a different change. They rotate query and key pairs so their dot products reflect relative position.",
+        "hold": 0.3
+      },
+      {
+        "id": "c16-b05",
+        "say": "Test the context lengths you plan to use.",
+        "hold": 0.7
+      },
+      {
+        "id": "c16-b06",
+        "say": "SwiGLU multiplies a linear branch by a SiLU gate, then projects back. Now follow the four query heads. Group them in pairs that share keys and values. Moving from four stored key-value heads to two halves the stored elements at fixed length and head width.",
+        "hold": 0.3
+      },
+      {
+        "id": "c16-b07",
+        "say": "At the same data type that's half the ideal cache bytes. Serving speed needs a timed run, and changing an architecture also calls for a quality and checkpoint-compatibility check.",
+        "hold": 0.9
+      }
+    ]
+  },
+  {
+    "id": "c17",
+    "title": "What did the attention check establish?",
+    "sourceChapters": [
+      "c17"
+    ],
+    "beats": [
+      {
+        "id": "c17-b01",
+        "say": "Here is one head from the two-head CPU test. These are attention weights. Future columns are zero. Multiply by the values to get the manual output, then compare with PyTorch's scaled dot-product attention using the same causal mask and dropout off.",
+        "hold": 0.3
+      },
+      {
+        "id": "c17-b02",
+        "say": "The two forward outputs agree within tolerance. A backward comparison would test gradients. Profile an eligible CUDA run to identify the backend and measure memory and time. FlashAttention can avoid writing the full score grid to high-bandwidth memory while full attention still takes quadratic arithmetic.",
+        "hold": 0.75
+      },
+      {
+        "id": "c17-b03",
+        "say": "Keep positions, normalization, dropout behavior, shifted labels and the mask fixed when comparing implementations. Trace the first unexpected nonfinite value. A blocked key gets minus infinity by design. Check that each row has at least one allowed key and that all allowed scores are finite. Now block every key in this row. The exponentials sum to zero. Check the normalized weights for NaN. Here each weight divides zero by zero.",
+        "hold": 0.3
+      },
+      {
+        "id": "c17-b04",
+        "say": "Restore the three allowed keys. Each now gets one third of the weight. The blocked future key still gets zero. That repairs the forward calculation before gradient clipping enters the picture. A different symptom, very low loss with gibberish, calls for the shift check and the future-input probe. We've already seen a constant predictor get low loss without reading any input.",
+        "hold": 0.8
+      },
+      {
+        "id": "c17-b05",
+        "say": "Remember the sampler whose local one meant the letters a k? Give it the wrong inverse map and the same local row prints a comma. Both pieces decode successfully. Check the saved row order against the checkpoint.",
+        "hold": 0.3
+      },
+      {
+        "id": "c17-b06",
+        "say": "For repetitive output, also compare data, available context and decoding settings. A new prompt can still elicit a memorized completion. For a restart that changes the next pre-update loss, check the weights and batch first. The optimizer's moments enter when you take the step.",
+        "hold": 0.85
+      }
+    ]
+  },
+  {
+    "id": "c18",
+    "title": "Would you train on this batch?",
+    "sourceChapters": [
+      "c18"
+    ],
+    "beats": [
+      {
+        "id": "c18-b01",
+        "say": "Try a fresh batch in a sixteen-token vocabulary. The top row holds five local IDs from the original stream. The model takes four inputs, and the loader returned the bottom row as labels. Focus on position two, the eight.",
+        "hold": 0.3
+      },
+      {
+        "id": "c18-b02",
+        "say": "In a separate input copy, change nine to fourteen. Compare the first three output vectors before and after. Their largest change is zero. Would you train on this batch? Which label belongs under the eight?",
+        "hold": 2.2
+      },
+      {
+        "id": "c18-b03",
+        "say": "Position two may read the first three IDs, through eight itself. Its logits stayed fixed when we changed the future. Look straight down from eight. This loader would reward another eight.",
+        "hold": 0.3
+      },
+      {
+        "id": "c18-b04",
+        "say": "Keep the mask. Follow the frozen source one place to the right and slide the label rail left. Now eight predicts nine. Read all four pairs against the original stream. The last input gets twelve. With both contracts checked on this fixture, return to the learning curve.",
+        "hold": 0.3
+      },
+      {
+        "id": "c18-b05",
+        "say": "In the JAX lab we'll make the weights and random state explicit inputs to the next step.",
+        "hold": 1.1
+      }
+    ]
+  }
+]

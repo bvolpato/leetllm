@@ -1,0 +1,932 @@
+[
+  {
+    "id": "c01",
+    "title": "Friday’s batch jobs",
+    "sourceChapters": [
+      "c01"
+    ],
+    "beats": [
+      {
+        "id": "c01-b01",
+        "say": "The blue pen has one reading to copy. Last Friday this example cluster ran a hundred and thirty-two batch jobs. On Thursday evening, slide that reading across to the empty spot for tomorrow. The ring is our issued forecast.",
+        "hold": 0.65
+      },
+      {
+        "id": "c01-b02",
+        "say": "On earlier days this rule missed by at most three jobs. Give the forecast three jobs on either side. Friday’s review band runs from a hundred and twenty-nine to a hundred and thirty-five.",
+        "hold": 0.6
+      },
+      {
+        "id": "c01-b03",
+        "say": "Friday closes at a hundred and sixty jobs. Does that cross the band? How far above forecast did the cluster finish?",
+        "hold": 2.5
+      },
+      {
+        "id": "c01-b04",
+        "say": "Twenty-eight jobs above forecast. Mark that gap for review. There’s a launch on the calendar. Check the start-event IDs for duplicates and the queue for signs the cluster has run out of capacity.",
+        "hold": 1.1
+      }
+    ]
+  },
+  {
+    "id": "c02",
+    "title": "What could Sunday’s forecaster know?",
+    "sourceChapters": [
+      "c02"
+    ],
+    "beats": [
+      {
+        "id": "c02-b01",
+        "say": "Rewind to Sunday evening, January twenty-fifth. We have four weeks of example data for one cluster, from January fifth through February first. Each cell is one day of outbound batch jobs. From this Sunday, dates in the bottom row are still in the future. Friday’s launch is already on the calendar.",
+        "hold": 0.7
+      },
+      {
+        "id": "c02-b02",
+        "say": "Issue a forecast after Sunday’s count is final. Sunday evening is the origin. Monday is the target, one day ahead. If you issue all seven forecasts tonight, the dates stay put. Their horizons run from one day through seven.",
+        "hold": 0.85
+      },
+      {
+        "id": "c02-b03",
+        "say": "Replay Sunday evening with one change. Sunday's report is late. Saturday has the latest count you can use. The clock still names Sunday as the origin. An empty cell means the count is unknown. Using zero would invent an observation. Save the observation time and the arrival time.",
+        "hold": 0.3
+      },
+      {
+        "id": "c02-b04",
+        "say": "Check the time zone and missing dates before treating seven rows as seven days.",
+        "hold": 0.8
+      }
+    ]
+  },
+  {
+    "id": "c03",
+    "title": "How much of Friday’s count can we account for?",
+    "sourceChapters": [
+      "c03"
+    ],
+    "beats": [
+      {
+        "id": "c03-b01",
+        "say": "Look at the first week. Friday is the high day and Sunday is the low day. Draw a line at the weekly mean, a hundred and five jobs. Measure each day from that line. Friday is twenty-seven jobs above it. Sunday is twenty-nine below it.",
+        "hold": 0.3
+      },
+      {
+        "id": "c03-b02",
+        "say": "Those repeating weekday differences are what a seasonal term tries to capture.",
+        "hold": 0.75
+      },
+      {
+        "id": "c03-b03",
+        "say": "Carry Friday’s level and weekday offset over to launch day. Suppose the launch adds twenty jobs. With that assumption, the three pieces together predict a hundred and fifty-two. We observed a hundred and sixty. How many jobs are still unexplained?",
+        "hold": 2.1
+      },
+      {
+        "id": "c03-b04",
+        "say": "Eight jobs remain. The remainder is what’s left after the level, the seasonal contribution and the assumed launch effect. A counting error could sit there. So could work carried over in a backlog. If those misses persist, past misses may help predict the next one.",
+        "hold": 0.85
+      },
+      {
+        "id": "c03-b05",
+        "say": "A changing level over time would be a trend. Four constructed weeks give us a reference level and a weekly pattern. To study hourly cycles, we’d need finer observations. A seven-day lag can also miss a month-end effect.",
+        "hold": 0.7
+      }
+    ]
+  },
+  {
+    "id": "c04",
+    "title": "A changing level changes the choice of seasonal model",
+    "sourceChapters": [
+      "c04"
+    ],
+    "beats": [
+      {
+        "id": "c04-b01",
+        "say": "An additive seasonal effect stays fixed in job units. A multiplicative effect scales with the level. Starting from Friday one hundred thirty-two at level one hundred five, the additive offset is twenty-seven and the proportional factor is one hundred thirty-two divided by one hundred five. Both describe the same original point.",
+        "hold": 0.7
+      },
+      {
+        "id": "c04-b02",
+        "say": "Now raise the level to one hundred twenty. Read the two rules beside the bars. One adds twenty-seven jobs. The other multiplies by one hundred thirty-two over one hundred five. At this higher level, which rule adds more jobs?",
+        "hold": 2.5
+      },
+      {
+        "id": "c04-b03",
+        "say": "Adding twenty-seven gives one hundred forty-seven. Multiplying by the original ratio gives about one hundred fifty point eight six. Compare the colored lengths that extend past one hundred twenty. The proportional rule adds almost thirty-one jobs. On later Fridays, compare each forecast with the count. Does the bump stay near twenty-seven jobs, or does it grow with the weekly level?",
+        "hold": 0.7
+      },
+      {
+        "id": "c04-b04",
+        "say": "For positive quantities, logarithms turn a product of level, seasonal factor and remainder into a sum. Exponentiating a predicted log mean generally does not recover the original-scale mean; back-transformation needs a distribution-aware bias adjustment. Zero counts need another model or a different transform such as log one plus the count, whose interpretation changes.",
+        "hold": 0.7
+      }
+    ]
+  },
+  {
+    "id": "c05",
+    "title": "Compare tomorrow with the matching day last week",
+    "sourceChapters": [
+      "c05"
+    ],
+    "beats": [
+      {
+        "id": "c05-b01",
+        "say": "On Sunday evening, the latest count is seventy-eight. Last Monday’s count was a hundred and four. Tomorrow is Monday, when the cluster usually carries weekday work. Which mark would you put on Monday's chart?",
+        "hold": 2.5
+      },
+      {
+        "id": "c05-b02",
+        "say": "Monday closes at a hundred and three jobs. Copying yesterday missed by twenty-five. Copying the same weekday last week missed by one. Look at the distance from each prediction to the new reading.",
+        "hold": 0.6
+      },
+      {
+        "id": "c05-b03",
+        "say": "A seasonal-naive forecast carries the previous weekly pattern forward. It gives us a reference point. A more complex model earns its place by improving later forecast origins.",
+        "hold": 0.7
+      }
+    ]
+  },
+  {
+    "id": "c06",
+    "title": "How far can Sunday’s forecast reach?",
+    "sourceChapters": [
+      "c06"
+    ],
+    "beats": [
+      {
+        "id": "c06-b01",
+        "say": "Stop the clock at Sunday evening, January twenty-fifth. The last observed row is index twenty. For a target seven days ahead, the weekly lookup goes back seven rows. Follow the left end of the bracket. All seven targets this week can read an observation that Sunday already has.",
+        "hold": 0.7
+      },
+      {
+        "id": "c06-b02",
+        "say": "For next Sunday the lookup returns seventy-eight jobs. Now slide the target one day farther, to Monday, February second. The left end moves too. With the origin still at index twenty, can this lookup issue the eighth forecast?",
+        "hold": 2.4
+      },
+      {
+        "id": "c06-b03",
+        "say": "It rejects the request. Index twenty-eight minus seven lands on twenty-one, the Monday after issuance. Monday’s eventual count of a hundred and three belongs on the far side of the line. Reading it here would leak the answer.",
+        "hold": 0.85
+      },
+      {
+        "id": "c06-b04",
+        "say": "A seasonal forecast can still go farther. Repeat the last whole week you actually observed. For a Monday target, take the most recent observed Monday. That was January nineteenth, with a hundred and four jobs. Compare models using the same origin and horizon so each gets the same history.",
+        "hold": 0.85
+      }
+    ]
+  },
+  {
+    "id": "c07",
+    "title": "Evaluate only after the forecast origin",
+    "sourceChapters": [
+      "c07"
+    ],
+    "beats": [
+      {
+        "id": "c07-b01",
+        "say": "A forecasting model must predict beyond the information it used to fit. If January 31 is in training while January 6 is held out for testing, the fitted model has already seen later demand.",
+        "hold": 0.55
+      },
+      {
+        "id": "c07-b02",
+        "say": "Sort each feature by when it became available, then keep training earlier than the first test target. A timestamped table can still leak if its rolling average includes later days.",
+        "hold": 0.6
+      },
+      {
+        "id": "c07-b03",
+        "say": "Rolling-origin evaluation advances the forecast date and measures the next observation repeatedly. Issue each evening for the following day. Group those one-day misses by week. The first week averages zero point nine jobs of absolute error. The launch week averages five point three. Keep both windows when you compare models.",
+        "hold": 0.7
+      }
+    ]
+  },
+  {
+    "id": "c08",
+    "title": "What changes when we account for the launch?",
+    "sourceChapters": [
+      "c08"
+    ],
+    "beats": [
+      {
+        "id": "c08-b01",
+        "say": "These two Fridays were a week apart. Only the second had a scheduled launch. A SARIMAX model can use a launch flag as an input. Write the count as the launch contribution plus a remainder. That remainder is the regression error.",
+        "hold": 0.3
+      },
+      {
+        "id": "c08-b02",
+        "say": "The seasonal part of this model compares errors seven days apart. Its autoregressive and moving-average terms use past errors and past surprises to model what happens next.",
+        "hold": 0.7
+      },
+      {
+        "id": "c08-b03",
+        "say": "Give the launch a coefficient of twenty jobs. Mark those twenty jobs in yellow on the second Friday. A hundred and sixty minus twenty leaves a hundred and forty. Last Friday had no launch, so its remainder is the full hundred and thirty-two.",
+        "hold": 0.3
+      },
+      {
+        "id": "c08-b04",
+        "say": "The seasonal difference is eight. Comparing the two raw counts would give twenty-eight. Twenty of those jobs were already in our launch term.",
+        "hold": 0.7
+      },
+      {
+        "id": "c08-b05",
+        "say": "We supplied twenty for this example. If you fit that coefficient from history, it describes the association between launches and counts. For a future Friday, use the launch plan available at issuance. If the plan is uncertain, try both settings.",
+        "hold": 0.3
+      },
+      {
+        "id": "c08-b06",
+        "say": "Each interval is conditional on the setting you chose. Fitting a separate model for each of twenty-five thousand containers means learning each pattern separately. A pooled model can learn across containers.",
+        "hold": 0.7
+      }
+    ]
+  },
+  {
+    "id": "c09",
+    "title": "Build every feature from its availability time",
+    "sourceChapters": [
+      "c09"
+    ],
+    "beats": [
+      {
+        "id": "c09-b01",
+        "say": "A boosted-tree forecaster turns this into supervised regression. For a target at time t issued after t minus one, possible inputs include observed lags one, two, seven and fourteen, plus rolling mean, spread, minimum and maximum ending at t minus one.",
+        "hold": 0.3
+      },
+      {
+        "id": "c09-b02",
+        "say": "A centered window or an unshifted average containing the target leaks its answer even if the table is sorted by date.",
+        "hold": 0.7
+      },
+      {
+        "id": "c09-b03",
+        "say": "Put the weekdays on a circle. Sunday sits right beside Monday. Encode weekday d with the sine and cosine of two pi d over seven to keep those neighbors close. A shared model can learn from clusters with similar hardware, regions or tenant tiers.",
+        "hold": 0.3
+      },
+      {
+        "id": "c09-b04",
+        "say": "Join each row to the metadata available at forecast time. Check how much weight each cluster gets, then try the model on a new cluster.",
+        "hold": 0.7
+      },
+      {
+        "id": "c09-b05",
+        "say": "A holiday calendar or an approved launch plan may already be known at the origin. Actual weather a week later is unavailable, while the weather forecast issued today is a different potentially usable input. Version feature extraction and its availability rules with the model, and apply those same rules separately at every backtest origin.",
+        "hold": 0.7
+      }
+    ]
+  },
+  {
+    "id": "c10",
+    "title": "Advance a prediction without advancing knowledge",
+    "sourceChapters": [
+      "c10"
+    ],
+    "beats": [
+      {
+        "id": "c10-b01",
+        "say": "Suppose our one-step model predicts a hundred and four for Monday. A recursive design feeds that prediction into later lag features. Its second prediction can therefore use a predicted first target, while training may have exposed the model to observed inputs. Errors can propagate and the input distribution changes along that path.",
+        "hold": 0.7
+      },
+      {
+        "id": "c10-b02",
+        "say": "A direct design fits a separate predictor for each horizon from origin-available features. It avoids inserting earlier predicted targets into later lag cells, but still makes forecast errors and may require more fitted models. One shared predictor with a horizon input or a multiple-output design offers other parameter-sharing choices.",
+        "hold": 0.7
+      },
+      {
+        "id": "c10-b03",
+        "say": "Backtest the exact issuance task. A seven-day path issued on Sunday cannot borrow Monday’s observation for its Tuesday forecast. A daily one-step Tuesday forecast issued on Monday evening can use it after finalization. Their horizons, available history and downstream lead times differ, so their scores answer different operational questions.",
+        "hold": 0.7
+      }
+    ]
+  },
+  {
+    "id": "c11",
+    "title": "How much smaller is the attention map?",
+    "sourceChapters": [
+      "c11"
+    ],
+    "beats": [
+      {
+        "id": "c11-b01",
+        "say": "One timestamp per token gives a dense attention map with sequence length squared entries. PatchTST instead embeds overlapping numerical patches and processes channels independently with shared encoder weights.",
+        "hold": 0.3
+      },
+      {
+        "id": "c11-b02",
+        "say": "In the inspected implementation, compute unpadded patch count by subtracting patch length from lookback, dividing that difference by stride, rounding down, then adding one. The paper’s end-padding path adds one more patch.",
+        "hold": 0.7
+      },
+      {
+        "id": "c11-b03",
+        "say": "For lookback three hundred thirty-six, patch length sixteen and stride eight, floor of three hundred twenty divided by eight plus one gives forty-one. End padding gives forty-two tokens. Comparing three hundred thirty-six squared with forty-two squared gives sixty-four times as many entries in the unpatched attention map, for one channel.",
+        "hold": 0.7
+      },
+      {
+        "id": "c11-b04",
+        "say": "Eight small maps fit across the large square and eight fit down. That’s sixty-four copies of the patched map for one channel. PatchTST processes each channel separately.",
+        "hold": 0.3
+      },
+      {
+        "id": "c11-b05",
+        "say": "To see how much time patching saves, time the full model on the same hardware, including its projections and memory traffic. Score both forecasts on the same later days to compare accuracy.",
+        "hold": 0.7
+      }
+    ]
+  },
+  {
+    "id": "c12",
+    "title": "Name the architecture and the dated generation",
+    "sourceChapters": [
+      "c12"
+    ],
+    "beats": [
+      {
+        "id": "c12-b01",
+        "say": "The original twenty twenty-four Chronos mean-scales historical values and uses uniformly spaced bins in its reported experiments. Primarily T five based models learn cross-entropy over quantized sequences and sample future tokens autoregressively. Uniform numerical bins are different from equal-probability quantile bins. Later releases need their own architecture description.",
+        "hold": 0.7
+      },
+      {
+        "id": "c12-b02",
+        "say": "Chronos two came out on October twentieth, twenty twenty-five. Start with eight daily job counts. It standardizes each series using its own history, then applies the inverse hyperbolic sine. It splits the transformed values into disjoint time blocks. Our example uses two days per patch so you can follow each count. The model embeds each patch. Time attention connects patches within a series. Group attention connects related series at the same patch index. In patch three, the jobs and the launch flag cover the same Friday and Saturday. The model predicts quantiles and supports multivariate targets, past-only covariates and known-future covariates.",
+        "hold": 0.3
+      },
+      {
+        "id": "c12-b03",
+        "say": "Times F M three, announced August thirty-first, twenty twenty-six, adds native multivariate targets and covariates with alternating temporal and variate attention and masked future patches filled in one forward pass. Its reported quantiles run from P ten through P ninety.",
+        "hold": 0.7
+      },
+      {
+        "id": "c12-b04",
+        "say": "A zero-shot forecast uses the new cluster’s history without fitting the model again. Follow the solid line to its right edge. The reported outputs stop at P ninety. For a P ninety-nine forecast, you’d need another estimate. To compare these models, give each the same history.",
+        "hold": 0.3
+      },
+      {
+        "id": "c12-b05",
+        "say": "On later days, measure forecast errors, interval width and coverage, and serving cost.",
+        "hold": 0.7
+      }
+    ]
+  },
+  {
+    "id": "c13",
+    "title": "Measure the size and direction of misses",
+    "sourceChapters": [
+      "c13"
+    ],
+    "beats": [
+      {
+        "id": "c13-b01",
+        "say": "For each day, subtract the forecast from the observed count. Most days land close to zero, with small misses in either direction. On Friday the recorded count exceeds the forecast by twenty-eight jobs. Keep each error attached to its forecast and observation.",
+        "hold": 0.55
+      },
+      {
+        "id": "c13-b02",
+        "say": "Keep the signs for a moment. Their sum is twenty-nine jobs. Dividing by seven gives a signed mean of four point one. Now fold the negative stems up. Their lengths add to thirty-seven. Dividing by seven gives a mean absolute error of five point three jobs.",
+        "hold": 0.6
+      },
+      {
+        "id": "c13-b03",
+        "say": "A residual often means an error measured on training data; forecast error names the comparison on a future target. The same subtraction can be used, while the evaluation period changes what the evidence supports.",
+        "hold": 0.7
+      }
+    ]
+  },
+  {
+    "id": "c14",
+    "title": "What does a ten-job miss cost?",
+    "sourceChapters": [
+      "c14"
+    ],
+    "beats": [
+      {
+        "id": "c14-b01",
+        "say": "Suppose you plan for a hundred jobs. The mean tells you average demand. The median puts you halfway through the distribution. When it hurts more to run short, you can fit a higher quantile by charging more for each job you miss on the high side.",
+        "hold": 0.6
+      },
+      {
+        "id": "c14-b02",
+        "say": "Try the ninetieth percentile. Set the penalty for each job above forecast to point nine, and for each job below forecast to point one. Now suppose a hundred and ten jobs arrive. What loss do those ten extra jobs earn?",
+        "hold": 2.2
+      },
+      {
+        "id": "c14-b03",
+        "say": "Nine loss units. Now run the same forecast again. This time only ninety jobs arrive. How many loss units do those ten spare places earn?",
+        "hold": 2.2
+      },
+      {
+        "id": "c14-b04",
+        "say": "One loss unit. Those two slopes define pinball loss. For a target quantile q, charge q times the shortfall or one minus q times the surplus. Averaging this loss over possible outcomes at the origin gives a model a way to learn a conditional quantile. Limited data and an imperfect fit can move its prediction.",
+        "hold": 0.75
+      },
+      {
+        "id": "c14-b05",
+        "say": "A low quantile like P ten leaves most demand above it in a continuous distribution. A high quantile can guide headroom. Translating jobs into servers still takes job sizes, lead time, queue tolerance and the price of spare capacity. These loss units score a forecast.",
+        "hold": 0.7
+      }
+    ]
+  },
+  {
+    "id": "c15",
+    "title": "Where should the forecast marker go?",
+    "sourceChapters": [
+      "c15"
+    ],
+    "beats": [
+      {
+        "id": "c15-b01",
+        "say": "Take the forecast to the print shop. Each stack of order slips stands for one equally likely morning. Nine mornings have ten jobs. The remaining one has a hundred. Together they average nineteen. Only the tall stack exceeds that mean.",
+        "hold": 0.65
+      },
+      {
+        "id": "c15-b02",
+        "say": "Place the forecast at ten. The nine small outcomes fit exactly. On the large outcome we are ninety jobs short. At point nine per missing job, that costs eighty-one loss units. Divide by ten equally likely outcomes and the average loss is eight point one.",
+        "hold": 0.85
+      },
+      {
+        "id": "c15-b03",
+        "say": "Now imagine moving the forecast from ten to nineteen. Each step saves point nine on the one large outcome. Each step also costs point one on each of the nine small outcomes. Will the average loss go up, go down, or stay put?",
+        "hold": 2.4
+      },
+      {
+        "id": "c15-b04",
+        "say": "It stays put. Slide the mark to nineteen. The nine small outcomes now contribute eight point one units in total. The large one contributes seventy-two point nine. The color moved across the bar, but its full length is still eighty-one.",
+        "hold": 0.9
+      },
+      {
+        "id": "c15-b05",
+        "say": "Keep sliding until the forecast reaches a hundred. Now all the loss comes from the nine small outcomes. Every forecast from ten to a hundred ties. Moving farther out raises the loss. Look back at the ten outcomes. What’s the smallest job count that covers at least nine of them?",
+        "hold": 2.8
+      },
+      {
+        "id": "c15-b06",
+        "say": "Count the matching stacks from the left. Nine outcomes have ten jobs each. Ten is the first count that reaches ninety percent. That’s the P ninety forecast under the inverse cumulative distribution rule. A forecast of a hundred covers every outcome and still has the same average loss.",
+        "hold": 1
+      },
+      {
+        "id": "c15-extra6",
+        "say": "Replay the shop with the rail at ten. A school poster order changes the ninth morning from ten jobs to forty. Eight stacks now fit. Where is the first rail setting that covers nine mornings again?",
+        "hold": 2.7
+      },
+      {
+        "id": "c15-extra7",
+        "say": "Try thirty-nine. The last poster sheet still sticks out. At forty jobs the ninth stack fits. Write forty on the shift ticket. The hundred-job morning still exceeds capacity.",
+        "hold": 1.4
+      }
+    ]
+  },
+  {
+    "id": "c16",
+    "title": "Set an error band using earlier forecasts",
+    "sourceChapters": [
+      "c16"
+    ],
+    "beats": [
+      {
+        "id": "c16-b01",
+        "say": "To set Friday’s band, go back to the fourteen one-day forecasts whose outcomes were in by Sunday evening. Take each error’s distance from zero. Sort those distances from smallest to largest. Which error sets the width under the nearest-rank ninety-fifth percentile rule?",
+        "hold": 0.55
+      },
+      {
+        "id": "c16-b02",
+        "say": "The nearest-rank 95th percentile selects the fourteenth value, which is three jobs. The interval is 132 plus or minus three, from 129 to 135.",
+        "hold": 0.6
+      },
+      {
+        "id": "c16-b03",
+        "say": "Friday’s 160 sits well outside. All fourteen earlier errors fit the band we built from them. In the holdout week containing that Friday, six of seven counts land inside. Move the forecast date forward and score another week. Keep tracking coverage as new counts arrive.",
+        "hold": 0.7
+      }
+    ]
+  },
+  {
+    "id": "c17",
+    "title": "Estimate the error scale rather than the workload swing",
+    "sourceChapters": [
+      "c17"
+    ],
+    "beats": [
+      {
+        "id": "c17-b01",
+        "say": "For an approximately zero-mean Gaussian one-step error distribution with stable scale, a common approximate ninety-five percent interval is forecast plus or minus one point nine six times estimated error scale. The variation of raw weekday and weekend workload is a different quantity. Estimate scale for the forecast errors and the horizon you actually issue.",
+        "hold": 0.7
+      },
+      {
+        "id": "c17-b02",
+        "say": "The fourteen earlier errors in this fixture have mean point five and root mean square about one point seven five jobs. Root mean square squares each signed error, averages those squares, then takes the square root. It measures deviation around zero; the sample standard deviation around an estimated mean uses a different centering and denominator.",
+        "hold": 0.7
+      },
+      {
+        "id": "c17-b03",
+        "say": "Multiplying that RMS by one point nine six gives about three point four jobs. Both bands flag Friday’s twenty-eight-job miss. The normal approximation assumes the errors center on zero. Our earlier errors averaged half a job above forecast. Check later weeks to see whether the forecast keeps coming in low.",
+        "hold": 0.7
+      }
+    ]
+  },
+  {
+    "id": "c18",
+    "title": "Which sorted score sets the width?",
+    "sourceChapters": [
+      "c18"
+    ],
+    "beats": [
+      {
+        "id": "c18-b01",
+        "say": "These are the same fourteen earlier absolute errors, sorted from smallest to largest. The empirical rule takes the ceiling of fourteen times point nine five. It selects rank fourteen, the three-job maximum.",
+        "hold": 0.75
+      },
+      {
+        "id": "c18-b02",
+        "say": "Split conformal makes room for one new outcome when it chooses the rank. Add one to the number of calibration scores, multiply by the target coverage, and round up. Which score would you need for ninety-five percent here?",
+        "hold": 2.1
+      },
+      {
+        "id": "c18-b03",
+        "say": "You need rank fifteen. Run your finger one place past the last measured error. That slot is empty. The rule gives an infinite half-width here. Using the maximum instead would give fourteen fifteenths marginal coverage under exchangeability with no ties, about ninety-three percent.",
+        "hold": 0.9
+      },
+      {
+        "id": "c18-b04",
+        "say": "Try a separate calibration set. Keep those fourteen errors and add these five earlier scores, including a four. There are now nineteen. At the same target coverage, which rank does the rule request, and is that score available?",
+        "hold": 2.1
+      },
+      {
+        "id": "c18-b05",
+        "say": "Rank nineteen is available. Twenty times point nine five is exactly nineteen. The nineteenth score in this example gives a four-job half-width.",
+        "hold": 0.85
+      },
+      {
+        "id": "c18-b06",
+        "say": "That coverage guarantee averages over calibration sets and a new outcome. It assumes a predictor fixed independently of calibration and scores whose joint distribution survives reordering. Tomorrow’s errors can drift or follow last week’s errors. Check coverage on later windows and on the weekdays and clusters that matter to you.",
+        "hold": 0.75
+      }
+    ]
+  },
+  {
+    "id": "c19",
+    "title": "Wait for the outcome before changing the next interval",
+    "sourceChapters": [
+      "c19"
+    ],
+    "beats": [
+      {
+        "id": "c19-b01",
+        "say": "A rolling window drops old errors as new ones arrive. A short window follows a change sooner, but its quantile depends on fewer observations. Nearby days can still have related errors. Choose the window on earlier backtests. Adaptive conformal inference takes another approach. It adjusts the working miss rate after each observed outcome.",
+        "hold": 0.7
+      },
+      {
+        "id": "c19-b02",
+        "say": "The update is next working alpha equals current working alpha plus learning rate gamma times the quantity target alpha minus the miss indicator. A miss has indicator one; a covered observation has indicator zero.",
+        "hold": 0.3
+      },
+      {
+        "id": "c19-b03",
+        "say": "With current and target alpha point one and gamma point zero five, a miss gives point one plus point zero five times minus point nine. The new working level is point zero five five. A smaller working miss rate usually widens the next interval under a monotone quantile rule.",
+        "hold": 0.7
+      },
+      {
+        "id": "c19-b04",
+        "say": "Wait for the actual count. If it arrives after you issue tomorrow’s forecast, use the update for the next forecast you can still change. The original rule controls miss frequency over a long sequence and can produce unbounded intervals at extreme settings. Track their width too.",
+        "hold": 0.3
+      },
+      {
+        "id": "c19-b05",
+        "say": "If you cap alpha or delay updates, check coverage under that policy.",
+        "hold": 0.7
+      },
+      {
+        "id": "c19-extra5",
+        "say": "Continue from point zero five five. Suppose the next observed outcome is covered. Its indicator is zero. Add point zero zero five to the current level and you reach point zero six. Carry the updated level into the next step.",
+        "hold": 1.1
+      }
+    ]
+  },
+  {
+    "id": "c20",
+    "title": "Who needs Friday’s count?",
+    "sourceChapters": [
+      "c20"
+    ],
+    "beats": [
+      {
+        "id": "c20-b01",
+        "say": "Follow the blue forecast back to its source. The cluster ran a hundred and thirty-two jobs on Friday the twenty-third. We fixed the error band on Sunday the twenty-fifth. Thursday evening was the forecast origin. Friday the thirtieth supplied the observed count.",
+        "hold": 0.75
+      },
+      {
+        "id": "c20-b02",
+        "say": "A hundred and sixty puts Friday outside the band. Save both marks, the model and interval versions, and the planned launch with this review. Urgent impact is false. Where does this record go?",
+        "hold": 2.3
+      },
+      {
+        "id": "c20-b03",
+        "say": "It goes to capacity operations for a planned-launch review. Check the job-start IDs for duplicate events, then check the queue and the remaining capacity. The launch flag tells the reviewer where to start looking.",
+        "hold": 0.75
+      },
+      {
+        "id": "c20-b04",
+        "say": "Replay that same Friday. Keep the job count, forecast and launch flag fixed. This time an independent capacity check confirms the cluster has exhausted its margin. With urgent impact now true, which action does the routing rule return?",
+        "hold": 2
+      },
+      {
+        "id": "c20-b05",
+        "say": "Page for actionable capacity impact. The new evidence changed the route. A breached service objective could supply urgent evidence too. The routing function returns an action. To find out whether a page reached anyone, you need a delivery record.",
+        "hold": 0.9
+      }
+    ]
+  },
+  {
+    "id": "c21",
+    "title": "How many reviews does one long spike need?",
+    "sourceChapters": [
+      "c21"
+    ],
+    "beats": [
+      {
+        "id": "c21-b01",
+        "say": "Make one daily forecast for each of a hundred clusters. If each band covers ninety-five percent of outcomes, expect five misses per hundred forecasts. Scale that up to a thousand clusters. That gives fifty crossings per day on average.",
+        "hold": 0.3
+      },
+      {
+        "id": "c21-b02",
+        "say": "A shared launch can make several clusters cross together. You still add each cluster’s chance of crossing to get the expected total.",
+        "hold": 0.7
+      },
+      {
+        "id": "c21-b03",
+        "say": "Now follow one cluster. Its count stays high for four hours. Checking every minute gives two hundred forty evaluations. Suppose the first breach opens a review. Every later check updates that same review.",
+        "hold": 0.3
+      },
+      {
+        "id": "c21-b04",
+        "say": "Sending a page for every breach would give the owner two hundred forty pages about one spike. Keep the review state across restarts, and use the delivery log to track each notification attempt.",
+        "hold": 0.7
+      },
+      {
+        "id": "c21-b05",
+        "say": "Persistence waits for consecutive breaches to open or consecutive clean readings to clear. Threshold hysteresis uses two different boundaries. Open above five extra jobs and clear below two. At six the review opens. Now read four. Which state should the latch hold?",
+        "hold": 2.2
+      },
+      {
+        "id": "c21-b06",
+        "say": "At four it stays open. At one it clears. A cooldown spaces out repeat notifications. Give urgent capacity problems their own route, and check user recovery before closing the incident.",
+        "hold": 0.7
+      }
+    ]
+  },
+  {
+    "id": "c22",
+    "title": "When does a crossing open a review?",
+    "sourceChapters": [
+      "c22"
+    ],
+    "beats": [
+      {
+        "id": "c22-b01",
+        "say": "Switch from Friday’s daily review to a monitor that checks every five minutes. It starts inactive. A job-count error outside plus or minus three counts as a breach. This policy needs two in a row to enter review, and two readings inside the band to clear.",
+        "hold": 0.7
+      },
+      {
+        "id": "c22-b02",
+        "say": "Four jobs over forecast gives us one breach. Five gives us the second. Open one review. While it stays active, further checks update that record.",
+        "hold": 0.85
+      },
+      {
+        "id": "c22-b03",
+        "say": "Now the next reading is missing. Both runs go back to zero. Keep the review open. One job over is inside the band. Two jobs over is inside as well. Those two clean readings clear the state.",
+        "hold": 0.85
+      },
+      {
+        "id": "c22-b04",
+        "say": "Waiting for a second sample filters out short excursions and delays detection. A separate cooldown can suppress repeated notifications for a time. Keep state for each cluster and give an urgent capacity symptom its own route.",
+        "hold": 0.75
+      }
+    ]
+  },
+  {
+    "id": "c23",
+    "title": "Follow one review through eight checks",
+    "sourceChapters": [
+      "c23"
+    ],
+    "beats": [
+      {
+        "id": "c23-b01",
+        "say": "Start a fresh monitor at minute zero. These eight readings come five minutes apart. Four and five are both above the three-job band. The first starts a run. The second opens a review at minute five, five minutes after the first breach.",
+        "hold": 0.85
+      },
+      {
+        "id": "c23-b02",
+        "say": "Minute ten has no reading. Reset both counters and carry the open state across the gap. At fifteen the error is four. At twenty it falls to two. That’s the first clean check. The next reading is four. Will the review clear at twenty-five?",
+        "hold": 2.4
+      },
+      {
+        "id": "c23-b03",
+        "say": "It stays open. Four at twenty-five breaks the clean run. At thirty the error is zero. At thirty-five it is minus one. Two clean checks in succession clear the review.",
+        "hold": 0.85
+      },
+      {
+        "id": "c23-b04",
+        "say": "Only the change from inactive to active requested a review. Preserve the state across checks for this series. A late sample needs a rule about which run it belongs to. A missing or invalid count needs its own handling before it can affect the state.",
+        "hold": 0.75
+      }
+    ]
+  },
+  {
+    "id": "c24",
+    "title": "Project the same pair and expose the blind spot",
+    "sourceChapters": [
+      "c24"
+    ],
+    "beats": [
+      {
+        "id": "c24-b01",
+        "say": "A supplied standardized two-metric reference places healthy pairs near the diagonal where both coordinates agree. The point one, minus one lies inside each individual range from minus one to one, yet violates that relationship. Project onto the diagonal by averaging the coordinates, then repeating that mean for both reconstructed coordinates.",
+        "hold": 0.7
+      },
+      {
+        "id": "c24-b02",
+        "say": "The mean of one and minus one is zero, so the reconstruction is zero, zero. Squared reconstruction error sums each coordinate’s squared difference: one squared plus minus one squared equals two. Separate range checks miss this point.",
+        "hold": 0.3
+      },
+      {
+        "id": "c24-b03",
+        "say": "Now change the input to five, five: both coordinates exceed their ranges, but the diagonal reconstructs it exactly and the reconstruction score is zero.",
+        "hold": 0.7
+      },
+      {
+        "id": "c24-b04",
+        "say": "Look at the two points together. The range check catches five, five. The distance from the diagonal catches one, minus one. PCA can learn a line like this from healthy pairs. A constrained autoencoder can learn a curved relationship. Isolation Forest uses random splits.",
+        "hold": 0.3
+      },
+      {
+        "id": "c24-b05",
+        "say": "Points with shorter average paths through its trees score as more unusual. Fit the scale and detector on earlier healthy data. Use later labeled periods to check which scores deserve a review.",
+        "hold": 0.7
+      }
+    ]
+  },
+  {
+    "id": "c25",
+    "title": "Measure alert usefulness after outcomes arrive",
+    "sourceChapters": [
+      "c25"
+    ],
+    "beats": [
+      {
+        "id": "c25-b01",
+        "say": "A forecast metric evaluates numerical error. Alert precision asks how many reviewed alerts were actionable. Alert recall asks how many actionable disruptions the policy found.",
+        "hold": 0.55
+      },
+      {
+        "id": "c25-b02",
+        "say": "There are five labeled periods in this separate example. Two of the three alerts were actionable. That gives precision of two thirds. Now form a different group. Three periods needed action, including a quiet one. We caught two of them. Recall is also two thirds. With five periods, either estimate can move a lot.",
+        "hold": 0.6
+      },
+      {
+        "id": "c25-b03",
+        "say": "Review a sample of quiet periods too, or missed disruptions stay invisible. Define how repeated alerts map to one incident, include detection delay, and check whether the alert changed a real capacity decision.",
+        "hold": 0.7
+      }
+    ]
+  },
+  {
+    "id": "c26",
+    "title": "Repair the input before relearning the spike",
+    "sourceChapters": [
+      "c26"
+    ],
+    "beats": [
+      {
+        "id": "c26-b01",
+        "say": "Read the first two event IDs. There are three rows but only two distinct event IDs. The first two rows describe the same start for the same job. Keep one row per event ID and the count drops from three to two.",
+        "hold": 0.7
+      },
+      {
+        "id": "c26-b02",
+        "say": "Now change the job in the second row. When the same event ID names a different job or event type, keeping the last row would overwrite the first. Compare the payloads and set the conflicting row aside for review.",
+        "hold": 0.7
+      },
+      {
+        "id": "c26-b03",
+        "say": "Preserve the input snapshot and the rule that produced the count. When a spike appears, trace its job starts back to distinct event IDs. If the extra starts are real, check the launch calendar before retraining the forecast.",
+        "hold": 0.7
+      }
+    ]
+  },
+  {
+    "id": "c27",
+    "title": "What does a passing field check tell us?",
+    "sourceChapters": [
+      "c27"
+    ],
+    "beats": [
+      {
+        "id": "c27-b01",
+        "say": "These nine checks pass on the example week. Read the last two. Friday's record has the required fields. The configured owner string contains a name. If we took Friday’s alert away, would the field check still pass?",
+        "hold": 2.4
+      },
+      {
+        "id": "c27-b02",
+        "say": "Try it. The alert list is empty. Python’s all returns true because there’s no row with a missing field. Read the count beside the check mark. Zero alerts passed through it this time.",
+        "hold": 0.7
+      },
+      {
+        "id": "c27-b03",
+        "say": "Put Friday’s alert back. Collect the results so a reviewer can see which forecast and threshold produced it. The twelve-character hash helps identify this record. To reproduce it, keep the inputs and the code that made it.",
+        "hold": 0.7
+      }
+    ]
+  },
+  {
+    "id": "c28",
+    "title": "Which day would add a review?",
+    "sourceChapters": [
+      "c28"
+    ],
+    "beats": [
+      {
+        "id": "c28-b01",
+        "say": "Return to the daily forecast errors from January twenty-sixth through February first. The blue strip runs from minus three to plus three jobs, including both ends. Each row is one day. Friday is off the scale to the right. It already goes to review.",
+        "hold": 0.75
+      },
+      {
+        "id": "c28-b02",
+        "say": "Suppose we tighten the half-width to two jobs. Keep the forecasts and observations exactly where they are. Both band edges still count as inside. Which day would join Friday in the review queue?",
+        "hold": 2.8
+      },
+      {
+        "id": "c28-b03",
+        "say": "Tuesday joins Friday. Bring the edges in to minus two and plus two. Tuesday’s plus three is outside. Wednesday’s minus two sits right on the edge and stays covered. Coverage falls from six days out of seven to five. One crossing becomes two.",
+        "hold": 0.9
+      },
+      {
+        "id": "c28-b04",
+        "say": "Find out what happened on Tuesday before deciding whether that extra review was worth someone’s time. Once you use this week to choose a threshold, test your choice on later untouched weeks. Set the issuance schedule, demand slices, trial duration, review budget and decision owner before you start.",
+        "hold": 0.75
+      },
+      {
+        "id": "c28-b05",
+        "say": "If future launch days keep breaking the band, check what the model knew about each launch. If routine days start breaking it, check the input counts and how the error scale changed. Follow a missed disruption through the direct symptoms, the joint detector and the delivery record.",
+        "hold": 0.75
+      }
+    ]
+  },
+  {
+    "id": "c29",
+    "title": "Back at the Friday forecast",
+    "sourceChapters": [
+      "c29"
+    ],
+    "beats": [
+      {
+        "id": "c29-b01",
+        "say": "Wind the recorder back to Thursday evening. Last Friday supplied the count. Thursday fixed the blue forecast ring, one day before the target. The earlier calibration window had already fixed the width. Only after Friday closes can you place the red observation on this chart.",
+        "hold": 0.8
+      },
+      {
+        "id": "c29-b02",
+        "say": "Across the week containing that Friday, each tile shows the observed count minus the forecast issued the previous evening. The targets run from January twenty-sixth through February first. Across those seven days, six observations landed inside the band. The average absolute miss was five point three jobs. Keep the launch day in the overall score and also look at the six routine days. Their average absolute miss was one and a half jobs.",
+        "hold": 0.8
+      },
+      {
+        "id": "c29-b03",
+        "say": "For the original Friday, the record assigns capacity operations a review. Its resolution is pending. Check the event IDs against the source count and look for capacity impact. That’s what the reviewer can do with a twenty-eight-job gap. Now try a new stream with a clock of its own.",
+        "hold": 0.85
+      }
+    ]
+  },
+  {
+    "id": "c30",
+    "title": "A fresh five-minute stream",
+    "sourceChapters": [
+      "c30"
+    ],
+    "beats": [
+      {
+        "id": "c30-b01",
+        "say": "Here’s a separate five-minute stream. At minute zero, a forecast of a hundred and fifty meets a count of a hundred and fifty-five. That gives the first error, plus five. The rest of the observations are laid out by minute. Two readings are missing.",
+        "hold": 0.65
+      },
+      {
+        "id": "c30-b02",
+        "say": "Start inactive. Two consecutive errors outside the three-job band open a review. Two inside clear it. Missing data resets both runs and keeps the current state. At which minute does the review open, and at which minute does it clear?",
+        "hold": 3.8
+      },
+      {
+        "id": "c30-b03",
+        "say": "Five starts a breach run. The gap at minute five breaks it. Six starts another run. Seven is the second breach, so the review opens at minute fifteen.",
+        "hold": 0.9
+      },
+      {
+        "id": "c30-b04",
+        "say": "One is inside the band. That starts a clean run. The gap at twenty-five wipes out that run, but the review stays open. Zero starts the count again. Minus two is the second clean reading. The review clears at minute thirty-five.",
+        "hold": 0.95
+      },
+      {
+        "id": "c30-b05",
+        "say": "The monitor recorded one review request. The delivery column is empty. Can you tell whether a notification reached the owner?",
+        "hold": 2.4
+      },
+      {
+        "id": "c30-b06",
+        "say": "Delivery is unknown. Match the request to an acknowledged delivery record to answer that question. In the next lesson on monitoring, we’ll put the forecast on a live clock and check when its inputs and outcomes actually arrive.",
+        "hold": 1.2
+      }
+    ]
+  }
+]

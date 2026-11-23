@@ -1,0 +1,308 @@
+{
+  "id": "token-budget-ledger",
+  "slug": "token-budget-ledger",
+  "title": "Token Budget Ledger",
+  "difficulty": "Medium",
+  "category": "Rate Limiting",
+  "language": "python3",
+  "timeEstimateMinutes": 35,
+  "timeLimitMs": 2500,
+  "memoryLimitMb": 128,
+  "order": 210,
+  "tags": [
+    "token budget",
+    "rolling window",
+    "deque",
+    "quota"
+  ],
+  "source": "AI lab prep",
+  "summary": "Maintain rolling-window token spend per caller with expiry on every read and write path.",
+  "starterCode": [
+    "class TokenBudget:",
+    "    def __init__(self, limit: int, window_seconds: float, now):",
+    "        self.limit = limit",
+    "        self.window_seconds = window_seconds",
+    "        self.now = now",
+    "",
+    "    def spend(self, key, tokens: int) -> bool:",
+    "        pass",
+    "",
+    "    def remaining(self, key) -> int:",
+    "        pass"
+  ],
+  "testCases": [
+    {
+      "name": "public accepts spend within limit",
+      "visibility": "sample",
+      "setup": [
+        "from solution import TokenBudget",
+        "clock = {\"t\": 0.0}",
+        "budget = TokenBudget(10, 60, now=lambda: clock[\"t\"])"
+      ],
+      "checks": [
+        {
+          "input": "clock = {\"t\": 0.0}\nbudget = TokenBudget(10, 60, now=lambda: clock[\"t\"])\nbudget.spend(\"org\", 7)",
+          "expression": "budget.spend(\"org\", 7)",
+          "operator": "==",
+          "expected": "True"
+        },
+        {
+          "input": "clock = {\"t\": 0.0}\nbudget = TokenBudget(10, 60, now=lambda: clock[\"t\"])\nbudget.spend(\"org\", 7)\nbudget.remaining(\"org\")",
+          "expression": "budget.remaining(\"org\")",
+          "operator": "==",
+          "expected": "3"
+        },
+        {
+          "input": "clock = {\"t\": 0.0}\nbudget = TokenBudget(10, 60, now=lambda: clock[\"t\"])\nbudget.spend(\"org\", 7)\nbudget.remaining(\"org\")\nnot budget.spend(\"org\", 4)",
+          "expression": "not budget.spend(\"org\", 4)",
+          "operator": "==",
+          "expected": "True"
+        },
+        {
+          "input": "clock = {\"t\": 0.0}\nbudget = TokenBudget(10, 60, now=lambda: clock[\"t\"])\nbudget.spend(\"org\", 7)\nbudget.remaining(\"org\")\nnot budget.spend(\"org\", 4)\nbudget.remaining(\"org\")",
+          "expression": "budget.remaining(\"org\")",
+          "operator": "==",
+          "expected": "3"
+        }
+      ]
+    },
+    {
+      "name": "public expires old spend",
+      "visibility": "sample",
+      "setup": [
+        "from solution import TokenBudget",
+        "clock = {\"t\": 0.0}",
+        "budget = TokenBudget(5, 10, now=lambda: clock[\"t\"])"
+      ],
+      "checks": [
+        {
+          "input": "clock = {\"t\": 0.0}\nbudget = TokenBudget(5, 10, now=lambda: clock[\"t\"])\nbudget.spend(\"a\", 5)",
+          "expression": "budget.spend(\"a\", 5)",
+          "operator": "==",
+          "expected": "True"
+        },
+        {
+          "input": "clock = {\"t\": 0.0}\nbudget = TokenBudget(5, 10, now=lambda: clock[\"t\"])\nbudget.spend(\"a\", 5)\nclock[\"t\"] = 10.0\nbudget.remaining(\"a\")",
+          "expression": "budget.remaining(\"a\")",
+          "operator": "==",
+          "expected": "5",
+          "before": "clock[\"t\"] = 10.0"
+        },
+        {
+          "input": "clock = {\"t\": 0.0}\nbudget = TokenBudget(5, 10, now=lambda: clock[\"t\"])\nbudget.spend(\"a\", 5)\nclock[\"t\"] = 10.0\nbudget.remaining(\"a\")\nbudget.spend(\"a\", 5)",
+          "expression": "budget.spend(\"a\", 5)",
+          "operator": "==",
+          "expected": "True"
+        }
+      ]
+    },
+    {
+      "name": "private tracks keys independently",
+      "visibility": "hidden",
+      "setup": [
+        "from solution import TokenBudget",
+        "clock = {\"t\": 3.0}",
+        "budget = TokenBudget(4, 20, now=lambda: clock[\"t\"])"
+      ],
+      "checks": [
+        {
+          "input": "clock = {\"t\": 3.0}\nbudget = TokenBudget(4, 20, now=lambda: clock[\"t\"])\nbudget.spend(\"a\", 4)",
+          "expression": "budget.spend(\"a\", 4)",
+          "operator": "==",
+          "expected": "True"
+        },
+        {
+          "input": "clock = {\"t\": 3.0}\nbudget = TokenBudget(4, 20, now=lambda: clock[\"t\"])\nbudget.spend(\"a\", 4)\nbudget.spend(\"b\", 4)",
+          "expression": "budget.spend(\"b\", 4)",
+          "operator": "==",
+          "expected": "True"
+        },
+        {
+          "input": "clock = {\"t\": 3.0}\nbudget = TokenBudget(4, 20, now=lambda: clock[\"t\"])\nbudget.spend(\"a\", 4)\nbudget.spend(\"b\", 4)\nbudget.remaining(\"a\")",
+          "expression": "budget.remaining(\"a\")",
+          "operator": "==",
+          "expected": "0"
+        },
+        {
+          "input": "clock = {\"t\": 3.0}\nbudget = TokenBudget(4, 20, now=lambda: clock[\"t\"])\nbudget.spend(\"a\", 4)\nbudget.spend(\"b\", 4)\nbudget.remaining(\"a\")\nbudget.remaining(\"b\")",
+          "expression": "budget.remaining(\"b\")",
+          "operator": "==",
+          "expected": "0"
+        }
+      ]
+    },
+    {
+      "name": "private rejects negative and oversized spend",
+      "visibility": "hidden",
+      "setup": [
+        "from solution import TokenBudget",
+        "budget = TokenBudget(3, 10, now=lambda: 0)"
+      ],
+      "checks": [
+        {
+          "input": "budget = TokenBudget(3, 10, now=lambda: 0)\nnot budget.spend(\"a\", -1)",
+          "expression": "not budget.spend(\"a\", -1)",
+          "operator": "==",
+          "expected": "True"
+        },
+        {
+          "input": "budget = TokenBudget(3, 10, now=lambda: 0)\nnot budget.spend(\"a\", -1)\nnot budget.spend(\"a\", 4)",
+          "expression": "not budget.spend(\"a\", 4)",
+          "operator": "==",
+          "expected": "True"
+        },
+        {
+          "input": "budget = TokenBudget(3, 10, now=lambda: 0)\nnot budget.spend(\"a\", -1)\nnot budget.spend(\"a\", 4)\nbudget.remaining(\"a\")",
+          "expression": "budget.remaining(\"a\")",
+          "operator": "==",
+          "expected": "3"
+        }
+      ]
+    },
+    {
+      "name": "private purges multiple old events",
+      "visibility": "hidden",
+      "setup": [
+        "from solution import TokenBudget",
+        "clock = {\"t\": 0.0}",
+        "budget = TokenBudget(10, 5, now=lambda: clock[\"t\"])"
+      ],
+      "checks": [
+        {
+          "input": "clock = {\"t\": 0.0}\nbudget = TokenBudget(10, 5, now=lambda: clock[\"t\"])\nbudget.spend(\"a\", 3)",
+          "expression": "budget.spend(\"a\", 3)",
+          "operator": "==",
+          "expected": "True"
+        },
+        {
+          "input": "clock = {\"t\": 0.0}\nbudget = TokenBudget(10, 5, now=lambda: clock[\"t\"])\nbudget.spend(\"a\", 3)\nclock[\"t\"] = 1.0\nbudget.spend(\"a\", 4)",
+          "expression": "budget.spend(\"a\", 4)",
+          "operator": "==",
+          "expected": "True",
+          "before": "clock[\"t\"] = 1.0"
+        },
+        {
+          "input": "clock = {\"t\": 0.0}\nbudget = TokenBudget(10, 5, now=lambda: clock[\"t\"])\nbudget.spend(\"a\", 3)\nclock[\"t\"] = 1.0\nbudget.spend(\"a\", 4)\nclock[\"t\"] = 5.0\nbudget.remaining(\"a\")",
+          "expression": "budget.remaining(\"a\")",
+          "operator": "==",
+          "expected": "6",
+          "before": "clock[\"t\"] = 5.0"
+        },
+        {
+          "input": "clock = {\"t\": 0.0}\nbudget = TokenBudget(10, 5, now=lambda: clock[\"t\"])\nbudget.spend(\"a\", 3)\nclock[\"t\"] = 1.0\nbudget.spend(\"a\", 4)\nclock[\"t\"] = 5.0\nbudget.remaining(\"a\")\nclock[\"t\"] = 6.0\nbudget.remaining(\"a\")",
+          "expression": "budget.remaining(\"a\")",
+          "operator": "==",
+          "expected": "10",
+          "before": "clock[\"t\"] = 6.0"
+        }
+      ]
+    },
+    {
+      "name": "public accepts zero token spend",
+      "visibility": "sample",
+      "setup": [
+        "from solution import TokenBudget",
+        "budget = TokenBudget(5, 10, now=lambda: 0)"
+      ],
+      "input": "(budget.spend(\"org\", 0), budget.remaining(\"org\"))",
+      "expected": "(True, 5)"
+    },
+    {
+      "name": "private rejected spend does not affect budget",
+      "visibility": "hidden",
+      "setup": [
+        "from solution import TokenBudget",
+        "budget = TokenBudget(5, 10, now=lambda: 0)",
+        "rejected = budget.spend(\"org\", 6)",
+        "accepted = budget.spend(\"org\", 5)"
+      ],
+      "input": "(rejected, accepted, budget.remaining(\"org\"))",
+      "expected": "(False, True, 0)"
+    },
+    {
+      "name": "private each operation uses one time snapshot",
+      "visibility": "hidden",
+      "description": "A clock may advance on access; an accepted event uses its operation's expiry timestamp.",
+      "setup": [
+        "from solution import TokenBudget",
+        "from itertools import chain, repeat",
+        "times = chain([0], repeat(100))",
+        "budget = TokenBudget(10, 10, now=lambda: next(times))"
+      ],
+      "input": "(budget.spend(\"org\", 7), budget.spend(\"org\", 4), budget.remaining(\"org\"))",
+      "expected": "(True, True, 6)"
+    },
+    {
+      "name": "private retains spend just before expiry",
+      "visibility": "hidden",
+      "setup": [
+        "from solution import TokenBudget",
+        "clock = {\"t\": 0.0}",
+        "budget = TokenBudget(5, 10, now=lambda: clock[\"t\"])",
+        "budget.spend(\"org\", 5)",
+        "clock[\"t\"] = 9.999"
+      ],
+      "input": "budget.remaining(\"org\")",
+      "expected": "0"
+    }
+  ],
+  "clarifyingQuestions": [
+    "Does the window include events exactly `window_seconds` old?",
+    "Should rejected spends be recorded for audit?",
+    "Does `tokens` include input, output, or both?"
+  ],
+  "followUps": [
+    "Track separate input and output token budgets.",
+    "Add per-model budget limits under each org.",
+    "Return retry-after for rejected spends."
+  ],
+  "followUpGuide": [
+    "Separate token dimensions can use separate ledgers or a value object per event.",
+    "",
+    "Per-model budgets add another key dimension, such as `(org, model)`.",
+    "",
+    "For a rejected spend no larger than the limit, scan oldest events until the expiring token sum covers the deficit; that event's timestamp plus the window gives the earliest retry time, assuming no later spend intervenes. A spend above the limit has no finite retry time. A multi-event deficit cannot be solved by returning only the first expiry."
+  ],
+  "complexityAnalysis": [
+    "- Naive re-sum: purge then sum every event still stored for the key. Time: O(n) per operation for n stored events; one read can also remove many expired events.",
+    "- Deque + running total: a call removing r expired events costs O(r + 1), with expected O(1) dictionary access. Across operations, each positive-spend event enters and leaves once, giving amortized O(1) per operation. Space: O(E + K) for retained events and keys. Lazy expiry leaves old events for untouched keys, and the dictionaries retain empty keys; window duration alone does not bound memory. Zero spends need no stored event."
+  ],
+  "solutionGuide": [
+    "Keep one deque of `(time, tokens)` events per key plus a running total. Sample time once per call so expiry and the new event agree on the operation's time. Purge before deciding whether a spend fits; rejecting a new spend never records it. A zero spend is accepted without an event because it changes no balance. This is lazy per-key expiry; production systems also need idle-key cleanup.",
+    "",
+    "```python",
+    "from collections import defaultdict, deque",
+    "",
+    "",
+    "class TokenBudget:",
+    "    def __init__(self, limit: int, window_seconds: float, now):",
+    "        self.limit = limit",
+    "        self.window_seconds = window_seconds",
+    "        self.now = now",
+    "        self.events = defaultdict(deque)",
+    "        self.totals = defaultdict(int)",
+    "",
+    "    def _purge(self, key, now):",
+    "        queue = self.events[key]",
+    "        while queue and now - queue[0][0] >= self.window_seconds:",
+    "            _, tokens = queue.popleft()",
+    "            self.totals[key] -= tokens",
+    "",
+    "    def spend(self, key, tokens: int) -> bool:",
+    "        now = self.now()",
+    "        self._purge(key, now)",
+    "        if tokens < 0 or tokens > self.limit:",
+    "            return False",
+    "        if self.totals[key] + tokens > self.limit:",
+    "            return False",
+    "        if tokens:",
+    "            self.events[key].append((now, tokens))",
+    "            self.totals[key] += tokens",
+    "        return True",
+    "",
+    "    def remaining(self, key) -> int:",
+    "        self._purge(key, self.now())",
+    "        return self.limit - self.totals[key]",
+    "```"
+  ]
+}

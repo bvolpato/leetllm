@@ -1,0 +1,992 @@
+version: 1
+id: grouped-query-attention
+title: Sharing Memory Across Attention Heads
+source: fundamentals/multi-query-grouped-query-attention/content.md
+sources:
+  - title: "Ainslie et al.: GQA: Training Generalized Multi-Query Transformer Models from Multi-Head Checkpoints"
+    url: https://arxiv.org/abs/2305.13245
+  - title: "FlashAttention: Fast and Memory-Efficient Exact Attention with IO-Awareness"
+    url: https://arxiv.org/abs/2205.14135
+  - title: "FlashInfer: Efficient and Customizable Attention Engine for LLM Inference Serving"
+    url: https://arxiv.org/abs/2501.01005
+  - title: DeepSeek-V2 MLA architecture
+    url: https://arxiv.org/abs/2405.04434
+  - title: PyTorch2.15 SDPA mask alignment
+    url: https://docs.pytorch.org/docs/2.15/generated/torch.nn.functional.scaled_dot_product_attention.html
+  - title: vLLM Llama head partition and replication
+    url: https://github.com/vllm-project/vllm/blob/main/vllm/model_executor/models/llama.py
+  - title: NVIDIA H100 shipping specifications
+    url: https://www.nvidia.com/en-us/data-center/h100/
+  - title: Llama3.1 released architecture
+    url: https://arxiv.org/abs/2407.21783
+  - title: Gemma2 local/global retention
+    url: https://arxiv.org/abs/2408.00118
+  - title: Mistral7Bv0.3 configuration
+    url: https://huggingface.co/mistralai/Mistral-7B-v0.3/blob/main/config.json
+scenes:
+  - id: opening
+    title: "How many pairs does one word add to the cache?"
+    visual: "Two layers have already stored Rain. Follow their eight query wires to the stored pairs, then watch the two layers write different numbers of pairs for fell."
+    beats:
+      - say: "Here comes the next word, fell. Each head on the left writes a pair for it. Eight heads, eight pairs. Rain stays in the row above."
+        hold: 0.7
+        visual_cues:
+          - id: next
+            phrase: "Here comes the next word"
+            targets: [picture]
+          - id: private-write
+            phrase: "Each head on the left"
+            targets: [picture]
+          - id: private-total
+            phrase: "Eight heads, eight pairs"
+            targets: [picture]
+      - say: "Look at one pair. The blue strip is the key a query can match. The green strip is the value the head can bring back."
+        hold: 0.75
+        visual_cues:
+          - id: pair
+            phrase: "Look at one pair"
+            targets: [picture]
+      - say: "On the right, four queries read the first history. The other four read the second. How many pairs does this layer write for fell?"
+        hold: 2.3
+        visual_cues:
+          - id: first-group
+            phrase: "four queries read the first history"
+            targets: [picture]
+          - id: second-group
+            phrase: "The other four read the second"
+            targets: [picture]
+          - id: ask
+            phrase: "How many pairs"
+            targets: [picture]
+      - say: "Two pairs. One per group. All eight queries can read Rain and fell. That's grouped-query attention. Can two heads that share a history give more weight to different words?"
+        hold: 0.9
+        visual_cues:
+          - id: write
+            phrase: "Two pairs"
+            targets: [picture]
+            caption_boundary: true
+          - id: name
+            phrase: "That's grouped-query attention"
+            targets: [picture]
+  - id: attention
+    title: "Two readers at the same history"
+    visual: "Work both reads against the cached positions for Rain and fell. Keep the first scaled scores, weights and output visible while predicting what happens when the second query turns."
+    beats:
+      - say: "Follow the first group. Here are its two positions, Rain and fell. Give the first key and value the coordinates one, zero, and the second pair zero, one. The query at fell can see both positions, including its own newly appended key."
+        hold: 0.6
+        visual_cues:
+          - id: positions
+            phrase: "Rain and fell"
+            targets: [picture]
+      - say: "Head zero points along the first key. Its dot products are two and zero. The key has two coordinates, so divide each score by the square root of two. Mask any future positions, then take softmax across the visible scores. About eighty percent of the weight goes to Rain. Mixing the two values puts the output arrow near the first axis."
+        hold: 0.7
+        visual_cues:
+          - id: score
+            phrase: "Its dot products are two and zero"
+            targets: [picture]
+          - id: scale
+            phrase: "by the square root of two"
+            targets: [picture]
+          - id: weights
+            phrase: "about eighty percent of the weight goes to Rain"
+            targets: [picture]
+          - id: blend
+            phrase: "near the first axis"
+            targets: [picture]
+      - say: "Give head one a query pointing straight up. Keep both keys and both values where they are. Which token gets more weight now?"
+        hold: 2.1
+        visual_cues:
+          - id: second
+            phrase: "pointing straight up"
+            targets: [picture]
+          - id: ask
+            phrase: "Which token gets more weight now"
+            targets: [picture]
+      - say: "Fell does. The second key lines up with this query. Its output points toward the other axis. Each head made its own set of weights from exactly the same history."
+        hold: 0.9
+        visual_cues:
+          - id: answer
+            phrase: "Fell does"
+            targets: [picture]
+            caption_boundary: true
+          - id: combination
+            phrase: "Its output points toward the other axis"
+            targets: [picture]
+  - id: map
+    title: "Follow a query to its stored group"
+    visual: "Bracket the two runs of query indices. Use integer division to route query five to the second history."
+    beats:
+      - say: "Number the query heads from zero. Eight queries divided between two histories gives four readers per history. Starting at zero, trace the first four wires into group zero. The next four go to group one."
+        hold: 0.7
+        visual_cues:
+          - id: divide
+            phrase: "four readers per history"
+            targets: [picture]
+          - id: first
+            phrase: "the first four wires into group zero"
+            targets: [picture]
+          - id: second
+            phrase: "The next four go to group one"
+            targets: [picture]
+      - say: "Take query five. How many whole groups of four come before it?"
+        hold: 1.85
+        visual_cues:
+          - id: pick
+            phrase: "Take query five"
+            targets: [picture]
+      - say: "One whole group. The remainder picks out a reader inside the next group. Query five uses group one's keys and values and makes its own output."
+        hold: 0.8
+        visual_cues:
+          - id: owner
+            phrase: "One whole group"
+            targets: [picture]
+            caption_boundary: true
+          - id: out
+            phrase: "makes its own output"
+            targets: [picture]
+  - id: architectures
+    title: "Eight readers, three ways to store their history"
+    visual: "Keep the query wires in place as the number of learned histories changes from eight to two to one. Compare payloads at fixed length, width and precision."
+    beats:
+      - say: "Open the fan of wires all the way. In multi-head attention there are eight histories for eight readers. Bring the wires into two groups. That's grouped-query attention. Bring all eight to one history. That's multi-query attention. Each query still chooses how much weight to give each position."
+        hold: 0.75
+        visual_cues:
+          - id: mha
+            phrase: "eight histories for eight readers"
+            targets: [picture]
+          - id: gqa
+            phrase: "two groups"
+            targets: [picture]
+            caption_boundary: true
+          - id: mqa
+            phrase: "all eight to one history"
+            targets: [picture]
+      - say: "Keep the sequence, width and precision fixed. Two stored heads use one quarter of the original cache. One stored head uses one eighth. All eight queries in that last layout have to work with the same learned keys and values."
+        hold: 0.65
+        visual_cues:
+          - id: four
+            phrase: "one quarter of the original cache"
+            targets: [picture]
+          - id: eight
+            phrase: "one eighth"
+            targets: [picture]
+      - say: "Return to two groups. Each group can learn a different key and value projection. Whether that extra freedom helps a task is something to measure on the trained model."
+        hold: 0.7
+        visual_cues:
+          - id: learned
+            phrase: "Return to two groups"
+            targets: [picture]
+  - id: tensors
+    title: "Which dimension belongs to storage?"
+    visual: "Magnify one head of one layer into separate key and value grids. Add the third position, then switch the head count while the size of each grid stays fixed."
+    beats:
+      - say: "Our little cache now has one request. For this count, each key and value vector is four numbers wide. Append a third position. In the magnified head, that adds four key numbers and four value numbers. A whole head now holds twelve of each."
+        hold: 0.8
+        visual_cues:
+          - id: append
+            phrase: "Append a third position"
+            targets: [picture]
+          - id: twelve
+            phrase: "twelve of each"
+            targets: [picture]
+      - say: "Give each of the eight queries a private history. Read the key tensor from left to right as requests, stored heads, positions and width. Its shape is one by eight by three by four. The value tensor has the same shape."
+        hold: 0.8
+        visual_cues:
+          - id: mha
+            phrase: "a private history"
+            targets: [picture]
+          - id: shape
+            phrase: "one by eight by three by four"
+            targets: [picture]
+      - say: "Bring the four readers in each group back together. Which dimension of the key tensor should change?"
+        hold: 2.1
+        visual_cues:
+          - id: ask
+            phrase: "Which dimension of the key tensor should change"
+            targets: [picture]
+      - say: "The head count falls to two. Each group still has three positions and four numbers per vector. At this decode step the query tensor has eight heads but only one new position. To price the cache, count both stored arrays, then multiply by layers and bytes per number."
+        hold: 0.8
+        visual_cues:
+          - id: gqa
+            phrase: "The head count falls to two"
+            targets: [picture]
+            caption_boundary: true
+          - id: queries
+            phrase: "only one new position"
+            targets: [picture]
+          - id: payload
+            phrase: "multiply by layers and bytes per number"
+            targets: [picture]
+  - id: budget
+    title: "Can the next token fit?"
+    visual: "Give the GQA cache a 256-byte allowance. Price one K/V head at one position, then grow the three layouts on the same byte scale against that fixed limit."
+    beats:
+      - say: "Give our request two layers and two bytes per number. At one position, one head stores four key numbers and four value numbers in each layer. That's thirty-two bytes across both layers. For three positions, multiply that by three and by the number of stored heads."
+        hold: 0.7
+        visual_cues:
+          - id: fixture
+            phrase: "thirty-two bytes across both layers"
+            targets: [picture]
+      - say: "With eight stored heads the three positions occupy seven hundred sixty-eight bytes. With two, they occupy one hundred ninety-two. A single shared head takes ninety-six. The gold mark is a budget of two hundred fifty-six bytes for this request's raw cache."
+        hold: 0.8
+        visual_cues:
+          - id: mha
+            phrase: "seven hundred sixty-eight bytes"
+            targets: [picture]
+          - id: gqa
+            phrase: "one hundred ninety-two"
+            targets: [picture]
+            caption_boundary: true
+          - id: mqa
+            phrase: "ninety-six"
+            targets: [picture]
+          - id: limit
+            phrase: "gold mark"
+            targets: [picture]
+      - say: "Follow the middle row. The grouped cache has two heads and there's room for sixty-four more bytes. Will a fourth position fit?"
+        hold: 2.2
+        visual_cues:
+          - id: ask
+            phrase: "Follow the middle row"
+            targets: [picture]
+      - say: "It fits exactly. Another position adds thirty-two bytes for each of the two stored heads. The new total is two hundred fifty-six. Compare the ends of the other rows. The fourth position costs eight heads' worth in the top row and one head's worth in the bottom row. These bars count the raw cache. Weights, temporary tensors, reservations and replicas also take space on a device."
+        hold: 0.85
+        visual_cues:
+          - id: fit
+            phrase: "It fits exactly"
+            targets: [picture]
+            caption_boundary: true
+          - id: fourth
+            phrase: "The new total is two hundred fifty-six"
+            targets: [picture]
+          - id: compare
+            phrase: "Compare the ends of the other rows"
+            targets: [picture]
+          - id: scope
+            phrase: "Weights, temporary tensors, reservations and replicas"
+            targets: [picture]
+  - id: roofline
+    title: "How much attention work does one cache read buy?"
+    visual: "Count the two attention products using query heads. Count ideal distinct reads using stored heads, then compare the ratios to a hardware bandwidth ceiling."
+    beats:
+      - say: "For one layer, let each request decode a single token. Count a multiply and an add for each query coordinate at each stored position. That's the query-key product. Mixing the values costs the same again when keys and values have equal width. Together the products take four times the batch size, query heads, positions and width."
+        hold: 0.8
+        visual_cues:
+          - id: qk
+            phrase: "the query-key product"
+            targets: [picture]
+          - id: av
+            phrase: "Mixing the values"
+            targets: [picture]
+          - id: both
+            phrase: "Together the products"
+            targets: [picture]
+      - say: "Suppose the kernel reads each stored key and value once and reuses it for every query in the group. Divide the operation count by the bytes read. Batch size, positions and width cancel. What's left is two times the number of readers per history, divided by bytes per number. At two bytes per number, multi-head attention gets one operation per byte. Eight readers per history gives eight. With sixty-four queries sharing a single history, it's sixty-four."
+        hold: 0.8
+        visual_cues:
+          - id: read
+            phrase: "reads each stored key and value once"
+            targets: [picture]
+          - id: cancel
+            phrase: "Batch size, positions and width cancel"
+            targets: [picture]
+          - id: mha
+            phrase: "one operation per byte"
+            targets: [picture]
+          - id: gqa
+            phrase: "Eight readers per history gives eight"
+            targets: [picture]
+            caption_boundary: true
+          - id: mqa
+            phrase: "it's sixty-four"
+            targets: [picture]
+      - say: "With one read per group, the single-history model reaches sixty-four operations per byte. How does that compare with the hardware? The H one hundred SXM lists a BF sixteen peak with structured sparsity. Its dense peak is about half that. Divide the dense peak by memory bandwidth and the ridge is about two hundred ninety-five operations per byte. Below the ridge, memory bandwidth sets the lower ceiling. If the single-history kernel reads every key and value twice, its bar drops to thirty-two. Same work, twice the bytes."
+        hold: 0.75
+        visual_cues:
+          - id: ideal
+            phrase: "one read per group"
+            targets: [picture]
+          - id: sparse
+            phrase: "with structured sparsity"
+            targets: [picture]
+          - id: ridge
+            phrase: "two hundred ninety-five operations per byte"
+            targets: [picture]
+          - id: profile
+            phrase: "its bar drops to thirty-two"
+            targets: [picture]
+  - id: large-budget
+    title: "How many requests fit in ten GiB of raw cache?"
+    visual: "Compare cache bytes at fixed total positions, then tile the same ten-GiB allowance with whole 4,096-position requests and change the context length."
+    beats:
+      - say: "Scale up to eighty full-attention layers with sixty-four query heads. Use width one hundred twenty-eight and two bytes per number. Thirty-two requests each hold four thousand ninety-six positions. With private histories, the cache takes about three hundred forty-four decimal gigabytes. Eight stored heads bring it down to about forty-three. A single head takes just over five. One longer request with the same total positions uses the same raw payload. Seventy-two billion two-byte weights would add another hundred forty-four gigabytes."
+        hold: 0.75
+        visual_cues:
+          - id: dimensions
+            phrase: "eighty full-attention layers"
+            targets: [picture]
+          - id: mha
+            phrase: "three hundred forty-four decimal gigabytes"
+            targets: [picture]
+          - id: gqa
+            phrase: "about forty-three"
+            targets: [picture]
+            caption_boundary: true
+          - id: mqa
+            phrase: "just over five"
+            targets: [picture]
+          - id: weight
+            phrase: "another hundred forty-four gigabytes"
+            targets: [picture]
+      - say: "Look inside a budget of ten gibibytes for cache alone. One request at four thousand ninety-six positions takes the whole space with private histories. With eight stored heads, it takes one strip, one and a quarter gibibytes. With one stored head, it takes just one small square. The same space holds one, eight or sixty-four requests at those lengths. Eight arrivals could now share a batch. Measure whether that improves completed tokens per second within the latency target."
+        hold: 0.8
+        visual_cues:
+          - id: one-request
+            phrase: "the whole space with private histories"
+            targets: [picture]
+          - id: gqa-request
+            phrase: "one and a quarter gibibytes"
+            targets: [picture]
+          - id: mqa-request
+            phrase: "just one small square"
+            targets: [picture]
+          - id: capacity
+            phrase: "one, eight or sixty-four requests"
+            targets: [picture]
+      - say: "Now follow one request as its prefix grows. The new scale runs up to the multi-head cache for just over a million positions. At thirty-two K the private histories need about eighty-six gigabytes. At four times that length they need about three hundred forty-four gigabytes. At the full length they reach two point seven five terabytes. The eight-head layout uses one eighth at every length. Dividing bytes by device capacity only gives a lower bound. Five devices might hold enough bytes and still fail the head-sharding rule."
+        hold: 0.8
+        visual_cues:
+          - id: long
+            phrase: "as its prefix grows"
+            targets: [picture]
+            caption_boundary: true
+          - id: context-32ki
+            phrase: "about eighty-six gigabytes"
+            targets: [picture]
+          - id: context-128ki
+            phrase: "about three hundred forty-four gigabytes"
+            targets: [picture]
+          - id: context-1mi
+            phrase: "two point seven five terabytes"
+            targets: [picture]
+          - id: rank
+            phrase: "Five devices"
+            targets: [picture]
+  - id: model-config
+    title: "Read the checkpoint before sizing the cache"
+    visual: "Align each Llama 3.1 query count with its eight K/V heads. Compare contrasting retention rules and the context supported by each release."
+    beats:
+      - say: "Read across each Llama three point one row. All three checkpoints have eight stored heads. The eight-billion model has thirty-two queries, or four readers per history. Doubling or quadrupling the queries gives the sharing ratios beside the larger models. Those releases support a context of one hundred twenty-eight K. The original Llama three release in April twenty twenty-four supported eight K."
+        hold: 0.8
+        visual_cues:
+          - id: counts
+            phrase: "eight stored heads"
+            targets: [picture]
+          - id: ratios
+            phrase: "sharing ratios beside the larger models"
+            targets: [picture]
+          - id: context
+            phrase: "supported eight K"
+            targets: [picture]
+      - say: "Which positions survive also matters. Gemma two alternates a four-K sliding window with eight-K global attention. Mistral seven-billion version zero point three has no sliding window, even though the original paper described one. Add up each layer's retained length. For a recurrent or latent layer, count the state that architecture actually stores."
+        hold: 0.75
+        visual_cues:
+          - id: gemma
+            phrase: "eight-K global attention"
+            targets: [picture]
+          - id: mistral
+            phrase: "has no sliding window"
+            targets: [picture]
+          - id: sum
+            phrase: "each layer's retained length"
+            targets: [picture]
+      - say: "Size the cache for the checkpoint's learned key and value projections. To check retrieval quality, put a fact near the start of a long prompt and ask for it at the end. Repeat with the fact at different positions and with different prompt lengths."
+        hold: 0.8
+        visual_cues:
+          - id: learned
+            phrase: "learned key and value projections"
+            targets: [picture]
+          - id: test
+            phrase: "Check retrieval quality"
+            targets: [picture]
+  - id: physical-heads
+    title: "Follow one history across ranks"
+    visual: "Trace KV3 in a four-rank partition, split its readers across two ranks at TP16 and test a second layout that fails the partition rule."
+    beats:
+      - say: "Put the sixty-four query heads and eight stored histories on four devices. Each device runs one tensor-parallel rank. In this vLLM Llama layout, query heads split evenly. With at least as many KV heads as ranks, those heads must split evenly too. That gives each rank sixteen queries and two KV heads. Follow history three. Its eight readers live together on rank one. There are eight physical copies in all, one per history."
+        hold: 0.8
+        visual_cues:
+          - id: four
+            phrase: "sixteen queries and two KV heads"
+            targets: [picture]
+          - id: trace
+            phrase: "Follow history three"
+            targets: [picture]
+          - id: first-total
+            phrase: "eight physical copies in all"
+            targets: [picture]
+      - say: "Keep the checkpoint and increase the rank count to sixteen. Four queries now live on each rank. History three serves queries twenty-four through thirty-one. The first four readers are on rank six, the last four on rank seven. Both ranks need the same keys and values. This layout puts one KV head on every rank."
+        hold: 0.8
+        visual_cues:
+          - id: sixteen
+            phrase: "increase the rank count to sixteen"
+            targets: [picture]
+          - id: perrank
+            phrase: "Four queries now live on each rank"
+            targets: [picture]
+          - id: copies
+            phrase: "Both ranks need the same keys and values"
+            targets: [picture]
+            caption_boundary: true
+      - say: "Count the copies. Eight histories now occupy sixteen physical slots. That's twice the unreplicated cache. Matching multi-head attention has sixty-four slots, so the actual saving is fourfold. In this replication regime, the rank count must be a multiple of the KV head count."
+        hold: 0.7
+        visual_cues:
+          - id: double
+            phrase: "sixteen physical slots"
+            targets: [picture]
+          - id: saving
+            phrase: "actual saving is fourfold"
+            targets: [picture]
+      - say: "Try four ranks with twenty-four queries and six KV heads. Each rank gets six queries. Can you give every rank the same number of whole KV heads?"
+        hold: 1.7
+        visual_cues:
+          - id: invalid
+            phrase: "Try four ranks"
+            targets: [picture]
+      - say: "Give each rank one KV head. Two heads are left. A second round would take four, so this Llama layout rejects the split. With a supported split, compare each rank's outputs with a reference and measure its cache."
+        hold: 0.8
+        visual_cues:
+          - id: deal
+            phrase: "Give each rank one KV head"
+            targets: [picture]
+          - id: fails
+            phrase: "Two heads are left"
+            targets: [picture]
+            caption_boundary: true
+  - id: tradeoff
+    title: "Where do the grouped reads end?"
+    visual: "Place weight and cache traffic end to end on one bandwidth ruler. Keep the entire weight segment fixed while the GQA cache segment contracts, then read both timing bounds."
+    beats:
+      - say: "A smaller cache can let more requests share a batch. To see what it buys in time, suppose a decode step reads forty-eight gigabytes of weights and sixteen gigabytes of keys and values. Give the device one terabyte per second of bandwidth. On this ruler, every gigabyte costs at least a millisecond."
+        hold: 0.8
+        visual_cues:
+          - id: weights
+            phrase: "forty-eight gigabytes of weights"
+            targets: [picture]
+          - id: cache
+            phrase: "sixteen gigabytes of keys and values"
+            targets: [picture]
+          - id: ruler
+            phrase: "every gigabyte costs at least a millisecond"
+            targets: [picture]
+      - say: "The original reads take at least sixty-four milliseconds. Switch to a grouped model that cuts just the cache traffic eightfold. The weight reads stay fixed. Where should the new step end on this ruler?"
+        hold: 2.2
+        visual_cues:
+          - id: original
+            phrase: "sixty-four milliseconds"
+            targets: [picture]
+          - id: switch
+            phrase: "cuts just the cache traffic eightfold"
+            targets: [picture]
+          - id: ask
+            phrase: "Where should the new step end"
+            targets: [picture]
+      - say: "At fifty milliseconds. The sixteen gigabytes of cache reads became two. The same forty-eight gigabytes of weights still have to cross. Divide sixty-four by fifty and the old reads take one point two eight times as long as the new ones."
+        hold: 0.8
+        visual_cues:
+          - id: answer
+            phrase: "At fifty milliseconds"
+            targets: [picture]
+            caption_boundary: true
+          - id: ratio
+            phrase: "one point two eight times as long"
+            targets: [picture]
+            caption_boundary: true
+      - say: "On a server, measure token latency and completed tokens per second at the target batch and context. Kernels, communication and queueing also take time. And the new projections change what the model can learn. Let's try the conversion on two heads where we can see the change."
+        hold: 0.7
+        visual_cues:
+          - id: measure
+            phrase: "measure token latency and completed tokens per second"
+            targets: [picture]
+  - id: pooling-failure
+    title: "What survives mean pooling?"
+    visual: "Average one coordinate of four projection slices. Then watch opposing heads cancel in a two-position model and compare both old outputs with the pooled output."
+    beats:
+      - say: "Take one coordinate from each of four key projection slices. Their values are one, three, three and five. Average the four and the new slice gets three. Do this coordinate by coordinate for the key weights, and separately for the value weights and compatible biases."
+        hold: 0.7
+        visual_cues:
+          - id: samples
+            phrase: "one, three, three and five"
+            targets: [picture]
+          - id: pool
+            phrase: "the new slice gets three"
+            targets: [picture]
+      - say: "Will averaging the weights preserve what a head returns? Try two heads, two visible positions and a scalar query of one. Each head gives the value ten the higher score. The second head does it at the other position. Softmax puts about eighty-eight percent on ten in both heads, so each old output is about eight point eight."
+        hold: 0.8
+        visual_cues:
+          - id: opposing
+            phrase: "Try two heads"
+            targets: [picture]
+          - id: old
+            phrase: "each old output is about eight point eight"
+            targets: [picture]
+      - say: "Average the two keys at each position. Plus one and minus one cancel to zero. Now average the values. Both become five. What can any mixture of those values return?"
+        hold: 1.9
+        visual_cues:
+          - id: keys
+            phrase: "cancel to zero"
+            targets: [picture]
+          - id: values
+            phrase: "Both become five"
+            targets: [picture]
+      - say: "Five in both heads. That's a different output for the same input. Use the pooled slices as an initialization. Keep the original query and output weights to start, then continue training so the model can adapt. The GQA paper used the T5 setup, data and Adafactor recipe for five percent of its original steps."
+        hold: 0.7
+        visual_cues:
+          - id: new
+            phrase: "Five in both heads"
+            targets: [picture]
+            caption_boundary: true
+          - id: init
+            phrase: "Use the pooled slices as an initialization"
+            targets: [picture]
+          - id: recipe
+            phrase: "five percent of its original steps"
+            targets: [picture]
+      - say: "On its T5 XXL comparison, the average task scores were forty-seven point one for GQA and forty-seven point two for multi-head attention. That covered summarization, translation and TriviaQA and excluded GLUE. For your checkpoint, set a quality limit before comparing held-out tasks. Check cached execution separately."
+        hold: 0.8
+        visual_cues:
+          - id: paper
+            phrase: "forty-seven point two for multi-head attention"
+            targets: [picture]
+          - id: test
+            phrase: "Check cached execution separately"
+            targets: [picture]
+  - id: latent-store
+    title: "What fits in one latent cache entry?"
+    visual: "Build the DeepSeek content and positional entry in two pieces. Compare its width with explicit K/V layouts and distinguish stored coordinates from score width."
+    beats:
+      - say: "So far we've counted separate keys and values. DeepSeek V two and V three train a different representation, called multi-head latent attention. Each token projects down to a shared content vector with five hundred twelve coordinates. Its positional key adds sixty-four more. In the absorbed decode path that's five hundred seventy-six stored numbers per token per layer. The model still computes one hundred twenty-eight separate queries."
+        hold: 0.75
+        visual_cues:
+          - id: latent
+            phrase: "five hundred twelve coordinates"
+            targets: [picture]
+          - id: pos
+            phrase: "sixty-four more"
+            targets: [picture]
+          - id: sum
+            phrase: "five hundred seventy-six stored numbers"
+            targets: [picture]
+          - id: queries
+            phrase: "one hundred twenty-eight separate queries"
+            targets: [picture]
+      - say: "Use the same number of queries to compare the explicit caches on the right. Each key and value is one hundred twenty-eight numbers wide. Private histories need more than thirty-two thousand numbers at each position. Eight stored heads need two thousand forty-eight. Four heads need half as many. One shared head needs two hundred fifty-six. The latent entry sits between the one-head and four-head counts. Eight stored heads use about three and a half times as many numbers as the latent entry. Each model has to learn to work with its representation."
+        hold: 0.8
+        visual_cues:
+          - id: mha
+            phrase: "more than thirty-two thousand numbers"
+            targets: [picture]
+          - id: gqa8
+            phrase: "two thousand forty-eight"
+            targets: [picture]
+          - id: gqa4
+            phrase: "half as many"
+            targets: [picture]
+          - id: mqa
+            phrase: "two hundred fifty-six"
+            targets: [picture]
+          - id: ratio
+            phrase: "three and a half times as many numbers"
+            targets: [picture]
+            caption_boundary: true
+      - say: "The query has its own learned compression and per-head projections. One part scores content, another scores position. Scale their sum by the square root of the combined width. Here the divisor is the square root of one hundred ninety-two. Prefill and fallback kernels may expand historical keys. Measure those temporaries separately from the retained state."
+        hold: 0.75
+        visual_cues:
+          - id: scale
+            phrase: "square root of one hundred ninety-two"
+            targets: [picture]
+          - id: temp
+            phrase: "Measure those temporaries separately"
+            targets: [picture]
+  - id: latent-score
+    title: "Which vector can travel down the history?"
+    visual: "Expand two cached latents or move the same projection to the query once. Keep the first score visible as a second latent is scored, then factor the value projection out of a weighted sum."
+    beats:
+      - say: "Each position holds a content latent. We could expand each one into a key. Start with the latent one, two. Follow the top row of the matrix. One times one plus two times two gives five. The bottom row keeps the second coordinate. That makes a key of five, two. Our query points along the first axis, so its dot product with that key is five."
+        hold: 0.75
+        visual_cues:
+          - id: row
+            phrase: "One times one plus two times two gives five"
+            targets: [picture]
+          - id: key
+            phrase: "a key of five, two"
+            targets: [picture]
+          - id: score
+            phrase: "that key is five"
+            targets: [picture]
+      - say: "Move the same matrix across the dot product. Its transpose acts on the query. That gives a new query of one, two. Dot it with the original latent and the score is five again. Both routes use the same learned weights."
+        hold: 0.7
+        visual_cues:
+          - id: transpose
+            phrase: "Its transpose acts on the query"
+            targets: [picture]
+          - id: query
+            phrase: "a new query of one, two"
+            targets: [picture]
+          - id: again
+            phrase: "the score is five again"
+            targets: [picture]
+      - say: "Now move one position along. Its latent is three, zero. Which vector from the last position can we use again to score this one?"
+        hold: 2
+        visual_cues:
+          - id: move
+            phrase: "Its latent is three, zero"
+            targets: [picture]
+          - id: ask
+            phrase: "Which vector from the last position"
+            targets: [picture]
+      - say: "Keep the projected query. One times three plus two times zero gives three. Only the cached latent changed. Within this model the regrouping is exact algebra. Compare floating-point implementations within a tolerance for the precision in use."
+        hold: 0.7
+        visual_cues:
+          - id: reuse
+            phrase: "Keep the projected query"
+            targets: [picture]
+            caption_boundary: true
+          - id: next
+            phrase: "gives three"
+            targets: [picture]
+      - say: "The value projection is linear too. Weight each latent, add the results, then project the sum once. You can combine that last map with the output projection. Each query head still has its own weights."
+        hold: 0.8
+        visual_cues:
+          - id: value
+            phrase: "Weight each latent"
+            targets: [picture]
+          - id: fuse
+            phrase: "project the sum once"
+            targets: [picture]
+  - id: position-split
+    title: "Can the same query survive a rotation?"
+    visual: "Hold the query on the first axis. Rotate an expanded historical key through a quarter turn, trace its projection on the fixed axis, then compare the two absorbed queries side by side."
+    beats:
+      - say: "Go back to the latent one, two and its expanded key, five, two. Hold the current rotated query fixed at one, zero. The gold mark is the key's horizontal coordinate. That's the dot product this query reads."
+        hold: 0.7
+        visual_cues:
+          - id: axis
+            phrase: "The gold mark"
+            targets: [picture]
+      - say: "At the first cached position the key has no rotation. The score is five. Moving the projection to the query gave us one, two. Now suppose a second cached position has the same latent but turns its expanded key a quarter turn counterclockwise. Can we reuse that absorbed query and still get the right score?"
+        hold: 2.15
+        visual_cues:
+          - id: identity
+            phrase: "The score is five"
+            targets: [picture]
+          - id: first-q
+            phrase: "gave us one, two"
+            targets: [picture]
+          - id: turn
+            phrase: "a quarter turn counterclockwise"
+            targets: [picture]
+          - id: ask
+            phrase: "Can we reuse that absorbed query"
+            targets: [picture]
+      - say: "Look where the mark landed. The key is now minus two, five. The score is minus two. Reusing the first absorbed query would still give five. At this position the correct absorbed query is zero, minus one. Dotted with the same latent, it gives minus two."
+        hold: 0.8
+        visual_cues:
+          - id: key
+            phrase: "minus two, five"
+            targets: [picture]
+          - id: negative
+            phrase: "The score is minus two"
+            targets: [picture]
+            caption_boundary: true
+          - id: next-q
+            phrase: "zero, minus one"
+            targets: [picture]
+      - say: "The algebra works separately at each position. To absorb the rotation as well, rotate the current query back by that key's angle, then apply the transposed projection. A different cached angle gives a different query. DeepSeek keeps that positional dot product separate, so the content query can travel unchanged down the history. Add the two scores, divide by the square root of their combined width, then take softmax over the visible positions. The cache keeps the sixty-four positional coordinates beside the five hundred twelve content coordinates."
+        hold: 0.9
+        visual_cues:
+          - id: back
+            phrase: "rotate the current query back"
+            targets: [picture]
+          - id: split
+            phrase: "positional dot product separate"
+            targets: [picture]
+          - id: scale
+            phrase: "divide by the square root of their combined width"
+            targets: [picture]
+          - id: coords
+            phrase: "The cache keeps"
+            targets: [picture]
+  - id: kernel-route
+    title: "What lives beside the retained cache?"
+    visual: "Trace eight scalar products into two shared keys. Keep a compact allocation visible while the repeated-head reference allocates, uses and releases an entire additional copy at the expanded shape."
+    beats:
+      - say: "Back in our eight-query layer, query indices zero through three read the first group. Four through seven read the second. Give the queries first coordinates one through eight. The two group keys have first coordinates one and ten. All other coordinates are zero. Look at the raw dot products where the group changes. Four times one gives four. Five times ten gives fifty."
+        hold: 0.8
+        visual_cues:
+          - id: group0
+            phrase: "zero through three"
+            targets: [picture]
+          - id: group1
+            phrase: "Four through seven"
+            targets: [picture]
+          - id: keys
+            phrase: "one and ten"
+            targets: [picture]
+          - id: scores
+            phrase: "Five times ten gives fifty"
+            targets: [picture]
+      - say: "Keep those eight readers and two stored heads. Now put two requests in the batch, each with one thousand twenty-four positions. Each key and value is sixty-four numbers wide, at two bytes per number. Together the compact arrays take one mebibyte."
+        hold: 0.8
+        visual_cues:
+          - id: layout
+            phrase: "two requests in the batch"
+            targets: [picture]
+          - id: retained
+            phrase: "one mebibyte"
+            targets: [picture]
+      - say: "A reference implementation writes four copies of each stored head into new key and value arrays. The four mebibytes of copies sit beside the original cache. While both are live, how much memory do the arrays occupy?"
+        hold: 2.1
+        visual_cues:
+          - id: repeat
+            phrase: "writes four copies of each stored head"
+            targets: [picture]
+          - id: copies
+            phrase: "four mebibytes of copies"
+            targets: [picture]
+            caption_boundary: true
+          - id: ask
+            phrase: "While both are live"
+            targets: [picture]
+      - say: "Five mebibytes. When the call releases the copies, the one mebibyte of history stays. A native grouped kernel can follow the head mapping directly. Check which FlashAttention or FlashInfer kernel actually ran and measure its allocations and traffic."
+        hold: 0.75
+        visual_cues:
+          - id: peak
+            phrase: "Five mebibytes"
+            targets: [picture]
+            caption_boundary: true
+          - id: release
+            phrase: "releases the copies"
+            targets: [picture]
+          - id: inspect
+            phrase: "measure its allocations and traffic"
+            targets: [picture]
+      - say: "Every query still scores keys and mixes values. Smaller projections can save some work, but training also has backward passes, activations and communication. Time training and decode separately."
+        hold: 0.7
+        visual_cues:
+          - id: separate
+            phrase: "Time training and decode separately"
+            targets: [picture]
+  - id: cache-step
+    title: "Where does this request write?"
+    visual: "Follow fell at position one through rotary projection and append. Leave its entry visible while a second write at the stale cursor is rejected."
+    beats:
+      - say: "Return to Rain and fell with eight queries and two stored heads. Rain occupies position zero. Project fell into eight new queries and two new keys and values. Rotate the new queries and keys for position one. Leave the values alone and keep the old rotated keys. Write the new pairs at the locations assigned to this request. Read positions zero and one, then advance the cursor to two."
+        hold: 0.8
+        visual_cues:
+          - id: project
+            phrase: "two new keys and values"
+            targets: [picture]
+          - id: rotate
+            phrase: "Rotate the new queries and keys"
+            targets: [picture]
+          - id: write
+            phrase: "Write the new pairs"
+            targets: [picture]
+            caption_boundary: true
+          - id: read
+            phrase: "Read positions zero and one"
+            targets: [picture]
+          - id: advance
+            phrase: "advance the cursor to two"
+            targets: [picture]
+      - say: "Try that same write again with cursor one. It points straight at fell. The dense append check rejects the write because the length is already two. Each request owns its cursor, valid length and physical locations. When the scheduler reorders requests, that metadata travels with them. In paged or sliding-window caches, the logical position can differ from the buffer offset."
+        hold: 0.75
+        visual_cues:
+          - id: stale
+            phrase: "cursor one"
+            targets: [picture]
+          - id: reject
+            phrase: "rejects the write"
+            targets: [picture]
+          - id: own
+            phrase: "Each request owns its cursor"
+            targets: [picture]
+          - id: reorder
+            phrase: "scheduler reorders requests"
+            targets: [picture]
+      - say: "Within the converted model, compare cached outputs with full-prefix outputs at each step. Use absolute and relative tolerances appropriate to the precision and scale. Test ragged requests and multi-token chunks. At the first mismatch, inspect the positions, written values, visible keys and stored heads. A small logit difference can change the next token near a tie."
+        hold: 0.8
+        visual_cues:
+          - id: parity
+            phrase: "compare cached outputs with full-prefix outputs"
+            targets: [picture]
+          - id: chunks
+            phrase: "Test ragged requests and multi-token chunks"
+            targets: [picture]
+  - id: causal-repair
+    title: "Which values can the latest query see?"
+    visual: "Keep values 1, 2 and 9 fixed. Reproduce the upper-left mask, repair the visible prefix and show why the single-row shortcut fails for two cached query rows."
+    beats:
+      - say: "Give the latest query three cached values, one, two and nine. Its absolute position is two. Set every score to zero so softmax gives every visible key the same weight. In PyTorch scaled dot product attention, the causal flag aligns a rectangular mask at the upper left. With just one query row, it exposes only key zero. The output is one."
+        hold: 0.9
+        visual_cues:
+          - id: sdpa
+            phrase: "aligns a rectangular mask at the upper left"
+            targets: [picture]
+          - id: bad
+            phrase: "exposes only key zero"
+            targets: [picture]
+          - id: wrong
+            phrase: "The output is one"
+            targets: [picture]
+      - say: "Now use the query's absolute position. Which values belong in the average?"
+        hold: 1.8
+        visual_cues:
+          - id: repair
+            phrase: "Which values belong in the average"
+            targets: [picture]
+      - say: "All three. Each has one third of the weight, so their mean is four. A single latest query can omit the mask when there are no future or padded keys. FlashAttention uses bottom-right alignment for a rectangular causal mask. Check the convention in the kernel you call."
+        hold: 0.8
+        visual_cues:
+          - id: correct
+            phrase: "Each has one third of the weight"
+            targets: [picture]
+          - id: mean
+            phrase: "their mean is four"
+            targets: [picture]
+            caption_boundary: true
+          - id: flash
+            phrase: "FlashAttention uses bottom-right alignment"
+            targets: [picture]
+      - say: "Append two tokens together, at positions three and four. The first row can see through key three. The second can also see key four. Remove the mask and the first row reads a future value. Restore each row's boundary from its absolute position and that request's valid length. Compare both outputs with their full-prefix rows."
+        hold: 0.85
+        visual_cues:
+          - id: chunk
+            phrase: "The second can also see key four"
+            targets: [picture]
+          - id: leak
+            phrase: "the first row reads a future value"
+            targets: [picture]
+          - id: boundary
+            phrase: "Restore each row's boundary"
+            targets: [picture]
+          - id: compare
+            phrase: "Compare both outputs with their full-prefix rows"
+            targets: [picture]
+  - id: synthesis
+    title: "Where did the extra memory go?"
+    visual: "On a stable memory trace, distinguish retained allocations from temporary repeated heads by checking what remains after the call. Tie that observation back to output parity and per-rank budgeting."
+    beats:
+      - say: "Suppose two profiles of this two-head cache both peak at five mebibytes. That peak by itself leaves a question open. Look just after the attention call. What would tell you the engine released the repeated heads?"
+        hold: 1.8
+        visual_cues:
+          - id: ask
+            phrase: "just after the attention call"
+            targets: [picture]
+      - say: "On the first trace, only the compact cache remains. Match the short-lived allocation to the repeated-head copy in the call. On the second trace the expanded arrays stay live. Check which tensors the engine retains, their head dimension, and which rank owns them. Both traces reached the same peak."
+        hold: 0.9
+        visual_cues:
+          - id: short
+            phrase: "only the compact cache remains"
+            targets: [picture]
+            caption_boundary: true
+          - id: long
+            phrase: "expanded arrays stay live"
+            targets: [picture]
+            caption_boundary: true
+          - id: peak
+            phrase: "the same peak"
+            targets: [picture]
+            caption_boundary: true
+      - say: "Before changing the serving path, compare one-token and chunked outputs with a full-prefix run of the same model. Use ragged lengths to exercise each request's cursor. Compare the converted checkpoint with the old one on held-out tasks, at a quality limit you set in advance. Now use the number of physical copies to make an admission decision."
+        hold: 0.7
+        visual_cues:
+          - id: parity
+            phrase: "one-token and chunked outputs"
+            targets: [picture]
+          - id: quality
+            phrase: "held-out tasks"
+            targets: [picture]
+          - id: device
+            phrase: "number of physical copies"
+            targets: [picture]
+  - id: earned-transfer
+    title: "Which waiting cache fits on every rank?"
+    visual: "Trace Q19 to its group and its two rank copies. On one representative rank place a 1,024-position request against a 12 MiB cache limit, then compare the two waiting requests against the same remaining space."
+    beats:
+      - say: "Try a different checkpoint. Forty-eight queries share six histories. That gives eight readers per history. The gold dot is query nineteen. Which group does it read?"
+        hold: 2
+        visual_cues:
+          - id: size
+            phrase: "eight readers per history"
+            targets: [picture]
+          - id: ask-group
+            phrase: "gold dot is query nineteen"
+            targets: [picture]
+      - say: "Group two. Its readers run from sixteen through twenty-three. Now split the queries evenly across twelve ranks with the Llama layout we traced earlier. Four queries land on each rank. Those eight readers land on ranks four and five, so both ranks need the same history. The six identities occupy twelve physical copies."
+        hold: 0.8
+        visual_cues:
+          - id: group
+            phrase: "Group two"
+            targets: [picture]
+            caption_boundary: true
+          - id: partition
+            phrase: "Four queries land on each rank"
+            targets: [picture]
+          - id: replicas
+            phrase: "both ranks need the same history"
+            targets: [picture]
+          - id: copies
+            phrase: "twelve physical copies"
+            targets: [picture]
+            caption_boundary: true
+      - say: "Take one request at one thousand twenty-four positions. Across thirty-two layers, count a key and a value at each position, each sixty-four numbers wide at two bytes apiece. One physical head costs eight mebibytes. Six logical heads would total forty-eight. The twelve copies actually occupy ninety-six. Matching multi-head attention needs three hundred eighty-four mebibytes across the ranks. We still save a factor of four."
+        hold: 0.8
+        visual_cues:
+          - id: dimensions
+            phrase: "Across thirty-two layers"
+            targets: [picture]
+          - id: unit
+            phrase: "One physical head costs eight mebibytes"
+            targets: [picture]
+            caption_boundary: true
+          - id: logical
+            phrase: "would total forty-eight"
+            targets: [picture]
+          - id: aggregate
+            phrase: "actually occupy ninety-six"
+            targets: [picture]
+            caption_boundary: true
+          - id: mha
+            phrase: "three hundred eighty-four mebibytes"
+            targets: [picture]
+      - say: "Zoom in on one rank. Each rank has a twelve-mebibyte allowance just for raw cache, and that first request is still here. Two independent requests are waiting. One needs another one thousand twenty-four positions. The other needs five hundred twelve. At those lengths, which waiting cache fits on every rank?"
+        hold: 2.5
+        visual_cues:
+          - id: rack
+            phrase: "Zoom in on one rank"
+            targets: [picture]
+          - id: waiting
+            phrase: "Two independent requests are waiting"
+            targets: [picture]
+          - id: ask
+            phrase: "which waiting cache fits on every rank"
+            targets: [picture]
+      - say: "The shorter request fits. It needs four mebibytes per rank, exactly the space left. The longer request needs eight and has to wait. One more token for either resident request costs eight kibibytes on every rank. The bar is already at the limit."
+        hold: 1.1
+        visual_cues:
+          - id: fit
+            phrase: "The shorter request fits"
+            targets: [picture]
+            caption_boundary: true
+          - id: fill
+            phrase: "exactly the space left"
+            targets: [picture]
+          - id: wait
+            phrase: "has to wait"
+            targets: [picture]
+            caption_boundary: true
+          - id: growth
+            phrase: "eight kibibytes on every rank"
+            targets: [picture]

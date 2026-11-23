@@ -1,0 +1,850 @@
+{
+  "id": "deep-dive-vllm",
+  "script": "0a49178e37914564",
+  "articleHash": "33116da80ad3bf794f1f266e156b5a1d12f66d43e34a237cea816a8cab465c69",
+  "checked": "2026-11-10T10:06:16.081Z",
+  "closedBook": {
+    "taught": 10,
+    "partial": 0,
+    "absent": 0,
+    "answers": [
+      {
+        "n": 1,
+        "option": 3,
+        "coverage": "taught",
+        "quotes": [
+          {
+            "scene": "fragmentation",
+            "quote": "For a zero-based position, divide by block size and discard the fraction for its logical block. The remainder gives its within-block offset; the table maps that logical block to a physical ID."
+          }
+        ],
+        "reason": "14 divided by 4 gives logical block index 3 and remainder 2. Table entry 3 is physical block 62.",
+        "exact": true,
+        "correct": true,
+        "grade": "taught"
+      },
+      {
+        "n": 2,
+        "option": 1,
+        "coverage": "taught",
+        "quotes": [
+          {
+            "scene": "process-owners",
+            "quote": "Let A count API servers, D count data-parallel ranks and N count GPUs. Add A, D and N, then add one coordinator when D exceeds one."
+          }
+        ],
+        "reason": "The explicit API override gives A=1, with D=2 and N=8. Since D exceeds one, the total is 1+2+8+1=12.",
+        "exact": true,
+        "correct": true,
+        "grade": "taught"
+      },
+      {
+        "n": 3,
+        "option": 4,
+        "coverage": "taught",
+        "quotes": [
+          {
+            "scene": "prefix-limit",
+            "quote": "The pinned full-attention reference takes the smaller of the shared-prefix length and prompt length minus one. Divide that limit by block size, discard the fractional part, then multiply by block size. The result counts skipped input positions. Subtract skipped positions from prompt length to obtain remaining computation."
+          }
+        ],
+        "reason": "A: floor(min(16,16)/8)×8=16 skipped, leaving 1 computed. B: floor(min(16,15)/8)×8=8 skipped, leaving 8 computed.",
+        "exact": true,
+        "correct": true,
+        "grade": "taught"
+      },
+      {
+        "n": 4,
+        "option": 2,
+        "coverage": "taught",
+        "quotes": [
+          {
+            "scene": "hash-context",
+            "quote": "In the pinned zero point twenty-eight implementation, a LoRA named tenant-A with no salt and no LoRA with salt tenant-A both supply the same one-element extra tuple. With the same parent and tokens, the complete hash input is identical."
+          },
+          {
+            "scene": "hash-context",
+            "quote": "Zero point thirty-one tags extra fields by their source and includes the LoRA path as well as its name. Moving a name to another adapter path can then change cache identity."
+          }
+        ],
+        "reason": "Under the supplied function definitions, v0.28 retains the same name-based input. The v0.31 name-and-path input changes when the path changes.",
+        "exact": true,
+        "correct": true,
+        "grade": "taught"
+      },
+      {
+        "n": 5,
+        "option": 4,
+        "coverage": "taught",
+        "quotes": [
+          {
+            "scene": "pool-structures",
+            "quote": "On a cache hit, touch the matching block. Increase its reference count; if it had zero references, remove it from the free queue first so an allocator cannot overwrite its new reader. New allocations pop queue heads, evict their old hash identities and acquire live references."
+          }
+        ],
+        "reason": "A removes 67 from the queue and raises its references to 1. B raises them to 2. C takes head 42 with one reference, leaving [18,5].",
+        "exact": true,
+        "correct": true,
+        "grade": "taught"
+      },
+      {
+        "n": 6,
+        "option": 1,
+        "coverage": "taught",
+        "quotes": [
+          {
+            "scene": "chunk-clock",
+            "quote": "To extend the toy scheduler, reserve all ready decode inputs first, subtract them from the step cap, then take the smaller of the remaining budget and prompt work left."
+          }
+        ],
+        "reason": "Each step reserves 2 decode inputs, leaving 6 prompt slots. Prompt slices are 6 and 5. The second step uses 7 of 8 slots, leaving 1 unused.",
+        "exact": true,
+        "correct": true,
+        "grade": "taught"
+      },
+      {
+        "n": 7,
+        "option": 2,
+        "coverage": "taught",
+        "quotes": [
+          {
+            "scene": "goodput",
+            "quote": "Goodput is the number of completions meeting both latency limits divided by the full measurement window."
+          },
+          {
+            "scene": "goodput-denominator",
+            "quote": "A completion-only pass fraction, five hundred fifty divided by six hundred, multiplied by ten offered requests per second, instead produces about nine point one seven. It overstates the actual useful completions."
+          }
+        ],
+        "reason": "Useful rate is 61/20=3.05/s. The completion-only estimate is (61/70)×(80/20)=3.485714…/s, rounding to 3.49/s.",
+        "exact": true,
+        "correct": true,
+        "grade": "taught"
+      },
+      {
+        "n": 8,
+        "option": 3,
+        "coverage": "taught",
+        "quotes": [
+          {
+            "scene": "event-metrics",
+            "quote": "Request-mean time per output token divides the difference between last and first output times by the quantity output-token count minus one: twenty-four divided by three, or eight milliseconds. That is a different statistic."
+          },
+          {
+            "scene": "event-metrics",
+            "quote": "The unseen gap between the first bundled tokens cannot be recovered from these event timestamps alone."
+          }
+        ],
+        "reason": "Observed event gaps are 13−10=3 ms and 19−13=6 ms. Four output tokens give TPOT=(19−10)/(4−1)=3 ms. The missing within-event timestamps prevent recovery of per-token p99 ITL.",
+        "exact": true,
+        "correct": true,
+        "grade": "taught"
+      },
+      {
+        "n": 9,
+        "option": 1,
+        "coverage": "taught",
+        "quotes": [
+          {
+            "scene": "route-security",
+            "quote": "Unprefixed aliases such as slash-score, slash-rerank and slash-invocations can remain unauthenticated, alongside health, metrics and some operational routes."
+          },
+          {
+            "scene": "route-security",
+            "quote": "Put authentication and an explicit route allowlist at the reachable gateway, restrict management surfaces, and prevent clients from bypassing it through direct server ingress."
+          },
+          {
+            "scene": "route-security",
+            "quote": "Multi-node process-group, KV-transfer, tensor, pipeline and data-parallel ports need their own isolated network and firewall rules. Their default communication is not an authorization or encryption protocol for an untrusted network. An HTTP bearer key cannot protect a reachable worker port."
+          }
+        ],
+        "reason": "Restricting direct HTTP ingress closes the alias bypass around the authenticated gateway. Network isolation closes direct access to the internal process-group port.",
+        "exact": true,
+        "correct": true,
+        "grade": "taught"
+      },
+      {
+        "n": 10,
+        "option": 3,
+        "coverage": "taught",
+        "quotes": [
+          {
+            "scene": "source-diagnosis",
+            "quote": "For a request with eighty milliseconds of input handling, five of queueing, seven of prefill and three of delivery, investigate the API input stage first. A different request with three, seventy-five, six and two milliseconds points to admission or scheduling."
+          }
+        ],
+        "reason": "P is dominated by 90 ms of input handling, so investigate API input processing. Q is dominated by 72 ms of queueing, so investigate engine admission or scheduling.",
+        "exact": true,
+        "correct": true,
+        "grade": "taught"
+      }
+    ]
+  },
+  "factCheck": {
+    "scenes": [
+      {
+        "id": "intro",
+        "evidence": "Supported within the stated full-attention scope. Prefill and decode require scheduled work and KV capacity. The front-end, engine-core and worker responsibilities agree with the [architecture overview](https://docs.vllm.ai/en/latest/design/arch_overview/). Correct delivery within a latency target is presented as an objective, not an achieved benchmark.",
+        "sourceUrls": [
+          "https://docs.vllm.ai/en/latest/design/arch_overview/"
+        ]
+      },
+      {
+        "id": "entry-contract",
+        "evidence": "Supported. The offline interface and online server have the stated caller boundaries. PyPI confirms August 26, 2026 for v0.28.0 and October 5, 2026 for v0.31.0. The v0.30.0 module forwards imports and emits a deprecation warning. Its [release notes](https://github.com/vllm-project/vllm/releases/tag/v0.30.0) confirm opt-in scale-out registration and removal of the environment variable. The inspected local examples perform CPU accounting without executing vLLM.",
+        "sourceUrls": [
+          "https://docs.vllm.ai/en/latest/design/arch_overview/",
+          "https://pypi.org/project/vllm/0.28.0/",
+          "https://pypi.org/project/vllm/0.31.0/",
+          "https://raw.githubusercontent.com/vllm-project/vllm/v0.30.0/vllm/entrypoints/openai/api_server.py",
+          "https://github.com/vllm-project/vllm/releases/tag/v0.30.0"
+        ]
+      },
+      {
+        "id": "fragmentation",
+        "evidence": "Correct. Internal waste is 12−7=5 positions. The separate free runs total 2+3=5, but max(2,3)=3<4, so neither accommodates the contiguous request. For position p and block size B, logical block=floor(p/B) and offset=p mod B. The [PagedAttention paper](https://arxiv.org/html/2309.06180) supports noncontiguous block placement and residual partial-block waste. Four-position blocks are explicitly illustrative.",
+        "sourceUrls": [
+          "https://arxiv.org/html/2309.06180"
+        ]
+      },
+      {
+        "id": "blocks",
+        "evidence": "Supported by the addressing mechanism in the [paper](https://arxiv.org/html/2309.06180). The actual film model maps logical blocks 0 and 1 to physical IDs 12 and 41. Its selected position 6 gives floor(6/4)=1 and 6 mod 4=2, hence physical block 41, offset 2. Addressing does not determine the selected attention backend.",
+        "sourceUrls": [
+          "https://arxiv.org/html/2309.06180",
+          "https://raw.githubusercontent.com/vllm-project/vllm/v0.28.0/README.md"
+        ]
+      },
+      {
+        "id": "historical-evidence",
+        "evidence": "Supported by the [paper’s abstract and Sections 6.1–6.4](https://arxiv.org/html/2309.06180). Checked the 2–4× headline, OPT-13B/66B/175B, ShareGPT/Alpaca lengths, Poisson arrivals, LLaMA-13B/WMT16 prefix workload, GCP A2/A100 hardware, custom FasterTransformer batching, reimplemented Orca variants, and one-hour versus fifteen-minute traces. Normalized latency averages each request’s end-to-end latency divided by its output length. The narration correctly avoids converting historical results into current TTFT or tail-ITL guarantees.",
+        "sourceUrls": [
+          "https://arxiv.org/html/2309.06180"
+        ]
+      },
+      {
+        "id": "process-owners",
+        "evidence": "Supported for the expressly scoped [documented topology](https://docs.vllm.ai/en/latest/design/arch_overview/): API input/output processing, many-to-many ZMQ connections, one core per DP rank, one worker per GPU, default A=D, and a coordinator for D>1. Arithmetic is 1+1+4=6 and 4+4+8+1=17. These are main serving-process counts, not universal OS-process inventories. CPU dispatch constraints support the stated diagnostic boundaries.",
+        "sourceUrls": [
+          "https://docs.vllm.ai/en/latest/design/arch_overview/",
+          "https://docs.vllm.ai/en/latest/configuration/optimization/"
+        ]
+      },
+      {
+        "id": "prefix",
+        "evidence": "Supported. The actual fixture arrays share six initial symbolic positions, but only their first four-position block matches completely. Reuse therefore skips four positions, leaves 9−4=5 computations, and raises slot 12’s references from one to two. [Prefix-cache documentation](https://docs.vllm.ai/en/latest/design/prefix_caching/) supports complete-block reuse and contextual identity. This is a symbolic fixture, not a tokenizer-derived segmentation of the displayed sentence.",
+        "sourceUrls": [
+          "https://docs.vllm.ai/en/latest/design/prefix_caching/",
+          "https://raw.githubusercontent.com/vllm-project/vllm/v0.28.0/vllm/v1/core/kv_cache_utils.py"
+        ]
+      },
+      {
+        "id": "prefix-limit",
+        "evidence": "Correct for this fresh-request path. The [pinned manager](https://raw.githubusercontent.com/vllm-project/vllm/v0.28.0/vllm/v1/core/kv_cache_manager.py) caps hits at request.num_tokens−1. Independently checked skipped=4×floor(min(shared,length−1)/4): (6,9)→4, (7,9)→4, (8,9)→8, (8,8)→4, (1,1)→0. Remaining computations are 5,5,1,4,1. With adequate capacity, 1 decode+5 prompt inputs uses six positions. New tail-block demand is ceil(remaining/4), distinct from cache-hit pinning demand.",
+        "sourceUrls": [
+          "https://raw.githubusercontent.com/vllm-project/vllm/v0.28.0/vllm/v1/core/kv_cache_manager.py",
+          "https://raw.githubusercontent.com/vllm-project/vllm/v0.28.0/vllm/v1/core/single_type_kv_cache_manager.py"
+        ]
+      },
+      {
+        "id": "hash-context",
+        "evidence": "Supported. In the [v0.28.0 implementation](https://raw.githubusercontent.com/vllm-project/vllm/v0.28.0/vllm/v1/core/kv_cache_utils.py), the LoRA helper contributes its name and the salt contributes an untagged string. The two stated cases both produce ('tenant-A',), making the full input identical when parent and tokens match. This is an encoding ambiguity, not a cryptographic collision or a claimed serialization exception. v0.31.0 adds source tags and the LoRA path. The documentation identifies SHA-256 as default. A path is not an adapter-content digest.",
+        "sourceUrls": [
+          "https://raw.githubusercontent.com/vllm-project/vllm/v0.28.0/vllm/v1/core/kv_cache_utils.py",
+          "https://raw.githubusercontent.com/vllm-project/vllm/v0.31.0/vllm/v1/core/kv_cache_utils.py",
+          "https://docs.vllm.ai/en/latest/design/prefix_caching/"
+        ]
+      },
+      {
+        "id": "pool-structures",
+        "evidence": "Supported by the [pinned pool operations](https://raw.githubusercontent.com/vllm-project/vllm/v0.28.0/vllm/v1/core/block_pool.py) and block metadata. Zero-reference cached blocks remain reclaimable. Touching a zero-reference hit removes it from the free queue and acquires a reference. New allocation invalidates old hashes. Executed the actual helper: [71,55,9] becomes [71,55] after touching 9, then [55] after allocating 71. Both acquired blocks have one reference.",
+        "sourceUrls": [
+          "https://raw.githubusercontent.com/vllm-project/vllm/v0.28.0/vllm/v1/core/block_pool.py",
+          "https://raw.githubusercontent.com/vllm-project/vllm/v0.28.0/vllm/v1/core/kv_cache_utils.py"
+        ]
+      },
+      {
+        "id": "budget",
+        "evidence": "Correct as a constructed decode-first trace with sufficient KV capacity and both requests active. Executing the actual model gives step 0: 1+5=6 inputs, four prompt positions left; step 1: 1+4=5, one unused slot; step 2: 1+1=2, four unused slots. The [scheduler](https://raw.githubusercontent.com/vllm-project/vllm/v0.28.0/vllm/v1/core/sched/scheduler.py) accounts for scheduled input work. Finishing prefill supplies logits for the first output, so emitted-token counts differ from these inputs.",
+        "sourceUrls": [
+          "https://raw.githubusercontent.com/vllm-project/vllm/v0.28.0/vllm/v1/core/sched/scheduler.py"
+        ]
+      },
+      {
+        "id": "chunk-clock",
+        "evidence": "Correct under the supplied cost model. The two mixed steps cost 2+6=8 ms and 2+5=7 ms, totaling 15 ms before R1 finishes prefill. With cap 10, 1+9 inputs cost 2+10=12 ms. R0’s first result therefore waits 8 versus 12 ms. The [optimization guide](https://docs.vllm.ai/en/latest/configuration/optimization/) supports the workload-dependent tradeoff. Continuous batching and chunked prefill are correctly distinguished.",
+        "sourceUrls": [
+          "https://docs.vllm.ai/en/latest/configuration/optimization/"
+        ]
+      },
+      {
+        "id": "running-preemption",
+        "evidence": "Supported. The [v0.31.0 configuration](https://raw.githubusercontent.com/vllm-project/vllm/v0.31.0/vllm/config/scheduler.py) separates RUNNING admission from runner/graph capacity, so an active cap of 64 blocks a further admission despite execution capacity 256. Pinned preemption frees blocks, resets computed progress and requeues the retained request. Recompute, historical swap and configured offload have distinct mechanisms. Latency and communication statements are conditional.",
+        "sourceUrls": [
+          "https://raw.githubusercontent.com/vllm-project/vllm/v0.31.0/vllm/config/scheduler.py",
+          "https://github.com/vllm-project/vllm/releases/tag/v0.31.0",
+          "https://raw.githubusercontent.com/vllm-project/vllm/v0.28.0/vllm/v1/core/sched/scheduler.py",
+          "https://docs.vllm.ai/en/latest/configuration/optimization/"
+        ]
+      },
+      {
+        "id": "lifetime",
+        "evidence": "Correct for the reduced fixture. Tables initially imply refs {12:2,41:1,73:1,90:1}. Releasing R0 leaves slot 12 at one reference and slot 41 at zero, making only 41 reclaimable. Assigning 41 to R2 preserves R1’s table and removes 41’s old hash. This agrees with [reference-count and eviction operations](https://raw.githubusercontent.com/vllm-project/vllm/v0.28.0/vllm/v1/core/block_pool.py).",
+        "sourceUrls": [
+          "https://raw.githubusercontent.com/vllm-project/vllm/v0.28.0/vllm/v1/core/block_pool.py"
+        ]
+      },
+      {
+        "id": "queue-order",
+        "evidence": "Correct. The [request manager](https://raw.githubusercontent.com/vllm-project/vllm/v0.28.0/vllm/v1/core/single_type_kv_cache_manager.py) releases tables backward. The pool places uncached zero-reference blocks before cached blocks. Releasing [12,73,90] therefore yields [90,73,12] from an empty queue, while R2 retains 41. Inspected the Python program’s failed-allocation and ownership assertions and executed the film validation. These establish the reduced fixture, not production allocator behavior.",
+        "sourceUrls": [
+          "https://raw.githubusercontent.com/vllm-project/vllm/v0.28.0/vllm/v1/core/single_type_kv_cache_manager.py",
+          "https://raw.githubusercontent.com/vllm-project/vllm/v0.28.0/vllm/v1/core/block_pool.py"
+        ]
+      },
+      {
+        "id": "admission",
+        "evidence": "Prior finding closed. Initially, 2≤4 passes the token predicate while 1>0 fails storage. After release, one required block fits one free block. The proposed five-position slice then exceeds four available positions. The [waiting-request branch](https://raw.githubusercontent.com/vllm-project/vllm/v0.28.0/vllm/v1/core/sched/scheduler.py) permits a smaller chunk when enabled and stops this unchunked admission otherwise. The revised narration correctly distinguishes slice rejection from request participation.",
+        "sourceUrls": [
+          "https://raw.githubusercontent.com/vllm-project/vllm/v0.28.0/vllm/v1/core/sched/scheduler.py",
+          "https://raw.githubusercontent.com/vllm-project/vllm/v0.28.0/vllm/v1/core/kv_cache_manager.py"
+        ]
+      },
+      {
+        "id": "runner-contract",
+        "evidence": "Supported. [Scheduler output structures](https://raw.githubusercontent.com/vllm-project/vllm/v0.28.0/vllm/v1/core/sched/output.py) carry request-associated inputs and updates, with persistent runner state supplying previously transmitted fields. The runner implements input preparation, weight loading, execution and sampling. A valid physical address can still name another request’s history. The stated timing controls are experimental requirements, not claims that GPU execution or output parity was validated.",
+        "sourceUrls": [
+          "https://raw.githubusercontent.com/vllm-project/vllm/v0.28.0/vllm/v1/core/sched/output.py",
+          "https://raw.githubusercontent.com/vllm-project/vllm/v0.28.0/vllm/v1/worker/gpu_model_runner.py",
+          "https://arxiv.org/html/2309.06180"
+        ]
+      },
+      {
+        "id": "parallel-costs",
+        "evidence": "Supported as conditional mechanisms. The [parallelism documentation](https://docs.vllm.ai/en/latest/serving/parallelism_scaling/) describes TP sharding, PP layer placement and combined DP/MoE strategies. The optimization guide supports weight-memory savings and communication or latency costs. Dense replicas and combined DP/EP are correctly distinguished. Compatibility and latency benefits depend on the actual model, backend and topology.",
+        "sourceUrls": [
+          "https://docs.vllm.ai/en/latest/serving/parallelism_scaling/",
+          "https://docs.vllm.ai/en/latest/configuration/optimization/",
+          "https://raw.githubusercontent.com/vllm-project/vllm/v0.28.0/README.md"
+        ]
+      },
+      {
+        "id": "runner-versions",
+        "evidence": "Supported. The [pinned worker branch](https://raw.githubusercontent.com/vllm-project/vllm/v0.28.0/vllm/v1/worker/gpu_worker.py) selects gpu/model_runner.py or gpu_model_runner.py within V1. The retrieved V1 guide lists the five stated hardware paths and still restricts Mamba prefix caching. v0.28.0 release notes advertise default hybrid/Mamba caching, v0.30.0 describes model-specific checkpoints, and v0.31.0 records the flag rename. The narration correctly presents a documentation conflict requiring implementation-specific resolution.",
+        "sourceUrls": [
+          "https://raw.githubusercontent.com/vllm-project/vllm/v0.28.0/vllm/v1/worker/gpu_worker.py",
+          "https://docs.vllm.ai/en/latest/usage/v1_guide/",
+          "https://github.com/vllm-project/vllm/releases/tag/v0.28.0",
+          "https://github.com/vllm-project/vllm/releases/tag/v0.30.0",
+          "https://github.com/vllm-project/vllm/releases/tag/v0.31.0"
+        ]
+      },
+      {
+        "id": "goodput",
+        "evidence": "Correct under the lesson’s explicitly chosen completion-window definition. Passing completions divided by elapsed time keeps the population consistent. Candidate B supplies 752 passing completions versus A’s 550. Different offered loads do not establish superiority at matched load, and the narration explicitly requests matched replay. [DistServe](https://arxiv.org/html/2401.09670) supports distinguishing throughput from latency-constrained useful service, while using its own goodput convention.",
+        "sourceUrls": [
+          "https://arxiv.org/html/2401.09670"
+        ]
+      },
+      {
+        "id": "goodput-denominator",
+        "evidence": "Arithmetic independently checked and reproduced by the actual model: A=550/100=5.5 requests/s; B=752/100=7.52. A has 1000−600=400 failed or unfinished offers. The inconsistent expression gives (550/600)×10=9.1667. Correct offered-population expressions are 10×550/1000=5.5 and 8×752/800=7.52. The strict thresholds are stipulated inputs. Individual latency records are not supplied to recompute the passing counts.",
+        "sourceUrls": []
+      },
+      {
+        "id": "event-metrics",
+        "evidence": "Supported by [pinned statistics code](https://raw.githubusercontent.com/vllm-project/vllm/v0.28.0/vllm/v1/metrics/stats.py): ITL subtracts consecutive engine-core output timestamps, while finished-request mean TPOT divides last-minus-first output time by generated-token count minus one. Checked event gaps 12−0=12 and 24−12=12 ms, versus TPOT 24/(4−1)=8 ms. Bundled events cannot reveal hidden token gaps. DistServe uses request-average TPOT, so it requires a different grader from per-request p99 ITL.",
+        "sourceUrls": [
+          "https://raw.githubusercontent.com/vllm-project/vllm/v0.28.0/vllm/v1/metrics/stats.py",
+          "https://arxiv.org/html/2401.09670"
+        ]
+      },
+      {
+        "id": "route-security",
+        "evidence": "Supported by the retrieved [security documentation](https://docs.vllm.ai/en/stable/usage/security/): the four protected prefixes, unprotected aliases and separate internal communication exposure are documented. Gateway authentication, allowlisting and ingress isolation are recommendations, not claimed implemented controls.",
+        "sourceUrls": [
+          "https://docs.vllm.ai/en/stable/usage/security/"
+        ]
+      },
+      {
+        "id": "media-limits",
+        "evidence": "Supported. The [security guide](https://docs.vllm.ai/en/stable/usage/security/) documents domain, redirect, download, pixel, audio-file, duration and decoded-byte controls. These constrain different resources. v0.31.0 gates per-request multimodal overrides behind the trust flag and leaves offline LLM unchanged. API ownership of media loading is documented. No enforcement test is claimed.",
+        "sourceUrls": [
+          "https://docs.vllm.ai/en/stable/usage/security/",
+          "https://github.com/vllm-project/vllm/releases/tag/v0.31.0",
+          "https://docs.vllm.ai/en/latest/design/arch_overview/"
+        ]
+      },
+      {
+        "id": "tenant-cache",
+        "evidence": "Supported with ordinary finite-hash qualifications. [Pinned hashing](https://raw.githubusercontent.com/vllm-project/vllm/v0.28.0/vllm/v1/core/kv_cache_utils.py) inserts salt into the first block and chains subsequent identities. The security guide confirms that obtaining another tenant’s salt permits probing. Authenticated namespace enforcement is a production requirement, not a claimed vLLM implementation. Salt supplies neither encryption nor source authorization.",
+        "sourceUrls": [
+          "https://raw.githubusercontent.com/vllm-project/vllm/v0.28.0/vllm/v1/core/kv_cache_utils.py",
+          "https://docs.vllm.ai/en/stable/usage/security/"
+        ]
+      },
+      {
+        "id": "synthesis",
+        "evidence": "Supported as diagnostic guidance. The actual film model separates input, queue, prefill and delivery, with its supplied values summing 20+80+40+10=150 ms. [Scheduler structures](https://raw.githubusercontent.com/vllm-project/vllm/v0.28.0/vllm/v1/core/sched/output.py) preserve request-associated work and mappings. Different intervals motivate different investigations without proving causes. Compatibility, warmed measurement and network controls remain deployment requirements.",
+        "sourceUrls": [
+          "https://raw.githubusercontent.com/vllm-project/vllm/v0.28.0/vllm/v1/core/sched/output.py",
+          "https://docs.vllm.ai/en/latest/serving/parallelism_scaling/",
+          "https://docs.vllm.ai/en/stable/usage/security/"
+        ]
+      },
+      {
+        "id": "source-diagnosis",
+        "evidence": "Prior finding closed. The [manager](https://raw.githubusercontent.com/vllm-project/vllm/v0.28.0/vllm/v1/core/kv_cache_manager.py) excludes bypassed lookups from statistics, so 'among measured lookups' is accurate. Eviction, identity mismatch and residency explain why low hits do not prove intrinsic non-reusability or exhausted memory. Eligibility is appropriately an investigation boundary. Timelines total 80+5+7+3=95 ms and 3+75+6+2=86 ms, respectively dominated by input and queueing. These establish priorities, not causes.",
+        "sourceUrls": [
+          "https://raw.githubusercontent.com/vllm-project/vllm/v0.28.0/vllm/v1/core/kv_cache_manager.py",
+          "https://raw.githubusercontent.com/vllm-project/vllm/v0.28.0/vllm/v1/core/block_pool.py",
+          "https://docs.vllm.ai/en/latest/configuration/optimization/"
+        ]
+      },
+      {
+        "id": "project-identity",
+        "evidence": "Supported. The pinned README identifies the Berkeley Sky Computing Lab origin, and the paper names the stated authors. [Governance](https://docs.vllm.ai/en/latest/governance/process/) assigns committer status to individuals through contributions, reviews and stewardship. Sponsor documentation confirms organizational support. The pinned license is Apache-2.0 and does not establish rights to separately loaded artifacts. The closing costs are mechanism-level tradeoffs, not quantified performance claims.",
+        "sourceUrls": [
+          "https://raw.githubusercontent.com/vllm-project/vllm/v0.28.0/README.md",
+          "https://arxiv.org/html/2309.06180",
+          "https://docs.vllm.ai/en/latest/governance/process/",
+          "https://docs.vllm.ai/en/latest/community/sponsors/",
+          "https://raw.githubusercontent.com/vllm-project/vllm/v0.28.0/LICENSE"
+        ]
+      },
+      {
+        "id": "fresh-admission",
+        "evidence": "Prior finding closed. Miss: zero skips, 13+1=14 inputs, ceil(13/4)=4 new blocks>3 free. Hit: 4×floor(min(10,12)/4)=8 skips, 13−8=5 computations, ceil(5/4)=2 new blocks, and 5+1=6 inputs. The [capacity calculation](https://raw.githubusercontent.com/vllm-project/vllm/v0.28.0/vllm/v1/core/single_type_kv_cache_manager.py) charges zero-reference hits, but the revised fixture explicitly makes both hits live, requires no decode allocation and satisfies other limits. Therefore two blocks fit. Timing is 7+65+24+6=102 ms. SkyRL documentation supports the trainer/environment/generation transition and weight synchronization.",
+        "sourceUrls": [
+          "https://raw.githubusercontent.com/vllm-project/vllm/v0.28.0/vllm/v1/core/single_type_kv_cache_manager.py",
+          "https://raw.githubusercontent.com/vllm-project/vllm/v0.28.0/vllm/v1/core/kv_cache_manager.py",
+          "https://docs.skyrl.ai/docs/getting-started/overview",
+          "https://docs.skyrl.ai/docs/getting-started/inference_architecture"
+        ]
+      }
+    ],
+    "findings": [],
+    "limitations": [
+      "Reviewed all 29 scenes and 87 beats for narration hash 0a49178e37914564. The stage YAML SHA-256 matches f399eb8df3542b0c678d863c7b0af5d42c555a0f35e4b2357cfbbf83528f0f04. Exactly four beats differ from the prior script. All three prior spoken findings are closed, with no new substantive spoken error identified.",
+      "Read the actual film model, arithmetic, construction, fixtures, validation and relevant canvas stages. Executed validateModel successfully and independently inspected the worked calculations. readLesson resolved the current script and its 173 visual cues. This validates CPU fixtures and cue phrases, not rendered synchronization.",
+      "The stage folder has no index.mjs or rebuilt scenes. No rendered frames, measured speech, captions, encoded timing or visual synchronization were checked.",
+      "The legacy fresh-admission canvas lacks explicit live-reference and decode-allocation operands. Its replacement must show the cached prefix blocks already live and separate from the three free blocks, with no additional decode allocation. This is a visual prerequisite, not an inaccurate revised spoken claim.",
+      "The legacy admission canvas labels the five-position candidate as waiting. Its replacement must identify rejection of the proposed full slice and, if illustrating chunking, show a separate four-position slice with its own capacity check. No narration correction is needed.",
+      "The article still contains the prior low-hit-rate inference in its checkpoint. Preserve that separate article issue: replace intrinsic non-reusability with observed limited reuse and compatibility, residency, routing and eligibility checks. It is absent from the revised narration.",
+      "No vLLM engine, model weights, GPU execution, output parity, live benchmark, HTTP security control, media decoder or deployment was exercised. Synthetic passing-completion counts cannot be reconstructed without individual latency records.",
+      "Moving documentation was checked as retrieved during this review. Its contents do not establish behavior for every installed version or configuration. No files or external resources were modified, and no subagents were used."
+    ]
+  },
+  "reviewedNarration": {
+    "source": "videos/stage-lessons/deep-dive-vllm/lesson.yaml",
+    "script": "0a49178e37914564",
+    "scenes": [
+      {
+        "id": "intro",
+        "beats": [
+          {
+            "say": "A model is midway through an answer when another person sends a longer prompt. The first request needs one more decoding step. The new request needs its prompt processed. Both compete for the next GPU step and for memory that grows with their histories.\n"
+          },
+          {
+            "say": "vLLM organizes that serving problem beneath a familiar API. The request front end handles inputs and streaming. An engine schedules token work and manages cached attention state. GPU workers turn that schedule into model execution. Following these boundaries helps explain where a request actually waits.\n"
+          },
+          {
+            "say": "We will keep the two request identities visible as their histories acquire blocks, share an exact prefix and enter a token budget. Then we will release one request and safely reuse its storage. The useful outcome is a correct response delivered within a latency target.\n"
+          }
+        ]
+      },
+      {
+        "id": "entry-contract",
+        "beats": [
+          {
+            "say": "The offline LLM class accepts prompts through a synchronous Python interface. Synchronous describes what that caller waits for; engine and worker processes can still run separately. Online serving accepts HTTP requests and streams replies. A generation model, a pooling model and a reranker do not automatically implement every route exposed by a familiar API shape."
+          },
+          {
+            "say": "This source walkthrough pins vLLM zero point twenty-eight point zero, released August twenty-six, twenty twenty-six. The article also checked zero point thirty-one point zero, released October fifth. Our arithmetic programs run on the CPU without importing vLLM, loading model weights or executing a serving engine. The request trace assumes decoder-only full attention, with speculation, offload and hybrid cache groups excluded."
+          },
+          {
+            "say": "Use vllm serve for the online entrypoint. In zero point thirty, the older Python API-server module became a deprecated compatibility shim, and ordinary scale-out routes require the enable-scale-out flag. A copied environment variable can leave a route absent. Preserve the installed revision, registered routes and resolved configuration before comparing requests or attributing a capability to the engine."
+          }
+        ]
+      },
+      {
+        "id": "fragmentation",
+        "beats": [
+          {
+            "say": "Begin with a constructed memory example. A request reserves twelve token positions but finishes after seven. Five positions remain unused inside its reservation. That is internal fragmentation. Now put two free positions in one region and three in another. Five positions are free overall, yet a request needing four contiguous positions cannot fit into either region. That is external fragmentation."
+          },
+          {
+            "say": "Fixed-size KV blocks let the request grow by acquiring another physical block without requiring its neighbors. The request keeps its own logical order in a table. Physical placement can change without permuting that logical sequence. A final partly occupied block still has unused cells, so block paging manages fragmentation rather than promising zero waste."
+          },
+          {
+            "say": "Each cached position holds attention keys and values for the relevant layers and heads. Our four-position blocks make addresses inspectable; actual supported block sizes depend on the backend. For a zero-based position, divide by block size and discard the fraction for its logical block. The remainder gives its within-block offset; the table maps that logical block to a physical ID. Keep the same token identities while changing the view."
+          }
+        ]
+      },
+      {
+        "id": "blocks",
+        "beats": [
+          {
+            "say": "Autoregressive decoding reuses keys and values computed for earlier positions. Reserving each request's maximum history would leave unused capacity when it finishes early. vLLM divides cached state into fixed-size blocks and gives each request a table that names its physical blocks.\n"
+          },
+          {
+            "say": "Our small sentence occupies two four-position blocks. The first lives in one physical slot and the next in another, far away in the pool. Logical order comes from the request's table. The model can read a continuous history without requiring adjacent physical storage.\n"
+          },
+          {
+            "say": "Follow the selected position through integer division and its within-block offset. A kernel consumes that mapping when loading attention state. Paged addressing describes a memory contract. The actual attention implementation still depends on the model, hardware, dtype and enabled features.\n"
+          }
+        ]
+      },
+      {
+        "id": "historical-evidence",
+        "beats": [
+          {
+            "say": "The twenty twenty-three PagedAttention paper reported two to four times higher throughput than FasterTransformer and Orca at comparable latency in its experiments. Its basic sampling workloads used OPT thirteen, sixty-six and one hundred seventy-five billion parameter models with ShareGPT and Alpaca length distributions and Poisson arrivals. Shared-prefix experiments used LLaMA thirteen billion and WMT sixteen translation examples."
+          },
+          {
+            "say": "Those measurements used GCP A2 instances with A100 GPUs. FasterTransformer had a custom dynamic batcher; the authors reimplemented Orca with different reservation variants. Most traces lasted one hour, while the largest OPT experiment used fifteen minutes. The reported latency was mean end-to-end latency normalized by output length. It does not become a current first-token or tail inter-token guarantee."
+          },
+          {
+            "say": "The durable mechanism is paged memory and the work it permits. For a new comparison, hold hardware, topology, versions, model, dtypes, sampling, arrivals, lengths, warmup and correctness checks constant. Measure useful completions and latency distributions on that workload. Paged block addressing can feed several current attention kernels; the paper title alone does not identify which kernel a request executed."
+          }
+        ]
+      },
+      {
+        "id": "process-owners",
+        "beats": [
+          {
+            "say": "In the documented V1 online multiprocessing topology, API servers parse requests, tokenize, load media and stream outputs. They connect through ZeroMQ to engine cores, one per data-parallel rank. Each core owns scheduling and KV management. Each GPU has a worker. With data parallelism, API-server count defaults to the number of ranks, and every API server can reach every engine core."
+          },
+          {
+            "say": "Let A count API servers, D count data-parallel ranks and N count GPUs. Add A, D and N, then add one coordinator when D exceeds one. Four GPUs with tensor parallelism four and one data-parallel rank give one plus one plus four, or six main processes. Eight GPUs with two-way tensor parallelism and four data-parallel ranks give four plus four plus eight plus one, or seventeen."
+          },
+          {
+            "say": "This counts the specified serving topology, not every OS process or every offline and Ray deployment. A tokenization stall belongs at the API boundary; queueing and block allocation belong at the core; a collective or kernel belongs at the workers. CPU starvation can delay the GPU handoff even when the GPU has spare capacity. Preserve that ownership while tracing one request ID."
+          }
+        ]
+      },
+      {
+        "id": "prefix",
+        "beats": [
+          {
+            "say": "The second sentence begins with the same words and later diverges. In this full-attention teaching path, automatic prefix caching reuses complete matching blocks. Compare the first block, then inspect the next one. A partially matching block does not provide an exact cached block for the new request.\n"
+          },
+          {
+            "say": "Both requests can point to the first physical slot. Its reference count becomes two. The new request still computes the divergent suffix and its partial final block. The shared-prefix count and skipped-computation count differ because the cache's reuse unit is a whole block.\n"
+          },
+          {
+            "say": "Cache identity also includes preceding context and relevant configuration, such as an adapter or an enforced trust namespace. Equal text alone cannot establish compatible state. Reuse saves prompt processing. Each new generated token still needs its decoding computation, even when much of the prompt was cached.\n"
+          }
+        ]
+      },
+      {
+        "id": "prefix-limit",
+        "beats": [
+          {
+            "say": "The pinned full-attention reference takes the smaller of the shared-prefix length and prompt length minus one. Divide that limit by block size, discard the fractional part, then multiply by block size. The result counts skipped input positions. Subtract skipped positions from prompt length to obtain remaining computation. This assumes eligible cached blocks exist and their complete context matches. For a new request with a block-aligned reused prefix, round the remaining count upward to a whole number of new blocks."
+          },
+          {
+            "say": "For our nine-position prompt and four-position blocks, six matching positions permit four skips and leave five computations. Seven matching positions give the same result. Eight matching positions permit eight skips and leave one. Turning APC on in the earlier six-position scheduling step would let R0 consume one decode input and R1 compute its remaining five prompt inputs in that same step."
+          },
+          {
+            "say": "Now make the prompt itself eight positions long, with all eight cached. KV entries do not contain the final logits needed to sample its reply. The pinned code caps the hit at seven positions; block alignment rounds that to four, so the last whole block is recomputed. A one-position prompt skips zero. Sliding-window, hybrid-state, offloaded and prompt-logprob paths require their own contracts."
+          }
+        ]
+      },
+      {
+        "id": "hash-context",
+        "beats": [
+          {
+            "say": "A block hash includes its parent hash, its exact token IDs and extra context such as adapter identity, multimodal input hashes and an optional cache salt. The parent preserves earlier context: the same suffix after different prefixes can have different attention state. Full-block equality therefore covers more than the visible words in the selected block."
+          },
+          {
+            "say": "Serialization can fail before the hash function runs. In the pinned zero point twenty-eight implementation, a LoRA named tenant-A with no salt and no LoRA with salt tenant-A both supply the same one-element extra tuple. With the same parent and tokens, the complete hash input is identical. SHA-two-fifty-six cannot distinguish identical serialized input; this is different from two different inputs accidentally sharing a finite digest."
+          },
+          {
+            "say": "Zero point thirty-one tags extra fields by their source and includes the LoRA path as well as its name. Moving a name to another adapter path can then change cache identity. The documented default uses SHA-two-fifty-six, while non-cryptographic alternatives change the risk tradeoff. Keep the semantic field boundaries, installed version and actual adapter content contract alongside the digest."
+          }
+        ]
+      },
+      {
+        "id": "pool-structures",
+        "beats": [
+          {
+            "say": "The pool preconstructs block objects. A block retains its physical ID, reference count, optional full-block hash and links in a doubly linked free queue. Request tables name their current blocks; a separate hash map finds reusable cached content. A zero reference count can coexist with a cached hash because finished content may still be useful before overwrite."
+          },
+          {
+            "say": "On a cache hit, touch the matching block. Increase its reference count; if it had zero references, remove it from the free queue first so an allocator cannot overwrite its new reader. New allocations pop queue heads, evict their old hash identities and acquire live references. A hash match and free capacity are consequently related decisions, not interchangeable counters."
+          },
+          {
+            "say": "For a changed toy queue, suppose the head order is seventy-one, fifty-five, nine, and slot nine is cached. A new request hits nine. Nine leaves that queue and gains a live reference. Another allocation takes seventy-one, leaving only fifty-five free. The request tables, reference counts, free queue and hash map must agree after each operation."
+          }
+        ]
+      },
+      {
+        "id": "budget",
+        "beats": [
+          {
+            "say": "Turn prefix reuse off for this scheduling comparison. The new prompt needs all nine positions computed. With a six-position step budget, admit the active request's decode first. The remaining slots process the first prompt slice. The unprocessed suffix remains attached to the same request identity.\n"
+          },
+          {
+            "say": "In the next step, decode continues and the remaining prompt positions fit. One budget slot stays unused. Finishing prefill provides the logits for the new request's first sampled output. Budgeted input positions and emitted output tokens describe different parts of the generation loop.\n"
+          },
+          {
+            "say": "Both requests now decode. The step underfills because their current need is small. Continuous batching lets requests join and leave between steps. A larger prompt slice can reduce the number of prefill steps while lengthening the delay seen by active decodes, so tune against both latency distributions.\n"
+          }
+        ]
+      },
+      {
+        "id": "chunk-clock",
+        "beats": [
+          {
+            "say": "To extend the toy scheduler, reserve all ready decode inputs first, subtract them from the step cap, then take the smaller of the remaining budget and prompt work left. Continuous batching changes the active membership between steps. Chunked prefill changes how much of one prompt participates in a step. Those operations can occur together while keeping the request identities fixed."
+          },
+          {
+            "say": "Use a supplied cost model: each step costs two milliseconds plus one millisecond per computed input position. With our six-position cap, the first mixed step computes six inputs and lasts eight milliseconds. The second computes five and lasts seven. These are constructed durations, not vLLM measurements. Show R0 waiting through those actual extents while R1 retains its unprocessed suffix."
+          },
+          {
+            "say": "Raise the cap to ten. One R0 input plus all nine prompt inputs now fit in a single twelve-millisecond toy step. R1 finishes prefill in fewer steps, while the active decode waits longer for this first result. Actual GPU costs are nonlinear, so measure first-token and inter-token distributions. Neither the guide’s suggested large caps nor a versioned default supplies a universal optimum."
+          }
+        ]
+      },
+      {
+        "id": "running-preemption",
+        "beats": [
+          {
+            "say": "Zero point thirty-one adds a separate maximum-active-sequences cap for the RUNNING set. With an execution capacity of two hundred fifty-six sequences and an active cap of sixty-four, the sixty-fifth running request still waits even if token slots remain. The token cap, sequence execution capacity and live running-set limit constrain different quantities."
+          },
+          {
+            "say": "When KV capacity runs out, V1’s default preemption mode is recompute. The engine frees a running request’s blocks, retains the request record and returns it to waiting with computation reset. Its retained tokens can be processed again when capacity returns; cached eligible prefixes may survive elsewhere. Generated tokens do not simply disappear from the user’s request identity."
+          },
+          {
+            "say": "Recomputation consumes work and can worsen latency. V0’s CPU-swap preemption and an explicitly configured KV-offload path have different ownership and movement rules. Inspect free blocks, KV usage, preemptions, queue wait and token latency together. More KV capacity or a smaller active set can help a thrashing workload, while larger parallel groups can add communication cost."
+          }
+        ]
+      },
+      {
+        "id": "lifetime",
+        "beats": [
+          {
+            "say": "Return to the shared-prefix snapshot. All four physical slots are live, so another allocation cannot safely overwrite one. The pool's reference counts come from the request tables. A cached block's popularity matters only after live references permit it to become reclaimable.\n"
+          },
+          {
+            "say": "Finish the first request and release its table. The shared prefix still has a reader, while the first request's private suffix reaches zero references. That private slot joins the free queue. Its cached content can remain available until an allocation actually reuses the storage.\n"
+          },
+          {
+            "say": "Admit a third request into that free slot. Remove the previous cache identity before overwriting its payload, and assign the new live reference. The other request's shared prefix stays protected. Free storage, reusable cached content and currently live storage are related but distinct states.\n"
+          }
+        ]
+      },
+      {
+        "id": "queue-order",
+        "beats": [
+          {
+            "say": "Continue after R2 acquired slot forty-one. R1 still owns twelve, seventy-three and ninety. Ninety is a live partial tail without a full-block hash. Finish R1 and walk its table backward: ninety, seventy-three, twelve. Decrement each reference count. R2’s reference to forty-one is independent and stays live."
+          },
+          {
+            "say": "In the pinned pool, zero-reference blocks without cached content are prepended for early reuse. Cached blocks go to the tail for LRU behavior. Starting with an empty free queue, R1’s partial ninety becomes its head, then cached seventy-three and twelve follow. Cached suffixes are released before their prefixes because long specific suffixes are less likely to be reused."
+          },
+          {
+            "say": "The local Python program first rejects an allocation while all four physical slots are live, without mutating any state. It then releases R0, reuses only forty-one after removing its hash, and preserves R1. These assertions establish the reduced ownership fixture. The real allocator additionally handles hit touches, cache groups, allocation failures and scheduler preemption."
+          }
+        ]
+      },
+      {
+        "id": "admission",
+        "beats": [
+          {
+            "say": "Admission requires both token-position budget and KV capacity to fit. This candidate needs two positions and one physical block. Four positions remain, so its token check passes; no block is free, so its memory check keeps the request waiting. The scheduler applies both checks to the same work item.\n"
+          },
+          {
+            "say": "Release enough storage and the same candidate becomes feasible. In a real full cache, a serving policy may preempt and later recompute a request. Repeated recomputation can consume useful work, so inspect free blocks and preemption counters alongside queue wait and token latency.\n"
+          },
+          {
+            "say": "Now increase the requested token work beyond the remaining step budget. Memory fits, but this full slice fails the token check. A chunkable prefill can run a smaller slice. With chunking disabled, this waiting request must wait. These separate predicates explain why a busy cache and a quiet GPU can coexist. Diagnose the resource and scheduler boundary that prevented useful work before changing the attention kernel.\n"
+          }
+        ]
+      },
+      {
+        "id": "runner-contract",
+        "beats": [
+          {
+            "say": "The scheduler output carries admitted request IDs, assigned token counts, block tables, sampling metadata and execution inputs. A worker must keep those fields associated. Mixing one request’s sequence length with another table can read valid addresses that contain the wrong history. An in-bounds physical ID does not establish a correct logical input."
+          },
+          {
+            "say": "The model runner prepares tensor layouts, loads the required weights, selects graph or eager execution, calls the model and hands results to sampling. At attention, the backend combines logical lengths with physical block IDs to locate keys and values. The page table is metadata; the selected kernel implements the load and computation contract."
+          },
+          {
+            "say": "Kernel comparisons need warmed compilation and graphs, synchronized timing, fixed shapes, dtypes, block size, sampling and topology, plus reference output checks. Separate launch overhead, KV traffic, arithmetic and collectives. CPU accounting can validate the requested work while leaving actual runner execution and GPU performance completely unmeasured."
+          }
+        ]
+      },
+      {
+        "id": "parallel-costs",
+        "beats": [
+          {
+            "say": "Tensor parallelism splits matrix dimensions across GPUs and adds collectives within the layer. Pipeline parallelism splits layer depth across stages and can expose bubbles at low concurrency. Both can reduce per-GPU weight residency and leave more room for KV blocks. Their communication and scheduling costs still belong in the same request timeline."
+          },
+          {
+            "say": "Data parallelism routes request groups to model replicas, adding engine cores and replicated weights in the simple dense case. Expert parallelism distributes mixture-of-experts parameters and routes token work between them. Combining data and expert parallelism can change which weights are replicated. Four copies of a label on a diagram do not prove four independent complete models."
+          },
+          {
+            "say": "A shared configuration connects model, scheduler, cache and parallelism choices. Model implementations and backend registries support different architecture, dtype, quantization and feature combinations. More GPUs can improve fit while worsening a small workload’s latency. Keep the actual compatibility matrix and measured topology beside any proposed change in the number of workers."
+          }
+        ]
+      },
+      {
+        "id": "runner-versions",
+        "beats": [
+          {
+            "say": "In zero point twenty-eight, gpu-worker branches on use-v-two-model-runner. The established implementation is under V1 worker gpu-model-runner; the modular implementation is under V1 worker GPU model-runner. V2 here names a model runner inside the V1 engine. Inspect the branch that the resolved configuration constructs before following its tensor preparation and kernels."
+          },
+          {
+            "say": "The V1 guide lists functional paths for NVIDIA, AMD, Intel GPU, TPU and CPU, with more through plugins. Platform support does not settle tuning or every feature combination. A full-attention block calculation also does not describe all state-space or hybrid cache groups. Their checkpoint and retention rules can differ from keys and values for an ordinary decoder."
+          },
+          {
+            "say": "The article found a version conflict: a moving guide restricted Mamba prefix caching while the pinned release advertised default support. Later releases added model-specific checkpoints and renamed a related flag. Resolve such a conflict with installed implementation, model/cache configuration and relevant tests. A moving guide and a release headline each need that exact execution context."
+          }
+        ]
+      },
+      {
+        "id": "goodput",
+        "beats": [
+          {
+            "say": "A faster token counter can still produce a worse interactive service. Evaluate completions against the promised first-token and between-token delays. Our supplied candidate receipts keep offered requests, successful completions and latency-compliant completions separate, so failures and unfinished work remain visible.\n"
+          },
+          {
+            "say": "Goodput is the number of completions meeting both latency limits divided by the full measurement window. Candidate B serves more useful completions here despite receiving fewer offers. The receipt displays the numerator and rate while keeping failed and unfinished requests visible.\n"
+          },
+          {
+            "say": "Using a completion-only pass fraction with the offered rate inflates the estimate. Keep the numerator and denominator tied to the same population and time window. Replay the same workload, preserve output checks, and compare queueing and tail latency alongside useful completion rate.\n"
+          }
+        ]
+      },
+      {
+        "id": "goodput-denominator",
+        "beats": [
+          {
+            "say": "Our supplied one-hundred-second receipts give A one thousand offered requests, six hundred successful completions and five hundred fifty completions meeting both limits. B receives eight hundred offers, completes seven hundred eighty and passes seven hundred fifty-two. The limits are first token under three hundred milliseconds and per-request p ninety-nine inter-token delay under fifty milliseconds."
+          },
+          {
+            "say": "Divide passing completions by the full window: A delivers five point five useful requests per second; B delivers seven point five two. A’s four hundred failed or unfinished offers remain part of the evidence. A completion-only pass fraction, five hundred fifty divided by six hundred, multiplied by ten offered requests per second, instead produces about nine point one seven. It overstates the actual useful completions."
+          },
+          {
+            "say": "Equivalently multiply offered requests per second by passing completions divided by all offered requests. That preserves the population and gives the same correct rate. Compare candidates at matched loads with output checks, warmup, a stated steady-state window and boundary policy. Requests with no inter-token gaps need an explicit evaluation rule rather than disappearing from the report."
+          }
+        ]
+      },
+      {
+        "id": "event-metrics",
+        "beats": [
+          {
+            "say": "The metric named inter-token-latency-seconds measures gaps between engine-core output events in this pinned path. Those timestamps describe engine outputs, rather than the final HTTP transport chunks. An event can contain several tokens. A histogram of event gaps therefore does not automatically supply every token’s timestamp or each request’s ninety-ninth-percentile token gap. Retain the actual request timeline and output counts for the product’s chosen latency contract."
+          },
+          {
+            "say": "In a constructed example, the first event at zero milliseconds contains two tokens, then one-token events arrive at twelve and twenty-four milliseconds. Observed event gaps are twelve and twelve. Request-mean time per output token divides the difference between last and first output times by the quantity output-token count minus one: twenty-four divided by three, or eight milliseconds. That is a different statistic."
+          },
+          {
+            "say": "The unseen gap between the first bundled tokens cannot be recovered from these event timestamps alone. DistServe’s request-mean TPOT and this lesson’s per-request p ninety-nine ITL consequently require different graders. Track TTFT, queueing, errors, KV occupancy and preemptions with those named definitions instead of converting one aggregate histogram into a stronger promise."
+          }
+        ]
+      },
+      {
+        "id": "route-security",
+        "beats": [
+          {
+            "say": "Current security documentation scopes built-in API-key protection to prefixes including slash-v-one, slash-v-two, slash-inference and slash-cohere. Unprefixed aliases such as slash-score, slash-rerank and slash-invocations can remain unauthenticated, alongside health, metrics and some operational routes. Protecting one spelling does not secure another registered route to the same operation."
+          },
+          {
+            "say": "Put authentication and an explicit route allowlist at the reachable gateway, restrict management surfaces, and prevent clients from bypassing it through direct server ingress. Check the registered routes for the installed version. An API-compatible request body establishes syntax; it supplies neither a caller’s authority nor an inventory of every exposed endpoint."
+          },
+          {
+            "say": "Multi-node process-group, KV-transfer, tensor, pipeline and data-parallel ports need their own isolated network and firewall rules. Their default communication is not an authorization or encryption protocol for an untrusted network. An HTTP bearer key cannot protect a reachable worker port. Keep the external API route and internal communication route visibly separate in the deployment."
+          }
+        ]
+      },
+      {
+        "id": "media-limits",
+        "beats": [
+          {
+            "say": "A media URL gives the server a network capability. Restrict allowed domains and keep redirects disabled for untrusted inputs. Preserve compressed download caps, decoded image-pixel caps, audio-file caps, audio-duration limits and decoded-audio-byte limits. A small compressed input can still expand into a large decoded allocation; those checks protect different resources."
+          },
+          {
+            "say": "The documented controls include allowed-media-domains and limits for maximum media download, image pixels, audio clip size, decode duration and decode bytes. Configuration names and available paths depend on the version. In zero point thirty-one, per-request multimodal processor keyword overrides require a server trust flag; the offline LLM class has a different boundary."
+          },
+          {
+            "say": "Observe media loading and tokenization at the API process before blaming a GPU kernel for slow first output. Keep the permitted source, actual downloaded bytes and decoded resource demand attached to the same request. This lesson inspects the controls and stage ownership; its CPU accounting does not exercise HTTP fetching, decoder limits or network enforcement."
+          }
+        ]
+      },
+      {
+        "id": "tenant-cache",
+        "beats": [
+          {
+            "say": "An optional cache salt enters the first block hash and influences the chained prefix. Different enforced namespaces prevent those requests from sharing the same cached prefix identity. This can reduce cross-group cache-timing exposure, but a public value chosen by the caller does not establish tenant ownership or permission to read a source."
+          },
+          {
+            "say": "If an attacker can select another group’s salt, the attacker can try that group’s prefix lookups. Bind an authenticated tenant to its server-assigned trust namespace and prevent client overrides. Unguessable salts help against probing. They do not encrypt memory, replace source authorization or secure the internal process network."
+          },
+          {
+            "say": "Keep model, tokenizer, adapter and relevant multimodal identities compatible before evaluating a hit. A cache miss after an adapter change can be correct behavior. Restoring reuse by ignoring the changed identity would return state from a different computation. Measure hit rate only after that correctness and authority contract has been established."
+          }
+        ]
+      },
+      {
+        "id": "synthesis",
+        "beats": [
+          {
+            "say": "Follow one request from arrival to its first output. Our supplied trace separates input handling, queue wait, prompt computation and delivery. Their intervals make different hypotheses testable. Long queueing with short prefill points somewhere different from a long attention computation.\n"
+          },
+          {
+            "say": "The worker handoff should preserve request IDs, assigned token counts and block tables together. The model runner then selects a compatible execution path. Parallelism, quantization and attention backend choices interact, so validate the actual combination and measure its warmed behavior on the target topology.\n"
+          },
+          {
+            "say": "Keep external API access and internal-worker interfaces within their intended network boundaries. vLLM serves well when token scheduling, growing state and execution agree. Trace one request, count its current resources and measure its useful completion. That connects an efficient engine to the experience of the person waiting for an answer.\n"
+          }
+        ]
+      },
+      {
+        "id": "source-diagnosis",
+        "beats": [
+          {
+            "say": "Read the CLI and API server, then the engine core, scheduler, KV manager, block pool and the runner actually selected by gpu-worker. The pinned scheduler assigns token counts; the KV manager finds computed blocks and reserves slots; the pool controls references and free capacity. Follow the same request ID through these files instead of treating every low token rate as an attention-kernel problem."
+          },
+          {
+            "say": "With rising inter-token latency, a quiet GPU and increasing recompute preemptions, first inspect KV usage and free blocks. Then inspect token and sequence caps and prompt lengths, engine-core CPU and scheduling latency, and tensor or pipeline communication. A low prefix hit rate shows limited reuse among measured lookups. Check prompt and context compatibility, cache residency, routing and lookup eligibility. The rate alone does not establish memory exhaustion."
+          },
+          {
+            "say": "For a request with eighty milliseconds of input handling, five of queueing, seven of prefill and three of delivery, investigate the API input stage first. A different request with three, seventy-five, six and two milliseconds points to admission or scheduling. These are supplied diagnostic timelines. Actual output parity, target hardware measurements and server traces remain required for a deployment claim."
+          }
+        ]
+      },
+      {
+        "id": "project-identity",
+        "beats": [
+          {
+            "say": "vLLM grew from UC Berkeley’s Sky Computing Lab and the PagedAttention paper by Woosuk Kwon, Zhuohan Li, Siyuan Zhuang, Ying Sheng and collaborators. Its community engine combines block memory, scheduling, runner integration and serving interfaces. Companies fund and operate the project, while governance assigns committer authority to individuals through sustained contributions, reviews and subsystem work."
+          },
+          {
+            "say": "The pinned source carries Apache two point zero. That license covers the repository under its terms; loaded model weights, tokenizers, datasets and remote code retain their own licensing and trust requirements. A compatible server can still load an artifact whose rights or behavior need separate review. Preserve those identities with the release."
+          },
+          {
+            "say": "The strengths and costs follow the constructed boundaries. Blocks improve memory use but add metadata work. Scheduling mixes useful work but trades latency under pressure. Backends broaden model and hardware coverage while creating a compatibility matrix. Parallelism improves fit while adding communication. Judge the combined system by correct useful completions under the actual workload and resource constraints."
+          }
+        ]
+      },
+      {
+        "id": "fresh-admission",
+        "beats": [
+          {
+            "say": "Try a fresh full-attention fixture with four-position blocks. Request Q has thirteen prompt positions, ten matching a cached prefix from adapter A. Q now selects adapter B. One active request needs one decode input; the next step has a fourteen-position budget and three free blocks. The cached adapter-A blocks already have live references, and the decode needs no new block. Assume Q meets the other admission limits. Predict Q’s skipped computation, full-prompt admission and the result if its adapter is restored to A. Pause."
+          },
+          {
+            "say": "Adapter B cannot reuse A’s state, so it skips zero positions. Thirteen prompt inputs plus one decode fit the token budget, but Q needs four new blocks and only three are free: this proposed full-prompt step waits. Restore A with the same eligible cached prefix. Eight positions are reusable, five remain to compute, and two new blocks hold the uncached tail. Sharing those already-live prefix blocks leaves all three free slots available. The two new blocks fit, and five prompt inputs plus one decode input use six budget positions."
+          },
+          {
+            "say": "Keep timing independent of that resource decision. A supplied first-token trace contains seven milliseconds of input work, sixty-five of queue wait, twenty-four of prompt execution and six of delivery. Their sum is one hundred two milliseconds. Reuse arithmetic, physical admission and a complete latency trace answer different questions. You can now trace the exact request and choose the observation or repair that changes its outcome. SkyRL next places generation inside a training loop, tracing a trajectory’s tokens, rewards and model versions across the environment, trainer and synchronized sampler."
+          }
+        ]
+      }
+    ]
+  }
+}

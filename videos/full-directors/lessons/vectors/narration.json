@@ -1,0 +1,684 @@
+[
+  {
+    "id": "c01",
+    "title": "Move a word vector",
+    "sourceChapters": [
+      "c01"
+    ],
+    "beats": [
+      {
+        "id": "c01-b01",
+        "say": "The pen marks two coordinates we chose for the word password. Both start at one half. Slide the carriage one unit to the right.",
+        "hold": 0.55
+      },
+      {
+        "id": "c01-b02",
+        "say": "We saved three readings from the pen. We kept its horizontal coordinate, its height, and their average. Look at the black marks on the three scales. Which reading can we keep?",
+        "hold": 2.5
+      },
+      {
+        "id": "c01-b03",
+        "say": "The height stays at one half. The horizontal coordinate grows by one. Its average with the height grows by half as much.",
+        "hold": 2
+      },
+      {
+        "id": "c01-b04",
+        "say": "Slide the pen back to its starting point. Let's trace the two moves that put it there.",
+        "hold": 0.9
+      }
+    ]
+  },
+  {
+    "id": "c02",
+    "title": "Where is half, half?",
+    "sourceChapters": [
+      "c02"
+    ],
+    "beats": [
+      {
+        "id": "c02-b01",
+        "say": "Start at the origin. One number, like this first half, is a scalar. Draw the first coordinate horizontally. Half a unit puts us halfway to one on the bottom axis.",
+        "hold": 0.55
+      },
+      {
+        "id": "c02-b02",
+        "say": "From there, add the second coordinate vertically. The arrow from the origin to the endpoint represents the ordered pair. That's a vector. Its two coordinates are dimensionless features we picked for this word.",
+        "hold": 0.7
+      },
+      {
+        "id": "c02-b03",
+        "say": "Look at reset. It sits on the horizontal axis. Swap its coordinates. It now sits on the vertical axis. If you checked only that the vector had two entries, you'd accept both versions. The position tells you which feature each number measures.",
+        "hold": 0.8
+      }
+    ]
+  },
+  {
+    "id": "c03",
+    "title": "Where does one unit go?",
+    "sourceChapters": [
+      "c03"
+    ],
+    "beats": [
+      {
+        "id": "c03-b01",
+        "say": "Here's the rule behind the three readings. A matrix is a rectangular table of coefficients. Each row tells us what one input contributes. Each column collects one output. This map takes two inputs and writes three outputs.",
+        "hold": 0.7
+      },
+      {
+        "id": "c03-b02",
+        "say": "Give it one unit of the first feature and none of the second. That picks out the blue row. Follow that slanted direction as it grows. You're looking at outputs zero and two. The table keeps the middle coordinate in sight too.",
+        "hold": 0.65
+      },
+      {
+        "id": "c03-b03",
+        "say": "Now give it one unit of the second feature instead. In this view it moves straight upward. Its full row also has a one in the middle. Those two directions tell us what the matrix will do with any mix of the two input features.",
+        "hold": 0.8
+      }
+    ]
+  },
+  {
+    "id": "c04",
+    "title": "Where will the sum land?",
+    "sourceChapters": [
+      "c04"
+    ],
+    "beats": [
+      {
+        "id": "c04-b01",
+        "say": "Password has half a unit of each input. Take half of the first row. The blue arrow gets half as long. All three numbers on its row scale together, even the coordinate we left off the plot. Multiplying a whole vector by one number is scalar multiplication.",
+        "hold": 0.6
+      },
+      {
+        "id": "c04-b02",
+        "say": "Take half of the second row as well. Each arrow now shows the contribution of one input. To add the two arrows, where would you put the tail of the second arrow?",
+        "hold": 2.5
+      },
+      {
+        "id": "c04-b03",
+        "say": "Move the second arrow to the first arrow's tip. Its direction and length stay the same. The last coordinate has gone up a quarter twice. The two arrows land at half, half, half. That's the original triple we saved under password.",
+        "hold": 0.8
+      }
+    ]
+  },
+  {
+    "id": "c05",
+    "title": "Can we compute just the last number?",
+    "sourceChapters": [
+      "c05"
+    ],
+    "beats": [
+      {
+        "id": "c05-b01",
+        "say": "Look down the last column of the matrix. Each coefficient tells one input how much to contribute to that output. Multiply the first matching pair. Half times half contributes one quarter to this output.",
+        "hold": 0.65
+      },
+      {
+        "id": "c05-b02",
+        "say": "The other pair is also half times half. Slide its quarter along the ruler and add that contribution. The accumulator reaches the third coordinate we already constructed geometrically. Multiplying matched entries and adding them is a dot product. The result for this column is one number.",
+        "hold": 0.65
+      },
+      {
+        "id": "c05-b03",
+        "say": "Every column asks its own question of the same two inputs. The first keeps the first coordinate. The next keeps the second. Here the third output is determined by the first two. It's their average. Three slots can hold three views of the same two measurements.",
+        "hold": 0.75
+      }
+    ]
+  },
+  {
+    "id": "c06",
+    "title": "Can one matrix take both steps?",
+    "sourceChapters": [
+      "c06"
+    ],
+    "beats": [
+      {
+        "id": "c06-b01",
+        "say": "Pass password's triple to a second matrix. The first coordinate moves right. The second moves up. The third contributes to both directions. Trace all three pieces, tip to tail. That's where this two-step computation sends our original word.",
+        "hold": 0.85
+      },
+      {
+        "id": "c06-b02",
+        "say": "Suppose a million more words are coming through these same two maps. Could we do some work ahead of time? Multiply the first matrix by the second. Each new entry is a row dotted with a column. The shared width of three disappears. The combined matrix takes a pair straight to a pair.",
+        "hold": 0.8
+      },
+      {
+        "id": "c06-b03",
+        "say": "Try it on the original half, half. Scale its two directions and add them. The ochre path ends at one, one, exactly where the three earlier steps landed. Matrix multiplication is associative. As long as these stages are just the two linear maps, we can precompute their product for every word.",
+        "hold": 0.9
+      }
+    ]
+  },
+  {
+    "id": "c07",
+    "title": "One matrix for three words",
+    "sourceChapters": [
+      "c07"
+    ],
+    "beats": [
+      {
+        "id": "c07-b01",
+        "say": "For this example, give each word in “reset my password” one token. A real tokenizer can split a word into several tokens. Stack our three vectors in a matrix. Read across a row for one word, or down a column for the same feature of three words.",
+        "hold": 0.65
+      },
+      {
+        "id": "c07-b02",
+        "say": "Apply the same matrix to reset. Then apply it to my. Finally, transform password. Notice what stays still in the middle. Each word gets its own turn with exactly the same coefficients.",
+        "hold": 0.65
+      },
+      {
+        "id": "c07-b03",
+        "say": "Three word rows enter and three word rows leave. Each row is wider because we're collecting three answers per word. If reset needs information from password, some other operation must put their positions in contact.",
+        "hold": 0.7
+      }
+    ]
+  },
+  {
+    "id": "c08",
+    "title": "Find one number in two messages",
+    "sourceChapters": [
+      "c08"
+    ],
+    "beats": [
+      {
+        "id": "c08-b01",
+        "say": "Add a second prompt, “change the address.” Put the two matrices in a batch. Now the address of a number has three parts. Which message? Which token in it? Which feature of that token? An array with these three axes is a tensor. In libraries, a tensor can have any number of axes.",
+        "hold": 0.7
+      },
+      {
+        "id": "c08-b02",
+        "say": "Count from zero. Choose message one, then token two, then feature zero. The window lands on the first number for address. Each integer index consumes one axis. Slide the window down feature zero in both prompts instead. Colons keep the batch and token axes.",
+        "hold": 0.7
+      },
+      {
+        "id": "c08-b03",
+        "say": "The matrix still takes two features and returns three. Apply it to all six word states. Each result has the same message and position as its input. The feature axis is the only one that changes width.",
+        "hold": 0.8
+      },
+      {
+        "id": "c08-b04",
+        "say": "Try four longer prompts. Each has a hundred and twenty-eight tokens. Each token comes with seven hundred and sixty-eight features. The new matrix has that many rows and two hundred and fifty-six columns. How many output vectors are there, and how wide is each?",
+        "hold": 2.5
+      },
+      {
+        "id": "c08-b05",
+        "say": "There are five hundred and twelve vectors, each with two hundred and fifty-six outputs. Keep the four strips separate when you write the shape. That lets the next layer locate a token in its own prompt.",
+        "hold": 0.8
+      }
+    ]
+  },
+  {
+    "id": "c09",
+    "title": "Which output coordinate stays put?",
+    "sourceChapters": [
+      "c09"
+    ],
+    "beats": [
+      {
+        "id": "c09-b01",
+        "say": "Here are six saved output rows. Suppose we add one to password's first coordinate and keep the matrix fixed. Which rows would change?",
+        "hold": 2.4
+      },
+      {
+        "id": "c09-row-focus",
+        "say": "Look at the password row. Which of its three values should stay at one half?",
+        "hold": 2.5
+      },
+      {
+        "id": "c09-b02",
+        "say": "Change that one coordinate now. The first input grows. Follow its contribution across the highlighted password row. The first and third outputs rise together. Look at the middle cell. The first row of the matrix puts zero there, so the edit contributes nothing to it.",
+        "hold": 0.75
+      },
+      {
+        "id": "c09-b03",
+        "say": "The other five word states keep their outputs. We could reuse every one of those triples. What made that safe was applying a fixed matrix to each word separately. We'll try the same edit later on a calculation that reads two words at once.",
+        "hold": 0.8
+      }
+    ]
+  },
+  {
+    "id": "c10",
+    "title": "Two numbers that change a latency model",
+    "sourceChapters": [
+      "c10"
+    ],
+    "beats": [
+      {
+        "id": "c10-b01",
+        "say": "Now one row describes a whole request. The feature positions mean prompt length in hundreds of tokens, then queue delay in seconds. The model has one weight for each measurement. The first weight has units of seconds per prompt block. The second has units of seconds per second in the queue.",
+        "hold": 0.7
+      },
+      {
+        "id": "c10-b02",
+        "say": "In the gradients lesson we started with weights two, two. The gradient was four, two. Each slope belongs to one weight. Multiply those slopes by a learning rate of one tenth. That gives changes of point four and point two. Subtract both changes from the original weights. Where should each pointer stop?",
+        "hold": 2.5
+      },
+      {
+        "id": "c10-b03",
+        "say": "The updated weights are one point six and one point eight.",
+        "hold": 0.7
+      },
+      {
+        "id": "c10-b04",
+        "say": "The features, weights and slopes all have shape two comma in NumPy. That's a tuple with one axis of length two. Their units tell us which pair to use for which job. A scalar array has an empty shape tuple. An ordinary Python float has no shape attribute.",
+        "hold": 0.85
+      }
+    ]
+  },
+  {
+    "id": "c11",
+    "title": "What did request B actually send?",
+    "sourceChapters": [
+      "c11"
+    ],
+    "beats": [
+      {
+        "id": "c11-b01",
+        "say": "For the next few requests, freeze a different toy rule. Charge two seconds per hundred prompt tokens, plus a second for each second in the queue. B sent two hundred tokens and waited one second. The two labels on its payload tell us which coefficient to use.",
+        "hold": 0.65
+      },
+      {
+        "id": "c11-b02",
+        "say": "For the prompt, two times two contributes four seconds. For the queue, one times one contributes one. Elementwise multiplication gives you both pieces separately. The dot product puts them end to end and returns the scalar five seconds.",
+        "hold": 0.8
+      },
+      {
+        "id": "c11-b03",
+        "say": "Now B arrives from a different client. Same request, same two measurements. Swap only the feature positions. The coefficients stay put. What time will this version of the program report?",
+        "hold": 2.5
+      },
+      {
+        "id": "c11-b04",
+        "say": "It reports four seconds. The program paired one with two and two with one. Both slots were filled, so a length check passed. Look at the units: it charged the queue value at the prompt rate. Restoring the named order gives B its original prediction.",
+        "hold": 0.3
+      },
+      {
+        "id": "c11-b05",
+        "say": "B makes a good test case because swapping two unequal values changes the answer.",
+        "hold": 0.85
+      }
+    ]
+  },
+  {
+    "id": "c12",
+    "title": "What survives the feature sum?",
+    "sourceChapters": [
+      "c12"
+    ],
+    "beats": [
+      {
+        "id": "c12-b01",
+        "say": "Put B between two more requests. A sent one prompt block and waited zero seconds. C sent three blocks and waited one second. All three use the same two weights. After we've added the contributions from each pair of features, how many predictions should come back?",
+        "hold": 2.5
+      },
+      {
+        "id": "c12-b02",
+        "say": "A gives two seconds. B gives five. C gives seven. The result has three entries, one per request. Each row kept its own prediction. The axis we summed over was the features within that row.",
+        "hold": 0.8
+      },
+      {
+        "id": "c12-b03",
+        "say": "In a drawing, we can stack the two weights vertically. In NumPy, a one-dimensional weight vector still has just one axis. Give it a second axis of length one and the output keeps that axis, producing three by one. The next function may care about that extra axis even when the three values agree.",
+        "hold": 0.75
+      }
+    ]
+  },
+  {
+    "id": "c13",
+    "title": "What would a second column buy us?",
+    "sourceChapters": [
+      "c13"
+    ],
+    "beats": [
+      {
+        "id": "c13-b01",
+        "say": "Give each request two outputs. The first column of weights gives us seconds. The second awards priority points for prompt length and time in the queue.",
+        "hold": 0.65
+      },
+      {
+        "id": "c13-b02",
+        "say": "Follow B across the page. Its time column gives five seconds. Now watch B stay put while we select the next column. The prompt contributes two times point two. Add the queue contribution, one times one point five. Together that's one point nine. Both answers belong to B.",
+        "hold": 0.8
+      },
+      {
+        "id": "c13-b03",
+        "say": "Run the two columns on the other rows as well. Read the pairs as seconds, then priority. We get two and point two, five and one point nine, seven and two point one. For any request and any output, it's the two input features that meet and get summed.",
+        "hold": 0.75
+      }
+    ]
+  },
+  {
+    "id": "c14",
+    "title": "Can this replacement matrix run?",
+    "sourceChapters": [
+      "c14"
+    ],
+    "beats": [
+      {
+        "id": "c14-b01",
+        "say": "Both tables are three by two. The left has three requests. The right asks for three features. Which measurement would you multiply by the load weight?",
+        "hold": 2.05
+      },
+      {
+        "id": "c14-b02",
+        "say": "Look at B. Two prompt blocks pair with the prompt row. One second in the queue pairs with the queue row. The load row needs a third measurement. B's time calculation stops at that empty spot.",
+        "hold": 0.65
+      },
+      {
+        "id": "c14-b03",
+        "say": "Put the two-feature matrix back. Now B's two measurements give five seconds. To use the three-feature model, we'd need a load reading for each request.",
+        "hold": 0.75
+      },
+      {
+        "id": "c14-b04",
+        "say": "Now copy A into all three request rows. The shape is still three by two. We can store those six numbers by row or by column. Either way, NumPy counts two axes. All three rows point the same way. That gives this matrix a rank of one.",
+        "hold": 0.3
+      },
+      {
+        "id": "c14-b05",
+        "say": "The singular values measure how strongly this matrix acts along independent directions. Here only one singular value is positive. With three copies of the same nonzero row, all the outputs depend on a single input direction.",
+        "hold": 0.75
+      }
+    ]
+  },
+  {
+    "id": "c15",
+    "title": "Which offset did B receive?",
+    "sourceChapters": [
+      "c15"
+    ],
+    "beats": [
+      {
+        "id": "c15-b01",
+        "say": "Both tables start with the same three requests. We want to add a tenth of a second to every time estimate and subtract a tenth from every priority. Send the first offset down the time column. Send the second down priority.",
+        "hold": 0.3
+      },
+      {
+        "id": "c15-b02",
+        "say": "For B, five and one point nine become five point one and one point eight.",
+        "hold": 0.7
+      },
+      {
+        "id": "c15-b03",
+        "say": "Try a second implementation on the right. It supplies one offset per request as a three by one array. Go across each row. A gets a tenth added to both numbers. B gets a tenth taken off both. C gets zero.",
+        "hold": 0.3
+      },
+      {
+        "id": "c15-b04",
+        "say": "B becomes four point nine and one point eight. Which value in B would catch the mistake?",
+        "hold": 2.15
+      },
+      {
+        "id": "c15-b05",
+        "say": "Check the time. Both priorities say one point eight. Only the left time went up by the tenth of a second we asked for. Both arrays have the very same shape.",
+        "hold": 0.75
+      },
+      {
+        "id": "c15-b06",
+        "say": "NumPy lines up dimensions from the right. Equal sizes match, and a missing leading axis or a size of one can expand. That's broadcasting. For a strict feature vector, require one dimension whose length equals output width.",
+        "hold": 0.3
+      },
+      {
+        "id": "c15-b07",
+        "say": "A one by two row would also repeat by feature if your interface allows it. The time check tests what the entries actually mean.",
+        "hold": 0.85
+      }
+    ]
+  },
+  {
+    "id": "c16",
+    "title": "What changes when two words share a score?",
+    "sourceChapters": [
+      "c16"
+    ],
+    "beats": [
+      {
+        "id": "c16-b01",
+        "say": "Go back to the original word vectors, before the edit. This time each answer belongs to a pair of words. Turn a copy of the token matrix so its token rows become columns. Now a row on the left and a column on the right can name two different words.",
+        "hold": 0.7
+      },
+      {
+        "id": "c16-b02",
+        "say": "Reset with itself gives one. Reset with my gives zero. Reset with password gives one half. Read across that row and you've compared reset with every word. Password with itself gives one quarter plus one quarter, or one half. These are raw dot products, computed from both direction and vector length.",
+        "hold": 0.8
+      },
+      {
+        "id": "c16-b03",
+        "say": "Each diagonal entry is its token vector's squared length. Switching the two words in a pair gives the same answer, so the grid is symmetric. Attention can use different query and key maps. Its scores can then be asymmetric. Scaling the scores, applying any mask, and taking a row-wise softmax produces attention weights.",
+        "hold": 0.65
+      },
+      {
+        "id": "c16-b04",
+        "say": "Compare that grid with our earlier edit. Increase password's first coordinate by one again. Can a score in reset's row change this time?",
+        "hold": 2.5
+      },
+      {
+        "id": "c16-b05",
+        "say": "Apply the edit. Reset's row changes exactly where it reads password. The matching entry across the diagonal changes too. The score with my stays at one half. My has a zero in the feature we touched. Only pairs that read password could change, and some of those still give the same number.",
+        "hold": 0.8
+      }
+    ]
+  },
+  {
+    "id": "c17",
+    "title": "How far does password point along reset?",
+    "sourceChapters": [
+      "c17"
+    ],
+    "beats": [
+      {
+        "id": "c17-b01",
+        "say": "Start again with password's original arrow, half, half. Its length is the square root of one half. Against reset, a unit arrow pointing right, the dot product measures the horizontal shadow. Double the vector to one, one. The shadow doubles, even though the arrow points in exactly the same direction.",
+        "hold": 0.8
+      },
+      {
+        "id": "c17-b02",
+        "say": "To compare just the directions of two nonzero vectors, divide their dot product by both lengths. That's cosine similarity. Both arrows have cosine one over square root of two with the horizontal reference. Normalizing every token vector to length one gives each a self-score of one.",
+        "hold": 0.8
+      },
+      {
+        "id": "c17-b03",
+        "say": "Rotate the arrow until it points straight up. At ninety degrees its cosine is zero. Turn it to face left. The cosine is minus one. Now shrink it to the origin. A zero vector has no direction. The article's program rejects that row before dividing.",
+        "hold": 0.8
+      }
+    ]
+  },
+  {
+    "id": "c18",
+    "title": "Which prompt supplied this number?",
+    "sourceChapters": [
+      "c18"
+    ],
+    "beats": [
+      {
+        "id": "c18-b01",
+        "say": "Here's a smaller batch. Both prompts have two tokens, and each token has two features. We want one score grid per prompt. Pick the second token in prompt zero and compare it with itself. Before looking at any code, what number should that cell contain?",
+        "hold": 2.5
+      },
+      {
+        "id": "c18-b02",
+        "say": "Two halves squared and added give one half. Keep that expected self-score in view. The dot T attribute on a NumPy array reverses every axis. On the right, the last index now picks a prompt. Trace the ochre column. It brings in feature zero from two tokens in prompt one.",
+        "hold": 0.3
+      },
+      {
+        "id": "c18-b03",
+        "say": "The first diagonal entry still comes out to one. The second comes out to just one quarter.",
+        "hold": 0.85
+      },
+      {
+        "id": "c18-b04",
+        "say": "Let's test where that quarter came from. In prompt one, change the first zero to one. We haven't touched either coordinate of the blue token. What will happen when we run the same code again?",
+        "hold": 2.5
+      },
+      {
+        "id": "c18-b05",
+        "say": "The score jumps to three quarters. Trace the column to find its source. The blue half now multiplies a one from someone else's prompt. Every dimension is two, so this calculation ran and even returned the shape we asked for. With unequal sizes it could fail at the multiply.",
+        "hold": 0.9
+      },
+      {
+        "id": "c18-b06",
+        "say": "Leave that edit in place. Swap just the token and feature axes on the right. Both copies of the pair now come from the same blue row. Its self-score is one half. The first token still scores one against itself.",
+        "hold": 0.95
+      },
+      {
+        "id": "c18-b07",
+        "say": "Open both score grids. The edited token in prompt one now reads one, one. Its top-left self-score is two. Undo the edit in prompt one. That score drops to one. Prompt zero's whole grid holds still.",
+        "hold": 0.3
+      },
+      {
+        "id": "c18-b08",
+        "say": "Each prompt gets a token-by-token grid because the multiply sums over features within that prompt. You can test this even when the axis sizes happen to match.",
+        "hold": 0.9
+      }
+    ]
+  },
+  {
+    "id": "c19",
+    "title": "Can a mean tell which word came first?",
+    "sourceChapters": [
+      "c19"
+    ],
+    "beats": [
+      {
+        "id": "c19-b01",
+        "say": "Back to reset my password, with its original three projected rows. A downstream model asks for one vector for the whole prompt. We can sum the rows and divide by the token count. In NumPy, mean along axis one removes the token positions from this batch. It leaves one row of features per prompt.",
+        "hold": 0.8
+      },
+      {
+        "id": "c19-b02",
+        "say": "Follow the three contributions. Projected reset is one, zero, one half. My is zero, one, one half. Password is one half, one half, one half. Their sum is one point five in each coordinate. Divide each strip into three equal shares. One share measures half, half, half.",
+        "hold": 0.85
+      },
+      {
+        "id": "c19-b03",
+        "say": "Reorder those token rows and repeat the sum. Password now comes first. Addition gives the same result. A reader could tell that the words moved. A mean of these same vectors can't. If the task depends on order, the model needs a way to represent position or interactions that depend on position.",
+        "hold": 0.9
+      }
+    ]
+  },
+  {
+    "id": "c20",
+    "title": "Which rows belong in the mean?",
+    "sourceChapters": [
+      "c20"
+    ],
+    "beats": [
+      {
+        "id": "c20-b01",
+        "say": "Here are just two real tokens, one pointing right and one pointing up. Their mean lies halfway along each axis. Suppose the batch needs four slots for every prompt. We'll fill the two spare slots with zeros. What will an ordinary mean do to this pair?",
+        "hold": 2.5
+      },
+      {
+        "id": "c20-b02",
+        "say": "Append two zero rows and divide by the padded length four. The sum never moved, but both bars dropped from a half to a quarter. An ordinary mean counted two more positions, even though those positions added nothing.",
+        "hold": 0.85
+      },
+      {
+        "id": "c20-b03",
+        "say": "The tokenizer can tell us which positions are real. Its boolean mask has one bit per token in each prompt. Add a singleton feature axis so one bit selects a whole vector. Select with where, sum the selected values, and divide by the count of real tokens.",
+        "hold": 0.3
+      },
+      {
+        "id": "c20-b04",
+        "say": "Two boxes are checked. Our original mean is back.",
+        "hold": 0.85
+      },
+      {
+        "id": "c20-b05",
+        "say": "Clear every bit. The count is zero, so reject it before dividing. Check that the mask is boolean and matches the batch and token axes. The numbers you keep still need to be finite. Once you've excluded padding, shuffling the same real vectors still gives the same mean.",
+        "hold": 0.9
+      }
+    ]
+  },
+  {
+    "id": "c21",
+    "title": "Which input reaches the multiply?",
+    "sourceChapters": [
+      "c21"
+    ],
+    "beats": [
+      {
+        "id": "c21-b01",
+        "say": "Run the checks in the order the data arrives. A ragged row with a missing feature must fail at conversion. Ask NumPy for a rectangular numeric array. The first row can look fine while the next one is short. Then require three hidden-state axes and two projection axes. This next input lost its batch axis.",
+        "hold": 0.7
+      },
+      {
+        "id": "c21-b02",
+        "say": "Compare the hidden feature width with the projection's input width. Three numbers per token can't feed a map with two input rows. Check for an empty axis, too. A two-row projection with no output columns would return no features. This exercise requires at least one. Now try the valid batch. Each token gets its own projected row. Pooling comes later.",
+        "hold": 0.8
+      },
+      {
+        "id": "c21-b03",
+        "say": "Now test a value. One way is to change one input token under a fixed shared map and verify that other token rows stay fixed. These structural checks wouldn't catch the swapped fields in the latency example. A known request with two different measurements would.",
+        "hold": 0.85
+      }
+    ]
+  },
+  {
+    "id": "c22",
+    "title": "How does a layer store this map?",
+    "sourceChapters": [
+      "c22"
+    ],
+    "beats": [
+      {
+        "id": "c22-b01",
+        "say": "Suppose we want PyTorch Linear to do exactly what our matrix did. Our matrix has a row per input feature. Linear has a row per output instead. The library stores the transposed coefficients, three by two. It transposes those stored weights in the multiply, then adds a bias. That fixed offset makes the map affine.",
+        "hold": 0.75
+      },
+      {
+        "id": "c22-b02",
+        "say": "Give Linear the entire batch of two-feature tokens. Its bias has three entries and repeats across the leading positions. A single call returns three features for every token in every prompt.",
+        "hold": 0.8
+      },
+      {
+        "id": "c22-b03",
+        "say": "Take the bias off and look at our original map again. Even though the row got wider, the third output here equals half the sum of the first two. Neural networks learn the coefficients in training. We've fixed these by hand so you can trace the exact effect of an edit.",
+        "hold": 0.75
+      }
+    ]
+  },
+  {
+    "id": "c23",
+    "title": "What needs recomputing this time?",
+    "sourceChapters": [
+      "c23"
+    ],
+    "beats": [
+      {
+        "id": "c23-b01",
+        "say": "One last prompt. There are three real tokens and one padding slot. We're using the same matrix, with no bias. The original pairs and their saved triples are on the screen. Increase only the third real token's first coordinate to two. Does that edit change the shape? Which of the saved numbers would you replace?",
+        "hold": 2.5
+      },
+      {
+        "id": "c23-b02",
+        "say": "The stored output shape is one by four by three. The third real token goes from one, one, one to two, one, one point five. The other rows keep their numbers. As with password, one extra unit of the first feature contributed a whole copy of the first matrix row.",
+        "hold": 0.9
+      },
+      {
+        "id": "c23-b03",
+        "say": "Pool these slots. Follow the three checks across to their vectors. Their coordinates total three, two and two point five. What should go in the denominator for this prompt?",
+        "hold": 2.5
+      },
+      {
+        "id": "c23-b04",
+        "say": "Divide by the three valid tokens. The summary is one, two thirds and five sixths. If you divided by four here, you'd be counting padding as a word. Keep those rows in sight.",
+        "hold": 0.9
+      },
+      {
+        "id": "c23-b05",
+        "say": "Here's another prompt with exactly the same four vectors. Its last slot belongs to a real token whose two features happen to be zero. Could you reuse the projected rows? Could you reuse the mean?",
+        "hold": 2.5
+      },
+      {
+        "id": "c23-b06",
+        "say": "Keep the projected rows. Their sum stays the same. Count the fourth token. Divide each total by four. The mean is now three quarters, one half and five eighths. The zero row added one to the count. Each new share ends short of its old mark.",
+        "hold": 1.2
+      },
+      {
+        "id": "c23-b07",
+        "say": "You can now decide which rows to recompute and which tokens count toward a summary. Look back at the three output columns. The average repeats information in the first two. In the next lesson, matrix rank tells us how many independent directions survive a map, and singular values tell us their strengths.",
+        "hold": 2
+      }
+    ]
+  }
+]

@@ -1,0 +1,1689 @@
+version: 1
+id: ai-lab-system-design-interview
+title: AI Lab System Design From the Constraint
+source: interviewing/ai-lab-system-design-interview/content.md
+voice: af_heart
+rate: +12%
+sources:
+  - title: "OpenAI Interview Guide: team-dependent assessment formats"
+    url: https://openai.com/interview-guide/
+  - title: "RFC6585 section4: 429 rate limiting"
+    url: https://www.rfc-editor.org/rfc/rfc6585.html#section-4
+  - title: "RFC9110 section15.6.4: 503 temporary unavailability"
+    url: https://www.rfc-editor.org/rfc/rfc9110.html#section-15.6.4
+  - title: TensorRT-LLM in-flight batching and chunked context
+    url: https://nvidia.github.io/TensorRT-LLM/features/paged-attention-ifb-scheduler.html
+  - title: "GQA: architecture and checkpoint conversion"
+    url: https://arxiv.org/html/2305.13245v3
+  - title: Meta official Llama3 model architecture registry
+    url: https://github.com/meta-llama/llama-models/blob/main/models/sku_list.py
+  - title: "PagedAttention: iteration scheduling and physical KV blocks"
+    url: https://arxiv.org/html/2309.06180
+  - title: "DistServe: goodput, phase interference and network placement"
+    url: https://arxiv.org/html/2401.09670v3
+  - title: vLLM prefix hash identity and isolation
+    url: https://docs.vllm.ai/en/latest/design/prefix_caching/
+  - title: OpenAI prompt cache pricing and matching rules
+    url: https://developers.openai.com/api/docs/guides/prompt-caching
+  - title: "AWS: caller request IDs, atomic deduplication and retry windows"
+    url: https://aws.amazon.com/builders-library/making-retries-safe-with-idempotent-APIs/
+  - title: Ray cluster deployment substrates
+    url: https://docs.ray.io/en/latest/cluster/getting-started.html
+  - title: Slurm workload manager overview
+    url: https://slurm.schedmd.com/overview.html
+scenes:
+  - id: opening
+    title: "Can a worker start this request in time?"
+    visual: "A request to summarize notes slides up to five blocks of prompt work. The same blocks stretch onto the queue clock after the viewer chooses a response. The receipt records the wait and the decision."
+    beats:
+      - say: "“Summarize my notes.” This employee has access and quota. A worker needs to pick up the request within a quarter of a second. Look at the work ahead of it."
+        caption_starts: ["This employee has access and quota"]
+        hold: 0.65
+        visual_cues:
+          - id: opening-budget
+            phrase: "pick up the request within a quarter of a second"
+            targets: [opening-clock]
+            color: cyan
+            linger: 0.35
+      - say: "Five blocks, ten thousand tokens each. The worker clears a hundred and twenty-five thousand tokens a second. Queue it, refuse for quota, or refuse for overload?"
+        hold: 2.5
+        visual_cues:
+          - id: opening-blocks
+            phrase: "Five blocks, ten thousand tokens each"
+            targets: [opening-work]
+            color: cyan
+            linger: 0.35
+          - id: opening-choice
+            phrase: "Queue it, refuse for quota, or refuse for overload"
+            targets: [opening-receipt]
+            color: cyan
+            linger: 0.35
+      - say: "Lay the five blocks on the clock. Eighty milliseconds per block. Four hundred milliseconds for all five. That's past the limit. Five oh three for shared overload. Put the wait and the limit on the receipt so support can explain the decision."
+        caption_starts: ["Eighty milliseconds per block"]
+        hold: 1.25
+        visual_cues:
+          - id: opening-unfold
+            phrase: "Lay the five blocks on the clock"
+            targets: [opening-work, opening-clock]
+            color: cyan
+            linger: 0.35
+          - id: opening-block-time
+            phrase: "Eighty milliseconds per block"
+            targets: [opening-work]
+            color: cyan
+            linger: 0.35
+          - id: opening-wait
+            phrase: "Four hundred milliseconds for all five"
+            targets: [opening-clock]
+            caption_boundary: true
+            color: yellow
+            linger: 0.35
+          - id: opening-status
+            phrase: "Five oh three for shared overload"
+            targets: [opening-receipt]
+            caption_boundary: true
+            color: yellow
+            linger: 0.35
+  - id: admission
+    title: "When does R-104 stop waiting?"
+    visual: "In one serial queue A and B consume work ahead of R-104. A clock records wait and service separately. The same 250 ms mark tests the opening backlog and an independent caller-limit case."
+    beats:
+      - say: "Try a lighter queue at the same rate. A has ten thousand tokens left in the worker. B has ten thousand ahead of us in line. That's eighty milliseconds apiece. R one oh four can join behind B. Its own five thousand tokens will take time once it starts. Which event should stop its queue clock?"
+        hold: 2
+        visual_cues:
+          - id: admission-ahead
+            phrase: "A has ten thousand tokens left in the worker. B has ten thousand ahead of us in line"
+            targets: [admission-queue]
+            color: cyan
+            linger: 0.35
+          - id: admission-join
+            phrase: "R one oh four can join behind B"
+            targets: [admission-queue]
+            color: cyan
+            linger: 0.35
+          - id: admission-question
+            phrase: "Which event should stop its queue clock"
+            targets: [admission-clock]
+            color: cyan
+            linger: 0.35
+      - say: "Start the clock. A finishes and B takes its place. B finishes and our request takes the worker. Freeze the wait there, at one hundred sixty milliseconds. The worker now holds two cache blocks for this request. Let its five thousand tokens run. At two hundred milliseconds the response is complete. The worker and both blocks are free again."
+        hold: 1.15
+        visual_cues:
+          - id: admission-drain-a
+            phrase: "A finishes and B takes its place"
+            targets: [admission-queue]
+            color: cyan
+            linger: 0.35
+          - id: admission-drain-b
+            phrase: "B finishes and our request takes the worker"
+            targets: [admission-queue]
+            color: cyan
+            linger: 0.35
+          - id: admission-wait-stops
+            phrase: "Freeze the wait there, at one hundred sixty milliseconds"
+            targets: [admission-clock]
+            color: cyan
+            linger: 0.35
+          - id: admission-drain-own
+            phrase: "Let its five thousand tokens run. At two hundred milliseconds the response is complete"
+            targets: [admission-clock]
+            color: cyan
+            linger: 0.35
+          - id: admission-free
+            phrase: "The worker and both blocks are free again"
+            targets: [admission-cache]
+            color: cyan
+            linger: 0.35
+      - say: "Put the opening request on that same clock. Only the backlog changes, from twenty thousand tokens to fifty thousand. Its wait reaches four hundred milliseconds. That crosses the queue limit before this caller gets any service. The gateway refuses it and keeps the estimate on the receipt."
+        hold: 1
+        visual_cues:
+          - id: admission-compare
+            phrase: "Only the backlog changes, from twenty thousand tokens to fifty thousand"
+            targets: [admission-clock]
+            color: cyan
+            linger: 0.35
+          - id: admission-second-wait
+            phrase: "Its wait reaches four hundred milliseconds"
+            targets: [admission-clock]
+            caption_boundary: true
+            color: yellow
+            linger: 0.35
+          - id: admission-verdict
+            phrase: "The gateway refuses it"
+            targets: [admission-outcome]
+            caption_boundary: true
+            color: yellow
+            linger: 0.35
+      - say: "Now take a different team that has used up its quota. Even with an idle worker, its request gets a four twenty-nine. The quota check stops it before it reaches the queue. For the opening team, support sees five oh three and the work ahead. The same client action, asking for an answer, reached two different owners."
+        hold: 1.15
+        visual_cues:
+          - id: admission-quota-response
+            phrase: "its request gets a four twenty-nine"
+            targets: [admission-caller]
+            caption_boundary: true
+            color: yellow
+            linger: 0.35
+          - id: admission-capacity-response
+            phrase: "support sees five oh three and the work ahead"
+            targets: [admission-outcome]
+            color: cyan
+            linger: 0.35
+  - id: requirements-control
+    title: "Which queue does your team own?"
+    visual: "A hosted request initially ends at a provider. When the interviewer asks for self-hosting, a local worker and its queue appear. A versioned policy then supplies the entitlement for the serving decision."
+    beats:
+      - say: "Step back to the interview board. Who waits for an answer, and who runs the model? If a provider runs it, ask for the provider's quota and latency. Now the interviewer asks you to run it yourself. The queue and worker we just sized belong inside your service. Ask whether users stream answers and whether spend is a hard stop. Each answer changes what you have to enforce."
+        hold: 0.8
+        visual_cues:
+          - id: sd-requirements-control-0-operation
+            phrase: "ask for the provider's quota and latency"
+            targets: [sd-requirements-control-mechanism]
+            color: cyan
+            linger: 0.35
+          - id: requirements-host
+            phrase: "Now the interviewer asks you to run it yourself"
+            targets: [sd-requirements-control-mechanism]
+            color: cyan
+            linger: 0.35
+          - id: sd-requirements-control-0-result
+            phrase: "Each answer changes what you have to enforce"
+            targets: [sd-requirements-control-mechanism]
+            color: cyan
+            linger: 0.35
+      - say: "Follow policy version seven. On the left, an administrator grants access to a model, sets a route and assigns a quota bucket. That's the control plane. On the right, the gateway reads those records for this request, checks the key, reserves budget and attempts admission. That's the data plane. If the required policy is unavailable, keep the beta model and private data closed."
+        hold: 0.7
+        visual_cues:
+          - id: sd-requirements-control-1-operation
+            phrase: "an administrator grants access to a model, sets a route and assigns a quota bucket"
+            targets: [sd-requirements-control-mechanism]
+            color: cyan
+            linger: 0.35
+          - id: requirements-policy-missing
+            phrase: "If the required policy is unavailable"
+            targets: [sd-requirements-control-mechanism]
+            color: yellow
+            linger: 0.35
+          - id: sd-requirements-control-1-result
+            phrase: "keep the beta model and private data closed"
+            targets: [sd-requirements-control-mechanism]
+            color: cyan
+            linger: 0.35
+      - say: "Three follow-ups change this drawing. The employee wants an answer from a company document. Now we need a versioned index and permission checks. The employee wants a change to a repository. Give that work a durable task and a sandbox. A new candidate might answer differently. Give rollout an evaluation gate. If source updates can repeat, give ingestion a retry queue and a deduplication key. For support and abuse controls, name what you'd record and which action you could stop."
+        hold: 0.7
+        visual_cues:
+          - id: sd-requirements-control-2-operation
+            phrase: "The employee wants an answer from a company document. Now we need a versioned index and permission checks. The employee wants a change to a repository. Give that work a durable task and a sandbox. A new candidate might answer differently. Give rollout an evaluation gate"
+            targets: [sd-requirements-control-mechanism]
+            color: cyan
+            linger: 0.35
+          - id: sd-requirements-control-2-result
+            phrase: "name what you'd record and which action you could stop"
+            targets: [sd-requirements-control-mechanism]
+            color: cyan
+            linger: 0.35
+  - id: contract
+    title: Give every request a decision owner and receipt
+    visual: Request R-104 passes authentication, authorization, quota reservation, shared-capacity admission, and
+      a provider adapter. The receipt records policy and outcome details.
+    beats:
+      - say: Start with a server-generated request ID, even for a request that will be rejected. Authentication
+          answers who supplied the key. Authorization answers which model and data that caller may use. Quota
+          reservation checks the tenant's budget before shared capacity becomes relevant.
+        hold: 0.75
+        motion_check:
+          region:
+            - 110
+            - 390
+            - 1700
+            - 105
+          minimumChangedFraction: 0.002
+        visual_cues:
+          - id: contract-request-id
+            phrase: Start with a server-generated request ID
+            targets:
+              - contract-boundary-0
+            color: cyan
+            linger: 0.5
+          - id: contract-authenticate
+            phrase: Authentication answers who supplied the key
+            targets:
+              - contract-boundary-1
+            color: blue
+            linger: 0.5
+          - id: contract-authorize
+            phrase: Authorization answers which model and data that caller may use
+            targets:
+              - contract-boundary-2
+            color: yellow
+            linger: 0.5
+          - id: contract-reserve-quota
+            phrase: Quota reservation checks the tenant's budget before shared capacity becomes relevant
+            targets:
+              - contract-boundary-3
+            color: green
+            linger: 0.5
+      - say: After those checks, admission decides whether the fleet can honor the latency promise. The response and
+          trace keep the request ID, route, policy version, quota decision, queue wait, and provider result.
+          Support can then explain which boundary produced a timeout or rejection.
+        hold: 0.75
+        visual_cues:
+          - id: contract-admission
+            phrase: admission decides whether the fleet can honor the latency promise
+            targets:
+              - contract-boundary-4
+            color: cyan
+            linger: 0.5
+          - id: contract-owned-receipt
+            phrase: The response and trace keep the request ID, route, policy version, quota decision, queue wait, and
+              provider result
+            targets:
+              - contract-receipt
+            color: yellow
+            linger: 0.5
+  - id: api-receipt
+    title: The response and support lookup name the same request
+    visual: POST creates one server-owned request identity. Org/workspace/key join concrete entitlement,
+      route-policy and quota-bucket records; GET of that ID reconstructs the actual outcome without revealing
+      raw secrets. Changed provider state can move only to a policy-approved fallback.
+    beats:
+      - say: Make the gateway contract concrete. Post to slash v-one slash responses creates a server-generated
+          request ID. Get slash v-one slash requests slash that ID is an authorized support lookup.
+          Organization, workspace and key connect to a model entitlement, route policy and usage bucket. Admin
+          operations manage keys and limits separately from serving the request.
+        hold: 0.7
+        visual_cues:
+          - id: sd-api-receipt-0-operation
+            phrase: Make the gateway contract concrete. Post to slash v-one slash responses creates a server-generated
+              request ID. Get slash v-one slash requests slash that ID is an authorized support lookup.
+              Organization, workspace and key connect to a model entitlement, route policy and usage bucket.
+              Admin operations manage keys and limits separately from serving the request.
+            color: cyan
+            linger: 0.35
+            targets:
+              - sd-api-receipt-mechanism
+          - id: sd-api-receipt-0-result
+            phrase: Admin operations manage keys and limits separately from serving the request.
+            color: yellow
+            linger: 0.45
+            targets:
+              - sd-api-receipt-mechanism
+      - say: Carry the actual selected policy version, entitlement ID, route ID and quota-bucket ID into the request
+          log. Add token estimate, queue wait, provider latency, result and stable cause. Support can explain
+          a denied beta model or an overload response from that receipt. Restrict the support lookup and
+          redact secrets before storage; a request ID alone grants no access.
+        hold: 0.7
+        visual_cues:
+          - id: sd-api-receipt-1-operation
+            phrase: Carry the actual selected policy version, entitlement ID, route ID and quota-bucket ID into the
+              request log. Add token estimate, queue wait, provider latency, result and stable cause. Support
+              can explain a denied beta model or an overload response from that receipt. Restrict the support
+              lookup and redact secrets before storage; a request ID alone grants no access.
+            color: cyan
+            linger: 0.35
+            targets:
+              - sd-api-receipt-mechanism
+          - id: sd-api-receipt-1-result
+            phrase: Restrict the support lookup and redact secrets before storage; a request ID alone grants no access.
+            color: yellow
+            linger: 0.45
+            targets:
+              - sd-api-receipt-mechanism
+      - say: Under this gateway contract, an exhausted caller limit returns four twenty-nine; eligible callers blocked
+          by shared capacity receive five oh three. HTTP defines rate limiting and temporary unavailability,
+          while this split is our documented policy. Retry-After is optional and needs a defensible estimate.
+          Preserve upstream details internally. A provider outage can open a breaker, but fallback still needs
+          an approved behavior change and remaining budget.
+        hold: 0.7
+        visual_cues:
+          - id: sd-api-receipt-2-operation
+            phrase: Under this gateway contract, an exhausted caller limit returns four twenty-nine; eligible callers
+              blocked by shared capacity receive five oh three. HTTP defines rate limiting and temporary
+              unavailability, while this split is our documented policy. Retry-After is optional and needs a
+              defensible estimate. Preserve upstream details internally. A provider outage can open a breaker,
+              but fallback still needs an approved behavior change and remaining budget.
+            color: cyan
+            linger: 0.35
+            targets:
+              - sd-api-receipt-mechanism
+          - id: sd-api-receipt-2-result
+            phrase: A provider outage can open a breaker, but fallback still needs an approved behavior change and
+              remaining budget.
+            color: yellow
+            linger: 0.45
+            targets:
+              - sd-api-receipt-mechanism
+  - id: memory
+    title: Weights stay fixed while KV grows with requests
+    visual: A memory comparison derives fixed BF16 weights and KV estimates for the same model shape, batch, and
+      context, then changes only the number of key/value heads.
+    beats:
+      - say: A loaded model's weights form a fixed memory cost. During generation, each request keeps key and value
+          vectors for its tokens. That cache grows with batch and context. Start with the stated model shape
+          on screen before deciding how much room another request needs.
+        hold: 0.8
+        visual_cues:
+          - id: memory-fixed-weights
+            phrase: A loaded model's weights form a fixed memory cost
+            targets:
+              - memory-loaded-bf16-weights
+              - memory-fixed-weight-cost
+              - memory-weight-bytes
+            color: blue
+            linger: 0.5
+          - id: memory-grow-cache
+            phrase: During generation, each request keeps key and value vectors for its tokens
+            targets:
+              - memory-head-slices
+              - memory-cache-shape
+              - memory-cache-bytes
+            color: pink
+            linger: 0.5
+      - say: In this fixture, the multi-head cache is slightly larger than the loaded weights. The grouped-query
+          architecture uses a quarter as many key and value heads, so its cache is a quarter the size. The
+          chart keeps the byte estimates visible. Activations and runtime workspace still need headroom.
+        hold: 0.8
+        visual_cues:
+          - id: memory-mha-comparison
+            phrase: the multi-head cache is slightly larger than the loaded weights
+            targets:
+              - memory-weight-bytes
+              - memory-cache-bytes
+            color: pink
+            linger: 0.5
+          - id: memory-quarter-heads
+            phrase: The grouped-query architecture uses a quarter as many key and value heads, so its cache is a quarter
+              the size
+            targets:
+              - memory-head-slices
+              - memory-cache-shape
+              - memory-cache-bytes
+            color: green
+            linger: 0.5
+  - id: cache-bytes
+    title: Build one token of cache before multiplying the histories
+    visual: One key and one value vector expand into 128 scalar cells at two bytes each; eight heads and
+      thirty-two layer slices form a 128 KiB token. Independent histories concatenate; dimensions stay
+      attached to the original memory comparison.
+    beats:
+      - say: "Derive the cache estimate from one token. Each layer stores a key and a value. Multiply those two
+          vectors by the number of layers, stored key-value heads, values per head and bytes per value.
+          Thirty-two layers, eight key-value heads, width one hundred twenty-eight and two bytes give one
+          hundred thirty-one thousand seventy-two bytes per retained token: one hundred twenty-eight
+          kibibytes."
+        hold: 0.7
+        visual_cues:
+          - id: sd-cache-bytes-0-operation
+            phrase: "Derive the cache estimate from one token. Each layer stores a key and a value. Multiply those two
+              vectors by the number of layers, stored key-value heads, values per head and bytes per value.
+              Thirty-two layers, eight key-value heads, width one hundred twenty-eight and two bytes give one
+              hundred thirty-one thousand seventy-two bytes per retained token: one hundred twenty-eight
+              kibibytes."
+            color: cyan
+            linger: 0.35
+            targets:
+              - sd-cache-bytes-mechanism
+          - id: sd-cache-bytes-0-result
+            phrase: "Thirty-two layers, eight key-value heads, width one hundred twenty-eight and two bytes give one
+              hundred thirty-one thousand seventy-two bytes per retained token: one hundred twenty-eight
+              kibibytes."
+            color: yellow
+            linger: 0.45
+            targets:
+              - sd-cache-bytes-mechanism
+      - say: For equal histories, multiply that per-token storage by request count and retained sequence length. For
+          unequal histories, multiply by the sum of their lengths instead. Include retained generated tokens
+          as well as prompt tokens. Decimal gigabytes divide bytes by a billion; gibibytes divide by two to
+          the thirtieth. Parameters times bytes per stored parameter gives the separate weight term.
+        hold: 0.7
+        visual_cues:
+          - id: sd-cache-bytes-1-operation
+            phrase: For equal histories, multiply that per-token storage by request count and retained sequence length.
+              For unequal histories, multiply by the sum of their lengths instead. Include retained generated
+              tokens as well as prompt tokens. Decimal gigabytes divide bytes by a billion; gibibytes divide
+              by two to the thirtieth. Parameters times bytes per stored parameter gives the separate weight
+              term.
+            color: cyan
+            linger: 0.35
+            targets:
+              - sd-cache-bytes-mechanism
+          - id: sd-cache-bytes-1-result
+            phrase: Parameters times bytes per stored parameter gives the separate weight term.
+            color: yellow
+            linger: 0.45
+            targets:
+              - sd-cache-bytes-mechanism
+      - say: "Take sixteen requests with two thousand forty-eight tokens each. With thirty-two key-value heads the cache needs about seventeen point two decimal gigabytes. With eight it needs about four point three. Llama three eight-B has thirty-two query heads sharing eight key-value heads. Serving the thirty-two-key-value-head design would require a different checkpoint."
+        hold: 0.7
+        visual_cues:
+          - id: sd-cache-bytes-2-operation
+            phrase: "Take sixteen requests with two thousand forty-eight tokens each"
+            color: cyan
+            linger: 0.35
+            targets:
+              - sd-cache-bytes-mechanism
+          - id: sd-cache-bytes-2-result
+            phrase: "Serving the thirty-two-key-value-head design would require a different checkpoint"
+            color: yellow
+            linger: 0.45
+            targets:
+              - sd-cache-bytes-mechanism
+  - id: memory-realization
+    title: An allocation estimate leaves work and ownership to explain
+    visual: Weights retain one fixed size while independent histories grow. Page rounding, shared prefixes,
+      sliding eviction and layer/rank ownership change physical cache storage. An explicitly unfilled
+      workspace reserve prevents an estimated fit from becoming a fabricated throughput result.
+    beats:
+      - say: "Watch the weight bar as four requests arrive. All four share the same sixteen gigabytes of two-byte weights in this replica. Their histories grow separately. Leave room for activations, workspace and whole cache blocks. With quantized weights, count scales, metadata and any tensors kept at higher precision. Measure peak memory and tokens per second while serving that mix."
+        hold: 0.7
+        visual_cues:
+          - id: sd-memory-realization-0-operation
+            phrase: "Watch the weight bar as four requests arrive"
+            color: cyan
+            linger: 0.35
+            targets:
+              - sd-memory-realization-mechanism
+          - id: sd-memory-realization-0-result
+            phrase: "Measure peak memory and tokens per second while serving that mix"
+            color: yellow
+            linger: 0.45
+            targets:
+              - sd-memory-realization-mechanism
+      - say: Our full-history estimate assumes independent attention histories. Shared prefix blocks avoid duplicating
+          compatible state. Sliding-window eviction limits retained positions. Compression changes
+          representation; cache sharding changes which rank owns bytes. Paged allocation rounds a request up
+          to whole blocks. State each condition before comparing a measured allocation with the formula.
+        hold: 0.7
+        visual_cues:
+          - id: sd-memory-realization-1-operation
+            phrase: Our full-history estimate assumes independent attention histories. Shared prefix blocks avoid
+              duplicating compatible state. Sliding-window eviction limits retained positions. Compression
+              changes representation; cache sharding changes which rank owns bytes. Paged allocation rounds a
+              request up to whole blocks. State each condition before comparing a measured allocation with the
+              formula.
+            color: cyan
+            linger: 0.35
+            targets:
+              - sd-memory-realization-mechanism
+          - id: sd-memory-realization-1-result
+            phrase: State each condition before comparing a measured allocation with the formula.
+            color: yellow
+            linger: 0.45
+            targets:
+              - sd-memory-realization-mechanism
+      - say: Changing stored key-value heads requires a compatible architecture and checkpoint. Quantization can
+          reduce weight bytes, with workload-dependent quality and runtime speed. An eight-bit weight payload
+          is roughly half the two-byte payload before overhead. Test quality and the actual kernel path
+          instead of assuming every lower-bit model is fast or every quantized model is unusable.
+        hold: 0.7
+        visual_cues:
+          - id: sd-memory-realization-2-operation
+            phrase: Changing stored key-value heads requires a compatible architecture and checkpoint. Quantization can
+              reduce weight bytes, with workload-dependent quality and runtime speed. An eight-bit weight
+              payload is roughly half the two-byte payload before overhead. Test quality and the actual kernel
+              path instead of assuming every lower-bit model is fast or every quantized model is unusable.
+            color: cyan
+            linger: 0.35
+            targets:
+              - sd-memory-realization-mechanism
+          - id: sd-memory-realization-2-result
+            phrase: Test quality and the actual kernel path instead of assuming every lower-bit model is fast or every
+              quantized model is unusable.
+            color: yellow
+            linger: 0.45
+            targets:
+              - sd-memory-realization-mechanism
+  - id: demand
+    title: Turn request mix into a planning rate
+    visual: A supplied traffic fixture converts request rate and average token counts into aggregate tokens per
+      second, then compares that demand with an assumed fleet capacity.
+    beats:
+      - say: Capacity starts with the request mix. Multiply requests per minute by input and output tokens per
+          request, then convert to seconds. The units cancel along the path. This supplied mix needs one
+          hundred ten thousand tokens per second; the component lengths stay visible for recalculation.
+        hold: 0.8
+        visual_cues:
+          - id: demand-beat-1-focus-1
+            phrase: Multiply requests per minute by input and output tokens per request
+            targets:
+              - demand-node-requests
+            color: cyan
+            linger: 0.65
+          - id: demand-beat-1-focus-2
+            phrase: Capacity starts with the request mix
+            targets:
+              - demand-node-requests
+            color: yellow
+            linger: 0.65
+      - say: "The assumed fleet rate leaves only twelve percent headroom. That's fifteen thousand tokens a second left across all workers. How far does that go if people ask for longer answers?"
+        hold: 0.8
+        visual_cues:
+          - id: demand-beat-2-focus-1
+            phrase: "The assumed fleet rate leaves only twelve percent headroom"
+            targets:
+              - demand-s-tokenspersecond-s-assumedcapacity-demand-assumed-fleet-capacity
+            color: cyan
+            linger: 0.65
+  - id: demand-sensitivity
+    title: "What if each answer is twice as long?"
+    visual: The original 4,000 requests/min and 1,200 input tokens remain visible. Output length moves from450
+      to900; the rate and unused-capacity numerator recompute before a changed planning verdict. A separate
+      evidence packet keeps measured throughput distinct.
+    beats:
+      - say: "Keep arrivals at four thousand requests a minute. Each request brings twelve hundred input tokens and uses four hundred fifty output tokens on average. Together that's six point six million tokens a minute. Across the fleet, demand is one hundred ten thousand tokens per second."
+        hold: 0.7
+        visual_cues:
+          - id: sd-demand-sensitivity-0-operation
+            phrase: "Each request brings twelve hundred input tokens and uses four hundred fifty output tokens on average"
+            color: cyan
+            linger: 0.35
+            targets:
+              - sd-demand-sensitivity-mechanism
+          - id: sd-demand-sensitivity-0-result
+            phrase: "Across the fleet, demand is one hundred ten thousand tokens per second"
+            color: yellow
+            linger: 0.45
+            targets:
+              - sd-demand-sensitivity-mechanism
+      - say: "Keep the same arrivals and double the average answer to nine hundred tokens. Watch the demand bar cross the capacity mark. Four thousand requests times twenty-one hundred tokens, divided by sixty, gives one hundred forty thousand tokens per second. At our assumed capacity of one hundred twenty-five thousand, the fleet is short by fifteen thousand tokens a second, or twelve percent of capacity."
+        hold: 0.7
+        visual_cues:
+          - id: sd-demand-sensitivity-1-operation
+            phrase: "double the average answer to nine hundred tokens"
+            color: cyan
+            linger: 0.35
+            targets:
+              - sd-demand-sensitivity-mechanism
+          - id: sd-demand-sensitivity-1-result
+            phrase: "the fleet is short by fifteen thousand tokens a second, or twelve percent of capacity"
+            color: yellow
+            linger: 0.45
+            targets:
+              - sd-demand-sensitivity-mechanism
+      - say: "The worker does different work reading a prompt and generating an answer. Benchmark it with the prompt lengths, answer lengths, arrival pattern and concurrency you expect. Record the hardware, software, model revision, precision, serving algorithm and warmup. Compare against the baseline on the same workload and check the answers for correctness."
+        hold: 0.7
+        visual_cues:
+          - id: sd-demand-sensitivity-2-operation
+            phrase: "The worker does different work reading a prompt and generating an answer"
+            color: cyan
+            linger: 0.35
+            targets:
+              - sd-demand-sensitivity-mechanism
+          - id: sd-demand-sensitivity-2-result
+            phrase: "Compare against the baseline on the same workload and check the answers for correctness"
+            color: yellow
+            linger: 0.45
+            targets:
+              - sd-demand-sensitivity-mechanism
+  - id: quota-reservation
+    title: "What happens to a reservation when the stream ends?"
+    visual: "Independent request IDs separate a settled stream from one with missing usage. A duplicate completion returns to the paid entry, and the disconnected stream keeps the full reservation pending."
+    beats:
+      - say: "Follow a stream the gateway actually serves. Its team has ten thousand tokens available. Set aside the tokenized prompt plus the largest output we'll allow. That reserves eighteen hundred and leaves eighty-two hundred. The meter comes back at fifteen hundred twenty tokens. Refund the unused two hundred eighty. The balance is now eight thousand four hundred eighty. Track request counts and money in their own windows."
+        hold: 0.8
+        visual_cues:
+          - id: sd-quota-reservation-0-operation
+            phrase: "Set aside the tokenized prompt plus the largest output we'll allow"
+            targets: [sd-quota-reservation-mechanism]
+            color: cyan
+            linger: 0.35
+          - id: sd-quota-reserved
+            phrase: "That reserves eighteen hundred and leaves eighty-two hundred"
+            targets: [sd-quota-reservation-mechanism]
+            caption_boundary: true
+            color: yellow
+            linger: 0.35
+          - id: sd-quota-refunded
+            phrase: "Refund the unused two hundred eighty. The balance is now eight thousand four hundred eighty"
+            targets: [sd-quota-reservation-mechanism]
+            caption_boundary: true
+            color: yellow
+            linger: 0.35
+          - id: sd-quota-reservation-0-result
+            phrase: "Track request counts and money in their own windows"
+            targets: [sd-quota-reservation-mechanism]
+            color: cyan
+            linger: 0.35
+      - say: "Shrink the bucket to a hundred tokens. One request asks for seventy, another for sixty. Both read the balance before either spends anything. Together they'd reserve a hundred thirty. Now start again and make the check and deduction one operation. The first claim leaves thirty. The second request needs sixty, so the ledger refuses it."
+        hold: 0.9
+        visual_cues:
+          - id: sd-quota-reservation-1-operation
+            phrase: "Both read the balance before either spends anything"
+            targets: [sd-quota-reservation-mechanism]
+            color: cyan
+            linger: 0.35
+          - id: sd-quota-naive
+            phrase: "Together they'd reserve a hundred thirty"
+            targets: [sd-quota-reservation-mechanism]
+            caption_boundary: true
+            color: yellow
+            linger: 0.35
+          - id: sd-quota-claim
+            phrase: "The first claim leaves thirty"
+            targets: [sd-quota-reservation-mechanism]
+            caption_boundary: true
+            color: yellow
+            linger: 0.35
+          - id: sd-quota-deny
+            phrase: "the ledger refuses it"
+            targets: [sd-quota-reservation-mechanism]
+            caption_boundary: true
+            color: yellow
+            linger: 0.35
+          - id: sd-quota-reservation-1-result
+            phrase: "The second request needs sixty"
+            targets: [sd-quota-reservation-mechanism]
+            color: cyan
+            linger: 0.35
+      - say: "Return to the larger bucket. The same completion arrives twice for the first stream. Look up its request ID. The refund has already been applied. Now take a separate stream from the same starting balance. It disconnects before we know what it used. Keep its reservation pending until provider accounting arrives. For a hard money limit, price the route's input, cache reads and writes, generated reasoning, tools and allowed retries or fallback. Cache writes can cost more than ordinary input."
+        hold: 0.9
+        visual_cues:
+          - id: sd-quota-reservation-2-operation
+            phrase: "The same completion arrives twice for the first stream"
+            targets: [sd-quota-reservation-mechanism]
+            color: cyan
+            linger: 0.35
+          - id: quota-disconnect
+            phrase: "It disconnects before we know what it used"
+            targets: [sd-quota-reservation-mechanism]
+            color: cyan
+            linger: 0.35
+          - id: sd-quota-reservation-2-result
+            phrase: "Keep its reservation pending until provider accounting arrives"
+            targets: [sd-quota-reservation-mechanism]
+            color: cyan
+            linger: 0.35
+  - id: phase-latency
+    title: "Where did this reader wait?"
+    visual: "A reader receives four tokens on a fixed time axis. The opening wait ends at the first token. Three gaps are measured individually and then averaged while the longest remains in place."
+    beats:
+      - say: "The employee sees an empty answer while the request waits for a worker. The worker can reuse eligible cached keys and values, then reads the rest of the prompt to choose the first token. That part is prefill. The first token still has to reach the reader. Time to first token includes that whole trip. Afterward, ordinary decode extends the answer one token per step."
+        hold: 0.9
+        visual_cues:
+          - id: phase-before
+            phrase: "That part is prefill"
+            targets: [phase-stream]
+            color: cyan
+            linger: 0.35
+          - id: phase-arrival
+            phrase: "Time to first token includes that whole trip"
+            targets: [phase-stream]
+            color: cyan
+            linger: 0.35
+      - say: "Let's timestamp a different stream at the client. The request arrives at zero. The first token reaches the reader at two hundred milliseconds. The next two arrive at two ten and two twenty. The fourth arrives at five hundred. Which pair of tokens left the reader staring at the same partial answer the longest?"
+        hold: 2
+        visual_cues:
+          - id: phase-first
+            phrase: "The first token reaches the reader at two hundred milliseconds"
+            targets: [phase-stream]
+            color: cyan
+            linger: 0.35
+          - id: phase-short
+            phrase: "The next two arrive at two ten and two twenty"
+            targets: [phase-stream]
+            color: cyan
+            linger: 0.35
+          - id: phase-last
+            phrase: "The fourth arrives at five hundred"
+            targets: [phase-stream]
+            color: cyan
+            linger: 0.35
+          - id: phase-stall
+            phrase: "Which pair of tokens"
+            targets: [phase-stream]
+            color: cyan
+            linger: 0.35
+      - say: "From the third token to the fourth, the reader waited two hundred eighty milliseconds. Each gap is an inter-token latency. The first two gaps took ten each. From first token to last that's three hundred milliseconds over three gaps, or one hundred per gap on average. That average is the request's time per output token. A one-token answer has no gap to average. If a stalling stream breaks the promise, measure the individual gaps as well. For fleet goodput, count successful requests meeting the latency targets per second and report rejections separately."
+        hold: 1.2
+        visual_cues:
+          - id: phase-long
+            phrase: "the reader waited two hundred eighty milliseconds"
+            targets: [phase-stream]
+            caption_boundary: true
+            color: yellow
+            linger: 0.35
+          - id: phase-mean
+            phrase: "three hundred milliseconds over three gaps, or one hundred per gap on average"
+            targets: [phase-mean]
+            caption_boundary: true
+            color: yellow
+            linger: 0.35
+          - id: phase-slo
+            phrase: "measure the individual gaps as well"
+            targets: [phase-stream]
+            color: cyan
+            linger: 0.35
+  - id: batch-and-pages
+    title: Scheduling and storage repair different failures
+    visual: Two unequal-length request histories retain their page maps. One finishes and relinquishes its batch
+      slot to a newcomer without moving the other history. Independently, logical cache pages map to reusable
+      physical blocks; page reclamation never impersonates a scheduling decision.
+    beats:
+      - say: A static batch can leave a finished request’s slot idle while a long neighbor continues; naive padding
+          adds wasted work. Continuous, iteration-level batching removes completed sequences and adds waiting
+          ones between iterations. Similar-length offline batches can still be appropriate. The scheduling
+          choice determines when a sequence participates.
+        hold: 0.7
+        visual_cues:
+          - id: sd-batch-and-pages-0-operation
+            phrase: A static batch can leave a finished request’s slot idle while a long neighbor continues; naive padding
+              adds wasted work. Continuous, iteration-level batching removes completed sequences and adds
+              waiting ones between iterations. Similar-length offline batches can still be appropriate. The
+              scheduling choice determines when a sequence participates.
+            color: cyan
+            linger: 0.35
+            targets:
+              - sd-batch-and-pages-mechanism
+          - id: sd-batch-and-pages-0-result
+            phrase: The scheduling choice determines when a sequence participates.
+            color: yellow
+            linger: 0.45
+            targets:
+              - sd-batch-and-pages-mechanism
+      - say: Paged key-value storage solves a different allocation problem. A request’s logical history maps to
+          physical cache blocks, which can be allocated, shared under valid conditions and freed as ownership
+          ends. It reduces rigid reservation and fragmentation costs; it does not itself decide which request
+          wins the next iteration. Keep the batch slot and physical page map as separate objects.
+        hold: 0.7
+        visual_cues:
+          - id: sd-batch-and-pages-1-operation
+            phrase: Paged key-value storage solves a different allocation problem. A request’s logical history maps to
+              physical cache blocks, which can be allocated, shared under valid conditions and freed as
+              ownership ends. It reduces rigid reservation and fragmentation costs; it does not itself decide
+              which request wins the next iteration. Keep the batch slot and physical page map as separate
+              objects.
+            color: cyan
+            linger: 0.35
+            targets:
+              - sd-batch-and-pages-mechanism
+          - id: sd-batch-and-pages-1-result
+            phrase: Keep the batch slot and physical page map as separate objects.
+            color: yellow
+            linger: 0.45
+            targets:
+              - sd-batch-and-pages-mechanism
+      - say: The scheduler must check available decode slots and required cache blocks along with prefill backlog. Our
+          two-resource helper requires active decode sequences strictly below its limit, and free blocks at
+          least the request’s need. Those resource counts must be actual nonnegative integers, so a fractional
+          slot or infinite free-cache reading is rejected. A successful check still needs an atomic claim and
+          a later release.
+        hold: 0.7
+        visual_cues:
+          - id: sd-batch-and-pages-2-operation
+            phrase: The scheduler must check available decode slots and required cache blocks along with prefill backlog.
+              Our two-resource helper requires active decode sequences strictly below its limit, and free
+              blocks at least the request’s need. Those resource counts must be actual nonnegative integers,
+              so a fractional slot or infinite free-cache reading is rejected. A successful check still needs
+              an atomic claim and a later release.
+            color: cyan
+            linger: 0.35
+            targets:
+              - sd-batch-and-pages-mechanism
+          - id: sd-batch-and-pages-2-result
+            phrase: A successful check still needs an atomic claim and a later release.
+            color: yellow
+            linger: 0.45
+            targets:
+              - sd-batch-and-pages-mechanism
+  - id: phase-placement
+    title: "What makes a streaming answer pause?"
+    visual: "Follow the same five output tokens on two schedules. Blue prompt work fills one long turn or four short ones between tokens. A KV packet crosses from prefill to decode. A target model checks three draft tokens together."
+    beats:
+      - say: "The reader sees one word. Before the worker can send the next word, it reads someone else's long prompt. Watch the blue stretch. Now split the same prompt into four chunks. Between chunks, give the stream a turn. To tune the chunk size, time the new answer's first token and the gaps in the running reply. Check throughput and workspace at that size."
+        hold: 0.7
+        visual_cues:
+          - id: sd-phase-placement-0-operation
+            phrase: "Before the worker can send the next word, it reads someone else's long prompt"
+            color: cyan
+            linger: 0.35
+            targets:
+              - sd-phase-placement-mechanism
+          - id: sd-phase-placement-0-result
+            phrase: "Now split the same prompt into four chunks. Between chunks, give the stream a turn"
+            color: yellow
+            linger: 0.45
+            targets:
+              - sd-phase-placement-mechanism
+      - say: "Give prefill and decode their own worker pools. Follow the prompt's keys and values across the link. A busy link can leave decode waiting even when it has a free worker. Size both pools and time the handoff under load. DistServe counts successful requests per second that meet both first-token and per-output-token targets. Use that measure to compare placements on your traffic."
+        hold: 0.7
+        visual_cues:
+          - id: sd-phase-placement-1-operation
+            phrase: "Follow the prompt's keys and values across the link"
+            color: cyan
+            linger: 0.35
+            targets:
+              - sd-phase-placement-mechanism
+          - id: sd-phase-placement-1-result
+            phrase: "Use that measure to compare placements on your traffic"
+            color: yellow
+            linger: 0.45
+            targets:
+              - sd-phase-placement-mechanism
+      - say: "For slow decode, try a small draft model. It proposes “Meet at noon.” The target checks all three tokens in parallel. It keeps “Meet” and “at,” then replaces “noon” with “two.” Measure how often the target accepts draft tokens. The saved decode steps have to cover drafting and verification."
+        hold: 0.7
+        visual_cues:
+          - id: sd-phase-placement-2-operation
+            phrase: "It keeps “Meet” and “at,”"
+            color: cyan
+            linger: 0.35
+            targets:
+              - sd-phase-placement-mechanism
+          - id: sd-phase-placement-2-result
+            phrase: "replaces “noon” with “two.”"
+            color: yellow
+            linger: 0.45
+            targets:
+              - sd-phase-placement-mechanism
+  - id: cache-compatibility
+    title: Matching text and allowed reuse answer different questions
+    visual: One prefix keeps exact token IDs, positions, model and adapter revision, cache configuration and
+      tenant scope as a composite identity. A changed adapter breaks numerical compatibility; a changed caller
+      can break access despite identical bytes. Revocation removes cached outputs and support paths too.
+    beats:
+      - say: A self-hosted prefix cache must match exact token IDs and positions, model and adapter revision, and
+          relevant cache configuration. The same printed word under a different tokenizer or history need not
+          produce the same state. In a separate changed-adapter case, identical token IDs and positions do not
+          make old key-value tensors compatible with new adapter weights.
+        hold: 0.7
+        visual_cues:
+          - id: sd-cache-compatibility-0-operation
+            phrase: A self-hosted prefix cache must match exact token IDs and positions, model and adapter revision, and
+              relevant cache configuration. The same printed word under a different tokenizer or history need
+              not produce the same state. In a separate changed-adapter case, identical token IDs and
+              positions do not make old key-value tensors compatible with new adapter weights.
+            color: cyan
+            linger: 0.35
+            targets:
+              - sd-cache-compatibility-mechanism
+          - id: sd-cache-compatibility-0-result
+            phrase: In a separate changed-adapter case, identical token IDs and positions do not make old key-value
+              tensors compatible with new adapter weights.
+            color: yellow
+            linger: 0.45
+            targets:
+              - sd-cache-compatibility-mechanism
+      - say: Numerical compatibility does not grant access. Tenant and current authorization scope also belong in
+          lookup policy. A private answer cannot become reusable by a second tenant merely because both
+          supplied the same text. Apply revocation and deletion to cached answers, retrieved context, external
+          calls and support traces, not only to the main search index.
+        hold: 0.7
+        visual_cues:
+          - id: sd-cache-compatibility-1-operation
+            phrase: Numerical compatibility does not grant access. Tenant and current authorization scope also belong in
+              lookup policy. A private answer cannot become reusable by a second tenant merely because both
+              supplied the same text. Apply revocation and deletion to cached answers, retrieved context,
+              external calls and support traces, not only to the main search index.
+            color: cyan
+            linger: 0.35
+            targets:
+              - sd-cache-compatibility-mechanism
+          - id: sd-cache-compatibility-1-result
+            phrase: Apply revocation and deletion to cached answers, retrieved context, external calls and support traces,
+              not only to the main search index.
+            color: yellow
+            linger: 0.45
+            targets:
+              - sd-cache-compatibility-mechanism
+      - say: Hosted providers define their own cache matching, pricing and retention. Moving a request to a fallback
+          route does not carry its old cache hit with it. A miss changes prefill work and the billing
+          estimate. A provider’s isolation mechanism can support the boundary, but our service still owns its
+          entitlement, current grants and safe handling of private outputs.
+        hold: 0.7
+        visual_cues:
+          - id: sd-cache-compatibility-2-operation
+            phrase: Hosted providers define their own cache matching, pricing and retention. Moving a request to a
+              fallback route does not carry its old cache hit with it. A miss changes prefill work and the
+              billing estimate. A provider’s isolation mechanism can support the boundary, but our service
+              still owns its entitlement, current grants and safe handling of private outputs.
+            color: cyan
+            linger: 0.35
+            targets:
+              - sd-cache-compatibility-mechanism
+          - id: sd-cache-compatibility-2-result
+            phrase: A provider’s isolation mechanism can support the boundary, but our service still owns its entitlement,
+              current grants and safe handling of private outputs.
+            color: yellow
+            linger: 0.45
+            targets:
+              - sd-cache-compatibility-mechanism
+  - id: parallel-placement
+    title: Fit the model and then account for the physical route
+    visual: A logical layer shard, pipeline stage and expert shard are overlaid on an actual NVLink/PCIe/network
+      topology. Each exchange remains attached to its owning layer or selected expert; the model-fit
+      conclusion is separate from unmeasured latency.
+    beats:
+      - say: If one device cannot hold weights and cache, state the logical division. Tensor parallelism splits layer
+          computation. Pipeline parallelism places successive layer stages on different workers. A
+          mixture-of-experts model can distribute experts and route selected tokens between them. Each
+          arrangement changes who owns parameters, intermediate values and cache.
+        hold: 0.7
+        visual_cues:
+          - id: sd-parallel-placement-0-operation
+            phrase: If one device cannot hold weights and cache, state the logical division. Tensor parallelism splits
+              layer computation. Pipeline parallelism places successive layer stages on different workers. A
+              mixture-of-experts model can distribute experts and route selected tokens between them. Each
+              arrangement changes who owns parameters, intermediate values and cache.
+            color: cyan
+            linger: 0.35
+            targets:
+              - sd-parallel-placement-mechanism
+          - id: sd-parallel-placement-0-result
+            phrase: Each arrangement changes who owns parameters, intermediate values and cache.
+            color: yellow
+            linger: 0.45
+            targets:
+              - sd-parallel-placement-mechanism
+      - say: Then map that logical plan onto physical links. A tensor-parallel exchange over a slow network can fit
+          memory and still miss the latency target. Pipeline stages can fit across machines and still incur
+          bubbles. Expert routing can add cross-device traffic. NVLink, PCIe and inter-node bandwidth are
+          different premises; name the communication the SLO can afford.
+        hold: 0.7
+        visual_cues:
+          - id: sd-parallel-placement-1-operation
+            phrase: Then map that logical plan onto physical links. A tensor-parallel exchange over a slow network can fit
+              memory and still miss the latency target. Pipeline stages can fit across machines and still
+              incur bubbles. Expert routing can add cross-device traffic. NVLink, PCIe and inter-node
+              bandwidth are different premises; name the communication the SLO can afford.
+            color: cyan
+            linger: 0.35
+            targets:
+              - sd-parallel-placement-mechanism
+          - id: sd-parallel-placement-1-result
+            phrase: NVLink, PCIe and inter-node bandwidth are different premises; name the communication the SLO can
+              afford.
+            color: yellow
+            linger: 0.45
+            targets:
+              - sd-parallel-placement-mechanism
+      - say: Slurm remains a valid bare-metal high-performance-computing scheduler. Kubernetes with KubeRay is another
+          substrate for Ray training and serving workloads. Neither scheduler name chooses the model’s shard
+          plan, measured capacity or authorization policy. Keep the deployment substrate, serving algorithm
+          and evidence packet as separate decisions.
+        hold: 0.7
+        visual_cues:
+          - id: sd-parallel-placement-2-operation
+            phrase: Slurm remains a valid bare-metal high-performance-computing scheduler. Kubernetes with KubeRay is
+              another substrate for Ray training and serving workloads. Neither scheduler name chooses the
+              model’s shard plan, measured capacity or authorization policy. Keep the deployment substrate,
+              serving algorithm and evidence packet as separate decisions.
+            color: cyan
+            linger: 0.35
+            targets:
+              - sd-parallel-placement-mechanism
+          - id: sd-parallel-placement-2-result
+            phrase: Keep the deployment substrate, serving algorithm and evidence packet as separate decisions.
+            color: yellow
+            linger: 0.45
+            targets:
+              - sd-parallel-placement-mechanism
+  - id: concurrent-claim
+    title: "Can both requests take the last decode slot?"
+    visual: "Two requests see one free decode slot and sixteen free cache blocks. Checking leaves every block unclaimed. An atomic claim changes both owners, a second request gets a receipt, and completion returns the resources."
+    beats:
+      - say: "Two requests reach the same worker together. Both teams have quota. Ten thousand tokens ahead at eighty thousand a second gives a wait of one hundred twenty-five milliseconds. That fits the queue budget. Each request needs one decode slot and sixteen cache blocks. Both workers read the same counts. If both checks pass, can both requests start?"
+        hold: 2.4
+        visual_cues:
+          - id: claim-backlog
+            phrase: "a wait of one hundred twenty-five milliseconds"
+            targets: [claim-wait]
+            color: cyan
+            linger: 0.35
+          - id: claim-read
+            phrase: "Both workers read the same counts"
+            targets: [claim-pool]
+            color: cyan
+            linger: 0.35
+          - id: claim-question
+            phrase: "can both requests start"
+            targets: [claim-requests]
+            color: cyan
+            linger: 0.35
+      - say: "Only one. The scheduler checks again and gives R two oh one the last slot and all sixteen blocks in one operation. When R two oh two checks, there is nothing left to claim. Its five oh three names shared capacity. The first request keeps running. A passing check was only a reading of the counts at that instant."
+        hold: 1
+        visual_cues:
+          - id: claim-first
+            phrase: "gives R two oh one the last slot and all sixteen blocks in one operation"
+            targets: [claim-pool]
+            caption_boundary: true
+            color: yellow
+            linger: 0.35
+          - id: claim-second
+            phrase: "there is nothing left to claim"
+            targets: [claim-requests]
+            color: cyan
+            linger: 0.35
+          - id: claim-reject
+            phrase: "Its five oh three names shared capacity"
+            targets: [claim-requests]
+            caption_boundary: true
+            color: yellow
+            linger: 0.35
+      - say: "When the first request finishes, return its slot and its sixteen blocks together. That makes room for another admission decision. The rejected request still has its original receipt. During a tenfold spike, bound the queue and schedule fairly across teams. Any retry needs time left on its deadline. For the wait estimate we used finite, nonnegative backlog and budget, and a positive service rate. A wait exactly at the limit fits. Real prefill times vary with the work, and the new prompt and network trip still take time."
+        hold: 1.1
+        visual_cues:
+          - id: claim-release
+            phrase: "return its slot and its sixteen blocks together"
+            targets: [claim-pool]
+            color: cyan
+            linger: 0.35
+          - id: claim-retry
+            phrase: "The rejected request still has its original receipt"
+            targets: [claim-requests]
+            color: cyan
+            linger: 0.35
+  - id: permissions
+    title: "Which document may leave the index?"
+    visual: "Inside one tenant, three scored document IDs approach a grant and deletion check. The finance plan and the tombstone stop inside the trusted index. The eligible policy ID crosses to the reranker and is copied into the citation receipt."
+    beats:
+      - say: "An employee asks about access. The index finds three candidates. The finance plan scores highest. The old handbook comes next, then the public access policy. Look at the source records. The caller belongs to the employees group. Which document ID can we send to the external reranker?"
+        hold: 2.3
+        visual_cues:
+          - id: permission-scores
+            phrase: "The finance plan scores highest"
+            targets: [permission-docs]
+            color: cyan
+            linger: 0.35
+          - id: permission-groups
+            phrase: "The caller belongs to the employees group"
+            targets: [permission-gate]
+            color: cyan
+            linger: 0.35
+      - say: "Keep the finance plan inside. Its finance grant is missing. Stop the old handbook too. Someone deleted that version. The public access policy is live and the employee has its grant. Send that one ID across. Now support can trace the citation back to a source this employee was allowed to see."
+        hold: 1
+        visual_cues:
+          - id: permission-finance
+            phrase: "Its finance grant is missing"
+            targets: [permission-docs]
+            caption_boundary: true
+            color: yellow
+            linger: 0.35
+          - id: permission-deleted
+            phrase: "Someone deleted that version"
+            targets: [permission-docs]
+            caption_boundary: true
+            color: yellow
+            linger: 0.35
+          - id: permission-allow
+            phrase: "Send that one ID across"
+            targets: [permission-path]
+            caption_boundary: true
+            color: yellow
+            linger: 0.35
+      - say: "The trusted index could score all three records. Only eligible content reached the external service. Apply that same check before using a cached answer or calling a model. For a sensitive source, stop if the permission snapshot is stale or its age is unknown. A high relevance score can't settle any of those questions."
+        hold: 1
+        visual_cues:
+          - id: permission-proof
+            phrase: "Only eligible content reached the external service"
+            targets: [permission-path]
+            color: cyan
+            linger: 0.35
+          - id: permission-freshness
+            phrase: "stop if the permission snapshot is stale or its age is unknown"
+            targets: [permission-gate]
+            color: cyan
+            linger: 0.35
+  - id: acl-freshness
+    title: A young snapshot can still predate a revocation
+    visual: Immutable source versions, an ACL snapshot timestamp and the actual revocation event retain distinct
+      clocks. The freshness predicate builds age≤budget while a separate authoritative grant denies access;
+      tombstoning happens before slower physical compaction.
+    beats:
+      - say: Source connectors ingest content with permission metadata into immutable document versions. A fast
+          tombstone path excludes a deletion before slower embedding and chunk compaction. Bind retrieved IDs
+          and citation IDs to those versions. Monitor connector lag, refresh failures and deletion queues
+          instead of treating an index update as instant permission revocation.
+        hold: 0.7
+        visual_cues:
+          - id: sd-acl-freshness-0-operation
+            phrase: Source connectors ingest content with permission metadata into immutable document versions. A fast
+              tombstone path excludes a deletion before slower embedding and chunk compaction. Bind retrieved
+              IDs and citation IDs to those versions. Monitor connector lag, refresh failures and deletion
+              queues instead of treating an index update as instant permission revocation.
+            color: cyan
+            linger: 0.35
+            targets:
+              - sd-acl-freshness-mechanism
+          - id: sd-acl-freshness-0-result
+            phrase: Monitor connector lag, refresh failures and deletion queues instead of treating an index update as
+              instant permission revocation.
+            color: yellow
+            linger: 0.45
+            targets:
+              - sd-acl-freshness-mechanism
+      - say: The freshness helper accepts a known nonnegative finite snapshot age at most its nonnegative finite
+          budget. Missing, negative or nonfinite age fails. Yet a twenty-second-old snapshot can miss a
+          revocation from one second ago while passing a sixty-second age limit. To enforce a tighter
+          revocation promise, use authoritative checks, invalidation or a documented delay policy.
+        hold: 0.7
+        visual_cues:
+          - id: sd-acl-freshness-1-operation
+            phrase: The freshness helper accepts a known nonnegative finite snapshot age at most its nonnegative finite
+              budget. Missing, negative or nonfinite age fails. Yet a twenty-second-old snapshot can miss a
+              revocation from one second ago while passing a sixty-second age limit. To enforce a tighter
+              revocation promise, use authoritative checks, invalidation or a documented delay policy.
+            color: cyan
+            linger: 0.35
+            targets:
+              - sd-acl-freshness-mechanism
+          - id: sd-acl-freshness-1-result
+            phrase: To enforce a tighter revocation promise, use authoritative checks, invalidation or a documented delay
+              policy.
+            color: yellow
+            linger: 0.45
+            targets:
+              - sd-acl-freshness-mechanism
+      - say: Passing freshness still leaves tenant, user, group and document authorization to check. Sensitive sources
+          fail closed when that state is stale or unknown. Our trusted-index fixture can inspect internal
+          scores before eligibility, but excluded chunks never cross to untrusted external reranking or
+          generation. An audit receipt binds the caller, groups, ACL version, filters, chosen chunks,
+          citations and response identity.
+        hold: 0.7
+        visual_cues:
+          - id: sd-acl-freshness-2-operation
+            phrase: Passing freshness still leaves tenant, user, group and document authorization to check. Sensitive
+              sources fail closed when that state is stale or unknown. Our trusted-index fixture can inspect
+              internal scores before eligibility, but excluded chunks never cross to untrusted external
+              reranking or generation. An audit receipt binds the caller, groups, ACL version, filters, chosen
+              chunks, citations and response identity.
+            color: cyan
+            linger: 0.35
+            targets:
+              - sd-acl-freshness-mechanism
+          - id: sd-acl-freshness-2-result
+            phrase: An audit receipt binds the caller, groups, ACL version, filters, chosen chunks, citations and response
+              identity.
+            color: yellow
+            linger: 0.45
+            targets:
+              - sd-acl-freshness-mechanism
+  - id: agent-state
+    title: "Which record settles the missing reply?"
+    visual: "A worker and a repository keep separate records for T47. The repository accepts c42 while the reply fails to reach the worker. A support lookup reconciles the attempt. A cancellation request and a confirmed sandbox exit then occupy separate fields."
+    beats:
+      - say: "Now the employee asks the assistant to change a repository. Task forty-seven runs in a sandbox. Before calling the tool, save the attempt ID and its write intent. The repository accepts the commit. The worker restarts before its reply is saved. Which record would you check before retrying the write?"
+        hold: 2.2
+        visual_cues:
+          - id: agent-intent
+            phrase: "save the attempt ID and its write intent"
+            targets: [agent-local]
+            color: cyan
+            linger: 0.35
+          - id: agent-accept
+            phrase: "The repository accepts the commit"
+            targets: [agent-receiver]
+            caption_boundary: true
+            color: yellow
+            linger: 0.35
+          - id: agent-timeout
+            phrase: "The worker restarts before its reply is saved"
+            targets: [agent-local]
+            color: cyan
+            linger: 0.35
+      - say: "Look up the original attempt at the receiver. There's the commit, C forty-two. Attach its receipt to the same attempt. If you can't establish the outcome, reconcile or ask for review. Replaying a write automatically requires a receiver that durably enforces idempotency. A timeout by itself tells you only that the reply is missing."
+        hold: 1
+        visual_cues:
+          - id: agent-lookup
+            phrase: "Look up the original attempt at the receiver"
+            targets: [agent-receiver]
+            color: cyan
+            linger: 0.35
+          - id: agent-reconcile
+            phrase: "Attach its receipt to the same attempt"
+            targets: [agent-local]
+            caption_boundary: true
+            color: yellow
+            linger: 0.35
+      - say: "The employee presses cancel. Record that intent and stop new tool calls. Let the sandbox terminate, then mark the attempt canceled. Keep the partial logs, tool events and artifacts on that attempt. The commit is still there when the worker stops. It needs its own review."
+        hold: 1.2
+        visual_cues:
+          - id: agent-cancel
+            phrase: "Record that intent and stop new tool calls"
+            targets: [agent-local]
+            color: cyan
+            linger: 0.35
+          - id: agent-exit
+            phrase: "then mark the attempt canceled"
+            targets: [agent-local]
+            caption_boundary: true
+            color: yellow
+            linger: 0.35
+          - id: agent-persists
+            phrase: "The commit is still there when the worker stops"
+            targets: [agent-receiver]
+            color: cyan
+            linger: 0.35
+  - id: task-claims
+    title: Persist the expected state and the attempt that can change it
+    visual: The actual legal-transition graph contains terminal failed/canceled/complete states. A stale
+      running→review claim loses against current blocked; a blocked→running compare-and-set succeeds. A new
+      attempt receives a distinct identity instead of reopening a terminal result.
+    beats:
+      - say: The task state machine allows queued to provision or cancel, provisioning to run or fail or cancel, and
+          running to block, review, fail or cancel. Blocked can resume or enter review; review can resume,
+          complete or cancel. Failed, canceled and complete are terminal in this attempt. The helper checks
+          legal edges; it does not persist them.
+        hold: 0.7
+        visual_cues:
+          - id: sd-task-claims-0-operation
+            phrase: The task state machine allows queued to provision or cancel, provisioning to run or fail or cancel,
+              and running to block, review, fail or cancel. Blocked can resume or enter review; review can
+              resume, complete or cancel. Failed, canceled and complete are terminal in this attempt. The
+              helper checks legal edges; it does not persist them.
+            color: cyan
+            linger: 0.35
+            targets:
+              - sd-task-claims-mechanism
+          - id: sd-task-claims-0-result
+            phrase: The helper checks legal edges; it does not persist them.
+            color: yellow
+            linger: 0.45
+            targets:
+              - sd-task-claims-mechanism
+      - say: A worker must atomically compare the expected current state or hold a valid lease before updating the
+          attempt. If a worker expects running but storage now says blocked, its claim fails even if
+          running-to-review would have been legal. A worker expecting blocked can claim the allowed transition
+          back to running. New work after a terminal result gets a new attempt identity.
+        hold: 0.7
+        visual_cues:
+          - id: sd-task-claims-1-operation
+            phrase: A worker must atomically compare the expected current state or hold a valid lease before updating the
+              attempt. If a worker expects running but storage now says blocked, its claim fails even if
+              running-to-review would have been legal. A worker expecting blocked can claim the allowed
+              transition back to running. New work after a terminal result gets a new attempt identity.
+            color: cyan
+            linger: 0.35
+            targets:
+              - sd-task-claims-mechanism
+          - id: sd-task-claims-1-result
+            phrase: New work after a terminal result gets a new attempt identity.
+            color: yellow
+            linger: 0.45
+            targets:
+              - sd-task-claims-mechanism
+      - say: A repository task also needs a scoped checkout, branch and conflict policy, network and tool limits,
+          short-lived credentials, time and disk budgets, redacted logs and reviewable artifacts. Persist tool
+          events, checkpoint references, sandbox exits and reviewer actions. Streaming progress describes that
+          durable attempt rather than substituting for its state.
+        hold: 0.7
+        visual_cues:
+          - id: sd-task-claims-2-operation
+            phrase: A repository task also needs a scoped checkout, branch and conflict policy, network and tool limits,
+              short-lived credentials, time and disk budgets, redacted logs and reviewable artifacts. Persist
+              tool events, checkpoint references, sandbox exits and reviewer actions. Streaming progress
+              describes that durable attempt rather than substituting for its state.
+            color: cyan
+            linger: 0.35
+            targets:
+              - sd-task-claims-mechanism
+          - id: sd-task-claims-2-result
+            phrase: Streaming progress describes that durable attempt rather than substituting for its state.
+            color: yellow
+            linger: 0.45
+            targets:
+              - sd-task-claims-mechanism
+  - id: retry-and-cancel
+    title: A cancel request cannot erase an accepted external write
+    visual: A timed-out create-commit call remains attached to its task/attempt. Cancel intent stops future
+      scheduling, the late receiver receipt identifies the already accepted commit, and sandbox exit confirms
+      execution stop without deleting the irreversible artifact.
+    beats:
+      - say: "Retry policy assumes an authorized action, transient failure and remaining budget. A repository read can
+          retry automatically. Sandbox provisioning, commit creation and comments are writes: automatic replay
+          needs verified receiver-enforced idempotency. The receiver must durably bind caller and key to the
+          mutation, reject changed payloads and retain the record across the retry window."
+        hold: 0.7
+        visual_cues:
+          - id: sd-retry-and-cancel-0-operation
+            phrase: "Retry policy assumes an authorized action, transient failure and remaining budget. A repository read
+              can retry automatically. Sandbox provisioning, commit creation and comments are writes:
+              automatic replay needs verified receiver-enforced idempotency. The receiver must durably bind
+              caller and key to the mutation, reject changed payloads and retain the record across the retry
+              window."
+            color: cyan
+            linger: 0.35
+            targets:
+              - sd-retry-and-cancel-mechanism
+          - id: sd-retry-and-cancel-0-result
+            phrase: The receiver must durably bind caller and key to the mutation, reject changed payloads and retain the
+              record across the retry window.
+            color: yellow
+            linger: 0.45
+            targets:
+              - sd-retry-and-cancel-mechanism
+      - say: Our helper enables write replay only when the configuration is the actual Boolean True. A string spelling
+          True or False is not that permission. Without receiver enforcement, reconcile the original attempt
+          or request review. Generating a key locally does not prove a timed-out write failed, and
+          provisioning another sandbox can itself duplicate a resource.
+        hold: 0.7
+        visual_cues:
+          - id: sd-retry-and-cancel-1-operation
+            phrase: Our helper enables write replay only when the configuration is the actual Boolean True. A string
+              spelling True or False is not that permission. Without receiver enforcement, reconcile the
+              original attempt or request review. Generating a key locally does not prove a timed-out write
+              failed, and provisioning another sandbox can itself duplicate a resource.
+            color: cyan
+            linger: 0.35
+            targets:
+              - sd-retry-and-cancel-mechanism
+          - id: sd-retry-and-cancel-1-result
+            phrase: Generating a key locally does not prove a timed-out write failed, and provisioning another sandbox can
+              itself duplicate a resource.
+            color: yellow
+            linger: 0.45
+            targets:
+              - sd-retry-and-cancel-mechanism
+      - say: Suppose a commit reply arrives after cancellation was requested. Keep that receipt on the original
+          attempt and reconcile the accepted commit. Persist cancellation intent, stop scheduling new calls,
+          allow the chosen grace period and terminate execution before reporting canceled. Keep partial logs
+          and incomplete artifacts; revoke credentials where appropriate. Cancellation and rollback cannot
+          retract an external effect that already happened.
+        hold: 0.7
+        visual_cues:
+          - id: sd-retry-and-cancel-2-operation
+            phrase: Suppose a commit reply arrives after cancellation was requested. Keep that receipt on the original
+              attempt and reconcile the accepted commit. Persist cancellation intent, stop scheduling new
+              calls, allow the chosen grace period and terminate execution before reporting canceled. Keep
+              partial logs and incomplete artifacts; revoke credentials where appropriate. Cancellation and
+              rollback cannot retract an external effect that already happened.
+            color: cyan
+            linger: 0.35
+            targets:
+              - sd-retry-and-cancel-mechanism
+          - id: sd-retry-and-cancel-2-result
+            phrase: Cancellation and rollback cannot retract an external effect that already happened.
+            color: yellow
+            linger: 0.45
+            targets:
+              - sd-retry-and-cancel-mechanism
+  - id: release-gate
+    title: "Which result stops this candidate?"
+    visual: "Two specimens of one hundred expose the denominators behind recall and citation faithfulness. Magnified count scales retain the independent requirements. The gap of two citations stays visible with the failed receipt."
+    beats:
+      - say: "Before this answer can go to users, try the candidate on a labeled set. It retrieves ninety-four of a hundred relevant documents. That's recall. On a separate set of one hundred scored citations, ninety-three support the claim they sit beside. That's citation faithfulness. The policy marks are fixed. We observed zero permission leaks in this sample. Which check stops launch, and by how many?"
+        hold: 2.5
+        visual_cues:
+          - id: release-docs
+            phrase: "It retrieves ninety-four of a hundred relevant documents"
+            targets: [release-recall]
+            color: cyan
+            linger: 0.35
+          - id: release-cites
+            phrase: "ninety-three support the claim they sit beside"
+            targets: [release-faith]
+            color: cyan
+            linger: 0.35
+          - id: release-question
+            phrase: "Which check stops launch, and by how many"
+            targets: [release-receipt]
+            color: cyan
+            linger: 0.35
+      - say: "Recall clears its minimum by two documents. The citations fall two short. You can see the two places between ninety-three and the required ninety-five. Hold the candidate for citation faithfulness. Look at the unsupported claims, fix the candidate, and run the checks again. The extra documents can't supply evidence for those claims."
+        hold: 1.25
+        visual_cues:
+          - id: release-recall-gap
+            phrase: "Recall clears its minimum by two documents"
+            targets: [release-recall]
+            color: cyan
+            linger: 0.35
+          - id: release-gap
+            phrase: "The citations fall two short"
+            targets: [release-faith]
+            caption_boundary: true
+            color: yellow
+            linger: 0.35
+          - id: release-hold
+            phrase: "Hold the candidate for citation faithfulness"
+            targets: [release-receipt]
+            caption_boundary: true
+            color: yellow
+            linger: 0.35
+      - say: "Suppose the evaluator tries a different fix. It sends the same citation score with a lower minimum. Who owns that mark? The release service does. It checks the supplied minimum against its own policy. A missing result also keeps this candidate out of the canary. Rollback can stop further exposure, but information already shown to someone stays with them."
+        hold: 0.8
+        visual_cues:
+          - id: release-policy
+            phrase: "Who owns that mark"
+            targets: [release-faith]
+            color: cyan
+            linger: 0.35
+          - id: release-owner
+            phrase: "The release service does"
+            targets: [release-receipt]
+            color: cyan
+            linger: 0.35
+  - id: typed-release
+    title: "Who sets the passing score?"
+    visual: "A candidate sends metric tuples to the release service. Lowering an echoed minimum changes the incoming packet while the host ruler stays fixed. A fresh passing score pair then isolates the difference between an unknown leak count, Boolean False, and integer zero."
+    beats:
+      - say: "The evaluator sends a pair for each metric. The first number is the observation. The second tells the release service which minimum the evaluator used. Each pair must be a tuple with exactly two entries. The host checks both numbers are finite and between zero and one. It accepts numbers and rejects Booleans. Then it checks the echoed minimum against the versioned policy it loaded independently."
+        hold: 0.8
+        visual_cues:
+          - id: packet-read
+            phrase: "The first number is the observation"
+            targets: [packet-scores]
+            color: cyan
+            linger: 0.35
+          - id: packet-owner
+            phrase: "the versioned policy it loaded independently"
+            targets: [packet-scores]
+            color: cyan
+            linger: 0.35
+      - say: "Go back to the ninety-three supported citations. Watch only the minimum in the incoming packet. The evaluator lowers it to zero. The host still requires ninety-five hundredths. Hold the candidate. A missing pair or a nonfinite score also fails. Every required check gets its own decision."
+        hold: 1
+        visual_cues:
+          - id: packet-edit
+            phrase: "The evaluator lowers it to zero"
+            targets: [packet-scores]
+            color: cyan
+            linger: 0.35
+          - id: packet-deny
+            phrase: "Hold the candidate"
+            targets: [packet-outcome]
+            caption_boundary: true
+            color: yellow
+            linger: 0.35
+      - say: "Now take a different candidate. Both scores clear the official minima. All that's left is the leak count. A blank field means nobody supplied a count. False is a Boolean. Neither tells the gate how many leaks were measured. An integer zero passes this local check. Before release, pin the policy and dataset versions, sample sizes and critical slices. Check judge calibration and uncertainty. Zero observed leaks describes this sample."
+        hold: 1
+        visual_cues:
+          - id: packet-fresh
+            phrase: "Both scores clear the official minima"
+            targets: [packet-scores]
+            color: cyan
+            linger: 0.35
+          - id: packet-bool
+            phrase: "False is a Boolean"
+            targets: [packet-outcome]
+            color: cyan
+            linger: 0.35
+          - id: packet-zero
+            phrase: "An integer zero passes this local check"
+            targets: [packet-outcome]
+            caption_boundary: true
+            color: yellow
+            linger: 0.35
+  - id: canary-controller
+    title: Contain a confirmed exposure before asking for more latency data
+    visual: Three separate validated-window receipts drive actual rollout_decision branches. At the
+      inclusive1%/900ms boundaries expansion is eligible; a worse error rate holds; confirmed integer leaks
+      force rollback even when other measurements are missing. Containment retains incident evidence.
+    beats:
+      - say: "Roll out the candidate to a small canary. Take a fresh window with enough samples. The first row has one confirmed permission leak. Error rate and latency are still missing. Roll back now to stop further exposure. Revoke the affected access and investigate what already reached the user."
+        hold: 0.7
+        visual_cues:
+          - id: sd-canary-controller-0-operation
+            phrase: "The first row has one confirmed permission leak"
+            color: cyan
+            linger: 0.35
+            targets:
+              - sd-canary-controller-mechanism
+          - id: sd-canary-controller-0-result
+            phrase: "Roll back now to stop further exposure"
+            color: yellow
+            linger: 0.45
+            targets:
+              - sd-canary-controller-mechanism
+      - say: Without a confirmed leak, an invalid or missing leak count holds. Missing, nonfinite or out-of-range
+          error and latency measurements also hold. With valid inputs and integer zero leaks, error above one
+          percent or p-ninety-five above nine hundred milliseconds holds. Equality at both limits is eligible
+          to expand under this supplied policy.
+        hold: 0.7
+        visual_cues:
+          - id: sd-canary-controller-1-operation
+            phrase: Without a confirmed leak, an invalid or missing leak count holds. Missing, nonfinite or out-of-range
+              error and latency measurements also hold. With valid inputs and integer zero leaks, error above
+              one percent or p-ninety-five above nine hundred milliseconds holds. Equality at both limits is
+              eligible to expand under this supplied policy.
+            color: cyan
+            linger: 0.35
+            targets:
+              - sd-canary-controller-mechanism
+          - id: sd-canary-controller-1-result
+            phrase: Equality at both limits is eligible to expand under this supplied policy.
+            color: yellow
+            linger: 0.45
+            targets:
+              - sd-canary-controller-mechanism
+      - say: "Check the metric types as the report arrives. In Python, False compares equal to zero. Accepting it as an error rate could make a missing measurement look like a healthy window. Require a numeric rate and record the candidate, sample count and time window. Save complaint examples and incidents for the next regression run."
+        hold: 0.7
+        visual_cues:
+          - id: sd-canary-controller-2-operation
+            phrase: "In Python, False compares equal to zero"
+            color: cyan
+            linger: 0.35
+            targets:
+              - sd-canary-controller-mechanism
+          - id: sd-canary-controller-2-result
+            phrase: "Save complaint examples and incidents for the next regression run"
+            color: yellow
+            linger: 0.45
+            targets:
+              - sd-canary-controller-mechanism
+  - id: decision-rehearsal
+    title: "What would make you move the queue?"
+    visual: "A decision log pins the queue before the provider fork. Changing one route's wait budget moves the limits to the branches. A practice clock associates each interval with the artifact to leave on the board."
+    beats:
+      - say: "On the interview board, put the queue before the adapters. Both routes have the same wait budget, and one owner can enforce it. What would make you move that boundary? Suppose route B now promises a hundred milliseconds in line. Give that route its own budget. I'd split the waiting lines here so a slow route can't fill the other one's queue. Write down what changed beside the choice you rejected. For a fallback model you'd look for customer opt-in. For automatic writes you'd need a narrower, recoverable action."
+        hold: 1
+        visual_cues:
+          - id: rehearsal-common
+            phrase: "one owner can enforce it"
+            targets: [rehearsal-routes]
+            color: cyan
+            linger: 0.35
+          - id: rehearsal-change
+            phrase: "Suppose route B now promises a hundred milliseconds in line"
+            targets: [rehearsal-routes]
+            color: cyan
+            linger: 0.35
+          - id: rehearsal-split
+            phrase: "Give that route its own budget"
+            targets: [rehearsal-routes]
+            caption_boundary: true
+            color: yellow
+            linger: 0.35
+      - say: "For a forty-five-minute practice, use the clock to decide what to leave on the board. By minute fourteen, name the user, the promise, and a number that can break it. By minute twenty-eight, trace one request through the API and the data it writes. Use the remaining time to explain a failure to support, make a rollout decision, and defend a trade-off. Adjust that clock to the interview you actually get. Interview formats vary by team."
+        hold: 0.9
+        visual_cues:
+          - id: rehearsal-size
+            phrase: "By minute fourteen, name the user, the promise, and a number that can break it"
+            targets: [rehearsal-clock]
+            color: cyan
+            linger: 0.35
+          - id: rehearsal-path
+            phrase: "By minute twenty-eight, trace one request through the API and the data it writes"
+            targets: [rehearsal-clock]
+            color: cyan
+            linger: 0.35
+          - id: rehearsal-close
+            phrase: "explain a failure to support, make a rollout decision, and defend a trade-off"
+            targets: [rehearsal-clock]
+            color: cyan
+            linger: 0.35
+      - say: "Before you leave the board, try using it as the support engineer. Can you explain the rejected call from its ID? Find the units and owner of the failed metric. Check who can read cached data, how it expires, what stops a bad release, and how to recover a write. A different prompt changes the calculation. For ingestion, size updates and backfills. For retrieval, size document and embedding storage. For voice, split the latency budget."
+        hold: 0.85
+        visual_cues:
+          - id: rehearsal-lookup
+            phrase: "Can you explain the rejected call from its ID"
+            targets: [rehearsal-receipt]
+            color: cyan
+            linger: 0.35
+          - id: rehearsal-metric
+            phrase: "Find the units and owner of the failed metric"
+            targets: [rehearsal-receipt]
+            color: cyan
+            linger: 0.35
+  - id: fresh-boundary
+    title: "What can the gateway do for R-205?"
+    visual: "On a new request the queue ruler, permissions clock, and candidate evidence sit beside their own decision fields. Repairing snapshot age and leak evidence moves only those two checks. A finance document still stops at the current grant boundary."
+    beats:
+      - say: "Here's a new request. The team still has quota. Read the queue clock first. There's one decode slot left and just enough cache. Next, check the age of the employee's permissions. Finally, look at the candidate's release report. Both scores are in, but the leak count is blank. Can the worker admit the request? Is the snapshot fresh enough for private retrieval? Can this candidate enter a canary?"
+        hold: 3
+        visual_cues:
+          - id: fresh-work
+            phrase: "Read the queue clock first"
+            targets: [fresh-capacity]
+            color: cyan
+            linger: 0.35
+          - id: fresh-age
+            phrase: "check the age of the employee's permissions"
+            targets: [fresh-age]
+            color: cyan
+            linger: 0.35
+          - id: fresh-packet
+            phrase: "Both scores are in, but the leak count is blank"
+            targets: [fresh-policy]
+            color: cyan
+            linger: 0.35
+      - say: "Divide the twenty-five thousand tokens by the worker's rate. Two hundred milliseconds. That fits inside two hundred fifty. With the free slot and the sixteen blocks, capacity accepts. Look one row down. Seventy-five seconds exceeds sixty, so the snapshot is stale. The release service still needs a measured zero. With the count missing, hold the candidate."
+        caption_starts: ["Two hundred milliseconds"]
+        hold: 1.4
+        visual_cues:
+          - id: sd-fresh-capacity
+            phrase: "capacity accepts"
+            targets: [fresh-capacity]
+            caption_boundary: true
+            color: yellow
+            linger: 0.35
+          - id: sd-fresh-acl
+            phrase: "the snapshot is stale"
+            targets: [fresh-age]
+            caption_boundary: true
+            color: yellow
+            linger: 0.35
+          - id: sd-fresh-release
+            phrase: "hold the candidate"
+            targets: [fresh-policy]
+            caption_boundary: true
+            color: yellow
+            linger: 0.35
+      - say: "Refresh the snapshot and recover the evaluator's missing measurement. Now it reads ten seconds, and the report records an integer zero. Rerun the two checks. The snapshot is usable and this candidate may enter a canary. One last question. This employee belongs to the employees group. May the finance plan appear in their answer?"
+        hold: 2.4
+        visual_cues:
+          - id: sd-fresh-repair-inputs
+            phrase: "Now it reads ten seconds, and the report records an integer zero"
+            targets: [fresh-age, fresh-policy]
+            color: cyan
+            linger: 0.35
+          - id: sd-fresh-repair-result
+            phrase: "The snapshot is usable and this candidate may enter a canary"
+            targets: [fresh-policy, fresh-age]
+            caption_boundary: true
+            color: yellow
+            linger: 0.35
+          - id: fresh-doc-question
+            phrase: "May the finance plan appear in their answer"
+            targets: [fresh-document]
+            color: cyan
+            linger: 0.35
+      - say: "Keep the finance plan out. The worker has room, and the candidate can enter a canary. For this document, the employee needs a finance grant. Read the support record back to the interviewer. R two oh five, finance plan excluded, finance grant missing."
+        hold: 1.8
+        visual_cues:
+          - id: fresh-doc-stop
+            phrase: "Keep the finance plan out"
+            targets: [fresh-document]
+            caption_boundary: true
+            color: yellow
+            linger: 0.35
+          - id: fresh-doc-receipt
+            phrase: "R two oh five, finance plan excluded, finance grant missing"
+            targets: [fresh-document]
+            color: cyan
+            linger: 0.35

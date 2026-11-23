@@ -1,0 +1,368 @@
+[
+  {
+    "id": "c01",
+    "title": "Can the next patch start?",
+    "sourceChapters": [
+      "c01"
+    ],
+    "beats": [
+      {
+        "id": "c01-b01",
+        "say": "Watch these three conversations take a step. When the GPU processes another position for each conversation, all three strips grow. Each belongs to a different person using the code assistant. Look above them. The blue weight bank stays the same size because one model serves the whole batch.",
+        "hold": 1
+      },
+      {
+        "id": "c01-b02",
+        "say": "Look at the last gibibyte of that cache. One conversation owns half of it. A new patch needs the other half for its prompt. It also needs an eighth of a gibibyte for its reply. Would you admit the patch?",
+        "hold": 2.5
+      },
+      {
+        "id": "c01-b03",
+        "say": "It has to wait. The prompt fits by itself, but its reply would cross the edge. Now the neighbor finishes. Move the patch into the space it released. The full reservation fits, and the shared weights stay where they were. We'll use this replica to find how many conversations can fit and still get their next token on time.",
+        "hold": 1.2
+      }
+    ]
+  },
+  {
+    "id": "c02",
+    "title": "What does one position weigh?",
+    "sourceChapters": [
+      "c02"
+    ],
+    "beats": [
+      {
+        "id": "c02-b01",
+        "say": "Take one consumed token from the patch. At each full-attention layer the cache stores a key and a value. Look across one layer. Each of its eight key and value heads stores a vector of width one hundred twenty-eight on both sides. In this representation each element occupies two bytes.",
+        "hold": 0.7
+      },
+      {
+        "id": "c02-b02",
+        "say": "Stack thirty-two such layers for Llama three point one eight B, which supports the long threads we saw at the opening. How much does that add for one position? Multiply the two arrays by layers, heads, width and bytes per element. That's one hundred twenty-eight kibibytes. At four thousand ninety-six positions one conversation carries half a gibibyte.",
+        "hold": 1.2
+      },
+      {
+        "id": "c02-b03",
+        "say": "Independent histories add. With eighty layers instead, the seventy-billion-parameter geometry takes three hundred twenty kibibytes per position. At eight thousand one hundred ninety-two positions that's two and a half gibibytes for one person. Sixty-four such histories alone take one hundred sixty gibibytes.",
+        "hold": 0.8
+      },
+      {
+        "id": "c02-b04",
+        "say": "One very long history can also run out of room. Extrapolate that geometry to a million positions. Divide the sequence across four devices. Each stores about seventy-six gibibytes of cache, plus its weights and buffers. Attention must combine evidence across the shards. Sharding doesn't extend the checkpoint's supported context. Local attention, shared prefixes and different cache formats also change the accounting.",
+        "hold": 1
+      }
+    ]
+  },
+  {
+    "id": "c03",
+    "title": "Which bytes can the allocator promise?",
+    "sourceChapters": [
+      "c03"
+    ],
+    "beats": [
+      {
+        "id": "c03-b01",
+        "say": "Begin with the available device budget. Our replica has thirty-two gibibytes. Loading its weight allocation consumes the blue region. This memory is shared across the active batch, so adding another conversation will not load another complete copy of those weights.",
+        "hold": 0.65
+      },
+      {
+        "id": "c03-b02",
+        "say": "Set aside a runtime allowance before promising space to requests. Activations, kernel workspace, captured graphs, and other allocations can peak under load. The four-gibibyte region protects this part of our budget. Measure the peak under the batch shapes and kernels you plan to serve. How much is left for the cache?",
+        "hold": 1.9
+      },
+      {
+        "id": "c03-b03",
+        "say": "Sixteen gibibytes. That pool can be preallocated even when few blocks have owners. Release an owner and the empty block can serve someone else. The allocator still holds the same pool on the device.",
+        "hold": 0.85
+      },
+      {
+        "id": "c03-b04",
+        "say": "For a separate example, suppose the device reports exactly eighty billion bytes. Convert to gibibytes before subtracting. Sixteen billion weight bytes and eight gibibytes for runtime leave about fifty-one point six gibibytes. That holds a hundred and three half-gibibyte histories today. Give each five hundred twelve more positions, and only ninety-one complete reservations fit.",
+        "hold": 0.9
+      }
+    ]
+  },
+  {
+    "id": "c04",
+    "title": "How many answers can keep growing?",
+    "sourceChapters": [
+      "c04"
+    ],
+    "beats": [
+      {
+        "id": "c04-b01",
+        "say": "Return to the sixteen-gibibyte pool. At half a gibibyte each, it holds thirty-two current histories. Each division is one conversation. They fill the strip all the way to its edge. Where could the next processed reply token go?",
+        "hold": 1.7
+      },
+      {
+        "id": "c04-b02",
+        "say": "Before admitting a patch, reserve another thousand twenty-four positions for its answer. Each conversation now needs five eighths of a gibibyte. Count the whole reservations. Twenty-five fit. The space at the end is smaller than one more reservation.",
+        "hold": 0.8
+      },
+      {
+        "id": "c04-b03",
+        "say": "Keep the answer limit. Give every patch a longer prompt of sixteen thousand three hundred eighty-four positions. Predict the number that will fit.",
+        "hold": 2
+      },
+      {
+        "id": "c04-b04",
+        "say": "Seven. Each now needs two and an eighth gibibytes. The eighth would cross the edge. A mean prompt length can hide this change during a burst. Charge the actual reservation at admission and enforce the promised output limit as the answer grows.",
+        "hold": 1
+      }
+    ]
+  },
+  {
+    "id": "c05",
+    "title": "Who owns the empty positions?",
+    "sourceChapters": [
+      "c05"
+    ],
+    "beats": [
+      {
+        "id": "c05-b01",
+        "say": "The allocator hands out blocks of sixteen positions. Look at the final block of patch A. Add its four thousand ninety prompt positions and five hundred twelve reserved for the answer. Ten positions of this last block are promised. The six striped positions still belong to A.",
+        "hold": 0.8
+      },
+      {
+        "id": "c05-b02",
+        "say": "B brings six more prompt positions and the same answer allowance. Its last block fills exactly. C brings four more than B. When we reserve those four positions, how many additional slots will C need compared with B?",
+        "hold": 2.3
+      },
+      {
+        "id": "c05-b03",
+        "say": "Sixteen. Crossing the boundary opens an entire block. C uses four of its positions and owns the twelve striped ones as well. Count the tails. Six plus zero plus twelve. All eighteen unused positions are attached to somebody's reservation. Round each request first, then add. Check and claim the blocks in one operation so two arrivals can't spend the same block.",
+        "hold": 1.1
+      }
+    ]
+  },
+  {
+    "id": "prefix",
+    "title": "Can two continuations write here?",
+    "sourceChapters": [
+      "c05"
+    ],
+    "beats": [
+      {
+        "id": "prefix-b01",
+        "say": "Both requests point to page seven. They share an identical prefix, p, q, r. Across independent requests, prefix lookup needs matching token IDs, positions, model state and an allowed sharing scope. Once the match exists, both conversations still attend to those positions. What if A and B want different next tokens?",
+        "hold": 1.8
+      },
+      {
+        "id": "prefix-b02",
+        "say": "Copy the three valid positions to page twelve. Redirect B to that page. Now each partially filled page has one owner and one writable slot. A can append its own token and B can append a different one. Follow their pointers back. Both can still read p, q, r.",
+        "hold": 0.9
+      },
+      {
+        "id": "prefix-b03",
+        "say": "When A finishes, its private page becomes available, assuming no retained cache entry needs it. B keeps reading its own page. A full shared prefix page could stay immutable while both requests grow private tails. Logical page order can stay the same even when physical addresses differ.",
+        "hold": 0.85
+      }
+    ]
+  },
+  {
+    "id": "schedule",
+    "title": "How many times do we read the weights?",
+    "sourceChapters": [
+      "c06"
+    ],
+    "beats": [
+      {
+        "id": "schedule-b01",
+        "say": "Five already-prefilled requests need two, two, five, three and one more tokens. Three decode slots are available. One step reads the weights once and emits one token per active request. In a static batch the first group stays together until C finishes. The two empty lanes each wait three steps.",
+        "hold": 0.8
+      },
+      {
+        "id": "schedule-b02",
+        "say": "The next group starts at step six. Static batching needs eight reads for thirteen tokens. Replay the same requests. If a finished slot can take a new request before the next step, when can D and E start?",
+        "hold": 2.1
+      },
+      {
+        "id": "schedule-b03",
+        "say": "At step three. C keeps its place and its history while D and E share its next weight read. Five reads now deliver all thirteen tokens. This counts iterations under equal scheduling rules. To find the elapsed time we have to price the bytes that each iteration moves.",
+        "hold": 0.9
+      }
+    ]
+  },
+  {
+    "id": "c06",
+    "title": "What does one sweep cost?",
+    "sourceChapters": [
+      "c06"
+    ],
+    "beats": [
+      {
+        "id": "c06-b01",
+        "say": "Prefill processes the known prompt positions together. They reuse each weight across many rows. Ordinary decode advances each stream by one token per step. With sixteen-bit weights, dense linear work alone does roughly one floating-point operation per weight byte at batch one. Eight active streams do roughly eight. This weight-only estimate leaves out attention and cache traffic.",
+        "hold": 0.6
+      },
+      {
+        "id": "c06-b02",
+        "say": "Now include the cache. Assume one full weight read and one read of each current history per step, at five hundred gibibytes per second. At batch one, twelve gibibytes of weights and half a gibibyte of history take twenty-five milliseconds. That one stream gets forty tokens per second in the model.",
+        "hold": 0.7
+      },
+      {
+        "id": "c06-b03",
+        "say": "Increase the batch to eight. The same weight read serves all eight. Four gibibytes of history bring the step to thirty-two milliseconds. The batch delivers two hundred fifty tokens per second. Each person waits longer between tokens even as total output rises.",
+        "hold": 0.7
+      },
+      {
+        "id": "c06-b04",
+        "say": "Try twenty-four streams. The step now takes forty-eight milliseconds, beyond our forty-millisecond target, even though aggregate output reaches five hundred tokens per second. This serialization model omits compute, launches, communication, writes and queueing. The lower of compute peak and bandwidth times arithmetic intensity bounds performance. Profile the real engine to find its limiting resource.",
+        "hold": 0.85
+      }
+    ]
+  },
+  {
+    "id": "phases",
+    "title": "How much prompt work fits in this step?",
+    "sourceChapters": [
+      "c06"
+    ],
+    "beats": [
+      {
+        "id": "phases-b01",
+        "say": "A long prompt arrives while four people are getting replies. This mixed step can schedule ten new positions. Give each active decode its next position. How many of the twenty waiting prompt positions can we process alongside them?",
+        "hold": 1.8
+      },
+      {
+        "id": "phases-b02",
+        "say": "Six prompt positions fit. Fourteen remain for later steps. Chunking bounds prompt work per iteration but can delay the prompt's first token. Check queueing, prefill and delivery for first-token delay. During the reply, measure individual token gaps. A mean time per output token can hide a long gap.",
+        "hold": 0.85
+      },
+      {
+        "id": "phases-b03",
+        "say": "A separate prefill worker avoids some interference. Follow a two-and-a-half-gibibyte cache to the decode worker at two hundred gibibytes per second. With no overlap, the transfer takes twelve and a half milliseconds. Add four milliseconds of coordination. If moving the prompt saves fifteen milliseconds, would you split these workers?",
+        "hold": 2
+      },
+      {
+        "id": "phases-b04",
+        "say": "Keeping them together saves one and a half milliseconds in this case. Compare the complete handoff with the interference it removes. Contention, partial reuse and overlap can move the break-even point.",
+        "hold": 0.9
+      }
+    ]
+  },
+  {
+    "id": "c07",
+    "title": "Which listed batch is largest within both limits?",
+    "sourceChapters": [
+      "c07"
+    ],
+    "beats": [
+      {
+        "id": "c07-b01",
+        "say": "Put the candidates alongside one another. Reserve five eighths of a gibibyte per request, including its answer allowance. Check the sixteen-gibibyte pool first. Twenty-four fits with a gibibyte to spare. Thirty-two needs twenty gibibytes. Each step reads twelve gibibytes of shared weights once, plus half a gibibyte per current history. The device reads five hundred gibibytes per second. What's the largest listed batch that fits and finishes the read by forty milliseconds?",
+        "hold": 5
+      },
+      {
+        "id": "c07-b02",
+        "say": "Start the sweep. Each row spends the first twenty-four milliseconds on the same weights. Then each current history costs one more millisecond to read. At the deadline, sixteen just finishes. The twenty-four row still has eight histories to go. At forty-eight milliseconds it finishes too late. Sixteen is our largest qualifying candidate.",
+        "hold": 0.9
+      },
+      {
+        "id": "c07-b03",
+        "say": "At sixteen we produce four hundred tokens per second in the model. Suppose all of those tokens meet the quality target and that rate holds for a full billed hour. Two dollars buys one million four hundred forty thousand useful tokens, about a dollar thirty-nine per million. Include idle time, rejected work, retries, prompt work and other resource costs when pricing a real service.",
+        "hold": 0.9
+      }
+    ]
+  },
+  {
+    "id": "verify",
+    "title": "Which draft tokens survive verification?",
+    "sourceChapters": [
+      "c08"
+    ],
+    "beats": [
+      {
+        "id": "verify-b01",
+        "say": "A draft model proposes a short continuation. The target can score the proposed prefixes together, but we test proposals in order. For the first proposed token, divide its target probability by its draft probability and cap the result at one. A uniform draw below that threshold accepts the proposal. The draft gave this token one half. The target gives it one tenth. Our uniform draw is point four. Keep the token?",
+        "hold": 2
+      },
+      {
+        "id": "verify-b02",
+        "say": "Reject it. The threshold is point two. Drop the pending tail because its context assumed that token. To sample a replacement, subtract the draft probabilities from the target probabilities, keep the positive differences and normalize. The deficits here are zero, point three five and point zero five.",
+        "hold": 0.9
+      },
+      {
+        "id": "verify-b03",
+        "say": "Their total is point four. The correction therefore chooses token one with probability seven eighths, and token two with one eighth. If all the proposals had passed, we would instead sample one extra token from the target after that accepted prefix. This rule preserves the target sampling distribution when both models use the stated conditional probabilities.",
+        "hold": 0.85
+      }
+    ]
+  },
+  {
+    "id": "yield",
+    "title": "Do the accepted tokens pay for the draft?",
+    "sourceChapters": [
+      "c08"
+    ],
+    "beats": [
+      {
+        "id": "yield-b01",
+        "say": "Try three draft positions on a long reply. Suppose each proposal independently passes with probability one half. A cycle always emits a first token, accepted or corrected. To get a second token, the first proposal must pass. To get a third, two must pass. To get a fourth, all three must pass.",
+        "hold": 0.8
+      },
+      {
+        "id": "yield-b02",
+        "say": "Add those survival probabilities. One plus a half plus a quarter plus an eighth gives one point eight seven five expected tokens per cycle. Each of the three draft steps costs a fifth of an ordinary target step. Verification and overhead cost another one point two. Does this beat ordinary decode?",
+        "hold": 2.1
+      },
+      {
+        "id": "yield-b03",
+        "say": "Only slightly. The cycle costs one point eight target steps. Divide expected tokens by that cost. That gives about one point zero four times the baseline rate. If verification alone gets more expensive, the same accepted tokens can take longer than ordinary decode. Measure draft cost, acceptance and verification on the actual workload.",
+        "hold": 0.85
+      }
+    ]
+  },
+  {
+    "id": "precision",
+    "title": "Which bytes should we shrink?",
+    "sourceChapters": [
+      "c08"
+    ],
+    "beats": [
+      {
+        "id": "precision-b01",
+        "say": "These long histories change which memory stream dominates. In a fixed batch, suppose each iteration reads ten gigabytes of weights and thirty of cache. Try two separate changes at the same achieved bandwidth. Would quartering the weights save more time than halving the cache?",
+        "hold": 2
+      },
+      {
+        "id": "precision-b02",
+        "say": "Compress the weights alone. Two and a half plus thirty leaves thirty-two and a half gigabytes. The bandwidth-only rate rises by a factor of about one point two three. Return to the original forty gigabytes for the second experiment.",
+        "hold": 0.8
+      },
+      {
+        "id": "precision-b03",
+        "say": "Halve only the cache. Ten plus fifteen leaves twenty-five gigabytes. That's one point six times the original rate. A smaller cache can also make room for more histories. Check scale metadata, kernel support, conversion costs and output quality before counting either saving. Then measure the new latency tails.",
+        "hold": 0.85
+      }
+    ]
+  },
+  {
+    "id": "c08",
+    "title": "Choose the batch for a new replica",
+    "sourceChapters": [
+      "c08"
+    ],
+    "beats": [
+      {
+        "id": "c08-b01",
+        "say": "For a final trial, take a different thirty-two-gibibyte replica. Eight gibibytes of weights and four of runtime leave twenty for the cache. Each current history takes a quarter gibibyte. With room for the answer, charge five sixteenths per request. The read rate is four hundred gibibytes per second. What's the largest listed batch that fits and finishes by forty milliseconds?",
+        "hold": 5
+      },
+      {
+        "id": "c08-b02",
+        "say": "Use the longer reservation to test the pool. Even sixty-four fit. Time only the current history and the weights. Sixteen streams take thirty milliseconds. Thirty-two take forty. Forty-eight and sixty-four miss. Choose thirty-two, the larger of the two passing batches. Its thirty-two tokens every forty milliseconds give eight hundred tokens per second.",
+        "hold": 1
+      },
+      {
+        "id": "c08-b03",
+        "say": "In this illustrative trace, the first token arrives after a hundred twenty milliseconds. The next three gaps last thirty, thirty and sixty milliseconds. The mean is forty, yet the last pause is twice as long as the first. For a real experiment, hold the model, precision, workload, and quality checks constant. Sweep batch pressure while recording memory peaks, preemptions, queue age, first-token delay, token gaps, and completed output. Include rejected and cancelled requests when reporting what the offered workload actually received.",
+        "hold": 0.65
+      },
+      {
+        "id": "c08-b04",
+        "say": "Look back at the batch of forty-eight. It leaves five gibibytes free, yet its read takes fifty milliseconds. Would more cache fix that late step? Each step would still read the same bytes. Take thirty-two to the load test. If requests wait for blocks, inspect ownership and wasted tails. If token gaps grow, check weight and history reads and prompt interference. Compare the cost of the configurations that meet your measured latency and quality targets.",
+        "hold": 1.5
+      }
+    ]
+  }
+]

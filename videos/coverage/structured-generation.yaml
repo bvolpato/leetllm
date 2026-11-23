@@ -1,0 +1,253 @@
+version: 1
+lesson: structured-generation
+promise: Decide whether a completed CI reply can update a dashboard. Trace the token that wrote the status,
+  check the value against the run, and use the caller's scope to decide whether to read the snapshot.
+objectives:
+  - id: grammar
+    can: Compute the next-token probabilities from the surviving weights and reject a whole token that overshoots a legal record.
+    scenes:
+      - prefix-language
+      - logit-mask
+      - conditional-mask
+      - value-branch
+      - whole-token
+      - token-index
+  - id: stack
+    can: Trace unresolved nesting, discard a failed trial, and distinguish a legal prefix from a completed response.
+    scenes:
+      - recursive-stack
+      - complete-record
+      - fresh-nesting
+  - id: backend
+    can: Distinguish compiled grammar reuse from model prefix reuse, calculate the sampling critical path, and identify which schema rules reach the backend.
+    scenes:
+      - prefix-jump
+      - mask-schedule
+      - backend-contracts
+      - wire-contract
+      - quality-measure
+  - id: application
+    can: Validate completed bytes and required nullable fields, then check the run, citation, graph identities, schema version and tool envelope.
+    scenes:
+      - subject-intro
+      - interface-contract
+      - parser-bytes
+      - nullable-field
+      - semantic-gates
+      - ci-snapshot
+      - evidence-action
+      - flat-tree
+      - tool-protocol
+      - sdk-envelope
+      - schema-version
+      - digest-identities
+  - id: consequence
+    can: Check that a retry fits the remaining time and cost. Distinguish a permitted snapshot read from an authorized change.
+    scenes:
+      - bounded-recovery
+      - host-approval
+      - transfer
+      - fresh-incident
+sections:
+  - heading: What constrained decoding adds beyond a JSON instruction
+    status: taught
+    scenes:
+      - subject-intro
+      - interface-contract
+      - parser-bytes
+  - heading: How grammar-guided decoding works
+    status: taught
+    scenes:
+      - prefix-language
+      - logit-mask
+      - conditional-mask
+  - heading: From schema to logit masking
+    status: taught
+    scenes:
+      - logit-mask
+      - conditional-mask
+  - heading: The tokenizer alignment problem
+    status: taught
+    # From clo, both shop trials reach the closing brace. Only the shorter token ends there.
+    scenes:
+      - whole-token
+      - token-index
+  - heading: Regular expressions vs. context-free grammars
+    status: taught
+    scenes:
+      - recursive-stack
+      - fresh-nesting
+  - heading: Run a miniature constrained decoder
+    status: taught
+    # finite-language-token-guide.py supplies the scores, both suffix candidates and the EOS rule.
+    scenes:
+      - prefix-language
+      - whole-token
+      - complete-record
+  - heading: Libraries and serving stacks
+    status: taught
+    scenes:
+      - token-index
+      - backend-contracts
+      - prefix-jump
+      - mask-schedule
+  - heading: Outlines
+    status: taught
+    scenes:
+      - backend-contracts
+  - heading: llama.cpp
+    status: taught
+    scenes:
+      - backend-contracts
+  - heading: "Serving stacks: SGLang, vLLM, and XGrammar"
+    status: taught
+    scenes:
+      - token-index
+      - prefix-jump
+      - mask-schedule
+      - backend-contracts
+  - heading: Function calling vs. structured outputs
+    status: taught
+    scenes:
+      - interface-contract
+      - tool-protocol
+  - heading: When to use function calling
+    status: taught
+    scenes:
+      - tool-protocol
+  - heading: When to use structured outputs
+    status: taught
+    scenes:
+      - nullable-field
+      - wire-contract
+      - sdk-envelope
+  - heading: "Systems trade-offs: latency, throughput, and schema design"
+    status: taught
+    scenes:
+      - mask-schedule
+      - quality-measure
+  - heading: Where latency originates
+    status: taught
+    scenes:
+      - token-index
+      - mask-schedule
+      - quality-measure
+  - heading: The quality-compliance trade-off
+    status: taught
+    scenes:
+      - evidence-action
+      - quality-measure
+  - heading: Flatten nested structures
+    status: taught
+    scenes:
+      - flat-tree
+  - heading: Critical failure modes and resilient production cascades
+    status: taught
+    scenes:
+      - complete-record
+      - bounded-recovery
+  - heading: An incomplete prefix can still be legal
+    status: taught
+    scenes:
+      - complete-record
+      - fresh-nesting
+  - heading: The "no prompting needed" fallacy
+    status: taught
+    scenes:
+      - value-branch
+      - nullable-field
+  - heading: Version schemas in application code
+    status: taught
+    scenes:
+      - schema-version
+  - heading: The production fallback cascade
+    status: taught
+    scenes:
+      - bounded-recovery
+      - transfer
+      - sdk-envelope
+  - heading: Enforce authorization using trusted application state
+    status: taught
+    scenes:
+      - host-approval
+      - ci-snapshot
+      - fresh-incident
+  - heading: "Practice: build an incident-digest parser"
+    status: taught
+    scenes:
+      - digest-identities
+  - heading: System requirements
+    status: taught
+    scenes:
+      - digest-identities
+  - heading: Sample input log
+    status: taught
+    scenes:
+      - digest-identities
+  - heading: Target JSON structure
+    status: taught
+    scenes:
+      - digest-identities
+  - heading: Reference validator
+    status: taught
+    scenes:
+      - digest-identities
+  - heading: Where structured outputs fit in production systems
+    status: taught
+    scenes:
+      - ci-snapshot
+      - fresh-incident
+quiz:
+  - n: 1
+    status: taught
+    scenes:
+      - conditional-mask
+  - n: 2
+    status: taught
+    scenes:
+      - recursive-stack
+      - fresh-nesting
+  - n: 3
+    status: taught
+    scenes:
+      - nullable-field
+      - fresh-incident
+  - n: 4
+    status: taught
+    scenes:
+      - wire-contract
+  - n: 5
+    status: taught
+    scenes:
+      - ci-snapshot
+  - n: 6
+    status: taught
+    scenes:
+      - flat-tree
+  - n: 7
+    status: taught
+    scenes:
+      - mask-schedule
+  - n: 8
+    status: taught
+    scenes:
+      - bounded-recovery
+      - transfer
+  - n: 9
+    status: taught
+    scenes:
+      - evidence-action
+  - n: 10
+    status: taught
+    scenes:
+      - digest-identities
+removed: []
+reviews:
+  closed_book:
+    taught: 10
+    partial: 0
+    absent: 0
+    script: 21fcfabd567db54c
+  fact_check:
+    open_findings: 0
+    script: 21fcfabd567db54c

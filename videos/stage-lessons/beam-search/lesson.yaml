@@ -1,0 +1,1483 @@
+version: 1
+id: beam-search
+title: From Scores to a Sentence
+source: foundations/decoding-algorithms/content.md
+sources:
+  - title: "Wu et al.: Google's Neural Machine Translation System"
+    url: https://arxiv.org/abs/1609.08144
+  - title: "Hugging Face Transformers: Generation Strategies"
+    url: https://huggingface.co/docs/transformers/generation_strategies
+  - title: "Blanchard et al.: stable softmax and log-softmax"
+    url: https://arxiv.org/abs/1909.03469
+  - title: "Holtzman et al.: nucleus sampling and generation degeneration"
+    url: https://arxiv.org/abs/1904.09751
+  - title: "Fan et al.: top-k generation"
+    url: https://arxiv.org/abs/1805.04833
+  - title: "Keskar et al.: CTRL penalized sampling"
+    url: https://arxiv.org/abs/1909.05858
+  - title: "Python Random: replay and generator conventions"
+    url: https://docs.python.org/3/library/random.html
+  - title: PyTorch numerical accuracy and reproducibility
+    url: https://docs.pytorch.org/docs/stable/notes/numerical_accuracy.html
+  - title: Hugging Face generation configuration and penalty conventions
+    url: https://huggingface.co/docs/transformers/main_classes/text_generation
+  - title: "XGrammar: byte-level constrained generation"
+    url: https://arxiv.org/abs/2411.15100
+  - title: "Nguyen et al.: Min-p relative probability sampling"
+    url: https://arxiv.org/abs/2407.01082
+  - title: "Grammar-aligned decoding: local constraints and sequence conditioning"
+    url: https://papers.neurips.cc/paper_files/paper/2024/file/2bdc2267c3d7d01523e2e17ac0a754f3-Paper-Conference.pdf
+  - title: "Lightman et al.: process supervision"
+    url: https://arxiv.org/abs/2305.20050
+  - title: "Yao et al.: Tree of Thoughts"
+    url: https://arxiv.org/abs/2305.10601
+  - title: "Hao et al.: Reasoning with Language Model is Planning"
+    url: https://arxiv.org/abs/2305.14992
+  - title: "Leviathan et al.: speculative sampling and residual correction"
+    url: https://arxiv.org/abs/2211.17192
+scenes:
+  - id: policy-premise
+    title: Which word fills the blank?
+    visual: A pin travels across the next-token probability strip. The word under its tip fills the sampled slot. Beside it, the highest-scoring word fills the greedy slot. The key rotation guide gives the two words their meaning.
+    beats:
+      - say: "Follow the pin. The sampler drew a point three quarters of the way along this strip. Which word goes in the blank?"
+        hold: 2.2
+        visual_cues:
+          - id: draw-pin
+            phrase: "three quarters"
+            targets: [draw-position]
+      - say: "Revoke. The pin landed in its stretch of blue. The sampler draws uniformly along the strip, so a wider stretch gives a word a better chance."
+        hold: 0.55
+        visual_cues:
+          - id: sample-word
+            phrase: "Revoke"
+            targets: [sample-output]
+            caption_boundary: true
+      - say: "Here are the scores behind that strip. Fill the same blank by taking the highest score. Which word wins this time?"
+        hold: 2
+        visual_cues:
+          - id: scores
+            phrase: "the scores behind that strip"
+            targets: [logits]
+      - say: "Create wins with a score of three. Taking the highest score at each step is greedy decoding."
+        hold: 0.55
+        visual_cues:
+          - id: greedy-word
+            phrase: "Create wins"
+            targets: [greedy-output]
+            caption_boundary: true
+      - say: "Read the guide. Create a replacement key, deploy it, then revoke the old key. Our draw picked the last step first. Each answer now ends in a different word, so the model sees a different history when it scores the next token. Beam search keeps several histories around to see where they lead."
+        hold: 0.8
+        visual_cues:
+          - id: guide-order
+            phrase: "Read the guide"
+            targets: [guide]
+  - id: search-space
+    title: Follow a path instead of enumerating the tree
+    visual: An actual bounded three-way tree expands by depth; a distinct logarithmic count ruler extends the
+      multiplication to the supplied32000-token,100-position example. A single ancestral sample follows one
+      retained path.
+    beats:
+      - say: At each position, the model supplies a conditional distribution given the prompt and every generated
+          token so far. Multiply those conditional probabilities along a path to obtain its joint probability.
+          Adding log probabilities gives the same ranking while avoiding long products of tiny numbers. A
+          direct stable log-softmax can retain a log probability even when its ordinary probability
+          underflows.
+        hold: 0.6
+        visual_cues:
+          - id: search-space-build-0
+            phrase: Multiply those conditional probabilities along a path
+            targets:
+              - search-space-state-0
+            color: cyan
+            linger: 0.55
+      - say: "At every fork there are three choices. Three choices for three positions already give twenty-seven paths. With V choices at each of T positions, the bottom row has V to the power T leaves. With a thirty-two-thousand-token vocabulary and one hundred positions, that's about three point two seven times ten to the power four hundred fifty. An end token can stop a path sooner, and a grammar can rule out branches."
+        hold: 0.6
+        visual_cues:
+          - id: search-space-build-1
+            phrase: Three choices for three positions already give twenty-seven paths
+            targets:
+              - search-space-state-1
+            color: cyan
+            linger: 0.55
+          - id: search-space-large-vocabulary
+            phrase: thirty-two-thousand-token vocabulary
+            targets:
+              - search-space-state-1
+            color: cyan
+            linger: 0.55
+      - say: "In a model where two paths reach the same state and have the same future choices, Viterbi can keep just the better path to that state. A transformer usually gives different next-token probabilities after different prefixes. A KV cache speeds up scoring each prefix. To sample a whole path, draw one conditional token at a time. This is ancestral sampling. The chance of following a particular path is the product of its edge probabilities."
+        hold: 0.8
+        visual_cues:
+          - id: search-space-build-2
+            phrase: draw one conditional token at a time
+            targets:
+              - search-space-state-2
+            color: cyan
+            linger: 0.55
+  - id: logit-shift
+    title: Turn scores into one normalized row
+    visual: Four stable token identities move from logits through maximum subtraction and exponentiation into a
+      unit-mass categorical strip. The normalization is computed from the current values, with a movable
+      uniform draw kept separate from the mode.
+    beats:
+      - say: "Each word has a raw score called a logit. Create has three and quota has negative one. Softmax turns all four scores into probabilities that sum to one. Which word will get the biggest share?"
+        hold: 1.8
+        visual_cues:
+          - id: logit-shift-build-0
+            phrase: all four scores
+            targets:
+              - logit-shift-state-0
+            color: cyan
+            linger: 0.55
+      - say: "Create leads. Subtract three, the largest score, from every entry. The shifted scores are zero, negative point five, negative two and negative four. Now exponentiate. The first weight is one, and the others are smaller. Together they weigh about one point seven six. Divide each weight by their sum. Create gets about fifty-seven percent of the strip. The shift divided all four weights by the same factor, so it leaves their shares unchanged."
+        hold: 0.6
+        visual_cues:
+          - id: logit-shift-build-1
+            phrase: Create leads
+            targets:
+              - logit-shift-state-1
+            color: cyan
+            linger: 0.55
+          - id: logit-shift-subtract
+            phrase: Subtract three, the largest score, from every entry
+            targets:
+              - logit-shift-subtracted-row
+            color: cyan
+            linger: 0.3
+          - id: logit-shift-exponentiate
+            phrase: Now exponentiate
+            targets:
+              - logit-shift-exponential-row
+            color: yellow
+            linger: 0.3
+          - id: logit-shift-normalize
+            phrase: Divide each weight by their sum
+            targets:
+              - logit-shift-probability-row
+            color: cyan
+            linger: 0.45
+          - id: shift-result
+            phrase: The shifted scores are zero, negative point five, negative two and negative four
+            targets:
+              - calculated-row
+          - id: normalize-result
+            phrase: Create gets about fifty-seven percent
+            targets:
+              - calculated-row
+      - say: "A uniform draw at point seven five lands in revoke’s interval. That gives us one word. The rest of the sentence could still say to revoke the old key after deploying its replacement."
+        hold: 0.8
+        visual_cues:
+          - id: logit-shift-build-2
+            phrase: A uniform draw at point seven five lands in revoke’s interval
+            targets:
+              - logit-shift-state-2
+            color: cyan
+            linger: 0.55
+  - id: logit-boundaries
+    title: Keep overflow, masks and tiny log probabilities distinct
+    visual: An exponent ruler exposes raw exp1000 overflow, then max subtraction. A separate all-masked row fails
+      explicitly, and a tiny finite log probability stays on a log ruler after ordinary probability rounds to
+      zero.
+    beats:
+      - say: Now supply logits one thousand, nine hundred ninety-nine and nine hundred ninety-eight. Direct
+          exponentiation overflows ordinary floating-point math. Subtracting the maximum leaves zero, negative
+          one and negative two, whose exponentials fit and produce about point six six five, point two four
+          five and point zero nine zero. This operation preserves the mathematical distribution; it changes
+          the numerical route.
+        hold: 0.6
+        visual_cues:
+          - id: logit-boundaries-build-0
+            phrase: Subtracting the maximum leaves zero, negative one and negative two
+            targets:
+              - logit-boundaries-state-0
+            color: cyan
+            linger: 0.55
+          - id: logit-boundaries-exponentiate
+            phrase: whose exponentials fit
+            targets:
+              - logit-boundaries-state-0
+            color: yellow
+            linger: 0.35
+          - id: stable-result
+            phrase: produce about point six six five, point two four five and point zero nine zero
+            targets:
+              - calculated-row
+      - say: An extreme negative gap can still underflow its probability to zero. Taking a logarithm after that
+          rounding cannot recover the original finite log probability; calculate log-softmax directly when you
+          need that quantity. Negative infinity deliberately masks a token. If every token is masked, this lab
+          rejects the row rather than dividing zero by zero. Its actual code also rejects NaN and positive
+          infinity.
+        hold: 0.8
+        visual_cues:
+          - id: logit-boundaries-build-1
+            phrase: If every token is masked, this lab rejects the row
+            targets:
+              - logit-boundaries-state-1
+            color: cyan
+            linger: 0.55
+  - id: greedy-loop
+    title: Append the chosen token before asking again
+    visual: The actual two-step article fixture shows the current prefix, its own conditional row and a distinct
+      next row after appending create. Greedy ownership stays separate from model weights and KV reuse.
+    beats:
+      - say: Greedy selects the largest score at the current position. The article’s first row selects create. Append
+          that token to the prompt before looking at the next row. In this supplied two-step fixture, the
+          second scores are four for a period, one point five for then, and point five for after. Predict
+          which token is appended next.
+        hold: 0.6
+        visual_cues:
+          - id: greedy-loop-build-0
+            phrase: Append that token to the prompt before looking at the next row
+            targets:
+              - greedy-loop-state-0
+            color: cyan
+            linger: 0.55
+      - say: "The period wins. The answer now reads, “The first rotation step is create.” A period adds punctuation. An end token tells the decoder to stop. With identical logits and a fixed tie rule, greedy decoding repeats the same choice. Numerical differences in the runtime can change those logits. The KV cache saves attention state for the prefix so the model can reuse it when scoring the next word."
+        hold: 0.8
+        visual_cues:
+          - id: greedy-loop-build-1
+            phrase: The period wins
+            targets:
+              - greedy-loop-state-1
+            color: cyan
+            linger: 0.55
+  - id: opening
+    title: "Which opening is worth keeping?"
+    visual: The article’s two-token tree feeds two answer slots. Each retained opening is paired with its strongest next token and their product. The final beat hands off to Mia’s four-token lattice.
+    beats:
+      - say: "Finish “You should” in exactly two tokens. These are new probabilities. Read the probabilities beside each opening. Forty percent of the mass goes to the word ‘create’. Thirty-five goes to ‘first’, and the last quarter goes to ‘revoke’. If you can keep just one opening, which one gets the next turn?"
+        hold: 2.05
+        visual_cues:
+          - id: opening-row
+            phrase: "new probabilities"
+            targets: [first-choices]
+      - say: "Create. Its best next token is a period, with a one-in-five chance on that branch. Multiply the two edges. That whole path gets eight percent."
+        hold: 0.7
+        visual_cues:
+          - id: one-kept
+            phrase: "Create"
+            targets: [greedy-opening]
+          - id: one-child
+            phrase: "best next token is a period"
+            targets: [greedy-child]
+          - id: one-product
+            phrase: "That whole path gets eight percent"
+            targets: [greedy-product]
+            caption_boundary: true
+      - say: "Rewind to the same three openings. This time keep two. Create keeps its slot, first gets the second, and revoke drops out. After first, create has a seventy percent chance. Which two-token path takes the lead?"
+        hold: 2.15
+        visual_cues:
+          - id: two-kept
+            phrase: "first gets the second"
+            targets: [second-opening]
+          - id: two-child
+            phrase: "seventy percent chance"
+            targets: [second-child]
+      - say: "The pair is ‘first create’. Thirty-five percent times seventy percent gives twenty-four and a half percent. A smaller first branch won because more of its mass stayed on one continuation. The period on the other branch was ordinary punctuation. Both paths ended at the two-token limit."
+        hold: 0.75
+        visual_cues:
+          - id: two-winner
+            phrase: "The pair is ‘first create’"
+            targets: [winning-path]
+            caption_boundary: true
+          - id: two-product
+            phrase: "twenty-four and a half percent"
+            targets: [beam-product]
+            caption_boundary: true
+      - say: "Now start a sentence with Mia. Each word counts as one token. Here a path finishes only when it emits the end token, E O S. Keep finished paths aside and give the others up to four generated tokens, counting E O S. Rank unfinished paths by cumulative log probability, breaking ties alphabetically."
+        hold: 0.75
+        visual_cues:
+          - id: mia-rules
+            phrase: "start a sentence with Mia"
+            targets: [mia-lattice]
+  - id: probabilities
+    title: Each edge scores a conditional choice
+    visual: The opening row sums to one; a separate pair of prefix-labeled lanes multiplies successive conditional
+      probabilities; an EOS row distinguishes finishing from extending the completed phrase.
+    beats:
+      - say: Given the same prefix, the model assigns mass across its next-token choices. Opened receives the largest
+          share, looked receives a little less, and slept receives the smallest. These supplied toy
+          probabilities let us trace each branch.
+        hold: 0.5
+        visual_cues:
+          - id: probabilities-beat-1-focus-1
+            phrase: Opened receives the largest share
+            targets:
+              - probabilities-active-bars
+            color: yellow
+            linger: 0.6
+          - id: probabilities-beat-1-focus-2
+            phrase: the model assigns mass across its next-token choices
+            targets:
+              - probabilities-active-bars
+            color: blue
+            linger: 0.6
+      - say: A complete path needs another conditional choice after every unfinished word. Multiply the edge
+          probabilities along one path to obtain its joint probability. In log space, add each edge's log
+          probability and keep the same ranking without tiny repeated products.
+        hold: 0.55
+        visual_cues:
+          - id: probabilities-beat-2-focus-1
+            phrase: Multiply the edge probabilities along one path to obtain its joint probability
+            targets:
+              - probabilities-equation-string-raw-p-text-opened-the-p-text-opened-mid-tex-13
+            color: blue
+            linger: 0.6
+          - id: probabilities-beat-2-focus-2
+            phrase: A complete path needs another conditional choice after every unfinished word
+            targets:
+              - probabilities-active-bars
+            color: yellow
+            linger: 0.6
+      - say: A period and an end-of-sentence token have different meanings in a tokenizer. We will use the explicit
+          EOS marker for completion, so the search knows exactly when a candidate stops and how many generated
+          tokens its score includes.
+        hold: 0.65
+        visual_cues:
+          - id: probabilities-beat-3-focus-1
+            phrase: We will use the explicit EOS marker for completion
+            targets:
+              - probabilities-active-bars
+            color: yellow
+            linger: 0.6
+          - id: probabilities-beat-3-focus-2
+            phrase: A period and an end-of-sentence token have different meanings in a tokenizer
+            targets:
+              - probabilities-active-bars
+            color: blue
+            linger: 0.6
+  - id: first-beam
+    title: Keep several openings while pruning
+    visual: Search expands every opening and marks the top two cumulative log scores as active while the third is
+      pruned.
+    beats:
+      - say: Beam search keeps a small set of active prefixes. At the first step, width two retains opened and looked.
+          The shorter route beginning with slept falls below the cutoff, so later steps cannot extend that
+          route in this run.
+        hold: 0.5
+        visual_cues:
+          - id: first-beam-beat-1-focus-1
+            phrase: Beam search keeps a small set of active prefixes
+            targets:
+              - first-beam-simulation-18
+            color: blue
+            linger: 0.6
+          - id: beam-retain
+            phrase: width two retains opened and looked
+            targets:
+              - example-state
+          - id: beam-prune
+            phrase: slept falls below the cutoff
+            targets:
+              - example-state
+      - say: Notice what the width controls. It is the number of partial sentences carried between steps. The model
+          still scores possible next tokens, and the search still compares cumulative path scores before
+          deciding which prefixes remain active.
+        hold: 0.5
+        visual_cues:
+          - id: first-beam-beat-2-focus-1
+            phrase: path scores before deciding which prefixes remain active
+            targets:
+              - first-beam-simulation-18
+            color: blue
+            linger: 0.6
+          - id: first-beam-beat-2-focus-2
+            phrase: Notice what the width controls
+            targets:
+              - first-beam-object-label-19
+            color: blue
+            linger: 0.6
+      - say: A beam acts like a narrow moving frontier through the tree. Its surviving leaves are promising under
+          scores seen so far. The frontier is a compute budget, and pruning makes the procedure an
+          approximation to searching every sequence.
+        hold: 0.65
+        visual_cues:
+          - id: first-beam-beat-3-focus-1
+            phrase: and pruning makes the procedure an approximation to searching every sequence
+            targets:
+              - first-beam-simulation-18
+            color: blue
+            linger: 0.6
+          - id: first-beam-beat-3-focus-2
+            phrase: A beam acts like a narrow moving frontier through the tree
+            targets:
+              - first-beam-object-label-19
+            color: blue
+            linger: 0.6
+  - id: search-lattice
+    title: Expand the surviving lattice
+    visual: The retained prefixes open their conditional rows; a live candidate table recomputes cumulative path
+      probabilities and highlights the next beam frontier.
+    beats:
+      - say: At this step, opened branches to the or a, while looked branches outside or up. Each edge belongs to its
+          own prefix. One expansion later, opened the can propose door, and looked outside can continue to
+          again.
+        hold: 0.55
+        visual_cues:
+          - id: search-lattice-beat-1-focus-1
+            phrase: At this step
+            targets:
+              - search-lattice-simulation-27
+            color: blue
+            linger: 0.6
+      - say: The search adds each new log probability to its prefix score, ranks the resulting candidates, and keeps
+          the leading active paths. Follow the inherited prefix into the new score. That identity is what
+          turns local predictions into a sentence-level comparison.
+        hold: 0.55
+        visual_cues:
+          - id: search-lattice-beat-2-focus-1
+            phrase: and keeps the leading active paths
+            targets:
+              - search-lattice-simulation-27
+            color: blue
+            linger: 0.6
+      - say: After another expansion, opened the door reaches EOS with the strongest completed route in the width-two
+          run. Looked outside again quietly remains unfinished at the four-token horizon. The best words at
+          each position did not need to form one sentence.
+        hold: 0.65
+        visual_cues:
+          - id: search-lattice-beat-3-focus-1
+            phrase: opened the door reaches EOS with the strongest completed route
+            targets:
+              - search-lattice-simulation-29
+            color: blue
+            linger: 0.6
+          - id: search-lattice-beat-3-focus-2
+            phrase: Looked outside again quietly remains unfinished at the four-token horizon
+            targets:
+              - search-lattice-simulation-29
+            color: blue
+            linger: 0.6
+  - id: stopping
+    title: EOS turns a path into an answer
+    visual: EOS edges leave the active frontier and enter a completed set; an unfinished sentence remains eligible
+      for another expansion.
+    beats:
+      - say: Now run the same tree with width three. This separate run keeps slept alive, where it reaches EOS
+          immediately. An EOS choice moves a candidate into the completed set, while unfinished prefixes stay
+          active for another expansion.
+        hold: 0.5
+        visual_cues:
+          - id: stopping-beat-1-focus-1
+            phrase: where it reaches EOS immediately
+            targets:
+              - stopping-simulation-34
+            color: blue
+            linger: 0.6
+      - say: In the width-three run, the completed paths include Mia slept and Mia opened the door. For slept then
+          EOS, point two times point nine five gives point one nine. For opened, the, door, then EOS, point
+          four five times point five times point eight times point eight five gives point one five three. The
+          short path therefore earns the higher joint probability in this fixture.
+        hold: 0.55
+        visual_cues:
+          - id: stopping-beat-2-focus-1
+            phrase: In the width-three run
+            targets:
+              - stopping-simulation-34
+            color: blue
+            linger: 0.6
+          - id: stopping-beat-2-focus-2
+            phrase: the completed paths include Mia slept and Mia opened the door
+            targets:
+              - stopping-simulation-34
+            color: blue
+            linger: 0.6
+          - id: stop-short-result
+            phrase: gives point one nine
+            targets:
+              - calculated-result
+          - id: stop-long-result
+            phrase: gives point one five three
+            targets:
+              - calculated-result
+      - say: Completion criteria and length constraints define eligible outputs. Early stopping determines how long
+          search continues and can change which candidates are discovered. Reaching a length limit can leave
+          an unfinished prefix. Here EOS alone marks completion, and the four-token horizon ends expansion.
+          State these rules before comparing outputs, or the final ranking may mix different tasks.
+        hold: 0.65
+        visual_cues:
+          - id: stopping-beat-3-focus-1
+            phrase: Completion criteria and length constraints define eligible outputs
+            targets:
+              - stopping-simulation-34
+            color: blue
+            linger: 0.6
+  - id: length-score
+    title: Length normalization changes the comparison
+    visual: A computed ranking compares joint log probability with mean log probability per generated token,
+      including EOS, and reveals the winner for each rule.
+    beats:
+      - say: Compare the completed candidates from the width-three run. Joint probability favors the short path. Every
+          extra conditional probability is at most one, so extra edges add nonpositive log terms and can
+          pressure a raw-sum objective toward brief completions.
+        hold: 0.5
+        visual_cues:
+          - id: length-score-beat-1-focus-1
+            phrase: Joint probability favors the short path
+            targets:
+              - length-scored-paths
+            color: blue
+            linger: 0.6
+          - id: length-score-beat-1-focus-2
+            phrase: Compare the completed candidates from the width-three run
+            targets:
+              - length-scored-paths
+            color: blue
+            linger: 0.6
+      - say: Divide each completed log score by its generated-token count, including EOS. This changes the objective
+          from total sequence probability to average log probability per token. Slept has log score about
+          negative one point six six one across two generated tokens, giving mean about negative point eight
+          three zero. Opened the door has log score about negative one point eight seven seven across four,
+          giving mean about negative point four six nine. The larger, less negative mean favors opened the
+          door, reversing their raw order.
+        hold: 0.55
+        visual_cues:
+          - id: length-score-beat-2-focus-1
+            phrase: Divide each completed log score by its generated-token count
+            targets:
+              - length-scored-paths
+            color: blue
+            linger: 0.6
+      - say: GNMT used a different length penalty, and libraries expose their own conventions. The formula belongs to
+          the decoding policy. Tune it on development examples and check the resulting answer lengths
+          alongside task quality.
+        hold: 0.7
+        visual_cues:
+          - id: length-score-beat-3-focus-1
+            phrase: GNMT used a different length penalty
+            targets:
+              - length-scored-paths
+            color: blue
+            linger: 0.6
+  - id: width
+    title: How much work did the beam do?
+    visual: Six edges fan out from two Mia prefixes. The beam keeps two unfinished children and files EOS separately. Two cache diagrams show the same six scored extensions with a copied or shared prompt. A final comparison counts expansions through all four steps.
+    beats:
+      - say: "Freeze the width-two search right after the first word. We're holding two prefixes, Mia opened and Mia looked. Each has three possible next tokens. How many extensions will the search score at this step?"
+        hold: 2.1
+        visual_cues:
+          - id: width-children
+            phrase: "three possible next tokens"
+            targets: [outgoing-edges]
+      - say: "Six extensions. Four children continue the sentence. The other two finish it. We keep the two best unfinished paths, opened the and looked outside, and put both end-token paths in the completed set. Six scored, two carried forward."
+        hold: 0.65
+        visual_cues:
+          - id: six-scored
+            phrase: "Six extensions"
+            targets: [extension-count]
+            caption_boundary: true
+          - id: two-carried
+            phrase: "opened the and looked outside"
+            targets: [retained-prefixes]
+          - id: file-eos
+            phrase: "in the completed set"
+            targets: [completed-prefixes]
+      - say: "Those same six edges can cost different amounts of memory. Both prefixes start with Mia. A runtime could copy the prompt's cached keys and values for each prefix. Or it could let both prefixes point to one copy. The next tokens still need their own state. We examined six extensions either way."
+        hold: 0.7
+        visual_cues:
+          - id: copied-prompt
+            phrase: "copy the prompt's cached keys and values"
+            targets: [copied-cache]
+          - id: shared-prompt
+            phrase: "point to one copy"
+            targets: [shared-cache]
+      - say: "Now count every extension examined over the four generated positions. Width one examined eleven, width two examined eighteen, and width three examined twenty-five. Only width three kept slept long enough to score its end token. Here that changed the most probable completed sentence. On real prompts, measure latency, memory and answer quality alongside the search count."
+        hold: 0.85
+        visual_cues:
+          - id: count-horizon
+            phrase: "four generated positions"
+            targets: [horizon-counts]
+          - id: all-counts
+            phrase: "width three examined twenty-five"
+            targets: [work-totals]
+          - id: width-winner
+            phrase: "the most probable completed sentence"
+            targets: [completed-winners]
+  - id: wider-counterexample
+    title: "Two cutoffs on the same tree"
+    visual: Two ranked columns have cutoffs after two and three slots. C enters only on the right. Its children move above A2 and push it below that cutoff. Final conditional factors stay beside each surviving prefix for the prediction.
+    beats:
+      - say: "Run the same three-token tree twice. Both searches see A at one half, B at three tenths and C at two tenths. The left beam has room for two openings. The right has room for three."
+        hold: 0.65
+        visual_cues:
+          - id: width-slots
+            phrase: "room for two openings"
+            targets: [opening-cutoffs]
+      - say: "Follow A into the second position. A sends eighty percent to its first child and eighteen percent to its second. That puts A one at point four and A two at point zero nine. The remaining A child gets point zero one. B has ten equal children, worth only point zero three each."
+        hold: 0.65
+        visual_cues:
+          - id: a-children
+            phrase: "Follow A into the second position"
+            targets: [a-edges]
+          - id: a-rank
+            phrase: "A two at point zero nine"
+            targets: [a-products]
+            caption_boundary: true
+      - say: "On the right, C also gets a turn. It splits its two tenths evenly. Each C child carries one tenth. Look at the line under the third slot. Does A two still fit above it?"
+        hold: 2.3
+        visual_cues:
+          - id: c-fork
+            phrase: "C also gets a turn"
+            targets: [c-parent]
+          - id: c-halves
+            phrase: "Each C child carries one tenth"
+            targets: [c-children]
+            caption_boundary: true
+      - say: "A two drops to fourth. Both C children fit ahead of it. On the left, C was cut a step earlier, so A two is still in second place."
+        hold: 0.8
+        visual_cues:
+          - id: drop-a-two
+            phrase: "A two drops to fourth"
+            targets: [rank-shift]
+            caption_boundary: true
+      - say: "One token to go. A two has a single continuation. It keeps its whole path probability. Each other surviving prefix splits ten ways equally. Which beam can finish with the higher probability?"
+        hold: 2.3
+        visual_cues:
+          - id: final-factors
+            phrase: "A two has a single continuation"
+            targets: [last-edges]
+      - say: "Width two wins with point zero nine. Width three tops out at point zero four. The wider beam spent two slots on C, then both of those paths split again. It had already lost the one path that kept all its mass."
+        hold: 1
+        visual_cues:
+          - id: two-final
+            phrase: "Width two wins with point zero nine"
+            targets: [narrow-finish]
+            caption_boundary: true
+          - id: three-final
+            phrase: "Width three tops out at point zero four"
+            targets: [wide-finish]
+            caption_boundary: true
+  - id: length-conventions
+    title: Which length formula picks the longer answer?
+    visual: The same completed candidates retain log score, EOS-inclusive length and derived scores on two aligned
+      objective rulers. A separate explicit EOS tree disproves a cross-branch short-answer claim.
+    beats:
+      - say: A raw path score cannot increase when that same prefix gains another conditional edge, because the added
+          log probability is nonpositive. This does not rank arbitrary completed branches by length. In a
+          separate supplied tree, immediate EOS has probability point zero one, while create followed by EOS
+          has probability point nine nine times point nine zero, or point eight nine one. The longer
+          completion wins.
+        hold: 0.6
+        visual_cues:
+          - id: length-conventions-build-0
+            phrase: The longer completion wins
+            targets:
+              - length-conventions-state-0
+            color: cyan
+            linger: 0.55
+      - say: The article compares completed log scores negative one at length two and negative one point six at length
+          five, counting EOS. Division by length gives negative point five and negative point three two,
+          favoring the long candidate. GNMT instead divides by the quantity five plus length, over six, raised
+          to alpha. At alpha one, its scores are about negative point eight five seven and negative point nine
+          six zero, favoring the short candidate. State the formula and stopping contract before tuning either
+          objective.
+        hold: 0.8
+        visual_cues:
+          - id: length-conventions-build-1
+            phrase: GNMT instead divides by the quantity five plus length, over six, raised to alpha
+            targets:
+              - length-conventions-state-1
+            color: cyan
+            linger: 0.55
+          - id: convention-mean
+            phrase: negative point three two, favoring the long candidate
+            targets:
+              - calculated-result
+          - id: convention-gnmt
+            phrase: negative point nine six zero, favoring the short candidate
+            targets:
+              - calculated-result
+  - id: penalty-sign
+    title: How far does the repeated word fall?
+    visual: Two number lines show the same penalty on a positive and a negative score. Create slides below deploy on the upper line. The negative score moves farther left on the lower one.
+    beats:
+      - say: "Suppose the model has just written create, and create leads again. Always picking the highest score can repeat a phrase like this. A repetition processor changes the scores of tokens already seen. The runtime decides whether to count tokens in the prompt too."
+        hold: 0.6
+        visual_cues:
+          - id: penalty-sign-build-0
+            phrase: A repetition processor changes the scores
+            targets:
+              - penalty-sign-state-0
+            color: cyan
+            linger: 0.55
+      - say: "Create leads with three, just ahead of deploy at two point eight. We have already used create. Divide its positive score by one point two. It falls to two point five. Deploy now wins at two point eight. For a seen negative score, multiply by the same factor. Negative one becomes negative one point two. Both moves take the score to the left."
+        hold: 0.6
+        visual_cues:
+          - id: penalty-sign-build-1
+            phrase: deploy now wins at two point eight
+            targets:
+              - penalty-sign-state-1
+            color: cyan
+            linger: 0.55
+          - id: positive-score
+            phrase: Divide its positive score by one point two
+            targets: [positive-logit]
+          - id: negative-score
+            phrase: For a seen negative score
+            targets: [negative-logit]
+      - say: "Zero stays zero. Apply the penalty once per distinct token. A token with a lower score can still be drawn. Its share can even grow if competing words lose more weight. In code, the penalty can push down a variable name on the very line that needs to use it again."
+        hold: 0.8
+        visual_cues:
+          - id: penalty-sign-build-2
+            phrase: Zero stays zero
+            targets:
+              - penalty-sign-state-2
+            color: cyan
+            linger: 0.55
+  - id: temperature-scale
+    title: Change concentration while preserving the finite-score order
+    visual: Actual probability bars and entropy are recomputed from the same four logits as temperature changes. A
+      separate tied/masked row makes the low- and high-temperature limits visible without reviving the masked
+      token.
+    beats:
+      - say: For positive temperature T, divide every logit by T before stable softmax. A lower temperature increases
+          finite logit gaps; a higher temperature shrinks them. In our original row, temperature point five
+          gives create about point seven two one probability and entropy point six four seven nats. At
+          temperature two, create falls to about point four three eight and quota rises to about point zero
+          five nine.
+        hold: 0.6
+        visual_cues:
+          - id: temperature-scale-build-0
+            phrase: divide every logit by T before stable softmax
+            targets:
+              - temperature-scale-state-0
+            color: cyan
+            linger: 0.55
+          - id: temperature-low-result
+            phrase: entropy point six four seven nats
+            targets:
+              - example-state
+          - id: temperature-high-result
+            phrase: quota rises to about point zero five nine
+            targets:
+              - example-state
+      - say: "Entropy is negative the sum of probability times log probability, with zero terms contributing zero. Natural logs give nats. For this fixed row and mask, entropy increases as temperature increases. At two it reaches about one point one nine zero. The wider spread gives words like quota more chances to be drawn."
+        hold: 0.6
+        visual_cues:
+          - id: temperature-scale-build-1
+            phrase: entropy increases as temperature increases
+            targets:
+              - temperature-scale-state-1
+            color: cyan
+            linger: 0.55
+      - say: "Inspect a different row: two, two, zero and a masked negative infinity. As positive temperature
+          approaches zero, the two equal maxima each retain half the limiting mass. First-index greedy would
+          pick only the first. As temperature grows without bound, the three finite candidates approach one
+          third each while the masked token remains excluded. A runtime’s zero-temperature API convention is
+          separate from substituting zero into this formula."
+        hold: 0.8
+        visual_cues:
+          - id: temperature-scale-build-2
+            phrase: the two equal maxima each retain half the limiting mass
+            targets:
+              - temperature-scale-state-2
+            color: cyan
+            linger: 0.55
+          - id: temperature-high-limit
+            phrase: the three finite candidates approach one third each
+            targets:
+              - example-state
+  - id: stream-replay
+    title: Replay eight draws from the same row
+    visual: Two independent replay rails preserve the exact article seed7 draws; a changed call consumes one draw
+      and shifts later positions. A near-tie intervention keeps score provenance separate from the sampler’s
+      random state.
+    beats:
+      - say: "Keep the probability strip fixed for eight draws. Seed seven twice produces the same sequence in Python: create, create, revoke, then five creates. Changing the seed to twenty-one changes the sequence. Both rows on screen use seven and make the same calls in the same order. In a generated sentence, each new word would also change the prefix used to score the next one."
+        hold: 0.6
+        visual_cues:
+          - id: stream-replay-build-0
+            phrase: Seed seven twice produces the same sequence
+            targets:
+              - stream-replay-state-0
+            color: cyan
+            linger: 0.55
+          - id: stream-result
+            phrase: then five creates
+            targets:
+              - example-state
+      - say: A seed initializes the sampler state. Model logits can also change with batching, accumulation precision,
+          kernels or software versions; a near tie can then flip greedy selection without any random draw.
+          Deterministic kernels and a fixed environment can support replay within their stated limits. Record
+          the exact model, tokenizer when available, prompt, settings, versions and stop reason, and check
+          which controls the selected API actually supports.
+        hold: 0.8
+        visual_cues:
+          - id: stream-replay-build-1
+            phrase: a near tie can then flip greedy selection
+            targets:
+              - stream-replay-state-1
+            color: cyan
+            linger: 0.55
+  - id: filter-k
+    title: "Where does the probability mass go?"
+    visual: Two input strips use the same four colors and rank cutoff. Their retained ends land at different positions on the same scale. A separate strip then tracks histories with and without a tail event as the number of positions grows.
+    beats:
+      - say: "Give the sampler exactly two places. Start with the four printed probabilities as exact inputs. Keep the two highest, create and revoke. Together they account for point nine one three of the strip."
+        hold: 0.6
+        visual_cues:
+          - id: peak-cut
+            phrase: "Keep the two highest"
+            targets: [rank-cut]
+          - id: peak-mass
+            phrase: "point nine one three of the strip"
+            targets: [peaked-mass]
+            caption_boundary: true
+      - say: "To draw from just those two, stretch their part back to a full unit. Create now gets about sixty-two percent and revoke gets the rest. Each original share was divided by the same retained mass."
+        hold: 0.6
+        visual_cues:
+          - id: peak-stretch
+            phrase: "stretch their part back to a full unit"
+            targets: [peaked-normalized]
+      - say: "Try the flatter row below. Keep two again. The names stay the same. How much of the original mass do those two keep here?"
+        hold: 2.1
+        visual_cues:
+          - id: flat-input
+            phrase: "flatter row below"
+            targets: [flat-row]
+      - say: "Just point five three. Almost half the mass is gone. After dividing by point five three, create and revoke split this draw almost evenly. That's the tradeoff with a fixed rank cutoff. It counts tokens, even when the tokens carry very different shares."
+        hold: 0.65
+        visual_cues:
+          - id: flat-mass
+            phrase: "Just point five three"
+            targets: [flat-mass]
+            caption_boundary: true
+          - id: flat-stretch
+            phrase: "After dividing by point five three"
+            targets: [flat-normalized]
+      - say: "Now follow an unfiltered sequence. Suppose that whenever its history is still free of tail tokens, the next position has a two-in-a-thousand chance of drawing one. The gray part is the probability of getting this far without a single hit. Each new position keeps point nine nine eight of what was gray."
+        hold: 0.55
+        visual_cues:
+          - id: tail-trial
+            phrase: "unfiltered sequence"
+            targets: [tail-history]
+          - id: first-position
+            phrase: "two-in-a-thousand chance"
+            targets: [first-tail]
+      - say: "After a hundred positions, about eighteen percent of sequences have had a hit. Extend the same process to five hundred positions. Will more than half have seen a tail token?"
+        hold: 2.1
+        visual_cues:
+          - id: hundred
+            phrase: "After a hundred positions"
+            targets: [tail-hundred]
+          - id: five-hundred-question
+            phrase: "five hundred positions"
+            targets: [tail-question]
+      - say: "Yes. About sixty-three percent have seen one. The gray part is point nine nine eight to the five hundredth power. Everything else has had at least one hit. We counted tail tokens under a specified probability model. To count wrong answers, we'd have to grade the text."
+        hold: 0.9
+        visual_cues:
+          - id: long-tail
+            phrase: "About sixty-three percent have seen one"
+            targets: [tail-five-hundred]
+            caption_boundary: true
+  - id: filter-p
+    title: Which word takes us past ninety percent?
+    visual: Two ranked probability strips share a scale. A line marks the same threshold on each. An outline stops at the right edge of the word that crosses the line.
+    beats:
+      - say: "Top-p sampling, also called nucleus sampling, starts with the most probable word and keeps adding words until their combined probability reaches the threshold. Set the line at ninety percent. Create alone falls short. Add revoke and the pair reaches point nine one three."
+        hold: 0.6
+        visual_cues:
+          - id: peak-crossing
+            phrase: "the pair reaches point nine one three"
+            targets: [peaked-nucleus]
+      - say: "Keep the whole blue segment, including the part past the line. Divide both shares by their total and you can draw from those two words."
+        hold: 0.6
+        visual_cues:
+          - id: normalize-kept
+            phrase: "Divide both shares by their total"
+            targets: [normalized-shares]
+      - say: "Try the flatter row. The line stays put. Even after rename, the first three words cover only seventy-seven percent. Which word takes us across?"
+        hold: 2.1
+        visual_cues:
+          - id: flat-input
+            phrase: "Try the flatter row"
+            targets: [flat-row]
+      - say: "Quota. This time it takes all four words to reach the line. The guide has no step by that name. In another prompt, a rare word at the end of the strip might be the exact name you need."
+        hold: 0.8
+        visual_cues:
+          - id: flat-crossing
+            phrase: "Quota"
+            targets: [flat-nucleus]
+            caption_boundary: true
+  - id: filter-min-p
+    title: Set a cutoff relative to the largest probability
+    visual: A horizontal probability cutoff follows base times the current maximum; individual token bars retain
+      identity as the peaked row becomes flat. The original mass and normalized mass stay on separate axes.
+    beats:
+      - say: Min-p compares each probability with a fraction of the largest one. With base point one zero and peaked
+          maximum point five six eight, the absolute cutoff is point zero five six eight. Rename at point zero
+          seven seven survives; quota at point zero one zero does not. This rule uses relative individual
+          probability, rather than a fixed count or a cumulative total.
+        hold: 0.6
+        visual_cues:
+          - id: filter-min-p-build-0
+            phrase: the absolute cutoff is point zero five six eight
+            targets:
+              - filter-min-p-state-0
+            color: cyan
+            linger: 0.55
+      - say: "The flat maximum point two eight instead sets cutoff point zero two eight, admitting every candidate. The rule includes a token that lands exactly on the cutoff. As temperature rises, the finite-logit candidates approach equal shares. With a base below one, eventually they all pass, including quota."
+        hold: 0.8
+        visual_cues:
+          - id: filter-min-p-build-1
+            phrase: sets cutoff point zero two eight
+            targets:
+              - filter-min-p-state-1
+            color: cyan
+            linger: 0.55
+  - id: filter-boundaries
+    title: Make equality, ties and zero mass explicit
+    visual: A .50/.25/.25/0 row meets cumulative and individual cutoff lines. Exact-rank and tie-inclusive top-k
+      treatments remain visibly distinct. The unrounded softmax row then exposes the .99 display-rounding
+      trap.
+    beats:
+      - say: "Inspect the boundary worksheet: point five zero, point two five, point two five and zero. Our lab
+          excludes zero-mass candidates. Top-k two uses insertion order to keep create and revoke; a
+          tie-inclusive runtime cutoff could keep rename too. Top-p point seven five stops after create and
+          revoke. Min-p base point five keeps all three positive tokens because the absolute cutoff is point
+          two five."
+        hold: 0.6
+        visual_cues:
+          - id: filter-boundaries-build-0
+            phrase: the absolute cutoff is point two five
+            targets:
+              - filter-boundaries-state-0
+            color: cyan
+            linger: 0.55
+          - id: boundary-rank
+            phrase: Top-k two uses insertion order to keep create and revoke
+            targets:
+              - calculated-result
+          - id: boundary-cumulative
+            phrase: Top-p point seven five stops after create and revoke
+            targets:
+              - calculated-result
+      - say: At top-p one, retain every positive-mass candidate. At min-p one, retain every candidate tied with the
+          maximum. The lab rejects top-k zero, while some runtime interfaces use zero to disable that
+          processor. Unsupported parameters and an empty allowed set need explicit handling. Record the chosen
+          boundary convention rather than assuming an identical name means an identical implementation.
+        hold: 0.6
+        visual_cues:
+          - id: filter-boundaries-build-1
+            phrase: At top-p one, retain every positive-mass candidate
+            targets:
+              - filter-boundaries-state-1
+            color: cyan
+            linger: 0.55
+      - say: Filter the actual unrounded softmax values, not their printed labels. In the original four-logit row, the
+          first three probabilities sum to about point nine eight nine six, below a top-p threshold of point
+          nine nine. Their three-decimal labels can appear to sum to point nine nine zero. Using that rounded
+          worksheet as input would be a different policy. Keep full values through the comparison.
+        hold: 0.8
+        visual_cues:
+          - id: filter-boundaries-build-2
+            phrase: Keep full values through the comparison
+            targets:
+              - filter-boundaries-state-2
+            color: cyan
+            linger: 0.55
+          - id: boundary-precision
+            phrase: below a top-p threshold of point nine nine
+            targets:
+              - calculated-result
+  - id: filter-order
+    title: Recompute the pool after each processor
+    visual: A retained three-token probability strip forks into two actual operator orders. Dropping C changes A’s
+      denominator before the cumulative threshold, so the same thresholds produce distinct final token sets.
+    beats:
+      - say: "Now use a separate three-token row: A point six zero, B point two five and C point one five. Keep top-k
+          two, then apply top-p point seven zero. The first filter removes C and leaves mass point eight five.
+          Renormalizing makes A’s probability point six zero divided by point eight five, about point seven
+          zero six. Predict whether B is still needed for the nucleus."
+        hold: 0.6
+        visual_cues:
+          - id: filter-order-build-0
+            phrase: Predict whether B is still needed for the nucleus
+            targets:
+              - filter-order-state-0
+            color: cyan
+            linger: 0.55
+      - say: A alone now exceeds point seven zero, so the final set is only A. Reverse the order on the unchanged
+          original row. Its A mass is only point six zero, so top-p first needs A and B. Top-k two then keeps
+          both. The inputs and numeric thresholds match, while the intermediate denominator and final
+          membership differ.
+        hold: 0.6
+        visual_cues:
+          - id: filter-order-build-1
+            phrase: A alone now exceeds point seven zero
+            targets:
+              - filter-order-state-1
+            color: cyan
+            linger: 0.55
+      - say: Our demonstration used temperature, then one filter, then renormalization and a draw. A production policy
+          can compose more processors, with its own order, tie rules and minimum-candidate behavior. A changed
+          operator order is a changed policy. Preserve that configuration in an experiment receipt before
+          attributing an output difference to retrieval or to a new model.
+        hold: 0.8
+        visual_cues:
+          - id: filter-order-build-2
+            phrase: A changed operator order is a changed policy
+            targets:
+              - filter-order-state-2
+            color: cyan
+            linger: 0.55
+  - id: grammar-bytes
+    title: Follow actual token bytes through a grammar state
+    visual: A finite JSON-enum matcher consumes each emitted byte, including a token spanning the end of a string
+      and its closing brace. A separate guide-derived filter changes evidence eligibility without pretending
+      the grammar read the guide.
+    beats:
+      - say: "Suppose the output must be a JSON object whose first-step field is one of create, revoke or rename. A
+          grammar matcher tracks the current prefix and tests the full decoded bytes of a candidate token. A
+          token can cross several grammar boundaries: it might finish the enum string, close its quote and
+          close the object. Trace those byte transitions before allowing EOS."
+        hold: 0.6
+        visual_cues:
+          - id: grammar-bytes-build-0
+            phrase: Trace those byte transitions before allowing EOS
+            targets:
+              - grammar-bytes-state-0
+            color: cyan
+            linger: 0.55
+      - say: For the supplied row, quota has logit six, revoke four, create three and rename two. Without the
+          constraint, quota wins. The enum grammar masks quota, leaving revoke as its largest allowed score.
+          That is valid syntax and an allowed enum value, yet the retained guide says the first step is
+          create. A separately supplied guide-derived allowlist selects create; the grammar did not infer it.
+        hold: 0.6
+        visual_cues:
+          - id: grammar-bytes-build-1
+            phrase: the retained guide says the first step is create
+            targets:
+              - grammar-bytes-state-1
+            color: cyan
+            linger: 0.55
+          - id: grammar-enum-mask
+            phrase: leaving revoke as its largest allowed score
+            targets:
+              - calculated-result
+      - say: This small enum example can use finite-state matching. Recursive structures generally need stack-based
+          state, and engines must integrate the actual tokenizer rather than assuming each enum value is one
+          token. Correct prefix matching still permits an unfinished prefix when a length limit or
+          interruption stops generation. Check the supported grammar or schema features, empty allowed sets,
+          accepting-state EOS and completion status before consuming the result.
+        hold: 0.8
+        visual_cues:
+          - id: grammar-bytes-build-2
+            phrase: an unfinished prefix when a length limit or interruption stops generation
+            targets:
+              - grammar-bytes-state-2
+            color: cyan
+            linger: 0.55
+  - id: local-conditioning
+    title: Valid strings can still have different probability laws
+    visual: Original A/B branch masses retain their identities while invalid future mass is removed. Local masks
+      leave first-branch weights unchanged; exact complete-string conditioning renormalizes the actual
+      surviving joint mass.
+    beats:
+      - say: A grammar mask also changes how probabilities are distributed across valid completions. In the article’s
+          separate two-token tree, the first token is A with probability point four or B with point six. The
+          only valid strings are A x and B y. The model gives x after A probability point one, and y after B
+          point nine. Both first tokens have a possible valid future.
+        hold: 0.6
+        visual_cues:
+          - id: local-conditioning-build-0
+            phrase: Both first tokens have a possible valid future
+            targets:
+              - local-conditioning-state-0
+            color: cyan
+            linger: 0.55
+      - say: "A local first-token mask keeps A and B. At the next position, each prefix has only one grammar-valid
+          continuation, which is forced by renormalization. The final local probabilities are therefore point
+          four for A x and point six for B y. Now compute the original joint valid masses instead: point four
+          times point one is point zero four, and point six times point nine is point five four."
+        hold: 0.6
+        visual_cues:
+          - id: local-conditioning-build-1
+            phrase: compute the original joint valid masses instead
+            targets:
+              - local-conditioning-state-1
+            color: cyan
+            linger: 0.55
+          - id: conditioning-joint
+            phrase: point six times point nine is point five four
+            targets:
+              - calculated-result
+          - id: conditioning-local
+            phrase: point four for A x and point six for B y
+            targets:
+              - calculated-result
+      - say: Conditioning the original model on a valid complete string divides those masses by their total point five
+          eight. The probabilities become about point zero six nine and point nine three one. Both methods
+          emit valid strings, with different frequencies. Exact conditioning requires information about valid
+          future probability mass; ordinary local masking does not supply it. State which distribution the
+          generation policy actually produces.
+        hold: 0.8
+        visual_cues:
+          - id: local-conditioning-build-2
+            phrase: divides those masses by their total point five eight
+            targets:
+              - local-conditioning-state-2
+            color: cyan
+            linger: 0.55
+          - id: conditioning-result
+            phrase: about point zero six nine and point nine three one
+            targets:
+              - calculated-result
+  - id: best-of-n
+    title: Generate complete answers before scoring them
+    visual: Distinct complete trajectories enter a scored candidate pool. Actual supplied outcome scores reorder
+      the pool while generator log probability, evaluator score and externally judged correctness stay on
+      separate axes.
+    beats:
+      - say: A sequence probability is the generator’s preference. Best-of-N instead generates N candidate answers,
+          scores each with an outcome evaluator, and selects the highest evaluator score. Independent draws
+          from a fixed generator are one design; declare the actual sampling arrangement. This rank-and-select
+          operation is different from accepting a proposal under a rejection-sampling rule. The
+          selected-answer distribution generally changes.
+        hold: 0.6
+        visual_cues:
+          - id: best-of-n-build-0
+            phrase: selects the highest evaluator score
+            targets:
+              - best-of-n-state-0
+            color: cyan
+            linger: 0.55
+      - say: An automated checker can replace a learned scorer when the task provides one. A finite test suite
+          establishes its tested cases, and a formal proof checker checks a formal statement under its trusted
+          assumptions. More candidates cost generation and evaluation work. They can also offer more
+          opportunities for a fallible scorer to prefer a mistake. Keep candidate identity, scoring source and
+          complete task judgment together.
+        hold: 0.8
+        visual_cues:
+          - id: best-of-n-build-1
+            phrase: Keep candidate identity, scoring source and complete task judgment together
+            targets:
+              - best-of-n-state-1
+            color: cyan
+            linger: 0.55
+  - id: process-evidence
+    title: Which step gets credit for a mistake?
+    visual: The same two article trajectories keep their exact step text while outcome and minimum process scores
+      are calculated. A changed wrong first-step score exposes a local evaluator failure even when the final
+      selected plan stays unchanged.
+    beats:
+      - say: Outcome supervision supplies one label for a complete solution. An outcome model may still read its whole
+          reasoning; the single final label makes error localization a credit-assignment problem. Process
+          supervision adds labels for intermediate steps with their preceding context. A probability-style
+          score is one output convention, and calibration needs its own evidence. Minimum, product and other
+          step aggregations define different selection rules.
+        hold: 0.6
+        visual_cues:
+          - id: process-evidence-build-0
+            phrase: Process supervision adds labels for intermediate steps
+            targets:
+              - process-evidence-state-0
+            color: cyan
+            linger: 0.55
+      - say: The article assigns plan A the steps create, deploy and revoke, with process scores point nine five,
+          point nine two and point nine eight. Plan B begins by revoking, then creates and deploys, with
+          scores point zero five, point nine zero and point nine two. Their outcome scores are point nine six
+          and point seven two. The outcome maximum and the minimum-step rule both select A; B’s minimum
+          exposes its bad first step.
+        hold: 0.6
+        visual_cues:
+          - id: process-evidence-build-1
+            phrase: both select A
+            targets:
+              - process-evidence-state-1
+            color: cyan
+            linger: 0.55
+      - say: "Give B’s first step a score of point nine nine. Its new minimum is point nine zero, still below A’s point nine two. A wins again. Look at what B got credit for, though. It revokes the old key first. Grading that step against the guide catches an error the final ranking hides."
+        hold: 0.8
+        visual_cues:
+          - id: process-evidence-build-2
+            phrase: Its new minimum is point nine zero
+            targets:
+              - process-evidence-state-2
+            color: cyan
+            linger: 0.55
+  - id: thought-search
+    title: Which branch gets the next visit?
+    visual: A finite thought tree computes breadth-first and depth-first frontier changes, then a separate
+      two-branch MCTS fixture selects from actual means plus exploration bonuses and backs one supplied reward
+      up to its ancestors.
+    beats:
+      - say: "In a thought tree each branch continues a partial solution by one reasoning step. Evaluate the proposed steps, then choose which states to expand, prune or revisit. In the original Tree of Thoughts experiments, the model itself judged which branches looked promising."
+        hold: 0.6
+        visual_cues:
+          - id: thought-search-build-0
+            phrase: choose which states to expand, prune or revisit
+            targets:
+              - thought-search-state-0
+            color: cyan
+            linger: 0.55
+      - say: "Watch A and B on the left. Breadth-first visits both before it goes down a level. On the right, depth-first follows A to a leaf, then backtracks to try another branch. If the evaluator prunes B, both searches lose the chance to visit its children."
+        hold: 0.6
+        visual_cues:
+          - id: breadth-first
+            phrase: Watch A and B on the left
+            targets: [breadth-first-visits]
+          - id: thought-search-build-1
+            phrase: On the right
+            targets:
+              - thought-search-state-1
+            color: cyan
+            linger: 0.55
+      - say: "Monte Carlo Tree Search uses earlier simulations to decide which branch to visit next. In methods such as RAP it selects a branch, expands it, simulates an outcome and sends its reward back up the path. Here A has eight visits and B has only two. Add an exploration bonus to each mean reward. With weight one, take the log of the parent's visit count, divide by the child's visit count, then take the square root. B has both the higher mean and the larger bonus. Its score is about one point six seven, ahead of A at point nine four. Choose B. This visit returns a reward of point two. Add it to B's reward total and count one more visit. One point four across three visits gives a mean of about point four six seven. Send the same reward up to the parent. Four point six across eleven visits gives a mean of about point four one eight. Both averages are ready for the next selection."
+        hold: 0.8
+        visual_cues:
+          - id: thought-search-build-2
+            phrase: This visit returns a reward of point two
+            targets:
+              - thought-search-state-2
+            color: cyan
+            linger: 0.55
+          - id: compare-scores
+            phrase: Its score is about one point six seven
+            targets: [selection-scores]
+          - id: send-reward
+            phrase: Send the same reward up to the parent
+            targets: [reward-backup]
+          - id: mcts-select
+            phrase: choose B
+            targets:
+              - example-state
+          - id: mcts-child-mean
+            phrase: gives a mean of about point four six seven
+            targets:
+              - example-state
+          - id: mcts-parent-mean
+            phrase: gives a mean of about point four one eight
+            targets:
+              - example-state
+  - id: speculative-balance
+    title: Restore target mass after rejecting a draft
+    visual: A three-token mass ledger routes actual accepted proposal mass and positive residual correction into
+      exactly the target bins. An unadjusted redraw takes a separate visibly biased route; identical and
+      disjoint supports receive explicit boundary decisions.
+    beats:
+      - say: Exact speculative sampling aims to accelerate a specified target policy while preserving its output
+          distribution in ideal arithmetic. At one position, draw from the actual draft distribution q. Accept
+          a proposed token with the smaller of one and its target probability p divided by its draft
+          probability q. Accepted proposal mass at that token is the smaller of p and q. A draft cannot
+          propose a token to which its own distribution gives zero mass.
+        hold: 0.6
+        visual_cues:
+          - id: speculative-balance-build-0
+            phrase: Accepted proposal mass at that token is the smaller of p and q
+            targets:
+              - speculative-balance-state-0
+            color: cyan
+            linger: 0.55
+      - say: "The article supplies target probabilities point six, point three and point one, and draft probabilities
+          point eight, point one and point one. Accepted mass is point six, point one and point one, totaling
+          point eight. Rejection probability is point two. Take the positive part of target minus draft and
+          normalize it: all the residual mass belongs to the second token, revoke. Adding that correction
+          restores the target row exactly."
+        hold: 0.6
+        visual_cues:
+          - id: speculative-balance-build-1
+            phrase: Adding that correction restores the target row exactly
+            targets:
+              - speculative-balance-state-1
+            color: cyan
+            linger: 0.55
+      - say: "Redrawing from the original target on rejection gives create too much mass. It ends up at point seven two, while revoke falls to point one six and rename gets point one two. If the target and draft already agree, every proposal passes. Apply the correction using the actual draft probabilities and the target probabilities after its temperature, filters and masks. That recovers the target’s frequencies across draws. Individual runs can still produce different text with the same seed."
+        hold: 0.8
+        visual_cues:
+          - id: speculative-balance-build-2
+            phrase: Redrawing from the original target
+            targets:
+              - speculative-balance-state-2
+            color: cyan
+            linger: 0.55
+  - id: speculative-block
+    title: Keep only the prefix whose verification remains valid
+    visual: A real supplied three-token proposal has identity-bound conditional p/q rows, independent acceptance
+      uniforms and KV ownership. Rejecting the second token discards its suffix, while a distinct all-accepted
+      iteration appends the fourth target draw.
+    beats:
+      - say: "The draft has already written create, a, key. The target can score all three proposed positions together because it knows the prefixes. It scores create after the prompt, a after create, and key after create a. Causal attention also gives one more distribution after the entire block. Keep each distribution attached to the prefix that produced it."
+        hold: 0.6
+        visual_cues:
+          - id: speculative-block-build-0
+            phrase: Keep each distribution attached to the prefix that produced it
+            targets:
+              - speculative-block-state-0
+            color: cyan
+            linger: 0.55
+      - say: In a separate supplied block, the draft proposes create, a, key. Create has target probability point six
+          and draft probability point eight; uniform point two accepts its point seven five ratio. At the next
+          position, a has target point four and draft point eight. Uniform point eight rejects its one-half
+          ratio. Keep create, discard a and key, and use the normalized residual to choose replacement. The
+          rejected suffix’s conditional results and tentative KV state cannot become the accepted future.
+        hold: 0.6
+        visual_cues:
+          - id: speculative-block-build-1
+            phrase: Keep create, discard a and key
+            targets:
+              - speculative-block-state-1
+            color: cyan
+            linger: 0.55
+      - say: In another iteration where every proposal passes, append a further token from the target row after the
+          full draft prefix. A block of K proposals can yield one through K plus one output tokens before stop
+          rules intervene. A greedy target uses a matching deterministic verification rule. Actual speed
+          depends on draft cost, acceptance, batching and verification kernels; measure it against the
+          unchanged target policy rather than assigning a speedup from the block size.
+        hold: 0.8
+        visual_cues:
+          - id: speculative-block-build-2
+            phrase: append a further token from the target row
+            targets:
+              - speculative-block-state-2
+            color: cyan
+            linger: 0.55
+  - id: audit-receipt
+    title: Count the event that the task actually asks for
+    visual: The exact article’s2000fixed next-token draws stay distinct from a supplied100-request whole-answer
+      ledger. Length-limited identities remain in the requested-answer denominator while policy and evidence
+      versions are tracked independently.
+    beats:
+      - say: "Draw two thousand times from each fixed row. Greedy selects create every time. At temperature two, create takes about forty-four percent of the probability and comes up in about forty-six percent of the draws. With top-p at point nine, the expected and observed shares are both close to sixty-two percent. Each bar counts how often one word came up."
+        hold: 0.6
+        visual_cues:
+          - id: audit-receipt-build-0
+            phrase: Each bar counts how often one word came up
+            targets:
+              - audit-receipt-state-0
+            color: cyan
+            linger: 0.55
+      - say: For a separate authored whole-answer audit, take one hundred requested answers. Ninety-two start with the
+          guide’s first word, but only seventy are judged fully supported and complete. Ten hit a length
+          limit. Those are different events. In another supplied cohort, eighty-five first-word matches
+          accompany eighty supported complete answers and five length limits. The task rate improves from
+          seventy to eighty percent while first-word agreement falls. Keep every requested identity in the
+          denominator.
+        hold: 0.6
+        visual_cues:
+          - id: audit-receipt-build-1
+            phrase: The task rate improves from seventy to eighty percent
+            targets:
+              - audit-receipt-state-1
+            color: cyan
+            linger: 0.55
+      - say: "Save the prompt and retrieved passages with the model and runtime versions. Record the decoder settings, processor order, grammar version, seed and stop reason. Keep the grading rule with the answers it scored. Hold the decoder fixed when testing a retrieval change, so you can compare what the answers say under the same decoding policy."
+        hold: 0.8
+        visual_cues:
+          - id: audit-receipt-build-2
+            phrase: Hold the decoder fixed when testing a retrieval change
+            targets:
+              - audit-receipt-state-2
+            color: cyan
+            linger: 0.55
+  - id: synthesis
+    title: "A second run from Mia opened"
+    visual: Two unfinished branches after opened compete with two after looked. Joint scores keep their parent factors when probability shifts between the words the and a. The surviving path extends to an EOS-scored completion.
+    beats:
+      - say: "Come back to Mia with a beam of two. After ‘opened’, the model gives half its mass to the word ‘the’, and three tenths to the word ‘a’. Multiply each by the chance of reaching ‘opened’. On the other branch, ‘looked outside’ has a joint score of point one nine two five. Right now, opened the and looked outside go on."
+        hold: 0.6
+        visual_cues:
+          - id: base-frontier
+            phrase: "opened the and looked outside go on"
+            targets: [original-frontier]
+            caption_boundary: true
+      - say: "Move three tenths from the word ‘the’ to the word ‘a’. Keep the end token, the other branch and the four-token limit fixed. Which two unfinished prefixes would you carry now?"
+        hold: 2.25
+        visual_cues:
+          - id: transfer-mass
+            phrase: "Move three tenths from the word ‘the’ to the word ‘a’"
+            targets: [changed-row]
+          - id: new-frontier-question
+            phrase: "Which two unfinished prefixes"
+            targets: [frontier-question]
+      - say: "Opened a and looked outside. Opened a now carries forty-five percent times sixty percent, or point two seven. ‘Looked outside’ keeps its place. ‘Opened the’ has fallen to point zero nine."
+        hold: 0.75
+        visual_cues:
+          - id: new-frontier
+            phrase: "Opened a and looked outside"
+            targets: [new-frontier]
+            caption_boundary: true
+      - say: "Follow the new leader through book and the end token. Its four edges give point one seven zero one. It wins on raw probability and on mean log probability, about minus point four four three per token, counting the end token. The old winner went through ‘door’. It lost its chance when ‘opened the’ fell below the cutoff."
+        hold: 0.95
+        visual_cues:
+          - id: finish-path
+            phrase: "through book and the end token"
+            targets: [finished-path]
+          - id: raw-product
+            phrase: "Its four edges give point one seven zero one"
+            targets: [finished-score]
+            caption_boundary: true
+          - id: mean-log
+            phrase: "minus point four four three per token"
+            targets: [mean-log]
+            caption_boundary: true
+  - id: fresh-policy
+    title: "Would you accept this answer?"
+    visual: A new guide stays in view. Top-p trims the original strip at the crossing token. A fixed draw tests two eligibility rules. The selected first word then stays put while two finished answers are checked against the guide in order.
+    beats:
+      - say: "Here's a different guide. Back up the current key, rotate it, then remove the old copy. The answer field accepts backup, rotate or remove. First we'll choose a word, then we'll check a finished answer."
+        hold: 0.55
+        visual_cues:
+          - id: new-guide
+            phrase: "Back up the current key"
+            targets: [guide-order]
+      - say: "On the original row, start with the biggest share. Include words until you have at least three quarters of the mass. Where do you cut?"
+        hold: 2.05
+        visual_cues:
+          - id: threshold
+            phrase: "at least three quarters"
+            targets: [nucleus-threshold]
+      - say: "After rotate. Backup and rotate together reach point seven eight, and both are allowed in the field. Divide by that retained mass. Backup now occupies about fifty-nine percent of the draw, rotate about forty-one."
+        hold: 0.65
+        visual_cues:
+          - id: crossing
+            phrase: "After rotate"
+            targets: [retained-prefix]
+            caption_boundary: true
+          - id: kept-mass
+            phrase: "together reach point seven eight"
+            targets: [retained-mass]
+          - id: sample-space
+            phrase: "Divide by that retained mass"
+            targets: [normalized-ruler]
+      - say: "Put the pin at point six five. Which word does the sampler write?"
+        hold: 2.05
+        visual_cues:
+          - id: draw
+            phrase: "pin at point six five"
+            targets: [fixed-pin]
+      - say: "Rotate. That's a legal action, but it's step two in this guide. Keep the pin there. Change only the first-word rule to require the action at the start of the guide. Which word owns the pin now?"
+        hold: 2.15
+        visual_cues:
+          - id: initial-pick
+            phrase: "Rotate"
+            targets: [first-draw]
+            caption_boundary: true
+          - id: apply-guide
+            phrase: "require the action at the start of the guide"
+            targets: [guide-mask]
+      - say: "Backup. The rule we supplied leaves just that word, so it fills the whole strip. Now read this finished answer. Where does it first depart from the guide?"
+        hold: 2.3
+        visual_cues:
+          - id: fixed-pick
+            phrase: "Backup"
+            targets: [second-draw]
+            caption_boundary: true
+          - id: finished-answer
+            phrase: "read this finished answer"
+            targets: [complete-plan]
+      - say: "Step two. The answer says remove while the guide says rotate. Move remove after rotate and compare again. All three steps now match. When you test a retrieval change, hold the decoder fixed and grade each complete answer this way."
+        hold: 1.1
+        visual_cues:
+          - id: bad-index
+            phrase: "Step two"
+            targets: [mismatch]
+            caption_boundary: true
+          - id: move-step
+            phrase: "Move remove after rotate"
+            targets: [reorder]
+          - id: accept
+            phrase: "All three steps now match"
+            targets: [supported-answer]
+            caption_boundary: true

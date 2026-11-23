@@ -1,0 +1,15 @@
+{
+  "framing": "The exact text a chat model actually receives",
+  "paragraphs": [
+    "An application stores a conversation as a list of messages. A model reads one long line of token IDs. The code between them decides where a request ends, which role speaks next, and whether an answer is finished or still open.",
+    "You usually notice this code only when it breaks. A refactor adds a second beginning token or moves a newline, the screen still shows the same question, and the model starts behaving differently for no visible reason. Staring at the weights will not help.",
+    "We will render one small forecast conversation three ways: as a finished training row, as a fresh request, and as a partial answer to continue. Then we will look at real token IDs from a real tokenizer, test whether a user can forge a marker, and see how the same format decides which tokens a training run actually scores.",
+    "By the end, you will know what to compare first when a chat model regresses, how to keep your training and serving paths in step, and what you can still check when a hosted API applies the template for you."
+  ],
+  "outcomes": [
+    "Render finished conversations, fresh requests, and assistant prefills, and explain the difference.",
+    "Check whether a user can forge a marker, and spot whitespace and doubled-token bugs.",
+    "Check training and serving parity, target masks, stopping, and context budgets."
+  ],
+  "question": "After a serving refactor, how could you tell a changed model from a changed prompt?"
+}

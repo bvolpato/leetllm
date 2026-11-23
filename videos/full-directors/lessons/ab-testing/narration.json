@@ -1,0 +1,831 @@
+[
+  {
+    "id": "c01",
+    "title": "Does the runbook back this answer?",
+    "sourceChapters": [
+      "c01"
+    ],
+    "beats": [
+      {
+        "id": "c01-b01",
+        "say": "At minute eight the engineer clicks usable. Open the runbook beside the answer. Rollback requires owner acknowledgement. Slide the cover back. The answer says, “Acknowledgement alone authorizes rollback.” Does the runbook grant everything this answer claims?",
+        "hold": 3.2
+      },
+      {
+        "id": "c01-b02",
+        "say": "Look at the word alone. The runbook makes acknowledgement a requirement. Other requirements may still apply. The assistant treats acknowledgement as enough. A blinded reviewer records one grounding failure. At minute ten, with the usable mark and no new escalation page, this incident also counts as resolved. One answer enters both counts.",
+        "hold": 1
+      },
+      {
+        "id": "c01-b03",
+        "say": "Should we ship the query rewrite? Randomly assign eligible incidents to two groups. Control searches with the original question. Treatment rewrites the search query. Both use the same runbook index, prompt, generator and decoder.",
+        "hold": 0.3
+      },
+      {
+        "id": "c01-b04",
+        "say": "Before any traffic arrives, set the maximum acceptable increase in the grounding failure rate at half a percentage point. Can the rewrite resolve more incidents and stay inside that limit?",
+        "hold": 0.9
+      }
+    ]
+  },
+  {
+    "id": "c02",
+    "title": "Where does the follow-up go?",
+    "sourceChapters": [
+      "c02"
+    ],
+    "beats": [
+      {
+        "id": "c02-b01",
+        "say": "Use the incident ID and a locked experiment version to pick a bucket from zero to ninety-nine. For incident fourteen, the hash gives bucket fifty-eight. That puts its question in control. Incident one lands in bucket twenty-seven and gets the rewrite. Save the arm and version with each event.",
+        "hold": 0.6
+      },
+      {
+        "id": "c02-b02",
+        "say": "Here comes a follow-up from incident fourteen. The engineer has already seen the control answer. Where does the follow-up go?",
+        "hold": 3
+      },
+      {
+        "id": "c02-b03",
+        "say": "Back to the stored control arm. Imagine sending that follow-up to the rewrite instead. The engineer chose what to ask after seeing the control answer. We'd be scoring a mixture of both policies. Assigning whole incidents gives each incident one policy.",
+        "hold": 0.3
+      },
+      {
+        "id": "c02-b04",
+        "say": "For a causal comparison we also need consistent outcome measurement, trustworthy assignment, and a check for spillovers between incidents. Two incident IDs can still share an engineer or a worker.",
+        "hold": 0.8
+      }
+    ]
+  },
+  {
+    "id": "c03",
+    "title": "Name the effect and the paths that mix exposure",
+    "sourceChapters": [
+      "c03"
+    ],
+    "beats": [
+      {
+        "id": "c03-b01",
+        "say": "Keep the actual policy contrast visible. Control retrieves from the raw canary question. Treatment uses the query canary rollback error-rate policy owner acknowledgement. The rewrite policy forbids adding unsupported thresholds, but its outputs still need auditing.",
+        "hold": 0.3
+      },
+      {
+        "id": "c03-b02",
+        "say": "Both paths use the same runbook snapshot, generator prompt, model and greedy decoder schema. The estimand is the average effect of assignment to that rewrite policy among eligible incidents, including its delays and failures.",
+        "hold": 0.3
+      },
+      {
+        "id": "c03-b03",
+        "say": "If the decoder changed as well, the result would measure both changes together. A planned factorial experiment could assign each change separately and study their interaction.",
+        "hold": 0.55
+      },
+      {
+        "id": "c03-b04",
+        "say": "SUTVA names two requirements: no interference between randomized units and no consequential hidden treatment versions. A technician can learn a rollback procedure from a treatment incident and apply it to a later control incident. Extra rewrite work can also delay control through shared compute.",
+        "hold": 0.3
+      },
+      {
+        "id": "c03-b05",
+        "say": "Randomizing teams may contain within-team learning, but it does not remove shared-infrastructure interference. Choose the unit for the intended effect and actual spillover pattern.",
+        "hold": 0.55
+      },
+      {
+        "id": "c03-b06",
+        "say": "For equal clusters of twenty incidents with common intracluster correlation zero point one, the planning design effect is one plus nineteen times zero point one, or two point nine. This approximation inflates variance relative to independent outcomes. Unequal clusters and different estimators need a specific calculation.",
+        "hold": 0.3
+      },
+      {
+        "id": "c03-b07",
+        "say": "Analyze team-randomized data with team-aware inference. More messages cannot substitute for more independent teams. Salt assignment with the locked experiment version, prevent callers choosing favorable IDs, and retain the assigned arm on events. A hash does not force exactly equal counts.",
+        "hold": 0.75
+      }
+    ]
+  },
+  {
+    "id": "c04",
+    "title": "Decide what a resolved incident means",
+    "sourceChapters": [
+      "c04"
+    ],
+    "beats": [
+      {
+        "id": "c04-b01",
+        "say": "Pick one primary outcome before traffic arrives. In this plan, an incident counts as resolved if it gets a usable answer within ten minutes and receives no new human escalation page through that deadline. Every enrolled incident remains in the denominator in its assigned arm.",
+        "hold": 0.55
+      },
+      {
+        "id": "c04-b02",
+        "say": "The outcome window matters. A treatment answer that arrives late, a missing answer, or an escalation near the deadline needs a predeclared rule. Wait until every ten-minute window matures before the fixed-horizon analysis.",
+        "hold": 0.6
+      },
+      {
+        "id": "c04-b03",
+        "say": "This metric is a proxy for service recovery. An engineer can mark an answer useful while the service remains down; an appropriate escalation can protect users while counting as a metric failure. Validate the proxy against operational recovery and keep grounding, latency, and human pages as separate guardrails.",
+        "hold": 0.75
+      }
+    ]
+  },
+  {
+    "id": "c05",
+    "title": "When can we score these incidents?",
+    "sourceChapters": [
+      "c05"
+    ],
+    "beats": [
+      {
+        "id": "c05-b01",
+        "say": "Start these three incidents together. Eight minutes in, each engineer marks the answer usable. At minute nine the logs are complete so far. Which of these three outcomes can enter the final count?",
+        "hold": 2.8
+      },
+      {
+        "id": "c05-b02",
+        "say": "All three are pending. Advance to the deadline. A new human page comes in for B exactly at minute ten. Score the rows now. A and C qualify. B had a usable mark, but the page arrived inside its window. Go on to minute eighteen.",
+        "hold": 0.3
+      },
+      {
+        "id": "c05-b03",
+        "say": "C gets a page there. C keeps its success for the ten-minute metric. The page that started each incident came before enrollment and counts in none of these windows.",
+        "hold": 0.85
+      },
+      {
+        "id": "c05-b04",
+        "say": "Now take three treatment incidents with complete follow-up. Two got usable answers with no new page. One rewrite timed out and never got a usable mark. Count by assignment and that's two out of three. Drop the timeout and it looks like two out of two.",
+        "hold": 0.3
+      },
+      {
+        "id": "c05-b05",
+        "say": "Put it back. Intention to treat keeps the policy's delays and failures in the comparison, whatever caused them. If the event log itself is missing, the outcome is unknown. Investigate that gap.",
+        "hold": 0.8
+      },
+      {
+        "id": "c05-b06",
+        "say": "A grounding audit asks a separate question. In our launch example every enrolled incident has one completed answer and one blinded audit. If only some answers get audited, use the audit denominator and its sampling plan. Likewise, decide in advance how timeouts count toward first-request latency.",
+        "hold": 0.3
+      },
+      {
+        "id": "c05-b07",
+        "say": "Dropping unfinished requests can make a slow policy look fast.",
+        "hold": 0.85
+      }
+    ]
+  },
+  {
+    "id": "c06",
+    "title": "Read the rate difference in the right units",
+    "sourceChapters": [
+      "c06"
+    ],
+    "beats": [
+      {
+        "id": "c06-b01",
+        "say": "In a compact teaching fixture, the raw-query arm resolves 760 of 2,000 incidents, or thirty-eight percent. The rewrite arm resolves 840 of 2,000, or forty-two percent. Subtract the rates and the observed absolute lift is four percentage points.",
+        "hold": 0.55
+      },
+      {
+        "id": "c06-b02",
+        "say": "Relative lift asks how large that increase is compared with the thirty-eight-percent baseline. Four points divided by thirty-eight percent is about ten and a half percent. Percentage points report additional successes per hundred; percent reports a proportional change.",
+        "hold": 0.6
+      },
+      {
+        "id": "c06-b03",
+        "say": "Incidents differ, so another experiment would produce different counts. For two independent binary-outcome arms, an approximate standard error adds the sampling variances from both rates. Here it is about one point five five points, giving a rough ninety-five-percent interval from one to seven points.",
+        "hold": 0.75
+      }
+    ]
+  },
+  {
+    "id": "c07",
+    "title": "A duplicated outcome cannot supply new precision",
+    "sourceChapters": [
+      "c07"
+    ],
+    "beats": [
+      {
+        "id": "c07-b01",
+        "say": "Each of these four message rows carries a green light. Count by message for a moment. Four copies of every success and every failure give us eight thousand rows per arm. The two rates stay at thirty-eight and forty-two percent. Look at the narrow interval. Follow the four wires. How many independent outcomes switched these lights on? When we count each outcome once, will the interval widen or narrow?",
+        "hold": 3.5
+      },
+      {
+        "id": "c07-b02",
+        "say": "One incident closed the switch. Count once at the switch. Both denominators return to two thousand. The estimate stays at four points. Where should the tips move? The interval opens out to about one and seven points. The narrower interval, from two and a half to five and a half, came from counting each copy as independent.",
+        "hold": 0.55
+      },
+      {
+        "id": "c07-b03",
+        "say": "Here is the calculation inside the meter. For each arm, multiply its rate by one minus the rate and divide by its incident count. Add the two contributions and take the square root. Four times the count falsely halves that standard error. When every incident appears equally often, this mistake divides the standard error by the square root of the number of rows per incident. Multiply the incident standard error by one point nine six to get the margin.",
+        "hold": 0.3
+      },
+      {
+        "id": "c07-b04",
+        "say": "Across repeated suitable experiments the procedure targets ninety-five-percent coverage of the defined effect. It does not assign ninety-five-percent probability to this fixed true effect or predict another experiment’s outcome. Rare events, clustering and multiple claims need their own methods.",
+        "hold": 0.75
+      }
+    ]
+  },
+  {
+    "id": "c08",
+    "title": "Plan traffic around an effect worth finding",
+    "sourceChapters": [
+      "c08"
+    ],
+    "beats": [
+      {
+        "id": "c08-b01",
+        "say": "A small experiment can estimate a lift imprecisely. The chart keeps the same two teaching rates and compares projected interval widths at two hundred, five hundred, and two thousand incidents per arm. This lets us see how planned sample size changes precision.",
+        "hold": 0.55
+      },
+      {
+        "id": "c08-b02",
+        "say": "Before launch, choose a minimum detectable effect: a true improvement you want a specified chance of detecting under the planning model. With a thirty-eight-percent baseline, a two-point target, a five-percent two-sided threshold, and eighty-percent power, a common shortcut gives about nine thousand two hundred forty-six incidents per arm.",
+        "hold": 0.6
+      },
+      {
+        "id": "c08-b03",
+        "say": "In this fixture, two thousand incidents per arm give an interval above zero for the observed four-point lift. Detecting the smaller two-point planning target reliably requires the larger sample we just calculated. Power changes with effect size, sample size, outcome variation, analysis, and the launch rule.",
+        "hold": 0.75
+      }
+    ]
+  },
+  {
+    "id": "c09",
+    "title": "Detection probability and launch probability differ",
+    "sourceChapters": [
+      "c09"
+    ],
+    "beats": [
+      {
+        "id": "c09-b01",
+        "say": "Imagine repeating the experiment with a true lift of two points. The blue curve shows where the estimates land. A result beyond either yellow line counts as a detection. Our goal is eighty percent power at two points.",
+        "hold": 0.3
+      },
+      {
+        "id": "c09-b02",
+        "say": "At that power, about eighty out of a hundred such experiments detect a difference. The other twenty miss it, a Type Two error. Follow the gray curve past each yellow line. When the true lift is zero, about two and a half percent of estimates fall in each shaded tail. Together the tails give a five-percent false-alarm rate.",
+        "hold": 0.3
+      },
+      {
+        "id": "c09-b03",
+        "say": "We call the lift we plan for the minimum detectable effect. Smaller lifts can still cross a line. In the equal-allocation shortcut, hold the baseline rate, alpha and target power fixed. Halving the target lift then takes about four times as many incidents per arm.",
+        "hold": 0.55
+      },
+      {
+        "id": "c09-b04",
+        "say": "The shortcut uses twice the baseline Bernoulli variance times the squared sum of the alpha and power normal cutoffs, divided by the squared effect. At baseline thirty-eight percent and a two-point target it gives nine thousand two hundred forty-six per arm.",
+        "hold": 0.3
+      },
+      {
+        "id": "c09-b05",
+        "say": "The fuller independent-proportions calculation gives about seventy-nine point six percent power there and needs nine thousand three hundred thirty-six for eighty percent. Plan enrollment using the allocation and analysis you intend to run.",
+        "hold": 0.55
+      },
+      {
+        "id": "c09-b06",
+        "say": "Now draw the launch threshold at two points. It runs through the center of the blue curve. If the true lift is exactly two points, only about half the estimates reach that threshold. Even before we check the guardrails, the other half fall short.",
+        "hold": 0.3
+      },
+      {
+        "id": "c09-b07",
+        "say": "Enrollment narrows the curve around the same true lift. Plan the calendar duration too, so the experiment covers the weekdays and on-call rotations you care about.",
+        "hold": 0.75
+      }
+    ]
+  },
+  {
+    "id": "c10",
+    "title": "Did the planned split reach the table?",
+    "sourceChapters": [
+      "c10"
+    ],
+    "beats": [
+      {
+        "id": "c10-b01",
+        "say": "Before reading lift, count distinct enrolled incident IDs. With four thousand incidents and a planned half split, expect two thousand in each arm. This table has sixteen hundred fifty control incidents and twenty-three hundred fifty treatment incidents.",
+        "hold": 0.3
+      },
+      {
+        "id": "c10-b02",
+        "say": "Square each arm's distance from its expected count, divide by that expected count and add the two contributions. The chi-square statistic is one hundred twenty-two point five.",
+        "hold": 0.8
+      },
+      {
+        "id": "c10-b03",
+        "say": "That's well above our predeclared alert threshold of ten point eight three. Pause for investigation. This is a sample-ratio mismatch. It doesn't identify the cause. Trace the incident IDs from assignment through eligibility filters and event joins. Did a filter drop one arm's events? Check the logs before anyone claims a treatment effect.",
+        "hold": 0.8
+      },
+      {
+        "id": "c10-b04",
+        "say": "Here's a different table with the same four thousand incidents: nineteen hundred control and twenty-one hundred treatment. Each bar misses its target by a hundred. Does this split trigger the same alert?",
+        "hold": 3
+      },
+      {
+        "id": "c10-b05",
+        "say": "Each arm contributes five. The statistic is ten, below ten point eight three. No allocation alert. We still need to audit outcome fields for completeness. Counting messages here would ask the wrong question: the rewrite itself might change how often an engineer follows up.",
+        "hold": 0.85
+      }
+    ]
+  },
+  {
+    "id": "c11",
+    "title": "Follow one experiment to its planned finish",
+    "sourceChapters": [
+      "c11"
+    ],
+    "beats": [
+      {
+        "id": "c11-b01",
+        "say": "Suppose we give both arms the same policy. Their true resolution rates are both forty percent. Each batch brings in a hundred new incidents per arm. The lines mark the ordinary two-sided cutoff.",
+        "hold": 0.3
+      },
+      {
+        "id": "c11-b02",
+        "say": "By the fourth batch, the difference is two point five eight standard errors above zero. A team that stops on the first crossing would call that a difference. This team planned to wait for twenty batches. Does the planned final look also cross?",
+        "hold": 3
+      },
+      {
+        "id": "c11-b03",
+        "say": "Run the rest of the batches. The earlier incidents stay in every later calculation. At look twenty the statistic is one point six one, inside the lines. Those two rules give different answers on the very same incidents.",
+        "hold": 0.3
+      },
+      {
+        "id": "c11-b04",
+        "say": "Because the looks share observations, multiplying the odds from twenty independent tests would give the wrong false-alarm rate.",
+        "hold": 0.7
+      },
+      {
+        "id": "c11-b05",
+        "say": "Repeat that simulation five thousand times. Count each experiment once if it raises an alarm in either direction. A single final look flags two hundred thirty-one. Stop at the first crossing over five scheduled looks and seven hundred eight flag. Ten looks give nine hundred sixty-one.",
+        "hold": 0.3
+      },
+      {
+        "id": "c11-b06",
+        "say": "Twenty looks give twelve hundred forty-four. That's four point six percent at the final look and twenty-four point nine percent with twenty chances to stop.",
+        "hold": 0.8
+      },
+      {
+        "id": "c11-b07",
+        "say": "A dashboard can update after every batch. To act on those updates, plan a sequential test that accounts for earlier looks. Searching across metrics, variants or subgroups also buys extra chances to find a difference.",
+        "hold": 0.3
+      },
+      {
+        "id": "c11-b08",
+        "say": "Declare the family of claims and its error control, such as Bonferroni, or use a fresh experiment to confirm an exploratory finding.",
+        "hold": 0.8
+      }
+    ]
+  },
+  {
+    "id": "c12",
+    "title": "What can we spend before the final look?",
+    "sourceChapters": [
+      "c12"
+    ],
+    "beats": [
+      {
+        "id": "c12-b01",
+        "say": "Imagine budgeting the chance of even one false alarm across the entire experiment. Start at zero. Half the planned statistical information has arrived. Here the design allows about half a percent cumulative chance of a false alarm by this point. At full information it allows five percent.",
+        "hold": 0.3
+      },
+      {
+        "id": "c12-b02",
+        "say": "This horizontal scale measures information. It tracks the fraction enrolled only when information grows in proportion to enrollment.",
+        "hold": 0.75
+      },
+      {
+        "id": "c12-b03",
+        "say": "This O’Brien and Fleming style spending function starts from the ordinary two-sided normal cutoff. Divide it by the square root of the information fraction and measure both tails beyond that value. This gives the cumulative budget up to that look.",
+        "hold": 0.3
+      },
+      {
+        "id": "c12-b04",
+        "say": "To get the cutoff at a particular look, account for how that look shares data with earlier ones, and which paths have already crossed.",
+        "hold": 0.65
+      },
+      {
+        "id": "c12-b05",
+        "say": "Compare two plans at their final look. In a single ordinary test the positive z boundary is one point nine six. In the published six-look example it's about two point zero four five. Suppose no earlier look crossed. Both teams now observe a final z of two. Which plan rejects the no-effect null?",
+        "hold": 3
+      },
+      {
+        "id": "c12-b06",
+        "say": "The single-look plan rejects. Two is beyond its line. The six-look plan finishes short of its line. It has too little evidence to reject. Comparing today's ordinary p-value with the five percent cumulative budget would have given the wrong call for that plan.",
+        "hold": 0.3
+      },
+      {
+        "id": "c12-b07",
+        "say": "Calibrate the boundaries and the power for the planned looks. Flexible timing still needs the design's information and monitoring assumptions.",
+        "hold": 0.85
+      }
+    ]
+  },
+  {
+    "id": "c13",
+    "title": "Which model expected this outcome?",
+    "sourceChapters": [
+      "c13"
+    ],
+    "beats": [
+      {
+        "id": "c13-b01",
+        "say": "Watch a single stream of independent outcomes. Under the null, each has a forty percent chance of success. One model predicts twenty percent and the other predicts sixty. Give them equal weight and start both likelihood ratios at one. A success arrives.",
+        "hold": 1.4
+      },
+      {
+        "id": "c13-b02",
+        "say": "The twenty-percent model gave it half the chance the null did. Its ratio drops to one half. The sixty-percent model gave it one and a half times the chance. Its ratio rises to one and a half. Average the two ratios and we get one.",
+        "hold": 0.8
+      },
+      {
+        "id": "c13-b03",
+        "say": "Now a failure arrives. The null gave failure a sixty percent chance. The first model gave it eighty percent. Multiply its half by eighty over sixty and it recovers to two thirds. The second model gave failure forty percent.",
+        "hold": 0.3
+      },
+      {
+        "id": "c13-b04",
+        "say": "Multiply its one and a half by forty over sixty and it falls back to one. The two ratios now average about zero point eight three three. This is a mixture sequential probability ratio test.",
+        "hold": 0.3
+      },
+      {
+        "id": "c13-b05",
+        "say": "Under the null, weighting each possible multiplier by its outcome probability gives one. The mixture's expected next value equals its current value. This makes it a nonnegative martingale under the null.",
+        "hold": 0.75
+      },
+      {
+        "id": "c13-b06",
+        "say": "Restart both products at one on the article's twenty-outcome stream. At five percent alpha, the stopping line is one over alpha, or twenty. Feed in ten successive successes. The mixture reaches twenty-eight point eight three three and crosses the line. The next ten outcomes are failures.",
+        "hold": 0.3
+      },
+      {
+        "id": "c13-b07",
+        "say": "If they bring the ratio down, what happens to the running maximum?",
+        "hold": 3
+      },
+      {
+        "id": "c13-b08",
+        "say": "Deal the failures. The current ratio falls to about zero point five zero nine. The maximum stays where the stream actually reached, at twenty-eight point eight three three. Take the reciprocal of that maximum and cap it at one.",
+        "hold": 0.3
+      },
+      {
+        "id": "c13-b09",
+        "say": "The anytime p-value is about zero point zero three four seven at both checkpoints. A later failure can weaken today's evidence and still leave yesterday's crossing on record.",
+        "hold": 0.8
+      },
+      {
+        "id": "c13-b10",
+        "say": "Ville's inequality bounds the chance of ever crossing one over alpha under this null. That guarantee uses independent observations, a known null distribution, common support and fixed mixing weights that sum to one. In our two-arm experiment, the equal-rate null leaves the shared rate unknown.",
+        "hold": 0.3
+      },
+      {
+        "id": "c13-b11",
+        "say": "Substituting the observed control rate needs a separate justification. Use a method derived for that model. Inverting valid tests gives a confidence sequence that covers across time. Other metrics need their own error control. For long streams, accumulate the likelihoods with numerically stable arithmetic.",
+        "hold": 0.85
+      }
+    ]
+  },
+  {
+    "id": "c14",
+    "title": "Subtract predictable variation without conditioning on treatment",
+    "sourceChapters": [
+      "c14"
+    ],
+    "beats": [
+      {
+        "id": "c14-b01",
+        "say": "Look at the first incident. It resolved, so its outcome is one. Before the experiment, its service already had a favorable history flag. That flag is one too. A new incident has no resolution history of its own.",
+        "hold": 0.3
+      },
+      {
+        "id": "c14-b02",
+        "say": "CUPED uses information like this frozen flag to account for some predictable variation. Subtract the flag's distance from one common center, multiplied by the same coefficient in both arms. In this simulation the first score moves to about zero point seven four seven.",
+        "hold": 0.3
+      },
+      {
+        "id": "c14-b03",
+        "say": "With a fixed coefficient and random assignment, the expected arm difference in the baseline flag is zero, so the expected treatment contrast is preserved. Latency during a rewrite can change under treatment. Adjusting for it could remove part of the effect we're trying to measure.",
+        "hold": 0.65
+      },
+      {
+        "id": "c14-b04",
+        "say": "The adjusted variance is variance Y plus theta squared times variance X minus twice theta times covariance. For positive finite variance X, minimizing gives theta equal to covariance divided by variance X. In a supplied numerical example, variance Y is nine, variance X is four and covariance is three.",
+        "hold": 0.3
+      },
+      {
+        "id": "c14-b05",
+        "say": "Theta is three quarters. Residual variance becomes six point seven five, a twenty-five-percent reduction. The fraction of variance left is one minus the squared correlation. Reversing the covariate’s sign reverses theta. Squaring the correlation gives the same reduction either way.",
+        "hold": 0.55
+      },
+      {
+        "id": "c14-b06",
+        "say": "In this simulation of twenty thousand incidents, the flag and the outcome have a correlation of about point four seven. The adjustment cuts the pooled outcome variance by twenty-two point one percent. The raw lift is four point six eight points.",
+        "hold": 0.3
+      },
+      {
+        "id": "c14-b07",
+        "say": "The adjusted lift is four point three nine. Look at the interval around each dot. Its margin shrinks from one point three six points to one point two zero. The original outcome stays zero or one. The adjusted score can go below zero or above one.",
+        "hold": 0.3
+      },
+      {
+        "id": "c14-b08",
+        "say": "Here we fitted theta from the same outcomes. Plan the analysis to account for that fit, for example with regression adjustment or cross-fitting.",
+        "hold": 0.75
+      }
+    ]
+  },
+  {
+    "id": "c15",
+    "title": "Adapt new-incident allocation without switching an existing incident",
+    "sourceChapters": [
+      "c15"
+    ],
+    "beats": [
+      {
+        "id": "c15-b01",
+        "say": "A fixed-allocation test estimates the defined contrast under predeclared assignment probabilities; it need not be fifty fifty. A reward-seeking bandit instead trades exploration for cumulative reward.",
+        "hold": 0.3
+      },
+      {
+        "id": "c15-b02",
+        "say": "For a stationary Bernoulli arm, begin with a Beta prior, add a success to alpha or a failure to beta, and draw one possible success rate for each arm.",
+        "hold": 0.3
+      },
+      {
+        "id": "c15-b03",
+        "say": "In this replay the first draw is about zero point nine eight for control and zero point five six for the rewrite. Choose the largest, so this incident goes to control. Thompson sampling draws from uncertainty. Both arms started with the same prior mean.",
+        "hold": 0.55
+      },
+      {
+        "id": "c15-b04",
+        "say": "Over two thousand choices in a simulation with immediate feedback, control gets four hundred sixty-three and the rewrite gets fifteen hundred thirty-seven. That's seventy-six point eight percent of the traffic going to the arm with the higher success rate.",
+        "hold": 0.3
+      },
+      {
+        "id": "c15-b05",
+        "say": "In the incident service, route each new incident once and keep its follow-ups in that arm. While its ten-minute window is open, route other incidents using the feedback already in hand. Update after the outcome window matures. Suppose the first incident closes with a failure.",
+        "hold": 0.3
+      },
+      {
+        "id": "c15-b06",
+        "say": "Now control's beta count rises from one to two. Its curve shifts toward lower success rates. The rewrite keeps its prior.",
+        "hold": 0.55
+      },
+      {
+        "id": "c15-b07",
+        "say": "Adaptive sample sizes depend on earlier rewards. Ordinary fixed-design inference is not automatically calibrated, and sampling, stopping and choosing which arm to report can create bias in different directions. Retain routing probabilities and use estimators and sequential methods designed for that policy with adequate exploration.",
+        "hold": 0.3
+      },
+      {
+        "id": "c15-b08",
+        "say": "A resolution reward does not encode grounding or latency constraints. A bandit can support scientific learning, but it answers a different operational objective and needs explicit guardrail design.",
+        "hold": 0.75
+      }
+    ]
+  },
+  {
+    "id": "c16",
+    "title": "Subtract two outcomes before averaging away shared difficulty",
+    "sourceChapters": [
+      "c16"
+    ],
+    "beats": [
+      {
+        "id": "c16-b01",
+        "say": "For offline paired answer evaluation, generate both candidates for the same prompt. In a simple additive score model, control is prompt difficulty plus its noise; treatment is the same difficulty plus effect and its noise. Subtraction cancels the shared difficulty exactly in that model.",
+        "hold": 0.3
+      },
+      {
+        "id": "c16-b02",
+        "say": "In general, variance of the difference is the two score variances minus twice their covariance. Say the variances are nine and four. Independent prompts give thirteen. If paired scores have covariance three, subtract twice three. The paired variance is seven.",
+        "hold": 0.3
+      },
+      {
+        "id": "c16-b03",
+        "say": "Positive covariance helps, zero gives no gain, and negative covariance can make pairing noisier.",
+        "hold": 0.55
+      },
+      {
+        "id": "c16-b04",
+        "say": "Give each design the same budget of two thousand answers. In this simulation the scores come from a Gaussian model. With separate prompts, the estimated lift is point five seven zero, with standard error point zero eight five.",
+        "hold": 0.3
+      },
+      {
+        "id": "c16-b05",
+        "say": "With a thousand shared prompts, the lift is point four four three, with standard error point zero two seven. That's about eighty-nine point five percent less variance in the estimated difference. A hard prompt tends to pull both scores down together.",
+        "hold": 0.3
+      },
+      {
+        "id": "c16-b06",
+        "say": "Pairing takes that common movement out of the difference. You can measure how much the scores move together on your own prompts.",
+        "hold": 0.55
+      },
+      {
+        "id": "c16-b07",
+        "say": "Search interleaving mixes ranked result lists. A click earns credit for the system that supplied the result under the chosen rule. For paired answer evaluation, a judge reads two complete answers to the same prompt.",
+        "hold": 0.3
+      },
+      {
+        "id": "c16-b08",
+        "say": "Randomize their order, hide their identities, define how ties count and calibrate the judge. Analyze the preference votes using the rule you chose. Showing an engineer both answers changes their exposure. Any later resolution reflects that combined experience. Check the preferred answer against its sources too.",
+        "hold": 0.75
+      }
+    ]
+  },
+  {
+    "id": "c17",
+    "title": "Would the judge catch the opening error?",
+    "sourceChapters": [
+      "c17"
+    ],
+    "beats": [
+      {
+        "id": "c17-b01",
+        "say": "Before exposing engineers to a rewrite, try the rollback question offline. The runbook says acknowledgement is required. Read these two candidate answers. A human reviewer labels the requirement supported and the claim of permission unsupported.",
+        "hold": 0.3
+      },
+      {
+        "id": "c17-b02",
+        "say": "Now uncover two practice labels from a model judge using the same rubric. It marked both answers supported. How many of its labels agree with the human reviewer?",
+        "hold": 3
+      },
+      {
+        "id": "c17-b03",
+        "say": "They agree on one of two. Inspect the second answer: the judge missed the word alone. Pin the judge model and prompt, check agreement on a retained calibration set, and look for position, verbosity and reasoning errors. Offline cases can catch bad claims.",
+        "hold": 0.3
+      },
+      {
+        "id": "c17-b04",
+        "say": "Randomized incidents tell us whether the product helps in use. Grounding, latency, human pages and cost still need their own checks.",
+        "hold": 0.8
+      },
+      {
+        "id": "c17-b05",
+        "say": "Open the configuration receipt. Control and treatment declare the same index, model, prompt and greedy decoder schema. The query policy is the intended difference. Suppose treatment silently moves to answer schema version three. The receipt check rejects the decoder change before we read lift.",
+        "hold": 0.3
+      },
+      {
+        "id": "c17-b06",
+        "say": "With that change, the arms would compare a rewrite plus a new schema. Even matching fields only tell us what the receipt declares. Verify what ran, how incidents were assigned, and whether outcomes were logged completely. A receipt cannot rule out spillovers.",
+        "hold": 0.9
+      }
+    ]
+  },
+  {
+    "id": "c18",
+    "title": "What else changed with the rewrite?",
+    "sourceChapters": [
+      "c18"
+    ],
+    "beats": [
+      {
+        "id": "c18-b01",
+        "say": "Back to the two thousand mature incidents in each arm. The rewrite gained four resolution successes per hundred incidents. Its first-request p95 went from eleven eighty to twelve sixty milliseconds. That eighty millisecond increase fits the speed budget.",
+        "hold": 0.3
+      },
+      {
+        "id": "c18-b02",
+        "say": "The human-page rate fell by a fifth of a percentage point. That fits its budget too. Those are point estimates.",
+        "hold": 0.75
+      },
+      {
+        "id": "c18-b03",
+        "say": "Now open the grounding audits. Every incident in this fixture had one completed answer and one blinded audit. Twenty-two control answers and twenty-three rewrite answers failed. Subtract the rates: one point one five percent minus one point one zero percent.",
+        "hold": 0.3
+      },
+      {
+        "id": "c18-b04",
+        "say": "The dot goes at plus zero point zero five percentage points. One extra unsupported answer looks small. How far to the right could the increase plausibly reach?",
+        "hold": 0.8
+      },
+      {
+        "id": "c18-b05",
+        "say": "Use the two independent audit rates. Multiply each rate by one minus itself, divide each by its own two thousand audits, add, then take the square root. The standard error is about a third of a point.",
+        "hold": 0.3
+      },
+      {
+        "id": "c18-b06",
+        "say": "For our two-sided ninety-five percent interval, multiply by one point nine six. The margin is about zero point six five points. Add it to the dot. Does the upper end stay below our half-point limit?",
+        "hold": 3
+      },
+      {
+        "id": "c18-b07",
+        "say": "Extend the interval. Its upper end reaches plus zero point seven zero, past the yellow line. Look where that puts the tip. Hold the rewrite. The data still allow an unacceptable increase in unsupported answers. They also allow no increase at all. That is why this is a hold for uncertainty.",
+        "hold": 0.3
+      },
+      {
+        "id": "c18-b08",
+        "say": "Using the upper end of a two-sided ninety-five percent interval gives an approximate one-sided ninety-seven and a half percent bound.",
+        "hold": 1
+      }
+    ]
+  },
+  {
+    "id": "c19",
+    "title": "Which input changes the decision?",
+    "sourceChapters": [
+      "c19"
+    ],
+    "beats": [
+      {
+        "id": "c19-b01",
+        "say": "Try the other conditions on practice copies of that report. The resolution interval starts about one point above zero. The observed four-point gain clears its separate two-point target. For speed, control took eleven eighty milliseconds at the ninety-fifth percentile.",
+        "hold": 0.3
+      },
+      {
+        "id": "c19-b02",
+        "say": "Add the allowed hundred fifty and the rewrite can take up to thirteen thirty. Move the rewrite to fourteen ninety milliseconds. Which additional condition fails?",
+        "hold": 3
+      },
+      {
+        "id": "c19-b03",
+        "say": "Speed fails. The rewrite is now three hundred ten milliseconds slower. A four-point gain in resolution cannot buy a larger latency budget. Restore the measured latency. In a separate practice brief, raise the required observed lift to five points. The interval still starts above zero. Does the dot meet the new requirement?",
+        "hold": 3
+      },
+      {
+        "id": "c19-b04",
+        "say": "The observed lift falls short. We have evidence of a benefit, but its measured size is below what that brief requires. Reset the requirement to two. Finally, switch on the sample-ratio alert in another copy. The launch code stops before computing lift.",
+        "hold": 0.3
+      },
+      {
+        "id": "c19-b05",
+        "say": "Trace distinct incident IDs from assignment through eligibility and joins. An allocation alert puts the comparison on hold before anyone reads the outcomes. Each replay used its own copy of the report.",
+        "hold": 0.95
+      }
+    ]
+  },
+  {
+    "id": "c20",
+    "title": "Could someone reproduce this decision?",
+    "sourceChapters": [
+      "c20"
+    ],
+    "beats": [
+      {
+        "id": "c20-b01",
+        "say": "Suppose a reviewer finds two messages from incident fourteen. The first question records the experiment version and control assignment. The follow-up carries the same ID and arm. After the full ten-minute window, the outcome query contributes one incident to the denominator.",
+        "hold": 0.3
+      },
+      {
+        "id": "c20-b02",
+        "say": "Keep that query, the assignment rule, policy versions, planned enrollment and analysis time with the report. A reviewer can then check which population and period the comparison describes.",
+        "hold": 0.65
+      },
+      {
+        "id": "c20-b03",
+        "say": "File the original audit interval with its counts, the allocation check, the other guardrails and the hold. To investigate, inspect the cited passages for the answers that failed. Look for the move we saw in the opening: an answer that turns a requirement into permission.",
+        "hold": 0.3
+      },
+      {
+        "id": "c20-b04",
+        "say": "Verify the labels against the runbook. Those checks can explain a failure. A new claim about its frequency needs a valid experiment.",
+        "hold": 0.95
+      }
+    ]
+  },
+  {
+    "id": "c21",
+    "title": "Where will the second interval end?",
+    "sourceChapters": [
+      "c21"
+    ],
+    "beats": [
+      {
+        "id": "c21-b01",
+        "say": "Keep the original audit on the top row. On a separate practice report, change just one count: eighteen rewrite answers fail their audit. Control still has twenty-two failures. There are still two thousand audits per arm, and the resolution, latency and page checks still pass. Only the new row is yours to decide.",
+        "hold": 0.65
+      },
+      {
+        "id": "c21-b02",
+        "say": "The rewrite failure rate is now zero point nine percent. Subtract control's one point one percent. Place the dot at minus zero point two percentage points. Use those two arm rates in the same standard error calculation.",
+        "hold": 0.3
+      },
+      {
+        "id": "c21-b03",
+        "say": "Multiplying by one point nine six gives a margin of about zero point six two points. Starting at the dot, add that margin. Where does the upper tip land, and does this audit clear the half-point limit?",
+        "hold": 3.8
+      },
+      {
+        "id": "c21-b04",
+        "say": "Extend the practice interval. Its upper tip lands at plus zero point four two. Compare it with the fixed half-point limit. The practice report clears the teaching gate. Both point estimates were inside the budget. Only the practice interval stays entirely below the limit. The original report stays held.",
+        "hold": 2
+      },
+      {
+        "id": "c21-b05",
+        "say": "For the original hold, plan a fresh confirmatory experiment, or use a continuation built into the sequential design. Waiting for this fixed-horizon interval to pass would change the stopping rule. For a rollout, use an interval suited to rare audit failures and the way answers were sampled.",
+        "hold": 0.3
+      },
+      {
+        "id": "c21-b06",
+        "say": "Check the event logs and quantify uncertainty for human pages and request latency. Keep tracking these outcomes as the traffic changes.",
+        "hold": 0.85
+      },
+      {
+        "id": "c21-b07",
+        "say": "Remember the engineer who clicked usable? This incident got the rewrite. What would have happened to this same incident with the raw query?",
+        "hold": 3
+      },
+      {
+        "id": "c21-b08",
+        "say": "We saw only the rewrite. To estimate its effect, we compared resolution rates across randomly assigned incidents. In the next lesson, we'll ask what we can learn about the missing outcome when assignment wasn't random.",
+        "hold": 1.1
+      }
+    ]
+  }
+]

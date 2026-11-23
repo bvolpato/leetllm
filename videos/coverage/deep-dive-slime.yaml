@@ -1,0 +1,240 @@
+version: 1
+lesson: deep-dive-slime
+promise: Decide whether Megatron can take its next step by checking who produced each target, which policy
+  served it, and which batches the saved optimizer state includes.
+objectives:
+  - id: provenance-credit
+    can: Catch a tool token selected by a valid-length mask, compute the selected-token mean, and preserve
+      one execution’s contribution when its segments cross microbatches.
+    scenes:
+      - intro
+      - incident-receipt
+      - ledger
+      - sample-checks
+      - native-append
+      - identity-groups
+      - segments
+      - step-denominator
+  - id: placement-timing
+    can: Trace which devices and futures can overlap, predict queue length when an in-flight group finishes,
+      and identify which completed groups reach the trainer.
+    scenes:
+      - placement
+      - bundle-map
+      - router-session
+      - round-boundaries
+      - async-future
+      - queue
+      - queue-handoff
+  - id: weight-visibility
+    can: Choose a carrier for the allocated devices, decide whether a particular host may apply a patch, and
+      verify which version its engine serves.
+    scenes:
+      - sync
+      - sync-dispatch
+      - broadcast-lifecycle
+      - disk-retention
+      - delta
+      - delta-record
+  - id: durable-recovery
+    can: Diagnose the first failed handoff, select trusted replay data, and determine whether a restored trainer
+      can continue by comparing its weight and optimizer velocity with the uninterrupted run.
+    scenes:
+      - incident-receipt
+      - agent-hook
+      - application-experiment
+      - failure-diagnosis
+      - recovery
+      - retained-serving
+      - debug-replay
+      - project-scope
+      - source-route
+      - fresh-replay
+sections:
+  - heading: Keep Megatron and SGLang, own the handoff
+    status: taught
+    scenes:
+      - intro
+      - agent-hook
+      - project-scope
+  - heading: A token ledger between two engines
+    status: taught
+    scenes:
+      - intro
+      - ledger
+      - incident-receipt
+  - heading: Ray placement makes topology a contract
+    status: taught
+    scenes:
+      - placement
+      - bundle-map
+      - sync-dispatch
+  - heading: SGLang and sgl-router own rollout
+    status: taught
+    scenes:
+      - router-session
+      - agent-hook
+  - heading: Data Buffer is the handoff contract
+    status: taught
+    scenes:
+      - intro
+      - incident-receipt
+      - ledger
+      - sample-checks
+      - native-append
+      - identity-groups
+      - step-denominator
+  - heading: Megatron owns the train step
+    status: taught
+    scenes:
+      - segments
+      - round-boundaries
+      - step-denominator
+  - heading: Three timing models
+    status: taught
+    scenes:
+      - round-boundaries
+      - async-future
+      - queue
+  - heading: "Synchronous: finish, train, sync"
+    status: taught
+    scenes:
+      - round-boundaries
+  - heading: "Async: start next rollout early"
+    status: taught
+    scenes:
+      - async-future
+      - incident-receipt
+  - heading: "Fully async: keep a warm worker"
+    status: taught
+    scenes:
+      - queue
+      - queue-handoff
+      - async-future
+  - heading: Weight synchronization is a correctness boundary
+    status: taught
+    scenes:
+      - sync
+      - sync-dispatch
+  - heading: Full NCCL
+    status: taught
+    scenes:
+      - broadcast-lifecycle
+      - sync-dispatch
+  - heading: Full disk
+    status: taught
+    scenes:
+      - sync
+      - disk-retention
+  - heading: Delta disk
+    status: taught
+    scenes:
+      - delta
+      - delta-record
+  - heading: Agentic customization keeps token provenance
+    status: taught
+    scenes:
+      - agent-hook
+      - native-append
+      - identity-groups
+      - step-denominator
+  - heading: Applications and ecosystem
+    status: taught
+    scenes:
+      - application-experiment
+      - project-scope
+  - heading: Strengths, limits, and failure paths
+    status: taught
+    scenes:
+      - sample-checks
+      - delta
+      - application-experiment
+      - failure-diagnosis
+  - heading: Fault tolerance and reproducibility
+    status: taught
+    scenes:
+      - recovery
+      - retained-serving
+      - debug-replay
+      - fresh-replay
+  - heading: Project identity
+    status: taught
+    scenes:
+      - project-scope
+  - heading: A source and code reading route
+    status: taught
+    scenes:
+      - source-route
+  - heading: What to remember
+    status: taught
+    scenes:
+      - source-route
+      - fresh-replay
+  - heading: Evaluation rubric
+    status: taught
+    scenes:
+      - source-route
+      - fresh-replay
+  - heading: Follow-up questions
+    status: article-only
+    reason: exercise
+    note: The viewer can practice segmentation, replica visibility and recovery with the article’s additional cases.
+quiz:
+  - n: 1
+    status: taught
+    scenes:
+      - incident-receipt
+      - ledger
+      - sample-checks
+      - native-append
+  - n: 2
+    status: taught
+    scenes:
+      - identity-groups
+  - n: 3
+    status: taught
+    scenes:
+      - segments
+      - step-denominator
+  - n: 4
+    status: taught
+    scenes:
+      - queue
+      - queue-handoff
+  - n: 5
+    status: taught
+    scenes:
+      - sync-dispatch
+  - n: 6
+    status: taught
+    scenes:
+      - async-future
+  - n: 7
+    status: taught
+    scenes:
+      - delta
+      - delta-record
+  - n: 8
+    status: taught
+    scenes:
+      - disk-retention
+      - retained-serving
+  - n: 9
+    status: taught
+    scenes:
+      - debug-replay
+  - n: 10
+    status: taught
+    scenes:
+      - recovery
+      - fresh-replay
+removed: []
+reviews:
+  closed_book:
+    script: d69b1a6b225f864d
+    taught: 10
+    partial: 0
+    absent: 0
+  fact_check:
+    script: d69b1a6b225f864d
+    open_findings: 0

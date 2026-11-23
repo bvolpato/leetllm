@@ -1,0 +1,1218 @@
+version: 1
+id: embeddings
+opening: lesson
+title: Words as Points and Context as Motion
+source: fundamentals/word-embeddings-contextual-representations/content.md
+sources:
+  - title: "Mikolov et al.: Efficient Estimation of Word Representations in Vector Space"
+    url: https://arxiv.org/abs/1301.3781
+  - title: "Peters et al.: Deep Contextualized Word Representations"
+    url: https://arxiv.org/abs/1802.05365
+  - title: "Devlin et al.: BERT, Pre-training of Deep Bidirectional Transformers"
+    url: https://arxiv.org/abs/1810.04805
+  - title: Mikolov et al. Distributed Representations of Words and Phrases
+    url: https://arxiv.org/abs/1310.4546
+  - title: Pennington et al. GloVe
+    url: https://aclanthology.org/D14-1162/
+  - title: Bojanowski et al. Enriching Word Vectors with Subword Information
+    url: https://arxiv.org/abs/1607.04606
+  - title: Levy and Goldberg. Neural Word Embedding as Implicit Matrix Factorization
+    url: https://proceedings.neurips.cc/paper_files/paper/2014/hash/b78666971ceae55a8e87efb7cbfd9ad4-Abstract.html
+  - title: fastText getWordVector implementation
+    url: https://github.com/facebookresearch/fastText/blob/main/src/fasttext.cc
+  - title: AllenNLP ELMo layer representation implementation
+    url: https://github.com/allenai/allennlp/blob/main/allennlp/modules/elmo.py
+  - title: Ethayarajh. How Contextual are Contextualized Word Representations?
+    url: https://arxiv.org/abs/1909.00512
+  - title: Reimers and Gurevych. Sentence-BERT
+    url: https://arxiv.org/abs/1908.10084
+  - title: Karpukhin et al. Dense Passage Retrieval
+    url: https://arxiv.org/abs/2004.04906
+  - title: Sentence Transformers semantic search contracts
+    url: https://www.sbert.net/examples/sentence_transformer/applications/semantic-search/README.html
+scenes:
+  - id: intro
+    title: What does “charge” mean here?
+    visual: A receipt and a phone show the two meanings of charge. One table row sends identical
+      coordinates to both searches. Their first guides stay covered through the question.
+    beats:
+      - say: On this receipt, a charge is twelve dollars. On this phone, charge means plug it in.
+        caption_starts: [On this phone]
+        hold: 0.5
+        visual_cues:
+          - id: phone
+            phrase: plug it in
+            targets:
+              - picture
+      - say: Search keeps just the word charge from each message. Charge is row zero in this embedding
+          table. Send those two numbers to the same index for both searches. Can the two searches
+          return different guides?
+        caption_starts: [Charge is row zero, Send those two numbers, Can the two searches]
+        hold: 2.8
+        visual_cues:
+          - id: lookup
+            phrase: Charge is row zero
+            targets:
+              - picture
+          - id: send
+            phrase: Send those two numbers
+            targets:
+              - picture
+          - id: predict
+            phrase: Can the two searches
+            targets:
+              - picture
+      - say: The phone guide comes first twice. The index picked the guide closest in direction to
+          that row both times. You could tell the messages apart because you also saw invoice and phone.
+        caption_starts: [The index picked, You could tell]
+        hold: 0.9
+        visual_cues:
+          - id: rank
+            phrase: The phone guide
+            targets:
+              - picture
+          - id: clues
+            phrase: you also saw invoice and phone
+            targets:
+              - picture
+  - id: lookup
+    title: What does a token ID select?
+    visual: Bank occupies row zero in a separate toy vocabulary. Two occurrences gather its
+      coordinates from the same table.
+    beats:
+      - say: Open a different table. What row do river bank and bank deposit share? A token ID selects
+          one row in the embedding table. Each column holds one learned feature. Bank is ID zero
+          here. Both sentences read the two numbers in row zero.
+        caption_starts: [A token ID selects one row]
+        hold: 0.7
+        visual_cues:
+          - id: select
+            phrase: A token ID selects one row
+            targets:
+              - picture
+          - id: identical
+            phrase: Both sentences read the two numbers
+            targets:
+              - picture
+      - say: On this teaching map, up points toward river and right toward money. Bank begins halfway
+          between those directions. Read it in river bank, then in deposit money at the bank. Both
+          lookups land at the same point. In a learned table, a meaning can span many coordinates.
+        hold: 0.7
+        visual_cues:
+          - id: halfway
+            phrase: Bank begins halfway
+            targets:
+              - picture
+          - id: again
+            phrase: Both lookups land at the same point
+            targets:
+              - picture
+      - say: Training can move a stored row. Once you fix the table, its answer depends only on the ID.
+          That is what static means here. A model may also encode where the token sits. To use a
+          word like deposit, another operation has to read it.
+        hold: 0.65
+        visual_cues:
+          - id: learned
+            phrase: Training can move a stored row
+            targets:
+              - picture
+  - id: table-contract
+    title: A row lookup is an exact selection
+    visual: Build one-hot times E from actual row selection; retain token identity while raw ID order
+      has no geometric meaning.
+    beats:
+      - say: There is one row per vocabulary ID and one column per feature. With vocabulary size V and
+          width d, the shape is V by d. Put a one at the ID for bank and zeros at the other IDs.
+          Multiply this one-hot row by the table. The zeros discard the other rows and the one
+          selects bank. In practice, gather the row directly.
+        hold: 0.7
+        visual_cues:
+          - id: shape
+            phrase: the shape is V by d
+            targets:
+              - picture
+          - id: select
+            phrase: the one selects bank
+            targets:
+              - picture
+      - say: An ID is an address. Two consecutive addresses can hold unrelated words. Back in the support
+          vocabulary, zero selects charge. That row belongs to a different table, so its two
+          coordinates are different from the bank row we just read.
+        hold: 0.65
+        visual_cues:
+          - id: charge
+            phrase: zero selects charge
+            targets:
+              - picture
+      - say: A tokenizer can split a word into several pieces. That changes which rows you fetch. Each
+          piece still has a fixed row in this table. To get a different reading of charge on the
+          second ticket, something has to read the rest of that message.
+        hold: 0.7
+        visual_cues:
+          - id: pieces
+            phrase: split a word into several pieces
+            targets:
+              - picture
+          - id: static
+            phrase: Each piece still has a fixed row
+            targets:
+              - picture
+  - id: neighbors
+    title: Count the words around bank
+    visual: Each tracked word sends a tally from its actual sentence position to its own bin. The four
+      counts end at two, one, two and one.
+    beats:
+      - say: Where might a table learn that bank has several uses? Look four words on either side of bank.
+          We are tracking the four neighbors named on the right. In the first sentence, river falls
+          inside the window. Put that pair in the river bin.
+        hold: 0.8
+        visual_cues:
+          - id: pair-0
+            phrase: Put that pair in the river bin
+            targets:
+              - picture
+      - say: The next sentence gives us water, then another river. In the third sentence we find money. In
+          the last one we get deposit and one more money. Each dot records one occurrence of a word
+          beside bank in this window.
+        hold: 0.8
+        visual_cues:
+          - id: pair-1
+            phrase: gives us water
+            targets:
+              - picture
+          - id: pair-2
+            phrase: another river
+            targets:
+              - picture
+          - id: pair-3
+            phrase: we find money
+            targets:
+              - picture
+          - id: pair-4
+            phrase: we get deposit
+            targets:
+              - picture
+          - id: pair-5
+            phrase: one more money
+            targets:
+              - picture
+      - say: Six pairs came from those four sentences. Both uses of bank left a trace in one count row. We
+          can compress rows like this, train a model to predict the neighbors, or fit the counts
+          themselves. Each method gives these observations a different job.
+        hold: 0.8
+        visual_cues:
+          - id: counts
+            phrase: Six pairs
+            targets:
+              - picture
+          - id: objectives
+            phrase: Each method
+            targets:
+              - picture
+  - id: count-ppmi
+    title: Compare an observed pair with its chance baseline
+    visual: Trace one count cell through row and column marginals, expected count, ratio, logarithm
+      and positive floor; construct zero cells honestly.
+    beats:
+      - say: We counted bank in a window of four. A two-position window can also pick up shared neighbors.
+          Apple and pear both appear with tastes and sweet. Now use a larger, constructed table so
+          we can compare counts with chance. Fruit and sweet occur with apple and pear. Water and
+          shore occur with river and lake.
+        hold: 0.7
+        visual_cues:
+          - id: matrix
+            phrase: use a larger, constructed table
+            targets:
+              - picture
+      - say: Look at apple with fruit. We saw eight pairs. Is that a lot? Start with the margins. Fourteen
+          of the fifty-three pairs start with apple. Fifteen of the fifty-three end in fruit. If
+          those choices were independent, apple would get fourteen times fifteen over fifty-three
+          fruit pairs. That is about three point nine six. We observed roughly twice that count. The
+          natural log of the ratio is about point seven zero three.
+        caption_starts: [Start with the margins, If those choices were independent, That is about three point nine six, The natural log of the ratio]
+        hold: 0.85
+        visual_cues:
+          - id: marginals
+            phrase: Start with the margins
+            targets:
+              - picture
+          - id: expected
+            phrase: about three point nine six
+            targets:
+              - picture
+          - id: log
+            phrase: about point seven zero three
+            targets:
+              - picture
+      - say: Positive pointwise mutual information keeps a positive log ratio and floors a negative one at
+          zero. For an empty cell, write zero directly. That also handles an empty row or a
+          completely empty table without taking the log of zero. Rare pairs can earn a large score
+          on scant evidence. And hot and cold can both appear near room. Similar usage alone cannot
+          tell us whether two words mean the same thing.
+        hold: 0.7
+        visual_cues:
+          - id: floor
+            phrase: floors a negative one at zero
+            targets:
+              - picture
+          - id: zeros
+            phrase: For an empty cell
+            targets:
+              - picture
+  - id: factorization
+    title: Compress context patterns into shared directions
+    visual: Construct a rank-two SVD approximation from the actual PPMI matrix and carry labeled rows
+      into two axes.
+    beats:
+      - say: Our table needs one column for each context word. A singular value decomposition rewrites it
+          as U times a diagonal matrix of strengths times V transpose. Keep the two strongest
+          directions. Scale each of those columns of U by the square root of its strength. Those are
+          our two coordinates per word. The corresponding columns of V take the other square roots
+          on the context side.
+        hold: 0.85
+        visual_cues:
+          - id: two
+            phrase: Keep the two strongest directions
+            targets:
+              - picture
+          - id: scale
+            phrase: by the square root of its strength
+            targets:
+              - picture
+      - say: The two leading strengths are about one point four two and one point three five. Follow apple
+          and pear. They point the same way and have cosine one. Now compare apple and river. They
+          point at right angles and have cosine zero. Those neat angles come from how we built this
+          particular count table.
+        hold: 0.75
+        visual_cues:
+          - id: singular
+            phrase: The two leading strengths
+            targets:
+              - picture
+          - id: same
+            phrase: cosine one
+            targets:
+              - picture
+          - id: cross
+            phrase: cosine zero
+            targets:
+              - picture
+      - say: Flip one axis for every word. Apple stays beside pear. Consistently reversing an axis
+          preserves the angles even though the coordinates change. Changing the corpus or the number
+          of directions you keep can change the neighbors. A successful word analogy tests one such
+          relationship. For a real application, check the cases the representation must distinguish.
+        hold: 0.75
+        visual_cues:
+          - id: sign
+            phrase: Flip one axis for every word
+            targets:
+              - picture
+  - id: predictive-window
+    title: One sentence, two Word2Vec training tasks
+    visual: Three neighbors point into a gap in a sentence. Reveal the center word, reverse the
+      arrows, and follow one Skip-gram pair into its two embedding tables.
+    beats:
+      - say: Children, blank, stories each night. In this Word2Vec example, the model gets three
+          clues. Continuous bag of words uses children, stories and each to predict the missing
+          word. What word would you put in the gap?
+        caption_starts: [In this Word2Vec example, Continuous bag of words, What word would you put]
+        hold: 2.5
+        visual_cues:
+          - id: cbow
+            phrase: Continuous bag of words
+            targets:
+              - picture
+      - say: Read fills the gap. Turn the arrows around. Skip-gram starts with read and predicts a
+          neighbor. Reach at most two positions in either direction. Children is one to the left.
+          Stories and each are one and two to the right. That makes three positive training pairs.
+          Night is three positions away, so it stays outside the window.
+        caption_starts: [Turn the arrows around, Reach at most two positions, That makes three, Night is three positions away]
+        hold: 0.75
+        visual_cues:
+          - id: word
+            phrase: Read fills the gap
+            targets:
+              - picture
+          - id: skipgram
+            phrase: Turn the arrows around
+            targets:
+              - picture
+          - id: pairs
+            phrase: Reach at most two positions
+            targets:
+              - picture
+          - id: night
+            phrase: Night is three positions away
+            targets:
+              - picture
+      - say: Take read and stories. Skip-gram takes the input row for read and the output row for
+          stories. Their dot product scores this training pair. Later, to compare read with write,
+          take both rows from the input table. Cosine compares their directions.
+        caption_starts: [Skip-gram takes the input row, Their dot product, Later, Cosine compares]
+        hold: 0.75
+        visual_cues:
+          - id: tables
+            phrase: Skip-gram takes the input row
+            targets:
+              - picture
+          - id: compare
+            phrase: to compare read with write
+            targets:
+              - picture
+  - id: negative-step
+    title: Move the center word by one training step
+    visual: Three fixed output rows produce three signed gradient contributions. The center changes
+      while a readout recomputes the positive score and loss.
+    beats:
+      - say: Let read start at one, zero. Give its observed neighbor a separate output row. Their dot
+          product is one point two. Now draw two noise rows. These negatives can be real neighbors
+          elsewhere. The label belongs to this draw. If a row is drawn twice, count it twice. The
+          original sampler raises word frequencies to the three-quarter power and normalizes them.
+        hold: 0.8
+        visual_cues:
+          - id: observed
+            phrase: its observed neighbor
+            targets:
+              - picture
+          - id: noise
+            phrase: draw two noise rows
+            targets:
+              - picture
+      - say: The loss rewards a high score for the observed pair and low scores on the noise draws. The
+          sigmoid turns a score into a number between zero and one. At zero it gives one half. For
+          the observed pair, take minus the log of its sigmoid. For each noise pair, negate the
+          score first, then take minus the log of the sigmoid. Add those losses.
+        hold: 0.8
+        visual_cues:
+          - id: loss
+            phrase: The loss rewards
+            targets:
+              - picture
+      - say: How should the center move? For the observed row, the slope of the loss is the sigmoid of its
+          score minus one. Multiply that negative slope by the output row. For each noise row, use
+          the sigmoid of its score, with no subtraction. Multiply each slope by its own row. Now add
+          the three vectors in the last column. That gives the center gradient. Its first coordinate
+          is about minus point eight one three.
+        hold: 1.1
+        visual_cues:
+          - id: positive
+            phrase: For the observed row
+            targets:
+              - picture
+          - id: negative
+            phrase: For each noise row
+            targets:
+              - picture
+          - id: add
+            phrase: Now add the three vectors
+            targets:
+              - picture
+      - say: Our step subtracts one tenth of that gradient from the center. The first coordinate will
+          grow. Look at the observed row. Will its score rise or fall?
+        hold: 2.5
+        visual_cues:
+          - id: predict
+            phrase: Will its score rise or fall
+            targets:
+              - picture
+      - say: Take the step. The new center scores about one point three against the same observed row, up
+          from one point two. The total loss falls from about point eight nine to point eight three.
+          We held the outputs fixed so you could follow the center. Training normally updates the
+          participating output rows too. This check tells us the local objective improved. We still
+          need to measure which words make good neighbors.
+        caption_starts: [The new center scores, The total loss falls, We held the outputs fixed]
+        hold: 0.8
+        visual_cues:
+          - id: step
+            phrase: Take the step
+            targets:
+              - picture
+  - id: shifted-pmi
+    title: How many noise draws compete with an observed pair?
+    visual: Keep the apple row fixed, change the number of noise draws, then move from fruit to an
+      unobserved water cell with the same column total.
+    beats:
+      - say: Return to our eight apple and fruit pairs. Suppose the sampler draws noise in proportion to
+          context frequency. With one draw per positive pair, apple is expected to meet fruit about
+          four times as noise. If we could choose this one dot product freely, its best score would
+          be the log of observed pairs divided by expected noise draws. Here that is the same point
+          seven zero three we saw in the count table.
+        hold: 0.85
+        visual_cues:
+          - id: optimum
+            phrase: the log of observed pairs divided by expected noise draws
+            targets:
+              - picture
+      - say: Make four draws per positive pair. The observed count stays at eight. The expected noise
+          count grows to almost sixteen, so the best score turns negative. Levy and Goldberg wrote
+          this optimum as PMI minus the natural log of k, the number of draws per positive pair.
+        hold: 0.85
+        visual_cues:
+          - id: four
+            phrase: Make four draws per positive pair
+            targets:
+              - picture
+      - say: Now take apple with water. Water has the same column total as fruit, so the expected noise
+          stays put. We observed zero such pairs. With only negative pressure, the unrestricted
+          optimum goes to minus infinity. A real model shares finite-width vectors across pairs.
+          That limits the rank of its score matrix. Regularization and a different noise
+          distribution, such as the original three-quarter-power rule, can also change the fit.
+        hold: 0.8
+        visual_cues:
+          - id: absent
+            phrase: Now take apple with water
+            targets:
+              - picture
+          - id: capacity
+            phrase: limits the rank of its score matrix
+            targets:
+              - picture
+  - id: glove-fit
+    title: Fit log counts with a weighted residual
+    visual: Trace the actual count through log target, input-output score plus biases, squared
+      residual and capped count weighting.
+    beats:
+      - say: GloVe gives the whole corpus one count table. The observations still come from local windows.
+          In the original collection a neighbor two places away contributes one half, so counts can
+          be fractional. On each ruler, the yellow mark is the model score. It adds a word-context
+          dot product and two biases. Here we have set that score to the log of thirty on all three
+          rulers.
+        hold: 0.8
+        visual_cues:
+          - id: score
+            phrase: the yellow mark is the model score
+            targets:
+              - picture
+      - say: The blue dot is the log of the observed count. Its distance from the yellow mark is the size
+          of the miss. On the middle ruler the marks meet. Count thirty has zero residual. On the
+          top ruler the count is three. Subtract log three from log thirty and you get log ten.
+          Square that difference and the error is about five point three zero two. GloVe adds up
+          weighted squared errors across observed pairs.
+        hold: 0.9
+        visual_cues:
+          - id: targets
+            phrase: The blue dot is the log of the observed count
+            targets:
+              - picture
+          - id: zero
+            phrase: Count thirty has zero residual
+            targets:
+              - picture
+          - id: error
+            phrase: about five point three zero two
+            targets:
+              - picture
+      - say: The weight depends on the count. Divide the count by one hundred, raise that ratio to the
+          three-quarter power and cap the result at one. Compare the three bars. Count three gets
+          about seven hundredths of the full weight. Thirty gets about four tenths. At one hundred
+          the weight reaches one, so three hundred still gets one. Skip empty cells before taking
+          any logs. The result is a static vector trained from many windows.
+        hold: 0.8
+        visual_cues:
+          - id: weights
+            phrase: The weight depends on the count
+            targets:
+              - picture
+          - id: weight-values
+            phrase: Compare the three bars
+            targets:
+              - picture
+  - id: subword-components
+    title: Compose an unfamiliar spelling from retained pieces
+    visual: Slide bounded character n-grams over play and played, preserve repeated bucket
+      occurrences, and construct both sum and exported average.
+    beats:
+      - say: What could you use for a spelling your table has never seen? Add boundary marks to play and
+          played. Slide a three-character window across them. They share the first three pieces,
+          including the one that starts at the left boundary. After the y, their pieces differ.
+          FastText uses character n-grams like these. The original setup uses lengths three through
+          six.
+        hold: 0.8
+        visual_cues:
+          - id: windows
+            phrase: Slide a three-character window
+            targets:
+              - picture
+      - say: The displayed strings tell us which spellings overlap. To build a vector, FastText hashes
+          each piece to a bucket and fetches its row. In this separate example, the returned IDs are
+          zero, zero, one. Take the first row twice. Repeated pieces and hash collisions can both
+          repeat a bucket. A known word also has a whole-word row. An unseen spelling uses only its
+          subword rows.
+        hold: 0.85
+        visual_cues:
+          - id: occurrences
+            phrase: the returned IDs are zero, zero, one
+            targets:
+              - picture
+          - id: oov
+            phrase: An unseen spelling uses only its subword rows
+            targets:
+              - picture
+      - say: The three rows sum to two, two. The paper uses a sum for scoring. The word-vector API divides
+          by three because three rows were returned. Both coordinates become two thirds. For a
+          nonzero vector a positive rescaling keeps the cosine direction and changes the norm and
+          raw dot products. To do this for new words, load the full binary model with its subword
+          rows. A text export of known word vectors lacks those rows. Measure recall on unseen
+          spellings to find out whether the pieces help.
+        hold: 0.8
+        visual_cues:
+          - id: sum
+            phrase: The three rows sum to two, two
+            targets:
+              - picture
+          - id: average
+            phrase: divides by three
+            targets:
+              - picture
+          - id: export
+            phrase: load the full binary model
+            targets:
+              - picture
+  - id: geometry
+    title: What changes when an arrow gets longer?
+    visual: Keep a horizontal reference and a diagonal candidate on fixed axes. Double the diagonal
+      and then normalize it while the dot product and cosine update separately.
+    beats:
+      - say: To compare a ticket with a guide, we need a score. Take the blue arrow as our reference. Its
+          coordinates are one, zero. The other arrow goes one across and one up. Multiply matching
+          coordinates and add. The dot product is one.
+        hold: 0.7
+        visual_cues:
+          - id: score
+            phrase: The dot product is one
+            targets:
+              - picture
+      - say: Divide that dot product by both lengths and you get cosine similarity. Blue has length one.
+          The diagonal has length square root of two. Their cosine is about point seven zero seven.
+          Suppose we double the diagonal and keep its direction. Which score will change?
+        hold: 3
+        visual_cues:
+          - id: divide
+            phrase: Divide that dot product
+            targets:
+              - picture
+          - id: predict
+            phrase: Suppose we double the diagonal
+            targets:
+              - picture
+      - say: Stretch the diagonal. Its dot product doubles. Its length doubles too, so the cosine stays
+          put. Now shorten it to unit length. Both arrows have length one, and the dot product
+          itself is the cosine. Parallel unit arrows score one, perpendicular arrows zero, and
+          opposite arrows minus one. A zero vector has no direction to compare.
+        caption_starts: [Its dot product doubles, Its length doubles too, Now shorten it to unit length]
+        hold: 0.75
+        visual_cues:
+          - id: double
+            phrase: Stretch the diagonal
+            targets:
+              - picture
+          - id: unit
+            phrase: shorten it to unit length
+            targets:
+              - picture
+      - say: That angle has a meaning because both arrows use the same axes. Later we will change the axes
+          of a search index and see what happens to its first result.
+        hold: 0.7
+  - id: context
+    title: What can bank borrow from this sentence?
+    visual: Two copies of the identical bank vector receive different weighted context updates. Their
+      endpoints travel toward river and finance regions.
+    beats:
+      - say: Bank starts at the blue dot in both sentences. Read the river sentence first. Take half
+          the bank arrow. From its tip, add four tenths of river, then one tenth of water.
+          Now read the deposit sentence. Start with the same half of bank and add half of money.
+        caption_starts: [Read the river sentence, From its tip, then one tenth of water, Now read the deposit sentence]
+        hold: 0.85
+        visual_cues:
+          - id: half
+            phrase: Take half the bank arrow
+            targets: [picture]
+          - id: river
+            phrase: add four tenths of river
+            targets:
+              - picture
+          - id: water
+            phrase: then one tenth of water
+            targets: [picture]
+          - id: deposit
+            phrase: Start with the same half of bank
+            targets: [picture]
+          - id: money
+            phrase: add half of money
+            targets:
+              - picture
+      - say: Follow each copy of bank from the blue dot to its sum. The river sentence pulls bank up.
+          The deposit sentence pulls it right. The blue dot stays put. We now have two contextual
+          states from one stored row.
+        caption_starts: [The river sentence pulls bank up, The blue dot stays put]
+        hold: 0.85
+        visual_cues:
+          - id: separate
+            phrase: Follow each copy of bank
+            targets:
+              - picture
+          - id: mix
+            phrase: The river sentence pulls bank up
+            targets:
+              - picture
+      - say: Here we chose the weights. A Transformer learns how to weight information from the
+          positions it can read. Attention mixes that evidence. Feed-forward layers then rewrite
+          features within a position. A causal model can use the prefix through the current
+          position. A bidirectional encoder can also use a clue that comes later.
+        hold: 0.75
+        visual_cues:
+          - id: attention
+            phrase: Attention mixes that evidence
+            targets:
+              - picture
+          - id: causal
+            phrase: A causal model can use the prefix
+            targets:
+              - picture
+  - id: article-context
+    title: Try the two support tickets again
+    visual: The two charge dots start on the stored row. Each slides halfway to its own clue. Two live
+      cosine comparisons keep both guide scores with each ticket.
+    beats:
+      - say: Charge starts at the blue dot. The invoice guide sits at invoice, and the phone guide at
+          phone. Score both guides by cosine. From charge, the phone guide wins both searches.
+        caption_starts: [Score both guides by cosine, From charge]
+        hold: 0.85
+        visual_cues:
+          - id: static
+            phrase: Score both guides by cosine
+            targets:
+              - picture
+      - say: Let each copy of charge travel halfway from the blue dot to its own clue. To find the
+          midpoint, average each pair of coordinates separately. One path leads toward invoice, the
+          other toward phone. Which ticket will change guide?
+        caption_starts: [Which ticket will change guide]
+        hold: 3
+        visual_cues:
+          - id: predict
+            phrase: Which ticket will change guide
+            targets:
+              - picture
+      - say: Move the invoice copy. Halfway to its clue, it lands at point five, point six. Now
+          invoice wins. Its cosine rose from about point four three to point eight eight.
+        caption_starts: [Halfway to its clue, Now invoice wins]
+        hold: 1
+        visual_cues:
+          - id: invoice
+            phrase: Move the invoice copy
+            targets:
+              - picture
+          - id: bill-result
+            phrase: Now invoice wins
+            targets:
+              - picture
+      - say: Move the phone copy. The midpoint here is point nine, point one five. The phone guide stays
+          first. The query was already pointing toward phone. Now the two directions nearly coincide.
+        caption_starts: [The phone guide stays first]
+        hold: 0.85
+        visual_cues:
+          - id: phone
+            phrase: Move the phone copy
+            targets:
+              - picture
+          - id: device-result
+            phrase: The phone guide stays first
+            targets:
+              - picture
+      - say: The blue dot stayed put. Each message gave charge a different direction. We gave the clue
+          half the weight. A trained attention head learns how much to take from each allowed position
+          and mixes their value projections. The output projection, residual connection and later
+          layers carry that information forward.
+        caption_starts: [We gave the clue, A trained attention head]
+        hold: 0.8
+        visual_cues:
+          - id: table
+            phrase: The blue dot stayed put
+            targets:
+              - picture
+  - id: elmo-layers
+    title: What changes when the layer weights stay fixed?
+    visual: Construct forward and backward recurrence into three matching layer states, then apply one
+      task-wide softmax mixture and gamma.
+    beats:
+      - say: ELMo reads the sentence in both directions with recurrent language models. They share input
+          and output softmax parameters and have separate LSTM weights. The character CNN first
+          projects the spelling to five hundred twelve coordinates. The implementation duplicates
+          that vector to give the input layer one thousand twenty-four. Each of the two contextual
+          layers joins a forward state and a backward state, each five hundred twelve wide. Now all
+          three layers fit the same sum.
+        hold: 0.85
+        visual_cues:
+          - id: recurrent
+            phrase: reads the sentence in both directions
+            targets:
+              - picture
+          - id: duplicate
+            phrase: duplicates that vector
+            targets:
+              - picture
+          - id: concatenate
+            phrase: joins a forward state and a backward state
+            targets:
+              - picture
+      - say: Try that sum with just two coordinates. Weight each layer by its share, then add the three
+          contributions. The first token gives point seven, point eight. Now multiply by gamma. With
+          gamma equal to two, both coordinates double. The task learns one set of layer weights for
+          all its token positions. A softmax makes those weights nonnegative and sums them to one.
+          Training the task mix ordinarily leaves the pretrained language model frozen.
+        hold: 0.85
+        visual_cues:
+          - id: mixture
+            phrase: Weight each layer by its share
+            targets:
+              - picture
+          - id: gamma
+            phrase: Now multiply by gamma
+            targets:
+              - picture
+      - say: Keep those same three weights. Change the token supplying the layer states. The yellow output
+          moves to one point one, point nine, even with the same scale of two. The weights choose
+          among layers at a position. Token attention chooses among positions. BERT trains
+          bidirectional attention by corrupting selected inputs and predicting the originals using
+          words on both sides.
+        hold: 0.8
+        visual_cues:
+          - id: example
+            phrase: Keep those same three weights
+            targets:
+              - picture
+          - id: change
+            phrase: Change the token supplying the layer states
+            targets:
+              - picture
+  - id: visibility-test
+    title: Which position can read the edited word?
+    visual: Three rows show the tokens available to an encoder at charge, a causal decoder at charge
+      and a causal decoder at its last token. Only permitted rows receive the replacement.
+    beats:
+      - say: Look at charge the phone. We want to keep a state that can use the object of that
+          instruction. The encoder at charge can read all three words. The causal decoder at charge
+          can read only the prefix ending there. That is just charge. At the last word, the same
+          decoder has all three. The mask sets the available positions. Learned attention weights
+          decide how much each contributes.
+        hold: 0.85
+        visual_cues:
+          - id: encoder
+            phrase: The encoder at charge
+            targets:
+              - picture
+          - id: first
+            phrase: The causal decoder at charge
+            targets:
+              - picture
+          - id: final
+            phrase: At the last word
+            targets:
+              - picture
+      - say: Replace phone with invoice. The model weights, positions and earlier IDs stay fixed. Run
+          deterministically. Look down the edited column. Which of the three states must stay the
+          same?
+        hold: 3
+        visual_cues:
+          - id: replace
+            phrase: Replace phone with invoice
+            targets:
+              - picture
+          - id: ask
+            phrase: Which of the three states must stay the same
+            targets:
+              - picture
+      - say: The first causal state must stay fixed. Follow its row to position two. The mask blocks the
+          read in both versions. The other two may change. Both can see the replacement, even though
+          a particular set of weights might ignore it. Processing every position in parallel keeps
+          the same mask.
+        caption_starts: [The other two may change]
+        hold: 0.8
+        visual_cues:
+          - id: fixed
+            phrase: The first causal state
+            targets:
+              - picture
+          - id: permitted
+            phrase: The other two may change
+            targets:
+              - picture
+      - say: For a causal model, choose a later state if the decision needs a later word. Then test
+          whether that representation distinguishes the messages. The next-token head learns to
+          predict what follows a prefix. Searching support guides gives that state a different job.
+        hold: 0.85
+        visual_cues:
+          - id: choose
+            phrase: choose a later state
+            targets:
+              - picture
+  - id: contrast
+    title: The lookup stays shared as the outputs separate
+    visual: A stable central lookup row feeds two sentence-specific states. A numeric cosine
+      comparison shows each contextual vector closer to its intended clue.
+    beats:
+      - say: Bring back the two bank states and compare their directions by cosine. In the river sentence,
+          the cyan tip now lines up more closely with river. The deposit sentence points closer to
+          money. Each score belongs to an occurrence of bank and the clue named beside it.
+        hold: 0.8
+        visual_cues:
+          - id: directions
+            phrase: compare their directions by cosine
+            targets:
+              - picture
+          - id: river
+            phrase: In the river sentence
+            targets:
+              - picture
+      - say: The blue row in the middle still starts both lookups. The model can reuse that one vocabulary
+          entry because each forward pass can read different evidence. To test whether this helps,
+          check the messages where choosing the sense changes the answer.
+        hold: 0.65
+        visual_cues:
+          - id: shared
+            phrase: The blue row in the middle
+            targets:
+              - picture
+      - say: If the tokenizer splits a word, which state stands for it? You might keep one subtoken,
+          combine its pieces, or represent the whole sentence. Pick the unit that the downstream
+          task has to compare.
+        hold: 0.75
+        visual_cues:
+          - id: subwords
+            phrase: If the tokenizer splits a word
+            targets:
+              - picture
+  - id: pooling
+    title: A sentence needs a representation rule
+    visual: Contextual token states combine through an explicit masked mean. A padding row stays
+      excluded and the pooled vector remains unchanged when it is added.
+    beats:
+      - say: A search index needs one vector for a whole message. Try a masked mean of these three token
+          rows. Add their coordinates. The sum is point eight, two point four. Divide both
+          coordinates by the three valid positions. That gives about point two six seven, point
+          eight. Another model might train a special token to summarize the message.
+        hold: 0.8
+        visual_cues:
+          - id: rule
+            phrase: Add their coordinates
+            targets:
+              - picture
+          - id: mean
+            phrase: Divide both coordinates by the three valid positions
+            targets:
+              - picture
+      - say: Append a fourth row for padding. Its stored numbers are one, one, but its mask is zero.
+          Select only the valid rows. The sum stays at point eight, two point four. The divisor
+          stays at three. Dividing by the stored length of four would pull the mean toward the
+          origin just because we padded the input.
+        hold: 0.9
+        visual_cues:
+          - id: padding
+            phrase: Append a fourth row for padding
+            targets:
+              - picture
+          - id: denominator
+            phrase: The divisor stays at three
+            targets:
+              - picture
+      - say: For a small fixed-vocabulary classifier, a lookup gives you a baseline to test for quality
+          and latency. For whole-ticket search, compare the pooled baseline with a model trained to
+          bring matching tickets and guides together. Use held-out tickets, the intended prefixes
+          and the same indexing recipe. Measure how often a relevant guide appears among the
+          returned results.
+        hold: 0.85
+        visual_cues:
+          - id: contract
+            phrase: For whole-ticket search
+            targets:
+              - picture
+  - id: limits
+    title: A familiar neighborhood still needs evaluation
+    visual: Four persistent endpoints translate by the same vector while river-money distance stays
+      fixed. Their normalized arrows become nearly aligned; subtracting the common mean separates
+      their directions again.
+    beats:
+      - say: Watch the gap between river and money. Add the same offset to every vector. The endpoints
+          move together, so the distance between them holds steady. From the origin their arrows now
+          point in nearly the same direction. Cosine rises even though the gap between the tips is
+          unchanged.
+        hold: 0.75
+        visual_cues:
+          - id: shift
+            phrase: Add the same offset to every vector
+            targets:
+              - picture
+      - say: Subtract the population mean from every vector. The directions open up again. Centering,
+          whitening or choosing a different layer changes the representation you score. A
+          two-dimensional projection can also distort the angles in the original space. Check the
+          actual vectors for the layer you plan to use.
+        hold: 0.75
+        visual_cues:
+          - id: center
+            phrase: Subtract the population mean
+            targets:
+              - picture
+      - say: Two guides can share nearly every word, even if one tells a customer to take the wrong
+          action. Try both on real queries with known relevant guides. Look at recall and ranking,
+          especially the failures that matter to the customer.
+        hold: 0.75
+        visual_cues:
+          - id: evaluate
+            phrase: Two guides can share nearly every word
+            targets:
+              - picture
+  - id: anisotropy-check
+    title: A centering trick needs a population diagnosis
+    visual: Construct the actual common-offset cosine, remove a fixed mean, expose the two-point
+      artifact and a possible zero-length centered state.
+    beats:
+      - say: Here the invoice state is ten, one. The phone state is ten, minus one. Their dot product is
+          ninety-nine. Each squared length is one hundred one. Their cosine is about point nine
+          eight zero two. That shared ten dominates the angle. Measurements of BERT, ELMo and
+          GPT-two found vectors crowded into narrow cones in many layers. Such a distribution favors
+          some directions over others. That is anisotropy.
+        hold: 0.8
+        visual_cues:
+          - id: dot
+            phrase: Their dot product is ninety-nine
+            targets:
+              - picture
+          - id: cosine
+            phrase: about point nine eight zero two
+            targets:
+              - picture
+      - say: Subtract the mean of these two points. Removing ten, zero leaves one arrow straight up and
+          the other straight down. Their cosine is minus one. Center any two distinct points on
+          their own midpoint and that will happen. Now use three points. The middle point equals
+          their mean. Subtract that mean and its length becomes zero. A cosine involving that point
+          is undefined.
+        hold: 0.85
+        visual_cues:
+          - id: center
+            phrase: Subtract the mean of these two points
+            targets:
+              - picture
+          - id: opposite
+            phrase: cosine is minus one
+            targets:
+              - picture
+          - id: zero
+            phrase: Now use three points
+            targets:
+              - picture
+      - say: Fit a proposed mean on a representative training sample. Use that fixed mean on held-out
+          queries and documents. Decide how to handle a zero vector before scoring it. Then compare
+          the retrieved guides on labeled tickets, including the ones that failed before. That tells
+          you whether changing the geometry helped the task.
+        hold: 0.8
+        visual_cues:
+          - id: population
+            phrase: Use that fixed mean on held-out queries and documents
+            targets:
+              - picture
+  - id: space-contract
+    title: An invoice query meets a new index
+    visual: Keep the article query fixed while both guide vectors turn ninety degrees. Record each
+      pair of cosine scores, then turn the query and compare all three rankings.
+    beats:
+      - say: Suppose our whole-ticket encoder already distinguishes the two requests. We can still send
+          someone to the wrong guide. In this small index, an invoice query and the invoice guide
+          both point right. The phone guide points down. All three have unit length. In version A,
+          invoice scores one and phone scores zero.
+        hold: 0.8
+        visual_cues:
+          - id: baseline
+            phrase: In version A
+            targets:
+              - picture
+      - say: Replace just the index. Version B turns every guide ninety degrees counterclockwise. Invoice
+          now points up. Phone points right. The service still sends the old query. Which guide will
+          it open?
+        hold: 2.8
+        visual_cues:
+          - id: docs
+            phrase: Version B turns every guide
+            targets:
+              - picture
+          - id: ask
+            phrase: Which guide will it open
+            targets:
+              - picture
+      - say: Phone gets the one. Its arrow now lies along the old invoice query. All the vectors still
+          have two coordinates and unit length. Now turn the query through the same angle. Invoice
+          gets the one again. Turning both sides together preserves their angles, even though their
+          coordinates change.
+        caption_starts: [Now turn the query, Invoice gets the one again]
+        hold: 0.9
+        visual_cues:
+          - id: mixed
+            phrase: Phone gets the one
+            targets:
+              - picture
+          - id: repair
+            phrase: turn the query through the same angle
+            targets:
+              - picture
+          - id: aligned
+            phrase: Invoice gets the one again
+            targets:
+              - picture
+      - say: Use a verified encoder pair. The query and document encoders can have separate weights
+          trained together, as in Dense Passage Retrieval. They can require different prefixes or
+          different encoding calls. Pin both revisions, preprocessing, pooling, normalization and
+          metric. When the space changes, rebuild the index and switch the matching query path with
+          it, unless a tested migration preserves compatibility.
+        hold: 0.85
+        visual_cues:
+          - id: pair
+            phrase: Use a verified encoder pair
+            targets:
+              - picture
+  - id: transfer
+    title: Change one clue for bank
+    visual: Replace only the river term in the established mix. Inspect the difference in coordinates,
+      then compare the unit direction with a mean of three unnormalized states.
+    beats:
+      - say: Before we test the new index, try changing the input to a single occurrence. This is our
+          earlier river bank calculation. Half the state comes from bank, four tenths from river and
+          one tenth from water. The yellow tip is at point three one, point seven four. Keep the
+          weights. Replace only river with money. Will the tip move up or down?
+        hold: 3
+        visual_cues:
+          - id: predict
+            phrase: Will the tip move up or down
+            targets:
+              - picture
+      - say: Make the replacement. River points mostly up and money points mostly right. Four tenths of
+          their difference adds point three six across and takes point three six off the height. The
+          new tip is at point six seven, point three eight. The blue lookup row stays put.
+        caption_starts: [River points mostly up, Four tenths of their difference, The new tip]
+        hold: 0.9
+        visual_cues:
+          - id: replace
+            phrase: Make the replacement
+            targets:
+              - picture
+      - say: "Normalize the new arrow and its direction stays fixed. To try a different summary, take the
+          mean of three unnormalized rows shown by this example: bank, the updated occurrence, and
+          water. The pink tip answers a different question from the yellow unit arrow. Fix the
+          choice of representation before comparing retrieval runs."
+        hold: 0.8
+        visual_cues:
+          - id: normalize
+            phrase: Normalize the new arrow
+            targets:
+              - picture
+          - id: pool
+            phrase: take the mean of three unnormalized rows
+            targets:
+              - picture
+  - id: fresh-representation
+    title: Two tickets, one index change
+    visual: Use a new two-coordinate search encoder. Rotate the two guide vectors clockwise. Score
+      both opening tickets by raw dot product before and after switching the query encoder.
+    beats:
+      - say: Each square represents a whole ticket now. The dots are guides. In this index each square
+          sits on its matching dot. Score them by raw dot product. Each ticket gives its own guide
+          two and the other guide zero.
+        caption_starts: [Score them by raw dot product, Each ticket gives its own guide]
+        hold: 0.9
+        visual_cues:
+          - id: control
+            phrase: Each ticket gives its own guide
+            targets:
+              - picture
+      - say: This new index turns the guides clockwise. It sends x, y to y, minus x. Keep the old query
+          encoder for this test. The guide coordinates are above the columns. The query is beside
+          each message. Multiply matching coordinates and add. Which ticket gets the wrong guide?
+        hold: 4
+        caption_starts: [Keep the old query encoder, Which ticket gets the wrong guide]
+        visual_cues:
+          - id: replace
+            phrase: turns the guides clockwise
+            targets:
+              - picture
+          - id: predict
+            phrase: Which ticket gets the wrong guide
+            targets:
+              - picture
+      - say: Score the invoice ticket first. Against invoice, subtract one from one. That's zero.
+          Against phone, add one and one. That's two. The billing ticket opens the phone guide.
+          Now score the phone ticket. It gives invoice minus two and phone zero. Phone still wins.
+          Testing just the phone ticket would miss the mismatch.
+        hold: 1.4
+        caption_starts:
+          - Against invoice
+          - That's zero
+          - Against phone
+          - That's two
+          - The billing ticket opens the phone guide
+          - Now score the phone ticket
+          - It gives invoice minus two and phone zero
+          - Phone still wins
+        visual_cues:
+          - id: subtract
+            phrase: Against invoice
+            targets: [picture]
+          - id: invoice-zero
+            phrase: That's zero
+            targets:
+              - picture
+          - id: add
+            phrase: Against phone
+            targets: [picture]
+          - id: invoice-two
+            phrase: That's two
+            targets: [picture]
+          - id: phone
+            phrase: It gives invoice minus two and phone zero
+            targets:
+              - picture
+          - id: verdict
+            phrase: Phone still wins
+            targets: [picture]
+      - say: Switch the query encoder to B. Watch the squares turn to join their guides. The diagonal
+          twos are back. Each ticket finds its own guide. Before rollout, try the encoder pair on
+          held-out tickets with known destinations.
+        caption_starts: [The diagonal twos are back, Before rollout]
+        hold: 1
+        visual_cues:
+          - id: pair
+            phrase: Switch the query encoder to B
+            targets:
+              - picture
+          - id: rescore
+            phrase: The diagonal twos are back
+            targets:
+              - picture
+          - id: rollout
+            phrase: Before rollout
+            targets:
+              - picture
+      - say: The billing ticket opened the phone guide twice for different reasons. First, search kept
+          only charge. Then it read both messages but used the old query encoder with the new index.
+          Keep the phone ticket and cover its last word. A language model reads the prefix and
+          scores possible next tokens. Phone is the token we score here. Next, we'll use the
+          probabilities assigned to the actual tokens in held-out text to calculate perplexity.
+        caption_starts:
+          - First, search kept only charge
+          - Then it read both messages
+          - Keep the phone ticket
+          - A language model reads the prefix
+          - Phone is the token
+          - Next, we'll use the probabilities
+        hold: 0.9
+        visual_cues:
+          - id: diagnosis
+            phrase: First search kept only charge
+            targets:
+              - picture
+          - id: pairing
+            phrase: Then it read both messages
+            targets: [picture]
+          - id: prefix
+            phrase: Keep the phone ticket
+            targets: [picture]
+          - id: next-word
+            phrase: Phone is the token
+            targets: [picture]

@@ -1,0 +1,260 @@
+version: 1
+lesson: embedding-geometry
+promise: Compute embedding similarity, width and compression effects; trace an authorized retrieval shortlist
+  and choose measured storage/search trade-offs without changing its scoring contract.
+framing: []
+objectives:
+  - id: opening
+    can: Compare the scoring question behind each ruler
+    scenes:
+      - opening
+  - id: coordinates
+    can: Compute dot products from the supplied coordinates
+    scenes:
+      - coordinates
+  - id: rulers
+    can: Calculate cosine and Euclidean gaps
+    scenes:
+      - rulers
+  - id: magnitude
+    can: Predict what positive scaling changes
+    scenes:
+      - magnitude
+  - id: normalize
+    can: Derive unit-vector rank equivalence
+    scenes:
+      - normalize
+  - id: norm-contract
+    can: Diagnose invalid and extreme input directions
+    scenes:
+      - norm-contract
+  - id: prefix
+    can: Compute the effect of a supported prefix and its tie rule
+    scenes:
+      - prefix
+  - id: payload
+    can: Calculate coordinate payload and retained-storage costs
+    scenes:
+      - payload
+  - id: quantization
+    can: Predict a quantized tie from actual rounded endpoints
+    scenes:
+      - quantization
+  - id: scalar-codec
+    can: Encode and reconstruct signed and range-offset bytes
+    scenes:
+      - scalar-codec
+  - id: scalar-scales
+    can: Repair a per-dimension scale omission
+    scenes:
+      - scalar-scales
+  - id: calibration
+    can: Evaluate ordinary resolution and clipped-case cost
+    scenes:
+      - calibration
+  - id: wide-arithmetic
+    can: Diagnose narrow integer overflow
+    scenes:
+      - wide-arithmetic
+  - id: pq-codebooks
+    can: Assign subspace centroid identities
+    scenes:
+      - pq-codebooks
+  - id: pq-distance
+    can: Compute ADC lookup totals and distinguish SDC
+    scenes:
+      - pq-distance
+  - id: pq-transform
+    can: Preserve objective and origin across OPQ and residual encoding
+    scenes:
+      - pq-transform
+  - id: binary-pack
+    can: Pack sign bits and calculate Hamming distance
+    scenes:
+      - binary-pack
+  - id: sign-angle
+    can: Distinguish fixed signs from a random-hyperplane expectation
+    scenes:
+      - sign-angle
+  - id: graph
+    can: Trace how retained graph alternatives recover a missed neighbor
+    scenes:
+      - graph
+  - id: index-memory
+    can: Compute level probability and separate build/query costs
+    scenes:
+      - index-memory
+  - id: authorized-funnel
+    can: Diagnose starvation at an authorization gate
+    scenes:
+      - authorized-funnel
+  - id: deployment
+    can: Measure an authorized rescore path
+    scenes:
+      - deployment
+  - id: synthesis
+    can: Design a versioned complete retrieval comparison
+    scenes:
+      - synthesis
+  - id: fresh-query
+    can: Predict fresh-query rankings and an irreversible shortlist omission
+    scenes:
+      - fresh-query
+sections:
+  - heading: Three ways to measure closeness
+    status: taught
+    scenes:
+      - coordinates
+      - rulers
+  - heading: Cosine similarity
+    status: taught
+    scenes:
+      - rulers
+      - norm-contract
+  - heading: Dot product
+    status: taught
+    scenes:
+      - coordinates
+      - magnitude
+  - heading: Euclidean distance
+    status: taught
+    scenes:
+      - rulers
+      - fresh-query
+  - heading: When the three rulers agree
+    status: taught
+    scenes:
+      - normalize
+      - norm-contract
+  - heading: Choosing how many dimensions you need
+    status: taught
+    scenes:
+      - prefix
+      - payload
+  - heading: Matryoshka prefixes still need a recall test
+    status: taught
+    scenes:
+      - prefix
+  - heading: "The memory problem: a sizing example"
+    status: taught
+    scenes:
+      - payload
+  - heading: "Step 1: the FP32 baseline"
+    status: taught
+    scenes:
+      - payload
+  - heading: "Step 2: 8-bit scalar quantization"
+    status: taught
+    scenes:
+      - payload
+      - scalar-codec
+  - heading: "Step 3: product quantization"
+    status: taught
+    scenes:
+      - payload
+      - pq-codebooks
+  - heading: Shrinking vectors without losing the hit
+    status: taught
+    scenes:
+      - quantization
+      - authorized-funnel
+  - heading: Scalar quantization (SQ)
+    status: taught
+    scenes:
+      - scalar-codec
+      - scalar-scales
+      - calibration
+      - wide-arithmetic
+  - heading: Product quantization (PQ)
+    status: taught
+    scenes:
+      - pq-codebooks
+      - pq-distance
+      - pq-transform
+  - heading: Binary quantization (BQ)
+    status: taught
+    scenes:
+      - binary-pack
+      - sign-angle
+  - heading: Shortlist cheaply, then rescore
+    status: taught
+    scenes:
+      - authorized-funnel
+      - deployment
+  - heading: Indexing the compressed codes
+    status: taught
+    scenes:
+      - graph
+      - index-memory
+  - heading: Bytes, RAM, and the shortlist bill
+    status: taught
+    scenes:
+      - payload
+      - index-memory
+  - heading: "Practice: choose a retrieval stack"
+    status: taught
+    scenes:
+      - payload
+      - authorized-funnel
+      - synthesis
+  - heading: Common pitfalls
+    status: taught
+    scenes:
+      - scalar-scales
+      - calibration
+      - wide-arithmetic
+      - pq-transform
+      - deployment
+quiz:
+  - n: 1
+    status: taught
+    scenes:
+      - rulers
+      - fresh-query
+  - n: 2
+    status: taught
+    scenes:
+      - norm-contract
+  - n: 3
+    status: taught
+    scenes:
+      - prefix
+  - n: 4
+    status: taught
+    scenes:
+      - payload
+  - n: 5
+    status: taught
+    scenes:
+      - scalar-scales
+  - n: 6
+    status: taught
+    scenes:
+      - wide-arithmetic
+  - n: 7
+    status: taught
+    scenes:
+      - pq-distance
+  - n: 8
+    status: taught
+    scenes:
+      - binary-pack
+  - n: 9
+    status: taught
+    scenes:
+      - authorized-funnel
+  - n: 10
+    status: taught
+    scenes:
+      - graph
+      - index-memory
+removed: []
+reviews:
+  closed_book:
+    script: 46877a70f2197f3a
+    taught: 10
+    partial: 0
+    absent: 0
+  fact_check:
+    script: 46877a70f2197f3a
+    open_findings: 0

@@ -1,0 +1,3192 @@
+version: 1
+id: deep-dive-mlflow
+title: MLflow and the Evidence Behind an AI Release
+source: projects/deep-dive-mlflow/content.md
+voice: af_heart
+rate: "+12%"
+sources:
+  - title: MLflow 3.16.1
+    url: https://github.com/mlflow/mlflow/releases/tag/v3.16.1
+  - title: Accelerating the Machine Learning Lifecycle with MLflow.
+    url: https://people.eecs.berkeley.edu/~alig/papers/mlflow.pdf
+  - title: MLflow Architecture Overview
+    url: https://mlflow.org/docs/latest/self-hosting/architecture/overview/
+  - title: Backend Stores
+    url: https://mlflow.org/docs/latest/self-hosting/architecture/backend-store/
+  - title: ML Experiment Tracking.
+    url: https://mlflow.org/docs/latest/ml/tracking/
+  - title: Model Registry Workflows | MLflow AI Platform
+    url: https://mlflow.org/docs/latest/ml/model-registry/workflow/
+  - title: MLflow 3.16.0 Release
+    url: https://github.com/mlflow/mlflow/releases/tag/v3.16.0
+  - title: LLM Tracing and Agent Observability
+    url: https://mlflow.org/docs/latest/genai/tracing/
+  - title: OpenTelemetry GenAI Semantic Conventions
+    url: https://github.com/open-telemetry/semantic-conventions-genai
+  - title: Building MLflow Evaluation Datasets
+    url: https://mlflow.org/docs/latest/genai/datasets/
+  - title: Automatic Evaluation
+    url: https://mlflow.org/docs/latest/genai/eval-monitor/automatic-evaluations/
+  - title: mlflow.genai Python API
+    url: https://mlflow.org/docs/latest/api_reference/python_api/mlflow.genai.html
+  - title: "MLflow 3.16.1: GenAI EvaluationResult and Passing Criteria"
+    url: https://github.com/mlflow/mlflow/blob/v3.16.1/mlflow/genai/evaluation/entities.py
+  - title: Prompt Registry
+    url: https://mlflow.org/docs/latest/genai/prompt-registry/index.html
+  - title: MLflow AI Gateway
+    url: https://mlflow.org/docs/latest/genai/governance/ai-gateway/
+  - title: Production Tracing
+    url: https://mlflow.org/docs/latest/genai/tracing/prod-tracing/
+  - title: Handling sensitive data
+    url: https://opentelemetry.io/docs/security/handling-sensitive-data/
+  - title: MLflow 3.16.1 Distribution Metadata
+    url: https://pypi.org/pypi/mlflow/3.16.1/json
+  - title: The MLflow Project Joins Linux Foundation
+    url: https://www.linuxfoundation.org/press/press-release/the-mlflow-project-joins-linux-foundation
+  - title: "MLflow: Open Source AI Engineering Platform"
+    url: https://github.com/mlflow/mlflow
+  - title: MLflow on Databricks
+    url: https://docs.databricks.com/gcp/en/mlflow/
+  - title: Contributing to MLflow
+    url: https://github.com/mlflow/mlflow/blob/0489fb31d8a144ec3c80d15eb44dbe24b790465e/CONTRIBUTING.md
+  - title: MLflow Technical Charter
+    url: https://github.com/mlflow/mlflow/blob/0489fb31d8a144ec3c80d15eb44dbe24b790465e/mlflow-charter.pdf
+  - title: MLflow Apache License 2.0
+    url: https://github.com/mlflow/mlflow/blob/0489fb31d8a144ec3c80d15eb44dbe24b790465e/LICENSE.txt
+scenes:
+  - id: intro
+    title: "How long do I have to make a return?"
+    visual: "Two replies slide into view, both saying 30 days. Follow the earlier reply's citation to the policy. Open the request records to compare the prompt and index each reply used."
+    beats:
+      - say: >-
+          Both replies say thirty days. The earlier reply links to document twelve. Open the link. The
+          policy says thirty days from delivery. Which reply leaves you looking for the source?
+        hold: 2.2
+        visual_cues:
+          - id: mf-sentence-intro-0-0
+            phrase: "Both replies say thirty days."
+            targets: [intro-construction]
+            linger: 0
+            caption_boundary: true
+          - id: mf-sentence-intro-0-1
+            phrase: "The earlier reply links to document twelve."
+            targets: [intro-construction]
+            linger: 0
+            caption_boundary: true
+          - id: mf-sentence-intro-0-2
+            phrase: "Open the link. The policy says thirty days from delivery."
+            targets: [intro-construction]
+            linger: 0
+            caption_boundary: true
+          - id: mf-sentence-intro-0-3
+            phrase: "Which reply leaves you looking for the source?"
+            targets: [intro-construction]
+            linger: 0
+            caption_boundary: true
+      - say: >-
+          The new one. Its citation field is empty. Open its MLflow trace beside the earlier trace. Both
+          requests used the same code and model. The prompt moved from sixteen to seventeen. The search
+          index moved from seven to eight.
+        hold: 0.75
+        visual_cues:
+          - id: mf-sentence-intro-1-0
+            phrase: "The new one. Its citation field is empty."
+            targets: [intro-construction]
+            linger: 0
+            caption_boundary: true
+          - id: mf-sentence-intro-1-1
+            phrase: "Open its MLflow trace beside the earlier trace."
+            targets: [intro-construction]
+            linger: 0
+            caption_boundary: true
+          - id: mf-sentence-intro-1-2
+            phrase: "Both requests used the same code and model."
+            targets: [intro-construction]
+            linger: 0
+            caption_boundary: true
+          - id: mf-sentence-intro-1-3
+            phrase: "The prompt moved from sixteen to seventeen."
+            targets: [intro-construction]
+            linger: 0
+            caption_boundary: true
+          - id: mf-sentence-intro-1-4
+            phrase: "The search index moved from seven to eight."
+            targets: [intro-construction]
+            linger: 0
+            caption_boundary: true
+      - say: >-
+          Each trace records the versions that request used. Let's test the prompt change against the
+          earlier reply. Put prompt seventeen in the replay. Which search index belongs beside it?
+        hold: 2.4
+        visual_cues:
+          - id: mf-sentence-intro-2-0
+            phrase: "Each trace records the versions that request used."
+            targets: [intro-construction]
+            linger: 0
+            caption_boundary: true
+          - id: mf-sentence-intro-2-1
+            phrase: "Let's test the prompt change against the earlier reply."
+            targets: [intro-construction]
+            linger: 0
+            caption_boundary: true
+          - id: mf-sentence-intro-2-2
+            phrase: "Put prompt seventeen in the replay. Which search index belongs beside it?"
+            targets: [intro-construction]
+            linger: 0
+            caption_boundary: true
+  - id: evidence-controls
+    title: "Set up the replay"
+    visual: >-
+          Complete the replay row against T103 by changing only the prompt. Then freeze T104 as RET-104
+          and build the candidate replay against that separate reference.
+    beats:
+      - say: >-
+          Use index seven, from the earlier request. Keep its question, commit and model. Change just
+          prompt sixteen to seventeen. Run the replay and see which source it cites.
+        hold: 0.7
+        visual_cues:
+          - id: mf-sentence-evidence-controls-0-0
+            phrase: "Use index seven, from the earlier request."
+            targets: [evidence-controls-construction]
+            linger: 0
+            caption_boundary: true
+          - id: mf-sentence-evidence-controls-0-1
+            phrase: "Keep its question, commit and model. Change just prompt sixteen to seventeen."
+            targets: [evidence-controls-construction]
+            linger: 0
+            caption_boundary: true
+          - id: mf-sentence-evidence-controls-0-2
+            phrase: "Run the replay and see which source it cites."
+            targets: [evidence-controls-construction]
+            linger: 0
+            caption_boundary: true
+      - say: >-
+          For a release test, keep the request that actually lost its citation. Save its question and the
+          allowed source, document twelve, under the case name RET one oh four. A trace records what
+          happened once. A case keeps the input and the expectation for the next run.
+        hold: 0.8
+        visual_cues:
+          - id: mf-sentence-evidence-controls-1-0
+            phrase: "For a release test, keep the request that actually lost its citation."
+            targets: [evidence-controls-construction]
+            linger: 0
+            caption_boundary: true
+          - id: mf-sentence-evidence-controls-1-1
+            phrase: "Save its question and the allowed source, document twelve, under the case name RET one oh four."
+            targets: [evidence-controls-construction]
+            linger: 0
+            caption_boundary: true
+          - id: mf-sentence-evidence-controls-1-2
+            phrase: "A trace records what happened once. A case keeps the input and the expectation for the next run."
+            targets: [evidence-controls-construction]
+            linger: 0
+            caption_boundary: true
+      - say: >-
+          Try candidate prompt eighteen on that case. This time the reference is the failed request, so
+          keep its index eight. The replay gets a new trace, T one oh five. Link it back to the case
+          before scoring the answer. That link lets us find the version, the output and the test that used
+          it.
+        hold: 0.85
+        visual_cues:
+          - id: mf-sentence-evidence-controls-2-0
+            phrase: "Try candidate prompt eighteen on that case."
+            targets: [evidence-controls-construction]
+            linger: 0
+            caption_boundary: true
+          - id: mf-sentence-evidence-controls-2-1
+            phrase: "This time the reference is the failed request, so keep its index eight."
+            targets: [evidence-controls-construction]
+            linger: 0
+            caption_boundary: true
+          - id: mf-sentence-evidence-controls-2-2
+            phrase: "The replay gets a new trace, T one oh five. Link it back to the case before scoring the answer."
+            targets: [evidence-controls-construction]
+            linger: 0
+            caption_boundary: true
+          - id: mf-sentence-evidence-controls-2-3
+            phrase: "That link lets us find the version, the output and the test that used it."
+            targets: [evidence-controls-construction]
+            linger: 0
+            caption_boundary: true
+  - id: stores
+    title: Searchable records and large bytes follow separate paths
+    visual: Run metadata routes to a database and a checkpoint routes to an artifact store. The route switches
+      from server-proxied to direct client upload while metadata ownership and credential locations remain
+      explicit.
+    beats:
+      - say: >
+          An experiment adds small searchable records and potentially huge checkpoint files. MLflow separates
+          those jobs. The backend store holds identities, parameters and metrics. The artifact store holds
+          large bytes such as weights, plots and evaluation tables. One run links the two storage paths.
+        hold: 0.6
+        visual_cues:
+          - id: stores-beat-1-focus-1
+            phrase: The artifact store holds large bytes such as weights, plots and evaluation tables
+            targets:
+              - stores-artifact-store-2-gb
+            color: cyan
+            linger: 0.65
+          - id: stores-beat-1-focus-2
+            phrase: One run links the two storage paths
+            targets:
+              - stores-sdk-run-r8
+            color: yellow
+            linger: 0.65
+          - id: mf-sentence-stores-0-0
+            phrase: An experiment adds small searchable records and potentially huge checkpoint files.
+            targets:
+              - stores-construction
+            color: cyan
+            linger: 0
+          - id: mf-sentence-stores-0-1
+            phrase: MLflow separates those jobs.
+            targets:
+              - stores-construction
+            color: cyan
+            linger: 0
+          - id: mf-sentence-stores-0-2
+            phrase: The backend store holds identities, parameters and metrics.
+            targets:
+              - stores-construction
+            color: cyan
+            linger: 0
+          - id: mf-sentence-stores-0-3
+            phrase: The artifact store holds large bytes such as weights, plots and evaluation tables.
+            targets:
+              - stores-construction
+            color: cyan
+            linger: 0
+          - id: mf-sentence-stores-0-4
+            phrase: One run links the two storage paths.
+            targets:
+              - stores-construction
+            color: cyan
+            linger: 0
+      - say: >
+          In a proxied setup, the client sends artifact bytes through the tracking server. Storage credentials
+          can remain with that server. Its network capacity and access checks become part of the artifact
+          path. Search traffic and large uploads still have different scaling requirements.
+        hold: 0.6
+        visual_cues:
+          - id: stores-beat-2-focus-1
+            phrase: In a proxied setup, the client sends artifact bytes through the tracking server
+            targets:
+              - stores-sdk-run-r8
+              - stores-tracking-server
+              - stores-artifact-store-2-gb
+            color: cyan
+            linger: 0.65
+          - id: mf-sentence-stores-1-0
+            phrase: In a proxied setup, the client sends artifact bytes through the tracking server.
+            targets:
+              - stores-construction
+            color: cyan
+            linger: 0
+          - id: mf-sentence-stores-1-1
+            phrase: Storage credentials can remain with that server.
+            targets:
+              - stores-construction
+            color: cyan
+            linger: 0
+          - id: mf-sentence-stores-1-2
+            phrase: Its network capacity and access checks become part of the artifact path.
+            targets:
+              - stores-construction
+            color: cyan
+            linger: 0
+          - id: mf-sentence-stores-1-3
+            phrase: Search traffic and large uploads still have different scaling requirements.
+            targets:
+              - stores-construction
+            color: cyan
+            linger: 0
+      - say: >
+          A direct setup sends large bytes from the client to object storage instead. The client now needs
+          appropriate storage access. Changing routing settings does not relocate existing experiments
+          automatically. Keep the recorded artifact location and a digest of its contents with the run you
+          intend to reproduce.
+        hold: 0.6
+        visual_cues:
+          - id: stores-direct-artifact
+            phrase: A direct setup sends large bytes from the client to object storage instead
+            targets:
+              - stores-sdk-run-r8
+              - stores-artifact-store-2-gb
+            color: green
+            linger: 0.5
+          - id: stores-client-storage-access
+            phrase: The client now needs appropriate storage access
+            targets:
+              - stores-storage-authority
+            color: yellow
+            linger: 0.5
+          - id: mf-sentence-stores-2-0
+            phrase: A direct setup sends large bytes from the client to object storage instead.
+            targets:
+              - stores-construction
+            color: cyan
+            linger: 0
+          - id: mf-sentence-stores-2-1
+            phrase: The client now needs appropriate storage access.
+            targets:
+              - stores-construction
+            color: cyan
+            linger: 0
+          - id: mf-sentence-stores-2-2
+            phrase: Changing routing settings does not relocate existing experiments automatically.
+            targets:
+              - stores-construction
+            color: cyan
+            linger: 0
+          - id: mf-sentence-stores-2-3
+            phrase: Keep the recorded artifact location and a digest of its contents with the run you intend to reproduce.
+            targets:
+              - stores-construction
+            color: cyan
+            linger: 0
+  - id: store-route
+    title: "Fetch the old checkpoint"
+    visual: >-
+          Follow R8's recorded direct artifact location before and after the server enables a proxy for
+          new experiments. Fetch each checkpoint along its own route and identify the actor that needs
+          storage access.
+    beats:
+      - say: >-
+          Run R eight wrote its checkpoint before the server enabled proxying. Look up the run's
+          experiment. Its stored artifact location points directly to the old bucket. To fetch those
+          bytes, the worker opens that location with its own scoped storage credentials.
+        hold: 0.7
+        visual_cues:
+          - id: mf-sentence-store-route-0-0
+            phrase: "Run R eight wrote its checkpoint before the server enabled proxying. Look up the run's experiment."
+            targets: [store-route-construction]
+            linger: 0
+            caption_boundary: true
+          - id: mf-sentence-store-route-0-1
+            phrase: "Its stored artifact location points directly to the old bucket."
+            targets: [store-route-construction]
+            linger: 0
+            caption_boundary: true
+          - id: mf-sentence-store-route-0-2
+            phrase: "To fetch those bytes, the worker opens that location with its own scoped storage credentials."
+            targets: [store-route-construction]
+            linger: 0
+            caption_boundary: true
+      - say: >-
+          Now the administrator enables proxying for new experiments. A new run gets a proxy location. R
+          eight still points to the old bucket. The server has access to both buckets. If the worker loses
+          its direct access, can it still fetch R eight from the recorded location?
+        hold: 2.1
+        visual_cues:
+          - id: mf-sentence-store-route-1-0
+            phrase: "Now the administrator enables proxying for new experiments."
+            targets: [store-route-construction]
+            linger: 0
+            caption_boundary: true
+          - id: mf-sentence-store-route-1-1
+            phrase: "A new run gets a proxy location. R eight still points to the old bucket."
+            targets: [store-route-construction]
+            linger: 0
+            caption_boundary: true
+          - id: mf-sentence-store-route-1-2
+            phrase: "The server has access to both buckets. If the worker loses its direct access, can it still fetch R eight from the recorded location?"
+            targets: [store-route-construction]
+            linger: 0
+            caption_boundary: true
+      - say: >-
+          The old download fails the storage check. Restore the worker's authorized access or explicitly
+          migrate the old artifact and its references. For the new location, the worker asks the tracking
+          server, and the server reads the bytes with its scoped role. The server must also check who may
+          read that artifact. The article's SQLite lab uses local files. A deployed service needs its own
+          access tests.
+        hold: 0.85
+        visual_cues:
+          - id: mf-sentence-store-route-2-0
+            phrase: "The old download fails the storage check. Restore the worker's authorized access or explicitly migrate the old artifact and its references."
+            targets: [store-route-construction]
+            linger: 0
+            caption_boundary: true
+          - id: mf-sentence-store-route-2-1
+            phrase: "For the new location, the worker asks the tracking server, and the server reads the bytes with its scoped role."
+            targets: [store-route-construction]
+            linger: 0
+            caption_boundary: true
+          - id: mf-sentence-store-route-2-2
+            phrase: "The server must also check who may read that artifact. The article's SQLite lab uses local files. A deployed service needs its own access tests."
+            targets: [store-route-construction]
+            linger: 0
+            caption_boundary: true
+  - id: metadata-mutability
+    title: The database enforces different mutation contracts
+    visual: Try to change retrieval_k from 40 to 50. Compare that write with edits to a run tag and a prompt configuration.
+    beats:
+      - say: The native three-point-sixteen-point-one lab logs retrieval K forty. It then attempts fifty under the
+          same run and parameter key. The existing parameter value must remain forty. In the SQL store, a
+          uniqueness conflict is checked in the transaction; a different old value raises the
+          changing-parameter error after rollback.
+        hold: 0.8
+        visual_cues:
+          - id: mf-metadata-mutability-0
+            phrase: The native three-point-sixteen-point-one lab logs retrieval K forty.
+            targets:
+              - metadata-mutability-construction
+            color: cyan
+            linger: 0.4
+          - id: mf-sentence-metadata-mutability-0-0
+            phrase: The native three-point-sixteen-point-one lab logs retrieval K forty.
+            targets:
+              - metadata-mutability-construction
+            color: cyan
+            linger: 0
+          - id: mf-sentence-metadata-mutability-0-1
+            phrase: It then attempts fifty under the same run and parameter key.
+            targets:
+              - metadata-mutability-construction
+            color: cyan
+            linger: 0
+          - id: mf-sentence-metadata-mutability-0-2
+            phrase: The existing parameter value must remain forty.
+            targets:
+              - metadata-mutability-construction
+            color: cyan
+            linger: 0
+          - id: mf-sentence-metadata-mutability-0-3
+            phrase: In the SQL store, a uniqueness conflict is checked in the transaction; a different old value raises
+              the changing-parameter error after rollback.
+            targets:
+              - metadata-mutability-construction
+            color: cyan
+            linger: 0
+      - say: A run tag follows a different contract. The lab changes review state from pending to approved, and the
+          later read returns approved. The same prompt template version also accepts model configuration
+          changes from temperature point two to point eight. The template text remains fixed. A stable record
+          identifier does not make every attached field immutable.
+        hold: 0.8
+        visual_cues:
+          - id: mf-metadata-mutability-1
+            phrase: A run tag follows a different contract.
+            targets:
+              - metadata-mutability-construction
+            color: cyan
+            linger: 0.4
+          - id: mf-sentence-metadata-mutability-1-0
+            phrase: A run tag follows a different contract.
+            targets:
+              - metadata-mutability-construction
+            color: cyan
+            linger: 0
+          - id: mf-sentence-metadata-mutability-1-1
+            phrase: The lab changes review state from pending to approved, and the later read returns approved.
+            targets:
+              - metadata-mutability-construction
+            color: cyan
+            linger: 0
+          - id: mf-sentence-metadata-mutability-1-2
+            phrase: The same prompt template version also accepts model configuration changes from temperature point two
+              to point eight.
+            targets:
+              - metadata-mutability-construction
+            color: cyan
+            linger: 0
+          - id: mf-sentence-metadata-mutability-1-3
+            phrase: The template text remains fixed.
+            targets:
+              - metadata-mutability-construction
+            color: cyan
+            linger: 0
+          - id: mf-sentence-metadata-mutability-1-4
+            phrase: A stable record identifier does not make every attached field immutable.
+            targets:
+              - metadata-mutability-construction
+            color: cyan
+            linger: 0
+      - say: >-
+          The earlier record says pending. Today's tag says approved. To find out who approved the release,
+          open the workflow's approval record. Save the approver and time alongside the configuration the
+          request used. Keep those configuration bytes with their digest so you can retrieve and verify
+          them.
+        hold: 0.8
+        visual_cues:
+          - id: mf-metadata-mutability-2
+            phrase: "The earlier record says pending. Today's tag says approved."
+            targets:
+              - metadata-mutability-construction
+            color: green
+            linger: 0.4
+          - id: mf-sentence-metadata-mutability-2-0
+            phrase: "The earlier record says pending. Today's tag says approved."
+            targets:
+              - metadata-mutability-construction
+            color: cyan
+            linger: 0
+          - id: mf-sentence-metadata-mutability-2-1
+            phrase: "To find out who approved the release, open the workflow's approval record."
+            targets:
+              - metadata-mutability-construction
+            color: cyan
+            linger: 0
+          - id: mf-sentence-metadata-mutability-2-2
+            phrase: "Save the approver and time alongside the configuration the request used."
+            targets:
+              - metadata-mutability-construction
+            color: cyan
+            linger: 0
+          - id: mf-sentence-metadata-mutability-2-3
+            phrase: "Keep those configuration bytes with their digest so you can retrieve and verify them."
+            targets:
+              - metadata-mutability-construction
+            color: cyan
+            linger: 0
+  - id: lineage
+    title: Distinct identities answer distinct reconstruction questions
+    visual: Select run R8 and attach its exact code C8, data D4 and prompt P17 records one at a time. Carry logged
+      model M3 into registry version three and then the resolved request T104, whose runtime prompt P17 and
+      index I8 remain distinct. Retain that request as case RET-104.
+    beats:
+      - say: >
+          Build the lineage one edge at a time. This run records a source revision, a frozen dataset snapshot
+          and a resolved prompt. The run's metric is meaningful only alongside those inputs. Logging a number
+          successfully establishes persistence; the experiment design determines what the number means.
+        hold: 0.6
+        visual_cues:
+          - id: lineage-beat-1-focus-1
+            phrase: This run records a source revision, a frozen dataset snapshot and a resolved prompt
+            targets:
+              - lineage-run-r8
+            color: cyan
+            linger: 0.65
+          - id: lineage-beat-1-focus-2
+            phrase: Logging a number successfully establishes persistence; the experiment design determines what the
+              number means
+            targets:
+              - lineage-label
+            color: yellow
+            linger: 0.65
+          - id: mf-sentence-lineage-0-0
+            phrase: Build the lineage one edge at a time.
+            targets:
+              - lineage-construction
+            color: cyan
+            linger: 0
+          - id: mf-sentence-lineage-0-1
+            phrase: This run records a source revision, a frozen dataset snapshot and a resolved prompt.
+            targets:
+              - lineage-construction
+            color: cyan
+            linger: 0
+          - id: mf-sentence-lineage-0-2
+            phrase: The run's metric is meaningful only alongside those inputs.
+            targets:
+              - lineage-construction
+            color: cyan
+            linger: 0
+          - id: mf-sentence-lineage-0-3
+            phrase: Logging a number successfully establishes persistence; the experiment design determines what the
+              number means.
+            targets:
+              - lineage-construction
+            color: cyan
+            linger: 0
+      - say: >
+          The run creates a logged model with its own identity. Registering that model assigns a separate
+          registry version. Neither identifier is the run ID. Following the links reaches the actual artifact
+          and its source evidence, which is more precise than trusting a convenient model name.
+        hold: 0.6
+        visual_cues:
+          - id: lineage-beat-2-focus-1
+            phrase: The run creates a logged model with its own identity
+            targets:
+              - lineage-logged-model-m3
+            color: cyan
+            linger: 0.65
+          - id: lineage-beat-2-focus-2
+            phrase: Registering that model assigns a separate registry version
+            targets:
+              - lineage-registry-version-3
+            color: yellow
+            linger: 0.65
+          - id: mf-sentence-lineage-1-0
+            phrase: The run creates a logged model with its own identity.
+            targets:
+              - lineage-construction
+            color: cyan
+            linger: 0
+          - id: mf-sentence-lineage-1-1
+            phrase: Registering that model assigns a separate registry version.
+            targets:
+              - lineage-construction
+            color: cyan
+            linger: 0
+          - id: mf-sentence-lineage-1-2
+            phrase: Neither identifier is the run ID.
+            targets:
+              - lineage-construction
+            color: cyan
+            linger: 0
+          - id: mf-sentence-lineage-1-3
+            phrase: Following the links reaches the actual artifact and its source evidence, which is more precise than
+              trusting a convenient model name.
+            targets:
+              - lineage-construction
+            color: cyan
+            linger: 0
+      - say: >
+          A failing request has its own trace identity and can become an evaluation case with retained inputs
+          and expectations. Some named records have mutable fields, including aliases and dataset contents.
+          Preserve the resolved configuration and content digest used by each evaluation so later edits cannot
+          silently change the comparison.
+        hold: 0.6
+        visual_cues:
+          - id: lineage-beat-3-focus-1
+            phrase: A failing request has its own trace identity and can become an evaluation case with retained inputs
+              and expectations
+            targets:
+              - lineage-request-t104-model-m3-prompt-p17-index-i8
+            color: cyan
+            linger: 0.65
+          - id: lineage-beat-3-focus-2
+            phrase: Some named records have mutable fields, including aliases and dataset contents
+            targets:
+              - lineage-run-r8
+            color: yellow
+            linger: 0.65
+          - id: mf-sentence-lineage-2-0
+            phrase: A failing request has its own trace identity and can become an evaluation case with retained inputs
+              and expectations.
+            targets:
+              - lineage-construction
+            color: cyan
+            linger: 0
+          - id: mf-sentence-lineage-2-1
+            phrase: Some named records have mutable fields, including aliases and dataset contents.
+            targets:
+              - lineage-construction
+            color: cyan
+            linger: 0
+          - id: mf-sentence-lineage-2-2
+            phrase: Preserve the resolved configuration and content digest used by each evaluation so later edits cannot
+              silently change the comparison.
+            targets:
+              - lineage-construction
+            color: cyan
+            linger: 0
+  - id: model-package
+    title: A model package needs a loader and an input contract
+    visual: Attach model files, flavor loader, environment and signature to the logged object, then register its
+      artifact.
+    beats:
+      - say: An MLflow model package contains model files and a flavor-specific loader, with environment metadata and
+          an optional input-output signature. A logged model has its own identity and may link to a source
+          run. Registration assigns a separate model version. Run R-eight, logged model M-three and registry
+          version three answer different reconstruction questions.
+        hold: 0.8
+        visual_cues:
+          - id: mf-model-package-0
+            phrase: An MLflow model package contains model files and a flavor-specific loader, with environment metadata
+              and an optional input-output signature.
+            targets:
+              - model-package-construction
+            color: cyan
+            linger: 0.4
+          - id: mf-sentence-model-package-0-0
+            phrase: An MLflow model package contains model files and a flavor-specific loader, with environment metadata
+              and an optional input-output signature.
+            targets:
+              - model-package-construction
+            color: cyan
+            linger: 0
+          - id: mf-sentence-model-package-0-1
+            phrase: A logged model has its own identity and may link to a source run.
+            targets:
+              - model-package-construction
+            color: cyan
+            linger: 0
+          - id: mf-sentence-model-package-0-2
+            phrase: Registration assigns a separate model version.
+            targets:
+              - model-package-construction
+            color: cyan
+            linger: 0
+          - id: mf-sentence-model-package-0-3
+            phrase: Run R-eight, logged model M-three and registry version three answer different reconstruction
+              questions.
+            targets:
+              - model-package-construction
+            color: cyan
+            linger: 0
+      - say: A signature can detect an incompatible input schema when the serving path applies it. To check the
+          answer, run a case with a known result. A versioned model record can still point to artifact
+          storage whose bytes someone can overwrite. Record and compare the actual evaluated digest, and
+          retain a reproducible environment rather than trusting a display name.
+        hold: 0.8
+        visual_cues:
+          - id: mf-model-package-1
+            phrase: A signature can detect an incompatible input schema when the serving path applies it.
+            targets:
+              - model-package-construction
+            color: cyan
+            linger: 0.4
+          - id: mf-sentence-model-package-1-0
+            phrase: A signature can detect an incompatible input schema when the serving path applies it.
+            targets:
+              - model-package-construction
+            color: cyan
+            linger: 0
+          - id: mf-sentence-model-package-1-1
+            phrase: To check the answer, run a case with a known result.
+            targets:
+              - model-package-construction
+            color: cyan
+            linger: 0
+          - id: mf-sentence-model-package-1-2
+            phrase: A versioned model record can still point to artifact storage whose bytes someone can overwrite.
+            targets:
+              - model-package-construction
+            color: cyan
+            linger: 0
+          - id: mf-sentence-model-package-1-3
+            phrase: Record and compare the actual evaluated digest, and retain a reproducible environment rather than
+              trusting a display name.
+            targets:
+              - model-package-construction
+            color: cyan
+            linger: 0
+      - say: Model aliases provide a mutable reference to numbered versions. The older fixed model stages were
+          deprecated in favor of aliases, tags and environment-specific registered models. An alias update is
+          an authorized registry operation; the release controller separately decides whether the candidate
+          has sufficient evidence. After approval, the production alias can move from version three to four.
+        hold: 0.8
+        visual_cues:
+          - id: mf-model-package-2
+            phrase: Model aliases provide a mutable reference to numbered versions.
+            targets:
+              - model-package-construction
+            color: green
+            linger: 0.4
+          - id: mf-sentence-model-package-2-0
+            phrase: Model aliases provide a mutable reference to numbered versions.
+            targets:
+              - model-package-construction
+            color: cyan
+            linger: 0
+          - id: mf-sentence-model-package-2-1
+            phrase: The older fixed model stages were deprecated in favor of aliases, tags and environment-specific
+              registered models.
+            targets:
+              - model-package-construction
+            color: cyan
+            linger: 0
+          - id: mf-sentence-model-package-2-2
+            phrase: An alias update is an authorized registry operation; the release controller separately decides whether
+              the candidate has sufficient evidence.
+            targets:
+              - model-package-construction
+            color: cyan
+            linger: 0
+          - id: mf-sentence-model-package-2-3
+            phrase: After approval, the production alias can move from version three to four.
+            targets:
+              - model-package-construction
+            color: cyan
+            linger: 0
+  - id: trace
+    title: "Where did the request spend its time?"
+    visual: >-
+          Build T104 on one millisecond ruler. Project its three sequential children onto the root, keep
+          both nested operations inside generation, and isolate the uncovered right edge.
+    beats:
+      - say: >-
+          Open the trace for the reply with the empty citation. Its clock stops at fourteen hundred twenty
+          milliseconds. Retrieval takes a hundred forty-five. Reranking takes another hundred ten.
+          Generation then takes eleven hundred thirty milliseconds. Inside it, the model call and the
+          citation check have their own spans. A span records when an operation started and ended. Read
+          all six against the same clock.
+        hold: 0.8
+        visual_cues:
+          - id: mf-sentence-trace-0-0
+            phrase: "Open the trace for the reply with the empty citation. Its clock stops at fourteen hundred twenty milliseconds."
+            targets: [trace-construction]
+            linger: 0
+            caption_boundary: true
+          - id: mf-sentence-trace-0-1
+            phrase: "Retrieval takes a hundred forty-five. Reranking takes another hundred ten."
+            targets: [trace-construction]
+            linger: 0
+            caption_boundary: true
+          - id: mf-sentence-trace-0-2
+            phrase: "Generation then takes eleven hundred thirty milliseconds. Inside it, the model call and the citation check have their own spans."
+            targets: [trace-construction]
+            linger: 0
+            caption_boundary: true
+          - id: mf-sentence-trace-0-3
+            phrase: "A span records when an operation started and ended. Read all six against the same clock."
+            targets: [trace-construction]
+            linger: 0
+            caption_boundary: true
+      - say: >-
+          Project the three direct children onto the request clock. Retrieval and reranking cover the
+          first two hundred fifty-five milliseconds. Generation takes the covered interval to thirteen
+          hundred eighty-five. The model call sits entirely inside generation. How many milliseconds of
+          the request lie beyond those three children?
+        hold: 2.2
+        visual_cues:
+          - id: mf-sentence-trace-1-0
+            phrase: "Project the three direct children onto the request clock."
+            targets: [trace-construction]
+            linger: 0
+            caption_boundary: true
+          - id: mf-sentence-trace-1-1
+            phrase: "Retrieval and reranking cover the first two hundred fifty-five milliseconds. Generation takes the covered interval to thirteen hundred eighty-five."
+            targets: [trace-construction]
+            linger: 0
+            caption_boundary: true
+          - id: mf-sentence-trace-1-2
+            phrase: "The model call sits entirely inside generation."
+            targets: [trace-construction]
+            linger: 0
+            caption_boundary: true
+          - id: mf-sentence-trace-1-3
+            phrase: "How many milliseconds of the request lie beyond those three children?"
+            targets: [trace-construction]
+            linger: 0
+            caption_boundary: true
+      - say: >-
+          Thirty-five milliseconds, at the right edge. Adding the nested model call would count its time
+          twice inside generation. The long bar tells us where time went. To find the missing citation,
+          we'll also need the records that went into the answer.
+        hold: 0.8
+        visual_cues:
+          - id: mf-sentence-trace-2-0
+            phrase: "Thirty-five milliseconds, at the right edge."
+            targets: [trace-construction]
+            linger: 0
+            caption_boundary: true
+          - id: mf-sentence-trace-2-1
+            phrase: "Adding the nested model call would count its time twice inside generation."
+            targets: [trace-construction]
+            linger: 0
+            caption_boundary: true
+          - id: mf-sentence-trace-2-2
+            phrase: "The long bar tells us where time went. To find the missing citation, we'll also need the records that went into the answer."
+            targets: [trace-construction]
+            linger: 0
+            caption_boundary: true
+  - id: trace-overlap
+    title: "Two children on the same clock"
+    visual: >-
+          Project two overlapping direct spans onto parallel strips of the same ruler, collapse their
+          common 100 ms once, then measure the uncovered part of the 800 ms root.
+    beats:
+      - say: >-
+          Try a different request. Its clock stops at eight hundred milliseconds. Child A runs from zero
+          to three hundred. Child B starts at two hundred and ends at six hundred fifty. Inside B, a model
+          runs from two hundred fifty to five hundred fifty. How much of the root clock lies outside both
+          direct children?
+        hold: 2.4
+        visual_cues:
+          - id: mf-sentence-trace-overlap-0-0
+            phrase: "Try a different request. Its clock stops at eight hundred milliseconds."
+            targets: [trace-overlap-construction]
+            linger: 0
+            caption_boundary: true
+          - id: mf-sentence-trace-overlap-0-1
+            phrase: "Child A runs from zero to three hundred."
+            targets: [trace-overlap-construction]
+            linger: 0
+            caption_boundary: true
+          - id: mf-sentence-trace-overlap-0-2
+            phrase: "Child B starts at two hundred and ends at six hundred fifty."
+            targets: [trace-overlap-construction]
+            linger: 0
+            caption_boundary: true
+          - id: mf-sentence-trace-overlap-0-3
+            phrase: "Inside B, a model runs from two hundred fifty to five hundred fifty."
+            targets: [trace-overlap-construction]
+            linger: 0
+            caption_boundary: true
+          - id: mf-sentence-trace-overlap-0-4
+            phrase: "How much of the root clock lies outside both direct children?"
+            targets: [trace-overlap-construction]
+            linger: 0
+            caption_boundary: true
+      - say: >-
+          Slide the two child intervals down to the ruler. From two hundred to three hundred both strips
+          cover the same hundred milliseconds. Count that stretch once. The union covers six hundred fifty
+          milliseconds, leaving a hundred fifty outside. A flat sum gives seven hundred fifty and leaves
+          only fifty. It charged for the overlap twice.
+        hold: 0.8
+        caption_starts:
+          - "leaving a hundred fifty outside"
+        visual_cues:
+          - id: mf-sentence-trace-overlap-1-0
+            phrase: "Slide the two child intervals down to the ruler."
+            targets: [trace-overlap-construction]
+            linger: 0
+            caption_boundary: true
+          - id: mf-sentence-trace-overlap-1-1
+            phrase: "From two hundred to three hundred both strips cover the same hundred milliseconds. Count that stretch once."
+            targets: [trace-overlap-construction]
+            linger: 0
+            caption_boundary: true
+          - id: mf-sentence-trace-overlap-1-2
+            phrase: "The union covers six hundred fifty milliseconds, leaving a hundred fifty outside."
+            targets: [trace-overlap-construction]
+            linger: 0
+            caption_boundary: true
+          - id: mf-sentence-trace-overlap-1-3
+            phrase: "A flat sum gives seven hundred fifty and leaves only fifty. It charged for the overlap twice."
+            targets: [trace-overlap-construction]
+            linger: 0
+            caption_boundary: true
+      - say: >-
+          The model span fits inside B, so it adds no new stretch of clock. If you want to shorten this
+          request, check which operation waits for which. The bars alone don't give you that dependency.
+          These are elapsed milliseconds from one clock. CPU usage needs another measurement, and
+          timestamps from different machines need a common time reference.
+        hold: 0.8
+        visual_cues:
+          - id: mf-sentence-trace-overlap-2-0
+            phrase: "The model span fits inside B, so it adds no new stretch of clock."
+            targets: [trace-overlap-construction]
+            linger: 0
+            caption_boundary: true
+          - id: mf-sentence-trace-overlap-2-1
+            phrase: "If you want to shorten this request, check which operation waits for which. The bars alone don't give you that dependency."
+            targets: [trace-overlap-construction]
+            linger: 0
+            caption_boundary: true
+          - id: mf-sentence-trace-overlap-2-2
+            phrase: "These are elapsed milliseconds from one clock. CPU usage needs another measurement, and timestamps from different machines need a common time reference."
+            targets: [trace-overlap-construction]
+            linger: 0
+            caption_boundary: true
+  - id: trace-links
+    title: A span link is not another child duration
+    visual: Link T104 to a related trace while keeping their root intervals separate.
+    beats:
+      - say: Parent-child edges describe nested work inside a trace. A span link can instead connect a related
+          operation or another request. The article’s release baseline introduced span links separately from
+          ordinary nesting. A link helps navigate provenance; it does not place the linked root’s entire
+          duration inside this root or make their durations additive.
+        hold: 0.8
+        visual_cues:
+          - id: mf-trace-links-0
+            phrase: Parent-child edges describe nested work inside a trace.
+            targets:
+              - trace-links-construction
+            color: cyan
+            linger: 0.4
+          - id: mf-sentence-trace-links-0-0
+            phrase: Parent-child edges describe nested work inside a trace.
+            targets:
+              - trace-links-construction
+            color: cyan
+            linger: 0
+          - id: mf-sentence-trace-links-0-1
+            phrase: A span link can instead connect a related operation or another request.
+            targets:
+              - trace-links-construction
+            color: cyan
+            linger: 0
+          - id: mf-sentence-trace-links-0-2
+            phrase: The article’s release baseline introduced span links separately from ordinary nesting.
+            targets:
+              - trace-links-construction
+            color: cyan
+            linger: 0
+          - id: mf-sentence-trace-links-0-3
+            phrase: A link helps navigate provenance; it does not place the linked root’s entire duration inside this root
+              or make their durations additive.
+            targets:
+              - trace-links-construction
+            color: cyan
+            linger: 0
+      - say: Instrumentation may come from a decorator, a manual span context, an integration hook or OpenTelemetry
+          ingestion. Automatic hooks describe the calls they observe. Manual spans can capture application
+          decisions such as which records entered a prompt or why promotion was blocked. Arbitrary application
+          code does not acquire complete lineage merely because tracing is enabled.
+        hold: 0.8
+        visual_cues:
+          - id: mf-trace-links-1
+            phrase: Instrumentation may come from a decorator, a manual span context, an integration hook or OpenTelemetry
+              ingestion.
+            targets:
+              - trace-links-construction
+            color: cyan
+            linger: 0.4
+          - id: mf-sentence-trace-links-1-0
+            phrase: Instrumentation may come from a decorator, a manual span context, an integration hook or OpenTelemetry
+              ingestion.
+            targets:
+              - trace-links-construction
+            color: cyan
+            linger: 0
+          - id: mf-sentence-trace-links-1-1
+            phrase: Automatic hooks describe the calls they observe.
+            targets:
+              - trace-links-construction
+            color: cyan
+            linger: 0
+          - id: mf-sentence-trace-links-1-2
+            phrase: Manual spans can capture application decisions such as which records entered a prompt or why promotion
+              was blocked.
+            targets:
+              - trace-links-construction
+            color: cyan
+            linger: 0
+          - id: mf-sentence-trace-links-1-3
+            phrase: Arbitrary application code does not acquire complete lineage merely because tracing is enabled.
+            targets:
+              - trace-links-construction
+            color: cyan
+            linger: 0
+      - say: Record parent identity, start and end, status and selected inputs or outputs with known meanings.
+          Preserve provider and model identity at the call that actually used them. Keep sensitive values out
+          of those fields deliberately. If a step is missing, check whether it was instrumented, whether the
+          trace was sampled and whether the exporter delivered it.
+        hold: 0.8
+        visual_cues:
+          - id: mf-trace-links-2
+            phrase: Record parent identity, start and end, status and selected inputs or outputs with known meanings.
+            targets:
+              - trace-links-construction
+            color: green
+            linger: 0.4
+          - id: mf-sentence-trace-links-2-0
+            phrase: Record parent identity, start and end, status and selected inputs or outputs with known meanings.
+            targets:
+              - trace-links-construction
+            color: cyan
+            linger: 0
+          - id: mf-sentence-trace-links-2-1
+            phrase: Preserve provider and model identity at the call that actually used them.
+            targets:
+              - trace-links-construction
+            color: cyan
+            linger: 0
+          - id: mf-sentence-trace-links-2-2
+            phrase: Keep sensitive values out of those fields deliberately.
+            targets:
+              - trace-links-construction
+            color: cyan
+            linger: 0
+          - id: mf-sentence-trace-links-2-3
+            phrase: If a step is missing, check whether it was instrumented, whether the trace was sampled and whether the exporter delivered it.
+            targets:
+              - trace-links-construction
+            color: cyan
+            linger: 0
+  - id: context-chain
+    title: "Did document twelve reach the model?"
+    visual: >-
+          Follow the marked document from forty retrieved IDs through the eight selected records. Compare
+          those records with the exact packed input before replaying a corrected pack.
+    beats:
+      - say: >-
+          In T one oh four, retrieval returns forty documents. Find the yellow one, document twelve. The
+          reranker keeps eight, including twelve. Open the actual input the packer sent to the model.
+          These are all the document IDs in it. At which boundary did twelve first go missing?
+        hold: 2.1
+        visual_cues:
+          - id: mf-sentence-context-chain-0-0
+            phrase: "In T one oh four, retrieval returns forty documents. Find the yellow one, document twelve."
+            targets: [context-chain-construction]
+            linger: 0
+            caption_boundary: true
+          - id: mf-sentence-context-chain-0-1
+            phrase: "The reranker keeps eight, including twelve."
+            targets: [context-chain-construction]
+            linger: 0
+            caption_boundary: true
+          - id: mf-sentence-context-chain-0-2
+            phrase: "Open the actual input the packer sent to the model. These are all the document IDs in it."
+            targets: [context-chain-construction]
+            linger: 0
+            caption_boundary: true
+          - id: mf-sentence-context-chain-0-3
+            phrase: "At which boundary did twelve first go missing?"
+            targets: [context-chain-construction]
+            linger: 0
+            caption_boundary: true
+      - say: >-
+          Between reranking and packing. Twelve is on the left side of that boundary and absent on the
+          right. A selection rule or a token budget could explain the omission. Inspect that decision in
+          the packer. For a controlled replay, include the missing document in the packed input. Now
+          inspect the new output and run the citation check. Sending the document gives the model a chance
+          to cite it.
+        hold: 0.8
+        visual_cues:
+          - id: mf-sentence-context-chain-1-0
+            phrase: "Between reranking and packing. Twelve is on the left side of that boundary and absent on the right."
+            targets: [context-chain-construction]
+            linger: 0
+            caption_boundary: true
+          - id: mf-sentence-context-chain-1-1
+            phrase: "A selection rule or a token budget could explain the omission. Inspect that decision in the packer."
+            targets: [context-chain-construction]
+            linger: 0
+            caption_boundary: true
+          - id: mf-sentence-context-chain-1-2
+            phrase: "For a controlled replay, include the missing document in the packed input."
+            targets: [context-chain-construction]
+            linger: 0
+            caption_boundary: true
+          - id: mf-sentence-context-chain-1-3
+            phrase: "Now inspect the new output and run the citation check. Sending the document gives the model a chance to cite it."
+            targets: [context-chain-construction]
+            linger: 0
+            caption_boundary: true
+      - say: >-
+          If the document was already in the failed request's input, start the investigation one step
+          later. Read the instructions, the generated claim and the citation check on that trace. Keep the
+          document revision, permitted content and transformations behind each ID. The ID alone can't tell
+          you what policy text the model saw.
+        hold: 0.85
+        visual_cues:
+          - id: mf-sentence-context-chain-2-0
+            phrase: "If the document was already in the failed request's input, start the investigation one step later."
+            targets: [context-chain-construction]
+            linger: 0
+            caption_boundary: true
+          - id: mf-sentence-context-chain-2-1
+            phrase: "Read the instructions, the generated claim and the citation check on that trace."
+            targets: [context-chain-construction]
+            linger: 0
+            caption_boundary: true
+          - id: mf-sentence-context-chain-2-2
+            phrase: "Keep the document revision, permitted content and transformations behind each ID. The ID alone can't tell you what policy text the model saw."
+            targets: [context-chain-construction]
+            linger: 0
+            caption_boundary: true
+  - id: citation-computation
+    title: "What does the citation scorer accept?"
+    visual: >-
+          Run the local scorer on the three fixture responses. Append a second document to a passing list,
+          test each member against the same allowed set, and keep the source-text check separate.
+    beats:
+      - say: >-
+          Here is the check we'll use on the return-window case. Document twelve is the only allowed
+          source. An empty list fails because the answer supplied no citation. A list containing document
+          ninety-nine fails because that document is outside the allowed set. A list containing document
+          twelve passes. All three replies say thirty days.
+        hold: 0.8
+        visual_cues:
+          - id: mf-sentence-citation-computation-0-0
+            phrase: "Here is the check we'll use on the return-window case. Document twelve is the only allowed source."
+            targets: [citation-computation-construction]
+            linger: 0
+            caption_boundary: true
+          - id: mf-sentence-citation-computation-0-1
+            phrase: "An empty list fails because the answer supplied no citation."
+            targets: [citation-computation-construction]
+            linger: 0
+            caption_boundary: true
+          - id: mf-sentence-citation-computation-0-2
+            phrase: "A list containing document ninety-nine fails because that document is outside the allowed set."
+            targets: [citation-computation-construction]
+            linger: 0
+            caption_boundary: true
+          - id: mf-sentence-citation-computation-0-3
+            phrase: "A list containing document twelve passes. All three replies say thirty days."
+            targets: [citation-computation-construction]
+            linger: 0
+            caption_boundary: true
+      - say: >-
+          Keep that passing reply on the desk. Append document ninety-nine after twelve. Leave the allowed
+          set alone. It's still a list, and it still contains a valid citation. Will this reply pass the
+          same scorer?
+        hold: 2.2
+        visual_cues:
+          - id: mf-sentence-citation-computation-1-0
+            phrase: "Keep that passing reply on the desk."
+            targets: [citation-computation-construction]
+            linger: 0
+            caption_boundary: true
+          - id: mf-sentence-citation-computation-1-1
+            phrase: "Append document ninety-nine after twelve. Leave the allowed set alone."
+            targets: [citation-computation-construction]
+            linger: 0
+            caption_boundary: true
+          - id: mf-sentence-citation-computation-1-2
+            phrase: "It's still a list, and it still contains a valid citation. Will this reply pass the same scorer?"
+            targets: [citation-computation-construction]
+            linger: 0
+            caption_boundary: true
+      - say: >-
+          Test the members in order. Twelve belongs to the allowed set. Ninety-nine doesn't, so the whole
+          list fails. A bare string with the right document name also fails. The scorer expects a nonempty
+          list of strings, each on the allowed list.
+        hold: 0.85
+        visual_cues:
+          - id: mf-sentence-citation-computation-2-0
+            phrase: "Test the members in order. Twelve belongs to the allowed set."
+            targets: [citation-computation-construction]
+            linger: 0
+            caption_boundary: true
+          - id: mf-sentence-citation-computation-2-1
+            phrase: "Ninety-nine doesn't, so the whole list fails."
+            targets: [citation-computation-construction]
+            linger: 0
+            caption_boundary: true
+          - id: mf-sentence-citation-computation-2-2
+            phrase: "A bare string with the right document name also fails. The scorer expects a nonempty list of strings, each on the allowed list."
+            targets: [citation-computation-construction]
+            linger: 0
+            caption_boundary: true
+      - say: >-
+          There's one more distinction in that passing reply. The scorer looked up a document ID. To check
+          the claim about thirty days, open the cited revision and compare its text with the answer. If
+          you use a judge for that comparison, have people label the same examples. Compare their labels
+          with the judge's, inspect disagreements, and save the judge model, prompt, settings and rubric.
+        hold: 0.9
+        visual_cues:
+          - id: mf-sentence-citation-computation-3-0
+            phrase: "There's one more distinction in that passing reply. The scorer looked up a document ID."
+            targets: [citation-computation-construction]
+            linger: 0
+            caption_boundary: true
+          - id: mf-sentence-citation-computation-3-1
+            phrase: "To check the claim about thirty days, open the cited revision and compare its text with the answer."
+            targets: [citation-computation-construction]
+            linger: 0
+            caption_boundary: true
+          - id: mf-sentence-citation-computation-3-2
+            phrase: "If you use a judge for that comparison, have people label the same examples. Compare their labels with the judge's, inspect disagreements, and save the judge model, prompt, settings and rubric."
+            targets: [citation-computation-construction]
+            linger: 0
+            caption_boundary: true
+  - id: evaluation
+    title: "Reading the citation score sheet"
+    visual: >-
+          Dock citation assessments by case ID in a fixed three-slot worksheet. Keep both denominators
+          visible while A and C arrive out of order and B's slot stays open through the question.
+    beats:
+      - say: >-
+          Keep three required slots for the citation scorer. The return-window regression is case A. On
+          the first run, A returns an empty list, B cites document ninety-nine, and C cites the allowed
+          document twelve. All three were scored. Only C passed, so the observed mean is one third.
+        hold: 0.7
+        visual_cues:
+          - id: mf-sentence-evaluation-0-0
+            phrase: "Keep three required slots for the citation scorer. The return-window regression is case A."
+            targets: [evaluation-construction]
+            linger: 0
+            caption_boundary: true
+          - id: mf-sentence-evaluation-0-1
+            phrase: "On the first run, A returns an empty list, B cites document ninety-nine, and C cites the allowed document twelve."
+            targets: [evaluation-construction]
+            linger: 0
+            caption_boundary: true
+          - id: mf-sentence-evaluation-0-2
+            phrase: "All three were scored. Only C passed, so the observed mean is one third."
+            targets: [evaluation-construction]
+            linger: 0
+            caption_boundary: true
+      - say: >-
+          Now switch to the candidate. Its first score comes back for C. Put it in C's slot. Another
+          passing score comes back for A. Match it by name. That's two passes out of two scored. Which
+          required case would you run before moving the alias?
+        hold: 2.4
+        visual_cues:
+          - id: mf-sentence-evaluation-1-0
+            phrase: "Now switch to the candidate. Its first score comes back for C."
+            targets: [evaluation-construction]
+            linger: 0
+            caption_boundary: true
+          - id: mf-sentence-evaluation-1-1
+            phrase: "Put it in C's slot."
+            targets: [evaluation-construction]
+            linger: 0
+            caption_boundary: true
+          - id: mf-sentence-evaluation-1-2
+            phrase: "Another passing score comes back for A. Match it by name."
+            targets: [evaluation-construction]
+            linger: 0
+            caption_boundary: true
+          - id: mf-sentence-evaluation-1-3
+            phrase: "That's two passes out of two scored. Which required case would you run before moving the alias?"
+            targets: [evaluation-construction]
+            linger: 0
+            caption_boundary: true
+      - say: >-
+          Run B. Its empty slot tells you exactly what's missing. B now returns a passing score for this
+          same candidate. Keep A and C where they are. Coverage rises from two of three to three of three.
+          The observed mean stays perfect. That clears the required citation checks. The release
+          controller still has to match the candidate to the artifact that earned them.
+        hold: 0.9
+        visual_cues:
+          - id: mf-sentence-evaluation-2-0
+            phrase: "Run B. Its empty slot tells you exactly what's missing."
+            targets: [evaluation-construction]
+            linger: 0
+            caption_boundary: true
+          - id: mf-sentence-evaluation-2-1
+            phrase: "B now returns a passing score for this same candidate. Keep A and C where they are."
+            targets: [evaluation-construction]
+            linger: 0
+            caption_boundary: true
+          - id: mf-sentence-evaluation-2-2
+            phrase: "Coverage rises from two of three to three of three. The observed mean stays perfect."
+            targets: [evaluation-construction]
+            linger: 0
+            caption_boundary: true
+          - id: mf-sentence-evaluation-2-3
+            phrase: "That clears the required citation checks. The release controller still has to match the candidate to the artifact that earned them."
+            targets: [evaluation-construction]
+            linger: 0
+            caption_boundary: true
+  - id: evaluation-result
+    title: "What did the passing summary count?"
+    visual: >-
+          Compare the SDK's produced results with the required slots. On a separate result, keep B's
+          failure in view while a late passing C fills its slot and changes both denominators.
+    beats:
+      - say: >-
+          In MLflow three point sixteen point one, the passed flag looks for a failed scorer result. Take
+          two true scores and one empty cell with no scorer error. The implementation skips that cell. The
+          flag can read true even though C never received a score. An absent result table can also return
+          true.
+        hold: 0.8
+        visual_cues:
+          - id: mf-sentence-evaluation-result-0-0
+            phrase: "In MLflow three point sixteen point one, the passed flag looks for a failed scorer result."
+            targets: [evaluation-result-construction]
+            linger: 0
+            caption_boundary: true
+          - id: mf-sentence-evaluation-result-0-1
+            phrase: "Take two true scores and one empty cell with no scorer error. The implementation skips that cell."
+            targets: [evaluation-result-construction]
+            linger: 0
+            caption_boundary: true
+          - id: mf-sentence-evaluation-result-0-2
+            phrase: "The flag can read true even though C never received a score. An absent result table can also return true."
+            targets: [evaluation-result-construction]
+            linger: 0
+            caption_boundary: true
+      - say: >-
+          Try a fresh result. A passes, B fails, and C has no assessment. Join each score to its required
+          case and scorer. Reject duplicate or unexpected rows, and require a Boolean for this check. Two
+          of three required cells have scores. One of those two passes. If C comes back true, will the
+          controller clear this candidate?
+        hold: 2.3
+        visual_cues:
+          - id: mf-sentence-evaluation-result-1-0
+            phrase: "Try a fresh result. A passes, B fails, and C has no assessment."
+            targets: [evaluation-result-construction]
+            linger: 0
+            caption_boundary: true
+          - id: mf-sentence-evaluation-result-1-1
+            phrase: "Join each score to its required case and scorer. Reject duplicate or unexpected rows, and require a Boolean for this check."
+            targets: [evaluation-result-construction]
+            linger: 0
+            caption_boundary: true
+          - id: mf-sentence-evaluation-result-1-2
+            phrase: "Two of three required cells have scores. One of those two passes."
+            targets: [evaluation-result-construction]
+            linger: 0
+            caption_boundary: true
+          - id: mf-sentence-evaluation-result-1-3
+            phrase: "If C comes back true, will the controller clear this candidate?"
+            targets: [evaluation-result-construction]
+            linger: 0
+            caption_boundary: true
+      - say: >-
+          Here comes C. All three cells now have scores. The observed mean rises to two thirds. Look at B.
+          Its false score still blocks release. Run the failing case after a repair and assess the changed
+          candidate against the required set. The controller owns this policy.
+        hold: 0.85
+        visual_cues:
+          - id: mf-sentence-evaluation-result-2-0
+            phrase: "Here comes C. All three cells now have scores."
+            targets: [evaluation-result-construction]
+            linger: 0
+            caption_boundary: true
+          - id: mf-sentence-evaluation-result-2-1
+            phrase: "The observed mean rises to two thirds."
+            targets: [evaluation-result-construction]
+            linger: 0
+            caption_boundary: true
+          - id: mf-sentence-evaluation-result-2-2
+            phrase: "Look at B. Its false score still blocks release."
+            targets: [evaluation-result-construction]
+            linger: 0
+            caption_boundary: true
+          - id: mf-sentence-evaluation-result-2-3
+            phrase: "Run the failing case after a repair and assess the changed candidate against the required set. The controller owns this policy."
+            targets: [evaluation-result-construction]
+            linger: 0
+            caption_boundary: true
+  - id: dataset-mutation
+    title: "Which citation does this case accept?"
+    visual: "Keep the reply and its citation fixed above the saved and current expectations. Slide DOC-13 into the current record. Hold both snapshots for the prediction, then score the reply against each."
+    beats:
+      - say: >-
+          This answer cites document twelve. Our return-window case accepts that source. Save a copy of the
+          question and its allowed source. Here the case lives in an MLflow evaluation dataset backed by
+          SQLite. For offline evaluation you can also pass the cases directly as a Python list.
+        hold: 0.8
+        visual_cues:
+          - id: mf-dataset-mutation-0
+            phrase: "This answer cites document twelve."
+            targets:
+              - dataset-mutation-construction
+            color: cyan
+            linger: 0.4
+          - id: mf-sentence-dataset-mutation-0-0
+            phrase: "This answer cites document twelve."
+            targets:
+              - dataset-mutation-construction
+            color: cyan
+            linger: 0
+          - id: mf-sentence-dataset-mutation-0-1
+            phrase: "Our return-window case accepts that source. Save a copy of the question and its allowed source."
+            targets:
+              - dataset-mutation-construction
+            color: cyan
+            linger: 0
+          - id: mf-sentence-dataset-mutation-0-2
+            phrase: "Here the case lives in an MLflow evaluation dataset backed by SQLite."
+            targets:
+              - dataset-mutation-construction
+            color: cyan
+            linger: 0
+          - id: mf-sentence-dataset-mutation-0-3
+            phrase: "For offline evaluation you can also pass the cases directly as a Python list."
+            targets:
+              - dataset-mutation-construction
+            color: cyan
+            linger: 0
+      - say: >-
+          Merge the same question with a new allowed source, document thirteen. Only the current record
+          changes. The dataset ID stays the same, but the content digests now differ. The answer still
+          cites twelve. How will it score against each snapshot?
+        hold: 2.2
+        visual_cues:
+          - id: mf-dataset-mutation-1
+            phrase: "Merge the same question with a new allowed source, document thirteen."
+            targets:
+              - dataset-mutation-construction
+            color: cyan
+            linger: 0.4
+          - id: mf-sentence-dataset-mutation-1-0
+            phrase: "Merge the same question with a new allowed source, document thirteen."
+            targets:
+              - dataset-mutation-construction
+            color: cyan
+            linger: 0
+          - id: mf-sentence-dataset-mutation-1-1
+            phrase: "Only the current record changes."
+            targets:
+              - dataset-mutation-construction
+            color: cyan
+            linger: 0
+          - id: mf-sentence-dataset-mutation-1-2
+            phrase: "The dataset ID stays the same, but the content digests now differ."
+            targets:
+              - dataset-mutation-construction
+            color: cyan
+            linger: 0
+          - id: mf-sentence-dataset-mutation-1-3
+            phrase: "The answer still cites twelve."
+            targets:
+              - dataset-mutation-construction
+            color: cyan
+            linger: 0
+          - id: mf-sentence-dataset-mutation-1-4
+            phrase: "How will it score against each snapshot?"
+            targets:
+              - dataset-mutation-construction
+            color: cyan
+            linger: 0
+      - say: >-
+          It passes the saved case. It fails the edited one. Only the allowed source changed. Keep the
+          inputs, expectations and scorer settings together so you can rerun that comparison. Save the
+          contents with their digest so you can check the copy you retrieve. Use known failures for
+          regression tests. Keep separate holdout cases to see how the candidate handles other questions.
+        hold: 0.8
+        caption_starts:
+          - "It fails the edited one"
+        visual_cues:
+          - id: mf-dataset-mutation-2
+            phrase: "It passes the saved case."
+            targets:
+              - dataset-mutation-construction
+            color: green
+            linger: 0.4
+          - id: mf-sentence-dataset-mutation-2-0
+            phrase: "It passes the saved case."
+            targets:
+              - dataset-mutation-construction
+            color: cyan
+            linger: 0
+          - id: mf-sentence-dataset-mutation-2-1
+            phrase: "It fails the edited one."
+            targets:
+              - dataset-mutation-construction
+            color: cyan
+            linger: 0
+          - id: mf-sentence-dataset-mutation-2-2
+            phrase: "Keep the inputs, expectations and scorer settings together so you can rerun that comparison."
+            targets:
+              - dataset-mutation-construction
+            color: cyan
+            linger: 0
+          - id: mf-sentence-dataset-mutation-2-3
+            phrase: "Save the contents with their digest so you can check the copy you retrieve."
+            targets:
+              - dataset-mutation-construction
+            color: cyan
+            linger: 0
+          - id: mf-sentence-dataset-mutation-2-4
+            phrase: "Use known failures for regression tests. Keep separate holdout cases to see how the candidate handles other questions."
+            targets:
+              - dataset-mutation-construction
+            color: cyan
+            linger: 0
+  - id: sdk-evidence
+    title: "What comes back from the local SDK?"
+    visual: Read back run/metric/artifact/two-span trace, move prompt alias, mutate config, evaluate three static
+      outputs.
+    beats:
+      - say: >-
+          The downloadable lab pins Python three point twelve and MLflow three point sixteen point one. It
+          disables usage telemetry and async trace logging, then creates temporary SQLite and local
+          artifact storage. It reads back a run, metric, error-slice file and a two-span trace. The lab
+          writes point eight one as the metric and reads back that same value.
+        hold: 0.8
+        visual_cues:
+          - id: mf-sdk-evidence-0
+            phrase: The downloadable lab pins Python three point twelve and MLflow three point sixteen point one.
+            targets:
+              - sdk-evidence-construction
+            color: cyan
+            linger: 0.4
+          - id: mf-sentence-sdk-evidence-0-0
+            phrase: The downloadable lab pins Python three point twelve and MLflow three point sixteen point one.
+            targets:
+              - sdk-evidence-construction
+            color: cyan
+            linger: 0
+          - id: mf-sentence-sdk-evidence-0-1
+            phrase: It disables usage telemetry and async trace logging, then creates temporary SQLite and local artifact
+              storage.
+            targets:
+              - sdk-evidence-construction
+            color: cyan
+            linger: 0
+          - id: mf-sentence-sdk-evidence-0-2
+            phrase: It reads back a run, metric, error-slice file and a two-span trace.
+            targets:
+              - sdk-evidence-construction
+            color: cyan
+            linger: 0
+          - id: mf-sentence-sdk-evidence-0-3
+            phrase: "The lab writes point eight one as the metric and reads back that same value."
+            targets:
+              - sdk-evidence-construction
+            color: cyan
+            linger: 0
+      - say: >-
+          The lab registers two prompt templates, loads the old alias object, moves the alias and loads
+          again with zero cache TTL. The old object remains version one and the fresh object is version
+          two. It also verifies the fixed parameter, mutable run tag and mutable temperature configuration.
+          With zero cache time, the second lookup goes straight back to the registry.
+        hold: 0.8
+        visual_cues:
+          - id: mf-sdk-evidence-1
+            phrase: The lab registers two prompt templates, loads the old alias object, moves the alias and loads again
+              with zero cache TTL.
+            targets:
+              - sdk-evidence-construction
+            color: cyan
+            linger: 0.4
+          - id: mf-sentence-sdk-evidence-1-0
+            phrase: The lab registers two prompt templates, loads the old alias object, moves the alias and loads again
+              with zero cache TTL.
+            targets:
+              - sdk-evidence-construction
+            color: cyan
+            linger: 0
+          - id: mf-sentence-sdk-evidence-1-1
+            phrase: The old object remains version one and the fresh object is version two.
+            targets:
+              - sdk-evidence-construction
+            color: cyan
+            linger: 0
+          - id: mf-sentence-sdk-evidence-1-2
+            phrase: It also verifies the fixed parameter, mutable run tag and mutable temperature configuration.
+            targets:
+              - sdk-evidence-construction
+            color: cyan
+            linger: 0
+          - id: mf-sentence-sdk-evidence-1-3
+            phrase: "With zero cache time, the second lookup goes straight back to the registry."
+            targets:
+              - sdk-evidence-construction
+            color: cyan
+            linger: 0
+      - say: >-
+          Run the three citation lists through the local scorer. The empty list fails. The unknown document
+          fails. Document twelve passes. One pass out of three keeps this candidate out of production under
+          our rule. The two failed rows tell us which answers to inspect.
+        hold: 0.8
+        visual_cues:
+          - id: mf-sdk-evidence-2
+            phrase: "Run the three citation lists through the local scorer."
+            targets:
+              - sdk-evidence-construction
+            color: green
+            linger: 0.4
+          - id: mf-sentence-sdk-evidence-2-0
+            phrase: "Run the three citation lists through the local scorer."
+            targets:
+              - sdk-evidence-construction
+            color: cyan
+            linger: 0
+          - id: mf-sentence-sdk-evidence-2-1
+            phrase: "The empty list fails. The unknown document fails. Document twelve passes."
+            targets:
+              - sdk-evidence-construction
+            color: cyan
+            linger: 0
+          - id: mf-sentence-sdk-evidence-2-2
+            phrase: "One pass out of three keeps this candidate out of production under our rule."
+            targets:
+              - sdk-evidence-construction
+            color: cyan
+            linger: 0
+          - id: mf-sentence-sdk-evidence-2-3
+            phrase: "The two failed rows tell us which answers to inspect."
+            targets:
+              - sdk-evidence-construction
+            color: cyan
+            linger: 0
+  - id: automatic-evidence
+    title: Measure how much eligible traffic actually got scored
+    visual: Follow eight eligible traces through selection and assessment. Divide the number scored by the number eligible.
+    beats:
+      - say: Offline evaluation runs when the application calls evaluate on selected data. Automatic evaluation
+          applies configured judges to sampled or filter-matched traces and conversations in the server. The
+          documented standard judge path uses AI Gateway model endpoints. It considers recent eligible traces,
+          and a failed evaluation is not automatically retried. Request logging and judge completion are
+          separate events.
+        hold: 0.8
+        visual_cues:
+          - id: mf-automatic-evidence-0
+            phrase: Offline evaluation runs when the application calls evaluate on selected data.
+            targets:
+              - automatic-evidence-construction
+            color: cyan
+            linger: 0.4
+          - id: mf-sentence-automatic-evidence-0-0
+            phrase: Offline evaluation runs when the application calls evaluate on selected data.
+            targets:
+              - automatic-evidence-construction
+            color: cyan
+            linger: 0
+          - id: mf-sentence-automatic-evidence-0-1
+            phrase: Automatic evaluation applies configured judges to sampled or filter-matched traces and conversations
+              in the server.
+            targets:
+              - automatic-evidence-construction
+            color: cyan
+            linger: 0
+          - id: mf-sentence-automatic-evidence-0-2
+            phrase: The documented standard judge path uses AI Gateway model endpoints.
+            targets:
+              - automatic-evidence-construction
+            color: cyan
+            linger: 0
+          - id: mf-sentence-automatic-evidence-0-3
+            phrase: It considers recent eligible traces, and a failed evaluation is not automatically retried.
+            targets:
+              - automatic-evidence-construction
+            color: cyan
+            linger: 0
+          - id: mf-sentence-automatic-evidence-0-4
+            phrase: Request logging and judge completion are separate events.
+            targets:
+              - automatic-evidence-construction
+            color: cyan
+            linger: 0
+      - say: >-
+          Track the eligible population, selected subset and completed assessment set separately. Of eight
+          eligible traces, four were selected and three received scores. All three passed. That's a perfect
+          mean on the scored traces and coverage of three eighths. Change the filter and you change which
+          traffic that mean describes.
+        hold: 0.8
+        visual_cues:
+          - id: mf-automatic-evidence-1
+            phrase: Track the eligible population, selected subset and completed assessment set separately.
+            targets:
+              - automatic-evidence-construction
+            color: cyan
+            linger: 0.4
+          - id: mf-sentence-automatic-evidence-1-0
+            phrase: Track the eligible population, selected subset and completed assessment set separately.
+            targets:
+              - automatic-evidence-construction
+            color: cyan
+            linger: 0
+          - id: mf-sentence-automatic-evidence-1-1
+            phrase: "Of eight eligible traces, four were selected and three received scores."
+            targets:
+              - automatic-evidence-construction
+            color: cyan
+            linger: 0
+          - id: mf-sentence-automatic-evidence-1-2
+            phrase: "All three passed. That's a perfect mean on the scored traces and coverage of three eighths."
+            targets:
+              - automatic-evidence-construction
+            color: cyan
+            linger: 0
+          - id: mf-sentence-automatic-evidence-1-3
+            phrase: "Change the filter and you change which traffic that mean describes."
+            targets:
+              - automatic-evidence-construction
+            color: cyan
+            linger: 0
+      - say: Documentation inspected on November seventh, twenty twenty-six, additionally describes an experimental
+          administrator-configured container path for code scorers on self-hosted servers. That exception is
+          separate from the standard LLM-judge workflow and from this pinned local SDK lab. Verify actual
+          release support and configuration before relying on either. Async scoring can avoid a synchronous
+          judge wait while still consuming shared server resources and logging overhead.
+        hold: 0.8
+        visual_cues:
+          - id: mf-automatic-evidence-2
+            phrase: Documentation inspected on November seventh, twenty twenty-six, additionally describes an experimental
+              administrator-configured container path for code scorers on self-hosted servers.
+            targets:
+              - automatic-evidence-construction
+            color: green
+            linger: 0.4
+          - id: mf-sentence-automatic-evidence-2-0
+            phrase: Documentation inspected on November seventh, twenty twenty-six, additionally describes an experimental
+              administrator-configured container path for code scorers on self-hosted servers.
+            targets:
+              - automatic-evidence-construction
+            color: cyan
+            linger: 0
+          - id: mf-sentence-automatic-evidence-2-1
+            phrase: That exception is separate from the standard LLM-judge workflow and from this pinned local SDK lab.
+            targets:
+              - automatic-evidence-construction
+            color: cyan
+            linger: 0
+          - id: mf-sentence-automatic-evidence-2-2
+            phrase: Verify actual release support and configuration before relying on either.
+            targets:
+              - automatic-evidence-construction
+            color: cyan
+            linger: 0
+          - id: mf-sentence-automatic-evidence-2-3
+            phrase: Async scoring can avoid a synchronous judge wait while still consuming shared server resources and
+              logging overhead.
+            targets:
+              - automatic-evidence-construction
+            color: cyan
+            linger: 0
+  - id: alias
+    title: "A worker reads the production alias"
+    visual: >-
+          Keep versions 17 and 18 fixed on a registry shelf. Move the production pointer, stamp the
+          currently held version on a request, then load the new version on the next eligible lookup.
+    beats:
+      - say: >-
+          Our worker asks for the production version of the support prompt. The registry resolves that
+          name to seventeen. The worker keeps a copy. Production is an alias, a name that can point to a
+          different version later. Keep the resolved version on the request receipt.
+        hold: 0.75
+        visual_cues:
+          - id: mf-sentence-alias-0-0
+            phrase: "Our worker asks for the production version of the support prompt."
+            targets: [alias-construction]
+            linger: 0
+            caption_boundary: true
+          - id: mf-sentence-alias-0-1
+            phrase: "The registry resolves that name to seventeen. The worker keeps a copy."
+            targets: [alias-construction]
+            linger: 0
+            caption_boundary: true
+          - id: mf-sentence-alias-0-2
+            phrase: "Production is an alias, a name that can point to a different version later."
+            targets: [alias-construction]
+            linger: 0
+            caption_boundary: true
+          - id: mf-sentence-alias-0-3
+            phrase: "Keep the resolved version on the request receipt."
+            targets: [alias-construction]
+            linger: 0
+            caption_boundary: true
+      - say: >-
+          Move the production alias to eighteen. The worker still has its earlier copy in memory. Halfway
+          to its refresh deadline, another request arrives. Which version will this worker use?
+        hold: 2
+        visual_cues:
+          - id: mf-sentence-alias-1-0
+            phrase: "Move the production alias to eighteen."
+            targets: [alias-construction]
+            linger: 0
+            caption_boundary: true
+          - id: mf-sentence-alias-1-1
+            phrase: "The worker still has its earlier copy in memory."
+            targets: [alias-construction]
+            linger: 0
+            caption_boundary: true
+          - id: mf-sentence-alias-1-2
+            phrase: "Halfway to its refresh deadline, another request arrives. Which version will this worker use?"
+            targets: [alias-construction]
+            linger: 0
+            caption_boundary: true
+      - say: >-
+          Seventeen. The request uses the copy the worker already holds. At the deadline the application
+          loads the prompt again. This lookup resolves eighteen. Now the next request records eighteen.
+          Different workers can reach this point at different times. Record the loaded configuration too.
+          The template version alone doesn't pin every setting.
+        hold: 1
+        visual_cues:
+          - id: mf-sentence-alias-2-0
+            phrase: "Seventeen. The request uses the copy the worker already holds."
+            targets: [alias-construction]
+            linger: 0
+            caption_boundary: true
+          - id: mf-sentence-alias-2-1
+            phrase: "At the deadline the application loads the prompt again. This lookup resolves eighteen."
+            targets: [alias-construction]
+            linger: 0
+            caption_boundary: true
+          - id: mf-sentence-alias-2-2
+            phrase: "Now the next request records eighteen. Different workers can reach this point at different times."
+            targets: [alias-construction]
+            linger: 0
+            caption_boundary: true
+          - id: mf-sentence-alias-2-3
+            phrase: "Record the loaded configuration too. The template version alone doesn't pin every setting."
+            targets: [alias-construction]
+            linger: 0
+            caption_boundary: true
+  - id: config-mutation
+    title: A fixed template version can have changed configuration
+    visual: Compare the held object with an uncached load of the same template version after editing its attached temperature.
+    beats:
+      - say: Keep prompt template seventeen fixed and change only its attached temperature from point two to point
+          eight. Our actual SDK lab shows both updates under the same version. The earlier loaded object
+          retains point two; a fresh uncached load returns point eight. The template string stays identical
+          throughout.
+        hold: 0.8
+        visual_cues:
+          - id: mf-config-mutation-0
+            phrase: Keep prompt template seventeen fixed and change only its attached temperature from point two to point
+              eight.
+            targets:
+              - config-mutation-construction
+            color: cyan
+            linger: 0.4
+          - id: mf-sentence-config-mutation-0-0
+            phrase: Keep prompt template seventeen fixed and change only its attached temperature from point two to point
+              eight.
+            targets:
+              - config-mutation-construction
+            color: cyan
+            linger: 0
+          - id: mf-sentence-config-mutation-0-1
+            phrase: Our actual SDK lab shows both updates under the same version.
+            targets:
+              - config-mutation-construction
+            color: cyan
+            linger: 0
+          - id: mf-sentence-config-mutation-0-2
+            phrase: The earlier loaded object retains point two; a fresh uncached load returns point eight.
+            targets:
+              - config-mutation-construction
+            color: cyan
+            linger: 0
+          - id: mf-sentence-config-mutation-0-3
+            phrase: The template string stays identical throughout.
+            targets:
+              - config-mutation-construction
+            color: cyan
+            linger: 0
+      - say: A receipt containing only version seventeen cannot reconstruct which of those temperatures reached a past
+          request. Record the resolved model configuration or its exact digest with retained content. Compare
+          the complete evaluated configuration with the one the worker actually uses. The registry now
+          says point eight. The earlier request used point two.
+        hold: 0.8
+        visual_cues:
+          - id: mf-config-mutation-1
+            phrase: A receipt containing only version seventeen cannot reconstruct which of those temperatures reached a
+              past request.
+            targets:
+              - config-mutation-construction
+            color: cyan
+            linger: 0.4
+          - id: mf-sentence-config-mutation-1-0
+            phrase: A receipt containing only version seventeen cannot reconstruct which of those temperatures reached a
+              past request.
+            targets:
+              - config-mutation-construction
+            color: cyan
+            linger: 0
+          - id: mf-sentence-config-mutation-1-1
+            phrase: Record the resolved model configuration or its exact digest with retained content.
+            targets:
+              - config-mutation-construction
+            color: cyan
+            linger: 0
+          - id: mf-sentence-config-mutation-1-2
+            phrase: Compare the complete evaluated configuration with the one the worker actually uses.
+            targets:
+              - config-mutation-construction
+            color: cyan
+            linger: 0
+          - id: mf-sentence-config-mutation-1-3
+            phrase: The registry now says point eight. The earlier request used point two.
+            targets:
+              - config-mutation-construction
+            color: cyan
+            linger: 0
+      - say: Do not infer that a fixed-version load always refreshes mutable configuration. In this pinned API,
+          version-based prompt loads default to no cache expiry, while alias-based loads default to sixty
+          seconds. An application may also retain an object beyond any later load. Choose an explicit refresh
+          policy and observe its result on each worker rather than treating alias movement as a reload
+          command.
+        hold: 0.8
+        visual_cues:
+          - id: mf-config-mutation-2
+            phrase: Do not infer that a fixed-version load always refreshes mutable configuration.
+            targets:
+              - config-mutation-construction
+            color: green
+            linger: 0.4
+          - id: mf-sentence-config-mutation-2-0
+            phrase: Do not infer that a fixed-version load always refreshes mutable configuration.
+            targets:
+              - config-mutation-construction
+            color: cyan
+            linger: 0
+          - id: mf-sentence-config-mutation-2-1
+            phrase: In this pinned API, version-based prompt loads default to no cache expiry, while alias-based loads
+              default to sixty seconds.
+            targets:
+              - config-mutation-construction
+            color: cyan
+            linger: 0
+          - id: mf-sentence-config-mutation-2-2
+            phrase: An application may also retain an object beyond any later load.
+            targets:
+              - config-mutation-construction
+            color: cyan
+            linger: 0
+          - id: mf-sentence-config-mutation-2-3
+            phrase: Choose an explicit refresh policy and observe its result on each worker rather than treating alias
+              movement as a reload command.
+            targets:
+              - config-mutation-construction
+            color: cyan
+            linger: 0
+  - id: cache-clock
+    title: Use the correct cache key and inclusive expiry
+    visual: Advance a monotonic clock. Resolve each cached prompt and alias again when the clock reaches its own deadline.
+    beats:
+      - say: The article’s standard-library cache keys entries by prompt name and alias. Each load checks a
+          nonnegative monotonic integer clock. If no entry exists, or the clock is greater than or equal to
+          its expiry, it resolves again and stores a new deadline. Before that deadline it returns the cached
+          object. Equality refreshes; it is not another warm-cache tick.
+        hold: 0.8
+        visual_cues:
+          - id: mf-cache-clock-0
+            phrase: The article’s standard-library cache keys entries by prompt name and alias.
+            targets:
+              - cache-clock-construction
+            color: cyan
+            linger: 0.4
+          - id: mf-sentence-cache-clock-0-0
+            phrase: The article’s standard-library cache keys entries by prompt name and alias.
+            targets:
+              - cache-clock-construction
+            color: cyan
+            linger: 0
+          - id: mf-sentence-cache-clock-0-1
+            phrase: Each load checks a nonnegative monotonic integer clock.
+            targets:
+              - cache-clock-construction
+            color: cyan
+            linger: 0
+          - id: mf-sentence-cache-clock-0-2
+            phrase: If no entry exists, or the clock is greater than or equal to its expiry, it resolves again and stores
+              a new deadline.
+            targets:
+              - cache-clock-construction
+            color: cyan
+            linger: 0
+          - id: mf-sentence-cache-clock-0-3
+            phrase: Before that deadline it returns the cached object.
+            targets:
+              - cache-clock-construction
+            color: cyan
+            linger: 0
+          - id: mf-sentence-cache-clock-0-4
+            phrase: Equality refreshes; it is not another warm-cache tick.
+            targets:
+              - cache-clock-construction
+            color: cyan
+            linger: 0
+      - say: Registering a different prompt under its own production alias must leave the support prompt’s cache entry
+          separate. Zero TTL forces a fresh resolution at every same-tick load. Replacing an existing
+          immutable template version is rejected in this toy. These tests isolate templates and clock
+          arithmetic; they do not simulate the real SDK’s concurrent registry writes or mutable model
+          configuration.
+        hold: 0.8
+        visual_cues:
+          - id: mf-cache-clock-1
+            phrase: Registering a different prompt under its own production alias must leave the support prompt’s cache
+              entry separate.
+            targets:
+              - cache-clock-construction
+            color: cyan
+            linger: 0.4
+          - id: mf-sentence-cache-clock-1-0
+            phrase: Registering a different prompt under its own production alias must leave the support prompt’s cache
+              entry separate.
+            targets:
+              - cache-clock-construction
+            color: cyan
+            linger: 0
+          - id: mf-sentence-cache-clock-1-1
+            phrase: Zero TTL forces a fresh resolution at every same-tick load.
+            targets:
+              - cache-clock-construction
+            color: cyan
+            linger: 0
+          - id: mf-sentence-cache-clock-1-2
+            phrase: Replacing an existing immutable template version is rejected in this toy.
+            targets:
+              - cache-clock-construction
+            color: cyan
+            linger: 0
+          - id: mf-sentence-cache-clock-1-3
+            phrase: These tests isolate templates and clock arithmetic; they do not simulate the real SDK’s concurrent
+              registry writes or mutable model configuration.
+            targets:
+              - cache-clock-construction
+            color: cyan
+            linger: 0
+      - say: Keep an already-returned object beside later loads. Refreshing an entry changes what the next load
+          returns; it does not rewrite the object retained by a worker elsewhere. Log both the routing alias
+          and the resolved template and configuration. A real cache test should exercise the installed API and
+          its configured expiry rather than assuming the miniature clock is the production implementation.
+        hold: 0.8
+        visual_cues:
+          - id: mf-cache-clock-2
+            phrase: Keep an already-returned object beside later loads.
+            targets:
+              - cache-clock-construction
+            color: green
+            linger: 0.4
+          - id: mf-sentence-cache-clock-2-0
+            phrase: Keep an already-returned object beside later loads.
+            targets:
+              - cache-clock-construction
+            color: cyan
+            linger: 0
+          - id: mf-sentence-cache-clock-2-1
+            phrase: Refreshing an entry changes what the next load returns; it does not rewrite the object retained by a
+              worker elsewhere.
+            targets:
+              - cache-clock-construction
+            color: cyan
+            linger: 0
+          - id: mf-sentence-cache-clock-2-2
+            phrase: Log both the routing alias and the resolved template and configuration.
+            targets:
+              - cache-clock-construction
+            color: cyan
+            linger: 0
+          - id: mf-sentence-cache-clock-2-3
+            phrase: A real cache test should exercise the installed API and its configured expiry rather than assuming the
+              miniature clock is the production implementation.
+            targets:
+              - cache-clock-construction
+            color: cyan
+            linger: 0
+  - id: gateway-contract
+    title: Record the provider that actually served the request
+    visual: Follow the unsuccessful provider attempt and the actual responder. Attach the responder to the request record.
+    beats:
+      - say: The AI Gateway centralizes provider access, credentials, routing, fallbacks and usage controls. It has a
+          unified chat-completions surface and provider-native passthrough routes. In a supplied fallback,
+          provider A fails and provider B returns the answer. The request receipt must name B and the actual
+          model used, not only the route’s preferred target.
+        hold: 0.8
+        visual_cues:
+          - id: mf-gateway-contract-0
+            phrase: The AI Gateway centralizes provider access, credentials, routing, fallbacks and usage controls.
+            targets:
+              - gateway-contract-construction
+            color: cyan
+            linger: 0.4
+          - id: mf-sentence-gateway-contract-0-0
+            phrase: The AI Gateway centralizes provider access, credentials, routing, fallbacks and usage controls.
+            targets:
+              - gateway-contract-construction
+            color: cyan
+            linger: 0
+          - id: mf-sentence-gateway-contract-0-1
+            phrase: It has a unified chat-completions surface and provider-native passthrough routes.
+            targets:
+              - gateway-contract-construction
+            color: cyan
+            linger: 0
+          - id: mf-sentence-gateway-contract-0-2
+            phrase: In a supplied fallback, provider A fails and provider B returns the answer.
+            targets:
+              - gateway-contract-construction
+            color: cyan
+            linger: 0
+          - id: mf-sentence-gateway-contract-0-3
+            phrase: The request receipt must name B and the actual model used, not only the route’s preferred target.
+            targets:
+              - gateway-contract-construction
+            color: cyan
+            linger: 0
+      - say: >-
+          Provider B returned a reply. Now the application checks its JSON shape and its citation. If the
+          reply requests an action, the application checks the caller's permission. The gateway applies its
+          own routing and spend limits to the provider call.
+        hold: 0.8
+        visual_cues:
+          - id: mf-gateway-contract-1
+            phrase: "Provider B returned a reply. Now the application checks its JSON shape and its citation."
+            targets:
+              - gateway-contract-construction
+            color: cyan
+            linger: 0.4
+          - id: mf-sentence-gateway-contract-1-0
+            phrase: "Provider B returned a reply. Now the application checks its JSON shape and its citation."
+            targets:
+              - gateway-contract-construction
+            color: cyan
+            linger: 0
+          - id: mf-sentence-gateway-contract-1-1
+            phrase: "If the reply requests an action, the application checks the caller's permission."
+            targets:
+              - gateway-contract-construction
+            color: cyan
+            linger: 0
+          - id: mf-sentence-gateway-contract-1-2
+            phrase: "The gateway applies its own routing and spend limits to the provider call."
+            targets:
+              - gateway-contract-construction
+            color: cyan
+            linger: 0
+      - say: >-
+          A later alias move, gateway route change and provider model update are three different mutable
+          inputs. Record their resolved identities with the request and retain configuration needed to
+          reproduce it. Compare today's route with the saved receipt. That request reached provider B and
+          used model B one.
+        hold: 0.8
+        visual_cues:
+          - id: mf-gateway-contract-2
+            phrase: A later alias move, gateway route change and provider model update are three different mutable inputs.
+            targets:
+              - gateway-contract-construction
+            color: green
+            linger: 0.4
+          - id: mf-sentence-gateway-contract-2-0
+            phrase: A later alias move, gateway route change and provider model update are three different mutable inputs.
+            targets:
+              - gateway-contract-construction
+            color: cyan
+            linger: 0
+          - id: mf-sentence-gateway-contract-2-1
+            phrase: Record their resolved identities with the request and retain configuration needed to reproduce it.
+            targets:
+              - gateway-contract-construction
+            color: cyan
+            linger: 0
+          - id: mf-sentence-gateway-contract-2-2
+            phrase: "Compare today's route with the saved receipt."
+            targets:
+              - gateway-contract-construction
+            color: cyan
+            linger: 0
+          - id: mf-sentence-gateway-contract-2-3
+            phrase: "That request reached provider B and used model B one."
+            targets:
+              - gateway-contract-construction
+            color: cyan
+            linger: 0
+  - id: export-queue
+    title: Count every trace before trusting a quiet dashboard
+    visual: Track each named trace through service, admission and loss. Reconcile arrivals with the three inventories.
+    beats:
+      - say: >-
+          The exporter sends from the front of this queue before each new batch arrives. Each letter is
+          one trace. New traces fill the free slots. When every slot is taken, the next arrival drops.
+          You can account for every arrival by counting the traces sent, waiting and dropped.
+        hold: 0.8
+        visual_cues:
+          - id: mf-export-queue-0
+            phrase: The exporter sends from the front of this queue before each new batch arrives.
+            targets:
+              - export-queue-construction
+            color: cyan
+            linger: 0.4
+          - id: mf-sentence-export-queue-0-0
+            phrase: The exporter sends from the front of this queue before each new batch arrives.
+            targets:
+              - export-queue-construction
+            color: cyan
+            linger: 0
+          - id: mf-sentence-export-queue-0-1
+            phrase: Each letter is one trace.
+            targets:
+              - export-queue-construction
+            color: cyan
+            linger: 0
+          - id: mf-sentence-export-queue-0-2
+            phrase: New traces fill the free slots. When every slot is taken, the next arrival drops.
+            targets:
+              - export-queue-construction
+            color: cyan
+            linger: 0
+          - id: mf-sentence-export-queue-0-3
+            phrase: You can account for every arrival by counting the traces sent, waiting and dropped.
+            targets:
+              - export-queue-construction
+            color: cyan
+            linger: 0
+      - say: "A, B and C are waiting in a queue with four slots. Send two, then receive D, E, F
+          and G: C remains, D through F fit, and G is dropped. At the next tick send C and D, then receive H.
+          Eight total arrivals now equal four sent, three queued and one dropped. E is at the front."
+        hold: 0.8
+        visual_cues:
+          - id: mf-export-queue-1
+            phrase: A, B and C are waiting in a queue with four slots.
+            targets:
+              - export-queue-construction
+            color: cyan
+            linger: 0.4
+          - id: mf-sentence-export-queue-1-0
+            phrase: A, B and C are waiting in a queue with four slots.
+            targets:
+              - export-queue-construction
+            color: cyan
+            linger: 0
+          - id: mf-sentence-export-queue-1-1
+            phrase: "Send two, then receive D, E, F and G: C remains, D through F fit, and G is dropped."
+            targets:
+              - export-queue-construction
+            color: cyan
+            linger: 0
+          - id: mf-sentence-export-queue-1-2
+            phrase: At the next tick send C and D, then receive H.
+            targets:
+              - export-queue-construction
+            color: cyan
+            linger: 0
+          - id: mf-sentence-export-queue-1-3
+            phrase: Eight total arrivals now equal four sent, three queued and one dropped.
+            targets:
+              - export-queue-construction
+            color: cyan
+            linger: 0
+          - id: mf-sentence-export-queue-1-4
+            phrase: E is at the front.
+            targets:
+              - export-queue-construction
+            color: cyan
+            linger: 0
+      - say: >-
+          Watch E. Its export keeps failing until the retry window expires, so the exporter discards it.
+          A graceful shutdown can flush a queue. A crash can lose traces still waiting there.
+          Monitor export failures and the share of requests with a stored trace.
+          Decide which workflows can keep serving when a trace is lost.
+        hold: 0.8
+        visual_cues:
+          - id: mf-export-queue-2
+            phrase: Watch E. Its export keeps failing until the retry window expires, so the exporter discards it.
+            targets:
+              - export-queue-construction
+            color: green
+            linger: 0.4
+          - id: mf-sentence-export-queue-2-0
+            phrase: Watch E. Its export keeps failing until the retry window expires, so the exporter discards it.
+            targets:
+              - export-queue-construction
+            color: cyan
+            linger: 0
+          - id: mf-sentence-export-queue-2-1
+            phrase: A graceful shutdown can flush a queue. A crash can lose traces still waiting there.
+            targets:
+              - export-queue-construction
+            color: cyan
+            linger: 0
+          - id: mf-sentence-export-queue-2-2
+            phrase: Monitor export failures and the share of requests with a stored trace.
+            targets:
+              - export-queue-construction
+            color: cyan
+            linger: 0
+          - id: mf-sentence-export-queue-2-3
+            phrase: Decide which workflows can keep serving when a trace is lost.
+            targets:
+              - export-queue-construction
+            color: cyan
+            linger: 0
+  - id: privacy-gate
+    title: "Which fields leave with this trace?"
+    visual: "Inspect a trace with input capture disabled and a note in a custom field. Remove free text, then follow the allowed trace ID and status into the export payload."
+    beats:
+      - say: >-
+          Here's a request trace with input capture turned off. The inputs field is empty. Look one row
+          lower. The application copied a customer note into a custom field. Prompts, retrieved text, tool
+          arguments and model outputs can reach a trace through fields like this.
+        hold: 0.8
+        visual_cues:
+          - id: mf-privacy-gate-0
+            phrase: "Here's a request trace with input capture turned off."
+            targets:
+              - privacy-gate-construction
+            color: cyan
+            linger: 0.4
+          - id: mf-sentence-privacy-gate-0-0
+            phrase: "Here's a request trace with input capture turned off."
+            targets:
+              - privacy-gate-construction
+            color: cyan
+            linger: 0
+          - id: mf-sentence-privacy-gate-0-1
+            phrase: "The inputs field is empty. Look one row lower."
+            targets:
+              - privacy-gate-construction
+            color: cyan
+            linger: 0
+          - id: mf-sentence-privacy-gate-0-2
+            phrase: "The application copied a customer note into a custom field."
+            targets:
+              - privacy-gate-construction
+            color: cyan
+            linger: 0
+          - id: mf-sentence-privacy-gate-0-3
+            phrase: "Prompts, retrieved text, tool arguments and model outputs can reach a trace through fields like this."
+            targets:
+              - privacy-gate-construction
+            color: cyan
+            linger: 0
+      - say: >-
+          Remove the note before export. Keep the trace ID and status so you can find this request later.
+          Sampling changes how many records you keep. Each selected record still passes through this field
+          check. Check free text for identifying details even after removing the customer ID.
+        hold: 0.8
+        visual_cues:
+          - id: mf-privacy-gate-1
+            phrase: "Remove the note before export."
+            targets:
+              - privacy-gate-construction
+            color: cyan
+            linger: 0.4
+          - id: mf-sentence-privacy-gate-1-0
+            phrase: "Remove the note before export."
+            targets:
+              - privacy-gate-construction
+            color: cyan
+            linger: 0
+          - id: mf-sentence-privacy-gate-1-1
+            phrase: "Keep the trace ID and status so you can find this request later."
+            targets:
+              - privacy-gate-construction
+            color: cyan
+            linger: 0
+          - id: mf-sentence-privacy-gate-1-2
+            phrase: "Sampling changes how many records you keep. Each selected record still passes through this field check."
+            targets:
+              - privacy-gate-construction
+            color: cyan
+            linger: 0
+          - id: mf-sentence-privacy-gate-1-3
+            phrase: "Check free text for identifying details even after removing the customer ID."
+            targets:
+              - privacy-gate-construction
+            color: cyan
+            linger: 0
+      - say: >-
+          A predictable customer ID can still be identifiable after hashing. Here the trace ID is enough to
+          look up the request. Check exception fields for free text on the error path too. Restrict access
+          to the exported fields, encrypt them and set a retention period.
+        hold: 0.8
+        visual_cues:
+          - id: mf-privacy-gate-2
+            phrase: "A predictable customer ID can still be identifiable after hashing."
+            targets:
+              - privacy-gate-construction
+            color: green
+            linger: 0.4
+          - id: mf-sentence-privacy-gate-2-0
+            phrase: "A predictable customer ID can still be identifiable after hashing."
+            targets:
+              - privacy-gate-construction
+            color: cyan
+            linger: 0
+          - id: mf-sentence-privacy-gate-2-1
+            phrase: "Here the trace ID is enough to look up the request."
+            targets:
+              - privacy-gate-construction
+            color: cyan
+            linger: 0
+          - id: mf-sentence-privacy-gate-2-2
+            phrase: "Check exception fields for free text on the error path too."
+            targets:
+              - privacy-gate-construction
+            color: cyan
+            linger: 0
+          - id: mf-sentence-privacy-gate-2-3
+            phrase: "Restrict access to the exported fields, encrypt them and set a retention period."
+            targets:
+              - privacy-gate-construction
+            color: cyan
+            linger: 0
+  - id: storage-lifecycle
+    title: A deleted run can still have bytes in storage
+    visual: Soft-delete a run, then follow its metadata, artifacts and independent backup through permanent cleanup.
+    beats:
+      - say: >-
+          The backend serves search and mutation traffic while artifact storage retains large bytes.
+          Database capacity, connection pools, indexes and schema migrations need their own operations
+          plan. Rehearse upgrades and restore checks with backups appropriate to the workload. Restore the
+          backup in a test environment and open a saved run.
+        hold: 0.8
+        visual_cues:
+          - id: mf-storage-lifecycle-0
+            phrase: The backend serves search and mutation traffic while artifact storage retains large bytes.
+            targets:
+              - storage-lifecycle-construction
+            color: cyan
+            linger: 0.4
+          - id: mf-sentence-storage-lifecycle-0-0
+            phrase: The backend serves search and mutation traffic while artifact storage retains large bytes.
+            targets:
+              - storage-lifecycle-construction
+            color: cyan
+            linger: 0
+          - id: mf-sentence-storage-lifecycle-0-1
+            phrase: Database capacity, connection pools, indexes and schema migrations need their own operations plan.
+            targets:
+              - storage-lifecycle-construction
+            color: cyan
+            linger: 0
+          - id: mf-sentence-storage-lifecycle-0-2
+            phrase: Rehearse upgrades and restore checks with backups appropriate to the workload.
+            targets:
+              - storage-lifecycle-construction
+            color: cyan
+            linger: 0
+          - id: mf-sentence-storage-lifecycle-0-3
+            phrase: "Restore the backup in a test environment and open a saved run."
+            targets:
+              - storage-lifecycle-construction
+            color: cyan
+            linger: 0
+      - say: Deleting a run is soft deletion so that it may be restored. Metadata and artifact bytes are not
+          automatically removed. Permanent cleanup uses the documented garbage-collection path for deleted
+          runs, with appropriate ownership and retention checks. A separately copied artifact or backup has
+          its own lifetime and is not erased merely because the original UI row disappears.
+        hold: 0.8
+        visual_cues:
+          - id: mf-storage-lifecycle-1
+            phrase: Deleting a run is soft deletion so that it may be restored.
+            targets:
+              - storage-lifecycle-construction
+            color: cyan
+            linger: 0.4
+          - id: mf-sentence-storage-lifecycle-1-0
+            phrase: Deleting a run is soft deletion so that it may be restored.
+            targets:
+              - storage-lifecycle-construction
+            color: cyan
+            linger: 0
+          - id: mf-sentence-storage-lifecycle-1-1
+            phrase: Metadata and artifact bytes are not automatically removed.
+            targets:
+              - storage-lifecycle-construction
+            color: cyan
+            linger: 0
+          - id: mf-sentence-storage-lifecycle-1-2
+            phrase: Permanent cleanup uses the documented garbage-collection path for deleted runs, with appropriate
+              ownership and retention checks.
+            targets:
+              - storage-lifecycle-construction
+            color: cyan
+            linger: 0
+          - id: mf-sentence-storage-lifecycle-1-3
+            phrase: A separately copied artifact or backup has its own lifetime and is not erased merely because the
+              original UI row disappears.
+            targets:
+              - storage-lifecycle-construction
+            color: cyan
+            linger: 0
+      - say: >-
+          A shared service needs lifecycle rules, encryption, checksums and bounded retention across
+          databases, object stores and copied evidence. Use the checksum to compare the restored bytes with
+          the saved copy. The retention policy determines when each copy can be deleted. Track the backup's
+          expiry separately from the original run.
+        hold: 0.8
+        visual_cues:
+          - id: mf-storage-lifecycle-2
+            phrase: A shared service needs lifecycle rules, encryption, checksums and bounded retention across databases,
+              object stores and copied evidence.
+            targets:
+              - storage-lifecycle-construction
+            color: green
+            linger: 0.4
+          - id: mf-sentence-storage-lifecycle-2-0
+            phrase: A shared service needs lifecycle rules, encryption, checksums and bounded retention across databases,
+              object stores and copied evidence.
+            targets:
+              - storage-lifecycle-construction
+            color: cyan
+            linger: 0
+          - id: mf-sentence-storage-lifecycle-2-1
+            phrase: "Use the checksum to compare the restored bytes with the saved copy."
+            targets:
+              - storage-lifecycle-construction
+            color: cyan
+            linger: 0
+          - id: mf-sentence-storage-lifecycle-2-2
+            phrase: "The retention policy determines when each copy can be deleted."
+            targets:
+              - storage-lifecycle-construction
+            color: cyan
+            linger: 0
+          - id: mf-sentence-storage-lifecycle-2-3
+            phrase: "Track the backup's expiry separately from the original run."
+            targets:
+              - storage-lifecycle-construction
+            color: cyan
+            linger: 0
+  - id: auth-boundary
+    title: Registry writes can change future execution
+    visual: Check permissions for the metadata read, artifact read and alias update separately.
+    beats:
+      - say: A shared tracking service contains model artifacts and request data. Authenticate the caller, protect
+          transport and check access to each relevant workspace, experiment, model and artifact path. A
+          server’s broad object-store role does not become the caller’s permission. A metadata denial must not
+          leave the same artifact available through an unrestricted direct path.
+        hold: 0.8
+        visual_cues:
+          - id: mf-auth-boundary-0
+            phrase: A shared tracking service contains model artifacts and request data.
+            targets:
+              - auth-boundary-construction
+            color: cyan
+            linger: 0.4
+          - id: mf-sentence-auth-boundary-0-0
+            phrase: A shared tracking service contains model artifacts and request data.
+            targets:
+              - auth-boundary-construction
+            color: cyan
+            linger: 0
+          - id: mf-sentence-auth-boundary-0-1
+            phrase: Authenticate the caller, protect transport and check access to each relevant workspace, experiment,
+              model and artifact path.
+            targets:
+              - auth-boundary-construction
+            color: cyan
+            linger: 0
+          - id: mf-sentence-auth-boundary-0-2
+            phrase: A server’s broad object-store role does not become the caller’s permission.
+            targets:
+              - auth-boundary-construction
+            color: cyan
+            linger: 0
+          - id: mf-sentence-auth-boundary-0-3
+            phrase: A metadata denial must not leave the same artifact available through an unrestricted direct path.
+            targets:
+              - auth-boundary-construction
+            color: cyan
+            linger: 0
+      - say: >-
+          Registry write permission can change what future applications resolve, so protect alias updates
+          as execution-affecting operations. The article’s release baseline describes fail-closed
+          basic-auth fixes and removal of the shipped default admin password. Enable and configure
+          authentication on the shared server. Check each tenant's access to both the experiment and its
+          artifacts.
+        hold: 0.8
+        visual_cues:
+          - id: mf-auth-boundary-1
+            phrase: Registry write permission can change what future applications resolve, so protect alias updates as
+              execution-affecting operations.
+            targets:
+              - auth-boundary-construction
+            color: cyan
+            linger: 0.4
+          - id: mf-sentence-auth-boundary-1-0
+            phrase: Registry write permission can change what future applications resolve, so protect alias updates as
+              execution-affecting operations.
+            targets:
+              - auth-boundary-construction
+            color: cyan
+            linger: 0
+          - id: mf-sentence-auth-boundary-1-1
+            phrase: The article’s release baseline describes fail-closed basic-auth fixes and removal of the shipped
+              default admin password.
+            targets:
+              - auth-boundary-construction
+            color: cyan
+            linger: 0
+          - id: mf-sentence-auth-boundary-1-2
+            phrase: "Enable and configure authentication on the shared server."
+            targets:
+              - auth-boundary-construction
+            color: cyan
+            linger: 0
+          - id: mf-sentence-auth-boundary-1-3
+            phrase: "Check each tenant's access to both the experiment and its artifacts."
+            targets:
+              - auth-boundary-construction
+            color: cyan
+            linger: 0
+      - say: >-
+          Require the workflow’s actual approval and exact evaluated candidate before moving a production
+          alias. Preserve who approved, what changed and the rollback target. After the move, inspect the
+          versions and configuration workers really load. Compare the worker's next request record with the
+          release you approved.
+        hold: 0.8
+        visual_cues:
+          - id: mf-auth-boundary-2
+            phrase: Require the workflow’s actual approval and exact evaluated candidate before moving a production alias.
+            targets:
+              - auth-boundary-construction
+            color: green
+            linger: 0.4
+          - id: mf-sentence-auth-boundary-2-0
+            phrase: Require the workflow’s actual approval and exact evaluated candidate before moving a production alias.
+            targets:
+              - auth-boundary-construction
+            color: cyan
+            linger: 0
+          - id: mf-sentence-auth-boundary-2-1
+            phrase: Preserve who approved, what changed and the rollback target.
+            targets:
+              - auth-boundary-construction
+            color: cyan
+            linger: 0
+          - id: mf-sentence-auth-boundary-2-2
+            phrase: After the move, inspect the versions and configuration workers really load.
+            targets:
+              - auth-boundary-construction
+            color: cyan
+            linger: 0
+          - id: mf-sentence-auth-boundary-2-3
+            phrase: "Compare the worker's next request record with the release you approved."
+            targets:
+              - auth-boundary-construction
+            color: cyan
+            linger: 0
+  - id: project-source
+    title: Read the project boundary with the evidence boundary
+    visual: Match each project claim to its paper, charter, license or versioned implementation.
+    beats:
+      - say: The original MLflow paper describes experimentation, reproducibility and model deployment through open
+          interfaces across libraries. For the tracing API, open the source tag for your release. Databricks
+          created MLflow, and the June twenty-fifth twenty-twenty announcement placed it in a Linux Foundation
+          governance home. Managed Databricks products and self-hosted MLflow still have distinct operational
+          boundaries.
+        hold: 0.8
+        visual_cues:
+          - id: mf-project-source-0
+            phrase: The original MLflow paper describes experimentation, reproducibility and model deployment through open
+              interfaces across libraries.
+            targets:
+              - project-source-construction
+            color: cyan
+            linger: 0.4
+          - id: mf-sentence-project-source-0-0
+            phrase: The original MLflow paper describes experimentation, reproducibility and model deployment through open
+              interfaces across libraries.
+            targets:
+              - project-source-construction
+            color: cyan
+            linger: 0
+          - id: mf-sentence-project-source-0-1
+            phrase: For the tracing API, open the source tag for your release.
+            targets:
+              - project-source-construction
+            color: cyan
+            linger: 0
+          - id: mf-sentence-project-source-0-2
+            phrase: Databricks created MLflow, and the June twenty-fifth twenty-twenty announcement placed it in a Linux
+              Foundation governance home.
+            targets:
+              - project-source-construction
+            color: cyan
+            linger: 0
+          - id: mf-sentence-project-source-0-3
+            phrase: Managed Databricks products and self-hosted MLflow still have distinct operational boundaries.
+            targets:
+              - project-source-construction
+            color: cyan
+            linger: 0
+      - say: The public source uses Apache-two-point-zero terms, while the technical charter specifies its
+          documentation terms. Maintainer and contribution rules govern incoming project work. A logged model,
+          dataset, prompt or trace keeps its own access and licensing rules. Storing it through the platform
+          does not grant redistribution rights or authorize a later business operation.
+        hold: 0.8
+        visual_cues:
+          - id: mf-project-source-1
+            phrase: The public source uses Apache-two-point-zero terms, while the technical charter specifies its
+              documentation terms.
+            targets:
+              - project-source-construction
+            color: cyan
+            linger: 0.4
+          - id: mf-sentence-project-source-1-0
+            phrase: The public source uses Apache-two-point-zero terms, while the technical charter specifies its
+              documentation terms.
+            targets:
+              - project-source-construction
+            color: cyan
+            linger: 0
+          - id: mf-sentence-project-source-1-1
+            phrase: Maintainer and contribution rules govern incoming project work.
+            targets:
+              - project-source-construction
+            color: cyan
+            linger: 0
+          - id: mf-sentence-project-source-1-2
+            phrase: A logged model, dataset, prompt or trace keeps its own access and licensing rules.
+            targets:
+              - project-source-construction
+            color: cyan
+            linger: 0
+          - id: mf-sentence-project-source-1-3
+            phrase: Storing it through the platform does not grant redistribution rights or authorize a later business
+              operation.
+            targets:
+              - project-source-construction
+            color: cyan
+            linger: 0
+      - say: Use the linked evidence model when its operational cost fits the team. Integrations expose uneven detail,
+          and two storage systems still require recovery and policy. MLflow does not replace the GPU
+          scheduler, retry owner or kernel profiler. OpenTelemetry correlation helps connect those systems,
+          while each must retain actual identifiers and the evidence needed for its own decision.
+        hold: 0.8
+        visual_cues:
+          - id: mf-project-source-2
+            phrase: Use the linked evidence model when its operational cost fits the team.
+            targets:
+              - project-source-construction
+            color: green
+            linger: 0.4
+          - id: mf-sentence-project-source-2-0
+            phrase: Use the linked evidence model when its operational cost fits the team.
+            targets:
+              - project-source-construction
+            color: cyan
+            linger: 0
+          - id: mf-sentence-project-source-2-1
+            phrase: Integrations expose uneven detail, and two storage systems still require recovery and policy.
+            targets:
+              - project-source-construction
+            color: cyan
+            linger: 0
+          - id: mf-sentence-project-source-2-2
+            phrase: MLflow does not replace the GPU scheduler, retry owner or kernel profiler.
+            targets:
+              - project-source-construction
+            color: cyan
+            linger: 0
+          - id: mf-sentence-project-source-2-3
+            phrase: OpenTelemetry correlation helps connect those systems, while each must retain actual identifiers and
+              the evidence needed for its own decision.
+            targets:
+              - project-source-construction
+            color: cyan
+            linger: 0
+  - id: source-route
+    title: Trace the mutation rule to the source that enforces it
+    visual: Follow the parameter write into the store transaction. Compare it with changes to a run tag and prompt configuration.
+    beats:
+      - say: Read the source tag used by the local lab. Follow the public client’s log-parameter method through the
+          tracking client into the SQLAlchemy store. The store validates the parameter and active run,
+          attempts the row under its unique key, commits, and checks an integrity conflict. A different prior
+          value raises the changing-parameter error while retaining the earlier record.
+        hold: 0.8
+        visual_cues:
+          - id: mf-source-route-0
+            phrase: Read the source tag used by the local lab.
+            targets:
+              - source-route-construction
+            color: cyan
+            linger: 0.4
+          - id: mf-sentence-source-route-0-0
+            phrase: Read the source tag used by the local lab.
+            targets:
+              - source-route-construction
+            color: cyan
+            linger: 0
+          - id: mf-sentence-source-route-0-1
+            phrase: Follow the public client’s log-parameter method through the tracking client into the SQLAlchemy store.
+            targets:
+              - source-route-construction
+            color: cyan
+            linger: 0
+          - id: mf-sentence-source-route-0-2
+            phrase: The store validates the parameter and active run, attempts the row under its unique key, commits, and
+              checks an integrity conflict.
+            targets:
+              - source-route-construction
+            color: cyan
+            linger: 0
+          - id: mf-sentence-source-route-0-3
+            phrase: A different prior value raises the changing-parameter error while retaining the earlier record.
+            targets:
+              - source-route-construction
+            color: cyan
+            linger: 0
+      - say: Follow tags and prompt model configuration separately. The configuration API serializes model settings
+          into the prompt-version record and explicitly permits updates. That is why the actual lab can reject
+          parameter forty-to-fifty while accepting a tag and temperature change. A source explanation should
+          identify the enforced rule and its state transition, not merely list three API names.
+        hold: 0.8
+        visual_cues:
+          - id: mf-source-route-1
+            phrase: Follow tags and prompt model configuration separately.
+            targets:
+              - source-route-construction
+            color: cyan
+            linger: 0.4
+          - id: mf-sentence-source-route-1-0
+            phrase: Follow tags and prompt model configuration separately.
+            targets:
+              - source-route-construction
+            color: cyan
+            linger: 0
+          - id: mf-sentence-source-route-1-1
+            phrase: The configuration API serializes model settings into the prompt-version record and explicitly permits
+              updates.
+            targets:
+              - source-route-construction
+            color: cyan
+            linger: 0
+          - id: mf-sentence-source-route-1-2
+            phrase: That is why the actual lab can reject parameter forty-to-fifty while accepting a tag and temperature
+              change.
+            targets:
+              - source-route-construction
+            color: cyan
+            linger: 0
+          - id: mf-sentence-source-route-1-3
+            phrase: A source explanation should identify the enforced rule and its state transition, not merely list three
+              API names.
+            targets:
+              - source-route-construction
+            color: cyan
+            linger: 0
+      - say: For another boundary, follow spans through tracing provider and client code, model identity through its
+          entity, or evaluation through the GenAI result logic. Server handlers and artifact repositories own
+          different paths; gateway routing owns another. Pin code and dependencies before claiming that a
+          current documentation example describes the installed server’s behavior.
+        hold: 0.8
+        visual_cues:
+          - id: mf-source-route-2
+            phrase: For another boundary, follow spans through tracing provider and client code, model identity through
+              its entity, or evaluation through the GenAI result logic.
+            targets:
+              - source-route-construction
+            color: green
+            linger: 0.4
+          - id: mf-sentence-source-route-2-0
+            phrase: For another boundary, follow spans through tracing provider and client code, model identity through
+              its entity, or evaluation through the GenAI result logic.
+            targets:
+              - source-route-construction
+            color: cyan
+            linger: 0
+          - id: mf-sentence-source-route-2-1
+            phrase: Server handlers and artifact repositories own different paths; gateway routing owns another.
+            targets:
+              - source-route-construction
+            color: cyan
+            linger: 0
+          - id: mf-sentence-source-route-2-2
+            phrase: Pin code and dependencies before claiming that a current documentation example describes the installed
+              server’s behavior.
+            targets:
+              - source-route-construction
+            color: cyan
+            linger: 0
+  - id: fresh-config
+    title: "An edit to prompt 21"
+    visual: >-
+          Keep the evaluated temperature beside the worker that loaded it. Edit only the registry
+          temperature, load it on a second worker, compare configuration digests and then restore the
+          approved content.
+    beats:
+      - say: >-
+          Try a fresh release with two required cases. Both passed with prompt twenty-one, index nine and
+          temperature point two. Worker one holds that exact object. Change just the registered
+          temperature to point eight. Leave the template and alias alone. Which worker configuration will
+          the earlier scores cover after worker two does a fresh load?
+        hold: 2.3
+        visual_cues:
+          - id: mf-sentence-fresh-config-0-0
+            phrase: "Try a fresh release with two required cases."
+            targets: [fresh-config-construction]
+            linger: 0
+            caption_boundary: true
+          - id: mf-sentence-fresh-config-0-1
+            phrase: "Both passed with prompt twenty-one, index nine and temperature point two."
+            targets: [fresh-config-construction]
+            linger: 0
+            caption_boundary: true
+          - id: mf-sentence-fresh-config-0-2
+            phrase: "Worker one holds that exact object."
+            targets: [fresh-config-construction]
+            linger: 0
+            caption_boundary: true
+          - id: mf-sentence-fresh-config-0-3
+            phrase: "Change just the registered temperature to point eight. Leave the template and alias alone."
+            targets: [fresh-config-construction]
+            linger: 0
+            caption_boundary: true
+          - id: mf-sentence-fresh-config-0-4
+            phrase: "Which worker configuration will the earlier scores cover after worker two does a fresh load?"
+            targets: [fresh-config-construction]
+            linger: 0
+            caption_boundary: true
+      - say: >-
+          They cover worker one, which still holds point two. Worker two loads point eight under the very
+          same template version. Its configuration digest differs from the evaluated digest. Evaluate that
+          changed candidate to learn how its answers score.
+        hold: 0.8
+        visual_cues:
+          - id: mf-sentence-fresh-config-1-0
+            phrase: "They cover worker one, which still holds point two."
+            targets: [fresh-config-construction]
+            linger: 0
+            caption_boundary: true
+          - id: mf-sentence-fresh-config-1-1
+            phrase: "Worker two loads point eight under the very same template version."
+            targets: [fresh-config-construction]
+            linger: 0
+            caption_boundary: true
+          - id: mf-sentence-fresh-config-1-2
+            phrase: "Its configuration digest differs from the evaluated digest."
+            targets: [fresh-config-construction]
+            linger: 0
+            caption_boundary: true
+          - id: mf-sentence-fresh-config-1-3
+            phrase: "Evaluate that changed candidate to learn how its answers score."
+            targets: [fresh-config-construction]
+            linger: 0
+            caption_boundary: true
+      - say: >-
+          Restore point two in the registry, then reload worker two. Compare the loaded configuration with
+          the retained evaluated copy. Both required case IDs still have passing scores for those bytes.
+          That is the evidence the controller can reuse.
+        hold: 0.8
+        visual_cues:
+          - id: mf-sentence-fresh-config-2-0
+            phrase: "Restore point two in the registry, then reload worker two."
+            targets: [fresh-config-construction]
+            linger: 0
+            caption_boundary: true
+          - id: mf-sentence-fresh-config-2-1
+            phrase: "Compare the loaded configuration with the retained evaluated copy."
+            targets: [fresh-config-construction]
+            linger: 0
+            caption_boundary: true
+          - id: mf-sentence-fresh-config-2-2
+            phrase: "Both required case IDs still have passing scores for those bytes. That is the evidence the controller can reuse."
+            targets: [fresh-config-construction]
+            linger: 0
+            caption_boundary: true
+  - id: fresh-telemetry
+    title: "Request D and its trace"
+    visual: >-
+          Keep D's application response beside a two-slot FIFO. Move each trace separately, retain D in
+          the loss ledger, and record a separate readback for the replay D′.
+    beats:
+      - say: >-
+          Keep the repaired worker. This time, look at the path its trace takes after the response. The
+          exporter has two slots. A is waiting at the front. Send one before B, C and D arrive in that
+          order. The application log shows that D returned a response. After those arrivals, how many
+          traces have been sent, how many are waiting, and where is D?
+        hold: 2.3
+        visual_cues:
+          - id: mf-sentence-fresh-telemetry-0-0
+            phrase: "Keep the repaired worker. This time, look at the path its trace takes after the response."
+            targets: [fresh-telemetry-construction]
+            linger: 0
+            caption_boundary: true
+          - id: mf-sentence-fresh-telemetry-0-1
+            phrase: "The exporter has two slots. A is waiting at the front. Send one before B, C and D arrive in that order."
+            targets: [fresh-telemetry-construction]
+            linger: 0
+            caption_boundary: true
+          - id: mf-sentence-fresh-telemetry-0-2
+            phrase: "The application log shows that D returned a response."
+            targets: [fresh-telemetry-construction]
+            linger: 0
+            caption_boundary: true
+          - id: mf-sentence-fresh-telemetry-0-3
+            phrase: "After those arrivals, how many traces have been sent, how many are waiting, and where is D?"
+            targets: [fresh-telemetry-construction]
+            linger: 0
+            caption_boundary: true
+      - say: >-
+          Send A. B and C take the two slots. D arrives at a full queue and drops. Four arrivals balance
+          against one sent, two waiting and one dropped. The response log establishes that D answered. To
+          check its citation we'd need the answer itself or its retained trace.
+        hold: 0.8
+        visual_cues:
+          - id: mf-sentence-fresh-telemetry-1-0
+            phrase: "Send A."
+            targets: [fresh-telemetry-construction]
+            linger: 0
+            caption_boundary: true
+          - id: mf-sentence-fresh-telemetry-1-1
+            phrase: "B and C take the two slots."
+            targets: [fresh-telemetry-construction]
+            linger: 0
+            caption_boundary: true
+          - id: mf-sentence-fresh-telemetry-1-2
+            phrase: "D arrives at a full queue and drops."
+            targets: [fresh-telemetry-construction]
+            linger: 0
+            caption_boundary: true
+          - id: mf-sentence-fresh-telemetry-1-3
+            phrase: "Four arrivals balance against one sent, two waiting and one dropped."
+            targets: [fresh-telemetry-construction]
+            linger: 0
+            caption_boundary: true
+          - id: mf-sentence-fresh-telemetry-1-4
+            phrase: "The response log establishes that D answered. To check its citation we'd need the answer itself or its retained trace."
+            targets: [fresh-telemetry-construction]
+            linger: 0
+            caption_boundary: true
+      - say: >-
+          Give the exporter time to send B and C. Replay the same question under a new trace identity, D
+          prime. Send that trace, then look it up in the tracking store by its new ID. Our example returns
+          the replay record. D still counts as dropped in the original interval.
+        hold: 1
+        visual_cues:
+          - id: mf-sentence-fresh-telemetry-2-0
+            phrase: "Give the exporter time to send B and C. Replay the same question under a new trace identity, D prime."
+            targets: [fresh-telemetry-construction]
+            linger: 0
+            caption_boundary: true
+          - id: mf-sentence-fresh-telemetry-2-1
+            phrase: "Send that trace, then look it up in the tracking store by its new ID."
+            targets: [fresh-telemetry-construction]
+            linger: 0
+            caption_boundary: true
+          - id: mf-sentence-fresh-telemetry-2-2
+            phrase: "Our example returns the replay record. D still counts as dropped in the original interval."
+            targets: [fresh-telemetry-construction]
+            linger: 0
+            caption_boundary: true
+  - id: synthesis
+    title: "Which worker served the evaluated release?"
+    visual: >-
+          Pin the evaluated prompt, temperature, model and index snapshot above two replies. Both workers
+          reach prompt 18 and cite DOC-12. Compare the captured inputs, reload West's index, and look up
+          the cited policy behind its new receipt.
+    beats:
+      - say: >-
+          Three citation checks passed with this configuration. Keep its digest on screen. Move the
+          production prompt alias to eighteen. Both workers load it. East and West both answer thirty days
+          and cite document twelve. Open their traces. They agree on the prompt, temperature and model.
+          Compare the index each worker searched. Which worker served the evaluated configuration?
+        hold: 2.6
+        visual_cues:
+          - id: mf-sentence-synthesis-0-0
+            phrase: "Three citation checks passed with this configuration. Keep its digest on screen."
+            targets: [synthesis-construction]
+            linger: 0
+            caption_boundary: true
+          - id: mf-sentence-synthesis-0-1
+            phrase: "Move the production prompt alias to eighteen. Both workers load it."
+            targets: [synthesis-construction]
+            linger: 0
+            caption_boundary: true
+          - id: mf-sentence-synthesis-0-2
+            phrase: "East and West both answer thirty days and cite document twelve."
+            targets: [synthesis-construction]
+            linger: 0
+            caption_boundary: true
+          - id: mf-sentence-synthesis-0-3
+            phrase: "Open their traces. They agree on the prompt, temperature and model. Compare the index each worker searched."
+            targets: [synthesis-construction]
+            linger: 0
+            caption_boundary: true
+          - id: mf-sentence-synthesis-0-4
+            phrase: "Which worker served the evaluated configuration?"
+            targets: [synthesis-construction]
+            linger: 0
+            caption_boundary: true
+      - say: >-
+          East did. It searched index eight, and its configuration digest matches. West searched index
+          seven. Moving the prompt alias never reloaded West's search index. Both indexes contain document
+          twelve, so West could give the same reply on this question. Which part would you reload on West?
+        hold: 1
+        visual_cues:
+          - id: mf-sentence-synthesis-1-0
+            phrase: "East did. It searched index eight, and its configuration digest matches."
+            targets: [synthesis-construction]
+            linger: 0
+            caption_boundary: true
+          - id: mf-sentence-synthesis-1-1
+            phrase: "West searched index seven. Moving the prompt alias never reloaded West's search index."
+            targets: [synthesis-construction]
+            linger: 0
+            caption_boundary: true
+          - id: mf-sentence-synthesis-1-2
+            phrase: "Both indexes contain document twelve, so West could give the same reply on this question."
+            targets: [synthesis-construction]
+            linger: 0
+            caption_boundary: true
+          - id: mf-sentence-synthesis-1-3
+            phrase: "Which part would you reload on West?"
+            targets: [synthesis-construction]
+            linger: 0
+            caption_boundary: true
+      - say: >-
+          Load the evaluated index on West and ask the same question again. West now records index eight.
+          Its configuration digest matches. The new reply cites document twelve, an allowed source. Open
+          that revision. The policy gives the customer thirty days from delivery. Read the two West traces
+          side by side. The second one used the index that earned the scores. Next, PyTorch takes us inside
+          the computation that a run records.
+        hold: 1.4
+        visual_cues:
+          - id: mf-sentence-synthesis-2-0
+            phrase: "Load the evaluated index on West and ask the same question again."
+            targets: [synthesis-construction]
+            linger: 0
+            caption_boundary: true
+          - id: mf-sentence-synthesis-2-1
+            phrase: "West now records index eight. Its configuration digest matches."
+            targets: [synthesis-construction]
+            linger: 0
+            caption_boundary: true
+          - id: mf-sentence-synthesis-2-2
+            phrase: "The new reply cites document twelve, an allowed source."
+            targets: [synthesis-construction]
+            linger: 0
+            caption_boundary: true
+          - id: mf-sentence-synthesis-2-3
+            phrase: "Open that revision. The policy gives the customer thirty days from delivery."
+            targets: [synthesis-construction]
+            linger: 0
+            caption_boundary: true
+          - id: mf-sentence-synthesis-2-4
+            phrase: "Read the two West traces side by side. The second one used the index that earned the scores."
+            targets: [synthesis-construction]
+            linger: 0
+            caption_boundary: true
+          - id: mf-sentence-synthesis-2-5
+            phrase: "Next, PyTorch takes us inside the computation that a run records."
+            targets: [synthesis-construction]
+            linger: 0
+            caption_boundary: true

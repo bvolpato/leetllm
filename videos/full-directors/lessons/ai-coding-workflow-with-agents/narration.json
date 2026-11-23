@@ -1,0 +1,264 @@
+[
+  {
+    "id": "c01",
+    "title": "A second delivery for one repair",
+    "sourceChapters": [
+      "c01"
+    ],
+    "beats": [
+      {
+        "id": "c01-b01",
+        "say": "Give the wheel one turn in the truing stand. The valve comes back to the pointer. The mechanic finishes one job. Its completion goes to the billing webhook, the server that receives the provider’s deliveries. The first delivery returns invoice one.",
+        "hold": 1
+      },
+      {
+        "id": "c01-b02",
+        "say": "The provider sends the completion again. Same shop, same event number. The wheel is still on the stand. Which invoice should the second delivery return?",
+        "hold": 3.1
+      },
+      {
+        "id": "c01-b03",
+        "say": "It should return invoice one again. Watch what the original handler saves. It creates invoice two. Both stored invoices carry the same event number. The agent’s button debounce can stop a double click, and its single-click test can pass. This second request arrived directly from the provider.",
+        "hold": 1.3
+      },
+      {
+        "id": "c01-b04",
+        "say": "To review the agent’s patch, we’ll trace the event to the write, run the same reproduction on both revisions, and give the reviewer the results tied to the code that ran.",
+        "hold": 0.8
+      }
+    ]
+  },
+  {
+    "id": "c02",
+    "title": "Trace the write and bound the worker",
+    "sourceChapters": [
+      "c02"
+    ],
+    "beats": [
+      {
+        "id": "c02-b01",
+        "say": "An inline assistant can suggest an edit. A coding agent can also choose a tool, inspect files, make an edit and run a check. Here the agent proposes a read. The host admits it. Follow the webhook route into the handler, then follow its call to invoice storage. That last call made the extra row.",
+        "hold": 1
+      },
+      {
+        "id": "c02-b02",
+        "say": "The task contract owns the handler and its test. It allows the billing tests and lint. A repeat must reuse the invoice, and a new event must still create one. Suppose the fix needs the storage module. Which part of the trace should the explorer bring back?",
+        "hold": 2.4
+      },
+      {
+        "id": "c02-b03",
+        "say": "Show the call from the handler to the storage module. Request that file from its owner before editing it. Use search, definitions and references to trace a write. A context-matched patch can check where an edit lands. The replay will check what it does.",
+        "hold": 1
+      },
+      {
+        "id": "c02-b04",
+        "say": "A linked worktree gives the worker separate files, an index and a head. Git objects, most references and repository configuration remain shared. Follow the test command into its child process. The runner lets it read the fixture and write a temporary result. It has no production token, and the payment network route is closed.",
+        "hold": 1
+      },
+      {
+        "id": "c02-b05",
+        "say": "The host checks the executable, arguments and project script, including whether lint edits files. It sets limits on time and resources. The same filesystem, credential and network rules cover child processes and connected tools. If an issue asks to upload a log, the comment supplies information. Only the host can admit that destination.",
+        "hold": 0.8
+      }
+    ]
+  },
+  {
+    "id": "c03",
+    "title": "Read the replies and count the rows",
+    "sourceChapters": [
+      "c03"
+    ],
+    "beats": [
+      {
+        "id": "c03-b01",
+        "say": "Start with two empty stores. Use the same three inputs, the same test bytes and the same assertions on the base and candidate. Send the wheel repair, repeat it, then send a different job, a chain wax. Why include a second job?",
+        "hold": 2.5
+      },
+      {
+        "id": "c03-b02",
+        "say": "A handler that returns a constant would reuse the wheel invoice for the chain. The base has the opposite problem. Run the base. The wheel gets invoice one. The retry gets invoice two. The chain gets invoice three. Three invoices for two jobs. The retry assertion fails because the second return differs from the first. Keep that specific failure as the baseline. A missing import would tell us only that setup failed.",
+        "hold": 1.1
+      },
+      {
+        "id": "c03-b03",
+        "say": "Run the candidate with the same inputs. First, the wheel gets invoice one. On retry, the handler finds that invoice. The chain wax gets invoice two. Let the writes finish and count the rows. Two distinct jobs, two stored invoices. A successful response by itself would have missed the duplicate on the base.",
+        "hold": 1.1
+      },
+      {
+        "id": "c03-b04",
+        "say": "Here a dictionary remembers the event between calls. This verifies a sequential example. A mock that bypasses the real write cannot establish what the service stores. A webhook that only acknowledges delivery also needs a check of persistent state. Now send both copies together.",
+        "hold": 1
+      }
+    ]
+  },
+  {
+    "id": "c04",
+    "title": "Two workers at one empty lookup",
+    "sourceChapters": [
+      "c04"
+    ],
+    "beats": [
+      {
+        "id": "c04-b01",
+        "say": "Start with an empty invoice store. Both workers have the same shop and wheel event. Worker A checks the key and finds nothing. Before A writes, worker B checks it too. Both saw an empty lookup. If each now acts on that observation, how many invoices will they save?",
+        "hold": 2.8
+      },
+      {
+        "id": "c04-b02",
+        "say": "A creates invoice one. B creates invoice two. Each lookup was accurate when it ran. B’s observation was already stale when B wrote. The sequential replay missed this order of operations.",
+        "hold": 1.2
+      },
+      {
+        "id": "c04-b03",
+        "say": "Reset the store. Use the same two requests and the same order of arrival. This time the store enforces uniqueness on shop and event, in the transaction that creates the invoice. Both lookups still see an empty store. A claims the key. B requests that key and waits for the first transaction.",
+        "hold": 1.2
+      },
+      {
+        "id": "c04-b04",
+        "say": "A commits invoice one. B’s insert conflicts. Once the winner’s row is visible, which invoice should B return?",
+        "hold": 2.5
+      },
+      {
+        "id": "c04-b05",
+        "say": "B reads invoice one. Trace both replies back to the same stored row. Choose the key from the provider contract. Two event IDs for one business operation may also need a business key. Test simultaneous requests, restart, and a crash around the write in real storage. A remote service that creates an effect needs its own way to recognize a retry.",
+        "hold": 1.2
+      }
+    ]
+  },
+  {
+    "id": "c05",
+    "title": "What counts as a failed repair?",
+    "sourceChapters": [
+      "c05"
+    ],
+    "beats": [
+      {
+        "id": "c05-b01",
+        "say": "Set a budget of three failed repairs. The base run exposes the duplicate before the budget starts. On the first patch, read the replies. One, one, two. But the retry also queued a write. Let it finish. A third row appears for the wheel. What evidence should go back to the worker?",
+        "hold": 2.4
+      },
+      {
+        "id": "c05-b02",
+        "say": "Send the extra row, its event number and the failed count assertion. A fresh verifier can find this by starting from the acceptance criteria. A second role that repeats the worker’s response-only check will share its blind spot. Keep the input and the verifier unchanged for the next repair.",
+        "hold": 1
+      },
+      {
+        "id": "c05-b03",
+        "say": "On the second repair the queue drains. Two rows remain. The retry and the new-event assertions pass as well. Return that patch with the base and repair receipts. If all three repairs fail, return the last failure, the missing context and the scope you need.",
+        "hold": 1.1
+      },
+      {
+        "id": "c05-b04",
+        "say": "Try another run. After the same baseline and one failed repair, a dependency fails to import on attempt two. How many repairs have actually failed the invoice assertion?",
+        "hold": 2.6
+      },
+      {
+        "id": "c05-b05",
+        "say": "One repair. The setup error stopped the verifier before it could judge the second patch. Retain both receipts and resolve setup within the contract. If a log exposes a credential, revoke it, restrict the log and fix capture before running again.",
+        "hold": 1
+      }
+    ]
+  },
+  {
+    "id": "c06",
+    "title": "Sort the entire diff by ownership",
+    "sourceChapters": [
+      "c06"
+    ],
+    "beats": [
+      {
+        "id": "c06-b01",
+        "say": "Start review with the complete diff. The task owns the webhook handler and its test. The worker also changed the checkout button and the dependency lockfile. Which files can the reviewer take under the existing contract?",
+        "hold": 2.6
+      },
+      {
+        "id": "c06-b02",
+        "say": "Keep the two billing files. Return the button and lockfile changes for removal or a separate scope decision. Inspect deleted paths, both ends of renames, file modes and untracked handoff files. A rename can move an owned handler to an unowned destination without adding a line of code.",
+        "hold": 1
+      },
+      {
+        "id": "c06-b03",
+        "say": "Now inspect the smaller diff. The base creates an invoice on every delivery. In the candidate the lookup comes first, so a retry can return the existing invoice. Compare the behavior receipts, inspect failure handling and adjacent billing paths, and check CI on this candidate. The real storage transaction still needs focused review.",
+        "hold": 1
+      },
+      {
+        "id": "c06-b04",
+        "say": "Give a shared file one writer or sequence the edits. Separate worktrees may share ports, fixtures and databases. Check the combined patch. A benchmark such as SWE-bench measures a model and its tools on a particular set of repository tasks. Record the version, split, scaffold and attempt budget when comparing workers. This webhook needs its own replay.",
+        "hold": 0.9
+      },
+      {
+        "id": "c06-b05",
+        "say": "Consider the audit of SWE-bench Verified in February twenty twenty-six. It examined one hundred thirty-eight hard problems from a suite of five hundred. It found faulty tests or descriptions and evidence of prior exposure to solutions. The auditors selected difficult problems. A defect rate from that group cannot estimate the rate across the suite. Choose a worker using a documented benchmark protocol, then verify its patch in your own repository.",
+        "hold": 1.3
+      }
+    ]
+  },
+  {
+    "id": "c07",
+    "title": "Match the run to the tested files",
+    "sourceChapters": [
+      "c07"
+    ],
+    "beats": [
+      {
+        "id": "c07-b01",
+        "say": "Stage a file with value one. Git write-tree names that index tree T. Now edit the working file to two and add an untracked fixture. The test reads both working files. What value does tree T still identify?",
+        "hold": 2.5
+      },
+      {
+        "id": "c07-b02",
+        "say": "Tree T still holds one. A committed tree describes the commit, and an index tree describes the staged files. Run from a controlled snapshot or inventory the actual inputs, including the test overlay, dependencies and configuration. Get the command, environment and terminal outcomes from the trusted runner.",
+        "hold": 1
+      },
+      {
+        "id": "c07-b03",
+        "say": "Now review candidate C. An archived receipt says both required checks passed on B. Keep it with B. A fresh receipt names C. The runner discovered both tests, ran the new-event check and skipped the retry. Even if a branch rule accepts a neutral result, which behavior is still untested on C?",
+        "hold": 2.4
+      },
+      {
+        "id": "c07-b04",
+        "say": "The retry. Rerun the required checks on C with verifier K. This time both checks execute and pass. The retry test includes the stored count. Compare the verifier digest with the baseline and inspect the executed test IDs and terminal results. An empty selection, a skip or an interrupted check needs another run.",
+        "hold": 1.1
+      }
+    ]
+  },
+  {
+    "id": "c08",
+    "title": "Replay the patch at handoff",
+    "sourceChapters": [
+      "c08"
+    ],
+    "beats": [
+      {
+        "id": "c08-b01",
+        "say": "You’re the reviewer. Here is verifier K and the same three deliveries. Start from an empty store on each revision. On the base, send the wheel, repeat it, then send the chain wax. On C, send the wheel repair, replay the completion, then bill the chain wax. Look at the second return on each side. How can you tell C still bills a separate repair?",
+        "hold": 2.8
+      },
+      {
+        "id": "c08-b02",
+        "say": "Follow the chain wax. It has its own event number and its own invoice on C. The wheel retry returns invoice one, and the final store has two rows. The base saved three. Hand back the scoped diff, contract, unchanged reproduction, exact commands, regression and lint results, and the concurrency and restart limits.",
+        "hold": 1.1
+      },
+      {
+        "id": "c08-b03",
+        "say": "While the owner reads, the branch advances to D and the target advances too. C’s receipt stays with C. Refresh the source, target, required checks and reviews. Test the proposed merge result or use the merge queue when the target change matters. Bind any eventual integration to the reviewed revision.",
+        "hold": 1.1
+      },
+      {
+        "id": "c08-b04",
+        "say": "One last case. Four deliveries, one account, an empty store. Caller A commits first. Three callers carry key four three zero one seven. The fourth carries a different key. Under the atomic rule, which callers share a return, and how many rows remain?",
+        "hold": 3.1
+      },
+      {
+        "id": "c08-b05",
+        "say": "The first three share invoice one. The fourth gets invoice two. Two keys leave two rows. For this new local patch, F, choose a receipt. One ran concurrent replay on E. One names F but skipped replay. One ran and passed replay on F with the unchanged verifier. Which goes to the owner?",
+        "hold": 2.7
+      },
+      {
+        "id": "c08-b06",
+        "say": "Take the third receipt. It identifies F and shows the required checks finished, including concurrent replay. Return the tested patch and evidence to the integration owner. Publishing a branch, merging and deploying each require their own authority. If you resume tomorrow, match the packet to the current head again.",
+        "hold": 1.8
+      }
+    ]
+  }
+]

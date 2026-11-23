@@ -1,0 +1,504 @@
+version: 1
+id: bayes
+title: Does Eight Out of Ten Earn More Traffic?
+source: foundations/bayesian-inference-priors-posteriors/content.md
+voice: en-US-AndrewNeural
+rate: +0%
+sources:
+  - title: "Berkeley: Bayes estimation"
+    url: https://stat210a.berkeley.edu/fall-2025/reader/bayes-estimation.html
+  - title: SciPy beta distribution
+    url: https://docs.scipy.org/doc/scipy/reference/generated/scipy.stats.beta.html
+scenes:
+  - id: intro
+    title: Would you give this agent more traffic?
+    visual: Ten identified task results arrive beside their running count. The release rule appears when the narrator introduces it. The posterior decision comes later.
+    beats:
+      - say: Eight of these ten supplied coding tasks pass. Would you give this agent
+          more traffic? Keep their numbered identities.
+        hold: 0.5
+        visual_cues:
+          - id: intro-outcomes-arrive
+            phrase: these ten supplied coding tasks pass
+            targets:
+              - intro-outcomes
+              - observed-fraction
+            color: green
+      - say: "Choose the rule first: the success rate must exceed seventy percent, with
+          at least ninety-five percent posterior probability."
+        hold: 0.6
+        visual_cues:
+          - id: choose-release-rule
+            phrase: Choose the rule first
+            targets:
+              - release-rule
+            color: yellow
+      - say: Bayesian inference assigns weight to possible rates. We'll use their
+          distribution to make the traffic decision.
+        hold: 0.6
+        visual_cues:
+          - id: opening-prediction
+            phrase: make the traffic decision
+            targets:
+              - release-rule
+            color: yellow
+  - id: prior
+    title: Give possible rates their starting weight
+    visual: A broad Beta(2,2) density gives an explicit initial assumption. A
+      growing interval then contracts to a point while its original outline
+      remains.
+    beats:
+      - say: Rewind to before we use those results. The unknown rate can lie anywhere
+          between zero and one. Choose a beta distribution whose parameters both
+          equal two. It favors middle rates gently. Those weights encode an
+          assumption; no outcomes have entered this model yet.
+        hold: 0.6
+        visual_cues:
+          - id: prior-starting-shape
+            phrase: favors middle rates gently
+            targets:
+              - prior-density
+            color: blue
+      - say: Sweep the highlighted range across the curve. Its area is the probability
+          assigned to that range. The full curve has area one. Density measures
+          how much probability is packed into a unit of rate.
+        hold: 0.6
+        visual_cues:
+          - id: prior-area-sweep
+            phrase: Sweep the highlighted range across the curve
+            targets:
+              - prior-area
+              - prior-probability
+            color: blue
+      - say: Predict what happens as we squeeze the range onto one exact rate strictly
+          between zero and one. The original outline stays for comparison. As the
+          range shrinks, its probability approaches zero while the density at that
+          rate stays positive. The exact rate has probability zero. Height and area
+          now have visibly different jobs.
+        hold: 0.8
+        visual_cues:
+          - id: prior-area-contract
+            phrase: squeeze the range onto one exact rate
+            targets:
+              - prior-area
+              - prior-probability
+              - prior-point-density
+            color: yellow
+  - id: likelihood
+    title: Ask each candidate rate to explain the outcomes
+    visual: The same numbered passes and failures accumulate beside their actual
+      likelihood powers and candidate-rate weights. The shared count factor
+      cancels during normalization.
+    beats:
+      - say: Keep the model, prompt, tools, retry budget, and pass criterion fixed.
+          Assume these outcomes came from distinct comparable tasks. One observation
+          says whether one task passes under the fixed retry budget. Keep retries
+          grouped by task, and sample distinct representative tasks. Independent
+          retries of one selected prompt still do not sample new prompts from the
+          target population. Conditional on their shared rate, our model treats
+          outcomes as independent. Each pass multiplies a candidate's likelihood by
+          that rate. Watch the eight passes favor higher rates.
+        hold: 0.6
+        visual_cues:
+          - id: likelihood-pass-arrivals
+            phrase: Each pass multiplies a candidate's likelihood by that rate. Watch the
+              eight passes favor higher rates
+            targets:
+              - likelihood-outcomes
+              - likelihood-curve
+              - likelihood-powers
+            color: green
+      - say: Each failure multiplies by the remaining chance. Predict what the two
+          failures will do near a rate of one. Their factors pull the peak into
+          the interior. The final likelihood scores these fixed observations
+          under every proposed rate.
+        hold: 0.7
+        visual_cues:
+          - id: likelihood-failure-arrivals
+            phrase: two failures will do near a rate of one. Their factors pull the peak
+              into the interior
+            targets:
+              - likelihood-outcomes
+              - likelihood-curve
+              - likelihood-powers
+            color: pink
+      - say: Our curve follows the ordered sequence. Counting all arrangements with
+          eight passes adds the same factor of forty-five at every rate. During
+          posterior normalization that shared factor cancels. The relative
+          evidence across rates stays the same.
+        hold: 0.6
+        visual_cues:
+          - id: count-arrangements
+            phrase: adds the same factor of forty-five at every rate
+            targets:
+              - count-factor
+            color: yellow
+          - id: cancel-common-factor
+            phrase: that shared factor cancels
+            targets:
+              - count-factor
+            color: green
+  - id: update
+    title: Multiply the weights, then restore unit area
+    visual: A shared candidate-rate probe links prior density, sequence likelihood
+      and their raw product. A common rescaling gives unit area. The original
+      outcome identities then update one beta parameter each.
+    beats:
+      - say: Bayes' rule multiplies the prior density by the likelihood at each
+          candidate rate. Move the probe and follow its product. The raw
+          product's total area is the evidence for this sequence. Divide every
+          height by that one area. The resulting posterior has unit area and
+          preserves the relative weights.
+        hold: 0.7
+        visual_cues:
+          - id: same-rate-probe
+            phrase: Move the probe and follow its product
+            targets:
+              - product-plot-0
+              - product-plot-1
+              - product-plot-2
+            color: yellow
+          - id: normalize-product
+            phrase: Divide every height by that one area
+            targets:
+              - product-plot-2
+              - product-normalization
+            color: green
+      - say: Restart from the same prior to inspect the bookkeeping. Each green outcome
+          adds one to the first beta parameter. Each red outcome adds one to the
+          second. Every numbered task enters once. The beta shape survives this
+          multiplication, which makes the update conjugate.
+        hold: 0.7
+        motion_check:
+          region:
+            - 150
+            - 450
+            - 1100
+            - 370
+          minimumChangedFraction: 0.002
+        visual_cues:
+          - id: posterior-pass-arrivals
+            phrase: Each green outcome adds one to the first beta parameter
+            targets:
+              - posterior-outcomes
+              - posterior-density
+              - posterior-parameters
+              - posterior-progress
+            color: green
+          - id: posterior-failure-arrivals
+            phrase: Each red outcome adds one to the second
+            targets:
+              - posterior-outcomes
+              - posterior-density
+              - posterior-parameters
+              - posterior-progress
+            color: pink
+      - say: The completed posterior is beta ten, four. For any beta distribution with
+          parameters a and b, the mean is a divided by the sum of a and b. Here that
+          is ten divided by fourteen. Its mean balances the starting assumption with
+          the ten observed tasks. The prior contributes weight four around one half;
+          the data contribute weight ten around eight tenths. This gives a next-task
+          forecast near seventy-one percent.
+        hold: 0.7
+        visual_cues:
+          - id: posterior-mean-b3-1
+            phrase: Its mean balances the starting assumption with the ten observed tasks
+            targets:
+              - posterior-mean
+            color: green
+  - id: predictive
+    title: Let every plausible rate make its forecast
+    visual: The posterior remains beside the actual p times posterior-density
+      contribution. Its swept area constructs the forecast. A hypothetical
+      observed pass updates once, then a four-leaf predictive tree retains the
+      shared-rate uncertainty.
+    beats:
+      - say: Each possible rate predicts its own chance of a pass. Multiply that
+          prediction by its posterior weight. The right-hand curve shows those
+          contributions. Sweep its area to average all the possible predictions.
+          This posterior predictive probability equals the posterior mean.
+        hold: 0.7
+        motion_check:
+          region:
+            - 1070
+            - 385
+            - 700
+            - 410
+          minimumChangedFraction: 0.002
+        visual_cues:
+          - id: weighted-contribution
+            phrase: Sweep its area to average all the possible predictions
+            targets:
+              - weighted-contribution
+              - next-forecast
+            color: yellow
+      - say: Suppose the next task passes. Deliver that new result to the model once.
+          The posterior becomes beta eleven, four, and the following forecast
+          rises. A success supplies evidence for higher rates, so it changes
+          what we expect next.
+        hold: 0.7
+        visual_cues:
+          - id: new-pass-arrival
+            phrase: Deliver that new result to the model once
+            targets:
+              - new-pass
+              - following-forecast
+            color: green
+      - say: "Return to the original posterior before either of two future tasks runs.
+          Follow the two-pass path: the first success raises the chance of the
+          second. Averaging the squared rate gives this joint probability. Its
+          excess over the squared mean is exactly the rate's posterior
+          variance."
+        hold: 0.8
+        visual_cues:
+          - id: two-pass-path
+            phrase: Follow the two-pass path
+            targets:
+              - two-pass-path
+            color: green
+          - id: joint-variance-comparison
+            phrase: excess over the squared mean
+            targets:
+              - joint-comparison
+            color: yellow
+  - id: threshold
+    title: Use an area to make the release choice
+    visual: The posterior tail answers the predeclared release rule. Equal-tailed
+      quantiles isolate a credible range. A separate five-task predictive count
+      model aggregates arrangements, then compares uncertainty with a
+      frozen-rate model.
+    beats:
+      - say: Return to the release rule we fixed at the start. How much posterior area
+          lies above the rate bar? Shade and measure that area. It reaches about
+          fifty-eight percent. The required confidence was ninety-five percent,
+          so this ten-task evaluation calls for more evidence.
+        hold: 0.7
+        visual_cues:
+          - id: threshold-area
+            phrase: Shade and measure that area
+            targets:
+              - threshold-density
+              - threshold-probability
+            color: green
+      - say: A credible interval describes the range of plausible rates. Move the
+          endpoints until five percent of the posterior lies in each outside
+          tail. The middle contains ninety percent. These rate bounds describe
+          uncertainty about the parameter. The variance summarizes squared
+          distance from the posterior mean. For beta parameters a and b it is a
+          times b, divided by the squared parameter sum times that sum plus one.
+          At ten and four, that is forty divided by two thousand nine hundred
+          forty. Quantiles give the stated interval directly; a
+          mean-plus-or-minus shortcut need not enclose the intended area.
+        hold: 0.7
+        visual_cues:
+          - id: credible-range
+            phrase: Move the endpoints until five percent of the posterior lies in each
+              outside tail
+            targets:
+              - credible-range
+            color: blue
+          - id: beta-variance
+            phrase: The variance summarizes squared distance from the posterior mean
+            targets:
+              - variance-summary
+            color: yellow
+      - say: "Now forecast the number of passes in five new tasks. Average each possible
+          count over the uncertain rate. Pause at four passes: there are five
+          possible positions for the failure. Their probabilities add into one
+          count bar. Five passes has one all-pass arrangement."
+        hold: 0.8
+        visual_cues:
+          - id: count-build
+            phrase: Average each possible count over the uncertain rate
+            targets:
+              - predictive-counts
+            color: blue
+          - id: four-pass-count
+            phrase: "Pause at four passes: there are five possible positions for the
+              failure"
+            targets:
+              - predictive-counts
+              - predictive-count-outcomes
+            color: yellow
+          - id: five-pass-count
+            phrase: Five passes has one all-pass arrangement
+            targets:
+              - predictive-counts
+              - predictive-count-outcomes
+            color: green
+      - say: Compare that distribution with a binomial that freezes the rate at its
+          posterior mean. Both models have the same expected count. Keeping rate
+          uncertainty spreads more probability toward the extremes. Future
+          binary outcomes and uncertainty about the rate both contribute to this
+          predictive spread.
+        hold: 0.7
+        visual_cues:
+          - id: retain-rate-uncertainty
+            phrase: Keeping rate uncertainty spreads more probability toward the extremes
+            targets:
+              - predictive-counts
+            color: pink
+  - id: evidence
+    title: Can the same fraction carry stronger evidence?
+    visual: The ten-task posterior remains fixed while an alternative sample
+      includes blocks of five outcomes, each with four passes. Both observed
+      fractions stay at 0.8 as the alternative reaches 80/100. The correct
+      posterior and release tail change continuously across the paragraph
+      boundary.
+    beats:
+      - say: Keep the ten-task curve as a reference. Compare an alternative evaluation
+          with eighty passes in a hundred tasks. Both cases observed the same
+          fraction. Predict which curve will place more probability beyond the
+          release bar as the larger sample is included.
+        hold: 0.7
+        motion_check:
+          region:
+            - 150
+            - 350
+            - 1100
+            - 480
+          minimumChangedFraction: 0.002
+        visual_cues:
+          - id: larger-posterior-b1-1
+            phrase: as the larger sample is included
+            targets:
+              - larger-posterior
+              - posterior-tail-comparison
+            color: yellow
+      - say: Continue to the full hundred-task alternative. Its narrower posterior
+          clears our numerical evidence rule. Each curve began from the same
+          prior and uses its own sample. The larger sample reduces parameter
+          uncertainty while individual future tasks still carry outcome
+          randomness.
+        hold: 0.7
+        visual_cues:
+          - id: release-tail-growth
+            phrase: Continue to the full hundred-task alternative
+            targets:
+              - larger-posterior
+              - posterior-tail-comparison
+            color: green
+  - id: sensitivity
+    title: Hold the outcomes fixed and change the assumption
+    visual: Three explicit starting priors have their own large plots. The same ten
+      outcomes update all three, and the final means and release-tail
+      probabilities reveal prior sensitivity.
+    beats:
+      - say: How much did our starting assumption matter? Give the same ten outcomes to
+          three alternative priors. The strong symmetric prior starts tightly around
+          one half. Justify its concentration with relevant information or clearly
+          stated beliefs. If it comes from earlier observations, record those
+          observations and the prior used before them.
+        hold: 0.7
+        visual_cues:
+          - id: compare-starting-priors
+            phrase: strong symmetric prior starts tightly around one half
+            targets:
+              - prior-case-2
+            color: pink
+      - say: Update all three with the same numbered results. The stronger prior keeps
+          the posterior nearer its starting center. These means differ, while
+          all three still miss our chosen evidence rule. Sensitivity analysis
+          records which conclusions survive defensible changes in the
+          assumptions.
+        hold: 0.8
+        visual_cues:
+          - id: same-data-three-priors
+            phrase: Update all three with the same numbered results
+            targets:
+              - prior-case-0
+              - prior-case-1
+              - prior-case-2
+            color: yellow
+  - id: population
+    title: A confident answer belongs to a specific population
+    visual: The supplied hundred-task case is split into easy and hard families with
+      independent priors. Actual joint-posterior density contours stay fixed
+      while traffic weights move the release boundary. Projecting both rate
+      uncertainties produces the deployment-rate distribution.
+    beats:
+      - say: Our hundred-task benchmark contains eighty easy tasks and twenty hard
+          tasks. The agent passes most easy tasks and fewer hard ones. Give each
+          family its own rate and its own independent prior. This new model
+          keeps each family's evidence attached to the population that produced
+          it.
+        hold: 0.7
+        visual_cues:
+          - id: fit-family-rates
+            phrase: Give each family its own rate and its own independent prior
+            targets:
+              - easy-posterior
+              - hard-posterior
+            color: blue
+      - say: Each point now pairs two possible family rates. The contours show their
+          posterior weight. Keep that evidence fixed and change traffic from
+          mostly easy to mostly hard. The release boundary moves across the same
+          distribution. The forecast falls because the target population
+          changed.
+        hold: 0.8
+        motion_check:
+          region:
+            - 160
+            - 350
+            - 840
+            - 540
+          minimumChangedFraction: 0.002
+        visual_cues:
+          - id: change-traffic-mix
+            phrase: change traffic from mostly easy to mostly hard
+            targets:
+              - traffic-boundary
+              - traffic-shares
+              - deployment-forecast
+            color: yellow
+      - say: Project both uncertain family rates through the new traffic weights. This
+          curve is the resulting deployment-rate distribution. Its mean is near
+          one half, and little probability clears the rate bar. This propagation
+          assumes representative observations within each family and known
+          traffic shares.
+        hold: 0.8
+        visual_cues:
+          - id: propagate-family-uncertainty
+            phrase: Project both uncertain family rates through the new traffic weights
+            targets:
+              - mixture-density
+            color: cyan
+  - id: calibration
+    title: Check fresh predictions, then choose from the evidence
+    visual: The original ten-task model's forecast is saved before a separate
+      constructed validation batch. Its actual running pass fraction arrives
+      afterward. A final three-case board returns to the opening rule and
+      reveals the computed choices.
+    beats:
+      - say: Return to the original model for a different check. Save its forecasts
+          before fresh outcomes arrive. Then reveal the fresh results and
+          compare their running frequency with the forecasts we saved. Repeated
+          comparisons reveal persistent calibration problems. Investigate task
+          mix, repeated retries, and changed policies when they disagree. Keep
+          all evaluated agents, stopping rules, and release decisions in the
+          record, including unfavorable runs. Selective reporting can make a
+          narrow posterior answer a different question.
+        hold: 0.8
+        visual_cues:
+          - id: save-validation-forecasts
+            phrase: Save its forecasts before fresh outcomes arrive
+            targets:
+              - saved-forecasts
+            color: blue
+          - id: reveal-validation-outcomes
+            phrase: Then reveal the fresh results and compare their running frequency with
+              the forecasts we saved
+            targets:
+              - validation-results
+            color: green
+      - say: "Which evaluation earns the traffic increase? Choose using the rule from the beginning. The hundred-task case clears it when those tasks represent the intended population. The small sample and the shifted task mix call for relevant evidence. Each choice follows from the distribution for the question we actually asked. The estimation lesson next asks how an audit rate moves across repeated samples, and how an interval keeps that uncertainty beside the reported count."
+        hold: 1
+        visual_cues:
+          - id: apply-release-rule
+            phrase: The hundred-task case clears it when those tasks represent the intended
+              population
+            targets:
+              - release-choice-0
+              - release-choice-1
+              - release-choice-2
+            color: green

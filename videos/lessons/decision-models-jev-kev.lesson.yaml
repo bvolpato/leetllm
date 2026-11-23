@@ -1,0 +1,356 @@
+version: 1
+id: decision-models-jev-kev
+title: How should this build failure be routed?
+source: training/decision-models-jev-kev/content.md
+voice: af_heart
+rate: "+12%"
+sources:
+  - title: TypeSafe Jev introduction
+    url: https://typesafe.ai/blog/introducing-system-one-models-and-jev
+  - title: Kev implementation
+    url: https://github.com/jaredpalmer/kev
+  - title: Choice confidence formula
+    url: https://github.com/typesafe-ai/system-one-adapter-python/blob/main/src/system_one_adapter/_utils/confidence_metrics.py
+scenes:
+  - id: intro
+    title: "What should triage investigate first?"
+    visual: "A 401 response travels from the image registry to the failed build. Three choices sit below the log. The reviewer marks the supported cause after the viewer has had time to choose."
+    beats:
+      - say: "The registry sends back a four oh one. The build stops before a single test runs. Which of these three answers fits the log?"
+        hold: 2.4
+        caption_starts: ["Which of these three answers"]
+        visual_cues:
+          - id: open-log
+            phrase: "sends back a four oh one"
+            targets: [registry-response]
+          - id: first-call
+            phrase: "Which of these three answers"
+            targets: [build-log, choices]
+      - say: "B, registry authentication. A reviewer records B as the label. The collector supplies the log. The application sets the question and the allowed answers. A grammar can restrict a language model's next token to one of those letters. A decision head scores the options directly. Let's see how its scores compare with the reviewer's choice."
+        hold: 0.85
+        caption_starts: ["The collector supplies the log", "A grammar can restrict", "A decision head scores"]
+        visual_cues:
+          - id: review-label
+            phrase: "B, registry authentication"
+            targets: [choices]
+          - id: typed-contract
+            phrase: "restrict a language model's next token"
+            targets: [return-type]
+          - id: direct-head
+            phrase: "scores the options directly"
+            targets: [return-type]
+  - id: softmax
+    title: "How much probability goes to each answer?"
+    visual: "Each description keeps its row as its supplied score becomes a positive weight and then a share of their common total. The model winner and the reviewed answer get separate marks."
+    beats:
+      - say: "Here are three invented scores for that same build. The score before normalization is called a logit. At temperature one, softmax takes the exponential of each score. Watch the three weights go into one total. Registry authentication contributes about two point seven out of eleven point one. Which answer gets the most probability?"
+        hold: 1.9
+        visual_cues:
+          - id: exp-scores
+            phrase: "takes the exponential of each score"
+            targets: [weights]
+          - id: sum-weights
+            phrase: "go into one total"
+            targets: [total]
+          - id: largest-share
+            phrase: "Which answer gets the most probability"
+            targets: [weights, total]
+      - say: "Test regression. Divide each weight by the same total and A gets about two thirds. Find the reviewer's B one row down. It gets less than a quarter. Those shares sum to one across the choices we offered. Whether predictions like these are right two thirds of the time takes labeled incidents to find out."
+        hold: 0.8
+        visual_cues:
+          - id: deal-shares
+            phrase: "Divide each weight by the same total"
+            targets: [probability]
+          - id: wrong-winner
+            phrase: "Find the reviewer's B"
+            targets: [target-share]
+  - id: update
+    title: "Which score moves up in this step?"
+    visual: "On the same answer rows, the target supplies a signed gradient. A half step moves all three scores. Each probability bar carries a tick at its original tip."
+    beats:
+      - say: "The trainer is trying to put more probability on the reviewed choice. Its loss on this example is the negative natural log of B's share, about one point four one. To get the gradient for each score, subtract the target from its probability. B's target is one. A and C have target zero. Which score will go up when we subtract half of each gradient?"
+        hold: 2.2
+        visual_cues:
+          - id: loss-target
+            phrase: "negative natural log of B's share"
+            targets: [target-loss]
+          - id: form-gradient
+            phrase: "subtract the target from its probability"
+            targets: [gradient]
+          - id: step-question
+            phrase: "subtract half of each gradient"
+            targets: [gradient, step]
+      - say: "B goes up. Subtract half of each gradient now. Subtracting a negative raises B's score. The other two scores fall. Recompute softmax, and B goes from about a quarter of the mass to just under two fifths. A still wins. We moved three scores by hand. In training, the optimizer changes weights that produce scores for many builds. Test those weights on builds from other incidents."
+        hold: 1
+        visual_cues:
+          - id: take-step
+            phrase: "Subtract half of each gradient now"
+            targets: [changing-scores, probability]
+          - id: after-step
+            phrase: "A still wins"
+            targets: [probability]
+  - id: pointer
+    title: "Where does Kev get an option score?"
+    visual: "Three projected marker vectors share an equal-unit plot. Project each tip onto the horizontal decision vector and divide the dot product by the square root of two."
+    beats:
+      - say: "Where could those scores come from? Kev marks the end of each option and the place where it asks for a decision. The backbone gives each marker a vector. The head learns projections for both kinds of marker. For this drawing, use two coordinates and let the projections leave them alone. The yellow decision vector points one unit to the right. Which option reaches furthest in that direction?"
+        hold: 2.1
+        visual_cues:
+          - id: option-tips
+            phrase: "each marker a vector"
+            targets: [option-vectors]
+          - id: project-query
+            phrase: "one unit to the right"
+            targets: [decision-vector]
+          - id: pointer-call
+            phrase: "Which option reaches furthest"
+            targets: [option-vectors, decision-vector]
+      - say: "B reaches two units. A goes straight up, so it contributes zero along the yellow arrow. Drop C's tip onto the same line. It reaches half a unit. Those are the dot products. Divide each by the square root of the pointer width. Here the width is two. That gives B a score of about one point four one. The drawing uses two coordinates so we can see the projection. Kev's default pointer uses two hundred fifty-six."
+        hold: 0.9
+        visual_cues:
+          - id: foot-b
+            phrase: "B reaches two units"
+            targets: [projection-b]
+          - id: foot-a
+            phrase: "A goes straight up"
+            targets: [projection-a]
+          - id: foot-c
+            phrase: "Drop C's tip onto the same line"
+            targets: [projection-c]
+          - id: scale-dot
+            phrase: "Divide each by the square root"
+            targets: [scaled-scores]
+  - id: temperature
+    title: "Reading the model’s answer"
+    visual: "The probability bars retain ticks at their original endpoints while temperature doubles. The next beats compare the source of the score or letter returned for the very same question."
+    beats:
+      - say: "Keep those pointer scores. At temperature one, B gets about sixty-three percent of the mass. I'm going to double the temperature. That divides every score by two before softmax. Predict what happens to B's share, and whether another option can pass it."
+        hold: 1.9
+        visual_cues:
+          - id: temp-original
+            phrase: "temperature one"
+            targets: [temperature-value, pointer-distribution]
+          - id: temp-call
+            phrase: "whether another option can pass it"
+            targets: [pointer-distribution]
+      - say: "Double it now. B's share falls to forty-eight percent. Look at the ticks where the bars started. The smaller shares grew. B still leads because dividing every score by the same positive number keeps their order. To choose a temperature for a checkpoint, fit it on held-out logits and check reliability on separate incidents."
+        hold: 0.8
+        caption_starts: ["B's share falls", "B still leads"]
+        visual_cues:
+          - id: raise-temp
+            phrase: "Double it now"
+            targets: [temperature-value, pointer-distribution]
+          - id: read-shares
+            phrase: "ticks where the bars started"
+            targets: [pointer-distribution]
+      - say: "Suppose three services all return B. Trace that letter back. In Kev, the winning option comes from the marker comparison we just drew. SemIf freezes the language model and reads its next-position scores for A, B and C without decoding a token. Tev1 trains on a one-letter completion, generates the letter, and lets client code map it to a typed answer. A frozen first-letter preference can disagree with a full generated answer. Test the readout you'll actually call."
+        hold: 0.7
+        visual_cues:
+          - id: kev-origin
+            phrase: "In Kev"
+            targets: [kev-readout]
+          - id: semif-origin
+            phrase: "SemIf freezes the language model"
+            targets: [semif-readout]
+          - id: tev-origin
+            phrase: "Tev1 trains on a one-letter completion"
+            targets: [tev-readout]
+      - say: "Jev also exposes typed decisions. TypeSafe says it samples decisions in parallel and calls its training method Reinforcement Learning for Calibrated Decisions. TypeSafe keeps the architecture and the training recipe private. We can compare the answers the services return."
+        hold: 0.85
+        visual_cues:
+          - id: jev-boundary
+            phrase: "TypeSafe says it samples decisions in parallel"
+            targets: [jev-readout]
+  - id: options
+    title: What happens if the caller changes the choices?
+    visual: A shuffled answer key separates the letter from its description. Removing C from the original fixed scores changes the denominator. Two questions then continue from one cached log in independent rows.
+    beats:
+      - say: Move the answer descriptions to different positions and keep their semantic identities attached. A robust decision should follow the description supported by the evidence. In a complete causal model, changing serialized order can change hidden vectors too. Test the full request and align outputs by option identity.
+        hold: 0.8
+        visual_cues:
+          - id: options-b1-1
+            phrase: different positions
+            targets:
+              - permuted-options
+            linger: 0.45
+          - id: align-identity
+            phrase: "align outputs by option identity"
+            targets: [semantic-result, permuted-options]
+      - say: Drop C. Keep both remaining scores fixed. B's share grows from about twenty-four and a half percent to almost twenty-seven percent. Look at the two fractions. B has the same weight on top. Removing C took one unit out of the total on the bottom.
+        hold: 0.8
+        caption_starts: ["B's share grows", "to almost twenty-seven percent", "Look at the two fractions"]
+        visual_cues:
+          - id: options-b2-1
+            phrase: Drop C
+            targets:
+              - removed-option
+            linger: 0.45
+          - id: options-b2-2
+            phrase: B's share grows
+            targets:
+              - renormalized-share
+            linger: 0.45
+      - say: Ask two questions about the same log. Which cause should we investigate? Did the tests start? Kev reads the log once. Each question starts in its own row from that cached state. The recurrent layers carry information forward, so an attention mask alone would let one question affect the other. Add an Unknown choice to the second row. Check that the first row's scores still match its original scores within numerical tolerance.
+        hold: 1
+        visual_cues:
+          - id: options-construct-2
+            phrase: Each question starts in its own row
+            targets:
+              - options-construction
+            color: yellow
+            linger: 0.5
+          - id: change-question
+            phrase: "Add an Unknown choice"
+            targets: [independent-row]
+  - id: training-contract
+    title: "Which incidents belong in the test?"
+    visual: "A retry joins the first log under one incident ID. That group travels together. The same reviewed option then feeds a head loss or a supervised letter completion before calibration and development settings are frozen."
+    beats:
+      - say: "Keep the full task with the label. This record has the log, the exact question, the option descriptions and the reviewer's B. It also has the policy version and the incident ID. Here's a retry from the same incident. If the first log trains the model, where should the retry go?"
+        hold: 2
+        visual_cues:
+          - id: training-row
+            phrase: "the exact question"
+            targets: [training-record]
+          - id: retry-line
+            phrase: "a retry from the same incident"
+            targets: [incident-group]
+      - say: "Keep them together in training. Otherwise a near duplicate can make the final test look easier. Keep entire incident groups for evaluation, including logs from unfamiliar sources. Give reviewers a rule for choosing C. If the whole log just says build failed, label it insufficient evidence. Include ambiguous logs and logs containing instruction-like text when you test."
+        hold: 0.8
+        visual_cues:
+          - id: move-group
+            phrase: "Keep them together in training"
+            targets: [incident-group, split-destination]
+      - say: "The reviewed B can train two different things. A learned head takes loss on B's option score after normalization. A completion trainer reads the whole prompt, masks the input tokens from the loss, and takes loss on the answer letter. The smaller Kev checkpoints train adapters and the head on a frozen backbone. The twenty-seven billion parameter version two fine-tunes the full backbone. LoRA changes which weights move. Both training routes use the same reviewed answer."
+        hold: 0.75
+        visual_cues:
+          - id: head-loss
+            phrase: "loss on B's option score after normalization"
+            targets: [head-loss]
+          - id: letter-loss
+            phrase: "takes loss on the answer letter"
+            targets: [letter-loss]
+      - say: "Fit the temperature on calibration examples. With that scale fixed, use development incidents to choose the routing cutoff. Freeze both before opening the final incident groups. There, compare predicted probabilities with how often the choices were right, using reliability bins and a Brier score. Also time the full workflow. A long log still needs reading, and question count, caching and hardware all affect serving cost."
+        hold: 0.8
+        visual_cues:
+          - id: calibrate
+            phrase: "Fit the temperature on calibration examples"
+            targets: [calibration]
+          - id: choose-gate
+            phrase: "choose the routing cutoff"
+            targets: [development]
+          - id: final-test
+            phrase: "opening the final incident groups"
+            targets: [final-groups]
+  - id: risk
+    title: "Which incidents does 0.80 admit?"
+    visual: "A common ruler aligns winning probability with Choice confidence. Eight labeled incidents stay fixed as the cutoff moves from 0.80 probability to 0.80 confidence. The accepted subset supplies both denominators."
+    beats:
+      - say: "Our application has two fields it could read. The top ruler is the winning probability. With three options, a uniform choice starts at one third. Kev's Choice confidence measures how far the winner has come from that baseline toward one. Subtract one third, then divide by the distance left to one. A winning probability of point eight comes out to a confidence of point seven."
+        hold: 0.8
+        visual_cues:
+          - id: uniform-floor
+            phrase: "a uniform choice starts at one third"
+            targets: [uniform]
+          - id: forward-map
+            phrase: "A winning probability of point eight"
+            targets: [forward-mark]
+      - say: "Now put point eight on the lower ruler. Travel eighty percent of the distance from one third to one. Read straight up. The matching probability is thirteen fifteenths, about point eight six seven. You can use either scale if you convert the cutoff. For two or more choices, the baseline is one divided by the number of choices. This field measures concentration. We'll need reviewed outcomes to measure errors."
+        hold: 0.95
+        caption_starts: ["Read straight up", "thirteen fifteenths"]
+        visual_cues:
+          - id: inverse-map
+            phrase: "Travel eighty percent of the distance"
+            targets: [inverse-mark]
+          - id: read-cutoff
+            phrase: "Read straight up"
+            targets: [inverse-mark]
+      - say: "Here are eight invented incidents with reviewed outcomes. A cross means the winning answer was wrong. Begin with a gate on winning probability. It accepts point eight or higher. Four of the eight go through. See the cross at point nine? That's one error among the four we routed. That fraction is called selective risk. Now suppose the code reads confidence at the same point eight. Which of those four incidents drops out, and does the error go with it?"
+        hold: 2.4
+        visual_cues:
+          - id: probability-gate
+            phrase: "a gate on winning probability"
+            targets: [probability-cut]
+          - id: wrong-record
+            phrase: "cross at point nine"
+            targets: [wrong-record]
+          - id: next-cut
+            phrase: "Now suppose the code reads confidence"
+            targets: [gate-comparison]
+          - id: risk-question
+            phrase: "Which of those four incidents drops out"
+            targets: [borderline, wrong-record, gate-comparison]
+      - say: "Move the cutoff to thirteen fifteenths. The correct incident at point eight six drops out. The wrong one at point nine stays. The same error is now one out of three. On these eight cases, coverage fell from one half to three eighths, and the observed error fraction rose from one quarter to one third. If nobody passes, there are no routed cases on which to measure that fraction. Report uncertainty on independent groups before trusting a production policy."
+        hold: 1.1
+        caption_starts: ["The correct incident", "point eight six drops out", "The wrong one", "point nine stays", "The same error"]
+        visual_cues:
+          - id: move-cut
+            phrase: "Move the cutoff to thirteen fifteenths"
+            targets: [cutoff, borderline, wrong-record]
+          - id: risk-count
+            phrase: "one out of three"
+            targets: [risk-counts]
+  - id: release
+    title: "Where should the next ticket go?"
+    visual: "A new failure reaches an assertion after a successful image pull. With four allowed causes, a paired probability and confidence ruler carries two new tickets through the same inclusive host policy."
+    beats:
+      - say: "A new build. This time the image pull succeeded, the tests ran, and an assertion failed. The caller has added a fourth option, a compile failure. Looking at this log, which cause should triage investigate first?"
+        hold: 2.1
+        visual_cues:
+          - id: fresh-log
+            phrase: "the image pull succeeded"
+            targets: [build-log]
+          - id: assertion-line
+            phrase: "and an assertion failed"
+            targets: [test-stage]
+          - id: fresh-call
+            phrase: "which cause should triage investigate first"
+            targets: [build-log, choices]
+      - say: "Test regression, A. Suppose the model also returns A, with winning probability point seven. The host authenticates the caller and checks that A is a legal ID. The policy for these four choices sends an investigation ticket when confidence is at least point six five. With four choices the uniform baseline is one quarter. Does this ticket qualify, or does it go to human review?"
+        hold: 2.5
+        caption_starts: ["Suppose the model also returns A", "point seven", "The policy for these four choices", "Does this ticket qualify"]
+        visual_cues:
+          - id: first-score
+            phrase: "winning probability point seven"
+            targets: [active-ticket, four-ruler]
+          - id: new-choice-count
+            phrase: "uniform baseline is one quarter"
+            targets: [four-ruler]
+          - id: where-first
+            phrase: "Does this ticket qualify"
+            targets: [active-ticket, four-ruler]
+      - say: "Subtract a quarter from point seven, then divide by three quarters. Its concentration score is point six. Send this ticket to human review. The log supports A, but the score falls short of the application's cutoff."
+        hold: 1.05
+        caption_starts: ["Its concentration score is", "point six", "Send this ticket to human review"]
+        visual_cues:
+          - id: convert-first
+            phrase: "Subtract a quarter from point seven"
+            targets: [four-ruler, active-ticket, routing-calculation]
+          - id: fresh-four-choice-score
+            phrase: "Its concentration score is point six"
+            targets: [four-ruler, active-ticket, routing-calculation]
+          - id: first-destination
+            phrase: "Send this ticket to human review"
+            targets: [active-ticket, routing-calculation]
+      - say: "One more build with a failed assertion. The same four choices, the same policy, and another valid A. This time its winning probability is point seven six. Use the same ruler. Where should this ticket go?"
+        hold: 2
+        caption_starts: ["This time its winning probability", "point seven six", "Use the same ruler"]
+        visual_cues:
+          - id: next-ticket
+            phrase: "winning probability is point seven six"
+            targets: [active-ticket, four-ruler]
+      - say: "That gives point six eight confidence. It clears point six five and enters the test investigation queue. Changing a credential or closing the incident takes a separate grant. Both tickets say A. Their confidence scores decide which one needs a person to route it."
+        hold: 1.5
+        caption_starts: ["It clears point six five", "Changing a credential", "Both tickets say A"]
+        visual_cues:
+          - id: second-score
+            phrase: "point six eight confidence"
+            targets: [four-ruler, active-ticket]
+            caption_boundary: true
+          - id: second-destination
+            phrase: "and enters the test investigation queue"
+            targets: [active-ticket]
+            caption_boundary: true
+          - id: grant-scope
+            phrase: "Changing a credential"
+            targets: [grant-scope]

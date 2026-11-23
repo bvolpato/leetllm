@@ -1,0 +1,382 @@
+{
+  "id": "softmax",
+  "script": "4453689c0d9f0240",
+  "articleHash": "9eb3cb8503cfec88029b681a42b02e60fe61881bebef2dd6394457017f1148b5",
+  "checked": "2026-11-10T01:16:40.197Z",
+  "closedBook": {
+    "taught": 10,
+    "partial": 0,
+    "absent": 0,
+    "answers": [
+      {
+        "n": 1,
+        "option": 4,
+        "coverage": "taught",
+        "quotes": [
+          {
+            "scene": "gradient",
+            "quote": "The target row records what happened: one for slept, zero for each other word. The combined loss derivative is probability minus target."
+          },
+          {
+            "scene": "update",
+            "quote": "Try one direct update to these logits. Subtract one point five times each gradient."
+          }
+        ],
+        "reason": "With y=[0,1,0], p−y=[0.60,−0.75,0.15]. Multiplying by −0.2 gives changes [−0.12,+0.15,−0.03], which sum to zero.",
+        "exact": true,
+        "correct": true,
+        "grade": "taught"
+      },
+      {
+        "n": 2,
+        "option": 1,
+        "coverage": "taught",
+        "quotes": [
+          {
+            "scene": "loss-input-contract",
+            "quote": "Now change only the loss input by applying softmax first. Cross-entropy treats those probabilities as new logits and normalizes again. The shapes still pass, but the objective changes: loss is about one point three eight seven and the upstream slept gradient about minus point one two seven."
+          },
+          {
+            "scene": "loss-input-contract",
+            "quote": "Remove the extra softmax from the loss path; compute probabilities separately when metrics or inference need them."
+          }
+        ],
+        "reason": "The inserted softmax supplies probabilities as new logits, causing another normalization and changing the objective and upstream gradients despite valid shapes.",
+        "exact": true,
+        "correct": true,
+        "grade": "taught"
+      },
+      {
+        "n": 3,
+        "option": 3,
+        "coverage": "taught",
+        "quotes": [
+          {
+            "scene": "loss",
+            "quote": "Cross-entropy takes the negative natural log of the target's probability."
+          },
+          {
+            "scene": "token-reduction",
+            "quote": "With ignore index minus one hundred, that target position contributes zero loss and zero gradient."
+          },
+          {
+            "scene": "token-reduction",
+            "quote": "Divide by the two supervised positions, not the three stored rows."
+          }
+        ],
+        "reason": "The mean is [−ln(0.20)−ln(0.80)]/2≈0.916 nats. The 0.20 position contributes about 1.609, versus 0.223 for the 0.80 position.",
+        "exact": true,
+        "correct": true,
+        "grade": "taught"
+      },
+      {
+        "n": 4,
+        "option": 2,
+        "coverage": "taught",
+        "quotes": [
+          {
+            "scene": "temperature",
+            "quote": "Lower positive temperature concentrates mass around ran. Higher temperature spreads it out. Slept remains the observed target in both views. Temperature divides the score gaps and preserves their order."
+          },
+          {
+            "scene": "exponentials",
+            "quote": "For safe arithmetic, subtract the largest score first. The largest exponent becomes zero, so its weight is one."
+          },
+          {
+            "scene": "mass",
+            "quote": "Every candidate divides by this same denominator."
+          }
+        ],
+        "reason": "Ranking remains first, middle, third. Dividing max-shifted gaps [0,−1,−3] by 0.5 gives [0,−2,−6], so the first probability is 1/(1+exp(−2)+exp(−6))≈0.879.",
+        "exact": true,
+        "correct": true,
+        "grade": "taught"
+      },
+      {
+        "n": 5,
+        "option": 3,
+        "coverage": "taught",
+        "quotes": [
+          {
+            "scene": "entropy-reference",
+            "quote": "Entropy H of P is minus the sum of P log P. Cross-entropy H of P, Q is minus the sum of P log Q. KL from P to Q is their difference: cross-entropy equals target entropy plus mismatch."
+          },
+          {
+            "scene": "entropy-reference",
+            "quote": "Use the convention zero log zero equals zero."
+          }
+        ],
+        "reason": "When Q=P, cross-entropy equals −0.25 ln(0.25)−0.75 ln(0.75)≈0.562 nats. KL is cross-entropy minus target entropy, hence zero.",
+        "exact": true,
+        "correct": true,
+        "grade": "taught"
+      },
+      {
+        "n": 6,
+        "option": 1,
+        "coverage": "taught",
+        "quotes": [
+          {
+            "scene": "loss",
+            "quote": "Compute that loss safely from the logits. Take the maximum minus the target score. Add the log of our shifted weight total. Even when a target weight rounds to zero, this log-space calculation can retain its finite loss."
+          },
+          {
+            "scene": "temperature-limits",
+            "quote": "A masked minus-infinity candidate is allowed beside finite candidates; an all-masked row has no valid distribution."
+          }
+        ],
+        "reason": "The finite row loss is 900−0+ln(1+exp(−900)+exp(−902))≈900. The all-masked row has no valid probability distribution.",
+        "exact": true,
+        "correct": true,
+        "grade": "taught"
+      },
+      {
+        "n": 7,
+        "option": 2,
+        "coverage": "taught",
+        "quotes": [
+          {
+            "scene": "gradient",
+            "quote": "The combined loss derivative is probability minus target."
+          },
+          {
+            "scene": "gradient-chain",
+            "quote": "A diagonal entry is p i times one minus p i; an off-diagonal entry is minus p i p j."
+          },
+          {
+            "scene": "squared-vs-ce",
+            "quote": "Squared probability error instead has slope p minus y before the Jacobian."
+          }
+        ],
+        "reason": "Cross-entropy gives 0.004−1=−0.996. For squared error, applying the Jacobian gives 0.995(−0.995×0.004)+(−0.996)(0.004×0.996)+0.001(−0.001×0.004)=−0.007928168, about −0.00793.",
+        "exact": true,
+        "correct": true,
+        "grade": "taught"
+      },
+      {
+        "n": 8,
+        "option": 3,
+        "coverage": "taught",
+        "quotes": [
+          {
+            "scene": "smoothing-equilibrium",
+            "quote": "Uniform label smoothing changes the target instead: one minus alpha times the one-hot vector, plus alpha divided by class count in every coordinate."
+          },
+          {
+            "scene": "smoothing-equilibrium",
+            "quote": "Matching these strictly positive shares sets the direct logit gradient to zero. The target-to-competitor ratio is twenty-eight, so the required gap is natural log twenty-eight, about three point three three two."
+          }
+        ],
+        "reason": "Each coordinate receives 0.2/4=0.05; the target additionally receives 0.8, giving 0.85. The equilibrium ratio is 0.85/0.05=17, requiring gap ln(17).",
+        "exact": true,
+        "correct": true,
+        "grade": "taught"
+      },
+      {
+        "n": 9,
+        "option": 1,
+        "coverage": "taught",
+        "quotes": [
+          {
+            "scene": "class-not-position",
+            "quote": "Ignore index removes target positions, not a vocabulary entry from every softmax."
+          },
+          {
+            "scene": "class-not-position",
+            "quote": "The actual article fixture has logits zero, one, ten, target docs at class one, and ignore index two for the padding token. This target is not ignored."
+          },
+          {
+            "scene": "gradient-chain",
+            "quote": "A competitor route minus p slept p competitor cancels to positive p competitor."
+          }
+        ],
+        "reason": "Target 1 differs from ignore_index=2, so the row remains supervised. Class 2 stays in the denominator and its non-target logit gradient is p₂.",
+        "exact": true,
+        "correct": true,
+        "grade": "taught"
+      },
+      {
+        "n": 10,
+        "option": 4,
+        "coverage": "taught",
+        "quotes": [
+          {
+            "scene": "loss",
+            "quote": "Cross-entropy takes the negative natural log of the target's probability."
+          },
+          {
+            "scene": "weighted-reduction",
+            "quote": "With integer targets, no smoothing and non-ignored positions, each target loss is multiplied by its class weight. PyTorch mean divides by the sum of those target-class weights. Floating-point probability targets instead divide by the number of positions."
+          }
+        ],
+        "reason": "Each uniform prediction has loss ln(3). The weighted numerator is (2+3+7)ln(3)=12ln(3). Integer targets divide by 12, giving ln(3); float one-hot targets divide by 3, giving 4ln(3).",
+        "exact": true,
+        "correct": true,
+        "grade": "taught"
+      }
+    ]
+  },
+  "factCheck": {
+    "scenes": [
+      {
+        "id": "intro",
+        "evidence": "Verified as a supplied teaching example. fixtures.mjs defines words [ran, slept, ate], logits [3,1,0], and target index 1, which means slept. Ran has the largest score. All three verbs can grammatically complete “The dog …”. The intro scene explicitly distinguishes the model favorite from the observed continuation.",
+        "sourceUrls": []
+      },
+      {
+        "id": "scores",
+        "evidence": "Verified. The fixture has ran−slept=2 and slept−ate=1. Adding 1000 gives [1003,1001,1000] with identical gaps. Algebraically, exp(z_i+c)/sum(exp(z_j+c)) cancels the common exp(c). Absolute logit origin therefore does not affect softmax. The score visual changes ruler labels through a shared offset while retaining candidate positions. Arbitrary real logits are mathematically permitted, although floating-point representations have finite range.",
+        "sourceUrls": []
+      },
+      {
+        "id": "exponentials",
+        "evidence": "Verified mathematically and against exponentialState and the scene implementation. The original weights are [20.0855369232,2.7182818285,1]. Ran/slept=exp(2)=7.389056099. Subtracting 3 gives weights [1,0.1353352832,0.0497870684], each scaled by exp(−3). Adding 1000 and subtracting the new maximum 1003 produces the same shifted inputs [0,−2,−3]. Nonpositive shifted exponents prevent exponential overflow. Strict positivity is a mathematical statement, and later narration correctly addresses floating-point underflow.",
+        "sourceUrls": []
+      },
+      {
+        "id": "mass",
+        "evidence": "Verified. The shifted denominator is 1.1851223516, giving probabilities [0.8437947345,0.1141951994,0.0420100661]. Their mathematical sum is one. Raising only slept from 1 to 2 changes its shifted weight from exp(−2) to exp(−1), increases the denominator to 1.4176665095, and gives [0.7053845127,0.2594964603,0.0351190270]. Slept gains while both competitors lose probability. The visual changes only slept’s score and then restores the original state.",
+        "sourceUrls": []
+      },
+      {
+        "id": "loss",
+        "evidence": "Verified for the hard target used here. Ran’s hypothetical loss is −ln(0.8437947345)=0.1698460196 nats. Slept’s loss is −ln(0.1141951994)=2.1698460196 nats. The stable expression gives (3−1)+ln(1.1851223516), the same result. As p approaches one, −ln(p) approaches zero. For the visual’s extreme logits [1000,0,−1], the target exponential underflows to zero, but the logit-space calculation returns 1000. The wording “can retain” correctly avoids promising representability for every extreme finite input.",
+        "sourceUrls": [
+          "https://www.deeplearningbook.org/contents/prob.html",
+          "https://www.deeplearningbook.org/contents/ml.html"
+        ]
+      },
+      {
+        "id": "gradient-chain",
+        "evidence": "Verified by differentiation and an independent numerical calculation. Differentiating p_i=exp(z_i)/sum(exp(z)) gives J_ij=p_i(delta_ij−p_j). Each column sums to p_j−p_j sum(p_i)=0. Slept’s Jacobian row is [−0.0963573079,0.1011546558,−0.0047973479], matching every spoken approximation. Multiplication by −1/p_slept=−8.7569355401 yields [0.8437947345,−0.8858048006,0.0420100661]. For normalized y, summing the routes gives p−y. Differentiating log-sum-exp gives p independently. Symmetric differences with epsilon=1e−5 agreed with the analytic loss gradients within 5.7e−12. These are local derivatives, as stated.",
+        "sourceUrls": []
+      },
+      {
+        "id": "gradient",
+        "evidence": "Verified against fixtures.mjs and the gradient scene. Subtracting [0,1,0] from the original probabilities gives [0.8437947345,−0.8858048006,0.0420100661]. The signs correctly describe the effect of raising each logit on this loss. Direct descent subtracts these values, raising slept and lowering the other logits. Their sum is zero because both p and y sum to one. The connection to shift invariance is correct: the loss has zero directional derivative along a common logit shift. Gradients reach shared network parameters through the chain rule.",
+        "sourceUrls": []
+      },
+      {
+        "id": "update",
+        "evidence": "Verified independently of the prior repair note. fixtures.mjs explicitly uses UPDATED=z−1.5(p−y). The resulting logits are [1.7343078983,2.3287072009,−0.0630150992], probabilities [0.3358314519,0.6085071761,0.0556613720], and target loss 0.4967465735. Slept therefore receives about 61% and becomes the leader. Both target-to-competitor gaps increase throughout the interpolated step, so its probability increases and its loss decreases throughout. The scene moves the logits, and its bars and loss point depend on their changing values. The narration correctly limits this demonstration to direct logit optimization and separately discusses shared parameters and held-out evaluation.",
+        "sourceUrls": [
+          "https://www.deeplearningbook.org/contents/ml.html"
+        ]
+      },
+      {
+        "id": "temperature",
+        "evidence": "Verified. For original logits [3,1,0], T=0.5 gives [0.9796292072,0.0179425348,0.0024282580], while T=2 gives [0.6285317192,0.2312238976,0.1402443832]. Positive division preserves score order and divides every gap by T. Sharpening the wrong ranking strengthens ran. The scene restores T=1 before applying UPDATED, which makes slept the leader. Guo et al. fit temperature using validation outcomes. Selection policy remains distinct from temperature, and vLLM provides a concrete zero-temperature greedy convention with explicit handling.",
+        "sourceUrls": [
+          "https://proceedings.mlr.press/v70/guo17a/guo17a.pdf",
+          "https://huggingface.co/docs/transformers/main_classes/text_generation",
+          "https://docs.vllm.ai/en/stable/api/vllm/sampling_params/"
+        ]
+      },
+      {
+        "id": "transfer",
+        "evidence": "Verified against FRESH_LOGITS=[0.5,0,2], FRESH_TARGET=2, and freshState. Ate has probability 0.7361247243 and gradient 0.7361247243−1=−0.2638752757, smaller in magnitude than slept’s −0.8858048006. The same direct step raises ate’s probability to 0.8362245924. Returning to both original predictions gives product 0.1141951994×0.7361247243=0.0840619097. Its negative log is 2.1698460196+0.3063557122=2.4762017318, and the mean is 1.2381008659. The dog example contributes 87.6279986% of the sum. The product-to-sum statement is an exact logarithm identity.",
+        "sourceUrls": [
+          "https://www.deeplearningbook.org/contents/ml.html"
+        ]
+      },
+      {
+        "id": "entropy-reference",
+        "evidence": "Verified. A one-hot distribution has entropy zero. For P=[0.5,0.5,0] and Q=P, H(P,Q)=−2(0.5 ln 0.5)=ln 2=0.6931471806, while KL=0. Expanding sum(P ln(P/Q)) gives KL=H(P,Q)−H(P). The normalization, class correspondence, nonnegativity, zero-term convention, and positive-target/zero-prediction support condition are correct. Target entropy describes the supplied reference and need not equal real-world irreducible uncertainty. For target mass a, L=a logsumexp(z)−sum(y_i z_i), so its derivative is a p−y. PyTorch documents that probability-target constraints are not validated. An unnormalized nonnegative target can intentionally scale an objective, so the repaired low-loss statement is appropriately qualified.",
+        "sourceUrls": [
+          "https://www.deeplearningbook.org/contents/prob.html",
+          "https://docs.pytorch.org/docs/2.15/generated/torch.nn.CrossEntropyLoss.html"
+        ]
+      },
+      {
+        "id": "squared-vs-ce",
+        "evidence": "Verified. Gneiting and Raftery identify the categorical quadratic/Brier score. Positive scaling preserves propriety. Independently, expected half-squared loss equals 0.5||p−P||² plus a term independent of p, establishing its optimum at P. For logits [8,0,0], probabilities are [0.9993295246,0.0003352377,0.0003352377]. The CE target gradient is −0.9996647623. Multiplying p−y by the softmax Jacobian gives squared-loss target gradient −0.0006698013, independently confirmed by symmetric differences. The probability-space derivatives and cancellation explanation are correct. The claims remain local and explicitly retain network Jacobians, loss scaling, and task dependence.",
+        "sourceUrls": [
+          "https://sites.stat.washington.edu/raftery/Research/PDF/Gneiting2007jasa.pdf"
+        ]
+      },
+      {
+        "id": "loss-input-contract",
+        "evidence": "Verified through independent arithmetic, the actual JavaScript fixture, and PyTorch documentation/source. Raw-logit loss is 2.1698460196 with target gradient −0.8858048006. Treating the first softmax probabilities as new logits gives loss 1.3874458021. Applying the first softmax Jacobian to the second loss gradient gives upstream slept gradient −0.1269194028. This is a changed objective. PyTorch’s hard-target path calls log_softmax and NLL, with CPU and CUDA implementations. No universal kernel or allocation count is promised. The documented long class-index and floating probability-target contracts support the stated layouts. [B,S,V] must become [B,V,S] or [B×S,V] with corresponding targets. Shape compatibility alone cannot prove alignment.",
+        "sourceUrls": [
+          "https://docs.pytorch.org/docs/2.15/generated/torch.nn.CrossEntropyLoss.html",
+          "https://docs.pytorch.org/docs/2.15/generated/torch.nn.functional.cross_entropy.html",
+          "https://raw.githubusercontent.com/pytorch/pytorch/v2.13.0/aten/src/ATen/native/LossNLL.cpp",
+          "https://raw.githubusercontent.com/pytorch/pytorch/v2.13.0/aten/src/ATen/native/cuda/Loss.cu"
+        ]
+      },
+      {
+        "id": "temperature-limits",
+        "evidence": "Verified. After factoring out exp(max(z)/T), nonmaximal terms vanish as T approaches zero. If r candidates tie at the maximum, each receives limiting mass 1/r. As T grows without bound, every exp(z_i/T) approaches one, yielding 1/K. The huge-tie fixture computes (1e308−1e308)/1e−308=0 and returns [1/3,1/3,1/3]. Dividing first produces infinity, followed by undefined infinity−infinity. Max-shifted exponents cannot overflow for positive T, although underflow remains possible. Mixed finite/−infinity support and invalid all-masked rows are correctly distinguished. Hinton et al. explicitly derive (p_T−y_T)/T and the high-temperature 1/T² scaling when both distributions soften, motivating multiplication by T².",
+        "sourceUrls": [
+          "https://arxiv.org/html/1503.02531",
+          "https://docs.vllm.ai/en/stable/api/vllm/sampling_params/"
+        ]
+      },
+      {
+        "id": "smoothing-equilibrium",
+        "evidence": "Verified. For the unrestricted three-class hard-target example, p_target=1/(1+sum(exp(z_j−z_target))) approaches one only when every competitor gap diverges. Uniform smoothing at alpha=0.1 gives [1/30,28/30,1/30]. Matching it makes p−y zero. The target/competitor ratio is 28, requiring gap ln 28=3.3322045102. Above the target share, the target-coordinate gradient is positive. The minimum CE is the target entropy, computed as 0.2911398388 nats. This fixes relative logits while leaving a common shift free and does not universally bound network parameters. The Inception paper supplies the smoothing construction. Müller et al. report reduced distillation effectiveness for smoothed teachers. Positive target mass outside candidate support yields infinite mathematical loss.",
+        "sourceUrls": [
+          "https://arxiv.org/html/1512.00567",
+          "https://arxiv.org/abs/1906.02629"
+        ]
+      },
+      {
+        "id": "teacher-forcing",
+        "evidence": "Verified against sequence-batch.mjs and completeModel. Without an added beginning-of-sequence target, bug docs today supplies two predictions: bug→docs and bug docs→today. The supplied logits produce target probabilities 0.1141951994 and 0.7361247243, losses 2.1698460196 and 0.3063557122, mean 1.2381008659, and first-position contribution 87.6279986%. A final-layer hidden state at each prediction position can project to one logit per vocabulary candidate. Weight tying is an architectural choice. The Transformer paper supports next-token projection and causal attention masking. GPT-2 documentation explicitly shifts labels internally. Teacher-forced context, target alignment, attention access, and loss participation are correctly separated.",
+        "sourceUrls": [
+          "https://arxiv.org/html/1706.03762v7",
+          "https://huggingface.co/docs/transformers/model_doc/gpt2"
+        ]
+      },
+      {
+        "id": "token-reduction",
+        "evidence": "Verified against positionReduction, sequence-batch.mjs, and PyTorch’s relevant source paths. Ignoring the finite [100,−100,0] row leaves losses [2.1698460196,0.3063557122,0], numerator 2.4762017318, and denominator 2. The ignored row has zero direct logit gradient. The pooling comparison is 2/4=0.5 versus (2+0)/2=1. Correct combination of unequal chunks requires summed numerators and denominators. PyTorch routes three-dimensional inputs through its spatial NLL path. Its CPU and CUDA spatial mean implementations divide the accumulated loss by accumulated target weight, producing 0/0 for this all-ignored fixture. The repaired batched scope is justified. Loss masking does not remove contextual input or block gradients through contextual use.",
+        "sourceUrls": [
+          "https://docs.pytorch.org/docs/2.15/generated/torch.nn.functional.cross_entropy.html",
+          "https://raw.githubusercontent.com/pytorch/pytorch/v2.13.0/aten/src/ATen/native/LossNLL.cpp",
+          "https://raw.githubusercontent.com/pytorch/pytorch/v2.13.0/aten/src/ATen/native/LossNLL2d.cpp",
+          "https://raw.githubusercontent.com/pytorch/pytorch/v2.13.0/aten/src/ATen/native/cuda/NLLLoss2d.cu"
+        ]
+      },
+      {
+        "id": "class-not-position",
+        "evidence": "Verified independently of the article’s displayed results. For [0,1,10] with target 1, loss=9+ln(1+exp(−9)+exp(−10))=9.0001687955. Padding probability, and therefore its logit gradient, is 0.9998312188. ignore_index=2 does not ignore target 1 or remove denominator class 2. Replacing only that logit by −infinity gives docs probability 1/(1+exp(−1))=0.7310585786 and loss ln(1+exp(−1))=0.3132616875. The scene implements this candidate removal separately. Target support and at least one finite candidate are necessary. The distinctions among position, attention, and vocabulary masks are correct.",
+        "sourceUrls": [
+          "https://docs.pytorch.org/docs/2.15/generated/torch.nn.CrossEntropyLoss.html",
+          "https://arxiv.org/html/1706.03762v7"
+        ]
+      },
+      {
+        "id": "weighted-reduction",
+        "evidence": "Verified against PyTorch’s documented equations and implementation. For hard indices without smoothing, mean reduction divides the weighted loss sum by the sum of non-ignored target-class weights. Probability targets instead use the number of positions. The visual’s binary uniform predictions each cost ln 2. Weights 2 and 4 give numerator 6 ln 2=4.1588830834. Integer mean is 4.1588830834/6=0.6931471806. Float one-hot mean is 4.1588830834/2=2.0794415417. The scene’s bars and assertions use these same values. Combining weighted numerators with their actual denominators is correct. The narration appropriately excludes smoothing from the simple hard-target formula.",
+        "sourceUrls": [
+          "https://docs.pytorch.org/docs/2.15/generated/torch.nn.CrossEntropyLoss.html",
+          "https://raw.githubusercontent.com/pytorch/pytorch/v2.13.0/aten/src/ATen/native/LossNLL.cpp"
+        ]
+      },
+      {
+        "id": "vocabulary-tiles",
+        "evidence": "Verified. The allocation is 16×4096×128256×4=33,621,540,864 bytes, or 33.621540864 decimal GB and 31.3125 GiB. An ordinary loss call cannot retroactively remove its already-created input allocation. For running maximum m and shifted sum s, merging a tile with maximum a and shifted sum b uses M=max(m,a), S=s exp(m−M)+b exp(a−M). The actual visual tiles [2,−1] and [4,0] give maxima 2→4, shifted sums 1.0497870684→1.1603888691, and final log-sum-exp 4.1487551809, equal to direct evaluation. CCE’s paper describes tiled projection/reduction without storing the full logit matrix in global memory and separately describes gradient filtering. The narration makes no fresh benchmark claim.",
+        "sourceUrls": [
+          "https://arxiv.org/html/2411.09009v1"
+        ]
+      },
+      {
+        "id": "earned-transfer",
+        "evidence": "Verified against the actual earned-transfer scene and completeModel. The first two rows supply probabilities rather than complete logit vectors. Their losses are −ln(1/4)=1.3862943611 and −ln(1/2)=0.6931471806. Sum=ln 8=2.0794415417. Dividing by two supervised positions gives 1.0397207708 nats, while dividing by three gives 0.6931471806. The finite ignored row is excluded from both numerator and denominator and has zero direct logit gradient. Changing that row alone leaves this objective unchanged. Empty-update handling and the proposed diagnostic checks are consistent with the preceding contracts. The closing RNN description agrees with recurrence h_t=f(x_t,h_(t−1)) followed by an output classifier.",
+        "sourceUrls": [
+          "https://docs.pytorch.org/docs/2.15/generated/torch.nn.functional.cross_entropy.html",
+          "https://docs.pytorch.org/docs/2.15/generated/torch.nn.RNN.html"
+        ]
+      }
+    ],
+    "findings": [],
+    "limitations": [
+      "No material factual error was identified in the supplied narration. Local evidence refers to /Users/bruno.volpato/githubworkspace/leetllm-wt-rebuild, including its existing working-tree changes.",
+      "Executed the actual JavaScript model, including validateModel(), and independently recomputed the worked arithmetic and finite differences. The article and prior repair notes were not used as proof.",
+      "Live PyTorch execution was blocked during import by the read-only environment: FileNotFoundError: [Errno 2] No usable temporary directory found. PyTorch-specific results were checked through independent arithmetic, official documentation, and versioned implementation source instead. They were not reproduced in a running PyTorch process.",
+      "PyTorch documentation resolved to version 2.15. Implementation checks used version 2.13.0, matching the available local installation. No CPU/GPU runtime comparison, kernel profiling, CCE benchmark, or empirical training/calibration study was performed.",
+      "Visual claims were checked against scene code and its shared mathematical model. Final rendered frames, narration timing, clipping, and audio delivery were not inspected."
+    ]
+  }
+}

@@ -1,0 +1,211 @@
+version: 1
+lesson: algorithm-complexity
+promise: Count the growing work and memory of scans, exact and prefix lookup, vector
+  scoring, selection, pairs and attention, then choose a measured retrieval shortcut
+  without losing authority or required evidence.
+framing: []
+objectives:
+  - id: opening
+    can: Count actual candidate inspections before claiming a match.
+    scenes:
+      - opening
+  - id: scan
+    can: Separate candidate count from row-length work.
+    scenes:
+      - scan
+  - id: ordered-search
+    can: Trace midpoint comparisons and array insertion shifts.
+    scenes:
+      - ordered-search
+  - id: hash-lookup
+    can: Compute a hash bucket and distinguish collisions from normal lookup.
+    scenes:
+      - hash-lookup
+  - id: radix-prefix
+    can: Walk a shared prefix and account for returned matches.
+    scenes:
+      - radix-prefix
+  - id: amortized-append
+    can: Count copies and writes across an array growth history.
+    scenes:
+      - amortized-append
+  - id: vector-score
+    can: Count coordinate products before scaling n and d.
+    scenes:
+      - vector-score
+  - id: top-k
+    can: Maintain a bounded min-heap and separate selection from scoring.
+    scenes:
+      - top-k
+  - id: unique-pairs
+    can: Construct unordered pairs and distinguish exact equality from semantic comparison.
+    scenes:
+      - unique-pairs
+  - id: attention
+    can: Count dense prefill positions and consumed-input decode reads.
+    scenes:
+      - attention
+  - id: cache-volume
+    can: Compute raw key/value storage and grouped query sharing.
+    scenes:
+      - cache-volume
+  - id: queue-measurement
+    can: Separate batch formation, executor queueing and execution time.
+    scenes:
+      - queue-measurement
+  - id: work-budget
+    can: Choose a workload that fits a score-work cap.
+    scenes:
+      - work-budget
+  - id: shortlist-payoff
+    can: Repair a shortlist that loses required evidence.
+    scenes:
+      - shortlist-payoff
+sections:
+  - heading: What grows when the corpus grows
+    status: taught
+    scenes:
+      - opening
+      - scan
+  - heading: Count a complete scan
+    status: taught
+    scenes:
+      - scan
+  - heading: Big-O names the growth shape
+    status: taught
+    scenes:
+      - scan
+  - heading: Choose a bound that says what you mean
+    status: taught
+    scenes:
+      - hash-lookup
+      - amortized-append
+  - heading: Pick a search that matches the data
+    status: taught
+    scenes:
+      - ordered-search
+      - hash-lookup
+  - heading: Binary search halves a sorted range
+    status: taught
+    scenes:
+      - ordered-search
+  - heading: Prefix match, tries, and radix trees
+    status: taught
+    scenes:
+      - radix-prefix
+  - heading: Vector scoring adds another input
+    status: taught
+    scenes:
+      - vector-score
+  - heading: Return top-k without sorting every result
+    status: taught
+    scenes:
+      - top-k
+  - heading: Keep separate time and memory ledgers
+    status: taught
+    scenes:
+      - top-k
+      - unique-pairs
+      - cache-volume
+  - heading: Spot a quadratic trap
+    status: taught
+    scenes:
+      - unique-pairs
+  - heading: The same square shape appears later in attention
+    status: taught
+    scenes:
+      - attention
+  - heading: "Prefill versus decode: two computational regimes"
+    status: taught
+    scenes:
+      - attention
+      - queue-measurement
+  - heading: Attention compute scaling versus KV cache memory
+    status: taught
+    scenes:
+      - cache-volume
+  - heading: Measure scale and install a budget guard
+    status: taught
+    scenes:
+      - work-budget
+  - heading: Guarding tail latency in production
+    status: taught
+    scenes:
+      - queue-measurement
+      - shortlist-payoff
+  - heading: "Build it: an authorized exact top-k retriever"
+    status: taught
+    scenes:
+      - work-budget
+      - top-k
+  - heading: Check the growth by hand
+    status: taught
+    scenes:
+      - work-budget
+      - unique-pairs
+      - attention
+      - radix-prefix
+  - heading: Solution sketches
+    status: taught
+    scenes:
+      - work-budget
+      - unique-pairs
+      - attention
+      - radix-prefix
+      - ordered-search
+  - heading: Which input grows which cost
+    status: taught
+    scenes:
+      - shortlist-payoff
+quiz:
+  - n: 1
+    status: taught
+    scenes:
+      - scan
+  - n: 2
+    status: taught
+    scenes:
+      - work-budget
+      - vector-score
+  - n: 3
+    status: taught
+    scenes:
+      - scan
+  - n: 4
+    status: taught
+    scenes:
+      - top-k
+  - n: 5
+    status: taught
+    scenes:
+      - top-k
+  - n: 6
+    status: taught
+    scenes:
+      - work-budget
+  - n: 7
+    status: taught
+    scenes:
+      - unique-pairs
+  - n: 8
+    status: taught
+    scenes:
+      - attention
+  - n: 9
+    status: taught
+    scenes:
+      - radix-prefix
+  - n: 10
+    status: taught
+    scenes:
+      - ordered-search
+removed: []
+reviews:
+  closed_book:
+    taught: 10
+    partial: 0
+    absent: 0
+    script: bcfae0c40e16e897
+  fact_check:
+    open_findings: 0
+    script: bcfae0c40e16e897

@@ -1,0 +1,544 @@
+[
+  {
+    "id": "c01",
+    "title": "Which word is under the cover?",
+    "sourceChapters": [
+      "c01"
+    ],
+    "beats": [
+      {
+        "id": "c01-b01",
+        "say": "The cat sat. The next word is under the cover. Our model puts half its probability on the word on, and thirty percent on under. Which share would you use to score the next word on this page?",
+        "hold": 2.2
+      },
+      {
+        "id": "c01-b02",
+        "say": "Lift the cover. The page says under. Follow the loupe to the printed word’s share. The thirty percent counts, even though the model favored on.",
+        "hold": 1.7
+      }
+    ]
+  },
+  {
+    "id": "c02",
+    "title": "How much probability reached the word that appeared?",
+    "sourceChapters": [
+      "c02"
+    ],
+    "beats": [
+      {
+        "id": "c02-b01",
+        "say": "Turn to a second line. The cat sat on the mat. This time the first target really is on. A language model assigns probabilities before each next word appears. We record how much probability reached the word the page supplied. Perplexity summarizes that predictive fit on held-out text.",
+        "hold": 0.6
+      },
+      {
+        "id": "c02-b02",
+        "say": "Treat each displayed word as one token in this example. The supplied prefix ends at sat. Read on, then the, then mat. Their shares are one half, one tenth and four fifths. Each prediction uses the actual words to its left. This is teacher forcing. The model never gets to replace a printed word with its own guess.",
+        "hold": 0.65
+      },
+      {
+        "id": "c02-b03",
+        "say": "We will turn those probabilities into surprise, combine them into one score, and examine the bookkeeping that makes the result meaningful. The important questions will be which targets were scored, what context they received, and which units sit in the denominator.",
+        "hold": 0.7
+      }
+    ]
+  },
+  {
+    "id": "c03",
+    "title": "What does one small share cost?",
+    "sourceChapters": [
+      "c03"
+    ],
+    "beats": [
+      {
+        "id": "c03-b01",
+        "say": "Keep the word “mat” in view. The model gave it four fifths of the probability. How would its penalty change if the model gave it less? Define a token's surprise as negative natural log probability. A probability of one gives zero surprise.",
+        "hold": 0.3
+      },
+      {
+        "id": "c03-b02",
+        "say": "Look near the left edge of the curve. At one tenth, the penalty is over two nats. At one hundredth, it is over four. The same small change in probability has a much larger effect near zero than near one.",
+        "hold": 0.6
+      },
+      {
+        "id": "c03-b03",
+        "say": "Move the probe down from a likely target to an unlikely one. Notice how quickly the surprise rises near zero. Natural logarithms measure it in nats. Dividing by the natural log of two expresses the same information in bits, with no change to which prediction was more surprising.",
+        "hold": 0.65
+      },
+      {
+        "id": "c03-b04",
+        "say": "Only the probability of the observed target enters that step's loss. In this replay, all the other words share ninety-eight percent. The text still says “mat,” so the narrow slice has to pay for it. This penalty on the single observed word is the one-hot next-token cross-entropy for a causal language model.",
+        "hold": 0.7
+      }
+    ]
+  },
+  {
+    "id": "c04",
+    "title": "Average the surprise, then exponentiate",
+    "sourceChapters": [
+      "c04"
+    ],
+    "beats": [
+      {
+        "id": "c04-b01",
+        "say": "Bring back the original sentence. The model gave “mat” four fifths of the probability before we moved the probe. Look at “the” now. The low-probability middle token contributes most of the total loss. Add the three penalties and divide by the number of scored targets.",
+        "hold": 0.3
+      },
+      {
+        "id": "c04-b02",
+        "say": "Set the three lengths end to end. Together they measure three point two one nine nats, rounded. Cut the total into three equal lengths. Each measures about one point zero seven three nats. This is the mean negative log likelihood per scored token under the supplied context.",
+        "hold": 0.6
+      },
+      {
+        "id": "c04-b03",
+        "say": "Exponentiate that average to obtain perplexity. Here the score is about two point nine two. An equally likely choice problem with that effective branching factor has the same average surprise. The interpretation gives the loss a familiar scale while the model's actual vocabulary stays unchanged.",
+        "hold": 0.65
+      },
+      {
+        "id": "c04-b04",
+        "say": "Perplexity is a geometric mean of reciprocal observed probabilities. It can exceed vocabulary size when the model repeatedly assigns very little probability to the targets. The entropy of the model's own distribution averages over different outcomes, so keep that separate from loss on the held-out text.",
+        "hold": 0.7
+      }
+    ]
+  },
+  {
+    "id": "c05",
+    "title": "Equal loss steps multiply perplexity",
+    "sourceChapters": [
+      "c05"
+    ],
+    "beats": [
+      {
+        "id": "c05-b01",
+        "say": "Four equally likely choices. Pick any slice. Its probability is one quarter and its perplexity is four. Split every slice in half. The smaller slice costs an extra natural log of two in surprise, and perplexity doubles to eight.",
+        "hold": 0.3
+      },
+      {
+        "id": "c05-b02",
+        "say": "Split them once more and perplexity doubles to sixteen. The same increase in loss doubles the score each time.",
+        "hold": 0.8
+      },
+      {
+        "id": "c05-b03",
+        "say": "A fair three-way guess gives the word one chance in three. What single probability would give the same average surprise as “on,” “the,” and “mat”? Multiply their three shares and take the cube root. You get about thirty-four percent.",
+        "hold": 0.3
+      },
+      {
+        "id": "c05-b04",
+        "say": "That's a little better than one chance in three. Take its reciprocal and you get a perplexity of two point nine two.",
+        "hold": 0.8
+      },
+      {
+        "id": "c05-b05",
+        "say": "Now take a model with just two tokens. Read the printed A and B. Each little letter represents one percent of a prediction. Only one A matches the first impression. How many little Bs match the second? What perplexity would that give the pair?",
+        "hold": 2
+      },
+      {
+        "id": "c05-b06",
+        "say": "One B matches. Each observed letter got one chance in a hundred, so the perplexity is one hundred. The model put its other ninety-nine chances on the wrong letter each time. Entropy weights the possibilities by the model’s own probabilities. Held-out loss weights the letters that actually appeared.",
+        "hold": 0.8
+      }
+    ]
+  },
+  {
+    "id": "c06",
+    "title": "Conditioning defines the objective",
+    "sourceChapters": [
+      "c06"
+    ],
+    "beats": [
+      {
+        "id": "c06-b01",
+        "say": "Start with the cat line through on. A causal model predicts the next token from that left context. Now cover the middle word and uncover mat to its right. A masked model can use both sides. Move the cover to a neighboring word. Repeat at every position. Score the hidden originals, average the losses and exponentiate. The result is pseudo-perplexity. That extra right context makes a raw ranking against causal perplexity misleading.",
+        "hold": 0.8
+      },
+      {
+        "id": "c06-b02",
+        "say": "A chat evaluation also needs a scored-span policy. In a response-only setup, system and user tokens provide context while only assistant targets enter the loss and count. Scoring the full transcript asks a different question. State the exact chat template, document boundaries, beginning-token and end-token rules before comparing checkpoints.",
+        "hold": 0.8
+      },
+      {
+        "id": "c06-b03",
+        "say": "Generating an answer supplies the probabilities of the generated path only when the interface exposes them. Perplexity needs likelihoods for the supplied test targets at their actual prefixes. A generation-only interface without those likelihoods cannot evaluate arbitrary held-out text this way. Use task checks when that teacher-forced scoring interface is unavailable.",
+        "hold": 0.8
+      }
+    ]
+  },
+  {
+    "id": "c07",
+    "title": "Work in log space before probabilities become tiny",
+    "sourceChapters": [
+      "c07"
+    ],
+    "beats": [
+      {
+        "id": "c07-b01",
+        "say": "Models produce logits, unnormalized scores. Exponentiating large logits directly can overflow even when the final probabilities are ordinary. Subtract the maximum first. All scores shift together, leaving the normalized distribution unchanged while the exponentials become numerically manageable.",
+        "hold": 0.3
+      },
+      {
+        "id": "c07-b02",
+        "say": "Here logits one thousand, nine hundred ninety-eight and nine hundred ninety-seven become zero, minus two and minus three. Exponentiate each shifted score and divide by their sum to recover the probabilities.",
+        "hold": 0.3
+      },
+      {
+        "id": "c07-b03",
+        "say": "Take the first token as observed. Its shifted logit is zero. Subtract that from the log of the exponential sum. The loss is about point one seven nats. What if the second token had appeared? Its shifted logit is minus two, so the same log normalizer gives two extra nats of loss.",
+        "hold": 0.6
+      },
+      {
+        "id": "c07-b04",
+        "say": "Use stable log-softmax to obtain the observed target's log probability, then accumulate its negative value. Multiplying probabilities across a long document can underflow toward zero. Adding their log losses keeps the calculation usable until we exponentiate the final average. A finite loss can still have an unrepresentably large exponential.",
+        "hold": 0.7
+      }
+    ]
+  },
+  {
+    "id": "c08",
+    "title": "How much should each window count?",
+    "sourceChapters": [
+      "c08"
+    ],
+    "beats": [
+      {
+        "id": "c08-b01",
+        "say": "Two windows of the same document. The first has two targets, the second has eight. In this example the targets within each window cost the same. Each bar shows one window’s mean loss. If we average those two heights, how much say does each target get?",
+        "hold": 1.8
+      },
+      {
+        "id": "c08-b02",
+        "say": "Expand the windows into their actual token contributions. Each tall bar belongs to a different target. The two short bars cost one nat together. The eight tall ones cost sixteen. Seventeen nats over ten targets gives one point seven nats per target. Now take the exponential.",
+        "hold": 0.3
+      },
+      {
+        "id": "c08-b03",
+        "say": "The corpus perplexity is about five point four seven. Averaging the two window perplexities gives four point five two. That gives the little pair as much weight as the other eight. Even with equal counts, exponentiation is nonlinear. Apply it once, after pooling the losses.",
+        "hold": 1
+      },
+      {
+        "id": "c08-b04",
+        "say": "A worker can send just two numbers, its summed loss and its valid target count. Add those pairs across workers before dividing. Padding and words used only as context contribute to neither number. If the entire evaluation has zero scored targets, there is no mean to report.",
+        "hold": 1
+      }
+    ]
+  },
+  {
+    "id": "c09",
+    "title": "What stays fixed when we change the ruler?",
+    "sourceChapters": [
+      "c09"
+    ],
+    "beats": [
+      {
+        "id": "c09-b01",
+        "say": "The cat sat down. A beginning marker lets us score the first word too. Here are the four shares, one for each token. Multiply as you read. After “The cat,” the chance is one in ten. After “sat,” one in fifty. After “down,” one in a hundred.",
+        "hold": 0.3
+      },
+      {
+        "id": "c09-b02",
+        "say": "Its total surprise is natural log one hundred, about four point six zero five nats.",
+        "hold": 0.8
+      },
+      {
+        "id": "c09-b03",
+        "say": "Split that loss across four targets. Their mean is about one point one five nats. Exponentiate that mean. The perplexity is the square root of ten, a little over three. Suppose we want bits per byte instead. When we change the ruler, what can we keep from this calculation?",
+        "hold": 1.7
+      },
+      {
+        "id": "c09-b04",
+        "say": "Keep the loss for the whole line. Count the bytes under the very same letters and spaces. There are sixteen. Divide the loss by the natural log of two to get bits, then by sixteen to get bits per byte.",
+        "hold": 0.3
+      },
+      {
+        "id": "c09-b05",
+        "say": "That's about point four one five bits per byte. We already had every prediction we needed.",
+        "hold": 1.4
+      }
+    ]
+  },
+  {
+    "id": "c10",
+    "title": "What survives the trip from text to tokens?",
+    "sourceChapters": [
+      "c10"
+    ],
+    "beats": [
+      {
+        "id": "c10-b01",
+        "say": "Start with the wide capital A and two spaces. First narrow the letter with Unicode normalization. Then fold the capital to lowercase. Finally collapse the spaces. The top string becomes lowercase a, one space, lowercase a.",
+        "hold": 0.3
+      },
+      {
+        "id": "c10-b02",
+        "say": "Ordinary capital A with one space takes the shorter route to that output. So does the last string. If I kept just the output, which original would you give back?",
+        "hold": 0.8
+      },
+      {
+        "id": "c10-b03",
+        "say": "The wide A alone occupies three bytes. Count its two spaces and the last letter, and you get six U T F eight bytes. The model actually scored the three bytes below. The middle dot on our proof stands for an ordinary space. Give that output a loss of one point two nats.",
+        "hold": 0.3
+      },
+      {
+        "id": "c10-b04",
+        "say": "Spread it across the original six bytes and you get about point two eight nine bits per raw byte. Across the three bytes the model saw, it costs about point five seven seven.",
+        "hold": 0.3
+      },
+      {
+        "id": "c10-b05",
+        "say": "Both calculations start from a prediction that already lost the capital and the extra space.",
+        "hold": 0.8
+      },
+      {
+        "id": "c10-b06",
+        "say": "Which rate belongs on a benchmark of lowercase, single-spaced text? Use the three scored bytes for both models. The smaller number used six bytes, but the model never had to predict the wide capital or the extra space. For a raw-text benchmark, those distinctions are part of the job.",
+        "hold": 0.8
+      },
+      {
+        "id": "c10-b07",
+        "say": "Even these three bytes have more than one possible cut. One tokenizer joins the space to the last letter. The other makes three separate tokens. Each model scores the path its tokenizer chose. Now keep just the last two tokens of history.",
+        "hold": 0.3
+      },
+      {
+        "id": "c10-b08",
+        "say": "The top model can still read the whole line. The bottom one has lost the first letter. To hold the cuts fixed, train with a shared tokenizer. Each trained checkpoint needs the token IDs it learned.",
+        "hold": 0.8
+      }
+    ]
+  },
+  {
+    "id": "c11",
+    "title": "Reuse context while scoring each target once",
+    "sourceChapters": [
+      "c11"
+    ],
+    "beats": [
+      {
+        "id": "c11-b01",
+        "say": "A long document can exceed the model's context window. This frame reads five words at a time. We have no beginning marker, so The supplies context for little. Score the next four words. One mark goes under each new target. Keep the marks on the page when the frame moves.",
+        "hold": 0.6
+      },
+      {
+        "id": "c11-b02",
+        "say": "Slide the frame to slept. The model can read slept and by again. Mask their labels from the loss. Stamp only the three new words, the, warm, fire. The page now holds seven marks. Which two words will need a mark on the last pass?",
+        "hold": 1.8
+      },
+      {
+        "id": "c11-last-window",
+        "say": "Slide again. This time the, warm and fire supply history. Only all and evening need marks. Count the marks now. Nine distinct targets, each scored once.",
+        "hold": 1.2
+      },
+      {
+        "id": "c11-b03",
+        "say": "Look at the last pair. The logits at all predict the label evening, one position to the right. Count the valid labels after that shift. A shorter stride can preserve more history for the next prediction, even with the same weights. Match this setting across runs. Keep what the model may read separate from what incurs loss.",
+        "hold": 0.7
+      }
+    ]
+  },
+  {
+    "id": "c12",
+    "title": "Count the labels that survive the causal shift",
+    "sourceChapters": [
+      "c12"
+    ],
+    "beats": [
+      {
+        "id": "c12-b01",
+        "say": "Try two padded rows. A label of minus one hundred means ignore. Read the next label for each logit. In the first row the surviving labels are one and two. In the second they are ignore and three. How many predictions contribute to the loss?",
+        "hold": 1.8
+      },
+      {
+        "id": "c12-b02",
+        "say": "Three targets survive. Counting three valid unshifted labels and subtracting the two batch rows would report only one. Both discarded first labels were already ignored. Count nonignored labels after shifting. If a model wrapper already shifts its loss, pass it the original alignment.",
+        "hold": 0.8
+      },
+      {
+        "id": "c12-b03",
+        "say": "Padding needs a model attention mask as well as ignored loss labels. In a separate uneven-loss example, give the two first-row targets loss point two each and the second-row target loss two. Their token mean is point eight; the mean of row means is one point one.",
+        "hold": 0.3
+      },
+      {
+        "id": "c12-b04",
+        "say": "Across workers, combine summed loss and counts. Skip a zero-target batch contribution; reject an entire evaluation with no targets. An all-ignored framework mean can be not-a-number.",
+        "hold": 0.8
+      }
+    ]
+  },
+  {
+    "id": "c13",
+    "title": "Hold the scoring conditions fixed",
+    "sourceChapters": [
+      "c13"
+    ],
+    "beats": [
+      {
+        "id": "c13-b01",
+        "say": "Suppose you want to know which checkpoint better predicts support tickets. Give both the same tickets and tokenizer. Match the context, stride, document boundaries and scored targets. Use the same prediction objective, turn dropout off and score the original logits before any sampling filters or temperature changes.",
+        "hold": 0.3
+      },
+      {
+        "id": "c13-b02",
+        "say": "In the article’s five-target example, checkpoint four hundred scores three point one eight. Eight hundred scores two point three one under the same settings. The second checkpoint fits these held-out tokens better. A result on incident text leaves performance on legal text or code open.",
+        "hold": 0.6
+      },
+      {
+        "id": "c13-b03",
+        "say": "The first line tells us that amber means queued. Asked for amber’s status, our example model gives “queued” eighty percent. Now slide the context boundary past that first line. With the clue out of reach, the same model gives “queued” twenty percent.",
+        "hold": 0.3
+      },
+      {
+        "id": "c13-b04",
+        "say": "That one missing line cost over a nat of extra surprise. Give both checkpoints the same history when you compare them.",
+        "hold": 0.65
+      },
+      {
+        "id": "c13-b05",
+        "say": "Before you trust the comparison, check where the tickets came from. Did either checkpoint see them during training or selection?",
+        "hold": 0.7
+      }
+    ]
+  },
+  {
+    "id": "c14",
+    "title": "Changing a manifest leaves trained weights intact",
+    "sourceChapters": [
+      "c14"
+    ],
+    "beats": [
+      {
+        "id": "c14-b01",
+        "say": "Follow ticket one zero three. It appears in training and validation. Matching identifiers catches that reuse. Now give the copy a new identifier. Its text still matches. Compare normalized text, near duplicates and source provenance too. Keep the original record so someone can inspect the match.",
+        "hold": 0.8
+      },
+      {
+        "id": "c14-b02",
+        "say": "Deleting the training-manifest row after training leaves the learned checkpoint unchanged. A new evaluation claim needs independent held-out material, or retraining without the exposure. Keep checkpoint-selection cases separate from the final test. Repeatedly choosing models from final-test feedback also weakens the intended generalization evidence.",
+        "hold": 0.8
+      },
+      {
+        "id": "c14-b03",
+        "say": "Keep the same private tickets to track regressions. Add fresh challenge sources to test how the model handles unfamiliar text. A public test set can turn up in later training. Save its revision and release date alongside the checkpoint’s training history so you know which records to check for overlap.",
+        "hold": 0.8
+      }
+    ]
+  },
+  {
+    "id": "c15",
+    "title": "A report carries the evidence behind its score",
+    "sourceChapters": [
+      "c15"
+    ],
+    "beats": [
+      {
+        "id": "c15-b01",
+        "say": "Could a teammate recover our cat sentence’s score from this report? Start with its total loss and the three words we scored. Divide, then exponentiate. There’s our two point nine two.",
+        "hold": 0.3
+      },
+      {
+        "id": "c15-b02",
+        "say": "To repeat the run, your teammate also needs the checkpoint, the corpus revision and the scoring settings. Link the overlap audit so they can inspect which text you checked.",
+        "hold": 0.8
+      },
+      {
+        "id": "c15-b03",
+        "say": "Check the count first. It takes a positive whole number of targets to form a mean. A flag, a fraction or a negative count signals a bad report. Zero targets leaves the mean undefined. A NaN flags a broken calculation.",
+        "hold": 0.3
+      },
+      {
+        "id": "c15-b04",
+        "say": "If the model gave the observed word zero probability, its loss really is infinite. If the loss is finite and only the exponential overflows, keep the loss. You can still compare it.",
+        "hold": 0.8
+      },
+      {
+        "id": "c15-b05",
+        "say": "Report each domain separately. For a close race, score both checkpoints on each document and keep the loss totals and target counts together. To estimate uncertainty, resample independent documents with replacement. Here two documents share source A. Resample sources instead. Draw A twice and both documents come along twice, with both models’ losses attached. Pool each checkpoint’s loss and counts, then recompute the difference for this draw.",
+        "hold": 0.8
+      },
+      {
+        "id": "c15-b06",
+        "say": "A program can check an exact status or a source ID. To judge what a sentence claims, read it against the source. This job is queued. Answer A says it’s waiting. Answer B says it finished. Now swap the answers. A still agrees with the record.",
+        "hold": 0.3
+      },
+      {
+        "id": "c15-b07",
+        "say": "Does your judge still pick it? Try the same check with a wordier version, and compare the judge’s choices with independent human ratings.",
+        "hold": 0.8
+      }
+    ]
+  },
+  {
+    "id": "c16",
+    "title": "Which assistant would follow the incident policy?",
+    "sourceChapters": [
+      "c16"
+    ],
+    "beats": [
+      {
+        "id": "c16-b01",
+        "say": "A scored lower on held-out incident reports. Read the actual policy before choosing an assistant. It requires a blocked status, a citation to policy four eight three, and no automatic rollback. Lay A’s reply beside it. A says blocked, cites a runbook and turns rollback on.",
+        "hold": 0.3
+      },
+      {
+        "id": "c16-b02",
+        "say": "B says blocked, cites the policy and leaves rollback off. Which answer would you send?",
+        "hold": 1.6
+      },
+      {
+        "id": "c16-b03",
+        "say": "Send B. It passes all three checks. A got the status right. It cited the wrong source and would have triggered a rollback. The lower perplexity told us A predicted the wording of the reports better. Reading its answer caught the action it would take.",
+        "hold": 0.65
+      }
+    ]
+  },
+  {
+    "id": "c17",
+    "title": "Two answers for job 612",
+    "sourceChapters": [
+      "c17"
+    ],
+    "beats": [
+      {
+        "id": "c17-b01",
+        "say": "Try a fresh decision for export job six one two. Its trusted record says queued. The source must identify that job, and automatic deletion must stay off. Cedar had the lower perplexity on held-out text. Read both replies. Which answer clears all three checks?",
+        "hold": 2.5
+      },
+      {
+        "id": "c17-b02",
+        "say": "Cedar got the status right. It cited the job next door and switched deletion on. One of three checks passes. Pine cited the right job and left deletion off. All three pass. That qualifies Pine under these particular requirements.",
+        "hold": 1.2
+      }
+    ]
+  },
+  {
+    "id": "c18",
+    "title": "Which model spent fewer bits on this line?",
+    "sourceChapters": [
+      "c18"
+    ],
+    "beats": [
+      {
+        "id": "c18-b01",
+        "say": "Read Rain falls now with me, including both spaces. The subword tokenizer makes four pieces. The character tokenizer cuts after every character, including each space. Fourteen targets. Both models get a beginning marker, predict every piece, and can see the full prefix at every step. These two paths cover exactly the same bytes.",
+        "hold": 0.7
+      },
+      {
+        "id": "c18-b02",
+        "say": "The subword model spent eight point four nats. The character model spent nine. Divide each loss by its own target count and exponentiate. The scores come out to eight point one seven and one point nine zero. Your colleague circles the smaller number. Check the units on that circle.",
+        "hold": 0.3
+      },
+      {
+        "id": "c18-b03",
+        "say": "Which model would you put first if both had to pay by the byte?",
+        "hold": 2.2
+      },
+      {
+        "id": "c18-b04",
+        "say": "Keep both loss totals. Use the same fourteen bytes for both rows. Divide each loss by the natural log of two to get bits. Now divide both by fourteen. The subword model spent about point eight six six bits per byte. The character model spent about point nine two seven. Both figures now price the same unit.",
+        "hold": 1.2
+      },
+      {
+        "id": "c18-b05",
+        "say": "Fourteen small predictions made the character model look cheaper per token. Across the same fourteen bytes, the subword model spent fewer bits on this line. Keep the target text, context and scored span with that claim. To choose an assistant for a job, test what its answer actually does.",
+        "hold": 3.2
+      }
+    ]
+  }
+]

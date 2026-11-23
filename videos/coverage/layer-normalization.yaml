@@ -1,0 +1,226 @@
+version: 1
+lesson: layer-normalization
+promise: Trace a token through normalization and residual addition to diagnose a changed head input in a checkpoint port.
+framing: []
+objectives:
+  - id: intro
+    can: Calculate the fraction of an aligned residual sum supplied by one write.
+    scenes: [intro, depth-diagnosis]
+  - id: center
+    can: Predict the centered features when a common offset moves every input.
+    scenes: [center, normalization-transfer]
+  - id: scale
+    can: Compute the population variance, epsilon-adjusted divisor and standardized output of a token.
+    scenes: [scale, normalization-transfer]
+  - id: affine
+    can: Trace a learned gain or shift to the feature and output statistics it changes.
+    scenes: [affine]
+  - id: axes
+    can: Use a later-token edit to distinguish feature-only normalization from a reduction that includes time.
+    scenes: [axes]
+  - id: placement
+    can: Trace both residual layouts for two blocks and identify which vector reaches the head.
+    scenes: [placement, normalization-transfer]
+  - id: gradients
+    can: Locate the skip contribution in each block Jacobian and explain a cancellation in one direction.
+    scenes: [placement, gradients]
+  - id: rms
+    can: Calculate an RMSNorm output and distinguish a change in kernel time from a change in full-step time.
+    scenes: [rms, normalization-transfer]
+  - id: precision
+    can: Locate overflow or input rounding and choose the inputs for a wide reference calculation.
+    scenes: [precision]
+  - id: norm-backward
+    can: Calculate an input gradient within one token and accumulate shared parameter gradients across tokens.
+    scenes: [norm-backward]
+  - id: depth-diagnosis
+    can: Choose a warmup experiment or a held-out block ablation from the observed gradients or relative writes.
+    scenes: [depth-diagnosis]
+  - id: deepnorm
+    can: Place alpha in the DeepNorm forward pass and beta in the selected weight initializations.
+    scenes: [deepnorm]
+  - id: qk-peri
+    can: Distinguish normalizing a branch write from normalizing queries and keys, and compute a bounded score.
+    scenes: [qk-peri]
+  - id: normalization-transfer
+    can: Restore a missing final LayerNorm and check the head logit on two inputs with a common offset.
+    scenes: [normalization-transfer]
+sections:
+  - heading: One residual stream, many writes
+    status: taught
+    scenes:
+      - intro
+      - depth-diagnosis
+  - heading: LayerNorm by hand
+    status: taught
+    scenes:
+      - center
+      - scale
+      - affine
+  - heading: The general formula
+    status: taught
+    scenes:
+      - scale
+      - affine
+  - heading: PyTorch implementation
+    status: taught
+    scenes:
+      - axes
+      - precision
+  - heading: The gradients of scale and shift
+    status: taught
+    scenes:
+      - norm-backward
+  - heading: Where you put LayerNorm matters
+    status: taught
+    scenes:
+      - placement
+  - heading: One block, two placements
+    status: taught
+    scenes:
+      - placement
+  - heading: "Post-LN: the original transformer"
+    status: taught
+    scenes:
+      - placement
+  - heading: "Pre-LN: an identity contribution around the branch"
+    status: taught
+    scenes:
+      - placement
+      - gradients
+      - normalization-transfer
+  - heading: A two-layer walkthrough
+    status: taught
+    scenes:
+      - placement
+  - heading: Why Pre-LN can train more stably
+    status: taught
+    scenes:
+      - gradients
+      - depth-diagnosis
+  - heading: The Post-LN gradient problem
+    status: taught
+    scenes:
+      - gradients
+      - depth-diagnosis
+  - heading: The Pre-LN gradient advantage
+    status: taught
+    scenes:
+      - gradients
+      - depth-diagnosis
+  - heading: "A reported Pre-LN risk: representation collapse"
+    status: taught
+    scenes:
+      - depth-diagnosis
+  - heading: Residual magnitude growth across depth
+    status: taught
+    scenes:
+      - intro
+      - depth-diagnosis
+  - heading: "DeepNorm: scaled residual and matched init"
+    status: taught
+    scenes:
+      - deepnorm
+  - heading: "RMSNorm: scale-only normalization"
+    status: taught
+    scenes:
+      - rms
+  - heading: Less arithmetic does not specify a GPU speedup
+    status: taught
+    scenes:
+      - rms
+  - heading: Reported normalization layouts
+    status: taught
+    scenes:
+      - placement
+      - qk-peri
+  - heading: QK-Norm controls one source of attention scale
+    status: taught
+    scenes:
+      - qk-peri
+  - heading: Peri-LN and sandwich normalization
+    status: taught
+    scenes:
+      - qk-peri
+  - heading: Debug normalization failures
+    status: taught
+    scenes:
+      - precision
+      - depth-diagnosis
+      - normalization-transfer
+  - heading: "Practice: compare residual MLP blocks"
+    status: article-only
+    reason: exercise
+    note: The page supplies the independent implementation or practice exercise; film chapters teach the
+      underlying mechanism.
+  - heading: Mini exercise
+    status: article-only
+    reason: exercise
+    note: The page supplies the independent implementation or practice exercise; film chapters teach the
+      underlying mechanism.
+  - heading: Mastery check
+    status: taught
+    scenes: [scale, axes, placement, gradients, depth-diagnosis, rms, deepnorm, qk-peri, normalization-transfer]
+  - heading: Practice checkpoints
+    status: article-only
+    reason: exercise
+    note: The page supplies the independent implementation or practice exercise; film chapters teach the
+      underlying mechanism.
+quiz:
+  - n: 1
+    status: taught
+    scenes:
+      - center
+      - scale
+      - normalization-transfer
+  - n: 2
+    status: taught
+    scenes:
+      - axes
+  - n: 3
+    status: taught
+    scenes:
+      - placement
+      - gradients
+  - n: 4
+    status: taught
+    scenes:
+      - depth-diagnosis
+  - n: 5
+    status: taught
+    scenes:
+      - placement
+      - normalization-transfer
+  - n: 6
+    status: taught
+    scenes:
+      - depth-diagnosis
+  - n: 7
+    status: taught
+    scenes:
+      - rms
+  - n: 8
+    status: taught
+    scenes:
+      - rms
+      - normalization-transfer
+  - n: 9
+    status: taught
+    scenes:
+      - qk-peri
+  - n: 10
+    status: taught
+    scenes:
+      - deepnorm
+removed: []
+reviews:
+  closed_book:
+    taught: 10
+    partial: 0
+    absent: 0
+    script: 43159cf030d063cb
+    evidence: build/video-delivery-20261106/script-reviews/layer-normalization.json
+  fact_check:
+    open_findings: 0
+    script: 43159cf030d063cb
+    evidence: build/video-delivery-20261106/script-reviews/layer-normalization.json

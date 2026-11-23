@@ -1,0 +1,913 @@
+[
+  {
+    "id": "c01",
+    "title": "How do I rotate the signing key?",
+    "sourceChapters": [
+      "c01"
+    ],
+    "beats": [
+      {
+        "id": "c01-b01",
+        "say": "Which passage can cross into this prompt? The signing-key runbook scores highest, but only the security group can read it. Our reader works in operations at tenant A. Everyone in that tenant can read the incident checklist.",
+        "hold": 2.4
+      },
+      {
+        "id": "c01-b02",
+        "say": "Only the checklist. Follow its copy through the opening. The runbook stays on the shelf. Retrieval-augmented generation gives a model passages to help it answer. The service checks who may read each passage before it hands over the text.",
+        "hold": 0.65
+      },
+      {
+        "id": "c01-b03",
+        "say": "Same question, same scores. The directory now lists our reader in the security group too. Which extra passage can enter?",
+        "hold": 2.4
+      },
+      {
+        "id": "c01-b04",
+        "say": "Now the runbook can enter too. Follow the second copy across. The reader’s new group matches the grant on the runbook.",
+        "hold": 0.8
+      }
+    ]
+  },
+  {
+    "id": "c02",
+    "title": "Trace the grant that permits this reader",
+    "sourceChapters": [
+      "c02"
+    ],
+    "beats": [
+      {
+        "id": "c02-b01",
+        "say": "Return to the operations-only reader. Our small corpus contains a tenant-wide checklist, an operations FAQ, a security-only signing-key runbook and an executive acquisition plan. Public here means authenticated employees inside one tenant. The operations analyst may use the first two; relevance cannot substitute for either missing grant.",
+        "hold": 0.7
+      },
+      {
+        "id": "c02-b02",
+        "say": "Role-based control assigns permissions to job roles. Attribute-based control evaluates declared properties, such as department and clearance. Relationship-based control follows membership, inheritance and ownership edges. Trace user to child team, parent team, then its document: the grant comes from that trusted relationship path.",
+        "hold": 0.7
+      },
+      {
+        "id": "c02-b03",
+        "say": "User namespaces, metadata filters, trusted late-bound ID authorization and a permission graph are four enforcement approaches. Choose one that preserves the source rules and revocation. A permission graph decides access; a GraphRAG content graph describes facts. Its edges and reports still need their own authorization.",
+        "hold": 0.7
+      }
+    ]
+  },
+  {
+    "id": "c03",
+    "title": "Begin with trusted identity state",
+    "sourceChapters": [
+      "c03"
+    ],
+    "beats": [
+      {
+        "id": "c03-b01",
+        "say": "A principal is the identity the service has authenticated. The directory places this analyst in tenant A and the operations group. The request mentions security. Which membership should the service use? Look at who supplied each value.",
+        "hold": 2.4
+      },
+      {
+        "id": "c03-b02",
+        "say": "Use the directory. The analyst asks to read the operations FAQ in tenant A. Its current policy grants reads to the operations group. The verified group matches, so the service allows the read. Other documents may grant access by role or name a user directly. The service also checks the tenant, deletion state and validity window.",
+        "hold": 0.7
+      },
+      {
+        "id": "c03-b03",
+        "say": "Try the same FAQ again. This time the policy lookup is unavailable. The service pauses the read until it can check the grant. A missing identity also pauses protected retrieval. Only passages with a verified read decision can enter the eligible set.",
+        "hold": 0.55
+      }
+    ]
+  },
+  {
+    "id": "c04",
+    "title": "Join candidate IDs before exporting text",
+    "sourceChapters": [
+      "c04"
+    ],
+    "beats": [
+      {
+        "id": "c04-b01",
+        "say": "Inside the retrieval service, four ranked IDs await a policy lookup. The key runbook comes first, then the local operations FAQ, another tenant’s FAQ, and a record with no policy entry. Match both parts of each key: tenant and document ID. Which text can leave for an operations reader in A?",
+        "hold": 2.4
+      },
+      {
+        "id": "c04-b02",
+        "say": "The analyst’s operations membership intersects only the local FAQ’s grant. The runbook misses that group, the other FAQ misses the tenant, and the missing policy supplies an empty grant. Only the local FAQ returns. Removing all user groups returns none.",
+        "hold": 0.7
+      },
+      {
+        "id": "c04-b03",
+        "say": "This late-bound join avoids copying resolved user memberships onto every chunk. It is still responsible for current source semantics and freshness. The local program holds all fixture text in one process; production privileges and data flow determine the actual trusted boundary.",
+        "hold": 0.7
+      }
+    ]
+  },
+  {
+    "id": "c05",
+    "title": "Constrain the searchable set first",
+    "sourceChapters": [
+      "c05"
+    ],
+    "beats": [
+      {
+        "id": "c05-b01",
+        "say": "Inside the trusted store, the index holds seven candidate records. Five restricted candidates match the words in the query strongly. Two records are within the analyst's grants. The identity and ACL predicate is applied before the result set leaves this boundary.",
+        "hold": 0.65
+      },
+      {
+        "id": "c05-b02",
+        "say": "The checklist admits all staff in tenant A. The operations runbook requires the operations group. This reader qualifies for both. The ranking stage orders the incident checklist and operations runbook by relevance, then returns those permitted passages. The key-rotation text stays in the store.",
+        "hold": 0.7
+      },
+      {
+        "id": "c05-b03",
+        "say": "Some stores combine filtering with approximate nearest-neighbor search. The filter semantics and search budget depend on the backend. Design the query so permission controls the returned candidate set, then evaluate recall and underfill on the chosen engine.",
+        "hold": 0.55
+      }
+    ]
+  },
+  {
+    "id": "c06",
+    "title": "What did the reranker receive?",
+    "sourceChapters": [
+      "c06"
+    ],
+    "beats": [
+      {
+        "id": "c06-b01",
+        "say": "Put two test runs side by side. Our operations analyst can read the FAQ. The key runbook requires security. Both runs return only the FAQ. Each also recorded which passages its reranker received. That reranker is ordinary application code with permission to handle this reader's results.",
+        "hold": 0.3
+      },
+      {
+        "id": "c06-b02",
+        "say": "Can the final results tell us what the reranker saw?",
+        "hold": 2.4
+      },
+      {
+        "id": "c06-b03",
+        "say": "We need the input receipts. Open the first capture. The reranker received the runbook and the FAQ. The application removed the runbook later. Open the second capture. Here the store checked the document IDs before it handed over text, so the reranker received only the FAQ.",
+        "hold": 0.3
+      },
+      {
+        "id": "c06-b04",
+        "say": "Count the forbidden passages at that handoff. One in A, zero in B.",
+        "hold": 0.8
+      },
+      {
+        "id": "c06-b05",
+        "say": "Follow the copy in run A. A cache, trace, or crash report could still hold it after the answer has gone out. Inspect those destinations. In run B the check happened inside trusted handling. A trusted service can inspect a candidate internally.",
+        "hold": 0.3
+      },
+      {
+        "id": "c06-b06",
+        "say": "Its privileges and the next recipient determine where the boundary lies. Keep denied IDs and titles in a restricted audit channel because even a document's existence can be sensitive.",
+        "hold": 0.7
+      }
+    ]
+  },
+  {
+    "id": "c07",
+    "title": "Evaluate the complete local predicate",
+    "sourceChapters": [
+      "c07"
+    ],
+    "beats": [
+      {
+        "id": "c07-b01",
+        "say": "The larger in-memory exercise uses lexical word matching, despite its vector-store interface name. Authorization runs first. Its mandatory gates require the caller’s tenant, an is-deleted value that is literally false, and valid time fields. Missing or malformed required fields deny the row.",
+        "hold": 0.7
+      },
+      {
+        "id": "c07-b02",
+        "say": "The clock and both bounded endpoints need timezone-aware datetimes. An explicit None means that end is open. A missing field fails validation, and a timestamp string needs decoding. On the time ruler, a grant begins at noon and expires at one. At exactly one, the permitted interval has ended.",
+        "hold": 0.7
+      },
+      {
+        "id": "c07-b03",
+        "say": "Only after those gates does this fictional source policy accept any matching public, owner, department, explicit-user, group or role grant. These are deliberately alternative grants. A real source may require conjunctions, explicit denies or inheritance; copying this OR expression would change that policy.",
+        "hold": 0.7
+      }
+    ]
+  },
+  {
+    "id": "c08",
+    "title": "Remove every grant that still authorizes the row",
+    "sourceChapters": [
+      "c08"
+    ],
+    "beats": [
+      {
+        "id": "c08-b01",
+        "say": "The FAQ has two grants for this reader: the operations group and the operations department. Clear the group grant. The department path still reaches the FAQ, so the read still passes. Clear the department grant too. Now both paths are gone and the read fails.",
+        "hold": 0.7
+      },
+      {
+        "id": "c08-b02",
+        "say": "The denial program executes eight cases: wrong tenant, deletion, malformed deletion, future start, exact expiry, string time, naive time and missing grant. Four missing mandatory fields also deny, and removing the caller’s department, group and role memberships denies the FAQ.",
+        "hold": 0.7
+      },
+      {
+        "id": "c08-b03",
+        "say": "The checklist remains tenant-wide only while its mandatory gates pass. Expire that last allowed record and the authorized set becomes empty. Refuse or request permitted evidence. An unfiltered retry would turn missing recall into a disclosure.",
+        "hold": 0.7
+      }
+    ]
+  },
+  {
+    "id": "c09",
+    "title": "Keep source identity attached to each child",
+    "sourceChapters": [
+      "c09"
+    ],
+    "beats": [
+      {
+        "id": "c09-b01",
+        "say": "Each child needs a tenant-qualified source and chunk identity, source revision, policy version, deletion state, validity and a live grant decision. Classification and compliance tags describe the document; they grant access only if the source policy explicitly says so.",
+        "hold": 0.7
+      },
+      {
+        "id": "c09-b02",
+        "say": "The actual schema records the signing-key source at content revision seven and policy version forty-two. Its allowed groups are security and platform. Conversion preserves these fields and emits an ISO timestamp, which the earlier Python predicate cannot use until the adapter decodes it.",
+        "hold": 0.7
+      },
+      {
+        "id": "c09-b03",
+        "say": "Type annotations do not validate incoming values. Validate at ingestion and test the real backend’s supported filter syntax. The local resolved-ACL object and valid-at adapter fields are teaching glue, not portable Pinecone, Weaviate or PostgreSQL query operators.",
+        "hold": 0.7
+      }
+    ]
+  },
+  {
+    "id": "c10",
+    "title": "Test the role that actually runs the query",
+    "sourceChapters": [
+      "c10"
+    ],
+    "beats": [
+      {
+        "id": "c10-b01",
+        "say": "A caller can leave an optional search filter blank. Here PostgreSQL checks the rows inside the database. The application role can select from the table. Row security is enabled, and no read policy applies. The query returns zero rows.",
+        "hold": 0.7
+      },
+      {
+        "id": "c10-b02",
+        "say": "Repeat the query as the table owner. By default the owner bypasses row security. Force row-level security on this table and the owner gets zero rows too. Superusers and roles with BYPASS RLS still bypass these policies. Use the ordinary application role for retrieval.",
+        "hold": 0.7
+      },
+      {
+        "id": "c10-b03",
+        "say": "Now apply the document read policy. Keep the ordinary connection and the same verified operations reader for all four paths. Give each path the operations FAQ and the security group’s key runbook. Which passage should reach this reader?",
+        "hold": 2.2
+      },
+      {
+        "id": "c10-b04",
+        "say": "Only the FAQ. Exact lookup returns the FAQ. Our approximate nearest-neighbor search visits both documents and returns the FAQ. The cache hit releases the FAQ alone. The citation preview shows only the FAQ text. Run these two cases against each authenticated endpoint and compare what the reader receives with the expected passage.",
+        "hold": 1.0
+      }
+    ]
+  },
+  {
+    "id": "c11",
+    "title": "Where does the search stop?",
+    "sourceChapters": [
+      "c11"
+    ],
+    "beats": [
+      {
+        "id": "c11-b01",
+        "say": "Back to the seven records, in score order. The request asks for two passages. Exact search finds both eligible records, R six and R seven. Let's keep that pair as our reference. First, stop after the five highest scores. Every one of those records is restricted. Both result slots are empty.",
+        "hold": 0.7
+      },
+      {
+        "id": "c11-b02",
+        "say": "Keep the same reader and grants. Move the stop one place to the right. We can now inspect six candidates inside the store. Which passages fill the two slots at this stop?",
+        "hold": 2.4
+      },
+      {
+        "id": "c11-b03",
+        "say": "Only R six makes it. R seven also has a grant, but the search stopped just before it. We recovered one of the two passages in the exact result. That's the authorized recall for this search. The empty slot tells us nothing by itself about whether a grant is missing.",
+        "hold": 0.75
+      },
+      {
+        "id": "c11-b04",
+        "say": "Let the search visit the seventh record. Both passages now fit. We changed how far the store looked. It applied the same permission check every time. These supplied scores give us a repeatable test.",
+        "hold": 0.3
+      },
+      {
+        "id": "c11-b05",
+        "say": "On a real index, compare filtered results with exact authorized search, then measure how much latency a larger budget or an exact fallback costs.",
+        "hold": 0.8
+      }
+    ]
+  },
+  {
+    "id": "c12",
+    "title": "How many permitted rows will the search find?",
+    "sourceChapters": [
+      "c12"
+    ],
+    "beats": [
+      {
+        "id": "c12-b01",
+        "say": "Suppose one candidate in ten matches the reader's access rules on average, and each match is independent. You ask for ten passages. The index examines forty candidates. How many eligible rows would you expect on average?",
+        "hold": 2.4
+      },
+      {
+        "id": "c12-b02",
+        "say": "Four, on average. Multiply forty by one tenth. Here is one possible scan with two matches. Here is another with six. The green squares show which candidates passed.",
+        "hold": 0.3
+      },
+      {
+        "id": "c12-b03",
+        "say": "On a real query, records with similar wording can also share a grant, so the matching fraction along the search path can differ from the fraction in the whole index.",
+        "hold": 0.75
+      },
+      {
+        "id": "c12-b04",
+        "say": "In pgvector's approximate index example, the database applies the SQL filter after index exploration. Take scan A and set a cap of fifty candidates for this example. An iterative scan can examine ten more candidates. Only one more matches.",
+        "hold": 0.3
+      },
+      {
+        "id": "c12-b05",
+        "say": "At the cap, three of our ten slots are filled. With a larger budget the scan could keep looking until it fills the request or hits a limit. A partial index, a partition, or exact search over permitted rows can also help.",
+        "hold": 0.65
+      },
+      {
+        "id": "c12-b06",
+        "say": "Return to the original forty candidates. Weaviate can build an allow-list before it searches the neighbor graph. Our list contains three and twenty-seven. Suppose one path visits two, three, then eight. Only three can enter the result along that path.",
+        "hold": 0.3
+      },
+      {
+        "id": "c12-b07",
+        "say": "Weaviate's ACORN strategy targets restrictive filters that correlate poorly with the query. A small allowed set can instead use flat search. On the real engine, measure authorized recall, how often the request fills, and latency.",
+        "hold": 0.8
+      }
+    ]
+  },
+  {
+    "id": "c13",
+    "title": "Retrieval needs current permission state",
+    "sourceChapters": [
+      "c13"
+    ],
+    "beats": [
+      {
+        "id": "c13-b01",
+        "say": "The owner removes the operations grant at policy revision forty-two. The source has changed, but the webhook is late. Three indexed chunks still carry revision forty-one and the old grant. If the store checked only a chunk, could our operations reader still read it?",
+        "hold": 2.4
+      },
+      {
+        "id": "c13-b02",
+        "say": "Yes. Each old chunk would still admit the operations reader. Its grant matches the reader’s group even though the owner withdrew it. To close that gap, compare each chunk’s policy revision with the source before serving a read. Hold stale chunks. Use authenticated change events and reconcile against the source in case an event arrives late or goes missing. Apply revision forty-two to each chunk in turn. Skip older revisions as they arrive. Once all three copies match the source, each one enforces the withdrawal.",
+        "hold": 0.7
+      },
+      {
+        "id": "c13-b03",
+        "say": "Set a revocation objective for the data and threat model. When the current decision is unavailable, fail closed for that content. Measure full revocation latency from source change to blocked read, alongside the cache bound.",
+        "hold": 0.55
+      }
+    ]
+  },
+  {
+    "id": "c14",
+    "title": "Replay a missed event in source order",
+    "sourceChapters": [
+      "c14"
+    ],
+    "beats": [
+      {
+        "id": "c14-b01",
+        "say": "Follow the two chunks of this runbook. Tenant B has a runbook with the same name and two chunks of its own. The owner removes tenant A's security grant at revision two. The change event never arrives. Both copies in A still say revision one and security.",
+        "hold": 0.3
+      },
+      {
+        "id": "c14-b02",
+        "say": "Reconciliation reads the authoritative revision two and updates both to no groups.",
+        "hold": 0.7
+      },
+      {
+        "id": "c14-b03",
+        "say": "Replaying the old revision-one grant updates zero chunks. Repeating revision two is idempotent. Deletion revision three updates both again, while tenant B keeps revision one and operations access. The dictionary loop is sequential and local; atomic publication or a trusted version gate is still required in a serving store.",
+        "hold": 0.7
+      },
+      {
+        "id": "c14-b04",
+        "say": "The reader’s program would accept a supplied newer revision-four grant and even clear the deleted flag and restore the record. It does not enforce terminal tombstones. Source ordering, authorized restoration and deletion policy therefore need a real contract. A tombstone denies reads; erasing vectors, reports, logs and backups is a separate retention process.",
+        "hold": 0.7
+      }
+    ]
+  },
+  {
+    "id": "c15",
+    "title": "Check both exact version and authoritative age",
+    "sourceChapters": [
+      "c15"
+    ],
+    "beats": [
+      {
+        "id": "c15-b01",
+        "say": "The snapshot helper requires equality with the authoritative required version. A freshly fetched version forty-one still fails when forty-two is required. A supposedly newer version forty-three also fails that exact contract; version numbers cannot be guessed from a request.",
+        "hold": 0.7
+      },
+      {
+        "id": "c15-b02",
+        "say": "Now use the required version, forty-two. Measure age from the last successful authoritative fetch to now. The allowed ages run from zero to five minutes, inclusive. Exactly five minutes passes. Six minutes fails. A future fetch time gives a negative age and fails too. Giving a cached copy a new timestamp cannot refresh its policy.",
+        "hold": 0.7
+      },
+      {
+        "id": "c15-b03",
+        "say": "Document and directory-membership freshness both matter. A signed, unexpired token may retain a revoked group. A cache TTL bounds one cache’s age; detection, queues, replicas and derived copies also affect end-to-end revocation delay. Set and measure the objective rather than promising instant revocation.",
+        "hold": 0.7
+      }
+    ]
+  },
+  {
+    "id": "c16",
+    "title": "Carry tenant scope through every stage",
+    "sourceChapters": [
+      "c16"
+    ],
+    "beats": [
+      {
+        "id": "c16-b01",
+        "say": "Tenant A and tenant B can each have a document called the incident checklist. Document names can recur across tenants, so qualify record IDs by tenant and preserve the same scope on every child chunk.",
+        "hold": 0.55
+      },
+      {
+        "id": "c16-b02",
+        "say": "Apply tenant, source version, deletion status, validity, and grants within one trusted query path. Keep the policy decision available for audit so an incident review can explain why a record was allowed or blocked.",
+        "hold": 0.7
+      },
+      {
+        "id": "c16-b03",
+        "say": "Graphs and summaries need the same treatment as leaf chunks. An authorized vector result can still connect to an unauthorized community report or derived artifact. Check access on every representation that can carry protected facts.",
+        "hold": 0.55
+      }
+    ]
+  },
+  {
+    "id": "c17",
+    "title": "Tenant boundaries in search and storage",
+    "sourceChapters": [
+      "c17"
+    ],
+    "beats": [
+      {
+        "id": "c17-b01",
+        "say": "Both companies have a page called Escalation. Our reader works in operations at company A. With a namespace or database per tenant, the service searches A's records. With a shared index, it filters every query by that same verified tenant. Which of A's two pages can this reader open?",
+        "hold": 2.4
+      },
+      {
+        "id": "c17-b02",
+        "say": "Only A's escalation page. Operations has a grant there. A's rotation page requires security. Now suppose the request names tenant B. The service stops the search because the reader belongs to A. A missing or empty tenant also stops the request.",
+        "hold": 0.7
+      },
+      {
+        "id": "c17-b03",
+        "say": "A separate collection isolates each tenant's records. A dedicated cluster also isolates infrastructure and costs more to run. In either layout, encrypt stored data, verify incoming documents, and check shared resources for timing leaks. A SOC 2 review examines the service's controls. Where HIPAA applies, teams need administrative, physical and technical safeguards.",
+        "hold": 0.7
+      }
+    ]
+  },
+  {
+    "id": "c18",
+    "title": "Who can read the incident report?",
+    "sourceChapters": [
+      "c18"
+    ],
+    "beats": [
+      {
+        "id": "c18-b01",
+        "say": "Follow the yarn into these two saved reports. Blue carries the incident checklist. Gold carries the operations FAQ. Trace the red stripe across the mixed report. It carries a fact from version seven of the key runbook, even where the report uses different words.",
+        "hold": 0.3
+      },
+      {
+        "id": "c18-b02",
+        "say": "The service sews the source IDs and versions onto each report when it builds it. A map step gives the model one report to read. Our operations reader can use the checklist and FAQ. Only the operations report may enter.",
+        "hold": 0.65
+      },
+      {
+        "id": "c18-b03",
+        "say": "Add a verified security membership. Both reports can now enter. Keep your eye on the red stripe. The owner withdraws the key runbook’s grant. Its content is still version seven. Our reader still has both groups. Which saved report may enter on this new request?",
+        "hold": 2.4
+      },
+      {
+        "id": "c18-b04",
+        "say": "Only the operations report can enter. The red yarn is still woven through the mixed report, and its sewn label still says key version seven. The service checks that source against the live read policy. One failed check holds the whole report outside the model.",
+        "hold": 0.3
+      },
+      {
+        "id": "c18-b05",
+        "say": "A missing source list, a different tenant, a deleted source, or an old revision also fails that check.",
+        "hold": 0.8
+      },
+      {
+        "id": "c18-b06",
+        "say": "Weave a fresh report from the checklist and FAQ alone. Both source revisions still match and this reader can read both. Admit the new report. The old mixed report stays held, with its red stripe intact. Apply the same check to a graph edge.",
+        "hold": 0.3
+      },
+      {
+        "id": "c18-b07",
+        "say": "Even if both names are public, the source that established their relationship may be restricted. When provenance is incomplete, fall back to sources the reader can use.",
+        "hold": 0.75
+      }
+    ]
+  },
+  {
+    "id": "c19",
+    "title": "Change the query while retaining its authority",
+    "sourceChapters": [
+      "c19"
+    ],
+    "beats": [
+      {
+        "id": "c19-b01",
+        "say": "Mira asks how to rotate the key. Rewrite her question as signing-key rotation. The words change. Search still runs as Mira in tenant A with her verified operations group. Carry that identity into every search branch and parent lookup. Treat history, documents and tool outputs as input to the rewrite.",
+        "hold": 0.7
+      },
+      {
+        "id": "c19-b02",
+        "say": "Jo asks the same question. Both readers have the analyst role in tenant A. Mira owns the shift note, and her operations group can read the FAQ. The review memo names Jo, and her security group can read the key runbook. Jo’s saved rewrite includes a passage from that runbook. Can Mira use this copy?",
+        "hold": 2.2
+      },
+      {
+        "id": "c19-b03",
+        "say": "Hold Jo’s copy. Mira can search her shift note and the FAQ. For a rewrite or a HyDE search that uses a hypothetical document, key the cache by query, technique and model settings, tenant, reader, policy version and source versions. A shared entry needs proof that the readers have equivalent access. Mira and Jo need separate entries here.",
+        "hold": 0.8
+      },
+      {
+        "id": "c19-b04",
+        "say": "Jo asks again while her saved copy is still in the cache. The owner withdraws the security group’s runbook grant. Version seven is still in Jo’s saved result. Check the live grant before reuse. Hold the passage. Apply the same source and destination checks when sending evidence to a reranker, a judge, a citation preview or a trace.",
+        "hold": 1.1
+      }
+    ]
+  },
+  {
+    "id": "c20",
+    "title": "Keep external fallback inside the network policy",
+    "sourceChapters": [
+      "c20"
+    ],
+    "beats": [
+      {
+        "id": "c20-b01",
+        "say": "An external fallback needs allowed domains, enforced private-network restrictions, sandboxed fetching and server-side request-forgery defenses. Validate destinations and the actual resolved addresses and redirect behavior under that policy. An attractive retrieved link is not permission to fetch an internal service.",
+        "hold": 0.7
+      },
+      {
+        "id": "c20-b02",
+        "say": "Treat returned HTML as observations, not new system instructions. Strict policy can refuse or escalate instead of opening the web. Log the permitted rewrite and destination decision without copying protected response bodies into ordinary diagnostics.",
+        "hold": 0.7
+      }
+    ]
+  },
+  {
+    "id": "c21",
+    "title": "Validate the credential intended for this API",
+    "sourceChapters": [
+      "c21"
+    ],
+    "beats": [
+      {
+        "id": "c21-b01",
+        "say": "Authenticate with a supported server-side mechanism. Caller-written tenant or role headers are untrusted. Gateway identity headers need a protected channel that removes caller substitutes. The API validates its intended access token; an OpenID Connect ID token authenticates sign-in to a client.",
+        "hold": 0.7
+      },
+      {
+        "id": "c21-b02",
+        "say": "Access tokens may be signed JWTs or opaque tokens with an issuer-supported validation path. For JWTs, use trusted issuer keys and an algorithm allow-list. Validate issuer, audience, expiry, applicable not-before, token type and permitted actor or scopes. Do not follow an arbitrary token-provided key URL.",
+        "hold": 0.7
+      },
+      {
+        "id": "c21-b03",
+        "say": "The verified identity still needs mapping into current application policy. A signature establishes integrity under the accepted key, not current membership, permission to every document or correctness of a runbook. A valid credential can therefore reach a denied read.",
+        "hold": 0.7
+      }
+    ]
+  },
+  {
+    "id": "c22",
+    "title": "Resolve omitted groups without granting them",
+    "sourceChapters": [
+      "c22"
+    ],
+    "beats": [
+      {
+        "id": "c22-b01",
+        "say": "Interpret subject IDs within their issuer contract. Entra’s subject is application-specific; its tenant and object-ID pair supports cross-application directory identity. Its tenant claim is provider-specific, so verify the accepted tenant and data-partition mapping.",
+        "hold": 0.7
+      },
+      {
+        "id": "c22-b02",
+        "say": "Group and role claims also have provider-specific meaning. Entra can omit the group list and supply an overage indicator. Resolve it through the documented trusted directory flow, or deny access that depends on that membership.",
+        "hold": 0.7
+      },
+      {
+        "id": "c22-b03",
+        "say": "Revocation after token issuance can leave old membership claims inside an unexpired signed token. Apply the selected live-policy or freshness check before returning text. Authentication and document authorization remain separate decisions even when one identity library supplies both inputs.",
+        "hold": 0.7
+      }
+    ]
+  },
+  {
+    "id": "c23",
+    "title": "Bind and consume one retrieval capability",
+    "sourceChapters": [
+      "c23"
+    ],
+    "beats": [
+      {
+        "id": "c23-b01",
+        "say": "This token is good for one retrieval request. One JSON payload binds the tenant, user, query digest and intended service. It also carries an expiry time and a nonce, a value used once. HMAC authenticates all six fields with a shared secret.",
+        "hold": 0.3
+      },
+      {
+        "id": "c23-b02",
+        "say": "It stands for hash-based message authentication code. Each verifier holds the same secret and can issue tokens too.",
+        "hold": 0.7
+      },
+      {
+        "id": "c23-b03",
+        "say": "Watch the nonce as the verifier checks integrity, expiry, tenant, user, query and audience. A wrong query fails and leaves the nonce unused. The first matching request before expiry succeeds and consumes it. Replay fails. At the exact expiry, even an unused token fails.",
+        "hold": 0.7
+      },
+      {
+        "id": "c23-b04",
+        "say": "A distributed service needs atomic nonce consumption, durable expiry handling and authorized issuance. A stolen bearer can win the first-use race. Even an accepted task token then reaches the document ACL gate; it cannot grant the operations analyst security clearance.",
+        "hold": 0.7
+      }
+    ]
+  },
+  {
+    "id": "c24",
+    "title": "Activate only the grant the task requires",
+    "sourceChapters": [
+      "c24"
+    ],
+    "beats": [
+      {
+        "id": "c24-b01",
+        "say": "Zero standing privileges aims to avoid persistent elevated access. Just-in-time grants activate when policy permits them. A short token lifetime alone does not achieve that if an agent can repeatedly renew broad privileges.",
+        "hold": 0.7
+      },
+      {
+        "id": "c24-b02",
+        "say": "A human gate is appropriate when policy requires exceptional access or approval for a high-risk action. The article’s bulk threshold and approver examples are organizational choices, not universal standards. Approval must establish the relevant grant before retrieval, while normal allowed reads need no invented confirmation step.",
+        "hold": 0.7
+      }
+    ]
+  },
+  {
+    "id": "c25",
+    "title": "Recheck the complete context before sending",
+    "sourceChapters": [
+      "c25"
+    ],
+    "beats": [
+      {
+        "id": "c25-b01",
+        "say": "Follow both sources into this buffered answer. The model read the FAQ and the key runbook. Its sentence cites only the FAQ. The service keeps the complete list of inputs so it can check every source again before sending.",
+        "hold": 0.7
+      },
+      {
+        "id": "c25-b02",
+        "say": "Revoke the key grant after retrieval. The actual output helper rejects that draft even when its only citation names the still-allowed FAQ. Discard the whole draft, retrieve current authorized evidence and regenerate or refuse. Replacing the citation does not erase its copied facts.",
+        "hold": 0.7
+      },
+      {
+        "id": "c25-b03",
+        "say": "A whole-answer gate requires buffering because already delivered tokens cannot be recalled. Even a buffered answer has a final-check race; define the authorized policy snapshot and revocation objective. The local helper takes a supplied allowed-ID set, so the caller must establish current authorization through the trusted policy system.",
+        "hold": 0.7
+      }
+    ]
+  },
+  {
+    "id": "c26",
+    "title": "What does the output check catch?",
+    "sourceChapters": [
+      "c26"
+    ],
+    "beats": [
+      {
+        "id": "c26-b01",
+        "say": "This draft contains an email address. Its FAQ passed the read check. Before release, the service redacts the address and reads the draft's classification label. At clearance two, this reader can receive confidential text at level two. A restricted draft at level three stays blocked.",
+        "hold": 0.7
+      },
+      {
+        "id": "c26-b02",
+        "say": "The FAQ says the review takes three days. The draft says ninety. With no citation, the checker holds the draft. An ID outside the context also fails. Now attach the FAQ's own ID to the same sentence. Will the citation check pass?",
+        "hold": 2.4
+      },
+      {
+        "id": "c26-b03",
+        "say": "It passes. The FAQ was in the context. Compare the two durations. Change ninety days to three. Test source support alongside privacy and clearance. Include drafts with credentials or personal details, and cases where access changes before release. Check traces and evaluation requests for copies of protected text.",
+        "hold": 0.7
+      }
+    ]
+  },
+  {
+    "id": "c27",
+    "title": "Authorize the recipient and the protected effect",
+    "sourceChapters": [
+      "c27"
+    ],
+    "beats": [
+      {
+        "id": "c27-b01",
+        "say": "A senior reader’s document permission does not authorize sending its summary to a junior colleague or outside channel. Check the actual destination’s policy before export. Caches, reviewer datasets and external evaluation judges are destinations too.",
+        "hold": 0.7
+      },
+      {
+        "id": "c27-b02",
+        "say": "A signed, authorized document can contain unsafe or malicious instructions. Treat it as reference data. Enforce requested operation, target, arguments, credentials, destinations and any required approval outside the model. Delimiters help organize a prompt; they cannot authorize an upload or deployment.",
+        "hold": 0.7
+      }
+    ]
+  },
+  {
+    "id": "c28",
+    "title": "Keep read permission separate from tool permission",
+    "sourceChapters": [
+      "c28"
+    ],
+    "beats": [
+      {
+        "id": "c28-b01",
+        "say": "The analyst may read an operations runbook that describes a deployment command. The read grant defines which text the assistant may see. Execution requires a separate action grant for the requested command.",
+        "hold": 0.55
+      },
+      {
+        "id": "c28-b02",
+        "say": "A tool executor checks the authenticated principal, requested operation, target, arguments, and any required approval. Keep that decision near the protected effect. The retrieval decision and operation decision answer different questions.",
+        "hold": 0.7
+      },
+      {
+        "id": "c28-b03",
+        "say": "Output review can catch remaining disclosure risks, and prompt-injection defenses can reduce model mistakes. These checks complement retrieval authorization. The data boundary still has to control which protected passages enter context.",
+        "hold": 0.55
+      }
+    ]
+  },
+  {
+    "id": "c29",
+    "title": "Record the decision without copying the corpus",
+    "sourceChapters": [
+      "c29"
+    ],
+    "beats": [
+      {
+        "id": "c29-b01",
+        "say": "The audit receipt needs enough information to replay the decision: authenticated tenant and principal, source and policy versions, returned IDs, the reason, filter fingerprint, rewrite or cache state, and redaction events. Restrict access to sensitive IDs. Copying whole prompts or passages into logs would create a second protected corpus.",
+        "hold": 0.7
+      },
+      {
+        "id": "c29-b02",
+        "say": "The first request was allowed. The second was blocked. Both decisions go in the audit log. Look at the request ID on the simulated alert. It points back to the blocked request. This rule would also alert on access to restricted material.",
+        "hold": 0.7
+      },
+      {
+        "id": "c29-b03",
+        "say": "Restrict audit readers, encrypt sensitive identifiers, enforce retention and prevent the application from rewriting prior events where required. Predictable query hashes can be guessed; use keyed correlation when needed. If durable audit is required before release, delivery failure needs an explicit hold policy.",
+        "hold": 0.7
+      }
+    ]
+  },
+  {
+    "id": "c30",
+    "title": "Two claims in a proposed guide",
+    "sourceChapters": [
+      "c30"
+    ],
+    "beats": [
+      {
+        "id": "c30-b01",
+        "say": "Suppose the reviewed schedule says the desk opens at nine. A proposed incident guide gives eleven. Adding the false time to the searchable collection would poison the evidence. The same page also asks the assistant to change the calendar.",
+        "hold": 0.3
+      },
+      {
+        "id": "c30-b02",
+        "say": "An instruction reaching the assistant through retrieved text is called indirect prompt injection. A single page can create both problems.",
+        "hold": 0.7
+      },
+      {
+        "id": "c30-b03",
+        "say": "A valid author signature tells you who signed these bytes. A reviewer can still find the wrong time. Even a reader who may open this guide needs separate authority to edit the calendar. Here the assistant can read it. The calendar service holds the edit.",
+        "hold": 0.7
+      },
+      {
+        "id": "c30-b04",
+        "say": "Quarantine this guide while you verify the account and the proposed change against the schedule. Ingestion review and scanning govern which material enters search. Document grants govern who can read it. The calendar service governs changes to the calendar. OWASP groups these risks into categories. Their numbers identify the categories within an edition.",
+        "hold": 0.7
+      }
+    ]
+  },
+  {
+    "id": "c31",
+    "title": "What can an embedding backup reveal?",
+    "sourceChapters": [
+      "c31"
+    ],
+    "beats": [
+      {
+        "id": "c31-b01",
+        "say": "This backup holds the search vectors. Could it still disclose text? In one Vec2Text study of GTR embeddings for thirty-two-token Wikipedia passages, researchers counted exact word-for-word recoveries and divided by the number tested. Ninety-two percent matched exactly under those conditions. Longer passages matched less often.",
+        "hold": 0.7
+      },
+      {
+        "id": "c31-b02",
+        "say": "In a separate test, researchers inserted made-up names into clinical notes. They recovered some of those names from the embeddings. Restrict access to the live index, its backups and vector exports. To assess exposure in your system, consider the encoder, passage length, training data and who has access.",
+        "hold": 0.7
+      }
+    ]
+  },
+  {
+    "id": "c32",
+    "title": "Inspect every route a copy can take",
+    "sourceChapters": [
+      "c32"
+    ],
+    "beats": [
+      {
+        "id": "c32-b01",
+        "say": "Test missing or forged tenant scope, expiry, deletion, stale memberships and policy-service failure. Inspect returned text, reranker inputs, judge requests, prompt, cache, trace and response. A clean response establishes only one of those surfaces.",
+        "hold": 0.7
+      },
+      {
+        "id": "c32-b02",
+        "say": "Also test an allowed but irrelevant record: it should pass eligibility and fail usefulness. Then let an allowed source request an unauthorized upload and verify the action gate holds it. Measure revocation delay and authorized-search recall separately, preserving the same protected passage identity through each copy.",
+        "hold": 0.7
+      }
+    ]
+  },
+  {
+    "id": "c33",
+    "title": "Read the decision receipt",
+    "sourceChapters": [
+      "c33"
+    ],
+    "beats": [
+      {
+        "id": "c33-b01",
+        "say": "Return to the signing-key question. Read the receipt for tenant A's runbook. It names the source, version seven, and the read policy used for this request. The operations analyst has no matching grant, so the service withholds the passage. The receipt gives a reviewer the reason without copying the runbook into a log.",
+        "hold": 0.7
+      },
+      {
+        "id": "c33-b02",
+        "say": "Replay the read with the security membership we checked earlier. Same source revision. Same policy. This time the runbook can enter the prompt. If a useful passage is missing, check the decision for that source. A missing grant points to policy. An eligible passage beyond the scan limit points to search.",
+        "hold": 0.7
+      },
+      {
+        "id": "c33-b03",
+        "say": "Keep that reader. Suppose the requested operation changes to a production deployment, which requires an approval the reader lacks. The executor holds the deployment. The earlier receipt still records a permitted read. Keep the source and revision with any buffered answer, because policy can change between that read and the moment you send it.",
+        "hold": 0.8
+      }
+    ]
+  },
+  {
+    "id": "c34",
+    "title": "Which copy can leave?",
+    "sourceChapters": [
+      "c34"
+    ],
+    "beats": [
+      {
+        "id": "c34-b01",
+        "say": "Our reader has operations and security membership. Trace the gold FAQ thread. It enters both the saved report and the buffered draft. The report also uses the checklist. The draft also uses the key runbook, and the key is its only citation.",
+        "hold": 0.3
+      },
+      {
+        "id": "c34-b02",
+        "say": "The checklist moves to version two. The FAQ loses its read grant. The key stays at version seven with its grant intact. The task token and policy snapshot both pass. Which old copy may leave now?",
+        "hold": 2.4
+      },
+      {
+        "id": "c34-b03",
+        "say": "Hold both copies. The report kept checklist version one, and its FAQ source has lost its grant. In the buffered draft, the cited key still passes. Follow the gold thread to the other input. The uncited FAQ fails its read check. Discard the entire draft.",
+        "hold": 0.3
+      },
+      {
+        "id": "c34-b04",
+        "say": "Editing the citation would leave the same words and the same exposure.",
+        "hold": 0.8
+      },
+      {
+        "id": "c34-b05",
+        "say": "Start again from the current sources. Copy checklist version two and key version seven into a new report manifest. Both versions and both grants match. Admit the new report. Use those same two sources for a new buffered draft addressed to this reader. We can test the send decision with one fixed sentence.",
+        "hold": 0.75
+      },
+      {
+        "id": "c34-b06",
+        "say": "The example runbook says the security desk reviews rotation requests. Read the verb in the draft below it. The draft cites the right runbook. Its context, privacy, clearance, and citation checks pass. Would you send this sentence as written?",
+        "hold": 2.4
+      },
+      {
+        "id": "c34-b07",
+        "say": "Hold this draft. Approving a request promises an outcome. The passage only promises a review. Change that one word to “reviews.” Now the two sentences match word for word. Send this reply to the requesting reader. For a paraphrase, check the meaning against the source.",
+        "hold": 0.3
+      },
+      {
+        "id": "c34-b08",
+        "say": "This reader can receive the corrected reply. The next lesson takes up the shape an answer needs for software to use it.",
+        "hold": 0.9
+      }
+    ]
+  }
+]

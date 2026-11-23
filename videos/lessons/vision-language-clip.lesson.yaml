@@ -1,0 +1,1174 @@
+version: 1
+id: vision-language-clip
+title: From Shared Embeddings to Visual Evidence
+source: system-design/vision-language-models-clip-beyond/content.md
+voice: en-US-AndrewNeural
+rate: +0%
+sources:
+  - title: "Radford et al.: Learning Transferable Visual Models From Natural Language Supervision"
+    url: https://arxiv.org/abs/2103.00020
+  - title: OpenAI CLIP implementation
+    url: https://github.com/openai/CLIP
+  - title: SigLIP
+    url: https://arxiv.org/abs/2303.15343
+  - title: SigLIP2
+    url: https://arxiv.org/abs/2502.14786
+  - title: EVA-CLIP
+    url: https://arxiv.org/abs/2303.15389
+  - title: LLaVA
+    url: https://arxiv.org/abs/2304.08485
+  - title: LLaVA1.5
+    url: https://arxiv.org/abs/2310.03744
+  - title: BLIP2
+    url: https://arxiv.org/abs/2301.12597
+  - title: Flamingo
+    url: https://arxiv.org/abs/2204.14198
+  - title: QwenVL
+    url: https://arxiv.org/abs/2308.12966
+  - title: PruMerge
+    url: https://arxiv.org/abs/2403.15388
+scenes:
+  - id: opening
+    title: Search by description
+    visual: Three grille close-ups pull back into three rack photos beneath the search query. Cosine bars grow on
+      the same scale. The winning photo gets an outline after the viewer picks a match.
+    beats:
+      - say: “Blocked vent on rack door.” CLIP compares those words with each whole photo. The longer the bar, the
+          closer the match. Which photo would you open?
+        hold: 2.1
+        visual_cues:
+          - id: archive-query
+            phrase: blocked vent on rack door
+            targets:
+              - archive-search
+            color: cyan
+          - id: archive-scores
+            phrase: The longer the bar, the closer the match
+            targets:
+              - archive-numbers
+            color: yellow
+      - say: Seventeen. See the pink cover across its grille? The outline goes around the whole photo. That’s what
+          earned the highest score.
+        caption_starts: [See the pink cover]
+        hold: 0.8
+        visual_cues:
+          - id: archive-pick
+            phrase: See the pink cover across its grille
+            targets:
+              - archive-hit
+            color: cyan
+      - say: We have the photo. To mark the vent on a ticket, we’ll also need the four edges of a box. First, how
+          did CLIP compare pixels with words?
+        hold: 0.8
+  - id: towers
+    title: Two encoders for one comparison
+    visual: Photo 17 and its caption run through separate encoder paths. Their three supplied coordinates appear on
+      their respective lanes. The two other photo-caption pairs keep their identities.
+    beats:
+      - say: Start with photo seventeen. The image encoder reads its pixels. The text encoder reads the words “blocked
+          vent on rack door” as tokens. Each produces a vector. Training aligns those vectors so we can compare them
+          in the same coordinates.
+        hold: 0.7
+        visual_cues:
+          - id: towers-beat-1-focus-1
+            phrase: The image encoder reads its pixels
+            targets:
+              - towers-image-path
+            color: cyan
+          - id: towers-text-encoding
+            phrase: The text encoder reads the words
+            targets:
+              - towers-text-path
+            color: yellow
+          - id: towers-common-space
+            phrase: Training aligns those vectors
+            targets:
+              - towers-image-vector
+              - towers-text-vector
+            color: green
+      - say: We’ll call this photo and caption pair A. For pair B, photo eight came with a note about tape across the
+          asset tag. For pair C, photo forty-two came with “clear rack door.”
+        hold: 0.7
+        visual_cues:
+          - id: towers-beat-2-focus-1
+            phrase: this photo and caption pair A
+            targets:
+              - towers-caption
+            color: cyan
+          - id: towers-beat-2-focus-2
+            phrase: tape across the asset tag
+            targets:
+              - towers-pair-b
+            color: yellow
+      - say: At upload time, run the image tower once and store the normalized vector. When a technician types a new
+          phrase, only the phrase needs encoding. Both towers must come from the same trained pair.
+        hold: 0.7
+        visual_cues:
+          - id: towers-beat-3-focus-1
+            phrase: store the normalized vector
+            targets:
+              - towers-image-vector
+            color: cyan
+  - id: cosine
+    title: Which caption points closer?
+    visual: A fixed ruler tracks two dot products against a unit image vector. Dividing by the two caption lengths
+      moves B from nine to 0.6 while A holds at 0.8. A magnified unit scale makes the new order legible.
+    beats:
+      - say: Before we compare all three photos, try two captions with just two coordinates. Set the image to one, zero.
+          Its dot product reads the first number of each caption. A scores point eight. B scores nine. B leads on
+          this ruler. What happens if we give both arrows unit length?
+        hold: 2
+        visual_cues:
+          - id: norm-raw
+            phrase: B scores nine
+            targets:
+              - norm-ruler
+            color: cyan
+      - say: A already has length one. B goes nine units across and twelve up, so its length is fifteen. Divide both
+          coordinates of B by fifteen. Watch its mark pass A. It stops at point six. B kept its direction. Its length
+          had given it the lead.
+        caption_starts: [Divide both coordinates, Watch its mark pass A, It stops at point six]
+        hold: 0.8
+        visual_cues:
+          - id: norm-shorten
+            phrase: Divide both coordinates of B by fifteen. Watch its mark pass A. It stops at point six
+            targets:
+              - norm-ruler
+            color: yellow
+      - say: Zoom in on the last unit. The image already has unit length, and now both captions do too. Their dot products
+          are cosines. A wins at point eight. In general, a cosine near one means similar directions, zero means
+          perpendicular, and a negative score puts the directions more than a right angle apart.
+        hold: 0.7
+        visual_cues:
+          - id: norm-detail
+            phrase: Zoom in on the last unit
+            targets:
+              - norm-ruler
+            color: cyan
+      - say: Check for zero length and nonfinite values before normalizing either side. If you average several normalized
+          prompt vectors, check the average too. Two unit vectors pointing in opposite directions cancel to zero. A
+          valid cosine gives us a ranking. A probability of a real hazard needs separate calibration.
+        hold: 0.8
+  - id: matrix
+    title: Nine comparisons for three pairs
+    visual: On a fixed grid, the photo IDs name rows and short captions name columns. The three paired cells acquire
+      dots. Scaling changes each cosine into a logit without moving its cell.
+    beats:
+      - say: Back to our three rack photos. Read across the top row. Photo seventeen meets the vent caption, the taped tag
+          caption, and the clear door caption. The dots mark the three pairs from our records. Each of the six other
+          cells is an alternative under those labels.
+        hold: 0.65
+        visual_cues:
+          - id: matrix-pairs
+            phrase: The dots mark the three pairs
+            targets:
+              - batch-grid
+            color: yellow
+      - say: Take photo seventeen with its own caption. Its cosine is almost one. Divide by point two, our example
+          temperature, and the result is almost five. Apply that same division to every cell. It stretches the
+          differences and leaves the order alone.
+        hold: 0.7
+        visual_cues:
+          - id: matrix-scale
+            phrase: Divide by point two
+            targets:
+              - batch-grid
+            color: cyan
+      - say: These scaled scores are called logits. We have nine of them. To score a training decision we need to know
+          which photo or which caption the model was given. That tells us which three cells belong together.
+        hold: 0.65
+  - id: objective
+    title: Who competes for the same match?
+    visual: The previous nine logits stay in place. A band across the first row turns down the first column after a
+      prediction. The paired cell contributes to two different denominators. Both three-example means feed the final
+      loss.
+    beats:
+      - say: Give the model photo seventeen. Read the blue row. To turn the three logits into weights, subtract the paired
+          logit from each and exponentiate. The paired cell now contributes one. Divide that one by the sum across
+          the row. Its share is about point nine eight zero four. The negative natural log of that share gives the
+          loss for this photo.
+        hold: 0.75
+        visual_cues:
+          - id: loss-row-share
+            phrase: The paired cell now contributes one
+            targets:
+              - loss-grid
+            color: cyan
+          - id: loss-row-log
+            phrase: The negative natural log of that share
+            targets:
+              - loss-grid
+            color: yellow
+      - say: Keep the words “blocked vent.” This time the caption has to find its photo. Look at the same nine cells.
+          Which three compete now?
+        hold: 2.15
+      - say: Read down the vent column. The top left cell still belongs to the pair, but now photo eight and photo
+          forty-two compete for those words. Sum the weights down the column. The paired share is point nine seven
+          nine three. Taking its negative log gives a slightly larger loss.
+        hold: 0.7
+        visual_cues:
+          - id: loss-column-share
+            phrase: Sum the weights down the column
+            targets:
+              - loss-grid
+            color: cyan
+          - id: loss-column-log
+            phrase: Taking its negative log
+            targets:
+              - loss-grid
+            color: yellow
+      - say: Repeat for each paired cell. Average the three photo losses, then the three caption losses. Take the mean of
+          those two numbers. It comes to about point zero two two nats. Real training sends gradients from both
+          directions back through the projections and encoders. Keep both directions in the evaluation too. Their
+          mean can hide a regression in one.
+        hold: 0.75
+        visual_cues:
+          - id: loss-mean
+            phrase: Take the mean of those two numbers
+            targets:
+              - loss-grid
+            color: cyan
+  - id: training-step
+    title: Move the vectors and measure the loss
+    visual: The same six supplied vectors take a simultaneous gradient step. Two coordinates of pair A move on a
+      magnified plot while class weights, row and column distributions, and loss recompute from all coordinates.
+    beats:
+      - say: Let’s try one training step on the supplied features themselves. Hold the encoders and the temperature fixed
+          for this experiment. The plot magnifies two coordinates of pair A. The open circles will stay behind so
+          you can see where the image and caption started.
+        hold: 0.65
+        visual_cues:
+          - id: training-step-beat-1-focus-1
+            phrase: one training step on the supplied features themselves
+            targets:
+              - training-step-gradient-update
+            color: cyan
+          - id: training-step-beat-1-focus-2
+            phrase: The plot magnifies two coordinates of pair A
+            targets:
+              - training-step-feature-vectors
+            color: yellow
+      - say: Move all six vectors downhill on the same loss. At each point we normalize them before scoring. Watch photo
+          seventeen’s share for the vent caption rise, while the two alternatives give up weight. The grid updates
+          every photo row. Beneath it you can follow the vent caption’s column in the other direction.
+        hold: 0.7
+        motion_check:
+          region:
+            - 180
+            - 390
+            - 1540
+            - 620
+          minimumChangedFraction: 0.002
+        visual_cues:
+          - id: gradient-motion
+            phrase: Move all six vectors downhill on the same loss
+            targets:
+              - training-step-feature-vectors
+            color: yellow
+          - id: training-step-beat-2-focus-1
+            phrase: share for the vent caption rise
+            targets:
+              - training-step-query-probabilities
+            color: cyan
+          - id: training-step-beat-2-focus-2
+            phrase: the vent caption’s column
+            targets:
+              - training-step-column-probabilities
+            color: yellow
+      - say: The symmetric loss fell from about point zero two two to point zero zero nine. The paired probabilities rose
+          even though the correct captions already ranked first. In model training the projections and encoders
+          receive the update. For search, put our original vectors back so we can change the question while keeping
+          the photo fixed.
+        hold: 0.75
+        visual_cues:
+          - id: training-step-beat-3-focus-1
+            phrase: the projections and encoders receive the update
+            targets:
+              - training-step-gradient-update
+            color: cyan
+          - id: training-step-beat-3-focus-2
+            phrase: The paired probabilities rose
+            targets:
+              - training-step-probability-matrix
+            color: cyan
+          - id: gradient-result
+            phrase: The symmetric loss fell
+            targets:
+              - training-step-current-loss
+            color: yellow
+  - id: zero-shot
+    title: Photo 17 and its class prompts
+    visual: Photo 17 remains beside its class prompts, raw cosines and relative weights. Removing two alternatives
+      gives the clear-door prompt the entire weight. A second supplied prompt set introduces the separate score and
+      margin policy.
+    beats:
+      - say: Keep photo seventeen. We can try new class names without training a classifier. Encode one description per
+          class, then compare each with the image. The vent prompt has the largest cosine. At temperature point two,
+          softmax gives it about ninety-eight percent of the weight among these three prompts. Watch the last row.
+          The clear door gets less than one percent.
+        hold: 0.8
+        visual_cues:
+          - id: prompt-shares
+            phrase: softmax gives it about ninety-eight percent
+            targets:
+              - prompt-set
+            color: yellow
+      - say: Remove the first two prompts. The clear door is the only candidate left. Its cosine is still point zero two
+          seven, but it gets all the weight. The photo still shows the same pink cover. Changing the denominator
+          changed what the percentage answers.
+        hold: 0.9
+        visual_cues:
+          - id: prompt-remove
+            phrase: Remove the first two prompts
+            targets:
+              - prompt-set
+            color: cyan
+      - say: For a real class, try several natural descriptions. Normalize each text vector, average the vectors for the
+          class, and normalize that average. Fit a decision rule on development photos. On separate held-out photos,
+          measure mistakes and how often the rule sends a case for review, including hazards outside the prompt
+          list.
+        hold: 0.75
+        visual_cues:
+          - id: prompt-average-unit
+            phrase: normalize that average
+            targets:
+              - prompt-average
+            color: yellow
+      - say: Try a separate set of example prompt scores for this inspection. The rule requires at least point six zero
+          for first place and a lead of at least point zero eight over second place. Look at the two longest marks.
+          Would you keep the leading label as a candidate, or send the photo for review?
+        hold: 2
+      - say: Measure from the runner-up to the leader. Point six two minus point four nine gives point one three. Both
+          checks pass. Keep the vent label as a candidate. The technician still needs the pixels to verify the
+          hazard.
+        caption_starts: [Point six two minus point four nine, gives point one three, Both checks pass]
+        hold: 0.9
+        visual_cues:
+          - id: policy-measure
+            phrase: gives point one three
+            targets:
+              - policy-gap
+            color: yellow
+          - id: policy-keep
+            phrase: Both checks pass
+            targets:
+              - policy-gap
+            color: cyan
+  - id: retrieval
+    title: Find the photo from its caption
+    visual: The three archived vectors stay put. A text query enters their projected plane, then the full-dimensional
+      dot products identify the top photo.
+    beats:
+      - say: Now turn the search around. The archive holds one normalized vector per photo. Those three dots stay put
+          while people search. We’re looking at just two of their coordinates.
+        hold: 0.7
+        visual_cues:
+          - id: retrieval-beat-1-focus-1
+            phrase: one normalized vector per photo
+            targets:
+              - retrieval-index
+            color: cyan
+      - say: Send in “blocked vent on rack door.” The paired text tower encodes that sentence. Compare it with all three
+          stored vectors, using every coordinate. Photo seventeen ranks first. The other photos stay in the index
+          for the next query.
+        hold: 0.7
+        visual_cues:
+          - id: query-enter
+            phrase: The paired text tower encodes that sentence
+            targets:
+              - retrieval-query
+            color: yellow
+          - id: retrieval-beat-2-focus-1
+            phrase: Photo seventeen ranks first
+            targets:
+              - retrieval-index
+            color: cyan
+          - id: retrieval-beat-2-focus-2
+            phrase: other photos stay in the index
+            targets:
+              - retrieval-index
+            color: cyan
+      - say: At library scale, an approximate nearest-neighbor index can skip much of the scan. Check what it misses
+          against exact retrieval on the same vectors. Keep preprocessing, the paired encoders, normalization and
+          the index metric together when you change model generations.
+        hold: 0.7
+        visual_cues:
+          - id: retrieval-beat-3-focus-1
+            phrase: exact retrieval on the same vectors
+            targets:
+              - retrieval-index
+            color: cyan
+  - id: boundaries
+    title: Fill in the inspection ticket
+    visual: The whole-image search result sits beside the source photo. A grounded example traces the vent box and
+      fills its coordinate field. An OCR example then marks the tag and copies its text into a separate field.
+    beats:
+      - say: Here’s the photo we opened. Search returned seventeen with a cosine near one. The technician can see the
+          cover. The ticket asks for four coordinates around the blocked vent. Which of the fields on the right
+          could we fill from the search score alone?
+        hold: 2
+      - say: Both evidence fields are still empty. Bring in a region from a grounding model. In this worked example the
+          blue box encloses the vent. Its left and right edges sit at a quarter and three quarters of the photo
+          width. Top and bottom are fractions of the photo height. If you need a count, detect each vent, match the
+          regions, and check for missed or duplicate detections.
+        hold: 0.8
+        visual_cues:
+          - id: boundary-box
+            phrase: Bring in a region from a grounding model
+            targets:
+              - evidence-vent
+            color: blue
+      - say: For the asset tag, read the characters from the marked strip. Compare the optical character recognition
+          result, RACK dash seventeen, with those pixels. A generative vision-language model can explain the scene
+          in words. The reviewer can check that explanation against the two pieces of evidence attached to this
+          photo.
+        hold: 0.85
+        visual_cues:
+          - id: boundary-tag
+            phrase: read the characters from the marked strip
+            targets:
+              - evidence-tag
+            color: yellow
+  - id: inspection-brief
+    title: A quick search while an inspection runs
+    visual: The same authorized rack image supplies distinct search, OCR and region evidence. Two shared worker slots
+      then replay identical supplied jobs under unbounded and bounded analysis admission.
+    beats:
+      - say: Put that ticket in the inspection service. Bind the search hit, the exact printed asset tag, and the vent
+          region to the version of photo seventeen that the technician opened. A reviewer looking at a later version
+          could see a different rack door.
+        hold: 1
+        visual_cues:
+          - id: inspection-evidence
+            phrase: the exact printed asset tag
+            targets:
+              - inspection-budget
+            color: yellow
+      - say: Store an authorized, immutable image reference with its versioned metadata. Search only the requested
+          sites that the caller can access. Analysis rechecks access to the selected image and returns answered,
+          abstained or review with the evidence and model versions. A reviewer checks the hazard before closing it.
+        hold: 1
+        visual_cues:
+          - id: inspection-access
+            phrase: Analysis rechecks access to the selected image
+            targets:
+              - inspection-budget
+            color: yellow
+      - say: Our targets are search below three hundred milliseconds p95 and analysis below three seconds. Both jobs
+          use the same two workers. What happens to search when analysis takes both?
+        hold: 1
+        visual_cues:
+          - id: inspection-latency
+            phrase: search below three hundred milliseconds p95
+            targets:
+              - inspection-budget
+            color: yellow
+      - say: One analysis request has two independent one-second
+          subjobs, and two search requests each need one hundred milliseconds. All three requests arrive together at
+          time zero. If analysis admits both subjobs first, both workers stay occupied for one second. The two
+          searches then run. Each completes at eleven hundred milliseconds.
+        caption_starts: [If analysis admits both subjobs first, The two searches then run, Each completes at eleven hundred milliseconds]
+        hold: 0.75
+        visual_cues:
+          - id: queue-jobs
+            phrase: One analysis request has two independent one-second subjobs
+            targets:
+              - inspection-budget
+            linger: 0.5
+          - id: queue-arrivals
+            phrase: All three requests arrive together
+            targets:
+              - inspection-budget
+            linger: 0.5
+          - id: queue-starve
+            phrase: analysis admits both subjobs first
+            targets:
+              - inspection-budget
+            linger: 0.5
+          - id: queue-search-late
+            phrase: each completes at eleven hundred milliseconds
+            targets:
+              - inspection-budget
+            linger: 0.5
+      - say: Replay the same arrivals and total work with concurrent analysis subjobs capped at one. One slot runs
+          analysis while the other runs the first search and then the second. Search completions become one hundred
+          and two hundred milliseconds. The two analysis subjobs finish sequentially at two seconds.
+          Run a representative load test to measure p95 latency,
+          resource limits and how often admission turns a request away.
+        hold: 0.75
+        visual_cues:
+          - id: queue-cap
+            phrase: concurrent analysis subjobs capped at one
+            targets:
+              - inspection-budget
+            linger: 0.5
+          - id: queue-search-first
+            phrase: first search and then the second
+            targets:
+              - inspection-budget
+            linger: 0.5
+          - id: queue-search-fast
+            phrase: one hundred and two hundred milliseconds
+            targets:
+              - inspection-budget
+            linger: 0.5
+          - id: queue-analysis-finish
+            phrase: analysis subjobs finish sequentially at two seconds
+            targets:
+              - inspection-budget
+            linger: 0.5
+  - id: data-and-implementation
+    title: How CLIP handles a photo and its caption
+    visual: Two views of one blocked vent illustrate a false negative. Raw image and text features stay beside
+      their normalized vectors. Their dot product feeds the logit scale. A 78th token exceeds the checkpoint’s 77 positions.
+    beats:
+      - say: Consider these two views of the same blocked vent. Each arrived with its own caption. When the full photo
+          meets the close-up’s caption, the diagonal rule calls the pair a mismatch. They describe the same hazard.
+          That is a false negative. The original CLIP trained on four hundred million web image-text pairs, with
+          thirty-two thousand seven hundred sixty-eight pairs per batch and learned projections for both towers.
+          Audit related examples, missing hazards and shortcuts in captions. Split related views by asset, site and
+          time. Web supervision also carries social stereotypes. Review failures across the populations and settings
+          the system will serve.
+        hold: 1
+        visual_cues:
+          - id: data-cross-pair
+            phrase: the diagonal rule calls the pair a mismatch
+            targets:
+              - data-contract
+          - id: data-groups
+            phrase: Split related views by asset, site and time
+            targets:
+              - data-contract
+            color: yellow
+      - say: Encode the photo and its caption separately in the released CLIP code. Each call returns a raw vector.
+          Divide each vector by its length. Now their dot product is a cosine. The full forward call does those steps
+          for you, then multiplies the cosine by the model’s learned scale. The original paper starts the temperature
+          near point zero seven and describes a scale limit of one hundred. The README example uses a fixed multiplier of one hundred.
+        hold: 1
+        visual_cues:
+          - id: data-normalize
+            phrase: Divide each vector by its length
+            targets:
+              - data-contract
+            color: yellow
+          - id: data-cosine
+            phrase: their dot product is a cosine
+            targets: [data-product]
+          - id: data-scale
+            phrase: multiplies the cosine by the model’s learned scale
+            targets: [data-product]
+          - id: data-readme
+            phrase: The README example uses a fixed multiplier of one hundred
+            targets: [data-product]
+      - say: The text tower has seventy-seven positions including start and end tokens. A longer caption raises an
+          error by default. Choose truncation and you can lose the words that name the hazard. Those positions are
+          learned during training. To use a longer sequence, you need a checkpoint that supports it. Keep the paired
+          towers, tokenizer, image preprocessing, normalization and index metric together with that checkpoint.
+        hold: 1
+        visual_cues:
+          - id: text-limit
+            phrase: seventy-seven positions including start and end tokens
+            targets:
+              - data-contract
+            color: yellow
+  - id: siglip-pairs
+    title: Change competition into independent pair terms
+    visual: Three labeled pairs get independent sigmoid losses. A two-by-two batch of zero logits isolates the paper’s
+      reduction. A rack image illustrates the checkpoint requirements for NaFlex.
+    beats:
+      - say: SigLIP scores each pair on its own. A caption paired with its photo gets a positive label.
+          The other pairings in this batch get negative labels. For each pair, add a learned bias to its scaled
+          similarity and apply a sigmoid. A high match score on a negative pair makes that pair’s loss larger.
+        hold: 1
+        visual_cues:
+          - id: siglip-sign
+            phrase: add a learned bias to its scaled similarity and apply a sigmoid
+            targets:
+              - pair-losses
+            color: yellow
+      - say: For supplied pair logits, a positive three point two costs about point zero four, a negative minus two point
+          one costs about point one one six, and a negative point four costs about point nine one three. The last
+          mismatch is expensive because its score favors a match. Pair labels still need auditing.
+        hold: 1
+        visual_cues:
+          - id: siglip-values
+            phrase: negative point four costs about point nine one three
+            targets:
+              - pair-losses
+            color: yellow
+      - say: The paper sums all N-squared pair losses and divides by batch size N. For a two-by-two zero-logit batch, four
+          log-two terms divided by two give about one point three eight six. A mean over all four pairs would be
+          point six nine three and halve the gradient scale. Each term can be computed independently, so the work
+          can be split into chunks. Data movement, communication and the quality of the labeled pairs still matter.
+        hold: 1
+        visual_cues:
+          - id: siglip-batch
+            phrase: four log-two terms divided by two
+            targets:
+              - pair-losses
+            color: yellow
+          - id: siglip-batch-result
+            phrase: give about one point three eight six
+            targets:
+              - pair-losses
+            color: yellow
+          - id: siglip-pair-mean
+            phrase: point six nine three
+            targets:
+              - pair-losses
+            color: yellow
+      - say: SigLIP 2 adds a training recipe including caption-based learning, self-distillation, masked prediction and
+          online curation. Its NaFlex variants support varied resolutions and native aspect ratio through matching
+          implementations and preprocessing. For a wide rack panorama, use a NaFlex checkpoint with its matching
+          image processor, then check whether the tag stays legible.
+        hold: 1
+        visual_cues:
+          - id: siglip-recipe
+            phrase: caption-based learning, self-distillation, masked prediction and online curation
+            targets:
+              - pair-losses
+            color: yellow
+  - id: visual-features
+    title: Before pooling, the photo contains spatial tokens
+    visual: The rack photo splits into an explicit patch grid; pooling collapses it while a generative
+      connector preserves a selected sequence.
+    beats:
+      - say: A vision tower provides more than its pooled vector. A Vision Transformer contextualizes patch
+          tokens; a convolutional tower builds a spatial feature map. CLIP pools for global matching. A
+          generative model can instead pass many spatial features onward. A
+          two-hundred-twenty-four-square image with sixteen-square patches makes fourteen by fourteen, or
+          one hundred ninety-six patches, plus any selected class token.
+        hold: 1
+        visual_cues:
+          - id: patch-grid
+            phrase: fourteen by fourteen, or one hundred ninety-six patches
+            targets:
+              - spatial-features
+            color: yellow
+      - say: A ViT can exchange information across patches through attention from its early layers. A
+          convolutional network begins with local receptive fields and builds broader context, with a
+          different locality and translation bias.
+          EVA-CLIP initializes its tower from masked image modeling before contrastive training,
+          improving its reported scaling recipe. To compare towers for this rack, measure how often the OCR pipeline
+          copies the tiny asset tag correctly with each one.
+        hold: 1
+        visual_cues:
+          - id: spatial-context
+            phrase: exchange information across patches through attention
+            targets:
+              - spatial-features
+            color: yellow
+  - id: projector-training
+    title: From patch features to an answer
+    visual: The same patch rows pass through linear and MLP width maps without disappearing; trainable
+      components light up in separate alignment and instruction phases.
+    beats:
+      - say: Original LLaVA connects CLIP visual grid features to a Vicuna language model with a learned linear
+          projection. Each patch keeps its own row and gets a vector the language model can read. LLaVA one point five
+          uses a two-layer MLP connector and a three-hundred-thirty-six-pixel CLIP tower, producing a
+          twenty-four-square grid, or five hundred seventy-six patch tokens.
+        hold: 1
+        visual_cues:
+          - id: project-token-width
+            phrase: Each patch keeps its own row
+            targets:
+              - projector-contract
+            color: yellow
+      - say: The original alignment stage freezes the vision and language backbones and trains the projector on
+          five hundred ninety-five thousand filtered caption pairs. Its later visual instruction stage
+          trains the projector and language model on one hundred fifty-eight thousand generated
+          instructions. The text-only teacher wrote those answers from captions and object boxes. A wrong box
+          could put the wrong location in a training answer.
+        hold: 1
+        visual_cues:
+          - id: projector-stages
+            phrase: trains the projector on five hundred ninety-five thousand filtered caption pairs
+            targets:
+              - projector-contract
+            color: yellow
+          - id: instruction-stage
+            phrase: trains the projector and language model
+            targets:
+              - projector-contract
+            color: yellow
+      - say: This illustrates distinct training jobs. Contrastive pretraining learns matching; connector
+          alignment maps representations; multimodal instruction tuning teaches image-question response
+          behavior. Preference and safety refinement can follow under the chosen recipe. A
+          response-format failure gives you a place to start checking the instruction data and chat template.
+        hold: 1
+        visual_cues:
+          - id: training-jobs
+            phrase: multimodal instruction tuning teaches image-question response behavior
+            targets:
+              - projector-contract
+            color: yellow
+  - id: query-bottleneck
+    title: Which patches reach the language model?
+    visual: Three marked parts of the rack supply keys and values to two query slots. Each row keeps its patch, score
+      and weight. Reversing the first query redistributes only its weights. The published BLIP-2 example follows the
+      small calculation.
+    beats:
+      - say: Suppose we can send only two visual vectors onward. Mark a stroke on the tag, an edge of the vent, and the
+          door frame. Give each patch a key for matching and a value to carry forward. These are supplied numbers
+          for one attention head. The tag carries two units in the first coordinate. The vent carries two in the
+          second. The frame carries zero in both.
+        hold: 0.8
+        visual_cues:
+          - id: query-keys
+            phrase: Give each patch a key for matching
+            targets:
+              - query-patches
+            color: cyan
+      - say: Give the first slot a query that points to the right. Take its dot product with each key and divide by the
+          square root of two, because each key has two coordinates. The tag scores one, the vent zero, the frame
+          minus one. Softmax turns those scores into weights that sum to one. Multiply each patch value by its
+          weight and add. Only the tag contributes to the first coordinate, so twice its weight gives about one
+          point three three. Only the vent contributes to the second.
+        hold: 0.8
+        visual_cues:
+          - id: query-weights
+            phrase: Softmax turns those scores into weights
+            targets:
+              - query-weights-table
+            color: yellow
+          - id: query-slot-one
+            phrase: Multiply each patch value by its weight and add
+            targets:
+              - query-outputs
+            color: cyan
+      - say: The second query points up. Now the vent has the largest weight. Twice its weight gives about one point one
+          five in the second coordinate. Store that mixture in slot two. The first mixture stays in slot one.
+        hold: 0.75
+        visual_cues:
+          - id: query-slot-two
+            phrase: Store that mixture in slot two
+            targets:
+              - query-outputs
+            color: blue
+      - say: Go back to the first slot. Suppose we reverse just its query so it points left. Look at the three keys. Which
+          patch will gain weight, and which output slot can change?
+        hold: 2.2
+      - say: Reverse the first query. The frame gains the weight the tag loses. The frame carries zeros, so the first
+          coordinate falls from one point three three to point one eight. The vent keeps the same weight in this
+          example. Slot two had its own query all along, so its output stays put. We kept two slots and changed
+          which details they carry.
+        caption_starts: [The frame gains the weight, Slot two had its own query]
+        hold: 0.85
+        visual_cues:
+          - id: query-reverse
+            phrase: Reverse the first query
+            targets:
+              - query-weights-table
+            color: yellow
+      - say: BLIP-2 learns queries like these inside a Querying Transformer, or Q-Former, between frozen vision and
+          language backbones. In the published example, two hundred fifty-seven vision features each have width one
+          thousand twenty-four. Thirty-two learned queries extract thirty-two vectors of width seven hundred
+          sixty-eight. On a compatible input, the query count fixes the output length. More input patches can still
+          cost more vision and attention work. Check that a small tag survives on real photos, and check the tower’s
+          supported resolutions. A locality-aware connector is another option when detail matters.
+        hold: 0.85
+        visual_cues:
+          - id: query-extract
+            phrase: Thirty-two learned queries extract thirty-two vectors
+            targets:
+              - query-compressor
+            color: yellow
+  - id: cross-attention-bank
+    title: A visual bank differs from a language prefix
+    visual: Two persistent images become separate 64-token banks. Language tokens directly read the most
+      recent allowed image while prior text carries earlier information.
+    beats:
+      - say: Flamingo uses a Perceiver Resampler to turn variable visual features into sixty-four tokens per
+          image or video item. Multiple items still produce multiple banks. Gated cross-attention layers
+          let language tokens revisit these banks; the visual features do not simply become a LLaVA-style
+          autoregressive prefix.
+        hold: 1
+        visual_cues:
+          - id: bank-build
+            phrase: sixty-four tokens per image or video item
+            targets:
+              - bank-contract
+            color: yellow
+      - say: Its published vision tower is a frozen contrastively pretrained NFNet-F6, and its language backbone
+          is frozen. A hyperbolic-tangent gate initialized at zero initially preserves language-model
+          behavior. Its direct cross-attention mask exposes the most recent preceding image or video;
+          older visual information may pass indirectly through text self-attention. Measure this
+          architecture’s separate memory and latency costs.
+        hold: 1
+        visual_cues:
+          - id: bank-gate
+            phrase: gate initialized at zero initially preserves language-model behavior
+            targets:
+              - bank-contract
+            color: yellow
+  - id: grounded-detail
+    title: Keep the pixels that the question needs
+    visual: The rack’s asset tag is cropped at known coordinates while the vent keeps a separate box target;
+      both map back to the source photo.
+    beats:
+      - say: Qwen-VL makes OCR and box-grounded tasks explicit through its visual interface and training, beyond
+          pooled caption matching. For a tag that must be copied exactly, preserve character detail and
+          use OCR evidence. For a blocked vent, require regions, matching rules and missed-hazard checks.
+          A description without a location cannot supply an executable grounded target.
+        hold: 1
+        visual_cues:
+          - id: grounded-outputs
+            phrase: preserve character detail and use OCR evidence
+            targets:
+              - grounded-contract
+            color: yellow
+      - say: Higher resolution can help preserve pixels while also adding seams, repeated crops and lost global
+          context. Retain each crop’s coordinates so text spans and boxes map back to the original photo.
+          Visual-agent actions additionally need current target state and independent policy authority.
+          Printed instructions inside the image remain untrusted evidence.
+        hold: 1
+        visual_cues:
+          - id: crop-coordinates
+            phrase: Retain each crop’s coordinates
+            targets:
+              - grounded-contract
+            color: yellow
+  - id: prefix-budget
+    title: How many tokens reach the language model?
+    visual: A single rack photo divides into four tiles. A patch grid develops in one tile as the viewer counts the
+      projected rows. The visual prefix and question feed the memory calculation before two compression scopes are
+      compared.
+    beats:
+      - say: Try a width-only projector on this rack photo. Cut the photo into four tiles. Each tile enters the tower at
+          three hundred thirty-six pixels on a side, and each patch is fourteen pixels wide and tall. The question
+          adds one hundred eighty text tokens. Before separators or chat framing, how many tokens reach the language
+          model?
+        hold: 2.1
+      - say: Start with one tile. Each crop has twenty-four by twenty-four patches, or five hundred seventy-six. The
+          projector changes their width and keeps every row. Four crops give us two thousand three hundred four
+          visual tokens. Add the question. Two thousand four hundred eighty-four tokens reach the language model.
+        caption_starts: [Each crop has twenty-four by twenty-four patches, or five hundred seventy-six, Four crops give us, Add the question, Two thousand four hundred eighty-four tokens]
+        hold: 0.8
+        visual_cues:
+          - id: prefix-patches
+            phrase: Each crop has twenty-four by twenty-four patches
+            targets:
+              - prefix-cost
+            color: yellow
+          - id: prefix-answer
+            phrase: two thousand four hundred eighty-four
+            targets:
+              - prefix-cost
+            color: yellow
+          - id: prefix-single
+            phrase: or five hundred seventy-six
+            targets:
+              - prefix-cost
+            color: yellow
+      - say: Those admitted prefix tokens increase prefill work and conventional full-attention KV residency during
+          decode. In a hypothetical model with eighty layers, eight KV heads, head width one hundred twenty-eight
+          and two-byte cache elements, one retained token occupies three hundred twenty kibibytes. The visual tokens
+          alone occupy seven hundred twenty mebibytes per sequence. The question adds fifty-six point two five.
+        hold: 1
+        visual_cues:
+          - id: prefix-cache
+            phrase: one retained token occupies three hundred twenty kibibytes
+            targets:
+              - prefix-cost
+            color: yellow
+          - id: prefix-visual-memory
+            phrase: seven hundred twenty mebibytes per sequence
+            targets:
+              - prefix-cost
+            color: yellow
+          - id: prefix-question-memory
+            phrase: fifty-six point two five
+            targets:
+              - prefix-cost
+            color: yellow
+      - say: A hypothetical compressor over the entire crop set emitting sixty-four prefix tokens would leave two hundred
+          forty-four including the question. A compressor emitting sixty-four per crop instead leaves four hundred
+          thirty-six. Flamingo holds its visual features in a separate cross-attention bank. For a prefix model,
+          paged storage packs the retained tokens into cache pages. The compressor determines which details survive.
+        hold: 1
+        visual_cues:
+          - id: prefix-compress
+            phrase: sixty-four prefix tokens would leave two hundred forty-four
+            targets:
+              - prefix-cost
+            color: yellow
+          - id: prefix-per-crop
+            phrase: four hundred thirty-six
+            targets:
+              - prefix-cost
+            color: yellow
+  - id: adaptive-reduction
+    title: A hard cap and an evidence floor must both hold
+    visual: The same four token regions retain IDs and source boxes while saliency selects the wrong evidence;
+      protected selection and a review route repair that same state.
+    beats:
+      - say: Pruning drops tokens; merging combines them into representatives. Merging can blend distinct text or objects
+          if similarity is wrong. PruMerge is one researched selector-and-merger using vision attention and key
+          similarity in particular projector models. Evaluate its encoder and task contract rather than transferring
+          its result to any tower.
+        hold: 1
+        visual_cues:
+          - id: reducer-build
+            phrase: merging combines them into representatives
+            targets:
+              - reducer-contract
+            color: yellow
+      - say: Set a hard maximum, protected OCR and small-object floors, and spatial coverage. Cap the adaptive count, then
+          check whether the surviving regions carry the evidence you need. Bucket requests by retained count for
+          batching. Compare against a full-token shadow sample. Reduction after the vision pass can save later work.
+          Look at this rack. The vent, tag and layout each need a slot. If the route admits two tokens, can you keep
+          all three?
+        hold: 2.1
+        visual_cues:
+          - id: reducer-floor
+            phrase: hard maximum, protected OCR and small-object floors
+            targets:
+              - reducer-contract
+            color: yellow
+          - id: reducer-question
+            phrase: If the route admits two tokens
+            targets:
+              - reducer-contract
+            color: yellow
+      - say: Two slots leave one protected region out. Route the two-token case to review. Now raise the cap to three.
+          Keep vent, tag and layout while discarding decoration. The bright badge may have high saliency, but the
+          technician can inspect the vent and read the tag without it.
+        caption_starts: [Route the two-token case to review, Now raise the cap to three, "Keep vent, tag and layout while discarding decoration"]
+        hold: 1
+        visual_cues:
+          - id: reducer-fail
+            phrase: Route the two-token case to review
+            targets:
+              - reducer-contract
+            color: yellow
+          - id: reducer-repair
+            phrase: keep vent, tag and layout while discarding decoration
+            targets:
+              - reducer-contract
+            color: yellow
+      - say: Measure admitted-count tails, reduction overhead, vision time, prefill, first-token time, peak memory and
+          quality by slice. If compression deletes a required warning, meeting latency is insufficient. Preserve the
+          evidence or choose another route.
+        hold: 1
+        visual_cues:
+          - id: reducer-metrics
+            phrase: prefill, first-token time, peak memory and quality by slice
+            targets:
+              - reducer-contract
+            color: yellow
+  - id: index-service
+    title: Storage, permissions and versions stay with every vector
+    visual: The ingestion receipt for photo 17 survives an identical retry and a conflicting change to metadata.
+      Search stays on generation 12 until generation 13 is complete. The service checks current permission again
+      before returning a cached image.
+    beats:
+      - say: Ten million image vectors of width seven hundred sixty-eight at two bytes per value require fifteen point
+          three six decimal gigabytes raw. An assumed total multiplier of two to four gives thirty point seven two
+          to sixty-one point four four gigabytes for one generation. To size a host, measure the stored vectors,
+          graph, IDs and filters. Include replicas and both generations during a rollout.
+        hold: 1
+        visual_cues:
+          - id: index-bytes
+            phrase: fifteen point three six decimal gigabytes raw
+            targets:
+              - index-contract
+            color: yellow
+          - id: index-factor
+            phrase: sixty-one point four four gigabytes
+            targets:
+              - index-contract
+            color: yellow
+      - say: Before photo seventeen goes into search, check its bytes, format and decoded dimensions. Check the object
+          reference, site and metadata against the caller’s permissions. Keep failed images out of search during
+          bounded retries or dead-letter handling. Now the Ops tenant submits photo seventeen for site East. Its
+          fingerprint binds the image bytes, immutable image ID, site and versioned metadata. Store the receipt
+          under the tenant and its idempotency key. Replay that same request. The service returns the original
+          receipt and the ledger still holds one row.
+        hold: 0.75
+        visual_cues:
+          - id: index-admission
+            phrase: check its bytes
+            targets:
+              - index-contract
+            linger: 0.5
+          - id: index-ledger-insert
+            phrase: Store the receipt
+            targets:
+              - index-contract
+            linger: 0.5
+          - id: index-fingerprint
+            phrase: fingerprint binds the image bytes
+            targets:
+              - index-contract
+            linger: 0.5
+          - id: index-replay
+            phrase: Replay that same request
+            targets:
+              - index-contract
+            linger: 0.5
+      - say: Keep the key and the image bytes. Change the description. The new fingerprint conflicts with the one on the
+          receipt. Reject the conflict and keep the original row. Now look at the active index. Generation twelve
+          keeps serving while generation thirteen is staged. Check the preprocessing, both encoders, normalization
+          and index as one set. An incomplete set leaves twelve active. When the complete set passes, switch to
+          thirteen in one operation and retain twelve for rollback.
+        hold: 0.75
+        visual_cues:
+          - id: index-conflict
+            phrase: Change the description
+            targets:
+              - index-contract
+            linger: 0.5
+          - id: index-reject-conflict
+            phrase: Reject the conflict
+            targets:
+              - index-contract
+            linger: 0.5
+          - id: index-stage
+            phrase: generation thirteen is staged
+            targets:
+              - index-contract
+            linger: 0.5
+          - id: index-keep-old
+            phrase: An incomplete set leaves twelve active
+            targets:
+              - index-contract
+            linger: 0.5
+          - id: index-commit-generation
+            phrase: switch to thirteen in one operation
+            targets:
+              - index-contract
+            linger: 0.5
+      - say: Generation thirteen is live. Apply the server’s current site permissions before returning a search result and
+          again before analysis. There is a cached result for photo seventeen. Now East access is revoked. The
+          permission check denies the cached read. A matching content hash still lets storage deduplicate bytes. The
+          receipt still identifies the upload. Neither grants access to that photo. When deleting it, expire the
+          source, crops, OCR artifacts, index entries and cached results under their lifecycle rules.
+        hold: 0.75
+        visual_cues:
+          - id: index-generation
+            phrase: Generation thirteen is live
+            targets:
+              - index-contract
+            linger: 0.5
+          - id: index-cache-hit
+            phrase: cached result for photo seventeen
+            targets:
+              - index-contract
+            linger: 0.5
+          - id: index-revoke
+            phrase: East access is revoked
+            targets:
+              - index-contract
+            linger: 0.5
+          - id: index-cache-deny
+            phrase: permission check denies the cached read
+            targets:
+              - index-contract
+            linger: 0.5
+  - id: route-evaluation
+    title: What failed on the inspection?
+    visual: Reviewed and returned photo IDs show retrieval recall. Printed and recognized strings expose a single
+      character error. Overlapping boxes measure localization separately. A fresh candidate must clear all three
+      release gates.
+    beats:
+      - say: Compare each output with what a technician checked. Of three relevant photos, the first three results contain
+          seventeen and eight. They miss forty-two. That makes recall at three equal to two thirds. Now compare the
+          printed tags. The second tag has a zero where the reader copied the letter O. Only one of the two strings
+          matches exactly. Also track character error and how often the reader abstains.
+        hold: 0.8
+        visual_cues:
+          - id: metric-ocr
+            phrase: Now compare the printed tags
+            targets:
+              - metric-tags
+            color: yellow
+      - say: For a location, compare the predicted box with the reviewed box. In this example, each side spans six tenths
+          of the image on its axis. Shift one box by two tenths in each direction. Now shade their overlap. It
+          measures four tenths by four tenths. Add the two box areas and subtract that overlap once to get their
+          union. Intersection over union is two sevenths. Count missed hazards and false detections separately,
+          including photos without hazards.
+        hold: 0.8
+        visual_cues:
+          - id: metric-shift
+            phrase: Shift one box by two tenths in each direction
+            targets:
+              - metric-area
+            color: pink
+          - id: metric-intersection
+            phrase: Now shade their overlap
+            targets:
+              - metric-area
+            color: cyan
+          - id: metric-iou
+            phrase: Intersection over union is two sevenths
+            targets:
+              - metric-area
+            color: cyan
+      - say: Now imagine evaluating a candidate on held-out inspections, grouped by asset, site and time. Each row pairs a
+          score with its own minimum. The full workflow needs all three. Can it ship?
+        hold: 2
+      - say: Read the OCR row. Point eight nine falls below point nine two. Hold the full workflow and investigate which
+          characters disappeared or changed. Retrieval and grounding cleared their own bars. In shadow traffic and a
+          site-limited canary, also check missed hazards, unsupported claims, review rate, p95 latency and denied
+          cross-site reads before expanding.
+        caption_starts: [Point eight nine falls below point nine two, Hold the full workflow]
+        hold: 0.9
+        visual_cues:
+          - id: release-diagnosis
+            phrase: Hold the full workflow
+            targets:
+              - release-bars
+            color: yellow
+  - id: inspection-transfer
+    title: One new description for photo 17
+    visual: On the same photo and fixed scale, replacing the clear-door prompt changes only the runner-up. A bracket
+      measures the new gap before the routing result appears. The review receives the original photo, its example
+      vent region and OCR span.
+    beats:
+      - say: Keep photo seventeen. Change “clear rack door” to “vent is clear beside the cover.” Watch the runner-up
+          move from point four nine to point five seven. The leader stays at point six two. Would you keep the label
+          or send the photo for review?
+        hold: 2.2
+        visual_cues:
+          - id: transfer-wording
+            phrase: vent is clear beside the cover
+            targets:
+              - policy-second
+            color: blue
+          - id: transfer-score
+            phrase: move from point four nine to point five seven
+            targets:
+              - policy-second
+            color: blue
+      - say: Measure the gap again. Point six two minus point five seven leaves point zero five. The score still clears
+          its floor, but the margin falls short of point zero eight. Send the photo for review. Before changing the
+          rule, test the new wording and alternative templates on held-out rack photos.
+        caption_starts: [Point six two minus point five seven, leaves point zero five, The score still clears its floor, but the margin falls short, Send the photo for review]
+        hold: 0.9
+        visual_cues:
+          - id: transfer-gap
+            phrase: leaves point zero five
+            targets:
+              - policy-gap
+            color: yellow
+          - id: transfer-review
+            phrase: Send the photo for review
+            targets:
+              - policy-gap
+            color: cyan
+      - say: Open the review ticket. Attach the vent box from grounding and the tag read from its own strip.
+          A generative model can use those details to explain the hazard within its visual-token budget. Even with a
+          private connector, you can test what the model accepts, which details survive, and what each photo costs.
+          Search found the rack. The blue box shows the technician where to look.
+        hold: 1.25
+        visual_cues:
+          - id: transfer-box
+            phrase: Attach the vent box from grounding
+            targets:
+              - evidence-vent
+            color: blue
+          - id: transfer-tag
+            phrase: the tag read from its own strip
+            targets:
+              - evidence-tag
+            color: yellow

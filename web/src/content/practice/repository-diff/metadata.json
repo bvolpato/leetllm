@@ -1,0 +1,183 @@
+{
+  "id": "repository-diff",
+  "slug": "repository-diff",
+  "title": "Repository Diff",
+  "difficulty": "Easy",
+  "category": "Repository Systems",
+  "language": "python3",
+  "timeEstimateMinutes": 30,
+  "timeLimitMs": 2500,
+  "memoryLimitMb": 128,
+  "order": 14,
+  "tags": [
+    "repository",
+    "diff",
+    "deterministic ordering",
+    "hashing"
+  ],
+  "source": "Frontier coding prep",
+  "summary": "Compare two repository snapshots and produce deterministic added, removed, and modified file changes.",
+  "starterCode": [
+    "def diff_repositories(old_files: dict[str, str], new_files: dict[str, str]) -> list[tuple[str, str]]:",
+    "    pass"
+  ],
+  "testCases": [
+    {
+      "name": "public reports added and modified files",
+      "visibility": "sample",
+      "description": "One file changes content and one new file appears. Unchanged files stay out of the result.",
+      "input": "old={\"README.md\":\"a\",\"src/app.py\":\"1\"}, new={\"README.md\":\"a\",\"src/app.py\":\"2\",\"src/test.py\":\"3\"}",
+      "expected": "[(\"MODIFIED\", \"src/app.py\"), (\"ADDED\", \"src/test.py\")]",
+      "feedback": "Compare the sorted union of paths and skip unchanged files. Added, removed, and modified should come from path presence and content equality.",
+      "setup": [
+        "from solution import diff_repositories",
+        "old = {\"README.md\": \"a\", \"src/app.py\": \"1\"}",
+        "new = {\"README.md\": \"a\", \"src/app.py\": \"2\", \"src/test.py\": \"3\"}"
+      ],
+      "expression": "diff_repositories(old, new)"
+    },
+    {
+      "name": "public reports removals",
+      "visibility": "sample",
+      "description": "A path present only in the old snapshot should be emitted as a removal.",
+      "input": "old={\"a.txt\":\"1\",\"b.txt\":\"2\"}, new={\"b.txt\":\"2\"}",
+      "expected": "[(\"REMOVED\", \"a.txt\")]",
+      "feedback": "Treat the two snapshots symmetrically. A path missing from the new snapshot is removed, not modified.",
+      "setup": [
+        "from solution import diff_repositories",
+        "old = {\"a.txt\": \"1\", \"b.txt\": \"2\"}",
+        "new = {\"b.txt\": \"2\"}"
+      ],
+      "expression": "diff_repositories(old, new)"
+    },
+    {
+      "name": "hidden unchanged snapshots are empty",
+      "visibility": "hidden",
+      "setup": [
+        "from solution import diff_repositories",
+        "files = {\"a.txt\": \"1\", \"src/app.py\": \"2\"}"
+      ],
+      "input": "files = {\"a.txt\": \"1\", \"src/app.py\": \"2\"}\ndiff_repositories(dict(files), dict(files))",
+      "expected": "[]",
+      "expression": "diff_repositories(dict(files), dict(files))"
+    },
+    {
+      "name": "hidden rename is remove plus add",
+      "visibility": "hidden",
+      "setup": [
+        "from solution import diff_repositories",
+        "old = {\"old.py\": \"same\"}",
+        "new = {\"new.py\": \"same\"}"
+      ],
+      "input": "old = {\"old.py\": \"same\"}\nnew = {\"new.py\": \"same\"}\ndiff_repositories(old, new)",
+      "expected": "[(\"ADDED\", \"new.py\"), (\"REMOVED\", \"old.py\")]",
+      "expression": "diff_repositories(old, new)"
+    },
+    {
+      "name": "hidden deterministic ordering by path",
+      "visibility": "hidden",
+      "setup": [
+        "from solution import diff_repositories",
+        "old = {\"z.txt\": \"1\", \"b.txt\": \"old\", \"gone.txt\": \"x\"}",
+        "new = {\"a.txt\": \"new\", \"b.txt\": \"new\", \"z.txt\": \"1\"}"
+      ],
+      "input": "old = {\"z.txt\": \"1\", \"b.txt\": \"old\", \"gone.txt\": \"x\"}\nnew = {\"a.txt\": \"new\", \"b.txt\": \"new\", \"z.txt\": \"1\"}\ndiff_repositories(old, new)",
+      "expected": "[\n    (\"ADDED\", \"a.txt\"),\n    (\"MODIFIED\", \"b.txt\"),\n    (\"REMOVED\", \"gone.txt\"),\n]",
+      "expression": "diff_repositories(old, new)"
+    },
+    {
+      "name": "hidden rejects invalid paths",
+      "visibility": "hidden",
+      "code": [
+        "from solution import diff_repositories",
+        "",
+        "for files in ({\"../secret\": \"x\"}, {\"src//app.py\": \"x\"}, {\"\": \"x\"}, {\"a/./b\": \"x\"}):",
+        "    try:",
+        "        diff_repositories(files, {})",
+        "    except ValueError:",
+        "        pass",
+        "    else:",
+        "        raise AssertionError(\"expected invalid path\")",
+        "    try:",
+        "        diff_repositories({}, files)",
+        "    except ValueError:",
+        "        pass",
+        "    else:",
+        "        raise AssertionError(\"expected invalid path in new_files\")"
+      ]
+    },
+    {
+      "name": "public empty snapshots have no changes",
+      "visibility": "sample",
+      "description": "Two empty repository snapshots produce an empty diff.",
+      "setup": [
+        "from solution import diff_repositories"
+      ],
+      "input": "diff_repositories({}, {})",
+      "expected": "[]",
+      "feedback": "Iterate the empty union of paths and return no rows."
+    },
+    {
+      "name": "hidden leaves both snapshots unchanged",
+      "visibility": "hidden",
+      "description": "Computing a diff is read-only for both input dictionaries.",
+      "setup": [
+        "from solution import diff_repositories",
+        "old = {\"a.txt\": \"old\"}",
+        "new = {\"a.txt\": \"new\", \"b.txt\": \"added\"}",
+        "diff_repositories(old, new)"
+      ],
+      "input": "(old, new)",
+      "expected": "({\"a.txt\": \"old\"}, {\"a.txt\": \"new\", \"b.txt\": \"added\"})",
+      "feedback": "Build normalized copies and leave caller dictionaries unchanged."
+    }
+  ],
+  "clarifyingQuestions": [
+    "Should output include directories or only files?",
+    "Should renames be detected or represented as remove plus add?",
+    "Should output ordering be by path, status, or input order?",
+    "Are paths already normalized?"
+  ],
+  "followUps": [
+    "Add rename detection by matching content hashes.",
+    "Add path filters for a sparse checkout.",
+    "Use Merkle-tree directory hashes to skip unchanged subtrees."
+  ],
+  "followUpGuide": [
+    "For rename detection, first compute normal changes. Then match removed and added paths with the same content hash and emit a separate `RENAMED` event if the prompt asks for it. When several paths share a hash, define deterministic pairing or report ambiguity so the rename mapping remains clear.",
+    "",
+    "For path filters, validate paths first, then keep paths under the requested roots. Match whole path segments: root `src` includes `src/app.py`, while `src-old/app.py` stays outside the root. The base contract rejects invalid segments; normalization belongs in a separate contract.",
+    "",
+    "For Merkle-tree skipping, compare directory hashes before descending. Equal directory hashes let you skip every child below that node."
+  ],
+  "complexityAnalysis": [
+    "- Set-union approach. Time: O(n log n) path comparisons for sorting the entire union, where n is unique path count, plus path validation, hashing and value comparisons. String work depends on path/hash-label lengths. Extra space: O(n), excluding input strings.",
+    "- If inputs are already sorted lists, a two-pointer scan can produce Time: O(n) before output materialization. Space: O(1) beyond output.",
+    "- Merkle-tree follow-up can skip a subtree when its trusted root hash matches. Cost is O(visited directory entries plus output), including siblings inspected at changed directories; a wide directory can require substantial work even for one changed file. Extra space depends on traversal depth and how child entries are loaded."
+  ],
+  "solutionGuide": [
+    "Validate every path before comparing hashes and report invalid segments. The base solution reports additions, removals, and modifications; add rename detection as a separate event when requested.",
+    "",
+    "```python",
+    "def _validate(path: str) -> str:",
+    "    parts = path.split(\"/\")",
+    "    if not path or any(part in {\"\", \".\", \"..\"} for part in parts):",
+    "        raise ValueError(\"invalid path\")",
+    "    return path",
+    "",
+    "",
+    "def diff_repositories(old_files: dict[str, str], new_files: dict[str, str]) -> list[tuple[str, str]]:",
+    "    old = {_validate(path): value for path, value in old_files.items()}",
+    "    new = {_validate(path): value for path, value in new_files.items()}",
+    "    changes = []",
+    "    for path in sorted(set(old) | set(new)):",
+    "        if path not in old:",
+    "            changes.append((\"ADDED\", path))",
+    "        elif path not in new:",
+    "            changes.append((\"REMOVED\", path))",
+    "        elif old[path] != new[path]:",
+    "            changes.append((\"MODIFIED\", path))",
+    "    return changes",
+    "```"
+  ]
+}

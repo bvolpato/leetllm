@@ -1,0 +1,168 @@
+version: 1
+lesson: capstone-delivery-eta-prediction
+promise: Replay a delivery receipt from the original promise and the evidence available at scoring time. Explain its ETA and warning, then decide whether the frozen policy earned release.
+framing: []
+objectives:
+  - id: time-safe-estimate
+    can: Select the latest scan the service could read, compute an arrival from eligible trips, and determine the warning proposal under a named policy.
+    scenes:
+      - intro
+      - prediction-contract
+      - clocks
+      - history
+      - arrival-targets
+      - conformal-calibration
+      - freshness
+      - synthesis
+  - id: frozen-evaluation
+    can: Exclude late labels at fitting, freeze the threshold on validation, and trace the fitted policy's test cost to the shipments that incurred it.
+    scenes:
+      - cost
+      - cost-threshold
+      - selection
+      - temporal-fit
+      - fitted-predictions
+      - artifact-replay
+  - id: serving-evidence
+    can: Distinguish serving checks from mature outcome measurements, identify which worker served a request, and replay an action after a policy change.
+    scenes:
+      - monitor
+      - serving-recovery
+      - synthesis
+sections:
+  - heading: Pin the decision before you fit a model
+    status: taught
+    scenes:
+      - intro
+      - prediction-contract
+  - heading: Prove the snapshot uses past events only
+    status: taught
+    scenes:
+      - clocks
+  - heading: Route scores through a versioned policy
+    status: taught
+    scenes:
+      - freshness
+      - artifact-replay
+      - synthesis
+  - heading: Check the cost calculation with four fixtures
+    status: taught
+    scenes:
+      - cost
+  - heading: Deriving the optimal decision threshold
+    status: taught
+    scenes:
+      - cost-threshold
+  - heading: Fit models and evaluate their actual predictions
+    status: taught
+    scenes:
+      - temporal-fit
+      - fitted-predictions
+      - artifact-replay
+  - heading: Separate prediction time, label availability, and evaluation time
+    status: taught
+    scenes:
+      - temporal-fit
+  - heading: Explain an arrival estimate without promising its range
+    status: taught
+    scenes:
+      - history
+      - arrival-targets
+  - heading: What would a 90% interval actually require?
+    status: taught
+    scenes:
+      - conformal-calibration
+      - arrival-targets
+  - heading: Operate the service after release
+    status: taught
+    scenes:
+      - monitor
+  - heading: Verify promotion and recovery at the serving layer
+    status: taught
+    scenes:
+      - serving-recovery
+  - heading: Submission checklist
+    status: taught
+    scenes:
+      - artifact-replay
+      - serving-recovery
+      - synthesis
+  - heading: "Practice: break the release contract"
+    status: taught
+    scenes:
+      - clocks
+      - freshness
+      - selection
+      - artifact-replay
+      - temporal-fit
+      - fitted-predictions
+  - heading: Practice answer sketches
+    status: taught
+    scenes:
+      - clocks
+      - freshness
+      - selection
+      - artifact-replay
+      - temporal-fit
+      - fitted-predictions
+quiz:
+  - n: 1
+    status: taught
+    scenes:
+      - intro
+      - prediction-contract
+  - n: 2
+    status: taught
+    scenes:
+      - clocks
+      - synthesis
+  - n: 3
+    status: taught
+    scenes:
+      - freshness
+      - synthesis
+  - n: 4
+    status: taught
+    scenes:
+      - temporal-fit
+  - n: 5
+    status: taught
+    scenes:
+      - artifact-replay
+      - synthesis
+  - n: 6
+    status: taught
+    scenes:
+      - cost
+  - n: 7
+    status: taught
+    scenes:
+      - monitor
+  - n: 8
+    status: taught
+    scenes:
+      - history
+      - arrival-targets
+      - synthesis
+  - n: 9
+    status: taught
+    scenes:
+      - serving-recovery
+  - n: 10
+    status: taught
+    scenes:
+      - conformal-calibration
+removed:
+  - point: Feast's opt-in created-time filter and offline-store configuration.
+    reason: The article documents the vendor setting. The film tests the availability rule by moving one hub report across the same noon cutoff.
+reviews:
+  closed_book:
+    script: 36639868604dde8c
+    taught: 10
+    partial: 0
+    absent: 0
+    evidence: build/video-delivery-20261106/script-reviews/capstone-delivery-eta-prediction.json
+  fact_check:
+    script: 36639868604dde8c
+    open_findings: 0
+    evidence: build/video-delivery-20261106/script-reviews/capstone-delivery-eta-prediction.json

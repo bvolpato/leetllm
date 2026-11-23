@@ -1,0 +1,241 @@
+version: 1
+lesson: causality
+promise: Decide whether a release report warrants changing ticket routing. Reconstruct who entered each rate,
+  estimate resolution for the deployment queue, and identify the evidence needed for a causal decision.
+objectives:
+  - id: population
+    can: Use the same within-risk rates to explain the observed reversal and predict resolutions per hundred in the deployment queue
+    scenes:
+      - intro
+      - policy-definition
+      - simpson
+      - standardize
+      - standardize-uncertainty
+      - estimands
+      - release-receipt
+  - id: graph
+    can: Trace chain, fork and collider paths and justify a sufficient backdoor adjustment set
+    scenes:
+      - graph
+      - graph-junctions
+      - backdoor-set
+      - intervene
+      - selection
+      - fresh-audit
+  - id: counterfactual
+    can: Bound hidden response-type pairings and distinguish a replay estimand from an original individual outcome
+    scenes:
+      - potential
+      - harm-bounds
+      - replay-state
+  - id: weights
+    can: Distinguish actual tickets, total weight, and effective sample size. Diagnose missing support and explain how clipping can reverse the comparison by changing the risk mix.
+    scenes:
+      - overlap
+      - weighted-tickets
+      - weight-choices
+      - support-sampling
+  - id: instrument
+    can: Compute a Wald complier effect and diagnose exclusion or weak-first-stage failure
+    scenes:
+      - instrument
+      - wald-late
+      - weak-instrument
+  - id: policy
+    can: Trace one failed ticket into a weighted residual, compute a one-step policy value, and identify the additional assumptions for sequential, click and deployment claims
+    scenes:
+      - policy-value
+      - dr-correction
+      - dr-assumptions
+      - sequential-policy
+      - click-exposure
+      - release-receipt
+  - id: audit
+    can: Predict the sign of an audit difference under two selection rules, then use the original ticket IDs to test a rollback request
+    scenes:
+      - selection
+      - fresh-audit
+sections:
+  - heading: Watch the aggregate reverse the group results
+    status: taught
+    scenes:
+      - intro
+      - policy-definition
+      - simpson
+  - heading: "Pearl's ladder: association, intervention, and counterfactuals"
+    status: taught
+    scenes:
+      - intervene
+      - potential
+      - estimands
+  - heading: "Rung 1: association (seeing)"
+    status: taught
+    scenes:
+      - intro
+      - simpson
+  - heading: "Rung 2: intervention (doing)"
+    status: taught
+    scenes:
+      - intervene
+      - policy-definition
+  - heading: "Rung 3: counterfactuals (imagining)"
+    status: taught
+    scenes:
+      - potential
+      - harm-bounds
+      - replay-state
+  - heading: Separate observed outcomes from missing alternatives
+    status: taught
+    scenes:
+      - potential
+      - policy-definition
+  - heading: "Causal estimands: ATE and ATT"
+    status: taught
+    scenes:
+      - estimands
+  - heading: Latent response types and the counterfactual matrix
+    status: taught
+    scenes:
+      - potential
+      - harm-bounds
+  - heading: Causal graphs, d-separation, and the three canonical junctions
+    status: taught
+    scenes:
+      - graph
+      - graph-junctions
+  - heading: "1. The chain (mediator): $A \\to M \\to Y$"
+    status: taught
+    scenes:
+      - graph-junctions
+  - heading: "2. The fork (confounder): $A \\leftarrow C \\to Y$"
+    status: taught
+    scenes:
+      - graph
+      - graph-junctions
+  - heading: "3. The collider (inverted fork): $A \\to K \\leftarrow Y$"
+    status: taught
+    scenes:
+      - graph-junctions
+      - selection
+      - fresh-audit
+  - heading: The backdoor criterion
+    status: taught
+    scenes:
+      - backdoor-set
+  - heading: Standardize both arms to one population
+    status: taught
+    scenes:
+      - simpson
+      - standardize
+      - standardize-uncertainty
+  - heading: Weight the assignment, then check its support
+    status: taught
+    scenes:
+      - overlap
+      - weighted-tickets
+      - weight-choices
+  - heading: Positivity violations and extreme weights
+    status: taught
+    scenes:
+      - support-sampling
+      - weight-choices
+  - heading: Instrumental variables when unmeasured confounders lurk
+    status: taught
+    scenes:
+      - instrument
+      - weak-instrument
+  - heading: Wald estimator and local average treatment effects
+    status: taught
+    scenes:
+      - wald-late
+      - weak-instrument
+  - heading: Causal inference in production AI systems
+    status: taught
+    scenes:
+      - policy-value
+      - dr-correction
+      - sequential-policy
+      - click-exposure
+      - replay-state
+  - heading: Offline policy evaluation (OPE)
+    status: taught
+    scenes:
+      - policy-value
+      - dr-correction
+      - dr-assumptions
+      - sequential-policy
+  - heading: Recommendation and search debiasing
+    status: taught
+    scenes:
+      - click-exposure
+  - heading: Counterfactual reasoning in LLM agents
+    status: taught
+    scenes:
+      - replay-state
+  - heading: Decide what the comparison supports
+    status: taught
+    scenes:
+      - release-receipt
+      - fresh-audit
+quiz:
+  - n: 1
+    status: taught
+    scenes:
+      - simpson
+      - standardize
+      - backdoor-set
+  - n: 2
+    status: taught
+    scenes:
+      - harm-bounds
+  - n: 3
+    status: taught
+    scenes:
+      - graph-junctions
+      - backdoor-set
+  - n: 4
+    status: taught
+    scenes:
+      - standardize-uncertainty
+  - n: 5
+    status: taught
+    scenes:
+      - weighted-tickets
+      - weight-choices
+  - n: 6
+    status: taught
+    scenes:
+      - support-sampling
+  - n: 7
+    status: taught
+    scenes:
+      - instrument
+      - wald-late
+  - n: 8
+    status: taught
+    scenes:
+      - dr-correction
+      - dr-assumptions
+  - n: 9
+    status: taught
+    scenes:
+      - sequential-policy
+  - n: 10
+    status: taught
+    scenes:
+      - selection
+      - fresh-audit
+removed: []
+reviews:
+  closed_book:
+    script: 486724435f0ec125
+    taught: 10
+    partial: 0
+    absent: 0
+    reviewer: independent closed-book review
+    evidence: videos/reviews/script-renewal/causality.json
+  fact_check:
+    script: 486724435f0ec125
+    open_findings: 0
+    reviewer: independent factual review
+    evidence: videos/reviews/script-renewal/causality.json

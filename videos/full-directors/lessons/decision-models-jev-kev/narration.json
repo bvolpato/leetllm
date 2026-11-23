@@ -1,0 +1,318 @@
+[
+  {
+    "id": "c01",
+    "title": "What should triage investigate first?",
+    "sourceChapters": [
+      "c01"
+    ],
+    "beats": [
+      {
+        "id": "c01-b01",
+        "say": "The collector prints two words: build failed. That's the whole log so far. The caller offers three choices. Which one can you defend with just these two words?",
+        "hold": 3
+      },
+      {
+        "id": "c01-b02",
+        "say": "Insufficient evidence. Keep that answer with the summary. Now the registry replies: four oh one, unauthorized, on the image pull. The tests never started. With this extra line, which cause should triage investigate first?",
+        "hold": 3
+      },
+      {
+        "id": "c01-b03",
+        "say": "Registry authentication. A reviewer records B for this detailed log. The collector supplies the evidence. The application owns the question and the choices. Even a line that tells you to choose A stays inside the log.",
+        "hold": 0.3
+      },
+      {
+        "id": "c01-b04",
+        "say": "A grammar can make a language model emit a legal letter while it still predicts the next token. A decision head scores the offered options directly. We'll trace those scores from the build log to the host's decision about where a ticket goes.",
+        "hold": 0.85
+      }
+    ]
+  },
+  {
+    "id": "c02",
+    "title": "How much probability goes to each answer?",
+    "sourceChapters": [
+      "c02"
+    ],
+    "beats": [
+      {
+        "id": "c02-b01",
+        "say": "Start with the score of one beside registry authentication. A score before normalization is a logit. At temperature one, take the exponential of each logit to get a positive weight. Lay those lengths end to end. Registry authentication contributes about two point seven out of eleven point one. Which answer gets the most probability?",
+        "hold": 2.8
+      },
+      {
+        "id": "c02-b02",
+        "say": "Test regression. Divide each weight by the same total and A gets about two thirds. Find the reviewer's B one row down. It gets less than a quarter. Those shares sum to one across the choices we offered. Whether predictions like these are right two thirds of the time takes labeled incidents to find out.",
+        "hold": 0.8
+      }
+    ]
+  },
+  {
+    "id": "c03",
+    "title": "Which score moves up in this step?",
+    "sourceChapters": [
+      "c03"
+    ],
+    "beats": [
+      {
+        "id": "c03-b01",
+        "say": "The trainer is trying to put more probability on the reviewed choice. Its loss on this example is the negative natural log of B's share, about one point four one. To get the gradient for each score, subtract the target from its probability. B's target is one.",
+        "hold": 0.3
+      },
+      {
+        "id": "c03-b02",
+        "say": "A and C have target zero. Which score will go up when we subtract half of each gradient?",
+        "hold": 2.2
+      },
+      {
+        "id": "c03-b03",
+        "say": "B goes up. Slide the three scores through one half step. Subtracting a negative raises B's score. The other two scores fall. Recompute softmax from all three. B goes from about a quarter of the mass to just under two fifths. A still wins. Look at C: its logit fell, yet its share grew slightly as the total changed.",
+        "hold": 0.3
+      },
+      {
+        "id": "c03-b04",
+        "say": "We moved three free logits by hand. In training, the optimizer changes weights that produce scores for many builds. A second log from the same incident tells us little about generalization. Try the gradient rule on a new target. If C has probability point four and target one, its gradient is negative point six. Subtracting it raises C's score.",
+        "hold": 1
+      }
+    ]
+  },
+  {
+    "id": "c04",
+    "title": "Where does Kev get an option score?",
+    "sourceChapters": [
+      "c04"
+    ],
+    "beats": [
+      {
+        "id": "c04-b01",
+        "say": "Where could an option logit come from? Kev marks the end of each option and the place where it asks for a decision. The backbone gives each marker a hidden vector. The head learns a key projection for the options and a query projection for the decision.",
+        "hold": 0.3
+      },
+      {
+        "id": "c04-b02",
+        "say": "For this drawing, use two coordinates and let the projections leave them alone. The yellow decision vector points one unit to the right. A points up. Look at each tip. Which option reaches furthest in the decision direction?",
+        "hold": 3
+      },
+      {
+        "id": "c04-b03",
+        "say": "B reaches two units. Its tip already sits on the decision line. Drop A's tip: it lands at zero. Drop C's tip: it reaches half a unit. With this unit query the signed horizontal distances are the dot products. Divide them by the square root of the pointer width to get the logits.",
+        "hold": 0.3
+      },
+      {
+        "id": "c04-b04",
+        "say": "Here the width is two. That gives B a score of about one point four one. These are invented vectors. Kev's published default width in the article is two hundred fifty-six.",
+        "hold": 0.9
+      }
+    ]
+  },
+  {
+    "id": "c05",
+    "title": "Reading the model’s answer",
+    "sourceChapters": [
+      "c05"
+    ],
+    "beats": [
+      {
+        "id": "c05-b01",
+        "say": "Keep those pointer scores. At temperature one, B gets about sixty-three percent of the mass. I'm going to double the temperature. That divides every score by two before softmax. Predict what happens to B's share, and whether another option can pass it.",
+        "hold": 1.9
+      },
+      {
+        "id": "c05-b02",
+        "say": "Double it now. B's share falls to forty-eight percent. Look at the ticks where the bars started. The smaller shares grew. B still leads because dividing every logit by the same positive number keeps their order. Two was an illustration.",
+        "hold": 0.3
+      },
+      {
+        "id": "c05-b03",
+        "say": "To calibrate a checkpoint, fit the temperature on held-out logits, then check reliability on separate incidents.",
+        "hold": 0.8
+      },
+      {
+        "id": "c05-b04",
+        "say": "Suppose three services all return B. Trace that letter back. In Kev, the winning option comes from the marker comparison we just drew. SemIf freezes the language model and reads its next-position scores for A, B and C without decoding a token.",
+        "hold": 0.3
+      },
+      {
+        "id": "c05-b05",
+        "say": "Tev1 trains on a one-letter completion, generates the letter, and lets client code map it to a typed answer. A frozen first-letter preference can disagree with a full generated answer. Test the readout you'll actually call.",
+        "hold": 0.7
+      },
+      {
+        "id": "c05-b06",
+        "say": "Jev also exposes typed decisions, including choices, rubric scores and a zero-to-one truth score. TypeSafe says it samples decisions in parallel and calls its training method Reinforcement Learning for Calibrated Decisions. The public description leaves the architecture and training recipe undisclosed. A returned B alone cannot tell us which mechanism produced it.",
+        "hold": 0.85
+      }
+    ]
+  },
+  {
+    "id": "c06",
+    "title": "What happens if the caller changes the choices?",
+    "sourceChapters": [
+      "c06"
+    ],
+    "beats": [
+      {
+        "id": "c06-b01",
+        "say": "The registry returned four oh one. Shuffle the options but carry their identities with them. Follow registry authentication through the shuffle. Which letter should a reviewer choose in the new order?",
+        "hold": 2.8
+      },
+      {
+        "id": "c06-permutation-answer",
+        "say": "C now means registry authentication. A model stuck on B selects test regression. Re-run the whole request and compare by description. In a causal backbone, moving a choice can change its hidden vector.",
+        "hold": 0.8
+      },
+      {
+        "id": "c06-b02",
+        "say": "Reset to the original order and the original invented logits. Remove insufficient evidence. Registry authentication keeps its weight of two point seven two. With one unit gone from the denominator, its share rises from about twenty-four and a half percent to almost twenty-seven percent. The log has supplied no new evidence. Keep no-match cases in evaluation and offer review when none of the causes fits.",
+        "hold": 0.8
+      },
+      {
+        "id": "c06-b03",
+        "say": "Now ask two questions about the same log. Which cause deserves investigation? Did the tests start? Prefill the shared state once. Continue each question in a separate row. Each row gets its own recurrent state. An attention mask alone cannot isolate questions that write to the same recurrent state.",
+        "hold": 0.3
+      },
+      {
+        "id": "c06-b04",
+        "say": "Add an Unknown choice to the second row. Compare the first row's logits with its saved logits, aligned by option. In this toy replay the largest difference is zero. In a real test allow a small numerical tolerance. Reusing the shared prefill saves reading the log twice. Question count and batch size still matter.",
+        "hold": 1
+      }
+    ]
+  },
+  {
+    "id": "c07",
+    "title": "Which incidents belong in the test?",
+    "sourceChapters": [
+      "c07"
+    ],
+    "beats": [
+      {
+        "id": "c07-b01",
+        "say": "Keep the full task with the label. This record has the log, the exact question, the option descriptions and the reviewer's B. It also has the policy version and the incident ID. Here's a retry from the same incident. If the first log trains the model, where should the retry go?",
+        "hold": 2
+      },
+      {
+        "id": "c07-b02",
+        "say": "Keep them together in training. A near duplicate in the final test can make it look easier. Reserve entire incident groups for evaluation, including logs from unfamiliar sources. Give reviewers a rule for choosing insufficient evidence. A summary that says only build failed qualifies. Include ambiguous logs and instruction-like text as well.",
+        "hold": 0.8
+      },
+      {
+        "id": "c07-b03",
+        "say": "The reviewed B can train two different things. A learned head takes loss on B's probability. A completion trainer reads the log, the question and the choices, masks those input tokens from the loss, and takes loss on the answer letter B.",
+        "hold": 0.3
+      },
+      {
+        "id": "c07-b04",
+        "say": "The smaller Kev checkpoints train adapters and the head on a frozen backbone. The twenty-seven billion parameter version two fine-tunes the full backbone. LoRA changes which weights move. The reviewer's label still defines a correct answer.",
+        "hold": 0.3
+      },
+      {
+        "id": "c07-b05",
+        "say": "A published starting recipe for Tev1 doesn't establish the exact training history of its hosted checkpoint.",
+        "hold": 0.75
+      },
+      {
+        "id": "c07-b06",
+        "say": "Fit the temperature on calibration examples. With that scale fixed, use development incidents to choose the routing cutoff. Freeze both before opening the final incident groups. There, compare predicted probabilities with how often the choices were right, using reliability bins and a Brier score. Suppose ten predictions in a reliability bin average eighty percent for the winning choice. Six correct gives sixty percent observed accuracy. A multiclass Brier score also checks the other choices: sum the squared gaps from the one-hot target, then average over cases.",
+        "hold": 0.3
+      },
+      {
+        "id": "c07-b07",
+        "say": "Also time the full workflow. Count time to read the log, score the questions and deliver the ticket. Track corrections and rollbacks after routing. A short answer can save decoding time while a long log still costs time to read. Batching, the cache and the hardware affect that tradeoff.",
+        "hold": 0.8
+      }
+    ]
+  },
+  {
+    "id": "c08",
+    "title": "Which incidents does 0.80 admit?",
+    "sourceChapters": [
+      "c08"
+    ],
+    "beats": [
+      {
+        "id": "c08-b01",
+        "say": "Our application has two fields it could read. The top ruler is the winning probability. With three options, a uniform choice starts at one third. Kev's Choice confidence measures how far the winner has come from that baseline toward one.",
+        "hold": 0.3
+      },
+      {
+        "id": "c08-b02",
+        "say": "Subtract one third, then divide by the distance left to one. A winning probability of point eight comes out to a confidence of point seven.",
+        "hold": 0.8
+      },
+      {
+        "id": "c08-b03",
+        "say": "Now put point eight on the lower ruler. Travel eighty percent of the distance from one third to one. Read straight up. The matching probability is thirteen fifteenths, about point eight six seven. You can use either scale if you convert the cutoff.",
+        "hold": 0.3
+      },
+      {
+        "id": "c08-b04",
+        "say": "For two or more choices, the baseline is one divided by the number of choices. Uniform maps to zero and certainty maps to one. With a single legal choice the adapter returns one directly. This field measures concentration. We need reviewed outcomes to measure errors.",
+        "hold": 0.95
+      },
+      {
+        "id": "c08-b05",
+        "say": "Here are eight invented incidents with reviewed outcomes. A cross means the winning answer was wrong. Begin with a gate on winning probability. It accepts point eight or higher. Four of the eight go through. See the cross at point nine?",
+        "hold": 0.3
+      },
+      {
+        "id": "c08-b06",
+        "say": "That's one error among the four we routed. That fraction is called selective risk. Now suppose the code reads confidence at the same point eight. Which of those four incidents drops out, and does the error go with it?",
+        "hold": 2.4
+      },
+      {
+        "id": "c08-b07",
+        "say": "Switch the gate to confidence. Its point eight cutoff sits at thirteen fifteenths on the probability scale. The correct incident at point eight six drops out. The wrong one at point nine stays. The same error is now one out of three.",
+        "hold": 0.3
+      },
+      {
+        "id": "c08-b08",
+        "say": "On these eight cases, coverage fell from one half to three eighths, and the observed error fraction rose from one quarter to one third. If nobody passes, there are no routed cases on which to measure that fraction.",
+        "hold": 0.3
+      },
+      {
+        "id": "c08-b09",
+        "say": "Report uncertainty on independent incident groups before trusting a production policy. The answer count matters too. With five choices the baseline is point two. A winner at point seven two has come point five two of the remaining point eight. That gives point six five confidence, exactly on an inclusive point six five cutoff.",
+        "hold": 1.1
+      }
+    ]
+  },
+  {
+    "id": "c09",
+    "title": "Where should the next ticket go?",
+    "sourceChapters": [
+      "c09"
+    ],
+    "beats": [
+      {
+        "id": "c09-b01",
+        "say": "A fresh build. The image pull succeeded, the tests ran, and an assertion failed. The check expected twelve and got eleven. The caller offers a fourth option, a compile failure. Read the order of events. Which cause should triage investigate first?",
+        "hold": 3
+      },
+      {
+        "id": "c09-b02",
+        "say": "Test regression, A. Suppose the model also returns A, with winning probability point seven. The host authenticates the caller and checks that A is a legal ID. The policy for these four choices sends an investigation ticket when confidence is at least point six five.",
+        "hold": 0.3
+      },
+      {
+        "id": "c09-b03",
+        "say": "With four choices the uniform baseline is one quarter. Use the distance from that baseline to one. Does this ticket qualify, or does it go to human review?",
+        "hold": 3.3
+      },
+      {
+        "id": "c09-b04",
+        "say": "Subtract a quarter from point seven, then divide by three quarters. Its concentration score is point six. Send this ticket to human review. The log supports A, but the score falls short of the application's cutoff.",
+        "hold": 1.05
+      },
+      {
+        "id": "c09-b05",
+        "say": "Replay this same log. Keep the four choices, the valid A, and the same host policy. Change only the winning probability to point seven six. Apply the same conversion. Where should this ticket go?",
+        "hold": 3.2
+      },
+      {
+        "id": "c09-b06",
+        "say": "That gives point six eight confidence. It clears point six five and enters the test investigation queue. Equality would also pass this gate. Both trials proposed A. The host allowed a ticket to be queued. Rotating a credential or closing the incident requires a separate grant. In the next lesson, model merging asks which learned behaviors survive when you combine weights.",
+        "hold": 1.5
+      }
+    ]
+  }
+]

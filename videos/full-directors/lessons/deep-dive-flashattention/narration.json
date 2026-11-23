@@ -1,0 +1,392 @@
+[
+  {
+    "id": "c01",
+    "title": "Four visits to one tile",
+    "sourceChapters": [
+      "c01"
+    ],
+    "beats": [
+      {
+        "id": "c01-b01",
+        "say": "One tile holds sixteen scores. Look at the last row. The query is four, and its first four keys are one, two, three and four. Multiply them. Where can the next four scores go when every slot is full?",
+        "hold": 2
+      },
+      {
+        "id": "c01-b02",
+        "say": "Use the same slots. First keep each query's running summary. The next keys are five through eight. Four times five is twenty, in the very slot that used to hold four. The other four queries meet keys one through four, then keys five through eight. Sixty-four comparisons pass through sixteen slots.",
+        "hold": 0.8
+      },
+      {
+        "id": "c01-b03",
+        "say": "Imagine asking a model about a long document. Every query combines the values of the keys its mask allows. A materializing implementation can write all the scores to high-bandwidth memory, read them for softmax, write probabilities and read them back. FlashAttention finishes each tile close to the arithmetic. Inputs and outputs still live in main GPU memory.",
+        "hold": 0.65
+      },
+      {
+        "id": "c01-b04",
+        "say": "At eight examples, thirty-two heads and eight thousand one hundred ninety-two positions, count the two-byte scores. Both sequence axes count. One score tensor takes thirty-two gibibytes. For backward, save one four-byte log-sum-exp per query row. Drop the key axis and you get eight mebibytes. Dense dot-product work still grows quadratically with length.",
+        "hold": 0.8
+      },
+      {
+        "id": "c01-b05",
+        "say": "The first FlashAttention paper counts accesses to high-bandwidth memory. Its model measures on-chip capacity in scalar elements. Keep the sequence length and head width fixed. Double that capacity while staying inside the model's range. More of the tile can stay near the arithmetic, and the capacity term in the denominator doubles. The materializing baseline still writes and reads the score square. A count of memory accesses alone cannot tell us the elapsed time.",
+        "hold": 0.8
+      }
+    ]
+  },
+  {
+    "id": "c02",
+    "title": "What survives the overwrite?",
+    "sourceChapters": [
+      "c02"
+    ],
+    "beats": [
+      {
+        "id": "c02-b01",
+        "say": "Begin with one query and four keys. Take two keys at a time. Each score is a query-key dot product divided by the square root of their width. Here the query is one, and each key is a single number, so the score equals the key. Each value carries two coordinates, blue and orange.",
+        "hold": 0.5
+      },
+      {
+        "id": "c02-b02",
+        "say": "Read the first pair. The scores are one and two. Subtract the maximum, two, before exponentiating. The weights are about point three six eight and one. Add the weights, then add the weighted values coordinate by coordinate. What must stay when these two slots clear?",
+        "hold": 2
+      },
+      {
+        "id": "c02-b03",
+        "say": "Keep the maximum, the weight sum and the two value sums. The first key contributes only blue and the second only orange. Together their weights sum to about one point three six eight. Bring in the second tile. It uses the very same score slots. What scale does its highest score require?",
+        "hold": 1.7
+      }
+    ]
+  },
+  {
+    "id": "c03",
+    "title": "Put both tiles on one scale",
+    "sourceChapters": [
+      "c03"
+    ],
+    "beats": [
+      {
+        "id": "c03-b01",
+        "say": "The new tile scores three and zero. The old tile used two as its maximum. Follow the key that earned weight one. With three as the new maximum, will that same key get heavier or lighter?",
+        "hold": 2.2
+      },
+      {
+        "id": "c03-b02",
+        "say": "Lighter. On the new scale its weight is the exponential of two minus three, about point three six eight. Watch the old weight sum and both old value sums shrink by that same factor. The outlines show what the first tile contributed on its original scale.",
+        "hold": 0.8
+      },
+      {
+        "id": "c03-b03",
+        "say": "Add the key that scored three. Its weight is one, so it adds its full value, five and five. The key that scored zero adds just under five hundredths of nine and one. Now the denominator includes both tiles. Divide both value sums by that denominator once.",
+        "hold": 0.7
+      },
+      {
+        "id": "c03-b04",
+        "say": "The answer is four point three eight zero and five point six two zero, rounded. Here are the two tiles together. Slide the dense result underneath. Both color boundaries meet. Every input vector totals ten across its two coordinates. A weighted average of those vectors must total ten too. Moving the tile boundary preserves the mathematical result. Floating-point rounding can differ.",
+        "hold": 1
+      },
+      {
+        "id": "c03-b05",
+        "say": "Try a faulty merge on those same keys. Rescale the old weight sum, but leave both old value sums on their original scale. The blue and orange pieces run past ten. The denominator shrank while the old values kept their extra weight. Rescale those values too. The right edge comes back to ten.",
+        "hold": 1.1
+      }
+    ]
+  },
+  {
+    "id": "c04",
+    "title": "Place the queries over their keys",
+    "sourceChapters": [
+      "c04"
+    ],
+    "beats": [
+      {
+        "id": "c04-b01",
+        "say": "Two queries sit at the last two positions of five keys. A causal query sees its own key and every earlier key. With equal scores, the output is the average of their values. Point to the last value the first query should see.",
+        "hold": 2
+      },
+      {
+        "id": "c04-b02",
+        "say": "Follow the upper-left mask. It stops the first row at ten and the second at twenty. Their means are ten and fifteen. Compare those stops with the actual query positions above the rail. Which keys did this mask hide?",
+        "hold": 1.5
+      },
+      {
+        "id": "c04-b03",
+        "say": "Align the last query with the last key. The first query now reaches forty. Four values sum to one hundred, giving twenty-five. The second averages all five to thirty. The bottom-right center for row i is i plus key length minus query length. FlashAttention two point one introduced this causal convention.",
+        "hold": 0.7
+      },
+      {
+        "id": "c04-b04",
+        "say": "Narrow the local window to one key on the left and none on the right of that center. The first query keeps thirty and forty, the second forty and fifty. Their means rise to thirty-five and forty-five. Window endpoints are inclusive and clipped to the keys. A square test hides the corner difference. For a tail decode reference in PyTorch, pass the intended boolean mask explicitly and turn the built-in causal flag off.",
+        "hold": 0.8
+      }
+    ]
+  },
+  {
+    "id": "polarity",
+    "title": "What does a true bit admit?",
+    "sourceChapters": [
+      "c04"
+    ],
+    "beats": [
+      {
+        "id": "polarity-b01",
+        "say": "Take a real value of ten and a padding value of one thousand. Both scores are zero. The padding mask marks the second key true because multi-head attention excludes it. Pass those same two bits to boolean scaled dot-product attention. Which value reaches the output?",
+        "hold": 2
+      },
+      {
+        "id": "polarity-b02",
+        "say": "One thousand. True admits the key in this interface. Invert the boolean mask. Now only ten gets through. Broadcast that keep-mask over the intended batch, head and query axes. For causal padded input, intersect the real keys with the allowed prefix. Floating additive bias has different semantics.",
+        "hold": 1
+      }
+    ]
+  },
+  {
+    "id": "c05",
+    "title": "Move a sentence boundary",
+    "sourceChapters": [
+      "c05"
+    ],
+    "beats": [
+      {
+        "id": "c05-b01",
+        "say": "Read these two examples. Birds sing softly. Rain falls. Packing places the five tokens side by side. Offsets zero, three and five mark where each sentence starts and where the last one ends. A query can use every word of its own sentence here. With equal scores, the first sentence averages two, four and eight. That's fourteen thirds.",
+        "hold": 0.8
+      },
+      {
+        "id": "c05-b02",
+        "say": "Suppose the caller changes the middle offset to four. Keep every word and value at the same address. Which word would enter the first query's average?",
+        "hold": 2.2
+      },
+      {
+        "id": "c05-b03",
+        "say": "Rain brings a hundred. It joins the first sentence. Four values now average twenty-eight point five. Only the boundary changed. Restore three. The first average returns to fourteen thirds. Check the query and key offsets separately. Each array needs one more entry than the batch size. Its thirty-two-bit integers must start at zero, never decrease and end at the packed count. Check the maximum length against the longest interval.",
+        "hold": 1
+      }
+    ]
+  },
+  {
+    "id": "pages",
+    "title": "Which physical rows enter the load?",
+    "sourceChapters": [
+      "c05"
+    ],
+    "beats": [
+      {
+        "id": "pages-b01",
+        "say": "Now decode from a cache. The serving engine allocates, shares and evicts physical pages. Its block table tells the kernel where to read each logical page. This request maps logical page zero to physical page two, then logical page one to physical page zero. Reserve capacity before an in-place cache write and give competing writers separate destinations.",
+        "hold": 0.7
+      },
+      {
+        "id": "pages-b02",
+        "say": "Suppose the loader reads whole pages of two hundred fifty-six rows. The request uses two hundred seventy keys. Fourteen entries in its second page are live. Count from zero. A NaN sits in row fourteen of that page, and another sits in a page the request never reads. Which NaN can affect the output?",
+        "hold": 2
+      },
+      {
+        "id": "pages-b03",
+        "say": "The loaded padding can. Even with zero probability, multiplying by a NaN value can produce NaN. Keep loaded padding finite. The second page still has fourteen valid entries, but its other two hundred forty-two rows are now safe for this multiply. The untouched page never participates. Check the documented load width for the kernel you actually call.",
+        "hold": 1
+      }
+    ]
+  },
+  {
+    "id": "c06",
+    "title": "Rebuild a discarded probability",
+    "sourceChapters": [
+      "c06"
+    ],
+    "beats": [
+      {
+        "id": "c06-b01",
+        "say": "Return to our four original keys. Training needs derivatives through the same attention operation. Saving every probability would recreate the large intermediate. Keep the inputs, output and one log-sum-exp per nonempty row. Here it's the maximum, three, plus the log of one point five five three, or about three point four four.",
+        "hold": 0.7
+      },
+      {
+        "id": "c06-b02",
+        "say": "Recompute the first two scores. Subtract the saved log-sum-exp, then exponentiate. That rebuilds their probabilities. Use them and free those slots. Rebuild the next pair with exactly the same row summary. All four reconstructed probabilities sum to one and recover the forward output.",
+        "hold": 0.8
+      },
+      {
+        "id": "c06-b03",
+        "say": "Backward accumulates input gradients from each temporary tile and discards it. Recomputing adds arithmetic while reducing saved memory. If forward used dropout, save the required random state and replay its keep decisions. Compare query, key and value gradients as well as outputs to a higher-precision reference with stated tolerances.",
+        "hold": 0.8
+      }
+    ]
+  },
+  {
+    "id": "gradient",
+    "title": "Which score has a negative derivative?",
+    "sourceChapters": [
+      "c06"
+    ],
+    "beats": [
+      {
+        "id": "gradient-b01",
+        "say": "Try a smaller row with no dropout. The two probabilities are one quarter and three quarters. Suppose the incoming derivatives with respect to those probabilities are one and five. A shared increase to both scores leaves softmax unchanged. Which score derivative should be negative?",
+        "hold": 2
+      },
+      {
+        "id": "gradient-b02",
+        "say": "Find their weighted average. One quarter times one plus three quarters times five is four. Subtract four from each incoming derivative and multiply by its probability. The first derivative is minus three quarters. The second is plus three quarters. They cancel.",
+        "hold": 0.8
+      },
+      {
+        "id": "gradient-b03",
+        "say": "In a full row, the incoming probability derivative is the output gradient dotted with the key's value. The shared average also equals the output gradient dotted with the saved output. Send each score derivative through the original scaled dot product for query and key gradients. Each value receives its probability times the output gradient. Masked keys get zero contribution.",
+        "hold": 0.8
+      }
+    ]
+  },
+  {
+    "id": "c07",
+    "title": "Fit the call to the installed kernel",
+    "sourceChapters": [
+      "c07"
+    ],
+    "beats": [
+      {
+        "id": "c07-b01",
+        "say": "Which package did this process load? Look at the import path. The first row shows the generation-two wrapper in the article's snapshot. Three has a separate Hopper install. Four lives under the CuTe namespace. Record the package version, device, data type and operation. PyTorch can select its own FlashAttention backend independently of these packages.",
+        "hold": 0.8
+      },
+      {
+        "id": "c07-b02",
+        "say": "Look at token zero, head one. SDPA puts heads before sequence. The generation-two package expects sequence before heads. Both axes here have length two. Which cell should move when you transpose them?",
+        "hold": 1.7
+      },
+      {
+        "id": "c07-b03",
+        "say": "Swap those two axes. Token zero, head one moves from row one, column zero to row zero, column one. Next align the causal corner for tail queries. Then adapt the return. The usual generation-two call returns an output tensor. The pinned generation-four call returns an output and an L S E that can be absent. A debug probability return can allocate a quadratic buffer.",
+        "hold": 0.65
+      },
+      {
+        "id": "c07-b04",
+        "say": "Prefer framework dispatch when its behavior fits the workload. Forcing a fused backend on unsupported inputs can leave no valid kernel. Pass dropout zero explicitly in evaluation. Suppose a fallback wants the thirty-two-gibibyte score tensor from our opening. With sixteen gibibytes left for scores, reroute this request. A compatible signature alone cannot make its memory fit.",
+        "hold": 0.8
+      },
+      {
+        "id": "c07-b05",
+        "say": "Follow one output through three public calls. Generation two usually returns the tensor itself. Request the debug return and the caller gets three objects. The extra probability buffer can have unreliable scaling and can dominate a memory benchmark. Switch to the pinned generation-four wrapper. Unpack its pair before passing the output to the next layer. An import can take a fallback path too. The pinned generation-two wrapper on ROCm can warn when its native extension is missing and try the AIter Triton backend. Record which import actually succeeded.",
+        "hold": 0.8
+      }
+    ]
+  },
+  {
+    "id": "heads",
+    "title": "Find the owner of a query head",
+    "sourceChapters": [
+      "c07"
+    ],
+    "beats": [
+      {
+        "id": "heads-b01",
+        "say": "Six query heads share two key and value heads. Each key in the first group carries ten. Each key in the second carries a hundred. Keep the same values as we cross the group boundary. Which values do query heads two and three return?",
+        "hold": 2
+      },
+      {
+        "id": "heads-b02",
+        "say": "Divide six by two. Each group has three consecutive query heads. Head two uses the first group and returns ten. Head three starts the second and returns one hundred. In general, divide the zero-based head index by the group size and round down. Key and value head counts must match and divide the query head count. One shared head gives multi-query attention.",
+        "hold": 0.8
+      }
+    ]
+  },
+  {
+    "id": "cache",
+    "title": "Can a warm process use the wrong layout?",
+    "sourceChapters": [
+      "c07"
+    ],
+    "beats": [
+      {
+        "id": "cache-b01",
+        "say": "A compiler can specialize a kernel for a shape. In the article's generation-four example, shape A has one hundred twenty-eight query heads and two key-value heads. Shape B has sixty-four and one. Each passes alone. If the cache key includes only their ratio, what happens when B follows A?",
+        "hold": 2
+      },
+      {
+        "id": "cache-b02",
+        "say": "Both look up sixty-four. B finds the entry compiled for A. That key describes the ratio but loses the difference in packed layout. Add the key-value head count to the specialization key. Run A then B in one process and B then A in another. Check each output against its reference and keep the isolated runs as controls. This models the cache identity behind the published fix.",
+        "hold": 1
+      }
+    ]
+  },
+  {
+    "id": "c08",
+    "title": "Compare the actual outputs",
+    "sourceChapters": [
+      "c08"
+    ],
+    "beats": [
+      {
+        "id": "c08-b01",
+        "say": "Build a small correctness matrix before a performance comparison. Start with a square case, a tail decode, a fully masked row and packed boundaries. Compare a dense reference with a streaming implementation. Match the scale, head mapping and dropout. Check the legal keys before interpreting any difference in the digits.",
+        "hold": 0.6
+      },
+      {
+        "id": "c08-b02",
+        "say": "Look at the cached row. Two scores beyond the first key could change the average. Our incorrect reference takes only the first key. What happens when we give both calculations the same allowed keys?",
+        "hold": 1.8
+      },
+      {
+        "id": "c08-b03",
+        "say": "They agree. The cached row now mixes all three values. For an empty tile, skip the update before subtracting two negative infinities. For an entirely empty row, the documented kernel convention gives zero. Ordinary softmax on an all-negative-infinity row is undefined. These are CPU arithmetic checks. On the target device, test both unequal-length directions with the installed kernel and compare training gradients separately.",
+        "hold": 1
+      }
+    ]
+  },
+  {
+    "id": "trace",
+    "title": "Read the end of device work",
+    "sourceChapters": [
+      "c08"
+    ],
+    "beats": [
+      {
+        "id": "trace-b01",
+        "say": "This supplied trace starts when the host submits a warmed call. The device starts at one millisecond. The host returns at two. Freeze there. How much device execution has finished at that instant?",
+        "hold": 2
+      },
+      {
+        "id": "trace-b02",
+        "say": "One millisecond. That is the part of the device lane already filled. Let the device finish. It completes at forty-one milliseconds on the trace. Its execution lasts forty. Use device events for that interval, or synchronize before and after the region you time. A service latency measurement spans the whole request.",
+        "hold": 0.8
+      },
+      {
+        "id": "trace-b03",
+        "say": "Warm both paths on identical inputs. Exclude compilation and first allocations from steady-state timing. Record the backend, peak memory, throughput and the latency distribution, including its tail. Measure long-query prefill and short-query decode separately. Their tile occupancy and cache traffic differ. Use a device trace to find launch gaps, then profile the busy kernel to separate memory pressure from arithmetic.",
+        "hold": 0.8
+      },
+      {
+        "id": "trace-b04",
+        "say": "Which timing can you carry over to a new service? The second generation distributes query tiles across thread blocks. The third overlaps transfers and matrix work on Hopper. The fourth also tackles the cost of exponentials. Look at the published comparison. Those numbers describe forward attention at the stated precision and shapes. Check the hardware label too. The main text names B two hundred and the appendix lists B one hundred. Record that discrepancy, then measure the path that will serve your requests.",
+        "hold": 0.9
+      }
+    ]
+  },
+  {
+    "id": "dispatch",
+    "title": "Would you run this batch?",
+    "sourceChapters": [
+      "c08"
+    ],
+    "beats": [
+      {
+        "id": "dispatch-b01",
+        "say": "Try a fresh request. Five queries, three keys with values six, twelve and twenty-four. Align their right ends. Give every allowed key the same score. Which rows are empty, and what does the last row return?",
+        "hold": 2.3
+      },
+      {
+        "id": "dispatch-b02",
+        "say": "The first two rows have no legal key. Both return zero. The next three see one, two and three values. Six, then nine, then fourteen. Keep those answers in view. Suppose our checked fallback materializes every score as a four-byte float. Each item has four heads. After reserving the other tensors, we have five hundred twelve bytes for scores. Will three items fit?",
+        "hold": 2.2
+      },
+      {
+        "id": "dispatch-b03",
+        "say": "One item needs two hundred forty bytes. Three need seven hundred twenty. That crosses the five hundred twelve byte line. Keep the mask and the per-head result fixed. Could two items run together?",
+        "hold": 2
+      },
+      {
+        "id": "dispatch-b04",
+        "say": "Two need four hundred eighty bytes. Run the pair, release its score buffer, then run the last item alone. Its buffer needs just two hundred forty bytes. The peak stays below the allowance. Verify the same five row outputs on each call and time both calls through completion. The next lesson takes up batches whose histories have different lengths.",
+        "hold": 1.4
+      }
+    ]
+  }
+]

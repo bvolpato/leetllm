@@ -1,0 +1,481 @@
+{
+  "id": "bounded-worker-queue",
+  "slug": "bounded-worker-queue",
+  "title": "Bounded Worker Queue",
+  "difficulty": "Medium",
+  "category": "Scheduling",
+  "language": "python3",
+  "timeEstimateMinutes": 35,
+  "timeLimitMs": 2500,
+  "memoryLimitMb": 128,
+  "order": 110,
+  "tags": [
+    "queue",
+    "deque",
+    "worker state",
+    "backpressure"
+  ],
+  "source": "AI lab prep",
+  "summary": "Model a bounded FIFO work queue with explicit in-progress ownership and retry behavior. Items are non-null.",
+  "starterCode": [
+    "class WorkQueue:",
+    "    def __init__(self, max_pending: int):",
+    "        self.max_pending = max_pending",
+    "",
+    "    def enqueue(self, item) -> bool:",
+    "        pass",
+    "",
+    "    def start(self, worker_id):",
+    "        pass",
+    "",
+    "    def complete(self, worker_id):",
+    "        pass",
+    "",
+    "    def fail(self, worker_id, retry: bool = True):",
+    "        pass",
+    "",
+    "    def snapshot(self) -> dict:",
+    "        pass"
+  ],
+  "testCases": [
+    {
+      "name": "enqueues within pending capacity and assigns FIFO",
+      "visibility": "sample",
+      "setup": [
+        "from solution import WorkQueue",
+        "queue = WorkQueue(max_pending=2)"
+      ],
+      "checks": [
+        {
+          "input": "queue = WorkQueue(max_pending=2)\nqueue.enqueue(\"a\")",
+          "expression": "queue.enqueue(\"a\")",
+          "operator": "==",
+          "expected": "True"
+        },
+        {
+          "input": "queue = WorkQueue(max_pending=2)\nqueue.enqueue(\"a\")\nqueue.enqueue(\"b\")",
+          "expression": "queue.enqueue(\"b\")",
+          "operator": "==",
+          "expected": "True"
+        },
+        {
+          "input": "queue = WorkQueue(max_pending=2)\nqueue.enqueue(\"a\")\nqueue.enqueue(\"b\")\nnot queue.enqueue(\"c\")",
+          "expression": "not queue.enqueue(\"c\")",
+          "operator": "==",
+          "expected": "True"
+        },
+        {
+          "input": "queue = WorkQueue(max_pending=2)\nqueue.enqueue(\"a\")\nqueue.enqueue(\"b\")\nnot queue.enqueue(\"c\")\nqueue.start(\"w1\")",
+          "expression": "queue.start(\"w1\")",
+          "operator": "==",
+          "expected": "\"a\""
+        },
+        {
+          "input": "queue = WorkQueue(max_pending=2)\nqueue.enqueue(\"a\")\nqueue.enqueue(\"b\")\nnot queue.enqueue(\"c\")\nqueue.start(\"w1\")\nqueue.enqueue(\"c\")",
+          "expression": "queue.enqueue(\"c\")",
+          "operator": "==",
+          "expected": "True"
+        },
+        {
+          "input": "queue = WorkQueue(max_pending=2)\nqueue.enqueue(\"a\")\nqueue.enqueue(\"b\")\nnot queue.enqueue(\"c\")\nqueue.start(\"w1\")\nqueue.enqueue(\"c\")\nqueue.start(\"w1\")",
+          "expression": "queue.start(\"w1\")",
+          "operator": "is",
+          "expected": "None"
+        },
+        {
+          "input": "queue = WorkQueue(max_pending=2)\nqueue.enqueue(\"a\")\nqueue.enqueue(\"b\")\nnot queue.enqueue(\"c\")\nqueue.start(\"w1\")\nqueue.enqueue(\"c\")\nqueue.start(\"w1\")\nqueue.complete(\"w1\")",
+          "expression": "queue.complete(\"w1\")",
+          "operator": "==",
+          "expected": "\"a\""
+        },
+        {
+          "input": "queue = WorkQueue(max_pending=2)\nqueue.enqueue(\"a\")\nqueue.enqueue(\"b\")\nnot queue.enqueue(\"c\")\nqueue.start(\"w1\")\nqueue.enqueue(\"c\")\nqueue.start(\"w1\")\nqueue.complete(\"w1\")\nqueue.start(\"w1\")",
+          "expression": "queue.start(\"w1\")",
+          "operator": "==",
+          "expected": "\"b\""
+        },
+        {
+          "input": "queue = WorkQueue(max_pending=2)\nqueue.enqueue(\"a\")\nqueue.enqueue(\"b\")\nnot queue.enqueue(\"c\")\nqueue.start(\"w1\")\nqueue.enqueue(\"c\")\nqueue.start(\"w1\")\nqueue.complete(\"w1\")\nqueue.start(\"w1\")\nqueue.start(\"w2\")",
+          "expression": "queue.start(\"w2\")",
+          "operator": "==",
+          "expected": "\"c\""
+        }
+      ]
+    },
+    {
+      "name": "retries failed work at back and snapshots state",
+      "visibility": "hidden",
+      "setup": [
+        "from solution import WorkQueue",
+        "queue = WorkQueue(max_pending=3)",
+        "for item in [\"a\", \"b\", \"c\"]:",
+        "    assert queue.enqueue(item)"
+      ],
+      "checks": [
+        {
+          "input": "queue = WorkQueue(max_pending=3)\nfor item in [\"a\", \"b\", \"c\"]:\n    assert queue.enqueue(item)\nqueue.start(\"w1\")",
+          "expression": "queue.start(\"w1\")",
+          "operator": "==",
+          "expected": "\"a\""
+        },
+        {
+          "input": "queue = WorkQueue(max_pending=3)\nfor item in [\"a\", \"b\", \"c\"]:\n    assert queue.enqueue(item)\nqueue.start(\"w1\")\nqueue.start(\"w2\")",
+          "expression": "queue.start(\"w2\")",
+          "operator": "==",
+          "expected": "\"b\""
+        },
+        {
+          "input": "queue = WorkQueue(max_pending=3)\nfor item in [\"a\", \"b\", \"c\"]:\n    assert queue.enqueue(item)\nqueue.start(\"w1\")\nqueue.start(\"w2\")\nqueue.fail(\"w1\", retry=True)",
+          "expression": "queue.fail(\"w1\", retry=True)",
+          "operator": "==",
+          "expected": "\"a\""
+        },
+        {
+          "input": "queue = WorkQueue(max_pending=3)\nfor item in [\"a\", \"b\", \"c\"]:\n    assert queue.enqueue(item)\nqueue.start(\"w1\")\nqueue.start(\"w2\")\nqueue.fail(\"w1\", retry=True)\nsnap = queue.snapshot()\nsnap[\"pending\"]",
+          "expression": "snap[\"pending\"]",
+          "operator": "==",
+          "expected": "[\"c\", \"a\"]",
+          "before": "snap = queue.snapshot()"
+        },
+        {
+          "input": "queue = WorkQueue(max_pending=3)\nfor item in [\"a\", \"b\", \"c\"]:\n    assert queue.enqueue(item)\nqueue.start(\"w1\")\nqueue.start(\"w2\")\nqueue.fail(\"w1\", retry=True)\nsnap = queue.snapshot()\nsnap[\"pending\"]\nsnap[\"in_progress\"]",
+          "expression": "snap[\"in_progress\"]",
+          "operator": "==",
+          "expected": "{\"w2\": \"b\"}"
+        },
+        {
+          "input": "queue = WorkQueue(max_pending=3)\nfor item in [\"a\", \"b\", \"c\"]:\n    assert queue.enqueue(item)\nqueue.start(\"w1\")\nqueue.start(\"w2\")\nqueue.fail(\"w1\", retry=True)\nsnap = queue.snapshot()\nsnap[\"pending\"]\nsnap[\"in_progress\"]\nqueue.complete(\"missing\")",
+          "expression": "queue.complete(\"missing\")",
+          "operator": "is",
+          "expected": "None"
+        },
+        {
+          "input": "queue = WorkQueue(max_pending=3)\nfor item in [\"a\", \"b\", \"c\"]:\n    assert queue.enqueue(item)\nqueue.start(\"w1\")\nqueue.start(\"w2\")\nqueue.fail(\"w1\", retry=True)\nsnap = queue.snapshot()\nsnap[\"pending\"]\nsnap[\"in_progress\"]\nqueue.complete(\"missing\")\nqueue.fail(\"w2\", retry=False)",
+          "expression": "queue.fail(\"w2\", retry=False)",
+          "operator": "==",
+          "expected": "\"b\""
+        },
+        {
+          "input": "queue = WorkQueue(max_pending=3)\nfor item in [\"a\", \"b\", \"c\"]:\n    assert queue.enqueue(item)\nqueue.start(\"w1\")\nqueue.start(\"w2\")\nqueue.fail(\"w1\", retry=True)\nsnap = queue.snapshot()\nsnap[\"pending\"]\nsnap[\"in_progress\"]\nqueue.complete(\"missing\")\nqueue.fail(\"w2\", retry=False)\nqueue.start(\"w3\")",
+          "expression": "queue.start(\"w3\")",
+          "operator": "==",
+          "expected": "\"c\""
+        },
+        {
+          "input": "queue = WorkQueue(max_pending=3)\nfor item in [\"a\", \"b\", \"c\"]:\n    assert queue.enqueue(item)\nqueue.start(\"w1\")\nqueue.start(\"w2\")\nqueue.fail(\"w1\", retry=True)\nsnap = queue.snapshot()\nsnap[\"pending\"]\nsnap[\"in_progress\"]\nqueue.complete(\"missing\")\nqueue.fail(\"w2\", retry=False)\nqueue.start(\"w3\")\nqueue.start(\"w4\")",
+          "expression": "queue.start(\"w4\")",
+          "operator": "==",
+          "expected": "\"a\""
+        }
+      ]
+    },
+    {
+      "name": "busy workers cannot claim more work",
+      "visibility": "sample",
+      "setup": [
+        "from solution import WorkQueue",
+        "queue = WorkQueue(max_pending=2)"
+      ],
+      "checks": [
+        {
+          "input": "queue = WorkQueue(max_pending=2)\nqueue.enqueue(\"a\")",
+          "expression": "queue.enqueue(\"a\")",
+          "operator": "==",
+          "expected": "True"
+        },
+        {
+          "input": "queue = WorkQueue(max_pending=2)\nqueue.enqueue(\"a\")\nqueue.enqueue(\"b\")",
+          "expression": "queue.enqueue(\"b\")",
+          "operator": "==",
+          "expected": "True"
+        },
+        {
+          "input": "queue = WorkQueue(max_pending=2)\nqueue.enqueue(\"a\")\nqueue.enqueue(\"b\")\nqueue.start(\"worker\")",
+          "expression": "queue.start(\"worker\")",
+          "operator": "==",
+          "expected": "\"a\""
+        },
+        {
+          "input": "queue = WorkQueue(max_pending=2)\nqueue.enqueue(\"a\")\nqueue.enqueue(\"b\")\nqueue.start(\"worker\")\nqueue.start(\"worker\")",
+          "expression": "queue.start(\"worker\")",
+          "operator": "is",
+          "expected": "None"
+        },
+        {
+          "input": "queue = WorkQueue(max_pending=2)\nqueue.enqueue(\"a\")\nqueue.enqueue(\"b\")\nqueue.start(\"worker\")\nqueue.start(\"worker\")\nqueue.snapshot()[\"pending\"]",
+          "expression": "queue.snapshot()[\"pending\"]",
+          "operator": "==",
+          "expected": "[\"b\"]"
+        },
+        {
+          "input": "queue = WorkQueue(max_pending=2)\nqueue.enqueue(\"a\")\nqueue.enqueue(\"b\")\nqueue.start(\"worker\")\nqueue.start(\"worker\")\nqueue.snapshot()[\"pending\"]\nqueue.complete(\"worker\")",
+          "expression": "queue.complete(\"worker\")",
+          "operator": "==",
+          "expected": "\"a\""
+        },
+        {
+          "input": "queue = WorkQueue(max_pending=2)\nqueue.enqueue(\"a\")\nqueue.enqueue(\"b\")\nqueue.start(\"worker\")\nqueue.start(\"worker\")\nqueue.snapshot()[\"pending\"]\nqueue.complete(\"worker\")\nqueue.complete(\"worker\")",
+          "expression": "queue.complete(\"worker\")",
+          "operator": "is",
+          "expected": "None"
+        },
+        {
+          "input": "queue = WorkQueue(max_pending=2)\nqueue.enqueue(\"a\")\nqueue.enqueue(\"b\")\nqueue.start(\"worker\")\nqueue.start(\"worker\")\nqueue.snapshot()[\"pending\"]\nqueue.complete(\"worker\")\nqueue.complete(\"worker\")\nqueue.start(\"worker\")",
+          "expression": "queue.start(\"worker\")",
+          "operator": "==",
+          "expected": "\"b\""
+        }
+      ]
+    },
+    {
+      "name": "final failure drops work and clears owner",
+      "visibility": "hidden",
+      "setup": [
+        "from solution import WorkQueue",
+        "queue = WorkQueue(max_pending=1)"
+      ],
+      "checks": [
+        {
+          "input": "queue = WorkQueue(max_pending=1)\nqueue.enqueue(\"a\")",
+          "expression": "queue.enqueue(\"a\")",
+          "operator": "==",
+          "expected": "True"
+        },
+        {
+          "input": "queue = WorkQueue(max_pending=1)\nqueue.enqueue(\"a\")\nqueue.start(\"w\")",
+          "expression": "queue.start(\"w\")",
+          "operator": "==",
+          "expected": "\"a\""
+        },
+        {
+          "input": "queue = WorkQueue(max_pending=1)\nqueue.enqueue(\"a\")\nqueue.start(\"w\")\nqueue.fail(\"w\", retry=False)",
+          "expression": "queue.fail(\"w\", retry=False)",
+          "operator": "==",
+          "expected": "\"a\""
+        },
+        {
+          "input": "queue = WorkQueue(max_pending=1)\nqueue.enqueue(\"a\")\nqueue.start(\"w\")\nqueue.fail(\"w\", retry=False)\nqueue.snapshot()",
+          "expression": "queue.snapshot()",
+          "operator": "==",
+          "expected": "{\"pending\": [], \"in_progress\": {}}"
+        },
+        {
+          "input": "queue = WorkQueue(max_pending=1)\nqueue.enqueue(\"a\")\nqueue.start(\"w\")\nqueue.fail(\"w\", retry=False)\nqueue.snapshot()\nqueue.fail(\"w\", retry=False)",
+          "expression": "queue.fail(\"w\", retry=False)",
+          "operator": "is",
+          "expected": "None"
+        },
+        {
+          "input": "queue = WorkQueue(max_pending=1)\nqueue.enqueue(\"a\")\nqueue.start(\"w\")\nqueue.fail(\"w\", retry=False)\nqueue.snapshot()\nqueue.fail(\"w\", retry=False)\nqueue.start(\"w\")",
+          "expression": "queue.start(\"w\")",
+          "operator": "is",
+          "expected": "None"
+        }
+      ]
+    },
+    {
+      "name": "zero capacity rejects pending work",
+      "visibility": "hidden",
+      "setup": [
+        "from solution import WorkQueue",
+        "queue = WorkQueue(max_pending=0)"
+      ],
+      "checks": [
+        {
+          "input": "queue = WorkQueue(max_pending=0)\nnot queue.enqueue(\"a\")",
+          "expression": "not queue.enqueue(\"a\")",
+          "operator": "==",
+          "expected": "True"
+        },
+        {
+          "input": "queue = WorkQueue(max_pending=0)\nnot queue.enqueue(\"a\")\nqueue.start(\"w\")",
+          "expression": "queue.start(\"w\")",
+          "operator": "is",
+          "expected": "None"
+        },
+        {
+          "input": "queue = WorkQueue(max_pending=0)\nnot queue.enqueue(\"a\")\nqueue.start(\"w\")\nqueue.snapshot()",
+          "expression": "queue.snapshot()",
+          "operator": "==",
+          "expected": "{\"pending\": [], \"in_progress\": {}}"
+        }
+      ]
+    },
+    {
+      "name": "empty queue snapshot",
+      "visibility": "sample",
+      "description": "A new queue has no pending or active work.",
+      "feedback": "Initialize both queue collections as empty.",
+      "setup": [
+        "from solution import WorkQueue",
+        "queue = WorkQueue(max_pending=2)"
+      ],
+      "input": "queue.snapshot()",
+      "expected": "{\"pending\": [], \"in_progress\": {}}"
+    },
+    {
+      "name": "missing worker failure is a no-op",
+      "visibility": "hidden",
+      "description": "Failing an unknown worker returns None.",
+      "feedback": "Look up active work without removing or creating entries for unknown workers.",
+      "setup": [
+        "from solution import WorkQueue",
+        "queue = WorkQueue(max_pending=2)",
+        "queue.enqueue(\"a\")"
+      ],
+      "input": "queue.fail(\"missing\")",
+      "expected": "None"
+    },
+    {
+      "name": "snapshot does not expose internal lists",
+      "visibility": "hidden",
+      "description": "Mutating a returned snapshot must not mutate queue state.",
+      "feedback": "Return fresh pending and in-progress containers from snapshot.",
+      "setup": [
+        "from solution import WorkQueue",
+        "queue = WorkQueue(max_pending=2)",
+        "queue.enqueue(\"a\")",
+        "snapshot = queue.snapshot()",
+        "snapshot[\"pending\"].append(\"fake\")"
+      ],
+      "input": "queue.snapshot()",
+      "expected": "{\"pending\": [\"a\"], \"in_progress\": {}}"
+    },
+    {
+      "name": "private falsey work survives retry and snapshot map mutation",
+      "visibility": "hidden",
+      "description": "Zero is valid work, and the returned ownership map must be independent.",
+      "setup": [
+        "from solution import WorkQueue",
+        "queue = WorkQueue(max_pending=1)",
+        "queue.enqueue(0)",
+        "queue.start(\"w\")",
+        "snapshot = queue.snapshot()",
+        "snapshot[\"in_progress\"].clear()"
+      ],
+      "checks": [
+        {
+          "input": "queue.snapshot()",
+          "expression": "queue.snapshot()",
+          "expected": "{\"pending\": [], \"in_progress\": {\"w\": 0}}"
+        },
+        {
+          "input": "queue.fail(\"w\")",
+          "expression": "queue.fail(\"w\")",
+          "expected": "0"
+        },
+        {
+          "input": "queue.snapshot()",
+          "expression": "queue.snapshot()",
+          "expected": "{\"pending\": [0], \"in_progress\": {}}"
+        },
+        {
+          "input": "queue.start(\"w\")",
+          "expression": "queue.start(\"w\")",
+          "expected": "0"
+        },
+        {
+          "input": "queue.complete(\"w\")",
+          "expression": "queue.complete(\"w\")",
+          "expected": "0"
+        }
+      ]
+    },
+    {
+      "name": "private fail retry bypasses capacity",
+      "visibility": "hidden",
+      "description": "Retry requeues even when pending is already at max_pending.",
+      "feedback": "Capacity is enforced only on enqueue; fail(retry=True) may make len(pending) > max_pending.",
+      "setup": [
+        "from solution import WorkQueue",
+        "queue = WorkQueue(max_pending=1)",
+        "queue.enqueue(\"a\")",
+        "queue.start(\"w1\")",
+        "queue.enqueue(\"b\")"
+      ],
+      "checks": [
+        {
+          "input": "queue = WorkQueue(max_pending=1)\nqueue.enqueue(\"a\")\nqueue.start(\"w1\")\nqueue.enqueue(\"b\")\nqueue.fail(\"w1\", retry=True)",
+          "expression": "queue.fail(\"w1\", retry=True)",
+          "operator": "==",
+          "expected": "\"a\""
+        },
+        {
+          "input": "queue = WorkQueue(max_pending=1)\nqueue.enqueue(\"a\")\nqueue.start(\"w1\")\nqueue.enqueue(\"b\")\nqueue.fail(\"w1\", retry=True)\nqueue.snapshot()[\"pending\"]",
+          "expression": "queue.snapshot()[\"pending\"]",
+          "operator": "==",
+          "expected": "[\"b\", \"a\"]"
+        },
+        {
+          "input": "queue = WorkQueue(max_pending=1)\nqueue.enqueue(\"a\")\nqueue.start(\"w1\")\nqueue.enqueue(\"b\")\nqueue.fail(\"w1\", retry=True)\nnot queue.enqueue(\"c\")",
+          "expression": "not queue.enqueue(\"c\")",
+          "operator": "==",
+          "expected": "True"
+        }
+      ]
+    }
+  ],
+  "clarifyingQuestions": [
+    "Does capacity count pending only or pending plus in-progress?",
+    "Should failed work retry at the front or back of the queue?",
+    "Should a production extension reject duplicate task IDs? The base queue treats repeated values as separate work."
+  ],
+  "followUps": [
+    "Add task IDs and reject duplicate pending or active IDs.",
+    "Add per-worker leases that expire if a worker dies.",
+    "Make queue operations thread-safe."
+  ],
+  "followUpGuide": [
+    "For duplicate rejection, keep a set of item IDs covering both pending and in-progress. Remove IDs only on complete or final failure.",
+    "",
+    "For leases, store `(item, lease_deadline, generation)` per assignment and reclaim expired leases into pending or dead-letter them. Require the assignment generation on complete/fail so a late response from an expired worker cannot remove a newer assignment. Lease expiry permits retries while an old attempt may still be running.",
+    "",
+    "For thread safety, use one lock around pending and in-progress maps. Queue operations are small and should remain atomic."
+  ],
+  "complexityAnalysis": [
+    "- Single-threaded deque + dict (graded solution): enqueue, start, complete, and fail take amortized O(1) deque work and expected O(1) dictionary work. Stored queue state uses O(p + w) space for p pending jobs and w active workers. Retries can make p exceed max_pending, so account for retry growth when bounding total memory.",
+    "- `snapshot()` copies pending and in-progress state for isolation. Time: O(p + w). Space: O(p + w) for the returned copy.",
+    "- Thread-safe / condition-variable follow-up keeps the same asymptotic operations under one lock; total wall time depends on task cost and worker count."
+  ],
+  "solutionGuide": [
+    "Use a `deque` for pending work and a dictionary for worker ownership.",
+    "",
+    "Capacity checks pending length. Once a worker starts an item, pending space opens up. A retry returns already accepted work to the queue even when admission capacity is full. Use `is not None` when deciding whether to requeue: zero and other falsey payloads are valid work. `snapshot` copies both containers while sharing references to item payloads.",
+    "",
+    "```python",
+    "from collections import deque",
+    "",
+    "",
+    "class WorkQueue:",
+    "    def __init__(self, max_pending: int):",
+    "        self.max_pending = max_pending",
+    "        self.pending = deque()",
+    "        self.in_progress = {}",
+    "",
+    "    def enqueue(self, item) -> bool:",
+    "        if len(self.pending) >= self.max_pending:",
+    "            return False",
+    "        self.pending.append(item)",
+    "        return True",
+    "",
+    "    def start(self, worker_id):",
+    "        if worker_id in self.in_progress or not self.pending:",
+    "            return None",
+    "        item = self.pending.popleft()",
+    "        self.in_progress[worker_id] = item",
+    "        return item",
+    "",
+    "    def complete(self, worker_id):",
+    "        return self.in_progress.pop(worker_id, None)",
+    "",
+    "    def fail(self, worker_id, retry: bool = True):",
+    "        item = self.in_progress.pop(worker_id, None)",
+    "        if item is not None and retry:",
+    "            self.pending.append(item)",
+    "        return item",
+    "",
+    "    def snapshot(self) -> dict:",
+    "        return {\"pending\": list(self.pending), \"in_progress\": dict(self.in_progress)}",
+    "```"
+  ]
+}

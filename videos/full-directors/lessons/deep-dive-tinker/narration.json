@@ -1,0 +1,304 @@
+[
+  {
+    "id": "c01",
+    "title": "Which adapter wrote this answer?",
+    "sourceChapters": [
+      "c01"
+    ],
+    "beats": [
+      {
+        "id": "c01-b01",
+        "say": "Give this clamp function three. The allowed range runs from zero to two. Where should the output land?",
+        "hold": 2.4
+      },
+      {
+        "id": "c01-b02",
+        "say": "At the upper bound, two. Now run the body our sampler wrote. It says return x. Out comes three. The dot clears the upper jaw, and the local verifier rejects the answer.",
+        "hold": 1
+      },
+      {
+        "id": "c01-b03",
+        "say": "At nine twelve, the training loss has fallen. The worker accepted the gradient and optimizer calls. Before changing the learning rate, which two versions would you compare?",
+        "hold": 2.6
+      },
+      {
+        "id": "c01-b04",
+        "say": "Read the trainer step and the path the sampling client opened. The trainer has adapter version two. The sample came from version one. A Tinker sampling client reads the saved policy it selected. Follow this clamp from its tokens through an update, then test both clients on the same input.",
+        "hold": 1.3
+      }
+    ]
+  },
+  {
+    "id": "c02",
+    "title": "What crosses the service boundary?",
+    "sourceChapters": [
+      "c02"
+    ],
+    "beats": [
+      {
+        "id": "c02-b01",
+        "say": "Your Python loop chooses prompts, renders the chat template and asks a sampling client for a completion. Follow the prompt into the hosted model. The reply carries generated token IDs, a stop reason and, when requested, one log probability for each generated token.",
+        "hold": 0.8
+      },
+      {
+        "id": "c02-b02",
+        "say": "Your local verifier runs the returned code on clamp fixtures. Your loop turns the results into rewards and builds a training datum. Forward backward sends its inputs and loss tensors to the hosted trainer and accumulates gradients there. The optimizer step applies them to the adapter. Your client gets metrics. The provider keeps the parameter gradients, optimizer moments and worker placement.",
+        "hold": 0.9
+      },
+      {
+        "id": "c02-b03",
+        "say": "Suppose the SDK and Cookbook both run on your laptop. The account lists model M for inference only. Can you launch a training job on M from this checkout?",
+        "hold": 2.5
+      },
+      {
+        "id": "c02-b04",
+        "say": "Hold the training job. Inference is the listed use. Check current training access, the loss and the input modality for this account. The Apache licensed client and recipes let you inspect code. Sending data and downloading model weights each require the appropriate rights. Trace a malformed target to your datum builder, and a stale sample to the loaded path.",
+        "hold": 1.2
+      },
+      {
+        "id": "c02-b05",
+        "say": "Trace the same token at two different layers. The Cookbook constructs the target and its credit. The SDK serializes that datum and gives the request an identity. Inside a self-hosted mixture of experts model, a transport library such as DeepEP can dispatch a token to an expert and combine its output. A stale sampler path and a full dispatch buffer call for different investigations.",
+        "hold": 1.2
+      }
+    ]
+  },
+  {
+    "id": "c03",
+    "title": "Which prediction gets the first weight?",
+    "sourceChapters": [
+      "c03"
+    ],
+    "beats": [
+      {
+        "id": "c03-b01",
+        "say": "Start with supervised fine tuning, where you already have the desired answer. Our toy full sequence is ten, eleven, twenty, twenty-one. Keep all but the last token as inputs. On the second strip, keep all but the first token as targets.",
+        "hold": 0.8
+      },
+      {
+        "id": "c03-b02",
+        "say": "Slide the targets back one place. Each input now lines up with the token it should predict. The first two original tokens belong to the prompt. Look at eleven on the input strip. Should its prediction count?",
+        "hold": 2.4
+      },
+      {
+        "id": "c03-b03",
+        "say": "Yes. Eleven predicts twenty, the first answer token. Follow the target role. The response weights are zero, one, one. Masking by the input role would discard that first answer. For a mean over this example, how much weight belongs to each answer target?",
+        "hold": 2.1
+      },
+      {
+        "id": "c03-b04",
+        "say": "One half each. Divide the raw weights by their sum of two. The two halves give this example a total weight of one. With raw weights a longer response contributes more terms. A falling loss tells you how well the model predicts these weighted targets. Run the clamp verifier to measure its behavior.",
+        "hold": 1.4
+      }
+    ]
+  },
+  {
+    "id": "c04",
+    "title": "How much credit did each completion earn?",
+    "sourceChapters": [
+      "c04"
+    ],
+    "beats": [
+      {
+        "id": "c04-b01",
+        "say": "In reinforcement learning the model supplies the answers. Here are four sampled bodies for the same prompt. Each one earns a reward of one only if it passes all five clamp tests. Look at the two nested expressions. At input three they both return two. Which test can tell them apart?",
+        "hold": 2.4
+      },
+      {
+        "id": "c04-b02",
+        "say": "Try minus one with bounds zero and two. The correct nesting returns zero. The reversed nesting returns two. Now run all five tests on every body. Only the first and third pass them all. The last just returns x and fails outside the interval.",
+        "hold": 1.1
+      },
+      {
+        "id": "c04-b03",
+        "say": "The group rewards are one, zero, one, zero. Their mean is one half. Subtract that baseline from each reward. The two passing completions get plus one half, and the other two get minus one half. Read the direction of each bar.",
+        "hold": 1
+      },
+      {
+        "id": "c04-b04",
+        "say": "Those signs tell the reward objective which answers to favor. Their probabilities share parameters, so an individual answer can move differently. Try a second group in which every sample passes. What credit survives centering?",
+        "hold": 2.1
+      },
+      {
+        "id": "c04-b05",
+        "say": "Zero in every row. Each reward equals the group mean. A separate penalty for moving away from a reference policy can still contribute a gradient. Filtering a uniform group removes its samples. Keeping one to avoid an empty batch creates no new reward contrast.",
+        "hold": 1.1
+      }
+    ]
+  },
+  {
+    "id": "c05",
+    "title": "Which score travels with token twenty?",
+    "sourceChapters": [
+      "c05"
+    ],
+    "beats": [
+      {
+        "id": "c05-b01",
+        "say": "Return to the first passing completion. Its advantage is plus one half. The sampler gave token twenty a log probability of minus point four, and twenty-one a log probability of minus point eight. Keep each score attached to its original token. Which input belongs above the first generated target?",
+        "hold": 2.3
+      },
+      {
+        "id": "c05-b02",
+        "say": "Eleven. Slide the input strip one place to the right. Ten, eleven and twenty now predict eleven, twenty and twenty-one. Look down each column. The prompt target takes a zero placeholder for its score. Each answer target keeps the score it had when this policy sampled it.",
+        "hold": 1
+      },
+      {
+        "id": "c05-b03",
+        "say": "Copy the completion advantage to the two action positions. The mask is zero, one, one. A tool observation, like a prompt token, receives zero action credit. If a later observation replaces the accumulated context, start a new datum at that branch. Grading decoded text is fine. Retokenizing it can destroy the original token and score pairs.",
+        "hold": 0.9
+      },
+      {
+        "id": "c05-b04",
+        "say": "Audit this proposed copy. Every field has three positions, but someone copied half a point onto the prompt target. The Cookbook removes the mask before submitting the reward loss. What would you change while keeping the valid evidence?",
+        "hold": 2.6
+      },
+      {
+        "id": "c05-b05",
+        "say": "Zero the prompt advantage. Leave both action advantages and both behavior scores where they are. Now dropping the mask leaves zero reward signal on the prompt. Also compare each action pair with the sampler receipt. Swapped scores can pass a length check.",
+        "hold": 1
+      },
+      {
+        "id": "c05-ratio",
+        "say": "Stay on token twenty, just after input eleven. Ordinary importance sampling compares the current and sampling policies on that same action in that same context. Suppose its current log probability is minus point four. Its saved score is also minus point four. Exponentiate the current log probability minus the saved one. The difference is zero, so the ratio is one. Now try using token twenty-one's saved score of minus point eight instead. Keep token twenty and its advantage fixed. Which way will the ratio move?",
+        "hold": 2.8
+      },
+      {
+        "id": "c05-swap",
+        "say": "The ratio rises. Minus point four minus negative point eight gives point four. Its exponential is about one point four nine. That wrong score gives the same half-point advantage about forty-nine percent more weight. Use the score recorded for token twenty in this context.",
+        "hold": 1.2
+      },
+      {
+        "id": "c05-b06",
+        "say": "For a custom loss, your loop differentiates returned log probabilities. Suppose its two slopes are minus two and plus one half. The backend uses weighted cross entropy, with derivative minus the weight. Which weights reproduce our slopes?",
+        "hold": 2.3
+      },
+      {
+        "id": "c05-b07",
+        "say": "Send plus two and minus one half. Negating those weights at the backend recovers the two original slopes. The service propagates those derivatives into the adapter. Your loop only needed the derivatives with respect to the two log probabilities.",
+        "hold": 1.2
+      }
+    ]
+  },
+  {
+    "id": "c06",
+    "title": "Where does the adapter change the forward pass?",
+    "sourceChapters": [
+      "c06"
+    ],
+    "beats": [
+      {
+        "id": "c06-b01",
+        "say": "Follow one input through a layer with six inputs and four outputs. Its frozen matrix W still computes all four base outputs. Alongside it, factor A narrows the input to two coordinates. Factor B expands those back to four. Add the scaled correction to the base. That is low rank adaptation, or LoRA.",
+        "hold": 1
+      },
+      {
+        "id": "c06-b02",
+        "say": "In this worksheet the base gives two on the second output. A gives zero and two. The second row of B picks that two. Multiply by our scale of one half. The correction is one. Add it to the frozen two. The adapted output is three.",
+        "hold": 1.2
+      },
+      {
+        "id": "c06-b03",
+        "say": "Count just the trainable entries. At rank two, A has two rows of six. B has four rows of two. How many values will the optimizer track across these factors?",
+        "hold": 2.2
+      },
+      {
+        "id": "c06-b04",
+        "say": "Twenty. Twelve in A and eight in B. Widen the rank to four while keeping the same input and output widths. Now there are forty trainable values. Each direction costs six plus four. The same frozen matrix still executes. More directions require more adapter and optimizer state. To compare ranks on a task, keep target modules and data fixed and measure the results.",
+        "hold": 1.2
+      }
+    ]
+  },
+  {
+    "id": "c07",
+    "title": "When should the loop wait?",
+    "sourceChapters": [
+      "c07"
+    ],
+    "beats": [
+      {
+        "id": "c07-b01",
+        "say": "One training client owns an ordered stream. Here forward backward enters one worker cycle. Our loop waits for its result before submitting the optimizer step. The reply comes after the next admission boundary. The pair spans three cycles in this illustrative schedule.",
+        "hold": 0.9
+      },
+      {
+        "id": "c07-b02",
+        "say": "Replay the same schedule. Submit forward backward, then submit the optimizer step before awaiting either result. Both requests can enter the same cycle in client order. Awaiting either training submission gives you a future. Await its result for completion. By contrast, awaiting the asynchronous sampling method returns the completed sample.",
+        "hold": 1.1
+      },
+      {
+        "id": "c07-b03",
+        "say": "Follow one local batch before it reaches the worker. Five small datums fit the byte budget, with a count limit of two per request. Start at request zero. How many sequence IDs do you consume?",
+        "hold": 2.1
+      },
+      {
+        "id": "c07-b04",
+        "say": "Three IDs. The chunks contain two, two and one. Their IDs are zero, one and two. Three is the next free ID. The SDK keeps the logical order of those chunks even when they are in flight together. Its chunker leaves a single oversized datum intact. A local serialization check establishes request shape and order. Hosted scheduling requires service evidence.",
+        "hold": 1
+      },
+      {
+        "id": "c07-b05",
+        "say": "Keep the queue bounded. In this run the trainer is at step twelve and the maximum lag is one. Three groups came from steps nine, eleven and twelve. Which can you use under this version rule?",
+        "hold": 2.3
+      },
+      {
+        "id": "c07-b06",
+        "say": "Keep eleven and twelve. Subtract the sampled step from twelve. Their gaps are one and zero. Withhold the group from nine, whose gap is three. An optimizer receipt leaves each earlier trajectory tied to its original policy.",
+        "hold": 1
+      },
+      {
+        "id": "c07-b07",
+        "say": "Now a sample misses an application deadline. The SDK still owns the outstanding request. A separate environment charge has only a local start record. What evidence would let you recover without repeating either operation?",
+        "hold": 2.3
+      },
+      {
+        "id": "c07-b08",
+        "say": "Reconcile the sample using its outstanding request ID. Check the charge at its destination using its own idempotency key or status. A training sequence ID orders work on its client. The payment destination has its own record of whether the charge completed.",
+        "hold": 1.2
+      }
+    ]
+  },
+  {
+    "id": "c08",
+    "title": "What changes when the new client opens?",
+    "sourceChapters": [
+      "c08"
+    ],
+    "beats": [
+      {
+        "id": "c08-b01",
+        "say": "Choose the artifact by its next job. A training checkpoint can resume with optimizer moments when you load it with the optimizer. Loading weights alone starts new optimizer history. Sampler weights serve evaluation. A merged Hugging Face directory serves a different runtime after you check the base revision, tokenizer, model rights and compatibility.",
+        "hold": 1
+      },
+      {
+        "id": "c08-b02",
+        "say": "Try one more training decision. Sample A came from step six. The trainer is at nine and accepts lag at most one. Three prompt tokens end at thirty-two. Three answer tokens start at forty. Which target gets the first mean weight, and can this trajectory enter the reward update?",
+        "hold": 2.6
+      },
+      {
+        "id": "c08-b03",
+        "say": "Forty gets one third. The other two answer targets get one third each. The prompt targets get zero. Six to nine is a gap of three. Withhold A. Saving step nine leaves A's origin at six. A newly sampled B from nine has zero lag. Grade B on its own tokens and scores.",
+        "hold": 1.2
+      },
+      {
+        "id": "c08-b04",
+        "say": "Return to the original clamp. Leave the version one client open. Save the trainer's version two weights for sampling. Open that path in a fresh client. Give both clients the same prompt. In this toy decoder, x returns the input, and min completes the nested clamp. Look at the green intervals for min. Version one gives min half the interval. Version two gives it about seventy-three percent. Put the same draw, about point six eight, on each strip. Which body will the fresh client choose, and what will it return for three?",
+        "hold": 3.4
+      },
+      {
+        "id": "c08-b05",
+        "say": "On version one the mark lands on x. It still returns three. On version two the mark falls inside the min interval. The fresh client selects the nested expression. Its inner maximum keeps three. Its outer minimum caps the result at two. The verifier passes the fresh answer on this case. The two paths explain why a lower training loss and a failing sample could coexist.",
+        "hold": 1.4
+      },
+      {
+        "id": "c08-draw",
+        "say": "Look to the right of both green intervals. A draw there would select x twice. Opening version two makes the nested clamp more likely. That client can still produce the failing body.",
+        "hold": 1.2
+      },
+      {
+        "id": "c08-b06",
+        "say": "For an actual evaluation, record the selected path with the provider's sample, the base revision, tokenizer, renderer and reward version. Run the same tests on the returned code and retain the actual rewards. Each result here belongs to the client and the draw that produced it.",
+        "hold": 1.7
+      }
+    ]
+  }
+]

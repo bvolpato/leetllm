@@ -1,0 +1,2781 @@
+version: 1
+id: deep-dive-slime
+title: slime and the Evidence Behind an RL Update
+source: projects/deep-dive-slime/content.md
+voice: en-US-AndrewNeural
+rate: +0%
+sources:
+  - title: slime architecture and integration boundaries
+    url: https://github.com/THUDM/slime
+  - title: Pinned slime fully asynchronous rollout worker
+    url: https://github.com/THUDM/slime/blob/681b3adca54105d5ecd3fb822fa0dc58a427e0f9/slime/rollout/fully_async_rollout.py
+  - title: slime delta synchronization guide
+    url: https://github.com/THUDM/slime/blob/main/docs/en/advanced/delta-weight-sync.md
+  - title: slime recovery guide
+    url: https://github.com/THUDM/slime/blob/main/docs/en/advanced/fault-tolerance.md
+  - title: Pinned slime sample and loss implementation
+    url: https://github.com/THUDM/slime/tree/681b3adca54105d5ecd3fb822fa0dc58a427e0f9
+  - title: Pinned Sample type and token provenance
+    url: https://github.com/THUDM/slime/blob/681b3adca54105d5ecd3fb822fa0dc58a427e0f9/slime/utils/types.py
+  - title: Pinned async caller and weight update interval
+    url: https://github.com/THUDM/slime/blob/681b3adca54105d5ecd3fb822fa0dc58a427e0f9/train_async.py
+scenes:
+  - id: intro
+    title: Which tokens should train on a passing patch?
+    visual: Two IDs travel from a failing test into the response. The agent's patch adds two more.
+      The clean grader awards one point. The IDs stay in place while the viewer inspects the loss mask.
+    beats:
+      - say: These two tokens came from the test tool. It got three where it expected seven. The agent changes
+          the index to minus one. Its patch adds two more tokens. In a clean copy, the same test passes.
+          The grader awards one point.
+        hold: 0.7
+        caption_starts: ["The agent changes the index", "In a clean copy", "The grader awards one point."]
+        visual_cues:
+          - id: tool-output
+            phrase: These two tokens came from the test tool
+            targets:
+              - rollout-receipt
+            color: cyan
+            linger: 0.22
+          - id: edit-index
+            phrase: changes the index to minus one
+            targets:
+              - rollout-receipt
+            color: cyan
+            linger: 0.22
+          - id: agent-patch
+            phrase: Its patch adds two more tokens
+            targets:
+              - rollout-receipt
+            color: cyan
+            linger: 0.22
+          - id: grade-patch
+            phrase: the same test passes
+            targets:
+              - rollout-receipt
+            color: cyan
+            linger: 0.22
+          - id: grade-score
+            phrase: The grader awards one point
+            targets:
+              - rollout-receipt
+            color: cyan
+            linger: 0.22
+      - say: Slime keeps the whole exchange. In these example IDs, blue marks what the model wrote.
+          Yellow marks what the tool returned. Each one in the loss mask selects a target for training.
+          Which ID has a one it should lose?
+        hold: 2.5
+        visual_cues:
+          - id: inspect-mask
+            phrase: Each one in the loss mask
+            targets:
+              - rollout-receipt
+            color: cyan
+            linger: 0.22
+      - say: Fifty came from the tool. Set its mask to zero. That leaves four model targets. Both tool IDs stay in
+          the sequence, and the patch still earns its point. If pass rate falls after training, this is one
+          handoff you can check before changing the reward.
+        hold: 1.1
+        caption_starts: ["That leaves four model targets."]
+        visual_cues:
+          - id: locate-id
+            phrase: Fifty came from the tool
+            targets:
+              - rollout-receipt
+            color: cyan
+            linger: 0.22
+          - id: fix-mask
+            phrase: Set its mask to zero
+            targets:
+              - rollout-receipt
+            color: cyan
+            linger: 0.22
+            caption_boundary: true
+  - id: incident-receipt
+    title: What ID 13 could see
+    visual: A bracket under the prefix reaches through both tool IDs and turns up toward ID 13. The same sampled
+      response then travels from SGLang v11 to a Megatron actor on v12.
+    beats:
+      - say: Put your finger on thirteen, the first token of the patch. Look back along its input, all the way
+          through fifty-one. Both tool tokens helped condition that prediction. Zeroing their target weights
+          leaves that information available to the model.
+        hold: 0.8
+        visual_cues:
+          - id: read-prefix
+            phrase: Look back along its input, all the way through fifty-one
+            targets:
+              - rollout-receipt
+            color: cyan
+            linger: 0.22
+      - say: SGLang sampled this response with version eleven. The sample waits in slime’s Data Buffer while the
+          Megatron actor advances to twelve. Record eleven on the sample. That’s the policy whose choices
+          you’re about to score. Ray places the two engines, and the application runs the tool and grader.
+        hold: 0.9
+        visual_cues:
+          - id: actor-version
+            phrase: the Megatron actor advances to twelve
+            targets:
+              - rollout-receipt
+            color: cyan
+            linger: 0.22
+  - id: ledger
+    title: The divisor on rollout 7
+    visual: The same eight IDs stay fixed. Each response log probability appears under its mask bit. The
+      selected entries feed the mean. A shortened mask leaves two visible holes.
+    beats:
+      - say: The two prompt IDs sit to the left of the response. Under each of the six response IDs, line up its
+          mask and log probability. Those two zeros in the tool columns are placeholders. To average the
+          model’s surprise, which positions supply the divisor?
+        hold: 2.2
+        visual_cues:
+          - id: inspect-terms
+            phrase: line up its mask and log probability
+            targets:
+              - rollout-receipt
+            color: cyan
+            linger: 0.22
+      - say: Use the four selected positions. Their log probabilities sum to minus one point four. Negate the sum
+          and divide by four. The negative mean is point three five. Keep the IDs SGLang actually sampled.
+          Decoding text and tokenizing it again can change the sequence.
+        hold: 0.8
+        visual_cues:
+          - id: loss-mean
+            phrase: The negative mean is point three five
+            targets:
+              - rollout-receipt
+            color: cyan
+            linger: 0.22
+            caption_boundary: true
+      - say: Now the adapter drops the last two mask entries. The response still has six positions. Those holes
+          leave the patch tokens without target weights. Hold this sample and recover the aligned mask before
+          it reaches Megatron.
+        hold: 0.9
+        visual_cues:
+          - id: short-mask
+            phrase: the adapter drops the last two mask entries
+            targets:
+              - rollout-receipt
+            color: cyan
+            linger: 0.22
+  - id: sample-checks
+    title: Two adapters return a completed Sample
+    visual: Two adapters return the same completed rollout with identical log probabilities and reward. The bit
+      under tool ID 50 changes in B. The article’s structural check returns four and five. Their apparent
+      negative means differ. Checking the producer picks the usable sample.
+    beats:
+      - say: Two adapters submit rollout seven. Both include a prompt, a six-position response, a finite reward and
+          six aligned log probabilities. They differ by one bit. Run the article’s completed-only check on
+          each sample. It returns four for A and five for B. It accepts both masks as binary and nonempty.
+        hold: 0.9
+        visual_cues:
+          - id: run-count
+            phrase: It returns four for A and five for B
+            targets:
+              - adapter-comparison
+            color: cyan
+            linger: 0.22
+      - say: The selected log probabilities in each row still add up to minus one point four. Each adapter divides
+          by its own selected count. A gives point three five. B gives point two eight. Which adapter would
+          you trust with this update?
+        hold: 2.3
+        visual_cues:
+          - id: compare-means
+            phrase: B gives point two eight
+            targets:
+              - adapter-comparison
+            color: cyan
+            linger: 0.22
+      - say: Use A. Compare the mask to the tool event that supplied fifty. B counted a zero placeholder as if the
+          policy had sampled it. Its average fell without the model predicting any token better. A short
+          array, a positive log probability, a nonzero masked placeholder or an aborted trajectory fails the
+          article’s local check. The article tests nine such mutations. In a real workload, decide separately
+          which truncations and recoverable failures to accept.
+        hold: 1
+        visual_cues:
+          - id: test-producer
+            phrase: B counted a zero placeholder as if the policy had sampled it
+            targets:
+              - adapter-comparison
+            color: cyan
+            linger: 0.22
+            caption_boundary: true
+          - id: mutations
+            phrase: The article tests nine such mutations
+            targets:
+              - adapter-comparison
+            color: cyan
+            linger: 0.22
+  - id: native-append
+    title: A fresh tool call
+    visual: A three-ID prompt stays outside a new response. Each event appends its token IDs, provenance, mask
+      bits and log probabilities in one column. The viewer computes the negative mean before the answer
+      appears.
+    beats:
+      - say: Try a fresh tool call with three prompt IDs. The model sends token twenty-one. The tool returns sixty
+          and sixty-one. The model finishes with twenty-two and twenty-three. Each column records who supplied
+          the token. You have five response positions. Using the log probabilities under them, what negative
+          mean do the model’s targets give?
+        hold: 2.4
+        visual_cues:
+          - id: append-call
+            phrase: The model sends token twenty-one
+            targets:
+              - append-receipt
+            color: cyan
+            linger: 0.22
+          - id: append-observation
+            phrase: The tool returns sixty and sixty-one
+            targets:
+              - append-receipt
+            color: cyan
+            linger: 0.22
+          - id: append-answer
+            phrase: The model finishes with twenty-two and twenty-three
+            targets:
+              - append-receipt
+            color: cyan
+            linger: 0.22
+      - say: Use the three model positions. Their negative log probabilities are point one, point four and point
+          seven. That’s one point two divided by three, or point four. The two tool positions stay available
+          as input to the answer.
+        hold: 0.8
+        caption_starts: ["or point four."]
+        visual_cues:
+          - id: append-mean
+            phrase: That’s one point two divided by three, or point four
+            targets:
+              - append-receipt
+            color: cyan
+            linger: 0.22
+            caption_boundary: true
+      - say: In the pinned Sample helper, append the IDs and update the response length together. Supply one sampled
+          log probability per generated ID. For a tool event, the helper writes zero mask bits and zero
+          placeholders. It rejects missing or mismatched sampled probabilities and rejects purported model
+          probabilities on tool input. Keep the original events with the completion status and serving
+          version.
+        hold: 0.8
+        visual_cues:
+          - id: append-check
+            phrase: Supply one sampled log probability per generated ID
+            targets:
+              - append-receipt
+            color: cyan
+            linger: 0.22
+  - id: identity-groups
+    title: Keep attempts, segments and policy versions separate
+    visual: Three independent attempts share prompt groupP7. Segment boundaries change inside each attempt without
+      merging rollout IDs. A separate version strip marks token-generation policies.
+    beats:
+      - say: A prompt group collects independent attempts at the same prompt. A rollout identity joins segments from
+          one execution, including compaction or subagent branches. A serving-weight version identifies the
+          policy that produced the token evidence. These are three different relationships, even when a small
+          example happens to give them similar numbers.
+        hold: 0.7
+        visual_cues:
+          - id: sl-identity-groups-b0-operation
+            phrase: A prompt group collects independent attempts at the same prompt. A rollout identity joins segments
+              from one execution, including compaction or subagent branches. A serving-weight version
+              identifies the policy that produced the token evidence. These are three different relationships,
+              even when a small example happens to give them similar numbers.
+            targets:
+              - sl-identity-groups-mechanism
+            color: cyan
+            linger: 0.2
+          - id: sl-identity-groups-b0-s0
+            phrase: A prompt group collects independent attempts at the same prompt.
+            targets:
+              - sl-identity-groups-mechanism
+            color: cyan
+            linger: 0.35
+          - id: sl-identity-groups-b0-s1
+            phrase: A rollout identity joins segments from one execution, including compaction or subagent branches.
+            targets:
+              - sl-identity-groups-mechanism
+            color: cyan
+            linger: 0.35
+          - id: sl-identity-groups-b0-s2
+            phrase: A serving-weight version identifies the policy that produced the token evidence.
+            targets:
+              - sl-identity-groups-mechanism
+            color: cyan
+            linger: 0.35
+          - id: sl-identity-groups-b0-s3
+            phrase: These are three different relationships, even when a small example happens to give them similar
+              numbers.
+            targets:
+              - sl-identity-groups-mechanism
+            color: yellow
+            linger: 0.35
+      - say: Suppose three independent executions produce two, one and three segments. That gives one prompt group,
+          three rollout identities and six Samples. Each execution’s siblings share its rollout identity; the
+          other executions retain theirs. Keep the recorded policy versions beside every segment instead of
+          treating a final batch number as their source.
+        hold: 0.7
+        visual_cues:
+          - id: sl-identity-groups-b1-operation
+            phrase: Suppose three independent executions produce two, one and three segments. That gives one prompt group,
+              three rollout identities and six Samples. Each execution’s siblings share its rollout identity;
+              the other executions retain theirs. Keep the recorded policy versions beside every segment
+              instead of treating a final batch number as their source.
+            targets:
+              - sl-identity-groups-mechanism
+            color: cyan
+            linger: 0.2
+          - id: sl-identity-groups-b1-s0
+            phrase: Suppose three independent executions produce two, one and three segments.
+            targets:
+              - sl-identity-groups-mechanism
+            color: cyan
+            linger: 0.35
+          - id: sl-identity-groups-b1-s1
+            phrase: That gives one prompt group, three rollout identities and six Samples.
+            targets:
+              - sl-identity-groups-mechanism
+            color: cyan
+            linger: 0.35
+          - id: sl-identity-groups-b1-s2
+            phrase: Each execution’s siblings share its rollout identity; the other executions retain theirs.
+            targets:
+              - sl-identity-groups-mechanism
+            color: cyan
+            linger: 0.35
+          - id: sl-identity-groups-b1-s3
+            phrase: Keep the recorded policy versions beside every segment instead of treating a final batch number as
+              their source.
+            targets:
+              - sl-identity-groups-mechanism
+            color: yellow
+            linger: 0.35
+      - say: The upstream rollout identity can fall back to a sample index when no trajectory ID is supplied. In
+          application code, zero is a valid identity, so test for None rather than truthiness. Reward
+          normalization and advantage construction require their own configured grouping; segment count alone
+          does not determine them.
+        hold: 0.7
+        visual_cues:
+          - id: sl-identity-groups-b2-operation
+            phrase: The upstream rollout identity can fall back to a sample index when no trajectory ID is supplied. In
+              application code, zero is a valid identity, so test for None rather than truthiness. Reward
+              normalization and advantage construction require their own configured grouping; segment count
+              alone does not determine them.
+            targets:
+              - sl-identity-groups-mechanism
+            color: cyan
+            linger: 0.2
+          - id: sl-identity-groups-b2-s0
+            phrase: The upstream rollout identity can fall back to a sample index when no trajectory ID is supplied.
+            targets:
+              - sl-identity-groups-mechanism
+            color: cyan
+            linger: 0.35
+          - id: sl-identity-groups-b2-s1
+            phrase: In application code, zero is a valid identity, so test for None rather than truthiness.
+            targets:
+              - sl-identity-groups-mechanism
+            color: cyan
+            linger: 0.35
+          - id: sl-identity-groups-b2-s2
+            phrase: Reward normalization and advantage construction require their own configured grouping; segment count
+              alone does not determine them.
+            targets:
+              - sl-identity-groups-mechanism
+            color: yellow
+            linger: 0.35
+  - id: segments
+    title: Where rollout 7 splits
+    visual: Four fixed loss terms sit under the IDs that produced them. A divider moves from a two-and-two split
+      to a one-and-three split. The shared count stays at four until a deliberately wrong reduction
+      substitutes local counts.
+    beats:
+      - say: Come back to rollout seven. Keep just the four tokens the model wrote. Give them fixed loss terms of
+          one, three, five and seven. The adapter puts two tokens in each segment. We want the mean for this
+          one execution, so both segments divide by four. They contribute one and three. If segment A keeps
+          only the first token, how much will A contribute?
+        hold: 2.4
+        visual_cues:
+          - id: even-shares
+            phrase: They contribute one and three
+            targets:
+              - segment-terms
+            color: cyan
+            linger: 0.22
+          - id: predict-share
+            phrase: If segment A keeps only the first token
+            targets:
+              - segment-terms
+            color: cyan
+            linger: 0.22
+      - say: Move the divider left by one token. The first segment now holds a loss of one. The other holds fifteen.
+          Each still divides by the four selected tokens in rollout seven. Segment A contributes one quarter.
+          Segment B contributes three and three quarters. They still add to four, even if Megatron puts the
+          segments in different microbatches.
+        hold: 0.9
+        caption_starts: ["Segment A contributes one quarter."]
+        visual_cues:
+          - id: segments-move-boundary
+            phrase: Move the divider left by one token
+            targets:
+              - segment-terms
+            color: cyan
+            linger: 0.22
+          - id: uneven-shares
+            phrase: Segment B contributes three and three quarters
+            targets:
+              - segment-terms
+            color: cyan
+            linger: 0.22
+            caption_boundary: true
+      - say: Try dividing by each segment’s own count. One divided by one gives one. Fifteen divided by three gives
+          five. Those local means add to six. The divider alone has changed the weight of the training
+          example. Going back to the shared count fixes it. Halving its advantages again would cut the correct
+          contribution to two.
+        hold: 1
+        visual_cues:
+          - id: local-means
+            phrase: Try dividing by each segment’s own count
+            targets: &a1
+              - segment-terms
+            color: cyan
+            linger: 0.22
+          - id: restore-shared
+            phrase: Going back to the shared count fixes it
+            targets:
+              - segment-terms
+            color: blue
+            linger: 0.22
+          - id: extra-scale
+            phrase: Halving its advantages again would cut the correct contribution to two
+            targets:
+              - segment-terms
+            color: cyan
+            linger: 0.22
+          - id: local-a
+            phrase: One divided by one gives one
+            targets: *a1
+            color: cyan
+            linger: 0.22
+          - id: local-b
+            phrase: Fifteen divided by three gives five
+            targets: *a1
+            color: cyan
+            linger: 0.22
+          - id: local-total
+            phrase: Those local means add to six
+            targets: *a1
+            color: cyan
+            linger: 0.22
+            caption_boundary: true
+  - id: step-denominator
+    title: Move segments across microbatches without changing credit
+    visual: The same four numeric terms move across microbatch boundaries; a persistent denominator4 is computed
+      before splitting. Token gradients stay.25 while an incorrect local denominator changes the main ledger.
+    beats:
+      - say: The pinned reducer defaults to a mean for each individual Sample. Its optional caller-supplied
+          denominators support the per-rollout token-weighted path. Every sibling receives the sum of that
+          execution’s selected target counts across the entire step. Compute that total before dividing data
+          into microbatches.
+        hold: 0.7
+        visual_cues:
+          - id: sl-step-denominator-b0-operation
+            phrase: The pinned reducer defaults to a mean for each individual Sample. Its optional caller-supplied
+              denominators support the per-rollout token-weighted path. Every sibling receives the sum of that
+              execution’s selected target counts across the entire step. Compute that total before dividing
+              data into microbatches.
+            targets:
+              - sl-step-denominator-mechanism
+            color: cyan
+            linger: 0.2
+          - id: sl-step-denominator-b0-s0
+            phrase: The pinned reducer defaults to a mean for each individual Sample.
+            targets:
+              - sl-step-denominator-mechanism
+            color: cyan
+            linger: 0.35
+          - id: sl-step-denominator-b0-s1
+            phrase: Its optional caller-supplied denominators support the per-rollout token-weighted path.
+            targets:
+              - sl-step-denominator-mechanism
+            color: cyan
+            linger: 0.35
+          - id: sl-step-denominator-b0-s2
+            phrase: Every sibling receives the sum of that execution’s selected target counts across the entire step.
+            targets:
+              - sl-step-denominator-mechanism
+            color: cyan
+            linger: 0.35
+          - id: sl-step-denominator-b0-s3
+            phrase: Compute that total before dividing data into microbatches.
+            targets:
+              - sl-step-denominator-mechanism
+            color: yellow
+            linger: 0.35
+      - say: The actual selected reducer was executed on CPU for splits one plus three, two plus two, and three plus
+          one. Terms one, three, five and seven always contribute four with the shared denominator four.
+          Autograd assigns each term derivative one quarter. With separate local denominators, the uneven
+          one-plus-three split instead sums to six.
+        hold: 0.7
+        visual_cues:
+          - id: sl-step-denominator-b1-operation
+            phrase: The actual selected reducer was executed on CPU for splits one plus three, two plus two, and three
+              plus one. Terms one, three, five and seven always contribute four with the shared denominator
+              four. Autograd assigns each term derivative one quarter. With separate local denominators, the
+              uneven one-plus-three split instead sums to six.
+            targets:
+              - sl-step-denominator-mechanism
+            color: cyan
+            linger: 0.2
+          - id: sl-step-denominator-b1-s0
+            phrase: The actual selected reducer was executed on CPU for splits one plus three, two plus two, and three
+              plus one.
+            targets:
+              - sl-step-denominator-mechanism
+            color: cyan
+            linger: 0.35
+          - id: sl-step-denominator-b1-s1
+            phrase: Terms one, three, five and seven always contribute four with the shared denominator four.
+            targets:
+              - sl-step-denominator-mechanism
+            color: cyan
+            linger: 0.35
+          - id: sl-step-denominator-b1-s2
+            phrase: Autograd assigns each term derivative one quarter.
+            targets:
+              - sl-step-denominator-mechanism
+            color: cyan
+            linger: 0.35
+          - id: sl-step-denominator-b1-s3
+            phrase: With separate local denominators, the uneven one-plus-three split instead sums to six.
+            targets:
+              - sl-step-denominator-mechanism
+            color: yellow
+            linger: 0.35
+      - say: Per-token mode returns the masked sum. Add one, three, five and seven. The reducer hands
+          sixteen to the training loop. The configured loss determines how to normalize that sum across
+          executions and data-parallel workers. The earlier mean of four gave the contribution of one
+          rollout.
+        hold: 0.7
+        visual_cues:
+          - id: sl-step-denominator-b2-operation
+            phrase: Per-token mode returns the masked sum. Add one, three, five and seven. The reducer hands
+              sixteen to the training loop. The configured loss determines how to normalize that sum across
+              executions and data-parallel workers. The earlier mean of four gave the contribution of one
+              rollout.
+            targets:
+              - sl-step-denominator-mechanism
+            color: cyan
+            linger: 0.2
+          - id: sl-step-denominator-b2-s0
+            phrase: Per-token mode returns the masked sum.
+            targets:
+              - sl-step-denominator-mechanism
+            color: cyan
+            linger: 0.35
+          - id: sl-step-denominator-b2-s1
+            phrase: Add one, three, five and seven. The reducer hands sixteen to the training loop.
+            targets:
+              - sl-step-denominator-mechanism
+            color: cyan
+            linger: 0.35
+          - id: sl-step-denominator-b2-s2
+            phrase: The configured loss determines how to normalize that sum across executions and
+              data-parallel workers.
+            targets:
+              - sl-step-denominator-mechanism
+            color: cyan
+            linger: 0.35
+          - id: sl-step-denominator-b2-s3
+            phrase: The earlier mean of four gave the contribution of one rollout.
+            targets:
+              - sl-step-denominator-mechanism
+            color: yellow
+            linger: 0.35
+  - id: placement
+    title: Colocation changes which memory lifetimes can overlap
+    visual: Supplied train and inference allocations exceed a shared device when simultaneous. Colocated phases
+      alternate; two independent 16-GiB device bars show 12-GiB training and 10-GiB inference in the decoupled
+      topology. A shared illustrative interval shows actual simultaneous progress without claiming measured
+      timing.
+    beats:
+      - say: >
+          Ray placement determines where training and rollout may execute. In our supplied memory example, the
+          two resident working sets exceed one device when combined. Colocation can reuse the same allocation
+          only when the lifecycle makes enough space before the other side becomes active.
+        hold: 0.6
+        visual_cues:
+          - id: placement-beat-1-focus-1
+            phrase: Ray placement determines where training and rollout may execute
+            targets:
+              - placement-s-train-s-inference-s-live-s-capacity-train-inference-together-capac
+            color: cyan
+            linger: 0.65
+      - say: >
+          The colocated trace alternates training and inference residency. Offload and release events belong
+          to that memory contract. Reserving the same GPU for two actors does not make their live tensors fit
+          simultaneously. Track the actual resident bytes at each phase.
+        hold: 0.6
+        visual_cues:
+          - id: placement-beat-2-focus-1
+            phrase: The colocated trace alternates training and inference residency
+            targets:
+              - placement-id-resident-label-b-2-active-train-device-active-s-active-tolowercas
+            color: cyan
+            linger: 0.65
+      - say: >
+          Decouple the workers onto distinct device ranges. Their local memory gates now pass independently,
+          and generation can overlap training. That introduces an explicit weight-transport boundary. Choose
+          the topology together with its sync path, rather than assuming every transport works under every
+          placement.
+        hold: 0.6
+        visual_cues:
+          - id: placement-beat-3-focus-1
+            phrase: Their local memory gates now pass independently, and generation can overlap training
+            targets:
+              - placement-train-device
+              - placement-inference-device
+            color: cyan
+            linger: 0.65
+          - id: placement-overlap
+            phrase: generation can overlap training
+            targets:
+              - placement-concurrent-execution
+            color: yellow
+            linger: 0.65
+  - id: bundle-map
+    title: Follow allocated slots into actor and rollout ranges
+    visual: Actual pinned placement arithmetic computes actor2nodes×2GPUs=4 and rollout6. Colocation shares six
+      slots at offset0; decoupling creates10 with rollout offset4; external mode reserves only the actor
+      range.
+    beats:
+      - say: Ray bundles in the pinned placement helper request one GPU and one CPU slot. The implementation discovers
+          node and physical GPU identities, then reorders bundle indices consistently. The logical rank map
+          and actual bundle indices must stay distinct in the run record; a launch file alone records intent.
+        hold: 0.7
+        visual_cues:
+          - id: sl-bundle-map-b0-operation
+            phrase: Ray bundles in the pinned placement helper request one GPU and one CPU slot. The implementation
+              discovers node and physical GPU identities, then reorders bundle indices consistently. The
+              logical rank map and actual bundle indices must stay distinct in the run record; a launch file
+              alone records intent.
+            targets:
+              - sl-bundle-map-mechanism
+            color: cyan
+            linger: 0.2
+          - id: sl-bundle-map-b0-s0
+            phrase: Ray bundles in the pinned placement helper request one GPU and one CPU slot.
+            targets:
+              - sl-bundle-map-mechanism
+            color: cyan
+            linger: 0.35
+          - id: sl-bundle-map-b0-s1
+            phrase: The implementation discovers node and physical GPU identities, then reorders bundle indices
+              consistently.
+            targets:
+              - sl-bundle-map-mechanism
+            color: cyan
+            linger: 0.35
+          - id: sl-bundle-map-b0-s2
+            phrase: The logical rank map and actual bundle indices must stay distinct in the run record; a launch file
+              alone records intent.
+            targets:
+              - sl-bundle-map-mechanism
+            color: yellow
+            linger: 0.35
+      - say: Use a supplied actor layout of two nodes with two GPUs each, plus six rollout GPUs. The actual selected
+          helper returns ten total slots with rollout offset four when decoupled. Under colocation it returns
+          the larger range, six slots, with offset zero. External rollout reserves the four actor slots and
+          connects to separately managed engines.
+        hold: 0.7
+        visual_cues:
+          - id: sl-bundle-map-b1-operation
+            phrase: Use a supplied actor layout of two nodes with two GPUs each, plus six rollout GPUs. The actual
+              selected helper returns ten total slots with rollout offset four when decoupled. Under
+              colocation it returns the larger range, six slots, with offset zero. External rollout reserves
+              the four actor slots and connects to separately managed engines.
+            targets:
+              - sl-bundle-map-mechanism
+            color: cyan
+            linger: 0.2
+          - id: sl-bundle-map-b1-s0
+            phrase: Use a supplied actor layout of two nodes with two GPUs each, plus six rollout GPUs.
+            targets:
+              - sl-bundle-map-mechanism
+            color: cyan
+            linger: 0.35
+          - id: sl-bundle-map-b1-s1
+            phrase: The actual selected helper returns ten total slots with rollout offset four when decoupled.
+            targets:
+              - sl-bundle-map-mechanism
+            color: cyan
+            linger: 0.35
+          - id: sl-bundle-map-b1-s2
+            phrase: Under colocation it returns the larger range, six slots, with offset zero.
+            targets:
+              - sl-bundle-map-mechanism
+            color: cyan
+            linger: 0.35
+          - id: sl-bundle-map-b1-s3
+            phrase: External rollout reserves the four actor slots and connects to separately managed engines.
+            targets:
+              - sl-bundle-map-mechanism
+            color: yellow
+            linger: 0.35
+      - say: Server groups can be regular, prefill, decode or placeholders. A placeholder reserves its slots without
+          creating an engine. Record resolved flags, bundle placement and engine membership. Colocation’s
+          resource reservation does not prove simultaneous memory fit; offload completion and actual live
+          allocations still govern that boundary.
+        hold: 0.7
+        visual_cues:
+          - id: sl-bundle-map-b2-operation
+            phrase: Server groups can be regular, prefill, decode or placeholders. A placeholder reserves its slots
+              without creating an engine. Record resolved flags, bundle placement and engine membership.
+              Colocation’s resource reservation does not prove simultaneous memory fit; offload completion and
+              actual live allocations still govern that boundary.
+            targets:
+              - sl-bundle-map-mechanism
+            color: cyan
+            linger: 0.2
+          - id: sl-bundle-map-b2-s0
+            phrase: Server groups can be regular, prefill, decode or placeholders.
+            targets:
+              - sl-bundle-map-mechanism
+            color: cyan
+            linger: 0.35
+          - id: sl-bundle-map-b2-s1
+            phrase: A placeholder reserves its slots without creating an engine.
+            targets:
+              - sl-bundle-map-mechanism
+            color: cyan
+            linger: 0.35
+          - id: sl-bundle-map-b2-s2
+            phrase: Record resolved flags, bundle placement and engine membership.
+            targets:
+              - sl-bundle-map-mechanism
+            color: cyan
+            linger: 0.35
+          - id: sl-bundle-map-b2-s3
+            phrase: Colocation’s resource reservation does not prove simultaneous memory fit; offload completion and
+              actual live allocations still govern that boundary.
+            targets:
+              - sl-bundle-map-mechanism
+            color: yellow
+            linger: 0.35
+  - id: router-session
+    title: Route the sampled IDs with a stable session
+    visual: Rollout7’s exact input IDs reach /generate, return IDs/logprobs/version metadata, and join the same
+      receipt. A consistent-hash session key changes worker locality while provenance fields remain unchanged.
+    beats:
+      - say: SGLang runs behind the router, and the default generation path requests token log probabilities. Preserve
+          the returned sampled IDs rather than rebuilding a sequence from displayed text. With
+          consistent-hashing routing, a stable session key can bring a multi-turn execution back to the same
+          worker and improve prefix-cache locality.
+        hold: 0.7
+        visual_cues:
+          - id: sl-router-session-b0-operation
+            phrase: SGLang runs behind the router, and the default generation path requests token log probabilities.
+              Preserve the returned sampled IDs rather than rebuilding a sequence from displayed text. With
+              consistent-hashing routing, a stable session key can bring a multi-turn execution back to the
+              same worker and improve prefix-cache locality.
+            targets:
+              - sl-router-session-mechanism
+            color: cyan
+            linger: 0.2
+          - id: sl-router-session-b0-s0
+            phrase: SGLang runs behind the router, and the default generation path requests token log probabilities.
+            targets:
+              - sl-router-session-mechanism
+            color: cyan
+            linger: 0.35
+          - id: sl-router-session-b0-s1
+            phrase: Preserve the returned sampled IDs rather than rebuilding a sequence from displayed text.
+            targets:
+              - sl-router-session-mechanism
+            color: cyan
+            linger: 0.35
+          - id: sl-router-session-b0-s2
+            phrase: With consistent-hashing routing, a stable session key can bring a multi-turn execution back to the
+              same worker and improve prefix-cache locality.
+            targets:
+              - sl-router-session-mechanism
+            color: yellow
+            linger: 0.35
+      - say: Turn two carries the same session key, so the router can send it back to worker one. In the
+          Sample, keep the token IDs, their log probabilities, the loss mask and policy version eleven.
+          Flags for parsing or moving tokens between experts go to SGLang. The adapter still returns those
+          same fields.
+        hold: 0.7
+        visual_cues:
+          - id: sl-router-session-b1-operation
+            phrase: Turn two carries the same session key, so the router can send it back to worker one. In
+              the Sample, keep the token IDs, their log probabilities, the loss mask and policy version
+              eleven. Flags for parsing or moving tokens between experts go to SGLang. The adapter still
+              returns those same fields.
+            targets:
+              - sl-router-session-mechanism
+            color: cyan
+            linger: 0.2
+          - id: sl-router-session-b1-s0
+            phrase: Turn two carries the same session key, so the router can send it back to worker one.
+            targets:
+              - sl-router-session-mechanism
+            color: cyan
+            linger: 0.35
+          - id: sl-router-session-b1-s1
+            phrase: In the Sample, keep the token IDs, their log probabilities, the loss mask and policy
+              version eleven.
+            targets:
+              - sl-router-session-mechanism
+            color: cyan
+            linger: 0.35
+          - id: sl-router-session-b1-s2
+            phrase: Flags for parsing or moving tokens between experts go to SGLang. The adapter still
+              returns those same fields.
+            targets:
+              - sl-router-session-mechanism
+            color: yellow
+            linger: 0.35
+      - say: Dynamic sampling can discard unhelpful reward groups, while partial-rollout paths may abort work and
+          retain it for another pass. A completed valid trajectory, an accepted truncation, an aborted request
+          and a recoverable failure are distinct states. The application must choose and record its policy
+          before those records become training evidence.
+        hold: 0.7
+        visual_cues:
+          - id: sl-router-session-b2-operation
+            phrase: Dynamic sampling can discard unhelpful reward groups, while partial-rollout paths may abort work and
+              retain it for another pass. A completed valid trajectory, an accepted truncation, an aborted
+              request and a recoverable failure are distinct states. The application must choose and record
+              its policy before those records become training evidence.
+            targets:
+              - sl-router-session-mechanism
+            color: cyan
+            linger: 0.2
+          - id: sl-router-session-b2-s0
+            phrase: Dynamic sampling can discard unhelpful reward groups, while partial-rollout paths may abort work and
+              retain it for another pass.
+            targets:
+              - sl-router-session-mechanism
+            color: cyan
+            linger: 0.35
+          - id: sl-router-session-b2-s1
+            phrase: A completed valid trajectory, an accepted truncation, an aborted request and a recoverable failure are
+              distinct states.
+            targets:
+              - sl-router-session-mechanism
+            color: cyan
+            linger: 0.35
+          - id: sl-router-session-b2-s2
+            phrase: The application must choose and record its policy before those records become training evidence.
+            targets:
+              - sl-router-session-mechanism
+            color: yellow
+            linger: 0.35
+  - id: round-boundaries
+    title: Construct the synchronous train and sync order
+    visual: A single timeline carries generate→complete→train→save→publish. A slow grading interval lengthens the
+      same dependency path while queued training remains blocked.
+    beats:
+      - say: The synchronous entrypoint waits for generated data, then waits for the dispatched actor training
+          references before updating rollout weights. The name async train describes the Ray method dispatch;
+          it does not mean this caller advances without waiting. Follow each wait and each update in the
+          actual entrypoint.
+        hold: 0.7
+        visual_cues:
+          - id: sl-round-boundaries-b0-operation
+            phrase: The synchronous entrypoint waits for generated data, then waits for the dispatched actor training
+              references before updating rollout weights. The name async train describes the Ray method
+              dispatch; it does not mean this caller advances without waiting. Follow each wait and each
+              update in the actual entrypoint.
+            targets:
+              - sl-round-boundaries-mechanism
+            color: cyan
+            linger: 0.2
+          - id: sl-round-boundaries-b0-s0
+            phrase: The synchronous entrypoint waits for generated data, then waits for the dispatched actor training
+              references before updating rollout weights.
+            targets:
+              - sl-round-boundaries-mechanism
+            color: cyan
+            linger: 0.35
+          - id: sl-round-boundaries-b0-s1
+            phrase: The name async train describes the Ray method dispatch; it does not mean this caller advances without
+              waiting.
+            targets:
+              - sl-round-boundaries-mechanism
+            color: cyan
+            linger: 0.35
+          - id: sl-round-boundaries-b0-s2
+            phrase: Follow each wait and each update in the actual entrypoint.
+            targets:
+              - sl-round-boundaries-mechanism
+            color: yellow
+            linger: 0.35
+      - say: Suppose generation and grading take eight seconds, training takes three, and weight sync takes
+          one. The next round starts at twelve seconds. Let a slow test stretch generation and grading to
+          fourteen seconds. The next round now starts at eighteen. Those six extra seconds push training and
+          weight sync back by the same amount.
+        hold: 0.7
+        visual_cues:
+          - id: sl-round-boundaries-b1-operation
+            phrase: Suppose generation and grading take eight seconds, training takes three, and weight sync
+              takes one. The next round starts at twelve seconds. Let a slow test stretch generation and
+              grading to fourteen seconds. The next round now starts at eighteen. Those six extra seconds
+              push training and weight sync back by the same amount.
+            targets:
+              - sl-round-boundaries-mechanism
+            color: cyan
+            linger: 0.2
+          - id: sl-round-boundaries-b1-s0
+            phrase: Suppose generation and grading take eight seconds, training takes three, and weight sync
+              takes one.
+            targets:
+              - sl-round-boundaries-mechanism
+            color: cyan
+            linger: 0.35
+          - id: sl-round-boundaries-b1-s1
+            phrase: The next round starts at twelve seconds.
+            targets:
+              - sl-round-boundaries-mechanism
+            color: cyan
+            linger: 0.35
+          - id: sl-round-boundaries-b1-s2
+            phrase: Let a slow test stretch generation and grading to fourteen seconds. The next round now
+              starts at eighteen.
+            targets:
+              - sl-round-boundaries-mechanism
+            color: cyan
+            linger: 0.35
+          - id: sl-round-boundaries-b1-s3
+            phrase: Those six extra seconds push training and weight sync back by the same amount.
+            targets:
+              - sl-round-boundaries-mechanism
+            color: yellow
+            linger: 0.35
+      - say: A critic may supply values to the actor, while a relative-reward path can train without a critic. Native
+          Megatron owns model, gradients, optimizer state and its parallel groups. The next round’s policy lag
+          also depends on partial trajectories and how many optimizer steps ran; the loop name alone does not
+          determine it.
+        hold: 0.7
+        visual_cues:
+          - id: sl-round-boundaries-b2-operation
+            phrase: A critic may supply values to the actor, while a relative-reward path can train without a critic.
+              Native Megatron owns model, gradients, optimizer state and its parallel groups. The next round’s
+              policy lag also depends on partial trajectories and how many optimizer steps ran; the loop name
+              alone does not determine it.
+            targets:
+              - sl-round-boundaries-mechanism
+            color: cyan
+            linger: 0.2
+          - id: sl-round-boundaries-b2-s0
+            phrase: A critic may supply values to the actor, while a relative-reward path can train without a critic.
+            targets:
+              - sl-round-boundaries-mechanism
+            color: cyan
+            linger: 0.35
+          - id: sl-round-boundaries-b2-s1
+            phrase: Native Megatron owns model, gradients, optimizer state and its parallel groups.
+            targets:
+              - sl-round-boundaries-mechanism
+            color: cyan
+            linger: 0.35
+          - id: sl-round-boundaries-b2-s2
+            phrase: The next round’s policy lag also depends on partial trajectories and how many optimizer steps ran; the
+              loop name alone does not determine it.
+            targets:
+              - sl-round-boundaries-mechanism
+            color: yellow
+            linger: 0.35
+  - id: async-future
+    title: What finished when the wait returned?
+    visual: On separate GPUs, Megatron advances while a named rollout future and a custom background task use
+      v11. The known future returns. Two declared waits use the same receipts, but only one has every required
+      completion.
+    beats:
+      - say: The pinned async entry point requires separate rollout and training GPUs. It starts the next rollout,
+          F, while Megatron trains on the current one. Imagine a custom worker also starts G on the same
+          serving policy. The actor advances to twelve. At its sync interval the ordinary caller waits on F. F
+          returns.
+        hold: 0.8
+        visual_cues:
+          - id: overlap-future
+            phrase: It starts the next rollout, F, while Megatron trains on the current one
+            targets: &a1
+              - async-work
+            color: cyan
+            linger: 0.22
+          - id: actor-advances
+            phrase: The actor advances to twelve
+            targets:
+              - async-work
+            color: cyan
+            linger: 0.22
+          - id: future-returns
+            phrase: F returns
+            targets:
+              - async-work
+            color: cyan
+            linger: 0.22
+          - id: start-background
+            phrase: a custom worker also starts G on the same serving policy
+            targets: *a1
+            color: cyan
+            linger: 0.22
+      - say: F has returned and G is still running. One check requires F alone. Another requires both F and G. Look
+          at the two sets below the workers. Which required set has finished?
+        hold: 2.4
+        visual_cues:
+          - id: compare-waits
+            phrase: Look at the two sets below the workers
+            targets:
+              - async-work
+            color: cyan
+            linger: 0.22
+      - say: The first check is met. The second still needs G. Each check asks whether every future it names has
+          returned. A custom generator needs its own pause or abort protocol before a live weight change. The
+          tokens already sampled keep version eleven. Use their completion age, reward and KL divergence to
+          decide how much lag this experiment can accept.
+        hold: 0.9
+        visual_cues:
+          - id: have-f
+            phrase: The first check is met
+            targets:
+              - async-work
+            color: cyan
+            linger: 0.22
+            caption_boundary: true
+          - id: missing-g
+            phrase: The second still needs G
+            targets:
+              - async-work
+            color: cyan
+            linger: 0.22
+            caption_boundary: true
+  - id: queue
+    title: When the warm worker stops launching
+    visual: A launch barrier sits on the generation lane. The same two running IDs can still move to the
+      completed shelf after admissions close. No consumer drains or new launch occurs during this trace.
+    beats:
+      - say: A warm worker keeps generating across training calls. Three groups are waiting for the trainer. Two
+          more are already running. The worker stops launching at four queued groups. Suppose both running
+          groups finish before the trainer takes any. How many will be waiting?
+        hold: 2.5
+        visual_cues:
+          - id: queue-setup
+            phrase: Two more are already running
+            targets: &a1
+              - queue-trace
+            color: cyan
+            linger: 0.22
+          - id: queue-waiting
+            phrase: Three groups are waiting for the trainer
+            targets: *a1
+            color: cyan
+            linger: 0.22
+          - id: queue-threshold
+            phrase: The worker stops launching at four queued groups
+            targets: *a1
+            color: cyan
+            linger: 0.22
+      - say: Group four finishes and joins the queue. The launch gate closes. Look at group five. It started while
+          the gate was open. Group five finishes and joins the queue too. Five are waiting. The gate controls
+          the start of a task. A task that already started can still deliver its result.
+        hold: 1
+        caption_starts: ["Five are waiting."]
+        motion_check:
+          region:
+            - 190
+            - 470
+            - 1520
+            - 110
+          minimumChangedFraction: 0.002
+        visual_cues:
+          - id: queue-first-completion
+            phrase: Group four finishes and joins the queue
+            targets:
+              - queue-trace
+            color: cyan
+            linger: 0.22
+          - id: queue-still-running
+            phrase: Look at group five
+            targets:
+              - queue-trace
+            color: cyan
+            linger: 0.22
+          - id: queue-second-completion
+            phrase: Group five finishes and joins the queue too
+            targets:
+              - queue-trace
+            color: cyan
+            linger: 0.22
+            caption_boundary: true
+      - say: The pinned worker has an unbounded completion queue. If it grows, check how long those groups have
+          waited, which policy sampled them, and how fast the trainer consumes them. More launches can leave
+          you with more old samples. Before changing weights, coordinate a pause or abort with the persistent
+          worker.
+        hold: 0.9
+        visual_cues:
+          - id: queue-age
+            phrase: how long those groups have waited
+            targets:
+              - queue-trace
+            color: cyan
+            linger: 0.22
+  - id: queue-handoff
+    title: Which group goes to the trainer first?
+    visual: A second completion order enters at the front of a queue. Two groups leave vertically, then exchange
+      places by sample index. The other three remain in their original positions and the launch gate reopens.
+    beats:
+      - say: The trainer wants two groups. Five and two are at the front of the queue.
+          The worker takes the front pair, then sorts that pair by sample index. Which group goes to the trainer first?
+        hold: 2.4
+        visual_cues:
+          - id: which-first
+            phrase: Which group goes to the trainer first
+            targets:
+              - handoff-trace
+            color: cyan
+            linger: 0.22
+      - say: Take five and two off the front. Three groups are left. That opens the gate for new work.
+          Now sort the pair. Two goes to the trainer first, then five. Four stays at the front for the next call.
+        hold: 1
+        caption_starts: ["Two goes to the trainer first"]
+        visual_cues:
+          - id: take-pair
+            phrase: Take five and two off the front
+            targets:
+              - handoff-trace
+            color: cyan
+            linger: 0.22
+          - id: sort-pair
+            phrase: Now sort the pair. Two goes to the trainer first
+            targets:
+              - handoff-trace
+            color: cyan
+            linger: 0.22
+            caption_boundary: true
+          - id: deliver-first
+            phrase: then five
+            targets:
+              - handoff-trace
+            color: cyan
+            linger: 0.22
+      - say: The pinned callback queues a completed group. If a Sample in the group was aborted, the whole group
+          goes back to the input buffer. A non-list result is dropped. Count those requeues if the worker
+          stays busy and delivers little training data. This warm worker rejects evaluation mode.
+        hold: 0.9
+        visual_cues:
+          - id: accept-list
+            phrase: queues a completed group
+            targets:
+              - handoff-trace
+            color: cyan
+            linger: 0.22
+          - id: return-abort
+            phrase: the whole group goes back to the input buffer
+            targets:
+              - handoff-trace
+            color: cyan
+            linger: 0.22
+          - id: drop-nonlist
+            phrase: A non-list result is dropped
+            targets:
+              - handoff-trace
+            color: cyan
+            linger: 0.22
+  - id: sync
+    title: Prepare disk artifacts before pausing the live policy
+    visual: Policy twelve travels from the actor through a published artifact to a local prepared artifact while
+      the engine retains policy eleven. Admissions pause, incompatible KV state is flushed and the artifact
+      reaches the engine. A successful reload receipt and separate expected-version check permit resumption.
+    beats:
+      - say: >
+          An optimizer update changes Megatron's actor weights. SGLang needs a separate synchronization step
+          before sampling from that policy. Our full-disk trace first publishes a versioned weight artifact
+          and pulls it to the destination. During those preparation stages, the old policy remains live.
+        hold: 0.6
+        visual_cues:
+          - id: sync-beat-1-focus-1
+            phrase: During those preparation stages, the old policy remains live
+            targets:
+              - sync-loaded-engine
+              - sync-s-ready-admissions-resumed-s-paused-admissions-paused-policy-11-admi
+            color: cyan
+            linger: 0.65
+          - id: sync-beat-1-focus-2
+            phrase: An optimizer update changes Megatron's actor weights
+            targets:
+              - sync-megatron-actor-12
+            color: yellow
+            linger: 0.65
+      - say: >
+          Pause admissions at the live transition, flush incompatible cached state, and reload the prepared
+          artifact. Follow the clock: a published version and a loaded serving version are different events.
+          The displayed engine version advances only after this supplied reload finishes successfully.
+        hold: 0.6
+        visual_cues:
+          - id: sync-beat-2-focus-1
+            phrase: Pause admissions at the live transition
+            targets:
+              - sync-s-ready-admissions-resumed-s-paused-admissions-paused-policy-11-admi
+            color: cyan
+            linger: 0.65
+          - id: sync-beat-2-focus-2
+            phrase: "Follow the clock: a published version and a loaded serving version are different events"
+            targets:
+              - sync-s-published-published-artifact-12-artifact-12-publishing
+              - sync-loaded-engine
+            color: yellow
+            linger: 0.65
+      - say: >
+          Our supplied outcome reports a successful reload and a separate version check matching the expected
+          policy. Those receipts permit admissions to resume. Other paths have different carriers and
+          ordering: colocated full updates can use tensor handles, while non-colocated full updates can
+          broadcast through NCCL. A weight export also needs explicit retention and durable storage if it will
+          be used for recovery.
+        hold: 0.6
+        visual_cues:
+          - id: sync-beat-3-focus-1
+            phrase: Those receipts permit admissions to resume
+            targets:
+              - sync-s-ready-admissions-resumed-s-paused-admissions-paused-policy-11-admi
+            color: cyan
+            linger: 0.65
+          - id: sync-beat-3-focus-2
+            phrase: Our supplied outcome reports a successful reload and a separate version check matching the expected
+              policy
+            targets:
+              - sync-loaded-engine
+              - sync-reload-receipt
+              - sync-version-check
+            color: yellow
+            linger: 0.65
+  - id: sync-dispatch
+    title: Choose the carrier from the actual topology branch
+    visual: The same mode/transport/colocation argument tuple flows through the pinned branch conditions. Full
+      colocated selects tensor handles, full disk selects export, and delta requires disk plus noncolocation.
+    beats:
+      - say: The actor’s mode-selection branch determines the carrier. Delta mode requires disk transport and rejects
+          colocation. Full disk selects the disk exporter. For another full update, colocation selects tensor
+          transfer; the remaining supported noncolocated path uses NCCL.
+        hold: 0.7
+        visual_cues:
+          - id: sl-sync-dispatch-b0-operation
+            phrase: The actor’s mode-selection branch determines the carrier. Delta mode requires disk transport and
+              rejects colocation. Full disk selects the disk exporter. For another full update, colocation
+              selects tensor transfer; the remaining supported noncolocated path uses NCCL.
+            targets:
+              - sl-sync-dispatch-mechanism
+            color: cyan
+            linger: 0.2
+          - id: sl-sync-dispatch-b0-s0
+            phrase: The actor’s mode-selection branch determines the carrier.
+            targets:
+              - sl-sync-dispatch-mechanism
+            color: cyan
+            linger: 0.35
+          - id: sl-sync-dispatch-b0-s1
+            phrase: Delta mode requires disk transport and rejects colocation.
+            targets:
+              - sl-sync-dispatch-mechanism
+            color: cyan
+            linger: 0.35
+          - id: sl-sync-dispatch-b0-s2
+            phrase: Full disk selects the disk exporter.
+            targets:
+              - sl-sync-dispatch-mechanism
+            color: cyan
+            linger: 0.35
+          - id: sl-sync-dispatch-b0-s3
+            phrase: For another full update, colocation selects tensor transfer; the remaining supported noncolocated path
+              uses NCCL.
+            targets:
+              - sl-sync-dispatch-mechanism
+            color: yellow
+            linger: 0.35
+      - say: A transport flag that says NCCL therefore does not establish that a colocated full update used
+          distributed broadcasts. Its selected tensor path can use CUDA interprocess handles. Inspect resolved
+          arguments and the actual branch, then verify the destination lifecycle. Neither tensor handles nor
+          broadcasts constitute a durable optimizer checkpoint.
+        hold: 0.7
+        visual_cues:
+          - id: sl-sync-dispatch-b1-operation
+            phrase: A transport flag that says NCCL therefore does not establish that a colocated full update used
+              distributed broadcasts. Its selected tensor path can use CUDA interprocess handles. Inspect
+              resolved arguments and the actual branch, then verify the destination lifecycle. Neither tensor
+              handles nor broadcasts constitute a durable optimizer checkpoint.
+            targets:
+              - sl-sync-dispatch-mechanism
+            color: cyan
+            linger: 0.2
+          - id: sl-sync-dispatch-b1-s0
+            phrase: A transport flag that says NCCL therefore does not establish that a colocated full update used
+              distributed broadcasts.
+            targets:
+              - sl-sync-dispatch-mechanism
+            color: cyan
+            linger: 0.35
+          - id: sl-sync-dispatch-b1-s1
+            phrase: Its selected tensor path can use CUDA interprocess handles.
+            targets:
+              - sl-sync-dispatch-mechanism
+            color: cyan
+            linger: 0.35
+          - id: sl-sync-dispatch-b1-s2
+            phrase: Inspect resolved arguments and the actual branch, then verify the destination lifecycle.
+            targets:
+              - sl-sync-dispatch-mechanism
+            color: cyan
+            linger: 0.35
+          - id: sl-sync-dispatch-b1-s3
+            phrase: Neither tensor handles nor broadcasts constitute a durable optimizer checkpoint.
+            targets:
+              - sl-sync-dispatch-mechanism
+            color: yellow
+            linger: 0.35
+      - say: "External rollout adds another boundary: compatible management endpoints, shared artifacts where
+          required, destination permissions and observed policy membership. Ray placement and the selected
+          carrier must agree. An HTTP health response establishes responsiveness under its check, not artifact
+          identity or a completed fleet-wide policy transition."
+        hold: 0.7
+        visual_cues:
+          - id: sl-sync-dispatch-b2-operation
+            phrase: "External rollout adds another boundary: compatible management endpoints, shared artifacts where
+              required, destination permissions and observed policy membership. Ray placement and the selected
+              carrier must agree. An HTTP health response establishes responsiveness under its check, not
+              artifact identity or a completed fleet-wide policy transition."
+            targets:
+              - sl-sync-dispatch-mechanism
+            color: cyan
+            linger: 0.2
+          - id: sl-sync-dispatch-b2-s0
+            phrase: "External rollout adds another boundary: compatible management endpoints, shared artifacts where
+              required, destination permissions and observed policy membership."
+            targets:
+              - sl-sync-dispatch-mechanism
+            color: cyan
+            linger: 0.35
+          - id: sl-sync-dispatch-b2-s1
+            phrase: Ray placement and the selected carrier must agree.
+            targets:
+              - sl-sync-dispatch-mechanism
+            color: cyan
+            linger: 0.35
+          - id: sl-sync-dispatch-b2-s2
+            phrase: An HTTP health response establishes responsiveness under its check, not artifact identity or a
+              completed fleet-wide policy transition.
+            targets:
+              - sl-sync-dispatch-mechanism
+            color: yellow
+            linger: 0.35
+  - id: broadcast-lifecycle
+    title: Complete live chunks before resuming generation
+    visual: Persistent policy11 engines pause and flush before HF-shaped chunks from TP/EP gathering arrive. A
+      lock encloses actual broadcasts; quantization postprocessing and last-chunk completion precede resume.
+    beats:
+      - say: In the pinned noncolocated full NCCL updater, rank zero pauses generation and flushes caches before the
+          chunks move. Source ranks gather tensor and expert shards into the format expected by the rollout
+          engine. Follow the same logical tensor through gathering and broadcast rather than treating the
+          weight update as one instantaneous arrow.
+        hold: 0.7
+        visual_cues:
+          - id: sl-broadcast-lifecycle-b0-operation
+            phrase: In the pinned noncolocated full NCCL updater, rank zero pauses generation and flushes caches before
+              the chunks move. Source ranks gather tensor and expert shards into the format expected by the
+              rollout engine. Follow the same logical tensor through gathering and broadcast rather than
+              treating the weight update as one instantaneous arrow.
+            targets:
+              - sl-broadcast-lifecycle-mechanism
+            color: cyan
+            linger: 0.2
+          - id: sl-broadcast-lifecycle-b0-s0
+            phrase: In the pinned noncolocated full NCCL updater, rank zero pauses generation and flushes caches before
+              the chunks move.
+            targets:
+              - sl-broadcast-lifecycle-mechanism
+            color: cyan
+            linger: 0.35
+          - id: sl-broadcast-lifecycle-b0-s1
+            phrase: Source ranks gather tensor and expert shards into the format expected by the rollout engine.
+            targets:
+              - sl-broadcast-lifecycle-mechanism
+            color: cyan
+            linger: 0.35
+          - id: sl-broadcast-lifecycle-b0-s2
+            phrase: Follow the same logical tensor through gathering and broadcast rather than treating the weight update
+              as one instantaneous arrow.
+            targets:
+              - sl-broadcast-lifecycle-mechanism
+            color: yellow
+            linger: 0.35
+      - say: The rollout engine locks the broadcast while it receives chunks. Other broadcasts wait for the
+          lock, so their collective operations run in order. The engine finishes any required low-precision
+          postprocessing. Before it takes new work, check that each engine has the intended weights.
+        hold: 0.7
+        visual_cues:
+          - id: sl-broadcast-lifecycle-b1-operation
+            phrase: The rollout engine locks the broadcast while it receives chunks. Other broadcasts wait
+              for the lock, so their collective operations run in order. The engine finishes any required
+              low-precision postprocessing. Before it takes new work, check that each engine has the
+              intended weights.
+            targets:
+              - sl-broadcast-lifecycle-mechanism
+            color: cyan
+            linger: 0.2
+          - id: sl-broadcast-lifecycle-b1-s0
+            phrase: The rollout engine locks the broadcast while it receives chunks.
+            targets:
+              - sl-broadcast-lifecycle-mechanism
+            color: cyan
+            linger: 0.35
+          - id: sl-broadcast-lifecycle-b1-s1
+            phrase: Other broadcasts wait for the lock, so their collective operations run in order.
+            targets:
+              - sl-broadcast-lifecycle-mechanism
+            color: cyan
+            linger: 0.35
+          - id: sl-broadcast-lifecycle-b1-s2
+            phrase: The engine finishes any required low-precision postprocessing.
+            targets:
+              - sl-broadcast-lifecycle-mechanism
+            color: cyan
+            linger: 0.35
+          - id: sl-broadcast-lifecycle-b1-s3
+            phrase: Before it takes new work, check that each engine has the intended weights.
+            targets:
+              - sl-broadcast-lifecycle-mechanism
+            color: yellow
+            linger: 0.35
+      - say: Suppose the engine restarts and loses the weights it just received. Send the weights again, or
+          load a retained complete checkpoint. The broadcast sent its chunks straight into engine memory. A
+          copy on disk gives the restarted engine a place to read them back.
+        hold: 0.7
+        visual_cues:
+          - id: sl-broadcast-lifecycle-b2-operation
+            phrase: Suppose the engine restarts and loses the weights it just received. Send the weights
+              again, or load a retained complete checkpoint. The broadcast sent its chunks straight into
+              engine memory. A copy on disk gives the restarted engine a place to read them back.
+            targets:
+              - sl-broadcast-lifecycle-mechanism
+            color: cyan
+            linger: 0.2
+          - id: sl-broadcast-lifecycle-b2-s0
+            phrase: Suppose the engine restarts and loses the weights it just received.
+            targets:
+              - sl-broadcast-lifecycle-mechanism
+            color: cyan
+            linger: 0.35
+          - id: sl-broadcast-lifecycle-b2-s1
+            phrase: Send the weights again, or load a retained complete checkpoint.
+            targets:
+              - sl-broadcast-lifecycle-mechanism
+            color: cyan
+            linger: 0.35
+          - id: sl-broadcast-lifecycle-b2-s2
+            phrase: The broadcast sent its chunks straight into engine memory.
+            targets:
+              - sl-broadcast-lifecycle-mechanism
+            color: cyan
+            linger: 0.35
+          - id: sl-broadcast-lifecycle-b2-s3
+            phrase: A copy on disk gives the restarted engine a place to read them back.
+            targets:
+              - sl-broadcast-lifecycle-mechanism
+            color: yellow
+            linger: 0.35
+  - id: disk-retention
+    title: Separate publication, reload and retained recovery data
+    visual: A versioned HF export travels through optional local pulls before pause/flush/reload. A CI-only
+      version assertion is visible as its own branch; default export removal leaves serving weights live
+      without a training-state checkpoint.
+    beats:
+      - say: The full-disk updater writes a versioned Hugging Face weight directory and runs any publication hook
+          before the live transition. If a host-local checkpoint is configured, the orchestration pulls it
+          before pausing generation. Publication, local preparation, live reload and resumed sampling are
+          distinct events.
+        hold: 0.7
+        visual_cues:
+          - id: sl-disk-retention-b0-operation
+            phrase: The full-disk updater writes a versioned Hugging Face weight directory and runs any publication hook
+              before the live transition. If a host-local checkpoint is configured, the orchestration pulls it
+              before pausing generation. Publication, local preparation, live reload and resumed sampling are
+              distinct events.
+            targets:
+              - sl-disk-retention-mechanism
+            color: cyan
+            linger: 0.2
+          - id: sl-disk-retention-b0-s0
+            phrase: The full-disk updater writes a versioned Hugging Face weight directory and runs any publication hook
+              before the live transition.
+            targets:
+              - sl-disk-retention-mechanism
+            color: cyan
+            linger: 0.35
+          - id: sl-disk-retention-b0-s1
+            phrase: If a host-local checkpoint is configured, the orchestration pulls it before pausing generation.
+            targets:
+              - sl-disk-retention-mechanism
+            color: cyan
+            linger: 0.35
+          - id: sl-disk-retention-b0-s2
+            phrase: Publication, local preparation, live reload and resumed sampling are distinct events.
+            targets:
+              - sl-disk-retention-mechanism
+            color: yellow
+            linger: 0.35
+      - say: The exact selected orchestration was executed with recording receivers. Its order was pull, pause, flush,
+          reload, observed-version check, export removal and resume. That explicit version assertion is under
+          the pin’s CI-test flag. A mismatching version raises an error and prevents the later resume in that
+          branch.
+        hold: 0.7
+        visual_cues:
+          - id: sl-disk-retention-b1-operation
+            phrase: The exact selected orchestration was executed with recording receivers. Its order was pull, pause,
+              flush, reload, observed-version check, export removal and resume. That explicit version
+              assertion is under the pin’s CI-test flag. A mismatching version raises an error and prevents
+              the later resume in that branch.
+            targets:
+              - sl-disk-retention-mechanism
+            color: cyan
+            linger: 0.2
+          - id: sl-disk-retention-b1-s0
+            phrase: The exact selected orchestration was executed with recording receivers.
+            targets:
+              - sl-disk-retention-mechanism
+            color: cyan
+            linger: 0.35
+          - id: sl-disk-retention-b1-s1
+            phrase: Its order was pull, pause, flush, reload, observed-version check, export removal and resume.
+            targets:
+              - sl-disk-retention-mechanism
+            color: cyan
+            linger: 0.35
+          - id: sl-disk-retention-b1-s2
+            phrase: That explicit version assertion is under the pin’s CI-test flag.
+            targets:
+              - sl-disk-retention-mechanism
+            color: cyan
+            linger: 0.35
+          - id: sl-disk-retention-b1-s3
+            phrase: A mismatching version raises an error and prevents the later resume in that branch.
+            targets:
+              - sl-disk-retention-mechanism
+            color: yellow
+            linger: 0.35
+      - say: The default path can remove the exported directory after reload. Enabling file retention still needs
+          appropriately durable storage and access control. An HF weight export does not include the complete
+          optimizer, scheduler, RNG and data progress required for training recovery. Keep the transfer
+          artifact and the committed training checkpoint separately identified.
+        hold: 0.7
+        visual_cues:
+          - id: sl-disk-retention-b2-operation
+            phrase: The default path can remove the exported directory after reload. Enabling file retention still needs
+              appropriately durable storage and access control. An HF weight export does not include the
+              complete optimizer, scheduler, RNG and data progress required for training recovery. Keep the
+              transfer artifact and the committed training checkpoint separately identified.
+            targets:
+              - sl-disk-retention-mechanism
+            color: cyan
+            linger: 0.2
+          - id: sl-disk-retention-b2-s0
+            phrase: The default path can remove the exported directory after reload.
+            targets:
+              - sl-disk-retention-mechanism
+            color: cyan
+            linger: 0.35
+          - id: sl-disk-retention-b2-s1
+            phrase: Enabling file retention still needs appropriately durable storage and access control.
+            targets:
+              - sl-disk-retention-mechanism
+            color: cyan
+            linger: 0.35
+          - id: sl-disk-retention-b2-s2
+            phrase: An HF weight export does not include the complete optimizer, scheduler, RNG and data progress required
+              for training recovery.
+            targets:
+              - sl-disk-retention-mechanism
+            color: cyan
+            linger: 0.35
+          - id: sl-disk-retention-b2-s3
+            phrase: Keep the transfer artifact and the committed training checkpoint separately identified.
+            targets:
+              - sl-disk-retention-mechanism
+            color: yellow
+            linger: 0.35
+  - id: delta
+    title: A weight update with a missing acknowledgment
+    visual: The third byte of a four-byte host checkpoint changes from 3 to 8. A raw repeat toggles it back. A
+      separate retry compares two hosts against one patch using both their version receipts and their bytes.
+    beats:
+      - say: The next transfer changes a single byte in this tiny checkpoint. The third byte is three in version
+          eleven and eight in version twelve. XOR marks the bits that differ. Here its patch byte is eleven.
+          Apply it once to three and the host gets eight. At model scale the compressed size depends on how
+          many bytes change and how well the patch compresses.
+        hold: 0.8
+        visual_cues:
+          - id: write-patch
+            phrase: Apply it once to three and the host gets eight
+            targets:
+              - disk-hosts
+            color: cyan
+            linger: 0.22
+      - say: Suppose the write succeeded and its acknowledgment got lost. Watch that same byte on an unguarded
+          retry. Eight XOR eleven gives three again. The host has just undone a successful update.
+        hold: 1
+        visual_cues:
+          - id: toggle-back
+            phrase: Eight XOR eleven gives three again
+            targets:
+              - disk-hosts
+            color: cyan
+            linger: 0.22
+      - say: Go back to the moment before the retry. Host A records version twelve and holds the target bytes. Host
+          B holds bytes that look like the old weights, but its record says version ten. The patch declares
+          eleven as its base. Which host should write this patch on retry?
+        hold: 2.5
+        visual_cues:
+          - id: host-receipts
+            phrase: Host B holds bytes that look like the old weights
+            targets:
+              - disk-hosts
+            color: cyan
+            linger: 0.22
+      - say: Leave A alone. Its destination version and bytes agree. Hold B for repair. Its recorded base is wrong.
+          Restore known complete weights before letting B serve. Persist the bytes and their version together,
+          check each tensor, then verify which version each admitted engine loaded.
+        hold: 1
+        caption_starts: ["Hold B for repair."]
+        visual_cues:
+          - id: retry-done
+            phrase: Its destination version and bytes agree
+            targets:
+              - disk-hosts
+            color: cyan
+            linger: 0.22
+            caption_boundary: true
+          - id: retry-stale
+            phrase: Its recorded base is wrong
+            targets:
+              - disk-hosts
+            color: cyan
+            linger: 0.22
+            caption_boundary: true
+  - id: delta-record
+    title: Make the base and destination part of the patch
+    visual: A bitwise changed byte3→8 creates XOR1011. A separate overwrite record writes destination positions
+      without toggling. Base/version/checksum gates surround publication and local patching before the same
+      live reload.
+    beats:
+      - say: The delta updater first captures a baseline seeded from the selected Hugging Face checkpoint. Later
+          gathered tensors are compared bytewise against that baseline. The index names base version,
+          destination version, encoding and per-tensor new-state checksums; the payload is compressed with
+          zstd.
+        hold: 0.7
+        visual_cues:
+          - id: sl-delta-record-b0-operation
+            phrase: The delta updater first captures a baseline seeded from the selected Hugging Face checkpoint. Later
+              gathered tensors are compared bytewise against that baseline. The index names base version,
+              destination version, encoding and per-tensor new-state checksums; the payload is compressed with
+              zstd.
+            targets:
+              - sl-delta-record-mechanism
+            color: cyan
+            linger: 0.2
+          - id: sl-delta-record-b0-s0
+            phrase: The delta updater first captures a baseline seeded from the selected Hugging Face checkpoint.
+            targets:
+              - sl-delta-record-mechanism
+            color: cyan
+            linger: 0.35
+          - id: sl-delta-record-b0-s1
+            phrase: Later gathered tensors are compared bytewise against that baseline.
+            targets:
+              - sl-delta-record-mechanism
+            color: cyan
+            linger: 0.35
+          - id: sl-delta-record-b0-s2
+            phrase: The index names base version, destination version, encoding and per-tensor new-state checksums; the
+              payload is compressed with zstd.
+            targets:
+              - sl-delta-record-mechanism
+            color: yellow
+            linger: 0.35
+      - say: For the changed byte in the existing example, three is binary zero zero one one and eight is one zero
+          zero zero. Their XOR is one zero one one, decimal eleven. Applying eleven to three gives eight;
+          applying it again gives three.
+        hold: 0.7
+        visual_cues:
+          - id: sl-delta-record-b1-operation
+            phrase: For the changed byte in the existing example, three is binary zero zero one one and eight is one zero
+              zero zero. Their XOR is one zero one one, decimal eleven. Applying eleven to three gives eight;
+              applying it again gives three.
+            targets:
+              - sl-delta-record-mechanism
+            color: cyan
+            linger: 0.2
+          - id: sl-delta-record-b1-s0
+            phrase: For the changed byte in the existing example, three is binary zero zero one one and eight is one zero
+              zero zero.
+            targets:
+              - sl-delta-record-mechanism
+            color: cyan
+            linger: 0.35
+          - id: sl-delta-record-b1-s1
+            phrase: Their XOR is one zero one one, decimal eleven.
+            targets:
+              - sl-delta-record-mechanism
+            color: cyan
+            linger: 0.35
+          - id: sl-delta-record-b1-s2
+            phrase: Applying eleven to three gives eight; applying it again gives three.
+            targets:
+              - sl-delta-record-mechanism
+            color: yellow
+            linger: 0.35
+      - say: An overwrite encoding stores destination positions and values, so repeating those writes does not have
+          XOR’s toggle property. It still requires the right base and version order. Checksums detect
+          integrity disagreement; they do not authenticate an untrusted publisher. Persist bytes and version
+          state consistently, then verify destination state before live reload.
+        hold: 0.7
+        visual_cues:
+          - id: sl-delta-record-b2-operation
+            phrase: An overwrite encoding stores destination positions and values, so repeating those writes does not have
+              XOR’s toggle property. It still requires the right base and version order. Checksums detect
+              integrity disagreement; they do not authenticate an untrusted publisher. Persist bytes and
+              version state consistently, then verify destination state before live reload.
+            targets:
+              - sl-delta-record-mechanism
+            color: cyan
+            linger: 0.2
+          - id: sl-delta-record-b2-s0
+            phrase: An overwrite encoding stores destination positions and values, so repeating those writes does not have
+              XOR’s toggle property.
+            targets:
+              - sl-delta-record-mechanism
+            color: cyan
+            linger: 0.35
+          - id: sl-delta-record-b2-s1
+            phrase: It still requires the right base and version order.
+            targets:
+              - sl-delta-record-mechanism
+            color: cyan
+            linger: 0.35
+          - id: sl-delta-record-b2-s2
+            phrase: Checksums detect integrity disagreement; they do not authenticate an untrusted publisher.
+            targets:
+              - sl-delta-record-mechanism
+            color: cyan
+            linger: 0.35
+          - id: sl-delta-record-b2-s3
+            phrase: Persist bytes and version state consistently, then verify destination state before live reload.
+            targets:
+              - sl-delta-record-mechanism
+            color: yellow
+            linger: 0.35
+  - id: agent-hook
+    title: Keep application behavior around the token contract
+    visual: The same generation call branches to model actions, a sandbox observation and a clean verifier. The
+      adapter sends exact token/logprob/mask events back into Sample; application authorization stays outside
+      that typed record.
+    beats:
+      - say: Begin a custom per-sample agent loop with the custom-generate hook and attach its verifier through the
+          custom reward hook. Replace the entire rollout scheduler only when the default grouping or buffering
+          cannot express the workload. Tools, browser state, credentials and write authorization remain
+          application responsibilities.
+        hold: 0.7
+        visual_cues:
+          - id: sl-agent-hook-b0-operation
+            phrase: Begin a custom per-sample agent loop with the custom-generate hook and attach its verifier through the
+              custom reward hook. Replace the entire rollout scheduler only when the default grouping or
+              buffering cannot express the workload. Tools, browser state, credentials and write authorization
+              remain application responsibilities.
+            targets:
+              - sl-agent-hook-mechanism
+            color: cyan
+            linger: 0.2
+          - id: sl-agent-hook-b0-s0
+            phrase: Begin a custom per-sample agent loop with the custom-generate hook and attach its verifier through the
+              custom reward hook.
+            targets:
+              - sl-agent-hook-mechanism
+            color: cyan
+            linger: 0.35
+          - id: sl-agent-hook-b0-s1
+            phrase: Replace the entire rollout scheduler only when the default grouping or buffering cannot express the
+              workload.
+            targets:
+              - sl-agent-hook-mechanism
+            color: cyan
+            linger: 0.35
+          - id: sl-agent-hook-b0-s2
+            phrase: Tools, browser state, credentials and write authorization remain application responsibilities.
+            targets:
+              - sl-agent-hook-mechanism
+            color: yellow
+            linger: 0.35
+      - say: For our patch, copy the exact IDs, loss mask, log probabilities and serving version into the
+          Sample. The application runs the test in a clean copy. The verifier returns one point. Once the
+          agent has finished and grading succeeds, mark the Sample complete.
+        hold: 0.7
+        visual_cues:
+          - id: sl-agent-hook-b1-operation
+            phrase: For our patch, copy the exact IDs, loss mask, log probabilities and serving version into
+              the Sample. The application runs the test in a clean copy. The verifier returns one point.
+              Once the agent has finished and grading succeeds, mark the Sample complete.
+            targets:
+              - sl-agent-hook-mechanism
+            color: cyan
+            linger: 0.2
+          - id: sl-agent-hook-b1-s0
+            phrase: For our patch, copy the exact IDs, loss mask, log probabilities and serving version into
+              the Sample.
+            targets:
+              - sl-agent-hook-mechanism
+            color: cyan
+            linger: 0.35
+          - id: sl-agent-hook-b1-s1
+            phrase: The application runs the test in a clean copy.
+            targets:
+              - sl-agent-hook-mechanism
+            color: cyan
+            linger: 0.35
+          - id: sl-agent-hook-b1-s2
+            phrase: The verifier returns one point.
+            targets:
+              - sl-agent-hook-mechanism
+            color: cyan
+            linger: 0.35
+          - id: sl-agent-hook-b1-s3
+            phrase: Once the agent has finished and grading succeeds, mark the Sample complete.
+            targets:
+              - sl-agent-hook-mechanism
+            color: yellow
+            linger: 0.35
+      - say: The published adapters provide chat-template rendering and SGLang calls while preserving token evidence
+          and session affinity. They do not define every agent environment or supply its permissions. A new
+          tool transcript must leave observations contextual and untrained as targets; test that provenance
+          independently of whether the final patch earns reward.
+        hold: 0.7
+        visual_cues:
+          - id: sl-agent-hook-b2-operation
+            phrase: The published adapters provide chat-template rendering and SGLang calls while preserving token
+              evidence and session affinity. They do not define every agent environment or supply its
+              permissions. A new tool transcript must leave observations contextual and untrained as targets;
+              test that provenance independently of whether the final patch earns reward.
+            targets:
+              - sl-agent-hook-mechanism
+            color: cyan
+            linger: 0.2
+          - id: sl-agent-hook-b2-s0
+            phrase: The published adapters provide chat-template rendering and SGLang calls while preserving token
+              evidence and session affinity.
+            targets:
+              - sl-agent-hook-mechanism
+            color: cyan
+            linger: 0.35
+          - id: sl-agent-hook-b2-s1
+            phrase: They do not define every agent environment or supply its permissions.
+            targets:
+              - sl-agent-hook-mechanism
+            color: cyan
+            linger: 0.35
+          - id: sl-agent-hook-b2-s2
+            phrase: A new tool transcript must leave observations contextual and untrained as targets; test that
+              provenance independently of whether the final patch earns reward.
+            targets:
+              - sl-agent-hook-mechanism
+            color: yellow
+            linger: 0.35
+  - id: application-experiment
+    title: What score does the same patch earn?
+    visual: The same function returns the first item for two tests. The second test changes the first
+      item to seven. Keep its result hidden until the viewer has predicted the score.
+    beats:
+      - say: Keep the code fixed. It returns the first item. On three and seven, the test gets three and
+          fails. Now change just the test input to seven and seven. What reward will the same code
+          earn?
+        hold: 2.4
+        visual_cues:
+          - id: sl-application-experiment-b0-operation
+            phrase: Keep the code fixed. It returns the first item. On three and seven, the test gets three and
+              fails. Now change just the test input to seven and seven. What reward will the same code
+              earn?
+            targets:
+              - sl-application-experiment-mechanism
+            color: cyan
+            linger: 0.2
+          - id: sl-application-experiment-b0-s0
+            phrase: Keep the code fixed. It returns the first item. On three and seven, the test gets three and
+              fails.
+            targets:
+              - sl-application-experiment-mechanism
+            color: cyan
+            linger: 0.35
+          - id: sl-application-experiment-b0-s1
+            phrase: Now change just the test input to seven and seven. What reward will the same code earn?
+            targets:
+              - sl-application-experiment-mechanism
+            color: yellow
+            linger: 0.35
+      - say: It earns a point. Both items are seven. The wrong index now gives the expected answer. Keep
+          the verifier revision with the rollout dumps, launch flags, model and data revisions,
+          topology, sync mode and serving versions. Then you can grade the same patches with both
+          tests.
+        hold: 0.7
+        visual_cues:
+          - id: sl-application-experiment-b1-operation
+            phrase: It earns a point. Both items are seven. The wrong index now gives the expected answer. Keep
+              the verifier revision with the rollout dumps, launch flags, model and data revisions,
+              topology, sync mode and serving versions. Then you can grade the same patches with both
+              tests.
+            targets:
+              - sl-application-experiment-mechanism
+            color: cyan
+            linger: 0.2
+          - id: sl-application-experiment-b1-s0
+            phrase: It earns a point.
+            targets:
+              - sl-application-experiment-mechanism
+            color: cyan
+            linger: 0.35
+          - id: sl-application-experiment-b1-s1
+            phrase: Both items are seven. The wrong index now gives the expected answer.
+            targets:
+              - sl-application-experiment-mechanism
+            color: cyan
+            linger: 0.35
+          - id: sl-application-experiment-b1-s2
+            phrase: Keep the verifier revision with the rollout dumps, launch flags, model and data revisions,
+              topology, sync mode and serving versions. Then you can grade the same patches with both
+              tests.
+            targets:
+              - sl-application-experiment-mechanism
+            color: yellow
+            linger: 0.35
+      - say: For a new workload, choose a project example that exercises the part you need, such as long
+          tool calls or weight transfers. Megatron and SGLang keep their native interfaces, so check
+          conversion, parsing and scheduling when their versions change. A CPU test can check the mask. A
+          GPU run can test the update. On multiple nodes, check which weights each engine loads. Save the
+          result alongside the configuration that produced it.
+        hold: 0.7
+        visual_cues:
+          - id: sl-application-experiment-b2-operation
+            phrase: For a new workload, choose a project example that exercises the part you need, such as
+              long tool calls or weight transfers. Megatron and SGLang keep their native interfaces, so
+              check conversion, parsing and scheduling when their versions change. A CPU test can check the
+              mask. A GPU run can test the update. On multiple nodes, check which weights each engine loads.
+              Save the result alongside the configuration that produced it.
+            targets:
+              - sl-application-experiment-mechanism
+            color: cyan
+            linger: 0.2
+          - id: sl-application-experiment-b2-s0
+            phrase: For a new workload, choose a project example that exercises the part you need, such as
+              long tool calls or weight transfers.
+            targets:
+              - sl-application-experiment-mechanism
+            color: cyan
+            linger: 0.35
+          - id: sl-application-experiment-b2-s1
+            phrase: Megatron and SGLang keep their native interfaces, so check conversion, parsing and
+              scheduling when their versions change.
+            targets:
+              - sl-application-experiment-mechanism
+            color: cyan
+            linger: 0.35
+          - id: sl-application-experiment-b2-s2
+            phrase: A CPU test can check the mask. A GPU run can test the update. On multiple nodes, check
+              which weights each engine loads.
+            targets:
+              - sl-application-experiment-mechanism
+            color: cyan
+            linger: 0.35
+          - id: sl-application-experiment-b2-s3
+            phrase: Save the result alongside the configuration that produced it.
+            targets:
+              - sl-application-experiment-mechanism
+            color: yellow
+            linger: 0.35
+  - id: project-scope
+    title: The people and releases behind slime
+    visual: The repository names its contributors and license. The README, first release notes and a model
+      launch script show where to look for project use, changes to weight transfer and a timing experiment.
+    beats:
+      - say: THUDM publishes slime. The organization traces its roots to THUKEG and Z.ai. The repository
+          credits Zilin Zhu, Chengxing Xie, Xin Lv and other contributors. The source carries an Apache two
+          point zero license with Zhipu AI notices. The model weights, datasets, environments and reward
+          services each have their own terms.
+        hold: 0.7
+        visual_cues:
+          - id: sl-project-scope-b0-operation
+            phrase: THUDM publishes slime. The organization traces its roots to THUKEG and Z.ai. The
+              repository credits Zilin Zhu, Chengxing Xie, Xin Lv and other contributors. The source carries
+              an Apache two point zero license with Zhipu AI notices. The model weights, datasets,
+              environments and reward services each have their own terms.
+            targets:
+              - sl-project-scope-mechanism
+            color: cyan
+            linger: 0.2
+          - id: sl-project-scope-b0-s0
+            phrase: THUDM publishes slime.
+            targets:
+              - sl-project-scope-mechanism
+            color: cyan
+            linger: 0.35
+          - id: sl-project-scope-b0-s1
+            phrase: The organization traces its roots to THUKEG and Z.ai.
+            targets:
+              - sl-project-scope-mechanism
+            color: cyan
+            linger: 0.35
+          - id: sl-project-scope-b0-s2
+            phrase: The repository credits Zilin Zhu, Chengxing Xie, Xin Lv and other contributors.
+            targets:
+              - sl-project-scope-mechanism
+            color: cyan
+            linger: 0.35
+          - id: sl-project-scope-b0-s3
+            phrase: The source carries an Apache two point zero license with Zhipu AI notices.
+            targets:
+              - sl-project-scope-mechanism
+            color: cyan
+            linger: 0.35
+          - id: sl-project-scope-b0-s4
+            phrase: The model weights, datasets, environments and reward services each have their own terms.
+            targets:
+              - sl-project-scope-mechanism
+            color: yellow
+            linger: 0.35
+      - say: The project welcomes bug fixes and general improvements to reinforcement learning. Contributors
+          can demonstrate a fix in continuous integration or a routine training run. Z.ai steers the
+          roadmap. Application teams build their own agent loops through the public hooks.
+        hold: 0.7
+        visual_cues:
+          - id: sl-project-scope-b1-operation
+            phrase: The project welcomes bug fixes and general improvements to reinforcement learning.
+              Contributors can demonstrate a fix in continuous integration or a routine training run. Z.ai
+              steers the roadmap. Application teams build their own agent loops through the public hooks.
+            targets:
+              - sl-project-scope-mechanism
+            color: cyan
+            linger: 0.2
+          - id: sl-project-scope-b1-s0
+            phrase: The project welcomes bug fixes and general improvements to reinforcement learning.
+            targets:
+              - sl-project-scope-mechanism
+            color: cyan
+            linger: 0.35
+          - id: sl-project-scope-b1-s1
+            phrase: Contributors can demonstrate a fix in continuous integration or a routine training run.
+            targets:
+              - sl-project-scope-mechanism
+            color: cyan
+            linger: 0.35
+          - id: sl-project-scope-b1-s2
+            phrase: Z.ai steers the roadmap.
+            targets:
+              - sl-project-scope-mechanism
+            color: cyan
+            linger: 0.35
+          - id: sl-project-scope-b1-s3
+            phrase: Application teams build their own agent loops through the public hooks.
+            targets:
+              - sl-project-scope-mechanism
+            color: yellow
+            linger: 0.35
+      - say: The project lists GLM among the models trained with slime. Its first release focused on moving
+          weights faster and offloading memory between training and rollout. To time that handoff on your
+          hardware, start with the launch script for your model and measure a weight update.
+        hold: 0.7
+        visual_cues:
+          - id: sl-project-scope-b2-operation
+            phrase: The project lists GLM among the models trained with slime. Its first release focused on
+              moving weights faster and offloading memory between training and rollout. To time that handoff
+              on your hardware, start with the launch script for your model and measure a weight update.
+            targets:
+              - sl-project-scope-mechanism
+            color: cyan
+            linger: 0.2
+          - id: sl-project-scope-b2-s0
+            phrase: The project lists GLM among the models trained with slime.
+            targets:
+              - sl-project-scope-mechanism
+            color: cyan
+            linger: 0.35
+          - id: sl-project-scope-b2-s1
+            phrase: Its first release focused on moving weights faster and offloading memory between
+              training and rollout.
+            targets:
+              - sl-project-scope-mechanism
+            color: cyan
+            linger: 0.35
+          - id: sl-project-scope-b2-s2
+            phrase: To time that handoff on your hardware, start with the launch script for your model and
+              measure a weight update.
+            targets:
+              - sl-project-scope-mechanism
+            color: yellow
+            linger: 0.35
+  - id: source-route
+    title: Trace one sample and one weight version through source
+    visual: A file-level route follows the same typed Sample through entrypoint waits,placement/rollout
+      conversion,loss denominator and the selected carrier; a separate current-recovery branch remains dated.
+    beats:
+      - say: At the revision shown here, read train and train async side by side and mark generation, wait, train
+          and update calls. Then trace bundle placement and RolloutManager conversion into SGLang generation.
+          Follow tokens and status through the Sample helper before opening the loss reducer.
+        hold: 0.7
+        visual_cues:
+          - id: sl-source-route-b0-operation
+            phrase: At the revision shown here, read train and train async side by side and mark generation, wait, train
+              and update calls. Then trace bundle placement and RolloutManager conversion into SGLang
+              generation. Follow tokens and status through the Sample helper before opening the loss reducer.
+            targets:
+              - sl-source-route-mechanism
+            color: cyan
+            linger: 0.2
+          - id: sl-source-route-b0-s0
+            phrase: At the revision shown here, read train and train async side by side and mark generation, wait, train
+              and update calls.
+            targets:
+              - sl-source-route-mechanism
+            color: cyan
+            linger: 0.35
+          - id: sl-source-route-b0-s1
+            phrase: Then trace bundle placement and RolloutManager conversion into SGLang generation.
+            targets:
+              - sl-source-route-mechanism
+            color: cyan
+            linger: 0.35
+          - id: sl-source-route-b0-s2
+            phrase: Follow tokens and status through the Sample helper before opening the loss reducer.
+            targets:
+              - sl-source-route-mechanism
+            color: yellow
+            linger: 0.35
+      - say: For weights, start at the actor’s dispatch branch. Trace distributed chunks, disk publication or delta
+          construction into the engine management endpoints. Record the base, destination and actual live
+          transition. Follow the selected caller; a helper’s name alone cannot establish ordering or
+          durability.
+        hold: 0.7
+        visual_cues:
+          - id: sl-source-route-b1-operation
+            phrase: For weights, start at the actor’s dispatch branch. Trace distributed chunks, disk publication or
+              delta construction into the engine management endpoints. Record the base, destination and actual
+              live transition. Follow the selected caller; a helper’s name alone cannot establish ordering or
+              durability.
+            targets:
+              - sl-source-route-mechanism
+            color: cyan
+            linger: 0.2
+          - id: sl-source-route-b1-s0
+            phrase: For weights, start at the actor’s dispatch branch.
+            targets:
+              - sl-source-route-mechanism
+            color: cyan
+            linger: 0.35
+          - id: sl-source-route-b1-s1
+            phrase: Trace distributed chunks, disk publication or delta construction into the engine management
+              endpoints.
+            targets:
+              - sl-source-route-mechanism
+            color: cyan
+            linger: 0.35
+          - id: sl-source-route-b1-s2
+            phrase: Record the base, destination and actual live transition.
+            targets:
+              - sl-source-route-mechanism
+            color: cyan
+            linger: 0.35
+          - id: sl-source-route-b1-s3
+            phrase: Follow the selected caller; a helper’s name alone cannot establish ordering or durability.
+            targets:
+              - sl-source-route-mechanism
+            color: yellow
+            linger: 0.35
+      - say: For recovery, compare the pinned implementation with the dated guide and inspect the committed model
+          boundary plus retained data. Keep a small reproducible fixture for each critical invariant. One
+          connected receipt should let another engineer reconstruct who produced a token, what trained, and
+          which version later served.
+        hold: 0.7
+        visual_cues:
+          - id: sl-source-route-b2-operation
+            phrase: For recovery, compare the pinned implementation with the dated guide and inspect the committed model
+              boundary plus retained data. Keep a small reproducible fixture for each critical invariant. One
+              connected receipt should let another engineer reconstruct who produced a token, what trained,
+              and which version later served.
+            targets:
+              - sl-source-route-mechanism
+            color: cyan
+            linger: 0.2
+          - id: sl-source-route-b2-s0
+            phrase: For recovery, compare the pinned implementation with the dated guide and inspect the committed model
+              boundary plus retained data.
+            targets:
+              - sl-source-route-mechanism
+            color: cyan
+            linger: 0.35
+          - id: sl-source-route-b2-s1
+            phrase: Keep a small reproducible fixture for each critical invariant.
+            targets:
+              - sl-source-route-mechanism
+            color: cyan
+            linger: 0.35
+          - id: sl-source-route-b2-s2
+            phrase: One connected receipt should let another engineer reconstruct who produced a token, what trained,
+              and which version later served.
+            targets:
+              - sl-source-route-mechanism
+            color: yellow
+            linger: 0.35
+  - id: failure-diagnosis
+    title: Locate the first mismatching handoff
+    visual: The same rollout7 receipt is independently compared against mask,policy,queue and host-artifact state.
+      The selected failing boundary receives a concrete repair, while unrelated reward and health records
+      remain unchanged.
+    beats:
+      - say: When an agent learns tool observations, compare the target mask with the producer of each response
+          position. When KL changes after synchronization, compare expected and observed serving versions and
+          the paused transition. These checks locate a boundary; neither symptom alone proves a unique cause.
+        hold: 0.7
+        visual_cues:
+          - id: sl-failure-diagnosis-b0-operation
+            phrase: When an agent learns tool observations, compare the target mask with the producer of each response
+              position. When KL changes after synchronization, compare expected and observed serving versions
+              and the paused transition. These checks locate a boundary; neither symptom alone proves a unique
+              cause.
+            targets:
+              - sl-failure-diagnosis-mechanism
+            color: cyan
+            linger: 0.2
+          - id: sl-failure-diagnosis-b0-s0
+            phrase: When an agent learns tool observations, compare the target mask with the producer of each response
+              position.
+            targets:
+              - sl-failure-diagnosis-mechanism
+            color: cyan
+            linger: 0.35
+          - id: sl-failure-diagnosis-b0-s1
+            phrase: When KL changes after synchronization, compare expected and observed serving versions and the paused
+              transition.
+            targets:
+              - sl-failure-diagnosis-mechanism
+            color: cyan
+            linger: 0.35
+          - id: sl-failure-diagnosis-b0-s2
+            phrase: These checks locate a boundary; neither symptom alone proves a unique cause.
+            targets:
+              - sl-failure-diagnosis-mechanism
+            color: yellow
+            linger: 0.35
+      - say: For a busy queue with falling useful throughput, inspect completion age, aborted requeues and consumer
+          progress. For a trainer-only disk success, inspect publication and every host’s prepared checkpoint.
+          A correct source file on one machine does not establish destination visibility.
+        hold: 0.7
+        visual_cues:
+          - id: sl-failure-diagnosis-b1-operation
+            phrase: For a busy queue with falling useful throughput, inspect completion age, aborted requeues and consumer
+              progress. For a trainer-only disk success, inspect publication and every host’s prepared
+              checkpoint. A correct source file on one machine does not establish destination visibility.
+            targets:
+              - sl-failure-diagnosis-mechanism
+            color: cyan
+            linger: 0.2
+          - id: sl-failure-diagnosis-b1-s0
+            phrase: For a busy queue with falling useful throughput, inspect completion age, aborted requeues and consumer
+              progress.
+            targets:
+              - sl-failure-diagnosis-mechanism
+            color: cyan
+            linger: 0.35
+          - id: sl-failure-diagnosis-b1-s1
+            phrase: For a trainer-only disk success, inspect publication and every host’s prepared checkpoint.
+            targets:
+              - sl-failure-diagnosis-mechanism
+            color: cyan
+            linger: 0.35
+          - id: sl-failure-diagnosis-b1-s2
+            phrase: A correct source file on one machine does not establish destination visibility.
+            targets:
+              - sl-failure-diagnosis-mechanism
+            color: yellow
+            linger: 0.35
+      - say: Health checks can confuse cold kernel compilation with a failed service, so use the documented
+          initial-wait controls and retain their settings. Bound retry and drop policies explicitly. A green
+          endpoint, a finite reward and busy GPUs each leave other correctness conditions unresolved.
+        hold: 0.7
+        visual_cues:
+          - id: sl-failure-diagnosis-b2-operation
+            phrase: Health checks can confuse cold kernel compilation with a failed service, so use the documented
+              initial-wait controls and retain their settings. Bound retry and drop policies explicitly. A
+              green endpoint, a finite reward and busy GPUs each leave other correctness conditions
+              unresolved.
+            targets:
+              - sl-failure-diagnosis-mechanism
+            color: cyan
+            linger: 0.2
+          - id: sl-failure-diagnosis-b2-s0
+            phrase: Health checks can confuse cold kernel compilation with a failed service, so use the documented
+              initial-wait controls and retain their settings.
+            targets:
+              - sl-failure-diagnosis-mechanism
+            color: cyan
+            linger: 0.35
+          - id: sl-failure-diagnosis-b2-s1
+            phrase: Bound retry and drop policies explicitly.
+            targets:
+              - sl-failure-diagnosis-mechanism
+            color: cyan
+            linger: 0.35
+          - id: sl-failure-diagnosis-b2-s2
+            phrase: A green endpoint, a finite reward and busy GPUs each leave other correctness conditions unresolved.
+            targets:
+              - sl-failure-diagnosis-mechanism
+            color: yellow
+            linger: 0.35
+  - id: recovery
+    title: Where the trainer restarts
+    visual: Checkpoint 10 stays at a fixed notch. The trainer cursor crosses both retained batches, returns to
+      the committed notch on failure, then crosses batches 11 and 12 again. The weight and velocity update at
+      each arrival.
+    beats:
+      - say: At step ten, Megatron saves a checkpoint. Its weight is one and its velocity is zero. Batch eleven
+          finishes with a gradient of point two. Batch twelve finishes with minus point five. The trainer
+          crashes before it saves again. Both batches are on disk. Which batch should you feed the restarted
+          trainer first?
+        hold: 2.3
+        visual_cues:
+          - id: finish-eleven
+            phrase: Batch eleven finishes with a gradient of point two
+            targets:
+              - checkpoint-track
+            color: cyan
+            linger: 0.22
+          - id: finish-twelve
+            phrase: Batch twelve finishes with minus point five
+            targets:
+              - checkpoint-track
+            color: cyan
+            linger: 0.22
+          - id: trainer-fails
+            phrase: The trainer crashes before it saves again
+            targets:
+              - checkpoint-track
+            color: cyan
+            linger: 0.22
+      - say: Eleven. Restore the saved weight and velocity. In this example, each batch multiplies the previous
+          velocity by point nine and adds its gradient. Subtract a tenth of the new velocity from the weight.
+          Replay eleven to get weight point nine eight. Now twelve inherits that first velocity. Replay twelve
+          to reach weight one point zero one two. Both steps are back in the model.
+        hold: 0.9
+        visual_cues:
+          - id: replay-eleven
+            phrase: Replay eleven to get weight point nine eight
+            targets:
+              - checkpoint-track
+            color: cyan
+            linger: 0.22
+            caption_boundary: true
+          - id: replay-twelve
+            phrase: Replay twelve to reach weight one point zero one two
+            targets:
+              - checkpoint-track
+            color: cyan
+            linger: 0.22
+      - say: Thirteen is the next fresh batch. Starting there directly from checkpoint ten would skip two updates,
+          even though the old log says they finished. For real training, restore the optimizer, scheduler and
+          random state with the model. Recover the matching data position and compare the first resumed
+          update.
+        hold: 0.9
+        visual_cues:
+          - id: next-batch
+            phrase: Thirteen is the next fresh batch
+            targets:
+              - checkpoint-track
+            color: cyan
+            linger: 0.22
+  - id: retained-serving
+    title: Restore training from its committed boundary
+    visual: Historical pinned health recovery is distinct from the dated newer ServingCluster/TrainingRecovery
+      contract. A named session survives trainer loss, retained batch receipts stay after checkpoint10, and a
+      missing scheduler or changed reward hook blocks inappropriate reattachment.
+    beats:
+      - say: The pinned health path restarts failed rollout engines between rounds and reloads the intended
+          parameters. The newer recovery guide dated October tenth in the article describes a named, detached
+          serving cluster that can survive a training attempt while Ray remains alive. In that newer guide,
+          health recovery is enabled by default for clusters started by slime; the old flag remains
+          compatible. External clusters retain their existing policy. Training resubmission is explicit; it is
+          not an automatic retry of the failed job.
+        hold: 0.7
+        visual_cues:
+          - id: sl-retained-serving-b0-operation
+            phrase: The pinned health path restarts failed rollout engines between rounds and reloads the intended
+              parameters. The newer recovery guide dated October tenth in the article describes a named, detached
+              serving cluster that can survive a training attempt while Ray remains alive. In that newer
+              guide, health recovery is enabled by default for clusters started by slime; the old flag remains
+              compatible. External clusters retain their existing policy. Training resubmission is explicit;
+              it is not an automatic retry of the failed job.
+            targets:
+              - sl-retained-serving-mechanism
+            color: cyan
+            linger: 0.2
+          - id: sl-retained-serving-b0-s0
+            phrase: The pinned health path restarts failed rollout engines between rounds and reloads the intended
+              parameters.
+            targets:
+              - sl-retained-serving-mechanism
+            color: cyan
+            linger: 0.35
+          - id: sl-retained-serving-b0-s1
+            phrase: The newer recovery guide dated October tenth in the article describes a named, detached serving cluster
+              that can survive a training attempt while Ray remains alive.
+            targets:
+              - sl-retained-serving-mechanism
+            color: cyan
+            linger: 0.35
+          - id: sl-retained-serving-b0-s2
+            phrase: In that newer guide, health recovery is enabled by default for clusters started by slime; the old flag
+              remains compatible.
+            targets:
+              - sl-retained-serving-mechanism
+            color: cyan
+            linger: 0.35
+          - id: sl-retained-serving-b0-s3
+            phrase: External clusters retain their existing policy.
+            targets:
+              - sl-retained-serving-mechanism
+            color: cyan
+            linger: 0.35
+          - id: sl-retained-serving-b0-s4
+            phrase: Training resubmission is explicit; it is not an automatic retry of the failed job.
+            targets:
+              - sl-retained-serving-mechanism
+            color: yellow
+            linger: 0.35
+      - say: Retained straw data or versioned rollout dumps preserve batches after the committed checkpoint. The guide
+          requires model, scheduler and RNG state, plus optimizer state for a stateful optimizer. It documents
+          a separate stateless-Adam exception with scheduler recovery and precision limits. Keeping the
+          serving actor alive alone preserves none of those missing trainer states.
+        hold: 0.7
+        visual_cues:
+          - id: sl-retained-serving-b1-operation
+            phrase: Retained straw data or versioned rollout dumps preserve batches after the committed checkpoint. The
+              guide requires model, scheduler and RNG state, plus optimizer state for a stateful optimizer. It
+              documents a separate stateless-Adam exception with scheduler recovery and precision limits.
+              Keeping the serving actor alive alone preserves none of those missing trainer states.
+            targets:
+              - sl-retained-serving-mechanism
+            color: cyan
+            linger: 0.2
+          - id: sl-retained-serving-b1-s0
+            phrase: Retained straw data or versioned rollout dumps preserve batches after the committed checkpoint.
+            targets:
+              - sl-retained-serving-mechanism
+            color: cyan
+            linger: 0.35
+          - id: sl-retained-serving-b1-s1
+            phrase: The guide requires model, scheduler and RNG state, plus optimizer state for a stateful optimizer.
+            targets:
+              - sl-retained-serving-mechanism
+            color: cyan
+            linger: 0.35
+          - id: sl-retained-serving-b1-s2
+            phrase: It documents a separate stateless-Adam exception with scheduler recovery and precision limits.
+            targets:
+              - sl-retained-serving-mechanism
+            color: cyan
+            linger: 0.35
+          - id: sl-retained-serving-b1-s3
+            phrase: Keeping the serving actor alive alone preserves none of those missing trainer states.
+            targets:
+              - sl-retained-serving-mechanism
+            color: yellow
+            linger: 0.35
+      - say: Reattach with the same session and compatible rollout configuration. Reward hooks, filters and sampling
+          arguments remain checked; supported training layout changes can repartition retained data. Different
+          parallel layouts need not reproduce bitwise-identical updates. Losing the Ray cluster or the serving
+          resources requires the separate full recovery path.
+        hold: 0.7
+        visual_cues:
+          - id: sl-retained-serving-b2-operation
+            phrase: Reattach with the same session and compatible rollout configuration. Reward hooks, filters and
+              sampling arguments remain checked; supported training layout changes can repartition retained
+              data. Different parallel layouts need not reproduce bitwise-identical updates. Losing the Ray
+              cluster or the serving resources requires the separate full recovery path.
+            targets:
+              - sl-retained-serving-mechanism
+            color: cyan
+            linger: 0.2
+          - id: sl-retained-serving-b2-s0
+            phrase: Reattach with the same session and compatible rollout configuration.
+            targets:
+              - sl-retained-serving-mechanism
+            color: cyan
+            linger: 0.35
+          - id: sl-retained-serving-b2-s1
+            phrase: Reward hooks, filters and sampling arguments remain checked; supported training layout changes can
+              repartition retained data.
+            targets:
+              - sl-retained-serving-mechanism
+            color: cyan
+            linger: 0.35
+          - id: sl-retained-serving-b2-s2
+            phrase: Different parallel layouts need not reproduce bitwise-identical updates.
+            targets:
+              - sl-retained-serving-mechanism
+            color: cyan
+            linger: 0.35
+          - id: sl-retained-serving-b2-s3
+            phrase: Losing the Ray cluster or the serving resources requires the separate full recovery path.
+            targets:
+              - sl-retained-serving-mechanism
+            color: yellow
+            linger: 0.35
+  - id: debug-replay
+    title: Replay trusted data at the intended boundary
+    visual: A saved exact Sample enters train-only conversion without contacting SGLang. A separate raw input of
+      unknown provenance is held outside the PyTorch replay path. New policy activation remains separately
+      gated.
+    beats:
+      - say: Run generation on its own and save the rollout. Feed that same dump to train-only replay. Keep
+          the sample IDs, masks, serving versions and launch settings with it. Now you can inspect what
+          entered the Data Buffer and what the trainer made of it.
+        hold: 0.7
+        visual_cues:
+          - id: sl-debug-replay-b0-operation
+            phrase: Run generation on its own and save the rollout. Feed that same dump to train-only
+              replay. Keep the sample IDs, masks, serving versions and launch settings with it. Now you can
+              inspect what entered the Data Buffer and what the trainer made of it.
+            targets:
+              - sl-debug-replay-mechanism
+            color: cyan
+            linger: 0.2
+          - id: sl-debug-replay-b0-s0
+            phrase: Run generation on its own and save the rollout.
+            targets:
+              - sl-debug-replay-mechanism
+            color: cyan
+            linger: 0.35
+          - id: sl-debug-replay-b0-s1
+            phrase: Feed that same dump to train-only replay.
+            targets:
+              - sl-debug-replay-mechanism
+            color: cyan
+            linger: 0.35
+          - id: sl-debug-replay-b0-s2
+            phrase: Keep the sample IDs, masks, serving versions and launch settings with it.
+            targets:
+              - sl-debug-replay-mechanism
+            color: cyan
+            linger: 0.35
+          - id: sl-debug-replay-b0-s3
+            phrase: Now you can inspect what entered the Data Buffer and what the trainer made of it.
+            targets:
+              - sl-debug-replay-mechanism
+            color: yellow
+            linger: 0.35
+      - say: Before loading a dump, check who produced it. The pinned PyTorch loader uses general
+          deserialization with weights only set to false. Load only a dump from an authorized, trusted
+          source with a compatible revision.
+        hold: 0.7
+        visual_cues:
+          - id: sl-debug-replay-b1-operation
+            phrase: Before loading a dump, check who produced it. The pinned PyTorch loader uses general
+              deserialization with weights only set to false. Load only a dump from an authorized, trusted
+              source with a compatible revision.
+            targets:
+              - sl-debug-replay-mechanism
+            color: cyan
+            linger: 0.2
+          - id: sl-debug-replay-b1-s0
+            phrase: Before loading a dump, check who produced it.
+            targets:
+              - sl-debug-replay-mechanism
+            color: cyan
+            linger: 0.35
+          - id: sl-debug-replay-b1-s1
+            phrase: The pinned PyTorch loader uses general deserialization with weights only set to false.
+            targets:
+              - sl-debug-replay-mechanism
+            color: cyan
+            linger: 0.35
+          - id: sl-debug-replay-b1-s2
+            phrase: Load only a dump from an authorized, trusted source with a compatible revision.
+            targets:
+              - sl-debug-replay-mechanism
+            color: yellow
+            linger: 0.35
+      - say: Pair the dump with the committed checkpoint and compare the first resumed update. Record which
+          batch you replayed and which engines stayed live. Before admitting fresh trajectories, check
+          serving health and the restored trainer state.
+        hold: 0.7
+        visual_cues:
+          - id: sl-debug-replay-b2-operation
+            phrase: Pair the dump with the committed checkpoint and compare the first resumed update. Record
+              which batch you replayed and which engines stayed live. Before admitting fresh trajectories,
+              check serving health and the restored trainer state.
+            targets:
+              - sl-debug-replay-mechanism
+            color: cyan
+            linger: 0.2
+          - id: sl-debug-replay-b2-s0
+            phrase: Pair the dump with the committed checkpoint and compare the first resumed update.
+            targets:
+              - sl-debug-replay-mechanism
+            color: cyan
+            linger: 0.35
+          - id: sl-debug-replay-b2-s1
+            phrase: Record which batch you replayed and which engines stayed live.
+            targets:
+              - sl-debug-replay-mechanism
+            color: cyan
+            linger: 0.35
+          - id: sl-debug-replay-b2-s2
+            phrase: Before admitting fresh trajectories, check serving health and the restored trainer
+              state.
+            targets:
+              - sl-debug-replay-mechanism
+            color: yellow
+            linger: 0.35
+  - id: fresh-replay
+    title: Can training continue with batch 23?
+    visual: Two rows share checkpoint 20. A shortcut runs batch 22 directly from the checkpoint while a
+      reference takes both steps. The final weights land on opposite sides of two. Restoring the missing batch
+      brings both state variables back together.
+    beats:
+      - say: Try the same recovery decision on a new run. Checkpoint twenty holds weight two and velocity point one.
+          This time the learning rate is point two. Keep nine tenths of the previous velocity, add the
+          gradient, then subtract the learning rate times that new velocity from the weight. Batch twenty-one
+          added point three to the velocity after damping. Batch twenty-two added minus point four. Only batch
+          twenty-two is still on disk. Can the restarted trainer use twenty-two alone and then continue with
+          twenty-three?
+        hold: 2.7
+        visual_cues:
+          - id: sl-fresh-replay-b0-s0
+            phrase: Try the same recovery decision on a new run.
+            targets:
+              - replay-fork
+            color: cyan
+            linger: 0.22
+          - id: sl-fresh-replay-b0-s1
+            phrase: Checkpoint twenty holds weight two and velocity point one.
+            targets:
+              - replay-fork
+            color: cyan
+            linger: 0.22
+          - id: sl-fresh-replay-b0-s2
+            phrase: This time the learning rate is point two. Keep nine tenths of the previous velocity, add the
+              gradient, then subtract the learning rate times that new velocity from the weight.
+            targets:
+              - replay-fork
+            color: cyan
+            linger: 0.22
+          - id: sl-fresh-replay-b0-s3
+            phrase: Batch twenty-one added point three to the velocity after damping. Batch twenty-two added minus point
+              four.
+            targets:
+              - replay-fork
+            color: cyan
+            linger: 0.22
+          - id: sl-fresh-replay-b0-s4
+            phrase: Only batch twenty-two is still on disk.
+            targets:
+              - replay-fork
+            color: cyan
+            linger: 0.22
+          - id: sl-fresh-replay-b0-s5
+            phrase: Can the restarted trainer use twenty-two alone and then continue with twenty-three?
+            targets:
+              - replay-fork
+            color: cyan
+            linger: 0.22
+      - say: Try that shortcut on paper. With only the last gradient, velocity is minus point three one and the
+          weight rises above two. Follow the original run across the top. Its positive first gradient pushes
+          the weight down to one point nine two two. That first step changes what the negative gradient does.
+          The second step leaves the weight below two. The two weights landed on opposite sides of their
+          starting point. Hold batch twenty-three.
+        hold: 1.2
+        caption_starts: ["velocity is minus point three one", "Its positive first gradient", "The second step leaves the weight below two."]
+        visual_cues:
+          - id: sl-fresh-replay-b1-s0
+            phrase: Try that shortcut on paper.
+            targets:
+              - replay-fork
+            color: cyan
+            linger: 0.22
+            caption_boundary: true
+          - id: sl-fresh-replay-b1-s1
+            phrase: With only the last gradient, velocity is minus point three one and the weight rises above two.
+            targets:
+              - replay-fork
+            color: cyan
+            linger: 0.22
+            caption_boundary: true
+          - id: sl-fresh-replay-b1-s2
+            phrase: Follow the original run across the top. Its positive first gradient pushes the weight down to one
+              point nine two two.
+            targets:
+              - replay-fork
+            color: cyan
+            linger: 0.22
+            caption_boundary: true
+          - id: sl-fresh-replay-b1-s3
+            phrase: That first step changes what the negative gradient does. The second step leaves the weight below
+              two.
+            targets:
+              - replay-fork
+            color: cyan
+            linger: 0.22
+            caption_boundary: true
+          - id: sl-fresh-replay-b1-s4
+            phrase: The two weights landed on opposite sides of their starting point. Hold batch twenty-three.
+            targets:
+              - replay-fork
+            color: cyan
+            linger: 0.22
+            caption_boundary: true
+      - say: Now recover the saved copy of twenty-one. Replay twenty-one first and twenty-two second. The
+          weight and the optimizer velocity both match the original run. On a real job, recover the original
+          trajectories and compare the first resumed update. Regenerating a trajectory or changing the
+          parallel layout can change the result. Here the next fresh batch is twenty-three. The next lesson
+          follows DeepEP inside the serving engine as it sends tokens to experts and combines their outputs.
+        hold: 1.2
+        visual_cues:
+          - id: sl-fresh-replay-b2-s0
+            phrase: Now recover the saved copy of twenty-one. Replay twenty-one first and twenty-two second.
+            targets:
+              - replay-fork
+            color: cyan
+            linger: 0.22
+            caption_boundary: true
+          - id: sl-fresh-replay-b2-s1
+            phrase: The weight and the optimizer velocity both match the original run.
+            targets:
+              - replay-fork
+            color: cyan
+            linger: 0.22
+            caption_boundary: true
+          - id: sl-fresh-replay-b2-s2
+            phrase: On a real job, recover the original trajectories and compare the first resumed update.
+              Regenerating a trajectory or changing the parallel layout can change the result.
+            targets:
+              - replay-fork
+            color: cyan
+            linger: 0.22
+            caption_boundary: true
+          - id: sl-fresh-replay-b2-s3
+            phrase: Here the next fresh batch is twenty-three. The next lesson follows DeepEP inside the
+              serving engine as it sends tokens to experts and combines their outputs.
+            targets:
+              - replay-fork
+            color: cyan
+            linger: 0.22
+            caption_boundary: true
+          - id: replay-original-first
+            phrase: Replay twenty-one first
+            targets:
+              - replay-fork
+            color: cyan
+            linger: 0.15
+          - id: replay-original-second
+            phrase: twenty-two second
+            targets:
+              - replay-fork
+            color: cyan
+            linger: 0.15

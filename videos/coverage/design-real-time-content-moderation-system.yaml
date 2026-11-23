@@ -1,0 +1,275 @@
+version: 1
+lesson: design-real-time-content-moderation-system
+promise: Decide when a post may go public, when review must continue, and how to correct what a member sees. Size the moderation path for the surface deadline and keep each action bound to its evidence and revision.
+objectives:
+  - id: evaluate-evidence
+    can: Test a policy exception, retain every triggered category, and combine scores from assessed inputs. Distinguish untrusted content, valid model output, and the authority to publish.
+    scenes:
+      - intro
+      - categories
+      - judge-contract
+      - modality-contract
+      - video-evidence
+      - fusion-boundary
+      - policy-release
+      - provider-migration
+      - synthesis
+      - fresh-moderation
+  - id: size-and-bound
+    can: Size each stage and its reviewers from incoming work, predict which requests leave at a timer tick, and calculate backlog recovery. Choose the surface’s approved timeout action under overload.
+    scenes:
+      - surfaces
+      - review-intake
+      - cascade
+      - capacity-ledger
+      - batching
+      - batch-work
+      - batch-edge
+      - overload
+      - rates
+  - id: bind-and-correct
+    can: Bind the decision to its revision, policy, and approved regional scope. Reject a stale approval, commit a current decision once, and trace a still-hidden post from its appeal correction to a cached block.
+    scenes:
+      - regional-authority
+      - evidence-scope
+      - revisions
+      - decision-cache
+      - commit-binding
+      - appeal-labels
+      - synthesis
+      - fresh-moderation
+sections:
+  - heading: StreamShield's surface contracts
+    status: taught
+    scenes:
+      - surfaces
+      - review-intake
+  - heading: Chat has 200 ms; uploads can wait
+    status: taught
+    scenes:
+      - surfaces
+      - batch-edge
+  - heading: 10K RPS is a burst plan, not a daily average
+    status: taught
+    scenes:
+      - capacity-ledger
+  - heading: Policy packs change faster than weights
+    status: taught
+    scenes:
+      - policy-release
+      - provider-migration
+  - heading: Text, image, and overlay arrive together
+    status: taught
+    scenes:
+      - modality-contract
+      - fusion-boundary
+      - video-evidence
+  - heading: Appeals are part of the decision lifecycle
+    status: taught
+    scenes:
+      - appeal-labels
+      - revisions
+      - synthesis
+  - heading: Architecture
+    status: taught
+    scenes:
+      - cascade
+      - capacity-ledger
+      - judge-contract
+  - heading: "A concrete StreamShield example: why the cascade matters"
+    status: taught
+    scenes:
+      - intro
+      - policy-release
+      - fresh-moderation
+  - heading: Tiered approach
+    status: taught
+    scenes:
+      - cascade
+      - categories
+      - judge-contract
+      - review-intake
+  - heading: "Tier 1: Fast classifier (synchronous path)"
+    status: taught
+    scenes:
+      - categories
+      - modality-contract
+  - heading: "Tier 2: Policy-aware judge (budgeted escalation path)"
+    status: taught
+    scenes:
+      - judge-contract
+      - batch-work
+  - heading: "Tier 3: Human review"
+    status: taught
+    scenes:
+      - review-intake
+      - capacity-ledger
+      - appeal-labels
+  - heading: "Threat boundaries: content policy versus agent security"
+    status: taught
+    scenes:
+      - judge-contract
+      - review-intake
+  - heading: Multi-modal content
+    status: taught
+    scenes:
+      - modality-contract
+      - video-evidence
+      - fusion-boundary
+      - fresh-moderation
+  - heading: Handling policy evolution
+    status: taught
+    scenes:
+      - intro
+      - policy-release
+  - heading: Provider deprecation needs a migration lane
+    status: taught
+    scenes:
+      - provider-migration
+  - heading: Scaling to 10K+ RPS
+    status: taught
+    scenes:
+      - capacity-ledger
+      - batch-work
+      - overload
+  - heading: Sizing the cascade
+    status: taught
+    scenes:
+      - capacity-ledger
+  - heading: Keep overload separate from batching
+    status: taught
+    scenes:
+      - batch-edge
+      - overload
+  - heading: Content fingerprinting and caching
+    status: taught
+    scenes:
+      - decision-cache
+      - revisions
+      - synthesis
+  - heading: Micro-batching
+    status: taught
+    scenes:
+      - batching
+      - batch-work
+      - batch-edge
+  - heading: A late answer must not publish an edited post
+    status: taught
+    scenes:
+      - revisions
+      - commit-binding
+      - fresh-moderation
+  - heading: Geographic distribution and regional policies
+    status: taught
+    scenes:
+      - regional-authority
+  - heading: Appeal and review workflow
+    status: taught
+    scenes:
+      - appeal-labels
+      - revisions
+      - review-intake
+      - synthesis
+  - heading: The feedback loop
+    status: taught
+    scenes:
+      - appeal-labels
+  - heading: Regulatory and cultural considerations
+    status: taught
+    scenes:
+      - regional-authority
+      - evidence-scope
+  - heading: Keep evidence useful without retaining everything
+    status: taught
+    scenes:
+      - evidence-scope
+  - heading: Evaluate errors with the right denominator
+    status: taught
+    scenes:
+      - rates
+      - policy-release
+      - appeal-labels
+  - heading: How overlays attach
+    status: taught
+    scenes:
+      - regional-authority
+      - judge-contract
+  - heading: What StreamShield can ship from this cascade
+    status: taught
+    scenes:
+      - synthesis
+      - fresh-moderation
+  - heading: Production checklist
+    status: taught
+    scenes:
+      - synthesis
+      - policy-release
+      - batch-edge
+      - commit-binding
+  - heading: Common misconceptions
+    status: taught
+    scenes:
+      - synthesis
+      - policy-release
+      - fusion-boundary
+      - capacity-ledger
+quiz:
+  - n: 1
+    status: taught
+    scenes:
+      - categories
+  - n: 2
+    status: taught
+    scenes:
+      - modality-contract
+      - judge-contract
+  - n: 3
+    status: taught
+    scenes:
+      - fusion-boundary
+      - fresh-moderation
+  - n: 4
+    status: taught
+    scenes:
+      - decision-cache
+  - n: 5
+    status: taught
+    scenes:
+      - batching
+      - batch-edge
+  - n: 6
+    status: taught
+    scenes:
+      - capacity-ledger
+  - n: 7
+    status: taught
+    scenes:
+      - overload
+  - n: 8
+    status: taught
+    scenes:
+      - rates
+  - n: 9
+    status: taught
+    scenes:
+      - commit-binding
+      - revisions
+      - fresh-moderation
+  - n: 10
+    status: taught
+    scenes:
+      - appeal-labels
+removed: []
+reviews:
+  closed_book:
+    script: 091b298ac7d63f01
+    taught: 10
+    partial: 0
+    absent: 0
+    reviewer: /root/upgrade_shard1
+    evidence: build/video-delivery-20261106/script-reviews/design-real-time-content-moderation-system.json
+  fact_check:
+    script: 091b298ac7d63f01
+    open_findings: 0
+    reviewer: /root/upgrade_shard1
+    evidence: build/video-delivery-20261106/script-reviews/design-real-time-content-moderation-system.json

@@ -1,0 +1,232 @@
+{
+  "id": "command-log-classifier",
+  "slug": "command-log-classifier",
+  "title": "Command Log Classifier",
+  "difficulty": "Easy",
+  "category": "Observability",
+  "language": "python3",
+  "timeEstimateMinutes": 25,
+  "timeLimitMs": 2500,
+  "memoryLimitMb": 128,
+  "order": 154,
+  "tags": [
+    "logs",
+    "agent runs",
+    "redaction",
+    "classification"
+  ],
+  "source": "Cursor coding prep",
+  "summary": "Summarize command outcomes and redact the specified token pattern from captured output.",
+  "starterCode": [
+    "def classify_command_log(events: list[dict]) -> dict:",
+    "    pass"
+  ],
+  "testCases": [
+    {
+      "name": "hidden preserves blank lines and redacts multiple matches",
+      "visibility": "hidden",
+      "setup": [
+        "from solution import classify_command_log",
+        "events = [{\"cmd\": \"show\", \"exit_code\": 0, \"stdout\": \"one\\r\\n\\r\\ntwo\\n\", \"stderr\": \"sk-a, sk-b sk-\\n\"}]"
+      ],
+      "input": "classify_command_log(events)[\"redacted_logs\"]",
+      "expected": "[\"stdout: one\", \"stdout: \", \"stdout: two\", \"stderr: [REDACTED], [REDACTED] sk-\"]"
+    },
+    {
+      "name": "public failed command summary",
+      "visibility": "sample",
+      "description": "The first nonzero exit code determines the first failing command.",
+      "input": "pytest exits 1",
+      "expected": "status=failed, first_failure_cmd=pytest",
+      "feedback": "Count all failed commands, but keep the first failing command separately.",
+      "setup": [
+        "from solution import classify_command_log",
+        "events = [{\"cmd\": \"pytest\", \"exit_code\": 1, \"stdout\": \"\", \"stderr\": \"failed\"}]",
+        "summary = classify_command_log(events)"
+      ],
+      "checks": [
+        {
+          "input": "pytest exits 1",
+          "expression": "summary[\"status\"]",
+          "operator": "==",
+          "expected": "\"failed\"",
+          "feedback": "Count all failed commands, but keep the first failing command separately."
+        },
+        {
+          "input": "pytest exits 1",
+          "expression": "summary[\"failed\"]",
+          "operator": "==",
+          "expected": "1",
+          "feedback": "Count all failed commands, but keep the first failing command separately."
+        },
+        {
+          "input": "pytest exits 1",
+          "expression": "summary[\"first_failure_cmd\"]",
+          "operator": "==",
+          "expected": "\"pytest\"",
+          "feedback": "Count all failed commands, but keep the first failing command separately."
+        }
+      ]
+    },
+    {
+      "name": "public passed command summary",
+      "visibility": "sample",
+      "description": "All zero exit codes produce a passed summary.",
+      "input": "lint exits 0 with stdout=ok",
+      "expected": "status=passed, failed=0",
+      "feedback": "Exit code is the failure signal; stderr text alone can appear in successful commands.",
+      "setup": [
+        "from solution import classify_command_log",
+        "events = [{\"cmd\": \"lint\", \"exit_code\": 0, \"stdout\": \"ok\", \"stderr\": \"\"}]"
+      ],
+      "expression": "classify_command_log(events)[\"status\"]",
+      "expectedExpression": "\"passed\""
+    },
+    {
+      "name": "hidden redacts stdout and stderr",
+      "visibility": "hidden",
+      "setup": [
+        "from solution import classify_command_log",
+        "events = [{\"cmd\": \"print\", \"exit_code\": 0, \"stdout\": \"sk-live\", \"stderr\": \"err sk-test_2\"}]",
+        "logs = classify_command_log(events)[\"redacted_logs\"]"
+      ],
+      "input": "events = [{\"cmd\": \"print\", \"exit_code\": 0, \"stdout\": \"sk-live\", \"stderr\": \"err sk-test_2\"}]\nlogs = classify_command_log(events)[\"redacted_logs\"]\nlogs",
+      "expected": "[\"stdout: [REDACTED]\", \"stderr: err [REDACTED]\"]",
+      "expression": "logs"
+    },
+    {
+      "name": "hidden empty input",
+      "visibility": "hidden",
+      "setup": [
+        "from solution import classify_command_log"
+      ],
+      "input": "classify_command_log([])",
+      "expected": "{\"status\": \"passed\", \"total\": 0, \"failed\": 0, \"first_failure_cmd\": None, \"redacted_logs\": []}"
+    },
+    {
+      "name": "hidden multiple failures keeps first",
+      "visibility": "hidden",
+      "setup": [
+        "from solution import classify_command_log",
+        "events = [{\"cmd\": \"a\", \"exit_code\": 2, \"stdout\": \"\", \"stderr\": \"\"}, {\"cmd\": \"b\", \"exit_code\": 1, \"stdout\": \"\", \"stderr\": \"\"}]",
+        "summary = classify_command_log(events)"
+      ],
+      "checks": [
+        {
+          "input": "events = [{\"cmd\": \"a\", \"exit_code\": 2, \"stdout\": \"\", \"stderr\": \"\"}, {\"cmd\": \"b\", \"exit_code\": 1, \"stdout\": \"\", \"stderr\": \"\"}]\nsummary = classify_command_log(events)\nsummary[\"failed\"]",
+          "expression": "summary[\"failed\"]",
+          "operator": "==",
+          "expected": "2"
+        },
+        {
+          "input": "events = [{\"cmd\": \"a\", \"exit_code\": 2, \"stdout\": \"\", \"stderr\": \"\"}, {\"cmd\": \"b\", \"exit_code\": 1, \"stdout\": \"\", \"stderr\": \"\"}]\nsummary = classify_command_log(events)\nsummary[\"first_failure_cmd\"]",
+          "expression": "summary[\"first_failure_cmd\"]",
+          "operator": "==",
+          "expected": "\"a\""
+        }
+      ]
+    },
+    {
+      "name": "hidden preserves line order",
+      "visibility": "hidden",
+      "setup": [
+        "from solution import classify_command_log",
+        "events = [{\"cmd\": \"a\", \"exit_code\": 0, \"stdout\": \"one\\ntwo\", \"stderr\": \"three\"}]"
+      ],
+      "input": "events = [{\"cmd\": \"a\", \"exit_code\": 0, \"stdout\": \"one\\ntwo\", \"stderr\": \"three\"}]\nclassify_command_log(events)[\"redacted_logs\"]",
+      "expected": "[\"stdout: one\", \"stdout: two\", \"stderr: three\"]",
+      "expression": "classify_command_log(events)[\"redacted_logs\"]"
+    },
+    {
+      "name": "hidden missing output fields treated empty",
+      "visibility": "hidden",
+      "setup": [
+        "from solution import classify_command_log",
+        "events = [{\"cmd\": \"a\", \"exit_code\": 0}]"
+      ],
+      "input": "events = [{\"cmd\": \"a\", \"exit_code\": 0}]\nclassify_command_log(events)[\"redacted_logs\"]",
+      "expected": "[]",
+      "expression": "classify_command_log(events)[\"redacted_logs\"]"
+    },
+    {
+      "name": "public stderr does not override a successful exit code",
+      "visibility": "sample",
+      "description": "Warnings on stderr can accompany a successful command.",
+      "feedback": "Use exit_code for status while still preserving stderr lines in redacted_logs.",
+      "setup": [
+        "from solution import classify_command_log",
+        "events = [{\"cmd\": \"build\", \"exit_code\": 0, \"stderr\": \"warning\"}]"
+      ],
+      "input": "classify_command_log(events)",
+      "expected": "{\"status\": \"passed\", \"total\": 1, \"failed\": 0, \"first_failure_cmd\": None, \"redacted_logs\": [\"stderr: warning\"]}"
+    },
+    {
+      "name": "hidden leaves input events untouched",
+      "visibility": "hidden",
+      "setup": [
+        "from solution import classify_command_log",
+        "events = [{\"cmd\": \"print\", \"exit_code\": 0, \"stdout\": \"sk-live\", \"stderr\": \"err sk-test_2\"}]",
+        "before = [dict(event) for event in events]",
+        "classify_command_log(events)"
+      ],
+      "input": "events",
+      "expected": "before",
+      "feedback": "Build redacted output without mutating the source event dictionaries."
+    }
+  ],
+  "clarifyingQuestions": [
+    "Does stderr imply failure or only exit code?",
+    "Should logs be truncated?",
+    "Which secret patterns should be redacted?",
+    "Should command duration be included?"
+  ],
+  "followUps": [
+    "Classify failures into test, lint, dependency, timeout, and infrastructure.",
+    "Add log truncation with head and tail preservation.",
+    "Attach command summaries to run timelines."
+  ],
+  "followUpGuide": [
+    "For failure classes, inspect command name plus exit signal and known error fragments.",
+    "",
+    "For truncation, redact before retaining the first N and last N lines, avoid duplicating overlaps in short logs, and mark omitted content. A bounded line count still permits an arbitrarily long line; add a character or byte cap too.",
+    "",
+    "For timelines, emit a compact event per command and store raw logs separately with retention controls."
+  ],
+  "complexityAnalysis": [
+    "- Scanning events and logs. Time: O(e + L), for e events and L captured characters. Space: O(B + k) for B returned characters and k returned lines, plus O(longest stream) temporary splitting storage. Count captured string contents as well as returned line entries.",
+    "- Redaction is linear in each log line length. Space: O(line length) per processed line.",
+    "- Classification follow-up: a fixed set of command-field checks can be O(1) per command, but scanning error fragments adds time proportional to the inspected text."
+  ],
+  "solutionGuide": [
+    "Treat exit code as source of truth. Split each stream into lines, then apply the specified token redaction to each line. Preserve command fields and input events.",
+    "",
+    "```python",
+    "import re",
+    "",
+    "",
+    "def _redact(line: str) -> str:",
+    "    return re.sub(r\"sk-[A-Za-z0-9_-]+\", \"[REDACTED]\", line)",
+    "",
+    "",
+    "def classify_command_log(events: list[dict]) -> dict:",
+    "    failed = 0",
+    "    first_failure = None",
+    "    redacted_logs = []",
+    "    for event in events:",
+    "        if event.get(\"exit_code\", 0) != 0:",
+    "            failed += 1",
+    "            if first_failure is None:",
+    "                first_failure = event.get(\"cmd\")",
+    "        for stream in (\"stdout\", \"stderr\"):",
+    "            for line in str(event.get(stream) or \"\").splitlines():",
+    "                redacted_logs.append(f\"{stream}: {_redact(line)}\")",
+    "    return {",
+    "        \"status\": \"failed\" if failed else \"passed\",",
+    "        \"total\": len(events),",
+    "        \"failed\": failed,",
+    "        \"first_failure_cmd\": first_failure,",
+    "        \"redacted_logs\": redacted_logs,",
+    "    }",
+    "```"
+  ]
+}

@@ -1,0 +1,1335 @@
+version: 1
+id: streaming-features
+title: Building Features While Events Arrive
+source: foundations/batch-streaming-feature-pipelines/content.md
+voice: en-US-AndrewNeural
+rate: +0%
+sources:
+  - title: "Apache Flink: Generating Watermarks"
+    url: https://nightlies.apache.org/flink/flink-docs-stable/docs/dev/datastream/event-time/generating_watermarks/
+  - title: "Apache Flink: Windows"
+    url: https://nightlies.apache.org/flink/flink-docs-stable/docs/dev/datastream/operators/windows/
+  - title: "Feast: Point-in-Time Joins"
+    url: https://docs.feast.dev/getting-started/concepts/point-in-time-joins
+  - title: "Kafka: Message Delivery Semantics"
+    url: https://kafka.apache.org/documentation/#semantics
+  - title: pandas backward as-of join
+    url: https://pandas.pydata.org/docs/reference/api/pandas.merge_asof.html
+  - title: Feast historical availability contract
+    url: https://raw.githubusercontent.com/feast-dev/feast/master/docs/getting-started/concepts/point-in-time-joins.md
+  - title: Kafka delivery scope
+    url: https://kafka.apache.org/43/design/design/
+  - title: SQLite atomic commit
+    url: https://sqlite.org/atomiccommit.html
+scenes:
+  - id: intro
+    title: "At 09:00, which heartbeat can the scheduler read?"
+    visual: "A heartbeat stamped 08:30 travels from the worker toward the feature store. The clock stops at 09:00 with the earlier heartbeat still in the store. When the clock resumes, the packet arrives and the captured row stays in view."
+    beats:
+      - say: "The worker sent this heartbeat at eight thirty. At nine, the scheduler reads the store to predict whether the report will finish on time."
+        hold: 0.35
+        caption_starts: ["At nine, the scheduler reads the store"]
+        visual_cues:
+          - id: sf-intro-second
+            phrase: "The worker sent this heartbeat at eight thirty"
+            targets: [second-heartbeat]
+            color: cyan
+            linger: 0.25
+      - say: "H one left at one o’clock and reached the store two minutes later. Which heartbeat goes in the nine o’clock training row? How old is it?"
+        hold: 2.6
+        caption_starts: ["Which heartbeat goes in the nine o’clock training row", "How old is it"]
+        visual_cues:
+          - id: sf-intro-first
+            phrase: "H one left at one o’clock"
+            targets: [first-heartbeat]
+            color: cyan
+            linger: 0.25
+          - id: sf-intro-question
+            phrase: "Which heartbeat goes in the nine o’clock training row"
+            targets: [first-heartbeat, second-heartbeat, morning-row]
+            color: cyan
+            linger: 0.25
+      - say: "H one, eight hours. Subtract the time the worker sent it from the time the scheduler asked. Save that age with the prediction."
+        hold: 0.45
+        visual_cues:
+          - id: sf-intro-age
+            phrase: "H one, eight hours"
+            targets: [morning-row]
+            color: green
+            linger: 0.25
+            caption_boundary: true
+      - say: "At eleven the second heartbeat finally reaches the store. Tomorrow’s archive puts its send time half an hour before the request. Training on that half hour would give the model a heartbeat the scheduler was still waiting for."
+        hold: 0.75
+        caption_starts: ["Tomorrow’s archive puts its send time", "Training on that half hour"]
+        visual_cues:
+          - id: sf-intro-second-read
+            phrase: "At eleven the second heartbeat finally reaches the store"
+            targets: [second-heartbeat]
+            color: cyan
+            linger: 0.25
+          - id: sf-intro-hindsight
+            phrase: "Tomorrow’s archive puts its send time half an hour before the request"
+            targets: [second-heartbeat, morning-row, replay-row]
+            color: cyan
+            linger: 0.25
+  - id: availability-clock
+    title: "When could the service read H2?"
+    visual: "The H2 path gains a broker stop. Hold its worker and broker times fixed while moving only publication across the same request cutoff."
+    beats:
+      - say: "Give that second heartbeat a faster trip to the broker. It still leaves at eight thirty. This time the broker receives it at eight fifty-eight and the store publishes it at nine oh two. Can the nine o’clock request use it now?"
+        hold: 2.1
+        visual_cues:
+          - id: sf-availability-clock-ingest
+            phrase: "the broker receives it at eight fifty-eight"
+            targets: [publication-path]
+            color: cyan
+            linger: 0.25
+          - id: sf-availability-clock-publish
+            phrase: "the store publishes it at nine oh two"
+            targets: [publication-path]
+            color: cyan
+            linger: 0.25
+      - say: "It still reads H one. At nine, H two had reached the broker, but the store had nothing new to return. For a historical replay, use the time the feature became readable."
+        hold: 0.5
+        visual_cues:
+          - id: sf-availability-clock-exclude
+            phrase: "It still reads H one"
+            targets: [publication-row]
+            color: green
+            linger: 0.25
+            caption_boundary: true
+      - say: "Change just the publication time to eight fifty-nine. Now the request reads H two, thirty minutes old. Publication decides whether the heartbeat qualifies. Its worker timestamp tells you how old it is."
+        hold: 0.6
+        visual_cues:
+          - id: sf-availability-clock-earlier
+            phrase: "Change just the publication time to eight fifty-nine"
+            targets: [publication-path]
+            color: cyan
+            linger: 0.25
+          - id: sf-availability-clock-admit
+            phrase: "Now the request reads H two, thirty minutes old"
+            targets: [publication-row]
+            color: green
+            linger: 0.25
+            caption_boundary: true
+      - say: "Put those clocks in the same time zone before comparing them. The lab treats a timestamp with no offset as UTC and converts explicit offsets to UTC. It includes publication exactly at the cutoff. If two operations share one clock tick, a sequence number or a snapshot version can tell you which came first."
+        hold: 0.45
+        visual_cues:
+          - id: sf-availability-clock-utc
+            phrase: "in the same time zone"
+            targets: [publication-path]
+            color: cyan
+            linger: 0.25
+  - id: event-arrival-clocks
+    title: "Read the same job again"
+    visual: "Restore immediate publication for accepted heartbeats. A request cursor crosses the original H2 and H3 paths. Each receipt subtracts the chosen worker timestamp from the new cutoff."
+    beats:
+      - say: "Back on the original feed, an accepted heartbeat becomes readable as soon as it arrives. H two still arrives at eleven. The next heartbeat is sent at noon and arrives one minute later."
+        hold: 0.45
+        visual_cues:
+          - id: sf-event-arrival-clocks-third
+            phrase: "sent at noon and arrives one minute later"
+            targets: [clock-history]
+            color: cyan
+            linger: 0.25
+      - say: "Move the request to noon. H three sits right on the worker-time boundary. Can the scheduler use it yet? Which age will it read?"
+        hold: 2
+        visual_cues:
+          - id: sf-event-arrival-clocks-noon
+            phrase: "Move the request to noon"
+            targets: [clock-history]
+            color: cyan
+            linger: 0.25
+      - say: "H two, three and a half hours old. At noon the store is still one minute away from receiving H three. The latest readable worker timestamp is eight thirty."
+        hold: 0.6
+        visual_cues:
+          - id: sf-event-arrival-clocks-noon-age
+            phrase: "H two, three and a half hours old"
+            targets: [clock-row]
+            color: green
+            linger: 0.25
+            caption_boundary: true
+      - say: "Move the request to four in the afternoon. H three is now readable. Subtract noon from four and the age is four hours. Storing the worker timestamp lets the age keep changing between writes."
+        hold: 0.55
+        visual_cues:
+          - id: sf-event-arrival-clocks-four
+            phrase: "Move the request to four in the afternoon"
+            targets: [clock-history]
+            color: cyan
+            linger: 0.25
+          - id: sf-event-arrival-clocks-four-age
+            phrase: "the age is four hours"
+            targets: [clock-row]
+            color: green
+            linger: 0.25
+            caption_boundary: true
+  - id: per-row-joins
+    title: "Which backlog did each job see?"
+    visual: "Each job has its own line of published updates and a request marker. A backward search stops at the matching value. A single 09:30 snapshot moves the first marker past J-201’s decision."
+    beats:
+      - say: "Now build training rows for two jobs. The numbers on each line are queue depths. These updates became readable as soon as they happened. J two oh one was scored at nine. J two oh two was scored half an hour later."
+        hold: 0.4
+      - say: "Start at the first job’s request and search backward. At eight fifty its backlog was five. Do the same for the second job. At nine twenty its backlog was eight. Each row has its own starting point. That’s a point-in-time join."
+        hold: 0.6
+        visual_cues:
+          - id: sf-per-row-joins-first
+            phrase: "At eight fifty its backlog was five"
+            targets: [first-job]
+            color: green
+            linger: 0.25
+            caption_boundary: true
+          - id: sf-per-row-joins-second
+            phrase: "At nine twenty its backlog was eight"
+            targets: [second-job]
+            color: green
+            linger: 0.25
+            caption_boundary: true
+      - say: "Try reading both jobs from the latest state at nine thirty. Which job picks up information from after its request?"
+        hold: 2.15
+        visual_cues:
+          - id: sf-per-row-joins-snapshot
+            phrase: "Try reading both jobs from the latest state at nine thirty"
+            targets: [first-job]
+            color: cyan
+            linger: 0.25
+      - say: "The first job gets twelve. Look at its nine-fifteen update. That change came fifteen minutes after the job was scored. A retained table snapshot can supply the history for a join. You still have to apply each row’s cutoff."
+        hold: 0.6
+        visual_cues:
+          - id: sf-per-row-joins-snapshot-value
+            phrase: "The first job gets twelve"
+            targets: [first-job]
+            color: green
+            linger: 0.25
+            caption_boundary: true
+  - id: join-contract
+    title: "What did the backward join match?"
+    visual: "Globally sort backlog updates by time, then match within a job. Compare a permitted join-key age with a publication that falls after the request. Check how the store records creation and availability."
+    beats:
+      - say: "These rows are grouped by job. Read down the time column. Nine fifteen comes before eight fifty. In pandas, sort both tables by the join clock across all jobs. Then use a backward as-of join, grouped by job. Exact matches count by default. Here each update is readable immediately, and each job has one update per timestamp."
+        hold: 0.6
+        visual_cues:
+          - id: sf-join-contract-sort
+            phrase: "sort both tables by the join clock across all jobs"
+            targets: [join-contract-mechanism]
+            color: cyan
+            linger: 0.25
+          - id: sf-join-contract-wrongsort
+            phrase: "Nine fifteen comes before eight fifty"
+            targets: [join-contract-mechanism]
+            color: cyan
+            linger: 0.25
+          - id: sf-join-contract-backward
+            phrase: "a backward as-of join, grouped by job"
+            targets: [join-contract-mechanism]
+            color: cyan
+            linger: 0.25
+      - say: "At nine, the join can search back one day. A heartbeat stamped eight thirty is well inside that range. Follow it to publication at nine fifteen. The scheduler had already made its prediction. To replay that request, keep the publication history and select the last heartbeat that was readable by nine. Choose the lookback to suit the feature. A long silence can be the signal you need."
+        hold: 0.55
+        caption_starts: ["Follow it to publication at nine fifteen", "To replay that request", "Choose the lookback"]
+        visual_cues:
+          - id: sf-join-contract-tolerance
+            phrase: "Follow it to publication at nine fifteen"
+            targets: [join-contract-mechanism]
+            color: cyan
+            linger: 0.25
+          - id: sf-join-contract-retention
+            phrase: "keep the publication history"
+            targets: [join-contract-mechanism]
+            color: cyan
+            linger: 0.25
+      - say: "In Feast, the default historical join filters by event time. At a shared event time it may select a later-created correction. On supported offline stores, filtering by creation time adds another cutoff and excludes missing creation times. For serving replay, first establish that creation actually records when a value was readable. A warehouse insert may precede publication. Feast’s online store keeps the latest value per entity."
+        hold: 0.5
+        visual_cues:
+          - id: sf-join-contract-default
+            phrase: "the default historical join filters by event time"
+            targets: [join-contract-mechanism]
+            color: cyan
+            linger: 0.25
+          - id: sf-join-contract-created
+            phrase: "filtering by creation time adds another cutoff"
+            targets: [join-contract-mechanism]
+            color: cyan
+            linger: 0.25
+          - id: sf-join-contract-latest
+            phrase: "the latest value per entity"
+            targets: [join-contract-mechanism]
+            color: cyan
+            linger: 0.25
+  - id: batch-online
+    title: "Two ways to read J-204"
+    visual: "Three archived records sit above one online key at 09:00. The same H1 timestamp gives two minutes of age at the write and eight hours at the request."
+    beats:
+      - say: "Here’s a day of archived heartbeats for J two oh four. Batch processing reads a bounded input like this to build many training rows. A streaming updater handles records as they arrive and keeps a value ready for a single job lookup. Input size, arrival rate, batching and capacity determine how quickly either path can deliver."
+        hold: 0.45
+        visual_cues:
+          - id: sf-batch-online-batch
+            phrase: "a day of archived heartbeats"
+            targets: [batch-history]
+            color: cyan
+            linger: 0.25
+          - id: sf-batch-online-stream
+            phrase: "A streaming updater handles records as they arrive"
+            targets: [online-key]
+            color: cyan
+            linger: 0.25
+      - say: "At nine, the online key holds H one. If the writer had saved the age at one oh two, it would have saved about point oh three hours. By nine the heartbeat is eight hours old. Save the worker timestamp and subtract it from the request time on both paths."
+        hold: 0.6
+        visual_cues:
+          - id: sf-batch-online-cached
+            phrase: "the writer had saved the age at one oh two"
+            targets: [online-key]
+            color: cyan
+            linger: 0.25
+          - id: sf-batch-online-age
+            phrase: "By nine the heartbeat is eight hours old"
+            targets: [paired-request]
+            color: green
+            linger: 0.25
+            caption_boundary: true
+      - say: "Capture the actual row with the request ID, cutoff, definition version and source progress. To reconstruct it later, keep the arrivals, routing decisions, published states and transformations. A shared event feed can supply both stores even when the stores publish at different times."
+        hold: 0.6
+        visual_cues:
+          - id: sf-batch-online-capture
+            phrase: "Capture the actual row"
+            targets: [paired-request]
+            color: cyan
+            linger: 0.25
+  - id: revision-ordering
+    title: "A correction and a retry"
+    visual: "Follow H4 for J-204. Three deliveries share the same worker timestamp. Their source versions determine which phase the one online row retains."
+    beats:
+      - say: "The worker reports that it scaled up at ten thirty. Version one arrives a minute later. At ten thirty-four the producer sends version two with a corrected phase. Both messages refer to the same worker time."
+        hold: 0.55
+        visual_cues:
+          - id: sf-revision-ordering-v2
+            phrase: "the producer sends version two with a corrected phase"
+            targets: [revision-messages]
+            color: cyan
+            linger: 0.25
+      - say: "At ten thirty-six, version one arrives again. The service has to choose a phase for the next request. Which version stays online?"
+        hold: 2.2
+        visual_cues:
+          - id: sf-revision-ordering-retry
+            phrase: "version one arrives again"
+            targets: [revision-messages]
+            color: cyan
+            linger: 0.25
+      - say: "Keep version two. Compare worker time first. When the times match, compare the versions assigned by the source. Arrival order would undo the correction. At ten forty, the heartbeat is ten minutes old. Only its phase changed. Even when the one o’clock heartbeat arrives again later, its older worker time leaves this row alone."
+        hold: 0.6
+        visual_cues:
+          - id: sf-revision-ordering-keep
+            phrase: "Keep version two"
+            targets: [revision-current]
+            color: green
+            linger: 0.25
+            caption_boundary: true
+          - id: sf-revision-ordering-age
+            phrase: "the heartbeat is ten minutes old"
+            targets: [revision-current]
+            color: green
+            linger: 0.25
+            caption_boundary: true
+      - say: "Batch replay needs the same ordering. A random event ID can identify a delivery but cannot tell you which revision came later. In this example the source keeps the worker timestamp fixed. Deleting an event or correcting that timestamp needs a rule for retiring the old event. Validate clocks and payloads, then compare and update atomically and record when the winner was published."
+        hold: 0.5
+  - id: quarantine-state
+    title: "Two phases claim the same version"
+    visual: "Feed the two H5 payloads to J-205 in opposite orders. Each column shows the actual order of its phases, the state after a repeated message, and recovery on a higher validated revision."
+    beats:
+      - say: "Try a different job, J two oh five. Both messages describe an event at ten thirty, and both claim version seven. A says the worker scaled up. B says that action failed. Read them in opposite orders in the two columns. Which phase can the store safely serve?"
+        hold: 2.1
+        visual_cues:
+          - id: sf-quarantine-state-payloads
+            phrase: "B says that action failed"
+            targets: [quarantine-state-mechanism]
+            color: cyan
+            linger: 0.25
+      - say: "Quarantine the state in both orders. The source gave you no way to choose between these payloads. Repeat either message and the same conflict remains. A higher validated revision can supply a replacement. The batch replay checks for these conflicting phases at the latest eligible time and version too."
+        hold: 0.6
+        visual_cues:
+          - id: sf-quarantine-state-quarantine
+            phrase: "Quarantine the state in both orders"
+            targets: [quarantine-state-mechanism]
+            color: green
+            linger: 0.25
+            caption_boundary: true
+          - id: sf-quarantine-state-retry
+            phrase: "Repeat either message"
+            targets: [quarantine-state-mechanism]
+            color: cyan
+            linger: 0.25
+          - id: sf-quarantine-state-higher
+            phrase: "A higher validated revision can supply a replacement"
+            targets: [quarantine-state-mechanism]
+            color: cyan
+            linger: 0.25
+      - say: "This example compares the phase field. In production, compare every relevant field or its canonical fingerprint. For a request older than the current event or its arrival, the online lookup raises a historical-read error. Retrieve the capture or replay the published history. Think back to J two oh four. Its nine o’clock receipt still says eight hours."
+        hold: 0.55
+  - id: watermarks
+    title: A watermark estimates event-time progress
+    visual: The maximum event timestamp and a configured delay advance a watermark; an 11:05 record is
+      tested against its window end plus allowed lateness and separately against an application
+      replay threshold.
+    beats:
+      - say: Stream windows group records by time. Tumbling windows make fixed non-overlapping buckets.
+          Sliding windows overlap, and session windows grow until activity pauses. Pick event time
+          or processing time before deciding when a result is complete.
+        hold: 0.55
+        visual_cues:
+          - id: watermarks-beat-1-focus-1
+            phrase: Stream windows group records by time
+            targets:
+              - watermarks-object-recordx-520-13-c-pink-28
+            color: blue
+            linger: 0.6
+      - say: A watermark estimates how far event time has progressed. In a simplified rule, take the
+          greatest event timestamp seen and subtract a configured delay. With a 12:20 maximum and a
+          fifteen-minute delay, the estimate is 12:05.
+        hold: 0.6
+        motion_check:
+          region:
+            - 220
+            - 340
+            - 1380
+            - 490
+          minimumChangedFraction: 0.002
+        visual_cues:
+          - id: watermarks-beat-2-focus-1
+            phrase: A watermark estimates how far event time has progressed
+            targets:
+              - watermarks-object-recordx-520-13-c-pink-28
+            color: blue
+            linger: 0.6
+          - id: sf-watermarks-maximum
+            phrase: With a 12:20 maximum and a fifteen-minute delay
+            targets:
+              - watermarks-mechanism
+            color: cyan
+            linger: 0.5
+          - id: sf-watermarks-value
+            phrase: the estimate is 12:05
+            targets:
+              - watermarks-mechanism
+            color: cyan
+            linger: 0.5
+      - say: Now place an 11:05 record in the 11-to-12 window. The 12:05 watermark leaves it sixty minutes
+          behind. The window keeps its state until 12:30 with a thirty-minute allowed-lateness setting,
+          while this application routes records more than 45 minutes behind the watermark to replay.
+          The window can still take updates. The router sets this particular record aside.
+        hold: 0.7
+        visual_cues:
+          - id: watermarks-beat-3-focus-1
+            phrase: than 45 minutes behind the watermark to replay
+            targets:
+              - watermark-current
+              - watermarks-object-min-behind-watermark-replay-rule-35
+            color: blue
+            linger: 0.6
+          - id: watermarks-beat-3-focus-2
+            phrase: The window keeps its state until 12:30 with a thirty-minute allowed-lateness setting
+            targets:
+              - watermark-window-limit
+            color: blue
+            linger: 0.6
+          - id: sf-watermarks-lag
+            phrase: leaves it sixty minutes behind
+            targets:
+              - watermarks-mechanism
+            color: cyan
+            linger: 0.5
+  - id: window-geometry
+    title: "Which heartbeats belong together?"
+    visual: "Put 11:20 inside one hourly bucket and four overlapping examples. Then insert it between two pairs of session events and compare their gaps with fifteen minutes. Finally separate firing a result from retaining its state."
+    beats:
+      - say: "Count heartbeats by worker time. Eleven o’clock starts a new hourly bucket, and noon starts the next one. Those buckets are called tumbling windows. Now start an hour-long window every five minutes. The line at eleven twenty crosses every sliding window shown. Counting the same heartbeat once in each of those windows is intentional. Using processing time would place it by the engine’s clock instead."
+        hold: 0.5
+        visual_cues:
+          - id: sf-window-geometry-sliding
+            phrase: "start an hour-long window every five minutes"
+            targets: [window-geometry-mechanism]
+            color: cyan
+            linger: 0.25
+      - say: "For a session, measure the quiet gaps between the dots. Use a fifteen-minute inactivity gap. Eleven ten to eleven thirty leaves two sessions with two heartbeats each. Now an eleven-twenty heartbeat arrives late. How many sessions are there?"
+        hold: 2.2
+        visual_cues:
+          - id: sf-window-geometry-bridge
+            phrase: "an eleven-twenty heartbeat arrives late"
+            targets: [window-geometry-mechanism]
+            color: cyan
+            linger: 0.25
+      - say: "One session, five heartbeats. The gap on each side of the new dot is only ten minutes. A sink that already published both pairs must retract or replace their old counts when it publishes the merged session. Adding all three counts would count the first four heartbeats twice."
+        hold: 0.65
+        visual_cues:
+          - id: sf-window-geometry-merge
+            phrase: "One session, five heartbeats"
+            targets: [window-geometry-mechanism]
+            color: green
+            linger: 0.25
+            caption_boundary: true
+      - say: "Go back to the fixed hour. With Flink’s default event-time trigger, crossing the window end fires the main result. If we allow thirty minutes of lateness, the state stays available for a later update. Flink defaults to zero allowed lateness. To collect records that are too late in a side output, configure that output."
+        hold: 0.55
+        visual_cues:
+          - id: sf-window-geometry-fire
+            phrase: "crossing the window end fires the main result"
+            targets: [window-geometry-mechanism]
+            color: cyan
+            linger: 0.25
+          - id: sf-window-geometry-retained
+            phrase: "the state stays available for a later update"
+            targets: [window-geometry-mechanism]
+            color: cyan
+            linger: 0.25
+          - id: sf-window-geometry-default
+            phrase: "Flink defaults to zero allowed lateness"
+            targets: [window-geometry-mechanism]
+            color: cyan
+            linger: 0.25
+  - id: watermark-inputs
+    title: "Follow the watermark"
+    visual: "Two input cursors show the minimum active watermark. On one event-time scale, compare the window end and two different record times with 12:20. The 11:50 record feeds the next scene."
+    beats:
+      - say: "Start at twelve twenty and subtract fifteen minutes. That takes us to twelve oh five. When Flink’s bounded out-of-orderness generator emits its periodic watermark, it subtracts one more millisecond. Watch the seconds roll back to fifty-nine."
+        hold: 0.5
+        caption_starts: ["That takes us to twelve oh five", "it subtracts one more millisecond", "Watch the seconds roll back to fifty-nine"]
+        visual_cues:
+          - id: sf-watermark-inputs-minutes
+            phrase: "That takes us to twelve oh five"
+            targets: [watermark-rule]
+            color: cyan
+            linger: 0.25
+          - id: sf-watermark-inputs-engine
+            phrase: "it subtracts one more millisecond"
+            targets: [watermark-rule]
+            color: cyan
+            linger: 0.25
+      - say: "Suppose two active inputs now report these watermarks. A has reached twelve twenty. B has reached eleven fifty. The downstream clock waits at eleven fifty, the smaller of the two. If the configured timeout marks B idle, A can advance the clock. Older records from B may be late when it resumes."
+        hold: 0.55
+        visual_cues:
+          - id: sf-watermark-inputs-minimum
+            phrase: "The downstream clock waits at eleven fifty"
+            targets: [input-progress]
+            color: green
+            linger: 0.25
+            caption_boundary: true
+          - id: sf-watermark-inputs-idle
+            phrase: "the configured timeout marks B idle"
+            targets: [input-progress]
+            color: cyan
+            linger: 0.25
+      - say: "Freeze the watermark at twelve twenty. This window ended at noon and keeps its state for thirty more minutes. The router accepts heartbeats up to forty-five minutes behind the watermark. Here comes one stamped eleven oh five. Can the window still update? Where does this heartbeat go?"
+        hold: 2.4
+        caption_starts: ["Here comes one stamped eleven oh five", "Can the window still update", "Where does this heartbeat go"]
+      - say: "Measure from noon to the watermark. Twenty minutes have passed, so the window still has its state. Now measure from the heartbeat to the same watermark. That gap is seventy-five minutes. Send the heartbeat to replay."
+        hold: 0.65
+        caption_starts: ["Twenty minutes have passed", "That gap is seventy-five minutes", "Send the heartbeat to replay"]
+        visual_cues:
+          - id: sf-watermark-inputs-window-span
+            phrase: "Measure from noon to the watermark"
+            targets: [window-budgets]
+            color: cyan
+            linger: 0.25
+          - id: sf-watermark-inputs-retained
+            phrase: "Twenty minutes have passed, so the window still has its state"
+            targets: [window-budgets]
+            color: green
+            linger: 0.25
+            caption_boundary: true
+          - id: sf-watermark-inputs-record-span
+            phrase: "Now measure from the heartbeat to the same watermark"
+            targets: [window-budgets]
+            color: cyan
+            linger: 0.25
+          - id: sf-watermark-inputs-replay
+            phrase: "Send the heartbeat to replay"
+            targets: [window-budgets]
+            color: green
+            linger: 0.25
+            caption_boundary: true
+      - say: "Keep the watermark and window fixed. A different heartbeat was sent at eleven fifty. Where does this one go?"
+        hold: 2.15
+        visual_cues:
+          - id: sf-watermark-inputs-second
+            phrase: "A different heartbeat was sent at eleven fifty"
+            targets: [window-budgets]
+            color: cyan
+            linger: 0.25
+      - say: "Accept it. It is thirty minutes behind the watermark, inside the forty-five-minute limit. Here the window can update again. Log which records took each route so batch can reproduce the count that serving read."
+        hold: 0.65
+        visual_cues:
+          - id: sf-watermark-inputs-accept
+            phrase: "It is thirty minutes behind the watermark"
+            targets: [window-budgets]
+            color: green
+            linger: 0.25
+            caption_boundary: true
+  - id: window-publication
+    title: "Count the eleven-to-noon hour"
+    visual: "The revised message lines up with the stored hour. Lines join the two copies of A and then B. C moves into the published row while the earlier request keeps its count of two."
+    beats:
+      - say: "Let’s trace what the count store receives for that hour. The first message covers heartbeats A and B. It arrives at twelve twenty-two. A request one minute later records two. Keep that request at the bottom of the screen."
+        hold: 0.6
+        visual_cues:
+          - id: sf-window-publication-capture
+            phrase: "A request one minute later records two"
+            targets: [window-store]
+            color: green
+            linger: 0.25
+            caption_boundary: true
+      - say: "At twelve twenty-four, a new message includes the late heartbeat C along with A and B. Both messages describe the whole hour for the same job. What count should the store serve next?"
+        hold: 2.45
+        visual_cues:
+          - id: sf-window-publication-late
+            phrase: "a new message includes the late heartbeat C along with A and B"
+            targets: [window-message]
+            color: cyan
+            linger: 0.25
+      - say: "Line up the messages. A sits above A. B sits above B. Add the totals and both heartbeats count twice. That gives five."
+        hold: 1.15
+        caption_starts: ["A sits above A", "B sits above B", "Add the totals", "That gives five"]
+        visual_cues:
+          - id: sf-window-publication-match-a
+            phrase: "A sits above A"
+            targets: [window-addition]
+            color: pink
+            linger: 0.25
+          - id: sf-window-publication-match-b
+            phrase: "B sits above B"
+            targets: [window-addition]
+            color: pink
+            linger: 0.25
+          - id: sf-window-publication-sum
+            phrase: "That gives five"
+            targets: [window-addition]
+            color: pink
+            linger: 0.25
+            caption_boundary: true
+      - say: "Replace the earlier total with three. Revision two covers A, B and C once each. That third heartbeat changes the current count. The twelve twenty-three request already recorded the first publication."
+        hold: 0.6
+        visual_cues:
+          - id: sf-window-publication-replace
+            phrase: "Replace the earlier total with three"
+            targets: [window-store]
+            color: green
+            linger: 0.25
+            caption_boundary: true
+      - say: "Now the first message comes back as a retry. Compare its revision with the one in the store. Keep revision two at three. Try a different message claiming revision two with a count of four. The store already has three for that same revision. Reject the conflict."
+        hold: 0.55
+        visual_cues:
+          - id: sf-window-publication-retry
+            phrase: "the first message comes back as a retry"
+            targets: [window-message]
+            color: cyan
+            linger: 0.25
+          - id: sf-window-publication-keep
+            phrase: "Keep revision two at three"
+            targets: [window-store]
+            color: green
+            linger: 0.25
+            caption_boundary: true
+          - id: sf-window-publication-conflict-case
+            phrase: "Try a different message claiming revision two with a count of four"
+            targets: [window-message]
+            color: cyan
+            linger: 0.25
+          - id: sf-window-publication-conflict
+            phrase: "reject the conflict"
+            targets: [window-addition]
+            color: cyan
+            linger: 0.25
+      - say: "A producer that sent just the change would report plus one. That increment needs its own event ID so a retry can be recognized. Here the producer supplies the fixed window key and revision. Flink leaves that contract to the application. Persist each replacement and its publication history. A session merge also needs to retire the old window identities."
+        hold: 0.55
+        visual_cues:
+          - id: sf-window-publication-difference
+            phrase: "A producer that sent just the change"
+            targets: [window-message]
+            color: cyan
+            linger: 0.25
+          - id: sf-window-publication-delta
+            phrase: "would report plus one"
+            targets: [window-message]
+            color: green
+            linger: 0.25
+            caption_boundary: true
+  - id: idempotent-updates
+    title: Apply retries once and preserve conflicts
+    visual: Queue event Q1 adds three once despite a repeated delivery, Q2 subtracts one, and Q3 is held
+      because subtracting five would make the backlog negative.
+    beats:
+      - say: A stream can deliver the same queue change again after a retry. Counting both copies turns one
+          update of three into six. Keep an event identifier with the state transition so a repeated
+          delivery keeps its first outcome.
+        hold: 0.55
+        visual_cues:
+          - id: idempotent-updates-beat-1-focus-1
+            phrase: A stream can deliver the same queue change again after a retry
+            targets:
+              - idempotent-updates-simulation-37
+            color: blue
+            linger: 0.6
+          - id: sf-idempotent-updates-duplicate
+            phrase: one update of three into six
+            targets:
+              - idempotent-updates-mechanism
+            color: cyan
+            linger: 0.5
+      - say: Apply Q1 once and the backlog becomes three. Its retry is skipped. Q2 subtracts one, leaving
+          two. Q3 asks to subtract five, so the example records a rejection and keeps the
+          nonnegative backlog at two.
+        hold: 0.6
+        motion_check:
+          region:
+            - 150
+            - 330
+            - 1640
+            - 590
+          minimumChangedFraction: 0.002
+        visual_cues:
+          - id: idempotent-updates-beat-2-focus-1
+            phrase: Its retry is skipped
+            targets:
+              - idempotent-updates-simulation-37
+            color: blue
+            linger: 0.6
+          - id: idempotent-updates-beat-2-focus-2
+            phrase: Apply Q1 once and the backlog becomes three
+            targets:
+              - idempotent-event-q1
+            color: blue
+            linger: 0.6
+          - id: sf-idempotent-updates-q1
+            phrase: backlog becomes three
+            targets:
+              - idempotent-updates-mechanism
+            color: cyan
+            linger: 0.5
+          - id: sf-idempotent-updates-retry
+            phrase: Its retry is skipped
+            targets:
+              - idempotent-updates-mechanism
+            color: cyan
+            linger: 0.5
+          - id: sf-idempotent-updates-q2
+            phrase: leaving two
+            targets:
+              - idempotent-updates-mechanism
+            color: cyan
+            linger: 0.5
+          - id: sf-idempotent-updates-q3
+            phrase: records a rejection and keeps the nonnegative backlog at two
+            targets:
+              - idempotent-updates-mechanism
+            color: cyan
+            linger: 0.5
+      - say: A production writer needs an atomic durable update of the identifier, payload, decision, and
+          aggregate. An in-memory map cannot survive a crash or coordinate concurrent workers.
+          Repair a rejected event through an explicit correction or replay.
+        hold: 0.7
+        visual_cues:
+          - id: idempotent-updates-beat-3-focus-1
+            phrase: A production writer needs an atomic durable update of the identifier
+            targets:
+              - idempotent-updates-simulation-37
+            color: blue
+            linger: 0.6
+          - id: sf-idempotent-updates-atomic
+            phrase: identifier, payload, decision, and aggregate
+            targets:
+              - idempotent-updates-mechanism
+            color: cyan
+            linger: 0.5
+  - id: atomic-crash
+    title: "Which writes survive a restart?"
+    visual: "Interrupt a local SQLite transaction after the ID insert, after both writes and after commit but before acknowledgment. Reopen the file and inspect the ledger and backlog before retrying."
+    beats:
+      - say: "What if the worker stops halfway through writing Q one? Start the SQLite file with backlog zero. Inside one transaction, write the ID and its applied outcome. Stop the process before it updates the backlog. When we reopen the file, the ledger is empty and the backlog is zero."
+        hold: 0.65
+        visual_cues:
+          - id: sf-atomic-crash-ledger
+            phrase: "write the ID and its applied outcome"
+            targets: [atomic-crash-mechanism]
+            color: cyan
+            linger: 0.25
+          - id: sf-atomic-crash-crash
+            phrase: "Stop the process before it updates the backlog"
+            targets: [atomic-crash-mechanism]
+            color: cyan
+            linger: 0.25
+          - id: sf-atomic-crash-reopen
+            phrase: "the ledger is empty and the backlog is zero"
+            targets: [atomic-crash-mechanism]
+            color: green
+            linger: 0.25
+            caption_boundary: true
+      - say: "Try again. This time write both the ID and the backlog, but stop before commit. Reopen and we still have zero and an empty ledger. Now commit both writes and stop before acknowledgment. Reopen and we have three with Q one recorded. When the source retries, the ledger recognizes the payload and the backlog stays three. Saving the ID alone could lose the addition. Saving only the addition could double it."
+        hold: 0.6
+        visual_cues:
+          - id: sf-atomic-crash-both
+            phrase: "write both the ID and the backlog"
+            targets: [atomic-crash-mechanism]
+            color: cyan
+            linger: 0.25
+          - id: sf-atomic-crash-uncommitted
+            phrase: "zero and an empty ledger"
+            targets: [atomic-crash-mechanism]
+            color: green
+            linger: 0.25
+            caption_boundary: true
+          - id: sf-atomic-crash-commit
+            phrase: "commit both writes and stop before acknowledgment"
+            targets: [atomic-crash-mechanism]
+            color: cyan
+            linger: 0.25
+          - id: sf-atomic-crash-durable
+            phrase: "three with Q one recorded"
+            targets: [atomic-crash-mechanism]
+            color: green
+            linger: 0.25
+            caption_boundary: true
+          - id: sf-atomic-crash-retry
+            phrase: "the backlog stays three"
+            targets: [atomic-crash-mechanism]
+            color: green
+            linger: 0.25
+            caption_boundary: true
+      - say: "Continue from three. Q two subtracts one. Q three tries to subtract five and the ledger records a rejection. A separate Q four adds ten, bringing the backlog to twelve. Now twelve could cover a subtraction of five. Retry the same Q three and its rejection still stands. Reusing Q one’s ID with a different delta raises a payload conflict. These restarts check the local database transaction. A broker and an external store need their own recovery test."
+        hold: 0.55
+        visual_cues:
+          - id: sf-atomic-crash-q2
+            phrase: "Q two subtracts one"
+            targets: [atomic-crash-mechanism]
+            color: cyan
+            linger: 0.25
+          - id: sf-atomic-crash-reject
+            phrase: "the ledger records a rejection"
+            targets: [atomic-crash-mechanism]
+            color: cyan
+            linger: 0.25
+          - id: sf-atomic-crash-q4
+            phrase: "bringing the backlog to twelve"
+            targets: [atomic-crash-mechanism]
+            color: cyan
+            linger: 0.25
+          - id: sf-atomic-crash-persist
+            phrase: "its rejection still stands"
+            targets: [atomic-crash-mechanism]
+            color: cyan
+            linger: 0.25
+          - id: sf-atomic-crash-conflict
+            phrase: "raises a payload conflict"
+            targets: [atomic-crash-mechanism]
+            color: cyan
+            linger: 0.25
+  - id: source-progress
+    title: "What must the sink remember on a retry?"
+    visual: "Keep Q3’s rejected result. A retry on day ten falls between seven days of retained IDs and fourteen days of source replay. Then enclose the two writes Kafka commits together, with the Redis write still outside."
+    beats:
+      - say: "Keep the rejection alongside Q three’s payload. A deliberate correction can change state later. Simply delivering Q three again must return its original outcome. This queue processes distinct changes in source order. If a subtraction can overtake an earlier addition, buffer or reconcile them before treating a negative intermediate backlog as invalid."
+        hold: 0.45
+        visual_cues:
+          - id: sf-source-progress-persist
+            phrase: "Keep the rejection alongside Q three’s payload"
+            targets: [source-progress-mechanism]
+            color: cyan
+            linger: 0.25
+          - id: sf-source-progress-order
+            phrase: "in source order"
+            targets: [source-progress-mechanism]
+            color: cyan
+            linger: 0.25
+      - say: "Suppose the source can replay fourteen days, but the store keeps event IDs for seven days. On day ten a retry arrives after the store has forgotten Q one. It can add three a second time. Retain the ID and its payload or fingerprint across the replay horizon, and make the check and write atomic for concurrent consumers."
+        hold: 0.6
+        visual_cues:
+          - id: sf-source-progress-expire
+            phrase: "On day ten a retry arrives"
+            targets: [source-progress-mechanism]
+            color: cyan
+            linger: 0.25
+          - id: sf-source-progress-bytes
+            phrase: "the ID and its payload or fingerprint"
+            targets: [source-progress-mechanism]
+            color: cyan
+            linger: 0.25
+          - id: sf-source-progress-concurrent
+            phrase: "make the check and write atomic"
+            targets: [source-progress-mechanism]
+            color: cyan
+            linger: 0.25
+      - say: "Where does the transaction end? Kafka can commit output records and consumed offsets together inside Kafka. An external Redis write sits outside that transaction. The destination must commit or coordinate source progress with the durable update. Test a stop before commit, a stop after commit, and a lost acknowledgment. A shared feed alone cannot commit both your offline and online stores."
+        hold: 0.5
+        caption_starts: ["Kafka can commit output records", "An external Redis write", "Test a stop before commit"]
+        visual_cues:
+          - id: sf-source-progress-kafka
+            phrase: "output records and consumed offsets together"
+            targets: [source-progress-mechanism]
+            color: cyan
+            linger: 0.25
+          - id: sf-source-progress-sink
+            phrase: "An external Redis write sits outside that transaction"
+            targets: [source-progress-mechanism]
+            color: cyan
+            linger: 0.25
+          - id: sf-source-progress-commit
+            phrase: "a stop before commit, a stop after commit, and a lost acknowledgment"
+            targets: [source-progress-mechanism]
+            color: cyan
+            linger: 0.25
+  - id: freshness-policy
+    title: "How far have the inputs caught up?"
+    visual: "At one noon request, compare three possible coverage timestamps from the article. Each interval ends at noon, so its length gives source lag and selects an action under the stated policy."
+    beats:
+      - say: "A fast lookup can return an old result. At noon, ask how far the pipeline has processed all the inputs this feature needs. If coverage reaches eleven fifty-two, the source lag is eight minutes. This service allows up to fifteen minutes of lag, so it scores normally."
+        hold: 0.55
+        visual_cues:
+          - id: sf-freshness-policy-normal
+            phrase: "so it scores normally"
+            targets: [coverage-span]
+            color: green
+            linger: 0.25
+            caption_boundary: true
+      - say: "Suppose instead that coverage stops at eleven thirty. The read can be just as fast. Thirty minutes of lag calls for a separately validated fallback. Record degraded mode with the prediction. A fallback must have usable inputs of its own."
+        hold: 0.55
+        visual_cues:
+          - id: sf-freshness-policy-second
+            phrase: "coverage stops at eleven thirty"
+            targets: [coverage-span]
+            color: cyan
+            linger: 0.25
+          - id: sf-freshness-policy-degraded
+            phrase: "Thirty minutes of lag calls for a separately validated fallback"
+            targets: [coverage-span]
+            color: green
+            linger: 0.25
+            caption_boundary: true
+      - say: "Now suppose the last covered time was ten thirty. Ninety minutes exceeds this service’s forty-five-minute limit. Withhold the narrow deadline estimate."
+        hold: 0.9
+        visual_cues:
+          - id: sf-freshness-policy-third
+            phrase: "the last covered time was ten thirty"
+            targets: [coverage-span]
+            color: cyan
+            linger: 0.25
+          - id: sf-freshness-policy-abstain
+            phrase: "Withhold the narrow deadline estimate"
+            targets: [coverage-span]
+            color: green
+            linger: 0.25
+            caption_boundary: true
+  - id: freshness-boundary
+    title: "One second at the policy boundary"
+    visual: "Distinguish coverage at 08:30 from the 08:59 write and H1’s 01:00 event. Use exact elapsed seconds at both policy boundaries before rounding any displayed duration."
+    beats:
+      - say: "Look back at nine o’clock. The last heartbeat is eight hours old. A writer touched the row at eight fifty-nine, but the pipeline covers all required inputs only through eight thirty. That gives thirty minutes of source lag. A healthy pipeline can advance coverage even during a long silence from one worker."
+        hold: 0.55
+        visual_cues:
+          - id: sf-freshness-boundary-threeclocks
+            phrase: "A writer touched the row at eight fifty-nine"
+            targets: [freshness-boundary-mechanism]
+            color: cyan
+            linger: 0.25
+          - id: sf-freshness-boundary-lag
+            phrase: "That gives thirty minutes of source lag"
+            targets: [freshness-boundary-mechanism]
+            color: cyan
+            linger: 0.25
+      - say: "Use the exact duration before rounding. Fifteen minutes is normal. Add one second and it is degraded. Forty-five minutes is still degraded. One second more and the service abstains. With missing progress it abstains because freshness is unknown. A future progress time raises a clock error. Rounding even to a whole minute first could hide any of those one-second differences."
+        hold: 0.65
+        visual_cues:
+          - id: sf-freshness-boundary-normal
+            phrase: "Fifteen minutes is normal"
+            targets: [freshness-boundary-mechanism]
+            color: green
+            linger: 0.25
+            caption_boundary: true
+          - id: sf-freshness-boundary-degraded
+            phrase: "Add one second and it is degraded"
+            targets: [freshness-boundary-mechanism]
+            color: green
+            linger: 0.25
+            caption_boundary: true
+          - id: sf-freshness-boundary-edge
+            phrase: "Forty-five minutes is still degraded"
+            targets: [freshness-boundary-mechanism]
+            color: green
+            linger: 0.25
+            caption_boundary: true
+          - id: sf-freshness-boundary-abstain
+            phrase: "the service abstains"
+            targets: [freshness-boundary-mechanism]
+            color: green
+            linger: 0.25
+            caption_boundary: true
+          - id: sf-freshness-boundary-future
+            phrase: "A future progress time raises a clock error"
+            targets: [freshness-boundary-mechanism]
+            color: cyan
+            linger: 0.25
+      - say: "The policy returns a mode. To evaluate a fallback, run it on the inputs it will have during a delay and measure its outcomes. Log source progress and mode with the prediction. Measure lookup time separately so a fast response cannot hide an old feed."
+        hold: 0.5
+        visual_cues:
+          - id: sf-freshness-boundary-scope
+            phrase: "The policy returns a mode"
+            targets: [freshness-boundary-mechanism]
+            color: cyan
+            linger: 0.25
+  - id: parity-reconciliation
+    title: Compare paired rows for parity
+    visual: Two jobs swap backlog values between offline and live rows; their overall distributions
+      match exactly while paired values disagree at both job identifiers.
+    beats:
+      - say: Batch and serving can use different code, yet still implement one versioned definition. Compare
+          captured and replayed feature vectors for the same prediction ID, cutoff, source routing,
+          and transform version.
+        hold: 0.55
+        visual_cues:
+          - id: parity-reconciliation-beat-1-focus-1
+            phrase: Batch and serving can use different code
+            targets:
+              - parity-reconciliation-simulation-48
+            color: blue
+            linger: 0.6
+          - id: parity-reconciliation-beat-1-focus-2
+            phrase: Compare captured and replayed feature vectors for the same prediction ID
+            targets:
+              - parity-reconciliation-object-replay-49
+            color: blue
+            linger: 0.6
+      - say: Suppose the offline values are five for J-201 and eighteen for J-202. Serving swaps them.
+          How many paired rows disagree?
+        hold: 2.2
+        visual_cues:
+          - id: parity-reconciliation-beat-2-focus-1
+            phrase: Suppose the offline values are five for J-201 and eighteen for J-202
+            targets:
+              - parity-reconciliation-simulation-48
+            color: blue
+            linger: 0.6
+          - id: parity-reconciliation-beat-2-focus-2
+            phrase: Serving swaps them
+            targets:
+              - parity-reconciliation-object-serving-50
+            color: blue
+            linger: 0.6
+          - id: sf-parity-reconciliation-swap
+            phrase: Serving swaps them
+            targets:
+              - parity-reconciliation-mechanism
+            color: cyan
+            linger: 0.5
+      - say: The marginal distribution still contains five and eighteen, while paired rows reveal both
+          mismatches. Return each value to its job. Both paired checks now agree.
+        hold: 0.7
+        visual_cues:
+          - id: sf-parity-reconciliation-paired
+            caption_boundary: true
+            phrase: paired rows reveal both mismatches
+            targets:
+              - parity-reconciliation-mechanism
+            color: cyan
+            linger: 0.5
+          - id: sf-parity-reconciliation-repair
+            phrase: Return each value to its job
+            targets: [parity-reconciliation-object-serving-50]
+            color: cyan
+            linger: 0.15
+          - id: sf-parity-reconciliation-agreement
+            caption_boundary: true
+            phrase: Both paired checks now agree
+            targets:
+              - parity-reconciliation-mechanism
+            color: green
+            linger: 0.5
+      - say: "For these queue lengths, require an exact integer match. Declare tolerances for floating-point values, and compare types as well as numbers. For a hand check, pick one request and rebuild its backlog from the queue log."
+        hold: 0.7
+        visual_cues:
+          - id: parity-reconciliation-beat-3-focus-1
+            phrase: Declare tolerances for floating-point values
+            targets:
+              - parity-reconciliation-simulation-48
+            color: blue
+            linger: 0.6
+          - id: parity-reconciliation-beat-3-focus-2
+            phrase: "pick one request and rebuild its backlog from the queue log"
+            targets:
+              - parity-reconciliation-object-replay-49
+            color: blue
+            linger: 0.6
+          - id: sf-parity-reconciliation-types
+            phrase: compare types as well as numbers
+            targets:
+              - parity-reconciliation-mechanism
+            color: cyan
+            linger: 0.5
+  - id: parity-contract
+    title: "What counts as a field match?"
+    visual: "Pair the same request and compare its field types. Test a Boolean against an integer, an absent field against null, and two finite estimates against their own tolerance."
+    beats:
+      - say: "Take the same request, cutoff, definition version, routing and publications on both sides. Check which fields exist. A missing field differs from a present field whose value is null. Now look at the flag. In Python, false compares equal to zero. If the schema calls for an integer, the Boolean fails the type check. The article’s small comparison checks field presence and equality. Add explicit type and tolerance checks for this contract."
+        hold: 0.55
+        visual_cues:
+          - id: sf-parity-contract-identity
+            phrase: "the same request, cutoff, definition version, routing and publications"
+            targets: [parity-contract-mechanism]
+            color: cyan
+            linger: 0.25
+          - id: sf-parity-contract-missing
+            phrase: "A missing field differs from a present field"
+            targets: [parity-contract-mechanism]
+            color: cyan
+            linger: 0.25
+          - id: sf-parity-contract-bool
+            phrase: "the Boolean fails the type check"
+            targets: [parity-contract-mechanism]
+            color: green
+            linger: 0.25
+            caption_boundary: true
+          - id: sf-parity-contract-scope
+            phrase: "Add explicit type and tolerance checks"
+            targets: [parity-contract-mechanism]
+            color: cyan
+            linger: 0.25
+      - say: "These two estimates are finite floats in the same units. The contract allows an absolute difference of one thousandth. Subtract them and take the magnitude. Four ten-thousandths is inside the tolerance. Other fields can specify a relative tolerance. Counts and categories still require exact matches here. Keep keys, units, null rules and cutoffs identical across implementations."
+        hold: 0.55
+        visual_cues:
+          - id: sf-parity-contract-absolute
+            phrase: "Four ten-thousandths is inside the tolerance"
+            targets: [parity-contract-mechanism]
+            color: green
+            linger: 0.25
+            caption_boundary: true
+          - id: sf-parity-contract-exact
+            phrase: "Counts and categories still require exact matches"
+            targets: [parity-contract-mechanism]
+            color: cyan
+            linger: 0.25
+      - say: "The lab rebuilds the backlog from zero. It checks a correction followed by a stale retry, a conflict that should be quarantined, and the four o’clock row. Those three pairs agree. Then it swaps two job keys and substitutes a stale cached age. Both deliberate errors fail. The receipt records all five cases. A shared bug could make two implementations agree, so also test against expected values you can work out by hand."
+        hold: 0.55
+        visual_cues:
+          - id: sf-parity-contract-three
+            phrase: "Those three pairs agree"
+            targets: [parity-contract-mechanism]
+            color: cyan
+            linger: 0.25
+          - id: sf-parity-contract-five
+            phrase: "Both deliberate errors fail"
+            targets: [parity-contract-mechanism]
+            color: cyan
+            linger: 0.25
+          - id: sf-parity-contract-controls
+            phrase: "expected values you can work out by hand"
+            targets: [parity-contract-mechanism]
+            color: cyan
+            linger: 0.25
+  - id: diagnostic-evidence
+    title: "Where did the extra heartbeat come from?"
+    visual: "The capture and a faulty training row count the same hour. Two publications sit on either side of the request. Move the replay cutoff back across the later publication and watch only the training count change."
+    beats:
+      - say: "At twelve twenty-three the scheduler counted two heartbeats. A training replay counts three for the same job and hour. Where did the extra heartbeat come from?"
+        hold: 0.5
+        caption_starts: ["A training replay counts three", "Where did the extra heartbeat come from"]
+        visual_cues:
+          - id: sf-diagnostic-evidence-capture
+            phrase: "the scheduler counted two heartbeats"
+            targets: [captured-count]
+            color: blue
+            linger: 0.25
+          - id: sf-diagnostic-evidence-replay
+            phrase: "A training replay counts three"
+            targets: [training-count]
+            color: cyan
+            linger: 0.25
+      - say: "Open the publication history. At twelve twenty-two the store held A and B. Put the request at twelve twenty-three. One minute later the store added C. Which publication did the training replay read?"
+        hold: 2.4
+        caption_starts: ["One minute later the store added C", "Which publication did the training replay read"]
+        visual_cues:
+          - id: sf-diagnostic-evidence-first
+            phrase: "At twelve twenty-two the store held A and B"
+            targets: [publications]
+            color: blue
+            linger: 0.25
+          - id: sf-diagnostic-evidence-request
+            phrase: "Put the request at twelve twenty-three"
+            targets: [cutoff]
+            color: cyan
+            linger: 0.25
+          - id: sf-diagnostic-evidence-next
+            phrase: "One minute later the store added C"
+            targets: [publications]
+            color: cyan
+            linger: 0.25
+      - say: "The replay read the twelve twenty-four count. Slide its cutoff back to the request. Now both rows count two. Keep the original capture to check the repair against what the scheduler actually read."
+        hold: 0.65
+        caption_starts: ["Slide its cutoff back to the request", "Now both rows count two"]
+        visual_cues:
+          - id: sf-diagnostic-evidence-late
+            phrase: "The replay read the twelve twenty-four count"
+            targets: [cutoff]
+            color: cyan
+            linger: 0.25
+            caption_boundary: true
+          - id: sf-diagnostic-evidence-rewind
+            phrase: "Slide its cutoff back to the request"
+            targets: [cutoff, training-count]
+            color: cyan
+            linger: 0.25
+          - id: sf-diagnostic-evidence-match
+            phrase: "Now both rows count two"
+            targets: [training-count, captured-count]
+            color: green
+            linger: 0.25
+  - id: wrap
+    title: "Would you trust this model comparison?"
+    visual: "The article’s 16:00 mismatch stays on screen while two test reads measure age from H3’s fixed noon timestamp. The expected results define a diagnostic probe, and the original capture remains visible."
+    beats:
+      - say: "Here is the failed row from the replay check. At four in the afternoon, the worker’s last readable heartbeat was sent at noon. Replay says four hours. The serving row for that same request says point oh three hours. Would you use this comparison to choose a model?"
+        hold: 2.2
+      - say: "Hold the comparison and trace the age field. One possibility is that the writer saved an age and serving kept returning it. First check the stored heartbeat ID, its timestamp, and the units on both paths."
+        hold: 0.45
+        visual_cues:
+          - id: sf-wrap-stop
+            phrase: "Hold the comparison and trace the age field"
+            targets: [failed-row]
+            color: green
+            linger: 0.25
+            caption_boundary: true
+      - say: "Try two reads with the worker timestamp fixed at noon. At three the expected age is three hours. At four it is four hours. If both live reads return that same cached age, inspect the write and read code to confirm where it was frozen. Fix the calculation and rerun paired replay before comparing models. Keep the original capture as evidence."
+        hold: 0.65
+        visual_cues:
+          - id: sf-wrap-probe
+            phrase: "Try two reads with the worker timestamp fixed at noon"
+            targets: [timestamp-probe]
+            color: cyan
+            linger: 0.25
+          - id: sf-wrap-three
+            phrase: "the expected age is three hours"
+            targets: [timestamp-probe]
+            color: cyan
+            linger: 0.25
+          - id: sf-wrap-four
+            phrase: "At four it is four hours"
+            targets: [timestamp-probe]
+            color: cyan
+            linger: 0.25
+  - id: fresh-request
+    title: "Two requests, ten minutes apart"
+    visual: "H8 crosses from worker to broker to store. The 14:00 receipt stays pinned while the viewer traces the reported 14:10 age to its worker timestamp. The source interval ends at the same request. Its measured lag appears before the scoring decision. Changing only source coverage tests the inclusive boundary."
+    beats:
+      - say: "Try a fresh job at two in the afternoon. H seven went out at eleven and was readable two minutes later. H eight went out at one fifty. The broker received it at one fifty-five. The store published it at two oh three. Which heartbeat and what age belong in the two o’clock row?"
+        hold: 2.6
+        caption_starts: ["Which heartbeat and what age belong in the two o’clock row"]
+        visual_cues:
+          - id: sf-fresh-request-worker
+            phrase: "H eight went out at one fifty"
+            targets: [afternoon-delivery]
+            color: cyan
+            linger: 0.25
+          - id: sf-fresh-request-broker
+            phrase: "The broker received it at one fifty-five"
+            targets: [afternoon-delivery]
+            color: cyan
+            linger: 0.25
+          - id: sf-fresh-request-publish
+            phrase: "The store published it at two oh three"
+            targets: [afternoon-delivery]
+            color: cyan
+            linger: 0.25
+          - id: sf-fresh-request-question
+            phrase: "Which heartbeat and what age belong in the two o’clock row"
+            targets: [afternoon-delivery, first-capture]
+            color: cyan
+            linger: 0.25
+      - say: "H seven, three hours. H eight had reached the broker by two, but its publication mark is past the request line. Seal that first row. Move the request ten minutes forward. Now the scheduler reads H eight and reports a heartbeat age of twenty minutes."
+        hold: 0.55
+        caption_starts: ["but its publication mark is past the request line", "and reports a heartbeat age of twenty minutes"]
+        visual_cues:
+          - id: sf-fresh-request-age
+            phrase: "H seven, three hours"
+            targets: [first-capture]
+            color: green
+            linger: 0.25
+            caption_boundary: true
+          - id: sf-fresh-request-new
+            phrase: "Move the request ten minutes forward"
+            targets: [afternoon-delivery]
+            color: cyan
+            linger: 0.25
+          - id: sf-fresh-request-new-age
+            phrase: "Now the scheduler reads H eight and reports a heartbeat age of twenty minutes"
+            targets: [later-capture]
+            color: green
+            linger: 0.25
+            caption_boundary: true
+      - say: "Follow H eight from the worker to the store. Which timestamp did the scheduler subtract from two ten to get those twenty minutes?"
+        hold: 1.9
+        caption_starts: ["Which timestamp did the scheduler subtract", "to get those twenty minutes"]
+        visual_cues:
+          - id: sf-fresh-request-origin-question
+            phrase: "Which timestamp did the scheduler subtract from two ten"
+            targets: [afternoon-delivery, later-capture]
+            color: cyan
+            linger: 0.25
+      - say: "Start at one fifty, when the worker sent it. At two ten, H eight is twenty minutes old. A later correction to its phase can keep that same worker timestamp. Neither publication nor correction rewrites the first receipt."
+        hold: 0.5
+        visual_cues:
+          - id: sf-fresh-request-origin
+            phrase: "Start at one fifty, when the worker sent it"
+            targets: [later-capture]
+            color: green
+            linger: 0.25
+            caption_boundary: true
+      - say: "Now decide how to score the two-ten request. The row was written one minute ago. Across all required inputs the pipeline can vouch for events only through one forty. One heartbeat can arrive ahead of that frontier. Given that coverage, which scoring mode should this request record?"
+        hold: 2.15
+        visual_cues:
+          - id: sf-fresh-request-clocks
+            phrase: "Now decide how to score the two-ten request"
+            targets: [freshness-clocks]
+            color: cyan
+            linger: 0.25
+          - id: sf-fresh-request-write
+            phrase: "The row was written one minute ago"
+            targets: [freshness-clocks]
+            color: cyan
+            linger: 0.25
+          - id: sf-fresh-request-coverage
+            phrase: "only through one forty"
+            targets: [freshness-clocks]
+            color: cyan
+            linger: 0.25
+      - say: "Use source coverage. From one forty to two ten, the pipeline lag is thirty minutes. Use the validated fallback and log degraded mode. The worker’s twenty minutes of silence answers a different question."
+        hold: 0.75
+        visual_cues:
+          - id: sf-fresh-request-lag
+            phrase: "the pipeline lag is thirty minutes"
+            targets: [freshness-clocks, freshness-choice]
+            color: green
+            linger: 0.25
+            caption_boundary: true
+          - id: sf-fresh-request-fallback
+            phrase: "Use the validated fallback and log degraded mode"
+            targets: [freshness-choice]
+            color: green
+            linger: 0.25
+            caption_boundary: true
+      - say: "Replay that decision with one change. Suppose all inputs were covered through one fifty-five. Same worker timestamp, same row write, same request. Which mode does the scheduler record?"
+        hold: 2.5
+        caption_starts: ["Suppose all inputs were covered through one fifty-five", "Which mode does the scheduler record"]
+        visual_cues:
+          - id: sf-fresh-request-coverage-change
+            phrase: "Suppose all inputs were covered through one fifty-five"
+            targets: [freshness-clocks]
+            color: cyan
+            linger: 0.25
+      - say: "Fifteen minutes of lag. Score normally. This service includes fifteen minutes in the normal range. The heartbeat is still twenty minutes old, and the two o’clock row still says three hours. Carry those decision-time rows into the boosted-tree experiment and compare its alerts with a cheap baseline at the same operating cost."
+        hold: 0.95
+        caption_starts: ["The heartbeat is still twenty minutes old", "Carry those decision-time rows"]
+        visual_cues:
+          - id: sf-fresh-request-normal-lag
+            phrase: "Fifteen minutes of lag"
+            targets: [freshness-clocks]
+            color: green
+            linger: 0.25
+            caption_boundary: true
+          - id: sf-fresh-request-normal
+            phrase: "Score normally"
+            targets: [freshness-choice]
+            color: green
+            linger: 0.25
+            caption_boundary: true

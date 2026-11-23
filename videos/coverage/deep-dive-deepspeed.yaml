@@ -1,0 +1,236 @@
+version: 1
+lesson: deep-dive-deepspeed
+promise: Decide when a rank can gather the next layer from its live allocations and release schedule. Trace a reduced gradient through accumulation and Adam, account for communication and offload, and test a training restore separately from a weights export.
+objectives:
+  - id: intro
+    can: Identify the first Adam array that exceeds the 16 GB limit and account for all five arrays.
+    scenes:
+      - intro
+  - id: ownership
+    can: Trace slice B across weights, gradients and Adam state, and compute persistent GB per rank at each ZeRO stage.
+    scenes:
+      - ownership
+  - id: dtype-ledger
+    can: Compute stage memory from each array’s actual dtype
+    scenes:
+      - dtype-ledger
+  - id: reduce
+    can: Compute the owner's second moment after reduction and explain why squaring first leaves a false history even when two gradients cancel.
+    scenes:
+      - reduce
+  - id: token-objective
+    can: Weight rank losses by the intended valid-token objective
+    scenes:
+      - token-objective
+  - id: accumulation
+    can: Distinguish microstep and optimizer clocks
+    scenes:
+      - accumulation
+  - id: managed-unmanaged
+    can: Select the correct step and loss-scaling contract
+    scenes:
+      - managed-unmanaged
+  - id: bucket-units
+    can: Convert bucket elements and derive data-parallel batch size
+    scenes:
+      - bucket-units
+  - id: gather
+    can: Count reserved slots before values arrive, then decide which buffer can be released after a layer's last use.
+    scenes:
+      - gather
+      - fresh-plan
+  - id: padded-gather
+    can: Distinguish five logical weights, six peer slots and eight destination slots in a four-rank padded gather.
+    scenes:
+      - padded-gather
+      - fresh-plan
+  - id: parameter-coordination
+    can: Choose external access or a dynamic leaf repair
+    scenes:
+      - parameter-coordination
+  - id: ring-volume
+    can: Follow an updated weight through a four-rank ring and use the send count to compare three collective schedules.
+    scenes:
+      - ring-volume
+  - id: coalesced-reduction
+    can: Compare reduction schedules and their live gradient storage
+    scenes:
+      - coalesced-reduction
+  - id: offload
+    can: Compute exposed movement time from dependencies
+    scenes:
+      - offload
+  - id: offload-domains
+    can: Distinguish offload storage from CPU optimizer execution
+    scenes:
+      - offload-domains
+  - id: engine-source
+    can: Locate the first failure in the actual selected engine
+    scenes:
+      - engine-source
+  - id: checkpoint
+    can: Compare full and weights-only next updates
+    scenes:
+      - checkpoint
+  - id: checkpoint-contract
+    can: Verify participant,tag,data and RNG progress on fresh reload
+    scenes:
+      - checkpoint-contract
+  - id: topology-conversion
+    can: Select a supported consolidation or topology conversion path
+    scenes:
+      - topology-conversion
+  - id: project-context
+    can: Bind a source investigation to its exact version and first rank error
+    scenes:
+      - project-context
+  - id: synthesis
+    can: Trace owner and readiness across one complete update
+    scenes:
+      - synthesis
+  - id: fresh-plan
+    can: Decide whether A can overlap B at limits of 30 and 29 parameter slots per rank and calculate the peak when B releases first.
+    scenes:
+      - fresh-plan
+  - id: late-gradient
+    can: Hold a completed accumulation window until every required rank gradient arrives, then compute the single
+      owned Adam update.
+    scenes:
+      - late-gradient
+sections:
+  - heading: Count state before choosing a stage
+    status: taught
+    scenes:
+      - intro
+      - ownership
+      - dtype-ledger
+  - heading: Reduce first, then update the owned slice
+    status: taught
+    scenes:
+      - reduce
+      - token-objective
+      - late-gradient
+  - heading: Let the engine own the microstep
+    status: taught
+    scenes:
+      - accumulation
+      - managed-unmanaged
+      - bucket-units
+  - heading: Stage 3 needs a live working set
+    status: taught
+    scenes:
+      - gather
+      - padded-gather
+      - fresh-plan
+  - heading: External parameters and dynamic routing are different problems
+    status: taught
+    scenes:
+      - parameter-coordination
+  - heading: Communication volume isn't elapsed time
+    status: taught
+    scenes:
+      - ring-volume
+      - coalesced-reduction
+  - heading: Offload exchanges memory pressure for movement
+    status: taught
+    scenes:
+      - offload
+      - offload-domains
+  - heading: Trace how the engine uses each config value
+    status: taught
+    scenes:
+      - engine-source
+  - heading: Resume training and export weights separately
+    status: taught
+    scenes:
+      - checkpoint
+      - checkpoint-contract
+      - topology-conversion
+  - heading: Project context and contribution path
+    status: taught
+    scenes:
+      - project-context
+  - heading: Turn a failed run into a specific hypothesis
+    status: taught
+    scenes:
+      - engine-source
+      - synthesis
+      - fresh-plan
+  - heading: Common failure modes
+    status: taught
+    scenes:
+      - engine-source
+      - parameter-coordination
+      - checkpoint-contract
+  - heading: Evaluation rubric
+    status: taught
+    scenes:
+      - token-objective
+      - checkpoint-contract
+      - offload-domains
+  - heading: Follow-up questions
+    status: taught
+    scenes:
+      - fresh-plan
+      - dtype-ledger
+      - coalesced-reduction
+quiz:
+  - n: 1
+    status: taught
+    scenes:
+      - dtype-ledger
+      - ownership
+  - n: 2
+    status: taught
+    scenes:
+      - reduce
+      - token-objective
+  - n: 3
+    status: taught
+    scenes:
+      - padded-gather
+      - fresh-plan
+  - n: 4
+    status: taught
+    scenes:
+      - bucket-units
+  - n: 5
+    status: taught
+    scenes:
+      - managed-unmanaged
+  - n: 6
+    status: taught
+    scenes:
+      - parameter-coordination
+  - n: 7
+    status: taught
+    scenes:
+      - ring-volume
+  - n: 8
+    status: taught
+    scenes:
+      - offload-domains
+      - offload
+  - n: 9
+    status: taught
+    scenes:
+      - checkpoint-contract
+      - topology-conversion
+  - n: 10
+    status: taught
+    scenes:
+      - checkpoint-contract
+removed: []
+reviews:
+  closed_book:
+    taught: 10
+    partial: 0
+    absent: 0
+    script: 4ca58c449cd03271
+    reviewer: /root/upgrade_shard2
+    evidence: build/video-delivery-20261106/script-reviews/deep-dive-deepspeed.json
+  fact_check:
+    open_findings: 0
+    script: 4ca58c449cd03271
+    reviewer: /root/upgrade_shard2
+    evidence: build/video-delivery-20261106/script-reviews/deep-dive-deepspeed.json

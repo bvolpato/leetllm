@@ -1,0 +1,159 @@
+version: 1
+lesson: gemm
+promise: Trace a shared operand to the output that needs it. At a matrix edge, decide which inputs a thread must load and which store it can skip. Check the result before making a GPU performance claim.
+framing: []
+objectives:
+  - id: product
+    can: Pair a signed A row with a B column and keep each output sum through a short final panel.
+    scenes:
+      - intro
+      - dot
+      - naive
+      - tile
+      - accumulate
+      - transfer
+  - id: memory
+    can: Compute requested addresses, bank mappings and register-tile operand-demand ratios.
+    scenes:
+      - addresses
+      - banks
+      - register-blocking
+  - id: ownership
+    can: Trace a thread with an invalid output to a valid A or B load. Protect the panel until its last consumer finishes.
+    scenes:
+      - intro
+      - edge-ownership
+      - hierarchy
+      - async-ownership
+      - transfer
+  - id: numerics
+    can: Find the useful corner inside an aligned warp fragment. Distinguish accumulator rounding from input conversion by comparing the kernel output with references computed from rounded and original inputs.
+    scenes:
+      - tensorcores
+      - precision-contract
+  - id: performance
+    can: Decide whether an operand count belongs on an HBM roofline and identify the measurement a speed claim needs.
+    scenes:
+      - shape
+      - roofline-check
+sections:
+  - heading: Compute one output before launching a warp
+    status: taught
+    scenes:
+      - dot
+  - heading: A correct thread can still request the wrong addresses
+    status: taught
+    scenes:
+      - addresses
+  - heading: Turn global loads into shared tiles
+    status: taught
+    scenes:
+      - tile
+      - accumulate
+      - edge-ownership
+      - hierarchy
+      - transfer
+  - heading: Find a bank conflict before fixing it
+    status: taught
+    scenes:
+      - banks
+  - heading: Let each thread keep more than one answer
+    status: taught
+    scenes:
+      - register-blocking
+  - heading: Hand a tile to Tensor Cores
+    status: taught
+    scenes:
+      - tensorcores
+  - heading: Layout is part of the type
+    status: taught
+    scenes:
+      - addresses
+      - tensorcores
+  - heading: What FP32 accumulation preserves, and what it can't recover
+    status: taught
+    scenes:
+      - precision-contract
+  - heading: The two-reference testing protocol
+    status: taught
+    scenes:
+      - precision-contract
+  - heading: The hardware roofline across kernel stages
+    status: taught
+    scenes:
+      - roofline-check
+  - heading: Run the lab and keep the receipt
+    status: article-only
+    reason: exercise
+    note: The page supplies commands and independent hardware exercises; the film explains the model, timing
+      boundaries and required receipt evidence.
+  - heading: Check the index model without a GPU
+    status: taught
+    scenes:
+      - addresses
+      - edge-ownership
+  - heading: Where asynchronous copies and TMA take over
+    status: taught
+    scenes:
+      - async-ownership
+  - heading: Diagnose the first bad signal
+    status: taught
+    scenes:
+      - edge-ownership
+      - precision-contract
+      - roofline-check
+  - heading: "Your challenge: identify the limiting boundary"
+    status: article-only
+    reason: exercise
+    note: The page supplies commands and independent hardware exercises; the film explains the model, timing
+      boundaries and required receipt evidence.
+quiz:
+  - n: 1
+    status: taught
+    scenes:
+      - addresses
+  - n: 2
+    status: taught
+    scenes:
+      - register-blocking
+  - n: 3
+    status: taught
+    scenes:
+      - banks
+  - n: 4
+    status: taught
+    scenes:
+      - banks
+  - n: 5
+    status: taught
+    scenes:
+      - precision-contract
+  - n: 6
+    status: taught
+    scenes:
+      - edge-ownership
+      - transfer
+  - n: 7
+    status: taught
+    scenes:
+      - roofline-check
+  - n: 8
+    status: taught
+    scenes:
+      - async-ownership
+removed:
+  - point: The closing list of checks for a new kernel.
+    reason: The viewer works a five-position panel at a bottom edge. Roofline-check covers validation, timing and profiling.
+  - point: The opening and closing generalization about sharing a loaded input.
+    reason: The fork in intro and the two edge traces show exactly which surviving output needs the load.
+  - point: The normalized roofline sketch in shape.
+    reason: Shape now computes bytes for one token and roofline-check retains the numerical bandwidth and compute ceilings.
+reviews:
+  closed_book:
+    taught: 8
+    partial: 0
+    absent: 0
+    script: e8901670bd547d43
+  fact_check:
+    open_findings: 0
+    script: e8901670bd547d43

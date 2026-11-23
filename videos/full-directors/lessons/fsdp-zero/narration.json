@@ -1,0 +1,778 @@
+[
+  {
+    "id": "c01",
+    "title": "Can one card load the weights?",
+    "sourceChapters": [
+      "c01"
+    ],
+    "beats": [
+      {
+        "id": "c01-b01",
+        "say": "Slide this weight tensor toward the first GPU. There are seventy billion weights at two bytes each. Its far end marks one hundred forty gigabytes. Each of these sixteen cards has eighty gigabytes free. Ordinary data parallelism needs the whole strip on each card. How many gigabytes extend past the first card?",
+        "hold": 2.6
+      },
+      {
+        "id": "c01-b02",
+        "say": "Sixty gigabytes extend past the first card. Move to the next card and the very same bytes run past the very same limit. That's Distributed Data Parallel, or DDP. Each process, called a rank, trains on different examples and needs the same weights.",
+        "hold": 0.9
+      },
+      {
+        "id": "c01-b03",
+        "say": "Cut that weight tensor into sixteen equal pieces. Give one piece to each rank. The first card now owns eight point seven five gigabytes of weights. That's a shard. ZeRO, short for Zero Redundancy Optimizer, uses this idea for training state.",
+        "hold": 0.3
+      },
+      {
+        "id": "c01-b04",
+        "say": "A weight shard fits. Can we train with it? We'll count gradients and optimizer state, follow a block through the network, and choose a layout to test. The last check will be the first optimizer update after a restore.",
+        "hold": 0.9
+      }
+    ]
+  },
+  {
+    "id": "c02",
+    "title": "What occupies one training step?",
+    "sourceChapters": [
+      "c02"
+    ],
+    "beats": [
+      {
+        "id": "c02-b01",
+        "say": "Start with one of those two-byte weights. Backward produces a two-byte gradient that tells the optimizer which way the loss changes. In this AdamW recipe the optimizer updates a four-byte master weight.",
+        "hold": 0.3
+      },
+      {
+        "id": "c02-b02",
+        "say": "It keeps two more four-byte numbers, a moving average of gradients and a moving average of squared gradients. Count all five pieces and you get sixteen bytes for one parameter.",
+        "hold": 0.8
+      },
+      {
+        "id": "c02-b03",
+        "say": "Scale each piece to seventy billion parameters. The weights and gradients take one hundred forty gigabytes each. The master weights and the two averages take eight hundred forty between them. That's three quarters of the entire inventory. Together the five pieces take one thousand one hundred twenty decimal gigabytes.",
+        "hold": 0.9
+      },
+      {
+        "id": "c02-b04",
+        "say": "Share that inventory evenly across sixteen GPUs and each holds seventy gigabytes. Look at the gap to the eighty-gigabyte mark. Only ten remain for everything else live at that instant. When you measure a run, include the first optimizer update. Adam commonly allocates its moving averages then.",
+        "hold": 0.9
+      },
+      {
+        "id": "c02-b05",
+        "say": "What do we buy with a four-byte master weight? Start at one. Subtract one hundred-millionth in FP32. Round to the nearest stored value. Even FP32 lands back on one, because the change is less than half the gap to the next lower number.",
+        "hold": 0.8
+      },
+      {
+        "id": "c02-b06",
+        "say": "Start again at one, this time subtracting one ten-thousandth. The FP32 result moves to the left. Store that result in FP16 or BF16 and it rounds back to one. Their gaps below one are wider. The master can carry this second update into the next step even when the compute weight still reads one.",
+        "hold": 1
+      }
+    ]
+  },
+  {
+    "id": "c03",
+    "title": "Give every valid target the intended weight",
+    "sourceChapters": [
+      "c03"
+    ],
+    "beats": [
+      {
+        "id": "c03-b01",
+        "say": "Give one rank a single target and the other rank three. The input pipeline makes that assignment. DDP averages the gradients from the two ranks. If both ranks have the same number of valid targets, averaging their means gives every target the same weight.",
+        "hold": 0.3
+      },
+      {
+        "id": "c03-b02",
+        "say": "Count the solid targets. The empty positions are padding and contribute nothing to the loss. If the two ranks get an equal vote, which target gets too much say?",
+        "hold": 2.2
+      },
+      {
+        "id": "c03-b03",
+        "say": "At a scalar prediction of zero with squared loss, rank zero has one target of one and mean gradient minus two. Rank one has three targets of three and mean gradient minus six. Averaging those two means gives minus four. Pool the four actual targets instead, and their mean gradient is minus five.",
+        "hold": 0.7
+      },
+      {
+        "id": "c03-b04",
+        "say": "With two ranks and four total targets, multiply the local means by one half and three halves before the default rank average. The answer becomes minus five. In general the factor is rank count times local valid count divided by global valid count.",
+        "hold": 0.3
+      },
+      {
+        "id": "c03-b05",
+        "say": "Count across every accumulated microbatch in the update. Suppose rank zero has no valid targets this time. It contributes a zero loss sum and still joins the collective count. The other rank has three valid targets, so the global count is three. If both ranks are empty, skip the optimizer and scheduler together.",
+        "hold": 0.7
+      }
+    ]
+  },
+  {
+    "id": "c04",
+    "title": "Count the replicated state",
+    "sourceChapters": [
+      "c04"
+    ],
+    "beats": [
+      {
+        "id": "c04-b01",
+        "say": "Now take four ranks so we can follow each owner. Give each rank two units for weights, two for gradients, and four for optimizer state. These are example sizes. The larger optimizer block stands for the history that an optimizer like Adam keeps for its updates.",
+        "hold": 0.55
+      },
+      {
+        "id": "c04-b02",
+        "say": "With all three categories replicated, one rank holds eight state units. Four ranks together hold thirty-two, much of it repeated copies of the same training state.",
+        "hold": 0.55
+      },
+      {
+        "id": "c04-b03",
+        "say": "Only eight of the thirty-two units would be needed for a single copy of this inventory. The rest duplicate those pieces. Keep activations, temporary buffers, communication workspaces and allocator overhead outside this model-state ledger. We'll put them back at the instant a block needs them.",
+        "hold": 0.75
+      }
+    ]
+  },
+  {
+    "id": "c05",
+    "title": "Shard optimizer state first",
+    "sourceChapters": [
+      "c05"
+    ],
+    "beats": [
+      {
+        "id": "c05-b01",
+        "say": "ZeRO stage one partitions optimizer state among data-parallel ranks. Every rank keeps the same weights and gradients, then updates its assigned optimizer-state partition. The logical optimizer still sees a complete state set; each rank owns only its assigned physical shard.",
+        "hold": 0.55
+      },
+      {
+        "id": "c05-b02",
+        "say": "Keep your eye on rank two. It owns the optimizer history for slice C. The other three histories live with their owners. Two weight units, two gradient units and one optimizer unit make five on this rank.",
+        "hold": 0.55
+      },
+      {
+        "id": "c05-b03",
+        "say": "Trace weight C across the group. All four ranks still carry it, but only rank two owns its optimizer history. The logical optimizer can update every weight, and the largest repeated history has disappeared from each card.",
+        "hold": 0.75
+      }
+    ]
+  },
+  {
+    "id": "c06",
+    "title": "Shard gradients as well",
+    "sourceChapters": [
+      "c06"
+    ],
+    "beats": [
+      {
+        "id": "c06-b01",
+        "say": "Stage two adds gradients to the sharded categories. Each rank keeps the full parameter set while gradient and optimizer state are partitioned.",
+        "hold": 0.55
+      },
+      {
+        "id": "c06-b02",
+        "say": "On rank two, C's reduced gradient takes half a unit. Keep the two full weight units and the one optimizer unit. The new total is three and a half units per rank.",
+        "hold": 0.55
+      },
+      {
+        "id": "c06-b03",
+        "say": "Gradient communication now has a sharded output contract. An all-reduce returns the full gradient to every rank, while reduce-scatter sums contributions and leaves each rank its portion.",
+        "hold": 0.3
+      },
+      {
+        "id": "c06-b04",
+        "say": "After local optimizer-partition updates, updated parameter slices are shared, for example by all-gather, so every rank again has complete compute weights. Stage one also has to synchronize updated slices; its storage policy alone does not fix the exact runtime collective schedule.",
+        "hold": 0.75
+      }
+    ]
+  },
+  {
+    "id": "c07",
+    "title": "Shard model parameters too",
+    "sourceChapters": [
+      "c07"
+    ],
+    "beats": [
+      {
+        "id": "c07-b01",
+        "say": "Stage three partitions the weights as well. Rank two keeps C in every row. Half a weight unit, half a gradient unit and one optimizer unit make two units of persistent state.",
+        "hold": 0.55
+      },
+      {
+        "id": "c07-b02",
+        "say": "A layer still needs its parameters to compute. The ranks all-gather the relevant parameter shards before the wrapped unit runs, then release the gathered copy after it finishes. A rank materializes the wrapped unit it needs; smaller units can lower peak memory while increasing collective frequency.",
+        "hold": 0.55
+      },
+      {
+        "id": "c07-b03",
+        "say": "During backward, gradients are reduced and scattered to their owners. The optimizer updates its local state and parameter shards, preparing the next step.",
+        "hold": 0.75
+      }
+    ]
+  },
+  {
+    "id": "c08",
+    "title": "Where does the sum go?",
+    "sourceChapters": [
+      "c08"
+    ],
+    "beats": [
+      {
+        "id": "c08-b01",
+        "say": "Look down column C. Last time it summed to eighteen. Now rank three gets a different example. Its contribution changes from six to nine. The other three stay put. Rank two owns C. After reduce-scatter, what number should its optimizer receive?",
+        "hold": 2.2
+      },
+      {
+        "id": "c08-b02",
+        "say": "Add three, four, five and nine. Twenty-one goes to rank two. Each other column goes through the same addition and its sum goes to its own rank. Now suppose everybody needs the full vector. All-gather copies the four owned sums into every row.",
+        "hold": 0.3
+      },
+      {
+        "id": "c08-b03",
+        "say": "Together the two operations give the mathematical result of an all-reduce. Floating-point addition can round differently if the order changes. All ranks must enter matching collectives with matching types and counts.",
+        "hold": 0.9
+      },
+      {
+        "id": "c08-b04",
+        "say": "How many bytes did one rank send? In this ring model, S is the size of the complete tensor. With two ranks, one phase sends half of S. With N ranks, each sends N minus one chunks of size S divided by N. Reduce-scatter and all-gather each cost one phase.",
+        "hold": 0.3
+      },
+      {
+        "id": "c08-b05",
+        "say": "All-reduce costs two. These counts leave out received bytes and protocol overhead.",
+        "hold": 0.7
+      },
+      {
+        "id": "c08-b06",
+        "say": "For a large group, one phase sends about a full tensor per rank. Suppose weights and gradients each take one hundred forty gigabytes. DDP uses two gradient phases, about two hundred eighty gigabytes sent.",
+        "hold": 0.3
+      },
+      {
+        "id": "c08-b07",
+        "say": "Full sharding gathers weights for forward, gathers them again for backward if the forward copy was freed, then reduce-scatters gradients. That's about four hundred twenty gigabytes per rank. The ratio is one and a half. Step time depends on when the network makes compute wait.",
+        "hold": 0.3
+      },
+      {
+        "id": "c08-b08",
+        "say": "Retaining parameters, accumulating gradients or changing their dtype can also change the bytes.",
+        "hold": 0.7
+      }
+    ]
+  },
+  {
+    "id": "c09",
+    "title": "Follow one FSDP unit through a training step",
+    "sourceChapters": [
+      "c09"
+    ],
+    "beats": [
+      {
+        "id": "c09-b01",
+        "say": "Follow C on rank two. Fully Sharded Data Parallel groups a module's parameters into a communication unit. For forward, all four ranks supply their slices. Rank two can now use the whole unit on its own examples and save the activations that backward needs.",
+        "hold": 0.55
+      },
+      {
+        "id": "c09-b02",
+        "say": "After forward, release the full compute copy. Rank two still owns C, and the saved activations are still here. Backward gathers the unit again. For a linear layer, computing the input gradient uses the weights a second time.",
+        "hold": 0.55
+      },
+      {
+        "id": "c09-b03",
+        "say": "Backward produces parameter gradients, and reduce-scatter sends each rank its shard. The optimizer updates those local shards before the next forward pass.",
+        "hold": 0.75
+      }
+    ]
+  },
+  {
+    "id": "c10",
+    "title": "What lives through the optimizer step?",
+    "sourceChapters": [
+      "c10"
+    ],
+    "beats": [
+      {
+        "id": "c10-b01",
+        "say": "This FSDP2 run also budgets sixteen bytes per parameter, but look at what the optimizer updates. The stored weight is already FP32. It takes four bytes. Its FP32 gradient takes four more when present, and two FP32 Adam moments take eight.",
+        "hold": 0.3
+      },
+      {
+        "id": "c10-b02",
+        "say": "The stored weight does the job of the master copy. The BF16 weights gathered for compute are a temporary allocation on top.",
+        "hold": 0.8
+      },
+      {
+        "id": "c10-b03",
+        "say": "Watch rank zero in a four-rank group. This unit has a billion parameters, so its local FP32 weight shard takes one gigabyte. For backward, gather the full BF16 unit. That's two gigabytes of compute weights. Now form the local gradient of that whole unit in FP32. Four gigabytes have to fit before the reduction.",
+        "hold": 1
+      },
+      {
+        "id": "c10-b04",
+        "say": "Once backward has finished with the weights, release the compute copy. Reduce-scatter leaves one gigabyte of reduced gradient on this rank. Adam uses that shard and its moments to update the local weight. The gradient is still there after the update.",
+        "hold": 0.3
+      },
+      {
+        "id": "c10-b05",
+        "say": "Clear it with zero-grad set to none when its last use is finished. Activations and allocator reservations have their own lifetimes. Pure full sharding needs no parameter exchange for the local update, though gradient clipping or synchronizing replicas can still require communication.",
+        "hold": 0.9
+      }
+    ]
+  },
+  {
+    "id": "c11",
+    "title": "Build the parameter ownership before the optimizer",
+    "sourceChapters": [
+      "c11"
+    ],
+    "beats": [
+      {
+        "id": "c11-b01",
+        "say": "Look at ten equal transformer blocks, three gigabytes apiece. A single root group gathers thirty gigabytes for the first block. Our card has twenty-four. With FSDP2, call fully-shard on each block first, then on the root for the remaining parameters. Each block now gathers three gigabytes. The hooks keep the original modules and store parameter shards as DTensors. Build the optimizer afterwards so it sees those shards. Older FSDP1 code uses a wrapper and flat-parameter groups.",
+        "hold": 0.7
+      },
+      {
+        "id": "c11-b02",
+        "say": "Take one unit sharded across eight ranks. With reshard-after-forward true, each rank releases the gathered compute weights after forward. It keeps its owned shard, then gathers across all eight ranks for backward. False keeps the full compute unit, so backward can use it straight away. The default selects true for non-root units and false for the root.",
+        "hold": 0.3
+      },
+      {
+        "id": "c11-b03",
+        "say": "Set the policy to four. Four is a proper divisor of eight. Each rank keeps a quarter of the compute weights after forward. Four ranks can now gather the full unit for backward. Each of the eight ranks still trains on its original examples.",
+        "hold": 0.7
+      },
+      {
+        "id": "c11-b04",
+        "say": "The mixed-precision policy separately chooses compute-parameter and gradient-reduction dtypes. Original parameter shards remain the optimizer parameters. Disabling gradient synchronization during accumulation retains unsharded accumulated gradients. Keeping reductions enabled can accumulate sharded results but communicates each time. Retaining full parameters after backward is a different control that avoids later parameter gathers.",
+        "hold": 0.7
+      },
+      {
+        "id": "c11-b05",
+        "say": "FSDP2 composes with DeviceMesh and tensor parallelism and supports ordinary gradient clipping on DTensor parameters. FSDP1 sharded code instead uses its wrapper's clip-grad-norm method, and compilation needs original parameters enabled. Compile a high-level train step or module first, falling back inside a troublesome wrapper.",
+        "hold": 0.3
+      },
+      {
+        "id": "c11-b06",
+        "say": "Frozen base weights can still need gathers for compute or input gradients. An adapter does not remove those dependencies.",
+        "hold": 0.7
+      }
+    ]
+  },
+  {
+    "id": "c12",
+    "title": "Trade memory for communication",
+    "sourceChapters": [
+      "c12"
+    ],
+    "beats": [
+      {
+        "id": "c12-b01",
+        "say": "A rank that keeps all eight units can start with the weights in hand. Full sharding leaves two persistent units on that rank. Each time a unit needs its full weights, its owners must send their slices. Where will that transfer land on the compute trace?",
+        "hold": 0.55
+      },
+      {
+        "id": "c12-b02",
+        "say": "Prefetching can start communication for the next unit while the current unit computes. Fast interconnects and sensible wrapping help hide some transfer time.",
+        "hold": 0.55
+      },
+      {
+        "id": "c12-b03",
+        "say": "Small units create frequent communication boundaries; very large units can raise peak materialized memory. Measure throughput and peak memory together while changing wrap size. Record step time and device utilization with memory, since a run that fits can still use hardware inefficiently.",
+        "hold": 0.75
+      }
+    ]
+  },
+  {
+    "id": "c13",
+    "title": "When does the next block get its weights?",
+    "sourceChapters": [
+      "c13"
+    ],
+    "beats": [
+      {
+        "id": "c13-b01",
+        "say": "Here are four blocks, three and a half gigabytes of weights apiece. Put them in one communication group. The first block needs its weights, so the rank gathers all four blocks together. Fourteen gigabytes become live for that one request.",
+        "hold": 0.9
+      },
+      {
+        "id": "c13-b02",
+        "say": "Now give each block its own group. Gather the first block, use it, then release its compute copy. The second block can use that space. We still run all four blocks, but one gather now materializes three and a half gigabytes. Smaller groups mean more launches.",
+        "hold": 0.3
+      },
+      {
+        "id": "c13-b03",
+        "say": "That matters if a block is ready to compute before its weights arrive.",
+        "hold": 0.8
+      },
+      {
+        "id": "c13-b04",
+        "say": "Block two needs its weights at millisecond six. Its transfer takes four milliseconds. Launch at zero and watch the transfer while block one computes. By four, the full second block is ready. Replay the same four milliseconds of traffic, this time launching at five. Stop at six. How much transfer time is left?",
+        "hold": 3
+      },
+      {
+        "id": "c13-b05",
+        "say": "Three milliseconds remain. Let the rest arrive. At nine, block two can start. Only the interval from five to six overlapped compute. Compare the early launch at four. Block one and the complete second block are both resident there. Together the gathered weights need seven gigabytes.",
+        "hold": 1
+      },
+      {
+        "id": "c13-b06",
+        "say": "Check the profiler to see when the transfer actually ran and what else was live. FSDP2 starts with implicit prefetching. If the next gather launches late, try explicit module prefetch and measure again. In FSDP1, backward prefetch schedules the work. Compare launch time with the six-millisecond deadline in both traces.",
+        "hold": 0.3
+      },
+      {
+        "id": "c13-b07",
+        "say": "Its all-gather rate limiter caps how much can be in flight. A long sequence can fill memory with activations, and accumulating without gradient synchronization can keep full gradients alive.",
+        "hold": 0.8
+      }
+    ]
+  },
+  {
+    "id": "c14",
+    "title": "Measure the boundary each byte crosses",
+    "sourceChapters": [
+      "c14"
+    ],
+    "beats": [
+      {
+        "id": "c14-b01",
+        "say": "Place rank groups using the actual link topology. An NVLink domain can be a server or, in systems such as an NVL72 rack, span many GPUs across a rack. Other machines have PCIe peer paths.",
+        "hold": 0.3
+      },
+      {
+        "id": "c14-b02",
+        "say": "Frequent within-layer exchanges usually benefit from a fast domain, but tensor and context parallelism can span nodes if their exposed exchange cost is acceptable.",
+        "hold": 0.7
+      },
+      {
+        "id": "c14-b03",
+        "say": "A four-hundred-gigabit-per-second port is fifty gigabytes per second in one direction before overhead; eight hundred gigabits is one hundred gigabytes. Divide bits by eight. Do not compare a one-way per-port number directly with aggregate bidirectional GPU specifications. NIC sharing, contention, message size and collective choice all affect usable bandwidth.",
+        "hold": 0.7
+      },
+      {
+        "id": "c14-b04",
+        "say": "A compatible network adapter can read and write GPU memory with GPUDirect RDMA. The data still crosses the network link. Measure peer transfer, GPU to host, host DRAM, and storage at their own boundaries. HBM bandwidth measures traffic inside the GPU.",
+        "hold": 0.7
+      }
+    ]
+  },
+  {
+    "id": "c15",
+    "title": "Which ranks share one copy?",
+    "sourceChapters": [
+      "c15"
+    ],
+    "beats": [
+      {
+        "id": "c15-b01",
+        "say": "Keep the seventy-billion-parameter model. We have four nodes with eight GPUs each. Give all thirty-two ranks different shards. Each owns thirty-five gigabytes of model state. A layer gather now has to reach across nodes.",
+        "hold": 0.8
+      },
+      {
+        "id": "c15-b02",
+        "say": "Now keep each gather inside one node. Each node needs its own complete set of eight shards. Look at the first rank on each node. All four now own shard zero. What divides the inventory for one rank here, eight or thirty-two?",
+        "hold": 2
+      },
+      {
+        "id": "c15-b03",
+        "say": "Eight. Each rank would need one hundred forty gigabytes of persistent state, before a single activation. This is hybrid sharding. The model is sharded within a node and replicated across nodes. The gathers stay on the local links, but this layout already exceeds our eighty-gigabyte cards.",
+        "hold": 0.3
+      },
+      {
+        "id": "c15-b04",
+        "say": "Use the size of the group that shares one copy when you divide the bytes.",
+        "hold": 1
+      }
+    ]
+  },
+  {
+    "id": "c16",
+    "title": "Resume the next update, not just the loss",
+    "sourceChapters": [
+      "c16"
+    ],
+    "beats": [
+      {
+        "id": "c16-b01",
+        "say": "A resumable checkpoint preserves model and optimizer shards, scheduler and scaler when used, consumed steps or tokens, data position and needed random state. Save at a completed optimizer-step boundary for the simplest contract. A mid-accumulation snapshot also needs accumulated gradients and the microstep.",
+        "hold": 0.7
+      },
+      {
+        "id": "c16-b02",
+        "say": "Load the same saved weight into both copies. Here Adam uses one half for both betas, zero epsilon, zero weight decay and a learning rate of one tenth. Two previous gradients were plus one. Restore the two moments and step counter in the top copy. Reset them in the bottom copy. Give both the same next gradient, minus one. Where will the two marks land?",
+        "hold": 3
+      },
+      {
+        "id": "c16-b03",
+        "say": "Apply the update to the restored copy. Its first moment changes sign, but the earlier positive gradients still count. Bias correction at step three gives a move of about plus zero point zero one four two nine. Now update the reset copy. Its first gradient sets the direction, and its move is plus zero point one. The forward predictions and losses matched at the shared starting weight.",
+        "hold": 0.7
+      },
+      {
+        "id": "c16-b04",
+        "say": "Test resume against an uninterrupted run: compare the next batch, loss, gradients, updated parameters and optimizer counters with appropriate numerical tolerances. Exercise every rank's loading and random state. Sharded checkpoints avoid gathering the whole model onto rank zero.",
+        "hold": 0.3
+      },
+      {
+        "id": "c16-b05",
+        "say": "If the rank layout changes, reshard the saved tensors for their new owners. Some DeepSpeed layouts need universal checkpoint conversion. Here the next global batch has targets seventeen through twenty. Replay the same IDs, masks and random choices. Compare the token-weighted gradient after reduction. Its four contributions average minus five with either layout. Then compare updated weights and Adam counters against the uninterrupted run. A different reduction order can change rounding.",
+        "hold": 0.7
+      }
+    ]
+  },
+  {
+    "id": "c17",
+    "title": "Follow the state through the memory hierarchy",
+    "sourceChapters": [
+      "c17"
+    ],
+    "beats": [
+      {
+        "id": "c17-b01",
+        "say": "If native GPU sharding is sufficient and you want PyTorch tooling, FSDP is a direct choice. FSDP2 CPU offload can put parameters, gradients and optimizer state on host memory and run the optimizer there. DeepSpeed ZeRO-Infinity adds a CPU and NVMe hierarchy when storage capacity is needed.",
+        "hold": 0.3
+      },
+      {
+        "id": "c17-b02",
+        "say": "Moving state makes room while adding transfer and optimizer-placement costs.",
+        "hold": 0.7
+      },
+      {
+        "id": "c17-b03",
+        "say": "A hypothetical four-gigabyte transfer over a measured twenty-gigabyte-per-second host link has a two-hundred-millisecond payload lower bound. That omits latency and competing traffic. Host DRAM, storage reads and writes, and the host-GPU link are separate limits. Prefetch can hide only the part with a sufficient compute window.",
+        "hold": 0.3
+      },
+      {
+        "id": "c17-b04",
+        "say": "Profile the whole path before assigning the benefit to the SSD generation.",
+        "hold": 0.7
+      },
+      {
+        "id": "c17-b05",
+        "say": "Check the installed integration, too. Current DeepSpeed AutoTP documents ZeRO stages zero through three. Its PipelineModule excludes stages two and three. Passing that restriction is only an admission check, not a launch test. ZeRO-three also requires matching module-gather order; divergent expert routing may need leaf-module boundaries.",
+        "hold": 0.3
+      },
+      {
+        "id": "c17-b06",
+        "say": "Buckets count elements. Five hundred million BF16 elements need one gigabyte. With managed accumulation, pass each microbatch mean loss to the engine. It scales that loss during backward and updates the weights at the accumulation boundary. Dividing the same mean yourself would scale it twice.",
+        "hold": 0.7
+      }
+    ]
+  },
+  {
+    "id": "c18",
+    "title": "Count devices separately from independent sequences",
+    "sourceChapters": [
+      "c18"
+    ],
+    "beats": [
+      {
+        "id": "c18-b01",
+        "say": "Use a regular mesh with no expert axis. World size is DP times TP times PP times CP. Data parallelism counts independent sequence replicas here. Tensor parallelism divides work inside a layer, pipeline parallelism divides depth, and context parallelism divides positions of one sequence.",
+        "hold": 0.7
+      },
+      {
+        "id": "c18-b02",
+        "say": "DP eight, TP four, PP two and CP two require one hundred twenty-eight ranks. With one sequence per local microbatch and four accumulated microbatches, the global sequence batch is thirty-two: one times four times eight.",
+        "hold": 0.3
+      },
+      {
+        "id": "c18-b03",
+        "say": "Take replica zero. Its sixteen cooperating ranks share work on the same sequences. Count a sequence once across its tensor, pipeline and context ranks. Then sum across independent data replicas. If every replica needs at least one sequence, a fixed global batch bounds how far you can raise data parallelism.",
+        "hold": 0.7
+      }
+    ]
+  },
+  {
+    "id": "c19",
+    "title": "Split the matrix multiply itself",
+    "sourceChapters": [
+      "c19"
+    ],
+    "beats": [
+      {
+        "id": "c19-b01",
+        "say": "Tensor parallelism changes layer computation. Split the first MLP weight along output columns. Each rank receives the same input and produces different hidden coordinates. An elementwise activation stays local. Split the next weight along matching rows, so each rank produces a partial output in the same output coordinates. Sum those partial vectors with all-reduce.",
+        "hold": 0.7
+      },
+      {
+        "id": "c19-b02",
+        "say": "Take the supplied hidden pair, two and three. ReLU leaves both positive coordinates unchanged. Multiply two by the row one, four. Multiply three by the row two, minus one. The partial vectors are two, eight and six, minus three. Add matching coordinates. The output is eight, five.",
+        "hold": 0.3
+      },
+      {
+        "id": "c19-b03",
+        "say": "This illustrates the partition contract; the transformer recipe uses its chosen activation such as GeLU.",
+        "hold": 0.7
+      },
+      {
+        "id": "c19-b04",
+        "say": "In the classic replicated-input/output Megatron layout, attention assigns complete heads to ranks and sums the output-projection partials. Attention and the MLP together use two forward and two backward all-reduces per layer. Sequence parallelism can replace these with other collective patterns.",
+        "hold": 0.3
+      },
+      {
+        "id": "c19-b05",
+        "say": "This division can shrink a gathered matrix that state sharding alone still needs whole; it is a different intervention from ZeRO.",
+        "hold": 0.7
+      }
+    ]
+  },
+  {
+    "id": "c20",
+    "title": "Trade activation retention without erasing the bubble",
+    "sourceChapters": [
+      "c20"
+    ],
+    "beats": [
+      {
+        "id": "c20-b01",
+        "say": "Pipeline parallelism assigns consecutive layer ranges to stages. Forward sends activations to the next stage; backward returns their gradients. GPipe completes all microbatch forwards before their backwards. Plain non-interleaved one-forward-one-backward flush instead warms up, alternates, then drains before the batch optimizer update.",
+        "hold": 0.7
+      },
+      {
+        "id": "c20-b02",
+        "say": "Compare the same four stages and eight microbatches. The warmups are three, two, one and zero forwards. Count the next forward before its paired backward. The highest numbers of live activation sets are four, three, two and one. GPipe reaches eight on every stage. Recomputation changes the bytes per saved set.",
+        "hold": 0.3
+      },
+      {
+        "id": "c20-b03",
+        "say": "Both schedules finish in twenty-two unit slots here. On each stage sixteen slots do work and six are idle. The ideal idle fraction stays three elevenths. The saved activation sets are what changed.",
+        "hold": 0.7
+      },
+      {
+        "id": "c20-b04",
+        "say": "With balanced stages and ignored transfer and optimizer costs, bubble overhead relative to useful work is stages minus one divided by microbatches. Idle fraction of total elapsed time has microbatches plus stages minus one in the denominator.",
+        "hold": 0.3
+      },
+      {
+        "id": "c20-b05",
+        "say": "At eight stages and thirty-two microbatches those are seven over thirty-two and seven over thirty-nine: about twenty-one point eight eight and seventeen point nine five percent. Interleaved chunks can reduce the ideal bubble at a transfer cost; stage imbalance still needs a trace.",
+        "hold": 0.7
+      }
+    ]
+  },
+  {
+    "id": "c21",
+    "title": "Keep queries still while KV blocks travel",
+    "sourceChapters": [
+      "c21"
+    ],
+    "beats": [
+      {
+        "id": "c21-b01",
+        "say": "Context parallelism partitions one sequence's positions. Each owner keeps its local query positions but global attention still needs keys and values from other blocks. Ring Attention rotates KV blocks through the owners and uses online softmax statistics to combine them without constructing the full attention matrix.",
+        "hold": 0.7
+      },
+      {
+        "id": "c21-b02",
+        "say": "Keep this query on rank zero. Its first block has score zero and value two. Another block arrives with score log three and value ten. Their unnormalized masses are one and three. What weight does ten get in the result?",
+        "hold": 2.4
+      },
+      {
+        "id": "c21-b03",
+        "say": "Three of the four parts. The weighted sum is thirty-two and the mass is four, so the output is eight. In an online merge, use the new maximum, log three. Rescale the old mass and weighted sum by one third, then add the second block at unit mass. The ratio stays eight. Keep each causal mask attached to its original positions. The next exchange can overlap block compute if the timing allows.",
+        "hold": 0.3
+      },
+      {
+        "id": "c21-b04",
+        "say": "Tiling removes the full score matrix, but dense attention arithmetic and other saved tensors still grow with sequence length.",
+        "hold": 0.7
+      }
+    ]
+  },
+  {
+    "id": "c22",
+    "title": "Diagnose the first failing lifetime boundary",
+    "sourceChapters": [
+      "c22"
+    ],
+    "beats": [
+      {
+        "id": "c22-b01",
+        "say": "Look at two out-of-memory failures. In the first attempt, initialization requests ninety-five gigabytes on an eighty-gigabyte card. The job never reaches forward. Check whether the model materialized before sharding. Try sharded initialization or build on the meta device first.",
+        "hold": 0.3
+      },
+      {
+        "id": "c22-b02",
+        "say": "In the second attempt, initialization and forward both fit. Backward requests eighty-eight. Inspect the gathered weights, activations and full gradients live at that instant, including gradients retained across microbatches. If memory is low and compute waits before every block, time the next gather instead.",
+        "hold": 0.7
+      },
+      {
+        "id": "c22-b03",
+        "say": "For a hang, find the first error across rank logs and verify matching collective sequences. A dead rank can stall the rest. Blocking-wait settings are not a general repair. PyTorch timeout dumps need both dump-on-timeout enabled and a positive trace-buffer size. Reproduce on the smallest faithful rank group, then inspect profiler and rank evidence.",
+        "hold": 0.7
+      },
+      {
+        "id": "c22-b04",
+        "say": "A comparison records hardware and count, rank placement and links, model and sequence shape, microbatch and accumulation, dtypes, sharding and prefetch, warmup and steady-state window, baseline and correctness or convergence. Separate data wait, forward, backward, optimizer and checkpoint time.",
+        "hold": 0.3
+      },
+      {
+        "id": "c22-b05",
+        "say": "Read the trace in milliseconds. The collective from two to five fits under compute from one to seven. The step ends at nine. Adding the bars gives twelve because it counts those three milliseconds twice. Count unique tokens across independent replicas, label the padding policy, and report peak allocated and reserved memory with throughput.",
+        "hold": 0.7
+      }
+    ]
+  },
+  {
+    "id": "c23",
+    "title": "Which allocation changed the peak?",
+    "sourceChapters": [
+      "c23"
+    ],
+    "beats": [
+      {
+        "id": "c23-b01",
+        "say": "Come back to our four-rank example. This card holds two units of sharded model state. At one instant it also needs one and a half units for gathered weights and half a unit of workspace. Save three units of activations and the seven-unit request crosses our six-unit limit.",
+        "hold": 0.8
+      },
+      {
+        "id": "c23-b02",
+        "say": "Try saving fewer activations and recomputing the rest during backward. In this example that cuts the saved activations in half. All the other allocations stay put. Five and a half units fit, at the cost of repeating some arithmetic.",
+        "hold": 0.8
+      },
+      {
+        "id": "c23-b03",
+        "say": "Keep recomputation on and switch to a longer sequence. The saved activations now need four and a half units. Leave the other three allocations where they were. By how many units does this request exceed the six-unit limit?",
+        "hold": 2.8
+      },
+      {
+        "id": "c23-b04",
+        "say": "Two and a half units over. The four fixed units and the saved activations add up to eight and a half. To test a repair, keep the target sequence length, reduce the microbatch and measure the joint peak again. For layouts that complete the step, compare time per update at the same effective batch and check that training and checkpoint recovery agree.",
+        "hold": 1
+      }
+    ]
+  },
+  {
+    "id": "c24",
+    "title": "Which layout earns a trial?",
+    "sourceChapters": [
+      "c24"
+    ],
+    "beats": [
+      {
+        "id": "c24-b01",
+        "say": "Return to the seventy-billion-parameter job. Fourteen eighty-gigabyte cards would hold the state exactly under even full sharding. On sixteen cards the state occupies seventy gigabytes per card. Pause there. Suppose the gathered weights, activations and workspace need eighteen more gigabytes together. Where would the request end?",
+        "hold": 3
+      },
+      {
+        "id": "c24-b02",
+        "say": "Put the eighteen next to the seventy. The request ends at eighty-eight, eight gigabytes past the limit. Try twenty-four cards instead. The state falls to about forty-six point seven per card. The same eighteen brings the peak to sixty-four point seven. Thirty-two cards bring it to fifty-three.",
+        "hold": 0.3
+      },
+      {
+        "id": "c24-b03",
+        "say": "Of those three layouts, twenty-four is the smallest worth testing under this assumption.",
+        "hold": 1.1
+      },
+      {
+        "id": "c24-b04",
+        "say": "Your turn. A smaller model has thirty billion parameters. Same recipe, sixteen cards, same eighteen extra gigabytes. Stage two leaves every weight on every card. Stage three shares the weights as well. Which stage would you take to a trial on these eighty-gigabyte cards?",
+        "hold": 3
+      },
+      {
+        "id": "c24-b05",
+        "say": "For stage two, keep sixty gigabytes of weights and divide the other four hundred twenty by sixteen. That's eighty-six and a quarter gigabytes for state alone. With stage three, divide the full four hundred eighty by sixteen. Thirty gigabytes of state plus eighteen live at the same time gives forty-eight.",
+        "hold": 0.9
+      },
+      {
+        "id": "c24-b06",
+        "say": "Take stage three to the profiler. Run the intended sequence and microbatch on that mesh, through backward and the optimizer update. Find the highest memory peak across ranks. Did the gathered weights and activations stay inside the space we budgeted?",
+        "hold": 0.3
+      },
+      {
+        "id": "c24-b07",
+        "say": "Then compare useful tokens per second and verify the next update after a restore. That earns the layout a trial on this workload. In the next lesson, LoRA changes the inventory itself by training a small adapter while the base weights stay frozen.",
+        "hold": 1.1
+      }
+    ]
+  }
+]

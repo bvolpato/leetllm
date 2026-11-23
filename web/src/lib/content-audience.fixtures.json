@@ -1,0 +1,216 @@
+{
+  "passages": [
+    {
+      "name": "unannotated content is byte-for-byte unchanged",
+      "content": "# Shared\r\n\r\nUnicode: λ and café.  \r\n<!-- ordinary comment -->\r\n",
+      "book": "# Shared\r\n\r\nUnicode: λ and café.  \r\n<!-- ordinary comment -->\r\n",
+      "website": "# Shared\r\n\r\nUnicode: λ and café.  \r\n<!-- ordinary comment -->\r\n"
+    },
+    {
+      "name": "inline alternatives retain surrounding prose",
+      "content": "Read the <!-- leetllm: audience:book:start -->next chapter<!-- leetllm: audience:book:end --><!-- leetllm: audience:website:start -->interactive lesson<!-- leetllm: audience:website:end --> for details.",
+      "book": "Read the next chapter for details.",
+      "website": "Read the interactive lesson for details."
+    },
+    {
+      "name": "whole sections may differ independently",
+      "content": "Shared.\n<!-- leetllm: audience:book:start -->\n## Printed walkthrough\n\nKeep this worked example.\n<!-- leetllm: audience:book:end -->\n<!-- leetllm: audience:website:start -->\n## Interactive exercise\n\nRun the playground.\n<!-- leetllm: audience:website:end -->\nContinue.\n",
+      "book": "Shared.\n\n## Printed walkthrough\n\nKeep this worked example.\n\n\nContinue.\n",
+      "website": "Shared.\n\n\n## Interactive exercise\n\nRun the playground.\n\nContinue.\n"
+    },
+    {
+      "name": "nested audiences intersect instead of leaking excluded text",
+      "content": "A<!-- leetllm: audience:book:start -->B<!-- leetllm: audience:book:start -->C<!-- leetllm: audience:book:end --><!-- leetllm: audience:website:start -->NEITHER<!-- leetllm: audience:website:end -->D<!-- leetllm: audience:book:end -->E",
+      "book": "ABCDE",
+      "website": "AE"
+    },
+    {
+      "name": "inline code preserves literal marker documentation",
+      "content": "Use `<!-- leetllm: audience:book:start -->` and ``a ` <!-- leetllm: audience:unknown:end --> b``.\n",
+      "book": "Use `<!-- leetllm: audience:book:start -->` and ``a ` <!-- leetllm: audience:unknown:end --> b``.\n",
+      "website": "Use `<!-- leetllm: audience:book:start -->` and ``a ` <!-- leetllm: audience:unknown:end --> b``.\n"
+    },
+    {
+      "name": "code spans can span a nonblank line",
+      "content": "A ``literal\n<!-- leetllm: audience:book:end -->`` B",
+      "book": "A ``literal\n<!-- leetllm: audience:book:end -->`` B",
+      "website": "A ``literal\n<!-- leetllm: audience:book:end -->`` B"
+    },
+    {
+      "name": "backtick and tilde fences preserve examples and shorter fence runs",
+      "content": "````markdown\n```\n<!-- leetllm: audience:book:end -->\n`````\n\n~~~html\n<!-- leetllm: audience:unknown:start -->\n~~~~\n",
+      "book": "````markdown\n```\n<!-- leetllm: audience:book:end -->\n`````\n\n~~~html\n<!-- leetllm: audience:unknown:start -->\n~~~~\n",
+      "website": "````markdown\n```\n<!-- leetllm: audience:book:end -->\n`````\n\n~~~html\n<!-- leetllm: audience:unknown:start -->\n~~~~\n"
+    },
+    {
+      "name": "indented and quoted fenced examples remain literal",
+      "content": "Example:\n\n    <!-- leetllm: audience:book:end -->\n\t<!-- leetllm: audience:unknown:start -->\n\n> ```html\n> <!-- leetllm: audience:book:end -->\n> ```\n",
+      "book": "Example:\n\n    <!-- leetllm: audience:book:end -->\n\t<!-- leetllm: audience:unknown:start -->\n\n> ```html\n> <!-- leetllm: audience:book:end -->\n> ```\n",
+      "website": "Example:\n\n    <!-- leetllm: audience:book:end -->\n\t<!-- leetllm: audience:unknown:start -->\n\n> ```html\n> <!-- leetllm: audience:book:end -->\n> ```\n"
+    },
+    {
+      "name": "code examples inside an omitted branch are omitted with the branch",
+      "content": "A<!-- leetllm: audience:book:start -->\n```html\n<!-- leetllm: audience:website:end -->\n```\nB<!-- leetllm: audience:book:end -->C",
+      "book": "A\n```html\n<!-- leetllm: audience:website:end -->\n```\nBC",
+      "website": "AC"
+    },
+    {
+      "name": "unmatched backticks do not hide audience markers",
+      "content": "A ` unmatched <!-- leetllm: audience:book:start -->B<!-- leetllm: audience:book:end -->C",
+      "book": "A ` unmatched BC",
+      "website": "A ` unmatched C"
+    },
+    {
+      "name": "paragraph continuation indentation does not create a code block",
+      "content": "A paragraph\n    <!-- leetllm: audience:book:start -->printed continuation<!-- leetllm: audience:book:end -->\ncontinues.",
+      "book": "A paragraph\n    printed continuation\ncontinues.",
+      "website": "A paragraph\n    \ncontinues."
+    },
+    {
+      "name": "mixed spaces and tabs can indent a literal code example",
+      "content": "Example:\n\n  \t<!-- leetllm: audience:book:end -->\n",
+      "book": "Example:\n\n  \t<!-- leetllm: audience:book:end -->\n",
+      "website": "Example:\n\n  \t<!-- leetllm: audience:book:end -->\n"
+    },
+    {
+      "name": "unordered list fences preserve literal audience controls",
+      "content": "- ```html\n  <!-- leetllm: audience:book:start -->\n  literal code\n  <!-- leetllm: audience:book:end -->\n  ```\n",
+      "book": "- ```html\n  <!-- leetllm: audience:book:start -->\n  literal code\n  <!-- leetllm: audience:book:end -->\n  ```\n",
+      "website": "- ```html\n  <!-- leetllm: audience:book:start -->\n  literal code\n  <!-- leetllm: audience:book:end -->\n  ```\n"
+    },
+    {
+      "name": "ordered list fences preserve unmatched literal markers",
+      "content": "1. ```html\n   <!-- leetllm: audience:book:end -->\n   ```\n",
+      "book": "1. ```html\n   <!-- leetllm: audience:book:end -->\n   ```\n",
+      "website": "1. ```html\n   <!-- leetllm: audience:book:end -->\n   ```\n"
+    },
+    {
+      "name": "nested list fences retain both container indents",
+      "content": "- Outer\n  1. ```html\n     <!-- leetllm: audience:book:end -->\n     ```\n",
+      "book": "- Outer\n  1. ```html\n     <!-- leetllm: audience:book:end -->\n     ```\n",
+      "website": "- Outer\n  1. ```html\n     <!-- leetllm: audience:book:end -->\n     ```\n"
+    },
+    {
+      "name": "large ordered items close at their full content indent",
+      "content": "123. ```html\n     <!-- leetllm: audience:book:end -->\n     ```\n\nShared <!-- leetllm: audience:book:start -->print<!-- leetllm: audience:book:end -->.\n",
+      "book": "123. ```html\n     <!-- leetllm: audience:book:end -->\n     ```\n\nShared print.\n",
+      "website": "123. ```html\n     <!-- leetllm: audience:book:end -->\n     ```\n\nShared .\n"
+    },
+    {
+      "name": "list and quote containers may nest on the same opening line",
+      "content": "1. > - ~~~html\n   >   <!-- leetllm: audience:unknown:start -->\n   >   ~~~\n",
+      "book": "1. > - ~~~html\n   >   <!-- leetllm: audience:unknown:start -->\n   >   ~~~\n",
+      "website": "1. > - ~~~html\n   >   <!-- leetllm: audience:unknown:start -->\n   >   ~~~\n"
+    },
+    {
+      "name": "dedenting an unclosed list fence reactivates real annotations",
+      "content": "- ```html\n  <!-- leetllm: audience:book:end -->\n\nOutside <!-- leetllm: audience:book:start -->print<!-- leetllm: audience:book:end -->.\n",
+      "book": "- ```html\n  <!-- leetllm: audience:book:end -->\n\nOutside print.\n",
+      "website": "- ```html\n  <!-- leetllm: audience:book:end -->\n\nOutside .\n"
+    },
+    {
+      "name": "dedenting only the inner list ends its unclosed fence",
+      "content": "- Outer\n  - ```html\n    <!-- leetllm: audience:book:end -->\n  Outside <!-- leetllm: audience:book:start -->print<!-- leetllm: audience:book:end -->.\n",
+      "book": "- Outer\n  - ```html\n    <!-- leetllm: audience:book:end -->\n  Outside print.\n",
+      "website": "- Outer\n  - ```html\n    <!-- leetllm: audience:book:end -->\n  Outside .\n"
+    },
+    {
+      "name": "dedenting a large ordered item ends its unclosed fence",
+      "content": "123. ~~~html\n     <!-- leetllm: audience:book:end -->\nOutside <!-- leetllm: audience:website:start -->web<!-- leetllm: audience:website:end -->.\n",
+      "book": "123. ~~~html\n     <!-- leetllm: audience:book:end -->\nOutside .\n",
+      "website": "123. ~~~html\n     <!-- leetllm: audience:book:end -->\nOutside web.\n"
+    },
+    {
+      "name": "list markers inside fenced code are not stripped into closing fences",
+      "content": "- ```html\n  - ```\n  <!-- leetllm: audience:book:end -->\n  ```\nOutside <!-- leetllm: audience:website:start -->web<!-- leetllm: audience:website:end -->.\n",
+      "book": "- ```html\n  - ```\n  <!-- leetllm: audience:book:end -->\n  ```\nOutside .\n",
+      "website": "- ```html\n  - ```\n  <!-- leetllm: audience:book:end -->\n  ```\nOutside web.\n"
+    },
+    {
+      "name": "quote markers inside root fenced code cannot close the fence",
+      "content": "```html\n> ```\n<!-- leetllm: audience:book:end -->\n```\n",
+      "book": "```html\n> ```\n<!-- leetllm: audience:book:end -->\n```\n",
+      "website": "```html\n> ```\n<!-- leetllm: audience:book:end -->\n```\n"
+    },
+    {
+      "name": "an unclosed quoted fence ends with its quote container",
+      "content": "> ```html\n> <!-- leetllm: audience:book:end -->\n\nShared <!-- leetllm: audience:book:start -->print<!-- leetllm: audience:book:end -->.",
+      "book": "> ```html\n> <!-- leetllm: audience:book:end -->\n\nShared print.",
+      "website": "> ```html\n> <!-- leetllm: audience:book:end -->\n\nShared ."
+    },
+    {
+      "name": "an unclosed fence remains literal Markdown code",
+      "content": "~~~html\n<!-- leetllm: audience:book:start -->\n",
+      "book": "~~~html\n<!-- leetllm: audience:book:start -->\n",
+      "website": "~~~html\n<!-- leetllm: audience:book:start -->\n"
+    }
+  ],
+  "errors": [
+    { "name": "unknown audience", "content": "Shared\n<!-- leetllm: audience:mobile:start -->", "line": 2, "message": "Invalid audience marker" },
+    { "name": "unknown action", "content": "<!-- leetllm: audience:book:begin -->", "line": 1, "message": "Invalid audience marker" },
+    { "name": "missing namespace colon", "content": "<!-- leetllm audience:book:start -->", "line": 1, "message": "Invalid audience marker" },
+    { "name": "unfinished comment", "content": "Shared\r\n<!-- leetllm: audience:book:start", "line": 2, "message": "Unterminated audience marker" },
+    { "name": "unexpected end", "content": "<!-- leetllm: audience:book:end -->", "line": 1, "message": "without a start marker" },
+    { "name": "mismatched nesting", "content": "<!-- leetllm: audience:book:start -->\n<!-- leetllm: audience:website:end -->", "line": 2, "message": "Mismatched audience:website:end" },
+    { "name": "unclosed start", "content": "Shared\n<!-- leetllm: audience:book:start -->\nPrivate", "line": 2, "message": "Unclosed audience:book:start" },
+    { "name": "malformed marker in an omitted branch", "content": "<!-- leetllm: audience:book:start -->\n<!-- leetllm: audience:unknown:start -->\n<!-- leetllm: audience:book:end -->", "line": 2, "message": "Invalid audience marker" }
+  ],
+  "visibility": [
+    { "name": "both channels by default", "metadata": {}, "book": true, "website": true },
+    { "name": "website-only article", "metadata": { "visibility": { "book": false } }, "book": false, "website": true },
+    { "name": "book-only article", "metadata": { "visibility": { "website": false } }, "book": true, "website": false },
+    { "name": "explicitly visible", "metadata": { "visibility": { "book": true, "website": true } }, "book": true, "website": true },
+    { "name": "excluded from both channels", "metadata": { "visibility": { "book": false, "website": false } }, "book": false, "website": false },
+    { "name": "quarantine cannot be overridden", "metadata": { "hidden": true, "visibility": { "book": true, "website": true } }, "book": false, "website": false },
+    { "name": "legacy book flag", "metadata": { "book": false, "visibility": { "book": true } }, "book": false, "website": true },
+    { "name": "legacy in_book flag", "metadata": { "in_book": false }, "book": false, "website": true },
+    { "name": "legacy exclusion flag", "metadata": { "exclude_from_book": true }, "book": false, "website": true },
+    { "name": "legacy no-book tag", "metadata": { "tags": ["systems", "no-book"] }, "book": false, "website": true },
+    { "name": "legacy skip-book tag", "metadata": { "tags": ["skip-book"] }, "book": false, "website": true }
+  ],
+  "invalidVisibility": [
+    { "visibility": null },
+    { "visibility": [] },
+    { "visibility": true },
+    { "visibility": { "mobile": true } },
+    { "visibility": { "book": "false" } },
+    { "hidden": true, "visibility": { "website": 0 } }
+  ],
+  "editions": [
+    {
+      "name": "reader replaces a complete reference passage",
+      "content": "shared\n<!-- leetllm: edition:reference:start -->full lab<!-- leetllm: edition:reference:end -->\n<!-- leetllm: edition:reader:start -->short lab<!-- leetllm: edition:reader:end -->",
+      "audience": "book",
+      "edition": "reader",
+      "expected": "shared\n\nshort lab"
+    },
+    {
+      "name": "reference preserves the full lab",
+      "content": "shared\n<!-- leetllm: edition:reference:start -->full lab<!-- leetllm: edition:reference:end -->\n<!-- leetllm: edition:reader:start -->short lab<!-- leetllm: edition:reader:end -->",
+      "audience": "book",
+      "edition": "reference",
+      "expected": "shared\nfull lab\n"
+    },
+    {
+      "name": "website keeps the reference explanation",
+      "content": "<!-- leetllm: edition:reference:start -->full<!-- leetllm: edition:reference:end --><!-- leetllm: edition:reader:start -->short<!-- leetllm: edition:reader:end -->",
+      "audience": "website",
+      "edition": "reference",
+      "expected": "full"
+    },
+    {
+      "name": "edition and audience form an intersection",
+      "content": "shared<!-- leetllm: audience:book:start -->book<!-- leetllm: edition:reader:start -->reader<!-- leetllm: edition:reader:end --><!-- leetllm: audience:book:end -->",
+      "audience": "book",
+      "edition": "reader",
+      "expected": "sharedbookreader"
+    },
+    {
+      "name": "literal edition examples inside code remain unchanged",
+      "content": "`<!-- leetllm: edition:reader:start -->`\n\n```markdown\n<!-- leetllm: edition:reader:end -->\n```",
+      "audience": "book",
+      "edition": "reader",
+      "expected": "`<!-- leetllm: edition:reader:start -->`\n\n```markdown\n<!-- leetllm: edition:reader:end -->\n```"
+    }
+  ]
+}

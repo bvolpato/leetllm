@@ -1,0 +1,262 @@
+[
+  {
+    "id": "c01",
+    "title": "Will the reply turn the key?",
+    "sourceChapters": [
+      "c01"
+    ],
+    "beats": [
+      {
+        "id": "c01-b01",
+        "say": "Ticket r one oh four asks what the policy says about a disabled production key. This reply cites the policy for account ID, letter A, three hundred. Send that reply for review. What should happen to the key?",
+        "hold": 2.6
+      },
+      {
+        "id": "c01-b02",
+        "say": "The reply reaches the reviewer. The key stays disabled. The customer asked a question. Restoring access takes a separate request from an authorized operator and a decision the executor can verify later. We will follow both paths through a local SQLite lab.",
+        "hold": 1.3
+      }
+    ]
+  },
+  {
+    "id": "c02",
+    "title": "Who issued the receipt?",
+    "sourceChapters": [
+      "c02"
+    ],
+    "beats": [
+      {
+        "id": "c02-b01",
+        "say": "Start outside the planner. Someone supplies the expected route and bundle in the ticket text. Who can vouch for those fields and for the account they name?",
+        "hold": 2
+      },
+      {
+        "id": "c02-b02",
+        "say": "The host obtains a receipt from the trusted intake service, bound to this ticket and its principal. It checks the current bundle, the route and the account grant. The routine ticket admits support one to read A three hundred. The grant ends there.",
+        "hold": 1
+      },
+      {
+        "id": "c02-b03",
+        "say": "Now run the urgent ticket and the ticket with the old bundle. The urgent route goes to human review. The old bundle stops at version checking. Both have zero planner steps. The lab simulates the upstream producer. A deployed host has to authenticate it.",
+        "hold": 1.2
+      }
+    ]
+  },
+  {
+    "id": "c03",
+    "title": "What can go into the draft?",
+    "sourceChapters": [
+      "c03"
+    ],
+    "beats": [
+      {
+        "id": "c03-b01",
+        "say": "Open the policy to the reviewed clause. Production API key access may be restored after identity verification. Privileged scopes require manager approval before access is queued. Someone changes the second sentence to make approval optional, but keeps the citation. Can we draft from that response?",
+        "hold": 2.3
+      },
+      {
+        "id": "c03-b02",
+        "say": "Reject the changed answer. The fixture compares the full response, including status, answer, citation, question and policy hash. A matching citation or source hash alone tells us too little. In a live retriever we also need a trusted source and evidence that supports the answer.",
+        "hold": 1
+      },
+      {
+        "id": "c03-b03",
+        "say": "Run the original question again. The policy tool returns the reviewed response. Account lookup returns the admitted account. Now the host can draft the cited reply. The fourth action hands it to a reviewer. A premature draft would have failed because the host lacked those observations.",
+        "hold": 1.1
+      },
+      {
+        "id": "c03-b04",
+        "say": "For a question outside the reviewed fixture, the policy tool abstains. The host hands off with no draft. The planner sees a copy of observation state and the host validates each proposal. A deep copy protects this trusted adapter against accidental edits. Untrusted executable code needs isolation.",
+        "hold": 1.1
+      }
+    ]
+  },
+  {
+    "id": "c04",
+    "title": "Which proposal reaches a tool?",
+    "sourceChapters": [
+      "c04"
+    ],
+    "beats": [
+      {
+        "id": "c04-b01",
+        "say": "This lookup has the right tool name and one string argument. Compare the proposed account with the grant on the ticket. Would you dispatch the read?",
+        "hold": 2.1
+      },
+      {
+        "id": "c04-b02",
+        "say": "The resource check blocks it before lookup. A three oh one is outside the grant for A three hundred. Dispatch checks the allowlist, exact argument keys and types, resource binding and state prerequisites. The outer envelope accepts just action and args.",
+        "hold": 1
+      },
+      {
+        "id": "c04-b03",
+        "say": "Back at the draft stop, a proposal carries an extra approved field. The envelope check rejects it. Now inspect a proposed restore. The tool check blocks it. Keep that attempted action in the trace with executed false. A query of the local effects table returns zero.",
+        "hold": 1.2
+      }
+    ]
+  },
+  {
+    "id": "c05",
+    "title": "Which operation did the reviewer approve?",
+    "sourceChapters": [
+      "c05"
+    ],
+    "beats": [
+      {
+        "id": "c05-b01",
+        "say": "An authorized operator now requests a restore for A three hundred. This is a separate request after the policy draft. The host checks the ticket, the exact draft and the account’s current verification, then stages the operation. The key is still disabled.",
+        "hold": 1
+      },
+      {
+        "id": "c05-b02",
+        "say": "The stable operation ID binds ticket, account, scope, policy hash and exact draft. The full packet also has an expiry of thirteen hundred. The reviewer saves a decision against a digest of that entire packet. Look at the proposed target, scope and expiry. Do they match the saved review?",
+        "hold": 2.2
+      },
+      {
+        "id": "c05-b03",
+        "say": "Lay the reviewed fields over the proposal. All three line up. The executor compares the full packet digest with the saved digest. It rechecks the ticket grant, account verification, scope, policy and draft. SQLite keeps the approval across processes. In production, authenticate reviewers, protect both stores and support revocation and separation of duties.",
+        "hold": 1.2
+      }
+    ]
+  },
+  {
+    "id": "c06",
+    "title": "What survives a failed insert?",
+    "sourceChapters": [
+      "c06"
+    ],
+    "beats": [
+      {
+        "id": "c06-b01",
+        "say": "The approval already committed. In a new transaction the executor inserts an effect for this operation. That row is pending when an error interrupts the write. What can a second connection read after rollback?",
+        "hold": 2.2
+      },
+      {
+        "id": "c06-b02",
+        "say": "The pending row disappears. The committed table is empty. The saved approval survives in its earlier transaction. A retry rechecks the same operation, inserts again, and commits one row. A second connection can now read the operation ID, account and scope.",
+        "hold": 1.2
+      },
+      {
+        "id": "c06-b03",
+        "say": "Try the same operation a third time. The lookup finds its ID. The executor skips the duplicate. Three attempts have left one local row. Moving the commit before the failure would have made the first row durable.",
+        "hold": 1.1
+      },
+      {
+        "id": "c06-b04",
+        "say": "Across a network, the destination can restore the key and the reply can get lost. The caller’s receipt table is empty. From that empty table the outcome is unknown. Reuse a request identity the destination honors, or reconcile with its records before repeating the call.",
+        "hold": 1.2
+      }
+    ]
+  },
+  {
+    "id": "c07",
+    "title": "Can the executor run it again?",
+    "sourceChapters": [
+      "c07"
+    ],
+    "beats": [
+      {
+        "id": "c07-b01",
+        "say": "Return to the local executor. Keep the committed row in view. The saved packet expires at thirteen hundred. Advance the clock to the exact boundary. The same operation comes back. Which check answers first, expiry or duplicate detection?",
+        "hold": 2.2
+      },
+      {
+        "id": "c07-b02",
+        "say": "The executor returns expired. It checks the current time before looking for a duplicate, so the denial describes this attempt. The earlier committed effect still belongs in the table.",
+        "hold": 1.1
+      },
+      {
+        "id": "c07-b03",
+        "say": "At thirteen oh one, extend only the stored expiry to twenty-three hundred. The operation ID stays the same. The packet digest changes. The executor rejects the mismatch with the saved review. Someone able to edit both records could defeat this comparison, so protect the review store.",
+        "hold": 1.1
+      }
+    ]
+  },
+  {
+    "id": "c08",
+    "title": "Would you accept this run report?",
+    "sourceChapters": [
+      "c08"
+    ],
+    "beats": [
+      {
+        "id": "c08-b01",
+        "say": "Start the grader with a fresh database. The urgent and stale tickets take zero steps. The grounded draft executes four actions. The unsupported question abstains and hands off. For the forbidden restore, compare the attempt, its flag and the effect count. What actually ran?",
+        "hold": 2
+      },
+      {
+        "id": "c08-b02",
+        "say": "Dispatch recorded the attempt and executed nothing. The count is zero. The replay fixture calls the approved executor twice. Its report lists no planner actions and says duplicate ignored. SQLite counts one effect. The grader checks the path, flags, citation, draft and count against expectations. Argument binding requires the full trace.",
+        "hold": 1
+      },
+      {
+        "id": "c08-b03",
+        "say": "Add a passed field to the forbidden row. The grader rejects the extra field. It also rejects a flipped execution flag or a Boolean used as an integer count. Now replace the replay episode with another passing draft episode. Count the rows. Would the report pass?",
+        "hold": 2
+      },
+      {
+        "id": "c08-b04",
+        "say": "Hold for coverage. Six rows must cover six distinct required episodes exactly once. The gate also checks agent, dataset and grader versions. Restore the original report and the fixture suite passes. To release a build, tie its evaluation to a trusted run and measure performance on held-out tasks.",
+        "hold": 1.1
+      }
+    ]
+  },
+  {
+    "id": "c08-budget",
+    "title": "When does the request exhaust its budget?",
+    "sourceChapters": [
+      "c08"
+    ],
+    "beats": [
+      {
+        "id": "c08-budget-b01",
+        "say": "Read the supplied trace as four sequential calls. Add the tokens in one column and milliseconds in the other. Four events used five hundred seventy tokens and five hundred thirty milliseconds. The limits are four events, nine hundred tokens and twelve hundred milliseconds. What if another call finishes?",
+        "hold": 2.1
+      },
+      {
+        "id": "c08-budget-b02",
+        "say": "Append five hundred tokens and nine hundred fifty milliseconds. The totals jump to five events, one thousand seventy tokens and one thousand four hundred eighty milliseconds. All three exceed their limits. This post-run audit can see the overrun. Enforce allowances before dispatch, limit concurrent work and cancel a call at its deadline.",
+        "hold": 1.1
+      },
+      {
+        "id": "c08-budget-b03",
+        "say": "Try the four events on this second trace. Add the two columns and compare each total with its own limit. Does landing exactly on all three limits pass?",
+        "hold": 2.1
+      },
+      {
+        "id": "c08-budget-b04",
+        "say": "Equality passes. Four events consumed nine hundred tokens in twelve hundred milliseconds. Missing or invalid usage leaves the total unknown. A live system also has to reconcile usage from failed and retried calls. Persist only the trace fields you need for audit and recovery, with redaction, access control and a retention limit.",
+        "hold": 1.2
+      }
+    ]
+  },
+  {
+    "id": "c09",
+    "title": "Repair one input at a time",
+    "sourceChapters": [
+      "c09"
+    ],
+    "beats": [
+      {
+        "id": "c09-b01",
+        "say": "Start in a fresh database at time two thousand one. The saved review expires at twenty-three hundred. The stored expiry has changed to twenty-four hundred and account verification is now false. Before you run it, predict which fault the executor reports first.",
+        "hold": 2.4
+      },
+      {
+        "id": "c09-b02",
+        "say": "The packet check fails first. Zero effects. Restore only the reviewed expiry. Verification is still false. Which check stops the next attempt?",
+        "hold": 2
+      },
+      {
+        "id": "c09-b03",
+        "say": "The executor returns stale preconditions. The repaired packet matches its review, but the current account fails verification. Zero effects. Restore verification with the ticket, scope and time held fixed. What should retry and replay leave behind?",
+        "hold": 2.2
+      },
+      {
+        "id": "c09-b04",
+        "say": "The retry commits one effect. The replay finds the same operation and keeps that one row. Look back at the two requests. The ticket supplied a question and received a cited draft. The operator supplied the separate restore request. Those different origins still matter when a model takes over planning.",
+        "hold": 1.65
+      }
+    ]
+  }
+]

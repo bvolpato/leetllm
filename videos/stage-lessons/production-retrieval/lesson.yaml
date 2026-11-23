@@ -1,0 +1,957 @@
+version: 1
+id: production-retrieval
+title: Build a Production Retrieval Path You Can Trust
+source: retrieval/design-production-rag-pipeline/content.md
+sources:
+  - title: Retrieval-Augmented Generation for Knowledge-Intensive NLP Tasks
+    url: https://arxiv.org/abs/2005.11401
+  - title: "Not What You've Signed Up For: Indirect Prompt Injection"
+    url: https://arxiv.org/abs/2302.12173
+  - title: "Lost in the Middle: How Language Models Use Long Contexts"
+    url: https://arxiv.org/abs/2307.03172
+  - title: Azure AI Search vector filtering contracts
+    url: https://learn.microsoft.com/en-us/azure/search/vector-search-filters
+  - title: LangChain parent-document retriever
+    url: https://reference.langchain.com/python/langchain-classic/retrievers/parent_document_retriever/ParentDocumentRetriever
+  - title: LlamaIndex sentence window implementation
+    url: https://github.com/run-llama/llama_index/blob/main/llama-index-core/llama_index/core/node_parser/text/sentence_window.py
+  - title: Qwen3-1.7B model card and chat interface
+    url: https://huggingface.co/Qwen/Qwen3-1.7B
+  - title: Sentence Transformers cross-encoder score contract
+    url: https://www.sbert.net/docs/cross_encoder/usage/usage.html
+  - title: Ragas context recall definitions
+    url: https://docs.ragas.io/en/stable/concepts/metrics/available_metrics/context_recall/
+  - title: TruLens RAG triad
+    url: https://www.trulens.org/getting_started/core_concepts/rag_triad/
+scenes:
+  - id: subject-intro
+    title: Where did “30 days” come from?
+    visual: Follow the citation from a draft reply to its policy page. Read the two uses of the same number before deciding whether Luna can use the reply.
+    beats:
+      - say: Follow this citation. The assistant gives Luna thirty days to rotate a stale key. Read the sentence it found. What expires after thirty days?
+        hold: 2.2
+        visual_cues:
+          - id: open
+            phrase: Follow this citation
+            targets: [citation-link, mapped-passage]
+          - id: shared-number
+            phrase: gives Luna thirty days
+            targets: [matching-duration]
+          - id: which-clock
+            phrase: What expires after thirty days
+            targets: [source-question]
+      - say: Idle browser sessions expire. Hold the draft. Luna asked about a service key, and this page measures how long a browser can sit idle.
+        hold: 0.7
+        caption_starts:
+          - Idle browser sessions expire
+        visual_cues:
+          - id: session-clock
+            phrase: Idle browser sessions expire
+            targets: [session-subject]
+          - id: hold-reply
+            phrase: Hold the draft
+            targets: [hold-decision]
+          - id: key-clock
+            phrase: Luna asked about a service key
+            targets: [key-subject]
+      - say: Search for the current EU key policy. The assistant fetches passages and gives them to its language model as evidence for the answer. That's retrieval-augmented generation, or RAG.
+        hold: 0.55
+        visual_cues:
+          - id: retrieve
+            phrase: Search for the current EU key policy
+            targets: [policy-search]
+  - id: three-paths
+    title: One policy on three paths
+    visual: Follow the policy into a versioned index, follow Luna through a request, then replay the request against a candidate release.
+    beats:
+      - say: Here is the governing page. Its limits and our timings are invented for this example. The page gives a key fourteen days, provided the risk signal is at most forty-eight hours old. Luna supplies two readings of her own. The key went stale ten days ago. The signal arrived forty-eight hours ago.
+        hold: 0.65
+        visual_cues:
+          - id: pr-rule
+            phrase: The page gives a key fourteen days
+            targets: [rule-page]
+          - id: pr-inputs
+            phrase: The key went stale ten days ago
+            targets: [request-ages]
+      - say: Follow the page when it changes. Background ingestion parses the text, records its revision and builds a searchable index. When Luna asks her question, the service selects passages she may read and sends enough evidence to answer or abstain.
+        hold: 0.65
+        visual_cues:
+          - id: pr-lifetimes
+            phrase: Background ingestion parses the text
+            targets: [ingestion-path]
+          - id: pr-request
+            phrase: When Luna asks her question
+            targets: [request-path]
+      - say: Before switching to a candidate index, replay a frozen question. Hold the expected source and answer fixed while testing the new index, retriever, prompt or model. Updating the index can change what the assistant knows while its model weights stay fixed. The replay tells us whether this particular answer still holds.
+        hold: 0.65
+        visual_cues:
+          - id: pr-release
+            phrase: replay a frozen question
+            targets: [release-path]
+          - id: pr-memory
+            phrase: Updating the index can change what the assistant knows
+            targets: [indexed-policy]
+  - id: versioned-evidence
+    title: Make each evidence record traceable
+    visual: A policy page becomes located child and parent records with source hash, region, access tag, effective dates, and version; the current revision is selected for the fixture date.
+    beats:
+      - say: Start during ingestion. Parse a source into searchable spans, then preserve the document, parent section, page locator, version, region, access tag, and effective dates with each span.
+        hold: 0.55
+        visual_cues:
+          - id: parse-spans
+            phrase: Parse a source into searchable spans
+            targets:
+              - source-page
+              - search-child
+            color: cyan
+            linger: 0.5
+          - id: preserve-lineage
+            phrase: preserve the document, parent section, page locator, version, region, access tag, and effective dates
+            targets:
+              - lineage-fields
+            color: yellow
+            linger: 0.5
+      - say: In our policy fixture, the current EU key rule allows rotation within fourteen days when the risk signal is at most forty-eight hours old. Its older thirty-day rule remains available for historical review.
+        hold: 0.75
+        visual_cues:
+          - id: current-rule
+            phrase: current EU key rule allows rotation within fourteen days
+            targets:
+              - current-record
+            color: green
+            linger: 0.5
+          - id: historical-rule
+            phrase: older thirty-day rule remains available for historical review
+            targets:
+              - historical-record
+            color: yellow
+            linger: 0.5
+      - say: For the request date, the current-version filter admits the new record and leaves the expired one out. A content hash helps check exact bytes; source authority still comes from the trusted source process.
+        hold: 0.55
+        visual_cues:
+          - id: filter-current
+            phrase: current-version filter admits the new record
+            targets:
+              - request-date
+              - current-record
+            color: green
+            linger: 0.5
+          - id: exclude-expired
+            phrase: leaves the expired one out
+            targets:
+              - historical-record
+            color: pink
+            linger: 0.5
+          - id: verify-bytes
+            phrase: content hash helps check exact bytes
+            targets:
+              - source-digest
+            color: cyan
+            linger: 0.5
+  - id: validity-invariants
+    title: Attach validity to the exact source revision
+    visual: Build inclusive calendar ranges beside the reader example’s half-open logical interval, then reject two active revisions under one scope.
+    beats:
+      - say: Our reference fixture uses inclusive calendar dates. The old EU revision ends March thirty-first, and the replacement begins April first. It rejects duplicate chunk IDs, reversed date ranges and more than one active version for the same region and document. Several chunks of one active version are valid. A product or jurisdiction variant needs its own scope dimension.
+        hold: 0.65
+        visual_cues:
+          - id: pr-dates
+            phrase: The old EU revision ends March thirty-first, and the replacement begins April first
+            targets:
+              - validity-invariants-mechanism
+            color: cyan
+            linger: 0.5
+          - id: pr-invalid
+            phrase: duplicate chunk IDs, reversed date ranges and more than one active version
+            targets:
+              - validity-invariants-mechanism
+            color: cyan
+            linger: 0.5
+      - say: "The shorter reader implementation uses half-open logical intervals instead: a record is current from its start, including that start, until its end, excluding that end. If one ends at time twenty and another begins at twenty, only the replacement is current at that instant. Do not copy an endpoint comparison without preserving its time unit and contract."
+        hold: 0.65
+        visual_cues:
+          - id: pr-at-twenty
+            phrase: at twenty
+            targets:
+              - logical-time-cursor
+          - id: pr-halfopen
+            phrase: only the replacement is current at that instant
+            targets:
+              - validity-invariants-mechanism
+            color: cyan
+            linger: 0.5
+      - say: "A policy’s effective time can differ from when an update reached the index. Preserve both when replay needs them. A digest verifies supplied bytes, while trusted ingestion establishes source authority. Keep content revision and authorization revision separate: an unchanged page can lose its grant. Malformed required scope metadata must stay out of serving until resolved."
+        hold: 0.65
+        visual_cues:
+          - id: pr-authority-revision
+            phrase: an unchanged page can lose its grant
+            targets:
+              - validity-invariants-mechanism
+            color: cyan
+            linger: 0.5
+  - id: authorized-retrieval
+    title: Filter the corpus before ranking candidates
+    visual: Trusted caller, region, date, and ACL select permitted records before similarity ranking; a restricted near-match is held outside the caller’s search lane.
+    beats:
+      - say: At request time, the application supplies the caller’s trusted identity, region, access tags, and request date. The retrieval path uses those values to form its allowed evidence set.
+        hold: 0.55
+        visual_cues:
+          - id: trusted-request
+            phrase: caller’s trusted identity, region, access tags, and request date
+            targets:
+              - trusted-caller
+            color: blue
+            linger: 0.5
+          - id: form-evidence-set
+            phrase: retrieval path uses those values to form its allowed evidence set
+            targets:
+              - permitted-set
+              - access-decisions
+            color: green
+            linger: 0.5
+      - say: Now search inside that set. Our small lexical fixture ranks permitted text by shared terms; a dense or hybrid scorer can replace the ranking while the permission boundary stays in place.
+        hold: 0.75
+        visual_cues:
+          - id: rank-allowed
+            phrase: Our small lexical fixture ranks permitted text by shared terms
+            targets:
+              - ranked-hits
+            color: cyan
+            linger: 0.5
+          - id: preserve-permission
+            phrase: permission boundary stays in place
+            targets:
+              - permitted-set
+            color: green
+            linger: 0.5
+      - say: A restricted admin page can share more words with the question and still stay outside the caller’s search lane. Only permitted candidate text moves toward reranking, context packing, or generation.
+        hold: 0.55
+        visual_cues:
+          - id: deny-near-match
+            phrase: restricted admin page can share more words with the question
+            targets:
+              - access-decisions
+            color: pink
+            linger: 0.5
+          - id: permitted-only
+            phrase: Only permitted candidate text
+            targets:
+              - ranked-hits
+            color: green
+            linger: 0.5
+  - id: filtering-contract
+    title: Which three passages can Luna receive?
+    visual: Follow a search through its trusted index. Compare the five ranked rows under two ways of taking the first three, then follow a permitted passage to the reranker.
+    beats:
+      - say: Our word search scored only the rows Luna could read. Now follow a graph search inside a trusted vector service. It visits a restricted node on the way to a permitted neighbor. The service checks which passages may leave its boundary.
+        hold: 0.65
+        visual_cues:
+          - id: pr-graph
+            phrase: a graph search inside a trusted vector service
+            targets: [search-graph]
+          - id: pr-traverse
+            phrase: visits a restricted node on the way to a permitted neighbor
+            targets: [neighbor-traversal]
+      - say: Take the first three rows by distance. Two are restricted. Remove those two and Luna gets one passage. Now take the three nearest permitted rows. This search also finds the two passages just below the original cut. Measure how many useful passages each method returns and how long it takes.
+        hold: 0.65
+        visual_cues:
+          - id: pr-globalcut
+            phrase: Take the first three rows by distance
+            targets: [global-cut]
+          - id: pr-trim
+            phrase: Remove those two
+            targets: [redacted-cut]
+          - id: pr-allowedcut
+            phrase: take the three nearest permitted rows
+            targets: [permitted-cut]
+      - say: At the boundary, use the caller's verified identity, tenant and grants to check each passage. Keep restricted text inside. The external reranker can reorder or drop the permitted passages it receives. If none qualify, return an empty list without naming any restricted document.
+        hold: 0.65
+        visual_cues:
+          - id: pr-scope
+            phrase: verified identity, tenant and grants
+            targets: [payload-boundary]
+          - id: pr-restricted
+            phrase: Keep restricted text inside
+            targets: [restricted-passage]
+          - id: pr-permitted
+            phrase: The external reranker
+            targets: [permitted-passage]
+  - id: lexical-counterexample
+    title: What did the search terms match?
+    visual: Show the full query that scores seven and two. Replace the wording, conceal the old scores, and distinguish the alphabetical tie from the minimum-score gate.
+    beats:
+      - say: "This little retriever counts distinct words shared with Luna's query. The key rule shares seven terms. The session rule shares two. The words “after” and “days” get the session page onto the list. A count of shared terms tells us nothing about which clock those days measure."
+        hold: 0.65
+        visual_cues:
+          - id: pr-scores
+            phrase: The session rule shares two
+            targets: [overlap-counts]
+      - say: Now ask to refresh an expired machine credential. How many words does that wording share with either passage?
+        hold: 1.6
+        visual_cues:
+          - id: pr-zero
+            phrase: refresh an expired machine credential
+            targets: [paraphrase]
+      - say: Zero for both. The shorter program in the article takes the first two records anyway. Ties go by chunk ID, so the key rule comes first. Supply ten days and a forty-eight-hour signal and the answerer says eligible. Alphabetical order chose its evidence.
+        hold: 0.7
+        visual_cues:
+          - id: pr-score-zero
+            phrase: Zero for both
+            targets: [paraphrase-counts]
+            caption_boundary: true
+          - id: pr-false-answer
+            phrase: the answerer says eligible
+            targets: [reader-answer]
+      - say: The reference fixture requires two shared terms. With this wording it returns no passages. That's a missed paraphrase. To set a cutoff for real search, measure both the answerable questions you turn away and the unsupported answers you allow. Calibrate it for your model, index and traffic. Cosine similarity and a cross-encoder logit use different scales.
+        hold: 0.65
+        visual_cues:
+          - id: pr-gate
+            phrase: requires two shared terms
+            targets: [retrieval-cutoff]
+  - id: pinned-bundle
+    title: Which parent belongs to this request?
+    visual: Validate bundle B while Luna holds a child from A. Switch the serving pointer, try the newer parent, then follow the pinned child back to its matching revision.
+    beats:
+      - say: Luna's request starts on bundle A. The service pins the child index, parent store, source manifest and retrieval settings together. The child on screen belongs to A. Its parent must come from that same snapshot.
+        hold: 0.65
+        visual_cues:
+          - id: pr-snapshot
+            phrase: source manifest
+            targets: [bundle-manifest]
+          - id: pr-pin
+            phrase: The child on screen belongs to A
+            targets: [pinned-child]
+      - say: Meanwhile, build B alongside A. If the embedding model changes, its query and document encoders need compatible preprocessing, dimensions and a shared distance metric. Two encoders can produce vectors of the same length in different coordinate systems. Replay versioned source spans, compare authorized shadow queries and catch up on source changes. Validate the parent store and configuration with the new index.
+        hold: 0.65
+        visual_cues:
+          - id: pr-migration
+            phrase: build B alongside A
+            targets: [candidate-index]
+          - id: pr-switch
+            phrase: Validate the parent store and configuration
+            targets: [candidate-bundle]
+      - say: Now switch the serving pointer to B. Future requests can use it. Luna already holds A. If her packer follows the new pointer, it attaches B's revision to the child from A. The document name matches. The revision differs.
+        hold: 1.5
+        visual_cues:
+          - id: pr-pointer
+            phrase: switch the serving pointer to B
+            targets: [serving-pointer]
+          - id: pr-mixed
+            phrase: it attaches B's revision to the child from A
+            targets: [wrong-parent]
+      - say: Follow the child's pinned reference back to A. Check that parent against today's permissions and effective date. An atomic switch protects the whole request only when packing and cache lookup keep using the bundle the request actually searched.
+        hold: 0.65
+        visual_cues:
+          - id: pr-repair
+            phrase: Follow the child's pinned reference back to A
+            targets: [matching-parent]
+  - id: child-to-parent
+    title: Which passage will E1 open?
+    visual: Follow the matched phrase and its signal condition on the same page. Resolve two hits to their shared parent before copying it once into the prompt.
+    beats:
+      - say: Search can match the words “automated rotation up to fourteen days.” If a chunk ended there, we'd lose the condition about the risk signal. In this fixture the child already contains both clauses. We still need the exact parent that Luna will open when she follows the citation.
+        hold: 0.7
+        visual_cues:
+          - id: child-match
+            phrase: Search can match the words
+            targets: [child-span]
+          - id: parent-condition
+            phrase: the condition about the risk signal
+            targets: [parent-clause]
+      - say: Two hits point to the same key-rotation section. Resolve their parent inside the bundle this request pinned. Check its parent ID, document and revision against the child. Then check the parent's effective dates, region and permissions for Luna.
+        hold: 0.6
+        visual_cues:
+          - id: resolve-parent
+            phrase: Two hits point to the same key-rotation section
+            targets: [child-pointers]
+          - id: check-parent
+            phrase: Check its parent ID
+            targets: [parent-admission]
+      - say: Copy the checked section into the prompt as E one. A second hit on that parent uses the same copy. The distinct session section gets E two. For the model budget, count the whole formatted request with the target tokenizer. Instructions, question, wrappers and evidence all take space. The bar uses one byte per token just to make those costs countable here.
+        hold: 0.7
+        visual_cues:
+          - id: pack-sections
+            phrase: Copy the checked section
+            targets: [packed-parents]
+          - id: deduplicate
+            phrase: A second hit on that parent
+            targets: [duplicate-reference]
+          - id: count-complete-request
+            phrase: count the whole formatted request
+            targets: [request-budget]
+  - id: context-budget
+    title: Which complete sections fit?
+    visual: Try a longer appendix and then a shorter session section in the same remaining space. Count labels and separators. Repeated key hits leave the packed size unchanged.
+    beats:
+      - say: A search hit can be one sentence. A sentence window brings in its neighbors so the reader can see a condition on either side. A definition ten sentences away still falls outside a window of three neighbors on either side. Check the actual boundary before widening it.
+        hold: 0.65
+        visual_cues:
+          - id: pr-window
+            phrase: brings in its neighbors
+            targets: [sentence-window]
+      - say: Give the packer four hundred characters for labeled evidence. The key section uses two hundred seventeen, label included. That leaves one hundred eighty-three. Try the longer policy appendix next. With its label and separator, it needs two hundred ninety-seven. What should the packer do with a section that won't fit?
+        hold: 1.8
+        visual_cues:
+          - id: pr-characters
+            phrase: The key section uses two hundred seventeen
+            targets: [packed-key]
+          - id: pr-oversized
+            phrase: Try the longer policy appendix
+            targets: [appendix-trial]
+      - say: Skip the whole appendix. The smaller session section fits with its label and separator. We have both complete sections in three hundred thirty-eight characters. Another hit on the same key parent takes no more space. The retriever examined an extra hit, but the model still receives only one copy of that parent.
+        hold: 0.65
+        visual_cues:
+          - id: pr-skip
+            phrase: Skip the whole appendix
+            targets: [accepted-section]
+            caption_boundary: true
+          - id: pr-dedup
+            phrase: Another hit on the same key parent
+            targets: [duplicate-parent]
+      - say: Those are character counts. Now count tokens in the fully formatted request. Our toy byte tokenizer counts five hundred one input tokens, with another two hundred fifty-six reserved for output. Use the target model's own tokenizer in production. Even a permitted passage that fits can distract the model. Long-context experiments found that the position of the evidence affected accuracy on the tasks studied. Test placement and coverage on your own questions.
+        hold: 0.7
+        visual_cues:
+          - id: pr-tokens
+            phrase: count tokens in the fully formatted request
+            targets: [token-budget]
+          - id: pr-position
+            phrase: the position of the evidence affected accuracy
+            targets: [required-clause]
+  - id: answer-from-evidence
+    title: Where does Luna’s request land?
+    visual: Plot stale days against signal hours in a magnified view of the two limits. Move the request onto the inclusive corner and then across it. Repack only the session page and remove the rule while the request stays put.
+    beats:
+      - say: The yellow dot is Luna's request. Ten days across for the key, forty-eight hours up for the signal. Read the key policy beside it. Fourteen days sets the right edge. Forty-eight hours sets the top edge. Both edges count. Her dot sits on the top edge, so the answer is eligible.
+        hold: 0.7
+        visual_cues:
+          - id: two-ages
+            phrase: The yellow dot is Luna's request
+            targets: [request-dot]
+          - id: key-limit
+            phrase: Fourteen days sets the right edge
+            targets: [day-boundary]
+          - id: signal-limit
+            phrase: Forty-eight hours sets the top edge
+            targets: [signal-boundary]
+          - id: ten-result
+            phrase: the answer is eligible
+            targets: [api-decision]
+            caption_boundary: true
+      - say: Keep the signal where it is. Move the key to day fourteen. Does the corner itself qualify?
+        hold: 2
+        visual_cues:
+          - id: to-corner
+            phrase: Move the key to day fourteen
+            targets: [request-dot]
+          - id: corner-question
+            phrase: Does the corner itself qualify
+            targets: [corner-question]
+      - say: "Yes, the corner qualifies. Both ages equal their limits. Now move one day farther to fifteen. The dot crosses just the right edge. The current rule makes this key ineligible. Luna can open the cited policy and check why."
+        hold: 0.7
+        visual_cues:
+          - id: corner-result
+            phrase: Yes, the corner qualifies
+            targets: [corner-decision]
+            caption_boundary: true
+          - id: one-day-more
+            phrase: move one day farther to fifteen
+            targets: [request-dot]
+          - id: outside-result
+            phrase: ineligible
+            targets: [cited-denial]
+            caption_boundary: true
+      - say: Leave those ages alone. Suppose packing returns only the session page this time. It's the first source in this new prompt, so the application calls it E one. Can the service still give Luna a denial?
+        hold: 2
+        visual_cues:
+          - id: only-session
+            phrase: packing returns only the session page
+            targets: [mapped-passage]
+          - id: source-question
+            phrase: Can the service still give Luna a denial
+            targets: [source-question]
+      - say: Abstain. The dot is in exactly the same place, but this page gives us no key-rotation boundary to test. Retrieve the governing rule or send the question for review. If an age is missing, ask Luna for it. Guessing a value would change her question.
+        hold: 0.8
+        visual_cues:
+          - id: no-rule
+            phrase: Abstain
+            targets: [no-evidence-decision]
+            caption_boundary: true
+  - id: prompt-contract
+    title: Would you send this cited reply?
+    visual: Look up two citation labels. One is missing. Follow the other to a permitted session policy, read the key claim beside it, and decide whether to release the reply.
+    beats:
+      - say: The prompt gives the model two passages and Luna's question. It asks for a cited answer in at most two sentences, or an abstention. The passages are data. As the application builds the prompt, it records which passage each label opens.
+        hold: 0.65
+        visual_cues:
+          - id: pr-prompt
+            phrase: two passages and Luna's question
+            targets: [reader-prompt]
+          - id: pr-source-map
+            phrase: which passage each label opens
+            targets: [source-map]
+      - say: Look up the bracketed labels in a draft reply. E seven has no entry in the map, so hold that reply. Try E two. The label exists and Luna may read its page. The draft says a key can rotate after thirty days. Does the cited sentence support that claim?
+        hold: 2.2
+        visual_cues:
+          - id: pr-unknown
+            phrase: E seven has no entry
+            targets: [unknown-label]
+          - id: pr-known
+            phrase: Try E two
+            targets: [session-passage, source-map]
+          - id: pr-ask
+            phrase: Does the cited sentence support that claim
+            targets: [support-question]
+      - say: The sentence is about idle browser sessions. Hold the key claim. Check each claim against the exact passage its citation opens. If your service promises to catch unsupported claims before delivery, buffer the draft until those checks pass. A later review can flag an error after the caller has seen it.
+        hold: 0.65
+        caption_starts:
+          - The sentence is about idle browser sessions
+        visual_cues:
+          - id: pr-support
+            phrase: Hold the key claim
+            targets: [unsupported-claim]
+          - id: pr-buffer
+            phrase: buffer the draft until those checks pass
+            targets: [delivery-decision]
+  - id: recorded-model-failure
+    title: What did the model read?
+    visual: Pair three recorded Qwen replies with the sources in their own prompts. Change the key age, then reset the request and let E1 name the only remaining session page.
+    beats:
+      - say: The article recorded three replies from a small Qwen model. It used the model's chat template, turned thinking and sampling off, and capped the output at eighty tokens. We're looking at excerpts from that run. With both policies and a ten-day key, the model says yes and cites E one. The checked answer is eligible.
+        hold: 0.65
+        visual_cues:
+          - id: ten-reply
+            phrase: the model says yes
+            targets: [recorded-reply]
+          - id: ten-check
+            phrase: The checked answer is eligible
+            targets: [checked-answer]
+            caption_boundary: true
+      - say: Change the key age to fifteen days. The two policies stay put. Read the explanation the model gave. It says the key is stale for less than fourteen days. It goes on to say the sources don't settle the question. But fifteen exceeds fourteen. The checked answer is ineligible. The label checker found zero unknown labels in both replies.
+        hold: 0.7
+        visual_cues:
+          - id: fifteen-input
+            phrase: Change the key age to fifteen days
+            targets: [request-ages]
+          - id: fifteen-reply
+            phrase: Read the explanation the model gave
+            targets: [recorded-reply]
+          - id: bad-comparison
+            phrase: less than fourteen days
+            targets: [wrong-inequality]
+          - id: fifteen-check
+            phrase: The checked answer is ineligible
+            targets: [checked-answer]
+            caption_boundary: true
+      - say: Reset the key to ten days. Now supply only the session page. That page becomes E one. What key-rotation claim does this source support?
+        hold: 1.8
+        visual_cues:
+          - id: back-to-ten
+            phrase: Reset the key to ten days
+            targets: [request-ages]
+          - id: session-only
+            phrase: supply only the session page
+            targets: [source-map]
+          - id: ask-source
+            phrase: What key-rotation claim does this source support
+            targets: [support-question]
+      - say: None. The recorded reply compares the risk signal with the thirty-day expiration for idle sessions. It then allows the key to rotate. Again the label exists. The checked answer abstains. These three replies show why checking a known citation can't catch a bad comparison.
+        hold: 0.7
+        visual_cues:
+          - id: last-reply
+            phrase: The recorded reply compares
+            targets: [recorded-reply]
+            caption_boundary: true
+          - id: wrong-clock
+            phrase: thirty-day expiration for idle sessions
+            targets: [wrong-subject]
+          - id: abstention
+            phrase: The checked answer abstains
+            targets: [checked-answer]
+            caption_boundary: true
+      - say: Keep the numerical decision in code for this contract. The reference answerer requires the supported intent, the reviewed revision and exact text, and two nonnegative integer ages. Missing values, booleans and negative ages all require an abstention. Test how the service interprets a question and how the model words the answer separately. Exact generated wording can change with the model or runtime.
+        hold: 0.65
+  - id: evidence-is-data
+    title: A note in the policy margin
+    visual: Append a benign editorial request to the permitted policy, keep application permissions fixed, and evaluate the altered passage with the reviewed-text answerer.
+    beats:
+      - say: Luna may read this page. The application has permission to read policy documents. Look at the tools it can use. There is no ticket tool here.
+        hold: 0.6
+        visual_cues:
+          - id: tool-policy
+            phrase: The application has permission
+            targets: [application-grants]
+      - say: "An editor adds a note to the page asking a colleague to open a review ticket. The source still has the same parent ID, revision and access tag, so the packer admits it. Can a note in a document give the assistant a new tool?"
+        hold: 1.8
+        visual_cues:
+          - id: edit-page
+            phrase: adds a note to the page
+            targets: [permitted-edit]
+          - id: read-note
+            phrase: Open a review ticket
+            targets: [editorial-note]
+      - say: Only the application can grant that tool. The note is data. Our narrow rule checker also compares the full passage with the reviewed text. With this addition it abstains. A model-backed service needs its own tests with instruction-like text in permitted documents. Check its answers and enforce tool permissions in application code.
+        hold: 0.7
+        visual_cues:
+          - id: no-tool
+            phrase: Only the application can grant that tool
+            targets: [application-grants]
+            caption_boundary: true
+          - id: abstains
+            phrase: With this addition it abstains
+            targets: [rule-decision]
+            caption_boundary: true
+  - id: revocation-and-cache
+    title: Recheck a buffered answer
+    visual: Trace both supplied passages into a draft that cites only E1. Withdraw permission for E2 and discard the draft. Build a new answer from the still-permitted rule.
+    beats:
+      - say: Both passages go into the draft. The reply cites only E one, the key policy. While the answer is still buffered, access to one document changes. In this example Luna loses permission for the session page alone. The key rule, her two ages and the bytes stored in the index stay the same. Can Luna receive this draft?
+        hold: 2.2
+        visual_cues:
+          - id: both-passages
+            phrase: Both passages go into the draft
+            targets: [draft-inputs]
+          - id: revoke-session
+            phrase: Luna loses permission for the session page alone
+            targets: [current-document-grant]
+          - id: ask-draft
+            phrase: Can Luna receive this draft
+            targets: [draft-question]
+      - say: Discard the draft. Its citation tells us which page the writer named. Both pages could have influenced its wording. Rebuild from the passages Luna may read now. The key policy still supports a fresh yes. If she lost her entire EU support grant instead, no governing evidence would remain and the service would abstain.
+        hold: 0.65
+        visual_cues:
+          - id: discard
+            phrase: Discard the draft
+            targets: [discarded-draft]
+            caption_boundary: true
+          - id: rebuild
+            phrase: Rebuild from the passages Luna may read now
+            targets: [new-context]
+          - id: new-draft
+            phrase: The key policy still supports a fresh yes
+            targets: [new-answer]
+            caption_boundary: true
+      - say: Apply the same check to cached answers and all their model inputs. Read current grants and document deletions from trusted serving state. A matching hash proves the bytes are the same. A historical snapshot can preserve those bytes for an authorized audit even after serving access ends.
+        hold: 0.65
+        visual_cues:
+          - id: model-inputs
+            phrase: all their model inputs
+            targets: [supplied-sources]
+      - say: The article's fixture checks immediately before the answerer. In a live service, permissions can change again while the model works. Define how long an authorization lease lasts, or cancel the request on a grant change. Recheck before releasing a buffered answer. That protects what you send next. Anything already delivered is beyond that check.
+        hold: 0.65
+  - id: cache-identity
+    title: A similar question can cross the decision boundary
+    visual: Replay one semantic cache entry with changed age and changed grant, then require both answer-critical values and authority dimensions.
+    beats:
+      - say: An answer cache is another evidence path. Partition by principal or proven-equivalent authorization scope, ACL revision, region, effective date and index, prompt and model versions. Check those dimensions before a hit becomes a response. Store evidence dependencies so a deletion or permission change can invalidate the entry.
+        hold: 0.65
+        visual_cues:
+          - id: pr-key
+            phrase: Partition by principal or proven-equivalent authorization scope, ACL revision, region, effective date and index, prompt and model versions
+            targets:
+              - cache-identity-mechanism
+            color: cyan
+            linger: 0.5
+      - say: Semantic similarity does not establish equivalent policy inputs. A cached yes for ten stale days cannot answer fifteen stale days merely because the wording is close. Bind the requested ages, intent and relevant conditions before reuse. Otherwise the cache bypasses the exact comparison we just taught, even if retrieval and generation are individually correct.
+        hold: 0.65
+        visual_cues:
+          - id: pr-ages
+            phrase: A cached yes for ten stale days cannot answer fifteen stale days
+            targets:
+              - cache-identity-mechanism
+            color: cyan
+            linger: 0.5
+      - say: Protect traces as well. Record versions, permitted candidate IDs, source maps, decisions and stage timings without making general logs a second private corpus. Store exact inputs and outputs in a separately controlled audit store when retention allows, since temperature zero does not promise byte-identical replay. Sensitive IDs and scope metadata still require access control.
+        hold: 0.65
+        visual_cues:
+          - id: pr-audit
+            phrase: Store exact inputs and outputs in a separately controlled audit store
+            targets:
+              - cache-identity-mechanism
+            color: cyan
+            linger: 0.5
+  - id: trace-and-diagnose
+    title: Keep a trace that locates a failed promise
+    visual: One request trace links caller scope, index bundle, candidate IDs, packed parent, answer decision, and stage timings; a broken link highlights the stage to inspect.
+    beats:
+      - say: "Record enough request state to explain how the answer was formed: a request ID, pinned index revision, permitted candidate identifiers, parent versions, decision, and stage timings."
+        hold: 0.55
+        visual_cues:
+          - id: trace-request
+            phrase: request ID, pinned index revision, permitted candidate identifiers, parent versions, decision, and stage timings
+            targets:
+              - request-trace
+            color: cyan
+            linger: 0.5
+      - say: If the rule never appears among candidates, inspect ingestion and ranking. If the child is right but its parent is missing, inspect version matching, permission checks, and context budget.
+        hold: 0.75
+        visual_cues:
+          - id: candidate-miss
+            phrase: rule never appears among candidates
+            targets:
+              - request-trace
+            color: yellow
+            linger: 0.5
+          - id: parent-miss
+            phrase: child is right but its parent is missing
+            targets:
+              - mismatch-result
+            color: pink
+            linger: 0.5
+      - say: If complete evidence reaches the answerer and the response still invents a limit, replay that same context against generation and claim checks. Keep sensitive text out of caller-visible errors and traces.
+        hold: 0.55
+        visual_cues:
+          - id: replay-context
+            phrase: replay that same context against generation and claim checks
+            targets:
+              - source-version
+              - request-trace
+            color: cyan
+            linger: 0.5
+  - id: recall-contracts
+    title: Which search result matters to Luna?
+    visual: Compare both rankings against the same eligible corpus. Pack every returned hit and look for R a second time before judging an eligibility claim.
+    beats:
+      - say: Here are the ten nearest passages when we score the entire eligible corpus. Number nine, R, is the one rule Luna needs. Keep the corpus, distance metric and normalization fixed. Now run a faster approximate search. Compare its row with the exact row above. How many exact neighbors came back? And did Luna get her rule?
+        hold: 1.9
+        visual_cues:
+          - id: pr-task
+            phrase: R, is the one rule Luna needs
+            targets: [governing-passage]
+          - id: pr-return
+            phrase: run a faster approximate search
+            targets: [approximate-results]
+          - id: pr-ann
+            phrase: Compare its row with the exact row above
+            targets: [overlap]
+      - say: "Eight of ten exact neighbors came back. That's an approximate nearest-neighbor recall of point eight. For Luna's question, we needed one rule and recovered none. That's her candidate recall. Exact search found R, so try increasing approximate search effort and measure the extra latency. If R were missing from the exact ranking too, we'd need to investigate how the passages were represented and scored."
+        hold: 0.7
+        visual_cues:
+          - id: pr-eight
+            phrase: an approximate nearest-neighbor recall of point eight
+            targets: [ann-recall]
+            caption_boundary: true
+          - id: pr-missing
+            phrase: we needed one rule and recovered none
+            targets: [required-recall]
+            caption_boundary: true
+      - say: Suppose every returned hit fits in the prompt. Look for R again. Context recall is still zero. If the model now says this key is eligible, the prompt lacks the rule to support that claim. That's a faithfulness failure. Context relevance asks how useful the passages are. Answer relevance asks whether the response addresses Luna's question. Calibrate graders for those judgments against people, and check permission and policy validity separately.
+        hold: 0.7
+        visual_cues:
+          - id: pr-context
+            phrase: every returned hit fits in the prompt
+            targets: [packed-hits]
+          - id: pr-faithful
+            phrase: the prompt lacks the rule to support that claim
+            targets: [unsupported-claim]
+  - id: serial-latency
+    title: Follow one clock from admission to first token and completion
+    visual: Construct the synthetic 2+18+1+320 timeline, move token one at 341 ms, then buffer through generation and compare the aggregate deadline.
+    beats:
+      - say: The supplied serial trace uses two milliseconds for authorization, eighteen for retrieval, one for packing and three hundred twenty for model startup. Assume immediate streaming and no extra transport delay. The caller sees token one after three hundred forty-one milliseconds. Model TTFT measures only the three-hundred-twenty-millisecond startup interval. The following four hundred ten milliseconds of generation finish the answer at seven hundred fifty-one.
+        hold: 0.65
+        visual_cues:
+          - id: pr-startup
+            phrase: two milliseconds for authorization, eighteen for retrieval, one for packing and three hundred twenty for model startup
+            targets:
+              - serial-latency-mechanism
+            color: cyan
+            linger: 0.5
+          - id: pr-first
+            phrase: The caller sees token one after three hundred forty-one milliseconds
+            targets:
+              - serial-latency-mechanism
+            color: cyan
+            linger: 0.5
+          - id: pr-complete
+            phrase: finish the answer at seven hundred fifty-one
+            targets:
+              - serial-latency-mechanism
+            color: cyan
+            linger: 0.5
+      - say: A nonblocking trace write finishes three milliseconds later, at seven hundred fifty-four, off this response path. If policy requires durable audit acknowledgment before returning, include that delay instead. If full-answer validation buffers delivery, the caller waits for generation and validation rather than seeing the earlier first-token milestone. Measure the contract the user actually experiences.
+        hold: 0.65
+        visual_cues:
+          - id: pr-trace
+            phrase: at seven hundred fifty-four
+            targets:
+              - serial-latency-mechanism
+            color: cyan
+            linger: 0.5
+          - id: pr-buffer
+            phrase: the caller waits for generation and validation
+            targets:
+              - serial-latency-mechanism
+            color: cyan
+            linger: 0.5
+      - say: Component budgets do not replace one deadline. The supplied ten, eighty, ten, five hundred and four hundred fifty milliseconds each pass their stage caps but sum to one thousand fifty, missing the one-second response limit. The article checker diagnoses supplied timings after the fact; runtime enforcement needs a propagated remaining deadline and tested cancellation or fallback.
+        hold: 0.65
+        visual_cues:
+          - id: cap-auth
+            phrase: The supplied ten
+            targets:
+              - picture
+          - id: cap-retrieval
+            phrase: eighty
+            targets:
+              - picture
+          - id: cap-packing
+            phrase: ten, five
+            targets:
+              - picture
+          - id: cap-startup
+            phrase: five hundred
+            targets:
+              - picture
+          - id: cap-generation
+            phrase: four hundred fifty milliseconds
+            targets:
+              - picture
+          - id: pr-deadline
+            phrase: sum to one thousand fifty, missing the one-second response limit
+            targets:
+              - serial-latency-mechanism
+            color: cyan
+            linger: 0.5
+  - id: release-gates
+    title: Replay one frozen answer
+    visual: Keep the expected reply and candidate reply side by side. Run the article's control, change only the candidate's stated limit, and inspect which field blocks the second run.
+    beats:
+      - say: Freeze Luna's ten-day request, its forty-eight-hour signal and the expected answer. Run the first case with the reviewed answerer. The returned records, decision, wording and cited parent match. This run passes.
+        hold: 0.8
+        visual_cues:
+          - id: control
+            phrase: Run the first case
+            targets: [control-run]
+          - id: control-result
+            phrase: This run passes
+            targets: [control-verdict]
+            caption_boundary: true
+      - say: Run that same case with a candidate that changes one number in the reply. It still says eligible. It still cites E one. Should this candidate pass the same case?
+        hold: 2.1
+        visual_cues:
+          - id: mutation
+            phrase: changes one number in the reply
+            targets: [candidate-reply]
+          - id: same-fields
+            phrase: It still cites E one
+            targets: [cited-label]
+          - id: ask-gate
+            phrase: Should this candidate pass the same case
+            targets: [case-question]
+      - say: Block it. The source allows fourteen days. The candidate promises thirty. Its yes happens to be correct for this key, but Luna could act on that promise for an older key. A check that reads just the decision and the citation would miss the error.
+        hold: 0.7
+        visual_cues:
+          - id: blocked
+            phrase: Block it
+            targets: [case-verdict]
+            caption_boundary: true
+          - id: different-limit
+            phrase: The source allows fourteen days
+            targets: [stated-limits]
+          - id: candidate-limit
+            phrase: The candidate promises thirty
+            targets: [candidate-limit]
+      - say: For this failure, start with the reply. Replay generation and its claim check with the same packed parent. Other frozen cases also check that expired and restricted records stay out, and that an unsupported request gets an abstention. Score evidence retrieval, condition coverage, claim support and whether the response addresses the question separately.
+        hold: 0.65
+        visual_cues:
+          - id: investigate
+            phrase: Replay generation and its claim check
+            targets: [frozen-evidence]
+  - id: tails-and-gates
+    title: What does the release report prove?
+    visual: Intersect five independent stage events, then inspect a candidate report. Compare a complete set of Boolean results with one missing field and one numeric substitute.
+    beats:
+      - say: For latency, measure complete requests under representative load. Imagine five independent stages. Each stays within its own bound ninety-five percent of the time. How often do all five stay within their bounds on the same request? Each extra stage takes another ninety-five percent of the previous group. That gives about seventy-seven point four percent. It tells us how often all five meet those bounds. To find the ninety-fifth percentile of their total time, measure the totals.
+        hold: 0.75
+        visual_cues:
+          - id: pr-independent
+            phrase: Each stays within its own bound
+            targets: [stage-probabilities]
+          - id: pr-all-five
+            phrase: Each extra stage takes another ninety-five percent
+            targets: [joint-events]
+          - id: pr-joint
+            phrase: about seventy-seven point four percent
+            targets: [joint-probability]
+            caption_boundary: true
+      - say: Open the report for the candidate with the thirty-day claim. It failed a frozen case. The seven cases in the article check specific boundaries, including forbidden records, numerical decisions, abstentions and citations. For a model, allow equivalent supported wording. If chunking changes, compare stable versioned source spans.
+        hold: 0.65
+        visual_cues:
+          - id: pr-mutation
+            phrase: the candidate with the thirty-day claim
+            targets: [candidate-report]
+      - say: Switch to the reviewed candidate. Its report records true for all six required gates. Each name must be present with the Boolean value true. Remove the lifecycle result. Even though every remaining row says true, this report is incomplete. Enter the number one in the empty row and it still fails. A numeric one is a different value type.
+        hold: 0.65
+        visual_cues:
+          - id: pr-required
+            phrase: true for all six required gates
+            targets: [complete-report]
+          - id: pr-alltrue
+            phrase: Boolean value true
+            targets: [required-type]
+          - id: pr-missing
+            phrase: Remove the lifecycle result
+            targets: [missing-gate]
+          - id: pr-number
+            phrase: Enter the number one
+            targets: [wrong-value-type]
+      - say: A passing fixture report earns an integration trial. For a rollout decision, use untouched representative questions, calibrate graders against human judgments and exercise the real identity and model services under load. Measure false refusals along with unsupported answers. Start a canary with a rollback condition you can observe.
+        hold: 0.65
+  - id: fresh-evidence
+    title: What can Luna receive now?
+    visual: Keep a new request on the same two-clock map through deletion and rollback. Rewind to its permitted starting state and change only the signal age for a second decision.
+    beats:
+      - say: One last request. This key is thirteen days stale and the signal is forty-seven hours old. Bundle C contains the current rule. The cache holds a draft that says eligible and cites E one. Luna hasn't received it yet.
+        hold: 0.7
+        visual_cues:
+          - id: fresh-ages
+            phrase: thirteen days stale
+            targets: [request-dot]
+          - id: cached-draft
+            phrase: The cache holds a draft
+            targets: [cached-answer]
+      - say: Before delivery, the policy owner deletes the key document. The deletion record, called a tombstone, lives outside the index. Operations rolls the serving pointer back to bundle B. That snapshot still has the old bytes. Luna's pending reply still belongs to bundle C. Can Luna receive the cached answer?
+        hold: 2.3
+        visual_cues:
+          - id: tombstone
+            phrase: deletes the key document
+            targets: [current-deletion]
+          - id: roll-back
+            phrase: rolls the serving pointer back to bundle B
+            targets: [serving-pointer]
+          - id: ask-cache
+            phrase: Can Luna receive the cached answer
+            targets: [cache-question]
+      - say: Discard the draft. Check the current deletion record against the evidence behind the cache entry. Bundle B still points to the same deleted policy. Invalidate the entry and abstain. Seek another permitted source or escalate the question.
+        hold: 0.8
+        visual_cues:
+          - id: discard-draft
+            phrase: Discard the draft
+            targets: [discarded-draft]
+            caption_boundary: true
+          - id: no-longer-applies
+            phrase: current deletion record
+            targets: [current-deletion]
+          - id: no-answer
+            phrase: Invalidate the entry and abstain
+            targets: [current-response]
+            caption_boundary: true
+      - say: Rewind to bundle C, before the deletion. Luna can read the key rule again. Keep the key at thirteen days. This time the signal is forty-nine hours old. What decision can Luna receive, and which source supports it?
+        hold: 2.3
+        visual_cues:
+          - id: rewind
+            phrase: Rewind to bundle C
+            targets: [restored-start]
+          - id: older-signal
+            phrase: the signal is forty-nine hours old
+            targets: [request-dot]
+          - id: ask-signal
+            phrase: What decision can Luna receive, and which source supports it
+            targets: [signal-question]
+      - say: Ineligible under E one. The dot crossed the forty-eight-hour edge. The service can cite the key rule and explain which condition failed. If the next question uses different words and search misses the policy altogether, try hybrid search. Keep this same check on the evidence it brings back.
+        hold: 1.1
+        visual_cues:
+          - id: fresh-denial
+            phrase: Ineligible under E one
+            targets: [cited-denial]
+            caption_boundary: true

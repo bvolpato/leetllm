@@ -1,0 +1,844 @@
+[
+  {
+    "id": "c01",
+    "title": "Two blocks, one weight",
+    "sourceChapters": [
+      "c01"
+    ],
+    "beats": [
+      {
+        "id": "c01-b01",
+        "say": "This request took five seconds. The model predicted six. Each blue span stands for a hundred tokens. One adjustable weight gives each span three seconds. Look at the join, the tip, and the fixed five-second mark. Which way should the weight move to bring the tip closer?",
+        "hold": 2.4
+      },
+      {
+        "id": "c01-b02",
+        "say": "Turn it down a tenth. Both blocks get shorter. The join moves a tenth of a second. The end moves twice as far, two tenths. Put the weight back at three. If we take off one hundredth per block, how far will the end move?",
+        "hold": 2
+      },
+      {
+        "id": "c01-b03",
+        "say": "Each block loses one hundredth of a second. Two hundredths altogether. The prediction is now five point nine eight. The next question is how to score that miss.",
+        "hold": 0.65
+      }
+    ]
+  },
+  {
+    "id": "c02",
+    "title": "What does the miss cost?",
+    "sourceChapters": [
+      "c02"
+    ],
+    "beats": [
+      {
+        "id": "c02-b01",
+        "say": "Roll back that last nudge. Let's score the miss we started with. Two blocks times three puts the prediction at six. The observed five stays fixed. We can measure the error as the distance between the two marks.",
+        "hold": 0.6
+      },
+      {
+        "id": "c02-b02",
+        "say": "Square that gap. Use the distance between the marks for both sides of a square. A miss of one second gives one square second of loss. A two-second miss doubles both sides. Four unit squares fit inside. A two-second miss on the early side has the same area.",
+        "hold": 0.85
+      },
+      {
+        "id": "c02-b03",
+        "say": "Back at three seconds per block, turn the weight down to two point nine again. This time watch the area. Each side measures eight tenths of a second, so the loss square shrinks to sixty-four hundredths. Now we can compare possible moves.",
+        "hold": 0.8
+      }
+    ]
+  },
+  {
+    "id": "c03",
+    "title": "One dial draws a loss curve",
+    "sourceChapters": [
+      "c03"
+    ],
+    "beats": [
+      {
+        "id": "c03-b01",
+        "say": "Hold this request fixed and sweep the weight dial. At two, the prediction is four and loss is one. At two point five, loss is zero. At three, it is one again.",
+        "hold": 0.25
+      },
+      {
+        "id": "c03-b02",
+        "say": "What happens between two and two and a half? Try two and a quarter. The model predicts four and a half seconds. Half a second early gives a loss of one quarter. Evaluate the same squared loss at the other weights. Plotting those losses traces the parabola.",
+        "hold": 0.25
+      },
+      {
+        "id": "c03-b03",
+        "say": "Two adjustable weights need two coordinates. Each point here sets a prompt weight and a queue weight. The request has two prompt blocks and one second queued. Both marked settings predict five seconds. Move between them. The entire green line fits. Extra rows with the same feature ratio still measure only that same combination. A row with a different ratio can distinguish the settings.",
+        "hold": 0.25
+      }
+    ]
+  },
+  {
+    "id": "c04",
+    "title": "At weight 3.001, will loss rise or fall?",
+    "sourceChapters": [
+      "c04"
+    ],
+    "beats": [
+      {
+        "id": "c04-b01",
+        "say": "Back at weight three, predict what an upward nudge will do. We already predict too much time. Increasing the weight should therefore raise the loss. Now move it to three point zero zero one.",
+        "hold": 0.55
+      },
+      {
+        "id": "c04-b02",
+        "say": "The original loss is one. The new loss is one point zero zero four zero zero four. The enlarged interval makes that rise visible.",
+        "hold": 0.8
+      },
+      {
+        "id": "c04-b03",
+        "say": "Divide the loss increase by the weight increase. The ratio is just above four. That positive slope tells us how rapidly loss rises when we turn the dial up.",
+        "hold": 1
+      }
+    ]
+  },
+  {
+    "id": "c05",
+    "title": "What survives as the nudge shrinks?",
+    "sourceChapters": [
+      "c05"
+    ],
+    "beats": [
+      {
+        "id": "c05-b01",
+        "say": "The line joining two points on the loss curve is a secant. Its slope is our finite difference. Bring the second point closer. Watch the copper line turn. What slope is it approaching?",
+        "hold": 1.5
+      },
+      {
+        "id": "c05-b02",
+        "say": "Call the nudge h. The new error is one plus two h. Expand its square, subtract the old loss, and divide by h. The slope is four plus four h. That leaves a fixed part and a shrinking correction.",
+        "hold": 0.25
+      },
+      {
+        "id": "c05-b03",
+        "say": "As h approaches zero, the correction approaches zero too. The secant approaches the tangent, whose slope is four. This limit is the derivative. Every nudge we divide by is nonzero.",
+        "hold": 0.25
+      }
+    ]
+  },
+  {
+    "id": "c06",
+    "title": "Two dials, two separate questions",
+    "sourceChapters": [
+      "c06"
+    ],
+    "beats": [
+      {
+        "id": "c06-b01",
+        "say": "Now split the prediction into prompt work and queue delay, with weights two and two. Turn only the prompt dial. A nudge of one hundredth raises loss by about four hundredths. Its local sensitivity is four.",
+        "hold": 0.25
+      },
+      {
+        "id": "c06-b02",
+        "say": "Reset the prompt dial and turn only the queue dial. The same nudge raises loss by about two hundredths. Its sensitivity is two. These are partial derivatives: each question freezes the other weight.",
+        "hold": 0.25
+      },
+      {
+        "id": "c06-b03",
+        "say": "Collect the slopes in parameter order. Four along the prompt coordinate, two along the queue coordinate. Their combined arrow is the gradient, four comma two. These components record sensitivity. The learning rate will scale their update.",
+        "hold": 0.25
+      }
+    ]
+  },
+  {
+    "id": "c07",
+    "title": "Read a contour like a map",
+    "sourceChapters": [
+      "c07"
+    ],
+    "beats": [
+      {
+        "id": "c07-b01",
+        "say": "Look down on that valley as if it were a contour map. Every point on one line has the same loss. Our current weights, two and two, lie on the line with loss one.",
+        "hold": 0.25
+      },
+      {
+        "id": "c07-b02",
+        "say": "The gradient combines both uphill sensitivities. In these ordinary coordinates, it points toward the steepest local increase and crosses the contour at a right angle.",
+        "hold": 0.25
+      },
+      {
+        "id": "c07-b03",
+        "say": "Reverse a scaled copy and travel downhill. Here the learning rate is zero point zero eight. Subtract zero point three two from the prompt weight and zero point one six from the queue weight. Recompute the loss at one point six eight and one point eight four. It is zero point zero four.",
+        "hold": 0.25
+      }
+    ]
+  },
+  {
+    "id": "c08",
+    "title": "Choose the distance yourself",
+    "sourceChapters": [
+      "c08"
+    ],
+    "beats": [
+      {
+        "id": "c08-b01",
+        "say": "Return to the single weight at three. Its gradient is positive four. With learning rate one tenth, what number should we subtract? Work it out before the point moves.",
+        "hold": 0.9
+      },
+      {
+        "id": "c08-b02",
+        "say": "One tenth times four is zero point four. Subtract it: three becomes two point six. The minus sign reverses the uphill gradient; the learning rate chooses the distance.",
+        "hold": 0.25
+      },
+      {
+        "id": "c08-b03",
+        "say": "Run the model again. Two point six times two predicts five point two seconds. Squaring the remaining zero point two gap gives loss zero point zero four. This update brought the prediction closer on this request.",
+        "hold": 0.25
+      },
+      {
+        "id": "c08-b04",
+        "say": "One tenth worked. Start back at three with the same gradient, but try a learning rate of one. Will its new loss be smaller than one?",
+        "hold": 2.4
+      }
+    ]
+  },
+  {
+    "id": "c09",
+    "title": "Where will the longer step land?",
+    "sourceChapters": [
+      "c09"
+    ],
+    "beats": [
+      {
+        "id": "c09-b01",
+        "say": "Subtract four from three. The weight lands at minus one. Follow the curve up from that weight. Loss went from one to forty-nine. The first part of the step went downhill. The rest took us across the bottom and up the other side.",
+        "hold": 0.3
+      },
+      {
+        "id": "c09-b02",
+        "say": "The bottom is half a weight unit from our starting weight. What rate times four would take us just that far?",
+        "hold": 2.25
+      },
+      {
+        "id": "c09-b03",
+        "say": "One eighth lands exactly at the bottom. One eighth times four is one half. Subtract that from three and the weight is two and a half. Two blocks at that weight take five seconds, exactly what we observed.",
+        "hold": 0.8
+      },
+      {
+        "id": "c09-b04",
+        "say": "Watch the tangent change along the route. We measured the slope at three. Once we leave three, the curve can turn. Run the prediction again to find out what a finite step bought us.",
+        "hold": 0.65
+      }
+    ]
+  },
+  {
+    "id": "c10",
+    "title": "What happens on the next step?",
+    "sourceChapters": [
+      "c10"
+    ],
+    "beats": [
+      {
+        "id": "c10-b01",
+        "say": "Measure the offset from the optimum, two point five. Right counts positive and left counts negative. Each update multiplies that offset by one minus eight times the learning rate. At one tenth, distance shrinks by a factor of one fifth and loss by one twenty-fifth.",
+        "hold": 0.3
+      },
+      {
+        "id": "c10-b02",
+        "say": "At one quarter, the weight changes sides and comes back just as far away. Try point two six. Now the peaks grow. Convergence from this start requires a positive rate strictly below one quarter.",
+        "hold": 0.8
+      },
+      {
+        "id": "c10-b03",
+        "say": "With one fixed, nonzero input x and squared error, each update multiplies the signed offset by one minus two times x squared times the learning rate. For the distance to shrink, that multiplier must lie strictly between minus one and one.",
+        "hold": 0.3
+      },
+      {
+        "id": "c10-b04",
+        "say": "In exact arithmetic, that gives a learning rate above zero and below one divided by x squared.",
+        "hold": 0.65
+      },
+      {
+        "id": "c10-b05",
+        "say": "Now count raw tokens. It is still the same two-hundred-token request. Two hundred times three hundredths predicts the same six seconds. Its gradient becomes four hundred. The stable upper bound becomes zero point zero zero zero zero two five, ten thousand times smaller.",
+        "hold": 0.3
+      },
+      {
+        "id": "c10-b06",
+        "say": "Changing units changed the gradient without changing what the feature tells us. When training diverges, check the rate and verify that the inputs and loss are finite.",
+        "hold": 0.85
+      }
+    ]
+  },
+  {
+    "id": "c11",
+    "title": "Break the calculation into small jobs",
+    "sourceChapters": [
+      "c11"
+    ],
+    "beats": [
+      {
+        "id": "c11-b01",
+        "say": "Instead of nudging each weight, split the prediction into operations. The upper branch multiplies prompt blocks by a weight. The lower branch does the same for queue time. Keep the inputs that each backward rule will need.",
+        "hold": 0.25
+      },
+      {
+        "id": "c11-b02",
+        "say": "The prompt branch produces four, and the queue branch produces two. Add them to get six. Subtract the fixed target, five, to get error one. Square it to get loss one.",
+        "hold": 0.25
+      },
+      {
+        "id": "c11-b03",
+        "say": "That is the forward pass. Keep its error and feature values. Those same numbers will supply each weight's sensitivity on the backward pass.",
+        "hold": 0.25
+      }
+    ]
+  },
+  {
+    "id": "c12",
+    "title": "Pass the sensitivity backward",
+    "sourceChapters": [
+      "c12"
+    ],
+    "beats": [
+      {
+        "id": "c12-b01",
+        "say": "Start with sensitivity one at the loss. We are asking how the loss changes relative to itself. The square has local slope twice the error. Here one becomes two. Subtracting a fixed target has slope one, so two passes through unchanged.",
+        "hold": 0.25
+      },
+      {
+        "id": "c12-b02",
+        "say": "Addition passes that two to both branches. The prompt weight acts through feature two, giving two times two equals four. The queue weight acts through feature one, giving two times one equals two.",
+        "hold": 0.25
+      },
+      {
+        "id": "c12-b03",
+        "say": "Trace the prompt route. Start with one. The square contributes times two, subtraction times one, and the prompt feature another times two. Multiply the factors to recover four. Backpropagation organizes this chain rule across the graph.",
+        "hold": 0.25
+      }
+    ]
+  },
+  {
+    "id": "c13",
+    "title": "A forward sign controls the returning derivative",
+    "sourceChapters": [
+      "c13"
+    ],
+    "beats": [
+      {
+        "id": "c13-b01",
+        "say": "Let the blue pointer ride on the prompt weight. Two prompt blocks times their weight give the lift, h. The shoulder stops the pointer when the lift falls below zero. That stop acts like a ReLU. Its output, z, is the larger of zero and h. The queue term adds two seconds and sets the stop height. At weight two, h and z are four. The pointer reads six against an observed five, so the squared loss is one.",
+        "hold": 0.65
+      },
+      {
+        "id": "c13-b02",
+        "say": "For positive h, ReLU has local derivative one. The arriving prediction signal two passes through the bend, then feature two gives prompt-weight gradient four. For negative h, the local derivative is zero, so that path contributes zero even when the loss is large.",
+        "hold": 0.65
+      },
+      {
+        "id": "c13-b03",
+        "say": "Change only prompt weight to minus one half. Now h is minus one, z is zero, prediction is two and squared loss is nine. The prediction signal is minus six, but multiplying by ReLU’s zero derivative blocks the prompt-weight gradient.",
+        "hold": 0.3
+      },
+      {
+        "id": "c13-b04",
+        "say": "The queue weight still receives minus six through its separate active path. Even as the screw moves below the shoulder, the pointer rests at two seconds. Saving the sign of h tells backward which side of the stop the prompt used.",
+        "hold": 0.8
+      }
+    ]
+  },
+  {
+    "id": "c14",
+    "title": "A centered ratio can cross a corner",
+    "sourceChapters": [
+      "c14"
+    ],
+    "beats": [
+      {
+        "id": "c14-b01",
+        "say": "Set the prompt weight to zero and look just to its left. ReLU returns zero there. The queue still supplies two seconds. Against a target of five, the loss stays at nine square seconds. Cross to the right and the prompt term starts growing.",
+        "hold": 0.3
+      },
+      {
+        "id": "c14-b02",
+        "say": "The loss now follows the square of two w minus three. Its slope approaches minus twelve on the right. On the flat side the slope is zero.",
+        "hold": 0.65
+      },
+      {
+        "id": "c14-b03",
+        "say": "A centered finite difference crosses both pieces and approaches minus six. There is no ordinary derivative at the corner, because the two one-sided derivatives disagree. PyTorch’s ReLU backward convention uses zero at zero, so its weight gradient is zero here.",
+        "hold": 0.65
+      },
+      {
+        "id": "c14-b04",
+        "say": "Start at the corner. Move the weight a quarter to the right. Loss falls from nine to six and a quarter. The backward rule gave us zero at the corner, even with lower loss right beside it.",
+        "hold": 0.3
+      },
+      {
+        "id": "c14-b05",
+        "say": "To check the rule, test a smooth point on each side. Center a small probe at minus one quarter and both losses stay at nine, giving slope zero. Center it at plus one quarter and it measures minus ten. At the corner itself, use the ReLU convention.",
+        "hold": 0.8
+      }
+    ]
+  },
+  {
+    "id": "c15",
+    "title": "What happens when paths meet?",
+    "sourceChapters": [
+      "c15"
+    ],
+    "beats": [
+      {
+        "id": "c15-b01",
+        "say": "Remove the ReLU from the prompt branch. We're back to the linear predictor. Count the hundred-token blocks in the prompt and the one-second intervals in the queue delay. That gives us two and one. Give both branches one stored weight, starting at two seconds.",
+        "hold": 0.3
+      },
+      {
+        "id": "c15-b02",
+        "say": "Turn that one dial and both routes change. On the way back, each curve carries the effect of one use of the weight. What should happen to those contributions when they reach the same number?",
+        "hold": 2.1
+      },
+      {
+        "id": "c15-b03",
+        "say": "The prompt route contributes four. Follow it home. The queue route contributes two. It comes home to the same weight. Add the two arrivals to get six. Multiply the local factors along each route. Add the results at the shared weight.",
+        "hold": 1.3
+      },
+      {
+        "id": "c15-b04",
+        "say": "Untie the weights and set both to zero for four training requests. Follow just the prompt weight. The four prompt-weight contributions sum to minus one hundred forty-four. Our loss averages four squared errors. Divide by four to get the prompt-weight gradient of the mean loss, minus thirty-six.",
+        "hold": 0.3
+      },
+      {
+        "id": "c15-b05",
+        "say": "The prompt gradient is negative. Subtracting a small multiple of it will increase the prompt weight. Keep the queue column too. We will update both weights on the same four rows.",
+        "hold": 0.25
+      }
+    ]
+  },
+  {
+    "id": "c16",
+    "title": "Which change do the four requests notice?",
+    "sourceChapters": [
+      "c16"
+    ],
+    "beats": [
+      {
+        "id": "c16-b01",
+        "say": "Here are those same four requests. Read across the last row. Four prompt blocks at two seconds each, plus two seconds queued, give a target of ten seconds. We built every target by that rule. At zero weights every prediction is zero.",
+        "hold": 0.3
+      },
+      {
+        "id": "c16-b02",
+        "say": "Squaring the four misses and averaging gives a loss of forty-three point three seven five square seconds.",
+        "hold": 0.7
+      },
+      {
+        "id": "c16-b03",
+        "say": "The last request pulls hardest on the prompt weight. Its error is minus ten seconds. Double that for the square, then multiply by its four prompt blocks. That gives minus eighty. Average the prompt column and you get minus thirty-six.",
+        "hold": 0.3
+      },
+      {
+        "id": "c16-b04",
+        "say": "Average the queue column and you get minus fourteen point seven five. In matrix form, multiply X transpose by the errors, then scale by two divided by four. Check that both gradients are finite.",
+        "hold": 0.3
+      },
+      {
+        "id": "c16-b05",
+        "say": "Apply a rate of point zero three to both entries. Subtracting negative values raises the weights from zero to one point zero eight and zero point four four two five.",
+        "hold": 0.7
+      },
+      {
+        "id": "c16-b06",
+        "say": "Run the same update on these four requests. After ten updates, mean squared loss has dropped below four thousandths. After one hundred updates, it's still above seven ten-thousandths. Notice how slowly the line falls now. The loop makes one last update.",
+        "hold": 0.3
+      },
+      {
+        "id": "c16-b07",
+        "say": "The weights are close to two and one. We can test them on fresh requests.",
+        "hold": 0.7
+      },
+      {
+        "id": "c16-b08",
+        "say": "Why does progress slow? Start where all four predictions fit. Raise the prompt weight by a tenth. Look at request three. Three prompt blocks add three tenths of a second to its prediction. It spent half a second in the queue. If we turn the queue weight down a quarter, can that erase the miss?",
+        "hold": 2.1
+      },
+      {
+        "id": "c16-b09",
+        "say": "Lower the queue weight. Half a second in the queue times a quarter takes off one eighth of a second. Request three is still late. The errors on the other three rows cross zero. Their predictions are now slightly early. What if we turn the queue weight up instead?",
+        "hold": 2
+      },
+      {
+        "id": "c16-b10",
+        "say": "Flip the queue change to plus a quarter. Now that eighth of a second adds to the miss. All four predictions run late. The fourth misses by nine tenths of a second. Compare that move with the previous one on the contour plot.",
+        "hold": 0.3
+      },
+      {
+        "id": "c16-b11",
+        "say": "Start at the center, where the weights fit all four rows. The blue and purple steps have equal length. The purple one crosses more contours and raises the loss much more. That difference in curvature is conditioning. A rate small enough for the steep direction can make slow progress along the flatter one. Rescaling the features can help. Correlated features can still leave a narrow valley.",
+        "hold": 1.2
+      }
+    ]
+  },
+  {
+    "id": "c17",
+    "title": "One loss and six weights",
+    "sourceChapters": [
+      "c17"
+    ],
+    "beats": [
+      {
+        "id": "c17-b01",
+        "say": "Start six weights at one. Add the top three. Add the bottom three. Now add the two subtotals and save the total, six. Squaring that six gives a loss of thirty-six. Which of those forward values does the square need on the way back?",
+        "hold": 2.1
+      },
+      {
+        "id": "c17-b02",
+        "say": "The square needs its input. We saved six. Twice six is twelve. Each addition passes twelve to each of its inputs. Follow the split, then the split again. Every weight receives twelve.",
+        "hold": 0.25
+      },
+      {
+        "id": "c17-b03",
+        "say": "Keep the loss we already computed. For a one-sided check, nudge one weight at a time. Add one thousandth, run the model, then restore the weight before checking the next. Six weights cost six extra forward runs. Reverse-mode automatic differentiation reuses the saved values. One sweep from this scalar loss gives us all six derivatives.",
+        "hold": 0.25
+      }
+    ]
+  },
+  {
+    "id": "c18",
+    "title": "Choose the output combination before differentiating",
+    "sourceChapters": [
+      "c18"
+    ],
+    "beats": [
+      {
+        "id": "c18-b01",
+        "say": "Both requests waited half a second in the queue. The weights are one point three seconds per prompt block and one point one seconds per second queued. One prompt has a hundred tokens. The other has three hundred. Subtract the first prediction from the second. What happens to the queue term in that difference?",
+        "hold": 2
+      },
+      {
+        "id": "c18-b02",
+        "say": "The queue terms cancel. The two extra blocks account for the whole gap, two point six seconds. To send that difference backward, start the first prediction at minus one and the second at plus one. These starting signals are the backward seed.",
+        "hold": 0.3
+      },
+      {
+        "id": "c18-b03",
+        "say": "Three blocks minus one gives the prompt-weight sensitivity, two. Half a second minus half a second gives the queue-weight sensitivity, zero.",
+        "hold": 0.65
+      },
+      {
+        "id": "c18-b04",
+        "say": "A scalar loss starts backward with a seed of one. With several outputs, choose a seed for each or combine them into a scalar first. The Jacobian has one row of slopes per output and one column per parameter. Backward combines those rows.",
+        "hold": 0.3
+      },
+      {
+        "id": "c18-b05",
+        "say": "With column vectors, it's J transpose times the seed. Backprop computes this vector-Jacobian product directly along the graph. Give both outputs a plus one and you differentiate their sum. Now the sensitivities are four and one.",
+        "hold": 0.8
+      }
+    ]
+  },
+  {
+    "id": "c19",
+    "title": "What does the centered check measure?",
+    "sourceChapters": [
+      "c19"
+    ],
+    "beats": [
+      {
+        "id": "c19-b01",
+        "say": "On a small model, evaluate loss just above and below weight three. Divide the difference by twice the nudge, and compare with our reference derivative, four.",
+        "hold": 1.5
+      },
+      {
+        "id": "c19-b02",
+        "say": "Agreement within a chosen absolute or relative tolerance supports the backward rule at this smooth point. A centered check is worth its extra forward passes on a small debugging case. Try other inputs too. At a sharp corner such as ReLU at zero, an ordinary derivative may not exist.",
+        "hold": 0.7
+      },
+      {
+        "id": "c19-b03",
+        "say": "Ask for one millionth on each side. Float thirty-two rounds the weights and the losses it stores. Subtract those near-equal losses and divide by the requested spacing. The slope estimate is about three point eight one five. Double precision stays close to four here. Even a correct backward rule can disagree with a low-precision check.",
+        "hold": 0.8
+      }
+    ]
+  },
+  {
+    "id": "c20",
+    "title": "Would you change the backward rule?",
+    "sourceChapters": [
+      "c20"
+    ],
+    "beats": [
+      {
+        "id": "c20-b01",
+        "say": "Look at the purple ticks for the requested weights. Float thirty-two stores the nearest representable weights. Compare the blue marks with the purple ticks. Both blue marks landed closer to three. Dividing the loss difference by the requested spacing gave about three point eight one five. Keep that numerator and divide by the stored spacing. The slope is four here. For a small gradient check, use double precision.",
+        "hold": 0.8
+      },
+      {
+        "id": "c20-b02",
+        "say": "Try this backward rule on the four requests. It averages error times feature for each weight. Freeze the data and check both weights separately with a centered nudge in double precision. The calculated slopes point the same way as the measured ones. Would you trust their sizes?",
+        "hold": 2
+      },
+      {
+        "id": "c20-b03",
+        "say": "Each proposed slope is half the measured one. Look back at the square in our loss. Restore the factor of two from its derivative. Both marks now meet their independent checks. A different learning rate would change the next step, but the error here was already present in the backward calculation.",
+        "hold": 1
+      }
+    ]
+  },
+  {
+    "id": "c21",
+    "title": "Compute gradients, then move the weights",
+    "sourceChapters": [
+      "c21"
+    ],
+    "beats": [
+      {
+        "id": "c21-b01",
+        "say": "Return to our single request with two prompt blocks, one queued second and a five-second target. Start both weights at two. In PyTorch, ask these weights to require gradients. Clear the gradient buffer and run the forward pass. Six seconds predicted against five gives a squared loss of one.",
+        "hold": 0.25
+      },
+      {
+        "id": "c21-b02",
+        "say": "Backward fills the buffer with four comma two. The weights are still two comma two. Only the optimizer step applies learning rate one tenth, changing them to one point six and one point eight.",
+        "hold": 0.25
+      },
+      {
+        "id": "c21-b03",
+        "say": "Replay the single request twice from the original weights, two and two. Hold them fixed in both replays. Each fresh forward pass gives the same loss. Backward sends four comma two into each buffer. A cleared buffer finishes at four comma two. Keeping the previous four comma two gives eight comma four. Backward adds to what the buffer already holds.",
+        "hold": 0.25
+      }
+    ]
+  },
+  {
+    "id": "c22",
+    "title": "Keep the forward value that the derivative needs",
+    "sourceChapters": [
+      "c22"
+    ],
+    "beats": [
+      {
+        "id": "c22-b01",
+        "say": "Take the sigmoid of two. The sigmoid squeezes its input into the interval between zero and one. Its output, b, is about point eight eight. Multiply b by three to get c. On the way back, the sigmoid needs b again. Its slope is b times one minus b.",
+        "hold": 0.65
+      },
+      {
+        "id": "c22-b02",
+        "say": "Now add one to b in place. The same storage holds about one point eight eight. PyTorch saved version zero and finds version one. It stops the backward pass here because the sigmoid needs the original b.",
+        "hold": 0.65
+      },
+      {
+        "id": "c22-b03",
+        "say": "Replay the forward pass. Put b plus one in a new tensor. The original b still has version zero. Backward uses it and sends about point three one five back to the input. Detaching b from the graph would cut that path.",
+        "hold": 0.3
+      },
+      {
+        "id": "c22-b04",
+        "say": "After a weight update, run a fresh forward pass to save the new values.",
+        "hold": 0.8
+      }
+    ]
+  },
+  {
+    "id": "c23",
+    "title": "Three visible entries can share one location",
+    "sourceChapters": [
+      "c23"
+    ],
+    "beats": [
+      {
+        "id": "c23-b01",
+        "say": "Start with one stored value, twice x. Expand its size-one dimension to three entries. Trace the first entry to its address. Now the second entry. Now the third entry. How many distinct numbers in memory did we reach?",
+        "hold": 2.3
+      },
+      {
+        "id": "c23-write",
+        "say": "One slot. The view has stride zero. Going to the next index advances zero slots in memory. An in-place addition across this whole view would send several writes to the same location. PyTorch rejects that operation.",
+        "hold": 1.5
+      },
+      {
+        "id": "c23-b02",
+        "say": "Clone the view. Follow the three addresses again. The clone has independent, writable slots. We could add one to each slot now. How many routes back to x survive the copy?",
+        "hold": 1.8
+      },
+      {
+        "id": "c23-sum",
+        "say": "Sum the three entries. Each copy of twice x will send two back to the same x. Two plus two plus two gives a gradient of six. Adding a constant to each cloned value leaves those slopes unchanged. With k copies, the gradient is twice k.",
+        "hold": 1.4
+      }
+    ]
+  },
+  {
+    "id": "c24",
+    "title": "Carry one request through a hidden unit",
+    "sourceChapters": [
+      "c24"
+    ],
+    "beats": [
+      {
+        "id": "c24-b01",
+        "say": "Double the input, then halve the result. Trace the output against the input. Stacking only linear maps still gives one linear map. Multiplying by W one and then W two is multiplying by their product. Add a bias of one half. The whole line shifts.",
+        "hold": 0.3
+      },
+      {
+        "id": "c24-b02",
+        "say": "Clip its negative part at zero. Now the output stays flat up to minus a half. That bend is a ReLU. Add a second unit that turns on at plus a half. Past that point both units are climbing, so their sum climbs twice as fast. A hidden layer can use bends like these to follow a latency curve that steepens under load.",
+        "hold": 0.9
+      },
+      {
+        "id": "c24-b03",
+        "say": "Follow a two-block request through one hidden unit. Input two passes through first weight one point five and bias minus one, giving h two. ReLU passes two. Output weight two and bias one half give prediction four point five against target five, so squared loss is one quarter.",
+        "hold": 0.65
+      },
+      {
+        "id": "c24-b04",
+        "say": "Backward begins with prediction sensitivity minus one. Start at the output end. Its weight multiplies the saved activation, two. Its bias just adds. The output weight receives minus two and its bias minus one. Carry the signal through the output weight and then through the open gate.",
+        "hold": 0.3
+      },
+      {
+        "id": "c24-b05",
+        "say": "The hidden signal is minus two. Its input weight receives minus four and its hidden bias minus two. The first weight picks up another factor of two from the input. One backward pass delivered all four entries. In nineteen eighty-six, Rumelhart, Hinton and Williams showed how backpropagation could train internal representations.",
+        "hold": 0.95
+      }
+    ]
+  },
+  {
+    "id": "c25",
+    "title": "Where will the four weights take this request?",
+    "sourceChapters": [
+      "c25"
+    ],
+    "beats": [
+      {
+        "id": "c25-b01",
+        "say": "Predict a step on those four knobs in the order first weight, hidden bias, output weight, output bias. All four gradients are negative. Subtracting them will raise all four settings. We’re half a second early. At a rate of point zero five, where do you expect the prediction to land?",
+        "hold": 2.2
+      },
+      {
+        "id": "c25-b02",
+        "say": "The proposed settings are one point seven, minus point nine, two point one and point five five. Recompute every stage. Watch the dot leave four and a half. The hidden unit passes two and a half now. Would you keep this step?",
+        "hold": 1.65
+      },
+      {
+        "id": "c25-b03",
+        "say": "We went from half a second early to eight tenths late. Squaring that miss, loss becomes point six four. The negative gradient initially moved the prediction toward five seconds. This step carried it past the target and increased the loss.",
+        "hold": 1
+      },
+      {
+        "id": "c25-b04",
+        "say": "Restore the original snapshot and halve only the rate to point zero two five. New knobs are one point six, minus point nine five, two point zero five and point five two five. Follow the second dot from the same starting mark. The hidden value is two and a quarter. Which landing is closer?",
+        "hold": 2
+      },
+      {
+        "id": "c25-b05",
+        "say": "Both dots crossed five. The lower one stopped nearer the target than it started. Its prediction is five point one three seven five, with squared loss point zero one eight nine zero six two five. I’d keep the shorter step for this request.",
+        "hold": 1.1
+      }
+    ]
+  },
+  {
+    "id": "c26",
+    "title": "A missing signal can have several causes",
+    "sourceChapters": [
+      "c26"
+    ],
+    "beats": [
+      {
+        "id": "c26-b01",
+        "say": "Now change only the original hidden bias to minus four. The input to the ReLU is minus one. Its output is zero, so the output bias alone sets the prediction at half a second. The loss is twenty point two five. Trace the returning signal.",
+        "hold": 0.3
+      },
+      {
+        "id": "c26-b02",
+        "say": "The output bias receives minus nine. At the gate, multiplying by zero cuts off the signal to the first weight and the hidden bias.",
+        "hold": 0.65
+      },
+      {
+        "id": "c26-b03",
+        "say": "If the input to a ReLU stays negative on every training example, that path contributes zero gradient to the parameters before the ReLU. A signal can also fade through a chain of nonzero derivatives. Multiply by one half ten times.",
+        "hold": 0.3
+      },
+      {
+        "id": "c26-b04",
+        "say": "A unit signal shrinks to one over one thousand twenty-four. On the other path each factor is two. Ten factors grow the signal to one thousand twenty-four. In a matrix network the effect also depends on direction.",
+        "hold": 0.65
+      },
+      {
+        "id": "c26-b05",
+        "say": "A residual addition gives the signal a direct path with slope one. At the input, that signal adds to the one returning through the branch. Normalization adjusts the scale of the activations. Low-precision arithmetic can round a small gradient to zero.",
+        "hold": 0.3
+      },
+      {
+        "id": "c26-b06",
+        "say": "Return to the open unit on our two-block request. Backward reuses forward values such as the hidden activation, two. Saving them costs memory. Recomputing them costs time. Checkpointing keeps selected values and recomputes the missing ones when the backward pass needs them.",
+        "hold": 0.8
+      }
+    ]
+  },
+  {
+    "id": "c27",
+    "title": "Your turn: a new request",
+    "sourceChapters": [
+      "c27"
+    ],
+    "beats": [
+      {
+        "id": "c27-b01",
+        "say": "Your turn. A new request has three prompt blocks and one second queued. It took seven seconds; our weights are two and two. Predict the model output, then the two gradient entries. Pause here if you want to calculate.",
+        "hold": 1.4
+      },
+      {
+        "id": "c27-b02",
+        "say": "The prediction is eight. Subtract seven and the signed miss is one. Squaring it gives a loss of one. Twice that miss times the features gives a gradient of six comma two. We computed that gradient at weights two and two. Apply it with learning rate zero point zero five. The new weights are one point seven and one point nine. Now the prediction is seven. The miss is zero, so both entries of a fresh gradient are zero. This request now fits.",
+        "hold": 1
+      },
+      {
+        "id": "c27-b03",
+        "say": "Keep the fitted weights and try an unseen request. One prompt block, two seconds queued, observed time four. The model predicts five point five. Subtract four and the signed miss is one point five seconds. Fitting one row still leaves a miss on this one.",
+        "hold": 0.25
+      }
+    ]
+  },
+  {
+    "id": "c28",
+    "title": "Which gradient entries change?",
+    "sourceChapters": [
+      "c28"
+    ],
+    "beats": [
+      {
+        "id": "c28-b01",
+        "say": "Finish with a different request. Put all four settings back where they started. Our earlier input was two, with a target of five. This input is one, with a target of two. Follow it into the hidden unit, through the ReLU, and on to the prediction.",
+        "hold": 0.3
+      },
+      {
+        "id": "c28-b02",
+        "say": "We're half a second early again. Look at the old row. Which gradient entries change?",
+        "hold": 3.5
+      },
+      {
+        "id": "c28-b03",
+        "say": "Hidden value and ReLU output are one half. Prediction is one point five, so the arriving loss sensitivity is minus one. The gate is still open and the output weight is still two. Both biases get the same signals as before.",
+        "hold": 0.3
+      },
+      {
+        "id": "c28-b04",
+        "say": "Multiply the hidden signal of minus two by one input block. The first weight receives minus two. Multiply the output signal of minus one by the saved activation, one half. The output weight receives minus one half. Read across the new row. Try the rate that went too far on the other request. Will it go too far here?",
+        "hold": 2.4
+      },
+      {
+        "id": "c28-b05",
+        "say": "Use the same rate, point zero five. Scale each fresh gradient by that rate and subtract it from its starting weight. Follow this prediction back toward its target. The hidden unit passes seven tenths. The prediction stops just short of two seconds.",
+        "hold": 1.5
+      },
+      {
+        "id": "c28-b06",
+        "say": "Squared loss falls from one quarter to about one thousandth. That same rate helped this request. Suppose we had copied the old gradient from the two-block request. Where would this one land?",
+        "hold": 2.5
+      },
+      {
+        "id": "c28-b07",
+        "say": "Reset the weights. Keep the same request and learning rate. Apply the gradient from the two-block request. Watch the copied dot. Two point two three seconds, almost a quarter of a second late. With the fresh gradient, the miss was about three hundredths of a second.",
+        "hold": 0.3
+      },
+      {
+        "id": "c28-b08",
+        "say": "Both requests started half a second early. Both biases received the same signals. The first weight multiplied a different block count, and the output weight multiplied a different saved activation. Those are the two entries we needed to recompute. The smaller miss came from using this request’s values.",
+        "hold": 2
+      }
+    ]
+  }
+]

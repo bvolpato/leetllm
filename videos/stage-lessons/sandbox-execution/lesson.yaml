@@ -1,0 +1,1033 @@
+version: 1
+id: sandbox-execution
+title: Giving Generated Code a Safe Place to Run
+source: agents/code-generation-agents-sandboxing/content.md
+voice: en-US-AndrewNeural
+rate: +0%
+sources:
+  - title: Docker Engine security
+    url: https://docs.docker.com/engine/security/
+  - title: gVisor security model
+    url: https://gvisor.dev/docs/architecture_guide/security/
+  - title: Firecracker design and security
+    url: https://github.com/firecracker-microvm/firecracker/blob/main/docs/design.md
+  - title: WebAssembly Core Specification
+    url: https://webassembly.github.io/spec/core/
+  - title: Wasmtime security
+    url: https://docs.wasmtime.dev/security.html
+  - title: Evaluating Large Language Models Trained on Code
+    url: https://arxiv.org/abs/2107.03374
+  - title: Linux cgroup v2 resource and lifecycle semantics
+    url: https://docs.kernel.org/admin-guide/cgroup-v2.html
+  - title: Wasmtime interrupting execution
+    url: https://docs.wasmtime.dev/examples-interrupting-wasm.html
+  - title: Python ElementTree namespace and existence semantics
+    url: https://docs.python.org/3/library/xml.etree.elementtree.html
+scenes:
+  - id: subject-intro
+    title: "When a sandboxed parser fails"
+    visual: "The lookup and the read-only report share the first frame. The exception moves from the worker to the agent while the worker’s permissions stay in view."
+    beats:
+      - say: "The agent’s parser gets one report to read. To find failed tests, it looks up status in the opening tag. What will that lookup return?"
+        hold: 2.3
+        visual_cues:
+          - id: intro-report
+            phrase: "one report to read"
+            targets: [picture]
+          - id: intro-lookup
+            phrase: "looks up status"
+            targets: [picture]
+          - id: intro-predict
+            phrase: "What will that lookup return"
+            targets: [picture]
+      - say: "Python raises a KeyError. The opening tag has a class and a name. Watch the error travel back to the agent through the bounded output channel."
+        hold: 0.8
+        visual_cues:
+          - id: intro-error
+            phrase: "Python raises a KeyError"
+            caption_boundary: true
+            targets: [picture]
+          - id: intro-class
+            phrase: "a class"
+            targets: [picture]
+          - id: intro-name
+            phrase: "a name"
+            targets: [picture]
+          - id: intro-output
+            phrase: "travel back to the agent"
+            targets: [picture]
+      - say: "Look one line lower in the report. The failure is a child of the test case. On the next try, read the direct children. That repair needs the same file grant. Host credentials stay outside and the network stays closed. Check cleanup before reusing the worker slot."
+        hold: 0.8
+        visual_cues:
+          - id: intro-child
+            phrase: "one line lower"
+            targets: [picture]
+          - id: intro-clue
+            phrase: "read the direct children"
+            targets: [picture]
+          - id: intro-host
+            phrase: "Host credentials stay outside"
+            targets: [picture]
+          - id: intro-next
+            phrase: "Check cleanup before reusing"
+            targets: [picture]
+  - id: evidence-loop
+    title: "Scan the report in order"
+    visual: "The fixture, its namespace and the validator’s expected rows stay in place. The repaired parser scans four cases and checks each selected row."
+    beats:
+      - say: "For this fixture, list the failed or errored tests. Write the class and name of each one in first-seen order, and remove duplicate pairs. The validator keeps its own copy of those expected rows."
+        hold: 0.7
+        visual_cues:
+          - id: ev-fixture
+            phrase: "For this fixture"
+            targets: [picture]
+          - id: ev-failed
+            phrase: "failed or errored tests"
+            targets: [picture]
+          - id: ev-identity
+            phrase: "the class and name"
+            targets: [picture]
+          - id: ev-order
+            phrase: "first-seen order"
+            targets: [picture]
+          - id: ev-dedupe
+            phrase: "remove duplicate pairs"
+            targets: [picture]
+      - say: "The first parser asks for a status attribute. It’s missing from the opening tag. Save the command that ran, its exit code of one, and the KeyError naming the missing field. Keep a short excerpt of the error stream so the next attempt can use it."
+        hold: 0.7
+        visual_cues:
+          - id: ev-asks
+            phrase: "asks for a status attribute"
+            targets: [picture]
+          - id: ev-missing
+            phrase: "missing from the opening tag"
+            targets: [picture]
+          - id: ev-command
+            phrase: "the command that ran"
+            targets: [picture]
+          - id: ev-exit
+            phrase: "exit code of one"
+            targets: [picture]
+          - id: ev-error
+            phrase: "the KeyError"
+            targets: [picture]
+          - id: ev-excerpt
+            phrase: "a short excerpt"
+            targets: [picture]
+      - say: "Change the lookup. Use the root namespace when comparing the tags of direct children. Start with the first failure. Keep that name. The next case repeats it, so the list stays put. The third case adds a different name because it has an error child. The fourth is skipped. Compare the two rows with the expected output. They match. A report from another producer may need its own fixture."
+        hold: 0.9
+        visual_cues:
+          - id: ev-repair
+            phrase: "Change the lookup"
+            targets: [picture]
+          - id: ev-namespace
+            phrase: "Use the root namespace"
+            targets: [picture]
+          - id: ev-row-0
+            phrase: "Start with the first failure"
+            targets: [picture]
+          - id: ev-row-1
+            phrase: "The next case repeats it"
+            targets: [picture]
+          - id: ev-row-2
+            phrase: "The third case"
+            targets: [picture]
+          - id: ev-row-3
+            phrase: "The fourth is skipped"
+            targets: [picture]
+          - id: ev-check
+            phrase: "They match"
+            caption_boundary: true
+            targets: [picture]
+          - id: ev-broader
+            phrase: "another producer"
+            targets: [picture]
+      - say: "Keep an eye on the child tags. A direct skipped child takes precedence even beside an error. A failure in a different namespace or nested inside details is outside this contract. Keep the first occurrence of each identity. A failure and an error on the same case still give one row. Reject a selected case with a missing or blank identifier, and reject malformed XML. In Python, suppose tag is the namespace-qualified failure tag. Testing the truth of the element can miss a childless element. Check explicitly whether the search returned an element, or compare the direct tags."
+        hold: 0.8
+        visual_cues:
+          - id: ev-edge
+            phrase: "the child tags"
+            targets: [picture]
+          - id: ev-skip
+            phrase: "A direct skipped child"
+            targets: [picture]
+          - id: ev-skip-wins
+            phrase: "takes precedence even beside an error"
+            targets: [picture]
+          - id: ev-foreign
+            phrase: "a different namespace"
+            targets: [picture]
+          - id: ev-nested
+            phrase: "nested inside details"
+            targets: [picture]
+          - id: ev-nocount
+            phrase: "outside this contract"
+            targets: [picture]
+          - id: ev-first
+            phrase: "Keep the first occurrence"
+            targets: [picture]
+          - id: ev-both
+            phrase: "A failure and an error on the same case"
+            targets: [picture]
+          - id: ev-one
+            phrase: "still give one row"
+            targets: [picture]
+          - id: ev-blank
+            phrase: "missing or blank identifier"
+            targets: [picture]
+          - id: ev-malformed
+            phrase: "reject malformed XML"
+            targets: [picture]
+          - id: ev-truthy
+            phrase: "Testing the truth of the element"
+            targets: [picture]
+          - id: ev-false
+            phrase: "can miss a childless element"
+            targets: [picture]
+          - id: ev-exists
+            phrase: "Check explicitly whether the search returned an element"
+            targets: [picture]
+  - id: feedback-contract
+    title: "What goes back to the agent?"
+    visual: "An oversized line is cut to bounded head and tail excerpts. A synthetic token, an escaped string and an external fixture distinguish data the worker sees from authority the supervisor grants."
+    beats:
+      - say: "Keep the parser and fixture fixed. Record the command, the numeric exit status and the exact exception. Watch one line of standard error grow from twenty-four bytes to two hundred and fifty-six. The line count stays at one. It would still be one at a mebibyte. Give each output stream a byte limit as you collect it. Here the collector keeps the first and last thirty-two bytes. An early line can explain a later error. Give retries a limit. Three identical failures call for diagnosis. Leave the worker’s permissions alone."
+        hold: 0.8
+        visual_cues:
+          - id: fb-fixed
+            phrase: "the parser and fixture fixed"
+            targets: [picture]
+          - id: fb-command
+            phrase: "the command"
+            targets: [picture]
+          - id: fb-exit
+            phrase: "the numeric exit status"
+            targets: [picture]
+          - id: fb-exception
+            phrase: "the exact exception"
+            targets: [picture]
+          - id: fb-streams
+            phrase: "one line of standard error"
+            targets: [picture]
+          - id: fb-megabyte
+            phrase: "grow from twenty-four bytes to two hundred and fifty-six"
+            targets: [picture]
+          - id: fb-excerpts
+            phrase: "keeps the first and last thirty-two bytes"
+            targets: [picture]
+          - id: fb-root
+            phrase: "an early line can explain a later error"
+            targets: [picture]
+          - id: fb-retries
+            phrase: "Give retries a limit"
+            targets: [picture]
+          - id: fb-identical
+            phrase: "Three identical failures"
+            targets: [picture]
+          - id: fb-privilege
+            phrase: "Leave the worker’s permissions alone"
+            targets: [picture]
+      - say: "The worker wrote this traceback. A test name can look like an instruction. A line can contain terminal controls or a copied token. Escape the control characters for display. Keep instructions in the log on the data side of the boundary. Give the worker an explicit environment. An empty one removes inherited environment variables. Starting in a temporary directory changes where a relative name resolves. An absolute path still uses the process’s filesystem permissions."
+        hold: 0.8
+        visual_cues:
+          - id: fb-untrusted
+            phrase: "The worker wrote this traceback"
+            targets: [picture]
+          - id: fb-forged
+            phrase: "look like an instruction"
+            targets: [picture]
+          - id: fb-escapes
+            phrase: "terminal controls"
+            targets: [picture]
+          - id: fb-secret
+            phrase: "a copied token"
+            targets: [picture]
+          - id: fb-escape
+            phrase: "Escape the control characters"
+            targets: [picture]
+          - id: fb-promote
+            phrase: "on the data side of the boundary"
+            targets: [picture]
+          - id: fb-env
+            phrase: "an explicit environment"
+            targets: [picture]
+          - id: fb-empty
+            phrase: "removes inherited environment variables"
+            targets: [picture]
+          - id: fb-cwd
+            phrase: "Starting in a temporary directory"
+            targets: [picture]
+          - id: fb-relative
+            phrase: "a relative name resolves"
+            targets: [picture]
+          - id: fb-absolute
+            phrase: "An absolute path"
+            targets: [picture]
+          - id: fb-os
+            phrase: "the process’s filesystem permissions"
+            targets: [picture]
+      - say: "Bound the XML input before and after decompression. Budget parsing time and memory, and check which Expat version the Python parser uses. Small inputs can still exercise parser bugs. The article tests hand-written parsers and bounded WebAssembly guests. Its container and virtual machine examples are configurations to verify in a disposable worker with harmless fixtures."
+        hold: 0.8
+        visual_cues:
+          - id: fb-input
+            phrase: "before and after decompression"
+            targets: [picture]
+          - id: fb-time
+            phrase: "parsing time"
+            targets: [picture]
+          - id: fb-memory
+            phrase: "and memory"
+            targets: [picture]
+          - id: fb-expat
+            phrase: "which Expat version"
+            targets: [picture]
+          - id: fb-bytecap
+            phrase: "Small inputs can still exercise parser bugs"
+            targets: [picture]
+          - id: fb-authored
+            phrase: "hand-written parsers"
+            targets: [picture]
+          - id: fb-guests
+            phrase: "bounded WebAssembly guests"
+            targets: [picture]
+          - id: fb-notrun
+            phrase: "container and virtual machine examples"
+            targets: [picture]
+          - id: fb-attack
+            phrase: "with harmless fixtures"
+            targets: [picture]
+  - id: separated-authority
+    title: "Who gets to grade these rows?"
+    visual: "The same protected expectation meets an empty result and two repaired rows. A protected receipt stays fixed as the submitted image changes."
+    beats:
+      - say: "Suppose the worker returns an empty list. Its own test runner exits with zero. The validator has kept the expected rows over here, outside the worker. Compare the two lists. Does this output pass?"
+        hold: 2.1
+        visual_cues:
+          - id: sa-empty
+            phrase: "an empty list"
+            targets: [picture]
+          - id: sa-exit
+            phrase: "exits with zero"
+            targets: [picture]
+          - id: sa-expected
+            phrase: "the expected rows"
+            targets: [picture]
+          - id: sa-ask
+            phrase: "Does this output pass"
+            targets: [picture]
+      - say: "Hold the result. Both expected rows are missing. A read-only test file can still be read, and a grader that shares the candidate’s interpreter can change in memory. The supervisor freezes the files, sets up the worker and enforces its timeout. It sends the bounded result to a validator it trusts. Now the repaired parser returns these two rows. Both rows match in order, so this fixture passes."
+        hold: 0.9
+        visual_cues:
+          - id: sa-hold
+            phrase: "Hold the result"
+            caption_boundary: true
+            targets: [picture]
+          - id: sa-repair
+            phrase: "the repaired parser returns these two rows"
+            targets: [picture]
+          - id: sa-pass
+            phrase: "this fixture passes"
+            caption_boundary: true
+            targets: [picture]
+      - say: "The supervisor keeps the validator’s passing receipt in a protected record. It identifies the base revision, candidate files, worker image, dependencies and grading version for this job. At first both sides have the same tested inputs. Now change just the submitted image to I eight. The file tree still matches. Can this receipt cover the new image?"
+        hold: 2.2
+        visual_cues:
+          - id: sa-receipt
+            phrase: "the validator’s passing receipt"
+            targets: [picture]
+          - id: sa-same
+            phrase: "the same tested inputs"
+            targets: [picture]
+          - id: sa-image
+            phrase: "change just the submitted image to I eight"
+            targets: [picture]
+          - id: sa-which
+            phrase: "Can this receipt cover the new image"
+            targets: [picture]
+      - say: "Hold for a run on image I eight. Compare the full digests when accepting a result. The digest identifies the inputs. Trust in the verdict comes from the protected validator record or a signature you verify. A matching pass can go to review. Deployment needs its own authorization."
+        hold: 0.8
+        visual_cues:
+          - id: sa-retest
+            phrase: "Hold for a run on image I eight"
+            caption_boundary: true
+            targets: [picture]
+  - id: execution-boundaries
+    title: "Follow one file read"
+    visual: "Four schematic workers request the first 128 bytes of an assigned report. Only the requested file changes on the second read."
+    beats:
+      - say: "Suppose four workers each need the first hundred and twenty-eight bytes of this report. For report data, each has a grant to that file alone. Follow the read across the container. Its syscall filter checks the call, and the shared host kernel resolves the file through the worker’s mount. Namespaces, capabilities and cgroups constrain different parts of that process. Devices and daemon access need their own restrictions."
+        hold: 0.65
+        visual_cues:
+          - id: eb-route-0
+            phrase: "across the container"
+            targets: [picture]
+      - say: "In gVisor, the Sentry handles the application’s system call and mediates filesystem access. In Firecracker, a guest kernel reads from an attached volume. A virtual machine monitor runs the guest on KVM. Those paths make different demands on system call compatibility, host support and provisioning."
+        hold: 0.7
+        visual_cues:
+          - id: eb-route-1
+            phrase: "the Sentry"
+            targets: [picture]
+          - id: eb-route-2
+            phrase: "a guest kernel"
+            targets: [picture]
+      - say: "The WebAssembly version uses a linked host reader scoped to this report. The runtime checks guest memory and control flow. The host supplies any file, clock or network interface. Send the read down each route. In these four configurations, all four return the first hundred and twenty-eight bytes."
+        hold: 0.8
+        visual_cues:
+          - id: eb-route-3
+            phrase: "a linked host reader"
+            targets: [picture]
+          - id: eb-read
+            phrase: "Send the read"
+            targets: [picture]
+          - id: eb-allowed
+            phrase: "all four return the first hundred and twenty-eight bytes"
+            caption_boundary: true
+            targets: [picture]
+      - say: "Now request the notes file. Keep every grant exactly as it was. Which of these workers can read the notes?"
+        hold: 2.2
+        visual_cues:
+          - id: eb-change
+            phrase: "request the notes file"
+            targets: [picture]
+          - id: eb-predict
+            phrase: "Which of these workers can read the notes"
+            targets: [picture]
+      - say: "None of the four has that file. The mount, the scoped filesystem, the attached volume and the linked reader each expose only the report in this example. Pick a runtime compatible with the program, then check the actual grants with a harmless allowed file and an ungranted one."
+        hold: 0.8
+        visual_cues:
+          - id: eb-deny
+            phrase: "None of the four has that file"
+            caption_boundary: true
+            targets: [picture]
+          - id: eb-check
+            phrase: "check the actual grants"
+            targets: [picture]
+  - id: controls-by-failure
+    title: "What stops when a limit is reached?"
+    visual: "A synthetic token crosses the output channel while networking is disabled. A scratch write, a new task, CPU throttling and a wall deadline each change a different part of the job."
+    beats:
+      - say: "Imagine we accidentally give this worker a synthetic token. Its network is closed. Watch the ordinary output channel. A copy of the token can still reach the supervisor, its logs, or an exported file. Keep credentials out of jobs that do not need them."
+        hold: 0.8
+        visual_cues:
+          - id: cf-credentials
+            phrase: "a synthetic token"
+            targets: [picture]
+          - id: cf-network
+            phrase: "Its network is closed"
+            targets: [picture]
+          - id: cf-print
+            phrase: "the ordinary output channel"
+            targets: [picture]
+          - id: cf-returns
+            phrase: "reach the supervisor"
+            targets: [picture]
+      - say: "Now run the worker without that token. Its scratch mount holds sixty-four mebibytes inside a five-hundred-and-twelve-mebibyte memory limit. As scratch fills, its pages also consume memory. At the scratch cap another write can fail. The process stays alive. With equal memory and memory-plus-swap limits, swap is disabled where supported. Memory pressure may trigger reclaim, an allocation failure or a kill. The task limit includes threads. At sixty-four tasks, another task request can fail while existing tasks keep running."
+        hold: 0.8
+        visual_cues:
+          - id: cf-sixtyfour
+            phrase: "scratch mount holds sixty-four mebibytes"
+            targets: [picture]
+          - id: cf-fivetwelve
+            phrase: "a five-hundred-and-twelve-mebibyte memory limit"
+            targets: [picture]
+          - id: cf-consumes
+            phrase: "its pages also consume memory"
+            targets: [picture]
+          - id: cf-scratch
+            phrase: "At the scratch cap"
+            targets: [picture]
+          - id: cf-write-fails
+            phrase: "another write can fail"
+            targets: [picture]
+          - id: cf-distinct
+            phrase: "The process stays alive"
+            targets: [picture]
+          - id: cf-swap
+            phrase: "swap is disabled where supported"
+            targets: [picture]
+          - id: cf-pressure
+            phrase: "reclaim, an allocation failure or a kill"
+            targets: [picture]
+          - id: cf-threads
+            phrase: "The task limit includes threads"
+            targets: [picture]
+          - id: cf-tasks
+            phrase: "At sixty-four tasks"
+            targets: [picture]
+          - id: cf-reject
+            phrase: "another task request can fail"
+            targets: [picture]
+      - say: "Follow the CPU strip. Each interval spans a hundred milliseconds of wall time. The job can use up to fifty milliseconds of CPU time per interval. With one busy thread, the quota runs out halfway across. Two threads can spend that same budget together. In the example they run side by side for twenty-five milliseconds each. Fifty divided by a hundred gives half a logical CPU in aggregate. The threads can keep going period after period. A quota caps bandwidth and guarantees no minimum progress."
+        hold: 0.8
+        visual_cues:
+          - id: cf-period
+            phrase: "a hundred milliseconds of wall time"
+            targets: [picture]
+          - id: cf-quota
+            phrase: "fifty milliseconds of CPU time"
+            targets: [picture]
+          - id: cf-cpu
+            phrase: "the quota runs out halfway across"
+            targets: [picture]
+          - id: cf-aggregate
+            phrase: "Two threads can spend that same budget together"
+            targets: [picture]
+          - id: cf-equation
+            phrase: "half a logical CPU in aggregate"
+            caption_boundary: true
+            targets: [picture]
+          - id: cf-loop
+            phrase: "keep going period after period"
+            targets: [picture]
+      - say: "Separately, bound the output, logs and memory of each job, and the number of jobs sharing the host. When thirty seconds of wall time elapse, the supervisor’s watchdog requests termination of the whole job. Now it has to verify what actually stopped."
+        hold: 0.8
+        visual_cues:
+          - id: cf-bounds
+            phrase: "bound the output, logs and memory"
+            targets: [picture]
+          - id: cf-deadline
+            phrase: "thirty seconds of wall time elapse"
+            targets: [picture]
+          - id: cf-stop
+            phrase: "requests termination of the whole job"
+            targets: [picture]
+  - id: prepared-dependencies
+    title: "How does a dependency reach an offline job?"
+    visual: "Two copies of a tiny schema file meet the same trusted SHA-256 pin. Only the matching bytes enter the approved cache and the offline worker."
+    beats:
+      - say: "The worker needs a schema file and runs offline. A separate builder fetches the file through limited egress. This copy says version three. Compare its hash with the one in the trusted lockfile. Should this copy enter the cache?"
+        hold: 2
+        visual_cues:
+          - id: pd-fetch
+            phrase: "A separate builder fetches the file"
+            targets: [picture]
+          - id: pd-egress
+            phrase: "limited egress"
+            targets: [picture]
+          - id: pd-hash
+            phrase: "This copy says version three"
+            targets: [picture]
+          - id: pd-decide
+            phrase: "Should this copy enter the cache"
+            targets: [picture]
+      - say: "Reject version three. Its hash differs from the pin. Try version two. Now the hashes match. The builder caches those bytes. The worker mounts that file read-only and runs offline. A package can also run an install script in the builder. Review that script, keep production secrets out of the builder, and restrict its internal access."
+        hold: 0.8
+        visual_cues:
+          - id: pd-hold
+            phrase: "Reject version three"
+            caption_boundary: true
+            targets: [picture]
+          - id: pd-retry
+            phrase: "Try version two"
+            targets: [picture]
+          - id: pd-match
+            phrase: "Now the hashes match"
+            caption_boundary: true
+            targets: [picture]
+          - id: pd-offline
+            phrase: "The builder caches those bytes"
+            targets: [picture]
+          - id: pd-mount
+            phrase: "mounts that file read-only"
+            targets: [picture]
+          - id: pd-untrusted
+            phrase: "an install script"
+            targets: [picture]
+          - id: pd-secrets
+            phrase: "keep production secrets out"
+            targets: [picture]
+          - id: pd-internal
+            phrase: "restrict its internal access"
+            targets: [picture]
+  - id: teardown-lifecycle
+    title: "Who owns slot A now?"
+    visual: "Three children remain after the parent exits. The reaper verifies termination and reset, admits a replacement, then processes a delayed acknowledgement against the recorded generation."
+    beats:
+      - say: "The parser started three child processes. The supervisor requests cancellation. When the parent stops, count the children still inside the job. All three remain. A parent exit tells the supervisor when the parser stopped. Its descendants and its scratch files still need cleanup."
+        hold: 0.8
+        visual_cues:
+          - id: td-children
+            phrase: "three child processes"
+            targets: [picture]
+          - id: td-cancel
+            phrase: "requests cancellation"
+            targets: [picture]
+          - id: td-stop
+            phrase: "the parent stops"
+            targets: [picture]
+          - id: td-gone
+            phrase: "All three remain"
+            caption_boundary: true
+            targets: [picture]
+      - say: "Before starting a job, record the immutable worker ID, its lease generation and a maximum lifetime outside the worker. If the supervisor loses contact, an independent reaper can use that record to find an expired job. Keep the slot quarantined while the outcome is unknown. The reaper targets the whole job. When the runtime confirms that its process tree is empty, the count falls to zero."
+        hold: 0.8
+        visual_cues:
+          - id: td-identity
+            phrase: "the immutable worker ID"
+            targets: [picture]
+          - id: td-generation
+            phrase: "its lease generation"
+            targets: [picture]
+          - id: td-lifetime
+            phrase: "a maximum lifetime"
+            targets: [picture]
+          - id: td-contact
+            phrase: "the supervisor loses contact"
+            targets: [picture]
+          - id: td-reaper
+            phrase: "an independent reaper"
+            targets: [picture]
+          - id: td-quarantine
+            phrase: "Keep the slot quarantined"
+            targets: [picture]
+          - id: td-terminated
+            phrase: "the count falls to zero"
+            caption_boundary: true
+            targets: [picture]
+      - say: "The reaper verifies the reset against the starting baseline, including files, mounts and open handles. Now slot A can take generation eight. An old cleanup record arrives. It names generation seven. If the reaper looked up slot A by name, which worker would it select?"
+        hold: 2.1
+        visual_cues:
+          - id: td-reset
+            phrase: "verifies the reset"
+            targets: [picture]
+          - id: td-eight
+            phrase: "take generation eight"
+            targets: [picture]
+          - id: td-old
+            phrase: "An old cleanup record arrives"
+            targets: [picture]
+          - id: td-ask
+            phrase: "which worker would it select"
+            targets: [picture]
+      - say: "It would select the running replacement. Use the original immutable worker ID for destruction. Also require the recorded generation to match when updating the slot. Seven and eight differ, so the late update changes no rows. If a backend accepts only a reusable name, it must enforce the generation within the destructive action itself."
+        hold: 0.9
+        visual_cues:
+          - id: td-wrong
+            phrase: "It would select the running replacement"
+            caption_boundary: true
+            targets: [picture]
+          - id: td-seven
+            phrase: "the original immutable worker ID"
+            targets: [picture]
+          - id: td-guard
+            phrase: "the recorded generation to match"
+            targets: [picture]
+          - id: td-noop
+            phrase: "the late update changes no rows"
+            caption_boundary: true
+            targets: [picture]
+  - id: wasm-boundary
+    title: "How much work can the guest do?"
+    visual: "A teaching model gives a guest one host import and one hundred units of fuel. Its remaining work stays visible when the meter runs out."
+    beats:
+      - say: "Some jobs need only a small function interface. Here the host checks the module shape and links just one import, a way to write a result. Here that result writer is the guest’s only route to host services."
+        hold: 0.8
+        visual_cues:
+          - id: wb-interface
+            phrase: "a small function interface"
+            targets: [picture]
+          - id: wb-shape
+            phrase: "checks the module shape"
+            targets: [picture]
+          - id: wb-imports
+            phrase: "links just one import"
+            targets: [picture]
+      - say: "Suppose this job needs a hundred and thirty-two steps. Give it a hundred units of fuel and charge one per step in this model. Watch the counter fall. After the hundredth step, the next step traps. Thirty-two steps remain. Memory has a separate limit. Request an extra page when the first page is already at the cap. The growth instruction returns minus one."
+        hold: 0.8
+        visual_cues:
+          - id: wb-consume
+            phrase: "Watch the counter fall"
+            targets: [picture]
+          - id: wb-trap
+            phrase: "the next step traps"
+            caption_boundary: true
+            targets: [picture]
+          - id: wb-grow
+            phrase: "Request an extra page"
+            targets: [picture]
+          - id: wb-fail
+            phrase: "returns minus one"
+            caption_boundary: true
+            targets: [picture]
+      - say: "In Wasmtime, enable fuel metering to bound guest work. Real operations have runtime-defined charges. Compilation, host functions and the engine’s own allocations still consume host resources. Give the host separate resource limits and a deadline."
+        hold: 0.75
+        visual_cues:
+          - id: wb-bounds
+            phrase: "enable fuel metering to bound guest work"
+            targets: [picture]
+          - id: wb-outside
+            phrase: "Compilation, host functions and the engine’s own allocations"
+            targets: [picture]
+          - id: wb-separate
+            phrase: "separate resource limits and a deadline"
+            targets: [picture]
+  - id: actual-wasm-host
+    title: "One integer in, one integer out"
+    visual: "The article’s import-free guest adds one to a signed integer. The ring crosses the signed limit, then the host sets fuel before instantiation."
+    beats:
+      - say: "Here is the article’s narrower job. The guest takes a signed thirty-two-bit integer and returns an integer of the same type. The host links no imports and allows at most one linear memory. It accepts integer forty-one. It rejects the Boolean true, even though Python treats true as a kind of integer. The host budgets one thousand fuel units for guest work, one memory page of sixty-four kibibytes, and four kibibytes of UTF-eight module text. Each limit applies to a different resource."
+        hold: 0.75
+        visual_cues:
+          - id: wh-signature
+            phrase: "takes a signed thirty-two-bit integer"
+            targets: [picture]
+          - id: wh-imports
+            phrase: "links no imports"
+            targets: [picture]
+          - id: wh-memory
+            phrase: "at most one linear memory"
+            targets: [picture]
+          - id: wh-strict
+            phrase: "accepts integer forty-one"
+            targets: [picture]
+          - id: wh-bool
+            phrase: "rejects the Boolean true"
+            targets: [picture]
+          - id: wh-python
+            phrase: "Python treats true as a kind of integer"
+            targets: [picture]
+          - id: wh-fuel
+            phrase: "one thousand fuel units"
+            targets: [picture]
+          - id: wh-bytes
+            phrase: "one memory page of sixty-four kibibytes"
+            targets: [picture]
+          - id: wh-text
+            phrase: "four kibibytes of UTF-eight module text"
+            targets: [picture]
+          - id: wh-separate
+            phrase: "a different resource"
+            targets: [picture]
+      - say: "Follow one addition on the ring. Forty-one becomes forty-two. Minus one becomes zero. Now start at the largest signed value. One more step wraps to the smallest signed value. The task decides whether that wrap is acceptable. The host checks the exported function and its type. The validator compares the returned integer with its own expected value."
+        hold: 0.85
+        visual_cues:
+          - id: wh-41
+            phrase: "Forty-one becomes forty-two"
+            targets: [picture]
+          - id: wh-minus
+            phrase: "Minus one becomes zero"
+            targets: [picture]
+          - id: wh-largest
+            phrase: "at the largest signed value"
+            targets: [picture]
+          - id: wh-wraps
+            phrase: "wraps to the smallest signed value"
+            caption_boundary: true
+            targets: [picture]
+          - id: wh-contract
+            phrase: "The task decides"
+            targets: [picture]
+          - id: wh-validates
+            phrase: "checks the exported function and its type"
+            targets: [picture]
+          - id: wh-oracle
+            phrase: "its own expected value"
+            targets: [picture]
+      - say: "Set fuel before instantiation. A start function can run as soon as the instance is created. That function and the later call to run share one budget of a thousand fuel units. Wasmtime charges each metered operation against it. A watchdog tracks elapsed time for the whole job, including compilation. The host also needs CPU and memory limits for the engine and any host functions it provides."
+        hold: 0.8
+        visual_cues:
+          - id: wh-before
+            phrase: "Set fuel before instantiation"
+            targets: [picture]
+          - id: wh-start
+            phrase: "A start function can run"
+            targets: [picture]
+          - id: wh-work
+            phrase: "share one budget"
+            targets: [picture]
+          - id: wh-clock
+            phrase: "A watchdog tracks elapsed time"
+            targets: [picture]
+          - id: wh-host
+            phrase: "including compilation"
+            targets: [picture]
+          - id: wh-supervision
+            phrase: "CPU and memory limits"
+            targets: [picture]
+  - id: wasm-failure-matrix
+    title: "At the last byte of a page"
+    visual: "A four-byte window moves two addresses across the end of a fixed guest page. Growth and access have different outcomes. A separate host reader uses a scoped resource."
+    beats:
+      - say: "In the article’s bounded tests, a guest loop consumes its budget and raises an out-of-fuel trap. Put the loop in a start function and it traps during instantiation. Now look at one full page of guest memory. Ask for another page under the same one-page limit. Growth returns minus one. The guest can handle that return value."
+        hold: 0.8
+        visual_cues:
+          - id: fm-loop
+            phrase: "a guest loop"
+            targets: [picture]
+          - id: fm-trap
+            phrase: "an out-of-fuel trap"
+            caption_boundary: true
+            targets: [picture]
+          - id: fm-start
+            phrase: "in a start function"
+            targets: [picture]
+          - id: fm-start-trap
+            phrase: "traps during instantiation"
+            targets: [picture]
+          - id: fm-page
+            phrase: "one full page of guest memory"
+            targets: [picture]
+          - id: fm-grow
+            phrase: "Growth returns minus one"
+            caption_boundary: true
+            targets: [picture]
+          - id: fm-notrap
+            phrase: "handle that return value"
+            targets: [picture]
+      - say: "A thirty-two-bit load reads four bytes. Start at sixty-five thousand five hundred thirty-two. Its last byte is the final byte on the page, so the read fits. Keep your eye on the yellow window. Move the start two bytes to the right. Same page, same load. Does this read fit?"
+        hold: 2.1
+        visual_cues:
+          - id: fm-load
+            phrase: "A thirty-two-bit load reads four bytes"
+            targets: [picture]
+          - id: fm-inside
+            phrase: "the read fits"
+            caption_boundary: true
+            targets: [picture]
+          - id: fm-slide
+            phrase: "Move the start two bytes to the right"
+            targets: [picture]
+          - id: fm-predict
+            phrase: "Does this read fit"
+            targets: [picture]
+      - say: "It traps. Two of the four bytes fall outside the page. A module that requests too much initial memory fails at instantiation, before there’s a running guest to handle a return value."
+        hold: 0.8
+        visual_cues:
+          - id: fm-beyond
+            phrase: "It traps"
+            caption_boundary: true
+            targets: [picture]
+          - id: fm-initial
+            phrase: "too much initial memory"
+            targets: [picture]
+          - id: fm-initial-fails
+            phrase: "fails at instantiation"
+            targets: [picture]
+      - say: "This host rejects a declared import, a missing run export, or a function of the wrong type. Suppose a different host links a file reader. The grant names one report. If the reader accepts paths, it resolves the requested file, including any links. Here the request resolves to the notes file. The host denies the read and returns no bytes."
+        hold: 0.8
+        visual_cues:
+          - id: fm-import
+            phrase: "a declared import"
+            targets: [picture]
+          - id: fm-export
+            phrase: "a missing run export"
+            targets: [picture]
+          - id: fm-type
+            phrase: "the wrong type"
+            targets: [picture]
+          - id: fm-reader
+            phrase: "a different host links a file reader"
+            targets: [picture]
+          - id: fm-grant
+            phrase: "one report"
+            targets: [picture]
+          - id: fm-resolved
+            phrase: "the notes file"
+            targets: [picture]
+          - id: fm-denied
+            phrase: "denies the read"
+            targets: [picture]
+      - say: "Follow the same deterministic path three times with the same runtime settings. Each run exhausts its fuel at the same point. Host imports, memory growth, floating-point NaNs and relaxed vector instructions can introduce differences elsewhere. Repeat the probes on the configuration you’ll use. Record the outcome you observed. Here memory growth returned minus one, and the out-of-bounds read trapped."
+        hold: 0.75
+        visual_cues:
+          - id: fm-repeat
+            phrase: "Each run exhausts its fuel"
+            targets: [picture]
+          - id: fm-sources
+            phrase: "Host imports, memory growth, floating-point NaNs and relaxed vector instructions"
+            targets: [picture]
+          - id: fm-real
+            phrase: "Record the outcome you observed"
+            targets: [picture]
+          - id: fm-grow-result
+            phrase: "memory growth returned minus one"
+            targets: [picture]
+          - id: fm-load-result
+            phrase: "the out-of-bounds read trapped"
+            targets: [picture]
+  - id: evaluate-two-axes
+    title: "What counts as a successful pair?"
+    visual: "Ten pairs of different indices share a grid. The three all-failing pairs identify the complement, while each containment question awaits evidence."
+    beats:
+      - say: "Functional tests tell us which candidates returned the expected rows. Containment probes need different observations, such as a denied file read or a verified cleanup. Let’s count just the functional outcomes first."
+        hold: 0.7
+        visual_cues:
+          - id: ev2-functional
+            phrase: "Functional tests"
+            targets: [picture]
+          - id: ev2-containment
+            phrase: "Containment probes"
+            targets: [picture]
+      - say: "Here are five candidates. Candidates zero and two pass. Choose two different indices uniformly without replacement. Each square above the diagonal is one possible pair. Of these ten pairs, how many contain two failures?"
+        hold: 2.1
+        visual_cues:
+          - id: ev2-pool
+            phrase: "five candidates"
+            targets: [picture]
+          - id: ev2-two
+            phrase: "Candidates zero and two pass"
+            targets: [picture]
+          - id: ev2-choose
+            phrase: "Choose two different indices uniformly without replacement"
+            targets: [picture]
+          - id: ev2-ask
+            phrase: "how many contain two failures"
+            targets: [picture]
+      - say: "Three pairs miss both passers. That leaves seven successful pairs out of ten. For this pool, pass at two is seventy percent. The question marks on the right stay put. Keep the tested artifact and environment fixed. Record access checks, timeouts and cleanup alongside the functional result."
+        hold: 0.9
+        visual_cues:
+          - id: ev2-ten
+            phrase: "Three pairs miss both passers"
+            caption_boundary: true
+            targets: [picture]
+          - id: ev2-seven
+            phrase: "seven successful pairs out of ten"
+            caption_boundary: true
+            targets: [picture]
+          - id: ev2-result
+            phrase: "pass at two is seventy percent"
+            caption_boundary: true
+            targets: [picture]
+          - id: ev2-nothing
+            phrase: "The question marks on the right"
+            targets: [picture]
+          - id: ev2-fixed
+            phrase: "the tested artifact and environment fixed"
+            targets: [picture]
+          - id: ev2-report
+            phrase: "access checks, timeouts and cleanup"
+            targets: [picture]
+      - say: "For any group size from one up to the size of the pool, start with one. Subtract the fraction of groups that miss every passer. The numerator counts ways to choose the whole group from the failures. The denominator counts all ways to choose that many different indices. Change the experiment and draw with replacement. Each draw can repeat an index. The chance of two failures is three fifths squared. That gives a success rate of sixty-four percent."
+        hold: 0.75
+        visual_cues:
+          - id: ev2-formula
+            phrase: "start with one"
+            targets: [picture]
+          - id: ev2-fails
+            phrase: "choose the whole group from the failures"
+            targets: [picture]
+          - id: ev2-all
+            phrase: "all ways to choose that many different indices"
+            targets: [picture]
+          - id: ev2-replacement
+            phrase: "draw with replacement"
+            targets: [picture]
+          - id: ev2-squared
+            phrase: "three fifths squared"
+            targets: [picture]
+          - id: ev2-sixtyfour
+            phrase: "sixty-four percent"
+            caption_boundary: true
+            targets: [picture]
+      - say: "For independent, identically distributed candidates, the combinatorial formula estimates fresh-sample success without bias. Substituting the observed pass fraction in the replacement formula generally introduces bias. Two different indices may contain the same code. And when one repair uses feedback from the previous attempt, those patches depend on each other. Sample independent whole repair runs and grade their final artifacts. Fix tasks, environments, tool budgets and grading. Count infrastructure failures and incomplete runs separately."
+        hold: 0.8
+        visual_cues:
+          - id: ev2-unbiased
+            phrase: "estimates fresh-sample success without bias"
+            targets: [picture]
+          - id: ev2-plugin
+            phrase: "Substituting the observed pass fraction"
+            targets: [picture]
+          - id: ev2-identical
+            phrase: "Two different indices may contain the same code"
+            targets: [picture]
+          - id: ev2-trajectories
+            phrase: "independent whole repair runs"
+            targets: [picture]
+          - id: ev2-freeze
+            phrase: "Fix tasks, environments, tool budgets and grading"
+            targets: [picture]
+          - id: ev2-infra
+            phrase: "infrastructure failures and incomplete runs"
+            targets: [picture]
+  - id: earned-parser-case
+    title: "A fresh report in slot A"
+    visual: "The viewer grades a fresh XML fixture and decides whether the same slot can accept another job. A scratch file changes the reuse decision while the parser result stays fixed."
+    beats:
+      - say: "One more report for the same parser. Every case is in the payments class and uses the root namespace. Retry has a direct failure and error. Later has skipped and error. Nested has a failure inside details. The last case repeats retry. Which rows should the validator expect, in order?"
+        hold: 2.5
+        visual_cues:
+          - id: ep-case-0
+            phrase: "Retry has a direct failure and error"
+            targets: [picture]
+          - id: ep-case-1
+            phrase: "Later has skipped and error"
+            targets: [picture]
+          - id: ep-case-2
+            phrase: "Nested has a failure inside details"
+            targets: [picture]
+          - id: ep-case-3
+            phrase: "The last case repeats retry"
+            targets: [picture]
+          - id: ep-predict
+            phrase: "Which rows should the validator expect"
+            targets: [picture]
+      - say: "One row, payments retry. The first case qualifies once even with two status children. Skipped wins for later. The nested failure sits one level too deep. The last retry has an identity we already kept."
+        hold: 0.8
+        visual_cues:
+          - id: ep-first
+            phrase: "One row, payments retry"
+            caption_boundary: true
+            targets: [picture]
+          - id: ep-skip
+            phrase: "Skipped wins for later"
+            targets: [picture]
+          - id: ep-depth
+            phrase: "one level too deep"
+            targets: [picture]
+          - id: ep-repeat
+            phrase: "an identity we already kept"
+            targets: [picture]
+      - say: "The validator records a pass for this parser and image. The network probe couldn’t connect. What stopped it? The policy log records the denial. Zero job processes remain. All the other reset checks passed. Scratch should be empty. One file remains, last-report dot XML. Can the next job take slot A?"
+        hold: 2.5
+        visual_cues:
+          - id: ep-receipt
+            phrase: "The validator records a pass"
+            targets: [picture]
+          - id: ep-connection
+            phrase: "The network probe couldn’t connect"
+            targets: [picture]
+          - id: ep-probe
+            phrase: "The policy log records the denial"
+            targets: [picture]
+          - id: ep-empty-job
+            phrase: "Zero job processes remain"
+            targets: [picture]
+          - id: ep-baseline
+            phrase: "All the other reset checks passed"
+            targets: [picture]
+          - id: ep-file
+            phrase: "One file remains"
+            targets: [picture]
+          - id: ep-slot-question
+            phrase: "Can the next job take slot A"
+            targets: [picture]
+      - say: "Keep slot A quarantined. The next job could inherit that file. The reaper clears scratch and reads it again. The listing is empty. The reset matches the baseline. Admit generation eight. A late cleanup names worker seven. Its ID belongs to the old worker, and its generation no longer matches the slot. Eight keeps running. The passing receipt stays with the parser we tested. On your workstation, which files can a local agent read?"
+        hold: 1.15
+        visual_cues:
+          - id: ep-quarantine
+            phrase: "Keep slot A quarantined"
+            caption_boundary: true
+            targets: [picture]
+          - id: ep-rescan
+            phrase: "The listing is empty"
+            caption_boundary: true
+            targets: [picture]
+          - id: ep-ready
+            phrase: "The reset matches the baseline"
+            targets: [picture]
+          - id: ep-admit
+            phrase: "Admit generation eight"
+            targets: [picture]
+          - id: ep-late
+            phrase: "A late cleanup names worker seven"
+            targets: [picture]
+          - id: ep-stays
+            phrase: "Eight keeps running"
+            targets: [picture]
+          - id: ep-earned
+            phrase: "the parser we tested"
+            targets: [picture]
+          - id: ep-workstation
+            phrase: "On your workstation"
+            targets: [picture]

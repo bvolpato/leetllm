@@ -1,0 +1,251 @@
+{
+  "id": "context-window-packer",
+  "slug": "context-window-packer",
+  "title": "Context Window Packer",
+  "difficulty": "Medium",
+  "category": "Context Management",
+  "language": "python3",
+  "timeEstimateMinutes": 30,
+  "timeLimitMs": 2500,
+  "memoryLimitMb": 128,
+  "order": 140,
+  "tags": [
+    "context window",
+    "token budget",
+    "recency",
+    "greedy"
+  ],
+  "source": "AI lab prep",
+  "summary": "Select system and recent conversation messages without exceeding a token budget.",
+  "starterCode": [
+    "def pack_messages(messages: list[dict], max_tokens: int) -> list[str]:",
+    "    pass"
+  ],
+  "testCases": [
+    {
+      "name": "keeps system then newest messages within budget",
+      "visibility": "sample",
+      "setup": [
+        "from solution import pack_messages",
+        "messages = [",
+        "    {\"id\": \"sys\", \"role\": \"system\", \"tokens\": 2},",
+        "    {\"id\": \"old\", \"role\": \"user\", \"tokens\": 3},",
+        "    {\"id\": \"new\", \"role\": \"assistant\", \"tokens\": 4},",
+        "]",
+        "snapshot = [dict(message) for message in messages]"
+      ],
+      "checks": [
+        {
+          "input": "messages = [\n    {\"id\": \"sys\", \"role\": \"system\", \"tokens\": 2},\n    {\"id\": \"old\", \"role\": \"user\", \"tokens\": 3},\n    {\"id\": \"new\", \"role\": \"assistant\", \"tokens\": 4},\n]\npack_messages(messages, 6)",
+          "expression": "pack_messages(messages, 6)",
+          "operator": "==",
+          "expected": "[\"sys\", \"new\"]"
+        },
+        {
+          "input": "pack_messages(messages, 6)\nmessages == snapshot",
+          "expression": "messages == snapshot",
+          "operator": "==",
+          "expected": "True"
+        }
+      ]
+    },
+    {
+      "name": "skips oversized messages and preserves original order",
+      "visibility": "hidden",
+      "setup": [
+        "from solution import pack_messages",
+        "messages = [",
+        "    {\"id\": \"sys\", \"role\": \"system\", \"tokens\": 5},",
+        "    {\"id\": \"u1\", \"role\": \"user\", \"tokens\": 2},",
+        "    {\"id\": \"a1\", \"role\": \"assistant\", \"tokens\": 10},",
+        "    {\"id\": \"u2\", \"role\": \"user\", \"tokens\": 2},",
+        "    {\"id\": \"a2\", \"role\": \"assistant\", \"tokens\": 1},",
+        "]"
+      ],
+      "checks": [
+        {
+          "input": "messages = [\n    {\"id\": \"sys\", \"role\": \"system\", \"tokens\": 5},\n    {\"id\": \"u1\", \"role\": \"user\", \"tokens\": 2},\n    {\"id\": \"a1\", \"role\": \"assistant\", \"tokens\": 10},\n    {\"id\": \"u2\", \"role\": \"user\", \"tokens\": 2},\n    {\"id\": \"a2\", \"role\": \"assistant\", \"tokens\": 1},\n]\npack_messages(messages, 6)",
+          "expression": "pack_messages(messages, 6)",
+          "operator": "==",
+          "expected": "[\"sys\", \"a2\"]"
+        },
+        {
+          "input": "messages = [\n    {\"id\": \"sys\", \"role\": \"system\", \"tokens\": 5},\n    {\"id\": \"u1\", \"role\": \"user\", \"tokens\": 2},\n    {\"id\": \"a1\", \"role\": \"assistant\", \"tokens\": 10},\n    {\"id\": \"u2\", \"role\": \"user\", \"tokens\": 2},\n    {\"id\": \"a2\", \"role\": \"assistant\", \"tokens\": 1},\n]\npack_messages(messages, 6)\npack_messages(messages, 4)",
+          "expression": "pack_messages(messages, 4)",
+          "operator": "==",
+          "expected": "[\"u2\", \"a2\"]"
+        },
+        {
+          "input": "messages = [\n    {\"id\": \"sys\", \"role\": \"system\", \"tokens\": 5},\n    {\"id\": \"u1\", \"role\": \"user\", \"tokens\": 2},\n    {\"id\": \"a1\", \"role\": \"assistant\", \"tokens\": 10},\n    {\"id\": \"u2\", \"role\": \"user\", \"tokens\": 2},\n    {\"id\": \"a2\", \"role\": \"assistant\", \"tokens\": 1},\n]\npack_messages(messages, 6)\npack_messages(messages, 4)\npack_messages(messages, 1)",
+          "expression": "pack_messages(messages, 1)",
+          "operator": "==",
+          "expected": "[\"a2\"]"
+        }
+      ]
+    },
+    {
+      "name": "packs newest messages without a system message",
+      "visibility": "sample",
+      "setup": [
+        "from solution import pack_messages",
+        "messages = [",
+        "    {\"id\": \"old\", \"role\": \"user\", \"tokens\": 2},",
+        "    {\"id\": \"middle\", \"role\": \"assistant\", \"tokens\": 3},",
+        "    {\"id\": \"new\", \"role\": \"user\", \"tokens\": 2},",
+        "]"
+      ],
+      "input": "messages = [\n    {\"id\": \"old\", \"role\": \"user\", \"tokens\": 2},\n    {\"id\": \"middle\", \"role\": \"assistant\", \"tokens\": 3},\n    {\"id\": \"new\", \"role\": \"user\", \"tokens\": 2},\n]\npack_messages(messages, max_tokens=4)",
+      "expected": "[\"old\", \"new\"]",
+      "expression": "pack_messages(messages, max_tokens=4)"
+    },
+    {
+      "name": "keeps only the first system message",
+      "visibility": "hidden",
+      "setup": [
+        "from solution import pack_messages",
+        "messages = [",
+        "    {\"id\": \"sys\", \"role\": \"system\", \"tokens\": 2},",
+        "    {\"id\": \"later-sys\", \"role\": \"system\", \"tokens\": 1},",
+        "    {\"id\": \"user\", \"role\": \"user\", \"tokens\": 1},",
+        "]"
+      ],
+      "input": "messages = [\n    {\"id\": \"sys\", \"role\": \"system\", \"tokens\": 2},\n    {\"id\": \"later-sys\", \"role\": \"system\", \"tokens\": 1},\n    {\"id\": \"user\", \"role\": \"user\", \"tokens\": 1},\n]\npack_messages(messages, max_tokens=3)",
+      "expected": "[\"sys\", \"user\"]",
+      "expression": "pack_messages(messages, max_tokens=3)"
+    },
+    {
+      "name": "returns empty when every message is too large",
+      "visibility": "hidden",
+      "setup": [
+        "from solution import pack_messages",
+        "messages = [",
+        "    {\"id\": \"sys\", \"role\": \"system\", \"tokens\": 10},",
+        "    {\"id\": \"user\", \"role\": \"user\", \"tokens\": 5},",
+        "]"
+      ],
+      "input": "messages = [\n    {\"id\": \"sys\", \"role\": \"system\", \"tokens\": 10},\n    {\"id\": \"user\", \"role\": \"user\", \"tokens\": 5},\n]\npack_messages(messages, max_tokens=4)",
+      "expected": "[]",
+      "expression": "pack_messages(messages, max_tokens=4)"
+    },
+    {
+      "name": "hidden zero budget selects nothing",
+      "visibility": "hidden",
+      "setup": [
+        "from solution import pack_messages",
+        "messages = [",
+        "    {\"id\": \"sys\", \"role\": \"system\", \"tokens\": 1},",
+        "    {\"id\": \"user\", \"role\": \"user\", \"tokens\": 1},",
+        "]"
+      ],
+      "input": "pack_messages(messages, max_tokens=0)",
+      "expected": "[]",
+      "expression": "pack_messages(messages, max_tokens=0)"
+    },
+    {
+      "name": "exact budget keeps every message",
+      "visibility": "sample",
+      "description": "Messages whose token counts exactly fill the budget all fit.",
+      "feedback": "Use inclusive budget comparisons and return selected IDs in original order.",
+      "setup": [
+        "from solution import pack_messages",
+        "messages = [",
+        "    {\"id\": \"sys\", \"role\": \"system\", \"tokens\": 1},",
+        "    {\"id\": \"user\", \"role\": \"user\", \"tokens\": 2},",
+        "    {\"id\": \"assistant\", \"role\": \"assistant\", \"tokens\": 3},",
+        "]"
+      ],
+      "input": "pack_messages(messages, 6)",
+      "expected": "[\"sys\", \"user\", \"assistant\"]"
+    },
+    {
+      "name": "empty conversation returns no IDs",
+      "visibility": "hidden",
+      "description": "Packing an empty message list is a no-op.",
+      "feedback": "Return an empty list without special placeholders.",
+      "setup": [
+        "from solution import pack_messages"
+      ],
+      "input": "pack_messages([], 10)",
+      "expected": "[]"
+    },
+    {
+      "name": "later system messages never replace the first",
+      "visibility": "hidden",
+      "description": "If the first system message is too large, a later system message is still not selected.",
+      "feedback": "Only the first system message is eligible; pack non-system messages with remaining budget.",
+      "setup": [
+        "from solution import pack_messages",
+        "messages = [",
+        "    {\"id\": \"primary\", \"role\": \"system\", \"tokens\": 10},",
+        "    {\"id\": \"secondary\", \"role\": \"system\", \"tokens\": 1},",
+        "    {\"id\": \"user\", \"role\": \"user\", \"tokens\": 2},",
+        "]"
+      ],
+      "input": "pack_messages(messages, 3)",
+      "expected": "[\"user\"]"
+    },
+    {
+      "name": "zero costs fit a zero budget in original order",
+      "visibility": "hidden",
+      "setup": [
+        "from solution import pack_messages",
+        "messages = [{\"id\": \"before\", \"role\": \"tool\", \"tokens\": 0}, {\"id\": \"sys\", \"role\": \"system\", \"tokens\": 0}, {\"id\": \"later-sys\", \"role\": \"system\", \"tokens\": 0}, {\"id\": \"costly\", \"role\": \"user\", \"tokens\": 1}, {\"id\": \"after\", \"role\": \"assistant\", \"tokens\": 0}]"
+      ],
+      "input": "pack_messages(messages, 0)",
+      "expected": "[\"before\", \"sys\", \"after\"]"
+    }
+  ],
+  "clarifyingQuestions": [
+    "Is a system message always required, or should it be dropped if too large?",
+    "Should assistant messages be kept without the user message that prompted them?",
+    "Do tool calls and tool results need to stay together?"
+  ],
+  "followUps": [
+    "Keep user/assistant turns as atomic pairs.",
+    "Reserve a response budget before packing prompt messages.",
+    "Summarize older, lower-priority messages before packing."
+  ],
+  "followUpGuide": [
+    "For atomic turns, identify complete user/assistant turns and keep tool calls with all required results. Use dependency IDs when available because adjacency can split a multi-call tool exchange. Sum each group's supplied token costs, then select complete groups.",
+    "",
+    "For a model limit shared by prompt and completion, reserve the desired output tokens before packing and account for any protocol overhead omitted from the supplied counts. If the reserve exceeds the limit, report a configuration error; this function expects a nonnegative budget.",
+    "",
+    "For summarization, treat the summary as another message with its own token count. It should compete with recent raw messages under the same budget."
+  ],
+  "complexityAnalysis": [
+    "- Reverse-greedy pack: one pass for the first system message, one reverse pass over non-system messages, then sort selected indices. Time: O(n + k log k) where k is selected count (O(n log n) worst case). Space: O(k).",
+    "- Contiguous newest-suffix only (no skip): Time: O(n). Space: O(k). Fails cases that skip oversized mid-window messages.",
+    "- Score-sorted approach: sort by relevance or utility before packing. Time: O(n log n). Space: O(n).",
+    "- Knapsack-style approach: optimize utility under token budget. Time: O(n * B), where B is token budget. Space: O(B) or O(n * B)."
+  ],
+  "solutionGuide": [
+    "The first system message is the only system message eligible for retention. Reserve its cost when it fits; when it exceeds the budget, include no system message. Then scan non-system messages from newest to oldest and include each one that fits. This prioritizes recent fitting messages and can leave unused budget when older messages also exceed the remainder.",
+    "",
+    "Because selection happens in reverse recency order, sort selected indices before returning IDs.",
+    "",
+    "```python",
+    "def pack_messages(messages: list[dict], max_tokens: int) -> list[str]:",
+    "    selected = []",
+    "    used = 0",
+    "",
+    "    for index, message in enumerate(messages):",
+    "        if message.get(\"role\") == \"system\":",
+    "            tokens = message[\"tokens\"]",
+    "            if tokens <= max_tokens:",
+    "                selected.append(index)",
+    "                used += tokens",
+    "            break",
+    "",
+    "    for index in range(len(messages) - 1, -1, -1):",
+    "        message = messages[index]",
+    "        if message.get(\"role\") == \"system\":",
+    "            continue",
+    "        tokens = message[\"tokens\"]",
+    "        if used + tokens <= max_tokens:",
+    "            selected.append(index)",
+    "            used += tokens",
+    "",
+    "    return [messages[index][\"id\"] for index in sorted(selected)]",
+    "```"
+  ]
+}

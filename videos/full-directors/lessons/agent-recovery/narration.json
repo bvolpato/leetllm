@@ -1,0 +1,467 @@
+[
+  {
+    "id": "c01",
+    "title": "The reply vanished after the job was saved",
+    "sourceChapters": [
+      "c01"
+    ],
+    "beats": [
+      {
+        "id": "c01-b01",
+        "say": "Follow the approved rollback as it leaves the agent. Run eight forty-two, revision seventeen. The operator first asked for a status check, reviewed the evidence, then separately approved this exact change. Watch the controller's queue.",
+        "hold": 0.8
+      },
+      {
+        "id": "c01-b02",
+        "say": "The controller saves job one. Its reply starts back. In this example, we cut the return connection. The agent sees a timeout. Look at its screen. Would you dispatch another rollback on that evidence?",
+        "hold": 2.4
+      },
+      {
+        "id": "c01-b03",
+        "say": "Leave the second send on hold. The agent knows its deadline passed without a reply. To learn whether the controller queued the rollback, look up the original operation. We'll use that record and the remaining budget to decide what to do next.",
+        "hold": 1.2
+      }
+    ]
+  },
+  {
+    "id": "c02",
+    "title": "A proposal passes through an admission check",
+    "sourceChapters": [
+      "c02"
+    ],
+    "beats": [
+      {
+        "id": "c02-b01",
+        "say": "Go back to the operator's first question. The task permits a status read for run eight forty-two. The model proposes a tool call. Application code checks the tool, its arguments, the requested run and the caller's permission before it admits the read.",
+        "hold": 0.8
+      },
+      {
+        "id": "c02-b02",
+        "say": "Now feed the same gate a well-formed rollback. Which part of the status request gives it permission to change revision? The gate stops it before dispatch. A rollback needs separate approval for its target and a fresh check of execution conditions.",
+        "hold": 1.2
+      },
+      {
+        "id": "c02-b03",
+        "say": "The status tool expects the field named id. If the model sends run underscore id, allow a bounded repair. Check the corrected proposal again. A permission denial stops that path. Another model call has no authority to widen the task.",
+        "hold": 0.9
+      }
+    ]
+  },
+  {
+    "id": "c03",
+    "title": "One operation can have several transport attempts",
+    "sourceChapters": [
+      "c03"
+    ],
+    "beats": [
+      {
+        "id": "c03-b01",
+        "say": "Before the first send, give the approved rollback one logical operation key, rb-842-1. Save it with the exact run and revision. On the first send, the controller indexes those same fields alongside the job it queued. Which identity should change on another send?",
+        "hold": 1.8
+      },
+      {
+        "id": "c03-b02",
+        "say": "Attempt one and attempt two need different tracing identifiers. Both carry the same key and payload. The controller looks up that pair and returns job one. The job identifier names the queued work whose state we can read.",
+        "hold": 0.9
+      },
+      {
+        "id": "c03-b03",
+        "say": "Now change just the target to revision eighteen. The stored payload still says seventeen. The controller returns a conflict and leaves one job in the queue. That protection comes from a server contract that compares payloads and retains the binding for the retry.",
+        "hold": 1.4
+      }
+    ]
+  },
+  {
+    "id": "c04",
+    "title": "A lost reply can follow a committed transaction",
+    "sourceChapters": [
+      "c04"
+    ],
+    "beats": [
+      {
+        "id": "c04-b01",
+        "say": "The controller writes two rows in one transaction. The jobs row holds the queued rollback. The operation row binds the approved key and payload to that job. Both rows are staged until commit. Where could a timeout leave the pair?",
+        "hold": 1.5
+      },
+      {
+        "id": "c04-b02",
+        "say": "Run the first dispatch twice in separate experiments. Inject the first fault before commit. Both staged rows disappear. Move only the fault to after commit. The reply vanishes again. This time, both rows survive.",
+        "hold": 1.1
+      },
+      {
+        "id": "c04-b03",
+        "say": "Look up the unchanged key in the second experiment. The operation row points to job one, and the job row reads queued. A later observation from the executor would be needed to tell the operator that the rollout finished.",
+        "hold": 1.3
+      }
+    ]
+  },
+  {
+    "id": "c05",
+    "title": "Retry timing follows both service and caller limits",
+    "sourceChapters": [
+      "c05"
+    ],
+    "beats": [
+      {
+        "id": "c05-b01",
+        "say": "Space out retries of a transient status read. With a one-second base, the first three exponential windows reach one, two and four seconds. Full jitter draws independently anywhere from zero to the current window, up to the configured cap. Watch where each sampled delay lands.",
+        "hold": 1.3
+      },
+      {
+        "id": "c05-b02",
+        "say": "Now the service asks clients to wait. Parse a valid Retry-After as delay seconds or an HTTP date. This policy treats the hint as a floor. If every jitter draw lies below the floor, taking the larger value lines clients up again. Add bounded jitter after the floor to spread them.",
+        "hold": 1.2
+      },
+      {
+        "id": "c05-b03",
+        "say": "Give a read with three seconds left a twenty-second minimum wait. Can it retry early? Stop before another send. Keep the original deadline across the whole task. Spacing sends controls load. A write with an unknown outcome still needs reconciliation or a valid replay contract.",
+        "hold": 1.1
+      }
+    ]
+  },
+  {
+    "id": "c06",
+    "title": "Count useful evidence while keeping a hard cap",
+    "sourceChapters": [
+      "c06"
+    ],
+    "beats": [
+      {
+        "id": "c06-b01",
+        "say": "Read the deployment log with a budget of three calls and a no-progress limit of two. A trusted page identifier counts as evidence only when it adds relevant material. The first read brings page four. What happens if we read it again?",
+        "hold": 1.6
+      },
+      {
+        "id": "c06-b02",
+        "say": "Page four again spends a call and adds one stall. Now comes page five. This new evidence resets the stall count. Look at the three used slots. The hard cap blocks the fourth call even though the last read made progress.",
+        "hold": 1.3
+      },
+      {
+        "id": "c06-b03",
+        "say": "Use the boundary to choose the next action. Repair a bad field and recheck the proposal. A transient read may get a bounded retry. For a dispatched write with a missing reply, look up its operation. Each route spends a different kind of work.",
+        "hold": 0.9
+      }
+    ]
+  },
+  {
+    "id": "c07",
+    "title": "A circuit breaker limits calls to an unhealthy dependency",
+    "sourceChapters": [
+      "c07"
+    ],
+    "beats": [
+      {
+        "id": "c07-b01",
+        "say": "Watch the contact between the caller and the status service. Closed lets calls through. The first qualifying failure marks one strike. A second failure trips the contact open. New calls stop here during cooldown, protecting the unhealthy service.",
+        "hold": 1
+      },
+      {
+        "id": "c07-b02",
+        "say": "After cooldown the breaker becomes half-open. One probe takes the slot. A healthy probe closes the contact. A qualifying failure instead reopens it for cooldown. If the caller cancels the probe, the local slot also has to be released.",
+        "hold": 0.9
+      },
+      {
+        "id": "c07-b03",
+        "say": "Try a race. Call A left in generation three. A newer failure opens generation four. Now A succeeds. Should its reply reach the caller? Should the contact close?",
+        "hold": 2.2
+      },
+      {
+        "id": "c07-b04",
+        "say": "Return A's result to its caller along the reply wire. Compare the generation on that reply with the one on the open contact. Three and four differ. The circuit stays open for new calls.",
+        "hold": 1.4
+      }
+    ]
+  },
+  {
+    "id": "c08",
+    "title": "Resume from a checkpoint and make a bounded claim",
+    "sourceChapters": [
+      "c08"
+    ],
+    "beats": [
+      {
+        "id": "c08-b01",
+        "say": "A workflow checkpoint remembers that the agent is waiting for the rollback job. It preserves the pending operation key and verified inputs. The remote controller can commit after that local save. Which record should a restarted agent read to learn what happened?",
+        "hold": 1.6
+      },
+      {
+        "id": "c08-b02",
+        "say": "Read the controller using the saved key. Its observation identifies this run, operation and job. At twelve oh five it read queued. What can the operator be told?",
+        "hold": 1.8
+      },
+      {
+        "id": "c08-b03",
+        "say": "Report that job one was queued at twelve oh five. A queued job still needs an executor result before we can claim completion. Permission, proposal, transport attempt, durable effect and verification each answer a different question.",
+        "hold": 1
+      }
+    ]
+  },
+  {
+    "id": "c09",
+    "title": "A replay contract has a scope and a lifetime",
+    "sourceChapters": [
+      "c09"
+    ],
+    "beats": [
+      {
+        "id": "c09-b01",
+        "say": "The article's controller commits both rows in a SQLite file and reopens it. Two workers now try a second key on separate connections. BEGIN IMMEDIATE lets writer A enter first. A commits job two. Writer B checks after that commit. Both get job two for the same operation.",
+        "hold": 1
+      },
+      {
+        "id": "c09-b02",
+        "say": "Two logical operations own two jobs. A busy database can still return SQLITE BUSY, and any lock retry needs the same key and deadline. This tests database records under injected exceptions, not remote execution or power-loss durability.",
+        "hold": 0.8
+      },
+      {
+        "id": "c09-b03",
+        "say": "Consider the version-one contract in the Stripe example. An executed request returns a five hundred. The service saves that status and body. Replaying the same key returns the saved error. Validation failures and concurrent conflicts before execution leave no saved result.",
+        "hold": 1
+      },
+      {
+        "id": "c09-b04",
+        "say": "In that contract, keys may be pruned after at least twenty-four hours. Once the entry is pruned, reuse can start new work. The version-two example tries to complete failed work where possible and returns an updated response. Check the contract for the endpoint you use.",
+        "hold": 1
+      },
+      {
+        "id": "c09-b05",
+        "say": "Now ask a lagging replica for the original rollback key. It replies not found. The primary still has the row. Without a guarantee about what absence means here, keep the outcome unknown. A changed revision would be a new proposal and needs fresh admission.",
+        "hold": 0.9
+      },
+      {
+        "id": "c09-b06",
+        "say": "A production controller should authenticate callers, document key scope and retention, isolate tenants where applicable, and authorize access before returning stored results. Verify these safeguards in the actual service.",
+        "hold": 1
+      }
+    ]
+  },
+  {
+    "id": "c10",
+    "title": "Restore recorded workflow state without erasing remote effects",
+    "sourceChapters": [
+      "c10"
+    ],
+    "beats": [
+      {
+        "id": "c10-b01",
+        "say": "Persist the operation key before dispatch. Save the receipt when it arrives. Here the controller commits and the workflow crashes before it saves that receipt. Resume the last local step. The controller still has its job. Recheck permission and preconditions before taking another action.",
+        "hold": 1.3
+      },
+      {
+        "id": "c10-b02",
+        "say": "LangGraph supports thread-scoped checkpoints at super-step boundaries. Pending writes can preserve successful node results within a failed step. Restart recovery needs a persistent backend and an appropriate durability mode. Exit mode omits intermediate persistence, and asynchronous mode can lose a checkpoint on a crash.",
+        "hold": 1
+      },
+      {
+        "id": "c10-b03",
+        "say": "Put identity in an earlier step. Wait for its synchronous save to succeed, then start the dispatch step. Temporal reconstructs deterministic workflow state from its event history. A recorded Activity result can be read back during replay.",
+        "hold": 1
+      },
+      {
+        "id": "c10-b04",
+        "say": "Leave the completion event out of that history after the external job was queued. The Activity can run again. Recover the original key and check the destination or use its repeat-safety contract. The local history alone cannot guarantee one external effect.",
+        "hold": 1
+      }
+    ]
+  },
+  {
+    "id": "c11",
+    "title": "A smaller context does not refund prior work",
+    "sourceChapters": [
+      "c11"
+    ],
+    "beats": [
+      {
+        "id": "c11-b01",
+        "say": "Three attempts allow the initial send and two retries. Now add a second layer, also with a three-attempt limit. On matching failures, each outer attempt can trigger three inner sends. The bound is nine. With three layers each allowing three retries after the initial call, four cubed gives sixty-four.",
+        "hold": 1
+      },
+      {
+        "id": "c11-b02",
+        "say": "These are possible bounds, not observed sends. Give one layer ownership and instrument actual transport work. A model re-ask after invalid output is another proposal that needs admission.",
+        "hold": 0.9
+      },
+      {
+        "id": "c11-b03",
+        "say": "A context window limits one request. Run spend accumulates across requests. Start each prompt with a hundred-token prefix. Add fifty history tokens after each turn. The four submitted lengths are one hundred, one hundred fifty, two hundred and two hundred fifty. Together they cost seven hundred input tokens.",
+        "hold": 1
+      },
+      {
+        "id": "c11-b04",
+        "say": "For n requests with a fixed prefix h and s more history tokens each turn, sum the repeated prefixes and the growing history. Count n prefixes of h tokens each. The history contributes s times the sum from zero through n minus one, which is s times n times the quantity n minus one, divided by two. Account for output and cache pricing separately.",
+        "hold": 1
+      },
+      {
+        "id": "c11-b05",
+        "say": "Before another call, reserve its input estimate plus bounded output. This request needs one hundred twenty plus eighty tokens. Only one hundred fifty remain. Does it fit? Reject it before dispatch. Parallel workers need atomic reservations against one balance. Reconcile actual usage afterward.",
+        "hold": 1.2
+      },
+      {
+        "id": "c11-b06",
+        "say": "Suppose an admitted call times out before its usage arrives. Keep its reservation until you reconcile the charge. Compaction reduces future input. The seven hundred input tokens already submitted stay spent. A deadline or cancellation request can also leave underlying I O running.",
+        "hold": 0.9
+      },
+      {
+        "id": "c11-b07",
+        "say": "Use clients with enforced timeouts and cancellation support, and reconcile remote effects separately.",
+        "hold": 1
+      }
+    ]
+  },
+  {
+    "id": "c12",
+    "title": "A probe result belongs to one generation",
+    "sourceChapters": [
+      "c12"
+    ],
+    "beats": [
+      {
+        "id": "c12-b01",
+        "say": "Give each circuit a scope. Here tenants A and B call the same dependency. B crosses the threshold for documented dependency failures. B's circuit opens. A can still call. A schema error or permission denial belongs at admission and contributes no health strike.",
+        "hold": 1
+      },
+      {
+        "id": "c12-b02",
+        "say": "The article's breaker lives in one event loop. After its cooldown one half-open probe can enter. A second caller must wait outside the slot. A fleet needs a policy for coordinating health and probe traffic across instances.",
+        "hold": 1.1
+      },
+      {
+        "id": "c12-b03",
+        "say": "Cancel the admitted probe. This policy releases its slot, reopens for cooldown and propagates cancellation. Try the same probe again in a separate experiment. A non-health exception releases the slot and propagates the error, but leaves the breaker half-open with no health verdict.",
+        "hold": 1
+      },
+      {
+        "id": "c12-b04",
+        "say": "Recall the late success. Its caller receives the reply while the newer generation stays open. A local cancellation also leaves a remote write's outcome unknown. Check the destination before reporting what happened there.",
+        "hold": 1
+      }
+    ]
+  },
+  {
+    "id": "c13",
+    "title": "A fallback inherits the same uncertainty",
+    "sourceChapters": [
+      "c13"
+    ],
+    "beats": [
+      {
+        "id": "c13-b01",
+        "say": "A backup model must be permitted to receive this data. Test translated message roles, tool formats, schema, context limits, refusals and incomplete responses on the task. A narrower route can classify an existing log excerpt with mutation tools disabled.",
+        "hold": 1
+      },
+      {
+        "id": "c13-b02",
+        "say": "Follow both providers' status calls. They reach the same unavailable controller. Switching models gives neither route a fresh observation. The routes share the remaining deadline, spend and cancellation state. Model size alone establishes neither capability nor cost.",
+        "hold": 1
+      },
+      {
+        "id": "c13-b03",
+        "say": "Open the cache. A trusted adapter saw job one queued forty minutes ago. The record matches the run and operation. Current-status claims here require evidence from the last minute. Can it establish what the rollback is doing now? Report the time with the last observation and apply the freshness policy for the requested claim.",
+        "hold": 1
+      },
+      {
+        "id": "c13-b04",
+        "say": "A generated has-live-evidence field has no trusted observation behind it. Even a completed observation can be too old for a current claim. The article's Python evidence object tests wording against supplied facts. Authentication has to come from the real adapter.",
+        "hold": 1
+      },
+      {
+        "id": "c13-b05",
+        "say": "If the live route cannot answer, hand off the authorized task, key and exact payload. Include the last confirmed observation with its time, what remains unknown, the attempts and the stop reason. Copy allowlisted redacted fields into the handoff.",
+        "hold": 0.9
+      },
+      {
+        "id": "c13-b06",
+        "say": "Scope cached access to the caller and recheck current permission. Do not turn a user cancellation into a new fallback attempt.",
+        "hold": 1
+      }
+    ]
+  },
+  {
+    "id": "c14",
+    "title": "Recovery acts on the state that actually exists",
+    "sourceChapters": [
+      "c14"
+    ],
+    "beats": [
+      {
+        "id": "c14-b01",
+        "say": "During authorized maintenance we cordon node A, preventing new placements. Its pods are evicted. Their controllers start replacements on node B with new identities. Then the replacement image for A is unavailable. If we uncordon A, which pods will move back?",
+        "hold": 2.2
+      },
+      {
+        "id": "c14-b02",
+        "say": "First inspect A's health and current permission. Suppose both checks pass. Uncordon A. It can receive future work. The replacement pods keep their identities and positions on B. In another state, forward repair or human review might be safer.",
+        "hold": 1
+      },
+      {
+        "id": "c14-b03",
+        "say": "A Saga records each confirmed step and the compensation chosen for it. Domain rules set the order. Independent repairs may run in parallel. Each compensation can fail or time out. Persist its progress, preserve its identity and reconcile its own destination.",
+        "hold": 0.9
+      },
+      {
+        "id": "c14-b04",
+        "say": "The booking failed after the customer reserved seat twelve B and paid for it. The payment service confirms the refund. What should the operator check before canceling that seat?",
+        "hold": 3
+      },
+      {
+        "id": "c14-b05",
+        "say": "Read the reservation. Here the reservation service reports that the customer still holds seat twelve B. Check current permission. If the cancellation is needed and authorized, the operator can send it. An already released seat needs no cancellation. The same distinction matters in a rollout. Canceling a queued job and reversing a completed rollout require different actions. Retracting a notification leaves recipients' knowledge intact.",
+        "hold": 1.6
+      }
+    ]
+  },
+  {
+    "id": "c15",
+    "title": "Measure the result and resolve a fresh boundary",
+    "sourceChapters": [
+      "c15"
+    ],
+    "beats": [
+      {
+        "id": "c15-b01",
+        "say": "Try a fresh rollback with its original key, unchanged payload, valid approval and an active server replay contract. The required wait is one point two seconds. Add the selected jitter of point three seconds. Only one point four seconds remain. Would you send?",
+        "hold": 2.5
+      },
+      {
+        "id": "c15-b02",
+        "say": "Slide the offset against the minimum wait. The far edge is one point five seconds. The deadline comes first. Stop here with the retry unsent. Repeat safety answers whether the server can recognize a second attempt. The time budget decides whether this caller may make it.",
+        "hold": 1.4
+      },
+      {
+        "id": "c15-b03",
+        "say": "Now the backup has a trusted completed observation from forty minutes ago. The current-status policy allows one minute. What can you report? Current status unavailable. Date the earlier observation if it helps. Keep the outcome unresolved until fresh evidence arrives.",
+        "hold": 1.2
+      },
+      {
+        "id": "c15-b04",
+        "say": "Keep the original key with the exact payload for reconciliation. Minting a different key could create a second logical operation while the first one is still unaccounted for.",
+        "hold": 1
+      },
+      {
+        "id": "c15-b05",
+        "say": "Count one hundred intervened runs. Sixty complete the task, twelve supply accepted degraded answers, eighteen hand off safely, and ten stay unresolved. Task completion is sixty percent. If the first three outcomes count as safe dispositions, that measure is ninety percent. Keep the human work visible.",
+        "hold": 1.4
+      },
+      {
+        "id": "c15-b06",
+        "say": "Count unique runs and pending cases, not attempts. Track retries, deduplication, reconciliation time, unknown writes and cancellation separately; keep operation keys in protected traces rather than high-cardinality metric labels.",
+        "hold": 1
+      },
+      {
+        "id": "c15-b07",
+        "say": "Move the fault from before to after commit and compare the actual rows. Test competing sends, changed payloads, expired keys, lagging reads, canceled probes, stale successes and permission changes. Put expected outcomes in the harness, outside the measured agent's prompt and memory.",
+        "hold": 0.8
+      },
+      {
+        "id": "c15-b08",
+        "say": "The local observations establish what the fixture saved. Real partitions, service authentication and rollout execution need integration evidence. Carry the same discipline into recursive language models, which use code and sub-calls to inspect a manual kept outside the model context.",
+        "hold": 0.9
+      },
+      {
+        "id": "c15-b09",
+        "say": "Keep access to the original source, set an execution budget and check which parts the sub-calls actually covered. In the opening rollback, the record we can point to still says queued. In the deadline exercise, the retry stayed unsent. A fresh observation is the next step.",
+        "hold": 2.1
+      }
+    ]
+  }
+]

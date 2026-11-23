@@ -1,0 +1,338 @@
+{
+  "id": "batch-inference-scheduler",
+  "slug": "batch-inference-scheduler",
+  "title": "Batch Inference Scheduler",
+  "difficulty": "Medium",
+  "category": "Serving",
+  "language": "python3",
+  "timeEstimateMinutes": 35,
+  "timeLimitMs": 2500,
+  "memoryLimitMb": 128,
+  "order": 220,
+  "tags": [
+    "batching",
+    "queue",
+    "latency",
+    "inference"
+  ],
+  "source": "AI lab prep",
+  "summary": "Batch requests by size or oldest-wait deadline while preserving FIFO order.",
+  "starterCode": [
+    "class BatchScheduler:",
+    "    def __init__(self, max_batch_size: int, max_wait_ms: float, now_ms):",
+    "        self.max_batch_size = max_batch_size",
+    "        self.max_wait_ms = max_wait_ms",
+    "        self.now_ms = now_ms",
+    "",
+    "    def add(self, request_id):",
+    "        pass",
+    "",
+    "    def flush_due(self):",
+    "        pass",
+    "",
+    "    def flush_all(self):",
+    "        pass"
+  ],
+  "testCases": [
+    {
+      "name": "public emits when full",
+      "visibility": "sample",
+      "setup": [
+        "from solution import BatchScheduler",
+        "clock = {\"t\": 0.0}",
+        "scheduler = BatchScheduler(2, 50, now_ms=lambda: clock[\"t\"])"
+      ],
+      "checks": [
+        {
+          "input": "clock = {\"t\": 0.0}\nscheduler = BatchScheduler(2, 50, now_ms=lambda: clock[\"t\"])\nscheduler.add(\"a\")",
+          "expression": "scheduler.add(\"a\")",
+          "operator": "is",
+          "expected": "None"
+        },
+        {
+          "input": "clock = {\"t\": 0.0}\nscheduler = BatchScheduler(2, 50, now_ms=lambda: clock[\"t\"])\nscheduler.add(\"a\")\nscheduler.add(\"b\")",
+          "expression": "scheduler.add(\"b\")",
+          "operator": "==",
+          "expected": "[\"a\", \"b\"]"
+        },
+        {
+          "input": "clock = {\"t\": 0.0}\nscheduler = BatchScheduler(2, 50, now_ms=lambda: clock[\"t\"])\nscheduler.add(\"a\")\nscheduler.add(\"b\")\nscheduler.flush_all()",
+          "expression": "scheduler.flush_all()",
+          "operator": "is",
+          "expected": "None"
+        }
+      ]
+    },
+    {
+      "name": "public flushes due oldest request",
+      "visibility": "sample",
+      "setup": [
+        "from solution import BatchScheduler",
+        "clock = {\"t\": 10.0}",
+        "scheduler = BatchScheduler(3, 20, now_ms=lambda: clock[\"t\"])"
+      ],
+      "checks": [
+        {
+          "input": "clock = {\"t\": 10.0}\nscheduler = BatchScheduler(3, 20, now_ms=lambda: clock[\"t\"])\nscheduler.add(\"a\")",
+          "expression": "scheduler.add(\"a\")",
+          "operator": "is",
+          "expected": "None"
+        },
+        {
+          "input": "clock = {\"t\": 10.0}\nscheduler = BatchScheduler(3, 20, now_ms=lambda: clock[\"t\"])\nscheduler.add(\"a\")\nclock[\"t\"] = 29.0\nscheduler.flush_due()",
+          "expression": "scheduler.flush_due()",
+          "operator": "is",
+          "expected": "None",
+          "before": "clock[\"t\"] = 29.0"
+        },
+        {
+          "input": "clock = {\"t\": 10.0}\nscheduler = BatchScheduler(3, 20, now_ms=lambda: clock[\"t\"])\nscheduler.add(\"a\")\nclock[\"t\"] = 29.0\nscheduler.flush_due()\nclock[\"t\"] = 30.0\nscheduler.flush_due()",
+          "expression": "scheduler.flush_due()",
+          "operator": "==",
+          "expected": "[\"a\"]",
+          "before": "clock[\"t\"] = 30.0"
+        }
+      ]
+    },
+    {
+      "name": "private preserves fifo across partial flush",
+      "visibility": "hidden",
+      "setup": [
+        "from solution import BatchScheduler",
+        "clock = {\"t\": 0.0}",
+        "scheduler = BatchScheduler(3, 100, now_ms=lambda: clock[\"t\"])",
+        "scheduler.add(\"a\")",
+        "clock[\"t\"] = 10",
+        "scheduler.add(\"b\")"
+      ],
+      "input": "clock = {\"t\": 0.0}\nscheduler = BatchScheduler(3, 100, now_ms=lambda: clock[\"t\"])\nscheduler.add(\"a\")\nclock[\"t\"] = 10\nscheduler.add(\"b\")\nscheduler.flush_all()",
+      "expected": "[\"a\", \"b\"]",
+      "expression": "scheduler.flush_all()"
+    },
+    {
+      "name": "private starts new batch after full emit",
+      "visibility": "hidden",
+      "setup": [
+        "from solution import BatchScheduler",
+        "scheduler = BatchScheduler(2, 100, now_ms=lambda: 0)"
+      ],
+      "checks": [
+        {
+          "input": "scheduler = BatchScheduler(2, 100, now_ms=lambda: 0)\nscheduler.add(\"a\")",
+          "expression": "scheduler.add(\"a\")",
+          "operator": "is",
+          "expected": "None"
+        },
+        {
+          "input": "scheduler = BatchScheduler(2, 100, now_ms=lambda: 0)\nscheduler.add(\"a\")\nscheduler.add(\"b\")",
+          "expression": "scheduler.add(\"b\")",
+          "operator": "==",
+          "expected": "[\"a\", \"b\"]"
+        },
+        {
+          "input": "scheduler = BatchScheduler(2, 100, now_ms=lambda: 0)\nscheduler.add(\"a\")\nscheduler.add(\"b\")\nscheduler.add(\"c\")",
+          "expression": "scheduler.add(\"c\")",
+          "operator": "is",
+          "expected": "None"
+        },
+        {
+          "input": "scheduler = BatchScheduler(2, 100, now_ms=lambda: 0)\nscheduler.add(\"a\")\nscheduler.add(\"b\")\nscheduler.add(\"c\")\nscheduler.flush_all()",
+          "expression": "scheduler.flush_all()",
+          "operator": "==",
+          "expected": "[\"c\"]"
+        }
+      ]
+    },
+    {
+      "name": "private empty due flush returns none",
+      "visibility": "hidden",
+      "setup": [
+        "from solution import BatchScheduler",
+        "scheduler = BatchScheduler(4, 1, now_ms=lambda: 100)"
+      ],
+      "checks": [
+        {
+          "input": "scheduler = BatchScheduler(4, 1, now_ms=lambda: 100)\nscheduler.flush_due()",
+          "expression": "scheduler.flush_due()",
+          "operator": "is",
+          "expected": "None"
+        },
+        {
+          "input": "scheduler = BatchScheduler(4, 1, now_ms=lambda: 100)\nscheduler.flush_due()\nscheduler.flush_all()",
+          "expression": "scheduler.flush_all()",
+          "operator": "is",
+          "expected": "None"
+        }
+      ]
+    },
+    {
+      "name": "public flushes a partial batch on demand",
+      "visibility": "sample",
+      "description": "flush_all emits queued requests even before size or time limits are reached.",
+      "feedback": "Return pending request IDs in FIFO order and clear the batch.",
+      "setup": [
+        "from solution import BatchScheduler",
+        "scheduler = BatchScheduler(3, 50, now_ms=lambda: 0)",
+        "scheduler.add(\"a\")",
+        "scheduler.add(\"b\")"
+      ],
+      "input": "scheduler.flush_all()",
+      "expected": "[\"a\", \"b\"]"
+    },
+    {
+      "name": "private capacity one emits immediately",
+      "visibility": "hidden",
+      "description": "A one-request batch is full after its first arrival.",
+      "feedback": "Check capacity after each add, including the first one.",
+      "setup": [
+        "from solution import BatchScheduler",
+        "scheduler = BatchScheduler(1, 100, now_ms=lambda: 0)"
+      ],
+      "input": "scheduler.add(\"solo\")",
+      "expected": "[\"solo\"]"
+    },
+    {
+      "name": "private wait timer resets after a flush",
+      "visibility": "hidden",
+      "description": "A new partial batch uses its own oldest request time.",
+      "feedback": "Clear the oldest-arrival timestamp whenever a batch is emitted.",
+      "setup": [
+        "from solution import BatchScheduler",
+        "clock = {\"t\": 0.0}",
+        "scheduler = BatchScheduler(3, 10, now_ms=lambda: clock[\"t\"])",
+        "scheduler.add(\"first\")",
+        "clock[\"t\"] = 10.0",
+        "scheduler.flush_due()",
+        "clock[\"t\"] = 20.0",
+        "scheduler.add(\"second\")",
+        "clock[\"t\"] = 29.9"
+      ],
+      "input": "scheduler.flush_due()",
+      "expected": "None"
+    },
+    {
+      "name": "private zero wait still requires a due check",
+      "visibility": "hidden",
+      "description": "A zero wait makes a partial batch eligible immediately, but add checks only capacity.",
+      "setup": [
+        "from solution import BatchScheduler",
+        "scheduler = BatchScheduler(3, 0, now_ms=lambda: 10)"
+      ],
+      "checks": [
+        {
+          "input": "scheduler.add(\"same\")",
+          "expression": "scheduler.add(\"same\")",
+          "expected": "None",
+          "operator": "is"
+        },
+        {
+          "input": "scheduler.add(\"same\")",
+          "expression": "scheduler.add(\"same\")",
+          "expected": "None",
+          "operator": "is"
+        },
+        {
+          "input": "scheduler.flush_due()",
+          "expression": "scheduler.flush_due()",
+          "expected": "[\"same\", \"same\"]"
+        },
+        {
+          "input": "scheduler.flush_all()",
+          "expression": "scheduler.flush_all()",
+          "expected": "None",
+          "operator": "is"
+        }
+      ]
+    },
+    {
+      "name": "private flush_due emits full pending batch",
+      "visibility": "hidden",
+      "description": "When the oldest request is due, emit every pending request in FIFO order, including entries beyond the oldest.",
+      "feedback": "flush_due clears the entire pending queue once the wait threshold fires.",
+      "setup": [
+        "from solution import BatchScheduler",
+        "clock = {\"t\": 0.0}",
+        "scheduler = BatchScheduler(4, 10, now_ms=lambda: clock[\"t\"])",
+        "scheduler.add(\"a\")",
+        "clock[\"t\"] = 5.0",
+        "scheduler.add(\"b\")",
+        "clock[\"t\"] = 9.0",
+        "scheduler.add(\"c\")",
+        "clock[\"t\"] = 10.0"
+      ],
+      "checks": [
+        {
+          "input": "clock = {\"t\": 0.0}\nscheduler = BatchScheduler(4, 10, now_ms=lambda: clock[\"t\"])\nscheduler.add(\"a\")\nclock[\"t\"] = 5.0\nscheduler.add(\"b\")\nclock[\"t\"] = 9.0\nscheduler.add(\"c\")\nclock[\"t\"] = 10.0\nscheduler.flush_due()",
+          "expression": "scheduler.flush_due()",
+          "operator": "==",
+          "expected": "[\"a\", \"b\", \"c\"]"
+        },
+        {
+          "input": "clock = {\"t\": 0.0}\nscheduler = BatchScheduler(4, 10, now_ms=lambda: clock[\"t\"])\nscheduler.add(\"a\")\nclock[\"t\"] = 5.0\nscheduler.add(\"b\")\nclock[\"t\"] = 9.0\nscheduler.add(\"c\")\nclock[\"t\"] = 10.0\nscheduler.flush_due()\nscheduler.flush_all()",
+          "expression": "scheduler.flush_all()",
+          "operator": "is",
+          "expected": "None"
+        }
+      ]
+    }
+  ],
+  "clarifyingQuestions": [
+    "Does max wait start at first request arrival or every request arrival?",
+    "Should batches have token limits in addition to count limits?",
+    "In a production extension, should late arrivals join a due batch or the next batch? The base contract includes them."
+  ],
+  "followUps": [
+    "Add a max token budget per batch.",
+    "Separate queues by model or priority class.",
+    "Make scheduler thread-safe for multiple request handlers."
+  ],
+  "followUpGuide": [
+    "Token limits require storing token count per request and checking both count and token constraints.",
+    "",
+    "Separate queues prevent one model or priority class from blocking another.",
+    "",
+    "Thread safety needs one lock around queue mutation and flush decisions."
+  ],
+  "complexityAnalysis": [
+    "- Immediate execution: run each request alone. Scheduling time: O(1) and no pending batch, but this gives up the opportunity to share an inference call.",
+    "- Batching deque: add is O(1) when it does not emit and O(k) when it returns k requests. A due or forced flush is O(k), or O(1) when nothing is emitted. Each arrival is appended and emitted once, so scheduling is amortized O(1) per request. Space: O(B), where B is max_batch_size, including an emitted batch.",
+    "- Priority batching follow-up: heap or multiple queues by deadline/priority. Time: O(log n) enqueue/dequeue. Space: O(n)."
+  ],
+  "solutionGuide": [
+    "Store `(arrival_ms, request_id)` in a deque. add checks capacity; flush_due checks only the oldest arrival. Never restart its timer when a later request arrives. Emission copies every pending ID in FIFO order and clears the deque, so the next batch gets a new oldest arrival. No autonomous timer or concurrency is assumed.",
+    "",
+    "```python",
+    "from collections import deque",
+    "",
+    "",
+    "class BatchScheduler:",
+    "    def __init__(self, max_batch_size: int, max_wait_ms: float, now_ms):",
+    "        self.max_batch_size = max_batch_size",
+    "        self.max_wait_ms = max_wait_ms",
+    "        self.now_ms = now_ms",
+    "        self.pending = deque()",
+    "",
+    "    def _emit(self):",
+    "        batch = [request_id for _, request_id in self.pending]",
+    "        self.pending.clear()",
+    "        return batch or None",
+    "",
+    "    def add(self, request_id):",
+    "        self.pending.append((self.now_ms(), request_id))",
+    "        if len(self.pending) >= self.max_batch_size:",
+    "            return self._emit()",
+    "        return None",
+    "",
+    "    def flush_due(self):",
+    "        if not self.pending:",
+    "            return None",
+    "        oldest_ms, _ = self.pending[0]",
+    "        if self.now_ms() - oldest_ms >= self.max_wait_ms:",
+    "            return self._emit()",
+    "        return None",
+    "",
+    "    def flush_all(self):",
+    "        return self._emit()",
+    "```"
+  ]
+}

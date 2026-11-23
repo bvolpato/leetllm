@@ -1,0 +1,894 @@
+[
+  {
+    "id": "c01",
+    "title": "Two words to finish",
+    "sourceChapters": [
+      "c01"
+    ],
+    "beats": [
+      {
+        "id": "c01-b01",
+        "say": "Finish “The dog” with two more words. In this toy model, each word is one token. Ran gets sixty percent of the first-word probability. Slept gets forty. Which first word has the higher probability?",
+        "hold": 2.3
+      },
+      {
+        "id": "c01-b02",
+        "say": "Ran. Write it in the first slot and you have already ruled out every ending that starts with slept. A decoder that takes the most likely token at each step makes a greedy choice.",
+        "hold": 0.8
+      },
+      {
+        "id": "c01-b03",
+        "say": "Suppose you get to look one word further before you commit. After ran, home gets seventy percent. After slept, soundly gets ninety percent. Which pair is more likely, ran home or slept soundly?",
+        "hold": 3
+      }
+    ]
+  },
+  {
+    "id": "c02",
+    "title": "Follow each pair through the fork",
+    "sourceChapters": [
+      "c02"
+    ],
+    "beats": [
+      {
+        "id": "c02-b01",
+        "say": "Ran home gets sixty percent times seventy percent. That gives it forty-two percent of all two-word endings. Slept soundly gets ninety percent of a smaller first share, so it gets thirty-six percent overall. Ran home wins this comparison.",
+        "hold": 1
+      },
+      {
+        "id": "c02-b02",
+        "say": "Here are the other endings. Quickly takes the rest of the ran branch. Outside takes the rest of the slept branch. Now suppose home has to share its seventy percent equally with a new option, outside. Which pair will lead after that split?",
+        "hold": 2.7
+      },
+      {
+        "id": "c02-b03",
+        "say": "Keep your eye on the ran branch. Move half of home's share across to outside. Both words finish with thirty-five percent of the ran branch. Multiply by the same sixty percent as before. Each path now gets twenty-one percent overall. The bar for slept soundly stayed at thirty-six percent the whole time.",
+        "hold": 1.2
+      }
+    ]
+  },
+  {
+    "id": "c03",
+    "title": "Make one commitment at a time",
+    "sourceChapters": [
+      "c03"
+    ],
+    "beats": [
+      {
+        "id": "c03-b01",
+        "say": "Now run the decoder one word at a time on that revised tree. It compares sixty with forty and keeps ran. Look at the second words still available. Home and outside tie for first place. Our fixed vocabulary order lists home first. Which sentence comes out?",
+        "hold": 2.2
+      },
+      {
+        "id": "c03-b02",
+        "say": "The dog ran home. The tie rule picks home on every replay of these same scores. Its path gets twenty-one percent. The decoder lost access to slept soundly when it committed to ran. How could we give the second word a say in the decision?",
+        "hold": 1.1
+      }
+    ]
+  },
+  {
+    "id": "c04",
+    "title": "Give the decoder a second place",
+    "sourceChapters": [
+      "c04"
+    ],
+    "beats": [
+      {
+        "id": "c04-b01",
+        "say": "Give the decoder two places to hold unfinished text. At the first fork, keep both ran and slept. Each unfinished string is a prefix. This is beam search with width two. Expand both prefixes by one word. Which two paths earn a place now? Use the same vocabulary order for ties.",
+        "hold": 2.5
+      },
+      {
+        "id": "c04-b02",
+        "say": "Compare the five products. Slept soundly takes first place, and ran home takes second on the tie. Both paths stop here because this example always ends after two words. For a longer sequence, add the conditional log probabilities. That gives the same ranking as multiplying the probabilities and avoids tiny products.",
+        "hold": 1.25
+      },
+      {
+        "id": "c04-b03",
+        "say": "Here, width two kept every first word. With three or more choices it could discard a prefix before seeing its best continuation. A real search also has to decide when an answer has ended. Let's try those decisions on a status update.",
+        "hold": 0.7
+      }
+    ]
+  },
+  {
+    "id": "c05",
+    "title": "Text likelihood and observed status answer different questions",
+    "sourceChapters": [
+      "c05"
+    ],
+    "beats": [
+      {
+        "id": "c05-b01",
+        "say": "A canary deployment receives a small share of traffic first. Give the model the prompt “The canary status is”. Degraded leads with forty-five percent, in gets thirty and on gets fifteen. Broken gets two percent and eight other tokens get one percent each. After degraded, a period gets forty percent, again gets thirty-five and today gets twenty-five. Which token does greedy choose next?",
+        "hold": 2.8
+      },
+      {
+        "id": "c05-b02",
+        "say": "The period. It has the largest share after degraded. After in, recovery gets ninety percent and maintenance gets ten. Multiply each first token’s probability by the probability of its continuation. Greedy writes degraded followed by a period, at point one eight. The path in recovery scores point two seven.",
+        "hold": 0.65
+      },
+      {
+        "id": "c05-b03",
+        "say": "Those products rank the model's text. Look at the telemetry below them. No rollout observation has arrived. Even a grammar that allows only valid status names cannot tell you which state the canary is actually in. Which input would you need to report the status?",
+        "hold": 2.8
+      }
+    ]
+  },
+  {
+    "id": "c06",
+    "title": "What can a beam still reach?",
+    "sourceChapters": [
+      "c06"
+    ],
+    "beats": [
+      {
+        "id": "c06-b01",
+        "say": "Keep the first-word probabilities from the status update. Width two still keeps degraded and in. Change what comes next. Split each of those two prefixes ten equal ways. Give the discarded word on a single certain continuation, track. If you could look down every branch, which two-word path would you find?",
+        "hold": 2.6
+      },
+      {
+        "id": "c06-b02",
+        "say": "On track gets fifteen percent. Even the best surviving child gets only four and a half percent. A beam cannot bring back a prefix it has already discarded. Exhaustive search can find that path. In a branching tree the number of paths it has to examine grows exponentially with length.",
+        "hold": 1.2
+      },
+      {
+        "id": "c06-b03",
+        "say": "There is another cut we can make safely. Keep those same two parents, and give each three children with the new conditional probabilities shown here. Rank the path products within each row. Could the third child of either parent earn a place in the global top two?",
+        "hold": 2.5
+      },
+      {
+        "id": "c06-b04",
+        "say": "Each third child already has two siblings ahead of it. Compare the top two children from each parent and you recover the global top two across this expansion. The same argument works for width B at equal length under cumulative log probability with a consistent tie rule.",
+        "hold": 0.3
+      },
+      {
+        "id": "c06-b05",
+        "say": "Diversity bonuses or separate quotas for finished answers can change the ranking. Width counts retained prefixes at a step. The stopping rule determines how many steps you take.",
+        "hold": 1
+      }
+    ]
+  },
+  {
+    "id": "c07",
+    "title": "Score the ending event and retain the stop reason",
+    "sourceChapters": [
+      "c07"
+    ],
+    "beats": [
+      {
+        "id": "c07-b01",
+        "say": "Our dog tree stopped after two words by construction. For these status messages, the model must also emit an end-of-sequence token, called E O S. Its probability after degraded, period, is point nine. After in recovery, it is point five. Which completed message now has the higher probability?",
+        "hold": 2.8
+      },
+      {
+        "id": "c07-b02",
+        "say": "The completed products are point one six two and point one three five. Including EOS reverses the earlier prefix ranking. Reaching an output limit is a different event. An active prefix stopped by the limit has no scored EOS, even if the visible words look finished.",
+        "hold": 0.65
+      },
+      {
+        "id": "c07-b03",
+        "say": "Suppose the output budget ends immediately after recovery. The completion-only tray takes only candidates that actually emitted E O S. A prefix-allowed policy may compare the length-limited candidate under its declared score. Keep its length-limit tag attached. Adding an unscored end token would invent an event.",
+        "hold": 0.65
+      }
+    ]
+  },
+  {
+    "id": "c08",
+    "title": "Length normalization changes the search objective",
+    "sourceChapters": [
+      "c08"
+    ],
+    "beats": [
+      {
+        "id": "c08-b01",
+        "say": "Adding conditional log probabilities avoids the underflow of long products. Every extra probability factor is at most one, so extending a particular prefix cannot raise its raw log score. Across different prefixes, though, length alone does not determine which score wins.",
+        "hold": 0.65
+      },
+      {
+        "id": "c08-b02",
+        "say": "GNMT divides the sequence log probability by a length penalty. Add five to the counted length, divide by six, then raise the ratio to alpha. Here S and L have both emitted E O S. We count two and five tokens respectively, excluding E O S. Their raw log scores are minus one and minus one point zero eight. Which wins before normalization?",
+        "hold": 2.8
+      },
+      {
+        "id": "c08-b03",
+        "say": "S wins on raw log probability because minus one is closer to zero. With alpha point six, their normalized scores are about minus point nine one one seven and minus point seven nine four nine. The longer candidate now wins. Alpha zero restores raw scoring. The GNMT paper also used a coverage penalty; its tuned experiment values are not defaults for a new task.",
+        "hold": 0.65
+      }
+    ]
+  },
+  {
+    "id": "c09",
+    "title": "A normalized prefix score can rise after extension",
+    "sourceChapters": [
+      "c09"
+    ],
+    "beats": [
+      {
+        "id": "c09-b01",
+        "say": "Start a prefix at length one with raw log probability minus one. At alpha point six, the length divisor is one. Now append a token with probability point nine nine. Its log probability is negative, so the raw score falls slightly. Will the normalized score fall too?",
+        "hold": 2.8
+      },
+      {
+        "id": "c09-b02",
+        "say": "The length-two denominator grows enough that the normalized score improves to about minus point nine two one. An early-stop argument based on raw scores only falling is insufficient for this objective. Use a bound that matches the actual normalization and termination rules.",
+        "hold": 0.65
+      }
+    ]
+  },
+  {
+    "id": "c10",
+    "title": "Search quality and task quality have separate receipts",
+    "sourceChapters": [
+      "c10"
+    ],
+    "beats": [
+      {
+        "id": "c10-b01",
+        "say": "Holtzman and colleagues observed generic or repetitive likelihood-maximizing outputs in their GPT-two experiments. Some very wide beams preferred immediate termination. Meister and colleagues studied a regularized decoding objective and translation behavior. Judge a wider beam on examples from your own task.",
+        "hold": 0.65
+      },
+      {
+        "id": "c10-b02",
+        "say": "For a status answer, place the generated line beside the rollout record. For translation, compare it to the supplied source meaning. For code, run the tests. Each check asks whether the text does its job. A wider beam changes the surviving prefixes and can still return a worse answer on that check.",
+        "hold": 0.65
+      },
+      {
+        "id": "c10-b03",
+        "say": "One prefix scores fifty thousand possible next tokens. How many scores do eight active prefixes produce?",
+        "hold": 1.6
+      },
+      {
+        "id": "c10-b04",
+        "say": "Four hundred thousand. The engine can batch all eight rows. The beams can reuse the cached prompt. Each beam caches its own suffix. Time both widths using matched prompts and output lengths.",
+        "hold": 0.65
+      }
+    ]
+  },
+  {
+    "id": "c11",
+    "title": "Where does the same draw land?",
+    "sourceChapters": [
+      "c11"
+    ],
+    "beats": [
+      {
+        "id": "c11-b01",
+        "say": "This time the dog has five possible next words. Lay their probabilities end to end, so each word owns a piece of a strip from zero to one. Put a draw at point four. At temperature one, which word contains the draw?",
+        "hold": 2.6
+      },
+      {
+        "id": "c11-b02",
+        "say": "Ran contains it. Its first slice reaches point four five. Cool the row to one half. To do that, divide the model's scores, called logits, by temperature before softmax. Here we can use the log of each original probability as its logit.",
+        "hold": 0.3
+      },
+      {
+        "id": "c11-b03",
+        "say": "Halving temperature squares each probability before we divide by the sum. Ran's slice grows.",
+        "hold": 1
+      },
+      {
+        "id": "c11-b04",
+        "say": "Keep the draw exactly where it is. Now warm the same original row to temperature two. Taking square roots grows the share for waited from five percent to almost eleven. Ran is still the most likely word. At temperature two, which word contains point four?",
+        "hold": 2.8
+      },
+      {
+        "id": "c11-b05",
+        "say": "Slept. The boundary moved past our mark. Temperature changed the probabilities deterministically. In ordinary sampling, drawing a fresh point supplies the randomness. Some decoders reserve exact zero for a separate greedy branch. That branch takes the largest eligible score before any division by temperature.",
+        "hold": 1
+      }
+    ]
+  },
+  {
+    "id": "c12",
+    "title": "A scaled logit gap determines the relative odds",
+    "sourceChapters": [
+      "c12"
+    ],
+    "beats": [
+      {
+        "id": "c12-b01",
+        "say": "For any two eligible tokens, divide their logit gap by positive temperature, then exponentiate. That gives their probability ratio. A gap of two gives odds about seven point four at temperature one, fifty-four point six at one half, and three point eight at one point five.",
+        "hold": 0.65
+      },
+      {
+        "id": "c12-b02",
+        "say": "As positive temperature approaches zero, probability becomes uniform across exactly tied maximum logits. With two tied maxima, each approaches one half; a deterministic argmax tie rule can instead choose one. As temperature grows without bound, a fixed finite eligible set approaches a uniform distribution.",
+        "hold": 0.65
+      },
+      {
+        "id": "c12-b03",
+        "say": "Hard-masked tokens remain excluded. For fixed finite logits and masks, Shannon entropy is nondecreasing with temperature. Entropy is minus the sum of probability times its logarithm; using base two gives bits. This describes the next-token row, while complete-answer diversity and correctness need their own evaluation.",
+        "hold": 0.65
+      }
+    ]
+  },
+  {
+    "id": "c13",
+    "title": "How much goes to the rare words?",
+    "sourceChapters": [
+      "c13"
+    ],
+    "beats": [
+      {
+        "id": "c13-b01",
+        "say": "Return to the status model and look at the eight rare tokens. Each starts at one percent. The bar on the left adds them for display. The model still has eight separate ways to draw a rare token.",
+        "hold": 0.3
+      },
+      {
+        "id": "c13-b02",
+        "say": "Raise each probability to the power one over temperature, then divide by the sum of all twelve weights. Dividing every probability by temperature instead would cancel when you normalized.",
+        "hold": 1.1
+      },
+      {
+        "id": "c13-b03",
+        "say": "Cool the distribution to point three. Degraded climbs to nearly seventy-eight percent. Now warm it to one and a half. Degraded drops to about a third. Look at the eight small probabilities on the right. Together those tokens now get just over twenty-one percent. That makes their combined share larger than the share for on.",
+        "hold": 1.1
+      },
+      {
+        "id": "c13-b04",
+        "say": "Suppose we had combined the eight tokens first and raised that one eight-percent bucket to the same power. The bucket would get about twelve percent. Grouping first changes what counts as a possible draw. Entropy also counts individual tokens.",
+        "hold": 0.3
+      },
+      {
+        "id": "c13-b05",
+        "say": "Count entropy on the original twelve events at each temperature. Entropy measures uncertainty in one draw. Cooling to point three takes it below one bit. Warming to one and a half takes it close to three bits. The eight separate chances to draw a rare token all contribute.",
+        "hold": 1.2
+      }
+    ]
+  },
+  {
+    "id": "c14",
+    "title": "Stability preserves the distribution within its numeric limits",
+    "sourceChapters": [
+      "c14"
+    ],
+    "beats": [
+      {
+        "id": "c14-b01",
+        "say": "For stable softmax, subtract the largest eligible logit before dividing by positive temperature and exponentiating. Scores one thousand and nine hundred ninety-nine become zero and minus one at temperature one. Their normalized probabilities are about point seven three one and point two six nine.",
+        "hold": 0.65
+      },
+      {
+        "id": "c14-b02",
+        "say": "Negative infinity marks a forbidden token and gives it zero weight. In the article’s reference edition, the file penalty then sample dot py defines the function sample next token. It rejects NaN, positive infinity and any row with every token masked. Very small positive temperatures can still cause weak probabilities to underflow or expose rounding near a tie.",
+        "hold": 0.65
+      },
+      {
+        "id": "c14-b03",
+        "say": "At temperature zero, sample next token checks the adjusted logits for an eligible token before taking the argmax. If the two largest eligible scores tie, it picks the first ID in the row. A separate temperature processor may require a strictly positive value. Check that contract before sending zero to an API.",
+        "hold": 0.65
+      }
+    ]
+  },
+  {
+    "id": "c15",
+    "title": "Retain a fixed number of candidates",
+    "sourceChapters": [
+      "c15"
+    ],
+    "beats": [
+      {
+        "id": "c15-b01",
+        "say": "Keep exactly two words from the dog's five-word row. Rank the eligible words, using their original order to settle a tie. Ran gets forty-five percent and slept twenty-five. Set aside played, barked and waited. How much probability mass remains before the two survivors are normalized?",
+        "hold": 2.8
+      },
+      {
+        "id": "c15-b02",
+        "say": "Seventy percent remains. Divide each survivor's original share by point seven. Their intervals fill the whole line again. Ran now gets about sixty-four percent, and slept about thirty-six. The ratio between them stays the same. A draw from this line has to land in one of the two.",
+        "hold": 0.6
+      },
+      {
+        "id": "c15-b03",
+        "say": "A fixed count is simple, but confidence shapes differ across contexts. Two choices can be plenty in a sharp distribution and restrictive in a flat one. Evaluate the candidate-count rule on the task instead of assuming one value describes every prefix equally well.",
+        "hold": 0.8
+      }
+    ]
+  },
+  {
+    "id": "c16",
+    "title": "Exact counts and score thresholds have different tie behavior",
+    "sourceChapters": [
+      "c16"
+    ],
+    "beats": [
+      {
+        "id": "c16-b01",
+        "say": "Give four token IDs scores of two, two, two and zero. Ask for the top one. Exact count uses stable ID order to break the tie. A threshold filter removes scores strictly below the first-ranked score. How many IDs does each rule leave?",
+        "hold": 2.8
+      },
+      {
+        "id": "c16-b02",
+        "say": "Exact count keeps only ID zero. The threshold keeps all three leaders. This is how the inspected Transformers top-k processor handles the tie. Keep each ID attached to its score while sorting. A sampler can use unnormalized nonnegative weights, but if it reports probabilities, divide by the retained mass.",
+        "hold": 0.65
+      },
+      {
+        "id": "c16-b03",
+        "say": "A fixed count ignores how peaked the row is. A large k can admit weak alternatives in a sharp context, while a small k can exclude useful choices in a flat one. Their probability ranking alone does not tell us whether those words are factually or grammatically appropriate.",
+        "hold": 0.65
+      }
+    ]
+  },
+  {
+    "id": "c17",
+    "title": "Retain enough candidates to reach a mass target",
+    "sourceChapters": [
+      "c17"
+    ],
+    "beats": [
+      {
+        "id": "c17-b01",
+        "say": "Set the target at eighty percent. Lay the five words end to end, largest probability first. Ran ends at forty-five percent. Add slept and the seam lands at seventy. Which whole word would you keep next to reach the target?",
+        "hold": 2.8
+      },
+      {
+        "id": "c17-b02",
+        "say": "Played takes the total to eighty-five percent. Keep the whole word, including the five percentage points beyond the mark. This is the nucleus, the smallest leading set that reaches the target. Divide the survivors by point eight five and draw from the resulting distribution.",
+        "hold": 0.6
+      },
+      {
+        "id": "c17-b03",
+        "say": "Replay with temperature two before the cutoff. The words keep their rank, but the first three now end short of eighty percent. Barked has to join them. The same threshold can retain a different count. Record the order of masks, temperature and truncation to reproduce this policy.",
+        "hold": 0.8
+      }
+    ]
+  },
+  {
+    "id": "c18",
+    "title": "Compare three support rules on the same two rows",
+    "sourceChapters": [
+      "c18"
+    ],
+    "beats": [
+      {
+        "id": "c18-b01",
+        "say": "Compare the article’s two new shapes. The peaked row is seventy-two, twenty, five, two and one percent. The flatter row starts forty, twenty, fifteen, eleven point five and three point five percent, followed by ten separate one-percent tokens.",
+        "hold": 0.65
+      },
+      {
+        "id": "c18-b02",
+        "say": "Exact top-k three keeps three in each row. Inclusive top-p point nine keeps two in the peaked row, totaling point nine two. In the flat row it keeps five, totaling exactly point nine zero. Include the crossing token, then normalize over that complete retained set.",
+        "hold": 0.65
+      },
+      {
+        "id": "c18-b03",
+        "say": "Min-p point one uses ten percent of the largest probability as its floor. The two floors are point zero seven two and point zero four. It therefore retains two versus four tokens. The tail’s combined ten percent is a display total, not a token to move ahead of rank five.",
+        "hold": 0.65
+      }
+    ]
+  },
+  {
+    "id": "c19",
+    "title": "Min-p follows the peak and the temperature scale",
+    "sourceChapters": [
+      "c19"
+    ],
+    "beats": [
+      {
+        "id": "c19-b01",
+        "say": "In general, min-p keeps a positive-probability token when its probability is at least rho times the largest probability. A peak of point eight and rho point one set a floor of point zero eight. A peak of point zero five lowers that floor to point zero zero five.",
+        "hold": 0.65
+      },
+      {
+        "id": "c19-b02",
+        "say": "For positive rho and temperature, the equivalent logit floor is the maximum logit plus temperature times the natural logarithm of rho. With logits zero, minus two and minus four, rho point one keeps the first two before temperature. After temperature two, all three survive.",
+        "hold": 0.65
+      },
+      {
+        "id": "c19-b03",
+        "say": "On eight equal eligible logits, min-p point one keeps all eight. Top-p point seven five needs six. Min-p therefore does not always make a smaller pool. Its order relative to temperature is part of the configuration, just as it is for cumulative truncation.",
+        "hold": 0.65
+      }
+    ]
+  },
+  {
+    "id": "c20",
+    "title": "A proposed sampler needs matched experimental evidence",
+    "sourceChapters": [
+      "c20"
+    ],
+    "beats": [
+      {
+        "id": "c20-b01",
+        "say": "Nguyen and colleagues proposed min-p partly to address the high-temperature tail. A later critical reanalysis found no reliable quality-diversity improvement over its evaluated baselines and challenged parts of the original evidence. Both results have particular tasks, models, tuning choices and evaluation methods.",
+        "hold": 0.65
+      },
+      {
+        "id": "c20-b02",
+        "say": "Run a comparison on your own task. Give both policies the same prompts, model, tuning budget and judges. Score quality and diversity on held-out outputs and report their uncertainty. A policy that keeps a plausible word in this example still has to earn its place in that comparison.",
+        "hold": 0.65
+      }
+    ]
+  },
+  {
+    "id": "c21",
+    "title": "The sign branch moves seen logits downward",
+    "sourceChapters": [
+      "c21"
+    ],
+    "beats": [
+      {
+        "id": "c21-b01",
+        "say": "Mark the seen token IDs in the history. ID zero occurs twice and ID one once. Apply a repetition factor of one point two once per distinct seen ID. Divide its positive score, two point four, by the factor. Multiply the negative score, minus point five, by the factor. Which way should each marker move?",
+        "hold": 2.8
+      },
+      {
+        "id": "c21-b02",
+        "say": "Both move down. The scores become two and minus point six. The unseen token stays at point seven. Dividing the negative score would move it up toward zero. Define whether the history includes prompt tokens. A factor of one leaves scores unchanged. A positive factor below one rewards reuse.",
+        "hold": 0.65
+      },
+      {
+        "id": "c21-b03",
+        "say": "CTRL introduced penalized sampling with its own temperature-multiplier rule; the sign-aware runtime variant is a related transform. Required identifiers and names may repeat correctly. Measure that damage as well as loop reduction, and remember that several changing logits can alter each other’s normalized probabilities.",
+        "hold": 0.65
+      }
+    ]
+  },
+  {
+    "id": "c22",
+    "title": "Centering is safe for softmax but can change a penalty",
+    "sourceChapters": [
+      "c22"
+    ],
+    "beats": [
+      {
+        "id": "c22-b01",
+        "say": "Return to raw logits two point four, two point one, one point two and point three, with only the first token seen. Penalty one point two lowers that leader to two. The second token at two point one now wins. Subtract the maximum only after applying this sign-aware transform.",
+        "hold": 0.65
+      },
+      {
+        "id": "c22-b02",
+        "say": "If we center first, the seen leader becomes zero. Its penalty leaves it at zero while its competitors are negative, so the first token still wins. Softmax alone ignores a shared offset; this sign-aware penalty does not, because the raw signs and distances change.",
+        "hold": 0.65
+      },
+      {
+        "id": "c22-b03",
+        "say": "A penalized token’s normalized probability can even rise when a stronger seen competitor is reduced further. For scores two, ten and zero with the first two seen, penalty two raises the first token’s probability from about point zero zero zero three to point zero one seven nine. Its raw logit still falls.",
+        "hold": 0.65
+      }
+    ]
+  },
+  {
+    "id": "c23",
+    "title": "Frequency counts every reuse and presence charges once",
+    "sourceChapters": [
+      "c23"
+    ],
+    "beats": [
+      {
+        "id": "c23-b01",
+        "say": "Frequency and presence penalties subtract from logits. Multiply the frequency coefficient by a token’s count. Add the presence coefficient once if that count is positive. Subtract their sum from the current score. These operate on token IDs, so equivalent words with different IDs can behave differently.",
+        "hold": 0.65
+      },
+      {
+        "id": "c23-b02",
+        "say": "Use scores two point four, two point one and one point two, with counts three, one and zero. Frequency point four and presence point two subtract one point four from the first, point six from the second and zero from the third. The resulting scores are one, one point five and one point two.",
+        "hold": 0.65
+      },
+      {
+        "id": "c23-b03",
+        "say": "The second token becomes the mode. If a decoder also uses a sign-aware repetition penalty, apply the stages in their stated order. With repetition first, compute one adjustment per distinct seen ID, then subtract the count and presence charges. Negative additive coefficients reward reuse. Check formats that require a repeated key.",
+        "hold": 0.65
+      }
+    ]
+  },
+  {
+    "id": "c24",
+    "title": "Which token crosses eighty percent?",
+    "sourceChapters": [
+      "c24"
+    ],
+    "beats": [
+      {
+        "id": "c24-b01",
+        "say": "These four tokens have the probabilities printed on the strip. First keep the three largest. That cuts D off the right and leaves ninety percent of the mass. Stretch those survivors back to one full unit. Now apply top-p at eighty percent. Which token crosses the mark?",
+        "hold": 2.7
+      },
+      {
+        "id": "c24-b02",
+        "say": "B crosses it. A and B had seventy-five percent of the original mass. Together they now own seventy-five out of ninety, a little over eighty-three percent. Top-p includes the crossing token, so it keeps A and B.",
+        "hold": 1.05
+      },
+      {
+        "id": "c24-b03",
+        "say": "Reverse the filters on the lower strip. Start with all four tokens and apply top-p first. The mark stays at eighty percent. Which token do you need this time?",
+        "hold": 2.5
+      },
+      {
+        "id": "c24-b04",
+        "say": "This time C crosses it. On the full strip, A and B reach only seventy-five percent. Including C gets you to ninety. The next filter can keep three tokens, so it keeps all three. The order changed which distribution the cutoff saw.",
+        "hold": 1.25
+      },
+      {
+        "id": "c24-b05",
+        "say": "Return to the twelve status tokens. At temperature one, the third token takes you to ninety percent. At one and a half, it takes nine tokens to reach the same mark. Heating preserves rank, so an exact top-k with fixed ties still picks the same IDs. Top-p depends on how much mass those IDs carry.",
+        "hold": 1
+      }
+    ]
+  },
+  {
+    "id": "c25",
+    "title": "What emptied the candidate pool?",
+    "sourceChapters": [
+      "c25"
+    ],
+    "beats": [
+      {
+        "id": "c25-b01",
+        "say": "The grammar permits only token two. Start with the full probability row and run top-p at eighty percent. Tokens zero and one fill the nucleus. Apply the grammar to those two survivors. Both are forbidden. Where did we lose the one legal token?",
+        "hold": 2.7
+      },
+      {
+        "id": "c25-b02",
+        "say": "The first filter discarded token two. Start again with the grammar. Only token two survives. Normalize the legal row and it gets probability one. Now top-p keeps it. When truncation caused the empty intersection, recompute the cutoff over legal tokens and keep the grammar in force.",
+        "hold": 1.1
+      },
+      {
+        "id": "c25-b03",
+        "say": "Change one input. This time the grammar allows nothing. Even before truncation, there is no eligible token. The reference edition’s sample next token rejects the row at temperature zero and at temperature one. Inspect the constraint and its tokenizer before retrying. Reordering the filters can recover a legal token only if one existed.",
+        "hold": 1.1
+      }
+    ]
+  },
+  {
+    "id": "c26",
+    "title": "Run the status sampler twice",
+    "sourceChapters": [
+      "c26"
+    ],
+    "beats": [
+      {
+        "id": "c26-b01",
+        "say": "Run sample next token from the reference edition’s file penalty then sample dot py on these four logits. The history already contains degraded, so divide its positive score by one point two. It falls from two point four to two. The word ‘in’ now leads. With temperature zero, the function checks that a token is eligible and returns in.",
+        "hold": 1
+      },
+      {
+        "id": "c26-b02",
+        "say": "Run the same input at temperature one with top-p at ninety percent. The two largest probabilities belong to ‘in’ and ‘degraded’. Together they cover about seventy-seven percent. Add the third word, ‘on’, and the total reaches ninety-three percent. Keep those three and divide each probability by their combined mass.",
+        "hold": 1
+      },
+      {
+        "id": "c26-b03",
+        "say": "Here is that retained distribution on a strip. Python's seed zero puts the draw at about point eight four four. Which word owns that point?",
+        "hold": 2.7
+      },
+      {
+        "id": "c26-b04",
+        "say": "The draw lands inside the slice for ‘on’. The first two slices end at point eight two four, just short of the draw. Greedy returned ‘in’ from these same scores. A seed fixes this local random stream.",
+        "hold": 0.3
+      },
+      {
+        "id": "c26-b05",
+        "say": "Both article listings return those two words. Try a history ID of minus one or a row with every token masked. The reference edition’s sample next token raises a value error in both cases. It also rejects nonfinite temperature and top-p values. Run these cases on your serving stack to check its behavior.",
+        "hold": 1.2
+      }
+    ]
+  },
+  {
+    "id": "c27",
+    "title": "A random interval chooses one survivor",
+    "sourceChapters": [
+      "c27"
+    ],
+    "beats": [
+      {
+        "id": "c27-b01",
+        "say": "To sample, divide a unit interval into pieces proportional to the retained probabilities. Draw a random number and select the token whose piece contains it. A candidate with more mass occupies more of the interval and wins more often across repeated independent draws.",
+        "hold": 0.6
+      },
+      {
+        "id": "c27-b02",
+        "say": "The animation uses a specified seed and one retained distribution, so this local fixture is reproducible. Repeat the experiment many times and the empirical frequencies approach the sampling probabilities. One chosen token can be a lower-ranked survivor because sampling deliberately permits alternatives to the mode.",
+        "hold": 0.6
+      },
+      {
+        "id": "c27-b03",
+        "say": "A seed controls the random stream under an implementation. Reproducing an entire model response also requires stable logits, tokenization, numerical kernels, processor order, and stopping behavior. Record those conditions when comparing runs, especially when batch shape or serving runtime changes.",
+        "hold": 0.8
+      }
+    ]
+  },
+  {
+    "id": "c28",
+    "title": "Termination has token, string and delivery semantics",
+    "sourceChapters": [
+      "c28"
+    ],
+    "beats": [
+      {
+        "id": "c28-b01",
+        "say": "Use the checkpoint’s actual ending IDs. An end-of-turn token may end one assistant message while another marker ends a conversation. A maximum output budget is separate. Record end token, length limit, client cancellation or error rather than treating every finished-looking string as a completed response.",
+        "hold": 0.65
+      },
+      {
+        "id": "c28-b02",
+        "say": "Configure the four letters of stop as the stop string. The first token piece is S T. If you send those two characters to the client now, you cannot take them back. Hold them at the cursor. The next piece is opera. Look across the seam. Where does the stop string end?",
+        "hold": 2.8
+      },
+      {
+        "id": "c28-b03",
+        "say": "At the P in opera. The match starts in one token and ends inside the next. Three letters, E R A, remain buffered beyond the underline. The Transformers implementation described in the article precomputes overlaps with vocabulary pieces and matches them with tensor operations.",
+        "hold": 0.65
+      },
+      {
+        "id": "c28-b04",
+        "say": "Take a service that omits both the stop text and the overhang. It returns an empty string for these two pieces. An include-stop policy could instead return the four matched letters and discard the overhang. Specify the byte policy before streaming. A quoted stop string can also trigger a literal match.",
+        "hold": 1.2
+      }
+    ]
+  },
+  {
+    "id": "c29",
+    "title": "A seed fixes a stream and leaves the logits as another input",
+    "sourceChapters": [
+      "c29"
+    ],
+    "beats": [
+      {
+        "id": "c29-b01",
+        "say": "Keep the seed fixed. Greedy has no random draw. On the first run, the logits are one point zero zero zero one and one. A wins. Suppose a second execution computes point nine nine nine nine for A. Before you look at the returned token, compare the two scores again. Which ID does greedy now write?",
+        "hold": 2.8
+      },
+      {
+        "id": "c29-b02",
+        "say": "B wins the replay. The ordering of the computed logits changed. Record the checkpoint, tokenizer, template, runtime, precision, hardware, processor order, stop rules and seed. Compare requests alone and under load. Matching text, matching token IDs and bitwise-equal tensors are three different tests. This switch alone cannot identify the responsible kernel.",
+        "hold": 0.65
+      },
+      {
+        "id": "c29-b03",
+        "say": "The inspected vLLM guide scopes reproducibility to matching hardware and version, with deterministic offline scheduling or supported batch invariance. Online serving uses batch invariance under its documented limits. Exact speculative verification preserves the processed target distribution, while its seeded trace can still differ from ordinary sampling.",
+        "hold": 0.65
+      }
+    ]
+  },
+  {
+    "id": "c30",
+    "title": "Accepted, rejected and ignored settings produce different experiments",
+    "sourceChapters": [
+      "c30"
+    ],
+    "beats": [
+      {
+        "id": "c30-b01",
+        "say": "Try sending two different temperatures to the same hosted model. Read the effective configuration for each request. An applied field changes the policy. A rejected field can fail the request. An ignored field can yield two completed requests with the same effective policy. Which comparison can measure the temperature change?",
+        "hold": 2.8
+      },
+      {
+        "id": "c30-b02",
+        "say": "Only the applied pair tests temperature. The article records a November twenty-twenty-six documentation snapshot. The cited Claude API version rejects these sampling fields. The cited GPT-six guide requires omitting temperature and top-p with reasoning enabled. The cited Gemini Flash version ignores its listed sampling fields. Check the exact version you use.",
+        "hold": 0.65
+      },
+      {
+        "id": "c30-b03",
+        "say": "Effort controls how much work a response may spend, while a schema constrains output shape. Neither is a replacement for a temperature transform. When a provider removes sampling controls, compare permitted prompts, effort and schemas, validate the returned fields, and repeat cases to measure their variation.",
+        "hold": 0.65
+      }
+    ]
+  },
+  {
+    "id": "c31",
+    "title": "How often does a draft get the status right?",
+    "sourceChapters": [
+      "c31"
+    ],
+    "beats": [
+      {
+        "id": "c31-b01",
+        "say": "For a status answer, check each completed draft against the deployment record. For translation you would check the source meaning, and for code you could run its tests. If you want varied writing, score variety as well as coherence.",
+        "hold": 0.3
+      },
+      {
+        "id": "c31-b02",
+        "say": "Keep the model revision, prompts, evidence, output budget, stopping rule and scorer fixed while you change one decoding control.",
+        "hold": 1
+      },
+      {
+        "id": "c31-b03",
+        "say": "DeepSeek's R1 report averaged repeated correctness samples to estimate pass at one. Its long-reasoning evaluation used temperature point six and top-p point nine five after observing greedy repetition and variation across checkpoints. Take four toy drafts of prompt A. The first and third are correct.",
+        "hold": 0.3
+      },
+      {
+        "id": "c31-b04",
+        "say": "Two correct drafts out of four gives fifty percent. Asking whether any draft worked gives this prompt one success.",
+        "hold": 1
+      },
+      {
+        "id": "c31-b05",
+        "say": "Add prompts B and C under the same settings. Read across each row. How many drafts are correct in all? And how many prompts have at least one correct draft?",
+        "hold": 3
+      },
+      {
+        "id": "c31-b06",
+        "say": "Three of twelve drafts are correct. Two of three prompts have a correct draft somewhere in the row. To return that draft, a system needs a way to pick it. Count the tokens for every candidate and the time spent testing, voting or reranking.",
+        "hold": 0.3
+      },
+      {
+        "id": "c31-b07",
+        "say": "Track invalid and truncated outputs, repetition and latency on held-out prompts. Choose the policy that meets the task's requirements at that full cost.",
+        "hold": 1.35
+      }
+    ]
+  },
+  {
+    "id": "c32",
+    "title": "Try one change at a time",
+    "sourceChapters": [
+      "c32"
+    ],
+    "beats": [
+      {
+        "id": "c32-b01",
+        "say": "Back to the dog. Keeping both first words once paid off because soundly got nine tenths of the slept branch. Suppose soundly and outside split that branch equally. Keep everything after ran the same. Would keeping slept still improve the best two-word score?",
+        "hold": 2.8
+      },
+      {
+        "id": "c32-b02",
+        "say": "Move the split to half and half. Each slept path now gets half of forty percent, or twenty percent. Ran home and ran outside each have twenty-one. Our tie rule picks home. Both beam widths now return the same text.",
+        "hold": 0.3
+      },
+      {
+        "id": "c32-b03",
+        "say": "To decide whether the extra search helps on a task, compare completed outputs with the same model, prompts, budget and stopping rule. Measure the quality you need and the latency you pay.",
+        "hold": 1.25
+      },
+      {
+        "id": "c32-b04",
+        "say": "Switch back to one next-word draw. At a top-p target of seventy percent, ran and slept reach the mark exactly. Keep the word probabilities in place and move just the target to ninety percent. Which whole word must join before you can stop?",
+        "hold": 2.8
+      },
+      {
+        "id": "c32-b05",
+        "say": "Move the mark to ninety percent. Played takes us to eighty-five. Barked takes us to ninety-five, so barked gets the last place. A draw can select any of the four survivors after we divide their weights by that ninety-five percent.",
+        "hold": 1.1
+      }
+    ]
+  },
+  {
+    "id": "c33",
+    "title": "Finish the canary update",
+    "sourceChapters": [
+      "c33"
+    ],
+    "beats": [
+      {
+        "id": "c33-b01",
+        "say": "Try it on a new status update. Ready has almost half the probability. Four other words share the rest. Start at the top and add until you reach eighty percent. Which word gets the last place?",
+        "hold": 2.8
+      },
+      {
+        "id": "c33-b02",
+        "say": "Paused gets the last place. Ready and waiting add to seventy-four percent. Paused brings the total to eighty-eight. Try keeping exactly two instead. Dividing each by their combined seventy-four percent gives ready about sixty-five percent and waiting thirty-five.",
+        "hold": 0.3
+      },
+      {
+        "id": "c33-b03",
+        "say": "Min-p at one fifth of the leader sets a floor of point zero nine six. Paused clears it and checking falls below it.",
+        "hold": 1
+      },
+      {
+        "id": "c33-b04",
+        "say": "Go back to all five words and halve the temperature. Square their original shares and divide by the sum of those squares. Ready now has about seventy-one percent. All five words can still be drawn.",
+        "hold": 1
+      },
+      {
+        "id": "c33-b05",
+        "say": "Restore temperature one. Now the output format forbids ready. That leaves fifty-two percent of the original mass. Divide each legal share by that fifty-two percent before applying top-p. Waiting and paused together get just under seventy-seven percent. Which word takes you to eighty?",
+        "hold": 3
+      },
+      {
+        "id": "c33-b06",
+        "say": "Checking takes the total past ninety-two percent. Waiting alone has half the eligible mass, so it is the most likely legal word. Heating this row still leaves ready forbidden. Now read the rollout log for this example. Which word would you put in the status update?",
+        "hold": 2.8
+      },
+      {
+        "id": "c33-b07",
+        "say": "Paused. The rollout record supplies the state. If that record is missing, fetch the current deployment status before reporting it. You can use the probabilities to explain which words the decoder could return, and the record to check the word it did return.",
+        "hold": 0.3
+      },
+      {
+        "id": "c33-b08",
+        "say": "You can now trace both parts of the report. The cutoff tells you what the sampler could write. The rollout log supplies the fact you can report. Next we will look at how training data, model size and compute shape the scores that enter this process.",
+        "hold": 1.5
+      }
+    ]
+  }
+]

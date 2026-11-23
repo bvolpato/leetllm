@@ -1,0 +1,239 @@
+version: 1
+lesson: pretraining-data
+promise: Trace a program from its source into training, then use its token exposure and held-out results to decide whether to release a change to the corpus.
+objectives:
+  - id: budget
+    can: Compute a presentation target and the fraction of surviving tokens that each gate removes
+    scenes:
+      - inventory-plan
+      - inventory
+  - id: source
+    can: Choose an extraction and filter recipe that preserves the source structure needed for the task
+    scenes:
+      - intro
+      - extract
+      - archives
+      - filter
+      - prose-gates
+      - score-contracts
+      - corpus-evidence
+  - id: dedup
+    can: Calculate candidate probability and exact shingle overlap, then identify which shingles a component loses when it keeps one representative
+    scenes:
+      - dedup
+      - minhash-work
+      - lsh-chain
+      - inventory
+  - id: schedule
+    can: Set source draw probabilities for a desired token share and trace repeated blocks to their source positions
+    scenes:
+      - mixture
+      - exposure-schedule
+      - transfer
+  - id: policy
+    can: Distinguish contamination candidates and contextual privacy decisions from guarantees
+    scenes:
+      - decontamination
+      - privacy
+  - id: tokenizer
+    can: Replay ordered BPE merges and compute vocabulary storage costs
+    scenes:
+      - tokenizer-choice
+      - bpe-work
+  - id: packing
+    can: Compute slot utilization and enforce independent attention plus one label shift
+    scenes:
+      - packing-work
+      - boundaries
+      - label-layout
+  - id: restart
+    can: Restore consumed work at a completed checkpoint while checking exact artifact identity
+    scenes:
+      - lineage
+      - restart-consistency
+  - id: evaluate
+    can: Decide whether a corpus change meets a held-out domain floor and choose one source change to test next
+    scenes:
+      - intro
+      - anneal-synthetic
+      - transfer
+      - fresh-corpus
+sections:
+  - heading: From token budget to training inventory
+    status: taught
+    scenes:
+      - intro
+      - inventory-plan
+  - heading: How much data is enough?
+    status: taught
+    scenes:
+      - inventory-plan
+      - inventory
+  - heading: The raw corpus and the clean training mix
+    status: taught
+    scenes:
+      - intro
+      - extract
+      - filter
+      - dedup
+      - inventory
+      - transfer
+  - heading: Where the text comes from
+    status: taught
+    scenes:
+      - archives
+      - corpus-evidence
+  - heading: Mixture weights, curriculum, and data scheduling
+    status: taught
+    scenes:
+      - mixture
+      - exposure-schedule
+  - heading: "First quality gate: Gopher heuristic filtering"
+    status: taught
+    scenes:
+      - prose-gates
+      - filter
+  - heading: "Second quality gate: what does the classifier score?"
+    status: taught
+    scenes:
+      - score-contracts
+      - corpus-evidence
+      - intro
+      - transfer
+      - fresh-corpus
+  - heading: "Removing duplicates: exact hashing and MinHash clustering"
+    status: taught
+    scenes:
+      - dedup
+      - minhash-work
+      - lsh-chain
+  - heading: Exact deduplication
+    status: taught
+    scenes:
+      - dedup
+      - minhash-work
+  - heading: Near-deduplication with MinHash, LSH, and connected components
+    status: taught
+    scenes:
+      - minhash-work
+      - lsh-chain
+  - heading: "Keeping benchmarks clean: the decontamination ladder"
+    status: taught
+    scenes:
+      - decontamination
+  - heading: Safety and privacy scrub
+    status: taught
+    scenes:
+      - privacy
+  - heading: "Turning text into numbers: tokenization"
+    status: taught
+    scenes:
+      - tokenizer-choice
+      - bpe-work
+  - heading: Tokenizer trade-offs
+    status: taught
+    scenes:
+      - tokenizer-choice
+  - heading: Training a Byte-Pair Encoding tokenizer
+    status: taught
+    scenes:
+      - bpe-work
+  - heading: Running the pipeline at scale
+    status: taught
+    scenes:
+      - restart-consistency
+  - heading: Checkpoint the data loader state
+    status: taught
+    scenes:
+      - lineage
+      - restart-consistency
+  - heading: Context packing and attention isolation
+    status: taught
+    scenes:
+      - packing-work
+      - boundaries
+      - label-layout
+  - heading: Late-stage data annealing and synthetic supplementation
+    status: taught
+    scenes:
+      - anneal-synthetic
+  - heading: Late-stage data annealing
+    status: taught
+    scenes:
+      - anneal-synthetic
+  - heading: Synthetic data and model collapse
+    status: taught
+    scenes:
+      - anneal-synthetic
+      - corpus-evidence
+  - heading: Common failure modes and production diagnostics
+    status: taught
+    scenes:
+      - filter
+      - privacy
+      - decontamination
+      - label-layout
+      - transfer
+      - fresh-corpus
+      - lsh-chain
+  - heading: Pre-flight shard verification checklist
+    status: taught
+    scenes:
+      - restart-consistency
+      - fresh-corpus
+quiz:
+  - n: 1
+    status: taught
+    scenes:
+      - inventory-plan
+  - n: 2
+    status: taught
+    scenes:
+      - mixture
+      - exposure-schedule
+  - n: 3
+    status: taught
+    scenes:
+      - lsh-chain
+  - n: 4
+    status: taught
+    scenes:
+      - lsh-chain
+  - n: 5
+    status: taught
+    scenes:
+      - decontamination
+  - n: 6
+    status: taught
+    scenes:
+      - privacy
+  - n: 7
+    status: taught
+    scenes:
+      - tokenizer-choice
+      - bpe-work
+  - n: 8
+    status: taught
+    scenes:
+      - boundaries
+      - label-layout
+  - n: 9
+    status: taught
+    scenes:
+      - lineage
+      - restart-consistency
+  - n: 10
+    status: taught
+    scenes:
+      - anneal-synthetic
+      - fresh-corpus
+removed: []
+reviews:
+  closed_book:
+    script: 94e85e9fc2b31837
+    taught: 10
+    partial: 0
+    absent: 0
+  fact_check:
+    script: 94e85e9fc2b31837
+    open_findings: 0

@@ -1,0 +1,727 @@
+version: 1
+id: capstone-delivery-eta-prediction
+title: An Arrival Estimate You Can Explain
+source: foundations/capstone-delivery-eta-prediction/content.md
+voice: en-US-AndrewNeural
+rate: +0%
+sources:
+  - title: "Scikit-learn: probability calibration"
+    url: https://scikit-learn.org/stable/modules/calibration.html
+  - title: A Gentle Introduction to Conformal Prediction
+    url: https://arxiv.org/abs/2107.07511
+  - title: Scikit-learn threshold tuning
+    url: https://scikit-learn.org/stable/modules/classification_threshold.html
+  - title: Feast point-in-time joins
+    url: https://github.com/feast-dev/feast/blob/master/docs/getting-started/concepts/point-in-time-joins.md
+  - title: Scikit-learn data leakage
+    url: https://scikit-learn.org/stable/common_pitfalls.html#data-leakage
+  - title: Google Cloud MLOps
+    url: https://docs.cloud.google.com/architecture/mlops-continuous-delivery-and-automation-pipelines-in-machine-learning
+scenes:
+  - id: intro
+    title: "Which time counts?"
+    visual: A tracking clock sweeps ahead an hour beside the printed promise. The delivery scan records the doorbell time. The receipt explains the late label.
+    beats:
+      - say: "Tracking moves your delivery estimate from nine to ten. Your receipt still promises nine. The doorbell rings at nine thirty. Did the package arrive late?"
+        hold: 2.2
+        caption_starts:
+          - "Your receipt still promises nine"
+          - "The doorbell rings at nine thirty"
+        visual_cues:
+          - id: intro-revision
+            phrase: "Tracking moves your delivery estimate from nine to ten"
+            targets: [receipt]
+            linger: 0.25
+          - id: intro-door
+            phrase: "The doorbell rings at nine thirty"
+            targets: [receipt]
+            linger: 0.25
+      - say: "Yes. It arrived thirty minutes after the original promise. The receipt gives us the deadline we use to label this delivery. Now rewind to noon. What could tracking tell you while your package was still on the road?"
+        hold: 1.1
+        caption_starts:
+          - "Now rewind to noon"
+        visual_cues:
+          - id: intro-late
+            phrase: "Yes. It arrived thirty minutes after the original promise"
+            targets: [receipt]
+            caption_boundary: true
+            linger: 0.25
+          - id: intro-rewind
+            phrase: "Now rewind to noon"
+            targets: [receipt]
+            linger: 0.25
+  - id: prediction-contract
+    title: "What goes on the noon receipt?"
+    visual: Pickup, snapshot and promise share a clock. The later outcome disappears when we reconstruct the noon record.
+    beats:
+      - say: "Order two oh one left at ten. At noon it's still traveling. Save that exact instant with the original promise. Another shipment could already be thirty hours into its journey when its turn to score comes around."
+        hold: 0.65
+      - say: "For the customer, we want an arrival time. Past journeys give us a total duration to add to pickup. A fitted arrival model predicts the hours still to go from noon. For operations, we need the chance of arriving after nine. A warning policy decides what to do with that score. A package already past its deadline needs a separate incident policy."
+        hold: 0.75
+        visual_cues:
+          - id: remaining-clock
+            phrase: "hours still to go from noon"
+            targets: [prediction-contract-construction]
+            linger: 0.25
+      - say: "Convert the promised local time using the destination's declared time zone and daylight saving rules. Store the resulting instant in UTC. A delivery with no confirmation yet has an unknown label. Set explicit cohort rules for canceled or returned orders."
+        hold: 0.6
+      - say: "For this snapshot we can use the service tier, the time on the road and the time left to the promise. Two more fields depend on updates from elsewhere. How old is the last carrier scan? How old is the warehouse backlog report? For each, we need to know when our service could actually read it."
+        hold: 0.9
+        visual_cues:
+          - id: feature-availability
+            phrase: "when our service could actually read it"
+            targets: [prediction-contract-construction]
+            linger: 0.25
+  - id: clocks
+    title: "Which scan belongs on the receipt?"
+    visual: The hub event stays at 11:30 while its online marker moves from 12:30 to 11:45 across a fixed noon cutoff.
+    beats:
+      - say: "Here is the carrier log for the noon snapshot. A solid dot marks the scan at the depot. The ring marks when tracking could read it. Follow the hub row. The depot scanned at eleven thirty. The record reached tracking at twelve thirty. Which scan can supply the age at noon?"
+        hold: 2.1
+        visual_cues:
+          - id: clocks-ring
+            phrase: "The ring marks when tracking could read it"
+            targets: [scan-log]
+            linger: 0.25
+      - say: "Use the eleven o'clock transit scan. Both marks are before noon. Subtract its event time from noon and the scan is one hour old. The hub report was still on its way, and the afternoon delay scan hadn't happened yet."
+        hold: 0.9
+        visual_cues:
+          - id: clocks-first
+            phrase: "Use the eleven o'clock transit scan"
+            targets: [scan-log]
+            caption_boundary: true
+            linger: 0.25
+          - id: clocks-hour
+            phrase: "the scan is one hour old"
+            targets: [scan-log]
+            caption_boundary: true
+            linger: 0.25
+      - say: "Replay the same noon snapshot. Change only when the hub report becomes readable. Move its ring to eleven forty-five. Which scan supplies the age now?"
+        hold: 2
+        visual_cues:
+          - id: clocks-move
+            phrase: "Move its ring to eleven forty-five"
+            targets: [scan-log]
+            linger: 0.25
+      - say: "Use the hub scan. Both marks qualify, and its event is the most recent. Noon minus eleven thirty gives half an hour. Filter both clocks first, including equality at the cutoff. Then take the latest event. A write to a data lake counts only if it made the record readable online."
+        hold: 0.95
+        visual_cues:
+          - id: clocks-second
+            phrase: "Use the hub scan"
+            targets: [scan-log]
+            caption_boundary: true
+            linger: 0.25
+          - id: clocks-half
+            phrase: "gives half an hour"
+            targets: [scan-log]
+            caption_boundary: true
+            linger: 0.25
+  - id: history
+    title: "When should the customer be home?"
+    visual: Four eligible journeys share a pickup line. Their middle endpoints locate the median and project it onto the shipment clock.
+    beats:
+      - say: "Back on the original noon receipt, the customer wants a time. Look up completed trips on the same route and service tier. Each trip must have lasted longer than the two hours this package has already traveled. One more match lasted four hours, but its delivery wasn't recorded until one oh five this afternoon. Leave it out of the noon estimate."
+        hold: 0.8
+        visual_cues:
+          - id: history-late
+            phrase: "recorded until one oh five this afternoon"
+            targets: [history-strip]
+            linger: 0.25
+      - say: "These four trips met both cutoff checks. They took eight, ten, twelve and fourteen hours from pickup. Find the midpoint of the two middle bars. With a ten o'clock pickup, where does that put the arrival?"
+        hold: 2
+        visual_cues:
+          - id: history-middle
+            phrase: "two middle bars"
+            targets: [history-strip]
+            linger: 0.25
+      - say: "Nine this evening. The middle durations average eleven hours. Add those hours to pickup. The four trips span six in the evening to midnight on this clock. Put the count and observed range beside the estimate so the customer can see where it came from. If no eligible trips remain, omit the estimate and request a review."
+        hold: 0.9
+        visual_cues:
+          - id: history-eta
+            phrase: "Nine this evening"
+            targets: [history-strip]
+            caption_boundary: true
+            linger: 0.25
+  - id: arrival-targets
+    title: "Which clock starts the estimate?"
+    visual: Two measured durations start at different times and end at the same arrival. Five possible ranks then locate the observed range.
+    beats:
+      - say: "Trace the long line from the ten o'clock pickup. Eleven total hours gets you to nine tonight. Now start at noon. A model predicting nine remaining hours reaches the same mark. Add the historical eleven to noon by mistake and you get eleven tonight. You've counted the first two hours twice."
+        hold: 0.8
+        visual_cues:
+          - id: duration-clock
+            phrase: "nine remaining hours"
+            targets: [arrival-targets-construction]
+            linger: 0.25
+          - id: wrong-anchor
+            phrase: "you get eleven tonight"
+            targets: [arrival-targets-construction]
+            caption_boundary: true
+            linger: 0.25
+      - say: "Imagine slipping one more delivery into the four sorted journeys. With exchangeable observations and no ties, its five possible ranks are equally likely. The two outside positions would set a new extreme. That leaves three inside. The old range covers three out of five, or sixty percent, across such histories. Those four trips alone can't give this customer a ninety percent window."
+        hold: 0.8
+        visual_cues:
+          - id: range-ranks
+            phrase: "three out of five, or sixty percent"
+            targets: [arrival-targets-construction]
+            caption_boundary: true
+            linger: 0.25
+      - say: "Squared error favors the conditional mean. A linear fit can miss it. To aim for a high percentile, charge more for guessing too early. At the ninetieth percentile, a two-hour underestimate costs one point eight, and a two-hour overestimate costs point two. That's pinball loss. Fit the fifth and ninety-fifth percentiles for a nominal ninety percent interval. Separate fits can cross. Even after you order them, measure how often deliveries fall inside."
+        hold: 0.75
+        visual_cues:
+          - id: pinball-cost
+            phrase: "a two-hour overestimate costs point two"
+            targets: [arrival-targets-construction]
+            linger: 0.25
+  - id: conformal-calibration
+    title: "How wide a window can the errors support?"
+    visual: Each calibration error occupies one rank. The corrected rank points to an empty place with four observations and an occupied place with nine.
+    beats:
+      - say: "Suppose the arrival model has already been fitted. On a separate, untouched group of deliveries, measure how far each prediction missed in hours, in either direction. Sort those absolute errors. For a ninety percent window, multiply the number of errors plus one by point nine, then round up. That gives the rank of the error to use as a radius."
+        hold: 0.85
+        visual_cues:
+          - id: conformal-rank
+            phrase: "then round up"
+            targets: [conformal-calibration-construction]
+            linger: 0.25
+      - say: "Try four errors of one, two, three and four hours. Five times point nine rounds up to five. There is no fifth error. The radius is unbounded. Choosing the last available error would change the guarantee. Now try nine errors, one through nine hours. Ten times point nine gives rank nine. The ninth error gives a nine-hour radius."
+        hold: 0.95
+        visual_cues:
+          - id: conformal-five-rank
+            phrase: "Five times point nine rounds up to five"
+            targets: [conformal-calibration-construction]
+            caption_boundary: true
+            linger: 0.25
+          - id: conformal-infinite
+            phrase: "The radius is unbounded"
+            targets: [conformal-calibration-construction]
+            caption_boundary: true
+            linger: 0.25
+          - id: conformal-nine-inputs
+            phrase: "Now try nine errors"
+            targets: [conformal-calibration-construction]
+            linger: 0.25
+          - id: conformal-nine-rank
+            phrase: "Ten times point nine gives rank nine"
+            targets: [conformal-calibration-construction]
+            caption_boundary: true
+            linger: 0.25
+          - id: conformal-nine
+            phrase: "The ninth error gives a nine-hour radius"
+            targets: [conformal-calibration-construction]
+            caption_boundary: true
+            linger: 0.25
+      - say: "Start at eleven hours. Nine hours to the left gives two. Nine to the right gives twenty. With four errors we had to report an unbounded window. With nine, we can draw both ends. If the calibration errors and the next error are exchangeable, these windows cover at least ninety percent of deliveries across draws. An individual route can fall short. When a route slows down, check later deliveries against their windows. Track the number delivered, the fraction inside, and the widths. Repeat those checks if you move the calibration window forward."
+        hold: 0.8
+        caption_starts:
+          - "With four errors"
+          - "If the calibration errors"
+          - "An individual route"
+        visual_cues:
+          - id: conformal-lower
+            phrase: "Nine hours to the left gives two"
+            targets: [conformal-calibration-construction]
+            caption_boundary: true
+            linger: 0.25
+          - id: conformal-upper
+            phrase: "Nine to the right gives twenty"
+            targets: [conformal-calibration-construction]
+            caption_boundary: true
+            linger: 0.25
+  - id: freshness
+    title: "Will tracking propose a warning?"
+    visual: At one snapshot a score stays at 0.75. Replacing a twelve-hour-old backlog report with a seven-hour-old one opens the path to the threshold.
+    beats:
+      - say: "A warning needs current evidence. Order two oh four has a four-hour-old scan. Its backlog report is twelve hours old. The supplied risk is seventy-five percent and the warning threshold is forty percent. The scan limit is twenty-four hours. Find the backlog limit on the ruler. Where should this order go?"
+        hold: 2
+        visual_cues:
+          - id: freshness-backlog
+            phrase: "Find the backlog limit on the ruler"
+            targets: [age-gate]
+            linger: 0.25
+      - say: "Send it to manual review. The backlog report exceeds its eight-hour limit. The router stops there. It keeps the score and records stale backlog features as the reason."
+        hold: 0.8
+        visual_cues:
+          - id: freshness-stop
+            phrase: "Send it to manual review"
+            targets: [age-gate]
+            caption_boundary: true
+            linger: 0.25
+      - say: "Try the same fixture with a newer backlog report. Its age is seven hours. Keep the scan, score and threshold fixed. Which action gets through now?"
+        hold: 2
+        visual_cues:
+          - id: freshness-repair
+            phrase: "Its age is seven hours"
+            targets: [age-gate]
+            linger: 0.25
+      - say: "Propose a customer warning. Both ages pass, so the router can compare seventy-five percent with forty percent. A fresh score below threshold gives normal tracking. A missing age, a schema mismatch or an invalid probability needs its own review reason. The harness records proposals. Sending a notification would be a separate action."
+        hold: 0.85
+        visual_cues:
+          - id: freshness-warn
+            phrase: "Propose a customer warning"
+            targets: [age-gate]
+            caption_boundary: true
+            linger: 0.25
+      - say: "Compare order two oh three. Its backlog report is just two hours old, but its scan is thirty-one hours old. Even with an eighty-one percent risk, this one goes to manual review for stale scan features. The named reason tells the operator which source to check."
+        hold: 1
+        visual_cues:
+          - id: freshness-scan-stop
+            phrase: "goes to manual review for stale scan features"
+            targets: [age-gate]
+            caption_boundary: true
+            linger: 0.25
+  - id: cost
+    title: "Which order costs each policy the most?"
+    visual: The same four labelled orders carry fixed scan ages and scores. Each rule moves a boundary through the plot, then the charge attaches to the order responsible.
+    beats:
+      - say: "Each mark is a shipment whose outcome we know. Move right for an older scan and up for a higher risk. The diamonds are the two late deliveries. The age rule warns when the last scan is at least eighteen hours old. Which late delivery does it miss?"
+        hold: 2.1
+        visual_cues:
+          - id: cost-age
+            phrase: "warns when the last scan is at least eighteen hours old"
+            targets: [order-plot]
+            linger: 0.25
+      - say: "The expedited order, three oh one. Its last scan was only five hours old. Missing it costs a hundred fifty units. The standard late order gets a warning. Both on-time orders get normal tracking, so every other age-rule charge is zero."
+        hold: 0.85
+        visual_cues:
+          - id: cost-miss
+            phrase: "Missing it costs a hundred fifty units"
+            targets: [order-plot]
+            caption_boundary: true
+            linger: 0.25
+      - say: "Keep all four orders in place. Now warn at or above a risk of forty percent. Both late orders clear that line. Which on-time customer also gets a warning?"
+        hold: 2
+        visual_cues:
+          - id: cost-risk
+            phrase: "Now warn at or above a risk of forty percent"
+            targets: [order-plot]
+            linger: 0.25
+      - say: "Order three oh four. Its score is fifty-eight percent and it arrived on time. That false warning costs eight units. On these four shipments the age rule pays a hundred fifty and the score rule pays eight. How would you choose a cutoff if missing a delay cost more than a false warning?"
+        hold: 1
+        visual_cues:
+          - id: cost-false
+            phrase: "That false warning costs eight units"
+            targets: [order-plot]
+            caption_boundary: true
+            linger: 0.25
+  - id: cost-threshold
+    title: "What would a warning cost?"
+    visual: Expected penalties share one scale before the two service tiers get their own thresholds. A magnified boundary separates two near-identical risks.
+    beats:
+      - say: "Imagine a standard shipment with a calibrated twenty percent chance of being late. A correct call costs zero. If we warn, we pay eight units only when it's on time. Eighty percent of eight is six point four. If we stay silent, we pay sixty only when it's late. Twenty percent of sixty is twelve. Warning has the lower expected cost."
+        hold: 0.9
+        visual_cues:
+          - id: expected-cost
+            phrase: "Eighty percent of eight is six point four"
+            targets: [cost-threshold-construction]
+            caption_boundary: true
+            linger: 0.25
+          - id: silent-expected-cost
+            phrase: "Twenty percent of sixty is twelve"
+            targets: [cost-threshold-construction]
+            caption_boundary: true
+            linger: 0.25
+          - id: expected-cost-choice
+            phrase: "Warning has the lower expected cost"
+            targets: [cost-threshold-construction]
+            caption_boundary: true
+            linger: 0.25
+      - say: "Call the late probability p. The two costs meet when one minus p times the false-warning penalty equals p times the missed-delay penalty. Solve for p. Divide the false-warning cost by the sum of the two penalties. For standard service the cutoff is about eleven point eight percent. A missed expedited delivery costs a hundred fifty. Its cutoff falls to just over five percent."
+        hold: 0.8
+        visual_cues:
+          - id: standard-threshold-result
+            phrase: "the cutoff is about eleven point eight percent"
+            targets: [cost-threshold-construction]
+            caption_boundary: true
+            linger: 0.25
+          - id: expedited-threshold-result
+            phrase: "Its cutoff falls to just over five percent"
+            targets: [cost-threshold-construction]
+            caption_boundary: true
+            linger: 0.25
+      - say: "Zoom in on that expedited boundary. Five percent falls just short. Five point one percent clears it. Compare the full precision values before rounding for display. This rule assumes calibrated risks, two available actions and enough capacity to warn. A warning doesn't make a truck arrive sooner. If even a correct warning consumes staff time, include that burden. The fitted lab makes a different choice on validation data."
+        hold: 1
+        visual_cues:
+          - id: threshold-nearby
+            phrase: "Five point one percent clears it"
+            targets: [cost-threshold-construction]
+            caption_boundary: true
+            linger: 0.25
+  - id: selection
+    title: "What changes when the threshold moves?"
+    visual: A single threshold sweeps the four fixed scores and each order keeps its observed label and penalty.
+    beats:
+      - say: "Follow the on-time order with a fifty-eight percent score. At forty percent it gets a warning that costs eight units. Move the cutoff to fifty-nine percent. The warning disappears. Raise it past sixty-four percent. Now we miss the standard late delivery. At eighty percent, we miss the expedited delivery too."
+        hold: 0.85
+        caption_starts:
+          - "Move the cutoff to fifty-nine percent"
+          - "The warning disappears"
+          - "Raise it past sixty-four percent"
+          - "Now we miss the standard late delivery"
+          - "At eighty percent"
+        visual_cues:
+          - id: sweep-first
+            phrase: "Move the cutoff to fifty-nine percent"
+            targets: [threshold]
+            linger: 0.25
+          - id: sweep-standard
+            phrase: "Raise it past sixty-four percent"
+            targets: [threshold]
+            linger: 0.25
+          - id: sweep-finish
+            phrase: "At eighty percent"
+            targets: [threshold]
+            linger: 0.25
+      - say: "Sixty for the standard miss plus a hundred fifty for the expedited miss comes to two hundred ten. We saved an eight-unit warning and picked up two expensive misses. To choose a policy, fit on earlier deliveries, compare costs on validation data, then freeze the cutoff before opening the test outcomes."
+        hold: 0.9
+  - id: temporal-fit
+    title: "Was the answer known when training began?"
+    visual: A March 21 prediction and its next-day label straddle the fit cutoff by eight minutes. The chronological cohorts then supply the validation costs.
+    beats:
+      - say: "The lab gives each of a hundred thirty-six synthetic shipments one snapshot. Look at shipment seventy-nine. Its prediction is dated March twenty-first at noon. Fitting starts the next day at noon. The delivery label reaches the trainer eight minutes later. Can this shipment teach the model at that fit?"
+        hold: 2.05
+      - say: "Leave it out. Both the prediction and the recorded label must precede fitting. Eight more shipments fall in the two four-day gaps. That leaves seventy-nine for training, twenty-four for validation and twenty-four for testing. The validation labels must arrive before the April nineteenth policy freeze. Give test labels until the May twenty-first evaluation. The gaps alone can't guarantee that a label has arrived."
+        hold: 0.8
+        visual_cues:
+          - id: fit-exclusion
+            phrase: "Leave it out"
+            targets: [temporal-fit-construction]
+            caption_boundary: true
+            linger: 0.25
+          - id: split-counts
+            phrase: "That leaves seventy-nine for training"
+            targets: [temporal-fit-construction]
+            linger: 0.25
+      - say: "On the five allowed features, fit the classifier's scaler and logistic weights using only training rows. Fit a least-squares model on the raw features for remaining hours. Freeze both. Price four thresholds on the later validation rows. Forty percent has the lowest cost, sixteen units. Lock that threshold. If costs tie, the lab takes the larger threshold. Only now open the test cohort."
+        hold: 0.9
+        visual_cues:
+          - id: validation-costs
+            phrase: "Price four thresholds on the later validation rows"
+            targets: [temporal-fit-construction]
+            linger: 0.25
+          - id: locked-threshold
+            phrase: "Lock that threshold"
+            targets: [temporal-fit-construction]
+            linger: 0.25
+      - say: "This split tests one later period. A rolling-origin evaluation would refit at several cutoffs. Shuffling can put later freight conditions into training. With repeated snapshots, decide whether you're evaluating new shipments or later forecasts for the same shipment. Report exclusions and allow enough follow-up, or short trips can dominate your mature labels."
+        hold: 0.75
+  - id: fitted-predictions
+    title: "Open the frozen test predictions"
+    visual: The fitted S-133 contributions produce a score. On its shipment clock the observed delivery crosses the pinned promise. The missed-warning charge follows it into the test ledger.
+    beats:
+      - say: "Look at test shipment one thirty-three. These bars show how its five features move the classifier's log odds. Its scan age pushes up. Its recent backlog reading pulls down. The service tier pulls down too, as does elapsed transit. The time left to the promise pushes up. Add those contributions to the intercept. The log odds come to about minus one point zero eight. The logistic curve converts that to about twenty-five percent late risk. Under the frozen forty percent policy, tracking stays silent."
+        hold: 0.85
+        visual_cues:
+          - id: fitted-contribution-scan
+            phrase: "Its scan age pushes up"
+            targets: [fitted-predictions-construction]
+            linger: 0.25
+          - id: fitted-contribution-backlog
+            phrase: "Its recent backlog reading pulls down"
+            targets: [fitted-predictions-construction]
+            linger: 0.25
+          - id: fitted-contribution-tier
+            phrase: "The service tier pulls down too"
+            targets: [fitted-predictions-construction]
+            linger: 0.25
+          - id: fitted-contribution-elapsed
+            phrase: "as does elapsed transit"
+            targets: [fitted-predictions-construction]
+            linger: 0.25
+          - id: fitted-contribution-promise
+            phrase: "The time left to the promise pushes up"
+            targets: [fitted-predictions-construction]
+            linger: 0.25
+          - id: fitted-logit
+            phrase: "about minus one point zero eight"
+            targets: [fitted-predictions-construction]
+            caption_boundary: true
+            linger: 0.25
+          - id: fitted-probability
+            phrase: "about twenty-five percent late risk"
+            targets: [fitted-predictions-construction]
+            caption_boundary: true
+            linger: 0.25
+          - id: fitted-action
+            phrase: "tracking stays silent"
+            targets: [fitted-predictions-construction]
+            caption_boundary: true
+            linger: 0.25
+      - say: "Set the clock at noon on May fourteenth. The original promise is just before eleven tonight. The separate arrival model puts the doorbell at about eight twenty-two. Now open the delivery record. It reached the door at eleven thirty-one, about thirty-seven minutes past the promise. The arrival estimate missed by a little over three hours. The silent expedited shipment costs a hundred fifty units. A false warning on shipment one twenty-six adds eight. Together they cost a hundred fifty-eight. Now open the other test records. Eleven orders arrived on time. With eight units per false warning and zero for a correct warning, what would it cost to warn everyone?"
+        hold: 2.25
+        visual_cues:
+          - id: fitted-arrival
+            phrase: "the doorbell at about eight twenty-two"
+            targets: [fitted-predictions-construction]
+            caption_boundary: true
+            linger: 0.25
+          - id: fitted-door
+            phrase: "It reached the door at eleven thirty-one"
+            targets: [fitted-predictions-construction]
+            caption_boundary: true
+            linger: 0.25
+          - id: fitted-error
+            phrase: "The arrival estimate missed by a little over three hours"
+            targets: [fitted-predictions-construction]
+            caption_boundary: true
+            linger: 0.25
+          - id: test-cohort
+            phrase: "Eleven orders arrived on time"
+            targets: [fitted-predictions-construction]
+            linger: 0.25
+          - id: missed-expedited
+            phrase: "The silent expedited shipment costs a hundred fifty units"
+            targets: [fitted-predictions-construction]
+            caption_boundary: true
+            linger: 0.25
+          - id: final-cost-sum
+            phrase: "Together they cost a hundred fifty-eight"
+            targets: [fitted-predictions-construction]
+            caption_boundary: true
+            linger: 0.25
+      - say: "Keep all twenty-four test orders. Thirteen were late, eleven on time. The age rule costs fourteen hundred ten. Always staying silent costs the same. Warning everyone catches all thirteen late deliveries. Each of the eleven on-time orders costs eight units. That's eighty-eight. The fitted policy beats the age rule and loses to this simple alternative. It missed one of seven expedited late deliveries and zero of six standard late deliveries. Those are small samples."
+        hold: 0.9
+        visual_cues:
+          - id: age-rule-baseline
+            phrase: "The age rule costs fourteen hundred ten"
+            targets: [fitted-predictions-construction]
+            caption_boundary: true
+            linger: 0.25
+          - id: silent-rule-baseline
+            phrase: "Always staying silent costs the same"
+            targets: [fitted-predictions-construction]
+            caption_boundary: true
+            linger: 0.25
+          - id: always-warn-baseline
+            phrase: "That's eighty-eight"
+            targets: [fitted-predictions-construction]
+            caption_boundary: true
+            linger: 0.25
+          - id: fitted-slice-results
+            phrase: "zero of six standard late deliveries"
+            targets: [fitted-predictions-construction]
+            caption_boundary: true
+            linger: 0.25
+      - say: "The arrival model does improve the mean absolute error. Against the training median for each tier, it brings the average miss from about four point two hours to two and a half. But under the declared penalties the warning policy fails the cost gate. Hold this release. Changing the policy after seeing these mistakes would use up the test set. Develop on separate data and evaluate again on representative shipments."
+        hold: 1
+        visual_cues:
+          - id: eta-error-comparison
+            phrase: "from about four point two hours to two and a half"
+            targets: [fitted-predictions-construction]
+            caption_boundary: true
+            linger: 0.25
+          - id: failed-cost-gate
+            phrase: "the warning policy fails the cost gate"
+            targets: [fitted-predictions-construction]
+            caption_boundary: true
+            linger: 0.25
+      - say: "Here's a different question about those same decisions. Suppose a false warning cost twenty units. Keep every prediction fixed. Which policy would be cheaper now?"
+        hold: 2.1
+      - say: "The fitted policy would cost a hundred seventy. It still owns one expedited miss and one false warning. Warning everyone would cost two hundred twenty. The ranking flips because we changed the price of a false warning. The original evaluation and the decision to hold still stand."
+        hold: 0.95
+        visual_cues:
+          - id: repriced-fitted
+            phrase: "The fitted policy would cost a hundred seventy"
+            targets: [fitted-predictions-construction]
+            caption_boundary: true
+            linger: 0.25
+          - id: repriced-all
+            phrase: "Warning everyone would cost two hundred twenty"
+            targets: [fitted-predictions-construction]
+            caption_boundary: true
+            linger: 0.25
+  - id: artifact-replay
+    title: "Can the saved model reproduce that score?"
+    visual: The saved feature order, training scaler and weights reconstruct the S-133 calculation. The policy trace names the configuration that turned a score into an action.
+    beats:
+      - say: "To replay that quiet tracking page, reload the lab's model file and the original inputs. Read the features in the saved order. For each, subtract its training mean, divide by its training scale and multiply by its frozen weight. Add the intercept and apply the logistic function. The arrival model has its own coefficients for the raw features. Keep the dataset, parameters, predictions and report together."
+        hold: 0.8
+        visual_cues:
+          - id: reloaded-dot
+            phrase: "apply the logistic function"
+            targets: [artifact-replay-construction]
+            linger: 0.25
+      - say: "Check the schema, feature order and vector lengths on reload. The parameters must be finite numbers, the scales positive, and the threshold between zero and one. The lab compares the reloaded scores with both original estimators on the test rows. A fingerprint tells you which bytes you loaded. Verify who supplied them, retain an immutable run directory and lock the dependencies as well."
+        hold: 0.8
+        visual_cues:
+          - id: artifact-validation
+            phrase: "the scales positive"
+            targets: [artifact-replay-construction]
+            linger: 0.25
+      - say: "At the service boundary, reject malformed identifiers and prediction timestamps outside the UTC contract. Check the expected snapshot, model and feature contract, tier, and both ages before applying the threshold. A Boolean or a nonfinite number cannot supply a probability. Encode unavailable numbers as null in JSON fallbacks. Keep the named reason in the trace. Trusted scheduling and source records are also part of a replay."
+        hold: 0.9
+        visual_cues:
+          - id: boolean-score
+            phrase: "A Boolean or a nonfinite number"
+            targets: [artifact-replay-construction]
+            linger: 0.25
+      - say: "Here is order two oh one's noon response. The saved model and feature IDs match the expected versions. The threshold policy has an ID too. All five fields carry a value, so the version check passes. Remove just the threshold policy ID. Does this trace still pass the version check?"
+        hold: 2.1
+        visual_cues:
+          - id: trace-pass
+            phrase: "the version check passes"
+            targets: [artifact-replay-construction]
+            caption_boundary: true
+            linger: 0.25
+          - id: trace-remove
+            phrase: "Remove just the threshold policy ID"
+            targets: [artifact-replay-construction]
+            linger: 0.25
+      - say: "The versioned trace check fails. We still have the score. We need the missing policy to reconstruct the action. Keep its ID and the configuration it names with the original snapshot and model."
+        hold: 1
+        visual_cues:
+          - id: trace-fail
+            phrase: "The versioned trace check fails"
+            targets: [artifact-replay-construction]
+            caption_boundary: true
+            linger: 0.25
+  - id: monitor
+    title: "When can we measure warning quality?"
+    visual: Four fixed probabilities stay attached to their shipments while observation slots wait for delivery. Their mature outcomes become one point on a reliability plot.
+    beats:
+      - say: "Four shipments just got scores. Right now we know the input ages, missing fields, serving version, latency and fallback counts. The label spaces are empty. Even a customer who hasn't complained yet might get a late delivery. What belongs in the observed late fraction today?"
+        hold: 1.9
+      - say: "Leave it pending. When a delivery label becomes available, match it to the original prediction and promise. Only then can we charge a false warning or a missed delay. Keep the scoring rows fixed while those confirmations arrive."
+        hold: 0.8
+        visual_cues:
+          - id: monitor-join
+            phrase: "while those confirmations arrive"
+            targets: [bucket]
+            linger: 0.25
+      - say: "Take these four illustrative scores as one bucket. Their mean predicted risk is thirty percent. After all four labels arrive, two are late. The observed late fraction is one half. Plot that pair with the count of four. With more data, examine reliability by route and tier, alongside widths and warning penalties. A Brier score measures overall probability error, including more than calibration."
+        hold: 0.95
+        visual_cues:
+          - id: bucket-mean
+            phrase: "Their mean predicted risk is thirty percent"
+            targets: [bucket]
+            caption_boundary: true
+            linger: 0.25
+          - id: bucket-labels
+            phrase: "two are late"
+            targets: [bucket]
+            caption_boundary: true
+            linger: 0.25
+          - id: bucket-point
+            phrase: "Plot that pair with the count of four"
+            targets: [bucket]
+            caption_boundary: true
+            linger: 0.25
+  - id: serving-recovery
+    title: "Which version answered the request?"
+    visual: A registry points to v3 while a probe still reaches v2. Loading, routing, verifying the fingerprint and restoring the prior bundle are separate events.
+    beats:
+      - say: "Suppose the next model passes its cost and slice checks on representative deliveries. An operator changes the registry alias to version three. Follow the request. It returns version two's fingerprint. Which version served that customer?"
+        hold: 2
+        caption_starts:
+          - "Follow the request"
+        visual_cues:
+          - id: registry-change
+            phrase: "changes the registry alias to version three"
+            targets: [serving-recovery-construction]
+            linger: 0.25
+      - say: "Version two served the request. To put version three into service, load compatible workers with the new preprocessing, schema, model and policy. Wait for readiness. Route a request to them and verify the returned fingerprint."
+        hold: 0.9
+        caption_starts:
+          - "Version two served the request"
+          - "To put version three into service"
+        visual_cues:
+          - id: route-candidate
+            phrase: "Route a request to them"
+            targets: [serving-recovery-construction]
+            linger: 0.25
+          - id: workers-loaded
+            phrase: "Wait for readiness"
+            targets: [serving-recovery-construction]
+            linger: 0.25
+          - id: verify-route
+            phrase: "verify the returned fingerprint"
+            targets: [serving-recovery-construction]
+            linger: 0.25
+      - say: "For a recovery drill, keep the complete prior bundle and enough capacity to load it. Get that version ready, switch traffic back, then probe the routed worker. Check the old fingerprint and measure how long recovery took. A warning sent before the switch still reached its customer. Its original snapshot, model bytes and policy are what let you explain it."
+        hold: 1
+        visual_cues:
+          - id: restore-ready
+            phrase: "Get that version ready"
+            targets: [serving-recovery-construction]
+            linger: 0.25
+          - id: recovery-traffic
+            phrase: "switch traffic back"
+            targets: [serving-recovery-construction]
+            linger: 0.25
+          - id: verify-recovery
+            phrase: "Check the old fingerprint"
+            targets: [serving-recovery-construction]
+            linger: 0.25
+  - id: synthesis
+    title: "Replay a fresh tracking receipt"
+    visual: A new order starts with two time-stamped scans and four matched durations. Its ETA and proposal fill independently. A policy-only replay leaves the ETA fixed.
+    beats:
+      - say: "This parcel left at nine. It's one in the afternoon. The hub scanned it at noon, but tracking gets that report at one fifteen. The transit scan was already online by eleven forty. Which scan can you use, and how old is it?"
+        hold: 2.1
+        caption_starts:
+          - "The hub scanned it at noon"
+          - "Which scan can you use"
+      - say: "Use the eleven thirty transit scan. At one it's an hour and a half old. Now look at the four matching journeys. Their durations run from pickup, and this parcel left at nine. What arrival time do the two middle trips give you?"
+        hold: 2.3
+        caption_starts:
+          - "Now look at the four matching journeys"
+        visual_cues:
+          - id: fresh-scan-answer
+            phrase: "At one it's an hour and a half old"
+            targets: [fresh-receipt]
+            caption_boundary: true
+            linger: 0.25
+          - id: fresh-trips
+            phrase: "Now look at the four matching journeys"
+            targets: [fresh-receipt]
+            linger: 0.25
+      - say: "The middle journeys average eleven hours. Count forward from the nine o'clock pickup. That puts the arrival at eight tonight. The fastest of the four would arrive at three this afternoon, the slowest at one tomorrow morning. Both the scan and the three-hour-old backlog report are fresh. The score is fifty-two percent. At a forty percent cutoff, what should tracking propose?"
+        hold: 2
+        caption_starts:
+          - "The fastest of the four"
+          - "Both the scan"
+        visual_cues:
+          - id: fresh-median
+            phrase: "The middle journeys average eleven hours"
+            targets: [fresh-receipt]
+            caption_boundary: true
+            linger: 0.25
+          - id: fresh-arrival-answer
+            phrase: "That puts the arrival at eight tonight"
+            targets: [fresh-receipt]
+            caption_boundary: true
+            linger: 0.25
+          - id: fresh-policy-inputs
+            phrase: "Both the scan and the three-hour-old backlog report are fresh"
+            targets: [fresh-receipt]
+            linger: 0.25
+      - say: "Propose a customer warning. Fifty-two clears forty. Change only the warning policy to sixty percent. Would the ETA change, the warning, or both?"
+        hold: 2.05
+        caption_starts:
+          - "Change only the warning policy to sixty percent"
+        visual_cues:
+          - id: fresh-warn-answer
+            phrase: "Propose a customer warning"
+            targets: [fresh-receipt]
+            caption_boundary: true
+            linger: 0.25
+          - id: fresh-policy-switch
+            phrase: "Change only the warning policy to sixty percent"
+            targets: [fresh-receipt]
+            linger: 0.25
+      - say: "The proposal switches to normal tracking. The eight o'clock estimate stays put. Save the policy ID with the snapshot time, source records, feature contract and model. Then you can explain why the same parcel and score produced two different proposals. In product ranking, keep the list the shopper saw before they clicked."
+        hold: 1.35
+        caption_starts:
+          - "The eight o'clock estimate stays put"
+          - "Save the policy ID"
+          - "In product ranking"
+        visual_cues:
+          - id: fresh-track
+            phrase: "The proposal switches to normal tracking"
+            targets: [fresh-receipt]
+            caption_boundary: true
+            linger: 0.25
+          - id: fresh-fixed-eta
+            phrase: "The eight o'clock estimate stays put"
+            targets: [fresh-receipt]
+            linger: 0.25

@@ -1,0 +1,384 @@
+version: 1
+lesson: design-code-completion-system
+promise: Trace one proposed code edit through exact scope and position conversion, authorized FIM context,
+  snapshot/cancellation/insertion gates, compatible serving work, complete latency and useful-edit
+  measurements, and tenant-scoped privacy; compute changed-input repair and capacity examples.
+framing: []
+objectives:
+  - id: intro
+    can: Spot a duplicated receiver by comparing the proposed insertion with what the developer already typed
+    scenes:
+      - intro
+  - id: lanes
+    can: Choose local member lookup at the dot or permitted infill between the assignment and its return
+    scenes:
+      - lanes
+  - id: route-policy
+    can: Apply semantic availability and actual upload permission
+    scenes:
+      - route-policy
+  - id: scope-recovery
+    can: Keep a preceding header separate from enclosing scope
+    scenes:
+      - scope-recovery
+  - id: position-units
+    can: Convert the caret before constructing the suffix
+    scenes:
+      - position-units
+  - id: fim
+    can: Reorder persistent prefix and suffix before predicting the middle
+    scenes:
+      - fim
+  - id: fim-training
+    can: Train the middle after its two preserved boundaries
+    scenes:
+      - fim-training
+  - id: infill-boundaries
+    can: Insert only the generated middle into the same hole
+    scenes:
+      - infill-boundaries
+  - id: context
+    can: Preserve suffix and framing within the complete input budget
+    scenes:
+      - context
+  - id: context-ranking
+    can: Compute symbol overlap after filtering allowed files
+    scenes:
+      - context-ranking
+  - id: freshness
+    can: Drop a late reply while preserving a newer ghost at its captured range
+    scenes:
+      - freshness
+  - id: debounce-history
+    can: Predict the send log and visible ghost after a cancelled timer, late reply, caret move or policy change
+    scenes:
+      - debounce-history
+  - id: acceptance-race
+    can: Predict the edit Tab applies after a policy change and rebase only the remainder after matching typing
+    scenes:
+      - acceptance-race
+  - id: timing
+    can: Compute full edit-to-paint allocation including debounce
+    scenes:
+      - timing
+  - id: trace-quantiles
+    can: Compute the percentile from complete request rows
+    scenes:
+      - trace-quantiles
+  - id: request-population
+    can: Keep the first token inside the edit-to-paint path
+    scenes:
+      - request-population
+  - id: cache
+    can: Distinguish reused prefill from new output decode
+    scenes:
+      - cache
+  - id: cache-key
+    can: Compare exact computation compatibility under authenticated scope
+    scenes:
+      - cache-key
+  - id: cache-order
+    can: Change one early token and follow dependent cached states
+    scenes:
+      - cache-order
+  - id: speculative-path
+    can: Count emitted tokens, compute a proposed token's acceptance probability and normalize the positive shortfalls for its replacement
+    scenes:
+      - speculative-path
+  - id: speculation-gate
+    can: Keep the accepted-length and latency conditions together
+    scenes:
+      - speculation-gate
+  - id: quantized-serving
+    can: Separate compressed weight bytes from a measured useful edit
+    scenes:
+      - quantized-serving
+  - id: value
+    can: Count distinct accepted IDs and retained original characters
+    scenes:
+      - value
+  - id: metric-denominators
+    can: Count distinct suggestions and retained original text separately
+    scenes:
+      - metric-denominators
+  - id: evaluation-release
+    can: Freeze an edit point before comparing model and product value
+    scenes:
+      - evaluation-release
+  - id: fleet-work
+    can: Subtract pre-admission cancellation before counting uncached input
+    scenes:
+      - fleet-work
+  - id: cohort-work
+    can: Compute how swapping the hit and miss lengths changes prefill work at a fixed request hit rate
+    scenes:
+      - cohort-work
+  - id: affinity-wait
+    can: Find the extra warm wait that ties the cold route and select the earlier eligible worker
+    scenes:
+      - affinity-wait
+  - id: batch-cost
+    can: Measure shared-GPU scheduling under short-lived editor traffic
+    scenes:
+      - batch-cost
+  - id: upload-boundary
+    can: Remove recognized secrets before crossing the client boundary
+    scenes:
+      - upload-boundary
+  - id: private-deployment
+    can: Keep identity and retention controls inside a private route
+    scenes:
+      - private-deployment
+  - id: public-matches
+    can: Review code provenance and understanding before accepting
+    scenes:
+      - public-matches
+  - id: diagnostic-repair
+    can: Change the state or stage that explains the visible failure
+    scenes:
+      - diagnostic-repair
+  - id: synthesis
+    can: Follow a painted span through Tab and undo and distinguish an accepted suggestion from retained characters
+    scenes:
+      - synthesis
+  - id: fresh-cursor
+    can: Compare the two request epochs after a caret round trip and identify the reply Tab may insert
+    scenes:
+      - fresh-cursor
+sections:
+  - heading: One cursor, five lanes
+    status: taught
+    scenes:
+      - intro
+      - lanes
+      - route-policy
+  - heading: Lexical and semantic first
+    status: taught
+    scenes:
+      - lanes
+      - route-policy
+      - scope-recovery
+  - heading: Inline generation for an open-ended span
+    status: taught
+    scenes:
+      - fim
+      - infill-boundaries
+  - heading: Agents stay off the keystroke clock
+    status: taught
+    scenes:
+      - lanes
+      - route-policy
+  - heading: The keystroke budget
+    status: taught
+    scenes:
+      - timing
+      - trace-quantiles
+      - request-population
+  - heading: Who owns the `is_allowed =` keystroke
+    status: taught
+    scenes:
+      - scope-recovery
+      - position-units
+  - heading: Local fallback lane
+    status: taught
+    scenes:
+      - lanes
+      - route-policy
+      - scope-recovery
+  - heading: Context gathering and management
+    status: taught
+    scenes:
+      - context
+      - context-ranking
+  - heading: Context priority strategy
+    status: taught
+    scenes:
+      - context
+      - context-ranking
+  - heading: Fill-in-the-middle (FIM)
+    status: taught
+    scenes:
+      - fim
+      - fim-training
+      - infill-boundaries
+  - heading: Repository-level context
+    status: taught
+    scenes:
+      - context-ranking
+  - heading: Model serving for low latency
+    status: taught
+    scenes:
+      - cache
+      - speculative-path
+      - quantized-serving
+      - batch-cost
+  - heading: Speculative decoding
+    status: taught
+    scenes:
+      - speculative-path
+      - speculation-gate
+  - heading: KV cache reuse (prefix caching)
+    status: taught
+    scenes:
+      - cache
+      - cache-key
+      - cache-order
+  - heading: Quantization
+    status: taught
+    scenes:
+      - quantized-serving
+  - heading: Debounce `r` and `o`; fire on `.`
+    status: taught
+    scenes:
+      - freshness
+      - debounce-history
+      - acceptance-race
+  - heading: Debouncing and cancellation
+    status: taught
+    scenes:
+      - debounce-history
+      - acceptance-race
+      - request-population
+  - heading: Ghost text, not a second product
+    status: taught
+    scenes:
+      - freshness
+      - acceptance-race
+      - infill-boundaries
+  - heading: Did `is_allowed =` actually help?
+    status: taught
+    scenes:
+      - value
+      - metric-denominators
+      - evaluation-release
+      - synthesis
+  - heading: Routing by suggestion size
+    status: taught
+    scenes:
+      - lanes
+      - route-policy
+      - quantized-serving
+  - heading: The fleet behind one keystroke
+    status: taught
+    scenes:
+      - fleet-work
+      - cohort-work
+      - batch-cost
+  - heading: GPU fleet management and load balancing
+    status: taught
+    scenes:
+      - affinity-wait
+      - fleet-work
+      - cohort-work
+  - heading: Continuous batching
+    status: taught
+    scenes:
+      - batch-cost
+  - heading: Cost economics
+    status: taught
+    scenes:
+      - batch-cost
+      - evaluation-release
+      - metric-denominators
+  - heading: What of this buffer may leave the laptop
+    status: taught
+    scenes:
+      - upload-boundary
+      - private-deployment
+  - heading: Data isolation
+    status: taught
+    scenes:
+      - cache-key
+      - upload-boundary
+      - private-deployment
+  - heading: Secret redaction and upload controls
+    status: taught
+    scenes:
+      - upload-boundary
+  - heading: On-premises deployment
+    status: taught
+    scenes:
+      - private-deployment
+  - heading: Public-code matching and the mastery gap
+    status: taught
+    scenes:
+      - public-matches
+  - heading: Common pitfalls
+    status: taught
+    scenes:
+      - diagnostic-repair
+      - trace-quantiles
+      - acceptance-race
+  - heading: What to ship with
+    status: taught
+    scenes:
+      - context
+      - cache-key
+      - request-population
+      - acceptance-race
+      - synthesis
+      - fresh-cursor
+      - evaluation-release
+quiz:
+  - n: 1
+    status: taught
+    scenes:
+      - timing
+      - trace-quantiles
+      - request-population
+  - n: 2
+    status: taught
+    scenes:
+      - position-units
+  - n: 3
+    status: taught
+    scenes:
+      - context
+      - context-ranking
+  - n: 4
+    status: taught
+    scenes:
+      - speculative-path
+  - n: 5
+    status: taught
+    scenes:
+      - freshness
+      - debounce-history
+      - acceptance-race
+      - fresh-cursor
+  - n: 6
+    status: taught
+    scenes:
+      - cache-order
+      - affinity-wait
+  - n: 7
+    status: taught
+    scenes:
+      - value
+      - metric-denominators
+      - synthesis
+  - n: 8
+    status: taught
+    scenes:
+      - fleet-work
+      - cohort-work
+  - n: 9
+    status: taught
+    scenes:
+      - upload-boundary
+  - n: 10
+    status: taught
+    scenes:
+      - fim
+      - fim-training
+      - infill-boundaries
+removed: []
+reviews:
+  closed_book:
+    taught: 10
+    partial: 0
+    absent: 0
+    script: c6ad0cddb669a182
+  fact_check:
+    open_findings: 0
+    script: c6ad0cddb669a182

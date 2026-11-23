@@ -1,0 +1,233 @@
+version: 1
+lesson: local-llm-placement
+promise: Decide how many incident logs a local worker can admit, trace a failed allocation to the bytes that caused it, and check whether the model can safely answer the admitted requests.
+objectives:
+  - id: hardware-contract
+    can: Distinguish advertised capacity/bandwidth from measured model evidence
+    scenes:
+      - hardware-contract
+  - id: bandwidth-batch
+    can: Compute theoretical channel and batched weight-stream bounds
+    scenes:
+      - bandwidth-batch
+  - id: pools
+    can: Check host, device and shared pools independently
+    scenes:
+      - pools
+  - id: weight-payload
+    can: Count ideal codes and additional loaded artifact components
+    scenes:
+      - weight-payload
+  - id: cache-formula
+    can: Compute separate key/value bytes with actual layer dimensions
+    scenes:
+      - cache-formula
+  - id: workspace-contract
+    can: Identify the live allocations when a prefill buffer fails and isolate chunk size in a replay.
+    scenes:
+      - workspace-contract
+      - synthesis
+  - id: retention
+    can: Compare capped and full-length buffers under the same sliding mask and put their byte counts on the device budget.
+    scenes:
+      - retention
+      - worksheet-evidence
+  - id: placement
+    can: Trace one activation across the CPU and GPU boundary while each block's weights stay on its executing device.
+    scenes:
+      - placement
+  - id: flag-semantics
+    can: Count the versioned output slot before choosing a layer flag
+    scenes:
+      - flag-semantics
+  - id: allocation-evidence
+    can: Discriminate allocation failure, offload, migration and rereads
+    scenes:
+      - allocation-evidence
+  - id: transfer-comparison
+    can: Compute serial byte-stream times under explicit bandwidth inputs
+    scenes:
+      - transfer-comparison
+  - id: runner-contract
+    can: Distinguish model formats, configuration and execution capabilities
+    scenes:
+      - runner-contract
+  - id: serving-comparison
+    can: Compare replicas and parallel serving against separate SLOs
+    scenes:
+      - serving-comparison
+  - id: network-controls
+    can: Diagnose caller authorization and complete outbound-path failures
+    scenes:
+      - network-controls
+  - id: inventory-evidence
+    can: Retain immutable identities and separate inventory from readiness
+    scenes:
+      - inventory-evidence
+  - id: timing-contract
+    can: Validate counts and compute rates with the correct denominators
+    scenes:
+      - timing-contract
+  - id: quality
+    can: Apply a protected per-case release policy despite aggregate gains
+    scenes:
+      - quality
+  - id: fresh-admission
+    can: Count shared weights and workspace once, add each log's cache, and decide how many logs fit. Use the protected rollback check and the local fallback policy to decide who can answer them.
+    scenes:
+      - intro
+      - quality
+      - fresh-admission
+sections:
+  - heading: Follow the bytes before counting the cores
+    status: taught
+    scenes:
+      - intro
+      - hardware-contract
+      - bandwidth-batch
+  - heading: "Discrete GPU: capacity and bandwidth are different limits"
+    status: taught
+    scenes:
+      - hardware-contract
+      - pools
+      - allocation-evidence
+  - heading: "Apple Silicon: shared storage still has a working-set limit"
+    status: taught
+    scenes:
+      - hardware-contract
+      - pools
+  - heading: "CPU: channels, locality, and workload shape"
+    status: taught
+    scenes:
+      - bandwidth-batch
+      - diagnostic-replay
+  - heading: Build a budget for each memory pool
+    status: taught
+    scenes:
+      - workspace-contract
+      - pools
+      - intro
+  - heading: Weight payload is a starting point
+    status: taught
+    scenes:
+      - weight-payload
+  - heading: Cache arithmetic starts with the architecture
+    status: taught
+    scenes:
+      - cache-formula
+      - retention
+  - heading: Workspace and reserve are inputs to the experiment
+    status: taught
+    scenes:
+      - workspace-contract
+      - worksheet-evidence
+      - synthesis
+  - heading: A worksheet that makes its assumptions visible
+    status: taught
+    scenes:
+      - intro
+      - worksheet-evidence
+      - fresh-admission
+  - heading: Estimate block capacity, then verify the offload flag
+    status: taught
+    scenes:
+      - placement
+      - flag-semantics
+  - heading: Allocation failure, offload, and paging are different events
+    status: taught
+    scenes:
+      - allocation-evidence
+      - placement
+  - heading: A transfer calculation you can falsify
+    status: taught
+    scenes:
+      - transfers
+      - transfer-comparison
+  - heading: Choose the runner by the workload it must pass
+    status: taught
+    scenes:
+      - runner-contract
+      - serving-comparison
+  - heading: Draw the private-data boundary
+    status: taught
+    scenes:
+      - private-boundary
+      - network-controls
+  - heading: Inspect placement and measure what users receive
+    status: taught
+    scenes:
+      - inventory-evidence
+      - timings
+      - timing-contract
+  - heading: Separate the server's timings from client latency
+    status: taught
+    scenes:
+      - timings
+      - timing-contract
+  - heading: Keep the case identities when comparing quantization
+    status: taught
+    scenes:
+      - quality
+      - fresh-admission
+  - heading: Diagnose with competing explanations
+    status: taught
+    scenes:
+      - diagnostic-replay
+      - inventory-evidence
+      - synthesis
+quiz:
+  - n: 1
+    status: taught
+    scenes:
+      - workspace-contract
+      - worksheet-evidence
+      - fresh-admission
+  - n: 2
+    status: taught
+    scenes:
+      - cache-formula
+  - n: 3
+    status: taught
+    scenes:
+      - flag-semantics
+  - n: 4
+    status: taught
+    scenes:
+      - transfers
+      - transfer-comparison
+  - n: 5
+    status: taught
+    scenes:
+      - timings
+      - timing-contract
+  - n: 6
+    status: taught
+    scenes:
+      - network-controls
+  - n: 7
+    status: taught
+    scenes:
+      - weight-payload
+  - n: 8
+    status: taught
+    scenes:
+      - bandwidth-batch
+  - n: 9
+    status: taught
+    scenes:
+      - quality
+      - fresh-admission
+  - n: 10
+    status: taught
+    scenes:
+      - serving-comparison
+removed: []
+reviews:
+  closed_book:
+    script: c80cbafdab208da7
+    taught: 10
+    partial: 0
+    absent: 0
+  fact_check:
+    script: c80cbafdab208da7
+    open_findings: 0

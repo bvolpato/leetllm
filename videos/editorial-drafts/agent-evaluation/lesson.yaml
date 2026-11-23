@@ -1,0 +1,1211 @@
+version: 1
+id: agent-evaluation
+title: Evaluate an Agent from Effects to Release Evidence
+source: agents/agent-evaluation-benchmarks/content.md
+voice: en-US-AndrewNeural
+rate: +0%
+sources:
+  - title: WebArena
+    url: https://arxiv.org/abs/2307.13854
+  - title: Tau-Bench
+    url: https://arxiv.org/abs/2406.12045
+  - title: AgentBench
+    url: https://arxiv.org/abs/2308.03688
+  - title: HumanEval pass at k
+    url: https://arxiv.org/abs/2107.03374
+  - title: Berkeley RDI benchmark audit April2026
+    url: https://rdi.berkeley.edu/blog/trustworthy-benchmarks-cont/
+  - title: Terminal-Bench catalog
+    url: https://www.tbench.ai/benchmarks
+  - title: SWE-bench evaluation
+    url: https://www.swebench.com/SWE-bench/guides/evaluation/
+  - title: WebArena evaluator source
+    url: https://github.com/web-arena-x/webarena/blob/main/evaluation_harness/evaluators.py
+  - title: OSWorld maintained suites
+    url: https://github.com/xlang-ai/OSWorld
+  - title: Firecracker microVMs
+    url: https://firecracker-microvm.github.io/
+  - title: gVisor application kernel
+    url: https://gvisor.dev/docs/
+  - title: GAIA official answer scorer
+    url: https://huggingface.co/spaces/gaia-benchmark/leaderboard/raw/main/scorer.py
+  - title: MT-Bench judge calibration
+    url: https://arxiv.org/abs/2306.05685
+scenes:
+  - id: subject-intro
+    title: Did the book actually get reserved?
+    visual: A library shelf and Lena’s account expose the difference between a written confirmation and a
+      matching hold.
+    beats:
+      - say: An assistant says your book is reserved. Where would you check? Open the library account and find an empty holds list.
+          The sentence sounded helpful, yet the task is unfinished. To evaluate an agent, we need to
+          inspect the world its actions were supposed to change.
+        hold: 0.65
+        visual_cues:
+          - id: completion-claim
+            phrase: assistant says your book is reserved
+            targets:
+              - completion-claim
+            color: blue
+            linger: 0.5
+          - id: inspect-account
+            phrase: Open the library account
+            targets:
+              - observed-account
+            color: pink
+            linger: 0.5
+          - id: empty-account
+            phrase: find an empty holds list
+            targets:
+              - subject-intro-mechanism
+            linger: 0.5
+      - say: Let’s follow a fictional library episode from beginning to end. Its states, permissions, receipts
+          and trial outcomes are authored fixtures. We will reset the account, watch an
+          authorized request create a hold, and let a separate reader inspect the result. Then we will
+          score repeated trials and include the cost of failed work.
+        hold: 0.9
+        visual_cues:
+          - id: controlled-episode
+            phrase: reset the account, watch an authorized request create a hold
+            targets:
+              - requested-book
+              - observed-account
+            color: yellow
+            linger: 0.5
+  - id: episode-contract
+    title: Reset the world before each attempt
+    visual: The visible account begins with a leftover hold on B8. A harness reset clears the row and
+      establishes version2 with no holds before the candidate starts.
+    beats:
+      - say: Our task is to reserve River Stories, book B7, for Lena. Before the run begins, the account contains
+          a leftover hold on a different book. Starting another process would leave that record in place.
+          The harness must restore the account and the agent’s remembered state.
+        hold: 0.65
+        visual_cues:
+          - id: identify-resource
+            phrase: reserve River Stories, book B7, for Lena
+            targets:
+              - book-catalog
+            color: cyan
+            linger: 0.5
+          - id: inherited-hold
+            phrase: leftover hold on a different book
+            targets:
+              - account-state
+            color: yellow
+            linger: 0.5
+      - say: In the model, watch the reset clear the leftover row. The starting snapshot now has no holds and carries version
+          two. We keep this task, its permitted tools, and its success checks fixed for each repetition.
+          The episode can begin from a known world.
+        hold: 0.9
+        visual_cues:
+          - id: reset-account
+            phrase: reset clear the leftover row
+            targets:
+              - account-state
+            color: yellow
+            linger: 0.5
+          - id: clean-snapshot
+            phrase: no holds and carries version two
+            targets:
+              - hold-count
+              - account-version
+            color: green
+            linger: 0.5
+          - id: memory-reset
+            phrase: reset clear the leftover row
+            targets:
+              - episode-contract-mechanism
+            linger: 0.5
+        motion_check:
+          region:
+            - 150
+            - 300
+            - 1620
+            - 620
+          minimumChangedFraction: 0.002
+  - id: action-trace
+    title: Follow one request into a real state change
+    visual: In a controlled library fixture, a labeled catalog observation reaches the agent, a typed B7
+      request passes host policy, and operation17 creates exactly one hold in the account at version3.
+    beats:
+      - say: The agent searches the catalog for River Stories. Follow the returned record from the shelf into its
+          working state. It identifies book B7. A title match has become a concrete resource that the
+          next action can name.
+        hold: 0.65
+        visual_cues:
+          - id: catalog-resource
+            phrase: returned record from the shelf into its working state
+            targets:
+              - episode-packet
+            color: cyan
+            linger: 0.5
+        motion_check:
+          region:
+            - 150
+            - 300
+            - 1620
+            - 620
+          minimumChangedFraction: 0.002
+      - say: "The agent prepares request seventeen: place a hold on B7 for Lena. The host checks the
+          authenticated reader and the allowed operation. Once those checks pass, the request is
+          permitted. The account remains unchanged while this action is still waiting to run."
+        hold: 0.65
+        visual_cues:
+          - id: permit-action
+            phrase: request is permitted
+            targets:
+              - action-permission
+            color: green
+            linger: 0.5
+          - id: not-executed
+            phrase: account remains unchanged
+            targets:
+              - account-state
+            color: yellow
+            linger: 0.5
+      - say: Now dispatch that permitted request. The account gains hold seventeen for Lena and B7, and its
+          version advances to three. The write receipt identifies the operation and the committed record.
+          These authored records model the effect the task requested.
+        hold: 0.9
+        visual_cues:
+          - id: dispatch-request
+            phrase: Now dispatch that permitted request
+            targets:
+              - episode-packet
+            color: cyan
+            linger: 0.5
+          - id: commit-hold
+            phrase: account gains hold seventeen for Lena and B7
+            targets:
+              - account-state
+              - account-version
+            color: green
+            linger: 0.5
+        motion_check:
+          region:
+            - 150
+            - 300
+            - 1620
+            - 620
+          minimumChangedFraction: 0.002
+  - id: hard-gates
+    title: Read the outcome independently, then score it
+    visual: A separate state-reader request enters the same account and returns a snapshot; reader, resource,
+      count, version and action-policy checks produce a computed verdict.
+    beats:
+      - say: A separate state reader now queries Lena’s account for B7. It obtains a fresh snapshot from the
+          environment. The scorer uses that returned record together with the captured action trace. The
+          candidate’s own completion message stays outside these checks.
+        hold: 0.65
+        visual_cues:
+          - id: fresh-read
+            phrase: fresh snapshot from the environment
+            targets:
+              - independent-read
+              - episode-packet
+            color: green
+            linger: 0.5
+        motion_check:
+          region:
+            - 150
+            - 300
+            - 1620
+            - 620
+          minimumChangedFraction: 0.002
+      - say: Inspect the returned fields. The reader is Lena, the book is B7, and exactly one hold exists. The
+          observed version follows the write. Every required check passes, so the model’s scorer records a
+          successful episode. A read of B8 or an older version would fail the corresponding check.
+        hold: 0.65
+        visual_cues:
+          - id: returned-fields
+            phrase: reader is Lena, the book is B7, and exactly one hold exists
+            targets:
+              - state-checks
+              - account-state
+            color: green
+            linger: 0.5
+          - id: checked-verdict
+            phrase: "Every required check passes, so the model’s scorer records a successful episode"
+            targets:
+              - hard-gates-mechanism
+            linger: 0.5
+          - id: wrong-book-probe
+            phrase: A read of B8
+            targets:
+              - hard-gates-mechanism
+            linger: 0.5
+          - id: stale-version-probe
+            phrase: an older version
+            targets:
+              - hard-gates-mechanism
+            linger: 0.5
+          - id: counterfactual-verdict
+            phrase: A read of B8 or an older version would fail the corresponding check
+            targets:
+              - episode-packet
+            linger: 0.5
+        motion_check:
+          region:
+            - 150
+            - 300
+            - 1620
+            - 620
+          minimumChangedFraction: 0.002
+      - say: Keep that successful hold, then add an attempted private-account access to the trace. In this
+          fictional trace, assume the host denies that access without returning private data. Our declared policy still fails the candidate for
+          making that forbidden attempt. The model flags the forbidden attempt. Denial without disclosure is
+          an explicit premise here. A real harness should record the denial and separately audit unauthorized
+          effects or disclosure.
+        hold: 0.9
+        visual_cues:
+          - id: forbidden-attempt
+            phrase: attempted private-account access to the trace
+            targets:
+              - episode-packet
+            color: pink
+            linger: 0.5
+          - id: effect-versus-attempt
+            phrase: separately audit unauthorized effects or disclosure
+            targets:
+              - account-state
+            color: yellow
+            linger: 0.5
+          - id: forbidden-override
+            phrase: "Our declared policy still fails the candidate for making that forbidden attempt"
+            targets:
+              - hard-gates-mechanism
+            linger: 0.5
+  - id: recovery
+    title: Grade what happened after uncertainty
+    visual: A timed-out read consumes budget and retries; an ambiguous write pauses for reconciliation before
+      any repeated effect.
+    beats:
+      - say: A lost reply creates a useful recovery test. A read can be retried under a bounded policy. A write
+          may already have changed the account, so the agent first needs to discover whether its original
+          operation completed.
+        hold: 0.55
+        visual_cues:
+          - id: lost-reply
+            phrase: original operation completed
+            targets:
+              - reconciled-hold
+            color: yellow
+            linger: 0.5
+          - id: retry-read
+            phrase: A read can be retried
+            targets:
+              - recovery-mechanism
+            linger: 0.5
+          - id: uncertain-write
+            phrase: A write may already have changed the account
+            targets:
+              - recovery-mechanism
+            linger: 0.5
+      - say: For this lost hold reply, reconcile operation seventeen. Assume this endpoint atomically records
+          the hold and its idempotency record, binding the authenticated caller, operation identity and
+          parameters. It rejects parameter changes under that identity. Within its declared retention
+          period, the target can replay the saved result for the same caller,
+          identity and parameters. A blind write under a new identity could
+          create another hold. Every dispatch still counts against the budget.
+        hold: 0.75
+        visual_cues:
+          - id: reconcile-operation
+            phrase: reconcile operation seventeen
+            targets:
+              - reconciled-hold
+            color: green
+            linger: 0.5
+          - id: count-dispatches
+            phrase: Every dispatch still counts against the budget
+            targets:
+              - dispatch-counts
+            color: yellow
+            linger: 0.5
+          - id: reconcile-id
+            phrase: reconcile operation seventeen
+            targets:
+              - recovery-mechanism
+            linger: 0.5
+          - id: replay-receipt
+            phrase: replay the saved result
+            targets:
+              - recovery-mechanism
+            linger: 0.5
+          - id: new-key-risk
+            phrase: A blind write under a new identity
+            targets:
+              - recovery-mechanism
+            linger: 0.5
+        motion_check:
+          region:
+            - 180
+            - 290
+            - 1640
+            - 600
+          minimumChangedFraction: 0.002
+      - say: Add no-progress loops, malformed arguments, stale reads and changed permissions to the suite. Check
+          recovery against the task contract, including the path taken and the final account state.
+        hold: 0.55
+        visual_cues:
+          - id: recovery-contract
+            phrase: path taken and the final account state
+            targets:
+              - reconciled-hold
+            color: cyan
+            linger: 0.5
+          - id: recovery-probes
+            phrase: Add no-progress loops
+            targets:
+              - recovery-mechanism
+            linger: 0.5
+  - id: repeatability
+    title: Success once and success every time differ
+    visual: A three-task by three-trial matrix exposes seven passing runs and only one task that passes all
+      three trials.
+    beats:
+      - say: Our authored nine-run fixture represents each of three tasks tried three times from a clean state. The catalog search
+          passes every run. The hold task and private-account task each fail once. Seven of the nine runs
+          pass the ordinary run-level checks.
+        hold: 0.55
+        visual_cues:
+          - id: repeated-runs
+            phrase: three tasks tried three times from a clean state
+            targets:
+              - trial-results
+            color: blue
+            linger: 0.5
+          - id: catalog-trials
+            phrase: catalog search passes every run
+            targets:
+              - trial-results
+            linger: 0.5
+          - id: other-trials
+            phrase: hold task and private-account task each fail once
+            targets:
+              - trial-results
+            linger: 0.5
+          - id: run-rate
+            phrase: "Seven of the nine runs pass the ordinary run-level checks"
+            targets:
+              - trial-results
+            linger: 0.5
+      - say: "Now ask a stricter question: which task passed all three of its repetitions? Only the catalog task
+          did, so the all-three pass fraction across tasks is one third. This repeated-reliability
+          question differs from asking whether several sampled attempts contain at least one success."
+        hold: 0.75
+        visual_cues:
+          - id: all-repetitions
+            phrase: which task passed all three of its repetitions
+            targets:
+              - trial-results
+            color: yellow
+            linger: 0.5
+          - id: group-checks
+            phrase: which task passed all three
+            targets:
+              - trial-results
+            linger: 0.5
+          - id: group-fraction
+            phrase: all-three pass fraction across tasks is one third
+            targets:
+              - trial-results
+            linger: 0.5
+      - say: Keep model, scaffold, environment and sampling settings fixed for this comparison. Aggregate the
+          repeated result by task. Different tasks have different success probabilities, so a power of
+          the pooled rate generally answers another question.
+        hold: 0.55
+        visual_cues:
+          - id: task-grouping
+            phrase: Aggregate the repeated result by task
+            targets:
+              - trial-results
+            color: cyan
+            linger: 0.5
+  - id: economics
+    title: Count the cost of failures as well
+    visual: Every run contributes its cost; seven successful runs form the denominator, while sorted observed
+      durations identify the sample latency tail.
+    beats:
+      - say: All nine attempts consumed resources. Add their costs, including failed work, then divide by the
+          seven successful runs for cost per successful run. The nine fixture costs total twenty point
+          three cents, giving two point nine cents per successful run.
+        hold: 0.55
+        visual_cues:
+          - id: add-costs
+            phrase: Add their costs, including failed work
+            targets:
+              - incurred-spend
+              - cost-bars
+            color: yellow
+            linger: 0.5
+          - id: successful-denominator
+            phrase: seven successful runs
+            targets:
+              - successful-runs
+              - run-outcomes
+            color: green
+            linger: 0.5
+          - id: cost-quotient
+            phrase: giving two point nine cents per successful run
+            targets:
+              - cost-per-success
+            color: green
+            linger: 0.5
+      - say: Keep latency beside cost. These bars show the nine fixture durations. Under our nearest-rank rule,
+          take the ceiling of point nine five times nine, selecting the ninth sorted value, the maximum.
+          The sample ninety-fifth percentile is eight seconds. A deadline check can fail an otherwise
+          completed task.
+        hold: 0.75
+        visual_cues:
+          - id: place-durations
+            phrase: bars show the nine fixture durations
+            targets:
+              - duration-inputs
+              - ordered-durations
+            color: blue
+            linger: 0.5
+          - id: sample-quantile
+            phrase: sample ninety-fifth percentile is eight seconds
+            targets:
+              - quantile-rank
+            color: yellow
+            linger: 0.5
+      - say: The fixtures demonstrate accounting. For a product comparison, use representative tasks and matched
+          budgets, preserve crashes and exhausted attempts, and estimate uncertainty using the actual
+          task grouping.
+        hold: 0.55
+        visual_cues:
+          - id: incurred-accounting
+            phrase: preserve crashes and exhausted attempts
+            targets:
+              - duration-inputs
+              - ordered-durations
+            color: cyan
+            linger: 0.5
+  - id: transfer
+    title: Use a failed check to choose the next experiment
+    visual: A compact evidence record connects a reset snapshot, operation17, independent read and a specific
+      verdict to the next regression run.
+    beats:
+      - say: "We have followed one modeled episode: a reset, a permitted action, a changed account, an
+          independent read, and a verdict derived from matching records. When a check fails, the report
+          points to the resource, action or version that needs investigation."
+        hold: 0.65
+        visual_cues:
+          - id: episode-evidence
+            phrase: reset, a permitted action, a changed account, an independent read, and a verdict
+            targets:
+              - episode-summary
+            color: cyan
+            linger: 0.5
+      - say: Public benchmarks provide other environments and verifiers. WebArena emphasizes web tasks; Tau-Bench
+          studies tool-using agents interacting with simulated users and policies. Choose representative
+          product tasks as well, and keep held-out cases for changes you have yet to make.
+        hold: 0.65
+        visual_cues:
+          - id: representative-tasks
+            phrase: Choose representative product tasks
+            targets:
+              - episode-summary
+            color: blue
+            linger: 0.5
+      - say: Preserve the task identity, final state check, policy result, repeated outcomes and incurred cost.
+          That gives a reviewer enough evidence to choose a repair and run the next controlled
+          experiment.
+        hold: 0.9
+        visual_cues:
+          - id: retain-result
+            phrase: task identity, final state check, policy result, repeated outcomes and incurred cost
+            targets:
+              - episode-summary
+            color: green
+            linger: 0.5
+  - id: trace-contract
+    title: Export the evidence without granting it authority
+    visual: A progressive construction retains exact task, resource, evidence and failure identities through
+      this complete chapter.
+    beats:
+      - say: An episode fixes the task, starting environment, permitted actions, expected effects and budgets.
+          The environment implements tools; the harness resets it and bounds execution; the scorer
+          interprets independent evidence. A trajectory records actions and returned observations between
+          environment states. A read or denied write can leave the state unchanged. The candidate sees
+          observations, while the harness may inspect additional trusted state.
+        hold: 0.75
+        visual_cues:
+          - id: trace-world
+            phrase: environment implements tools
+            targets:
+              - trace-contract-mechanism
+            linger: 0.5
+          - id: trace-observations
+            phrase: trajectory records actions and returned observations
+            targets:
+              - trace-contract-mechanism
+            linger: 0.5
+          - id: trace-read
+            phrase: read or denied write can leave the state unchanged
+            targets:
+              - trace-contract-mechanism
+            linger: 0.5
+      - say: The article’s actual trace validator checks required fields and recursively rejects reserved
+          identifier keys inside tool arguments. Its leaky email-key fixture fails. An email hidden in a
+          notes value, an observation or the final message can still escape that narrow check. Use a
+          versioned allowlisted export schema, value redaction and restricted retention. Keep run, event,
+          resource, decision and time identities without collecting private internal reasoning. A clean
+          export schema alone does not establish an authorized execution.
+        hold: 0.75
+        visual_cues:
+          - id: trace-keys
+            phrase: recursively rejects reserved identifier keys
+            targets:
+              - trace-contract-mechanism
+            linger: 0.5
+          - id: trace-leak
+            phrase: leaky email-key fixture fails
+            targets:
+              - trace-contract-mechanism
+            linger: 0.5
+          - id: trace-value
+            phrase: email hidden in a notes value
+            targets:
+              - trace-contract-mechanism
+            linger: 0.5
+          - id: trace-export
+            phrase: versioned allowlisted export schema
+            targets:
+              - trace-contract-mechanism
+            linger: 0.5
+  - id: process-contract
+    title: Bind permission and verification to each write
+    visual: A progressive construction retains exact task, resource, evidence and failure identities through
+      this complete chapter.
+    beats:
+      - say: The article’s first scorer deliberately requires each named happy-path action exactly once and in
+          order. It rejects a reversed sequence or duplicate lookup. A separate status-aware recovery
+          policy permits a timed-out read followed by a successful retry. Those are different contracts;
+          combining them unchanged would reject the same valid recovery. Count every attempted call,
+          including failures, and explicitly define the allowed recovery sequence.
+        hold: 0.75
+        visual_cues:
+          - id: strict-once
+            phrase: each named happy-path action exactly once
+            targets:
+              - process-contract-mechanism
+            linger: 0.5
+          - id: strict-reject
+            phrase: reversed sequence or duplicate lookup
+            targets:
+              - process-contract-mechanism
+            linger: 0.5
+          - id: retry-contract
+            phrase: timed-out read followed by a successful retry
+            targets:
+              - process-contract-mechanism
+            linger: 0.5
+      - say: Authority binds the exact call, operation, resource and target before dispatch. The executed permit
+          fixture rejects a changed candidate, a different call identifier and permission recorded after
+          execution began. These dictionaries stand in for authenticated runtime records; the checker
+          does not itself establish actor identity, expiration or revocation. A correct final-state
+          string cannot repair an unauthorized write.
+        hold: 0.75
+        visual_cues:
+          - id: permit-bind
+            phrase: exact call, operation, resource and target
+            targets:
+              - process-contract-mechanism
+            linger: 0.5
+          - id: permit-mutate
+            phrase: changed candidate
+            targets:
+              - process-contract-mechanism
+            linger: 0.5
+          - id: permit-late
+            phrase: permission recorded after execution began
+            targets:
+              - process-contract-mechanism
+            linger: 0.5
+          - id: permit-call
+            phrase: different call identifier
+            targets:
+              - process-contract-mechanism
+            linger: 0.5
+      - say: The process checker counts more than two timeouts, absent verification and a write without a later
+          successful read. It accepts an earlier verification only for writes that precede it; a later
+          write needs another check. Order and success status still cannot bind a read to the right
+          resource. The stronger executed reference compares candidate and target, an event after the
+          write, a version at least the committed version in the same resource domain, and the intended
+          outcome. A newer version that lost the result still fails.
+        hold: 0.75
+        visual_cues:
+          - id: write-again
+            phrase: a later write needs another check
+            targets:
+              - process-contract-mechanism
+            linger: 0.5
+          - id: resource-bind
+            phrase: right resource
+            targets:
+              - process-contract-mechanism
+            linger: 0.5
+          - id: version-bind
+            phrase: version at least the committed version
+            targets:
+              - process-contract-mechanism
+            linger: 0.5
+          - id: outcome-bind
+            phrase: newer version that lost the result still fails
+            targets:
+              - process-contract-mechanism
+            linger: 0.5
+  - id: metric-estimators
+    title: Count subsets before naming repeated reliability
+    visual: A progressive construction retains exact task, resource, evidence and failure identities through
+      this complete chapter.
+    beats:
+      - say: Keep the three library tasks grouped. The all-three statistic is one third because only one task
+          passed every repetition. For a task with n independent identically distributed reruns and c
+          passes, use integer counts. For both subset estimators, k must be at least one and at most n,
+          and c must be from zero through n. The all-k estimator is the number of k-subsets drawn entirely
+          from those c passes
+          divided by the number of k-subsets from all n runs. In symbols, choose c comma k divided by
+          choose n comma k. It is zero when c is smaller than k. Average task contributions without
+          silently weighting heavily repeated tasks more.
+        hold: 0.75
+        visual_cues:
+          - id: all-k-rule
+            phrase: choose c comma k divided by choose n comma k
+            targets:
+              - metric-estimators-mechanism
+            linger: 0.5
+          - id: task-average
+            phrase: Average task contributions
+            targets:
+              - metric-estimators-mechanism
+            linger: 0.5
+      - say: For candidate search, pass-at-k asks whether at least one of k attempts passes. Its estimate is one
+          minus choose n minus c comma k divided by choose n comma k. The article’s separate five-patch
+          fixture has two passes. Nine of its ten three-subsets contain a hit, giving point nine. The
+          deployed selector still needs a production-accessible signal; hidden benchmark tests cannot be
+          its oracle. Adaptive retries after feedback are not independent reruns under one fixed
+          protocol.
+        hold: 0.75
+        visual_cues:
+          - id: hit-rule
+            phrase: one minus choose n minus c comma k
+            targets:
+              - metric-estimators-mechanism
+            linger: 0.5
+          - id: patch-subsets
+            phrase: five-patch fixture has two passes
+            targets:
+              - metric-estimators-mechanism
+            linger: 0.5
+          - id: patch-result
+            phrase: "Nine of its ten three-subsets contain a hit, giving point nine"
+            targets:
+              - metric-estimators-mechanism
+            linger: 0.5
+      - say: If a task’s fixed single-run success probability is point seven, three independent required
+          successes have probability point seven cubed, or point three four three. At least one failure
+          therefore has probability point six five seven. More required successes cannot raise that
+          probability of complete success; more opportunities cannot reduce at-least-one success.
+          Different tasks can have different probabilities. Equal task averaging of one and zero gives
+          all-three reliability point five, whereas cubing their pooled rate would incorrectly give point
+          one two five. Record the user simulator and its randomness when it is part of the trial.
+        hold: 0.75
+        visual_cues:
+          - id: power-cube
+            phrase: "point seven cubed, or point three four three"
+            targets:
+              - metric-estimators-mechanism
+            linger: 0.5
+          - id: failure-complement
+            phrase: "At least one failure therefore has probability point six five seven"
+            targets:
+              - metric-estimators-mechanism
+            linger: 0.5
+          - id: heterogeneous
+            phrase: "Equal task averaging of one and zero gives all-three reliability point five"
+            targets:
+              - metric-estimators-mechanism
+            linger: 0.5
+          - id: pooled-wrong
+            phrase: "cubing their pooled rate would incorrectly give point one two five"
+            targets:
+              - metric-estimators-mechanism
+            linger: 0.5
+  - id: uncertainty
+    title: Earn a rate gate under its sampling assumptions
+    visual: A progressive construction retains exact task, resource, evidence and failure identities through
+      this complete chapter.
+    beats:
+      - say: Ordinary binary pass rates need uncertainty as well as a point estimate. For independent cases
+          sampled from a defined workload, use a Wilson score interval with z equal to one point nine six
+          for an approximate two-sided ninety-five percent interval. Let p be observed passes divided by
+          n. Divide p plus z squared over two n by one plus z squared over n to get the center. The
+          radius is z divided by that same denominator, times the square root of p times one minus p over
+          n plus z squared over four n squared. Subtract and add that radius for the endpoints.
+        hold: 0.75
+        visual_cues:
+          - id: wilson-center
+            phrase: get the center
+            targets:
+              - uncertainty-mechanism
+            linger: 0.5
+          - id: wilson-radius
+            phrase: The radius is
+            targets:
+              - uncertainty-mechanism
+            linger: 0.5
+          - id: wilson-endpoints
+            phrase: Subtract and add that radius
+            targets:
+              - uncertainty-mechanism
+            linger: 0.5
+      - say: The executed fixture’s two of three passes give approximately point two zero eight through point
+          nine three nine. Twenty-seven of thirty give point seven four four through point nine six five.
+          A predefined lower-bound floor of point eight five therefore rejects even the point nine
+          pass-rate fixture. When all n cases pass, the Wilson lower endpoint simplifies to n divided by
+          n plus z squared; the interval still has width. This is an uncertainty gate, not proof that
+          future cases pass.
+        hold: 0.75
+        visual_cues:
+          - id: small-interval
+            phrase: "two of three passes give approximately point two zero eight through point nine three nine"
+            targets:
+              - uncertainty-mechanism
+            linger: 0.5
+          - id: large-interval
+            phrase: "Twenty-seven of thirty give point seven four four through point nine six five"
+            targets:
+              - uncertainty-mechanism
+            linger: 0.5
+          - id: lower-gate
+            phrase: "A predefined lower-bound floor of point eight five therefore rejects even the point nine pass-rate fixture"
+            targets:
+              - uncertainty-mechanism
+            linger: 0.5
+          - id: all-pass-bound
+            phrase: Wilson lower endpoint simplifies
+            targets:
+              - uncertainty-mechanism
+            linger: 0.5
+      - say: Hand-picked regressions do not become representative merely by increasing their count. Repeated runs
+          sharing tasks or environments need an analysis that accounts for that grouping. Report sample
+          size, sampling protocol and uncertainty at the actual task unit. Keep every crash and exhausted
+          attempt in the declared success denominator unless a separate infrastructure policy was fixed
+          beforehand. No ordinary rate interval cancels an observed authorization failure.
+        hold: 0.75
+        visual_cues:
+          - id: regression-groups
+            phrase: Repeated runs sharing tasks or environments
+            targets:
+              - uncertainty-mechanism
+            linger: 0.5
+          - id: denominator
+            phrase: Keep every crash and exhausted attempt
+            targets:
+              - uncertainty-mechanism
+            linger: 0.5
+          - id: hard-veto
+            phrase: No ordinary rate interval cancels
+            targets:
+              - uncertainty-mechanism
+            linger: 0.5
+  - id: judge-calibration
+    title: Calibrate communication judgments after hard checks
+    visual: A progressive construction retains exact task, resource, evidence and failure identities through
+      this complete chapter.
+    beats:
+      - say: After trusted state, permission, redaction and resource checks, a human rubric can measure
+          communication quality. The article’s four labeled comparisons give three correct forward
+          judgments out of four. Remap each swapped-order winner back to its original response identity
+          before comparing. Two of four decisions flip, so forward accuracy is point seven five and the
+          flip rate is point five. Both miss the illustrative point nine accuracy and point zero five
+          flip screen.
+        hold: 0.75
+        visual_cues:
+          - id: human-labels
+            phrase: four labeled comparisons
+            targets:
+              - judge-calibration-mechanism
+            linger: 0.5
+          - id: forward-score
+            phrase: three correct forward judgments out of four
+            targets:
+              - judge-calibration-mechanism
+            linger: 0.5
+          - id: swap-remap
+            phrase: Remap each swapped-order winner
+            targets:
+              - judge-calibration-mechanism
+            linger: 0.5
+          - id: flip-score
+            phrase: Two of four decisions flip
+            targets:
+              - judge-calibration-mechanism
+            linger: 0.5
+          - id: judge-screen
+            phrase: "Both miss the illustrative point nine accuracy and point zero five flip screen"
+            targets:
+              - judge-calibration-mechanism
+            linger: 0.5
+      - say: Those small-screen thresholds do not validate automation. Four comparisons are too few, stable
+          judgments can be wrong, and a stochastic judge can change without systematic position bias. Use
+          larger independent human labels, balanced repeated comparisons and critical slices. Keep this
+          judge advisory; a good message cannot waive an unsafe action. Make wording a hard gate only
+          when the declared product policy requires it.
+        hold: 0.75
+        visual_cues:
+          - id: judge-advisory
+            phrase: Keep this judge advisory
+            targets:
+              - judge-calibration-mechanism
+            linger: 0.5
+          - id: critical-override
+            phrase: good message cannot waive an unsafe action
+            targets:
+              - judge-calibration-mechanism
+            linger: 0.5
+      - say: The judged trajectory is itself untrusted input. The April twenty-twenty-six Berkeley audit reports
+          evaluator-directed output notes against its CAR-bench configuration and a related WebArena
+          judge weakness. These are findings about audited versions, not every later release. Quote
+          subjective text in a fixed field, give the judge no release tools, test adversarial messages
+          and route sensitive uncertainty to people. Delimiters organize data without making its
+          instructions trusted.
+        hold: 0.75
+        visual_cues:
+          - id: judge-injection
+            phrase: evaluator-directed output notes
+            targets:
+              - judge-calibration-mechanism
+            linger: 0.5
+          - id: judge-boundary
+            phrase: give the judge no release tools
+            targets:
+              - judge-calibration-mechanism
+            linger: 0.5
+  - id: benchmark-surfaces
+    title: Match a public verifier to a product surface
+    visual: A progressive construction retains exact task, resource, evidence and failure identities through
+      this complete chapter.
+    beats:
+      - say: SWE-bench evaluates repository patches with repository tests and parsers. WebArena checks browser
+          tasks using task-specific answers, URLs and page state; some answer checks call a
+          language-model judge. OSWorld uses custom execution-based desktop checks such as files,
+          settings and application data. Its original main suite uses Ubuntu. None of these verifiers
+          automatically establishes this library service’s permissions.
+        hold: 0.75
+        visual_cues:
+          - id: bench-swe
+            phrase: SWE-bench evaluates
+            targets:
+              - benchmark-surfaces-mechanism
+            linger: 0.5
+          - id: bench-web
+            phrase: WebArena checks
+            targets:
+              - benchmark-surfaces-mechanism
+            linger: 0.5
+          - id: bench-os
+            phrase: OSWorld uses
+            targets:
+              - benchmark-surfaces-mechanism
+            linger: 0.5
+      - say: GAIA compares normalized reference answers such as numbers, strings and ordered list items.
+          Terminal-Bench uses task-specific terminal verifiers and resource limits. Tau-Bench compares
+          final database changes with an annotated goal while agents interact with simulated users and
+          policies. Its original final-state reward can miss a skipped required user confirmation.
+          AgentBench helped broaden interactive evaluation, but a benchmark name does not replace
+          matching the actual shipped task and failure surface.
+        hold: 0.75
+        visual_cues:
+          - id: bench-gaia
+            phrase: GAIA compares
+            targets:
+              - benchmark-surfaces-mechanism
+            linger: 0.5
+          - id: bench-terminal
+            phrase: Terminal-Bench uses
+            targets:
+              - benchmark-surfaces-mechanism
+            linger: 0.5
+          - id: bench-tau
+            phrase: Tau-Bench compares
+            targets:
+              - benchmark-surfaces-mechanism
+            linger: 0.5
+          - id: confirmation-gap
+            phrase: miss a skipped required user confirmation
+            targets:
+              - benchmark-surfaces-mechanism
+            linger: 0.5
+      - say: Pin task split, environment image, harness and scorer commits, model snapshot, scaffold,
+          permissions, trials, simulator settings, date and budgets. The scaffold includes prompts,
+          tools, action loop and stopping policy. For a model-only comparison hold that surrounding
+          system fixed; for system comparisons report intentional differences. As checked for this
+          November twenty-twenty-six lesson, the official Terminal-Bench catalog includes version four
+          point zero. A two-point-one score does not become a four-point-zero score after a site update.
+          OSWorld-Verified is also a distinct maintained suite label.
+        hold: 0.75
+        visual_cues:
+          - id: pin-config
+            phrase: Pin task split
+            targets:
+              - benchmark-surfaces-mechanism
+            linger: 0.5
+          - id: version-four
+            phrase: catalog includes version four point zero
+            targets:
+              - benchmark-surfaces-mechanism
+            linger: 0.5
+          - id: rerun-version
+            phrase: score does not become a four-point-zero score
+            targets:
+              - benchmark-surfaces-mechanism
+            linger: 0.5
+  - id: harness-integrity
+    title: Reset remote effects and protect the scorer
+    visual: A progressive construction retains exact task, resource, evidence and failure identities through
+      this complete chapter.
+    beats:
+      - say: The harness loads a frozen contract, restores a disposable starting world, externally bounds
+          execution, captures independent evidence, scores outside the candidate’s reach and tears down
+          the environment. Firecracker provides lightweight virtual machines. gVisor provides a userspace
+          application kernel for sandboxed containers. Their names alone do not establish the configured
+          isolation. Reset databases, files, conversation memory, cached tool responses and approvals
+          tied to earlier calls; a fresh container can inherit a remote service’s old write.
+        hold: 0.75
+        visual_cues:
+          - id: reset-remote
+            phrase: Reset databases, files
+            targets:
+              - harness-integrity-mechanism
+            linger: 0.5
+          - id: reset-approval
+            phrase: approvals tied to earlier calls
+            targets:
+              - harness-integrity-mechanism
+            linger: 0.5
+      - say: Keep gold answers, trusted verifier dependencies and result collection beyond the candidate’s
+          filesystem, network and tool access. The April Berkeley audit’s WebArena configuration exposed
+          answer-bearing task files through browser file navigation; its Terminal-Bench exploit replaced
+          verifier dependencies despite re-uploaded tests. Those specific failures motivate independent
+          access tests of the actual harness. Hiding one test file does not protect a writable test
+          framework.
+        hold: 0.75
+        visual_cues:
+          - id: protect-gold
+            phrase: Keep gold answers
+            targets:
+              - harness-integrity-mechanism
+            linger: 0.5
+          - id: protect-deps
+            phrase: replaced verifier dependencies
+            targets:
+              - harness-integrity-mechanism
+            linger: 0.5
+      - say: The executed path micro-fixture rejects gold inside the agent-readable mount and accepts an absolute
+          path outside it. It rejects parent traversal, but Pure Posix Path does not resolve symlinks.
+          The in-memory reset fixture also proves the second safe run does not inherit the first unsafe
+          promotion request. These are narrow local checks. Test real mounts, identities, links and
+          remote backend tenants before claiming isolation; no production tool or real benchmark ran in
+          this lab.
+        hold: 0.75
+        visual_cues:
+          - id: path-inside
+            phrase: rejects gold inside
+            targets:
+              - harness-integrity-mechanism
+            linger: 0.5
+          - id: path-outside
+            phrase: accepts an absolute path outside
+            targets:
+              - harness-integrity-mechanism
+            linger: 0.5
+          - id: symlink-limit
+            phrase: does not resolve symlinks
+            targets:
+              - harness-integrity-mechanism
+            linger: 0.5
+  - id: release-report
+    title: Validate evidence before comparing release gates
+    visual: A progressive construction retains exact task, resource, evidence and failure identities through
+      this complete chapter.
+    beats:
+      - say: "Now assemble a versioned report: immutable candidate, prompt and tool identities; suite exposure
+          and untouched holdout; outcome and permission checks; repeated task protocol; total incurred
+          spend, cost per successful run and latency; calibrated soft review; and failure trace pointers.
+          Missing fields, nonfinite values and invalid types must fail before thresholds. NaN less than a
+          threshold is false, so a shortcut rejection comparison can otherwise miss invalid evidence.
+          Counts must be real nonnegative integers rather than Booleans."
+        hold: 0.75
+        visual_cues:
+          - id: report-fields
+            phrase: Now assemble a versioned report
+            targets:
+              - release-report-mechanism
+            linger: 0.5
+          - id: report-domain
+            phrase: Missing fields, nonfinite values
+            targets:
+              - release-report-mechanism
+            linger: 0.5
+          - id: report-nan
+            phrase: NaN less than a threshold is false
+            targets:
+              - release-report-mechanism
+            linger: 0.5
+      - say: The article’s separate promotion fixture has two passing episodes out of three, one critical
+          failure, all-three task reliability one third, total spend eleven point one cents and cost per
+          success five point five five cents. Its local policy requires every regression case, zero
+          observed critical failures, all-three reliability at least point nine five and cost per success
+          at most eight cents. Cost passes while the other three gates block. A communication judge
+          remains advisory. These are authored scoring fixtures, not observed agent runs or universal
+          release thresholds.
+        hold: 0.75
+        visual_cues:
+          - id: promotion-input
+            phrase: "two passing episodes out of three, one critical failure, all-three task reliability one third, total spend eleven point one cents and cost per success five point five five cents"
+            targets:
+              - release-report-mechanism
+            linger: 0.5
+          - id: promotion-gates
+            phrase: local policy requires
+            targets:
+              - release-report-mechanism
+            linger: 0.5
+          - id: promotion-verdict
+            phrase: Cost passes while the other three gates block
+            targets:
+              - release-report-mechanism
+            linger: 0.5
+      - say: The report validator checks numeric domains and the stated thresholds. It does not authenticate
+          records, establish sufficient sample size, audit actual permission evidence or prove a holdout
+          remained untouched. Those are separate release prerequisites. Judge-directed text and
+          attractive averages cannot waive a hard gate. A valid-looking dictionary is useful only when
+          its underlying evidence is trustworthy and complete.
+        hold: 0.75
+        visual_cues:
+          - id: report-proof
+            phrase: does not authenticate records
+            targets:
+              - release-report-mechanism
+            linger: 0.5
+          - id: report-trust
+            phrase: underlying evidence is trustworthy and complete
+            targets:
+              - release-report-mechanism
+            linger: 0.5
+  - id: repair-evidence
+    title: Keep a repaired regression distinct from new evidence
+    visual: A progressive construction retains exact task, resource, evidence and failure identities through
+      this complete chapter.
+    beats:
+      - say: The executed repair replaces the attack fixture’s promotion attempt with lookup, open security
+          review and verify state. All three regression rows then pass, including the repaired row’s six
+          point one cent cost within eight cents. Reversing that sequence, exceeding the budget with nine
+          cents or replacing cost with NaN still fails the original scorer. Reuse the same definition of
+          success rather than weakening it for the repair.
+        hold: 0.75
+        visual_cues:
+          - id: repair-action
+            phrase: open security review and verify state
+            targets:
+              - repair-evidence-mechanism
+            linger: 0.5
+          - id: repair-passes
+            phrase: All three regression rows then pass
+            targets:
+              - repair-evidence-mechanism
+            linger: 0.5
+          - id: repair-cost-result
+            phrase: "including the repaired row’s six point one cent cost within eight cents"
+            targets:
+              - repair-evidence-mechanism
+            linger: 0.5
+          - id: repair-variants
+            phrase: Reversing that sequence
+            targets:
+              - repair-evidence-mechanism
+            linger: 0.5
+          - id: repair-overbudget-input
+            phrase: "exceeding the budget with nine cents"
+            targets:
+              - repair-evidence-mechanism
+            linger: 0.5
+          - id: repair-variants-result
+            phrase: "Reversing that sequence, exceeding the budget with nine cents or replacing cost with NaN still fails the original scorer"
+            targets:
+              - repair-evidence-mechanism
+            linger: 0.5
+          - id: repair-nan
+            phrase: replacing cost with NaN
+            targets:
+              - repair-evidence-mechanism
+            linger: 0.5
+      - say: Release remains blocked because those edited dictionaries did not execute an independent agent.
+          Copying a successful record and changing its run identifier does not create another trial. Run
+          the frozen candidate from clean state, retain all outcomes, audit redaction and authority, and
+          test untouched episodes under the declared budget. A known failure that guided the repair is
+          now development evidence even if its frozen file never changed.
+        hold: 0.75
+        visual_cues:
+          - id: repair-not-trial
+            phrase: "those edited dictionaries did not execute an independent agent"
+            targets:
+              - repair-evidence-mechanism
+            linger: 0.5
+          - id: new-trials
+            phrase: test untouched episodes
+            targets:
+              - repair-evidence-mechanism
+            linger: 0.5
+  - id: fresh-library
+    title: Predict a repair from the failed evidence
+    visual: A progressive construction retains exact task, resource, evidence and failure identities through
+      this complete chapter.
+    beats:
+      - say: Return to Lena’s library account with exactly one B7 hold, operation seventeen and committed version
+          three. In a separate fictional rerun, the verifier receives a B8 snapshot from version two,
+          while the candidate says done. The permitted B7 write and its saved receipt are intact. Which
+          controlled repair should we test first? Pause before changing the environment or issuing
+          another write.
+        hold: 0.75
+        visual_cues:
+          - id: fresh-premises
+            phrase: B8 snapshot from version two
+            targets:
+              - fresh-library-mechanism
+            linger: 0.5
+      - say: Repair the state-read binding and freshness check, then replay the same episode from a clean reset.
+          The existing hold gives no reason to issue another effect under a new operation identity. The
+          verifier must read Lena and B7 after the write, at a comparable version at least three, and
+          confirm exactly one intended hold. Keep the wrong-book and stale-version failures as regression
+          probes instead of accepting the candidate’s sentence.
+        hold: 0.75
+        visual_cues:
+          - id: fresh-repair
+            phrase: "Repair the state-read binding and freshness check, then replay the same episode from a clean reset"
+            targets:
+              - fresh-library-mechanism
+            linger: 0.5
+          - id: fresh-outcome
+            phrase: confirm exactly one intended hold
+            targets:
+              - fresh-library-mechanism
+            linger: 0.5
+      - say: "A passing local repair does not supply new release reliability. Freeze the repaired model, scaffold, tools, environment and scorer, then execute representative untouched tasks with the same permission and resource gates. Retain grouped repeats, failed-run spend and uncertainty. You can now trace a reported success back to the authorized effect, independent observation and complete release evidence that earned it. Production retrieval next extends that trace into the source path, checking which private policy passages may enter an answer and whether they actually support it."
+        hold: 0.75
+        visual_cues:
+          - id: fresh-trials
+            phrase: execute representative untouched tasks
+            targets:
+              - fresh-library-mechanism
+            linger: 0.5
+          - id: fresh-payoff
+            phrase: trace a reported success back to the authorized effect
+            targets:
+              - fresh-library-mechanism
+            linger: 0.5

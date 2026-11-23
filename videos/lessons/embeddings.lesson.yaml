@@ -1,0 +1,1259 @@
+version: 1
+id: embeddings
+title: Words as Points and Context as Motion
+source: fundamentals/word-embeddings-contextual-representations/content.md
+voice: en-US-AndrewNeural
+rate: +0%
+sources:
+  - title: "Mikolov et al.: Efficient Estimation of Word Representations in Vector Space"
+    url: https://arxiv.org/abs/1301.3781
+  - title: "Peters et al.: Deep Contextualized Word Representations"
+    url: https://arxiv.org/abs/1802.05365
+  - title: "Devlin et al.: BERT, Pre-training of Deep Bidirectional Transformers"
+    url: https://arxiv.org/abs/1810.04805
+  - title: Mikolov et al. Distributed Representations of Words and Phrases
+    url: https://arxiv.org/abs/1310.4546
+  - title: Pennington et al. GloVe
+    url: https://aclanthology.org/D14-1162/
+  - title: Bojanowski et al. Enriching Word Vectors with Subword Information
+    url: https://arxiv.org/abs/1607.04606
+  - title: Levy and Goldberg. Neural Word Embedding as Implicit Matrix Factorization
+    url: https://proceedings.neurips.cc/paper_files/paper/2014/hash/b78666971ceae55a8e87efb7cbfd9ad4-Abstract.html
+  - title: fastText getWordVector implementation
+    url: https://github.com/facebookresearch/fastText/blob/main/src/fasttext.cc
+  - title: AllenNLP ELMo layer representation implementation
+    url: https://github.com/allenai/allennlp/blob/main/allennlp/modules/elmo.py
+  - title: Ethayarajh. How Contextual are Contextualized Word Representations?
+    url: https://arxiv.org/abs/1909.00512
+  - title: Reimers and Gurevych. Sentence-BERT
+    url: https://arxiv.org/abs/1908.10084
+  - title: Karpukhin et al. Dense Passage Retrieval
+    url: https://arxiv.org/abs/2004.04906
+  - title: Sentence Transformers semantic search contracts
+    url: https://www.sbert.net/examples/sentence_transformer/applications/semantic-search/README.html
+scenes:
+  - id: intro
+    title: One word, two different surroundings
+    visual: The sentences She sat by the river bank and She went to the bank share an identical bank
+      starting vector, then diverge after contextual mixing.
+    beats:
+      - say: Think of the word bank in two sentences. She sat by the river bank. She went to the bank to
+          deposit money. The spelling is identical, yet the surrounding words point toward different
+          meanings. How can a model represent both uses with one vocabulary entry?
+        hold: 0.6
+        visual_cues:
+          - id: intro-beat-1-focus-1
+            phrase: She sat by the river bank
+            targets:
+              - intro-object-she-sat-by-the-river-bank-1
+            color: blue
+            linger: 0.6
+      - say: We will begin with an embedding table, where each token selects a stored vector. Then we will
+          watch contextual computation change that vector for a particular occurrence. A small
+          numerical map will separate the starting lookup, the surrounding evidence, and the
+          resulting representation.
+        hold: 0.6
+        visual_cues:
+          - id: intro-beat-2-focus-1
+            phrase: We will begin with an embedding table
+            targets:
+              - intro-bank-vector
+            color: blue
+            linger: 0.6
+      - say: The coordinates in our example are constructed for teaching, with a deliberately visible river
+          direction and finance direction. Real embedding dimensions acquire their roles through
+          training and generally lack such tidy names. The example lets us inspect a mechanism
+          without mistaking the drawing for a measured model.
+        hold: 0.8
+        visual_cues:
+          - id: intro-beat-3-focus-1
+            phrase: with a deliberately visible river direction and finance direction
+            targets:
+              - intro-contextual-vectors
+            color: blue
+            linger: 0.6
+  - id: lookup
+    title: A token ID selects one stored vector
+    visual: Two occurrences select ID zero in the same table. Identical coordinate strips travel from
+      that one row into the two sentence positions.
+    beats:
+      - say: A vocabulary ID indexes one row in the embedding matrix. That row contains a fixed-length
+          vector of learned numbers. At lookup time, two occurrences of the same ID receive the same
+          coordinates, even when their sentences suggest different meanings.
+        hold: 0.6
+        visual_cues:
+          - id: lookup-beat-1-focus-1
+            phrase: A vocabulary ID indexes one row in the embedding matrix
+            targets:
+              - lookup-matrix
+            color: blue
+            linger: 0.6
+      - say: Here bank starts halfway between our two named teaching directions. River and money point
+          elsewhere in the same tiny space. Reading bank in either sentence selects the identical
+          starting row. The lookup has no access to the surrounding words until another computation
+          supplies them.
+        hold: 0.6
+        visual_cues:
+          - id: lookup-beat-2-focus-1
+            phrase: Reading bank in either sentence selects the identical starting row
+            targets:
+              - lookup-matrix
+            color: blue
+            linger: 0.6
+      - say: The stored vector can change during training. Calling it static describes its independence from
+          the current sentence, rather than its ability to be learned. Position information can
+          distinguish locations, while contextual computation is needed to incorporate the clues
+          carried by the neighboring words themselves.
+        hold: 0.8
+        visual_cues:
+          - id: lookup-beat-3-focus-1
+            phrase: The stored vector can change during training
+            targets:
+              - lookup-matrix
+            color: blue
+            linger: 0.6
+  - id: table-contract
+    title: A row lookup is an exact selection
+    visual: Build one-hot times E from actual row selection; retain token identity while raw ID order
+      has no geometric meaning.
+    beats:
+      - say: Keep our bank example, and open its array contract. An embedding table has one row per
+          vocabulary ID and one column per feature. With vocabulary size V and width d, its shape is
+          V by d. A one-hot row containing one at the token ID and zeros elsewhere, multiplied by
+          this table, selects exactly that stored row. Practical lookup gathers the row without
+          constructing a huge one-hot array.
+        hold: 0.65
+        visual_cues:
+          - id: emb-onehot
+            phrase: selects exactly that stored row
+            targets:
+              - table-contract-mechanism
+            color: cyan
+            linger: 0.5
+      - say: The numerical ID is an address. Nearby ID numbers need not describe related words. The article
+          uses a separate charge fixture, where the same token ID selects point eight, point two in
+          an invoice sentence and a phone instruction. These are different supplied teaching
+          coordinates from our bank map. Keep each fixture and its owners separate.
+        hold: 0.65
+        visual_cues:
+          - id: emb-charge-fixture
+            phrase: The article uses a separate charge fixture
+            targets:
+              - table-contract-mechanism
+            color: cyan
+            linger: 0.5
+      - say: Tokenization determines those units before lookup. A word may split into several subwords, and
+          a static vector can be assigned to each piece. Changing the units does not by itself add
+          sentence dependence. The table can be learned during training; at a fixed lookup, an
+          occurrence needs another operation to read its surrounding clues.
+        hold: 0.65
+        visual_cues:
+          - id: emb-pieces
+            phrase: A word may split into several subwords
+            targets:
+              - table-contract-mechanism
+            color: cyan
+            linger: 0.5
+  - id: neighbors
+    title: Build the evidence one word pair at a time
+    visual: Six actual word-bank pairs travel from their sentence positions into four count columns.
+    beats:
+      - say: Start with one sentence. Find bank, then inspect the words within four positions. River appears
+          inside that window. Move that observed pair into the river column. One occurrence
+          contributes one count.
+        hold: 0.8
+        visual_cues:
+          - id: neighbors-built-count-0
+            phrase: observed pair
+            targets:
+              - neighbors-object-distribution-neighbors-4
+            color: cyan
+            linger: 0.6
+      - say: Continue through the remaining sentences. Water and river contribute in the second. Money
+          contributes in the third. Deposit and money contribute in the fourth. The histogram grows
+          from these actual pairs, with bank participating in both context groups.
+        hold: 0.8
+        visual_cues:
+          - id: neighbors-built-count-1
+            phrase: histogram grows
+            targets:
+              - neighbors-object-distribution-neighbors-4
+            color: cyan
+            linger: 0.6
+      - say: The completed counts describe this small corpus. Word2Vec learns predictive word-context
+          objectives, GloVe uses global co-occurrence statistics, and FastText includes subword
+          information. Their objectives differ. These observed contexts provide evidence for
+          learning useful representations; the counts alone are not trained vectors.
+        hold: 0.8
+        visual_cues:
+          - id: neighbors-built-count-2
+            phrase: completed counts
+            targets:
+              - neighbors-object-distribution-neighbors-4
+            color: cyan
+            linger: 0.6
+  - id: count-ppmi
+    title: Compare an observed pair with its chance baseline
+    visual: Trace one count cell through row and column marginals, expected count, ratio, logarithm and
+      positive floor; construct zero cells honestly.
+    beats:
+      - say: Our bank histogram counted actual pairs within a four-position window. The article next uses a
+          separate two-position corpus window and an explicitly supplied four-by-four count matrix.
+          Apple and pear share fruit and sweet contexts; river and lake share water and shore. This
+          matrix illustrates compression and is not claimed to be the histogram of the earlier four
+          sentences.
+        hold: 0.65
+        visual_cues:
+          - id: emb-count-build
+            phrase: an explicitly supplied four-by-four count matrix
+            targets:
+              - count-ppmi-mechanism
+            color: cyan
+            linger: 0.5
+      - say: "Raw counts favor common contexts. For a word-context pair, multiply its row total by its
+          column total and divide by the grand total to obtain the independence baseline. The
+          supplied apple-fruit cell has count eight, row total fourteen, fruit-column total fifteen
+          and grand total fifty-three. The expected count is two hundred ten divided by fifty-three,
+          about three point nine six. Divide eight by that expected count, then take the natural
+          logarithm: about point seven zero three."
+        hold: 0.65
+        visual_cues:
+          - id: emb-count-marginals
+            phrase: row total fourteen, fruit-column total fifteen and grand total fifty-three
+            targets:
+              - count-ppmi-mechanism
+            color: cyan
+            linger: 0.5
+          - id: emb-count-expected
+            phrase: about three point nine six
+            targets:
+              - count-ppmi-mechanism
+            color: cyan
+            linger: 0.5
+          - id: emb-count-log
+            phrase: about point seven zero three
+            targets:
+              - count-ppmi-mechanism
+            color: green
+            linger: 0.5
+      - say: Positive pointwise mutual information, or PPMI, keeps the larger of that log ratio and zero.
+          Unobserved cells are set to zero rather than taking log zero. Empty marginals need
+          explicit handling; an entirely zero count matrix has no observed association. A large
+          value from a rare count is an association estimate, not statistical confidence. Words with
+          opposite meanings can also occur in similar contexts.
+        hold: 0.65
+        visual_cues:
+          - id: emb-count-floor
+            phrase: keeps the larger of that log ratio and zero
+            targets:
+              - count-ppmi-mechanism
+            color: cyan
+            linger: 0.5
+          - id: emb-count-zeros
+            phrase: Unobserved cells are set to zero
+            targets:
+              - count-ppmi-mechanism
+            color: cyan
+            linger: 0.5
+  - id: factorization
+    title: Compress context patterns into shared directions
+    visual: Construct a rank-two SVD approximation from the actual PPMI matrix and carry labeled rows
+      into two axes.
+    beats:
+      - say: "The count table has a feature for each context. To compress it, take a singular value
+          decomposition: U times the diagonal singular-value matrix times V transpose. Keep two
+          singular directions. Our chosen word representation uses the first two columns of U,
+          scaled by the square roots of their singular values. The companion context factor uses the
+          matching square roots and right singular directions."
+        hold: 0.65
+        visual_cues:
+          - id: emb-factor-two
+            phrase: Keep two singular directions
+            targets:
+              - factorization-mechanism
+            color: cyan
+            linger: 0.5
+          - id: emb-factor-scale
+            phrase: scaled by the square roots of their singular values
+            targets:
+              - factorization-mechanism
+            color: cyan
+            linger: 0.5
+      - say: The executed fixture’s leading singular values are about one point four one eight and one point
+          three four eight. Its two-coordinate apple and pear representations have cosine one, while
+          apple and river have cosine zero. These are actual results of this constructed matrix, not
+          measurements of natural-language semantic accuracy. A different corpus, weighting or
+          truncation can change them.
+        hold: 0.65
+        visual_cues:
+          - id: emb-factor-rows
+            phrase: Its two-coordinate apple and pear representations have cosine one
+            targets:
+              - factorization-mechanism
+            color: cyan
+            linger: 0.5
+          - id: emb-factor-cross
+            phrase: apple and river have cosine zero
+            targets:
+              - factorization-mechanism
+            color: green
+            linger: 0.5
+      - say: The whole sign of a singular axis can flip while preserving the represented relationships.
+          Every word must use the same fitted basis. Static co-occurrence patterns can support
+          useful neighbors, but a two-dimensional drawing or a successful analogy checks a
+          particular geometric relationship. It does not establish that every use of a word has been
+          understood.
+        hold: 0.65
+        visual_cues:
+          - id: emb-factor-sign
+            phrase: The whole sign of a singular axis can flip
+            targets:
+              - factorization-mechanism
+            color: cyan
+            linger: 0.5
+  - id: predictive-window
+    title: Build the prediction examples from actual positions
+    visual: Move center-to-neighbor arrows through the supplied sentence and distinguish CBOW direction
+      from Skip-gram direction.
+    beats:
+      - say: Word2Vec learns a predictive objective instead of directly factorizing this count table.
+          Continuous bag of words predicts a center word from its neighboring words. Skip-gram uses
+          the center word to predict nearby context words. These training directions define
+          different examples even when they use the same text.
+        hold: 0.65
+        visual_cues:
+          - id: emb-cbow
+            phrase: Continuous bag of words predicts a center word from its neighboring words
+            targets:
+              - predictive-window-mechanism
+            color: cyan
+            linger: 0.5
+          - id: emb-skipgram
+            phrase: Skip-gram uses the center word to predict nearby context words
+            targets:
+              - predictive-window-mechanism
+            color: cyan
+            linger: 0.5
+      - say: In children read stories each night, use read as the center and a two-position window. Children
+          is one position left, stories one right, and each two right. Those are the three positive
+          pairs in the actual cell. Night is three positions away, outside this chosen window.
+          Whitespace positions are the declared toy tokens here.
+        hold: 0.65
+        visual_cues:
+          - id: emb-window-pairs
+            phrase: Children is one position left, stories one right, and each two right
+            targets:
+              - predictive-window-mechanism
+            color: cyan
+            linger: 0.5
+          - id: emb-window-night
+            phrase: Night is three positions away
+            targets:
+              - predictive-window-mechanism
+            color: cyan
+            linger: 0.5
+      - say: Training moves parameters to improve these predictions. A learned input word vector can later
+          be compared with another input vector, but that cosine lookup is different from the
+          training score between a center input row and a context output row. The objective, the
+          extracted table and the downstream metric each need a clear contract.
+        hold: 0.65
+        visual_cues:
+          - id: emb-word-tables
+            phrase: center input row and a context output row
+            targets:
+              - predictive-window-mechanism
+            color: cyan
+            linger: 0.5
+  - id: negative-step
+    title: Take one actual Skip-gram gradient step
+    visual: Construct positive and negative dot products, collect signed gradient contributions, then
+      move the center to lower the actual supplied loss.
+    beats:
+      - say: Skip-gram with negative sampling keeps separate input and output tables. Score the center input
+          vector against the observed neighbor’s output vector, then against sampled output rows.
+          The original method draws noise according to unigram frequency raised to three quarters
+          and normalized. A sampled negative need not be absent, unknown or semantically unrelated.
+          Repeated draws remain repeated terms in the loss.
+        hold: 0.65
+        visual_cues:
+          - id: emb-negative-inputs
+            phrase: Score the center input vector against the observed neighbor’s output vector
+            targets:
+              - negative-step-mechanism
+            color: cyan
+            linger: 0.5
+          - id: emb-negative-noise
+            phrase: Repeated draws remain repeated terms in the loss
+            targets:
+              - negative-step-mechanism
+            color: cyan
+            linger: 0.5
+      - say: The sigmoid of a score is one divided by the quantity one plus the exponential of the negative
+          score. A zero score gives one half. The positive loss is negative log sigmoid of its
+          score. Each negative loss is negative log sigmoid of the negated score. The derivative
+          with respect to a positive score is sigmoid minus one; for a negative score it is sigmoid.
+          Multiply those coefficients by their output rows and add to obtain the center gradient.
+          Subtract learning rate times that gradient. A full trainer also updates output rows; this
+          cell holds them fixed to isolate the center step.
+        hold: 0.65
+        visual_cues:
+          - id: emb-sigmoid-zero
+            phrase: A zero score gives one half
+            targets:
+              - negative-step-mechanism
+            color: cyan
+            linger: 0.5
+          - id: emb-negative-gradient
+            phrase: Multiply those coefficients by their output rows and add
+            targets:
+              - negative-step-mechanism
+            color: cyan
+            linger: 0.5
+          - id: emb-negative-update-rule
+            phrase: Subtract learning rate times that gradient
+            targets:
+              - negative-step-mechanism
+            color: cyan
+            linger: 0.5
+      - say: In the executed fixture, center one, zero and the supplied positive and two negative output
+          vectors give loss about point eight nine two. One step at rate point one moves the center
+          to about one point zero eight one, point zero zero eight. Its positive score rises from
+          one point two to one point two nine eight, and loss falls to about point eight two seven.
+          That verifies this local update. It does not certify the resulting semantic neighborhoods.
+        hold: 0.65
+        visual_cues:
+          - id: emb-negative-before
+            phrase: loss about point eight nine two
+            targets:
+              - negative-step-mechanism
+            color: cyan
+            linger: 0.5
+          - id: emb-negative-move
+            phrase: One step at rate point one moves the center to about one point zero eight one, point zero
+              zero eight
+            targets:
+              - negative-step-mechanism
+            color: cyan
+            linger: 0.5
+          - id: emb-negative-loss
+            phrase: loss falls to about point eight two seven
+            targets:
+              - negative-step-mechanism
+            color: green
+            linger: 0.5
+  - id: shifted-pmi
+    title: Read the connection between two objectives
+    visual: Compare a fitted input-output score with shifted PMI while keeping the noise distribution
+      and capacity assumptions visible.
+    beats:
+      - say: Levy and Goldberg connected negative sampling to matrix factorization. When noise is
+          proportional to context frequency and a score is unconstrained, the optimum for an
+          observed pair is its pointwise mutual information minus natural log k, where k is the
+          number of negative draws per positive pair. This is a statement about an input-output dot
+          product.
+        hold: 0.65
+        visual_cues:
+          - id: emb-pmi-optimum
+            phrase: pointwise mutual information minus natural log k
+            targets:
+              - shifted-pmi-mechanism
+            color: cyan
+            linger: 0.5
+      - say: For an unobserved pair with positive noise probability, the ideal unconstrained score goes to
+          negative infinity. A finite-width shared vector model cannot independently set every table
+          cell. Regularization and the original three-quarter-power noise distribution change the
+          fitted solution as well. Do not claim that trained Word2Vec must equal the two-dimensional
+          SVD we just computed.
+        hold: 0.65
+        visual_cues:
+          - id: emb-pmi-absent
+            phrase: ideal unconstrained score goes to negative infinity
+            targets:
+              - shifted-pmi-mechanism
+            color: cyan
+            linger: 0.5
+          - id: emb-pmi-capacity
+            phrase: cannot independently set every table cell
+            targets:
+              - shifted-pmi-mechanism
+            color: cyan
+            linger: 0.5
+      - say: "The connection explains a mechanism: frequent positive evidence pushes a score up, while
+          expected noise exposure pushes it down. Both count-based and predictive methods use
+          distributional evidence, with different objectives and constraints. Neither a high
+          training score nor a nearby input vector proves that a generated factual claim is true."
+        hold: 0.65
+        visual_cues:
+          - id: emb-pmi-pressure
+            phrase: frequent positive evidence pushes a score up
+            targets:
+              - shifted-pmi-mechanism
+            color: cyan
+            linger: 0.5
+  - id: glove-fit
+    title: Fit log counts with a weighted residual
+    visual: Trace the actual count through log target, input-output score plus biases, squared residual
+      and capped count weighting.
+    beats:
+      - say: GloVe fits global statistics aggregated from local context windows. Its original collection
+          weights a neighbor at distance r by one over r, so a co-occurrence can be fractional. The
+          model score is a word-context dot product plus a bias for each side, and the target is the
+          natural log of the observed count. Sum weighted squared residuals over nonzero observed
+          cells.
+        hold: 0.65
+        visual_cues:
+          - id: emb-glove-score
+            phrase: word-context dot product plus a bias for each side
+            targets:
+              - glove-fit-mechanism
+            color: cyan
+            linger: 0.5
+      - say: The article supplies a score of log thirty. Counts three, thirty and three hundred have log
+          targets about one point zero nine nine, three point four zero one and five point seven
+          zero four. The matching thirty-count residual is zero. Against count three, the squared
+          residual is natural log ten squared, about five point three zero two. The target is log
+          count, not raw count or a sampled class label.
+        hold: 0.65
+        visual_cues:
+          - id: emb-glove-log-targets
+            phrase: Counts three, thirty and three hundred
+            targets:
+              - glove-fit-mechanism
+            color: cyan
+            linger: 0.5
+          - id: emb-glove-zero
+            phrase: The matching thirty-count residual is zero
+            targets:
+              - glove-fit-mechanism
+            color: green
+            linger: 0.5
+          - id: emb-glove-error
+            phrase: about five point three zero two
+            targets:
+              - glove-fit-mechanism
+            color: cyan
+            linger: 0.5
+      - say: For the published weighting function, raise the ratio of count to one hundred to the
+          three-quarter power, then cap at one. Counts three, thirty and one hundred receive weights
+          about point zero seven two, point four zero five and one. Skip absent cells before taking
+          logarithms. These weights regulate how much each observed count contributes; they do not
+          turn the fitted vectors into sentence-specific states.
+        hold: 0.65
+        visual_cues:
+          - id: emb-glove-weights
+            phrase: raise the ratio of count to one hundred to the three-quarter power
+            targets:
+              - glove-fit-mechanism
+            color: cyan
+            linger: 0.5
+          - id: emb-glove-weight-values
+            phrase: about point zero seven two, point four zero five and one
+            targets:
+              - glove-fit-mechanism
+            color: cyan
+            linger: 0.5
+  - id: subword-components
+    title: Compose an unfamiliar spelling from retained pieces
+    visual: Slide bounded character n-grams over play and played, preserve repeated bucket occurrences,
+      and construct both sum and exported average.
+    beats:
+      - say: FastText augments word representations with character n-gram components. Boundary markers
+          distinguish pieces at a word’s edges. The original setup uses lengths three through six.
+          Our article simplifies this to unique length-three character strings for play and played.
+          Their shared pieces are the left boundary plus p l, then p l a and l a y. Played adds a y
+          e, y e d and e d plus the right boundary.
+        hold: 0.65
+        visual_cues:
+          - id: emb-subword-windows
+            phrase: Their shared pieces are the left boundary plus p l, then p l a and l a y
+            targets:
+              - subword-components-mechanism
+            color: cyan
+            linger: 0.5
+      - say: The toy uses a set to expose shared spellings. The actual implementation retains component
+          occurrences and hashes them into a finite bucket table, so repeated pieces or collisions
+          can repeat a bucket contribution. An in-vocabulary word also has its own word row. An
+          unknown spelling has no whole-word row but can compose available hashed subword rows. That
+          can help rare forms and does not guarantee their semantic quality.
+        hold: 0.65
+        visual_cues:
+          - id: emb-subword-occurrences
+            phrase: repeat a bucket contribution
+            targets:
+              - subword-components-mechanism
+            color: cyan
+            linger: 0.5
+          - id: emb-subword-oov
+            phrase: An unknown spelling has no whole-word row
+            targets:
+              - subword-components-mechanism
+            color: cyan
+            linger: 0.5
+      - say: The paper’s scoring construction sums components. The released get-word-vector implementation
+          adds its returned component rows and then divides by their number. Sum and positive
+          average have the same direction when nonzero, but different norms and raw dot products.
+          Keep the chosen API and normalization contract explicit. Exported dot-vec word rows do not
+          retain the model’s subword machinery for new spellings; the full binary model does.
+        hold: 0.65
+        visual_cues:
+          - id: emb-subword-average
+            phrase: divides by their number
+            targets:
+              - subword-components-mechanism
+            color: cyan
+            linger: 0.5
+          - id: emb-subword-export
+            phrase: the full binary model does
+            targets:
+              - subword-components-mechanism
+            color: cyan
+            linger: 0.5
+  - id: geometry
+    title: Similarity compares vectors in one coordinate system
+    visual: Constructed word vectors appear as arrows from a common origin. Normalized vectors expose
+      cosine as a directional comparison.
+    beats:
+      - say: A dot product combines matching coordinates. For unit-length vectors, it equals cosine
+          similarity and measures directional alignment. Normalizing removes vector magnitude from
+          that comparison, making the angle between two representations the quantity being scored in
+          this particular metric.
+        hold: 0.6
+        visual_cues:
+          - id: geometry-beat-1-focus-1
+            phrase: A dot product combines matching coordinates
+            targets:
+              - geometry-equation-string-raw-cos-u-v-frac-u-top-v-u-v-10
+            color: yellow
+            linger: 0.6
+          - id: geometry-beat-1-focus-2
+            phrase: For unit-length vectors
+            targets:
+              - embedding-state-vectors
+            color: blue
+            linger: 0.6
+      - say: Follow the river and water arrows. They point in similar directions in our constructed map,
+          while money points elsewhere. Bank begins between the two groups. These relationships were
+          chosen for the demonstration; a trained model’s actual neighbors need to be measured from
+          its vectors.
+        hold: 0.6
+        visual_cues:
+          - id: geometry-beat-2-focus-1
+            phrase: Follow the river and water arrows
+            targets:
+              - geometry-river-water-vectors
+            color: yellow
+            linger: 0.6
+          - id: geometry-bank-position-b2-2
+            phrase: Bank begins between the two groups
+            targets:
+              - geometry-bank-vector
+            color: yellow
+            linger: 0.6
+      - say: Coordinate systems matter. Two embedding models can both output the same number of dimensions
+          while arranging information differently. Comparing one model’s vector with another model’s
+          vector using an ordinary dot product requires an established alignment or shared training
+          contract; matching dimensions alone leaves that relationship unestablished.
+        hold: 0.8
+        visual_cues:
+          - id: geometry-beat-3-focus-1
+            phrase: Coordinate systems matter
+            targets:
+              - geometry-equation-string-raw-cos-u-v-frac-u-top-v-u-v-10
+            color: yellow
+            linger: 0.6
+  - id: context
+    title: Surrounding clues create an occurrence state
+    visual: Two copies of the identical bank vector receive different weighted context updates. Their
+      endpoints travel toward river and finance regions.
+    beats:
+      - say: Now allow contextual computation to read the sentence. In our teaching rule, bank receives a
+          weighted combination of nearby clue vectors. The river sentence contributes more of the
+          river and water directions. The deposit sentence contributes more of the money direction.
+        hold: 0.6
+        visual_cues:
+          - id: context-beat-1-focus-1
+            phrase: The river sentence contributes more of the river and water directions
+            targets:
+              - context-equation-finance-string-raw-0-5-mathrm-bank-0-5-mathrm-mone-13
+            color: yellow
+            linger: 0.6
+      - say: The two copies start from exactly the same coordinates and then move to different occurrence
+          states. The calculation is a small explicit weighted mix, illustrating how contextual
+          evidence can enter. A real contextual model learns many transformations and can use richer
+          relationships across layers.
+        hold: 0.6
+        motion_check:
+          region:
+            - 130
+            - 300
+            - 1670
+            - 640
+          minimumChangedFraction: 0.002
+        visual_cues:
+          - id: context-beat-2-focus-1
+            phrase: same coordinates and then move to different occurrence
+            targets:
+              - embedding-state-vectors
+            color: blue
+            linger: 0.6
+          - id: context-beat-2-focus-2
+            phrase: The calculation is a small explicit weighted mix
+            targets:
+              - embedding-state-vectors
+            color: blue
+            linger: 0.6
+      - say: Attention provides one mechanism for selecting and mixing available token information.
+          Feed-forward layers then rewrite features within each position. Causal models use earlier
+          context; bidirectional encoders can use both sides under their training mask. Which clues
+          are available depends on that visibility rule.
+        hold: 0.8
+        visual_cues:
+          - id: context-beat-3-focus-1
+            phrase: Causal models use earlier context
+            targets:
+              - context-equation-string-raw-h-i-text-lookup-text-context-update-18
+            color: yellow
+            linger: 0.6
+          - id: context-beat-3-focus-2
+            phrase: Attention provides one mechanism for selecting and mixing available token information
+            targets:
+              - context-equation-finance-string-raw-0-5-mathrm-bank-0-5-mathrm-mone-13
+            color: yellow
+            linger: 0.6
+  - id: article-context
+    title: Watch one static row acquire two occurrence states
+    visual: Reuse the actual charge row in two half-weight mixes while distinguishing the toy
+      interpolation from learned attention.
+    beats:
+      - say: Return to the article’s separate charge fixture. Both occurrences start at point eight, point
+          two. The invoice clue is point two, one, and phone is one, point one. Under the stated
+          half-lookup, half-clue teaching rule, invoice produces point five, point six. Phone
+          produces point nine, point one five. Compute each coordinate from the same shared lookup
+          row.
+        hold: 0.65
+        visual_cues:
+          - id: emb-charge-invoice
+            phrase: invoice produces point five, point six
+            targets:
+              - article-context-mechanism
+            color: cyan
+            linger: 0.5
+          - id: emb-charge-phone
+            phrase: Phone produces point nine, point one five
+            targets:
+              - article-context-mechanism
+            color: cyan
+            linger: 0.5
+      - say: The invoice-sentence state has cosine about point eight seven nine with invoice; the
+          phone-instruction state has about point three five five with invoice. The table still has
+          one charge row. Context changed an occurrence’s forward-pass state rather than creating a
+          new vocabulary entry for every sentence.
+        hold: 0.65
+        visual_cues:
+          - id: emb-charge-cosines
+            phrase: about point three five five with invoice
+            targets:
+              - article-context-mechanism
+            color: green
+            linger: 0.5
+      - say: Our equal mixture is hand-assigned and trains no attention. A real attention head reads learned
+          value projections from positions its mask permits. Residual paths, output projections and
+          later layers change the state further. Comparing such an output directly with an
+          input-table row requires its own interpretation. A static subword composition still needs
+          contextual computation to depend on a sentence.
+        hold: 0.65
+        visual_cues:
+          - id: emb-charge-values
+            phrase: reads learned value projections from positions its mask permits
+            targets:
+              - article-context-mechanism
+            color: cyan
+            linger: 0.5
+  - id: elmo-layers
+    title: Mix layers without confusing them with token attention
+    visual: Construct forward and backward recurrence into three matching layer states, then apply one
+      task-wide softmax mixture and gamma.
+    beats:
+      - say: ELMo uses a forward and a backward recurrent language model. Their input representation and
+          output softmax parameters are shared, while their LSTM weights are separate. The original
+          character CNN projects a context-free state to five hundred twelve coordinates. The
+          implementation duplicates it to one thousand twenty-four for the layer mix. Each of two
+          contextual layers concatenates five hundred twelve forward and five hundred twelve
+          backward coordinates.
+        hold: 0.65
+        visual_cues:
+          - id: emb-elmo-recurrent
+            phrase: Their input representation and output softmax parameters are shared
+            targets:
+              - elmo-layers-mechanism
+            color: cyan
+            linger: 0.5
+          - id: emb-elmo-duplicate
+            phrase: duplicates it to one thousand twenty-four
+            targets:
+              - elmo-layers-mechanism
+            color: cyan
+            linger: 0.5
+          - id: emb-elmo-concatenate
+            phrase: concatenates five hundred twelve forward and five hundred twelve backward
+            targets:
+              - elmo-layers-mechanism
+            color: cyan
+            linger: 0.5
+      - say: At each token position, the downstream task takes a weighted sum of those three matching layer
+          states and multiplies by gamma. Softmax-normalized layer weights are nonnegative and sum
+          to one. The same task-specific layer weights are used at every token position; they are
+          not token-to-token attention weights. Ordinarily this downstream combination learns while
+          the pretrained language model stays frozen.
+        hold: 0.65
+        visual_cues:
+          - id: emb-elmo-mixture
+            phrase: takes a weighted sum of those three matching layer states
+            targets:
+              - elmo-layers-mechanism
+            color: cyan
+            linger: 0.5
+          - id: emb-elmo-gamma
+            phrase: multiplies by gamma
+            targets:
+              - elmo-layers-mechanism
+            color: cyan
+            linger: 0.5
+      - say: "Follow a two-coordinate arithmetic illustration of that same combination. Multiply each
+          supplied layer state by its task weight, add the three vectors, then scale every
+          coordinate by gamma. Changing the token changes its three input states even though the
+          layer weights remain shared. A BERT-style encoder learns bidirectional self-attention with
+          a masked-language objective: corrupt selected inputs and predict their originals using
+          both sides."
+        hold: 0.65
+        visual_cues:
+          - id: emb-elmo-example
+            phrase: Multiply each supplied layer state by its task weight, add the three vectors
+            targets:
+              - elmo-layers-mechanism
+            color: cyan
+            linger: 0.5
+          - id: emb-elmo-change
+            phrase: Changing the token changes its three input states
+            targets:
+              - elmo-layers-mechanism
+            color: cyan
+            linger: 0.5
+  - id: visibility-test
+    title: A future clue must cross an allowed edge
+    visual: Build full and causal visibility matrices, move actual clue tokens along allowed edges, then
+      replace a future token under fixed deterministic conditions.
+    beats:
+      - say: For charge the phone, inspect the first position. An encoder’s full mask permits charge, the
+          and phone. A causal decoder’s first state permits only charge. Its final phone state can
+          read the whole three-token prefix. The mask specifies which positions are available;
+          learned attention weights determine contributions among those allowed positions.
+        hold: 0.65
+        visual_cues:
+          - id: emb-mask-encoder
+            phrase: full mask permits charge, the and phone
+            targets:
+              - visibility-test-mechanism
+            color: cyan
+            linger: 0.5
+          - id: emb-mask-first
+            phrase: first state permits only charge
+            targets:
+              - visibility-test-mechanism
+            color: cyan
+            linger: 0.5
+          - id: emb-mask-final
+            phrase: final phone state can read the whole three-token prefix
+            targets:
+              - visibility-test-mechanism
+            color: cyan
+            linger: 0.5
+      - say: Now replace the later phone token with invoice. Keep the earlier prefix token IDs, positions,
+          fixed weights and deterministic evaluation unchanged. The earlier causal charge state must
+          stay unchanged, because no allowed edge brings the changed future token into it.
+          Processing the full sequence in parallel does not remove this restriction. The final
+          causal state and bidirectional states may change.
+        hold: 0.65
+        visual_cues:
+          - id: emb-mask-replace
+            phrase: replace the later phone token with invoice
+            targets:
+              - visibility-test-mechanism
+            color: cyan
+            linger: 0.5
+          - id: emb-mask-invariant
+            phrase: earlier causal charge state must stay unchanged
+            targets:
+              - visibility-test-mechanism
+            color: green
+            linger: 0.5
+      - say: If you need a representation of the whole instruction, its first ambiguous word can omit the
+          very evidence you need. Choose a state or pooling rule that can use the intended text, and
+          evaluate that representation. During causal language modeling, a position’s contextual
+          state feeds the output head to score candidate next tokens; that next-token objective is a
+          different task from sentence retrieval.
+        hold: 0.65
+        visual_cues:
+          - id: emb-mask-summary
+            phrase: Choose a state or pooling rule that can use the intended text
+            targets:
+              - visibility-test-mechanism
+            color: cyan
+            linger: 0.5
+  - id: contrast
+    title: The lookup stays shared as the outputs separate
+    visual: A stable central lookup row feeds two sentence-specific states. A numeric cosine comparison
+      shows each contextual vector closer to its intended clue.
+    beats:
+      - say: Compare the final directions. The river-bank occurrence is now more aligned with the river clue
+          than with money. The financial occurrence shows the reverse relation. Each result can be
+          checked from the displayed coordinates and the exact weighted updates used in this
+          fixture.
+        hold: 0.6
+        visual_cues:
+          - id: contrast-beat-1-focus-1
+            phrase: Compare the final directions
+            targets:
+              - contrast-object-distribution-contrast-21
+            color: blue
+            linger: 0.6
+          - id: contrast-beat-1-focus-2
+            phrase: The river-bank occurrence is now more aligned with
+            targets:
+              - contrast-object-distribution-contrast-21
+            color: blue
+            linger: 0.6
+      - say: The embedding table still contains one bank row. Contextualization changed the state of each
+          occurrence during the forward pass, so storing separate vocabulary entries for every
+          possible sentence was unnecessary. The same learned machinery can respond differently when
+          its available context changes.
+        hold: 0.6
+        visual_cues:
+          - id: contrast-beat-2-focus-1
+            phrase: The embedding table still contains one bank row
+            targets:
+              - contrast-object-distribution-contrast-21
+            color: blue
+            linger: 0.6
+      - say: A word split into several subword tokens introduces another representation choice. You might
+          inspect one subtoken state, combine several states, or pool a whole sentence, depending on
+          the task. Keep that choice explicit when comparing vectors, because different pooling
+          rules answer different questions.
+        hold: 0.8
+        visual_cues:
+          - id: contrast-beat-3-focus-1
+            phrase: A word split into several subword tokens introduces another representation choice
+            targets:
+              - contrast-object-distribution-contrast-21
+            color: blue
+            linger: 0.6
+  - id: pooling
+    title: A sentence needs a representation rule
+    visual: Contextual token states combine through an explicit masked mean. A padding row stays
+      excluded and the pooled vector remains unchanged when it is added.
+    beats:
+      - say: To compare sentences, we need a rule that turns several token states into one representation. A
+          masked mean averages the chosen non-padding positions. Other models train a special token
+          or another pooling mechanism. The training objective determines whether the resulting
+          vector serves sentence similarity well.
+        hold: 0.6
+        visual_cues:
+          - id: pooling-beat-1-focus-1
+            phrase: we need a rule that turns several token states into one representation
+            targets:
+              - pooling-input-states
+              - pooling-valid-mask
+            color: blue
+            linger: 0.6
+          - id: pooling-beat-1-focus-2
+            phrase: A masked mean averages the chosen non-padding positions
+            targets:
+              - pooling-output-mean
+            color: blue
+            linger: 0.6
+      - say: Watch a padding row enter the display. The mask gives it zero contribution, and the denominator
+          counts only the valid token states. Including padding in either the sum or denominator
+          would change the result even though the sentence’s actual words stayed identical.
+        hold: 0.6
+        visual_cues:
+          - id: pooling-beat-2-focus-1
+            phrase: and the denominator counts only the valid token states
+            targets:
+              - pooling-input-states
+              - pooling-valid-mask
+            color: blue
+            linger: 0.6
+      - say: A raw contextual model is trained for its own objective. Useful sentence search often adds
+          dedicated contrastive or similarity training. Evaluate the complete encoding contract,
+          including tokenization, pooling, normalization, and any task prefix, using relevant
+          held-out queries and passages.
+        hold: 0.8
+        visual_cues:
+          - id: pooling-beat-3-focus-1
+            phrase: A raw contextual model is trained for its own objective
+            targets:
+              - pooling-equation-string-raw-bar-h-frac-sum-i-m-i-h-i-sum-i-m-i-28
+            color: yellow
+            linger: 0.6
+  - id: limits
+    title: A familiar neighborhood still needs evaluation
+    visual: Four persistent endpoints translate by the same vector while river-money distance stays
+      fixed. Their normalized arrows become nearly aligned; subtracting the common mean separates
+      their directions again.
+    beats:
+      - say: Geometry can be dominated by a common direction shared by many vectors. Adding the same large
+          component to our tiny examples makes their cosines look similar even though their task
+          relationships have barely changed. This illustrates why a similarity score needs context
+          about the representation space.
+        hold: 0.6
+        visual_cues:
+          - id: limits-beat-1-focus-1
+            phrase: Geometry can be dominated by a common direction shared by many vectors
+            targets:
+              - limits-simulation-29
+            color: blue
+            linger: 0.6
+      - say: Centering, whitening, or choosing another layer can change the geometry, but each
+          transformation also changes the scoring contract. Measure the effect on the task before
+          adopting it. A visually pleasing two-dimensional projection can hide distortions
+          introduced when a higher-dimensional space was compressed for display.
+        hold: 0.6
+        visual_cues:
+          - id: limits-beat-2-focus-1
+            phrase: Centering
+            targets:
+              - limits-simulation-29
+            color: blue
+            linger: 0.6
+      - say: Related meanings can also be close when a task needs them separated. A correct answer and a
+          subtly wrong answer may share almost every word. Evaluate retrieval recall, ranking, and
+          important failure cases directly, rather than treating a high cosine as a general
+          certificate of relevance.
+        hold: 0.8
+        visual_cues:
+          - id: limits-beat-3-focus-1
+            phrase: Related meanings can also be close when a task needs them separated
+            targets:
+              - limits-simulation-29
+            color: blue
+            linger: 0.6
+  - id: anisotropy-check
+    title: A centering trick needs a population diagnosis
+    visual: Construct the actual common-offset cosine, remove a fixed mean, expose the two-point
+      artifact and a possible zero-length centered state.
+    beats:
+      - say: "The article gives another separate geometry fixture: ten, one and ten, minus one. Their dot
+          product is ninety-nine and both squared lengths are one hundred one, so raw cosine is
+          ninety-nine over one hundred one, about point nine eight zero two. The large shared
+          horizontal component dominates this directional score. A study of BERT, ELMo and GPT-two
+          found narrow-cone, anisotropic geometry in many examined layers."
+        hold: 0.65
+        visual_cues:
+          - id: emb-common-dot
+            phrase: Their dot product is ninety-nine
+            targets:
+              - anisotropy-check-mechanism
+            color: cyan
+            linger: 0.5
+          - id: emb-common-cosine
+            phrase: about point nine eight zero two
+            targets:
+              - anisotropy-check-mechanism
+            color: cyan
+            linger: 0.5
+      - say: Subtract this pair’s mean, ten, zero. The centered vectors become zero, one and zero, minus
+          one, with cosine minus one. Any two distinct vectors centered by their own pair mean
+          become opposites. This result alone diagnoses neither a model’s population geometry nor
+          improved retrieval. With more points, one may equal the fitted mean and become a zero
+          vector, whose cosine is undefined.
+        hold: 0.65
+        visual_cues:
+          - id: emb-common-center
+            phrase: Subtract this pair’s mean, ten, zero
+            targets:
+              - anisotropy-check-mechanism
+            color: cyan
+            linger: 0.5
+          - id: emb-common-opposite
+            phrase: cosine minus one
+            targets:
+              - anisotropy-check-mechanism
+            color: cyan
+            linger: 0.5
+          - id: emb-common-zero
+            phrase: become a zero vector, whose cosine is undefined
+            targets:
+              - anisotropy-check-mechanism
+            color: cyan
+            linger: 0.5
+      - say: Diagnose a representative population and fit any proposed mean or whitening transform on an
+          appropriate training sample. Apply the same fixed transform to queries and documents,
+          including an explicit zero-vector policy. Do not refit separately for each query-document
+          pair. Then evaluate held-out neighbors and downstream ranking. A prettier plot or a
+          changed cosine alone is not the task result.
+        hold: 0.65
+        visual_cues:
+          - id: emb-common-population
+            phrase: Apply the same fixed transform to queries and documents
+            targets:
+              - anisotropy-check-mechanism
+            color: cyan
+            linger: 0.5
+  - id: space-contract
+    title: Rotate a complete space, then break only one side
+    visual: Carry the actual invoice/phone identities through a90degree rotation and compute the wrong
+      and repaired cross-space rankings.
+    beats:
+      - say: "The article’s compatibility fixture starts with query one, zero; invoice document one, zero;
+          and phone document zero, minus one. A ninety-degree rotation maps x, y to minus y, x.
+          Rotate every document and the query together: each original within-space cosine is
+          preserved. Matching vector lengths alone does not establish this alignment."
+        hold: 0.65
+        visual_cues:
+          - id: emb-rotate-together
+            phrase: Rotate every document and the query together
+            targets:
+              - space-contract-mechanism
+            color: cyan
+            linger: 0.5
+      - say: Keep the old query while replacing just the document index with the rotated one. Invoice is now
+          zero, one; phone is one, zero. The mixed-space query wrongly ranks phone first. Rotate the
+          query as well and invoice wins again. These are computed consequences of the supplied
+          rotation, not a measurement of two pretrained models.
+        hold: 0.65
+        visual_cues:
+          - id: emb-rotate-docs
+            phrase: replacing just the document index with the rotated one
+            targets:
+              - space-contract-mechanism
+            color: cyan
+            linger: 0.5
+          - id: emb-rotate-wrong
+            phrase: mixed-space query wrongly ranks phone first
+            targets:
+              - space-contract-mechanism
+            color: pink
+            linger: 0.5
+          - id: emb-rotate-repair
+            phrase: Rotate the query as well and invoice wins again
+            targets:
+              - space-contract-mechanism
+            color: green
+            linger: 0.5
+      - say: Use a verified query/document encoder pair with its prescribed preprocessing, pooling,
+          dimensions and metric. Dense Passage Retrieval can use separately weighted encoders
+          trained as a pair. Current Sentence Transformers examples use encode-query and
+          encode-document for those roles; a model’s prompts or prefixes can differ by role. Pin
+          revisions and configuration. A space change requires rebuilding the document index unless
+          an evaluated migration preserves compatibility.
+        hold: 0.65
+        visual_cues:
+          - id: emb-rotate-contract
+            phrase: Use a verified query/document encoder pair
+            targets:
+              - space-contract-mechanism
+            color: cyan
+            linger: 0.5
+  - id: transfer
+    title: Trace the lookup and the occurrence separately
+    visual: Both ordinary sentences return beside their shared lookup and distinct contextual endpoints.
+      A new clue word steers the computed update.
+    beats:
+      - say: We began with one word used in two settings. Its ID selected one shared starting vector.
+          Surrounding clues then supplied different updates, producing occurrence-specific states.
+          The separation between lookup and contextual computation explains how a model can reuse
+          vocabulary while responding to a sentence’s particular meaning.
+        hold: 0.6
+        visual_cues:
+          - id: transfer-beat-1-focus-1
+            phrase: producing occurrence-specific states
+            targets:
+              - embedding-state-vectors
+            color: blue
+            linger: 0.6
+      - say: Try changing river to money in the context rule while preserving the bank ID. Predict the
+          direction of the state change before calculating it. Then inspect how normalization and
+          pooling would affect a sentence-level comparison built from those token states.
+        hold: 0.6
+        visual_cues:
+          - id: transfer-beat-2-focus-1
+            phrase: in the context rule while preserving the bank
+            targets:
+              - transfer-equation-string-raw-0-5-mathrm-bank-0-4-mathrm-clue-0-1-mat-36
+            color: yellow
+            linger: 0.6
+      - say: For real embeddings, record the model, layer, input formatting, pooling, and similarity metric.
+          Measure neighborhoods and downstream outcomes on examples that matter. These vectors
+          become useful representations through their learned behavior and tested contract, with
+          each numerical comparison tied to a clearly defined space.
+        hold: 0.8
+        visual_cues:
+          - id: transfer-beat-3-focus-1
+            phrase: For real embeddings
+            targets:
+              - transfer-equation-string-raw-0-5-mathrm-bank-0-4-mathrm-clue-0-1-mat-36
+            color: yellow
+            linger: 0.6
+  - id: fresh-representation
+    title: Predict what survives a changed representation contract
+    visual: Hold a new 180-degree index migration, compute both rankings, then preserve the task
+      evidence and space identity together.
+    beats:
+      - say: Try a fresh supplied search fixture. The query is zero, one. River is one, zero and finance is
+          zero, one. Now rotate the document index by one hundred eighty degrees, making river minus
+          one, zero and finance zero, minus one, while the service still sends the old query.
+          Predict which document wins and how to repair the comparison. Pause.
+        hold: 1.5
+        visual_cues:
+          - id: emb-fresh-docs
+            phrase: rotate the document index by one hundred eighty degrees
+            targets:
+              - fresh-representation-mechanism
+            color: cyan
+            linger: 0.5
+          - id: emb-fresh-predict
+            phrase: Predict which document wins and how to repair the comparison
+            targets:
+              - fresh-representation-mechanism
+            color: cyan
+            linger: 0.5
+      - say: "The old query scores river zero and finance minus one, so river wins the mixed-space
+          comparison. Apply the same half-turn to the query: zero, minus one. Finance now scores one
+          and river zero, restoring the intended ranking. Both dimensions stayed two throughout. The
+          contract failed before any nearest-neighbor search tuning could recover the missing
+          alignment."
+        hold: 0.65
+        visual_cues:
+          - id: emb-fresh-scores
+            phrase: old query scores river zero and finance minus one
+            targets:
+              - fresh-representation-mechanism
+            color: cyan
+            linger: 0.5
+          - id: emb-fresh-wrong
+            phrase: river wins the mixed-space comparison
+            targets:
+              - fresh-representation-mechanism
+            color: pink
+            linger: 0.5
+          - id: emb-fresh-query
+            phrase: Apply the same half-turn to the query
+            targets:
+              - fresh-representation-mechanism
+            color: cyan
+            linger: 0.5
+          - id: emb-fresh-repaired
+            phrase: Finance now scores one and river zero, restoring the intended ranking
+            targets:
+              - fresh-representation-mechanism
+            color: green
+            linger: 0.5
+      - say: "Preserve the lookup identity, available context, selected layer, pooling, normalization and compatible encoder pair with every evaluation. Then test the actual failure: spelling composition, sense dependence, forbidden future evidence, padding, a shared dominant direction or a changed coordinate system. You can now calculate how each mechanism changes a representation and choose evidence that would justify using it. Next, perplexity evaluates the predictions built from those representations: how much probability did the model give each actual held-out next token?"
+        hold: 0.65
+        visual_cues:
+          - id: emb-fresh-contract
+            phrase: compatible encoder pair with every evaluation
+            targets:
+              - fresh-representation-mechanism
+            color: cyan
+            linger: 0.5

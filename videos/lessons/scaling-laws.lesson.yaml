@@ -1,0 +1,1387 @@
+version: 1
+id: scaling-laws
+title: How to Spend a Training Budget
+source: fundamentals/scaling-laws-compute-optimal-training/content.md
+sources:
+  - title: Hoffmann et al., Training Compute-Optimal Large Language Models
+    url: https://arxiv.org/abs/2203.15556
+  - title: Kaplan et al., Scaling Laws for Neural Language Models
+    url: https://arxiv.org/abs/2001.08361
+  - title: Sardana et al., Beyond Chinchilla-Optimal
+    url: https://arxiv.org/abs/2401.00448
+  - title: Porian et al., reproduction of allocation studies
+    url: https://arxiv.org/html/2406.19146v1
+  - title: Hoffmann et al., Appendix F
+    url: https://arxiv.org/html/2203.15556v1
+  - title: Kaplan et al., compute accounting
+    url: https://arxiv.org/html/2001.08361v1
+  - title: Sardana et al., inference-aware scaling
+    url: https://arxiv.org/html/2401.00448v3
+  - title: Villalobos et al., June 2024 forecast
+    url: https://arxiv.org/html/2211.04325v2
+  - title: Epoch AI, September 2025 assessment
+    url: https://epoch.ai/publications/what-will-ai-look-like-in-2030
+  - title: Snell et al., test-time compute on MATH
+    url: https://arxiv.org/html/2408.03314v1
+  - title: Yang et al., Maximal Update Parametrization
+    url: https://arxiv.org/html/2203.03466v1
+  - title: Schaeffer et al., metric-dependent emergence
+    url: https://arxiv.org/html/2304.15004v1
+  - title: LLaMA configurations
+    url: https://arxiv.org/html/2302.13971v1
+  - title: Llama 2 configurations
+    url: https://arxiv.org/html/2307.09288v2
+  - title: Llama 3 initial pre-training
+    url: https://arxiv.org/html/2407.21783v3
+  - title: Original Llama 3 model card
+    url: https://raw.githubusercontent.com/meta-llama/llama3/main/MODEL_CARD.md
+scenes:
+  - id: intro
+    title: If the model doubles, how many token rows fit?
+    visual: Slide the last five-square token row into a hundred-square sheet. Repack those same squares
+      into wider rows after the viewer predicts how many will fit.
+    beats:
+      - say: That last row of tokens costs five squares. Each column stands for a unit of learned weights,
+          the model’s parameters. Twenty rows use all hundred squares we have for training.
+        hold: 0.5
+        visual_cues:
+          - id: intro-count
+            phrase: a unit of learned weights
+            targets:
+              - budget-sheet
+            linger: 0.25
+      - say: Double the number of weights. A row now costs ten squares. How many rows fit in the same
+          hundred-square budget?
+        hold: 2.7
+        visual_cues:
+          - id: intro-width
+            phrase: double the number of weights
+            targets:
+              - budget-account
+            linger: 0.25
+      - say: Ten rows. Slide the top half to the right and lower it beside the bottom half. Both shapes use
+          every square. We can fit a scaling law to smaller runs to forecast which shape will predict
+          the next token better on new text.
+        hold: 1.1
+        visual_cues:
+          - id: intro-answer
+            phrase: Ten rows
+            targets:
+              - budget-account
+            linger: 0.25
+          - id: intro-slide
+            phrase: Slide the top half to the right and lower it beside the bottom half
+            targets:
+              - budget-sheet
+            linger: 0.25
+            caption_boundary: true
+        motion_check:
+          region:
+            - 380
+            - 210
+            - 350
+            - 650
+          minimumChangedFraction: 0.002
+  - id: budget
+    title: What does one square pay for?
+    visual: Count the three dense contractions, then double N while D falls under a fixed product.
+    beats:
+      - say: A dense layer multiplies the token inputs by a matrix of weights. In the forward pass, count a
+          multiply and an addition for each weight and token. Backward needs two similar multiplications.
+          One sends gradients back to the inputs. The other finds a gradient for each weight.
+        hold: 0.65
+        visual_cues:
+          - id: budget-forward
+            phrase: count a multiply and an addition for each weight and token
+            targets:
+              - matmul-terms
+            linger: 0.3
+          - id: budget-input
+            phrase: One sends gradients back to the inputs
+            targets:
+              - matmul-terms
+            linger: 0.3
+          - id: budget-weight
+            phrase: The other finds a gradient for each weight
+            targets:
+              - matmul-terms
+            linger: 0.3
+      - say: Each strip costs about twice the parameter count per token. Add the three strips and multiply by the
+          number of token presentations. That gives six N D floating-point operations for the large dense
+          projections. The estimate leaves out work such as attention and recomputation. Hardware
+          utilization and memory traffic also affect elapsed time.
+        hold: 0.75
+        visual_cues:
+          - id: budget-total
+            phrase: six N D floating-point operations
+            targets:
+              - training-cost
+            linger: 0.3
+      - say: Divide out the common factor of six to get back to the budget sheet. Start with ten parameter units
+          and ten token units. Double the width and follow the height. A model twenty units wide gets
+          just five units of tokens. All three shapes still cover the same hundred squares.
+        hold: 0.85
+        visual_cues:
+          - id: budget-grid
+            phrase: budget sheet
+            targets:
+              - allocation-n
+            linger: 0.3
+          - id: budget-resize
+            phrase: Double the width and follow the height
+            targets:
+              - allocation-d
+            linger: 0.3
+        motion_check:
+          region:
+            - 390
+            - 392
+            - 510
+            - 290
+          minimumChangedFraction: 0.002
+  - id: counting-contract
+    title: What gets counted twice?
+    visual: Track two token rows through one stored weight matrix. Count repeated presentations separately
+      from stored positions. Add one forward pass for full activation recomputation.
+    beats:
+      - say: Look at the middle matrix. It has six stored weights. The two rows on the left both use those
+          weights. If a position comes back in another training batch it counts again toward D, the
+          number of presentations. Four positions seen twice give eight presentations. For N, check which
+          weights a study counts. Tied input and output weights share storage, yet projecting onto the
+          vocabulary still takes arithmetic.
+        hold: 0.65
+        visual_cues:
+          - id: sl-counting-contract-0
+            phrase: Four positions seen twice give eight presentations
+            targets:
+              - sl-counting-contract-construction
+            linger: 0.3
+      - say: The first multiply uses the inputs and the weights. To send gradients back to the inputs, multiply
+          the output gradients by the transposed weights. To update the weights, multiply the transposed
+          inputs by the output gradients. Count all three contractions across the batch. Each contributes
+          about two N D operations. This gives six N D for the dense projections. Attention products,
+          normalization and optimizer steps add work outside that count.
+        hold: 0.65
+        visual_cues:
+          - id: sl-counting-contract-1
+            phrase: The first multiply uses the inputs and the weights. To send gradients back to the inputs,
+              multiply the output gradients by the transposed weights. To update the weights, multiply
+              the transposed inputs by the output gradients.
+            targets:
+              - sl-counting-contract-construction
+            linger: 0.3
+      - say: Suppose you discarded the activations to save memory and replay one full forward pass. Add its two N
+          D to the three contractions. That gives eight N D. Replaying fewer layers adds less. At
+          inference you need the forward pass, about two N per processed token. For scale, ordinary
+          training with a billion parameters and twenty billion presentations costs about one point two
+          times ten to the twentieth FLOPs. Double both counts and the work quadruples.
+        hold: 0.65
+        visual_cues:
+          - id: sl-counting-contract-2
+            phrase: add its two N D to the three contractions
+            targets:
+              - sl-counting-contract-construction
+            linger: 0.3
+  - id: controlled-runs
+    title: Where should a second unit of compute go?
+    visual: Compare the article’s four invented runs on fixed evaluation data. Inspect two equal-cost runs,
+      then trace a power-law example with a fitted floor.
+    beats:
+      - say: Here are four invented runs on the same held-out text with the same tokenizer and context length.
+          Start with one billion parameters and ten billion tokens. Give the next run twice as many
+          weights. Give its neighbor twice as many tokens instead. Each spends twice the original
+          compute. The last run doubles both and costs four times as much.
+        hold: 0.65
+        visual_cues:
+          - id: sl-controlled-runs-0
+            phrase: Start with one billion parameters and ten billion tokens. Give the next run twice as many
+              weights. Give its neighbor twice as many tokens instead. Each spends twice the original
+              compute. The last run doubles both
+            targets:
+              - sl-controlled-runs-construction
+            linger: 0.3
+          - id: runs-double-n
+            phrase: Give the next run twice as many weights
+            targets:
+              - sl-controlled-runs-construction
+            linger: 0.2
+          - id: runs-double-d
+            phrase: Give its neighbor twice as many tokens instead
+            targets:
+              - sl-controlled-runs-construction
+            linger: 0.2
+          - id: runs-double-both
+            phrase: The last run doubles both
+            targets:
+              - sl-controlled-runs-construction
+            linger: 0.2
+      - say: Read the losses under the two middle runs. Spending the increment on tokens gives two point five
+          five nats per token. Spending it on weights gives two point six zero. Lower loss means the
+          model assigned more probability, on average in log space, to the tokens that occurred. Five
+          hundredths of a nat favors more data here. Repeat the runs to see whether that difference
+          survives run-to-run variation. If the tokenizer changes, the unit of loss changes too.
+        hold: 0.65
+        visual_cues:
+          - id: sl-controlled-runs-1
+            phrase: Read the losses under the two middle runs
+            targets:
+              - sl-controlled-runs-construction
+            linger: 0.3
+      - say: Now look beyond those four runs. Each equal step to the right multiplies compute by ten. Under this
+          toy law the loss falls toward two and each step buys a smaller absolute improvement. For a pure
+          power law, plotting log loss against log compute gives a straight line. Here you must subtract
+          the floor of two before taking the log. A different assumed floor can give a different
+          forecast.
+        hold: 0.65
+        visual_cues:
+          - id: sl-controlled-runs-2
+            phrase: Each equal step to the right multiplies compute by ten. Under this toy law the loss falls toward
+              two
+            targets:
+              - sl-controlled-runs-construction
+            linger: 0.3
+  - id: historical-frontiers
+    title: How does a bigger budget change the split?
+    visual: Read Kaplan’s three separate fitted slopes, then compare two equal-area allocations under the
+      same increase in compute.
+    beats:
+      - say: Kaplan and colleagues fitted three curves in twenty twenty. On the left they varied non-embedding
+          parameters with plenty of data. In the middle they studied the data-limited regime. On the
+          right they fitted the best loss at each adjusted compute budget. The slopes describe three
+          different experiments. For instance, the parameter-only slope gives about eighty-four percent
+          of the fitted loss for ten times the weights. That fit has no added floor.
+        hold: 0.65
+        visual_cues:
+          - id: sl-historical-frontiers-0
+            phrase: On the left they varied non-embedding parameters with plenty of data. In the middle they studied
+              the data-limited regime. On the right they fitted the best loss at each adjusted compute
+              budget.
+            targets:
+              - sl-historical-frontiers-construction
+            linger: 0.3
+      - say: The joint allocation came from the compute-efficient frontier. Give it a hundred times as much
+          compute. Kaplan’s fit assigns the power point seven three to parameters and point two seven to
+          tokens. The rectangle ends up nearly twenty-nine times wider, but only about three and a half
+          times taller. Multiply those two growth factors and you recover the budget increase.
+        hold: 0.65
+        visual_cues:
+          - id: sl-historical-frontiers-1
+            phrase: Give it a hundred times as much compute
+            targets:
+              - sl-historical-frontiers-construction
+            linger: 0.3
+      - say: Compare that with equal growth. The same hundredfold increase makes the rectangle ten times wider
+          and ten times taller. Those are changes from the starting run. A model that started with twenty
+          tokens per parameter would still have twenty per parameter after both doubled. The square on
+          this chart describes growth multipliers.
+        hold: 0.65
+        visual_cues:
+          - id: sl-historical-frontiers-2
+            phrase: The same hundredfold increase makes the rectangle ten times wider and ten times taller
+            targets:
+              - sl-historical-frontiers-construction
+            linger: 0.3
+  - id: loss
+    title: What does the height of a loss curve mean?
+    visual: Build the two square-root penalties on separate axes. Track a point on each as a fixed budget
+      shifts from data to model size.
+    beats:
+      - say: Return to the hundred-square budget. Which shape will predict new text better? Use the same
+          tokenizer and held-out text for both runs. Cross-entropy measures the average surprise of the
+          observed tokens. Giving those tokens higher probability on average in log space brings the loss
+          down.
+        hold: 0.7
+        visual_cues:
+          - id: sl-loss-0
+            phrase: the same tokenizer and held-out text
+            targets:
+              - loss-model
+            linger: 0.3
+      - say: For the next comparison, use an invented loss formula. Start with a floor of one. Add two over the
+          square root of model size. Then add two over the square root of training tokens. Each curve
+          shows how a single shortage contributes to loss when the other term is held fixed.
+        hold: 0.65
+        visual_cues:
+          - id: sl-loss-1
+            phrase: Start with a floor of one. Add two over the square root of model size. Then add two over the
+              square root of training tokens
+            targets:
+              - resource-penalties
+            linger: 0.3
+          - id: loss-capacity
+            phrase: Add two over the square root of model size
+            targets:
+              - resource-penalties
+            linger: 0.2
+          - id: loss-data
+            phrase: Then add two over the square root of training tokens
+            targets:
+              - resource-penalties
+            linger: 0.2
+      - say: Move some budget from tokens to weights. The model grows, so its point slides down the parameter
+          curve. To keep the budget fixed, the token count falls. Its point climbs the data curve.
+          Whether the exchange pays off depends on which penalty changes more.
+        hold: 0.8
+        visual_cues:
+          - id: sl-loss-2
+            phrase: The model grows, so its point slides down the parameter curve. To keep the budget fixed, the
+              token count falls
+            targets:
+              - resource-penalties
+            linger: 0.3
+  - id: tradeoff
+    title: Two shapes on one budget
+    visual: Follow the active corner from five by twenty to ten by ten on the fixed-budget curve. Stack the
+      parameter and data penalties for each shape on one scale.
+    beats:
+      - say: Here are the two shapes from the beginning. Start with five units of parameters and twenty of data.
+          The blue part of the bar is the cost in loss from limited model size. The lighter part is the
+          cost from limited data. The floor of one is the same for both shapes.
+        hold: 0.7
+        visual_cues:
+          - id: tradeoff-tall
+            phrase: five units of parameters and twenty of data
+            targets:
+              - allocation-map
+            linger: 0.25
+      - say: Widen the rectangle and follow its corner down to ten rows. Every point on the blue curve still
+          spends one hundred units. Read the two bars. The square buys a smaller parameter penalty, but
+          it pays a larger data penalty. Which shape has the lower fitted loss?
+        hold: 3.1
+        visual_cues:
+          - id: tradeoff-widen
+            phrase: Widen the rectangle and follow its corner down to ten rows
+            targets:
+              - allocation-map
+            linger: 0.25
+          - id: tradeoff-square-terms
+            phrase: Read the two bars
+            targets:
+              - loss-terms
+            linger: 0.25
+  - id: optimum
+    title: What would make you change plans?
+    visual: Compare the two penalty sums. Change only the data coefficient while the allocation stays still.
+      Compare again before moving the corner to the new minimum.
+    beats:
+      - say: The square wins. Its loss rounds to two point two six five. The wider model saves about a quarter of
+          a nat in the parameter term and gives back less than a fifth in the data term. If you went
+          twice as wide again, the two original penalties would swap places and you’d return to the tall
+          plan’s loss.
+        hold: 0.8
+        visual_cues:
+          - id: optimum-square
+            phrase: The square wins
+            targets:
+              - loss-terms
+            linger: 0.25
+            caption_boundary: true
+      - say: Leave both shapes where they are. Suppose the new fit puts twice as much weight on the data penalty.
+          Change its coefficient from two to four. The data segment grows in each bar. With that change,
+          which shape would you train?
+        hold: 3
+        visual_cues:
+          - id: optimum-coefficient
+            phrase: Change its coefficient from two to four
+            targets:
+              - loss-terms
+            linger: 0.25
+        motion_check:
+          region:
+            - 970
+            - 480
+            - 725
+            - 320
+          minimumChangedFraction: 0.002
+      - say: The tall plan wins. Move the corner back to five by twenty. Its two penalties now match. Because
+          they have the same square-root exponent, each gives the same saving for a small percentage
+          increase in its resource. That balance gives the bottom of the loss curve. Changing one fitted
+          coefficient reversed the choice at exactly the same budget.
+        hold: 1.1
+        visual_cues:
+          - id: optimum-tall
+            phrase: The tall plan wins
+            targets:
+              - loss-terms
+            linger: 0.25
+            caption_boundary: true
+          - id: optimum-shift
+            phrase: Move the corner back to five by twenty
+            targets:
+              - allocation-map
+            linger: 0.25
+  - id: general-allocation
+    title: When do the two gains balance?
+    visual: Start with a one-percent exchange on the 100-unit budget. Solve the balance for positive powers,
+      then change the coefficients on a larger budget. Size a real-scale proposal with an explicit 20:1
+      assumption.
+    beats:
+      - say: Return to the square under the original fit, with both coefficients set to two. Now widen it by one
+          percent and keep its area fixed. The height has to fall. In the general formula the parameter
+          penalty falls as N to the power minus alpha. The data penalty rises because D equals the
+          compute budget divided by six N.
+        hold: 0.65
+        visual_cues:
+          - id: sl-general-allocation-0
+            phrase: widen it by one percent and keep its area fixed
+            targets:
+              - sl-general-allocation-construction
+            linger: 0.3
+      - say: Look at the two penalties before and after that small exchange. Near the square, one falls almost
+          exactly as much as the other rises. At the minimum, the first-order changes cancel.
+          Differentiating with respect to log model size gives the balance on screen. Multiply each
+          penalty by its own exponent before you compare them. Here both products are about point three
+          one six two. The one-percent step still adds about sixteen millionths of a nat. The
+          cancellation holds for an infinitesimal exchange.
+        hold: 0.65
+        visual_cues:
+          - id: sl-general-allocation-1
+            phrase: before and after that small exchange
+            targets:
+              - sl-general-allocation-construction
+            linger: 0.3
+      - say: Solving that balance tells you how the best split grows. The parameter count grows with compute
+          raised to beta divided by alpha plus beta. The token count takes the other exponent, alpha
+          divided by the same sum. They add to one, so their product grows with the budget. The
+          coefficients determine where each curve starts. With rounded exponents of point three four and
+          point two eight, tokens grow a little faster than parameters.
+        hold: 0.65
+        visual_cues:
+          - id: sl-general-allocation-2
+            phrase: The parameter count grows with compute raised to beta divided by alpha plus beta. The token count
+              takes the other exponent, alpha divided by the same sum.
+            targets:
+              - sl-general-allocation-construction
+            linger: 0.3
+      - say: Try equal square-root exponents again, now with a million units to allocate. Equal coefficients give
+          a thousand by a thousand. Raise the data coefficient from two to eight. To balance the
+          penalties, D over N must be the square of eight over two. That’s sixteen. Two hundred fifty
+          parameter units by four thousand token units gives the same million. Equal growth as the budget
+          increases can start from a very tall rectangle.
+        hold: 0.65
+        visual_cues:
+          - id: sl-general-allocation-3
+            phrase: Raise the data coefficient from two to eight
+            targets:
+              - sl-general-allocation-construction
+            linger: 0.3
+      - say: For a different starting assumption, suppose you choose twenty training tokens per parameter.
+          Substitute twenty N for D. The training bill becomes a hundred twenty times N squared. At ten
+          to the twenty-fourth FLOPs, take the square root to get about ninety-one billion parameters,
+          then multiply by twenty for about one point eight three trillion training tokens. This is a
+          proposal you can test with your own runs.
+        hold: 0.65
+        visual_cues:
+          - id: sl-general-allocation-4
+            phrase: take the square root to get about ninety-one billion parameters
+            targets:
+              - sl-general-allocation-construction
+            linger: 0.3
+  - id: growth
+    title: What if you had four times the compute?
+    visual: Follow the minimum of the symmetric fit as the product grows from 100 to 400. Compare the
+      original and new loss curves.
+    beats:
+      - say: Return to the ten-by-ten square with both coefficients set to two. This time you can spend four
+          times as much compute. Double both sides of the square. Follow the gold dots. The new minimum
+          is at twenty by twenty, and both shortages have eased. That’s why the bottom of the loss curve
+          moves down.
+        hold: 1
+        visual_cues:
+          - id: growth-expand
+            phrase: Double both sides of the square
+            targets:
+              - allocation-curve
+            linger: 0.3
+        motion_check:
+          region:
+            - 220
+            - 360
+            - 620
+            - 420
+          minimumChangedFraction: 0.002
+      - say: Look at the old and new minima. In this fit, budgets of a hundred and four hundred both favor equal
+          proportions. Hoffmann’s Chinchilla experiments found approximately balanced growth too, on
+          particular data and with particular training recipes. The measured ratio of tokens to weights
+          belongs to those fits.
+        hold: 0.7
+        visual_cues:
+          - id: growth-old-new
+            phrase: old and new minima
+            targets:
+              - loss-valley
+            linger: 0.3
+      - say: In that move from ten to twenty, each square-root penalty shrinks by the same factor. The original
+          floor stays put. As you approach it, each doubling buys a smaller absolute drop in loss. That
+          makes even a small error in the estimated floor matter when you forecast much larger runs.
+        hold: 0.75
+        visual_cues:
+          - id: growth-floor
+            phrase: each square-root penalty shrinks by the same factor
+            targets:
+              - loss-valley
+            linger: 0.3
+  - id: study-discrepancy
+    title: What makes a fair comparison between runs?
+    visual: Read the paired growth exponents beside each of Hoffmann’s three methods. Check whether a lower
+      loss curve actually shifts the minimum.
+    beats:
+      - say: Hoffmann’s team trained more than four hundred models, from seventy million to sixteen billion
+          parameters. They tried three ways to read the runs. Trace the lowest losses, find the minimum
+          at each fixed compute budget, or fit one surface through the measurements. Each method put
+          roughly half the growth into parameters and half into tokens. The paired numbers show where the
+          methods differed.
+        hold: 0.65
+        visual_cues:
+          - id: sl-study-discrepancy-0
+            phrase: Trace the lowest losses, find the minimum at each fixed compute budget, or fit one surface
+              through the measurements
+            targets:
+              - sl-study-discrepancy-construction
+            linger: 0.3
+      - say: Imagine stopping a long cosine learning-rate schedule early. That checkpoint still has a high
+          learning rate compared with a run scheduled to finish there. Hoffmann suggested that missing
+          the cooldown could make short runs look worse. Compare finished runs at matched horizons.
+          Porian’s later reproduction also found that counting the output head, shortening warmup and
+          tuning learning rate, batch size and Adam’s second-moment setting across sizes affected the
+          split.
+        hold: 0.65
+        visual_cues:
+          - id: sl-study-discrepancy-1
+            phrase: Compare finished runs at matched horizons
+            targets:
+              - sl-study-discrepancy-construction
+            linger: 0.3
+      - say: Now lower a whole loss curve by the same amount. Its lowest point stays over the same model size.
+          Porian found that matching cosine decay helped loss but had limited effect on the allocation
+          exponent in those experiments. Tuned runs with a constant learning rate could also give
+          near-balanced growth. A schedule can improve the runs without changing which allocation wins.
+        hold: 0.65
+        visual_cues:
+          - id: sl-study-discrepancy-2
+            phrase: lower a whole loss curve by the same amount
+            targets:
+              - sl-study-discrepancy-construction
+            linger: 0.3
+  - id: frontier-evidence
+    title: What did the larger experiment establish?
+    visual: Compare nominal Gopher and Chinchilla counts and their dense proxies. Separate the measured task
+      results from later Llama configuration ratios.
+    beats:
+      - say: Gopher used two hundred eighty billion parameters and three hundred billion training tokens.
+          Chinchilla used a quarter as many weights and trained on one point four trillion tokens. The
+          researchers compared them at a reported training budget of five point seven six times ten to
+          the twenty-third FLOPs. Put the rounded counts into six N D and you get two different
+          estimates. The paper’s more detailed appendix revised its estimate to six point three in those
+          units. Keep the counting convention with the number.
+        hold: 0.65
+        visual_cues:
+          - id: sl-frontier-evidence-0
+            phrase: Put the rounded counts into six N D
+            targets:
+              - sl-frontier-evidence-construction
+            linger: 0.3
+      - say: Chinchilla improved average MMLU, BIG-bench and LAMBADA results. Look at the four marked MMLU tasks
+          where Gopher did better. The tokenizer, optimizer and mixture also changed, so the comparison
+          includes more than allocation. The study estimated a best-size range of forty to seventy
+          billion parameters. The researchers chose its larger end partly for data and compute
+          efficiency.
+        hold: 0.65
+        visual_cues:
+          - id: sl-frontier-evidence-1
+            phrase: four marked MMLU tasks
+            targets:
+              - sl-frontier-evidence-construction
+            linger: 0.3
+      - say: The Llama runs give another view. Each bar counts training-token presentations per nominal
+          parameter. The original eight-billion Llama three saw at least fifteen trillion tokens. That’s
+          at least eighteen hundred seventy-five per parameter. The later four-hundred-five-billion paper
+          reports fifteen point six trillion tokens for initial pre-training of that larger model. Those
+          two token counts belong to different releases. Historical configurations can suggest
+          candidates. A lifetime optimum takes a quality comparison and a demand forecast.
+        hold: 0.65
+        visual_cues:
+          - id: sl-frontier-evidence-2
+            phrase: Each bar counts training-token presentations per nominal parameter
+            targets:
+              - sl-frontier-evidence-construction
+            linger: 0.3
+  - id: fitting
+    title: Where would you run the next experiment?
+    visual: Place comparable proxy runs on one loss profile. Compare a larger-budget forecast with an
+      independent illustrative observation and read its residual.
+    beats:
+      - say: Train several affordable proxy models around the proposed minimum. Vary model size and token budget,
+          match each learning-rate schedule to its finishing point, and write down the recipe. The dots
+          here are illustrative losses at one fixed budget. A run that ended before its cooldown could
+          make its allocation look worse than it is.
+        hold: 0.7
+        visual_cues:
+          - id: fitting-b1-1
+            phrase: Train several affordable proxy models around the proposed minimum
+            targets:
+              - proxy-loss-curves
+            linger: 0.3
+      - say: Fit the curve through the small runs. Look at the gaps between the dots and the curve. If they are
+          mostly on one side near the minimum, investigate the fit. Changing the tokenizer, context
+          length, data mix or architecture changes what you’re measuring. If you repeat text, measure how
+          that affects learning too.
+        hold: 0.7
+        visual_cues:
+          - id: fitting-b2-1
+            phrase: Fit the curve
+            targets:
+              - proxy-loss-curves
+            linger: 0.3
+      - say: Try a larger budget. For twenty-five parameter units and sixteen token units the fit predicts one
+          point nine zero. The example observation is two point zero two. That’s a positive residual of
+          twelve hundredths. Use larger held-out runs like this to challenge the forecast, especially
+          where plausible floors or exponents would send you to different allocations.
+        hold: 0.8
+        visual_cues:
+          - id: fitting-b3-1
+            phrase: larger held-out runs
+            targets:
+              - proxy-loss-curves
+            linger: 0.3
+          - id: fitting-forecast
+            phrase: Try a larger budget. For twenty-five parameter units and sixteen token units the fit predicts one
+              point nine zero
+            targets:
+              - proxy-loss-curves
+            linger: 0.25
+            caption_boundary: true
+          - id: fitting-observed
+            phrase: The example observation is two point zero two
+            targets:
+              - proxy-loss-curves
+            linger: 0.25
+            caption_boundary: true
+          - id: fitting-residual
+            phrase: a positive residual of twelve hundredths
+            targets:
+              - proxy-loss-curves
+            linger: 0.25
+            caption_boundary: true
+  - id: width-transfer
+    title: Does a wider model take a bigger step?
+    visual: Multiply two neighboring weight pairs. Compare one gradient step at three widths, first
+      with fixed rates and then with rates scaled by layer. Keep the target in view as the base rate falls.
+    beats:
+      - say: At width sixteen, follow two neighboring paths. The input is one. Multiply the weights on
+          each path. One path contributes a quarter and its neighbor contributes minus a quarter.
+          Eight such pairs cancel to zero. Our target is one. Use half the squared error and take
+          both gradients from these old weights.
+        hold: 0.75
+        visual_cues:
+          - id: width-positive
+            phrase: One path contributes a quarter
+            targets:
+              - sl-width-transfer-construction
+            linger: 0.25
+          - id: sl-width-transfer-0
+            phrase: its neighbor contributes minus a quarter
+            targets:
+              - sl-width-transfer-construction
+            linger: 0.3
+          - id: width-zero
+            phrase: Eight such pairs cancel to zero
+            targets:
+              - sl-width-transfer-construction
+            linger: 0.25
+      - say: Start each output weight at one over the square root of the width. Give both layers a learning
+          rate of one. Take a step at width sixteen. Seventeen is the new prediction. Try the same step
+          at width sixty-four. Sixty-five this time. Each prediction is the width plus one.
+        hold: 0.75
+        caption_starts:
+          - Seventeen is the new prediction
+          - Try the same step at width sixty-four
+          - Sixty-five this time
+          - Each prediction is the width plus one
+        visual_cues:
+          - id: width-sixteen
+            phrase: Seventeen is the new prediction
+            targets:
+              - sl-width-transfer-construction
+            linger: 0.25
+          - id: width-sixty-four
+            phrase: Sixty-five this time
+            targets:
+              - sl-width-transfer-construction
+            linger: 0.25
+          - id: width-standard
+            phrase: Each prediction is the width plus one
+            targets:
+              - sl-width-transfer-construction
+            linger: 0.25
+      - say: Now start each output weight at one over the width. Multiply the input-layer rate by the width
+          and divide the output-layer rate by the width. Will the wider models still jump farther?
+        hold: 2.2
+        visual_cues:
+          - id: width-recipe
+            phrase: Multiply the input-layer rate by the width and divide the output-layer rate by the width
+            targets:
+              - sl-width-transfer-construction
+            linger: 0.25
+      - say: All three land on two. Each layer contributes one. Keeping the update steady across widths
+          is the idea behind maximal update parametrization. Two overshoots our target of one.
+          Replay the step from zero with a base learning rate of a quarter.
+          Each layer now contributes a quarter. A half is the new prediction at every width.
+          The blue predictions shrink fourfold and still grow with width. Yang’s team transferred
+          tuned settings from forty million parameters to six point seven billion. Adam uses different
+          layer settings. Check those alongside depth and regularization.
+        hold: 0.75
+        caption_starts:
+          - All three land on two
+          - Replay the step from zero
+          - A half is the new prediction at every width
+        visual_cues:
+          - id: sl-width-transfer-1
+            phrase: All three land on two
+            targets:
+              - sl-width-transfer-construction
+            linger: 0.3
+          - id: sl-width-transfer-2
+            phrase: Replay the step from zero with a base learning rate of a quarter
+            targets:
+              - sl-width-transfer-construction
+            linger: 0.3
+          - id: width-half
+            phrase: A half is the new prediction at every width
+            targets:
+              - sl-width-transfer-construction
+            linger: 0.25
+  - id: fitted-surface
+    title: Can we recover a known loss surface?
+    visual: Plot the article’s eight rounded fitting rows. Search the supplied two-exponent grid, check the
+      ninth row, and mark the extrapolation to 70B parameters.
+    beats:
+      - say: Here every dot comes from a known formula. Model sizes range from a hundred million to a billion in
+          the fitting rows. Each size has runs at more than one token budget. Set aside the ninth row, a
+          billion parameters trained on a hundred billion tokens. We can check the fit there without
+          using its loss to pick the curve.
+        hold: 0.65
+        visual_cues:
+          - id: sl-fitted-surface-0
+            phrase: Model sizes range from a hundred million to a billion in the fitting rows. Each size has runs at
+              more than one token budget.
+            targets:
+              - sl-fitted-surface-construction
+            linger: 0.3
+      - say: Supply the true floor and both coefficients. Try pairs of exponents on a grid. Each pair predicts
+          eight losses. Square the differences from the eight rounded values and add them. The brightest
+          region has the smallest error. The best pair is point zero seven zero and point zero nine
+          eight. On the held-out row, the predicted loss rounds to two point four zero eight, about two
+          ten-thousandths above its tabulated value.
+        hold: 0.65
+        visual_cues:
+          - id: sl-fitted-surface-1
+            phrase: Try pairs of exponents on a grid. Each pair predicts eight losses. Square the differences from
+              the eight rounded values and add them.
+            targets:
+              - sl-fitted-surface-construction
+            linger: 0.3
+          - id: fit-answer
+            phrase: The best pair is point zero seven zero and point zero nine eight
+            targets:
+              - sl-fitted-surface-construction
+            linger: 0.2
+          - id: fit-holdout
+            phrase: the predicted loss rounds to two point four zero eight
+            targets:
+              - sl-fitted-surface-construction
+            linger: 0.2
+      - say: At seventy billion parameters and one point four trillion tokens, the same fit forecasts about two
+          point zero nine one. See how far that point lies from the data used to fit it. Recovering a
+          formula from numbers it generated checks the calculation. To trust a real forecast, vary both
+          resources, fit all five unknowns, inspect the residuals, try plausible starting values and
+          floors, and measure variation across repeated runs.
+        hold: 0.65
+        visual_cues:
+          - id: sl-fitted-surface-2
+            phrase: See how far that point lies from the data used to fit it
+            targets:
+              - sl-fitted-surface-construction
+            linger: 0.3
+          - id: fit-target
+            phrase: the same fit forecasts about two point zero nine one
+            targets:
+              - sl-fitted-surface-construction
+            linger: 0.2
+  - id: floor-ambiguity
+    title: How far can you trust two points?
+    visual: Keep both observed anchors in place. Fit two different exponents, extend the curves and read each
+      forecast where it ends.
+    beats:
+      - say: Take two observations. At one unit of compute, loss is three. At a hundred units, loss is two point
+          five. Suppose the curve is a floor plus a shrinking power of compute. Pick an exponent.
+          Subtract the two loss equations and the floor cancels, which lets you solve for the
+          coefficient. The first observation then gives you the floor.
+        hold: 0.65
+        visual_cues:
+          - id: sl-floor-ambiguity-0
+            phrase: At one unit of compute, loss is three. At a hundred units, loss is two point five
+            targets:
+              - sl-floor-ambiguity-construction
+            linger: 0.3
+      - say: Fit the blue curve with exponent point one and the lighter curve with point two. Both pass through
+          both dots. Now follow them out to a million units of compute. One predicts just under two nats,
+          the other about two point two two. The choice of exponent changed the floor as well as the
+          forecast.
+        hold: 0.65
+        visual_cues:
+          - id: sl-floor-ambiguity-1
+            phrase: follow them out to a million units of compute
+            targets:
+              - sl-floor-ambiguity-construction
+            linger: 0.3
+      - say: The fits agree exactly where you measured and differ by almost a quarter of a nat at the proposed
+          budget. That gap shows how much two assumptions matter. To estimate uncertainty from training
+          runs, collect more scales and repeats. Put the next measurement where the plausible forecasts
+          start to separate.
+        hold: 0.65
+        visual_cues:
+          - id: sl-floor-ambiguity-2
+            phrase: Put the next measurement where the plausible forecasts start to separate
+            targets:
+              - sl-floor-ambiguity-construction
+            linger: 0.3
+  - id: data-cap
+    title: Will the proposed tokens exist?
+    visual: Trace the optimum of the article’s synthetic fit on its fixed-compute contour. Mark the 2T
+      no-repeat ceiling and then a separate 30B model limit.
+    beats:
+      - say: Give our synthetic fit the budget of seventy billion weights trained on one point four trillion
+          tokens. Keep that budget fixed and move to the predicted loss minimum. It lands at about seven
+          point eight two billion parameters and twelve point five three trillion token presentations.
+          That’s roughly sixteen hundred presentations per parameter. Could your corpus supply all
+          twelve and a half trillion tokens in one pass?
+        hold: 0.75
+        visual_cues:
+          - id: sl-data-cap-0
+            phrase: move to the predicted loss minimum
+            targets:
+              - sl-data-cap-construction
+            linger: 0.3
+      - say: Suppose your inventory has just two trillion usable tokens and the run gets one pass. Draw the
+          ceiling at two trillion and follow the budget curve until it reaches that line. A full-budget
+          run now needs at least forty-nine billion parameters. The loss rises as you move farther right
+          from the old minimum, so take the first feasible point. Forty-nine billion by two trillion
+          gives about two point zero eight six nats, up from two point zero seven four.
+        hold: 0.75
+        visual_cues:
+          - id: sl-data-cap-1
+            phrase: follow the budget curve until it reaches that line
+            targets:
+              - sl-data-cap-construction
+            linger: 0.3
+      - say: Now add a model-size limit of thirty billion. Keep the two-trillion-token ceiling. Can you spend the
+          whole budget inside both limits?
+        hold: 2.6
+        visual_cues:
+          - id: sl-data-cap-2
+            phrase: add a model-size limit of thirty billion
+            targets:
+              - sl-data-cap-construction
+            linger: 0.3
+      - say: No full-budget allocation fits. Even the largest model that fits in memory would need more than two
+          trillion tokens. Plan a smaller run or secure more usable data. If you allow repeats, measure
+          their value before using the fresh-data forecast again.
+        hold: 1
+        visual_cues:
+          - id: sl-data-cap-3
+            phrase: No full-budget allocation fits
+            targets:
+              - sl-data-cap-construction
+            caption_boundary: true
+            linger: 0.3
+  - id: mid-scale-gate
+    title: Does the forecast survive a larger trial?
+    visual: Keep the accepted loss error fixed as the observed gap grows. Carry the completed residual into a
+      separate throughput check.
+    beats:
+      - say: Hold back a run at an intermediate size. Match the tokenizer, mixture, optimizer and numerical setup
+          you plan to use. Decide the acceptable loss error before seeing the result. Use variation
+          across earlier runs and the cost of a wrong forecast to set the tolerance. In this example, the
+          allowance is two hundredths of a nat per token.
+        hold: 0.75
+        visual_cues:
+          - id: sl-mid-scale-gate-0
+            phrase: the allowance is two hundredths of a nat per token
+            targets:
+              - sl-mid-scale-gate-construction
+            linger: 0.3
+      - say: For ten billion parameters trained on a hundred billion tokens, the fit predicts about two point
+          three one zero. The example run comes in at two point three five zero. Measure the gap between
+          them. It is about four hundredths of a nat, twice the allowance. Hold the large run and
+          investigate the data, fit, optimizer and numerics.
+        hold: 0.75
+        caption_starts:
+          - The example run comes in at
+          - four hundredths of a nat
+          - Hold the large run
+        visual_cues:
+          - id: sl-mid-scale-gate-1
+            phrase: It is about four hundredths of a nat
+            targets:
+              - sl-mid-scale-gate-construction
+            linger: 0.3
+          - id: gate-observed
+            phrase: The example run comes in at two point three five zero
+            targets:
+              - sl-mid-scale-gate-construction
+            linger: 0.2
+          - id: gate-hold
+            phrase: Hold the large run
+            targets:
+              - sl-mid-scale-gate-construction
+            linger: 0.2
+      - say: Keep that loss miss in view as you check throughput separately. Measure useful tokens per
+          GPU-second. If throughput misses its target, profile the kernels, communication, memory and
+          stalls. A slower link can lengthen a run without changing the loss at the same completed
+          training step. Model FLOP utilization compares useful arithmetic per second to a stated
+          compatible hardware peak. To budget time and dollars, measure your own stack.
+        hold: 0.75
+        visual_cues:
+          - id: sl-mid-scale-gate-2
+            phrase: check throughput separately
+            targets:
+              - sl-mid-scale-gate-construction
+            linger: 0.3
+  - id: lifetime
+    title: Before the first request
+    visual: Align two training bills at zero inference demand. Pair each model with its own cost per
+      inference token.
+    beats:
+      - say: Suppose both models pass the same task evaluation. Start with the larger model. Seventy billion
+          parameters trained on one point four trillion tokens gives the blue training bill. Now put the
+          compact model beside it. Thirty billion parameters on four trillion tokens costs more to train.
+          Nobody has sent a request yet.
+        hold: 0.9
+        visual_cues:
+          - id: life-training
+            phrase: Start with the larger model
+            targets:
+              - lifetime-bill
+            linger: 0.25
+          - id: life-compact
+            phrase: put the compact model beside it
+            targets:
+              - lifetime-bill
+            linger: 0.25
+      - say: For every processed inference token, the larger model uses about a hundred forty billion dense
+          operations. The smaller one uses sixty billion. That difference is a saving on every token
+          after launch. Before making the choice, measure task quality, latency and memory at the batch
+          sizes and context lengths people will actually use.
+        hold: 0.8
+        visual_cues:
+          - id: life-rates
+            phrase: For every processed inference token
+            targets:
+              - lifetime-bill
+            linger: 0.25
+  - id: lifetime-equation
+    title: How many tokens repay the training bill?
+    visual: On a common scale, grow only the serving part of each bill. Stop below the crossing, at the
+      crossing, and above it.
+    beats:
+      - say: Move demand to one trillion processed inference tokens. The serving part grows from the end of each
+          training bar. The seventy-billion model still has the shorter total. Count tokens that actually
+          pass through the model. A cached prefix can spare work when a later request reuses it. For
+          either model, serving overtakes its own training bill when processed demand exceeds three times
+          its training tokens.
+        hold: 0.9
+        visual_cues:
+          - id: life-bill
+            phrase: serving part grows from the end of each training bar
+            targets:
+              - lifetime-bill
+            linger: 0.25
+          - id: life-one
+            phrase: Move demand to one trillion processed inference tokens
+            targets:
+              - lifetime-bill
+            linger: 0.25
+      - say: How far apart were the blue starting bills? The compact model paid an extra one point three two
+          times ten to the twenty-third operations up front. Divide that premium by eighty billion
+          operations saved per inference token. The bars meet at one point six five trillion tokens. Each
+          total is eight point one nine in the units on the chart.
+        hold: 1
+        caption_starts:
+          - one point three two times ten to the twenty-third
+          - one point six five trillion tokens
+        visual_cues:
+          - id: life-premium
+            phrase: one point three two times ten to the twenty-third operations up front
+            targets:
+              - lifetime-bill
+            linger: 0.25
+          - id: life-crossing
+            phrase: The bars meet at one point six five trillion tokens
+            targets:
+              - lifetime-bill
+            linger: 0.25
+          - id: life-match
+            phrase: Each total is eight point one nine
+            targets:
+              - lifetime-bill
+            linger: 0.25
+      - say: Now move demand to three trillion tokens. The compact model comes out ahead. With no training
+          premium it would already be competitive at zero demand. With equal parameter counts there would
+          be no per-token saving to repay a premium. To compare dollars, price the extra training and the
+          saved serving work separately. Twice the price per useful training operation, with serving
+          prices fixed, doubles the payback volume.
+        hold: 1
+        visual_cues:
+          - id: life-three
+            phrase: move demand to three trillion tokens
+            targets:
+              - lifetime-bill
+            linger: 0.25
+  - id: data-inventory
+    title: Can four runs share the same text?
+    visual: Keep source positions visible as four runs process them. Compare their union with a disjoint-data
+      case, then examine the assumptions of a dated supply forecast.
+    beats:
+      - say: Put the same fifteen trillion token positions through four separate training runs. Watch the source
+          labels repeat. Each run adds fifteen trillion presentations, but every one points back to the
+          same corpus. Together the models saw sixty trillion presentations drawn from fifteen trillion
+          unique positions. With four disjoint corpora of the same size, the four runs would use sixty
+          trillion unique positions.
+        hold: 0.75
+        visual_cues:
+          - id: sl-data-inventory-0
+            phrase: Put the same fifteen trillion token positions through four separate training runs
+            targets:
+              - sl-data-inventory-construction
+            linger: 0.3
+          - id: disjoint-data
+            phrase: With four disjoint corpora
+            targets:
+              - sl-data-inventory-construction
+            linger: 0.2
+      - say: In June twenty twenty-four, Villalobos and colleagues forecast when training demand might meet
+          effective public human-text supply. Their range ran from twenty twenty-six to twenty
+          thirty-two, with a median near twenty twenty-eight. The roughly four hundred trillion tokens at
+          that intersection included adjustments for quality and useful repetition. Dividing a reported
+          fifteen point six trillion presentations by that future stock gives three point nine percent.
+          The corpus can still be used again.
+        hold: 0.75
+        visual_cues:
+          - id: sl-data-inventory-1
+            phrase: Their range ran from twenty twenty-six to twenty thirty-two
+            targets:
+              - sl-data-inventory-construction
+            linger: 0.3
+      - say: For your own run, count what remains after licensing, filtering and deduplication. Test repeated
+          epochs or verified synthetic data on the task. Epoch’s twenty twenty-five assessment suggested
+          synthetic data might ease a bottleneck. Its usefulness depends on the data you can make and
+          verify. Sardana’s study of forty-seven models found that fits from ratios up to a hundred could
+          overstate gains far beyond that range. Only the smallest model reached ten thousand tokens per
+          parameter. The larger ones went up to a thousand.
+        hold: 0.75
+        visual_cues:
+          - id: sl-data-inventory-2
+            phrase: count what remains after licensing, filtering and deduplication
+            targets:
+              - sl-data-inventory-construction
+            linger: 0.3
+  - id: test-time-budget
+    title: What can change after training ends?
+    visual: Keep the 8B model fixed. Count equally long generated candidates and their dense generation FLOPs
+      before considering task quality.
+    beats:
+      - say: This model is already trained. One request can ask it for a long answer, for several independent
+          drafts, or for candidates that an external verifier scores. Those spend compute differently. A
+          long reasoning trace tells you how many tokens were generated. To count a search tree, you also
+          need evidence that a search actually ran.
+        hold: 0.75
+        visual_cues:
+          - id: sl-test-time-budget-0
+            phrase: several independent drafts
+            targets:
+              - sl-test-time-budget-construction
+            linger: 0.3
+      - say: Give every draft exactly five hundred twelve output tokens. Each position costs about twice the
+          eight-billion weight count in dense operations. Count one draft, then four, then sixteen. Each
+          time you quadruple the drafts, the generation bill quadruples. Prompt processing, attention and
+          scoring the drafts all add work outside that total. Measure task success to see what those
+          extra drafts bought.
+        hold: 0.75
+        visual_cues:
+          - id: sl-test-time-budget-1
+            phrase: Count one draft, then four, then sixteen
+            targets:
+              - sl-test-time-budget-construction
+            linger: 0.3
+          - id: draft-one
+            phrase: Count one draft
+            targets:
+              - sl-test-time-budget-construction
+            linger: 0.2
+          - id: draft-four
+            phrase: then four
+            targets:
+              - sl-test-time-budget-construction
+            linger: 0.2
+          - id: draft-sixteen
+            phrase: then sixteen
+            targets:
+              - sl-test-time-budget-construction
+            linger: 0.2
+      - say: Snell and colleagues tested a difficulty-dependent allocation on MATH, with a model specially
+          trained for revision and scoring. In some matched-compute cases their smaller model beat a
+          single response from a model with roughly fourteen times as many parameters. Harder problems or
+          high serving demand could favor more pre-training instead. Include the cost of estimating
+          difficulty and scoring the candidates in a deployment comparison.
+        hold: 0.75
+        visual_cues:
+          - id: sl-test-time-budget-2
+            phrase: difficulty-dependent allocation on MATH
+            targets:
+              - sl-test-time-budget-construction
+            linger: 0.3
+  - id: capability-metrics
+    title: How many answers were completely right?
+    visual: Score one fixed set of outputs twice. Count correct token positions and completely correct
+      answers with separate denominators.
+    beats:
+      - say: Suppose the model will help people write code. Held-out loss tells you about predicting the next
+          token. Exponentiating loss in nats gives perplexity, another view of the same predictions. Does
+          the code pass its tests? That takes a separate evaluation. Budget for task checks and any
+          supervised or preference training the deployed model needs.
+        hold: 0.75
+        visual_cues:
+          - id: sl-capability-metrics-0
+            phrase: Does the code pass its tests
+            targets:
+              - sl-capability-metrics-construction
+            linger: 0.3
+      - say: Here’s a small example of why the score matters. An answer has five tokens. Suppose each is correct
+          independently with the same probability. Multiply the five probabilities to get the chance that
+          the whole answer is right. That fifth power changes smoothly as token accuracy improves. On a
+          small set, a score that counts only perfect answers can stay at zero for a while.
+        hold: 0.75
+        visual_cues:
+          - id: sl-capability-metrics-1
+            phrase: Multiply the five probabilities to get the chance that the whole answer is right
+            targets:
+              - sl-capability-metrics-construction
+            linger: 0.3
+      - say: Score these same ten answers both ways. Each blue square is a correct token. The first three rows
+          earn token credit, but each has a mistake. Row four is the first complete success. That jump
+          came from the scoring rule applied to these outputs. Wei and colleagues described apparent
+          emergence. Schaeffer and colleagues showed how scoring and sample size can produce it in some
+          tasks. Compare metrics on the same outputs before attributing a jump to a new capability.
+        hold: 0.75
+        caption_starts:
+          - Row four is the first complete success
+        visual_cues:
+          - id: sl-capability-metrics-2
+            phrase: The first three rows earn token credit, but each has a mistake. Row four is the first complete
+              success
+            targets:
+              - sl-capability-metrics-construction
+            linger: 0.3
+          - id: metric-first-three
+            phrase: The first three rows earn token credit
+            targets:
+              - sl-capability-metrics-construction
+            linger: 0.2
+          - id: metric-fourth
+            phrase: Row four is the first complete success
+            targets:
+              - sl-capability-metrics-construction
+            linger: 0.2
+          - id: metric-rest
+            phrase: That jump came from the scoring rule applied to these outputs
+            targets:
+              - sl-capability-metrics-construction
+            linger: 0.2
+  - id: architecture-aware
+    title: Which weights does this token use?
+    visual: Separate stored expert and shared weights from the active subset, then compare growing attention
+      history with a fixed-size recurrent state.
+    beats:
+      - say: All forty tiles occupy memory. This token uses the shared layers and just the selected experts.
+          Another token in the batch may visit different experts. For a mixture of experts, record both
+          the total stored weights and the active weights per token. Routing, placement, attention and
+          communication also affect what the hardware must do.
+        hold: 0.75
+        visual_cues:
+          - id: sl-architecture-aware-0
+            phrase: This token uses the shared layers and just the selected experts
+            targets:
+              - sl-architecture-aware-construction
+            linger: 0.3
+      - say: Each tile stands for two billion weights. At two bytes per weight, all eighty billion occupy a
+          hundred sixty decimal gigabytes before other state. Count the active tiles for one token. Four
+          billion shared weights plus six billion selected weights make ten billion active. For a hundred
+          billion training tokens, six times that active count times the token count gives six times ten
+          to the twenty-first proxy FLOPs.
+        hold: 0.75
+        visual_cues:
+          - id: sl-architecture-aware-1
+            phrase: Count the active tiles for one token
+            targets:
+              - sl-architecture-aware-construction
+            linger: 0.3
+      - say: Changing the architecture can also change the cost of a longer context. During full-sequence
+          attention, pairs of positions interact. During cached decoding, each new query reads a growing
+          history. A state-space model can update a fixed-size recurrent state instead. Measure
+          throughput in the phase you care about and fit loss on the actual architecture before sizing
+          the next run.
+        hold: 0.75
+        visual_cues:
+          - id: sl-architecture-aware-2
+            phrase: each new query reads a growing history
+            targets:
+              - sl-architecture-aware-construction
+            linger: 0.3
+  - id: transfer
+    title: Which trial goes on to the next check?
+    visual: Use a fixed acceptance band on a held-out loss ruler. Place two alternative mid-scale results on
+      the same scale before revealing their decisions.
+    beats:
+      - say: Before you book the large run, practice the decision on two possible results from the same mid-scale
+          trial. At ten billion parameters and a hundred billion training tokens, the fit predicts two
+          point three one zero. Allow two hundredths of a nat on either side. Both trials use the same
+          tokenizer, held-out text and training recipe.
+        hold: 0.7
+        visual_cues:
+          - id: transfer-window
+            phrase: Allow two hundredths of a nat on either side
+            targets:
+              - loss-window
+            linger: 0.25
+      - say: Place the two observations on that ruler. Run A finishes at two point three five zero. Run B
+          finishes at two point three two zero. Which one goes on to the throughput check?
+        hold: 3
+        visual_cues:
+          - id: transfer-observations
+            phrase: Run A finishes at two point three five zero
+            targets:
+              - loss-window
+            linger: 0.25
+          - id: transfer-second
+            phrase: Run B finishes at two point three two zero
+            targets:
+              - loss-window
+            linger: 0.25
+      - say: Run B goes on. Its miss is about one hundredth. Run A misses by about four hundredths, twice the
+          allowance. Hold that proposal and check the fit, the data and the completed training run. For
+          B, measure useful tokens per GPU-second on the target hardware and check the tasks the model
+          must do.
+        hold: 1
+        visual_cues:
+          - id: transfer-decision
+            phrase: Run B goes on
+            targets:
+              - loss-window
+            linger: 0.25
+            caption_boundary: true
+  - id: fresh-allocation
+    title: Which allocation can you use?
+    visual: Keep three new proposals on the 900-unit contour. Apply a no-repeat data ceiling, then a
+      model-size limit on the same axes. Compare the largest feasible rectangle to the original budget.
+    beats:
+      - say: Try a fresh budget of nine hundred units. Each plan on the curve spends all of it. In this fit the
+          parameter penalty starts with three and the data penalty starts with six. Both shrink with the
+          square root of their resource. Look at the three plans. Which one balances the penalties?
+        hold: 3.3
+        visual_cues:
+          - id: fresh-plans
+            phrase: Look at the three plans
+            targets:
+              - allocation-ledger
+            linger: 0.25
+      - say: For the penalties to match, the square root of D must be twice the square root of N. That takes four
+          token units per parameter unit. Plan B fits. Fifteen times sixty spends nine hundred. Each
+          penalty is about point seven seven five. Add one for the floor. The fitted loss is two point
+          five four nine. Now the data team has just forty token units and repeats are off the table. Can
+          B run as proposed?
+        hold: 2.4
+        caption_starts:
+          - two point five four nine
+          - Now the data team
+        visual_cues:
+          - id: fresh-ratio
+            phrase: four token units per parameter unit
+            targets:
+              - allocation-ledger
+            linger: 0.25
+            caption_boundary: true
+          - id: fresh-choice
+            phrase: Plan B fits
+            targets:
+              - feasible-map
+            linger: 0.25
+            caption_boundary: true
+          - id: fresh-loss
+            phrase: the fitted loss is two point five four nine
+            targets:
+              - allocation-ledger
+            linger: 0.25
+            caption_boundary: true
+          - id: fresh-cap
+            phrase: just forty token units
+            targets:
+              - feasible-map
+            linger: 0.25
+      - say: B needs twenty more token units than we have. To spend the full budget, slide down the curve until
+          you reach the forty-token line. Nine hundred divided by forty gives twenty-two and a half
+          parameter units. This is the closest feasible point to the old minimum along the curve. Its
+          fitted loss is two point five eight one.
+        hold: 1.2
+        caption_starts:
+          - twenty-two and a half parameter units
+          - two point five eight one
+        visual_cues:
+          - id: fresh-slide
+            phrase: slide down the curve until you reach the forty-token line
+            targets:
+              - feasible-map
+            linger: 0.25
+          - id: fresh-quotient
+            phrase: Nine hundred divided by forty gives twenty-two and a half parameter units
+            targets:
+              - allocation-ledger
+            caption_boundary: true
+            linger: 0.25
+          - id: fresh-cap-loss
+            phrase: Its fitted loss is two point five eight one
+            targets:
+              - allocation-ledger
+            linger: 0.25
+            caption_boundary: true
+      - say: One more constraint. Memory limits the model to twenty parameter units. Keep the forty-token
+          ceiling. How much of the nine hundred can you spend inside both limits?
+        hold: 2.8
+        visual_cues:
+          - id: fresh-size-limit
+            phrase: Memory limits the model to twenty parameter units
+            targets:
+              - feasible-map
+            linger: 0.25
+      - say: Eight hundred units. Even the largest allowed rectangle misses the curve. You can spend eight
+          hundred now. To spend all nine hundred with a model twenty units wide, you’d need forty-five
+          token units. That last strip needs five more usable units of data. The next lesson follows the
+          text through filtering, deduplication and packing, where you can measure whether those extra
+          tokens exist.
+        hold: 1.5
+        caption_starts:
+          - That last strip needs five more usable units of data
+          - The next lesson follows the text
+        visual_cues:
+          - id: fresh-area
+            phrase: Eight hundred units
+            targets:
+              - allocation-ledger
+            linger: 0.25
+            caption_boundary: true
+          - id: fresh-shortfall
+            phrase: you’d need forty-five token units
+            targets:
+              - allocation-ledger
+            caption_boundary: true
+            linger: 0.25

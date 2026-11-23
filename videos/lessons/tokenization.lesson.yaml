@@ -1,0 +1,655 @@
+version: 1
+id: tokenization
+title: "Tokenization: Five Letters, How Many Positions?"
+source: fundamentals/tokenization-bpe-wordpiece-sentencepiece/content.md
+voice: en-US-AndrewNeural
+scenes:
+  - id: opening-motivation
+    title: Five letters. How many positions?
+    visual: "A large plays spelling faces three equally weighted predictions: one, two, or five model positions. The answer waits until the learned BPE rules exist."
+    beats:
+      - say: "Five letters: plays. How many model positions does that take? One, two, or five? Pick an answer. The spelling alone cannot tell us. We need the tokenizer's pieces and rules. Let's build them."
+        hold: 1.1
+        visual_cues:
+          - id: opening-prediction
+            phrase: One, two, or five
+            targets:
+              - opening-prediction
+            color: cyan
+            linger: 0.65
+  - id: model-input
+    title: Pieces become IDs, then vectors
+    visual: The cat slept retains its three ordered identities as vocabulary lookups reveal IDs. Only the next beat reveals the corresponding learned vectors.
+    beats:
+      - say: A tokenizer turns text into pieces, then looks up each piece in its vocabulary. In this small example, The, cat, and slept each have an integer ID. The numbers are local to this model.
+        hold: 0.65
+        visual_cues:
+          - id: model-input-group
+            phrase: looks up each piece in its vocabulary
+            targets:
+              - model-input-group
+            color: cyan
+            linger: 0.65
+          - id: model-input-ids
+            phrase: each have an integer ID
+            targets:
+              - model-input-ids
+            color: cyan
+            linger: 0.65
+      - say: An ID selects a row from the learned embedding table. Watch the three lookups. Their vectors keep the original order. These vectors, rather than the printed words, enter the model.
+        hold: 0.65
+        visual_cues:
+          - id: ordered-embedding-lookup
+            phrase: Watch the three lookups
+            targets:
+              - ordered-embedding-lookup
+            color: cyan
+            linger: 0.65
+  - id: embedding-contract
+    title: The number is a row index
+    visual: A cat lookup selects a fixed learned row. A replacement vocabulary gives slept that same ID but the row does not change. A two-row numerical example then swaps input and output rows together.
+    beats:
+      - say: Here, cat selects this learned row. Training associated it with cat. Imagine replacing only the vocabulary file.
+        hold: 0.65
+        visual_cues:
+          - id: embedding-contract-object-76
+            phrase: cat selects this learned row
+            targets:
+              - embedding-contract-object-76
+            color: cyan
+            linger: 0.65
+          - id: embedding-contract-group-80
+            phrase: Training associated it with cat
+            targets:
+              - embedding-contract-group-80
+            color: cyan
+            linger: 0.65
+      - say: The new file gives slept the same ID. Which vector comes back? The old cat vector. Changing the label left the weights unchanged.
+        hold: 1
+        visual_cues:
+          - id: embedding-contract-object-91
+            phrase: The new file gives slept the same ID
+            targets:
+              - embedding-contract-object-91
+            color: cyan
+            linger: 0.65
+          - id: embedding-contract-object-89
+            phrase: The old cat vector
+            targets:
+              - embedding-contract-object-89
+            color: cyan
+            linger: 0.65
+      - say: The numbering can change safely if every indexed part moves with it. In this two-row example, swap the input rows and the output rows together. Cat retrieves its original vector, and its output score still belongs to cat. Any indexed biases must follow too.
+        hold: 0.65
+        visual_cues:
+          - id: remap-rows
+            phrase: swap the input rows and the output rows together
+            targets:
+              - remap-rows
+            color: cyan
+            linger: 0.65
+          - id: remap-result
+            phrase: Cat retrieves its original vector
+            targets:
+              - remap-result
+            color: green
+            linger: 0.65
+  - id: granularity
+    title: A dictionary, an alphabet, or reusable pieces?
+    visual: Known playing is contrasted with two unfamiliar spellings collapsing to one unknown symbol. Its persistent letters split into seven positions, then regroup into play and ing; play recurs in played and playful.
+    beats:
+      - say: A whole-word dictionary is compact until a spelling is missing. Suppose it knows playing but not played or playful. Without a fallback, those two different words become the same unknown symbol. Their distinction is gone.
+        hold: 0.65
+        visual_cues:
+          - id: granularity-object-101
+            phrase: knows playing
+            targets:
+              - granularity-object-101
+            color: cyan
+            linger: 0.65
+      - say: An alphabet preserves more spellings with fewer vocabulary entries. But playing now needs seven character positions. Bytes can provide broader coverage still. We will return to what happens inside a Unicode character.
+        hold: 0.65
+        visual_cues:
+          - id: granularity-beat-2-focus-1
+            phrase: playing now needs seven character positions
+            targets:
+              - granularity-object-108
+            color: cyan
+            linger: 0.65
+      - say: "Subwords reuse larger pieces. Split playing into play and ing: two positions. The same play piece works in played and playful. This is our balance between a giant dictionary and very long character sequences. Exact coverage still depends on the alphabet and fallback."
+        hold: 0.65
+        visual_cues:
+          - id: granularity-beat-3-focus-1
+            phrase: Split playing into play and ing
+            targets:
+              - granularity-object-112
+            color: cyan
+            linger: 0.65
+          - id: granularity-reuse
+            phrase: The same play piece works in played and playful
+            targets:
+              - granularity-reuse
+            color: cyan
+            linger: 0.65
+  - id: sequence-cost
+    title: One extra position adds a row and a column
+    visual: One phrase fills character, subword and word strips. A dense 32-by-32 score grid physically contracts to seven by seven. Cached decoding instead reads one row of stored positions and appends cache storage.
+    beats:
+      - say: "Compare the same phrase: Children happily played outdoors. Count the spaces too. Our examples use thirty-two character positions, seven subword positions, or four whole words. These are classroom splits; a real tokenizer follows its own inventory."
+        hold: 0.65
+        visual_cues:
+          - id: sequence-cost-beat-1-focus-2
+            phrase: Compare the same phrase
+            targets:
+              - sequence-cost-group-117
+            color: cyan
+            linger: 0.65
+          - id: sequence-cost-beat-1-focus-1
+            phrase: thirty-two character positions
+            targets:
+              - sequence-cost-group-119
+            color: cyan
+            linger: 0.65
+      - say: During training or prompt prefill, dense attention compares positions with positions. One more position adds a row and a column. Now shorten the sequence to seven. The conceptual score grid falls from a thousand and twenty-four cells to forty-nine. That is about one twentieth, before implementation details.
+        hold: 0.65
+        visual_cues:
+          - id: sequence-cost-beat-2-focus-1
+            phrase: One more position adds a row and a column
+            targets:
+              - sequence-cost-grid
+            color: cyan
+            linger: 0.65
+          - id: sequence-cost-shorter
+            phrase: Now shorten the sequence to seven
+            targets:
+              - sequence-cost-grid
+            color: green
+            linger: 0.65
+          - id: sequence-cost-ratio
+            phrase: falls from a thousand and twenty-four cells to forty-nine
+            targets:
+              - sequence-cost-calculation
+            color: green
+            linger: 0.65
+      - say: Cached generation asks a different question. One new position reads the stored context. That attention work grows linearly with the cached length, and storing another key and value grows the cache. Neither count alone predicts end-to-end speed.
+        hold: 0.65
+        visual_cues:
+          - id: sequence-cost-beat-3-focus-1
+            phrase: One new position reads the stored context
+            targets:
+              - sequence-cost-group-126
+            color: cyan
+            linger: 0.65
+  - id: bpe-count
+    title: Let the corpus choose the first merge
+    visual: Three weighted rows keep their letter identities. Each adjacent p-plus-l occurrence contributes its row frequency to the total, then complete pair-count bars allow a prediction before the winner is revealed.
+    beats:
+      - say: "Byte-Pair Encoding, or BPE, learns reusable pieces by merging frequent neighbors. Here our corpus contains play three times, plays twice, and plot twice. Count p followed by l. Each row contributes its frequency: three, then two, then two."
+        hold: 0.65
+        visual_cues:
+          - id: bpe-count-adjacency
+            phrase: Count p followed by l
+            targets:
+              - bpe-corpus-rows
+            color: yellow
+            linger: 0.65
+          - id: bpe-weighted-count
+            phrase: three, then two, then two
+            targets:
+              - bpe-corpus-rows
+              - bpe-weighted-total
+            color: yellow
+            linger: 0.65
+      - say: Which pair should merge first? Compare all four counts. P followed by l wins with seven occurrences. The trainer will replace that pair everywhere it occurs, not just in the first row.
+        hold: 1
+        visual_cues:
+          - id: bpe-compare-counts
+            phrase: Compare all four counts
+            targets:
+              - bpe-pair-counts
+            color: yellow
+            linger: 0.65
+          - id: bpe-pick-first
+            phrase: wins with seven occurrences
+            targets:
+              - bpe-selected-pair
+            color: green
+            linger: 0.65
+  - id: bpe-merges
+    title: A merge changes the next question
+    visual: The chosen letters fuse in every affected row. Actual weighted recounts tie at five; two separate spoken beats hold pla before the final play merge. The resulting ordered rules remain concrete artifacts.
+    beats:
+      - say: Join p and l into pl in all three rows. Pl is now one symbol. Recount its new neighbors. Pl followed by a and a followed by y both occur five times.
+        hold: 0.65
+        visual_cues:
+          - id: bpe-merge-all-rows
+            phrase: Join p and l into pl
+            targets:
+              - bpe-all-row-fusion
+              - bpe-merged-symbol
+            color: yellow
+            linger: 0.65
+          - id: bpe-recount-neighbors
+            phrase: Recount its new neighbors
+            targets:
+              - bpe-recount-0
+              - bpe-recount-1
+            color: yellow
+            linger: 0.65
+      - say: "A tie. Our classroom rule picks the first pair encountered: pl followed by a. Merge those into pla. Keep the y separate for now."
+        hold: 1.15
+        motion_check:
+          region: [880, 340, 400, 270]
+          minimumChangedFraction: 0.002
+        visual_cues:
+          - id: bpe-count-tie
+            phrase: A tie
+            targets:
+              - bpe-tied-pl-a
+              - bpe-tied-a-y
+            color: yellow
+            linger: 0.65
+          - id: bpe-second-merge
+            phrase: Merge those into pla
+            targets:
+              - bpe-next-row-fusion
+            color: yellow
+            linger: 0.65
+      - say: Recount once more. Pla followed by y still occurs five times, so it becomes play. The trainer saves three ranked rules. It can continue to a target vocabulary size. Real trainers also specify boundaries and tie-breaking; ours omits end-of-word markers.
+        hold: 0.65
+        visual_cues:
+          - id: bpe-third-merge
+            phrase: so it becomes play
+            targets:
+              - bpe-next-row-fusion
+            color: green
+            linger: 0.65
+          - id: bpe-record-ranks
+            phrase: saves three ranked rules
+            targets:
+              - bpe-merge-ranks
+            color: yellow
+            linger: 0.65
+  - id: bpe-encoding
+    title: Replay the frozen merge recipe
+    visual: The exact three ranked rule cards from training drive plays to play-plus-s, answering the opening prediction. A fixed pre-tokenizer boundary then separates spans. The unseen plums applies only the eligible first merge.
+    beats:
+      - say: "Back to our opening prediction: plays. Encoding begins with the base letters and applies the saved rules in rank order. First pl, then pla, then play. The s stays separate. Five letters, two model positions. We have earned that answer from the training corpus."
+        hold: 1.1
+        visual_cues:
+          - id: encoding-pl
+            phrase: First pl
+            targets:
+              - bpe-encoding-object-151
+            color: cyan
+            linger: 0.65
+          - id: encoding-pla
+            phrase: then pla
+            targets:
+              - bpe-encoding-object-151
+            color: cyan
+            linger: 0.65
+          - id: encoding-play
+            phrase: then play
+            targets:
+              - bpe-encoding-object-151
+            color: green
+            linger: 0.65
+      - say: The rules also have boundaries. In this configuration, a pre-tokenizer separates play from outside at the space. A merge cannot jump that boundary, even if the joined spelling looks useful.
+        hold: 0.65
+        visual_cues:
+          - id: bpe-encoding-beat-2-focus-1
+            phrase: separates play from outside at the space
+            targets:
+              - bpe-encoding-object-154
+            color: cyan
+            linger: 0.65
+      - say: "Try a new word: plums. The first rule still joins p and l. But pl followed by u matches no later rule. We finish with pl, u, m, s. Repeating plums in a prompt would not invent a new merge; encoding reuses the frozen recipe."
+        hold: 0.65
+        visual_cues:
+          - id: bpe-encoding-beat-3-focus-1
+            phrase: The first rule still joins p and l
+            targets:
+              - bpe-encoding-object-158
+            color: cyan
+            linger: 0.65
+  - id: wordpiece-training
+    title: Frequency and association can disagree
+    visual: Two eligible within-word pairs compete by raw count and a labeled teaching proxy. Each calculation is revealed before the rows exchange rank. A short adjacent label preserves the likelihood-versus-proxy distinction.
+    beats:
+      - say: Must the most frequent pair be the best choice? WordPiece's published motivation is to improve how likely the corpus is under a language model. Here, t followed by h occurs ninety times. Rain followed by bow occurs only forty-two times.
+        hold: 0.65
+        visual_cues:
+          - id: wordpiece-training-beat-1-focus-2
+            phrase: t followed by h occurs ninety times
+            targets:
+              - wordpiece-training-object-164
+            color: cyan
+            linger: 0.65
+          - id: wordpiece-training-beat-1-focus-1
+            phrase: improve how likely the corpus is
+            targets:
+              - wordpiece-training-equation-170
+            color: yellow
+            linger: 0.65
+      - say: "Use this teaching proxy: pair count divided by the two individual counts. Rain and bow occur together much more often relative to their separate counts. Their score moves ahead. The proxy illustrates association; it is not a universal WordPiece likelihood-gain formula. BERT's exact trainer recipe was not published."
+        hold: 0.65
+        visual_cues:
+          - id: wordpiece-training-beat-2-focus-2
+            phrase: pair count divided by the two individual counts
+            targets:
+              - wordpiece-training-object-174
+            color: cyan
+            linger: 0.65
+          - id: wordpiece-training-beat-2-focus-1
+            phrase: Their score moves ahead
+            targets:
+              - wordpiece-training-object-175
+            color: green
+            linger: 0.65
+  - id: wordpiece-encoding
+    title: The longest first step can be a trap
+    visual: Preprocessing separates punctuation. Progressive longest-prefix checks choose play, then missing continuations block ing. The independent valid pla-plus-ying path is held beside the greedy whole-word unknown result.
+    beats:
+      - say: Encoding uses the learned vocabulary, not that training score. BERT-style preprocessing can clean text, handle case and accents, and separate punctuation. Here Playing with an exclamation mark becomes playing and punctuation. The exact cleanup is configured.
+        hold: 0.65
+        visual_cues:
+          - id: wordpiece-encoding-beat-1-focus-1
+            phrase: becomes playing and punctuation
+            targets:
+              - wordpiece-encoding-object-201
+            color: cyan
+            linger: 0.65
+      - say: WordPiece tries the longest vocabulary match at the current position. Playing is absent. Playin is absent. Playi is absent. Play exists, so commit to it. Now search for ing. The double hash marks continuation pieces in this vocabulary.
+        hold: 0.65
+        visual_cues:
+          - id: wordpiece-prefix-search
+            phrase: Playing is absent. Playin is absent. Playi is absent.
+            targets:
+              - wordpiece-prefix-search
+            color: cyan
+            linger: 0.65
+          - id: wordpiece-prefix-commit
+            phrase: Play exists, so commit to it
+            targets:
+              - wordpiece-encoding-object-204
+            color: green
+            linger: 0.65
+          - id: wordpiece-encoding-beat-2-focus-2
+            phrase: Now search for ing. The double hash marks continuation pieces in this vocabulary
+            targets:
+              - wordpiece-encoding-label-208
+            color: cyan
+            linger: 0.65
+      - say: "Predict the result. Our vocabulary has pla and continuation ying, so another complete split exists. But greedy matching already chose play. No continuation can finish ing. This BERT-style matcher does not backtrack: the whole word becomes the unknown token."
+        hold: 1.1
+        visual_cues:
+          - id: wordpiece-alternative
+            phrase: Our vocabulary has pla and continuation ying
+            targets:
+              - wordpiece-alternative
+            color: green
+            linger: 0.65
+          - id: wordpiece-failure
+            phrase: the whole word becomes the unknown token
+            targets:
+              - wordpiece-failure
+            color: pink
+            linger: 0.65
+  - id: sentencepiece-whitespace
+    title: A space can travel with a piece
+    visual: A concrete good morning stream makes the SentencePiece toolkit and its BPE/Unigram choices tangible. A visible marker replaces the space and decodes back; a configured dummy prefix and span boundaries follow.
+    beats:
+      - say: "SentencePiece is a toolkit that can train BPE or Unigram. It learns from raw sentences and packages normalization and decoding with the model. Watch good morning: this visible marker records the space before morning. Decode the pieces and the space comes back in the normalized text."
+        hold: 0.65
+        visual_cues:
+          - id: sentencepiece-whitespace-beat-1-focus-1
+            phrase: Watch good morning
+            targets:
+              - sentencepiece-whitespace-object-235
+            color: cyan
+            linger: 0.65
+          - id: sentencepiece-whitespace-beat-1-focus-2
+            phrase: this visible marker records the space
+            targets:
+              - sentencepiece-marker
+            color: cyan
+            linger: 0.65
+          - id: sentencepiece-decode
+            phrase: Decode the pieces and the space comes back
+            targets:
+              - sentencepiece-whitespace-object-235
+            color: green
+            linger: 0.65
+      - say: Why does a marker also appear before the first word? The default dummy-prefix option adds it. That gives good the same boundary form whether it starts the sentence or follows a space. The model configuration can change this option.
+        hold: 0.65
+        visual_cues:
+          - id: sentencepiece-whitespace-beat-2-focus-1
+            phrase: dummy-prefix option adds it
+            targets:
+              - sentencepiece-whitespace-object-242
+            color: cyan
+            linger: 0.65
+          - id: sentencepiece-whitespace-beat-2-focus-2
+            phrase: same boundary form
+            targets:
+              - sentencepiece-whitespace-label-245
+            color: cyan
+            linger: 0.65
+      - say: Raw sentences still have configured boundaries. Whitespace, numbers, and script changes can constrain which neighbors combine. The saved settings decide the allowed pieces; raw input does not mean unrestricted merging.
+        hold: 0.65
+        visual_cues:
+          - id: sentencepiece-whitespace-beat-3-focus-1
+            phrase: Whitespace, numbers, and script changes
+            targets:
+              - sentencepiece-whitespace-group-247
+            color: cyan
+            linger: 0.65
+  - id: unigram-training
+    title: Which piece can we afford to lose?
+    visual: An oversized piece inventory leads to two numerical trial removals on one fixed-score sentence. Removing unused ous costs zero likelihood; removing the whole piece costs about 3.04 nats. The low-impact unused candidates fade while later path pieces remain.
+    beats:
+      - say: Unigram starts from too many candidate pieces and works downward. Several paths can spell the same text. Training estimates their piece probabilities, alternates likely-path estimates with probability updates, then asks which pieces it can afford to remove.
+        hold: 0.65
+        visual_cues:
+          - id: unigram-training-beat-1-focus-1
+            phrase: too many candidate pieces
+            targets:
+              - unigram-training-group-253
+            color: cyan
+            linger: 0.65
+      - say: "Try two removals with fixed example scores. Removing ous changes none of these paths: zero loss. Removing the whole house piece loses the strongest route and raises the loss by about three nats. A real trainer estimates the change across its corpus and refits probabilities. It prunes low-impact pieces while retaining required base characters."
+        hold: 0.65
+        visual_cues:
+          - id: unigram-remove-unused
+            phrase: Removing ous changes none of these paths
+            targets:
+              - unigram-removal-unused
+            color: cyan
+            linger: 0.65
+          - id: unigram-remove-useful
+            phrase: Removing the whole house piece
+            targets:
+              - unigram-removal-useful
+            color: yellow
+            linger: 0.65
+          - id: unigram-prune
+            phrase: It prunes low-impact pieces
+            targets:
+              - unigram-training-group-263
+            color: cyan
+            linger: 0.65
+  - id: unigram-encoding
+    title: Score complete paths before choosing
+    visual: Candidate edges span explicit boundaries. Path products appear progressively on one scale; final incoming scores select the complete winner. Optional sampling uses an actual cumulative-probability strip, separate from deterministic best-path encoding.
+    beats:
+      - say: Here is the new sentence's candidate graph, or lattice. Each complete route spells the same text, including the space marker. A route's score is the product of its piece probabilities. Which route looks promising?
+        hold: 0.9
+        visual_cues:
+          - id: unigram-encoding-beat-1-focus-1
+            phrase: Each complete route spells the same text
+            targets:
+              - unigram-encoding-group-266
+            color: cyan
+            linger: 0.65
+      - say: "The whole piece scores point three. Split off the space marker: point one five times point one gives point zero one five. On the same probability scale, that is much smaller. Longest is winning here because of its score, not a longest-match rule."
+        hold: 0.65
+        visual_cues:
+          - id: unigram-encoding-beat-2-focus-1
+            phrase: point one five times point one gives point zero one five
+            targets:
+              - unigram-encoding-group-270
+            color: cyan
+            linger: 0.65
+      - say: The three-piece route scores only point zero zero zero zero nine. Viterbi keeps the best accumulated score at each boundary. Competing incoming paths share the work already done, so we can recover the best complete route without listing every possible segmentation.
+        hold: 0.65
+        visual_cues:
+          - id: unigram-encoding-beat-3-focus-1
+            phrase: Viterbi keeps the best accumulated score at each boundary
+            targets:
+              - unigram-encoding-group-274
+            color: cyan
+            linger: 0.65
+      - say: During model training, optional subword regularization can sample valid paths. These two supplied random draws select different splits of the same text. For ordinary deterministic encoding, choose the best path. Follow the checkpoint's intended mode.
+        hold: 0.65
+        visual_cues:
+          - id: unigram-sample-first
+            phrase: two supplied random draws
+            targets:
+              - unigram-sampling
+            color: cyan
+            linger: 0.65
+          - id: unigram-sample-second
+            phrase: select different splits of the same text
+            targets:
+              - unigram-sampling
+            color: green
+            linger: 0.65
+  - id: fallback-and-normalization
+    title: Byte fallback preserves unfamiliar characters
+    visual: Actual Japanese characters and a literal sparkle character expand to ordered UTF-8 bytes and regroup before decoding. A ligature normalization example then distinguishes decoded normalized text from original code points.
+    beats:
+      - say: What about a character missing from the larger pieces? With complete byte coverage or byte fallback, valid UTF-8 text can still be represented after preprocessing. Each of these characters needs three bytes. Coverage succeeds, but the sequence can grow.
+        hold: 0.65
+        visual_cues:
+          - id: fallback-and-normalization-beat-1-focus-2
+            phrase: Each of these characters needs three bytes
+            targets:
+              - fallback-and-normalization-group-292
+            color: cyan
+            linger: 0.65
+          - id: fallback-and-normalization-beat-1-focus-1
+            phrase: the sequence can grow
+            targets:
+              - fallback-and-normalization-group-294
+            color: cyan
+            linger: 0.65
+      - say: A token boundary may land inside a character. Gather the bytes in order, then decode them together. The complete byte sequence reconstructs the character.
+        hold: 0.65
+        visual_cues:
+          - id: fallback-and-normalization-beat-2-focus-1
+            phrase: Gather the bytes in order
+            targets:
+              - fallback-and-normalization-group-297
+            color: cyan
+            linger: 0.65
+          - id: fallback-and-normalization-beat-2-focus-2
+            phrase: then decode them together
+            targets:
+              - fallback-and-normalization-group-296
+            color: cyan
+            linger: 0.65
+      - say: Normalization can change the text before any split. This single fi ligature folds into ordinary f and i under NFKC. Decoding cannot recover a distinction already erased. SentencePiece can use a configured normalization variant; check the actual output when exact code points matter.
+        hold: 0.65
+        visual_cues:
+          - id: fallback-and-normalization-beat-3-focus-1
+            phrase: This single fi ligature
+            targets:
+              - normalization-source
+            color: cyan
+            linger: 0.65
+          - id: fallback-and-normalization-beat-3-focus-2
+            phrase: folds into ordinary f and i
+            targets:
+              - normalization-source
+              - fallback-and-normalization-group-303
+            color: cyan
+            linger: 0.65
+  - id: vocabulary-economics
+    title: Shorter sequences have a weight-memory price
+    visual: Vocabulary rows grow with two proportional memory bars, then input and output tables visibly share storage when tied. Playground physically compacts from two positions to one, with the saved position set against larger table cost.
+    beats:
+      - say: Why not add every useful word? Each vocabulary entry adds learned weights. With separate input and output tables, a row in each, hidden size four thousand ninety-six and two-byte weights, thirty-two thousand entries cost five hundred mebibytes.
+        hold: 0.65
+        visual_cues:
+          - id: vocabulary-economics-beat-1-focus-1
+            phrase: thirty-two thousand entries cost five hundred mebibytes
+            targets:
+              - vocabulary-economics-group-308
+            color: cyan
+            linger: 0.65
+      - say: Quadruple the vocabulary to a hundred and twenty-eight thousand. The two tables now cost two thousand mebibytes. Tied input and output weights share one table, so count that storage once.
+        hold: 0.65
+        visual_cues:
+          - id: vocabulary-economics-beat-2-focus-1
+            phrase: Quadruple the vocabulary to a hundred and twenty-eight thousand
+            targets:
+              - vocabulary-economics-group-312
+            color: cyan
+            linger: 0.65
+          - id: vocabulary-economics-beat-2-focus-2
+            phrase: two thousand mebibytes
+            targets:
+              - vocabulary-economics-label-314
+            color: cyan
+            linger: 0.65
+          - id: vocabulary-tied
+            phrase: Tied input and output weights share one table
+            targets:
+              - vocabulary-economics-group-312
+            color: green
+            linger: 0.65
+      - say: "A learned playground piece can save a position compared with play plus ground. That is the trade: more stored rows can buy shorter sequences. The saving depends on your languages, code, and numbers. Measure representative text."
+        hold: 0.65
+        visual_cues:
+          - id: vocabulary-economics-beat-3-focus-1
+            phrase: playground piece can save a position
+            targets:
+              - vocabulary-economics-object-315
+            color: cyan
+            linger: 0.65
+  - id: checkpoint-bundle
+    title: The message fits. Does the request?
+    visual: Configured control-token matching is compared with literal text. The opening plays message then becomes an eight-position serialized request; the final prefix crosses the seven-position window by exactly one.
+    beats:
+      - say: Ship the tokenizer's rules and settings with the checkpoint. A control token has a role beyond its spelling. This configured match produces a dedicated control ID. Literal user text can instead split the same spelling into ordinary pieces. The matching rules decide which role applies.
+        hold: 0.65
+        visual_cues:
+          - id: checkpoint-bundle-beat-2-focus-1
+            phrase: produces a dedicated control ID
+            targets:
+              - special-control-role
+            color: cyan
+            linger: 0.65
+          - id: checkpoint-literal-spelling
+            phrase: Literal user text can instead split the same spelling
+            targets:
+              - ordinary-text-role
+              - special-control-role
+            color: cyan
+            linger: 0.65
+      - say: "Return to plays: play plus s, two positions. Our toy window holds seven, so the message fits. Now add system instructions, role boundaries, and the assistant prefix. Eight positions. The request overflows by one. Count the complete serialized request with its compatible tokenizer."
+        hold: 1.2
+        visual_cues:
+          - id: request-template
+            phrase: Now add system instructions, role boundaries, and the assistant prefix
+            targets:
+              - request-construction
+            color: cyan
+            linger: 0.65
+          - id: request-overflow
+            phrase: Eight positions
+            targets:
+              - request-construction
+            color: pink
+            linger: 0.65

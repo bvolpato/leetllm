@@ -1,0 +1,2781 @@
+version: 1
+id: language-modeling
+opening: lesson
+title: One More Word Changes the Question
+source: preparation/language-modeling-next-token-prediction/content.md
+voice: af_heart
+rate: +12%
+sources:
+  - title: "Bengio et al.: A Neural Probabilistic Language Model"
+    url: https://jmlr.org/papers/v3/bengio03a.html
+  - title: "Radford et al.: Language Models are Unsupervised Multitask Learners"
+    url: https://cdn.openai.com/better-language-models/language_models_are_unsupervised_multitask_learners.pdf
+  - title: "Vaswani et al.: Attention Is All You Need"
+    url: https://arxiv.org/abs/1706.03762
+  - title: "Jurafsky and Martin: N-gram Language Models"
+    url: https://web.stanford.edu/~jurafsky/slp3/3.pdf
+  - title: "Devlin et al.: BERT"
+    url: https://arxiv.org/abs/1810.04805
+  - title: "Bengio et al.: Scheduled Sampling"
+    url: https://arxiv.org/abs/1506.03099
+  - title: Transformers v5.6.2 causal loss
+    url: https://github.com/huggingface/transformers/blob/v5.6.2/src/transformers/loss/loss_utils.py
+  - title: Transformers v5.6.2 data collator
+    url: https://github.com/huggingface/transformers/blob/v5.6.2/src/transformers/data/data_collator.py
+  - title: "Hugging Face: Perplexity of fixed-length models"
+    url: https://huggingface.co/docs/transformers/perplexity
+  - title: PyTorch scaled dot product attention
+    url: https://docs.pytorch.org/docs/2.15/generated/torch.nn.functional.scaled_dot_product_attention.html
+  - title: "Pope et al.: Efficiently Scaling Transformer Inference"
+    url: https://proceedings.mlsys.org/paper_files/paper/2023/hash/c4be71ab8d24cdfb45e3d06dbfca2780-Abstract-mlsys2023.html
+  - title: "Ainslie et al.: GQA"
+    url: https://arxiv.org/abs/2305.13245
+  - title: "Kwon et al.: PagedAttention"
+    url: https://arxiv.org/abs/2309.06180
+  - title: "Leviathan et al.: Speculative Decoding"
+    url: https://arxiv.org/abs/2211.17192
+  - title: "Carlini et al.: Extracting Training Data"
+    url: https://arxiv.org/abs/2012.07805
+  - title: "Brown et al.: Language Models are Few-Shot Learners"
+    url: https://arxiv.org/abs/2005.14165
+scenes:
+  - id: intro
+    title: What follows “The cat”?
+    visual: A cursor waits after “The cat.” Three suggestions share a probability strip. The word “sat” moves to the cursor. Its share splits into two possible continuations.
+    beats:
+      - say: The cursor is after “The cat.” The model gives “sat” a sixty percent chance of coming next. “Slept” gets thirty percent. “Ate” gets ten.
+        caption_starts:
+          - The model gives
+        hold: 0.5
+        visual_cues:
+          - id: intro-distribution
+            phrase: gives “sat” a sixty percent chance
+            targets:
+              - intro-choices
+            color: blue
+            linger: 0.18
+          - id: intro-slept
+            phrase: Slept gets thirty percent
+            targets:
+              - intro-choices
+            color: green
+            linger: 0.18
+          - id: intro-ate
+            phrase: “Ate” gets ten
+            targets:
+              - intro-choices
+            color: pink
+            linger: 0.18
+      - say: Suppose you always pick the widest strip. Which word goes on the page?
+        hold: 2.4
+      - say: Put “sat” on the page. Now the model reads three words. After “The cat sat,” end gets four fifths of the
+          new row. “Beside” gets the rest. Look back at the original strip. What share goes through “sat” and
+          then stops?
+        caption_starts:
+          - After “The cat sat,”
+          - Look back at the original strip.
+        hold: 2.8
+        visual_cues:
+          - id: intro-append
+            phrase: Put sat on the page
+            targets:
+              - intro-selected-token
+            color: yellow
+            linger: 0.18
+          - id: intro-next
+            phrase: end gets four fifths of the new row
+            targets:
+              - intro-children
+            color: yellow
+            linger: 0.18
+        motion_check:
+          region:
+            - 215
+            - 575
+            - 905
+            - 260
+          minimumChangedFraction: 0.002
+      - say: Only the blue part reached “sat.” Four fifths of that sixty percent gives forty-eight percent for “sat”
+          followed by end. Each time we add a word, we have a new prefix and a new set of chances.
+        caption_starts:
+          - forty-eight percent
+        hold: 1
+        visual_cues:
+          - id: intro-path
+            phrase: Four fifths of that sixty percent gives forty-eight percent
+            targets:
+              - intro-joint
+            color: yellow
+            linger: 0.18
+  - id: tokens
+    title: Keep the prefix on this side
+    visual: Whole-word toy tokens and invented IDs share aligned cards. A boundary separates The cat from the
+      covered next token, then reveals the observed target.
+    beats:
+      - say: We'll use whole words as tokens. Their IDs select vocabulary entries. The prefix is the cat; cover the
+          next word while predicting it. In this recorded sentence, the observed target is sat. Real
+          tokenizers can use smaller text pieces.
+        caption_starts:
+          - In this recorded sentence,
+        hold: 0.4
+        visual_cues:
+          - id: token-ids
+            phrase: Their IDs select vocabulary entries
+            targets:
+              - token-ids
+            color: blue
+            linger: 0.3
+          - id: token-target
+            phrase: the observed target is sat
+            targets:
+              - token-target
+            color: green
+            linger: 0.4
+  - id: counts
+    title: Build a predictor from three observations
+    visual: Three cat sentences contribute one adjacent pair at a time. Counts normalize, then a separate
+      three-output add-one exercise gives the unseen ate candidate a real share.
+    beats:
+      - say: Start with three observations. First, the cat sat. Second, the cat sat again. Third, the cat slept.
+          Collect the word immediately after cat each time. Two sat observations and one slept observation
+          give us a bigram count row.
+        hold: 0.4
+        motion_check:
+          region:
+            - 1020
+            - 420
+            - 750
+            - 430
+          minimumChangedFraction: 0.002
+        visual_cues:
+          - id: count-first
+            phrase: First, the cat sat
+            targets:
+              - count-row-0
+              - count-bars
+            color: blue
+            linger: 0.15
+          - id: count-second
+            phrase: The cat sat again
+            targets:
+              - count-row-1
+              - count-bars
+            color: blue
+            linger: 0.15
+          - id: count-third
+            phrase: The cat slept
+            targets:
+              - count-row-2
+              - count-bars
+            color: green
+            linger: 0.3
+      - say: Divide by the three observed transitions. Sat gets two thirds; slept gets one third. This count model
+          remembers only the previous token, cat. Longer count models can keep more words of history.
+        hold: 0.4
+        visual_cues:
+          - id: count-normalize
+            phrase: Divide by the three observed transitions
+            targets:
+              - count-bars
+              - count-total
+            color: cyan
+            linger: 0.4
+      - say: Ate has count zero. For this separate smoothing exercise, only these three verbs are eligible. Add one to
+          every count, then divide by six. Ate now has a share. A full vocabulary needs a pseudo-count for
+          every eligible entry.
+        hold: 0.4
+        visual_cues:
+          - id: count-unseen
+            phrase: Ate has count zero
+            targets:
+              - count-ate
+            color: pink
+            linger: 0.2
+          - id: count-smooth
+            phrase: Add one to every count, then divide by six
+            targets:
+              - count-bars
+              - count-total
+            color: yellow
+            linger: 0.4
+  - id: full-vocabulary
+    title: Count every eligible outcome
+    visual: Retain the six returns observations from the article and their exact successors. Construct the
+      restricted four-output row, then add every eligible full-vocabulary pseudo-count. An unseen exception
+      gets1/10 in the restricted exercise but1/16 in the ten-output vocabulary. One new exception observation
+      then changes raw value3/6 to3/7.
+    beats:
+      - say: Our cat counts were a three-output exercise. Now use the article’s six code comments. After returns,
+          value appears three times, result twice and error once. The denominator counts six adjacent
+          transitions with a following target. The explicit end token gives ordinary final words a successor;
+          we do not predict after end. An unseen exception pair has zero probability in the unsmoothed row, so
+          any scored sequence using it has zero probability and infinite negative log loss.
+        hold: 0.65
+        visual_cues:
+          - id: full-vocabulary-b1
+            phrase: Our cat counts were a three-output exercise.
+            targets:
+              - full-vocabulary-construction
+            color: blue
+            linger: 0.5
+          - id: full-vocabulary-voice-1
+            phrase: Our cat counts were a three-output exercise. Now use the article’s six code comments. After returns,
+              value appears three times, result twice and error once. The denominator counts six adjacent
+              transitions with a following target. The explicit end token gives ordinary final words a
+              successor; we do not predict after end. An unseen exception pair has zero probability in the
+              unsmoothed row, so any scored sequence using it has zero probability and infinite negative log
+              loss.
+            targets:
+              - full-vocabulary-construction
+            color: blue
+            linger: 0.5
+          - id: full-vocabulary-step-0-1
+            phrase: Now use the article’s six code comments.
+            targets:
+              - full-vocabulary-construction
+            color: blue
+            linger: 0.5
+          - id: full-vocabulary-step-0-2
+            phrase: After returns, value appears three times, result twice and error once.
+            targets:
+              - full-vocabulary-construction
+            color: blue
+            linger: 0.5
+          - id: full-vocabulary-step-0-3
+            phrase: The denominator counts six adjacent transitions with a following target.
+            targets:
+              - full-vocabulary-construction
+            color: blue
+            linger: 0.5
+          - id: full-vocabulary-step-0-4
+            phrase: The explicit end token gives ordinary final words a successor; we do not predict after end.
+            targets:
+              - full-vocabulary-construction
+            color: blue
+            linger: 0.5
+          - id: full-vocabulary-step-0-5
+            phrase: An unseen exception pair has zero probability in the unsmoothed row, so any scored sequence using it
+              has zero probability and infinite negative log loss.
+            targets:
+              - full-vocabulary-construction
+            color: blue
+            linger: 0.5
+      - say: "Compare two eligible vocabularies. Restrict the row to value, result, error and exception. Add one to
+          each count: four, three, two and one, totaling ten. The full prediction vocabulary contains ten
+          entries instead. Add one to every eligible entry and the denominator becomes six plus ten, or
+          sixteen. Exception now receives one sixteenth, rather than one tenth. Smoothing distributes mass
+          across a declared vocabulary; an unknown word still needs an unknown-token or subword policy."
+        hold: 0.65
+        visual_cues:
+          - id: full-vocabulary-b2
+            phrase: Compare two eligible vocabularies.
+            targets:
+              - full-vocabulary-construction
+            color: blue
+            linger: 0.5
+          - id: full-vocabulary-voice-2
+            phrase: "Compare two eligible vocabularies. Restrict the row to value, result, error and exception. Add one to
+              each count: four, three, two and one, totaling ten. The full prediction vocabulary contains ten
+              entries instead. Add one to every eligible entry and the denominator becomes six plus ten, or
+              sixteen. Exception now receives one sixteenth, rather than one tenth. Smoothing distributes mass
+              across a declared vocabulary; an unknown word still needs an unknown-token or subword policy."
+            targets:
+              - full-vocabulary-construction
+            color: blue
+            linger: 0.5
+          - id: smooth-four
+            phrase: four, three, two and one, totaling ten
+            targets:
+              - full-vocabulary-construction
+            color: yellow
+            linger: 0.5
+          - id: smooth-full
+            phrase: the denominator becomes six plus ten, or sixteen.
+            targets:
+              - full-vocabulary-construction
+            color: yellow
+            linger: 0.5
+          - id: full-vocabulary-step-1-1
+            phrase: Restrict the row to value, result, error and exception.
+            targets:
+              - full-vocabulary-construction
+            color: blue
+            linger: 0.5
+          - id: full-vocabulary-step-1-2
+            phrase: "Add one to each count: four, three, two and one, totaling ten."
+            targets:
+              - full-vocabulary-construction
+            color: blue
+            linger: 0.5
+          - id: full-vocabulary-step-1-3
+            phrase: The full prediction vocabulary contains ten entries instead.
+            targets:
+              - full-vocabulary-construction
+            color: blue
+            linger: 0.5
+          - id: full-vocabulary-step-1-4
+            phrase: Add one to every eligible entry and the denominator becomes six plus ten, or sixteen.
+            targets:
+              - full-vocabulary-construction
+            color: blue
+            linger: 0.5
+          - id: full-vocabulary-step-1-5
+            phrase: Exception now receives one sixteenth, rather than one tenth.
+            targets:
+              - full-vocabulary-construction
+            color: blue
+            linger: 0.5
+          - id: full-vocabulary-step-1-6
+            phrase: Smoothing distributes mass across a declared vocabulary; an unknown word still needs an unknown-token
+              or subword policy.
+            targets:
+              - full-vocabulary-construction
+            color: blue
+            linger: 0.5
+      - say: "Add one new observed comment: function returns exception. Keep the raw counting rule and all older
+          records. The returns row now totals seven. Value has three sevenths, about forty-three percent, and
+          exception has one seventh, about fourteen percent. The new evidence changed every normalized share
+          without erasing an old occurrence. Add-one is a teaching baseline; discounting, interpolation and
+          backoff can use evidence more effectively."
+        hold: 0.65
+        visual_cues:
+          - id: full-vocabulary-b3
+            phrase: "Add one new observed comment: function returns exception."
+            targets:
+              - full-vocabulary-construction
+            color: blue
+            linger: 0.5
+          - id: full-vocabulary-voice-3
+            phrase: "Add one new observed comment: function returns exception. Keep the raw counting rule and all older
+              records. The returns row now totals seven. Value has three sevenths, about forty-three percent,
+              and exception has one seventh, about fourteen percent. The new evidence changed every normalized
+              share without erasing an old occurrence. Add-one is a teaching baseline; discounting,
+              interpolation and backoff can use evidence more effectively."
+            targets:
+              - full-vocabulary-construction
+            color: blue
+            linger: 0.5
+          - id: count-new-record
+            phrase: "Add one new observed comment: function returns exception."
+            targets:
+              - full-vocabulary-construction
+            color: yellow
+            linger: 0.5
+          - id: count-seven
+            phrase: Value has three sevenths, about forty-three percent, and exception has one seventh, about fourteen
+              percent.
+            targets:
+              - full-vocabulary-construction
+            color: yellow
+            linger: 0.5
+          - id: full-vocabulary-step-2-1
+            phrase: Keep the raw counting rule and all older records.
+            targets:
+              - full-vocabulary-construction
+            color: blue
+            linger: 0.5
+          - id: full-vocabulary-step-2-2
+            phrase: The returns row now totals seven.
+            targets:
+              - full-vocabulary-construction
+            color: blue
+            linger: 0.5
+          - id: full-vocabulary-step-2-3
+            phrase: Value has three sevenths, about forty-three percent, and exception has one seventh, about fourteen
+              percent.
+            targets:
+              - full-vocabulary-construction
+            color: blue
+            linger: 0.5
+          - id: full-vocabulary-step-2-4
+            phrase: The new evidence changed every normalized share without erasing an old occurrence.
+            targets:
+              - full-vocabulary-construction
+            color: blue
+            linger: 0.5
+          - id: full-vocabulary-step-2-5
+            phrase: Add-one is a teaching baseline; discounting, interpolation and backoff can use evidence more
+              effectively.
+            targets:
+              - full-vocabulary-construction
+            color: blue
+            linger: 0.5
+  - id: sparse-history
+    title: A longer history needs evidence
+    visual: Split the “returns” row by its preceding word. Show the observed counts for each pair, then trace a missing pair back to the one-word row.
+    beats:
+      - say: In our six comments, a bigram pools all the words that followed “returns.” A trigram looks back
+          one more word. After “function returns,” we saw “value” twice. After “test returns,” we saw “result”
+          once and “error” once. An n-gram looks back n minus one tokens. With fifty thousand choices in each
+          of four positions, there are six point two five times ten to the eighteenth possible sequences. A
+          sparse table stores the sequences it sees.
+        hold: 0.65
+        visual_cues:
+          - id: sparse-history-b1
+            phrase: In our six comments, a bigram pools all the words that followed “returns.”
+            targets:
+              - sparse-history-construction
+            color: blue
+            linger: 0.5
+          - id: sparse-history-voice-1
+            phrase: In our six comments, a bigram pools all the words that followed “returns.” A trigram looks
+              back one more word. After “function returns,” we saw “value” twice. After “test returns,” we saw
+              “result” once and “error” once. An n-gram looks back n minus one tokens. With fifty thousand
+              choices in each of four positions, there are six point two five times ten to the eighteenth
+              possible sequences. A sparse table stores the sequences it sees.
+            targets:
+              - sparse-history-construction
+            color: blue
+            linger: 0.5
+          - id: sparse-history-step-0-1
+            phrase: A trigram looks back one more word. After “function returns,” we saw “value” twice. After
+              “test returns,” we saw “result” once and “error” once.
+            targets:
+              - sparse-history-construction
+            color: blue
+            linger: 0.5
+          - id: sparse-history-step-0-2
+            phrase: An n-gram looks back n minus one tokens.
+            targets:
+              - sparse-history-construction
+            color: blue
+            linger: 0.5
+          - id: sparse-history-step-0-3
+            phrase: With fifty thousand choices in each of four positions, there are six point two five times
+              ten to the eighteenth possible sequences.
+            targets:
+              - sparse-history-construction
+            color: blue
+            linger: 0.5
+          - id: sparse-history-step-0-4
+            phrase: A sparse table stores the sequences it sees.
+            targets:
+              - sparse-history-construction
+            color: blue
+            linger: 0.5
+      - say: Try “error returns.” Both words occur in training. That pair has no row. Back off one word. The
+          “returns” row has six examples. Interpolation blends predictions from longer and shorter contexts. A
+          neural model shares embeddings and weights across prefixes. Training on one prefix can change the
+          scores for another. Compare the predictors on held-out comments by scoring the words that actually
+          followed.
+        caption_starts:
+          - Back off one word.
+        hold: 0.65
+        visual_cues:
+          - id: sparse-history-b2
+            phrase: Try “error returns.” Both words occur in training. That pair has no row.
+            targets:
+              - sparse-history-construction
+            color: blue
+            linger: 0.5
+          - id: sparse-history-voice-2
+            phrase: Try “error returns.” Both words occur in training. That pair has no row. Back off one
+              word. The “returns” row has six examples. Interpolation blends predictions from longer and
+              shorter contexts. A neural model shares embeddings and weights across prefixes. Training on one
+              prefix can change the scores for another. Compare the predictors on held-out comments by scoring
+              the words that actually followed.
+            targets:
+              - sparse-history-construction
+            color: blue
+            linger: 0.5
+          - id: sparse-history-step-1-1
+            phrase: Back off one word. The “returns” row has six examples. Interpolation blends predictions
+              from longer and shorter contexts.
+            targets:
+              - sparse-history-construction
+            color: blue
+            linger: 0.5
+          - id: sparse-history-step-1-2
+            phrase: A neural model shares embeddings and weights across prefixes.
+            targets:
+              - sparse-history-construction
+            color: blue
+            linger: 0.5
+          - id: sparse-history-step-1-3
+            phrase: Training on one prefix can change the scores for another.
+            targets:
+              - sparse-history-construction
+            color: blue
+            linger: 0.5
+          - id: sparse-history-step-1-4
+            phrase: Compare the predictors on held-out comments by scoring the words that actually followed.
+            targets:
+              - sparse-history-construction
+            color: blue
+            linger: 0.5
+  - id: context
+    title: Earlier words can change the scores
+    visual: Tired and hungry select different supplied scalar embeddings. The same three-output head produces
+      logits and probabilities while cat stays fixed.
+    beats:
+      - say: Compare the tired cat with the hungry cat. A bigram sees cat in both. Our tiny neural head also reads the
+          adjective. I'll supply one-number embeddings and one shared score table. Multiply the tired
+          embedding through that table, then apply softmax.
+        hold: 0.4
+        visual_cues:
+          - id: context-head
+            phrase: Multiply the tired embedding through that table
+            targets:
+              - context-head
+              - context-distribution
+            color: blue
+            linger: 0.4
+      - say: Replace tired with hungry. The embedding changes, the scores change, and ate takes the largest share.
+          This is a constructed three-verb head. Larger neural models learn richer representations; shared
+          parameters let evidence influence related contexts. Held-out predictions tell us how well that
+          sharing generalizes.
+        hold: 0.4
+        visual_cues:
+          - id: context-hungry
+            phrase: Replace tired with hungry
+            targets:
+              - context-adjective
+              - context-head
+              - context-distribution
+            color: pink
+            linger: 0.4
+  - id: neural-forward
+    title: Why does the next word change?
+    visual: Look up the two embeddings for “function returns” and assemble the score for “value.” Switch to “test returns” and put the two training comments beside their fitted next-word probabilities.
+    beats:
+      - say: "The complete article lab uses eight vocabulary words and six coordinates per embedding. Look up function
+          and returns, concatenate their two rows into twelve features, and apply one shared twelve-by-eight
+          affine map plus eight biases. That is forty-eight embedding parameters, ninety-six map parameters
+          and eight biases: one hundred fifty-two trainable numbers. The original Bengio model also used a
+          nonlinear tanh hidden route; this smaller lab deliberately omits it."
+        hold: 0.65
+        visual_cues:
+          - id: neural-forward-b1
+            phrase: The complete article lab uses eight vocabulary words and six coordinates per embedding.
+            targets:
+              - neural-forward-construction
+            color: blue
+            linger: 0.5
+          - id: neural-forward-voice-1
+            phrase: "The complete article lab uses eight vocabulary words and six coordinates per embedding. Look up
+              function and returns, concatenate their two rows into twelve features, and apply one shared
+              twelve-by-eight affine map plus eight biases. That is forty-eight embedding parameters,
+              ninety-six map parameters and eight biases: one hundred fifty-two trainable numbers. The
+              original Bengio model also used a nonlinear tanh hidden route; this smaller lab deliberately
+              omits it."
+            targets:
+              - neural-forward-construction
+            color: blue
+            linger: 0.5
+          - id: neural-forward-step-0-1
+            phrase: Look up function and returns, concatenate their two rows into twelve features, and apply one shared
+              twelve-by-eight affine map plus eight biases.
+            targets:
+              - neural-forward-construction
+            color: blue
+            linger: 0.5
+          - id: neural-forward-step-0-2
+            phrase: "That is forty-eight embedding parameters, ninety-six map parameters and eight biases: one hundred
+              fifty-two trainable numbers."
+            targets:
+              - neural-forward-construction
+            color: blue
+            linger: 0.5
+          - id: neural-forward-step-0-3
+            phrase: The original Bengio model also used a nonlinear tanh hidden route; this smaller lab deliberately omits
+              it.
+            targets:
+              - neural-forward-construction
+            color: blue
+            linger: 0.5
+      - say: Use the actual parameters after two hundred full-batch updates. For the value output, multiply each of
+          the twelve feature coordinates by its corresponding weight, sum those signed contributions and add
+          the value bias. The logit is about seven point nine zero four. Result is about zero point six seven
+          eight, and error about zero point zero three six. Softmax normalizes all eight logits, including the
+          five quieter alternatives. Value receives about ninety-nine point eight four percent.
+        hold: 0.65
+        visual_cues:
+          - id: neural-forward-b2
+            phrase: Use the actual parameters after two hundred full-batch updates.
+            targets:
+              - neural-forward-construction
+            color: blue
+            linger: 0.5
+          - id: neural-forward-voice-2
+            phrase: Use the actual parameters after two hundred full-batch updates. For the value output, multiply each of
+              the twelve feature coordinates by its corresponding weight, sum those signed contributions and
+              add the value bias. The logit is about seven point nine zero four. Result is about zero point
+              six seven eight, and error about zero point zero three six. Softmax normalizes all eight logits,
+              including the five quieter alternatives. Value receives about ninety-nine point eight four
+              percent.
+            targets:
+              - neural-forward-construction
+            color: blue
+            linger: 0.5
+          - id: neural-products
+            phrase: multiply each of the twelve feature coordinates by its corresponding weight, sum those signed
+              contributions and add the value bias.
+            targets:
+              - neural-forward-construction
+            color: yellow
+            linger: 0.5
+          - id: neural-value-score
+            phrase: The logit is about seven point nine zero four.
+            targets:
+              - neural-forward-construction
+            color: yellow
+            linger: 0.5
+          - id: neural-value-probability
+            phrase: Value receives about ninety-nine point eight four percent.
+            targets:
+              - neural-forward-construction
+            color: yellow
+            linger: 0.5
+          - id: neural-forward-step-1-1
+            phrase: For the value output, multiply each of the twelve feature coordinates by its corresponding weight, sum
+              those signed contributions and add the value bias.
+            targets:
+              - neural-forward-construction
+            color: blue
+            linger: 0.5
+          - id: neural-forward-step-1-2
+            phrase: The logit is about seven point nine zero four.
+            targets:
+              - neural-forward-construction
+            color: blue
+            linger: 0.5
+          - id: neural-forward-step-1-3
+            phrase: Result is about zero point six seven eight, and error about zero point zero three six.
+            targets:
+              - neural-forward-construction
+            color: blue
+            linger: 0.5
+          - id: neural-forward-step-1-4
+            phrase: Softmax normalizes all eight logits, including the five quieter alternatives.
+            targets:
+              - neural-forward-construction
+            color: blue
+            linger: 0.5
+          - id: neural-forward-step-1-5
+            phrase: Value receives about ninety-nine point eight four percent.
+            targets:
+              - neural-forward-construction
+            color: blue
+            linger: 0.5
+      - say: Swap “function” for “test.” Now “result” just edges out “error.” Mean loss on the six training
+          targets fell from just over two nats to about a quarter of a nat. Look at the two comments. Each
+          ending appeared once. The model gives each nearly half the probability. Each score adds two
+          contributions, one per input word, and a bias. A nonlinear layer can learn interactions between the
+          words.
+        caption_starts:
+          - Look at the two comments
+        hold: 0.65
+        visual_cues:
+          - id: neural-forward-b3
+            phrase: Swap “function” for “test.” Now “result” just edges out “error.”
+            targets:
+              - neural-forward-construction
+            color: blue
+            linger: 0.5
+          - id: neural-forward-voice-3
+            phrase: Swap “function” for “test.” Now “result” just edges out “error.” Mean loss on the six
+              training targets fell from just over two nats to about a quarter of a nat. Look at the two
+              comments. Each ending appeared once. The model gives each nearly half the probability. Each
+              score adds two contributions, one per input word, and a bias. A nonlinear layer can learn
+              interactions between the words.
+            targets:
+              - neural-forward-construction
+            color: blue
+            linger: 0.5
+          - id: neural-forward-step-2-1
+            phrase: Mean loss on the six training targets fell from just over two nats to about a quarter of a
+              nat.
+            targets:
+              - neural-forward-construction
+            color: blue
+            linger: 0.5
+          - id: neural-forward-step-2-2
+            phrase: Look at the two comments. Each ending appeared once. The model gives each nearly half the
+              probability.
+            targets:
+              - neural-forward-construction
+            color: blue
+            linger: 0.5
+          - id: neural-forward-step-2-3
+            phrase: Each score adds two contributions, one per input word, and a bias.
+            targets:
+              - neural-forward-construction
+            color: blue
+            linger: 0.5
+          - id: neural-forward-step-2-4
+            phrase: A nonlinear layer can learn interactions between the words.
+            targets:
+              - neural-forward-construction
+            color: blue
+            linger: 0.5
+  - id: neural-gradient
+    title: Which score should training raise?
+    visual: Keep three probabilities on the same signed scale. Move the observed token’s marker one unit left to
+      obtain its logit gradient. Carry that signed value into the two rows of a weight column, then follow the
+      original weights back to an input feature.
+    beats:
+      - say: Here’s a smaller model with just three possible next tokens. It gives its biggest share to B. The record
+          says C. If we want this model to give the recorded word more probability next time, which score needs
+          a push up?
+        hold: 2.1
+        visual_cues:
+          - id: gradient-target
+            phrase: The record says C
+            targets:
+              - gradient-token-2
+            color: yellow
+            linger: 0.18
+      - say: Look at C’s blue dot. Move one unit left from its probability. The new mark lands below zero, at minus
+          point seven. Leave A and B where they are. These marks give the logit derivatives of the unweighted
+          cross-entropy loss for this observation. Each is the predicted probability minus one for the recorded
+          token, or minus zero for any other token. Gradient descent subtracts the derivative. If we adjusted
+          the logits directly, subtracting C’s negative derivative would raise its score.
+        hold: 0.8
+        visual_cues:
+          - id: gradient-subtract
+            phrase: Move one unit left from its probability
+            targets:
+              - gradient-token-2
+            color: yellow
+            linger: 0.18
+      - say: Follow C’s error back one more step. In this little affine head, two features feed each score. Multiply
+          the gradient for C by each input feature. Two gives a weight gradient of minus one point four. Minus
+          one flips the sign for the weight below. Each bias receives its output’s gradient directly. Apply the
+          same multiplication to the other columns. Now every weight has a derivative for this example.
+        hold: 0.75
+        visual_cues:
+          - id: gradient-column
+            phrase: Multiply the gradient for C by each input feature
+            targets:
+              - gradient-column-2
+            color: green
+            linger: 0.18
+          - id: gradient-all
+            phrase: Apply the same multiplication to the other columns
+            targets:
+              - gradient-column-0
+              - gradient-column-1
+            color: green
+            linger: 0.18
+      - say: To get back to the first input feature, use the three weights across its row. Multiply each weight by its
+          output gradient and add. A single feature helped produce all three scores, so all three terms count.
+          In the larger model we trained, split the feature gradients back into the two embedding rows we looked
+          up. Add the contributions whenever a row was used more than once. The lab averages the gradients from
+          all six examples before it updates any parameter, using a learning rate of point four.
+        hold: 0.8
+        visual_cues:
+          - id: gradient-input
+            phrase: Multiply each weight by its output gradient and add
+            targets:
+              - gradient-back
+            color: cyan
+            linger: 0.18
+  - id: conditional-floor
+    title: Two observations can disagree at one prefix
+    visual: The exact two test returns occurrences with result/error labels. Shift mass between two labels and
+      compare their joint average log loss. The frequency optimum has one-half each and positive entropy.
+      Adding a third conflicting function prefix earns a new2/3-versus1/3floor.
+    beats:
+      - say: Test returns occurs twice, once with result and once with error. The same input produces one normalized
+          distribution. Giving one label probability one would give its conflicting observation zero
+          probability. The best empirical split is one half each. Four other comments can approach zero loss,
+          so the six-target infimum is two times the natural log of two divided by six, about zero point two
+          three one nats. Finite softmax logits approach those boundary probabilities rather than making all
+          other entries exactly zero.
+        hold: 0.65
+        visual_cues:
+          - id: conditional-floor-b1
+            phrase: Test returns occurs twice, once with result and once with error.
+            targets:
+              - conditional-floor-construction
+            color: blue
+            linger: 0.5
+          - id: conditional-floor-voice-1
+            phrase: Test returns occurs twice, once with result and once with error. The same input produces one
+              normalized distribution. Giving one label probability one would give its conflicting observation
+              zero probability. The best empirical split is one half each. Four other comments can approach
+              zero loss, so the six-target infimum is two times the natural log of two divided by six, about
+              zero point two three one nats. Finite softmax logits approach those boundary probabilities
+              rather than making all other entries exactly zero.
+            targets:
+              - conditional-floor-construction
+            color: blue
+            linger: 0.5
+          - id: conditional-floor-step-0-1
+            phrase: The same input produces one normalized distribution.
+            targets:
+              - conditional-floor-construction
+            color: blue
+            linger: 0.5
+          - id: conditional-floor-step-0-2
+            phrase: Giving one label probability one would give its conflicting observation zero probability.
+            targets:
+              - conditional-floor-construction
+            color: blue
+            linger: 0.5
+          - id: conditional-floor-step-0-3
+            phrase: The best empirical split is one half each.
+            targets:
+              - conditional-floor-construction
+            color: blue
+            linger: 0.5
+          - id: conditional-floor-step-0-4
+            phrase: Four other comments can approach zero loss, so the six-target infimum is two times the natural log of
+              two divided by six, about zero point two three one nats.
+            targets:
+              - conditional-floor-construction
+            color: blue
+            linger: 0.5
+          - id: conditional-floor-step-0-5
+            phrase: Finite softmax logits approach those boundary probabilities rather than making all other entries
+              exactly zero.
+            targets:
+              - conditional-floor-construction
+            color: blue
+            linger: 0.5
+      - say: After adding function returns exception, the function prefix has two value observations and one
+          exception. Its optimum is two thirds versus one third. Negative two thirds times log two thirds,
+          minus one third times log one third, is about zero point six three seven nats per occurrence of that
+          prefix. Its classification error is one third, which is a different quantity. Extra conditioning
+          could separate cases; more confidence on the same ambiguous input cannot.
+        hold: 0.65
+        visual_cues:
+          - id: conditional-floor-b2
+            phrase: After adding function returns exception, the function prefix has two value observations and one
+              exception.
+            targets:
+              - conditional-floor-construction
+            color: blue
+            linger: 0.5
+          - id: conditional-floor-voice-2
+            phrase: After adding function returns exception, the function prefix has two value observations and one
+              exception. Its optimum is two thirds versus one third. Negative two thirds times log two thirds,
+              minus one third times log one third, is about zero point six three seven nats per occurrence of
+              that prefix. Its classification error is one third, which is a different quantity. Extra
+              conditioning could separate cases; more confidence on the same ambiguous input cannot.
+            targets:
+              - conditional-floor-construction
+            color: blue
+            linger: 0.5
+          - id: conditional-floor-step-1-1
+            phrase: Its optimum is two thirds versus one third.
+            targets:
+              - conditional-floor-construction
+            color: blue
+            linger: 0.5
+          - id: conditional-floor-step-1-2
+            phrase: Negative two thirds times log two thirds, minus one third times log one third, is about zero point six
+              three seven nats per occurrence of that prefix.
+            targets:
+              - conditional-floor-construction
+            color: blue
+            linger: 0.5
+          - id: conditional-floor-step-1-3
+            phrase: Its classification error is one third, which is a different quantity.
+            targets:
+              - conditional-floor-construction
+            color: blue
+            linger: 0.5
+          - id: conditional-floor-step-1-4
+            phrase: Extra conditioning could separate cases; more confidence on the same ambiguous input cannot.
+            targets:
+              - conditional-floor-construction
+            color: blue
+            linger: 0.5
+  - id: vocabulary-softmax
+    title: Normalize the complete score row
+    visual: Subtract the maximum from all five compiler logits, exponentiate, and normalize. Read the probability of “error” from the completed row.
+    beats:
+      - say: A logit is an unconstrained score. In a complete five-token compiler example, the logits are three, one
+          point five, minus one, minus two and minus three. Subtract the largest score from every entry,
+          exponentiate each difference, sum all five exponentials, then divide each exponential by that sum.
+          Error receives about point eight zero zero, warning point one seven eight, and the remaining three
+          entries share the rest. The complete row sums to one.
+        hold: 0.65
+        visual_cues:
+          - id: vocabulary-softmax-b1
+            phrase: A logit is an unconstrained score.
+            targets:
+              - vocabulary-softmax-construction
+            color: blue
+            linger: 0.5
+          - id: vocabulary-softmax-voice-1
+            phrase: A logit is an unconstrained score. In a complete five-token compiler example, the logits are three,
+              one point five, minus one, minus two and minus three. Subtract the largest score from every
+              entry, exponentiate each difference, sum all five exponentials, then divide each exponential by
+              that sum. Error receives about point eight zero zero, warning point one seven eight, and the
+              remaining three entries share the rest. The complete row sums to one.
+            targets:
+              - vocabulary-softmax-construction
+            color: blue
+            linger: 0.5
+          - id: vocabulary-softmax-step-0-1
+            phrase: In a complete five-token compiler example, the logits are three, one point five, minus one, minus two
+              and minus three.
+            targets:
+              - vocabulary-softmax-construction
+            color: blue
+            linger: 0.5
+          - id: vocabulary-softmax-step-0-2
+            phrase: Subtract the largest score from every entry, exponentiate each difference, sum all five exponentials,
+              then divide each exponential by that sum.
+            targets:
+              - vocabulary-softmax-construction
+            color: blue
+            linger: 0.5
+          - id: vocabulary-softmax-step-0-3
+            phrase: Error receives about point eight zero zero, warning point one seven eight, and the remaining three
+              entries share the rest.
+            targets:
+              - vocabulary-softmax-construction
+            color: blue
+            linger: 0.5
+          - id: vocabulary-softmax-step-0-4
+            phrase: The complete row sums to one.
+            targets:
+              - vocabulary-softmax-construction
+            color: blue
+            linger: 0.5
+      - say: Subtract the largest score. It becomes zero, and e to the zero is one. For finite scores, that
+          prevents overflow and preserves the probability ratios. Normalize just the top two and they split
+          the whole strip between them. Keep all five, and “error” gets eighty percent of the next-word
+          probability. To see what the compiler reported, open its log.
+        hold: 0.65
+        visual_cues:
+          - id: vocabulary-softmax-b2
+            phrase: Subtract the largest score. It becomes zero, and e to the zero is one.
+            targets:
+              - vocabulary-softmax-construction
+            color: blue
+            linger: 0.5
+          - id: vocabulary-softmax-voice-2
+            phrase: Subtract the largest score. It becomes zero, and e to the zero is one. For finite scores,
+              that prevents overflow and preserves the probability ratios. Normalize just the top two and they
+              split the whole strip between them. Keep all five, and “error” gets eighty percent of the
+              next-word probability. To see what the compiler reported, open its log.
+            targets:
+              - vocabulary-softmax-construction
+            color: blue
+            linger: 0.5
+          - id: vocabulary-softmax-step-1-1
+            phrase: For finite scores, that prevents overflow and preserves the probability ratios.
+            targets:
+              - vocabulary-softmax-construction
+            color: blue
+            linger: 0.5
+          - id: vocabulary-softmax-step-1-2
+            phrase: Normalize just the top two and they split the whole strip between them.
+            targets:
+              - vocabulary-softmax-construction
+            color: blue
+            linger: 0.5
+          - id: vocabulary-softmax-step-1-3
+            phrase: Keep all five, and “error” gets eighty percent of the next-word probability.
+            targets:
+              - vocabulary-softmax-construction
+            color: blue
+            linger: 0.5
+          - id: vocabulary-softmax-step-1-4
+            phrase: To see what the compiler reported, open its log.
+            targets:
+              - vocabulary-softmax-construction
+            color: blue
+            linger: 0.5
+  - id: temperature-filter
+    title: Change the selection distribution explicitly
+    visual: Same five compiler logits with a stable token order. Rescale by positive temperature,then retain and
+      renormalize a declared top set. Temperature changes shares but not learned parameters; filtering changes
+      selection frequencies again. Treat zero temperature and ties as an explicit separate convention.
+    beats:
+      - say: Temperature divides every logit by a positive number before softmax. On the same compiler row,
+          temperature one half raises the leading probability to about point nine five two. Temperature two
+          lowers it to about point five seven five. Learned parameters stay fixed. As positive temperature
+          approaches zero, a unique maximum takes all mass; tied maxima share the limiting mass. The formula
+          itself is undefined at zero, so an API’s greedy convention is a separate rule.
+        hold: 0.65
+        visual_cues:
+          - id: temperature-filter-b1
+            phrase: Temperature divides every logit by a positive number before softmax.
+            targets:
+              - temperature-filter-construction
+            color: blue
+            linger: 0.5
+          - id: temperature-filter-voice-1
+            phrase: Temperature divides every logit by a positive number before softmax. On the same compiler row,
+              temperature one half raises the leading probability to about point nine five two. Temperature
+              two lowers it to about point five seven five. Learned parameters stay fixed. As positive
+              temperature approaches zero, a unique maximum takes all mass; tied maxima share the limiting
+              mass. The formula itself is undefined at zero, so an API’s greedy convention is a separate rule.
+            targets:
+              - temperature-filter-construction
+            color: blue
+            linger: 0.5
+          - id: temperature-filter-step-0-1
+            phrase: On the same compiler row, temperature one half raises the leading probability to about point nine five
+              two.
+            targets:
+              - temperature-filter-construction
+            color: blue
+            linger: 0.5
+          - id: temperature-filter-step-0-2
+            phrase: Temperature two lowers it to about point five seven five.
+            targets:
+              - temperature-filter-construction
+            color: blue
+            linger: 0.5
+          - id: temperature-filter-step-0-3
+            phrase: Learned parameters stay fixed.
+            targets:
+              - temperature-filter-construction
+            color: blue
+            linger: 0.5
+          - id: temperature-filter-step-0-4
+            phrase: As positive temperature approaches zero, a unique maximum takes all mass; tied maxima share the
+              limiting mass.
+            targets:
+              - temperature-filter-construction
+            color: blue
+            linger: 0.5
+          - id: temperature-filter-step-0-5
+            phrase: The formula itself is undefined at zero, so an API’s greedy convention is a separate rule.
+            targets:
+              - temperature-filter-construction
+            color: blue
+            linger: 0.5
+      - say: Top-k retains the k highest scores. Nucleus, or top-p, retains a highest-probability set reaching the
+          declared cumulative threshold, with explicit tie and minimum-token conventions. Renormalize the
+          retained probabilities before drawing. For a simple supplied row point six, point three and point
+          one, top-two sampling gives two thirds and one third, not point six and point three. Its
+          probabilities must sum to one after discarding the tail.
+        hold: 0.65
+        visual_cues:
+          - id: temperature-filter-b2
+            phrase: Top-k retains the k highest scores.
+            targets:
+              - temperature-filter-construction
+            color: blue
+            linger: 0.5
+          - id: temperature-filter-voice-2
+            phrase: Top-k retains the k highest scores. Nucleus, or top-p, retains a highest-probability set reaching the
+              declared cumulative threshold, with explicit tie and minimum-token conventions. Renormalize the
+              retained probabilities before drawing. For a simple supplied row point six, point three and
+              point one, top-two sampling gives two thirds and one third, not point six and point three. Its
+              probabilities must sum to one after discarding the tail.
+            targets:
+              - temperature-filter-construction
+            color: blue
+            linger: 0.5
+          - id: temperature-filter-step-1-1
+            phrase: Nucleus, or top-p, retains a highest-probability set reaching the declared cumulative threshold, with
+              explicit tie and minimum-token conventions.
+            targets:
+              - temperature-filter-construction
+            color: blue
+            linger: 0.5
+          - id: temperature-filter-step-1-2
+            phrase: Renormalize the retained probabilities before drawing.
+            targets:
+              - temperature-filter-construction
+            color: blue
+            linger: 0.5
+          - id: temperature-filter-step-1-3
+            phrase: For a simple supplied row point six, point three and point one, top-two sampling gives two thirds and
+              one third, not point six and point three.
+            targets:
+              - temperature-filter-construction
+            color: blue
+            linger: 0.5
+          - id: temperature-filter-step-1-4
+            phrase: Its probabilities must sum to one after discarding the tail.
+            targets:
+              - temperature-filter-construction
+            color: blue
+            linger: 0.5
+      - say: Keep a sampled token distinct from the next model call. Select an outcome, append that exact occurrence,
+          then compute its changed-prefix distribution. A stop token ends this loop, while an output budget,
+          delimiter, interruption or timeout supplies a different stop reason. Report the actual reason so
+          partial output is not mistaken for a completed answer.
+        hold: 0.65
+        visual_cues:
+          - id: temperature-filter-b3
+            phrase: Keep a sampled token distinct from the next model call.
+            targets:
+              - temperature-filter-construction
+            color: blue
+            linger: 0.5
+          - id: temperature-filter-voice-3
+            phrase: Keep a sampled token distinct from the next model call. Select an outcome, append that exact
+              occurrence, then compute its changed-prefix distribution. A stop token ends this loop, while an
+              output budget, delimiter, interruption or timeout supplies a different stop reason. Report the
+              actual reason so partial output is not mistaken for a completed answer.
+            targets:
+              - temperature-filter-construction
+            color: blue
+            linger: 0.5
+          - id: temperature-filter-step-2-1
+            phrase: Select an outcome, append that exact occurrence, then compute its changed-prefix distribution.
+            targets:
+              - temperature-filter-construction
+            color: blue
+            linger: 0.5
+          - id: temperature-filter-step-2-2
+            phrase: A stop token ends this loop, while an output budget, delimiter, interruption or timeout supplies a
+              different stop reason.
+            targets:
+              - temperature-filter-construction
+            color: blue
+            linger: 0.5
+          - id: temperature-filter-step-2-3
+            phrase: Report the actual reason so partial output is not mistaken for a completed answer.
+            targets:
+              - temperature-filter-construction
+            color: blue
+            linger: 0.5
+  - id: objective-boundary
+    title: Choose which context the objective permits
+    visual: A recorded sentence and one covered target. Compare causal earlier-token inputs with a corrupted
+      bidirectional sequence. BERT reconstructs selected originals;its conditionals are not the same
+      left-to-right sequence factors. Keep objective,architecture and masking policy separate.
+    beats:
+      - say: "Causal language modeling predicts a token from earlier tokens. A bigram, a recurrent network and a
+          decoder Transformer can all implement that objective. Masked language modeling reconstructs selected
+          original tokens from a corrupted sequence and can use context on both sides. Cover cat in the cat
+          sat: the word sat is permitted evidence for the masked objective, but it would reveal future
+          evidence to a left-to-right prediction of cat."
+        hold: 0.65
+        visual_cues:
+          - id: objective-boundary-b1
+            phrase: Causal language modeling predicts a token from earlier tokens.
+            targets:
+              - objective-boundary-construction
+            color: blue
+            linger: 0.5
+          - id: objective-boundary-voice-1
+            phrase: "Causal language modeling predicts a token from earlier tokens. A bigram, a recurrent network and a
+              decoder Transformer can all implement that objective. Masked language modeling reconstructs
+              selected original tokens from a corrupted sequence and can use context on both sides. Cover cat
+              in the cat sat: the word sat is permitted evidence for the masked objective, but it would reveal
+              future evidence to a left-to-right prediction of cat."
+            targets:
+              - objective-boundary-construction
+            color: blue
+            linger: 0.5
+          - id: objective-boundary-step-0-1
+            phrase: A bigram, a recurrent network and a decoder Transformer can all implement that objective.
+            targets:
+              - objective-boundary-construction
+            color: blue
+            linger: 0.5
+          - id: objective-boundary-step-0-2
+            phrase: Masked language modeling reconstructs selected original tokens from a corrupted sequence and can use
+              context on both sides.
+            targets:
+              - objective-boundary-construction
+            color: blue
+            linger: 0.5
+          - id: objective-boundary-step-0-3
+            phrase: "Cover cat in the cat sat: the word sat is permitted evidence for the masked objective, but it would
+              reveal future evidence to a left-to-right prediction of cat."
+            targets:
+              - objective-boundary-construction
+            color: blue
+            linger: 0.5
+      - say: "The original BERT recipe selected fifteen percent of positions. Within that selected set, eighty percent
+          became a mask token, ten percent a random token and ten percent stayed unchanged; every selected
+          label remained the original token. A quota illustration with one thousand positions would select one
+          hundred fifty: one hundred twenty masks, fifteen random replacements and fifteen unchanged inputs.
+          Actual random draws vary. These conditionals do not directly form ordinary left-to-right perplexity
+          or the same append-one-token generation loop."
+        hold: 0.65
+        visual_cues:
+          - id: objective-boundary-b2
+            phrase: The original BERT recipe selected fifteen percent of positions.
+            targets:
+              - objective-boundary-construction
+            color: blue
+            linger: 0.5
+          - id: objective-boundary-voice-2
+            phrase: "The original BERT recipe selected fifteen percent of positions. Within that selected set, eighty
+              percent became a mask token, ten percent a random token and ten percent stayed unchanged; every
+              selected label remained the original token. A quota illustration with one thousand positions
+              would select one hundred fifty: one hundred twenty masks, fifteen random replacements and
+              fifteen unchanged inputs. Actual random draws vary. These conditionals do not directly form
+              ordinary left-to-right perplexity or the same append-one-token generation loop."
+            targets:
+              - objective-boundary-construction
+            color: blue
+            linger: 0.5
+          - id: objective-boundary-step-1-1
+            phrase: Within that selected set, eighty percent became a mask token, ten percent a random token and ten
+              percent stayed unchanged; every selected label remained the original token.
+            targets:
+              - objective-boundary-construction
+            color: blue
+            linger: 0.5
+          - id: objective-boundary-step-1-2
+            phrase: "A quota illustration with one thousand positions would select one hundred fifty: one hundred twenty
+              masks, fifteen random replacements and fifteen unchanged inputs."
+            targets:
+              - objective-boundary-construction
+            color: blue
+            linger: 0.5
+          - id: objective-boundary-step-1-3
+            phrase: Actual random draws vary.
+            targets:
+              - objective-boundary-construction
+            color: blue
+            linger: 0.5
+          - id: objective-boundary-step-1-4
+            phrase: These conditionals do not directly form ordinary left-to-right perplexity or the same append-one-token
+              generation loop.
+            targets:
+              - objective-boundary-construction
+            color: blue
+            linger: 0.5
+  - id: sequence
+    title: How much probability reaches the end?
+    visual: Return to the opening model, this time scoring the prompt words too. Each colored strip retains a
+      fraction of the previous one. Hold the three-word prefix in place before applying the observed stop
+      factor.
+    beats:
+      - say: Let’s go back to the model that gave us “The cat sat.” This time the page starts empty. Score “The” from
+          the start, then “cat” after “The,” then “sat” after “The cat.” Read each strip against the one above
+          it. Every word keeps only part of the probability that reached its prefix. We’ve scored the chance
+          of reaching “sat.” Is that also the chance of getting exactly those three words and nothing more?
+        hold: 2.45
+        visual_cues:
+          - id: sequence-the
+            phrase: Score The from the start
+            targets:
+              - sequence-factor-0
+              - sequence-product
+            color: blue
+            linger: 0.18
+          - id: sequence-cat
+            phrase: then cat after The
+            targets:
+              - sequence-factor-1
+              - sequence-product
+            color: green
+            linger: 0.18
+          - id: sequence-sat
+            phrase: then sat after The cat
+            targets:
+              - sequence-factor-2
+              - sequence-product
+            color: pink
+            linger: 0.18
+        motion_check:
+          region:
+            - 360
+            - 735
+            - 1315
+            - 153
+          minimumChangedFraction: 0.002
+      - say: Include the decision to end. Four fifths of the three-word prefix’s probability stops here. That brings
+          the score from about twenty-nine percent for the prefix to twenty-three percent for the finished
+          sentence. Multiplying the probabilities this way is the chain rule. Each factor can depend on every
+          word that came before it.
+        hold: 0.8
+        visual_cues:
+          - id: sequence-end
+            phrase: Include the decision to end
+            targets:
+              - sequence-factor-3
+              - sequence-product
+            color: yellow
+            linger: 0.18
+  - id: teacher-forcing
+    title: One recorded sentence supplies four targets
+    visual: The observed sentence shifts into aligned input and target rows. The selected cat position reads its
+      left prefix. A future-read path stops at a causal gate.
+    beats:
+      - say: A recorded sentence already supplies the answers for training. Shift its words into the target row. Start
+          predicts the; the predicts cat; cat predicts sat; sat predicts end. Teacher forcing feeds the actual
+          earlier tokens, even when the model would prefer another word.
+        hold: 0.4
+        visual_cues:
+          - id: teacher-shift
+            phrase: Shift its words into the target row
+            targets:
+              - teacher-target-row
+            color: green
+            linger: 0.2
+          - id: teacher-first
+            phrase: Start predicts the
+            targets:
+              - teacher-connection
+            color: yellow
+            linger: 0.1
+          - id: teacher-second
+            phrase: the predicts cat
+            targets:
+              - teacher-connection
+            color: yellow
+            linger: 0.1
+          - id: teacher-third
+            phrase: cat predicts sat
+            targets:
+              - teacher-connection
+            color: yellow
+            linger: 0.1
+          - id: teacher-fourth
+            phrase: sat predicts end
+            targets:
+              - teacher-connection
+            color: yellow
+            linger: 0.2
+      - say: Focus on the cat position. Its visible prefix ends at cat. Reading the following sat would reveal the
+          answer. The causal mask blocks that future read. Many positions can be computed together in a
+          Transformer while each keeps this information boundary.
+        hold: 0.4
+        visual_cues:
+          - id: teacher-prefix
+            phrase: Focus on the cat position
+            targets:
+              - teacher-prefix
+              - teacher-connection
+            color: cyan
+            linger: 0.3
+          - id: teacher-block
+            phrase: The causal mask blocks that future read
+            targets:
+              - teacher-future-gate
+            color: pink
+            linger: 0.4
+      - say: Choosing which targets contribute to loss is a separate operation. Ignore the first two targets here.
+          Their input words remain visible to the later predictions. The loss mask selects supervision; the
+          attention mask controls information flow.
+        hold: 0.4
+        visual_cues:
+          - id: teacher-loss-mask
+            phrase: Ignore the first two targets here
+            targets:
+              - teacher-target-row
+              - teacher-prefix
+            color: yellow
+            linger: 0.4
+  - id: shift-contract
+    title: Shift once and preserve genuine stops
+    visual: Follow the first target from the start token. Shift twice to skip “function,” then restore it. In a separate row, use a position mask to score the real end token and ignore the padding slot.
+    beats:
+      - say: The first two tokens are start and “function.” Inputs zero through three line up with targets one
+          through four. Here we shifted the labels before calling the loss. In the article’s Transformers
+          example, the collator copies the input IDs. The causal loss does the shift. Shift them in both
+          places and start predicts “returns.” We skipped “function.” Pass the original IDs to that loss and
+          start predicts “function” again.
+        caption_starts:
+          - Shift them in both places
+          - Pass the original IDs
+        hold: 0.65
+        visual_cues:
+          - id: shift-contract-b1
+            phrase: The first two tokens are start and “function.”
+            targets:
+              - shift-contract-construction
+            color: blue
+            linger: 0.5
+          - id: shift-contract-voice-1
+            phrase: The first two tokens are start and “function.” Inputs zero through three line up with
+              targets one through four. Here we shifted the labels before calling the loss. In the article’s
+              Transformers example, the collator copies the input IDs. The causal loss does the shift. Shift
+              them in both places and start predicts “returns.” We skipped “function.” Pass the original IDs
+              to that loss and start predicts “function” again.
+            targets:
+              - shift-contract-construction
+            color: blue
+            linger: 0.5
+          - id: shift-contract-step-0-1
+            phrase: Inputs zero through three line up with targets one through four.
+            targets:
+              - shift-contract-construction
+            color: blue
+            linger: 0.5
+          - id: shift-contract-step-0-2
+            phrase: Here we shifted the labels before calling the loss.
+            targets:
+              - shift-contract-construction
+            color: blue
+            linger: 0.5
+          - id: shift-contract-step-0-3
+            phrase: In the article’s Transformers example, the collator copies the input IDs. The causal loss
+              does the shift.
+            targets:
+              - shift-contract-construction
+            color: blue
+            linger: 0.5
+          - id: shift-contract-step-0-4
+            phrase: Shift them in both places and start predicts “returns.” We skipped “function.”
+            targets:
+              - shift-contract-construction
+            color: blue
+            linger: 0.5
+          - id: shift-contract-step-0-5
+            phrase: Pass the original IDs to that loss and start predicts “function” again.
+            targets:
+              - shift-contract-construction
+            color: blue
+            linger: 0.5
+      - say: Padding can share a vocabulary ID with end. The pinned collator masks labels by comparing token IDs, so
+          that alias can ignore a genuine end occurrence as well as padding. Retain occurrence identity. If
+          the input has one real end followed by one padding slot, an accurate position mask can preserve the
+          end label and ignore only the padding. A causal attention mask controls available inputs; a loss
+          mask controls scored targets. Packed documents need a declared boundary policy too.
+        hold: 0.65
+        visual_cues:
+          - id: shift-contract-b2
+            phrase: Padding can share a vocabulary ID with end.
+            targets:
+              - shift-contract-construction
+            color: blue
+            linger: 0.5
+          - id: shift-contract-voice-2
+            phrase: Padding can share a vocabulary ID with end. The pinned collator masks labels by comparing token IDs,
+              so that alias can ignore a genuine end occurrence as well as padding. Retain occurrence
+              identity. If the input has one real end followed by one padding slot, an accurate position mask
+              can preserve the end label and ignore only the padding. A causal attention mask controls
+              available inputs; a loss mask controls scored targets. Packed documents need a declared boundary
+              policy too.
+            targets:
+              - shift-contract-construction
+            color: blue
+            linger: 0.5
+          - id: shift-contract-step-1-1
+            phrase: The pinned collator masks labels by comparing token IDs, so that alias can ignore a genuine end
+              occurrence as well as padding.
+            targets:
+              - shift-contract-construction
+            color: blue
+            linger: 0.5
+          - id: shift-contract-step-1-2
+            phrase: Retain occurrence identity.
+            targets:
+              - shift-contract-construction
+            color: blue
+            linger: 0.5
+          - id: shift-contract-step-1-3
+            phrase: If the input has one real end followed by one padding slot, an accurate position mask can preserve the
+              end label and ignore only the padding.
+            targets:
+              - shift-contract-construction
+            color: blue
+            linger: 0.5
+          - id: shift-contract-step-1-4
+            phrase: A causal attention mask controls available inputs; a loss mask controls scored targets.
+            targets:
+              - shift-contract-construction
+            color: blue
+            linger: 0.5
+          - id: shift-contract-step-1-5
+            phrase: Packed documents need a declared boundary policy too.
+            targets:
+              - shift-contract-construction
+            color: blue
+            linger: 0.5
+  - id: loss
+    title: What changes when “cat” becomes two tokens?
+    visual: Each observed probability contributes a length in nats. Keep the total length fixed. Split only the
+      cat segment into the losses of c and at, then compare the two target counts and per-token perplexities.
+    beats:
+      - say: These are the four probabilities from our sentence, including its stop. Which words cost the model the
+          most? Take the negative natural log of each probability. That turns each one into a length measured in
+          nats. Cat and sat use the most space because the model gave each of them only sixty percent. Divide
+          the total by four scored targets to get the average loss per target.
+        caption_starts:
+          - Take the negative natural log
+          - Cat and sat use the most space
+        hold: 0.65
+        visual_cues:
+          - id: loss-terms
+            phrase: Take the negative natural log of each probability
+            targets:
+              - loss-bars
+            color: green
+            linger: 0.18
+          - id: loss-mean
+            phrase: Divide the total by four scored targets
+            targets:
+              - loss-mean
+            color: cyan
+            linger: 0.18
+        motion_check:
+          region:
+            - 210
+            - 344
+            - 1500
+            - 76
+          minimumChangedFraction: 0.002
+      - say: Raise e to that average loss. The result is called perplexity. It’s the reciprocal of the geometric mean
+          of those four target probabilities. For a model that gives every choice an equal share, perplexity
+          tells you how many choices there are.
+        hold: 0.75
+        visual_cues:
+          - id: loss-perplexity
+            phrase: Raise e to that average loss
+            targets:
+              - loss-perplexity
+            color: cyan
+            linger: 0.18
+      - say: Copy the strip. In the copy, score “c” and then “at” in place of “cat.” Give the first piece a
+          probability of three quarters and the next four fifths. Their product is the sixty percent we started
+          with. We keep the other factors the same. Our cut runs through just the green segment. Both strips
+          still end at the same place. Will the perplexity per token stay the same?
+        caption_starts:
+          - Give the first piece
+          - Both strips still end
+        hold: 2.8
+        visual_cues:
+          - id: loss-resegment
+            phrase: Give the first piece a probability of three quarters and the next four fifths
+            targets:
+              - loss-resegmentation
+            color: green
+            linger: 0.18
+      - say: Divide that same length by five targets this time. The average gets smaller, so perplexity falls. Both
+          versions assigned exactly the same probability to the text and its stop. Before you use a lower token
+          perplexity to choose a model, check the tokenizer, the evaluation text, the context and which targets
+          were scored.
+        caption_starts:
+          - The average gets smaller
+        hold: 0.9
+        visual_cues:
+          - id: loss-five
+            phrase: Divide that same length by five targets this time
+            targets:
+              - loss-divisor
+            color: cyan
+            linger: 0.18
+  - id: pooled-evaluation
+    title: Which targets count toward the average?
+    visual: Two equally padded rows hold four real targets. Each real target contributes its loss in bits. Pool
+      the four targets, mark repeated window positions as context, then count the UTF-8 bytes of The cat sat for
+      a common unit.
+    beats:
+      - say: These batches take up the same amount of space. Fill the first batch with one target and two padding
+          slots. Fill the second with three targets. To make the losses easy to count, measure them in bits.
+          Each block is one bit of surprise. One half costs one bit. One eighth costs three. What number should
+          divide the total?
+        hold: 2.4
+        visual_cues:
+          - id: pool-batches
+            phrase: Fill the first batch with one target and two padding slots. Fill the second with three targets
+            targets:
+              - batch-a
+              - batch-b
+            color: blue
+            linger: 0.18
+          - id: pool-bits
+            phrase: Each block is one bit of surprise. One half costs one bit. One eighth costs three
+            targets:
+              - batch-a
+              - batch-b
+            color: green
+            linger: 0.18
+      - say: Divide ten bits by four scored targets. That’s two and a half bits per target. We used base two, so raise
+          two to that average for a perplexity of about five point seven. Averaging the two batch perplexities
+          would give five. Giving each batch’s mean loss equal weight would give a perplexity of four. Batch B
+          contains three of the four targets, so its losses need three places in the sum.
+        hold: 0.7
+        visual_cues:
+          - id: pool-mean
+            phrase: Divide ten bits by four scored targets
+            targets:
+              - pool-equation
+            color: yellow
+            linger: 0.18
+      - say: A long document adds another wrinkle. Disjoint chunks lose earlier context at each cut. Here, position
+          zero follows a start token. Slide the window and keep the overlapping positions as context. Look at
+          position three. Its first appearance contributes a loss. Its second appearance helps predict later
+          tokens. Keep one loss sum and one count across windows. Skip padding and ignored labels in both. A
+          window with zero scored labels has no mean of its own.
+        hold: 0.7
+        visual_cues:
+          - id: pool-stride
+            phrase: Slide the window and keep the overlapping positions as context
+            targets:
+              - pool-windows
+            color: green
+            linger: 0.18
+      - say: Go back to “The cat sat.” We can compare the two ways of scoring it in a common unit. Count the UTF-eight
+          bytes, including both spaces. Each letter here takes one byte. The end token is scored in both
+          versions and adds no text bytes. Divide total nats by the natural log of two to get bits, then divide
+          by eleven bytes. Both scores give the same bits per byte. Keep the encoding, text boundaries and
+          context policy fixed. Calibration and factual accuracy need separate checks.
+        hold: 0.8
+        visual_cues:
+          - id: pool-bytes
+            phrase: Count the UTF-eight bytes including both spaces
+            targets:
+              - pool-byte-row
+            color: cyan
+            linger: 0.18
+          - id: pool-bpb
+            phrase: then divide by eleven bytes
+            targets:
+              - pool-common-unit
+            color: yellow
+            linger: 0.18
+  - id: generation
+    title: A selected token becomes the next input
+    visual: A fixed sample falls in slept's interval. Its token travels into the prefix before the next
+      distribution appears. A second sample selects end and visibly stops the loop.
+    beats:
+      - say: Generation supplies its own continuation. This sample lands in slept's interval. Append slept to the
+          prefix, then calculate the distribution after the cat slept. We followed a possible sample instead
+          of always choosing the largest share.
+        hold: 0.4
+        motion_check:
+          region:
+            - 600
+            - 300
+            - 1160
+            - 610
+          minimumChangedFraction: 0.002
+        visual_cues:
+          - id: generation-sample
+            phrase: This sample lands in slept's interval
+            targets:
+              - generation-selection
+            color: green
+            linger: 0.25
+          - id: generation-append
+            phrase: Append slept to the prefix
+            targets:
+              - generation-token
+            color: yellow
+            linger: 0.2
+          - id: generation-next
+            phrase: calculate the distribution after the cat slept
+            targets:
+              - generation-distribution
+            color: cyan
+            linger: 0.4
+      - say: "On is likely next, but this second sample selects end. Stop here: the cat slept. During training, the
+          recorded sentence supplied sat. During this rollout, our selected slept changed the later context.
+          Evaluate generated rollouts as well as teacher-forced loss."
+        hold: 0.4
+        visual_cues:
+          - id: generation-stop
+            phrase: this second sample selects end
+            targets:
+              - generation-selection
+              - generation-stop
+            color: pink
+            linger: 0.4
+  - id: greedy-branch
+    title: Which two-token path gets the most probability?
+    visual: On one scale, compare the 60% and 40% first-token branches. Cut the longer branch into ten equal
+      continuations. Cut the shorter one at nine tenths. Compare the widths of the best paths before revealing
+      their probabilities.
+    beats:
+      - say: Here the first token can be A or B. Greedy decoding takes the widest first strip, A. Now cut A into ten
+          equal continuations. Any one of them gets a tenth of A’s share. After B, one continuation gets nine
+          tenths of B’s share. You get to pick a whole two-token path. Which would you take?
+        hold: 2.8
+        visual_cues:
+          - id: greedy-split-a
+            phrase: cut A into ten equal continuations
+            targets:
+              - greedy-a
+            color: blue
+            linger: 0.18
+          - id: greedy-split-b
+            phrase: one continuation gets nine tenths of B’s share
+            targets:
+              - greedy-b
+            color: green
+            linger: 0.18
+        motion_check:
+          region:
+            - 295
+            - 415
+            - 795
+            - 94
+          minimumChangedFraction: 0.002
+      - say: Take one slice from each branch. The path through A gets six percent of the original probability. The
+          path through B gets thirty-six percent. Look at how much wider that second slice is, even though B
+          started smaller. Greedy decoding commits before it sees those second choices. With fixed scores and a
+          fixed rule for ties, it makes the same choice every time. Close scores can still change order when
+          numerical kernels or hardware change.
+        caption_starts:
+          - The path through A gets
+          - The path through B gets
+        hold: 0.85
+        visual_cues:
+          - id: greedy-pick
+            phrase: Take one slice from each branch
+            targets:
+              - greedy-a
+              - greedy-b
+            color: yellow
+            linger: 0.18
+          - id: greedy-compare
+            phrase: The path through B gets thirty-six percent
+            targets:
+              - greedy-b
+            color: yellow
+            linger: 0.18
+  - id: cache-lifecycle
+    title: When does “slept” enter the cache?
+    visual: Track “The cat” through prefill. Show “slept” in the delivered output, then add it to the cache when the next call processes it. End stops the run.
+    beats:
+      - say: Where is “slept” when it first appears on your screen? First the model reads “The cat.” This is
+          prefill. Each attention layer stores keys and values for those two positions. From the model’s
+          next-word scores, we sample “slept.” The server can send it to the reader now. Look at the cache
+          row. It still holds two words. “Slept” gets its own entry on the next call.
+        caption_starts:
+          - First the model reads
+          - The server can send
+          - Look at the cache row.
+          - “Slept” gets its own entry
+        hold: 0.65
+        visual_cues:
+          - id: cache-lifecycle-b1
+            phrase: Where is “slept” when it first appears on your screen?
+            targets:
+              - cache-lifecycle-construction
+            color: blue
+            linger: 0.5
+          - id: cache-lifecycle-voice-1
+            phrase: Where is “slept” when it first appears on your screen? First the model reads “The cat.”
+              This is prefill. Each attention layer stores keys and values for those two positions. From the
+              model’s next-word scores, we sample “slept.” The server can send it to the reader now. Look at
+              the cache row. It still holds two words. “Slept” gets its own entry on the next call.
+            targets:
+              - cache-lifecycle-construction
+            color: blue
+            linger: 0.5
+          - id: cache-lifecycle-step-0-1
+            phrase: First the model reads “The cat.” This is prefill.
+            targets:
+              - cache-lifecycle-construction
+            color: blue
+            linger: 0.5
+          - id: cache-lifecycle-step-0-2
+            phrase: Each attention layer stores keys and values for those two positions. From the model’s
+              next-word scores, we sample “slept.”
+            targets:
+              - cache-lifecycle-construction
+            color: blue
+            linger: 0.5
+          - id: cache-lifecycle-step-0-3
+            phrase: The server can send it to the reader now.
+            targets:
+              - cache-lifecycle-construction
+            color: blue
+            linger: 0.5
+          - id: cache-lifecycle-step-0-4
+            phrase: Look at the cache row. It still holds two words. “Slept” gets its own entry on the next
+              call.
+            targets:
+              - cache-lifecycle-construction
+            color: blue
+            linger: 0.5
+      - say: Feed the selected slept occurrence into the next call. Each layer computes that position’s query, key and
+          value, appends its key and value, and performs the remaining block work. The processed prefix and
+          cache now contain three positions. That call supplies the next distribution. Our second sample
+          selects end, so the loop stops before feeding it back. Two output tokens were accepted, while only
+          three total positions were processed and cached.
+        hold: 0.65
+        visual_cues:
+          - id: cache-lifecycle-b2
+            phrase: Feed the selected slept occurrence into the next call.
+            targets:
+              - cache-lifecycle-construction
+            color: blue
+            linger: 0.5
+          - id: cache-lifecycle-voice-2
+            phrase: Feed the selected slept occurrence into the next call. Each layer computes that position’s query, key
+              and value, appends its key and value, and performs the remaining block work. The processed
+              prefix and cache now contain three positions. That call supplies the next distribution. Our
+              second sample selects end, so the loop stops before feeding it back. Two output tokens were
+              accepted, while only three total positions were processed and cached.
+            targets:
+              - cache-lifecycle-construction
+            color: blue
+            linger: 0.5
+          - id: cache-consume
+            phrase: Feed the selected slept occurrence into the next call.
+            targets:
+              - cache-lifecycle-construction
+            color: yellow
+            linger: 0.5
+          - id: cache-end-result
+            phrase: Two output tokens were accepted, while only three total positions were processed and cached.
+            targets:
+              - cache-lifecycle-construction
+            color: yellow
+            linger: 0.5
+          - id: cache-lifecycle-step-1-1
+            phrase: Each layer computes that position’s query, key and value, appends its key and value, and performs the
+              remaining block work.
+            targets:
+              - cache-lifecycle-construction
+            color: blue
+            linger: 0.5
+          - id: cache-lifecycle-step-1-2
+            phrase: The processed prefix and cache now contain three positions.
+            targets:
+              - cache-lifecycle-construction
+            color: blue
+            linger: 0.5
+          - id: cache-lifecycle-step-1-3
+            phrase: That call supplies the next distribution.
+            targets:
+              - cache-lifecycle-construction
+            color: blue
+            linger: 0.5
+          - id: cache-lifecycle-step-1-4
+            phrase: Our second sample selects end, so the loop stops before feeding it back.
+            targets:
+              - cache-lifecycle-construction
+            color: blue
+            linger: 0.5
+          - id: cache-lifecycle-step-1-5
+            phrase: Two output tokens were accepted, while only three total positions were processed and cached.
+            targets:
+              - cache-lifecycle-construction
+            color: blue
+            linger: 0.5
+      - say: A lost resident cache can be rebuilt from retained processed input without sampling another output or
+          delivering a duplicate. Drop its resident vectors, then replay exactly The, cat and slept with the
+          same model, positions and attention policy. Accepted output and already delivered history remain
+          unchanged during replay. This illustrates ordinary decoding with at most one selected token awaiting
+          processing; speculative verification uses a different multi-token contract.
+        hold: 0.65
+        visual_cues:
+          - id: cache-lifecycle-b3
+            phrase: A lost resident cache can be rebuilt from retained processed input without sampling another output or
+              delivering a duplicate.
+            targets:
+              - cache-lifecycle-construction
+            color: blue
+            linger: 0.5
+          - id: cache-lifecycle-voice-3
+            phrase: A lost resident cache can be rebuilt from retained processed input without sampling another output or
+              delivering a duplicate. Drop its resident vectors, then replay exactly The, cat and slept with
+              the same model, positions and attention policy. Accepted output and already delivered history
+              remain unchanged during replay. This illustrates ordinary decoding with at most one selected
+              token awaiting processing; speculative verification uses a different multi-token contract.
+            targets:
+              - cache-lifecycle-construction
+            color: blue
+            linger: 0.5
+          - id: cache-lifecycle-step-2-1
+            phrase: Drop its resident vectors, then replay exactly The, cat and slept with the same model, positions and
+              attention policy.
+            targets:
+              - cache-lifecycle-construction
+            color: blue
+            linger: 0.5
+          - id: cache-lifecycle-step-2-2
+            phrase: Accepted output and already delivered history remain unchanged during replay.
+            targets:
+              - cache-lifecycle-construction
+            color: blue
+            linger: 0.5
+          - id: cache-lifecycle-step-2-3
+            phrase: This illustrates ordinary decoding with at most one selected token awaiting processing; speculative
+              verification uses a different multi-token contract.
+            targets:
+              - cache-lifecycle-construction
+            color: blue
+            linger: 0.5
+  - id: cached-parity
+    title: Check reuse against the same full computation
+    visual: Actual five-position single-layer attention fixture. Prefill three then append positions4and5and
+      compare all outputs with a full causal pass. Exact allowed history and aligned positions reproduce the
+      reference within declared tolerance. An upper-left nonsquare causal mask would expose the wrong keys.
+    beats:
+      - say: The cache invariant comes from causality. With a fixed model in evaluation mode, identical prefix tokens,
+          positions and attention policy produce the same mathematical earlier keys and values. Appending
+          future tokens cannot change those earlier states. The article’s actual single-layer test prefills
+          three positions, then appends positions four and five. Concatenated cached outputs match a full
+          causal pass within its stated floating-point tolerance.
+        hold: 0.65
+        visual_cues:
+          - id: cached-parity-b1
+            phrase: The cache invariant comes from causality.
+            targets:
+              - cached-parity-construction
+            color: blue
+            linger: 0.5
+          - id: cached-parity-voice-1
+            phrase: The cache invariant comes from causality. With a fixed model in evaluation mode, identical prefix
+              tokens, positions and attention policy produce the same mathematical earlier keys and values.
+              Appending future tokens cannot change those earlier states. The article’s actual single-layer
+              test prefills three positions, then appends positions four and five. Concatenated cached outputs
+              match a full causal pass within its stated floating-point tolerance.
+            targets:
+              - cached-parity-construction
+            color: blue
+            linger: 0.5
+          - id: cached-parity-step-0-1
+            phrase: With a fixed model in evaluation mode, identical prefix tokens, positions and attention policy produce
+              the same mathematical earlier keys and values.
+            targets:
+              - cached-parity-construction
+            color: blue
+            linger: 0.5
+          - id: cached-parity-step-0-2
+            phrase: Appending future tokens cannot change those earlier states.
+            targets:
+              - cached-parity-construction
+            color: blue
+            linger: 0.5
+          - id: cached-parity-step-0-3
+            phrase: The article’s actual single-layer test prefills three positions, then appends positions four and five.
+            targets:
+              - cached-parity-construction
+            color: blue
+            linger: 0.5
+          - id: cached-parity-step-0-4
+            phrase: Concatenated cached outputs match a full causal pass within its stated floating-point tolerance.
+            targets:
+              - cached-parity-construction
+            color: blue
+            linger: 0.5
+      - say: A one-row decode query sits at the end of the key history. In this example every cached key is allowed.
+          An upper-left nonsquare causal mask would align that query with the beginning instead, hiding valid
+          earlier keys. The test supplies an explicit all-allowed Boolean row. Every layer in a real decoder
+          has its own cache, and position IDs must continue from the processed prefix. Cached keys may already
+          include positional rotation. Changing any of those premises requires a valid rebuild or documented
+          policy; different kernels can still introduce rounding differences.
+        hold: 0.65
+        visual_cues:
+          - id: cached-parity-b2
+            phrase: A one-row decode query sits at the end of the key history.
+            targets:
+              - cached-parity-construction
+            color: blue
+            linger: 0.5
+          - id: cached-parity-voice-2
+            phrase: A one-row decode query sits at the end of the key history. In this example every cached key is
+              allowed. An upper-left nonsquare causal mask would align that query with the beginning instead,
+              hiding valid earlier keys. The test supplies an explicit all-allowed Boolean row. Every layer in
+              a real decoder has its own cache, and position IDs must continue from the processed prefix.
+              Cached keys may already include positional rotation. Changing any of those premises requires a
+              valid rebuild or documented policy; different kernels can still introduce rounding differences.
+            targets:
+              - cached-parity-construction
+            color: blue
+            linger: 0.5
+          - id: cached-parity-step-1-1
+            phrase: In this example every cached key is allowed.
+            targets:
+              - cached-parity-construction
+            color: blue
+            linger: 0.5
+          - id: cached-parity-step-1-2
+            phrase: An upper-left nonsquare causal mask would align that query with the beginning instead, hiding valid
+              earlier keys.
+            targets:
+              - cached-parity-construction
+            color: blue
+            linger: 0.5
+          - id: cached-parity-step-1-3
+            phrase: The test supplies an explicit all-allowed Boolean row.
+            targets:
+              - cached-parity-construction
+            color: blue
+            linger: 0.5
+          - id: cached-parity-step-1-4
+            phrase: Every layer in a real decoder has its own cache, and position IDs must continue from the processed
+              prefix.
+            targets:
+              - cached-parity-construction
+            color: blue
+            linger: 0.5
+          - id: cached-parity-step-1-5
+            phrase: Cached keys may already include positional rotation.
+            targets:
+              - cached-parity-construction
+            color: blue
+            linger: 0.5
+          - id: cached-parity-step-1-6
+            phrase: Changing any of those premises requires a valid rebuild or documented policy; different kernels can
+              still introduce rounding differences.
+            targets:
+              - cached-parity-construction
+            color: blue
+            linger: 0.5
+  - id: work-and-bandwidth
+    title: Count the work that reuse removes
+    visual: Prompt length3,three selected outputs and model-call lengths3/4/5. Count repeated token projections
+      and dense score cells,then retain historicalKVand compute only new positions.
+      Projectionpositions12→5whiledeclaredscorecells50→18;attentionstillgrowswithvisiblehistory. Construct
+      weight reuse across positions and retain workload-specific bottleneck limits.
+    beats:
+      - say: "Count work before calling it speed. With prompt length three and three generated tokens, a simple
+          uncached loop processes lengths three, four and five. Projection and feed-forward position counts
+          total twelve. In a deliberately dense score-matrix accounting that includes masked cells, three
+          squared plus four squared plus five squared is fifty. With caching, prefill processes three
+          positions and the following calls process one new position each: five total. Prefill’s nine score
+          cells plus decode key counts four and five total eighteen."
+        hold: 0.65
+        visual_cues:
+          - id: work-and-bandwidth-b1
+            phrase: Count work before calling it speed.
+            targets:
+              - work-and-bandwidth-construction
+            color: blue
+            linger: 0.5
+          - id: work-and-bandwidth-voice-1
+            phrase: "Count work before calling it speed. With prompt length three and three generated tokens, a simple
+              uncached loop processes lengths three, four and five. Projection and feed-forward position
+              counts total twelve. In a deliberately dense score-matrix accounting that includes masked cells,
+              three squared plus four squared plus five squared is fifty. With caching, prefill processes
+              three positions and the following calls process one new position each: five total. Prefill’s
+              nine score cells plus decode key counts four and five total eighteen."
+            targets:
+              - work-and-bandwidth-construction
+            color: blue
+            linger: 0.5
+          - id: work-and-bandwidth-step-0-1
+            phrase: With prompt length three and three generated tokens, a simple uncached loop processes lengths three,
+              four and five.
+            targets:
+              - work-and-bandwidth-construction
+            color: blue
+            linger: 0.5
+          - id: work-and-bandwidth-step-0-2
+            phrase: Projection and feed-forward position counts total twelve.
+            targets:
+              - work-and-bandwidth-construction
+            color: blue
+            linger: 0.5
+          - id: work-and-bandwidth-step-0-3
+            phrase: In a deliberately dense score-matrix accounting that includes masked cells, three squared plus four
+              squared plus five squared is fifty.
+            targets:
+              - work-and-bandwidth-construction
+            color: blue
+            linger: 0.5
+          - id: work-and-bandwidth-step-0-4
+            phrase: "With caching, prefill processes three positions and the following calls process one new position
+              each: five total."
+            targets:
+              - work-and-bandwidth-construction
+            color: blue
+            linger: 0.5
+          - id: work-and-bandwidth-step-0-5
+            phrase: Prefill’s nine score cells plus decode key counts four and five total eighteen.
+            targets:
+              - work-and-bandwidth-construction
+            color: blue
+            linger: 0.5
+      - say: For fixed prompt length and width, repeated uncached projections grow quadratically with output length,
+          while repeated full-prefix attention grows cubically. Cached projections add one position per call.
+          Full attention still reads a growing visible key/value history, so its cumulative continuation work
+          is quadratic. Fused causal kernels can skip masked work, which changes these cell counts and
+          constants. They do not turn a growing full-attention history into constant work.
+        hold: 0.65
+        visual_cues:
+          - id: work-and-bandwidth-b2
+            phrase: For fixed prompt length and width, repeated uncached projections grow quadratically with output
+              length, while repeated full-prefix attention grows cubically.
+            targets:
+              - work-and-bandwidth-construction
+            color: blue
+            linger: 0.5
+          - id: work-and-bandwidth-voice-2
+            phrase: For fixed prompt length and width, repeated uncached projections grow quadratically with output
+              length, while repeated full-prefix attention grows cubically. Cached projections add one
+              position per call. Full attention still reads a growing visible key/value history, so its
+              cumulative continuation work is quadratic. Fused causal kernels can skip masked work, which
+              changes these cell counts and constants. They do not turn a growing full-attention history into
+              constant work.
+            targets:
+              - work-and-bandwidth-construction
+            color: blue
+            linger: 0.5
+          - id: work-and-bandwidth-step-1-1
+            phrase: Cached projections add one position per call.
+            targets:
+              - work-and-bandwidth-construction
+            color: blue
+            linger: 0.5
+          - id: work-and-bandwidth-step-1-2
+            phrase: Full attention still reads a growing visible key/value history, so its cumulative continuation work is
+              quadratic.
+            targets:
+              - work-and-bandwidth-construction
+            color: blue
+            linger: 0.5
+          - id: work-and-bandwidth-step-1-3
+            phrase: Fused causal kernels can skip masked work, which changes these cell counts and constants.
+            targets:
+              - work-and-bandwidth-construction
+            color: blue
+            linger: 0.5
+          - id: work-and-bandwidth-step-1-4
+            phrase: They do not turn a growing full-attention history into constant work.
+            targets:
+              - work-and-bandwidth-construction
+            color: blue
+            linger: 0.5
+      - say: "Prefill can reuse a loaded weight across many prompt positions. Batch-one decode has much less reuse:
+          one multiply-plus-add gives about two operations per two-byte dense weight, or one operation per
+          weight byte in this simplified calculation. Visible keys and values add reads. More requests can
+          share weight loads. Batch size, context length, precision, fusion, communication and hardware
+          determine the actual bottleneck. Measure latency and throughput; storage arithmetic alone cannot
+          establish either."
+        hold: 0.65
+        visual_cues:
+          - id: work-and-bandwidth-b3
+            phrase: Prefill can reuse a loaded weight across many prompt positions.
+            targets:
+              - work-and-bandwidth-construction
+            color: blue
+            linger: 0.5
+          - id: work-and-bandwidth-voice-3
+            phrase: "Prefill can reuse a loaded weight across many prompt positions. Batch-one decode has much less reuse:
+              one multiply-plus-add gives about two operations per two-byte dense weight, or one operation per
+              weight byte in this simplified calculation. Visible keys and values add reads. More requests can
+              share weight loads. Batch size, context length, precision, fusion, communication and hardware
+              determine the actual bottleneck. Measure latency and throughput; storage arithmetic alone cannot
+              establish either."
+            targets:
+              - work-and-bandwidth-construction
+            color: blue
+            linger: 0.5
+          - id: work-and-bandwidth-step-2-1
+            phrase: "Batch-one decode has much less reuse: one multiply-plus-add gives about two operations per two-byte
+              dense weight, or one operation per weight byte in this simplified calculation."
+            targets:
+              - work-and-bandwidth-construction
+            color: blue
+            linger: 0.5
+          - id: work-and-bandwidth-step-2-2
+            phrase: Visible keys and values add reads.
+            targets:
+              - work-and-bandwidth-construction
+            color: blue
+            linger: 0.5
+          - id: work-and-bandwidth-step-2-3
+            phrase: More requests can share weight loads.
+            targets:
+              - work-and-bandwidth-construction
+            color: blue
+            linger: 0.5
+          - id: work-and-bandwidth-step-2-4
+            phrase: Batch size, context length, precision, fusion, communication and hardware determine the actual
+              bottleneck.
+            targets:
+              - work-and-bandwidth-construction
+            color: blue
+            linger: 0.5
+          - id: work-and-bandwidth-step-2-5
+            phrase: Measure latency and throughput; storage arithmetic alone cannot establish either.
+            targets:
+              - work-and-bandwidth-construction
+            color: blue
+            linger: 0.5
+  - id: cache-budget
+    title: Count stored positions and head payloads
+    visual: TwoK/Varraysperlayerand explicitheads,coordinates,positions and requests. Multiply actual dimensions
+      and vary one axis at a time. Fourrequests32layers8KVheads128width2bytes
+      produce1GiBat2048and16GiBat32768. Retain variable lengths and layer-specific policies instead of
+      silently treating every context as equal.
+    beats:
+      - say: Raw cache payload counts two arrays, keys and values, times layers, stored key/value heads, coordinates
+          per head, cached positions, requests and bytes per value. Use thirty-two layers, eight key/value
+          heads, one hundred twenty-eight coordinates, four equal-length requests and two bytes per value. At
+          two thousand forty-eight cached positions each, the batch payload is exactly one gibibyte. Sixteen
+          times the positions gives sixteen gibibytes. One gibibyte is one thousand twenty-four cubed bytes.
+          One kibibyte is one thousand twenty-four bytes.
+        hold: 0.65
+        visual_cues:
+          - id: cache-budget-b1
+            phrase: Raw cache payload counts two arrays, keys and values, times layers, stored key/value heads,
+              coordinates per head, cached positions, requests and bytes per value.
+            targets:
+              - cache-budget-construction
+            color: blue
+            linger: 0.5
+          - id: cache-budget-voice-1
+            phrase: Raw cache payload counts two arrays, keys and values, times layers, stored key/value heads,
+              coordinates per head, cached positions, requests and bytes per value. Use thirty-two layers,
+              eight key/value heads, one hundred twenty-eight coordinates, four equal-length requests and two
+              bytes per value. At two thousand forty-eight cached positions each, the batch payload is exactly
+              one gibibyte. Sixteen times the positions gives sixteen gibibytes. One gibibyte is one thousand
+              twenty-four cubed bytes. One kibibyte is one thousand twenty-four bytes.
+            targets:
+              - cache-budget-construction
+            color: blue
+            linger: 0.5
+          - id: cache-budget-step-0-1
+            phrase: Use thirty-two layers, eight key/value heads, one hundred twenty-eight coordinates, four equal-length
+              requests and two bytes per value.
+            targets:
+              - cache-budget-construction
+            color: blue
+            linger: 0.5
+          - id: cache-budget-step-0-2
+            phrase: At two thousand forty-eight cached positions each, the batch payload is exactly one gibibyte.
+            targets:
+              - cache-budget-construction
+            color: blue
+            linger: 0.5
+          - id: cache-budget-step-0-3
+            phrase: Sixteen times the positions gives sixteen gibibytes.
+            targets:
+              - cache-budget-construction
+            color: blue
+            linger: 0.5
+          - id: cache-budget-step-0-4
+            phrase: One gibibyte is one thousand twenty-four cubed bytes.
+            targets:
+              - cache-budget-construction
+            color: blue
+            linger: 0.5
+          - id: cache-budget-step-0-5
+            phrase: One kibibyte is one thousand twenty-four bytes.
+            targets:
+              - cache-budget-construction
+            color: blue
+            linger: 0.5
+      - say: At thirty-two requests rather than four, the longer batch becomes one hundred twenty-eight gibibytes.
+          Those counts exclude weights, workspace, quantization scales, page rounding and allocator reserves.
+          For unequal request lengths, add their cached position counts before multiplying the common layer
+          and head dimensions. For different layer dimensions or retention rules, sum each layer’s own
+          payload. Count processed positions, not every token already selected for output.
+        hold: 0.65
+        visual_cues:
+          - id: cache-budget-b2
+            phrase: At thirty-two requests rather than four, the longer batch becomes one hundred twenty-eight gibibytes.
+            targets:
+              - cache-budget-construction
+            color: blue
+            linger: 0.5
+          - id: cache-budget-voice-2
+            phrase: At thirty-two requests rather than four, the longer batch becomes one hundred twenty-eight gibibytes.
+              Those counts exclude weights, workspace, quantization scales, page rounding and allocator
+              reserves. For unequal request lengths, add their cached position counts before multiplying the
+              common layer and head dimensions. For different layer dimensions or retention rules, sum each
+              layer’s own payload. Count processed positions, not every token already selected for output.
+            targets:
+              - cache-budget-construction
+            color: blue
+            linger: 0.5
+          - id: cache-budget-step-1-1
+            phrase: Those counts exclude weights, workspace, quantization scales, page rounding and allocator reserves.
+            targets:
+              - cache-budget-construction
+            color: blue
+            linger: 0.5
+          - id: cache-budget-step-1-2
+            phrase: For unequal request lengths, add their cached position counts before multiplying the common layer and
+              head dimensions.
+            targets:
+              - cache-budget-construction
+            color: blue
+            linger: 0.5
+          - id: cache-budget-step-1-3
+            phrase: For different layer dimensions or retention rules, sum each layer’s own payload.
+            targets:
+              - cache-budget-construction
+            color: blue
+            linger: 0.5
+          - id: cache-budget-step-1-4
+            phrase: Count processed positions, not every token already selected for output.
+            targets:
+              - cache-budget-construction
+            color: blue
+            linger: 0.5
+  - id: architecture-memory
+    title: How much cache do these requests use?
+    visual: Group 32 query heads around eight shared key and value pairs. Map two requests to three physical blocks and count the occupied slots.
+    beats:
+      - say: Look down one column. Four query heads share one key head and one value head. Eight shared sets
+          of keys and values serve thirty-two query heads. At the same dimensions and length, that cuts the
+          raw cache to a quarter. The researchers converted T5 checkpoints to grouped-query attention and
+          trained them further. Those models came close to multi-head attention on the tasks they measured.
+        hold: 0.65
+        visual_cues:
+          - id: architecture-memory-b1
+            phrase: Look down one column. Four query heads share one key head and one value head.
+            targets:
+              - architecture-memory-construction
+            color: blue
+            linger: 0.5
+          - id: architecture-memory-voice-1
+            phrase: Look down one column. Four query heads share one key head and one value head. Eight shared
+              sets of keys and values serve thirty-two query heads. At the same dimensions and length, that
+              cuts the raw cache to a quarter. The researchers converted T5 checkpoints to grouped-query
+              attention and trained them further. Those models came close to multi-head attention on the tasks
+              they measured.
+            targets:
+              - architecture-memory-construction
+            color: blue
+            linger: 0.5
+          - id: architecture-memory-step-0-1
+            phrase: Eight shared sets of keys and values serve thirty-two query heads. At the same dimensions
+              and length, that cuts the raw cache to a quarter.
+            targets:
+              - architecture-memory-construction
+            color: blue
+            linger: 0.5
+          - id: architecture-memory-step-0-2
+            phrase: The researchers converted T5 checkpoints to grouped-query attention and trained them
+              further.
+            targets:
+              - architecture-memory-construction
+            color: blue
+            linger: 0.5
+          - id: architecture-memory-step-0-3
+            phrase: Those models came close to multi-head attention on the tasks they measured.
+            targets:
+              - architecture-memory-construction
+            color: blue
+            linger: 0.5
+      - say: PagedAttention can place each block of a request wherever a physical block is free. Equal block
+          sizes avoid external fragmentation. The last block can have empty slots. Round up each request
+          separately. With four slots per block, three positions take one block and seven take two. In the
+          systems compared in the paper, useful token states filled twenty point four to thirty-eight point
+          two percent of allocated key and value memory. Here, ten of twelve slots hold tokens. The two empty
+          ones are at the ends of the requests.
+        hold: 0.65
+        visual_cues:
+          - id: architecture-memory-b2
+            phrase: PagedAttention can place each block of a request wherever a physical block is free.
+            targets:
+              - architecture-memory-construction
+            color: blue
+            linger: 0.5
+          - id: architecture-memory-voice-2
+            phrase: PagedAttention can place each block of a request wherever a physical block is free. Equal
+              block sizes avoid external fragmentation. The last block can have empty slots. Round up each
+              request separately. With four slots per block, three positions take one block and seven take
+              two. In the systems compared in the paper, useful token states filled twenty point four to
+              thirty-eight point two percent of allocated key and value memory. Here, ten of twelve slots hold
+              tokens. The two empty ones are at the ends of the requests.
+            targets:
+              - architecture-memory-construction
+            color: blue
+            linger: 0.5
+          - id: architecture-memory-step-1-1
+            phrase: Equal block sizes avoid external fragmentation. The last block can have empty slots.
+            targets:
+              - architecture-memory-construction
+            color: blue
+            linger: 0.5
+          - id: architecture-memory-step-1-2
+            phrase: Round up each request separately.
+            targets:
+              - architecture-memory-construction
+            color: blue
+            linger: 0.5
+          - id: architecture-memory-step-1-3
+            phrase: With four slots per block, three positions take one block and seven take two.
+            targets:
+              - architecture-memory-construction
+            color: blue
+            linger: 0.5
+          - id: architecture-memory-step-1-4
+            phrase: In the systems compared in the paper, useful token states filled twenty point four to
+              thirty-eight point two percent of allocated key and value memory.
+            targets:
+              - architecture-memory-construction
+            color: blue
+            linger: 0.5
+          - id: architecture-memory-step-1-5
+            phrase: Here, ten of twelve slots hold tokens. The two empty ones are at the ends of the requests.
+            targets:
+              - architecture-memory-construction
+            color: blue
+            linger: 0.5
+      - say: Halve the stored heads from eight to four. Our four long requests now take eight gibibytes of raw
+          cache, down from sixteen. The same sixteen-gibibyte cache budget holds eight requests at this
+          length. Weights and runtime tensors need additional memory. Scheduling and latency can also limit
+          the batch. Measure tokens per second to see how fast it runs.
+        hold: 0.65
+        visual_cues:
+          - id: architecture-memory-b3
+            phrase: Halve the stored heads from eight to four. Our four long requests now take eight gibibytes
+              of raw cache, down from sixteen.
+            targets:
+              - architecture-memory-construction
+            color: blue
+            linger: 0.5
+          - id: architecture-memory-voice-3
+            phrase: Halve the stored heads from eight to four. Our four long requests now take eight gibibytes
+              of raw cache, down from sixteen. The same sixteen-gibibyte cache budget holds eight requests at
+              this length. Weights and runtime tensors need additional memory. Scheduling and latency can also
+              limit the batch. Measure tokens per second to see how fast it runs.
+            targets:
+              - architecture-memory-construction
+            color: blue
+            linger: 0.5
+          - id: architecture-memory-step-2-1
+            phrase: The same sixteen-gibibyte cache budget holds eight requests at this length.
+            targets:
+              - architecture-memory-construction
+            color: blue
+            linger: 0.5
+          - id: architecture-memory-step-2-2
+            phrase: Weights and runtime tensors need additional memory. Scheduling and latency can also limit
+              the batch.
+            targets:
+              - architecture-memory-construction
+            color: blue
+            linger: 0.5
+          - id: architecture-memory-step-2-3
+            phrase: Measure tokens per second to see how fast it runs.
+            targets:
+              - architecture-memory-construction
+            color: blue
+            linger: 0.5
+  - id: context-policy
+    title: Reserve the future before filling the window
+    visual: Fit the prompt and reserved output into 32 positions. Shorten the prompt by one token to make room. Compare removing a cache entry with recomputing the shortened prefix.
+    beats:
+      - say: This model has room for thirty-two positions. Reserve eight of them for output. Our prompt has
+          twenty-five tokens. Add the eight reserved slots and the last one crosses the line. We could reject
+          the request, reserve fewer output slots, or shorten the prompt by one token. Watch the shortened
+          prompt. Twenty-four plus eight fits exactly.
+        hold: 0.65
+        visual_cues:
+          - id: context-policy-b1
+            phrase: This model has room for thirty-two positions.
+            targets:
+              - context-policy-construction
+            color: blue
+            linger: 0.5
+          - id: context-policy-voice-1
+            phrase: This model has room for thirty-two positions. Reserve eight of them for output. Our prompt
+              has twenty-five tokens. Add the eight reserved slots and the last one crosses the line. We could
+              reject the request, reserve fewer output slots, or shorten the prompt by one token. Watch the
+              shortened prompt. Twenty-four plus eight fits exactly.
+            targets:
+              - context-policy-construction
+            color: blue
+            linger: 0.5
+          - id: context-policy-step-0-1
+            phrase: Reserve eight of them for output.
+            targets:
+              - context-policy-construction
+            color: blue
+            linger: 0.5
+          - id: context-policy-step-0-2
+            phrase: Our prompt has twenty-five tokens. Add the eight reserved slots and the last one crosses
+              the line.
+            targets:
+              - context-policy-construction
+            color: blue
+            linger: 0.5
+          - id: context-policy-step-0-3
+            phrase: We could reject the request, reserve fewer output slots, or shorten the prompt by one
+              token.
+            targets:
+              - context-policy-construction
+            color: blue
+            linger: 0.5
+          - id: context-policy-step-0-4
+            phrase: Watch the shortened prompt. Twenty-four plus eight fits exactly.
+            targets:
+              - context-policy-construction
+            color: blue
+            linger: 0.5
+      - say: A sliding-window layer or recurrent state has a different retention rule from full attention. Simply
+          deleting old cached entries changes what can be attended to, while retained hidden states may still
+          encode the removed tokens. Recomputing from a shortened prompt is a different operation from
+          removing a few resident vectors. Apply the model and runtime’s documented position and retention
+          policy. Even with cache reuse, every newly consumed token still executes its new-position
+          computation.
+        hold: 0.65
+        visual_cues:
+          - id: context-policy-b2
+            phrase: A sliding-window layer or recurrent state has a different retention rule from full attention.
+            targets:
+              - context-policy-construction
+            color: blue
+            linger: 0.5
+          - id: context-policy-voice-2
+            phrase: A sliding-window layer or recurrent state has a different retention rule from full attention. Simply
+              deleting old cached entries changes what can be attended to, while retained hidden states may
+              still encode the removed tokens. Recomputing from a shortened prompt is a different operation
+              from removing a few resident vectors. Apply the model and runtime’s documented position and
+              retention policy. Even with cache reuse, every newly consumed token still executes its
+              new-position computation.
+            targets:
+              - context-policy-construction
+            color: blue
+            linger: 0.5
+          - id: context-policy-step-1-1
+            phrase: Simply deleting old cached entries changes what can be attended to, while retained hidden states may
+              still encode the removed tokens.
+            targets:
+              - context-policy-construction
+            color: blue
+            linger: 0.5
+          - id: context-policy-step-1-2
+            phrase: Recomputing from a shortened prompt is a different operation from removing a few resident vectors.
+            targets:
+              - context-policy-construction
+            color: blue
+            linger: 0.5
+          - id: context-policy-step-1-3
+            phrase: Apply the model and runtime’s documented position and retention policy.
+            targets:
+              - context-policy-construction
+            color: blue
+            linger: 0.5
+          - id: context-policy-step-1-4
+            phrase: Even with cache reuse, every newly consumed token still executes its new-position computation.
+            targets:
+              - context-policy-construction
+            color: blue
+            linger: 0.5
+  - id: evidence-failure
+    title: Which evidence would settle the claim?
+    visual: Open a fictional current policy beside a high-probability completion, then inspect the version that
+      reached the prompt. Compare a correct code completion with Python output. Change the initial value and the
+      operation and leave the fresh model result open.
+    beats:
+      - say: A reader asks about a free-tier rate limit. In this example the word “unlimited” gets seventy-five
+          percent. Would you publish that answer? Open the current policy. It says sixty requests per minute.
+          The probability tells us why the model might choose that word. The policy tells us what the reader can
+          actually do. Check the version and passage behind a citation before relying on it.
+        caption_starts:
+          - Would you publish that answer?
+          - Open the current policy.
+          - It says sixty requests per minute.
+        hold: 0.7
+        visual_cues:
+          - id: policy-prediction
+            phrase: unlimited gets seventy-five percent
+            targets:
+              - policy-model
+            color: blue
+            linger: 0.18
+          - id: policy-open
+            phrase: Open the current policy
+            targets:
+              - policy-document
+            color: green
+            linger: 0.18
+      - say: How did the wrong answer get there? Inspect the version in the application trace. The retriever supplied
+          version one. Fetch version two and check whether the answer follows its rule. Lowering the temperature
+          leaves the old passage in place. A model can recall a fact or even a memorized personal detail from
+          training. A live database lookup leaves a different kind of evidence in the application trace. For a
+          repetition problem, inspect the generated text, filters and stop reason across runs.
+        hold: 0.75
+        visual_cues:
+          - id: policy-trace
+            phrase: Inspect the version in the application trace
+            targets:
+              - policy-trace
+            color: pink
+            linger: 0.18
+      - say: Suppose a model predicts the digit two for this program’s output. Run the three lines on the left. Python prints
+          two. That agrees with the completion, but a model that always says two would pass this case. Change
+          the starting value to seven and replace subtraction with addition. Before you test the model again,
+          what output should it match?
+        caption_starts:
+          - Change the starting value
+        hold: 2.8
+        visual_cues:
+          - id: retries-first
+            phrase: Python prints two
+            targets:
+              - retries-original
+            color: blue
+            linger: 0.18
+          - id: retries-change
+            phrase: Change the starting value to seven and replace subtraction with addition
+            targets:
+              - retries-new
+            color: yellow
+            linger: 0.18
+      - say: Run the changed program. Python prints nine. Now collect the model’s completion on those changed lines
+          and compare it with nine. Keep trying unfamiliar inputs and operations. Next-token training can reward
+          predictions that track changing program state. Tests like these, and the in-context tasks studied with
+          GPT-three, measure behavior. Figuring out how a model produces it takes further evidence.
+        caption_starts:
+          - Python prints nine.
+        hold: 0.8
+        visual_cues:
+          - id: retries-second
+            phrase: Python prints nine
+            targets:
+              - retries-new
+            color: green
+            linger: 0.18
+  - id: transfer
+    title: "Your turn: shift the targets"
+    visual: A new recorded sentence invites a shifted-target prediction. Completed rows identify the dog-position
+      target and its exact loss. Greedy generation makes a different word choice beside the preserved
+      observation.
+    beats:
+      - say: Your turn. The recorded sentence is the dog slept. At the dog input position, which word is the target,
+          and which words may the model read? Point to both before we uncover the row.
+        hold: 1.5
+      - say: Shift the observed words into their target positions. At dog, the target is slept. Read start, the and
+          dog. This model gave slept thirty percent, so its loss is about one point two nats. Keep that
+          observed answer separate from a generated choice.
+        caption_starts:
+          - At dog, the target is slept.
+          - Read start, the and dog.
+        hold: 0.4
+        visual_cues:
+          - id: transfer-targets
+            phrase: Shift the observed words into their target positions
+            targets:
+              - transfer-target-row
+            color: green
+            linger: 0.25
+          - id: transfer-context
+            phrase: Read start, the and dog
+            targets:
+              - transfer-prefix
+            color: cyan
+            linger: 0.25
+          - id: transfer-loss
+            phrase: so its loss is about one point two nats
+            targets:
+              - transfer-loss
+            color: yellow
+            linger: 0.4
+      - say: Generate from the same prefix using the largest share. Ate wins and becomes the next input. The following
+          end choice stops the output. Our generated sentence says the dog ate; the record says the dog slept.
+          Probabilities explain the model's choice. The observation supplies the training target and the
+          evidence for what happened.
+        hold: 0.4
+        visual_cues:
+          - id: transfer-generate
+            phrase: Ate wins and becomes the next input
+            targets:
+              - transfer-generated
+            color: pink
+            linger: 0.3
+          - id: transfer-end
+            phrase: The following end choice stops the output
+            targets:
+              - transfer-generated
+            color: yellow
+            linger: 0.4
+  - id: fresh-budgeted-rollout
+    title: Where does this fox stop?
+    visual: Keep a scored record of runs and end above a five-position request. Run two samples from A red fox.
+      Feed only the first selection in each run. The first stops on end. The second uses its last output slot on
+      here, while the original record and its score stay visible.
+    beats:
+      - say: A new prompt reads “A red fox.” The window has five positions. Reserve two for output. This server checks
+          for the end token first, then checks whether it has used both slots. In our record, the next word is
+          “runs,” and then the sentence ends. The model gives “runs” one quarter. After “runs,” it gives the end
+          token one half. What probability does that give the recorded continuation? If a sample follows that
+          path, which tokens reach the cache?
+        hold: 3.2
+        visual_cues:
+          - id: fresh-reserve
+            phrase: Reserve two for output
+            targets:
+              - fox-record
+            color: cyan
+            linger: 0.18
+          - id: fresh-record
+            phrase: the next word is runs and then the sentence ends
+            targets:
+              - fox-record
+            color: yellow
+            linger: 0.18
+      - say: The prompt fills three cache positions. Our first sample chooses “runs.” Feed “runs” back into the model.
+          That adds the fourth cache entry and gives us a new row to sample from. This sample chooses end. We
+          used two output slots and stopped before feeding end back. For the record, multiply one quarter by one
+          half. One eighth is the probability of both observed choices given the prompt. Take its negative
+          natural log and divide by the two targets. Exponentiating that mean gives the per-token perplexity
+          shown above.
+        caption_starts:
+          - Feed “runs” back into the model.
+          - This sample chooses end.
+          - One eighth is the probability
+        hold: 0.95
+        visual_cues:
+          - id: fresh-choose-runs
+            phrase: Our first sample chooses runs
+            targets:
+              - fox-output
+            color: green
+            linger: 0.18
+          - id: fresh-budgeted-rollout-step-1-1
+            phrase: Feed runs back into the model
+            targets:
+              - fox-cache
+            color: cyan
+            linger: 0.18
+          - id: fresh-budgeted-rollout-step-1-2
+            phrase: This sample chooses end
+            targets:
+              - fox-output
+            color: green
+            linger: 0.18
+          - id: fresh-budgeted-rollout-step-1-4
+            phrase: multiply one quarter by one half
+            targets:
+              - fox-score
+            color: yellow
+            linger: 0.18
+          - id: fresh-budgeted-rollout-step-1-5
+            phrase: Exponentiating that mean gives the per-token perplexity shown above
+            targets:
+              - fox-score
+            color: yellow
+            linger: 0.18
+      - say: Reset the run to the same prompt. Leave the record on the page. This sample picks “waits.” Feed “waits”
+          back and look at its next row. Now “here” has four fifths of the probability. The sample picks “here.”
+          Look at the two output slots. What stopped this run, and should you change the record’s score?
+        caption_starts:
+          - This sample picks “waits.”
+          - The sample picks “here.”
+          - Look at the two output slots.
+        hold: 3
+        visual_cues:
+          - id: fresh-rewind
+            phrase: Reset the run to the same prompt
+            targets:
+              - fox-cache
+            color: cyan
+            linger: 0.18
+          - id: fresh-choose-waits
+            phrase: This sample picks waits
+            targets:
+              - fox-output
+            color: green
+            linger: 0.18
+          - id: fresh-feed-waits
+            phrase: Feed waits back
+            targets:
+              - fox-cache
+            color: cyan
+            linger: 0.18
+          - id: fresh-choose-here
+            phrase: The sample picks here
+            targets:
+              - fox-output
+            color: green
+            linger: 0.18
+        motion_check:
+          region:
+            - 1255
+            - 572
+            - 505
+            - 310
+          minimumChangedFraction: 0.002
+      - say: The second word used the last output slot. Report an output limit. The cache holds the prompt and
+          “waits.” The record still says “runs,” then end, so its score stays one eighth. To score a record,
+          follow the words on its page. To continue a run, read the row for the word it actually picked. The
+          next lesson follows how that same loop became an assistant.
+        caption_starts:
+          - Report an output limit.
+          - The record still says
+          - To score a record,
+          - The next lesson follows
+        hold: 1.25
+        visual_cues:
+          - id: fresh-limit
+            phrase: Report an output limit
+            targets:
+              - fox-stop
+            color: yellow
+            linger: 0.18

@@ -1,0 +1,1691 @@
+version: 1
+id: benchmark-audits
+title: Recover the Experiment Behind the Benchmark Score
+source: llmops/llm-evaluation-benchmarks-limitations/content.md
+voice: en-US-AndrewNeural
+rate: +0%
+sources:
+  - title: "Liang et al.: Holistic Evaluation of Language Models"
+    url: https://arxiv.org/abs/2211.09110
+  - title: "Chen et al.: Evaluating Large Language Models Trained on Code"
+    url: https://arxiv.org/abs/2107.03374
+  - title: "NIST: Binomial distribution"
+    url: https://www.itl.nist.gov/div898/handbook/eda/section3/eda366i.htm
+  - title: Ragas metrics
+    url: https://docs.ragas.io/en/stable/concepts/metrics/available_metrics/
+  - title: HELM custom scenarios
+    url: https://crfm-helm.readthedocs.io/en/latest/adding_new_scenarios/
+  - title: GPQA paper
+    url: https://arxiv.org/abs/2311.12022
+  - title: HumanEval estimator implementation
+    url: https://raw.githubusercontent.com/openai/human-eval/master/human_eval/evaluation.py
+  - title: Arena Bradley-Terry implementation
+    url: https://raw.githubusercontent.com/lmarena/arena-rank/main/arena_rank/models/bradley_terry.py
+  - title: SWE-bench Verified audit
+    url: https://openai.com/index/why-we-no-longer-evaluate-swe-bench-verified/
+  - title: SWE-bench Pro audit and recommendation retraction
+    url: https://openai.com/index/separating-signal-from-noise-coding-evaluations/
+  - title: HLE release history
+    url: https://www.lastexam.ai/
+  - title: FrontierMath release history
+    url: https://epoch.ai/frontiermath/tiers-1-4
+  - title: Exact McNemar API contract
+    url: https://www.statsmodels.org/stable/generated/statsmodels.stats.contingency_tables.mcnemar.html
+scenes:
+  - id: intro
+    title: "Which assistant should take the renewal desk?"
+    visual: "Pull the ten renewal requests out of the hundred-question score sheet, then open both assistants’ results on the same ten slips."
+    beats:
+      - say: "Pull out the ten renewal questions. Both assistants scored ninety out of a hundred on the whole sheet. Who should answer renewals?"
+        hold: 0.5
+        caption_starts: ["Both assistants scored", "Who should answer renewals"]
+        visual_cues:
+          - id: tied-scores
+            phrase: "Both assistants scored ninety out of a hundred"
+            targets: [picture]
+      - say: "Line up the same ten questions for both assistants. On the other ninety questions, A got eighty-eight right. B got eighty-one. Which one answered more renewals correctly?"
+        hold: 2.4
+        caption_starts: ["Which one answered more renewals correctly"]
+        visual_cues:
+          - id: renewal-file
+            phrase: "Line up the same ten questions"
+            targets: [picture]
+          - id: ordinary-a
+            phrase: "A got eighty-eight right"
+            targets: [picture]
+            caption_boundary: true
+          - id: ordinary-b
+            phrase: "B got eighty-one"
+            targets: [picture]
+            caption_boundary: true
+          - id: ask-renewals
+            phrase: "Which one answered more renewals correctly"
+            targets: [picture]
+      - say: "Open A's ten renewals. Two passed. Open B's row underneath. Nine passed. Look at question ninety-three. Both assistants got the same request. Only B got it right."
+        hold: 0.85
+        caption_starts: ["Open B's row underneath", "Look at question ninety-three", "Only B got it right"]
+        visual_cues:
+          - id: open-a
+            phrase: "Open A's ten renewals"
+            targets: [picture]
+          - id: count-a
+            phrase: "Two passed"
+            targets: [picture]
+            caption_boundary: true
+          - id: open-b
+            phrase: "Open B's row underneath"
+            targets: [picture]
+          - id: count-b
+            phrase: "Nine passed"
+            targets: [picture]
+            caption_boundary: true
+          - id: one-renewal
+            phrase: "Look at question ninety-three"
+            targets: [picture]
+      - say: "A benchmark has two parts. The tasks decide what we ask. The scoring rule decides which answers count. For a renewal, what would a correct answer have to say?"
+        hold: 0.7
+        visual_cues:
+          - id: tasks
+            phrase: "The tasks decide what we ask"
+            targets: [picture]
+          - id: grading
+            phrase: "The scoring rule decides which answers count"
+            targets: [picture]
+  - id: contract
+    title: Keep the comparison contract visible
+    visual: Two aligned harness rows preserve dataset, input path, prompt, budget, and scorer. A changed retrieval depth moves the comparison from model replacement to a whole-system experiment.
+    beats:
+      - say: Imagine changing the model inside a library assistant. Both candidates should receive the same questions, available evidence, response requirements, and scoring rules. Record the prompt, tools, sampling settings, and attempt budget as well. Each model still needs its own correct chat formatting.
+        hold: 0.6
+        visual_cues:
+          - id: contract-beat-1-focus-1
+            phrase: Imagine changing the model inside a library assistant
+            targets:
+              - contract-simulation-6
+            color: blue
+            linger: 0.6
+      - say: Now give the second system five retrieved passages where the first received three. Its answers may improve, and that is useful to measure. The experiment now compares two complete systems. Retrieval changed along with the model, so the report must describe both changes.
+        hold: 0.7
+        visual_cues:
+          - id: contract-beat-2-focus-1
+            phrase: Now give the second system five retrieved passages
+            targets:
+              - contract-simulation-6
+            color: blue
+            linger: 0.6
+          - id: ba-contract-passages
+            phrase: five retrieved passages
+            targets:
+              - ba-contract-passages
+            color: cyan
+            linger: 0.4
+          - id: ba-contract-consequence
+            phrase: Its answers may improve
+            targets:
+              - ba-contract-consequence
+            color: cyan
+            linger: 0.4
+      - say: Public benchmarks also have distinct contracts. Multiple-choice knowledge, executable programs, and human preferences score different units. Use those results to choose promising candidates, then compare them on the task your application actually needs.
+        hold: 0.65
+        visual_cues:
+          - id: contract-beat-3-focus-1
+            phrase: Public benchmarks also have distinct contracts
+            targets:
+              - contract-simulation-6
+            color: blue
+            linger: 0.6
+  - id: gold-contract
+    title: Validate the questions before grading the answers
+    visual: Construct three actual CodeAssist gold records. Keep their IDs and policy source beside required clauses, duplicate one identity, then repair an unsupported requirement before admitting any model output.
+    beats:
+      - say: "Open the answer key. Each row pairs a question with the policy that supplies its answer. In this example, a deployment freeze requires commander approval, a threshold breach calls for the rollback runbook, and exposed tokens must be revoked within fifteen minutes. Keep the required facts and forbidden claims with each source."
+        hold: 0.7
+        visual_cues:
+          - id: gold-contract-phase-0
+            phrase: "Open the answer key"
+            targets:
+              - gold-contract-mechanism
+            color: cyan
+            linger: 0.55
+          - id: ba-gold-contract-approval
+            phrase: commander approval
+            targets:
+              - ba-gold-contract-approval
+            color: cyan
+            linger: 0.4
+      - say: "Give each row a unique identity. Duplicating an identity can attach a score to the wrong question. The validator checks for repeated IDs and looks for required phrases in the source. A reviewer then compares each gold requirement with the policy that governs the case. Does the policy actually say what the answer key demands?"
+        hold: 0.7
+        visual_cues:
+          - id: gold-contract-phase-1
+            phrase: Give each row a unique identity
+            targets:
+              - gold-contract-mechanism
+            color: cyan
+            linger: 0.55
+          - id: ba-gold-contract-unique
+            phrase: Duplicating an identity
+            targets:
+              - ba-gold-contract-unique
+            color: cyan
+            linger: 0.4
+          - id: ba-gold-contract-gold
+            phrase: "compares each gold requirement"
+            targets:
+              - ba-gold-contract-gold
+            color: cyan
+            linger: 0.4
+      - say: "The source says to use the rollback runbook. Suppose the answer key says to keep deploying. An assistant could follow the policy and lose the point. Repair the gold row first. Record the reviewed answer and how serious a mistake would be. Include critical requests and cases where the assistant should say it lacks the evidence to answer."
+        hold: 0.7
+        visual_cues:
+          - id: gold-contract-phase-2
+            phrase: "The source says to use the rollback runbook"
+            targets:
+              - gold-contract-mechanism
+            color: cyan
+            linger: 0.55
+          - id: ba-gold-contract-unsupported
+            phrase: "the answer key says to keep deploying"
+            targets:
+              - ba-gold-contract-unsupported
+            color: pink
+            linger: 0.4
+          - id: ba-gold-contract-repair
+            phrase: repair the gold row first
+            targets:
+              - ba-gold-contract-repair
+            color: cyan
+            linger: 0.4
+  - id: checker
+    title: "Would the checker accept this deadline?"
+    visual: "Keep the rule fixed. Run each complete answer through the same two substring tests. Compare its literal verdict with the independently supplied reading of the deadline."
+    beats:
+      - say: "The library rule says borrowed books are due on Friday. Here's our first answer, word for word. The checker looks for two pieces of text, books and Friday. It ignores capitalization. Both pieces are there. A reviewer also accepts this deadline."
+        hold: 0.65
+        visual_cues:
+          - id: checker-test
+            phrase: "The checker looks for two pieces of text"
+            targets: [picture]
+          - id: literal-first
+            phrase: "Both pieces are there"
+            targets: [picture]
+          - id: review-first
+            phrase: "A reviewer also accepts this deadline"
+            targets: [picture]
+      - say: "Now move the deadline. Books are due after Friday. Will the checker accept that answer?"
+        hold: 2.1
+        visual_cues:
+          - id: later-answer
+            phrase: "Books are due after Friday"
+            targets: [picture]
+          - id: later-ask
+            phrase: "Will the checker accept that answer"
+            targets: [picture]
+      - say: "It passes. Both search terms survived. The word after lets the borrower return the book too late. The reviewer rejects it. That's a false positive."
+        hold: 0.75
+        visual_cues:
+          - id: later-literal
+            phrase: "It passes"
+            targets: [picture]
+            caption_boundary: true
+          - id: later-meaning
+            phrase: "The reviewer rejects it"
+            targets: [picture]
+      - say: "Try an abbreviation. The answer still says to return the books by Friday. The weekday is written with just three letters, F, R, I. The reviewer accepts the abbreviation. What will the same checker do?"
+        hold: 2
+        visual_cues:
+          - id: short-answer
+            phrase: "Try an abbreviation"
+            targets: [picture]
+          - id: short-meaning
+            phrase: "The reviewer accepts the abbreviation"
+            targets: [picture]
+          - id: short-ask
+            phrase: "What will the same checker do"
+            targets: [picture]
+      - say: "It fails. The letters needed for Friday end too soon. That's a false negative. Use exact checks for fields with exact requirements. For meaning, run the frozen checker on independently reviewed answers and read the disagreements."
+        hold: 0.85
+        visual_cues:
+          - id: short-literal
+            phrase: "It fails"
+            targets: [picture]
+            caption_boundary: true
+          - id: compare-probes
+            phrase: "read the disagreements"
+            targets: [picture]
+  - id: rag-stage
+    title: Locate the first missing policy fact
+    visual: Carry one source clause through retrieved context and generated answer. Remove it before assembly, restore it, then omit it only from the response; retain each actual first-failure label.
+    beats:
+      - say: Follow the commander-approval fact through the actual request. First inspect the final context sent to the model, after permissions, ranking and token-budget selection. If that clause is absent there, the response never received the required evidence. A relevant document retrieved earlier but dropped during assembly does not count as evidence the model saw.
+        hold: 0.7
+        visual_cues:
+          - id: rag-stage-phase-0
+            phrase: Follow the commander-approval fact through the actual request
+            targets:
+              - rag-stage-mechanism
+            color: cyan
+            linger: 0.55
+          - id: ba-rag-stage-drop
+            phrase: clause is absent there
+            targets:
+              - ba-rag-stage-drop
+            color: cyan
+            linger: 0.4
+      - say: "Keep the context complete and change only the answer: it mentions the freeze but substitutes an on-call engineer for commander approval. Now the first observed failure is generation or instruction following. The article’s literal classifier reports bad retrieval, bad generation or pass by checking required phrases in that order. It inherits the same negation and paraphrase limits as its checker."
+        hold: 0.7
+        visual_cues:
+          - id: rag-stage-phase-1
+            phrase: "Keep the context complete and change only the answer: it mentions the freeze but substitutes an on-call engineer for commander approval"
+            targets:
+              - rag-stage-mechanism
+            color: cyan
+            linger: 0.55
+          - id: ba-rag-stage-complete
+            phrase: Keep the context complete
+            targets:
+              - ba-rag-stage-complete
+            color: cyan
+            linger: 0.4
+          - id: ba-rag-stage-engineer
+            phrase: substitutes an on-call engineer
+            targets:
+              - ba-rag-stage-engineer
+            color: cyan
+            linger: 0.4
+          - id: generation-failure
+            phrase: Now the first observed failure is generation or instruction following
+            targets:
+              - picture
+      - say: An exact citation can identify a source while an attached claim contradicts it. Exercise correct answer with correct page, correct answer with wrong page, and a negated answer with correct page. Source identity and semantic entailment are separate checks. Preserve context, answer and source versions so a repair targets the observed boundary and then repeats the complete regression path.
+        hold: 0.7
+        visual_cues:
+          - id: rag-stage-phase-2
+            phrase: An exact citation can identify a source while an attached claim contradicts it
+            targets:
+              - rag-stage-mechanism
+            color: cyan
+            linger: 0.55
+          - id: ba-rag-stage-citation
+            phrase: Source identity and semantic entailment
+            targets:
+              - ba-rag-stage-citation
+            color: cyan
+            linger: 0.4
+  - id: rag-metrics
+    title: Measure what arrived and what was said
+    visual: Build ranked relevance flags, reference-fact coverage and generated-claim support from one retained policy packet. Construct their different denominators and leave an omitted answer fact visible.
+    beats:
+      - say: Retrieval precision and recall answer different questions. In a supplied ranked list with relevance flags one, zero, one, precision at the first relevant rank is one, and at the third is two thirds. Averaging those precisions gives five sixths, about point eight three three. That score rewards useful context appearing early. To find a fact missing from every chunk, look at recall.
+        hold: 0.7
+        visual_cues:
+          - id: rag-metrics-phase-0
+            phrase: Retrieval precision and recall answer different questions
+            targets:
+              - rag-metrics-mechanism
+            color: cyan
+            linger: 0.55
+          - id: precision-first
+            phrase: precision at the first relevant rank is one
+            targets:
+              - rag-metrics-mechanism
+            color: yellow
+            linger: 0.45
+          - id: precision-third
+            phrase: at the third is two thirds
+            targets:
+              - rag-metrics-mechanism
+            color: yellow
+            linger: 0.45
+          - id: precision-average
+            phrase: five sixths, about point eight three three
+            targets:
+              - rag-metrics-mechanism
+            color: yellow
+            linger: 0.45
+          - id: ba-rag-metrics-rank1
+            phrase: precision at the first relevant rank is one
+            targets:
+              - ba-rag-metrics-rank1
+            color: cyan
+            linger: 0.4
+          - id: ba-rag-metrics-rank3
+            phrase: at the third is two thirds
+            targets:
+              - ba-rag-metrics-rank3
+            color: cyan
+            linger: 0.4
+          - id: ba-rag-metrics-average
+            phrase: five sixths
+            targets:
+              - ba-rag-metrics-average
+            color: cyan
+            linger: 0.4
+      - say: For reference-based context recall, divide covered reference facts by required reference facts. Suppose the context contains two of three required facts. Recall is two thirds. If the response states only those two supported facts, its faithfulness is two supported claims divided by two claims, or one. The response is still incomplete. A supported claim can also repeat an outdated source.
+        hold: 0.7
+        visual_cues:
+          - id: rag-metrics-phase-1
+            phrase: For reference-based context recall, divide covered reference facts by required reference facts
+            targets:
+              - rag-metrics-mechanism
+            color: cyan
+            linger: 0.55
+          - id: context-recall
+            phrase: Recall is two thirds
+            targets:
+              - rag-metrics-mechanism
+            color: yellow
+            linger: 0.45
+          - id: faithfulness-one
+            phrase: or one
+            targets:
+              - rag-metrics-mechanism
+            color: yellow
+            linger: 0.45
+          - id: ba-rag-metrics-recall
+            phrase: Recall is two thirds
+            targets:
+              - ba-rag-metrics-recall
+            color: cyan
+            linger: 0.4
+          - id: ba-rag-metrics-faithful
+            phrase: or one
+            targets:
+              - ba-rag-metrics-faithful
+            color: cyan
+            linger: 0.4
+          - id: two-claims
+            phrase: If the response states only those two supported facts
+            targets:
+              - picture
+      - say: "Ragas can also score how closely an answer addresses the question. It generates questions from the answer and compares their embeddings with the original question, averaging cosine similarities. An answer about deployments can stay on topic while leaving out who approves the change. Use independent reviewer labels to check how well the model-based scores capture those distinctions."
+        hold: 0.7
+        visual_cues:
+          - id: rag-metrics-phase-2
+            phrase: "It generates questions from the answer"
+            targets:
+              - rag-metrics-mechanism
+            color: cyan
+            linger: 0.55
+          - id: ba-rag-metrics-relevance
+            phrase: averaging cosine similarities
+            targets:
+              - ba-rag-metrics-relevance
+            color: cyan
+            linger: 0.4
+  - id: knowledge-contract
+    title: Keep the task and parser attached to the score
+    visual: The same candidate choices pass through choice-probability and generated-letter scoring contracts. Construct four versus ten uniform-guess branches, then retain GPQA subset ancestry and a private HELM scenario.
+    beats:
+      - say: Public benchmarks help shortlist capabilities. MMLU covers fifty-seven subjects with four choices per question. One choice is correct, so a uniform guess has a one-in-four chance. Over many guesses the expected fraction correct is one fourth. Common evaluations use five demonstrations and choice-token probabilities; generated-answer parsing is another protocol. Changing that path changes what a score measures, even when both results are percentages.
+        hold: 0.7
+        visual_cues:
+          - id: knowledge-contract-phase-0
+            phrase: Public benchmarks help shortlist capabilities
+            targets:
+              - knowledge-contract-mechanism
+            color: cyan
+            linger: 0.55
+          - id: mmlu-guess
+            phrase: one fourth
+            targets:
+              - knowledge-contract-mechanism
+            color: yellow
+            linger: 0.45
+          - id: ba-knowledge-contract-four
+            phrase: four choices per question
+            targets:
+              - ba-knowledge-contract-four
+            color: cyan
+            linger: 0.4
+          - id: ba-knowledge-contract-quarter
+            phrase: one fourth
+            targets:
+              - ba-knowledge-contract-quarter
+            color: cyan
+            linger: 0.4
+      - say: "MMLU-Pro adds reviewed, reasoning-focused questions with up to ten choices. Exactly ten choices give a one-tenth guessing expectation. Its reported chain-of-thought advantage belongs to the tested models and protocol. GPQA instead uses expert biology, physics and chemistry: Extended has five hundred forty-six questions, main four hundred forty-eight, and Diamond one hundred ninety-eight. Validator-based filtering changes the subsets, so name the actual split."
+        hold: 0.7
+        visual_cues:
+          - id: knowledge-contract-phase-1
+            phrase: MMLU-Pro adds reviewed, reasoning-focused questions with up to ten choices
+            targets:
+              - knowledge-contract-mechanism
+            color: cyan
+            linger: 0.55
+          - id: pro-guess
+            phrase: a one-tenth guessing expectation
+            targets:
+              - knowledge-contract-mechanism
+            color: yellow
+            linger: 0.45
+          - id: ba-knowledge-contract-ten
+            phrase: up to ten choices
+            targets:
+              - ba-knowledge-contract-ten
+            color: cyan
+            linger: 0.4
+          - id: ba-knowledge-contract-gpqa
+            phrase: Extended has five hundred forty-six questions
+            targets:
+              - ba-knowledge-contract-gpqa
+            color: cyan
+            linger: 0.4
+      - say: The original GPQA study’s non-expert validators scored about thirty-four percent on Extended with internet access in that study. HELM evaluates several dimensions, including accuracy, calibration, robustness, fairness and bias. The framework accepts custom scenarios. To measure compliance with your own policy, give it cases from your application.
+        hold: 0.7
+        visual_cues:
+          - id: knowledge-contract-phase-2
+            phrase: The original GPQA study’s non-expert validators scored about thirty-four percent on Extended with internet access in that study
+            targets:
+              - knowledge-contract-mechanism
+            color: cyan
+            linger: 0.55
+          - id: ba-knowledge-contract-human
+            phrase: thirty-four percent
+            targets:
+              - ba-knowledge-contract-human
+            color: cyan
+            linger: 0.4
+          - id: ba-knowledge-contract-custom
+            phrase: accepts custom scenarios
+            targets:
+              - ba-knowledge-contract-custom
+            color: cyan
+            linger: 0.4
+  - id: math-frontier
+    title: An answer parser and a dataset version change the experiment
+    visual: Extract a numeric answer under two declared parsers, preserve a symbolic derivation separately, then construct a visible version transition and a small authored colored-grid rule.
+    beats:
+      - say: GSM8K contains about eight and a half thousand grade-school word problems, typically two to eight arithmetic steps. Its reference solutions mark the final number after four hash characters; a particular harness decides whether model outputs need that delimiter. MATH has twelve thousand five hundred competition problems with worked solutions. Extracted final-answer correctness and a valid derivation are different contracts; record parser and tool access.
+        hold: 0.7
+        visual_cues:
+          - id: math-frontier-phase-0
+            phrase: GSM8K contains about eight and a half thousand grade-school word problems, typically two to eight arithmetic steps
+            targets:
+              - math-frontier-mechanism
+            color: cyan
+            linger: 0.55
+          - id: ba-math-frontier-parser
+            phrase: a particular harness decides
+            targets:
+              - ba-math-frontier-parser
+            color: cyan
+            linger: 0.4
+          - id: ba-math-frontier-proof
+            phrase: correctness and a valid derivation
+            targets:
+              - ba-math-frontier-proof
+            color: cyan
+            linger: 0.4
+      - say: Harder suites also need exact versions. Humanity’s Last Exam finalized its original twenty-five-hundred-question public set in April twenty-twenty-five and retains a private holdout. Its site lists Rolling in October twenty-twenty-five and Diamond in September twenty-twenty-six. FrontierMath spans advanced-undergraduate through research-level tiers. Its Tiers One through Four page reports a June twelfth twenty-twenty-six version-two release addressing errors in forty-two percent of problems. A comparison across that revision needs both models scored on the same version.
+        hold: 0.7
+        visual_cues:
+          - id: math-frontier-phase-1
+            phrase: Harder suites also need exact versions
+            targets:
+              - math-frontier-mechanism
+            color: cyan
+            linger: 0.55
+          - id: ba-math-frontier-hle
+            phrase: April twenty-twenty-five
+            targets:
+              - ba-math-frontier-hle
+            color: cyan
+            linger: 0.4
+          - id: ba-math-frontier-versions
+            phrase: forty-two percent
+            targets:
+              - ba-math-frontier-versions
+            color: cyan
+            linger: 0.4
+      - say: ARC-AGI-two asks a system to infer a rule from example input and output grids, then apply it to a new grid. In our little grid, the blue square extends to the right until it reaches the edge. ARC tasks can require several rules together, with the choice depending on the symbols around a cell. Record which split you used. The public, semi-private and private sets have different exposure histories.
+        hold: 0.7
+        visual_cues:
+          - id: math-frontier-phase-2
+            phrase: ARC-AGI-two asks a system to infer a rule from example input and output grids, then apply it to a new grid
+            targets:
+              - math-frontier-mechanism
+            color: cyan
+            linger: 0.55
+          - id: ba-math-frontier-arc
+            phrase: apply it to a new grid
+            targets:
+              - ba-math-frontier-arc
+            color: cyan
+            linger: 0.4
+  - id: code-contract
+    title: "Which library tests did this patch pass?"
+    visual: "Apply a patch to the loan-period function. Run the selected repair and regression assertions, then try the textbook case that the selected harness omitted."
+    beats:
+      - say: "HumanEval asks for a function that passes tests. It has one hundred sixty-four handwritten Python problems. SWE-bench starts with an issue in a repository and asks for a patch. Its original collection had two thousand two hundred ninety-four issue-based tasks across twelve Python repositories. For either kind of benchmark, ask which tests the scorer actually ran."
+        hold: 0.65
+        visual_cues:
+          - id: harnesses
+            phrase: "SWE-bench starts with an issue in a repository"
+            targets: [picture]
+      - say: "Here is a small library example. The new-release loan period should be seven days. The old function gives it twenty-one. Ordinary books already get the right twenty-one days. Our harness selects those two checks. In a repository repair benchmark, a failing check that the patch must fix is called fail to pass. A working check that must keep passing is called pass to pass."
+        hold: 0.75
+        visual_cues:
+          - id: loan-code
+            phrase: "Here is a small library example"
+            targets: [picture]
+          - id: old-new
+            phrase: "The old function gives it twenty-one"
+            targets: [picture]
+          - id: old-book
+            phrase: "Ordinary books already get the right twenty-one days"
+            targets: [picture]
+      - say: "Apply this patch. It gives new releases seven days and every other item twenty-one. Run the two selected checks. Both pass. Under the selected tests, this issue is resolved."
+        hold: 0.95
+        visual_cues:
+          - id: loan-patch
+            phrase: "Apply this patch"
+            targets: [picture]
+          - id: selected-tests
+            phrase: "Both pass"
+            targets: [picture]
+          - id: harness-resolved
+            phrase: "this issue is resolved"
+            targets: [picture]
+      - say: "Look at the third case. A textbook loan should last twenty-eight days. What does the patched function return for a textbook?"
+        hold: 2.2
+        visual_cues:
+          - id: omitted-test
+            phrase: "A textbook loan should last twenty-eight days"
+            targets: [picture]
+          - id: omitted-ask
+            phrase: "What does the patched function return for a textbook"
+            targets: [picture]
+      - say: "Twenty-one days. Textbooks took their own branch in the old function. The patch removed it. Keep the omitted failure beside the selected result so a reviewer can see what resolved covered. In SWE-bench, record the Docker environment, selected tests and parser. Compare agents with the same prompt loop, tools and attempt budget, or report the differences. Ten attempts can each make several model and tool calls. Retain timeouts, costs and the patch that actually came back."
+        hold: 0.85
+        visual_cues:
+          - id: omitted-fail
+            phrase: "Twenty-one days"
+            targets: [picture]
+            caption_boundary: true
+          - id: record-budget
+            phrase: "Ten attempts can each make several model and tool calls"
+            targets: [picture]
+  - id: benchmark-audit
+    title: Keep the audited subset inside its real denominator
+    visual: Show the five-hundred-task Verified universe with a distinct selected138-task audit subset. Keep the subset percentage inside that boundary, then replace the old Pro recommendation with the dated later audit.
+    beats:
+      - say: "Start with five hundred human-reviewed tasks in SWE-bench Verified. In February twenty-twenty-six, OpenAI examined a selected one-hundred-thirty-eight-task subset that o three did not consistently solve. In that subset, fifty-nine point four percent had material problems with the tests or descriptions. The second bar shows those audited tasks. OpenAI stopped reporting Verified."
+        hold: 0.7
+        visual_cues:
+          - id: benchmark-audit-phase-0
+            phrase: "Start with five hundred human-reviewed tasks"
+            targets:
+              - benchmark-audit-mechanism
+            color: cyan
+            linger: 0.55
+          - id: ba-benchmark-audit-subset
+            phrase: selected one-hundred-thirty-eight-task subset
+            targets:
+              - ba-benchmark-audit-subset
+            color: cyan
+            linger: 0.4
+          - id: ba-benchmark-audit-denominator
+            phrase: "The second bar shows those audited tasks"
+            targets:
+              - ba-benchmark-audit-denominator
+            color: cyan
+            linger: 0.4
+          - id: audit-issues
+            phrase: fifty-nine point four percent
+            targets:
+              - picture
+      - say: The same audit found signs that tested frontier models could reproduce human fixes or verbatim task details for some tasks. A public test may therefore mix engineering ability with exposure. OpenAI initially recommended SWE-bench Pro, then retracted that recommendation in July twenty-twenty-six after auditing its seven hundred thirty-one public tasks and estimating that about thirty percent were broken.
+        hold: 0.7
+        visual_cues:
+          - id: benchmark-audit-phase-1
+            phrase: The same audit found signs that tested frontier models could reproduce human fixes or verbatim task details for some tasks
+            targets:
+              - benchmark-audit-mechanism
+            color: cyan
+            linger: 0.55
+          - id: ba-benchmark-audit-retract
+            phrase: retracted that recommendation
+            targets:
+              - ba-benchmark-audit-retract
+            color: cyan
+            linger: 0.4
+          - id: ba-benchmark-audit-pro
+            phrase: thirty percent were broken
+            targets:
+              - ba-benchmark-audit-pro
+            color: cyan
+            linger: 0.4
+      - say: "For your own benchmark, inspect what the actual verifier accepts, where the tests run, and which cases the system may have seen. Then run the candidate on reviewed private cases through the same path your users take. Keep the answers that failed."
+        hold: 0.7
+        visual_cues:
+          - id: benchmark-audit-phase-2
+            phrase: "For your own benchmark"
+            targets:
+              - benchmark-audit-mechanism
+            color: cyan
+            linger: 0.55
+          - id: ba-benchmark-audit-verifier
+            phrase: actual verifier accepts
+            targets:
+              - ba-benchmark-audit-verifier
+            color: cyan
+            linger: 0.4
+  - id: preference-ratings
+    title: A modeled preference is a different axis from factual accuracy
+    visual: "Move along the fitted rating curve, then count outright wins and half-credit votes on the same four ballots."
+    beats:
+      - say: "MT-Bench uses an LLM judge on fixed multi-turn conversations. In Chatbot Arena, renamed Arena in January twenty-twenty-six, people vote between anonymous answers. The Bradley-Terry model fits a logistic relationship to those votes. On this graph, move right as A gains rating points over B. The curve gives A's fitted preference score. In the exponent, subtract A's rating from B's and divide that difference by four hundred."
+        hold: 0.7
+        visual_cues:
+          - id: preference-ratings-phase-0
+            phrase: MT-Bench uses an LLM judge on fixed multi-turn conversations
+            targets:
+              - preference-ratings-mechanism
+            color: cyan
+            linger: 0.55
+          - id: ba-preference-ratings-logistic
+            phrase: logistic relationship
+            targets:
+              - ba-preference-ratings-logistic
+            color: cyan
+            linger: 0.4
+          - id: ba-preference-ratings-exponent
+            phrase: "divide that difference by four hundred"
+            targets:
+              - ba-preference-ratings-exponent
+            color: cyan
+            linger: 0.4
+      - say: "Equal ratings give one half. Move A four hundred points ahead. The curve climbs to ten elevenths, about ninety-one percent."
+        hold: 0.7
+        visual_cues:
+          - id: preference-ratings-phase-1
+            phrase: Equal ratings give one half
+            targets:
+              - preference-ratings-mechanism
+            color: cyan
+            linger: 0.55
+          - id: rating-equal
+            phrase: Equal ratings give one half
+            targets:
+              - preference-ratings-mechanism
+            color: yellow
+            linger: 0.45
+          - id: rating-gap
+            phrase: about ninety-one percent
+            targets:
+              - preference-ratings-mechanism
+            color: yellow
+            linger: 0.45
+          - id: ba-preference-ratings-equal
+            phrase: Equal ratings give one half
+            targets:
+              - ba-preference-ratings-equal
+            color: cyan
+            linger: 0.4
+          - id: ba-preference-ratings-advantage
+            phrase: "Move A four hundred points ahead"
+            targets:
+              - ba-preference-ratings-advantage
+            color: cyan
+            linger: 0.4
+      - say: "Read four votes. A wins twice, one voter calls a tie, and one rates both answers bad. How much credit does A get?"
+        hold: 2.1
+        caption_starts: ["How much credit does A get"]
+        visual_cues:
+          - id: four-votes
+            phrase: "Read four votes"
+            targets: [picture]
+      - say: "Each outright win earns A one point. Arena splits the credit on a tie or a both-bad vote. Half a point goes to A on each. Count just the outright wins. Two of four votes went to A. Add both half points to A's two wins and divide by four. Three quarters of the available credit went to A. The ratings fit that vote credit across many matchups. Who voted and which prompts they saw affect the fit. A twenty-twenty-five study also found providers testing many private variants and releasing selected winners. Keep the sampling uncertainty with the rating. To check factual accuracy, read the answers against their sources."
+        hold: 0.7
+        caption_starts: ["Half a point goes to A", "Two of four votes went to A", "Three quarters of the available credit", "The ratings fit that vote credit", "A twenty-twenty-five study", "To check factual accuracy"]
+        visual_cues:
+          - id: win-credit
+            phrase: "earns A one point"
+            targets: [picture]
+          - id: ties-half
+            phrase: "Half a point goes to A on each"
+            targets: [picture]
+          - id: strict-share
+            phrase: "Two of four votes went to A"
+            targets: [picture]
+          - id: vote-share
+            phrase: "Three quarters of the available credit went to A"
+            targets: [picture]
+          - id: ba-preference-ratings-variants
+            phrase: "releasing selected winners"
+            targets: [picture]
+  - id: slices
+    title: "Where did the seven extra renewal passes come from?"
+    visual: "Pair each renewal by question ID. Offset B's gains against its ordinary losses, then apply the predefined eight-of-ten renewal requirement."
+    beats:
+      - say: "Back at the library desk, A and B both passed ninety questions. Lay their renewal results on top of the same ten question numbers. On questions ninety-one and ninety-two both assistants pass. On one hundred both miss."
+        hold: 0.7
+        visual_cues:
+          - id: slice-open
+            phrase: "Lay their renewal results"
+            targets: [picture]
+          - id: shared-pass
+            phrase: "both assistants pass"
+            targets: [picture]
+          - id: shared-miss
+            phrase: "On one hundred both miss"
+            targets: [picture]
+      - say: "Slide your eye from ninety-three through ninety-nine. Each of those questions changed from a miss under A to a pass under B. Seven gains on renewals. Where did the overall gain go?"
+        hold: 2
+        visual_cues:
+          - id: switches
+            phrase: "from ninety-three through ninety-nine"
+            targets: [picture]
+          - id: gain
+            phrase: "Seven gains on renewals"
+            targets: [picture]
+          - id: offset-ask
+            phrase: "Where did the overall gain go"
+            targets: [picture]
+      - say: "Look at the ordinary questions. A passed eighty-eight there, and B passed eighty-one. Seven fewer. Put the two groups back together and the net change is zero."
+        hold: 0.8
+        visual_cues:
+          - id: ordinary-loss
+            phrase: "Look at the ordinary questions"
+            targets: [picture]
+          - id: loss-count
+            phrase: "Seven fewer"
+            targets: [picture]
+            caption_boundary: true
+          - id: net-zero
+            phrase: "the net change is zero"
+            targets: [picture]
+            caption_boundary: true
+      - say: "The library set the renewal requirement at eight passes in these ten cases. A has two. B has nine. Only B clears this check. Keep question one hundred in the report. It tells the renewal desk where both assistants still need help."
+        hold: 0.85
+        visual_cues:
+          - id: renewal-floor
+            phrase: "eight passes in these ten cases"
+            targets: [picture]
+          - id: slice-fire
+            phrase: "Only B clears this check"
+            targets: [picture]
+          - id: shared-failure
+            phrase: "Keep question one hundred in the report"
+            targets: [picture]
+  - id: candidates
+    title: "Which program reaches the user?"
+    visual: "Use one triangular entry for each unordered pair of eight programs. Trace two pairs through a lower-index selector, then count its passing rows on the same map."
+    beats:
+      - say: "A coding assistant produced eight programs for one problem. Programs two and six pass the benchmark tests. Suppose we draw two distinct programs from this pool, with every pair equally likely. How often does the pair contain a pass?"
+        hold: 1.4
+        visual_cues:
+          - id: passing-programs
+            phrase: "Programs two and six pass the benchmark tests"
+            targets: [picture]
+          - id: pair-draw
+            phrase: "draw two distinct programs"
+            targets: [picture]
+      - say: "Put the smaller index down the side and the larger one across the top. Each square is one possible pair. One with two gets a square. Two with one would be the very same draw. There are twenty-eight pairs."
+        hold: 0.65
+        visual_cues:
+          - id: pair-map
+            phrase: "Put the smaller index down the side"
+            targets: [picture]
+          - id: first-square
+            phrase: "One with two gets a square"
+            targets: [picture]
+          - id: total-pairs
+            phrase: "There are twenty-eight pairs"
+            targets: [picture]
+      - say: "Count the pairs that miss. They must draw both members from the six failing programs. That gives fifteen pairs. The other thirteen contain a pass. Thirteen out of twenty-eight is the pass-at-two estimate for this problem."
+        hold: 0.65
+        visual_cues:
+          - id: miss-map
+            phrase: "Count the pairs that miss"
+            targets: [picture]
+          - id: miss-count
+            phrase: "That gives fifteen pairs"
+            targets: [picture]
+          - id: covered-map
+            phrase: "The other thirteen contain a pass"
+            targets: [picture]
+            caption_boundary: true
+          - id: availability
+            phrase: "Thirteen out of twenty-eight"
+            targets: [picture]
+      - say: "Now the service has to return one program. It always sends the lower index. Draw one and two. The pair contains program two, which passes. Which program reaches the user?"
+        hold: 2.1
+        visual_cues:
+          - id: selector-rule
+            phrase: "It always sends the lower index"
+            targets: [picture]
+          - id: draw-first
+            phrase: "Draw one and two"
+            targets: [picture]
+          - id: pick-ask
+            phrase: "Which program reaches the user"
+            targets: [picture]
+      - say: "Program one goes out. It fails. The passing program stayed behind. Try two and three instead. Two is still the only passing program in the pair. This time the lower index is two. The user gets a pass."
+        hold: 0.85
+        visual_cues:
+          - id: return-first
+            phrase: "Program one goes out"
+            targets: [picture]
+            caption_boundary: true
+          - id: fail-first
+            phrase: "It fails"
+            targets: [picture]
+          - id: draw-second
+            phrase: "Try two and three instead"
+            targets: [picture]
+          - id: return-second
+            phrase: "the lower index is two"
+            targets: [picture]
+            caption_boundary: true
+          - id: pass-second
+            phrase: "The user gets a pass"
+            targets: [picture]
+      - say: "Apply that selector to the whole map. Only the rows that return two or six can succeed. Eight of the twenty-eight pairs return a pass. The same pool gave us thirteen pairs with a pass available. Record the returned answer, what the tests cover, and the cost of generating both attempts."
+        hold: 0.9
+        visual_cues:
+          - id: selected-map
+            phrase: "Apply that selector to the whole map"
+            targets: [picture]
+          - id: selected-score
+            phrase: "Eight of the twenty-eight pairs return a pass"
+            targets: [picture]
+            caption_boundary: true
+  - id: sample-estimator
+    title: "What happens if we mix samples from different problems?"
+    visual: "Count without replacement inside one problem. Compare the plug-in and subset estimates, then expose the impossible cross-problem pairs in a pooled calculation."
+    beats:
+      - say: "Try the same problem twice. Each attempt independently passes half the time. The four outcomes are equally likely. Only the last pair misses both times. The other three pairs contain a pass. Now let p be the pass probability on each try. One miss has probability one minus p. For all k attempts to miss, multiply that failure probability across the k draws. Subtract the result from one to get the chance of at least one pass."
+        hold: 0.6
+        visual_cues:
+          - id: two-tries
+            phrase: "Try the same problem twice"
+            targets: [picture]
+          - id: both-miss
+            phrase: "Only the last pair misses both times"
+            targets: [picture]
+          - id: three-pass
+            phrase: "The other three pairs contain a pass"
+            targets: [picture]
+          - id: true-rate
+            phrase: "Now let p be the pass probability"
+            targets: [picture]
+          - id: all-fail
+            phrase: "For all k attempts to miss"
+            targets: [failure-power]
+          - id: at-least-one
+            phrase: "Subtract the result from one"
+            targets: [at-least-one-pass]
+      - say: "In a benchmark run, we estimate that chance from the programs we collected. Here twenty of a hundred programs passed. Call the pass count c and the pool size n. Substituting one fifth for p and asking about ten attempts gives about point eight nine two six. Across repeated pools this shortcut is biased low for k greater than one. The all-failure power bends upward, so variation in the observed rate raises its average failure estimate."
+        hold: 0.7
+        visual_cues:
+          - id: observed-pool
+            phrase: "twenty of a hundred programs passed"
+            targets: [picture]
+          - id: plug-estimate
+            phrase: "gives about point eight nine two six"
+            targets: [picture]
+      - say: "Instead, remove each index as you draw it. To miss ten times you must draw a failure from eighty of a hundred, then from seventy-nine of ninety-nine. After nine misses, only seventy-one failures remain among ninety-one programs for the last draw. Subtract the product of all ten failure fractions from one. The result is about point nine zero four nine. In the formula, the top counts ways to draw k failures from the n minus c failing indices. The bottom counts every size k subset. Under our independent sampling model, the resulting estimate is unbiased across fresh pools. With fewer failures than draws, every subset contains a pass. Identical program text can occupy distinct indices. Correlated or adaptive attempts need their own sampling model."
+        hold: 0.7
+        visual_cues:
+          - id: without-replacement
+            phrase: "remove each index as you draw it"
+            targets: [picture]
+          - id: second-draw
+            phrase: "then from seventy-nine of ninety-nine"
+            targets: [remaining-programs]
+          - id: last-draw
+            phrase: "After nine misses"
+            targets: [remaining-programs]
+          - id: subset-estimate
+            phrase: "about point nine zero four nine"
+            targets: [picture]
+            caption_boundary: true
+      - say: "Try two problems. All four programs for X pass. All four for Y fail. A user asks for Y. Could a program written for X count as a success on that request?"
+        hold: 1.9
+        visual_cues:
+          - id: two-problems
+            phrase: "Try two problems"
+            targets: [picture]
+          - id: mix-ask
+            phrase: "Could a program written for X count"
+            targets: [picture]
+      - say: "It belongs to the wrong problem. At two attempts, X always has a pass and Y never does. Average those problem scores and you get one half. Pool all eight and you also count pairs that contain one answer to each problem. Those sixteen extra pairs all look successful. That's how the pooled estimate gets to about point seven eight six."
+        hold: 0.85
+        visual_cues:
+          - id: own-pairs
+            phrase: "X always has a pass and Y never does"
+            targets: [picture]
+          - id: mean-score
+            phrase: "you get one half"
+            targets: [picture]
+            caption_boundary: true
+          - id: pooled-pairs
+            phrase: "one answer to each problem"
+            targets: [picture]
+          - id: bad-pool
+            phrase: "about point seven eight six"
+            targets: [picture]
+            caption_boundary: true
+  - id: judge-controls
+    title: Map every verdict back to answer identity
+    visual: Move the actual concise and friendly answers through both display positions. Retain the literal toy judge votes, map each slot to its original answer, and separately test a supported versus unsupported answer.
+    beats:
+      - say: "Both answers mention commander approval. One says it briefly, the other in a friendlier style. To check an LLM judge, start with reviewed labels, a rubric, and a rule for disagreements. In MT-Bench, changing the order or repeating material affected some judges' scores. The evidence for judges favoring their own answers was inconclusive. JudgeLM also studied the effects of knowledge and formatting."
+        hold: 0.7
+        visual_cues:
+          - id: judge-controls-phase-0
+            phrase: "start with reviewed labels"
+            targets:
+              - judge-controls-mechanism
+            color: cyan
+            linger: 0.55
+          - id: ba-judge-controls-rubric
+            phrase: "Both answers mention commander approval"
+            targets:
+              - ba-judge-controls-rubric
+            color: cyan
+            linger: 0.4
+      - say: "Our judge counts required facts and picks slot A on a tie. With the concise answer first, concise wins. Swap them. Now the friendly answer is in slot A, and friendly wins. Follow the names. The winner changed, so the report records an unresolved pair. If the judge samples its answers, repeat the swap to see how often the winner follows the slot."
+        hold: 0.7
+        visual_cues:
+          - id: judge-controls-phase-1
+            phrase: "Our judge counts required facts"
+            targets:
+              - judge-controls-mechanism
+            color: cyan
+            linger: 0.55
+          - id: judge-first
+            phrase: concise wins
+            targets:
+              - judge-controls-mechanism
+            color: yellow
+            linger: 0.45
+          - id: judge-swapped
+            phrase: friendly wins
+            targets:
+              - judge-controls-mechanism
+            color: yellow
+            linger: 0.45
+          - id: judge-unresolved
+            phrase: records an unresolved pair
+            targets:
+              - judge-controls-mechanism
+            color: yellow
+            linger: 0.45
+          - id: ba-judge-controls-tie
+            phrase: picks slot A
+            targets:
+              - ba-judge-controls-tie
+            color: cyan
+            linger: 0.4
+          - id: ba-judge-controls-swap
+            phrase: Swap them
+            targets:
+              - ba-judge-controls-swap
+            color: cyan
+            linger: 0.4
+          - id: ba-judge-controls-unresolved
+            phrase: unresolved pair
+            targets:
+              - ba-judge-controls-unresolved
+            color: pink
+            linger: 0.4
+      - say: "Now compare the grounded answer with one missing approval. The same named answer wins both orders. Check its words against the policy to see whether it kept the approval rule. Calibrate the judge on independent human labels that include negations and paraphrases. Score instructions in a candidate answer as text. When checking for a length preference, keep the facts fixed so the shorter version still contains the condition it needs."
+        hold: 0.7
+        visual_cues:
+          - id: judge-controls-phase-2
+            phrase: Now compare the grounded answer with one missing approval
+            targets:
+              - judge-controls-mechanism
+            color: cyan
+            linger: 0.55
+          - id: ba-judge-controls-grounded
+            phrase: same named answer wins both orders
+            targets:
+              - ba-judge-controls-grounded
+            color: cyan
+            linger: 0.4
+          - id: ba-judge-controls-truth
+            phrase: "Check its words against the policy"
+            targets:
+              - ba-judge-controls-truth
+            color: cyan
+            linger: 0.4
+  - id: exposure
+    title: Preserve case identity through development
+    visual: Four dated case cards move into regression and potential-holdout lanes according to their recorded development exposure. A later-created case used in tuning follows the regression route.
+    beats:
+      - say: A holdout supplies useful evidence about examples kept outside development. Suppose a team froze its tuning run at the end of March. These four cases have creation dates and an exposure record. Two were used to choose prompts or adjust the evaluator.
+        hold: 0.6
+        visual_cues:
+          - id: exposure-beat-1-focus-1
+            phrase: A holdout supplies useful evidence about examples kept outside development
+            targets:
+              - exposure-simulation-28
+            color: blue
+            linger: 0.6
+          - id: exposure-beat-1-focus-2
+            phrase: Suppose a team froze its tuning run at the end of March
+            targets:
+              - exposure-simulation-28
+            color: blue
+            linger: 0.6
+      - say: Move those exposed cases into regression. They remain useful for catching old mistakes. Notice the April case following the same route as the February case. The team used that April case to adjust the evaluator. Its next job is to catch the same mistake again.
+        hold: 0.7
+        visual_cues:
+          - id: exposure-beat-2-focus-1
+            phrase: "Its next job is to catch the same mistake again"
+            targets:
+              - exposure-simulation-28
+            color: blue
+            linger: 0.6
+          - id: exposure-beat-2-focus-2
+            phrase: Notice the April case following the same route as the February case
+            targets:
+              - exposure-object-case-29
+            color: blue
+            linger: 0.6
+          - id: exposed-move
+            phrase: Move those exposed cases into regression
+            targets:
+              - picture
+      - say: The remaining cases are candidates for a fresh holdout after provenance checks. Keep their questions and answer keys out of the application's retrieval index. The underlying library rules belong in retrieval; the private test fixtures belong in a separate evaluation store.
+        hold: 0.7
+        visual_cues:
+          - id: exposure-beat-3-focus-1
+            phrase: The remaining cases are candidates for a fresh holdout after provenance checks
+            targets:
+              - exposure-simulation-28
+            color: blue
+            linger: 0.6
+  - id: exposure-screen
+    title: A screen reports its own detection boundary
+    visual: Preserve the same private fact through an exact copied phrase, a paraphrase, renamed code and a translated version. A literal13-gram scanner lights only matching spans; canary and date fields remain separate evidence.
+    beats:
+      - say: Training exposure puts test material or solutions into model learning. Development exposure uses holdout results to choose prompts, examples or judges. Optimizing a proxy can improve the intended skill, exploit a shortcut, or both. A rising score alone does not distinguish those outcomes. Once a case guides a choice, preserve it as regression and find genuinely untouched evaluation evidence.
+        hold: 0.7
+        visual_cues:
+          - id: exposure-screen-phase-0
+            phrase: Training exposure puts test material or solutions into model learning
+            targets:
+              - exposure-screen-mechanism
+            color: cyan
+            linger: 0.55
+          - id: ba-exposure-screen-train
+            phrase: model learning
+            targets:
+              - ba-exposure-screen-train
+            color: cyan
+            linger: 0.4
+          - id: ba-exposure-screen-dev
+            phrase: choose prompts, examples or judges
+            targets:
+              - ba-exposure-screen-dev
+            color: cyan
+            linger: 0.4
+          - id: ba-exposure-screen-regression
+            phrase: preserve it as regression
+            targets:
+              - ba-exposure-screen-regression
+            color: cyan
+            linger: 0.4
+      - say: GPT three’s analysis used an approximately thirteen-gram overlap criterion with special handling for short examples. A match can be background text; inspect what overlaps. A non-match can miss paraphrases, renamed variables and translations. BIG-bench asks contributors to include a recognizable canary string so collectors can exclude the material. Collectors must honor it, and copies can lose it. Investigate the case history when either signal turns up.
+        hold: 0.7
+        visual_cues:
+          - id: exposure-screen-phase-1
+            phrase: GPT three’s analysis used an approximately thirteen-gram overlap criterion with special handling for short examples
+            targets:
+              - exposure-screen-mechanism
+            color: cyan
+            linger: 0.55
+          - id: ba-exposure-screen-ngram
+            phrase: thirteen-gram
+            targets:
+              - ba-exposure-screen-ngram
+            color: cyan
+            linger: 0.4
+          - id: ba-exposure-screen-paraphrase
+            phrase: miss paraphrases
+            targets:
+              - ba-exposure-screen-paraphrase
+            color: cyan
+            linger: 0.4
+          - id: ba-exposure-screen-canary
+            phrase: Collectors must honor it
+            targets:
+              - ba-exposure-screen-canary
+            color: cyan
+            linger: 0.4
+      - say: LiveCodeBench dates contest tasks so an evaluation can select items after a known model-checkpoint cutoff. LiveBench refreshes several capability tests and uses objective answers. Record the release, task window, exact checkpoint and tool access. For a dated task, check when model training ended, what went into later post-training, and whether retrieval supplied a published solution.
+        hold: 0.7
+        visual_cues:
+          - id: exposure-screen-phase-2
+            phrase: LiveCodeBench dates contest tasks so an evaluation can select items after a known model-checkpoint cutoff
+            targets:
+              - exposure-screen-mechanism
+            color: cyan
+            linger: 0.55
+          - id: ba-exposure-screen-dated
+            phrase: after a known model-checkpoint cutoff
+            targets:
+              - ba-exposure-screen-dated
+            color: cyan
+            linger: 0.4
+          - id: ba-exposure-screen-cutoff
+            phrase: "check when model training ended"
+            targets:
+              - ba-exposure-screen-cutoff
+            color: cyan
+            linger: 0.4
+  - id: uncertainty
+    title: Ask how easily a small perfect sample can occur
+    visual: A fixed hypothetical eighty-percent success probability generates exact all-pass probabilities for three and thirty independent cases. A shared probability curve changes exponent while the operating point stays fixed.
+    beats:
+      - say: Three successes feel reassuring. To understand their strength, consider a hypothetical system that succeeds on eighty percent of independent cases. Its chance of passing all three is the success probability multiplied by itself three times. That happens more than half the time.
+        hold: 0.65
+        visual_cues:
+          - id: uncertainty-beat-1-focus-1
+            phrase: Its chance of passing all three is the
+            targets:
+              - uncertainty-equation-string-raw-p-text-all-pass-0-8-s-n-35
+            color: yellow
+            linger: 0.6
+          - id: uncertainty-beat-1-focus-2
+            phrase: Three successes feel reassuring
+            targets:
+              - uncertainty-object-point-x-point-y-9-c-yellow-32
+            color: blue
+            linger: 0.6
+          - id: more-than-half
+            phrase: That happens more than half the time
+            targets:
+              - picture
+      - say: Keep the hypothetical success rate fixed and expand to thirty cases. The chance of another perfect sample falls sharply. The two experiments show why sample size changes the evidence carried by a perfect observed score. The actual system's unknown rate still needs an estimation procedure.
+        hold: 0.7
+        visual_cues:
+          - id: uncertainty-beat-2-focus-1
+            phrase: Keep the hypothetical success rate fixed and expand to thirty cases
+            targets:
+              - uncertainty-object-point-x-point-y-9-c-yellow-32
+            color: blue
+            linger: 0.6
+          - id: thirty-probability
+            phrase: The chance of another perfect sample falls sharply
+            targets:
+              - picture
+      - say: The article develops Wilson intervals for that estimation step. Choose the interval and release rule before inspecting results, and check the assumptions behind them. Repeated paraphrases, biased case selection, and an incorrect checker each need their own investigation.
+        hold: 0.7
+        visual_cues:
+          - id: uncertainty-beat-3-focus-1
+            phrase: The article develops Wilson intervals for that estimation step
+            targets:
+              - uncertainty-object-point-x-point-y-9-c-yellow-32
+            color: blue
+            linger: 0.6
+  - id: wilson-construction
+    title: "How much does a perfect sample tell us?"
+    visual: "Test candidate pass rates against three observed passes, locate the Wilson crossing, then compare three intervals on one release scale."
+    beats:
+      - say: "Three cases out of three passed. The usual Wald interval puts the observed rate into its variance formula. At one hundred percent that variance is zero. Both ends land on one hundred percent. Could the data really pin down the pass rate that closely?"
+        hold: 1.65
+        visual_cues:
+          - id: wald-equals
+            phrase: "Both ends land on one hundred percent"
+            targets: [picture]
+            caption_boundary: true
+      - say: "Try a different question. Could these three passes have come from a system with a pass rate of eighty percent? Use that proposed rate to calculate the standard error. The score measures how many such standard errors separate our observed rate from the proposal. At eighty percent the distance is less than one. That's inside the limit of one point nine six."
+        hold: 0.75
+        visual_cues:
+          - id: propose
+            phrase: "a pass rate of eighty percent"
+            targets: [picture]
+          - id: score-eighty
+            phrase: "the distance is less than one"
+            targets: [picture]
+          - id: score-limit
+            phrase: "inside the limit of one point nine six"
+            targets: [picture]
+      - say: "Slide the proposed rate down. The distance grows. At about forty-three point eight percent the curve meets the limit. Lower rates fall outside. The rates we keep form the Wilson interval. Squaring the score inequality gives a quadratic. Its roots give the endpoints. For an all-pass sample the lower root simplifies to n over n plus z squared. Here n is three. When some cases fail, use the full lower root. It takes the observed fraction and sample size, with the same z we chose at the start."
+        hold: 0.8
+        visual_cues:
+          - id: slide-rate
+            phrase: "Slide the proposed rate down"
+            targets: [picture]
+          - id: crossing
+            phrase: "forty-three point eight percent"
+            targets: [picture]
+            caption_boundary: true
+          - id: accepted
+            phrase: "The rates we keep form the Wilson interval"
+            targets: [picture]
+          - id: quadratic
+            phrase: "Its roots give the endpoints"
+            targets: [picture]
+          - id: all-pass-formula
+            phrase: "Here n is three"
+            targets: [picture]
+          - id: general-root
+            phrase: "use the full lower root"
+            targets: [picture]
+      - say: "Suppose a release rule requires the lower end to reach ninety-five percent. The next run passed forty-nine of fifty. A larger run passed nine hundred ninety of a thousand. Which lower end will clear the line?"
+        hold: 2
+        visual_cues:
+          - id: compare-runs
+            phrase: "Suppose a release rule"
+            targets: [picture]
+          - id: floor-ask
+            phrase: "Which lower end will clear the line"
+            targets: [picture]
+      - say: "Forty-nine out of fifty gives about eighty-nine point five percent at the lower end. The larger run reaches ninety-eight point two percent. Only the larger run clears this floor. These are two-sided intervals with nominal ninety-five percent coverage over repeated samples. A one-sided ninety-five percent bound uses a different z, about one point six four five. Choose the procedure in advance. Biased cases and correlated repeats still need investigation."
+        hold: 0.9
+        visual_cues:
+          - id: bound-fifty
+            phrase: "eighty-nine point five percent at the lower end"
+            targets: [picture]
+            caption_boundary: true
+          - id: bound-thousand
+            phrase: "reaches ninety-eight point two percent"
+            targets: [picture]
+            caption_boundary: true
+          - id: interval-scope
+            phrase: "A one-sided ninety-five percent bound"
+            targets: [picture]
+  - id: paired-diagnosis
+    title: "Which disagreements count in a paired comparison?"
+    visual: "Sort library case IDs by the two assistants' outcomes. Use a new sample to count the two tails for a paired test, then try a smaller sample with no regressions."
+    beats:
+      - say: "Put the two library answers to question ninety-three side by side. A missed it and B passed. That makes one fix. Sort all hundred questions the same way. Questions both systems pass or both fail stay in the report. They contribute nothing to the change in pass rate."
+        hold: 0.65
+        visual_cues:
+          - id: one-fix
+            phrase: "question ninety-three side by side"
+            targets: [picture]
+          - id: sort-pairs
+            phrase: "Sort all hundred questions"
+            targets: [picture]
+          - id: shared-cases
+            phrase: "They contribute nothing to the change"
+            targets: [picture]
+      - say: "Seven questions improved and seven broke. That's how these two totals tie. For an exact paired test, count just the disagreements and keep their directions. Assume independent case pairs sampled from one target population under a fixed protocol. If the marginal pass rates are equal, a disagreement favors either system with probability one half. Conditional on how many disagreed, the number of fixes then follows a fair-coin binomial distribution. This is the exact McNemar test."
+        hold: 0.65
+        visual_cues:
+          - id: library-tie
+            phrase: "Seven questions improved and seven broke"
+            targets: [picture]
+          - id: paired-null
+            phrase: "count just the disagreements"
+            targets: [picture]
+          - id: coin-null
+            phrase: "a disagreement favors either system with probability one half"
+            targets: [picture]
+      - say: "Take a different sample with nine fixes and one break. The horizontal axis counts fixes among those ten disagreements. To be at least this lopsided in either direction, the ten coin flips must give zero or one fix, or nine or ten. Each tail has one extreme sequence and ten with a single flip the other way. That makes eleven of the thousand twenty-four equally likely sequences. Both tails together give a p-value of about point zero two one five."
+        hold: 0.8
+        visual_cues:
+          - id: new-ten
+            phrase: "a different sample with nine fixes and one break"
+            targets: [picture]
+          - id: two-tails
+            phrase: "zero or one fix, or nine or ten"
+            targets: [picture]
+          - id: tail-count
+            phrase: "eleven of the thousand twenty-four"
+            targets: [picture]
+          - id: nine-one-result
+            phrase: "about point zero two one five"
+            targets: [picture]
+            caption_boundary: true
+      - say: "For three fixes and one break there are only four disagreements. Each tail now contains five of sixteen sequences, so the two-sided p-value is point six two five. A three-to-one split is common with so few cases. Try five fixes and zero breaks instead. At a five percent cutoff, is five out of five enough?"
+        hold: 2.2
+        visual_cues:
+          - id: new-four
+            phrase: "only four disagreements"
+            targets: [picture]
+          - id: four-tails
+            phrase: "Each tail now contains five of sixteen sequences"
+            targets: [paired-tails]
+          - id: three-one-result
+            phrase: "the two-sided p-value is point six two five"
+            targets: [picture]
+            caption_boundary: true
+          - id: new-five
+            phrase: "Try five fixes and zero breaks instead"
+            targets: [picture]
+          - id: five-ask
+            phrase: "is five out of five enough"
+            targets: [picture]
+      - say: "All fixes is one sequence. All breaks is another. Two out of thirty-two gives point zero six two five. It misses the cutoff. In general, double the smaller binomial tail and cap the result at one. A small p-value measures evidence against equal pass rates under these assumptions. The importance of the change depends on what broke."
+        hold: 0.7
+        visual_cues:
+          - id: five-tails
+            phrase: "All breaks is another"
+            targets: [picture]
+          - id: five-result
+            phrase: "gives point zero six two five"
+            targets: [picture]
+            caption_boundary: true
+      - say: "Back at the library, the seven broken questions are eighty-two through eighty-eight. Read those answers before deciding what the renewal gains are worth. Keep critical gates separate. If cases cluster or come from fixed strata, check the sampling model. For a variable hosted model, declare how repeated answers become a pass or a fail for each case and retain the repeats."
+        hold: 0.75
+        visual_cues:
+          - id: broken-file
+            phrase: "the seven broken questions are eighty-two through eighty-eight"
+            targets: [picture]
+  - id: gates
+    title: Check quality and operational limits together
+    visual: Three separate release candidates enter a quality-versus-latency plot. The quality boundary appears, then the latency boundary, while cost and schema checks determine the final eligibility labels.
+    beats:
+      - say: Consider three separate release candidates with the supplied measurements shown here. Begin with the quality requirement. The fast candidate falls below it. Balanced and specialist clear this point-estimate check, so we continue with their operational measurements.
+        hold: 0.65
+        visual_cues:
+          - id: gates-beat-1-focus-1
+            phrase: Balanced and specialist clear this point-estimate check
+            targets:
+              - gates-simulation-39
+            color: blue
+            linger: 0.6
+          - id: gates-beat-1-focus-2
+            phrase: Consider three separate release candidates with the supplied measurements shown here
+            targets:
+              - gates-object-point-x-point-y-11-color-40
+            color: blue
+            linger: 0.6
+          - id: quality-boundary
+            phrase: Begin with the quality requirement
+            targets:
+              - picture
+      - say: Add the interactive latency limit. Specialist lies above it, while balanced stays inside the permitted region. Every point keeps its identity as the boundaries appear. A different workflow could justify different limits and would need a fresh evaluation of its own.
+        hold: 0.7
+        visual_cues:
+          - id: gates-beat-2-focus-1
+            phrase: Specialist lies above it
+            targets:
+              - gates-simulation-39
+            color: blue
+            linger: 0.6
+          - id: gates-beat-2-focus-2
+            phrase: Add the interactive latency limit
+            targets:
+              - gates-object-point-x-point-y-11-color-40
+            color: blue
+            linger: 0.6
+      - say: Finally inspect schema validity and cost. Balanced clears all four supplied checks. This is an eligibility result for the displayed measurements. A release report must still include critical categories, sampling uncertainty, and evidence from the actual request path.
+        hold: 0.75
+        visual_cues:
+          - id: gates-beat-3-focus-1
+            phrase: Balanced clears all four supplied checks
+            targets:
+              - gates-simulation-39
+            color: blue
+            linger: 0.6
+          - id: gates-beat-3-focus-2
+            phrase: Finally inspect schema validity and cost
+            targets:
+              - gates-object-point-x-point-y-11-color-40
+            color: blue
+            linger: 0.6
+          - id: ba-gates-cost
+            phrase: inspect schema validity and cost
+            targets:
+              - ba-gates-cost
+            color: cyan
+            linger: 0.4
+  - id: finite-report
+    title: Validate the evidence before applying the release rule
+    visual: Decode the exact candidate metric tuple. Send Boolean,NaN,infinite,missing and out-of-range values through the actual strict reference validator, then apply the separate quality/schema/latency/cost gates only to a valid tuple.
+    beats:
+      - say: A gate cannot interpret missing or invalid evidence as a good measurement. The reference validator requires actual integer or float metric values, rejects Booleans, checks finiteness and valid rate ranges, and rejects negative latency or cost. It also catches integer telemetry too large for its floating-point validation. Check the domain before reading a point estimate against a threshold.
+        hold: 0.7
+        visual_cues:
+          - id: finite-report-phase-0
+            phrase: A gate cannot interpret missing or invalid evidence as a good measurement
+            targets:
+              - finite-report-mechanism
+            color: cyan
+            linger: 0.55
+          - id: ba-finite-report-typed
+            phrase: rejects Booleans
+            targets:
+              - ba-finite-report-typed
+            color: cyan
+            linger: 0.4
+          - id: ba-finite-report-domain
+            phrase: negative latency or cost
+            targets:
+              - ba-finite-report-domain
+            color: cyan
+            linger: 0.4
+      - say: Ordered comparisons such as NaN less than a quality floor and NaN greater than a latency ceiling are both false. A naive reject-if-bad rule can therefore admit a report with neither measurement. The reference validator rejects that invalid record. The finiteness check catches NaN. The type and range checks catch different errors, such as a rate above one.
+        hold: 0.7
+        visual_cues:
+          - id: finite-report-phase-1
+            phrase: Ordered comparisons such as NaN less than a quality floor and NaN greater than a latency ceiling are both false
+            targets:
+              - finite-report-mechanism
+            color: cyan
+            linger: 0.55
+          - id: invalid-nan
+            phrase: rejects that invalid record
+            targets:
+              - finite-report-mechanism
+            color: yellow
+            linger: 0.45
+          - id: ba-finite-report-nan
+            phrase: both false
+            targets:
+              - ba-finite-report-nan
+            color: cyan
+            linger: 0.4
+          - id: ba-finite-report-reject
+            phrase: rejects that invalid record
+            targets:
+              - ba-finite-report-reject
+            color: pink
+            linger: 0.4
+          - id: finite-admits
+            phrase: A naive reject-if-bad rule can therefore admit a report with neither measurement
+            targets:
+              - picture
+      - say: "Valid metrics still face separate gates. Balanced meets the quality, schema, latency and cost limits on this route. Look at Specialist. Its quality score is one, but eighteen hundred milliseconds is twice the latency limit. A slower route would need its own evaluation. Keep the measured telemetry with the decision so a reviewer can trace each number back to the run."
+        hold: 0.7
+        visual_cues:
+          - id: finite-report-phase-2
+            phrase: Valid metrics still face separate gates
+            targets:
+              - finite-report-mechanism
+            color: cyan
+            linger: 0.55
+          - id: specialist-record
+            phrase: "Look at Specialist"
+            targets: [picture]
+          - id: ba-finite-report-scope
+            phrase: "Keep the measured telemetry with the decision"
+            targets:
+              - ba-finite-report-scope
+            color: cyan
+            linger: 0.4
+  - id: reproducible-package
+    title: Bind the score to the evidence that produced it
+    visual: Build one retained record from exact question ID,final context,source versions,answer,scorer and per-case outcomes. Keep declared hosted-model identity beside actual run date and repeat evidence, then expose the confounded report.
+    beats:
+      - say: Preserve dataset version and case IDs, the final input context and policy versions, model identity, prompt and decoding settings, tools, output schema and scorer version. Keep actual outputs, failed cases, timing and cost boundaries. Record all attempt work, including timeouts. A scalar score or a matching manifest cannot recreate missing evidence or establish that a run really occurred.
+        hold: 0.7
+        visual_cues:
+          - id: reproducible-package-phase-0
+            phrase: Preserve dataset version and case IDs, the final input context and policy versions, model identity, prompt and decoding settings, tools, output schema and scorer version
+            targets:
+              - reproducible-package-mechanism
+            color: cyan
+            linger: 0.55
+          - id: ba-reproducible-package-outputs
+            phrase: actual outputs
+            targets:
+              - ba-reproducible-package-outputs
+            color: cyan
+            linger: 0.4
+          - id: ba-reproducible-package-missing
+            phrase: cannot recreate missing evidence
+            targets:
+              - ba-reproducible-package-missing
+            color: cyan
+            linger: 0.4
+      - say: For hosted models, pin a dated snapshot when available and record the run date. Outputs can still vary under deterministic-looking settings, so repeat under a fixed protocol and rerun the baseline contemporaneously. The article’s suspicious report changes model and top-three retrieval to top-five, tunes its judge on holdout cases and accepts negated approval. Freeze the full system and validated evaluator, move exposed cases to regression and repeat an untouched matched comparison.
+        hold: 0.7
+        visual_cues:
+          - id: reproducible-package-phase-1
+            phrase: For hosted models, pin a dated snapshot when available and record the run date
+            targets:
+              - reproducible-package-mechanism
+            color: cyan
+            linger: 0.55
+          - id: ba-reproducible-package-repeat
+            phrase: repeat under a fixed protocol
+            targets:
+              - ba-reproducible-package-repeat
+            color: cyan
+            linger: 0.4
+          - id: ba-reproducible-package-changed
+            phrase: top-five
+            targets:
+              - ba-reproducible-package-changed
+            color: cyan
+            linger: 0.4
+          - id: ba-reproducible-package-repair
+            phrase: repeat an untouched matched comparison
+            targets:
+              - ba-reproducible-package-repair
+            color: cyan
+            linger: 0.4
+          - id: judge-exposed
+            phrase: tunes its judge on holdout cases
+            targets:
+              - picture
+          - id: freeze-repair
+            phrase: Freeze the full system and validated evaluator
+            targets:
+              - picture
+  - id: synthesis
+    title: "What would you write beside ninety percent?"
+    visual: "Complete the library handoff from a paired case, its scoring challenge and its stated slice rule. Carry the evidence that the next reviewer needs to repeat the run."
+    beats:
+      - say: "Imagine you inherit the library report. The first line says that B passed ninety percent. A colleague asks whether B can handle renewals. What would you put beside that number?"
+        hold: 1.7
+        visual_cues:
+          - id: summary-ask
+            phrase: "What would you put beside that number"
+            targets: [picture]
+      - say: "Start with the ten renewal questions. B passed nine. The library required eight. Keep the missed question, one hundred, with the answer B gave. A reviewer can read it and check whether the scorer marked it correctly."
+        hold: 0.8
+        visual_cues:
+          - id: summary-count
+            phrase: "B passed nine"
+            targets: [picture]
+          - id: summary-floor
+            phrase: "The library required eight"
+            targets: [picture]
+          - id: summary-miss
+            phrase: "Keep the missed question"
+            targets: [picture]
+      - say: "That settles the point estimate on these ten questions. To repeat the comparison, the next reviewer also needs the input, the actual output, the frozen scoring rule, and the cost of the attempts. A case used to improve the scorer goes into regression. Let's take that method to a different desk with a different release rule."
+        hold: 0.75
+        visual_cues:
+          - id: summary-scope
+            phrase: "point estimate on these ten questions"
+            targets: [picture]
+          - id: summary-record
+            phrase: "the input, the actual output"
+            targets: [picture]
+          - id: summary-regression
+            phrase: "goes into regression"
+            targets: [picture]
+  - id: fresh-report
+    title: "Would you sign the archive release?"
+    visual: "Open a fresh paired archive report, compare the permission interval with its fixed floor, and inspect the retained context and returned answer for F031."
+    beats:
+      - say: "The archive has its own release rule. Every permission decision needs staff approval under this example policy. Before the run, the team set a floor for the permission pass rate. The lower end of a two-sided ninety-five percent Wilson interval must reach eighty-five percent."
+        hold: 0.65
+        visual_cues:
+          - id: archive-floor
+            phrase: "must reach eighty-five percent"
+            targets: [picture]
+      - say: "Both systems answered the same two hundred new cases under a pinned protocol. Assume the pairs were sampled independently from one target population. Count the changes. Ten cases went from fail to pass. Two went from pass to fail. That takes the baseline's one hundred eighty passes to one hundred eighty-eight for the candidate."
+        hold: 0.75
+        visual_cues:
+          - id: archive-pairs
+            phrase: "the same two hundred new cases"
+            targets: [picture]
+          - id: fixes
+            phrase: "Ten cases went from fail to pass"
+            targets: [picture]
+          - id: breaks
+            phrase: "Two went from pass to fail"
+            targets: [picture]
+          - id: aggregate
+            phrase: "one hundred eighty-eight for the candidate"
+            targets: [picture]
+      - say: "Under equal marginal pass rates, each of the twelve disagreements is equally likely to point either way. Count zero, one or two breaks, and the matching tail for fixes. The exact two-sided p-value is about point zero three eight six. That's evidence of a difference at the five percent level under these assumptions."
+        hold: 0.7
+        visual_cues:
+          - id: archive-tails
+            phrase: "Count zero, one or two breaks"
+            targets: [picture]
+          - id: archive-p
+            phrase: "about point zero three eight six"
+            targets: [picture]
+            caption_boundary: true
+      - say: "Now open the candidate's ten permission cases. Nine passed. The dot marks ninety percent. The interval runs from about sixty percent to ninety-eight percent. For this gate, would you sign or hold? Point to the end of the interval that decides."
+        hold: 2.5
+        visual_cues:
+          - id: permission-file
+            phrase: "open the candidate's ten permission cases"
+            targets: [picture]
+          - id: permission-rate
+            phrase: "The dot marks ninety percent"
+            targets: [picture]
+          - id: permission-band
+            phrase: "from about sixty percent to ninety-eight percent"
+            targets: [picture]
+          - id: archive-ask
+            phrase: "would you sign or hold"
+            targets: [picture]
+      - say: "Use the lower end. It's fifty-nine point six percent. It falls short. Hold this release. The paired improvement covered all two hundred cases. This rule asks how well the candidate handles permission questions."
+        hold: 0.85
+        visual_cues:
+          - id: lower-end
+            phrase: "fifty-nine point six percent"
+            targets: [picture]
+            caption_boundary: true
+          - id: archive-hold
+            phrase: "Hold this release"
+            targets: [picture]
+            caption_boundary: true
+      - say: "Keep both regressions, F zero thirty-one and F one eighteen. Open the permission miss, F zero thirty-one. Here's the context the model received. Staff approval is required. Its answer says staff approval is optional. Where would you investigate first?"
+        hold: 2.1
+        visual_cues:
+          - id: retain-broken
+            phrase: "Keep both regressions"
+            targets: [picture]
+          - id: open-case
+            phrase: "Open the permission miss"
+            targets: [picture]
+          - id: trace-source
+            phrase: "Staff approval is required"
+            targets: [picture]
+          - id: trace-answer
+            phrase: "staff approval is optional"
+            targets: [picture]
+          - id: trace-ask
+            phrase: "Where would you investigate first"
+            targets: [picture]
+      - say: "The rule reached the model. Inspect how the answer was generated. Check the prompt and run the repaired system end to end on this case. Once it guides that work, keep it as a regression test. For a new release decision, freeze the repair and draw untouched permission cases. Next, we'll look at how chat templates mark roles and which reply tokens contribute to the training loss."
+        hold: 0.9
+        visual_cues:
+          - id: trace-diagnosis
+            phrase: "Inspect how the answer was generated"
+            targets: [picture]
+            caption_boundary: true
+          - id: archive-regression
+            phrase: "keep it as a regression test"
+            targets: [picture]
+          - id: next-holdout
+            phrase: "draw untouched permission cases"
+            targets: [picture]

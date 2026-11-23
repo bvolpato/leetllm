@@ -1,0 +1,598 @@
+[
+  {
+    "id": "c01",
+    "title": "Would you trust this router with the next ticket?",
+    "sourceChapters": [
+      "c01"
+    ],
+    "beats": [
+      {
+        "id": "c01-b01",
+        "say": "One subscription. Two charges. Which queue should get this report? Follow ticket three. P seven sends it to Password resets. Leave a pink cross at that destination. Pull back and score three prompts on the same forty tickets. Which row has the fewest crosses?",
+        "hold": 2
+      },
+      {
+        "id": "c01-b02",
+        "say": "P seven wins with four mistakes. Look at the run count. A thousand prompts competed for that spot. Thirty-six correct routes out of forty was the best score in the sweep. Now the team wants to release the winner using the sheet that chose it.",
+        "hold": 0.7
+      },
+      {
+        "id": "c01-b03",
+        "say": "Ten percent went wrong on these tickets. The release rule asks about future tickets. The team wants a ninety-five percent upper bound below twenty percent wrong routes. Would you sign that release? We will trace what one score measures, what the search changes, and which tickets can settle the decision.",
+        "hold": 1.4
+      }
+    ]
+  },
+  {
+    "id": "c02",
+    "title": "What does four out of forty measure?",
+    "sourceChapters": [
+      "c02"
+    ],
+    "beats": [
+      {
+        "id": "c02-b01",
+        "say": "Read P seven's results a row at a time. A correct route contributes zero loss. A wrong route contributes one. Add the forty losses and divide by forty. Four divided by forty gives ten percent. That's the empirical risk, the mean loss on these particular tickets.",
+        "hold": 0.65
+      },
+      {
+        "id": "c02-b02",
+        "say": "Where would the next ticket come from? Imagine a queue with a hundred equally likely ticket types. P seven misroutes twenty of those types. In this toy queue we know the population risk, the mean loss on a new draw. It's twenty percent.",
+        "hold": 0.65
+      },
+      {
+        "id": "c02-b03",
+        "say": "Subtract the observed ten percent from the population's twenty percent. Those ten percentage points are the generalization gap. A particularly hard sample can put the gap on the other side of zero. On a real queue, the distribution and all its answers are hidden. Let's see what a sample alone can tell us.",
+        "hold": 0.9
+      }
+    ]
+  },
+  {
+    "id": "c03",
+    "title": "Bound the gap for one fixed predictor",
+    "sourceChapters": [
+      "c03"
+    ],
+    "beats": [
+      {
+        "id": "c03-b01",
+        "say": "Suppose our predictor was fixed before these forty examples were collected. Each ticket’s zero-one loss is between zero and one, and tickets are sampled independently from the population. Hoeffding’s inequality bounds the chance that empirical risk differs far from population risk.",
+        "hold": 0.55
+      },
+      {
+        "id": "c03-b02",
+        "say": "At a ninety-five-percent confidence level, the radius for forty observations is about twenty-one and a half percentage points. Adding that to ten percent gives a loose upper bound near thirty-one and a half percent. The wide margin reflects the small sample. We use the two-sided radius throughout this review. If we had specified only an upper tail, the numerator would use the log of one over delta instead of two over delta.",
+        "hold": 0.6
+      },
+      {
+        "id": "c03-b03",
+        "say": "Imagine drawing many fresh batches of forty for the same fixed router. Keep the toy population risk at twenty percent. Each batch puts its dot somewhere new. Build an interval around each dot. Look for the one that misses the fixed risk. Under these assumptions the procedure covers the risk on at least ninety-five percent of repeated samples. These twelve illustrative batches show how coverage works.",
+        "hold": 0.75
+      }
+    ]
+  },
+  {
+    "id": "c04",
+    "title": "Which tickets chose the prompt?",
+    "sourceChapters": [
+      "c04"
+    ],
+    "beats": [
+      {
+        "id": "c04-b01",
+        "say": "Come back to the release review. If the team had picked one prompt before drawing these forty tickets, four failures would put the upper endpoint near thirty-one and a half percent. The pink mark is the release gate. Even this first bound falls short of certifying it.",
+        "hold": 0.7
+      },
+      {
+        "id": "c04-b02",
+        "say": "Now specify ten prompts in advance and choose the one with the fewest errors on these tickets. Keep its four misses fixed. Any of ten estimates could miss its bound. Divide the five percent failure allowance among them.",
+        "hold": 0.3
+      },
+      {
+        "id": "c04-b03",
+        "say": "The upper endpoint moves to about thirty-seven point four percent. All ten bounds now hold together with at least ninety-five percent confidence.",
+        "hold": 0.7
+      },
+      {
+        "id": "c04-b04",
+        "say": "Return to the team's thousand prespecified prompts. Split point zero five into a thousand equal pieces. That's point zero zero zero zero five per prompt. Adding those failure allowances bounds the chance that any estimate misses. That is the union bound.",
+        "hold": 0.3
+      },
+      {
+        "id": "c04-b05",
+        "say": "Prompts may make correlated errors, so duplicates can make this allowance loose. The observed ten percent stays put as the endpoint reaches about forty-six point four percent. Inside the log, multiply two by the pool size, then divide by delta.",
+        "hold": 0.3
+      },
+      {
+        "id": "c04-b06",
+        "say": "Divide that log by twice the ticket count, then take its square root to get the radius.",
+        "hold": 0.75
+      },
+      {
+        "id": "c04-b07",
+        "say": "Where does the optimism come from? Shrink the queue to two equally likely destinations, A and B. One router always chooses A. The other always chooses B. Either misses half the future tickets. Draw two independent tickets. Lay out the four equally likely pairs and set every routing stamp to A.",
+        "hold": 0.3
+      },
+      {
+        "id": "c04-b08",
+        "say": "Let each pair choose a setting. The two mixed pairs tie, so keep A. On two A tickets, keep A. Look at the pair of B tickets. Switch its stamp to B. Its two crosses disappear. Across the four pairs that leaves two misses in eight routes, an average winning sample error of twenty-five percent.",
+        "hold": 0.3
+      },
+      {
+        "id": "c04-b09",
+        "say": "Lock that last stamp at B. A fresh ticket for B goes to the right place. A fresh ticket for A gets a cross. Either stamp still misses fifty percent of the queue. Selecting the lowest sample error favors lucky fluctuations on average. A particular batch can still be hard.",
+        "hold": 0.75
+      },
+      {
+        "id": "c04-b10",
+        "say": "What if an engineer reads a misrouted ticket and writes a new prompt for it? That choice used the data. Counting the saved prompts no longer tells us how many choices the engineer could have made.",
+        "hold": 0.3
+      },
+      {
+        "id": "c04-b11",
+        "say": "We can bound a class fixed in advance that covers those choices, or freeze the finished prompt and collect fresh tickets. A geometric example shows another way to measure the size of a class.",
+        "hold": 0.9
+      }
+    ]
+  },
+  {
+    "id": "c05",
+    "title": "Which labels can a line separate?",
+    "sourceChapters": [
+      "c05"
+    ],
+    "beats": [
+      {
+        "id": "c05-b01",
+        "say": "Allow a straight boundary anywhere in the plane. Blue points go on one side, pink on the other. Here are the eight ways to label the same triangle. Each gets its own line, even when the line has to put all three points on one side.",
+        "hold": 0.3
+      },
+      {
+        "id": "c05-b02",
+        "say": "A class shatters a set when every assignment of labels to that set has a boundary that works. We can move a line in infinitely many ways. These three points see only eight different label patterns.",
+        "hold": 0.7
+      },
+      {
+        "id": "c05-b03",
+        "say": "Try four corners of a square. The signs alternate as you go around it. Can you draw one straight line that puts both plus signs on one side and both minus signs on the other?",
+        "hold": 2
+      },
+      {
+        "id": "c05-b04",
+        "say": "Join the two plus signs. That whole segment would have to lie on the plus side. Now join the two minus signs. Their segment crosses the first one. The crossing point would have to lie on both sides. Swapping the colors leaves the same obstruction. Fourteen of the sixteen square patterns work.",
+        "hold": 0.9
+      },
+      {
+        "id": "c05-b05",
+        "say": "One square only rules out that square. Move the fourth point inside the other three and give it the opposite sign. An affine function positive at all three vertices stays positive inside their triangle.",
+        "hold": 0.3
+      },
+      {
+        "id": "c05-b06",
+        "say": "More generally, Radon's theorem gives every four planar points a split into two groups with intersecting convex hulls. Giving those groups opposite labels defeats a straight boundary. Some triple works and every four-point set fails, so the VC dimension is three.",
+        "hold": 0.3
+      },
+      {
+        "id": "c05-b07",
+        "say": "That's the largest set this class can shatter.",
+        "hold": 0.75
+      },
+      {
+        "id": "c05-b08",
+        "say": "Allowing the line to move off the origin matters. Boundaries through the origin in two dimensions have VC dimension two. A right threshold on one axis has dimension one. Once it labels the smaller input positive, a larger one must also be positive.",
+        "hold": 0.3
+      },
+      {
+        "id": "c05-b09",
+        "say": "What counts is which labelings the class can produce. Counting weights alone doesn't answer that.",
+        "hold": 0.8
+      }
+    ]
+  },
+  {
+    "id": "c06",
+    "title": "How far can two tied routers differ?",
+    "sourceChapters": [
+      "c06"
+    ],
+    "beats": [
+      {
+        "id": "c06-b01",
+        "say": "Suppose the best router available in a pool has a population error of twenty-five percent. Every router's sample error is within four percentage points of its own population error. The team picks a router with the lowest sample error. How far above twenty-five percent could that choice land?",
+        "hold": 2
+      },
+      {
+        "id": "c06-b02",
+        "say": "Start at the blue dot. Suppose the sample makes the best router look four points worse. Its sample error reaches twenty-nine percent. A sample winner can have no more errors than that. Take the extreme case where two routers tie and the team picks the other one.",
+        "hold": 0.8
+      },
+      {
+        "id": "c06-b03",
+        "say": "The same sample can make that second router look four points better than it really is. Follow its risk four points to the right, to thirty-three percent. One allowance took us from population to sample. A second took us back.",
+        "hold": 0.3
+      },
+      {
+        "id": "c06-b04",
+        "say": "Eight points is how far the selected risk can exceed the best risk in the pool. Add those eight points to the starting risk to get an absolute upper bound.",
+        "hold": 0.8
+      },
+      {
+        "id": "c06-b05",
+        "say": "This argument works whenever every estimate is within the stated radius and the search finds a sample minimum. If the optimizer finishes within eta of that minimum, add eta to the excess allowance. In realizable learning a class member can achieve zero risk.",
+        "hold": 0.3
+      },
+      {
+        "id": "c06-b06",
+        "say": "A PAC guarantee sets a tolerance and a confidence level before drawing the sample. In agnostic learning we compare with the best risk the class can achieve. A small excess above a poor router can still leave the winner too risky to release.",
+        "hold": 0.9
+      }
+    ]
+  },
+  {
+    "id": "c07",
+    "title": "Count the patterns a class can make",
+    "sourceChapters": [
+      "c07"
+    ],
+    "beats": [
+      {
+        "id": "c07-b01",
+        "say": "The growth function is the maximum number of label patterns the class can produce on any n inputs. Up to VC dimension, this maximum is two to the n. It need not describe every observed set: repeated identical inputs cannot receive conflicting labels from one deterministic predictor.",
+        "hold": 1
+      },
+      {
+        "id": "c07-b02",
+        "say": "For positive finite VC dimension d and n greater than d, the Sauer-Shelah ceiling adds n choose i for i from zero through d. For dimension three the terms count subsets of sizes zero, one, two, and three. They give an upper bound on the number of patterns.",
+        "hold": 0.3
+      },
+      {
+        "id": "c07-b03",
+        "say": "Try four inputs. One plus four plus six plus four gives fifteen, although planar halfspaces actually allow at most fourteen. Ten inputs give a ceiling of one hundred seventy-six against one thousand twenty-four binary assignments. Fifty give twenty thousand eight hundred seventy-six against over a quadrillion assignments.",
+        "hold": 0.3
+      },
+      {
+        "id": "c07-b04",
+        "say": "The ceiling keeps increasing. For fixed finite dimension its growth is polynomial. Try dimension two on eight inputs. Stop after the pairs. One empty subset, eight singletons, and twenty-eight pairs give thirty-seven. A class can realize fewer patterns than that.",
+        "hold": 1
+      },
+      {
+        "id": "c07-b05",
+        "say": "Why bring another sample into the proof? Switch to right thresholds on a line. Three observed inputs divide the line into four gaps. Two thresholds in one gap agree on all three inputs. They can still disagree on a new point in that gap.",
+        "hold": 0.3
+      },
+      {
+        "id": "c07-b06",
+        "say": "Add three independent ghost inputs. A single threshold now labels both batches at once. Across these six distinct inputs there are seven possible cuts. A symmetrization argument uses that independent batch to control the discrepancy, and bounds the patterns on the combined inputs.",
+        "hold": 0.3
+      },
+      {
+        "id": "c07-b07",
+        "say": "The combined points explain why the growth function enters a VC bound. Counting the four gaps on the first sample alone misses those distinctions.",
+        "hold": 0.85
+      },
+      {
+        "id": "c07-b08",
+        "say": "For a fixed class and independent examples, the displayed rate gives the size of a uniform estimation error up to constants. Inside the square root, capacity and confidence terms are divided by sample size. The hidden constants matter for a numerical release gate.",
+        "hold": 0.3
+      },
+      {
+        "id": "c07-b09",
+        "say": "For agnostic learning, a sufficient sample count scales with the inverse tolerance squared, times dimension and logarithmic factors. Consistent classification with a perfect class member can have a faster rate.",
+        "hold": 0.85
+      }
+    ]
+  },
+  {
+    "id": "c08",
+    "title": "Can one cut follow eight coin flips?",
+    "sourceChapters": [
+      "c08"
+    ],
+    "beats": [
+      {
+        "id": "c08-b01",
+        "say": "Set the real routing labels aside. Keep eight distinct tickets in order of urgency. Give each one an independent fair coin sign. Our rule can make a single cut. Everything to its left gets a minus, and everything to its right gets a plus. Which gap would let the rule match all eight signs?",
+        "hold": 2
+      },
+      {
+        "id": "c08-b02",
+        "say": "Put the cut between four and five. Each prediction now matches its coin. Score a match as plus one and a mismatch as minus one, then average over the eight tickets. Eight matches give a correlation of one. We've fitted this particular piece of noise perfectly.",
+        "hold": 0.65
+      },
+      {
+        "id": "c08-b03",
+        "say": "Keep the tickets in place. Flip only the seventh sign. Look at the last three tickets. Can you move the cut anywhere and still match all eight?",
+        "hold": 2
+      },
+      {
+        "id": "c08-b04",
+        "say": "Slide the cut back to the left edge. Now sweep it across all eight tickets, one gap at a time. Each cross marks a coin that the current cut gets wrong. Stop after seven. Ticket seven now matches, but tickets five and six carry crosses. Move to the last gap and the eighth ticket goes wrong too.",
+        "hold": 0.3
+      },
+      {
+        "id": "c08-b05",
+        "say": "The best cut is back between four and five. Seven agreements and one disagreement give a correlation of three quarters. A lookup table could change its answer at ticket seven alone.",
+        "hold": 0.8
+      },
+      {
+        "id": "c08-b06",
+        "say": "File that row under three quarters. Eight fair coins give two hundred and fifty-six equally likely rows. For every other row, try all nine cuts and keep the best score. Before you total the perfect fits, picture a row the cut could make. How many distinct rows can fit perfectly?",
+        "hold": 2
+      },
+      {
+        "id": "c08-b07",
+        "say": "Nine rows fit perfectly. There is one for each gap, from all plus to all minus. Fill the last column. Now average the best scores across all two hundred and fifty-six rows. That is the empirical Rademacher complexity for right thresholds on these eight inputs. A complexity of one would require every row to fit perfectly.",
+        "hold": 0.85
+      },
+      {
+        "id": "c08-b08",
+        "say": "An always-plus rule averages zero, because each coin sign is fair. Choosing between two constants lets you pick the majority sign each time. That brings the average to about point two seven. A right threshold gets about point four six. A lookup table gets one because it can fit every assignment on these distinct inputs.",
+        "hold": 0.75
+      },
+      {
+        "id": "c08-b09",
+        "say": "To use this for risk, apply the bound to the loss functions. With plus-or-minus-one predictions and labels, zero-one loss is one minus their product, divided by two. In the coin average the constant drops out, and flipping a fair sign by a fixed label preserves its distribution.",
+        "hold": 0.3
+      },
+      {
+        "id": "c08-b10",
+        "say": "Halving the predictor complexity gives loss complexity about point two two eight. For a class fixed before an independent sample and losses bounded between zero and one, the risk bound holds across the whole class with at least ninety-five percent confidence. Add twice that loss complexity and three Hoeffding radii to the sample loss. On eight tickets the confidence term alone is about one point four four.",
+        "hold": 0.3
+      },
+      {
+        "id": "c08-b11",
+        "say": "Error is already bounded by one. For real-valued scores a Lipschitz loss can relate the two complexities. Discontinuous zero-one loss needs a different argument, and margin or norm restrictions need their own assumptions.",
+        "hold": 0.9
+      }
+    ]
+  },
+  {
+    "id": "c09",
+    "title": "Exact training fit leaves test risk open",
+    "sourceChapters": [
+      "c09"
+    ],
+    "beats": [
+      {
+        "id": "c09-b01",
+        "say": "Interpolation means fitting every training target exactly. On the right branch, each training prediction lands on its target. Every training residual is zero, yet the squared prediction error on new inputs changes. Some model families show a drop before the interpolation peak and another drop after it.",
+        "hold": 0.3
+      },
+      {
+        "id": "c09-b02",
+        "say": "Those two drops give double descent its name. The first drop is missing in the specific Gaussian example we will calculate. Its left branch rises steadily. Watch what the right branch approaches.",
+        "hold": 1
+      },
+      {
+        "id": "c09-b03",
+        "say": "Take an asymptotic linear model with independent standard Gaussian design, signal squared norm one, independent mean-zero noise variance one, and minimum Euclidean norm least squares. Gamma is parameters divided by samples, excluding one. Below one, excess squared prediction risk is gamma over one minus gamma.",
+        "hold": 0.3
+      },
+      {
+        "id": "c09-b04",
+        "say": "Above one, it is one minus one over gamma, plus one over gamma minus one. At gamma two, squared bias is one half and variance is one: total one point five.",
+        "hold": 0.3
+      },
+      {
+        "id": "c09-b05",
+        "say": "Predicting a noisy future response adds another one, bringing the mean squared error to two point five.",
+        "hold": 1
+      },
+      {
+        "id": "c09-b06",
+        "say": "In this Gaussian limit the curve shoots up near a ratio of one. Far to the right it comes down toward one. That's the excess risk of predicting zero in this example.",
+        "hold": 0.3
+      },
+      {
+        "id": "c09-b07",
+        "say": "A downward slope by itself tells you very little about how close you are to optimal prediction. Benign overfitting means you can fit noisy observations and still predict nearly optimally. Whether that happens depends on the covariance spectrum, signal, and noise.",
+        "hold": 0.8
+      },
+      {
+        "id": "c09-b08",
+        "say": "What happens in an actual square design? Here are two coefficients and two samples. Start with the identity matrix. Beside it, copy the first column into the second. Which design lets you change the weights without changing either prediction?",
+        "hold": 2.1
+      },
+      {
+        "id": "c09-b09",
+        "say": "The right-hand design has only one independent column. Add one to the first weight and subtract one from the second. The first row still sees their sum and the second still sees zero. The identity matrix on the left has condition number one and a unique solution.",
+        "hold": 0.3
+      },
+      {
+        "id": "c09-b10",
+        "say": "Both designs have two parameters and two samples. One has a unique interpolant for any target. The other can fit only targets in its column space, and any fit leaves a free direction. Inspect the actual design before diagnosing a risk peak.",
+        "hold": 0.85
+      }
+    ]
+  },
+  {
+    "id": "c10",
+    "title": "An update rule chooses an interpolant",
+    "sourceChapters": [
+      "c10"
+    ],
+    "beats": [
+      {
+        "id": "c10-b01",
+        "say": "Take one training input, one and two, with target one. Its exact fits lie on the line where the first weight plus twice the second equals one. Ordinary gradient descent from zero with a suitably small constant step follows the row direction to the closest point. Its weights approach point two and point four.",
+        "hold": 1
+      },
+      {
+        "id": "c10-b02",
+        "say": "Start instead at minus two and one, a null-space vector. Ordinary descent retains that component and reaches minus one point eight and one point four. Change to a diagonal preconditioner of one and four from zero and the solution is one seventeenth and eight seventeenths. All fit exactly but can predict differently on new inputs.",
+        "hold": 1
+      },
+      {
+        "id": "c10-b03",
+        "say": "Put those three weight vectors to work. On the training input, one and two, all three predict one. On the new input, one and zero, what will each predict? You can read it straight from the weights.",
+        "hold": 2
+      },
+      {
+        "id": "c10-b04",
+        "say": "The second weight drops out. The predictions are point two, minus one point eight, and one seventeenth. All three solutions fit the training row. Starting at zero, ordinary gradient descent follows that row's direction to the nearest solution on the line.",
+        "hold": 0.3
+      },
+      {
+        "id": "c10-b05",
+        "say": "The training row cannot see motion along the solution line. Ordinary gradient steps stay perpendicular to it and preserve the starting component along it. Scaling the second update changes the direction of travel. This minimum-norm result has specific assumptions. Adam on a nonlinear network uses different updates on a different loss surface.",
+        "hold": 0.85
+      }
+    ]
+  },
+  {
+    "id": "c11",
+    "title": "How many fresh tickets should we draw?",
+    "sourceChapters": [
+      "c11"
+    ],
+    "beats": [
+      {
+        "id": "c11-b01",
+        "say": "Back to planning P seven's final evaluation. Choose the precision before opening any tickets. To get a five-percentage-point two-sided radius for one fixed prompt at ninety-five percent confidence, invert the Hoeffding formula and round up. That gives seven hundred and thirty-eight independent cases.",
+        "hold": 0.3
+      },
+      {
+        "id": "c11-b02",
+        "say": "This count buys precision. If the observed error comes out high, even a narrow allowance can leave its upper end above the gate. Keep the gate separate from the number of tickets ordered.",
+        "hold": 0.8
+      },
+      {
+        "id": "c11-b03",
+        "say": "Suppose instead we must cover every prompt in a fixed pool of a thousand. For a ten-point radius, the same formula gives five hundred and thirty cases. Keep the pool and the confidence fixed. What happens to that count when you halve the radius?",
+        "hold": 2
+      },
+      {
+        "id": "c11-b04",
+        "say": "The tolerance is squared in the denominator. Halve it and the unrounded count quadruples. At five points the plan calls for two thousand one hundred and twenty tickets.",
+        "hold": 0.65
+      },
+      {
+        "id": "c11-b05",
+        "say": "What if five points is the maximum excess risk of the exact sample winner? The two steps we traced can each use a radius. Budget two and a half points for each, and the count goes up to eight thousand four hundred and seventy-eight. That's one conservative route to the guarantee.",
+        "hold": 0.8
+      },
+      {
+        "id": "c11-b06",
+        "say": "Count the units your decision is about. One user has one turn, routed wrong. Another has nine, all correct. Average the two user error rates and you get fifty percent. Average the ten turn losses and you get ten percent.",
+        "hold": 0.3
+      },
+      {
+        "id": "c11-b07",
+        "say": "Five hundred turns from ten users do not automatically give five hundred independent draws, or even ten independent sessions. If you sample users independently and score each with a prespecified bounded mean loss, you can estimate user-weighted risk.",
+        "hold": 0.9
+      }
+    ]
+  },
+  {
+    "id": "c12",
+    "title": "Open P7’s final batch",
+    "sourceChapters": [
+      "c12"
+    ],
+    "beats": [
+      {
+        "id": "c12-b01",
+        "say": "Back at the support desk, development tickets helped the team choose P seven. Training data can fit weights, and development scores can guide every edit. Before anyone sees the final tickets, freeze P seven and set the release gate at twenty percent. Now this batch will score just the one router.",
+        "hold": 0.8
+      },
+      {
+        "id": "c12-b02",
+        "say": "Here are eighteen stacks of forty-one tickets drawn independently from the target queue. Open the stacks and score each route once. In each stack, blue marks a correct route. A pink cross marks a miss. Watch the total advance only as the tickets open.",
+        "hold": 0.3
+      },
+      {
+        "id": "c12-b03",
+        "say": "P seven missed eighty-nine of seven hundred thirty-eight, just over twelve percent. For this sample size the two-sided ninety-five percent radius is almost exactly five percentage points. Will the upper end clear the gate?",
+        "hold": 2
+      },
+      {
+        "id": "c12-b04",
+        "say": "Start at the observed error and extend the bound by those five percentage points. Its upper end is about seventeen point zero six percent. P seven clears the twenty percent gate. Those earlier thousand prompts used different tickets. They add no search allowance to this independent check of a frozen prompt.",
+        "hold": 0.9
+      },
+      {
+        "id": "c12-b05",
+        "say": "If the team uses one of these missed tickets to fix P seven, that ticket becomes part of development. Freeze the revised prompt and draw a fresh batch from the target queue to score it.",
+        "hold": 0.85
+      }
+    ]
+  },
+  {
+    "id": "c13",
+    "title": "Which population did we sample?",
+    "sourceChapters": [
+      "c13"
+    ],
+    "beats": [
+      {
+        "id": "c13-b01",
+        "say": "Here's an audit you can do before taking any square roots. Someone copies ticket thirty-eight until there are forty scored rows in the report. Every row has a real label and a real prediction. How many independent draws went into this report?",
+        "hold": 2
+      },
+      {
+        "id": "c13-b02",
+        "say": "Just one ticket was drawn. Its thirty-nine copies repeat precisely the same outcome. Using forty in the denominator would shrink the radius without adding information. Get fresh independent cases or analyze the dependence. The loss also matters. A wrong route costs at most one here. Unbounded losses need different concentration assumptions.",
+        "hold": 0.8
+      },
+      {
+        "id": "c13-b03",
+        "say": "Even independent draws can come from the wrong queue. In this toy example, the router misses ten percent of routine tickets and thirty percent of launch tickets. Last year, one ticket in four was about a launch. This week it's three in four.",
+        "hold": 0.3
+      },
+      {
+        "id": "c13-b04",
+        "say": "Overall error goes from fifteen to twenty-five percent with the same router and the same error within each group. A bound on last year's mix describes last year's traffic.",
+        "hold": 0.75
+      },
+      {
+        "id": "c13-b05",
+        "say": "A score discrepancy gives you a question to investigate. For low training error and high validation error, check overfitting, sampling noise, cohorts, labels and preprocessing. If the validation winner then loses on test, check how often development reused the validation set and compare case difficulty. For a good test score and poor production results, replay a failing ticket in both systems.",
+        "hold": 0.3
+      },
+      {
+        "id": "c13-b06",
+        "say": "Here the same request goes to Billing offline and to Account Access in production. Check the deployed prompt and the text each system actually received. If the routes agree on replay, check the traffic mix and the monitoring labels.",
+        "hold": 0.85
+      }
+    ]
+  },
+  {
+    "id": "c14",
+    "title": "Does P8 clear the same gate?",
+    "sourceChapters": [
+      "c14"
+    ],
+    "beats": [
+      {
+        "id": "c14-b01",
+        "say": "Here's a new review. P eight was frozen before a thousand fresh tickets were drawn independently from the target queue. It misrouted a hundred and thirty. The yellow dot is thirteen percent. Keep the two-sided ninety-five percent rule.",
+        "hold": 0.3
+      },
+      {
+        "id": "c14-b02",
+        "say": "For one fixed prompt the allowance is about four point two nine percentage points. Does this fresh batch clear the twenty percent gate?",
+        "hold": 2
+      },
+      {
+        "id": "c14-b03",
+        "say": "Add that allowance to thirteen percent. The upper end is about seventeen point two nine percent. Yes, this batch clears the gate for the frozen router.",
+        "hold": 1.1
+      },
+      {
+        "id": "c14-b04",
+        "say": "Rewind the review. Keep the same tickets, the same hundred and thirty mistakes, and the same gate. Change who chose the router. This time, a thousand prespecified prompts competed on these very tickets. P eight had the fewest misses. The simultaneous allowance is about seven point two eight percentage points. Does this batch still clear the gate?",
+        "hold": 2
+      },
+      {
+        "id": "c14-b05",
+        "say": "Leave the yellow dot where it is and add the search allowance. The upper end reaches twenty point two eight percent. That crosses the release gate. Both rows start at thirteen percent. The second allowance is wider because these tickets chose the winner from a thousand prompts.",
+        "hold": 1
+      },
+      {
+        "id": "c14-b06",
+        "say": "This review cannot certify release. It leaves the true error open. Freeze P eight and score it on fresh independent tickets from the traffic it will serve. Record which tickets chose the prompt, which tickets tested it, and where the upper end landed. Next, conformal prediction uses held-out cases to ask how often a prediction set includes the next answer.",
+        "hold": 1.1
+      }
+    ]
+  }
+]

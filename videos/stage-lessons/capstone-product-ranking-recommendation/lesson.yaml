@@ -1,0 +1,1441 @@
+version: 1
+id: capstone-product-ranking-recommendation
+title: Build a Ranking Experiment
+source: foundations/capstone-product-ranking-recommendation/content.md
+sources:
+  - title: "Stanford IR: ranked retrieval evaluation"
+    url: https://nlp.stanford.edu/IR-book/html/htmledition/evaluation-of-ranked-retrieval-results-1.html
+  - title: RankNet original paper
+    url: https://www.microsoft.com/en-us/research/publication/learning-to-rank-using-gradient-descent/
+  - title: RankNet to LambdaMART overview
+    url: https://www.microsoft.com/en-us/research/publication/from-ranknet-to-lambdarank-to-lambdamart-an-overview/
+  - title: Original MMR paper
+    url: https://www.cs.cmu.edu/afs/cs/Web/People/jgc/publication/MMR_DiversityBased_Reranking_SIGIR_1998.pdf
+  - title: "Joachims et al.: unbiased learning to rank"
+    url: https://arxiv.org/abs/1608.04468
+  - title: "Agarwal et al.: estimating position bias"
+    url: https://arxiv.org/abs/1812.05161
+  - title: Scikit-learn probability calibration
+    url: https://scikit-learn.org/stable/modules/calibration.html
+  - title: Scikit-learn cross-validation
+    url: https://scikit-learn.org/stable/modules/cross_validation.html
+  - title: "Guo et al.: calibration error"
+    url: https://arxiv.org/abs/1706.04599
+  - title: TensorFlow retrieval versus ranking
+    url: https://www.tensorflow.org/recommenders/examples/basic_retrieval
+  - title: Trustworthy online controlled experiments
+    url: https://experimentguide.com/
+scenes:
+  - id: intro
+    title: "Would you rank this printer?"
+    visual: "A label printer feeds out P8’s catalog ticket beside its 0.98 text match. The stock and policy checks decide whether it gets one of three ranking slots."
+    beats:
+      - say: >-
+          This label printer scores point nine eight, the best text match. Its catalog ticket says sold out
+          and policy blocked. Would you give it one of your three ranking slots?
+        hold: 2.2
+        caption_starts:
+          - "Would you give it"
+        visual_cues:
+          - id: printer-stock
+            phrase: "sold out"
+            targets: [catalog-ticket]
+          - id: printer-block
+            phrase: "policy blocked"
+            targets: [catalog-ticket]
+      - say: >-
+          Skip P eight. Policy is the first check it fails, so that's the reason we log. The next match
+          is P eleven. It's in stock, but it can't ship to this shopper. Keep going. P five, P six and
+          P four pass all three checks. The ranker gets to put those three in order.
+        hold: 1
+        caption_starts:
+          - "P five, P six and P four"
+        visual_cues:
+          - id: printer-policy
+            phrase: "Skip P eight"
+            targets: [policy-rejection]
+          - id: printer-catalog
+            phrase: "The next match"
+            targets: [catalog-checks]
+          - id: printer-region
+            phrase: "can't ship to this shopper"
+            targets: [region-rejection]
+          - id: printer-p5
+            phrase: "P five"
+            targets: [ranker-input]
+          - id: printer-p6
+            phrase: "P six"
+            targets: [ranker-input]
+          - id: printer-p4
+            phrase: "P four"
+            targets: [ranker-input]
+          - id: printer-next
+            phrase: "put those three in order"
+            targets: [ranker-input]
+  - id: eligibility
+    title: "When does the shortlist fill?"
+    visual: "Two passes consume the same five retrieval scores. Cutting the list early strands two places in the shortlist."
+    beats:
+      - say: >-
+          Try taking the three largest scores first. That gives us P eight, P eleven and P five. Now enforce
+          the rules. Only P five survives. Two eligible printers were within reach the whole time.
+        hold: 0.8
+        visual_cues:
+          - id: budget-early
+            phrase: "three largest scores first"
+            targets: [cutoff]
+          - id: budget-reject
+            phrase: "Now enforce the rules"
+            targets: [early-shortlist]
+      - say: >-
+          Filter the full set first and all three eligible printers fit. A learned penalty could be
+          outweighed by another feature. The hard checks belong in the selection code. Check current
+          eligibility again when building the response and save the policy version. A serving system needs
+          an authoritative source for those checks.
+        hold: 0.8
+        visual_cues:
+          - id: budget-filter
+            phrase: "Filter the full set first"
+            targets: [eligible-shortlist]
+          - id: budget-current
+            phrase: "Check current eligibility again"
+            targets: [current-policy]
+  - id: funnel-contract
+    title: "Who gets the second printer slot?"
+    visual: "A printer keeps its relevance score while similarity to the first selection shortens the two remaining selection-value bars by different amounts."
+    beats:
+      - say: >-
+          This little catalog has ten listings across two searches. We sort supplied retrieval scores. A
+          large catalog might need lexical search or a two-tower model to produce that shortlist. A richer
+          ranker then scores each survivor. This exercise fits two linear weights. LambdaMART is another
+          option. Its boosted trees can weight pairwise updates by the change in a ranking metric. A
+          separate display cutoff sets how many places we can fill.
+        hold: 0.7
+        visual_cues:
+          - id: funnel-score
+            phrase: "ranker then scores each survivor"
+            targets: [ranker]
+          - id: funnel-places
+            phrase: "display cutoff"
+            targets: [display-budget]
+      - say: >-
+          Suppose the shopper wants a choice of printers. In this separate worksheet we give a listing sixty
+          percent of its relevance score, then subtract forty percent of its similarity to the most similar
+          printer already chosen. For the first place, the list is empty. All three similarity penalties are
+          zero. The largest value is point five seven six, so the first printer is P five.
+        hold: 0.65
+        visual_cues:
+          - id: mmr-empty
+            phrase: "For the first place"
+            targets: [selection-values]
+          - id: mmr-first
+            phrase: "the first printer is P five"
+            targets: [first-slot]
+      - say: >-
+          Now compare the two remaining printers with P five. P six is almost a duplicate. Its similarity is
+          point nine. P four's similarity is only point one. Before we subtract the penalties, which one
+          would you put second?
+        hold: 2.1
+        visual_cues:
+          - id: mmr-similarity
+            phrase: "compare the two remaining printers"
+            targets: [similarities]
+      - say: >-
+          Subtract the penalties. P six loses point three six and has point one four four left. P four loses
+          only point zero four and keeps point two three. Give the second place to P four. This tradeoff is
+          called maximal marginal relevance. The lab implements a seller limit as its own rule. This
+          calculation illustrates a different way to build the list.
+        hold: 0.8
+        visual_cues:
+          - id: mmr-penalty
+            phrase: "Subtract the penalties"
+            targets: [selection-values]
+          - id: mmr-second
+            phrase: "second place to P four"
+            targets: [second-slot]
+  - id: slate-recheck
+    title: "Two calls with the same proposal"
+    visual: "The proposed REQ-501 slate and the impression_rows call stay pinned while one stock flag changes between two runs."
+    beats:
+      - say: >-
+          The treatment ranker proposes these three printers. Each comes from a different seller, so all
+          three fit our limit of two per seller. That limit checks concentration. Fairness needs its own
+          evaluation. The catalog still has all three in stock. Call impression rows with this request,
+          shopper, time, query and arm. It checks current eligibility and returns all three positions.
+        hold: 0.9
+        visual_cues:
+          - id: stock-first
+            phrase: "all three in stock"
+            targets: [stock-flags]
+          - id: stock-call
+            phrase: "Call impression rows"
+            targets: [response-call]
+          - id: stock-return
+            phrase: "returns all three positions"
+            targets: [response-rows]
+      - say: >-
+          Replay the same call as a second case. This time P five sells out after scoring. Can that call
+          still write these three rows?
+        hold: 2.1
+        visual_cues:
+          - id: stock-change
+            phrase: "P five sells out after scoring"
+            targets: [current-stock]
+      - say: >-
+          It rejects the whole proposal. P five still has its old score, but the catalog record changed. For
+          a new response, fetch current candidates and rebuild under the seller limit. If too few pass, the
+          service needs a refill or shorter-list policy. To audit the first response, keep the catalog that
+          produced it. The loader also rejects malformed flags, grades and nonfinite scores before they
+          enter this pipeline.
+        hold: 1
+        visual_cues:
+          - id: stock-error
+            phrase: "rejects the whole proposal"
+            targets: [recheck-output]
+          - id: stock-history
+            phrase: "To audit the first response"
+            targets: [catalog-history]
+  - id: ordering
+    title: "What is the first position worth?"
+    visual: "Colored paths connect the same three products in two orders. Each destination carries its new discounted gain."
+    beats:
+      - say: >-
+          All three eligible printers reached the ranker. On the left is the control response. Our authored
+          judgments give P four grade one, P five grade three and P six grade two. A higher grade earns more
+          gain. Later positions get less credit. Look at the gain underneath each printer. P five earns
+          about four point four two of its possible seven in second place. Add the three contributions and
+          the control earns six point nine one seven. That sum is discounted cumulative gain. Which printer
+          gains the most from first place?
+        hold: 2.1
+        visual_cues:
+          - id: position-gains
+            phrase: "gain underneath each printer"
+            targets: [discounted-gains]
+          - id: position-control
+            phrase: "earns six point nine one seven"
+            targets: [control-dcg]
+          - id: position-question
+            phrase: "Which printer gains the most from first place"
+            targets: [position-question]
+      - say: >-
+          Move P five to the top. Its grade stays three, but now it sits in first place and earns the full
+          seven. P six takes second and P four takes third. That ideal order earns nine point three nine
+          three. Divide each total by that same ideal. Control scores about point seven three six. The
+          treatment matches the ideal and scores one. This ratio is normalized discounted cumulative gain,
+          or N D C G. Both orders still contain both relevant printers. Retrieval recall stays at two out of
+          two.
+        hold: 1
+        visual_cues:
+          - id: position-order
+            phrase: "Move P five to the top"
+            targets: [ranking-paths]
+          - id: position-ideal
+            phrase: "earns nine point three nine three"
+            targets: [ideal-dcg]
+          - id: position-normalize
+            phrase: "scores one"
+            targets: [normalized-gain]
+  - id: metric-contracts
+    title: Earn the ranking metric and its denominator
+    visual: One relevance grade becomes an exponential gain, receives a position discount and
+      contributes to a fixed-universe metric.
+    beats:
+      - say: Pin the metric before comparing methods. This lab uses gain equal to two raised to the
+          relevance grade, minus one. At one-based position i, divide that gain by the base-two
+          logarithm of the quantity i plus one. Add the first K contributions for D C G. Sort the
+          fixed judgment universe into its ideal order and divide observed D C G by ideal D C G for
+          N D C G. Some libraries use linear gain, so their number can differ even on the same list.
+        hold: 0.75
+        visual_cues:
+          - id: metric-gains
+            phrase: two raised to the relevance grade, minus one
+            targets:
+              - metric-contracts-mechanism
+            color: cyan
+            linger: 0.5
+          - id: metric-discount
+            phrase: divide that gain by the base-two logarithm
+            targets:
+              - metric-contracts-mechanism
+            color: cyan
+            linger: 0.5
+          - id: metric-normalize
+            phrase: divide observed D C G by ideal D C G
+            targets:
+              - metric-contracts-mechanism
+            color: cyan
+            linger: 0.5
+      - say: "Binary candidate recall uses a different rule here: relevant means eligible grade at least
+          two. Divide the number of those products retrieved by all relevant eligible judgments in
+          the declared universe. Grade one still contributes positive graded gain to N D C G. With
+          an explicitly supplied fixed judgment universe, the N D C G helper rejects duplicate
+          products, unknown items and changed relevance grades. Without that argument, it uses the
+          returned rows as their own universe. The recall helper separately rejects duplicates and
+          query or eligibility violations. No relevant eligible judgments is an error for recall,
+          while zero ideal gain yields N D C G zero."
+        hold: 0.75
+        visual_cues:
+          - id: metric-recall
+            phrase: relevant means eligible grade at least two
+            targets:
+              - metric-contracts-mechanism
+            color: cyan
+            linger: 0.5
+          - id: metric-guards
+            phrase: With an explicitly supplied fixed judgment universe
+            targets:
+              - metric-contracts-mechanism
+            color: cyan
+            linger: 0.5
+      - say: >-
+          Mean reciprocal rank asks where the first relevant result appears. Take one divided by that
+          one-based rank, or zero if none appears, then average across query instances. A first relevant item
+          at rank three contributes one third. If you define relevance by a click, the result describes
+          clicking under that display order. Independent judgments let you evaluate the order even for items
+          that shoppers have never seen. Use shopper outcomes to measure satisfaction and calibrated
+          probabilities to estimate purchases.
+        hold: 0.75
+        visual_cues:
+          - id: metric-mrr
+            phrase: first relevant item at rank three contributes one third
+            targets:
+              - metric-contracts-mechanism
+            color: cyan
+            linger: 0.5
+  - id: recall
+    title: "Which stage needs the repair?"
+    visual: "A fixed ideal row stays above a moving returned order. Removing a printer closes the gap in the returned list. Restoring it at a low score produces a different failure."
+    beats:
+      - say: >-
+          Keep the three eligible printer judgments pinned at the top. P five and P six meet our recall
+          threshold of grade two. Now suppose retrieval drops P six. P four slides into second place. Could
+          any scoring weights bring P six back?
+        hold: 2.1
+        visual_cues:
+          - id: drop-printer
+            phrase: "retrieval drops P six"
+            targets: [returned-order]
+          - id: drop-question
+            phrase: "Could any scoring weights bring P six back"
+            targets: [repair-question]
+      - say: >-
+          We have to restore P six to the candidate set. For now the ranker sees just one of the two
+          relevant printers. That is half recall. It puts both survivors in the best possible order. Their
+          gain is seven plus one divided by log base two of three. Compare that gain with the best among the
+          survivors and both sides are identical. The score is one.
+        hold: 0.8
+        visual_cues:
+          - id: drop-repair
+            phrase: "restore P six to the candidate set"
+            targets: [repair-question]
+          - id: drop-count
+            phrase: "one of the two relevant printers"
+            targets: [candidate-recall]
+          - id: drop-survivors
+            phrase: "best among the survivors"
+            targets: [conditional-denominator]
+          - id: drop-perfect
+            phrase: "The score is one"
+            targets: [conditional-ndcg]
+      - say: >-
+          Use the full eligible reference above instead. P six belongs in second place there and P four
+          belongs in third. The returned gain stays at seven point six three one. The ideal rises to nine
+          point three nine three. Their ratio is about point eight one two. That fixed reference exposes the
+          lost option.
+        hold: 0.85
+        visual_cues:
+          - id: drop-reference
+            phrase: "full eligible reference above"
+            targets: [eligible-denominator]
+          - id: drop-ideal
+            phrase: "nine point three nine three"
+            targets: [eligible-denominator]
+          - id: drop-fixed
+            phrase: "about point eight one two"
+            targets: [fixed-ndcg]
+      - say: >-
+          For the second run, restore P six to retrieval. Keep the judgments. Lower just its ranking score
+          to point two. P four now outranks it. Look at the returned order. Which stage would you repair
+          this time?
+        hold: 2.15
+        visual_cues:
+          - id: restore-printer
+            phrase: "restore P six to retrieval"
+            targets: [returned-order]
+          - id: demote-input
+            phrase: "Lower just its ranking score"
+            targets: [rank-scores]
+          - id: demote-printer
+            phrase: "P four now outranks it"
+            targets: [returned-order]
+          - id: demote-question
+            phrase: "Which stage would you repair this time"
+            targets: [repair-question]
+      - say: >-
+          Both relevant printers made it through. Recall is two out of two. P six earns less gain in third
+          place. Against the same ideal, this order scores about point nine seven two. To move P six above P
+          four, restore P six's ranking score. Comparing recall with fixed-universe N D C G tells us which
+          stage lost the value.
+        hold: 1
+        visual_cues:
+          - id: demote-count
+            phrase: "two out of two"
+            targets: [candidate-recall]
+          - id: demote-score
+            phrase: "about point nine seven two"
+            targets: [fixed-ndcg]
+          - id: demote-answer
+            phrase: "restore P six's ranking score"
+            targets: [repair-question]
+  - id: offline-gates
+    title: Two judged searches and a scoring budget
+    visual: Actual two-query gains and the P3 omission remain beside synthetic percentile samples and
+      independently named gates.
+    beats:
+      - say: The two-query hand-entered fixture has baseline N D C G about point nine seven two for
+          insulated bag and point seven three six for label printer. Their mean is point eight five
+          four. The candidate gives one on both. These are regression scores supplied by the author;
+          the model-fitting exercise is a separate artifact.
+        hold: 0.75
+        visual_cues:
+          - id: offline-per-query
+            phrase: baseline N D C G about point nine seven two
+            targets:
+              - offline-gates-mechanism
+            color: cyan
+            linger: 0.5
+          - id: offline-mean
+            phrase: Their mean is point eight five four
+            targets:
+              - offline-gates-mechanism
+            color: cyan
+            linger: 0.5
+      - say: Now remove P three from the insulated-bag candidate list. Its surviving ideal order still
+          normalizes to one against itself. Keep the original eligible universe, and N D C G falls
+          to about point eight one two; binary recall falls to one half. A per-query gate can also
+          catch a poor ordering hidden by a better mean. Preserve the cutoff, universe and relevance
+          rule with each result.
+        hold: 0.75
+        visual_cues:
+          - id: offline-drop
+            phrase: remove P three
+            targets:
+              - offline-gates-mechanism
+            color: cyan
+            linger: 0.5
+          - id: offline-universe
+            phrase: Keep the original eligible universe
+            targets:
+              - offline-gates-mechanism
+            color: cyan
+            linger: 0.5
+      - say: >-
+          The local gates check for blocked displays, missing or repeated listings, unknown versions and
+          sellers with more than two places. They also check assignment and outcome joins. Sort the ten
+          supplied scoring times. For nearest-rank p ninety-five, multiply ten by point nine five and round
+          up. That's the tenth time, eighteen milliseconds. It passes the worksheet's twenty millisecond
+          limit. To apply this check to a service, time it on representative requests.
+        hold: 0.75
+        visual_cues:
+          - id: offline-gates
+            phrase: "Sort the ten supplied scoring times"
+            targets:
+              - offline-gates-mechanism
+            color: cyan
+            linger: 0.5
+          - id: offline-percentile
+            phrase: "the tenth time, eighteen milliseconds"
+            targets:
+              - offline-gates-mechanism
+            color: cyan
+            linger: 0.5
+          - id: offline-synthetic
+            phrase: "It passes the worksheet"
+            targets:
+              - offline-gates-mechanism
+            color: cyan
+            linger: 0.5
+  - id: pairwise
+    title: "Learning from a printer preference"
+    visual: "Two fixed product points project onto a shared scoring direction. The bars update from the same weights as that direction turns."
+    beats:
+      - say: >-
+          These two points are printers. Moving right means a stronger text match. Moving up means better
+          listing quality. Start the scoring direction horizontally. P four leads on match, while the higher
+          grade belongs to P five. The dashed lines project each printer onto the scoring direction. Which
+          printer should move ahead if we learn this preference?
+        hold: 2.15
+        visual_cues:
+          - id: pairwise-b1-1
+            phrase: "Start the scoring direction horizontally"
+            targets: [scoring-direction]
+          - id: pairwise-b1-2
+            phrase: "P four leads on match"
+            targets: [score-bars]
+          - id: pairwise-question
+            phrase: "Which printer should move ahead"
+            targets: [score-question]
+      - say: >-
+          Use this single preference for twelve small updates. Watch the direction turn toward quality. The
+          points stay put. As their projections change, P five overtakes P four. A larger margin means the
+          preferred product scores farther ahead. This illustration fits one preference. We still need later
+          requests to find out whether a learned rule transfers.
+        hold: 0.9
+        visual_cues:
+          - id: pairwise-b2-1
+            phrase: "twelve small updates"
+            targets: [update-count]
+          - id: pairwise-b2-2
+            phrase: "direction turn toward quality"
+            targets: [scoring-direction]
+          - id: pairwise-b2-3
+            phrase: "P five overtakes P four"
+            targets: [score-bars]
+  - id: pairwise-objective
+    title: "What does one preference change?"
+    visual: "Two score markers share the same scale. One update from a tie makes the margin between the preferred and weaker training products measurable."
+    beats:
+      - say: >-
+          Switch from the rotating printer example to a single pair from the training file. In this request
+          the judgments prefer A two over A one. Read the feature columns across. A two gives up a tenth in
+          text match and gains six tenths in quality. Better minus worse gives the signed difference in
+          yellow. A score is the dot product of weights and features. With both weights at zero, the scores
+          tie. Which feature should gain weight?
+        hold: 2
+        visual_cues:
+          - id: pair-difference
+            phrase: "Better minus worse"
+            targets: [feature-difference]
+          - id: pair-tie
+            phrase: "the scores tie"
+            targets: [score-rulers]
+      - say: >-
+          Quality should gain weight. Take the preferred score minus the other score. That gap is the
+          margin. Our pair loss is the log of one plus the exponential of the negative margin. Its gradient
+          is the negative feature difference times the sigmoid of the negative margin. At a tie the sigmoid
+          is one half. The gradient is half the difference with both signs reversed. That is positive point
+          zero five for match and negative point three for quality.
+        hold: 0.7
+        visual_cues:
+          - id: pair-gradient
+            phrase: "half the difference with both signs reversed"
+            targets: [pair-gradient]
+      - say: >-
+          Subtract point three times that gradient from the starting weights. The match weight becomes
+          negative point zero one five. The quality weight becomes positive point zero nine. Apply those
+          weights to both products. Both scores rise, but A two moves farther. Its lead is now point zero
+          five five five.
+        hold: 0.8
+        visual_cues:
+          - id: pair-update
+            phrase: "quality weight becomes positive point zero nine"
+            targets: [pair-weights]
+          - id: pair-move
+            phrase: "Apply those weights to both products"
+            targets: [score-rulers]
+          - id: pair-margin
+            phrase: "lead is now point zero five five five"
+            targets: [score-margin]
+      - say: >-
+          The full fit averages the losses over all preferred pairs and adds half of lambda times the
+          squared weight norm. Average the gradients the same way and add lambda times the weights. The code
+          evaluates the sigmoid with log-add-exp for numerical stability. This linear model uses the
+          preference objective from RankNet, which used a neural scoring function.
+        hold: 0.75
+        visual_cues:
+          - id: pair-average
+            phrase: "averages the losses"
+            targets: [full-objective]
+          - id: pair-regularize
+            phrase: "add lambda times the weights"
+            targets: [regularizer]
+  - id: training-matrix
+    title: Build the actual nine-pair average
+    visual: All three request groups contribute their three signed preference differences; accumulation
+      leads to the actual first full update.
+    beats:
+      - say: "Each of three training requests has grades one, two and three. Form a directed pair whenever
+          one grade is larger: three pairs per request, nine total. Equal grades contribute no
+          preference pair. Keep product and request identities on every row. The feature differences
+          all lie between negative one and one in this authored scale."
+        hold: 0.75
+        visual_cues:
+          - id: training-pairs
+            phrase: three pairs per request, nine total
+            targets:
+              - training-matrix-mechanism
+            color: cyan
+            linger: 0.5
+      - say: At zero weights, all nine wrong-order probabilities are one half. The average gradient is
+          approximately positive point zero one six six seven in text match and negative point one
+          six one one one in quality. The first full update with step point three is negative point
+          zero zero five, positive point zero four eight three three. It differs from the isolated A
+          two versus A one update because all nine rows contribute.
+        hold: 0.75
+        visual_cues:
+          - id: training-gradient
+            phrase: The average gradient is approximately positive point zero one six six seven in text match
+              and negative point one six one one one in quality
+            targets:
+              - training-matrix-mechanism
+            color: cyan
+            linger: 0.5
+          - id: training-update
+            phrase: The first full update with step point three is negative point zero zero five, positive point
+              zero four eight three three
+            targets:
+              - training-matrix-mechanism
+            color: cyan
+            linger: 0.5
+      - say: This objective gives each pair one ninth of the weight. Each request supplies three pairs,
+          so each contributes a third of the total. A request with many more judged pairs would
+          contribute more. To give every request equal weight, average within each request first.
+          These features share a zero-to-one scale. Fit any scaler for new features on training
+          rows only.
+        hold: 0.75
+        visual_cues:
+          - id: training-weights
+            phrase: A request with many more judged pairs would contribute more
+            targets:
+              - training-matrix-mechanism
+            color: cyan
+            linger: 0.5
+          - id: training-scale
+            phrase: "Fit any scaler for new features"
+            targets:
+              - training-matrix-mechanism
+            color: cyan
+            linger: 0.5
+  - id: time
+    title: "What was available at the training freeze?"
+    visual: "One May 4 request stays on a UTC clock. Moving the last label across the freeze changes membership. Moving a feature past serving invalidates the input."
+    beats:
+      - say: >-
+          Here is one request from the training file. Keep its three product rows together. Their features
+          were available at eleven on May fourth. The search ran at noon. Follow the bottom track. The last
+          label arrived the next day at noon, twelve hours after training froze. Can this request enter the
+          May fifth training set?
+        hold: 2.1
+        visual_cues:
+          - id: clock-label
+            phrase: "Follow the bottom track"
+            targets: [label-clock]
+          - id: clock-question
+            phrase: "Can this request enter the May fifth training set"
+            targets: [training-freeze]
+      - say: >-
+          Leave all three rows out. Serving time still puts the request in the training window. Every label
+          has to arrive strictly before the freeze. A label at midnight would also be too late. Now move all
+          three labels to six the previous evening. At the freeze they're mature. Include the request, and
+          the training count rises from three requests to four.
+        hold: 0.8
+        visual_cues:
+          - id: clock-pending
+            phrase: "Leave all three rows out"
+            targets: [frozen-membership]
+          - id: clock-earlier
+            phrase: "move all three labels"
+            targets: [label-clock]
+          - id: clock-include
+            phrase: "Include the request"
+            targets: [frozen-membership]
+      - say: >-
+          Keep those earlier labels and change one more input. Suppose a feature first became available at
+          three in the afternoon, after the search. Reject that feature record. The scorer could never have
+          used it at noon. For the fit we'll return to the original file, choose regularization on later
+          validation requests, then evaluate on still later test requests. Holding out new products or new
+          queries tests a different kind of generalization.
+        hold: 0.95
+        visual_cues:
+          - id: clock-late-feature
+            phrase: "first became available at three"
+            targets: [feature-clock]
+          - id: clock-invalid
+            phrase: "Reject that feature record"
+            targets: [feature-validation]
+  - id: temporal-protocol
+    title: "Which requests were ready at each cutoff?"
+    visual: Serving time selects a half-open window, feature availability precedes serving, and every
+      label must precede the freeze.
+    beats:
+      - say: >-
+          Each row is one request. Eight requests with three products each give us twenty-four rows. The
+          cyan dot marks when we served the request. The white dot marks when its last label arrived. All
+          three products share the same query and serving time. The loader checks U T C timestamps, distinct
+          product IDs, valid grades and finite features in range. Features must be available by serving time,
+          and a label can arrive at serving time or later.
+        hold: 0.75
+        visual_cues:
+          - id: temporal-rows
+            phrase: "Each row is one request"
+            targets:
+              - temporal-protocol-mechanism
+            color: cyan
+            linger: 0.5
+          - id: temporal-clocks
+            phrase: "The white dot marks"
+            targets:
+              - temporal-protocol-mechanism
+            color: cyan
+            linger: 0.5
+      - say: >-
+          The yellow lines mark midnight in UTC. Training starts May first and ends when May fifth begins.
+          Validation takes the next two days. The test requests were served on May seventh and eighth. We
+          wait until May tenth to freeze their labels. For each group, every label has to arrive before its
+          cutoff. A label that lands exactly on the line misses it.
+        hold: 0.75
+        visual_cues:
+          - id: temporal-windows
+            phrase: "The yellow lines mark midnight"
+            targets:
+              - temporal-protocol-mechanism
+            color: cyan
+            linger: 0.5
+          - id: temporal-freeze
+            phrase: "every label has to arrive before its cutoff"
+            targets:
+              - temporal-protocol-mechanism
+            color: cyan
+            linger: 0.5
+      - say: >-
+          Follow the fourth line across May fifth. The request made the training window. Its labels missed
+          the cutoff by twelve hours, so all three rows stay out. That leaves three training requests, two
+          for validation and two for test. Slow outcomes are easier to lose this way. If you're tracking
+          returns, record how many are still pending when you freeze the data. These later requests can
+          repeat a query or a product. To test an unfamiliar query or a new product, hold it out as a
+          separate group.
+        hold: 0.75
+        visual_cues:
+          - id: temporal-counts
+            phrase: "That leaves three training requests"
+            targets:
+              - temporal-protocol-mechanism
+            color: cyan
+            linger: 0.5
+          - id: temporal-pending
+            phrase: "Follow the fourth line"
+            targets:
+              - temporal-protocol-mechanism
+            color: cyan
+            linger: 0.5
+          - id: temporal-late
+            phrase: "its labels missed the cutoff by twelve hours"
+            targets: [pending-request]
+  - id: trained-model
+    title: "Which fit goes to test?"
+    visual: "Two fits start at zero. Their quality weights follow different paths, but the validation scores tie. The tie-break selects one fit for the held-out requests."
+    beats:
+      - say: >-
+          Both fits start at zero. Give each six hundred gradient steps at a learning rate of point three.
+          Blue has no penalty on large weights. Cyan has lambda point one. Watch the quality weight. The blue
+          curve keeps climbing. The penalty keeps the cyan curve much lower. Both fits put the validation
+          products in ideal order. They tie at one. Our tie-break picks the stronger penalty, so the cyan fit
+          goes to test.
+        hold: 0.75
+        caption_starts:
+          - "They tie at one"
+          - "Our tie-break picks the stronger penalty"
+          - "the cyan fit goes to test"
+        visual_cues:
+          - id: model-fit
+            phrase: "Watch the quality weight"
+            targets:
+              - trained-model-mechanism
+            color: cyan
+            linger: 0.5
+          - id: model-choose
+            phrase: "They tie at one"
+            targets:
+              - trained-model-mechanism
+            color: cyan
+            linger: 0.5
+          - id: model-selected
+            phrase: "the cyan fit goes to test"
+            targets: [model-selection]
+      - say: >-
+          The selected weights are about negative point one zero nine for text match and positive one point
+          two two nine for quality. In these training requests, some strong text matches got low grades. On
+          the two later test requests, sorting by match alone scores point eight five four on average. The
+          fitted model scores one.
+        hold: 0.75
+        caption_starts:
+          - "The fitted model scores one"
+        visual_cues:
+          - id: model-weights
+            phrase: "The selected weights are about"
+            targets:
+              - trained-model-mechanism
+            color: cyan
+            linger: 0.5
+          - id: model-test
+            phrase: "The fitted model scores one"
+            targets:
+              - trained-model-mechanism
+            color: cyan
+            linger: 0.5
+      - say: >-
+          Those two requests are our synthetic holdout. If we tune the model again using this result, we need
+          fresh requests to test that choice. Save the feature definitions, weights, dated splits and data
+          together so someone else can rerun the fit. Keep the hand-entered ranking checks with their own
+          fixture.
+        hold: 0.75
+        visual_cues:
+          - id: model-separate
+            phrase: "our synthetic holdout"
+            targets:
+              - trained-model-mechanism
+            color: cyan
+            linger: 0.5
+  - id: exposure
+    title: "Clicks on three printers"
+    visual: "Yellow clicks stay in their original rows as each product's observed display count shrinks to its first ten impressions."
+    beats:
+      - say: >-
+          Now look at a separate log of displays. Each dot is one displayed impression. Yellow means the
+          shopper clicked. Each row contains ten impressions. P four has ten rows. P six has just one. Count
+          the yellow dots. Which printer collected the most clicks?
+        hold: 2.2
+        visual_cues:
+          - id: exposure-observe
+            phrase: "Each dot is one displayed impression"
+            targets: [impressions]
+          - id: exposure-question
+            phrase: "Which printer collected the most clicks"
+            targets: [raw-click-question]
+      - say: >-
+          P four wins with ten clicks. It also had a hundred chances. Keep just the first row for each
+          printer. Out of ten displays apiece, P four got one click and P six got four. P five sits between
+          them with three. We have equalized the display counts. Position and selection still affect those
+          click rates. We need better evidence before using them to learn a new order.
+        hold: 0.9
+        visual_cues:
+          - id: exposure-raw
+            phrase: "wins with ten clicks"
+            targets: [raw-clicks]
+          - id: exposure-normalize
+            phrase: "Keep just the first row"
+            targets: [equal-exposure]
+          - id: exposure-limits
+            phrase: "Position and selection still affect"
+            targets: [exposure-bias]
+  - id: click-model
+    title: "What does a click at position three tell us?"
+    visual: "A common ruler tracks expected weighted clicks for two positions. The marks converge under inverse weighting and separate again when the same cap clips only one weight."
+    beats:
+      - say: >-
+          Suppose the two listings are equally likely to be relevant. Give each a relevance probability of
+          one half. In this toy model, a click requires both examination and relevance. Examination depends
+          only on position, and at this fixed context we assume it's independent of relevance. Position one
+          gets examined four times as often as position three. Multiply examination by relevance. The
+          expected click rates are point four and point one.
+        hold: 0.8
+        visual_cues:
+          - id: click-product
+            phrase: "a click requires both examination and relevance"
+            targets: [click-inputs]
+          - id: click-raw
+            phrase: "expected click rates are point four and point one"
+            targets: [expected-clicks]
+      - say: >-
+          Now weight each click by one divided by its examination probability. A top-position click counts
+          one and a quarter times. A third-position click counts five times. Watch where the marks meet.
+          Both expected weighted clicks per impression are one half. That's an average over the toy model. A
+          finite log can come out differently.
+        hold: 0.75
+        visual_cues:
+          - id: click-inverse
+            phrase: "weight each click by one divided by its examination probability"
+            targets: [inverse-weights]
+      - say: >-
+          Cap each inverse weight at two. Keep the smaller of two and the weight already on the screen.
+          Which position loses weight?
+        hold: 2.1
+        visual_cues:
+          - id: click-cap
+            phrase: "Cap each inverse weight at two"
+            targets: [clipping-rule]
+          - id: click-question
+            phrase: "Which position loses weight"
+            targets: [clipping-question]
+      - say: >-
+          Follow position three. Its raw click probability stays at one tenth. The weight falls from five to
+          two, so its weighted expectation falls to two tenths. Position one keeps its weight and its half.
+          Clipping limits the influence of an individual click at the cost of bias here. If we lower the cap
+          to one, both weights become one. We're back at the raw click rates. Real clicks can also reflect
+          trust or accidents. A useful correction needs evidence for the observation model.
+        hold: 0.9
+        visual_cues:
+          - id: click-clip
+            phrase: "Follow position three"
+            targets: [clipped-weights]
+          - id: click-one
+            phrase: "lower the cap to one"
+            targets: [clipping-rule]
+  - id: propensity-contract
+    title: "Could the shopper see product Z?"
+    visual: Experiment assignment, selection and examination receive separate named paths; zero exposure
+      stays visibly empty instead of being rescaled.
+    beats:
+      - say: Follow one shopper. A fifty-fifty split decides which ranker they get. That ranker's selection
+          policy determines which products can appear. Examination propensity describes the chance that
+          the shopper looks at a product in its assigned position. Suppose the policy never shows product
+          Z. There are no clicks for Z to reweight. Independent judgments or approved exploration can
+          give us observations for that product.
+        hold: 0.75
+        visual_cues:
+          - id: propensity-types
+            phrase: "A fifty-fifty split"
+            targets:
+              - propensity-contract-mechanism
+            color: cyan
+            linger: 0.5
+          - id: propensity-zero
+            phrase: "never shows product Z"
+            targets:
+              - propensity-contract-mechanism
+            color: pink
+            linger: 0.5
+      - say: >-
+          Look at the same two printers under different rankers. When their positions swap, we can compare
+          how often shoppers click them in each position. Randomized swaps are one way to get that variation.
+          Agarwal and colleagues used changes across historical rankers to estimate relative examination
+          rates. Their method needs overlapping positions, comparable assignment and a model of how position
+          affects attention.
+        hold: 0.75
+        visual_cues:
+          - id: propensity-relative
+            phrase: "Look at the same two printers"
+            targets:
+              - propensity-contract-mechanism
+            color: cyan
+            linger: 0.5
+      - say: >-
+          Relative rates tell us how much more often one position gets examined. To recover an absolute
+          relevance rate, we also need the examination scale. Multiplying the data loss by a positive
+          constant leaves its best unregularized fit in the same place. With a fixed penalty, the balance
+          changes. Scale the penalty too to preserve the fit. Here the propensity fields stay empty. Keep
+          these rows for evaluation. Before training on clicks, validate the estimate against observations
+          and have the training pipeline enforce the permitted use.
+        hold: 0.75
+        visual_cues:
+          - id: propensity-scale
+            phrase: "Multiplying the data loss"
+            targets:
+              - propensity-contract-mechanism
+            color: cyan
+            linger: 0.5
+          - id: propensity-fixed
+            phrase: "With a fixed penalty"
+            targets:
+              - propensity-contract-mechanism
+            color: cyan
+            linger: 0.5
+          - id: propensity-unset
+            phrase: "the propensity fields stay empty"
+            targets:
+              - propensity-contract-mechanism
+            color: cyan
+            linger: 0.5
+  - id: synthesis
+    title: "File the printer response"
+    visual: "Three slips carry their learned scores into numbered positions on the saved response for R42."
+    beats:
+      - say: >-
+          Back to the printer illustration where we turned the scoring direction twelve times. Here are the
+          three eligible printers and their final scores. P eight is still blocked and P eleven still cannot
+          ship. Before you file this response, which listing belongs in position two?
+        hold: 2.15
+        visual_cues:
+          - id: receipt-question
+            phrase: "which listing belongs in position two"
+            targets: [middle-slot]
+      - say: >-
+          Put the highest score in first place. That is P five. P six takes second place, ahead of P four in
+          third. Save the request with its ranker, policy and experiment arm. When a click arrives later,
+          that record lets us look up what the server returned to this shopper.
+        hold: 1
+        visual_cues:
+          - id: receipt-slot-1
+            phrase: "That is P five"
+            targets: [first-slot]
+          - id: receipt-slot-2
+            phrase: "P six takes second place"
+            targets: [middle-slot]
+          - id: receipt-slot-3
+            phrase: "P four in third"
+            targets: [last-slot]
+          - id: receipt-context
+            phrase: "its ranker, policy and experiment arm"
+            targets: [response-context]
+  - id: response-lineage
+    title: What did the server return?
+    visual: Actual REQ-500/501 slates preserve positions and versions before separately pending
+      rendering and examination observations.
+    beats:
+      - say: >-
+          These two saved responses come from the hand-entered fixture. Control R E Q five hundred returns P
+          four, P five, P six. Treatment puts P five first, P six second and P four third. Each row records
+          the request, shopper, query and serving time, plus the product and its position. Save the catalog,
+          eligibility, candidate, ranker and experiment versions with the list.
+        hold: 0.75
+        visual_cues:
+          - id: response-rows
+            phrase: "Control R E Q five hundred returns"
+            targets:
+              - response-lineage-mechanism
+            color: cyan
+            linger: 0.5
+          - id: response-identity
+            phrase: "Each row records the request"
+            targets:
+              - response-lineage-mechanism
+            color: cyan
+            linger: 0.5
+      - say: >-
+          Follow one row from the server to the shopper. The server records what it returned. A client render
+          receipt tells us which product the app drew. A visibility event records when that product came into
+          view. Whether the shopper examined it is a further question. This fixture stores the server rows in
+          memory. For a durable history, write those rows together in one transaction and append corrections
+          as new records.
+        hold: 0.75
+        visual_cues:
+          - id: response-observed
+            phrase: "Follow one row from the server"
+            targets:
+              - response-lineage-mechanism
+            color: cyan
+            linger: 0.5
+          - id: response-ack
+            phrase: "The server records what it returned"
+            targets:
+              - response-lineage-mechanism
+            color: cyan
+            linger: 0.5
+      - say: >-
+          Validate complete unique positions from one through slate size, consistent request metadata and
+          exact product-position membership in the configured slate. Replay the order against the retained
+          historical catalog. Check current eligibility for a new response. To reproduce the scores, also
+          retain the original candidates, features, model bytes and rule definitions.
+        hold: 0.75
+        visual_cues:
+          - id: response-validate
+            phrase: complete unique positions
+            targets:
+              - response-lineage-mechanism
+            color: cyan
+            linger: 0.5
+          - id: response-history
+            phrase: retained historical catalog
+            targets:
+              - response-lineage-mechanism
+            color: cyan
+            linger: 0.5
+  - id: outcome-join
+    title: "Does this event belong to the response?"
+    visual: "The server's REQ-501 order stays pinned. A replay, a conflicting product, and an early timestamp are compared with a stored click."
+    beats:
+      - say: >-
+          Keep the server's three positions in view. It returned this response at five seconds past noon.
+          Three seconds later, a click names request five hundred one and P five. A purchase follows at four
+          minutes eighteen. Each record has its own event ID, occurrence time in UTC, request, product and
+          outcome type. Both match the product in position one. A purchase still needs an attribution window
+          and a rule for other paths, such as a later email.
+        hold: 0.8
+        visual_cues:
+          - id: event-click
+            phrase: "a click names request five hundred one"
+            targets: [stored-click]
+          - id: event-purchase
+            phrase: "A purchase follows"
+            targets: [purchase-event]
+          - id: event-join
+            phrase: "Both match the product in position one"
+            targets: [response-membership]
+      - say: >-
+          Now try an ingestion worksheet. Suppose the click arrives again. Compare both rows. The ID and
+          every field agree. Count it once. Keep the ID and change just the product to P nine. Is this still
+          a replay?
+        hold: 2.1
+        visual_cues:
+          - id: event-replay
+            phrase: "the click arrives again"
+            targets: [incoming-event]
+          - id: event-ignore
+            phrase: "Count it once"
+            targets: [replay-decision]
+          - id: event-change
+            phrase: "change just the product"
+            targets: [incoming-event]
+      - say: >-
+          Quarantine the conflict. The same ID now describes two different clicks. P nine also fails a
+          separate check. It was absent from the response. A new ID alone couldn't fix that join.
+        hold: 0.75
+        visual_cues:
+          - id: event-conflict
+            phrase: "Quarantine the conflict"
+            targets: [replay-decision]
+          - id: event-absent
+            phrase: "absent from the response"
+            targets: [response-membership]
+      - say: >-
+          Try a new event for P six. The product matches, but its clock reads three seconds past noon.
+          That's two seconds before serving. Investigate the clock or request ID. The lab checks unique IDs,
+          membership and time order. A live stream also needs durable deduplication and finalized
+          attribution windows. Keep the returned rows that never received a click. Until you know what was
+          visible and when follow-up closed, a missing click tells you little about relevance.
+        hold: 0.9
+        visual_cues:
+          - id: event-clock
+            phrase: "a new event for P six"
+            targets: [incoming-event]
+          - id: event-early
+            phrase: "two seconds before serving"
+            targets: [event-time]
+  - id: experiment-contract
+    title: Stable assignment must survive repeated searches
+    visual: The experiment/shopper hash maps all of one shopper’s requests to one arm; analysis retains
+      that assignment unit.
+    beats:
+      - say: The actual assignment hashes experiment ID and shopper ID, takes a deterministic bucket and
+          maps it to treatment or control. Each shopper stays in one arm even across repeated
+          searches. Missing IDs or an arm inconsistent with that hash fail the fixture. Different
+          products in a slate do not receive independent experiment assignments.
+        hold: 0.75
+        visual_cues:
+          - id: assignment-hash
+            phrase: hashes experiment ID and shopper ID
+            targets:
+              - experiment-contract-mechanism
+            color: cyan
+            linger: 0.5
+          - id: assignment-stable
+            phrase: Each shopper stays in one arm
+            targets:
+              - experiment-contract-mechanism
+            color: cyan
+            linger: 0.5
+      - say: >-
+          Use the shopper as the assignment unit when you calculate uncertainty. The six searches on screen
+          come from just two shoppers. Before exposure, choose the primary purchase-conversion outcome,
+          attribution and follow-up windows, minimum detectable effect, sample size and sequential stopping
+          method. Check sample-ratio mismatch by comparing the observed shopper counts with the planned
+          split. Check for missing logs too.
+        hold: 0.75
+        visual_cues:
+          - id: assignment-unit
+            phrase: assignment unit
+            targets:
+              - experiment-contract-mechanism
+            color: cyan
+            linger: 0.5
+          - id: assignment-srm
+            phrase: Check sample-ratio mismatch
+            targets:
+              - experiment-contract-mechanism
+            color: cyan
+            linger: 0.5
+      - say: >-
+          Track returns per purchase, full-search latency, blocked displays and seller concentration. Even if
+          conversion rises, one prohibited display triggers its stop. To roll back, load the previous ranker
+          with its compatible features, reroute traffic, then verify the served version and current
+          eligibility checks.
+        hold: 0.75
+        visual_cues:
+          - id: experiment-stop
+            phrase: "one prohibited display triggers its stop"
+            targets:
+              - experiment-contract-mechanism
+            color: cyan
+            linger: 0.5
+          - id: experiment-recovery
+            phrase: "load the previous ranker"
+            targets:
+              - experiment-contract-mechanism
+            color: cyan
+            linger: 0.5
+  - id: probability-value
+    title: What is one impression worth?
+    visual: "An eighty-dollar printer turns impressions into expected clicks, purchases and gross sales. A second worksheet checks one probability bin against ten held-out outcomes."
+    beats:
+      - say: >-
+          A rank score tells us which printer comes first. What is one impression of an eighty-dollar printer
+          worth? Follow one purchase path. The shopper clicks, then buys. Count at most one purchase through
+          that click. We want gross sales before fees and returns. Multiply the chance of a click by the
+          chance of a purchase given the click, then by the price.
+        hold: 0.75
+        visual_cues:
+          - id: value-score
+            phrase: "A rank score tells us which printer comes first"
+            targets:
+              - probability-value-mechanism
+            color: cyan
+            linger: 0.5
+          - id: value-price
+            phrase: "one impression of an eighty-dollar printer"
+            targets: [purchase-path]
+          - id: value-rule
+            phrase: "Multiply the chance of a click"
+            targets:
+              - probability-value-mechanism
+            color: cyan
+            linger: 0.5
+      - say: >-
+          Start with a hundred impressions. At a click probability of point two, we'd expect twenty clicks.
+          If one in four clicks leads to a purchase, that's five printers. At eighty dollars each, that's
+          four hundred dollars in gross sales. Divide by the hundred impressions. That's four dollars per
+          impression on average.
+        hold: 0.75
+        caption_starts:
+          - "that's five printers"
+          - "That's four dollars per impression"
+        visual_cues:
+          - id: value-example
+            phrase: "Start with a hundred impressions"
+            targets:
+              - probability-value-mechanism
+            color: cyan
+            linger: 0.5
+          - id: value-clicks
+            phrase: "we'd expect twenty clicks"
+            targets: [expected-clicks]
+          - id: value-purchases
+            phrase: "that's five printers"
+            targets: [expected-purchases]
+          - id: value-total
+            phrase: "four hundred dollars in gross sales"
+            targets: [expected-gross]
+          - id: value-unit
+            phrase: "That's four dollars per impression"
+            targets: [expected-value]
+      - say: >-
+          Now check a probability against held-out outcomes. Take ten predictions of point eight. We'd expect
+          eight positives. Count the green dots. Six were positive, so the observed rate is point six. The
+          gap is point two. A reliability diagram makes this comparison for each probability bin. Expected
+          calibration error averages the absolute gaps, weighting each bin by its share of examples. With
+          ten examples, one outcome changes this bin's rate by a tenth. Changing the bin boundaries
+          changes which predictions you compare. Check calibration again when the traffic changes.
+        hold: 0.75
+        caption_starts:
+          - "Six were positive"
+          - "The gap is point two"
+        visual_cues:
+          - id: value-bins
+            phrase: "Take ten predictions of point eight"
+            targets:
+              - probability-value-mechanism
+            color: cyan
+            linger: 0.5
+          - id: value-outcomes
+            phrase: "Count the green dots"
+            targets: [held-out-outcomes]
+          - id: value-ece
+            phrase: "Six were positive"
+            targets:
+              - probability-value-mechanism
+            color: cyan
+            linger: 0.5
+          - id: value-gap
+            phrase: "The gap is point two"
+            targets: [calibration-gap]
+  - id: online-guardrails
+    title: "Which purchases came back?"
+    visual: "Two hundred search marks collapse to the four control purchases and six treatment purchases. A returned purchase stays marked as the denominator changes."
+    beats:
+      - say: >-
+          Here is a separate, invented experiment worksheet. Each dot is one search. A colored dot is a
+          search with one purchase. Four control searches and six treatment searches converted. Out of a
+          hundred searches on each side, that gives four percent and six percent. Treatment leads on
+          conversion.
+        hold: 0.65
+        visual_cues:
+          - id: return-convert
+            phrase: "four percent and six percent"
+            targets: [conversion]
+      - say: >-
+          The return rule asks a different question. Stop if treatment returns per purchase exceed control
+          by more than one percentage point. Keep only the purchases in view. None of the four control
+          purchases came back. One treatment purchase came back. Does the return rule stop treatment?
+        hold: 2.2
+        visual_cues:
+          - id: return-rule
+            phrase: "Stop if treatment returns per purchase"
+            targets: [return-rule]
+          - id: return-denominator
+            phrase: "Keep only the purchases"
+            targets: [purchase-denominator]
+          - id: return-one
+            phrase: "One treatment purchase came back"
+            targets: [returned-purchase]
+          - id: return-question
+            phrase: "Does the return rule stop treatment"
+            targets: [return-decision]
+      - say: >-
+          The treatment rate is one out of six purchases, about sixteen point seven percent. Control is zero
+          out of four. The worksheet says to stop treatment. For a real trial, buyers need comparable
+          follow-up windows. These small counts alone give us little evidence about a population effect.
+        hold: 0.8
+        visual_cues:
+          - id: return-rate
+            phrase: "about sixteen point seven percent"
+            targets: [return-rates]
+          - id: return-stop
+            phrase: "says to stop treatment"
+            targets: [return-decision]
+      - say: >-
+          Try the same rule with zero purchases in control. Its conversion is zero, but its return rate is
+          zero divided by zero. That rate is undefined. Hold the return comparison until both denominators
+          exist. A blocked display can still trigger a separate safety stop. The twenty millisecond scoring
+          check and the hundred and twenty millisecond full-search stop also time different work.
+        hold: 0.9
+        visual_cues:
+          - id: return-empty
+            phrase: "zero purchases in control"
+            targets: [purchase-denominator]
+          - id: return-undefined
+            phrase: "That rate is undefined"
+            targets: [control-returns]
+          - id: return-hold
+            phrase: "Hold the return comparison"
+            targets: [return-decision]
+  - id: receipt-boundary
+    title: What would justify a live trial?
+    visual: All seventeen named gate results remain beside their exact inputs and the
+      missing-live-evidence ledger.
+    beats:
+      - say: >-
+          Read the local test receipt. All seventeen checks pass. Two specific requests and their two outcome
+          events are required. Drop one and the check fails, even if all the remaining rows look right. The
+          live trial is still off.
+        hold: 0.75
+        visual_cues:
+          - id: receipt-gates
+            phrase: "All seventeen checks pass"
+            targets:
+              - receipt-boundary-mechanism
+            color: cyan
+            linger: 0.5
+          - id: receipt-live
+            phrase: "The live trial is still off"
+            targets:
+              - receipt-boundary-mechanism
+            color: cyan
+            linger: 0.5
+      - say: >-
+          Read each number with its source. Ten supplied scoring times give a p ninety-five of eighteen
+          milliseconds. Two hand-entered rankings lift mean N D C G from point eight five four to one. The
+          fitted model used three training requests, two validation requests and two test requests. The
+          returns worksheet has its own hundred searches per arm. The six server rows and two events belong
+          to the join test.
+        hold: 0.75
+        visual_cues:
+          - id: receipt-identities
+            phrase: "Ten supplied scoring times"
+            targets:
+              - receipt-boundary-mechanism
+            color: cyan
+            linger: 0.5
+          - id: receipt-online
+            phrase: "The returns worksheet has its own"
+            targets:
+              - receipt-boundary-mechanism
+            color: cyan
+            linger: 0.5
+      - say: >-
+          For a portfolio project, start with data you can use and independent judgments. Freeze the holdouts
+          before tuning. Save one full candidate and feature snapshot with the returned list. Collect a
+          client receipt for what was displayed, then join deduplicated outcomes after follow-up closes.
+          Benchmark the real serving path and calculate experiment power. Rehearse the rollback with the
+          previous model and its feature code, then check the version and eligibility on a returned list.
+        hold: 0.75
+        visual_cues:
+          - id: receipt-extension
+            phrase: Benchmark the real serving path
+            targets:
+              - receipt-boundary-mechanism
+            color: cyan
+            linger: 0.5
+  - id: fresh-ranking
+    title: "Which lamps go back to the shopper?"
+    visual: "The proposal and the returned L17 response occupy adjacent racks. Stock and seller counts decide which lamp takes the middle position and which later click matches it."
+    beats:
+      - say: >-
+          One last request, this time for a portable lamp. These are new worksheet inputs. Use the rounded
+          weights above the catalog. For J five, the match term costs five hundredths and quality adds
+          thirty-six hundredths. Its score is point three one. Score the other lamps the same way. We need
+          three places, with at most two lamps from any seller.
+        hold: 0.8
+        visual_cues:
+          - id: lamp-scores
+            phrase: "Score the other lamps the same way"
+            targets: [lamp-scores]
+      - say: >-
+          Start with the two highest scores. J two and J three both come from seller A. J five is next by
+          score. Which lamp takes the third place?
+        hold: 2.25
+        visual_cues:
+          - id: lamp-two
+            phrase: "two highest scores"
+            targets: [lamp-proposal]
+          - id: lamp-third-question
+            phrase: "Which lamp takes the third place"
+            targets: [lamp-proposal]
+      - say: >-
+          Skip J five. Seller A already has two places. The third place goes to J one from seller B. Now the
+          stock feed changes before we send the response. J three has sold out. Its score is still point six
+          six. Which lamp can take its place under the same seller rule?
+        hold: 2.25
+        visual_cues:
+          - id: lamp-skip
+            phrase: "Skip J five"
+            targets: [seller-cap]
+          - id: lamp-third
+            phrase: "third place goes to J one"
+            targets: [lamp-proposal]
+          - id: lamp-stock
+            phrase: "J three has sold out"
+            targets: [lamp-stock]
+      - say: >-
+          J two keeps first place. J one still fits in third. Seller A now has room for one more lamp, so J
+          five can take second place. Save this order for request L seventeen at noon, along with the
+          current catalog, rule and model versions. Keep the earlier proposal for the audit.
+        hold: 0.75
+        visual_cues:
+          - id: lamp-hold
+            phrase: "J two keeps first place"
+            targets: [lamp-response]
+          - id: lamp-hold-third
+            phrase: "J one still fits in third"
+            targets: [lamp-response]
+          - id: lamp-substitute
+            phrase: "J five can take second place"
+            targets: [lamp-response]
+          - id: lamp-serve
+            phrase: "Save this order"
+            targets: [lamp-receipt]
+      - say: >-
+          Two clicks arrive after noon. Both name this request. One names J three and the other names J
+          five. Which click matches the returned order?
+        hold: 2.25
+        visual_cues:
+          - id: lamp-events
+            phrase: "Two clicks arrive"
+            targets: [lamp-clicks]
+      - say: >-
+          J three appears only in the proposal. Its click fails the product join. The click on J five matches
+          position two of the saved response. To check what appeared on screen, use the client's render
+          receipt. File event E thirty-two with request L seventeen, lamp J five, position two.
+        hold: 1.5
+        caption_starts:
+          - "The click on J five"
+          - "File event E thirty-two"
+          - "lamp J five, position two"
+        visual_cues:
+          - id: lamp-absent
+            phrase: "fails the product join"
+            targets: [lamp-clicks]
+          - id: lamp-valid
+            phrase: "matches position two of the saved response"
+            targets: [lamp-clicks]
+          - id: lamp-file
+            phrase: "File event E thirty-two"
+            targets: [joined-click]

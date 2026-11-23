@@ -1,0 +1,201 @@
+version: 1
+lesson: build-gpt-from-scratch-lab
+promise: Follow a Shakespeare prediction from its source token to its loss, diagnose a copied label or a leaked future input, and use checkpoint and sampling evidence to decide what the trained decoder has learned.
+framing: []
+objectives:
+  - id: intro
+    can: Locate the observed successor at a printed line break and explain how a sampled successor becomes input during generation.
+    scenes:
+      - intro
+  - id: corpus-exposure
+    can: Count the stream actually sampled
+    scenes:
+      - corpus-exposure
+  - id: targets
+    can: Compare a loader's entire label row with the source suffix, including the final successor.
+    scenes:
+      - targets
+      - changed-contract
+  - id: byte-boundaries
+    can: Keep the bytes behind each BPE piece
+    scenes:
+      - byte-boundaries
+  - id: mask
+    can: Change one future input and use paired scores to decide whether it influenced an earlier prediction.
+    scenes:
+      - mask
+      - changed-contract
+  - id: vocab
+    can: Look up GPT-2 comma ID 11 in the saved Shakespeare rows and recover it from local row 2.
+    scenes:
+      - vocab
+  - id: compact-denominator
+    can: A smaller support changes probability and gradients
+    scenes:
+      - compact-denominator
+  - id: stream-boundaries
+    can: Preserve a successor that existed in the stream
+    scenes:
+      - stream-boundaries
+  - id: forward
+    can: Combine the comma's token and position vectors, average readable values, and score each piece against that hidden vector.
+    scenes:
+      - forward
+  - id: preln-block
+    can: Earn the full decoder shapes and residual branches
+    scenes:
+      - preln-block
+  - id: loss
+    can: Find the line break's share of the four-way distribution and calculate its contribution to the batch loss.
+    scenes:
+      - loss
+  - id: checkpoints
+    can: Pair each generated excerpt with its checkpoint and distinguish sampled validation loss from the quality of the excerpt.
+    scenes:
+      - checkpoints
+  - id: generation-choice
+    can: Sample one retained token, then decode its identity
+    scenes:
+      - generation-choice
+  - id: resume
+    can: Predict the next sampled window after restoring the initial seed or the generator's progressed state.
+    scenes:
+      - resume
+  - id: resume-fork
+    can: Restore the state that determines the next update
+    scenes:
+      - resume-fork
+  - id: architecture-choices
+    can: Compare a changed component without changing the objective
+    scenes:
+      - architecture-choices
+  - id: kernel-diagnostics
+    can: Use each check to test the failure it can see
+    scenes:
+      - kernel-diagnostics
+  - id: changed-contract
+    can: Use a frozen source, a changed input and the loader's actual labels to choose a repair before training.
+    scenes:
+      - changed-contract
+sections:
+  - heading: The causal LM contract
+    status: taught
+    note: The comma can read the first three pieces of the prompt. Its source successor is GPT-2 newline ID 198. The four-candidate readout is a worked miniature.
+    scenes:
+      - intro
+      - targets
+      - mask
+      - changed-contract
+  - heading: Five moving parts
+    status: taught
+    scenes:
+      - corpus-exposure
+      - vocab
+      - compact-denominator
+      - forward
+      - preln-block
+  - heading: Audit the causal target before training
+    status: taught
+    note: The prompt uses all six GPT-2 pieces. A separate four-piece head repeats a future-input change with a causal mask and with all keys open.
+    scenes:
+      - targets
+      - byte-boundaries
+      - mask
+      - changed-contract
+  - heading: Split the stream without inventing boundaries
+    status: taught
+    scenes:
+      - stream-boundaries
+      - corpus-exposure
+  - heading: Train, sample, then keep going
+    status: taught
+    scenes:
+      - preln-block
+      - forward
+      - loss
+      - checkpoints
+      - generation-choice
+  - heading: How to read the two checkpoints
+    status: taught
+    note: The article reports validation losses of 6.050 and 5.550 nats per token at updates 81 and 321. The quoted text comes from separate fixed-prompt generations.
+    scenes:
+      - checkpoints
+      - generation-choice
+      - kernel-diagnostics
+  - heading: What a resume file has to remember
+    status: taught
+    note: The window starts 4, 1, 9 and 6 come from the article's deterministic practice example. Update 322 refers to its separate pinned CPU run.
+    scenes:
+      - resume
+      - resume-fork
+  - heading: What this lab kept from GPT-2
+    status: taught
+    scenes:
+      - architecture-choices
+      - kernel-diagnostics
+  - heading: Diagnostics and debugging failure modes
+    status: taught
+    scenes:
+      - kernel-diagnostics
+      - changed-contract
+quiz:
+  - n: 1
+    status: taught
+    scenes:
+      - compact-denominator
+  - n: 2
+    status: taught
+    scenes:
+      - targets
+      - changed-contract
+  - n: 3
+    status: taught
+    scenes:
+      - stream-boundaries
+  - n: 4
+    status: taught
+    scenes:
+      - resume
+      - resume-fork
+  - n: 5
+    status: taught
+    scenes:
+      - preln-block
+  - n: 6
+    status: taught
+    scenes:
+      - generation-choice
+  - n: 7
+    status: taught
+    scenes:
+      - byte-boundaries
+  - n: 8
+    status: taught
+    scenes:
+      - vocab
+      - generation-choice
+  - n: 9
+    status: taught
+    scenes:
+      - kernel-diagnostics
+  - n: 10
+    status: taught
+    scenes:
+      - checkpoints
+      - kernel-diagnostics
+removed: []
+reviews:
+  closed_book:
+    script: 7f7df9bf1128938c
+    reviewer: /root/upgrade_shard4
+    evidence: build/video-delivery-20261106/script-reviews/build-gpt-from-scratch-lab.json
+    evidence_sha256: 53f16df445ad76362a6bb0039cb919354bb9d168f3843bcabc525977ff6b278e
+    taught: 10
+    partial: 0
+    absent: 0
+  fact_check:
+    script: 7f7df9bf1128938c
+    reviewer: /root/upgrade_shard4
+    evidence: build/video-delivery-20261106/script-reviews/build-gpt-from-scratch-lab.json
+    evidence_sha256: 53f16df445ad76362a6bb0039cb919354bb9d168f3843bcabc525977ff6b278e
+    open_findings: 0

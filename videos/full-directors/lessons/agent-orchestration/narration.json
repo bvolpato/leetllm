@@ -1,0 +1,391 @@
+[
+  {
+    "id": "c01",
+    "title": "A quarter of the players",
+    "sourceChapters": [
+      "c01"
+    ],
+    "beats": [
+      {
+        "id": "c01-b01",
+        "say": "Here is the title screen for Fox Run, release seventeen. An operator asks Vega to send a quarter of the players to this build. Traffic is still at zero. What would you want to know before even sending that request to a reviewer?",
+        "hold": 2.3
+      },
+      {
+        "id": "c01-b02",
+        "say": "Evaluation counts regressions. Health counts errors from the canary. Policy sets the traffic cap. Each can read the same release independently. Each sends back a receipt, a small record of what it checked and what it found.",
+        "hold": 0.8
+      },
+      {
+        "id": "c01-b03",
+        "say": "Vega coordinates the work. You will choose which reads can start, decide whether their results belong in one proposal, and recover a paused release without making the same change twice. Only the writer can change traffic after the required review.",
+        "hold": 0.8
+      },
+      {
+        "id": "c01-b04",
+        "say": "Which work earns a separate model context? Suppose two specialists interpret independent sets of release notes. Give each a bounded question and specify how their answers will combine. For extracting counts from structured logs, ordinary parallel code does the job.",
+        "hold": 0.7
+      },
+      {
+        "id": "c01-b05",
+        "say": "Now suppose two editors need the same evolving trace to fix a single defect. Each edit changes what the next editor needs to know. Keep one scoped agent on that trace. Extra contexts cost tokens, coordination time and review. Measure what you gain on representative work.",
+        "hold": 1.3
+      }
+    ]
+  },
+  {
+    "id": "c02",
+    "title": "Which node can run?",
+    "sourceChapters": [
+      "c02"
+    ],
+    "beats": [
+      {
+        "id": "c02-b01",
+        "say": "Follow the arrows from the operator's request. An arrow says which result a node needs before it can run. Triage fixes the release identity. Now evaluation, health and policy can start. Merge needs all three.",
+        "hold": 0.8
+      },
+      {
+        "id": "c02-b02",
+        "say": "This read phase is a directed acyclic graph, or DAG. Follow any path. It goes forward. A node can read a database, run code, or ask a model to interpret notes. The graph tells you when the work can start. The work itself determines whether it needs a model.",
+        "hold": 0.8
+      },
+      {
+        "id": "c02-b03",
+        "say": "Suppose review takes a day. Does the pause add a cycle? Trace the route from proposal to review and on to the writer. Waiting adds time. A bounded retry inside one node also leaves these outer arrows intact.",
+        "hold": 1.1
+      },
+      {
+        "id": "c02-b04",
+        "say": "Now draw a return edge from review to a revised proposal. Follow it and you can visit proposal twice. That larger workflow is a state machine with a DAG inside it. This return edge is a design choice. In the article's example, reviewer rejection goes to cancel.",
+        "hold": 1.4
+      }
+    ]
+  },
+  {
+    "id": "c03",
+    "title": "Race the reads against one clock",
+    "sourceChapters": [
+      "c03"
+    ],
+    "beats": [
+      {
+        "id": "c03-b01",
+        "say": "Time three fictional reads. Evaluation takes two seconds, health takes three and policy takes one. In sequence they use six seconds. Add half a second for merge. Now line the starts up. At two seconds, which receipt will still be missing?",
+        "hold": 2.2
+      },
+      {
+        "id": "c03-b02",
+        "say": "Start the clock. Policy arrives after one second. Evaluation arrives after two. Watch health keep running while those two results wait. Health arrives at three. Only then can the half-second merge begin. The whole schedule takes three and a half seconds.",
+        "hold": 1.2
+      },
+      {
+        "id": "c03-b03",
+        "say": "Compare the schedules. Six seconds of read work went into each. Parallel execution cuts the ideal elapsed time from six and a half to three and a half seconds. Dispatch, rate limits, contention and model queues can eat into that saving. Measure both elapsed time and total cost.",
+        "hold": 1.2
+      }
+    ]
+  },
+  {
+    "id": "c04",
+    "title": "What may evaluation return?",
+    "sourceChapters": [
+      "c04"
+    ],
+    "beats": [
+      {
+        "id": "c04-b01",
+        "say": "Open the evaluation worker's input. The trusted request specifies tenant seven, release seventeen, revision three and twenty-five percent traffic. The article gives each worker a copied, read-only view. The worker's job is to return one typed update containing its own receipt.",
+        "hold": 0.8
+      },
+      {
+        "id": "c04-b02",
+        "say": "Watch the wrapper check a return. Two regressions in a hundred cases fit the evaluation receipt. Try adding an approval field. The wrapper rejects that update. Apply permissions at runtime. A type annotation tells the developer what a value should look like.",
+        "hold": 1.1
+      },
+      {
+        "id": "c04-b03",
+        "say": "Open the receipt. Its branch, request identity, revision, observation time, values and content digest let the join inspect the claim. The word passed supplies none of that evidence. Our film hashes branch values in a local registry. The registry has no tenant, time or revision metadata. Production needs an authenticated source bound to all three.",
+        "hold": 0.8
+      },
+      {
+        "id": "c04-b04",
+        "say": "When workers finish together, a reducer specifies how their updates combine. Append health and then evaluation. Reverse the inputs and you get a different list. Append evaluation again and both copies survive. Reducer input order can differ from network arrival order.",
+        "hold": 0.7
+      },
+      {
+        "id": "c04-b05",
+        "say": "Ask for one receipt per expected branch, validate the contents, then sort the branch names when building the packet. Hash those records in order. The evidence digest stays the same whichever worker finished first. The packet also carries the requested traffic. Changing that amount changes what the reviewer is being asked to approve.",
+        "hold": 1.2
+      }
+    ]
+  },
+  {
+    "id": "c05",
+    "title": "When does the join wake up?",
+    "sourceChapters": [
+      "c05"
+    ],
+    "beats": [
+      {
+        "id": "c05-b01",
+        "say": "Follow two steps of the graph runtime. It selects ready nodes for a superstep. They read the current channel values and produce updates. At the step boundary those updates are applied. Nodes in the next step can see the new values.",
+        "hold": 0.8
+      },
+      {
+        "id": "c05-b02",
+        "say": "What if two workers write the same unreduced traffic field in one step? Even if both supply twenty-five, LangGraph rejects concurrent updates to that scalar. Give the field one writer. For receipts, list addition combines updates, including duplicates. Grouping the additions preserves order, but swapping inputs can change it.",
+        "hold": 0.8
+      },
+      {
+        "id": "c05-b03",
+        "say": "A fresh attempt needs a deliberate reset. Adding an empty list keeps the saved receipts. Start a fresh thread, replace the channel with an empty list using Overwrite, or key the reducer by attempt. When resuming the same failed attempt, keep successful pending writes and retry the failed branch.",
+        "hold": 0.9
+      },
+      {
+        "id": "c05-b04",
+        "say": "Health needs an extra preparation step. Evaluation and policy have arrived. Can merge run yet? Watch the list-form waiting edge. It names the three terminal nodes together. The gate stays shut until health arrives. Now one merge can inspect the receipts. The scheduler has only counted completions.",
+        "hold": 1.7
+      },
+      {
+        "id": "c05-b05",
+        "say": "Replay the same arrivals with three separate edges. The first merge sees evaluation and policy. The next sees all three. This is the article's scheduling probe, which records what arrives. The release validator would fail that first invocation because health is missing.",
+        "hold": 1
+      },
+      {
+        "id": "c05-b06",
+        "say": "If routing skips health, a fixed waiting edge naming health never fires. Try a separate workflow. It selects evaluation and policy. Each has an edge to a deferred merge. Both receipts are in, but an index update elsewhere in the graph is still running. When the index finishes, all other graph work is done. Merge now inspects the two receipts and checks them against the selected identities. Our release still requires all three branches.",
+        "hold": 1
+      },
+      {
+        "id": "c05-b07",
+        "say": "The step boundary also has a limit. A shallow read-only mapping still lets a worker mutate a nested list. A deep copy separates the fixture's values. A checked return limits which channels can change. Isolate untrusted code and give each worker only the credentials and tools it needs.",
+        "hold": 1
+      }
+    ]
+  },
+  {
+    "id": "c06",
+    "title": "Three arrivals. One tenant?",
+    "sourceChapters": [
+      "c06"
+    ],
+    "beats": [
+      {
+        "id": "c06-b01",
+        "say": "The three receipts have reached the barrier. Read their tenant fields. The release request belongs to tenant seven. Health came back for tenant nine. All three results have the expected shape. Would you put them in a review packet?",
+        "hold": 2.4
+      },
+      {
+        "id": "c06-b02",
+        "say": "Reject the batch. A barrier can tell us that health finished. Only a comparison with the trusted request catches the other tenant. Resolve the health source under the authorized tenant. Refresh health for tenant seven, then check the entire batch. Require one of each expected branch. Check request, tenant, release, revision, age and source content.",
+        "hold": 1.1
+      },
+      {
+        "id": "c06-b03",
+        "say": "Here is the corrected batch at the supplied clock time. All three observations are ten seconds old. Evaluation has two regressions among one hundred cases, or two percent, within this example's three-percent limit. Health has four errors among ten thousand canary requests. That's point zero four percent, or four tenths of its point one percent allowance.",
+        "hold": 0.7
+      },
+      {
+        "id": "c06-b04",
+        "say": "Policy caps traffic at twenty-five percent. Check the lower bound and the integer type too. Minus one would pass a test that only checks the cap. Twenty-five is in range. These thresholds are fictional. Real release decisions need appropriate evaluation and operational evidence.",
+        "hold": 0.7
+      },
+      {
+        "id": "c06-b05",
+        "say": "Suppose the evaluation source is corrected from two regressions to one at the same reference. Both counts pass policy. Compare the receipt digest with the newly resolved contents. The old receipt fails. Read the corrected source, bind its digest into a new packet, and send the changed evidence for review.",
+        "hold": 1.2
+      }
+    ]
+  },
+  {
+    "id": "c07",
+    "title": "What survives the restart?",
+    "sourceChapters": [
+      "c07"
+    ],
+    "beats": [
+      {
+        "id": "c07-b01",
+        "say": "Health times out. Imagine adding a checkpointer to the read graph. It can save completed branch writes under the thread while the step is unfinished. Evaluation and policy reached storage. Health did not. If the process restarts now, which read must run again?",
+        "hold": 2
+      },
+      {
+        "id": "c07-b02",
+        "say": "Restore the same authorized thread. Its two saved results are still here. Retry health with bounded backoff, jitter and a deadline. This sketches a configured checkpointer. The article's first read DAG runs without one. A thread identifier locates saved state. The application authorizes whoever reads or resumes it.",
+        "hold": 1.1
+      },
+      {
+        "id": "c07-b03",
+        "say": "A node may run again from the beginning, including code before an interrupt. Restoring caller state cannot tell us whether an external write took effect. Keep reads repeatable and use a destination that can reconcile an ambiguous write or safely replay it.",
+        "hold": 0.7
+      },
+      {
+        "id": "c07-b04",
+        "say": "Time kept moving while we were away. The observations were recorded at nine ninety. At clock time one thousand, their age was ten seconds. Resume at twelve hundred and their age is two hundred ten seconds. Our sixty-second limit has expired. Use a trusted current clock and refresh old evidence. The article's separate fixture allows three hundred seconds.",
+        "hold": 1
+      },
+      {
+        "id": "c07-b05",
+        "say": "Give each failure to the owner who can resolve it. A transient metrics timeout gets a bounded retry. A permanently unknown release goes to alias resolution or review. A reviewer who declines routes to cancel. A writer that lost its reply asks the target about the same operation key before attempting another effect.",
+        "hold": 1.3
+      }
+    ]
+  },
+  {
+    "id": "c08",
+    "title": "What exactly did the reviewer sign?",
+    "sourceChapters": [
+      "c08"
+    ],
+    "beats": [
+      {
+        "id": "c08-b01",
+        "say": "Put the proposal beside the reviewer's copy. Both identify the tenant, request, release, revision, requested traffic and a digest of all validated evidence. The reviewer approves this exact packet. A bare yes cannot distinguish twenty-five percent on revision three from twenty-five percent on another build.",
+        "hold": 1
+      },
+      {
+        "id": "c08-b02",
+        "say": "The local packet carries an evidence digest. Keep the evidence and its resolvable references in a real review system so a person can inspect what the digest names. Now let the live release advance during review. The writer compares the supplied live revision to the approved revision. Should it act?",
+        "hold": 2.1
+      },
+      {
+        "id": "c08-b03",
+        "say": "Block the write. The review names revision three and the target is at four. Rebuild from current evidence and get fresh approval. The film supplies version-four receipts with unchanged branch values. It assumes those values were verified for this build. Its writer takes trusted inputs and performs no live fetch.",
+        "hold": 1
+      },
+      {
+        "id": "c08-b04",
+        "say": "Compare the new packet and the new approval. Their fields match and the supplied live revision is four. The target records one effect for this operation key. Imagine its reply goes missing. The caller now has a timeout. The target has already made the change.",
+        "hold": 1.3
+      },
+      {
+        "id": "c08-b05",
+        "say": "Ask the target again with the same key and exact packet. Its in-memory ledger finds the previous fingerprint and returns the same result. The effect count stays at one. The lookup precedes checks for a new write. Now change the request to twenty percent. The evidence digest stays the same. The fingerprint covers the whole packet, including traffic. The target rejects the reused key.",
+        "hold": 1
+      },
+      {
+        "id": "c08-b06",
+        "say": "What if the target process loses its ledger? This in-memory example loses its replay protection. Production needs a durable record committed with the effect or an authoritative reconciliation procedure. Saving the caller's checkpoint alone leaves a gap between those two systems.",
+        "hold": 0.8
+      },
+      {
+        "id": "c08-b07",
+        "say": "Authenticate reviewer and writer. Bind the review to the packet, policy revision and expiry. Before a new effect, verify permissions, freshness, policy and independent live dependencies. Enforce the target's preconditions atomically. Authorize access to saved results, too. Then verify the resulting state.",
+        "hold": 1
+      }
+    ]
+  },
+  {
+    "id": "c09",
+    "title": "Who answers the operator?",
+    "sourceChapters": [
+      "c09"
+    ],
+    "beats": [
+      {
+        "id": "c09-b01",
+        "say": "The operator asks Vega to assess a twenty-five percent rollout. Vega asks the health specialist to count failed canary requests. Once Health has the count, who answers the operator?",
+        "hold": 3
+      },
+      {
+        "id": "c09-b02",
+        "say": "Four errors in ten thousand requests. Health returns that bounded result to Vega. Vega replies to the operator. As supervisor, Vega keeps the next turn. That round trip was a tool call. Bound the specialist's input, output, turns and spend.",
+        "hold": 1
+      },
+      {
+        "id": "c09-b03",
+        "say": "Now the operator wants to work directly with a release specialist. Triage transfers the next turn to Release. The specialist can answer the operator directly. That is a handoff. The application selects which history travels with the transfer.",
+        "hold": 1
+      },
+      {
+        "id": "c09-b04",
+        "say": "History is evidence. Rebuild the receiver's tools from trusted policy. If the receiver can read release status, a sentence requesting a traffic shift cannot add a write tool. Validate generated transfer arguments separately from filtering history. Check argument-specific access when the arguments exist, and raise on denial. Function-tool guardrails do not automatically cover handoffs.",
+        "hold": 0.8
+      },
+      {
+        "id": "c09-b05",
+        "say": "A graph can schedule branches, loops and generated tasks. A speaker selector chooses who speaks in a group chat. A hierarchy adds coordinator layers that can cost time or lose intent. Limit turns, measure the cost, and test routing and typed-message contracts when migrating frameworks. Read-only credentials enforce the worker's role.",
+        "hold": 1.1
+      }
+    ]
+  },
+  {
+    "id": "c10",
+    "title": "Call a capability or delegate a task?",
+    "sourceChapters": [
+      "c10"
+    ],
+    "beats": [
+      {
+        "id": "c10-b01",
+        "say": "Vega needs a deployment lookup and an independent vendor investigation. Either may take a minute. Does the clock tell you which interface to choose? Look at who owns the work on the far side.",
+        "hold": 1.8
+      },
+      {
+        "id": "c10-b02",
+        "say": "The workflow framework schedules nodes and owns state. A wire protocol defines the boundary a node can call, even across processes. Model Context Protocol, or MCP, exposes tools, resources and prompts to a host. Here a deployment lookup takes a release identifier and returns a record.",
+        "hold": 0.9
+      },
+      {
+        "id": "c10-b03",
+        "say": "The vendor runs its own investigating agent. With Agent2Agent, or A two A, Vega can discover that agent and send a message. This investigation creates a task. Keep its identifier as the task moves from submitted to working to completed and returns an artifact. A direct message can also finish without creating a task.",
+        "hold": 1
+      },
+      {
+        "id": "c10-b04",
+        "say": "A completed task tells you that processing ended. Check the returned evidence and retain it if it must survive. Streaming or push updates depend on supported capabilities. MCP can also represent long-running work. Choose by the counterparty and ownership, even if both clocks show the same duration.",
+        "hold": 0.9
+      },
+      {
+        "id": "c10-b05",
+        "say": "Neither interface grants a traffic-change credential. The application checks authenticated permissions at the writer. Vega also requires human review. That review rule belongs to this release workflow. A tool schema, a task identifier and a message asking for a change confer no additional authority.",
+        "hold": 1.1
+      }
+    ]
+  },
+  {
+    "id": "c11",
+    "title": "Repair the torn build",
+    "sourceChapters": [
+      "c11"
+    ],
+    "beats": [
+      {
+        "id": "c11-b01",
+        "say": "One last batch. Each worker returned a passing result and a strip from the title screen of the build it checked. Put the three strips together. Look at the ears and the back of the fox. Would you send this batch to review?",
+        "hold": 2.8
+      },
+      {
+        "id": "c11-b02",
+        "say": "Read the revision beside each strip. Evaluation has three, health has four, and policy has three. The join rejects the mixed batch. Which branch should run again? Two votes for revision three cannot tell you what build the operator meant. Ask the trusted release service.",
+        "hold": 1.8
+      },
+      {
+        "id": "c11-b03",
+        "say": "Try a target of revision three. Which strip would you replace? Keep evaluation and policy if they are fresh and source-backed. Fetch health for three. Compare every receipt to its source, check the revision and age again, then build the packet.",
+        "hold": 1.1
+      },
+      {
+        "id": "c11-b04",
+        "say": "Return to the original torn picture. Which fact is missing? Look at the three revisions. This time the release service reports revision four. Which reads can you keep? Pick the strips before Vega sends another request.",
+        "hold": 2.5
+      },
+      {
+        "id": "c11-b05",
+        "say": "Health already checked four. Refresh evaluation for four. Refresh policy for four. Watch the new strips meet the one we kept. The join checks all three again. With matching, fresh, source-backed evidence it can now construct a new proposal for review.",
+        "hold": 1.2
+      },
+      {
+        "id": "c11-b06",
+        "say": "One more trap. Suppose a second health receipt also arrived. The set of names would still look complete, but four receipts cannot satisfy the one-per-branch contract. Reject the duplicate. A reducer can store it. Only the validator decides whether the batch is usable.",
+        "hold": 0.9
+      },
+      {
+        "id": "c11-b07",
+        "say": "With the valid three receipts restored, the proposal names revision four and twenty-five percent. Live traffic is still zero in this exercise. The writer needs current authorization and exact approval before it acts. In the capstone you will persist the review packet and test the writer's recovery and replay.",
+        "hold": 1.6
+      }
+    ]
+  }
+]

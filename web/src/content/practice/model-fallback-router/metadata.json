@@ -1,0 +1,232 @@
+{
+  "id": "model-fallback-router",
+  "slug": "model-fallback-router",
+  "title": "Model Fallback Router",
+  "difficulty": "Medium",
+  "category": "Serving",
+  "language": "python3",
+  "timeEstimateMinutes": 30,
+  "timeLimitMs": 2500,
+  "memoryLimitMb": 128,
+  "order": 200,
+  "tags": [
+    "routing",
+    "fallbacks",
+    "capabilities",
+    "quotas"
+  ],
+  "source": "AI lab prep",
+  "summary": "Route requests to the cheapest eligible healthy model with capability and quota checks.",
+  "starterCode": [
+    "def choose_model(request: dict, candidates: list[dict]):",
+    "    pass"
+  ],
+  "testCases": [
+    {
+      "name": "public chooses cheapest eligible model",
+      "visibility": "sample",
+      "setup": [
+        "from solution import choose_model",
+        "request = {\"capabilities\": [\"tool_use\"], \"tokens\": 100}",
+        "models = [",
+        "    {\"id\": \"fast\", \"healthy\": True, \"capabilities\": [\"tool_use\"], \"remaining_tokens\": 500, \"latency_ms\": 20, \"cost\": 3},",
+        "    {\"id\": \"cheap\", \"healthy\": True, \"capabilities\": [\"tool_use\", \"vision\"], \"remaining_tokens\": 200, \"latency_ms\": 80, \"cost\": 1},",
+        "]"
+      ],
+      "input": "request = {\"capabilities\": [\"tool_use\"], \"tokens\": 100}\nmodels = [\n    {\"id\": \"fast\", \"healthy\": True, \"capabilities\": [\"tool_use\"], \"remaining_tokens\": 500, \"latency_ms\": 20, \"cost\": 3},\n    {\"id\": \"cheap\", \"healthy\": True, \"capabilities\": [\"tool_use\", \"vision\"], \"remaining_tokens\": 200, \"latency_ms\": 80, \"cost\": 1},\n]\nchoose_model(request, models)",
+      "expected": "\"cheap\"",
+      "expression": "choose_model(request, models)"
+    },
+    {
+      "name": "public filters unhealthy and under quota",
+      "visibility": "sample",
+      "setup": [
+        "from solution import choose_model",
+        "request = {\"capabilities\": [], \"tokens\": 50}",
+        "models = [",
+        "    {\"id\": \"down\", \"healthy\": False, \"capabilities\": [], \"remaining_tokens\": 1000, \"latency_ms\": 1, \"cost\": 0},",
+        "    {\"id\": \"empty\", \"healthy\": True, \"capabilities\": [], \"remaining_tokens\": 10, \"latency_ms\": 1, \"cost\": 0},",
+        "    {\"id\": \"ok\", \"healthy\": True, \"capabilities\": [], \"remaining_tokens\": 50, \"latency_ms\": 10, \"cost\": 2},",
+        "]"
+      ],
+      "input": "request = {\"capabilities\": [], \"tokens\": 50}\nmodels = [\n    {\"id\": \"down\", \"healthy\": False, \"capabilities\": [], \"remaining_tokens\": 1000, \"latency_ms\": 1, \"cost\": 0},\n    {\"id\": \"empty\", \"healthy\": True, \"capabilities\": [], \"remaining_tokens\": 10, \"latency_ms\": 1, \"cost\": 0},\n    {\"id\": \"ok\", \"healthy\": True, \"capabilities\": [], \"remaining_tokens\": 50, \"latency_ms\": 10, \"cost\": 2},\n]\nchoose_model(request, models)",
+      "expected": "\"ok\"",
+      "expression": "choose_model(request, models)"
+    },
+    {
+      "name": "private requires all capabilities",
+      "visibility": "hidden",
+      "setup": [
+        "from solution import choose_model",
+        "request = {\"capabilities\": [\"vision\", \"json\"], \"tokens\": 1}",
+        "models = [",
+        "    {\"id\": \"partial\", \"healthy\": True, \"capabilities\": [\"vision\"], \"remaining_tokens\": 10, \"latency_ms\": 1, \"cost\": 1},",
+        "    {\"id\": \"full\", \"healthy\": True, \"capabilities\": [\"vision\", \"json\"], \"remaining_tokens\": 10, \"latency_ms\": 2, \"cost\": 2},",
+        "]"
+      ],
+      "input": "request = {\"capabilities\": [\"vision\", \"json\"], \"tokens\": 1}\nmodels = [\n    {\"id\": \"partial\", \"healthy\": True, \"capabilities\": [\"vision\"], \"remaining_tokens\": 10, \"latency_ms\": 1, \"cost\": 1},\n    {\"id\": \"full\", \"healthy\": True, \"capabilities\": [\"vision\", \"json\"], \"remaining_tokens\": 10, \"latency_ms\": 2, \"cost\": 2},\n]\nchoose_model(request, models)",
+      "expected": "\"full\"",
+      "expression": "choose_model(request, models)"
+    },
+    {
+      "name": "private applies latency ceiling",
+      "visibility": "hidden",
+      "setup": [
+        "from solution import choose_model",
+        "request = {\"capabilities\": [], \"tokens\": 1, \"max_latency_ms\": 50}",
+        "models = [",
+        "    {\"id\": \"slow-cheap\", \"healthy\": True, \"capabilities\": [], \"remaining_tokens\": 10, \"latency_ms\": 100, \"cost\": 0},",
+        "    {\"id\": \"fast-ok\", \"healthy\": True, \"capabilities\": [], \"remaining_tokens\": 10, \"latency_ms\": 50, \"cost\": 2},",
+        "]"
+      ],
+      "input": "request = {\"capabilities\": [], \"tokens\": 1, \"max_latency_ms\": 50}\nmodels = [\n    {\"id\": \"slow-cheap\", \"healthy\": True, \"capabilities\": [], \"remaining_tokens\": 10, \"latency_ms\": 100, \"cost\": 0},\n    {\"id\": \"fast-ok\", \"healthy\": True, \"capabilities\": [], \"remaining_tokens\": 10, \"latency_ms\": 50, \"cost\": 2},\n]\nchoose_model(request, models)",
+      "expected": "\"fast-ok\"",
+      "expression": "choose_model(request, models)"
+    },
+    {
+      "name": "private missing latency ceiling allows slower cheaper model",
+      "visibility": "hidden",
+      "description": "Without max_latency_ms, a slower lower-cost candidate still wins.",
+      "feedback": "Only apply a latency filter when max_latency_ms is present on the request.",
+      "setup": [
+        "from solution import choose_model",
+        "request = {\"capabilities\": [], \"tokens\": 1}",
+        "models = [",
+        "    {\"id\": \"slow-cheap\", \"healthy\": True, \"capabilities\": [], \"remaining_tokens\": 10, \"latency_ms\": 100, \"cost\": 0},",
+        "    {\"id\": \"fast-ok\", \"healthy\": True, \"capabilities\": [], \"remaining_tokens\": 10, \"latency_ms\": 50, \"cost\": 2},",
+        "]"
+      ],
+      "input": "request = {\"capabilities\": [], \"tokens\": 1}\nmodels = [\n    {\"id\": \"slow-cheap\", \"healthy\": True, \"capabilities\": [], \"remaining_tokens\": 10, \"latency_ms\": 100, \"cost\": 0},\n    {\"id\": \"fast-ok\", \"healthy\": True, \"capabilities\": [], \"remaining_tokens\": 10, \"latency_ms\": 50, \"cost\": 2},\n]\nchoose_model(request, models)",
+      "expected": "\"slow-cheap\"",
+      "expression": "choose_model(request, models)"
+    },
+    {
+      "name": "private tie breaks by latency then id",
+      "visibility": "hidden",
+      "setup": [
+        "from solution import choose_model",
+        "request = {\"capabilities\": [], \"tokens\": 1}",
+        "models = [",
+        "    {\"id\": \"b\", \"healthy\": True, \"capabilities\": [], \"remaining_tokens\": 10, \"latency_ms\": 5, \"cost\": 1},",
+        "    {\"id\": \"a\", \"healthy\": True, \"capabilities\": [], \"remaining_tokens\": 10, \"latency_ms\": 5, \"cost\": 1},",
+        "    {\"id\": \"c\", \"healthy\": True, \"capabilities\": [], \"remaining_tokens\": 10, \"latency_ms\": 2, \"cost\": 1},",
+        "]"
+      ],
+      "checks": [
+        {
+          "input": "request = {\"capabilities\": [], \"tokens\": 1}\nmodels = [\n    {\"id\": \"b\", \"healthy\": True, \"capabilities\": [], \"remaining_tokens\": 10, \"latency_ms\": 5, \"cost\": 1},\n    {\"id\": \"a\", \"healthy\": True, \"capabilities\": [], \"remaining_tokens\": 10, \"latency_ms\": 5, \"cost\": 1},\n    {\"id\": \"c\", \"healthy\": True, \"capabilities\": [], \"remaining_tokens\": 10, \"latency_ms\": 2, \"cost\": 1},\n]\nchoose_model(request, models)",
+          "expression": "choose_model(request, models)",
+          "operator": "==",
+          "expected": "\"c\""
+        },
+        {
+          "input": "request = {\"capabilities\": [], \"tokens\": 1}\nmodels = [\n    {\"id\": \"b\", \"healthy\": True, \"capabilities\": [], \"remaining_tokens\": 10, \"latency_ms\": 5, \"cost\": 1},\n    {\"id\": \"a\", \"healthy\": True, \"capabilities\": [], \"remaining_tokens\": 10, \"latency_ms\": 5, \"cost\": 1},\n    {\"id\": \"c\", \"healthy\": True, \"capabilities\": [], \"remaining_tokens\": 10, \"latency_ms\": 2, \"cost\": 1},\n]\nchoose_model(request, models)\nchoose_model({\"capabilities\": [\"missing\"], \"tokens\": 1}, models)",
+          "expression": "choose_model({\"capabilities\": [\"missing\"], \"tokens\": 1}, models)",
+          "operator": "is",
+          "expected": "None"
+        }
+      ]
+    },
+    {
+      "name": "public returns none with no candidates",
+      "visibility": "sample",
+      "description": "An empty candidate pool has no eligible route.",
+      "setup": [
+        "from solution import choose_model"
+      ],
+      "input": "choose_model({\"capabilities\": [], \"tokens\": 0}, [])",
+      "expected": "None",
+      "feedback": "Return None when eligibility filtering produces no candidates."
+    },
+    {
+      "name": "private breaks exact ties by id",
+      "visibility": "hidden",
+      "description": "Equal cost and latency fall through to alphabetical model ID.",
+      "setup": [
+        "from solution import choose_model",
+        "request = {\"capabilities\": [], \"tokens\": 1}",
+        "models = [",
+        "    {\"id\": \"zeta\", \"healthy\": True, \"capabilities\": [], \"remaining_tokens\": 1, \"latency_ms\": 5, \"cost\": 1},",
+        "    {\"id\": \"alpha\", \"healthy\": True, \"capabilities\": [], \"remaining_tokens\": 1, \"latency_ms\": 5, \"cost\": 1},",
+        "]"
+      ],
+      "input": "choose_model(request, models)",
+      "expected": "\"alpha\"",
+      "feedback": "Rank eligible models by cost, latency, then ID."
+    },
+    {
+      "name": "private leaves candidate records unchanged",
+      "visibility": "hidden",
+      "description": "Routing reads candidate state without mutating it.",
+      "setup": [
+        "from solution import choose_model",
+        "request = {\"capabilities\": [], \"tokens\": 1}",
+        "models = [{\"id\": \"m\", \"healthy\": True, \"capabilities\": [], \"remaining_tokens\": 2, \"latency_ms\": 5, \"cost\": 1}]",
+        "choose_model(request, models)"
+      ],
+      "input": "models",
+      "expected": "[{\"id\": \"m\", \"healthy\": True, \"capabilities\": [], \"remaining_tokens\": 2, \"latency_ms\": 5, \"cost\": 1}]",
+      "feedback": "Filter and rank candidate dictionaries without editing their fields or order."
+    },
+    {
+      "name": "private zero latency ceiling is inclusive",
+      "visibility": "hidden",
+      "setup": [
+        "from solution import choose_model",
+        "request = {\"capabilities\": [], \"tokens\": 0, \"max_latency_ms\": 0}",
+        "models = [{\"id\": \"slow\", \"healthy\": True, \"capabilities\": [], \"remaining_tokens\": 0, \"latency_ms\": 1, \"cost\": 0}, {\"id\": \"zero\", \"healthy\": True, \"capabilities\": [], \"remaining_tokens\": 0, \"latency_ms\": 0, \"cost\": 1}]"
+      ],
+      "input": "choose_model(request, models)",
+      "expected": "\"zero\"",
+      "feedback": "A zero ceiling is present; equality satisfies the ceiling."
+    }
+  ],
+  "clarifyingQuestions": [
+    "Should cheapest or fastest win when both satisfy requirements?",
+    "Should token budget reserve output tokens too?",
+    "Are model capabilities exact strings or hierarchical families?"
+  ],
+  "followUps": [
+    "Add per-tenant model allowlists.",
+    "Add health cooldowns after failures.",
+    "Return an ordered fallback chain of eligible model IDs."
+  ],
+  "followUpGuide": [
+    "Tenant allowlists are another eligibility filter before ranking.",
+    "",
+    "Cooldowns need time-aware health state, similar to a circuit breaker.",
+    "",
+    "Sort all eligible models by cost, latency, and ID to form a fallback chain."
+  ],
+  "complexityAnalysis": [
+    "- Let m be the number of candidates, r the request capability count, and c the maximum candidate capability count. Building the required set once, filtering eligible models, and selecting the minimum tuple `(cost, latency_ms, id)` takes O(r + m * (c + r)) expected time with hash sets and O(m + r + c) space.",
+    "- A single-pass streaming minimum eliminates the intermediate `eligible` list while keeping O(r + m * (c + r)) expected time and reducing auxiliary space to O(r + c)."
+  ],
+  "solutionGuide": [
+    "Separate filtering from ranking. Eligibility owns correctness; sort order owns policy.",
+    "",
+    "```python",
+    "def choose_model(request: dict, candidates: list[dict]):",
+    "    required = set(request.get(\"capabilities\", []))",
+    "    tokens = request.get(\"tokens\", 0)",
+    "    max_latency = request.get(\"max_latency_ms\")",
+    "    eligible = []",
+    "",
+    "    for model in candidates:",
+    "        if not model.get(\"healthy\"):",
+    "            continue",
+    "        if not required.issubset(set(model.get(\"capabilities\", []))):",
+    "            continue",
+    "        if model.get(\"remaining_tokens\", 0) < tokens:",
+    "            continue",
+    "        if max_latency is not None and model.get(\"latency_ms\", 0) > max_latency:",
+    "            continue",
+    "        eligible.append(model)",
+    "",
+    "    if not eligible:",
+    "        return None",
+    "    best = min(eligible, key=lambda model: (model[\"cost\"], model[\"latency_ms\"], model[\"id\"]))",
+    "    return best[\"id\"]",
+    "```"
+  ]
+}

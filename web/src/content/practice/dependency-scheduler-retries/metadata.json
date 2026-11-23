@@ -1,0 +1,273 @@
+{
+  "id": "dependency-scheduler-retries",
+  "slug": "dependency-scheduler-retries",
+  "title": "Dependency Scheduler With Retries",
+  "difficulty": "Hard",
+  "category": "Scheduling",
+  "language": "python3",
+  "timeEstimateMinutes": 45,
+  "timeLimitMs": 3000,
+  "memoryLimitMb": 128,
+  "order": 30,
+  "tags": [
+    "heap",
+    "DAG",
+    "retries",
+    "cycle detection"
+  ],
+  "source": "Frontier coding prep",
+  "summary": "Run a dependency graph deterministically, retry transient failures, and reject invalid graphs.",
+  "starterCode": [
+    "def schedule(tasks: list[dict], run, max_attempts: int = 2) -> list[str]:",
+    "    pass"
+  ],
+  "testCases": [
+    {
+      "name": "newly ready tasks compete with waiting tasks",
+      "visibility": "hidden",
+      "setup": [
+        "from solution import schedule",
+        "tasks = [{\"id\": \"z\"}, {\"id\": \"b\"}, {\"id\": \"a\", \"deps\": [\"b\"]}]"
+      ],
+      "input": "schedule(tasks, lambda task_id: None)",
+      "expected": "[\"b\", \"a\", \"z\"]"
+    },
+    {
+      "name": "runs dependencies before dependents",
+      "visibility": "sample",
+      "setup": [
+        "from solution import schedule",
+        "tasks = [",
+        "    {\"id\": \"index\", \"deps\": [\"embed\"]},",
+        "    {\"id\": \"extract\", \"deps\": []},",
+        "    {\"id\": \"embed\", \"deps\": [\"extract\"]},",
+        "]",
+        "seen = []"
+      ],
+      "checks": [
+        {
+          "input": "tasks = [\n    {\"id\": \"index\", \"deps\": [\"embed\"]},\n    {\"id\": \"extract\", \"deps\": []},\n    {\"id\": \"embed\", \"deps\": [\"extract\"]},\n]\nseen = []\nschedule(tasks, lambda task_id: seen.append(task_id))",
+          "expression": "schedule(tasks, lambda task_id: seen.append(task_id))",
+          "operator": "==",
+          "expected": "[\"extract\", \"embed\", \"index\"]"
+        },
+        {
+          "input": "tasks = [\n    {\"id\": \"index\", \"deps\": [\"embed\"]},\n    {\"id\": \"extract\", \"deps\": []},\n    {\"id\": \"embed\", \"deps\": [\"extract\"]},\n]\nseen = []\nschedule(tasks, lambda task_id: seen.append(task_id))\nseen",
+          "expression": "seen",
+          "operator": "==",
+          "expected": "[\"extract\", \"embed\", \"index\"]"
+        }
+      ]
+    },
+    {
+      "name": "retries transient failures and rejects cycles",
+      "visibility": "hidden",
+      "code": [
+        "from solution import schedule",
+        "",
+        "attempts = {}",
+        "def run(task_id):",
+        "    attempts[task_id] = attempts.get(task_id, 0) + 1",
+        "    if task_id == \"b\" and attempts[task_id] == 1:",
+        "        raise RuntimeError(\"transient\")",
+        "",
+        "tasks = [",
+        "    {\"id\": \"a\", \"deps\": []},",
+        "    {\"id\": \"b\", \"deps\": [\"a\"]},",
+        "    {\"id\": \"c\", \"deps\": [\"a\"]},",
+        "]",
+        "assert schedule(tasks, run, max_attempts=2) == [\"a\", \"b\", \"c\"]",
+        "assert attempts == {\"a\": 1, \"b\": 2, \"c\": 1}",
+        "",
+        "try:",
+        "    schedule([{\"id\": \"x\", \"deps\": [\"y\"]}, {\"id\": \"y\", \"deps\": [\"x\"]}], lambda _: None)",
+        "except ValueError:",
+        "    pass",
+        "else:",
+        "    raise AssertionError(\"cycle should raise ValueError\")"
+      ]
+    },
+    {
+      "name": "runs ready tasks in lexicographic order",
+      "visibility": "sample",
+      "setup": [
+        "from solution import schedule",
+        "seen = []",
+        "tasks = [{\"id\": \"b\"}, {\"id\": \"a\"}, {\"id\": \"c\", \"deps\": [\"a\"]}]"
+      ],
+      "checks": [
+        {
+          "input": "seen = []\ntasks = [{\"id\": \"b\"}, {\"id\": \"a\"}, {\"id\": \"c\", \"deps\": [\"a\"]}]\nschedule(tasks, seen.append)",
+          "expression": "schedule(tasks, seen.append)",
+          "operator": "==",
+          "expected": "[\"a\", \"b\", \"c\"]"
+        },
+        {
+          "input": "seen = []\ntasks = [{\"id\": \"b\"}, {\"id\": \"a\"}, {\"id\": \"c\", \"deps\": [\"a\"]}]\nschedule(tasks, seen.append)\nseen",
+          "expression": "seen",
+          "operator": "==",
+          "expected": "[\"a\", \"b\", \"c\"]"
+        }
+      ]
+    },
+    {
+      "name": "rejects duplicate task ids and unknown deps",
+      "visibility": "hidden",
+      "code": [
+        "from solution import schedule",
+        "",
+        "for tasks in ([{\"id\": \"a\"}, {\"id\": \"a\"}], [{\"id\": \"a\", \"deps\": [\"missing\"]}]):",
+        "    try:",
+        "        schedule(tasks, lambda task_id: None)",
+        "    except ValueError:",
+        "        pass",
+        "    else:",
+        "        raise AssertionError(\"invalid task graph should fail\")"
+      ]
+    },
+    {
+      "name": "raises after retry attempts are exhausted",
+      "visibility": "hidden",
+      "setup": [
+        "from solution import schedule",
+        "attempts = []",
+        "def run(task_id):",
+        "    attempts.append(task_id)",
+        "    raise RuntimeError(\"boom\")",
+        "try:",
+        "    schedule([{\"id\": \"a\"}, {\"id\": \"b\", \"deps\": [\"a\"]}], run, max_attempts=2)",
+        "except RuntimeError:",
+        "    pass",
+        "else:",
+        "    raise AssertionError(\"failed task should abort schedule\")"
+      ],
+      "input": "attempts = []\ndef run(task_id):\n    attempts.append(task_id)\n    raise RuntimeError(\"boom\")\ntry:\n    schedule([{\"id\": \"a\"}, {\"id\": \"b\", \"deps\": [\"a\"]}], run, max_attempts=2)\nexcept RuntimeError:\n    pass\nelse:\n    raise AssertionError(\"failed task should abort schedule\")\nattempts",
+      "expected": "[\"a\", \"a\"]",
+      "expression": "attempts"
+    },
+    {
+      "name": "empty task list completes immediately",
+      "visibility": "sample",
+      "description": "With no tasks, there is no work to run.",
+      "feedback": "Return an empty completion order for an empty graph.",
+      "setup": [
+        "from solution import schedule"
+      ],
+      "input": "schedule([], lambda task_id: None)",
+      "expected": "[]"
+    },
+    {
+      "name": "waits for every dependency",
+      "visibility": "hidden",
+      "description": "A task with two dependencies becomes ready only after both finish.",
+      "feedback": "Track full indegree and decrement it once per completed dependency.",
+      "setup": [
+        "from solution import schedule",
+        "tasks = [{\"id\": \"c\", \"deps\": [\"a\", \"b\"]}, {\"id\": \"b\"}, {\"id\": \"a\"}]"
+      ],
+      "input": "schedule(tasks, lambda task_id: None)",
+      "expected": "[\"a\", \"b\", \"c\"]"
+    },
+    {
+      "name": "deduplicates repeated dependencies",
+      "visibility": "hidden",
+      "description": "Repeated dependency IDs count once when readiness is calculated.",
+      "feedback": "Deduplicate each task's dependencies before building indegree and reverse edges.",
+      "setup": [
+        "from solution import schedule",
+        "tasks = [{\"id\": \"child\", \"deps\": [\"parent\", \"parent\"]}, {\"id\": \"parent\"}]"
+      ],
+      "input": "schedule(tasks, lambda task_id: None)",
+      "expected": "[\"parent\", \"child\"]"
+    },
+    {
+      "name": "rejects a nonpositive attempt limit",
+      "visibility": "hidden",
+      "code": [
+        "from solution import schedule",
+        "",
+        "try:",
+        "    schedule([], lambda task_id: None, max_attempts=0)",
+        "except ValueError:",
+        "    pass",
+        "else:",
+        "    raise AssertionError(\"max_attempts must be positive\")"
+      ]
+    }
+  ],
+  "clarifyingQuestions": [
+    "Should independent ready tasks be run FIFO, lexicographic, or priority order?",
+    "Should a failed dependency skip dependents or fail the whole schedule?",
+    "Are retries immediate, delayed, or backoff-based?"
+  ],
+  "followUps": [
+    "Add cancellation between task attempts.",
+    "Add a worker pool while protecting ready queue and dependency counts.",
+    "Persist checkpoints so a long schedule can resume after process restart."
+  ],
+  "followUpGuide": [
+    "For cancellation, accept a `threading.Event` and check `event.is_set()` before each attempt and before adding newly ready tasks. Return partial progress only if the prompt asks for it; otherwise raise.",
+    "",
+    "For worker fanout, guard `indegree`, `ready`, and `completed` with a `Condition`. Workers should pop ready work under the condition, execute outside the lock, then publish completion under the condition.",
+    "",
+    "For checkpoints, persist task status as `pending`, `running`, `done`, or `failed` with attempt counts. On resume, reset stale `running` tasks to `pending` before rebuilding the ready queue."
+  ],
+  "complexityAnalysis": [
+    "- Naive approach: scan remaining tasks and recheck their dependency lists after every completion. Time: O(V * (V + E) + R) bookkeeping in the worst case; add callback execution time. Space: O(V + E). Maintaining indegrees reduces the scan overhead to O(V^2 + E + R).",
+    "- Heap-ready solution: build the graph in O(V + E), push and pop each task through the min-heap once in O(V log V), and retry in place in O(R). Total bookkeeping time: O(V + E + V log V + R), where E counts input dependency entries (including repeats) and R is the total number of attempts. Add the time spent inside run. Space: O(V + E).",
+    "- FIFO topological queue (no heap): Time: O(V + E + R). Space: O(V + E). Sort or scan the ready set to preserve lexicographic order."
+  ],
+  "solutionGuide": [
+    "Build indegree counts and reverse edges from each unique dependency to dependents. Initialize a heap with zero-indegree task IDs for deterministic ordering.",
+    "",
+    "When a task succeeds, append it to the completion order and decrement dependents. When `run` fails, retry the same task immediately until attempts are exhausted, then raise `RuntimeError`.",
+    "",
+    "```python",
+    "from collections import defaultdict",
+    "import heapq",
+    "",
+    "",
+    "def schedule(tasks: list[dict], run, max_attempts: int = 2) -> list[str]:",
+    "    if max_attempts < 1:",
+    "        raise ValueError(\"max_attempts must be positive\")",
+    "",
+    "    ids = {task[\"id\"] for task in tasks}",
+    "    if len(ids) != len(tasks):",
+    "        raise ValueError(\"duplicate task id\")",
+    "",
+    "    indegree = {task[\"id\"]: 0 for task in tasks}",
+    "    dependents = defaultdict(list)",
+    "    for task in tasks:",
+    "        task_id = task[\"id\"]",
+    "        for dep in dict.fromkeys(task.get(\"deps\", [])):",
+    "            if dep not in ids:",
+    "                raise ValueError(\"unknown dependency\")",
+    "            indegree[task_id] += 1",
+    "            dependents[dep].append(task_id)",
+    "",
+    "    ready = [task_id for task_id, count in indegree.items() if count == 0]",
+    "    heapq.heapify(ready)",
+    "    completed = []",
+    "",
+    "    while ready:",
+    "        task_id = heapq.heappop(ready)",
+    "        for attempt in range(max_attempts):",
+    "            try:",
+    "                run(task_id)",
+    "                break",
+    "            except Exception as exc:",
+    "                if attempt + 1 == max_attempts:",
+    "                    raise RuntimeError(f\"task failed: {task_id}\") from exc",
+    "",
+    "        completed.append(task_id)",
+    "        for child in dependents[task_id]:",
+    "            indegree[child] -= 1",
+    "            if indegree[child] == 0:",
+    "                heapq.heappush(ready, child)",
+    "",
+    "    if len(completed) != len(tasks):",
+    "        raise ValueError(\"cycle detected\")",
+    "    return completed",
+    "```"
+  ]
+}

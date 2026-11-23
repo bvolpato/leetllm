@@ -1,0 +1,1469 @@
+version: 1
+id: llm-judge
+title: Measuring the Quality of an Automated Judge
+source: llmops/llm-as-judge-automated-evaluation/content.md
+sources:
+  - title: MT-Bench and Chatbot Arena judge evaluation
+    url: https://arxiv.org/abs/2306.05685
+  - title: JudgeDeceiver adversarial evaluation
+    url: https://arxiv.org/abs/2403.17710
+  - title: Cohen's coefficient of agreement
+    url: https://doi.org/10.1177/001316446002000104
+  - title: Python JSON decoder contract
+    url: https://docs.python.org/3/library/json.html
+  - title: Prometheus custom rubric evaluation
+    url: https://arxiv.org/abs/2310.08491
+  - title: G-Eval form-based scoring
+    url: https://arxiv.org/abs/2303.16634
+  - title: JudgeLM teacher judgments
+    url: https://arxiv.org/abs/2310.17631
+  - title: Length-Controlled AlpacaEval
+    url: https://arxiv.org/abs/2404.04475
+  - title: Self-recognition and self-preference
+    url: https://arxiv.org/abs/2404.13076
+  - title: Calibrated ensembles research scope
+    url: https://arxiv.org/abs/2609.12002
+  - title: scikit-learn Cohen kappa
+    url: https://scikit-learn.org/stable/modules/generated/sklearn.metrics.cohen_kappa_score.html
+  - title: SciPy exact binomial test
+    url: https://docs.scipy.org/doc/scipy/reference/generated/scipy.stats.binomtest.html
+  - title: Qwen3-1.7B model card
+    url: https://huggingface.co/Qwen/Qwen3-1.7B
+scenes:
+  - id: subject-intro
+    title: Two replies to Maya’s rollback alert
+    visual: Two message bubbles contract to the first three words of each reply. Open the full replies and underline the same action in two places.
+    beats:
+      - say: >-
+          Read just the first three words of each reply. Which preview tells Maya what to do?
+        hold: 2.5
+        visual_cues:
+          - id: find-action
+            phrase: "Which preview tells Maya what to do"
+            targets: [scan-question, compact-answer, stepwise-answer]
+            color: yellow
+            linger: 0.18
+      - say: >-
+          The compact reply opens with “Stop the rollout.” Open the checklist. It starts with a warning.
+          There’s the same instruction in step one. Both replies tell Maya to stop the rollout and run the rollback.
+          One puts the action first. The other gives her two steps she can tick off.
+        hold: 1
+        caption_starts: ["Open the checklist."]
+        visual_cues:
+          - id: compact-mark
+            phrase: "The compact reply opens with Stop the rollout"
+            targets: [compact-answer]
+            color: green
+            linger: 0.18
+            caption_boundary: true
+          - id: step-mark
+            phrase: "There’s the same instruction in step one"
+            targets: [stepwise-answer]
+            color: cyan
+            linger: 0.18
+          - id: both-actions
+            phrase: "Both replies tell Maya to stop the rollout and run the rollback"
+            targets: [compact-answer, stepwise-answer]
+            color: cyan
+            linger: 0.18
+      - say: >-
+          Which layout is easier to follow? Give a language model the replies, Maya’s task and a rubric for clarity.
+          Now the model can act as an LLM judge.
+          Suppose the judge picks the checklist because the numbered actions are easy to scan.
+          We can swap the replies to see if it still picks the checklist, then ask on-call engineers how they’d vote.
+        hold: 0.85
+        caption_starts: ["Suppose the judge picks the checklist"]
+        visual_cues:
+          - id: judge-pick
+            phrase: "the judge picks the checklist"
+            targets: [judge-receipt]
+            color: yellow
+            linger: 0.18
+          - id: test-pick
+            phrase: "swap the replies"
+            targets: [judge-receipt]
+            color: cyan
+            linger: 0.18
+  - id: separate-checks
+    title: What did the check establish?
+    visual: A fixed action field and two opposite sentences pass the same checks. Read the changed words to decide which answer follows the instruction.
+    beats:
+      - say: >-
+          The policy calls for rollback. Here are two records with the same policy version and the same action field.
+          Compare the action field with the allowed value. Both match. Code can settle that question exactly.
+        hold: 0.6
+        visual_cues:
+          - id: exact-fields
+            phrase: "Compare the action field"
+            targets: [exact-check]
+            color: blue
+            linger: 0.18
+      - say: >-
+          Now read the sentences beside those fields. One says to run the rollback. The other says, “Do not run the
+          rollback.” If we search both replies for the word rollback, which ones pass?
+        hold: 2.1
+        visual_cues:
+          - id: two-sentences
+            phrase: "read the sentences"
+            targets: [sentences]
+            color: cyan
+            linger: 0.18
+          - id: opposite-meaning
+            phrase: "Do not run the rollback"
+            targets: [sentences]
+            color: pink
+            linger: 0.18
+          - id: search-word
+            phrase: "search both replies for the word rollback"
+            targets: [keyword, sentences]
+            color: yellow
+            linger: 0.18
+      - say: >-
+          Both pass. The search found the word twice, once in each reply. The words “do not” reverse the second
+          recommendation. An exact field check can pass while the prose contradicts the policy. To evaluate that prose,
+          compare its meaning with the source. Use a validated judge to assist that review, and send unfamiliar or
+          high-consequence exceptions to the policy owner. Access and action permissions stay with the host.
+        hold: 1
+        visual_cues:
+          - id: keyword-hits
+            phrase: "Both pass"
+            targets: [keyword]
+            color: yellow
+            linger: 0.18
+            caption_boundary: true
+          - id: negation
+            phrase: "reverse the second recommendation"
+            targets: [sentences]
+            color: pink
+            linger: 0.18
+  - id: evaluation-formats
+    title: How many judgments will this comparison take?
+    visual: Three replies anchor an ordinal scale. Six candidate revisions form fifteen unordered pairs.
+      Keeping only edges to a fixed baseline changes the number of comparisons.
+    beats:
+      - say: Suppose Maya gets one reply. We can grade it on its own. That’s pointwise evaluation. Here, zero means a
+          required action is missing, one means both appear but their order is unclear, and two means both
+          actions and their order are clear. These are ordinal levels. The numbers put answers in order. To
+          average them, you’d have to explain how much improvement each step represents. One call per answer
+          gives N judgments for N answers.
+        hold: 0.7
+        visual_cues:
+          - id: pointwise-anchors
+            phrase: zero means a required action is missing
+            targets:
+              - pointwise-anchors
+            color: cyan
+            linger: 0.4
+          - id: ordinal-limit
+            phrase: These are ordinal levels
+            targets:
+              - ordinal-limit
+            color: yellow
+            linger: 0.4
+          - id: pointwise-one
+            phrase: one means both appear but their order is unclear
+            targets:
+              - pointwise-anchors
+            color: cyan
+            linger: 0.4
+          - id: pointwise-two
+            phrase: two means both actions and their order are clear
+            targets:
+              - pointwise-anchors
+            color: cyan
+            linger: 0.4
+      - say: "Put two replies side by side for the same task and you have a pairwise comparison. Six prompt
+          revisions are the six dots on the left. Each dot can meet five others. That counts each connecting
+          line twice, so divide by two. You get fifteen unordered pairs. Showing both orders requires thirty calls per task. A
+          fixed baseline uses N minus one pairs. Comparing the five alternatives only with one fixed baseline
+          needs five pairs, or ten calls with swaps. What happens if we send a longer reference? Suppose the
+          input grows from two hundred tokens per call to eight hundred. The ten calls now read eight thousand
+          input tokens instead of two thousand. That’s a different workload for the same number of calls.
+          Preferences can cycle: A over B, B over C, then C over A. A forced winner can also choose between
+          two unsupported replies."
+        hold: 0.7
+        caption_starts: ["You get fifteen unordered pairs.", "Showing both orders requires thirty calls per task.", "What happens if we send a longer reference?"]
+        visual_cues:
+          - id: pair-lattice
+            phrase: Six prompt revisions
+            targets:
+              - pair-lattice
+            color: cyan
+            linger: 0.4
+          - id: pair-count
+            phrase: fifteen unordered pairs
+            targets:
+              - pair-count
+            color: yellow
+            linger: 0.4
+          - id: pair-calls
+            phrase: Showing both orders requires thirty calls per task
+            targets:
+              - pair-count
+            color: yellow
+            linger: 0.4
+          - id: preference-cycle
+            phrase: Preferences can cycle
+            targets:
+              - preference-cycle
+            color: pink
+            linger: 0.4
+          - id: baseline-count
+            phrase: A fixed baseline uses N minus one pairs
+            targets:
+              - pair-lattice
+              - pair-count
+            color: green
+            linger: 0.4
+          - id: baseline-result
+            phrase: Comparing the five alternatives only with one fixed baseline needs five pairs, or ten calls with swaps
+            targets:
+              - pair-count
+            color: green
+            linger: 0.4
+          - id: longer-input
+            phrase: the input grows from two hundred tokens per call to eight hundred
+            targets: [input-budget]
+            color: cyan
+          - id: input-total
+            phrase: eight thousand input tokens instead of two thousand
+            targets: [input-budget]
+            color: cyan
+            caption_boundary: true
+      - say: Reference guidance supplies an answer key or source evidence alongside either format. Verify each claim
+          and its conditions, including valid paraphrases or alternative solutions that a short reference may
+          omit. Prometheus used custom rubrics and reference answers. G-Eval studied criterion-based forms for
+          summarization and dialogue. JudgeLM learned GPT-four judgments using swap augmentation and reference
+          techniques. Agreement with that teacher measures how well JudgeLM learned its preferences.
+          To check a factual claim in Maya’s reply, open the policy it cites.
+        hold: 0.7
+        visual_cues:
+          - id: reference-guidance
+            phrase: alongside either format
+            targets:
+              - reference-guidance
+            color: cyan
+            linger: 0.4
+          - id: teacher-boundary
+            phrase: To check a factual claim
+            targets:
+              - teacher-boundary
+            color: yellow
+            linger: 0.4
+  - id: rubric
+    title: Write criteria a reviewer can apply
+    visual: DEP-27's required action and an anchored clarity rubric are applied to compact and stepwise candidate
+      replies.
+    beats:
+      - say: >
+          Our fictional policy, DEP twenty-seven, says to stop the rollout and run the rollback procedure
+          after a threshold is crossed. Candidate compact states both facts in one sentence. Candidate
+          stepwise gives the same facts as two numbered actions.
+        hold: 0.55
+        visual_cues:
+          - id: policy-actions
+            phrase: stop the rollout and run the rollback procedure
+            targets:
+              - policy-rule
+            color: blue
+            linger: 0.5
+          - id: same-facts
+            phrase: same facts as two numbered actions
+            targets:
+              - compact-answer
+              - stepwise-answer
+            color: cyan
+            linger: 0.5
+      - say: >
+          A rubric can score whether both required actions appear, whether their order is clear, and whether
+          an operator can scan them quickly. Give each level an example so reviewers know what a zero, one,
+          and two mean.
+        hold: 0.7
+        visual_cues:
+          - id: score-levels
+            phrase: zero, one, and two
+            targets:
+              - rubric-levels
+            color: yellow
+            linger: 0.5
+      - say: >
+          For this example, assume a reviewer checked both replies against the policy. Keep
+          the policy, answer text, rubric version, and judge configuration tied to each evaluation case.
+        hold: 0.55
+        visual_cues:
+          - id: bound-case
+            phrase: policy, answer text, rubric version
+            targets:
+              - policy-rule
+              - rubric-levels
+            color: blue
+            linger: 0.5
+  - id: strict-receipt
+    title: Can this receipt enter the comparison?
+    visual: Compare a two-field receipt with a duplicate verdict. Keep a structural rejection separate from an accepted receipt whose evidence misquotes reply B.
+    beats:
+      - say: >-
+          The host knows the case, the two reply versions and the order it sent. The model gets to return a verdict and
+          evidence. Here’s one receipt. The verdict is B. Its evidence is a list containing a nonblank observation. Those
+          are the only two fields. The other permitted verdicts are A, tie and review. This receipt passes the shape
+          check. We still have to check what the observation says.
+        hold: 0.9
+        visual_cues:
+          - id: host-binding
+            phrase: "the order it sent"
+            targets: [host-binding]
+            color: cyan
+            linger: 0.18
+          - id: strict-fields
+            phrase: "a verdict and evidence"
+            targets: [raw-receipt]
+            color: cyan
+            linger: 0.18
+          - id: valid-receipt
+            phrase: "passes the shape check"
+            targets: [parse-result]
+            color: green
+            linger: 0.18
+            caption_boundary: true
+      - say: >-
+          Now slip another verdict into that same receipt. Read the two entries in order. The first says A and the second
+          says B. What will Python’s default JSON decoder keep? Can the host safely count that as a vote?
+        hold: 2.5
+        visual_cues:
+          - id: duplicate-keys
+            phrase: "slip another verdict into that same receipt"
+            targets: [raw-receipt]
+            color: pink
+            linger: 0.18
+          - id: decode-question
+            phrase: "What will Python’s default JSON decoder keep"
+            targets: [parse-result, raw-receipt]
+            color: yellow
+            linger: 0.18
+      - say: >-
+          Python keeps B, the last value. By the time you inspect the dictionary, A has disappeared. Give the decoder an
+          object pairs hook so it sees both names before building the dictionary. It rejects the duplicate. The same check
+          catches a Unicode escape that spells the same field name after decoding. Keep the raw receipt as a parse
+          failure. A failed parse supplies no vote.
+        hold: 0.9
+        visual_cues:
+          - id: default-last-wins
+            phrase: "Python keeps B, the last value"
+            targets: [default-result]
+            color: yellow
+            linger: 0.18
+            caption_boundary: true
+          - id: strict-decode
+            phrase: "It rejects the duplicate"
+            targets: [parse-result]
+            color: pink
+            linger: 0.18
+            caption_boundary: true
+          - id: decoded-name
+            phrase: "a Unicode escape that spells the same field name"
+            targets: [raw-receipt]
+            color: cyan
+            linger: 0.18
+      - say: >-
+          The article’s strict decoder also rejects nonstandard numbers such as NaN and infinity, malformed JSON such as a
+          trailing comma, and non-text input. Across its two exercises it rejects four bad JSON receipts and six malformed
+          structured replies. For a decoded object, reject extra fields, unknown verdicts, wrong types and empty or blank
+          evidence. Record provider refusals, truncation and transport errors separately. Send only validated receipts
+          into aggregation. Constructing the result object yourself can skip these checks.
+        hold: 0.7
+        visual_cues:
+          - id: provider-boundary
+            phrase: "Record provider refusals"
+            targets: [parse-result]
+            color: blue
+            linger: 0.18
+      - say: >-
+          Go back to the clean receipt. It says B leads with the action. Read B’s first sentence. It leads with the
+          threshold warning. The receipt parses, but the reason misquotes the reply. Check the observation against the
+          actual text before trusting it. The host must bind the case and configuration IDs to the exact evidence, rubric,
+          judge and settings. An ID alone can’t authenticate a record or grant access.
+        hold: 1.2
+        visual_cues:
+          - id: audit-clean
+            phrase: "the clean receipt"
+            targets: [raw-receipt]
+            color: cyan
+            linger: 0.18
+          - id: check-b
+            phrase: "Read B’s first sentence"
+            targets: [actual-reply]
+            color: cyan
+            linger: 0.18
+          - id: misquote
+            phrase: "It leads with the threshold warning"
+            targets: [actual-reply]
+            color: pink
+            linger: 0.18
+            caption_boundary: true
+  - id: reader-model-check
+    title: Does the model’s verdict follow from the policy?
+    visual: The article reported seven actual local-model outcomes. A correct paraphrase is followed by three
+      valid-JSON false supports; the evidence sentence and verdict are inspected separately.
+    beats:
+      - say: The article records a local Qwen-three run on seven claims. The model has one point seven billion
+          parameters. Sampling and thinking were off. Read the human key beside those claims. It has two
+          supported, two contradicted and three review labels. The model recognized that permission means
+          approval here. It also recognized the linked plan requirement, caught one contradiction and sent the
+          planted instruction to review. These are the results recorded in the article.
+        hold: 0.7
+        visual_cues:
+          - id: reader-snapshot
+            phrase: records a local Qwen-three
+            targets:
+              - reader-snapshot
+            color: cyan
+            linger: 0.4
+          - id: reader-labels
+            phrase: two supported, two contradicted and three review
+            targets:
+              - reader-labels
+            color: cyan
+            linger: 0.4
+      - say: Look at the claim that commander approval is optional. The model marked it supported. Now read
+          its reason. It says that approval is required. It also approved two requirements the policy never
+          states, one for security review and one for on-call approval. All three are valid JSON. The smaller
+          model in the article, with zero point six billion parameters, called every claim supported.
+          Before relying on either judge, measure its mistakes on held-out claims for your own policy.
+        hold: 0.7
+        visual_cues:
+          - id: semantic-miss
+            phrase: commander approval is optional
+            targets:
+              - semantic-miss
+            color: pink
+            linger: 0.4
+          - id: valid-json-misses
+            phrase: All three are valid JSON
+            targets:
+              - valid-json-misses
+            color: yellow
+            linger: 0.4
+  - id: order-swap
+    title: Which reply did the judge pick?
+    visual: The same two reply excerpts move between fixed slots. Each receipt records a slot and the reply that occupied it. A replay changes only the second verdict.
+    beats:
+      - say: >-
+          Here are the two replies Maya saw. Compact is in A and stepwise is in B. Our first receipt says B. File that
+          choice under stepwise. For the second call, slide the two replies into each other’s slots. The task, the
+          wording, the rubric and the judge settings all stay fixed.
+        hold: 0.7
+        motion_check:
+          region: [130, 350, 1660, 400]
+          minimumChangedFraction: 0.002
+        visual_cues:
+          - id: first-slots
+            phrase: "Compact is in A and stepwise is in B"
+            targets: [first-mapping]
+            color: cyan
+            linger: 0.18
+          - id: slot-first-verdict
+            phrase: "Our first receipt says B"
+            targets: [first-receipt]
+            color: yellow
+            linger: 0.18
+          - id: first-name
+            phrase: "File that choice under stepwise"
+            targets: [first-receipt]
+            color: cyan
+            linger: 0.18
+          - id: reverse-order
+            phrase: "slide the two replies into each other’s slots"
+            targets: [swapped-mapping]
+            color: blue
+            linger: 0.18
+      - say: >-
+          This receipt says A. Read A against the new order. Do the two receipts pick the same reply?
+        hold: 2.4
+        visual_cues:
+          - id: slot-second-verdict
+            phrase: "This receipt says A"
+            targets: [second-receipt]
+            color: yellow
+            linger: 0.18
+          - id: ask-stable
+            phrase: "Do the two receipts pick the same reply"
+            targets: [decision, first-receipt, second-receipt, swapped-mapping]
+            color: blue
+            linger: 0.18
+      - say: >-
+          Yes. Both pick stepwise. B on the first call and A on the second call follow the numbered instructions. Record
+          one preference for the pair. Whether a reviewer agrees is a separate question.
+        hold: 1
+        visual_cues:
+          - id: stable-identity
+            phrase: "Both pick stepwise"
+            targets: [decision, second-receipt]
+            color: cyan
+            linger: 0.18
+            caption_boundary: true
+      - say: >-
+          Replay just the second receipt. Keep the replies in their reversed positions. This time it says B. The first
+          receipt still says B. Which reply does this second B name, and can we record a winner?
+        hold: 2.6
+        visual_cues:
+          - id: replay
+            phrase: "Replay just the second receipt"
+            targets: [second-receipt]
+            color: cyan
+            linger: 0.18
+          - id: second-b
+            phrase: "This time it says B"
+            targets: [second-receipt]
+            color: yellow
+            linger: 0.18
+          - id: ask-conflict
+            phrase: "Which reply does this second B name"
+            targets: [decision, first-receipt, second-receipt, swapped-mapping]
+            color: blue
+            linger: 0.18
+      - say: >-
+          It names compact. The first B named stepwise. Record this pair as unresolved and keep both receipts. The choice
+          followed the slot on this pair. Repeat the comparison across other tasks and check human labels before
+          attributing a general preference to position.
+        hold: 1
+        visual_cues:
+          - id: second-name
+            phrase: "It names compact"
+            targets: [second-receipt]
+            color: green
+            linger: 0.18
+            caption_boundary: true
+          - id: conflicting-identities
+            phrase: "Record this pair as unresolved"
+            targets: [decision, first-receipt, second-receipt]
+            color: pink
+            linger: 0.18
+            caption_boundary: true
+  - id: swap-contract
+    title: Reconcile identity while preserving ties and review
+    visual: Two host-bound receipts first validate reversed order/configuration, then feed separate same-winner,
+      stable-tie, unresolved and human-review tracks.
+    beats:
+      - say: Before combining two calls, require the same case and judge configuration and exactly reversed candidate
+          orders. The executable fixture rejects a same-order pair, a cross-case pair and a
+          cross-configuration pair. Normalize A and B through each host-owned order. If one call chooses a
+          winner and the other says tie, keep the case unresolved. Two explicit ties give a stable tie. If
+          either requests review, route it to review under this supplied conservative policy.
+        hold: 0.7
+        visual_cues:
+          - id: same-case-contract
+            phrase: same case and judge configuration
+            targets:
+              - same-case-contract
+            color: cyan
+            linger: 0.4
+          - id: mixed-swap
+            phrase: one call chooses a winner and the other says tie
+            targets:
+              - mixed-swap
+            color: pink
+            linger: 0.4
+          - id: stable-tie
+            phrase: Two explicit ties
+            targets:
+              - stable-tie
+            color: cyan
+            linger: 0.4
+          - id: review-outcome
+            phrase: If either requests review
+            targets:
+              - review-outcome
+            color: yellow
+            linger: 0.4
+      - say: >-
+          Both calls favor a reply that says commander approval is optional. The policy says it’s required.
+          Swapping the replies can expose a preference for one position. For pairs that split, repeat the calls to see
+          whether the votes vary. Check the evidence and rubric for ambiguity. Track unresolved pairs by task
+          and save the rule for combining votes with each judge version.
+        hold: 0.7
+        visual_cues:
+          - id: stable-mistake
+            phrase: The policy says it’s required
+            targets:
+              - stable-mistake
+            color: pink
+            linger: 0.4
+          - id: version-reconciliation
+            phrase: save the rule for combining votes
+            targets:
+              - version-reconciliation
+            color: cyan
+            linger: 0.4
+  - id: blind-and-probe
+    title: Remove labels and test shortcuts
+    visual: Candidate names disappear while their answers remain; a redundant version changes length without
+      adding useful information.
+    beats:
+      - say: >
+          Hide model brand names and experiment labels from the judge. Keep the candidate IDs and their slot
+          mapping in the host's record, where the verdict can be traced back to the original answer.
+        hold: 0.55
+        visual_cues:
+          - id: blind-brands
+            phrase: Hide model brand names
+            targets:
+              - anonymous-input
+            color: blue
+            linger: 0.5
+          - id: retain-mapping
+            phrase: candidate IDs and their slot mapping
+            targets:
+              - host-mapping
+            color: green
+            linger: 0.5
+      - say: >
+          To probe verbosity, add redundant wording without adding facts or useful structure. Ask blinded
+          reviewers to check that the edit preserves quality, then see whether the judge changes its
+          preference across matched cases.
+        hold: 0.7
+        visual_cues:
+          - id: verbosity-probe
+            phrase: add redundant wording
+            targets:
+              - verbosity-pair
+            color: yellow
+            linger: 0.5
+      - say: >
+          In the JudgeDeceiver study, an instruction inside a candidate reply could change the judge’s score.
+          Run the judge without action-taking tools or unnecessary secrets. Check the verdict and its evidence against the rubric.
+        hold: 0.55
+        visual_cues:
+          - id: injection-probe
+            phrase: an instruction inside a candidate reply
+            targets:
+              - injection-text
+            color: pink
+            linger: 0.5
+          - id: isolate-tools
+            phrase: without action-taking tools or unnecessary secrets
+            targets:
+              - isolated-run
+            color: blue
+            linger: 0.5
+  - id: controlled-probes
+    title: What changes a judge’s vote?
+    visual: The same instruction gains padding, then an author label. In a separate example, compare three votes with the disputed claim and the policy.
+    beats:
+      - say: >-
+          Add one sentence to the reply. It repeats the same two actions. Have blinded reviewers check that the extra
+          words add nothing useful, then compare both orders across tasks. Try a numbered checklist too. If the steps
+          are easier to follow, give it credit for organization. Length-Controlled AlpacaEval fits a logistic model to
+          preferences. Set the length difference to zero in that model to estimate the overall win rate for equal-length replies.
+        hold: 0.7
+        visual_cues:
+          - id: padding-only
+            phrase: "Add one sentence to the reply"
+            targets: [padding-only]
+            color: cyan
+          - id: useful-elaboration
+            phrase: "Try a numbered checklist"
+            targets: [useful-elaboration]
+            color: cyan
+          - id: length-model
+            phrase: "Set the length difference to zero"
+            targets: [length-model]
+            color: yellow
+      - say: >-
+          Keep the reply exactly as written. Switch the author label from A to B. Do the votes move with the name across cases?
+          To test self-preference, hide the names. Give different judge families the same anonymous replies, matched
+          for quality by human reviewers. Panickssery and colleagues found that some models recognized and favored their
+          own writing. Check whether the writing style gives away the author on your cases.
+        hold: 0.7
+        visual_cues:
+          - id: brand-probe
+            phrase: "Switch the author label"
+            targets: [brand-probe]
+            color: cyan
+          - id: self-probe
+            phrase: "hide the names"
+            targets: [self-probe]
+            color: cyan
+          - id: identity-scope
+            phrase: "the writing style gives away the author"
+            targets: [identity-scope]
+            color: yellow
+      - say: >-
+          Here’s a claim that commander approval is optional. Three judges mark it supported. Open the policy.
+          It says approval is required. All three judges accepted the same error. Three yes-or-no votes always give a majority.
+          If judges can also vote tie or request review, decide how to count those outcomes.
+          A twenty twenty-six preprint used the other judges’ majority to estimate each judge’s error rate and simulated changes over time.
+          On this claim, that method would count every vote as correct. To find shared mistakes, compare each judge and the
+          panel with independent human labels. Count false approvals by type of case.
+        hold: 0.7
+        caption_starts: ["Open the policy.", "It says approval is required.", "On this claim", "To find shared mistakes"]
+        visual_cues:
+          - id: correlated-panel
+            phrase: "Three judges mark it supported"
+            targets: [correlated-panel]
+            color: cyan
+          - id: open-policy
+            phrase: "It says approval is required"
+            targets: [panel-policy]
+            color: blue
+          - id: ensemble-proxy
+            phrase: "that method would count every vote as correct"
+            targets: [ensemble-proxy]
+            color: yellow
+          - id: independent-label
+            phrase: "compare each judge and the panel with independent human labels"
+            targets: [independent-label]
+            color: pink
+  - id: human-reference
+    title: Where do two reviewers disagree?
+    visual: Two independent ballots open beside the same three case IDs. Compare the rows before adjudicating the one disagreement.
+    beats:
+      - say: >-
+          Imagine two on-call engineers each reviewing the same three pairs. Give both the same evidence and rubric. Hide
+          the authors and the judge’s picks. Each engineer records a preference before seeing the other ballot. Open them
+          side by side. Which case needs a conversation?
+        hold: 2.2
+        visual_cues:
+          - id: blind-humans
+            phrase: "the same three pairs"
+            targets: [ballot]
+            color: cyan
+            linger: 0.18
+          - id: open-ballots
+            phrase: "Open them side by side"
+            targets: [ballot]
+            color: blue
+            linger: 0.18
+          - id: ask-reviewers
+            phrase: "Which case needs a conversation"
+            targets: [reviewer-result, ballot]
+            color: yellow
+            linger: 0.18
+      - say: >-
+          Look at case two. One engineer picked the numbered steps. The other picked the reply that leads with the action.
+          They matched on cases one and three. That makes two agreements out of three, before anyone discussed their
+          votes.
+        hold: 0.9
+        visual_cues:
+          - id: adjudication
+            phrase: "Look at case two"
+            targets: [disputed-row]
+            color: pink
+            linger: 0.18
+            caption_boundary: true
+          - id: count-ballots
+            phrase: "two agreements out of three"
+            targets: [reviewer-result]
+            color: green
+            linger: 0.18
+            caption_boundary: true
+      - say: >-
+          For case two, check what each engineer was trying to find. If the evidence settles a factual question, use it.
+          If the preference is genuinely open, keep both reasons and leave the key unresolved. Human disagreement tells us
+          where to look. A model could still match either engineer on every case.
+        hold: 0.8
+        visual_cues:
+          - id: review-reasons
+            phrase: "what each engineer was trying to find"
+            targets: [disputed-row, reviewer-result]
+            color: pink
+            linger: 0.18
+      - say: >-
+          Use cases like these to refine the rubric. Freeze it before comparing the judge with independently labeled,
+          held-out cases. Next we’ll work through eight pairs with hand-written labels. They let us check the calculation.
+          Estimating how often real people agree takes real reviews.
+        hold: 0.65
+        visual_cues:
+          - id: label-split
+            phrase: "Freeze it before comparing the judge"
+            targets: [reviewer-result]
+            color: blue
+            linger: 0.18
+  - id: agreement
+    title: How often do the labels agree?
+    visual: Eight paired rows give observed agreement. An eight-by-eight grid then crosses every human label with every judge label to construct the marginal baseline.
+    beats:
+      - say: >-
+          Take eight hand-written pairs. Each row holds a human label and a judge label for the same case. Read across
+          case six. The human picked stepwise and the judge picked compact. On case eight they both called a tie. How many
+          rows match when you include that tie?
+        hold: 2.3
+        visual_cues:
+          - id: human-labels
+            phrase: "eight hand-written pairs"
+            targets: [paired-labels]
+            color: cyan
+            linger: 0.18
+          - id: sample-rows
+            phrase: "Read across case six"
+            targets: [paired-labels]
+            color: cyan
+            linger: 0.18
+          - id: count-rows
+            phrase: "How many rows match"
+            targets: [paired-labels]
+            color: yellow
+            linger: 0.18
+      - say: >-
+          Six labels match, so raw agreement is seventy-five percent. Some matches are easy to come by. Compact is common
+          on both ballots. The margins imply about thirty-six percent expected agreement, leaving Cohen's kappa near zero
+          point six one. Let’s see where that adjustment comes from.
+        hold: 0.8
+        visual_cues:
+          - id: observed-matches
+            phrase: "Six labels match, so raw agreement is seventy-five percent"
+            targets: [paired-labels, observed-agreement]
+            color: green
+            linger: 0.18
+            caption_boundary: true
+          - id: expected-matches
+            phrase: "margins imply about thirty-six percent expected agreement"
+            targets: [label-margins, expected-agreement]
+            color: yellow
+            linger: 0.18
+            caption_boundary: true
+          - id: adjust-agreement
+            phrase: "Cohen's kappa near zero point six one"
+            targets: [kappa]
+            color: cyan
+            linger: 0.18
+            caption_boundary: true
+      - say: >-
+          First keep the case numbers attached. The two misses are different. On case six the judge chose compact over the
+          human’s stepwise. On case seven it chose stepwise where the human saw a tie. Keep those confusion counts. They
+          tell a reviewer which disagreements to reopen.
+        hold: 0.85
+        visual_cues:
+          - id: report-confusion
+            phrase: "The two misses are different"
+            targets: [paired-labels, label-margins]
+            color: blue
+            linger: 0.18
+      - say: >-
+          Now set the case numbers aside. Take any one of the eight human labels and pair it with any one of the eight
+          judge labels. That gives sixty-four equally weighted combinations. Three human compact labels cross four judge
+          compact labels. Twelve squares match. Stepwise adds nine more and tie adds two. That’s the chance baseline,
+          twenty-three over sixty-four. Six observed matches are forty-eight over sixty-four. Above the baseline, we
+          gained twenty-five parts out of the forty-one still possible. That’s kappa, twenty-five over forty-one, about
+          point six zero nine eight. It describes agreement on these cases. Inspect the errors and validate on reviewed
+          cases from the task before using the score for a release.
+        hold: 1.3
+        visual_cues:
+          - id: chance-products
+            phrase: "Three human compact labels cross four judge compact labels"
+            targets: [chance-products]
+            color: cyan
+            linger: 0.18
+          - id: compact-product
+            phrase: "Twelve squares match"
+            targets: [chance-products]
+            color: green
+            linger: 0.18
+          - id: step-product
+            phrase: "Stepwise adds nine more"
+            targets: [chance-products]
+            color: cyan
+            linger: 0.18
+          - id: tie-product
+            phrase: "tie adds two"
+            targets: [chance-products]
+            color: yellow
+            linger: 0.18
+          - id: chance-baseline
+            phrase: "twenty-three over sixty-four"
+            targets: [chance-baseline]
+            color: yellow
+            linger: 0.18
+            caption_boundary: true
+          - id: chance-observed
+            phrase: "Six observed matches are forty-eight over sixty-four"
+            targets: [chance-baseline]
+            color: green
+            linger: 0.18
+            caption_boundary: true
+          - id: earned-kappa
+            phrase: "twenty-five over forty-one, about point six zero nine eight"
+            targets: [earned-kappa]
+            color: green
+            linger: 0.18
+            caption_boundary: true
+  - id: prevalence-trap
+    title: Count known-bad misses beside headline agreement
+    visual: An approve-everything judge misses all ten bad answers. Cross the two ballots’ label frequencies to explain its zero kappa, then change the last ten reviewer labels.
+    beats:
+      - say: In a separate binary worksheet, reviewers call ninety of one hundred answers acceptable. A judge approves
+          everything. It agrees on ninety cases and catches none of the ten known-bad answers. With acceptable
+          defined as positive, false acceptance is measured among known-bad answers, and false rejection among
+          known-good answers. If you use the terms type one and type two, first state the null hypothesis.
+        hold: 0.7
+        visual_cues:
+          - id: majority-inputs
+            phrase: ninety of one hundred
+            targets:
+              - majority-inputs
+            color: cyan
+            linger: 0.4
+          - id: majority-failure
+            phrase: catches none of the ten
+            targets:
+              - majority-failure
+            color: pink
+            linger: 0.4
+          - id: error-denominators
+            phrase: measured among known-bad answers
+            targets:
+              - error-denominators
+            color: yellow
+            linger: 0.4
+      - say: >-
+          Draw one label from each ballot independently. The judge always says acceptable. Nine in ten reviewer labels
+          say acceptable. That gives ninety percent expected agreement, exactly what we observed. Kappa is zero.
+          Even when both raters use both labels, a common label can make chance agreement high. Report the label counts,
+          disagreements and coverage alongside kappa. Now suppose both raters accept every answer. Expected agreement
+          is one. That leaves zero in the denominator, so kappa is undefined.
+        hold: 0.7
+        visual_cues:
+          - id: marginal-baseline
+            phrase: That gives ninety percent expected agreement
+            targets:
+              - marginal-baseline
+            color: cyan
+            linger: 0.4
+          - id: kappa-zero
+            phrase: "Kappa is zero"
+            targets: [kappa-result, marginal-baseline]
+            color: yellow
+            caption_boundary: true
+          - id: undefined-kappa
+            phrase: both raters accept every answer
+            targets: [majority-inputs, marginal-baseline]
+            color: yellow
+            linger: 0.4
+          - id: kappa-undefined
+            phrase: "kappa is undefined"
+            targets: [kappa-result, marginal-baseline]
+            color: yellow
+            caption_boundary: true
+  - id: coverage
+    title: Show what happened to every attempt
+    visual: Ten attempted pairs separate into eight resolved cases, one unresolved pair, and one review request.
+    beats:
+      - say: >
+          Ten pairs enter the judge. One has conflicting order swaps, and another asks for human review; the
+          rest resolve. Keep both outcomes in the report.
+        hold: 0.55
+        visual_cues:
+          - id: all-attempts
+            phrase: Ten pairs enter the judge
+            targets:
+              - pair-cases
+            color: blue
+            linger: 0.5
+          - id: unresolved-attempts
+            phrase: One has conflicting order swaps
+            targets:
+              - pair-cases
+              - outcome-counts
+            color: pink
+            linger: 0.5
+          - id: review-attempt
+            phrase: another asks for human review
+            targets:
+              - pair-cases
+              - outcome-counts
+            color: pink
+            linger: 0.5
+          - id: resolve-rest
+            phrase: the rest resolve
+            targets:
+              - pair-cases
+              - outcome-counts
+            color: green
+            linger: 0.5
+      - say: >
+          Eight of ten attempts resolve. Among those, six agree with the human labels. Keep coverage and
+          agreement separate so each denominator stays clear.
+        hold: 0.7
+        visual_cues:
+          - id: resolved-denominator
+            phrase: Eight of ten attempts resolve
+            targets:
+              - outcome-counts
+              - coverage-score
+            color: green
+            linger: 0.5
+          - id: human-denominator
+            phrase: six agree with the human labels
+            targets:
+              - human-comparisons
+              - agreement-score
+            color: yellow
+            linger: 0.5
+      - say: >
+          Report coverage beside agreement. A stable tie is a resolved outcome under this fixture. Separate
+          counts for parse failures, unresolved swaps, review requests, and missing human labels keep
+          difficult cases visible in the denominator.
+        hold: 0.55
+        visual_cues:
+          - id: difficult-cases
+            phrase: unresolved swaps, review requests
+            targets:
+              - pair-cases
+              - outcome-counts
+            color: pink
+            linger: 0.5
+      - say: Add one malformed extra attempt to the same ten-case fixture. Resolved count remains eight, so coverage
+          falls to eight over eleven, about seventy-two point seven percent. The six matches among eight
+          comparable labels still give seventy-five percent agreement. Keep stable ties separate from
+          unresolved swaps, review requests, parse failures and missing human labels. With no comparable
+          labels, agreement is unavailable rather than perfect.
+        hold: 0.7
+        visual_cues:
+          - id: extra-parse
+            phrase: one malformed extra attempt
+            targets:
+              - extra-parse
+            color: pink
+            linger: 0.4
+          - id: extra-coverage
+            phrase: eight over eleven, about seventy-two point seven percent
+            targets:
+              - extra-coverage
+            color: yellow
+            linger: 0.4
+          - id: unchanged-agreement
+            phrase: The six matches among eight comparable labels still give seventy-five percent agreement
+            targets:
+              - unchanged-agreement
+            color: cyan
+            linger: 0.4
+  - id: state-history
+    title: What does Maya need to know now?
+    visual: Keep the proposed rollback in place while a trusted receipt sets the last known event. Change only the status field in a second case and inspect the next unchecked step.
+    beats:
+      - say: >-
+          Maya asks, “What now?” Her assistant says, “Run the rollback procedure.” Before you score that answer, look at
+          the empty job history. Can you tell from this exchange whether running rollback would advance the incident?
+        hold: 2.1
+        visual_cues:
+          - id: state-repeat
+            phrase: "Run the rollback procedure"
+            targets: [candidate]
+            color: cyan
+            linger: 0.18
+          - id: state-unknown
+            phrase: "the empty job history"
+            targets: [record, track]
+            color: yellow
+            linger: 0.18
+      - say: >-
+          Open the history. Payment latency reached five hundred forty milliseconds, above the five hundred millisecond
+          threshold. The deployment service confirms that this rollback completed. The host verified the caller, the
+          deployment, the operation and the time. There’s been no later change. Trace the proposed action back to the
+          request. Maya’s already past that point. Check whether latency recovered.
+        hold: 1
+        caption_starts: ["The deployment service confirms that this rollback completed."]
+        visual_cues:
+          - id: state-metrics
+            phrase: "five hundred forty milliseconds"
+            targets: [record]
+            color: cyan
+            linger: 0.18
+          - id: state-completed
+            phrase: "this rollback completed"
+            targets: [record, track]
+            color: green
+            linger: 0.18
+          - id: trace-repeat
+            phrase: "Trace the proposed action back to the request"
+            targets: [candidate, track]
+            color: pink
+            linger: 0.18
+          - id: verify-recovery
+            phrase: "Check whether latency recovered"
+            targets: [next-step]
+            color: green
+            linger: 0.18
+            caption_boundary: true
+      - say: >-
+          Try another receipt for the same example. Change just one field from completed to accepted. The job may be
+          queued. If Maya wants to know whether rollback finished, what should she inspect now?
+        hold: 2.2
+        visual_cues:
+          - id: new-receipt
+            phrase: "Try another receipt"
+            targets: [record]
+            color: cyan
+            linger: 0.18
+          - id: accepted-only
+            phrase: "Change just one field from completed to accepted"
+            targets: [record, track]
+            color: yellow
+            linger: 0.18
+          - id: accepted-question
+            phrase: "what should she inspect now"
+            targets: [next-step, record]
+            color: yellow
+            linger: 0.18
+      - say: >-
+          Check the current job status. An execution ID links records. A successful HTTP response might mean the service
+          accepted the request. Check the service’s definition of completion before crediting the answer. Repeating the
+          request could be harmless, redundant or dangerous, depending on the service.
+        hold: 1
+        visual_cues:
+          - id: inspect-job
+            phrase: "Check the current job status"
+            targets: [next-step]
+            color: cyan
+            linger: 0.18
+            caption_boundary: true
+          - id: receipt-provenance
+            phrase: "the service’s definition of completion"
+            targets: [track]
+            color: cyan
+            linger: 0.18
+      - say: >-
+          Keep the requests, tool calls and trusted results in order. A summary should link back to those results and
+          record any gaps. Redact restricted material before scoring, including in reviewer exports. Score what happened
+          on this turn and whether the whole task reached verified recovery. Either view alone can hide an important
+          mistake.
+        hold: 0.8
+        visual_cues:
+          - id: ordered-history
+            phrase: "the requests, tool calls and trusted results in order"
+            targets: [record]
+            color: cyan
+            linger: 0.18
+          - id: task-and-turn
+            phrase: "whether the whole task reached verified recovery"
+            targets: [track, next-step]
+            color: blue
+            linger: 0.18
+  - id: zero-error-bound
+    title: How much error could a clean sample hide?
+    visual: Fifty independent cases set the exponent in the zero-error bound. A fixed plot shows which preplanned sample size brings the limit below one percent. Repeats stay tied to the same cases.
+    beats:
+      - say: >-
+          Suppose you set aside fifty independent known-bad answers before testing. The judge rejects all fifty. That’s
+          zero false acceptances. How often could a bad answer still get through? Call that probability p and assume it’s
+          the same on each trial. Rejecting one bad answer has probability one minus p. To get a clean run, all fifty have
+          to be rejected, so fifty goes in the exponent. Find the rate that makes this clean result a five percent event.
+          That gives the one-sided ninety-five percent upper limit. At fifty cases the limit is about five point eight two
+          percent.
+        hold: 1.05
+        visual_cues:
+          - id: zero-inputs
+            phrase: "fifty independent known-bad answers"
+            targets: [zero-inputs]
+            color: cyan
+            linger: 0.18
+          - id: zero-observed
+            phrase: "The judge rejects all fifty"
+            targets: [zero-observed]
+            color: green
+            linger: 0.18
+          - id: zero-probability
+            phrase: "probability one minus p"
+            targets: [zero-probability]
+            color: cyan
+            linger: 0.18
+          - id: upper-formula
+            phrase: "fifty goes in the exponent"
+            targets: [upper-formula]
+            color: yellow
+            linger: 0.18
+          - id: upper-fifty
+            phrase: "five point eight two percent"
+            targets: [upper-fifty]
+            color: pink
+            linger: 0.18
+            caption_boundary: true
+      - say: >-
+          Suppose your target is an upper limit below one percent. Plan a larger sample and keep the same assumption of
+          zero false accepts. Follow the curve as the number of independent cases grows. To find where it crosses the
+          target, divide the log of point zero five by the log of point nine nine. Round up to two hundred ninety-nine
+          independent known-bad cases. Its upper limit is about point nine nine seven percent. One fewer case leaves the
+          limit just above the target. Three divided by the sample size is a quick approximation. Ninety-five percent
+          describes how often this procedure covers the true rate over repeated samples.
+        hold: 0.9
+        visual_cues:
+          - id: required-count
+            phrase: "Follow the curve as the number of independent cases grows"
+            targets: [required-count]
+            color: cyan
+            linger: 0.18
+          - id: required-result
+            phrase: "two hundred ninety-nine independent known-bad cases"
+            targets: [required-result]
+            color: green
+            linger: 0.18
+            caption_boundary: true
+          - id: required-limit
+            phrase: "Its upper limit is about point nine nine seven percent"
+            targets: [required-result]
+            color: green
+            linger: 0.18
+            caption_boundary: true
+          - id: confidence-meaning
+            phrase: "over repeated samples"
+            targets: [confidence-meaning]
+            color: yellow
+            linger: 0.18
+      - say: >-
+          Could you use the original fifty cases six times? That gives three hundred calls on the same fifty cases. Those
+          repeats measure how often the judge changes its mind. They add no independent cases. Choose the sample and the
+          analysis before testing. Waiting for a lucky clean streak changes the stopping rule and invalidates this bound.
+          For a separate budget, two hundred distinct cases, two orders and three repeats cost twelve hundred judge calls.
+          The bound concerns known-bad answers. Production misses also depend on how often bad answers arrive, which tasks
+          you sampled, and which failures your test missed.
+        hold: 0.8
+        caption_starts: ["That gives three hundred calls on the same fifty cases.", "Those repeats measure how often the judge changes its mind."]
+        visual_cues:
+          - id: repeat-distinction
+            phrase: "three hundred calls on the same fifty cases"
+            targets: [repeat-distinction]
+            color: pink
+            linger: 0.18
+          - id: stopping-rule
+            phrase: "lucky clean streak"
+            targets: [stopping-rule]
+            color: pink
+            linger: 0.18
+          - id: call-budget
+            phrase: "twelve hundred judge calls"
+            targets: [call-budget]
+            color: yellow
+            linger: 0.18
+            caption_boundary: true
+          - id: bound-scope
+            phrase: "The bound concerns known-bad answers"
+            targets: [bound-scope]
+            color: cyan
+            linger: 0.18
+          - id: larger-plan
+            phrase: "two hundred distinct cases"
+            targets: [call-budget]
+            color: cyan
+            linger: 0.18
+  - id: transfer
+    title: What stays fixed when we compare judgments?
+    visual: Two headlines come from different case sets. Replay two frozen configurations on the same labeled cases and inspect a gain and a loss hidden by the totals.
+    beats:
+      - say: >-
+          Suppose the old judge agreed with reviewers on eighty-three percent of one case set. The new judge gets
+          eighty-nine percent on a different set, with a revised rubric. Did the instrument get better? What would you
+          hold fixed to find out?
+        hold: 2.5
+        visual_cues:
+          - id: first-report
+            phrase: "eighty-three percent of one case set"
+            targets: [old-report]
+            color: blue
+            linger: 0.18
+          - id: second-report
+            phrase: "eighty-nine percent on a different set"
+            targets: [new-report]
+            color: cyan
+            linger: 0.18
+          - id: overlap-question
+            phrase: "What would you hold fixed"
+            targets: [report-question, old-report, new-report]
+            color: yellow
+            linger: 0.18
+      - say: >-
+          Run both frozen configurations on the same held-out cases. Here’s a hand-written replay using our eight labeled
+          pairs. The human key stays put. On case six the old judge picked compact. The new one picks stepwise, which
+          agrees with the key. Now look at case eight. The old judge kept the human tie. The new one chooses compact.
+        hold: 1
+        visual_cues:
+          - id: paired-replay
+            phrase: "the same held-out cases"
+            targets: [comparison]
+            color: blue
+            linger: 0.18
+            caption_boundary: true
+          - id: first-change
+            phrase: "The new one picks stepwise"
+            targets: [gain]
+            color: green
+            linger: 0.18
+          - id: second-change
+            phrase: "The new one chooses compact"
+            targets: [loss]
+            color: pink
+            linger: 0.18
+      - say: >-
+          Both match six of eight. Open the two changed cases before choosing a configuration. Check the original task and
+          evidence, the answer texts, both orders and the raw and parsed receipts. A disagreement on wording and a false
+          approval of a policy exception have different costs.
+        hold: 1.1
+        visual_cues:
+          - id: paired-score
+            phrase: "Both match six of eight"
+            targets: [paired-total]
+            color: yellow
+            linger: 0.18
+            caption_boundary: true
+          - id: inspect-rows
+            phrase: "the two changed cases"
+            targets: [gain, loss]
+            color: cyan
+            linger: 0.18
+      - say: >-
+          Build the real held-out set from the work the judge will see. Include close calls and candidates that try to
+          steer the judge. Keep it separate from rubric development. If you tune a generator against this judge, use
+          independent labels to test the improvement. A judge can help pick cases for review. People remain responsible
+          for high-consequence calls. Revalidate when the model, rubric, generator or traffic changes. In a fairness
+          audit, hold the facts fixed and check whether a change in wording or a group cue changes the score or review
+          route.
+        hold: 0.8
+        visual_cues:
+          - id: frozen-set
+            phrase: "the work the judge will see"
+            targets: [comparison, paired-total]
+            color: blue
+            linger: 0.18
+      - say: >-
+          Try that distinction on a backup restore. For this pair we only asked about clarity. Read alpha and beta in the
+          first order, then the reversed order. The receipts say A, then B. Which reply did the judge choose twice?
+        hold: 2.6
+        visual_cues:
+          - id: restore-setup
+            phrase: "a backup restore"
+            targets: [restore-slots]
+            color: blue
+            linger: 0.18
+          - id: restore-votes
+            phrase: "The receipts say A then B"
+            targets: [restore-votes]
+            color: yellow
+            linger: 0.18
+          - id: restore-question
+            phrase: "Which reply did the judge choose twice"
+            targets: [restore-question, restore-votes]
+            color: yellow
+            linger: 0.18
+  - id: fresh-decision
+    title: What should Maya do with the restore verdict?
+    visual: Trace two restore receipts through their own slot orders. Count a failed receipt in a separate report, then use a trusted completion record to choose the next action.
+    beats:
+      - say: >-
+          The first receipt is A and the reversed receipt is B. Follow each letter to its reply. Both identify alpha. Now
+          replay the second receipt. If the reversed call instead says tie, the conservative rule leaves the case
+          unresolved. Keep that separate from the original pair. We’ll come back to alpha’s advice.
+        hold: 0.9
+        visual_cues:
+          - id: fresh-slots
+            phrase: "first receipt is A"
+            targets: [fresh-slots]
+            color: cyan
+            linger: 0.18
+          - id: fresh-verdicts
+            phrase: "the reversed receipt is B"
+            targets: [fresh-slots]
+            color: yellow
+            linger: 0.18
+          - id: fresh-predict
+            phrase: "Follow each letter to its reply"
+            targets: [fresh-predict, fresh-slots]
+            color: yellow
+            linger: 0.18
+          - id: fresh-identity
+            phrase: "Both identify alpha"
+            targets: [fresh-identity]
+            color: green
+            linger: 0.18
+            caption_boundary: true
+          - id: fresh-tie
+            phrase: "instead says tie"
+            targets: [fresh-tie]
+            color: pink
+            linger: 0.18
+          - id: fresh-tie-complete
+            phrase: "If the reversed call instead says tie, the conservative rule leaves the case unresolved"
+            targets: [fresh-tie]
+            color: pink
+            linger: 0.18
+            caption_boundary: true
+      - say: >-
+          Here’s a separate report. Each column is an attempted pair. Of twenty attempted pairs, fourteen resolved. All
+          fourteen have human labels, and ten match. Coverage is seventy percent and conditional agreement is about
+          seventy-one point four percent. One extra parse failure adds a column. Follow it down. It has an attempt, but no
+          verdict to compare. Coverage falls to fourteen over twenty-one, about sixty-six point seven percent. Agreement
+          on the same fourteen remains ten over fourteen.
+        hold: 1
+        visual_cues:
+          - id: fresh-denominators
+            phrase: "twenty attempted pairs"
+            targets: [fresh-denominators]
+            color: cyan
+            linger: 0.18
+          - id: fresh-rates
+            phrase: "Coverage is seventy percent and conditional agreement is about seventy-one point four percent"
+            targets: [fresh-rates]
+            color: green
+            linger: 0.18
+            caption_boundary: true
+          - id: fresh-parse
+            phrase: "One extra parse failure"
+            targets: [fresh-parse]
+            color: pink
+            linger: 0.18
+          - id: fresh-new-coverage
+            phrase: "fourteen over twenty-one, about sixty-six point seven percent"
+            targets: [fresh-parse]
+            color: pink
+            linger: 0.18
+            caption_boundary: true
+          - id: fresh-coverage-repair
+            phrase: "Agreement on the same fourteen remains ten over fourteen"
+            targets: [fresh-coverage-repair]
+            color: cyan
+            linger: 0.18
+            caption_boundary: true
+      - say: >-
+          Back to the original receipts. Both picked alpha for clarity. Read what alpha actually tells Maya to do. Run the
+          restore again. Now open the backup service’s record for this exact job. The restore completed. There’s been no
+          later change or new request. Repeating the restore would redo finished work. What should Maya check next to find
+          out whether the backup is usable?
+        hold: 2.6
+        caption_starts: ["Run the restore again.", "The restore completed."]
+        visual_cues:
+          - id: fresh-return
+            phrase: "Both picked alpha for clarity"
+            targets: [fresh-choice]
+            color: cyan
+            linger: 0.18
+          - id: fresh-completion
+            phrase: "open the backup service’s record for this exact job"
+            targets: [fresh-completion]
+            color: cyan
+            linger: 0.18
+          - id: fresh-state-failure
+            phrase: "Repeating the restore would redo finished work"
+            targets: [fresh-state-failure]
+            color: pink
+            linger: 0.18
+            caption_boundary: true
+          - id: fresh-next
+            phrase: "What should Maya check next"
+            targets: [next-action, fresh-completion]
+            color: yellow
+            linger: 0.18
+      - say: >-
+          Verify recovery instead. For example, read a known file from the restored copy and compare its contents with the
+          expected version. Keep that check open until the evidence comes back. The judge settled which reply it
+          preferred. The service record is what changed Maya’s next step.
+        hold: 1.8
+        caption_starts: ["For example, read a known file"]
+        visual_cues:
+          - id: fresh-state-repair
+            phrase: "Verify recovery instead"
+            targets: [fresh-state-repair]
+            color: green
+            linger: 0.18
+            caption_boundary: true
+          - id: verify-file
+            phrase: "read a known file from the restored copy"
+            targets: [recovery-check]
+            color: cyan
+            linger: 0.18

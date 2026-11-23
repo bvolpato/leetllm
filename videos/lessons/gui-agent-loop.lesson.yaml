@@ -1,0 +1,580 @@
+version: 1
+id: gui-agent-loop
+title: How an Agent Acts Through a Screen
+source: agents/computer-use-gui-browser-agents/content.md
+voice: en-US-AndrewNeural
+rate: +0%
+sources:
+  - title: Anthropic computer use tool documentation
+    url: https://docs.anthropic.com/en/docs/agents-and-tools/tool-use/computer-use-tool
+  - title: Playwright actionability
+    url: https://playwright.dev/docs/actionability
+  - title: WebArena benchmark
+    url: https://arxiv.org/abs/2307.13854
+  - title: AgentDojo benchmark
+    url: https://arxiv.org/abs/2406.13352
+  - title: Set-of-Mark prompting for visual grounding
+    url: https://arxiv.org/abs/2310.11441
+scenes:
+  - id: subject-intro
+    title: A screenshot can show evidence and a deploy button
+    visual: A CI dashboard displays a failed test and a separate deploy control; the agent reads the failure while the host limits available actions.
+    beats:
+      - say: Imagine an old CI portal with a failed test in a visual panel and no API for its traceback. An agent could prepare a useful incident draft from that screen.
+        hold: 0.55
+        visual_cues:
+          - id: subject-intro-b1-1
+            phrase: traceback
+            targets:
+              - parser-traceback
+            linger: 0.45
+      - say: The same browser session also shows a deploy control. A screenshot helps the agent understand the page, while the host still decides which action may run.
+        hold: 0.75
+        visual_cues:
+          - id: subject-intro-b2-1
+            phrase: deploy control
+            targets:
+              - deployment-effect
+            linger: 0.45
+      - say: We will follow one run from observation to a local draft. Each action must match the current screen, task scope, and host policy.
+        hold: 0.55
+        visual_cues:
+          - id: subject-intro-b3-1
+            phrase: local draft
+            targets:
+              - local-draft
+            linger: 0.45
+          - id: subject-intro-b3-2
+            phrase: task scope
+            targets:
+              - task-scope
+            linger: 0.45
+  - id: session-admission
+    title: Limit what the session can reach before launch
+    visual: The concrete CI task admits one fresh restricted profile while mail, credentials, clipboard export and deploy capability remain outside its manifest.
+    beats:
+      - say: Admit the session before its first screenshot. Use a fresh restricted browser profile, only required domains and applications, read-only credentials for this pilot, and bounded storage, time and steps. A reused profile, unrelated mail domain or deploy capability fails admission before launch. A fresh profile clears inherited state; it is not an operating-system sandbox or a read-only account.
+        hold: 1
+        visual_cues:
+          - id: session-admission-construct-0
+            phrase: Admit the session before its first screenshot. Use
+            targets:
+              - session-admission-construction
+            color: yellow
+            linger: 0.5
+      - say: Keep passwords and authentication tokens in a host-owned credential broker. The model receives permitted task context and the resulting page, not a secret to type. Exclude home cookies, password-manager and control sockets, terminals and unrelated files. Restrict uploads, downloads, clipboard sync and export paths. A clipboard isolated from the host can still transmit data through a permitted web page.
+        hold: 1
+        visual_cues:
+          - id: session-admission-construct-1
+            phrase: Keep passwords and authentication tokens in a host-owned
+            targets:
+              - session-admission-construction
+            color: yellow
+            linger: 0.5
+      - say: Enforce network policy outside worker control, including schemes, ports, redirects, address families and proxy or DNS bypass. A permitted domain can still have destructive endpoints. Choose a container, application-kernel sandbox or virtual machine for the threat model; gVisor is not a microVM, and Firecracker is a KVM-backed microVM. Verify teardown and session-state cleanup.
+        hold: 1
+        visual_cues:
+          - id: session-admission-construct-2
+            phrase: Enforce network policy outside worker control, including schemes,
+            targets:
+              - session-admission-construction
+            color: yellow
+            linger: 0.5
+      - say: Audit proposals, host decisions, observation references and verifier outcomes using an allowlisted event schema. Arbitrary page text and screenshots can contain secrets; field names alone do not make values safe. Retain only the redacted evidence the task and retention policy need, with an operator stop control.
+        hold: 1
+        visual_cues:
+          - id: session-admission-construct-3
+            phrase: Audit proposals, host decisions, observation references and verifier
+            targets:
+              - session-admission-construction
+            color: yellow
+            linger: 0.5
+  - id: observe-propose-act
+    title: The host closes the loop around each proposal
+    visual: A restricted session captures a frame, the model proposes one grounded control action, the host checks it, and a new screenshot records the result.
+    beats:
+      - say: The host opens a restricted browser session and captures the dashboard. The model sees a bounded screenshot and proposes a next step.
+        hold: 0.55
+        visual_cues:
+          - id: observe-propose-act-b1-1
+            phrase: captures the dashboard
+            targets:
+              - captured-observation
+            linger: 0.45
+          - id: observe-propose-act-b1-2
+            phrase: next step
+            targets:
+              - proposed-action
+            linger: 0.45
+      - say: The host checks that the action fits the task, target, and current state before dispatch. It then waits for the expected page change and captures a fresh observation.
+        hold: 0.75
+        visual_cues:
+          - id: observe-propose-act-b2-1
+            phrase: checks that the action fits
+            targets:
+              - host-admission
+            linger: 0.45
+          - id: observe-propose-act-b2-2
+            phrase: fresh observation
+            targets:
+              - fresh-observation
+            linger: 0.45
+      - say: The loop stops at a verified local draft, a deadline, or a safety boundary. The model proposes inputs; the host owns credentials and effects.
+        hold: 0.55
+        visual_cues:
+          - id: observe-propose-act-b3-1
+            phrase: host owns credentials and effects
+            targets:
+              - host-admission
+            linger: 0.45
+  - id: observation-representations
+    title: Choose the evidence that identifies this control
+    visual: The same Failed tests control is compared as DOM, semantic accessibility node and painted portal crop, retaining run and frame identity.
+    beats:
+      - say: A DOM view exposes structure, attributes and text but may contain hidden or hostile strings. It does not by itself describe painted canvas or native windows. An accessibility tree supplies roles, names and state when the application exposes them, but poor labels can omit or duplicate controls. Screenshots retain visible canvas and spatial context while small text or spoofed chrome remains hard to read.
+        hold: 1
+        visual_cues:
+          - id: observation-representations-construct-0
+            phrase: A DOM view exposes structure, attributes and text
+            targets:
+              - observation-representations-construction
+            color: yellow
+            linger: 0.5
+      - say: Combine a focused semantic tree with the same screenshot and a higher-resolution crop or mark overlay when needed. Set-of-Marks gives controls discrete IDs, not guaranteed correctness. Its host map must remain current, uniquely identify the intended target, preserve coordinates and pass actionability.
+        hold: 1
+        visual_cues:
+          - id: observation-representations-construct-1
+            phrase: Combine a focused semantic tree with the same
+            targets:
+              - observation-representations-construction
+            color: yellow
+            linger: 0.5
+      - say: A normal locator click checks a unique match, visibility, stability, enabled state and event reception. A raw coordinate click does not supply those semantic checks. Neither kind grants authorization. If two Failed tests tabs remain ambiguous after scoping to the run panel, re-observe or escalate instead of choosing the first.
+        hold: 1
+        visual_cues:
+          - id: observation-representations-construct-2
+            phrase: A normal locator click checks a unique match,
+            targets:
+              - observation-representations-construction
+            color: yellow
+            linger: 0.5
+  - id: grounding-coordinates
+    title: Grounding connects a visual target to an input point
+    visual: A crop coordinate is unpadded, scaled back to native pixels, offset into the viewport, and converted to CSS pixels; a named mark offers a discrete alternative.
+    beats:
+      - say: A model’s point belongs to the image it observed. The host must preserve that frame’s dimensions, crop, origin, and device scale before sending a mouse event.
+        hold: 0.55
+        visual_cues:
+          - id: grounding-coordinates-b1-1
+            phrase: image it observed
+            targets:
+              - observed-point
+            linger: 0.45
+      - say: Follow the highlighted point. Remove the image padding first, restore the crop’s original scale, then add its position in the larger screenshot. The point now names the same button in native screenshot pixels.
+        hold: 0.75
+        motion_check:
+          region:
+            - 1050
+            - 330
+            - 740
+            - 500
+          minimumChangedFraction: 0.002
+        visual_cues:
+          - id: grounding-coordinates-b2-1
+            phrase: Remove the image padding
+            targets:
+              - coordinate-transforms
+            linger: 0.45
+          - id: grounding-coordinates-b2-2
+            phrase: native screenshot pixels
+            targets:
+              - native-point
+            linger: 0.45
+      - say: The screenshot has twice as many pixels along each axis as the browser’s CSS viewport. Divide by that device scale before sending the click. A Set-of-Marks ID can identify the button directly when its map is current.
+        hold: 0.55
+        visual_cues:
+          - id: grounding-coordinates-b3-1
+            phrase: Divide by that device scale
+            targets:
+              - coordinate-transforms
+            linger: 0.45
+      - say: In the supplied crop, subtract padding thirty-two and sixteen from model point one hundred thirty-two and sixty-six, leaving x one hundred and y fifty. Doubling from a three-hundred-twenty-by-two-hundred rendering to a six-hundred-forty-by-four-hundred crop gives x two hundred and y one hundred. Add crop origin x one hundred and y fifty to get native x three hundred and y one hundred fifty; divide by device scale two for CSS x one hundred fifty and y seventy-five. Apply scale only for the actual screenshot contract. CSS-scaled captures already use CSS pixels; desktop chrome and scroll offsets are separate.
+        hold: 1
+        visual_cues:
+          - id: grounding-coordinates-construct-3
+            phrase: In the supplied crop, subtract padding thirty-two and
+            targets:
+              - grounding-coordinates-construction
+            color: yellow
+            linger: 0.5
+          - id: coordinate-unpad
+            phrase: leaving x one hundred and y fifty
+            targets:
+              - grounding-coordinates-construction
+            color: yellow
+            linger: 0.5
+          - id: coordinate-scale
+            phrase: gives x two hundred and y one hundred
+            targets:
+              - grounding-coordinates-construction
+            color: yellow
+            linger: 0.5
+          - id: coordinate-origin
+            phrase: get native x three hundred and y one hundred fifty
+            targets:
+              - grounding-coordinates-construction
+            color: yellow
+            linger: 0.5
+          - id: coordinate-css
+            phrase: CSS x one hundred fifty and y seventy-five
+            targets:
+              - grounding-coordinates-construction
+            color: yellow
+            linger: 0.5
+  - id: observation-freshness
+    title: A proposal tied to an old frame must be dropped
+    visual: Opening a run increments the page version; a click based on the earlier dashboard frame is rejected, while a newly captured frame resolves the failed-tests control.
+    beats:
+      - say: A target can move after a page reflows or a panel opens. Each observation gets a host-created session and frame identity.
+        hold: 0.55
+        visual_cues:
+          - id: observation-freshness-b1-1
+            phrase: session and frame identity
+            targets:
+              - host-frame
+            linger: 0.45
+      - say: After the run opens, the host’s current frame version advances. A proposal that still names the old dashboard observation fails before input reaches the browser.
+        hold: 0.75
+        visual_cues:
+          - id: observation-freshness-b2-1
+            phrase: old dashboard observation
+            targets:
+              - stale-proposal
+            linger: 0.45
+          - id: observation-freshness-b2-2
+            phrase: fails before input
+            targets:
+              - stale-verdict
+            linger: 0.45
+      - say: The host captures the new frame, resolves one Failed tests control in the intended run, checks it is actionable, and only then dispatches the click.
+        hold: 0.55
+        visual_cues:
+          - id: observation-freshness-b3-1
+            phrase: new frame
+            targets:
+              - fresh-capture
+            linger: 0.45
+          - id: observation-freshness-b3-2
+            phrase: Failed tests control
+            targets:
+              - resolved-control
+            linger: 0.45
+          - id: observation-freshness-b3-3
+            phrase: actionable
+            targets:
+              - actionability
+            linger: 0.45
+  - id: adapter-runtime
+    title: Transport batches preserve action boundaries
+    visual: One ordered read/write/scroll proposal retains call identities through a host executor; the write stops the batch before the later scroll.
+    beats:
+      - say: Provider adapters declare which observations and actions exist, their coordinate contract, and how results match call identifiers. Pin compatible model, schema and adapter versions. Generated action status means the model finished its proposal, not that input executed. Continuing an API conversation does not reconstruct a lost browser session.
+        hold: 1
+        visual_cues:
+          - id: adapter-runtime-construct-0
+            phrase: Provider adapters declare which observations and actions exist,
+            targets:
+              - adapter-runtime-construction
+            color: yellow
+            linger: 0.5
+      - say: Execute an ordered batch step by step. In a separately authorized write workflow, capture the traceback, then pause before the deploy effect if its required review is missing. Do not run the later scroll yet. Stop at unknown actions, failures or authorization boundaries, report remaining actions as unexecuted under the provider contract, and re-observe before a resumed batch.
+        hold: 1
+        visual_cues:
+          - id: adapter-runtime-construct-1
+            phrase: Execute an ordered batch step by step. In
+            targets:
+              - adapter-runtime-construction
+            color: yellow
+            linger: 0.5
+      - say: Provider-required confirmation is an additional gate. Obtain actual confirmation and return the required acknowledgement when that contract asks for it. An injection detector or safety acknowledgement does not replace application permission. Generated code can exceed a named mouse primitive, so isolate its executor and reachable capabilities as well.
+        hold: 1
+        visual_cues:
+          - id: adapter-runtime-construct-2
+            phrase: Provider-required confirmation is an additional gate. Obtain actual
+            targets:
+              - adapter-runtime-construction
+            color: yellow
+            linger: 0.5
+      - say: Browser protocol input controls its browser in viewport CSS coordinates; it does not control arbitrary native windows. Native desktop input needs its own display, focus and permission checks. Headless browsers can render screenshots without an X11 desktop. A virtual display can host native applications; a view-only observer and an authenticated encrypted gateway need separate setup. Keep fonts, viewport, browser and scale reproducible, and wait for task-specific visible state rather than generic network idle.
+        hold: 1
+        visual_cues:
+          - id: adapter-runtime-construct-3
+            phrase: Browser protocol input controls its browser in viewport
+            targets:
+              - adapter-runtime-construction
+            color: yellow
+            linger: 0.5
+  - id: verify-after-action
+    title: An unchanged screen can hide a queued request
+    visual: A submit click leaves the first screenshot unchanged while a delayed backend queues the request; a bounded status probe establishes the outcome before another click.
+    beats:
+      - say: For a separately authorized incident-note update, a click proves only that the host sent input. It does not prove the server applied the intended change. Keep this write experiment separate from the read-only CI inspection.
+        hold: 0.55
+        visual_cues:
+          - id: authorized-write-experiment
+            phrase: For a separately authorized incident-note update
+            targets:
+              - verify-after-action-delayed-state
+            color: yellow
+      - say: Our delayed portal keeps the screenshot unchanged, then queues the note after processing. The immediate observation leaves the result uncertain.
+        hold: 0.75
+        visual_cues:
+          - id: verify-after-action-b2-1
+            phrase: queues the note
+            targets:
+              - server-state
+            linger: 0.45
+      - say: The host waits within a deadline and checks authoritative state before retrying. If it still cannot establish the outcome, it records unknown and escalates.
+        hold: 0.55
+        visual_cues:
+          - id: verify-after-action-b3-1
+            phrase: authoritative state
+            targets:
+              - server-receipt
+            linger: 0.45
+      - say: In the local delayed-write fixture, one Submit queues a request while the visible note count remains zero. Blindly clicking again queues a second request and later creates two notes. Waiting and inspecting the first request produces one note. Record unknown after dispatch without outcome proof; reserve not dispatched for an input the host knows it never sent. These are local object transitions, not browser or network execution evidence.
+        hold: 1
+        visual_cues:
+          - id: verify-after-action-construct-3
+            phrase: In the local delayed-write fixture, one Submit queues
+            targets:
+              - verify-after-action-construction
+            color: yellow
+            linger: 0.5
+          - id: blind-second-submit
+            phrase: Blindly clicking again
+            targets:
+              - verify-after-action-construction
+            color: yellow
+            linger: 0.5
+          - id: wait-single-request
+            phrase: Waiting and inspecting the first request
+            targets:
+              - verify-after-action-construction
+            color: yellow
+            linger: 0.5
+  - id: policy-and-approval
+    title: Target accuracy does not replace permission
+    visual: A correctly grounded read proceeds, a draft stays local, and a deploy proposal is stopped by the task’s read-only permission boundary.
+    beats:
+      - say: Reading the failed step is within this task. Preparing a local note is also allowed when the note stays on the host.
+        hold: 0.55
+        visual_cues:
+          - id: policy-and-approval-b1-1
+            phrase: Preparing a local note
+            targets:
+              - requested-actions
+            linger: 0.45
+      - say: Rerunning a production deploy changes external state. The visible button and a precisely grounded click do not supply permission for that effect.
+        hold: 0.75
+        visual_cues:
+          - id: policy-and-approval-b2-1
+            phrase: permission for that effect
+            targets:
+              - policy-decisions
+            linger: 0.45
+      - say: A separately authorized write needs fresh state and a reviewer who can see the exact change. Verify the intended record and available audit evidence afterward.
+        hold: 0.55
+        visual_cues:
+          - id: policy-and-approval-b3-1
+            phrase: separately authorized write
+            targets:
+              - policy-decisions
+            linger: 0.45
+      - say: For the separately authorized incident extension, bind the reviewer’s grant to actor, session, incident, exact content, expected version and expiry. Recheck revocation and live state. Sequential in-memory replay tracking illustrates the rule but does not provide durable atomic protection across concurrent calls or restart. Typing can itself autosave or transmit before Submit, and hovering or moving can have application effects. Classify actual behavior from trusted target details.
+        hold: 1
+        visual_cues:
+          - id: policy-and-approval-construct-3
+            phrase: For the separately authorized incident extension, bind the
+            targets:
+              - policy-and-approval-construction
+            color: yellow
+            linger: 0.5
+      - say: If the intended incident becomes correct while another incident is unexpectedly closed, the verifier reports failure and stops. It must inspect every record inside the defined verification scope and available audit evidence. Detecting a mutation afterward does not prevent or undo it. Define recovery or compensation for the permitted effect before rollout.
+        hold: 1
+        visual_cues:
+          - id: policy-and-approval-construct-4
+            phrase: If the intended incident becomes correct while another
+            targets:
+              - policy-and-approval-construction
+            color: yellow
+            linger: 0.5
+          - id: collateral-mutation
+            phrase: another incident is unexpectedly closed
+            targets:
+              - policy-and-approval-construction
+            color: yellow
+            linger: 0.5
+  - id: untrusted-observation
+    title: Page content remains data under host policy
+    visual: A page contains an instruction to rerun deployment; the host labels the observation as untrusted and keeps the read-only action set unchanged.
+    beats:
+      - say: A traceback, banner, accessibility label, or image may contain text that addresses the agent. The page can supply evidence, while its text remains untrusted input.
+        hold: 0.55
+        visual_cues:
+          - id: untrusted-observation-b1-1
+            phrase: untrusted input
+            targets:
+              - untrusted-data
+            linger: 0.45
+      - say: Our fixture page asks the agent to rerun deployment. The task permits reading the failure and saving a local draft, so the policy gate blocks the proposed write.
+        hold: 0.75
+        visual_cues:
+          - id: untrusted-observation-b2-1
+            phrase: rerun deployment
+            targets:
+              - injected-page
+            linger: 0.45
+          - id: untrusted-observation-b2-2
+            phrase: blocks the proposed write
+            targets:
+              - host-allowlist
+            linger: 0.45
+      - say: An injection detector can provide a signal, but a missed signal does not change the allowlist. Keep credentials out of the model view and use restricted accounts.
+        hold: 0.55
+        visual_cues:
+          - id: untrusted-observation-b3-1
+            phrase: allowlist
+            targets:
+              - host-allowlist
+            linger: 0.45
+      - say: Hidden DOM instructions may reach structural adapters without appearing in pixels. OCR cannot recover bytes that were never painted. A spoofed operating-system dialog can be painted HTML, and an accessibility label can contain different text from the visible button. All remain untrusted. Even a detector miss or a later clean screenshot cannot grant a new capability. Captchas and access controls require an appropriate human path, not an automated bypass.
+        hold: 1
+        visual_cues:
+          - id: untrusted-observation-construct-3
+            phrase: Hidden DOM instructions may reach structural adapters without
+            targets:
+              - untrusted-observation-construction
+            color: yellow
+            linger: 0.5
+  - id: evaluation-contract
+    title: Evaluate the trajectory and the actual outcome
+    visual: The same run trace produces separate grounding, dispatched-action, blocked-attempt, final-state and cost receipts before any rollout decision.
+    beats:
+      - say: Task success measures whether the final observable state matches the goal. Grounding measures whether an input hits the annotated target. Also measure steps, model calls, latency, cost, reviewer load and session cleanup. A correctly located harmful action is still a policy failure.
+        hold: 1
+        visual_cues:
+          - id: evaluation-contract-construct-0
+            phrase: Task success measures whether the final observable state
+            targets:
+              - evaluation-contract-construction
+            color: yellow
+            linger: 0.5
+      - say: "Count attempted forbidden actions separately from blocked attempts and executed violations. State denominators: per proposed action, executed action or episode as appropriate. A required review is not automatically failure, and preventing a harmful proposal is not an executed violation."
+        hold: 1
+        visual_cues:
+          - id: evaluation-contract-construct-1
+            phrase: Count attempted forbidden actions separately from blocked attempts
+            targets:
+              - evaluation-contract-construction
+            color: yellow
+            linger: 0.5
+      - say: WebArena evaluates long-horizon functional web tasks; OSWorld evaluates real desktop and cross-application state. Their versions and validators matter, and partial-credit scores are not interchangeable with binary success. Mind2Web’s original recorded-page evaluation is different from live closed-loop execution. GAIA emphasizes assistant answers, while AgentDojo complements tool-injection testing. None certifies this CI dashboard’s production workflow.
+        hold: 1
+        visual_cues:
+          - id: evaluation-contract-construct-2
+            phrase: WebArena evaluates long-horizon functional web tasks; OSWorld evaluates
+            targets:
+              - evaluation-contract-construction
+            color: yellow
+            linger: 0.5
+      - say: The local portal model checks view transitions, stale frames, wrong sessions, wrong origins, target names and the draft boundary. It does not measure pixel grounding, real authentication, browser effects or model quality. Real release evidence needs the actual dashboard, injection cases, timing and final-state checks with bounded uncertainty and operator response.
+        hold: 1
+        visual_cues:
+          - id: evaluation-contract-construct-3
+            phrase: The local portal model checks view transitions, stale
+            targets:
+              - evaluation-contract-construction
+            color: yellow
+            linger: 0.5
+  - id: choose-and-measure
+    title: Use a visual agent only where the workflow needs it
+    visual: A router sends stable status reads to a supported API and the legacy traceback to computer use; evaluation separates target grounding from permission compliance.
+    beats:
+      - say: Use a direct API or stable selector when it completes the authorized workflow. Computer use earns a role when the task depends on visual evidence or a legacy screen.
+        hold: 0.55
+        visual_cues:
+          - id: choose-and-measure-b1-1
+            phrase: direct API
+            targets:
+              - typed-api
+            linger: 0.45
+          - id: choose-and-measure-b1-2
+            phrase: legacy screen
+            targets:
+              - visual-evidence
+            linger: 0.45
+      - say: Measure whether clicks reach the annotated target, whether the final state matches the goal, how often forbidden actions are attempted or executed, and how many steps the path uses.
+        hold: 0.75
+        visual_cues:
+          - id: choose-and-measure-b2-1
+            phrase: final state matches the goal
+            targets:
+              - episode-goal
+              - goal-metric
+            color: cyan
+            linger: 0.45
+          - id: measure-step-count
+            phrase: how many steps the path uses
+            targets:
+              - steps-metric
+              - episode-clicks
+              - episode-goal
+              - episode-forbidden
+            color: yellow
+            linger: 0.65
+          - id: measure-forbidden
+            phrase: forbidden actions are attempted or executed
+            targets:
+              - episode-forbidden
+              - forbidden-metric
+            color: pink
+            linger: 0.65
+          - id: measure-annotated-clicks
+            phrase: clicks reach the annotated target
+            targets:
+              - episode-clicks
+              - click-metric
+            color: blue
+            linger: 0.65
+      - say: A correct target can still be a forbidden action. Pilot with read-only access, bound time and steps, and review failures before broadening a session’s permissions.
+        hold: 0.55
+        visual_cues:
+          - id: choose-and-measure-b3-1
+            phrase: read-only access
+            targets:
+              - episode-forbidden
+              - forbidden-metric
+            color: cyan
+            linger: 0.45
+      - say: "End with a fresh reflow: the current frame is version eight, but a proposed Failed tests click still names version seven and the page now has two matching tabs. Predict the host action. It rejects the stale proposal, captures version eight, scopes to the intended run and resolves one actionable target before clicking. If the verifier still cannot prove the local draft, the result stays unknown. A local draft can be complete while an incident update remains outside this task. Human-in-the-loop architecture makes the permitted review pause durable next."
+        hold: 1
+        visual_cues:
+          - id: choose-and-measure-construct-3
+            phrase: "End with a fresh reflow: the current frame"
+            targets:
+              - choose-and-measure-construction
+            color: yellow
+            linger: 0.5
+          - id: fresh-stale-reject
+            phrase: It rejects the stale proposal
+            targets:
+              - choose-and-measure-construction
+            color: yellow
+            linger: 0.5
+          - id: fresh-resolve-control
+            phrase: resolves one actionable target
+            targets:
+              - choose-and-measure-construction
+            color: yellow
+            linger: 0.5

@@ -1,0 +1,654 @@
+[
+  {
+    "id": "c01",
+    "title": "What changed between the two saved runs?",
+    "sourceChapters": [
+      "c01"
+    ],
+    "beats": [
+      {
+        "id": "c01-b01",
+        "say": "Send the same request through both saved runs. What changed between them? Request two oh five asks for deployment approval. Its approval file is empty. Run one serves every request. It gives the go-ahead.",
+        "hold": 0.6
+      },
+      {
+        "id": "c01-b02",
+        "say": "Look at the rule saved with run two. It requires a release record. With the same empty approval file, what will run two return?",
+        "hold": 2.6
+      },
+      {
+        "id": "c01-b03",
+        "say": "It abstains. Read the two results for request two oh five. The first repair stopped an unsupported approval. Does that rule still let someone get help?",
+        "hold": 0.7
+      },
+      {
+        "id": "c01-b04",
+        "say": "Send run two the request for rollback steps. Open the runbook. It tells the operator to select the previous release and check its health. Look at the rule above the report. What will run two return for this request?",
+        "hold": 2.6
+      },
+      {
+        "id": "c01-b05",
+        "say": "It abstains again. The runbook has the answer, but the rule only accepts release records. Keep both rows from this simulated run. The same repair that stopped an unsupported approval also withheld useful rollback steps.",
+        "hold": 1
+      }
+    ]
+  },
+  {
+    "id": "c02",
+    "title": "What belongs in one run?",
+    "sourceChapters": [
+      "c02"
+    ],
+    "beats": [
+      {
+        "id": "c02-b01",
+        "say": "The incident trace gave us a request to investigate. Our experiment asks whether we can fix that approval and keep useful answers. A run records one execution, like the two requests we just replayed. The chosen rule is a parameter.",
+        "hold": 0.3
+      },
+      {
+        "id": "c02-b02",
+        "say": "The unnecessary refusal is a measured outcome, a metric. The saved report is an artifact you can open. An incident tag lets someone find this run later. A separate release decision controls traffic.",
+        "hold": 0.65
+      },
+      {
+        "id": "c02-b03",
+        "say": "Suppose the run has already logged a temperature of zero. Try to log point seven under the same parameter name. Both the local tracker and MLflow reject the conflicting value. Start another run for that setting.",
+        "hold": 0.3
+      },
+      {
+        "id": "c02-b04",
+        "say": "In MLflow, log training loss with a step number. At step zero, the loss is point eight. At step one, it falls to point five five. At step two, it reaches point four. MLflow keeps all three samples in its metric history. The article’s local tracker keeps only the latest value under the loss key. For a sampled model, keep the effective settings, source revision and trial ID with each result.",
+        "hold": 0.7
+      }
+    ]
+  },
+  {
+    "id": "c03",
+    "title": "What did the run actually score?",
+    "sourceChapters": [
+      "c03"
+    ],
+    "beats": [
+      {
+        "id": "c03-b01",
+        "say": "First, freeze what each case should do. The incident and the missing approval should abstain. A release record supports an answer about the freeze. A rollback runbook supports an answer about the steps. Each case gets its own identifier, even where two answers should be the same.",
+        "hold": 0.6
+      },
+      {
+        "id": "c03-b02",
+        "say": "A fingerprint is a checksum of the case data. We put the rows in case ID order and write the fields in a fixed format before hashing the bytes. Sort the copy by case ID. Its fingerprint still matches the frozen suite.",
+        "hold": 0.3
+      },
+      {
+        "id": "c03-b03",
+        "say": "Now change the freeze case’s label to abstain. The copy gets a different fingerprint. A reviewer still has to decide whether that label makes sense.",
+        "hold": 0.85
+      }
+    ]
+  },
+  {
+    "id": "c04",
+    "title": "What is inside the fingerprint?",
+    "sourceChapters": [
+      "c04"
+    ],
+    "beats": [
+      {
+        "id": "c04-b01",
+        "say": "Take just the incident row. On the left are the five things that enter its hash. The slice says which behavior we’re testing. The source says where the case came from. Change the source to a reviewed copy. The digest moves. If two rows use the same case ID, reject the suite before hashing it.",
+        "hold": 0.7
+      },
+      {
+        "id": "c04-b02",
+        "say": "Now change the question on the right. The digest stays put. This worksheet describes an evidence category. The question’s words never went into the calculation. In a real run, retain the actual questions, evidence, label policy and model inputs the job used.",
+        "hold": 0.3
+      },
+      {
+        "id": "c04-b03",
+        "say": "MLflow can log a dataset digest even when you still need to archive its rows.",
+        "hold": 0.7
+      }
+    ]
+  },
+  {
+    "id": "c05",
+    "title": "Which case changes the score?",
+    "sourceChapters": [
+      "c05"
+    ],
+    "beats": [
+      {
+        "id": "c05-b01",
+        "say": "Run the release-record rule on the two regression cases. With no evidence for the deployment, it abstains. With a release record for the freeze, it serves. Two matches out of two checked. The lower two cases were reserved before we looked at the results.",
+        "hold": 0.65
+      },
+      {
+        "id": "c05-b02",
+        "say": "Add the rollback request. The runbook supports an answer, and the first repair abstains. That leaves two matches in three. For the last request the approval file is empty. Which route would earn the next point?",
+        "hold": 2
+      },
+      {
+        "id": "c05-b03",
+        "say": "It abstains. That makes three matches in four. Read the rollback row again. That seventy-five percent score includes a person who asked for steps and got a refusal.",
+        "hold": 1
+      }
+    ]
+  },
+  {
+    "id": "c06",
+    "title": "Where do the errors go?",
+    "sourceChapters": [
+      "c06"
+    ],
+    "beats": [
+      {
+        "id": "c06-b01",
+        "say": "Bring back the original rule. It serves every case. Find the two serves across from an abstain label. Those are unsafe routes. In the first repair, three cases get refusals. Two should. Only the rollback refusal is unnecessary because the runbook gives the steps. Record both error counts so a rule that refuses everything can’t win on safety alone.",
+        "hold": 0.65
+      },
+      {
+        "id": "c06-b02",
+        "say": "For run three, accept a release record or a rollback runbook. The candidate sees only the evidence category. The evaluator compares its output with the frozen label for that case. Which decision will move?",
+        "hold": 2
+      },
+      {
+        "id": "c06-b03",
+        "say": "Only rollback changes. The rule now serves the steps. Four routes match. Compare the two marks over the runbook. That is where the fourth point came from.",
+        "hold": 0.7
+      },
+      {
+        "id": "c06-b04",
+        "say": "Read what the assistant actually says when it serves. The route tells us it answered. Checking whether its instructions are accurate takes the answer text and the evidence.",
+        "hold": 0.85
+      }
+    ]
+  },
+  {
+    "id": "c07",
+    "title": "Which cases are in the saved report?",
+    "sourceChapters": [
+      "c07"
+    ],
+    "beats": [
+      {
+        "id": "c07-b01",
+        "say": "Open the saved report from run three. Across the top are the case IDs we meant to test. File each returned route under its ID. The verifier reads the saved rows, checks the candidate’s predictions, and recomputes the logged counts. The original report passes.",
+        "hold": 0.7
+      },
+      {
+        "id": "c07-b02",
+        "say": "Make a copy. Replace its last row with another copy of the incident. Give these changed bytes their own checksum. Now file that last row by its ID. The dashboard still says four out of four. Which case has no saved result?",
+        "hold": 2.6
+      },
+      {
+        "id": "c07-b03",
+        "say": "The missing-approval case has no row. The incident has two. The same verifier returns false. A checksum can identify the bytes in that copy even when one case is absent. Read the intact original again. Its four rows and its metrics agree.",
+        "hold": 0.3
+      },
+      {
+        "id": "c07-b04",
+        "say": "Keep that report, the candidate manifest, the code and the evaluation conditions with the run.",
+        "hold": 0.8
+      }
+    ]
+  },
+  {
+    "id": "c08",
+    "title": "Where can you read the report tomorrow?",
+    "sourceChapters": [
+      "c08"
+    ],
+    "beats": [
+      {
+        "id": "c08-b01",
+        "say": "In the article’s local tracker, a run has two homes. Its metadata stays in memory, while the report and simulation manifest are JSON files in a temporary directory. Try logging a second report at the first report’s path. Exclusive creation rejects the overwrite.",
+        "hold": 0.3
+      },
+      {
+        "id": "c08-b02",
+        "say": "The tracker also requires its own run object, a unique run ID and a path inside that run’s directory.",
+        "hold": 0.65
+      },
+      {
+        "id": "c08-b03",
+        "say": "When the temporary directory closes, those files disappear. The run object is still in this process’s memory. For a shared project, configure a persistent database for metadata and an artifact store for approved files. Set access and retention controls. Check that a logged metric is a finite number. That rules out a Boolean or NaN.",
+        "hold": 0.3
+      },
+      {
+        "id": "c08-b04",
+        "say": "If a metric or a report is missing, return to the saved evidence before reviewing the run. A tag saying that raw text was excluded only describes intent. Redact the actual payload before logging it.",
+        "hold": 0.65
+      }
+    ]
+  },
+  {
+    "id": "c09",
+    "title": "Did run three answer the same question?",
+    "sourceChapters": [
+      "c09"
+    ],
+    "beats": [
+      {
+        "id": "c09-b01",
+        "say": "All three runs saw the same case IDs. They also have to agree on the evidence snapshot, policy and scoring rules for this comparison. The routing rule is what we intended to vary. That gives a difference on the rollback row a useful interpretation.",
+        "hold": 0.65
+      },
+      {
+        "id": "c09-b02",
+        "say": "In a copy of run three, change only the evaluator version. Leave the logged score alone. The comparison check now refuses to rank it with the other two. Version three might count an error differently. Editing the label hasn’t run the new scorer.",
+        "hold": 0.3
+      },
+      {
+        "id": "c09-b03",
+        "say": "Inspect the scoring change and rerun the candidates under matching conditions. If the suite changed, inspect the cases too.",
+        "hold": 0.65
+      }
+    ]
+  },
+  {
+    "id": "c10",
+    "title": "What can a perfect tie tell you?",
+    "sourceChapters": [
+      "c10"
+    ],
+    "beats": [
+      {
+        "id": "c10-b01",
+        "say": "Imagine three other candidates that all match four routes in four cases. Keep the four cases. They can still catch a regression. To rank these candidates, check the scorer and look for behavior the cases never test.",
+        "hold": 0.5
+      },
+      {
+        "id": "c10-b02",
+        "say": "Here is one gap. The old suite has no case with two conflicting release records. Have a reviewer label that case. Add it to a new suite version and rerun all three candidates. Until those results come back, each fifth slot is empty.",
+        "hold": 0.7
+      },
+      {
+        "id": "c10-b03",
+        "say": "Suppose a model judges each answer using a prompt. If the judge’s instructions change, a score can rise while the candidate stays fixed. Record the judge prompt, model revision and inference settings with the evaluator version. Then repeat the comparison.",
+        "hold": 0.4
+      },
+      {
+        "id": "c10-b04",
+        "say": "Saving a candidate leaves a record. Someone still has to run the evaluation. MLflow’s GenAI evaluation runs predictions and scorers. A model-backed judge can make separately billable calls.",
+        "hold": 0.65
+      }
+    ]
+  },
+  {
+    "id": "c11",
+    "title": "Where would you find the failed rollback row?",
+    "sourceChapters": [
+      "c11"
+    ],
+    "beats": [
+      {
+        "id": "c11-b01",
+        "say": "Say a colleague opens run two in MLflow or Weights and Biases. Where should they look? Record the chosen rule as a parameter in MLflow or in the run configuration in Weights and Biases. Log the one unnecessary refusal as a metric.",
+        "hold": 0.3
+      },
+      {
+        "id": "c11-b02",
+        "say": "To find the request behind that one, open the saved report. Both tools can store that file as an artifact.",
+        "hold": 0.7
+      },
+      {
+        "id": "c11-b03",
+        "say": "Now follow the input in the other direction. MLflow can log the dataset description. Keep the approved rows in an archive or at an immutable source. An online Weights and Biases run can record which versioned artifact it consumed.",
+        "hold": 0.3
+      },
+      {
+        "id": "c11-b04",
+        "say": "Choose an exact version or digest so a later run can recover the same cases. Choose the platform whose storage, access and retention fit your team.",
+        "hold": 0.8
+      }
+    ]
+  },
+  {
+    "id": "c12",
+    "title": "What exactly are you registering?",
+    "sourceChapters": [
+      "c12"
+    ],
+    "beats": [
+      {
+        "id": "c12-b01",
+        "say": "Suppose the repair is now an actual prompt with a placeholder for evidence. MLflow’s Prompt Registry can version that string or a list of chat messages, with optional model settings.",
+        "hold": 0.3
+      },
+      {
+        "id": "c12-b02",
+        "say": "If you also change the code that serves it, you can package the application as an MLflow model. The Model Registry can track weights, a Python function or an inference wrapper, along with its source. Choose the object that contains the change you evaluated.",
+        "hold": 0.65
+      },
+      {
+        "id": "c12-b03",
+        "say": "Use the name deploy-answerer and the exact template you evaluated. Register them together. Read the version from the object MLflow returns. Here it is version four. Use that version for review. Hardcoding version one would select an older template. A separate operation moves a registry alias. Keep the source run, evaluated bytes and effective serving configuration together for release review.",
+        "hold": 0.65
+      }
+    ]
+  },
+  {
+    "id": "c13",
+    "title": "What does prompt version four keep fixed?",
+    "sourceChapters": [
+      "c13"
+    ],
+    "beats": [
+      {
+        "id": "c13-b01",
+        "say": "Here’s the prompt we tested, version four at temperature zero. Open version four in the MLflow registry. The settings match. Editing the prompt text would create a new version. What happens if we edit just the registry temperature?",
+        "hold": 2
+      },
+      {
+        "id": "c13-b02",
+        "say": "Set it to point seven. The saved run still shows zero. Both copies use the same prompt text. Only the registry settings got a new fingerprint. MLflow lets you remove those settings or delete a version. Keep the evaluated template and settings with the run, then check what each worker loaded.",
+        "hold": 0.65
+      }
+    ]
+  },
+  {
+    "id": "c14",
+    "title": "What did each worker load?",
+    "sourceChapters": [
+      "c14"
+    ],
+    "beats": [
+      {
+        "id": "c14-b01",
+        "say": "Worker A loaded version two through the champion alias. Watch the pointer in the registry. Swing champion to version three. A keeps the object it already loaded.",
+        "hold": 0.7
+      },
+      {
+        "id": "c14-b02",
+        "say": "Start worker B with an empty cache. Let it resolve champion. Which versions will the two workers report?",
+        "hold": 2.5
+      },
+      {
+        "id": "c14-b03",
+        "say": "B loads version three. A still has version two. The same name led to different running versions.",
+        "hold": 0.6
+      },
+      {
+        "id": "c14-b04",
+        "say": "In MLflow three point sixteen point one, an alias lookup is cached for sixty seconds by default. An explicit version has no default cache expiry. You can change the lifetime or bypass the cache with zero. Changing stored settings also leaves an already loaded copy alone.",
+        "hold": 0.45
+      },
+      {
+        "id": "c14-b05",
+        "say": "The reserved latest alias follows the newest available version, so a worker that resolves it can pick up a draft. To roll back, move champion back to version two. B still has three. Reload B from the known-good version and configuration, then read back both workers.",
+        "hold": 0.4
+      },
+      {
+        "id": "c14-b06",
+        "say": "Now both report version two. Check their effective settings against the release record as well.",
+        "hold": 0.9
+      }
+    ]
+  },
+  {
+    "id": "c15",
+    "title": "What can you read back locally?",
+    "sourceChapters": [
+      "c15"
+    ],
+    "beats": [
+      {
+        "id": "c15-b01",
+        "say": "The article’s MLflow example stores its run metadata in a local SQLite database. It writes the suite, report and manifest to a local artifact directory. A client reopens the finished run, checks the suite fingerprint and reads all four report rows.",
+        "hold": 0.3
+      },
+      {
+        "id": "c15-b02",
+        "say": "The registry example also reads the alias after rollback and checks the changed temperature on the same prompt version. Finished tells you the logging lifecycle completed. A candidate that refused the rollback steps could finish too.",
+        "hold": 0.65
+      },
+      {
+        "id": "c15-b03",
+        "say": "Run Weights and Biases in offline mode. A run file lands on disk. You can sync that file when you reconnect. In disabled mode the same logging call writes nothing. For an online evaluation, the use artifact method records which input version the run consumed.",
+        "hold": 0.3
+      },
+      {
+        "id": "c15-b04",
+        "say": "Pin that version or its digest and keep the approved rows so a teammate can replay the same cases.",
+        "hold": 0.65
+      }
+    ]
+  },
+  {
+    "id": "c16",
+    "title": "Follow one row into a trace",
+    "sourceChapters": [
+      "c16"
+    ],
+    "beats": [
+      {
+        "id": "c16-b01",
+        "say": "Weights and Biases Models keeps the run. Weave can show the calls inside one request. After a project is initialized, a tracked operation records its inputs, output, timing and parent. In this example the request retrieves evidence, generates an answer and checks it, in that order.",
+        "hold": 0.3
+      },
+      {
+        "id": "c16-b02",
+        "say": "Open retrieval and you see embedding, index search and reranking inside it. A gap in instrumentation can hide work.",
+        "hold": 0.65
+      },
+      {
+        "id": "c16-b03",
+        "say": "A Weave evaluation brings a dataset, a candidate and a scorer together. Use the first repair from run two. The scorer gets the dataset’s expected route and the candidate’s result in an argument named output. On the incident, both say abstain. The scorer returns true for that row.",
+        "hold": 1
+      },
+      {
+        "id": "c16-b04",
+        "say": "On rollback, the label says serve and the candidate abstains. The same comparison returns false. Each result is a dictionary with a named score.",
+        "hold": 0.7
+      },
+      {
+        "id": "c16-b05",
+        "say": "Evaluation runs asynchronously. In a notebook with an active event loop, await the evaluation. A standalone script can start the loop with asyncio run. Before enabling hosted tracing, redact the data you’re allowed to keep and review where it will be sent.",
+        "hold": 0.75
+      }
+    ]
+  },
+  {
+    "id": "c17",
+    "title": "What did this request cost?",
+    "sourceChapters": [
+      "c17"
+    ],
+    "beats": [
+      {
+        "id": "c17-b01",
+        "say": "In this example retrieval takes four hundred twenty milliseconds and generation takes eighteen hundred fifty. Generation occupies the longer span. To find out why, inspect queue waits, retries, provider timings and resource use. A reader may see the first chunk well before generation ends.",
+        "hold": 0.3
+      },
+      {
+        "id": "c17-b02",
+        "say": "Measure that delay from the client’s request to the first visible chunk.",
+        "hold": 0.65
+      },
+      {
+        "id": "c17-b03",
+        "say": "The same request has two thousand input tokens. Twelve hundred are cached, leaving eight hundred billed as uncached. Price those two buckets separately, then add a hundred billed output tokens at the output rate.",
+        "hold": 0.3
+      },
+      {
+        "id": "c17-b04",
+        "say": "The rates on screen are per million, so divide each product by a million. The total is just over a third of a cent. Now suppose the same request misses the cache. Which parts of the bill will change?",
+        "hold": 2.4
+      },
+      {
+        "id": "c17-b05",
+        "say": "Keep the lengths fixed. All two thousand input tokens now pay the uncached rate. The output charge stays the same. The estimate rises to just under seven tenths of a cent. For a real estimate, use the provider’s rate for that model, date and tier.",
+        "hold": 0.8
+      },
+      {
+        "id": "c17-b06",
+        "say": "Include additional billable work, and count reasoning tokens only once if the output bill already includes them.",
+        "hold": 0.85
+      }
+    ]
+  },
+  {
+    "id": "c18",
+    "title": "What did the saved field actually contain?",
+    "sourceChapters": [
+      "c18"
+    ],
+    "beats": [
+      {
+        "id": "c18-b01",
+        "say": "A reviewer has checked the case IDs. Now check the types of the saved fields. Read the incident link, policy, evidence version and evaluator with the report and its candidate manifest. Verify each prediction against the frozen row. Recount the cases, unsafe serves, unnecessary refusals and exact matches. The logged values have to agree.",
+        "hold": 0.55
+      },
+      {
+        "id": "c18-b02",
+        "say": "Replace the numeric case count with the Boolean true. The verifier rejects it. This tracker requires a finite number, even in a one-case run where Python treats true as equal to one. A missing count or a value like NaN also fails. Restore the count to four. The original record passes again.",
+        "hold": 0.65
+      },
+      {
+        "id": "c18-b03",
+        "say": "Now put quotation marks around the simulation flag and save that manifest with a matching checksum. The file contains text where the verifier requires a Boolean. The check fails again. This procedure establishes that a local record is internally consistent.",
+        "hold": 0.3
+      },
+      {
+        "id": "c18-b04",
+        "say": "A real job also needs evidence of what ran, and the answers it generated still need factual review.",
+        "hold": 0.75
+      }
+    ]
+  },
+  {
+    "id": "c19",
+    "title": "When does a holdout become development data?",
+    "sourceChapters": [
+      "c19"
+    ],
+    "beats": [
+      {
+        "id": "c19-b01",
+        "say": "The approval and freeze cases started as regressions. We reserved two more cases before the first test. Then we used the rollback failure to change the rule. Follow those two inspected cases back into development. They can catch this regression again, but their results have already shaped our revision.",
+        "hold": 0.8
+      },
+      {
+        "id": "c19-b02",
+        "say": "Freeze the revised candidate. Choose a separate final set with representative cases and decide how to review claims, latency and cost before using it. Zero of these four new cases have been scored. Even seeing only a final score can guide tuning if you keep going back to it. Control access and record each use.",
+        "hold": 0.8
+      }
+    ]
+  },
+  {
+    "id": "c20",
+    "title": "When should the canary stop?",
+    "sourceChapters": [
+      "c20"
+    ],
+    "beats": [
+      {
+        "id": "c20-b01",
+        "say": "Of the three original runs, only the revision clears both development checks. The example selection function raises an error if zero or more than one qualify. Its nomination records the source run, artifact, suite fingerprint and known-good fallback. This writes a review record.",
+        "hold": 0.3
+      },
+      {
+        "id": "c20-b02",
+        "say": "Production traffic still goes to the known-good release. Fresh factual and operational evaluation and a release owner’s decision come before a canary.",
+        "hold": 0.65
+      },
+      {
+        "id": "c20-b03",
+        "say": "Consider three independent review windows. Each starts with an approved canary serving a small share of traffic. Count reviewed unsafe claims in its actual answers. One known unsafe claim aborts the canary, even while some reviews are outstanding. In the second window, there are zero known unsafe claims and some answers still await review. What happens to canary traffic? Pause for review.",
+        "hold": 0.3
+      },
+      {
+        "id": "c20-b04",
+        "say": "In the third window, reviewers checked every answer and found zero unsafe claims. Continue monitoring. The canary keeps serving its share. These counts describe claims in served answers. The earlier route counts only described whether to answer. Aborting a canary leaves production on the known-good version. Production rollback is the action after a production change.",
+        "hold": 0.65
+      }
+    ]
+  },
+  {
+    "id": "c21",
+    "title": "Which program earned the score?",
+    "sourceChapters": [
+      "c21"
+    ],
+    "beats": [
+      {
+        "id": "c21-b01",
+        "say": "An optimizer can try different instructions and demonstrations for you. Look inside one compiled program. It contains the chosen instructions and examples. Save those bytes, its signature, optimizer settings and model revision. Identify the training, development and final splits. Keep the metric version, the redacted per-case reports and rejected candidates too.",
+        "hold": 0.6
+      },
+      {
+        "id": "c21-b02",
+        "say": "Suppose the optimizer gets a look at the final cases while choosing its demonstrations. A high score on those cases now reflects that choice. A changed judge or a missing safety slice can also explain a gain. Trace the score back to the evidence used to select the program.",
+        "hold": 0.75
+      },
+      {
+        "id": "c21-b03",
+        "say": "Freeze the chosen program before running an independent final test. Check factual answers, safety, cost and latency on the workload that matters. Release review can then connect the result to the compiled artifact and the settings serving actually uses.",
+        "hold": 0.8
+      }
+    ]
+  },
+  {
+    "id": "c22",
+    "title": "Which run would you hand to a reviewer?",
+    "sourceChapters": [
+      "c22"
+    ],
+    "beats": [
+      {
+        "id": "c22-b01",
+        "say": "Here are the three intact reports again. Follow the rollback row, then the two rows without approval. Which run serves the supported requests and abstains on both unsupported ones?",
+        "hold": 2
+      },
+      {
+        "id": "c22-b02",
+        "say": "Nominate run three for fresh evaluation. Run one shows why the approval gate exists. Run two shows why it has to recognize a runbook. Keep both rejected runs so a reviewer can retrace that choice.",
+        "hold": 0.75
+      },
+      {
+        "id": "c22-b03",
+        "say": "Open the nomination. The saved rollback row leads back to the case report, the candidate manifest and the frozen suite. Keep the known-good release with them. Before this artifact gets traffic, a reviewer still needs fresh answers checked against their evidence, matched latency and cost measurements, and a release owner’s approval.",
+        "hold": 0.85
+      }
+    ]
+  },
+  {
+    "id": "c23",
+    "title": "What would you ask each run to recover?",
+    "sourceChapters": [
+      "c23"
+    ],
+    "beats": [
+      {
+        "id": "c23-b01",
+        "say": "Try two new records. Each claims six matching routes in six cases. R eight’s checksum matches its saved bytes, and its worker has the evaluated settings. Slide each saved row under its own case ID. R nine kept all six case IDs. Compare its evaluated temperature with the value its worker loaded.",
+        "hold": 0.6
+      },
+      {
+        "id": "c23-b02",
+        "say": "Look at the empty socket and the two temperature dials. Which original row would you request for R eight? Which temperature should R nine reload?",
+        "hold": 3
+      },
+      {
+        "id": "c23-b03",
+        "say": "Recover F for R eight. Both A rows landed in the same place. Relabeling the second A would invent a result. Remove the duplicate. Read F’s original result from the saved evaluation and file it under F. Verify the repaired report.",
+        "hold": 0.75
+      },
+      {
+        "id": "c23-b04",
+        "say": "For R nine, reload the evaluated temperature of zero. Read it back on the worker. If you want to keep the warmer setting, give it its own evaluation.",
+        "hold": 0.9
+      },
+      {
+        "id": "c23-b05",
+        "say": "Both runs now pass these checks. Six out of six leaves a tie. Apply your selection rule, then keep the chosen artifact with its run, settings and known-good fallback. Test its answers on fresh cases and measure latency and cost.",
+        "hold": 0.7
+      },
+      {
+        "id": "c23-b06",
+        "say": "When an optimizer picks a prompt, follow its winning score back to the run and open the program that earned it.",
+        "hold": 1.5
+      }
+    ]
+  }
+]

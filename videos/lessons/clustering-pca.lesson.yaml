@@ -1,0 +1,2537 @@
+version: 1
+id: clustering-pca
+title: Which Shortcut Keeps the Right Reply?
+source: foundations/clustering-pca-representation-learning/content.md
+voice: en-US-AndrewNeural
+rate: +0%
+sources:
+  - title: "scikit-learn: Clustering"
+    url: https://scikit-learn.org/stable/modules/clustering.html
+  - title: "Arthur and Vassilvitskii: k-means++ initialization"
+    url: https://doi.org/10.1145/1283383.1283494
+  - title: "scikit-learn: PCA"
+    url: https://scikit-learn.org/stable/modules/decomposition.html#pca
+  - title: "FAISS: IVF indexes"
+    url: https://github.com/facebookresearch/faiss/wiki/Faiss-indexes
+scenes:
+  - id: intro
+    title: Which shortcut keeps the right reply?
+    visual: Six persistent message points and a covered boundary-query answer pose a concrete retrieval question.
+    beats:
+      - say: A customer asks, Please undo my duplicate charge. These six messages are our search collection. Each has
+          two invented coordinates so we can inspect every move. Which reply will this map retrieve?
+        hold: 0.65
+        visual_cues:
+          - id: messages-arrive
+            phrase: These six messages are our search collection
+            targets:
+              - message-cloud
+            color: cyan
+            linger: 0.5
+          - id: query-arrive
+            phrase: Which reply will this map retrieve
+            targets:
+              - query-prompt
+            color: yellow
+            linger: 0.5
+          - id: cp-intro-0-0
+            phrase: A customer asks, Please undo my duplicate charge.
+            targets:
+              - intro-construction
+            color: blue
+            linger: 0.25
+          - id: cp-intro-0-1
+            phrase: These six messages are our search collection.
+            targets:
+              - intro-construction
+            color: blue
+            linger: 0.25
+          - id: cp-intro-0-2
+            phrase: Each has two invented coordinates so we can inspect every move.
+            targets:
+              - intro-construction
+            color: blue
+            linger: 0.25
+          - id: cp-intro-0-3
+            phrase: Which reply will this map retrieve?
+            targets:
+              - intro-construction
+            color: green
+            linger: 0.25
+      - say: "We have two possible shortcuts: group nearby messages, or keep fewer coordinates. Before choosing, read
+          this pair: I was charged twice, and Please undo this duplicate payment. Their wording suggests a
+          relationship. Now let the geometry earn it."
+        hold: 0.65
+        visual_cues:
+          - id: read-pair
+            phrase: read this pair
+            targets:
+              - message-pair
+            color: cyan
+            linger: 0.5
+          - id: cp-intro-1-0
+            phrase: "We have two possible shortcuts: group nearby messages, or keep fewer coordinates."
+            targets:
+              - intro-construction
+            color: blue
+            linger: 0.25
+          - id: cp-intro-1-1
+            phrase: "Before choosing, read this pair: I was charged twice, and Please undo this duplicate payment."
+            targets:
+              - intro-construction
+            color: blue
+            linger: 0.25
+          - id: cp-intro-1-2
+            phrase: Their wording suggests a relationship.
+            targets:
+              - intro-construction
+            color: blue
+            linger: 0.25
+          - id: cp-intro-1-3
+            phrase: Now let the geometry earn it.
+            targets:
+              - intro-construction
+            color: green
+            linger: 0.25
+  - id: neighbors
+    title: Build a distance from two coordinate changes
+    visual: A magnified pair retains its identities while horizontal and vertical differences build the distance,
+      then a competing message is compared.
+    beats:
+      - say: Start at the first billing message. Move horizontally to match the second, then vertically. Square those
+          two coordinate changes and add them. Taking the square root gives the straight-line distance. The
+          diagonal now has a value we can check.
+        hold: 0.65
+        visual_cues:
+          - id: distance-x
+            phrase: Move horizontally to match the second
+            targets:
+              - distance-triangle
+            color: cyan
+            linger: 0.5
+          - id: distance-y
+            phrase: then vertically
+            targets:
+              - distance-triangle
+            color: pink
+            linger: 0.5
+          - id: distance-square
+            phrase: Square those two coordinate changes and add them
+            targets:
+              - distance-calculation
+            color: yellow
+            linger: 0.5
+          - id: distance-root
+            phrase: Taking the square root
+            targets:
+              - distance-result
+            color: green
+            linger: 0.5
+          - id: cp-neighbors-0-0
+            phrase: Start at the first billing message.
+            targets:
+              - neighbors-construction
+            color: blue
+            linger: 0.25
+          - id: cp-neighbors-0-1
+            phrase: Move horizontally to match the second, then vertically.
+            targets:
+              - neighbors-construction
+            color: blue
+            linger: 0.25
+          - id: cp-neighbors-0-2
+            phrase: Square those two coordinate changes and add them.
+            targets:
+              - neighbors-construction
+            color: blue
+            linger: 0.25
+          - id: cp-neighbors-0-3
+            phrase: Taking the square root gives the straight-line distance.
+            targets:
+              - neighbors-construction
+            color: blue
+            linger: 0.25
+          - id: cp-neighbors-0-4
+            phrase: The diagonal now has a value we can check.
+            targets:
+              - neighbors-construction
+            color: green
+            linger: 0.25
+      - say: Compare that short diagonal with the distance to a login message. The billing partner is closer.
+          Repeating this check pairs all six messages. People supplied the topic names by reading the text;
+          the algorithm receives only coordinates and a distance rule.
+        hold: 0.65
+        visual_cues:
+          - id: distance-compete
+            phrase: distance to a login message
+            targets:
+              - neighbor-comparison
+            color: pink
+            linger: 0.5
+          - id: neighbors-all
+            phrase: Repeating this check pairs all six messages
+            targets:
+              - neighbor-pairs
+            color: cyan
+            linger: 0.5
+          - id: cp-neighbors-1-0
+            phrase: Compare that short diagonal with the distance to a login message.
+            targets:
+              - neighbors-construction
+            color: blue
+            linger: 0.25
+          - id: cp-neighbors-1-1
+            phrase: The billing partner is closer.
+            targets:
+              - neighbors-construction
+            color: blue
+            linger: 0.25
+          - id: cp-neighbors-1-2
+            phrase: Repeating this check pairs all six messages.
+            targets:
+              - neighbors-construction
+            color: blue
+            linger: 0.25
+          - id: cp-neighbors-1-3
+            phrase: People supplied the topic names by reading the text; the algorithm receives only coordinates and a
+              distance rule.
+            targets:
+              - neighbors-construction
+            color: green
+            linger: 0.25
+  - id: algorithm-contract
+    title: Check the matrix before assigning a group
+    visual: Same six vectors enter an n-by-d matrix and three k-by-d centers. A mismatched one-coordinate center
+      is shown broadcasting before rejection; one NaN blocks assignment. The squared-error gradient resolves
+      to the actual arithmetic mean.
+    beats:
+      - say: The distance rule needs an input contract. Documents have n rows and d features, while centers have k
+          rows and the same d features. Reject a center matrix with the wrong feature width and reject
+          nonfinite coordinates. NumPy can silently broadcast a one-coordinate center across several features,
+          so a calculation that runs can still compare the wrong objects.
+        hold: 0.5
+        visual_cues:
+          - id: cp-algorithm-contract-0-0
+            phrase: The distance rule needs an input contract.
+            targets:
+              - algorithm-contract-construction
+            color: blue
+            linger: 0.25
+          - id: cp-algorithm-contract-0-1
+            phrase: Documents have n rows and d features, while centers have k rows and the same d features.
+            targets:
+              - algorithm-contract-construction
+            color: blue
+            linger: 0.25
+          - id: cp-algorithm-contract-0-2
+            phrase: Reject a center matrix with the wrong feature width and reject nonfinite coordinates.
+            targets:
+              - algorithm-contract-construction
+            color: blue
+            linger: 0.25
+          - id: cp-algorithm-contract-0-3
+            phrase: NumPy can silently broadcast a one-coordinate center across several features, so a calculation that
+              runs can still compare the wrong objects.
+            targets:
+              - algorithm-contract-construction
+            color: green
+            linger: 0.25
+      - say: For fixed memberships, differentiate the sum of squared distances to a center. The gradient is minus two
+          times the sum of each point minus the center. Setting it to zero makes the center the
+          coordinate-wise arithmetic mean. That is the unique minimizer for a nonempty group under this
+          objective. A change of metric needs its own update rule.
+        hold: 0.5
+        visual_cues:
+          - id: cp-algorithm-contract-1-0
+            phrase: For fixed memberships, differentiate the sum of squared distances to a center.
+            targets:
+              - algorithm-contract-construction
+            color: blue
+            linger: 0.25
+          - id: cp-algorithm-contract-1-1
+            phrase: The gradient is minus two times the sum of each point minus the center.
+            targets:
+              - algorithm-contract-construction
+            color: blue
+            linger: 0.25
+          - id: cp-algorithm-contract-1-2
+            phrase: Setting it to zero makes the center the coordinate-wise arithmetic mean.
+            targets:
+              - algorithm-contract-construction
+            color: blue
+            linger: 0.25
+          - id: cp-algorithm-contract-1-3
+            phrase: That is the unique minimizer for a nonempty group under this objective.
+            targets:
+              - algorithm-contract-construction
+            color: blue
+            linger: 0.25
+          - id: cp-algorithm-contract-1-4
+            phrase: A change of metric needs its own update rule.
+            targets:
+              - algorithm-contract-construction
+            color: green
+            linger: 0.25
+  - id: kmeans
+    title: Assign points, then move their centers
+    visual: Neutral points attach one at a time to fixed seeds, one coordinate mean is derived, then centers move
+      with live squared-error totals.
+    beats:
+      - say: K-means asks for a number of groups. Choose three centers here, with one seed in each visible area. Hold
+          them still. Compare each point with the centers and connect it to the nearest one. The colors now
+          record assignments, rather than supplied topic labels.
+        hold: 0.65
+        visual_cues:
+          - id: centers-seed
+            phrase: Choose three centers here
+            targets:
+              - cluster-centers
+            color: yellow
+            linger: 0.5
+          - id: points-assign
+            phrase: connect it to the nearest one
+            targets:
+              - cluster-assignments
+            color: cyan
+            linger: 0.5
+          - id: cp-kmeans-0-0
+            phrase: K-means asks for a number of groups.
+            targets:
+              - kmeans-construction
+            color: blue
+            linger: 0.25
+          - id: cp-kmeans-0-1
+            phrase: Choose three centers here, with one seed in each visible area.
+            targets:
+              - kmeans-construction
+            color: blue
+            linger: 0.25
+          - id: cp-kmeans-0-2
+            phrase: Hold them still.
+            targets:
+              - kmeans-construction
+            color: blue
+            linger: 0.25
+          - id: cp-kmeans-0-3
+            phrase: Compare each point with the centers and connect it to the nearest one.
+            targets:
+              - kmeans-construction
+            color: blue
+            linger: 0.25
+          - id: cp-kmeans-0-4
+            phrase: The colors now record assignments, rather than supplied topic labels.
+            targets:
+              - kmeans-construction
+            color: green
+            linger: 0.25
+      - say: Keep those memberships fixed. Where should the left center move? Average its two horizontal coordinates,
+          then its two vertical coordinates. That midpoint minimizes the sum of squared distances to these
+          members. Move all three centers to their own means and watch the objective fall.
+        hold: 0.65
+        visual_cues:
+          - id: mean-x
+            phrase: Average its two horizontal coordinates
+            targets:
+              - centroid-mean
+            color: cyan
+            linger: 0.5
+          - id: mean-y
+            phrase: then its two vertical coordinates
+            targets:
+              - centroid-mean
+            color: pink
+            linger: 0.5
+          - id: centers-update
+            phrase: Move all three centers to their own means
+            targets:
+              - cluster-centers
+              - cluster-objective
+            color: green
+            linger: 0.5
+          - id: cp-kmeans-1-0
+            phrase: Keep those memberships fixed.
+            targets:
+              - kmeans-construction
+            color: blue
+            linger: 0.25
+          - id: cp-kmeans-1-1
+            phrase: Where should the left center move?
+            targets:
+              - kmeans-construction
+            color: blue
+            linger: 0.25
+          - id: cp-kmeans-1-2
+            phrase: Average its two horizontal coordinates, then its two vertical coordinates.
+            targets:
+              - kmeans-construction
+            color: blue
+            linger: 0.25
+          - id: cp-kmeans-1-3
+            phrase: That midpoint minimizes the sum of squared distances to these members.
+            targets:
+              - kmeans-construction
+            color: blue
+            linger: 0.25
+          - id: cp-kmeans-1-4
+            phrase: Move all three centers to their own means and watch the objective fall.
+            targets:
+              - kmeans-construction
+            color: green
+            linger: 0.25
+        motion_check:
+          region:
+            - 200
+            - 310
+            - 1000
+            - 540
+          minimumChangedFraction: 0.002
+      - say: Assign again around the new centers. The same pairs remain, so this run has settled. Lloyd's algorithm
+          alternates these two steps. Exact assignments and means preserve or reduce inertia. Different seeds
+          can find different solutions; compare restarts, and repair an empty group before averaging it.
+        hold: 0.65
+        visual_cues:
+          - id: assign-again
+            phrase: Assign again around the new centers
+            targets:
+              - cluster-assignments
+            color: cyan
+            linger: 0.5
+          - id: cp-kmeans-2-0
+            phrase: Assign again around the new centers.
+            targets:
+              - kmeans-construction
+            color: blue
+            linger: 0.25
+          - id: cp-kmeans-2-1
+            phrase: The same pairs remain, so this run has settled.
+            targets:
+              - kmeans-construction
+            color: blue
+            linger: 0.25
+          - id: cp-kmeans-2-2
+            phrase: Lloyd's algorithm alternates these two steps.
+            targets:
+              - kmeans-construction
+            color: blue
+            linger: 0.25
+          - id: cp-kmeans-2-3
+            phrase: Exact assignments and means preserve or reduce inertia.
+            targets:
+              - kmeans-construction
+            color: blue
+            linger: 0.25
+          - id: cp-kmeans-2-4
+            phrase: Different seeds can find different solutions; compare restarts, and repair an empty group before
+              averaging it.
+            targets:
+              - kmeans-construction
+            color: green
+            linger: 0.25
+  - id: initialization
+    title: An empty center cannot take a mean
+    visual: Use the same six points with seeds A/B/(100,100), construct assignment counts1/5/0, stop the empty
+      mean and reseed it at the actual farthest current point before a controlled restart.
+    beats:
+      - say: Our successful seeds covered three visible areas. Put two seeds on the billing pair and the third at one
+          hundred, one hundred instead. The same nearest-center rule assigns one point to the first seed, five
+          to the second and none to the third. There is no arithmetic mean for an empty group. The article's
+          teaching loop raises rather than propagating a not-a-number center.
+        hold: 0.5
+        visual_cues:
+          - id: cp-initialization-0-0
+            phrase: Our successful seeds covered three visible areas.
+            targets:
+              - initialization-construction
+            color: blue
+            linger: 0.25
+          - id: cp-initialization-0-1
+            phrase: Put two seeds on the billing pair and the third at one hundred, one hundred instead.
+            targets:
+              - initialization-construction
+            color: blue
+            linger: 0.25
+          - id: cp-initialization-0-2
+            phrase: The same nearest-center rule assigns one point to the first seed, five to the second and none to the
+              third.
+            targets:
+              - initialization-construction
+            color: blue
+            linger: 0.25
+          - id: cp-initialization-0-3
+            phrase: There is no arithmetic mean for an empty group.
+            targets:
+              - initialization-construction
+            color: blue
+            linger: 0.25
+          - id: cp-initialization-0-4
+            phrase: The article's teaching loop raises rather than propagating a not-a-number center.
+            targets:
+              - initialization-construction
+            color: green
+            linger: 0.25
+      - say: An explicit repair policy could reseed the empty center at the point farthest from any current center,
+          then run assignments again. It must also state tie handling and stopping. Our NumPy loop resolves
+          distance ties to the first center, stops when assignments repeat and enforces a twenty-step cap.
+          Exact assignments and means with consistent ties and nonempty groups reach a fixed assignment; a
+          tolerance or iteration cap may stop a library run earlier.
+        hold: 0.5
+        visual_cues:
+          - id: cp-initialization-1-0
+            phrase: An explicit repair policy could reseed the empty center at the point farthest from any current center,
+              then run assignments again.
+            targets:
+              - initialization-construction
+            color: blue
+            linger: 0.25
+          - id: cp-initialization-1-1
+            phrase: It must also state tie handling and stopping.
+            targets:
+              - initialization-construction
+            color: blue
+            linger: 0.25
+          - id: cp-initialization-1-2
+            phrase: Our NumPy loop resolves distance ties to the first center, stops when assignments repeat and enforces
+              a twenty-step cap.
+            targets:
+              - initialization-construction
+            color: blue
+            linger: 0.25
+          - id: cp-initialization-1-3
+            phrase: Exact assignments and means with consistent ties and nonempty groups reach a fixed assignment; a
+              tolerance or iteration cap may stop a library run earlier.
+            targets:
+              - initialization-construction
+            color: green
+            linger: 0.25
+      - say: Convergence establishes a settled local solution, not the globally best partition. Different initial
+          seeds can miss a useful region or produce different objective values. Compare restarts under the
+          same metric and budget. The point identities and reviewed message meanings stay separate from the
+          integer IDs assigned by any particular run.
+        hold: 0.5
+        visual_cues:
+          - id: cp-initialization-2-0
+            phrase: Convergence establishes a settled local solution, not the globally best partition.
+            targets:
+              - initialization-construction
+            color: blue
+            linger: 0.25
+          - id: cp-initialization-2-1
+            phrase: Different initial seeds can miss a useful region or produce different objective values.
+            targets:
+              - initialization-construction
+            color: blue
+            linger: 0.25
+          - id: cp-initialization-2-2
+            phrase: Compare restarts under the same metric and budget.
+            targets:
+              - initialization-construction
+            color: blue
+            linger: 0.25
+          - id: cp-initialization-2-3
+            phrase: The point identities and reviewed message meanings stay separate from the integer IDs assigned by any
+              particular run.
+            targets:
+              - initialization-construction
+            color: green
+            linger: 0.25
+  - id: seeding-mass
+    title: Squared distance becomes a sampling probability
+    visual: Retain the six IDs and first seed A. Accumulate exact D-squared masses into a CDF, place explicitly
+      supplied drawu=.8, reveal selectedF separately, then update nearest-seed distances. Original versus
+      greedy variant and expected bound are separately labeled.
+    beats:
+      - say: The original k-means-plus-plus algorithm draws its first center uniformly from the data. For each later
+          choice, find each point's distance to its closest selected center, square that distance, then divide
+          by the sum of those squared distances. Sample from those normalized masses. Already selected
+          coordinates have zero mass, while nearby different coordinates can still have positive mass.
+        hold: 0.5
+        visual_cues:
+          - id: cp-seeding-mass-0-0
+            phrase: The original k-means-plus-plus algorithm draws its first center uniformly from the data.
+            targets:
+              - seeding-mass-construction
+            color: blue
+            linger: 0.25
+          - id: cp-seeding-mass-0-1
+            phrase: For each later choice, find each point's distance to its closest selected center, square that
+              distance, then divide by the sum of those squared distances.
+            targets:
+              - seeding-mass-construction
+            color: blue
+            linger: 0.25
+          - id: cp-seeding-mass-0-2
+            phrase: Sample from those normalized masses.
+            targets:
+              - seeding-mass-construction
+            color: blue
+            linger: 0.25
+          - id: cp-seeding-mass-0-3
+            phrase: Already selected coordinates have zero mass, while nearby different coordinates can still have
+              positive mass.
+            targets:
+              - seeding-mass-construction
+            color: green
+            linger: 0.25
+      - say: With our first seed A, the six squared distances are zero, zero point six eight, nineteen point two four,
+          twenty-three point eight four, forty-nine and sixty-four point six four. The two distant release
+          messages together receive over seventy-two percent of the next-seed probability. We will use a
+          supplied uniform draw of zero point eight to trace one choice. This is an authored draw for
+          inspection, not a measured random experiment.
+        hold: 1.2
+        visual_cues:
+          - id: cp-seeding-mass-1-0
+            phrase: With our first seed A, the six squared distances are zero, zero point six eight, nineteen point two
+              four, twenty-three point eight four, forty-nine and sixty-four point six four.
+            targets:
+              - seeding-mass-construction
+            color: blue
+            linger: 0.25
+          - id: cp-seeding-mass-1-1
+            phrase: The two distant release messages together receive over seventy-two percent of the next-seed
+              probability.
+            targets:
+              - seeding-mass-construction
+            color: blue
+            linger: 0.25
+          - id: cp-seeding-mass-1-2
+            phrase: We will use a supplied uniform draw of zero point eight to trace one choice.
+            targets:
+              - seeding-mass-construction
+            color: blue
+            linger: 0.25
+          - id: cp-seeding-mass-1-3
+            phrase: This is an authored draw for inspection, not a measured random experiment.
+            targets:
+              - seeding-mass-construction
+            color: green
+            linger: 0.25
+      - say: The selected interval belongs to F, the final release message. Add its center and recompute every
+          distance to the closest selected center before the next draw. If all squared distances sum to zero,
+          there are fewer distinct locations than requested centers and that probability formula cannot make
+          another choice.
+        hold: 0.5
+        visual_cues:
+          - id: cp-seeding-mass-2-0
+            phrase: The selected interval belongs to F, the final release message.
+            targets:
+              - seeding-mass-construction
+            color: blue
+            linger: 0.25
+          - id: cp-seeding-mass-2-1
+            phrase: Add its center and recompute every distance to the closest selected center before the next draw.
+            targets:
+              - seeding-mass-construction
+            color: blue
+            linger: 0.25
+          - id: cp-seeding-mass-2-2
+            phrase: If all squared distances sum to zero, there are fewer distinct locations than requested centers and
+              that probability formula cannot make another choice.
+            targets:
+              - seeding-mass-construction
+            color: green
+            linger: 0.25
+      - say: For the original single-candidate sampling rule, expected initial inertia is at most eight times the
+          quantity natural log k plus two, times optimal inertia. The expectation averages over random
+          seeding; it does not promise the optimum on each run. The article's September twenty-first, twenty
+          twenty-six inspection of scikit-learn one point nine point one documents greedy trials within each
+          seeding step and one run for automatic k-means-plus-plus initialization. Set a restart count
+          explicitly when you need multiple runs.
+        hold: 0.5
+        visual_cues:
+          - id: cp-seeding-mass-3-0
+            phrase: For the original single-candidate sampling rule, expected initial inertia is at most eight times the
+              quantity natural log k plus two, times optimal inertia.
+            targets:
+              - seeding-mass-construction
+            color: blue
+            linger: 0.25
+          - id: cp-seeding-mass-3-1
+            phrase: The expectation averages over random seeding; it does not promise the optimum on each run.
+            targets:
+              - seeding-mass-construction
+            color: blue
+            linger: 0.25
+          - id: cp-seeding-mass-3-2
+            phrase: The article's September twenty-first, twenty twenty-six inspection of scikit-learn one point nine
+              point one documents greedy trials within each seeding step and one run for automatic
+              k-means-plus-plus initialization.
+            targets:
+              - seeding-mass-construction
+            color: blue
+            linger: 0.25
+          - id: cp-seeding-mass-3-3
+            phrase: Set a restart count explicitly when you need multiple runs.
+            targets:
+              - seeding-mass-construction
+            color: green
+            linger: 0.25
+  - id: choose-k
+    title: Expose the groups behind the score
+    visual: Computed two-, three- and four-group partitions replace one another; own-group and competing-group
+      distances construct a silhouette for a retained point.
+    beats:
+      - say: Try two groups on these same points. The best converged run among our tested data-point seeds merges two
+          nearby pairs. Add a third center and they separate. Add a fourth and one reviewed pair splits. Each
+          picture has its own computed inertia.
+        hold: 0.65
+        visual_cues:
+          - id: partition-two
+            phrase: Try two groups
+            targets:
+              - partition-cloud
+            color: cyan
+            linger: 0.5
+          - id: partition-three
+            phrase: Add a third center
+            targets:
+              - partition-cloud
+            color: green
+            linger: 0.5
+          - id: partition-four
+            phrase: Add a fourth
+            targets:
+              - partition-cloud
+            color: pink
+            linger: 0.5
+          - id: cp-choose-k-0-0
+            phrase: Try two groups on these same points.
+            targets:
+              - choose-k-construction
+            color: blue
+            linger: 0.25
+          - id: cp-choose-k-0-1
+            phrase: The best converged run among our tested data-point seeds merges two nearby pairs.
+            targets:
+              - choose-k-construction
+            color: blue
+            linger: 0.25
+          - id: cp-choose-k-0-2
+            phrase: Add a third center and they separate.
+            targets:
+              - choose-k-construction
+            color: blue
+            linger: 0.25
+          - id: cp-choose-k-0-3
+            phrase: Add a fourth and one reviewed pair splits.
+            targets:
+              - choose-k-construction
+            color: blue
+            linger: 0.25
+          - id: cp-choose-k-0-4
+            phrase: Each picture has its own computed inertia.
+            targets:
+              - choose-k-construction
+            color: green
+            linger: 0.25
+      - say: Return to three groups and inspect point A. Its own-group distance is the distance to B. For each
+          competing group, average the distances to its members; keep the smaller average. Silhouette compares
+          those two quantities. A value near one means tight membership with substantial separation.
+        hold: 0.65
+        visual_cues:
+          - id: silhouette-own
+            phrase: Its own-group distance
+            targets:
+              - silhouette-own
+            color: cyan
+            linger: 0.5
+          - id: silhouette-other
+            phrase: average the distances to its members
+            targets:
+              - silhouette-other
+            color: pink
+            linger: 0.5
+          - id: silhouette-score
+            phrase: Silhouette compares those two quantities
+            targets:
+              - silhouette-score
+            color: green
+            linger: 0.5
+          - id: cp-choose-k-1-0
+            phrase: Return to three groups and inspect point A.
+            targets:
+              - choose-k-construction
+            color: blue
+            linger: 0.25
+          - id: cp-choose-k-1-1
+            phrase: Its own-group distance is the distance to B.
+            targets:
+              - choose-k-construction
+            color: blue
+            linger: 0.25
+          - id: cp-choose-k-1-2
+            phrase: For each competing group, average the distances to its members; keep the smaller average.
+            targets:
+              - choose-k-construction
+            color: blue
+            linger: 0.25
+          - id: cp-choose-k-1-3
+            phrase: Silhouette compares those two quantities.
+            targets:
+              - choose-k-construction
+            color: blue
+            linger: 0.25
+          - id: cp-choose-k-1-4
+            phrase: A value near one means tight membership with substantial separation.
+            targets:
+              - choose-k-construction
+            color: green
+            linger: 0.25
+      - say: Average over the points to compare the tested partitions. Three groups have the strongest silhouette
+          here. Four still reduce inertia, but their singleton points receive silhouette zero. Use the scores
+          to nominate a partition, then inspect its messages. Cluster numbers identify groups within a run.
+        hold: 0.65
+        visual_cues:
+          - id: partition-scores
+            phrase: Average over the points
+            targets:
+              - partition-scores
+            color: green
+            linger: 0.5
+          - id: cp-choose-k-2-0
+            phrase: Average over the points to compare the tested partitions.
+            targets:
+              - choose-k-construction
+            color: blue
+            linger: 0.25
+          - id: cp-choose-k-2-1
+            phrase: Three groups have the strongest silhouette here.
+            targets:
+              - choose-k-construction
+            color: blue
+            linger: 0.25
+          - id: cp-choose-k-2-2
+            phrase: Four still reduce inertia, but their singleton points receive silhouette zero.
+            targets:
+              - choose-k-construction
+            color: blue
+            linger: 0.25
+          - id: cp-choose-k-2-3
+            phrase: Use the scores to nominate a partition, then inspect its messages.
+            targets:
+              - choose-k-construction
+            color: blue
+            linger: 0.25
+          - id: cp-choose-k-2-4
+            phrase: Cluster numbers identify groups within a run.
+            targets:
+              - choose-k-construction
+            color: green
+            linger: 0.25
+  - id: silhouette-ledger
+    title: Collect every point before averaging the partition
+    visual: Actual pointA within/other-cluster distances construct a,b and normalized silhouette. Collect all six
+      actual scores, show singleton zeros for k4, then compare full means and inertia under stable partition
+      IDs.
+    beats:
+      - say: Make the silhouette operation explicit. For one point, average distances to the other members of its own
+          group to get a. For each other group, average distances to that group's members; the smallest of
+          those averages is b. Subtract a from b and divide by the larger of a and b. This compares membership
+          to groups of points, not just their centers.
+        hold: 0.5
+        visual_cues:
+          - id: cp-silhouette-ledger-0-0
+            phrase: Make the silhouette operation explicit.
+            targets:
+              - silhouette-ledger-construction
+            color: blue
+            linger: 0.25
+          - id: cp-silhouette-ledger-0-1
+            phrase: For one point, average distances to the other members of its own group to get a.
+            targets:
+              - silhouette-ledger-construction
+            color: blue
+            linger: 0.25
+          - id: cp-silhouette-ledger-0-2
+            phrase: For each other group, average distances to that group's members; the smallest of those averages is b.
+            targets:
+              - silhouette-ledger-construction
+            color: blue
+            linger: 0.25
+          - id: cp-silhouette-ledger-0-3
+            phrase: Subtract a from b and divide by the larger of a and b.
+            targets:
+              - silhouette-ledger-construction
+            color: blue
+            linger: 0.25
+          - id: cp-silhouette-ledger-0-4
+            phrase: This compares membership to groups of points, not just their centers.
+            targets:
+              - silhouette-ledger-construction
+            color: green
+            linger: 0.25
+      - say: A singleton gets silhouette zero by the convention used here, and the score is also zero when both
+          distances vanish. Mean silhouette requires at least two and fewer than n nonempty groups. Collect
+          all six point contributions before taking their arithmetic average. Our tested two-, three- and
+          four-group partitions give about zero point five six, zero point seven six and zero point five one.
+        hold: 0.5
+        visual_cues:
+          - id: cp-silhouette-ledger-1-0
+            phrase: A singleton gets silhouette zero by the convention used here, and the score is also zero when both
+              distances vanish.
+            targets:
+              - silhouette-ledger-construction
+            color: blue
+            linger: 0.25
+          - id: cp-silhouette-ledger-1-1
+            phrase: Mean silhouette requires at least two and fewer than n nonempty groups.
+            targets:
+              - silhouette-ledger-construction
+            color: blue
+            linger: 0.25
+          - id: cp-silhouette-ledger-1-2
+            phrase: Collect all six point contributions before taking their arithmetic average.
+            targets:
+              - silhouette-ledger-construction
+            color: blue
+            linger: 0.25
+          - id: cp-silhouette-ledger-1-3
+            phrase: Our tested two-, three- and four-group partitions give about zero point five six, zero point seven six
+              and zero point five one.
+            targets:
+              - silhouette-ledger-construction
+            color: green
+            linger: 0.25
+      - say: Best possible inertia cannot increase as you add centers, but separate local runs may miss that trend. An
+          elbow is a slowdown in observed improvement, not a guaranteed unique topic count. A negative
+          silhouette means the average distance to some other group's members is smaller; zero does not
+          specifically locate a centroid's Voronoi boundary. Read messages before assigning semantic names.
+        hold: 0.5
+        visual_cues:
+          - id: cp-silhouette-ledger-2-0
+            phrase: Best possible inertia cannot increase as you add centers, but separate local runs may miss that trend.
+            targets:
+              - silhouette-ledger-construction
+            color: blue
+            linger: 0.25
+          - id: cp-silhouette-ledger-2-1
+            phrase: An elbow is a slowdown in observed improvement, not a guaranteed unique topic count.
+            targets:
+              - silhouette-ledger-construction
+            color: blue
+            linger: 0.25
+          - id: cp-silhouette-ledger-2-2
+            phrase: A negative silhouette means the average distance to some other group's members is smaller; zero does
+              not specifically locate a centroid's Voronoi boundary.
+            targets:
+              - silhouette-ledger-construction
+            color: blue
+            linger: 0.25
+          - id: cp-silhouette-ledger-2-3
+            phrase: Read messages before assigning semantic names.
+            targets:
+              - silhouette-ledger-construction
+            color: green
+            linger: 0.25
+  - id: objective-ties
+    title: Equal inertia can support different stories
+    visual: A separate four-point square is partitioned left/right and bottom/top. Actual member IDs, means and
+      squared errors update; both totals4 remain visible while their human interpretation differs.
+    beats:
+      - say: Equal objective values can also hide different partitions. Use the article's separate square with corners
+          zero, zero; zero, two; two, zero; and two, two. Splitting left from right gives inertia four.
+          Splitting bottom from top also gives four. Both are settled solutions with different memberships.
+        hold: 0.5
+        visual_cues:
+          - id: cp-objective-ties-0-0
+            phrase: Equal objective values can also hide different partitions.
+            targets:
+              - objective-ties-construction
+            color: blue
+            linger: 0.25
+          - id: cp-objective-ties-0-1
+            phrase: Use the article's separate square with corners zero, zero; zero, two; two, zero; and two, two.
+            targets:
+              - objective-ties-construction
+            color: blue
+            linger: 0.25
+          - id: cp-objective-ties-0-2
+            phrase: Splitting left from right gives inertia four.
+            targets:
+              - objective-ties-construction
+            color: blue
+            linger: 0.25
+          - id: cp-objective-ties-0-3
+            phrase: Splitting bottom from top also gives four.
+            targets:
+              - objective-ties-construction
+            color: blue
+            linger: 0.25
+          - id: cp-objective-ties-0-4
+            phrase: Both are settled solutions with different memberships.
+            targets:
+              - objective-ties-construction
+            color: green
+            linger: 0.25
+      - say: If one axis represented user tier and the other severity, the support workflow would need a reason to
+          prefer one grouping. Geometry does not select that product meaning. Euclidean k-means creates convex
+          nearest-center regions and favors compact squared-distance groups; it does not impose a statistical
+          equal-size or spherical-distribution assumption. It can split an elongated semantic group or spend a
+          center on an outlier.
+        hold: 0.5
+        visual_cues:
+          - id: cp-objective-ties-1-0
+            phrase: If one axis represented user tier and the other severity, the support workflow would need a reason to
+              prefer one grouping.
+            targets:
+              - objective-ties-construction
+            color: blue
+            linger: 0.25
+          - id: cp-objective-ties-1-1
+            phrase: Geometry does not select that product meaning.
+            targets:
+              - objective-ties-construction
+            color: blue
+            linger: 0.25
+          - id: cp-objective-ties-1-2
+            phrase: Euclidean k-means creates convex nearest-center regions and favors compact squared-distance groups; it
+              does not impose a statistical equal-size or spherical-distribution assumption.
+            targets:
+              - objective-ties-construction
+            color: blue
+            linger: 0.25
+          - id: cp-objective-ties-1-3
+            phrase: It can split an elongated semantic group or spend a center on an outlier.
+            targets:
+              - objective-ties-construction
+            color: green
+            linger: 0.25
+  - id: scale
+    title: A change of units changes the neighbors
+    visual: Three retained rows isolate the raw versus standardized distance reversal; arithmetic and distance
+      comparison build before membership receipts.
+    beats:
+      - say: "Now use a separate feature table: a topic coordinate and message length. Compare this short billing note
+          with a longer billing note and a short release note. In raw units, the length difference dominates.
+          The short release note is nearer, despite its different topic."
+        hold: 0.65
+        visual_cues:
+          - id: scale-raw
+            phrase: In raw units
+            targets:
+              - scale-raw-distances
+            color: yellow
+            linger: 0.5
+          - id: cp-scale-0-0
+            phrase: "Now use a separate feature table: a topic coordinate and message length."
+            targets:
+              - scale-construction
+            color: blue
+            linger: 0.25
+          - id: cp-scale-0-1
+            phrase: Compare this short billing note with a longer billing note and a short release note.
+            targets:
+              - scale-construction
+            color: blue
+            linger: 0.25
+          - id: cp-scale-0-2
+            phrase: In raw units, the length difference dominates.
+            targets:
+              - scale-construction
+            color: blue
+            linger: 0.25
+          - id: cp-scale-0-3
+            phrase: The short release note is nearer, despite its different topic.
+            targets:
+              - scale-construction
+            color: green
+            linger: 0.25
+      - say: Subtract each column mean and divide by its standard deviation. Work through both coordinates of the same
+          billing row. Recompute the same two distances. The longer billing note is now nearer, and clustering
+          the full six-row fixture separates the reviewed topics.
+        hold: 0.65
+        visual_cues:
+          - id: scale-beat-2-focus-1
+            phrase: Work through both coordinates of the same billing row
+            targets:
+              - scale-worked-row
+              - scale-standardized-distances
+            color: cyan
+            linger: 0.5
+          - id: scale-memberships
+            phrase: clustering the full six-row fixture
+            targets:
+              - scale-memberships
+            color: green
+            linger: 0.5
+          - id: cp-scale-1-0
+            phrase: Subtract each column mean and divide by its standard deviation.
+            targets:
+              - scale-construction
+            color: blue
+            linger: 0.25
+          - id: cp-scale-1-1
+            phrase: Work through both coordinates of the same billing row.
+            targets:
+              - scale-construction
+            color: blue
+            linger: 0.25
+          - id: cp-scale-1-2
+            phrase: Recompute the same two distances.
+            targets:
+              - scale-construction
+            color: blue
+            linger: 0.25
+          - id: cp-scale-1-3
+            phrase: The longer billing note is now nearer, and clustering the full six-row fixture separates the reviewed
+              topics.
+            targets:
+              - scale-construction
+            color: green
+            linger: 0.25
+      - say: Scaling chooses how much each feature contributes. Follow the embedding model's metric and normalization
+          contract when returning to vectors. Fit the transform on permitted corpus or development data, then
+          apply that same transform to new queries. Record which representation each result used.
+        hold: 0.65
+        visual_cues:
+          - id: scale-contract
+            phrase: apply that same transform to new queries
+            targets:
+              - scale-worked-row
+            color: cyan
+            linger: 0.5
+          - id: cp-scale-2-0
+            phrase: Scaling chooses how much each feature contributes.
+            targets:
+              - scale-construction
+            color: blue
+            linger: 0.25
+          - id: cp-scale-2-1
+            phrase: Follow the embedding model's metric and normalization contract when returning to vectors.
+            targets:
+              - scale-construction
+            color: blue
+            linger: 0.25
+          - id: cp-scale-2-2
+            phrase: Fit the transform on permitted corpus or development data, then apply that same transform to new
+              queries.
+            targets:
+              - scale-construction
+            color: blue
+            linger: 0.25
+          - id: cp-scale-2-3
+            phrase: Record which representation each result used.
+            targets:
+              - scale-construction
+            color: green
+            linger: 0.25
+  - id: scale-boundary
+    title: Apply the same fitted transform to the query
+    visual: Full six-row metadata fixture retains row IDs and fitted means/stds. A new query enters the exact
+      stored transform; a separately refitted query transform visibly loses comparability. Corpus/development
+      and promised-unseen-query boundaries remain distinct.
+    beats:
+      - say: The scaling example fitted each column's mean and population standard deviation on the full six-row
+          feature table. Every standardized value is raw value minus fitted mean, divided by fitted standard
+          deviation. Carry those fitted numbers and the transform revision when a new query arrives. Fitting a
+          different transform on each query would compare different coordinate systems.
+        hold: 0.5
+        visual_cues:
+          - id: cp-scale-boundary-0-0
+            phrase: The scaling example fitted each column's mean and population standard deviation on the full six-row
+              feature table.
+            targets:
+              - scale-boundary-construction
+            color: blue
+            linger: 0.25
+          - id: cp-scale-boundary-0-1
+            phrase: Every standardized value is raw value minus fitted mean, divided by fitted standard deviation.
+            targets:
+              - scale-boundary-construction
+            color: blue
+            linger: 0.25
+          - id: cp-scale-boundary-0-2
+            phrase: Carry those fitted numbers and the transform revision when a new query arrives.
+            targets:
+              - scale-boundary-construction
+            color: blue
+            linger: 0.25
+          - id: cp-scale-boundary-0-3
+            phrase: Fitting a different transform on each query would compare different coordinate systems.
+            targets:
+              - scale-boundary-construction
+            color: green
+            linger: 0.25
+      - say: Scaling assigns relative feature weights; it does not discover semantic importance. Follow the embedding
+          model's normalization contract instead of standardizing every coordinate blindly. Corpus documents
+          available when building an index can legitimately fit an unsupervised transform. Held-out query data
+          must remain unused if the evaluation promises unseen queries. An explicitly transductive protocol
+          makes a different promise, so record that boundary.
+        hold: 0.5
+        visual_cues:
+          - id: cp-scale-boundary-1-0
+            phrase: Scaling assigns relative feature weights; it does not discover semantic importance.
+            targets:
+              - scale-boundary-construction
+            color: blue
+            linger: 0.25
+          - id: cp-scale-boundary-1-1
+            phrase: Follow the embedding model's normalization contract instead of standardizing every coordinate blindly.
+            targets:
+              - scale-boundary-construction
+            color: blue
+            linger: 0.25
+          - id: cp-scale-boundary-1-2
+            phrase: Corpus documents available when building an index can legitimately fit an unsupervised transform.
+            targets:
+              - scale-boundary-construction
+            color: blue
+            linger: 0.25
+          - id: cp-scale-boundary-1-3
+            phrase: Held-out query data must remain unused if the evaluation promises unseen queries.
+            targets:
+              - scale-boundary-construction
+            color: blue
+            linger: 0.25
+          - id: cp-scale-boundary-1-4
+            phrase: An explicitly transductive protocol makes a different promise, so record that boundary.
+            targets:
+              - scale-boundary-construction
+            color: green
+            linger: 0.25
+  - id: pca
+    title: Find a direction that keeps the cloud wide
+    visual: The original cloud translates by its computed mean, a candidate axis rotates with actual projections
+      and energy, and one named point gains a scalar score.
+    beats:
+      - say: Return to our six message vectors. Principal component analysis gives the cloud fewer continuous
+          coordinates. First subtract the same coordinate-wise mean from every point. The cloud moves together
+          around zero; distances between its points stay unchanged.
+        hold: 0.65
+        visual_cues:
+          - id: pca-center
+            phrase: subtract the same coordinate-wise mean
+            targets:
+              - centered-cloud
+            color: cyan
+            linger: 0.5
+          - id: cp-pca-0-0
+            phrase: Return to our six message vectors.
+            targets:
+              - pca-construction
+            color: blue
+            linger: 0.25
+          - id: cp-pca-0-1
+            phrase: Principal component analysis gives the cloud fewer continuous coordinates.
+            targets:
+              - pca-construction
+            color: blue
+            linger: 0.25
+          - id: cp-pca-0-2
+            phrase: First subtract the same coordinate-wise mean from every point.
+            targets:
+              - pca-construction
+            color: blue
+            linger: 0.25
+          - id: cp-pca-0-3
+            phrase: The cloud moves together around zero; distances between its points stay unchanged.
+            targets:
+              - pca-construction
+            color: green
+            linger: 0.25
+      - say: Pass a line through this centered cloud. Project each point onto it at a right angle. Rotate the line and
+          compare the sum of squared scores. The first principal component chooses a unit direction with the
+          largest total. Our almost-horizontal direction keeps the widest spread.
+        hold: 0.65
+        visual_cues:
+          - id: pca-project
+            phrase: Project each point onto it at a right angle
+            targets:
+              - candidate-projection
+            color: yellow
+            linger: 0.5
+          - id: pca-rotate
+            phrase: Rotate the line
+            targets:
+              - candidate-projection
+            color: green
+            linger: 0.5
+          - id: cp-pca-1-0
+            phrase: Pass a line through this centered cloud.
+            targets:
+              - pca-construction
+            color: blue
+            linger: 0.25
+          - id: cp-pca-1-1
+            phrase: Project each point onto it at a right angle.
+            targets:
+              - pca-construction
+            color: blue
+            linger: 0.25
+          - id: cp-pca-1-2
+            phrase: Rotate the line and compare the sum of squared scores.
+            targets:
+              - pca-construction
+            color: blue
+            linger: 0.25
+          - id: cp-pca-1-3
+            phrase: The first principal component chooses a unit direction with the largest total.
+            targets:
+              - pca-construction
+            color: blue
+            linger: 0.25
+          - id: cp-pca-1-4
+            phrase: Our almost-horizontal direction keeps the widest spread.
+            targets:
+              - pca-construction
+            color: green
+            linger: 0.25
+        motion_check:
+          region:
+            - 200
+            - 290
+            - 1030
+            - 580
+          minimumChangedFraction: 0.002
+      - say: For point C, take the dot product with that unit direction. Its scalar score locates the foot on the
+          line. A covariance eigendecomposition or a singular-value decomposition finds these directions.
+          Reversing the direction flips every score while preserving the represented line.
+        hold: 0.65
+        visual_cues:
+          - id: pca-score
+            phrase: Its scalar score locates the foot
+            targets:
+              - pca-score
+            color: cyan
+            linger: 0.5
+          - id: pca-sign
+            phrase: Reversing the direction flips every score
+            targets:
+              - candidate-projection
+            color: pink
+            linger: 0.5
+          - id: cp-pca-2-0
+            phrase: For point C, take the dot product with that unit direction.
+            targets:
+              - pca-construction
+            color: blue
+            linger: 0.25
+          - id: cp-pca-2-1
+            phrase: Its scalar score locates the foot on the line.
+            targets:
+              - pca-construction
+            color: blue
+            linger: 0.25
+          - id: cp-pca-2-2
+            phrase: A covariance eigendecomposition or a singular-value decomposition finds these directions.
+            targets:
+              - pca-construction
+            color: blue
+            linger: 0.25
+          - id: cp-pca-2-3
+            phrase: Reversing the direction flips every score while preserving the represented line.
+            targets:
+              - pca-construction
+            color: green
+            linger: 0.25
+  - id: solver-contract
+    title: Two factorizations recover the same principal variance
+    visual: Same centered6x2 matrix builds sample covariance and direct SVD. Squared singular values divide by5 to
+      match eigenvalues11.1825/1.9442; a100x1536 matrix illustrates covariance storage/rank limits without a
+      speed claim.
+    beats:
+      - say: PCA assumes the same fitted mean has been subtracted from every row. For n greater than one, sample
+          covariance is the centered transpose times the centered matrix, divided by n minus one. Its
+          eigenvectors give principal directions and eigenvalues give captured sample variance. Direct
+          singular-value decomposition of the centered matrix gives the same directions through its right
+          singular vectors.
+        hold: 0.5
+        visual_cues:
+          - id: cp-solver-contract-0-0
+            phrase: PCA assumes the same fitted mean has been subtracted from every row.
+            targets:
+              - solver-contract-construction
+            color: blue
+            linger: 0.25
+          - id: cp-solver-contract-0-1
+            phrase: For n greater than one, sample covariance is the centered transpose times the centered matrix, divided
+              by n minus one.
+            targets:
+              - solver-contract-construction
+            color: blue
+            linger: 0.25
+          - id: cp-solver-contract-0-2
+            phrase: Its eigenvectors give principal directions and eigenvalues give captured sample variance.
+            targets:
+              - solver-contract-construction
+            color: blue
+            linger: 0.25
+          - id: cp-solver-contract-0-3
+            phrase: Direct singular-value decomposition of the centered matrix gives the same directions through its right
+              singular vectors.
+            targets:
+              - solver-contract-construction
+            color: green
+            linger: 0.25
+      - say: Square each singular value and divide by n minus one to obtain the covariance eigenvalue. In our
+          six-point example, divide squared singular values by five to get about eleven point one eight two
+          five and one point nine four four two. Explained variance divides each eigenvalue by their total;
+          equivalently divide squared singular values by the sum of their squares. A zero-total-variance cloud
+          needs explicit handling rather than a division by zero.
+        hold: 0.5
+        visual_cues:
+          - id: cp-solver-contract-1-0
+            phrase: Square each singular value and divide by n minus one to obtain the covariance eigenvalue.
+            targets:
+              - solver-contract-construction
+            color: blue
+            linger: 0.25
+          - id: cp-solver-contract-1-1
+            phrase: In our six-point example, divide squared singular values by five to get about eleven point one eight
+              two five and one point nine four four two.
+            targets:
+              - solver-contract-construction
+            color: blue
+            linger: 0.25
+          - id: cp-solver-contract-1-2
+            phrase: Explained variance divides each eigenvalue by their total; equivalently divide squared singular values
+              by the sum of their squares.
+            targets:
+              - solver-contract-construction
+            color: blue
+            linger: 0.25
+          - id: cp-solver-contract-1-3
+            phrase: A zero-total-variance cloud needs explicit handling rather than a division by zero.
+            targets:
+              - solver-contract-construction
+            color: green
+            linger: 0.25
+      - say: Exact arithmetic equivalence does not make the numerical routes identical. Forming a Gram matrix squares
+          the ratio between largest and smallest nonzero singular values. Small directions can be lost
+          relative to large entries. For one hundred documents and one thousand five hundred thirty-six
+          features, covariance materializes a one-thousand-five-hundred-thirty-six-square matrix and is rank
+          deficient. Its ordinary condition number is infinite; the finite squared-ratio identity needs full
+          column rank or an explicitly restricted positive spectrum.
+        hold: 0.5
+        visual_cues:
+          - id: cp-solver-contract-2-0
+            phrase: Exact arithmetic equivalence does not make the numerical routes identical.
+            targets:
+              - solver-contract-construction
+            color: blue
+            linger: 0.25
+          - id: cp-solver-contract-2-1
+            phrase: Forming a Gram matrix squares the ratio between largest and smallest nonzero singular values.
+            targets:
+              - solver-contract-construction
+            color: blue
+            linger: 0.25
+          - id: cp-solver-contract-2-2
+            phrase: Small directions can be lost relative to large entries.
+            targets:
+              - solver-contract-construction
+            color: blue
+            linger: 0.25
+          - id: cp-solver-contract-2-3
+            phrase: For one hundred documents and one thousand five hundred thirty-six features, covariance materializes a
+              one-thousand-five-hundred-thirty-six-square matrix and is rank deficient.
+            targets:
+              - solver-contract-construction
+            color: blue
+            linger: 0.25
+          - id: cp-solver-contract-2-4
+            phrase: Its ordinary condition number is infinite; the finite squared-ratio identity needs full column rank or
+              an explicitly restricted positive spectrum.
+            targets:
+              - solver-contract-construction
+            color: green
+            linger: 0.25
+      - say: Covariance eigendecomposition can still be efficient on a sufficiently tall narrow matrix. Direct SVD
+          avoids that large covariance, and randomized solvers trade approximation quality against
+          oversampling and power iterations. Record the solver rather than assigning one universal exact-SVD
+          complexity. A component's sign is arbitrary. Tied eigenvalues also permit rotations within their
+          tied subspace, so cutting through a tie need not specify a unique retained subspace.
+        hold: 0.5
+        visual_cues:
+          - id: cp-solver-contract-3-0
+            phrase: Covariance eigendecomposition can still be efficient on a sufficiently tall narrow matrix.
+            targets:
+              - solver-contract-construction
+            color: blue
+            linger: 0.25
+          - id: cp-solver-contract-3-1
+            phrase: Direct SVD avoids that large covariance, and randomized solvers trade approximation quality against
+              oversampling and power iterations.
+            targets:
+              - solver-contract-construction
+            color: blue
+            linger: 0.25
+          - id: cp-solver-contract-3-2
+            phrase: Record the solver rather than assigning one universal exact-SVD complexity.
+            targets:
+              - solver-contract-construction
+            color: blue
+            linger: 0.25
+          - id: cp-solver-contract-3-3
+            phrase: A component's sign is arbitrary.
+            targets:
+              - solver-contract-construction
+            color: blue
+            linger: 0.25
+          - id: cp-solver-contract-3-4
+            phrase: Tied eigenvalues also permit rotations within their tied subspace, so cutting through a tie need not
+              specify a unique retained subspace.
+            targets:
+              - solver-contract-construction
+            color: green
+            linger: 0.25
+  - id: compression
+    title: Follow a point to its reconstruction
+    visual: Point C drops along a perpendicular, its residual is squared, all six residuals accumulate, then the
+      second component restores exact source positions.
+    beats:
+      - say: "Keep only the first score. Reconstruct C by stepping along that direction, then adding the fitted mean
+          back. The gap to the original is perpendicular. Square its length. Repeat for all six points: these
+          discarded residuals account for the spread that one component leaves behind."
+        hold: 0.65
+        visual_cues:
+          - id: reconstruct-c
+            phrase: Reconstruct C
+            targets:
+              - reconstruction-points
+            color: yellow
+            linger: 0.5
+          - id: residual-c
+            phrase: Square its length
+            targets:
+              - residual-ledger
+            color: pink
+            linger: 0.5
+          - id: residual-all
+            phrase: Repeat for all six points
+            targets:
+              - reconstruction-points
+            color: cyan
+            linger: 0.5
+          - id: cp-compression-0-0
+            phrase: Keep only the first score.
+            targets:
+              - compression-construction
+            color: blue
+            linger: 0.25
+          - id: cp-compression-0-1
+            phrase: Reconstruct C by stepping along that direction, then adding the fitted mean back.
+            targets:
+              - compression-construction
+            color: blue
+            linger: 0.25
+          - id: cp-compression-0-2
+            phrase: The gap to the original is perpendicular.
+            targets:
+              - compression-construction
+            color: blue
+            linger: 0.25
+          - id: cp-compression-0-3
+            phrase: Square its length.
+            targets:
+              - compression-construction
+            color: blue
+            linger: 0.25
+          - id: cp-compression-0-4
+            phrase: "Repeat for all six points: these discarded residuals account for the spread that one component leaves
+              behind."
+            targets:
+              - compression-construction
+            color: green
+            linger: 0.25
+        motion_check:
+          region:
+            - 210
+            - 320
+            - 1010
+            - 500
+          minimumChangedFraction: 0.002
+      - say: This projection keeps about eighty-five percent of total variance. Add the second perpendicular component
+          and every point returns to its original position, with zero reconstruction error. The Pythagorean
+          split connects maximum retained spread with minimum squared residual. Retrieval still needs its own
+          test.
+        hold: 0.65
+        visual_cues:
+          - id: variance-split
+            phrase: keeps about eighty-five percent
+            targets:
+              - variance-split
+            color: cyan
+            linger: 0.5
+          - id: restore-second
+            phrase: Add the second perpendicular component
+            targets:
+              - reconstruction-points
+            color: green
+            linger: 0.5
+          - id: cp-compression-1-0
+            phrase: This projection keeps about eighty-five percent of total variance.
+            targets:
+              - compression-construction
+            color: blue
+            linger: 0.25
+          - id: cp-compression-1-1
+            phrase: Add the second perpendicular component and every point returns to its original position, with zero
+              reconstruction error.
+            targets:
+              - compression-construction
+            color: blue
+            linger: 0.25
+          - id: cp-compression-1-2
+            phrase: The Pythagorean split connects maximum retained spread with minimum squared residual.
+            targets:
+              - compression-construction
+            color: blue
+            linger: 0.25
+          - id: cp-compression-1-3
+            phrase: Retrieval still needs its own test.
+            targets:
+              - compression-construction
+            color: green
+            linger: 0.25
+  - id: variance-ledger
+    title: Retained and discarded squares account for the same cloud
+    visual: Retain original pointC and its centered vector, projection foot and residual. Build the Pythagorean
+      squared-energy split, then accumulate all six retained/residual terms into constant65.6333 total; keep
+      covariance/sample-divisor units separate.
+    beats:
+      - say: For a unit principal direction, the squared length of a centered point equals its squared scalar score
+          plus its squared perpendicular residual. The two contributions add because the projection and
+          residual are orthogonal. Summing over points keeps total centered energy fixed. Maximizing retained
+          squared scores therefore minimizes the discarded squared error.
+        hold: 0.5
+        visual_cues:
+          - id: cp-variance-ledger-0-0
+            phrase: For a unit principal direction, the squared length of a centered point equals its squared scalar score
+              plus its squared perpendicular residual.
+            targets:
+              - variance-ledger-construction
+            color: blue
+            linger: 0.25
+          - id: cp-variance-ledger-0-1
+            phrase: The two contributions add because the projection and residual are orthogonal.
+            targets:
+              - variance-ledger-construction
+            color: blue
+            linger: 0.25
+          - id: cp-variance-ledger-0-2
+            phrase: Summing over points keeps total centered energy fixed.
+            targets:
+              - variance-ledger-construction
+            color: blue
+            linger: 0.25
+          - id: cp-variance-ledger-0-3
+            phrase: Maximizing retained squared scores therefore minimizes the discarded squared error.
+            targets:
+              - variance-ledger-construction
+            color: green
+            linger: 0.25
+      - say: Our full six-point cloud has about sixty-five point six three three total squared energy. The first
+          direction retains about fifty-five point nine one three and discards about nine point seven two one.
+          Divide by the same n minus one if you want sample variance units. Reconstruction multiplies scores
+          by their retained basis directions and adds the fitted mean back. A complete orthonormal basis
+          recovers these source vectors; a truncated one can lose a query-critical distinction.
+        hold: 0.5
+        visual_cues:
+          - id: cp-variance-ledger-1-0
+            phrase: Our full six-point cloud has about sixty-five point six three three total squared energy.
+            targets:
+              - variance-ledger-construction
+            color: blue
+            linger: 0.25
+          - id: cp-variance-ledger-1-1
+            phrase: The first direction retains about fifty-five point nine one three and discards about nine point seven
+              two one.
+            targets:
+              - variance-ledger-construction
+            color: blue
+            linger: 0.25
+          - id: cp-variance-ledger-1-2
+            phrase: Divide by the same n minus one if you want sample variance units.
+            targets:
+              - variance-ledger-construction
+            color: blue
+            linger: 0.25
+          - id: cp-variance-ledger-1-3
+            phrase: Reconstruction multiplies scores by their retained basis directions and adds the fitted mean back.
+            targets:
+              - variance-ledger-construction
+            color: blue
+            linger: 0.25
+          - id: cp-variance-ledger-1-4
+            phrase: A complete orthonormal basis recovers these source vectors; a truncated one can lose a query-critical
+              distinction.
+            targets:
+              - variance-ledger-construction
+            color: green
+            linger: 0.25
+  - id: metric-choice
+    title: Magnitude can change which document wins
+    visual: Same query[1,0] compares article documents[1,.1] and[8,4]. Actual dot scores1/8 become normalized
+      cosines.995/.894 with a new winner; unit-vector Euclidean identity is then constructed.
+    beats:
+      - say: Choose the similarity rule for the representation you actually serve. Dot product multiplies matching
+          coordinates and sums them; it rewards magnitude as well as direction. Cosine divides that dot
+          product by both vector norms. Reject zero or nonfinite vectors before normalization. For the
+          article's query one, zero, the long release document wins raw dot product, while the
+          duplicate-charge document wins cosine.
+        hold: 0.5
+        visual_cues:
+          - id: cp-metric-choice-0-0
+            phrase: Choose the similarity rule for the representation you actually serve.
+            targets:
+              - metric-choice-construction
+            color: blue
+            linger: 0.25
+          - id: cp-metric-choice-0-1
+            phrase: Dot product multiplies matching coordinates and sums them; it rewards magnitude as well as direction.
+            targets:
+              - metric-choice-construction
+            color: blue
+            linger: 0.25
+          - id: cp-metric-choice-0-2
+            phrase: Cosine divides that dot product by both vector norms.
+            targets:
+              - metric-choice-construction
+            color: blue
+            linger: 0.25
+          - id: cp-metric-choice-0-3
+            phrase: Reject zero or nonfinite vectors before normalization.
+            targets:
+              - metric-choice-construction
+            color: blue
+            linger: 0.25
+          - id: cp-metric-choice-0-4
+            phrase: For the article's query one, zero, the long release document wins raw dot product, while the
+              duplicate-charge document wins cosine.
+            targets:
+              - metric-choice-construction
+            color: green
+            linger: 0.25
+      - say: For two unit vectors, squared Euclidean distance is two minus two times their dot product, which also
+          equals their cosine. That monotonic relationship gives the same ranking under the same normalization
+          contract. Mixing unnormalized metadata or changing the model can break the shortcut. The chosen
+          metric must agree between index construction, query routing and evaluation.
+        hold: 0.5
+        visual_cues:
+          - id: cp-metric-choice-1-0
+            phrase: For two unit vectors, squared Euclidean distance is two minus two times their dot product, which also
+              equals their cosine.
+            targets:
+              - metric-choice-construction
+            color: blue
+            linger: 0.25
+          - id: cp-metric-choice-1-1
+            phrase: That monotonic relationship gives the same ranking under the same normalization contract.
+            targets:
+              - metric-choice-construction
+            color: blue
+            linger: 0.25
+          - id: cp-metric-choice-1-2
+            phrase: Mixing unnormalized metadata or changing the model can break the shortcut.
+            targets:
+              - metric-choice-construction
+            color: blue
+            linger: 0.25
+          - id: cp-metric-choice-1-3
+            phrase: The chosen metric must agree between index construction, query routing and evaluation.
+            targets:
+              - metric-choice-construction
+            color: green
+            linger: 0.25
+  - id: spherical-centers
+    title: Unit inputs need not produce unit means
+    visual: Two unit input arrows average to a shorter center. Separate declared groups create C0[.1,0] and
+      unitC1[.8,.6], changing Euclidean versus cosine routing. Normalize an actual sum for spherical update;
+      opposite inputs yield zero and explicit fallback.
+    beats:
+      - say: Ordinary Euclidean k-means uses coordinate means, which need not remain unit vectors. The mean of one,
+          zero and zero, one is one-half, one-half, with norm about zero point seven zero seven. For a unit
+          query, Euclidean assignment includes one plus center-norm squared minus twice their dot product.
+          Different center norms can change routing.
+        hold: 0.5
+        visual_cues:
+          - id: cp-spherical-centers-0-0
+            phrase: Ordinary Euclidean k-means uses coordinate means, which need not remain unit vectors.
+            targets:
+              - spherical-centers-construction
+            color: blue
+            linger: 0.25
+          - id: cp-spherical-centers-0-1
+            phrase: The mean of one, zero and zero, one is one-half, one-half, with norm about zero point seven zero
+              seven.
+            targets:
+              - spherical-centers-construction
+            color: blue
+            linger: 0.25
+          - id: cp-spherical-centers-0-2
+            phrase: For a unit query, Euclidean assignment includes one plus center-norm squared minus twice their dot
+              product.
+            targets:
+              - spherical-centers-construction
+            color: blue
+            linger: 0.25
+          - id: cp-spherical-centers-0-3
+            phrase: Different center norms can change routing.
+            targets:
+              - spherical-centers-construction
+            color: green
+            linger: 0.25
+      - say: The article's separate constructed groups have center zero point one, zero and center zero point eight,
+          zero point six. Query one, zero has squared Euclidean distances zero point eight one and zero point
+          four, so it chooses the second. Cosine scores one and zero point eight choose the first instead.
+          These are constructed group means, not a claimed converged clustering run. Normalizing only at
+          serving time can therefore route to lists differently from their build-time assignments.
+        hold: 0.5
+        visual_cues:
+          - id: cp-spherical-centers-1-0
+            phrase: The article's separate constructed groups have center zero point one, zero and center zero point
+              eight, zero point six.
+            targets:
+              - spherical-centers-construction
+            color: blue
+            linger: 0.25
+          - id: cp-spherical-centers-1-1
+            phrase: Query one, zero has squared Euclidean distances zero point eight one and zero point four, so it
+              chooses the second.
+            targets:
+              - spherical-centers-construction
+            color: blue
+            linger: 0.25
+          - id: cp-spherical-centers-1-2
+            phrase: Cosine scores one and zero point eight choose the first instead.
+            targets:
+              - spherical-centers-construction
+            color: blue
+            linger: 0.25
+          - id: cp-spherical-centers-1-3
+            phrase: These are constructed group means, not a claimed converged clustering run.
+            targets:
+              - spherical-centers-construction
+            color: blue
+            linger: 0.25
+          - id: cp-spherical-centers-1-4
+            phrase: Normalizing only at serving time can therefore route to lists differently from their build-time
+              assignments.
+            targets:
+              - spherical-centers-construction
+            color: green
+            linger: 0.25
+      - say: For a cosine clustering objective, spherical k-means normalizes nonzero inputs, assigns by largest dot
+          product to unit centers, then normalizes each group's vector sum after updating. An empty group or a
+          zero sum needs an explicit fallback. Opposite unit vectors can sum to zero, so checking only that
+          each input had a norm is insufficient. Euclidean clustering remains a valid different choice when
+          its build and query contracts match.
+        hold: 0.5
+        visual_cues:
+          - id: cp-spherical-centers-2-0
+            phrase: For a cosine clustering objective, spherical k-means normalizes nonzero inputs, assigns by largest dot
+              product to unit centers, then normalizes each group's vector sum after updating.
+            targets:
+              - spherical-centers-construction
+            color: blue
+            linger: 0.25
+          - id: cp-spherical-centers-2-1
+            phrase: An empty group or a zero sum needs an explicit fallback.
+            targets:
+              - spherical-centers-construction
+            color: blue
+            linger: 0.25
+          - id: cp-spherical-centers-2-2
+            phrase: Opposite unit vectors can sum to zero, so checking only that each input had a norm is insufficient.
+            targets:
+              - spherical-centers-construction
+            color: blue
+            linger: 0.25
+          - id: cp-spherical-centers-2-3
+            phrase: Euclidean clustering remains a valid different choice when its build and query contracts match.
+            targets:
+              - spherical-centers-construction
+            color: green
+            linger: 0.25
+  - id: centered-cosine
+    title: Moving the origin changes angular comparisons
+    visual: Preserve the article query/doc IDs. Translate all by the fitted document mean, recompute actual
+      cosines.9998/.8 to.9802/−.9802, retain Euclidean pair differences, then show a document at the mean
+      becoming zero.
+    beats:
+      - say: PCA's centering is a translation, and cosine measures angles from the origin. The article's first
+          document has cosine about zero point nine nine nine eight with the query, while the second has zero
+          point eight. Subtract the same fitted document mean from all three and those angles become about
+          zero point nine eight zero two and minus zero point nine eight zero two. The winner stays the same
+          in this example; the angular geometry still changes.
+        hold: 0.5
+        visual_cues:
+          - id: cp-centered-cosine-0-0
+            phrase: PCA's centering is a translation, and cosine measures angles from the origin.
+            targets:
+              - centered-cosine-construction
+            color: blue
+            linger: 0.25
+          - id: cp-centered-cosine-0-1
+            phrase: The article's first document has cosine about zero point nine nine nine eight with the query, while
+              the second has zero point eight.
+            targets:
+              - centered-cosine-construction
+            color: blue
+            linger: 0.25
+          - id: cp-centered-cosine-0-2
+            phrase: Subtract the same fitted document mean from all three and those angles become about zero point nine
+              eight zero two and minus zero point nine eight zero two.
+            targets:
+              - centered-cosine-construction
+            color: blue
+            linger: 0.25
+          - id: cp-centered-cosine-0-3
+            phrase: The winner stays the same in this example; the angular geometry still changes.
+            targets:
+              - centered-cosine-construction
+            color: green
+            linger: 0.25
+      - say: Shared mean subtraction preserves Euclidean pairwise differences because the mean cancels. A complete
+          orthonormal change of basis preserves those distances too. Truncation can discard them, and neither
+          operation promises to preserve cosine rankings from the original origin. A document equal to the
+          fitted mean becomes zero, with undefined cosine. Treat compressed cosine retrieval as a new
+          representation and test rankings and zero handling directly.
+        hold: 0.5
+        visual_cues:
+          - id: cp-centered-cosine-1-0
+            phrase: Shared mean subtraction preserves Euclidean pairwise differences because the mean cancels.
+            targets:
+              - centered-cosine-construction
+            color: blue
+            linger: 0.25
+          - id: cp-centered-cosine-1-1
+            phrase: A complete orthonormal change of basis preserves those distances too.
+            targets:
+              - centered-cosine-construction
+            color: blue
+            linger: 0.25
+          - id: cp-centered-cosine-1-2
+            phrase: Truncation can discard them, and neither operation promises to preserve cosine rankings from the
+              original origin.
+            targets:
+              - centered-cosine-construction
+            color: blue
+            linger: 0.25
+          - id: cp-centered-cosine-1-3
+            phrase: A document equal to the fitted mean becomes zero, with undefined cosine.
+            targets:
+              - centered-cosine-construction
+            color: blue
+            linger: 0.25
+          - id: cp-centered-cosine-1-4
+            phrase: Treat compressed cosine retrieval as a new representation and test rankings and zero handling
+              directly.
+            targets:
+              - centered-cosine-construction
+            color: green
+            linger: 0.25
+  - id: ivf
+    title: A nearby center can hide the nearest message
+    visual: The opening query measures its center distances, scans one explicit list, then opens the second list
+      and recovers the flat-search neighbor with actual comparison counts.
+    beats:
+      - say: Return to the duplicate-charge query. An inverted-file index stores each message under its nearest
+          center. Compare the query with our three centers. The upper center is just closer than the left
+          center. Before opening a list, predict which reply that shortcut will return.
+        hold: 0.65
+        visual_cues:
+          - id: ivf-route
+            phrase: Compare the query with our three centers
+            targets:
+              - routing-distances
+            color: yellow
+            linger: 0.5
+          - id: ivf-predict
+            phrase: predict which reply
+            targets:
+              - retrieval-result
+            color: yellow
+            linger: 0.5
+          - id: cp-ivf-0-0
+            phrase: Return to the duplicate-charge query.
+            targets:
+              - ivf-construction
+            color: blue
+            linger: 0.25
+          - id: cp-ivf-0-1
+            phrase: An inverted-file index stores each message under its nearest center.
+            targets:
+              - ivf-construction
+            color: blue
+            linger: 0.25
+          - id: cp-ivf-0-2
+            phrase: Compare the query with our three centers.
+            targets:
+              - ivf-construction
+            color: blue
+            linger: 0.25
+          - id: cp-ivf-0-3
+            phrase: The upper center is just closer than the left center.
+            targets:
+              - ivf-construction
+            color: blue
+            linger: 0.25
+          - id: cp-ivf-0-4
+            phrase: Before opening a list, predict which reply that shortcut will return.
+            targets:
+              - ivf-construction
+            color: green
+            linger: 0.25
+      - say: Open only the upper list and compare its two messages. The best candidate is the reset-link message. Now
+          check all six documents as a flat-search reference. The duplicate-payment message is actually
+          nearer. Its center was farther away, so the one-list shortcut hid the right candidate.
+        hold: 0.65
+        visual_cues:
+          - id: ivf-one
+            phrase: compare its two messages
+            targets:
+              - search-candidates
+            color: cyan
+            linger: 0.5
+          - id: ivf-reference
+            phrase: check all six documents
+            targets:
+              - flat-reference
+            color: pink
+            linger: 0.5
+          - id: cp-ivf-1-0
+            phrase: Open only the upper list and compare its two messages.
+            targets:
+              - ivf-construction
+            color: blue
+            linger: 0.25
+          - id: cp-ivf-1-1
+            phrase: The best candidate is the reset-link message.
+            targets:
+              - ivf-construction
+            color: blue
+            linger: 0.25
+          - id: cp-ivf-1-2
+            phrase: Now check all six documents as a flat-search reference.
+            targets:
+              - ivf-construction
+            color: blue
+            linger: 0.25
+          - id: cp-ivf-1-3
+            phrase: The duplicate-payment message is actually nearer.
+            targets:
+              - ivf-construction
+            color: blue
+            linger: 0.25
+          - id: cp-ivf-1-4
+            phrase: Its center was farther away, so the one-list shortcut hid the right candidate.
+            targets:
+              - ivf-construction
+            color: green
+            linger: 0.25
+      - say: "Probe the next cell as well. The duplicate-payment message enters the candidate set and wins. That
+          recovers the exact neighbor for this query. Count three center comparisons plus four document
+          comparisons: seven, versus six for flat search. Larger corpora can benefit; measure candidate work,
+          latency and recall together."
+        hold: 0.65
+        visual_cues:
+          - id: ivf-two
+            phrase: Probe the next cell as well
+            targets:
+              - search-candidates
+            color: green
+            linger: 0.5
+          - id: ivf-work
+            phrase: Count three center comparisons plus four document comparisons
+            targets:
+              - retrieval-work
+            color: yellow
+            linger: 0.5
+          - id: cp-ivf-2-0
+            phrase: Probe the next cell as well.
+            targets:
+              - ivf-construction
+            color: blue
+            linger: 0.25
+          - id: cp-ivf-2-1
+            phrase: The duplicate-payment message enters the candidate set and wins.
+            targets:
+              - ivf-construction
+            color: blue
+            linger: 0.25
+          - id: cp-ivf-2-2
+            phrase: That recovers the exact neighbor for this query.
+            targets:
+              - ivf-construction
+            color: blue
+            linger: 0.25
+          - id: cp-ivf-2-3
+            phrase: "Count three center comparisons plus four document comparisons: seven, versus six for flat search."
+            targets:
+              - ivf-construction
+            color: blue
+            linger: 0.25
+          - id: cp-ivf-2-4
+            phrase: Larger corpora can benefit; measure candidate work, latency and recall together.
+            targets:
+              - ivf-construction
+            color: green
+            linger: 0.25
+  - id: ivf-work
+    title: Count the centroids and the lists actually opened
+    visual: Retain explicit posting lists and query identity. Balanced large-scale worksheet constructs K
+      comparisons plus N*nprobe/K document comparisons; an uneven-list case recomputes from exact opened IDs.
+      Flat vectors and compressed codes remain separate.
+    beats:
+      - say: An IVF cell stores assigned document IDs and their vector payloads. With full vectors and exact
+          distances, probing all lists recovers exhaustive search under consistent tie handling. Compressed
+          IVF codes can still change rankings after every list is opened. Candidate recovery and distance
+          precision are separate properties.
+        hold: 0.5
+        visual_cues:
+          - id: cp-ivf-work-0-0
+            phrase: An IVF cell stores assigned document IDs and their vector payloads.
+            targets:
+              - ivf-work-construction
+            color: blue
+            linger: 0.25
+          - id: cp-ivf-work-0-1
+            phrase: With full vectors and exact distances, probing all lists recovers exhaustive search under consistent
+              tie handling.
+            targets:
+              - ivf-work-construction
+            color: blue
+            linger: 0.25
+          - id: cp-ivf-work-0-2
+            phrase: Compressed IVF codes can still change rankings after every list is opened.
+            targets:
+              - ivf-work-construction
+            color: blue
+            linger: 0.25
+          - id: cp-ivf-work-0-3
+            phrase: Candidate recovery and distance precision are separate properties.
+            targets:
+              - ivf-work-construction
+            color: green
+            linger: 0.25
+      - say: If lists are balanced, probing nprobe of K cells scans N times nprobe divided by K documents. Add K
+          coarse-center comparisons before counting total distance work. With four thousand ninety-six cells
+          and sixteen probes, the balanced document scan touches about zero point three nine percent of the
+          corpus, but coarse routing still costs work. Uneven list lengths require summing the actual opened
+          lists. For fixed K and nprobe, candidate work still grows linearly with corpus size.
+        hold: 0.5
+        visual_cues:
+          - id: cp-ivf-work-1-0
+            phrase: If lists are balanced, probing nprobe of K cells scans N times nprobe divided by K documents.
+            targets:
+              - ivf-work-construction
+            color: blue
+            linger: 0.25
+          - id: cp-ivf-work-1-1
+            phrase: Add K coarse-center comparisons before counting total distance work.
+            targets:
+              - ivf-work-construction
+            color: blue
+            linger: 0.25
+          - id: cp-ivf-work-1-2
+            phrase: With four thousand ninety-six cells and sixteen probes, the balanced document scan touches about zero
+              point three nine percent of the corpus, but coarse routing still costs work.
+            targets:
+              - ivf-work-construction
+            color: blue
+            linger: 0.25
+          - id: cp-ivf-work-1-3
+            phrase: Uneven list lengths require summing the actual opened lists.
+            targets:
+              - ivf-work-construction
+            color: blue
+            linger: 0.25
+          - id: cp-ivf-work-1-4
+            phrase: For fixed K and nprobe, candidate work still grows linearly with corpus size.
+            targets:
+              - ivf-work-construction
+            color: green
+            linger: 0.25
+      - say: ANN recall compares approximate neighbors with the exact geometric neighbors under the same
+          representation and tie rule. It is distinct from semantic recall against reviewed relevance labels.
+          A perfect ANN index can reproduce bad embedding neighborhoods exactly. Keep the flat baseline,
+          measure latency as well as candidate work, and evaluate the queries your product must answer.
+        hold: 0.5
+        visual_cues:
+          - id: cp-ivf-work-2-0
+            phrase: ANN recall compares approximate neighbors with the exact geometric neighbors under the same
+              representation and tie rule.
+            targets:
+              - ivf-work-construction
+            color: blue
+            linger: 0.25
+          - id: cp-ivf-work-2-1
+            phrase: It is distinct from semantic recall against reviewed relevance labels.
+            targets:
+              - ivf-work-construction
+            color: blue
+            linger: 0.25
+          - id: cp-ivf-work-2-2
+            phrase: A perfect ANN index can reproduce bad embedding neighborhoods exactly.
+            targets:
+              - ivf-work-construction
+            color: blue
+            linger: 0.25
+          - id: cp-ivf-work-2-3
+            phrase: Keep the flat baseline, measure latency as well as candidate work, and evaluate the queries your
+              product must answer.
+            targets:
+              - ivf-work-construction
+            color: green
+            linger: 0.25
+  - id: takeaway
+    title: Will a quiet direction carry the answer?
+    visual: A separate five-document stress test withholds the compressed result, collapses three source
+      identities to one coordinate, then restores the second component and correct login neighbor.
+    beats:
+      - say: Try one new stress test. This separate collection has wide horizontal variation, with three documents
+          stacked near the middle. A user asks why their sign-in code fails. In full space, the login document
+          is closest. One principal component keeps almost ninety-eight percent of the corpus variance. Would
+          you trust that shortcut?
+        hold: 0.65
+        visual_cues:
+          - id: transfer-documents
+            phrase: This separate collection
+            targets:
+              - transfer-cloud
+            color: cyan
+            linger: 0.5
+          - id: transfer-query
+            phrase: In full space, the login document is closest
+            targets:
+              - transfer-reference
+            color: green
+            linger: 0.5
+          - id: transfer-predict
+            phrase: Would you trust that shortcut
+            targets:
+              - transfer-result
+            color: yellow
+            linger: 0.5
+          - id: cp-takeaway-0-0
+            phrase: Try one new stress test.
+            targets:
+              - takeaway-construction
+            color: blue
+            linger: 0.25
+          - id: cp-takeaway-0-1
+            phrase: This separate collection has wide horizontal variation, with three documents stacked near the middle.
+            targets:
+              - takeaway-construction
+            color: blue
+            linger: 0.25
+          - id: cp-takeaway-0-2
+            phrase: A user asks why their sign-in code fails.
+            targets:
+              - takeaway-construction
+            color: blue
+            linger: 0.25
+          - id: cp-takeaway-0-3
+            phrase: In full space, the login document is closest.
+            targets:
+              - takeaway-construction
+            color: blue
+            linger: 0.25
+          - id: cp-takeaway-0-4
+            phrase: One principal component keeps almost ninety-eight percent of the corpus variance.
+            targets:
+              - takeaway-construction
+            color: blue
+            linger: 0.25
+          - id: cp-takeaway-0-5
+            phrase: Would you trust that shortcut?
+            targets:
+              - takeaway-construction
+            color: green
+            linger: 0.25
+      - say: Keep the horizontal component and project the query too. The login document, billing help and runbook
+          note all land on zero. Their distances to the compressed query tie. The quiet vertical direction
+          carried the distinction this question needed. A first-match implementation can now return the wrong
+          reply.
+        hold: 0.65
+        visual_cues:
+          - id: transfer-project
+            phrase: Keep the horizontal component
+            targets:
+              - transfer-cloud
+            color: yellow
+            linger: 0.5
+          - id: transfer-tie
+            phrase: Their distances to the compressed query tie
+            targets:
+              - transfer-result
+            color: pink
+            linger: 0.5
+          - id: cp-takeaway-1-0
+            phrase: Keep the horizontal component and project the query too.
+            targets:
+              - takeaway-construction
+            color: blue
+            linger: 0.25
+          - id: cp-takeaway-1-1
+            phrase: The login document, billing help and runbook note all land on zero.
+            targets:
+              - takeaway-construction
+            color: blue
+            linger: 0.25
+          - id: cp-takeaway-1-2
+            phrase: Their distances to the compressed query tie.
+            targets:
+              - takeaway-construction
+            color: blue
+            linger: 0.25
+          - id: cp-takeaway-1-3
+            phrase: The quiet vertical direction carried the distinction this question needed.
+            targets:
+              - takeaway-construction
+            color: blue
+            linger: 0.25
+          - id: cp-takeaway-1-4
+            phrase: A first-match implementation can now return the wrong reply.
+            targets:
+              - takeaway-construction
+            color: green
+            linger: 0.25
+      - say: "Restore the second component. The login document separates from the alternatives and becomes the unique
+          nearest neighbor again. Our two shortcuts changed different things: clusters restricted candidates,
+          while projection removed coordinates. Evaluate both against the original search and reviewed
+          query-answer pairs before choosing the smaller representation."
+        hold: 0.65
+        visual_cues:
+          - id: transfer-restore
+            phrase: Restore the second component
+            targets:
+              - transfer-cloud
+            color: green
+            linger: 0.5
+          - id: transfer-answer
+            phrase: becomes the unique nearest neighbor again
+            targets:
+              - transfer-result
+            color: green
+            linger: 0.5
+          - id: cp-takeaway-2-0
+            phrase: Restore the second component.
+            targets:
+              - takeaway-construction
+            color: blue
+            linger: 0.25
+          - id: cp-takeaway-2-1
+            phrase: The login document separates from the alternatives and becomes the unique nearest neighbor again.
+            targets:
+              - takeaway-construction
+            color: blue
+            linger: 0.25
+          - id: cp-takeaway-2-2
+            phrase: "Our two shortcuts changed different things: clusters restricted candidates, while projection removed
+              coordinates."
+            targets:
+              - takeaway-construction
+            color: blue
+            linger: 0.25
+          - id: cp-takeaway-2-3
+            phrase: Evaluate both against the original search and reviewed query-answer pairs before choosing the smaller
+              representation.
+            targets:
+              - takeaway-construction
+            color: green
+            linger: 0.25
+  - id: audit-labels
+    title: A reviewed name belongs to evidence and a run
+    visual: Six original message IDs reconnect to nearest, boundary and centroid audit samples. Count current
+      reviewed topics and purity; split into singleton groups to show purity1 without useful grouping, while
+      an independent final benchmark remains unscored.
+    beats:
+      - say: A plot should produce a testable representation audit. Read nearest-message pairs, examples near centers
+          and boundaries, mixed intents and multilingual cases. Compare axes with formatting or length
+          metadata. Verify the serving metric and evaluate retrieval before and after compression on reviewed
+          query-document pairs. Cluster integer zero has no permanent meaning across restarts; attach a run ID
+          and reviewed label separately.
+        hold: 0.5
+        visual_cues:
+          - id: cp-audit-labels-0-0
+            phrase: A plot should produce a testable representation audit.
+            targets:
+              - audit-labels-construction
+            color: blue
+            linger: 0.25
+          - id: cp-audit-labels-0-1
+            phrase: Read nearest-message pairs, examples near centers and boundaries, mixed intents and multilingual
+              cases.
+            targets:
+              - audit-labels-construction
+            color: blue
+            linger: 0.25
+          - id: cp-audit-labels-0-2
+            phrase: Compare axes with formatting or length metadata.
+            targets:
+              - audit-labels-construction
+            color: blue
+            linger: 0.25
+          - id: cp-audit-labels-0-3
+            phrase: Verify the serving metric and evaluate retrieval before and after compression on reviewed
+              query-document pairs.
+            targets:
+              - audit-labels-construction
+            color: blue
+            linger: 0.25
+          - id: cp-audit-labels-0-4
+            phrase: Cluster integer zero has no permanent meaning across restarts; attach a run ID and reviewed label
+              separately.
+            targets:
+              - audit-labels-construction
+            color: green
+            linger: 0.25
+      - say: Purity divides the dominant reviewed-topic count by cluster size. Our invented clean groups have purity
+          one because every member was designed and read. Singleton groups also have purity one, so that
+          number alone rewards fragmentation. Record sizes, topic coverage and boundary examples. Repeatedly
+          tuned audit cases become development data; preserve a separate untouched final benchmark.
+        hold: 0.5
+        visual_cues:
+          - id: cp-audit-labels-1-0
+            phrase: Purity divides the dominant reviewed-topic count by cluster size.
+            targets:
+              - audit-labels-construction
+            color: blue
+            linger: 0.25
+          - id: cp-audit-labels-1-1
+            phrase: Our invented clean groups have purity one because every member was designed and read.
+            targets:
+              - audit-labels-construction
+            color: blue
+            linger: 0.25
+          - id: cp-audit-labels-1-2
+            phrase: Singleton groups also have purity one, so that number alone rewards fragmentation.
+            targets:
+              - audit-labels-construction
+            color: blue
+            linger: 0.25
+          - id: cp-audit-labels-1-3
+            phrase: Record sizes, topic coverage and boundary examples.
+            targets:
+              - audit-labels-construction
+            color: blue
+            linger: 0.25
+          - id: cp-audit-labels-1-4
+            phrase: Repeatedly tuned audit cases become development data; preserve a separate untouched final benchmark.
+            targets:
+              - audit-labels-construction
+            color: green
+            linger: 0.25
+  - id: fresh-seed-repair
+    title: Predict the outcome of a new initialization
+    visual: Separate four-point rectangle(0,0),(0,2),(8,0),(8,2) with initial left-edge seeds. Hold the updated
+      objective, reveal horizontal partition/inertia64, then change only seeds to bottom corners and recompute
+      vertical partition/inertia4.
+    beats:
+      - say: "Finish with a new four-point rectangle: zero, zero; zero, two; eight, zero; and eight, two. Request two
+          groups and seed both centers on the left edge. The lower seed receives the two bottom points, and
+          the upper seed the two top points. Predict their updated means and total squared error. Would a
+          repeated assignment certify the best possible grouping? Pause."
+        hold: 1.5
+        visual_cues:
+          - id: cp-fresh-seed-repair-0-0
+            phrase: "Finish with a new four-point rectangle: zero, zero; zero, two; eight, zero; and eight, two."
+            targets:
+              - fresh-seed-repair-construction
+            color: blue
+            linger: 0.25
+          - id: cp-fresh-seed-repair-0-1
+            phrase: Request two groups and seed both centers on the left edge.
+            targets:
+              - fresh-seed-repair-construction
+            color: blue
+            linger: 0.25
+          - id: cp-fresh-seed-repair-0-2
+            phrase: The lower seed receives the two bottom points, and the upper seed the two top points.
+            targets:
+              - fresh-seed-repair-construction
+            color: blue
+            linger: 0.25
+          - id: cp-fresh-seed-repair-0-3
+            phrase: Predict their updated means and total squared error.
+            targets:
+              - fresh-seed-repair-construction
+            color: blue
+            linger: 0.25
+          - id: cp-fresh-seed-repair-0-4
+            phrase: Would a repeated assignment certify the best possible grouping?
+            targets:
+              - fresh-seed-repair-construction
+            color: blue
+            linger: 0.25
+          - id: cp-fresh-seed-repair-0-5
+            phrase: Pause.
+            targets:
+              - fresh-seed-repair-construction
+            color: green
+            linger: 0.25
+      - say: The means become four, zero and four, two. Four points each sit four units horizontally from their
+          center, so total squared error is sixty-four. Those memberships repeat, so this run has converged.
+          Convergence did not establish the best partition.
+        hold: 0.5
+        visual_cues:
+          - id: cp-fresh-seed-repair-1-0
+            phrase: The means become four, zero and four, two.
+            targets:
+              - fresh-seed-repair-construction
+            color: blue
+            linger: 0.25
+          - id: cp-fresh-seed-repair-1-1
+            phrase: Four points each sit four units horizontally from their center, so total squared error is sixty-four.
+            targets:
+              - fresh-seed-repair-construction
+            color: blue
+            linger: 0.25
+          - id: cp-fresh-seed-repair-1-2
+            phrase: Those memberships repeat, so this run has converged.
+            targets:
+              - fresh-seed-repair-construction
+            color: blue
+            linger: 0.25
+          - id: cp-fresh-seed-repair-1-3
+            phrase: Convergence did not establish the best partition.
+            targets:
+              - fresh-seed-repair-construction
+            color: green
+            linger: 0.25
+      - say: Keep every point fixed and restart at the two bottom corners instead. The left pair and right pair now
+          update to zero, one and eight, one. Their squared error totals four. Both runs reduced their own
+          objectives, but the second settles much lower. You can now inspect initialization, distance,
+          coordinate transforms and lost query information before choosing a search shortcut. The next lesson
+          replaces hard groups with probabilistic responsibilities.
+        hold: 0.5
+        visual_cues:
+          - id: cp-fresh-seed-repair-2-0
+            phrase: Keep every point fixed and restart at the two bottom corners instead.
+            targets:
+              - fresh-seed-repair-construction
+            color: blue
+            linger: 0.25
+          - id: cp-fresh-seed-repair-2-1
+            phrase: The left pair and right pair now update to zero, one and eight, one.
+            targets:
+              - fresh-seed-repair-construction
+            color: blue
+            linger: 0.25
+          - id: cp-fresh-seed-repair-2-2
+            phrase: Their squared error totals four.
+            targets:
+              - fresh-seed-repair-construction
+            color: blue
+            linger: 0.25
+          - id: cp-fresh-seed-repair-2-3
+            phrase: Both runs reduced their own objectives, but the second settles much lower.
+            targets:
+              - fresh-seed-repair-construction
+            color: blue
+            linger: 0.25
+          - id: cp-fresh-seed-repair-2-4
+            phrase: You can now inspect initialization, distance, coordinate transforms and lost query information before
+              choosing a search shortcut.
+            targets:
+              - fresh-seed-repair-construction
+            color: blue
+            linger: 0.25
+          - id: cp-fresh-seed-repair-2-5
+            phrase: The next lesson replaces hard groups with probabilistic responsibilities.
+            targets:
+              - fresh-seed-repair-construction
+            color: green
+            linger: 0.25

@@ -1,0 +1,450 @@
+[
+  {
+    "id": "c01",
+    "title": "One disputed pixel",
+    "sourceChapters": [
+      "c01"
+    ],
+    "beats": [
+      {
+        "id": "c01-b01",
+        "say": "Look at the marked spot on this three. One GPU drew this reference. Now split its two input channels across two GPUs. Can you keep that spot dark?",
+        "hold": 2.1
+      },
+      {
+        "id": "c01-b02",
+        "say": "GPU zero reads three and multiplies by plus one. GPU one reads four and multiplies by minus one. Both products belong to the same pixel. The rectifier, also called ReLU, keeps positive values and sets negative values to zero. Should it run before or after these two products meet?",
+        "hold": 3.1
+      },
+      {
+        "id": "c01-b03",
+        "say": "Add the signed products first. Three minus four gives minus one. Now apply the rectifier. The marked pixel stays dark. On the right edge, three minus one gives two, so that stroke still shines.",
+        "hold": 1.4
+      },
+      {
+        "id": "c01-b04",
+        "say": "Try the other order with the same inputs. Rectify each product first. The negative four becomes zero. Add the two now and the pixel lights up. Eighteen such extra pixels turn the three into an eight. Splitting one model across devices works when the pieces still compute the same function.",
+        "hold": 1.5
+      },
+      {
+        "id": "c01-b05",
+        "say": "Restore the signed products on both GPUs. Run ReLU on the sum and the three returns. We can spread weights that exceed one device's memory across several devices. Each worker, called a rank, needs to know which of its outputs are complete and which still need another rank's contribution.",
+        "hold": 1.4
+      }
+    ]
+  },
+  {
+    "id": "c02",
+    "title": "Read one weight column",
+    "sourceChapters": [
+      "c02"
+    ],
+    "beats": [
+      {
+        "id": "c02-b01",
+        "say": "Begin with a linear layer in row-vector convention. The input multiplies a weight matrix, and each matrix column produces one output coordinate. Our input has two coordinates and the matrix has four output columns, so the result has four coordinates.",
+        "hold": 0.8
+      },
+      {
+        "id": "c02-b02",
+        "say": "Follow the last column. Its weights are one and two. Match them to input values one and two. What value belongs at the fourth output contact?",
+        "hold": 2.7
+      },
+      {
+        "id": "c02-b03",
+        "say": "Five. One times one plus two times two. Read the other columns the same way and the full reference is one, four, six, five. Different columns can be computed independently from the full input. Splitting the input coordinates instead leaves a sum to finish at every contact.",
+        "hold": 1.3
+      }
+    ]
+  },
+  {
+    "id": "c03",
+    "title": "Separate the output contacts",
+    "sourceChapters": [
+      "c03"
+    ],
+    "beats": [
+      {
+        "id": "c03-b01",
+        "say": "Split the weight matrix by columns. Each device keeps a different set of output columns and receives the full input. Its local matrix multiplication produces the final values for its own output slice, with every input-coordinate contribution already included.",
+        "hold": 0.8
+      },
+      {
+        "id": "c03-b02",
+        "say": "GPU zero owns columns one and two. It produces one and four. GPU one owns columns three and four. It produces six and five. The next operation applies ReLU separately to each coordinate. Does either device need its neighbor's values?",
+        "hold": 2.6
+      },
+      {
+        "id": "c03-b03",
+        "say": "Each device can activate its own slice. All four values here are positive and survive. If a consumer needs the full vector on both GPUs, all-gather places both slices in column order on each. A consumer that accepts these slices lets us keep them where they are.",
+        "hold": 1.2
+      }
+    ]
+  },
+  {
+    "id": "c04",
+    "title": "Split the input instead",
+    "sourceChapters": [
+      "c04"
+    ],
+    "beats": [
+      {
+        "id": "c04-b01",
+        "say": "Now split by input rows of the weight matrix, with matching slices of the input. Each device computes contributions to every output coordinate from its assigned input coordinates. A local output is therefore incomplete until the other devices’ contributions arrive.",
+        "hold": 1
+      },
+      {
+        "id": "c04-b02",
+        "say": "Multiply row one by one, and row two by two. Look at the fourth contact on each GPU. Can either local value stand in for the five in our reference?",
+        "hold": 2.5
+      },
+      {
+        "id": "c04-b03",
+        "say": "Add the aligned contacts. One plus four restores five, and the other three sums complete the same reference vector. The signed pixel showed why a nonlinear activation must wait here. An all-reduce can return the sum to both devices. A reduce-scatter gives each device only its assigned slice of that sum.",
+        "hold": 1.1
+      }
+    ]
+  },
+  {
+    "id": "c05",
+    "title": "Follow one slice through two projections",
+    "sourceChapters": [
+      "c05"
+    ],
+    "beats": [
+      {
+        "id": "c05-b01",
+        "say": "A transformer feed-forward block gives a useful composition. Its first projection expands into separate output slices. Each device applies the elementwise activation to its own slice, then multiplies that slice by matching rows of the second projection.",
+        "hold": 0.8
+      },
+      {
+        "id": "c05-b02",
+        "say": "Follow six and five on GPU one. Six multiplies row three. Five multiplies row four. For the second output contact, six times one meets five times minus one. What contribution comes out of that socket?",
+        "hold": 2.4
+      },
+      {
+        "id": "c05-b03",
+        "say": "One. At the first contact the same slice gives six plus ten, or sixteen. GPU zero's two rows return one and four. Bring the two vectors to one addition. Seventeen and five are the complete output. The expanded four-coordinate vector never had to travel between these GPUs.",
+        "hold": 1.4
+      }
+    ]
+  },
+  {
+    "id": "c05-reference",
+    "title": "Put back one bias",
+    "sourceChapters": [
+      "c05"
+    ],
+    "beats": [
+      {
+        "id": "c05-reference-b01",
+        "say": "Change to the article's signed expansion and GeLU activation. The input is still one, two. Its column products are one, one on the first GPU and zero, four on the second. GeLU acts on those complete local coordinates. Follow the rounded values through the matching rows.",
+        "hold": 1.1
+      },
+      {
+        "id": "c05-reference-b02",
+        "say": "The second GPU's last row has weights minus one and two. That gives nearly minus four in one output and nearly eight in the other. The first GPU contributes about point eight four to each. Both receive the same sum. Where should the output bias enter?",
+        "hold": 2.5
+      },
+      {
+        "id": "c05-reference-b03",
+        "say": "Add the bias once to each complete output. Both coordinates now agree with the dense reference to the displayed precision. Adding the bias to both partials before reducing would count it twice. Use a tolerance when checking floating-point results. A different sum order can change rounding and sometimes the text that sampling produces.",
+        "hold": 1.4
+      }
+    ]
+  },
+  {
+    "id": "c06",
+    "title": "Send the layout the consumer needs",
+    "sourceChapters": [
+      "c06"
+    ],
+    "beats": [
+      {
+        "id": "c06-b01",
+        "say": "Suppose the two sources hold the output contributions from our rectifier example, one and four here, sixteen and one there. Both consumers need the complete two-coordinate sum. Which collective delivers it?",
+        "hold": 2.2
+      },
+      {
+        "id": "c06-b02",
+        "say": "All-reduce with sum adds corresponding coordinates and gives seventeen and five to each GPU. All-gather would instead concatenate those inputs in rank order. Four values would reach each GPU, even though the consumer asked for two.",
+        "hold": 1.3
+      },
+      {
+        "id": "c06-b03",
+        "say": "Change the consumer. GPU zero needs the first summed coordinate and GPU one needs the second. Reduce-scatter gives seventeen to the first and five to the second. This specifies the values and their owners. The implementation can reduce directly into shards.",
+        "hold": 1.5
+      }
+    ]
+  },
+  {
+    "id": "c06-wire",
+    "title": "Count calls and bytes separately",
+    "sourceChapters": [
+      "c06"
+    ],
+    "beats": [
+      {
+        "id": "c06-wire-b01",
+        "say": "In classic dense tensor parallelism, each GPU can attend with its own query, key and value heads. The row-sharded output projection adds head contributions, just as the feed-forward contraction adds its partials. Count those two sum collectives in each of eighty layers. That makes one hundred sixty per batch iteration.",
+        "hold": 1
+      },
+      {
+        "id": "c06-wire-b02",
+        "say": "The prompt produces the first token. A completion of one hundred twenty-eight tokens needs one hundred twenty-seven more iterations, or twenty thousand three hundred twenty in-layer calls. If the batch doubles, does the call count double?",
+        "hold": 2.3
+      },
+      {
+        "id": "c06-wire-b03",
+        "say": "The count stays fixed. The activation grows. With eight requests, width four thousand ninety-six and two bytes per element, one activation is sixty-four kibibytes. A ring all-reduce splits the activation into as many equal chunks as there are ranks. Each rank sends one fewer chunk than the number of ranks during reduce-scatter, and the same number during all-gather. With four ranks, each sends three quarters of the activation twice, or ninety-six kibibytes per call.",
+        "hold": 1
+      },
+      {
+        "id": "c06-wire-b04",
+        "say": "At an assumed three hundred decimal gigabytes per second per rank, those bytes across one hundred sixty calls take about point zero five milliseconds of payload time. Separately, twenty microseconds of serial startup per call gives three point two milliseconds. Measure overlap, small kernels and the actual links to find how much time the request exposes.",
+        "hold": 1.2
+      }
+    ]
+  },
+  {
+    "id": "c07",
+    "title": "Watch the pipeline drain",
+    "sourceChapters": [
+      "c07"
+    ],
+    "beats": [
+      {
+        "id": "c07-b01",
+        "say": "Tensor parallelism divides work inside layers. Pipeline parallelism assigns different groups of layers to successive devices. Watch input A leave the first stage. Its activation enters the second while input B starts at the first. Each input still visits all three stages in order.",
+        "hold": 1
+      },
+      {
+        "id": "c07-b02",
+        "say": "Advance one slot. Now A is at stage three, B at stage two, C at stage one. When D enters, the line is full for the last time. No fifth input is waiting. Which stage will be idle next?",
+        "hold": 3
+      },
+      {
+        "id": "c07-b03",
+        "say": "Stage one goes idle. D reaches stage two, while C finishes. Advance once more. Now stages one and two are idle while D finishes alone. Trace any letter diagonally to count its three stage visits.",
+        "hold": 1.4
+      },
+      {
+        "id": "c07-b04",
+        "say": "Four independent inputs through three equal-time stages take six slots. Twelve of the eighteen stage slots contain work. Six are idle, so the bubble fraction is one third. In general, with no transfer or queue delays, the clock runs for microbatches plus stages minus one. Elapsed overhead divides the extra two slots by four inputs, giving one half instead.",
+        "hold": 1.2
+      }
+    ]
+  },
+  {
+    "id": "c07-path",
+    "title": "Time one token across the boundary",
+    "sourceChapters": [
+      "c07"
+    ],
+    "beats": [
+      {
+        "id": "c07-path-b01",
+        "say": "Follow one token through three stages with two milliseconds of compute each. The next token needs the final logits and the sampling decision. Other requests can fill idle stages while this request waits. Each of the two boundary transfers takes point two milliseconds. Each stage waits for its input. When does this token finish stage three?",
+        "hold": 3
+      },
+      {
+        "id": "c07-path-b02",
+        "say": "Insert the two transfers. The three stages still use six milliseconds of compute. The transfers add point four milliseconds, so the token finishes stage three at six point four milliseconds. Stage imbalance and different kernels can change these times on real hardware. More pipeline stages can solve placement while making that first token later.",
+        "hold": 1.2
+      },
+      {
+        "id": "c07-path-b03",
+        "say": "In a two-node example, keep a tensor pair on each fast local link. Send the intermediate activation across the slower link once between pipeline stages. This is a candidate if its shards fit and the engine supports them. Trace the exposed transfers and test the actual traffic mix before choosing it.",
+        "hold": 1.2
+      }
+    ]
+  },
+  {
+    "id": "c08",
+    "title": "Find the GPU that runs out",
+    "sourceChapters": [
+      "c08"
+    ],
+    "beats": [
+      {
+        "id": "c08-b01",
+        "say": "The original eight weight units split four per device. Each also holds two units of attention history, one of activations and one of workspace. Count eight units per device. Training would add gradients and optimizer state. Serving has to leave room for the actual request history and temporary peaks.",
+        "hold": 1
+      },
+      {
+        "id": "c08-b02",
+        "say": "Now size a resident checkpoint in decimal gigabytes. Thirty-five billion total parameters at two BF16 bytes each need seventy gigabytes, even if only three billion are active per token. With eighty gigabytes per GPU and sixteen reserved, how many devices do the weights alone need?",
+        "hold": 2.3
+      },
+      {
+        "id": "c08-b03",
+        "say": "At least two. Divide seventy by sixty-four usable and round up. An even split leaves thirty-five gigabytes of weights and twenty-nine free on each. Replicated components, cache allocation and allocator headroom can lower what requests can use.",
+        "hold": 1
+      },
+      {
+        "id": "c08-b04",
+        "say": "Try a fifty-gigabyte request. It places thirty-five on GPU zero and fifteen on GPU one. Compare each bar with its own limit. GPU zero is six over while GPU one has fourteen spare. A group with fifty-eight free must still reject or defer this placement. Moving history requires a layout the backend supports.",
+        "hold": 1.4
+      }
+    ]
+  },
+  {
+    "id": "c08-prefill",
+    "title": "Who visits the rest of the prompt?",
+    "sourceChapters": [
+      "c08"
+    ],
+    "beats": [
+      {
+        "id": "c08-prefill-b01",
+        "say": "Long prompts need storage for keys and values. For a hypothetical million supported positions, eighty full-attention layers, eight key-value heads, head width one hundred twenty-eight and two-byte elements, split the raw history four ways. Each share is still seventy-six point three gibibytes, above an eighty decimal gigabyte device before weights. Sharding cannot extend the checkpoint's supported length.",
+        "hold": 1
+      },
+      {
+        "id": "c08-prefill-b02",
+        "say": "For a smaller noncausal prefill, fix four query blocks in place. Each starts with its own key-value block. Rotate the key-value blocks three times. Watch query zero meet all four. Online softmax combines the visits. Causal masking changes which pairs contribute, and transfers need enough work to overlap.",
+        "hold": 1.2
+      },
+      {
+        "id": "c08-prefill-b03",
+        "say": "Ulysses uses a different exchange. Each rank projects its local positions into queries, keys and values for all heads. An all-to-all gives each rank a head across the full sequence. After local attention, a second all-to-all returns the original position ownership for the output projection. This simple layout requires divisible head counts, including key-value heads. Decode needs its own cache layout.",
+        "hold": 1.2
+      }
+    ]
+  },
+  {
+    "id": "c08-history",
+    "title": "Remove repeated history",
+    "sourceChapters": [
+      "c08"
+    ],
+    "beats": [
+      {
+        "id": "c08-history-b01",
+        "say": "Sixteen query heads share two key-value heads. Across eight GPUs, each GPU owns two query heads. With supported key-value replication, four GPUs carry head A and four carry head B. Each holds the same thirty-two positions as its three partners. Weight sharding alone leaves those histories duplicated.",
+        "hold": 1
+      },
+      {
+        "id": "c08-history-b02",
+        "say": "Keep these eight GPUs. Give each of the four partners every fourth position of its head. Follow position five for head A. Which lane keeps it when positions start at zero?",
+        "hold": 2.6
+      },
+      {
+        "id": "c08-history-b03",
+        "say": "Lane one keeps five, alongside one, nine and the other positions one past a multiple of four. Each rank keeps eight pairs. Across all eight ranks that is sixty-four, exactly two heads times thirty-two positions. Plain replication stored two hundred fifty-six. This ideal decode context split assumes compatible kernels and omits cache-page rounding. Other layer types can have different state.",
+        "hold": 1.2
+      }
+    ]
+  },
+  {
+    "id": "c08-mass",
+    "title": "Merge a split attention read",
+    "sourceChapters": [
+      "c08"
+    ],
+    "beats": [
+      {
+        "id": "c08-mass-b01",
+        "say": "One query sees two equally scored keys on the left with values zero, and one on the right with value nine. An empty shard has no valid key. Each nonempty shard can return its own normalized answer, zero or nine. What should the query receive?",
+        "hold": 2.4
+      },
+      {
+        "id": "c08-mass-b02",
+        "say": "Three. Subtract the shared maximum score of one thousand. Every shifted weight is one. The left contributes two units of mass, the right one. Divide the weighted value sum, nine, by three. An unweighted mean of the two local answers would give four point five.",
+        "hold": 1.1
+      },
+      {
+        "id": "c08-mass-b03",
+        "say": "Raise just the right score by the natural log of two. At the new maximum the right weight is one again. Rescale the left weights to one half each. The updated denominator is two. Nine divided by two gives four point five. Averaging zero, nine and a zero for the empty shard would still give three. The empty shard contributes zero mass. For arbitrary finite scores, rescale both the mass and weighted value sum of each nonempty shard by the exponential of its local maximum minus the shared maximum. Empty shards still participate in matching collectives.",
+        "hold": 1.4
+      }
+    ]
+  },
+  {
+    "id": "c08-expert",
+    "title": "Trace a token to two expert owners",
+    "sourceChapters": [
+      "c08"
+    ],
+    "beats": [
+      {
+        "id": "c08-expert-b01",
+        "say": "Six tokens each choose two experts. Experts zero and one live on GPU zero. Two and three live on GPU one. Look down the route list and count assignments to each owner. One token can send two assignments to the same GPU.",
+        "hold": 2.3
+      },
+      {
+        "id": "c08-expert-b02",
+        "say": "Eight assignments reach GPU zero and four reach GPU one. Follow token four, with input value four, to experts zero and two. Each expert multiplies the input by its number plus one. That gives four and twelve. The router weights the first return by three quarters and the second by one quarter. What value does token four receive?",
+        "hold": 3.6
+      },
+      {
+        "id": "c08-expert-b03",
+        "say": "Four times three quarters gives three on the first route. Twelve times one quarter gives three on the second. Add them at the token's origin to recover six. The busiest GPU has eight assignments against an average of six. Measure expert work and transfer times to diagnose a straggler. These counts alone give no latency multiplier.",
+        "hold": 1.3
+      }
+    ]
+  },
+  {
+    "id": "c09-serving",
+    "title": "Choose a serving group under load",
+    "sourceChapters": [
+      "c09"
+    ],
+    "beats": [
+      {
+        "id": "c09-serving-b01",
+        "say": "Eight GPUs might serve one tensor-parallel replica, or four independent two-GPU replicas if each pair fits the model. Route another request to a free pair. Each pair needs its own weights and cache. If experts span the pairs, attention can be separate while expert work couples their queues.",
+        "hold": 1
+      },
+      {
+        "id": "c09-serving-b02",
+        "say": "Splitting prompt processing and decoding puts the two phases in separate pools. Follow one request's keys and values from the prefill worker to a compatible decode cache. A different layout needs conversion. Time both queues and the exposed handoff against the interference saved by separating the phases.",
+        "hold": 1
+      },
+      {
+        "id": "c09-serving-b03",
+        "say": "On these synthetic measurements, require a physical fit, p95 time to first token at most four hundred milliseconds, and p95 time per output token at most fifty-five. Which run qualifies? Look at both limits before comparing token rates.",
+        "hold": 2.6
+      },
+      {
+        "id": "c09-serving-b04",
+        "say": "Only the pair qualifies. Its times are three hundred ten and forty-five. The four-GPU run misses both limits despite a higher raw rate. Use matched arrivals, prompt lengths, output lengths, quality and concurrency when collecting these figures.",
+        "hold": 1.2
+      },
+      {
+        "id": "c09-serving-b05",
+        "say": "In a separate price exercise both candidates pass. The pair bills six dollars per group-hour for six hundred twenty useful tokens per second. The larger group bills twelve for nine hundred. Divide the hourly bill by useful tokens in that same hour. Per million useful tokens the pair costs two dollars sixty-nine, the faster group three dollars seventy. Check whole-service costs separately.",
+        "hold": 1.3
+      }
+    ]
+  },
+  {
+    "id": "c09",
+    "title": "Test a fresh input and placement",
+    "sourceChapters": [
+      "c09"
+    ],
+    "beats": [
+      {
+        "id": "c09-b01",
+        "say": "Return to the signed GeLU layer. Change only the input to minus one, three. Keep the weights and the bias. Here are the two new local output vectors. The dense reference is beside them. Decide whether a mean or a sum can reproduce its second coordinate.",
+        "hold": 2.8
+      },
+      {
+        "id": "c09-b02",
+        "say": "A mean before bias falls short. Switch to a sum and add the bias once. Both coordinates match the dense reference to four decimal places. Check local products as well as the reconstructed vector when debugging a new layout.",
+        "hold": 1.1
+      },
+      {
+        "id": "c09-b03",
+        "say": "The result is correct. Can the same pair admit this request? Allocate thirty-one and fifteen gigabytes of history, with twenty-nine free on each GPU. Which rank prevents admission?",
+        "hold": 2.4
+      },
+      {
+        "id": "c09-b04",
+        "say": "GPU zero is two short. Suppose the backend supports an even split. Reassign eight gigabytes from zero to one. The total stays forty-six. Both ranks now hold twenty-three and have six free. That establishes fit for this reservation. Measure per-device peaks, first-token latency, token gaps and useful throughput at the intended load before serving it.",
+        "hold": 1.6
+      }
+    ]
+  }
+]

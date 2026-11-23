@@ -1,0 +1,765 @@
+[
+  {
+    "id": "c01",
+    "title": "Library search",
+    "sourceChapters": [
+      "c01"
+    ],
+    "beats": [
+      {
+        "id": "c01-b01",
+        "say": "You’re planning a trip to the library on Sunday. Its assistant can read the two notices in these windows. Read them with me. Saturday story time starts at ten. Holiday hours vary by branch. Would you set out on Sunday from that evidence?",
+        "hold": 3.1
+      },
+      {
+        "id": "c01-b02",
+        "say": "Search also found an hours notice, in third place. Bring that notice into the first window. Now read the day on the clock poster. Sunday: the library is closed. We can save the trip.",
+        "hold": 1
+      },
+      {
+        "id": "c01-b03",
+        "say": "Search already had all three passages. Reranking changed their order, so the two places in the prompt now include the passage that answers the question.",
+        "hold": 0.8
+      }
+    ]
+  },
+  {
+    "id": "c02",
+    "title": "What reaches the scorer?",
+    "sourceChapters": [
+      "c02"
+    ],
+    "beats": [
+      {
+        "id": "c02-b01",
+        "say": "How many notices should reach the scorer? A fast retriever searches the collection and hands over a shortlist. Stop after two notices. A reranker can compare each with the question. Trade their places and read them again. Neither gives Sunday’s hours.",
+        "hold": 1
+      },
+      {
+        "id": "c02-b02",
+        "say": "Let the scorer read one more passage. Now the hours slip gets compared with the question. The assistant still has room for two. One limit buys us another comparison. The other decides what the assistant can read.",
+        "hold": 0.9
+      },
+      {
+        "id": "c02-b03",
+        "say": "These three belong to the same permitted search result. A change in access or a newer revision calls for a fresh check before scoring or packing. Raising a relevance score can move a permitted passage up the list. Access comes from the application.",
+        "hold": 0.6
+      }
+    ]
+  },
+  {
+    "id": "c03",
+    "title": "When does the question meet the passage?",
+    "sourceChapters": [
+      "c03"
+    ],
+    "beats": [
+      {
+        "id": "c03-b01",
+        "say": "A dense retriever can work on the hours slip before anyone asks a question. It stores a passage vector. Later it compares that vector with a vector for the question. Encoding each side separately makes this kind of search practical across a large collection. That’s a bi-encoder.",
+        "hold": 0.6
+      },
+      {
+        "id": "c03-b02",
+        "say": "Now put the question and the passage into one input. This is a BERT-style cross-encoder. The front token is called C L S. The separators mark the ends of the two texts. The drawing groups words so we can follow two connections.",
+        "hold": 0.3
+      },
+      {
+        "id": "c03-b03",
+        "say": "Inside this model, Sunday in the question can interact with Sunday in the passage. Open can interact with closed. Those links show comparisons the architecture permits.",
+        "hold": 0.7
+      },
+      {
+        "id": "c03-b04",
+        "say": "Read the final state at the first token. It has seen both sides, so it can represent this particular match. What it learns depends on training. Test questions that differ by a date, a condition or a word like “closed,” alongside passages that share the vocabulary but give the wrong rule.",
+        "hold": 0.7
+      }
+    ]
+  },
+  {
+    "id": "c04",
+    "title": "A score for the Sunday question",
+    "sourceChapters": [
+      "c04"
+    ],
+    "beats": [
+      {
+        "id": "c04-b01",
+        "say": "For a toy scoring head, give the Sunday question and hours passage two coordinates, two and one. Start at zero. The first weight is one. Two times one takes us to two. Mark that first contribution. The second weight is a half.",
+        "hold": 0.3
+      },
+      {
+        "id": "c04-b02",
+        "say": "One times a half adds half a step. Mark the subtotal. The bias is minus point two. Where will the marker finish?",
+        "hold": 3
+      },
+      {
+        "id": "c04-b03",
+        "say": "Two point three. That final number is the pair’s logit. Use the same weights and bias for each passage. The holiday notice gets point four, and story time gets point zero five. Each logit belongs to one question and one passage.",
+        "hold": 1
+      },
+      {
+        "id": "c04-b04",
+        "say": "Some checkpoints apply a sigmoid to each logit. It squeezes the scale between zero and one and preserves the mathematical order. The hours slip still wins. To interpret its new number as a probability of relevance, check predictions against held-out relevance labels for that event.",
+        "hold": 0.8
+      }
+    ]
+  },
+  {
+    "id": "c05",
+    "title": "Across the two-passage cutoff",
+    "sourceChapters": [
+      "c05"
+    ],
+    "beats": [
+      {
+        "id": "c05-b01",
+        "say": "Put the three logits on the search results. Keep your eye on the clock at rank three. Slide the notices into descending score order. The hours passage travels from third to first. Its words and source ID travel with it.",
+        "hold": 1.1
+      },
+      {
+        "id": "c05-b02",
+        "say": "Send the first two passages to the assistant. Before the move, neither passage gave Sunday’s hours. Now the first one does. Candidate recall stayed at one out of one throughout. All the reranker changed was the order.",
+        "hold": 0.8
+      },
+      {
+        "id": "c05-b03",
+        "say": "For this query there’s one labeled relevant passage. Divide one by its rank. That passage moved from third to first, so its reciprocal rank rose from one third to one. The mean across questions is mean reciprocal rank. Check the packed span too. Packing could still cut the sentence we wanted.",
+        "hold": 0.8
+      }
+    ]
+  },
+  {
+    "id": "c06",
+    "title": "Which passages may the scorer read?",
+    "sourceChapters": [
+      "c06"
+    ],
+    "beats": [
+      {
+        "id": "c06-b01",
+        "say": "A service account asks whether it can use the legacy token endpoint on day ten after deprecation with audit logging active. Rule AUTH-fourteen allows that request through day fourteen while logging is active. Search returns four current passages the account may read.",
+        "hold": 0.3
+      },
+      {
+        "id": "c06-b02",
+        "say": "The governing rule is third, below troubleshooting and password reset. An admin-only rule and a superseded revision remain outside scoring.",
+        "hold": 0.7
+      },
+      {
+        "id": "c06-b03",
+        "say": "Compare the scorer’s returned passage with the trusted search record. The ID and revision match. Read the last line. Someone has removed the audit condition. Reject the changed record and fetch the current revision.",
+        "hold": 0.3
+      },
+      {
+        "id": "c06-b04",
+        "say": "Try the current text again, but change its parent. The parent identifies the source that a citation would lead to. That mismatch also breaks the binding. Reject it. Require one result for each admitted ID and check the entire record.",
+        "hold": 0.7
+      },
+      {
+        "id": "c06-b05",
+        "say": "The application supplied those access decisions. It rechecks access and revisions before scoring and again before packing. Here the account loses access after scoring, so the passage comes out. Before sending text to a hosted scorer, check that the application permits that processor to receive it.",
+        "hold": 0.7
+      }
+    ]
+  },
+  {
+    "id": "c07",
+    "title": "What earns a place in the prompt?",
+    "sourceChapters": [
+      "c07"
+    ],
+    "beats": [
+      {
+        "id": "c07-b01",
+        "say": "The reference scorer uses hand-written rules. Match the endpoint phrase for two points, the requested remedy for three, and service accounts for one. Add two for the fourteen-day window and two for active auditing. A troubleshooting disclaimer costs six.",
+        "hold": 0.3
+      },
+      {
+        "id": "c07-b02",
+        "say": "The governing rule receives two plus one plus two plus two, totaling seven. The audit-export note gets two despite referring to a different action. Password reset gets zero. Troubleshooting gets minus one.",
+        "hold": 0.7
+      },
+      {
+        "id": "c07-b03",
+        "say": "Sort the four passages by score, highest first. If scores tie, use search rank, then chunk ID. A passage needs five points for a slot. Only the governing rule qualifies. Its parent, revision and exact text travel with it. The second slot stays empty.",
+        "hold": 0.8
+      },
+      {
+        "id": "c07-b04",
+        "say": "For a service account the rule covers days zero through fourteen with logging on. Try day fifteen, leaving logging on. Then try day ten with logging off. Each change costs two points. Both requests still score five. The rule gets packed for each. Read its conditions. Both requests are denied.",
+        "hold": 1
+      }
+    ]
+  },
+  {
+    "id": "c08",
+    "title": "Where did the scorer stop reading?",
+    "sourceChapters": [
+      "c08"
+    ],
+    "beats": [
+      {
+        "id": "c08-b01",
+        "say": "Read down this building guide through two windows. Cut the scorer’s copy after the services line. Leave the generator’s window open all the way down. The Sunday sentence lies below the scorer’s cut.",
+        "hold": 0.7
+      },
+      {
+        "id": "c08-b02",
+        "say": "Now both windows start on the same policy page. Stop the scorer after sixteen words. Leave the whole rule in the generator’s window. Look at the word on the scorer’s last line. Which reader can find the phrase “audit logging”?",
+        "hold": 3.1
+      },
+      {
+        "id": "c08-b03",
+        "say": "The scorer gets false. Look across the gutter. The generator gets true. Its window includes the last four words, “audit logging is active.” The scorer stopped on “if.” Its score describes an unfinished sentence.",
+        "hold": 1
+      },
+      {
+        "id": "c08-b04",
+        "say": "Reverse the inputs. Give the scorer the full rule and stop the generator at “if.” This time the scorer can use the condition to rank the passage, but the assistant has lost the condition it needs to answer.",
+        "hold": 1
+      }
+    ]
+  },
+  {
+    "id": "c09",
+    "title": "Reserve query and special tokens before cutting a document",
+    "sourceChapters": [
+      "c09"
+    ],
+    "beats": [
+      {
+        "id": "c09-b01",
+        "say": "Fill this row with the text the scorer can read. For this count, lowercase the text and split it on whitespace. Each word gets one position. The pair capacity is twenty-four. Reserve three positions for special tokens. Keep the entire eleven-token query first.",
+        "hold": 0.3
+      },
+      {
+        "id": "c09-b02",
+        "say": "That leaves ten document tokens. Background fills those ten positions, so the scored prefix omits the decisive clause. The generator receives the whole passage.",
+        "hold": 0.7
+      },
+      {
+        "id": "c09-b03",
+        "say": "Compare the two token-list fingerprints. A digest is a compact identifier computed from the list. These digests differ. This fixture refuses the undeclared mismatch. Lowercasing treats “Audit” and “audit” as the same word.",
+        "hold": 0.3
+      },
+      {
+        "id": "c09-b04",
+        "say": "To recover exactly what each model read, record the immutable source revision, exact scored text and kept span separately from token counts. Count positions with each model’s own tokenizer and template.",
+        "hold": 0.7
+      },
+      {
+        "id": "c09-b05",
+        "say": "A declared window or parent expansion can be valid if the trace names its scope. A maximum over more windows gives a long document more chances to obtain a high score and can separate a qualification from its rule. Keep the necessary surrounding conditions.",
+        "hold": 0.3
+      },
+      {
+        "id": "c09-b06",
+        "say": "Also test the reverse mismatch: scoring a complete passage and then packing a prefix can remove the evidence that earned the score.",
+        "hold": 0.7
+      }
+    ]
+  },
+  {
+    "id": "c10",
+    "title": "Two requests at the same checkpoint",
+    "sourceChapters": [
+      "c10"
+    ],
+    "beats": [
+      {
+        "id": "c10-b01",
+        "say": "The article also runs a trained MiniLM scorer on the four reader-edition passages. For day ten with active logging, the governing rule scores nine point one three and ranks first. Change the request to day fifteen with logging disabled.",
+        "hold": 0.3
+      },
+      {
+        "id": "c10-b02",
+        "say": "It still ranks first at eight point five six. Both numbers are raw logits. The rule answers both questions, even though it permits the first request and denies the second.",
+        "hold": 0.7
+      },
+      {
+        "id": "c10-b03",
+        "say": "This checkpoint accepts five hundred twelve positions. In a separate example, repeat the same permissive sentence eighty times. Append the audit requirement to just the second copy. Both tokenized pairs stop at the limit. The retained input IDs match, so the added condition cannot change the score. Both rounded scores are three point zero six. Keep those identical inputs with the result.",
+        "hold": 0.7
+      },
+      {
+        "id": "c10-b04",
+        "say": "Keep the immutable weights and tokenizer fingerprints with that replay so another person can identify the scored inputs. Measure serving latency separately on your workload. To test quality, change one condition at a time across labeled questions. Correct context with an unsupported affirmative answer points to the way the generator interpreted the rule.",
+        "hold": 0.7
+      }
+    ]
+  },
+  {
+    "id": "c11",
+    "title": "What does a wrong order cost?",
+    "sourceChapters": [
+      "c11"
+    ],
+    "beats": [
+      {
+        "id": "c11-b01",
+        "say": "For the Sunday question, opening hours is relevant and story time is irrelevant. Suppose hours scores one point two and story time scores point two. Read the curves from left to right. A higher logit lowers the loss for hours. It raises the loss for story time.",
+        "hold": 0.3
+      },
+      {
+        "id": "c11-b02",
+        "say": "For this binary training loss, the sigmoid gives the model’s probability of the relevant label. Use that probability for hours. For story time, use one minus its probability because its label is irrelevant. Take the negative natural log of each label probability. Their mean is about point five three one.",
+        "hold": 0.7
+      },
+      {
+        "id": "c11-b03",
+        "say": "Now compare the order of the two slips. Subtract the story time score from the hours score. Hours leads by one. For the logistic preference loss, raise e to the negative gap, add one, then take the natural log. Here e to the minus one is about point three six eight. The natural log of one point three six eight is about point three one three. What happens to the loss if we exchange the scores?",
+        "hold": 2.3
+      },
+      {
+        "id": "c11-b04",
+        "say": "Swap the scores. Follow the dot as it crosses zero and climbs the curve. With story time ahead by one, the loss reaches about one point three one three. This pairwise loss rewards the scorer for putting the useful passage first.",
+        "hold": 0.7
+      },
+      {
+        "id": "c11-b05",
+        "say": "At search time, the trained weights stay fixed. Pair the Sunday question with each slip in turn. Three slips give three scores to sort. For training, look for near misses in real search results. The holiday notice mentions hours but leaves Sunday unanswered.",
+        "hold": 0.3
+      },
+      {
+        "id": "c11-b06",
+        "say": "A change of date, actor or condition can give you another near miss. Keep related questions and passages together when you split training from evaluation.",
+        "hold": 0.7
+      }
+    ]
+  },
+  {
+    "id": "c12",
+    "title": "How does this checkpoint use the logits?",
+    "sourceChapters": [
+      "c12"
+    ],
+    "beats": [
+      {
+        "id": "c12-b01",
+        "say": "What counts as a score depends on the checkpoint. Mono T five runs an encoder and a decoder and compares its true and false target tokens. The Qwen three reranker example reads lowercase yes and no at the last prompt position.",
+        "hold": 0.3
+      },
+      {
+        "id": "c12-b02",
+        "say": "When each label is one token at that same position, their log odds are the yes logit minus the no logit. The binary yes score is the sigmoid of that difference.",
+        "hold": 0.7
+      },
+      {
+        "id": "c12-b03",
+        "say": "Give this position three possible tokens. Yes gets a logit of two, no gets one, and other gets three. Exponentiate each to get the weights on screen. First divide the yes weight by just the yes and no weights added together.",
+        "hold": 0.3
+      },
+      {
+        "id": "c12-b04",
+        "say": "Its share is point seven three one. That is the binary yes score. Suppose the denominator also includes the weight of “other.” Will the yes share get larger or smaller?",
+        "hold": 2.8
+      },
+      {
+        "id": "c12-b05",
+        "say": "Smaller. The yes weight stays fixed while the total grows. Across this whole vocabulary its share is point two four five. Both scores come from the same forward computation. A token scorer can read those logits without generating a long explanation. Now score passages A and B. Each row shows yes and no at the same prompt position.",
+        "hold": 0.3
+      },
+      {
+        "id": "c12-b06",
+        "say": "One checkpoint sorts on yes alone. Another subtracts no from yes. Who ranks first under each rule?",
+        "hold": 3
+      },
+      {
+        "id": "c12-b07",
+        "say": "On yes alone, B wins with three. Subtract no and A wins with a gap of one. B’s gap is minus one. The BGE Gemma example uses a single Yes logit. RankLLaMA uses a scalar classification head. Check the checkpoint, template, tokenizer and output code before sorting.",
+        "hold": 0.3
+      },
+      {
+        "id": "c12-b08",
+        "say": "Even a mathematically increasing sigmoid can introduce ties in finite precision.",
+        "hold": 1
+      }
+    ]
+  },
+  {
+    "id": "c13",
+    "title": "What changes when you replace one passage?",
+    "sourceChapters": [
+      "c13"
+    ],
+    "beats": [
+      {
+        "id": "c13-b01",
+        "say": "Score the hours slip for the Sunday question. A pair scorer takes those two texts. A listwise scorer also takes the neighboring passages, in order. Swap the holiday notice for weekend events and run both scorers again.",
+        "hold": 0.3
+      },
+      {
+        "id": "c13-b02",
+        "say": "The pair scorer gets exactly the same input, so its score stays the same. The listwise scorer gets a different input. Even the score for hours can change.",
+        "hold": 0.7
+      },
+      {
+        "id": "c13-b03",
+        "say": "Order matters with causal attention. Each column here stands for a stretch of text. The squares show which stretches contain tokens a row can read. The hours row can read the events slip to its left. The map comes later.",
+        "hold": 0.3
+      },
+      {
+        "id": "c13-b04",
+        "say": "Jina reranker version three point five uses causal attention, a small projection network and cosine similarity to score passages. Its model card gives the template, context limit and license for that revision.",
+        "hold": 0.7
+      },
+      {
+        "id": "c13-b05",
+        "say": "A chat model can return passage identifiers in order. Send P, Q and R. Getting Q, P, R back gives you all three. Replace its last identifier with X. Which input has gone missing?",
+        "hold": 2.4
+      },
+      {
+        "id": "c13-b06",
+        "say": "R is missing. Reject the order. Require each input exactly once, and treat instructions inside a passage as document text. Evaluate on your own questions. If you cache the order, keep the exact ordered input with it.",
+        "hold": 0.7
+      }
+    ]
+  },
+  {
+    "id": "c14",
+    "title": "Can we reuse this score?",
+    "sourceChapters": [
+      "c14"
+    ],
+    "beats": [
+      {
+        "id": "c14-b01",
+        "say": "To reuse a score, start with what the scorer actually read. Put a fingerprint of that input in the cache key. Pin the model and tokenizer revisions. Include the template, token limit and other settings that shaped the score.",
+        "hold": 0.3
+      },
+      {
+        "id": "c14-b02",
+        "say": "Add the tenant, access scope and grant revision from the application. Hash these as named fields so their boundaries stay clear. Reject unsupported settings and nonfinite numbers.",
+        "hold": 0.7
+      },
+      {
+        "id": "c14-b03",
+        "say": "Change the passage text and the key changes. Change tenant and it changes again. Now watch the middle passage, Q. Swap P and R. Q stayed put, but its neighbors changed places. A listwise scorer reads all three in order, so that order gets its own key.",
+        "hold": 0.3
+      },
+      {
+        "id": "c14-b04",
+        "say": "If the complete ordered list was the input, rerun that list when any member changes revision. Keep the source revisions with the score, and preserve the text distinctions the scorer sees.",
+        "hold": 0.7
+      },
+      {
+        "id": "c14-b05",
+        "say": "The stored score came from grant seven. Before returning a cached ID, score or passage, check the caller’s current grant. Grant eight revoked access. Keep the result private. Check access again before generation. Authenticate callers, protect stored data and test that responses and their timing keep each tenant’s records private.",
+        "hold": 0.7
+      }
+    ]
+  },
+  {
+    "id": "c15",
+    "title": "Which token wins each comparison?",
+    "sourceChapters": [
+      "c15"
+    ],
+    "beats": [
+      {
+        "id": "c15-b01",
+        "say": "There’s a middle ground between storing one vector per passage and reading the whole passage with the question. ColBERT stores one contextual vector per document token. When the query arrives, each query token can find its own best match among them.",
+        "hold": 0.3
+      },
+      {
+        "id": "c15-b02",
+        "say": "Original ColBERT uses unit vectors, so a dot product gives their cosine similarity. The number of coordinates depends on the configuration.",
+        "hold": 0.8
+      },
+      {
+        "id": "c15-b03",
+        "say": "These three arrows are invented unit vectors for document tokens. Our first query vector points due right. Read the horizontal coordinate of each arrow across the first row. The blue arrow reaches farthest right, so its dot product wins at point nine.",
+        "hold": 0.3
+      },
+      {
+        "id": "c15-b04",
+        "say": "The second query vector points straight up. Read the vertical coordinates across row two. The blue arrow’s height is the square root of point one nine, rounded here. Which token wins row two? Add its value to the first winner.",
+        "hold": 3
+      },
+      {
+        "id": "c15-b05",
+        "say": "The second document token wins at point eight. Add point nine and point eight to get one point seven. That sum of row maxima is MaxSim. Both rows are free to choose the same document token if it has the best dot product for each.",
+        "hold": 0.8
+      },
+      {
+        "id": "c15-b06",
+        "say": "ColBERT skips a joint model pass, but storing all those token vectors takes space. ColBERT version two encodes a token with a nearby centroid and a compressed residual, the difference from the centroid. Its study reported a sixfold to tenfold space reduction. PLAID uses centroids to prune candidates before full scoring.",
+        "hold": 0.3
+      },
+      {
+        "id": "c15-b07",
+        "say": "In our sketch, discarding the third arrow leaves both winners intact and cuts six comparisons to four. Measure the space, speed and quality on your own index.",
+        "hold": 0.8
+      }
+    ]
+  },
+  {
+    "id": "c16",
+    "title": "Separate ordering, score gaps and probability claims",
+    "sourceChapters": [
+      "c16"
+    ],
+    "beats": [
+      {
+        "id": "c16-b01",
+        "say": "A hypothetical no-answer query has a best distractor score of point nine, while a different answerable query has useful evidence at point six. An absolute cutoff of point seven admits the distractor and starves the useful case.",
+        "hold": 0.3
+      },
+      {
+        "id": "c16-b02",
+        "say": "Rank-first selection avoids that absolute scale but still selects something when all candidates are irrelevant. Include no-answer cases when evaluating admission or abstention.",
+        "hold": 0.7
+      },
+      {
+        "id": "c16-b03",
+        "say": "Start with scores four, three point five and one. Keep any passage within point seven five of the leader. The first two qualify. Add ten to every score and their gaps stay the same.",
+        "hold": 0.3
+      },
+      {
+        "id": "c16-b04",
+        "say": "Return to the original three scores. Double every score and the gap between first and second grows from half a point to one. Now only the leader fits the original margin. The ordering stayed the same. Relevance still needs labels.",
+        "hold": 0.7
+      },
+      {
+        "id": "c16-b05",
+        "say": "Give ten passages a predicted relevance probability of point eight. Check the labels. Eight are relevant. The observed fraction is eight out of ten. Check other probability groups the same way. Platt scaling fits a logistic curve, and isotonic regression fits a nondecreasing curve.",
+        "hold": 0.3
+      },
+      {
+        "id": "c16-b06",
+        "say": "Fit calibration and choose thresholds on development data separate from scorer training, then evaluate on fresh test data. To predict whether the passages support a complete answer, use labels for that question.",
+        "hold": 0.7
+      }
+    ]
+  },
+  {
+    "id": "c17",
+    "title": "How much did the order improve?",
+    "sourceChapters": [
+      "c17"
+    ],
+    "beats": [
+      {
+        "id": "c17-b01",
+        "say": "Look for the first relevant passage in each column. It ranks third, then first. The last search misses. For a hit, take one over its rank. Give a miss zero. That gives reciprocal ranks one third, one and zero.",
+        "hold": 0.3
+      },
+      {
+        "id": "c17-b02",
+        "say": "Their mean is four ninths, about point four four four. Move the first hit to the top. Read the three searches again. The new mean is two thirds. The third search stays in the average because its evidence never reached the scorer.",
+        "hold": 0.3
+      },
+      {
+        "id": "c17-b03",
+        "say": "Candidate recall is the fraction of all relevant passages that made the shortlist. If a question needs two passages and retrieval finds one, even a perfect ordering can deliver only that one.",
+        "hold": 0.7
+      },
+      {
+        "id": "c17-b04",
+        "say": "Now give each passage a relevance grade. The grades are zero, two and one. Only the first two places count. Grade zero earns nothing. Grade two earns three points, because two squared minus one is three.",
+        "hold": 0.3
+      },
+      {
+        "id": "c17-b05",
+        "say": "Those points land in second place, where we divide by log base two of three. The discounted gain is about one point eight nine three. The grade-one passage sits outside the cutoff.",
+        "hold": 0.7
+      },
+      {
+        "id": "c17-b06",
+        "say": "Put the highest grades first. Now all three points count in first place, and the smaller gain gets the discount. The ideal gain is about three point six three one. Divide the original gain by this ideal to get normalized discounted cumulative gain.",
+        "hold": 0.3
+      },
+      {
+        "id": "c17-b07",
+        "say": "NDCG is about point five two one. This ordering earned just over half the gain available in two places. Count each passage once. For a query with no positive labels, this example records zero and checks abstention separately.",
+        "hold": 0.3
+      },
+      {
+        "id": "c17-b08",
+        "say": "Compare rankers on the same permitted candidates, report uncertainty by query family, and check which passages actually reached the prompt.",
+        "hold": 0.7
+      }
+    ]
+  },
+  {
+    "id": "c18",
+    "title": "How deep should the scorer read?",
+    "sourceChapters": [
+      "c18"
+    ],
+    "beats": [
+      {
+        "id": "c18-b01",
+        "say": "Can I return a book after closing? The passage we need is the return-box guide. Borrowing and fines come ahead of it. Imagine you choose how much of the search result goes to the scorer. What’s the smallest depth that admits the return-box guide?",
+        "hold": 2.8
+      },
+      {
+        "id": "c18-b02",
+        "say": "Read one: borrowing. Read two: fines. Read three: the return box. Three is the first depth where that guide can win. Now hold the count at three pairs and change their lengths. At sixty-four positions per pair, each dense attention grid has sixty-four squared entries.",
+        "hold": 0.3
+      },
+      {
+        "id": "c18-b03",
+        "say": "At two hundred fifty-six positions, each side is four times as long. That gives sixteen times as many attention entries across the same three pairs.",
+        "hold": 1
+      },
+      {
+        "id": "c18-b04",
+        "say": "The squares count just the dense attention entries. For a serving depth, measure candidate recall and end-to-end latency, including padding, scheduling and hardware. If the scorer times out, use a declared fallback. Return the permitted retrieval order, or abstain. Mark the path in the trace.",
+        "hold": 0.7
+      }
+    ]
+  },
+  {
+    "id": "c19",
+    "title": "What fits before the deadline?",
+    "sourceChapters": [
+      "c19"
+    ],
+    "beats": [
+      {
+        "id": "c19-b01",
+        "say": "Suppose scoring takes four milliseconds overhead plus seven point five milliseconds per candidate, one after another. Try three candidates. Twenty-six point five milliseconds fit the thirty we have. Add a fourth. Thirty-four exceeds the limit. The target is third, so cutting to two would lose it.",
+        "hold": 0.3
+      },
+      {
+        "id": "c19-b02",
+        "say": "On a running service, choose depth by measuring candidate recall and the whole request time, including queueing, network, tokenization, scoring and packing.",
+        "hold": 0.7
+      },
+      {
+        "id": "c19-b03",
+        "say": "Take two pairs of lengths sixty-four and two hundred fifty-six. The blue square on the left counts the short pair’s attention entries. The square on the right counts the long pair’s. Add the two blue areas for the unpadded total.",
+        "hold": 0.3
+      },
+      {
+        "id": "c19-b04",
+        "say": "Now pad the short pair to match the long one. Every pink tile is extra work. With the same two pairs, the entry count has nearly doubled. Grouping similar lengths saves padding, but waiting for a bucket adds queue delay.",
+        "hold": 0.3
+      },
+      {
+        "id": "c19-b05",
+        "say": "A ragged batch can keep the short input short. With Triton, configure ragged batching explicitly and check that the backend respects each sequence boundary. A boundary tells the model which tokens belong to the same pair.",
+        "hold": 0.7
+      },
+      {
+        "id": "c19-b06",
+        "say": "FlashAttention improves memory access while dense attention retains its quadratic arithmetic. Benchmark smaller checkpoints and quantization again for relevance after each speed change. The published MiniLM card’s eighteen hundred pairs per second is tied to its V-one-hundred benchmark.",
+        "hold": 0.3
+      },
+      {
+        "id": "c19-b07",
+        "say": "For a separate deployment example, three hundred pairs per second and two hundred fifty milliseconds left buy at most seventy-five pairs before generation or tail slack. Timeouts need a marked authorized fallback or abstention; report degraded paths separately.",
+        "hold": 0.7
+      }
+    ]
+  },
+  {
+    "id": "c20",
+    "title": "Diagnose the first failed boundary from a real receipt",
+    "sourceChapters": [
+      "c20"
+    ],
+    "beats": [
+      {
+        "id": "c20-b01",
+        "say": "This release receipt records the three passages sent for scoring. Read their input order. Then read their returned order and scores. Only the governing rule clears the gate. Its parent and revision identify the selected source. The receipt also names the versions of the retriever, index, sparse and dense searches, fusion and scorer. Could the packer have cut off the audit clause?",
+        "hold": 2.3
+      },
+      {
+        "id": "c20-b02",
+        "say": "Yes. A shortened passage can carry the same ID and revision. Check the packer’s kept span to see whether the audit clause reached the prompt. Record any neighboring text the packer adds. Compare ordering on the same three scorer inputs. Break score ties by first-stage rank, then identifier.",
+        "hold": 0.7
+      },
+      {
+        "id": "c20-b03",
+        "say": "Try a changed clause under the original ID and version. The fixture rejects it. Substituting an admin-only record with score nine hundred ninety-nine also fails the identity check. A Boolean score or Boolean token budget fails the numeric contract. A finite number still has to belong to the admitted record.",
+        "hold": 0.3
+      },
+      {
+        "id": "c20-b04",
+        "say": "The offline replay checks that the three inputs are permitted and current, the selected IDs include the target, ordering improves and latency stays within budget. All four checks pass.",
+        "hold": 0.7
+      },
+      {
+        "id": "c20-b05",
+        "say": "Gold target and ordering-lift checks belong to labeled offline evaluation. Live traces can still record input identities, versions, timings and selected passages. A search for complete policy passages finds none in this receipt. Short fragments or encoded text could still expose a policy.",
+        "hold": 0.3
+      },
+      {
+        "id": "c20-b06",
+        "say": "Protect the identifiers, scores and logs. To diagnose a bad answer, follow the evidence from retrieval through scoring and packing. Find the first place the needed words disappeared.",
+        "hold": 0.7
+      }
+    ]
+  },
+  {
+    "id": "c21",
+    "title": "Which stage needs the repair?",
+    "sourceChapters": [
+      "c21"
+    ],
+    "beats": [
+      {
+        "id": "c21-b01",
+        "say": "Back at the library, open the trace. The hours slip began at rank three. It rose to first, and its complete Sunday sentence reached the assistant. Here’s a possible reply: “Yes. The library is open on Sunday.” Look at both lines. Which stage first contradicts the source?",
+        "hold": 3.1
+      },
+      {
+        "id": "c21-b02",
+        "say": "The reply does. Keep the Sunday sentence beside it as we correct the reply. No. The library is closed on Sunday. The hours notice settled the question. The scored span, source revision, scorer version and packed text let us trace the faulty claim directly to answer evaluation.",
+        "hold": 1
+      }
+    ]
+  },
+  {
+    "id": "c22",
+    "title": "A camera at the overnight locker",
+    "sourceChapters": [
+      "c22"
+    ],
+    "beats": [
+      {
+        "id": "c22-b01",
+        "say": "A member wants to return a camera tonight with the battery still installed. We need the after-hours member rule and the locker instructions. Both are current and permitted. Look at where they landed in search. Four passages go to the scorer. What’s the smallest depth that gives both rules a chance?",
+        "hold": 2.8
+      },
+      {
+        "id": "c22-b02",
+        "say": "Depth five. That brings in the locker instructions at rank five. We now have both required passages instead of one. In this example, scoring costs five milliseconds to start and four per pair. Five pairs cost twenty-five milliseconds, within the thirty we set aside.",
+        "hold": 0.3
+      },
+      {
+        "id": "c22-b03",
+        "say": "Now pack the results. The member rule scores eight and the locker instructions score six. The other three fall below five. We have two slots and forty tokens for whole passages. For this exercise each word separated by a space counts as one token.",
+        "hold": 0.3
+      },
+      {
+        "id": "c22-b04",
+        "say": "The member rule takes eighteen, and the locker instructions take twenty-six. Pack in score order. Which complete passages reach the assistant?",
+        "hold": 3.2
+      },
+      {
+        "id": "c22-b05",
+        "say": "Only the member rule fits. Eighteen tokens leave twenty-two free. The locker instructions need twenty-six. Together the rules need forty-four tokens. Raising the score would still leave us four tokens short. Hold the answer and check how much passage space the prompt can spare.",
+        "hold": 0.3
+      },
+      {
+        "id": "c22-b06",
+        "say": "Widen the prompt by four tokens. That reserves forty-four for passages. Pack the same results again. Now the two whole passages fit, including the final sentence on the locker instructions.",
+        "hold": 1.3
+      },
+      {
+        "id": "c22-b07",
+        "say": "Read what arrived. The member wants to leave the battery in the camera. Which passage would you cite in your reply?",
+        "hold": 2.8
+      },
+      {
+        "id": "c22-b08",
+        "say": "The locker instructions. Their last sentence says, “Remove the battery first.” Slide it out before returning the camera. Cite the member rule for using the locker after closing and the locker instructions for preparing the camera. In the next lesson on RAG evaluation, we’ll check whether an answer follows the evidence it cites.",
+        "hold": 1.6
+      }
+    ]
+  }
+]

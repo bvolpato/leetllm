@@ -1,0 +1,698 @@
+[
+  {
+    "id": "c01",
+    "title": "Will the token arrive by the blue mark?",
+    "sourceChapters": [
+      "c01"
+    ],
+    "beats": [
+      {
+        "id": "c01-b01",
+        "say": "One more word should appear after the comma. The blue mark is the model's prediction for this simulated request. Two milliseconds.",
+        "hold": 0.8
+      },
+      {
+        "id": "c01-b02",
+        "say": "The clock has reached the mark. Watch the cursor. Still waiting.",
+        "hold": 1.3
+      },
+      {
+        "id": "c01-b03",
+        "say": "Six milliseconds. There's the token. Four milliseconds short. For another request like this one, which way should the prediction move?",
+        "hold": 2
+      }
+    ]
+  },
+  {
+    "id": "c02",
+    "title": "How much did the model miss by?",
+    "sourceChapters": [
+      "c02"
+    ],
+    "beats": [
+      {
+        "id": "c02-b01",
+        "say": "Move the prediction later. Here's where the blue mark came from. This request has a complexity score of two. The weight multiplies the input, so we get one times two. The bias comes in afterward. Adding zero leaves the prediction at two milliseconds.",
+        "hold": 0.65
+      },
+      {
+        "id": "c02-b02",
+        "say": "Read the marks in order. Prediction minus measurement gives minus four milliseconds. The minus sign tells us which way we missed. To score the size of the miss, make a square with a side four milliseconds long. Its area is sixteen square milliseconds.",
+        "hold": 0.7
+      },
+      {
+        "id": "c02-b03",
+        "say": "Keep half the area. That's our loss, eight square milliseconds. The half will cancel the factor of two when we differentiate the square, leaving the signed miss as our slope.",
+        "hold": 0.9
+      }
+    ]
+  },
+  {
+    "id": "c03",
+    "title": "Which direction makes the loss smaller?",
+    "sourceChapters": [
+      "c03"
+    ],
+    "beats": [
+      {
+        "id": "c03-b01",
+        "say": "Imagine nudging the prediction a little toward the observation. Watch the point move down the loss curve. A slope tells us how much the loss changes for a small change in the prediction.",
+        "hold": 0.7
+      },
+      {
+        "id": "c03-b02",
+        "say": "At two milliseconds, the slope is negative four. Increasing the prediction lowers the loss here. Try adding one hundredth to either the weight or the bias. Which change moves the prediction farther?",
+        "hold": 1.8
+      },
+      {
+        "id": "c03-b03",
+        "say": "The weight's nudge gets multiplied by the input, so its effect is twice as large. Multiply those sensitivities along each path: the weight gradient is negative eight, and the bias gradient is negative four. A gradient measures local influence on the loss.",
+        "hold": 0.8
+      }
+    ]
+  },
+  {
+    "id": "c04",
+    "title": "Reuse the local rules in reverse",
+    "sourceChapters": [
+      "c04"
+    ],
+    "beats": [
+      {
+        "id": "c04-b01",
+        "say": "Backpropagation organizes that calculation as a graph. First compute forward and save the values we'll need again. Going back, visit each output before its parents so that every contribution has arrived when a parent passes on its gradient. That's reverse topological order. Keeping those values costs memory. Checkpointing saves space by recomputing selected forward operations.",
+        "hold": 0.6
+      },
+      {
+        "id": "c04-b02",
+        "say": "Start at the scalar loss with a derivative of one. The half-square multiplies the incoming signal by the saved residual. Subtracting the fixed target passes that signal unchanged toward the prediction.",
+        "hold": 0.7
+      },
+      {
+        "id": "c04-b03",
+        "say": "Addition sends the signal to both inputs. The bias receives minus four. Multiplication looks up the input saved on the forward pass. Twice minus four gives the weight gradient, minus eight. One reverse sweep shares that work across all connected parameters.",
+        "hold": 0.8
+      }
+    ]
+  },
+  {
+    "id": "c05",
+    "title": "What changes when the optimizer steps?",
+    "sourceChapters": [
+      "c05"
+    ],
+    "beats": [
+      {
+        "id": "c05-b01",
+        "say": "These gradients came from the same prediction. Subtract a tenth of each gradient from its parameter. Both slopes were negative, so both parameters increase. The blue mark still records what the model predicted before the step.",
+        "hold": 0.9
+      },
+      {
+        "id": "c05-b02",
+        "say": "The weight went up by eight tenths, and the input doubles that gain. The bias adds four tenths more. Starting from two, where will the next blue mark land?",
+        "hold": 2.1
+      },
+      {
+        "id": "c05-b03",
+        "say": "Run the new forward pass. Four milliseconds. The server measurement stays at six. With half the gap, the square has a quarter of its old area. Loss fell from eight to two on this request.",
+        "hold": 1.1
+      }
+    ]
+  },
+  {
+    "id": "c06",
+    "title": "Check the backward rule with two forward passes",
+    "sourceChapters": [
+      "c06"
+    ],
+    "beats": [
+      {
+        "id": "c06-b01",
+        "say": "Hold the bias at zero. Move the weight a hundredth to either side of one. Each dot is a forward pass. Read the loss at each dot.",
+        "hold": 0.7
+      },
+      {
+        "id": "c06-b02",
+        "say": "Read the dots from left to right. The weight rises by two hundredths, from point nine nine to one point zero one. The loss drops by sixteen hundredths. What slope connects the dots?",
+        "hold": 2.6
+      },
+      {
+        "id": "c06-b03",
+        "say": "Minus eight. Backpropagation gave us the same slope. For this quadratic, the centered slope equals the derivative at the midpoint in exact arithmetic. On another smooth loss, try several perturbation sizes. A large nudge can span too much curvature. A tiny one can lose the difference to rounding. Use double precision and stay away from corners.",
+        "hold": 0.7
+      }
+    ]
+  },
+  {
+    "id": "c07",
+    "title": "Two paths can lead to the same parameter",
+    "sourceChapters": [
+      "c07"
+    ],
+    "beats": [
+      {
+        "id": "c07-b01",
+        "say": "Draw a square with side a, three units. Both multiplication slots read that same side. Its area is nine. Slide the corner outward a hair. Two long strips appear. The tiny corner square shrinks faster than either strip as the nudge gets smaller.",
+        "hold": 0.6
+      },
+      {
+        "id": "c07-b02",
+        "say": "One strip runs along a side of length three. It contributes three to the slope. The other strip contributes three more. Both belong to the same side variable. Its gradient buffer adds them. The derivative is six.",
+        "hold": 0.7
+      },
+      {
+        "id": "c07-b03",
+        "say": "Keep a at three. Build a fresh square and run backward again. PyTorch kept the first six. What will its buffer hold after this pass?",
+        "hold": 2.1
+      },
+      {
+        "id": "c07-b04",
+        "say": "Twelve. This pass adds six to the six already there. The article's scalar engine clears every reachable buffer before each backward pass. Its two paths add six to zero. It finishes at six.",
+        "hold": 0.7
+      },
+      {
+        "id": "c07-b05",
+        "say": "To combine micro-batches in PyTorch, clear the buffer once at the start of the effective batch. Keep the weights fixed while the gradients add up. After the optimizer step, run forward with the new weights.",
+        "hold": 0.7
+      }
+    ]
+  },
+  {
+    "id": "c08",
+    "title": "Layers route a signal using saved forward values",
+    "sourceChapters": [
+      "c08"
+    ],
+    "beats": [
+      {
+        "id": "c08-b01",
+        "say": "Dense layers use the same multiplication rule in arrays. Pair every incoming error component with every saved input to form the weight-gradient matrix. The bias receives the incoming signal, and the transposed weight matrix sends a signal toward earlier layers.",
+        "hold": 0.8
+      },
+      {
+        "id": "c08-b02",
+        "say": "This ReLU gate reads the preactivation it saved on the forward pass. A positive input passes the incoming gradient. Follow minus four through the left gate. A negative input blocks it, so the middle gate sends back zero. At exactly zero the curve has a corner.",
+        "hold": 0.3
+      },
+      {
+        "id": "c08-b03",
+        "say": "The derivative is undefined there, and this backward rule returns zero. If a gate stays closed on every example, it gets zero gradient along this path. A change in an earlier layer or a step from stored momentum can open it again.",
+        "hold": 0.8
+      },
+      {
+        "id": "c08-b04",
+        "say": "Max pooling saves the winning location. The window has two equal maxima here. Our first-in-row-order rule saves the upper left. During backward that cell receives the incoming minus four. The other cells receive zero from this window. When windows overlap, add their contributions.",
+        "hold": 0.8
+      }
+    ]
+  },
+  {
+    "id": "c09",
+    "title": "Which hidden weight receives the error?",
+    "sourceChapters": [
+      "c09"
+    ],
+    "beats": [
+      {
+        "id": "c09-b01",
+        "say": "Run the same request through a model with two hidden units. Each row has its own weight and bias. Read the upper row first. It gets two. The lower row multiplies by minus one and adds one, giving minus one. ReLU keeps the upper value and sends zero along the lower row.",
+        "hold": 0.7
+      },
+      {
+        "id": "c09-b02",
+        "say": "Each output weight starts at one. Add the two contributions and an output bias of zero. The model again predicts two milliseconds. The server measured six, so the residual is minus four and the loss is eight. How far back along each row can that error travel?",
+        "hold": 2.2
+      },
+      {
+        "id": "c09-b03",
+        "say": "At the output weights, multiply the residual by the activation each row supplied. The upper output weight gets a gradient of minus eight. The lower activation was zero, so its output weight gets zero. The output bias gets the residual itself. Now send minus four back along both rows, since both output weights were one.",
+        "hold": 0.65
+      },
+      {
+        "id": "c09-b04",
+        "say": "Follow the two signals past the gates. Only the upper gate passes its signal. It reaches the hidden bias unchanged. Multiply by the saved input, two, for the hidden weight gradient of minus eight. Both lower gradients are zero for this request.",
+        "hold": 0.85
+      },
+      {
+        "id": "c09-b05",
+        "say": "Take one plain gradient descent step at point zero five. The two active weights each gain four tenths. The active hidden bias and the output bias each gain two tenths. Now run forward again. The upper unit produces three.",
+        "hold": 0.3
+      },
+      {
+        "id": "c09-b06",
+        "say": "Its output weight multiplies that by one point four. Add the new output bias and we get four point four milliseconds. Subtract the target of six. The residual is minus one point six. Square that residual and take half. What loss do you get?",
+        "hold": 2.2
+      },
+      {
+        "id": "c09-b06-loss",
+        "say": "One point two eight square milliseconds. Compare that with eight on the first pass through the same request.",
+        "hold": 1.1
+      }
+    ]
+  },
+  {
+    "id": "c10",
+    "title": "Work one step on a new request",
+    "sourceChapters": [
+      "c10"
+    ],
+    "beats": [
+      {
+        "id": "c10-b01",
+        "say": "Reset both rows to their starting weights. This request has input three. The upper gate passes three. The lower gate closes. The model predicts three milliseconds. The server measures seven. With a residual of minus four, which hidden weight can change?",
+        "hold": 2.1
+      },
+      {
+        "id": "c10-b02",
+        "say": "Trace the error backward. Both output weights were one, so both gates receive minus four. The closed gate stops it. The upper output weight multiplied three. Its gradient is minus twelve. The upper hidden weight also multiplied three. It gets minus twelve too. Each active bias gets minus four.",
+        "hold": 0.7
+      },
+      {
+        "id": "c10-b03",
+        "say": "The rate is point zero two five. Each active weight gains three tenths. Each active bias gains a tenth. Run the upper unit again. It now gives four. Multiply that four by the new output weight and add the output bias. How long is the predicted wait?",
+        "hold": 3.1
+      },
+      {
+        "id": "c10-b04",
+        "say": "Five point three milliseconds. The server still takes seven. Subtract seven from the prediction to get a residual of minus one point seven. Half its square gives the loss. Work it out before we compare it with eight.",
+        "hold": 2.2
+      },
+      {
+        "id": "c10-b04-loss",
+        "say": "One point four four five square milliseconds. The smaller miss brings the loss down from eight.",
+        "hold": 1.1
+      }
+    ]
+  },
+  {
+    "id": "c11",
+    "title": "What survives an optimizer step?",
+    "sourceChapters": [
+      "c11"
+    ],
+    "beats": [
+      {
+        "id": "c11-b01",
+        "say": "Put the affine model back in the training loop. The weight still has a gradient from the preceding batch. Clear it to None. Run a forward pass, compute the scalar loss, then run backward. The buffer now holds minus eight. The weight is still one.",
+        "hold": 0.7
+      },
+      {
+        "id": "c11-b02",
+        "say": "Backward normally releases the tensors saved for that pass. You can still read the loss value. Now step the optimizer. The weight moves to one point eight. The gradient buffer still holds minus eight. Run a fresh forward pass to measure the new prediction.",
+        "hold": 0.8
+      },
+      {
+        "id": "c11-b03",
+        "say": "This batch skipped a weight. Its value is one, and its momentum buffer still holds two. If its gradient stays None, PyTorch skips that weight. What happens if the gradient is zero?",
+        "hold": 1.8
+      },
+      {
+        "id": "c11-b04",
+        "say": "Momentum still moves it. Nine tenths of the old buffer gives one point eight. At a learning rate of one tenth, the weight drops to point eight two. Clear the gradients when you start the next effective batch.",
+        "hold": 0.75
+      },
+      {
+        "id": "c11-b05",
+        "say": "Switch to evaluation mode. Dropout passes all three inputs through unchanged. Batch normalization uses its stored statistics when available. Otherwise it uses this batch. Now send the dropout outputs through a trainable affine layer. Double each value and add one. The three outputs are three, five and seven. With recording on, the multiply saves its input for the weight gradient.",
+        "hold": 0.65
+      },
+      {
+        "id": "c11-b06",
+        "say": "Replay both layers inside no grad. Dropout still passes the same inputs, and the affine layer gives the same three outputs. This pass records no new backward operations. Any history the input already had is still there. Leave the block to resume recording, then switch back to training mode for the next batch.",
+        "hold": 0.9
+      }
+    ]
+  },
+  {
+    "id": "c12",
+    "title": "Who gets a say in this update?",
+    "sourceChapters": [
+      "c12"
+    ],
+    "beats": [
+      {
+        "id": "c12-b01",
+        "say": "Start three requests at zero weight and zero bias. Multiply each residual by its own input. B is five milliseconds short and its input is two, so it contributes minus ten to the weight gradient. Give each request an equal share. The full mean gradient is the sum divided by three.",
+        "hold": 0.7
+      },
+      {
+        "id": "c12-b02",
+        "say": "Now memory fits only two requests at once. Put A and B together, then process C alone. We still want that original mean. Suppose we give half the strip to each chunk. Look at how much room C takes. Does this still train the same objective?",
+        "hold": 2.1
+      },
+      {
+        "id": "c12-b03",
+        "say": "C now has twice the influence of A. It also has the largest gradient magnitude, so the combined slope is steeper. To give each request its original share, give the pair two thirds of the strip. Scale each chunk's mean loss by its share before backward.",
+        "hold": 0.3
+      },
+      {
+        "id": "c12-b04",
+        "say": "Keep the parameters fixed during both calls. The buffer recovers the original gradient. Now take one step.",
+        "hold": 0.85
+      },
+      {
+        "id": "c12-b05",
+        "say": "Now each numbered square is a token loss. The first row has three targets and four padding slots. The second row has seven targets. How many targets should we divide by?",
+        "hold": 2.1
+      },
+      {
+        "id": "c12-b06",
+        "say": "There are ten targets in all. Each one gets a tenth of the weight. The first row supplies three tenths and its losses average two. The second row supplies seven tenths and its losses average four. Multiply each mean by its share and add. What is the combined mean?",
+        "hold": 2.2
+      },
+      {
+        "id": "c12-b06-mean",
+        "say": "Three point four. Each valid token contributes equally. With independent examples and the same per-example calculations, that weighting also recovers the full batch gradient.",
+        "hold": 0.8
+      },
+      {
+        "id": "c12-b07",
+        "say": "This equivalence assumes the same per-example calculations in both chunks. Training-mode batch normalization uses each group's statistics. Splitting the batch can change the individual losses before we even average them.",
+        "hold": 0.7
+      },
+      {
+        "id": "c12-b08",
+        "say": "Now compare taking a separate step after each batch. Here are six requests repeated ten times. Full-batch descent steps after all six. A mini-batch of two steps three times per pass. Online descent steps after each request.",
+        "hold": 0.3
+      },
+      {
+        "id": "c12-b09",
+        "say": "That's sixty chances to move instead of ten on the same data. With uniform independent sampling the mean gradient is unbiased, and averaging independent examples divides the gradient covariance by the batch size.",
+        "hold": 0.3
+      },
+      {
+        "id": "c12-b10",
+        "say": "Check the learning rate again and measure validation loss and throughput when you change it.",
+        "hold": 0.85
+      }
+    ]
+  },
+  {
+    "id": "c13",
+    "title": "How far should one step go?",
+    "sourceChapters": [
+      "c13"
+    ],
+    "beats": [
+      {
+        "id": "c13-b01",
+        "say": "Return to our first request, with a weight of one, bias zero, and input two. The dot starts four milliseconds below the target. Follow the two paths that change the prediction.",
+        "hold": 0.3
+      },
+      {
+        "id": "c13-b02",
+        "say": "The weight path multiplies the residual by the input on the way back and by that input again on the way forward. The bias adds one more path. That's where x squared plus one comes from.",
+        "hold": 0.3
+      },
+      {
+        "id": "c13-b03",
+        "say": "After each step, the residual is multiplied by one minus the learning rate times that sum.",
+        "hold": 0.8
+      },
+      {
+        "id": "c13-b04",
+        "say": "For this input the sum is five. Try a rate of one tenth. Each step closes half the remaining gap. At one fifth the multiplier is zero. The very first step lands on the target.",
+        "hold": 0.65
+      },
+      {
+        "id": "c13-b05",
+        "say": "What happens if we double that rate once more? At point four the multiplier is minus one. Watch the distance from zero on each side. The prediction keeps crossing the target, and loss stays fixed. At one half, each crossing carries it farther away.",
+        "hold": 0.3
+      },
+      {
+        "id": "c13-b06",
+        "say": "Each run starts with the same gradient. After the first step, the new residual determines the next gradient.",
+        "hold": 1
+      },
+      {
+        "id": "c13-b07",
+        "say": "A nonzero miss shrinks here when the multiplier has magnitude below one. That puts the rate strictly between zero and point four. Many parameter pairs fit this one example. Two times the weight plus the bias just has to equal six.",
+        "hold": 0.75
+      },
+      {
+        "id": "c13-b08",
+        "say": "Set the rate back to a tenth. Reverse the input and the starting weight together. The same blue mark still falls short of six. Which direction should the weight move now?",
+        "hold": 2.1
+      },
+      {
+        "id": "c13-b09",
+        "say": "The weight gradient on the previous pass was positive eight. Subtract eight tenths from the weight and add four tenths to the bias. Run the model again. A more negative weight times a negative input raises the prediction to four. Subtract six. The new residual is minus two. For the next step, multiply that by minus two for the weight gradient, positive four. The bias gradient is now minus two.",
+        "hold": 1.1
+      }
+    ]
+  },
+  {
+    "id": "c14",
+    "title": "What happens to a gradient across depth?",
+    "sourceChapters": [
+      "c14"
+    ],
+    "beats": [
+      {
+        "id": "c14-b01",
+        "say": "Trace one backward signal toward the first layer. Each layer halves this signal. By the time it reaches the first layer, just one thirty-second is left. Now let every layer multiply by one and a half. The signal grows at every crossing. Real layer Jacobians can shrink one direction and expand another.",
+        "hold": 0.85
+      },
+      {
+        "id": "c14-b02",
+        "say": "Look at this finite gradient with coordinates six and eight. Its length is ten. Suppose the largest length you want is five. Where on this plot would you put the tip if you wanted to keep its direction?",
+        "hold": 2.1
+      },
+      {
+        "id": "c14-b03",
+        "say": "Bring it halfway back along the same ray. Both coordinates shrink by the same factor. That's norm clipping. Now try capping each coordinate at five. That tip lands somewhere else. It points in a different direction, and its distance from the origin still exceeds five.",
+        "hold": 0.8
+      },
+      {
+        "id": "c14-b04",
+        "say": "Accumulate all the backward passes first. With mixed precision, unscale the gradient. Clip the combined vector, then step the optimizer. Momentum or Adam can still turn the final parameter update away from this ray. If a value is already infinite or NaN, trace back to the first failing operation.",
+        "hold": 0.9
+      }
+    ]
+  },
+  {
+    "id": "c15",
+    "title": "Choose the signal scale before learning starts",
+    "sourceChapters": [
+      "c15"
+    ],
+    "beats": [
+      {
+        "id": "c15-b01",
+        "say": "Initialization sets the signal scale before the first update. Take independent, centered weights and inputs of unit variance. Each input brings another term into the weighted sum. Those terms have variances that add.",
+        "hold": 0.3
+      },
+      {
+        "id": "c15-b02",
+        "say": "With two hundred and fifty-six inputs, the variance of the sum is two hundred and fifty-six. Scaling the weight variance inversely with fan-in keeps that sum controlled.",
+        "hold": 0.7
+      },
+      {
+        "id": "c15-b03",
+        "say": "Xavier balances forward fan-in and backward fan-out for roughly linear, centered activations. For equal-width layers, its weight variance is one over the width. Random, independently initialized weights also let hidden units learn different roles. For different input and output widths, add the two widths together.",
+        "hold": 0.3
+      },
+      {
+        "id": "c15-b04",
+        "say": "Divide two by that sum for the gain-one Xavier variance. With a hundred twenty-eight inputs and sixty-four outputs, that's one over ninety-six. Its normal standard deviation is the square root of that variance. For a symmetric uniform distribution, take the square root of six divided by the sum of the widths.",
+        "hold": 0.3
+      },
+      {
+        "id": "c15-b05",
+        "say": "Use that distance on either side of zero. Different outgoing weights can already break the symmetry of units with equal incoming weights. Zero biases with independent weights are common.",
+        "hold": 0.7
+      },
+      {
+        "id": "c15-b06",
+        "say": "Now pass a symmetric signal through ReLU. Follow the negative inputs to zero. The positive inputs stay put. Averaging the squared outputs gives one half. He initialization doubles the preactivation variance to compensate. Watch the same inputs widen. ReLU still sends their negative half to zero. The average squared output is back at one. That is the second moment the initialization preserves.",
+        "hold": 0.8
+      },
+      {
+        "id": "c15-b07",
+        "say": "ReLU's output has a positive mean, so that second moment differs from its variance. For He initialization, divide two by the fan-in to get weight variance. Take its square root for the normal standard deviation. For our layer with a hundred twenty-eight inputs, the He variance is one over sixty-four.",
+        "hold": 0.8
+      }
+    ]
+  },
+  {
+    "id": "c16",
+    "title": "Which part of the update failed?",
+    "sourceChapters": [
+      "c16"
+    ],
+    "beats": [
+      {
+        "id": "c16-b01",
+        "say": "Freeze one reproducible batch. We're back at the original weight of one, and the checked weight gradient is minus eight. Take a step with rate one half. Loss was eight. Now it's eighteen. What would you change first?",
+        "hold": 2.15
+      },
+      {
+        "id": "c16-b02",
+        "say": "Reload the original weights and keep the same batch. Try the step at one tenth. Loss falls to two. The smaller step improved the same example with the same gradient. If a gradient check passes but loss rises after the step, inspect the update rule and step size.",
+        "hold": 0.75
+      },
+      {
+        "id": "c16-b03",
+        "say": "Now watch a buffer across two backward calls. It doubles on identical data with fixed weights. Check where the effective batch starts and where gradients are cleared. If loss becomes nonfinite, trace the first invalid operation. Here the input is finite.",
+        "hold": 0.3
+      },
+      {
+        "id": "c16-b04",
+        "say": "The input was minus one. The real square root of that number is undefined. The forward loss is already invalid. Clipping a later gradient cannot recover this pass.",
+        "hold": 0.7
+      },
+      {
+        "id": "c16-b05",
+        "say": "For an early layer with a tiny gradient, inspect the saved preactivation. This unit got a negative value on this example. Check whether it stays inactive across a batch. Also check the initialization and the size of the optimizer step.",
+        "hold": 0.65
+      },
+      {
+        "id": "c16-b06",
+        "say": "Compare training and validation losses under the same evaluation conditions. Two curves that stay high could mean missing features, heavy regularization, limited capacity or a failed optimizer. First see whether the model can fit a small clean batch. Now follow this different run.",
+        "hold": 0.3
+      },
+      {
+        "id": "c16-b07",
+        "say": "Training loss keeps falling as validation turns upward. That gap calls for a check of the split, the traffic mix and possible leakage. Compare regularization or early stopping on validation data.",
+        "hold": 0.95
+      }
+    ]
+  },
+  {
+    "id": "c17",
+    "title": "Which weights should we restore?",
+    "sourceChapters": [
+      "c17"
+    ],
+    "beats": [
+      {
+        "id": "c17-b01",
+        "say": "That first training request improved. For a deployment decision, divide the data by what you'll do with it. Fit the weights and preprocessing on training data. Use validation to choose the model and stopping time. Reserve the test set for the final estimate.",
+        "hold": 0.3
+      },
+      {
+        "id": "c17-b02",
+        "say": "Repeated choices can overfit validation. Keep related requests in one split if they would leak information. For future traffic, a chronological holdout can better reflect what the server will face.",
+        "hold": 0.8
+      },
+      {
+        "id": "c17-b03",
+        "say": "Here's a run with a patience budget of three validation checks. Save a copy of the weights at each new minimum. The next three losses fall. Watch the saved checkpoint follow them. At epoch four its loss is one point eight.",
+        "hold": 0.8
+      },
+      {
+        "id": "c17-b04",
+        "say": "Two later checks come in higher. The green checkpoint stays put. The third spends the last of the patience budget. Which point should we load for evaluation?",
+        "hold": 2.05
+      },
+      {
+        "id": "c17-b05",
+        "say": "Restore epoch four. Save a deep copy when the weights reach a new low. A reference can share storage with weights that keep changing. To resume training you also need the optimizer, scheduler and random state.",
+        "hold": 0.75
+      },
+      {
+        "id": "c17-b06",
+        "say": "Now zoom in on a new run. Patience is two checks. To reset it, loss must drop by more than one hundredth from the last reset. We start at one. At the second check, loss drops to point nine nine five.",
+        "hold": 0.3
+      },
+      {
+        "id": "c17-b07",
+        "say": "That's a new low, so we save the weights. The drop is only half of what we'd need to reset patience.",
+        "hold": 0.8
+      },
+      {
+        "id": "c17-b08",
+        "say": "The third check comes in at point nine nine six. Patience is gone. Which weights will survive?",
+        "hold": 2.3
+      },
+      {
+        "id": "c17-b09",
+        "say": "Epoch two survives. The save rule kept the lowest loss. The reset rule measured progress against the last reset, so even several small improvements could have counted together.",
+        "hold": 1.05
+      },
+      {
+        "id": "c17-b10",
+        "say": "Rewind to epoch two. Keep its saved weights and the same patience budget. Suppose the third loss comes in lower this time, at point nine nine four. It still falls short of the reset threshold. Which checkpoint should we take?",
+        "hold": 2.3
+      },
+      {
+        "id": "c17-b11",
+        "say": "Take epoch three. It set a new minimum on the same check that exhausted patience. Evaluate the restored model in evaluation mode on the untouched test set once your choices are fixed.",
+        "hold": 1.2
+      }
+    ]
+  },
+  {
+    "id": "c18",
+    "title": "Which class score should rise?",
+    "sourceChapters": [
+      "c18"
+    ],
+    "beats": [
+      {
+        "id": "c18-b01",
+        "say": "Sometimes the output is a choice. Take an issue labeled as bug, docs, or security. A classifier gives each class a raw score called a logit. Softmax turns those scores into probabilities. The model favors security.",
+        "hold": 0.7
+      },
+      {
+        "id": "c18-b02",
+        "say": "The maintainer resolves the issue as docs. That's the target. Cross-entropy penalizes the model for giving that class only three tenths of the probability. If you could adjust these logits directly, which score would a descent step raise?",
+        "hold": 2.25
+      },
+      {
+        "id": "c18-b03",
+        "say": "For this labeled issue, take probability minus target. For docs, subtract one from three tenths. The bar lands at minus seven tenths. Gradient descent raises the docs score because its gradient is negative. The other classes subtract zero and keep positive gradients.",
+        "hold": 0.3
+      },
+      {
+        "id": "c18-b04",
+        "say": "Backpropagation carries all three gradients through the classifier. Averaging the loss over examples scales each contribution by the same factor.",
+        "hold": 0.7
+      },
+      {
+        "id": "c18-b05",
+        "say": "Pass the raw logits and the docs label to cross-entropy. To compute the loss in log space, subtract the largest logit from all three. The largest becomes zero, so its exponential is one. The three exponentials add to two. Take the natural log of two and subtract the shifted docs logit, minus point five one one. That gives a loss of about one point two zero four. Shifting all the scores together preserves the probabilities and keeps the exponentials bounded.",
+        "hold": 0.85
+      }
+    ]
+  },
+  {
+    "id": "c19",
+    "title": "Which hidden weight should move?",
+    "sourceChapters": [
+      "c19"
+    ],
+    "beats": [
+      {
+        "id": "c19-b01",
+        "say": "Reset the two units again. This request scores two below the reference. Put minus two through the starting weights. The upper gate closes. The lower gate passes three.",
+        "hold": 0.65
+      },
+      {
+        "id": "c19-b02",
+        "say": "The network predicts three milliseconds. The server measured seven. The error is minus four. Which hidden weight moves, and in which direction?",
+        "hold": 3.2
+      },
+      {
+        "id": "c19-b03",
+        "say": "Both output weights are one, so minus four reaches both gates. Only the lower gate passes it. For its hidden weight, multiply minus four by minus two. That gives positive eight. At a rate of point zero two five, subtract a fifth from the lower weight.",
+        "hold": 0.3
+      },
+      {
+        "id": "c19-b04",
+        "say": "Start at minus one times minus two. That product is two. Keep the input fixed and slide the lower weight left by a fifth. Watch its product move right. The weight is now minus one point two. Its product is two point four. Its bias rises to one point one.",
+        "hold": 1.2
+      },
+      {
+        "id": "c19-b05",
+        "say": "Run the lower unit again. With its new weight and bias, it gives three and a half. Its output weight rose to one point three because its gradient was minus twelve. Add the output bias of a tenth. Where does that put the blue mark?",
+        "hold": 2.05
+      },
+      {
+        "id": "c19-b06",
+        "say": "It lands at four point six five milliseconds. Let the server clock finish. Seven milliseconds, just as before. The miss shrank from four milliseconds to two point three five. Loss fell from eight to about two point seven six square milliseconds. The saved gate told us where to send the error. The fresh timing mark shows what the step achieved.",
+        "hold": 2.5
+      }
+    ]
+  }
+]

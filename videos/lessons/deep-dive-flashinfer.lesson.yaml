@@ -1,0 +1,1894 @@
+version: 1
+id: deep-dive-flashinfer
+title: FlashInfer, One Query Through a Paged Cache
+source: projects/deep-dive-flashinfer/content.md
+sources:
+  - title: FlashInfer cache layout documentation
+    url: https://docs.flashinfer.ai/tutorials/kv_layout.html
+  - title: FlashInfer attention states and recursive attention
+    url: https://docs.flashinfer.ai/tutorials/recursive_attention.html
+  - title: FlashInfer paper
+    url: https://arxiv.org/abs/2501.01005
+  - title: "FlashInfer v0.6.18: Prefill API"
+    url: https://github.com/flashinfer-ai/flashinfer/blob/69ff11fc4954396d98326656dc85debd2223f637/flashinfer/prefill.py
+  - title: "FlashInfer v0.6.18: Cascade Attention"
+    url: https://github.com/flashinfer-ai/flashinfer/blob/69ff11fc4954396d98326656dc85debd2223f637/include/flashinfer/attention/cascade.cuh
+  - title: FlashInfer v0.7.1 cuDNN Prefill Interface
+    url: https://github.com/flashinfer-ai/flashinfer/blob/0b46115d238d29ea2e92c6b9b2cb077d40fbc352/flashinfer/cudnn/prefill.py
+  - title: FlashInfer v0.7.1 Planned MLA Wrapper
+    url: https://github.com/flashinfer-ai/flashinfer/blob/0b46115d238d29ea2e92c6b9b2cb077d40fbc352/flashinfer/mla/_batch_mla/_wrapper.py
+  - title: FlashInfer API Logging
+    url: https://docs.flashinfer.ai/logging.html
+  - title: FlashInfer v0.6.18 Release
+    url: https://github.com/flashinfer-ai/flashinfer/releases/tag/v0.6.18
+  - title: FlashInfer v0.7.1 Release
+    url: https://github.com/flashinfer-ai/flashinfer/releases/tag/v0.7.1
+  - title: "FlashInfer: Kernel Library for LLM Serving"
+    url: https://flashinfer.ai/2024/02/02/introduce-flashinfer.html
+  - title: Contributing to FlashInfer
+    url: https://github.com/flashinfer-ai/flashinfer/blob/d020372b068f335e2fe427372e134977a2235c49/CONTRIBUTING.md
+  - title: Nsight Systems User Guide
+    url: https://docs.nvidia.com/nsight-systems/UserGuide/
+  - title: Nsight Compute Profiling Guide
+    url: https://docs.nvidia.com/nsight-compute/ProfilingGuide/
+scenes:
+  - id: intro
+    title: Who gets row four?
+    visual: R1's single query slides into packed row 3 beside R0's three queries. Row 4 stays open through
+      the question. R2's four queries move together, then its nine keys appear above the packed buffer.
+    beats:
+      - say: One query slides into row three. R zero filled the first three rows, starting at zero. R one
+          needs just this row for its next token. Which request gets row four?
+        hold: 2.4
+        caption_starts:
+          - R zero filled the first three rows
+        visual_cues:
+          - id: intro-first-four
+            phrase: One query slides into row three.
+            targets:
+              - intro-batch
+            linger: 0.25
+            caption_boundary: true
+          - id: intro-ask
+            phrase: Which request gets row four?
+            targets:
+              - intro-batch
+            linger: 0.25
+            caption_boundary: true
+      - say: R two gets row four. Copy its four queries into the remaining spaces. Eight useful rows
+          fit where the rectangle reserved twelve. R zero and R two are reading chunks of their
+          prompts. R one is decoding one token. All three can use the same packed buffer.
+        hold: 0.8
+        caption_starts:
+          - Eight useful rows fit where the rectangle reserved twelve.
+          - R zero and R two are reading chunks of their prompts.
+        visual_cues:
+          - id: intro-owner
+            phrase: R two gets row four.
+            targets:
+              - intro-batch
+            linger: 0.25
+            caption_boundary: true
+          - id: intro-pack
+            phrase: Copy its four queries into the remaining spaces.
+            targets:
+              - intro-batch
+            linger: 0.25
+            caption_boundary: true
+      - say: Follow the first query from R two. Its request already holds nine keys, including the four just
+          appended. FlashInfer needs two pieces of information to answer that query. Which rows belong to this
+          request, and where does it keep its keys?
+        hold: 0.8
+        visual_cues:
+          - id: intro-history
+            phrase: Its request already holds nine keys, including the four just appended.
+            targets:
+              - intro-batch
+            linger: 0.25
+            caption_boundary: true
+  - id: pointers
+    title: Two ways to find R2
+    visual: Two indexed strips expose query rows and page identifiers. The brackets select each request on both
+      strips and end at different offsets for R2.
+    beats:
+      - say: Start both counts at zero. The top strip holds query rows. The first request takes three, so its next
+          boundary is three. The bottom strip holds page identifiers. That same request has two pages, seven
+          and two. Its next boundary here is two.
+        hold: 0.6
+        visual_cues:
+          - id: pointers-first
+            phrase: That same request has two pages, seven and two.
+            targets:
+              - pointers-ranges
+            linger: 0.25
+            caption_boundary: true
+      - say: The middle request adds one to each count. On top, it takes row three. Below, it takes entry two, which
+          contains page eleven. The brackets include their starting index and stop just before the next
+          boundary.
+        hold: 0.7
+        visual_cues:
+          - id: pointers-middle
+            phrase: Below, it takes entry two, which contains page eleven.
+            targets:
+              - pointers-ranges
+            linger: 0.25
+            caption_boundary: true
+      - say: For R two, start at query row four and stop before eight. The page entries start at three and stop
+          before six. Read the three numbers inside that lower bracket in order. They tell us which pages to
+          open.
+        hold: 0.8
+        visual_cues:
+          - id: pointers-last
+            phrase: Read the three numbers inside that lower bracket in order.
+            targets:
+              - pointers-ranges
+            linger: 0.25
+            caption_boundary: true
+  - id: pages
+    title: From a logical key to its cache slot
+    visual: Three fixed four-slot pages show R2's keys. Division selects a listed page and the remainder selects
+      a slot. Repeat on the last key to expose the unused tail.
+    beats:
+      - say: Here are those pages, in the order R two uses them. Each has four slots, numbered from zero. Key five
+          belongs to our first new query. Which page and slot would you load for key five?
+        hold: 2
+        visual_cues:
+          - id: pages-five
+            phrase: Which page and slot would you load for key five?
+            targets:
+              - pages-lookup
+            linger: 0.25
+            caption_boundary: true
+      - say: One full group of four comes before key five. That puts it in entry one of the list. The remainder of
+          five divided by four is one. Key five lives on page fourteen, slot one. Fourteen is the page
+          identifier the allocator put there.
+        hold: 0.9
+        caption_starts:
+          - That puts it in entry one of the list.
+          - The remainder of five divided by four is one.
+        visual_cues:
+          - id: pages-address
+            phrase: Key five lives on page fourteen, slot one.
+            targets:
+              - pages-lookup
+            linger: 0.25
+            caption_boundary: true
+      - say: Try key eight. Two full groups come before it, with no remainder. It lives on page six, slot zero.
+          That's the only occupied slot on the last page. The serving engine owns these pages. FlashInfer
+          follows the list when it loads keys and values.
+        hold: 0.8
+        caption_starts:
+          - Two full groups come before it, with no remainder.
+        visual_cues:
+          - id: pages-eight
+            phrase: Try key eight.
+            targets:
+              - pages-lookup
+            linger: 0.25
+            caption_boundary: true
+          - id: pages-tail
+            phrase: It lives on page six, slot zero.
+            targets:
+              - pages-lookup
+            linger: 0.25
+            caption_boundary: true
+  - id: page-permutation
+    title: What if the page IDs are sorted?
+    visual: The physical contents stay fixed. Sorting the lookup list redirects entry one to the empty slot on
+      page 6. Restoring the order selects k5 again.
+    beats:
+      - say: Someone sorts the page identifiers before passing them to the kernel. Keep your eye on entry one.
+          Change only the list to three, six, fourteen. The lookup for key five still picks entry one and slot
+          one. See what it finds on page six. That slot is empty.
+        hold: 1.4
+        visual_cues:
+          - id: fi-page-permutation-sort
+            phrase: Change only the list to three, six, fourteen.
+            targets:
+              - fi-page-permutation-mechanism
+            linger: 0.25
+            caption_boundary: true
+          - id: fi-page-permutation-wrongpage
+            phrase: That slot is empty.
+            targets:
+              - fi-page-permutation-mechanism
+            linger: 0.25
+            caption_boundary: true
+      - say: Every address was inside the allocation. The wrong value came from changing which page counts as the
+          second page. Restore the original order. The same lookup now lands back on key five.
+        hold: 0.75
+        visual_cues:
+          - id: fi-page-permutation-repair
+            phrase: Restore the original order.
+            targets:
+              - fi-page-permutation-mechanism
+            linger: 0.25
+            caption_boundary: true
+      - say: Two full pages and one occupied tail slot give nine keys. For a nonempty list, multiply page size by
+          the number of full pages before the last, then add its occupied length. Our CPU check rejects an
+          empty list, negative page IDs and tail lengths outside one through four.
+        hold: 0.7
+        visual_cues:
+          - id: pages-length
+            phrase: Two full pages and one occupied tail slot give nine keys.
+            targets:
+              - fi-page-permutation-mechanism
+            linger: 0.25
+            caption_boundary: true
+  - id: causal
+    title: Where does the read stop?
+    visual: Four query markers sit under their own keys in the physical cache. A bracket counts readable keys
+      through the selected query, including the final step onto page 6.
+    beats:
+      - say: All nine keys are in memory. The five earlier keys came from the prefix. The four queries underneath
+          belong to the new tokens. Look at the yellow query, the first of the four. Which key is the last one
+          it may read?
+        hold: 2.4
+        visual_cues:
+          - id: causal-query
+            phrase: Look at the yellow query, the first of the four.
+            targets:
+              - causal-history
+            linger: 0.25
+            caption_boundary: true
+      - say: It stops at its own key, five. Count from zero through five. Those six keys can affect this query's
+          answer. Keys six, seven and eight are already in memory, but they come from its future.
+        hold: 0.8
+        visual_cues:
+          - id: causal-stop
+            phrase: It stops at its own key, five.
+            targets:
+              - causal-history
+            linger: 0.25
+            caption_boundary: true
+          - id: causal-read
+            phrase: Count from zero through five.
+            targets:
+              - causal-history
+            linger: 0.25
+            caption_boundary: true
+      - say: Move to query one. It gains key six. Move to query two. Key seven is now in reach. Move to query three.
+          Only this last query crosses onto page six and reads key eight. Four queries share one cache and
+          each sees a different prefix.
+        hold: 1
+        visual_cues:
+          - id: causal-one
+            phrase: Move to query one.
+            targets:
+              - causal-history
+            linger: 0.25
+            caption_boundary: true
+          - id: causal-two
+            phrase: Move to query two.
+            targets:
+              - causal-history
+            linger: 0.25
+            caption_boundary: true
+          - id: causal-three
+            phrase: Move to query three.
+            targets:
+              - causal-history
+            linger: 0.25
+            caption_boundary: true
+  - id: causal-rule
+    title: Place the query in its history
+    visual: Right-align the four new queries, try two incorrect masks while holding q0 fixed, then work a fresh
+      seven-key request at local row one.
+    beats:
+      - say: To compute the boundary, count the keys already in the cache, including those just appended. Call that
+          count K. Subtract the number of new queries, Q. That gives the position of the first new token. For
+          any new query, add its local row index to that starting position. Allow every logical key up to and
+          including that position.
+        hold: 0.65
+        visual_cues:
+          - id: fi-causal-rule-0
+            phrase: For any new query, add its local row index to that starting position.
+            targets:
+              - fi-causal-rule-mechanism
+            linger: 0.25
+            caption_boundary: true
+          - id: fi-causal-rule-0-result
+            phrase: Allow every logical key up to and including that position.
+            targets:
+              - fi-causal-rule-mechanism
+            linger: 0.25
+            caption_boundary: true
+      - say: For R two, nine keys minus four queries leaves five earlier positions. The first row sees six keys. The
+          next sees seven. Row two sees eight. The last sees nine. The last row reaches the last column.
+          That's why this mask is called bottom-right aligned.
+        hold: 0.6
+        visual_cues:
+          - id: fi-causal-rule-1
+            phrase: The first row sees six keys.
+            targets: &a1
+              - fi-causal-rule-mechanism
+            linger: 0.25
+            caption_boundary: true
+          - id: rule-seven
+            phrase: The next sees seven.
+            targets: *a1
+            linger: 0.25
+            caption_boundary: true
+          - id: rule-eight
+            phrase: Row two sees eight.
+            targets: *a1
+            linger: 0.25
+            caption_boundary: true
+          - id: rule-nine
+            phrase: The last sees nine.
+            targets: *a1
+            linger: 0.25
+            caption_boundary: true
+          - id: fi-causal-rule-1-result
+            phrase: That's why this mask is called bottom-right aligned.
+            targets:
+              - fi-causal-rule-mechanism
+            linger: 0.25
+            caption_boundary: true
+      - say: Select the first query again. Align a triangle at the top left and the query loses five legal keys.
+          Remove the mask and it reads three future keys. Align the four new queries with the end of the nine
+          keys. The first row can see six again. A paged-prefill wrapper can carry this mix of query lengths.
+          A dedicated batch-decode wrapper expects one query per request.
+        hold: 0.9
+        visual_cues:
+          - id: rule-top
+            phrase: Align a triangle at the top left
+            targets:
+              - fi-causal-rule-mechanism
+            linger: 0.25
+            caption_boundary: true
+          - id: rule-open
+            phrase: Remove the mask
+            targets:
+              - fi-causal-rule-mechanism
+            linger: 0.25
+            caption_boundary: true
+          - id: rule-restore
+            phrase: Align the four new queries with the end of the nine keys.
+            targets:
+              - fi-causal-rule-mechanism
+            linger: 0.25
+            caption_boundary: true
+          - id: fi-causal-rule-2
+            phrase: Align a triangle at the top left and the query loses five legal keys. Remove the mask and it reads
+              three future keys. Align the four new queries with the end of the nine keys.
+            targets:
+              - fi-causal-rule-mechanism
+            linger: 0.25
+            caption_boundary: true
+      - say: Try a different request. It has seven keys and three new queries. Look at local row one. Seven minus
+          three puts the first new token at four. Where does the read for row one stop?
+        hold: 2.4
+        visual_cues:
+          - id: causal-transfer
+            phrase: It has seven keys and three new queries.
+            targets:
+              - fi-causal-rule-mechanism
+            linger: 0.25
+            caption_boundary: true
+      - say: It stops at key five. Row one comes one place after four, so it can read six keys. Changing where the
+          sequence is stored could change the values you load. The logical boundary still comes from the query
+          position.
+        hold: 0.8
+        caption_starts:
+          - Row one comes one place after four
+        visual_cues:
+          - id: causal-transfer-answer
+            phrase: It stops at key five.
+            targets:
+              - fi-causal-rule-mechanism
+            linger: 0.25
+            caption_boundary: true
+  - id: merge
+    title: How much weight does each worker carry?
+    visual: R2's first six visible keys become six weight bars. Split them at the page boundary. Change only the
+      last score and compare the new weight shares for the same six keys.
+    beats:
+      - say: Go back to the first query of R two, on a single head. Split its six visible keys at the page boundary. Worker
+          A gets the first four keys. Give each the value vector one, zero. Worker B gets the other two, with
+          value zero, one. Give all six a score of zero. Which worker gets more weight?
+        hold: 2.2
+        caption_starts:
+          - Worker B gets the other two
+          - Which worker gets more weight?
+        visual_cues:
+          - id: merge-split
+            phrase: Split its six visible keys at the page boundary.
+            targets:
+              - merge-weights
+            linger: 0.25
+            caption_boundary: true
+      - say: Exponentiating a zero score gives one. The four bars on the left carry four units of weight. The two on
+          the right carry two. A gets two thirds and B gets one third. Those shares are also the two
+          coordinates of the output, because our workers' values point along different axes.
+        hold: 1
+        caption_starts:
+          - The four bars on the left carry four units of weight.
+          - The two on the right carry two.
+        visual_cues:
+          - id: merge-share
+            phrase: A gets two thirds and B gets one third.
+            targets:
+              - merge-weights
+            linger: 0.25
+            caption_boundary: true
+      - say: Keep the same keys and values. Change the last score to the natural log of three. Its bar now carries
+          three units. The other five still carry one each. Where does the weight divide now?
+        hold: 2.4
+        caption_starts:
+          - Where does the weight divide now?
+        visual_cues:
+          - id: merge-change
+            phrase: Change the last score to the natural log of three.
+            targets:
+              - merge-weights
+            linger: 0.25
+            caption_boundary: true
+      - say: Each worker now carries half the weight. The right pair contributes one plus three, which matches the
+          four on the left. Counting keys happened to work when their scores were equal. To merge real
+          workers, we need the weight behind each local average.
+        hold: 0.9
+        visual_cues:
+          - id: merge-equal
+            phrase: Each worker now carries half the weight.
+            targets:
+              - merge-weights
+            linger: 0.25
+            caption_boundary: true
+  - id: merge-recurrence
+    title: What must a worker return?
+    visual: Two worker records retain their normalized vector and base-two log mass. Align the scales under one
+      shift, form both coordinate shares, then store the parent statistic beside the merged output.
+    beats:
+      - say: Put the last score back to zero. Our workers carry masses four and two again. Each returns a local
+          average and a second number. Sum the natural exponentials of that worker's scores, then take the
+          base-two logarithm. That's the stored log-sum-exp. Four becomes two, and two becomes one.
+        hold: 0.75
+        visual_cues:
+          - id: recurrence-original
+            phrase: Put the last score back to zero.
+            targets:
+              - recurrence-states
+            linger: 0.25
+            caption_boundary: true
+      - say: Use the larger stored number, two, as a common shift. Subtract it from each statistic, then raise two
+          to each difference. A has weight one. B has weight one half. They sum to one and a half. Divide each
+          by that sum before multiplying the local outputs. The shares are two thirds and one third.
+        hold: 0.9
+        visual_cues:
+          - id: recurrence-shift
+            phrase: A has weight one. B has weight one half.
+            targets:
+              - recurrence-states
+            linger: 0.25
+            caption_boundary: true
+          - id: recurrence-shares
+            phrase: The shares are two thirds and one third.
+            targets:
+              - recurrence-states
+            linger: 0.25
+            caption_boundary: true
+      - say: A later worker may need to merge with this result. Keep the output and put its weight back on the
+          original scale. Add the shift to the base-two log of one and a half. The parent statistic is about
+          two point five eight five. It represents all six units of weight, even after we discard the original
+          scores.
+        hold: 0.9
+        visual_cues:
+          - id: recurrence-parent
+            phrase: The parent statistic is about two point five eight five.
+            targets:
+              - recurrence-states
+            linger: 0.25
+            caption_boundary: true
+  - id: merge-units
+    title: Name the producer before converting its statistic
+    visual: Two producer records expose backend, version and LSE base. A single conversion changes ln mass into
+      log2 mass; a second conversion visibly distorts the already-correct relative weights.
+    beats:
+      - say: "A producer returning natural-log L S E needs one conversion before this base-two merge: divide its
+          statistic by the natural logarithm of two. Keep its normalized output unchanged. An already base-two
+          producer needs no conversion. Dividing again changes the relative masses and therefore generally
+          changes the output."
+        hold: 0.65
+        visual_cues:
+          - id: fi-merge-units-0
+            phrase: "A producer returning natural-log L S E needs one conversion before this base-two merge: divide its
+              statistic by the natural logarithm of two. Keep its normalized output unchanged. An already
+              base-two producer needs no conversion. Dividing again changes the relative masses and therefore
+              generally changes the output."
+            targets:
+              - fi-merge-units-mechanism
+            color: cyan
+            linger: 0.35
+          - id: fi-merge-units-0-result
+            phrase: Dividing again changes the relative masses and therefore generally changes the output.
+            targets:
+              - fi-merge-units-mechanism
+            color: yellow
+            linger: 0.35
+      - say: This was a real version boundary. The pinned zero point six eighteen cuDNN frontend path returned its
+          natural-log statistic without conversion. The zero point seven zero release included the conversion
+          fix. In the released zero point seven one low-level interface, log two is the default output choice
+          and natural log is an explicit alternative.
+        hold: 0.65
+        visual_cues:
+          - id: fi-merge-units-1
+            phrase: This was a real version boundary. The pinned zero point six eighteen cuDNN frontend path returned its
+              natural-log statistic without conversion. The zero point seven zero release included the
+              conversion fix. In the released zero point seven one low-level interface, log two is the default
+              output choice and natural log is an explicit alternative.
+            targets:
+              - fi-merge-units-mechanism
+            color: cyan
+            linger: 0.35
+          - id: fi-merge-units-1-result
+            phrase: In the released zero point seven one low-level interface, log two is the default output choice and
+              natural log is an explicit alternative.
+            targets:
+              - fi-merge-units-mechanism
+            color: yellow
+            linger: 0.35
+      - say: That natural-log alternative belongs to the frontend path. The cubin cuDNN path returns base-two
+          statistics and rejects a natural-log request. Record the producer backend, release and argument with
+          the state. A library version by itself is insufficient to infer the units of every returned
+          statistic.
+        hold: 0.8
+        visual_cues:
+          - id: fi-merge-units-2
+            phrase: That natural-log alternative belongs to the frontend path. The cubin cuDNN path returns base-two
+              statistics and rejects a natural-log request. Record the producer backend, release and argument
+              with the state. A library version by itself is insufficient to infer the units of every returned
+              statistic.
+            targets:
+              - fi-merge-units-mechanism
+            color: cyan
+            linger: 0.35
+          - id: fi-merge-units-2-result
+            phrase: A library version by itself is insufficient to infer the units of every returned statistic.
+            targets:
+              - fi-merge-units-mechanism
+            color: yellow
+            linger: 0.35
+  - id: merge-domain
+    title: Handle empty mass before subtracting infinities
+    visual: The reference empty state carries a zero vector and negative-infinity statistic. Branches return the
+      nonempty state or the same empty sentinel before the finite recurrence; a separate finite1e308 example
+      normalizes scales before multiplication.
+    beats:
+      - say: An empty or fully masked range has zero normalization mass and no ordinary normalized output. Our CPU
+          reference represents it by a zero vector and negative infinity. If one side is empty, return the
+          other state. If both are empty, return that same empty representation. Handle these cases before
+          subtracting the maximum.
+        hold: 0.65
+        visual_cues:
+          - id: fi-merge-domain-0
+            phrase: An empty or fully masked range has zero normalization mass and no ordinary normalized output. Our CPU
+              reference represents it by a zero vector and negative infinity. If one side is empty, return the
+              other state. If both are empty, return that same empty representation. Handle these cases before
+              subtracting the maximum.
+            targets:
+              - fi-merge-domain-mechanism
+            color: cyan
+            linger: 0.35
+          - id: fi-merge-domain-0-result
+            phrase: Handle these cases before subtracting the maximum.
+            targets:
+              - fi-merge-domain-mechanism
+            color: yellow
+            linger: 0.35
+      - say: Subtracting negative infinity from itself leaves the shift undefined. The CPU reference also
+          rejects NaN, positive infinity, mismatched vector dimensions and a nonzero vector paired with
+          the empty sentinel. The pinned CUDA merge applies the finite recurrence directly. Handle an
+          empty range before calling it.
+        hold: 0.65
+        visual_cues:
+          - id: fi-merge-domain-1
+            phrase: Subtracting negative infinity from itself leaves the shift undefined. The CPU
+              reference also rejects NaN, positive infinity, mismatched vector dimensions and a nonzero
+              vector paired with the empty sentinel. The pinned CUDA merge applies the finite recurrence
+              directly. Handle an empty range before calling it.
+            targets:
+              - fi-merge-domain-mechanism
+            color: cyan
+            linger: 0.35
+          - id: fi-merge-domain-1-result
+            phrase: The pinned CUDA merge applies the finite recurrence directly. Handle an empty range
+              before calling it.
+            targets:
+              - fi-merge-domain-mechanism
+            color: yellow
+            linger: 0.35
+      - say: Take two equal outputs, each ten to the three hundred eighth, with equal weights. Their
+          average should be the same number. Adding the outputs first overflows. Normalize the two scales
+          to one half first, multiply, then add. Both halves fit, and their sum gives back the original
+          value.
+        hold: 0.8
+        visual_cues:
+          - id: fi-merge-domain-2
+            phrase: Take two equal outputs, each ten to the three hundred eighth, with equal weights.
+              Their average should be the same number. Adding the outputs first overflows. Normalize the
+              two scales to one half first, multiply, then add. Both halves fit, and their sum gives back
+              the original value.
+            targets:
+              - fi-merge-domain-mechanism
+            color: cyan
+            linger: 0.35
+          - id: fi-merge-domain-2-result
+            phrase: Both halves fit, and their sum gives back the original value.
+            targets:
+              - fi-merge-domain-mechanism
+            color: yellow
+            linger: 0.35
+          - id: fi-merge-domain-half
+            phrase: Normalize the two scales to one half first, multiply, then add.
+            targets:
+              - fi-merge-domain-mechanism
+            color: yellow
+            linger: 0.35
+  - id: merge-partition
+    title: Partition keys, not just worker labels
+    visual: Two equal-logit key identities first form a disjoint partition, then the first key is mistakenly
+      inserted again. Actual numerator and mass change from one-over-two to two-over-three; restoring disjoint
+      ownership repairs them.
+    beats:
+      - say: Take two equal-logit keys whose values are the two coordinate directions. Together they produce one half,
+          one half. Now merge that full state with another state containing the first key again. The first key
+          contributes twice, so the output becomes two thirds, one third. It stays finite while answering a
+          different attention problem.
+        hold: 0.65
+        visual_cues:
+          - id: fi-merge-partition-0
+            phrase: Take two equal-logit keys whose values are the two coordinate directions. Together they produce one
+              half, one half. Now merge that full state with another state containing the first key again. The
+              first key contributes twice, so the output becomes two thirds, one third. It stays finite while
+              answering a different attention problem.
+            targets:
+              - fi-merge-partition-mechanism
+            color: cyan
+            linger: 0.35
+          - id: fi-merge-partition-0-result
+            phrase: It stays finite while answering a different attention problem.
+            targets:
+              - fi-merge-partition-mechanism
+            color: yellow
+            linger: 0.35
+          - id: fi-merge-partition-duplicate
+            phrase: The first key contributes twice, so the output becomes two thirds, one third.
+            targets:
+              - fi-merge-partition-mechanism
+            color: yellow
+            linger: 0.35
+      - say: Partition logical key positions for the same query row and head. Sharing a physical prefix between
+          requests does not authorize counting that prefix twice inside one request's merged state. Masks,
+          positions and score scaling must agree too. In exact arithmetic, disjoint-state merging is
+          associative; floating-point reduction order can still change low bits.
+        hold: 0.65
+        visual_cues:
+          - id: fi-merge-partition-1
+            phrase: Partition logical key positions for the same query row and head. Sharing a physical prefix between
+              requests does not authorize counting that prefix twice inside one request's merged state. Masks,
+              positions and score scaling must agree too. In exact arithmetic, disjoint-state merging is
+              associative; floating-point reduction order can still change low bits.
+            targets:
+              - fi-merge-partition-mechanism
+            color: cyan
+            linger: 0.35
+          - id: fi-merge-partition-1-result
+            phrase: In exact arithmetic, disjoint-state merging is associative; floating-point reduction order can still
+              change low bits.
+            targets:
+              - fi-merge-partition-mechanism
+            color: yellow
+            linger: 0.35
+      - say: Compare the split output with one stable softmax over the whole range. The CPU check uses
+          lengths one, two, six, nine and thirty-three. It tries every split, including empty edges, at
+          three large logit offsets. All one hundred sixty-eight comparisons pass the stated tolerance.
+        hold: 0.8
+        visual_cues:
+          - id: fi-merge-partition-2
+            phrase: Compare the split output with one stable softmax over the whole range. The CPU check
+              uses lengths one, two, six, nine and thirty-three. It tries every split, including empty
+              edges, at three large logit offsets. All one hundred sixty-eight comparisons pass the stated
+              tolerance.
+            targets:
+              - fi-merge-partition-mechanism
+            color: cyan
+            linger: 0.35
+          - id: fi-merge-partition-2-result
+            phrase: All one hundred sixty-eight comparisons pass the stated tolerance.
+            targets:
+              - fi-merge-partition-mechanism
+            color: yellow
+            linger: 0.35
+  - id: layout-payload
+    title: Attach units to the stored axes
+    visual: R2 page14 expands into token, KV-head and coordinate axes. The same coordinates transpose from NHD to
+      HND while the ordered page list remains fixed; a separate MLA latent representation is clearly labeled.
+    beats:
+      - say: The page list describes where to look; the payload describes what is there. In N H D layout, each key or
+          value page has token slots, heads, then coordinates. In H N D, heads come before token slots. With
+          page size four, eight KV heads and dimension one hundred twenty-eight, those axes contain the same
+          number of elements.
+        hold: 0.65
+        visual_cues:
+          - id: fi-layout-payload-0
+            phrase: The page list describes where to look; the payload describes what is there. In N H D layout, each key
+              or value page has token slots, heads, then coordinates. In H N D, heads come before token slots.
+              With page size four, eight KV heads and dimension one hundred twenty-eight, those axes contain
+              the same number of elements.
+            targets:
+              - fi-layout-payload-mechanism
+            color: cyan
+            linger: 0.35
+          - id: fi-layout-payload-0-result
+            phrase: With page size four, eight KV heads and dimension one hundred twenty-eight, those axes contain the
+              same number of elements.
+            targets:
+              - fi-layout-payload-mechanism
+            color: yellow
+            linger: 0.35
+      - say: The combined N H D cache adds a page axis and a two-way key-or-value axis. Our allocation has fifteen
+          physical pages, two payload kinds, four slots, eight KV heads and one hundred twenty-eight
+          coordinates. The tensor contains one hundred twenty-two thousand eight hundred eighty elements, or
+          two hundred forty-five thousand seven hundred sixty bytes in FP sixteen.
+        hold: 0.65
+        visual_cues:
+          - id: fi-layout-payload-1
+            phrase: The combined N H D cache adds a page axis and a two-way key-or-value axis. Our allocation has fifteen
+              physical pages, two payload kinds, four slots, eight KV heads and one hundred twenty-eight
+              coordinates. The tensor contains one hundred twenty-two thousand eight hundred eighty elements,
+              or two hundred forty-five thousand seven hundred sixty bytes in FP sixteen.
+            targets:
+              - fi-layout-payload-mechanism
+            color: cyan
+            linger: 0.35
+          - id: fi-layout-payload-1-result
+            phrase: The tensor contains one hundred twenty-two thousand eight hundred eighty elements, or two hundred
+              forty-five thousand seven hundred sixty bytes in FP sixteen.
+            targets:
+              - fi-layout-payload-mechanism
+            color: yellow
+            linger: 0.35
+          - id: fi-layout-payload-allocation
+            phrase: Our allocation has fifteen physical pages, two payload kinds, four slots, eight KV heads and one
+              hundred twenty-eight coordinates.
+            targets:
+              - fi-layout-payload-mechanism
+            color: yellow
+            linger: 0.35
+          - id: fi-layout-payload-bytes
+            phrase: The tensor contains one hundred twenty-two thousand eight hundred eighty elements, or two hundred
+              forty-five thousand seven hundred sixty bytes in FP sixteen.
+            targets:
+              - fi-layout-payload-mechanism
+            color: yellow
+            linger: 0.35
+      - say: Block-sparse row metadata treats referenced pages as indexed blocks. It does not assert that every
+          model's numerical attention is sparse. M L A can instead store compressed latent and positional
+          components. FP eight or four-bit paths add format, scale and packing contracts. Changing a dtype
+          label alone cannot convert the original payload into a supported compressed representation.
+        hold: 0.8
+        visual_cues:
+          - id: fi-layout-payload-2
+            phrase: Block-sparse row metadata treats referenced pages as indexed blocks. It does not assert that every
+              model's numerical attention is sparse. M L A can instead store compressed latent and positional
+              components. FP eight or four-bit paths add format, scale and packing contracts. Changing a dtype
+              label alone cannot convert the original payload into a supported compressed representation.
+            targets:
+              - fi-layout-payload-mechanism
+            color: cyan
+            linger: 0.35
+          - id: fi-layout-payload-2-result
+            phrase: Changing a dtype label alone cannot convert the original payload into a supported compressed
+              representation.
+            targets:
+              - fi-layout-payload-mechanism
+            color: yellow
+            linger: 0.35
+  - id: planning
+    title: One more key on the same page
+    visual: A fixed page bank sits above two brackets with a common origin. Appending k9 extends the cache
+      bracket by one slot. Only a supported plan refresh brings the lower bracket to k9.
+    beats:
+      - say: Back at R two, a plan describes how to run attention over these nine keys. Planning inspects the page
+          list and lengths, assigns work to tiles and reserves scratch space. Layers with the same batch
+          specification can reuse that work. The run supplies the actual queries and cache values.
+        hold: 0.6
+        visual_cues:
+          - id: planning-prepare
+            phrase: Planning inspects the page list and lengths, assigns work to tiles and reserves scratch space.
+            targets:
+              - planning-lengths
+            linger: 0.25
+            caption_boundary: true
+      - say: The next step appends key nine into page six, slot one. Keep every address fixed. Compare where the two
+          brackets end. Can the old length-dependent plan reach the new key?
+        hold: 2.3
+        visual_cues:
+          - id: planning-append
+            phrase: The next step appends key nine into page six, slot one.
+            targets:
+              - planning-lengths
+            linger: 0.25
+            caption_boundary: true
+          - id: planning-limit
+            phrase: Can the old length-dependent plan reach the new key?
+            targets:
+              - planning-lengths
+            linger: 0.25
+            caption_boundary: true
+      - say: It stops one key short. The page list still points to the right memory, but the old tail count is one.
+          Refresh the tail and its dependent plan. Now both brackets include key nine. Which updates a
+          captured run permits depends on the wrapper. A change in length alone doesn't tell you to compile a
+          new kernel.
+        hold: 0.9
+        visual_cues:
+          - id: planning-beat-3-focus-1
+            phrase: Refresh the tail and its dependent plan.
+            targets:
+              - planning-lengths
+            linger: 0.25
+            caption_boundary: true
+  - id: project-lineage
+    title: Who gives the kernel its pages?
+    visual: The operator names stay in view. Three release records pair each example with its source. R2's
+      ordered page list travels from the serving engine to the attention kernel.
+    beats:
+      - say: Attention is one operator in FlashInfer. The same library supplies matrix multiplication,
+          mixture-of-experts operators, sampling and cache updates. Researchers at the University of
+          Washington, Carnegie Mellon and OctoAI started it in summer twenty twenty-three. NVIDIA
+          contributes alongside the community. The core source has an Apache two license. Models and
+          dependencies carry their own licenses.
+        hold: 0.65
+        visual_cues:
+          - id: fi-project-lineage-0
+            phrase: The same library supplies matrix multiplication, mixture-of-experts operators,
+              sampling and cache updates.
+            targets:
+              - fi-project-lineage-mechanism
+            color: cyan
+            linger: 0.35
+          - id: fi-project-lineage-0-result
+            phrase: The core source has an Apache two license.
+            targets:
+              - fi-project-lineage-mechanism
+            color: yellow
+            linger: 0.35
+      - say: Open the paged-prefill call. Our example uses zero point
+          six eighteen. The later cuDNN offset example uses zero point seven one. For the latency
+          measurements, go back to the paper. Its experiments used zero point two.
+        hold: 0.65
+        visual_cues:
+          - id: fi-project-lineage-1
+            phrase: Our example uses zero point six eighteen.
+            targets:
+              - fi-project-lineage-mechanism
+            color: cyan
+            linger: 0.35
+          - id: lineage-offset-version
+            phrase: The later cuDNN offset example uses zero point seven one.
+            targets: [fi-project-lineage-mechanism]
+            caption_boundary: true
+          - id: fi-project-lineage-1-result
+            phrase: Its experiments used zero point two.
+            targets:
+              - fi-project-lineage-mechanism
+            color: yellow
+            linger: 0.35
+      - say: The serving engine admits the requests, allocates their pages and selects an attention
+          backend. Here's what crosses that boundary for R two. The engine supplies its pages in order.
+          The kernel follows that list to load the keys and values.
+        hold: 0.8
+        visual_cues:
+          - id: fi-project-lineage-2
+            phrase: The engine supplies its pages in order.
+            targets:
+              - fi-project-lineage-mechanism
+            color: cyan
+            linger: 0.35
+          - id: fi-project-lineage-2-result
+            phrase: The kernel follows that list to load the keys and values.
+            targets:
+              - fi-project-lineage-mechanism
+            color: yellow
+            linger: 0.35
+  - id: wrapper-call
+    title: Read the actual paged-prefill call
+    visual: The same batch populates actual qo_indptr and paged_kv keyword fields. Q rows/head/coordinate axes and
+      the cache allocation are shown beside the resulting output shape, with the CPU reference separated from
+      the unexecuted CUDA call.
+    beats:
+      - say: For the CUDA example, go back to R two with nine keys. Select the F A two paged-prefill wrapper in zero point six
+          eighteen. Query offsets count tokens. The keyword is head dim Q K; paged metadata keywords begin
+          with paged K V. The named plan signature is an executable contract, so plausible shorthand keywords
+          can fail before attention runs.
+        hold: 0.65
+        visual_cues:
+          - id: fi-wrapper-call-0
+            phrase: For the CUDA example, go back to R two with nine keys. Select the F A two paged-prefill wrapper in zero point six
+              eighteen. Query offsets count tokens. The keyword is head dim Q K; paged metadata keywords begin
+              with paged K V. The named plan signature is an executable contract, so plausible shorthand
+              keywords can fail before attention runs.
+            targets:
+              - fi-wrapper-call-mechanism
+            color: cyan
+            linger: 0.35
+          - id: fi-wrapper-call-0-result
+            phrase: The named plan signature is an executable contract, so plausible shorthand keywords can fail before
+              attention runs.
+            targets:
+              - fi-wrapper-call-mechanism
+            color: yellow
+            linger: 0.35
+      - say: Queries have shape eight rows by thirty-two query heads by one hundred twenty-eight coordinates. Eight KV
+          heads serve those query heads in groups of four. This grouping reuses the physical cache; it does
+          not allocate four copies of every KV head. The dense reference repeats heads only to express the
+          comparison transparently.
+        hold: 0.65
+        visual_cues:
+          - id: fi-wrapper-call-1
+            phrase: Queries have shape eight rows by thirty-two query heads by one hundred twenty-eight coordinates. Eight
+              KV heads serve those query heads in groups of four. This grouping reuses the physical cache; it
+              does not allocate four copies of every KV head. The dense reference repeats heads only to
+              express the comparison transparently.
+            targets:
+              - fi-wrapper-call-mechanism
+            color: cyan
+            linger: 0.35
+          - id: fi-wrapper-call-1-result
+            phrase: The dense reference repeats heads only to express the comparison transparently.
+            targets:
+              - fi-wrapper-call-mechanism
+            color: yellow
+            linger: 0.35
+      - say: This wrapper recommends one hundred twenty-eight mebibytes of scratch space. Pointers, page
+          indices and tail lengths use thirty-two-bit integers. Each value head has one hundred
+          twenty-eight coordinates, so the output has the same shape as the queries. The CUDA example
+          compares that output against dense attention and checks that every value is finite.
+        hold: 0.8
+        visual_cues:
+          - id: fi-wrapper-call-2
+            phrase: This wrapper recommends one hundred twenty-eight mebibytes of scratch space. Pointers,
+              page indices and tail lengths use thirty-two-bit integers. Each value head has one hundred
+              twenty-eight coordinates, so the output has the same shape as the queries. The CUDA example
+              compares that output against dense attention and checks that every value is finite.
+            targets:
+              - fi-wrapper-call-mechanism
+            color: cyan
+            linger: 0.35
+          - id: fi-wrapper-call-2-result
+            phrase: The CUDA example compares that output against dense attention and checks that every
+              value is finite.
+            targets:
+              - fi-wrapper-call-mechanism
+            color: yellow
+            linger: 0.35
+  - id: offset-migration
+    title: Where does output row three begin?
+    visual: Two buffers share an element scale. Q rows are 192 coordinates per head and O rows are 128. Copying
+      the Q offset moves the output pointer into the middle of R2's first row. Token mode restores the common
+      row indices.
+    beats:
+      - say: Switch to the low-level cuDNN call in version zero point seven one. Its default offsets count elements.
+          For this example, keep thirty-two query heads, but give Q a width of one hundred ninety-two and O a
+          width of one hundred twenty-eight per head. R one begins at token row three. In Q, three rows take
+          eighteen thousand four hundred thirty-two elements. Where does that same row begin in O?
+        hold: 2.3
+        visual_cues:
+          - id: fi-offset-migration-qoffset
+            phrase: In Q, three rows take eighteen thousand four hundred thirty-two elements.
+            targets:
+              - offset-rulers
+            linger: 0.25
+            caption_boundary: true
+          - id: offset-question
+            phrase: Where does that same row begin in O?
+            targets:
+              - offset-rulers
+            linger: 0.25
+            caption_boundary: true
+      - say: Each output row takes thirty-two times one hundred twenty-eight elements. Three output rows take twelve
+          thousand two hundred eighty-eight. Watch the lower pointer if we copy the Q offset into O. It lands
+          halfway through row four. That's inside R two's first output row. An address can fit inside the
+          buffer and still write another request's answer.
+        hold: 1.2
+        visual_cues:
+          - id: fi-offset-migration-ooffset
+            phrase: Three output rows take twelve thousand two hundred eighty-eight.
+            targets:
+              - offset-rulers
+            linger: 0.25
+            caption_boundary: true
+          - id: offset-copy
+            phrase: It lands halfway through row four.
+            targets:
+              - offset-rulers
+            linger: 0.25
+            caption_boundary: true
+      - say: Restore the output pointer to the start of row three. In element mode, multiply by each tensor's own
+          stride. If you explicitly choose token mode, give both tensors the same token boundaries. The
+          operator handles the units for that mode. Whichever mode you choose, check the returned log-sum-exp
+          base separately before merging workers.
+        hold: 0.8
+        visual_cues:
+          - id: offset-fix
+            phrase: Restore the output pointer to the start of row three.
+            targets:
+              - offset-rulers
+            linger: 0.25
+            caption_boundary: true
+          - id: offset-tokens
+            phrase: If you explicitly choose token mode, give both tensors the same token boundaries.
+            targets:
+              - offset-rulers
+            linger: 0.25
+            caption_boundary: true
+  - id: graph-contract
+    title: Check what a captured replay may change
+    visual: A fixed-address metadata buffer changes values beside its plan receipt and graph launch. Compatible
+      FA2 refresh and a separately labeled non-FA MLA one-plan wrapper follow distinct paths; a changed CTA
+      count is shown as a launch-shape mismatch.
+    beats:
+      - say: The pinned prefill plan performs host work and device copies and cannot run inside CUDA Graph capture or
+          torch compile. Compatible run calls can be captured. Graph-mode buffers reserve fixed batch size,
+          query-row capacity and page-index capacity. New contents must still describe the current problem,
+          even when addresses and allocated shapes remain unchanged.
+        hold: 0.65
+        visual_cues:
+          - id: fi-graph-contract-0
+            phrase: The pinned prefill plan performs host work and device copies and cannot run inside CUDA Graph capture
+              or torch compile. Compatible run calls can be captured. Graph-mode buffers reserve fixed batch
+              size, query-row capacity and page-index capacity. New contents must still describe the current
+              problem, even when addresses and allocated shapes remain unchanged.
+            targets:
+              - fi-graph-contract-mechanism
+            color: cyan
+            linger: 0.35
+          - id: fi-graph-contract-0-result
+            phrase: New contents must still describe the current problem, even when addresses and allocated shapes remain
+              unchanged.
+            targets:
+              - fi-graph-contract-mechanism
+            color: yellow
+            linger: 0.35
+      - say: Replanning, compilation and graph capture are separate operations. Refreshing supported metadata need not
+          recompile a specialization. But fixed split size can still produce a different number of launched
+          thread blocks as histories grow, so fixed batch size alone does not guarantee graph compatibility.
+          Check work assignment as well as buffer addresses.
+        hold: 0.65
+        visual_cues:
+          - id: fi-graph-contract-1
+            phrase: Replanning, compilation and graph capture are separate operations. Refreshing supported metadata need
+              not recompile a specialization. But fixed split size can still produce a different number of
+              launched thread blocks as histories grow, so fixed batch size alone does not guarantee graph
+              compatibility. Check work assignment as well as buffer addresses.
+            targets:
+              - fi-graph-contract-mechanism
+            color: cyan
+            linger: 0.35
+          - id: fi-graph-contract-1-result
+            phrase: Check work assignment as well as buffer addresses.
+            targets:
+              - fi-graph-contract-mechanism
+            color: yellow
+            linger: 0.35
+      - say: The zero point seven one planned M L A wrapper selects its automatic backend during planning.
+          An existing non-F A graph plan ties captured metadata pointers to that wrapper. A different
+          backend needs a new wrapper and capture. Some monolithic CuTe plans let you redistribute queries
+          in place within their limits.
+        hold: 0.8
+        visual_cues:
+          - id: fi-graph-contract-2
+            phrase: The zero point seven one planned M L A wrapper selects its automatic backend during
+              planning. An existing non-F A graph plan ties captured metadata pointers to that wrapper. A
+              different backend needs a new wrapper and capture. Some monolithic CuTe plans let you
+              redistribute queries in place within their limits.
+            targets:
+              - fi-graph-contract-mechanism
+            color: cyan
+            linger: 0.35
+          - id: fi-graph-contract-2-result
+            phrase: Some monolithic CuTe plans let you redistribute queries in place within their limits.
+            targets:
+              - fi-graph-contract-mechanism
+            color: yellow
+            linger: 0.35
+  - id: split-schedule
+    title: Place chunks and merge on an execution clock
+    visual: Four chunks of four cost units run on four lanes, then again on two lanes. The one-unit merge waits for the last wave.
+    beats:
+      - say: Take a longer history and give it a toy work budget. One worker needs sixteen cost
+          units. Four independent chunks each need four. With four available worker lanes, they start
+          together, all finish at four, and a dependent one-unit merge finishes at five. Sixteen divided by
+          five gives an idealized speedup of three point two.
+        hold: 0.65
+        visual_cues:
+          - id: fi-split-schedule-0
+            phrase: Take a longer history and give it a toy work budget. One worker needs sixteen cost
+              units. Four independent chunks each need four. With four available worker lanes, they start
+              together, all finish at four, and a dependent one-unit merge finishes at five. Sixteen divided
+              by five gives an idealized speedup of three point two.
+            targets:
+              - fi-split-schedule-mechanism
+            color: cyan
+            linger: 0.35
+          - id: fi-split-schedule-0-result
+            phrase: Sixteen divided by five gives an idealized speedup of three point two.
+            targets:
+              - fi-split-schedule-mechanism
+            color: yellow
+            linger: 0.35
+          - id: fi-split-schedule-four
+            phrase: With four available worker lanes, they start together, all finish at four, and a dependent one-unit
+              merge finishes at five.
+            targets:
+              - fi-split-schedule-mechanism
+            color: yellow
+            linger: 0.35
+          - id: fi-split-schedule-speed
+            phrase: Sixteen divided by five gives an idealized speedup of three point two.
+            targets:
+              - fi-split-schedule-mechanism
+            color: yellow
+            linger: 0.35
+      - say: Now give the same four chunks just two lanes. Two waves take eight units before the one-unit
+          merge, so completion is nine. The extra four units come from the second wave. You can see both
+          lanes stay busy until the merge begins.
+        hold: 0.65
+        visual_cues:
+          - id: fi-split-schedule-1
+            phrase: Now give the same four chunks just two lanes. Two waves take eight units before the
+              one-unit merge, so completion is nine. The extra four units come from the second wave. You
+              can see both lanes stay busy until the merge begins.
+            targets:
+              - fi-split-schedule-mechanism
+            color: cyan
+            linger: 0.35
+          - id: fi-split-schedule-1-result
+            phrase: The extra four units come from the second wave.
+            targets:
+              - fi-split-schedule-mechanism
+            color: yellow
+            linger: 0.35
+          - id: fi-split-schedule-two
+            phrase: Two waves take eight units before the one-unit merge, so completion is nine.
+            targets:
+              - fi-split-schedule-mechanism
+            color: yellow
+            linger: 0.35
+      - say: A cooperative thread array is a CUDA thread block. Actual scheduling also gets parallelism from query and
+          head tiles. Smaller KV chunks can reduce a long tail but increase partial-state storage, merge work
+          and metadata traffic. Maximum occupancy alone is not the objective if it sacrifices reuse or
+          register headroom. Benchmark the current length mix and chosen GPU.
+        hold: 0.8
+        visual_cues:
+          - id: fi-split-schedule-2
+            phrase: A cooperative thread array is a CUDA thread block. Actual scheduling also gets parallelism from query
+              and head tiles. Smaller KV chunks can reduce a long tail but increase partial-state storage,
+              merge work and metadata traffic. Maximum occupancy alone is not the objective if it sacrifices
+              reuse or register headroom. Benchmark the current length mix and chosen GPU.
+            targets:
+              - fi-split-schedule-mechanism
+            color: cyan
+            linger: 0.35
+          - id: fi-split-schedule-2-result
+            phrase: Benchmark the current length mix and chosen GPU.
+            targets:
+              - fi-split-schedule-mechanism
+            color: yellow
+            linger: 0.35
+  - id: synthesis
+    title: When can the allocator reuse page 14?
+    visual: The supplied scheduling cost stays visible while a separate cursor crosses the last-reader event at
+      tick ten. The cancelled request has released its own claim.
+    beats:
+      - say: Four workers finished our toy split in five cost units, including the merge. The other clock belongs to
+          an allocator. A cancelled request has released its claim on page fourteen, but a GPU read still uses
+          that page. Its completion event is marked at tick ten.
+        hold: 0.6
+        visual_cues:
+          - id: synthesis-beat-1-focus-1
+            phrase: Four workers finished our toy split in five cost units, including the merge.
+            targets:
+              - synthesis-s-serial-s-parallel-one-worker-four-chunks-merge
+            linger: 0.25
+            caption_boundary: true
+      - say: Follow the reader's clock. At tick nine the last read is still pending. Cross the completion event at
+          ten. The allocator can now offer page fourteen to another request because every claim on it has
+          ended.
+        hold: 0.85
+        visual_cues:
+          - id: synthesis-beat-2-focus-1
+            phrase: Follow the reader's clock.
+            targets:
+              - synthesis-reader-trace
+            linger: 0.25
+            caption_boundary: true
+          - id: synthesis-reader-active
+            phrase: At tick nine the last read is still pending.
+            targets:
+              - synthesis-reader-trace
+            linger: 0.25
+            caption_boundary: true
+          - id: synthesis-reader-event
+            phrase: Cross the completion event at ten.
+            targets:
+              - synthesis-reader-trace
+            linger: 0.25
+            caption_boundary: true
+      - say: The five on the left measures modeled work on the critical path. Ten on the right is an event in a
+          separate device trace. A faster attention kernel might move that event in a real trace. The
+          allocator needs to observe it before handing over the page.
+        hold: 0.7
+        visual_cues:
+          - id: synthesis-beat-3-focus-1
+            phrase: Ten on the right is an event in a separate device trace.
+            targets:
+              - synthesis-reader-trace
+            linger: 0.25
+            caption_boundary: true
+  - id: integration-lease
+    title: Who supplied the value in slot one?
+    visual: The same pending read runs twice after host cancellation. Reassigning the page early changes the
+      value R2 receives. Waiting lets R9 use the same slot after R2 has read it.
+    beats:
+      - say: Cancel R two at the host. One GPU read for R two still points to page fourteen, slot one. It expects
+          the vector zero, one. Try two allocator policies. In the top run, R nine immediately overwrites the
+          slot with one, zero. In the bottom run, the allocator waits. What will each read return?
+        hold: 2.3
+        visual_cues:
+          - id: lease-early-write
+            phrase: In the top run, R nine immediately overwrites the slot with one, zero.
+            targets:
+              - lease-timelines
+            linger: 0.25
+            caption_boundary: true
+          - id: lease-question
+            phrase: What will each read return?
+            targets:
+              - lease-timelines
+            linger: 0.25
+            caption_boundary: true
+      - say: Let both reads go through. The top read picks up R nine's value. The bottom read gets the original
+          value for R two. The page number, slot and arithmetic match in both runs. Only the timing of the
+          write changed.
+        hold: 0.9
+        visual_cues:
+          - id: lease-early-read
+            phrase: The top read picks up R nine's value.
+            targets:
+              - lease-timelines
+            linger: 0.25
+            caption_boundary: true
+          - id: lease-late-read
+            phrase: The bottom read gets the original value for R two.
+            targets:
+              - lease-timelines
+            linger: 0.25
+            caption_boundary: true
+      - say: The device signals that the bottom read has finished. With the request cancelled and no other reader,
+          the allocator can give that page to R nine. Now R nine writes the bottom slot. Both slots end with
+          identical contents, but R two got the right value in only one run. When replaying a failure, check
+          the reader's result as well as the final page table.
+        hold: 1
+        visual_cues:
+          - id: lease-event
+            phrase: The device signals that the bottom read has finished.
+            targets:
+              - lease-timelines
+            linger: 0.25
+            caption_boundary: true
+          - id: lease-late-write
+            phrase: Now R nine writes the bottom slot.
+            targets:
+              - lease-timelines
+            linger: 0.25
+            caption_boundary: true
+  - id: backend-support
+    title: Validate a specialization before choosing its binary
+    visual: One operation record carries GPU, dtype, axes, mask and feature fields through a compatibility matrix.
+      A missing binary triggers a supported JIT path; a genuinely unsupported combination remains ineligible.
+    beats:
+      - say: "A FlashInfer operation is a composition: a layout reader follows the mapping, a backend computes tiled
+          attention state, and an optional merge or output transform completes it. FlashAttention, cuDNN,
+          CUTLASS and TensorRT L L M paths have different supported combinations. Record the selected
+          implementation with layout, heads, dtype and split policy."
+        hold: 0.65
+        visual_cues:
+          - id: fi-backend-support-0
+            phrase: "A FlashInfer operation is a composition: a layout reader follows the mapping, a backend computes
+              tiled attention state, and an optional merge or output transform completes it. FlashAttention,
+              cuDNN, CUTLASS and TensorRT L L M paths have different supported combinations. Record the
+              selected implementation with layout, heads, dtype and split policy."
+            targets:
+              - fi-backend-support-mechanism
+            color: cyan
+            linger: 0.35
+          - id: fi-backend-support-0-result
+            phrase: Record the selected implementation with layout, heads, dtype and split policy.
+            targets:
+              - fi-backend-support-mechanism
+            color: yellow
+            linger: 0.35
+      - say: A missing precompiled binary and an unsupported operation are different cases. A supported specialization
+          can compile through JIT with a matching toolchain. An arbitrary head dimension, cache format or GPU
+          does not become valid merely because a compiler is installed. A custom attention score needs an
+          implemented variant and correctness checks, not just a new backend label.
+        hold: 0.65
+        visual_cues:
+          - id: fi-backend-support-1
+            phrase: A missing precompiled binary and an unsupported operation are different cases. A supported
+              specialization can compile through JIT with a matching toolchain. An arbitrary head dimension,
+              cache format or GPU does not become valid merely because a compiler is installed. A custom
+              attention score needs an implemented variant and correctness checks, not just a new backend
+              label.
+            targets:
+              - fi-backend-support-mechanism
+            color: cyan
+            linger: 0.35
+          - id: fi-backend-support-1-result
+            phrase: A custom attention score needs an implemented variant and correctness checks, not just a new backend
+              label.
+            targets:
+              - fi-backend-support-mechanism
+            color: yellow
+            linger: 0.35
+      - say: The zero point six eighteen release added Rubin paths. It also removed S M seventy-five and
+          single-request F A two kernels from the prebuilt JIT cache wheels. On a machine that needs one
+          of those kernels, allow time for first-use compilation and check which architecture cache is
+          installed.
+        hold: 0.8
+        visual_cues:
+          - id: fi-backend-support-2
+            phrase: The zero point six eighteen release added Rubin paths. It also removed S M
+              seventy-five and single-request F A two kernels from the prebuilt JIT cache wheels. On a
+              machine that needs one of those kernels, allow time for first-use compilation and check
+              which architecture cache is installed.
+            targets:
+              - fi-backend-support-mechanism
+            color: cyan
+            linger: 0.35
+          - id: fi-backend-support-2-result
+            phrase: On a machine that needs one of those kernels, allow time for first-use compilation and
+              check which architecture cache is installed.
+            targets:
+              - fi-backend-support-mechanism
+            color: yellow
+            linger: 0.35
+  - id: startup-logging
+    title: Keep diagnostic work outside a timing claim
+    visual: A cold timeline includes compile and module load before the same warmed calls. Enabling tensor dumps
+      adds synchronization and disk-write intervals; a replay receipt records logging configuration and
+      sensitive tensor destinations.
+    beats:
+      - say: Cold startup may compile and cache a supported specialization. Warm startup may load a matching module.
+          Pin the library, CUDA toolkit, driver, compiler and artifact location, then warm the shapes you
+          intend to serve. A stale cache or missing architecture provider can change startup behavior without
+          changing model weights.
+        hold: 0.65
+        visual_cues:
+          - id: fi-startup-logging-0
+            phrase: Cold startup may compile and cache a supported specialization. Warm startup may load a matching
+              module. Pin the library, CUDA toolkit, driver, compiler and artifact location, then warm the
+              shapes you intend to serve. A stale cache or missing architecture provider can change startup
+              behavior without changing model weights.
+            targets:
+              - fi-startup-logging-mechanism
+            color: cyan
+            linger: 0.35
+          - id: fi-startup-logging-0-result
+            phrase: A stale cache or missing architecture provider can change startup behavior without changing model
+              weights.
+            targets:
+              - fi-startup-logging-mechanism
+            color: yellow
+            linger: 0.35
+      - say: The current project README distinguishes ordinary runtime CI from preview toolkit coverage. The exact
+          supported combination belongs in a release receipt. Module status and API logs help explain
+          dispatch. Tensor-dumping modes can write prompts or outputs to disk, so their destination and access
+          policy are part of the diagnostic configuration.
+        hold: 0.65
+        visual_cues:
+          - id: fi-startup-logging-1
+            phrase: The current project README distinguishes ordinary runtime CI from preview toolkit coverage. The exact
+              supported combination belongs in a release receipt. Module status and API logs help explain
+              dispatch. Tensor-dumping modes can write prompts or outputs to disk, so their destination and
+              access policy are part of the diagnostic configuration.
+            targets:
+              - fi-startup-logging-mechanism
+            color: cyan
+            linger: 0.35
+          - id: fi-startup-logging-1-result
+            phrase: Tensor-dumping modes can write prompts or outputs to disk, so their destination and access policy are
+              part of the diagnostic configuration.
+            targets:
+              - fi-startup-logging-mechanism
+            color: yellow
+            linger: 0.35
+      - say: Level ten graph dumping synchronizes the stream during replay and writes snapshots to
+          disk. A slow replay can include time spent waiting or writing those files. Use the
+          snapshots to investigate incorrect outputs. Then turn dumping off and time the same
+          warmed requests again.
+        hold: 0.8
+        visual_cues:
+          - id: fi-startup-logging-2
+            phrase: Level ten graph dumping synchronizes the stream during replay and writes snapshots
+              to disk. A slow replay can include time spent waiting or writing those files. Use
+              the snapshots to investigate incorrect outputs. Then turn dumping off and time the
+              same warmed requests again.
+            targets:
+              - fi-startup-logging-mechanism
+            color: cyan
+            linger: 0.35
+          - id: fi-startup-logging-2-result
+            phrase: Then turn dumping off and time the same warmed requests again.
+            targets:
+              - fi-startup-logging-mechanism
+            color: yellow
+            linger: 0.35
+  - id: correctness-matrix
+    title: Cover the paths intended for release
+    visual: A matrix keeps actual request/page identities while changing one phase, tail, mask, head layout, dtype
+      or backend at a time. Passed, failed and unsupported rows remain separate; output and normalization
+      statistics are independently compared.
+    beats:
+      - say: A reference comparison needs the same logical inputs on both sides. Gather pages in listed order, trim
+          the last page, apply the actual causal mask and match the score scale and head grouping. Test
+          incremental decode against full-prefix attention on short cases, then add shared prefixes, split
+          ranges, partially full tails and cancellation-driven reuse.
+        hold: 0.65
+        visual_cues:
+          - id: fi-correctness-matrix-0
+            phrase: A reference comparison needs the same logical inputs on both sides. Gather pages in listed order, trim
+              the last page, apply the actual causal mask and match the score scale and head grouping. Test
+              incremental decode against full-prefix attention on short cases, then add shared prefixes, split
+              ranges, partially full tails and cancellation-driven reuse.
+            targets:
+              - fi-correctness-matrix-mechanism
+            color: cyan
+            linger: 0.35
+          - id: fi-correctness-matrix-0-result
+            phrase: Test incremental decode against full-prefix attention on short cases, then add shared prefixes, split
+              ranges, partially full tails and cancellation-driven reuse.
+            targets:
+              - fi-correctness-matrix-mechanism
+            color: yellow
+            linger: 0.35
+      - say: Check both the output and its normalization statistic. Each has an absolute and a
+          relative tolerance. The relative term grows with the size of the reference value. The
+          FP sixteen output example sets both tolerances to two thousandths. For a reference
+          value of one, the allowed error is four thousandths. Reject NaN or infinity in this
+          finite case.
+        hold: 0.65
+        visual_cues:
+          - id: fi-correctness-matrix-1
+            phrase: Check both the output and its normalization statistic. Each has an absolute and a
+              relative tolerance. The relative term grows with the size of the reference value.
+              The FP sixteen output example sets both tolerances to two thousandths. For a
+              reference value of one, the allowed error is four thousandths. Reject NaN or
+              infinity in this finite case.
+            targets:
+              - fi-correctness-matrix-mechanism
+            color: cyan
+            linger: 0.35
+          - id: fi-correctness-matrix-1-result
+            phrase: For a reference value of one, the allowed error is four thousandths.
+            targets:
+              - fi-correctness-matrix-mechanism
+            color: yellow
+            linger: 0.35
+      - say: If the backend rejects a shape, record that separately from a wrong output. Include the
+          pointer type and device, head grouping, M L A layout, mask and quantized packing.
+          Exercise every fallback you plan to use. For training, compare the gradients in a
+          separate backward test.
+        hold: 0.8
+        visual_cues:
+          - id: fi-correctness-matrix-2
+            phrase: If the backend rejects a shape, record that separately from a wrong output. Include
+              the pointer type and device, head grouping, M L A layout, mask and quantized
+              packing. Exercise every fallback you plan to use. For training, compare the
+              gradients in a separate backward test.
+            targets:
+              - fi-correctness-matrix-mechanism
+            color: cyan
+            linger: 0.35
+          - id: fi-correctness-matrix-2-result
+            phrase: For training, compare the gradients in a separate backward test.
+            targets:
+              - fi-correctness-matrix-mechanism
+            color: yellow
+            linger: 0.35
+  - id: profile-boundary
+    title: What happens when attention takes half the time?
+    visual: Two bars share a millisecond scale. The original stays in place as attention shrinks in the
+      second bar. Planning, copy, launch and merge keep their widths.
+    beats:
+      - say: Read this example from left to right. Planning, copying metadata and launching the kernel
+          take one point one milliseconds together. Attention takes one point six. The merge takes another
+          point three. The whole call takes three milliseconds. If attention takes half as long, where
+          will the call finish?
+        hold: 2.4
+        caption_starts:
+          - Attention takes one point six.
+          - The whole call takes three milliseconds.
+          - If attention takes half as long
+        visual_cues:
+          - id: fi-profile-boundary-0
+            phrase: Planning, copying metadata and launching the kernel take one point one milliseconds
+              together.
+            targets:
+              - fi-profile-boundary-mechanism
+            color: cyan
+            linger: 0.35
+          - id: fi-profile-boundary-0-result
+            phrase: If attention takes half as long, where will the call finish?
+            targets:
+              - fi-profile-boundary-mechanism
+            color: yellow
+            linger: 0.35
+          - id: fi-profile-boundary-total
+            phrase: The whole call takes three milliseconds.
+            targets:
+              - fi-profile-boundary-mechanism
+            color: yellow
+            linger: 0.35
+      - say: Shrink just the attention segment to point eight milliseconds. The merge slides left
+          with it. Two point two milliseconds for the whole call. Three divided by two point two
+          gives a whole-call speedup of about one point three six. Here the stages run in
+          sequence. When streams overlap, follow the dependencies to find the finish time.
+        hold: 0.65
+        caption_starts:
+          - Two point two milliseconds for the whole call.
+          - Three divided by two point two
+        visual_cues:
+          - id: fi-profile-boundary-1
+            phrase: Shrink just the attention segment to point eight milliseconds.
+            targets:
+              - fi-profile-boundary-mechanism
+            color: cyan
+            linger: 0.35
+          - id: fi-profile-boundary-1-result
+            phrase: Two point two milliseconds for the whole call.
+            targets:
+              - fi-profile-boundary-mechanism
+            color: yellow
+            linger: 0.35
+          - id: fi-profile-boundary-speed
+            phrase: Three divided by two point two gives a whole-call speedup of about one point three
+              six.
+            targets:
+              - fi-profile-boundary-mechanism
+            color: yellow
+            linger: 0.35
+      - say: Nsight Systems helps locate host planning, transfers, stream dependencies and launch gaps. Nsight Compute
+          inspects the selected kernel's memory workload, arithmetic intensity, occupancy limits and stalls.
+          Investigate page access or precision for a memory bottleneck, and tile or backend choice for a
+          compute bottleneck, then repeat the same correctness and serving trace.
+        hold: 0.8
+        visual_cues:
+          - id: fi-profile-boundary-2
+            phrase: Nsight Systems helps locate host planning, transfers, stream dependencies and launch gaps.
+            targets:
+              - fi-profile-boundary-mechanism
+            color: cyan
+            linger: 0.35
+          - id: profile-compute
+            phrase: Nsight Compute inspects the selected kernel's memory workload, arithmetic intensity, occupancy limits and stalls.
+            targets: [fi-profile-boundary-mechanism]
+            caption_boundary: true
+          - id: fi-profile-boundary-2-result
+            phrase: Investigate page access or precision for a memory bottleneck, and tile or backend choice for a compute
+              bottleneck, then repeat the same correctness and serving trace.
+            targets:
+              - fi-profile-boundary-mechanism
+            color: yellow
+            linger: 0.35
+  - id: paper-evidence
+    title: Keep each percentage with its experiment
+    visual: Three paper result records retain model, hardware, workload, baseline and metric fields. A
+      synthetic10ms baseline transforms under a supplied30% latency reduction, with the reciprocal rate
+      comparison shown separately.
+    beats:
+      - say: The M L Sys twenty twenty-five paper evaluated FlashInfer zero point two, CUDA twelve point four and
+          PyTorch two point four, on an A one hundred with forty gigabytes and an H one hundred with eighty
+          gigabytes, both S X M GPUs, with FP sixteen storage and compute. These measurements are historical
+          evidence for the design, not results from our pinned API walkthrough.
+        hold: 0.65
+        visual_cues:
+          - id: fi-paper-evidence-0
+            phrase: The M L Sys twenty twenty-five paper evaluated FlashInfer zero point two, CUDA twelve point four and
+              PyTorch two point four, on an A one hundred with forty gigabytes and an H one hundred with
+              eighty gigabytes, both S X M GPUs, with FP sixteen storage and compute. These measurements are
+              historical evidence for the design, not results from our pinned API walkthrough.
+            targets:
+              - fi-paper-evidence-mechanism
+            color: cyan
+            linger: 0.35
+          - id: fi-paper-evidence-0-result
+            phrase: These measurements are historical evidence for the design, not results from our pinned API
+              walkthrough.
+            targets:
+              - fi-paper-evidence-mechanism
+            color: yellow
+            linger: 0.35
+      - say: The S G Lang comparison reports twenty-nine to sixty-nine percent lower inter-token latency against its
+          Triton backend, under Share G P T and a specified variable-length workload, adjusting request rate
+          to keep P ninety-nine time-to-first-token below two hundred milliseconds. Separate long-context and
+          parallel-generation studies use different workloads and baselines. Preserve those denominators when
+          citing their ranges.
+        hold: 0.65
+        visual_cues:
+          - id: fi-paper-evidence-1
+            phrase: The S G Lang comparison reports twenty-nine to sixty-nine percent lower inter-token latency against
+              its Triton backend, under Share G P T and a specified variable-length workload, adjusting
+              request rate to keep P ninety-nine time-to-first-token below two hundred milliseconds. Separate
+              long-context and parallel-generation studies use different workloads and baselines. Preserve
+              those denominators when citing their ranges.
+            targets:
+              - fi-paper-evidence-mechanism
+            color: cyan
+            linger: 0.35
+          - id: fi-paper-evidence-1-result
+            phrase: Preserve those denominators when citing their ranges.
+            targets:
+              - fi-paper-evidence-mechanism
+            color: yellow
+            linger: 0.35
+      - say: The parallel-generation study used Llama three point one eight-B and seventy-B, Share G
+          P T, sixteen requests per second and width four at its peak. Its inter-token-latency
+          reductions were about fourteen to seventeen percent. A thirty-percent latency reduction
+          would turn a supplied ten milliseconds into seven; the reciprocal single-stream rate
+          would rise by about forty-three percent. To measure service throughput, count the
+          tokens from all active streams over the same wall-clock interval.
+        hold: 0.8
+        visual_cues:
+          - id: fi-paper-evidence-2
+            phrase: The parallel-generation study used Llama three point one eight-B and seventy-B,
+              Share G P T, sixteen requests per second and width four at its peak. Its
+              inter-token-latency reductions were about fourteen to seventeen percent. A
+              thirty-percent latency reduction would turn a supplied ten milliseconds into seven;
+              the reciprocal single-stream rate would rise by about forty-three percent. To
+              measure service throughput, count the tokens from all active streams over the same
+              wall-clock interval.
+            targets:
+              - fi-paper-evidence-mechanism
+            color: cyan
+            linger: 0.35
+          - id: fi-paper-evidence-2-result
+            phrase: To measure service throughput, count the tokens from all active streams over the
+              same wall-clock interval.
+            targets:
+              - fi-paper-evidence-mechanism
+            color: yellow
+            linger: 0.35
+          - id: fi-paper-evidence-conversion
+            phrase: A thirty-percent latency reduction would turn a supplied ten milliseconds into seven; the reciprocal
+              single-stream rate would rise by about forty-three percent.
+            targets:
+              - fi-paper-evidence-mechanism
+            color: yellow
+            linger: 0.35
+  - id: source-route
+    title: Follow one contract through its implementation
+    visual: The retained request metadata follows a wrapper plan into batch-decode parameters, then follows a
+      partial state into cascade merge. Each path displays one actual shape or lifetime invariant rather than
+      an unlabeled directory tree.
+    beats:
+      - say: Use the repository as a route. Start at the decode wrapper's plan and run methods, then follow offsets
+          and optional split buffers into batch decode C U D A source. Read the cascade wrapper and cascade C
+          U H kernel together to see the statistic's base and normalized scales. Follow page append code when
+          investigating slot mapping.
+        hold: 0.65
+        visual_cues:
+          - id: fi-source-route-0
+            phrase: Use the repository as a route. Start at the decode wrapper's plan and run methods, then follow offsets
+              and optional split buffers into batch decode C U D A source. Read the cascade wrapper and
+              cascade C U H kernel together to see the statistic's base and normalized scales. Follow page
+              append code when investigating slot mapping.
+            targets:
+              - fi-source-route-mechanism
+            color: cyan
+            linger: 0.35
+          - id: fi-source-route-0-result
+            phrase: Follow page append code when investigating slot mapping.
+            targets:
+              - fi-source-route-mechanism
+            color: yellow
+            linger: 0.35
+      - say: At each boundary, write down the payload shape, index units, producer and next owner. Compare a wrapper
+          test with its dense correctness reference before reading a specialized microkernel. In our
+          walkthrough, query offsets, ordered page IDs, tail length and base-two normalization each identify a
+          distinct place an apparently plausible result can go wrong.
+        hold: 0.65
+        visual_cues:
+          - id: fi-source-route-1
+            phrase: At each boundary, write down the payload shape, index units, producer and next owner. Compare a
+              wrapper test with its dense correctness reference before reading a specialized microkernel. In
+              our walkthrough, query offsets, ordered page IDs, tail length and base-two normalization each
+              identify a distinct place an apparently plausible result can go wrong.
+            targets:
+              - fi-source-route-mechanism
+            color: cyan
+            linger: 0.35
+          - id: fi-source-route-1-result
+            phrase: In our walkthrough, query offsets, ordered page IDs, tail length and base-two normalization each
+              identify a distinct place an apparently plausible result can go wrong.
+            targets:
+              - fi-source-route-mechanism
+            color: yellow
+            linger: 0.35
+      - say: For a serving comparison, keep the backend, split policy, workspace and graph mode with the
+          trace. Record compile and warmup separately. Measure median and ninety-ninth percentile latency
+          for both the first token and the tokens that follow. Change one setting, replay the same
+          requests and compare their outputs again.
+        hold: 0.8
+        visual_cues:
+          - id: fi-source-route-2
+            phrase: For a serving comparison, keep the backend, split policy, workspace and graph mode
+              with the trace. Record compile and warmup separately. Measure median and ninety-ninth
+              percentile latency for both the first token and the tokens that follow. Change one setting,
+              replay the same requests and compare their outputs again.
+            targets:
+              - fi-source-route-mechanism
+            color: cyan
+            linger: 0.35
+          - id: fi-source-route-2-result
+            phrase: Change one setting, replay the same requests and compare their outputs again.
+            targets:
+              - fi-source-route-mechanism
+            color: yellow
+            linger: 0.35
+  - id: feature-limits
+    title: Choose composable operators with explicit responsibilities
+    visual: The same batch moves through layout, state and execution adapters while scheduler policy stays
+      outside. A growing test matrix and separate training-state owner make the integration costs visible.
+    beats:
+      - say: "The strength is composability: a scheduler can expose ragged rows, paged histories and split states it
+          already manages, then choose mature or customized operators. One project offers a vocabulary across
+          attention phases and related inference operations. This can avoid repeated layout conversions while
+          keeping individual operator choices explicit."
+        hold: 0.65
+        visual_cues:
+          - id: fi-feature-limits-0
+            phrase: "The strength is composability: a scheduler can expose ragged rows, paged histories and split states
+              it already manages, then choose mature or customized operators. One project offers a vocabulary
+              across attention phases and related inference operations. This can avoid repeated layout
+              conversions while keeping individual operator choices explicit."
+            targets:
+              - fi-feature-limits-mechanism
+            color: cyan
+            linger: 0.35
+          - id: fi-feature-limits-0-result
+            phrase: This can avoid repeated layout conversions while keeping individual operator choices explicit.
+            targets:
+              - fi-feature-limits-mechanism
+            color: yellow
+            linger: 0.35
+      - say: Keeping the engine's layout can save a copy. For a paged history, the
+          engine maintains the page list, the occupied tail and the event that releases each page. A
+          captured run also needs compatible workspaces and launch shapes. JIT adds a compiler and a
+          module cache. Test each backend with the layouts, masks, head groups and GPUs you serve.
+        hold: 0.65
+        visual_cues:
+          - id: fi-feature-limits-1
+            phrase: Keeping the engine's layout can save a copy. For a paged history,
+              the engine maintains the page list, the occupied tail and the event that releases each page.
+              A captured run also needs compatible workspaces and launch shapes. JIT adds a compiler and a
+              module cache. Test each backend with the layouts, masks, head groups and GPUs you serve.
+            targets:
+              - fi-feature-limits-mechanism
+            color: cyan
+            linger: 0.35
+          - id: fi-feature-limits-1-result
+            phrase: Test each backend with the layouts, masks, head groups and GPUs you serve.
+            targets:
+              - fi-feature-limits-mechanism
+            color: yellow
+            linger: 0.35
+      - say: Use the CPU reference to check the arithmetic. The inference kernels run on compatible NVIDIA
+          GPUs. On AMD or Apple hardware you need a different implementation. For training, verify the
+          backward pass and use a training framework to manage weights, optimizer state and checkpoints.
+        hold: 0.8
+        visual_cues:
+          - id: fi-feature-limits-2
+            phrase: Use the CPU reference to check the arithmetic. The inference kernels run on compatible
+              NVIDIA GPUs. On AMD or Apple hardware you need a different implementation. For training,
+              verify the backward pass and use a training framework to manage weights, optimizer state and
+              checkpoints.
+            targets:
+              - fi-feature-limits-mechanism
+            color: cyan
+            linger: 0.35
+          - id: fi-feature-limits-2-result
+            phrase: For training, verify the backward pass and use a training framework to manage weights,
+              optimizer state and checkpoints.
+            targets:
+              - fi-feature-limits-mechanism
+            color: yellow
+            linger: 0.35
+  - id: fresh-tail
+    title: One last slot
+    visual: An eight-slot page fills beside a stationary length-15 plan. The plan boundary and the last-reader
+      cursor move independently. After cancellation and completion the allocator actually hands page 9 to a
+      new request.
+    beats:
+      - say: Here's a different request. Its first page holds eight keys. Its second holds seven. The plan covers
+          those fifteen keys. Append one key in the last empty slot. At tick twelve an earlier GPU read still
+          needs page nine. How many keys must the next plan cover? Can the allocator give page nine away at
+          tick twelve?
+        hold: 2.8
+        visual_cues:
+          - id: fresh-append
+            phrase: Append one key in the last empty slot.
+            targets:
+              - fi-fresh-tail-mechanism
+            linger: 0.25
+            caption_boundary: true
+          - id: fresh-question
+            phrase: How many keys must the next plan cover?
+            targets:
+              - fi-fresh-tail-mechanism
+            linger: 0.25
+            caption_boundary: true
+      - say: The new length is sixteen. The last slot is occupied even though its address hasn't changed. The old
+          plan stops one key short. And keep page nine with the earlier reader. That read will finish at tick
+          fourteen.
+        hold: 0.9
+        caption_starts:
+          - That read will finish at tick fourteen.
+        visual_cues:
+          - id: fi-fresh-tail-length
+            phrase: The new length is sixteen.
+            targets:
+              - fi-fresh-tail-mechanism
+            linger: 0.25
+            caption_boundary: true
+          - id: fi-fresh-tail-plan
+            phrase: The old plan stops one key short.
+            targets:
+              - fi-fresh-tail-mechanism
+            linger: 0.25
+            caption_boundary: true
+          - id: fi-fresh-tail-lease
+            phrase: And keep page nine with the earlier reader.
+            targets:
+              - fi-fresh-tail-mechanism
+            linger: 0.25
+            caption_boundary: true
+      - say: This wrapper permits an update before the next launch. Extend the plan to sixteen. Now cancel that
+          launch. The request releases its claim on the pages. The earlier read still has a claim on page
+          nine. At tick fourteen the last reader finishes. With no remaining owner or reader, the allocator
+          hands page nine to a new request. Its first key goes into the very same slot. In DeepGEMM, follow
+          the rows into a different operation, where expert groups and padding determine the work.
+        hold: 1.7
+        caption_starts:
+          - In DeepGEMM
+        visual_cues:
+          - id: fi-fresh-tail-refresh
+            phrase: Extend the plan to sixteen.
+            targets:
+              - fi-fresh-tail-mechanism
+            linger: 0.25
+            caption_boundary: true
+          - id: fresh-cancel
+            phrase: Now cancel that launch. The request releases its claim on the pages.
+            targets:
+              - fi-fresh-tail-mechanism
+            linger: 0.25
+            caption_boundary: true
+          - id: fi-fresh-tail-complete
+            phrase: At tick fourteen the last reader finishes.
+            targets:
+              - fi-fresh-tail-mechanism
+            linger: 0.25
+            caption_boundary: true
+          - id: fresh-owner
+            phrase: With no remaining owner or reader, the allocator hands page nine to a new request.
+            targets: [fi-fresh-tail-mechanism]
+            caption_boundary: true
+          - id: fresh-handoff
+            phrase: Its first key goes into the very same slot.
+            targets:
+              - fi-fresh-tail-mechanism
+            linger: 0.25
+            caption_boundary: true

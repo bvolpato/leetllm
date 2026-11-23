@@ -1,0 +1,385 @@
+{
+  "id": "multi-tenant-job-scheduler",
+  "slug": "multi-tenant-job-scheduler",
+  "title": "Multi-tenant Job Scheduler",
+  "difficulty": "Medium",
+  "category": "Scheduling",
+  "language": "python3",
+  "timeEstimateMinutes": 45,
+  "timeLimitMs": 2500,
+  "memoryLimitMb": 128,
+  "order": 96,
+  "tags": [
+    "scheduler",
+    "fairness",
+    "priority",
+    "cancellation"
+  ],
+  "source": "Cursor coding prep",
+  "summary": "Dispatch pending jobs by priority, cap tenant streaks when alternatives exist, and reap soft cancellations.",
+  "starterCode": [
+    "class FairJobScheduler:",
+    "    def __init__(self, max_consecutive_per_org: int):",
+    "        pass",
+    "",
+    "    def enqueue(self, org: str, job_id: str, priority: int) -> None:",
+    "        pass",
+    "",
+    "    def cancel(self, job_id: str) -> bool:",
+    "        pass",
+    "",
+    "    def dispatch(self, count: int) -> list[str]:",
+    "        pass"
+  ],
+  "testCases": [
+    {
+      "name": "public enforces fairness cap",
+      "visibility": "sample",
+      "description": "A lower-priority tenant still gets a turn after two consecutive jobs from another tenant.",
+      "input": "max=2, jobs=a1,a2,a3,b1",
+      "expected": "[\"a1\", \"a2\", \"b1\", \"a3\"]",
+      "feedback": "Track the last dispatched org and streak, then choose a different org when possible.",
+      "setup": [
+        "from solution import FairJobScheduler",
+        "s = FairJobScheduler(2)",
+        "for job in [\"a1\", \"a2\", \"a3\"]:",
+        "    s.enqueue(\"a\", job, 1)",
+        "s.enqueue(\"b\", \"b1\", 5)"
+      ],
+      "expression": "s.dispatch(4)"
+    },
+    {
+      "name": "public priority and fifo",
+      "visibility": "sample",
+      "description": "Priority wins first, and FIFO breaks ties.",
+      "input": "jobs=(slow priority 5, fast1 priority 1, fast2 priority 1)",
+      "expected": "[\"fast1\", \"fast2\", \"slow\"]",
+      "feedback": "Sort by priority, then insertion sequence.",
+      "setup": [
+        "from solution import FairJobScheduler",
+        "s = FairJobScheduler(10)",
+        "s.enqueue(\"org\", \"slow\", 5)",
+        "s.enqueue(\"org\", \"fast1\", 1)",
+        "s.enqueue(\"org\", \"fast2\", 1)"
+      ],
+      "expression": "s.dispatch(3)"
+    },
+    {
+      "name": "hidden cancellation",
+      "visibility": "hidden",
+      "setup": [
+        "from solution import FairJobScheduler",
+        "s = FairJobScheduler(2)",
+        "s.enqueue(\"a\", \"j1\", 1)",
+        "s.enqueue(\"a\", \"j2\", 1)"
+      ],
+      "checks": [
+        {
+          "input": "s = FairJobScheduler(2)\ns.enqueue(\"a\", \"j1\", 1)\ns.enqueue(\"a\", \"j2\", 1)\ns.cancel(\"j1\")",
+          "expression": "s.cancel(\"j1\")",
+          "operator": "is",
+          "expected": "True"
+        },
+        {
+          "input": "s = FairJobScheduler(2)\ns.enqueue(\"a\", \"j1\", 1)\ns.enqueue(\"a\", \"j2\", 1)\ns.cancel(\"j1\")\ns.cancel(\"missing\")",
+          "expression": "s.cancel(\"missing\")",
+          "operator": "is",
+          "expected": "False"
+        },
+        {
+          "input": "s = FairJobScheduler(2)\ns.enqueue(\"a\", \"j1\", 1)\ns.enqueue(\"a\", \"j2\", 1)\ns.cancel(\"j1\")\ns.cancel(\"missing\")\ns.dispatch(2)",
+          "expression": "s.dispatch(2)",
+          "operator": "==",
+          "expected": "[\"j2\"]"
+        }
+      ]
+    },
+    {
+      "name": "hidden no alternate org available",
+      "visibility": "hidden",
+      "setup": [
+        "from solution import FairJobScheduler",
+        "s = FairJobScheduler(1)",
+        "for i in range(3):",
+        "    s.enqueue(\"a\", f\"a{i}\", 1)"
+      ],
+      "input": "s = FairJobScheduler(1)\nfor i in range(3):\n    s.enqueue(\"a\", f\"a{i}\", 1)\ns.dispatch(3)",
+      "expected": "[\"a0\", \"a1\", \"a2\"]",
+      "expression": "s.dispatch(3)"
+    },
+    {
+      "name": "hidden dispatch partial count",
+      "visibility": "hidden",
+      "setup": [
+        "from solution import FairJobScheduler",
+        "s = FairJobScheduler(2)",
+        "s.enqueue(\"a\", \"a1\", 1)",
+        "s.enqueue(\"b\", \"b1\", 1)"
+      ],
+      "checks": [
+        {
+          "input": "s = FairJobScheduler(2)\ns.enqueue(\"a\", \"a1\", 1)\ns.enqueue(\"b\", \"b1\", 1)\ns.dispatch(1)",
+          "expression": "s.dispatch(1)",
+          "operator": "==",
+          "expected": "[\"a1\"]"
+        },
+        {
+          "input": "s = FairJobScheduler(2)\ns.enqueue(\"a\", \"a1\", 1)\ns.enqueue(\"b\", \"b1\", 1)\ns.dispatch(1)\ns.dispatch(2)",
+          "expression": "s.dispatch(2)",
+          "operator": "==",
+          "expected": "[\"b1\"]"
+        }
+      ]
+    },
+    {
+      "name": "hidden duplicate job rejected",
+      "visibility": "hidden",
+      "code": [
+        "from solution import FairJobScheduler",
+        "s = FairJobScheduler(2)",
+        "s.enqueue(\"a\", \"j\", 1)",
+        "try:",
+        "    s.enqueue(\"a\", \"j\", 2)",
+        "except ValueError:",
+        "    pass",
+        "else:",
+        "    raise AssertionError(\"expected duplicate rejection\")"
+      ]
+    },
+    {
+      "name": "hidden invalid fairness rejected",
+      "visibility": "hidden",
+      "code": [
+        "from solution import FairJobScheduler",
+        "try:",
+        "    FairJobScheduler(0)",
+        "except ValueError:",
+        "    pass",
+        "else:",
+        "    raise AssertionError(\"expected invalid fairness\")"
+      ]
+    },
+    {
+      "name": "hidden fairness streak across dispatches",
+      "visibility": "hidden",
+      "description": "Fairness streak persists across separate dispatch calls; resetting streak per call would monopolize org a.",
+      "setup": [
+        "from solution import FairJobScheduler",
+        "s = FairJobScheduler(2)",
+        "for j in [\"a1\", \"a2\", \"a3\", \"a4\"]:",
+        "    s.enqueue(\"a\", j, 1)",
+        "s.enqueue(\"b\", \"b1\", 1)"
+      ],
+      "checks": [
+        {
+          "input": "s = FairJobScheduler(2)\nfor j in [\"a1\", \"a2\", \"a3\", \"a4\"]:\n    s.enqueue(\"a\", j, 1)\ns.enqueue(\"b\", \"b1\", 1)\ns.dispatch(2)",
+          "expression": "s.dispatch(2)",
+          "operator": "==",
+          "expected": "[\"a1\", \"a2\"]",
+          "feedback": "Keep last_org and streak across dispatch calls."
+        },
+        {
+          "input": "s = FairJobScheduler(2)\nfor j in [\"a1\", \"a2\", \"a3\", \"a4\"]:\n    s.enqueue(\"a\", j, 1)\ns.enqueue(\"b\", \"b1\", 1)\ns.dispatch(2)\ns.dispatch(2)",
+          "expression": "s.dispatch(2)",
+          "operator": "==",
+          "expected": "[\"b1\", \"a3\"]",
+          "feedback": "After two consecutive a jobs, the next dispatch must yield b before more a work."
+        }
+      ]
+    },
+    {
+      "name": "public empty queue dispatches nothing",
+      "visibility": "sample",
+      "description": "Dispatching from a new scheduler returns an empty list.",
+      "setup": [
+        "from solution import FairJobScheduler",
+        "s = FairJobScheduler(2)"
+      ],
+      "input": "s.dispatch(3)",
+      "expected": "[]",
+      "feedback": "Stop dispatching as soon as no pending live job remains."
+    },
+    {
+      "name": "hidden canceled alternate and zero count preserve live fairness",
+      "visibility": "hidden",
+      "description": "Only live jobs can break a tenant streak; a zero-count call does not reap a reserved ID.",
+      "setup": [
+        "from solution import FairJobScheduler",
+        "s = FairJobScheduler(1)",
+        "s.enqueue(\"a\", \"a1\", -1)",
+        "s.dispatch(1)",
+        "s.enqueue(\"a\", \"a2\", 1)",
+        "s.enqueue(\"b\", \"b1\", 0)",
+        "s.enqueue(\"c\", \"c1\", 9)",
+        "s.cancel(\"b1\")"
+      ],
+      "input": "(s.dispatch(0), s.cancel(\"b1\"), s.cancel(\"b1\"), s.dispatch(2), s.cancel(\"b1\"))",
+      "expected": "([], True, True, [\"c1\", \"a2\"], False)"
+    },
+    {
+      "name": "hidden canceled identifier stays reserved until reaped",
+      "visibility": "hidden",
+      "description": "Soft cancellation retains identifier ownership until dispatch removes the stale entry.",
+      "code": [
+        "from solution import FairJobScheduler",
+        "scheduler = FairJobScheduler(2)",
+        "scheduler.enqueue(\"team\", \"job-1\", 1)",
+        "assert scheduler.cancel(\"job-1\") is True",
+        "try:",
+        "    scheduler.enqueue(\"team\", \"job-1\", 2)",
+        "except ValueError:",
+        "    pass",
+        "else:",
+        "    raise AssertionError(\"soft-canceled identifiers remain reserved until reaped\")",
+        "assert scheduler.dispatch(1) == []",
+        "scheduler.enqueue(\"team\", \"job-1\", 2)",
+        "assert scheduler.dispatch(1) == [\"job-1\"]",
+        "assert scheduler.cancel(\"job-1\") is False"
+      ]
+    },
+    {
+      "name": "hidden heap preemption and lazy cancellation scale cleanly",
+      "visibility": "hidden",
+      "description": "Preempted tenant heads, non-head cancellations, and multi-tenant interleaving preserve exact priority and FIFO order without per-step full-queue sorting.",
+      "code": [
+        "from solution import FairJobScheduler",
+        "s = FairJobScheduler(1)",
+        "s.enqueue(\"a\", \"a_low\", 5)",
+        "s.enqueue(\"a\", \"a_high1\", 1)",
+        "s.enqueue(\"a\", \"a_high2\", 2)",
+        "s.enqueue(\"b\", \"b_low\", 10)",
+        "assert s.dispatch(4) == [\"a_high1\", \"b_low\", \"a_high2\", \"a_low\"]",
+        "big = FairJobScheduler(2)",
+        "for t in range(25):",
+        "    for j in range(80):",
+        "        big.enqueue(f\"org-{t}\", f\"job-{t}-{j}\", (t + j) % 7)",
+        "for t in range(0, 25, 3):",
+        "    assert big.cancel(f\"job-{t}-0\") is True",
+        "out = big.dispatch(400)",
+        "assert len(out) == 400",
+        "assert \"job-0-0\" not in out",
+        "big.enqueue(\"org-0\", \"job-0-0\", -5)",
+        "assert big.dispatch(1) == [\"job-0-0\"]"
+      ]
+    }
+  ],
+  "clarifyingQuestions": [
+    "Does lower or higher priority run first?",
+    "Should fairness override priority or only break monopoly?",
+    "Should cancellation remove immediately or mark stale?",
+    "How should canceled jobs interact with the fairness streak?"
+  ],
+  "followUps": [
+    "Add weighted fair queuing or priority aging so two busy tenants cannot starve a third lower-priority tenant.",
+    "Add worker pools and job resource classes.",
+    "Persist job state and cancellation events."
+  ],
+  "followUpGuide": [
+    "For bounded-wait guarantees, combine the streak cap with priority aging (subtracting wait-time credit from effective priority) or maintain per-tenant virtual finish times under weighted fair queuing so two alternating high-priority tenants cannot starve a third tenant indefinitely.",
+    "",
+    "For worker pools, split per-tenant and top-level heaps by capability class and enforce fairness inside each pool.",
+    "",
+    "For durability, make `enqueue`, `cancel`, and `claim` state transitions transactional."
+  ],
+  "complexityAnalysis": [
+    "- `enqueue` inserts into the tenant min-heap in O(log n_org) and updates the top-level tenant-head min-heap in O(log t) when the tenant's live head changes, where t is the number of active tenants and n is total queued entries.",
+    "- `cancel` records soft cancellation in expected O(1) hash-set time while keeping the job ID reserved until a positive-count `dispatch` reaps pending cancellations.",
+    "- Positive-count `dispatch(m)` reaps newly canceled IDs in O(c) expected time, lazily discards dead heap entries in O(log n) amortized per canceled entry, and selects each of the m dispatched jobs in O(log t + log n) amortized time using the top-level tenant-head heap and per-tenant heaps. Total work across n enqueues, c cancellations, and m dispatches is O((n + m) log n) worst-case (and O(n + m log t) when per-tenant arrivals already follow priority order), with O(n) space."
+  ],
+  "solutionGuide": [
+    "Maintain one min-heap `(priority, sequence, job_id)` per tenant and a top-level min-heap `(head_priority, head_sequence, org)` of each active tenant's live head, tracking which sequence numbers are currently present in the top-level heap. Soft cancellations stay in `active_seq_by_id` until the start of a positive-count `dispatch`, which reaps canceled IDs into `dead_seqs` so their identifiers can be reused while stale heap entries are discarded lazily when popped. When `last_org` hits `max_consecutive`, set its popped head aside, query the best live head from any other tenant, and re-insert `last_org` if an alternate exists.",
+    "",
+    "```python",
+    "import heapq",
+    "",
+    "",
+    "class FairJobScheduler:",
+    "    def __init__(self, max_consecutive_per_org: int):",
+    "        if max_consecutive_per_org <= 0:",
+    "            raise ValueError(\"invalid fairness\")",
+    "        self.max_consecutive = max_consecutive_per_org",
+    "        self.org_heaps = {}",
+    "        self.top_heap = []",
+    "        self.in_top_heap = set()",
+    "        self.active_seq_by_id = {}",
+    "        self.canceled_ids = set()",
+    "        self.dead_seqs = set()",
+    "        self.sequence = 0",
+    "        self.last_org = None",
+    "        self.streak = 0",
+    "",
+    "    def _refresh_org(self, org: str):",
+    "        heap = self.org_heaps.get(org)",
+    "        while heap and heap[0][1] in self.dead_seqs:",
+    "            _, dead_seq, _ = heapq.heappop(heap)",
+    "            self.dead_seqs.discard(dead_seq)",
+    "        if not heap:",
+    "            self.org_heaps.pop(org, None)",
+    "            return None",
+    "        head_priority, head_seq, _ = heap[0]",
+    "        if head_seq not in self.in_top_heap:",
+    "            self.in_top_heap.add(head_seq)",
+    "            heapq.heappush(self.top_heap, (head_priority, head_seq, org))",
+    "        return heap[0]",
+    "",
+    "    def _pop_valid_org(self, skip_org: str | None = None):",
+    "        while self.top_heap:",
+    "            priority, seq, org = heapq.heappop(self.top_heap)",
+    "            if org == skip_org:",
+    "                self.in_top_heap.discard(seq)",
+    "                continue",
+    "            head = self._refresh_org(org)",
+    "            self.in_top_heap.discard(seq)",
+    "            if head is not None and head[0] == priority and head[1] == seq:",
+    "                return (priority, seq, org)",
+    "        return None",
+    "",
+    "    def enqueue(self, org: str, job_id: str, priority: int) -> None:",
+    "        if job_id in self.active_seq_by_id:",
+    "            raise ValueError(\"duplicate job\")",
+    "        seq = self.sequence",
+    "        self.sequence += 1",
+    "        self.active_seq_by_id[job_id] = seq",
+    "        heap = self.org_heaps.setdefault(org, [])",
+    "        heapq.heappush(heap, (priority, seq, job_id))",
+    "        self._refresh_org(org)",
+    "",
+    "    def cancel(self, job_id: str) -> bool:",
+    "        if job_id not in self.active_seq_by_id:",
+    "            return False",
+    "        self.canceled_ids.add(job_id)",
+    "        return True",
+    "",
+    "    def dispatch(self, count: int) -> list[str]:",
+    "        if count <= 0:",
+    "            return []",
+    "        if self.canceled_ids:",
+    "            for job_id in self.canceled_ids:",
+    "                seq = self.active_seq_by_id.pop(job_id, None)",
+    "                if seq is not None:",
+    "                    self.dead_seqs.add(seq)",
+    "            self.canceled_ids.clear()",
+    "",
+    "        result = []",
+    "        for _ in range(count):",
+    "            first = self._pop_valid_org()",
+    "            if first is None:",
+    "                break",
+    "            chosen_org = first[2]",
+    "            if self.last_org is not None and chosen_org == self.last_org and self.streak >= self.max_consecutive:",
+    "                second = self._pop_valid_org(skip_org=first[2])",
+    "                if second is not None:",
+    "                    self.in_top_heap.add(first[1])",
+    "                    heapq.heappush(self.top_heap, first)",
+    "                    chosen_org = second[2]",
+    "",
+    "            _, _, job_id = heapq.heappop(self.org_heaps[chosen_org])",
+    "            self.active_seq_by_id.pop(job_id, None)",
+    "            self._refresh_org(chosen_org)",
+    "            self.streak = self.streak + 1 if chosen_org == self.last_org else 1",
+    "            self.last_org = chosen_org",
+    "            result.append(job_id)",
+    "        return result",
+    "```"
+  ]
+}

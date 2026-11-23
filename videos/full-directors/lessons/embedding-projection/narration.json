@@ -1,0 +1,766 @@
+[
+  {
+    "id": "c01",
+    "title": "Which rule is closest with just x and y?",
+    "sourceChapters": [
+      "c01"
+    ],
+    "beats": [
+      {
+        "id": "c01-b01",
+        "say": "Look straight down the sight. The little cross marks a question: my service-account key is eighteen days old. Each ring locates a policy clause. Rotation says keys over fourteen days need a ticket. Merge says a failed scan blocks a merge. Each position comes from a list of numbers called an embedding.",
+        "hold": 0.5
+      },
+      {
+        "id": "c01-b02",
+        "say": "The sight keeps two coordinates, x and y. Search picks the clause with the shortest straight-line distance from the cross. Which clause would you get from this view?",
+        "hold": 3
+      },
+      {
+        "id": "c01-b03",
+        "say": "Merge. Its ring sits right on the question at zero, zero. Now tip the sight sideways. Those two points are eight units apart in depth. Rotation is still one step away. How could we tell which rule the full search would return?",
+        "hold": 1
+      }
+    ]
+  },
+  {
+    "id": "c02",
+    "title": "Open the third coordinate",
+    "sourceChapters": [
+      "c02"
+    ],
+    "beats": [
+      {
+        "id": "c02-b01",
+        "say": "Hold the sight at this angle and start with z switched off. Read the original coordinates. Only merge has a nonzero z, eight. Rotation sits one unit from the question along x. Access sits two away along y. Once we restore z, which clause will have the shortest distance?",
+        "hold": 3
+      },
+      {
+        "id": "c02-b02",
+        "say": "Lift merge back to its original position. Watch its distance travel from zero to eight while the other two stay put. Rotation is now the nearest clause. That clause tells the reader to get a ticket.",
+        "hold": 0.8
+      },
+      {
+        "id": "c02-b03",
+        "say": "Drop z again. Merge lands on the question. Those eight units were the entire separation. This is dimensionality reduction: we kept x and y and threw away a coordinate. Use the map to find a suspicious neighbor, then check the original vectors and the clause the reader actually needs.",
+        "hold": 0.8
+      }
+    ]
+  },
+  {
+    "id": "c03",
+    "title": "How much room does the shorter vector buy?",
+    "sourceChapters": [
+      "c03"
+    ],
+    "beats": [
+      {
+        "id": "c03-b01",
+        "say": "There is a reason to try shortening these vectors. One policy record has fifteen hundred thirty-six coordinates. At four bytes per float, that record takes six thousand one hundred forty-four bytes before the graph or metadata.",
+        "hold": 0.6
+      },
+      {
+        "id": "c03-b02",
+        "say": "Keep just two hundred fifty-six coordinates. Each record now takes one thousand twenty-four bytes. For ten million records, the raw array goes from sixty-one point four four to ten point two four decimal gigabytes.",
+        "hold": 0.7
+      },
+      {
+        "id": "c03-b03",
+        "say": "The raw array takes one sixth of the space. The same byte count can still buy very different search quality. You'll need both the full index cost and the number of relevant clauses that reach the reader.",
+        "hold": 0.7
+      }
+    ]
+  },
+  {
+    "id": "c04",
+    "title": "Count vector bytes and state the geometry assumption",
+    "sourceChapters": [
+      "c04"
+    ],
+    "beats": [
+      {
+        "id": "c04-b01",
+        "say": "Draw X and Y independently from the same centered Gaussian in d dimensions. Its coordinates are independent, each with positive variance sigma squared. The squared distance between X and Y has mean two d sigma squared and variance eight d sigma to the fourth.",
+        "hold": 0.3
+      },
+      {
+        "id": "c04-b02",
+        "say": "Divide the standard deviation by the mean. The ratio is the square root of two over d. At eight dimensions that is one half. At a hundred and twenty-eight it is one eighth. Squared distances cluster more tightly around their mean in this model. Learned embeddings can have correlated coordinates or much more spread along one direction.",
+        "hold": 0.75
+      },
+      {
+        "id": "c04-b03",
+        "say": "The raw vector ledger excludes document text, identifiers, graph links, levels and allocator overhead. HNSW connection and search parameters also affect recall, memory and work. Reducing dimension lowers coordinate storage and arithmetic, but it does not determine end-to-end latency or graph quality.",
+        "hold": 0.3
+      },
+      {
+        "id": "c04-b04",
+        "say": "Measure the full index and serving request after the exact representation, metric and search settings are fixed.",
+        "hold": 0.75
+      }
+    ]
+  },
+  {
+    "id": "c05",
+    "title": "Keep the policy task beside its vectors",
+    "sourceChapters": [
+      "c05"
+    ],
+    "beats": [
+      {
+        "id": "c05-b01",
+        "say": "We gave each of these six policy clauses six coordinates. The first two coordinates carry the rotation signal in this toy. Which rows should answer the key question? Scale each finite nonzero vector to unit length. Now its dot product with the unit query measures cosine similarity.",
+        "hold": 0.3
+      },
+      {
+        "id": "c05-b02",
+        "say": "The two rotation clauses lead at about point nine nine nine and point nine nine seven. Look at the failed-scan clause. Its strongest coordinates lie in different columns. Its cosine score is only about point zero three six.",
+        "hold": 0.75
+      },
+      {
+        "id": "c05-b03",
+        "say": "The two judged relevant clauses both appear in the top two, so Recall at two is two divided by two, or one. Preserve that task, its labels and its original vectors when testing a shorter representation.",
+        "hold": 0.3
+      },
+      {
+        "id": "c05-b04",
+        "say": "Count how many old neighbors survive to see how well the geometry holds up. Count how many relevant clauses survive to see whether the reader still gets the evidence for an answer.",
+        "hold": 0.75
+      }
+    ]
+  },
+  {
+    "id": "c06",
+    "title": "Linear variance and local neighbors are different targets",
+    "sourceChapters": [
+      "c06"
+    ],
+    "beats": [
+      {
+        "id": "c06-b01",
+        "say": "Principal component analysis, or PCA, is a linear projection. It finds directions with large variation across the fitted data, then maps points onto the leading directions. Its objective measures how much overall variance remains.",
+        "hold": 0.6
+      },
+      {
+        "id": "c06-b02",
+        "say": "Now keep the little links between neighbors instead. Which points would you want to stay together when you draw a map? t-SNE assigns probabilities to neighboring pairs. UMAP builds a weighted graph. Both use local evidence to arrange the map.",
+        "hold": 0.65
+      },
+      {
+        "id": "c06-b03",
+        "say": "A high-variance direction may reflect a broad topic. A low-variance direction can distinguish two policy clauses that a user needs kept apart. Compare neighbor lists and judged retrieval queries alongside explained variance.",
+        "hold": 0.7
+      }
+    ]
+  },
+  {
+    "id": "c07",
+    "title": "Construct a fitted coordinate system",
+    "sourceChapters": [
+      "c07"
+    ],
+    "beats": [
+      {
+        "id": "c07-b01",
+        "say": "Start with points one comma one, two comma two and three comma three. Their mean is two comma two. Subtract that same mean from every row: the centered points are minus one comma minus one, zero comma zero, and one comma one.",
+        "hold": 0.3
+      },
+      {
+        "id": "c07-b02",
+        "say": "Project onto the unit direction one comma one divided by the square root of two. The coordinates become minus square root of two, zero and positive square root of two.",
+        "hold": 0.75
+      },
+      {
+        "id": "c07-b03",
+        "say": "Stack the centered rows into a matrix X. Thin singular value decomposition writes X as U times Sigma times V transpose. For N rows and d features, let r be the smaller of N and d. U has N rows and r columns. V has d rows and r columns. Its columns are directions in feature space.",
+        "hold": 0.3
+      },
+      {
+        "id": "c07-b04",
+        "say": "Centering limits rank to at most the smaller of N minus one and d. The leading columns of V give the retained directions. Covariance eigenvalues are the squared singular values divided by N minus one when N exceeds one.",
+        "hold": 0.3
+      },
+      {
+        "id": "c07-b05",
+        "say": "Explained variance retained is the retained sum of squared singular values divided by the total. Here all three beads lie on the axis. One direction captures their entire spread. On a different corpus, a discarded direction could still separate two useful clauses.",
+        "hold": 0.75
+      },
+      {
+        "id": "c07-b06",
+        "say": "Forming X transpose X squares the matrix condition number and can worsen numerical sensitivity; direct SVD avoids that explicit product. Some PCA solvers use covariance, so record the actual solver. PCA centers features without automatically standardizing them.",
+        "hold": 0.3
+      },
+      {
+        "id": "c07-b07",
+        "say": "Scaling and whitening change the geometry and need their own validation. Fit supervised preprocessing inside each training fold; select dimensions on development queries and reserve fresh test queries.",
+        "hold": 0.75
+      }
+    ]
+  },
+  {
+    "id": "c08",
+    "title": "Measure from the saved origin",
+    "sourceChapters": [
+      "c08"
+    ],
+    "beats": [
+      {
+        "id": "c08-b01",
+        "say": "A document sits at three, one. Its query sits at one, three. From the original origin the arrows make an acute angle. Their dot product is six, and the product of their lengths is ten. That's a cosine of point six. We'll keep both axes and use the identity basis.",
+        "hold": 0.55
+      },
+      {
+        "id": "c08-b02",
+        "say": "Move the common origin to the saved mean, two, two. Leave the tips where they are. The document now points one step right and one down. The query points one left and one up. From this new origin, what is their cosine?",
+        "hold": 3
+      },
+      {
+        "id": "c08-b03",
+        "say": "Minus one. The arrows point in opposite directions. Centering changed the angle even though we kept both coordinates. To use a dot product for cosine search, shorten both arrows to unit length. Their dot product changes from minus two to minus one, and their cosine stays at minus one.",
+        "hold": 0.7
+      },
+      {
+        "id": "c08-b04",
+        "say": "Try a query at the mean itself. Subtraction leaves a zero vector. Its cosine is undefined. Reject a zero or nonfinite input and check the length after projection too. For very large finite values, dividing by the largest absolute coordinate before taking the norm avoids overflow.",
+        "hold": 0.6
+      },
+      {
+        "id": "c08-b05",
+        "say": "Save the encoder version, mean, ordered directions and normalization policy with the index. A new worker must reuse them. Even a change as small as an axis sign has to agree on both sides. If one direction dominates the corpus, use judged policy queries to find out whether removing it costs an answer.",
+        "hold": 0.7
+      }
+    ]
+  },
+  {
+    "id": "c09",
+    "title": "How short can this policy index go?",
+    "sourceChapters": [
+      "c09"
+    ],
+    "beats": [
+      {
+        "id": "c09-b01",
+        "say": "On a small corpus of sixty documents with six coordinates, keeping two principal components retains ninety-nine point two percent of the variance. One rotation query still finds its theme. Now we need to know how many relevant clauses survive across different questions.",
+        "hold": 0.6
+      },
+      {
+        "id": "c09-b02",
+        "say": "Start a new experiment. There are twenty queries in twenty-four dimensions. Each query has three judged relevant chunks, and the index can return three. That gives us sixty chances to recover a relevant chunk. Fit PCA on the documents, then project the queries with the same transform.",
+        "hold": 0.3
+      },
+      {
+        "id": "c09-b03",
+        "say": "Read the variance marks across the five tested lengths. They measure how much of the documents' spread survives. Now look below them for evidence about the clauses that the twenty readers get.",
+        "hold": 0.6
+      },
+      {
+        "id": "c09-b04",
+        "say": "Count the retrieved chunks. At two dimensions we recover twenty-three of the sixty. At eight we get all sixty, even though the projection keeps only about seventy-three percent of the variance. Suppose our development recall floor is ninety-five percent. Which is the shortest tested index that clears it?",
+        "hold": 3
+      },
+      {
+        "id": "c09-b05",
+        "say": "Six dimensions clear it. That index retrieves fifty-eight of the sixty chunks. Four dimensions recover only fifty-two. At twelve dimensions more variance survives, but we've already recovered everything on these queries at eight.",
+        "hold": 0.85
+      },
+      {
+        "id": "c09-b06",
+        "say": "Follow query number one through the six-dimensional index. The relevant chunk IDs are three, four and five. All three are in its first result. Now increase the document noise from point one one to point two. Use the same random seed, refit on those documents, and replay the same queries.",
+        "hold": 0.7
+      },
+      {
+        "id": "c09-b07",
+        "say": "This time the index returns three, two and thirty-five. Only chunk three still answers this query. Across the twenty queries, forty-seven of sixty relevant chunks survive. That's a recall of point seven eight three. Even the full-space index now misses two.",
+        "hold": 0.3
+      },
+      {
+        "id": "c09-b08",
+        "say": "Check the original retrieval before blaming the projection for every loss. Separate related query families, freeze the candidate on development data, and use fresh queries and full resource measurements for a final result.",
+        "hold": 0.8
+      }
+    ]
+  },
+  {
+    "id": "c10",
+    "title": "Compare the map's neighbors with the source vectors",
+    "sourceChapters": [
+      "c10"
+    ],
+    "beats": [
+      {
+        "id": "c10-b01",
+        "say": "A picture can make separated islands look persuasive. Check the nearest-neighbor list for each point in the original vectors, then compute the same list in the map. Here are six policy vectors with small third coordinates.",
+        "hold": 0.3
+      },
+      {
+        "id": "c10-b02",
+        "say": "The source plot shows their x-y view, while neighbor choices use all three coordinates. The points are paired by topic in the source space.",
+        "hold": 0.65
+      },
+      {
+        "id": "c10-b03",
+        "say": "The PCA map keeps all six one-neighbor choices on this small fixture. Now follow the first merge clause through a hand-distorted layout. Its nearest neighbor changes to a rotation clause. Three of the six choices survive, so the overlap is one half.",
+        "hold": 0.7
+      },
+      {
+        "id": "c10-b04",
+        "say": "The original neighbor can still be irrelevant to a real question. Use overlap to audit a map, then use judged queries to check whether the retrieved clause answers the task. A diagnostic and an evaluation set give complementary evidence.",
+        "hold": 0.75
+      }
+    ]
+  },
+  {
+    "id": "c11",
+    "title": "t-SNE pulls a pair whose neighbor probability is lost",
+    "sourceChapters": [
+      "c11"
+    ],
+    "beats": [
+      {
+        "id": "c11-b01",
+        "say": "Pin four points to the map. Watch the strand from A to B. t-SNE turns distances in the original vectors into probabilities for neighboring pairs, then adjusts the map to match those probabilities. The other strands belong to the same calculation.",
+        "hold": 0.6
+      },
+      {
+        "id": "c11-b02",
+        "say": "Give this ordered pair a source probability of point one zero. Its map probability is only point zero one. Multiply p by the natural log of p over q. The pair contributes about point two three zero to the mismatch. Which way would you move B to bring those two probabilities together?",
+        "hold": 3
+      },
+      {
+        "id": "c11-b03",
+        "say": "Slide B toward A. Watch the strands from B to C and D change length too. We recompute the weights and their shared total at every position. When the map probability reaches point one zero, this pair's contribution falls to zero. The other pairs still count in the full objective.",
+        "hold": 0.75
+      }
+    ]
+  },
+  {
+    "id": "c12",
+    "title": "What sets one edge’s share of the map?",
+    "sourceChapters": [
+      "c12"
+    ],
+    "beats": [
+      {
+        "id": "c12-b01",
+        "say": "Start in the source vectors at A. In this example its Gaussian weight for B is four times its weight for C. Divide by the row total. B gets four fifths of A's neighbor probability, and C gets one fifth. Each point has its own bandwidth.",
+        "hold": 0.3
+      },
+      {
+        "id": "c12-b02",
+        "say": "Widen A's Gaussian bandwidth and the farther neighbor gains a larger share. Narrow it and the closer neighbor dominates. Perplexity is the exponential of the row's entropy when we use natural logs. It measures the effective number of neighbors. Return to the four-to-one row for the next calculation.",
+        "hold": 0.7
+      },
+      {
+        "id": "c12-b03",
+        "say": "Now read the row from B. Here B also gives A four fifths. Add the two directions, then divide by twice the number of points. With three points, that's one point six divided by six, about point two six seven. That's the source target for the ordered pair from A to B. Self-pairs get zero.",
+        "hold": 0.65
+      },
+      {
+        "id": "c12-b04",
+        "say": "On the map, the cyan base is two units long. Its weight is one divided by one plus two squared, or one fifth. Each sloping edge has squared length two, so its weight is one third. Count both directions for each of the three edges.",
+        "hold": 0.3
+      },
+      {
+        "id": "c12-b05",
+        "say": "Their six weights sum to about one point seven three. Divide the weight for A to B by that whole sum. Its share is about point one one five four.",
+        "hold": 0.8
+      },
+      {
+        "id": "c12-b06",
+        "say": "Keep A and B pinned down. Suppose we lift C one unit, from height one to height two. The base stays the same length. Will the share for A to B get larger or smaller?",
+        "hold": 3
+      },
+      {
+        "id": "c12-b07",
+        "say": "Lift C. The two sloping edges get longer, so each of their weights drops to one sixth. The base keeps its one fifth. Dividing by the smaller total gives a larger share, point one eight seven five. Neither end of that edge moved.",
+        "hold": 0.75
+      },
+      {
+        "id": "c12-b08",
+        "say": "In the fit, t-SNE minimizes the sum of p times the natural log of p over q across ordered pairs. One term can be negative. The full KL divergence is nonnegative. The map's heavy-tailed weights give moderately similar neighbors room to spread out.",
+        "hold": 0.3
+      },
+      {
+        "id": "c12-b09",
+        "say": "Check a suspected cluster in the source vectors. Island area and empty space have no calibrated scale, and original nonparametric t-SNE fits just the records you supplied. A future key question needs its own serving transform.",
+        "hold": 0.75
+      }
+    ]
+  },
+  {
+    "id": "c13",
+    "title": "UMAP joins directed neighborhood strengths",
+    "sourceChapters": [
+      "c13"
+    ],
+    "beats": [
+      {
+        "id": "c13-b01",
+        "say": "Trace the upper arrow from A to B. In this local graph A gives B a strength of point eight. Follow the lower arrow back. B gives A point six. How strong should one edge be when we take evidence from both directions?",
+        "hold": 3
+      },
+      {
+        "id": "c13-b02",
+        "say": "UMAP counts the shared strength once. Multiply point eight by point six to get the overlap, point four eight. Add the two strengths and subtract that overlap. The edge gets a weight of point nine two.",
+        "hold": 0.7
+      },
+      {
+        "id": "c13-b03",
+        "say": "The combined edge attracts the pair in the map. Sampled non-neighbor relations contribute repulsion. The neighbor count influences the fitted graph, and minimum distance influences the layout. Save both settings. Check a surprising pair back in the original vectors.",
+        "hold": 0.75
+      }
+    ]
+  },
+  {
+    "id": "c14",
+    "title": "Separate graph memberships from map forces",
+    "sourceChapters": [
+      "c14"
+    ],
+    "beats": [
+      {
+        "id": "c14-b01",
+        "say": "UMAP builds local directed memberships using an offset rho and scale sigma. For a selected neighbor, the weight is the exponential of minus the nonnegative distance beyond rho divided by sigma. An absent direction has weight zero. Each weight describes a single link.",
+        "hold": 0.3
+      },
+      {
+        "id": "c14-b02",
+        "say": "Several neighbors can each have a weight close to one. Combine opposing weights p and q with p plus q minus p times q. Neighborhood size changes graph construction, while minimum distance influences the layout.",
+        "hold": 0.75
+      },
+      {
+        "id": "c14-b03",
+        "say": "The low-dimensional membership is one divided by one plus a times distance to the power two b. The theoretical binary cross-entropy has attraction from graph edges and repulsion from nonedges. In practice, negative sampling changes the effective weighting.",
+        "hold": 0.3
+      },
+      {
+        "id": "c14-b04",
+        "say": "To check how far apart two islands really are, compare their points in the source vectors. UMAP can transform new points by finding neighbors in the fitted data and placing the new points in the existing map. Check those neighbors on the queries you plan to serve.",
+        "hold": 0.75
+      }
+    ]
+  },
+  {
+    "id": "c15",
+    "title": "Reuse one fitted transform for documents and queries",
+    "sourceChapters": [
+      "c15"
+    ],
+    "beats": [
+      {
+        "id": "c15-b01",
+        "say": "Thread a document through this fitted PCA transform. Subtract the saved mean and project on its ordered directions. Now thread the query through the very same steps. If you use a dot product for cosine, normalize both outputs to unit length. The index and the query now use the same coordinates.",
+        "hold": 0.7
+      },
+      {
+        "id": "c15-b02",
+        "say": "A two-dimensional t-SNE or UMAP map is designed for inspection. Use a serving method such as a supported shorter prefix, PCA, or random projection when the goal is fewer searchable coordinates, and measure Recall at K or nDCG at K.",
+        "hold": 0.75
+      },
+      {
+        "id": "c15-b03",
+        "say": "Compare recall, index bytes, build time, and latency on held-out queries. Keep the encoder, fitted transform, metric, and seed with the index. A plot can point an engineer toward a failure; the original vectors and judged queries test the retrieval decision.",
+        "hold": 0.75
+      }
+    ]
+  },
+  {
+    "id": "c16",
+    "title": "Will the closer clause stay closer?",
+    "sourceChapters": [
+      "c16"
+    ],
+    "beats": [
+      {
+        "id": "c16-b01",
+        "say": "A random projection draws one matrix with k output columns. Save that same matrix for every document and query. Gaussian entries have mean zero and variance one over k. In a sparse construction, divide three by k and take the square root.",
+        "hold": 0.3
+      },
+      {
+        "id": "c16-b02",
+        "say": "Use that magnitude with either sign, each with probability one sixth. The other two thirds of entries are zero on average. You can also save a reproducible recipe for the draw.",
+        "hold": 0.65
+      },
+      {
+        "id": "c16-b03",
+        "say": "For a fixed set of N points, the Johnson-Lindenstrauss lemma gives a sufficient dimension. Take four times the natural log of N. Divide by epsilon squared over two minus epsilon cubed over three, then round up. Epsilon, between zero and one, bounds the fractional change in squared Euclidean distance.",
+        "hold": 0.3
+      },
+      {
+        "id": "c16-b04",
+        "say": "With ten million points and epsilon point one five, the bound gives six thousand three hundred sixty-eight dimensions. We started with just fifteen hundred thirty-six. This existence bound gives us no compression at that tolerance. Smaller matrices still deserve an empirical test.",
+        "hold": 0.75
+      },
+      {
+        "id": "c16-b05",
+        "say": "Look at two clauses on the same ruler. A starts at squared distance one from the query. B starts at one point one five. Each colored interval allows fifteen percent movement either way from its own starting value. If both projected distances stay inside their intervals, must A stay closer?",
+        "hold": 3
+      },
+      {
+        "id": "c16-b06",
+        "say": "Move the two marks inside the overlap. B is now closer at one point zero three, while A is at one point one. Both distances obey the bound.",
+        "hold": 0.3
+      },
+      {
+        "id": "c16-b07",
+        "say": "Taking square roots translates the tolerance to ordinary distances, about seven point eight percent shorter to seven point two percent longer. The existence claim covers the fixed points. A fresh query or a particular random matrix still needs a test.",
+        "hold": 0.75
+      },
+      {
+        "id": "c16-b08",
+        "say": "In a separate seeded test, projecting forty-eight floats to sixteen cuts raw storage from one hundred ninety-two bytes to sixty-four. Normalize the projected vectors for cosine search. Of the twelve queries' sixty original top-five neighbors, nineteen survive. The overlap is about point three one seven.",
+        "hold": 0.3
+      },
+      {
+        "id": "c16-b09",
+        "say": "Those neighbors have no policy relevance labels. A deployment trial needs judged questions too.",
+        "hold": 0.75
+      }
+    ]
+  },
+  {
+    "id": "c17",
+    "title": "How close does an eight-bit code get?",
+    "sourceChapters": [
+      "c17"
+    ],
+    "beats": [
+      {
+        "id": "c17-b01",
+        "say": "Keep the coordinates and give each one fewer bits. Take minus point three. The largest absolute value in our calibration documents is one, so our scale is one hundred twenty-seven. Multiply by that scale and we get minus thirty-eight point one. Round to minus thirty-eight.",
+        "hold": 0.3
+      },
+      {
+        "id": "c17-b02",
+        "say": "Divide the code by the same scale and the dot lands at about minus point two nine nine two. The gap between the dots is the rounding error. Save the scale for queries too. Codes run from minus one hundred twenty-seven to plus one hundred twenty-seven.",
+        "hold": 0.3
+      },
+      {
+        "id": "c17-b03",
+        "say": "Values outside the calibration range clip to the nearest end.",
+        "hold": 0.75
+      },
+      {
+        "id": "c17-b04",
+        "say": "Now keep only the sign. Positive values get a one and everything else gets a zero. Compare these two rows. Point four and point five both become one. The second and fourth positions have opposite signs. XOR marks those differences.",
+        "hold": 0.3
+      },
+      {
+        "id": "c17-b05",
+        "say": "Count the ones and you get a Hamming distance of two. For two hundred fifty-six coordinates, the raw payload falls from one thousand twenty-four bytes for floats to two hundred fifty-six for eight-bit codes, or just thirty-two for packed signs.",
+        "hold": 0.75
+      },
+      {
+        "id": "c17-b06",
+        "say": "Search the small codes first. In Qdrant, ask for a hundred results and set oversampling to two point four. The compressed search picks two hundred forty candidates. Switch on full-vector rescoring.",
+        "hold": 0.3
+      },
+      {
+        "id": "c17-b07",
+        "say": "It can reorder those candidates, so a clause ranked a hundred and first can still make the final hundred. A clause outside the shortlist has already dropped out. The article's Qdrant example also describes TurboQuant in version one point eighteen. Its first operation is a distance-preserving rotation.",
+        "hold": 0.3
+      },
+      {
+        "id": "c17-b08",
+        "say": "Rounding the rotated coordinates introduces error. Record the server version, bit width and rescore settings. Measure recall and time the whole search, including the fetch of full vectors.",
+        "hold": 0.75
+      }
+    ]
+  },
+  {
+    "id": "c18",
+    "title": "Build subvector codes and query lookup tables",
+    "sourceChapters": [
+      "c18"
+    ],
+    "beats": [
+      {
+        "id": "c18-b01",
+        "say": "Product quantization splits a vector into m disjoint blocks, trains a centroid codebook per block and stores a centroid identifier for each block. With two hundred fifty-six centroids, each identifier fits one byte.",
+        "hold": 0.3
+      },
+      {
+        "id": "c18-b02",
+        "say": "A one hundred twenty-eight-coordinate float32 vector uses five hundred twelve bytes; eight block identifiers use eight bytes, a sixty-four-fold raw-code reduction. Shared codebooks and the index remain additional storage. Each centroid has its block’s coordinate width.",
+        "hold": 0.3
+      },
+      {
+        "id": "c18-b03",
+        "say": "Across all m codebooks there are m times K times d over m coordinates, which equals K times d; multiply by the bytes per float for shared codebook storage.",
+        "hold": 0.75
+      },
+      {
+        "id": "c18-b04",
+        "say": "Keep the query unquantized. For each block, measure the squared distance from its query coordinates to every centroid in that block's codebook. The document's stored ID selects one entry. Sum those selected distances. This is asymmetric distance computation. You have compared the query with the document's reconstruction.",
+        "hold": 0.3
+      },
+      {
+        "id": "c18-b05",
+        "say": "With ninety-six blocks and two hundred fifty-six centroids, float32 tables use ninety-six kibibytes per query. Whether those tables fit a relevant cache and whether table construction is worthwhile depend on the hardware and workload.",
+        "hold": 0.75
+      },
+      {
+        "id": "c18-b06",
+        "say": "Symmetric computation also quantizes the query. The first query block becomes centroid thirty-eight. Compare the two centroids across all sixteen coordinates. The document uses centroid twenty-six. Their squared distance is about point zero three five four. Reconstruction can change a vector’s length. For cosine, check that both reconstructions have nonzero length and normalize them before taking their dot product. In the forty-row example each of two blocks chooses one of four centroids.",
+        "hold": 0.3
+      },
+      {
+        "id": "c18-b07",
+        "say": "With a byte for each choice, sixteen raw float bytes become two code bytes per row. The two codebooks use sixty-four bytes in total, shared by all forty rows. Four choices would fit in two packed bits per block.",
+        "hold": 0.3
+      },
+      {
+        "id": "c18-b08",
+        "say": "Fit the codebooks on the training corpus and test the entire metric pipeline.",
+        "hold": 0.75
+      }
+    ]
+  },
+  {
+    "id": "c19",
+    "title": "Train and verify a supported shorter prefix",
+    "sourceChapters": [
+      "c19"
+    ],
+    "beats": [
+      {
+        "id": "c19-b01",
+        "say": "Matryoshka training applies task losses to several nested prefixes of one embedding and sums their weighted losses. An illustrative objective might use the first sixty-four, one hundred twenty-eight, two hundred fifty-six and one thousand twenty-four coordinates.",
+        "hold": 0.3
+      },
+      {
+        "id": "c19-b02",
+        "say": "The earliest coordinates receive gradient contributions from all losses that include them, when those derivatives are nonzero. Look at the first sixty-four coordinates. All four losses can update them. The last seven hundred sixty-eight appear only in the longest prefix.",
+        "hold": 0.75
+      },
+      {
+        "id": "c19-b03",
+        "say": "The original classification formulation uses separate prefix heads; its efficient variant shares classifier weights. Contrastive implementations can apply the losses to normalized prefixes instead. Train-time support matters: slicing an arbitrary embedding is not equivalent to training that objective.",
+        "hold": 0.3
+      },
+      {
+        "id": "c19-b04",
+        "say": "The article’s untrained-prefix negative control drops original-neighbor overlap at three to about point one eight five with two of eight coordinates. A larger prefix or shortlist can help without certifying semantic relevance.",
+        "hold": 0.75
+      },
+      {
+        "id": "c19-b05",
+        "say": "At serving time, search a supported sixty-four-coordinate prefix, take a shortlist, fetch the full vectors and rescore. The prefix float array is one sixteenth the size of a one thousand twenty-four-coordinate array, but storing both adds full-vector bytes and fetch work.",
+        "hold": 0.3
+      },
+      {
+        "id": "c19-b06",
+        "say": "In the untrained toy, the shortlist retains five of twenty-seven reference neighbors. Exact rescoring has access to only those five. Widen the shortlist from three to twelve candidates per query. Seventeen of the twenty-seven reference neighbors now reach full scoring, and all seventeen survive it. For a real encoder, check which output lengths it supports. The article uses text-embedding-3-small and large as examples, with full lengths of fifteen thirty-six and thirty seventy-two.",
+        "hold": 0.3
+      },
+      {
+        "id": "c19-b07",
+        "say": "Use the same supported length and normalization for queries and documents. Measure how often the clauses your readers need make the shortlist.",
+        "hold": 0.75
+      }
+    ]
+  },
+  {
+    "id": "c20",
+    "title": "Which shorter index earns a trial?",
+    "sourceChapters": [
+      "c20"
+    ],
+    "beats": [
+      {
+        "id": "c20-b01",
+        "say": "Let's choose a candidate for the policy index. These are example measurements. Each row uses the same judged queries. On the first rail, the raw code must fit in twelve hundred bytes per vector. The thick segment ends at the limit. Both 256-coordinate methods use the same number of bytes.",
+        "hold": 0.6
+      },
+      {
+        "id": "c20-b02",
+        "say": "The second rail measures Recall at ten. Its passing region starts at point nine seven five. Look at native shortening and PCA. They cost the same, but their marks fall on different sides of the recall line. Which candidate qualifies for a held-out test?",
+        "hold": 3
+      },
+      {
+        "id": "c20-b03",
+        "say": "Native shortening qualifies. Full vectors cost too many bytes. The sixteen-byte product code and the PCA index each miss relevant clauses too often for this floor. If several candidates qualify, take the smallest one as the next experiment.",
+        "hold": 0.7
+      },
+      {
+        "id": "c20-b04",
+        "say": "Try the same decision with one changed report. The native row now reports positive infinity for recall. The byte count and all three other rows stay the same. With this report, which candidate qualifies?",
+        "hold": 3
+      },
+      {
+        "id": "c20-b05",
+        "say": "None qualifies. A recall fraction must be finite and between zero and one. Missing results and byte counts that aren't positive integers also fail. Keep the current index and remeasure the native candidate.",
+        "hold": 0.6
+      },
+      {
+        "id": "c20-b06",
+        "say": "Now look at what the bytes pay for. A full vector stores fifteen hundred thirty-six floats. Keep a supported prefix of two hundred fifty-six floats and its payload drops to one thousand twenty-four bytes.",
+        "hold": 0.3
+      },
+      {
+        "id": "c20-b07",
+        "say": "Store that prefix with an eight-bit code per coordinate and the payload is two hundred fifty-six bytes. That's one twenty-fourth of the original array.",
+        "hold": 0.6
+      },
+      {
+        "id": "c20-b08",
+        "say": "The encoder may still run the same forward pass. Count the graph and any full-vector store, time the fetch and rescore, and measure the whole request. Record the encoder, corpus, queries, transform, seed, metric, codec and search settings.",
+        "hold": 0.3
+      },
+      {
+        "id": "c20-b09",
+        "say": "Use untouched judged queries, report critical policy slices, build time, full index bytes, latency and cost before choosing a deployment.",
+        "hold": 0.65
+      }
+    ]
+  },
+  {
+    "id": "c21",
+    "title": "Which clause reaches the reader?",
+    "sourceChapters": [
+      "c21"
+    ],
+    "beats": [
+      {
+        "id": "c21-b01",
+        "say": "Let's return to the eighteen-day key. Here's a fresh two-coordinate example. The document about rotation is at four, two. The query is at three, three. Their original cosine is about point nine four nine. The index saved a mean and two unit directions. We'll keep both so we can see exactly where a score changes.",
+        "hold": 0.55
+      },
+      {
+        "id": "c21-b02",
+        "say": "Move the origin to two, one. Rotation now points along two, one. The centered query points along one, two. Take a dot product with each saved axis, in order. For rotation that gives two on the first axis and minus one on the second.",
+        "hold": 0.3
+      },
+      {
+        "id": "c21-b03",
+        "say": "For the query, multiply its centered coordinates by each axis and add. What are its two coordinates?",
+        "hold": 3
+      },
+      {
+        "id": "c21-b04",
+        "say": "The query gives two point two and point four. Its dot product with the document is four point four minus point four. Both lengths are the square root of five, so the cosine is point eight. Keeping both axes preserved the angle measured from the saved mean. Moving the origin changed the original angle.",
+        "hold": 0.65
+      },
+      {
+        "id": "c21-b05",
+        "say": "Look at the stored coordinates. The second document is the merge rule. Its arrow is perpendicular to the query, so its score is zero. Rotation wins at point eight. A replacement query worker now loads a basis with both axis signs reversed.",
+        "hold": 0.3
+      },
+      {
+        "id": "c21-b06",
+        "say": "The two stored documents stay exactly as they are. Imagine sending the same question through the replacement worker. Which way will its query arrow point? Which clause will rank first?",
+        "hold": 3
+      },
+      {
+        "id": "c21-b07",
+        "say": "The worker sends minus two point two and minus point four. Its arrow now points the other way. Rotation scores minus point eight. Merge still scores zero. The merge rule ranks first. That's how a reader asking about a key ends up with a sentence about a failed security scan.",
+        "hold": 0.95
+      },
+      {
+        "id": "c21-b08",
+        "say": "Load the saved transform that built the index. Subtract its mean, read the axes in their saved order and normalize. Replay the unchanged question. Rotation recovers its score of point eight. Read the retrieved rule: keys over fourteen days require a rotation ticket. Eighteen days exceeds fourteen. Open the ticket.",
+        "hold": 2.4
+      }
+    ]
+  }
+]

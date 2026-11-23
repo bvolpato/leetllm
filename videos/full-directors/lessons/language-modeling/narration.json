@@ -1,0 +1,924 @@
+[
+  {
+    "id": "c01",
+    "title": "What follows “The cat”?",
+    "sourceChapters": [
+      "c01"
+    ],
+    "beats": [
+      {
+        "id": "c01-b01",
+        "say": "The cursor is after “The cat.” Here is a toy model with three choices. The blue strip gives “sat” sixty percent of the line. “Slept” gets thirty percent. “Ate” gets ten.",
+        "hold": 0.5
+      },
+      {
+        "id": "c01-b02",
+        "say": "Suppose the cursor always picks the widest strip. Which word will it put on the page?",
+        "hold": 1.8
+      },
+      {
+        "id": "c01-b03",
+        "say": "Put “sat” on the page. The cursor moves one word. Only the blue width reaches this new prefix. After “The cat sat,” four fifths of that width belongs to end and one fifth to “beside.” Point to where you would cut the blue strip.",
+        "hold": 2.3
+      },
+      {
+        "id": "c01-b04",
+        "say": "Cut the blue strip into five equal lengths. Four of them stop. Measured against the entire opening line, that is forty-eight percent. Multiply sixty percent by four fifths to score both choices. Appending the word changed the question the model answered.",
+        "hold": 1.35
+      }
+    ]
+  },
+  {
+    "id": "c02",
+    "title": "Keep the prefix on this side",
+    "sourceChapters": [
+      "c02"
+    ],
+    "beats": [
+      {
+        "id": "c02-b01",
+        "say": "A token is one entry in the model’s vocabulary. Each entry has a numerical ID. Our toy tokenizer treats each word as one token. Real tokenizers can split a word into pieces. Hold the cover over the third word. We can read The and cat. Which word actually followed in the record?",
+        "hold": 0.4
+      },
+      {
+        "id": "c02-uncover",
+        "say": "Lift the cover. The record says sat. Its ID is the target for this prediction. The two tokens to the left supply the prefix.",
+        "hold": 0.85
+      }
+    ]
+  },
+  {
+    "id": "c03",
+    "title": "Build a predictor from three observations",
+    "sourceChapters": [
+      "c03"
+    ],
+    "beats": [
+      {
+        "id": "c03-b01",
+        "say": "Start with three observations. First, the cat sat. Second, the cat sat again. Third, the cat slept. Collect the word immediately after cat each time. Two sat observations and one slept observation give us a bigram count row.",
+        "hold": 0.4
+      },
+      {
+        "id": "c03-b02",
+        "say": "Divide by the three observed transitions. Sat gets two thirds; slept gets one third. This count model remembers only the previous token, cat. Longer count models can keep more words of history.",
+        "hold": 0.4
+      },
+      {
+        "id": "c03-b03",
+        "say": "Ate has count zero. For this separate smoothing exercise, only these three verbs are eligible. Add one to every count, then divide by six. Ate now has a share. A full vocabulary needs a pseudo-count for every eligible entry.",
+        "hold": 0.4
+      }
+    ]
+  },
+  {
+    "id": "c04",
+    "title": "Count every eligible outcome",
+    "sourceChapters": [
+      "c04"
+    ],
+    "beats": [
+      {
+        "id": "c04-b01",
+        "say": "Our cat counts were a three-output exercise. Now use the article’s six code comments. After returns, value appears three times, result twice and error once. The denominator counts six adjacent transitions with a following target.",
+        "hold": 0.3
+      },
+      {
+        "id": "c04-b02",
+        "say": "The explicit end token gives ordinary final words a successor; we do not predict after end. An unseen exception pair has zero probability in the unsmoothed row, so any scored sequence using it has zero probability and infinite negative log loss.",
+        "hold": 0.65
+      },
+      {
+        "id": "c04-b03",
+        "say": "Start with just four eligible outputs. Add one to each raw count. The four bins now hold four, three, two and one, totaling ten. Exception gets one tenth. Predict its share if we give the other six eligible tokens one counter each too.",
+        "hold": 1.7
+      },
+      {
+        "id": "c04-b04",
+        "say": "Add one to every eligible entry and the denominator becomes six plus ten, or sixteen. Exception now receives one sixteenth, rather than one tenth. Smoothing distributes mass across a declared vocabulary; an unknown word still needs an unknown-token or subword policy.",
+        "hold": 0.65
+      },
+      {
+        "id": "c04-b05",
+        "say": "Add one new observed comment: function returns exception. Keep the raw counting rule and all older records. The returns row now totals seven. Value has three sevenths, about forty-three percent, and exception has one seventh, about fourteen percent.",
+        "hold": 0.3
+      },
+      {
+        "id": "c04-b06",
+        "say": "The new evidence changed every normalized share without erasing an old occurrence. Add-one is a teaching baseline; discounting, interpolation and backoff can use evidence more effectively.",
+        "hold": 0.65
+      }
+    ]
+  },
+  {
+    "id": "c05",
+    "title": "A longer history needs evidence",
+    "sourceChapters": [
+      "c05"
+    ],
+    "beats": [
+      {
+        "id": "c05-b01",
+        "say": "In our six comments, a bigram pools all the words that followed “returns.” A trigram looks back one more word. After “function returns,” we saw “value” twice. After “test returns,” we saw “result” once and “error” once. An n-gram looks back n minus one tokens.",
+        "hold": 0.3
+      },
+      {
+        "id": "c05-b02",
+        "say": "With fifty thousand choices in each of four positions, there are six point two five times ten to the eighteenth possible sequences. A sparse table stores the sequences it sees.",
+        "hold": 0.65
+      },
+      {
+        "id": "c05-b03",
+        "say": "Try “error returns.” Both words occur in training. That pair has no row. Back off one word. The “returns” row has six examples. Interpolation blends predictions from longer and shorter contexts. A neural model shares embeddings and weights across prefixes.",
+        "hold": 0.3
+      },
+      {
+        "id": "c05-b04",
+        "say": "Training on one prefix can change the scores for another. Compare the predictors on held-out comments by scoring the words that actually followed.",
+        "hold": 0.65
+      }
+    ]
+  },
+  {
+    "id": "c06",
+    "title": "Earlier words can change the scores",
+    "sourceChapters": [
+      "c06"
+    ],
+    "beats": [
+      {
+        "id": "c06-b01",
+        "say": "Compare the tired cat with the hungry cat. A bigram sees cat in both. Our tiny neural head also reads the adjective. I'll supply one-number embeddings and one shared score table. Multiply the tired embedding through that table, then apply softmax.",
+        "hold": 0.4
+      },
+      {
+        "id": "c06-b02",
+        "say": "Replace tired with hungry. The embedding changes, the scores change, and ate takes the largest share. This is a constructed three-verb head. Larger neural models learn richer representations; shared parameters let evidence influence related contexts. Held-out predictions tell us how well that sharing generalizes.",
+        "hold": 0.4
+      }
+    ]
+  },
+  {
+    "id": "c07",
+    "title": "Why does the next word change?",
+    "sourceChapters": [
+      "c07"
+    ],
+    "beats": [
+      {
+        "id": "c07-b01",
+        "say": "The complete article lab uses eight vocabulary words and six coordinates per embedding. Look up function and returns, concatenate their two rows into twelve features, and apply one shared twelve-by-eight affine map plus eight biases.",
+        "hold": 0.3
+      },
+      {
+        "id": "c07-b02",
+        "say": "That is forty-eight embedding parameters, ninety-six map parameters and eight biases: one hundred fifty-two trainable numbers. The original Bengio model also used a nonlinear tanh hidden route; this smaller lab deliberately omits it.",
+        "hold": 0.65
+      },
+      {
+        "id": "c07-b03",
+        "say": "Use the actual parameters after two hundred full-batch updates. For the value output, multiply each of the twelve feature coordinates by its corresponding weight, sum those signed contributions and add the value bias. The logit is about seven point nine zero four.",
+        "hold": 0.3
+      },
+      {
+        "id": "c07-b04",
+        "say": "Result is about zero point six seven eight, and error about zero point zero three six. Softmax normalizes all eight logits, including the five quieter alternatives. Value receives about ninety-nine point eight four percent.",
+        "hold": 0.65
+      },
+      {
+        "id": "c07-b05",
+        "say": "Swap “function” for “test.” Now “result” just edges out “error.” Mean loss on the six training targets fell from just over two nats to about a quarter of a nat. Look at the two comments. Each ending appeared once. The model gives each nearly half the probability.",
+        "hold": 0.3
+      },
+      {
+        "id": "c07-b06",
+        "say": "Each score adds the contribution from the first word to the contribution from the second, then adds the bias. A nonlinear hidden layer can also learn interactions between those two words.",
+        "hold": 0.65
+      }
+    ]
+  },
+  {
+    "id": "c08",
+    "title": "Which score should training raise?",
+    "sourceChapters": [
+      "c08"
+    ],
+    "beats": [
+      {
+        "id": "c08-b01",
+        "say": "Here’s a smaller model with just three possible next tokens. It gives its biggest share to B. The record says C. If we want this model to give the recorded word more probability next time, which score needs a push up?",
+        "hold": 2.1
+      },
+      {
+        "id": "c08-b02",
+        "say": "Follow the blue dot for C. Start at its probability, point three, and subtract one because C is the recorded target. That gives minus point seven. For A and B subtract zero. These three marks are the logit derivatives of unweighted cross-entropy for this observation.",
+        "hold": 0.3
+      },
+      {
+        "id": "c08-b03",
+        "say": "Each is the predicted probability minus one for the recorded token, or minus zero for any other token. Gradient descent subtracts the derivative. If we adjusted the logits directly, subtracting C’s negative derivative would raise its score.",
+        "hold": 0.8
+      },
+      {
+        "id": "c08-b04",
+        "say": "Follow C’s error back one more step. In this little affine head, two features feed each score. Multiply the gradient for C by each input feature. Two gives a weight gradient of minus one point four. Minus one flips the sign for the weight below.",
+        "hold": 0.3
+      },
+      {
+        "id": "c08-b05",
+        "say": "Each bias receives its output’s gradient directly. Apply the same multiplication to the other columns. Now every weight has a derivative for this example.",
+        "hold": 0.75
+      },
+      {
+        "id": "c08-b06",
+        "say": "To find the gradient for the first input feature, read its three forward weights. Each sits below the gradient for the output it feeds. Multiply down each column. Add those three contributions. Together they give minus point three nine. All three count because this feature helped produce all three scores.",
+        "hold": 0.3
+      },
+      {
+        "id": "c08-b07",
+        "say": "In the larger model we trained, split the feature gradients back into the two embedding rows we looked up. Add the contributions whenever a row was used more than once.",
+        "hold": 0.3
+      },
+      {
+        "id": "c08-b08",
+        "say": "The lab averages the gradients from all six examples before it updates any parameter, using a learning rate of point four.",
+        "hold": 0.8
+      }
+    ]
+  },
+  {
+    "id": "c09",
+    "title": "Two observations can disagree at one prefix",
+    "sourceChapters": [
+      "c09"
+    ],
+    "beats": [
+      {
+        "id": "c09-b01",
+        "say": "Test returns occurs twice, once with result and once with error. The same input produces one normalized distribution. Giving one label probability one would give its conflicting observation zero probability. The best empirical split is one half each.",
+        "hold": 0.3
+      },
+      {
+        "id": "c09-b02",
+        "say": "Four other comments can approach zero loss, so the six-target infimum is two times the natural log of two divided by six, about zero point two three one nats. Finite softmax logits approach those boundary probabilities rather than making all other entries exactly zero.",
+        "hold": 0.65
+      },
+      {
+        "id": "c09-b03",
+        "say": "After adding function returns exception, the function prefix has two value observations and one exception. Its optimum is two thirds versus one third.",
+        "hold": 0.3
+      },
+      {
+        "id": "c09-b04",
+        "say": "Negative two thirds times log two thirds, minus one third times log one third, is about zero point six three seven nats per occurrence of that prefix. Its classification error is one third, which is a different quantity.",
+        "hold": 0.3
+      },
+      {
+        "id": "c09-b05",
+        "say": "Extra conditioning could separate cases; more confidence on the same ambiguous input cannot.",
+        "hold": 0.65
+      }
+    ]
+  },
+  {
+    "id": "c10",
+    "title": "Normalize the complete score row",
+    "sourceChapters": [
+      "c10"
+    ],
+    "beats": [
+      {
+        "id": "c10-b01",
+        "say": "A logit is an unconstrained score. In a complete five-token compiler example, the logits are three, one point five, minus one, minus two and minus three. Subtract the largest score from every entry, exponentiate each difference, sum all five exponentials, then divide each exponential by that sum.",
+        "hold": 0.3
+      },
+      {
+        "id": "c10-b02",
+        "say": "Error receives about point eight zero zero, warning point one seven eight, and the remaining three entries share the rest. The complete row sums to one.",
+        "hold": 0.65
+      },
+      {
+        "id": "c10-b03",
+        "say": "Subtract the largest score. It becomes zero, and e to the zero is one. For finite scores, that prevents overflow and preserves the probability ratios. Normalize just the top two and they split the whole strip between them.",
+        "hold": 0.3
+      },
+      {
+        "id": "c10-b04",
+        "say": "Keep all five, and “error” gets eighty percent of the next-word probability. To see what the compiler reported, open its log.",
+        "hold": 0.65
+      }
+    ]
+  },
+  {
+    "id": "c11",
+    "title": "Change the selection distribution explicitly",
+    "sourceChapters": [
+      "c11"
+    ],
+    "beats": [
+      {
+        "id": "c11-b01",
+        "say": "Temperature divides every logit by a positive number before softmax. On the same compiler row, temperature one half raises the leading probability to about point nine five two. Temperature two lowers it to about point five seven five. Learned parameters stay fixed.",
+        "hold": 0.3
+      },
+      {
+        "id": "c11-b02",
+        "say": "As positive temperature approaches zero, a unique maximum takes all mass; tied maxima share the limiting mass. The formula itself is undefined at zero, so an API’s greedy convention is a separate rule.",
+        "hold": 0.65
+      },
+      {
+        "id": "c11-b03",
+        "say": "Top-k retains the k highest scores. Nucleus, or top-p, retains a highest-probability set reaching the declared cumulative threshold, with explicit tie and minimum-token conventions. Renormalize the retained probabilities before drawing.",
+        "hold": 0.3
+      },
+      {
+        "id": "c11-b04",
+        "say": "Try the three-verb row again. At temperature one the shares are six tenths, three tenths and one tenth. Top two discards the last tenth. Divide each surviving share by nine tenths. The new shares are two thirds and one third.",
+        "hold": 0.65
+      },
+      {
+        "id": "c11-combined",
+        "say": "Now apply both controls. At temperature two the relative weights become the square roots of the original shares. Keep the same two words. Divide the first square root by the sum of those two roots. Sat now gets about fifty-nine percent of the selection probability.",
+        "hold": 1.1
+      },
+      {
+        "id": "c11-b05",
+        "say": "Start a fresh draw at temperature one, with filtering off. After “The cat,” this draw lands on “slept.” Append “slept” to the prefix. Compute the next row with the same settings. After “The cat slept,” “on” gets ninety percent and “end” gets ten. A stop token ends the loop. An output budget, delimiter, interruption or timeout can also stop generation. Report which event ended the run.",
+        "hold": 0.65
+      }
+    ]
+  },
+  {
+    "id": "c12",
+    "title": "Choose which context the objective permits",
+    "sourceChapters": [
+      "c12"
+    ],
+    "beats": [
+      {
+        "id": "c12-b01",
+        "say": "Causal language modeling predicts a token from earlier tokens. A bigram, a recurrent network and a decoder Transformer can all implement that objective. Masked language modeling reconstructs selected original tokens from a corrupted sequence and can use context on both sides.",
+        "hold": 0.3
+      },
+      {
+        "id": "c12-b02",
+        "say": "Cover cat in the cat sat: the word sat is permitted evidence for the masked objective, but it would reveal future evidence to a left-to-right prediction of cat.",
+        "hold": 0.65
+      },
+      {
+        "id": "c12-b03",
+        "say": "The original BERT recipe selected fifteen percent of positions. Within that selected set, eighty percent became a mask token, ten percent a random token and ten percent stayed unchanged; every selected label remained the original token.",
+        "hold": 0.3
+      },
+      {
+        "id": "c12-b04",
+        "say": "A quota illustration with one thousand positions would select one hundred fifty: one hundred twenty masks, fifteen random replacements and fifteen unchanged inputs. Actual random draws vary. These conditionals do not directly form ordinary left-to-right perplexity or the same append-one-token generation loop.",
+        "hold": 0.65
+      }
+    ]
+  },
+  {
+    "id": "c13",
+    "title": "How much probability reaches the end?",
+    "sourceChapters": [
+      "c13"
+    ],
+    "beats": [
+      {
+        "id": "c13-b01",
+        "say": "Start with the whole line. Its width represents probability one before any words have been scored. Score The from the start, then cat after The, then sat after The cat. Read each strip against the one above it. Each cut keeps only the probability that made it through the previous cut.",
+        "hold": 0.3
+      },
+      {
+        "id": "c13-b02",
+        "say": "Every word keeps only part of the probability that reached its prefix. We’ve scored the chance of reaching “sat.” Is that also the chance of getting exactly those three words and nothing more?",
+        "hold": 2.45
+      },
+      {
+        "id": "c13-b03",
+        "say": "Include the decision to end. Four fifths of the three-word prefix’s probability stops here. That brings the score from about twenty-nine percent for the prefix to twenty-three percent for the finished sentence. Multiplying the probabilities this way is the chain rule. Each factor can depend on every word that came before it.",
+        "hold": 0.8
+      }
+    ]
+  },
+  {
+    "id": "c14",
+    "title": "One recorded sentence supplies four targets",
+    "sourceChapters": [
+      "c14"
+    ],
+    "beats": [
+      {
+        "id": "c14-b01",
+        "say": "Teacher forcing uses the recorded words for every prefix. Each input position predicts the next recorded token. Start predicts The. The predicts cat. Cat predicts sat. Sat predicts end. The record supplies the next input even when the model would choose a different word.",
+        "hold": 0.4
+      },
+      {
+        "id": "c14-b02",
+        "say": "Focus on the cat position. Its visible prefix ends at cat. Reading the following sat would reveal the answer. The causal mask blocks that future read. Many positions can be computed together in a Transformer while each keeps this information boundary.",
+        "hold": 0.4
+      },
+      {
+        "id": "c14-b03",
+        "say": "Choosing which targets contribute to loss is a separate operation. Ignore the first two targets here. Their input words remain visible to the later predictions. The loss mask selects supervision; the attention mask controls information flow.",
+        "hold": 0.4
+      }
+    ]
+  },
+  {
+    "id": "c15",
+    "title": "Shift once and preserve genuine stops",
+    "sourceChapters": [
+      "c15"
+    ],
+    "beats": [
+      {
+        "id": "c15-b01",
+        "say": "Hold the input line still. Make a copy for the labels. Slide the copy one place left. Read down from start. Function is now under it. Inputs zero through three line up with targets one through four. You can make that shift yourself when the loss expects aligned pairs.",
+        "hold": 0.3
+      },
+      {
+        "id": "c15-b02",
+        "say": "The article’s causal loss shifts labels internally. What happens if we supply the row we already shifted? Slide it once more. Start now predicts returns. We skipped function. Give this loss the original IDs and it makes just one shift.",
+        "hold": 1.25
+      },
+      {
+        "id": "c15-b03",
+        "say": "Now put a genuine end token next to a padding slot. Both carry ID four here. The article’s pinned collator ignores every label equal to the padding ID. Watch both fours disappear. Which of those labels taught the model when to stop?",
+        "hold": 1.6
+      },
+      {
+        "id": "c15-b04",
+        "say": "Use the padding position to choose the ignored label. Keep the real end. The previous input now predicts ID four, and the pad contributes no loss. An attention mask controls the inputs a position can read. A loss mask controls which targets count. Packed documents need an explicit boundary policy too.",
+        "hold": 0.65
+      }
+    ]
+  },
+  {
+    "id": "c16",
+    "title": "What changes when “cat” becomes two tokens?",
+    "sourceChapters": [
+      "c16"
+    ],
+    "beats": [
+      {
+        "id": "c16-b01",
+        "say": "These are the four probabilities from our sentence, including its stop. Which words cost the model the most? Take the negative natural log of each probability. That turns each one into a length measured in nats.",
+        "hold": 1.3
+      },
+      {
+        "id": "c16-b02",
+        "say": "Cat and sat use the most space because the model gave each of them only sixty percent. Divide the total by four scored targets to get the average loss per target.",
+        "hold": 0.65
+      },
+      {
+        "id": "c16-b03",
+        "say": "Raise e to that average loss. The result is called perplexity. It’s the reciprocal of the geometric mean of those four target probabilities. For a model that gives every choice an equal share, perplexity tells you how many choices there are.",
+        "hold": 0.75
+      },
+      {
+        "id": "c16-b04",
+        "say": "Copy the strip. In the copy, score “c” and then “at” in place of “cat.” Give the first piece a probability of three quarters and the next four fifths. Their product is the sixty percent we started with. We keep the other factors the same.",
+        "hold": 0.3
+      },
+      {
+        "id": "c16-b05",
+        "say": "Only the cat segment splits. Both strips still end at the same place. Will the perplexity per token stay the same?",
+        "hold": 1.7
+      },
+      {
+        "id": "c16-b06",
+        "say": "Divide that same length by five targets this time. The average gets smaller, so perplexity falls. Both versions assigned exactly the same probability to the text and its stop. Before you use a lower token perplexity to choose a model, check the tokenizer, the evaluation text, the context and which targets were scored.",
+        "hold": 0.9
+      }
+    ]
+  },
+  {
+    "id": "c17",
+    "title": "Which targets count toward the average?",
+    "sourceChapters": [
+      "c17"
+    ],
+    "beats": [
+      {
+        "id": "c17-b01",
+        "say": "These batches take up the same amount of space. Fill the first batch with one target and two padding slots. Fill the second with three targets. To make the losses easy to count, measure them in bits. Each block is one bit of surprise.",
+        "hold": 0.3
+      },
+      {
+        "id": "c17-b02",
+        "say": "One half costs one bit. One eighth costs three. What number should divide the total?",
+        "hold": 2.4
+      },
+      {
+        "id": "c17-b03",
+        "say": "Divide ten bits by four scored targets. That’s two and a half bits per target. We used base two, so raise two to that average for a perplexity of about five point seven. Averaging the two batch perplexities would give five.",
+        "hold": 0.3
+      },
+      {
+        "id": "c17-b04",
+        "say": "Giving each batch’s mean loss equal weight would give a perplexity of four. Batch B contains three of the four targets, so its losses need three places in the sum.",
+        "hold": 0.7
+      },
+      {
+        "id": "c17-b05",
+        "say": "A long document adds another wrinkle. Disjoint chunks lose earlier context at each cut. Here, position zero follows a start token. Slide the window and keep the overlapping positions as context. Look at position three. Its first appearance contributes a loss.",
+        "hold": 0.3
+      },
+      {
+        "id": "c17-b06",
+        "say": "Its second appearance helps predict later tokens. Keep one loss sum and one count across windows. Skip padding and ignored labels in both. A window with zero scored labels has no mean of its own.",
+        "hold": 0.7
+      },
+      {
+        "id": "c17-b07",
+        "say": "Go back to “The cat sat.” We can compare the two ways of scoring it in a common unit. Count the UTF-eight bytes, including both spaces. Each letter here takes one byte. The end token is scored in both versions and adds no text bytes.",
+        "hold": 0.3
+      },
+      {
+        "id": "c17-b08",
+        "say": "Divide total nats by the natural log of two to get bits, then divide by eleven bytes. Both scores give the same bits per byte. Keep the encoding, text boundaries and context policy fixed. Calibration and factual accuracy need separate checks.",
+        "hold": 0.8
+      }
+    ]
+  },
+  {
+    "id": "c18",
+    "title": "A selected token becomes the next input",
+    "sourceChapters": [
+      "c18"
+    ],
+    "beats": [
+      {
+        "id": "c18-b01",
+        "say": "Generation supplies its own continuation. This sample lands in slept's interval. Append slept to the prefix, then calculate the distribution after the cat slept. We followed a possible sample instead of always choosing the largest share.",
+        "hold": 0.4
+      },
+      {
+        "id": "c18-b02",
+        "say": "On is likely next, but this second sample selects end. Stop here: the cat slept. During training, the recorded sentence supplied sat. During this rollout, our selected slept changed the later context. Evaluate generated rollouts as well as teacher-forced loss.",
+        "hold": 0.4
+      }
+    ]
+  },
+  {
+    "id": "c19",
+    "title": "Which two-token path gets the most probability?",
+    "sourceChapters": [
+      "c19"
+    ],
+    "beats": [
+      {
+        "id": "c19-b01",
+        "say": "Here the first token can be A or B. Greedy decoding takes the widest first strip, A. Now cut A into ten equal continuations. Any one of them gets a tenth of A’s share. After B, one continuation gets nine tenths of B’s share.",
+        "hold": 0.3
+      },
+      {
+        "id": "c19-b02",
+        "say": "You get to pick a whole two-token path. Which would you take?",
+        "hold": 2.8
+      },
+      {
+        "id": "c19-b03",
+        "say": "Take one slice from each branch. The path through A gets six percent of the original probability. The path through B gets thirty-six percent. Look at how much wider that second slice is, even though B started smaller. Greedy decoding commits before it sees those second choices.",
+        "hold": 0.3
+      },
+      {
+        "id": "c19-b04",
+        "say": "With fixed scores and a fixed rule for ties, it makes the same choice every time. Close scores can still change order when numerical kernels or hardware change.",
+        "hold": 0.85
+      }
+    ]
+  },
+  {
+    "id": "c20",
+    "title": "When does “slept” enter the cache?",
+    "sourceChapters": [
+      "c20"
+    ],
+    "beats": [
+      {
+        "id": "c20-b01",
+        "say": "Where is “slept” when it first appears on your screen? First the model reads “The cat.” This is prefill. Each attention layer stores keys and values for those two positions. A key lets a later query score that position, and its value carries information the query can read. From the model’s next-word scores, we sample “slept.” The server can send it to the reader now.",
+        "hold": 0.3
+      },
+      {
+        "id": "c20-b02",
+        "say": "Look at the cache row. It still holds two words. “Slept” gets its own entry on the next call.",
+        "hold": 0.65
+      },
+      {
+        "id": "c20-b03",
+        "say": "Feed the selected slept occurrence into the next call. Each layer computes that position’s query, key and value, appends its key and value, and performs the remaining block work. The processed prefix and cache now contain three positions. That call supplies the next distribution.",
+        "hold": 0.3
+      },
+      {
+        "id": "c20-b04",
+        "say": "Our second sample selects end, so the loop stops before feeding it back. Two output tokens were accepted, while only three total positions were processed and cached.",
+        "hold": 0.65
+      },
+      {
+        "id": "c20-b05",
+        "say": "A lost resident cache can be rebuilt from retained processed input without sampling another output or delivering a duplicate. Drop its resident vectors, then replay exactly The, cat and slept with the same model, positions and attention policy.",
+        "hold": 0.3
+      },
+      {
+        "id": "c20-b06",
+        "say": "Accepted output and already delivered history remain unchanged during replay. This illustrates ordinary decoding with at most one selected token awaiting processing; speculative verification uses a different multi-token contract.",
+        "hold": 0.65
+      }
+    ]
+  },
+  {
+    "id": "c21",
+    "title": "Check reuse against the same full computation",
+    "sourceChapters": [
+      "c21"
+    ],
+    "beats": [
+      {
+        "id": "c21-b01",
+        "say": "The cache invariant comes from causality. With a fixed model in evaluation mode, identical prefix tokens, positions and attention policy produce the same mathematical earlier keys and values. Appending future tokens cannot change those earlier states.",
+        "hold": 0.3
+      },
+      {
+        "id": "c21-b02",
+        "say": "The article’s actual single-layer test prefills three positions, then appends two tokens at positions three and four. Concatenated cached outputs match a full causal pass within its stated floating-point tolerance.",
+        "hold": 0.65
+      },
+      {
+        "id": "c21-b03",
+        "say": "A one-row decode query sits at the end of the key history. In this example every cached key is allowed. An upper-left nonsquare causal mask would align that query with the beginning instead, hiding valid earlier keys. The test supplies an explicit all-allowed Boolean row.",
+        "hold": 0.3
+      },
+      {
+        "id": "c21-b04",
+        "say": "Every layer in a real decoder has its own cache, and position IDs must continue from the processed prefix. Cached keys may already include positional rotation. Changing any of those premises requires a valid rebuild or documented policy; different kernels can still introduce rounding differences.",
+        "hold": 0.65
+      }
+    ]
+  },
+  {
+    "id": "c22",
+    "title": "Count the work that reuse removes",
+    "sourceChapters": [
+      "c22"
+    ],
+    "beats": [
+      {
+        "id": "c22-b01",
+        "say": "Count work before calling it speed. With prompt length three and three generated tokens, a simple uncached loop processes lengths three, four and five. Projection and feed-forward position counts total twelve.",
+        "hold": 0.3
+      },
+      {
+        "id": "c22-b02",
+        "say": "In a deliberately dense score-matrix accounting that includes masked cells, three squared plus four squared plus five squared is fifty. With caching, prefill processes three positions and the following calls process one new position each: five total.",
+        "hold": 0.3
+      },
+      {
+        "id": "c22-b03",
+        "say": "Prefill’s nine score cells plus decode key counts four and five total eighteen.",
+        "hold": 0.65
+      },
+      {
+        "id": "c22-b04",
+        "say": "As output length grows with a fixed prompt and width, repeated uncached projections grow quadratically. Repeating full-prefix attention grows cubically. A cached decode projects one new position per call. Each new query still reads the growing history. Across all decode calls, that attention work grows quadratically.",
+        "hold": 0.3
+      },
+      {
+        "id": "c22-b05",
+        "say": "Fused causal kernels can skip masked work, which changes these cell counts and constants. They do not turn a growing full-attention history into constant work.",
+        "hold": 0.65
+      },
+      {
+        "id": "c22-b06",
+        "say": "Prefill can reuse a loaded weight across many prompt positions. Batch-one decode has much less reuse: one multiply-plus-add gives about two operations per two-byte dense weight, or one operation per weight byte in this simplified calculation. Visible keys and values add reads.",
+        "hold": 0.3
+      },
+      {
+        "id": "c22-b07",
+        "say": "More requests can share weight loads. Batch size, context length, precision, fusion, communication and hardware determine the actual bottleneck. Measure latency and throughput; storage arithmetic alone cannot establish either.",
+        "hold": 0.65
+      }
+    ]
+  },
+  {
+    "id": "c23",
+    "title": "Count stored positions and head payloads",
+    "sourceChapters": [
+      "c23"
+    ],
+    "beats": [
+      {
+        "id": "c23-b01",
+        "say": "Raw cache payload counts two arrays, keys and values, times layers, stored key/value heads, coordinates per head, cached positions, requests and bytes per value. Use thirty-two layers, eight key/value heads, one hundred twenty-eight coordinates, four equal-length requests and two bytes per value.",
+        "hold": 0.3
+      },
+      {
+        "id": "c23-b02",
+        "say": "At two thousand forty-eight cached positions each, the batch payload is exactly one gibibyte. Sixteen times the positions gives sixteen gibibytes. One gibibyte is one thousand twenty-four cubed bytes. One kibibyte is one thousand twenty-four bytes.",
+        "hold": 0.65
+      },
+      {
+        "id": "c23-b03",
+        "say": "At thirty-two requests rather than four, the longer batch becomes one hundred twenty-eight gibibytes. Those counts exclude weights, workspace, quantization scales, page rounding and allocator reserves. For unequal request lengths, add their cached position counts before multiplying the common layer and head dimensions.",
+        "hold": 0.3
+      },
+      {
+        "id": "c23-b04",
+        "say": "For different layer dimensions or retention rules, sum each layer’s own payload. Count processed positions, not every token already selected for output.",
+        "hold": 0.65
+      }
+    ]
+  },
+  {
+    "id": "c24",
+    "title": "How much cache do these requests use?",
+    "sourceChapters": [
+      "c24"
+    ],
+    "beats": [
+      {
+        "id": "c24-b01",
+        "say": "Look down one column. Four query heads share one key head and one value head. Eight shared sets of keys and values serve thirty-two query heads. At the same dimensions and length, that cuts the raw cache to a quarter.",
+        "hold": 0.3
+      },
+      {
+        "id": "c24-b02",
+        "say": "The researchers converted T5 checkpoints to grouped-query attention and trained them further. Those models came close to multi-head attention on the tasks they measured.",
+        "hold": 0.65
+      },
+      {
+        "id": "c24-b03",
+        "say": "PagedAttention can place each block of a request wherever a physical block is free. Equal block sizes avoid external fragmentation. The last block can have empty slots. Round up each request separately. With four slots per block, three positions take one block and seven take two.",
+        "hold": 0.3
+      },
+      {
+        "id": "c24-b04",
+        "say": "Here ten of twelve allocated slots hold tokens. Each request leaves one empty slot in its last block. The PagedAttention paper reported a different measurement for the earlier systems it compared. Useful token states occupied twenty point four to thirty-eight point two percent of their allocated key and value memory.",
+        "hold": 0.65
+      },
+      {
+        "id": "c24-page-bytes",
+        "say": "Give each stored position a payload of two kibibytes in this separate small model. Count the real positions, then count all the reserved slots. What does each total cost?",
+        "hold": 1.7
+      },
+      {
+        "id": "c24-rounded",
+        "say": "Ten real positions hold twenty kibibytes of useful data. Three pages of four slots reserve twenty-four kibibytes. The two empty slots still take memory.",
+        "hold": 1.1
+      },
+      {
+        "id": "c24-b05",
+        "say": "Halve the stored heads from eight to four. Our four long requests now take eight gibibytes of raw cache, down from sixteen. The same sixteen-gibibyte cache budget holds eight requests at this length. Weights and runtime tensors need additional memory.",
+        "hold": 0.3
+      },
+      {
+        "id": "c24-b06",
+        "say": "Scheduling and latency can also limit the batch. Measure tokens per second to see how fast it runs.",
+        "hold": 0.65
+      }
+    ]
+  },
+  {
+    "id": "c25",
+    "title": "Reserve the future before filling the window",
+    "sourceChapters": [
+      "c25"
+    ],
+    "beats": [
+      {
+        "id": "c25-b01",
+        "say": "This model has room for thirty-two positions. Reserve eight of them for output. Our prompt has twenty-five tokens. Add the eight reserved slots and the last one crosses the line. We could reject the request, reserve fewer output slots, or shorten the prompt by one token. Watch the shortened prompt. Twenty-four plus eight fits exactly.",
+        "hold": 0.65
+      },
+      {
+        "id": "c25-b02",
+        "say": "A sliding-window layer or recurrent state has a different retention rule from full attention. Simply deleting old cached entries changes what can be attended to, while retained hidden states may still encode the removed tokens.",
+        "hold": 0.3
+      },
+      {
+        "id": "c25-b03",
+        "say": "Recomputing from a shortened prompt is a different operation from removing a few resident vectors. Apply the model and runtime’s documented position and retention policy. Even with cache reuse, every newly consumed token still executes its new-position computation.",
+        "hold": 0.65
+      }
+    ]
+  },
+  {
+    "id": "c26",
+    "title": "Which evidence would settle the claim?",
+    "sourceChapters": [
+      "c26"
+    ],
+    "beats": [
+      {
+        "id": "c26-b01",
+        "say": "A reader asks about a free-tier rate limit. Our toy model gives the word “unlimited” seventy-five percent. Would you publish that answer? Which source can tell us the actual limit?",
+        "hold": 1.8
+      },
+      {
+        "id": "c26-b02",
+        "say": "Open the current policy. Version two says sixty requests per minute. The model score explains the word choice. The dated passage gives us evidence about the limit. Check both the version and the passage behind a citation.",
+        "hold": 0.7
+      },
+      {
+        "id": "c26-b03",
+        "say": "How did the wrong answer get there? Inspect the version in the application trace. The retriever supplied version one. Fetch version two and check whether the answer follows its rule. Lowering the temperature leaves the old passage in place.",
+        "hold": 0.3
+      },
+      {
+        "id": "c26-b04",
+        "say": "A model can recall a fact or even a memorized personal detail from training. A live database lookup leaves a different kind of evidence in the application trace. For a repetition problem, inspect the generated text, filters and stop reason across runs.",
+        "hold": 0.75
+      },
+      {
+        "id": "c26-b05",
+        "say": "Suppose a model predicts the digit two for this program’s output. Run the three lines on the left. Python prints two. That agrees with the completion, but a model that always says two would pass this case.",
+        "hold": 0.3
+      },
+      {
+        "id": "c26-b06",
+        "say": "Start at seven and add two. Before you test the model again, what output should it match?",
+        "hold": 2.8
+      },
+      {
+        "id": "c26-b07",
+        "say": "Run the changed program. Python prints nine. Now collect the model’s completion on those changed lines and compare it with nine. Keep trying unfamiliar inputs and operations. Next-token training can reward predictions that track changing program state.",
+        "hold": 0.3
+      },
+      {
+        "id": "c26-b08",
+        "say": "Tests like these, and the in-context tasks studied with GPT-three, measure behavior. Figuring out how a model produces it takes further evidence.",
+        "hold": 0.8
+      }
+    ]
+  },
+  {
+    "id": "c27",
+    "title": "Your turn: shift the targets",
+    "sourceChapters": [
+      "c27"
+    ],
+    "beats": [
+      {
+        "id": "c27-b01",
+        "say": "Your turn. The recorded sentence is the dog slept. At the dog input position, which word is the target, and which words may the model read? Point to both before we uncover the row.",
+        "hold": 1.5
+      },
+      {
+        "id": "c27-b02",
+        "say": "Shift the observed words into their target positions. At dog, the target is slept. Read start, the and dog. This model gave slept thirty percent, so its loss is about one point two nats. Keep that observed answer separate from a generated choice.",
+        "hold": 0.4
+      },
+      {
+        "id": "c27-b03",
+        "say": "Generate from the same prefix using the largest share. Ate wins and becomes the next input. The following end choice stops the output. Our generated sentence says the dog ate; the record says the dog slept. Probabilities explain the model's choice. The observation supplies the training target and the evidence for what happened.",
+        "hold": 0.4
+      }
+    ]
+  },
+  {
+    "id": "c28",
+    "title": "Where does this fox stop?",
+    "sourceChapters": [
+      "c28"
+    ],
+    "beats": [
+      {
+        "id": "c28-b01",
+        "say": "A red fox. The three words occupy three places in a five-position window. Leave the last two output slots open. The end token has priority over the output limit on this server. Keep the record in view. It says runs, then end.",
+        "hold": 0.3
+      },
+      {
+        "id": "c28-b02",
+        "say": "One quarter of the opening width reaches runs. After runs, end and on divide that quarter equally. Where will the end branch close? If we follow that path, which of the five tokens will actually reach the cache?",
+        "hold": 2
+      },
+      {
+        "id": "c28-b03",
+        "say": "The prompt fills three cache positions. Our sample picks runs. Feed runs back. Its entry joins the cache, and its two possible continuations share the narrow fork. This sample picks end. The end token fills the second output slot and stops the run before another model call.",
+        "hold": 0.3
+      },
+      {
+        "id": "c28-b04",
+        "say": "Close the end branch. It occupies one eighth of the original width. For the recorded continuation, multiply one quarter by one half. Take the negative natural log of that product and divide by two targets. Raising e to this mean gives a perplexity of about two point eight three.",
+        "hold": 1.2
+      },
+      {
+        "id": "c28-b05",
+        "say": "Reset the run to the same prompt. Leave the record on the page. This sample picks “waits.” Feed “waits” back and look at its next row. Now “here” has four fifths of the probability. The sample picks “here.” Look at the two output slots. What stopped this run, and should you change the record’s score?",
+        "hold": 3
+      },
+      {
+        "id": "c28-b06",
+        "say": "The second word used the last output slot. Report an output limit. The cache holds the prompt and “waits.” The record still says “runs,” then end, so its score stays one eighth. To score a record, follow the words on its page.",
+        "hold": 0.3
+      },
+      {
+        "id": "c28-b07",
+        "say": "When you score a record, follow its observed words, including its stop. When you generate, follow the word the model selected. Feeding that word back changes the next distribution. The next lesson follows that loop into GPT-style assistants.",
+        "hold": 1.25
+      }
+    ]
+  }
+]

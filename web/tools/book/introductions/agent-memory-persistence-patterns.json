@@ -1,0 +1,14 @@
+{
+  "framing": "Persist coding-agent working state, scoped semantic facts, and execution checkpoints across sessions without letting stale notes drive live actions.",
+  "paragraphs": [
+    "Once an agent steps past a single conversation turn, every session boundary forces a hard reset of model state. The language model receives only the tokens packed into the current request, while traces, test preferences, and pending tool operations reside in external databases and indexes managed by the runtime.",
+    "This chapter builds a concrete persistence architecture from first principles: separating in-context working memory from KV prefix caching, organizing CoALA episodic, semantic, and procedural tiers, balancing cosine similarity with exponential recency decay, and synchronizing primary records against asynchronous search projections.",
+    "Because retrieved notes are snapshots rather than live execution state, you will also connect retrieval memory to durable workflow checkpoints, source-linked compression trees, and database row-level isolation so agents resume safely across crashes and multi-repository workloads."
+  ],
+  "outcomes": [
+    "Separate working context, KV inference caches, durable recall stores, and workflow checkpoints.",
+    "Build version-checked, TTL-bounded SQLite and vector retrieval pipelines that reject stale or revoked records.",
+    "Combine hierarchical summarization with schema-checked fact extraction while preserving links back to source turns."
+  ],
+  "question": "If a coding agent retrieves a high-similarity note saying yesterday's tests passed right before a merge step crashes, what should recovery check before acting?"
+}

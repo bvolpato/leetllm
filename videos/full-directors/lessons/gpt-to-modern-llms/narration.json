@@ -1,0 +1,522 @@
+[
+  {
+    "id": "c01",
+    "title": "What happens after Docs?",
+    "sourceChapters": [
+      "c01"
+    ],
+    "beats": [
+      {
+        "id": "c01-b01",
+        "say": "The issue tracker has three folders. The note says the guide names an old button. Our model has written Docs. Match those four letters against the middle folder. Give the model one more prediction. A period lands beyond the outline. Can this reply go in the folder?",
+        "hold": 2.8
+      },
+      {
+        "id": "c01-b02",
+        "say": "The tracker rejects the reply. The four letters still match, but the period has no place in the name. Rewind one token. With decoding constrained to complete folder names, Docs can end here. Appending the period would leave no possible match.",
+        "hold": 1.2
+      },
+      {
+        "id": "c01-b03",
+        "say": "Each piece came from a separate prediction. We’ll follow the first one from the words in the note to a score for Docs. Later we’ll check the whole reply against a reviewer’s label and choose a model for the queue.",
+        "hold": 0.8
+      }
+    ]
+  },
+  {
+    "id": "c02",
+    "title": "What can the position at “guide” read?",
+    "sourceChapters": [
+      "c02"
+    ],
+    "beats": [
+      {
+        "id": "c02-b01",
+        "say": "Treat the start marker, Stale, guide, and the label prompt as four toy tokens. Each has a vector. Put the reader at guide. On the left, a bidirectional encoder can read both sides. With suitable training, it can classify a complete note, extract a span, or build an embedding.",
+        "hold": 0.8
+      },
+      {
+        "id": "c02-b02",
+        "say": "On the right, slide the reader down to guide. Each window opens only as far as its own position. At guide, it can read three tokens. The shutter covers the later label prompt. This left-to-right visibility rule is the causal mask.",
+        "hold": 0.9
+      },
+      {
+        "id": "c02-b03",
+        "say": "The very token hidden there is the next training target. At guide, predict the label prompt. At the label prompt, predict the first piece of the reply. With a known training sequence, many positions can practice their own next prediction together.",
+        "hold": 0.3
+      },
+      {
+        "id": "c02-b04",
+        "say": "When generating, the model has to select the next token before it can consume it.",
+        "hold": 0.9
+      }
+    ]
+  },
+  {
+    "id": "c03",
+    "title": "What reaches the last position?",
+    "sourceChapters": [
+      "c03"
+    ],
+    "beats": [
+      {
+        "id": "c03-b01",
+        "say": "At the last position, a query scores the visible keys. Softmax turns the scores into shares that add to one. Here the shares are supplied. Every position offers a value vector. Scale each value by its share, then join the steps tip to tail. The start marker contributes zero.",
+        "hold": 0.8
+      },
+      {
+        "id": "c03-b02",
+        "say": "Guide pulls the dot up by seven tenths. Stale nudges it right by one tenth. The label prompt adds one tenth in each direction. Trace that last short diagonal. Where did it leave us?",
+        "hold": 1.6
+      },
+      {
+        "id": "c03-b03",
+        "say": "Two tenths across and eight tenths up. Those two coordinates describe the mixture this position read. A real decoder combines attention and feed-forward updates through many layers. We’ll take this little vector as our final state and ask which reply token it favors.",
+        "hold": 0.9
+      }
+    ]
+  },
+  {
+    "id": "c04",
+    "title": "Which output row wins?",
+    "sourceChapters": [
+      "c04"
+    ],
+    "beats": [
+      {
+        "id": "c04-b01",
+        "say": "We’ll use four possible outputs in this toy model. Each has a row of learned weights. Look at Docs. Multiply half by the first coordinate, point two. Multiply one by the second, point eight. Their sum is point nine. That is the score for Docs.",
+        "hold": 0.3
+      },
+      {
+        "id": "c04-b02",
+        "say": "That score before normalization is called a logit. Apply the same calculation to the other rows.",
+        "hold": 1
+      },
+      {
+        "id": "c04-b03",
+        "say": "Softmax turns those scores into probabilities. It exponentiates each score and divides by the sum of all four exponentials. The bars use the same scale. Sampling could select any of these tokens. With greedy decoding, which one gets written?",
+        "hold": 2.2
+      },
+      {
+        "id": "c04-b04",
+        "say": "Greedy decoding writes Docs. Its bar is the longest, even though its probability is less than half. The model has picked one token. Whether the tracker receives a bare label also depends on where generation stops.",
+        "hold": 1
+      }
+    ]
+  },
+  {
+    "id": "c05",
+    "title": "Where did the prediction change?",
+    "sourceChapters": [
+      "c05"
+    ],
+    "beats": [
+      {
+        "id": "c05-b01",
+        "say": "Slide a solved note into the prompt before the question about the old button. Now attention has another place to read. The example uses context space, and the weight rows stay fixed. A different demonstration can change the prediction on this pass.",
+        "hold": 0.9
+      },
+      {
+        "id": "c05-b02",
+        "say": "Now train on the original note with Docs as the target. Follow the updates as they increase its score, give it more probability, and lower the loss. Each gradient step changes the output weights. All four probabilities adjust because they share the same denominator.",
+        "hold": 1
+      },
+      {
+        "id": "c05-b03",
+        "say": "These twelve steps made one training label easier to predict. A held-out note can still go wrong. Large-scale pretraining uses next-token targets from varied text. Instructions and human preferences can shape the weights further. First, let’s go back to the original weights and let our assistant write a second token.",
+        "hold": 0.8
+      }
+    ]
+  },
+  {
+    "id": "c06",
+    "title": "When does a written token enter the cache?",
+    "sourceChapters": [
+      "c06"
+    ],
+    "beats": [
+      {
+        "id": "c06-b01",
+        "say": "Start again with the original weights. Four known prompt pieces go through the model together in this example. Their IDs select learned embeddings. In each decoder layer, residual additions carry the attention and feed-forward updates forward. Save the four keys and values for this layer. That first pass over the prompt is called prefill.",
+        "hold": 1
+      },
+      {
+        "id": "c06-b02",
+        "say": "The last prompt row selects Docs. Look straight below the new token. Its cache slot is still empty. If the output budget is one token, the tracker gets the bare label. Give this run room for another token. Which position still needs a forward pass?",
+        "hold": 2.4
+      },
+      {
+        "id": "c06-b03",
+        "say": "Process Docs. It supplies a new key and value, and its query can read all five positions. For this second toy state, we’ve supplied a different feature vector. The output weights are the same. Compare the two leading scores. This time greedy decoding picks the period. Now read the whole reply on the top line.",
+        "hold": 1.3
+      },
+      {
+        "id": "c06-b04",
+        "say": "The period is waiting for its own pass, just as Docs was. Earlier keys and values can be reused. Each new position still needs projections, attention, and feed-forward work. Compare two thousand forty-eight prompt rows with the single new row in batch-one decode. Prefill can reuse each projection’s weights across those rows.",
+        "hold": 0.3
+      },
+      {
+        "id": "c06-b05",
+        "say": "Moving weights and cache data can then dominate. Profile at the batch size, precision and context length you actually serve.",
+        "hold": 1
+      }
+    ]
+  },
+  {
+    "id": "c07",
+    "title": "How did a text completer learn the task?",
+    "sourceChapters": [
+      "c07"
+    ],
+    "beats": [
+      {
+        "id": "c07-b01",
+        "say": "GPT stands for Generative Pre-trained Transformer. It’s one family of large language models. The original translation Transformer had an encoder and a decoder. GPT uses a causal stack without the translation decoder’s attention to an encoder.",
+        "hold": 0.3
+      },
+      {
+        "id": "c07-b02",
+        "say": "GPT-1 pretrained on text, then fine-tuned the weights for tasks with labeled examples. Our review notes could serve as training data in that second step.",
+        "hold": 1
+      },
+      {
+        "id": "c07-b03",
+        "say": "GPT-2 asked how far a model could get from the task prompt alone. Here the instruction asks for a label and the next line gives the new note. There’s no solved example in this input, and the model weights stay fixed. That’s a zero-shot test.",
+        "hold": 0.8
+      },
+      {
+        "id": "c07-b04",
+        "say": "Add one solved example to the input. Now the stale guide shows how to answer the note about an old flag. GPT-3 studied this kind of few-shot prediction with weights fixed. You can change the example between requests.",
+        "hold": 0.8
+      },
+      {
+        "id": "c07-b05",
+        "say": "An engineer asks why run eight forty-two failed. Read line forty-one. One reply says the test rejected the fixture as expired. Another blames a fast clock. Which claim does the line support?",
+        "hold": 2.2
+      },
+      {
+        "id": "c07-b06",
+        "say": "The reviewer prefers the expired fixture reply. InstructGPT first fine-tuned on human demonstrations. Human comparisons then trained a reward model. A reinforcement learning method called PPO updated the policy using that reward, with a penalty for drifting from the reference policy. Other assistants can use different recipes.",
+        "hold": 1
+      },
+      {
+        "id": "c07-b07",
+        "say": "That preference gives a training signal. To check for clock skew, compare the host clock at the failure with a trusted clock at that same instant. Then check where the fixture’s expiry falls. A fast host can reject a valid fixture early if the trusted time is still before expiry. If an assistant continues the conversation as the user, check the checkpoint and its chat template. Serialize the history with the expected role tokens and start the reply at the assistant prefix.",
+        "hold": 0.9
+      }
+    ]
+  },
+  {
+    "id": "c08",
+    "title": "How much text fits in the training budget?",
+    "sourceChapters": [
+      "c08"
+    ],
+    "beats": [
+      {
+        "id": "c08-b01",
+        "say": "Think of training work as a sheet of squares. Its width counts parameters in allocation units. Its height counts training token units. In a dense projection, each token uses the whole matrix. For a dense Transformer, six times parameters times token exposures approximates the work of forward and backward passes.",
+        "hold": 0.9
+      },
+      {
+        "id": "c08-b02",
+        "say": "Double the parameter count while keeping that budget fixed. The token grid has to halve. Double the parameters again, and you can afford only four token units. The product stays the same across all three allocations. A training token here counts one exposure, even if the same text has appeared before.",
+        "hold": 0.9
+      },
+      {
+        "id": "c08-b03",
+        "say": "Return to the middle allocation, eight units of each. Now imagine four times the compute. Chinchilla’s fitted allocation grew parameters and training tokens about equally. Doubling both spends that fourfold budget. Its roughly twenty tokens per parameter was a result for those training conditions.",
+        "hold": 0.3
+      },
+      {
+        "id": "c08-b04",
+        "say": "If you expect to serve millions of requests, extra training on a smaller model may pay for itself. Measure quality and the cost per request to find out.",
+        "hold": 1
+      }
+    ]
+  },
+  {
+    "id": "c09",
+    "title": "What changes when queries share a KV head?",
+    "sourceChapters": [
+      "c09"
+    ],
+    "beats": [
+      {
+        "id": "c09-b01",
+        "say": "Keep the four prompt positions from our label task. This time look inside one attention layer with eight query heads. As we store each position, every head gets a key and a value, with two coordinates apiece. Four positions fill the bottom row. That’s a hundred twenty-eight stored numbers for this one layer and request.",
+        "hold": 1
+      },
+      {
+        "id": "c09-b02",
+        "say": "Keep those four positions and all eight queries. Bundle the query wires in groups of four. The four wires in a group can read one stored key and value head. How many distinct heads must the cache store now?",
+        "hold": 2.4
+      },
+      {
+        "id": "c09-b03",
+        "say": "Two stored heads serve the eight queries. Follow the lines from each group of four. Four positions times two heads times two coordinates each for the key and the value gives thirty-two stored numbers. That’s a quarter of the original payload. This design is called grouped-query attention.",
+        "hold": 1
+      },
+      {
+        "id": "c09-b04",
+        "say": "Pick two query pointers from the first group. One points right and one points up. Both read the very same keys and values in order. The share columns show the softmax weights for each query. Each step is a stored value multiplied by its share. Watch the first trace take longer horizontal steps. Watch the second trace take longer vertical steps.",
+        "hold": 1.1
+      },
+      {
+        "id": "c09-b05",
+        "say": "The tips land apart. The first read ends near one point four six across and point five four up. The second swaps those coordinates. The four stored key and value pairs stayed in place throughout both reads.",
+        "hold": 1.3
+      },
+      {
+        "id": "c09-b06",
+        "say": "Start with the key and value coordinates for one position. Multiply by positions per request, requests, layers, and bytes per coordinate. With the dimensions on screen, thirty-two separate heads occupy thirty-two gibibytes. Eight KV heads take eight. A single shared head takes one.",
+        "hold": 0.3
+      },
+      {
+        "id": "c09-b07",
+        "say": "These are raw cache sizes. Weights, reserved pages and runtime buffers also need memory. Measure complete latency and task quality on each compatible checkpoint.",
+        "hold": 1
+      }
+    ]
+  },
+  {
+    "id": "c10",
+    "title": "What happens to these two features?",
+    "sourceChapters": [
+      "c10"
+    ],
+    "beats": [
+      {
+        "id": "c10-b01",
+        "say": "Look inside one decoder block. Many modern decoders rescale each position’s features before attention and before the feed-forward branch. Take three and four at one position. Use unit gains and omit the tiny epsilon. Square the features. The two squares have areas nine and sixteen.",
+        "hold": 0.3
+      },
+      {
+        "id": "c10-b02",
+        "say": "Average nine and sixteen. Take the square root of twelve and a half. That’s the root mean square, about three point five four.",
+        "hold": 1
+      },
+      {
+        "id": "c10-b03",
+        "say": "Start with the input pair, three and four. Divide both features by their root mean square. Three becomes about point eight five and four becomes one point one three. Both bars still point up. This is RMSNorm with unit gains. A trained layer can scale each resulting feature by its own learned gain.",
+        "hold": 1
+      },
+      {
+        "id": "c10-b04",
+        "say": "Start again with the original three and four. LayerNorm first subtracts the mean, three and a half. The centered pair is minus one half and one half. Divide by their standard deviation, one half. Each magnitude doubles. The normalized pair is minus one and one with unit gain and zero bias.",
+        "hold": 0.3
+      },
+      {
+        "id": "c10-b05",
+        "say": "Ordinary RMSNorm leaves out centering and the additive bias. Both operations can use fused kernels, so measure speed and training quality on the actual model.",
+        "hold": 1
+      }
+    ]
+  },
+  {
+    "id": "c11",
+    "title": "How much of this feature gets through?",
+    "sourceChapters": [
+      "c11"
+    ],
+    "beats": [
+      {
+        "id": "c11-b01",
+        "say": "A feed-forward branch works on one position at a time. Here two learned projections of its features meet. One branch produces four. The other goes through SiLU, which multiplies a number by its sigmoid. SwiGLU multiplies the two branches element by element, then projects the result back to the model width.",
+        "hold": 0.9
+      },
+      {
+        "id": "c11-b02",
+        "say": "At a gate input of zero the product vanishes, even though the other branch still holds four. Change only the gate input to one. SiLU now gives about point seven three. Multiply by four and about two point nine two gets through.",
+        "hold": 0.3
+      },
+      {
+        "id": "c11-b03",
+        "say": "Move the gate input to minus one. SiLU is negative there, so the product changes sign while the other branch still supplies four.",
+        "hold": 1
+      },
+      {
+        "id": "c11-b04",
+        "say": "The extra projection also needs weights. In an ordinary bias-free block, two matrices each have twelve times forty-eight weights. Keep that total, eleven hundred fifty-two. If the gated block has three matrices with model width twelve, what hidden width can you afford?",
+        "hold": 2.2
+      },
+      {
+        "id": "c11-b05",
+        "say": "Each hidden width is thirty-two. Three lots of twelve times thirty-two use the same weight budget as the two wider matrices. At model width d, that’s eight d over three instead of four d. Rounding to hardware-friendly widths and evaluating the gate can change the runtime.",
+        "hold": 1
+      }
+    ]
+  },
+  {
+    "id": "c12",
+    "title": "How does attention see a position change?",
+    "sourceChapters": [
+      "c12"
+    ],
+    "beats": [
+      {
+        "id": "c12-b01",
+        "say": "A decoder also needs to tell when a token appeared. The yellow arrow is a query at position nine. The blue arrow is a key it can read at position three.",
+        "hold": 0.3
+      },
+      {
+        "id": "c12-b02",
+        "say": "Rotary position embeddings, or RoPE, rotate coordinate pairs in the query and key before taking their dot product. Here we draw one pair. Other coordinate pairs can turn at different rates.",
+        "hold": 1
+      },
+      {
+        "id": "c12-b03",
+        "say": "Keep the underlying content vectors fixed. Shift both positions forward by ten. The arrows turn together. The key is still six positions behind the query, so the angle between them and their dot product stay the same.",
+        "hold": 1
+      },
+      {
+        "id": "c12-b04",
+        "say": "Now bring only the key three positions closer. The blue arrow turns away from the yellow one. Their dot product drops from about point five six to point three. Moving the pair together preserved the score. Changing the gap changed it.",
+        "hold": 0.3
+      },
+      {
+        "id": "c12-b05",
+        "say": "Try a different content vector at the same position. The score changes again. RoPE preserves a shared position shift for fixed content. Across layers the content itself can change, so the gap alone cannot tell us the full attention score.",
+        "hold": 1
+      }
+    ]
+  },
+  {
+    "id": "c13",
+    "title": "Which weights does this token use?",
+    "sourceChapters": [
+      "c13"
+    ],
+    "beats": [
+      {
+        "id": "c13-b01",
+        "say": "A decoder can have several feed-forward networks available at one layer. Each one is called an expert. In this four-expert example the router scores the token “import”. Follow the two largest scores to their experts. Normalize just those scores and use the shares to mix the two outputs. The other two experts stay available.",
+        "hold": 1
+      },
+      {
+        "id": "c13-b02",
+        "say": "Now the token is “assertion”. The expert bank stays in place. Read the four new scores. Which expert takes over the first route, and which expert still gets some work?",
+        "hold": 2.3
+      },
+      {
+        "id": "c13-b03",
+        "say": "Expert one takes over from expert zero. Expert two is selected again. Its share has changed because the router normalized a different pair of scores. Across a batch, routing many tokens to one expert can make that expert the bottleneck. Load balance and communication affect elapsed time.",
+        "hold": 1
+      },
+      {
+        "id": "c13-b04",
+        "say": "Now size the Mixtral eight by seven billion checkpoint. Each sparse layer has eight experts and selects two per token. Use the rounded counts on screen. Forty-seven billion parameters in total, thirteen billion active per token.",
+        "hold": 0.3
+      },
+      {
+        "id": "c13-b05",
+        "say": "At two bytes per weight, the active subset accounts for twenty-six gigabytes. You have a thirty-two gigabyte GPU. Can the whole checkpoint stay on that card?",
+        "hold": 2.5
+      },
+      {
+        "id": "c13-b06",
+        "say": "The full weight pool needs ninety-four gigabytes. The other experts must be there when a different token selects them. That alone exceeds the card’s capacity, before a single cached token. The active count helps estimate work for one token. Full residency sets this memory requirement.",
+        "hold": 1
+      },
+      {
+        "id": "c13-b07",
+        "say": "Add the cache and work buffers when sizing the worker. Consider four cards of thirty-two gigabytes each. An ideal even split gives each card twenty-three and a half gigabytes of raw weights. Leave room for everything else. Quantization can shrink the payload, and offloading moves some of it elsewhere. Include scales and transfers when they apply. Test speed and quality. Downloadable weights have their own license. Check it alongside the code license and the runtime revision.",
+        "hold": 1
+      }
+    ]
+  },
+  {
+    "id": "c14",
+    "title": "Did the assistant use the evidence?",
+    "sourceChapters": [
+      "c14"
+    ],
+    "beats": [
+      {
+        "id": "c14-b01",
+        "say": "Line forty-one reports an expiry. We need the host time and a trusted time from the instant of failure to check for clock skew. This log gives neither. Suppose the fixture expires at noon and the host reads twelve oh five. If the trusted clock also reads twelve oh five, the clocks agree. The fixture expired five minutes before the test. Now suppose the trusted clock read eleven fifty-five at that same instant. The host was ten minutes fast. The fixture still had five minutes left. That offset would explain an early rejection.",
+        "hold": 0.3
+      },
+      {
+        "id": "c14-b02",
+        "say": "Try two supported reasoning effort settings on the same twenty held-out questions. In this example, higher effort supports one more answer. It also takes longer and costs more. The deadline is one second. Which setting fits? Compare each response time with the deadline. Keep the lower setting here. Increase effort when verified gains justify the measured latency and total cost. For run eight forty-two, we still need the host and trusted clock readings from the failure.",
+        "hold": 1
+      },
+      {
+        "id": "c14-b03",
+        "say": "Suppose the decisive line is present but the assistant sometimes misses it. First check that the line survives retrieval and truncation. Here each prompt fits twenty documents. Put the evidence first. In a matched copy, put it in the middle. In a third, put it last.",
+        "hold": 0.3
+      },
+      {
+        "id": "c14-b04",
+        "say": "Keep the question, evidence, other documents and total length the same.",
+        "hold": 1.5
+      },
+      {
+        "id": "c14-b05",
+        "say": "Here are invented results for the same twenty questions in each layout. Fifteen answers have support when the evidence comes first. Seven have support in the middle. Fourteen have support at the end. All twenty documents fit in each prompt. Moving the evidence from first to middle cost eight supported answers.",
+        "hold": 1
+      },
+      {
+        "id": "c14-b06",
+        "say": "The Lost in the Middle study found position effects on many of its tested tasks. For this assistant, try putting the decisive excerpt next to the question. Preserve event order and mark logs as evidence, separate from the application’s instructions.",
+        "hold": 0.3
+      },
+      {
+        "id": "c14-b07",
+        "say": "Repeat the position test and check supported answers, latency and cost on the workload you want to improve.",
+        "hold": 1
+      }
+    ]
+  },
+  {
+    "id": "c15",
+    "title": "Which run gets the review queue?",
+    "sourceChapters": [
+      "c15"
+    ],
+    "beats": [
+      {
+        "id": "c15-b01",
+        "say": "Return to the stale guide. A fresh reply is Bug. The format check accepts it. The reviewer’s reference label is Docs. If we count correctly labeled notes, how much does this reply add?",
+        "hold": 2
+      },
+      {
+        "id": "c15-b02",
+        "say": "It adds zero. Use the whole reply for the format check. Then compare the allowed label to the reference for that note. For extraction, compare the returned run identifier with RUN eight forty-two in the source. For an explanation, check whether the cited log line supports the claim.",
+        "hold": 1
+      },
+      {
+        "id": "c15-b03",
+        "say": "Plot two licensed runs on the same hundred held-out notes. The queue wants the most correct labels among runs that meet both limits. Height shows the ninety-fifth percentile time for a complete reply. The horizontal axis shows total memory under this load. These example runs face live limits of seven hundred fifty milliseconds and twelve gigabytes. Which run gets the live queue?",
+        "hold": 2.6
+      },
+      {
+        "id": "c15-b04",
+        "say": "Choose A for live requests. Its six hundred milliseconds and eight gigabytes fit. B gets four more notes right, but crosses both limits. Keep the measured points where they are.",
+        "hold": 1
+      },
+      {
+        "id": "c15-b05",
+        "say": "Move just the deadline. The nightly queue allows fifteen hundred milliseconds. Follow B across to the time scale, then down to the worker’s memory scale. Which run can you use now?",
+        "hold": 2.4
+      },
+      {
+        "id": "c15-b06",
+        "say": "A still gets the queue. B now meets the deadline, but sixteen gigabytes won’t fit on the twelve-gigabyte worker. One failed requirement is enough to rule it out.",
+        "hold": 1
+      },
+      {
+        "id": "c15-b07",
+        "say": "For the next nightly run, keep that deadline and give the worker sixteen gigabytes. The measured points stay where they are. Of the runs that fit, which one gets the most labels right?",
+        "hold": 2.5
+      },
+      {
+        "id": "c15-b08",
+        "say": "Choose B on the larger worker. At sixteen gigabytes it sits exactly on the allowed edge. Both runs now fit. Ninety-four correct labels beat ninety. Those four additional notes decide which model gets the nightly queue.",
+        "hold": 1.8
+      }
+    ]
+  }
+]

@@ -1,0 +1,52 @@
+{
+  "upstream_revision": "955c3e23bf8939b28a9d6c424308a762dcb8a2e7",
+  "scope": "isolated checksum-pinned CPU methods; no full imports, trainer initialization, model, GPU, Ray, HTTP, or distributed weight sync",
+  "source_sha256": {
+    "fully_async_trainer.py": "3a47a21b69e6bd9631aecb045a3d8a0c7157814e95d51a3ff70638ae9f982d20",
+    "gym.py": "387560eee4a318174dd96d6af1efd1b44787de922422e272011dc7a02e6fb2ec"
+  },
+  "passed": [
+    "filter restores capacity and unblocks waiting producer",
+    "epoch-end trained/filtered conservation",
+    "resume discards in-flight capacity and restores trained count",
+    "worker concurrency caps otherwise available staleness capacity",
+    "zero staleness prevents the next group before step advance",
+    "figure trace obeys capacity while a group exceeds lag budget",
+    "exhausted producer drains buffered groups then terminates",
+    "reward stamping, truncation, appended EOS, and custom-template branches"
+  ],
+  "figure_trace": [
+    {
+      "step": 1,
+      "group": "A",
+      "accepted": 2,
+      "running": 1,
+      "outstanding": 3,
+      "lag": 0
+    },
+    {
+      "step": 2,
+      "group": "B",
+      "accepted": 3,
+      "running": 1,
+      "outstanding": 3,
+      "lag": 1
+    },
+    {
+      "step": 3,
+      "group": "C",
+      "accepted": 3,
+      "running": 1,
+      "outstanding": 2,
+      "lag": 1
+    },
+    {
+      "step": 4,
+      "group": "L",
+      "accepted": 4,
+      "running": 0,
+      "outstanding": 1,
+      "lag": 3
+    }
+  ]
+}

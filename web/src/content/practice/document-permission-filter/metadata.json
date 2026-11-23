@@ -1,0 +1,299 @@
+{
+  "id": "document-permission-filter",
+  "slug": "document-permission-filter",
+  "title": "Document Permission Filter",
+  "difficulty": "Medium",
+  "category": "Retrieval",
+  "language": "python3",
+  "timeEstimateMinutes": 30,
+  "timeLimitMs": 2500,
+  "memoryLimitMb": 128,
+  "order": 240,
+  "tags": [
+    "retrieval",
+    "permissions",
+    "ranking",
+    "access control"
+  ],
+  "source": "AI lab prep",
+  "summary": "Filter retrieval chunks by public, tenant, group, and private permissions before ranking.",
+  "starterCode": [
+    "def filter_chunks(chunks: list[dict], user: dict, k: int) -> list[str]:",
+    "    pass"
+  ],
+  "testCases": [
+    {
+      "name": "allows public and matching-tenant chunks",
+      "visibility": "sample",
+      "description": "Public chunks and chunks with matching tenant IDs are authorized.",
+      "feedback": "Authorize chunks with public visibility or identical non-null tenant identifiers.",
+      "setup": [
+        "from solution import filter_chunks",
+        "user = {\"id\": \"u1\", \"tenant\": \"t1\", \"groups\": []}",
+        "chunks = [",
+        "    {\"id\": \"pub\", \"score\": 0.5, \"visibility\": \"public\"},",
+        "    {\"id\": \"tenant\", \"score\": 0.9, \"visibility\": \"tenant\", \"tenant\": \"t1\"},",
+        "    {\"id\": \"other\", \"score\": 1.0, \"visibility\": \"tenant\", \"tenant\": \"t2\"},",
+        "]"
+      ],
+      "input": "user = {\"id\": \"u1\", \"tenant\": \"t1\", \"groups\": []}\nchunks = [\n    {\"id\": \"pub\", \"score\": 0.5, \"visibility\": \"public\"},\n    {\"id\": \"tenant\", \"score\": 0.9, \"visibility\": \"tenant\", \"tenant\": \"t1\"},\n    {\"id\": \"other\", \"score\": 1.0, \"visibility\": \"tenant\", \"tenant\": \"t2\"},\n]\nfilter_chunks(chunks, user, 3)",
+      "expected": "[\"tenant\", \"pub\"]",
+      "expression": "filter_chunks(chunks, user, 3)"
+    },
+    {
+      "name": "allows a matching tenant group",
+      "visibility": "sample",
+      "description": "Group-scoped chunks require matching tenant and at least one shared group.",
+      "feedback": "Verify tenant match and non-empty intersection between chunk groups and user groups.",
+      "setup": [
+        "from solution import filter_chunks",
+        "user = {\"id\": \"u1\", \"tenant\": \"t1\", \"groups\": [\"research\", \"ops\"]}",
+        "chunks = [",
+        "    {\"id\": \"g1\", \"score\": 0.8, \"visibility\": \"group\", \"tenant\": \"t1\", \"groups\": [\"research\"]},",
+        "    {\"id\": \"g2\", \"score\": 0.9, \"visibility\": \"group\", \"tenant\": \"t1\", \"groups\": [\"sales\"]},",
+        "]"
+      ],
+      "input": "user = {\"id\": \"u1\", \"tenant\": \"t1\", \"groups\": [\"research\", \"ops\"]}\nchunks = [\n    {\"id\": \"g1\", \"score\": 0.8, \"visibility\": \"group\", \"tenant\": \"t1\", \"groups\": [\"research\"]},\n    {\"id\": \"g2\", \"score\": 0.9, \"visibility\": \"group\", \"tenant\": \"t1\", \"groups\": [\"sales\"]},\n]\nfilter_chunks(chunks, user, 5)",
+      "expected": "[\"g1\"]",
+      "expression": "filter_chunks(chunks, user, 5)"
+    },
+    {
+      "name": "allows a private chunk only for its owner",
+      "visibility": "hidden",
+      "description": "Private chunks are accessible only when chunk owner matches user ID.",
+      "feedback": "Match private chunk owner with user ID, requiring non-null identities for both.",
+      "setup": [
+        "from solution import filter_chunks",
+        "user = {\"id\": \"u1\", \"tenant\": \"t1\", \"groups\": []}",
+        "chunks = [",
+        "    {\"id\": \"mine\", \"score\": 2, \"visibility\": \"private\", \"owner\": \"u1\"},",
+        "    {\"id\": \"yours\", \"score\": 3, \"visibility\": \"private\", \"owner\": \"u2\"},",
+        "]"
+      ],
+      "input": "user = {\"id\": \"u1\", \"tenant\": \"t1\", \"groups\": []}\nchunks = [\n    {\"id\": \"mine\", \"score\": 2, \"visibility\": \"private\", \"owner\": \"u1\"},\n    {\"id\": \"yours\", \"score\": 3, \"visibility\": \"private\", \"owner\": \"u2\"},\n]\nfilter_chunks(chunks, user, 2)",
+      "expected": "[\"mine\"]",
+      "expression": "filter_chunks(chunks, user, 2)"
+    },
+    {
+      "name": "ranks score ties by id and applies k",
+      "visibility": "hidden",
+      "description": "Visible chunks are sorted by score descending, breaking ties alphabetically by ID, limited to k.",
+      "feedback": "Sort by score descending then chunk ID ascending, and return at most k items.",
+      "setup": [
+        "from solution import filter_chunks",
+        "user = {\"id\": \"u\", \"tenant\": \"t\", \"groups\": []}",
+        "chunks = [",
+        "    {\"id\": \"b\", \"score\": 1, \"visibility\": \"public\"},",
+        "    {\"id\": \"a\", \"score\": 1, \"visibility\": \"public\"},",
+        "    {\"id\": \"c\", \"score\": 2, \"visibility\": \"public\"},",
+        "]"
+      ],
+      "input": "user = {\"id\": \"u\", \"tenant\": \"t\", \"groups\": []}\nchunks = [\n    {\"id\": \"b\", \"score\": 1, \"visibility\": \"public\"},\n    {\"id\": \"a\", \"score\": 1, \"visibility\": \"public\"},\n    {\"id\": \"c\", \"score\": 2, \"visibility\": \"public\"},\n]\nfilter_chunks(chunks, user, 2)",
+      "expected": "[\"c\", \"a\"]",
+      "expression": "filter_chunks(chunks, user, 2)"
+    },
+    {
+      "name": "denies malformed or unknown visibility",
+      "visibility": "hidden",
+      "description": "Chunks with missing, unrecognized, non-string, or non-matching group visibility are denied.",
+      "feedback": "Fail closed on missing or unexpected visibility attributes by omitting the chunk.",
+      "setup": [
+        "from solution import filter_chunks",
+        "user = {\"id\": \"u\", \"tenant\": \"t\", \"groups\": [\"g\"]}",
+        "chunks = [",
+        "    {\"id\": \"missing\", \"score\": 9},",
+        "    {\"id\": \"unknown\", \"score\": 8, \"visibility\": \"shared\"},",
+        "    {\"id\": \"group-empty\", \"score\": 7, \"visibility\": \"group\", \"tenant\": \"t\"},",
+        "    {\"id\": \"group-null\", \"score\": 6, \"visibility\": \"group\", \"tenant\": \"t\", \"groups\": None},",
+        "    {\"id\": \"bad-type\", \"score\": 5, \"visibility\": 42},",
+        "    {\"id\": \"ok\", \"score\": 1, \"visibility\": \"public\"},",
+        "]"
+      ],
+      "input": "user = {\"id\": \"u\", \"tenant\": \"t\", \"groups\": [\"g\"]}\nchunks = [\n    {\"id\": \"missing\", \"score\": 9},\n    {\"id\": \"unknown\", \"score\": 8, \"visibility\": \"shared\"},\n    {\"id\": \"group-empty\", \"score\": 7, \"visibility\": \"group\", \"tenant\": \"t\"},\n    {\"id\": \"group-null\", \"score\": 6, \"visibility\": \"group\", \"tenant\": \"t\", \"groups\": None},\n    {\"id\": \"bad-type\", \"score\": 5, \"visibility\": 42},\n    {\"id\": \"ok\", \"score\": 1, \"visibility\": \"public\"},\n]\nfilter_chunks(chunks, user, 10)",
+      "expected": "[\"ok\"]",
+      "expression": "filter_chunks(chunks, user, 10)"
+    },
+    {
+      "name": "public zero limit returns no chunks",
+      "visibility": "sample",
+      "description": "A zero result limit returns an empty selection.",
+      "feedback": "Apply k after authorization and ranking; a zero slice is empty.",
+      "setup": [
+        "from solution import filter_chunks",
+        "chunks = [{\"id\": \"public\", \"score\": 1, \"visibility\": \"public\"}]",
+        "user = {\"id\": \"u\", \"tenant\": \"t\", \"groups\": []}"
+      ],
+      "input": "filter_chunks(chunks, user, 0)",
+      "expected": "[]"
+    },
+    {
+      "name": "private group access also requires tenant match",
+      "visibility": "hidden",
+      "description": "Shared group membership never crosses tenant boundaries.",
+      "feedback": "Check tenant equality before group overlap.",
+      "setup": [
+        "from solution import filter_chunks",
+        "chunks = [{\"id\": \"cross-tenant\", \"score\": 5, \"visibility\": \"group\", \"tenant\": \"other\", \"groups\": [\"ops\"]}]",
+        "user = {\"id\": \"u\", \"tenant\": \"mine\", \"groups\": [\"ops\"]}"
+      ],
+      "input": "filter_chunks(chunks, user, 5)",
+      "expected": "[]"
+    },
+    {
+      "name": "filtering leaves input unchanged",
+      "visibility": "hidden",
+      "description": "Ranking visible chunks must not reorder the source list.",
+      "feedback": "Sort a filtered copy and preserve the input list.",
+      "setup": [
+        "from solution import filter_chunks",
+        "chunks = [{\"id\": \"low\", \"score\": 1, \"visibility\": \"public\"}, {\"id\": \"high\", \"score\": 2, \"visibility\": \"public\"}]",
+        "original = [dict(chunk) for chunk in chunks]",
+        "filter_chunks(chunks, {\"id\": \"u\"}, 2)"
+      ],
+      "input": "chunks",
+      "expected": "original"
+    },
+    {
+      "name": "empty chunks returns empty list",
+      "visibility": "hidden",
+      "description": "An empty candidate list returns an empty list.",
+      "feedback": "Handle empty chunk input gracefully without errors.",
+      "setup": [
+        "from solution import filter_chunks"
+      ],
+      "input": "filter_chunks([], {\"id\": \"u\", \"tenant\": \"t\", \"groups\": []}, 5)",
+      "expected": "[]"
+    },
+    {
+      "name": "negative limit returns empty list",
+      "visibility": "hidden",
+      "description": "A negative result limit returns no rows.",
+      "feedback": "Treat every non-positive limit as an empty result before slicing.",
+      "setup": [
+        "from solution import filter_chunks",
+        "chunks = [{\"id\": \"public\", \"score\": 1, \"visibility\": \"public\"}]",
+        "user = {\"id\": \"u\", \"tenant\": \"t\", \"groups\": []}"
+      ],
+      "input": "filter_chunks(chunks, user, -1)",
+      "expected": "[]"
+    },
+    {
+      "name": "tenant chunk missing tenant is denied",
+      "visibility": "hidden",
+      "description": "Tenant-scoped chunks with missing tenant attributes are denied.",
+      "feedback": "Ensure tenant-scoped chunks have a valid non-null tenant attribute that matches the user.",
+      "setup": [
+        "from solution import filter_chunks",
+        "chunks = [{\"id\": \"orphan\", \"score\": 9, \"visibility\": \"tenant\"}, {\"id\": \"ok\", \"score\": 1, \"visibility\": \"public\"}]",
+        "user = {\"id\": \"u\", \"tenant\": \"t\", \"groups\": []}"
+      ],
+      "input": "filter_chunks(chunks, user, 5)",
+      "expected": "[\"ok\"]"
+    },
+    {
+      "name": "missing tenant identity denies protected chunks",
+      "visibility": "hidden",
+      "description": "A protected chunk with no tenant identity must not match a user with no tenant identity.",
+      "feedback": "Require non-null tenant identities before comparing tenant-scoped access.",
+      "setup": [
+        "from solution import filter_chunks",
+        "chunks = [{\"id\": \"tenant-orphan\", \"score\": 3, \"visibility\": \"tenant\"}, {\"id\": \"group-orphan\", \"score\": 2, \"visibility\": \"group\", \"groups\": [\"ops\"]}]",
+        "user = {\"id\": \"u\", \"groups\": [\"ops\"]}"
+      ],
+      "input": "filter_chunks(chunks, user, 5)",
+      "expected": "[]"
+    },
+    {
+      "name": "missing owner identity denies private chunks",
+      "visibility": "hidden",
+      "description": "A private chunk with no owner must not match a user with no ID.",
+      "feedback": "Require non-null owner and user ID before allowing private access.",
+      "setup": [
+        "from solution import filter_chunks",
+        "chunks = [{\"id\": \"ownerless\", \"score\": 3, \"visibility\": \"private\"}]",
+        "user = {\"tenant\": \"t\", \"groups\": []}"
+      ],
+      "input": "filter_chunks(chunks, user, 5)",
+      "expected": "[]"
+    },
+    {
+      "name": "permission gate precedes top k truncation",
+      "visibility": "hidden",
+      "setup": [
+        "from solution import filter_chunks",
+        "chunks = [{\"id\": \"denied\", \"score\": 100, \"visibility\": \"private\", \"owner\": \"other\"}, {\"id\": \"allowed\", \"score\": 1, \"visibility\": \"public\"}]"
+      ],
+      "input": "filter_chunks(chunks, {\"id\": \"u\"}, 1)",
+      "expected": "[\"allowed\"]"
+    },
+    {
+      "name": "null user groups deny group but private uses global ownership",
+      "visibility": "hidden",
+      "setup": [
+        "from solution import filter_chunks",
+        "user = {\"id\": \"u\", \"tenant\": \"t\", \"groups\": None}",
+        "chunks = [{\"id\": \"group\", \"score\": 10, \"visibility\": \"group\", \"tenant\": \"t\", \"groups\": [\"ops\"]}, {\"id\": \"mine\", \"score\": 2, \"visibility\": \"private\", \"tenant\": \"other\", \"owner\": \"u\"}, {\"id\": \"public\", \"score\": 1, \"visibility\": \"public\"}]"
+      ],
+      "input": "filter_chunks(chunks, user, 5)",
+      "expected": "[\"mine\", \"public\"]"
+    }
+  ],
+  "clarifyingQuestions": [
+    "Should private documents also require tenant match?",
+    "Should group visibility require tenant match as well as group overlap?",
+    "Should final ranking preserve retriever order or sort by score?"
+  ],
+  "followUps": [
+    "Add deny rules that override allow rules.",
+    "Attach reasons for filtered chunks for audit.",
+    "Enforce permissions before fetching chunk text."
+  ],
+  "followUpGuide": [
+    "Deny rules must run before allow rules or explicitly override them.",
+    "",
+    "Audit reasons are useful but should not leak document content.",
+    "",
+    "Filtering IDs before loading text reduces accidental data exposure."
+  ],
+  "complexityAnalysis": [
+    "- Supplied filter then sort: with n candidates, u user groups, G total chunk-group entries examined, and v authorized rows. Time: O(n + u + G + v log v) expected with hash sets, treating string operations/comparisons as bounded. Space: O(v + u + g), where g is the largest examined chunk-group list; output is at most min(k,v). User groups are built once.",
+    "- Indexed authorization follow-up: permission-aware retrieval can reduce candidates examined, but complexity depends on index/query/ACL representation; no general O(k) bound follows from adding an index.",
+    "- Cached ACL follow-up: cached allowed-document sets speed membership checks but still require filtering candidates and ranking. Time: O(n + v log v) expected with bounded hash/string operations. Space: proportional to all cached subject-document grants plus O(v); revocation needs cache invalidation or an authoritative recheck."
+  ],
+  "solutionGuide": [
+    "Treat unknown or missing visibility as denied. Rank only after filtering. Normalize missing or null group lists to empty lists.",
+    "",
+    "```python",
+    "def filter_chunks(chunks: list[dict], user: dict, k: int) -> list[str]:",
+    "    if k <= 0:",
+    "        return []",
+    "",
+    "    user_groups = set(user.get(\"groups\") or [])",
+    "",
+    "    def allowed(chunk):",
+    "        visibility = chunk.get(\"visibility\")",
+    "        if visibility == \"public\":",
+    "            return True",
+    "        if visibility == \"tenant\":",
+    "            chunk_tenant = chunk.get(\"tenant\")",
+    "            user_tenant = user.get(\"tenant\")",
+    "            return chunk_tenant is not None and user_tenant is not None and chunk_tenant == user_tenant",
+    "        if visibility == \"group\":",
+    "            chunk_tenant = chunk.get(\"tenant\")",
+    "            user_tenant = user.get(\"tenant\")",
+    "            if chunk_tenant is None or user_tenant is None or chunk_tenant != user_tenant:",
+    "                return False",
+    "            chunk_groups = chunk.get(\"groups\") or []",
+    "            return bool(user_groups.intersection(chunk_groups))",
+    "        if visibility == \"private\":",
+    "            owner = chunk.get(\"owner\")",
+    "            user_id = user.get(\"id\")",
+    "            return owner is not None and user_id is not None and owner == user_id",
+    "        return False",
+    "",
+    "    visible = [chunk for chunk in chunks if allowed(chunk)]",
+    "    visible.sort(key=lambda chunk: (-chunk[\"score\"], chunk[\"id\"]))",
+    "    return [chunk[\"id\"] for chunk in visible[:k]]",
+    "```"
+  ]
+}

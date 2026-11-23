@@ -1,0 +1,600 @@
+[
+  {
+    "id": "c01",
+    "title": "Can we report this status at 02:00?",
+    "sourceChapters": [
+      "c01"
+    ],
+    "beats": [
+      {
+        "id": "c01-b01",
+        "say": "At one forty-two, deployments recorded version seventeen as processing. The incident report is due at two. Sweep back five minutes from the deadline. Which side of that window contains the observation?",
+        "hold": 3
+      },
+      {
+        "id": "c01-b02",
+        "say": "The window starts at one fifty-five. The saved reading is eighteen minutes old. It tells us what deployments saw then. The host checks the engineer’s read permission and sends a status request. Deployments checks her access before it reads version seventeen again. The new observation, taken at two, says the canary is clean.",
+        "hold": 1.15
+      },
+      {
+        "id": "c01-b03",
+        "say": "That exchange uses the Model Context Protocol, or MCP. The incident assistant is a host. Its client asks for the tool list and finds the status tool on the deployments server. The model can propose reading version seventeen. The host decides whether to send the call. The operations console and the IDE can use the same server while each host keeps its own conversation and policy.",
+        "hold": 0.8
+      }
+    ]
+  },
+  {
+    "id": "c02",
+    "title": "How much integration code do three hosts need?",
+    "sourceChapters": [
+      "c02"
+    ],
+    "beats": [
+      {
+        "id": "c02-b01",
+        "say": "Keep the three applications. Give each of them four services: status, policy, telemetry and traffic. Count one custom adapter for each pair. Three rows of four make twelve adapters. Now give each host a shared client integration and each service one server.",
+        "hold": 0.3
+      },
+      {
+        "id": "c02-b02",
+        "say": "Three plus four gives seven implementations. Count the sockets again. Each of the twelve host and service pairs still exists. We reduced the number of implementations we maintain.",
+        "hold": 0.8
+      },
+      {
+        "id": "c02-b03",
+        "say": "Take the IDE’s permission to shift traffic away. Its integration still exists. So does the traffic server. The possible connections and the amount of integration code stay the same. What changed is whether that caller may use that operation. One server can offer several tools.",
+        "hold": 0.3
+      },
+      {
+        "id": "c02-b04",
+        "say": "One client library can serve many connections, with one client instance for each server it talks to.",
+        "hold": 0.8
+      }
+    ]
+  },
+  {
+    "id": "c03",
+    "title": "What can leave the host?",
+    "sourceChapters": [
+      "c03"
+    ],
+    "beats": [
+      {
+        "id": "c03-b01",
+        "say": "Stay with the incident assistant. It runs the model and chooses the tools the model sees. Look at the three clients it owns. Each connects to one server. Deployments can read status, policy supplies clearance, and rollouts can change traffic.",
+        "hold": 0.65
+      },
+      {
+        "id": "c03-b02",
+        "say": "Two proposals are on the host. The engineer has permission to read version seventeen. Shifting traffic also requires a current policy receipt. The policy lookup times out. Both the deployments server and the rollouts server are reachable. Which proposal can the host send?",
+        "hold": 2.5
+      },
+      {
+        "id": "c03-b03",
+        "say": "Send the status read. Deployments checks the caller and returns the clean canary reading. Hold the traffic shift here at the host. The rollouts connection is open, but its client has nothing to send until the required policy evidence arrives.",
+        "hold": 1
+      }
+    ]
+  },
+  {
+    "id": "c04",
+    "title": "Request IDs pair messages across a busy connection",
+    "sourceChapters": [
+      "c04"
+    ],
+    "beats": [
+      {
+        "id": "c04-b01",
+        "say": "A JSON-RPC request names a method and carries an ID. The response echoes the ID. The client can use that number to find the request that owns the reply.",
+        "hold": 0.55
+      },
+      {
+        "id": "c04-b02",
+        "say": "Suppose discovery uses ID one, the tool list uses ID two, and a status call uses ID three. All three are outstanding. Here comes reply three. Which request can the client close?",
+        "hold": 2.5
+      },
+      {
+        "id": "c04-b03",
+        "say": "Close the status call. Discovery and the list still have empty slots. Reply one fills the discovery slot. Reply two completes the list. Each reply consumes its pending ID once. A notification has no ID and receives no response.",
+        "hold": 0.55
+      }
+    ]
+  },
+  {
+    "id": "c05",
+    "title": "Which call can ask the operator a question?",
+    "sourceChapters": [
+      "c05"
+    ],
+    "beats": [
+      {
+        "id": "c05-b01",
+        "say": "The client asks the server what it supports. The discovery reply lists a protocol version and the ability to serve tools. The host can compare those with the features its adapter supports.",
+        "hold": 0.55
+      },
+      {
+        "id": "c05-b02",
+        "say": "In the July twenty-eighth, twenty twenty-six revision, each request carries its own version and client capabilities. Request forty-one says the client can show a form. Request forty-two leaves the capability list empty. Which call lets the server ask for a rollback reason?",
+        "hold": 2
+      },
+      {
+        "id": "c05-b03",
+        "say": "Forty-one does. It declares form elicitation. When forty-two needs a form, the server reports the missing capability in the reply to forty-two. The client name helps with diagnostics. The server authenticates the caller separately.",
+        "hold": 0.55
+      }
+    ]
+  },
+  {
+    "id": "c06",
+    "title": "Tools, resources, and prompts serve different roles",
+    "sourceChapters": [
+      "c06"
+    ],
+    "beats": [
+      {
+        "id": "c06-b01",
+        "say": "A tool exposes an operation the model may propose, such as reading release status. The host inspects that proposal before the client forwards it.",
+        "hold": 0.55
+      },
+      {
+        "id": "c06-b02",
+        "say": "A resource supplies application-selected context, such as a pinned runbook passage. A prompt provides a template the user can choose for a review.",
+        "hold": 0.75
+      },
+      {
+        "id": "c06-b03",
+        "say": "A resource still needs an access check. Choosing a prompt gives the user a template. Any action it suggests goes through host policy. Follow the status tool from the catalog. The host translates its input schema into the model provider’s function format. The model proposes reading version seventeen. The host checks the target and the caller. Its client sends the approved invocation to deployments, where the server checks access to that release.",
+        "hold": 0.55
+      }
+    ]
+  },
+  {
+    "id": "c07",
+    "title": "Bound the process and its output",
+    "sourceChapters": [
+      "c07"
+    ],
+    "beats": [
+      {
+        "id": "c07-b01",
+        "say": "The parent sends one line of JSON per message to a local Python server, then closes its input. This server reads a public release record from memory. Replies go to standard output. Logs go to standard error so the client can parse each reply.",
+        "hold": 0.3
+      },
+      {
+        "id": "c07-b02",
+        "say": "Limit the message size and the total bytes you capture. A child can fill a buffer while the parent is still waiting. Isolated mode and an empty environment limit inherited settings. File and network access need separate controls.",
+        "hold": 0.65
+      },
+      {
+        "id": "c07-b03",
+        "say": "Give the child five seconds to reply. If the deadline passes, the parent kills the child and waits for it to exit. Python’s subprocess run then raises TimeoutExpired. A helper process can outlive that child. If the child sent a job to another service, check that service for the outcome before retrying.",
+        "hold": 0.65
+      },
+      {
+        "id": "c07-b04",
+        "say": "The local server answers in order. Reverse its replies for this test. Three arrives first, then the string one, then the integer one. Watch which slot closes each time. Another integer one arrives. Which request owns it now?",
+        "hold": 2.5
+      },
+      {
+        "id": "c07-b05",
+        "say": "None. The client has already consumed that integer ID. Give each outstanding request a distinct string or integer ID. A malformed request can return an error with a null ID when the server cannot identify the request. Keep that error separate. A notification has no ID and gets no reply.",
+        "hold": 0.8
+      }
+    ]
+  },
+  {
+    "id": "c08",
+    "title": "A response can fail at more than one layer",
+    "sourceChapters": [
+      "c08"
+    ],
+    "beats": [
+      {
+        "id": "c08-b01",
+        "say": "Start on the request side. Request fifty-one puts an array in arguments. The dispatcher requires an object, so it returns a protocol error with ID fifty-one. The status tool never saw the call.",
+        "hold": 0.55
+      },
+      {
+        "id": "c08-b02",
+        "say": "Now keep the arguments object and ask for a missing release. The dispatcher passes request fifty-two to the tool. The lookup finds no record. The tool returns a completed result with its error flag set.",
+        "hold": 0.75
+      },
+      {
+        "id": "c08-b03",
+        "say": "Request fifty-three asks for version seventeen. The returned fields pass the status schema. But the release field says sixteen. Keep that reply in the trace and leave the observation out of the report.",
+        "hold": 0.55
+      }
+    ]
+  },
+  {
+    "id": "c09",
+    "title": "Where did the status call stop?",
+    "sourceChapters": [
+      "c09"
+    ],
+    "beats": [
+      {
+        "id": "c09-b01",
+        "say": "Look at the brackets in the first call. The dispatcher needs an arguments object and receives an array. It returns a protocol error. Move those brackets inside the object, into the release field. The dispatcher can now deliver the call to the tool.",
+        "hold": 0.3
+      },
+      {
+        "id": "c09-b02",
+        "say": "The tool needs a release name there, so it returns a completed result with its error flag set. A real string naming a missing release also returns a tool error.",
+        "hold": 0.3
+      },
+      {
+        "id": "c09-b03",
+        "say": "In the fixture, bad JSON, an unsupported version, an unknown method or an unknown tool stop the request at dispatch.",
+        "hold": 0.8
+      },
+      {
+        "id": "c09-b04",
+        "say": "Match the reply to an outstanding ID of the same type. Require a JSON-RPC response with exactly one of result or error. Handle a protocol error at this boundary. Inside a result, an omitted result type means complete for legacy compatibility. We still have to inspect the result.",
+        "hold": 0.3
+      },
+      {
+        "id": "c09-b05",
+        "say": "Input required means there’s more of the workflow to do. Reject an unknown result type this client cannot handle. Next check the error flag. A true flag means tool failure even when the data looks right. This contract treats an omitted flag as false.",
+        "hold": 0.3
+      },
+      {
+        "id": "c09-b06",
+        "say": "The string false is an invalid flag.",
+        "hold": 0.8
+      },
+      {
+        "id": "c09-b07",
+        "say": "Read the three fields under structured content. Release and health must be strings. Status must be one of the allowed strings. The object must have exactly those fields. The schema passes. Compare the release field with the requested release. Can these fields answer the question about seventeen?",
+        "hold": 2.5
+      },
+      {
+        "id": "c09-b08",
+        "say": "Sixteen cannot answer for seventeen. If the current, authorized source instead returns seventeen, the same schema and target checks both pass. Structured content can be any JSON value in this revision. This particular tool declares an object.",
+        "hold": 0.3
+      },
+      {
+        "id": "c09-b09",
+        "say": "Use the declared schema dialect, which defaults to draft twenty twenty dash twelve. Secure the resolver before loading remote references. Verify source and observation time before reporting the reading.",
+        "hold": 0.9
+      }
+    ]
+  },
+  {
+    "id": "c10",
+    "title": "One rollback, two request IDs",
+    "sourceChapters": [
+      "c10"
+    ],
+    "beats": [
+      {
+        "id": "c10-b01",
+        "say": "A status read can finish in one exchange. In a separate run, the canary crosses its error budget. The operator requests a rollback of version seventeen. Follow the request to a local server. The host starts a child process.",
+        "hold": 0.3
+      },
+      {
+        "id": "c10-b02",
+        "say": "A request travels on standard input and a reply travels on standard output, each as one line of JSON. The child writes diagnostics to standard error.",
+        "hold": 0.55
+      },
+      {
+        "id": "c10-b03",
+        "say": "Request twenty declares support for forms. Reply twenty comes back with input required. It opens a form asking why version seventeen should roll back. The operator enters the reason: the canary exceeded its error budget. The client prepares request twenty-one. It copies that answer under the original question key and echoes the server’s state exactly. How many traffic changes have happened so far?",
+        "hold": 3
+      },
+      {
+        "id": "c10-b04",
+        "say": "Zero. A reason explains the rollback. The host checks the operator’s approval for this target, then sends request twenty-one. The server verifies the returned state and rechecks current permission. Now it applies the rollback once.",
+        "hold": 1.4
+      }
+    ]
+  },
+  {
+    "id": "c11",
+    "title": "Which release was the pause for?",
+    "sourceChapters": [
+      "c11"
+    ],
+    "beats": [
+      {
+        "id": "c11-b01",
+        "say": "Go back to the reply to request twenty. The server embedded a question and gave it the key rollback reason. The host shows who is asking. The operator can decline or cancel. If she accepts, her explanation goes in the reason field under that same key.",
+        "hold": 0.3
+      },
+      {
+        "id": "c11-b02",
+        "say": "The client copies the opaque state, S seven, into the retry exactly as it arrived. That is a multi round-trip request.",
+        "hold": 0.8
+      },
+      {
+        "id": "c11-b03",
+        "say": "Look at the record the server kept when it issued S seven. It binds this caller, this rollback and version seventeen. In this example the record is still unused and has two minutes left.",
+        "hold": 0.3
+      },
+      {
+        "id": "c11-b04",
+        "say": "For this comparison the operator approved rollbacks of versions seventeen and eighteen, and the server permits both. The server verifies the record’s integrity and compares the retry with those bindings. Both sides say version seventeen. With current host approval and server permission, this retry passes.",
+        "hold": 1
+      },
+      {
+        "id": "c11-b05",
+        "say": "Rewind to the same unused pause record. Keep the caller, reason and permissions. Change just the target to version eighteen. Can this retry use the pause for version seventeen?",
+        "hold": 2.8
+      },
+      {
+        "id": "c11-b06",
+        "say": "Reject this retry. The server record still says seventeen. The retry names eighteen. Its new message ID pairs it with a reply. The saved state binds the rollback to the original release.",
+        "hold": 1.1
+      },
+      {
+        "id": "c11-b07",
+        "say": "Put version seventeen back in the retry. The target matches, and the pause record has two minutes left. While the form was open, the caller’s rollback permission expired. The server holds the write. For a one-time continuation, the server records when the state is used.",
+        "hold": 0.3
+      },
+      {
+        "id": "c11-b08",
+        "say": "If the reply to an approved write goes missing, check the backend. If the service supports idempotent retries, reuse the original key.",
+        "hold": 1
+      },
+      {
+        "id": "c11-b09",
+        "say": "Use the form for an ordinary reason like the one on this receipt. Keep secrets and credentials out of form answers. A sensitive interaction uses URL mode. The client shows the destination and asks before navigating. The host keeps anything that comes back as tool data and checks each later proposal against its own policy.",
+        "hold": 0.7
+      }
+    ]
+  },
+  {
+    "id": "c12",
+    "title": "Choose a protocol era from actual evidence",
+    "sourceChapters": [
+      "c12"
+    ],
+    "beats": [
+      {
+        "id": "c12-b01",
+        "say": "Modern requests repeat protocol version and client capabilities under the namespaced metadata; optional client information is diagnostic, not authentication. Server discovery is mandatory to implement but optional for a modern client to call first. An unsupported-version response identifies a modern server and lists supported versions.",
+        "hold": 0.3
+      },
+      {
+        "id": "c12-b02",
+        "say": "Missing required client support returns the dedicated capability error and required-capabilities data. Neither error justifies silently inheriting earlier settings.",
+        "hold": 0.65
+      },
+      {
+        "id": "c12-b03",
+        "say": "A dual-era stdio client probes discovery. A completed discovery result or recognized modern error keeps it in the modern era. Another error or bounded silence can take the legacy route if the client supports and permits it. Several different legacy errors can lead there.",
+        "hold": 0.3
+      },
+      {
+        "id": "c12-b04",
+        "say": "A crashed child still needs transport recovery. Earlier revisions use initialize, the server response, then the initialized notification before operational calls.",
+        "hold": 0.65
+      },
+      {
+        "id": "c12-b05",
+        "say": "HTTP has its own fallback test: inspect the body of a four-hundred response. A recognized modern version, capability or header error needs correction within the modern era. An unrecognized or empty response can take the supported legacy route. Record which era ran and preserve permission checks.",
+        "hold": 0.3
+      },
+      {
+        "id": "c12-b06",
+        "say": "Roots, sampling and protocol logging are deprecated in this pinned revision but remain specified; their earliest removal is a revision on or after July twenty-eighth twenty-twenty-seven. Plan migration without treating deprecation as immediate removal.",
+        "hold": 0.8
+      }
+    ]
+  },
+  {
+    "id": "c13",
+    "title": "Compare the routing headers with the request body",
+    "sourceChapters": [
+      "c13"
+    ],
+    "beats": [
+      {
+        "id": "c13-b01",
+        "say": "Streamable HTTP uses a configured endpoint and a separate POST for each JSON-RPC message. The client advertises both application JSON and text-event-stream response types. The server may return one JSON object or a request-scoped server-sent-event stream with related notifications and the final reply.",
+        "hold": 0.3
+      },
+      {
+        "id": "c13-b02",
+        "say": "A subscriptions-listen request opens a separate longer stream for selected change notifications. This revision has no protocol GET stream, session-ID header or last-event-ID resumption, although application state can still exist.",
+        "hold": 0.65
+      },
+      {
+        "id": "c13-b03",
+        "say": "Gateways route using mirrored headers while the body remains the source of truth. Protocol version mirrors the namespaced version; MCP method mirrors the method; MCP name mirrors the tool or prompt name, or resource URI, for the corresponding methods.",
+        "hold": 0.3
+      },
+      {
+        "id": "c13-b04",
+        "say": "Remove the required name header. The body-processing server rejects the request before dispatch. It returns HTTP four hundred and header-mismatch error minus thirty-two thousand twenty. The same rule covers a name that differs from the body. Header names are case-insensitive. Method and name values are case-sensitive.",
+        "hold": 0.65
+      },
+      {
+        "id": "c13-b05",
+        "say": "Keep the body method tools-call and tool get-release-status fixed, then change only the name header to shift-traffic. The gateway and handler would describe different operations, so reject before dispatch instead of choosing one interpretation.",
+        "hold": 0.3
+      },
+      {
+        "id": "c13-b06",
+        "say": "Non-header-safe names use the specification’s UTF-eight Base-sixty-four sentinel encoding and are decoded before comparison. Use maintained SDK header support rather than concatenating arbitrary text into fields. Bound payloads and request deadlines.",
+        "hold": 0.8
+      },
+      {
+        "id": "c13-b07",
+        "say": "Now the application reads a resource. Both copies ask for the status of version seventeen in the body. Compare each decoded name header with its body URI. The second header names version eighteen. Authentication succeeded for both. Which copy can go on to the release access check?",
+        "hold": 2.8
+      },
+      {
+        "id": "c13-b08",
+        "say": "The first one can go on. Its header names the same resource as its body. Reject the second before dispatch. The server returns HTTP four hundred with the header mismatch error. The first still needs permission to read the release.",
+        "hold": 0.85
+      }
+    ]
+  },
+  {
+    "id": "c14",
+    "title": "Which check stopped this HTTP request?",
+    "sourceChapters": [
+      "c14"
+    ],
+    "beats": [
+      {
+        "id": "c14-b01",
+        "say": "Here is a read addressed to the deployments service on loopback. The caller has a token issued for this resource. The request also carries an Origin outside the service’s allowed set. Compare the browser origin with the allowed one. A present invalid Origin requires HTTP four-oh-three.",
+        "hold": 0.3
+      },
+      {
+        "id": "c14-b02",
+        "say": "The tool never runs. DNS rebinding can bring browser requests to a loopback service. Bind locally, check the browser origin and authenticate the caller. A permitted origin still leaves per-release authorization to do.",
+        "hold": 0.65
+      },
+      {
+        "id": "c14-b03",
+        "say": "For protected deployments adopting MCP’s OAuth profile, discover authorization servers through protected-resource metadata. Include the target resource in both authorization and token requests. The deployments server checks that the token was issued for this resource. Authorization-code clients use PKCE and verify advertised support before starting.",
+        "hold": 0.3
+      },
+      {
+        "id": "c14-b04",
+        "say": "Save the issuer from validated metadata with this individual flow before redirecting.",
+        "hold": 0.65
+      },
+      {
+        "id": "c14-b05",
+        "say": "Before exchanging a code, compare the returned issuer exactly with the saved issuer. Even the change in case on the second line fails that check. If issuer support was advertised but the value is absent, reject the response.",
+        "hold": 0.3
+      },
+      {
+        "id": "c14-b06",
+        "say": "When support was not advertised and the value is absent, this check permits proceeding. Check error responses too. For an upstream API, obtain a separately authorized credential. The incoming MCP token is for the deployments server. Check the caller’s permission for the actual release there.",
+        "hold": 0.7
+      }
+    ]
+  },
+  {
+    "id": "c15",
+    "title": "A catalog change needs review and scoped authorization",
+    "sourceChapters": [
+      "c15"
+    ],
+    "beats": [
+      {
+        "id": "c15-b01",
+        "say": "A server may announce that its tool list changed. The notice tells the client to fetch the list again. The refreshed list includes a promotion tool. The host keeps it out of the model’s tools while it waits for review.",
+        "hold": 0.55
+      },
+      {
+        "id": "c15-b02",
+        "say": "Review names, descriptions, schemas, output shapes, and effects before exposing the changed catalog. Here the review clears promotion for search. Ads can still read status. Bind private cached lists to the caller’s authorization context.",
+        "hold": 0.75
+      },
+      {
+        "id": "c15-b03",
+        "say": "At execution, reauthorize the actual caller and target. Treat tool output as data, preserve its source, and check the next proposal under host policy.",
+        "hold": 0.55
+      }
+    ]
+  },
+  {
+    "id": "c16",
+    "title": "Can this caller reuse the saved catalog?",
+    "sourceChapters": [
+      "c16"
+    ],
+    "beats": [
+      {
+        "id": "c16-b01",
+        "say": "Replay the instant before promotion was reviewed. The host subscribes to tool-list changes advertised by the server. A notice arrives. Refresh the list and review the difference. Check the description, input and output schemas, effects, and permitted targets before updating the model’s tools.",
+        "hold": 0.3
+      },
+      {
+        "id": "c16-b02",
+        "say": "A read-only label cannot approve promotion. A pinned local artifact or an approved remote endpoint helps identify the service. Even identical catalog bytes can describe a handler whose behavior changed.",
+        "hold": 0.7
+      },
+      {
+        "id": "c16-b03",
+        "say": "How long can we keep a list? The public catalog in our local example has a lifetime of zero. It is stale on arrival. Now look at the private list. It arrived ten milliseconds ago and can live for a thousand. Try another access token.",
+        "hold": 0.3
+      },
+      {
+        "id": "c16-b04",
+        "say": "That token needs a separate entry. Return to the original token and change just the page cursor. That page needs its own entry too. The cache key includes the server, authorization context, method and parameters that affect the result. Go back to the original page. A relevant change notice invalidates that entry immediately.",
+        "hold": 0.8
+      },
+      {
+        "id": "c16-b05",
+        "say": "A retry carrying a form answer or request state bypasses the cache. A visible tool still needs authorization when it runs. For this row lookup, take the caller from verified credentials. Search can read its own release.",
+        "hold": 0.3
+      },
+      {
+        "id": "c16-b06",
+        "say": "An ads caller asking for that same row receives the same unavailable message as a caller asking for a missing release. That removes one clue about which records exist. Timing, status codes and lists can still differ. If deployments goes offline, label an old status as historical.",
+        "hold": 0.85
+      }
+    ]
+  },
+  {
+    "id": "c17",
+    "title": "The 02:12 incident report",
+    "sourceChapters": [
+      "c17"
+    ],
+    "beats": [
+      {
+        "id": "c17-b01",
+        "say": "It is two twelve in a test replay. The incident lead needs the status of version eighteen. The host approves a read, and deployments authenticates the caller and checks release access. Request seventy-one has matching headers. The reply echoes seventy-one.",
+        "hold": 0.3
+      },
+      {
+        "id": "c17-b02",
+        "say": "It is complete, the error flag is false, and the three fields fit the status schema. Read the release field across from the requested target. Can the lead report that version eighteen is clean?",
+        "hold": 3
+      },
+      {
+        "id": "c17-b03",
+        "say": "Reject the reading. Deployments returned version seventeen. Keep receipt seventy-one in the trace so we can find where the server lookup and the reply diverged. The host authorizes another read of version eighteen. Request seventy-two has its own slot.",
+        "hold": 0.3
+      },
+      {
+        "id": "c17-b04",
+        "say": "Reply seventy-two carries a current reading for version eighteen. Both release IDs match. The lead can report a clean canary at two twelve. The rollout policy lookup has timed out, so hold the traffic shift.",
+        "hold": 1.4
+      },
+      {
+        "id": "c17-b05",
+        "say": "Before grading a run, check what the record can establish. In a separate test an approved write left the host and its reply went missing. How many traffic changes occurred?",
+        "hold": 2.5
+      },
+      {
+        "id": "c17-b06",
+        "say": "That count is unknown. Check the backend, or use its supported retry with the original idempotency key. Across these tests, measure completion, appropriate refusals, grounding, latency and token use. Vary the catalog, the caller, the returned release and schema, and the time and output limits of the local server.",
+        "hold": 0.8
+      },
+      {
+        "id": "c17-b07",
+        "say": "Return to version eighteen and the missing policy receipt. Compare two test traces with that same reviewed catalog and accepted read. Follow the proposed write in run A. The host holds it before dispatch. In run B the host sends it and the server denies it.",
+        "hold": 0.3
+      },
+      {
+        "id": "c17-b08",
+        "say": "Each operator gets an accurate explanation. Both see traffic unchanged.",
+        "hold": 0.9
+      },
+      {
+        "id": "c17-b09",
+        "say": "The test fails any forbidden attempt to shift traffic, even if the server denies it. Which run passes?",
+        "hold": 2.8
+      },
+      {
+        "id": "c17-b10",
+        "say": "Run A passes. It stopped before dispatch and explained the missing policy. Run B fails. One forbidden write request left that host, even though the server made zero changes.",
+        "hold": 1.4
+      },
+      {
+        "id": "c17-b11",
+        "say": "Deployments saw a clean canary on version eighteen at two twelve. Carry that reading into the next model call with its source and time. The policy check timed out, so the traffic shift stays on hold. Choosing which evidence the model gets next is context engineering.",
+        "hold": 1.25
+      }
+    ]
+  }
+]

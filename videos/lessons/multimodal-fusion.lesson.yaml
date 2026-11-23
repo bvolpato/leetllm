@@ -1,0 +1,1700 @@
+version: 1
+id: multimodal-fusion
+title: How a Multimodal Model Reads a Dashboard
+source: system-design/multimodal-llms-architecture-design/content.md
+voice: en-US-AndrewNeural
+rate: +0%
+sources:
+  - title: "Li et al.: BLIP-2: Bootstrapping Language-Image Pre-training with Frozen Image Encoders and
+      Large Language Models"
+    url: https://arxiv.org/abs/2301.12597
+  - title: "Alayrac et al.: Flamingo: a Visual Language Model for Few-Shot Learning"
+    url: https://arxiv.org/abs/2204.14198
+  - title: "Liu et al.: Visual Instruction Tuning"
+    url: https://arxiv.org/abs/2304.08485
+  - title: MPnP runtime modality adaptation
+    url: https://sites.pitt.edu/~weigao/publications/mobicom25_mpnp.pdf
+  - title: LLaVA1.5 reported recipe
+    url: https://arxiv.org/abs/2310.03744
+  - title: Qwen2.5-VL architecture
+    url: https://arxiv.org/abs/2502.13923
+  - title: vLLM prefix cache identity
+    url: https://docs.vllm.ai/en/latest/design/prefix_caching/
+  - title: Contrastive modality gap
+    url: https://arxiv.org/abs/2203.02053
+  - title: Whisper
+    url: https://arxiv.org/abs/2212.04356
+  - title: CLAP audio-text retrieval
+    url: https://arxiv.org/abs/2206.04769
+  - title: Llama4 dated architecture disclosure
+    url: https://ai.meta.com/blog/llama-4-multimodal-intelligence/
+  - title: GPT4o dated architecture disclosure
+    url: https://openai.com/index/hello-gpt-4o/
+  - title: OWASP prompt injection prevention
+    url: https://cheatsheetseries.owasp.org/cheatsheets/LLM_Prompt_Injection_Prevention_Cheat_Sheet.html
+scenes:
+  - id: opening
+    title: Service response time
+    visual: A bright dot rides the rising green trace across a cropped latency chart. Pulling the lower crop
+      edge down uncovers the service legend. The plot and its key together identify which service slowed
+      down.
+    beats:
+      - say: Follow the green line. From three to six o’clock, the response time keeps climbing. Which
+          service slowed down?
+        hold: 2.4
+        caption_starts:
+          - Which service slowed down
+        visual_cues:
+          - id: opening-follow-traces
+            phrase: Follow the green line
+            targets:
+              - opening-chart-evidence
+            color: cyan
+            linger: 0.22
+            caption_boundary: true
+      - say: The crop gives us the color. Pull the bottom edge down to see the legend. Green means
+          checkout. The image encoder turns the plot and the legend into features. The connector lets
+          the language model read those features alongside the question.
+        hold: 0.9
+        visual_cues:
+          - id: opening-restore-key
+            phrase: Pull the bottom edge down to see the legend
+            targets:
+              - opening-legend
+            color: green
+            linger: 0.22
+            caption_boundary: true
+          - id: opening-match-key
+            phrase: Green means checkout
+            targets: [opening-chart-evidence, opening-legend]
+            color: green
+            linger: 0.22
+            caption_boundary: true
+          - id: opening-beat-2-focus-1
+            phrase: The image encoder turns the plot and the legend into features
+            targets:
+              - opening-image-encoding
+            color: cyan
+            linger: 0.22
+            caption_boundary: true
+          - id: opening-beat-2-focus-2
+            phrase: The connector lets the language model read those features alongside the question
+            targets:
+              - opening-modality-meeting
+            color: cyan
+            linger: 0.22
+            caption_boundary: true
+      - say: To find similar charts, a search system can rank whole screenshots by a single similarity
+          score. To name the service, the decoder needs both the slope and the label. It can read those
+          features in the input sequence or from a separate visual memory.
+        hold: 0.7
+        visual_cues:
+          - id: opening-read-evidence
+            phrase: the decoder needs both the slope and the label
+            targets:
+              - opening-route-output
+            color: green
+            linger: 0.22
+            caption_boundary: true
+  - id: case-contract
+    title: What did the operator ask?
+    visual: A separate incident screenshot, deploy record and timestamped transcript establish case C17. The
+      case receipt binds immutable inputs to an authenticated tenant. A question receipt names the support
+      and component versions behind the answer.
+    beats:
+      - say: Did latency rise after the deploy? The deploy log says fourteen oh two. The chart turns
+          up around fourteen oh three. At fourteen twenty-two, someone on the bridge says, “That
+          started before the rollback.” That timestamp tells us when they spoke. Keep the chart, the
+          transcript and the recording under separate source IDs so we can check which event they
+          meant.
+        hold: 0.7
+        visual_cues:
+          - id: mm-case-contract-0
+            phrase: At fourteen twenty-two, someone on the bridge says, “That started before the
+              rollback.”
+            targets:
+              - mm-case-contract-construction
+            color: yellow
+            linger: 0.4
+      - say: Create the case from immutable artifact references and an idempotency key. Tenant identity
+          comes from authentication. Authorize each artifact, then return the case identity and a
+          processing state for each modality. A later question returns grounded, partial, abstained
+          or review, with source spans or regions and exact component versions.
+        hold: 0.7
+        visual_cues:
+          - id: mm-case-contract-1
+            phrase: Create the case from immutable artifact references and an idempotency key. Tenant identity
+              comes from authentication. Authorize each artifact, then return the case identity and
+              a processing state for each modality. A later question returns grounded, partial,
+              abstained or review, with source spans or regions and exact component versions.
+            targets:
+              - mm-case-contract-construction
+            color: cyan
+            linger: 0.4
+      - say: For an image with a transcript already available, suppose we want to serve twenty
+          questions per second with p ninety-five under three seconds. Start the timer when we
+          accept the question. Stop it after the evidence check. Count time in the queues too. Raw
+          audio and long video can finish asynchronously. Size the worker pools from measured
+          service times, batching and queue headroom.
+        hold: 0.8
+        visual_cues:
+          - id: mm-case-contract-2
+            phrase: Start the timer when we accept the question. Stop it after the evidence check
+            targets:
+              - mm-case-contract-construction
+            color: yellow
+            linger: 0.4
+  - id: patches
+    title: Pixels become a sequence of patch features
+    visual: The original dashboard's trace region stays visible beneath a 16-by-16 patch grid. The chart
+      key and axis information sit beside the crop. Increasing the resolution keeps the same curves
+      and replaces the grid with 24-by-24 patches, showing how the visual-token count grows.
+    beats:
+      - say: A Vision Transformer first splits an image into square patches. With a 224-pixel image and a
+          14-pixel patch size, there are 16 patches across and 16 down, for 256 visual tokens.
+        hold: 0.55
+        visual_cues:
+          - id: patches-beat-1-focus-1
+            phrase: for 256 visual tokens
+            targets:
+              - patches-celllabel
+            color: cyan
+            linger: 0.65
+          - id: patches-beat-1-focus-2
+            phrase: With a 224-pixel image and a 14-pixel patch size, there are 16 patches across and 16 down,
+              for 256 visual tokens
+            targets:
+              - patches-celllabel
+            color: yellow
+            linger: 0.65
+      - say: Each patch enters the vision encoder with positional information. The encoder can build context
+          across the patch sequence, so a feature can represent local detail together with nearby
+          and distant image content.
+        hold: 0.6
+        visual_cues:
+          - id: patches-beat-2-focus-1
+            phrase: so a feature can represent local detail together with nearby and distant image content
+            targets:
+              - patches-celllabel
+            color: cyan
+            linger: 0.65
+          - id: patches-beat-2-focus-2
+            phrase: Each patch enters the vision encoder with positional information
+            targets:
+              - patches-celllabel
+            color: yellow
+            linger: 0.65
+      - say: Increase the image resolution while holding patch size fixed. The grid grows along both axes,
+          creating more than twice as many visual tokens. The larger bank can preserve finer details
+          while increasing the work in later layers.
+        hold: 0.7
+        visual_cues:
+          - id: patches-beat-3-focus-1
+            phrase: The grid grows along both axes, creating more than twice as many visual tokens
+            targets:
+              - patches-celllabel
+            color: cyan
+            linger: 0.65
+          - id: patches-beat-3-focus-2
+            phrase: Increase the image resolution while holding patch size fixed
+            targets:
+              - patches-celllabel
+            color: yellow
+            linger: 0.65
+  - id: decoded-budget
+    title: Count the decoded views rather than the upload bytes
+    visual: Two files with different compressed sizes decode into identical view grids. Independent byte
+      and decoded-pixel admission rulers precede a 14px patch grid, then 120 preserved frame IDs
+      stack into 30720 cells.
+    beats:
+      - say: Compressed upload bytes govern transport, storage and decoder safety. Visual tokens follow
+          decoded dimensions, resize, crop, frame and connector policies. Two differently compressed
+          files can produce the same view grid. A small compressed input can also expand into a
+          dangerous number of pixels, so enforce separate byte and decoded-resource limits.
+        hold: 0.7
+        visual_cues:
+          - id: mm-decoded-budget-0
+            phrase: Compressed upload bytes govern transport, storage and decoder safety. Visual tokens follow
+              decoded dimensions, resize, crop, frame and connector policies. Two differently
+              compressed files can produce the same view grid. A small compressed input can also
+              expand into a dangerous number of pixels, so enforce separate byte and
+              decoded-resource limits.
+            targets:
+              - mm-decoded-budget-construction
+            color: yellow
+            linger: 0.4
+      - say: Our divisible square views use width divided by fourteen, squared. At three hundred thirty-six
+          pixels that is twenty-four squared, or five hundred seventy-six patches. Some encoders
+          also retain a classification token. A padded partial-edge route uses ceilings, while an
+          unpadded convolution can discard the edge. Count the selected processor’s actual output.
+        hold: 0.7
+        visual_cues:
+          - id: mm-decoded-budget-1
+            phrase: Our divisible square views use width divided by fourteen, squared. At three hundred
+              thirty-six pixels that is twenty-four squared, or five hundred seventy-six patches.
+              Some encoders also retain a classification token. A padded partial-edge route uses
+              ceilings, while an unpadded convolution can discard the edge. Count the selected
+              processor’s actual output.
+            targets:
+              - mm-decoded-budget-construction
+            color: cyan
+            linger: 0.4
+          - id: mm-patch-count
+            phrase: twenty-four squared, or five hundred seventy-six patches.
+            targets:
+              - mm-decoded-budget-construction
+            color: green
+            linger: 0.4
+      - say: "A minute at two frames per second admits one hundred twenty frames. At two hundred twenty-four
+          pixels, each has two hundred fifty-six patches: thirty thousand seven hundred twenty in
+          total. That is seven and a half four-thousand-ninety-six-token windows before text.
+          Sampling fewer frames or using a trained temporal reducer changes both work and
+          missed-event risk."
+        hold: 0.8
+        visual_cues:
+          - id: mm-decoded-budget-2
+            phrase: "A minute at two frames per second admits one hundred twenty frames. At two hundred
+              twenty-four pixels, each has two hundred fifty-six patches: thirty thousand seven
+              hundred twenty in total. That is seven and a half four-thousand-ninety-six-token
+              windows before text. Sampling fewer frames or using a trained temporal reducer changes
+              both work and missed-event risk."
+            targets:
+              - mm-decoded-budget-construction
+            color: yellow
+            linger: 0.4
+          - id: mm-video-count
+            phrase: thirty thousand seven hundred twenty in total.
+            targets:
+              - mm-decoded-budget-construction
+            color: green
+            linger: 0.4
+  - id: encoder-directions
+    title: Choose the feature and output interfaces independently
+    visual: Image patches, a speech spectrogram and audio-text retrieval vectors occupy separate scaled
+      lanes. Only the transcript lane becomes ordinary text tokens. Published dated model
+      disclosures attach specific frozen/trainable bridges and output decoder branches.
+    beats:
+      - say: What does the question ask you to find? For a chart, start by testing image features from CLIP
+          or SigLIP on the labels you need. For spoken words, Whisper uses log-Mel spectrograms to
+          recognize speech. For a sound such as an alarm, CLAP can rank recordings by how well they
+          match a text description. Test it on alarms from your own domain.
+        hold: 0.7
+        visual_cues:
+          - id: mm-encoder-directions-0
+            phrase: What does the question ask you to find? For a chart, start by testing image features from
+              CLIP or SigLIP on the labels you need. For spoken words, Whisper uses log-Mel spectrograms
+              to recognize speech. For a sound such as an alarm, CLAP can rank recordings by how well
+              they match a text description. Test it on alarms from your own domain.
+            targets:
+              - mm-encoder-directions-construction
+            color: yellow
+            linger: 0.4
+      - say: Published architecture names do not specify a freeze schedule. BLIP-two trains a query bridge
+          with frozen image and language backbones during its reported pretraining. PaLI includes
+          frozen-vision pretraining followed by vision tuning. Gemini’s twenty twenty-three
+          disclosure describes multimodal pretraining. Meta’s April twenty twenty-five Llama-four
+          disclosure combines early fusion and sparse experts with a MetaCLIP-based encoder
+          alignment stage.
+        hold: 0.7
+        visual_cues:
+          - id: mm-encoder-directions-1
+            phrase: Published architecture names do not specify a freeze schedule. BLIP-two trains a query
+              bridge with frozen image and language backbones during its reported pretraining. PaLI
+              includes frozen-vision pretraining followed by vision tuning. Gemini’s twenty
+              twenty-three disclosure describes multimodal pretraining. Meta’s April twenty
+              twenty-five Llama-four disclosure combines early fusion and sparse experts with a
+              MetaCLIP-based encoder alignment stage.
+            targets:
+              - mm-encoder-directions-construction
+            color: cyan
+            linger: 0.4
+      - say: In May twenty twenty-four, OpenAI described GPT-four-o as one network trained across text,
+          vision and audio. Follow the arrows on the right. Our copilot reads a screenshot or recording
+          and returns cited text. To generate an image or speech, a model also needs a trained output
+          decoder for that format. Evaluate each output your product offers.
+        hold: 0.8
+        visual_cues:
+          - id: mm-encoder-directions-2
+            phrase: In May twenty twenty-four, OpenAI described GPT-four-o as one network trained across text,
+              vision and audio. Follow the arrows on the right. Our copilot reads a screenshot or
+              recording and returns cited text. To generate an image or speech, a model also needs a
+              trained output decoder for that format. Evaluate each output your product offers.
+            targets:
+              - mm-encoder-directions-construction
+            color: yellow
+            linger: 0.4
+  - id: connector
+    title: What reaches the language model?
+    visual: A per-feature map transforms a three-coordinate row into two coordinates. Separate query banks
+      read the same 576 inputs. A hypothetical 32-state readback recovers two chart readings and loses the
+      series name. A verified original legend crop supplies the name.
+    beats:
+      - say: The encoder has a row for each of our five hundred seventy-six patches. Follow one row through this
+          little projection. One plus three gives four in the first column. Two minus three gives minus one
+          in the second. Each row changes width from three to two. All five hundred seventy-six positions
+          still reach the decoder.
+        hold: 0.65
+        visual_cues:
+          - id: connector-project-width
+            phrase: One plus three gives four in the first column. Two minus three gives minus one in the second
+            targets:
+              - connector-feature-bank
+              - connector-width-projection
+            color: cyan
+            linger: 0.22
+            caption_boundary: true
+          - id: connector-preserve-positions
+            phrase: All five hundred seventy-six positions still reach the decoder
+            targets:
+              - connector-preserved-positions
+            color: green
+            linger: 0.22
+            caption_boundary: true
+      - say: What if the decoder has room for just thirty-two positions per view? Give the bridge thirty-two
+          learned queries. Each reads across the feature bank and returns one mixture. Here you can follow
+          one query mixing three sample values. BLIP-two uses this kind of query bridge, called a Q-Former.
+        hold: 0.7
+        caption_starts:
+          - Give the bridge thirty-two learned queries
+        visual_cues:
+          - id: connector-read-queries
+            phrase: Each reads across the feature bank and returns one mixture
+            targets:
+              - connector-feature-bank
+              - connector-query-slots
+              - connector-feature-reader
+              - connector-output-states
+            color: cyan
+            linger: 0.22
+            caption_boundary: true
+      - say: Flamingo uses a Perceiver Resampler. In this configuration, sixty-four latent slots read the same
+          five hundred seventy-six features and produce sixty-four states. The number of slots bounds the
+          downstream bank. The encoder still processes every admitted patch.
+        hold: 0.7
+        visual_cues:
+          - id: connector-configured-resampler
+            phrase: sixty-four latent slots read the same five hundred seventy-six features and produce sixty-four
+              states
+            targets:
+              - connector-feature-bank
+              - connector-query-slots
+              - connector-output-states
+            color: cyan
+            linger: 0.22
+            caption_boundary: true
+      - say: Go back to the thirty-two-state route. Suppose its reader recovers a green trace, five point two at
+          three and nine at six. It can't read the series name. What can you report from this view?
+        hold: 2.4
+        visual_cues:
+          - id: connector-probe-trace
+            phrase: a green trace, five point two at three and nine at six
+            targets:
+              - connector-trace-readback
+            color: green
+            linger: 0.22
+            caption_boundary: true
+          - id: connector-probe-key
+            phrase: It can't read the series name
+            targets:
+              - connector-key-readback
+            color: yellow
+            linger: 0.22
+            caption_boundary: true
+      - say: The green trace rose. Read the legend crop from the original and check the green swatch. It
+          says checkout. Test whether the reader can recover that name before adopting a smaller prefix
+          or a smaller visual memory. The encoder still has to process every input patch.
+        hold: 0.8
+        caption_starts:
+          - It says checkout
+        visual_cues:
+          - id: connector-check-source
+            phrase: Read the legend crop from the original and check the green swatch
+            targets:
+              - connector-key-readback
+            color: green
+            linger: 0.22
+            caption_boundary: true
+          - id: connector-name
+            phrase: It says checkout
+            targets: [connector-key-readback]
+            color: green
+            linger: 0.22
+  - id: multi-block-interface
+    title: Keep encoder depth separate from decoder insertion depth
+    visual: Three encoder block taps retain their distinct feature IDs in a collected bank that feeds
+      both key and value aligners. The resulting K/V rail fans into selected last decoder blocks
+      with trainable per-block weights. A separate schematic two-block choice omits the L4 insertion
+      and shortens the required backward path; earlier frozen blocks still execute forward.
+    beats:
+      - say: An input projector is one possible insertion point. The twenty twenty-five Modality
+          Plug-and-Play paper instead taps several intermediate vision blocks, maps features to keys
+          and values, and inserts them into selected last language-model blocks. Choosing which
+          visual levels to read and where language blocks receive them are independent decisions.
+        hold: 0.7
+        visual_cues:
+          - id: mm-multi-block-interface-0
+            phrase: An input projector is one possible insertion point. The twenty twenty-five Modality
+              Plug-and-Play paper instead taps several intermediate vision blocks, maps features to
+              keys and values, and inserts them into selected last language-model blocks. Choosing
+              which visual levels to read and where language blocks receive them are independent
+              decisions.
+            targets:
+              - mm-multi-block-interface-construction
+            color: yellow
+            linger: 0.4
+      - say: Its per-block trainable weights control inserted modality keys and values inside the shared
+          attention module. Moving the insertion closer to the output shortens the
+          activation-gradient path during runtime adaptation. Freezing downstream weights alone does
+          not remove the activation gradients that an earlier trainable connector needs. Fewer
+          connected blocks also give the language model fewer opportunities to combine evidence.
+        hold: 0.7
+        visual_cues:
+          - id: mm-multi-block-interface-1
+            phrase: Its per-block trainable weights control inserted modality keys and values inside the shared
+              attention module. Moving the insertion closer to the output shortens the
+              activation-gradient path during runtime adaptation. Freezing downstream weights alone
+              does not remove the activation gradients that an earlier trainable connector needs.
+              Fewer connected blocks also give the language model fewer opportunities to combine
+              evidence.
+            targets:
+              - mm-multi-block-interface-construction
+            color: cyan
+            linger: 0.4
+      - say: The paper reports runtime-training experiments with relatively small OPT and BLOOMZ backbones
+          and mobile-system tasks. Its training savings do not establish a production inference
+          speedup for our copilot. We will separately compare its shared-softmax zero limit with
+          Flamingo’s zero visual-residual gate. The two operations have different denominators.
+        hold: 0.8
+        visual_cues:
+          - id: mm-multi-block-interface-2
+            phrase: The paper reports runtime-training experiments with relatively small OPT and BLOOMZ
+              backbones and mobile-system tasks. Its training savings do not establish a production
+              inference speedup for our copilot. We will separately compare its shared-softmax zero
+              limit with Flamingo’s zero visual-residual gate. The two operations have different
+              denominators.
+            targets:
+              - mm-multi-block-interface-construction
+            color: yellow
+            linger: 0.4
+  - id: routes
+    title: Choose where image and text meet
+    visual: "The same image and question flow through three architectures: pooled late fusion compares
+      scores, early fusion joins one token sequence, and cross-attention reads a separate visual
+      bank."
+    beats:
+      - say: Late fusion encodes image and text mostly independently, then compares pooled vectors. It works
+          well for ranking similar dashboards. The compact score path does not expose patch details
+          to a language decoder.
+        hold: 0.6
+        visual_cues:
+          - id: routes-read-0
+            phrase: Late fusion encodes image and text mostly independently, then compares pooled vectors
+            targets:
+              - routes-mechanism-0
+            color: blue
+            linger: 0.65
+      - say: Early fusion projects visual tokens and places them in the language-model prefix.
+          Self-attention can then combine image and text states throughout the decoder. The tradeoff
+          is a longer shared sequence and its associated cache.
+        hold: 0.65
+        visual_cues:
+          - id: routes-read-1
+            phrase: Early fusion projects visual tokens and places them in the language-model prefix
+            targets:
+              - routes-mechanism-1
+            color: green
+            linger: 0.65
+      - say: Cross-attention keeps a visual memory beside the text stream. Selected decoder layers form
+          queries from text and read visual keys and values. It preserves a distinct image bank
+          while adding computation at those fusion layers.
+        hold: 0.7
+        visual_cues:
+          - id: routes-read-2
+            phrase: Cross-attention keeps a visual memory beside the text stream
+            targets:
+              - routes-mechanism-2
+            color: yellow
+            linger: 0.65
+  - id: budget
+    title: Will five dashboard views fit?
+    visual: A fixed ruler marks the 4,096-token window. Text and output stay in place while two patch banks
+      fit and a third crosses the limit. The completed five-view row stays visible as five 32-state
+      summaries replace the banks in a second row on the same scale.
+    beats:
+      - say: One screenshot gives us a thumbnail and four crops. On this prefix route, the transcript takes two
+          thousand tokens. The system and question take another hundred each. Set aside three hundred for
+          the answer. Out of a window of four thousand ninety-six, how many tokens are left for the image?
+        hold: 2.2
+        visual_cues:
+          - id: budget-text
+            phrase: the transcript takes two thousand tokens. The system and question take another hundred each
+            targets:
+              - budget-ledger
+            color: green
+            linger: 0.22
+            caption_boundary: true
+          - id: budget-reserve
+            phrase: Set aside three hundred for the answer
+            targets:
+              - budget-ledger
+            color: yellow
+            linger: 0.22
+            caption_boundary: true
+      - say: The text and the answer use twenty-five hundred. That leaves fifteen hundred ninety-six for vision.
+          Each full view takes five hundred seventy-six. Two views use eleven hundred fifty-two. That
+          leaves four hundred forty-four. Will a third full view fit?
+        hold: 2.2
+        caption_starts:
+          - That leaves fifteen hundred ninety-six for vision
+          - That leaves four hundred forty-four
+        visual_cues:
+          - id: budget-two-views
+            phrase: Two views use eleven hundred fifty-two
+            targets:
+              - budget-ledger
+            color: blue
+            linger: 0.22
+            caption_boundary: true
+      - say: Lay down the third view. It crosses the limit. Add the fourth and fifth to finish the request. The
+          five views alone take twenty-eight hundred eighty tokens. With text, the prefix is five thousand
+          eighty. With the answer reserved, the request is twelve hundred eighty-four tokens over budget.
+        hold: 1
+        caption_starts:
+          - It crosses the limit
+        visual_cues:
+          - id: budget-third-view
+            phrase: Lay down the third view
+            targets:
+              - budget-ledger
+            color: blue
+            linger: 0.22
+            caption_boundary: true
+          - id: budget-five-views
+            phrase: Add the fourth and fifth to finish the request
+            targets:
+              - budget-ledger
+            color: blue
+            linger: 0.22
+            caption_boundary: true
+      - say: Keep all five views. Change the bridge to return thirty-two states per view. Replace the five patch
+          banks with five short summaries. Together they take one hundred sixty visual positions. The
+          prefix is now twenty-three hundred sixty. With the same answer reserve, the total is twenty-six
+          hundred sixty. That fits. We still have to check whether the reader can recover the legend.
+        hold: 0.9
+        visual_cues:
+          - id: budget-reduce
+            phrase: Replace the five patch banks with five short summaries
+            targets:
+              - budget-ledger
+            color: cyan
+            linger: 0.22
+            caption_boundary: true
+        motion_check:
+          region:
+            - 175
+            - 640
+            - 1540
+            - 218
+          minimumChangedFraction: 0.002
+  - id: score-work
+    title: Construct each attention matrix before comparing costs
+    visual: A 2360-square mixed-prefix score grid is built from 2200 text and 160 visual rows. The same
+      objects rearrange into a 2200-square text grid and a separate 2200-by-160 cross grid. The text
+      grid remains while visual scores move.
+    beats:
+      - say: "Our reduced request has two thousand two hundred text and template states plus one hundred
+          sixty visual states. Mixed-prefix self-attention forms a two-thousand-three-hundred-sixty
+          square score shape per head. Multiply its two sides: five million five hundred sixty-nine
+          thousand six hundred scores in this dense shape model."
+        hold: 0.7
+        visual_cues:
+          - id: mm-score-work-0
+            phrase: "Our reduced request has two thousand two hundred text and template states plus one hundred
+              sixty visual states. Mixed-prefix self-attention forms a
+              two-thousand-three-hundred-sixty square score shape per head. Multiply its two sides:
+              five million five hundred sixty-nine thousand six hundred scores in this dense shape
+              model."
+            targets:
+              - mm-score-work-construction
+            color: yellow
+            linger: 0.4
+          - id: mm-mixed-count
+            phrase: five million five hundred sixty-nine thousand six hundred scores in this dense shape model.
+            targets:
+              - mm-score-work-construction
+            color: green
+            linger: 0.4
+      - say: Each text query now reads one hundred sixty visual states. That narrow rectangle adds three
+          hundred fifty-two thousand scores. Keep the blue square beside it. Text self-attention still
+          has four million eight hundred forty thousand entries. Count the extra rectangle at each layer
+          that reads visual memory.
+        hold: 0.7
+        visual_cues:
+          - id: mm-score-work-1
+            phrase: Each text query now reads one hundred sixty visual states. That narrow rectangle adds
+              three hundred fifty-two thousand scores. Keep the blue square beside it. Text
+              self-attention still has four million eight hundred forty thousand entries. Count the
+              extra rectangle at each layer that reads visual memory.
+            targets:
+              - mm-score-work-construction
+            color: cyan
+            linger: 0.4
+          - id: mm-cross-count
+            phrase: three hundred fifty-two thousand scores
+            targets:
+              - mm-score-work-construction
+            color: green
+            linger: 0.4
+          - id: mm-text-count
+            phrase: four million eight hundred forty thousand entries
+            targets:
+              - mm-score-work-construction
+            color: green
+            linger: 0.4
+      - say: The areas show how many pairs of positions we can score. Causal masks, fused kernels, feature
+          widths and batching affect the time and memory each layer uses. During cached decoding, a new
+          text token reads earlier text keys and values. At a fusion layer it also reads the projected
+          visual memory. Include those reads and that storage in the comparison.
+        hold: 0.8
+        visual_cues:
+          - id: mm-score-work-2
+            phrase: The areas show how many pairs of positions we can score. Causal masks, fused kernels,
+              feature widths and batching affect the time and memory each layer uses. During cached
+              decoding, a new text token reads earlier text keys and values. At a fusion layer it also
+              reads the projected visual memory. Include those reads and that storage in the comparison.
+            targets:
+              - mm-score-work-construction
+            color: yellow
+            linger: 0.4
+  - id: attention
+    title: How does text read a visual memory?
+    visual: Three visual keys receive the same text query. Each softmax weight multiplies its own value. The
+      three colored contributions assemble the first coordinate. A separate gate controls how much of that
+      read is added to the text state.
+    beats:
+      - say: Take one text state as the query. These three visual slots each have a key for matching and a value
+          to read. They're small invented vectors. For the first key, multiply matching coordinates and add
+          the three products. The dot product is point five seven. Each key has three coordinates.
+          Divide each dot product by the square root of three. That puts the first score near point three three.
+        hold: 0.8
+        visual_cues:
+          - id: attention-query-keys
+            phrase: These three visual slots each have a key for matching and a value to read
+            targets:
+              - attention-query
+              - attention-key-vectors
+            color: cyan
+            linger: 0.22
+            caption_boundary: true
+          - id: attention-query-scores
+            phrase: multiply matching coordinates and add the three products
+            targets:
+              - attention-query
+              - attention-dot-construction
+            color: blue
+            linger: 0.22
+            caption_boundary: true
+          - id: attention-scale-scores
+            phrase: Divide each dot product by the square root of three
+            targets:
+              - attention-scaled-scores
+              - attention-score-formula
+            color: yellow
+            linger: 0.22
+            caption_boundary: true
+      - say: Exponentiate the scores and divide each by the same sum. That's softmax. The weights add to one.
+          Follow just the first coordinate of each value. Multiply each weight by the value beside it, then
+          add the three contributions. The second slot adds point two five four to this coordinate.
+          Its weight is smaller than the first slot's, but its value here is eight times as large.
+          The total is about point three two two.
+        hold: 0.85
+        visual_cues:
+          - id: attention-softmax-normalize
+            phrase: Exponentiate the scores and divide each by the same sum
+            targets:
+              - attention-softmax-operation
+            color: cyan
+            linger: 0.22
+            caption_boundary: true
+          - id: attention-weight-values
+            phrase: Multiply each weight by the value beside it, then add the three contributions
+            targets:
+              - attention-value-vectors
+              - attention-weighted-values
+              - attention-attended-sum
+            color: green
+            linger: 0.22
+            caption_boundary: true
+          - id: attention-largest-share
+            phrase: The second slot adds point two five four to this coordinate
+            targets:
+              - attention-weighted-values
+              - attention-attended-sum
+            color: green
+            linger: 0.22
+            caption_boundary: true
+      - say: The blue bars are the original text state. This separate visual read can add a little to each one.
+          At gate zero, multiply the read by zero. The first coordinate stays at point two. Now raise the
+          learned gate to point three five. Its hyperbolic tangent admits about a third of the read. The
+          first coordinate moves to about point three zero eight.
+        hold: 0.8
+        visual_cues:
+          - id: attention-zero-gate
+            phrase: At gate zero, multiply the read by zero
+            targets:
+              - attention-residual-coordinates
+              - attention-learned-gate-value
+            color: cyan
+            linger: 0.22
+            caption_boundary: true
+          - id: attention-learned-gate
+            phrase: Now raise the learned gate to point three five
+            targets:
+              - attention-residual-coordinates
+              - attention-learned-gate-value
+            color: green
+            linger: 0.22
+            caption_boundary: true
+  - id: zero-insertion
+    title: Where does the zero enter?
+    visual: A text value starts with the whole attention weight. An unmasked visual position adds a second
+      term to the denominator. Sharing the weight halves the read. Masking the added position restores the
+      text read. A separate residual gate instead scales a completed visual read.
+    beats:
+      - say: Look at a single text value of two. Its matching score is zero. On its own it gets the whole weight,
+          so the read is two. Insert a visual position with a zero key and a zero value. Its score is also
+          zero. Leave both positions unmasked. What is the new read?
+        hold: 2.3
+        visual_cues:
+          - id: mm-insert-position
+            phrase: Insert a visual position with a zero key and a zero value
+            targets:
+              - mm-zero-insertion-construction
+            color: blue
+            linger: 0.22
+            caption_boundary: true
+      - say: Each exponential is one. Divide each by their sum of two, and they share the weight equally. Half of
+          two plus half of zero gives one. Mask the visual position and the text read goes back to two. For
+          larger scores, subtract the largest score before exponentiating. This keeps the same weights and
+          avoids overflow.
+        hold: 0.9
+        visual_cues:
+          - id: mm-zero-normalize
+            phrase: Divide each by their sum of two, and they share the weight equally
+            targets:
+              - mm-zero-insertion-construction
+            color: cyan
+            linger: 0.22
+            caption_boundary: true
+          - id: mm-shared-result
+            phrase: Half of two plus half of zero gives one
+            targets:
+              - mm-zero-insertion-construction
+            color: green
+            linger: 0.22
+            caption_boundary: true
+          - id: mm-mask-repair
+            phrase: Mask the visual position and the text read goes back to two
+            targets:
+              - mm-zero-insertion-construction
+            color: green
+            linger: 0.22
+            caption_boundary: true
+      - say: That worksheet puts both positions in one softmax, as in the shared attention equation for Modality
+          Plug-and-Play. Flamingo gives the visual read its own attention operation. At a zero residual
+          gate, the blue text state survives intact. Reopen the gate to point three five. Its strength is
+          about point three three six. The green extensions show what each coordinate receives.
+        hold: 0.8
+        visual_cues:
+          - id: mm-residual-open
+            phrase: Reopen the gate to point three five
+            targets:
+              - mm-zero-insertion-construction
+            color: green
+            linger: 0.22
+            caption_boundary: true
+  - id: training-stages
+    title: Which weights learn from the image?
+    visual: A small red bus supplies a caption target and then an answer to a question about its color. The
+      caption gradient travels back through the frozen language model to the projector. A second
+      trainable grid appears for instruction tuning. The two reported LLaVA recipes sit side by side.
+    beats:
+      - say: Take this picture of a red bus. Given the caption so far, “a red,” the decoder tries to
+          predict “bus.” Follow the gradient from that prediction back through the frozen decoder to the
+          projector. Only the projector updates its weights. This is how the original LLaVA recipe
+          aligned vision and language using image and caption pairs.
+        hold: 0.7
+        visual_cues:
+          - id: training-caption-target
+            phrase: the decoder tries to predict “bus.”
+            targets: [training-example]
+            color: cyan
+            linger: 0.22
+            caption_boundary: true
+          - id: mm-training-stages-0
+            phrase: Follow the gradient from that prediction back through the frozen decoder to the projector
+            targets:
+              - mm-training-stages-construction
+            color: yellow
+            linger: 0.4
+      - say: Keep the same picture and change the task. Now the prompt asks for the color of the bus.
+          The training answer is red. In this instruction stage, the vision encoder stays frozen.
+          The projector and the language model both learn from the answer. The original recipe tuned
+          the full language model. A lower-cost variant can train LoRA adapters.
+        hold: 0.7
+        visual_cues:
+          - id: training-answer-target
+            phrase: The training answer is red
+            targets: [training-example]
+            color: green
+            linger: 0.22
+            caption_boundary: true
+          - id: mm-training-stages-1
+            phrase: The projector and the language model both learn from the answer
+            targets:
+              - mm-training-stages-construction
+            color: cyan
+            linger: 0.4
+      - say: Read each column from top to bottom. The original LLaVA trained on more captions than
+          instructions. In LLaVA one point five, instruction examples outnumbered captions. That version
+          paired a higher-resolution vision encoder with a multilayer projector. The authors report
+          about one day of training on eight A one hundred GPUs.
+        hold: 0.8
+        caption_starts:
+          - In LLaVA one point five
+        visual_cues:
+          - id: mm-training-stages-2
+            phrase: In LLaVA one point five
+            targets:
+              - mm-training-stages-construction
+            color: yellow
+            linger: 0.4
+  - id: joint-and-posttraining
+    title: Separate feature learning from answer behavior
+    visual: The same tiny axis label survives or disappears at a controlled crop/reducer boundary.
+      Unfreezing vision, connector and decoder highlights three backward paths, followed by separate
+      text-only and grounding probes. Two contrastive embedding clouds remain a distinct geometric
+      diagnostic.
+    beats:
+      - say: A fully unfrozen stage updates encoder, connector and language backbone together. It may start
+          from pretrained weights. That differs from LLaVA’s vision-frozen second stage. More
+          trainable components increase optimization and compute requirements; compare
+          modality-specific rates, gradients and data balance, plus text-only regressions and
+          grounded task slices.
+        hold: 0.7
+        visual_cues:
+          - id: mm-joint-and-posttraining-0
+            phrase: A fully unfrozen stage updates encoder, connector and language backbone together. It may
+              start from pretrained weights. That differs from LLaVA’s vision-frozen second stage.
+              More trainable components increase optimization and compute requirements; compare
+              modality-specific rates, gradients and data balance, plus text-only regressions and
+              grounded task slices.
+            targets:
+              - mm-joint-and-posttraining-construction
+            color: yellow
+            linger: 0.4
+      - say: The contrastive modality gap is a geometric separation of image and text embeddings in a shared
+          space. The cited study connects it to initialization and contrastive optimization,
+          including temperature. It is different from a broken projector interface. Neither a
+          separated cloud nor one weak answer identifies the cause of a grounding regression by
+          itself.
+        hold: 0.7
+        visual_cues:
+          - id: mm-joint-and-posttraining-1
+            phrase: The contrastive modality gap is a geometric separation of image and text embeddings in a
+              shared space. The cited study connects it to initialization and contrastive
+              optimization, including temperature. It is different from a broken projector
+              interface. Neither a separated cloud nor one weak answer identifies the cause of a
+              grounding regression by itself.
+            targets:
+              - mm-joint-and-posttraining-construction
+            color: cyan
+            linger: 0.4
+      - say: Preference methods such as DPO, supervised preferences or reinforcement learning can improve
+          abstention, policy following and response behavior. They cannot supply a label that this
+          input representation discarded. Hold the artifact fixed, compare a higher-resolution crop,
+          a less restrictive connector and a changed decoder separately. More reasoning can combine
+          captured evidence or request another permitted observation; an uncited reconstruction
+          remains unsupported.
+        hold: 0.8
+        visual_cues:
+          - id: mm-joint-and-posttraining-2
+            phrase: Preference methods such as DPO, supervised preferences or reinforcement learning can improve
+              abstention, policy following and response behavior. They cannot supply a label that
+              this input representation discarded. Hold the artifact fixed, compare a
+              higher-resolution crop, a less restrictive connector and a changed decoder separately.
+              More reasoning can combine captured evidence or request another permitted observation;
+              an uncited reconstruction remains unsupported.
+            targets:
+              - mm-joint-and-posttraining-construction
+            color: yellow
+            linger: 0.4
+  - id: adaptive-crops
+    title: Which details get a view?
+    visual: A dashboard has a time axis and a paging badge. One view is reserved for the full layout. The
+      scores and a fixed slot column show which details survive a change from three views to two. A
+      separate example adds 32 states for each admitted video frame.
+    beats:
+      - say: Here's the original dashboard at full size. Down in the thumbnail the badge is too small to read. We
+          have room for three views, and the global thumbnail always gets the first. Look at the example
+          scores. Which two details should get the remaining slots?
+        hold: 2.5
+        visual_cues:
+          - id: crop-rank-question
+            phrase: Which two details should get the remaining slots
+            targets:
+              - crop-policy
+            color: yellow
+            linger: 0.22
+            caption_boundary: true
+      - say: The axis comes first among the local crops. The badge comes second. The empty margin drops out. Our
+          three views produce seventeen hundred twenty-eight features before reduction. Keep each crop's
+          coordinates so a reader can pair a time or a legend entry with the right trace. Suppose the cap
+          falls from three views to two. Can the reader still check the badge?
+        hold: 2.1
+        caption_starts:
+          - The badge comes second
+        visual_cues:
+          - id: crop-ranked
+            phrase: The axis comes first among the local crops. The badge comes second
+            targets:
+              - crop-policy
+            color: cyan
+            linger: 0.22
+            caption_boundary: true
+      - say: The thumbnail keeps its reserved slot. The axis takes the only local slot. We lost the readable
+          badge. Request that detail on a slower extraction route, or abstain if the policy requires it.
+          Measure how often the selector keeps a required region. Encoding crops one at a time can save
+          frontend memory while their combined prefix still fills the decoder.
+        hold: 0.75
+        caption_starts:
+          - We lost the readable badge
+        visual_cues:
+          - id: crop-two-slots
+            phrase: The axis takes the only local slot
+            targets:
+              - crop-policy
+            color: pink
+            linger: 0.22
+            caption_boundary: true
+      - say: The processor also determines the number of features in a view. Qwen two point five V L, for
+          example, merges groups of four patches in its published architecture. Now try a video bridge that
+          returns thirty-two states per frame. Admit three more frames. The clip now has a hundred
+          twenty-eight states. To bound a live feed, limit the frames in the window or use a trained
+          clip-level reducer. Dropping arbitrary cached keys changes what a full-attention model can read.
+        hold: 0.8
+        visual_cues:
+          - id: crop-more-frames
+            phrase: Admit three more frames
+            targets:
+              - crop-policy
+            color: cyan
+            linger: 0.22
+            caption_boundary: true
+  - id: audio-clock
+    title: Compress a timeline without inventing an event time
+    visual: A 40-second recording yields 4,000 hypothetical frontend steps. Groups of ten give 400 output
+      states. A 101-step example pads its last group to produce 11 states. Word spans retain a recording-time
+      map.
+    beats:
+      - say: For spoken words, start with the timestamped transcript. To find the sound of an alarm, keep
+          the recording and test how well the audio route finds it. Suppose our frontend emits a hundred
+          steps per second. Forty seconds gives us four thousand steps.
+        hold: 0.7
+        visual_cues:
+          - id: mm-audio-clock-0
+            phrase: Forty seconds gives us four thousand steps
+            targets:
+              - mm-audio-clock-construction
+            color: yellow
+            linger: 0.4
+          - id: mm-audio-raw
+            phrase: four thousand steps
+            targets:
+              - mm-audio-clock-construction
+            color: green
+            linger: 0.4
+      - say: Group ten nonoverlapping steps into each compressed state and pad the last partial group. Four
+          thousand becomes four hundred; one hundred one steps would need eleven states. The encoder
+          still processes its admitted input. A short alarm can disappear or become harder to
+          localize, so compare temporal attribution and missed-event recall alongside latency.
+        hold: 0.7
+        visual_cues:
+          - id: mm-audio-clock-1
+            phrase: Group ten nonoverlapping steps into each compressed state and pad the last partial group.
+              Four thousand becomes four hundred; one hundred one steps would need eleven states.
+              The encoder still processes its admitted input. A short alarm can disappear or become
+              harder to localize, so compare temporal attribution and missed-event recall alongside
+              latency.
+            targets:
+              - mm-audio-clock-construction
+            color: cyan
+            linger: 0.4
+          - id: mm-audio-reduced
+            phrase: Four thousand becomes four hundred; one hundred one steps would need eleven states.
+            targets:
+              - mm-audio-clock-construction
+            color: green
+            linger: 0.4
+      - say: Carry sample intervals, recording start, clock uncertainty and word spans into the evidence
+          record. Qwen-two-point-five-VL’s video-time positions represent spacing within a
+          recording; they do not synchronize it with a deploy log. Likewise, when words were spoken
+          does not establish when their described event occurred. Resolve the words’ event identity
+          and time separately.
+        hold: 0.8
+        visual_cues:
+          - id: mm-audio-clock-2
+            phrase: Carry sample intervals, recording start, clock uncertainty and word spans into the evidence
+              record. Qwen-two-point-five-VL’s video-time positions represent spacing within a
+              recording; they do not synchronize it with a deploy log. Likewise, when words were
+              spoken does not establish when their described event occurred. Resolve the words’
+              event identity and time separately.
+            targets:
+              - mm-audio-clock-construction
+            color: yellow
+            linger: 0.4
+  - id: evidence-time
+    title: Which event came first?
+    visual: Two inclusive event intervals sit on a fixed UTC ruler. A single possible deploy at 120 seconds
+      allows a chart rise at either 100 or 180 seconds. An independently verified chart interval then
+      shrinks to 170 through 190 seconds. The nearest endpoints are 35 seconds apart.
+    beats:
+      - say: Back to the incident. We've identified the deploy and the chart rise on the same UTC clock. The
+          deploy time is fourteen oh two, give or take fifteen seconds. The chart reads about fourteen oh
+          three, with ninety seconds of uncertainty either way. Look at the two intervals. Could the rise
+          have happened before the deploy?
+        hold: 2.4
+        visual_cues:
+          - id: clock-wide
+            phrase: Look at the two intervals
+            targets:
+              - clock-evidence
+            color: cyan
+            linger: 0.22
+            caption_boundary: true
+      - say: Yes. Hold the deploy at second one twenty. Put the rise at second one hundred. That's before the
+          deploy. Put it at one eighty instead. That's after. Both placements fit the original
+          observations, so the order is open.
+        hold: 1
+        caption_starts:
+          - That's before the deploy
+          - That's after
+        visual_cues:
+          - id: clock-first-placement
+            phrase: Put the rise at second one hundred
+            targets:
+              - clock-evidence
+            color: cyan
+            linger: 0.22
+            caption_boundary: true
+          - id: clock-other-placement
+            phrase: Put it at one eighty instead
+            targets:
+              - clock-evidence
+            color: cyan
+            linger: 0.22
+            caption_boundary: true
+      - say: Now suppose a separately checked reading narrows the chart interval to one seventy through one
+          ninety. Even the earliest rise leaves thirty-five seconds after the latest possible deploy. That
+          supports a strict order. If inclusive endpoints just touch, a tie is still possible.
+        hold: 1
+        visual_cues:
+          - id: clock-verified
+            phrase: narrows the chart interval to one seventy through one ninety
+            targets:
+              - clock-evidence
+            color: green
+            linger: 0.22
+            caption_boundary: true
+      - say: At fourteen twenty-two someone said, “That started before the rollback.” The transcript tells us
+          when they spoke. We'd need the content and incident records to tie that rollback to the event
+          we're investigating. The intervals establish the sequence. Blaming the deploy for the rise would
+          take separate evidence.
+        hold: 0.9
+        visual_cues:
+          - id: clock-utterance
+            phrase: That started before the rollback
+            targets:
+              - clock-evidence
+            color: cyan
+            linger: 0.22
+            caption_boundary: true
+  - id: artifact-lineage
+    title: Does the cited region show latency?
+    visual: Immutable image I17 owns a crop rectangle and original-coordinate transform. The derived
+      feature record carries hash, processor/encoder/connector revisions and time maps. A valid box
+      first selects the wrong chart metric, then the claim is narrowed to its actual evidence.
+    beats:
+      - say: A feature record keeps source hash, exact preprocessing, encoder and connector versions, dtype
+          and route. A crop also keeps its transform back to the original image. A transcript
+          retains word spans and the recording-time map. These identities let a reviewer find what
+          the decoder could actually inspect and compare one changed component at a time.
+        hold: 0.7
+        visual_cues:
+          - id: mm-artifact-lineage-0
+            phrase: A feature record keeps source hash, exact preprocessing, encoder and connector versions,
+              dtype and route. A crop also keeps its transform back to the original image. A
+              transcript retains word spans and the recording-time map. These identities let a
+              reviewer find what the decoder could actually inspect and compare one changed
+              component at a time.
+            targets:
+              - mm-artifact-lineage-construction
+            color: yellow
+            linger: 0.4
+      - say: The claim says latency rose after the deploy. We can open the right screenshot, and the cited
+          box falls inside it. Read the metric in the box. It says CPU percent. Even a perfect overlap
+          score for that box measures its location. A calibrated verifier or a reviewer checks whether
+          its contents support the claim.
+        hold: 0.7
+        visual_cues:
+          - id: mm-artifact-lineage-1
+            phrase: It says CPU percent
+            targets:
+              - mm-artifact-lineage-construction
+            color: cyan
+            linger: 0.4
+            caption_boundary: true
+      - say: Now use the region that actually shows latency. It supports reporting the rise. To say when it
+          happened relative to the deploy, we also need the event times. If policy allows a partial
+          answer, cite the rise and name the missing timing evidence. Otherwise abstain or send the case
+          for review.
+        hold: 0.8
+        visual_cues:
+          - id: mm-artifact-lineage-2
+            phrase: Now use the region that actually shows latency
+            targets:
+              - mm-artifact-lineage-construction
+            color: yellow
+            linger: 0.4
+  - id: cache-lifetime
+    title: Reuse only the stages represented by a compatible artifact
+    visual: The same evidence prefix travels through five actual work intervals. Encoder-feature,
+      projected-token and prefix-KV cache hits remove distinct completed intervals. Moving a new
+      question before the image changes the causal predecessor hash and invalidates reuse. A later
+      revoked read stops at authorization.
+    beats:
+      - say: For repeated questions about the same image, cached encoder features skip encoding. Cached
+          projected tokens skip both encoding and projection. A compatible prefix-key-value hit can
+          additionally skip its identical shared-prefix prefill. Every new question suffix still
+          needs prefill, and its answer still needs decode. A cache artifact saves the stages that
+          produced it, not arbitrary later work.
+        hold: 0.7
+        visual_cues:
+          - id: mm-cache-lifetime-0
+            phrase: For repeated questions about the same image, cached encoder features skip encoding. Cached
+              projected tokens skip both encoding and projection. A compatible prefix-key-value hit
+              can additionally skip its identical shared-prefix prefill. Every new question suffix
+              still needs prefill, and its answer still needs decode. A cache artifact saves the
+              stages that produced it, not arbitrary later work.
+            targets:
+              - mm-cache-lifetime-construction
+            color: yellow
+            linger: 0.4
+      - say: "Our reusable system, reduced image and transcript prefix has one hundred plus one hundred
+          sixty plus two thousand tokens: two thousand two hundred sixty. The new question adds one
+          hundred. Place the reusable evidence before the changing suffix. Putting a changed
+          question before the image can change the image’s causal states even with identical pixels.
+          Actual cache reuse may cover only complete blocks."
+        hold: 0.7
+        visual_cues:
+          - id: mm-cache-lifetime-1
+            phrase: "Our reusable system, reduced image and transcript prefix has one hundred plus one hundred
+              sixty plus two thousand tokens: two thousand two hundred sixty. The new question adds
+              one hundred. Place the reusable evidence before the changing suffix. Putting a changed
+              question before the image can change the image’s causal states even with identical
+              pixels. Actual cache reuse may cover only complete blocks."
+            targets:
+              - mm-cache-lifetime-construction
+            color: cyan
+            linger: 0.4
+          - id: mm-prefix-count
+            phrase: two thousand two hundred sixty.
+            targets:
+              - mm-cache-lifetime-construction
+            color: green
+            linger: 0.4
+      - say: Prefix identity includes the model and adapter, template, positions, masks and preceding
+          context. vLLM’s prefix design, inspected in November twenty twenty-six, combines
+          parent-block hashes, tokens and extra identities including multimodal inputs and cache
+          salts. Features need their own exact producer identities. Keep immutable versions and
+          recheck authorization on every hit; identical bytes do not grant access.
+        hold: 0.8
+        visual_cues:
+          - id: mm-cache-lifetime-2
+            phrase: Prefix identity includes the model and adapter, template, positions, masks and preceding
+              context. vLLM’s prefix design, inspected in November twenty twenty-six, combines
+              parent-block hashes, tokens and extra identities including multimodal inputs and cache
+              salts. Features need their own exact producer identities. Keep immutable versions and
+              recheck authorization on every hit; identical bytes do not grant access.
+            targets:
+              - mm-cache-lifetime-construction
+            color: yellow
+            linger: 0.4
+  - id: cache-bytes
+    title: Compute the logical KV bill for the admitted sequence
+    visual: A cache reservation combines keys and values across 32 layers, 8 KV heads, 128 coordinates and
+      two bytes per element. The visual sequence shrinks from 2,880 positions to 160. The full reduced
+      reservation covers 2,660 positions.
+    beats:
+      - say: "Use a hypothetical decoder with thirty-two layers, eight key-value heads per layer, head width
+          one hundred twenty-eight and two-byte cache elements. Keys and values give a factor of
+          two. Multiply all five factors: one hundred thirty-one thousand seventy-two bytes per
+          cached token, or one hundred twenty-eight kibibytes."
+        hold: 0.7
+        visual_cues:
+          - id: mm-cache-bytes-0
+            phrase: "Use a hypothetical decoder with thirty-two layers, eight key-value heads per layer, head
+              width one hundred twenty-eight and two-byte cache elements. Keys and values give a
+              factor of two. Multiply all five factors: one hundred thirty-one thousand seventy-two
+              bytes per cached token, or one hundred twenty-eight kibibytes."
+            targets:
+              - mm-cache-bytes-construction
+            color: yellow
+            linger: 0.4
+          - id: mm-per-token-bytes
+            phrase: one hundred thirty-one thousand seventy-two bytes per cached token, or one hundred
+              twenty-eight kibibytes.
+            targets:
+              - mm-cache-bytes-construction
+            color: green
+            linger: 0.4
+      - say: Two thousand eight hundred eighty direct visual tokens use three hundred sixty mebibytes in
+          this model. One hundred sixty reduced visual tokens use twenty, saving three hundred forty
+          mebibytes of logical visual KV per request. The entire reduced reservation includes two
+          thousand text transcript tokens, two hundred template and question tokens, and three
+          hundred output tokens. Its two thousand six hundred sixty-token bill is three hundred
+          thirty-two point five mebibytes.
+        hold: 0.7
+        visual_cues:
+          - id: mm-cache-bytes-1
+            phrase: Two thousand eight hundred eighty direct visual tokens use three hundred sixty mebibytes in
+              this model. One hundred sixty reduced visual tokens use twenty, saving three hundred
+              forty mebibytes of logical visual KV per request. The entire reduced reservation
+              includes two thousand text transcript tokens, two hundred template and question
+              tokens, and three hundred output tokens. Its two thousand six hundred sixty-token bill
+              is three hundred thirty-two point five mebibytes.
+            targets:
+              - mm-cache-bytes-construction
+            color: cyan
+            linger: 0.4
+          - id: mm-visual-direct
+            phrase: Two thousand eight hundred eighty direct visual tokens use three hundred sixty mebibytes in
+              this model.
+            targets:
+              - mm-cache-bytes-construction
+            color: green
+            linger: 0.4
+          - id: mm-visual-reduced
+            phrase: One hundred sixty reduced visual tokens use twenty, saving three hundred forty mebibytes of
+              logical visual KV per request.
+            targets:
+              - mm-cache-bytes-construction
+            color: green
+            linger: 0.4
+          - id: mm-full-reservation
+            phrase: Its two thousand six hundred sixty-token bill is three hundred thirty-two point five
+              mebibytes.
+            targets:
+              - mm-cache-bytes-construction
+            color: green
+            linger: 0.4
+      - say: These totals exclude weights, encoder activations, allocator overhead and cross-attention
+          caches. Sharing, blocks, quantized caches, sliding windows and simultaneous sequences
+          change physical residency. Sparse experts can lower active feed-forward work per token but
+          leave visual encoding, prefix attention and KV to pay. Measure those bills separately
+          before using MoE as a remedy for visual length.
+        hold: 0.8
+        visual_cues:
+          - id: mm-cache-bytes-2
+            phrase: These totals exclude weights, encoder activations, allocator overhead and cross-attention
+              caches. Sharing, blocks, quantized caches, sliding windows and simultaneous sequences
+              change physical residency. Sparse experts can lower active feed-forward work per token
+              but leave visual encoding, prefix attention and KV to pay. Measure those bills
+              separately before using MoE as a remedy for visual length.
+            targets:
+              - mm-cache-bytes-construction
+            color: yellow
+            linger: 0.4
+  - id: ready-recovery
+    title: Retry one failed modality without inventing missing evidence
+    visual: Image I17 fails while transcript T17 remains ready. Only the image job retries with the same
+      stage key. The product policy explicitly compares an allowed text-only question with a
+      chart-required question. Versioned old/new feature generations support a staged canary and
+      pointer rollback.
+    beats:
+      - say: Give every modality stage an idempotent key and pending, ready, failed or quarantined state. If
+          image encoding fails while transcription is ready, retry the image without rerunning the
+          finished transcript. Preserve both states. The answer route checks which evidence this
+          particular question requires rather than silently substituting language priors for a
+          missing image.
+        hold: 0.7
+        visual_cues:
+          - id: mm-ready-recovery-0
+            phrase: Give every modality stage an idempotent key and pending, ready, failed or quarantined state.
+              If image encoding fails while transcription is ready, retry the image without
+              rerunning the finished transcript. Preserve both states. The answer route checks which
+              evidence this particular question requires rather than silently substituting language
+              priors for a missing image.
+            targets:
+              - mm-ready-recovery-construction
+            color: yellow
+            linger: 0.4
+      - say: Suppose the transcript is ready and the chart is missing. A question about what the operator
+          said may still get a partial answer if policy allows it. A question about the chart must wait,
+          go to review, or receive an abstention. For a partial answer, name the missing evidence and
+          check access and support for each claim you return.
+        hold: 0.7
+        visual_cues:
+          - id: mm-ready-recovery-1
+            phrase: Suppose the transcript is ready and the chart is missing. A question about what the
+              operator said may still get a partial answer if policy allows it. A question about the
+              chart must wait, go to review, or receive an abstention. For a partial answer, name the
+              missing evidence and check access and support for each claim you return.
+            targets:
+              - mm-ready-recovery-construction
+            color: cyan
+            linger: 0.4
+      - say: Keep frozen offline cases, then shadow one version, use a tenant-limited canary and expand in
+          stages with the old feature generation available for rollback. Track faithfulness, OCR,
+          region overlap, transcript word error, abstention, prompt injection, latency, memory and
+          cost per grounded answer. Slice by modality, evidence length, resolution, audio quality,
+          tenant and failure path. Size separate pools from measured service times, batching, cache
+          hits and queue headroom.
+        hold: 0.8
+        visual_cues:
+          - id: mm-ready-recovery-2
+            phrase: Keep frozen offline cases, then shadow one version, use a tenant-limited canary and expand
+              in stages with the old feature generation available for rollback. Track faithfulness,
+              OCR, region overlap, transcript word error, abstention, prompt injection, latency,
+              memory and cost per grounded answer. Slice by modality, evidence length, resolution,
+              audio quality, tenant and failure path. Size separate pools from measured service
+              times, batching, cache hits and queue headroom.
+            targets:
+              - mm-ready-recovery-construction
+            color: yellow
+            linger: 0.4
+  - id: safety-boundary
+    title: Who authorized the action?
+    visual: Text on a dashboard control stays attached to the uploaded image. The authenticated question
+      requests chronology. A read-only case lookup passes the scope check, while an acknowledgment requires
+      separate authority. Revoking access blocks a subsequent cache read.
+    beats:
+      - say: A button in the screenshot says “Acknowledge alert.” Those words are evidence about the
+          dashboard. The operator asked when latency rose. Keep the source of every extracted word, even
+          when it looks like an ordinary action. A label on a prompt or a delimiter can describe
+          provenance. The service still has to enforce who can act.
+        hold: 0.7
+        visual_cues:
+          - id: mm-safety-boundary-0
+            phrase: A button in the screenshot says “Acknowledge alert.”
+            targets:
+              - mm-safety-boundary-construction
+            color: yellow
+            linger: 0.4
+      - say: This copilot has read-only, case-scoped data tools and no remediation authority. The serving
+          layer enforces that policy outside the model. It also validates file types, decoded
+          dimensions, resource bounds and remote-fetch destinations before parsing uploads. Evaluate
+          attacks in pixels as well as extracted text, together with false positives on ordinary
+          dashboard labels.
+        hold: 0.7
+        visual_cues:
+          - id: mm-safety-boundary-1
+            phrase: This copilot has read-only, case-scoped data tools and no remediation authority. The serving
+              layer enforces that policy outside the model. It also validates file types, decoded
+              dimensions, resource bounds and remote-fetch destinations before parsing uploads.
+              Evaluate attacks in pixels as well as extracted text, together with false positives on
+              ordinary dashboard labels.
+            targets:
+              - mm-safety-boundary-construction
+            color: cyan
+            linger: 0.4
+      - say: If an operator loses case access, the next read is denied even when a feature or prefix-cache
+          entry is still warm. Revoke through the authorization gate immediately. Retention and
+          deletion of raw artifacts and derived caches follow their separate policy. An existing
+          hash, cache hit or valid coordinate cannot override that decision.
+        hold: 0.8
+        visual_cues:
+          - id: mm-safety-boundary-2
+            phrase: If an operator loses case access, the next read is denied even when a feature or
+              prefix-cache entry is still warm. Revoke through the authorization gate immediately.
+              Retention and deletion of raw artifacts and derived caches follow their separate
+              policy. An existing hash, cache hit or valid coordinate cannot override that decision.
+            targets:
+              - mm-safety-boundary-construction
+            color: yellow
+            linger: 0.4
+  - id: diagnosis-release
+    title: Which score holds the release?
+    visual: Helpfulness, OCR and region IoU each have their own measured value and threshold. The OCR score
+      of 0.72 falls below 0.90. Missing, nonfinite and invalid values also block the numerical gate. A new
+      observation is needed to evaluate a repair.
+    beats:
+      - say: Read the three scores against their own thresholds. Helpfulness and region overlap clear
+          theirs. The OCR score reaches point seven two. Its threshold is point nine. Hold the
+          release. Inspect the resolution, the crop and the connector to find where the label
+          disappeared.
+        hold: 0.7
+        caption_starts:
+          - The OCR score reaches point seven two
+          - Hold the release
+        visual_cues:
+          - id: mm-diagnosis-release-0
+            phrase: Read the three scores against their own thresholds
+            targets:
+              - mm-diagnosis-release-construction
+            color: yellow
+            linger: 0.4
+          - id: mm-ocr-block
+            phrase: Hold the release
+            targets:
+              - mm-diagnosis-release-construction
+            color: green
+            linger: 0.4
+      - say: Check every required metric, including any that the run left out. Block a missing score, a
+          Boolean, a nonnumeric value, a nonfinite number or a value outside zero to one. Then compare
+          each score with its own threshold. A simple less-than comparison with NaN returns false.
+          Without that finite-number check, a failed OCR run could pass.
+        hold: 0.7
+        visual_cues:
+          - id: mm-diagnosis-release-1
+            phrase: Check every required metric, including any that the run left out. Block a missing score, a
+              Boolean, a nonnumeric value, a nonfinite number or a value outside zero to one. Then
+              compare each score with its own threshold. A simple less-than comparison with NaN returns
+              false. Without that finite-number check, a failed OCR run could pass.
+            targets:
+              - mm-diagnosis-release-construction
+            color: cyan
+            linger: 0.4
+      - say: Rerun OCR on the same frozen cases after you change the crop or the connector. Check the cited
+          words as well as the box around them. A box can overlap the correct region while the answer
+          names the wrong metric. Track claim support, timing, abstention and unauthorized disclosure
+          separately, and report how many cases contributed to each slice and the uncertainty in its
+          score.
+        hold: 0.8
+        visual_cues:
+          - id: mm-diagnosis-release-2
+            phrase: Rerun OCR on the same frozen cases after you change the crop or the connector. Check the
+              cited words as well as the box around them. A box can overlap the correct region while the
+              answer names the wrong metric. Track claim support, timing, abstention and unauthorized
+              disclosure separately, and report how many cases contributed to each slice and the
+              uncertainty in its score.
+            targets:
+              - mm-diagnosis-release-construction
+            color: yellow
+            linger: 0.4
+  - id: route-choice
+    title: Match the architecture to the evidence
+    visual: "Three user requests select different paths: similar-image ranking uses pooled late fusion,
+      chart explanation uses a language model with image tokens, and locating a small badge uses
+      grounding."
+    beats:
+      - say: For “Find dashboards like this one,” pooled late fusion can retrieve by similarity. For
+          “Explain the spike,” early fusion or cross-attention can expose image features during
+          generation, subject to chart-answer evaluation.
+        hold: 0.6
+        visual_cues:
+          - id: route-similarity-request
+            phrase: For “Find dashboards like this one,” pooled late fusion can retrieve by similarity
+            targets:
+              - route-choice-request-0
+              - route-choice-output-0
+            color: blue
+            linger: 0.5
+          - id: route-chart-explanation
+            phrase: For “Explain the spike,” early fusion or cross-attention can expose image features during
+              generation
+            targets:
+              - route-choice-request-1
+              - route-choice-output-1
+            color: green
+            linger: 0.5
+      - say: For “Where is the paging badge?” use a grounding or detection model that returns regions. A
+          global embedding score alone cannot supply a coordinate. OCR may also be needed when the
+          answer depends on tiny printed labels.
+        hold: 0.65
+        visual_cues:
+          - id: route-localized-badge
+            phrase: For “Where is the paging badge?” use a grounding or detection model that returns regions
+            targets:
+              - route-choice-request-2
+              - route-choice-output-2
+            color: yellow
+            linger: 0.5
+          - id: route-ocr-labels
+            phrase: OCR may also be needed when the answer depends on tiny printed labels
+            targets:
+              - route-choice-ocr
+            color: pink
+            linger: 0.5
+      - say: "These paths can work together in a system: retrieval finds candidates, a visual-language model
+          reads evidence, and a detector or OCR stage supplies precise outputs. Choose each stage by
+          the information it returns."
+        hold: 0.7
+        visual_cues:
+          - id: route-system-composition
+            phrase: retrieval finds candidates, a visual-language model reads evidence, and a detector or OCR
+              stage supplies precise outputs
+            targets:
+              - route-choice-output-0
+              - route-choice-output-1
+              - route-choice-output-2
+              - route-choice-ocr
+            color: cyan
+            linger: 0.5
+  - id: closing
+    title: Check a second export
+    visual: Two exports have the same response times and visual budgets. The second legend swaps search and
+      checkout. The green trace still rises from 5.2 to 9.0 milliseconds.
+    beats:
+      - say: Try the chart reader on two exports. Keep the question and the connector fixed. Give both the same
+          visual prefix layout and the same number of views. We can now change one detail in the source and
+          see whether the answer follows it.
+        hold: 0.75
+        visual_cues:
+          - id: closing-beat-1-focus-2
+            phrase: the same visual prefix layout and the same number of views
+            targets:
+              - closing-shared-prefix
+            color: cyan
+            linger: 0.22
+            caption_boundary: true
+      - say: The green trace still goes from five point two to nine milliseconds. In the second export the
+          labels on the blue and green swatches have traded places. Which service slowed down in this
+          export?
+        hold: 2.5
+        visual_cues:
+          - id: closing-read-trace
+            phrase: The green trace still goes from five point two to nine
+            targets:
+              - closing-chart-evidence
+            color: green
+            linger: 0.22
+            caption_boundary: true
+          - id: closing-second-key
+            phrase: the labels on the blue and green swatches have traded places
+            targets:
+              - closing-keys
+            color: green
+            linger: 0.22
+            caption_boundary: true
+      - say: It's search this time. Checkout was right for the first export. If the reader says checkout
+          twice, check whether it can read each legend and match the service to the trace. Compare the
+          routes on these same cases, recording context use, cache memory and latency with answer
+          quality.
+        hold: 1
+        visual_cues:
+          - id: closing-name-line
+            phrase: It's search this time
+            targets:
+              - closing-keys
+              - closing-answer-evidence
+            color: green
+            linger: 0.22
+            caption_boundary: true
+  - id: fresh-incident
+    title: Did API latency rise after this deploy?
+    visual: Case C28 has four square views, 1,800 text and template tokens and a 256-token output reserve.
+      After admission, a series label recovered from the verified original identifies the rising trace. A
+      magnified UTC ruler compares the two closest inclusive endpoints. A one-second correction to the
+      chart clock makes them touch.
+    beats:
+      - say: An operator asks about API latency in a new case. Four square views are four hundred forty-eight
+          pixels on a side. Each patch is fourteen pixels across. A direct bridge keeps one state per
+          patch. The reducer returns thirty-two per view. Count the text and the answer reserve on the
+          right. Which route fits the whole request?
+        hold: 3
+        visual_cues:
+          - id: mm-fresh-incident-0
+            phrase: Count the text and the answer reserve on the right
+            targets:
+              - mm-fresh-incident-construction
+            color: yellow
+            linger: 0.22
+            caption_boundary: true
+      - say: Thirty-two patches across and thirty-two down give a thousand twenty-four per view. Four direct
+          views fill all four thousand ninety-six positions before a word of text. The complete request
+          needs six thousand one hundred fifty-two. The reducer sends four times thirty-two states, for a
+          total reservation of two thousand one hundred eighty-four. At one hundred twenty-eight kibibytes
+          per token, that's two hundred seventy-three mebibytes of logical cache. We've admitted a request.
+          Let's see what it can answer.
+        hold: 0.9
+        caption_starts:
+          - The complete request needs six thousand one hundred fifty-two
+          - for a total reservation of two thousand one hundred eighty-four
+        visual_cues:
+          - id: mm-fresh-direct
+            phrase: Four direct views fill all four thousand ninety-six positions before a word of text. The complete
+              request needs six thousand one hundred fifty-two
+            targets:
+              - mm-fresh-incident-construction
+            color: blue
+            linger: 0.22
+            caption_boundary: true
+          - id: mm-fresh-reduced
+            phrase: The reducer sends four times thirty-two states, for a total reservation of two thousand one
+              hundred eighty-four
+            targets:
+              - mm-fresh-incident-construction
+            color: cyan
+            linger: 0.22
+            caption_boundary: true
+          - id: mm-fresh-cache
+            phrase: that's two hundred seventy-three mebibytes of logical cache
+            targets:
+              - mm-fresh-incident-construction
+            color: green
+            linger: 0.22
+            caption_boundary: true
+      - say: The green trace rises. The admitted view has lost its series name. Hold the API claim and request
+          the original legend through the slower, authorized route. The verified green entry reads API p
+          ninety-five. Now compare the inclusive times on the same clock. The deploy could be as late as
+          two twenty. The rise starts no earlier than two twenty-one. There's a full second between them.
+          The API rise followed the deploy.
+        hold: 1.2
+        caption_starts:
+          - The API rise followed the deploy
+        visual_cues:
+          - id: mm-fresh-incident-2
+            phrase: The admitted view has lost its series name
+            targets:
+              - mm-fresh-incident-construction
+            color: yellow
+            linger: 0.22
+            caption_boundary: true
+          - id: mm-fresh-key
+            phrase: The verified green entry reads API p ninety-five
+            targets:
+              - mm-fresh-incident-construction
+            color: green
+            linger: 0.22
+            caption_boundary: true
+          - id: mm-fresh-order
+            phrase: There's a full second between them
+            targets:
+              - mm-fresh-incident-construction
+            color: green
+            linger: 0.22
+            caption_boundary: true
+      - say: One correction to the chart clock moves the earliest possible rise back one second, to two twenty.
+          The legend, the deploy and the token budget all stay put. Can we still say the API rise came
+          after the deploy?
+        hold: 2.8
+        visual_cues:
+          - id: mm-fresh-correct-clock
+            phrase: moves the earliest possible rise back one second, to two twenty
+            targets:
+              - mm-fresh-incident-construction
+            color: yellow
+            linger: 0.22
+            caption_boundary: true
+      - say: Look at second two twenty. Both events could have happened together. We can cite the chart and
+          report that API latency rose. To say it rose after the deploy, we need a tighter timestamp.
+        hold: 1.5
+        visual_cues:
+          - id: mm-fresh-touch
+            phrase: Both events could have happened together
+            targets:
+              - mm-fresh-incident-construction
+            color: yellow
+            linger: 0.22
+            caption_boundary: true

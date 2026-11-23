@@ -1,0 +1,682 @@
+version: 1
+id: ai-coding-workflow-with-agents
+title: Reviewing a Coding Agent’s Billing Patch
+source: agents/ai-coding-workflow-with-agents/content.md
+sources:
+  - title: SWE-agent agent-computer interface
+    url: https://arxiv.org/abs/2405.15793
+  - title: Git worktree boundaries
+    url: https://git-scm.com/docs/git-worktree
+  - title: GitHub protected branches
+    url: https://docs.github.com/en/repositories/configuring-branches-and-merges-in-your-repository/managing-protected-branches/about-protected-branches
+  - title: Git worktree
+    url: https://git-scm.com/docs/git-worktree
+  - title: Git write-tree
+    url: https://git-scm.com/docs/git-write-tree
+  - title: GitHub protected branches
+    url: https://docs.github.com/en/repositories/configuring-branches-and-merges-in-your-repository/managing-protected-branches/about-protected-branches
+  - title: Vitest empty collection
+    url: https://main.vitest.dev/config/passwithnotests
+  - title: Historical SWE-bench Verified audit
+    url: https://openai.com/index/why-we-no-longer-evaluate-swe-bench-verified/
+scenes:
+  - id: intro
+    title: "One click on Pay"
+    visual: "Keep the Pay button, its single click and the first invoice in view. The provider resends the same event. A second invoice opens beside the first with the same event number."
+    beats:
+      - say: "One click on Pay created invoice one. Here comes the same billing event again."
+        hold: 0.65
+        visual_cues:
+          - id: intro-first
+            phrase: "created invoice one"
+            targets:
+              - stored-count
+            linger: 0.3
+          - id: intro-retry
+            phrase: "Here comes the same billing event again"
+            targets:
+              - event-identity
+            linger: 0.3
+      - say: "The payment provider retried on the same account. Look at the event number. Which invoice should come back?"
+        hold: 2.7
+      - say: "Invoice one again. The handler creates invoice two. Both invoices carry the same event number. The coding agent patched Pay to ignore double clicks. Its test sent one event and passed. Ask for a test that sends the event twice and counts the stored invoices."
+        hold: 1.1
+        visual_cues:
+          - id: intro-expect
+            phrase: "Invoice one again"
+            targets:
+              - decision
+            linger: 0.3
+          - id: intro-delivered
+            phrase: "creates invoice two"
+            caption_boundary: true
+            targets:
+              - stored-count
+            linger: 0.3
+          - id: intro-test
+            phrase: "Its test sent one event and passed"
+            targets:
+              - checkout-test
+            linger: 0.3
+  - id: worker-interface
+    title: "Follow the delivery to the write"
+    visual: "Follow the worker’s proposed read through host admission. Trace the webhook request from its route to the write that creates the invoice."
+    beats:
+      - say: "Ask the coding agent to find the write that made invoice two. It proposes a read of the billing route. The host admits the read. The host also controls which files the agent can edit and which tests it can run. After checks and review, the integration owner decides whether to merge."
+        hold: 0.65
+        visual_cues:
+          - id: interface-agent
+            phrase: "proposes a read"
+            targets:
+              - interface-owners
+            linger: 0.3
+          - id: worker-interface-step-1
+            phrase: "host admits the read"
+            targets:
+              - interface-owners
+            linger: 0.3
+          - id: interface-integration
+            phrase: "integration owner decides"
+            targets:
+              - interface-owners
+            linger: 0.3
+      - say: "Start at the webhook route. Follow its handler to invoice storage. That’s where a second delivery can leave a second row. Search for the route, then use definitions or references to find the write. A patch that matches its surrounding lines tells us the edit landed where we intended. Running the replay tells us what that edit did."
+        hold: 0.7
+        visual_cues:
+          - id: interface-route
+            phrase: "Start at the webhook route"
+            targets:
+              - interface-callpath
+            linger: 0.3
+          - id: worker-interface-step-2
+            phrase: "to invoice storage"
+            targets:
+              - interface-callpath
+            linger: 0.3
+  - id: contract
+    title: "What can the worker change?"
+    visual: "The two owned billing paths and the required observations sit beside the runner’s allowed reads and scratch writes. An out-of-scope storage change needs a new decision from the owner."
+    beats:
+      - say: "Give the worker a contract. The same event must return the first invoice and leave one stored row. A different event must still create its own invoice. For this task the worker may edit the webhook handler and its test, run the billing tests and lint, and return a local patch. After three failed repairs it must bring back the last failure."
+        hold: 0.6
+        visual_cues:
+          - id: contract-b1-1
+            phrase: "one stored row"
+            targets:
+              - task-invariant
+            linger: 0.3
+          - id: contract-b1-2
+            phrase: "handler and its test"
+            targets:
+              - task-contract
+            linger: 0.3
+      - say: "Suppose the route leads to a storage module outside those two files. Show the owner the call path and request that file before editing it. The host also controls what a test process can do. Here it may read the fixture and write a temporary result. Its runner has no production credential or route to the payment service."
+        hold: 0.75
+        visual_cues:
+          - id: contract-discovery
+            phrase: "a storage module outside those two files"
+            targets:
+              - task-contract
+            linger: 0.3
+          - id: contract-request
+            phrase: "request that file before editing it"
+            targets:
+              - task-contract
+            linger: 0.3
+          - id: contract-b2-1
+            phrase: "read the fixture"
+            targets:
+              - runner-capabilities
+            linger: 0.3
+  - id: runner-policy
+    title: "What can the test process reach?"
+    visual: "Two checkouts share the repository. A process and its children run inside a separate boundary that controls files, credentials, network, resources and lifetime."
+    beats:
+      - say: "A branch tells Git which commit a name points to. A linked worktree gives the worker its own files, index and HEAD. The two checkouts still share objects, most references and repository configuration. If the test process can write into the other checkout, a different branch name won’t stop it. The runner must restrict the paths it can reach."
+        hold: 0.55
+        visual_cues:
+          - id: runner-shared
+            phrase: "still share objects"
+            targets:
+              - runner-worktree
+            linger: 0.3
+          - id: runner-policy-step-1
+            phrase: "runner must restrict the paths"
+            targets:
+              - runner-worktree
+            linger: 0.3
+      - say: "Give this check source, fixtures and disposable output space. Keep the production token, home directory and container-control socket outside. Deny unneeded outbound connections and bound memory, CPU and runtime. A Docker container can make outgoing connections by default. Check the configured policy before running project code."
+        hold: 0.55
+        visual_cues:
+          - id: runner-deny
+            phrase: "Keep the production token"
+            targets:
+              - runner-egress
+            linger: 0.3
+          - id: runner-policy-step-2
+            phrase: "outgoing connections by default"
+            targets:
+              - runner-egress
+            linger: 0.3
+      - say: "A test command runs the project’s manifest script. That script can start a child process, and the same restrictions must cover the child. Inspect the script and arguments, including whether lint rewrites files. Pin dependencies in trusted setup. Check a connected tool’s actual effects and credential scope too. If an issue comment asks for a log upload, the host still has to authorize that destination and disclosure."
+        hold: 0.6
+        visual_cues:
+          - id: runner-policy-step-3
+            phrase: "project’s manifest script"
+            targets:
+              - runner-command
+            linger: 0.3
+          - id: runner-children
+            phrase: "same restrictions must cover the child"
+            targets:
+              - runner-command
+            linger: 0.3
+          - id: runner-untrusted
+            phrase: "issue comment asks for a log upload"
+            targets:
+              - runner-command
+            linger: 0.3
+  - id: replay
+    title: Replay the same inputs on the candidate
+    visual: The same event sequence runs against a deduplicating model. The retry returns the original invoice and a new event creates a separate invoice; persistent counts derive from the simulated store.
+    beats:
+      - say: First establish a red baseline on the duplicate-invoice assertion. A setup error or missing import says nothing about the reported behavior. Then keep the reproduction’s inputs and assertions unchanged while running the candidate. Observe returned identity and stored count, because a response can hide an extra stored invoice.
+        hold: 0.8
+        visual_cues:
+          - id: replay-b1-1
+            phrase: returned identity and stored count
+            targets:
+              - invoice-identity
+              - stored-count
+            linger: 0.45
+          - id: coding-candidate-check
+            phrase: Then keep the reproduction’s inputs and assertions unchanged while running the candidate
+            targets:
+              - handler-node
+            linger: 0.3
+      - say: Both deliveries returned invoice one. There’s one row in the ledger. Send a new event. This one creates another invoice. That last check would catch a handler that returned invoice one for everything. Now try two deliveries at the same time.
+        hold: 0.8
+        visual_cues:
+          - id: replay-b2-1
+            phrase: Both deliveries returned invoice one
+            targets:
+              - invoice-identity
+            linger: 0.45
+          - id: replay-b2-2
+            phrase: new event
+            targets:
+              - new-event-identity
+            linger: 0.45
+          - id: replay-b2-3
+            phrase: creates another invoice
+            targets:
+              - new-event-identity
+              - new-invoice-result
+              - stored-count
+            linger: 0.45
+  - id: race
+    title: "Two workers, one event key"
+    visual: "Both workers keep their first observation of an empty store. Pause with A’s invoice present and B’s old read visible. Replay the same arrival order under a unique-key transaction."
+    beats:
+      - say: "Start again with an empty store. This time two workers handle the same event together. A reads the key and finds it empty. B looks before A writes. It also reads empty. Now A writes invoice one. Look at the read B kept. What will B do with it?"
+        hold: 2.7
+        visual_cues:
+          - id: race-read-a
+            phrase: "A reads the key and finds it empty"
+            targets:
+              - worker-a
+            linger: 0.3
+          - id: race-read-b
+            phrase: "It also reads empty"
+            targets:
+              - worker-b
+            linger: 0.3
+          - id: race-first-write
+            phrase: "A writes invoice one"
+            targets:
+              - race-ledger
+            linger: 0.3
+      - say: "B creates invoice two. Each worker made its decision from a real observation. The store changed between B’s read and its write. That’s how the lookup that passed a sequential replay can still make a duplicate."
+        hold: 1.1
+        visual_cues:
+          - id: race-second-write
+            phrase: "B creates invoice two"
+            targets:
+              - race-ledger
+            linger: 0.3
+      - say: "Reset the store. Give it one transaction that binds a unique event key to its invoice. A requests the insert. B requests the same key and waits. A commits invoice one. When B resumes, which invoice can it return?"
+        hold: 2.3
+        visual_cues:
+          - id: race-contend
+            phrase: "A requests the insert"
+            targets:
+              - worker-a
+            linger: 0.3
+          - id: race-wait
+            phrase: "same key and waits"
+            targets:
+              - worker-b
+            linger: 0.3
+          - id: race-accept
+            phrase: "A commits invoice one"
+            targets:
+              - race-ledger
+            linger: 0.3
+      - say: "B gets the existing invoice. Its insert conflicts, and the handler reads the winning row. Both returns point to invoice one. In the real store, use the provider’s key, including the account when needed. Test simultaneous arrivals, restart and a crash during the write. If invoice creation calls another service, that service needs a way to recognize a retry too."
+        hold: 0.9
+        visual_cues:
+          - id: race-reuse
+            phrase: "B gets the existing invoice"
+            targets:
+              - worker-b
+            linger: 0.3
+  - id: loop
+    title: What did each repair change?
+    visual: The original handler, button-only repair and handler repair receive identical event sequences. Each run leaves its return IDs and stored row count beside the change tested. The repair counter excludes the base.
+    beats:
+      - say: A verifier gives the agent useful feedback only when its failures identify the behavior being changed. Run the scoped check after each patch, read the result, and retain the receipt. The expected baseline failure starts the investigation. It does not consume one of the permitted repair attempts.
+        hold: 0.8
+        visual_cues:
+          - id: loop-b1-1
+            phrase: scoped check after each patch
+            targets:
+              - verification-trace
+            linger: 0.45
+      - say: Watch the handler look up the key. The second repair passes. The retry kept invoice one, and the new event got invoice two. Keep the same assertions for each repair. If all three repairs fail, show the owner the last failure, explain what’s missing and ask for the scope you need.
+        hold: 0.8
+        visual_cues:
+          - id: loop-second-repair-build
+            phrase: the handler look up the key
+            targets:
+              - verification-trace
+              - attempt-budget
+            linger: 0.25
+          - id: loop-b2-1
+            phrase: second repair
+            targets:
+              - candidate-outcome
+            linger: 0.45
+          - id: loop-b2-2
+            phrase: all three repairs fail
+            targets:
+              - attempt-budget
+            linger: 0.45
+  - id: verifier-traps
+    title: "What did the verifier observe?"
+    visual: "Compare three matching returns. Watch a queued insert add a third invoice to Y, then count both stores. Trace a separate repair history and inspect which tests actually ran."
+    beats:
+      - say: "Read the returned IDs on these two patches. One, one, two. Both handlers reused the first invoice on the retry and returned a fresh one for the new event. Where would you look for a duplicate?"
+        hold: 2.6
+        visual_cues:
+          - id: traps-return
+            phrase: "Read the returned IDs"
+            targets:
+              - traps-returns
+            linger: 0.3
+      - say: "Open both ledgers. Each has one invoice for each event. Now the write that Y queued on the retry lands. See that first event number again? Count the stored rows. X passes with two. Y fails with three. A test that mocks the write would miss that extra invoice."
+        hold: 1.05
+        visual_cues:
+          - id: traps-inspect
+            phrase: "Open both ledgers"
+            targets:
+              - traps-ledger
+            linger: 0.3
+          - id: traps-queued
+            phrase: "the write that Y queued on the retry lands"
+            targets:
+              - traps-queued-write
+            linger: 0.3
+          - id: traps-count
+            phrase: "Count the stored rows"
+            targets:
+              - traps-ledger
+            linger: 0.3
+      - say: "Here’s a different repair history. Test K failed on the base because the retry returned invoice two. Repair one failed the same assertion. On repair two, a dependency failed to import. The retry test never started. How many repairs have failed the retry assertion?"
+        hold: 2.4
+        visual_cues:
+          - id: traps-repair
+            phrase: "Repair one failed the same assertion"
+            targets:
+              - traps-run
+            linger: 0.3
+          - id: traps-import
+            phrase: "a dependency failed to import"
+            targets:
+              - traps-run
+            linger: 0.3
+      - say: "One repair. The base run established the bug before the repair budget started. Keep the import error as a separate result and stop until the runner can start the test again. Supply the same test bytes as an overlay on both the base and the candidate so the assertion stays fixed."
+        hold: 0.75
+        visual_cues:
+          - id: traps-budget
+            phrase: "One repair"
+            targets:
+              - traps-budget
+            linger: 0.3
+      - say: "The runner found two tests. It ran the new-event check and skipped concurrent replay. A branch rule can accept that neutral result. Have the required workflow read the execution record and flag the missing run. That catches an empty test selection too."
+        hold: 0.65
+        visual_cues:
+          - id: traps-skip
+            phrase: "skipped concurrent replay"
+            targets:
+              - traps-run
+            linger: 0.3
+  - id: scope
+    title: "Does the diff fit the contract?"
+    visual: "Compare all paths with the two owned files, then inspect the actual handler source and run the unchanged assertions on its before and after states."
+    beats:
+      - say: "The worker returns four changed paths. The contract owns the billing handler and its test. Two more paths show up in the diff. The button belongs to checkout, and the lockfile changes dependencies. Ask for a billing-only patch, or a separate scope decision that explains the extra work. Inspect deletions, both paths of a rename, file modes and any untracked handoff files too."
+        hold: 0.75
+        visual_cues:
+          - id: scope-b1-1
+            phrase: "four changed paths"
+            targets:
+              - changed-paths
+            linger: 0.3
+          - id: scope-b1-2
+            phrase: "two more paths"
+            targets:
+              - scope-check
+            linger: 0.3
+      - say: "Now look at the two handler bodies. The base creates an invoice on every call. The candidate looks up the event first. Compare their outputs on the same three deliveries. The base fails the retry and row-count checks. All three assertions pass on the candidate. That earns this sequential behavior a passing receipt. Billing still needs review against its real storage transaction and adjacent paths."
+        hold: 0.8
+        visual_cues:
+          - id: scope-b2-1
+            phrase: "two handler bodies"
+            targets:
+              - handler-source
+            linger: 0.3
+          - id: scope-b2-2
+            phrase: "their outputs"
+            targets:
+              - verified-output
+            linger: 0.3
+          - id: scope-inputs
+            phrase: "on the same three deliveries"
+            targets:
+              - verified-output
+            linger: 0.3
+  - id: snapshot-contract
+    title: "Which files did the test read?"
+    visual: "Compare a staged value with two working inputs, then attach the old receipt to its own revision as the branch moves."
+    beats:
+      - say: "Stage a handler with value one. Run Git write-tree and call that index tree T. Now change the working file to two and add an untracked input. A test reading those files sees two and the extra input. Run Git write-tree again. It names the very same tree because the index still holds one. The tree alone can’t tell the reviewer what this test read."
+        hold: 0.65
+        visual_cues:
+          - id: snapshot-stage
+            phrase: "Stage a handler with value one"
+            targets:
+              - snapshot-drift
+            linger: 0.3
+          - id: snapshot-change
+            phrase: "change the working file to two"
+            targets:
+              - snapshot-drift
+            linger: 0.3
+          - id: snapshot-untracked
+            phrase: "add an untracked input"
+            targets:
+              - snapshot-drift
+            linger: 0.3
+          - id: snapshot-reread
+            phrase: "Run Git write-tree again"
+            targets:
+              - snapshot-drift
+            linger: 0.3
+          - id: snapshot-contract-step-1
+            phrase: "index still holds one"
+            targets:
+              - snapshot-drift
+            linger: 0.3
+      - say: "Use a controlled checkout, or identify the actual working files. Include the unchanged test overlay, dependencies, generated fixtures and configuration used by the runner. Obtain the result from that runner. Anyone can copy a digest into a summary."
+        hold: 0.6
+        visual_cues:
+          - id: snapshot-contract-step-2
+            phrase: "actual working files"
+            targets:
+              - snapshot-inputs
+            linger: 0.3
+      - say: "Follow the receipt at the bottom. It was made on B. When the branch moves to C, the receipt stays on B. Collect fresh results on C and check the target branch. If the target changed in a way that matters, test the proposed merge result or use the repository’s merge queue."
+        hold: 0.7
+        visual_cues:
+          - id: snapshot-contract-step-3
+            phrase: "branch moves to C"
+            targets:
+              - snapshot-current
+            linger: 0.3
+          - id: snapshot-target
+            phrase: "check the target branch"
+            targets:
+              - snapshot-current
+            linger: 0.3
+  - id: receipts
+    title: "Did the required check run on C?"
+    visual: "Read the source field before the test results. On C the replay moves from skipped to executed only when the runner produces a new record."
+    beats:
+      - say: "We’re reviewing C. Both behavior checks ran on B, and the runner reported a pass. That receipt stays with B. Keep the source, verifier, environment and actual test outcomes together. The branch name alone cannot carry this receipt forward."
+        hold: 0.65
+        visual_cues:
+          - id: receipts-b1-1
+            phrase: "Both behavior checks ran on B"
+            targets:
+              - receipt-fields
+            linger: 0.3
+      - say: "This receipt does name C. The new-event check ran, but the same-event replay was skipped. Ask for a run on C with the same verifier. Now the runner executes the replay. Both required checks ran and passed on this snapshot. That supports the behavior claim in review."
+        hold: 0.85
+        visual_cues:
+          - id: receipts-run
+            phrase: "the runner executes the replay"
+            targets:
+              - receipt-fields
+            linger: 0.3
+          - id: receipts-b2-1
+            phrase: "Both required checks ran and passed"
+            targets:
+              - candidate-identity
+            linger: 0.3
+  - id: receipt-contract
+    title: "Read the fields behind a green check"
+    visual: "The metadata screen matches the base failure and candidate pass, distinguishes missing and mistyped outcomes, and inspects rename endpoints before accepting the candidate for review."
+    beats:
+      - say: "Both runs use verifier K. The retry failed on the base and passed on the candidate. To reproduce either run, get the source snapshot, verifier digest and environment from the host. The runner lists which tests it found and which ones it executed."
+        hold: 0.6
+        visual_cues:
+          - id: receipt-contract-step-1
+            phrase: "Both runs use verifier K"
+            targets:
+              - receipt-fields
+            linger: 0.3
+      - say: "This runner promises an integer exit code. In Python the Boolean value false compares equal to zero. Check the type before treating zero as a normal exit. A stale revision needs a fresh run. An interrupted result needs a completed run. A skipped replay still needs to execute."
+        hold: 0.6
+        visual_cues:
+          - id: receipt-contract-step-2
+            phrase: "Boolean value false"
+            targets:
+              - receipt-types
+            linger: 0.3
+          - id: receipt-stale
+            phrase: "stale revision"
+            targets:
+              - receipt-types
+            linger: 0.3
+          - id: receipt-interrupted
+            phrase: "interrupted result"
+            targets:
+              - receipt-types
+            linger: 0.3
+          - id: receipt-skipped
+            phrase: "A skipped replay"
+            targets:
+              - receipt-types
+            linger: 0.3
+      - say: "A rename changes two paths. Here the handler moves outside the worker’s scope. Check both ends, deletions and file-mode changes. If a symlink points elsewhere, the runner must enforce access at its destination. Once the diff fits the contract, send the billing patch to its reviewer. For teams that automate low-risk merges, the integration policy sets the paths, required checks, rollback plan, audit trail and a way to turn automation off."
+        hold: 0.65
+        visual_cues:
+          - id: receipt-contract-step-3
+            phrase: "two paths"
+            targets:
+              - receipt-paths
+            linger: 0.3
+          - id: receipt-access
+            phrase: "symlink points elsewhere"
+            targets:
+              - receipt-paths
+            linger: 0.3
+  - id: roles-and-failures
+    title: "Give the verifier a second way to see the bug"
+    visual: "Compare a worker’s response-only check to an independent count. Keep shared files and runtime resources under explicit ownership and repair evidence capture if it leaks a credential."
+    beats:
+      - say: "The explorer brings back the path to the invoice write. The worker returns a patch and its local test. Suppose the worker only checked for a successful response. Ask a fresh verifier to start from the acceptance criteria. It can count stored rows and compare the two returns. Rerunning the worker’s assertion in the same context would miss the extra invoice again. The reviewer can now report a specific failure."
+        hold: 0.6
+        visual_cues:
+          - id: roles-and-failures-step-1
+            phrase: "start from the acceptance criteria"
+            targets:
+              - roles-evidence
+            linger: 0.3
+          - id: roles-fresh
+            phrase: "count stored rows"
+            targets:
+              - roles-evidence
+            linger: 0.3
+      - say: "A worker can critique its own draft. In the research pattern called Reflexion, feedback from an evaluated trial goes into memory for later attempts. Independent verification still needs its own evidence. Parallel workers need one owner for each shared file. Separate checkouts can still share a database, a port or a fixture. Coordinate those resources and check the combined patch."
+        hold: 0.6
+        visual_cues:
+          - id: roles-feedback
+            phrase: "feedback from an evaluated trial"
+            targets:
+              - roles-ownership
+            linger: 0.3
+          - id: roles-and-failures-step-2
+            phrase: "one owner for each shared file"
+            targets:
+              - roles-ownership
+            linger: 0.3
+      - say: "A test log contains a credential. Revoke the exposed token so a copy from the log stops working. Restrict access to the log and preserve the incident evidence. Fix the log capture before running the test again."
+        hold: 0.65
+        visual_cues:
+          - id: roles-and-failures-step-3
+            phrase: "log contains a credential"
+            targets:
+              - roles-incident
+            linger: 0.3
+          - id: roles-revoke
+            phrase: "Revoke the exposed token"
+            targets:
+              - roles-incident
+            linger: 0.3
+  - id: benchmark-context
+    title: "What does a coding benchmark measure?"
+    visual: "Separate issue-to-patch task outcomes from this repository’s replay. Show the historical audit as 138 selected difficult cases within 500 tasks."
+    beats:
+      - say: "You might use a coding benchmark to choose a worker. SWE-bench measures issue-to-patch tasks from repositories. Pro includes longer-horizon work. A score belongs to a particular model, set of tools, scaffold, split and attempt budget. Record the version and protocol when comparing scores. To decide about this invoice patch, run the local replay."
+        hold: 0.6
+        visual_cues:
+          - id: benchmark-context-step-1
+            phrase: "run the local replay"
+            targets:
+              - benchmark-local
+            linger: 0.3
+      - say: "Each mark is one of the five hundred tasks in SWE-bench Verified. In February twenty twenty-six, OpenAI audited one hundred thirty-eight hard problems its earlier model had struggled with. It found faulty tests or descriptions and evidence of prior exposure to problems or patches. To estimate a defect rate across all five hundred, you’d need a representative sample. OpenAI stopped reporting Verified scores and recommended Pro. Check for contamination on each benchmark you use."
+        hold: 0.65
+        visual_cues:
+          - id: benchmark-selected
+            phrase: "one hundred thirty-eight hard problems"
+            targets:
+              - benchmark-sample
+            linger: 0.3
+          - id: benchmark-context-step-2
+            phrase: "a representative sample"
+            targets:
+              - benchmark-sample
+            linger: 0.3
+  - id: handoff
+    title: "Which revision does this receipt cover?"
+    visual: "A completed sequential replay stays pinned to C while the review head advances to D and the target advances from T1 to T2."
+    beats:
+      - say: "Here is the handoff for C. The handler and its test are the two changed files. The receipt shows the three returns and the stored rows on the base and on C. Include the contract, exact inputs, runner commands and environment, suite and lint results, and any concurrency or restart work still open. The owner can reproduce the claim from this packet."
+        hold: 0.7
+        visual_cues:
+          - id: handoff-files
+            phrase: "two changed files"
+            targets:
+              - bounded-diff
+            linger: 0.3
+          - id: handoff-results
+            phrase: "three returns and the stored rows"
+            targets:
+              - before-after
+            linger: 0.3
+      - say: "While the owner reads, the branch advances to D. Keep C’s receipt where it is. The target also moves to T two. Test D on the relevant target, refresh the required checks and reviews, and bind any eventual integration to the revision the owner approved."
+        hold: 0.85
+        visual_cues:
+          - id: handoff-advance
+            phrase: "branch advances to D"
+            targets:
+              - review-head
+            linger: 0.3
+          - id: handoff-target
+            phrase: "target also moves to T two"
+            targets:
+              - review-target
+            linger: 0.3
+  - id: fresh-handoff
+    title: "What goes back with the patch?"
+    visual: "Four deliveries contend for two keys in a fresh atomic-store example. Predict shared returns and row count, then select between three receipts for F and hand the local patch to its owner."
+    beats:
+      - say: "Four workers, one account, an empty store. A inserts first. B and C bring the same key. D brings a different key. The store creates or reuses an invoice in one atomic step. Who gets the same invoice? How many rows will you find?"
+        hold: 3
+        visual_cues:
+          - id: fresh-input
+            phrase: "D brings a different key"
+            targets:
+              - fresh-deliveries
+            linger: 0.3
+      - say: "A, B and C share invoice one. D gets invoice two. Count the two stored rows, one for each distinct key. You can check all four returns against those two rows."
+        hold: 0.95
+        visual_cues:
+          - id: fresh-share
+            phrase: "A, B and C share invoice one"
+            targets:
+              - fresh-shared
+            linger: 0.3
+          - id: fresh-new
+            phrase: "D gets invoice two"
+            targets:
+              - fresh-other
+            linger: 0.3
+          - id: fresh-count
+            phrase: "Count the two stored rows"
+            targets:
+              - fresh-rows
+            linger: 0.3
+      - say: "You have a local patch for revision F. All three receipts use verifier K and show the expected failure on the base. Each passed the new-key and row-count checks. Compare the last two fields. The first ran the replay on E. The second names F and skipped it. The third ran it on F. Which receipt goes with the patch?"
+        hold: 3
+        visual_cues:
+          - id: fresh-read-one
+            phrase: "first ran the replay on E"
+            targets:
+              - fresh-receipt-1
+            linger: 0.3
+          - id: fresh-read-two
+            phrase: "second names F"
+            targets:
+              - fresh-receipt-2
+            linger: 0.3
+          - id: fresh-read-three
+            phrase: "third ran it on F"
+            targets:
+              - fresh-receipt-3
+            linger: 0.3
+      - say: "Take receipt three. It shows that concurrent replay passed on F. Give the tested patch and that receipt to the integration owner, who decides whether to publish or merge. If you resume the task tomorrow, match the revision in this packet to the branch head again."
+        hold: 1.25
+        visual_cues:
+          - id: fresh-packet-reveal
+            phrase: "Take receipt three"
+            targets:
+              - fresh-receipt-3
+            linger: 0.3
+          - id: fresh-owner
+            phrase: "integration owner"
+            targets:
+              - fresh-result
+            linger: 0.3

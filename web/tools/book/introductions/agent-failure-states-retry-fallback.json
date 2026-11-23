@@ -1,0 +1,15 @@
+{
+  "framing": "Find out what happened before you act again",
+  "paragraphs": [
+    "A timeout only tells you what the caller stopped waiting to see. Downstream, the remote controller may still be processing the write, or it may have committed the change cleanly milliseconds before the connection dropped. Assuming either failure or success without verification guarantees corrupt state on the next step.",
+    "Reliable recovery holds that uncertainty long enough to inspect the operation, select a permitted next step, and report only what external evidence actually supports. Malformed tool arguments, transient read errors, lost write confirmations, and stalled loops can look identical on the surface, yet each demands its own distinct remedy.",
+    "The local labs in this chapter show how those safeguards work together: an atomic transaction survives a dropped response, a stable operation key catches duplicate replays, bounded jitter respects caller deadlines, and a generation-scoped breaker ignores late health signals. When fresh evidence disappears, degraded fallbacks make proportionally smaller claims and count human handoffs separately from finished tasks.",
+    "This closes the agents unit by testing every earlier defense under partial failure. Checkpointed approvals bound decisions to exact actions; now those actions meet noisy networks where permission checks, durable state, and honest status reporting must all hold simultaneously."
+  ],
+  "outcomes": [
+    "Classify failures accurately and reconcile ambiguous writes using a stable operation key.",
+    "Bound retries, stall budgets, and circuit probes while honoring caller cancellation and permission scopes.",
+    "Track completed tasks, degraded responses, safe handoffs, and unresolved work as separate operational metrics."
+  ],
+  "question": "Which remote observation would prove what actually happened after a caller lost its network reply?"
+}

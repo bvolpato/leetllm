@@ -1,0 +1,1370 @@
+version: 1
+id: reasoning-search
+title: Exploring Several Paths to an Answer
+source: agents/chain-of-thought-advanced-prompting/content.md
+sources:
+  - title: "Tree of Thoughts: Deliberate Problem Solving with Large Language Models"
+    url: https://arxiv.org/abs/2305.10601
+  - title: Self-Consistency Improves Chain of Thought Reasoning in Language Models
+    url: https://arxiv.org/abs/2203.11171
+  - title: "Graph of Thoughts: Solving Elaborate Problems with Large Language Models"
+    url: https://arxiv.org/abs/2308.09687
+  - title: Large Language Models Cannot Self-Correct Reasoning Yet
+    url: https://arxiv.org/abs/2310.01798
+  - title: On the Expressive Power of Transformers with Chain of Thought
+    url: https://arxiv.org/abs/2310.07923
+  - title: Chain-of-Thought Prompting Elicits Reasoning in Large Language Models.
+    url: https://arxiv.org/abs/2201.11903
+  - title: Large Language Models are Zero-Shot Reasoners.
+    url: https://arxiv.org/abs/2205.11916
+  - title: Least-to-Most Prompting Enables Complex Reasoning in Large Language Models
+    url: https://arxiv.org/abs/2205.10625
+  - title: "Language Models Don't Always Say What They Think: Unfaithful
+      Explanations in Chain-of-Thought Prompting"
+    url: https://arxiv.org/abs/2305.04388
+  - title: "Prompting Science Report 2: The Decreasing Value of Chain of Thought in
+      Prompting"
+    url: https://arxiv.org/abs/2506.07142
+  - title: "The Curse of CoT: On the Limitations of Chain-of-Thought in In-Context
+      Learning."
+    url: https://arxiv.org/abs/2504.05081
+  - title: Scaling LLM Test-Time Compute Optimally Can Be More Effective Than
+      Scaling Model Parameters.
+    url: https://arxiv.org/abs/2408.03314
+  - title: "DeepSeek-R1: Incentivizing Reasoning Capability in LLMs via
+      Reinforcement Learning"
+    url: https://arxiv.org/abs/2501.12948
+  - title: Learning to reason with LLMs
+    url: https://openai.com/index/learning-to-reason-with-llms/
+  - title: "From shortcuts to sabotage: natural emergent misalignment from reward
+      hacking"
+    url: https://www.anthropic.com/research/emergent-misalignment-reward-hacking
+  - title: Reasoning models
+    url: https://developers.openai.com/api/docs/guides/reasoning
+  - title: "ReAct: Synergizing Reasoning and Acting in Language Models"
+    url: https://arxiv.org/abs/2210.03629
+scenes:
+  - id: policy-decision-record
+    title: Merge requires three passing checks
+    visual: Slide the model's merge slip alongside the release service's slip. Align their checks, mark the
+      scan on the spoken answer, then change its value and rescore the record.
+    beats:
+      - say: Both slips say merge. The release service requires all three checks to pass. Which check did the model copy wrong?
+        caption_starts: [Which check did the model copy wrong]
+        hold: 2.2
+        visual_cues:
+          - id: record-compare
+            phrase: Both slips say merge
+            targets:
+              - policy-decision-record-mechanism
+            caption_boundary: true
+            linger: 0.3
+      - say: The scan. The service says true. The model wrote false and still chose the right action.
+          Change just that field to true. Now the values agree as well.
+        caption_starts: [The model wrote false]
+        hold: 1
+        visual_cues:
+          - id: record-locate
+            phrase: The scan
+            targets:
+              - policy-decision-record-mechanism
+            caption_boundary: true
+            linger: 0.3
+          - id: record-flip
+            phrase: Change just that field to true
+            targets:
+              - policy-decision-record-mechanism
+            caption_boundary: true
+            linger: 0.3
+          - id: record-matches
+            phrase: Now the values agree as well
+            targets:
+              - policy-decision-record-mechanism
+            caption_boundary: true
+            linger: 0.3
+      - say: Try the shorter record. It lists only the tests and asks for manual review. That's one of three
+          required fields, and its action disagrees with the rule. We wrote these mistakes into the examples.
+          The same scorer can compare prompts. It checks which fields arrived, whether their booleans match
+          the service, and whether the proposed action matches the rule.
+        hold: 0.9
+        visual_cues:
+          - id: record-partial
+            phrase: Try the shorter record
+            targets:
+              - policy-decision-record-mechanism
+            caption_boundary: true
+            linger: 0.3
+          - id: record-grade-partial
+            phrase: one of three required fields, and its action disagrees with the rule
+            targets:
+              - policy-decision-record-mechanism
+            caption_boundary: true
+            linger: 0.3
+  - id: scratchpad-compute
+    title: Where does the next step get its two?
+    visual: Pass a prefix through a stack, append the proposed digit to the same prefix, and read the longer
+      prefix on the next pass. Distinguish generated values and cached inputs from an arithmetic check.
+    beats:
+      - say: Where does a written step help? Give a decoder the beginning of a subtraction, six minus four
+          equals. It runs its layers and proposes the digit two. Append that two to the prefix. The next
+          prediction can read a subtotal that didn't exist on the first pass. That growing sequence is a
+          scratchpad.
+        hold: 0.9
+        visual_cues:
+          - id: scratch-pass
+            phrase: It runs its layers
+            targets:
+              - scratchpad-compute-mechanism
+            caption_boundary: true
+            linger: 0.3
+          - id: scratch-token
+            phrase: proposes the digit two
+            targets:
+              - scratchpad-compute-mechanism
+            caption_boundary: true
+            linger: 0.3
+          - id: scratch-append
+            phrase: Append that two to the prefix
+            targets:
+              - scratchpad-compute-mechanism
+            caption_boundary: true
+            linger: 0.3
+          - id: scratch-read
+            phrase: The next prediction can read a subtotal
+            targets:
+              - scratchpad-compute-mechanism
+            caption_boundary: true
+            linger: 0.3
+      - say: The subtotal came from the model. A wrong subtotal can carry forward, and a later step can correct
+          it. A key and value cache reuses earlier projections. Each additional token still goes through
+          the layers and attends to the retained context. A native reasoning model can do that work behind
+          a very short answer. Two replies of the same visible length can cost different amounts.
+        hold: 0.7
+        visual_cues:
+          - id: scratch-cache
+            phrase: reuses earlier projections
+            targets:
+              - scratchpad-compute-mechanism
+            caption_boundary: true
+            linger: 0.3
+      - say: Merrill and Sabharwal studied what intermediate steps make possible in a specified transformer.
+          Under their precision and normalization assumptions, polynomially many steps can express
+          polynomial-time computation. Some separations rely on unproved complexity assumptions. Whether
+          training actually found a useful procedure is something we can test on held-out problems.
+        hold: 0.7
+        visual_cues:
+          - id: scratch-capacity
+            phrase: polynomially many steps can express polynomial-time computation
+            targets:
+              - scratchpad-compute-mechanism
+            caption_boundary: true
+            linger: 0.3
+  - id: prompt-comparison
+    title: What does a worked example teach?
+    visual: Hold the target release fixed and compare a field template with a worked check. Keep results from
+      historical prompting experiments next to their model and task.
+    beats:
+      - say: One prompt shows the fields we need. Another works through a separate release where the scan failed
+          and explains why the answer is manual review. That second example teaches a step someone could
+          repeat on a new case. Supplying solved examples like this is few-shot chain-of-thought prompting.
+          Asking for steps without any examples is zero-shot. To find out what the demonstration buys us,
+          keep the target facts, policy and output fields fixed.
+        hold: 0.7
+        visual_cues:
+          - id: prompt-comparison-b1
+            phrase: works through a separate release where the scan failed
+            targets:
+              - prompt-comparison-mechanism
+            caption_boundary: true
+            linger: 0.3
+      - say: Wei and colleagues tried eight worked examples on grade-school math problems. With their PaLM model,
+          accuracy rose from about eighteen percent to nearly fifty-seven. Kojima and colleagues showed
+          that even a zero-shot request to think step by step could elicit intermediate steps. These
+          experiments give us prompt variants to try on the release task.
+        hold: 0.8
+        visual_cues:
+          - id: prompt-comparison-b2
+            phrase: eight worked examples on grade-school math problems
+            targets:
+              - prompt-comparison-mechanism
+            caption_boundary: true
+            linger: 0.3
+      - say: The task matters. A June twenty twenty-five study on G P Q A found modest average gains for
+          non-reasoning models. Reasoning models gained little and spent more time. A different study on
+          nine pattern-based datasets found that asking for steps hurt performance across sixteen models.
+          On the same held-out releases, measure parse failures and missing checks separately. A template
+          can fix the first while leaving the second untouched. Compare final actions, tokens and latency
+          as well.
+        hold: 0.75
+        visual_cues:
+          - id: prompt-comparison-b3
+            phrase: The task matters
+            targets:
+              - prompt-comparison-mechanism
+            caption_boundary: true
+            linger: 0.3
+  - id: reasoning-artifacts
+    title: What can an operator inspect?
+    visual: Separate the proposed record from generated text, internal usage and a summary. Count internal
+      tokens against a fixed output budget while the required public record stays empty.
+    beats:
+      - say: What could you inspect to find that wrong scan? The decision record gives you a field to compare
+          with the source. Asking a model for intermediate steps gives you generated text. A native
+          reasoning model can spend internal tokens processing the request. A provider may also return a
+          summary describing that work. Each of those answers a different question. Neither a summary nor a
+          written explanation establishes which internal steps caused the answer.
+        hold: 0.75
+        visual_cues:
+          - id: reasoning-artifacts-b1
+            phrase: a field to compare with the source
+            targets:
+              - reasoning-artifacts-mechanism
+            caption_boundary: true
+            linger: 0.3
+      - say: Imagine a response with an eight-hundred-token output budget. Watch the internal reasoning tokens
+          consume that allowance. The counter reaches eight hundred and the record is still empty. Treat
+          this as an incomplete response. OpenAI documents internal usage and optional summaries on
+          supported models. Raw reasoning tokens stay private. Providers differ in their controls and
+          disclosures, so check the contract for the endpoint you use.
+        hold: 0.8
+        visual_cues:
+          - id: reasoning-artifacts-b2
+            phrase: eight-hundred-token output budget
+            targets:
+              - reasoning-artifacts-mechanism
+            caption_boundary: true
+            linger: 0.3
+          - id: reasoning-limit
+            phrase: Watch the internal reasoning tokens consume that allowance
+            targets:
+              - reasoning-artifacts-mechanism
+            caption_boundary: true
+            linger: 0.3
+          - id: artifact-incomplete
+            phrase: The counter reaches eight hundred and the record is still empty
+            targets:
+              - reasoning-artifacts-mechanism
+            caption_boundary: true
+            linger: 0.3
+      - say: Turpin and colleagues changed features such as the order of the answer options. A model's prompted
+          explanation could justify a choice without mentioning the feature that influenced it. That
+          experiment studied prompted text. For a release audit, keep the inputs, validated fields, tool
+          observations and actual outcome. Limit who can access sensitive intermediate text and how long
+          you keep it.
+        hold: 0.75
+        visual_cues:
+          - id: reasoning-artifacts-b3
+            phrase: changed features such as the order of the answer options
+            targets:
+              - reasoning-artifacts-mechanism
+            caption_boundary: true
+            linger: 0.3
+  - id: canonical-answer-vote
+    title: Five replies to one release request
+    visual: Keep each final-action string in its own numbered row. Fill five equal slots from the allowed
+      aliases, then move the threshold from three slots to four while every vote stays in place.
+    beats:
+      - say: Here are five sampled replies to the same request. Read just the final action from each one. The
+          first three use different words for merge. The fourth asks for manual review. The last asks to
+          force a merge. Our list of allowed actions has no entry for that.
+        hold: 0.8
+        visual_cues:
+          - id: vote-three
+            phrase: The first three use different words for merge
+            targets:
+              - canonical-answer-vote-mechanism
+            caption_boundary: true
+            linger: 0.3
+          - id: vote-review
+            phrase: The fourth asks for manual review
+            targets:
+              - canonical-answer-vote-mechanism
+            caption_boundary: true
+            linger: 0.3
+          - id: vote-invalid
+            phrase: Our list of allowed actions has no entry for that
+            targets:
+              - canonical-answer-vote-mechanism
+            caption_boundary: true
+            linger: 0.3
+      - say: We sampled five paths, so each reply gets one seat, even the rejected one. Suppose a recommendation
+          needs sixty percent support. Does merge qualify?
+        hold: 2.1
+        visual_cues:
+          - id: vote-floor
+            phrase: sixty percent support
+            targets:
+              - canonical-answer-vote-mechanism
+            caption_boundary: true
+            linger: 0.3
+      - say: Yes. Three of five is sixty percent, exactly on the line. Now raise the requirement to eighty
+          percent. The same replies fall one vote short, so the controller abstains. Manual review is a
+          policy answer. An abstention means the vote didn't choose one.
+        caption_starts: [The same replies fall one vote short, Manual review is a policy answer]
+        hold: 1
+        visual_cues:
+          - id: vote-accept
+            phrase: Three of five is sixty percent, exactly on the line
+            targets:
+              - canonical-answer-vote-mechanism
+            caption_boundary: true
+            linger: 0.3
+          - id: vote-raise
+            phrase: Now raise the requirement to eighty percent
+            targets:
+              - canonical-answer-vote-mechanism
+            caption_boundary: true
+            linger: 0.3
+          - id: vote-abstain
+            phrase: so the controller abstains
+            targets:
+              - canonical-answer-vote-mechanism
+            caption_boundary: true
+            linger: 0.3
+      - say: Sampling paths and counting their final answers is called self-consistency. The most frequent answer
+          can win a plurality with less than half the votes. Our stricter rule needs a unique winner and a
+          finite numeric threshold above one half and at most one. A boolean isn't a threshold. Empty
+          batches, ties and batches with no valid votes all abstain. Check the response schema and match
+          only an allowed final action. A rationale might say never merge and still contain the word merge.
+        hold: 0.8
+        visual_cues:
+          - id: vote-rule
+            phrase: a unique winner
+            targets:
+              - canonical-answer-vote-mechanism
+            caption_boundary: true
+            linger: 0.3
+      - say: Temperature and truncation affect which paths you sample. Copying one reply five times adds no
+          independent evidence. Even separate draws can share a mistake. The vote selects a candidate for
+          the same policy check we used on the release record.
+        hold: 0.6
+        visual_cues:
+          - id: vote-policy
+            phrase: selects a candidate
+            targets:
+              - canonical-answer-vote-mechanism
+            caption_boundary: true
+            linger: 0.3
+  - id: sampling-cost-ledger
+    title: What changes when each case gets five samples?
+    visual: Keep five authored requests in rows. Compare each first action with its five-answer vote,
+      including the unanimously wrong recommendation and the abstention. Count requested outputs separately
+      from correct decisions.
+    beats:
+      - say: These five releases have handwritten sample replies. Look at the row where all five say merge. The
+          expected action is manual review. Five votes repeat the same mistake. A failed scan would still
+          block that release. In the last row the first answer was right, but the vote abstains. Across all
+          five cases the first reply is correct twice and the vote is correct three times. That's forty
+          percent versus sixty percent, for five samples versus twenty-five if we collected them.
+        hold: 0.8
+        visual_cues:
+          - id: sampling-cost-ledger-b1
+            phrase: the row where all five say merge
+            targets:
+              - sampling-cost-ledger-mechanism
+            caption_boundary: true
+            linger: 0.3
+          - id: reason-result-sample-summary
+            phrase: forty percent versus sixty percent, for five samples versus twenty-five
+            targets:
+              - sampling-cost-ledger-mechanism
+            caption_boundary: true
+            linger: 0.3
+      - say: In a separate math experiment, Wang and colleagues sampled forty outputs per run. Their PaLM model
+          went from fifty-six point five percent with greedy reasoning to seventy-four point four with
+          self-consistency. The baseline belongs to this experiment. Agreement can correlate with accuracy,
+          but three votes out of five isn't a calibrated probability that an answer is correct.
+        hold: 0.8
+        visual_cues:
+          - id: sampling-cost-ledger-b2
+            phrase: sampled forty outputs per run
+            targets:
+              - sampling-cost-ledger-mechanism
+            caption_boundary: true
+            linger: 0.3
+      - say: For a service, collect both strategies on the same held-out requests. Count abstentions and invalid
+          replies, repeat stochastic trials and measure unsafe approvals separately. Five correct examples
+          still leave uncertainty about the true rate. You might run all five calls at once to save wall
+          time. You still pay to generate five replies, and longer replies can cost more even when the call
+          count stays fixed.
+        hold: 0.65
+        visual_cues:
+          - id: sampling-cost-ledger-b3
+            phrase: collect both strategies on the same held-out requests
+            targets:
+              - sampling-cost-ledger-mechanism
+            caption_boundary: true
+            linger: 0.3
+  - id: dependency-and-graph
+    title: Which answer does the next check need?
+    visual: Pass the changed-component list into a second release question. Then combine independent security
+      and performance findings in a record that can be revised and checked.
+    beats:
+      - say: This release changes authentication and logging. We need that list before we can name the checks to
+          run. First identify the components. Pass the verified list into a second question about required
+          checks. If the first answer drops logging, the next answer can miss the log-schema check. Solving
+          dependent questions in order is called least-to-most prompting.
+        hold: 0.8
+        visual_cues:
+          - id: dependency-and-graph-b1
+            phrase: First identify the components
+            targets:
+              - dependency-and-graph-mechanism
+            caption_boundary: true
+            linger: 0.3
+      - say: Suppose the security and performance reviewers can work separately. The combined release record now
+          has two parents. A reviewer can send feedback and ask for a revision. Those joins and revisions
+          are what a graph-of-thoughts controller adds. Retain both versions and score them. Feedback can
+          make a previously correct answer worse.
+        hold: 0.8
+        visual_cues:
+          - id: dependency-and-graph-b2
+            phrase: two parents
+            targets:
+              - dependency-and-graph-mechanism
+            caption_boundary: true
+            linger: 0.3
+      - say: While those reviewers work in parallel, both branches need their own active histories. A shared
+          prefix cache can reuse the common prompt on a system that supports it. Each changed history still
+          takes work. When the next question depends on the previous answer, that wait is on the critical
+          path. Measure the latency before deciding to put the workflow in an interactive service.
+        hold: 0.75
+        visual_cues:
+          - id: dependency-and-graph-b3
+            phrase: both branches need their own active histories
+            targets:
+              - dependency-and-graph-mechanism
+            caption_boundary: true
+            linger: 0.3
+  - id: subject-intro
+    title: Four numbers leave room for different plans
+    visual: The numbers four, five, six, and seven enter a puzzle. One path reaches twenty-four early while
+      leaving unused values; another keeps a smaller subtotal alive.
+    beats:
+      - say: Take four numbers, four, five, six, and seven. Use each exactly once with ordinary arithmetic to
+          make twenty-four. The goal sounds simple because the answer is one number.
+        hold: 0.55
+        visual_cues:
+          - id: subject-intro-beat-1-focus-1
+            phrase: Take four numbers
+            targets:
+              - subject-intro-simulation-2
+            color: blue
+            linger: 0.6
+          - id: subject-intro-beat-1-focus-2
+            phrase: Use each exactly once with ordinary arithmetic to make twenty-four
+            targets:
+              - subject-intro-object-use-each-input-exactly-once-target-24-1
+            color: blue
+            linger: 0.6
+      - say: Choose six and four. Multiply six by four and you get twenty-four. Look back at the tray. Five and
+          seven are still there. The target number appeared before we finished the puzzle.
+        hold: 0.75
+        motion_check:
+          region:
+            - 150
+            - 340
+            - 1620
+            - 560
+          minimumChangedFraction: 0.002
+        visual_cues:
+          - id: subject-intro-beat-2-focus-1
+            phrase: Choose six and four
+            targets:
+              - subject-intro-simulation-2
+            color: blue
+            linger: 0.6
+          - id: subject-pair-motion
+            phrase: Multiply six by four
+            targets:
+              - subject-intro-simulation-2
+            caption_boundary: true
+            linger: 0.3
+          - id: subject-product
+            phrase: and you get twenty-four
+            targets:
+              - subject-intro-mechanism
+            caption_boundary: true
+            linger: 0.3
+      - say: To solve this well, a system needs to keep useful alternatives alive, check each move, and know when
+          its search budget has run out. Let’s build that controller from the puzzle itself.
+        hold: 0.55
+        visual_cues:
+          - id: subject-intro-beat-3-focus-1
+            phrase: To solve this well
+            targets:
+              - subject-intro-simulation-2
+            color: blue
+            linger: 0.6
+          - id: subject-intro-beat-3-focus-2
+            phrase: check each move
+            targets:
+              - subject-intro-object-current-check-result-5
+            color: blue
+            linger: 0.6
+  - id: linear-state
+    title: A written step gives the next step something to use
+    visual: A valid solution changes a state after each arithmetic move; consumed operands disappear and the
+      new subtotal becomes available to the next decision.
+    beats:
+      - say: A state records the values still available and the operation that produced them. One valid first
+          move is six minus four, which leaves two, five, and seven.
+        hold: 0.55
+        visual_cues:
+          - id: linear-first-subtraction
+            phrase: One valid first move is six minus four
+            targets:
+              - linear-after-subtraction
+            color: yellow
+            linger: 0.6
+          - id: linear-state-beat-1-focus-1
+            phrase: A state records the values still available and
+            targets:
+              - linear-state-object-start-4-5-6-7-8
+            color: blue
+            linger: 0.6
+          - id: reason-result-linear-subtract
+            phrase: One valid first move is six minus four, which leaves two, five, and seven
+            targets:
+              - linear-after-subtraction
+            color: cyan
+            linger: 0.4
+      - say: Combine five and seven into twelve. The state now contains two and twelve. The two came from six and
+          four. The twelve came from five and seven. We can use both subtotals in the next move.
+        hold: 0.75
+        visual_cues:
+          - id: linear-state-beat-2-focus-1
+            phrase: Combine five and seven into twelve
+            targets:
+              - linear-after-addition
+            color: blue
+            linger: 0.6
+          - id: reason-result-linear-add
+            phrase: Combine five and seven into twelve. The state now contains two and twelve
+            targets:
+              - linear-after-addition
+            color: cyan
+            linger: 0.4
+      - say: "Multiply two by twelve and the final state contains twenty-four. This is a linear path: one
+          continuation at each step. A generated explanation can guide the next token, while the host still
+          checks the arithmetic."
+        hold: 0.55
+        visual_cues:
+          - id: linear-state-beat-3-focus-1
+            phrase: Multiply two by twelve and the final state contains twenty-four
+            targets:
+              - linear-final-product
+            color: blue
+            linger: 0.6
+          - id: reason-result-linear-final
+            phrase: Multiply two by twelve and the final state contains twenty-four
+            targets:
+              - linear-final-product
+            color: cyan
+            linger: 0.4
+  - id: branch-state
+    title: What survives the first move?
+    visual: Start both trays with the same four numbered tiles. Trace each pair to the subtotal it makes. The
+      two unused tiles continue straight down into the child state.
+    beats:
+      - say: Make two copies of the starting tray. On the left, choose six and four. On the right, leave those
+          two alone and choose five and seven. Both trays started with the same four inputs.
+        hold: 0.65
+        visual_cues:
+          - id: branch-select-a
+            phrase: choose six and four
+            targets:
+              - branch-state-mechanism
+            caption_boundary: true
+            linger: 0.3
+          - id: branch-select-b
+            phrase: choose five and seven
+            targets:
+              - branch-state-mechanism
+            caption_boundary: true
+            linger: 0.3
+      - say: On the left, multiply. Six times four gives twenty-four. The five and the seven come straight down
+          with it. On the right, add. Five plus seven gives twelve. Slide six and four down beside it.
+          Which two originals are inside that twelve?
+        hold: 1.9
+        visual_cues:
+          - id: branch-a-move
+            phrase: On the left, multiply
+            targets:
+              - branch-state-mechanism
+            caption_boundary: true
+            linger: 0.3
+          - id: branch-a-result
+            phrase: Six times four gives twenty-four
+            targets:
+              - branch-state-mechanism
+            caption_boundary: true
+            linger: 0.3
+          - id: branch-b-move
+            phrase: On the right, add
+            targets:
+              - branch-state-mechanism
+            caption_boundary: true
+            linger: 0.3
+          - id: branch-b-result
+            phrase: Five plus seven gives twelve
+            targets:
+              - branch-state-mechanism
+            caption_boundary: true
+            linger: 0.3
+          - id: branch-a-carry
+            phrase: The five and the seven come straight down
+            targets:
+              - branch-state-mechanism
+            caption_boundary: true
+            linger: 0.3
+          - id: branch-b-carry
+            phrase: Slide six and four down beside it
+            targets:
+              - branch-state-mechanism
+            caption_boundary: true
+            linger: 0.3
+      - say: Follow the two lines back to five and seven. Each branch stores its remaining values, its parent and
+          the move it made. A controller can replay that move before it spends time searching below it.
+        hold: 0.8
+        visual_cues:
+          - id: branch-trace
+            phrase: Follow the two lines back to five and seven
+            targets:
+              - branch-state-mechanism
+            caption_boundary: true
+            linger: 0.3
+  - id: arithmetic-controller-contract
+    title: Which next state belongs in the search?
+    visual: Align the two proposed remaining lists with the three values the host computes. Admit the
+      conserved transition, then fold two orders of independent additions into one search key.
+    beats:
+      - say: A proposal arrives with a multiplication and a list of what's left. The host starts with its own
+          four numbers, takes out six and four, and puts their product back. Which of these two lists
+          should the host admit for scoring?
+        hold: 2.1
+        visual_cues:
+          - id: contract-replay
+            phrase: takes out six and four, and puts their product back
+            targets:
+              - arithmetic-controller-contract-mechanism
+            caption_boundary: true
+            linger: 0.3
+      - say: Admit the list with twenty-four, five and seven. Both proposals got the product right. Only the
+          longer list accounts for the two untouched numbers. This check uses two available occurrences, an
+          allowed operator and exact fractions. It rules out a dropped input or division by zero. A legal
+          first move can still lead to a dead end.
+        hold: 0.9
+        visual_cues:
+          - id: contract-verdict
+            phrase: Admit the list with twenty-four, five and seven
+            targets:
+              - arithmetic-controller-contract-mechanism
+            caption_boundary: true
+            linger: 0.3
+      - say: Now add four and five, then add six and seven. Reverse the order of those two additions on the other
+          path. Both leave nine and thirteen. Either way, the next move has the same two numbers to work with.
+          Keep one history for the pair and expand it once. The starting tray also counts toward the state budget.
+        caption_starts: [Either way, The starting tray also counts]
+        hold: 0.9
+        visual_cues:
+          - id: contract-add-one
+            phrase: add four and five, then add six and seven
+            targets:
+              - arithmetic-controller-contract-mechanism
+            caption_boundary: true
+            linger: 0.3
+          - id: contract-add-two
+            phrase: Reverse the order of those two additions
+            targets:
+              - arithmetic-controller-contract-mechanism
+            caption_boundary: true
+            linger: 0.3
+          - id: contract-key
+            phrase: Both leave nine and thirteen
+            targets:
+              - arithmetic-controller-contract-mechanism
+            caption_boundary: true
+            linger: 0.3
+          - id: contract-expand-once
+            phrase: Keep one history for the pair and expand it once
+            targets:
+              - arithmetic-controller-contract-mechanism
+            caption_boundary: true
+            linger: 0.3
+      - say: In tree-of-thoughts, a model can propose and score the next moves. Here a small program enumerates
+          every allowed pair and operation, so we can check the search against a known answer. The state
+          budget bounds the number it examines. A service also needs limits on proposals, memory and
+          elapsed time.
+        hold: 0.7
+        visual_cues:
+          - id: contract-oracle
+            phrase: enumerates every allowed pair and operation
+            targets:
+              - arithmetic-controller-contract-mechanism
+            caption_boundary: true
+            linger: 0.3
+  - id: frontier-control
+    title: Which state gets expanded next?
+    visual: Push the same two legal states into a queue and then a stack in the same order. Move the chosen
+      state into the expansion slot and leave its sibling visible. Reset to two unranked candidates for the
+      beam.
+    beats:
+      - say: We have several states we could explore. The ones still waiting form the frontier. Watch the order
+          here. A arrives first. B arrives second. Take from the front of a queue and A goes next. Applied
+          at each depth, that rule gives us breadth-first search.
+        hold: 0.8
+        visual_cues:
+          - id: frontier-first
+            phrase: A arrives first
+            targets:
+              - frontier-control-mechanism
+            caption_boundary: true
+            linger: 0.3
+          - id: frontier-second
+            phrase: B arrives second
+            targets:
+              - frontier-control-mechanism
+            caption_boundary: true
+            linger: 0.3
+          - id: frontier-fifo
+            phrase: A goes next
+            targets:
+              - frontier-control-mechanism
+            caption_boundary: true
+            linger: 0.3
+      - say: Push the same pair onto a stack, A first, then B. Which one comes off the top?
+        hold: 1.85
+        visual_cues:
+          - id: frontier-push-a
+            phrase: A first
+            targets:
+              - frontier-control-mechanism
+            caption_boundary: true
+            linger: 0.3
+          - id: frontier-push-b
+            phrase: then B
+            targets:
+              - frontier-control-mechanism
+            caption_boundary: true
+            linger: 0.3
+      - say: B comes off first. A is still waiting. If B leads to a dead end we can come back for A. Following
+          the most recent choice first gives us depth-first search.
+        hold: 0.8
+        visual_cues:
+          - id: frontier-lifo
+            phrase: B comes off first
+            targets:
+              - frontier-control-mechanism
+            caption_boundary: true
+            linger: 0.3
+      - say: A beam changes the question. We score the proposals and keep a fixed number at this selection step.
+          With room for one, the discarded sibling disappears from this run. Let's see what that costs on
+          these two trays.
+        hold: 0.85
+        visual_cues:
+          - id: frontier-beam
+            phrase: a fixed number at this selection step
+            targets:
+              - frontier-control-mechanism
+            caption_boundary: true
+            linger: 0.3
+  - id: heuristic-pruning
+    title: Which proposal does the beam keep?
+    visual: Place two candidate moves on a fixed score ladder. Show the width-one cut before exploring,
+      inspect the retained dead end, and replay the same ranking with space for both. Trace the extra
+      survivor to its checked expression.
+    beats:
+      - say: Suppose these are the two proposals at this fork. The scores are made up. The scorer likes seeing
+          twenty-four already on the tray. That shortcut is a heuristic. It gives A ninety-five hundredths
+          and B forty hundredths. The controller can keep just one. Which tray gets the next search?
+        hold: 2.2
+        visual_cues:
+          - id: prune-rank
+            phrase: It gives A ninety-five hundredths and B forty hundredths
+            targets:
+              - heuristic-pruning-mechanism
+            caption_boundary: true
+            linger: 0.3
+      - say: A gets the slot. B is out of reach for the rest of this run. Now try every legal continuation of A.
+          Watch the waiting count as the program examines distinct states. The queue empties without a
+          solution. That settles A. It tells us nothing about the tray we threw away.
+        hold: 1.15
+        visual_cues:
+          - id: prune-one
+            phrase: A gets the slot
+            targets:
+              - heuristic-pruning-mechanism
+            caption_boundary: true
+            linger: 0.3
+          - id: prune-drain
+            phrase: Watch the waiting count as the program examines distinct states
+            targets:
+              - heuristic-pruning-mechanism
+            caption_boundary: true
+            linger: 0.3
+          - id: prune-empty
+            phrase: The queue empties without a solution
+            targets:
+              - heuristic-pruning-mechanism
+            caption_boundary: true
+            linger: 0.3
+      - say: Start again at the fork, before either tray was discarded. Here's where B went at width one. Replay
+          that choice with the same scores and give the beam two places. This time B stays in the search.
+          Its twelve already contains five and seven. Six minus four leaves two. Two times twelve makes
+          twenty-four. Trace it back and each input appears once. Widening the beam made that check
+          possible and cost us another branch to examine.
+        hold: 1
+        visual_cues:
+          - id: prune-replay
+            phrase: Start again at the fork
+            targets:
+              - heuristic-pruning-mechanism
+            caption_boundary: true
+            linger: 0.3
+          - id: prune-previous
+            phrase: where B went at width one
+            targets:
+              - heuristic-pruning-mechanism
+            caption_boundary: true
+            linger: 0.3
+          - id: prune-reset
+            phrase: Replay that choice with the same scores
+            targets:
+              - heuristic-pruning-mechanism
+            caption_boundary: true
+            linger: 0.3
+          - id: prune-wide
+            phrase: give the beam two places
+            targets:
+              - heuristic-pruning-mechanism
+            caption_boundary: true
+            linger: 0.3
+          - id: prune-retain
+            phrase: This time B stays in the search
+            targets:
+              - heuristic-pruning-mechanism
+            caption_boundary: true
+            linger: 0.3
+          - id: prune-subtract
+            phrase: Six minus four leaves two
+            targets:
+              - heuristic-pruning-mechanism
+            caption_boundary: true
+            linger: 0.3
+          - id: prune-product
+            phrase: Two times twelve makes twenty-four
+            targets:
+              - heuristic-pruning-mechanism
+            caption_boundary: true
+            linger: 0.3
+  - id: votes-and-checks
+    title: Agreement and verification answer different questions
+    visual: Three sampled solutions vote for twenty-four; a separate
+      operand-conservation checker rejects the repeated dead-end explanation and
+      accepts the complete expression.
+    beats:
+      - say: Self-consistency samples several reasoning paths and votes on their
+          extracted answers. It can help when different paths make different
+          mistakes and converge on the same correct result.
+        hold: 0.55
+        visual_cues:
+          - id: votes-and-checks-beat-1-focus-1
+            phrase: Self-consistency samples several reasoning paths and votes on their
+              extracted answers
+            targets:
+              - votes-and-checks-object-sample-answer-42
+            color: blue
+            linger: 0.6
+      - say: In this fixture, three samples all say twenty-four, but each only
+          multiplies six by four. Their agreement is high, while the original
+          puzzle still has two unused numbers.
+        hold: 0.75
+        visual_cues:
+          - id: votes-and-checks-beat-2-focus-1
+            phrase: In this fixture
+            targets:
+              - votes-and-checks-object-sample-answer-42
+            color: blue
+            linger: 0.6
+      - say: The host checks every operand and every operation in the winning
+          expression. Agreement measures repeated answers; the checker tests the
+          actual puzzle constraints. Shared mistakes can fool a vote.
+        hold: 0.55
+        visual_cues:
+          - id: votes-and-checks-beat-3-focus-1
+            phrase: Agreement measures repeated answers
+            targets:
+              - votes-and-checks-object-sample-answer-42
+            color: blue
+            linger: 0.6
+          - id: votes-and-checks-beat-3-focus-2
+            phrase: Shared mistakes can fool a vote
+            targets:
+              - votes-and-checks-object-vote-24-43
+            color: blue
+            linger: 0.6
+          - id: reason-result-checked-votes
+            phrase: The host checks every operand and every operation in the winning expression
+            targets:
+              - votes-and-checks-mechanism
+            color: cyan
+            linger: 0.4
+  - id: budget-and-claims
+    title: What can a stopped search report?
+    visual: Plot distinct states waiting against distinct states examined. Pause the same three-value search
+      at one state, then replay it without that cap and follow the waiting count to zero.
+    beats:
+      - say: Give the original four-number puzzle a budget of one distinct state. Examining the starting tray
+          spends that slot and leaves thirty-six states waiting. Now start from A's tray, twenty-four, five
+          and seven, with that same one-state cap. It leaves eighteen waiting. We haven't found a solution.
+          What status can we return for A?
+        hold: 2
+        visual_cues:
+          - id: budget-root
+            phrase: leaves thirty-six states waiting
+            targets:
+              - budget-and-claims-mechanism
+            caption_boundary: true
+            linger: 0.3
+          - id: budget-change
+            phrase: start from A's tray, twenty-four, five and seven
+            targets:
+              - budget-and-claims-mechanism
+            caption_boundary: true
+            linger: 0.3
+          - id: budget-eighteen
+            phrase: It leaves eighteen waiting
+            targets:
+              - budget-and-claims-mechanism
+            caption_boundary: true
+            linger: 0.3
+      - say: Budget exhausted. The counter reads one because the solver examined the starting tray. Time and
+          tokens have separate budgets. The eighteen waiting states are precisely the work this run
+          skipped. Repeated states don't spend another slot.
+        hold: 0.9
+        visual_cues:
+          - id: budget-limited
+            phrase: Budget exhausted
+            targets:
+              - budget-and-claims-mechanism
+            caption_boundary: true
+            linger: 0.3
+      - say: Run A again with exactly the same numbers and operations. This time lift the cap. Each point shows
+          how many distinct states are waiting after one more has been examined. At first, new moves arrive
+          faster than the solver can inspect them. Eventually we've examined eighty-five distinct states
+          and the queue is empty. None reached a lone twenty-four. What can we say about this tray now?
+        hold: 2
+        visual_cues:
+          - id: budget-restart
+            phrase: This time lift the cap
+            targets:
+              - budget-and-claims-mechanism
+            caption_boundary: true
+            linger: 0.3
+          - id: budget-work
+            phrase: At first, new moves arrive faster than the solver can inspect them
+            targets:
+              - budget-and-claims-mechanism
+            caption_boundary: true
+            linger: 0.3
+          - id: budget-empty
+            phrase: we've examined eighty-five distinct states and the queue is empty
+            targets:
+              - budget-and-claims-mechanism
+            caption_boundary: true
+            linger: 0.3
+      - say: No solution from this tray under these four operations. We can stop expanding A. The earlier capped
+          run could only tell us to allow more work or report that the search was unfinished. A production
+          controller also limits time, memory and the proposals it accepts at each step.
+        hold: 0.8
+        visual_cues:
+          - id: budget-exhaustive
+            phrase: No solution from this tray under these four operations
+            targets:
+              - budget-and-claims-mechanism
+            caption_boundary: true
+            linger: 0.3
+  - id: native-reasoning-training
+    title: What changed between these two models?
+    visual: Distinguish a changed prompt from changed parameters, follow a proposed solution through a
+      programmatic reward, and keep test-time allocation studies tied to their task.
+    beats:
+      - say: Give a model a new worked example and the prompt changes. Train on scored solutions and the
+          parameters can change. OpenAI used reinforcement learning to train o one. DeepSeek's R one Zero
+          began reinforcement learning without a preceding supervised fine-tuning stage. DeepSeek observed
+          it revisiting earlier steps and exploring alternatives. R one used both supervised and reinforcement stages.
+        hold: 0.75
+        visual_cues:
+          - id: native-reasoning-training-b1
+            phrase: Train on scored solutions and the parameters can change
+            targets:
+              - native-reasoning-training-mechanism
+            caption_boundary: true
+            linger: 0.3
+      - say: Think back to the puzzle checker. A program can score a math answer, run a code test or check a
+          proof. That score can serve as a reward during training. An algorithm such as G R P O uses
+          rewards for sampled outputs to update the model. Useful intermediate steps can emerge if they
+          help earn the reward. Supervised training can also teach solutions from people or other models.
+        hold: 0.8
+        visual_cues:
+          - id: native-reasoning-training-b2
+            phrase: That score can serve as a reward during training
+            targets:
+              - native-reasoning-training-mechanism
+            caption_boundary: true
+            linger: 0.3
+      - say: How should we spend a fixed compute budget? Snell and colleagues tried two ways to spend more
+          of it at inference time on MATH problems. Their tuned PaLM two models could revise an answer or
+          search with a verifier. With matched compute budgets, the smaller model sometimes beat one with
+          about fourteen times as many parameters. The result depended on problem difficulty and the balance
+          between training and inference.
+        caption_starts: [With matched compute budgets, about fourteen times as many parameters, The result depended on]
+        hold: 0.75
+        visual_cues:
+          - id: native-reasoning-training-b3
+            phrase: revise an answer or search with a verifier
+            targets:
+              - native-reasoning-training-mechanism
+            caption_boundary: true
+            linger: 0.3
+          - id: native-matched-budget
+            phrase: the smaller model sometimes beat one with about fourteen times as many parameters
+            targets:
+              - native-reasoning-training-mechanism
+            caption_boundary: true
+            linger: 0.3
+  - id: verifier-boundaries
+    title: What did three passing tests establish?
+    visual: Show expected and observed outputs for a function that should double its input. Leave a fourth
+      result covered, run the same candidate on four, then connect different reasoning failures to evidence
+      from the release task.
+    beats:
+      - say: Suppose a function is meant to double its input. The test suite tries one, two and three. The
+          candidate returns two, four and six. All three tests pass. Look at what this candidate does on
+          the other side of three. What would it return for four?
+        hold: 2
+        visual_cues:
+          - id: verifier-tests
+            phrase: returns two, four and six
+            targets:
+              - verifier-boundaries-mechanism
+            caption_boundary: true
+            linger: 0.3
+          - id: verifier-four
+            phrase: what this candidate does on the other side of three
+            targets:
+              - verifier-boundaries-mechanism
+            caption_boundary: true
+            linger: 0.3
+      - say: Zero. The caller expected eight. Passing the suite earned the reward for those three cases. The
+          fourth case shows the gap in what the suite measured. A programmatic reward can encourage a
+          shortcut. In a coding study, Anthropic observed this in deliberately vulnerable training
+          environments. Evaluate behavior such as agreeing with a user's false claim separately.
+        hold: 0.8
+        visual_cues:
+          - id: verifier-zero
+            phrase: Zero
+            targets:
+              - verifier-boundaries-mechanism
+            caption_boundary: true
+            linger: 0.3
+          - id: verifier-expected
+            phrase: The caller expected eight
+            targets:
+              - verifier-boundaries-mechanism
+            caption_boundary: true
+            linger: 0.3
+      - say: The release record gives us three other things we can actually check. Compare its scan field with
+          the service when an explanation sounds convincing. Compare action errors and token usage when
+          longer reasoning seems helpful. If the response uses its output budget before producing a record,
+          mark it incomplete. Each observation points to a different next step.
+        hold: 0.7
+        visual_cues:
+          - id: verifier-checks
+            phrase: Compare its scan field with the service
+            targets:
+              - verifier-boundaries-mechanism
+            caption_boundary: true
+            linger: 0.3
+  - id: quality-and-latency-gate
+    title: Which strategy fits the service?
+    visual: Keep the four invented measurements fixed on accuracy and p95 axes. Apply the two thresholds and
+      select an eligible point. Tighten only the latency cap and let the eligible region shrink past the
+      last candidate.
+    beats:
+      - say: Each dot is one strategy on the same task. These are invented measurements. Farther left means
+          faster. Higher means more correct answers. The service requires at least ninety percent accuracy
+          and a p ninety-five latency of at most nine hundred milliseconds. That's the time by which
+          ninety-five percent of requests finish. Which dot meets both limits?
+        hold: 2.2
+        visual_cues:
+          - id: gate-limits
+            phrase: at least ninety percent accuracy and a p ninety-five latency of at most nine hundred milliseconds
+            targets:
+              - quality-and-latency-gate-mechanism
+            caption_boundary: true
+            linger: 0.3
+      - say: Vote five. It gets ninety-four percent correct at seven hundred forty milliseconds. Direct prompting
+          and a single trace fall below the accuracy floor. Tree search reaches higher, but its eighteen
+          hundred forty milliseconds misses the deadline. Among eligible strategies, choose the fewest
+          calls, then the lower p ninety-five to break a tie. Five calls can cost quite different amounts
+          depending on the model and the tokens each call generates.
+        hold: 0.9
+        visual_cues:
+          - id: gate-select
+            phrase: It gets ninety-four percent correct at seven hundred forty milliseconds
+            targets:
+              - quality-and-latency-gate-mechanism
+            caption_boundary: true
+            linger: 0.3
+      - say: Keep every dot where it is. Change just the deadline to one hundred milliseconds. What qualifies
+          now?
+        hold: 1.9
+        visual_cues:
+          - id: gate-tighten
+            phrase: Change just the deadline to one hundred milliseconds
+            targets:
+              - quality-and-latency-gate-mechanism
+            caption_boundary: true
+            linger: 0.3
+      - say: None. Even the fastest dot is at one hundred ninety. Report that no strategy meets the requirements.
+          Also check the measurements before placing a dot. Infinite accuracy and negative latency would
+          both pass a careless pair of comparisons. Require a name, finite accuracy between zero and one, a
+          finite positive latency and a positive integer call count. A missing field or a boolean call
+          count fails validation. With real data, compare native models and external controllers on the
+          same held-out requests, including unsafe approvals, parse failures, abstentions and uncertainty.
+        hold: 0.8
+        visual_cues:
+          - id: gate-none
+            phrase: None
+            targets:
+              - quality-and-latency-gate-mechanism
+            caption_boundary: true
+            linger: 0.3
+          - id: gate-invalid
+            phrase: Infinite accuracy and negative latency
+            targets:
+              - quality-and-latency-gate-mechanism
+            caption_boundary: true
+            linger: 0.3
+  - id: choose-the-controller
+    title: Match the reasoning method to the shape of the task
+    visual: Structured facts go to a deterministic checker, sequential dependencies
+      move along one path, uncertain short answers can be voted, and verifiable
+      branching states enter bounded search.
+    beats:
+      - say: Structured policy fields usually belong in deterministic code. A short
+          factual answer may need one model call. A sequence with dependent
+          subquestions can pass each verified result into the next step.
+        hold: 0.55
+        visual_cues:
+          - id: choose-the-controller-beat-1-focus-1
+            phrase: Structured policy fields usually belong in deterministic code
+            targets:
+              - choose-the-controller-simulation-48
+            color: blue
+            linger: 0.6
+      - say: Voting suits tasks with short canonical answers and useful sample
+          diversity. Search suits tasks with legal partial states, a way to
+          check moves, and alternatives worth revisiting.
+        hold: 0.75
+        visual_cues:
+          - id: choose-the-controller-beat-2-focus-1
+            phrase: Voting suits tasks with short canonical answers and useful sample
+              diversity
+            targets:
+              - choose-the-controller-simulation-48
+            color: blue
+            linger: 0.6
+      - say: Compare each method on held-out tasks with the same evaluator. Record
+          correctness, abstention, cost, and latency. More intermediate text or
+          a larger search tree earns its place only when the measured task needs
+          it.
+        hold: 0.55
+        visual_cues:
+          - id: choose-the-controller-beat-3-focus-1
+            phrase: Compare each method on held-out tasks with the same evaluator
+            targets:
+              - choose-the-controller-simulation-48
+            color: blue
+            linger: 0.6
+  - id: fresh-duplicate-puzzle
+    title: Four tiles, two threes and two eights
+    visual: Draw the exact expression from four distinctly marked leaves. Contrast the complete 25 with an
+      exact fraction branch, then visibly switch the last eight to a previously spent occurrence and grade
+      both expressions.
+    beats:
+      - say: Try four new tiles. There are two eights and two threes. The little letters tell the copies apart.
+          Pair an eight with a three on each side. Both differences are five. Multiply the fives and you
+          get twenty-five. We've spent all four tiles and missed by one.
+        hold: 0.95
+        visual_cues:
+          - id: fresh-pairs
+            phrase: Pair an eight with a three on each side
+            targets:
+              - fresh-duplicate-puzzle-mechanism
+            caption_boundary: true
+            linger: 0.3
+          - id: fresh-fives
+            phrase: Both differences are five
+            targets:
+              - fresh-duplicate-puzzle-mechanism
+            caption_boundary: true
+            linger: 0.3
+          - id: fresh-wrong
+            phrase: Multiply the fives and you get twenty-five
+            targets:
+              - fresh-duplicate-puzzle-mechanism
+            caption_boundary: true
+            linger: 0.3
+      - say: Deal the same tiles again. This time divide the first eight by the first three. Keep eight thirds
+          exactly. To make a small divisor, take that fraction away from the other three. Three is nine
+          thirds, so the difference is one third. There's one untouched eight. What operation between that
+          eight and one third makes twenty-four?
+        hold: 2.3
+        visual_cues:
+          - id: fresh-reset
+            phrase: Deal the same tiles again
+            targets:
+              - fresh-duplicate-puzzle-mechanism
+            caption_boundary: true
+            linger: 0.3
+          - id: fresh-divide
+            phrase: divide the first eight by the first three
+            targets:
+              - fresh-duplicate-puzzle-mechanism
+            caption_boundary: true
+            linger: 0.3
+          - id: fresh-eight-thirds
+            phrase: Keep eight thirds exactly
+            targets:
+              - fresh-duplicate-puzzle-mechanism
+            caption_boundary: true
+            linger: 0.3
+          - id: fresh-subtract
+            phrase: take that fraction away from the other three
+            targets:
+              - fresh-duplicate-puzzle-mechanism
+            caption_boundary: true
+            linger: 0.3
+          - id: fresh-third
+            phrase: the difference is one third
+            targets:
+              - fresh-duplicate-puzzle-mechanism
+            caption_boundary: true
+            linger: 0.3
+      - say: Divide. Eight divided by one third is twenty-four. Follow the lines up to the four tiles. Each
+          occurs once. Rounding eight thirds to two point six seven would lose the exact divisor that made
+          this work.
+        hold: 1
+        visual_cues:
+          - id: fresh-finish
+            phrase: Divide
+            targets:
+              - fresh-duplicate-puzzle-mechanism
+            caption_boundary: true
+            linger: 0.3
+          - id: fresh-goal
+            phrase: Eight divided by one third is twenty-four
+            targets:
+              - fresh-duplicate-puzzle-mechanism
+            caption_boundary: true
+            linger: 0.3
+      - say: Now suppose a proposed trace names eight A again for the last division. The numerical answer stays
+          twenty-four. Would you accept that trace?
+        hold: 2.05
+        visual_cues:
+          - id: fresh-copy
+            phrase: names eight A again for the last division
+            targets:
+              - fresh-duplicate-puzzle-mechanism
+            caption_boundary: true
+            linger: 0.3
+      - say: Reject it. Eight A was already spent in the first division, and eight B is still on the table. Use
+          eight B for the final division and the trace passes both checks. A search that runs out of budget
+          before trying this path can report only that work remains.
+        hold: 1
+        visual_cues:
+          - id: fresh-reject
+            phrase: Reject it
+            targets:
+              - fresh-duplicate-puzzle-mechanism
+            caption_boundary: true
+            linger: 0.3
+          - id: fresh-repair
+            phrase: Use eight B for the final division
+            targets:
+              - fresh-duplicate-puzzle-mechanism
+            caption_boundary: true
+            linger: 0.3
+          - id: fresh-verified
+            phrase: the trace passes both checks
+            targets:
+              - fresh-duplicate-puzzle-mechanism
+            caption_boundary: true
+            linger: 0.3
+  - id: typed-observation-handoff
+    title: Can this release merge?
+    visual: Return to the opening comparison. This time a scan value is missing on the trusted side. Follow a
+      typed request for the right run, fill that exact cell with the returned observation, then apply the
+      release rule.
+    beats:
+      - say: The model recommends a merge again. Find the empty box on the service slip. Tests passed and
+          review is approved. Where would you get the missing result for this run?
+        caption_starts: [Where would you get the missing result]
+        hold: 2.1
+        visual_cues:
+          - id: tool-missing
+            phrase: the empty box on the service slip
+            targets:
+              - typed-observation-handoff-mechanism
+            caption_boundary: true
+            linger: 0.3
+      - say: Ask the scan service for the result of that run. The model can propose a typed function call. The
+          runtime checks the arguments and the caller's permission before it sends the request. If the
+          service can't return a result, the release waits for the scan.
+        hold: 0.7
+        visual_cues:
+          - id: tool-request
+            phrase: Ask the scan service for the result of that run
+            targets:
+              - typed-observation-handoff-mechanism
+            caption_boundary: true
+            linger: 0.3
+          - id: tool-authorize
+            phrase: checks the arguments and the caller's permission
+            targets:
+              - typed-observation-handoff-mechanism
+            caption_boundary: true
+            linger: 0.3
+          - id: tool-send
+            phrase: it sends the request
+            targets:
+              - typed-observation-handoff-mechanism
+            caption_boundary: true
+            linger: 0.3
+      - say: The reply says the scan failed. Put that observation in the empty box. The model still says merge.
+          The rule sends the release to manual review. Log the run, the scan result and both actions together.
+          The next lesson follows that function call from its schema to its result.
+        caption_starts: [The model still says merge, Log the run, The next lesson follows]
+        hold: 1.7
+        visual_cues:
+          - id: tool-reply
+            phrase: the reply says the scan failed
+            targets:
+              - typed-observation-handoff-mechanism
+            caption_boundary: true
+            linger: 0.3
+          - id: tool-fill
+            phrase: Put that observation in the empty box
+            targets:
+              - typed-observation-handoff-mechanism
+            caption_boundary: true
+            linger: 0.3
+          - id: tool-decision
+            phrase: the rule sends the release to manual review
+            targets:
+              - typed-observation-handoff-mechanism
+            caption_boundary: true
+            linger: 0.3

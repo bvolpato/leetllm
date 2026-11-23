@@ -1,0 +1,199 @@
+version: 1
+lesson: tool-protocol
+promise: Decide which release status a host can report and whether it can send a proposed
+  traffic change under MCP 2026-07-28.
+objectives:
+  - id: accept-observation
+    can: Compare the request and reply IDs, release, source and observation time before
+      reporting a canary reading. Explain what an older reading still establishes.
+    scenes:
+      - subject-intro
+      - validate-results
+      - result-contract
+      - fresh-tool
+  - id: trace-protocol
+    can: Compute reusable integration counts and correlate typed requests, capabilities and layered
+      results without granting ambient authority.
+    scenes:
+      - subject-intro
+      - reuse-arithmetic
+      - host-client-server
+      - request-correlation
+      - discover-and-negotiate
+      - validate-results
+      - result-contract
+  - id: continue-operation
+    can: Select a tool, resource or prompt, bound the local process and choose the protocol
+      era. On a paused operation, compare the retry with the saved caller and target, then
+      check current permission.
+    scenes:
+      - tools-resources-prompts
+      - bounded-stdio
+      - transport-and-pause
+      - mrtr-state
+      - era-fallback
+  - id: protect-http
+    can: Match mirrored headers to body operations and independently validate Origin, OAuth
+      issuer/resource audience and per-release authority.
+    scenes:
+      - http-binding
+      - http-identity
+  - id: audit-trajectory
+    can: Scope catalog reuse to the caller and grade a write from its dispatch history.
+      Distinguish a pre-dispatch hold, a server denial and a missing reply.
+    scenes:
+      - catalog-and-trust
+      - scoped-cache
+      - fresh-tool
+sections:
+  - heading: Reuse protocol code and review each permission
+    status: taught
+    scenes:
+      - subject-intro
+      - reuse-arithmetic
+      - host-client-server
+  - heading: Trace the wire before hiding it behind an SDK
+    status: taught
+    scenes:
+      - request-correlation
+      - discover-and-negotiate
+      - bounded-stdio
+  - heading: Pick the primitive by usage pattern
+    status: taught
+    scenes:
+      - tools-resources-prompts
+  - heading: Run a bounded stdio integration
+    status: taught
+    scenes:
+      - bounded-stdio
+  - heading: Validate observation identity and payload schema
+    status: taught
+    scenes:
+      - subject-intro
+      - validate-results
+      - result-contract
+      - fresh-tool
+  - heading: Handle multi-turn input and legacy handshakes
+    status: taught
+    scenes:
+      - transport-and-pause
+      - mrtr-state
+      - era-fallback
+  - heading: Manage dual-era client fallback
+    status: taught
+    scenes:
+      - era-fallback
+  - heading: Move to HTTP without compromising trust
+    status: taught
+    scenes:
+      - http-binding
+      - http-identity
+  - heading: Protect endpoints from DNS rebinding and forged origins
+    status: taught
+    scenes:
+      - http-identity
+  - heading: Enforce trust boundaries and catalog changes
+    status: taught
+    scenes:
+      - catalog-and-trust
+      - scoped-cache
+  - heading: Handle dynamic tool list mutations safely
+    status: taught
+    scenes:
+      - catalog-and-trust
+      - scoped-cache
+  - heading: Scope catalog caches to each permission context
+    status: taught
+    scenes:
+      - scoped-cache
+  - heading: Bind tenant authorization to authenticated callers
+    status: taught
+    scenes:
+      - scoped-cache
+      - http-identity
+  - heading: Evaluate complete tool-use trajectories
+    status: taught
+    scenes:
+      - host-client-server
+      - fresh-tool
+quiz:
+  - n: 1
+    status: taught
+    scenes:
+      - host-client-server
+      - fresh-tool
+  - n: 2
+    status: taught
+    scenes:
+      - bounded-stdio
+      - request-correlation
+  - n: 3
+    status: taught
+    scenes:
+      - discover-and-negotiate
+      - era-fallback
+  - n: 4
+    status: taught
+    scenes:
+      - result-contract
+  - n: 5
+    status: taught
+    scenes:
+      - http-binding
+  - n: 6
+    status: taught
+    scenes:
+      - mrtr-state
+  - n: 7
+    status: taught
+    scenes:
+      - scoped-cache
+  - n: 8
+    status: taught
+    scenes:
+      - bounded-stdio
+      - fresh-tool
+  - n: 9
+    status: taught
+    scenes:
+      - http-identity
+  - n: 10
+    status: taught
+    scenes:
+      - scoped-cache
+      - fresh-tool
+removed: []
+reviews:
+  closed_book:
+    script: 759db98fe6aa853c
+    taught: 10
+    partial: 0
+    absent: 0
+  fact_check:
+    script: 759db98fe6aa853c
+    open_findings: 0
+practice:
+  - source_question: 1
+    status: taught
+    scenes:
+      - reuse-arithmetic
+    note: Former independently accepted scored item retained as an unscored contextual checkpoint before
+      the mastery quiz.
+  - source_question: 5
+    status: taught
+    scenes:
+      - tools-resources-prompts
+    note: Former independently accepted scored item retained as an unscored contextual checkpoint before
+      the mastery quiz.
+  - source_question: 8
+    status: taught
+    scenes:
+      - http-identity
+    note: Former independently accepted scored item retained as an unscored contextual checkpoint before
+      the mastery quiz.
+  - source_question: 11
+    status: taught
+    scenes:
+      - era-fallback
+    note: Former independently accepted scored item retained as an unscored contextual checkpoint before
+      the mastery quiz.

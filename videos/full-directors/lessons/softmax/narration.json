@@ -1,0 +1,746 @@
+[
+  {
+    "id": "c01",
+    "title": "Which word was on the page?",
+    "sourceChapters": [
+      "c01"
+    ],
+    "beats": [
+      {
+        "id": "c01-b01",
+        "say": "The last word on this page is covered. Look at the dog in the picture. Our toy model favors ran. Which slice will the loss score when we read the word?",
+        "hold": 2.6
+      },
+      {
+        "id": "c01-b02",
+        "say": "Lift the flap. The dog slept. The printed word is the target. Follow it to the green slice. The blue slice still belongs to the model’s favorite, ran.",
+        "hold": 1.1
+      },
+      {
+        "id": "c01-b03",
+        "say": "Ran got about eighty-four percent. Slept got about eleven. A prediction that gives slept more probability costs less on this page. Let’s build those shares from three scores, then use the loss to change the next prediction.",
+        "hold": 0.8
+      }
+    ]
+  },
+  {
+    "id": "c02",
+    "title": "Read the gaps between scores",
+    "sourceChapters": [
+      "c02"
+    ],
+    "beats": [
+      {
+        "id": "c02-b01",
+        "say": "A model’s output layer compares its hidden representation with a learned weight vector for each possible word. In our toy example it gives ran three, slept one, and ate zero. We call those scores logits. Ran leads slept by two points.",
+        "hold": 0.5
+      },
+      {
+        "id": "c02-b02",
+        "say": "Add a thousand to every score. Watch the ruler labels change while those gaps hold their lengths. The relative preferences stay the same. Our probability rule should preserve that relationship.",
+        "hold": 0.35
+      },
+      {
+        "id": "c02-b03",
+        "say": "Subtract that shared offset and the original scores return. Logits can be any real numbers. Next we will turn their gaps into positive weights, then divide one budget among them.",
+        "hold": 0.35
+      }
+    ]
+  },
+  {
+    "id": "c03",
+    "title": "Give each score a positive weight",
+    "sourceChapters": [
+      "c03"
+    ],
+    "beats": [
+      {
+        "id": "c03-b01",
+        "say": "Raise e to each score. Even zero gives a weight of one. The two-point lead for ran becomes a weight ratio of e squared, about seven point four to one. The weights are positive. They still need a common denominator.",
+        "hold": 0.5
+      },
+      {
+        "id": "c03-b02",
+        "say": "For safe arithmetic, subtract the largest score first. The largest exponent becomes zero, so its weight is one. Every weight receives the same scale factor. Their ratio survives, ready for normalization.",
+        "hold": 0.35
+      },
+      {
+        "id": "c03-b03",
+        "say": "Now add a thousand to the input scores. Subtract the new maximum before taking exponentials. The same small weights remain. This order prevents overflowing exponentials while preserving the intended shares.",
+        "hold": 0.35
+      }
+    ]
+  },
+  {
+    "id": "c04",
+    "title": "Three claims on one budget",
+    "sourceChapters": [
+      "c04"
+    ],
+    "beats": [
+      {
+        "id": "c04-b01",
+        "say": "Add the three shifted weights. Their total is a little over one point one eight. Divide each weight by that total. Fit each piece into the strip. They fill one unit of probability exactly.",
+        "hold": 0.5
+      },
+      {
+        "id": "c04-b02",
+        "say": "Raise only slept's score by one. Its weight grows, the denominator grows, and every share changes. The strip makes the competition visible: slept gains space as both neighbors give some up.",
+        "hold": 0.35
+      },
+      {
+        "id": "c04-b03",
+        "say": "Restore the original scores. Slept received about eleven percent. Which observation should cost more: the favorite ran, or the surprising slept? Keep your answer while we put both on a loss curve.",
+        "hold": 0.8
+      }
+    ]
+  },
+  {
+    "id": "c05",
+    "title": "Price the word that actually appeared",
+    "sourceChapters": [
+      "c05"
+    ],
+    "beats": [
+      {
+        "id": "c05-b01",
+        "say": "Cross-entropy takes the negative natural log of the target's probability. Start at ran's large share: observing that favorite would cost very little. As target probability approaches one, the cost approaches zero.",
+        "hold": 0.35
+      },
+      {
+        "id": "c05-b02",
+        "say": "Move to the observed word, slept. The point climbs. Its smaller share costs about two point one seven nats. A nat is the unit we get from a natural logarithm. Halving a target probability adds the same cost each time, the natural log of two.",
+        "hold": 0.6
+      },
+      {
+        "id": "c05-b03",
+        "say": "Compute the loss directly from the scores. Take the maximum minus the target score, then add the log of the shifted weight total. Try a lead of one thousand. The target weight rounds to zero, but the gap survives. The loss is still one thousand nats.",
+        "hold": 0.7
+      }
+    ]
+  },
+  {
+    "id": "c06",
+    "title": "What moves when one score rises?",
+    "sourceChapters": [
+      "c06"
+    ],
+    "beats": [
+      {
+        "id": "c06-b01",
+        "say": "Keep the blue and pink scores fixed. If we raise the score for slept, where will its extra probability come from?",
+        "hold": 1.8
+      },
+      {
+        "id": "c06-b02",
+        "say": "Blue and pink both give some up. Look at the dotted ends of their bars. Together they give up exactly as much probability as green gains.",
+        "hold": 1.2
+      },
+      {
+        "id": "c06-b03",
+        "say": "Return to the original scores. Imagine making the nudge smaller and smaller. The slope tells us how fast each probability changes per unit of score. Collect those slopes in a table called the softmax Jacobian. In one column we change just one score.",
+        "hold": 0.3
+      },
+      {
+        "id": "c06-b04",
+        "say": "Read the table by row and column. Row i names the probability we watch. Column j names the score we nudge. When those words match, delta is one. The slope is that word's share times the share left for everyone else. When the words differ, delta is zero. The slope is minus the product of their shares.",
+        "hold": 0.3
+      },
+      {
+        "id": "c06-b05",
+        "say": "Each column sums to zero because the whole strip still holds one unit.",
+        "hold": 0.6
+      },
+      {
+        "id": "c06-b06",
+        "say": "Now follow just the share of slept. Start with its own score. A tiny increase earns probability at the positive rate on the first line. Raise ran instead and slept loses almost as fast. Raise ate instead and the effect is much smaller.",
+        "hold": 0.3
+      },
+      {
+        "id": "c06-b07",
+        "say": "Ran had a much larger share to compete with. To get the change in loss, multiply each of these rates by the slope of the negative log, minus one over the probability of slept.",
+        "hold": 0.8
+      },
+      {
+        "id": "c06-b08",
+        "say": "Follow the first line into the loss. Its probability slope has a factor of p slept. The negative log divides by that same factor. Cancel the two and the gradient on the slept score is p slept minus one.",
+        "hold": 0.3
+      },
+      {
+        "id": "c06-b09",
+        "say": "On the ran line the probability slope is negative. The two minus signs give a plus, and the same cancellation leaves p ran. For a normalized soft target, sum the routes with their target weights.",
+        "hold": 0.3
+      },
+      {
+        "id": "c06-b10",
+        "say": "Those weights add to one, so the full gradient on the logits is prediction minus target. There’s a shorter route from the logits. Differentiate the log of the sum of exponentials. Each score’s derivative is its own softmax share.",
+        "hold": 0.3
+      },
+      {
+        "id": "c06-b11",
+        "say": "For a single observed word, subtracting its score takes one off its derivative. You can check a slope by nudging one score a little each way and dividing the difference in loss by the distance between the nudges.",
+        "hold": 0.75
+      }
+    ]
+  },
+  {
+    "id": "c07",
+    "title": "Subtract what happened from what was predicted",
+    "sourceChapters": [
+      "c07"
+    ],
+    "beats": [
+      {
+        "id": "c07-b01",
+        "say": "Back to the dog. The target row records what happened: one for slept, zero for each other word. The combined loss derivative is probability minus target. First subtract ran's zero. Its positive gradient says that raising the wrong favorite raises the loss.",
+        "hold": 0.35
+      },
+      {
+        "id": "c07-b02",
+        "say": "For slept, subtract one. Its gradient is negative, so raising that score lowers the loss. For ate, subtract zero: a small positive correction. Gradient descent subtracts these gradients, raising slept and lowering its competitors.",
+        "hold": 0.35
+      },
+      {
+        "id": "c07-b03",
+        "say": "Add the three gradients. The competitors’ positive parts balance the target’s negative part. Their sum is zero. That is what we expect because a shared shift leaves the loss unchanged. Backpropagation carries these local derivatives into the network’s shared weights.",
+        "hold": 0.65
+      }
+    ]
+  },
+  {
+    "id": "c08",
+    "title": "Make the correction earn more target probability",
+    "sourceChapters": [
+      "c08"
+    ],
+    "beats": [
+      {
+        "id": "c08-b01",
+        "say": "Try one direct update to these logits. Subtract one point five times each gradient. The corrected target score rises while the competitors fall. Follow the changed gaps into a new probability distribution.",
+        "hold": 0.35
+      },
+      {
+        "id": "c08-b02",
+        "say": "Continue the step. Watch the green bar meet the blue one and pass it. We recompute the probabilities and the loss from the changing scores throughout this direct update.",
+        "hold": 0.6
+      },
+      {
+        "id": "c08-b03",
+        "say": "Slept now receives about sixty-one percent. The original eleven percent has become a much better prediction for this observation. Shared network parameters affect other examples too; held-out predictions measure how broadly that learning helps.",
+        "hold": 0.35
+      }
+    ]
+  },
+  {
+    "id": "c09",
+    "title": "Can cooling fix the missed word?",
+    "sourceChapters": [
+      "c09"
+    ],
+    "beats": [
+      {
+        "id": "c09-b01",
+        "say": "Bring back the original scores. Ran leads slept by two points. Lower the temperature and ran takes more of the strip. Raise it and the other words gain some space. We divide every score gap by the same positive temperature, so ran keeps its lead.",
+        "hold": 0.35
+      },
+      {
+        "id": "c09-b02",
+        "say": "Turn the temperature down again. Which word gains probability?",
+        "hold": 1.8
+      },
+      {
+        "id": "c09-b03",
+        "say": "Ran takes almost the whole strip. Slept, the word on the page, now gets less than one percent.",
+        "hold": 0.35
+      },
+      {
+        "id": "c09-b04",
+        "say": "Bring temperature back to one. Now apply our learned scores. Watch slept pass ran. Learning changed the score order.",
+        "hold": 0.35
+      }
+    ]
+  },
+  {
+    "id": "c10",
+    "title": "What changes when the word changes?",
+    "sourceChapters": [
+      "c10"
+    ],
+    "beats": [
+      {
+        "id": "c10-b01",
+        "say": "A fresh line begins with the cat. These new scores favor ate. On this page, the observed word is ate. Which score gets the upward correction? Work out the sign of its gradient.",
+        "hold": 2.4
+      },
+      {
+        "id": "c10-b02",
+        "say": "Start with ate's probability and subtract one. The starting gradient is minus point two six four. Subtract that gradient times the step size. Ate's score rises, and its probability grows. This likely target needs a smaller correction than the surprising slept.",
+        "hold": 0.35
+      },
+      {
+        "id": "c10-b03",
+        "say": "Return to both initial predictions. For these two training examples, multiply the observed-word probabilities. Negative log turns that product into the sum of their two losses. Divide by two to report the mean. The surprising dog example contributes most of that cost.",
+        "hold": 0.35
+      },
+      {
+        "id": "c10-b04",
+        "say": "Bring back the original dog prediction. It still gives slept about eleven percent. Change just the word on the page. This time the dog ate. Does the loss go up or down?",
+        "hold": 2.2
+      },
+      {
+        "id": "c10-b05",
+        "say": "Up by exactly one nat. Ate’s score is one below slept’s, and the shared log-sum-exp is the same. Now subtract one from ate’s share. The negative gradient belongs to ate, so its score gets the upward push. Changing the label changed the training signal before we took a single step.",
+        "hold": 0.8
+      }
+    ]
+  },
+  {
+    "id": "c11",
+    "title": "What loss remains at a perfect match?",
+    "sourceChapters": [
+      "c11"
+    ],
+    "beats": [
+      {
+        "id": "c11-b01",
+        "say": "Two readers finish the same line. On the first reader’s sheet, the dog ran. On the second, the dog slept. Lay one sheet over the other. Each ending has one vote out of two. The dashed boundary divides their target in half.",
+        "hold": 0.5
+      },
+      {
+        "id": "c11-b02",
+        "say": "Score the two readers equally. Entropy uses the readers’ own distribution to price their answers. Cross-entropy prices those same answers with the model’s probabilities. The extra average cost from a mismatch is called K L divergence.",
+        "hold": 0.7
+      },
+      {
+        "id": "c11-b03",
+        "say": "Slide the prediction into alignment with both readers. Either answer now gets half. How much loss is left?",
+        "hold": 2.1
+      },
+      {
+        "id": "c11-b04",
+        "say": "Minus the log of one half gives about point six nine three nats. That's the readers' entropy. The model gives each word the same half, so its cross-entropy is also point six nine three. Subtract the entropy and the extra cost is zero.",
+        "hold": 1.6
+      },
+      {
+        "id": "c11-b05",
+        "say": "Move the prediction toward ran. Ran gets eighty percent and slept gets twenty. Look at the cost of each ending. The extra cost on slept outweighs the saving on ran. Restore the match. The mismatch disappears and the split still costs point six nine three nats.",
+        "hold": 0.7
+      },
+      {
+        "id": "c11-b06",
+        "say": "A teacher model or a smoothing rule can also supply those target shares.",
+        "hold": 0.8
+      },
+      {
+        "id": "c11-b07",
+        "say": "Ate has zero target weight, so it contributes zero loss. Now give slept zero predicted probability. Half the readers chose slept. Scoring their answer now gives infinite loss and infinite KL divergence. Suppose we send PyTorch two weights of point eight. Their total is one point six.",
+        "hold": 0.3
+      },
+      {
+        "id": "c11-b08",
+        "say": "PyTorch uses those weights as supplied. With weights y and total a, the gradient on the scores is a times the prediction minus y. To recover the readers’ probabilities, divide both weights by their total. Each reader gets half again.",
+        "hold": 0.3
+      },
+      {
+        "id": "c11-b09",
+        "say": "The weights now sum to one, so the gradient is prediction minus target.",
+        "hold": 0.8
+      }
+    ]
+  },
+  {
+    "id": "c12",
+    "title": "How far will each loss move the score for slept?",
+    "sourceChapters": [
+      "c12"
+    ],
+    "beats": [
+      {
+        "id": "c12-b01",
+        "say": "The dog slept, but look at these new scores. Ran gets eight and both other words get zero. Ran takes more than ninety-nine point nine percent of the probability. Slept gets about three hundredths of a percent. Compare two ways to score that mistake.",
+        "hold": 0.3
+      },
+      {
+        "id": "c12-b02",
+        "say": "Cross-entropy scores the observed word. Half the sum of squared probability errors gives a scaled Brier loss. Both reward predicting the true distribution on average. Here a small change in any score barely moves the probabilities.",
+        "hold": 0.8
+      },
+      {
+        "id": "c12-b03",
+        "say": "For cross-entropy, the negative log has slope minus one over the target share. Multiply by the softmax slope and the target share cancels. The gradient on the slept score is about minus point nine nine nine seven.",
+        "hold": 0.3
+      },
+      {
+        "id": "c12-b04",
+        "say": "Squared error multiplies each probability error by its softmax slope and adds the results. Those small slopes stay in the sum. The gradient on slept is about minus point zero zero zero seven.",
+        "hold": 0.8
+      },
+      {
+        "id": "c12-b05",
+        "say": "Take a step of size one directly on the scores. Cross-entropy raises slept by nearly a whole point. Squared error raises it by less than a thousandth. Compare the two marks with their shared starting line. That tiny gradient is what squared error sends back for this confident mistake.",
+        "hold": 0.8
+      }
+    ]
+  },
+  {
+    "id": "c13",
+    "title": "Did the model get better?",
+    "sourceChapters": [
+      "c13"
+    ],
+    "beats": [
+      {
+        "id": "c13-b01",
+        "say": "Freeze the dog model at its original scores. The upper strip shows its prediction. Feed those raw scores to PyTorch cross-entropy. With an integer target and no smoothing, it takes a stable log-softmax and reads the negative log at the target index. The two strips agree.",
+        "hold": 0.3
+      },
+      {
+        "id": "c13-b02",
+        "say": "Slept costs about two point one seven nats, and the gradient on its raw score is about minus point eight nine.",
+        "hold": 0.8
+      },
+      {
+        "id": "c13-b03",
+        "say": "Leave the model frozen. This time feed its probabilities to the loss. PyTorch reads them as scores and normalizes again. Watch slept widen on the lower strip. Its share up top hasn’t moved. The reported loss drops to about one point three nine nats. Would you keep this change?",
+        "hold": 2.2
+      },
+      {
+        "id": "c13-b04",
+        "say": "Remove the extra softmax. That larger green piece existed only inside the loss. The extra operation also weakened the gradient reaching the original slept score. Back on raw scores, the two strips agree again. Compute probabilities on a separate branch when a metric needs them.",
+        "hold": 0.3
+      },
+      {
+        "id": "c13-b05",
+        "say": "This input contract holds on CPU and GPU. The backend determines which kernels run.",
+        "hold": 0.8
+      },
+      {
+        "id": "c13-b06",
+        "say": "Now score two positions in one sentence. Each position has three scores, one for each possible next word. The gold borders pick out the two observed words. With hard labels, give PyTorch a long integer index for each position.",
+        "hold": 0.3
+      },
+      {
+        "id": "c13-b07",
+        "say": "With soft labels, put a floating-point weight in every cell of a target tensor shaped like the logits. Check that each row is nonnegative and sums to one.",
+        "hold": 0.7
+      },
+      {
+        "id": "c13-b08",
+        "say": "Transpose the last two axes. Follow the row after bug into the first column. Now follow the row after bug docs into the second column. The three words run down each column. The class axis is dimension one, and the target indices stay in position order.",
+        "hold": 0.3
+      },
+      {
+        "id": "c13-b09",
+        "say": "Start again from the original batch, position, vocabulary layout. Flatten batch and position together. Each position keeps its own row of three scores, with the same word at its target index. Follow the gold docs and today cells. To check which word each index should name, read the sentence itself.",
+        "hold": 1
+      }
+    ]
+  },
+  {
+    "id": "c14",
+    "title": "What happens to a tie when we cool it?",
+    "sourceChapters": [
+      "c14"
+    ],
+    "beats": [
+      {
+        "id": "c14-b01",
+        "say": "Cool the scores toward zero temperature. Ran leads, so its share approaches one. Now raise slept until it ties ran. The two leaders share that probability equally in the limit. Turn the temperature up and all three shares approach a third. Turning the dial preserves their order.",
+        "hold": 0.3
+      },
+      {
+        "id": "c14-b02",
+        "say": "At exactly zero, division is undefined. Some decoders switch to a greedy choice there. A sampler draws from the shares. To calibrate those shares, fit the temperature to held-out outcomes.",
+        "hold": 0.8
+      },
+      {
+        "id": "c14-b03",
+        "say": "Here all three scores are equal. Divide by the tiny temperature first. Each quotient overflows. Subtract the largest quotient and we get infinity minus infinity.",
+        "hold": 1.45
+      },
+      {
+        "id": "c14-b04",
+        "say": "Start again with the same scores. Subtract the largest score first. All three gaps are zero, even after division by temperature. Each exponential is one. Each word gets one third.",
+        "hold": 0.9
+      },
+      {
+        "id": "c14-b05",
+        "say": "Mask ate with minus infinity. Its weight drops to zero. Ran and slept split the probability. Mask all three words and there is no finite maximum. No candidate can receive a share. Leave at least one finite logit in each row and reject NaN and positive infinity.",
+        "hold": 0.8
+      },
+      {
+        "id": "c14-b06",
+        "say": "Distillation uses softened teacher and student distributions to reveal relative alternatives. Through softmax of z divided by T, the raw-logit cross-entropy gradient is p of T minus target, divided by T. When both teacher and student soften at high T, their difference also scales down.",
+        "hold": 0.3
+      },
+      {
+        "id": "c14-b07",
+        "say": "Hinton and colleagues multiply the soft-target objective by T squared to balance its contribution. To choose a temperature, compare the students it produces on held-out examples.",
+        "hold": 0.8
+      }
+    ]
+  },
+  {
+    "id": "c15",
+    "title": "When does smoothing stop pushing the score higher?",
+    "sourceChapters": [
+      "c15"
+    ],
+    "beats": [
+      {
+        "id": "c15-b01",
+        "say": "Give slept the whole target. Raise its score and the green bar climbs toward the dashed outline. On this one example, every extra point of lead lowers the loss. Reaching zero would take an infinite lead.",
+        "hold": 0.3
+      },
+      {
+        "id": "c15-b02",
+        "say": "In a network, other examples share those weights, and regularization can limit how far they move. Label smoothing changes the target. Keep one minus alpha on the word we saw. Spread alpha equally over all three words, including slept.",
+        "hold": 0.8
+      },
+      {
+        "id": "c15-b03",
+        "say": "For our three words and alpha point one, the target is about point nine three three three on slept and point zero three three three on each competitor. Matching these strictly positive shares sets the direct logit gradient to zero.",
+        "hold": 0.3
+      },
+      {
+        "id": "c15-b04",
+        "say": "The target-to-competitor ratio is twenty-eight, so the required gap is natural log twenty-eight, about three point three three two. If slept exceeds its smoothed target, the local gradient turns positive and direct descent lowers it. At the minimum, the loss equals the entropy of the smoothed target.",
+        "hold": 0.8
+      },
+      {
+        "id": "c15-b05",
+        "say": "That gap fixes the proportions for this example. Add ten to all three scores and the proportions stay the same. Many sets of network weights can produce those gaps. Check calibration and accuracy on held-out examples.",
+        "hold": 0.3
+      },
+      {
+        "id": "c15-b06",
+        "say": "In distillation, Müller and colleagues found that smoothing the teacher’s labels can make its predictions less useful to the student. Now exclude ate. The model gives it zero probability. The target still assigns it one thirtieth. What happens to the smoothed cross-entropy?",
+        "hold": 2.0
+      },
+      {
+        "id": "c15-b07",
+        "say": "For ate, the negative log of zero is infinite. Its positive target weight keeps that term in the sum, so the smoothed loss is infinite.",
+        "hold": 0.8
+      }
+    ]
+  },
+  {
+    "id": "c16",
+    "title": "Which word did each row score?",
+    "sourceChapters": [
+      "c16"
+    ],
+    "beats": [
+      {
+        "id": "c16-b01",
+        "say": "Read this short training sequence with me. Bug, docs, today. It gives us two next-token predictions. After bug the observed word is docs. After bug docs the observed word is today. Each hidden state produces one score per vocabulary word.",
+        "hold": 0.3
+      },
+      {
+        "id": "c16-b02",
+        "say": "The output weights can share the input embedding matrix. At the second position we feed in the actual word docs, even if the model would have guessed bug. That use of the observed history is teacher forcing.",
+        "hold": 0.7
+      },
+      {
+        "id": "c16-b03",
+        "say": "Here are the scores again. Read across the first row. Docs got only eleven percent of the probability. Its negative log is about two point one seven nats. In the second row, today got almost three quarters. Its cost is about point three zero six.",
+        "hold": 0.3
+      },
+      {
+        "id": "c16-b04",
+        "say": "Together the two losses give a mean of about one point two four nats. Nearly eighty-eight percent of the total comes from the word docs. Keep those individual losses where you can see them.",
+        "hold": 0.8
+      },
+      {
+        "id": "c16-b05",
+        "say": "Keep both score rows. Slide the targets back one word. Now row one scores bug, the word it just read. Row two scores docs. Which row carries the bigger loss now?",
+        "hold": 2
+      },
+      {
+        "id": "c16-b06",
+        "say": "The second row. Row one now scores bug, at about point one seven nats. Row two scores docs, at about two point three zero six. Two nats came off the first loss and went onto the second. The mean stays at one point two three eight, even though the training task changed. Put the targets back on the next words. Some models shift the labels internally.",
+        "hold": 0.6
+      },
+      {
+        "id": "c16-b07",
+        "say": "Applying the shift a second time would train these rows on words two places ahead, wherever such a target exists. A causal mask keeps future words out of the input. A loss mask chooses the target positions to score.",
+        "hold": 0.8
+      }
+    ]
+  },
+  {
+    "id": "c17",
+    "title": "Remove ignored positions from both sums",
+    "sourceChapters": [
+      "c17"
+    ],
+    "beats": [
+      {
+        "id": "c17-b01",
+        "say": "Add one more row to the batch. Its target is minus one hundred, our ignore index. This position contributes zero loss and zero gradient. The first two losses still sum to about two point four seven six. Two words were scored, so divide by two. Change the ignored row’s scores and the mean stays put.",
+        "hold": 0.8
+      },
+      {
+        "id": "c17-b02",
+        "say": "Look at these two sequences. The first has one scored word with a loss of two. The second has three scored words with zero loss each. Without class weights, PyTorch pools all four words. Two divided by four gives a mean of one half.",
+        "hold": 0.3
+      },
+      {
+        "id": "c17-b03",
+        "say": "Give each sequence equal weight instead. Their means are two and zero. Averaging those gives one. To pool words across microbatches, add their loss sums and divide by the total number of scored words.",
+        "hold": 0.8
+      },
+      {
+        "id": "c17-b04",
+        "say": "An all-ignored batch has an empty denominator. In this batched example, mean cross-entropy returns NaN even with finite logits. Count supervised targets before the optimizer boundary and skip an empty update. An ignored loss position can still be input context for later supervised tokens, and loss masking does not provide attention isolation.",
+        "hold": 0.8
+      }
+    ]
+  },
+  {
+    "id": "c18",
+    "title": "Which mask changes the candidates?",
+    "sourceChapters": [
+      "c18"
+    ],
+    "beats": [
+      {
+        "id": "c18-b01",
+        "say": "Padding has the highest score in this row. PyTorch checks the target to decide whether to skip it. The ignore index is two. The target is docs, class one, so this row counts. All three words compete, and padding takes almost all the probability.",
+        "hold": 0.3
+      },
+      {
+        "id": "c18-b02",
+        "say": "For docs the loss is about nine and the gradient on the padding score is almost one.",
+        "hold": 0.8
+      },
+      {
+        "id": "c18-b03",
+        "say": "Now exclude padding as a possible answer. Set its score to minus infinity. Docs needs to compete only with bug. Its loss falls to about point three one three. Use a candidate mask when the task rules out a word. Keep the observed word available and at least one score finite.",
+        "hold": 0.8
+      },
+      {
+        "id": "c18-b04",
+        "say": "With label smoothing, check every class that has positive target weight. Here padding gets some target weight and zero predicted probability. The loss is infinite. A target mask chooses which positions count in the loss. An attention mask controls which words each position can read. A candidate mask chooses which words it can predict.",
+        "hold": 0.8
+      }
+    ]
+  },
+  {
+    "id": "c19",
+    "title": "Carry the denominator with a weighted loss",
+    "sourceChapters": [
+      "c19"
+    ],
+    "beats": [
+      {
+        "id": "c19-b01",
+        "say": "Class weights change the reduction contract. With integer targets, no smoothing and non-ignored positions, each target loss is multiplied by its class weight. PyTorch mean divides by the sum of those target-class weights. Floating-point probability targets instead divide by the number of positions.",
+        "hold": 0.3
+      },
+      {
+        "id": "c19-b02",
+        "say": "Suppose we rewrite each integer label as a floating-point one-hot vector. The class it points to is the same. Will the weighted mean stay the same? Keep track of what goes below the fraction bar.",
+        "hold": 1.8
+      },
+      {
+        "id": "c19-b03",
+        "say": "Take two predictions with two classes each. Both predictions are uniform, so each ordinary loss is natural log two. The two target classes have weights of two and four. The weighted numerator is six times natural log two.",
+        "hold": 0.3
+      },
+      {
+        "id": "c19-b04",
+        "say": "Integer-target mean divides by six and returns natural log two. Float one-hot mean divides by two and returns three times natural log two. The same predictions and the same weighted sum give two means because PyTorch uses different divisors.",
+        "hold": 0.8
+      },
+      {
+        "id": "c19-b05",
+        "say": "To combine shards or microbatches, add the weighted loss sums and add their denominators. Divide once at the end. If you change the target type, class weights or smoothing, check how the loss function computes both parts.",
+        "hold": 0.8
+      }
+    ]
+  },
+  {
+    "id": "c20",
+    "title": "How much memory does one set of scores need?",
+    "sourceChapters": [
+      "c20"
+    ],
+    "beats": [
+      {
+        "id": "c20-b01",
+        "say": "So far each row has held three scores. Take sixteen sequences of four thousand ninety-six positions each. Give every position a score for every vocabulary entry. In this example there are over a hundred and twenty-eight thousand entries.",
+        "hold": 0.3
+      },
+      {
+        "id": "c20-b02",
+        "say": "At four bytes per score, the logits alone occupy about thirty-one point three one gibibytes. That’s before you save any other activations or gradients.",
+        "hold": 0.8
+      },
+      {
+        "id": "c20-b03",
+        "say": "An ordinary loss call receives an already allocated matrix. Instead, project a tile of vocabulary scores and use it before moving to the next tile. For one position the first tile contains two and minus one. The second tile contains four and zero. Four becomes the new maximum.",
+        "hold": 0.5
+      },
+      {
+        "id": "c20-b04",
+        "say": "Before adding anything, shrink the first tile’s sum by e to the power of two minus four. Both tiles now use four as their baseline. Add the incoming weights. Four plus the log of that sum gives the log-sum-exp for the whole row.",
+        "hold": 0.3
+      },
+      {
+        "id": "c20-b05",
+        "say": "The observed word had the first score in the first tile. Save that two. Subtract the observed word’s score from the log-sum-exp to get a loss of about two point one five nats.",
+        "hold": 0.8
+      },
+      {
+        "id": "c20-b06",
+        "say": "Cut Cross-Entropy uses this idea to combine the output projection and the loss without storing the whole matrix in global GPU memory. The paper also filters small gradients for speed. Before adopting an implementation, check its supported objectives and approximation settings.",
+        "hold": 0.3
+      },
+      {
+        "id": "c20-b07",
+        "say": "Measure the complete training step on your hardware and compare its loss and gradients with a reference.",
+        "hold": 0.8
+      }
+    ]
+  },
+  {
+    "id": "c21",
+    "title": "Two reports on the same batch",
+    "sourceChapters": [
+      "c21"
+    ],
+    "beats": [
+      {
+        "id": "c21-b01",
+        "say": "Two reports start from the same batch. The model gave the first observed word a quarter of the probability and the second word half. The third position is ignored. With integer targets and no class weights, take a negative natural log for each scored word.",
+        "hold": 0.5
+      },
+      {
+        "id": "c21-b02",
+        "say": "The losses add to about two point zero eight nats. We scored two words, so the starting mean is about one point zero four. Watch the reports advance together. Both now read point six nine three. Can the means alone tell us whether a prediction improved?",
+        "hold": 2.1
+      },
+      {
+        "id": "c21-b03",
+        "say": "Rewind both reports. At the start, compare the first word’s bar and the divisor. Both bars show a quarter. Both sums are divided by two. Play that step again. Which report gave the first observed word more probability? Which one counted the ignored position? Point to the evidence before choosing a report.",
+        "hold": 2.3
+      },
+      {
+        "id": "c21-b04",
+        "say": "Keep report B. The first word gained probability on the same two targets. In A the predictions held still while the divisor grew. Restore A’s divisor to two. Its mean goes straight back to where it started. B keeps the lower loss.",
+        "hold": 0.8
+      },
+      {
+        "id": "c21-b05",
+        "say": "That first word cost less because the model gave it more probability, just as it did for slept.",
+        "hold": 1.4
+      },
+      {
+        "id": "c21-b06",
+        "say": "Next, a recurrent network will carry the preceding words forward in a hidden state. That changes where the next set of scores comes from. You can still check each prediction against the word that followed.",
+        "hold": 1.3
+      }
+    ]
+  }
+]

@@ -1,0 +1,71 @@
+{
+  "version": 1,
+  "reviewer": "/root",
+  "observedAt": "2026-11-06",
+  "problem": "A45second total deadline interrupted a healthy narration stream even though no45second receive-silence gap occurred.",
+  "diagnostic": {
+    "adapterSha256": "9fb2b6294233b755088fdc52ae6c3d4fd4a8647f67eef1d43c0b523209b78587",
+    "receiveSilenceSeconds": 45,
+    "totalOuterSeconds": 180,
+    "healthyStreamElapsedSeconds": 61.161684,
+    "words": 102,
+    "speechEndSeconds": 41.75,
+    "audioBytes": 252720,
+    "input": {
+      "path": "build/video-delivery-20261106/frozen-workspace/leetllm.com/build/delivery/.audio-cache/8154e4cf87f0c45fa500f2416ba71d1aae7c39090751a06c2b71ce26a28f9346.txt",
+      "sha256": "9814de77ecea7dd36251e95e47cd28fcd464ad356788689e574c2f60a99af8f3"
+    },
+    "audio": {
+      "path": "build/video-delivery-20261106/tts-duration-probe.mp3",
+      "sha256": "85b9bd2009e3f1ff592fafcc9a39a84e8e875d2f7d9d562f639c42d16018206e"
+    },
+    "scope": "Direct synthesis diagnostic, observed before adapter repair. It was not a rendered narration cache entry."
+  },
+  "repair": {
+    "adapter": {
+      "path": "videos/tts.py",
+      "sha256": "4d05346f89f7b88da7b7f5e6bdc6f1aab576996c5aa24e1a159d9099ba473c8f"
+    },
+    "receiveSilenceSeconds": 45,
+    "totalSynthesisSeconds": 180,
+    "connectionSeconds": 10,
+    "maximumAttempts": 3,
+    "errorReporting": "Include exception class so a TimeoutError is visible."
+  },
+  "validation": {
+    "regression": {
+      "command": "uv run videos/test/tts_test.py",
+      "failedBefore": true,
+      "passedAfter": true,
+      "scope": "Virtual61second healthy stream tests completed audio and word-time commit without a real61second wait."
+    },
+    "actualAdapterSynthesis": {
+      "command": "uv run videos/tts.py with the same102word input and a new destination",
+      "audio": {
+        "path": "build/video-delivery-20261106/tts-complete-deadline.mp3",
+        "sha256": "23e1f63c60dcd9a86c9ef7d47773cd02e20c8b73501c812a3a1cc80949863058",
+        "bytes": 252720,
+        "durationSeconds": 42.12
+      },
+      "boundaries": {
+        "path": "build/video-delivery-20261106/tts-complete-deadline.words.json",
+        "sha256": "4700c4d925d5464c254385c1ab45dc042fc57141e87bb4938e3c2b95605989ea",
+        "words": 102,
+        "speechEndSeconds": 41.75
+      },
+      "result": "The production adapter completed successfully."
+    }
+  },
+  "provenance": {
+    "archivedReferenceAdapter": {
+      "path": "videos/adapters/edge-reference-20261106.py",
+      "sha256": "9fb2b6294233b755088fdc52ae6c3d4fd4a8647f67eef1d43c0b523209b78587"
+    },
+    "policy": "The3unchangedreferencefilmsretain their original measured-speech adapter provenance. All196canvas deliveries use the repaired adapter and new cache keys. Existing audio is not relabelled."
+  },
+  "limits": [
+    "This repairs an incorrect total deadline, not every provider failure.",
+    "NoAudioReceived failures remain subject to bounded beat and preparation-stage retries.",
+    "Audio measurement does not establish audible pronunciation or a person sound-watch decision."
+  ]
+}

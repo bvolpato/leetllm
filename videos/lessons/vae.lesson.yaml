@@ -1,0 +1,1649 @@
+version: 1
+id: vae
+opening: lesson
+title: "Autoencoders and VAEs: what the code preserves"
+source: preparation/autoencoders-vaes-generative-modeling-basics/content.md
+voice: en-US-AndrewNeural
+rate: +0%
+sources:
+  - title: Auto-Encoding Variational Bayes
+    url: https://arxiv.org/abs/1312.6114
+  - title: Neural Discrete Representation Learning
+    url: https://arxiv.org/abs/1711.00937
+  - title: High-Resolution Image Synthesis with Latent Diffusion Models
+    url: https://arxiv.org/abs/2112.10752
+  - title: ELBO surgery
+    url: https://www.cs.columbia.edu/~blei/fogm/2022F/readings/HoffmanJohnson2016.pdf
+  - title: Generating Sentences from a Continuous Space
+    url: https://arxiv.org/abs/1511.06349
+  - title: Improved Variational Inference with Inverse Autoregressive Flow, Appendix C.8
+    url: https://arxiv.org/abs/1606.04934
+  - title: Challenging Common Assumptions in the Unsupervised Learning of Disentangled Representations
+    url: https://arxiv.org/abs/1811.12359
+  - title: PyTorch 2.15 distributions, pathwise derivative
+    url: https://docs.pytorch.org/docs/2.15/distributions.html
+scenes:
+  - id: intro
+    title: Which pixel trips the alert?
+    visual: Magnify the badge on a notification bell so its four readings and the strict cutoff are
+      visible together. Mark the winning corner on the answer. Show the four readings converging
+      to the center average as the encoder packs the crop.
+    beats:
+      - say: Four pixels make up this badge. Flag any pixel brighter than point nine. Which corner
+          gets a flag?
+        hold: 2.2
+        visual_cues:
+          - id: badge-readings
+            phrase: Four pixels make up this badge
+            targets:
+              - badge-crop
+            color: cyan
+            linger: 0.25
+          - id: badge-cutoff
+            phrase: brighter than point nine
+            targets:
+              - badge-rule
+            color: yellow
+            linger: 0.25
+      - say: The bottom right. The bottom left sits exactly on the line. Keep your eye on those two
+          corners as we pack this crop into two numbers.
+        hold: 0.5
+        visual_cues:
+          - id: badge-answer
+            phrase: The bottom right
+            targets:
+              - badge-crop
+            color: pink
+            linger: 0.25
+            caption_boundary: true
+      - say: Our hand-built encoder takes the average of the four badge pixels. Its second number averages
+          the two pixels just below them. This pair is the latent code. The decoder has to rebuild
+          the picture from that pair. Together these two maps form an autoencoder. Will the rebuilt
+          badge still tell us which corner to flag?
+        hold: 1.8
+        visual_cues:
+          - id: pool-center
+            phrase: takes the average of the four badge pixels
+            targets:
+              - badge-ruler
+            color: yellow
+            linger: 0.25
+          - id: pool-lower
+            phrase: averages the two pixels just below them
+            targets:
+              - badge-crop
+            color: cyan
+            linger: 0.25
+          - id: badge-code
+            phrase: This pair is the latent code
+            targets:
+              - badge-ruler
+            color: yellow
+            linger: 0.25
+  - id: bottleneck
+    title: Two averages remember regions
+    visual: Four center-pixel contributions accumulate into the first average, then two lower pixels
+      build the second. A pixel exchange withholds its candidate code until a later equal-code
+      reveal.
+    beats:
+      - say: Brightness runs from zero to one. Our first coordinate watches these four center pixels. Add
+          their brightness values, then divide the sum by four. That average is the first dial. A
+          learned encoder would discover its own weights across many crops.
+        visual_cues:
+          - id: center-add
+            phrase: Add their brightness values
+            targets:
+              - selected-encoder-pixels
+              - encoder-average
+            color: yellow
+          - id: center-mean
+            phrase: divide the sum by four
+            targets:
+              - encoder-average
+            color: yellow
+        motion_check:
+          region:
+            - 650
+            - 340
+            - 1050
+            - 230
+          minimumChangedFraction: 0.002
+        hold: 0.5
+      - say: The second dial averages these two lower pixels. Add them and divide by two. Now the decoder
+          receives this pair. Its weights turn the regional brightness values into the reconstructed
+          badge. The code is the only path carrying information about this particular input.
+        visual_cues:
+          - id: lower-add
+            phrase: Add them and divide by two
+            targets:
+              - lower-encoder-pixels
+              - regional-code
+            color: cyan
+          - id: badge-decode
+            phrase: turn the regional brightness values into the reconstructed badge
+            targets:
+              - decoded-picture
+            color: green
+        hold: 0.5
+      - say: Exchange the brightest and dimmest selected center pixels. We have changed their arrangement.
+          Predict the new code before I uncover it. Will either dial change?
+        visual_cues:
+          - id: pixel-exchange
+            phrase: Exchange the brightest and dimmest selected center pixels
+            targets:
+              - selected-encoder-pixels
+            color: pink
+          - id: candidate-code
+            phrase: Predict the new code
+            targets:
+              - candidate-code
+            color: yellow
+        hold: 1.5
+      - say: The pair stays the same. The sum is unchanged, so both averages survive the exchange. The
+          decoder therefore produces the same reconstruction for two different inputs. We have found
+          a precise detail that this bottleneck loses.
+        visual_cues:
+          - id: equal-code
+            phrase: The pair stays the same
+            targets:
+              - candidate-code
+            color: green
+          - id: same-reconstruction
+            phrase: produces the same reconstruction
+            targets:
+              - decoded-picture
+            color: green
+        hold: 0.5
+  - id: decoder-pixel
+    title: Paint the badge from two numbers
+    visual: Fill the four badge positions with the decoder’s center value on a fixed scale. Compare
+      the original and decoded cutoff counts, then follow the lower coordinate to one neighboring
+      pixel and magnify the squared errors.
+    beats:
+      - say: Start with the original badge on the left. The fixed decoder gives each of its four center
+          pixels the same weight on the first number. Take the center average and add the background
+          brightness, point zero eight. Each center pixel comes out just under point nine seven. How
+          many would our rule flag now?
+        hold: 1.9
+        visual_cues:
+          - id: paint-center
+            phrase: add the background brightness, point zero eight
+            targets:
+              - vae-decoder-pixel-trace
+            color: yellow
+            linger: 0.25
+          - id: show-center
+            phrase: just under point nine seven
+            targets:
+              - vae-decoder-pixel-trace
+            color: green
+            linger: 0.25
+      - say: All four. Only the bottom right crossed the line in the original. The reconstruction puts a
+          badge in the right place, but it would give us three extra flags. Its four values are
+          inside the allowed brightness range, so clipping changes none of them.
+        hold: 0.8
+        visual_cues:
+          - id: flag-four
+            phrase: All four
+            targets:
+              - vae-decoder-pixel-trace
+            color: pink
+            linger: 0.25
+            caption_boundary: true
+      - say: Now follow the lower number to the pixel just left of the lower strip. This neighbor receives
+          thirty-five percent of that number, on top of the same background. That gives a much
+          dimmer pixel. The weight tells us how far the lower strip brightens its surroundings.
+        hold: 0.6
+        visual_cues:
+          - id: paint-neighbor
+            phrase: receives thirty-five percent of that number
+            targets:
+              - vae-decoder-pixel-trace
+            color: cyan
+            linger: 0.25
+          - id: show-neighbor
+            phrase: a much dimmer pixel
+            targets:
+              - vae-decoder-pixel-trace
+            color: green
+            linger: 0.25
+      - say: Here are the squared misses for all twenty-five pixels. They’re hard to see at this scale.
+          Turn up the display gain by a factor of thirty-five. Now you can see where the misses are,
+          while the measured mean squared error stays put.
+        hold: 0.8
+        visual_cues:
+          - id: error-gain
+            phrase: Turn up the display gain by a factor of thirty-five
+            targets:
+              - vae-decoder-pixel-trace
+            color: pink
+            linger: 0.25
+  - id: reconstruction
+    title: Build the error one pixel at a time
+    visual: One matched input/decoded pixel is subtracted and squared. The actual 25 squared errors then
+      accumulate into a sum, and division earns the mean.
+    beats:
+      - say: Let's measure that reconstruction. Select the same pixel in both grids. Subtract its decoded
+          value from its input value. Then square the difference. Opposite signs now contribute
+          positive errors, and larger misses receive a larger penalty.
+        visual_cues:
+          - id: pixel-subtract
+            phrase: Subtract its decoded value from its input value
+            targets:
+              - pixel-difference
+            color: yellow
+          - id: pixel-square
+            phrase: square the difference
+            targets:
+              - pixel-square
+            color: pink
+        hold: 0.5
+      - say: Repeat this for every pixel and add the squared errors. Finally, divide the total by
+          twenty-five. That is mean squared error, or MSE. Training adjusts both functions to reduce
+          it. This score describes our one reconstruction; let's also test what changing the code
+          actually does.
+        visual_cues:
+          - id: error-sum
+            phrase: Repeat this for every pixel and add the squared errors
+            targets:
+              - pixel-squared-errors
+              - error-ledger
+            color: pink
+          - id: error-mean
+            phrase: divide the total by twenty-five
+            targets:
+              - error-ledger
+            color: green
+        motion_check:
+          region:
+            - 1330
+            - 325
+            - 445
+            - 520
+          minimumChangedFraction: 0.002
+        hold: 0.5
+  - id: code-test
+    title: Change the message, then inspect the picture
+    visual: A constructed lower-highlight crop receives a different code. Swapping that code into the
+      original badge's decoder changes the output and increases its measured error.
+    beats:
+      - say: Here is a second constructed crop with its brightness lower down. Our encoder gives it a
+          different pair. Keep the original badge on the left, and replace its code with this
+          lower-region code. Predict where the decoder will put the bright region.
+        visual_cues:
+          - id: probe-crop
+            phrase: second constructed crop with its brightness lower down
+            targets:
+              - probe-crop
+            color: cyan
+          - id: code-swap
+            phrase: replace its code with this lower-region code
+            targets:
+              - swapped-code
+            color: yellow
+        hold: 1.2
+      - say: The output moves downward, and its error against the original badge rises. The decoder uses the
+          message we send. Plain reconstruction training evaluates the codes reached by training
+          inputs. A random draw asks it to work elsewhere too. A VAE connects those jobs by defining
+          a distribution over codes.
+        visual_cues:
+          - id: swapped-decode
+            phrase: The output moves downward
+            targets:
+              - swapped-output
+            color: green
+          - id: swap-error
+            phrase: error against the original badge rises
+            targets:
+              - swap-error
+            color: pink
+        hold: 0.5
+  - id: training-baseline
+    title: Compare a learned bottleneck with the constant baseline
+    visual: Replace supplied weights with the actual CPU25→8→2→8→25 network and48noisy input rows. Carry
+      exact before/after MSE and a same-data constant mean-crop comparator, then exchange codes
+      between distinctly identified crop families rather than declaring representation quality from
+      loss.
+    beats:
+      - say: "The first actual training exercise replaces the hand-built maps with learned layers:
+          twenty-five inputs, eight hidden units, a two-number code, then eight units and
+          twenty-five reconstructed pixels. Tanh hidden layers and a sigmoid output keep the decoded
+          brightness in range. Adam updates both encoder and decoder from mean squared error."
+        hold: 0.6
+        visual_cues:
+          - id: vae-training-baseline-0-build
+            phrase: "The first actual training exercise replaces the hand-built maps with learned layers:
+              twenty-five inputs, eight hidden units, a two-number code, then eight units and
+              twenty-five reconstructed pixels. Tanh hidden layers and a sigmoid output keep the
+              decoded brightness in range. Adam updates both encoder and decoder from mean squared
+              error."
+            targets:
+              - vae-training-baseline-trace
+            color: cyan
+            linger: 0.25
+      - say: The supplied data are forty-eight noisy versions of one crop. On the executed CPU run, two
+          hundred fifty updates reduce training MSE from about point one five three seven to point
+          zero zero zero six. A constant predictor that repeats the mean crop also obtains about
+          point zero zero zero six on those same rows.
+        hold: 0.6
+        visual_cues:
+          - id: vae-training-baseline-1-build
+            phrase: The supplied data are forty-eight noisy versions of one crop. On the executed CPU run, two
+              hundred fifty updates reduce training MSE from about point one five three seven to
+              point zero zero zero six. A constant predictor that repeats the mean crop also obtains
+              about point zero zero zero six on those same rows.
+            targets:
+              - vae-training-baseline-trace
+            color: cyan
+            linger: 0.25
+          - id: vae-training-baseline-trained
+            phrase: two hundred fifty updates reduce training MSE from about point one five three seven to point
+              zero zero zero six.
+            targets:
+              - vae-training-baseline-trace
+            color: cyan
+            linger: 0.25
+          - id: vae-training-baseline-constant
+            phrase: A constant predictor that repeats the mean crop also obtains about point zero zero zero six
+              on those same rows.
+            targets:
+              - vae-training-baseline-trace
+            color: cyan
+            linger: 0.25
+      - say: Both predictors can paint the badge in the same place every time. To see what the code
+          carries, try a held-out crop with the bright patch lower down. Swap its code with the
+          badge code and watch where the decoder puts the patch. For generation, we also need to
+          know where to draw a new code.
+        hold: 0.6
+        visual_cues:
+          - id: vae-training-baseline-2-build
+            phrase: Swap its code with the badge code
+            targets:
+              - vae-training-baseline-trace
+            color: cyan
+            linger: 0.25
+  - id: posterior
+    title: The crop selects a cloud
+    visual: The original and lower crops visibly select different Gaussian means. A return to the badge
+      constructs a log-variance-to-scale calculation and changes one actual cloud width.
+    beats:
+      - say: "A variational autoencoder begins with a generative model: draw a code from a prior, then draw
+          a picture from the decoder distribution. Given an observed crop, its encoder selects an
+          approximate posterior: a distribution of possible codes for that crop. Here we use
+          supplied Gaussian parameters."
+        visual_cues:
+          - id: posterior-select
+            phrase: encoder selects an approximate posterior
+            targets:
+              - posterior-input
+              - latent-posterior-cloud
+            color: cyan
+        hold: 0.5
+      - say: Change the input to the lower crop. Its mean moves, while the gray standard-normal prior stays
+          fixed at zero with unit variance. Our diagonal Gaussian treats its coordinates as
+          independent for this input.
+        visual_cues:
+          - id: posterior-other
+            phrase: Change the input to the lower crop. Its mean moves
+            targets:
+              - posterior-input
+              - latent-posterior-cloud
+            color: pink
+        motion_check:
+          region:
+            - 970
+            - 345
+            - 790
+            - 430
+          minimumChangedFraction: 0.002
+        hold: 0.5
+      - say: Return to the badge and start the first width at one. The encoder predicts log variance. Halve
+          that value and exponentiate to get standard deviation. Watch the first axis narrow. This
+          positive standard deviation is the scale we will use to sample.
+        visual_cues:
+          - id: posterior-return
+            phrase: Return to the badge and start the first width at one
+            targets:
+              - posterior-input
+              - latent-posterior-cloud
+            color: cyan
+          - id: posterior-scale
+            phrase: Halve that value and exponentiate to get standard deviation
+            targets:
+              - standard-deviation-transform
+              - latent-posterior-cloud
+            color: yellow
+        hold: 0.5
+  - id: posterior-contract
+    title: Separate the posterior for one crop from the mixture
+    visual: Build forward prior→latent→decoder and backward observedcrop→sharedencoder→mean/logvariance.
+      Two diagonal ellipses centered±[1,1] each have independent coordinates; their mixture yields
+      covariance[[2,1],[1,2]]. Keep variance and standard-deviation rulers distinct and flag
+      exponent overflow/underflow.
+    beats:
+      - say: "A VAE declares a generative model: draw a latent from a prior, then an image from a decoder
+          distribution. Given an observed crop, its true posterior asks which latent values could
+          have produced that crop. The encoder predicts a tractable approximate posterior instead.
+          One shared encoder amortizes this inference across inputs rather than solving a separate
+          optimization for every crop."
+        hold: 0.6
+        visual_cues:
+          - id: vae-posterior-contract-0-build
+            phrase: "A VAE declares a generative model: draw a latent from a prior, then an image from a decoder
+              distribution. Given an observed crop, its true posterior asks which latent values
+              could have produced that crop. The encoder predicts a tractable approximate posterior
+              instead. One shared encoder amortizes this inference across inputs rather than solving
+              a separate optimization for every crop."
+            targets:
+              - vae-posterior-contract-trace
+            color: cyan
+            linger: 0.25
+      - say: A diagonal Gaussian has independent coordinates conditional on this crop. That does not make
+          the codes independent after mixing crops. For a separate supplied example, equally mix
+          Gaussians centered at one, one and minus one, minus one, each with identity covariance.
+          Within either crop the coordinates are independent. The combined covariance has diagonal
+          two and off-diagonal one.
+        hold: 0.6
+        visual_cues:
+          - id: vae-posterior-contract-1-build
+            phrase: A diagonal Gaussian has independent coordinates conditional on this crop. That does not make
+              the codes independent after mixing crops. For a separate supplied example, equally mix
+              Gaussians centered at one, one and minus one, minus one, each with identity
+              covariance. Within either crop the coordinates are independent. The combined
+              covariance has diagonal two and off-diagonal one.
+            targets:
+              - vae-posterior-contract-trace
+            color: cyan
+            linger: 0.25
+          - id: vae-posterior-contract-mixture
+            phrase: The combined covariance has diagonal two and off-diagonal one.
+            targets:
+              - vae-posterior-contract-trace
+            color: cyan
+            linger: 0.25
+      - say: "The encoder emits means and log variances. Exponentiate half a log variance for standard
+          deviation; exponentiating the full value gives variance. Finite log variance does not
+          guarantee a usable floating-point scale: exponentiation can underflow to zero or overflow
+          to infinity. Check numerical values and gradients. Softplus is another positive
+          parameterization, with its own finite-precision limits."
+        hold: 0.6
+        visual_cues:
+          - id: vae-posterior-contract-2-build
+            phrase: "The encoder emits means and log variances. Exponentiate half a log variance for standard
+              deviation; exponentiating the full value gives variance. Finite log variance does not
+              guarantee a usable floating-point scale: exponentiation can underflow to zero or
+              overflow to infinity. Check numerical values and gradients. Softplus is another
+              positive parameterization, with its own finite-precision limits."
+            targets:
+              - vae-posterior-contract-trace
+            color: cyan
+            linger: 0.25
+  - id: kl-ledger
+    title: Compute what prior mismatch charges
+    visual: Retain mu[.4,-.2]/logvar[-.7,.1]. Construct each half(mu²+variance−1−logvariance) term
+      independently and sum .17829265+.02258546=.20087811. Move mean-only and variance-only
+      contributions against the same standard-normal reference; contrast nearzero terms and expm1
+      stability.
+    beats:
+      - say: Kullback-Leibler divergence, or KL, measures how much this crop’s posterior differs
+          from the prior. Each row compares one Gaussian coordinate with a standard normal.
+          Square its mean, add its variance, subtract one, then subtract its log variance.
+          Halve each row and add the rows together. That sum is the KL for one crop.
+          For a batch, average the crop totals.
+        hold: 0.6
+        visual_cues:
+          - id: vae-kl-ledger-0-build
+            phrase: Square its mean, add its variance, subtract one, then subtract its log variance
+            targets:
+              - vae-kl-ledger-trace
+            color: cyan
+            linger: 0.25
+      - say: Our two coordinate contributions are about point one seven eight three and point zero two two
+          six, totaling point two zero zero nine nats. A mean of zero and variance one contributes
+          zero. Moving a mean or changing a variance can increase the charge. For log variance near
+          zero, the equivalent expression uses expm1 of log variance minus log variance to reduce
+          cancellation.
+        hold: 0.6
+        visual_cues:
+          - id: vae-kl-ledger-1-build
+            phrase: Our two coordinate contributions are about point one seven eight three and point zero two
+              two six, totaling point two zero zero nine nats. A mean of zero and variance one
+              contributes zero. Moving a mean or changing a variance can increase the charge. For
+              log variance near zero, the equivalent expression uses expm1 of log variance minus log
+              variance to reduce cancellation.
+            targets:
+              - vae-kl-ledger-trace
+            color: cyan
+            linger: 0.25
+          - id: vae-kl-ledger-sum
+            phrase: Our two coordinate contributions are about point one seven eight three and point zero two
+              two six, totaling point two zero zero nine nats.
+            targets:
+              - vae-kl-ledger-trace
+            color: cyan
+            linger: 0.25
+      - say: The derivative of this analytic KL with respect to a mean is that mean. Its derivative with
+          respect to log variance is one-half times the quantity variance minus one. Those analytic
+          gradients are separate from reconstruction gradients flowing through a sampled code. Log
+          both terms and check the reductions rather than interpreting a small total in isolation.
+        hold: 0.6
+        visual_cues:
+          - id: vae-kl-ledger-2-build
+            phrase: The derivative of this analytic KL with respect to a mean is that mean. Its derivative with
+              respect to log variance is one-half times the quantity variance minus one. Those
+              analytic gradients are separate from reconstruction gradients flowing through a
+              sampled code. Log both terms and check the reductions rather than interpreting a small
+              total in isolation.
+            targets:
+              - vae-kl-ledger-trace
+            color: cyan
+            linger: 0.25
+  - id: sampling
+    title: Freeze the noise and move the sample
+    visual: A fixed noise point is scaled and shifted using measured word windows. Mean/scale
+      interventions preserve the noise. A separate fixed prior point retains identity through the
+      decoder and pixel construction.
+    beats:
+      - say: Draw independent standard-normal noise. Scale this fixed noise by the standard deviation, then
+          add the mean. The resulting point is a posterior sample. The randomness entered through
+          the noise; the transformation is differentiable in the encoder's outputs.
+        visual_cues:
+          - id: noise-scale
+            phrase: Scale this fixed noise by the standard deviation
+            targets:
+              - reparameterized-point
+            color: yellow
+          - id: noise-shift
+            phrase: then add the mean
+            targets:
+              - reparameterized-point
+            color: yellow
+        hold: 0.5
+      - say: Keep the noise fixed and move the mean. The sample follows by the same amount. Change the scale
+          and the fixed noise sets that movement. These derivatives let reconstruction gradients
+          reach the encoder. That is reparameterization.
+        visual_cues:
+          - id: encoder-mean-b2-1
+            phrase: move the mean
+            targets:
+              - encoder-mean
+            color: cyan
+          - id: encoder-scale-b2-2
+            phrase: Change the scale
+            targets:
+              - encoder-scale
+            color: green
+        hold: 0.5
+      - say: For generation, draw directly from the prior. Our fixed prior draw goes into the same
+          hand-built decoder. Watch that exact point produce the displayed pattern. In a trained
+          VAE, we inspect many prior draws to see whether this sampling route produces useful
+          pictures.
+        visual_cues:
+          - id: prior-sample-point-b3-1
+            phrase: Our fixed prior draw
+            targets:
+              - prior-sample-point
+              - reparameterization-rule
+            color: yellow
+          - id: prior-decoded-output-b3-2
+            phrase: Watch that exact point produce the displayed pattern
+            targets:
+              - prior-decoder
+              - prior-decoded-output
+            color: green
+        hold: 0.5
+  - id: gradient-path
+    title: Keep the reconstruction gradient attached to the encoder
+    visual: Use fixed epsilon as a stationary source. Route mean and exp(.5logvar) through scale/add
+      into the decoder; annotate derivative1 and.5(z−mu). Flip only Normal.sample versus rsample to
+      cut/reconnect reconstruction backward path while analyticKL branch remains. Separate identity
+      toy z.8,w1.5,target.2 computes decodergradient.8.
+    beats:
+      - say: Reparameterization writes a draw as mean plus standard deviation times a parameter-free
+          standard-normal noise value. Hold that noise fixed while differentiating. The sample’s
+          derivative with respect to its mean is one. Its derivative with respect to log variance is
+          one-half times standard deviation times noise, equivalently one-half times the quantity
+          sample minus mean.
+        hold: 0.6
+        visual_cues:
+          - id: vae-gradient-path-0-build
+            phrase: Reparameterization writes a draw as mean plus standard deviation times a parameter-free
+              standard-normal noise value. Hold that noise fixed while differentiating. The sample’s
+              derivative with respect to its mean is one. Its derivative with respect to log
+              variance is one-half times standard deviation times noise, equivalently one-half times
+              the quantity sample minus mean.
+            targets:
+              - vae-gradient-path-trace
+            color: cyan
+            linger: 0.25
+      - say: The actual PyTorch exercise compares Normal sample and rsample. Sample returns a detached draw;
+          rsample keeps the reparameterized path. Detaching the draw blocks the reconstruction
+          gradient into the encoder, while decoder weights can still receive gradients. An
+          independently calculated analytic KL can still update the encoder. The exercise checks
+          those separate routes on CPU.
+        hold: 0.6
+        visual_cues:
+          - id: vae-gradient-path-1-build
+            phrase: The actual PyTorch exercise compares Normal sample and rsample. Sample returns a detached
+              draw; rsample keeps the reparameterized path. Detaching the draw blocks the
+              reconstruction gradient into the encoder, while decoder weights can still receive
+              gradients. An independently calculated analytic KL can still update the encoder. The
+              exercise checks those separate routes on CPU.
+            targets:
+              - vae-gradient-path-trace
+            color: cyan
+            linger: 0.25
+      - say: For a separate scalar decoder, let the output be weight times a supplied draw, and use half the
+          squared difference from a target. The weight derivative is output minus target, multiplied
+          by the draw. With draw point eight, weight one point five and target point two, the output
+          is one point two and the weight gradient is point eight, even if the draw was detached.
+        hold: 0.6
+        visual_cues:
+          - id: vae-gradient-path-2-build
+            phrase: For a separate scalar decoder, let the output be weight times a supplied draw, and use half
+              the squared difference from a target. The weight derivative is output minus target,
+              multiplied by the draw. With draw point eight, weight one point five and target point
+              two, the output is one point two and the weight gradient is point eight, even if the
+              draw was detached.
+            targets:
+              - vae-gradient-path-trace
+            color: cyan
+            linger: 0.25
+          - id: vae-gradient-path-decoder
+            phrase: With draw point eight, weight one point five and target point two, the output is one point
+              two and the weight gradient is point eight, even if the draw was detached.
+            targets:
+              - vae-gradient-path-trace
+            color: cyan
+            linger: 0.25
+  - id: objective
+    title: Give both jobs a place in the loss
+    visual: Posterior mismatch constructs KL, a coefficient changes its actual ledger contribution, and
+      the final reduction compares computed summed error with mean error before the Gaussian
+      likelihood formula.
+    beats:
+      - say: Reconstruction asks the code to preserve the crop. Kullback-Leibler divergence, or KL,
+          penalizes posterior mismatch from the prior. Match the means and variances and KL is zero.
+          Move them away and the penalty grows. Its closed form sums the contributions from our two
+          latent coordinates.
+        visual_cues:
+          - id: kl-mismatch
+            phrase: Move them away and the penalty grows
+            targets:
+              - kl-ledger
+            color: cyan
+        hold: 0.5
+      - say: Hold reconstruction fixed. Increase the KL coefficient and its contribution grows. During
+          training, both terms can change. Log them separately so you can see the compromise.
+        visual_cues:
+          - id: beta-weight
+            phrase: Increase the KL coefficient
+            targets:
+              - weighted-vae-objective
+            color: yellow
+        hold: 0.5
+      - say: Our mean error divides the squared-error sum by the pixel count. For a Gaussian pixel
+          likelihood, use the summed error divided by twice the observation variance, plus its
+          constant. With coefficient one and that negative log likelihood, the objective is the
+          negative evidence lower bound. Declare these reductions when defining the model.
+        visual_cues:
+          - id: reduction-sum
+            phrase: mean error divides the squared-error sum by the pixel count
+            targets:
+              - reduction-ledger
+            color: green
+          - id: likelihood-rule
+            phrase: summed error divided by twice the observation variance
+            targets:
+              - gaussian-likelihood
+            color: cyan
+          - id: elbo-identity
+            phrase: With coefficient one and that negative log likelihood
+            targets:
+              - vae-objective-rule
+            color: yellow
+        hold: 0.5
+  - id: evidence-gap
+    title: Which gap can the encoder close?
+    visual: Keep a single observed pixel and its generative model fixed. Draw the prior, the exact
+      posterior, and the encoder’s approximation on the same latent axis. Below them, keep log
+      evidence pinned while the ELBO moves closer as the approximation improves.
+    beats:
+      - say: Take a model small enough that we can check the answer. Draw a latent from a standard normal.
+          Add independent normal noise with variance one to get a pixel. We observed point three.
+          Across draws, the pixel has variance two. At point three, its log density is the model’s
+          log evidence. We’ll pin that value to the ruler.
+        hold: 0.7
+        visual_cues:
+          - id: observe-pixel
+            phrase: We observed point three
+            targets: [vae-evidence-gap-trace]
+            color: cyan
+          - id: pixel-variance
+            phrase: the pixel has variance two
+            targets: [vae-evidence-gap-trace]
+            color: green
+          - id: pin-evidence
+            phrase: pin that value to the ruler
+            targets:
+              - vae-evidence-gap-trace
+            color: green
+            linger: 0.25
+      - say: Start the encoder’s approximation right on the prior. Its KL to the prior is zero. To form
+          the evidence lower bound, take the expected decoder log likelihood and subtract that prior
+          KL. The bound, often called the E L B O, lands below the pin. If the prior charge is zero,
+          what accounts for the space between them?
+        hold: 2.1
+        visual_cues:
+          - id: prior-match
+            phrase: right on the prior
+            targets:
+              - vae-evidence-gap-trace
+            color: yellow
+            linger: 0.25
+          - id: place-bound
+            phrase: lands below the pin
+            targets:
+              - vae-evidence-gap-trace
+            color: cyan
+            linger: 0.25
+      - say: That space is a different KL. It compares the approximation to the true posterior for this
+          pixel. Here we can calculate that posterior exactly. Its mean is point one five and its
+          variance is one half. Move the approximation onto that narrower curve. Watch the bound as
+          the curves come together.
+        hold: 0.7
+        visual_cues:
+          - id: posterior-target
+            phrase: Its mean is point one five and its variance is one half
+            targets:
+              - vae-evidence-gap-trace
+            color: pink
+            linger: 0.25
+          - id: tighten-bound
+            phrase: Move the approximation onto that narrower curve
+            targets:
+              - vae-evidence-gap-trace
+            color: cyan
+            linger: 0.25
+      - say: The bound reaches the pin. Add the gap to the bound and you get the log evidence.
+          That gap is a KL, so it can’t be negative. Here it’s zero, even though the KL charge to
+          the prior has gone up. The data, prior and decoder stayed fixed. Only the encoder’s
+          approximation improved.
+        hold: 0.8
+        visual_cues:
+          - id: gap-result
+            phrase: The bound reaches the pin
+            targets:
+              - vae-evidence-gap-trace
+            color: green
+            linger: 0.25
+            caption_boundary: true
+  - id: likelihood-scale
+    title: What happens if we count the pixels twice?
+    visual: Align four observed pixels with their predictions and squared misses. Add a second copy
+      and compare the two Gaussian likelihood sums with their pixel means at fixed observation
+      variance. Show posterior draws in a separate experiment.
+    beats:
+      - say: Take four pixels from the separate loss worksheet. Each observation sits above its
+          prediction. Square each difference, then add the four misses. For a Gaussian decoder, a
+          miss costs more when the decoder claims its observations are more precise.
+        hold: 0.5
+        visual_cues:
+          - id: square-four
+            phrase: Square each difference, then add the four misses
+            targets:
+              - vae-likelihood-scale-trace
+            color: cyan
+            linger: 0.25
+      - say: Here the observation variance is one quarter. Divide the sum by twice that variance. That
+          gives the error part of the negative log likelihood. The Gaussian also charges a
+          normalization term for each pixel. Add those terms to get about point nine one seven for
+          this draw. The normalization stays constant as we train the weights if the observation
+          variance stays fixed.
+        hold: 0.6
+        visual_cues:
+          - id: gaussian-error
+            phrase: Divide the sum by twice that variance
+            targets:
+              - vae-likelihood-scale-trace
+            color: yellow
+            linger: 0.25
+          - id: gaussian-normalization
+            phrase: a normalization term for each pixel
+            targets: [vae-likelihood-scale-trace]
+            color: green
+          - id: gaussian-total
+            phrase: about point nine one seven for this draw
+            targets:
+              - vae-likelihood-scale-trace
+            color: green
+            linger: 0.25
+      - say: Keep that variance. Copy all four observations and their predictions into four more
+          positions. We’ll score the eight positions with the same independent-pixel formula. What
+          happens to the likelihood’s error term? What happens to the mean squared error?
+        hold: 2.3
+        visual_cues:
+          - id: copy-four
+            phrase: Copy all four observations and their predictions into four more positions
+            targets:
+              - vae-likelihood-scale-trace
+            color: cyan
+            linger: 0.25
+      - say: The likelihood error doubles. Each squared miss enters the sum twice. The mean stays put. Its
+          divisor doubles too. Each added pixel also contributes the same Gaussian normalization as
+          its twin.
+        hold: 0.7
+        visual_cues:
+          - id: double-error
+            phrase: The likelihood error doubles
+            targets:
+              - vae-likelihood-scale-trace
+            color: yellow
+            linger: 0.25
+            caption_boundary: true
+          - id: same-mean
+            phrase: The mean stays put
+            targets:
+              - vae-likelihood-scale-trace
+            color: green
+            linger: 0.25
+            caption_boundary: true
+      - say: Look at the two divisors for the same four misses. Gaussian error divides their sum by
+          one half. Mean squared error divides it by four. The Gaussian error is eight times as
+          large. To switch to the mean, divide both terms by eight. A KL weight of one becomes one
+          eighth. The same weights still minimize the loss. We can leave out the fixed normalization
+          when fitting those weights.
+        caption_starts:
+          - The Gaussian error is eight times as large
+          - A KL weight of one becomes one eighth
+        hold: 0.7
+        visual_cues:
+          - id: compare-divisors
+            phrase: The Gaussian error is eight times as large
+            targets: [vae-likelihood-scale-trace]
+            color: cyan
+          - id: change-units
+            phrase: A KL weight of one becomes one eighth
+            targets:
+              - vae-likelihood-scale-trace
+            color: yellow
+            linger: 0.25
+      - say: There’s another way to repeat work. Keep just the original four pixels and draw a fresh
+          latent for each decoder call. Average four independent draws for this same input and
+          model. The estimate of the expected reconstruction cost now has one quarter of the
+          single-draw variance. We paid for four decoder calls. The analytic KL needs no draws.
+        hold: 0.7
+        visual_cues:
+          - id: repeat-draw
+            phrase: Average four independent draws for this same input and model
+            targets:
+              - vae-likelihood-scale-trace
+            color: cyan
+            linger: 0.25
+          - id: variance-result
+            phrase: one quarter of the single-draw variance
+            targets:
+              - vae-likelihood-scale-trace
+            color: green
+            linger: 0.25
+  - id: trained-vae
+    title: Which number moves the badge?
+    visual: Keep one observed center crop and one lower-strip crop in place. Exchange one column of
+      posterior means at a time between the two families, restore the original pair between trials,
+      and decode the resulting hybrid codes. Compare errors across all 64 training crops.
+    beats:
+      - say: Now give the VAE a choice between two patterns. Half of these sixty-four noisy crops have a
+          center badge. The other half have a bright lower strip. The encoder uses twelve hidden
+          units to predict two means and two log variances. The decoder takes a sampled pair through
+          twelve hidden units to twenty-five pixel brightnesses. Four hundred Adam updates use mean
+          squared error plus point zero two times KL.
+        hold: 0.5
+        visual_cues:
+          - id: training-families
+            phrase: The other half have a bright lower strip
+            targets:
+              - vae-trained-vae-trace
+            color: cyan
+            linger: 0.25
+          - id: encoder-heads
+            phrase: to predict two means and two log variances
+            targets: [vae-trained-vae-trace]
+            color: yellow
+          - id: sampled-pair
+            phrase: a sampled pair through twelve hidden units to twenty-five pixel brightnesses
+            targets: [vae-trained-vae-trace]
+            color: green
+          - id: training-loss
+            phrase: mean squared error plus point zero two times KL
+            targets:
+              - vae-trained-vae-trace
+            color: yellow
+            linger: 0.25
+      - say: Freeze the weights. Give each crop its own posterior mean so the test has no sampling noise.
+          Both patterns come back. The mean squared error across all sixty-four crops is about five
+          ten-thousandths. Now suppose we exchange just the first number between families. Will the
+          badge move?
+        hold: 2
+        visual_cues:
+          - id: matched-means
+            phrase: Give each crop its own posterior mean
+            targets:
+              - vae-trained-vae-trace
+            color: yellow
+            linger: 0.25
+          - id: matched-result
+            phrase: Both patterns come back
+            targets:
+              - vae-trained-vae-trace
+            color: green
+            linger: 0.25
+      - say: Exchange the first numbers. Keep the second numbers with their original crops. The badge
+          stays in the center. The lower strip stays down below. Across the batch, the error still
+          rounds to the same value.
+        hold: 0.8
+        visual_cues:
+          - id: swap-first
+            phrase: Exchange the first numbers
+            targets:
+              - vae-trained-vae-trace
+            color: yellow
+            linger: 0.25
+          - id: first-result
+            phrase: The badge stays in the center
+            targets:
+              - vae-trained-vae-trace
+            color: green
+            linger: 0.25
+            caption_boundary: true
+      - say: Put the first numbers back. Both rows now have their own pair again. This time we’ll exchange
+          just the second number. Where do you expect the decoder to put the badge?
+        hold: 2
+        visual_cues:
+          - id: reset-first
+            phrase: Put the first numbers back
+            targets:
+              - vae-trained-vae-trace
+            color: yellow
+            linger: 0.25
+      - say: Exchange the second numbers. Look at the output beside the center crop. Its bright patch is
+          down on the lower strip. The other output now has the center badge. The error across the
+          batch jumps to about point one two eight. Swapping both numbers gives essentially the same
+          error. On these examples the second coordinate controls which pattern we get.
+        hold: 1
+        visual_cues:
+          - id: swap-second
+            phrase: Exchange the second numbers
+            targets:
+              - vae-trained-vae-trace
+            color: yellow
+            linger: 0.25
+          - id: second-result
+            phrase: Its bright patch is down on the lower strip
+            targets:
+              - vae-trained-vae-trace
+            color: green
+            linger: 0.25
+            caption_boundary: true
+          - id: swap-both
+            phrase: Swapping both numbers
+            targets:
+              - vae-trained-vae-trace
+            color: yellow
+            linger: 0.25
+      - say: The second coordinate also accounts for almost all the KL. We can interpret that number
+          because we changed the coordinate and saw the patch move. Sampling from the prior asks a
+          different question. Here are three draws with no input crop. The first has a bright strip,
+          the second a bright center, and the third a softer center. To test recovery on new inputs,
+          we’d still need held-out crops.
+        hold: 0.8
+        visual_cues:
+          - id: axis-kl
+            phrase: almost all the KL
+            targets:
+              - vae-trained-vae-trace
+            color: yellow
+            linger: 0.25
+          - id: three-priors
+            phrase: Here are three draws with no input crop
+            targets:
+              - vae-trained-vae-trace
+            color: cyan
+            linger: 0.25
+  - id: collapse
+    title: Ask the decoder whether it uses the code
+    visual: Two fixed probes initially produce different patterns. A constructed sensitivity control
+      makes their outputs converge; an actual swap then leaves the outputs unchanged.
+    beats:
+      - say: These two fixed probes produce different pictures. Now reduce the decoder's code sensitivity to
+          zero while the posteriors approach the prior. The outputs converge to their average in
+          this deterministic squared-error toy. Losing input-specific latent information this way is
+          posterior collapse.
+        visual_cues:
+          - id: decoder-ignore
+            phrase: reduce the decoder's code sensitivity to zero
+            targets:
+              - fixed-code-a-output
+              - fixed-code-b-output
+              - decoder-coupling-rule
+            color: yellow
+        hold: 0.5
+      - say: Swap the codes again. The pictures stay identical. Low KL and this insensitivity together warn
+          of collapse. A richer decoder can produce varied pictures while still ignoring its global
+          code.
+        visual_cues:
+          - id: collapsed-swap
+            phrase: Swap the codes again
+            targets:
+              - collapse-probes
+            color: cyan
+        hold: 0.5
+  - id: information-ledger
+    title: Prior matching can coexist with informative codes
+    visual: Declare separate balanced binary worksheet X∈{0,1}, qZ|X pointmassatX,prioruniform. Preserve
+      two labeledrows and combine aggregateZuniform with MIln2 and avgKLln2. Replace
+      conditionalrowswithuniform toloseidentitywhile aggregateunchanged. Return to general identity
+      with both terms distinct.
+    beats:
+      - say: "Average KL to the prior contains two pressures: mutual information between inputs and codes,
+          plus KL between the aggregate code distribution and the prior. Mutual information measures
+          how much a code tells us about its input under the data and encoder distribution. A large
+          average KL can contain useful information, aggregate mismatch, or both."
+        hold: 0.6
+        visual_cues:
+          - id: vae-information-ledger-0-build
+            phrase: "Average KL to the prior contains two pressures: mutual information between inputs and
+              codes, plus KL between the aggregate code distribution and the prior. Mutual
+              information measures how much a code tells us about its input under the data and
+              encoder distribution. A large average KL can contain useful information, aggregate
+              mismatch, or both."
+            targets:
+              - vae-information-ledger-trace
+            color: cyan
+            linger: 0.25
+      - say: In a separate binary worksheet, inputs zero and one are equally likely and the code exactly
+          copies the input. Use a uniform binary prior. The aggregate codes match the prior, so
+          aggregate KL is zero. Each input-specific posterior concentrates on its own code, so
+          average posterior KL and mutual information both equal the natural log of two.
+        hold: 0.6
+        visual_cues:
+          - id: vae-information-ledger-1-build
+            phrase: In a separate binary worksheet, inputs zero and one are equally likely and the code exactly
+              copies the input. Use a uniform binary prior. The aggregate codes match the prior, so
+              aggregate KL is zero. Each input-specific posterior concentrates on its own code, so
+              average posterior KL and mutual information both equal the natural log of two.
+            targets:
+              - vae-information-ledger-trace
+            color: cyan
+            linger: 0.25
+          - id: vae-information-ledger-copy
+            phrase: average posterior KL and mutual information both equal the natural log of two.
+            targets:
+              - vae-information-ledger-trace
+            color: cyan
+            linger: 0.25
+      - say: Now make both inputs produce a uniform code instead. The aggregate still matches the same
+          prior, but the code no longer distinguishes input identity. Mutual information and average
+          KL are both zero. Matching every input’s posterior to the prior removes input information;
+          matching their mixture alone need not. Use this identity alongside actual sensitivity
+          tests.
+        hold: 0.6
+        visual_cues:
+          - id: vae-information-ledger-2-build
+            phrase: Now make both inputs produce a uniform code instead. The aggregate still matches the same
+              prior, but the code no longer distinguishes input identity. Mutual information and
+              average KL are both zero. Matching every input’s posterior to the prior removes input
+              information; matching their mixture alone need not. Use this identity alongside actual
+              sensitivity tests.
+            targets:
+              - vae-information-ledger-trace
+            color: cyan
+            linger: 0.25
+          - id: vae-information-ledger-noise
+            phrase: Mutual information and average KL are both zero.
+            targets:
+              - vae-information-ledger-trace
+            color: cyan
+            linger: 0.25
+          - id: vae-information-ledger-uniform
+            phrase: Now make both inputs produce a uniform code instead.
+            targets:
+              - vae-information-ledger-trace
+            color: cyan
+            linger: 0.25
+  - id: collapse-repairs
+    title: Did the code or the history change the picture?
+    visual: Keep a previous-pixel history bit and a global code in view. Swap the code first, then
+      change only the history bit. Compare the resulting history-only decoder with a partly
+      sensitive decoder before trying two training interventions.
+    beats:
+      - say: This decoder gets a global code and one bit of history from an earlier pixel.
+          Leave the history at zero and change the code. Now leave that code in place and
+          change the history to one. Which change moved the bright patch?
+        hold: 1.8
+        visual_cues:
+          - id: history-code
+            phrase: Leave the history at zero and change the code
+            targets:
+              - vae-collapse-repairs-trace
+            color: yellow
+            linger: 0.25
+          - id: history-bit
+            phrase: change the history to one
+            targets:
+              - vae-collapse-repairs-trace
+            color: pink
+            linger: 0.25
+      - say: Only the history moved it. This decoder makes two different pictures while ignoring its
+          global code entirely. An autoregressive decoder can do something similar with previous
+          pixels or words. To test for collapse, keep that context fixed and change the code. Check
+          the output alongside the KL for each coordinate.
+        hold: 0.6
+        visual_cues:
+          - id: history-verdict
+            phrase: Only the history moved it
+            targets:
+              - vae-collapse-repairs-trace
+            color: green
+            linger: 0.25
+            caption_boundary: true
+      - say: Return to our original two probes. Turn their decoder’s sensitivity halfway down. The two
+          patches grow more alike, but you can still tell them apart. One quiet coordinate can mean
+          spare capacity. Tiny KL in every coordinate gives us a reason to test. If changing the
+          code also leaves the predictions unchanged, that’s stronger evidence of collapse.
+        hold: 0.7
+        visual_cues:
+          - id: half-influence
+            phrase: Turn their decoder’s sensitivity halfway down
+            targets:
+              - vae-collapse-repairs-trace
+            color: yellow
+            linger: 0.25
+      - say: One repair gives the code time to become useful. Start with a low KL weight, then raise it
+          gradually. Bowman’s sentence model raised it from zero to one with a likelihood-scaled
+          loss. Choose the endpoint for your own loss scale. Another repair drops some of the
+          previous words during training. A weaker history gives the decoder a reason to use the
+          code. Repeat the code swap and check output quality afterward. Weakening the decoder can
+          hurt that quality.
+        hold: 0.7
+        visual_cues:
+          - id: anneal-beta
+            phrase: then raise it gradually
+            targets:
+              - vae-collapse-repairs-trace
+            color: yellow
+            linger: 0.25
+          - id: drop-history
+            phrase: drops some of the previous words
+            targets:
+              - vae-collapse-repairs-trace
+            color: cyan
+            linger: 0.25
+  - id: free-bits
+    title: Average the group before applying its floor
+    visual: Compare two KL values against a floor of one nat. Apply the floor to their mean, then
+      apply it to each value and compare the charges and gradients.
+    beats:
+      - say: Think of one nat as the minimum KL charge for a group of coordinates. Average the
+          group’s KL across the batch. Charge that average or the floor, whichever is higher. Add
+          the charges across groups. Below its floor, a group can carry more information at the same
+          price. The charge stays flat, so its gradient is zero for every example. Reconstruction
+          determines whether the extra information helps.
+        hold: 0.6
+        visual_cues:
+          - id: vae-free-bits-0-build
+            phrase: Average the group’s KL across the batch
+            targets:
+              - vae-free-bits-trace
+            color: cyan
+            linger: 0.25
+          - id: below-floor
+            phrase: Below its floor, a group can carry more information at the same price
+            targets: [vae-free-bits-trace]
+            color: green
+      - say: "In the actual autograd exercise, one group has per-example KL values point two and two point
+          two nats, with a floor of one. Average first: one point two is above the floor, so the
+          charged value is one point two and derivatives with respect to both KL values are
+          one-half. Flooring each example first instead charges one point six, with derivatives zero
+          and one-half."
+        hold: 0.6
+        visual_cues:
+          - id: vae-free-bits-1-build
+            phrase: "In the actual autograd exercise, one group has per-example KL values point two and two
+              point two nats, with a floor of one. Average first: one point two is above the floor,
+              so the charged value is one point two and derivatives with respect to both KL values
+              are one-half. Flooring each example first instead charges one point six, with
+              derivatives zero and one-half."
+            targets:
+              - vae-free-bits-trace
+            color: cyan
+            linger: 0.25
+          - id: vae-free-bits-group
+            phrase: "Average first: one point two is above the floor, so the charged value is one point two and
+              derivatives with respect to both KL values are one-half."
+            targets:
+              - vae-free-bits-trace
+            color: cyan
+            linger: 0.25
+          - id: vae-free-bits-each
+            phrase: Flooring each example first instead charges one point six, with derivatives zero and
+              one-half.
+            targets:
+              - vae-free-bits-trace
+            color: cyan
+            linger: 0.25
+      - say: Under the group rule, each example gets half the gradient here. Under the other rule,
+          the first example gets zero because its own KL is below the floor. These are gradients
+          with respect to the two KL values. The chain rule carries them back to the encoder
+          weights. Natural logs give us nats.
+        hold: 0.6
+        visual_cues:
+          - id: vae-free-bits-2-build
+            phrase: The chain rule carries them back to the encoder weights
+            targets:
+              - vae-free-bits-trace
+            color: cyan
+            linger: 0.25
+  - id: interpolation
+    title: What does the halfway code draw?
+    visual: Keep the two endpoint crops visible. Give each code half the weight and pause for a
+      prediction. Reveal the decoded midpoint, then move the slider from the midpoint to the
+      lower-strip code.
+    beats:
+      - say: The left code draws a badge. The right code draws a lower strip. Give each code half
+          the weight. What will the decoder draw in the middle?
+        hold: 2.1
+        visual_cues:
+          - id: vae-interpolation-0-build
+            phrase: Give each code half the weight
+            targets:
+              - vae-interpolation-trace
+            color: cyan
+            linger: 0.25
+      - say: Both regions light up. Average the two codes coordinate by coordinate and send that
+          pair to the decoder. Here it paints the badge and the strip at the same brightness. If a
+          real crop lights just one region, you can see the mismatch right here.
+        caption_starts:
+          - Here it paints the badge and the strip at the same brightness
+          - If a real crop lights just one region
+        hold: 1
+        visual_cues:
+          - id: vae-interpolation-1-build
+            phrase: Both regions light up
+            targets:
+              - vae-interpolation-trace
+            color: cyan
+            linger: 0.25
+      - say: Slide the rest of the way. The center fades as the strip brightens. Our decoder has
+          continuous layers, so its picture changes continuously along the path. A Gaussian can
+          reach codes all along this path, even where training examples are scarce. Compare the
+          blends with held-out crops to see which ones look realistic.
+        hold: 0.8
+        visual_cues:
+          - id: finish-slide
+            phrase: The center fades as the strip brightens
+            targets: [vae-interpolation-trace]
+            color: yellow
+  - id: codes
+    title: Choose a code, then route its gradients
+    visual: Three actual distances choose a codebook entry. The next beat replaces the completed plot
+      with separate loss-to-object gradient paths and computed updates. The preserved spatial tile
+      construction closes the lecture.
+    beats:
+      - say: A vector-quantized autoencoder gives the decoder a learned codebook entry. The encoder proposes
+          a vector. Compare the three squared distances, then send the nearest entry to the decoder.
+          A learned prior over code combinations supplies useful discrete samples after training.
+        visual_cues:
+          - id: code-compare
+            phrase: Compare the three squared distances
+            targets:
+              - codebook-distance-1
+            color: cyan
+          - id: code-snap
+            phrase: send the nearest entry to the decoder
+            targets:
+              - nearest-code
+            color: green
+        hold: 0.5
+      - say: Nearest-entry assignment is piecewise constant. Reconstruction uses an approximate
+          straight-through path to the encoder, and trains the decoder. The codebook loss moves the
+          selected entry toward the proposal. Commitment pulls the proposal toward its entry. Follow
+          these separate gradients from the same forward values. The other entries stay fixed.
+        visual_cues:
+          - id: vq-reconstruction-path
+            phrase: Reconstruction uses an approximate straight-through path to the encoder, and trains the
+              decoder
+            targets:
+              - vq-reconstruction-route
+            color: green
+          - id: vq-codebook-path
+            phrase: codebook loss moves the selected entry toward the proposal
+            targets:
+              - vq-codebook-route
+            color: cyan
+          - id: vq-commitment-path
+            phrase: Commitment pulls the proposal toward its entry
+            targets:
+              - vq-commitment-route
+            color: yellow
+        hold: 0.5
+      - say: "At stride eight, each 8 by 8 input tile corresponds to one position in the spatial latent
+          grid. So 512 by 512 becomes 64 by 64: 64 times fewer positions. Channel width and
+          precision still affect cost. Our opening badge asks the final question: which detail did
+          that compact code preserve?"
+        visual_cues:
+          - id: latent-patch-b3-1
+            phrase: At stride eight, each 8 by 8 input tile corresponds to one position in the spatial latent
+              grid
+            targets:
+              - input-position-patch
+              - latent-position-grid
+              - spatial-patch-correspondence
+            color: cyan
+          - id: latent-position-count-b3-2
+            phrase: 64 times fewer positions
+            targets:
+              - spatial-position-count
+            color: green
+          - id: spatial-cost-caveat-b3-3
+            phrase: Channel width and precision
+            targets:
+              - spatial-cost-caveat
+            color: yellow
+        hold: 0.7
+  - id: vq-gradients
+    title: Who should move after the lookup?
+    visual: Keep the selected entry and the proposal in fixed columns. Route the reconstruction
+      derivative to the encoder, add the commitment term there, and route the codebook loss only to
+      the selected entry. Work the horizontal coordinate first, then repeat on the vertical one.
+    beats:
+      - say: Follow the selected entry into a decoder that returns it unchanged. We can check each
+          derivative by hand. Start with the first coordinate. The proposal was point seven two. The
+          selected entry is point six five, and the target is point five. With half squared error,
+          the reconstruction derivative is the prediction minus the target. Which parameter gets
+          that signal through the lookup?
+        hold: 2
+        visual_cues:
+          - id: lookup-operands
+            phrase: The proposal was point seven two
+            targets:
+              - vae-vq-gradients-trace
+            color: cyan
+            linger: 0.25
+      - say: The encoder gets it. The straight-through rule passes the difference back as though the
+          lookup were the identity. Here that difference is point one five. The discrete choice
+          itself has no such derivative. The reconstruction path gives the codebook entry no
+          gradient in this setup.
+        hold: 0.6
+        visual_cues:
+          - id: route-recon
+            phrase: The encoder gets it
+            targets:
+              - vae-vq-gradients-trace
+            color: green
+            linger: 0.25
+            caption_boundary: true
+          - id: value-recon
+            phrase: that difference is point one five
+            targets:
+              - vae-vq-gradients-trace
+            color: green
+            linger: 0.25
+      - say: Now give the proposal a reason to stay near its entry. Freeze the entry for this loss. Twice
+          the commitment weight times the gap adds point zero three five to the encoder’s gradient.
+          For the codebook loss, freeze the proposal instead. Twice the gap in the other direction
+          gives minus point one four to the selected entry. A descent step moves that entry up
+          toward the proposal.
+        hold: 0.8
+        visual_cues:
+          - id: commitment
+            phrase: adds point zero three five
+            targets:
+              - vae-vq-gradients-trace
+            color: yellow
+            linger: 0.25
+          - id: entry-loss
+            phrase: gives minus point one four to the selected entry
+            targets:
+              - vae-vq-gradients-trace
+            color: pink
+            linger: 0.25
+      - say: Try the second coordinate. Read the proposal, entry and target from that column. Which two
+          contributions should you add for the encoder? Which one belongs to the codebook?
+        hold: 2.2
+        visual_cues:
+          - id: second-operands
+            phrase: Read the proposal, entry and target
+            targets:
+              - vae-vq-gradients-trace
+            color: cyan
+            linger: 0.25
+      - say: The entry lies below the target, so reconstruction gives the encoder a negative gradient.
+          Commitment adds a smaller negative gradient. The encoder gets their sum. Only the selected
+          entry gets the codebook gradient, which is positive on this coordinate. Every unselected
+          entry gets zero in this check.
+        hold: 0.9
+        visual_cues:
+          - id: second-recon
+            phrase: reconstruction gives the encoder a negative gradient
+            targets:
+              - vae-vq-gradients-trace
+            color: green
+            linger: 0.25
+            caption_boundary: true
+          - id: second-commit
+            phrase: a smaller negative gradient
+            targets:
+              - vae-vq-gradients-trace
+            color: yellow
+            linger: 0.25
+          - id: encoder-sum
+            phrase: The encoder gets their sum
+            targets:
+              - vae-vq-gradients-trace
+            color: green
+            linger: 0.25
+          - id: second-entry
+            phrase: positive on this coordinate
+            targets:
+              - vae-vq-gradients-trace
+            color: pink
+            linger: 0.25
+  - id: code-prior
+    title: Learn how valid code sequences fit together
+    visual: Carry selectedIDintoaspatiotemporalIDgrid,uniformpriortrainingcharge
+      constantlogKandseparatelearnedautoregressiveprioroverIDs.
+      ConstructvalidneighborpatternsversusrandomindependentIDs;displaycodeusagecountswithunusedentrywithoutclaimingposteriorKLcollapse.
+    beats:
+      - say: In the original VQ-VAE training formulation, the code prior is uniform and the discrete
+          posterior selects one entry. Its KL contribution is a constant log K, so it does not drive
+          the code assignment. After learning the representation, a separate autoregressive prior
+          models the code patterns for generation. Independent random code IDs need not form
+          combinations the decoder learned to use.
+        hold: 0.6
+        visual_cues:
+          - id: vae-code-prior-0-build
+            phrase: In the original VQ-VAE training formulation, the code prior is uniform and the discrete
+              posterior selects one entry. Its KL contribution is a constant log K, so it does not
+              drive the code assignment. After learning the representation, a separate
+              autoregressive prior models the code patterns for generation. Independent random code
+              IDs need not form combinations the decoder learned to use.
+            targets:
+              - vae-code-prior-trace
+            color: cyan
+            linger: 0.25
+      - say: "The displayed gradient check uses the original codebook and commitment losses. Moving-average
+          codebook updates are a separate alternative. Track entry usage: selecting only a few
+          entries can waste a large codebook. That codebook-usage problem is distinct from a
+          continuous VAE matching every posterior to its prior. Keep code identity, update rule and
+          sampling prior explicit."
+        hold: 0.6
+        visual_cues:
+          - id: vae-code-prior-1-build
+            phrase: "The displayed gradient check uses the original codebook and commitment losses.
+              Moving-average codebook updates are a separate alternative. Track entry usage:
+              selecting only a few entries can waste a large codebook. That codebook-usage problem
+              is distinct from a continuous VAE matching every posterior to its prior. Keep code
+              identity, update rule and sampling prior explicit."
+            targets:
+              - vae-code-prior-trace
+            color: cyan
+            linger: 0.25
+  - id: spatial-budget
+    title: What survives a smaller latent grid?
+    visual: Count the positions and channels in a compressed image. Trace noise through the latent
+      denoiser and decoder, then compare the original and reconstructed badge.
+    beats:
+      - say: "A spatial latent keeps a grid of vectors rather than one global pair. Downsample a
+          five-hundred-twelve-square image by eight on each axis to obtain a sixty-four-square grid:
+          sixty-four times fewer positions. With three original channels and four latent channels,
+          the scalar count shrinks forty-eight-fold. Multiply by bytes per value to compare raw
+          storage when dtypes differ; neither ratio alone predicts file size or runtime."
+        hold: 0.6
+        visual_cues:
+          - id: vae-spatial-budget-0-build
+            phrase: "A spatial latent keeps a grid of vectors rather than one global pair. Downsample a
+              five-hundred-twelve-square image by eight on each axis to obtain a sixty-four-square
+              grid: sixty-four times fewer positions. With three original channels and four latent
+              channels, the scalar count shrinks forty-eight-fold. Multiply by bytes per value to
+              compare raw storage when dtypes differ; neither ratio alone predicts file size or
+              runtime."
+            targets:
+              - vae-spatial-budget-trace
+            color: cyan
+            linger: 0.25
+          - id: vae-spatial-budget-positions
+            phrase: "Downsample a five-hundred-twelve-square image by eight on each axis to obtain a
+              sixty-four-square grid: sixty-four times fewer positions."
+            targets:
+              - vae-spatial-budget-trace
+            color: cyan
+            linger: 0.25
+          - id: vae-spatial-budget-scalars
+            phrase: With three original channels and four latent channels, the scalar count shrinks
+              forty-eight-fold.
+            targets:
+              - vae-spatial-budget-trace
+            color: cyan
+            linger: 0.25
+      - say: Latent diffusion trains two models. First, the compressor learns to preserve visible
+          detail. The original work uses perceptual and patch-adversarial losses with weak KL or
+          vector quantization. Then a diffusion model learns the distribution of those compressed
+          images. Follow the noise through the denoiser. The resulting latent grid goes into the
+          decoder, which paints the pixels.
+        hold: 0.6
+        visual_cues:
+          - id: vae-spatial-budget-1-build
+            phrase: Follow the noise through the denoiser
+            targets:
+              - vae-spatial-budget-trace
+            color: cyan
+            linger: 0.25
+      - say: Look at the four center pixels again. A smaller grid saves the denoiser work, but our
+          decoder paints all four corners alike. To choose a grid size, compare details like this in
+          the original and the reconstruction. Use the same frozen decoder to inspect generated
+          samples, and time the full pipeline to measure the speedup.
+        hold: 0.6
+        visual_cues:
+          - id: vae-spatial-budget-2-build
+            phrase: our decoder paints all four corners alike
+            targets:
+              - vae-spatial-budget-trace
+            color: cyan
+            linger: 0.25
+  - id: fresh-collision
+    title: Could you report the original alert?
+    visual: Compare two new crops under the original regional encoder. Add the four center values in
+      place, feed the equal pairs into one fixed decoder, and apply the opening brightness cutoff to
+      each source and to their shared reconstruction.
+    beats:
+      - say: Back to our hand-built encoder. Here are two new crops. Read the four badge pixels in each
+          one. The two lower pixels are the same in both, and every unmarked pixel is at the
+          background brightness. Average each region. Would the decoder receive different messages
+          for these two badges?
+        hold: 2.4
+        visual_cues:
+          - id: vae-fresh-collision-0-build
+            phrase: Read the four badge pixels in each one
+            targets:
+              - vae-fresh-collision-trace
+            color: cyan
+            linger: 0.25
+      - say: Add the centers in reading order. Each group sums to two point eight. Divide by four and the
+          first number is point seven. The lower pair averages to point three in both crops. Send
+          either pair through the fixed decoder. It paints exactly the same picture. All four center
+          pixels are point seven eight.
+        hold: 0.9
+        visual_cues:
+          - id: sum-centers
+            phrase: Add the centers in reading order
+            targets:
+              - vae-fresh-collision-trace
+            color: cyan
+            linger: 0.25
+          - id: vae-fresh-collision-code
+            phrase: The lower pair averages to point three in both crops
+            targets:
+              - vae-fresh-collision-trace
+            color: yellow
+            linger: 0.25
+            caption_boundary: true
+          - id: vae-fresh-collision-decoded
+            phrase: It paints exactly the same picture
+            targets:
+              - vae-fresh-collision-trace
+            color: green
+            linger: 0.25
+            caption_boundary: true
+      - say: Which crop does that picture fit better? Look at the top left of each badge. The decoder
+          paints point seven eight there. That misses crop A’s darker pixel by more. Average the
+          squared misses over all twenty-five pixels. B has the smaller error. Now bring back the
+          opening rule. Can you use that shared reconstruction to tell whether any original badge
+          pixel exceeded point nine?
+        caption_starts:
+          - That misses crop A’s darker pixel by more
+          - Now bring back the opening rule
+        hold: 2.1
+        visual_cues:
+          - id: compare-miss
+            phrase: Look at the top left of each badge
+            targets:
+              - vae-fresh-collision-trace
+            color: yellow
+            linger: 0.25
+          - id: vae-fresh-collision-errors
+            phrase: B has the smaller error
+            targets:
+              - vae-fresh-collision-trace
+            color: green
+            linger: 0.25
+            caption_boundary: true
+          - id: return-cutoff
+            phrase: bring back the opening rule
+            targets:
+              - vae-fresh-collision-trace
+            color: pink
+            linger: 0.25
+      - say: Crop A crossed the line. Its bottom right pixel was one. The brightest pixel in B was only
+          point eight. Both gave us the very same code. To report whether the badge crossed the
+          line, keep the original peak or its flag. To report which pixels crossed, save their
+          positions too. Applying the cutoff to the reconstruction would miss the alert in A.
+          In the next lesson, a transformer keeps a separate vector at each token position.
+        hold: 1.2
+        visual_cues:
+          - id: audit-peaks
+            phrase: Crop A crossed the line
+            targets:
+              - vae-fresh-collision-trace
+            color: pink
+            linger: 0.25
+            caption_boundary: true
+          - id: retain-flag
+            phrase: keep the original peak or its flag
+            targets:
+              - vae-fresh-collision-trace
+            color: green
+            linger: 0.25
+          - id: retain-positions
+            phrase: save their positions too
+            targets: [vae-fresh-collision-trace]
+            color: pink

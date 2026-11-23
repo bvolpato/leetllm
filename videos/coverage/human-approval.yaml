@@ -1,0 +1,197 @@
+version: 1
+lesson: human-approval
+promise: Given an approved traffic change, decide whether the worker can send it, when to ask for fresh review, and what evidence establishes that it ran.
+framing: []
+objectives:
+  - id: approval-state
+    can: Place review before the gated effect, identify the eligible reviewer, and choose the next state on approval, edit, rejection, or expiry.
+    scenes:
+      - subject-intro
+      - oversight-modes
+      - choose-review
+      - identities-and-grants
+      - decision-branches
+  - id: durable-execution
+    can: Recover a pending proposal after a restart and record one winning decision with a durable instruction to resume.
+    scenes:
+      - durable-pending
+      - langgraph-replay
+      - temporal-review
+      - decision-outbox
+  - id: conditional-write
+    can: Predict the live traffic and affected row count for one approved update on two deployment revisions.
+    scenes:
+      - bind-decision
+      - stale-version
+      - fresh-packet
+  - id: reconcile-reply
+    can: Use a destination receipt to distinguish a confirmed effect from a timeout that happens to leave the requested share visible.
+    scenes:
+      - execute-and-reconcile
+      - batch-ledger
+      - fresh-packet
+  - id: review-evidence
+    can: Bind a decision to exact serialized intent, distinguish trusted controls from supporting evidence, and check each item in an approved batch.
+    scenes:
+      - bind-decision
+      - serialization-card
+      - decision-branches
+      - batch-ledger
+  - id: review-queue
+    can: Apply the rolling increase budget, distinguish queue wait from reviewer time, and measure how many known defects the reviewers catch.
+    scenes:
+      - weekend-budget
+      - transfer
+      - queue-governance
+sections:
+  - heading: Choose oversight from possible effect
+    status: taught
+    scenes:
+      - oversight-modes
+      - choose-review
+  - heading: Put policy before approval
+    status: taught
+    scenes:
+      - choose-review
+      - weekend-budget
+    note: The weekday example pairs a scoped read, a live promotion, and disabling a required safety filter with the three review tiers in Vega’s policy.
+  - heading: One approval moves through explicit states
+    status: taught
+    scenes:
+      - subject-intro
+      - durable-pending
+      - execute-and-reconcile
+      - decision-branches
+      - fresh-packet
+  - heading: Pause without holding a process open
+    status: taught
+    scenes:
+      - durable-pending
+      - langgraph-replay
+      - temporal-review
+  - heading: Map the lifecycle to LangGraph
+    status: taught
+    scenes:
+      - langgraph-replay
+  - heading: Pause with Temporal when the wait spans services
+    status: taught
+    scenes:
+      - temporal-review
+  - heading: Keep four identities separate
+    status: taught
+    scenes:
+      - identities-and-grants
+  - heading: Record decision before execution
+    status: taught
+    scenes:
+      - decision-outbox
+      - stale-version
+      - execute-and-reconcile
+    note: The conditional update in the article supplies the guard. The film runs it on an unchanged row and an intervening 10% canary, then follows a separately approved operation to its destination receipt.
+  - heading: Design review card around exact effect
+    status: taught
+    scenes:
+      - serialization-card
+      - bind-decision
+  - heading: Escalate, batch, and measure the queue
+    status: taught
+    scenes:
+      - weekend-budget
+      - batch-ledger
+      - queue-governance
+  - heading: Dynamic risk escalation
+    status: taught
+    scenes:
+      - weekend-budget
+  - heading: Batch authorization ledgers
+    status: taught
+    scenes:
+      - batch-ledger
+  - heading: What to measure
+    status: taught
+    scenes:
+      - transfer
+      - queue-governance
+    note: P1 waits from 0 to 4 seconds and is in review from 4 to 10 seconds. Across the exercise, five opened packets contribute 26 seconds of waiting and five decisions contribute 32 seconds of review. P4 expires unopened. Each known defect is paired with its decision.
+  - heading: Treat review evidence as hostile
+    status: taught
+    scenes:
+      - serialization-card
+      - decision-branches
+  - heading: Edited arguments need a new intent lock
+    status: taught
+    scenes:
+      - decision-branches
+      - bind-decision
+      - serialization-card
+  - heading: Triage the queue without lowering the floor
+    status: taught
+    scenes:
+      - queue-governance
+  - heading: Diagnose broken approval workflows
+    status: taught
+    scenes:
+      - durable-pending
+      - identities-and-grants
+      - decision-outbox
+      - decision-branches
+      - transfer
+      - fresh-packet
+  - heading: "Practice: design Vega's weekend policy"
+    status: taught
+    scenes:
+      - weekend-budget
+quiz:
+  - n: 1
+    status: taught
+    scenes:
+      - oversight-modes
+  - n: 2
+    status: taught
+    scenes:
+      - weekend-budget
+  - n: 3
+    status: taught
+    scenes:
+      - durable-pending
+  - n: 4
+    status: taught
+    scenes:
+      - langgraph-replay
+  - n: 5
+    status: taught
+    scenes:
+      - temporal-review
+  - n: 6
+    status: taught
+    scenes:
+      - identities-and-grants
+  - n: 7
+    status: taught
+    scenes:
+      - decision-outbox
+  - n: 8
+    status: taught
+    scenes:
+      - stale-version
+      - execute-and-reconcile
+      - fresh-packet
+  - n: 9
+    status: taught
+    scenes:
+      - serialization-card
+  - n: 10
+    status: taught
+    scenes:
+      - decision-branches
+      - batch-ledger
+removed: []
+reviews:
+  closed_book:
+    script: f5af3e7dedcda3b4
+    taught: 10
+    partial: 0
+    absent: 0
+  fact_check:
+    script: f5af3e7dedcda3b4
+    open_findings: 0

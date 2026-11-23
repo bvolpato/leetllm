@@ -1,0 +1,977 @@
+[
+  {
+    "id": "c01",
+    "title": "Find the running dog",
+    "sourceChapters": [
+      "c01"
+    ],
+    "beats": [
+      {
+        "id": "c01-b01",
+        "say": "A film editor needs a clip for the search dog running. Look at the gap under the puppy’s paws. Beside it, another dog lies curled up. Which clip would you send?",
+        "hold": 3
+      },
+      {
+        "id": "c01-b02",
+        "say": "Uncover the captions. The runner is labeled a puppy runs. The sleeper is labeled a dog sleeps. Count exact matches for dog and running. Only the sleeper has one.",
+        "hold": 1.1
+      },
+      {
+        "id": "c01-b03",
+        "say": "Send the running puppy. The puppy’s caption describes the action the editor asked for. The third clip shows a blue sky. Neither its picture nor its caption answers the request.",
+        "hold": 0.5
+      },
+      {
+        "id": "c01-b04",
+        "say": "Pair the search with the puppy’s caption. In contrastive learning, we train a sentence encoder to score that caption higher than the sleeping dog’s. We can train on images and their captions with the same comparison.",
+        "hold": 0.55
+      }
+    ]
+  },
+  {
+    "id": "c02",
+    "title": "An average cannot recover the order it discarded",
+    "sourceChapters": [
+      "c02"
+    ],
+    "beats": [
+      {
+        "id": "c02-b01",
+        "say": "Read the first row. The compiler calls the linker. Swap compiler and linker in a copy. Now the linker makes the call. Give each word a fixed vector and average the three. What will that swap do to the mean?",
+        "hold": 2.4
+      },
+      {
+        "id": "c02-b02",
+        "say": "Both produce point eight, point one three three, point one. Both sums use the same three vectors and the same divisor. A search index sees exactly the same point for two different calls.",
+        "hold": 0.5
+      },
+      {
+        "id": "c02-b03",
+        "say": "Now let the encoder read the whole sentence before pooling. The word compiler can get one vector as the caller and another as the callee. The two averages can finally differ. Another choice is to use BERT’s first token.",
+        "hold": 0.3
+      },
+      {
+        "id": "c02-b04",
+        "say": "Test how well that vector ranks passages against a model trained for sentence retrieval. If almost every cosine looks the same, check for repeated embeddings, a bad padding mask or an error in the score matrix.",
+        "hold": 0.5
+      }
+    ]
+  },
+  {
+    "id": "c03",
+    "title": "Use the same encoder contract for every item",
+    "sourceChapters": [
+      "c03"
+    ],
+    "beats": [
+      {
+        "id": "c03-b01",
+        "say": "The archive stores captions of different lengths. A sentence encoder turns each into a fixed-width vector. It reads the tokens in context and pools their states by a specified rule. A dual encoder can run the query and document sides separately. Shared weights or compatible training put their outputs in a common scoring space.",
+        "hold": 0.6
+      },
+      {
+        "id": "c03-b02",
+        "say": "Our anchor sentence is a dog is running. Its positive partner is a puppy runs. The other candidates describe a sleeping dog and a blue sky. We normalize the supplied vectors to unit length, so each dot product is also a cosine similarity.",
+        "hold": 0.6
+      },
+      {
+        "id": "c03-b03",
+        "say": "Now change the text that reaches the encoder. Some checkpoints expect different query and passage prefixes. Others take an instruction paired with the text. If you change the passage format after indexing, encode the passages again and check the resulting vectors and rankings on held-out queries. Keep the tested format in training, indexing and search.",
+        "hold": 0.8
+      }
+    ]
+  },
+  {
+    "id": "c04",
+    "title": "Which tokens enter the mean?",
+    "sourceChapters": [
+      "c04"
+    ],
+    "beats": [
+      {
+        "id": "c04-b01",
+        "say": "Look at the ninety-nines in the last row of each grid. Those are padding. Exclude the masked states before adding anything. For A, sum the two valid token vectors and divide by two. B has just one valid token. Its mean is that token itself.",
+        "hold": 0.3
+      },
+      {
+        "id": "c04-b02",
+        "say": "A lands halfway along each axis, while B points straight up. Normalize each mean to unit length. Now a dot product gives the cosine, because both vector norms are one. An empty mask has no mean, and a zero or nonfinite vector has no valid unit direction.",
+        "hold": 0.5
+      },
+      {
+        "id": "c04-b03",
+        "say": "Multiply the query matrix by the transposed passage matrix. Each row now compares one query with both passages. A targets the first column and B the second because that’s where we put their paired passages. At temperature point two, the average loss is about point three five.",
+        "hold": 0.3
+      },
+      {
+        "id": "c04-b04",
+        "say": "Follow the gradient back to A’s first token. Raising its first coordinate would lower this mean loss. Raising its second would increase it. The mask cuts off both paths from the padding, so its derivatives are zero. These derivatives describe the supplied token states. The encoder’s own weights receive gradients through the states they produced.",
+        "hold": 0.5
+      }
+    ]
+  },
+  {
+    "id": "c05",
+    "title": "Who shares the denominator?",
+    "sourceChapters": [
+      "c05"
+    ],
+    "beats": [
+      {
+        "id": "c05-b01",
+        "say": "Back to the archive. We’ve given each caption a unit vector, so its dot product with the query is its cosine score. The puppy scores a little higher than the sleeping dog. How much that gap matters depends on who else is in the comparison.",
+        "hold": 0.4
+      },
+      {
+        "id": "c05-b02",
+        "say": "Start with the highest score. Subtract it from each score, divide by a positive temperature, then exponentiate. The highest score now contributes one unit of mass. Subtracting the same value from every score leaves the shares unchanged. We’re using a temperature of point two.",
+        "hold": 0.4
+      },
+      {
+        "id": "c05-b03",
+        "say": "Let only the puppy and the sky compete. The sky adds about three thousandths of a unit. Divide the puppy’s one unit by the total and its share is about ninety-nine point seven percent. That’s its softmax probability among these two captions.",
+        "hold": 0.55
+      },
+      {
+        "id": "c05-b04",
+        "say": "Now admit the sleeping dog to the lower row. Keep every vector and the temperature fixed. What happens to the puppy’s share?",
+        "hold": 2.7
+      },
+      {
+        "id": "c05-b05",
+        "say": "The sleeper adds nearly three quarters of a unit. The puppy still brings one unit, but now it gets only fifty-seven point four percent. That probability belongs to this pool. A lower temperature would favor the leader more strongly here because it magnifies the score gaps before exponentiation.",
+        "hold": 0.8
+      }
+    ]
+  },
+  {
+    "id": "c06",
+    "title": "What does one competitor cost?",
+    "sourceChapters": [
+      "c06"
+    ],
+    "beats": [
+      {
+        "id": "c06-b01",
+        "say": "The upper strip keeps all three captions. The puppy is our designated match. Its exponential weight is the numerator, and all three weights make up the denominator. To get the InfoNCE loss, take the negative natural log of the puppy’s share. Here that costs about point five five five nats.",
+        "hold": 0.5
+      },
+      {
+        "id": "c06-b02",
+        "say": "Leave the full row on top for comparison. In the working row, omit the sky. Its sliver was so small that the loss barely moves. Restore the sky. This time, omit the sleeper. Watch the puppy’s numerator while the denominator changes.",
+        "hold": 0.3
+      },
+      {
+        "id": "c06-b03",
+        "say": "Now the puppy gets nearly the entire pool, and the loss drops almost to zero. The vectors never moved. We made the task easier.",
+        "hold": 0.7
+      },
+      {
+        "id": "c06-b04",
+        "say": "Return to all three captions. To see which scores training will try to change, subtract the target from each share, then divide by temperature. The target is one for the puppy and zero for each competitor. The puppy gets a negative derivative. Both competitors get positive derivatives.",
+        "hold": 0.5
+      },
+      {
+        "id": "c06-b05",
+        "say": "Descent goes against the derivative. It tries to raise the puppy’s score and lower the sleeper’s. The sky barely contributes. In an encoder those signals pass through shared weights, so the three scores can’t be adjusted independently.",
+        "hold": 0.6
+      }
+    ]
+  },
+  {
+    "id": "c07",
+    "title": "One score row, worked both ways",
+    "sourceChapters": [
+      "c07"
+    ],
+    "beats": [
+      {
+        "id": "c07-b01",
+        "say": "Take the first query in the article’s two-query matrix. A is its target. A scores point nine and B scores point two. At temperature point zero five those logits are eighteen and four. Subtract their maximum and you have zero and minus fourteen. Exponentiate them.",
+        "hold": 0.3
+      },
+      {
+        "id": "c07-b02",
+        "say": "A contributes one unit and B contributes less than one millionth. A gets almost all the probability. The loss is less than one millionth of a nat.",
+        "hold": 1.4
+      },
+      {
+        "id": "c07-b03",
+        "say": "Swap the scores while keeping A as the target. Now almost all the probability goes to B, and the loss is about fourteen nats.",
+        "hold": 0.7
+      },
+      {
+        "id": "c07-b04",
+        "say": "For a one-positive row, loss can be written as log-sum-exp of candidate logits minus the positive logit. Our implementation first divides scores by temperature and requires finite logits. It subtracts the maximum from those logits before exponentiation, then adds the maximum-minus-positive gap separately.",
+        "hold": 0.3
+      },
+      {
+        "id": "c07-b05",
+        "say": "Two tied logits near the largest representable number should still give log two. Subtracting the peak first leaves two ones in the sum and a zero gap. Even this implementation needs a check after dividing by temperature. Reject nonfinite logits, a nonpositive temperature and mismatched widths.",
+        "hold": 0.3
+      },
+      {
+        "id": "c07-b06",
+        "say": "Stable vector normalization first scales a finite vector by its maximum absolute coordinate, so a tiny nonzero vector around ten to the negative three hundred can still normalize. Zero vectors remain invalid.",
+        "hold": 0.5
+      },
+      {
+        "id": "c07-b07",
+        "say": "Here we average the loss over queries. To train in the reverse direction too, each passage needs a label for the query that goes with it.",
+        "hold": 0.3
+      },
+      {
+        "id": "c07-b08",
+        "say": "Within each row, subtract the target from the probability and divide by temperature. For the positive, the target is one. For the negative, it is zero. Reverse the scores and the incorrect winner receives a large positive derivative. Descent tries to lower that score. The encoder combines the signals through shared weights.",
+        "hold": 0.5
+      }
+    ]
+  },
+  {
+    "id": "c08",
+    "title": "A distance gap must meet the declared margin",
+    "sourceChapters": [
+      "c08"
+    ],
+    "beats": [
+      {
+        "id": "c08-b01",
+        "say": "Triplet loss compares distances rather than a candidate softmax. Take the maximum of zero and positive distance minus negative distance plus the required margin. With positive distance point two, negative point five and margin point one, the expression is negative point two, so loss is zero.",
+        "hold": 0.3
+      },
+      {
+        "id": "c08-b02",
+        "say": "Move the positive to point five and the negative to point three. Keep the margin at point one. How far short does this triplet fall? The loss is point three.",
+        "hold": 1.2
+      },
+      {
+        "id": "c08-b03",
+        "say": "On the ruler, a smaller distance means a closer match. Choose a distance and set the margin on that scale. Euclidean distance and squared Euclidean distance give different gaps. With cosine scores, one minus cosine gives a distance that shrinks as the match improves.",
+        "hold": 0.3
+      },
+      {
+        "id": "c08-b04",
+        "say": "A triplet stops contributing once its gap meets the margin. With InfoNCE, every candidate in the row still contributes to the denominator.",
+        "hold": 0.5
+      }
+    ]
+  },
+  {
+    "id": "c09",
+    "title": "How much pressure does the score get?",
+    "sourceChapters": [
+      "c09"
+    ],
+    "beats": [
+      {
+        "id": "c09-b01",
+        "say": "The positive scores point nine and its competitor scores point two. Their gap is point seven. Divide the gap by temperature and negate it. The positive share is one divided by one plus the exponential of that result. For its raw score, the size of the derivative equals the probability left for the competitor divided by temperature. If we lower the temperature on this easy pair, which term wins?",
+        "hold": 2
+      },
+      {
+        "id": "c09-b02",
+        "say": "Start at temperature one. The gradient magnitude is about a third. Lower the temperature to one tenth. The winner now takes so much of the probability that the gradient falls below one hundredth. Halve the temperature again and the gradient drops to about seventeen millionths.",
+        "hold": 0.3
+      },
+      {
+        "id": "c09-b03",
+        "say": "At one hundredth it is effectively zero. The explicit inverse-temperature factor grew, but the probability left over for the loser shrank much faster. A mislabeled candidate that still holds a large share can get a large unwanted update.",
+        "hold": 0.5
+      },
+      {
+        "id": "c09-b04",
+        "say": "Now compare two negatives in the same row. Give them scores of point seven two and point two at temperature point zero five. The common denominator cancels in the ratio of their gradients. Exponentiate the score gap divided by temperature.",
+        "hold": 0.3
+      },
+      {
+        "id": "c09-b05",
+        "say": "The higher-scoring negative gets about thirty-three thousand times as much pressure. Before acting on that signal, check whether its negative label is correct.",
+        "hold": 0.5
+      }
+    ]
+  },
+  {
+    "id": "c10",
+    "title": "Turn the query on the unit circle",
+    "sourceChapters": [
+      "c10"
+    ],
+    "beats": [
+      {
+        "id": "c10-b01",
+        "say": "Put our three captions back on the circle. Each tip is a fixed candidate. The cyan query arrow can turn, but its length stays one. Its angle to each caption determines that caption’s cosine. The start row records what the puppy gets before we move.",
+        "hold": 0.6
+      },
+      {
+        "id": "c10-b02",
+        "say": "We can calculate the slope of the loss with respect to the query angle. Each cosine depends on that one angle, so all three score derivatives contribute. Subtract three hundredths of that slope from the angle in radians. Take one step.",
+        "hold": 1.5
+      },
+      {
+        "id": "c10-b03",
+        "say": "The dashed ray marks the starting angle. The query turned toward the puppy and away from the sleeping dog. The puppy’s share went from about fifty-seven to sixty-eight percent. All three caption tips stayed pinned.",
+        "hold": 0.55
+      },
+      {
+        "id": "c10-b04",
+        "say": "Take the next twenty-nine steps. Each one uses the slope at the new angle. You can see the movement slow as the puppy pulls ahead. After thirty updates, it gets about ninety-six percent of this row. In a real encoder, both sides can move. We still have to check whether other sentences remain distinguishable.",
+        "hold": 0.8
+      }
+    ]
+  },
+  {
+    "id": "c11",
+    "title": "Separate a close positive pair from a collapsed space",
+    "sourceChapters": [
+      "c11"
+    ],
+    "beats": [
+      {
+        "id": "c11-b01",
+        "say": "Follow the query dot on the right. Its partner is close by. That’s alignment. Slide every pair onto the same spot. The partners are as close as they can get. Can the query’s score still pick out its partner?",
+        "hold": 2.6
+      },
+      {
+        "id": "c11-b02",
+        "say": "All four tie. The query gives its partner one quarter of the probability. With N tied candidates and one target, the loss is the natural log of N. Now spread the pairs around the circle.",
+        "hold": 0.3
+      },
+      {
+        "id": "c11-b03",
+        "say": "Each query still has its partner nearby, and the other three are farther away. Uniformity describes how the whole collection spreads across the unit sphere. Alignment measures closeness within pairs.",
+        "hold": 0.5
+      }
+    ]
+  },
+  {
+    "id": "c12",
+    "title": "A positive label comes from a stated relation",
+    "sourceChapters": [
+      "c12"
+    ],
+    "beats": [
+      {
+        "id": "c12-b01",
+        "say": "A puppy is running, so an animal is running. That’s entailment. Try going the other way. A running animal could be a horse. Natural language inference labels sentence pairs as entailment, contradiction or neutral. An entailment pair can be a positive training example when that direction fits the task.",
+        "hold": 0.5
+      },
+      {
+        "id": "c12-b02",
+        "say": "Original Sentence-BERT pools the two sentences with the same encoder. Its NLI classifier receives both embeddings and the absolute difference between them, coordinate by coordinate. The classifier learns the relation labels. The authors also studied regression and triplet objectives.",
+        "hold": 0.3
+      },
+      {
+        "id": "c12-b03",
+        "say": "Supervised SimCSE instead uses entailment pairs as positives and the corresponding contradictions as hard negatives in its contrastive setup. After training, both methods let you encode each document once and reuse its vector for many queries.",
+        "hold": 0.5
+      }
+    ]
+  },
+  {
+    "id": "c13",
+    "title": "Two stochastic views preserve one sentence identity",
+    "sourceChapters": [
+      "c13"
+    ],
+    "beats": [
+      {
+        "id": "c13-b01",
+        "say": "Unsupervised SimCSE feeds the same sentence through the encoder twice with different dropout masks. The two text identities stay equal while different hidden units are zeroed. Other batch sentences supply competitors and still need a false-negative audit. Use training mode for these stochastic views; ordinary repeatable embedding inference disables dropout.",
+        "hold": 0.5
+      },
+      {
+        "id": "c13-b02",
+        "say": "In the revised SimCSE paper’s BERT-base STS evaluation, the unsupervised and supervised variants report seventy-six point three and eighty-one point six average Spearman correlation multiplied by one hundred. In that experiment, removing dropout or using the same mask twice lowered the scores.",
+        "hold": 0.5
+      },
+      {
+        "id": "c13-b03",
+        "say": "A text edit can change the label too. Read this pair of access rules. Delete the word not and you reverse who is authorized. Check that a proposed paraphrase, translation or pair from the same approved document preserves the meaning your task needs. A cross-encoder can suggest a label. Verify it against independent evidence.",
+        "hold": 0.5
+      }
+    ]
+  },
+  {
+    "id": "c14",
+    "title": "Which caption belongs in the negative pool?",
+    "sourceChapters": [
+      "c14"
+    ],
+    "beats": [
+      {
+        "id": "c14-b01",
+        "say": "The puppy is still our target. The sky is an easy negative. If every other caption were that far away, a low loss would tell us little about whether we could distinguish running from sleeping.",
+        "hold": 0.45
+      },
+      {
+        "id": "c14-b02",
+        "say": "Suppose mining brings back two more captions from the archive. Both have the same high cosine in this example. Read the action in each caption. Which high scorer can you use as a negative for this query?",
+        "hold": 3
+      },
+      {
+        "id": "c14-b03",
+        "say": "Keep the sleeping dog as a hard negative. It shares the animal and changes the action. The hound is sprinting. That’s another valid answer. A high model score put both captions on the review list.",
+        "hold": 0.3
+      },
+      {
+        "id": "c14-b04",
+        "say": "Checking the action decided which one belonged in the denominator as a negative. In a document collection, that check may take a reviewer who knows what the query asks.",
+        "hold": 0.7
+      }
+    ]
+  },
+  {
+    "id": "c15",
+    "title": "Which passages did the query see?",
+    "sourceChapters": [
+      "c15"
+    ],
+    "beats": [
+      {
+        "id": "c15-b01",
+        "say": "Read across a query’s row to see which passages it competes over. Start with A alone. Its only passage takes all the probability, so the loss is zero for any score. Add pairs B and C to that batch.",
+        "hold": 0.3
+      },
+      {
+        "id": "c15-b02",
+        "say": "Three query encodings and three passage encodings give six off-diagonal comparisons. Each query sees two competing passages.",
+        "hold": 0.6
+      },
+      {
+        "id": "c15-b03",
+        "say": "Now process a second batch with just two pairs, D and E. Count the pink cells. The larger square has six, and the smaller one adds two. That gives eight off-diagonal scores from ten text encodings. The texts can be encoded in batches. Does accumulating the gradients fill the empty corners?",
+        "hold": 2.9
+      },
+      {
+        "id": "c15-b04",
+        "say": "The corners stay empty. The gradients add after each batch has already used its own denominator. Now gather all five passage embeddings into one pool for each of the five queries. How many other passages can each query see?",
+        "hold": 0.3
+      },
+      {
+        "id": "c15-b05",
+        "say": "Each query sees four other passages. Five times four gives twenty off-diagonal scores from the same ten text encodings. The full score matrix grows quadratically with the number of pairs.",
+        "hold": 0.55
+      },
+      {
+        "id": "c15-b06",
+        "say": "If you gather across devices or reuse cached embeddings, check where gradients flow and which candidates belong in each row. Pink means the loss treats a passage as a competitor. Two of those entries can be copies of the very same guide. Even different passage IDs can answer the same question.",
+        "hold": 0.65
+      }
+    ]
+  },
+  {
+    "id": "c16",
+    "title": "One guide in two batch columns",
+    "sourceChapters": [
+      "c16"
+    ],
+    "beats": [
+      {
+        "id": "c16-b01",
+        "say": "Two people asked how to rotate an API key. Both answers point to the same approved rotation guide. In the first query’s row, A and B are copies of that guide. C is about a different kind of key. The supplied cosine scores for A and B are identical.",
+        "hold": 0.4
+      },
+      {
+        "id": "c16-b02",
+        "say": "The diagonal label picks A alone. A and B each put one unit into the denominator, so each gets just under half the probability. Look at copy B. Will a step of gradient descent try to raise or lower its score?",
+        "hold": 2.5
+      },
+      {
+        "id": "c16-b03",
+        "say": "It tries to lower B. B has a target of zero, so its raw-score derivative is its probability divided by temperature, about plus two point four six. Descent subtracts that positive derivative. The text is a correct answer. Its position in the batch gave it the wrong target.",
+        "hold": 0.8
+      },
+      {
+        "id": "c16-b04",
+        "say": "Mask copy B for this query. You can still see its cosine. Its unit of mass drops out of the row’s denominator. A now receives about ninety-seven percent. The direct derivative for the masked score is zero. That’s the repair.",
+        "hold": 0.3
+      },
+      {
+        "id": "c16-b05",
+        "say": "The lower loss tells us we changed the comparison. Shared encoder weights can still change B through other scores.",
+        "hold": 0.8
+      }
+    ]
+  },
+  {
+    "id": "c17",
+    "title": "What if both guides must be found?",
+    "sourceChapters": [
+      "c17"
+    ],
+    "beats": [
+      {
+        "id": "c17-b01",
+        "say": "If two identical copies stay tied in a single-target row, even eliminating all other competition gives the target at most half the probability. Its loss bottoms out at the natural log of two. Deduplicating or masking the extra copy fixes that bookkeeping.",
+        "hold": 0.6
+      },
+      {
+        "id": "c17-b02",
+        "say": "Now suppose these are different guides. One explains rotation. The other explains how to replace an old key. Reviewers have verified that each answers the query. Look at their probabilities. Almost the entire row belongs to A. B gets just five ten-thousandths.",
+        "hold": 0.6
+      },
+      {
+        "id": "c17-b03",
+        "say": "Compare two rules. One gives credit for finding either guide. The other scores each guide before averaging. Which loss still charges for missing B?",
+        "hold": 2.8
+      },
+      {
+        "id": "c17-b04",
+        "say": "Pool the positive shares first and the sum is nearly one. Its negative log is about five ten-thousandths of a nat. Nearly all that credit came from A.",
+        "hold": 0.45
+      },
+      {
+        "id": "c17-b05",
+        "say": "Take each negative log separately. The cost for A is about one thousandth of a nat. The cost for B is about seven point six. Their mean is about three point eight nats.",
+        "hold": 0.3
+      },
+      {
+        "id": "c17-b06",
+        "say": "That second rule, the supervised contrastive mean over positives, still charges for the neglected answer. Choose the rule that fits what a successful search must find.",
+        "hold": 0.7
+      },
+      {
+        "id": "c17-b07",
+        "say": "Keep those shares. At a temperature of point two, compare the upward pressure on B’s score. For summed positive mass, B’s effective target is its fraction of the positive mass. That is only slightly above its current share. B gets barely more than a millionth of a unit of upward pressure.",
+        "hold": 0.3
+      },
+      {
+        "id": "c17-b08",
+        "say": "With the mean of the two log losses, it gets nearly two and a half. The dots use the same scale. A shared encoder still has to combine these derivatives with the signals from other examples.",
+        "hold": 0.7
+      }
+    ]
+  },
+  {
+    "id": "c18",
+    "title": "Audit the competitor before teaching it as wrong",
+    "sourceChapters": [
+      "c18"
+    ],
+    "beats": [
+      {
+        "id": "c18-b01",
+        "say": "The question is how to rotate an API key. A word-based retriever such as B M twenty-five can find lookalikes. Here we use a simple word-overlap count and supplied teacher scores. Check relevance first. The replacement guide answers the question. Set it aside before mining the other three.",
+        "hold": 0.5
+      },
+      {
+        "id": "c18-b02",
+        "say": "Count the words each guide shares with the query. The GPU guide shares none, so this mining rule drops it. Read the supplied teacher scores for the two that remain. The service signing key guide ranks first, followed by the KMS guide.",
+        "hold": 0.3
+      },
+      {
+        "id": "c18-b03",
+        "say": "Now watch what one hard negative does to the training row. Give it a cosine of point seven two. It competes with the target at point nine. The loss rises from less than a millionth of a nat to about point zero two seven.",
+        "hold": 0.5
+      },
+      {
+        "id": "c18-b04",
+        "say": "An iterative mining round re-encodes and indexes with a newer checkpoint, retrieves confusing passages and audits them before the next round. Keep evaluation queries and near-duplicate groups outside training and mining. A teacher threshold can remove suspicious positives but can also miss them or delete useful negatives. Measure those errors on independently labeled samples.",
+        "hold": 0.5
+      }
+    ]
+  },
+  {
+    "id": "c19",
+    "title": "What did the student copy?",
+    "sourceChapters": [
+      "c19"
+    ],
+    "beats": [
+      {
+        "id": "c19-b01",
+        "say": "A teacher model scores the approved passage at point two and the non-match at point eight. Subtract the non-match score from the approved score. The teacher’s margin is minus point six. Now let the student copy that margin.",
+        "hold": 0.3
+      },
+      {
+        "id": "c19-b02",
+        "say": "Margin M S E squares the difference between student and teacher margins. Average that squared error across training triples. On this triple the two margins agree, so the error is zero. Look at the order the student learned. Its non-match still comes first.",
+        "hold": 0.5
+      },
+      {
+        "id": "c19-b03",
+        "say": "There’s a second check. Look at the student’s possible margins. Each raw cosine lies between minus one and one. Even at opposite extremes, the approved score can lead by only two.",
+        "hold": 0.3
+      },
+      {
+        "id": "c19-b04",
+        "say": "Suppose a teacher on a different scale asks for a margin of three point two. Follow the dotted line back to the nearest margin the student can reach. How much squared error remains on this triple?",
+        "hold": 2.2
+      },
+      {
+        "id": "c19-b05",
+        "say": "The nearest margin is two. The gap is one point two, so the smallest possible squared error is one point four four. A lower temperature leaves the raw cosine range unchanged. Evaluate a compatible target scale, then check the actual ordering against relevance judgments.",
+        "hold": 0.5
+      }
+    ]
+  },
+  {
+    "id": "c20",
+    "title": "Choose where the query and document are allowed to interact",
+    "sourceChapters": [
+      "c20"
+    ],
+    "beats": [
+      {
+        "id": "c20-b01",
+        "say": "File a single vector for each document. A bi-encoder lets us do that work before any query arrives. At search time, encode the query once and compare it with the stored vectors. With a cross-encoder, send the query and the document through the model together.",
+        "hold": 0.3
+      },
+      {
+        "id": "c20-b02",
+        "say": "A word in the query can attend to a word in the document. Each new pair needs its own pass.",
+        "hold": 0.5
+      },
+      {
+        "id": "c20-b03",
+        "say": "Late interaction takes a third route. Encode and retain document token vectors independently, then perform a cheaper query-token to document-token comparison at search time. Each stored vector can carry context from the surrounding words. The search can now match individual query tokens against individual document tokens.",
+        "hold": 0.5
+      }
+    ]
+  },
+  {
+    "id": "c21",
+    "title": "Each query token selects its best document-token match",
+    "sourceChapters": [
+      "c21"
+    ],
+    "beats": [
+      {
+        "id": "c21-b01",
+        "say": "Read the row for API. Its closest match is the second document token, at point nine three. In the row for key, the third token wins with point nine one. MaxSim adds one winner per query token. Predict what happens if two query tokens prefer the same column.",
+        "hold": 2.4
+      },
+      {
+        "id": "c21-b02",
+        "say": "Point nine three plus point nine one equals one point eight four. Swap the last two numbers in the key row. Both query tokens now choose the second document token. Their winning scores stay the same.",
+        "hold": 0.5
+      },
+      {
+        "id": "c21-b03",
+        "say": "Those independent choices can match words in a different order. Raw storage depends on both count and width. One hundred token vectors of width one hundred twenty-eight contain about sixteen point seven times the coordinates of one width-seven-hundred-sixty-eight vector at equal precision.",
+        "hold": 0.5
+      },
+      {
+        "id": "c21-b04",
+        "say": "ColBERT version two reduces storage using a nearest centroid ID and a one- or two-bit quantized residual per coordinate, reconstructing an approximate vector for scoring. Count the codebook and index structures when measuring storage. Test the reconstructed vectors on held-out searches to see which matches survive compression.",
+        "hold": 0.5
+      }
+    ]
+  },
+  {
+    "id": "c22",
+    "title": "The checkpoint decides which input format is meaningful",
+    "sourceChapters": [
+      "c22"
+    ],
+    "beats": [
+      {
+        "id": "c22-b01",
+        "say": "The question asks how to rotate a key. The passage gives the steps. The input format tells the encoder which role each text plays. E five base version two prepends query colon to the query and passage colon to the document. It uses masked mean pooling and normalized vectors.",
+        "hold": 0.5
+      },
+      {
+        "id": "c22-b02",
+        "say": "The recommended instructed B G E version-one-point-five retrieval setting adds its retrieval instruction to short queries and keeps passages plain. You can also evaluate B G E with plain queries. Original INSTRUCTOR takes an instruction and text pair for each input.",
+        "hold": 0.5
+      },
+      {
+        "id": "c22-b03",
+        "say": "Bind checkpoint revision, tokenizer, pooling, normalization, input prefixes, corpus version and index score function together. A change on the passage side requires fresh passage vectors. A query-only change can be tested against the stored passages. In either case, compare the rankings on held-out queries before adopting the format.",
+        "hold": 0.5
+      }
+    ]
+  },
+  {
+    "id": "c23",
+    "title": "A shorter vector can erase the deciding coordinate",
+    "sourceChapters": [
+      "c23"
+    ],
+    "beats": [
+      {
+        "id": "c23-b01",
+        "say": "The upper arrow represents two identical vectors, the query and its match. The distractor ends below them. The second coordinate is plus point eight above and minus point eight below. Their full cosines with the query are one and minus point two eight. Project all three onto their first coordinate. Each tip lands at point six. Once we normalize these prefixes, which candidate will win?",
+        "hold": 3
+      },
+      {
+        "id": "c23-b02",
+        "say": "Normalize the three nonzero prefixes. Point six divided by its length, point six, gives one each time. All three tips now sit at plus one. Both scores tie at one. The lost sign was in the second coordinate.",
+        "hold": 1.5
+      },
+      {
+        "id": "c23-b03",
+        "say": "A prefix of a unit vector has norm at most one. It can equal one when discarded coordinates are zero, or become zero when retained coordinates are zero. Reject or explicitly handle a zero prefix before cosine normalization.",
+        "hold": 0.3
+      },
+      {
+        "id": "c23-b04",
+        "say": "Arbitrarily slicing an ordinary embedding has no trained quality guarantee. Use a supported shortening contract and measure each target width.",
+        "hold": 0.5
+      }
+    ]
+  },
+  {
+    "id": "c24",
+    "title": "Train the selected prefixes rather than merely cutting them",
+    "sourceChapters": [
+      "c24"
+    ],
+    "beats": [
+      {
+        "id": "c24-b01",
+        "say": "Matryoshka training applies a learning objective at several prefix widths of the same vector. Read down query A. Each row keeps a longer prefix of its raw coordinates. The original method also supports classification. Here we train a retrieval model. At each selected width we slice both queries and passages, normalize each nonzero prefix, and compute a contrastive loss.",
+        "hold": 0.5
+      },
+      {
+        "id": "c24-prefix-pairs",
+        "say": "At width two, the queries are unit vectors along the two axes. Each passage keeps point nine five on one axis and point zero five on the other. Divide each prefix by its own length. Take the dot products. For query A, the cosines are about point nine nine nine with passage A and point zero five three with passage B. In the second row the scores switch columns, and so does the target. Will the two losses differ?",
+        "hold": 2.7
+      },
+      {
+        "id": "c24-row-loss",
+        "say": "Read the first row. Its target has the higher cosine. Subtract the target score from the competing score and divide by the temperature, point two. Exponentiate, add one for the target, and take the natural log. The second query has the same gap to its competitor. Each row costs about point zero zero eight eight nats. Their mean is the loss for width two.",
+        "hold": 0.8
+      },
+      {
+        "id": "c24-b02",
+        "say": "Keep the width-two mean. Repeat the same operation at each longer width, including a fresh normalization. Width four gives about point zero one four seven nats. Width six gives about point zero two two five. Equal weighting gives a mean of about point zero one five three.",
+        "hold": 0.3
+      },
+      {
+        "id": "c24-b03",
+        "say": "Suppose the short index matters most. Combine the width losses with nonnegative weights. Give the width-two loss twice the weight of each longer width and divide by the total weight, four. Errors at width two now contribute half the training objective. Check held-out retrieval at each width to see what the weighting achieved.",
+        "hold": 0.5
+      },
+      {
+        "id": "c24-b04",
+        "say": "A hierarchical search can index short prefixes, retrieve a shortlist and rescore those candidates at full width. Ten million width-sixty-four float32 vectors have two point five six decimal gigabytes of raw payload, versus thirty point seven two at width seven hundred sixty-eight.",
+        "hold": 0.3
+      },
+      {
+        "id": "c24-b05",
+        "say": "IDs, graph links, metadata and full-vector storage add costs. Full width cannot rescore an omitted passage, and vector width is distinct from numerical precision.",
+        "hold": 0.5
+      }
+    ]
+  },
+  {
+    "id": "c25",
+    "title": "Training comparisons become an independent search index",
+    "sourceChapters": [
+      "c25"
+    ],
+    "beats": [
+      {
+        "id": "c25-b01",
+        "say": "After training, encode documents and store their vectors. A query can then be encoded once and compared with many stored candidates, which is the practical attraction of a dual encoder. The retrieval index accelerates that search while the encoder defines its geometry.",
+        "hold": 0.6
+      },
+      {
+        "id": "c25-b02",
+        "say": "Imagine the lookup admits only the sleeping dog and the blue sky. Put them in either order. The running clip still sits outside. First measure whether relevant passages enter the shortlist. Then measure how well the final ranking orders what came through.",
+        "hold": 0.6
+      },
+      {
+        "id": "c25-b03",
+        "say": "Also measure latency, storage, and performance on important languages or query types. A lower training loss can come from easier negatives or changed batches. Held-out relevance judgments under a stable retrieval setup tell us whether the learned comparisons transfer to the intended use.",
+        "hold": 0.8
+      }
+    ]
+  },
+  {
+    "id": "c26",
+    "title": "Which passages reach the reranker?",
+    "sourceChapters": [
+      "c26"
+    ],
+    "beats": [
+      {
+        "id": "c26-b01",
+        "say": "Look at the left-hand ranking for the rotation query. The first stage puts KMS above both API guides. Admit the first three passages. The reranker gets to read each of those passages alongside the query. In this example its scores are supplied.",
+        "hold": 0.3
+      },
+      {
+        "id": "c26-b02",
+        "say": "It returns API rotation first, then token replacement. The lower joint score for KMS keeps it out of the top two.",
+        "hold": 0.6
+      },
+      {
+        "id": "c26-b03",
+        "say": "Now admit just the first passage from the original ranking. Which guide can the reranker return?",
+        "hold": 2.7
+      },
+      {
+        "id": "c26-b04",
+        "say": "Only KMS can come back. Neither approved API guide made it across the cutoff. A perfect reranker would face exactly the same limit.",
+        "hold": 0.55
+      },
+      {
+        "id": "c26-b05",
+        "say": "How wide a shortlist can we afford? At fifteen milliseconds per pair, scoring two million passages sequentially takes about eight point three hours. The request deadline is two hundred milliseconds. Query encoding takes ten milliseconds. Scoring ten pairs uses another hundred and fifty. That leaves forty milliseconds for lookup and everything else.",
+        "hold": 0.6
+      },
+      {
+        "id": "c26-b06",
+        "say": "For a sequential service, subtract query time, lookup and other overhead from the deadline. Divide by the measured time per pair and round down. Here is another budget. The deadline is a hundred eighty milliseconds. The three fixed costs total forty-four. Each pair takes twelve milliseconds. How many can finish before the deadline?",
+        "hold": 2.2
+      },
+      {
+        "id": "c26-b07",
+        "say": "A hundred thirty-six milliseconds remain, so eleven fit. They finish at a hundred seventy-six milliseconds. Pair twelve would finish at a hundred eighty-eight. If eleven candidates miss required passages, improve the first stage, measure a faster or batched reranker, or revisit the budget. Measure the deployed path under realistic concurrency.",
+        "hold": 0.7
+      }
+    ]
+  },
+  {
+    "id": "c27",
+    "title": "A benchmark name needs its task and version scope",
+    "sourceChapters": [
+      "c27"
+    ],
+    "beats": [
+      {
+        "id": "c27-b01",
+        "say": "Semantic textual similarity compares the ranking of sentence pairs with human relatedness ratings, often using Spearman correlation. Two sentences can describe the same problem while neither gives a solution. The original M T E B study covered thirty-three models and fifty-eight datasets across the eight task categories shown here.",
+        "hold": 0.5
+      },
+      {
+        "id": "c27-b02",
+        "say": "Fifteen datasets measured retrieval. Four tested how well embedding similarity reordered a supplied list. Table one reports an overall average across the English subsets of fifty-six datasets in seven categories. Both bitext mining datasets sit outside that average. No model led every category in the table. A high classification score can help the average even when the retriever misses answers.",
+        "hold": 0.3
+      },
+      {
+        "id": "c27-b03",
+        "say": "Our joint cross-encoder service needs its own evaluation. The twenty twenty-five M M T E B paper expanded the collection to over five hundred tasks across more than two hundred fifty languages. A selected benchmark may cover a subset.",
+        "hold": 0.5
+      },
+      {
+        "id": "c27-b04",
+        "say": "Record the benchmark and dataset revisions, splits, language and domain, checkpoint and formatting. Screen candidates with the benchmark. Then test your own query lengths, jargon, latency and storage. If the passage is truncated before the instruction the user needs, even a perfect pooling step has no access to it.",
+        "hold": 0.3
+      },
+      {
+        "id": "c27-b05",
+        "say": "Sentence-Transformers provides embedding models, pooling and training losses; F A I S S searches dense vectors. Their roles do not replace relevance judgments.",
+        "hold": 0.5
+      }
+    ]
+  },
+  {
+    "id": "c28",
+    "title": "A first relevant result and all relevant results use different denominators",
+    "sourceChapters": [
+      "c28"
+    ],
+    "beats": [
+      {
+        "id": "c28-b01",
+        "say": "Recall at K is the number of relevant judged passages in the first K divided by all relevant judgments for that query. Reciprocal rank is one divided by the first relevant position inside the cutoff, or zero if none appears.",
+        "hold": 0.3
+      },
+      {
+        "id": "c28-b02",
+        "say": "Average reciprocal ranks across query instances for M R R. Keep the corpus, judgment universe, cutoff and grouping fixed.",
+        "hold": 0.5
+      },
+      {
+        "id": "c28-b03",
+        "say": "Apply both rules to these three held-out queries. The first retrieves one of two answers in second place. The second puts its only answer first. The third misses its answer. At cutoff two, both column averages happen to be one half.",
+        "hold": 0.3
+      },
+      {
+        "id": "c28-b04",
+        "say": "Moving the first query’s one retrieved relevant passage from second to first raises reciprocal rank to one while leaving its recall at one half. Adding its other relevant passage changes recall. Neither operation recovers the third query’s missing evidence.",
+        "hold": 0.5
+      },
+      {
+        "id": "c28-b05",
+        "say": "Hold out queries and related source groups from training and mining. Inspect masks, vector diversity and score-matrix shapes before diagnosing high cosine as anisotropy. Compare easier versus harder pools before celebrating a lower loss. Accept a new checkpoint only when its fixed held-out retrieval, important slices and serving constraints pass their declared gates.",
+        "hold": 0.5
+      }
+    ]
+  },
+  {
+    "id": "c29",
+    "title": "Back at the caption archive",
+    "sourceChapters": [
+      "c29"
+    ],
+    "beats": [
+      {
+        "id": "c29-b01",
+        "say": "Here’s the archive again. Same query, same three captions, same scores. The original request was for a dog running, and the puppy was our target. Look at the sleeping dog. It still has about forty-two percent of the row.",
+        "hold": 0.45
+      },
+      {
+        "id": "c29-b02",
+        "say": "This editor wants to index by animal. Every clip with a dog in it should be findable, whatever the dog is doing. Which other caption should now count as an answer?",
+        "hold": 2.8
+      },
+      {
+        "id": "c29-b03",
+        "say": "The sleeping dog belongs too. With the old single target, its score derivative is still positive, about two point one two. Training would try to hide a clip this editor wants.",
+        "hold": 0.65
+      },
+      {
+        "id": "c29-b04",
+        "say": "These are two different clips. Give each one equal weight in the mean of their negative log probabilities. The sleeping dog now has a target of one half. Subtract that from its share and divide by point two. Its derivative becomes about minus point three eight.",
+        "hold": 0.3
+      },
+      {
+        "id": "c29-b05",
+        "say": "Descent now tries to raise its score. Only the relevance rule and its targets changed.",
+        "hold": 0.85
+      }
+    ]
+  },
+  {
+    "id": "c30",
+    "title": "Two decisions for a repair manual",
+    "sourceChapters": [
+      "c30"
+    ],
+    "beats": [
+      {
+        "id": "c30-b01",
+        "say": "Try the same audit on a repair manual. The query asks how to change a flat tire. Only A is marked positive. B is a verified mirror of the very same wheel guide. Both score point six five. A route planner scores point zero five.",
+        "hold": 0.3
+      },
+      {
+        "id": "c30-b02",
+        "say": "At this temperature the two copies take nearly equal halves of the row. Should B compete with A?",
+        "hold": 2.6
+      },
+      {
+        "id": "c30-b03",
+        "say": "The old label gives the mirror a derivative of about plus three point three. Descent would lower its score. Mask B and keep the scores fixed. The wheel guide now competes only against the route planner.",
+        "hold": 0.3
+      },
+      {
+        "id": "c30-b04",
+        "say": "B’s direct score derivative is zero and the loss falls to about point zero one eight nats. Two distinct verified answers could instead train a multi-positive loss.",
+        "hold": 0.7
+      },
+      {
+        "id": "c30-b05",
+        "say": "Turn to a separate held-out query. Where can I safely lift this car? Two passages answer it. Read up to the cutoff after rank two. The control puts the jack points second and leaves the lift diagram outside.",
+        "hold": 0.3
+      },
+      {
+        "id": "c30-b06",
+        "say": "The short index moves the jack points first. The lift diagram is still third. We require recall of at least three quarters on this example. Would you release this index?",
+        "hold": 3.2
+      },
+      {
+        "id": "c30-b07",
+        "say": "Reciprocal rank doubled, from one half to one. Count the two judged answers. Each shortlist contains just the jack points. Recall is one half. Hold the short index. Full-width rescoring can only reorder the two passages inside the cutoff.",
+        "hold": 0.75
+      },
+      {
+        "id": "c30-b08",
+        "say": "Keep the checkpoint, input formatting, pooling and normalization with each index you test. The next lesson keeps the encoder fixed and changes how its vectors are scored and compressed. Watch the lift diagram in third place. To clear the recall floor, it has to join the jack points in the top two.",
+        "hold": 0.7
+      }
+    ]
+  }
+]

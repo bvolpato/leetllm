@@ -1,0 +1,220 @@
+{
+  "id": "repo-ignore-filter",
+  "slug": "repo-ignore-filter",
+  "title": "Repository Ignore Filter",
+  "difficulty": "Easy",
+  "category": "Repository Systems",
+  "language": "python3",
+  "timeEstimateMinutes": 30,
+  "timeLimitMs": 2500,
+  "memoryLimitMb": 128,
+  "order": 18,
+  "tags": [
+    "repository",
+    "ignore rules",
+    "path filtering",
+    "deterministic ordering"
+  ],
+  "source": "Cursor coding prep",
+  "summary": "Filter repository paths with simple ordered ignore and re-include rules.",
+  "starterCode": [
+    "def filter_repo_paths(paths: list[str], rules: list[str]) -> list[str]:",
+    "    pass"
+  ],
+  "testCases": [
+    {
+      "name": "public filters directory prefixes",
+      "visibility": "sample",
+      "description": "Directory rules remove every path under the prefix.",
+      "input": "paths=[\"src/app.py\",\"node_modules/lib.js\",\"dist/app.js\"], rules=[\"node_modules/\",\"dist/\"]",
+      "expected": "[\"src/app.py\"]",
+      "feedback": "A trailing slash means prefix match for a directory.",
+      "setup": [
+        "from solution import filter_repo_paths",
+        "paths = [\"src/app.py\", \"node_modules/lib.js\", \"dist/app.js\"]",
+        "rules = [\"node_modules/\", \"dist/\"]"
+      ],
+      "expression": "filter_repo_paths(paths, rules)"
+    },
+    {
+      "name": "public reinclude later rule",
+      "visibility": "sample",
+      "description": "A later negated rule can re-include a path under an ignored directory.",
+      "input": "paths=[\"dist/app.js\",\"dist/manifest.json\"], rules=[\"dist/\",\"!dist/manifest.json\"]",
+      "expected": "[\"dist/manifest.json\"]",
+      "feedback": "Later matching rules win, including negated rules.",
+      "setup": [
+        "from solution import filter_repo_paths",
+        "paths = [\"dist/app.js\", \"dist/manifest.json\"]",
+        "rules = [\"dist/\", \"!dist/manifest.json\"]"
+      ],
+      "expression": "filter_repo_paths(paths, rules)"
+    },
+    {
+      "name": "hidden exact file rule",
+      "visibility": "hidden",
+      "setup": [
+        "from solution import filter_repo_paths"
+      ],
+      "input": "filter_repo_paths([\"a.log\", \"src/a.log\"], [\"a.log\"])",
+      "expected": "[\"src/a.log\"]"
+    },
+    {
+      "name": "hidden later ignore wins after reinclude",
+      "visibility": "hidden",
+      "setup": [
+        "from solution import filter_repo_paths",
+        "paths = [\"logs/keep.txt\", \"logs/drop.txt\"]",
+        "rules = [\"logs/\", \"!logs/keep.txt\", \"logs/keep.txt\"]"
+      ],
+      "input": "paths = [\"logs/keep.txt\", \"logs/drop.txt\"]\nrules = [\"logs/\", \"!logs/keep.txt\", \"logs/keep.txt\"]\nfilter_repo_paths(paths, rules)",
+      "expected": "[]",
+      "expression": "filter_repo_paths(paths, rules)"
+    },
+    {
+      "name": "hidden comments and blank rules",
+      "visibility": "hidden",
+      "setup": [
+        "from solution import filter_repo_paths"
+      ],
+      "input": "filter_repo_paths([\"a\", \"b\"], [\"\", \"# comment\", \"b\"])",
+      "expected": "[\"a\"]"
+    },
+    {
+      "name": "hidden invalid path rejected",
+      "visibility": "hidden",
+      "code": [
+        "from solution import filter_repo_paths",
+        "for path in (\"\", \"a//b\", \"a/./b\", \"../x\"):",
+        "    try:",
+        "        filter_repo_paths([path], [])",
+        "    except ValueError:",
+        "        pass",
+        "    else:",
+        "        raise AssertionError(\"expected invalid path\")"
+      ]
+    },
+    {
+      "name": "hidden invalid rule rejected",
+      "visibility": "hidden",
+      "code": [
+        "from solution import filter_repo_paths",
+        "for rule in (\"../secret\", \"!\", \"/\", \"a//\", \"!a/../b\"):",
+        "    try:",
+        "        filter_repo_paths([], [rule])",
+        "    except ValueError:",
+        "        pass",
+        "    else:",
+        "        raise AssertionError(\"expected invalid rule even with no candidates\")"
+      ]
+    },
+    {
+      "name": "public no rules preserves path order",
+      "visibility": "sample",
+      "description": "Without matching rules, every valid path remains in input order.",
+      "setup": [
+        "from solution import filter_repo_paths"
+      ],
+      "input": "filter_repo_paths([\"z.txt\", \"src/a.py\", \"README.md\"], [])",
+      "expected": "[\"z.txt\", \"src/a.py\", \"README.md\"]",
+      "feedback": "Append kept paths while iterating the original path list."
+    },
+    {
+      "name": "hidden directory reinclude and bare dir path",
+      "visibility": "hidden",
+      "setup": [
+        "from solution import filter_repo_paths"
+      ],
+      "checks": [
+        {
+          "input": "paths = [\"logs/keep.txt\", \"logs/drop.txt\", \"dist\"]\nrules = [\"logs/\", \"!logs/\", \"dist/\"]\nfilter_repo_paths(paths, rules)",
+          "expression": "filter_repo_paths([\"logs/keep.txt\", \"logs/drop.txt\", \"dist\"], [\"logs/\", \"!logs/\", \"dist/\"])",
+          "expected": "[\"logs/keep.txt\", \"logs/drop.txt\", \"dist\"]",
+          "operator": "=="
+        },
+        {
+          "input": "filter_repo_paths([\"src/a.py\"], [\"  # comment  \", \"  dist/  \"])",
+          "expression": "filter_repo_paths([\"src/a.py\"], [\"  # comment  \", \"  dist/  \"])",
+          "expected": "[\"src/a.py\"]",
+          "operator": "=="
+        }
+      ]
+    },
+    {
+      "name": "hidden directory prefix respects slash boundary",
+      "visibility": "hidden",
+      "setup": ["from solution import filter_repo_paths"],
+      "input": "filter_repo_paths([\"dist\", \"dist/app.js\", \"distance/app.js\"], [\"dist/\"])",
+      "expected": "[\"dist\", \"distance/app.js\"]",
+      "feedback": "Use the full directory plus slash as the prefix; don't match its bare name or similarly named directories."
+    },
+    {
+      "name": "hidden paths stay literal with duplicates",
+      "visibility": "hidden",
+      "setup": ["from solution import filter_repo_paths"],
+      "input": "filter_repo_paths([\" x \", \"x\", \" x \", \"*.log\", \"a.log\"], [\"x\", \"*.log\"])",
+      "expected": "[\" x \", \" x \", \"a.log\"]",
+      "feedback": "Strip rules only. Keep candidate spelling and duplicates; wildcard characters are literal."
+    }
+  ],
+  "clarifyingQuestions": [
+    "Do rules need glob support or only exact/prefix matching?",
+    "Should later rules override earlier rules?",
+    "Should negation re-include files inside ignored directories?",
+    "Should matching be case-sensitive?"
+  ],
+  "followUps": [
+    "Add `*` glob matching.",
+    "Compile rules for faster repeated filtering.",
+    "Explain why excluded files should not enter indexing or upload manifests."
+  ],
+  "followUpGuide": [
+    "For glob matching, compile patterns once and preserve rule order.",
+    "",
+    "For repeated filtering, parse each rule into `{negated, prefix, pattern}` before scanning paths.",
+    "",
+    "This filter controls which paths enter indexing or upload. A re-include rule can restore a path, so enforce authorization independently for file reads, tools, uploads, and retrieval."
+  ],
+  "complexityAnalysis": [
+    "- Let p be candidate count, r be rule count, and L bound path/rule length. Parsing and validation cost O((p+r)*L); ordered matching costs O(p*r*L). Total time is O((p+r+p*r)*L), including empty-input cases.",
+    "- The shown solution already compiles rules once. Auxiliary space is O(r*L+L) for retained rule strings and temporary path segments, plus O(p) references in the output. Reusing compiled rules across calls avoids repeating parsing.",
+    "- Glob follow-up can raise match cost, so the production path should precompile patterns."
+  ],
+  "solutionGuide": [
+    "Strip each rule, parse its optional negation and directory suffix, then validate the remaining pattern. Validate candidate paths without normalizing them. Track whether each candidate is ignored as you scan rules in order; the last matching rule wins.",
+    "",
+    "```python",
+    "def _validate_path(path: str) -> None:",
+    "    parts = path.split(\"/\")",
+    "    if not path or any(part in {\"\", \".\", \"..\"} for part in parts):",
+    "        raise ValueError(\"invalid path\")",
+    "",
+    "",
+    "def _parse_rule(rule: str):",
+    "    rule = rule.strip()",
+    "    if not rule or rule.startswith(\"#\"):",
+    "        return None",
+    "    negated = rule.startswith(\"!\")",
+    "    pattern = rule[1:] if negated else rule",
+    "    is_prefix = pattern.endswith(\"/\")",
+    "    clean = pattern[:-1] if is_prefix else pattern",
+    "    _validate_path(clean)",
+    "    return negated, clean, is_prefix",
+    "",
+    "",
+    "def filter_repo_paths(paths: list[str], rules: list[str]) -> list[str]:",
+    "    parsed = [item for rule in rules if (item := _parse_rule(rule)) is not None]",
+    "    kept = []",
+    "    for path in paths:",
+    "        _validate_path(path)",
+    "        ignored = False",
+    "        for negated, pattern, is_prefix in parsed:",
+    "            matched = path.startswith(pattern + \"/\") if is_prefix else path == pattern",
+    "            if matched:",
+    "                ignored = not negated",
+    "        if not ignored:",
+    "            kept.append(path)",
+    "    return kept",
+    "```"
+  ]
+}

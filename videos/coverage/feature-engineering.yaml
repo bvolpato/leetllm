@@ -1,0 +1,178 @@
+version: 1
+lesson: feature-engineering
+promise: Rebuild the inputs a scheduler could read at its decision time and use the captured request to explain a score difference.
+framing:
+  - intro
+objectives:
+  - id: time
+    can: Select the latest readable heartbeat for one job and cutoff, and use a later finish to label that decision.
+    scenes:
+      - intro
+      - decision-time
+      - temporal-contract
+      - earned-feature-transfer
+  - id: numeric
+    can: Compute standard and robust scores, update a running variance, and distinguish an absent reading from a measured zero.
+    scenes:
+      - numerical-scale
+      - running-statistics
+      - scale-artifact
+      - missingness
+  - id: categories
+    can: Map an unseen pool to the intended coordinates and identify which jobs can contribute to a held-out or time-limited target encoding.
+    scenes:
+      - categories
+      - category-contract
+      - crossfit-construction
+      - matured-encoding
+  - id: contract
+    can: Validate named rows and pair fixed coordinate order with its actual model weights.
+    scenes:
+      - contract
+      - row-validation
+      - vector-construction
+      - preprocessing-change
+  - id: parity
+    can: Locate a mismatched slot, replay a repair while preserving the capture, and apply the feed's lag policy.
+    scenes:
+      - parity
+      - parity-calculation
+      - store-and-freshness
+      - wrap
+      - earned-feature-transfer
+sections:
+  - heading: The temporal decision barrier and point-in-time correctness
+    status: taught
+    note: The four jobs in leaky-escalation-rule.py distinguish a rule that could run at scoring time from one that copies a later outcome. The heartbeat lookup checks both clocks in keep-visible-events.py.
+    scenes:
+      - intro
+      - decision-time
+      - temporal-contract
+      - earned-feature-transfer
+  - heading: "Numerical transformations: scale, skewness, and missingness"
+    status: taught
+    scenes:
+      - numerical-scale
+      - running-statistics
+      - scale-artifact
+      - missingness
+  - heading: Standardization and robust scaling
+    status: taught
+    scenes:
+      - numerical-scale
+      - running-statistics
+      - scale-artifact
+  - heading: Missingness indicators preserve the measurement gap
+    status: taught
+    scenes:
+      - missingness
+      - row-validation
+  - heading: "Categorical encodings: one-hot pitfalls and smoothed target encoding"
+    status: taught
+    scenes:
+      - categories
+      - category-contract
+      - crossfit-construction
+      - matured-encoding
+  - heading: One-hot encoding and its limits
+    status: taught
+    scenes:
+      - category-contract
+      - vector-construction
+  - heading: Out-of-fold target encoding with m-estimate smoothing
+    status: taught
+    note: The T8 flip uses the two folds in out-of-fold-target-encoding.py. The forward replay uses the score and availability times in encode-from-matured-labels.py.
+    scenes:
+      - crossfit-construction
+      - matured-encoding
+  - heading: Feature contracts and strict row validation
+    status: taught
+    scenes:
+      - contract
+      - row-validation
+      - vector-construction
+  - heading: Changing preprocessing changes what the model receives
+    status: taught
+    scenes:
+      - preprocessing-change
+      - scale-artifact
+      - parity-calculation
+  - heading: Compare the offline row with the live row
+    status: taught
+    note: The three captures in check-parity.py distinguish a value mismatch from an absent key. The fresh ten o'clock case applies the earlier linear worksheet to a different job.
+    scenes:
+      - parity
+      - parity-calculation
+      - wrap
+      - earned-feature-transfer
+  - heading: The unified feature store pattern
+    status: taught
+    scenes:
+      - store-and-freshness
+      - parity-calculation
+      - wrap
+quiz:
+  - n: 1
+    status: taught
+    scenes:
+      - intro
+      - temporal-contract
+  - n: 2
+    status: taught
+    scenes:
+      - missingness
+      - row-validation
+  - n: 3
+    status: taught
+    scenes:
+      - decision-time
+      - temporal-contract
+      - earned-feature-transfer
+  - n: 4
+    status: taught
+    scenes:
+      - numerical-scale
+      - scale-artifact
+  - n: 5
+    status: taught
+    scenes:
+      - crossfit-construction
+  - n: 6
+    status: taught
+    scenes:
+      - vector-construction
+      - earned-feature-transfer
+  - n: 7
+    status: taught
+    scenes:
+      - store-and-freshness
+  - n: 8
+    status: taught
+    scenes:
+      - store-and-freshness
+      - wrap
+  - n: 9
+    status: taught
+    scenes:
+      - vector-construction
+      - row-validation
+  - n: 10
+    status: taught
+    scenes:
+      - parity-calculation
+removed:
+  - point: The invented notebook ROC-AUC of 0.98.
+    reason: The article's four-job example shows exactly which predictions match, and which rule uses the later outcome.
+reviews:
+  closed_book:
+    script: baf091a97424ccc1
+    taught: 10
+    partial: 0
+    absent: 0
+    reviewer: /root/upgrade_shard6
+    evidence: build/video-delivery-20261106/script-reviews/feature-engineering.json
+  fact_check:
+    script: baf091a97424ccc1
+    open_findings: 0
+    reviewer: /root/upgrade_shard6
+    evidence: build/video-delivery-20261106/script-reviews/feature-engineering.json

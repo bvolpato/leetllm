@@ -1,0 +1,724 @@
+version: 1
+id: capstone-production-llm-agent
+title: Build an Agent Whose Actions Stay Bound
+source: foundations/capstone-production-llm-agent/content.md
+voice: en-US-AndrewNeural
+rate: +0%
+sources:
+  - title: "Debenedetti et al.: AgentDojo"
+    url: https://arxiv.org/abs/2406.13352
+  - title: "SQLite: transactions"
+    url: https://www.sqlite.org/lang_transaction.html
+  - title: LangGraph interrupt persistence and restart semantics
+    url: https://docs.langchain.com/oss/python/langgraph/interrupts
+scenes:
+  - id: intro
+    title: A policy answer can stop at a useful draft
+    visual: A policy inquiry follows a read-and-draft path while a separate operator request owns the access-write
+      path.
+    beats:
+      - say: A ticket asks what the policy says about a disabled production key. A useful agent can retrieve the
+          policy and prepare a cited reply. Restoring that key is a separate consequential action, with an
+          authorized operator request and approval that must survive beyond the conversation.
+        visual_cues:
+          - id: policy-inquiry
+            phrase: retrieve the policy and prepare a cited reply
+            targets:
+              - intro-mechanism
+            color: cyan
+          - id: operator-request
+            phrase: authorized operator request and approval
+            targets:
+              - intro-mechanism
+            color: yellow
+        hold: 0.75
+      - say: We will build the boundary between those paths. The article runs a local orchestration and SQLite lab
+          with deterministic fixtures. Our animations trace its validation, state transitions and operation
+          ledger so we can see exactly what a proposal, an approval and an observed effect each mean.
+        visual_cues:
+          - id: path-boundary
+            phrase: boundary between those paths
+            targets:
+              - intro-mechanism
+            color: blue
+          - id: observed-effect
+            phrase: proposal, an approval and an observed effect
+            targets:
+              - intro-mechanism
+            color: green
+        hold: 0.85
+      - say: The runnable module is production_agent dot py, with draft, stage, approve, execute, count and evaluate
+          commands. It uses standard-library Python and a version-four SQLite schema with no migration from
+          version three. Its pinned identities are access-agent-fixture-v-four, access-agent-episodes-v-two
+          and trajectory-gate-v-two. These identify the experiment, not an authenticated producer. The local
+          intake, document-QA and dashboard adapters preserve earlier capstone contracts without claiming to
+          run their learned models.
+        hold: 0.7
+        visual_cues:
+          - id: intro-core-3
+            phrase: The runnable module is production_agent dot py, with draft, stage, approve, execute, count and
+              evaluate commands
+            targets:
+              - intro-mechanism
+            color: cyan
+            linger: 0.8
+  - id: intake
+    title: Verify the ticket before planning
+    visual: Routine, urgent and stale-version intake records produce different admission decisions and
+      planner-step counts.
+    beats:
+      - say: Start outside the planner. The host obtains the ticket and checks its intake route, current bundle and
+          account grant. A user cannot establish those facts by adding the expected strings to request text.
+          The trusted service must bind the receipt to the actual ticket and principal.
+        visual_cues:
+          - id: trusted-intake
+            phrase: intake route, current bundle and account grant
+            targets:
+              - intake-field-grid
+            color: blue
+          - id: bound-principal
+            phrase: actual ticket and principal
+            targets:
+              - intake-host-owned-receipt-account-grant-remains-a300
+            color: yellow
+        hold: 0.75
+      - say: "Our routine fixture may enter planning. The urgent ticket and stale-bundle ticket stop beforehand with
+          zero planner steps. Admitting a workflow still leaves resource scope to enforce: this ticket permits
+          account A three hundred, so another account identifier remains outside its lookup grant."
+        visual_cues:
+          - id: preplanning-stops
+            phrase: urgent ticket and stale-bundle ticket stop beforehand
+            targets:
+              - intake-rejected-rows
+            color: pink
+          - id: account-grant
+            phrase: permits account A three hundred
+            targets:
+              - intake-host-owned-receipt-account-grant-remains-a300
+            color: yellow
+        hold: 0.85
+  - id: source-evidence
+    title: Copy one actual policy clause into the draft
+    visual: The same r104 question, A300 grant, fictional source clause and citation persist. Exact response
+      fields enter host evidence; a one-field forged answer fails while an ordinary paraphrase abstains.
+    beats:
+      - say: The fictional policy says production API key access may be restored after identity verification, and
+          privileged scopes require manager approval before access is queued. Keep both conditions when
+          drafting. The document-QA fixture accepts the one exact reviewed question. An injected instruction
+          and an ordinary paraphrase both abstain; no semantic retriever or injection detector runs here. A
+          production adapter needs representative quality tests, permission filters and trusted source
+          versions.
+        hold: 0.7
+        visual_cues:
+          - id: source-evidence-b1
+            phrase: The fictional policy says production API key access may be restored after identity verification, and
+              privileged scopes require manager approval before access is queued
+            targets:
+              - source-evidence-mechanism
+            color: cyan
+            linger: 0.8
+      - say: "The host checks the complete expected response: status, answer, citation, question and policy hash. A
+          matching citation with altered answer is rejected. A content hash identifies bytes, not producer
+          authenticity or whether a claim follows from a passage. Account eligibility also needs current
+          account evidence. The local draft copies the reviewed text verbatim, so this lab verifies evidence
+          consumption rather than benchmarking generated factual accuracy."
+        hold: 0.7
+        visual_cues:
+          - id: source-evidence-b2
+            phrase: "The host checks the complete expected response: status, answer, citation, question and policy hash"
+            targets:
+              - source-evidence-mechanism
+            color: cyan
+            linger: 0.8
+      - say: "Observe the state sequence: verified evidence, admitted account context, cited draft, then review stop.
+          A draft proposal before both prerequisites is blocked. An early human handoff may stop without a
+          draft; it still creates no approval or restore packet. The four-step cap bounds dispatch iterations,
+          and removing the stop only reaches that budget. Neither the cited answer nor the stop converts the
+          original policy question into an operator request."
+        hold: 0.7
+        visual_cues:
+          - id: source-evidence-b3
+            phrase: "Observe the state sequence: verified evidence, admitted account context, cited draft, then review
+              stop"
+            targets:
+              - source-evidence-mechanism
+            color: cyan
+            linger: 0.8
+  - id: loop
+    title: Let observations establish each next step
+    visual: Four deterministic actions accumulate verified policy, account context, a cited draft and a review stop.
+    beats:
+      - say: The bounded loop first obtains policy evidence, then reads the admitted account, then drafts from those
+          observations and stops for review. Each action changes what the runtime has established. A draft
+          request before evidence and account context fails its state prerequisites.
+        visual_cues:
+          - id: policy-evidence
+            phrase: first obtains policy evidence
+            targets:
+              - loop-mechanism
+            color: blue
+          - id: account-context
+            phrase: reads the admitted account
+            targets:
+              - loop-mechanism
+            color: cyan
+          - id: cited-draft
+            phrase: drafts from those observations
+            targets:
+              - loop-mechanism
+            color: green
+          - id: review-stop
+            phrase: stops for review
+            targets:
+              - loop-mechanism
+            color: yellow
+        hold: 0.75
+        motion_check:
+          region:
+            - 170
+            - 390
+            - 1580
+            - 550
+          minimumChangedFraction: 0.002
+      - say: Preserve those state transitions rather than trusting the final reply alone. The planner receives a copy
+          of the observation state, and the host validates every proposed action. A deep copy helps protect
+          this trusted-adapter fixture from accidental mutation. Untrusted executable code needs a separate
+          containment boundary.
+        visual_cues:
+          - id: state-transitions
+            phrase: Preserve those state transitions
+            targets:
+              - loop-mechanism
+            color: blue
+          - id: validated-action
+            phrase: host validates every proposed action
+            targets:
+              - loop-mechanism
+            color: yellow
+        hold: 0.85
+  - id: dispatch
+    title: A valid-looking proposal still needs permission
+    visual: Forbidden restore, wrong-account lookup and premature draft proposals are recorded with blocked
+      execution outcomes.
+    beats:
+      - say: Structured syntax makes a proposal easier to parse. Dispatch still checks the tool allowlist, exact
+          argument schema, admitted resource and current state. A lookup for another account may be perfectly
+          formed and still unauthorized. An extra approved field from the planner cannot mint a human
+          decision.
+        visual_cues:
+          - id: dispatch-gates
+            phrase: tool allowlist, exact argument schema, admitted resource and current state
+            targets:
+              - dispatch-readout-2
+            color: blue
+          - id: wrong-account
+            phrase: lookup for another account
+            targets:
+              - dispatch-readout
+            color: pink
+        hold: 0.75
+      - say: Record attempted and executed actions separately. A blocked restore proposal belongs in the trace with
+          its enforcement outcome and zero effects. Dropping it would hide an important diagnostic, while
+          counting every recorded proposal as an executed write would invent a side effect that never
+          happened.
+        visual_cues:
+          - id: separate-attempt
+            phrase: attempted and executed actions separately
+            targets:
+              - dispatch-field-grid
+            color: blue
+          - id: zero-effects
+            phrase: enforcement outcome and zero effects
+            targets:
+              - dispatch-effects
+            color: green
+        hold: 0.85
+      - say: The exact envelope contains only action and args. Each allowlisted action has exact argument keys and
+          strict types; strings must be nonblank and at most sixteen hundred characters. Missing arguments,
+          extra arguments and wrong types stop dispatch. Adding approved equals true at envelope level is an
+          invalid decision. These syntax checks precede ticket and state checks, so a well-formed request can
+          still be unauthorized. Copying state is useful against accidental adapter mutation, while untrusted
+          executable code requires separate filesystem, credential, network and resource containment.
+        hold: 0.7
+        visual_cues:
+          - id: dispatch-core-3
+            phrase: The exact envelope contains only action and args
+            targets:
+              - dispatch-mechanism
+            color: cyan
+            linger: 0.8
+  - id: approval
+    title: Bind review to one retained operation
+    visual: A separately staged packet retains ticket, account, scope, policy, draft and expiration; its reviewed
+      digest remains attached.
+    beats:
+      - say: After reviewing the draft, an authorized operator may separately request a restore. Stage a retained
+          operation packet naming its target, scope, policy and draft. A reviewer’s decision binds to the full
+          packet, including expiration, and must come through a trusted identity path.
+        visual_cues:
+          - id: retained-operation
+            phrase: retained operation packet naming its target, scope, policy and draft
+            targets:
+              - approval-mechanism
+            color: yellow
+          - id: review-expiration
+            phrase: full packet, including expiration
+            targets:
+              - approval-mechanism
+            color: yellow
+        hold: 0.75
+      - say: The article persists these records across processes in SQLite. Its reviewer identity is a fixture. In a
+          real service, protect the packet and review store, obtain authenticated decisions and define
+          revocation. A status string and a matching digest establish only the checks their implementation
+          actually performs.
+        visual_cues:
+          - id: persisted-review
+            phrase: persists these records across processes
+            targets:
+              - approval-mechanism
+            color: blue
+          - id: authenticated-review
+            phrase: authenticated decisions
+            targets:
+              - approval-mechanism
+            color: green
+        hold: 0.85
+      - say: The stable operation ID hashes ticket, account, scope, policy hash and exact draft. Expiration is stored
+          on first insertion and belongs to the separate full-packet review digest. Restaging the same payload
+          does not extend its window. A later expiry needs an explicit new operation and review in a live
+          contract. The fixture preserves the first Boolean review decision. SQLite begins an immediate write
+          transaction before reading approval and executing; one writer can proceed at a time, and another can
+          receive a busy error. The effect primary key prevents a second local row.
+        hold: 0.7
+        visual_cues:
+          - id: approval-core-3
+            phrase: The stable operation ID hashes ticket, account, scope, policy hash and exact draft
+            targets:
+              - approval-mechanism
+            color: cyan
+            linger: 0.8
+  - id: replay
+    title: A retry should recover one operation
+    visual: An injected pre-commit failure leaves no committed effect, followed by one successful retry and a
+      duplicate replay.
+    beats:
+      - say: Consider a failure after inserting a local effect but before committing its transaction. Rolling back
+          leaves no effect from that attempt. The earlier committed approval remains, so a later retry can
+          complete the same operation while preserving a clear record of the failed attempt.
+        visual_cues:
+          - id: transaction-buffer
+            phrase: inserting a local effect but before committing
+            targets:
+              - replay-mechanism
+            color: yellow
+          - id: rollback-transaction
+            phrase: Rolling back leaves no effect
+            targets:
+              - replay-mechanism
+            color: pink
+          - id: retry-commit
+            phrase: later retry can complete the same operation
+            targets:
+              - replay-mechanism
+            color: green
+        hold: 0.75
+        motion_check:
+          region:
+            - 180
+            - 410
+            - 1560
+            - 470
+          minimumChangedFraction: 0.002
+      - say: "Once committed, replaying that operation finds the existing effect instead of inserting another. The
+          local effect count stays one. A remote service is outside this database transaction: after an
+          uncertain remote outcome, use its actual idempotency contract or reconcile authoritative state
+          before deciding to repeat a call."
+        visual_cues:
+          - id: duplicate-replay
+            phrase: replaying that operation finds the existing effect
+            targets:
+              - replay-mechanism
+            color: blue
+          - id: single-effect
+            phrase: local effect count stays one
+            targets:
+              - replay-mechanism
+            color: green
+        hold: 0.85
+  - id: expiry
+    title: An old review cannot authorize an edited packet
+    visual: Expiration stops a new execution, and extending stored expiration without a new matching review fails
+      the packet digest.
+    beats:
+      - say: Time remains part of the execution check. At the expiration boundary, a new execution is blocked even if
+          the operation previously completed. The response describes what is permitted now, while the effect
+          ledger preserves what happened earlier. Those facts can both be true.
+        visual_cues:
+          - id: expiry-boundary
+            phrase: expiration boundary
+            targets:
+              - expiry-mechanism
+            color: yellow
+          - id: expired-execution
+            phrase: new execution is blocked
+            targets:
+              - expiry-mechanism
+            color: pink
+          - id: prior-effect
+            phrase: ledger preserves what happened earlier
+            targets:
+              - expiry-mechanism
+            color: green
+        hold: 0.75
+      - say: Now extend the stored expiration while keeping the old approval. The operation identifier still names the
+          same request, but the reviewed packet changed. Compare its full digest and reject the mismatch.
+          Protected writers matter because someone who can rewrite both packet and approval can defeat a
+          simple comparison.
+        visual_cues:
+          - id: changed-expiration
+            phrase: extend the stored expiration
+            targets:
+              - expiry-mechanism
+            color: yellow
+          - id: reviewed-expiration
+            phrase: keeping the old approval
+            targets:
+              - expiry-mechanism
+            color: blue
+          - id: compare-packet-digest
+            phrase: Compare its full digest
+            targets:
+              - expiry-mechanism
+            color: yellow
+          - id: digest-mismatch
+            phrase: reject the mismatch
+            targets:
+              - expiry-mechanism
+            color: pink
+        hold: 0.85
+      - say: Recheck live preconditions as well as stored review bytes. Revoking account verification, changing its
+          scope, or changing the admitted ticket question makes the unchanged reviewed packet stale. Each
+          supplied case returns blocked stale preconditions with zero effects in its own database. These are
+          sequential fixture edits, not an atomic snapshot across an identity service. Real deployments must
+          define freshness, concurrency and revocation at their own boundaries.
+        hold: 0.7
+        visual_cues:
+          - id: expiry-core-3
+            phrase: Recheck live preconditions as well as stored review bytes
+            targets:
+              - expiry-mechanism
+            color: cyan
+            linger: 0.8
+          - id: expiry-stale-result
+            phrase: Each supplied case returns blocked stale preconditions with zero effects in its own database
+            targets:
+              - expiry-mechanism
+            color: cyan
+            linger: 0.5
+  - id: trace-budget
+    title: Account for the same request before and after one extra call
+    visual: Sequential events190/80/260/40 tokens and180/90/220/40ms build common-scale bars. One
+      appended500-token950ms event crosses three ceilings; invalid usage leaves totals unknown.
+    beats:
+      - say: "Use the supplied sequential telemetry to reconstruct the budget audit. Four events consume one hundred
+          ninety, eighty, two hundred sixty and forty tokens: five hundred seventy total. Durations one
+          hundred eighty, ninety, two hundred twenty and forty milliseconds sum to five hundred thirty. Limits
+          are four events, nine hundred tokens and twelve hundred milliseconds. All three observed values
+          pass."
+        hold: 0.7
+        visual_cues:
+          - id: trace-budget-b1
+            phrase: Use the supplied sequential telemetry to reconstruct the budget audit
+            targets:
+              - trace-budget-mechanism
+            color: cyan
+            linger: 0.8
+          - id: budget-token-result
+            phrase: five hundred seventy total
+            targets:
+              - trace-budget-mechanism
+            color: cyan
+            linger: 0.5
+          - id: budget-ms-result
+            phrase: sum to five hundred thirty
+            targets:
+              - trace-budget-mechanism
+            color: cyan
+            linger: 0.5
+          - id: budget-pass-result
+            phrase: All three observed values pass
+            targets:
+              - trace-budget-mechanism
+            color: cyan
+            linger: 0.5
+      - say: Append one completed five-hundred-token call lasting nine hundred fifty milliseconds. There are now five
+          events, one thousand seventy tokens and fourteen hundred eighty milliseconds. All three limits are
+          exceeded. The rule fails only when a value is strictly greater than its limit, so exactly nine
+          hundred tokens or twelve hundred milliseconds passes this audit. Missing, negative, nonfinite or
+          wrongly typed usage is invalid accounting, not free work. Python all-integer totals can remain exact
+          beyond float range; unrepresentable mixed or overflowing float totals are rejected.
+        hold: 0.7
+        visual_cues:
+          - id: trace-budget-b2
+            phrase: Append one completed five-hundred-token call lasting nine hundred fifty milliseconds
+            targets:
+              - trace-budget-mechanism
+            color: cyan
+            linger: 0.8
+          - id: budget-expanded-result
+            phrase: There are now five events, one thousand seventy tokens and fourteen hundred eighty milliseconds
+            targets:
+              - trace-budget-mechanism
+            color: cyan
+            linger: 0.5
+          - id: budget-fail-result
+            phrase: All three limits are exceeded
+            targets:
+              - trace-budget-mechanism
+            color: cyan
+            linger: 0.5
+      - say: This is post-run accounting. Enforce remaining allowances before dispatch and use per-call timeouts,
+          episode deadlines, output-token caps, concurrency controls and cancellation around execution. A
+          single model or tool call can outlast a step budget. Local cancellation need not stop remote work,
+          and delayed usage can arrive later. Bind failed and retried calls to the same request and reconcile
+          final usage instead of treating a missing receipt as zero.
+        hold: 0.7
+        visual_cues:
+          - id: trace-budget-b3
+            phrase: This is post-run accounting
+            targets:
+              - trace-budget-mechanism
+            color: cyan
+            linger: 0.8
+  - id: evaluation
+    title: Evaluate the trajectory and the actual effect
+    visual: Six local episodes retain planner actions, execution flags and directly observed effect counts under
+      an exact inventory.
+    beats:
+      - say: Evaluate intake stops, grounded drafting, unsupported evidence, forbidden writes and approval replay as
+          distinct episodes. Grade the trace against the expected boundary and inspect the effect store
+          directly. A polished final message cannot establish which resources were read or whether an external
+          action occurred.
+        visual_cues:
+          - id: episode-boundaries
+            phrase: forbidden writes and approval replay
+            targets:
+              - episode-final-cases
+            color: blue
+          - id: effect-store
+            phrase: inspect the effect store directly
+            targets:
+              - episode-effects
+            color: yellow
+        hold: 0.75
+      - say: Keep the complete episode inventory and candidate identity in the report. Bound step count, tokens and
+          wall-clock time with their own runtime controls. A later accounting audit can reveal an overrun, but
+          stopping an ongoing call requires deadlines and cancellation around execution itself.
+        visual_cues:
+          - id: complete-inventory
+            phrase: complete episode inventory
+            targets:
+              - episode-names
+            color: blue
+          - id: runtime-limits
+            phrase: runtime controls
+            targets:
+              - episode-outcomes
+            color: yellow
+        hold: 0.85
+      - say: The six named episodes are urgent intake, stale bundle, grounded draft, private-note injection, forbidden
+          restore and approval replay. The first two have zero planning steps. The grounded draft has four
+          permitted actions, the injection has policy abstention then handoff, the forbidden restore has one
+          recorded attempt with executed false, and the separately approved executor leaves one effect after
+          replay. Exported rows include action names and flags, not full arguments or results; resource
+          correctness still needs the original trace and trusted effect observations.
+        hold: 0.7
+        visual_cues:
+          - id: evaluation-core-3
+            phrase: The six named episodes are urgent intake, stale bundle, grounded draft, private-note injection,
+              forbidden restore and approval replay
+            targets:
+              - evaluation-mechanism
+            color: cyan
+            linger: 0.8
+  - id: release-mutations
+    title: Make a plausible report fail for the right reason
+    visual: Six episode identity slots hold trace-derived observations. Remove one, duplicate one, flip a
+      forbidden executed flag and switch candidate identity one variable at a time; the same fluent draft
+      remains.
+    beats:
+      - say: Hold a bad candidate even when its draft looks correct. The gate checks agent, dataset and grader
+          identities, then requires exactly one of each of the six episodes. Removing a row and duplicating
+          another is still incomplete coverage despite six total rows. It reruns the grader over observations
+          rather than accepting a passed flag. A wrong candidate cannot reuse another build's rows merely by
+          keeping its best answer.
+        hold: 0.7
+        visual_cues:
+          - id: release-mutations-b1
+            phrase: Hold a bad candidate even when its draft looks correct
+            targets:
+              - release-mutations-mechanism
+            color: cyan
+            linger: 0.8
+      - say: Flip only the forbidden restore's executed flag to true and the report fails. Change the approval-replay
+          effect count from integer one to Boolean true and strict typing rejects it, even though Python
+          treats true as numerically equal to one. Add an invented passed field and the exact row schema
+          rejects it. Trace attempts, permitted dispatches and directly queried SQLite effects remain separate
+          observations. Use a fresh database so prior effects cannot contaminate this run.
+        hold: 0.7
+        visual_cues:
+          - id: release-mutations-b2
+            phrase: Flip only the forbidden restore's executed flag to true and the report fails
+            targets:
+              - release-mutations-mechanism
+            color: cyan
+            linger: 0.8
+      - say: The unchanged report returns fixture suite pass, not live release evidence or deployment permission.
+          Exact ordering is a regression contract for this deterministic fixture, not a universal definition
+          of good reasoning. Broader agents may have alternative valid trajectories. A trusted evaluation
+          producer must bind actual run observations to the candidate build. Matching version strings in an
+          unsigned report do not authenticate that provenance; independent held-out task and safety evidence
+          remain necessary.
+        hold: 0.7
+        visual_cues:
+          - id: release-mutations-b3
+            phrase: The unchanged report returns fixture suite pass, not live release evidence or deployment permission
+            targets:
+              - release-mutations-mechanism
+            color: cyan
+            linger: 0.8
+  - id: operational-contract
+    title: Carry local proofs into a production design
+    visual: Five demonstrated local mechanisms remain on screen while each gets its specific missing production
+      dependency. Approval storage and remote effect authority stay separate.
+    beats:
+      - say: The repository provides a deterministic planner and exact policy fixture, host-owned ticket and account
+          fixtures, persisted packet and review records, one local effect table, a four-step dispatch cap and
+          six execution-derived evaluation rows. Replacing the planner with a model means adding a validated
+          model and retrieval adapter and independent quality evidence. Replacing fixture principals means
+          authenticated producer identity and current resource grants. A fixture reviewer string is never a
+          network authentication mechanism.
+        hold: 0.7
+        visual_cues:
+          - id: operational-contract-b1
+            phrase: The repository provides a deterministic planner and exact policy fixture, host-owned ticket and
+              account fixtures, persisted packet and review records, one local effect table, a four-step
+              dispatch cap and six execution-derived evaluation rows
+            targets:
+              - operational-contract-mechanism
+            color: cyan
+            linger: 0.8
+      - say: Durable review needs a usable interface, trusted decision store, revocation and any required separation
+          of duties. An in-memory wait does not survive process loss or a lost HTTP connection; an
+          asynchronous future does not imply a dedicated suspended operating-system thread. LangGraph
+          checkpointers can retain state by thread ID, while interrupt resumes by restarting the interrupted
+          node. This lab instead stages a separate SQLite packet. Persistence itself grants neither review
+          authority nor execution permission.
+        hold: 0.7
+        visual_cues:
+          - id: operational-contract-b2
+            phrase: Durable review needs a usable interface, trusted decision store, revocation and any required
+              separation of duties
+            targets:
+              - operational-contract-mechanism
+            color: cyan
+            linger: 0.8
+      - say: "For actual remote writes, define destination idempotency and reconciliation, and enforce deadlines,
+          spend and concurrency. Keep only necessary traces and pending-packet data, with encryption,
+          redaction, access control and retention. The rollback proof depends on the insert remaining
+          uncommitted: committing before the injected failure makes it durable, and a later rollback cannot
+          undo that committed effect. The six-episode suite does not exercise every mutation, so retain
+          focused boundary checks and incident regressions alongside held-out evaluation."
+        hold: 0.7
+        visual_cues:
+          - id: operational-contract-b3
+            phrase: For actual remote writes, define destination idempotency and reconciliation, and enforce deadlines,
+              spend and concurrency
+            targets:
+              - operational-contract-mechanism
+            color: cyan
+            linger: 0.8
+          - id: durable-counterfactual-result
+            phrase: committing before the injected failure makes it durable, and a later rollback cannot undo that
+              committed effect
+            targets:
+              - operational-contract-mechanism
+            color: cyan
+            linger: 0.5
+  - id: synthesis
+    title: Predict a new blocked operation while history stays visible
+    visual: The same retained r104/A300 packet is approved with expiry2300. Edit expiry to2400 and revoke current
+      verification; packet_changed stops before stale_preconditions. Restore only expiry, then only
+      verification, to earn one committed local effect and duplicate replay without erasing history.
+    beats:
+      - say: Try a new composed failure after review. In a fresh database, stage the same policy draft at time two
+          thousand with expiration twenty-three hundred, then approve its full packet. Before execution at
+          twenty hundred one, edit only the stored expiry to twenty-four hundred and change A three hundred's
+          current identity verification from true to false. Keep the original approval digest. Which failed
+          check should appear first, and how many effects should exist?
+        hold: 0.8
+        visual_cues:
+          - id: synthesis-b1
+            phrase: Try a new composed failure after review
+            targets:
+              - synthesis-mechanism
+            color: cyan
+            linger: 0.8
+      - say: The executor returns blocked packet changed, with zero effects, because review binding is checked before
+          current eligibility. Restore only expiry to twenty-three hundred. The review digest now matches, but
+          execution returns blocked stale preconditions, still with zero effects. The verification fact is the
+          remaining failed input. An unchanged operation ID does not override either check.
+        hold: 0.8
+        visual_cues:
+          - id: synthesis-b2
+            phrase: The executor returns blocked packet changed, with zero effects, because review binding is checked
+              before current eligibility
+            targets:
+              - synthesis-mechanism
+            color: cyan
+            linger: 0.8
+          - id: synthesis-packet-result
+            phrase: The executor returns blocked packet changed, with zero effects
+            targets:
+              - synthesis-mechanism
+            color: cyan
+            linger: 0.7
+          - id: synthesis-expiry-repair
+            phrase: Restore only expiry to twenty-three hundred
+            targets:
+              - synthesis-mechanism
+            color: cyan
+            linger: 0.7
+          - id: synthesis-stale-result
+            phrase: execution returns blocked stale preconditions, still with zero effects
+            targets:
+              - synthesis-mechanism
+            color: cyan
+            linger: 0.7
+      - say: "Restore verification to true and revalidate at twenty hundred one. One simulated restore can commit; replay returns duplicate ignored and keeps that one effect. Each repair changed one input while the retained operation and historical attempts stayed visible. The original policy question remains a read-and-draft task. A separate operator request owns the restore, and the live service still needs authenticated grants, bounded calls, independent quality evidence and a deployment decision. Inference engineering next follows the serving request’s clocks and memory: prompt prefill, first token, later decode and the cache state each active conversation owns."
+        hold: 0.8
+        visual_cues:
+          - id: synthesis-b3
+            phrase: Restore verification to true and revalidate at twenty hundred one
+            targets:
+              - synthesis-mechanism
+            color: cyan
+            linger: 0.8
+          - id: synthesis-verification-repair
+            phrase: Restore verification to true
+            targets:
+              - synthesis-mechanism
+            color: cyan
+            linger: 0.7
+          - id: synthesis-commit-result
+            phrase: One simulated restore can commit
+            targets:
+              - synthesis-mechanism
+            color: cyan
+            linger: 0.7
+          - id: synthesis-replay-result
+            phrase: replay returns duplicate ignored and keeps that one effect
+            targets:
+              - synthesis-mechanism
+            color: cyan
+            linger: 0.7

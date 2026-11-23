@@ -1,0 +1,264 @@
+[
+  {
+    "id": "c01",
+    "title": "Where will the test put its byte?",
+    "sourceChapters": [
+      "c01"
+    ],
+    "beats": [
+      {
+        "id": "c01-b01",
+        "say": "The test reads four from its project fixture. It doubles four and gets eight, exactly what the test expected. It marks a passing case with a single lowercase x. Where should that byte go?",
+        "hold": 2.4
+      },
+      {
+        "id": "c01-b02",
+        "say": "Follow the x to the empty report under src. The test only reads the case file. Git settings play no part in this calculation. If the launcher grants writes by directory, which of these three directories needs that grant?",
+        "hold": 3
+      },
+      {
+        "id": "c01-b03",
+        "say": "Grant the report directory. With that permission the worker appends the x. The input still says four. An ordinary terminal command can inherit much more from your account, including access to home files, credentials and the network. A trusted supervisor gives the test just the operations it needs. A dedicated output directory can narrow the grant further.",
+        "hold": 1.4
+      }
+    ]
+  },
+  {
+    "id": "c02",
+    "title": "What must happen before Linux starts the test?",
+    "sourceChapters": [
+      "c02"
+    ],
+    "beats": [
+      {
+        "id": "c02-b01",
+        "say": "On Linux, Landlock lets a thread restrict itself without root privileges. First the launcher probes the running kernel's ABI, the version of the interface it supports. This job needs to govern both writing to an existing file and truncating it. The probe returns version two. Can the worker start?",
+        "hold": 2.8
+      },
+      {
+        "id": "c02-b02",
+        "say": "Keep it stopped. Truncation has its own right starting in version three. A write rule cannot supply it. If the interface is missing or disabled, record the probe error. Use another isolation mechanism only after verifying that it covers the required operations.",
+        "hold": 1
+      },
+      {
+        "id": "c02-b03",
+        "say": "On a host with the required coverage, create a ruleset and add the grants. Creating the descriptor gives the launcher a policy to configure. On this manual setup path, set no new privileges, then enforce the ruleset on thread A. Its future child inherits it. Existing thread B needs supported synchronization or separate enforcement. Later layers can tighten access.",
+        "hold": 1.1
+      },
+      {
+        "id": "c02-b04",
+        "say": "For the next launch, inspect the handles the child would inherit. The supervisor has a private test note open. A fresh open would be denied, but an existing descriptor can retain its read access. Close the unnecessary handle before launch. Keep sensitive handles with the supervisor.",
+        "hold": 1
+      },
+      {
+        "id": "c02-b05",
+        "say": "Suppose a draft ruleset grants writes across the project. Add a read grant to Git metadata in that same layer. Look at the write band above it. Does the new read grant remove the write?",
+        "hold": 2.7
+      },
+      {
+        "id": "c02-b06",
+        "say": "The parent still grants the write. Matching grants in one Landlock layer add rights together. For a fresh worker, replace the project grant with a write grant limited to the report directory. The report stays writable. A separately enforced layer or a read-only mount can also protect the metadata.",
+        "hold": 1.3
+      },
+      {
+        "id": "c02-b07",
+        "say": "Try a different job. It requires controls on TCP ports and signals across Landlock domains. The port controls begin in ABI four, and signal scoping begins in ABI six. The probe reports version four. Without a verified alternative, would you start this job?",
+        "hold": 2.7
+      },
+      {
+        "id": "c02-b08",
+        "say": "Hold this launch. The kernel can govern TCP ports but lacks the required signal scoping. Choose rights operation by operation. Executing a program, listing a directory, creating a file and moving it between directories are also distinct operations to check.",
+        "hold": 1
+      }
+    ]
+  },
+  {
+    "id": "c03",
+    "title": "Where does the next directory entry lead?",
+    "sourceChapters": [
+      "c03"
+    ],
+    "beats": [
+      {
+        "id": "c03-b01",
+        "say": "Two copies of the test now ask for the very same report name. Follow src into cache. In copy A, cache is a directory. In B, cache is a link to daily inside archive. Follow the link before interpreting the next part of the name.",
+        "hold": 1.1
+      },
+      {
+        "id": "c03-b02",
+        "say": "Two dots mean go to the parent of the directory you reached. Point to that parent in each copy. Only src permits data writes. Which report would receive the byte?",
+        "hold": 3.2
+      },
+      {
+        "id": "c03-b03",
+        "say": "Go up one directory. The left marker reaches src. The right reaches archive. Now take the final entry, report dot txt. The left report is writable. The right report is a protected test fixture. Erasing cache and the two dots on paper would lose the turn that led into archive.",
+        "hold": 1.3
+      },
+      {
+        "id": "c03-b04",
+        "say": "The article also tests a path helper on a fixed tree. It rejects the hooks and editor-settings subtrees and the exact names dot env and Git config. Try dot env dot local and config dot bak. Both pass that helper because their names differ. Both fall outside our src write grant. Five assertions run, and four results print. Git config is the unprinted check.",
+        "hold": 1.1
+      },
+      {
+        "id": "c03-b05",
+        "say": "A path prediction describes the tree at the time of the check. Entries can change before the file is used. Enforce access when the resource is opened, use race-resistant file handling, and include link and rename operations in the configured runner's tests.",
+        "hold": 1
+      }
+    ]
+  },
+  {
+    "id": "c04",
+    "title": "Who runs the saved formatter?",
+    "sourceChapters": [
+      "c04"
+    ],
+    "beats": [
+      {
+        "id": "c04-b01",
+        "say": "Start with a trusted editor configuration and no automatic formatting task. Model a worker with project-wide write access. It saves a formatting task in the workspace. The worker exits. Its process ends here. The file stays on disk.",
+        "hold": 1.7
+      },
+      {
+        "id": "c04-b02",
+        "say": "Later the host editor opens that folder. The developer trusts the workspace and approves the task. Which process gives the formatter its authority?",
+        "hold": 2.9
+      },
+      {
+        "id": "c04-b03",
+        "say": "The host editor starts the formatter under the developer's account. The host editor started a new process outside the earlier worker's boundary. A host Git checkout can likewise consume a previously saved hook. Review the configuration that a trusted tool will actually read, including metadata omitted from a normal tracked diff.",
+        "hold": 1.2
+      },
+      {
+        "id": "c04-b04",
+        "say": "Replay from the same clean starting files, with editor settings outside the write grant. The save is denied. The worker exits. The same host opens the folder. The trusted settings contain no formatting task, so this time no formatter starts. Inspect existing Git configuration, hooks, editor tasks, shell startup files and build scripts before a host tool uses them.",
+        "hold": 1.4
+      }
+    ]
+  },
+  {
+    "id": "c05",
+    "title": "Which gate decides a file read?",
+    "sourceChapters": [
+      "c05"
+    ],
+    "beats": [
+      {
+        "id": "c05-b01",
+        "say": "Two reads reach the Linux syscall filter. Both use openat. Seccomp inspects the call number and argument values. The pathname argument is an address. A classic filter cannot read the filename through it. Our filter admits both calls. One asks for a project fixture. The other asks for a private test note. Which read finishes?",
+        "hold": 2.6
+      },
+      {
+        "id": "c05-b02",
+        "say": "The filesystem admits the fixture and denies the private note. For the second read, the sequence is syscall allowed, resource denied, operation denied. A filter can also reject process tracing or raw packet sockets. Check the calls ordinary tools and their children need so the test can still start.",
+        "hold": 1.1
+      },
+      {
+        "id": "c05-b03",
+        "say": "Here is a model of a Linux worker set up with Bubblewrap. Source is writable. Git metadata and tools have read-only mounts, and scratch space is temporary. Namespaces can give the worker separate filesystem, process and network views. The read-only metadata mount would block a write. The filter descriptor is absent from this example. If you tried that write on the host and it failed, what could you conclude?",
+        "hold": 2.5
+      },
+      {
+        "id": "c05-b04",
+        "say": "That failure would show that the worker could not write to that metadata file in that run. To learn whether seccomp blocks process tracing, supply the intended filter and test tracing separately. Check namespace support, resource limits and child cleanup on the target Linux host.",
+        "hold": 1
+      },
+      {
+        "id": "c05-b05",
+        "say": "For an offline test, the supervisor fetches the approved dependency. It compares the wheel's digest with the trusted lockfile and mounts the matching package read-only. When the worker imports that code, it runs with the worker's permissions. The digest identifies the approved bytes. Keep the test and its children inside the file, credential and network boundaries.",
+        "hold": 1.3
+      }
+    ]
+  },
+  {
+    "id": "c06",
+    "title": "When may the Mac worker leave the start?",
+    "sourceChapters": [
+      "c06"
+    ],
+    "beats": [
+      {
+        "id": "c06-b01",
+        "say": "A Mac command-line runner can use a custom Seatbelt profile. The launcher must apply the required profile before the test starts. Here the load returns an error. Watch the test's starting position. How many workers has the launcher started?",
+        "hold": 2.7
+      },
+      {
+        "id": "c06-b02",
+        "say": "Zero workers started. Keep that failed run on the rail. On a second launch, the required profile becomes active. Only then does the launcher start the test. Apple's App Sandbox describes app access with entitlements. Validate the custom command-line profile on the macOS release that will run it.",
+        "hold": 1.2
+      },
+      {
+        "id": "c06-b03",
+        "say": "Loading a profile establishes which rules are active. Look at the article's example. It denies sensitive home paths but permits writes to the whole project. Follow that grant into Git metadata. Would a later host checkout inherit the worker's home-directory restriction?",
+        "hold": 2.6
+      },
+      {
+        "id": "c06-b04",
+        "say": "The checkout runs as the host. Narrow the writable scope and test both the metadata write and the later host action with harmless fixtures. The example binds a project path and separate SSH, AWS and Keychains paths. Check runtime reads, network operations and Mach service lookup separately. A filesystem result answers just the filesystem question.",
+        "hold": 1.2
+      }
+    ]
+  },
+  {
+    "id": "c07",
+    "title": "What crosses the broker socket?",
+    "sourceChapters": [
+      "c07"
+    ],
+    "beats": [
+      {
+        "id": "c07-b01",
+        "say": "The test needs to know whether pull request forty-two is open. A local Unix socket connects the worker to a trusted broker. The broker authenticates the caller and checks the method, repository, pull request number and arguments against the task. The host chooses the upstream origin and holds the credential.",
+        "hold": 1
+      },
+      {
+        "id": "c07-b02",
+        "say": "The GET matches. The broker attaches its credential on the outbound request. The reply contains number, state and a debug field. Only number and state go back to the worker. The socket gives its caller a capability, so limit who can open it and which requests it accepts. Keep the credential out of the worker's environment and logs.",
+        "hold": 1.2
+      },
+      {
+        "id": "c07-b03",
+        "say": "Leave the repository, number and caller fixed. Change the method to POST. Before the broker sends anything upstream, what should it do?",
+        "hold": 2.7
+      },
+      {
+        "id": "c07-b04",
+        "say": "Deny the request before dispatch. The earlier GET remains the only upstream call. Changing the repository or the pull request number would also exceed this task. Filtering a reply protects returned data. Authorization has to happen before the remote operation.",
+        "hold": 1.3
+      }
+    ]
+  },
+  {
+    "id": "c08",
+    "title": "Which file changed on the host?",
+    "sourceChapters": [
+      "c08"
+    ],
+    "beats": [
+      {
+        "id": "c08-b01",
+        "say": "Return to the two temporary checkouts. The recorded Mac experiment started with an empty source report and an empty archive fixture in each. Its Seatbelt profile denied file writes by default and allowed data writes under src. The two workers each tried to append one x using the path we followed. Predict the exit results and what the supervisor will find on disk.",
+        "hold": 3.2
+      },
+      {
+        "id": "c08-b02",
+        "say": "In A the append succeeds. The byte lands in the source report. In B the append to the archive fixture is denied. The shell reports operation not permitted. A process result is one piece of evidence. What should the host measure next?",
+        "hold": 2.6
+      },
+      {
+        "id": "c08-b03",
+        "say": "The supervisor compares both files in each checkout with their starting bytes. A has one byte in the source report and zero in archive. B still has two empty files. Those readbacks agree with the two exit results. The receipts apply to these appends on this Mac under this profile.",
+        "hold": 1.5
+      },
+      {
+        "id": "c08-b04",
+        "say": "Try a fresh case. The host puts the five bytes of clean in a disposable settings file. The worker should be able to update its report, but settings should be read-only. After a refused settings write, what exact bytes should the supervisor read back?",
+        "hold": 3
+      },
+      {
+        "id": "c08-b05",
+        "say": "It should read clean, all five bytes, and confirm the report gained its byte in the passing test. Keep the original bytes, exit results and active policy with each host receipt. Probe protected reads, metadata, network and process operations separately. If the required operation fails or the protected fixture changes, hold the launch and inspect the runner.",
+        "hold": 1.8
+      }
+    ]
+  }
+]

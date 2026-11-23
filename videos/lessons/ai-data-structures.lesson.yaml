@@ -1,0 +1,1375 @@
+version: 1
+id: ai-data-structures
+title: Which Notes Should the Assistant Read?
+source: foundations/data-structures-for-ai-systems/content.md
+voice: af_heart
+rate: "+12%"
+sources:
+  - title: "Python: built-in types"
+    url: https://docs.python.org/3/library/stdtypes.html
+  - title: "Python: heapq"
+    url: https://docs.python.org/3/library/heapq.html
+  - title: "Python: deque and Queue"
+    url: https://docs.python.org/3/library/collections.html#collections.deque
+  - title: Python hashability contract
+    url: https://docs.python.org/3/glossary.html#term-hashable
+  - title: CPython list representation
+    url: https://docs.python.org/3/faq/design.html#how-are-lists-implemented-in-cpython
+  - title: Synchronized queue operations
+    url: https://docs.python.org/3/library/queue.html
+  - title: MIT6.006 dynamic arrays and amortization
+    url: https://live.ocw.mit.edu/courses/6-006-introduction-to-algorithms-spring-2020/c08a3b63dfe5f6f6b32257d35f86ae63_MIT6_006S20_r02.pdf
+  - title: MIT6.006 graph representations and BFS
+    url: https://ocw.mit.edu/courses/6-006-introduction-to-algorithms-spring-2020/6afd7e9a85d7d36e204533569f9fccf6_MIT6_006S20_r09.pdf
+scenes:
+  - id: opening
+    title: Which two notes would you send?
+    visual: Open on a card statement with two identical payments. Keep the four notes beside it while the viewer looks for both words. Highlight the matching words and fill the two reply slots as their IDs are spoken.
+    beats:
+      - say: Why was my card charged twice?
+        hold: 0.2
+        visual_cues:
+          - id: opening-question
+            phrase: Why was my card charged twice
+            targets:
+              - opening-customer
+            color: yellow
+            linger: 0
+          - id: opening-terms
+            phrase: charged twice
+            targets: [opening-customer, opening-query-charged, opening-query-twice]
+            color: cyan
+            linger: 0
+      - say: Search these four notes.
+        hold: 0.2
+        visual_cues:
+          - id: opening-records
+            phrase: Search these four notes
+            targets: [opening-desk]
+            color: cyan
+            linger: 0.65
+      - say: Which two mention both words, charged and twice?
+        hold: 1.6
+        visual_cues:
+          - id: opening-predict
+            phrase: Which two mention both words
+            targets: [opening-desk, opening-query-charged, opening-query-twice]
+            color: yellow
+            linger: 0.65
+      - say: M0 and M2 match both.
+        hold: 0.8
+        visual_cues:
+          - id: opening-first
+            phrase: M0
+            targets: [opening-note-0, opening-first-slot]
+            color: green
+            linger: 0
+          - id: opening-second
+            phrase: M2
+            targets: [opening-note-2, opening-first-slot, opening-second-slot]
+            color: green
+        motion_check:
+          region: [122, 330, 1018, 560]
+          minimumChangedFraction: 0.002
+  - id: list
+    title: Where is the plan-change note?
+    visual: Rewind to the arrival of the fourth note. The plan-change ID survives a resize and then
+      moves one slot to the right.
+    beats:
+      - say: Start with the support notes in a list of numbered slots. Slot two reaches the plan-change note
+          directly. Its message ID belongs to the note; the slot describes its current position.
+        hold: 0.55
+        visual_cues:
+          - id: list-read
+            phrase: Slot two reaches
+            targets:
+              - list-ref-2
+            color: cyan
+            linger: 0.65
+      - say: Here the illustrative backing array is full. Make a larger array, copy the three references,
+          then append the new note. Spare slots make later appends cheap; occasional copying gives
+          amortized constant work.
+        hold: 0.55
+        visual_cues:
+          - id: list-grow
+            phrase: copy the three references
+            targets:
+              - list-storage
+            color: cyan
+            linger: 0.65
+          - id: list-append
+            phrase: append the new note
+            targets:
+              - list-ref-3
+            color: green
+            linger: 0.65
+        motion_check:
+          region:
+            - 150
+            - 300
+            - 1580
+            - 475
+          minimumChangedFraction: 0.002
+      - say: Insert a reference at the front and move every existing reference one slot right. Their message
+          IDs stay fixed. This operation takes linear work. Keep the IDs fixed as the query looks
+          them up.
+        hold: 0.65
+        visual_cues:
+          - id: list-shift
+            phrase: move every existing reference one slot right
+            targets:
+              - list-reference-row
+            color: yellow
+            linger: 0.65
+        motion_check:
+          region:
+            - 180
+            - 420
+            - 1540
+            - 340
+          minimumChangedFraction: 0.002
+  - id: representation
+    title: What does a list slot hold?
+    visual: Follow a reference from slot three to M2 after front insertion. Compare the list with a
+      packed row of numbers.
+    beats:
+      - say: Follow the reference from slot three to the plan-change note. In CPython a list keeps its
+          references side by side. Moving one leaves the note itself where it was. A known slot
+          takes constant time to read. If all you have is an ID, finding its slot can take a full
+          scan.
+        hold: 0.65
+        visual_cues:
+          - id: ds-representation-0
+            phrase: Follow the reference from slot three to the plan-change note
+            targets:
+              - ds-representation-mechanism
+            color: cyan
+            linger: 0.4
+      - say: With a row of measurements, each cell can hold the number itself. Python's array module packs
+          values of one basic type. A numeric tensor adds a shape and a data type for doing math
+          across those values. Our list of note references can change. Python therefore rejects the
+          list as a dictionary key. A tuple of integer IDs can serve as a key.
+        hold: 0.85
+        visual_cues:
+          - id: ds-representation-1
+            phrase: Python therefore rejects the list as a dictionary key. A tuple of integer IDs can serve as a
+              key
+            targets:
+              - ds-representation-mechanism
+            color: cyan
+            linger: 0.4
+  - id: amortized-ledger
+    title: How many references move?
+    visual: Follow seven references into a doubling array. The old-copy and new-write totals accumulate
+      separately. Drain the same seven from the front, then count the shifts for a backlog of fifty thousand.
+    beats:
+      - say: Count writes as the notes arrive. This example doubles capacity whenever it fills. CPython
+          chooses its own growth factor. Fill the first three slots. The fourth arrival copies all
+          three references and adds one. The next two arrivals use those spare slots.
+        hold: 0.75
+        visual_cues:
+          - id: ds-amortized-ledger-0
+            phrase: Fill the first three slots
+            targets:
+              - ds-amortized-ledger-mechanism
+            color: cyan
+            linger: 0.4
+          - id: ledger-fourth
+            phrase: The fourth arrival copies all three references and adds one
+            targets:
+              - ds-amortized-ledger-mechanism
+            color: cyan
+            linger: 0.4
+          - id: ledger-fifth-sixth
+            phrase: The next two arrivals use those spare slots
+            targets:
+              - ds-amortized-ledger-mechanism
+            color: cyan
+            linger: 0.4
+      - say: The seventh arrival copies six references and writes one of its own. Across the whole run, nine
+          copies plus seven new entries make sixteen writes. As a doubling array grows, the sizes it
+          copies form a geometric sum. Total copying grows in proportion to the number of appends.
+          That's what amortized constant time buys you. One append can still be expensive.
+        hold: 0.8
+        visual_cues:
+          - id: ds-amortized-ledger-1
+            phrase: The seventh arrival copies six references and writes one of its own
+            targets:
+              - ds-amortized-ledger-mechanism
+            color: cyan
+            linger: 0.4
+        caption_starts:
+          - Across the whole run
+      - say: Now drain those seven from the front. Six survivors slide left on the first removal, five on
+          the next. Keep removing the oldest until the row is empty. That's twenty-one moves. For n
+          items the shifts add up to n times the quantity n minus one, divided by two. A deque can
+          take the oldest from its end without paying for that slide. Reaching into the middle of a deque can still take linear time.
+        hold: 0.9
+        visual_cues:
+          - id: ds-amortized-ledger-2
+            phrase: Six survivors slide left on the first removal, five on the next. Keep removing the oldest
+              until the row is empty
+            targets:
+              - ds-amortized-ledger-mechanism
+            color: green
+            linger: 0.4
+      - say: Try the same drain with fifty thousand jobs. Take the first job and count the ones behind it. Every one of those references has to move. The next removal shifts one fewer. Sum those shrinking rows. More than a billion shifts just to deliver the jobs in order.
+        hold: 0.8
+        visual_cues:
+          - id: ledger-backlog
+            phrase: Take the first job and count the ones behind it
+            targets: [ds-amortized-ledger-mechanism]
+            color: cyan
+          - id: ledger-drain
+            phrase: Sum those shrinking rows
+            targets: [ds-amortized-ledger-mechanism]
+            color: yellow
+  - id: scan
+    title: How many notes did the search open?
+    visual: A scan counts the distinct matching words in each of the original four notes, including the
+      zero-score sign-in note.
+    beats:
+      - say: Test the question against the notes. The simplest search opens every note. Lowercase the words
+          and ignore punctuation in this tiny tokenizer. Move down the list, count matching query
+          words, and keep each score with its message ID.
+        hold: 0.55
+        visual_cues:
+          - id: scan-run
+            phrase: Move down the list
+            targets:
+              - scan-records
+            color: yellow
+            linger: 0.65
+      - say: The sign-in note earned no score, but the scan still read it. Repeated questions repeat that
+          work. We can prepare a different direction of lookup before the next request.
+        hold: 0.55
+        visual_cues:
+          - id: scan-cost
+            phrase: still read it
+            targets:
+              - scan-records
+            color: cyan
+            linger: 0.65
+  - id: scan-index
+    title: Start with a word
+    visual: IDs travel from source text into two of the word dictionary’s posting sets.
+    beats:
+      - say: "A repeated scan reopens every note. Turn that route around: build a dictionary whose keys are
+          words. Read the first note: charged receives its message ID, then twice receives the same
+          ID. We are displaying two entries of the full dictionary."
+        hold: 0.55
+        visual_cues:
+          - id: index-first-charged
+            phrase: charged receives its message ID
+            targets:
+              - index-source
+              - index-charged
+            color: cyan
+            linger: 0.65
+          - id: index-first-twice
+            phrase: twice receives the same ID
+            targets:
+              - index-source
+              - index-twice
+            color: green
+            linger: 0.65
+      - say: The sign-in note contributes other words. The plan-change note contains both query words, so
+          add its ID to both collections. Each word now leads back to the notes that supplied it.
+        hold: 0.6
+        visual_cues:
+          - id: index-other
+            phrase: contributes other words
+            targets:
+              - index-source
+            color: cyan
+            linger: 0.65
+          - id: index-second-source
+            phrase: The plan-change note
+            targets:
+              - index-source
+            color: cyan
+            linger: 0.65
+          - id: index-second
+            phrase: add its ID to both collections
+            targets:
+              - index-source
+              - index-charged
+              - index-twice
+            color: green
+            linger: 0.65
+        motion_check:
+          region:
+            - 850
+            - 350
+            - 860
+            - 390
+          minimumChangedFraction: 0.002
+      - say: The once-charged note adds its ID only to charged. Each value is a set of message IDs. A lookup
+          keeps the original word as its key; hash collisions are resolved by comparing keys.
+        hold: 0.55
+        visual_cues:
+          - id: index-third
+            phrase: adds its ID only to charged
+            targets:
+              - index-source
+              - index-charged
+            color: green
+            linger: 0.65
+  - id: hash-collision
+    title: Two words land in one bucket
+    visual: Both even character sums route to bucket zero. Probe the stored words, overwrite one entry
+      using only the bucket number, then restore the saved postings under their word keys.
+    beats:
+      - say: In this two-bucket index, add up the letter codes for each word and take the remainder after division
+          by two. Follow each sum to its bucket. Both are even, so both land in zero. The bucket holds both words.
+        hold: 0.65
+        visual_cues:
+          - id: ds-hash-collision-0
+            phrase: Follow each sum to its bucket
+            targets:
+              - ds-hash-collision-mechanism
+            color: cyan
+            linger: 0.4
+        caption_starts:
+          - Both are even
+      - say: Ask for twice. Compare it with charged, then with twice. Only the second string matches. A
+          hashable key keeps a stable hash, and equal keys must have equal hashes. Two different
+          keys can still collide.
+        hold: 0.9
+        visual_cues:
+          - id: ds-hash-collision-1
+            phrase: Compare it with charged, then with twice
+            targets:
+              - ds-hash-collision-mechanism
+            color: cyan
+            linger: 0.4
+        caption_starts:
+          - Only the second string matches
+      - say: Try storing just the number zero as the key. Charged has already written its three IDs there.
+          Now write the two IDs for twice in the same place. Look for charged again. Which note went
+          missing?
+        hold: 2.5
+        visual_cues:
+          - id: ds-hash-collision-2
+            phrase: Now write the two IDs for twice in the same place
+            targets:
+              - ds-hash-collision-mechanism
+            color: green
+            linger: 0.4
+      - say: The overwrite lost M3. Restore the saved postings under their original word keys. Charged
+          leads to M0, M2 and M3 again. Dictionary lookup takes constant time on average with suitable hashes and
+          bounded key costs. Many collisions can force a linear search, and hashing a long new
+          string takes work of its own.
+        hold: 0.8
+        visual_cues:
+          - id: hash-restore
+            color: cyan
+            linger: 0.4
+            phrase: Restore the saved postings under their original word keys
+            targets:
+              - ds-hash-collision-mechanism
+  - id: membership
+    title: What did the second “twice” add?
+    visual: Both occurrences in M0 reach the same posting set. A separate frequency counter advances on
+      each occurrence.
+    beats:
+      - say: M0 says, "My card was charged twice. I checked the statement twice." Follow the first
+          occurrence into the twice posting. The set stores its ID; a separate frequency field
+          records one.
+        hold: 0.55
+        visual_cues:
+          - id: membership-first
+            phrase: Follow the first occurrence
+            targets:
+              - membership-token-0
+              - membership-set
+              - membership-frequency
+            color: green
+            linger: 0.65
+      - say: Now insert the second occurrence. The same ID is already present, so the set stays unchanged
+          while frequency reaches two. Our binary scorer awards one point for this query word.
+        hold: 0.7
+        visual_cues:
+          - id: membership-second
+            phrase: insert the second occurrence
+            targets:
+              - membership-token-1
+              - membership-set
+              - membership-frequency
+            color: yellow
+            linger: 0.65
+  - id: scores
+    title: Which counters need to exist?
+    visual: Each posting ID travels to its message counter. A counter is created on the first visit,
+      then incremented in place on later visits.
+    beats:
+      - say: Look up charged and visit its posting IDs. Each visited ID adds one to its score counter. A
+          hash lookup takes expected constant work; scoring still visits every ID in the posting.
+        hold: 0.55
+        visual_cues:
+          - id: score-charged
+            phrase: visit its posting IDs
+            targets:
+              - score-postings
+              - score-lanes
+            color: cyan
+            linger: 0.65
+      - say: Look up twice. M0 and M2 now match both words, scoring two each. That's our answer. A score
+          dictionary holds the totals; the heap keeps the top two as candidates arrive.
+        hold: 0.55
+        visual_cues:
+          - id: score-absent
+            phrase: A score dictionary holds the totals
+            targets: [score-lanes]
+            color: cyan
+          - id: score-twice
+            phrase: M0 and M2 now match both words
+            targets:
+              - score-postings
+              - score-lanes
+            color: green
+            linger: 0.65
+  - id: heap
+    title: Which note gives up its place?
+    visual: The scored records enter a two-place min-heap. The viewer can see the scores before the root
+      leaves. Tied winners switch positions as the heap is repaired.
+    beats:
+      - say: The posting counters now hold candidate scores. Keep the two strongest notes in a min-heap. Put
+          the once-charged note into the root, the position we inspect when something stronger
+          arrives.
+        hold: 0.55
+        visual_cues:
+          - id: heap-first
+            phrase: Put the once-charged note into the root
+            targets:
+              - heap-actors
+            color: green
+            linger: 0.65
+      - say: The plan-change note has two points and enters the child slot. The parent is weaker than its
+          child. Only that partial order is required inside the heap.
+        hold: 0.55
+        visual_cues:
+          - id: heap-second
+            phrase: enters the child slot
+            targets:
+              - heap-actors
+            color: green
+            linger: 0.65
+      - say: The earlier note also has two points. The heap is full. Predict which retained note should
+          leave before we move anything.
+        hold: 1.3
+        visual_cues:
+          - id: heap-predict
+            phrase: Predict which retained note should leave
+            targets:
+              - heap-actors
+            color: yellow
+            linger: 0.65
+      - say: The weaker root leaves and the earlier note takes its place. Tied scores favor the lower
+          message ID. Restore the heap by moving the plan-change note up and the earlier note down.
+          The root is again the next result to evict.
+        hold: 0.65
+        visual_cues:
+          - id: heap-replace
+            phrase: weaker root leaves
+            targets:
+              - heap-actors
+            color: pink
+            linger: 0.65
+          - id: heap-sift
+            phrase: moving the plan-change note up and the earlier note down
+            targets:
+              - heap-actors
+            color: yellow
+            linger: 0.65
+        motion_check:
+          region:
+            - 790
+            - 320
+            - 930
+            - 500
+          minimumChangedFraction: 0.002
+      - say: The posting counters skip M1. Bring back its score from the scan. Zero fails the positive-score
+          check, so we discard M1 without comparing it with the root. M2 keeps its place. Sort the winners strongest first.
+          A bounded heap uses space for two winners, while
+          the score dictionary still holds its candidates.
+        hold: 0.55
+        visual_cues:
+          - id: heap-scan-zero
+            phrase: Bring back its score from the scan
+            targets: [heap-actors]
+            color: cyan
+          - id: heap-discard
+            phrase: discard M1
+            targets:
+              - heap-actors
+            color: pink
+            linger: 0.65
+          - id: heap-output
+            phrase: Sort the winners strongest first
+            targets:
+              - heap-output
+            color: green
+            linger: 0.65
+  - id: heap-order
+    title: What can the root tell you?
+    visual: Inspect the two edges of a three-node heap. Then replay the zero-score arrival with and
+      without the replacement guard. Count the edges on a seven-slot heap's repair path, then use the same three candidates to compare keeping one winner with sorting them all.
+    beats:
+      - say: Here are three numbers in a heap. Suppose smaller keys went left and larger keys went right.
+          Which way would you look for five? Take a look at where five actually sits.
+        hold: 2.1
+      - say: Check one against each of its children. One is smaller than either child. That satisfies the
+          min-heap rule. Now compare the left child with the root. Five is bigger than one. A binary
+          search tree would put larger keys on the right. A heap can leave its two children in
+          either order.
+        hold: 0.7
+        visual_cues:
+          - id: ds-heap-order-0
+            phrase: Check one against each of its children
+            targets:
+              - ds-heap-order-mechanism
+            color: cyan
+            linger: 0.4
+          - id: heap-order-left
+            color: cyan
+            linger: 0.4
+            phrase: Now compare the left child with the root
+            targets:
+              - ds-heap-order-mechanism
+        caption_starts:
+          - One is smaller
+          - Five is bigger
+      - say: Go back to the zero-point arrival. Call heap replace without checking the score. Watch which ID
+          leaves.
+        hold: 1.5
+        visual_cues:
+          - id: ds-heap-order-1
+            phrase: Call heap replace without checking the score
+            targets:
+              - ds-heap-order-mechanism
+            color: cyan
+            linger: 0.4
+      - say: M2 was a winner. Rewind and compare before replacing the root. The incoming key is smaller, so
+          keep M2. Python compares the score first, then the negative ID. That's how the lower ID
+          wins a tie.
+        hold: 0.9
+        visual_cues:
+          - id: heap-order-guard
+            color: cyan
+            linger: 0.4
+            phrase: Rewind and compare before replacing the root
+            targets:
+              - ds-heap-order-mechanism
+      - say: Find the root in one lookup. This heap has seven slots. Follow a repair down one path.
+          Two edges take us to a leaf. A push or pop compares a few keys per level. Doubling a binary heap adds one level.
+          When Python resizes the backing list, it can also copy every reference.
+          To keep k winners from m candidates, we repair at most one path per candidate. For k between two and m
+          inclusive, that takes order m times log k work and k extra slots.
+          For one winner, keep the best seen so far. For nearly all the candidates, sorting can be simpler.
+          Python's n-largest can sort directly when the whole list fits the limit.
+        hold: 0.75
+        visual_cues:
+          - id: ds-heap-order-2
+            phrase: Follow a repair down one path
+            targets:
+              - ds-heap-order-mechanism
+            color: green
+            linger: 0.4
+          - id: heap-order-double
+            phrase: Doubling a binary heap adds one level
+            targets: [ds-heap-order-mechanism]
+            color: cyan
+          - id: heap-order-resize
+            phrase: Python resizes the backing list
+            targets: [ds-heap-order-mechanism]
+            color: cyan
+          - id: heap-order-budget
+            phrase: To keep k winners from m candidates
+            targets: [ds-heap-order-mechanism]
+            color: cyan
+          - id: heap-order-one
+            phrase: For one winner, keep the best seen so far
+            targets: [ds-heap-order-mechanism]
+            color: green
+          - id: heap-order-sort
+            phrase: For nearly all the candidates
+            targets: [ds-heap-order-mechanism]
+            color: green
+  - id: code-contract
+    title: Can you check the index against a scan?
+    visual: Trace the article’s red fox query through the scan and the index. Then look up a missing key
+      and add a fourth document.
+    beats:
+      - say: Try the Python example with three different documents. Type red twice and then fox. Lowercase the
+          query, split on whitespace, and keep each word once. Red gets one vote. A comma stays
+          attached to its word in this tokenizer. The support-note search strips punctuation.
+        hold: 0.7
+        visual_cues:
+          - id: ds-code-contract-0
+            phrase: Lowercase the query, split on whitespace, and keep each word once
+            targets:
+              - ds-code-contract-mechanism
+            color: cyan
+            linger: 0.4
+      - say: Ask for red fox. Follow red to zero and two. Follow fox to two again. The scan reports pairs in
+          corpus order, so zero's single point appears first. The indexed search returns ranked IDs,
+          with the two-point fox first. Empty input or a result limit below one gives an empty list.
+        hold: 0.75
+        visual_cues:
+          - id: ds-code-contract-1
+            phrase: Follow red to zero and two
+            targets:
+              - ds-code-contract-mechanism
+            color: cyan
+            linger: 0.4
+          - id: code-fox
+            phrase: Follow fox to two again
+            targets:
+              - ds-code-contract-mechanism
+            color: cyan
+            linger: 0.4
+          - id: code-rank
+            phrase: The indexed search returns ranked IDs
+            targets:
+              - ds-code-contract-mechanism
+            color: cyan
+            linger: 0.4
+      - say: What about otter? A lookup with get returns an empty set and leaves the dictionary alone. Try
+          that word with brackets on the defaultdict we use to build the index. The dictionary grows
+          by one key just from that access.
+        hold: 1
+        visual_cues:
+          - id: ds-code-contract-2
+            phrase: Try that word with brackets on the defaultdict we use to build the index
+            targets:
+              - ds-code-contract-mechanism
+            color: cyan
+            linger: 0.4
+      - say: Add red fox runs as document three. Rebuild the index. Its ID now appears under red, fox and runs.
+          Which two IDs win for red fox?
+        hold: 2.5
+        visual_cues:
+          - id: code-rebuild
+            phrase: Rebuild the index. Its ID now appears under red, fox and runs
+            targets:
+              - ds-code-contract-mechanism
+            color: cyan
+            linger: 0.4
+      - say: Two foxes tie, so put the lower ID first. The dictionary remembers when it received each key.
+          The set keeps each ID once. Neither one orders results by relevance. We have to do that
+          ourselves.
+        hold: 0.9
+        visual_cues:
+          - id: code-new-ranking
+            phrase: put the lower ID first
+            targets:
+              - ds-code-contract-mechanism
+            color: cyan
+            linger: 0.4
+  - id: operation-ledger
+    title: Count one search
+    visual: Five posting visits feed three counters beside a two-place heap. Then compare the IDs reached by two single-word searches in the same index.
+    beats:
+      - say: Read the three IDs under charged. Then read the two IDs under twice. Five visits.
+          M0 and M2 each earn a second point, so three counters cover all five visits.
+        hold: 0.8
+        visual_cues:
+          - id: ds-operation-ledger-0
+            phrase: Read the three IDs under charged
+            targets:
+              - ds-operation-ledger-mechanism
+            color: cyan
+            linger: 0.4
+          - id: ledger-twice
+            phrase: Then read the two IDs under twice
+            targets:
+              - ds-operation-ledger-mechanism
+            color: cyan
+            linger: 0.4
+        caption_starts:
+          - Five visits. M0
+      - say: We built the index by reading all four notes before the first search. Now set aside two more
+          places for the heap. It holds the winners while the score map keeps a counter for every scored note.
+        hold: 0.8
+        visual_cues:
+          - id: ds-operation-ledger-1
+            phrase: set aside two more places for the heap
+            targets:
+              - ds-operation-ledger-mechanism
+            color: cyan
+            linger: 0.4
+      - say: Search for once. One lookup reaches one ID. Search for charged. One lookup reaches three IDs.
+          The longer list takes more visits. When you time a retriever, include the common words people search for.
+        hold: 0.9
+        visual_cues:
+          - id: ledger-rare
+            phrase: One lookup reaches one ID
+            targets: [ledger-once]
+            color: cyan
+          - id: ledger-common
+            phrase: One lookup reaches three IDs
+            targets: [ledger-charged]
+            color: yellow
+  - id: queue
+    title: Which waiting jobs have to move?
+    visual: Both rows begin on the same slot marks. Hand M0 to Worker A in the deque row, then move the list copy into its removed tray before the surviving references shift.
+    beats:
+      - say: The corpus keeps growing, so each new support note becomes an indexing job. Claim the oldest
+          waiting job from the left. A deque advances its head while the other references keep their
+          positions.
+        hold: 0.55
+        visual_cues:
+          - id: queue-claim
+            phrase: Claim the oldest waiting job
+            targets:
+              - queue-deque
+            color: cyan
+            linger: 0.65
+      - say: A list can return the same job, but removing slot zero shifts every remaining reference. A
+          deque makes repeated end operations constant work. Claim order is the first promise to
+          protect.
+        hold: 0.6
+        visual_cues:
+          - id: queue-list-shift
+            phrase: shifts every remaining reference
+            targets:
+              - queue-array
+            color: yellow
+            linger: 0.65
+        motion_check:
+          region:
+            - 610
+            - 570
+            - 1050
+            - 250
+          minimumChangedFraction: 0.002
+  - id: workers
+    title: Which worker owns the result?
+    visual: Jobs keep their IDs through out-of-order completion and a capacity wait. Switch from the
+      ring to a separate synchronized queue with only M3. Follow M3 from that queue to Worker B.
+    beats:
+      - say: Two workers claim jobs in arrival order. The second worker can finish first. Keep its result
+          attached to its message ID; the first worker still owns the older job. Then the older job
+          finishes under its own ID.
+        hold: 0.55
+        visual_cues:
+          - id: worker-second-claim
+            phrase: Two workers claim jobs
+            targets:
+              - worker-lanes
+            color: cyan
+            linger: 0.65
+          - id: worker-second-done
+            phrase: second worker can finish first
+            targets:
+              - worker-lanes
+            color: green
+            linger: 0.65
+          - id: worker-first-done
+            phrase: older job finishes under its own ID
+            targets:
+              - worker-lanes
+            color: yellow
+            linger: 0.65
+      - say: A separate two-slot ring buffer holds waiting jobs. Its head marks the oldest slot. A new job
+          must wait outside it. After a worker claims the oldest job, admit the pending job into the
+          free slot. No unprocessed job is overwritten.
+        hold: 0.55
+        visual_cues:
+          - id: capacity-wait
+            phrase: new job must wait outside it
+            targets:
+              - capacity-queue
+            color: yellow
+            linger: 0.65
+          - id: capacity-claim
+            phrase: worker claims the oldest job
+            targets:
+              - capacity-queue
+            color: cyan
+            linger: 0.65
+          - id: capacity-admit
+            phrase: admit the pending job
+            targets:
+              - capacity-queue
+            color: green
+            linger: 0.65
+      - say: A separate synchronized queue starts with just M3. Worker B calls get nowait and takes M3.
+          Worker A tries the same call. The queue raises Empty, and A catches it. An earlier nonempty
+          check reserves nothing. This in-memory ordering still needs durable completion and retry
+          handling in a shared service.
+        hold: 0.55
+        caption_starts:
+          - Worker B calls
+          - Worker A tries
+          - The queue raises Empty
+        visual_cues:
+          - id: worker-claim-contract
+            phrase: Worker B calls get nowait and takes M3
+            targets:
+              - claim-contract
+            color: cyan
+            linger: 0.65
+          - id: worker-claim-empty
+            phrase: Worker A tries the same call. The queue raises Empty
+            targets:
+              - claim-contract
+            color: pink
+            linger: 0.65
+          - id: worker-claim-earlier-check
+            phrase: An earlier nonempty check
+            targets:
+              - claim-contract
+            color: yellow
+            linger: 0.65
+          - id: worker-claim-no-reservation
+            phrase: reserves nothing
+            targets:
+              - claim-contract
+            color: pink
+            linger: 0.65
+        motion_check:
+          region:
+            - 140
+            - 290
+            - 1640
+            - 500
+          minimumChangedFraction: 0.002
+  - id: queue-policy
+    title: What happens to the third job?
+    visual: Two full containers receive the same arrival. One drops M0 and accepts M3. The other sends
+      M3 back to its producer. Only later do the workers claim the waiting jobs.
+    beats:
+      - say: Here are two places to keep the same jobs. Both are full. M0 arrived before M2. The producer
+          has one more note to index. In each row, track who owns M3 after the attempt.
+        hold: 2.6
+      - say: Append M3 to the bounded deque. M0 drops out the opposite end. Now try a nonblocking put on the
+          full queue. Where is M3 now?
+        hold: 1.6
+        visual_cues:
+          - id: ds-queue-policy-0
+            phrase: Append M3 to the bounded deque
+            targets:
+              - ds-queue-policy-mechanism
+            color: cyan
+            linger: 0.4
+          - id: ds-queue-policy-1
+            phrase: try a nonblocking put on the full queue
+            targets:
+              - ds-queue-policy-mechanism
+            color: cyan
+            linger: 0.4
+      - say: The producer still owns M3. The nonblocking put raised the Full exception, so the producer can retry or defer M3. The deque
+          kept the latest two items. That's handy for recent token history. For indexing, dropping
+          an unprocessed note would leave a hole in our search. A full ring also needs an explicit
+          choice to wait, reject, or overwrite.
+        hold: 0.75
+      - say: Let two workers claim the waiting jobs. Now try one more nonblocking get. It raises Empty
+          because both jobs have been claimed. First in, first out tells us which job leaves next. To tell whether
+          a job finished, we need a separate record of completion.
+        hold: 0.85
+        visual_cues:
+          - id: queue-policy-claim
+            color: cyan
+            linger: 0.4
+            phrase: Let two workers claim the waiting jobs
+            targets:
+              - ds-queue-policy-mechanism
+          - id: queue-policy-empty
+            color: cyan
+            linger: 0.4
+            phrase: try one more nonblocking get
+            targets:
+              - ds-queue-policy-mechanism
+  - id: tree
+    title: Which notes belong under Billing?
+    visual: Follow one topic branch to its three note leaves.
+    beats:
+      - say: If the customer asks for billing notes, a topic tree narrows the same candidate pool. It gives
+          each note one parent. Follow billing and visit its descendants; the access branch stays
+          outside this subtree. A topic tree organizes categories, while a search tree orders keys.
+        hold: 0.55
+        visual_cues:
+          - id: tree-walk
+            phrase: Follow billing and visit its descendants
+            targets:
+              - topic-tree
+            color: green
+            linger: 0.65
+  - id: graph
+    title: What if two notes point to the same neighbor?
+    visual: Walk the related-note graph, mark on discovery, and leave the queue unchanged on a duplicate
+      and on a back edge.
+    beats:
+      - say: Related notes can have several cross-links. Start with the first note queued and discovered.
+          Follow its neighbors, mark each newly discovered ID, and then enqueue it. The queue stores
+          work; the set prevents duplicate discovery.
+        hold: 0.55
+        visual_cues:
+          - id: graph-discover
+            phrase: mark each newly discovered ID
+            targets:
+              - graph-state
+            color: green
+            linger: 0.65
+      - say: One neighbor points to a note already waiting. Another points back to the start. Both IDs are
+          already discovered, so neither enters the queue again. Each reachable note is expanded
+          once in this fixed graph.
+        hold: 0.55
+        visual_cues:
+          - id: graph-duplicate
+            phrase: note already waiting
+            targets:
+              - graph-state
+            color: yellow
+            linger: 0.65
+          - id: graph-cycle
+            phrase: points back to the start
+            targets:
+              - graph-state
+            color: pink
+            linger: 0.65
+  - id: graph-cost
+    title: What did following the links cost?
+    visual: Count three reachable vertices and four outgoing edges. Compare the stored edges with the
+      sixteen possible source–target cells, then compare paths for a key and a prefix.
+    beats:
+      - say: Read the outgoing links for M0, M2 and M3. Three reachable notes, four links inspected.
+          Breadth-first and depth-first search each expand every reachable vertex once and inspect each
+          outgoing edge once. With constant-time queue or stack operations and expected constant-time
+          discovery checks, traversing these lists in stored order takes expected V plus E time.
+          Sorting neighbors costs extra. A four-by-four matrix has to represent all
+          sixteen possible pairs, even here.
+        hold: 0.65
+        visual_cues:
+          - id: ds-graph-cost-0
+            phrase: Read the outgoing links for M0, M2 and M3
+            targets:
+              - ds-graph-cost-mechanism
+            color: cyan
+            linger: 0.4
+      - say: Look for three in the search tree. Compare it with the root, then check the right child.
+          A balanced search tree has logarithmic depth. A skewed tree can take a linear walk.
+          Now follow the five letters on the right. With one edge per letter and constant-time
+          child lookup, reaching the prefix takes five steps. Follow the branches to read the
+          endings. Returning more completions takes more work. A compressed trie can store an
+          unbranched run of letters together.
+        hold: 0.7
+        visual_cues:
+          - id: ds-graph-cost-1
+            phrase: Compare it with the root, then check the right child
+            targets:
+              - ds-graph-cost-mechanism
+            color: cyan
+            linger: 0.4
+          - id: graph-prefix
+            phrase: Now follow the five letters on the right
+            targets: [ds-graph-cost-mechanism]
+            color: cyan
+          - id: graph-completions
+            phrase: Follow the branches to read the endings
+            targets: [ds-graph-cost-mechanism]
+            color: green
+  - id: trie
+    title: What can follow these five letters?
+    visual: Trace five prefix edges to three completed words. Follow the charged completion to the
+      three notes that contain it.
+    beats:
+      - say: "Autocomplete asks a different question: which words begin with charg? A trie follows one
+          symbol per edge. Walk the shared prefix once, keeping the suffix branches waiting."
+        hold: 0.55
+        visual_cues:
+          - id: trie-prefix
+            phrase: Walk the shared prefix once
+            targets:
+              - trie-prefix
+            color: green
+            linger: 0.65
+      - say: Now continue to the complete word charge and its endings. End markers identify charge,
+          charged and charges. Only charged appears in these four notes. Its posting contains M0, M2
+          and M3. Reaching a prefix depends on its length. Listing the completions also takes time
+          to visit the branches and return the words.
+        hold: 0.55
+        caption_starts:
+          - Only charged appears
+          - Its posting contains
+        visual_cues:
+          - id: trie-output
+            phrase: continue to the complete word charge and its endings
+            targets:
+              - trie-output
+            color: green
+            linger: 0.65
+          - id: trie-posting
+            phrase: Only charged appears in these four notes
+            targets: [trie-stored-term]
+            color: cyan
+  - id: invariant-checks
+    title: What would catch a lost note?
+    visual: Replay the Python checks on the small corpus, then follow an indexing retry across a process
+      restart.
+    beats:
+      - say: Before trusting the result, check the smaller promises. In the Python example, check the red
+          posting, the empty query, and the ranked scan against the index. Try a different case and
+          different result limits. The last two checks take the oldest job and follow a link back to
+          an already discovered note. These six tests can catch a wrong answer even when one
+          favorite query still passes.
+        hold: 0.7
+        visual_cues:
+          - id: ds-invariant-checks-0
+            phrase: check the red posting, the empty query, and the ranked scan against the index. Try a
+              different case and different result limits. The last two checks take the oldest job
+              and follow a link back to an already discovered note
+            targets:
+              - ds-invariant-checks-mechanism
+            color: cyan
+            linger: 0.4
+      - say: A worker writes an embedding and crashes before it can acknowledge the job. On restart, the
+          in-memory queue and index are gone. A broker may send that same job again. Use a durable
+          ID and make the downstream write idempotent so the retry can't create a second vector. A
+          transaction and uniqueness constraint can preserve that promise across workers. A local
+          ordering test can't exercise it.
+        hold: 0.85
+        visual_cues:
+          - id: invariant-write
+            phrase: A worker writes an embedding
+            targets:
+              - ds-invariant-checks-mechanism
+            color: cyan
+            linger: 0.4
+          - id: ds-invariant-checks-1
+            phrase: On restart, the in-memory queue and index are gone
+            targets:
+              - ds-invariant-checks-mechanism
+            color: cyan
+            linger: 0.4
+          - id: invariant-retry
+            phrase: A broker may send that same job again
+            targets:
+              - ds-invariant-checks-mechanism
+            color: cyan
+            linger: 0.4
+          - id: invariant-idempotent
+            phrase: make the downstream write idempotent
+            targets:
+              - ds-invariant-checks-mechanism
+            color: cyan
+            linger: 0.4
+  - id: cache-ownership
+    title: Whose list did the caller change?
+    visual: A cache hit first shares one mutable ranking across callers. Replay the same removal on a
+      request-owned copy of the immutable IDs.
+    beats:
+      - say: The search has produced two ranked IDs. Store that result under a key containing the query,
+          result limit and corpus version. A matching request can reuse it. A shared service also
+          separates permission scopes and scoring rules.
+        hold: 0.55
+        visual_cues:
+          - id: cache-store
+            phrase: Store that result
+            targets:
+              - cache-storage
+            color: green
+            linger: 0.65
+          - id: cache-hit
+            phrase: matching request can reuse it
+            targets:
+              - cache-storage
+            color: cyan
+            linger: 0.65
+      - say: A caller borrowing a mutable list can remove its first item and change the next hit. Replay
+          that mutation on a request-owned copy instead. The cached tuple and the next caller keep
+          both original IDs.
+        hold: 0.55
+        visual_cues:
+          - id: cache-alias-remove
+            phrase: remove its first item
+            targets:
+              - cache-ownership
+            color: pink
+            linger: 0.65
+          - id: cache-copy
+            phrase: request-owned copy
+            targets:
+              - cache-ownership
+            color: cyan
+            linger: 0.65
+          - id: cache-copy-remove
+            phrase: cached tuple and the next caller keep both
+            targets:
+              - cache-ownership
+            color: green
+            linger: 0.65
+  - id: eligibility
+    title: Who can read the cached pair?
+    visual: Keep all three scored candidates in rank order. The selection bracket initially misses M3.
+      Replay the choice with the caller’s permission, then deliver the previously visible M3.
+    beats:
+      - say: Copying fixes ownership. Access needs its own rule. This caller cannot read the first note.
+          Taking two global winners and then removing that note leaves only one accessible result.
+        hold: 0.55
+        visual_cues:
+          - id: eligibility-late
+            phrase: then removing that note
+            targets:
+              - eligibility-results
+            color: pink
+            linger: 0.65
+      - say: Filter the candidate pool by permission before choosing two winners. The once-charged note can
+          now fill the second slot. Share cached results only across compatible permission scopes,
+          or include that scope in the key.
+        hold: 0.55
+        visual_cues:
+          - id: eligibility-early
+            phrase: before choosing two winners
+            targets:
+              - eligibility-results
+            color: green
+            linger: 0.65
+          - id: eligibility-select
+            phrase: now fill the second slot
+            targets: [eligibility-results]
+            color: green
+  - id: cache-freshness
+    title: M2 changes its story
+    visual: Edit M2 and update the postings for the words it lost and gained. Publish the notes and
+      index as v8. Follow the original caller's permission scope from the lookup to the stored pair.
+    beats:
+      - say: M2 now says, "I can sign in after changing plans." Remove its ID from the postings for was,
+          charged and twice. Add it to can, sign and in. Its other postings stay the same.
+        hold: 0.45
+        visual_cues:
+          - id: freshness-edit
+            phrase: M2 now says
+            targets:
+              - freshness-stage
+            color: yellow
+            linger: 0.65
+          - id: freshness-postings
+            phrase: was, charged and twice
+            targets:
+              - freshness-stage
+            color: pink
+            linger: 0.65
+          - id: freshness-sign
+            phrase: can, sign and in
+            targets: [freshness-stage]
+            color: green
+        motion_check:
+          region:
+            - 240
+            - 330
+            - 1440
+            - 430
+          minimumChangedFraction: 0.002
+      - say: Publish the edited notes, index and version together. Return to the original caller,
+          who can read all four notes. Their saved pair, M0 and M2, stays with v7. The v8 lookup misses.
+        hold: 0.45
+        caption_starts:
+          - Return to the original caller
+          - The v8 lookup misses
+        visual_cues:
+          - id: freshness-publish
+            phrase: Publish the edited notes, index and version together
+            targets:
+              - freshness-stage
+            color: cyan
+            linger: 0.65
+          - id: freshness-scope
+            phrase: Return to the original caller, who can read all four notes
+            targets: [freshness-caller]
+            color: cyan
+          - id: freshness-miss
+            phrase: The v8 lookup misses
+            targets:
+              - freshness-stage
+            color: pink
+            linger: 0.65
+        motion_check:
+          region:
+            - 230
+            - 330
+            - 1460
+            - 430
+          minimumChangedFraction: 0.002
+      - say: M0 scores two and M3 scores one. For this caller, store their IDs under the v8 query key.
+          An eviction budget limits old versions.
+        hold: 0.45
+        caption_starts:
+          - For this caller
+        visual_cues:
+          - id: freshness-first-score
+            phrase: M0 scores two
+            targets: [freshness-stage]
+            color: green
+          - id: freshness-recompute
+            phrase: M0 scores two and M3 scores one
+            targets:
+              - freshness-stage
+            color: green
+            linger: 0.65
+          - id: freshness-store
+            phrase: store their IDs under the v8 query key
+            targets:
+              - freshness-stage
+            color: cyan
+            linger: 0.65
+        motion_check:
+          region:
+            - 230
+            - 330
+            - 1460
+            - 430
+          minimumChangedFraction: 0.002
+  - id: cache-recency
+    title: Which cache entry should leave?
+    visual: A read moves the charged entry to the recent end. Keep the next lookup outside the two occupied places until one becomes free. Then test what a version miss reads and what two tuples share.
+    beats:
+      - say: Both places in the cache are full. We looked up charged, then twice. Read charged again. Move that hit to the most recent end. Now someone asks for sign. Which entry can leave?
+        hold: 2.6
+        visual_cues:
+          - id: cache-lru-hit
+            phrase: Move that hit to the most recent end
+            targets: [ds-cache-recency-mechanism]
+            color: cyan
+          - id: cache-sign-request
+            phrase: Now someone asks for sign
+            targets: [ds-cache-recency-mechanism]
+            color: yellow
+      - say: Take the entry that went longest without a read. Slide the charged entry up and put sign in the free place. M2 belongs in that result now because its text mentions signing in. This is least recently used eviction. Reading a key in a plain dictionary leaves it in place. With an ordered dictionary, move a hit to the end and pop the oldest entry when you need room.
+        hold: 0.85
+        visual_cues:
+          - id: ds-cache-recency-1
+            phrase: Take the entry that went longest without a read. Slide the charged entry up and put sign in the free place
+            targets: [ds-cache-recency-mechanism]
+            color: cyan
+        caption_starts:
+          - Slide the charged entry up
+          - M2 belongs in that result
+      - say: Imagine we changed the version number before the postings were ready. The lookup would miss,
+          then read the old index and file a stale pair under the new key. Publish the matching
+          notes and index together with their version. A change to permissions, scoring or
+          normalization also needs its own key or an invalidation.
+        hold: 0.6
+        visual_cues:
+          - id: ds-cache-recency-0
+            phrase: Publish the matching notes and index together with their version
+            targets:
+              - ds-cache-recency-mechanism
+            color: cyan
+            linger: 0.4
+      - say: One more detail about the saved value. A tuple of integer IDs fixes the sequence. If two tuples
+          point to one mutable document instead, change the text through either reference. Both
+          readers see the edit. Decide who owns the document as well as who owns the list of IDs.
+        hold: 0.75
+        visual_cues:
+          - id: ds-cache-recency-2
+            phrase: change the text through either reference
+            targets:
+              - ds-cache-recency-mechanism
+            color: green
+            linger: 0.4
+  - id: answer
+    title: Ask the opening question again
+    visual: Put the four notes back on the opening desk. Read the IDs in the two current posting
+      sets, count their visits beside the matching text, and send the winning IDs to the reader.
+    beats:
+      - say: Use the original permission scope. Look up the two words we chose, charged and twice.
+          Charged gives M0 and M3 one point each. Twice gives M0 another point. Send M0 first, then M3.
+        hold: 1
+        visual_cues:
+          - id: answer-query
+            phrase: charged and twice
+            targets:
+              - answer-route
+            color: cyan
+            linger: 0.65
+          - id: answer-score
+            phrase: Charged gives M0 and M3 one point each
+            targets:
+              - answer-route
+            color: yellow
+            linger: 0.65
+          - id: answer-score-twice
+            phrase: Twice gives M0 another point
+            targets: [answer-route]
+            color: yellow
+          - id: answer-output
+            phrase: Send M0 first, then M3
+            targets:
+              - answer-results
+            color: green
+            linger: 0.65
+  - id: fresh-permission
+    title: Which pair belongs in the reply?
+    visual: Keep the v8 notes, their words and their locks together. Compare choosing a global pair with checking access before selection. Save the permitted pair. Change one lock and rerank on the same desk.
+    beats:
+      - say: Keep the four current notes. This caller searches for sign and charged. An open lock means they may read that note. Give each note one point for each distinct search word it contains. The lower ID wins a tie. Which two would you send?
+        hold: 2.5
+        visual_cues:
+          - id: ds-fresh-permission-0
+            phrase: Which two would you send
+            targets: [fresh-candidates, fresh-slots]
+            color: yellow
+      - say: Look for a match on each line. Every note has one. Take the first two IDs in the tie. Now check their locks. Both slots are empty. Two notes on the desk still have open locks. Check access while all four are within reach. Of the two that pass, take the lower ID first. Fill the second slot with the other note.
+        hold: 1.2
+        visual_cues:
+          - id: ds-fresh-scores
+            phrase: Look for a match on each line. Every note has one
+            targets: [fresh-candidates]
+            color: cyan
+          - id: ds-fresh-global-result
+            phrase: Take the first two IDs in the tie
+            targets: [fresh-slots]
+            color: yellow
+          - id: ds-fresh-permission-1
+            phrase: Now check their locks
+            targets: [fresh-slots]
+            color: pink
+          - id: ds-fresh-scoped-selection
+            phrase: Check access while all four are within reach
+            targets: [fresh-candidates]
+            color: cyan
+          - id: ds-fresh-scoped-order
+            phrase: take the lower ID first
+            targets: [fresh-slots]
+            color: yellow
+          - id: ds-fresh-scoped-fill
+            phrase: Fill the second slot with the other note
+            targets: [fresh-slots]
+            color: green
+        caption_starts:
+          - Take the first two IDs
+          - Now check their locks
+          - Both slots are empty
+          - Check access while all four
+          - Of the two that pass
+          - Fill the second slot
+      - say: The caller can read the sign-in correction and the once-charged account. Save that pair under this permission scope. The version, search words, result limit and ranking rule go with it.
+        hold: 0.8
+        visual_cues:
+          - id: ds-fresh-permission-2
+            phrase: Save that pair under this permission scope
+            targets: [fresh-slots]
+            color: cyan
+      - say: A second caller types the same words. This caller can also read M1. Both saved notes are still allowed. Would you send the saved pair?
+        hold: 3
+        visual_cues:
+          - id: fresh-caller-unlock
+            phrase: This caller can also read M1
+            targets: [fresh-candidates]
+            color: cyan
+      - say: Rank the three open notes together. M3 slips to third, and M2 now takes second place. Give the first slot to M1. Its sign-in note earns the same point as the others, and it has the lowest ID this caller may read.
+        hold: 1.6
+        visual_cues:
+          - id: fresh-caller-rerank
+            phrase: M3 slips to third, and M2 now takes second place
+            targets: [fresh-slots]
+            color: yellow
+          - id: fresh-caller-send
+            phrase: Give the first slot to M1
+            targets: [fresh-slots]
+            color: green
+        caption_starts:
+          - Give the first slot to M1

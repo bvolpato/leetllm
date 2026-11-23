@@ -1,0 +1,176 @@
+version: 1
+lesson: linear-regression
+promise: Fit a line to five request timings, test the bend suggested by its residuals, and use held-out errors and the measured length range to decide when to trust a forecast.
+framing: []
+objectives:
+  - id: intro
+    can: Use the changes between adjacent timings to forecast the next increment and distinguish that forecast from a measurement
+    scenes:
+      - intro
+  - id: line
+    can: Compute a linear prediction with units
+    scenes:
+      - line
+  - id: residuals
+    can: Diagnose a residual pattern
+    scenes:
+      - residuals
+  - id: loss
+    can: Calculate MSE and compare a mean baseline
+    scenes:
+      - loss
+  - id: fit
+    can: Trace a gradient update
+    scenes:
+      - fit
+  - id: solve
+    can: Verify least-squares projection and rank
+    scenes:
+      - solve
+  - id: complexity
+    can: Calculate how a squared-input feature moves the sixth forecast and predict the effect of shrinking its weight
+    scenes:
+      - complexity
+  - id: solver-scale
+    can: Estimate dense solver work and storage and interpret the rank and predictions of two least-squares fits
+    scenes:
+      - solver-scale
+  - id: step-bound
+    can: Use the curvature in each direction to tell whether a step contracts or amplifies the error
+    scenes:
+      - step-bound
+  - id: penalty-contract
+    can: Predict what happens to the mean forecast when Ridge charges the intercept and explain how Lasso can set a slope to zero
+    scenes:
+      - penalty-contract
+  - id: statistical-contract
+    can: State the inference, shape and deployment contract
+    scenes:
+      - statistical-contract
+  - id: generalize
+    can: Compare frozen forecasts on two new requests using signed residuals and mean squared error, then locate a request outside the tested range
+    scenes:
+      - generalize
+sections:
+  - heading: Predicting latency from retrieved evidence
+    status: taught
+    scenes:
+      - intro
+      - line
+  - heading: Residuals show what the line missed
+    status: taught
+    scenes:
+      - residuals
+      - loss
+  - heading: Why the math becomes matrix multiplication
+    status: taught
+    scenes:
+      - solve
+  - heading: "The Normal Equation: closed-form ordinary least squares"
+    status: taught
+    scenes:
+      - solve
+      - solver-scale
+  - heading: Gradient descent finds the same line by walking downhill
+    status: taught
+    scenes:
+      - fit
+      - statistical-contract
+  - heading: Convex loss bowl geometry and step size selection
+    status: taught
+    scenes:
+      - fit
+      - step-bound
+  - heading: Stabilizing ill-conditioned fits with Ridge and Lasso
+    status: taught
+    scenes:
+      - complexity
+      - penalty-contract
+  - heading: Gauss-Markov foundations and residual diagnostic checks
+    status: taught
+    scenes:
+      - statistical-contract
+      - complexity
+  - heading: Evaluation starts on unseen requests
+    status: taught
+    scenes:
+      - generalize
+  - heading: Match a trusted implementation
+    status: taught
+    scenes:
+      - solve
+      - solver-scale
+  - heading: Operating contracts and extrapolation boundaries
+    status: taught
+    scenes:
+      - statistical-contract
+      - generalize
+  - heading: Common failure patterns
+    status: taught
+    scenes:
+      - fit
+      - step-bound
+      - penalty-contract
+      - generalize
+  - heading: Try it yourself
+    status: article-only
+    reason: exercise
+    note: The page provides these independent model-fitting experiments; the film teaches their underlying
+      failure mechanisms.
+quiz:
+  - n: 1
+    status: taught
+    scenes:
+      - solver-scale
+  - n: 2
+    status: taught
+    scenes:
+      - residuals
+      - complexity
+      - generalize
+  - n: 3
+    status: taught
+    scenes:
+      - penalty-contract
+  - n: 4
+    status: taught
+    scenes:
+      - penalty-contract
+  - n: 5
+    status: taught
+    scenes:
+      - step-bound
+  - n: 6
+    status: taught
+    scenes:
+      - step-bound
+  - n: 7
+    status: taught
+    scenes:
+      - statistical-contract
+  - n: 8
+    status: taught
+    scenes:
+      - statistical-contract
+  - n: 9
+    status: taught
+    scenes:
+      - solve
+      - solver-scale
+  - n: 10
+    status: taught
+    scenes:
+      - statistical-contract
+      - generalize
+removed: []
+reviews:
+  closed_book:
+    taught: 10
+    partial: 0
+    absent: 0
+    script: 917a8421d405c71d
+    evidence: build/video-delivery-20261106/script-reviews/linear-regression.json
+  fact_check:
+    open_findings: 0
+    script: 917a8421d405c71d
+    evidence: build/video-delivery-20261106/script-reviews/linear-regression.json

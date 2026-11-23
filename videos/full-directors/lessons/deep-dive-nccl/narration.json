@@ -1,0 +1,314 @@
+[
+  {
+    "id": "c01",
+    "title": "Who updates this weight?",
+    "sourceChapters": [
+      "c01"
+    ],
+    "beats": [
+      {
+        "id": "column",
+        "say": "Circle the third slot in each strip. Read down the guide. Two, three, four, one. Those four gradients belong to the same weight. Each GPU computed its own gradient from its own training examples. Here each GPU is one participant, or rank.",
+        "hold": 0.9
+      },
+      {
+        "id": "who",
+        "say": "Suppose the optimizer splits the weights into four shards. Each rank updates one weight. Its number is stamped beside the receiving socket. Before any bytes move, which rank needs the sum for slot two?",
+        "hold": 2.4
+      },
+      {
+        "id": "owner",
+        "say": "Rank two. Open its socket. The other three ranks need the sums for their own weights. A sum reduce-scatter adds the gradients in each slot and gives each rank the part it updates.",
+        "hold": 1
+      },
+      {
+        "id": "replicas",
+        "say": "Now give every rank a full copy of the model to update. Each rank owns weights zero through three. The four local gradients in slot two stay the same. Who needs their sum now?",
+        "hold": 2.4
+      },
+      {
+        "id": "replica-sockets",
+        "say": "All four ranks. Open the other three sockets. Each rank also needs the sums for the other weights. A sum all-reduce gives every rank the whole reduced vector. NCCL coordinates the exchange on NVIDIA GPUs. The training code chooses the reduction and any scaling.",
+        "hold": 1.2
+      }
+    ]
+  },
+  {
+    "id": "c02",
+    "title": "Can these calls meet?",
+    "sourceChapters": [
+      "c02"
+    ],
+    "beats": [
+      {
+        "id": "bootstrap",
+        "say": "A launcher starts the processes. Their bootstrap code shares a communicator ID and maps each rank to a distinct CUDA device. Here GPU seven holds the weights for a broadcast. A broadcast copies one rank's input to the group. Which number belongs in the root argument?",
+        "hold": 2.2
+      },
+      {
+        "id": "root",
+        "say": "Use root two. Follow its wire to GPU seven. All four callers use the communicator's rank numbering. The physical device number seven lies outside the four valid roots.",
+        "hold": 1
+      },
+      {
+        "id": "compare",
+        "say": "Now read two calls from each rank on that communicator. The first column agrees on a float sum all-reduce with four elements. Move to sequence one and read down. Which rank asks its peers to do something different?",
+        "hold": 2
+      },
+      {
+        "id": "mismatch",
+        "say": "Rank two requests broadcast. Its neighbors request all-gather. They can wait with every link healthy. A framework has to issue compatible calls in the same order, with matching types, counts for the operation, reduction and root where applicable.",
+        "hold": 1
+      },
+      {
+        "id": "repair",
+        "say": "Change rank two to all-gather with the same one-float input count as its peers. Read down the column again. The four requests now agree. A new CUDA stream alone would leave the mismatched calls in place.",
+        "hold": 1.1
+      }
+    ]
+  },
+  {
+    "id": "c03",
+    "title": "Follow the red contribution",
+    "sourceChapters": [
+      "c03"
+    ],
+    "beats": [
+      {
+        "id": "start",
+        "say": "A ring gives each rank a sending neighbor and a receiving neighbor. Unroll it at rank three. Its local one is the red stroke. We'll follow slot two. The other slots travel at the same time, one rank out of phase with the next.",
+        "hold": 0.8
+      },
+      {
+        "id": "hop-one",
+        "say": "Send the one to rank zero. It meets two local strokes. One plus two gives three. Count the red stroke inside that bundle.",
+        "hold": 1.15
+      },
+      {
+        "id": "hop-two",
+        "say": "Carry those three to rank one. Three strokes join them here. The partial sum is six. Trace the red stroke back to its source.",
+        "hold": 1.1
+      },
+      {
+        "id": "predict-ten",
+        "say": "Rank two has four more. Look at the six arriving from rank one. How many strokes will the owner keep if every rank contributes exactly once?",
+        "hold": 2.5
+      },
+      {
+        "id": "hop-three",
+        "say": "Six plus four gives ten. Count the four colors. Rank two owns the finished third slot. Each of the other slots finishes on its own numbered rank. Once the collective finishes writing, the sharded optimizer can use this gradient right here.",
+        "hold": 1.3
+      }
+    ]
+  },
+  {
+    "id": "c04",
+    "title": "What travels after the last addition?",
+    "sourceChapters": [
+      "c04"
+    ],
+    "beats": [
+      {
+        "id": "copy-question",
+        "say": "Keep the ten at rank two. Suppose every replica now needs the whole gradient. Rank three is the next neighbor and it contributed the red one. When the finished shard reaches rank three, what value should its buffer hold?",
+        "hold": 2.2
+      },
+      {
+        "id": "copy-one",
+        "say": "Rank two sends the bundle to rank three. Rank three receives ten. Look inside the copy. The single red stroke is already there. Rank two retains its original, and the other completed shards take their own turns on the links.",
+        "hold": 1
+      },
+      {
+        "id": "copy-rest",
+        "say": "Rank three sends a copy to zero. Zero receives ten. Zero passes a copy to one. One receives ten. Read across any finished row. Four, six, ten, five. All-gather puts the shards in rank order. After sum reduce-scatter, that gives the all-reduce result for these integers. Floating-point addition can round differently with another order.",
+        "hold": 1
+      },
+      {
+        "id": "scaling",
+        "say": "If the objective gives equal weight to each rank's gradient, the mean for slot two is ten divided by four, or two and a half. Scale once, using an average reduction or a sum and one division. With sharded weights, a later all-gather often carries updated parameters for the next computation.",
+        "hold": 1
+      },
+      {
+        "id": "offset",
+        "say": "Where does an in-place gather read from? Open rank two's full buffer just after reduce-scatter. Each shard here is one four-byte float. Rank times elements per shard gives the first element. Rank two starts at element two, eight bytes from the base. The base still holds a local one.",
+        "hold": 1.1
+      },
+      {
+        "id": "dispatch",
+        "say": "Expert routing needs a different exchange. Each source has a token for each destination. Read down destination one's column. Follow those three tokens. They arrive as two, five and eight in source order. All-to-all moves these chunks without adding them. Unequal token counts need padding, matched sends and receives, or a variable-size exchange.",
+        "hold": 1.1
+      },
+      {
+        "id": "unequal",
+        "say": "One source now has two tokens for the first expert, one for the second and three for the third. To send three equal chunks, pad each to the longest count. Count the empty positions. Three of the nine positions carry padding. Matched peer transfers could send just the six useful tokens.",
+        "hold": 1.15
+      }
+    ]
+  },
+  {
+    "id": "c05",
+    "title": "When do fewer rounds win?",
+    "sourceChapters": [
+      "c05"
+    ],
+    "beats": [
+      {
+        "id": "rounds",
+        "say": "Count only what one rank sends. Four floats make sixteen bytes. A ring splits them into four equal chunks. Three neighbor rounds reduce, then three more gather. Each send is four bytes. How many bytes leave this rank?",
+        "hold": 2
+      },
+      {
+        "id": "volume",
+        "say": "Twenty-four bytes leave. A separate twenty-four arrive. With k ranks and M bytes per input, each of two phases sends k minus one chunks of M over k bytes. That explains the point-to-point traffic factor. Hardware that reduces inside the fabric can change the physical traffic.",
+        "hold": 1.1
+      },
+      {
+        "id": "small",
+        "say": "Try two schedules on paper. Each start costs two microseconds. Give the ring six starts and the tree four. Use the same modeled byte volume for both. Assume the ring sustains fifty decimal gigabytes per second and the tree sustains thirty. At one hundred kilobytes of input, the tree takes thirteen microseconds and the ring fifteen.",
+        "hold": 1
+      },
+      {
+        "id": "sweep",
+        "say": "Raise the payload. Keep the rates and the startup costs fixed. At two hundred kilobytes the two finish together. Take the input to one decimal megabyte. Which schedule finishes first now?",
+        "hold": 2.2
+      },
+      {
+        "id": "large",
+        "say": "The ring finishes first. Read its forty-two microseconds against the tree's fifty-eight. The fixed startup blocks stayed the same width. A real tree reduces the number of levels a small message crosses. NCCL chooses a supported algorithm and protocol for its topology. Check representative sizes before keeping an override.",
+        "hold": 1.2
+      },
+      {
+        "id": "tree-halves",
+        "say": "Look at these two trees on eight ranks. Split the buffer in half. Each half reduces toward its root, then broadcasts back down. Follow rank one across the pair. It forwards on the left and has no children on the right. Swapping roles shares the forwarding work. Tree and ring are algorithms. Protocols such as Simple and LL govern how data moves in each transfer.",
+        "hold": 1.15
+      }
+    ]
+  },
+  {
+    "id": "c06",
+    "title": "Which event releases the reader?",
+    "sourceChapters": [
+      "c06"
+    ],
+    "beats": [
+      {
+        "id": "streams",
+        "say": "A CUDA stream is an ordered queue on the GPU. Here the input bucket is ready at one millisecond. Its producer records an event. The communication stream waits on it before reading the bucket. The host returns after enqueue at two. Follow the device writes while other backward work on separate data continues.",
+        "hold": 1
+      },
+      {
+        "id": "read-question",
+        "say": "The ordinary call has returned. A different stream wants the reduced gradient. Look for the event that covers the last write. Which edge should release its reader?",
+        "hold": 2.1
+      },
+      {
+        "id": "ready",
+        "say": "The writes finish at seven milliseconds. Place the reader there. Keep each buffer alive until its last use. Backward still reads the old weights through eight milliseconds, so a weight update must also wait for that last read. Independent compute can overlap communication when their resource demands allow it.",
+        "hold": 1
+      },
+      {
+        "id": "group",
+        "say": "Now follow a nonblocking group. Calls inside the group may defer enqueue until group end. Group end reports work in progress at two milliseconds. Polling reports successful enqueue at four. A launch notification comes at five. Writes finish at nine. Which of these events can release a stream that reads the result?",
+        "hold": 2
+      },
+      {
+        "id": "group-read",
+        "say": "Use the write completion at nine. Record the event after the collective on its communication stream. Make the reader's stream wait on that event. A launch notification reports a launch boundary. Grouping several streams can join their dependencies, so group only the work that needs that coordination.",
+        "hold": 1.1
+      }
+    ]
+  },
+  {
+    "id": "c07",
+    "title": "What does the bandwidth row explain?",
+    "sourceChapters": [
+      "c07"
+    ],
+    "beats": [
+      {
+        "id": "receipt",
+        "say": "Read this illustrative all-reduce row from NCCL tests. Four ranks each contribute two hundred fifty-six mebibytes of floats. The transfer takes six thousand microseconds. Convert the payload to bytes and the time to seconds before dividing. How fast did this logical buffer complete?",
+        "hold": 1.9
+      },
+      {
+        "id": "alg",
+        "say": "Algorithm bandwidth is forty-four point seven four decimal gigabytes per second. Read the division. A mebibyte contains one million forty-eight thousand five hundred seventy-six bytes. A decimal gigabyte contains one billion.",
+        "hold": 1
+      },
+      {
+        "id": "bus",
+        "say": "Six quarter-buffer sends gave us a traffic factor of one and a half. Multiply the unrounded algorithm rate by that factor. The bus score is sixty-seven point one one gigabytes per second. Read hardware counters for the actual traffic on a link. The normalization depends on the collective.",
+        "hold": 1
+      },
+      {
+        "id": "accuracy",
+        "say": "Here the check found zero wrong elements in each buffer mode. In-place all-reduce uses the same send and receive address. Out-of-place uses separate buffers. Compare the same hosts, versions, operation, size and placement. Twenty timed samples can put the nearest-rank ninety-ninth percentile at the maximum. Use more samples for a tail estimate.",
+        "hold": 1
+      },
+      {
+        "id": "wait",
+        "say": "Put that six-millisecond transfer after eight milliseconds of compute. The step takes fourteen. Now make the bucket ready four milliseconds earlier, leaving the compute and transfer durations unchanged. Which part of the transfer still delays the step?",
+        "hold": 2.3
+      },
+      {
+        "id": "exposed",
+        "say": "Two milliseconds remain exposed. The step ends at ten. Compare the ends of the two traces. The standalone bandwidth row stayed the same. On real GPUs, contention can stretch either bar. For small tensor-parallel operations measure launch gaps, for expert traffic measure per-peer bytes, and for sharded layers measure the exposed gather before compute.",
+        "hold": 1.25
+      }
+    ]
+  },
+  {
+    "id": "c08",
+    "title": "Find the first missing event",
+    "sourceChapters": [
+      "c08"
+    ],
+    "beats": [
+      {
+        "id": "route",
+        "say": "The same collective can take different routes. In this topology excerpt, N V four marks four bonded GPU links. P I X marks a short PCI Express path to a network interface. Those entries classify connections. To find the cross-node route that carried this shard, open the selected transport trace.",
+        "hold": 1
+      },
+      {
+        "id": "pxn",
+        "say": "Here the selected PXN path forwards from GPU zero through GPU one to the network card. Such a relay can use a peer with better access to the card. Follow the bytes through the fabric to the receiving GPU. On this path the network cards access GPU memory directly. To learn the achieved bandwidth, measure the transfer.",
+        "hold": 1
+      },
+      {
+        "id": "locate",
+        "say": "For a source check, follow one host call in the article's pinned NVIDIA source. The public API packages the arguments. Enqueue code plans the work with graph tuning. Device primitives perform the reduction, while transport code supplies the path. This map tells you where to look when a valid sum takes an unexpected route.",
+        "hold": 0.8
+      },
+      {
+        "id": "scope",
+        "say": "A route claim has a boundary. In the article's version two point thirty-two point three example, experimental communicators on distinct MIG instances require a CUDA thirteen or newer driver and disabled multi-node NVLink. They have no NVLink peer path or NVLS offload. Optional encryption in that release covers configured NCCL-owned sockets. A separate network plugin needs its own encryption configuration.",
+        "hold": 0.9
+      },
+      {
+        "id": "source-record",
+        "say": "Keep the evidence with the claim. NVIDIA's pinned public source identifies the implementation. Its license lists Apache and retained BSD terms, so inspect the file you use. For a contribution, the project asks for a Developer Certificate of Origin sign-off. The point-to-point ring analysis explains byte volume under its assumptions. The double-tree design explains how ranks share forwarding. A benchmark on the target topology tells you how this build performs.",
+        "hold": 0.9
+      },
+      {
+        "id": "timeout",
+        "say": "Three peer logs end in timeouts. All four ranks completed step seven. Read down the entries for step eight, where the peers began to wait. Which rank’s earlier log would you inspect first?",
+        "hold": 2.3
+      },
+      {
+        "id": "rewind",
+        "say": "Scrub back past the waits. Rank two failed to allocate its buffer. The empty place in its sequence now makes sense. Start with its allocation error. If every rank entered, compare the communicator, sequence and arguments. With matching calls and valid dependencies, test the fabric separately on the same hosts and rails.",
+        "hold": 1.2
+      },
+      {
+        "id": "practice",
+        "say": "Try step nineteen with the same slot. All four ranks agree. Rank three finishes its input at four milliseconds. Communication reads at three and writes through seven. Rank two tries to read at five. Which dependency breaks first? In a replay, the transfer still takes four milliseconds. When can rank two first read a valid shard?",
+        "hold": 2.8
+      },
+      {
+        "id": "input-fix",
+        "say": "The first error is the input read at three. It races the producer. Wait until four to start the transfer. Four milliseconds later the writes finish at eight. Now place the output reader at eight. Rank two can use its ten. The weight assignment told us who needs this shard. The two events tell us when that rank can use it. In the next lesson, Megatron uses those same rules across different groups of GPUs.",
+        "hold": 1.7
+      }
+    ]
+  }
+]

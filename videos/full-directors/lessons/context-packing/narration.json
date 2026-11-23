@@ -1,0 +1,441 @@
+[
+  {
+    "id": "c01",
+    "title": "Who approved the rollback?",
+    "sourceChapters": [
+      "c01"
+    ],
+    "beats": [
+      {
+        "id": "c01-b01",
+        "say": "Who approved the rollback? Read the decision. There's room for the signature, but the name is missing. Which words from the incident log would let you answer?",
+        "hold": 3
+      },
+      {
+        "id": "c01-b02",
+        "say": "A context window bounds the tokens a model can use in one request. Instructions, history, evidence, the current question, and generation all compete for that capacity. Here we give whole packets illustrative sizes. The eight striped spaces belong to the reply.",
+        "hold": 1.4
+      },
+      {
+        "id": "c01-b03",
+        "say": "We'll reserve the answer first, pack complete exchanges, and recover a needed older fact through checked compaction. Then we'll test whether the reader can reach the fact, and what a long request costs to serve. Keep that empty byline in mind.",
+        "hold": 1.5
+      }
+    ]
+  },
+  {
+    "id": "c02",
+    "title": "Set aside the reply",
+    "sourceChapters": [
+      "c02"
+    ],
+    "beats": [
+      {
+        "id": "c02-b01",
+        "say": "Start with thirty-two units of total capacity. Reserve eight for generation. This space remains unavailable to additional input even while it is empty. Otherwise the prompt could consume the entire window before the model has room to finish the response we requested.",
+        "hold": 1.1
+      },
+      {
+        "id": "c02-b02",
+        "say": "Protect the instructions and latest question next. Each costs four units in this example. With both in the window and the reply still reserved, how much history can we use?",
+        "hold": 2.7
+      },
+      {
+        "id": "c02-b03",
+        "say": "Sixteen units remain for optional history. In production, count the actual chat template, tools, separators, and other input framing. A reusable prefix can reduce computation while its tokens still occupy context. Count the serialized input and add the reserved reply budget. Check the combined window and any separate input and output limits before sending the request.",
+        "hold": 1.4
+      }
+    ]
+  },
+  {
+    "id": "c03",
+    "title": "Which complete exchanges fit?",
+    "sourceChapters": [
+      "c03"
+    ],
+    "beats": [
+      {
+        "id": "c03-b01",
+        "say": "Our newest completed exchange costs six units. Admit it as one piece, including both the question and its answer. Keeping the pair together preserves what the answer refers to when the next model call reads it.",
+        "hold": 1.2
+      },
+      {
+        "id": "c03-b02",
+        "say": "The next exchange also fits. Its eight units keep the build question beside build forty-two. A contiguous suffix of recent exchanges gives a simple, predictable policy. Tool conversations need richer atomic groups, including call identifiers and their results, so the packed transcript remains valid.",
+        "hold": 1.3
+      },
+      {
+        "id": "c03-b03",
+        "say": "The archived exchange is next. Compare its twelve units with the two units still free. Could we include the entire exchange and still leave room for the reply?",
+        "hold": 2.7
+      },
+      {
+        "id": "c03-b04",
+        "say": "Only two units remain. Leave that complete packet outside. Our policy stops at this boundary. Dropping a random message from the pair could preserve a misleading answer while losing its question. The token total closes, but which useful fact did we omit?",
+        "hold": 1.4
+      }
+    ]
+  },
+  {
+    "id": "c04",
+    "title": "What if the required input is too large?",
+    "sourceChapters": [
+      "c04"
+    ],
+    "beats": [
+      {
+        "id": "c04-b01",
+        "say": "Suppose the required instructions and current question are themselves larger. The instructions now cost fourteen and the question costs twelve. Keep the same eight-unit answer reservation and the same thirty-two-unit window. Try this with an empty history. Will it fit?",
+        "hold": 2.6
+      },
+      {
+        "id": "c04-b02",
+        "say": "Thirty-four units are required. Two extend past the limit. The packer rejects the request explicitly. Both required packet identities remain visible. The caller can revise the request, choose an appropriate larger tested budget, or split the task. Silent truncation would hide the decision.",
+        "hold": 1.3
+      },
+      {
+        "id": "c04-b03",
+        "say": "Optional history has no role in repairing this request because none has been admitted. A configured server cap may be smaller than the model's supported window, and separate output limits can also apply. Validate the limits of the actual execution path.",
+        "hold": 1.3
+      }
+    ]
+  },
+  {
+    "id": "c05",
+    "title": "Check the byline against the source",
+    "sourceChapters": [
+      "c05"
+    ],
+    "beats": [
+      {
+        "id": "c05-b01",
+        "say": "Return to the original four-unit question and four-unit instructions. The old exchange contains the approval we need. Extract a smaller state note with the decision and its source. Our first draft leaves out the approving actor. Compare its fields with the facts the current question requires.",
+        "hold": 1.5
+      },
+      {
+        "id": "c05-b02",
+        "say": "Read the two entries side by side. The engineer requested the rollback. Whose signature belongs on the copy?",
+        "hold": 2.8
+      },
+      {
+        "id": "c05-b03",
+        "say": "The incident lead approved it. Bring that byline across. Check the decision, actor and source against the same version of the original record. This deterministic fixture checks explicit fields. A real language summary also needs review for meaning, omissions, contradictions, and unsupported additions.",
+        "hold": 1.4
+      },
+      {
+        "id": "c05-b04",
+        "say": "Give the checked four-unit note priority over the optional middle exchange. Keep the latest exchange with it. Six units stay free and eight remain reserved for the reply. Preserve the original archive outside the prompt. A later question may need a different line.",
+        "hold": 1.6
+      }
+    ]
+  },
+  {
+    "id": "c06",
+    "title": "Move one fact through the same document",
+    "sourceChapters": [
+      "c06"
+    ],
+    "beats": [
+      {
+        "id": "c06-b01",
+        "say": "The document starts with the pair we're looking for. Our edge reader checks four slots at either end. It reads ninety-nine, then ninety-eight. Both tokens match. A second reader scans the whole document and finds them too. For each run, keep the sixteen filler tokens, two instruction tokens and four reserved reply tokens.",
+        "hold": 1.2
+      },
+      {
+        "id": "c06-b02",
+        "say": "Move the same fact to the middle while preserving length and answer headroom. Eight filler tokens now precede it. What does each reader return?",
+        "hold": 2.7
+      },
+      {
+        "id": "c06-b03",
+        "say": "The full scan finds the pair after the eighth filler token. The edge reader misses it. Both of its four-token slices contain only filler. To test a model, ask it for the pair and score its answer at each depth.",
+        "hold": 1.3
+      },
+      {
+        "id": "c06-b04",
+        "say": "At the tail, the pair enters the last four positions. Both readers find it again. Some models and tasks show position sensitivity. Try promoting a must-keep fact to the head or near the question, then retest. Duplicating it costs space and can amplify stale information.",
+        "hold": 1.4
+      }
+    ]
+  },
+  {
+    "id": "c07",
+    "title": "Which service had the most March timeouts?",
+    "sourceChapters": [
+      "c07"
+    ],
+    "beats": [
+      {
+        "id": "c07-b01",
+        "say": "Now ask which service had the most timeout events in March. Expose just the two highest-ranked matching rows. Both name service A. A relevance ranking decides which evidence looks promising. Can those two rows settle a question about every March timeout?",
+        "hold": 2.9
+      },
+      {
+        "id": "c07-b02",
+        "say": "Uncover the rest of the log. Filter the complete dataset by month and event type. Keep each qualifying event once, even if its relevance score is lower. The February timeout and March success stay outside the count. Compare the two piles.",
+        "hold": 2.4
+      },
+      {
+        "id": "c07-b03",
+        "say": "B has three. A has two. Send the model the checked aggregate and its provenance to explain. At scale, define event identity, deduplication, time boundaries, and a data watermark before counting. Increasing a top-k value cannot establish completeness unless every qualifying record is included.",
+        "hold": 1.5
+      }
+    ]
+  },
+  {
+    "id": "route",
+    "title": "Choose what the question needs",
+    "sourceChapters": [
+      "c07"
+    ],
+    "beats": [
+      {
+        "id": "route-b01",
+        "say": "The count needed a complete event population. Try another question. What happened immediately before the approval? When the incident packet is small and stable, read the ordered packet together. C one records the callback error. The next entry, D one, records the approval.",
+        "hold": 1.3
+      },
+      {
+        "id": "route-b02",
+        "say": "If the archive spans a year and the question asks who signed, retrieve the relevant passage first. Verify its source, version and actor. For a question linking two events, inspect whether both passages survived retrieval or chunking. Treat their text as evidence. Keep the instructions separate.",
+        "hold": 1.5
+      }
+    ]
+  },
+  {
+    "id": "pairs",
+    "title": "Count the comparisons",
+    "sourceChapters": [
+      "c02"
+    ],
+    "beats": [
+      {
+        "id": "pairs-b01",
+        "say": "What does it cost to read the whole packet? During prefill, a decoder ingests the prompt. Each row here is one query. Each column is a possible key. A causal query can compare with itself and every earlier position. Count the steps in this ten-position triangle.",
+        "hold": 2
+      },
+      {
+        "id": "pairs-b02",
+        "say": "One through ten sums to fifty-five pairs. Increase the prompt length eightfold, from eight thousand to sixty-four thousand tokens. The number of rows and the width of the longest row both grow eightfold. How does the leading cost change?",
+        "hold": 2.5
+      },
+      {
+        "id": "pairs-b03",
+        "say": "About sixty-four times as many pairs. FlashAttention reduces memory traffic while preserving that full attention pattern. Wall time also depends on other layers and the hardware. During decode, the next token adds one row reading the retained keys and values.",
+        "hold": 1.4
+      },
+      {
+        "id": "pairs-b04",
+        "say": "Return to the original ten-position prompt. Switch this layer to a four-position sliding window. Now the last query sees positions six through nine. The approval at position one drops out of its direct view. At long lengths, the band costs roughly length times window width. Nearby code completion can suit that trade.",
+        "hold": 1.2
+      },
+      {
+        "id": "pairs-b05",
+        "say": "Some stacked local layers carry information farther. Global layers can supply a direct path. Keeping a few initial attention-sink tokens can stabilize streaming for some models. Here a sink at zero still leaves the approval at one outside the band. Test distant lookup on the actual workload.",
+        "hold": 1.3
+      }
+    ]
+  },
+  {
+    "id": "cache",
+    "title": "How much history stays in memory?",
+    "sourceChapters": [
+      "c02"
+    ],
+    "beats": [
+      {
+        "id": "cache-b01",
+        "say": "Each retained position has a key and a value. For uniform full-attention layers with separate arrays, multiply those two arrays by layers, key-value heads, head width, retained positions and bytes per element. Use eight key-value heads here. Sixty-four query heads share them in groups.",
+        "hold": 1.3
+      },
+      {
+        "id": "cache-b02",
+        "say": "With eighty layers, width one hundred twenty-eight, one hundred thirty-one thousand seventy-two positions and two-byte elements, one sequence occupies forty gibibytes. Trace one strip for each independent sequence. What happens when four users decode at once?",
+        "hold": 2.4
+      },
+      {
+        "id": "cache-b03",
+        "say": "Four copies occupy one hundred sixty gibibytes. That's more logical state than the roughly one hundred thirty gibibytes of two-byte weights for a seventy-billion-parameter model. Generated positions add to the cache. Actual memory traffic depends on kernel reuse and sharding.",
+        "hold": 1.3
+      },
+      {
+        "id": "cache-b04",
+        "say": "Return to one sequence. In multi-head attention, each of the sixty-four query heads has its own key-value head. That takes three hundred twenty gibibytes. Grouped-query attention uses eight key-value heads here. Eight query heads share each one, bringing the cache back to forty gibibytes. Multi-query attention shares one key-value head across all sixty-four query heads. That takes five gibibytes. Multi-head latent attention stores a compressed latent vector and a positional key for each retained position. Count the stored elements in those two parts using the checkpoint's dimensions and cache precision.",
+        "hold": 1.4
+      }
+    ]
+  },
+  {
+    "id": "layers",
+    "title": "Sum what each layer actually retains",
+    "sourceChapters": [
+      "c02"
+    ],
+    "beats": [
+      {
+        "id": "layers-b01",
+        "say": "A mixed checkpoint has two kinds of layer. Forty local layers evict old entries and retain at most a thousand twenty-four positions each. Eight global layers retain the full history. Read the head counts and widths on the two strips. They differ too.",
+        "hold": 1.3
+      },
+      {
+        "id": "layers-b02",
+        "say": "With separate two-byte key and value arrays, the local layers need point three one two five gibibytes. The global layers need two. Add the two terms. A visibility mask alone tells you which keys a query can read. Check that the implementation actually frees old entries.",
+        "hold": 1.2
+      },
+      {
+        "id": "layers-b03",
+        "say": "The total is two point three one two five gibibytes before overhead. A shared projection may still produce separate key and value buffers. Include any recurrent state separately. To estimate memory per device, inspect what the backend shards and what it replicates.",
+        "hold": 1.3
+      }
+    ]
+  },
+  {
+    "id": "serving",
+    "title": "Which change frees capacity?",
+    "sourceChapters": [
+      "c02"
+    ],
+    "beats": [
+      {
+        "id": "serving-b01",
+        "say": "Give the server sixty-four gibibytes for raw cache payload. Our full-attention request needs forty in two-byte precision. A supported one-byte cache halves that payload. How many independent requests of the same length fit under each assumption?",
+        "hold": 2.5
+      },
+      {
+        "id": "serving-b02",
+        "say": "One at forty. Three at twenty. These are upper bounds before scales, page rounding, future output and working space. Test long-context accuracy after quantization. When free space is scattered, PagedAttention can allocate noncontiguous blocks as requests grow. The contents of each logical request stay the same.",
+        "hold": 1.3
+      },
+      {
+        "id": "serving-b03",
+        "say": "Now consider repeated questions with an identical forty-eight-thousand-token prefix. Here are three suffixes. Without reuse, each request prefills the prefix and its own suffix. With a retained matching prefix, only the first request prefills those prefix tokens. Compare the newly processed totals.",
+        "hold": 1.4
+      },
+      {
+        "id": "serving-b04",
+        "say": "All three requests still attend to the prefix during decode. Reuse requires matching tokens, model state and isolation settings. Eviction can remove a hit. Keep durable records separately. Chunked prefill lets other decodes run between chunks while the full input is being ingested.",
+        "hold": 1.4
+      }
+    ]
+  },
+  {
+    "id": "devices",
+    "title": "Follow a block across device boundaries",
+    "sourceChapters": [
+      "c02"
+    ],
+    "beats": [
+      {
+        "id": "devices-b01",
+        "say": "One long sequence may need more than a single device. Partition its positions across four devices. Each device keeps its local queries. Full attention also needs remote key and value blocks. Follow the highlighted block to the next query owner.",
+        "hold": 1.2
+      },
+      {
+        "id": "devices-b02",
+        "say": "Ring Attention exchanges blocks and can overlap communication with computation. The published example concerns distributed training. A serving backend can shard decode history with a different communication scheme. Check support for the architecture and measure both phases. Per-device paging solves a separate allocation problem.",
+        "hold": 1.2
+      },
+      {
+        "id": "devices-b03",
+        "say": "Read the backend's block grid. In this example four physical groups of sixteen positions form a sixty-four-position logical block. A history of a thousand twenty-five positions fills sixteen logical blocks and needs one further position. What capacity must the grid cover?",
+        "hold": 2.3
+      },
+      {
+        "id": "devices-b04",
+        "say": "Seventeen logical blocks cover a thousand eighty-eight positions. Rounding to the physical page size alone gives a thousand forty, too few for this grid. The actual head layout and cache precision still determine per-device bytes.",
+        "hold": 1.3
+      }
+    ]
+  },
+  {
+    "id": "position",
+    "title": "What happens to the position coordinates?",
+    "sourceChapters": [
+      "c06"
+    ],
+    "beats": [
+      {
+        "id": "position-b01",
+        "say": "Extending the window changes the coordinates a trained model encounters. Rotary position embeddings rotate pairs of query and key dimensions. At position m, each pair turns through m times its frequency. Comparing two rotated vectors carries information about their relative offset.",
+        "hold": 1.4
+      },
+      {
+        "id": "position-b02",
+        "say": "Uniform interpolation maps extended positions back onto the training scale. Here the trained length is four thousand ninety-six and the target is sixteen thousand three hundred eighty-four. Where does extended position twelve thousand two hundred eighty-eight land?",
+        "hold": 2.6
+      },
+      {
+        "id": "position-b03",
+        "say": "It lands at three thousand seventy-two. Every frequency band now advances one quarter as far per token. NTK-aware scaling adjusts frequencies selectively to preserve more short-range resolution. YaRN preserves fast rotations, interpolates slow ones, and blends the middle bands. It also adjusts attention logits.",
+        "hold": 1.4
+      },
+      {
+        "id": "position-b04",
+        "say": "A cached key needs the intended basis too. A key at position one was rotated at one radian per position. A new query at position two uses half a radian per position. Their arrows coincide. What happens if we recompute the key under the new basis?",
+        "hold": 2.4
+      },
+      {
+        "id": "position-b05",
+        "say": "The key turns back to half a radian. The query stays at one. Their unit-vector dot product falls from one to about point eight seven eight. Compare cached and uncached execution across the length boundary. A consistent rotation still needs evaluation at the longer length.",
+        "hold": 1.4
+      }
+    ]
+  },
+  {
+    "id": "release",
+    "title": "Can a ninety-percent average hide a regression?",
+    "sourceChapters": [
+      "c08"
+    ],
+    "beats": [
+      {
+        "id": "release-b01",
+        "say": "Test the resulting policy on the questions it must answer. Compare paired cases across context lengths and depths. Retain expected and generated answers, source IDs and scorer outcomes. Vary distractor seeds. Include absent facts, multiple facts and multi-hop questions that require two distant pieces together.",
+        "hold": 1.4
+      },
+      {
+        "id": "release-b02",
+        "say": "Here two synthetic runs each answer ninety percent correctly, with a hundred cases at each depth. Our release rule requires at least eighty-five correct at every depth. Unfold the average into its three groups. Would you release the candidate?",
+        "hold": 2.7
+      },
+      {
+        "id": "release-b03",
+        "say": "The candidate misses the middle floor. Its seventy correct there are hidden by perfect scores at both edges. The baseline clears the floor at all three depths. Inspect paired errors, scorer mistakes, sample sizes and uncertainty. Check loss beyond the training length, first-token delay, decode latency, peak cache and concurrency on the serving stack.",
+        "hold": 1.5
+      }
+    ]
+  },
+  {
+    "id": "c08",
+    "title": "Your turn with a different question",
+    "sourceChapters": [
+      "c08"
+    ],
+    "beats": [
+      {
+        "id": "c08-b01",
+        "say": "Our original request fits and retains the approval with its source. We protected the current task, reserved generation, preserved transcript units, and gave a needed older fact priority over optional recent material. Try the policy on a fresh forty-unit window.",
+        "hold": 1.3
+      },
+      {
+        "id": "c08-b02",
+        "say": "Reserve twelve units for generation, six for instructions and two for the question. Give a checked note six units and the most recent exchange eight. Could another complete exchange of nine units fit?",
+        "hold": 2.7
+      },
+      {
+        "id": "c08-b03",
+        "say": "Only six remain. We had twenty units for optional history and used fourteen. Nine more would take the request to forty-three. Leave that exchange out. Now the question changes from who approved the rollback to why. Read the note. Which line of evidence do you need?",
+        "hold": 2.8
+      },
+      {
+        "id": "c08-b04",
+        "say": "Open the same version of decision D one. In the recorded reason for rollback, the incident lead wrote that the canary callback returned HTTP five hundred. Copy the stated reason, signer and source into the replacement note. That explains why the lead approved the rollback. What caused the callback to fail still needs investigation.",
+        "hold": 1.4
+      },
+      {
+        "id": "c08-b05",
+        "say": "The replacement costs seven units under our example's counting rule. The serialized input now takes twenty-three units. Add the twelve reserved for generation. Thirty-five units fit inside forty. You can choose a complete exchange, a checked note or an exact aggregate by asking what evidence the next answer needs. Next, mixture-of-experts models change the feed-forward work while the attention and cache budgets still apply.",
+        "hold": 1.7
+      }
+    ]
+  }
+]

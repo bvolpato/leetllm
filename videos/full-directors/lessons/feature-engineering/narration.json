@@ -1,0 +1,622 @@
+[
+  {
+    "id": "c01",
+    "title": "Which field could warn us at nine?",
+    "sourceChapters": [
+      "c01"
+    ],
+    "beats": [
+      {
+        "id": "c01-b01",
+        "say": "Eighteen jobs were waiting when the scheduler checked J two oh four at nine on May first. Look at the record after the deadline. An escalation flag has appeared beside the count. Rewind to the decision. Which field will still be there?",
+        "hold": 2.7
+      },
+      {
+        "id": "c01-b02",
+        "say": "Wind the record back to nine. The eighteen jobs are still waiting. The escalation came later. That queue count is a feature, a measurement the scheduler could use to predict whether this job would miss its deadline. Try a rule on four past jobs. Predict a miss whenever more than ten jobs are waiting. Which jobs would you flag?",
+        "hold": 2.4
+      },
+      {
+        "id": "c01-b03",
+        "say": "The first and fourth jobs. Their backlogs were eighteen and twenty-two. Now open the outcome records. The first and third jobs missed. Compare each prediction with the actual outcome. Two of the four agree. Copying escalation gets all four right because the flag records what already happened.",
+        "hold": 1.1
+      },
+      {
+        "id": "c01-b04",
+        "say": "Feeding that later answer into an earlier prediction is leakage. Keep the finish time for the training label. We will rebuild the row the scheduler could read at nine, then use the captured request to explain a score difference.",
+        "hold": 0.9
+      }
+    ]
+  },
+  {
+    "id": "c02",
+    "title": "Which heartbeat belongs to J-204?",
+    "sourceChapters": [
+      "c02"
+    ],
+    "beats": [
+      {
+        "id": "c02-b01",
+        "say": "Look at the two pings just before nine. One left the job at eight thirty and reached the scorer a minute later. The other left at eight fifty and arrived at nine fifteen. The yellow line is the decision. Which ping sets the heartbeat age here?",
+        "hold": 2.1
+      },
+      {
+        "id": "c02-b02",
+        "say": "Follow each ping to the time it became readable. The eight fifty ping crosses the line. The eight thirty ping makes it through, and it is newer than the one from one o’clock. From eight thirty to nine is thirty minutes, or half an hour. Put that age in the row.",
+        "hold": 0.9
+      },
+      {
+        "id": "c02-b03",
+        "say": "A point-in-time lookup applies both tests to the same job. A noon ping would give a negative age at nine. Clipping that age to zero would still tell the model about a ping from the future. Leave it outside this decision.",
+        "hold": 0.65
+      }
+    ]
+  },
+  {
+    "id": "c03",
+    "title": "Two copies of the same ping",
+    "sourceChapters": [
+      "c03"
+    ],
+    "beats": [
+      {
+        "id": "c03-b01",
+        "say": "Look inside the revision history for that eight thirty ping. One copy reached the scorer at eight thirty-one. A correction to the very same ping arrived at nine oh five. There is also a ping from a different job. Which revision belongs to J two oh four at nine?",
+        "hold": 1.9
+      },
+      {
+        "id": "c03-b02",
+        "say": "Keep the first copy. Filter to the same job and to records that pass both clocks, then take the latest eligible event. If two eligible revisions tie, use a deterministic tie rule. If none qualify, use the declared missing policy.",
+        "hold": 0.3
+      },
+      {
+        "id": "c03-b03",
+        "say": "A windowed count would count eligible events across the window. In Feast, an event-time join alone can admit a late correction. The created-time filter needs a supported backend and a non-null timestamp that means the scorer could read the record.",
+        "hold": 0.85
+      },
+      {
+        "id": "c03-b04",
+        "say": "Now let the job run. Its deadline was nine on May second. It finished on May third, so this job gets a missed-deadline label of one. Keep that label outside the input row. Define a separate rule for cancellations and jobs still running.",
+        "hold": 0.3
+      },
+      {
+        "id": "c03-b05",
+        "say": "To test on future scheduler traffic, fit the transforms and model on earlier jobs whose labels are ready, account for related jobs, then score later decisions. Random splitting can suit an exchangeable population.",
+        "hold": 0.85
+      }
+    ]
+  },
+  {
+    "id": "c04",
+    "title": "Choose a scale that preserves useful differences",
+    "sourceChapters": [
+      "c04"
+    ],
+    "beats": [
+      {
+        "id": "c04-b01",
+        "say": "These eight jobs waited between five minutes and twelve thousand minutes. Suppose we use distance from the mean, in training standard deviations. The extreme job pulls the mean up to about fifteen hundred minutes and the standard deviation to almost four thousand. How far apart will the five-minute and forty-two-minute jobs land?",
+        "hold": 2
+      },
+      {
+        "id": "c04-b02",
+        "say": "About nine thousandths of a standard unit apart. Zoom in on the forty-two-minute job. Its standard score is about negative point three seven four. Center the same waits on the median and divide by the width of the middle half. Now forty-two sits at about point five two two.",
+        "hold": 0.65
+      },
+      {
+        "id": "c04-b03",
+        "say": "The same twelve-thousand-minute outlier maps to a robust score above four hundred sixteen. Robust scaling centers and rescales the data, while clipping would replace extreme values with a chosen boundary and needs its own justification and version.",
+        "hold": 0.7
+      }
+    ]
+  },
+  {
+    "id": "c05",
+    "title": "Keep a running mean as readings arrive",
+    "sourceChapters": [
+      "c05"
+    ],
+    "beats": [
+      {
+        "id": "c05-b01",
+        "say": "Fit a standardizer on two, four and six. Its mean is four and its population standard deviation is about one point six three. A new reading of eight goes through that fitted pair. Fit inside each training fold, then reuse the fitted numbers. Decide how to handle a constant feature before dividing by its zero scale.",
+        "hold": 0.3
+      },
+      {
+        "id": "c05-b02",
+        "say": "Reject nonfinite readings. If you intend to update the scaler while serving, evaluate those updates in the order they will happen.",
+        "hold": 0.7
+      },
+      {
+        "id": "c05-b03",
+        "say": "Watch how Welford builds that pair without rereading old values. Start with count zero, mean zero and a sum of squared deviations called M two. The first reading is two. Move the mean all the way to two.",
+        "hold": 0.3
+      },
+      {
+        "id": "c05-b04",
+        "say": "The reading now sits on the mean, so it adds zero to M two. With only one reading, sample variance is undefined.",
+        "hold": 0.8
+      },
+      {
+        "id": "c05-b05",
+        "say": "Here comes four. Its distance from the old mean is two. Divide by the new count of two, then add one to the mean. The new mean is three. Four is now one unit above it, so add two times one to M two. Predict the update when six arrives.",
+        "hold": 1.8
+      },
+      {
+        "id": "c05-b06",
+        "say": "Bring in six. Its old and new distances are three and two. The mean moves to four. That adds six more, taking M two from two to eight. For population variance, divide eight by three readings. For sample variance, divide by two.",
+        "hold": 1
+      }
+    ]
+  },
+  {
+    "id": "c06",
+    "title": "Keep transform meaning and fitted parameters distinct",
+    "sourceChapters": [
+      "c06"
+    ],
+    "beats": [
+      {
+        "id": "c06-b01",
+        "say": "For the original eight waits, subtract the training mean from the value, then divide that difference by the training standard deviation. Robust score subtracts median twenty-seven and divides by inclusive interquartile range twenty-eight point seven five.",
+        "hold": 0.3
+      },
+      {
+        "id": "c06-b02",
+        "say": "Quartiles sixteen point five and forty-five point two five depend on the declared interpolation convention. A zero interquartile range needs its own policy, just as a zero standard deviation does.",
+        "hold": 0.85
+      },
+      {
+        "id": "c06-b03",
+        "say": "Positive affine scaling remains invertible in exact arithmetic, so the ordinary differences have not vanished. Scale can change optimization conditioning, regularization and numerical precision. An exact threshold tree can represent corresponding splits after an invertible monotone transform. Robust scaling does not clip: the outlier remains large.",
+        "hold": 0.3
+      },
+      {
+        "id": "c06-b04",
+        "say": "For nonnegative telemetry, log one plus the value compresses the right tail but still grows without bound. Choose and evaluate the representation for the estimator.",
+        "hold": 0.85
+      }
+    ]
+  },
+  {
+    "id": "c07",
+    "title": "Keep a missing reading distinct from zero",
+    "sourceChapters": [
+      "c07"
+    ],
+    "beats": [
+      {
+        "id": "c07-b01",
+        "say": "Two queue monitors report to the scheduler. Bay A is empty, and its counter reads zero. Bay B still holds three jobs when its counter goes quiet. If we fill that blank with zero, can the model tell which counter actually sent a number?",
+        "hold": 2.5
+      },
+      {
+        "id": "c07-b02",
+        "say": "Both backlog slots contain zero. Record whether the measurement was missing before filling the blank. Read each pair as backlog, then missing bit. The measured zero gives zero, zero. The blank gives zero, one. Three jobs can still be waiting behind a silent counter.",
+        "hold": 0.6
+      },
+      {
+        "id": "c07-b03",
+        "say": "The bit records measurement availability. A delayed update, an unsupported sensor or an outage could explain it. Evaluate whether missingness predicts the outcome, especially after instrumentation changes. Save the imputation policy with the model.",
+        "hold": 0.65
+      }
+    ]
+  },
+  {
+    "id": "c08",
+    "title": "How far apart are two runner pools?",
+    "sourceChapters": [
+      "c08"
+    ],
+    "beats": [
+      {
+        "id": "c08-b01",
+        "say": "Put three runner pools on a number line. In this codebook, A one hundred is at zero, H one hundred at one, and L four at two. A model that measures distance sees H one hundred as the nearest neighbor of A one hundred. Did we measure anything about those machines to earn that distance?",
+        "hold": 1.6
+      },
+      {
+        "id": "c08-b02",
+        "say": "Exchange the codes for H one hundred and L four. The new nearest neighbor is L four. All we changed was the numbering. For a model that treats a number as a quantity, those codes introduce an order and a distance.",
+        "hold": 0.8
+      },
+      {
+        "id": "c08-b03",
+        "say": "This encoder trained on two pool names. Give each known name its own coordinate. A one hundred switches on the first bit. H one hundred switches on the second. This is one-hot encoding. Keep this layout with the model. We’ve reserved the third slot for other.",
+        "hold": 0.3
+      },
+      {
+        "id": "c08-b04",
+        "say": "What should happen when L four first reaches this encoder?",
+        "hold": 1.5
+      }
+    ]
+  },
+  {
+    "id": "c09",
+    "title": "Where does a new pool go?",
+    "sourceChapters": [
+      "c09"
+    ],
+    "beats": [
+      {
+        "id": "c09-b01",
+        "say": "Map L four to other. The third bit switches on. Keep those three slots in the same order when the model runs. A model with native categorical support can use a code as a name. A model that measures distance would treat that same code as a position on the number line.",
+        "hold": 0.85
+      },
+      {
+        "id": "c09-b02",
+        "say": "Send L four to an encoder set to ignore unknown names. All three bits stay at zero. Our encoder lights up the other bit because we reserved that slot during fitting. You could also reject an unknown name or group it with infrequent categories. Use the same fitted encoder in training and serving.",
+        "hold": 0.85
+      },
+      {
+        "id": "c09-b03",
+        "say": "This encoder keeps one column per fitted category. Sparse rows can skip zeros. Dense rows store every slot. A linear model with a dense weight vector stores one weight per column. Grouping pools may take several indicator splits in a tree, or one native categorical split.",
+        "hold": 0.85
+      }
+    ]
+  },
+  {
+    "id": "c10",
+    "title": "What happens if T8’s label flips?",
+    "sourceChapters": [
+      "c10"
+    ],
+    "beats": [
+      {
+        "id": "c10-b01",
+        "say": "Suppose we represent each pool by the share of its jobs that missed the deadline. That is a target encoding. Eight jobs finished. Five missed. T eight is our only L four job, and it missed. Give the overall miss rate the weight of five observations.",
+        "hold": 0.3
+      },
+      {
+        "id": "c10-b02",
+        "say": "Add one miss from L four to five times five eighths, then divide by six. That gives eleven sixteenths. Notice how T eight helped twice, once in the L four count and again in the overall miss rate.",
+        "hold": 0.85
+      },
+      {
+        "id": "c10-b03",
+        "say": "Set aside T eight and the rest of its fold. Four jobs remain. Three missed, and none ran on L four. With no L four examples, the estimate comes entirely from those four jobs. It is three quarters.",
+        "hold": 0.3
+      },
+      {
+        "id": "c10-b04",
+        "say": "Suppose we correct T eight’s label from missed to on time. Which of the two estimates will move?",
+        "hold": 2.2
+      },
+      {
+        "id": "c10-b05",
+        "say": "Flip just that one label. The full-data calculation loses its only L four miss, and the overall miss rate falls to four eighths. Work through the fraction again. Its estimate falls to about point four one seven. Both sums used T eight.",
+        "hold": 0.3
+      },
+      {
+        "id": "c10-b06",
+        "say": "The fitting four are exactly the same four jobs, so T eight’s held-out value stays at three quarters. Another row can change if its fitting fold includes T eight.",
+        "hold": 0.9
+      },
+      {
+        "id": "c10-b07",
+        "say": "For any pool, add its allowed miss count to the smoothing weight times the allowed prior. Divide by the pool’s allowed job count plus the weight. A positive weight gives an unseen pool the prior.",
+        "hold": 0.3
+      },
+      {
+        "id": "c10-b08",
+        "say": "With weight zero and no jobs, you need a fallback for zero divided by zero. We chose a weight of five. An empirical Bayes procedure would estimate its hyperparameters from data. Laplace add-one smoothing uses a particular prior. Cross-fitting decides which jobs count.",
+        "hold": 0.3
+      },
+      {
+        "id": "c10-b09",
+        "say": "For serving, fit the map on the whole allowed training set. A new L four job uses that map until the next declared update. Smoothing changes the strength of a rare observation. Holding out the fold changes which observations the encoder can see.",
+        "hold": 0.75
+      }
+    ]
+  },
+  {
+    "id": "c11",
+    "title": "Which outcomes can enter the pool average?",
+    "sourceChapters": [
+      "c11"
+    ],
+    "beats": [
+      {
+        "id": "c11-b01",
+        "say": "These two unrelated jobs ran in the same pool. The first got a prediction at six and an outcome at eight. At seven the second job gets a prediction too. Neither result is readable at seven. Until a label matures, our encoder leaves the rate missing.",
+        "hold": 0.8
+      },
+      {
+        "id": "c11-b02",
+        "say": "Shuffling these jobs into training folds could bring a later outcome into an earlier prediction.",
+        "hold": 0.8
+      },
+      {
+        "id": "c11-b03",
+        "say": "Advance to nine. The first job finished on time, so it contributes a zero. The second result arrives at ten. How many jobs can we count in the miss rate at nine?",
+        "hold": 2
+      },
+      {
+        "id": "c11-b04",
+        "say": "One outcome. Zero misses in one job gives zero. Save that version at nine. Now advance a separate, updating encoder to ten. The second outcome arrives exactly at the cutoff and counts as a miss. One miss in two jobs gives one half.",
+        "hold": 0.3
+      },
+      {
+        "id": "c11-b05",
+        "say": "The saved version still reads zero. Both jobs share one pool, so smoothing toward the overall rate gives the same answer.",
+        "hold": 1.1
+      },
+      {
+        "id": "c11-b06",
+        "say": "To reproduce the updating encoder, keep the fitting cutoff and the version used for each decision. Exclude related jobs when the task calls for it. In scikit-learn, fit transform cross-fits the training rows. Fitting once and transforming those same rows gives them the full training map.",
+        "hold": 0.3
+      },
+      {
+        "id": "c11-b07",
+        "say": "Its cross-fitting interface needs every row held out exactly once. A forward split that skips the first row misses that requirement. A dedicated forward encoder can give that first row the warm-up rule we used here.",
+        "hold": 0.8
+      }
+    ]
+  },
+  {
+    "id": "c12",
+    "title": "Two writers, one heartbeat",
+    "sourceChapters": [
+      "c12"
+    ],
+    "beats": [
+      {
+        "id": "c12-b01",
+        "say": "Two services read the same eight thirty heartbeat. At nine, one writes thirty and the other writes half. Both send a finite number. Look at the unit on the model’s slot. Which writer can feed this model directly?",
+        "hold": 2
+      },
+      {
+        "id": "c12-b02",
+        "say": "Writer B can. The fitted layout says hours. Divide thirty minutes by sixty. Now both services send half an hour. That is one part of a feature contract. It also specifies the type, the source cutoff, the missing-value rule, allowed categories and any clipping limit.",
+        "hold": 0.8
+      },
+      {
+        "id": "c12-b03",
+        "say": "Keep those rules and the slot order with the model and its fitted preprocessing. If queued minutes and heartbeat hours trade places, the vector keeps its length while each weight gets a different measurement. First check the named row before those values lose their names.",
+        "hold": 0.8
+      }
+    ]
+  },
+  {
+    "id": "c13",
+    "title": "What passes the row builder?",
+    "sourceChapters": [
+      "c13"
+    ],
+    "beats": [
+      {
+        "id": "c13-b01",
+        "say": "Give the builder a heartbeat with an offset. Four thirty in the morning at minus four hours and eight thirty UTC are the same instant. At nine, both give half an hour. A timestamp without a timezone cannot tell us which instant to use. Reject it. Reject a future or absent heartbeat too.",
+        "hold": 0.75
+      },
+      {
+        "id": "c13-b02",
+        "say": "Here is the named row for J two oh four. The builder trims the pool name, folds its case, and maps unseen names to other. A blank pool fails. Queue and backlog must be finite, nonnegative numbers. A Boolean in a numeric field fails.",
+        "hold": 0.3
+      },
+      {
+        "id": "c13-b03",
+        "say": "Priority itself must be a Boolean. The observed age caps at one hundred eighty hours. Only the six named fields go to the vectorizer. The finish and escalation fields stay outside.",
+        "hold": 0.8
+      },
+      {
+        "id": "c13-b04",
+        "say": "Empty this backlog measurement. The numeric output becomes zero and the missing bit rises to one. Now send a measured zero. The numeric output stays zero and the bit drops. Both rows pass when the other fields are valid. The historical query still has to establish what the scorer could read by nine.",
+        "hold": 0.9
+      }
+    ]
+  },
+  {
+    "id": "c14",
+    "title": "Which weight will forty-two meet?",
+    "sourceChapters": [
+      "c14"
+    ],
+    "beats": [
+      {
+        "id": "c14-b01",
+        "say": "The measured zero was a test. Return to the nine o’clock source row for J two oh four. The sensor reported eighteen waiting jobs. Put this row into the fitted order. Start with the three pool bits, then queued minutes, heartbeat hours, backlog, its missing bit and priority. Read across the plugs. One, zero, zero, forty-two, point five, eighteen, zero, zero. Keep the category list, units, caps, missing policy and layout version with the fitted preprocessing and model.",
+        "hold": 0.85
+      },
+      {
+        "id": "c14-b02",
+        "say": "Three slots carry weight in this example. Forty-two queued minutes times one hundredth gives point four two. Half an hour times two hundredths adds point zero one. Eighteen jobs times one hundredth adds point one eight. Together they give a score of point six one. Suppose the writer exchanges its queue and heartbeat plugs. Which weight will forty-two meet?",
+        "hold": 2.4
+      },
+      {
+        "id": "c14-b03",
+        "say": "Follow the two plugs across. Leave all eight weights where they are. Forty-two lands on two hundredths. That contributes point eight four. The half hour now meets one hundredth and contributes point zero zero five. The backlog still adds point one eight.",
+        "hold": 0.3
+      },
+      {
+        "id": "c14-b04",
+        "say": "That takes the score to one point zero two five. Forty-two now supplies most of that score. Put the plugs back in the declared order. The same row returns to point six one. Both vectors held eight numbers. Their positions decided which weights they met.",
+        "hold": 1.3
+      }
+    ]
+  },
+  {
+    "id": "c15",
+    "title": "See how a preprocessing edit moves a score",
+    "sourceChapters": [
+      "c15"
+    ],
+    "beats": [
+      {
+        "id": "c15-b01",
+        "say": "Job J one eighty-eight has a heartbeat two hundred hours old and eighteen jobs in its backlog. Training clipped the age at one hundred eighty hours. Change only the serving cap to three hundred sixty. The age delivered to the model rises to two hundred.",
+        "hold": 0.55
+      },
+      {
+        "id": "c15-b02",
+        "say": "Keep the weights fixed. Multiply age by two hundredths, add a hundredth per waiting job, then subtract four. The logistic function turns that logit into a score between zero and one. The score moves from about point four four five to point five four five, crossing the selected one-half action threshold.",
+        "hold": 0.65
+      },
+      {
+        "id": "c15-b03",
+        "say": "Now try a heartbeat half an hour old. It fits under both caps, so the same weights give the same score. Try the new cap on held-out jobs before deciding whether to keep it, restore the old cap or retrain.",
+        "hold": 0.7
+      }
+    ]
+  },
+  {
+    "id": "c16",
+    "title": "Do the two copies of this row agree?",
+    "sourceChapters": [
+      "c16"
+    ],
+    "beats": [
+      {
+        "id": "c16-b01",
+        "say": "Start with a captured row that matches. Same job, same nine o’clock decision, same preprocessing version. The pool matches, both backlog readings are eighteen, and both priority bits are zero. The comparison finds no differing fields in this sample.",
+        "hold": 0.75
+      },
+      {
+        "id": "c16-b02",
+        "say": "Load a second capture. This one has a backlog of zero. Zero is a valid queue length. Compare it with eighteen on the same row and the parity check fails. Offline validation alone never sees what serving put in that slot.",
+        "hold": 0.8
+      },
+      {
+        "id": "c16-b03",
+        "say": "Here is a third capture. The backlog matches again, but the priority key is absent. Compare the union of the keys so that a missing field shows up too. Each failure tells you where to look. Check the source snapshot, the transform version and the path that delivered the value.",
+        "hold": 0.85
+      }
+    ]
+  },
+  {
+    "id": "c17",
+    "title": "What did the scorer actually receive?",
+    "sourceChapters": [
+      "c17"
+    ],
+    "beats": [
+      {
+        "id": "c17-b01",
+        "say": "Return to the capture with backlog zero. Freeze it beside the replay of the eligible source, which shows eighteen. Both rows have a heartbeat age of half an hour. Use the same illustrative logistic rule as before. The heartbeat and intercept give minus three point nine nine.",
+        "hold": 0.3
+      },
+      {
+        "id": "c17-b02",
+        "say": "The source backlog adds point one eight. The capture adds zero. Apply the logistic function to each logit. The source score is about point zero two two and the captured score is about point zero one eight, even though both inputs passed the numeric check.",
+        "hold": 0.9
+      },
+      {
+        "id": "c17-b03",
+        "say": "Keep the capture as evidence. Once you have verified the source at nine, replay the serving calculation with eighteen in the backlog slot. The repaired run agrees with the historical source. The original request still saw zero. The scores show the effect of that substitution. Measuring its effect on accuracy takes labeled outcomes.",
+        "hold": 0.9
+      },
+      {
+        "id": "c17-b04",
+        "say": "Check types separately. Python considers False equal to zero, so a value comparison can pass even if a Boolean source field has become an integer. A present null also differs from an absent key. Set a tolerance for cross-engine floats and a policy for nonfinite values.",
+        "hold": 0.75
+      },
+      {
+        "id": "c17-b05",
+        "say": "A changed score can affect later training data if a controller acts on it. For example, requeuing a job could change tomorrow’s backlog. That dependency is the CACE warning. To check for feedback, follow the requeued job and see which backlog the next prediction uses.",
+        "hold": 0.7
+      }
+    ]
+  },
+  {
+    "id": "c18",
+    "title": "Can the online store replay yesterday?",
+    "sourceChapters": [
+      "c18"
+    ],
+    "beats": [
+      {
+        "id": "c18-b01",
+        "say": "The registry describes the feature. The historical path can replay its value at nine. Watch what happens in a latest-only online store when a new backlog of thirty replaces eighteen. Asking for J two oh four now gives thirty.",
+        "hold": 0.3
+      },
+      {
+        "id": "c18-b02",
+        "say": "The registry entry alone cannot recover eighteen or tell you what the service read. Keep the serving capture and enough versioned history to check it. A small system can share a preprocessing package.",
+        "hold": 0.3
+      },
+      {
+        "id": "c18-b03",
+        "say": "If you choose a feature store, check the product generation and backend for the joins, synchronization and migration support you need.",
+        "hold": 0.9
+      },
+      {
+        "id": "c18-b04",
+        "say": "Consider another job at ten. Its last heartbeat was at eight, two hours ago. Follow the feed watermark up to ten. The feed has caught up even though this job has sent nothing since eight. Define lag using the expected update schedule, watermark or age for this feed.",
+        "hold": 0.3
+      },
+      {
+        "id": "c18-b05",
+        "say": "A recent write for another job says little about this one. Null rates, unknown categories and disagreements between captured and replayed rows each point to a different check.",
+        "hold": 0.9
+      },
+      {
+        "id": "c18-b06",
+        "say": "Apply this example’s lag policy. Through fifteen minutes, score normally. At exactly forty-five minutes, use the fallback. If the next reading is forty-five point one, abstain and alert. Boolean false is an invalid measurement. Negative, nonnumeric and nonfinite values also take the abstain branch.",
+        "hold": 0.3
+      },
+      {
+        "id": "c18-b07",
+        "say": "A fallback needs inputs you can still trust independently of the stale feed.",
+        "hold": 0.9
+      }
+    ]
+  },
+  {
+    "id": "c19",
+    "title": "What would you keep from the request?",
+    "sourceChapters": [
+      "c19"
+    ],
+    "beats": [
+      {
+        "id": "c19-b01",
+        "say": "Before we close J two oh four, save what the request actually saw. Keep the job, its scoring time, the preprocessing version and the values in their original order. Which slot would you need to explain to the next engineer?",
+        "hold": 1.7
+      },
+      {
+        "id": "c19-b02",
+        "say": "The backlog slot. The captured request holds zero there and the source replay holds eighteen. Keep both. Tomorrow’s latest lookup could give you a third value. You need the original cutoff and the versioned history to explain this difference.",
+        "hold": 0.85
+      }
+    ]
+  },
+  {
+    "id": "c20",
+    "title": "Replay the ten o’clock request",
+    "sourceChapters": [
+      "c20"
+    ],
+    "beats": [
+      {
+        "id": "c20-b01",
+        "say": "Try another job. The scheduler acted at ten. Three pings are on its record now. Read across from when each ping left the job to when the scorer could see it. The nine fifty ping turned up at ten oh five. Which ping belongs in the ten o’clock row?",
+        "hold": 2.35
+      },
+      {
+        "id": "c20-b02",
+        "say": "The nine ten ping was already readable at nine eleven. At ten it was fifty minutes old, or five sixths of an hour. The new pool maps to other. Fill in twenty queued minutes and seven jobs in the measured backlog.",
+        "hold": 0.3
+      },
+      {
+        "id": "c20-b03",
+        "say": "The missing and priority bits are both zero. Now the late ping arrives. A new decision at ten oh five could use nine fifty, fifteen minutes ago. Replay ten o’clock and you still get nine ten.",
+        "hold": 1.1
+      },
+      {
+        "id": "c20-b04",
+        "say": "Place the captured request next to a replay that starts with its values. Both say zero in the backlog slot. Mark the alert line at a quarter. Use our linear worksheet again. Twenty minutes and five sixths of an hour together contribute about point two one six seven. Both scores start there.",
+        "hold": 0.3
+      },
+      {
+        "id": "c20-b05",
+        "say": "The source history records seven waiting jobs by ten. Keep the capture sealed. If you restore those seven jobs only on the replay, at one hundredth per job, which row will cross the alert line?",
+        "hold": 3
+      },
+      {
+        "id": "c20-b06",
+        "say": "Restore the seven jobs on the replay. They add seven hundredths. The score reaches about point two eight six seven. Only the replay crosses. The captured request stays quiet and the late heartbeat stays out. You can now trace that decision to one slot. In the next lesson, use the same cutoff to count events in a streaming window.",
+        "hold": 2.2
+      }
+    ]
+  }
+]

@@ -1,0 +1,304 @@
+version: 1
+lesson: design-agent-sandbox-platform
+promise: Decide when a restored job can start and when its slot can go to the next tenant by tracing which generation owns its pages, files, control session and open handles.
+framing: []
+objectives:
+  - id: intro
+    can: Identify the host reader that still has access to a stopped guest’s scratch.
+    scenes:
+      - intro
+  - id: request-limits
+    can: Bind one generation to its resources
+    scenes:
+      - request-limits
+  - id: boundary
+    can: A guest kernel changes the trust boundary
+    scenes:
+      - boundary
+  - id: kvm-descriptors
+    can: Follow the descriptor and return value
+    scenes:
+      - kvm-descriptors
+  - id: jailer-surfaces
+    can: Reduce host authority around the VMM
+    scenes:
+      - jailer-surfaces
+  - id: clean-template
+    can: Seal memory, machine state and matching disks
+    scenes:
+      - clean-template
+  - id: cow
+    can: Follow each guest’s read pointer after one guest writes to a shared page.
+    scenes:
+      - cow
+  - id: article-page-run
+    can: Count a second writer’s private page and predict what happens when the first writer overwrites its own copy.
+    scenes:
+      - article-page-run
+  - id: fault-handler
+    can: A missing page must be supplied before progress
+    scenes:
+      - fault-handler
+  - id: clock-refresh
+    can: Refresh wall time and application deadlines separately
+    scenes:
+      - clock-refresh
+  - id: rng-window
+    can: Kernel reseeding leaves separate copied state
+    scenes:
+      - rng-window
+  - id: namespace-identity
+    can: Separate a local name from global routing
+    scenes:
+      - namespace-identity
+  - id: freshness
+    can: Identify a passing application check from the wrong generation and decide which observation the supervisor still needs.
+    scenes:
+      - freshness
+  - id: filesystem
+    can: Trace a read to the immutable image, then to a private copy after the guest edits the same name.
+    scenes:
+      - filesystem
+  - id: overlay-whiteout
+    can: Predict which names a fresh guest sees after disposal removes a whiteout and a private output file.
+    scenes:
+      - overlay-whiteout
+  - id: network
+    can: Check the destination at the trusted egress boundary
+    scenes:
+      - network
+  - id: egress-addresses
+    can: Authorize the operation and the actual connection
+    scenes:
+      - egress-addresses
+  - id: vsock-wire
+    can: Establish the control stream before carrying commands
+    scenes:
+      - vsock-wire
+  - id: bounded-ack
+    can: Apply one deadline to the acknowledgement, stop reading at newline and decide whether the assigned port is in range.
+    scenes:
+      - bounded-ack
+  - id: capacity
+    can: Dirty memory and synchronized bursts bound the pool
+    scenes:
+      - capacity
+  - id: group-budget
+    can: Spend one shared CPU allowance across threads
+    scenes:
+      - group-budget
+  - id: readonly-data
+    can: Read shared data while accounting for its working set
+    scenes:
+      - readonly-data
+  - id: state-machine
+    can: Use the Python clone’s state and generation to explain a failed disposal and a rejected retirement notice.
+    scenes:
+      - state-machine
+  - id: retirement
+    can: Explain why an exporter can still hold a scratch backing after the guest has stopped.
+    scenes:
+      - retirement
+  - id: reference-retirement
+    can: Wait for the last resource reference
+    scenes:
+      - reference-retirement
+  - id: reconciliation-table
+    can: Choose recovery from the observed failure
+    scenes:
+      - reconciliation-table
+  - id: endpoint-clock
+    can: Measure through the first user instruction
+    scenes:
+      - endpoint-clock
+  - id: fresh-generation
+    can: Identify the first time the whole slot can be reclaimed when a scratch reader and a duplicate VM handle close at different times.
+    scenes:
+      - fresh-generation
+  - id: capacity-arithmetic
+    can: Compute raw memory slots and distinguish mean CPU demand from a synchronized admission queue
+    scenes:
+      - capacity-arithmetic
+sections:
+  - heading: Give each session an owner and a readiness boundary
+    status: taught
+    scenes:
+      - request-limits
+      - freshness
+      - endpoint-clock
+  - heading: Put the guest kernel behind KVM
+    status: taught
+    scenes:
+      - boundary
+      - kvm-descriptors
+  - heading: Keep the VMM's host authority small
+    status: taught
+    scenes:
+      - jailer-surfaces
+  - heading: Restore a clean template, then establish readiness
+    status: taught
+    scenes:
+      - clean-template
+      - freshness
+  - heading: Follow one copy-on-write page
+    status: taught
+    scenes:
+      - cow
+      - article-page-run
+  - heading: Choose who handles missing pages
+    status: taught
+    scenes:
+      - fault-handler
+  - heading: Repair the state that must be fresh
+    status: taught
+    scenes:
+      - clock-refresh
+      - rng-window
+      - namespace-identity
+      - freshness
+  - heading: Wall clocks and application deadlines
+    status: taught
+    scenes:
+      - clock-refresh
+  - heading: Kernel randomness and copied application state
+    status: taught
+    scenes:
+      - rng-window
+      - freshness
+  - heading: Host networking and guest identity
+    status: taught
+    scenes:
+      - namespace-identity
+  - heading: Open connections and supervisor state
+    status: taught
+    scenes:
+      - namespace-identity
+      - vsock-wire
+  - heading: Give each guest a disposable writable filesystem
+    status: taught
+    scenes:
+      - filesystem
+      - overlay-whiteout
+  - heading: Use vsock as a bounded command channel
+    status: taught
+    scenes:
+      - vsock-wire
+      - bounded-ack
+  - heading: Constrain outbound traffic and broker private API access
+    status: taught
+    scenes:
+      - network
+      - egress-addresses
+  - heading: Put forbidden destinations behind an enforced deny path
+    status: taught
+    scenes:
+      - egress-addresses
+  - heading: Give the broker an explicit protocol
+    status: taught
+    scenes:
+      - egress-addresses
+  - heading: Size resident memory and runnable work separately
+    status: taught
+    scenes:
+      - capacity
+      - group-budget
+      - readonly-data
+      - capacity-arithmetic
+  - heading: Model page ownership and retirement locally
+    status: taught
+    scenes:
+      - article-page-run
+      - state-machine
+      - fresh-generation
+  - heading: Reconcile failures before returning capacity
+    status: taught
+    scenes:
+      - retirement
+      - reference-retirement
+      - reconciliation-table
+      - fresh-generation
+  - heading: Follow-up questions
+    status: taught
+    scenes:
+      - readonly-data
+  - heading: Check your understanding
+    status: taught
+    scenes:
+      - article-page-run
+      - kvm-descriptors
+      - rng-window
+      - request-limits
+      - endpoint-clock
+      - overlay-whiteout
+      - bounded-ack
+      - vsock-wire
+      - egress-addresses
+      - capacity
+      - group-budget
+      - reference-retirement
+      - state-machine
+      - capacity-arithmetic
+      - freshness
+      - fresh-generation
+quiz:
+  - n: 1
+    status: taught
+    scenes:
+      - article-page-run
+  - n: 2
+    status: taught
+    scenes:
+      - kvm-descriptors
+  - n: 3
+    status: taught
+    scenes:
+      - rng-window
+      - request-limits
+      - freshness
+  - n: 4
+    status: taught
+    scenes:
+      - endpoint-clock
+  - n: 5
+    status: taught
+    scenes:
+      - overlay-whiteout
+  - n: 6
+    status: taught
+    scenes:
+      - bounded-ack
+      - vsock-wire
+  - n: 7
+    status: taught
+    scenes:
+      - egress-addresses
+  - n: 8
+    status: taught
+    scenes:
+      - capacity
+      - request-limits
+      - capacity-arithmetic
+  - n: 9
+    status: taught
+    scenes:
+      - group-budget
+  - n: 10
+    status: taught
+    scenes:
+      - reference-retirement
+      - state-machine
+      - fresh-generation
+removed: []
+reviews:
+  closed_book:
+    script: b0308356f571106c
+    taught: 10
+    partial: 0
+    absent: 0
+    reviewer: /root/upgrade_shard6
+    evidence: build/video-delivery-20261106/script-reviews/design-agent-sandbox-platform.json
+  fact_check:
+    script: b0308356f571106c
+    open_findings: 0
+    reviewer: /root/upgrade_shard6
+    evidence: build/video-delivery-20261106/script-reviews/design-agent-sandbox-platform.json

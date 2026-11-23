@@ -1,0 +1,298 @@
+{
+  "id": "eval-failure-aggregator",
+  "slug": "eval-failure-aggregator",
+  "title": "Eval Failure Aggregator",
+  "difficulty": "Easy",
+  "category": "Evaluation",
+  "language": "python3",
+  "timeEstimateMinutes": 25,
+  "timeLimitMs": 2500,
+  "memoryLimitMb": 128,
+  "order": 160,
+  "tags": [
+    "evals",
+    "counter",
+    "aggregation",
+    "metrics"
+  ],
+  "source": "AI lab prep",
+  "summary": "Aggregate eval run rows into stable pass-rate and error diagnostics.",
+  "starterCode": [
+    "def summarize_runs(runs: list[dict]) -> dict:",
+    "    pass"
+  ],
+  "testCases": [
+    {
+      "name": "summarizes pass rate and failures",
+      "visibility": "sample",
+      "setup": [
+        "from solution import summarize_runs",
+        "runs = [",
+        "    {\"case_id\": \"a\", \"passed\": True},",
+        "    {\"case_id\": \"b\", \"passed\": False, \"error\": \"timeout\"},",
+        "    {\"case_id\": \"c\", \"passed\": False, \"error\": \"timeout\"},",
+        "]",
+        "summary = summarize_runs(runs)"
+      ],
+      "checks": [
+        {
+          "input": "runs = [\n    {\"case_id\": \"a\", \"passed\": True},\n    {\"case_id\": \"b\", \"passed\": False, \"error\": \"timeout\"},\n    {\"case_id\": \"c\", \"passed\": False, \"error\": \"timeout\"},\n]\nsummary = summarize_runs(runs)\nsummary[\"total\"]",
+          "expression": "summary[\"total\"]",
+          "operator": "==",
+          "expected": "3"
+        },
+        {
+          "input": "runs = [\n    {\"case_id\": \"a\", \"passed\": True},\n    {\"case_id\": \"b\", \"passed\": False, \"error\": \"timeout\"},\n    {\"case_id\": \"c\", \"passed\": False, \"error\": \"timeout\"},\n]\nsummary = summarize_runs(runs)\nsummary[\"total\"]\nsummary[\"passed\"]",
+          "expression": "summary[\"passed\"]",
+          "operator": "==",
+          "expected": "1"
+        },
+        {
+          "input": "runs = [\n    {\"case_id\": \"a\", \"passed\": True},\n    {\"case_id\": \"b\", \"passed\": False, \"error\": \"timeout\"},\n    {\"case_id\": \"c\", \"passed\": False, \"error\": \"timeout\"},\n]\nsummary = summarize_runs(runs)\nsummary[\"total\"]\nsummary[\"passed\"]\nsummary[\"pass_rate\"]",
+          "expression": "summary[\"pass_rate\"]",
+          "operator": "==",
+          "expected": "1 / 3"
+        },
+        {
+          "input": "runs = [\n    {\"case_id\": \"a\", \"passed\": True},\n    {\"case_id\": \"b\", \"passed\": False, \"error\": \"timeout\"},\n    {\"case_id\": \"c\", \"passed\": False, \"error\": \"timeout\"},\n]\nsummary = summarize_runs(runs)\nsummary[\"total\"]\nsummary[\"passed\"]\nsummary[\"pass_rate\"]\nsummary[\"failing_cases\"]",
+          "expression": "summary[\"failing_cases\"]",
+          "operator": "==",
+          "expected": "[\"b\", \"c\"]"
+        },
+        {
+          "input": "runs = [\n    {\"case_id\": \"a\", \"passed\": True},\n    {\"case_id\": \"b\", \"passed\": False, \"error\": \"timeout\"},\n    {\"case_id\": \"c\", \"passed\": False, \"error\": \"timeout\"},\n]\nsummary = summarize_runs(runs)\nsummary[\"total\"]\nsummary[\"passed\"]\nsummary[\"pass_rate\"]\nsummary[\"failing_cases\"]\nsummary[\"top_errors\"]",
+          "expression": "summary[\"top_errors\"]",
+          "operator": "==",
+          "expected": "[(\"timeout\", 2)]"
+        }
+      ]
+    },
+    {
+      "name": "handles duplicates empty errors and no runs",
+      "visibility": "hidden",
+      "setup": [
+        "from solution import summarize_runs"
+      ],
+      "checks": [
+        {
+          "input": "summarize_runs([])",
+          "expression": "summarize_runs([])",
+          "operator": "==",
+          "expected": "{\"total\": 0, \"passed\": 0, \"pass_rate\": 0, \"failing_cases\": [], \"top_errors\": []}"
+        },
+        {
+          "input": "runs = [\n    {\"case_id\": \"b\", \"passed\": False, \"error\": \"z\"},\n    {\"case_id\": \"a\", \"passed\": False, \"error\": \"\"},\n    {\"case_id\": \"b\", \"passed\": False, \"error\": \"a\"},\n    {\"case_id\": \"c\", \"passed\": True, \"error\": \"ignored\"},\n    {\"case_id\": \"d\", \"passed\": False, \"error\": \"a\"},\n]\nsummary = summarize_runs(runs)\nsummary[\"total\"]",
+          "expression": "summary[\"total\"]",
+          "operator": "==",
+          "expected": "5",
+          "before": "runs = [\n    {\"case_id\": \"b\", \"passed\": False, \"error\": \"z\"},\n    {\"case_id\": \"a\", \"passed\": False, \"error\": \"\"},\n    {\"case_id\": \"b\", \"passed\": False, \"error\": \"a\"},\n    {\"case_id\": \"c\", \"passed\": True, \"error\": \"ignored\"},\n    {\"case_id\": \"d\", \"passed\": False, \"error\": \"a\"},\n]\nsummary = summarize_runs(runs)"
+        },
+        {
+          "input": "summarize_runs([])\nruns = [\n    {\"case_id\": \"b\", \"passed\": False, \"error\": \"z\"},\n    {\"case_id\": \"a\", \"passed\": False, \"error\": \"\"},\n    {\"case_id\": \"b\", \"passed\": False, \"error\": \"a\"},\n    {\"case_id\": \"c\", \"passed\": True, \"error\": \"ignored\"},\n    {\"case_id\": \"d\", \"passed\": False, \"error\": \"a\"},\n]\nsummary = summarize_runs(runs)\nsummary[\"total\"]\nsummary[\"passed\"]",
+          "expression": "summary[\"passed\"]",
+          "operator": "==",
+          "expected": "1"
+        },
+        {
+          "input": "summarize_runs([])\nruns = [\n    {\"case_id\": \"b\", \"passed\": False, \"error\": \"z\"},\n    {\"case_id\": \"a\", \"passed\": False, \"error\": \"\"},\n    {\"case_id\": \"b\", \"passed\": False, \"error\": \"a\"},\n    {\"case_id\": \"c\", \"passed\": True, \"error\": \"ignored\"},\n    {\"case_id\": \"d\", \"passed\": False, \"error\": \"a\"},\n]\nsummary = summarize_runs(runs)\nsummary[\"total\"]\nsummary[\"passed\"]\nsummary[\"failing_cases\"]",
+          "expression": "summary[\"failing_cases\"]",
+          "operator": "==",
+          "expected": "[\"a\", \"b\", \"d\"]"
+        },
+        {
+          "input": "summarize_runs([])\nruns = [\n    {\"case_id\": \"b\", \"passed\": False, \"error\": \"z\"},\n    {\"case_id\": \"a\", \"passed\": False, \"error\": \"\"},\n    {\"case_id\": \"b\", \"passed\": False, \"error\": \"a\"},\n    {\"case_id\": \"c\", \"passed\": True, \"error\": \"ignored\"},\n    {\"case_id\": \"d\", \"passed\": False, \"error\": \"a\"},\n]\nsummary = summarize_runs(runs)\nsummary[\"total\"]\nsummary[\"passed\"]\nsummary[\"failing_cases\"]\nsummary[\"top_errors\"]",
+          "expression": "summary[\"top_errors\"]",
+          "operator": "==",
+          "expected": "[(\"a\", 2), (\"z\", 1)]"
+        },
+        {
+          "input": "summarize_runs([])\nruns = [\n    {\"case_id\": \"b\", \"passed\": False, \"error\": \"z\"},\n    {\"case_id\": \"a\", \"passed\": False, \"error\": \"\"},\n    {\"case_id\": \"b\", \"passed\": False, \"error\": \"a\"},\n    {\"case_id\": \"c\", \"passed\": True, \"error\": \"ignored\"},\n    {\"case_id\": \"d\", \"passed\": False, \"error\": \"a\"},\n]\nsummary = summarize_runs(runs)\nsummary[\"pass_rate\"]",
+          "expression": "summary[\"pass_rate\"]",
+          "operator": "==",
+          "expected": "0.2"
+        }
+      ]
+    },
+    {
+      "name": "summarizes all passing runs",
+      "visibility": "sample",
+      "setup": [
+        "from solution import summarize_runs",
+        "summary = summarize_runs([",
+        "    {\"case_id\": \"a\", \"passed\": True},",
+        "    {\"case_id\": \"b\", \"passed\": True},",
+        "])"
+      ],
+      "input": "summary = summarize_runs([\n    {\"case_id\": \"a\", \"passed\": True},\n    {\"case_id\": \"b\", \"passed\": True},\n])\nsummary",
+      "expected": "{\n    \"total\": 2,\n    \"passed\": 2,\n    \"pass_rate\": 1.0,\n    \"failing_cases\": [],\n    \"top_errors\": [],\n}",
+      "expression": "summary"
+    },
+    {
+      "name": "sorts top errors by count then message",
+      "visibility": "hidden",
+      "setup": [
+        "from solution import summarize_runs",
+        "runs = [",
+        "    {\"case_id\": \"c1\", \"passed\": False, \"error\": \"timeout\"},",
+        "    {\"case_id\": \"c2\", \"passed\": False, \"error\": \"assertion\"},",
+        "    {\"case_id\": \"c3\", \"passed\": False, \"error\": \"timeout\"},",
+        "    {\"case_id\": \"c4\", \"passed\": False, \"error\": \"assertion\"},",
+        "]"
+      ],
+      "input": "runs = [\n    {\"case_id\": \"c1\", \"passed\": False, \"error\": \"timeout\"},\n    {\"case_id\": \"c2\", \"passed\": False, \"error\": \"assertion\"},\n    {\"case_id\": \"c3\", \"passed\": False, \"error\": \"timeout\"},\n    {\"case_id\": \"c4\", \"passed\": False, \"error\": \"assertion\"},\n]\nsummarize_runs(runs)[\"top_errors\"]",
+      "expected": "[(\"assertion\", 2), (\"timeout\", 2)]",
+      "expression": "summarize_runs(runs)[\"top_errors\"]"
+    },
+    {
+      "name": "tracks failing cases even without error strings",
+      "visibility": "hidden",
+      "setup": [
+        "from solution import summarize_runs",
+        "summary = summarize_runs([",
+        "    {\"case_id\": \"case-1\", \"passed\": False},",
+        "    {\"case_id\": \"case-1\", \"passed\": False, \"error\": \"\"},",
+        "    {\"case_id\": \"case-2\", \"passed\": True},",
+        "])"
+      ],
+      "checks": [
+        {
+          "input": "summary = summarize_runs([\n    {\"case_id\": \"case-1\", \"passed\": False},\n    {\"case_id\": \"case-1\", \"passed\": False, \"error\": \"\"},\n    {\"case_id\": \"case-2\", \"passed\": True},\n])\nsummary[\"passed\"]",
+          "expression": "summary[\"passed\"]",
+          "operator": "==",
+          "expected": "1"
+        },
+        {
+          "input": "summary = summarize_runs([\n    {\"case_id\": \"case-1\", \"passed\": False},\n    {\"case_id\": \"case-1\", \"passed\": False, \"error\": \"\"},\n    {\"case_id\": \"case-2\", \"passed\": True},\n])\nsummary[\"passed\"]\nsummary[\"failing_cases\"]",
+          "expression": "summary[\"failing_cases\"]",
+          "operator": "==",
+          "expected": "[\"case-1\"]"
+        },
+        {
+          "input": "summary = summarize_runs([\n    {\"case_id\": \"case-1\", \"passed\": False},\n    {\"case_id\": \"case-1\", \"passed\": False, \"error\": \"\"},\n    {\"case_id\": \"case-2\", \"passed\": True},\n])\nsummary[\"passed\"]\nsummary[\"failing_cases\"]\nsummary[\"top_errors\"]",
+          "expression": "summary[\"top_errors\"]",
+          "operator": "==",
+          "expected": "[]"
+        }
+      ]
+    },
+    {
+      "name": "empty run list has a zero pass rate",
+      "visibility": "sample",
+      "description": "An empty evaluation has zero totals and no failures.",
+      "feedback": "Avoid dividing by zero and return the full empty summary.",
+      "setup": [
+        "from solution import summarize_runs"
+      ],
+      "input": "summarize_runs([])",
+      "expected": "{\"total\": 0, \"passed\": 0, \"pass_rate\": 0, \"failing_cases\": [], \"top_errors\": []}"
+    },
+    {
+      "name": "repeated failures count as runs but one failing case",
+      "visibility": "hidden",
+      "description": "Repeated attempts affect totals while failing_cases stays unique.",
+      "feedback": "Count rows for totals and use a set for failed case IDs.",
+      "setup": [
+        "from solution import summarize_runs",
+        "runs = [{\"case_id\": \"same\", \"passed\": False, \"error\": \"timeout\"}, {\"case_id\": \"same\", \"passed\": False, \"error\": \"timeout\"}]"
+      ],
+      "input": "summarize_runs(runs)",
+      "expected": "{\"total\": 2, \"passed\": 0, \"pass_rate\": 0.0, \"failing_cases\": [\"same\"], \"top_errors\": [(\"timeout\", 2)]}"
+    },
+    {
+      "name": "errors on passing runs are ignored",
+      "visibility": "hidden",
+      "description": "Only failed rows contribute to top_errors.",
+      "feedback": "Skip error aggregation as soon as a row is marked passed.",
+      "setup": [
+        "from solution import summarize_runs"
+      ],
+      "input": "summarize_runs([{\"case_id\": \"ok\", \"passed\": True, \"error\": \"stale warning\"}])",
+      "expected": "{\"total\": 1, \"passed\": 1, \"pass_rate\": 1.0, \"failing_cases\": [], \"top_errors\": []}"
+    },
+    {
+      "name": "summarize does not mutate input runs",
+      "visibility": "hidden",
+      "setup": [
+        "from solution import summarize_runs",
+        "runs = [{\"case_id\": \"a\", \"passed\": False, \"error\": \"timeout\"}]",
+        "original = [dict(run) for run in runs]",
+        "summarize_runs(runs)"
+      ],
+      "input": "runs",
+      "expected": "original"
+    },
+    {
+      "name": "mixed retries preserve any failure and ignore categories",
+      "visibility": "hidden",
+      "setup": [
+        "from solution import summarize_runs"
+      ],
+      "input": "summarize_runs([{\"case_id\": \"same\", \"passed\": False, \"error\": \"timeout\", \"category\": \"tools\"}, {\"case_id\": \"same\", \"passed\": True, \"error\": \"ignored\", \"category\": \"tools\"}, {\"case_id\": \"other\", \"passed\": True, \"category\": \"retrieval\"}])",
+      "expected": "{\"total\": 3, \"passed\": 2, \"pass_rate\": 2 / 3, \"failing_cases\": [\"same\"], \"top_errors\": [(\"timeout\", 1)]}"
+    },
+    {
+      "name": "keeps exact whitespace errors and returns every distinct error",
+      "visibility": "hidden",
+      "setup": [
+        "from solution import summarize_runs"
+      ],
+      "input": "summarize_runs([{\"case_id\": \"d\", \"passed\": False, \"error\": \"timeout\"}, {\"case_id\": \"c\", \"passed\": False, \"error\": \"timeout \"}, {\"case_id\": \"b\", \"passed\": False, \"error\": \" \"}, {\"case_id\": \"a\", \"passed\": False, \"error\": \"\"}, {\"case_id\": \"d\", \"passed\": False, \"error\": \"timeout\"}])",
+      "expected": "{\"total\": 5, \"passed\": 0, \"pass_rate\": 0, \"failing_cases\": [\"a\", \"b\", \"c\", \"d\"], \"top_errors\": [(\"timeout\", 2), (\" \", 1), (\"timeout \", 1)]}"
+    }
+  ],
+  "clarifyingQuestions": [
+    "Should repeated runs for the same case count once or multiple times?",
+    "Should empty error strings be grouped as unknown?",
+    "Should the primary summary stay global when category is present only for follow-ups?"
+  ],
+  "followUps": [
+    "Return pass rate by category.",
+    "Compare current runs against a baseline and list regressions.",
+    "Track flaky cases that pass and fail across repeated runs."
+  ],
+  "followUpGuide": [
+    "For category pass rates, keep a nested counter per category with total and passed counts.",
+    "",
+    "For regressions, first define a case-level policy for repeated attempts (for example, any failure, all failures, or latest timestamp). Apply the same policy to baseline and current batches, compare shared cases, and report added or missing cases separately. Indexing raw rows by case ID otherwise silently discards retries.",
+    "",
+    "For flakiness, group outcomes by case ID and report cases with both observed pass and fail outcomes, with their attempt counts. This flags outcome variation in the batch; changed inputs, environments, or grading policies can also cause it. A uniformly passing batch leaves later failure behavior unmeasured."
+  ],
+  "complexityAnalysis": [
+    "- Let n be run rows, u distinct non-empty failed errors, and f distinct failing case IDs. The Python counter solution groups in O(n) average time, then sorts both outputs: O(n + f log f + u log u) total time and O(f + u) auxiliary/output space. These bounds assume bounded-length strings and average constant-time hash operations; reading, comparing, and returning long strings adds character costs.",
+    "- Keeping every failure before grouping uses O(n) intermediate space and still needs the same output sorting.",
+    "- Streaming is a follow-up. Counter updates can be O(1) average per event, but sorted snapshots cost additional time; rolling-window expiration and distinct-case membership need their own state and removal policy."
+  ],
+  "solutionGuide": [
+    "Use a set for failed case IDs and a `Counter` for non-empty error strings from failed rows.",
+    "",
+    "`pass_rate` should divide by run count, not unique case count, because repeated eval attempts are separate observations.",
+    "",
+    "```python",
+    "from collections import Counter",
+    "",
+    "",
+    "def summarize_runs(runs: list[dict]) -> dict:",
+    "    total = len(runs)",
+    "    passed = 0",
+    "    failing_cases = set()",
+    "    errors = Counter()",
+    "",
+    "    for run in runs:",
+    "        if run.get(\"passed\"):",
+    "            passed += 1",
+    "            continue",
+    "        failing_cases.add(run[\"case_id\"])",
+    "        error = run.get(\"error\") or \"\"",
+    "        if error:",
+    "            errors[error] += 1",
+    "",
+    "    return {",
+    "        \"total\": total,",
+    "        \"passed\": passed,",
+    "        \"pass_rate\": passed / total if total else 0,",
+    "        \"failing_cases\": sorted(failing_cases),",
+    "        \"top_errors\": sorted(errors.items(), key=lambda item: (-item[1], item[0])),",
+    "    }",
+    "```"
+  ]
+}

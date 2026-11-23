@@ -1,0 +1,1230 @@
+version: 1
+id: boosted-trees
+title: Build the Tree, Freeze the Policy, Check the Release
+source: foundations/gradient-boosted-trees-production/content.md
+voice: en-US-AndrewNeural
+rate: +0%
+sources:
+  - title: "Friedman: Greedy Function Approximation: A Gradient Boosting Machine"
+    url: https://doi.org/10.1214/aos/1013203451
+  - title: "Chen and Guestrin: XGBoost"
+    url: https://arxiv.org/abs/1603.02754
+  - title: "scikit-learn: Gradient Boosting for classification"
+    url: https://scikit-learn.org/stable/modules/ensemble.html#gradient-boosting
+  - title: "xgboost.readthedocs.io: checked method and contract"
+    url: https://xgboost.readthedocs.io/en/stable/tutorials/model.html
+  - title: "arxiv.org: checked method and contract"
+    url: https://arxiv.org/pdf/1603.02754
+  - title: "xgboost.readthedocs.io: checked method and contract"
+    url: https://xgboost.readthedocs.io/en/stable/treemethod.html
+  - title: "xgboost.readthedocs.io: checked method and contract"
+    url: https://xgboost.readthedocs.io/en/stable/parameter.html
+  - title: "lightgbm.readthedocs.io: checked method and contract"
+    url: https://lightgbm.readthedocs.io/en/stable/Features.html
+  - title: "lightgbm.readthedocs.io: checked method and contract"
+    url: https://lightgbm.readthedocs.io/en/stable/Parameters.html
+  - title: "papers.nips.cc: checked method and contract"
+    url: https://papers.nips.cc/paper/6907-lightgbm-a-highly-efficient-gradient-boosting-decision-tree.pdf
+  - title: "catboost.ai: checked method and contract"
+    url: https://catboost.ai/docs/en/references/training-parameters/common
+  - title: "proceedings.neurips.cc: checked method and contract"
+    url: https://proceedings.neurips.cc/paper/7898-catboost-unbiased-boosting-with-categorical-features.pdf
+  - title: "scikit-learn.org: checked method and contract"
+    url: https://scikit-learn.org/stable/modules/ensemble.html
+  - title: "scikit-learn.org: checked method and contract"
+    url: https://scikit-learn.org/stable/modules/generated/sklearn.ensemble.GradientBoostingClassifier.html
+  - title: "arxiv.org: checked method and contract"
+    url: https://arxiv.org/html/1802.03888v3
+  - title: "shap.readthedocs.io: checked method and contract"
+    url: https://shap.readthedocs.io/en/latest/generated/shap.TreeExplainer.html
+  - title: "scikit-learn.org: checked method and contract"
+    url: https://scikit-learn.org/stable/modules/calibration.html
+  - title: "treelite.readthedocs.io: checked method and contract"
+    url: https://treelite.readthedocs.io/en/latest/
+  - title: "tl2cgen.readthedocs.io: checked method and contract"
+    url: https://tl2cgen.readthedocs.io/en/latest/
+  - title: "scikit-learn.org: checked method and contract"
+    url: https://scikit-learn.org/stable/model_persistence.html
+  - title: "arxiv.org: checked method and contract"
+    url: https://arxiv.org/abs/2207.08815
+  - title: "doi.org: checked method and contract"
+    url: https://doi.org/10.1038/s41586-024-08328-6
+scenes:
+  - id: opening
+    title: A score becomes an operational decision
+    visual: A job card moves from its known signals to a risk score, then a threshold directs an alert to an operator.
+    beats:
+      - say: At nine in the morning, a training job enters a busy cluster. The scheduler sees its heartbeat, input size, backlog, and priority. It must decide whether to step in before the deadline, while the final outcome will arrive hours later.
+        hold: 0.55
+        visual_cues:
+          - id: opening-beat-1-focus-1
+            phrase: The scheduler sees its heartbeat
+            targets:
+              - opening-object-heartbeat-backlog-priority-1
+            color: blue
+            linger: 0.6
+          - id: opening-beat-1-focus-2
+            phrase: At nine in the morning
+            targets:
+              - opening-object-heartbeat-backlog-priority-1
+            color: blue
+            linger: 0.6
+      - say: A gradient-boosted tree builds a score by adding small decision trees in sequence. Each new tree learns a correction from the current model's remaining loss. A separate policy turns the final score into an alert, so both learning and decision costs matter.
+        hold: 0.6
+        visual_cues:
+          - id: opening-beat-2-focus-1
+            phrase: A gradient-boosted tree builds a score by adding
+            targets:
+              - opening-object-snapshot-score-null-risk-score-risk-score-snapshot-2
+            color: blue
+            linger: 0.6
+          - id: opening-beat-2-focus-2
+            phrase: A separate policy turns the final score into an alert
+            targets:
+              - opening-object-alert-the-operator-3
+            color: blue
+            linger: 0.6
+      - say: We will trace one tree correction by hand, then follow a small scheduler study from earlier months to a later holdout. The study shows why time, error costs, and a frozen threshold belong beside the model.
+        hold: 0.65
+        visual_cues:
+          - id: opening-beat-3-focus-1
+            phrase: We will trace one tree correction by hand
+            targets:
+              - opening-object-heartbeat-backlog-priority-1
+            color: blue
+            linger: 0.6
+  - id: clock
+    title: Give every month one job
+    visual: Job rows move from January through March into fitting, April into model and policy selection, and May into a single frozen evaluation.
+    beats:
+      - say: First, give the calendar a job. January through March fit the trees. The learner can use those rows to discover splits and leaf corrections, because those are the historical examples available to model fitting.
+        hold: 0.55
+        visual_cues:
+          - id: clock-beat-1-focus-1
+            phrase: The learner can use those rows to discover splits and leaf corrections
+            targets:
+              - clock-object-rows-missed-deadlines-6
+            color: blue
+            linger: 0.6
+          - id: clock-beat-1-focus-2
+            phrase: First
+            targets:
+              - clock-object--5
+            color: blue
+            linger: 0.6
+      - say: April is the later validation month. It selects the number of trees and the alert threshold. Keeping both choices together matters because the threshold is evaluated on scores from the selected model.
+        hold: 0.6
+        visual_cues:
+          - id: clock-beat-2-focus-1
+            phrase: April is the later validation month
+            targets:
+              - clock-object--5
+            color: blue
+            linger: 0.6
+      - say: May is held back for a final check of that frozen candidate. The earlier months supply training examples, April guides the choices, and May gives the candidate a later test. Features and labels also need to respect each job's decision time.
+        hold: 0.7
+        visual_cues:
+          - id: clock-beat-3-focus-1
+            phrase: May is held back for a final check of that frozen candidate
+            targets:
+              - clock-object--5
+            color: blue
+            linger: 0.6
+  - id: eligible-signals
+    title: Make every input and label available in time
+    visual: The same job row carries decision,feature-arrival and label-arrival clocks; a late feature and unfinished label are removed before a NaN traverses a trained fallback branch.
+    beats:
+      - say: Trees are a candidate for a measured tabular baseline. The twenty twenty-two benchmark discussed here studied medium-sized datasets around ten thousand rows. Later Tab P F N work studied a defined small-data regime. Neither establishes a permanent winner. In our synthetic fixture, large model means input size at least nine hundred gigabytes, not an independently measured model size.
+        hold: 0.6
+        visual_cues:
+          - id: eligible-signals-step-1
+            phrase: Trees are a candidate for a measured tabular baseline
+            targets:
+              - eligible-signals-model
+            color: blue
+            linger: 0.4
+      - say: A monthly split is only the outer clock. At each historical decision, remove features that arrived afterward, and require a completed label before the fitting cutoff. A March job still running on April first cannot provide its final outcome to that retraining run. Linked incident rows also need a grouping or purging rule at the boundary. The fixture assumes these conditions; it does not implement the timestamp joins.
+        hold: 0.6
+        visual_cues:
+          - id: eligible-signals-step-2
+            phrase: A monthly split is only the outer clock
+            targets:
+              - eligible-signals-model
+            color: blue
+            linger: 0.4
+          - id: eligibility-cutoff
+            phrase: remove features that arrived afterward
+            targets:
+              - eligible-signals-model
+            color: yellow
+            linger: 0.35
+      - say: Follow a missing heartbeat through an estimator contract. The classic classifier used here rejects a NaN. The scikit-learn histogram gradient boosting classifier can learn a missing direction; when that feature had no missing training rows, its documented fallback is the child with more samples. Twelve training rows on the left and five on the right therefore send a new NaN left. Accepted input is not evidence of quality during an outage. Fit any imputer on training rows, and validate unknown categories separately.
+        hold: 0.8
+        visual_cues:
+          - id: eligible-signals-step-3
+            phrase: Follow a missing heartbeat through an estimator contract
+            targets:
+              - eligible-signals-model
+            color: green
+            linger: 0.4
+          - id: eligibility-nan
+            phrase: Twelve training rows on the left and five on the right therefore send a new NaN left
+            targets:
+              - eligible-signals-model
+            color: yellow
+            linger: 0.35
+  - id: residual
+    title: A tree fits the remaining error
+    visual: Three actual delays connect to an initial prediction of six hours. Signed residuals split into a shared two-row leaf and a separate large-model leaf, then a quarter-sized correction moves the predictions.
+    beats:
+      - say: For a transparent first step, predict delay hours for three jobs with a starting value of six. Their actual delays are two, eight, and twenty hours. Subtract the prediction from each outcome to reveal what the current model leaves behind.
+        hold: 0.55
+        visual_cues:
+          - id: residual-beat-1-focus-1
+            phrase: For a transparent first step
+            targets:
+              - residual-simulation-7
+            color: blue
+            linger: 0.6
+          - id: residual-beat-1-focus-2
+            phrase: predict delay hours for three jobs with a starting value of six
+            targets:
+              - residual-object-start-top-8
+            color: blue
+            linger: 0.6
+      - say: The residuals are minus four, plus two, and plus fourteen. Suppose a shallow tree groups the first two jobs and gives the large-model job its own leaf. The average correction is minus one for the shared leaf and plus fourteen for the other.
+        hold: 0.65
+        visual_cues:
+          - id: residual-beat-2-focus-1
+            phrase: The residuals are minus four, plus two, and plus fourteen.
+            targets:
+              - residual-simulation-7
+            color: blue
+            linger: 0.6
+          - id: residual-beat-2-focus-2
+            phrase: the first two jobs and gives the large-model
+            targets:
+              - residual-object-large-model-row-14
+            color: blue
+            linger: 0.6
+          - id: gbt-residual-leaf-means
+            phrase: The average correction is minus one for the shared leaf and plus fourteen for the other.
+            targets:
+              - residual-object-snapshot-corrections-mean-residual-snapshot-correc-15
+            color: cyan
+            linger: 0
+      - say: With a learning rate of one quarter, each leaf contributes only a quarter of its proposed move. The new predictions become five point seven five, five point seven five, and nine point five. Mean squared error falls from seventy-two to about forty-three point one three hours squared. The second job gets worse because it shares a leaf with the first; average improvement does not improve every row.
+        hold: 0.75
+        motion_check:
+          region:
+            - 235
+            - 320
+            - 1480
+            - 650
+          minimumChangedFraction: 0.002
+        visual_cues:
+          - id: residual-beat-3-focus-1
+            phrase: With a learning rate of one quarter
+            targets:
+              - residual-simulation-7
+            color: blue
+            linger: 0.6
+          - id: residual-beat-3-focus-2
+            phrase: Mean squared error falls from seventy-two to about
+            targets:
+              - residual-simulation-7
+              - residual-current-mse
+            color: blue
+            linger: 0.6
+          - id: residual-new-predictions
+            phrase: With a learning rate of one quarter, each leaf contributes only a quarter of its proposed move
+            targets:
+              - residual-simulation-7
+            color: green
+            linger: 0.3
+  - id: classification
+    title: Classification trees move a log-odds score
+    visual: Three rows start at probability one half. Their binary labels set opposite loss-gradient directions; a sigmoid maps the changing additive logit back into probability.
+    beats:
+      - say: The scheduler predicts a label, so the classifier works with a different quantity from delay hours. Its trees add to a raw score called the logit. A sigmoid converts that score to a probability between zero and one. Compute the sigmoid as one divided by the quantity one plus the exponential of the negative logit.
+        hold: 0.55
+        visual_cues:
+          - id: classification-beat-1-focus-1
+            phrase: The scheduler predicts a label
+            targets:
+              - classification-origin
+            color: blue
+            linger: 0.6
+          - id: classification-beat-1-focus-2
+            phrase: Its trees add to a raw score called the logit
+            targets:
+              - classification-object-trees-add-to-z-sigmoid-reads-p-26
+            color: blue
+            linger: 0.6
+      - say: At a logit of zero, the probability is one half. For binary log loss, the derivative with respect to the logit is probability minus the observed label. A missed job pushes the score upward; a job that finishes on time pushes it downward.
+        hold: 0.65
+        visual_cues:
+          - id: classification-beat-2-focus-1
+            phrase: At a logit of zero
+            targets:
+              - classification-simulation-22
+            color: blue
+            linger: 0.6
+      - say: The signs describe a local correction direction. A fitted classification tree also chooses partitions and loss-aware leaf values, then adds a shrunken update to the ensemble. The regression residual example gives the intuition; this gradient supplies the classification-specific signal.
+        hold: 0.7
+        visual_cues:
+          - id: classification-beat-3-focus-1
+            phrase: A fitted classification tree also chooses partitions and loss-aware leaf values
+            targets:
+              - classification-fitted-tree
+            color: blue
+            linger: 0.6
+          - id: classification-beat-3-focus-2
+            phrase: The signs describe a local correction direction
+            targets:
+              - classification-simulation-22
+            color: blue
+            linger: 0.6
+          - id: classification-tree-update
+            phrase: then adds a shrunken update to the ensemble
+            targets:
+              - classification-fitted-tree
+              - classification-shrunken-update
+              - classification-simulation-22
+            color: green
+            linger: 0.4
+  - id: curvature-split
+    title: Derive the regularized leaf and split decision
+    visual: Row gradients and curvature enter the same leaf accumulators; differentiating the quadratic gives a weight, then one parent is replaced by two charged leaves.
+    beats:
+      - say: "For binary log loss, a positive label contributes negative log probability; a negative label contributes negative log of the quantity one minus probability. Differentiate with respect to the raw logit: gradient g equals probability minus label, and curvature h equals probability multiplied by the quantity one minus probability. Our probability-one-half rows are a teaching probe. The actual fitted classifier initializes from the training class proportion, one hundred nineteen divided by three hundred sixty."
+        hold: 0.6
+        visual_cues:
+          - id: curvature-split-step-1
+            phrase: For binary log loss, a positive label contributes negative log probability; a negative label contributes negative log of the quantity one minus probability
+            targets:
+              - curvature-split-model
+            color: blue
+            linger: 0.4
+      - say: For a fixed leaf, sum its gradients into G and its curvatures into H. X G Boost's quadratic surrogate adds G times weight, plus one half multiplied by the quantity H plus lambda, multiplied by weight squared. Its derivative is G plus weight multiplied by the quantity H plus lambda. Setting that to zero gives weight equal to negative G divided by the quantity H plus lambda. Lambda penalizes leaf weights; gamma charges each leaf. This solves a local surrogate for a fixed partition.
+        hold: 0.6
+        visual_cues:
+          - id: curvature-split-step-2
+            phrase: For a fixed leaf, sum its gradients into G and its curvatures into H
+            targets:
+              - curvature-split-model
+            color: blue
+            linger: 0.4
+          - id: leaf-optimum
+            phrase: Setting that to zero gives weight equal to negative G divided by the quantity H plus lambda
+            targets:
+              - curvature-split-model
+            color: yellow
+            linger: 0.35
+      - say: A proposed split replaces its parent's score with two child scores. Net gain is one half times the quantity left G squared divided by the quantity left H plus lambda, plus right G squared divided by the quantity right H plus lambda, minus parent G squared divided by the quantity parent H plus lambda; then subtract gamma once. Positive net gain justifies the split in this simplified calculation. Minimum child curvature, support rules, shrinkage and other constraints can still prevent or limit an update.
+        hold: 0.6
+        visual_cues:
+          - id: curvature-split-step-3
+            phrase: A proposed split replaces its parent's score with two child scores
+            targets:
+              - curvature-split-model
+            color: blue
+            linger: 0.4
+          - id: gain-charge
+            phrase: then subtract gamma once
+            targets:
+              - curvature-split-model
+            color: yellow
+            linger: 0.35
+      - say: Small curvature can amplify a confident error. For a positive label at probability point zero one, g is minus point nine nine and h is point zero zero nine nine. The isolated unregularized weight is one hundred. Adding lambda one reduces it to about point nine eight. A confident correct point nine nine has the same curvature but a gradient of only minus point zero one. Inspect gradient and curvature together; optional maximum-step limits provide a further control.
+        hold: 0.8
+        visual_cues:
+          - id: curvature-split-step-4
+            phrase: Small curvature can amplify a confident error
+            targets:
+              - curvature-split-model
+            color: green
+            linger: 0.4
+          - id: curvature-regularize
+            phrase: Adding lambda one reduces it to about point nine eight
+            targets:
+              - curvature-split-model
+            color: yellow
+            linger: 0.35
+          - id: gbt-curvature-hundred
+            phrase: The isolated unregularized weight is one hundred.
+            targets:
+              - curvature-split-model
+            color: cyan
+            linger: 0
+  - id: histogram-scan
+    title: Scan three cuts over four persistent bins
+    visual: Four labeled rows deposit signed gradient and positive curvature into ordered bins; a moving cut accumulates a left prefix and subtracts it from the parent to build the right child.
+    beats:
+      - say: Build an authored four-row split search. Each row occupies one ordered bin, the labels are one, one, zero, zero, and all current probabilities are one half. The gradients are minus one half, minus one half, plus one half, plus one half. Each curvature is one quarter. Set lambda to one and gamma to zero. The parent therefore has G zero and H one.
+        hold: 0.6
+        visual_cues:
+          - id: histogram-scan-step-1
+            phrase: Build an authored four-row split search
+            targets:
+              - histogram-scan-model
+            color: blue
+            linger: 0.4
+          - id: histogram-deposit
+            phrase: The gradients are minus one half, minus one half, plus one half, plus one half
+            targets:
+              - histogram-scan-model
+            color: yellow
+            linger: 0.35
+      - say: "Move the cut after the first bin. Its left accumulator contains G minus one half and H one quarter. Subtract those from the parent to get right G plus one half and H three quarters. Insert both sides into the same gain equation: the gain is six thirty-fifths, about point one seven one. The two optimal leaf weights are point four and negative two sevenths."
+        hold: 0.6
+        visual_cues:
+          - id: histogram-scan-step-2
+            phrase: Move the cut after the first bin
+            targets:
+              - histogram-scan-model
+            color: blue
+            linger: 0.4
+          - id: histogram-cut-one
+            phrase: Move the cut after the first bin
+            targets:
+              - histogram-scan-model
+            color: yellow
+            linger: 0.35
+          - id: histogram-gain-one
+            phrase: the gain is six thirty-fifths, about point one seven one.
+            targets:
+              - histogram-scan-model
+            color: yellow
+            linger: 0.35
+          - id: gbt-histogram-one-weights
+            phrase: The two optimal leaf weights are point four and negative two sevenths.
+            targets:
+              - histogram-scan-model
+            color: cyan
+            linger: 0
+      - say: Advance the same cut after bin two. Left G is minus one and H one half; right G is plus one and H one half. Gain becomes two thirds, and the leaf weights are plus and minus two thirds. After bin three, gain falls back to six thirty-fifths. The center cut wins this stated search. Apply the learning rate to the leaf weights before adding them to each row's logit.
+        hold: 0.6
+        visual_cues:
+          - id: histogram-scan-step-3
+            phrase: Advance the same cut after bin two
+            targets:
+              - histogram-scan-model
+            color: blue
+            linger: 0.4
+          - id: histogram-cut-two
+            phrase: Advance the same cut after bin two
+            targets:
+              - histogram-scan-model
+            color: yellow
+            linger: 0.35
+          - id: histogram-gain-two
+            phrase: Gain becomes two thirds
+            targets:
+              - histogram-scan-model
+            color: yellow
+            linger: 0.35
+          - id: gbt-histogram-two-weights
+            phrase: and the leaf weights are plus and minus two thirds.
+            targets:
+              - histogram-scan-model
+            color: cyan
+            linger: 0
+          - id: gbt-histogram-winner
+            phrase: The center cut wins this stated search.
+            targets:
+              - histogram-scan-model
+            color: cyan
+            linger: 0
+      - say: "Histogram construction still reads the data: roughly rows times features for dense input. Once bins hold G and H, a prefix scan considers bin boundaries, roughly bins times features. During tree growth, a parent's histogram minus one child's histogram gives the sibling's histogram. That subtraction saves repeated construction work; it does not erase the original row pass or make a coarse binning exact."
+        hold: 0.8
+        visual_cues:
+          - id: histogram-scan-step-4
+            phrase: "Histogram construction still reads the data: roughly rows times features for dense input"
+            targets:
+              - histogram-scan-model
+            color: green
+            linger: 0.4
+          - id: histogram-subtract
+            phrase: a parent's histogram minus one child's histogram gives the sibling's histogram
+            targets:
+              - histogram-scan-model
+            color: yellow
+            linger: 0.35
+  - id: engine-growth
+    title: Change the frontier without changing the loss
+    visual: A common eligible-leaf frontier is copied into closest-root,highest-gain and symmetric-level constructions; bin boundaries and a shared predicate stay visible.
+    beats:
+      - say: Separate growth policy from split method. Given one eligible leaf at depth two with gain point four and another at depth three with gain point nine, a closest-to-root depthwise policy expands depth two first. A highest-gain leafwise policy expands depth three first. Depthwise does not mean depth-first traversal, and a depth limit does not turn leafwise growth into depthwise growth. Capacity settings still need holdout evaluation.
+        hold: 0.6
+        visual_cues:
+          - id: engine-growth-step-1
+            phrase: Separate growth policy from split method
+            targets:
+              - engine-growth-model
+            color: blue
+            linger: 0.4
+          - id: growth-frontier
+            phrase: Given one eligible leaf at depth two with gain point four and another at depth three with gain point nine
+            targets:
+              - engine-growth-model
+            color: yellow
+            linger: 0.35
+          - id: growth-best
+            phrase: A highest-gain leafwise policy expands depth three first
+            targets:
+              - engine-growth-model
+            color: yellow
+            linger: 0.35
+      - say: X G Boost offers depthwise growth and, with supported approximate or histogram methods, loss-guided growth. Exact splitting scans sorted candidates. Approx uses Hessian-weighted sketches per tree; hist uses a global sketch with supplied sample weights. Feature subsampling has method-dependent support. Light G B M uses leafwise gain selection; its number of leaves, maximum depth, leaf support and configurable bin count constrain the fitted structure.
+        hold: 0.6
+        visual_cues:
+          - id: engine-growth-step-2
+            phrase: X G Boost offers depthwise growth and, with supported approximate or histogram methods, loss-guided growth
+            targets:
+              - engine-growth-model
+            color: blue
+            linger: 0.4
+      - say: CatBoost's symmetric policy applies the same predicate to every node at a given depth. The d predicate outcomes form a binary index into a full table of two to the d leaf values. At depth three, three comparisons identify one of eight leaves. Other CatBoost growth policies exist, and Plain versus Ordered boosting is a separate choice. A compact lookup structure is a reason to benchmark inference, not a promised request-latency result.
+        hold: 0.8
+        visual_cues:
+          - id: engine-growth-step-3
+            phrase: CatBoost's symmetric policy applies the same predicate to every node at a given depth
+            targets:
+              - engine-growth-model
+            color: green
+            linger: 0.4
+          - id: growth-bits
+            phrase: At depth three, three comparisons identify one of eight leaves
+            targets:
+              - engine-growth-model
+            color: yellow
+            linger: 0.35
+  - id: sampling-categorical
+    title: Preserve statistical meaning while reducing work
+    visual: Gradient-ranked rows retain their identities through sampling weights; mutually exclusive sparse columns occupy disjoint bundle bins, then one categorical row is hidden from its own target statistic.
+    beats:
+      - say: Gradient-based one-side sampling is an optional Light G B M strategy. Keep the large-gradient group, then sample the small-gradient group with a declared inclusion probability. In a toy with four small-gradient rows sampled independently with probability one half, each retained small row receives inverse-probability weight two. A realized sample need not reproduce the full sum exactly; weighting preserves its expectation under this stated sampler.
+        hold: 0.6
+        visual_cues:
+          - id: sampling-categorical-step-1
+            phrase: Gradient-based one-side sampling is an optional Light G B M strategy
+            targets:
+              - sampling-categorical-model
+            color: blue
+            linger: 0.4
+          - id: goss-weight
+            phrase: each retained small row receives inverse-probability weight two
+            targets:
+              - sampling-categorical-model
+            color: yellow
+            linger: 0.35
+      - say: Exclusive feature bundling packs sparse columns with little overlap into disjoint bin ranges. If A and B never activate on the same row, zero can represent neither, one can represent A, and two can represent B in a binary toy. A row with both active breaks that collision-free encoding. Real bundling needs its conflict policy and representation recorded; it is not permission to add two arbitrary dense columns.
+        hold: 0.6
+        visual_cues:
+          - id: sampling-categorical-step-2
+            phrase: Exclusive feature bundling packs sparse columns with little overlap into disjoint bin ranges
+            targets:
+              - sampling-categorical-model
+            color: blue
+            linger: 0.4
+          - id: bundle-conflict
+            phrase: A row with both active breaks that collision-free encoding
+            targets:
+              - sampling-categorical-model
+            color: yellow
+            linger: 0.35
+      - say: Categorical splits can group categories rather than assume numeric distance between their IDs. Light G B M can order categories by gradient-to-curvature statistics for a partition search; small-cardinality settings may instead use one-versus-rest. CatBoost's ordered target statistic excludes the row's own label. For three rows sharing one category, with prior one half and smoothing weight one, preceding labels one then zero give the first three rows statistics one half, three quarters, and one half.
+        hold: 0.6
+        visual_cues:
+          - id: sampling-categorical-step-3
+            phrase: Categorical splits can group categories rather than assume numeric distance between their IDs
+            targets:
+              - sampling-categorical-model
+            color: blue
+            linger: 0.4
+          - id: ordered-statistic
+            phrase: preceding labels one then zero give the first three rows statistics one half, three quarters, and one half
+            targets:
+              - sampling-categorical-model
+            color: yellow
+            linger: 0.35
+      - say: "Ordered boosting addresses a different prediction-shift mechanism: form a row's residual using models that have not fitted that row's target, with preceding examples in an ordering supplying the relevant support. Ordered category statistics and Ordered boosting are distinct choices; Plain boosting can still use ordered statistics. An artificial permutation does not establish future-incident validity. Keep the real temporal validation boundary."
+        hold: 0.8
+        visual_cues:
+          - id: sampling-categorical-step-4
+            phrase: "Ordered boosting addresses a different prediction-shift mechanism: form a row's residual using models that have not fitted that row's target, with preceding examples in an ordering supplying the relevant support"
+            targets:
+              - sampling-categorical-model
+            color: green
+            linger: 0.4
+  - id: baseline
+    title: Price the two kinds of mistakes
+    visual: One estimated breach probability enters alert and no-alert cost paths for standard and priority jobs. A shared probability produces different best actions under the fixture's cost table.
+    beats:
+      - say: A score alone cannot tell a scheduler what to do. Write down the costs of a false alarm and a missed deadline first. The fixture gives priority misses the highest cost, so the same risk can justify a different action for a priority job.
+        hold: 0.55
+        visual_cues:
+          - id: baseline-beat-1-focus-1
+            phrase: The fixture gives priority misses the highest cost
+            targets:
+              - baseline-simulation-31
+            color: blue
+            linger: 0.6
+          - id: baseline-beat-1-focus-2
+            phrase: Write down the costs of a false alarm
+            targets:
+              - baseline-object-miss-cost-32
+            color: blue
+            linger: 0.6
+      - say: For a standard job at this risk, the expected cost of a missed deadline stays below the cost of raising an alert. The policy leaves that job alone and reserves intervention for cases where the expected miss cost is larger.
+        hold: 0.7
+        visual_cues:
+          - id: baseline-beat-2-focus-1
+            phrase: For a standard job at this risk
+            targets:
+              - baseline-simulation-31
+            color: blue
+            linger: 0.6
+          - id: baseline-beat-2-focus-2
+            phrase: the expected cost of a missed deadline stays
+            targets:
+              - baseline-object-miss-cost-32
+            color: blue
+            linger: 0.6
+      - say: A priority miss carries more weight, so the same risk now makes an alert worthwhile. These fixture units make the decision rule visible; the scheduler team would set them from its own operational costs before comparing policies.
+        hold: 0.7
+        visual_cues:
+          - id: baseline-beat-3-focus-1
+            phrase: A priority miss carries more weight
+            targets:
+              - baseline-simulation-31
+            color: blue
+            linger: 0.6
+  - id: cost-policy
+    title: Compute the action boundary before choosing a score
+    visual: The same probability feeds expected-cost rectangles for alert and no alert; a tier change alters only the miss cost, then the no-model baselines receive the actual April outcomes.
+    beats:
+      - say: Make the fixture's cost table explicit. A false alert costs eight units; a missed standard job costs sixty and a missed priority job costs one hundred fifty. Correct actions cost zero. These are authored cost units, not measured dollars. Without a capacity constraint, alert cost is one minus the true breach probability, multiplied by false-alert cost. No-alert cost is breach probability multiplied by miss cost.
+        hold: 0.6
+        visual_cues:
+          - id: cost-policy-step-1
+            phrase: Make the fixture's cost table explicit
+            targets:
+              - cost-policy-model
+            color: blue
+            linger: 0.4
+      - say: Equate the two expressions. The alert boundary is false-alert cost divided by the quantity false-alert plus miss cost, with alert chosen at a tie. It is eight over sixty-eight for standard jobs and eight over one hundred fifty-eight for priority jobs. At probability point zero eight, alert costs seven point three six; no alert costs four point eight for standard jobs and twelve for priority jobs. The same probability therefore produces different actions.
+        hold: 0.6
+        visual_cues:
+          - id: cost-policy-step-2
+            phrase: Equate the two expressions
+            targets:
+              - cost-policy-model
+            color: blue
+            linger: 0.4
+          - id: cost-boundary
+            phrase: The alert boundary is false-alert cost divided by the quantity false-alert plus miss cost
+            targets:
+              - cost-policy-model
+            color: yellow
+            linger: 0.35
+          - id: cost-pair
+            phrase: At probability point zero eight, alert costs seven point three six
+            targets:
+              - cost-policy-model
+            color: yellow
+            linger: 0.35
+      - say: The cheapest baseline sets a real hurdle. On April, the heartbeat rule catches forty-eight of fifty-eight misses, raises thirty false alarms and costs one thousand five hundred sixty. Alerting on all one hundred forty jobs catches all misses and costs only eighty-two false alarms times eight, or six hundred fifty-six. Never alerting costs six thousand four hundred fifty. Beating only the heartbeat rule would miss the stronger baseline.
+        hold: 0.6
+        visual_cues:
+          - id: cost-policy-step-3
+            phrase: The cheapest baseline sets a real hurdle
+            targets:
+              - cost-policy-model
+            color: blue
+            linger: 0.4
+          - id: baseline-hurdle
+            phrase: Alerting on all one hundred forty jobs catches all misses and costs only eighty-two false alarms times eight, or six hundred fifty-six.
+            targets:
+              - cost-policy-model
+            color: yellow
+            linger: 0.35
+      - say: The Bayes calculation assumes true or suitably calibrated probabilities and its stated costs. This lab instead chooses one global threshold empirically on uncalibrated scores. That is a different policy family. A reliability curve checks whether score groups match observed rates; Brier score measures overall probability error, including more than calibration. Fit and select any calibrator outside the base fitting rows and outside May.
+        hold: 0.8
+        visual_cues:
+          - id: cost-policy-step-4
+            phrase: The Bayes calculation assumes true or suitably calibrated probabilities and its stated costs
+            targets:
+              - cost-policy-model
+            color: green
+            linger: 0.4
+  - id: rounds
+    title: Validation chooses how many trees to keep
+    visual: Training loss descends through successive rounds while April loss falls to its measured minimum at round fifty, then rises by round one hundred sixty.
+    beats:
+      - say: A booster can keep adding trees while its training loss improves. The practical question is whether a later month improves too. This seeded fixture trains up to one hundred sixty rounds, then compares each stage on January through March and on April.
+        hold: 0.55
+        visual_cues:
+          - id: rounds-beat-1-focus-1
+            phrase: This seeded fixture trains up to one hundred sixty rounds
+            targets:
+              - rounds-simulation-36
+            color: blue
+            linger: 0.6
+      - say: Early on, both measures improve as useful corrections accumulate. April loss generally improves, with fluctuations, and reaches its minimum at stage fifty.
+        hold: 0.65
+        visual_cues:
+          - id: rounds-beat-2-focus-1
+            phrase: Early on
+            targets:
+              - rounds-simulation-36
+            color: blue
+            linger: 0.6
+          - id: rounds-beat-2-focus-2
+            phrase: reaches its minimum at stage fifty
+            targets:
+              - rounds-object-april-minimum-50-trees-42
+            color: blue
+            linger: 0.6
+      - say: Later trees keep reducing training loss while April loss turns upward. The best validation round selects the first fifty trees together because that prefix has the lowest April loss among all one hundred sixty stages. Some retained trees briefly increased April loss.
+        hold: 0.75
+        visual_cues:
+          - id: rounds-beat-3-focus-1
+            phrase: The best validation round selects the first fifty trees together
+            targets:
+              - rounds-simulation-36
+            color: blue
+            linger: 0.6
+  - id: selection-contract
+    title: Freeze the actual candidate selected by April
+    visual: All160 trained stages remain as an explicit search history; April selects stage50, a separate50-stage model is refitted on the original rows, and an attempted April refit breaks the threshold binding.
+    beats:
+      - say: The search fixes depth two, learning rate point zero five and random seed eleven, then actually trains all one hundred sixty stages. Training loss falls from about point six one six at stage one to point two six eight at stage one hundred sixty. April loss reaches about point five six four at stage fifty, then worsens to about point five nine two. The selected fifty-stage candidate is refitted on January through March.
+        hold: 0.6
+        visual_cues:
+          - id: selection-contract-step-1
+            phrase: The search fixes depth two, learning rate point zero five and random seed eleven, then actually trains all one hundred sixty stages
+            targets:
+              - selection-contract-model
+            color: blue
+            linger: 0.4
+          - id: selection-refit
+            phrase: The selected fifty-stage candidate is refitted on January through March
+            targets:
+              - selection-contract-model
+            color: yellow
+            linger: 0.35
+      - say: This is retrospective stage selection, not a claim that training stopped at fifty or saved the work of later stages. The code uses the first minimum when stages tie. For a different validation sequence point six two, point five eight, point five nine, point five eight, that rule selects stage two although all four were trained. Built-in classic early stopping reserves a stratified random part of its fitting matrix; that helper does not create April's later-month boundary.
+        hold: 0.6
+        visual_cues:
+          - id: selection-contract-step-2
+            phrase: This is retrospective stage selection, not a claim that training stopped at fifty or saved the work of later stages
+            targets:
+              - selection-contract-model
+            color: blue
+            linger: 0.4
+          - id: gbt-selection-tie
+            phrase: that rule selects stage two although all four were trained.
+            targets:
+              - selection-contract-model
+            color: cyan
+            linger: 0
+      - say: The threshold must be selected on scores from the resulting candidate. Adding April to the fitting rows changes that candidate and invalidates the old April evidence for its cutoff. A deployment recipe can use a separate justified refit and policy-selection design, but cannot silently carry over evidence from another fitted object. Keep May outside every such choice.
+        hold: 0.8
+        visual_cues:
+          - id: selection-contract-step-3
+            phrase: The threshold must be selected on scores from the resulting candidate
+            targets:
+              - selection-contract-model
+            color: green
+            linger: 0.4
+          - id: selection-invalid
+            phrase: Adding April to the fitting rows changes that candidate
+            targets:
+              - selection-contract-model
+            color: yellow
+            linger: 0.35
+  - id: threshold
+    title: Find an alert threshold from validation scores
+    visual: A movable threshold separates April scores into alert and no-alert groups. Cost bars compare the selected policy with alerting every job, and counters reveal the false alarms removed.
+    beats:
+      - say: The selected classifier ranks jobs, then one global threshold turns each score into an alert. A coarse threshold grid can miss a useful boundary. Searching every distinct April score evaluates every decision set available to this single-threshold policy.
+        hold: 0.6
+        visual_cues:
+          - id: threshold-beat-1-focus-1
+            phrase: then one global threshold turns each score into an alert
+            targets:
+              - threshold-simulation-50
+            color: blue
+            linger: 0.6
+          - id: threshold-beat-1-focus-2
+            phrase: The selected classifier ranks jobs
+            targets:
+              - threshold-simulation-45
+            color: blue
+            linger: 0.6
+      - say: At the selected April cutoff, every missed deadline is caught, alongside a set of false alarms. Under this fixture's cost table, those false alarms contribute five hundred sixty-eight units. The score distribution and cutoff stay visible while we compare that policy with the alternatives.
+        hold: 0.7
+        visual_cues:
+          - id: threshold-beat-2-focus-1
+            phrase: every missed deadline is caught
+            targets:
+              - threshold-simulation-50
+            color: blue
+            linger: 0.6
+          - id: threshold-beat-2-focus-2
+            phrase: At the selected April cutoff
+            targets:
+              - threshold-simulation-45
+            color: blue
+            linger: 0.6
+      - say: Alerting on every April job catches no additional missed deadline, and its total cost is higher. The threshold removes unnecessary alerts in this sample. April selected both the round count and cutoff, so May provides the later evidence.
+        hold: 0.75
+        visual_cues:
+          - id: threshold-beat-3-focus-1
+            phrase: Alerting on every April job catches no additional missed deadline
+            targets:
+              - threshold-simulation-50
+            color: blue
+            linger: 0.6
+  - id: threshold-boundary
+    title: Enumerate the policy family exactly
+    visual: The same sorted score rail moves through all distinct boundaries; tied rows remain joined, all-alert and no-alert endpoints close the search, and a full-precision cutoff is carried unchanged into May.
+    beats:
+      - say: For scores between zero and one and the rule score greater than or equal to threshold, enumerate zero, every unique April score, and the next representable value above one. Zero includes the all-alert endpoint; above one includes no alerts. Tied scores move together. Compute total cost for each decision set, then choose the pair with lowest cost and, at an equal cost, the lower threshold.
+        hold: 0.6
+        visual_cues:
+          - id: threshold-boundary-step-1
+            phrase: For scores between zero and one and the rule score greater than or equal to threshold, enumerate zero, every unique April score, and the next representable value above one
+            targets:
+              - threshold-boundary-model
+            color: blue
+            linger: 0.4
+          - id: boundary-endpoints
+            phrase: Zero includes the all-alert endpoint
+            targets:
+              - threshold-boundary-model
+            color: yellow
+            linger: 0.35
+      - say: A displayed decimal is not the policy. The selected cutoff is approximately point zero six two six six seven, while the stored float is more precise. April then has fifty-eight true alerts, seventy-one false alerts, zero missed positives and eleven correctly quiet jobs. Seventy-one times eight gives five hundred sixty-eight. The coarse point one five grid already costs one thousand three hundred sixteen and would miss this useful boundary.
+        hold: 0.6
+        visual_cues:
+          - id: threshold-boundary-step-2
+            phrase: A displayed decimal is not the policy
+            targets:
+              - threshold-boundary-model
+            color: blue
+            linger: 0.4
+          - id: boundary-counts
+            phrase: April then has fifty-eight true alerts
+            targets:
+              - threshold-boundary-model
+            color: yellow
+            linger: 0.35
+      - say: Carry that exact threshold with the fifty-tree model into May. It catches fifty-five misses and raises seventy-three false alerts, costing five hundred eighty-four. Always alert costs six hundred eighty; the heartbeat rule costs one thousand forty-four. The candidate saves twelve false alerts, or ninety-six units, while still flagging one hundred twenty-eight of one hundred forty jobs. The fixture's positive risk shift does not force May's random sampled miss count to exceed April's.
+        hold: 0.8
+        visual_cues:
+          - id: threshold-boundary-step-3
+            phrase: Carry that exact threshold with the fifty-tree model into May
+            targets:
+              - threshold-boundary-model
+            color: green
+            linger: 0.4
+          - id: gbt-may-savings
+            phrase: The candidate saves twelve false alerts, or ninety-six units, while still flagging one hundred twenty-eight of one hundred forty jobs.
+            targets:
+              - threshold-boundary-model
+            color: cyan
+            linger: 0
+  - id: holdout
+    title: Apply the frozen choice to May
+    visual: Frozen fifty-round and threshold markers cross the month boundary. May's score cards and computed cost bars compare the selected policy with the heartbeat and all-alert baselines.
+    beats:
+      - say: Carry the selected model and the full-precision April threshold into May without changing either choice. The later month contains missed deadlines in this seeded run, and the frozen policy catches every one.
+        hold: 0.55
+        visual_cues:
+          - id: holdout-beat-1-focus-1
+            phrase: Carry the selected model and the full-precision April
+            targets:
+              - holdout-object-april-threshold-55
+            color: blue
+            linger: 0.6
+          - id: holdout-beat-1-focus-2
+            phrase: the selected model and the full-precision April threshold
+            targets:
+              - holdout-object-april-threshold-55
+            color: blue
+            linger: 0.6
+      - say: The policy still raises false alarms, but its total cost is lower than alerting on every job. The heartbeat rule performs worse under the same table. The display keeps mistake cost and operator workload side by side.
+        hold: 0.7
+        visual_cues:
+          - id: holdout-beat-2-focus-1
+            phrase: The policy still raises false alarms
+            targets:
+              - holdout-simulation-57
+            color: blue
+            linger: 0.6
+          - id: holdout-beat-2-focus-2
+            phrase: but its total cost is lower than alerting on every job
+            targets:
+              - holdout-object-cost-units-62
+            color: blue
+            linger: 0.6
+      - say: AUC summarizes ranking across thresholds, while cost evaluates the chosen action rule. Here the candidate improves on the all-alert baseline, yet it still flags most jobs, so staffing capacity matters alongside the score.
+        hold: 0.75
+        visual_cues:
+          - id: holdout-beat-3-focus-1
+            phrase: AUC summarizes ranking across thresholds
+            targets:
+              - holdout-simulation-57
+            color: blue
+            linger: 0.6
+  - id: release
+    title: Check support before operating the model
+    visual: Priority and large-model slices show positive support and caught misses beside the aggregate cost result. A final release gate joins data timing, model identity, policy, and serving checks.
+    beats:
+      - say: An aggregate cost can hide a weak group. On May, the priority slice has thirty-six missed jobs and catches all thirty-six. The large-model slice has thirty-one missed jobs and also catches all thirty-one.
+        hold: 0.6
+        visual_cues:
+          - id: release-priority
+            phrase: the priority slice has thirty-six missed jobs and catches all thirty-six
+            targets:
+              - release-slice-0
+            color: cyan
+            linger: 0.6
+          - id: release-large
+            phrase: The large-model slice has thirty-one missed jobs and also catches all thirty-one
+            targets:
+              - release-slice-1
+            color: cyan
+            linger: 0.6
+      - say: The fixture requires at least ten positive examples in each required slice before its recall check counts. Support gives the recall a useful denominator. A small slice needs more evidence before it can carry a high-stakes decision.
+        hold: 0.65
+        visual_cues:
+          - id: release-beat-2-focus-1
+            phrase: The fixture requires at least ten positive examples
+            targets:
+              - release-simulation-64
+            color: blue
+            linger: 0.6
+      - say: Before operating a booster, bind its feature timing, split, selected rounds, threshold, cost table, slice evidence, and serving schema to one candidate. Then test alert capacity, missing telemetry, rollback, and real request latency. A model is one part of the decision system.
+        hold: 0.75
+        visual_cues:
+          - id: release-beat-3-focus-1
+            phrase: Before operating a booster
+            targets:
+              - release-simulation-64
+            color: blue
+            linger: 0.6
+  - id: slice-boundaries
+    title: Fail a slice on missing support or a policy regression
+    visual: The same required-slice counters move through empty,nine-positive andsufficient cases, then only the frozen threshold is changed while the fitted trees remain fixed.
+    beats:
+      - say: Recall is caught positive jobs divided by all actual positive jobs in the slice. Require ten positives and recall at least point nine for priority, and ten positives and recall at least point eight five for the large-input proxy. Zero positives gives undefined recall, which fails; nine caught out of nine still fails support. The two required slices overlap, so their counts are not independent replications. Always alerting would also pass their recall tests.
+        hold: 0.6
+        visual_cues:
+          - id: slice-boundaries-step-1
+            phrase: Recall is caught positive jobs divided by all actual positive jobs in the slice
+            targets:
+              - slice-boundaries-model
+            color: blue
+            linger: 0.4
+          - id: support-failure
+            phrase: Zero positives gives undefined recall
+            targets:
+              - slice-boundaries-model
+            color: yellow
+            linger: 0.35
+      - say: Keep the trained trees fixed and change only the threshold to point five as a declared stress test. Priority now catches twenty-six of thirty-six positives, about point seven two two. The large-input slice catches twenty of thirty-one, about point six four five. Both fail. The failure came from the policy change even though the model artifact is identical.
+        hold: 0.6
+        visual_cues:
+          - id: slice-boundaries-step-2
+            phrase: Keep the trained trees fixed and change only the threshold to point five as a declared stress test
+            targets:
+              - slice-boundaries-model
+            color: blue
+            linger: 0.4
+          - id: slice-threshold-change
+            phrase: change only the threshold to point five
+            targets:
+              - slice-boundaries-model
+            color: yellow
+            linger: 0.35
+          - id: slice-recall-result
+            phrase: Priority now catches twenty-six of thirty-six positives, about point seven two two.
+            targets:
+              - slice-boundaries-model
+            color: yellow
+            linger: 0.35
+          - id: gbt-slice-large-result
+            phrase: The large-input slice catches twenty of thirty-one, about point six four five.
+            targets:
+              - slice-boundaries-model
+            color: cyan
+            linger: 0
+          - id: gbt-slice-verdict
+            phrase: Both fail.
+            targets:
+              - slice-boundaries-model
+            color: cyan
+            linger: 0
+      - say: Restoring the predeclared frozen threshold reproduces the original evaluation; searching May for a better threshold would consume its final-test role and require fresh evidence. A passed support floor is a chosen evidence rule, not a guarantee of population recall. Join the cost comparison, required-slice evidence and alert workload before deciding whether this candidate deserves operational review.
+        hold: 0.8
+        visual_cues:
+          - id: slice-boundaries-step-3
+            phrase: Restoring the predeclared frozen threshold reproduces the original evaluation; searching May for a better threshold would consume its final-test role and require fresh evidence
+            targets:
+              - slice-boundaries-model
+            color: green
+            linger: 0.4
+  - id: attribution-game
+    title: Construct local credit in its stated output units
+    visual: Two feature tokens enter both coalition orders; their marginal increments are averaged and recombined with the base, then the same raw-logit sum passes through a sigmoid.
+    beats:
+      - say: Global gain, split count and impurity decrease summarize different properties and can favor features with many split candidates or redistribute credit among correlated inputs. They do not give the signed contribution to this particular job. Define a local explanation game with a background population, a missing-feature convention and a chosen model output before computing Shapley credit.
+        hold: 0.6
+        visual_cues:
+          - id: attribution-game-step-1
+            phrase: Global gain, split count and impurity decrease summarize different properties and can favor features with many split candidates or redistribute credit among correlated inputs
+            targets:
+              - attribution-game-model
+            color: blue
+            linger: 0.4
+      - say: In a separate two-feature game, the empty value is zero, A alone is two, B alone is one, and both give five. In order A then B, the marginal increments are two and three. In order B then A, they are one and four. Average A's two and four to get three; average B's one and three to get two. Base zero plus those credits reconstructs output five. With more features, Shapley averages across subset orders under the specified game.
+        hold: 0.6
+        visual_cues:
+          - id: attribution-game-step-2
+            phrase: In a separate two-feature game, the empty value is zero, A alone is two, B alone is one, and both give five
+            targets:
+              - attribution-game-model
+            color: blue
+            linger: 0.4
+          - id: shap-first-order
+            phrase: In order A then B
+            targets:
+              - attribution-game-model
+            color: yellow
+            linger: 0.35
+          - id: shap-second-order
+            phrase: In order B then A
+            targets:
+              - attribution-game-model
+            color: yellow
+            linger: 0.35
+          - id: shap-average
+            phrase: Average A's two and four to get three
+            targets:
+              - attribution-game-model
+            color: yellow
+            linger: 0.35
+          - id: gbt-shap-b
+            phrase: average B's one and three to get two.
+            targets:
+              - attribution-game-model
+            color: cyan
+            linger: 0
+      - say: Tree S H A P avoids explicit enumeration of all coalitions by propagating path information through each tree. Its path extension and unwinding steps track contributions and coalition-size weights, using branch-cover information for the tree-path-dependent game. The original bound is order trees times maximum leaves times maximum depth squared. Interventional handling with a background defines a different game; record that choice rather than treating all correlated-feature explanations as identical.
+        hold: 0.6
+        visual_cues:
+          - id: attribution-game-step-3
+            phrase: Tree S H A P avoids explicit enumeration of all coalitions by propagating path information through each tree
+            targets:
+              - attribution-game-model
+            color: blue
+            linger: 0.4
+      - say: Also record the output units. In a hypothetical raw-logit explanation, base minus one plus point four two and point two six gives minus point three two; sigmoid gives probability about point four two one. The contributions are not probability percentage points, and this is not an explanation fitted to our candidate. A large escalation-flag contribution suggests checking lineage, availability and freshness. It proves neither postdecision leakage nor a causal intervention benefit.
+        hold: 0.8
+        visual_cues:
+          - id: attribution-game-step-4
+            phrase: Also record the output units
+            targets:
+              - attribution-game-model
+            color: green
+            linger: 0.4
+          - id: shap-logit
+            phrase: base minus one plus point four two and point two six gives minus point three two
+            targets:
+              - attribution-game-model
+            color: yellow
+            linger: 0.35
+          - id: gbt-shap-probability
+            phrase: sigmoid gives probability about point four two one.
+            targets:
+              - attribution-game-model
+            color: cyan
+            linger: 0
+  - id: serving-work
+    title: Count tree operations and time the complete request
+    visual: Actual trees and nodes contract from160 to50 while separate feature and scoring spans remain on a common request clock; a converted candidate is checked at threshold-adjacent rows.
+    beats:
+      - say: Count the actual fitted structures first. The search model has one hundred sixty trees, one thousand one hundred stored nodes and at most three hundred twenty split comparisons per row. The selected model has fifty trees, three hundred fifty nodes and at most one hundred comparisons. These depth-based bounds establish less tree work, not a measured latency ratio. A Python API can already call compiled traversal.
+        hold: 0.6
+        visual_cues:
+          - id: serving-work-step-1
+            phrase: Count the actual fitted structures first
+            targets:
+              - serving-work-model
+            color: blue
+            linger: 0.4
+      - say: Measure feature retrieval, schema validation, tree scoring and full-request latency under representative load, threads and concurrency. In a separate serial worksheet, eighteen milliseconds of feature work plus two of scoring totals twenty. Reducing scoring to one totals nineteen, a five percent latency reduction. Faster tree code cannot remove the unchanged eighteen milliseconds. Real overlapping work and tail distributions require their own measured trace.
+        hold: 0.6
+        visual_cues:
+          - id: serving-work-step-2
+            phrase: Measure feature retrieval, schema validation, tree scoring and full-request latency under representative load, threads and concurrency
+            targets:
+              - serving-work-model
+            color: blue
+            linger: 0.4
+          - id: request-clock-before
+            phrase: eighteen milliseconds of feature work plus two of scoring totals twenty
+            targets:
+              - serving-work-model
+            color: yellow
+            linger: 0.35
+          - id: request-clock-after
+            phrase: Reducing scoring to one totals nineteen, a five percent latency reduction.
+            targets:
+              - serving-work-model
+            color: yellow
+            linger: 0.35
+      - say: Treelite exchanges and serializes supported models; its compiler path is T L two c gen. O N N X is another supported-conversion option, with no universal speedup promise. Treat conversion, pruning and tree truncation as candidate changes. Check score and action parity around the full-precision threshold, missing routing and feature order, then recheck quality, slices and actual latency. Pickle-style Python loading requires trusted sources; inspect supported types with skops and pin the training and loading dependency versions together; loading estimators across different scikit-learn versions is unsupported.
+        hold: 0.8
+        visual_cues:
+          - id: serving-work-step-3
+            phrase: Treelite exchanges and serializes supported models; its compiler path is T L two c gen
+            targets:
+              - serving-work-model
+            color: green
+            linger: 0.4
+  - id: receipt-state
+    title: Bind an operational decision to real artifacts
+    visual: The actual receipt retains operational_checks_pending while a payload hash is separated from the missing model digest; concrete schema,latency,capacity and rollback evidence fills named unproven fields.
+    beats:
+      - say: The lab's final metric gate requires cost below both baselines and passing required slices. It passes, yet the actual release status is operational checks pending. The compact receipt records the fitted recipe, split labels, full threshold, cost table and evaluation. Its printed checksum beginning f zero zero eight identifies that J S O N payload. It does not serialize or hash the fitted model, original data, source revision or dependency lock.
+        hold: 0.6
+        visual_cues:
+          - id: receipt-state-step-1
+            phrase: The lab's final metric gate requires cost below both baselines and passing required slices
+            targets:
+              - receipt-state-model
+            color: blue
+            linger: 0.4
+          - id: receipt-checksum
+            phrase: Its printed checksum beginning f zero zero eight
+            targets:
+              - receipt-state-model
+            color: yellow
+            linger: 0.35
+      - say: Attach the actual model digest, immutable data and split identifiers, source revision and dependency versions. The feature contract needs meanings, units, availability and missing rules; the serving schema needs names, types, ranges and shape. Bind those to the threshold policy and slice evidence. Replacing model bytes while preserving a receipt checksum cannot preserve the candidate's identity.
+        hold: 0.6
+        visual_cues:
+          - id: receipt-state-step-2
+            phrase: Attach the actual model digest, immutable data and split identifiers, source revision and dependency versions
+            targets:
+              - receipt-state-model
+            color: blue
+            linger: 0.4
+          - id: receipt-model-change
+            phrase: Replacing model bytes while preserving a receipt checksum cannot preserve the candidate's identity
+            targets:
+              - receipt-state-model
+            color: pink
+            linger: 0.35
+      - say: Operational evidence must cover schema enforcement, realistic request latency, alert capacity, rollback and delayed-label monitoring. Shadow traffic can expose serving failures while candidate scores cannot trigger interventions, but still needs resources and access controls. Neither synthetic savings nor shadow scoring establishes that intervening improves real outcomes. Twelve fewer false alarms may or may not pay for operating this model.
+        hold: 0.8
+        visual_cues:
+          - id: receipt-state-step-3
+            phrase: Operational evidence must cover schema enforcement, realistic request latency, alert capacity, rollback and delayed-label monitoring
+            targets:
+              - receipt-state-model
+            color: green
+            linger: 0.4
+  - id: earned-split-transfer
+    title: Predict a new split before revealing its consequence
+    visual: Keep the four rows in order with labels 1, 0, 1, 0. Lower gamma and compare all three gains to zero. Break the tie at the first cut. Show that only row one exceeds the action threshold and row three remains a missed positive.
+    beats:
+      - say: Now predict a new case, separate from the scheduler holdout. Four ordered bins have labels one, zero, one, zero, probabilities one half, lambda one and gamma point two. Keep all three candidate cuts visible. Do the alternating labels still justify a split? Work from their gradient and curvature sums before choosing a tree.
+        hold: 0.6
+        visual_cues:
+          - id: earned-split-transfer-step-1
+            phrase: Now predict a new case, separate from the scheduler holdout
+            targets:
+              - earned-split-transfer-model
+            color: blue
+            linger: 0.4
+      - say: The two end cuts each have unpenalized gain six thirty-fifths, while the center cut has zero. After subtracting gamma point two, all net gains are negative. This toy rule therefore keeps the parent. A familiar gradient pattern is insufficient when its improvement cannot pay the leaf penalty.
+        hold: 0.6
+        visual_cues:
+          - id: earned-split-transfer-step-2
+            phrase: The two end cuts each have unpenalized gain six thirty-fifths, while the center cut has zero
+            targets:
+              - earned-split-transfer-model
+            color: blue
+            linger: 0.4
+          - id: fresh-unpenalized
+            phrase: The two end cuts each have unpenalized gain six thirty-fifths
+            targets:
+              - earned-split-transfer-model
+            color: yellow
+            linger: 0.35
+          - id: fresh-block
+            phrase: After subtracting gamma point two, all net gains are negative. This toy rule therefore keeps the parent.
+            targets:
+              - earned-split-transfer-model
+            color: yellow
+            linger: 0.35
+      - say: Change only this toy recipe's gamma to point one. Each end cut now has positive net gain about point zero seven one; the center remains negative. With an explicit earliest-cut tie rule, select the first cut. Its left weight is point four and its right weight is negative two sevenths. At learning rate one quarter and starting logit zero, the new logits are point one and negative one fourteenth.
+        hold: 0.6
+        visual_cues:
+          - id: earned-split-transfer-step-3
+            phrase: Change only this toy recipe's gamma to point one
+            targets:
+              - earned-split-transfer-model
+            color: blue
+            linger: 0.4
+          - id: fresh-gamma
+            phrase: Change only this toy recipe's gamma to point one
+            targets:
+              - earned-split-transfer-model
+            color: yellow
+            linger: 0.35
+          - id: fresh-cut
+            phrase: With an explicit earliest-cut tie rule, select the first cut
+            targets:
+              - earned-split-transfer-model
+            color: yellow
+            linger: 0.35
+          - id: fresh-logits
+            phrase: the new logits are point one and negative one fourteenth
+            targets:
+              - earned-split-transfer-model
+            color: yellow
+            linger: 0.35
+          - id: gbt-fresh-weights
+            phrase: Its left weight is point four and its right weight is negative two sevenths.
+            targets:
+              - earned-split-transfer-model
+            color: cyan
+            linger: 0
+      - say: "Their probabilities are about point five two five and point four eight two. Under a separately supplied threshold point five two, only the first row alerts, so the positive third row is still missed. A better surrogate split need not satisfy an action or recall gate. This was a controlled toy intervention, not a retuning of May or permission to promote the scheduler candidate. Ranking next changes the output from an alert-or-no-alert decision for each job to an ordered set of eligible items, where missing a useful candidate and putting it in the wrong position are separate failures."
+        hold: 0.8
+        visual_cues:
+          - id: earned-split-transfer-step-4
+            phrase: Their probabilities are about point five two five and point four eight two
+            targets:
+              - earned-split-transfer-model
+            color: green
+            linger: 0.4
+          - id: fresh-probabilities
+            phrase: Their probabilities are about point five two five and point four eight two
+            targets:
+              - earned-split-transfer-model
+            color: yellow
+            linger: 0.35
+          - id: fresh-actions
+            phrase: Under a separately supplied threshold point five two, only the first row alerts, so the positive third row is still missed.
+            targets:
+              - earned-split-transfer-model
+            color: yellow
+            linger: 0.35

@@ -1,0 +1,326 @@
+version: 1
+lesson: fsdp-zero
+promise: Choose a sharding layout to test by counting state on one rank, tracing the live buffers and collectives, and checking throughput and the first update after a restore.
+framing: []
+objectives:
+  - id: intro
+    can: Decide whether one rank can load a weight replica, then calculate its share after sharding.
+    scenes:
+      - intro
+  - id: ledger
+    can: Compute the replicated toy ledger
+    scenes:
+      - ledger
+  - id: real-ledger
+    can: Price the five buffers in the 70B recipe and use the spacing near a weight to predict whether an update survives storage.
+    scenes:
+      - real-ledger
+  - id: weighted-ddp
+    can: Recover a pooled-token gradient from unequal local counts
+    scenes:
+      - weighted-ddp
+  - id: zero1
+    can: Trace optimizer ownership through stage one
+    scenes:
+      - zero1
+  - id: zero2
+    can: Compute stored gradient ownership and reduction output
+    scenes:
+      - zero2
+  - id: zero3
+    can: Trace parameter gather and release
+    scenes:
+      - zero3
+  - id: collective-cost
+    can: Sum a gradient coordinate, locate its owner and count the ring bytes needed to reconstruct the result on every rank.
+    scenes:
+      - collective-cost
+  - id: lifecycle
+    can: Trace full-shard parameter and activation lifetimes
+    scenes:
+      - lifecycle
+  - id: dtype-lifecycle
+    can: Price the full local gradient, follow its reduction to a shard and identify when storage can be cleared.
+    scenes:
+      - dtype-lifecycle
+  - id: fsdp2-contract
+    can: Design bottom-up sharding and correct optimizer ownership
+    scenes:
+      - fsdp2-contract
+  - id: tradeoff
+    can: Compare persistent state and exposed gather time
+    scenes:
+      - tradeoff
+  - id: granularity
+    can: Choose a gather boundary and use its launch time to calculate the wait and the weights live together.
+    scenes:
+      - granularity
+  - id: topology-links
+    can: Convert network units on matched boundaries
+    scenes:
+      - topology-links
+  - id: hybrid
+    can: Use repeated shard IDs to identify the sharing group and price one rank in a hybrid mesh.
+    scenes:
+      - hybrid
+  - id: checkpoint
+    can: Diagnose a resume that matches loss but changes the next update
+    scenes:
+      - checkpoint
+  - id: offload
+    can: Calculate a transfer lower bound and check runtime composition
+    scenes:
+      - offload
+  - id: mesh
+    can: Compute world size and independent sequence batch
+    scenes:
+      - mesh
+  - id: tensor-parallel
+    can: Compute partial matrix outputs and their sum
+    scenes:
+      - tensor-parallel
+  - id: pipeline
+    can: Calculate activation retention and the idle-time denominator
+    scenes:
+      - pipeline
+  - id: context-parallel
+    can: Merge supplied attention blocks with online softmax
+    scenes:
+      - context-parallel
+  - id: profile-contract
+    can: Locate the first failed allocation or mismatched collective, then design a memory and timing comparison on the intended workload.
+    scenes:
+      - profile-contract
+  - id: choose
+    can: Identify the allocation that pushes a longer sequence over capacity after activation checkpointing.
+    scenes:
+      - choose
+  - id: sizing-transfer
+    can: Choose a candidate rank count or ZeRO stage using a per-card capacity limit and a stated joint peak, then specify the measurements needed for a trial.
+    scenes:
+      - sizing-transfer
+sections:
+  - heading: The memory wall in numbers
+    status: taught
+    scenes:
+      - intro
+      - real-ledger
+  - heading: Why DDP hits a limit
+    status: taught
+    scenes:
+      - weighted-ddp
+      - intro
+  - heading: "ZeRO stages: removing redundancy one layer at a time"
+    status: taught
+    scenes: &a1
+      - ledger
+      - zero1
+      - zero2
+      - zero3
+      - real-ledger
+  - heading: "ZeRO stage 1: shard optimizer states"
+    status: taught
+    scenes: *a1
+  - heading: "ZeRO stage 2: shard optimizer + gradients"
+    status: taught
+    scenes: *a1
+  - heading: "ZeRO stage 3: shard everything"
+    status: taught
+    scenes: *a1
+  - heading: Memory per GPU (70B model, 256 GPUs)
+    status: taught
+    scenes: *a1
+  - heading: Communication overhead analysis
+    status: taught
+    scenes:
+      - collective-cost
+      - topology-links
+  - heading: Communication primitives you need to know
+    status: taught
+    scenes:
+      - zero2
+      - collective-cost
+  - heading: "The interconnect hierarchy: NVLink vs InfiniBand"
+    status: taught
+    scenes:
+      - topology-links
+  - heading: The 1.5x heuristic
+    status: taught
+    scenes:
+      - collective-cost
+  - heading: FSDP (Fully Sharded Data Parallel)
+    status: taught
+    scenes: &a3
+      - fsdp2-contract
+  - heading: "How full sharding materializes one unit: the FSDP lifecycle"
+    status: taught
+    scenes:
+      - lifecycle
+      - dtype-lifecycle
+  - heading: "Prefetching: overlapping communication with compute"
+    status: taught
+    scenes:
+      - tradeoff
+      - granularity
+  - heading: "FSDP2: `fully_shard` on DTensors"
+    status: taught
+    scenes: *a3
+  - heading: FSDP1 you'll still meet
+    status: taught
+    scenes: *a3
+  - heading: Sharding strategy names
+    status: taught
+    scenes:
+      - fsdp2-contract
+      - hybrid
+  - heading: Checkpointing, resume, and fault recovery
+    status: taught
+    scenes:
+      - checkpoint
+  - heading: DeepSpeed ZeRO
+    status: taught
+    scenes: &a4
+      - offload
+  - heading: "ZeRO-Infinity: CPU and NVMe offloading"
+    status: taught
+    scenes: *a4
+  - heading: FSDP vs DeepSpeed comparison
+    status: taught
+    scenes: *a4
+  - heading: Which stack to start with
+    status: taught
+    scenes: *a4
+  - heading: "Beyond data parallelism: 4D parallelism"
+    status: taught
+    scenes:
+      - mesh
+      - tensor-parallel
+      - pipeline
+      - context-parallel
+  - heading: Tensor parallelism (Megatron-LM ColumnParallel & RowParallel)
+    status: taught
+    scenes:
+      - tensor-parallel
+  - heading: Pipeline parallelism & 1F1B bubble mechanics
+    status: taught
+    scenes:
+      - pipeline
+  - heading: Context parallelism & Ring Attention
+    status: taught
+    scenes:
+      - context-parallel
+  - heading: Debugging & profiling distributed training
+    status: taught
+    scenes: &a5
+      - profile-contract
+  - heading: Common failure modes
+    status: taught
+    scenes: *a5
+  - heading: Profiling tools
+    status: taught
+    scenes: *a5
+  - heading: Training observability signals that matter
+    status: taught
+    scenes: *a5
+  - heading: Training-system bottleneck map
+    status: taught
+    scenes: *a5
+  - heading: A worked sizing exercise
+    status: taught
+    scenes:
+      - intro
+      - real-ledger
+      - sizing-transfer
+      - choose
+  - heading: Common pitfalls
+    status: taught
+    scenes:
+      - granularity
+      - fsdp2-contract
+      - offload
+      - profile-contract
+      - mesh
+  - heading: Misidentifying which axis is split
+    status: taught
+    scenes:
+      - mesh
+      - tensor-parallel
+  - heading: Wrapping the whole model as one FSDP unit
+    status: taught
+    scenes: &a6
+      - granularity
+  - heading: Thinking FSDP1 `limit_all_gathers=True` creates overlap
+    status: taught
+    scenes: *a6
+  - heading: Treating `SHARD_GRAD_OP` as identical to ZeRO-2
+    status: taught
+    scenes:
+      - fsdp2-contract
+  - heading: Ignoring activation memory
+    status: taught
+    scenes:
+      - choose
+      - granularity
+  - heading: Assuming every DeepSpeed feature composes with every ZeRO stage
+    status: taught
+    scenes:
+      - offload
+quiz:
+  - n: 1
+    status: taught
+    scenes:
+      - real-ledger
+      - sizing-transfer
+  - n: 2
+    status: taught
+    scenes:
+      - real-ledger
+      - zero2
+      - zero3
+      - sizing-transfer
+  - n: 3
+    status: taught
+    scenes:
+      - fsdp2-contract
+      - granularity
+  - n: 4
+    status: taught
+    scenes:
+      - dtype-lifecycle
+  - n: 5
+    status: taught
+    scenes:
+      - hybrid
+  - n: 6
+    status: taught
+    scenes:
+      - pipeline
+  - n: 7
+    status: taught
+    scenes:
+      - checkpoint
+  - n: 8
+    status: taught
+    scenes:
+      - offload
+      - topology-links
+  - n: 9
+    status: taught
+    scenes:
+      - mesh
+  - n: 10
+    status: taught
+    scenes:
+      - real-ledger
+removed: []
+reviews:
+  closed_book:
+    taught: 10
+    partial: 0
+    absent: 0
+    script: ea6ecfd1e5341a37
+    evidence: build/video-delivery-20261106/script-reviews/fsdp-zero.json
+  fact_check:
+    open_findings: 0
+    script: ea6ecfd1e5341a37
+    evidence: build/video-delivery-20261106/script-reviews/fsdp-zero.json

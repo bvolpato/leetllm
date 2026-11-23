@@ -1,0 +1,211 @@
+version: 1
+lesson: reinforcement-learning
+edition: full-directors
+narration: videos/full-directors/lessons/reinforcement-learning/narration.json
+promise: Formulate a cliff gridworld, calculate and learn useful action values, improve a stochastic policy, and explain how rewards and experience change its route.
+objectives:
+  - id: connect-choices-to-return
+    can: Compute a discounted return and specify the states, actions, transitions, rewards, and discount of a sequential problem.
+    scenes: [c01, c02, c03]
+  - id: plan-with-a-model
+    can: Work backward with Bellman backups, explain value and policy iteration, and compare routes under stochastic transitions.
+    scenes: [c04, c05, c06]
+  - id: learn-from-transitions
+    can: Calculate Q-learning and SARSA targets and distinguish a terminal landing from a collector truncation.
+    scenes: [c07, c08]
+  - id: shape-useful-experience
+    can: Calculate epsilon-greedy action probabilities and diagnose a reward bonus that makes looping more valuable than finishing.
+    scenes: [c09]
+  - id: improve-action-probabilities
+    can: Explain the REINFORCE update, baseline cancellation, and the transfer from rover moves to token actions and group-relative rewards.
+    scenes: [c10, c11]
+  - id: evaluate-and-transfer
+    can: Calculate trajectory importance weights, identify missing action support, and predict how a changed reward or discount alters a route.
+    scenes: [c12, c13]
+sections:
+  - heading: Sequential episodes and discounted return
+    status: taught
+    scenes: [c01, c02]
+  - heading: Markov decision processes and environment dynamics
+    status: taught
+    scenes: [c03]
+  - heading: Bellman expectation and optimality equations
+    status: taught
+    scenes: [c04, c06]
+  - heading: Solving known MDPs with dynamic programming
+    status: taught
+    scenes: [c05, c06]
+  - heading: "Model-free control: Q-learning versus SARSA"
+    status: taught
+    scenes: [c07, c08]
+  - heading: Handling episode termination versus time-limit truncation
+    status: taught
+    scenes: [c08]
+  - heading: Exploration, reward design, and positive loops
+    status: taught
+    scenes: [c09]
+  - heading: Policy gradients, REINFORCE, and baselines
+    status: taught
+    scenes: [c10]
+  - heading: From rover moves to language-model tokens
+    status: taught
+    scenes: [c11]
+  - heading: Offline policy evaluation and support coverage
+    status: taught
+    scenes: [c12]
+  - heading: Put the pieces together on the map
+    status: taught
+    scenes: [c13]
+quiz:
+  - n: 1
+    status: taught
+    scenes: [c02]
+  - n: 2
+    status: taught
+    scenes: [c03, c04, c06]
+  - n: 3
+    status: taught
+    scenes: [c07, c08]
+  - n: 4
+    status: taught
+    scenes: [c08]
+  - n: 5
+    status: taught
+    scenes: [c03]
+  - n: 6
+    status: taught
+    scenes: [c10]
+  - n: 7
+    status: taught
+    scenes: [c09]
+  - n: 8
+    status: taught
+    scenes: [c12]
+  - n: 9
+    status: taught
+    scenes: [c11]
+  - n: 10
+    status: taught
+    scenes: [c05]
+removed:
+  - point: IAM evidence verification, approval authorization, and the P-7 execution gate.
+    reason: These introduced an unrelated meaning of policy. The coherent gridworld now teaches a policy as an action-selection rule; authorization belongs in an access-control lesson.
+  - point: Access-request abandonment thresholds and speed-score routing.
+    reason: Wind-driven route reversal and the ridge bonus loop teach the same transition-risk and reward-design mechanisms on the article's map, with computed action values.
+  - point: The bound on an infinite discounted return and the separate gamma-one finite-episode case.
+    reason: The promise uses finite trips with discount 0.90. Return convergence bounds are a mathematical extension; the shaping section states its terminal condition where needed.
+  - point: Belief states for partially observed environments.
+    reason: The lesson teaches why a missing wind variable must enter the state. Belief-state filtering is outside this introductory MDP promise and is not needed to calculate its examples.
+  - point: A numbered exploration log with individual random draws.
+    reason: Epsilon-greedy probabilities and the resulting cliff risk teach what the draws do without an invented event-ID narrative.
+  - point: A two-outcome baseline variance table for three baseline choices.
+    reason: The rewritten script derives action-independent baseline cancellation, interprets an advantage, and checks the exact four-action softmax gradient. Variance tables remain optional further practice.
+  - point: Per-decision importance sampling and the separate contextual-bandit formula.
+    reason: The full-trajectory product now carries the central importance-weight example through six moves. Per-decision estimators are an extension beyond the article's introductory evaluation section.
+  - point: Hidden reviewer confounding and doubly robust evaluation.
+    reason: These require a causal-inference treatment beyond this MDP example. The current script explicitly fixes the environment and teaches action support and weight variance.
+  - point: The IAM timestamp bridge to Validation and Leakage.
+    reason: The close now transfers the gridworld mechanism by independently changing the cliff reward and discount. The article's next-lesson link retains the curriculum handoff.
+visual_plan:
+  - scene: c01
+    question: Why might a longer route be better?
+    start: One 3x4 map, one rover start, one beacon, three cliff cells.
+    operation: Trace four-move and six-move routes on the same coordinates.
+    consequence: The shorter route visibly touches the cliff edge.
+    payoff: Distance alone cannot decide a route under uncertainty.
+    persists: Coordinates, cliff, beacon, action colors.
+  - scene: c02
+    question: How do four rewards become one return?
+    start: The shortcut's ordered rewards.
+    operation: Attach successive powers of gamma and add contributions.
+    consequence: The same terminal reward has a different present value on a longer trip.
+    payoff: Return evaluates a whole trip from its starting point.
+    persists: Reward amounts and discount.
+  - scene: c03
+    question: What can happen after one chosen action?
+    start: Rover at (1,1), action Right.
+    operation: Split into right, up, and cliff branches with probabilities.
+    consequence: The cliff branch lowers expected immediate reward.
+    payoff: Separate action selection from transition randomness.
+    persists: Branch coordinates and probabilities.
+  - scene: c04
+    question: Can one number summarize the remaining trip?
+    start: Terminal continuation zero and beacon entry reward twenty.
+    operation: Bring successor values backward through step costs and discount.
+    consequence: Twenty becomes seventeen, fourteen point three, then eleven point eight seven.
+    payoff: The Bellman equation describes a visible recursive construction.
+    persists: Map, value labels, backward information arrows.
+  - scene: c05
+    question: Where do continuation estimates come from?
+    start: A zero-filled value map.
+    operation: Four synchronous sweeps read the previous table.
+    consequence: Beacon information travels one transition farther per sweep.
+    payoff: Value iteration extends a planning horizon; policy iteration separates evaluation and improvement.
+    persists: Values, coordinates, maximizing action arrows.
+  - scene: c06
+    question: How does wind reverse the preferred action?
+    start: The same cliff-edge action with windy continuation values.
+    operation: Weight complete reward-plus-continuation branches.
+    consequence: Right falls below Up; the policy climbs to the ridge.
+    payoff: Explain the route change and the ridge's structural zero-fall property.
+    persists: Map and branch colors.
+  - scene: c07
+    question: What can one observed transition teach?
+    start: One Right move, reward minus one, next maximum seventeen, old Q ten.
+    operation: Form target fourteen point three and move halfway toward it.
+    consequence: The table entry becomes twelve point one five.
+    payoff: A sampled transition can update a value without a transition model.
+    persists: Next-state estimates and the current table entry.
+  - scene: c08
+    question: Which next action belongs in the target?
+    start: Next-state values seventeen for Right and nine for sampled Up.
+    operation: Compare greedy and behavior-action continuations.
+    consequence: Q-learning and SARSA targets differ, and exploratory cliff risk matters.
+    payoff: Target choice and termination handling determine what is learned.
+    persists: Map and next-action values.
+  - scene: c09
+    question: Can progress rewards make finishing worse?
+    start: An eight-point entry bonus at ridge cell (0,3).
+    operation: Compare a complete trip with a repeated two-cell shuttle from the same start.
+    consequence: Repeated bonus collection beats reaching the beacon.
+    payoff: Potential differences telescope into a route-independent adjustment.
+    persists: Bonus square, routes, discount.
+  - scene: c10
+    question: How can a good trip change action probabilities?
+    start: Equal softmax probabilities over the four moves.
+    operation: Multiply the sampled log-probability gradient by return minus baseline.
+    consequence: The sampled action gains probability when it beats the baseline.
+    payoff: Derive the policy-gradient direction and check it numerically.
+    persists: Action order Up, Right, Down, Left.
+  - scene: c11
+    question: What changes when actions are tokens?
+    start: A prompt, growing completion, and final answer score.
+    operation: Compare new and old token probabilities, then center group completion rewards.
+    consequence: PPO's clipped incentive and GRPO's relative weights change learning signals.
+    payoff: Transfer sequential action credit to language-model training.
+    persists: State-action-return mapping.
+  - scene: c12
+    question: What can a saved trip tell us about another policy?
+    start: Six recorded actions with old and target probabilities.
+    operation: Multiply action likelihood ratios.
+    consequence: One trajectory gets a large weight; an unvisited action remains missing.
+    payoff: Distinguish high variance from absent support.
+    persists: Map and action identity.
+  - scene: c13
+    question: Does the route change when failure is cheaper?
+    start: The original windy map and original discount.
+    operation: Change only cliff penalty, recompute values, then separately restore it and lower gamma.
+    consequence: Cheaper failure favors Right; the lower discount alone still favors Up.
+    payoff: Predict route changes by tracing rewards and continuation.
+    persists: All original transition rules, coordinates, and algorithms.
+reviews:
+  closed_book:
+    taught: 10
+    partial: 0
+    absent: 0
+    script: 81ee0aecf0d163d8
+    reviewer: teaching_rules
+  fact_check:
+    open_findings: 0
+    script: 81ee0aecf0d163d8
+    reviewer: teaching_rules

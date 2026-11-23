@@ -1,0 +1,411 @@
+[
+  {
+    "id": "c01",
+    "title": "Can the driver submit the stitch?",
+    "sourceChapters": [
+      "c01"
+    ],
+    "beats": [
+      {
+        "id": "c01-b01",
+        "say": "West is still decoding the eye of this storm. Watch the last rows on the right. East finishes first. Each decode is a Ray task, one remote function call. The driver already has two object references, one handle for each tile. Should it submit the stitch now or wait for west to finish?",
+        "hold": 2.6
+      },
+      {
+        "id": "c01-b02",
+        "say": "Submit it now. The driver passes west and east as separate arguments. Look at the empty rows under west. Ray can register the call now, but the stitch still needs pixel values from both workers before it can run.",
+        "hold": 1
+      },
+      {
+        "id": "c01-b03",
+        "say": "Watch the last west rows arrive. Both tiles are ready. The stitch can run. It joins the tiles in argument order. Follow the band across the seam. East belongs on the right even though it finished first. We'll use the same distinction between a handle and its value to decide what survives a failure.",
+        "hold": 1.2
+      }
+    ]
+  },
+  {
+    "id": "c02",
+    "title": "When does the last document finish?",
+    "sourceChapters": [
+      "c02"
+    ],
+    "beats": [
+      {
+        "id": "c02-b01",
+        "say": "Give two workers three documents called cache, router and trace. Their feature calculations take four, two and three ticks in this example. We leave out scheduling overhead. In the first run the driver fetches each result before submitting the next task. Follow the empty lane.",
+        "hold": 0.7
+      },
+      {
+        "id": "c02-b02",
+        "say": "The last result arrives at nine. Now submit all three before waiting. Cache and router start together. Router finishes at two and its worker takes trace. Cache still has two ticks to go. When will both lanes be clear?",
+        "hold": 2.4
+      },
+      {
+        "id": "c02-b03",
+        "say": "Watch the last two calls finish. Both workers are free at five. The second lane takes two plus three ticks. The first takes four. Nine ticks of worker time bought the same three results in five elapsed ticks. A call to ray dot get inside the loop kept those bars from overlapping in the first run.",
+        "hold": 0.9
+      }
+    ]
+  },
+  {
+    "id": "arguments",
+    "title": "What arrives inside the ledger?",
+    "sourceChapters": [
+      "c02"
+    ],
+    "beats": [
+      {
+        "id": "arguments-b01",
+        "say": "Each document returns a pair. Count its letters, then sum their character codes and take the remainder after division by one hundred and one. Cache has five letters. Their codes add to five hundred, leaving a remainder of ninety-six. These tiny features make the task results easy to check by hand.",
+        "hold": 0.65
+      },
+      {
+        "id": "arguments-b02",
+        "say": "Pass the three handles as separate arguments to record. Ray resolves them in position. The ledger sees three tuples and returns a count of three. The driver fetches that small count. The ledger is an actor, a class instance that keeps state in its own process between calls.",
+        "hold": 0.7
+      },
+      {
+        "id": "arguments-b03",
+        "say": "Keep all three completed results and put their handles inside a single list. Before the inspection method calls get, what is inside that list?",
+        "hold": 2.2
+      },
+      {
+        "id": "arguments-b04",
+        "say": "Three handles. The list itself is the argument. The actor can fetch each value when it needs it. An ordinary synchronous actor handles one method at a time. Multiple submitters have no shared ordering guarantee, and async or threaded actors can run methods concurrently.",
+        "hold": 0.85
+      }
+    ]
+  },
+  {
+    "id": "c03",
+    "title": "Where are the east pixels?",
+    "sourceChapters": [
+      "c03"
+    ],
+    "beats": [
+      {
+        "id": "c03-b01",
+        "say": "Come back to the completed east tile. The driver owns its reference because it submitted the decode. The worker on node A made the pixels. An actor on node B now needs that tile. The actor already has a home. Watch what travels to it.",
+        "hold": 0.8
+      },
+      {
+        "id": "c03-b02",
+        "say": "Copy the pixels to B. The same storm band appears in both stores. The driver still owns the reference and tracks its lifetime. A local shared-memory view can use the bytes on B. Bringing them across the network and keeping two copies both have a cost.",
+        "hold": 0.8
+      },
+      {
+        "id": "c03-b03",
+        "say": "Suppose A loses its copy. The owner is alive and B still has the tile. The decode has no retries left. Do we need another execution?",
+        "hold": 2
+      },
+      {
+        "id": "c03-b04",
+        "say": "Fetch the copy from B. A receives the pixels again. No task ran a second time. A retry budget limits replay when all copies are gone. It doesn't limit fetching a value that still exists.",
+        "hold": 1
+      },
+      {
+        "id": "c03-b05",
+        "say": "Try a new loss experiment. Allow one retry and keep the owner alive. Remove both copies of the tile. Ray can replay the decode if its lineage and source scan are available. Now suppose the source scan came from ray dot put and every copy of that input is gone. Which task could rebuild the source scan?",
+        "hold": 2
+      },
+      {
+        "id": "c03-b06",
+        "say": "There is none. Even with a retry left, this tile cannot be reconstructed from that lineage.",
+        "hold": 1
+      }
+    ]
+  },
+  {
+    "id": "c04",
+    "title": "Can four workers share one node?",
+    "sourceChapters": [
+      "c04"
+    ],
+    "beats": [
+      {
+        "id": "c04-b01",
+        "say": "A trial needs four workers, each requesting one GPU. Each bundle must fit on one node. These two nodes have two free GPUs apiece. With PACK, Ray prefers to keep bundles together and can reserve two on each node. Which reservation would enforce a single-node requirement?",
+        "hold": 2.1
+      },
+      {
+        "id": "c04-b02",
+        "say": "Request STRICT PACK. Try that policy on the same empty cluster. Neither node has four slots. The initial group stays pending and takes zero GPUs. Atomic reservation keeps two workers from tying up GPUs while the other two wait.",
+        "hold": 0.8
+      },
+      {
+        "id": "c04-b03",
+        "say": "Give node A four free slots. Now the full group fits there. A worker must explicitly join the group to use a reserved bundle. These workers each select their group and bundle index. The single-node lab uses the same technique for CPU bundles.",
+        "hold": 0.75
+      },
+      {
+        "id": "c04-b04",
+        "say": "Replay the original two-node case with SPREAD. It prefers different nodes but can reuse them. Follow the bundle labels. If node A goes offline now, which bundles will keep their reservations?",
+        "hold": 2.2
+      },
+      {
+        "id": "c04-b05",
+        "say": "Node A goes offline. Bundles two and four keep their GPUs on node B. Ray tries to reschedule bundles one and three. Both GPUs on B are already reserved. Try STRICT SPREAD with a new group and two healthy nodes. Each bundle needs a different node. Four bundles and two nodes leave the group pending, even if we add free GPUs to both machines.",
+        "hold": 0.8
+      }
+    ]
+  },
+  {
+    "id": "cpu",
+    "title": "How many tasks can the raylet admit?",
+    "sourceChapters": [
+      "c04"
+    ],
+    "beats": [
+      {
+        "id": "cpu-b01",
+        "say": "A node's raylet manages workers and logical resources. The Global Control Service, or GCS, tracks cluster records for nodes, actors and placement groups. On this four-CPU node, two actors each reserve one logical CPU for their lifetime. Both actors are waiting. How many one-CPU tasks fit?",
+        "hold": 2.1
+      },
+      {
+        "id": "cpu-b02",
+        "say": "Two tasks fit. The waiting actors keep their reservations. In a separate case, if all four units belonged to waiting parents, a one-CPU child could remain pending. A CPU request guides admission. Set native thread limits separately. A GPU assignment selects visible devices. Configure device memory and isolation separately too.",
+        "hold": 0.9
+      }
+    ]
+  },
+  {
+    "id": "c05",
+    "title": "When can document four enter?",
+    "sourceChapters": [
+      "c05"
+    ],
+    "beats": [
+      {
+        "id": "c05-b01",
+        "say": "Nine reports are waiting for processing. The driver submits the first three. That fills a three-slot window of submitted results the sink has yet to consume. The first report becomes ready while the sink is busy. Can we send the fourth yet?",
+        "hold": 2.2
+      },
+      {
+        "id": "c05-b02",
+        "say": "Keep it at the driver. Ready report one still occupies a slot. Now the sink takes it. There are two outstanding results. Submit number four. That brings the window back to three. Ray dot wait selects ready handles. The driver controls how many tasks it submits.",
+        "hold": 0.8
+      },
+      {
+        "id": "c05-b03",
+        "say": "Let the sink drain the remaining reports, refilling a slot after each consumption. Calling wait after submitting a million tasks leaves all that submitted work and its bookkeeping in the system. For block processing, Ray Data streams between stages. Larger blocks amortize scheduling cost, but an oversized block, shuffle or slow sink can still dominate memory.",
+        "hold": 1
+      }
+    ]
+  },
+  {
+    "id": "memory",
+    "title": "What does deleting the handle release?",
+    "sourceChapters": [
+      "c05"
+    ],
+    "beats": [
+      {
+        "id": "memory-b01",
+        "say": "A window limits a count. Now look at bytes. A worker has a view into a forty-eight mebibyte shared array and thirty mebibytes of private Python objects. Delete the local object reference and leave the view alive. Can the object store reuse those forty-eight mebibytes for another array? Trace the remaining link.",
+        "hold": 2
+      },
+      {
+        "id": "memory-b02",
+        "say": "The view still pins the entire shared array. The worker can read all forty-eight mebibytes through that link, so those pages stay occupied. The thirty mebibytes of unrelated heap stay separate. Ordinary Python objects may need deserialization into the heap. A local zero-copy view reads the shared allocation in place.",
+        "hold": 0.8
+      },
+      {
+        "id": "memory-b03",
+        "say": "Under pressure, another eligible object can spill to disk. Follow its sixteen mebibytes across the boundary. The pinned array stays in shared memory. The spill buys space in the object store and costs disk capacity and I O. Measure each of those separately from the worker heap.",
+        "hold": 0.8
+      }
+    ]
+  },
+  {
+    "id": "c06",
+    "title": "Which count belongs to the replacement?",
+    "sourceChapters": [
+      "c06"
+    ],
+    "beats": [
+      {
+        "id": "c06-b01",
+        "say": "The driver still holds the results for cache, router and trace. Ledger process one oh one has counted all three. Stop the actor with one process restart allowed. An early poll still sees the old process. Each new ledger starts empty. When a different process answers, how many completions will its ledger show?",
+        "hold": 2.5
+      },
+      {
+        "id": "c06-b02",
+        "say": "Zero. Process two oh two has opened a fresh ledger. Look across at the three results. Their owner and their bytes survived this actor failure. Restarting the process ran its constructor. A detached lifetime can keep an actor independent of its creator, but recovering those entries requires an application record.",
+        "hold": 1
+      },
+      {
+        "id": "c06-b03",
+        "say": "Try an application that saves its ledger to durable storage. Before the failure it recorded three completions in batch seventeen. The replacement opens at zero and reads that record. Its count returns to three. Those entries came from storage. Back in the single-node lab, the constructor starts at zero and the application has no restore step. The lab waits for a different process ID and checks that its count is zero. A timeout bounds that wait.",
+        "hold": 1
+      }
+    ]
+  },
+  {
+    "id": "control",
+    "title": "Which work survives a GCS reload?",
+    "sourceChapters": [
+      "c06"
+    ],
+    "beats": [
+      {
+        "id": "control-b01",
+        "say": "Change the failure. Here a live actor has counted seven. Its process and an existing task survive. Only the durably backed control service restarts. Why can the same actor keep its count? While the service reloads, can Ray create a new placement group?",
+        "hold": 2.1
+      },
+      {
+        "id": "control-b02",
+        "say": "The count lives in the surviving actor's memory. New actor creation and placement-group operations pause during the reload because they need the control service. The old process can keep serving. When surviving backing storage supplies the cluster records and workers reconnect in time, control operations can resume. A default in-memory GCS loses its records with its process. Its metadata is separate from the ledger checkpoint.",
+        "hold": 0.9
+      }
+    ]
+  },
+  {
+    "id": "c07",
+    "title": "What did the caller lose?",
+    "sourceChapters": [
+      "c07"
+    ],
+    "beats": [
+      {
+        "id": "c07-b01",
+        "say": "Batch seventeen adds three to an empty ledger. The write commits. The reply is lost on the way back. The caller cannot tell how far the method got. Suppose it repeats the increment. How many documents will a blind counter report?",
+        "hold": 2.1
+      },
+      {
+        "id": "c07-b02",
+        "say": "Six. One batch changed the count twice. Rewind to the same empty ledger. This time commit the count and the batch identifier with its original reply in one durable transaction. Both entries are on disk. Lose the reply again. Restore from that record and retry seventeen. Its saved reply is three and the count stays three.",
+        "hold": 0.75
+      },
+      {
+        "id": "c07-b03",
+        "say": "A new batch, eighteen, adds two. The count is now five. The ledger sends that result to eighteen. Try seventeen once more. Which number belongs on the reply?",
+        "hold": 2.2
+      },
+      {
+        "id": "c07-b04",
+        "say": "Return three. Seventeen's receipt still names the first committed result. Returning today's total would change what its caller observes. Recording the identifier and the count separately would leave a crash point between them.",
+        "hold": 0.9
+      }
+    ]
+  },
+  {
+    "id": "retry-policy",
+    "title": "Which action can Ray repeat?",
+    "sourceChapters": [
+      "c07"
+    ],
+    "beats": [
+      {
+        "id": "retry-policy-b01",
+        "say": "An ordinary task gets two retries for worker failures. On the first attempt the worker exits. The next worker exits too. How many starts does this policy allow in total?",
+        "hold": 2
+      },
+      {
+        "id": "retry-policy-b02",
+        "say": "At most three starts. Two retries follow the original. Here two workers have exited, and the remaining retry permits one more start. Python exceptions require a separate retry-exceptions setting. If one worker appends a billing event and then exits, a retry could append it again, even if both attempts calculate the same value. Check the side effect and the returned value separately.",
+        "hold": 0.7
+      },
+      {
+        "id": "retry-policy-b03",
+        "say": "An actor has one restart and zero method retries. After a lost reply it can open a new process. Its method gets no automatic replay. A restart budget, a method retry budget and the caller's own retry are separate. Before repeating a state-changing call, look up its committed effect.",
+        "hold": 0.9
+      }
+    ]
+  },
+  {
+    "id": "local-lab",
+    "title": "What can one machine establish?",
+    "sourceChapters": [
+      "c07"
+    ],
+    "beats": [
+      {
+        "id": "local-lab-b01",
+        "say": "The article's lab starts a fresh, single-node Ray two point fifty-eight runtime under Python three point twelve. Two one-CPU bundles reserve both logical CPUs. Run cache and router in those specific bundles and inspect their tuples. Release the group before creating the ledger. Its explicit reservation will then leave one CPU free for feature tasks.",
+        "hold": 0.75
+      },
+      {
+        "id": "local-lab-b02",
+        "say": "The lab also checks the three-tuple count, the nested list and the changed process ID. Its worker-failure test gets one retry. The first worker creates a temporary local marker, then exits. The replacement finds the marker and finishes. What evidence here would show that a different node supplied the value?",
+        "hold": 2.1
+      },
+      {
+        "id": "local-lab-b03",
+        "say": "Both attempts ran on the same machine. To establish a transfer, record distinct node IDs and the arriving bytes. To establish reconstruction, keep the owner alive, lose every copy, observe another task execution and compare its output. A successful worker retry alone establishes neither.",
+        "hold": 0.85
+      },
+      {
+        "id": "local-lab-b04",
+        "say": "To investigate placement in the pinned source, follow the remote function through CoreWorker to the raylet. For an actor method, start in the actor module. To investigate a handle, follow its owner instead. The twenty-eighteen Ray paper explains the task and actor execution model. The twenty-twenty-one Ownership paper explains how the submitting process tracks a result.",
+        "hold": 0.75
+      }
+    ]
+  },
+  {
+    "id": "c08",
+    "title": "Who admits request seven?",
+    "sourceChapters": [
+      "c08"
+    ],
+    "beats": [
+      {
+        "id": "c08-b01",
+        "say": "Serve routes a language-model request to an engine replica. Follow request seven through ingress to replica one. The router can use load or cache information. Inside that replica, requests four and nine occupy both cache slots in our model. Who decides when seven can join the next token batch?",
+        "hold": 2.1
+      },
+      {
+        "id": "c08-b02",
+        "say": "The engine decides. Seven waits in its queue. Nine finishes and releases its slot. Now the engine admits seven next to four. Serve chose the replica. Its engine allocates the cache and schedules token batches and kernels. Measure ingress and routing delay separately from the engine queue and inter-token latency.",
+        "hold": 0.9
+      }
+    ]
+  },
+  {
+    "id": "replicas",
+    "title": "What must two replicas reserve?",
+    "sourceChapters": [
+      "c08"
+    ],
+    "beats": [
+      {
+        "id": "replicas-b01",
+        "say": "Look underneath that queue. In the article's pinned standard vLLM layout, each pipeline stage has a set of tensor-parallel GPU workers. Here three workers share a stage and two stages form a replica. The LLMServer actor also reserves one CPU. Double the replica. What resources does the pair require?",
+        "hold": 2.4
+      },
+      {
+        "id": "replicas-b02",
+        "say": "Twelve GPU-worker bundles and two CPU actors. Multiply tensor size by pipeline size per replica, then count both replicas. Expert-parallel and disaggregated layouts need their own calculation. Placing those workers leaves token scheduling inside each engine.",
+        "hold": 0.8
+      },
+      {
+        "id": "replicas-b03",
+        "say": "Other Ray libraries divide work at different levels. Data moves blocks, Train coordinates training workers, Tune runs and stops trials, and RLlib organizes sampling and learning. Training frameworks still compute gradients. A training checkpoint needs the state the application will restore. Serve scales and routes among deployment replicas.",
+        "hold": 0.8
+      }
+    ]
+  },
+  {
+    "id": "practice",
+    "title": "Which operation would you repeat?",
+    "sourceChapters": [
+      "c08"
+    ],
+    "beats": [
+      {
+        "id": "practice-b01",
+        "say": "One last storm. The original driver owned the east handle, X. The driver has died, but node B still holds the tile. On a separate ledger the latest count is eight. Batch forty-one has a durable receipt for five. A supervisor has the source scan. Predict the outcome of reading X and retrying forty-one.",
+        "hold": 2.7
+      },
+      {
+        "id": "practice-b02",
+        "say": "Reading X can raise OwnerDiedError. The surviving pixels do not recreate the owner's metadata. Replaying forty-one returns five. It finds that batch's receipt even though another batch advanced the total. Which part of this job actually needs to run again?",
+        "hold": 2.1
+      },
+      {
+        "id": "practice-b03",
+        "say": "Decode east again under the live supervisor. It gets a new handle, Y. The worker rebuilds the pixels from the saved scan. Reuse the original batch ID to record the result once. To test this on two nodes, record producer and consumer node IDs, track the transfer, then distinguish owner loss from losing every copy with a live owner. In the next lesson MLflow records which inputs and artifacts belong to each run.",
+        "hold": 1.3
+      }
+    ]
+  }
+]

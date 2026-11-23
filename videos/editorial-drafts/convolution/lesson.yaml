@@ -1,0 +1,1592 @@
+version: 1
+id: convolution
+title: How a Convolution Finds an Edge
+source: preparation/convolutional-neural-networks-from-scratch/content.md
+voice: en-US-AndrewNeural
+rate: +0%
+sources:
+  - title: "LeCun et al.: Gradient-Based Learning Applied to Document Recognition"
+    url: http://yann.lecun.com/exdb/publis/pdf/lecun-98.pdf
+  - title: "PyTorch: Conv2d"
+    url: https://docs.pytorch.org/docs/stable/generated/torch.nn.Conv2d.html
+  - title: PyTorch2.15 Conv2d contract
+    url: https://docs.pytorch.org/docs/2.15/generated/torch.nn.Conv2d.html
+  - title: PyTorch2.15 MaxPool2d
+    url: https://docs.pytorch.org/docs/2.15/generated/torch.nn.MaxPool2d.html
+  - title: PyTorch2.15 BatchNorm2d
+    url: https://docs.pytorch.org/docs/2.15/generated/torch.nn.BatchNorm2d.html
+  - title: Computing receptive fields
+    url: https://distill.pub/2019/computing-receptive-fields/
+  - title: NumPy padding modes
+    url: https://numpy.org/doc/stable/reference/generated/numpy.pad.html
+  - title: NumPy argmax selection and ties
+    url: https://numpy.org/doc/stable/reference/generated/numpy.argmax.html
+  - title: PyTorch2.15 average pooling contract
+    url: https://docs.pytorch.org/docs/2.15/generated/torch.nn.AvgPool2d.html
+  - title: PyTorch2.15 adaptive average pooling contract
+    url: https://docs.pytorch.org/docs/2.15/generated/torch.nn.AdaptiveAvgPool2d.html
+  - title: PyTorch2.15 optimizer updates
+    url: https://docs.pytorch.org/docs/2.15/optim.html
+  - title: Original ResNet paper
+    url: https://arxiv.org/html/1512.03385
+  - title: Original ViT paper
+    url: https://arxiv.org/html/2010.11929
+  - title: DeiT training and distillation
+    url: https://arxiv.org/html/2012.12877
+  - title: ConvNeXt experiments
+    url: https://arxiv.org/html/2201.03545
+  - title: AlexNet primary proceedings
+    url: https://proceedings.neurips.cc/paper/2012/hash/c399862d3b9d6b76c8436e924a68c45b-Abstract.html
+scenes:
+  - id: intro
+    title: Can one small rule follow a moving edge?
+    visual: A large pixel image offers three actual neighboring patches. Their response cards stay unknown while
+      the learner predicts which patch has no edge.
+    beats:
+      - say: When a visible object moves across an image, its pattern often appears at different pixel coordinates. How could one tiny detector
+          recognize the same edge in a different place? Start with this five-by-five image.
+        visual_cues:
+          - id: opening-image
+            phrase: When a visible object moves across an image
+            targets:
+              - edge-input
+            color: blue
+        hold: 0.5
+      - say: These three windows overlap. Follow the dark and bright columns into each window.
+          Predict which window should give our edge detector a zero response. We will build the rule and
+          return to your prediction.
+        visual_cues:
+          - id: opening-choice
+            phrase: Predict which window
+            targets:
+              - edge-choice
+            color: yellow
+        hold: 1.3
+  - id: pixels
+    title: Brightness and arrangement tell different stories
+    visual: Individual brightness cells assemble into the image. Then a uniform two-thirds patch and an edge patch
+      retain the same total brightness while displaying different spatial arrangements.
+    beats:
+      - say: Each square stores a brightness value. Zero is dark; one is bright. The row and column tell us where that
+          measurement belongs. A small window keeps neighboring pixels together.
+        visual_cues:
+          - id: pixel-arrivals
+            phrase: Each square stores a brightness value
+            targets:
+              - pixel-grid
+            color: blue
+        hold: 0.5
+      - say: Compare these two patches. Both contain the same total brightness. One is uniform, while the other has a
+          boundary. Our detector needs a comparison across space to tell those arrangements apart.
+        visual_cues:
+          - id: equal-brightness
+            phrase: Both contain the same total brightness
+            targets:
+              - brightness-pair
+            color: cyan
+        hold: 0.5
+  - id: kernel
+    title: Build a comparison between the two sides
+    visual: Signed kernel columns appear at their spoken clauses. The same uniform and edge patches supply
+      negative-left and positive-right column totals before their sums resolve.
+    beats:
+      - say: A filter, or kernel, is a small table of weights. Subtract the left column. Ignore the center column. Add
+          the right column. These hand-chosen weights, with zero bias, measure whether the patch becomes brighter toward the right.
+        visual_cues:
+          - id: kernel-left
+            phrase: Subtract the left column
+            targets:
+              - edge-kernel
+            color: red
+          - id: kernel-center
+            phrase: Ignore the center column
+            targets:
+              - edge-kernel
+            color: blue
+          - id: kernel-right
+            phrase: Add the right column
+            targets:
+              - edge-kernel
+            color: cyan
+        hold: 0.5
+      - say: Apply it to the uniform patch. The left side contributes minus two, and the right contributes plus two.
+          Add them and the response is zero. Equal brightness on both sides cancels.
+        visual_cues:
+          - id: uniform-columns
+            phrase: The left side contributes minus two, and the right contributes plus two
+            targets:
+              - kernel-comparison
+            color: cyan
+          - id: uniform-result
+            phrase: the response is zero.
+            targets:
+              - kernel-comparison
+            color: green
+            linger: 0.5
+        hold: 0.5
+      - say: Now use the edge patch with the same total brightness. Its dark left side contributes zero. Its bright
+          right side contributes three. The response is three. Backpropagation computes gradients for the filter weights, and an optimizer uses those gradients to update them. This signed rule makes our example inspectable.
+        visual_cues:
+          - id: edge-columns
+            phrase: Its dark left side contributes zero. Its bright right side contributes three
+            targets:
+              - kernel-comparison
+            color: green
+          - id: edge-result
+            phrase: The response is three.
+            targets:
+              - kernel-comparison
+            color: green
+            linger: 0.5
+        hold: 0.5
+  - id: patch
+    title: Follow one response into its map cell
+    visual: Nine matched pixel-weight pairs build their products and running subtotal. The completed scalar
+      travels into its exact output cell. A fully bright third patch withholds its response for the next
+      prediction.
+    beats:
+      - say: Place the filter over the first window. Multiply each pixel by its matching weight, then add the
+          products. Follow the highlighted pairs into the running sum. All nine terms belong to this one
+          output position.
+        visual_cues:
+          - id: patch-accumulate
+            phrase: Multiply each pixel by its matching weight, then add the products. Follow the highlighted pairs into
+              the running sum
+            targets:
+              - patch-products
+            color: green
+        hold: 0.7
+        motion_check:
+          region:
+            - 900
+            - 380
+            - 850
+            - 650
+          minimumChangedFraction: 0.002
+      - say: The total is three. Carry that result into the first cell of the feature map. Its position records which
+          image window produced it. The kernel stays the same when we move to another window.
+        visual_cues:
+          - id: patch-deposit
+            phrase: Carry that result into the first cell
+            targets:
+              - patch-sum
+            color: green
+        hold: 0.5
+      - say: Look at the third window, filled entirely with bright pixels. Predict its response using the signed
+          weights. Keep the value in mind while the next sweep fills the map.
+        visual_cues:
+          - id: uniform-question
+            phrase: Predict its response
+            targets:
+              - sliding-window
+            color: yellow
+        hold: 1.3
+  - id: slide
+    title: Reuse the same weights at every position
+    visual: The fully bright patch earns zero, then one persistent small kernel accompanies a nine-position scan.
+      Each computed scalar is deposited into its corresponding output cell.
+    beats:
+      - say: "The bright window gives zero: its two sides cancel. Now the window steps right, then down, and every
+          response lands in the matching position. Watch the same nine weights remain beside the image
+          throughout the sweep."
+        visual_cues:
+          - id: bright-window-result
+            phrase: The bright window gives zero
+            targets:
+              - constructed-feature-map
+            color: green
+          - id: sliding-sweep
+            phrase: the window steps right, then down, and every response lands in the matching position
+            targets:
+              - sliding-window
+            color: green
+        hold: 0.8
+        motion_check:
+          region:
+            - 230
+            - 330
+            - 1500
+            - 570
+          minimumChangedFraction: 0.002
+      - say: Moving one pixel at a time, with weights on adjacent pixels and no added border, only three starting rows and three starting columns fit. They produce a three-by-three feature map. Local
+          connectivity limits each measurement to its patch; weight sharing lets one learned rule serve every
+          valid location.
+        visual_cues:
+          - id: map-complete
+            phrase: three-by-three feature map
+            targets:
+              - constructed-feature-map
+            color: green
+        hold: 0.5
+  - id: article-crop
+    title: A second explicit fixture turns a crop into four responses
+    beats:
+      - say: Keep the binary edge example intact. Now open the article’s separate four-by-four grayscale crop, with
+          its bright central mark. Its horizontal ridge kernel has top and bottom rows minus zero point six,
+          and a middle row one point one. These are supplied weights with zero bias, not a trained crack
+          detector. Four minus three plus one gives two starting rows and two starting columns.
+        hold: 0.6
+        visual_cues:
+          - id: article-crop-b1
+            phrase: Keep the binary edge example intact.
+            targets:
+              - article-crop-construction
+            color: cyan
+            linger: 0.5
+          - id: crop-weights
+            phrase: Its horizontal ridge kernel has top and bottom rows minus zero point six, and a middle row one point
+              one.
+            targets:
+              - article-crop-construction
+            color: cyan
+            linger: 0.5
+      - say: Build its upper-left response from the same nine aligned owners. The row contributions are minus zero
+          point one one four, plus two point one one two, and minus one point one four six. Add them to obtain
+          zero point eight five two. For any fixed placement, changing one weight changes the response by its
+          aligned pixel multiplied by the weight change, with every other term held fixed.
+        hold: 0.6
+        visual_cues:
+          - id: article-crop-b2
+            phrase: Build its upper-left response from the same nine aligned owners.
+            targets:
+              - article-crop-construction
+            color: cyan
+            linger: 0.5
+          - id: crop-top
+            phrase: minus zero point one one four
+            targets:
+              - article-crop-construction
+            color: cyan
+            linger: 0.5
+          - id: crop-middle
+            phrase: plus two point one one two
+            targets:
+              - article-crop-construction
+            color: cyan
+            linger: 0.5
+          - id: crop-bottom
+            phrase: minus one point one four six
+            targets:
+              - article-crop-construction
+            color: cyan
+            linger: 0.5
+          - id: crop-sum
+            phrase: Add them to obtain zero point eight five two.
+            targets:
+              - article-crop-construction
+            color: cyan
+            linger: 0.5
+      - say: "Reuse that kernel over all four placements. The map is zero point eight five two, zero point seven eight
+          nine, zero point eight one seven and zero point eight seven four. The bottom-right placement wins.
+          PyTorch uses cross-correlation: stored weights are not flipped. Mathematical convolution flips both
+          spatial axes. This symmetric ridge kernel happens to agree either way; an imported asymmetric kernel
+          needs its intended orientation. Freely learned filters can absorb that flip into their coefficients,
+          so the two conventions have the same representational capacity."
+        hold: 0.8
+        visual_cues:
+          - id: article-crop-b3
+            phrase: Reuse that kernel over all four placements.
+            targets:
+              - article-crop-construction
+            color: cyan
+            linger: 0.5
+          - id: crop-map
+            phrase: The map is zero point eight five two, zero point seven eight nine, zero point eight one seven and zero
+              point eight seven four.
+            targets:
+              - article-crop-construction
+            color: cyan
+            linger: 0.5
+          - id: crop-orientation
+            phrase: stored weights are not flipped.
+            targets:
+              - article-crop-construction
+            color: cyan
+            linger: 0.5
+    visual: A second explicit fixture turns a crop into four responses.
+  - id: sharing-budget
+    title: Keep output geometry fixed while untying the weights
+    beats:
+      - say: "A two-hundred-twenty-four square RGB image has one hundred fifty thousand five hundred twenty-eight
+          input values. A dense layer with two hundred fifty-six outputs needs thirty-eight million five
+          hundred thirty-five thousand four hundred twenty-four parameters, including biases. Our sixteen
+          three-by-three RGB filters need four hundred thirty-two weights and sixteen biases: four hundred
+          forty-eight parameters."
+        hold: 0.6
+        visual_cues:
+          - id: sharing-budget-b1
+            phrase: A two-hundred-twenty-four square RGB image has one hundred fifty thousand five hundred twenty-eight
+              input values.
+            targets:
+              - sharing-budget-construction
+            color: cyan
+            linger: 0.5
+          - id: dense-budget
+            phrase: thirty-eight million five hundred thirty-five thousand four hundred twenty-four parameters
+            targets:
+              - sharing-budget-construction
+            color: cyan
+            linger: 0.5
+          - id: conv-budget
+            phrase: four hundred forty-eight parameters.
+            targets:
+              - sharing-budget-construction
+            color: cyan
+            linger: 0.5
+      - say: "Those two layers have different outputs: two hundred fifty-six global dense values versus sixteen
+          two-hundred-twenty-two square maps. To isolate sharing, keep the convolution’s local output geometry
+          fixed and give every position a private filter bank. Forty-nine thousand two hundred eighty-four
+          banks times four hundred forty-eight parameters gives twenty-two million seventy-nine thousand two
+          hundred thirty-two. Tie all those banks back to one shared owner, and the count returns to four
+          hundred forty-eight."
+        hold: 0.6
+        visual_cues:
+          - id: sharing-budget-b2
+            phrase: "Those two layers have different outputs: two hundred fifty-six global dense values versus sixteen
+              two-hundred-twenty-two square maps."
+            targets:
+              - sharing-budget-construction
+            color: cyan
+            linger: 0.5
+          - id: private-banks
+            phrase: Forty-nine thousand two hundred eighty-four banks times four hundred forty-eight parameters gives
+              twenty-two million seventy-nine thousand two hundred thirty-two.
+            targets:
+              - sharing-budget-construction
+            color: cyan
+            linger: 0.5
+          - id: retie-banks
+            phrase: Tie all those banks back to one shared owner
+            targets:
+              - sharing-budget-construction
+            color: cyan
+            linger: 0.5
+          - id: retie-count
+            phrase: and the count returns to four hundred forty-eight.
+            targets:
+              - sharing-budget-construction
+            color: cyan
+            linger: 0.5
+      - say: Local connectivity chooses which neighboring inputs each output reads. Sharing chooses whether different
+          output positions own separate parameters. Flattening itself can preserve all pixels and their
+          recoverable order; the dense wiring does not enforce a reusable local detector. These parameter
+          counts do not compare equal outputs or establish a speed ratio.
+        hold: 0.8
+        visual_cues:
+          - id: sharing-budget-b3
+            phrase: Local connectivity chooses which neighboring inputs each output reads.
+            targets:
+              - sharing-budget-construction
+            color: cyan
+            linger: 0.5
+    visual: Keep output geometry fixed while untying the weights.
+  - id: translation
+    title: Move the evidence, then combine it
+    visual: A faint old map retains the previous location while the input boundary and recomputed responses shift.
+      A max accumulator then combines the actual cells into an unchanged scalar for this example.
+    beats:
+      - say: Move the boundary one pixel right. The same local comparisons now respond one column farther right. The
+          old map stays faintly visible so you can follow the displacement. This corresponding movement is
+          translation equivariance.
+        visual_cues:
+          - id: translated-edge
+            phrase: Move the boundary one pixel right
+            targets:
+              - translated-input
+            color: blue
+        hold: 0.6
+        motion_check:
+          region:
+            - 230
+            - 330
+            - 1500
+            - 570
+          minimumChangedFraction: 0.002
+      - say: A global maximum keeps the largest response. Scan the actual cells into this accumulator. Both versions
+          produce three here, even though their response locations differ. On a finite image, the border and
+          sampling pattern still affect which comparisons exist.
+        visual_cues:
+          - id: max-aggregate
+            phrase: Scan the actual cells into this accumulator
+            targets:
+              - translated-response
+            color: green
+        hold: 0.5
+  - id: stride-padding
+    title: Choose the positions the filter can visit
+    visual: A stride-two scan visits four real starts. A zero border then creates a seven-by-seven input; a
+      boundary patch builds a response of two. The selected marker visits additional padded positions while
+      their matching map cells fill.
+    beats:
+      - say: Stride sets the distance between starts. Move two cells at a time. This image now permits four windows,
+          giving a two-by-two output. We still use the same kernel at each selected position.
+        visual_cues:
+          - id: stride-scan
+            phrase: Move two cells at a time
+            targets:
+              - stride-source-grid
+            color: yellow
+        hold: 0.5
+      - say: Return to stride one. Add one row and column of zeros around each side. At this upper boundary, the new zeros enter the patch.
+          Two bright pixels contribute plus two on the positive side, and the negative side contributes zero, so this response becomes two. The border has
+          changed the calculation.
+        visual_cues:
+          - id: padding-build
+            phrase: Add one row and column of zeros
+            targets:
+              - stride-source-grid
+            color: cyan
+          - id: boundary-calculate
+            phrase: Two bright pixels contribute plus two on the positive side
+            targets:
+              - boundary-products
+            color: yellow
+        hold: 0.5
+      - say: Follow the selected window around several more boundary positions, then fill the remaining map. The
+          output-size rule counts these complete placements. With unit dilation, insert the image size,
+          padding, kernel size and stride into the displayed formula.
+        visual_cues:
+          - id: padded-sweep
+            phrase: Follow the selected window around several more boundary positions, then fill the remaining map
+            targets:
+              - stride-response-grid
+            color: green
+          - id: shape-rule
+            phrase: output-size rule
+            targets:
+              - output-size-rule
+            color: cyan
+        hold: 0.7
+        motion_check:
+          region:
+            - 130
+            - 330
+            - 1600
+            - 560
+          minimumChangedFraction: 0.002
+  - id: shape-dilation
+    title: Count starts using the complete kernel footprint
+    beats:
+      - say: Stride changes the gap between starts. Dilation changes the gap between weights inside one placement. A
+          three-by-three kernel at dilation two still has nine weights, but spans five-by-five positions. Its
+          effective span is dilation multiplied by the quantity kernel size minus one, then plus one.
+        hold: 0.6
+        visual_cues:
+          - id: shape-dilation-b1
+            phrase: Stride changes the gap between starts.
+            targets:
+              - shape-dilation-construction
+            color: cyan
+            linger: 0.5
+          - id: dilate-weights
+            phrase: A three-by-three kernel at dilation two still has nine weights, but spans five-by-five positions.
+            targets:
+              - shape-dilation-construction
+            color: cyan
+            linger: 0.5
+      - say: For each spatial axis, add padding on both sides, subtract that effective span, divide by stride, round
+          down, then add one. For equal padding on both sides, the numerator is input size plus twice the per-side padding minus dilation multiplied by the quantity kernel size minus one, minus one. For unequal sides, replace twice padding with the sum of the two padding amounts. Divide the whole numerator by stride
+          before taking the floor. Incomplete windows do not create outputs. Twenty-eight positions with a
+          three-wide dilation-two kernel and no padding give twenty-four outputs.
+        hold: 0.6
+        visual_cues:
+          - id: shape-dilation-b2
+            phrase: For each spatial axis, add padding on both sides, subtract that effective span, divide by stride,
+              round down, then add one.
+            targets:
+              - shape-dilation-construction
+            color: cyan
+            linger: 0.5
+          - id: dilated-starts
+            phrase: Twenty-eight positions with a three-wide dilation-two kernel and no padding give twenty-four outputs.
+            targets:
+              - shape-dilation-construction
+            color: cyan
+            linger: 0.5
+      - say: At stride one, same-size padding adds a total of dilation multiplied by the quantity kernel size minus
+          one extra positions, split across the two sides. An odd total requires unequal sides. PyTorch same
+          padding supports stride one. For valid padding there are no synthetic positions. Shape checks
+          require positive kernel, stride and dilation, nonnegative padding, and a footprint that fits the
+          padded input.
+        hold: 0.8
+        visual_cues:
+          - id: shape-dilation-b3
+            phrase: At stride one, same-size padding adds a total of dilation multiplied by the quantity kernel size minus
+              one extra positions, split across the two sides.
+            targets:
+              - shape-dilation-construction
+            color: cyan
+            linger: 0.5
+          - id: same-padding
+            phrase: An odd total requires unequal sides.
+            targets:
+              - shape-dilation-construction
+            color: cyan
+            linger: 0.5
+    visual: Count starts using the complete kernel footprint.
+  - id: channels
+    title: Several input channels contribute to one output
+    visual: Two input-channel patches each pair with a distinct kernel. Their actual products give three and
+      three, which accumulate into six. A second filter negates the first channel kernel and yields minus
+      three plus three equals zero.
+    beats:
+      - say: A color image has several input channels. Our small example uses two. One output filter has a kernel for
+          each channel. Compute each patch sum, then add the contributions. Here, three plus three gives one
+          output value of six. We use zero bias.
+        visual_cues:
+          - id: channel-first
+            phrase: Compute each patch sum
+            targets:
+              - channel-first
+            color: blue
+          - id: channel-second
+            phrase: then add the contributions
+            targets:
+              - channel-second
+            color: cyan
+          - id: channel-sum
+            phrase: three plus three gives one output value of six
+            targets:
+              - channel-sum-rule
+            color: green
+        hold: 0.5
+      - say: A second output filter gets its own weights. Negate the first channel kernel and retain the second. The
+          channel contributions become minus three and plus three, so this filter gives zero at the same
+          position. Multiple filters create multiple output maps.
+        visual_cues:
+          - id: second-filter
+            phrase: Negate the first channel kernel and retain the second
+            targets:
+              - channel-first
+            color: pink
+          - id: second-channel-sum
+            phrase: this filter gives zero
+            targets:
+              - channel-sum-rule
+            color: green
+        hold: 0.5
+  - id: grouped-connectivity
+    title: One output sums only its declared input-channel group
+    beats:
+      - say: "With groups one, each output filter sees all input channels. Its stored shape is output channels by
+          input channels by kernel height by kernel width. Add one bias per output filter. A batch keeps its
+          own axis: batch, input channels, height, width becomes batch, output channels, output height, output
+          width. This describes axis order, not a required physical memory layout."
+        hold: 0.6
+        visual_cues:
+          - id: grouped-connectivity-b1
+            phrase: With groups one, each output filter sees all input channels.
+            targets:
+              - grouped-connectivity-construction
+            color: cyan
+            linger: 0.5
+      - say: Groups divides the input and output channels into separate connected sets. Each filter sees input
+          channels divided by groups, and both channel counts must divide evenly by the group count. With four
+          inputs, six outputs, two groups and three-by-three weights, each output reads two channels. Six
+          times two times nine, plus six biases, gives one hundred fourteen parameters. Disconnecting the
+          other group is a real change in the function.
+        hold: 0.6
+        visual_cues:
+          - id: grouped-connectivity-b2
+            phrase: Groups divides the input and output channels into separate connected sets.
+            targets:
+              - grouped-connectivity-construction
+            color: cyan
+            linger: 0.5
+          - id: disconnect-groups
+            phrase: Each filter sees input channels divided by groups
+            targets:
+              - grouped-connectivity-construction
+            color: cyan
+            linger: 0.5
+          - id: group-count
+            phrase: Six times two times nine, plus six biases, gives one hundred fourteen parameters.
+            targets:
+              - grouped-connectivity-construction
+            color: cyan
+            linger: 0.5
+      - say: In general the parameter count is output channels multiplied by input channels divided by groups,
+          multiplied by kernel height and width, then plus output biases when enabled. Spatial size, stride
+          and dilation change placements, not the number of stored coefficients in this layer. Multiple
+          outputs mean separate filter stacks; summing their channels does not replace the output-channel
+          axis.
+        hold: 0.8
+        visual_cues:
+          - id: grouped-connectivity-b3
+            phrase: In general the parameter count is output channels multiplied by input channels divided by groups,
+              multiplied by kernel height and width, then plus output biases when enabled.
+            targets:
+              - grouped-connectivity-construction
+            color: cyan
+            linger: 0.5
+          - id: parameter-owners
+            phrase: Spatial size, stride and dilation change placements, not the number of stored coefficients in this
+              layer.
+            targets:
+              - grouped-connectivity-construction
+            color: cyan
+            linger: 0.5
+    visual: One output sums only its declared input-channel group.
+  - id: field-jump
+    title: Build a later footprint from its earlier owners
+    beats:
+      - say: A later activation reads earlier activations, so track their original pixel owners. Start with field one
+          and jump one. Field is the side length of the theoretical input footprint. Jump is the spacing
+          between neighboring activation centers in input pixels. Add dilation times the quantity kernel size
+          minus one, multiplied by the old jump, to the field. Multiply that old jump by stride for the new
+          jump.
+        hold: 0.6
+        visual_cues:
+          - id: field-jump-b1
+            phrase: A later activation reads earlier activations, so track their original pixel owners.
+            targets:
+              - field-jump-construction
+            color: cyan
+            linger: 0.5
+      - say: The article’s two three-by-three stride-one convolutions grow the field from one to three to five. A
+          two-by-two stride-two pool grows it to six and doubles the jump to two. The next three-by-three
+          convolution adds four input pixels, reaching field ten with jump two. Its spatial map sides are two
+          hundred twenty-two, two hundred twenty, one hundred ten and one hundred eight, all using valid
+          placements.
+        hold: 0.6
+        visual_cues:
+          - id: field-jump-b2
+            phrase: The article’s two three-by-three stride-one convolutions grow the field from one to three to five.
+            targets:
+              - field-jump-construction
+            color: cyan
+            linger: 0.5
+          - id: field-convs
+            phrase: grow the field from one to three to five.
+            targets:
+              - field-jump-construction
+            color: cyan
+            linger: 0.5
+          - id: field-pool
+            phrase: A two-by-two stride-two pool grows it to six and doubles the jump to two.
+            targets:
+              - field-jump-construction
+            color: cyan
+            linger: 0.5
+          - id: field-last
+            phrase: reaching field ten with jump two.
+            targets:
+              - field-jump-construction
+            color: cyan
+            linger: 0.5
+          - id: field-three
+            phrase: one to three
+            targets:
+              - field-jump-construction
+            color: green
+            linger: 0.5
+          - id: field-five
+            phrase: to five.
+            targets:
+              - field-jump-construction
+            color: green
+            linger: 0.5
+      - say: Channel counts can separately grow from three to sixteen, thirty-two, thirty-two and sixty-four.
+          Downsampling does not force channel expansion. The footprint names possible dependencies; learned
+          zeros, activation gates and padding can remove actual local contributions. Larger context can
+          combine patterns, while lost spatial detail can hide a tiny defect. Inspect activations and held-out
+          examples rather than naming a learned feature from shape alone.
+        hold: 0.8
+        visual_cues:
+          - id: field-jump-b3
+            phrase: Channel counts can separately grow from three to sixteen, thirty-two, thirty-two and sixty-four.
+            targets:
+              - field-jump-construction
+            color: cyan
+            linger: 0.5
+          - id: field-channels
+            phrase: three to sixteen, thirty-two, thirty-two and sixty-four.
+            targets:
+              - field-jump-construction
+            color: cyan
+            linger: 0.5
+    visual: Build a later footprint from its earlier owners.
+  - id: pool-winners
+    title: A pooling output retains one precise forward owner
+    beats:
+      - say: Use the article’s four-by-four response map as a new, explicitly labeled pooling fixture. Divide it into
+          four nonoverlapping two-by-two windows. Max pooling sends one value per window onward without
+          trainable weights. The winners are zero point nine one, zero point four four, zero point two one and
+          zero point seven seven.
+        hold: 0.6
+        visual_cues:
+          - id: pool-winners-b1
+            phrase: Use the article’s four-by-four response map as a new, explicitly labeled pooling fixture.
+            targets:
+              - pool-winners-construction
+            color: cyan
+            linger: 0.5
+          - id: pool-forward
+            phrase: The winners are zero point nine one, zero point four four, zero point two one and zero point seven
+              seven.
+            targets:
+              - pool-winners-construction
+            color: cyan
+            linger: 0.5
+          - id: pool-value-0
+            phrase: zero point nine one
+            targets:
+              - pool-winners-construction
+            color: green
+            linger: 0.5
+          - id: pool-value-1
+            phrase: zero point four four
+            targets:
+              - pool-winners-construction
+            color: green
+            linger: 0.5
+          - id: pool-value-2
+            phrase: zero point two one
+            targets:
+              - pool-winners-construction
+            color: green
+            linger: 0.5
+          - id: pool-value-3
+            phrase: zero point seven seven
+            targets:
+              - pool-winners-construction
+            color: green
+            linger: 0.5
+      - say: "Save their zero-based coordinates: one comma one, one comma two, two comma one, and two comma two. Each
+          output is connected to its own selected activation, not whichever input becomes largest later.
+          Average pooling instead computes the arithmetic mean of all cells in the window. In a two-by-two window with three zeros, a lone peak contributes one quarter of its value to the mean. Pooling also discards spatial detail."
+        hold: 0.6
+        visual_cues:
+          - id: pool-winners-b2
+            phrase: "Save their zero-based coordinates: one comma one, one comma two, two comma one, and two comma two."
+            targets:
+              - pool-winners-construction
+            color: cyan
+            linger: 0.5
+          - id: pool-saved
+            phrase: one comma one, one comma two, two comma one, and two comma two.
+            targets:
+              - pool-winners-construction
+            color: cyan
+            linger: 0.5
+          - id: pool-average
+            phrase: Average pooling instead computes the arithmetic mean of all cells in the window.
+            targets:
+              - pool-winners-construction
+            color: cyan
+            linger: 0.5
+      - say: For a tie, specify a selection convention. The article’s NumPy argmax selects the first maximum in flattened order. A tie still requires a backward convention rather than a unique mathematical derivative. Local pooling can provide
+          tolerance to some shifts inside its window, but a different window alignment or boundary can change
+          what survives.
+        hold: 0.8
+        visual_cues:
+          - id: pool-winners-b3
+            phrase: For a tie, specify a selection convention.
+            targets:
+              - pool-winners-construction
+            color: cyan
+            linger: 0.5
+          - id: pool-tie
+            phrase: the first maximum in flattened order
+            targets:
+              - pool-winners-construction
+            color: cyan
+            linger: 0.5
+    visual: A pooling output retains one precise forward owner.
+  - id: pool-backward
+    title: Return signed gradients to the saved winners
+    beats:
+      - say: Send gradients two, minus one, one half and three back from those four pooling outputs. The saved winner
+          at one comma one receives two. One comma two receives minus one. Two comma one receives one half,
+          and two comma two receives three. Every other input receives zero from these nonoverlapping
+          max-pooling windows. A negative gradient keeps its sign.
+        hold: 0.6
+        visual_cues:
+          - id: pool-backward-b1
+            phrase: Send gradients two, minus one, one half and three back from those four pooling outputs.
+            targets:
+              - pool-backward-construction
+            color: cyan
+            linger: 0.5
+          - id: pool-signed
+            phrase: The saved winner at one comma one receives two. One comma two receives minus one. Two comma one
+              receives one half, and two comma two receives three.
+            targets:
+              - pool-backward-construction
+            color: cyan
+            linger: 0.5
+          - id: pool-route-0
+            phrase: The saved winner at one comma one receives two.
+            targets:
+              - pool-backward-construction
+            color: green
+            linger: 0.5
+          - id: pool-route-1
+            phrase: One comma two receives minus one.
+            targets:
+              - pool-backward-construction
+            color: green
+            linger: 0.5
+          - id: pool-route-2
+            phrase: Two comma one receives one half,
+            targets:
+              - pool-backward-construction
+            color: green
+            linger: 0.5
+          - id: pool-route-3
+            phrase: and two comma two receives three.
+            targets:
+              - pool-backward-construction
+            color: green
+            linger: 0.5
+      - say: Backward routes sensitivity; it does not update the activation or train a pooling weight. For an unpadded
+          two-by-two average pool, divide each output’s incoming gradient by four and send that signed share
+          to every input in its window. In general divide by the number of averaged cells under the declared
+          padding convention.
+        hold: 0.6
+        visual_cues:
+          - id: pool-backward-b2
+            phrase: Backward routes sensitivity; it does not update the activation or train a pooling weight.
+            targets:
+              - pool-backward-construction
+            color: cyan
+            linger: 0.5
+          - id: average-split
+            phrase: divide each output’s incoming gradient by four
+            targets:
+              - pool-backward-construction
+            color: cyan
+            linger: 0.5
+          - id: average-route
+            phrase: send that signed share to every input in its window.
+            targets:
+              - pool-backward-construction
+            color: green
+            linger: 0.5
+      - say: When windows overlap, a shared input can receive several contributions. Sum them at the same stored owner
+          for both max and average pooling. The forward pass decides the max owner, while the backward pass
+          carries the signed amount. Overwriting the gradient with the newest contribution would lose earlier
+          paths.
+        hold: 0.8
+        visual_cues:
+          - id: pool-backward-b3
+            phrase: When windows overlap, a shared input can receive several contributions.
+            targets:
+              - pool-backward-construction
+            color: cyan
+            linger: 0.5
+          - id: shared-gradients
+            phrase: Sum them at the same stored owner for both max and average pooling.
+            targets:
+              - pool-backward-construction
+            color: pink
+            linger: 0.5
+    visual: Return signed gradients to the saved winners.
+  - id: overlap-repair
+    title: Repair the overwrite without changing the forward result
+    beats:
+      - say: Now take the article’s three-by-three map with center nine and smaller neighbors. Four two-by-two
+          stride-one windows all choose that same center. PyTorch returns flattened winner index four for
+          every output, and all four outputs are nine. Keep the shared center and all four output identities
+          visible.
+        hold: 0.6
+        visual_cues:
+          - id: overlap-repair-b1
+            phrase: Now take the article’s three-by-three map with center nine and smaller neighbors.
+            targets:
+              - overlap-repair-construction
+            color: cyan
+            linger: 0.5
+          - id: overlap-owners
+            phrase: all four outputs are nine.
+            targets:
+              - overlap-repair-construction
+            color: cyan
+            linger: 0.5
+      - say: An incorrect backward assignment overwrites the center with each incoming gradient and finishes at three.
+          Replay the same two, minus one, one half and three using addition instead. The center receives two
+          minus one plus one half plus three, which is four point five. Other inputs remain zero. The forward
+          outputs never changed; the repair restored ownership of every backward contribution.
+        hold: 0.6
+        visual_cues:
+          - id: overlap-repair-b2
+            phrase: An incorrect backward assignment overwrites the center with each incoming gradient and finishes at
+              three.
+            targets:
+              - overlap-repair-construction
+            color: cyan
+            linger: 0.5
+          - id: overwrite-gradient
+            phrase: finishes at three.
+            targets:
+              - overlap-repair-construction
+            color: pink
+            linger: 0.5
+          - id: accumulate-gradient
+            phrase: Replay the same two, minus one, one half and three using addition instead.
+            targets:
+              - overlap-repair-construction
+            color: pink
+            linger: 0.5
+          - id: correct-gradient
+            phrase: four point five.
+            targets:
+              - overlap-repair-construction
+            color: pink
+            linger: 0.5
+      - say: The article’s actual CPU PyTorch run checks those returned indices and the four-point-five center
+          gradient. A manual implementation needs accumulation, such as plus-equals. For a pooling layer,
+          fixing the winner’s gradient changes the sensitivity available to earlier learned filters, not the
+          count of pooling parameters.
+        hold: 0.8
+        visual_cues:
+          - id: overlap-repair-b3
+            phrase: The article’s actual CPU PyTorch run checks those returned indices and the four-point-five center
+              gradient.
+            targets:
+              - overlap-repair-construction
+            color: cyan
+            linger: 0.5
+    visual: Repair the overwrite without changing the forward result.
+  - id: global-average-head
+    title: Collapse spatial positions while preserving channels
+    beats:
+      - say: Global average pooling computes one mean per channel and example. Batch by channels by height by width
+          becomes batch by channels, or keeps singleton spatial axes. It removes the explicit spatial grid from the following head. Position information already encoded in channel values can remain. A permutation of one channel’s feature-map values preserves that mean, though
+          translating a finite image can change those values before pooling.
+        hold: 0.6
+        visual_cues:
+          - id: global-average-head-b1
+            phrase: Global average pooling computes one mean per channel and example.
+            targets:
+              - global-average-head-construction
+            color: cyan
+            linger: 0.5
+          - id: mean-collapse
+            phrase: computes one mean per channel and example.
+            targets:
+              - global-average-head-construction
+            color: cyan
+            linger: 0.5
+      - say: A Q-class head after flattening uses channels times height times width times Q weights, plus Q biases.
+          After global average pooling it uses channels times Q weights, plus the same Q biases. For a
+          supplied six-channel three-by-three map and two classes, those counts are one hundred ten and
+          fourteen. Both heads still produce two logits per example, but their allowable use of spatial
+          position differs.
+        hold: 0.6
+        visual_cues:
+          - id: global-average-head-b2
+            phrase: A Q-class head after flattening uses channels times height times width times Q weights, plus Q biases.
+            targets:
+              - global-average-head-construction
+            color: cyan
+            linger: 0.5
+          - id: head-count
+            phrase: one hundred ten and fourteen.
+            targets:
+              - global-average-head-construction
+            color: cyan
+            linger: 0.5
+      - say: "Parameter savings alone do not establish equal accuracy. Compare the chosen pretrained or trained
+          backbones on held-out panel images, including small marks and borders. A global maximum and a global
+          average preserve different summaries: the maximum retains a peak owner, while the mean charges every
+          spatial value."
+        hold: 0.8
+        visual_cues:
+          - id: global-average-head-b3
+            phrase: Parameter savings alone do not establish equal accuracy.
+            targets:
+              - global-average-head-construction
+            color: cyan
+            linger: 0.5
+          - id: mean-peak
+            phrase: the maximum retains a peak owner, while the mean charges every spatial value.
+            targets:
+              - global-average-head-construction
+            color: cyan
+            linger: 0.5
+    visual: Collapse spatial positions while preserving channels.
+  - id: border-counts
+    title: A boundary pixel belongs to fewer valid windows
+    beats:
+      - say: Place a single unit signal in a five-by-five image and use an all-ones three-by-three kernel. With valid
+          stride-one placements, the corner signal belongs to one window. Move that same signal to the center,
+          and it belongs to nine. Summing the complete output map gives one versus nine. These counts describe
+          this supplied kernel and aggregate, not every classifier.
+        hold: 0.6
+        visual_cues:
+          - id: border-counts-b1
+            phrase: Place a single unit signal in a five-by-five image and use an all-ones three-by-three kernel.
+            targets:
+              - border-counts-construction
+            color: cyan
+            linger: 0.5
+          - id: corner-count
+            phrase: the corner signal belongs to one window.
+            targets:
+              - border-counts-construction
+            color: cyan
+            linger: 0.5
+          - id: center-count
+            phrase: Move that same signal to the center, and it belongs to nine.
+            targets:
+              - border-counts-construction
+            color: cyan
+            linger: 0.5
+      - say: Keep the signal at the corner and add one zero border. Four complete windows can now contain it, so the
+          aggregate becomes four. On the article’s smaller four-by-four crop, even central pixels belong to at
+          most four valid windows. Keep the image size beside each count so those examples do not silently
+          exchange premises.
+        hold: 0.6
+        visual_cues:
+          - id: border-counts-b2
+            phrase: Keep the signal at the corner and add one zero border.
+            targets:
+              - border-counts-construction
+            color: cyan
+            linger: 0.5
+          - id: padded-corner
+            phrase: Four complete windows can now contain it
+            targets:
+              - border-counts-construction
+            color: cyan
+            linger: 0.5
+          - id: small-crop-count
+            phrase: even central pixels belong to at most four valid windows.
+            targets:
+              - border-counts-construction
+            color: cyan
+            linger: 0.5
+      - say: Extra placements can restore some border evidence, but padding also supplies invented input values. The
+          learned kernel and head decide how evidence affects the score. A pixel’s participation count does
+          not by itself establish the class, calibration or accuracy of a network.
+        hold: 0.8
+        visual_cues:
+          - id: border-counts-b3
+            phrase: Extra placements can restore some border evidence, but padding also supplies invented input values.
+            targets:
+              - border-counts-construction
+            color: cyan
+            linger: 0.5
+    visual: A boundary pixel belongs to fewer valid windows.
+  - id: padding-artifact
+    title: A synthetic boundary can create an edge that was absent
+    beats:
+      - say: "Fill a five-by-five panel with brightness zero point six and use the article’s zero-sum horizontal edge
+          kernel: top row plus one, middle zero, bottom minus one. Fully interior windows cancel. At an upper zero-padded border window away from the corners, the top row is synthetic zero and the lower row contributes minus one point eight. The absolute edge response is one point eight on an untextured surface."
+        hold: 0.6
+        visual_cues:
+          - id: padding-artifact-b1
+            phrase: "Fill a five-by-five panel with brightness zero point six and use the article’s zero-sum horizontal
+              edge kernel: top row plus one, middle zero, bottom minus one."
+            targets:
+              - padding-artifact-construction
+            color: cyan
+            linger: 0.5
+          - id: false-edge
+            phrase: the lower row contributes minus one point eight.
+            targets:
+              - padding-artifact-construction
+            color: cyan
+            linger: 0.5
+      - say: Change only the padding mode to reflection. The uniform panel continues at zero point six, so every
+          window cancels and the maximum absolute response is zero. Reflection imposes its own artificial
+          continuation and can produce artifacts on other images. This repairs the supplied uniform case; it
+          does not prove reflection is universally better.
+        hold: 0.6
+        visual_cues:
+          - id: padding-artifact-b2
+            phrase: Change only the padding mode to reflection.
+            targets:
+              - padding-artifact-construction
+            color: cyan
+            linger: 0.5
+          - id: reflect-padding
+            phrase: Change only the padding mode to reflection.
+            targets:
+              - padding-artifact-construction
+            color: cyan
+            linger: 0.5
+          - id: reflect-result
+            phrase: the maximum absolute response is zero.
+            targets:
+              - padding-artifact-construction
+            color: cyan
+            linger: 0.5
+      - say: Recompute the changed boundary window before interpreting a defect score. Keep training and inference
+          padding contracts synchronized. A false class decision additionally depends on the later learned
+          features and head. Border handling is part of the function, not a cosmetic frame around the image.
+        hold: 0.8
+        visual_cues:
+          - id: padding-artifact-b3
+            phrase: Recompute the changed boundary window before interpreting a defect score.
+            targets:
+              - padding-artifact-construction
+            color: cyan
+            linger: 0.5
+    visual: A synthetic boundary can create an edge that was absent.
+  - id: forward-pass
+    title: Connect the exact crop to a complete two-class score
+    beats:
+      - say: Return to the four-by-four article crop and its ridge kernel. Its four responses are all positive, so
+          ReLU preserves them. One two-by-two max pool selects zero point eight seven four from the
+          bottom-right owner and keeps one scalar. The supplied head multiplies it by one point four and minus
+          zero point nine, then adds biases minus zero point two and plus zero point one.
+        hold: 0.6
+        visual_cues:
+          - id: forward-pass-b1
+            phrase: Return to the four-by-four article crop and its ridge kernel.
+            targets:
+              - forward-pass-construction
+            color: cyan
+            linger: 0.5
+          - id: crop-pool
+            phrase: One two-by-two max pool selects zero point eight seven four
+            targets:
+              - forward-pass-construction
+            color: cyan
+            linger: 0.5
+          - id: head-weights
+            phrase: one point four and minus zero point nine
+            targets:
+              - forward-pass-construction
+            color: cyan
+            linger: 0.5
+      - say: The two logits are one point zero two three six and minus zero point six eight six six, displayed to
+          three decimals as one point zero two four and minus zero point six eight seven. The article builds
+          the same path in NumPy and PyTorch, copies the hand-chosen weights, and checks agreement within one
+          millionth. These are actual CPU arithmetic checks, not a trained crack detector or a measured speed
+          comparison.
+        hold: 0.6
+        visual_cues:
+          - id: forward-pass-b2
+            phrase: The two logits are one point zero two three six and minus zero point six eight six six, displayed to
+              three decimals as one point zero two four and minus zero point six eight seven.
+            targets:
+              - forward-pass-construction
+            color: cyan
+            linger: 0.5
+          - id: head-logits
+            phrase: The two logits are one point zero two three six and minus zero point six eight six six
+            targets:
+              - forward-pass-construction
+            color: cyan
+            linger: 0.5
+      - say: "PyTorch adds batch and channel axes, turning four-by-four into one by one by four by four. Convolution
+          produces one by one by two by two; pooling leaves one by one by one by one; flattening gives one
+          feature and the linear head returns two logits. Nonlinearities matter: a stack of affine
+          convolutions alone remains affine, even when boundaries or strides prevent replacing it with one
+          ordinary shared-kernel convolution."
+        hold: 0.8
+        visual_cues:
+          - id: forward-pass-b3
+            phrase: PyTorch adds batch and channel axes, turning four-by-four into one by one by four by four.
+            targets:
+              - forward-pass-construction
+            color: cyan
+            linger: 0.5
+          - id: forward-shapes
+            phrase: Convolution produces one by one by two by two; pooling leaves one by one by one by one; flattening
+              gives one feature and the linear head returns two logits.
+            targets:
+              - forward-pass-construction
+            color: cyan
+            linger: 0.5
+    visual: Connect the exact crop to a complete two-class score.
+  - id: residual-block
+    title: Add a learned change to an identity with matching shape
+    beats:
+      - say: Making a plain network deeper can increase training error. The original ResNet paper calls this
+          degradation and distinguishes it from overfitting; its batch-normalized plain networks had healthy
+          backward gradient norms. An identity shortcut adds the original input to a learned residual branch.
+          The branch can represent a change around the input rather than having to reproduce the whole
+          mapping.
+        hold: 0.6
+        visual_cues:
+          - id: residual-block-b1
+            phrase: Making a plain network deeper can increase training error.
+            targets:
+              - residual-block-construction
+            color: cyan
+            linger: 0.5
+          - id: residual-save
+            phrase: An identity shortcut adds the original input to a learned residual branch.
+            targets:
+              - residual-block-construction
+            color: green
+            linger: 0.5
+      - say: "Follow the article’s basic block: three-by-three convolution, batch normalization, ReLU, another
+          convolution and normalization, then add the saved identity and apply ReLU. Padding one preserves its
+          spatial size. Sixteen channels in and out keep the addition compatible. If channels or spatial shape
+          change, the shortcut needs a compatible transformation, such as a projection; addition cannot repair
+          a shape mismatch."
+        hold: 0.6
+        visual_cues:
+          - id: residual-block-b2
+            phrase: "Follow the article’s basic block: three-by-three convolution, batch normalization, ReLU, another
+              convolution and normalization, then add the saved identity and apply ReLU."
+            targets:
+              - residual-block-construction
+            color: cyan
+            linger: 0.5
+          - id: residual-convs
+            phrase: three-by-three convolution, batch normalization, ReLU, another convolution and normalization
+            targets:
+              - residual-block-construction
+            color: cyan
+            linger: 0.5
+          - id: residual-add
+            phrase: then add the saved identity and apply ReLU.
+            targets:
+              - residual-block-construction
+            color: cyan
+            linger: 0.5
+          - id: projection-shape
+            phrase: such as a projection
+            targets:
+              - residual-block-construction
+            color: cyan
+            linger: 0.5
+          - id: block-conv-0
+            phrase: three-by-three convolution,
+            targets:
+              - residual-block-construction
+            color: green
+            linger: 0.5
+          - id: block-bn-0
+            phrase: batch normalization,
+            targets:
+              - residual-block-construction
+            color: green
+            linger: 0.5
+          - id: block-relu
+            phrase: ReLU, another
+            targets:
+              - residual-block-construction
+            color: green
+            linger: 0.5
+          - id: block-conv-1
+            phrase: another convolution
+            targets:
+              - residual-block-construction
+            color: green
+            linger: 0.5
+          - id: block-bn-1
+            phrase: and normalization,
+            targets:
+              - residual-block-construction
+            color: green
+            linger: 0.5
+      - say: Batch normalization computes per-channel statistics across batch and spatial positions, then applies
+          learned scale and offset. With its default settings, training updates running estimates that
+          evaluation reuses. The article’s new block runs in training mode and preserves shape one by sixteen
+          by twenty-eight by twenty-eight in the actual CPU check. Shape preservation does not establish
+          held-out accuracy.
+        hold: 0.8
+        visual_cues:
+          - id: residual-block-b3
+            phrase: Batch normalization computes per-channel statistics across batch and spatial positions, then applies
+              learned scale and offset.
+            targets:
+              - residual-block-construction
+            color: cyan
+            linger: 0.5
+          - id: bn-owners
+            phrase: per-channel statistics across batch and spatial positions
+            targets:
+              - residual-block-construction
+            color: cyan
+            linger: 0.5
+          - id: bn-state
+            phrase: training updates running estimates that evaluation reuses.
+            targets:
+              - residual-block-construction
+            color: cyan
+            linger: 0.5
+    visual: Add a learned change to an identity with matching shape.
+  - id: identity-gradient
+    title: The direct gradient path can still cancel or be gated
+    beats:
+      - say: For the sum y equals F of x plus x, the branch Jacobian and identity add. Multiply the incoming gradient
+          by that combined map. In a supplied scalar slice, branch slope zero point two plus identity one
+          gives one point two. An incoming gradient three becomes three point six. This derivative concerns
+          the sum before the final activation.
+        hold: 0.6
+        visual_cues:
+          - id: identity-gradient-b1
+            phrase: For the sum y equals F of x plus x, the branch Jacobian and identity add.
+            targets:
+              - identity-gradient-construction
+            color: cyan
+            linger: 0.5
+          - id: identity-sum
+            phrase: An incoming gradient three becomes three point six.
+            targets:
+              - identity-gradient-construction
+            color: cyan
+            linger: 0.5
+      - say: Change only the branch slope to minus one. Its contribution cancels the identity, and the total gradient
+          becomes zero. If the block’s post-addition ReLU is inactive, its gate can also make the full
+          gradient zero. A shortcut supplies a route; it does not force a nonzero result independently of the
+          other routes and activation state.
+        hold: 0.6
+        visual_cues:
+          - id: identity-gradient-b2
+            phrase: Change only the branch slope to minus one.
+            targets:
+              - identity-gradient-construction
+            color: cyan
+            linger: 0.5
+          - id: cancel-identity
+            phrase: Its contribution cancels the identity, and the total gradient becomes zero.
+            targets:
+              - identity-gradient-construction
+            color: cyan
+            linger: 0.5
+          - id: relu-gate
+            phrase: If the block’s post-addition ReLU is inactive
+            targets:
+              - identity-gradient-construction
+            color: cyan
+            linger: 0.5
+      - say: Residual learning supported the original paper’s fifty-, one-hundred-one- and one-hundred-fifty-two-layer
+          experiments. LeNet demonstrated learned convolutional features for document recognition, and AlexNet
+          for large-scale image classification. Those historical results motivate useful designs; they do not
+          select the best model for this panel inspection task.
+        hold: 0.8
+        visual_cues:
+          - id: identity-gradient-b3
+            phrase: Residual learning supported the original paper’s fifty-, one-hundred-one- and
+              one-hundred-fifty-two-layer experiments.
+            targets:
+              - identity-gradient-construction
+            color: cyan
+            linger: 0.5
+    visual: The direct gradient path can still cancel or be gated.
+  - id: patch-projection
+    title: The same patch projection can be written as a convolution
+    beats:
+      - say: A vision transformer begins by cutting nonoverlapping image patches and linearly projecting each
+          flattened patch into a D-dimensional token. For a P-by-P RGB patch, the flat vector has three times
+          P squared entries. The same projection at every patch is a convolution with kernel P, stride P and D
+          output channels, when coefficient ordering and bias agree.
+        hold: 0.6
+        visual_cues:
+          - id: patch-projection-b1
+            phrase: A vision transformer begins by cutting nonoverlapping image patches and linearly projecting each
+              flattened patch into a D-dimensional token.
+            targets:
+              - patch-projection-construction
+            color: cyan
+            linger: 0.5
+          - id: patch-extract
+            phrase: cutting nonoverlapping image patches
+            targets:
+              - patch-projection-construction
+            color: cyan
+            linger: 0.5
+      - say: Use a supplied four-by-four grayscale image, two-by-two patches and three output features. Each patch has
+          four values, so the shared projection has twelve weights and three biases. Four patches produce four
+          three-feature tokens. Reshape each output row’s four weights into its two-by-two convolution kernel,
+          preserving the same row and column order. The two implementations now sum the same owners into each
+          token.
+        hold: 0.6
+        visual_cues:
+          - id: patch-projection-b2
+            phrase: Use a supplied four-by-four grayscale image, two-by-two patches and three output features.
+            targets:
+              - patch-projection-construction
+            color: cyan
+            linger: 0.5
+          - id: patch-weights
+            phrase: twelve weights and three biases.
+            targets:
+              - patch-projection-construction
+            color: cyan
+            linger: 0.5
+          - id: patch-reshape
+            phrase: Reshape each output row’s four weights into its two-by-two convolution kernel, preserving the same row
+              and column order. The two implementations now sum the same owners into each token.
+            targets:
+              - patch-projection-construction
+            color: cyan
+            linger: 0.5
+      - say: The architectural difference comes afterward. Convolution reuses local connections; original ViT
+          self-attention can mix any pair of patches, while positional embeddings retain position information.
+          Patch extraction and learned position vectors still supply spatial structure. Less built-in image
+          locality does not mean no spatial information, and the shared patch projection does not make the
+          entire transformer a CNN.
+        hold: 0.8
+        visual_cues:
+          - id: patch-projection-b3
+            phrase: The architectural difference comes afterward.
+            targets:
+              - patch-projection-construction
+            color: cyan
+            linger: 0.5
+          - id: patch-mix
+            phrase: self-attention can mix any pair of patches
+            targets:
+              - patch-projection-construction
+            color: cyan
+            linger: 0.5
+    visual: The same patch projection can be written as a convolution.
+  - id: architecture-choice
+    title: Compare the training recipe and the actual failure slice
+    beats:
+      - say: The original ViT experiments benefited from large-scale pretraining. DeiT later obtained competitive
+          ImageNet transformers without external training images using its training recipe and teacher
+          distillation. ConvNeXt modernized convolutional design and competed with the transformers in its own
+          experiments. These are scoped studies, not an architecture ranking that survives every task and
+          recipe.
+        hold: 0.6
+        visual_cues:
+          - id: architecture-choice-b1
+            phrase: The original ViT experiments benefited from large-scale pretraining.
+            targets:
+              - architecture-choice-construction
+            color: cyan
+            linger: 0.5
+      - say: For panel inspection, keep train and held-out photos separated, compare suitable pretrained backbones
+          under the same data and evaluation contract, and inspect tiny-defect and boundary slices. Include
+          inference cost and the exact resize, padding and pooling choices. Our constructed examples explain a
+          score’s path; none supplies production accuracy for this equipment.
+        hold: 0.8
+        visual_cues:
+          - id: architecture-choice-b2
+            phrase: For panel inspection, keep train and held-out photos separated, compare suitable pretrained backbones
+              under the same data and evaluation contract, and inspect tiny-defect and boundary slices.
+            targets:
+              - architecture-choice-construction
+            color: cyan
+            linger: 0.5
+          - id: inspect-slices
+            phrase: inspect tiny-defect and boundary slices.
+            targets:
+              - architecture-choice-construction
+            color: cyan
+            linger: 0.5
+    visual: Compare the training recipe and the actual failure slice.
+  - id: transfer
+    title: Predict what reversing the edge will do
+    visual: The opening image and fully computed map return. A learner predicts the response sign with the result
+      hidden. Reversing brightness constructs the negative map, then ReLU clips those actual values to zero.
+    beats:
+      - say: Return to our opening windows. The two windows crossing the edge respond, and the uniformly bright one
+          gives zero. Now predict the sign if we swap dark and bright everywhere. Keep the signed weights
+          fixed.
+        visual_cues:
+          - id: reverse-prediction
+            phrase: predict the sign
+            targets:
+              - recap-image
+              - reversed-prediction
+            color: yellow
+        hold: 1.3
+      - say: Reverse the brightness. The left column now subtracts more than the right adds. The boundary responses
+          become minus three. Library convolution layers usually apply this stored kernel orientation
+          directly; our calculation follows that cross-correlation convention.
+        visual_cues:
+          - id: reverse-edge
+            phrase: Reverse the brightness
+            targets:
+              - signed-response
+            color: cyan
+          - id: reverse-result
+            phrase: The boundary responses become minus three.
+            targets:
+              - signed-response
+            color: green
+            linger: 0.6
+        hold: 0.5
+      - say: "Apply ReLU: replace each negative response with zero. These filters can therefore distinguish the two
+          contrast directions after activation. You can now trace an image window through signed weights, a
+          feature-map position and an activation, using one shared rule at every location."
+        visual_cues:
+          - id: apply-relu
+            phrase: replace each negative response with zero
+            targets:
+              - rectified-response
+            color: green
+        hold: 0.8
+  - id: earned-cnn-transfer
+    title: One changed pixel moves the saved winner and its gradient
+    beats:
+      - say: Make one new intervention on the article crop. Keep its ridge kernel, all other pixels, ReLU and the head
+          fixed. Change only the upper-left pixel from zero point zero five to zero point zero one. Predict
+          which of the four responses changes, whether the maximum owner changes, and where an incoming pooled
+          gradient minus two must return. Hold the old map beside the new, unfinished one.
+        hold: 0.6
+        visual_cues:
+          - id: earned-cnn-transfer-b1
+            phrase: Make one new intervention on the article crop.
+            targets:
+              - earned-cnn-transfer-construction
+            color: cyan
+            linger: 0.5
+          - id: fresh-pixel
+            phrase: Change only the upper-left pixel from zero point zero five to zero point zero one.
+            targets:
+              - earned-cnn-transfer-construction
+            color: cyan
+            linger: 0.5
+      - say: That pixel belongs only to the upper-left valid placement. Its change minus zero point zero four times
+          weight minus zero point six adds zero point zero two four to that response. It becomes zero point
+          eight seven six; the other three stay zero point seven eight nine, zero point eight one seven and
+          zero point eight seven four. The maximum moves from bottom right to top left.
+        hold: 0.6
+        visual_cues:
+          - id: earned-cnn-transfer-b2
+            phrase: That pixel belongs only to the upper-left valid placement.
+            targets:
+              - earned-cnn-transfer-construction
+            color: cyan
+            linger: 0.5
+          - id: fresh-delta
+            phrase: adds zero point zero two four to that response.
+            targets:
+              - earned-cnn-transfer-construction
+            color: cyan
+            linger: 0.5
+          - id: fresh-map
+            phrase: It becomes zero point eight seven six
+            targets:
+              - earned-cnn-transfer-construction
+            color: cyan
+            linger: 0.5
+          - id: fresh-owner
+            phrase: The maximum moves from bottom right to top left.
+            targets:
+              - earned-cnn-transfer-construction
+            color: cyan
+            linger: 0.5
+          - id: fresh-other-values
+            phrase: the other three stay zero point seven eight nine, zero point eight one seven and zero point eight
+              seven four.
+            targets:
+              - earned-cnn-transfer-construction
+            color: green
+            linger: 0.5
+      - say: "Recompute the head with the new pooled value: the logits are one point zero two six four and minus zero point six eight eight four. Route the pooled gradient minus two to the new saved top-left winner. Sending it to the old bottom-right winner would use stale forward state. Shared coefficients stayed fixed, but changed evidence altered the map, score and backward owner. That complete chain is what a convolutional explanation must preserve. The training lesson next lets those weights change, following one prediction through loss, backward signals and an optimizer update."
+        hold: 0.8
+        visual_cues:
+          - id: earned-cnn-transfer-b3
+            phrase: "Recompute the head with the new pooled value: the logits are one point zero two six four and minus
+              zero point six eight eight four."
+            targets:
+              - earned-cnn-transfer-construction
+            color: cyan
+            linger: 0.5
+          - id: fresh-logits
+            phrase: the logits are one point zero two six four and minus zero point six eight eight four.
+            targets:
+              - earned-cnn-transfer-construction
+            color: cyan
+            linger: 0.5
+          - id: fresh-gradient
+            phrase: Route the pooled gradient minus two to the new saved top-left winner.
+            targets:
+              - earned-cnn-transfer-construction
+            color: pink
+            linger: 0.5
+    visual: One changed pixel moves the saved winner and its gradient.

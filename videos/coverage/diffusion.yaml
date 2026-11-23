@@ -1,0 +1,364 @@
+version: 1
+lesson: diffusion
+promise: Check a sampler against a known noisy pixel, explain how a learned prediction and a prompt
+  change the update, and decide what work and release checks an image job needs.
+objectives:
+  - id: product-lanes
+    can: Compute lane-specific offered work and headroom estimates
+    scenes:
+      - product-lanes
+  - id: forward
+    can: Save a forward exposure and use its marked pixel as an independent return value for a sampler
+    scenes:
+      - intro
+      - forward
+      - samplers
+  - id: coefficients
+    can: Compute signal and noise amplitudes and signed contributions
+    scenes:
+      - coefficients
+  - id: forward-schedule
+    can: Multiply stepwise retained fractions and interpret SNR
+    scenes:
+      - forward-schedule
+  - id: training
+    can: Construct the known-noise regression target and error
+    scenes:
+      - training
+  - id: reverse-posterior
+    can: Combine the two conditional densities and explain why the spread between their means contributes to the reverse variance
+    scenes:
+      - reverse-posterior
+  - id: training-targets
+    can: Use a known clean pixel to diagnose a sampler that reads a velocity prediction as noise
+    scenes:
+      - training-targets
+  - id: reverse
+    can: Identify mean, fresh noise and next state in a reverse step
+    scenes:
+      - reverse
+  - id: reverse-trace
+    can: Replay the actual scalar recurrence and consumed RNG state
+    scenes:
+      - reverse-trace
+  - id: score
+    can: Reconstruct a score from posterior-weighted components
+    scenes:
+      - score
+  - id: transport
+    can: Follow probability-flow transport in the declared variance direction
+    scenes:
+      - transport
+  - id: samplers
+    can: Recover the clean estimate and restore the carried noise direction at a selected level
+    scenes:
+      - samplers
+      - recap
+  - id: ddim-contract
+    can: Predict both landings when the fresh draw changes sign and identify what eta changes
+    scenes:
+      - ddim-contract
+  - id: architectures
+    can: Trace U-Net and diffusion-transformer backbone computation
+    scenes:
+      - architectures
+  - id: time-conditioning
+    can: Calculate one timestep-conditioned feature modulation
+    scenes:
+      - time-conditioning
+  - id: flow-paths
+    can: Apply a straight-pair flow target with the correct time direction
+    scenes:
+      - flow-paths
+  - id: conditioning
+    can: Explain how changing a spatial query changes text influence
+    scenes:
+      - conditioning
+  - id: cross-read
+    can: Calculate normalized attention shares and weighted values
+    scenes:
+      - cross-read
+  - id: guidance
+    can: Construct guidance as a base plus a scaled difference
+    scenes:
+      - guidance
+  - id: cfg-training
+    can: Trace conditional dropout and vector extrapolation
+    scenes:
+      - cfg-training
+  - id: cfg-api
+    can: Distinguish mathematical guidance from API branch behavior
+    scenes:
+      - cfg-api
+  - id: latent
+    can: Trace encoded latent training and random-latent generation
+    scenes:
+      - latent
+  - id: latent-contract
+    can: Count scalar compression and diagnose reconstruction loss
+    scenes:
+      - latent-contract
+  - id: text-canvas
+    can: Separate provisional text revisions from committed text
+    scenes:
+      - text-canvas
+  - id: gemma-system
+    can: Trace cached-prefix and canvas lifetimes with stopping predicates
+    scenes:
+      - gemma-system
+  - id: controls-fast
+    can: Choose a compatible spatial control or acceleration mechanism
+    scenes:
+      - controls-fast
+  - id: compute
+    can: Count predictions across sampling levels and distinguish a change in guidance scale from a change in branch count
+    scenes:
+      - compute
+  - id: reproducibility
+    can: Restore a complete generation recipe and resume state
+    scenes:
+      - reproducibility
+  - id: publication
+    can: Fence obsolete attempts and bind final derivative evidence
+    scenes:
+      - publication
+  - id: release-evidence
+    can: Apply strict record gates and separate operational evidence
+    scenes:
+      - release-evidence
+  - id: fresh-release
+    can: Count predictions for one job and use the current attempt and final file digest to decide when a resized image can be released
+    scenes:
+      - fresh-release
+sections:
+  - heading: "Product brief: a governed design-asset generator"
+    status: taught
+    scenes:
+      - product-lanes
+      - publication
+  - heading: Requirements and API
+    status: taught
+    scenes:
+      - product-lanes
+      - publication
+  - heading: Data flow and sizing
+    status: taught
+    scenes:
+      - product-lanes
+      - compute
+  - heading: Provenance belongs inside the asynchronous release path
+    status: taught
+    scenes:
+      - publication
+      - release-evidence
+  - heading: Failure recovery, rollout, and evaluation
+    status: taught
+    scenes:
+      - reverse-trace
+      - reproducibility
+      - publication
+      - release-evidence
+  - heading: A one-pixel forward process first
+    status: taught
+    scenes:
+      - intro
+      - coefficients
+      - forward-schedule
+      - recap
+  - heading: Why learn many cleanup tasks?
+    status: taught
+    scenes:
+      - forward
+      - training
+      - training-targets
+  - heading: How the oak table becomes noise
+    status: taught
+    scenes:
+      - forward
+      - forward-schedule
+  - heading: Adding noise gradually
+    status: taught
+    scenes:
+      - forward
+      - coefficients
+      - forward-schedule
+  - heading: "Reverse process: learned denoising"
+    status: taught
+    scenes:
+      - reverse-posterior
+      - reverse
+      - reverse-trace
+  - heading: DDPM training
+    status: taught
+    scenes:
+      - training
+      - training-targets
+      - reverse-posterior
+  - heading: Sampling (reverse process)
+    status: taught
+    scenes:
+      - reverse
+      - reverse-trace
+      - ddim-contract
+  - heading: "Model architectures: U-Net and diffusion transformers"
+    status: taught
+    scenes:
+      - architectures
+      - time-conditioning
+  - heading: The U-Net backbone
+    status: taught
+    scenes:
+      - architectures
+  - heading: The transformer shift
+    status: taught
+    scenes:
+      - architectures
+  - heading: Timestep conditioning
+    status: taught
+    scenes:
+      - time-conditioning
+  - heading: Flow matching and rectified flow
+    status: taught
+    scenes:
+      - flow-paths
+      - score
+      - transport
+  - heading: Text diffusion and DiffusionGemma
+    status: taught
+    scenes:
+      - text-canvas
+      - gemma-system
+  - heading: Classifier-free guidance (CFG)
+    status: taught
+    scenes:
+      - guidance
+      - cfg-training
+      - cfg-api
+  - heading: How CFG steers generation without a classifier
+    status: taught
+    scenes:
+      - cfg-training
+      - guidance
+      - cfg-api
+  - heading: Faster sampling with implicit diffusion
+    status: taught
+    scenes:
+      - samplers
+      - ddim-contract
+      - compute
+      - recap
+  - heading: Latent diffusion
+    status: taught
+    scenes:
+      - latent
+      - latent-contract
+  - heading: Architecture
+    status: taught
+    scenes:
+      - latent
+      - latent-contract
+  - heading: Why latent space?
+    status: taught
+    scenes:
+      - latent-contract
+      - compute
+  - heading: Text conditioning via cross-attention
+    status: taught
+    scenes:
+      - conditioning
+      - cross-read
+  - heading: Control and specialization
+    status: taught
+    scenes:
+      - controls-fast
+  - heading: Fast inference in practice
+    status: taught
+    scenes:
+      - controls-fast
+      - compute
+      - product-lanes
+  - heading: Common pitfalls
+    status: taught
+    scenes:
+      - cfg-api
+      - latent-contract
+      - architectures
+      - text-canvas
+      - publication
+  - heading: Run one generation release audit
+    status: taught
+    scenes:
+      - release-evidence
+      - fresh-release
+      - compute
+  - heading: Final design checklist
+    status: taught
+    scenes:
+      - release-evidence
+      - fresh-release
+  - heading: Follow-up questions
+    status: taught
+    scenes:
+      - product-lanes
+      - publication
+      - fresh-release
+quiz:
+  - n: 1
+    status: taught
+    scenes:
+      - coefficients
+      - forward-schedule
+  - n: 2
+    status: taught
+    scenes:
+      - training-targets
+  - n: 3
+    status: taught
+    scenes:
+      - reverse-posterior
+  - n: 4
+    status: taught
+    scenes:
+      - cross-read
+  - n: 5
+    status: taught
+    scenes:
+      - guidance
+      - cfg-training
+  - n: 6
+    status: taught
+    scenes:
+      - samplers
+      - ddim-contract
+      - recap
+  - n: 7
+    status: taught
+    scenes:
+      - product-lanes
+      - compute
+  - n: 8
+    status: taught
+    scenes:
+      - text-canvas
+      - gemma-system
+  - n: 9
+    status: taught
+    scenes:
+      - publication
+      - release-evidence
+  - n: 10
+    status: taught
+    scenes:
+      - latent
+      - latent-contract
+framing: []
+removed: []
+reviews:
+  closed_book:
+    script: 792440f598e9a695
+    taught: 10
+    partial: 0
+    absent: 0
+  fact_check:
+    script: 792440f598e9a695
+    open_findings: 0

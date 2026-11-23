@@ -1,0 +1,299 @@
+version: 1
+lesson: design-multi-tenant-llm-serving-platform
+promise: Decide when two requests can share an inference worker, when one must wait, and what evidence permits the worker to reassign a page or settle an attempt.
+objectives:
+  - id: intro
+    can: Compare Bob’s delivered citation with its permitted reader, contain the affected route, and investigate the wait separately
+    scenes:
+      - intro
+  - id: sharing-contract
+    can: Identify which artifacts can be shared and which request boundaries remain separately enforced
+    scenes:
+      - sharing-contract
+  - id: stream-clocks
+    can: Compute event gaps and completion-based TPOT without inventing token timestamps
+    scenes:
+      - stream-clocks
+  - id: goodput-contract
+    can: Apply an explicit per-request success rule and retain failed requests in the offered-load denominator
+    scenes:
+      - goodput-contract
+  - id: identity
+    can: Deny forged workspace selection before state access
+    scenes:
+      - identity
+  - id: trusted-envelope
+    can: Preserve trusted authorization context and validate service credentials at each protected operation
+    scenes:
+      - trusted-envelope
+  - id: admission-dimensions
+    can: Distinguish arrival rate, period allowance, concurrency, context bounds and physical KV capacity
+    scenes:
+      - admission-dimensions
+  - id: quota
+    can: Conserve fixed-period allowance through replay-safe settlement
+    scenes:
+      - quota
+  - id: admission-race
+    can: Explain why atomic reservation prevents a check-then-write oversubscription race
+    scenes:
+      - admission-race
+  - id: idempotency-binding
+    can: Bind replay safety to immutable request and settlement identities rather than transport message IDs
+    scenes:
+      - idempotency-binding
+  - id: dispatch-commit
+    can: Coordinate committed reservations and recoverable dispatch without mistaking transaction rollback for
+      execution cancellation
+    scenes:
+      - dispatch-commit
+  - id: pages
+    can: Use B’s page table to place position 32 and explain why position 33 must wait while P4 belongs to A
+    scenes:
+      - pages
+      - boundary-close
+  - id: kv-byte-shape
+    can: Derive logical KV storage with the actual KV head count and distinguish it from per-device fit
+    scenes:
+      - kv-byte-shape
+  - id: kv-growth
+    can: Compute full-cap page reservation with integer arithmetic and specify failure behavior for incremental
+      growth
+    scenes:
+      - kv-growth
+  - id: physical-references
+    can: Count four logical references to three pages and identify the pages that become reusable after each device reader retires
+    scenes:
+      - physical-references
+  - id: remote-kv
+    can: Evaluate authorized compatible remote KV using measured lookup and transfer costs while preserving
+      reference lifetime
+    scenes:
+      - remote-kv
+  - id: fairness
+    can: Use A’s two carried credits and its four-credit grant to predict its third turn and distinguish work served from chunks completed
+    scenes:
+      - fairness
+  - id: iteration-boundary
+    can: Explain iteration-level batching and why bounded prompt chunks need a separate tenant service policy
+    scenes:
+      - iteration-boundary
+  - id: work-cost
+    can: Explain work-share fairness, cost-model calibration and the limits of finite-round averages
+    scenes:
+      - work-cost
+  - id: extra-work
+    can: Budget speculative work and make preemption perform actual safe state retirement
+    scenes:
+      - extra-work
+  - id: cache
+    can: Preserve scoped evidence and pinned adapter identity during cache reuse
+    scenes:
+      - cache
+  - id: adapter-revisions
+    can: Authorize immutable adapter revisions and preserve their lifetime independently of alias changes and
+      cache residency
+    scenes:
+      - adapter-revisions
+  - id: reader-before-ranking
+    can: Enforce tenant and principal authorization before evidence leaves retrieval without assuming relevance
+      grants access
+    scenes:
+      - reader-before-ranking
+  - id: prefix-trust
+    can: Scope prefix reuse to authorized compatible computation and treat salts as partitioning rather than
+      credentials
+    scenes:
+      - prefix-trust
+  - id: runtime-trust
+    can: Choose runtime separation from a concrete threat model and distinguish GPU-instance memory from
+      compute-instance subdivision
+    scenes:
+      - runtime-trust
+  - id: cost
+    can: Conserve shared-step cost with consistent GPU and node units
+    scenes:
+      - cost
+  - id: usage-and-bill
+    can: Record immutable attempt usage and distinguish generated output, delivery, internal cost and billing
+      policy
+    scenes:
+      - usage-and-bill
+  - id: recovery
+    can: Hold the original reservation with a usage receipt and an outstanding device read, then choose a terminal event for a partial stream
+    scenes:
+      - recovery
+  - id: rollout-and-streams
+    can: Preserve immutable state and authorized destinations through rollout, cancellation and partial-stream
+      recovery
+    scenes:
+      - rollout-and-streams
+  - id: incident-evidence
+    can: Separate authorization containment from evidence-based diagnosis of queueing and resource bottlenecks
+    scenes:
+      - incident-evidence
+  - id: fresh-design-gate
+    can: Size C’s allowance and page reservation independently, then settle it once after both usage and retirement are known
+    scenes:
+      - fresh-design-gate
+  - id: boundary-close
+    can: Verify the reader and the worker handoff independently, then place B’s position 33 in the first valid slot of its newly assigned page
+    scenes:
+      - boundary-close
+sections:
+  - heading: Define what sharing may change
+    status: taught
+    scenes:
+      - sharing-contract
+      - stream-clocks
+      - goodput-contract
+  - heading: Establish identity before touching tenant state
+    status: taught
+    scenes:
+      - identity
+      - trusted-envelope
+  - heading: Reserve work before admitting it
+    status: taught
+    scenes:
+      - admission-dimensions
+      - quota
+  - heading: Make reservation and settlement idempotent
+    status: taught
+    scenes:
+      - admission-race
+      - idempotency-binding
+      - dispatch-commit
+  - heading: Budget memory before promising concurrency
+    status: taught
+    scenes:
+      - pages
+      - kv-byte-shape
+      - kv-growth
+      - physical-references
+      - remote-kv
+      - fresh-design-gate
+      - boundary-close
+  - heading: Give admitted tenants a bounded turn
+    status: taught
+    scenes:
+      - fairness
+      - iteration-boundary
+      - work-cost
+      - extra-work
+  - heading: Keep adapter residency separate from permission
+    status: taught
+    scenes:
+      - cache
+      - adapter-revisions
+  - heading: Scope retrieval and caching to the actual reader
+    status: taught
+    scenes:
+      - reader-before-ranking
+      - prefix-trust
+  - heading: Choose the runtime boundary from the threat model
+    status: taught
+    scenes:
+      - runtime-trust
+  - heading: Separate usage, allocated cost, and the customer bill
+    status: taught
+    scenes:
+      - cost
+      - usage-and-bill
+  - heading: Recover without losing ownership
+    status: taught
+    scenes:
+      - recovery
+      - rollout-and-streams
+      - fresh-design-gate
+  - heading: Diagnose the opening incident with evidence
+    status: taught
+    scenes:
+      - intro
+      - incident-evidence
+  - heading: Follow-up questions
+    status: taught
+    scenes:
+      - recovery
+      - prefix-trust
+      - fresh-design-gate
+  - heading: What strong answers show
+    status: taught
+    scenes:
+      - sharing-contract
+      - boundary-close
+  - heading: Check your understanding
+    status: taught
+    scenes:
+      - fresh-design-gate
+      - boundary-close
+quiz:
+  - n: 1
+    status: taught
+    scenes:
+      - identity
+      - trusted-envelope
+  - n: 2
+    status: taught
+    scenes:
+      - quota
+      - idempotency-binding
+  - n: 3
+    status: taught
+    scenes:
+      - idempotency-binding
+      - adapter-revisions
+  - n: 4
+    status: taught
+    scenes:
+      - pages
+      - kv-growth
+      - fresh-design-gate
+  - n: 5
+    status: taught
+    scenes:
+      - fairness
+      - work-cost
+  - n: 6
+    status: taught
+    scenes:
+      - adapter-revisions
+      - physical-references
+  - n: 7
+    status: taught
+    scenes:
+      - reader-before-ranking
+      - prefix-trust
+  - n: 8
+    status: taught
+    scenes:
+      - cost
+      - usage-and-bill
+  - n: 9
+    status: taught
+    scenes:
+      - recovery
+      - physical-references
+      - fresh-design-gate
+      - boundary-close
+  - n: 10
+    status: taught
+    scenes:
+      - stream-clocks
+removed: []
+reviews:
+  closed_book:
+    script: 810e6df259af2d6a
+    taught: 10
+    partial: 0
+    absent: 0
+    reviewer: /root/upgrade_shard1
+    evidence:
+      path: build/video-delivery-20261106/script-reviews/history/design-multi-tenant-llm-serving-platform/cf68c216fb97fa9699cd276d1dca22dd7e772d42f215d273aee8a92ff091e33f.json
+      sha256: cf68c216fb97fa9699cd276d1dca22dd7e772d42f215d273aee8a92ff091e33f
+  fact_check:
+    script: 810e6df259af2d6a
+    open_findings: 0
+    reviewer: /root/upgrade_shard1
+    evidence:
+      path: build/video-delivery-20261106/script-reviews/history/design-multi-tenant-llm-serving-platform/cf68c216fb97fa9699cd276d1dca22dd7e772d42f215d273aee8a92ff091e33f.json
+      sha256: cf68c216fb97fa9699cd276d1dca22dd7e772d42f215d273aee8a92ff091e33f

@@ -1,0 +1,365 @@
+[
+  {
+    "id": "c01",
+    "title": "Which manual goes with the probe?",
+    "sourceChapters": ["c01"],
+    "beats": [
+      {
+        "id": "probe",
+        "say": "E two. That code just came in from the probe. Both manuals on this handheld list E two. Which definition belongs to the sensor the technician plugged in?",
+        "hold": 2.8
+      },
+      {
+        "id": "page",
+        "say": "The probe is stamped A. Page M seven belongs to that sensor. Its entry says battery low. Copy the entry into the field log, with the page number beside it.",
+        "hold": 1.1
+      },
+      {
+        "id": "sentence",
+        "say": "What if the technician asks for a sentence? Sensor A reports a low battery. The manual supplies the fact. Try quoting it first. A classifier can route a request. A small language model can explain retrieved evidence when the job needs that extra step. Specialization teaches that behavior through examples, retrieval or constraints. The parameter count can stay the same. For cited answers, start the clock at dispatch. Include retrieval and prefill. Stop when the technician sees the first token. The target is p95 time to first visible token under 250 milliseconds. We’ll test that percentile across requests on the handheld.",
+        "hold": 1.1
+      }
+    ]
+  },
+  {
+    "id": "c02",
+    "title": "Would you sign this field log?",
+    "sourceChapters": ["c02"],
+    "beats": [
+      {
+        "id": "wrong",
+        "say": "Here is a draft from the student. It says the lens is covered and cites page M eight. The page exists. Even the words match. The technician still has the same probe. Would you save the draft?",
+        "hold": 2.5
+      },
+      {
+        "id": "repair",
+        "say": "Reject it. M eight belongs to sensor B. Compare the equipment and the code as well as the quoted meaning. Switch the source to M seven. Now the sentence reports a low battery on sensor A, and each claim traces back to the right paragraph.",
+        "hold": 1.3
+      },
+      {
+        "id": "missing",
+        "say": "Now the probe reads E nine. Look through both pages. Which entry supports an answer?",
+        "hold": 2.2
+      },
+      {
+        "id": "abstain",
+        "say": "Neither does. Leave the meaning empty and ask for local review. Give the student neighboring devices and missing codes during training. Split by manual or equipment family before generating variants, so the held-out test measures a new case. Count correct abstentions as well as supported answers.",
+        "hold": 1.2
+      }
+    ]
+  },
+  {
+    "id": "fit",
+    "title": "What fits on the bus and in memory?",
+    "sourceChapters": ["c01"],
+    "beats": [
+      {
+        "id": "stream",
+        "say": "Every generated token may need another trip through the weights. In this worksheet, one step reads all three point eight billion active matrix weights once. The bus supplies fifty gigabytes each second. Multiply the weight count by bits per weight and divide by eight for bytes. At eight bits, a read takes three point eight gigabytes. Can eighteen reads fit in a second?",
+        "hold": 2.3
+      },
+      {
+        "id": "pack",
+        "say": "They need sixty-eight point four gigabytes. Pack two four-bit weights into each byte instead. A read now takes one point nine gigabytes. Eighteen reads need thirty-four point two. Divide bus bandwidth by bytes per read for the ceiling. Other traffic, compute, scales and kernel support still count on the handheld.",
+        "hold": 1.2
+      },
+      {
+        "id": "cache",
+        "say": "For each saved position, attention stores a key and a value per key-value head in each layer. Both designs have eight query heads, twenty-four layers, head width thirty-two, and two-byte values. The sequence has a thousand twenty-four positions. Trace the eight query heads on the left. On the right, four queries share each stored pair. How many mebibytes does each design need?",
+        "hold": 2.2
+      },
+      {
+        "id": "half",
+        "say": "The eight-head cache needs twenty-four mebibytes. Two stored heads need six. Both designs still have eight query heads. Count keys and values, multiply by layers, stored heads, width, positions and bytes, then divide by a mebibyte. Runtime pools and temporary buffers need space too. Tying two weight matrices can save stored bytes, while applying a shared block twice still takes two computations.",
+        "hold": 1.2
+      }
+    ]
+  },
+  {
+    "id": "c03",
+    "title": "What does the runner-up teach?",
+    "sourceChapters": ["c03"],
+    "beats": [
+      {
+        "id": "votes",
+        "say": "For this one training context, the teacher scores three aligned choices. A hard label tells the student to look up the code. The teacher also prefers explanation over review. Look at the shorter two columns. What happens to them if we raise the shared temperature?",
+        "hold": 2.1
+      },
+      {
+        "id": "soften",
+        "say": "Raise the temperature from one to three. The teacher still ranks lookup first, but more probability goes to both alternatives. The student starts with equal logits and gives every choice one third. Direct token-level training needs the same token events at the same prefix. With different tokenizers, align events or retokenize verified teacher text for the student.",
+        "hold": 1.1
+      },
+      {
+        "id": "learn",
+        "say": "Train the student on those three probabilities. Each update reduces the gap to the fixed teacher here. The divergence printed below uses the probabilities at this very step. Even a close match can faithfully reproduce a wrong teacher answer. Recheck citations and missing-code decisions on held-out manuals.",
+        "hold": 1.2
+      }
+    ]
+  },
+  {
+    "id": "objective",
+    "title": "Which way does a student logit move?",
+    "sourceChapters": ["c03"],
+    "beats": [
+      {
+        "id": "gap",
+        "say": "Zoom in on one aligned event from another example. At temperature two, the teacher gives it probability point seven and the student gives it point two. For forward K L, subtract the teacher probability from the student probability and divide by temperature. With gradient descent, will this student logit rise or fall?",
+        "hold": 2.3
+      },
+      {
+        "id": "step",
+        "say": "The derivative is minus one quarter. Multiplying the loss by temperature squared multiplies that derivative by four. The scaled derivative is minus one. Subtract one tenth of it. The logit rises by one tenth. At high temperature the probability gap also shrinks, which explains the usual squared compensation.",
+        "hold": 1.3
+      },
+      {
+        "id": "loss",
+        "say": "Now combine three signals. The hard loss uses the labeled answer at temperature one. The soft loss already includes temperature squared. The third loss measures squared error between aligned hidden features. Give the teacher sixty percent of the hard and soft mixture. The hard label gets the remaining forty percent. Add the hidden loss with its own weight of point two. The losses are point five, point two, and point one. What do their weighted contributions add to?",
+        "hold": 2.3
+      },
+      {
+        "id": "sum",
+        "say": "The hard label contributes point two. The teacher contributes point one two. The hidden features add point zero two. Together they give a loss of point three four. Scaling the supplied soft loss again would count temperature squared twice. Feature matching needs compatible layers or a learned projection. Use held-out source checks to decide whether the trained student gives useful explanations.",
+        "hold": 1.2
+      }
+    ]
+  },
+  {
+    "id": "c04",
+    "title": "Where did the extra milliseconds go?",
+    "sourceChapters": ["c04"],
+    "beats": [
+      {
+        "id": "cpu",
+        "say": "Trace one model step on the handheld. Start with two and one. The projection takes their difference and their average. The activation keeps positive values, and the last operation adds half the first value to the second. Run all three on the CPU. The answer is two in thirteen milliseconds. Keep that trace as a reference.",
+        "hold": 1.2
+      },
+      {
+        "id": "split",
+        "say": "Try a neural processor for the projection and final sum. This backend sends the middle operation to the CPU. Both processors need the same intermediate values in different layouts. Each transfer and synchronization costs eight milliseconds here. Will this placement beat the CPU?",
+        "hold": 2.6
+      },
+      {
+        "id": "cross",
+        "say": "Follow the pair across to the CPU and back. The operations take five milliseconds between them. Two handoffs add sixteen. The split run finishes in twenty-one milliseconds with the same answer. An operator coverage percentage hides how often that trip happens.",
+        "hold": 1.2
+      },
+      {
+        "id": "whole",
+        "say": "Use a backend that also supports the activation on the neural processor. Follow the pair through all three stages without crossing. The whole step takes two and a half milliseconds and still gives two. On real hardware, inspect partitions, precision and the full critical path on representative shapes.",
+        "hold": 1.1
+      }
+    ]
+  },
+  {
+    "id": "export",
+    "title": "What survives the export?",
+    "sourceChapters": ["c04"],
+    "beats": [
+      {
+        "id": "row",
+        "say": "A CPU example lets us check calculation and shape separately. This numeric router clips each of three inputs to the interval from minus one to one. It then returns the negative sum and the positive sum. Try two, minus a half, minus two. Which output is larger?",
+        "hold": 2.1
+      },
+      {
+        "id": "clamp",
+        "say": "The clipped row sums to minus a half. Class zero wins with plus a half. The eager calculation can process nine rows. This saved program accepts batches from one through eight, so nine is outside its contract. A matching answer at one shape tests only that shape.",
+        "hold": 1.3
+      },
+      {
+        "id": "gates",
+        "say": "Compare three builds on the same held-out citation tasks. The baseline quality score is point nine four. For this export trial, allow a drop of at most point zero two and a ninety-fifth percentile latency of at most one hundred twenty milliseconds. Which build meets both limits?",
+        "hold": 2.4
+      },
+      {
+        "id": "candidate",
+        "say": "The eight-bit export qualifies. Its quality is point nine three eight and its latency is a hundred four milliseconds. The baseline takes a hundred thirty-two. The four-bit export is fastest at seventy-one, but its quality falls below point nine two. Compare the exact installed artifact against the reference with the same retrieved passages, tokenizer, template and abstention cases before a device trial.",
+        "hold": 1.2
+      }
+    ]
+  },
+  {
+    "id": "c05",
+    "title": "Can a fast finish erase a slow sample?",
+    "sourceChapters": ["c05"],
+    "beats": [
+      {
+        "id": "strip",
+        "say": "The technician starts the ten-minute rate recorder. Each dot is one sample. To pass this test, every sample must reach eighteen generated tokens per second. Look at the opening burst. As the strip moves, keep track of the lowest dot you have actually seen.",
+        "hold": 1
+      },
+      {
+        "id": "dip",
+        "say": "Advance to minute eight. One reading drops to sixteen point eight. Mark that dot. If the next reading comes back above the line, will the whole run pass?",
+        "hold": 2.6
+      },
+      {
+        "id": "recover",
+        "say": "At minute ten the current reading recovers to eighteen point six. The marked low still fails the sampled requirement. A rate decline alone cannot diagnose heat. Match its time to device clocks, thermal status, power, ambient conditions and competing work. A governor can lower voltage and frequency as the enclosure warms.",
+        "hold": 1.2
+      },
+      {
+        "id": "runb",
+        "say": "Replay with a second candidate under the same requirement. Its lowest sample is nineteen. That earns another test. Measure between samples, try the real duty cycle, and recheck answer quality if you shorten outputs or change precision.",
+        "hold": 1.2
+      }
+    ]
+  },
+  {
+    "id": "c06",
+    "title": "How much of the battery buys the answer?",
+    "sourceChapters": ["c06"],
+    "beats": [
+      {
+        "id": "decode",
+        "say": "Open a separate battery worksheet for an eight-hour shift. Use two assumed decode profiles for planning. Eco runs at eighteen tokens per second and three and a half watts. Boost runs at ten tokens per second and six watts. Each owes the crew thirty thousand tokens. Start with Eco. Divide tokens by rate for decode seconds. Multiply seconds by whole-device watts and divide by thirty-six hundred for watt-hours. Decode alone costs one point six two watt-hours. What else draws from this battery?",
+        "hold": 2
+      },
+      {
+        "id": "shift",
+        "say": "Retrieval and prefill take six hundred seconds at four watts. Charge the remaining time once, at the idle draw of one point two watts. Eco uses eleven point one three watt-hours in all. The pack holds fifteen, but we protect three for the crew. Twelve watt-hours are available for the shift.",
+        "hold": 2
+      },
+      {
+        "id": "other",
+        "say": "Look at the space before the reserve line. Keep the same shift and token demand. Use Boost now. Its assumed ten tokens per second at six watts means three thousand seconds of decode. That also shortens its idle interval. Will the nominal fifteen watt-hours tell us whether it fits?",
+        "hold": 2.4
+      },
+      {
+        "id": "bill",
+        "say": "Boost uses fourteen point zero seven watt-hours. It crosses the twelve usable watt-hours even though it fits below fifteen. Measure display and other loads inside the same power boundary. Repeat with an aged pack, realistic output lengths and the actual charging state.",
+        "hold": 1.3
+      }
+    ]
+  },
+  {
+    "id": "c07",
+    "title": "Can a crash report carry the manual out?",
+    "sourceChapters": ["c07"],
+    "beats": [
+      {
+        "id": "payload",
+        "say": "The manual and incident text stay on this terminal. A local answer uses local retrieval, model and storage. Other parts of the app can still try to send telemetry, crash reports, sync or backups. Open this crash report. What is inside the payload that would leave?",
+        "hold": 2
+      },
+      {
+        "id": "report",
+        "say": "The metrics are public. The attached page from M seven is restricted. The caller marked the report public. Check the assembled contents against the trusted records and the destination. Can that label authorize the upload?",
+        "hold": 2.3
+      },
+      {
+        "id": "blocked",
+        "say": "The gate blocks the report. The manual stays on the device. An uncertain answer also stays local. The device can abstain or request an approved local review. A concentrated token distribution describes the model’s preferences. Only an enforced policy on the whole payload can authorize a transmission.",
+        "hold": 1.1
+      }
+    ]
+  },
+  {
+    "id": "hybrid",
+    "title": "When can a separate product request cloud help?",
+    "sourceChapters": ["c07"],
+    "beats": [
+      {
+        "id": "margin",
+        "say": "Consider a different product that can request cloud help for public data. How should it decide which answers to keep? For this example, use the gap between the top two next-token probabilities as a score at a fixed point in each draft. On sensor A, the model favors lens at point nine three over battery at point zero four. Subtract the runner-up. The margin is point eight nine. Yet page M seven says battery low. Even a wide gap can favor the wrong word.",
+        "hold": 1.2
+      },
+      {
+        "id": "audit",
+        "say": "Try an assumed cutoff of point eight on ten held-out drafts. The automatic check found each quotation on its cited page. A reviewer checked whether each page applied to the actual sensor. Use those audit labels to check the cutoff. Which drafts would the product answer locally, and what fraction of those answers would be wrong?",
+        "hold": 2.6
+      },
+      {
+        "id": "tally",
+        "say": "Eight drafts reach the cutoff. Eight of ten gives eighty percent coverage. The reviewer caught the wrong source on draft eight, the lens answer. That makes one error in eight local answers, or twelve and a half percent. Both deferred drafts were correct. What would a stricter cutoff of point nine cost?",
+        "hold": 2.5
+      },
+      {
+        "id": "recheck",
+        "say": "Keep the same ten cases and raise the cutoff. Coverage falls to three out of ten. The reviewer found no errors among those three. A product team needs enough representative held-out cases to judge that trade against its own error budget. Check again after a change in model, quantization, prompt or sampling settings.",
+        "hold": 1.2
+      },
+      {
+        "id": "flags",
+        "say": "This separate hybrid product assumes a cutoff of point eight. Its router first requires a finite number from zero through one. A supported answer at the cutoff or above stays local. Otherwise cloud help requires a public payload, approval, redaction review and a connection. Trace these three requests. Which, if any, can ask for cloud help?",
+        "hold": 2.4
+      },
+      {
+        "id": "routes",
+        "say": "A boolean true is an invalid score, so A goes to local review. B has support at the threshold, so it answers locally even offline. C lacks support but has all four public-route permissions. C can request the cloud route. This decision sends no bytes. Bind permission to the actual payload and destination at transmission.",
+        "hold": 1.4
+      }
+    ]
+  },
+  {
+    "id": "c08",
+    "title": "Which bundle answers after the cable comes out?",
+    "sourceChapters": ["c08"],
+    "beats": [
+      {
+        "id": "stage",
+        "say": "Watch the bytes from approved media arrive in slot B. Slot A holds the complete bundle serving the handheld. The cable comes out with four bytes missing. The technician asks about sensor A again. Which slot will the reader open?",
+        "hold": 2.7
+      },
+      {
+        "id": "read",
+        "say": "Follow the read back to A. Its complete version one bundle still answers from M seven. B fails both length and digest against the authenticated manifest. A signature authenticates the manifest under a trusted key. The expected digest in that manifest binds the file bytes.",
+        "hold": 1.3
+      },
+      {
+        "id": "retry",
+        "say": "Reconnect the media and finish staging B. Before activation, check the signed version, expiry, device and runtime, tokenizer, and the artifact. Rehearse offline first launch, quality, abstention, memory and sustained performance. In our fixture the complete candidate passes its gates. Switch to B with a fresh session. Old cached states may use different weights or tokens.",
+        "hold": 1.2
+      },
+      {
+        "id": "health",
+        "say": "Now the health probe fails. Restore the compatible approved version under the recovery policy. Follow the next read. The same sensor gets its supported answer from A again. A valid signature alone cannot tell you whether a bundle is healthy or still permitted.",
+        "hold": 1.1
+      }
+    ]
+  },
+  {
+    "id": "receipts",
+    "title": "Which signed candidate is still eligible?",
+    "sourceChapters": ["c08"],
+    "beats": [
+      {
+        "id": "inspect",
+        "say": "Try a fresh set of signed receipts. All four target this device and runtime. It is time one hundred. The policy admits version seven or newer and requires expiry strictly in the future. Use the observed bytes as the last check. Which row could you stage for a trial?",
+        "hold": 2.7
+      },
+      {
+        "id": "eligible",
+        "say": "Only C survives. A expired at time ninety-nine. B is below the version floor. D has the right metadata but different bytes. A staged candidate still needs a healthy offline session and a permitted recovery path.",
+        "hold": 1.2
+      }
+    ]
+  },
+  {
+    "id": "field",
+    "title": "Can the next crew finish its shift?",
+    "sourceChapters": ["c06", "c08"],
+    "beats": [
+      {
+        "id": "crew",
+        "say": "A new crew takes the reader underground for six hours. One read of two point four billion four-bit weights takes one point two gigabytes. A thirty-six gigabyte per second bus would allow at most thirty steps a second under that assumption. In memory, weights, cache, workspace and runtime total eighteen seventy-two mebibytes, inside a two-gibibyte budget.",
+        "hold": 1
+      },
+      {
+        "id": "order",
+        "say": "Now check the battery. Ten thousand tokens at twenty a second, four watts while decoding. Retrieval and prefill take three hundred seconds at four watts. Idle takes the rest at one watt. The crew can spend six and a half watt-hours. Will it last?",
+        "hold": 3
+      },
+      {
+        "id": "firstbill",
+        "say": "Decode takes five hundred seconds. That leaves twenty thousand eight hundred at idle. The shift costs six point six seven watt-hours. Keep the work order exactly the same and reduce only idle draw to point nine watts. Does that saving cover the shortfall?",
+        "hold": 2.8
+      },
+      {
+        "id": "trial",
+        "say": "The revised total is six point zero nine watt-hours. That buys a trial on the handheld. Start it offline, look up E two on sensor A, and try a missing code. Measure time from dispatch through retrieval and prefill to the first visible token on representative requests. Sort these twenty example times. With nearest rank, the ninety-fifth percentile is the nineteenth time. It is two hundred thirty-eight milliseconds. That clears the strict two hundred fifty millisecond target, even though one request took longer. Check the ten-minute rate and a whole shift. Interrupt an update and repeat the lookup. The crew needs the cited answer after recovery too. Next, speculative decoding gives a smaller model another job. It proposes tokens for a target model to verify.",
+        "hold": 1.8
+      }
+    ]
+  }
+]

@@ -1,0 +1,1801 @@
+version: 1
+id: optimizers
+opening: lesson
+title: Account for Every Optimizer Update
+source: foundations/optimization-algorithms-adam-schedulers/content.md
+sources:
+  - title: "Kingma and Ba: Adam, A Method for Stochastic Optimization"
+    url: https://arxiv.org/abs/1412.6980
+  - title: "Loshchilov and Hutter: Decoupled Weight Decay Regularization"
+    url: https://arxiv.org/abs/1711.05101
+  - title: "Tieleman and Hinton: RMSProp lecture"
+    url: https://www.cs.toronto.edu/~tijmen/csc321/slides/lecture_slides_lec6.pdf
+  - title: PyTorch SGD buffer conventions
+    url: https://docs.pytorch.org/docs/2.15/generated/torch.optim.SGD.html
+  - title: PyTorch RMSprop algorithm
+    url: https://docs.pytorch.org/docs/2.15/generated/torch.optim.RMSprop.html
+  - title: PyTorch AdamW algorithm and absent gradients
+    url: https://docs.pytorch.org/docs/2.15/generated/torch.optim.AdamW.html
+  - title: PyTorch AMP accumulation and clipping
+    url: https://docs.pytorch.org/docs/2.15/notes/amp_examples.html
+  - title: PyTorch optimizer state loading
+    url: https://docs.pytorch.org/docs/2.15/generated/torch.optim.Optimizer.load_state_dict.html
+  - title: "Reddi,Kale and Kumar: On the Convergence of Adam and Beyond"
+    url: https://arxiv.org/abs/1904.09237
+  - title: "Rajbhandari et al.: ZeRO"
+    url: https://arxiv.org/abs/1910.02054
+  - title: PyTorch Muon parameter scope
+    url: https://docs.pytorch.org/docs/2.15/generated/torch.optim.Muon.html
+scenes:
+  - id: intro
+    title: One gradient descent step
+    visual: Two weights sit at one on a steep blue curve and a shallow green curve. Their rulers share a
+      scale. A single update draws two very different distances from the starting marks.
+    beats:
+      - say: Watch both weights take one step. Blue shoots past zero. Green barely moves. They started at
+          one and used the same learning rate. What made blue travel a hundred times as far?
+        hold: 1.8
+        caption_starts:
+          - Blue shoots past zero
+          - Green barely moves
+          - What made blue travel
+        visual_cues:
+          - id: opening-step
+            phrase: take one step
+            targets:
+              - opening-tracks
+            linger: 0.24
+          - id: opening-wall
+            phrase: Blue shoots past zero
+            targets:
+              - opening-wall
+            linger: 0.24
+          - id: opening-floor
+            phrase: Green barely moves
+            targets:
+              - opening-floor
+            linger: 0.24
+          - id: opening-rate
+            phrase: They started at one and used the same learning rate
+            caption_boundary: true
+            targets:
+              - opening-question
+            linger: 0.24
+  - id: first-step
+    title: One rate on two slopes
+    visual: The opening curves rewind to show the slopes and replay the update. The picture then puts the
+      two coordinates on one map and takes the second step.
+    beats:
+      - say: Back at one, the height of each curve shows its contribution to the loss. The yellow lines
+          show the slopes. Blue has a slope of a hundred. Multiply by the learning rate, point zero one
+          eight, and we subtract one point eight. Green has a slope of one, so we subtract just point
+          zero one eight.
+        hold: 0.35
+        visual_cues:
+          - id: multiply-gradient
+            phrase: Multiply by the learning rate, point zero one eight, and we subtract one point eight
+            targets:
+              - sgd-transition
+            linger: 0.24
+          - id: multiply-shallow
+            phrase: Green has a slope of one, so we subtract just point zero one eight
+            targets:
+              - sgd-transition
+            linger: 0.24
+        caption_starts:
+          - Blue has a slope
+          - and we subtract one point eight
+          - Green has a slope
+          - so we subtract just
+      - say: Now move the dots. Only the first crosses zero. The total loss fell, but nearly all the second
+          error is still there. Look at the heights. On the left we pay fifty times a squared. On the
+          right we pay half of b squared. Differentiate each term to get the gradient. The slopes are a
+          hundred times a, and just b. Their rates of change have a ratio of a hundred to one. That is
+          the condition number of this quadratic.
+        hold: 1
+        caption_starts:
+          - Only the first crosses zero
+        motion_check:
+          region:
+            - 220
+            - 360
+            - 1430
+            - 440
+        visual_cues:
+          - id: take-first-step
+            phrase: Now move the dots
+            targets:
+              - sgd-transition
+            linger: 0.24
+          - id: build-loss
+            phrase: Look at the heights. On the left we pay fifty times a squared. On the right we pay half of b
+              squared
+            targets:
+              - loss-rule
+            linger: 0.24
+          - id: build-gradient
+            phrase: Differentiate each term to get the gradient
+            targets:
+              - local-gradient
+            linger: 0.24
+      - say: Put both coordinates on one map. At the end of the first step, evaluate the gradient again.
+          The steep slope was a hundred. Here it is minus eighty. Which way will the next step go?
+          Subtracting it sends a back across zero. The slope for b is still positive, so b moves a little
+          closer to zero again. Here we can compute the full gradient. With a random minibatch,
+          stochastic gradient descent uses a noisy estimate.
+        hold: 0.7
+        visual_cues:
+          - id: refresh-gradient
+            phrase: Here it is minus eighty
+            caption_boundary: true
+            targets:
+              - next-gradient
+            linger: 0.24
+          - id: take-second-step
+            phrase: Subtracting it sends a back across zero
+            targets:
+              - next-gradient
+            caption_boundary: true
+            linger: 0.24
+  - id: stability
+    title: Judge the numbered endpoints
+    visual: Discrete SGD iterates grow with a completed-update counter and held endpoint loss. A
+      withheld larger-rate prediction precedes a genuinely diverging trace and its exact stability
+      factor.
+    beats:
+      - say: Follow eight completed updates. The crossings shrink, while the shallow error moves slowly. A
+          smaller rate would calm the steep direction and slow the other one too. We are seeing one
+          global multiplier serve two very different curvatures.
+        hold: 0.65
+        visual_cues:
+          - id: safe-trace
+            phrase: Follow eight completed updates. The crossings shrink, while the shallow error moves slowly
+            targets:
+              - safe-path
+            linger: 0.55
+      - say: Suppose we raise the rate slightly to help the slow coordinate. Will the steep error settle or
+          grow? Keep the starting point and objective fixed. Make the prediction before we run the
+          second trace.
+        hold: 1.7
+        visual_cues:
+          - id: unsafe-question
+            phrase: Will the steep error settle or grow
+            targets:
+              - stability-question
+            linger: 0.55
+      - say: "Run the larger rate through eight completed updates. Each steep-coordinate crossing now grows.
+          Substitute the gradient into the update: the old error is multiplied by negative one point
+          one. Shrinking requires a multiplier whose magnitude is below one. That gives the
+          displayed interval for this quadratic."
+        hold: 0.65
+        caption_starts:
+          - Each steep-coordinate crossing now grows
+          - the old error is multiplied
+        visual_cues:
+          - id: unsafe-trace
+            phrase: Run the larger rate through eight completed updates. Each steep-coordinate crossing now
+              grows
+            targets:
+              - unsafe-path
+            linger: 0.55
+          - id: stability-factor
+            phrase: the old error is multiplied by negative one point one
+            targets:
+              - stability-rule
+            linger: 0.55
+  - id: momentum
+    title: A stored direction can disagree with the slope
+    visual: Actual EMA momentum iterates supply the displayed gradients and buffers. Weighted old and
+      incoming pieces add on a signed number line before the fifth update moves uphill; later
+      opposite signs turn the buffer.
+    beats:
+      - say: Momentum keeps a signed average of gradients. Most of the old average survives and one tenth of
+          the new gradient enters. Start its buffer at zero. Store the first weighted gradient, then
+          replay four parameter updates using this memory.
+        hold: 0.65
+        visual_cues:
+          - id: first-memory
+            phrase: Store the first weighted gradient
+            targets:
+              - momentum-memory
+            linger: 0.55
+          - id: momentum-first-four
+            phrase: then replay four parameter updates using this memory
+            targets:
+              - momentum-path
+            linger: 0.55
+      - say: Now the steep error is negative. Its current gradient asks a fresh descent step to return
+          toward zero. Retain the old positive memory, add the new negative contribution, and
+          inspect the sum. The memory remains positive. Subtracting it takes the next update farther
+          left, raising the loss.
+        hold: 0.8
+        motion_check:
+          region:
+            - 1160
+            - 330
+            - 620
+            - 480
+        visual_cues:
+          - id: retain-memory
+            phrase: Retain the old positive memory
+            targets:
+              - memory-carry
+            linger: 0.55
+          - id: incoming-memory
+            phrase: add the new negative contribution
+            targets:
+              - memory-incoming
+            linger: 0.55
+          - id: sum-memory
+            phrase: inspect the sum
+            targets:
+              - memory-result
+            linger: 0.55
+          - id: momentum-fifth
+            phrase: Subtracting it takes the next update farther left
+            targets:
+              - momentum-fifth-step
+            linger: 0.55
+      - say: Continue until the steep buffer turns negative and the parameter starts returning. Meanwhile
+          the small gradients in the second coordinate keep reinforcing the same sign. Each
+          coordinate owns its own buffer. This memory changes both direction and scale, so its
+          learning rate deserves a separate experiment.
+        hold: 0.65
+        visual_cues:
+          - id: momentum-return
+            phrase: Continue until the steep buffer turns negative and the parameter starts returning
+            targets:
+              - momentum-path
+            linger: 0.55
+  - id: momentum-conventions
+    title: Translate the buffer before copying a learning rate
+    visual: Four fixed gradients enter the same buffer one at a time. The signed contributions show
+      how the buffer can stay positive when the incoming gradient turns negative.
+    beats:
+      - say: Feed the buffer four fixed gradients so we can follow the signs. In the top row they
+          alternate. In the bottom row they all point the same way. Start with the top row. A tenth of
+          a hundred gives us ten. Now the gradient flips to minus eighty. Keep nine from the old
+          buffer and add minus eight. That leaves one. The gradient changed sign before the buffer did.
+        hold: 0.7
+        visual_cues:
+          - id: history-inputs
+            phrase: Feed the buffer four fixed gradients
+            targets:
+              - history-inputs
+            color: cyan
+            linger: 0.4
+          - id: history-first
+            phrase: A tenth of a hundred gives us ten
+            targets:
+              - history-first
+            color: yellow
+            linger: 0.4
+          - id: history-second
+            phrase: Keep nine from the old buffer and add minus eight
+            targets:
+              - history-second
+            color: green
+            linger: 0.4
+      - say: Continue the same recurrence. The third steep buffer is seven point nine and the fourth is one
+          point one one. Opposite signs partially cancel. The shallow buffer ends near zero point three
+          three three because every input reinforces its positive sign. Here subtracting a positive
+          buffer moves a farther left, even though a fresh descent step would move it right. Momentum
+          changes the update scale, so try a separate rate sweep.
+        hold: 0.7
+        visual_cues:
+          - id: history-continue
+            phrase: Continue the same recurrence
+            targets:
+              - history-continue
+            color: cyan
+            linger: 0.4
+          - id: history-fourth
+            phrase: fourth is one point one one
+            targets:
+              - history-fourth
+            color: yellow
+            linger: 0.4
+          - id: history-shallow
+            phrase: shallow buffer ends near zero point three three three
+            targets:
+              - history-shallow
+            color: green
+            linger: 0.4
+      - say: "Our buffer is a normalized exponential average: beta times old memory plus one minus beta times
+          the new gradient. PyTorch SGD with default dampening starts its buffer at the first gradient,
+          then uses beta times buffer plus gradient. Our memory is one minus beta times that library
+          buffer. To reproduce our parameter updates, the library learning rate must be one minus beta
+          times our rate. With beta point nine, point zero one eight becomes point zero zero one eight.
+          Check initialization and dampening before transferring another implementation."
+        hold: 0.7
+        visual_cues:
+          - id: library-buffer
+            phrase: starts its buffer at the first gradient
+            targets:
+              - library-buffer
+            color: cyan
+            linger: 0.4
+          - id: library-scale
+            phrase: Our memory is one minus beta
+            targets:
+              - library-scale
+            color: yellow
+            linger: 0.4
+          - id: library-rate
+            phrase: point zero zero one eight
+            targets:
+              - library-rate
+            color: green
+            linger: 0.4
+  - id: rmsprop
+    title: How far does each gradient move the weight?
+    visual: Both coordinates use the same signed update scale. First the markers coincide in value. One
+      input then reverses sign and its update sweeps across zero while its squared memory grows.
+    beats:
+      - say: Feed the same first gradient into two empty buffers. The slope for a is a hundred. The slope for b
+          is one. RMSProp squares each slope and stores a tenth of the square. It keeps nine tenths of
+          the old buffer on later steps. Take the square root of each buffer. The divisor for a is a
+          hundred times as large as the one for b. With the same learning rate, will a still take a
+          hundred times the step?
+        hold: 2.3
+        visual_cues:
+          - id: rms-input
+            phrase: same first gradient
+            targets:
+              - rms-input
+            linger: 0.24
+          - id: rms-square
+            phrase: squares each slope and stores a tenth of the square
+            targets:
+              - rms-square
+            linger: 0.24
+          - id: rms-root
+            phrase: Take the square root of each buffer
+            targets:
+              - rms-root
+            linger: 0.24
+          - id: rms-predict
+            phrase: will a still take a hundred times the step
+            targets:
+              - rms-predict
+            linger: 0.24
+      - say: Divide each slope by its own divisor, with a small epsilon added, and multiply by point zero one.
+          The two marks line up at about three hundredths. A hundred times the slope met a hundred times
+          the scale. Now feed in minus eighty for a and point nine eight for b. Squaring that minus
+          eighty adds to the first buffer. Watch the amounts we subtract. The first switches sign. The
+          second stays positive. That sends a to the right and b to the left.
+        hold: 1
+        visual_cues:
+          - id: rms-first
+            phrase: The two marks line up at about three hundredths
+            targets:
+              - rms-update
+            caption_boundary: true
+            linger: 0.24
+          - id: rms-second
+            phrase: Now feed in minus eighty for a and point nine eight for b
+            targets:
+              - rms-input
+            linger: 0.24
+          - id: rms-store-second
+            phrase: Squaring that minus eighty adds to the first buffer
+            targets:
+              - rms-square
+            linger: 0.24
+          - id: rms-second-result
+            phrase: The first switches sign. The second stays positive
+            targets:
+              - rms-update
+            caption_boundary: true
+            linger: 0.24
+      - say: Look at the negative amount on the top ruler. Its sign comes straight from the current gradient.
+          The stored square supplies the size of the divisor. Basic RMSProp uses that raw buffer without
+          startup correction. Here epsilon goes after the square root, as it does in PyTorch. If another
+          implementation puts epsilon inside the root, copying its numerical value changes the divisor.
+          Now give the numerator a memory of its own.
+        hold: 0.8
+        visual_cues:
+          - id: rms-sign
+            phrase: Its sign comes straight from the current gradient
+            targets:
+              - rms-update
+            linger: 0.24
+          - id: rms-no-correction
+            phrase: uses that raw buffer without startup correction
+            targets:
+              - rms-no-correction
+            linger: 0.24
+          - id: rms-epsilon
+            phrase: epsilon goes after the square root
+            targets:
+              - rms-epsilon
+            linger: 0.24
+  - id: adam-buffers
+    title: Keep signs and squared sizes separately
+    visual: The retained initial gradient fills Adam’s first and uncentered second moments.
+      Provider-word cues build each correction denominator. Three real zero-rate updates hold
+      parameters fixed while raw buffers and their total observed weight grow.
+    beats:
+      - say: Adam combines a signed memory with a memory of squared gradient size. Reset at our original
+          point. Store a weighted gradient in the first buffer. Store a weighted square in the
+          second. Squaring keeps magnitude even when a gradient changes sign.
+        hold: 0.65
+        visual_cues:
+          - id: adam-raw-mean
+            phrase: Store a weighted gradient in the first buffer
+            targets:
+              - adam-mean
+            linger: 0.55
+          - id: adam-raw-square
+            phrase: Store a weighted square in the second
+            targets:
+              - adam-square
+            linger: 0.55
+      - say: Both buffers started at zero. The observed gradient has received only part of the total weight.
+          Divide the signed buffer by its observed weight, then correct the squared buffer the same
+          way. On this first update, the corrected estimates recover the gradient and its square.
+        hold: 0.65
+        visual_cues:
+          - id: correct-mean
+            phrase: Divide the signed buffer by its observed weight
+            targets:
+              - corrected-mean
+            linger: 0.55
+          - id: correct-square
+            phrase: then correct the squared buffer the same way
+            targets:
+              - corrected-square
+            linger: 0.55
+      - say: Check that bookkeeping with three zero-rate updates. The parameters stay fixed, so the gradient
+          repeats. The raw buffers fill and the step counter advances. Their corrected estimates
+          keep the same values because we divide by the weight actually assigned to observations.
+          Changing gradients still carry their history and lag.
+        hold: 0.65
+        visual_cues:
+          - id: cold-start-check
+            phrase: Check that bookkeeping with three zero-rate updates. The parameters stay fixed, so the
+              gradient repeats. The raw buffers fill and the step counter advances
+            targets:
+              - cold-start-growth
+            linger: 0.55
+  - id: adam-step
+    title: Turn those memories into a displacement
+    visual: Corrected squared moments become square-root denominators. Two normalized coordinate ratios
+      are built before a nearly equal-sized first displacement moves the same parameters diagonally.
+    beats:
+      - say: Reset the buffers for one fresh Adam step. Keep the corrected estimates visible. Which
+          coordinate will receive the larger move at our chosen learning rate? Calculate before we
+          build the denominator.
+        hold: 1.7
+        visual_cues:
+          - id: adam-normalization-prediction
+            phrase: Which coordinate will receive the larger move at our chosen learning rate
+            targets:
+              - adam-denominator
+            linger: 0.55
+      - say: Take the square root of each corrected squared estimate. Divide the signed estimate by that
+          scale. The hundred-to-one gradient difference nearly cancels. Multiply both ratios by the
+          learning rate and take the step. Both errors move by about the same amount. A small
+          epsilon guards each denominator; gradients near that scale receive different
+          normalization.
+        hold: 0.65
+        caption_starts:
+          - The hundred-to-one gradient difference nearly cancels
+          - Both errors move by about the same amount
+        visual_cues:
+          - id: root-scale
+            phrase: Take the square root of each corrected squared estimate
+            targets:
+              - adam-denominator
+            linger: 0.55
+          - id: normalized-ratio
+            phrase: Divide the signed estimate by that scale
+            targets:
+              - adam-ratio
+            linger: 0.55
+          - id: adam-first-move
+            phrase: Multiply both ratios by the learning rate and take the step
+            targets:
+              - adam-displacement
+            linger: 0.55
+  - id: adam-history
+    title: One negative gradient, two optimizers
+    visual: The same negative input reaches both methods. Two computed displacements start at the same zero
+      and extend in opposite directions. The four-input replay then compares the two Adam coordinates and
+      accounts for the observed weights.
+    beats:
+      - say: Replay those four supplied gradients from empty Adam buffers. For the signed average, keep ninety
+          percent of the old value. For the squares, keep ninety-nine point nine percent. The learning
+          rate is point zero one. After the first hundred, both buffers read ten. Now send in minus
+          eighty. Nine minus eight leaves one in the signed buffer. The square of minus eighty pushes the
+          other buffer up to sixteen point three nine. RMSProp turned on that input. Which way will Adam
+          move the weight?
+        hold: 2.4
+        visual_cues:
+          - id: hist-first
+            phrase: After the first hundred, both buffers read ten
+            targets:
+              - hist-first
+            linger: 0.24
+          - id: hist-second
+            phrase: Now send in minus eighty
+            targets:
+              - hist-second
+            linger: 0.24
+          - id: hist-second-sum
+            phrase: Nine minus eight leaves one in the signed buffer. The square of minus eighty pushes the other
+              buffer up to sixteen point three nine
+            targets:
+              - hist-second-sum
+            linger: 0.24
+      - say: Start both parameter moves at zero on this ruler. RMSProp moves right. Adam moves a little to the
+          left. Adam is still subtracting a positive signed average, even though the latest slope is
+          negative. Feed in seventy and then minus sixty. Again the signs partly cancel for a. After bias
+          correction and division by the root, the subtracted step for a is only about four
+          ten-thousandths. The gradients for b all pointed the same way. Its step is about twenty-four
+          times as large. The square buffer measures uncentered magnitude. To calculate a variance you
+          would have to subtract the mean before squaring.
+        hold: 0.9
+        visual_cues:
+          - id: hist-rms-direction
+            phrase: RMSProp moves right
+            targets:
+              - hist-directions
+            caption_boundary: true
+            linger: 0.24
+          - id: hist-directions
+            phrase: Adam moves a little to the left
+            targets:
+              - hist-directions
+            caption_boundary: true
+            linger: 0.24
+          - id: hist-four
+            phrase: Feed in seventy and then minus sixty
+            targets:
+              - hist-four
+            linger: 0.24
+          - id: hist-update
+            phrase: the subtracted step for a is only about four ten-thousandths
+            targets:
+              - hist-update
+            linger: 0.24
+          - id: hist-shallow
+            phrase: Its step is about twenty-four times as large
+            targets:
+              - hist-shallow
+            linger: 0.24
+          - id: hist-variance
+            phrase: To calculate a variance you would have to subtract the mean before squaring
+            targets:
+              - hist-variance
+            linger: 0.24
+      - say: Where do the correction factors come from? Suppose the signed gradient repeats. With a repeated
+          gradient, the first observation enters with weight one minus beta. After two updates the
+          observations carry one minus beta squared. After three, the three colored pieces still fill
+          only part of a whole unit. After t updates their total is one minus beta to the power t. Divide
+          by that total to give the observed gradients their full weight. For a first gradient of four
+          and a rate of point zero one, the raw buffers would give a step near point zero three one six.
+          With correction the step is point zero one. That fixes the zero start. An old observation still
+          takes time to fade.
+        hold: 0.8
+        caption_starts:
+          - After two updates
+          - After t updates
+          - With correction the step is point zero one
+        visual_cues:
+          - id: observed-weights
+            phrase: After three, the three colored pieces
+            targets:
+              - observed-weights
+            linger: 0.24
+          - id: weight-denominator
+            phrase: one minus beta to the power t
+            targets:
+              - weight-denominator
+            linger: 0.24
+          - id: uncorrected-step
+            phrase: the raw buffers would give a step near point zero three one six
+            targets:
+              - uncorrected-step
+            linger: 0.24
+          - id: corrected-step
+            phrase: With correction the step is point zero one
+            targets:
+              - corrected-step
+            linger: 0.24
+  - id: objective-scale
+    title: Find the limit of Adam scale cancellation
+    visual: A positive multiplier is applied to the entire retained history,then epsilon alone changes
+      the tiny-gradient denominator.
+    beats:
+      - say: Changing an objective from a mean to a sum multiplies its gradient by the number of averaged
+          items. At a fixed rate, SGD multiplies its step by that same factor. If one fixed positive
+          factor multiplies Adam’s entire gradient history, the signed estimate scales by that
+          factor and the squared estimate by its square. Its square root therefore scales by the
+          original factor. Numerator and denominator cancel exactly when epsilon is zero and the
+          denominator is nonzero.
+        hold: 0.7
+        visual_cues:
+          - id: scale-objective
+            phrase: Changing an objective from a mean to a sum
+            targets:
+              - scale-objective
+            color: cyan
+            linger: 0.4
+          - id: scale-signed
+            phrase: the signed estimate scales by that factor
+            targets:
+              - scale-signed
+            color: yellow
+            linger: 0.4
+          - id: scale-square
+            phrase: squared estimate by its square
+            targets:
+              - scale-square
+            color: green
+            linger: 0.4
+          - id: scale-root
+            phrase: square root therefore scales
+            targets:
+              - scale-root
+            color: pink
+            linger: 0.4
+          - id: scale-cancel
+            phrase: cancel exactly when epsilon is zero
+            targets:
+              - scale-cancel
+            color: cyan
+            linger: 0.4
+      - say: Watch what happens as the gradient gets smaller. The learning rate is one hundredth. Start
+          with a gradient of one. The step uses almost the whole learning rate. When the gradient
+          equals epsilon, the denominator is twice the gradient and the step uses half the rate.
+          Shrink the gradient to a hundredth of epsilon. Now the step uses about one percent of the
+          rate.
+        hold: 0.7
+        caption_starts:
+          - When the gradient equals epsilon
+          - Shrink the gradient
+          - Now the step uses
+        visual_cues:
+          - id: eps-large
+            phrase: The step uses almost the whole learning rate
+            targets:
+              - eps-large
+            color: cyan
+            linger: 0.4
+          - id: eps-equal
+            phrase: the denominator is twice the gradient and the step uses half the rate
+            targets:
+              - eps-equal
+            color: yellow
+            linger: 0.4
+          - id: eps-tiny
+            phrase: Now the step uses about one percent of the rate
+            targets:
+              - eps-tiny
+            color: green
+            linger: 0.4
+      - say: Now change the scale halfway through. Both buffers receive minus eight hundred. Look at
+          what they carry in. The top buffer kept nine from its first gradient. Add minus eighty and it
+          lands at minus seventy-one. The bottom run used the larger scale from the start. It kept
+          ninety. The same minus eighty leaves it at plus ten. Adam will move these weights in
+          opposite directions. Record how you average the loss. Clipping, a penalty added to the loss,
+          or changing an item's share can also change the gradient that reaches the buffers.
+        hold: 0.7
+        caption_starts:
+          - Add minus eighty and it lands
+          - The same minus eighty leaves it
+        visual_cues:
+          - id: scale-past
+            phrase: Add minus eighty and it lands at minus seventy-one
+            targets:
+              - scale-past
+            color: cyan
+            linger: 0.4
+          - id: scale-break
+            phrase: The same minus eighty leaves it at plus ten
+            targets:
+              - scale-break
+            color: yellow
+            linger: 0.4
+          - id: scale-record
+            phrase: Record how you average the loss
+            targets:
+              - scale-record
+            color: green
+            linger: 0.4
+  - id: comparison
+    title: Compare complete recipes at one budget
+    visual: All three trajectories recompute gradients at their own positions on the same quadratic,
+      starting from the same errors. A shared completed-update count drives endpoint coordinates and
+      loss, with explicit per-method rates.
+    beats:
+      - say: Return every method to the same starting point and reset its buffers. Give each forty gradient
+          evaluations. The listed learning rates belong to the recipes we are testing. Predict which
+          recipe will reduce the shallow error most, then compare both coordinates and the loss.
+        hold: 1.5
+        visual_cues:
+          - id: comparison-prediction
+            phrase: Predict which recipe will reduce the shallow error most
+            targets:
+              - comparison-question
+            linger: 0.55
+      - say: Advance each run through the same forty updates, using its own current point for each gradient,
+          then keep the completed paths beside their two remaining coordinate errors. At the shared
+          numeric rate, plain descent finishes below momentum here. Our chosen Adam rate reduces
+          both errors. Tuning and validation determine the useful recipe for a real task.
+        hold: 0.65
+        caption_starts:
+          - At the shared numeric rate
+          - Our chosen Adam rate reduces both errors
+        visual_cues:
+          - id: comparison-runs
+            phrase: Advance each run through the same forty updates, using its own current point for each
+              gradient, then keep the completed paths beside their two remaining coordinate errors
+            targets:
+              - comparison-paths
+            linger: 0.55
+  - id: schedule
+    title: What changes at a zero learning rate?
+    visual: Two dots mark the parameters. The first rate leaves them at one as the raw moments for a
+      fill. Four warmup points then move both dots. The wider plot follows the cosine schedule to its
+      last update and compares its residual with constant-rate Adam.
+    beats:
+      - say: Reset Adam at one on both coordinates. Watch the stored history for the steep coordinate.
+          The first update uses zero rate. Both dots stay put while moments and the counter still advance.
+          The next four rates ramp to the peak. Now each new rate multiplies the step that the moments
+          give us. The dots have started to move. This sequence of rates is the learning rate schedule.
+        hold: 0.65
+        caption_starts:
+          - Both dots stay put
+          - Now each new rate
+        visual_cues:
+          - id: schedule-zero-update
+            phrase: The first update uses zero rate
+            caption_boundary: true
+            targets:
+              - scheduled-updates
+            linger: 0.55
+          - id: schedule-warmup
+            phrase: The next four rates ramp to the peak
+            caption_boundary: true
+            targets:
+              - scheduled-updates
+            linger: 0.55
+      - say: Continue the same run through cosine decay. As the rate falls, it changes each displacement
+          produced by the current moments. At the final zero rate, a residual error remains and
+          parameter movement stops. A schedule chooses when to spend the update budget.
+        hold: 0.8
+        motion_check:
+          region:
+            - 220
+            - 740
+            - 1480
+            - 140
+        visual_cues:
+          - id: schedule-decay
+            phrase: Continue the same run through cosine decay. As the rate falls, it changes each displacement
+              produced by the current moments
+            targets:
+              - scheduled-updates
+            linger: 0.55
+      - say: Compare the last five updates with constant-rate Adam. These runs share the objective, starting
+          state and update budget; only their schedules differ. The decayed run moves less late, yet
+          finishes with larger loss in this example. Use measured progress and validation to choose
+          the peak, decay and training length.
+        hold: 0.65
+        visual_cues:
+          - id: schedule-late
+            phrase: Compare the last five updates with constant-rate Adam
+            targets:
+              - schedule-comparison
+            linger: 0.55
+  - id: accumulation
+    title: How much does each item count?
+    visual: The widths of three item cells show their shares in the loss. Dividing the strip equally
+      between unequal batches enlarges the first item. Restoring equal widths changes the SGD endpoint. A
+      separate distributed window counts backward passes before one optimizer step.
+    beats:
+      - say: Suppose we can fit only part of our data in memory at once. Keep the prediction at one while we
+          collect the gradients. The targets are zero, two and four. For squared error, each derivative
+          is twice the prediction minus twice the target. That gives plus two, minus two and minus six.
+          Average all three and the full mean gradient is minus two. Now put the first item in one batch
+          and its two neighbors in another. Their mean gradients are two and minus four. Let each item’s
+          width show its share of the gradient. If we give each batch half the strip, how much say does
+          the first item get?
+        hold: 2.35
+        visual_cues:
+          - id: accum-items
+            phrase: The targets are zero, two and four
+            targets:
+              - item-strip
+            linger: 0.24
+          - id: accum-derivatives
+            phrase: That gives plus two, minus two and minus six
+            targets:
+              - item-strip
+            linger: 0.24
+          - id: accum-full
+            phrase: the full mean gradient is minus two
+            targets:
+              - accum-full
+            linger: 0.24
+          - id: accum-groups
+            phrase: Now put the first item in one batch and its two neighbors in another. Their mean gradients are
+              two and minus four
+            targets:
+              - item-strip
+            linger: 0.24
+      - say: Slide the batch divider to the middle. One item now gets half the strip. Each neighbor gets a
+          quarter. The mean of the two batch gradients is minus one. At a rate of point one, SGD lands at
+          one point one. Keep all three targets and start over at the same weight. Give each item the
+          same width. That means one third for the first batch and two thirds for the second. The
+          accumulated gradient is minus two. This time SGD lands at one point two. For a token mean,
+          count the tokens that contribute to the loss. A short final window uses its actual count. To
+          match a full batch, each item also needs the same forward computation. A batch-dependent layer
+          can change that.
+        hold: 0.9
+        caption_starts:
+          - One item now gets half the strip
+          - Each neighbor gets a quarter
+        visual_cues:
+          - id: accum-divide
+            phrase: Slide the batch divider to the middle
+            targets:
+              - item-strip
+            linger: 0.24
+          - id: accum-wrong
+            phrase: The mean of the two batch gradients is minus one
+            targets:
+              - combined-gradient
+            caption_boundary: true
+            linger: 0.24
+          - id: accum-wrong-step
+            phrase: SGD lands at one point one
+            targets:
+              - accum-wrong-step
+            caption_boundary: true
+            linger: 0.24
+          - id: accum-weights
+            phrase: Give each item the same width
+            targets:
+              - item-strip
+            linger: 0.24
+          - id: accum-correct-gradient
+            phrase: The accumulated gradient is minus two
+            targets:
+              - combined-gradient
+            caption_boundary: true
+            linger: 0.24
+          - id: accum-repair
+            phrase: This time SGD lands at one point two
+            targets:
+              - accum-repair
+            caption_boundary: true
+            linger: 0.24
+          - id: accum-forward
+            phrase: each item also needs the same forward computation
+            targets:
+              - accum-forward
+            linger: 0.24
+      - say: Each row is one process. Each process runs three backward passes with four
+          items apiece. That makes twenty-four items in one optimizer update. With mixed precision, keep the loss scale fixed for
+          the whole window. Finish all backward passes, unscale once, then clip once. Take one optimizer
+          step, advance the per-update schedule if that step ran, and clear gradients for the next
+          window.
+        hold: 0.9
+        caption_starts:
+          - That makes twenty-four
+          - With mixed precision
+          - Finish all backward passes
+          - Take one optimizer step
+        visual_cues:
+          - id: effective-batch
+            phrase: Each process runs three backward passes with four items apiece. That makes twenty-four items in
+              one optimizer update
+            targets:
+              - effective-batch
+            linger: 0.24
+          - id: window-backward
+            phrase: Finish all backward passes
+            targets:
+              - window-backward
+            linger: 0.24
+          - id: window-unscale
+            phrase: unscale once
+            targets:
+              - window-unscale
+            linger: 0.24
+          - id: window-clip
+            phrase: clip once
+            targets:
+              - window-clip
+            linger: 0.24
+          - id: window-step
+            phrase: Take one optimizer step
+            targets:
+              - window-step
+            linger: 0.24
+          - id: window-schedule
+            phrase: advance the per-update schedule if that step ran
+            targets:
+              - window-schedule
+            linger: 0.24
+          - id: window-clear
+            phrase: clear gradients
+            targets:
+              - window-clear
+            linger: 0.24
+  - id: clipping
+    title: Which gradient reaches AdamW?
+    visual: Two fixed scales show the same gradient. A long arrow contracts toward a radius of five. The
+      detail view shows exactly where its tip lands before AdamW reads it.
+    beats:
+      - say: Treat all the gradients as one arrow. On the right, you can see its tip up close. An input of
+          three and four has length five. The yellow arc marks our limit. An arrow on or inside it passes
+          through unchanged. Now change the batch. The input jumps to three hundred and four hundred. Its length is five
+          hundred. To keep the direction, multiply every coordinate by the same factor. Use the limit
+          divided by the length. Here that is one hundredth. Pull the tip back along the same line until
+          it reaches the arc. The optimizer receives three and four. That operation is global-norm
+          clipping.
+        hold: 0.7
+        visual_cues:
+          - id: clip-rule
+            phrase: multiply every coordinate by the same factor
+            targets:
+              - clip-rule
+            color: cyan
+            linger: 0.4
+          - id: clip-ordinary
+            phrase: An input of three and four has length five
+            targets:
+              - gradient-views
+            color: yellow
+            linger: 0.4
+          - id: clip-outlier
+            phrase: The input jumps to three hundred and four hundred. Its length is five hundred
+            targets:
+              - gradient-views
+            color: green
+            linger: 0.4
+          - id: clip-factor
+            phrase: Pull the tip back along the same line until it reaches the arc
+            targets:
+              - gradient-views
+            color: pink
+            linger: 0.4
+        caption_starts:
+          - The optimizer receives three and four
+      - say: Give two fresh Adam optimizers the same learning rate. One gets the raw gradient. The other
+          gets the clipped gradient. Compare their buffers. Clipping made the first signed average a
+          hundred times smaller. Now watch the update arrows. They nearly match. On this first step,
+          each positive gradient divided by its own scale gives almost one. Clipping changes what the
+          optimizer remembers. The learning rate and that history determine the data step, and AdamW
+          applies weight decay separately.
+        hold: 0.7
+        caption_starts:
+          - They nearly match
+        visual_cues:
+          - id: clip-moments
+            phrase: Compare their buffers
+            targets:
+              - clip-moments
+            color: cyan
+            linger: 0.4
+          - id: clip-boundary
+            phrase: Clipping changes what the optimizer remembers
+            targets:
+              - clip-boundary
+            color: yellow
+            linger: 0.4
+          - id: clip-normalized
+            phrase: Now watch the update arrows
+            targets:
+              - clip-normalized
+            color: green
+            linger: 0.4
+      - say: Read the pre-clipping norms in the log. Five passed through. Five hundred came down to
+          five. The next norm is not a number. Have PyTorch raise an error before that gradient enters
+          the buffers. The completed-update count stays at two. A zero gradient passes through as
+          zero. Only one of the two completed updates needed clipping. If that fraction stays high,
+          check the batches, the loss scale and the threshold.
+        hold: 0.7
+        visual_cues:
+          - id: clip-observe
+            phrase: Read the pre-clipping norms in the log
+            targets:
+              - clip-observe
+            color: cyan
+            linger: 0.4
+          - id: clip-nonfinite
+            phrase: Have PyTorch raise an error before that gradient enters the buffers
+            targets:
+              - clip-nonfinite
+            color: yellow
+            linger: 0.4
+          - id: clip-zero
+            phrase: A zero gradient passes through as zero
+            targets:
+              - clip-zero
+            color: green
+            linger: 0.4
+          - id: clip-frequency
+            phrase: Only one of the two completed updates needed clipping
+            targets:
+              - clip-frequency
+            color: pink
+            linger: 0.4
+  - id: decay
+    title: Keep shrinkage outside the adaptive step
+    visual: The first Adam data step from the original start is followed by a separately computed AdamW
+      shrink from the prior parameters. A cold-start coupled-L2 calculation has its own derived gradient
+      and endpoint.
+    beats:
+      - say: Weight decay pulls parameters toward zero. AdamW subtracts a fraction of each old weight alongside
+          the adaptive data step. Watch that data move first, then the extra shrink. The two
+          contributions come from different inputs to the update.
+        hold: 0.65
+        visual_cues:
+          - id: decay-data
+            phrase: Watch that data move first
+            targets:
+              - decay-data-step
+            linger: 0.55
+          - id: decay-shrink
+            phrase: then the extra shrink
+            targets:
+              - decay-shrink-step
+            linger: 0.55
+      - say: Putting an L2 penalty inside the loss instead adds a parameter term to the gradient. That term
+          enters both Adam buffers. For our positive first gradients, normalization keeps the coupled
+          first move nearly unchanged. AdamW adds its distinct shrink. The displayed calculations specify
+          which rule we used.
+        hold: 0.65
+        visual_cues:
+          - id: coupled-penalty
+            phrase: adds a parameter term to the gradient
+            targets:
+              - coupled-gradient
+            linger: 0.55
+          - id: coupled-result
+            phrase: normalization keeps the coupled first move nearly unchanged
+            targets:
+              - coupled-result
+            linger: 0.55
+  - id: zero-data-decay
+    title: A zero gradient differs from no gradient
+    visual: One weight splits into cold-start coupled-L2 and decoupled AdamW branches;an explicit
+      absent-gradient branch is skipped.
+    beats:
+      - say: Isolate decay with weight ten, a zero data-gradient tensor and zero moment buffers. Set rate
+          point one and decay point zero one. AdamW subtracts point one times point zero one times
+          ten directly from the old weight. The result is nine point nine nine. Both moments stay
+          zero. The separate shrink uses the prior parameter, and the learning rate still controls
+          its amount.
+        hold: 0.7
+        visual_cues:
+          - id: zero-input
+            phrase: zero data-gradient tensor and zero moment buffers
+            targets:
+              - zero-input
+            color: cyan
+            linger: 0.4
+          - id: zero-shrink
+            phrase: AdamW subtracts point one times point zero one times ten
+            targets:
+              - zero-shrink
+            color: yellow
+            linger: 0.4
+          - id: zero-result
+            phrase: result is nine point nine nine
+            targets:
+              - zero-result
+            color: green
+            linger: 0.4
+      - say: Put the penalty inside the objective instead. For a penalty equal to one half lambda times
+          weight squared, its gradient is lambda times weight. Here that is point one. It now enters
+          both Adam buffers. On this first step, adaptive normalization produces a move near point
+          one, giving a weight near nine point nine. That differs from the separate point zero one
+          shrink. Inspect the actual coupled or decoupled rule and parameter-group settings rather
+          than inferring it from a method’s name.
+        hold: 0.7
+        visual_cues:
+          - id: coupled-input
+            phrase: penalty inside the objective
+            targets:
+              - coupled-input
+            color: cyan
+            linger: 0.4
+          - id: coupled-penalty-gradient
+            phrase: Here that is point one
+            targets:
+              - coupled-penalty-gradient
+            color: yellow
+            linger: 0.4
+          - id: coupled-data
+            phrase: move near point one
+            targets:
+              - coupled-data
+            color: green
+            linger: 0.4
+          - id: coupled-end
+            phrase: weight near nine point nine
+            targets:
+              - coupled-end
+            color: pink
+            linger: 0.4
+      - say: Now change only the gradient representation. In PyTorch AdamW, an explicit zero gradient still
+          permits the step and decay; a missing gradient, grad equals None, makes the optimizer skip
+          that parameter. Old nonzero moments could also move a parameter even when its current
+          gradient tensor is zero. Our isolated nine point nine nine check began with zero moments.
+          These are distinct state conditions, and the schedule still multiplies decoupled
+          shrinkage.
+        hold: 0.7
+        visual_cues:
+          - id: gradient-representation
+            phrase: change only the gradient representation
+            targets:
+              - gradient-representation
+            color: cyan
+            linger: 0.4
+          - id: zero-tensor
+            phrase: explicit zero gradient still permits
+            targets:
+              - zero-tensor
+            color: yellow
+            linger: 0.4
+          - id: none-skip
+            phrase: grad equals None
+            targets:
+              - none-skip
+            color: green
+            linger: 0.4
+          - id: old-moment-zero
+            phrase: Old nonzero moments could also move
+            targets:
+              - old-moment-zero
+            color: pink
+            linger: 0.4
+  - id: torch-loop
+    title: Place each operation before its consumer
+    visual: Actual sixty-step CPU loop order gates backward,unscale,preclip observation,rate
+      assignment,step and scheduler;an AMP-skipped update does not move its per-update clock.
+    beats:
+      - say: Translate the equations into a concrete PyTorch update. Clear old gradients, compute the loss,
+          then call backward. Measure and clip the newly created gradients before optimizer step. The
+          clipping helper returns the norm before clipping. Assign this update’s explicit learning rate
+          before calling optimizer step. If a built-in scheduler supplies the next rate instead, call its
+          step after optimizer step and choose a per-update or per-epoch cadence deliberately. A plateau
+          scheduler consumes a validation metric.
+        hold: 0.7
+        visual_cues:
+          - id: loop-clear
+            phrase: Clear old gradients
+            targets:
+              - loop-clear
+            color: cyan
+            linger: 0.4
+          - id: loop-backward
+            phrase: then call backward
+            targets:
+              - loop-backward
+            color: yellow
+            linger: 0.4
+          - id: loop-clip
+            phrase: Measure and clip the newly created gradients before optimizer step
+            targets:
+              - loop-clip
+            color: green
+            linger: 0.4
+          - id: loop-rate
+            phrase: Assign this update’s explicit learning rate
+            targets:
+              - loop-rate
+            color: pink
+            linger: 0.4
+          - id: loop-step
+            phrase: calling optimizer step
+            targets:
+              - loop-step
+            color: cyan
+            linger: 0.4
+          - id: loop-scheduler
+            phrase: call its step after optimizer step
+            targets:
+              - loop-scheduler
+            color: yellow
+            linger: 0.4
+      - say: Here is the sixty-update CPU run. It starts at a peak rate of point zero eight, decays the rate
+          along a cosine, and uses AdamW decay of point zero one. The clipping threshold is twenty.
+          Trace the loss and the pre-clipping norm across sixty updates. Both errors finish near three
+          hundredths. On the first update the norm was about a hundred, five times the limit. Eleven updates hit the limit in all.
+          When we compare this loop with the eighty-update NumPy run, remember that both the budget and
+          the clipping rule changed.
+        hold: 0.9
+        visual_cues:
+          - id: cpu-run
+            phrase: Here is the sixty-update CPU run. It starts at a peak rate of point zero eight, decays the rate
+              along a cosine, and uses AdamW decay of point zero one
+            targets:
+              - cpu-run
+            linger: 0.24
+          - id: cpu-result
+            phrase: Trace the loss and the pre-clipping norm across sixty updates. Both errors finish near three
+              hundredths
+            targets:
+              - cpu-run
+              - cpu-result
+            linger: 0.24
+          - id: cpu-norm
+            phrase: On the first update the norm was about a hundred, five times the limit
+            targets:
+              - cpu-norm
+            linger: 0.24
+          - id: cpu-count
+            phrase: Eleven updates hit the limit in all
+            targets:
+              - cpu-count
+            linger: 0.24
+      - say: "With mixed precision, unscale before measuring or clipping, so the threshold applies to real
+          gradients rather than their artificial multiplier. If the scaler skips a nonfinite optimizer
+          update, a schedule defined per completed optimizer update should not advance. A zero rate with
+          present gradients is different: Adam still updates its moments and counter while parameters
+          hold. Count the operation that actually ran. After the attempted step, update the AMP scaler
+          once at the end of the complete window, including when its optimizer step was skipped for
+          nonfinite gradients."
+        hold: 0.7
+        visual_cues:
+          - id: amp-unscale
+            phrase: unscale before measuring or clipping
+            targets:
+              - amp-unscale
+            color: cyan
+            linger: 0.4
+          - id: amp-skip
+            phrase: If the scaler skips a nonfinite optimizer update
+            targets:
+              - amp-skip
+            color: yellow
+            linger: 0.4
+          - id: amp-clock
+            phrase: should not advance
+            targets:
+              - amp-clock
+            color: green
+            linger: 0.4
+          - id: zero-rate-clock
+            phrase: Adam still updates its moments and counter while parameters hold
+            targets:
+              - zero-rate-clock
+            color: pink
+            linger: 0.4
+          - id: amp-scale-update
+            phrase: update the AMP scaler once at the end of the complete window
+            targets:
+              - amp-scale-update
+            color: cyan
+            linger: 0.4
+  - id: checkpoint-history
+    title: Which checkpoint reproduces the next update?
+    visual: At update three the run saves weights, moments, counter and schedule. Restoring this state
+      reproduces the original path. Restoring only the weights takes a different path.
+    beats:
+      - say: Pause the deterministic CPU valley after three AdamW updates. Deep-copy weights, optimizer
+          state and StepLR state before the original continues. The optimizer holds moments and its
+          step count. The scheduler holds its position and rate state. Two runs can have identical
+          weights yet choose different next updates because their histories differ.
+        hold: 0.7
+        visual_cues:
+          - id: checkpoint-copy
+            phrase: Deep-copy weights, optimizer state and StepLR state
+            targets:
+              - checkpoint-copy
+            color: cyan
+            linger: 0.4
+          - id: checkpoint-freeze
+            phrase: before the original continues
+            targets:
+              - checkpoint-freeze
+            color: yellow
+            linger: 0.4
+          - id: checkpoint-history
+            phrase: histories differ
+            targets:
+              - checkpoint-history
+            color: green
+            linger: 0.4
+      - say: Construct the resumed optimizer and scheduler with matching parameter groups and ordering.
+          Construct the scheduler before loading the optimizer, because its constructor can alter
+          learning rates. In this fixture, restore scheduler state first, then optimizer state.
+          Advance the original and resumed runs three more updates. Their tensors match exactly, and
+          the resumed Adam counter is six. Restarting from the saved weights with fresh optimizer
+          and schedule does not match.
+        hold: 0.7
+        visual_cues:
+          - id: restore-order
+            phrase: restore scheduler state first, then optimizer state
+            targets:
+              - restore-order
+            color: cyan
+            linger: 0.4
+          - id: resume-three
+            phrase: Advance the original and resumed runs three more updates
+            targets:
+              - resume-three
+            color: yellow
+            linger: 0.4
+          - id: resume-match
+            phrase: Their tensors match exactly
+            targets:
+              - resume-match
+            color: green
+            linger: 0.4
+          - id: resume-count
+            phrase: resumed Adam counter is six
+            targets:
+              - resume-count
+            color: pink
+            linger: 0.4
+          - id: weights-only
+            phrase: Restarting from the saved weights with fresh optimizer and schedule does not match
+            targets:
+              - weights-only
+            color: cyan
+            linger: 0.4
+      - say: If the next gradient comes from a shuffled batch, the checkpoint also needs the data
+          position and random-generator states. Save the update count and the mixed-precision scaler
+          if you use one. Keep track of which optimizer owns each group. Muon can update a
+          two-dimensional hidden-layer weight as a matrix. AdamW can handle the biases and embeddings
+          in the same model. Restore each group's own state.
+        hold: 0.7
+        visual_cues:
+          - id: resume-real
+            phrase: the checkpoint also needs the data position and random-generator states
+            targets:
+              - resume-real
+            color: cyan
+            linger: 0.4
+          - id: muon-group
+            phrase: Muon can update a two-dimensional hidden-layer weight as a matrix
+            targets:
+              - muon-group
+            color: yellow
+            linger: 0.4
+          - id: other-groups
+            phrase: AdamW can handle the biases and embeddings
+            targets:
+              - other-groups
+            color: green
+            linger: 0.4
+  - id: optimizer-memory
+    title: Count the state that follows each parameter
+    visual: Each float32 moment occupies its own four-byte slot;seven-billion-parameter columns expand
+      from SGD through momentum,RMSProp and AdamW.
+    beats:
+      - say: State has a memory cost. Plain SGD stores no moving-average buffer. EMA momentum stores one
+          signed value per parameter, basic RMSProp one squared value, and AdamW two. At four bytes
+          per float32 value, AdamW moments cost eight bytes per trained parameter. Seven billion
+          parameters therefore require fifty-six billion bytes, or fifty-six decimal gigabytes, for
+          those two buffers alone.
+        hold: 0.7
+        visual_cues:
+          - id: state-buffers
+            phrase: AdamW two
+            targets:
+              - state-buffers
+            color: cyan
+            linger: 0.4
+          - id: state-bytes
+            phrase: eight bytes per trained parameter
+            targets:
+              - state-bytes
+            color: yellow
+            linger: 0.4
+          - id: state-billion
+            phrase: fifty-six decimal gigabytes
+            targets:
+              - state-billion
+            color: green
+            linger: 0.4
+      - say: Split those moments evenly across four devices, as you can with optimizer-state sharding
+          in ZeRO. Each device holds seven gigabytes for the signed averages and seven for the
+          squares. That's fourteen gigabytes per device for moments. Add parameters, gradients,
+          activations and any master-weight copies separately to get the training memory budget.
+        hold: 0.7
+        visual_cues:
+          - id: state-extra
+            phrase: Add parameters, gradients, activations and any master-weight copies separately
+            targets:
+              - state-extra
+            color: cyan
+            linger: 0.4
+          - id: state-shards
+            phrase: Split those moments evenly across four devices
+            targets:
+              - state-shards
+            color: yellow
+            linger: 0.4
+      - say: Now start a fresh AdamW optimizer with four scalar weights. Freeze two before training.
+          Only the two receiving gradients get moment buffers. Count the colored blocks. Four blocks
+          at four bytes each come to sixteen bytes. On a real run, check the stored dtype and measure
+          peak memory while the activations are live.
+        hold: 0.7
+        visual_cues:
+          - id: trained-mask
+            phrase: Freeze two before training
+            targets:
+              - trained-mask
+            color: cyan
+            linger: 0.4
+          - id: frozen-moments
+            phrase: Only the two receiving gradients get moment buffers
+            targets:
+              - frozen-moments
+            color: yellow
+            linger: 0.4
+          - id: actual-state
+            phrase: Four blocks at four bytes each come to sixteen bytes
+            targets:
+              - actual-state
+            color: green
+            linger: 0.4
+  - id: evidence-budget
+    title: What does the gradient history change?
+    visual: The eighty-update paths and error bars show where the two recipes ended. A separate
+      three-gradient example shows what AMSGrad keeps when Adam's squared-gradient buffer falls.
+    beats:
+      - say: Reset both valley coordinates to one. This time both recipes get eighty updates with cosine decay.
+          The SGD peak is point zero one eight. AdamW uses a higher peak and also shrinks the old weight.
+          Follow the dots through the same eighty gradient evaluations. SGD ends close to zero on the
+          steep wall, with nearly half the shallow error still there. The AdamW dot is close to zero on
+          both axes. Check its two coordinates before interpreting the smaller loss.
+        hold: 1
+        visual_cues:
+          - id: budget-inputs
+            phrase: both recipes get eighty updates with cosine decay
+            targets:
+              - budget-inputs
+            linger: 0.24
+          - id: budget-paths
+            phrase: Follow the dots through the same eighty gradient evaluations
+            targets:
+              - budget-paths
+            linger: 0.24
+      - say: The full width of each bar is the error we started with. SGD still has almost half a bar
+          left on the shallow side. Both AdamW bars are down to about two hundredths. Look at their
+          equal lengths. In the AdamW run, the gradients for a were about a hundred times those for
+          b. Adam's divisor grew in the same proportion. That gave the two weights nearly equal steps.
+          To compare the recipes, keep their peak rates beside the endpoints.
+        hold: 0.7
+        visual_cues:
+          - id: finite-checks
+            phrase: The full width of each bar is the error we started with
+            targets:
+              - finite-checks
+            color: cyan
+            linger: 0.4
+          - id: recipe-rates
+            phrase: keep their peak rates beside the endpoints
+            targets:
+              - recipe-rates
+            color: yellow
+            linger: 0.4
+          - id: recipe-symmetry
+            phrase: Adam's divisor grew in the same proportion
+            targets:
+              - recipe-symmetry
+            color: green
+            linger: 0.4
+      - say: What happens when a large gradient fades from memory? Start the squared-gradient buffer
+          at zero and keep half the old value each time. A gradient of four has a square of sixteen,
+          so the buffer starts at eight. A zero gradient cuts it to four. A gradient of three brings
+          it back to six and a half. AMSGrad also keeps the largest buffer value seen so far.
+          Its line stays at eight. Researchers found convex problems where the original Adam update
+          fails to converge. Keeping that maximum is the change they studied in AMSGrad.
+        hold: 0.7
+        caption_starts:
+          - A zero gradient cuts it to four
+          - A gradient of three brings it back
+          - Its line stays at eight
+        visual_cues:
+          - id: square-first
+            phrase: so the buffer starts at eight
+            targets:
+              - square-history
+            color: cyan
+            linger: 0.4
+          - id: square-second
+            phrase: A zero gradient cuts it to four
+            targets: [square-history]
+          - id: square-third
+            phrase: A gradient of three brings it back to six and a half
+            targets: [square-history]
+          - id: amsgrad-max
+            phrase: AMSGrad also keeps the largest buffer value seen so far
+            targets:
+              - amsgrad-max
+            color: yellow
+            linger: 0.4
+  - id: diagnostic-trace
+    title: Which run would you keep?
+    visual: Two computed warmup traces stay on one loss plot as the budget extends from eight updates to
+      twelve. Separate forty-update trials then put training and held-out scores on the same ruler.
+    beats:
+      - say: Watch the pink run climb out of the valley. Its loss jumps on the first update at the peak rate.
+          Was the peak too high? Check the rate and the gradient norm at that update. Keep the start,
+          data and optimizer fixed. Halve just the peak rate and replay the two runs through update
+          eight. At this point the lower peak has the lower training loss. Would you expect it still to
+          be ahead four updates later?
+        hold: 2.45
+        caption_starts:
+          - At this point the lower peak
+          - Would you expect it still to be ahead
+        visual_cues:
+          - id: diagnostic-boundary
+            phrase: Watch the pink run climb out of the valley. Its loss jumps on the first update at the peak rate
+            targets:
+              - rate-probe
+            linger: 0.24
+          - id: diagnostic-measure
+            phrase: Check the rate and the gradient norm at that update
+            targets:
+              - boundary-reading
+            linger: 0.24
+          - id: diagnostic-compare
+            phrase: Halve just the peak rate and replay the two runs through update eight
+            targets:
+              - rate-probe
+            linger: 0.24
+      - say: Keep both rates and give both runs the extra four updates. Follow the dots to twelve. Now the
+          higher peak has the lower loss. Lowering the peak softened the spike, but the answer to which
+          run was ahead depended on when we stopped. And both curves measured only the loss we trained
+          on. What if the decision is about data the model has never seen?
+        hold: 1.3
+        caption_starts:
+          - Now the higher peak has the lower loss
+          - Lowering the peak softened the spike
+          - What if the decision is about data
+        visual_cues:
+          - id: diagnostic-record
+            phrase: Keep both rates and give both runs the extra four updates. Follow the dots to twelve
+            targets:
+              - rate-probe
+            linger: 0.24
+      - say: Take two separate trials with forty updates each. Their data split is fixed. Look at the training
+          scores first. AdamW gets closer to zero. Now uncover the scores on the held-out examples. SGD
+          has the lower held-out loss. If that is your selection metric, keep this SGD recipe at this
+          budget. The rates differ, so this comparison evaluates whole recipes. If training keeps
+          improving while validation worsens, check for leakage and try a decay sweep. Fix the split and
+          other settings, and compare held-out loss.
+        hold: 0.85
+        visual_cues:
+          - id: trial-train
+            phrase: Look at the training scores first
+            targets:
+              - trial-train
+            linger: 0.24
+          - id: trial-held
+            phrase: Now uncover the scores on the held-out examples
+            targets:
+              - trial-held
+            linger: 0.24
+          - id: diagnostic-validation
+            phrase: SGD has the lower held-out loss
+            targets:
+              - diagnostic-validation
+            caption_boundary: true
+            linger: 0.24
+      - say: A different symptom needs a different measurement. For a nonfinite batch, inspect its contents,
+          the gradient norm and the mixed-precision scale. If one group stalls while another oscillates,
+          measure their update norms and gradient scales separately. If clipping fires almost every
+          update, record the pre-clipping norms across batches and investigate the threshold or the data.
+          If the run does not fit, measure optimizer-state bytes and activation peaks. Each of those
+          measurements gives you one change to test on the same data slice.
+        hold: 0.8
+        visual_cues:
+          - id: diagnostic-data
+            phrase: For a nonfinite batch, inspect its contents, the gradient norm and the mixed-precision scale
+            targets:
+              - diagnostic-data
+            linger: 0.24
+          - id: diagnostic-groups
+            phrase: measure their update norms and gradient scales separately
+            targets:
+              - diagnostic-groups
+            linger: 0.24
+          - id: diagnostic-frequency
+            phrase: record the pre-clipping norms across batches
+            targets:
+              - diagnostic-frequency
+            linger: 0.24
+          - id: diagnostic-bytes
+            phrase: measure optimizer-state bytes and activation peaks
+            targets:
+              - diagnostic-bytes
+            linger: 0.24
+  - id: transfer
+    title: Start on the other side of zero
+    visual: Three rulers share a starting tick and a vertical zero line. Each method moves its own copy of the steep error. The companion coordinate and displacement appear when that update lands.
+    beats:
+      - say: Bring back the two errors from the opening. This time a starts at minus one half and b at plus one
+          half. Reset the buffers. Keep the rates on the screen. Which methods will cross zero in the
+          first coordinate after one update?
+        hold: 2.8
+        visual_cues:
+          - id: transfer-prediction
+            phrase: Which methods will cross zero in the first coordinate after one update
+            targets:
+              - transfer-question
+            linger: 0.55
+      - say: Plain descent subtracts the full scaled gradient. Momentum first stores one tenth of that
+          gradient. Adam corrects and normalizes its two fresh buffers. Build each displacement in that
+          order, carrying the original starting point into every calculation.
+        hold: 0.65
+        visual_cues:
+          - id: transfer-sgd
+            phrase: Plain descent subtracts the full scaled gradient
+            targets:
+              - transfer-sgd
+            linger: 0.55
+          - id: transfer-momentum
+            phrase: Momentum first stores one tenth of that gradient
+            caption_boundary: true
+            targets:
+              - transfer-momentum
+            linger: 0.55
+          - id: transfer-adam
+            phrase: Adam corrects and normalizes its two fresh buffers
+            caption_boundary: true
+            targets:
+              - transfer-adam
+            linger: 0.55
+      - say: Only plain descent crosses zero here. It subtracts a negative gradient, so it moves right.
+          Momentum moves right too, but its empty buffer took in just a tenth of that first gradient.
+          Adam moves about one learning rate to the right. Knowing the sign told us which way. The buffer
+          and the rate told us how far.
+        hold: 0.9
+        visual_cues:
+          - id: transfer-receipts
+            phrase: Knowing the sign told us which way
+            targets:
+              - transfer-receipts
+            linger: 0.55
+  - id: fresh-recipe
+    title: Can you check this update from the saved weight?
+    visual: Five target cells feed two candidate gradients into one clipping threshold. The first AdamW
+      data move and the shrink from the original weight share a parameter ruler. Replaying the two
+      objectives shows which measurement can distinguish them.
+    beats:
+      - say: Try it on a new weight. This time the prediction is two. Fit these five targets in two batches.
+          The first two targets lie one unit to either side of the prediction. Their gradients cancel.
+          The other three targets pull in the same direction. Their gradients add to minus twenty, so
+          that batch mean is minus twenty over three. You want the mean over all five items. What
+          gradient should reach the clipper?
+        hold: 3.1
+        visual_cues:
+          - id: fresh-inputs
+            phrase: This time the prediction is two. Fit these five targets in two batches
+            targets:
+              - fresh-items
+            linger: 0.24
+          - id: fresh-means
+            phrase: Their gradients cancel. The other three targets pull in the same direction. Their gradients add
+              to minus twenty, so that batch mean is minus twenty over three
+            targets:
+              - fresh-items
+            linger: 0.24
+          - id: fresh-gradient-question
+            phrase: What gradient should reach the clipper
+            targets:
+              - fresh-gradient-question
+            linger: 0.24
+      - say: Give the batches two fifths and three fifths of the strip. The second batch supplies the whole
+          sum, so the item mean is minus four. Splitting the weight equally between the batches would
+          give minus ten over three. Follow the item mean into AdamW. Clip its magnitude to three. The
+          gradient going into the buffers is minus three. Start the moments at zero. Use a rate of point
+          zero five and decay of point zero two. For this nonzero gradient, set epsilon to zero. Where
+          should the weight land after one step?
+        hold: 3.1
+        visual_cues:
+          - id: fresh-item-weights
+            phrase: two fifths and three fifths
+            targets:
+              - fresh-items
+            linger: 0.24
+          - id: fresh-weighted
+            phrase: the item mean is minus four
+            targets:
+              - fresh-weighted
+            caption_boundary: true
+            linger: 0.24
+          - id: fresh-wrong
+            phrase: Splitting the weight equally between the batches would give minus ten over three
+            targets:
+              - fresh-wrong
+            caption_boundary: true
+            linger: 0.24
+          - id: fresh-clipped
+            phrase: Clip its magnitude to three. The gradient going into the buffers is minus three
+            targets:
+              - fresh-clipped
+            linger: 0.24
+          - id: fresh-step-question
+            phrase: Where should the weight land after one step
+            targets:
+              - fresh-step-question
+            linger: 0.24
+      - say: The corrected moments are minus three and nine. Divide the signed value by the square root of nine
+          and you get minus one. Subtracting the data step moves the weight to two point zero five. For
+          decay, go back to the old weight two. Multiply it by the rate and the decay coefficient. The
+          shrink is two thousandths. The final parameter is two point zero four eight. That was one
+          optimizer update for the whole window. A colleague ran the same five items and got that exact
+          weight. Which entry in their training log would tell you how they weighted the batches?
+        hold: 3
+        visual_cues:
+          - id: fresh-data-step
+            phrase: Subtracting the data step moves the weight to two point zero five
+            targets:
+              - fresh-data-step
+            caption_boundary: true
+            linger: 0.24
+          - id: fresh-old-weight
+            phrase: go back to the old weight two
+            targets:
+              - fresh-old-weight
+            linger: 0.24
+          - id: fresh-decay-term
+            phrase: The shrink is two thousandths
+            targets:
+              - fresh-decay-term
+            caption_boundary: true
+            linger: 0.24
+          - id: fresh-final
+            phrase: The final parameter is two point zero four eight
+            targets:
+              - fresh-final
+            caption_boundary: true
+            linger: 0.24
+          - id: fresh-clock
+            phrase: one optimizer update for the whole window
+            targets:
+              - fresh-clock
+            linger: 0.24
+      - say: Replay the two ways of weighting those same targets. Before clipping, the gradients land in
+          different places. Keep those spots marked. Now apply the same limit to both. Both stop at
+          minus three. Follow either run from there and you save the same weight. Look back at the open
+          circles. Minus four is the mean over five items. Minus ten over three gives each batch half
+          the say. Log the item counts and the gradient before clipping. Next, we'll use probability to
+          ask how far that open circle moves when we draw a fresh minibatch.
+        hold: 1.5
+        caption_starts:
+          - Keep those spots marked
+          - Look back at the open circles
+          - Both stop at minus three
+          - Minus four is the mean
+          - Minus ten over three
+          - Next, we'll use probability
+        visual_cues:
+          - id: fresh-replay
+            phrase: Replay the two ways of weighting those same targets. Before clipping, the gradients land in
+              different places
+            targets:
+              - fresh-replay
+            linger: 0.24
+          - id: fresh-both-clipped
+            phrase: Now apply the same limit to both. Both stop at minus three
+            targets:
+              - fresh-both-clipped
+            caption_boundary: true
+            linger: 0.24
+          - id: fresh-same-weight
+            phrase: Follow either run from there and you save the same weight
+            targets:
+              - fresh-same-weight
+            caption_boundary: true
+            linger: 0.24
+          - id: fresh-audit
+            phrase: Log the item counts and the gradient before clipping
+            targets:
+              - fresh-audit
+            caption_boundary: true
+            linger: 0.24

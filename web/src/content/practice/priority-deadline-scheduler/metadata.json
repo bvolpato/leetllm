@@ -1,0 +1,296 @@
+{
+  "id": "priority-deadline-scheduler",
+  "slug": "priority-deadline-scheduler",
+  "title": "Priority Deadline Scheduler",
+  "difficulty": "Medium",
+  "category": "Scheduling",
+  "language": "python3",
+  "timeEstimateMinutes": 40,
+  "timeLimitMs": 2500,
+  "memoryLimitMb": 128,
+  "order": 120,
+  "tags": [
+    "heapq",
+    "priority queue",
+    "deadlines",
+    "ttl"
+  ],
+  "source": "AI lab prep",
+  "summary": "Schedule due tasks by priority while skipping not-yet-ready and expired work deterministically.",
+  "starterCode": [
+    "class DeadlineScheduler:",
+    "    def __init__(self, now):",
+    "        self.now = now",
+    "",
+    "    def add(self, task_id, priority: int, run_at: float = 0, ttl: float | None = None) -> None:",
+    "        pass",
+    "",
+    "    def pop(self):",
+    "        pass"
+  ],
+  "testCases": [
+    {
+      "name": "returns due tasks by priority then insertion order",
+      "visibility": "sample",
+      "setup": [
+        "from solution import DeadlineScheduler",
+        "clock = {\"t\": 0.0}",
+        "scheduler = DeadlineScheduler(now=lambda: clock[\"t\"])",
+        "scheduler.add(\"low\", priority=1, run_at=0)",
+        "scheduler.add(\"high\", priority=5, run_at=0)",
+        "scheduler.add(\"high2\", priority=5, run_at=0)"
+      ],
+      "checks": [
+        {
+          "input": "clock = {\"t\": 0.0}\nscheduler = DeadlineScheduler(now=lambda: clock[\"t\"])\nscheduler.add(\"low\", priority=1, run_at=0)\nscheduler.add(\"high\", priority=5, run_at=0)\nscheduler.add(\"high2\", priority=5, run_at=0)\nscheduler.pop()",
+          "expression": "scheduler.pop()",
+          "operator": "==",
+          "expected": "\"high\""
+        },
+        {
+          "input": "clock = {\"t\": 0.0}\nscheduler = DeadlineScheduler(now=lambda: clock[\"t\"])\nscheduler.add(\"low\", priority=1, run_at=0)\nscheduler.add(\"high\", priority=5, run_at=0)\nscheduler.add(\"high2\", priority=5, run_at=0)\nscheduler.pop()\nscheduler.pop()",
+          "expression": "scheduler.pop()",
+          "operator": "==",
+          "expected": "\"high2\""
+        },
+        {
+          "input": "clock = {\"t\": 0.0}\nscheduler = DeadlineScheduler(now=lambda: clock[\"t\"])\nscheduler.add(\"low\", priority=1, run_at=0)\nscheduler.add(\"high\", priority=5, run_at=0)\nscheduler.add(\"high2\", priority=5, run_at=0)\nscheduler.pop()\nscheduler.pop()\nscheduler.pop()",
+          "expression": "scheduler.pop()",
+          "operator": "==",
+          "expected": "\"low\""
+        },
+        {
+          "input": "clock = {\"t\": 0.0}\nscheduler = DeadlineScheduler(now=lambda: clock[\"t\"])\nscheduler.add(\"low\", priority=1, run_at=0)\nscheduler.add(\"high\", priority=5, run_at=0)\nscheduler.add(\"high2\", priority=5, run_at=0)\nscheduler.pop()\nscheduler.pop()\nscheduler.pop()\nscheduler.pop()",
+          "expression": "scheduler.pop()",
+          "operator": "is",
+          "expected": "None"
+        }
+      ]
+    },
+    {
+      "name": "waits for run_at and skips expired tasks",
+      "visibility": "hidden",
+      "setup": [
+        "from solution import DeadlineScheduler",
+        "clock = {\"t\": 10.0}",
+        "scheduler = DeadlineScheduler(now=lambda: clock[\"t\"])",
+        "scheduler.add(\"expired\", priority=100, run_at=8, ttl=2)",
+        "scheduler.add(\"ready\", priority=1, run_at=9, ttl=10)",
+        "scheduler.add(\"future\", priority=50, run_at=12, ttl=10)"
+      ],
+      "checks": [
+        {
+          "input": "clock = {\"t\": 10.0}\nscheduler = DeadlineScheduler(now=lambda: clock[\"t\"])\nscheduler.add(\"expired\", priority=100, run_at=8, ttl=2)\nscheduler.add(\"ready\", priority=1, run_at=9, ttl=10)\nscheduler.add(\"future\", priority=50, run_at=12, ttl=10)\nscheduler.pop()",
+          "expression": "scheduler.pop()",
+          "operator": "==",
+          "expected": "\"ready\""
+        },
+        {
+          "input": "clock = {\"t\": 10.0}\nscheduler = DeadlineScheduler(now=lambda: clock[\"t\"])\nscheduler.add(\"expired\", priority=100, run_at=8, ttl=2)\nscheduler.add(\"ready\", priority=1, run_at=9, ttl=10)\nscheduler.add(\"future\", priority=50, run_at=12, ttl=10)\nscheduler.pop()\nscheduler.pop()",
+          "expression": "scheduler.pop()",
+          "operator": "is",
+          "expected": "None"
+        },
+        {
+          "input": "clock = {\"t\": 10.0}\nscheduler = DeadlineScheduler(now=lambda: clock[\"t\"])\nscheduler.add(\"expired\", priority=100, run_at=8, ttl=2)\nscheduler.add(\"ready\", priority=1, run_at=9, ttl=10)\nscheduler.add(\"future\", priority=50, run_at=12, ttl=10)\nscheduler.pop()\nscheduler.pop()\nclock[\"t\"] = 12.0\nscheduler.pop()",
+          "expression": "scheduler.pop()",
+          "operator": "==",
+          "expected": "\"future\"",
+          "before": "clock[\"t\"] = 12.0"
+        },
+        {
+          "input": "clock = {\"t\": 10.0}\nscheduler = DeadlineScheduler(now=lambda: clock[\"t\"])\nscheduler.add(\"expired\", priority=100, run_at=8, ttl=2)\nscheduler.add(\"ready\", priority=1, run_at=9, ttl=10)\nscheduler.add(\"future\", priority=50, run_at=12, ttl=10)\nscheduler.pop()\nscheduler.pop()\nclock[\"t\"] = 12.0\nscheduler.pop()\nscheduler.pop()",
+          "expression": "scheduler.pop()",
+          "operator": "is",
+          "expected": "None"
+        }
+      ]
+    },
+    {
+      "name": "returns none for empty or future-only queues",
+      "visibility": "sample",
+      "setup": [
+        "from solution import DeadlineScheduler",
+        "clock = {\"t\": 0.0}",
+        "scheduler = DeadlineScheduler(now=lambda: clock[\"t\"] )"
+      ],
+      "checks": [
+        {
+          "input": "clock = {\"t\": 0.0}\nscheduler = DeadlineScheduler(now=lambda: clock[\"t\"] )\nscheduler.pop()",
+          "expression": "scheduler.pop()",
+          "operator": "is",
+          "expected": "None"
+        },
+        {
+          "input": "clock = {\"t\": 0.0}\nscheduler = DeadlineScheduler(now=lambda: clock[\"t\"] )\nscheduler.pop()\nscheduler.add(\"later\", priority=10, run_at=5)\nscheduler.pop()",
+          "expression": "scheduler.pop()",
+          "operator": "is",
+          "expected": "None",
+          "before": "scheduler.add(\"later\", priority=10, run_at=5)"
+        },
+        {
+          "input": "clock = {\"t\": 0.0}\nscheduler = DeadlineScheduler(now=lambda: clock[\"t\"] )\nscheduler.pop()\nscheduler.add(\"later\", priority=10, run_at=5)\nscheduler.pop()\nclock[\"t\"] = 5\nscheduler.pop()",
+          "expression": "scheduler.pop()",
+          "operator": "==",
+          "expected": "\"later\"",
+          "before": "clock[\"t\"] = 5"
+        }
+      ]
+    },
+    {
+      "name": "expires tasks at deadline boundary",
+      "visibility": "hidden",
+      "setup": [
+        "from solution import DeadlineScheduler",
+        "clock = {\"t\": 0.0}",
+        "scheduler = DeadlineScheduler(now=lambda: clock[\"t\"] )",
+        "scheduler.add(\"short\", priority=10, run_at=5, ttl=2)",
+        "clock[\"t\"] = 7.0"
+      ],
+      "input": "clock = {\"t\": 0.0}\nscheduler = DeadlineScheduler(now=lambda: clock[\"t\"] )\nscheduler.add(\"short\", priority=10, run_at=5, ttl=2)\nclock[\"t\"] = 7.0\nscheduler.pop()",
+      "expected": "None",
+      "expression": "scheduler.pop()",
+      "operator": "is"
+    },
+    {
+      "name": "drops expired tasks but keeps live candidates",
+      "visibility": "hidden",
+      "setup": [
+        "from solution import DeadlineScheduler",
+        "clock = {\"t\": 10.0}",
+        "scheduler = DeadlineScheduler(now=lambda: clock[\"t\"] )",
+        "scheduler.add(\"expired\", priority=100, run_at=0, ttl=5)",
+        "scheduler.add(\"live\", priority=1, run_at=0)"
+      ],
+      "checks": [
+        {
+          "input": "clock = {\"t\": 10.0}\nscheduler = DeadlineScheduler(now=lambda: clock[\"t\"] )\nscheduler.add(\"expired\", priority=100, run_at=0, ttl=5)\nscheduler.add(\"live\", priority=1, run_at=0)\nscheduler.pop()",
+          "expression": "scheduler.pop()",
+          "operator": "==",
+          "expected": "\"live\""
+        },
+        {
+          "input": "clock = {\"t\": 10.0}\nscheduler = DeadlineScheduler(now=lambda: clock[\"t\"] )\nscheduler.add(\"expired\", priority=100, run_at=0, ttl=5)\nscheduler.add(\"live\", priority=1, run_at=0)\nscheduler.pop()\nscheduler.pop()",
+          "expression": "scheduler.pop()",
+          "operator": "is",
+          "expected": "None"
+        }
+      ]
+    },
+    {
+      "name": "runs a task exactly at run_at",
+      "visibility": "sample",
+      "description": "The due boundary is inclusive.",
+      "setup": [
+        "from solution import DeadlineScheduler",
+        "scheduler = DeadlineScheduler(now=lambda: 5.0)",
+        "scheduler.add(\"due\", priority=1, run_at=5.0)"
+      ],
+      "input": "scheduler.pop()",
+      "expected": "\"due\"",
+      "feedback": "A task is eligible when run_at <= now()."
+    },
+    {
+      "name": "task without ttl remains live",
+      "visibility": "hidden",
+      "description": "Without TTL, a due task remains live regardless of age.",
+      "setup": [
+        "from solution import DeadlineScheduler",
+        "scheduler = DeadlineScheduler(now=lambda: 100.0)",
+        "scheduler.add(\"durable\", priority=1, run_at=0.0)"
+      ],
+      "input": "scheduler.pop()",
+      "expected": "\"durable\"",
+      "feedback": "Run expiry checks only when ttl is not None."
+    },
+    {
+      "name": "zero ttl expires at run_at",
+      "visibility": "hidden",
+      "description": "A zero-TTL task is expired as soon as it becomes due.",
+      "setup": [
+        "from solution import DeadlineScheduler",
+        "scheduler = DeadlineScheduler(now=lambda: 5.0)",
+        "scheduler.add(\"instant\", priority=10, run_at=5.0, ttl=0.0)"
+      ],
+      "input": "scheduler.pop()",
+      "expected": "None",
+      "feedback": "Treat now() >= run_at + ttl as expired before ranking due tasks."
+    },
+    {
+      "name": "duplicate task identifiers remain independent entries",
+      "visibility": "hidden",
+      "description": "Adding the same task identifier twice preserves both entries and their individual priorities.",
+      "code": [
+        "from solution import DeadlineScheduler",
+        "scheduler = DeadlineScheduler(now=lambda: 5.0)",
+        "scheduler.add(\"repeat\", priority=1, run_at=0)",
+        "scheduler.add(\"repeat\", priority=8, run_at=0)",
+        "scheduler.add(\"middle\", priority=4, run_at=0)",
+        "assert scheduler.pop() == \"repeat\"",
+        "assert scheduler.pop() == \"middle\"",
+        "assert scheduler.pop() == \"repeat\"",
+        "assert scheduler.pop() is None"
+      ]
+    }
+  ],
+  "clarifyingQuestions": [
+    "Can task IDs repeat, or should a later add replace an earlier task?",
+    "Should expiration be based on enqueue time or `run_at` time?",
+    "Should priority be higher-is-better or lower-is-better?"
+  ],
+  "followUps": [
+    "Support cancellation by task ID.",
+    "Support updating priority for an existing task.",
+    "Separate waiting tasks from ready tasks for better performance."
+  ],
+  "followUpGuide": [
+    "For cancellation, first decide whether cancel(task_id) removes every pending entry with that ID or just one entry. Use unique entry IDs for per-entry cancellation. A permanent canceled-ID set would also reject future adds with that ID; use generations if re-adding should be allowed.",
+    "",
+    "For updates, identify the entry to update because task IDs can repeat. Push a new version with an incremented generation number and retain the chosen tie-order policy. The pop path skips stale generations.",
+    "",
+    "For scale, maintain one heap ordered by `run_at` and another ready heap ordered by priority. Move due tasks from waiting to ready before popping."
+  ],
+  "complexityAnalysis": [
+    "- List scan approach (shipped guide): Time: O(1) amortized per add and O(n) per pop, where n is the stored entry count. Space: O(n), including temporary candidate/filter lists.",
+    "- Single priority heap: Time: O(log n) per add, but a future high-priority head cannot be discarded. Inspecting and reinserting future entries can cost O(n log n) per pop repeatedly; there is no general O(log n) amortized pop bound.",
+    "- Dual waiting/ready heaps (follow-up): Time: O(log n) per add; a pop promoting k newly due entries and discarding s expired ready heads costs O((k + s + 1) log n). Each entry is promoted and removed at most once, giving O(log n) amortized work per entry plus O(1) per empty poll. Space: O(n). Lazy cancellation adds stale-entry removals."
+  ],
+  "solutionGuide": [
+    "One simple solution stores all tasks in a list and scans for due candidates on `pop`. For interview clarity, that's acceptable if constraints are small.",
+    "",
+    "The important behavior is semantic: not-yet-due tasks can't be returned, expired tasks are removed, and priority ties keep insertion order.",
+    "",
+    "```python",
+    "class DeadlineScheduler:",
+    "    def __init__(self, now):",
+    "        self.now = now",
+    "        self.tasks = []",
+    "        self.sequence = 0",
+    "",
+    "    def add(self, task_id, priority: int, run_at: float = 0, ttl: float | None = None) -> None:",
+    "        self.tasks.append({",
+    "            \"id\": task_id,",
+    "            \"priority\": priority,",
+    "            \"run_at\": run_at,",
+    "            \"ttl\": ttl,",
+    "            \"sequence\": self.sequence,",
+    "        })",
+    "        self.sequence += 1",
+    "",
+    "    def _expired(self, task, now):",
+    "        return task[\"ttl\"] is not None and now >= task[\"run_at\"] + task[\"ttl\"]",
+    "",
+    "    def pop(self):",
+    "        now = self.now()",
+    "        self.tasks = [task for task in self.tasks if not self._expired(task, now)]",
+    "        candidates = [task for task in self.tasks if task[\"run_at\"] <= now]",
+    "        if not candidates:",
+    "            return None",
+    "        best = min(candidates, key=lambda task: (-task[\"priority\"], task[\"sequence\"]))",
+    "        self.tasks.remove(best)",
+    "        return best[\"id\"]",
+    "```",
+    "",
+    "If asked to optimize, replace the scan with separate waiting and ready heaps."
+  ]
+}

@@ -1,0 +1,513 @@
+{
+  "id": "algorithm-complexity",
+  "script": "cf660f0572635d22",
+  "articleHash": "4d0b2d166fa0580228617a6e2903bc9a3202d40e669a0f000abb26beb8b837f1",
+  "checked": "2026-11-10T02:39:09.128Z",
+  "closedBook": {
+    "taught": 10,
+    "partial": 0,
+    "absent": 0,
+    "answers": [
+      {
+        "n": 1,
+        "option": 1,
+        "coverage": "taught",
+        "quotes": [
+          {
+            "scene": "scan",
+            "quote": "Write the input size as n. A complete scan makes n visits. Theta of n names that tight growth shape. Big O names an upper bound, so O of n also applies. With passage length bounded, the work inside each visit stays bounded too."
+          }
+        ],
+        "reason": "One visit per chunk gives 32 inspections and O(n) candidate-scan work. This does not establish the complete assistant's complexity.",
+        "exact": true,
+        "correct": true,
+        "grade": "taught"
+      },
+      {
+        "n": 2,
+        "option": 2,
+        "coverage": "taught",
+        "quotes": [
+          {
+            "scene": "vector-score",
+            "quote": "Now the inputs have two sizes: n candidates and d coordinates. Exact dense scoring has theta of n times d work."
+          },
+          {
+            "scene": "work-budget",
+            "quote": "Multiply the two input sizes, compare the result with the budget, then release the scoring pass."
+          },
+          {
+            "scene": "work-budget",
+            "quote": "A legitimate filter or a recall-tested index can change candidate work."
+          },
+          {
+            "scene": "radix-prefix",
+            "quote": "An HNSW index follows a graph to find approximate nearest neighbors among embedding vectors, whose meanings may be similar."
+          }
+        ],
+        "reason": "600 × 256 = 153,600 products, which fits. 12,000 × 256 = 3,072,000, which exceeds the budget. Filtering or evaluating an approximate index can reduce candidate work.",
+        "exact": true,
+        "correct": true,
+        "grade": "taught"
+      },
+      {
+        "n": 3,
+        "option": 3,
+        "coverage": "taught",
+        "quotes": [
+          {
+            "scene": "scan",
+            "quote": "Write the input size as n. A complete scan makes n visits. Theta of n names that tight growth shape. Big O names an upper bound, so O of n also applies. With passage length bounded, the work inside each visit stays bounded too. Even a fixed inner loop adds the same strip of work to every row. Sorting the r matching notes adds O of r log r comparisons in the worst case, assuming bounded comparison cost. When every note matches, the full function has an O of n log n worst-case bound."
+          }
+        ],
+        "reason": "The scan is Θ(n), sorting is O(r log r), and r = n yields an O(n log n) full-function bound.",
+        "exact": true,
+        "correct": true,
+        "grade": "taught"
+      },
+      {
+        "n": 4,
+        "option": 4,
+        "coverage": "taught",
+        "quotes": [
+          {
+            "scene": "top-k",
+            "quote": "The resident vector matrix still occupies n times d values. If each computed score goes straight into the heap, we need no list of all n scores. Beyond the resident matrix, keep the d-coordinate query and k score-and-ID winners, plus a running sum and loop indices. With fixed-size scores and IDs, that is O of d plus k extra storage."
+          }
+        ],
+        "reason": "The matrix holds n × d fixed-size values, giving Θ(nd) resident storage. Streaming uses O(d+k) extra storage, including Θ(k) retained winners.",
+        "exact": true,
+        "correct": true,
+        "grade": "taught"
+      },
+      {
+        "n": 5,
+        "option": 1,
+        "coverage": "taught",
+        "quotes": [
+          {
+            "scene": "top-k",
+            "quote": "For at least two retained values, selection is O of n log k with O of k retained storage. The coordinate counter remains unchanged. Every exact score was computed before its heap decision."
+          },
+          {
+            "scene": "vector-score",
+            "quote": "Exact dense scoring has theta of n times d work."
+          },
+          {
+            "scene": "top-k",
+            "quote": "Beyond the resident matrix, keep the d-coordinate query and k score-and-ID winners, plus a running sum and loop indices."
+          }
+        ],
+        "reason": "Replacing sorting changes selection to O(n log k) with Θ(k) retained heap entries. Scoring every vector still costs Θ(nd).",
+        "exact": true,
+        "correct": true,
+        "grade": "taught"
+      },
+      {
+        "n": 6,
+        "option": 2,
+        "coverage": "taught",
+        "quotes": [
+          {
+            "scene": "work-budget",
+            "quote": "Filter by project and principal first; only permitted rows enter this score-stage count."
+          },
+          {
+            "scene": "vector-score",
+            "quote": "Now the inputs have two sizes: n candidates and d coordinates. Exact dense scoring has theta of n times d work."
+          },
+          {
+            "scene": "top-k",
+            "quote": "Every exact score was computed before its heap decision."
+          }
+        ],
+        "reason": "Project and principal filtering leaves four authorized auth rows. Scoring them requires 4 × 4 = 16 products; k = 2 selects winners from those eligible rows.",
+        "exact": true,
+        "correct": true,
+        "grade": "taught"
+      },
+      {
+        "n": 7,
+        "option": 3,
+        "coverage": "taught",
+        "quotes": [
+          {
+            "scene": "unique-pairs",
+            "quote": "Comparing the login-fixture note with the runner-clock note is the same unordered pair as comparing them in reverse. Count each pair once."
+          },
+          {
+            "scene": "unique-pairs",
+            "quote": "The growing rows add up to n times n minus one, divided by two. The square term drives quadratic growth."
+          },
+          {
+            "scene": "unique-pairs",
+            "quote": "If the task is exact duplicate removal, remember previously seen text keys in a hash set. Process each arrival once and keep its first occurrence."
+          },
+          {
+            "scene": "unique-pairs",
+            "quote": "With normal hashing this is an expected linear pass, plus hashing the text. Two different sentences with similar meanings still have different keys."
+          }
+        ],
+        "reason": "2,000 × 1,999 / 2 = 1,999,000 comparisons, a quadratic path. A hash set supports exact-key deduplication with an expected linear pass plus hashing work; semantic similarity does not establish key equality.",
+        "exact": true,
+        "correct": true,
+        "grade": "taught"
+      },
+      {
+        "n": 8,
+        "option": 4,
+        "coverage": "taught",
+        "quotes": [
+          {
+            "scene": "attention",
+            "quote": "A conceptual dense score grid has one cell for every query-key pair."
+          },
+          {
+            "scene": "attention",
+            "quote": "Double the positions and keep the old square visible while the new rows and columns arrive. The number of score positions in this square grid quadruples."
+          }
+        ],
+        "reason": "The square grid has L² cells. Tripling L multiplies cells by nine: 384² = 147,456 and 1,152² = 1,327,104.",
+        "exact": true,
+        "correct": true,
+        "grade": "taught"
+      },
+      {
+        "n": 9,
+        "option": 1,
+        "coverage": "taught",
+        "quotes": [
+          {
+            "scene": "radix-prefix",
+            "quote": "An HNSW index follows a graph to find approximate nearest neighbors among embedding vectors, whose meanings may be similar."
+          },
+          {
+            "scene": "radix-prefix",
+            "quote": "The same edges can hold token IDs instead of letters. To find the longest shared token prefix, follow exact matching IDs until the next ID differs or a path ends. Reuse cached key-value state for that prefix only when the model, adapter, positions, other inputs, and cache scope are compatible. Process the unmatched suffix as new work. Nearby embedding vectors do not prove an exact token-prefix match."
+          }
+        ],
+        "reason": "The radix tree finds the longest exact token prefix; HNSW finds nearby embedding vectors. Cache reuse requires the exact prefix and the stated compatibility conditions.",
+        "exact": true,
+        "correct": true,
+        "grade": "taught"
+      },
+      {
+        "n": 10,
+        "option": 2,
+        "coverage": "taught",
+        "quotes": [
+          {
+            "scene": "ordered-search",
+            "quote": "Use zero-based indices, with lo included and hi excluded. Start lo at zero and hi at the catalog length. Inspect the middle key at mid, found by adding lo and hi, dividing by two, then rounding down. Return on equality. If that key is below the target, set lo to mid plus one. Otherwise set hi to mid."
+          },
+          {
+            "scene": "ordered-search",
+            "quote": "To find index zero in eight items, check midpoints four, two, one, then zero. The final one-item range still needs its own check. We count visited midpoints, even if one uses both equality and ordering."
+          }
+        ],
+        "reason": "131,072 = 2^17. Searching for index zero visits midpoints 2^16, 2^15, …, 1, then 0: 18 checks.",
+        "exact": true,
+        "correct": true,
+        "grade": "taught"
+      }
+    ]
+  },
+  "factCheck": {
+    "scenes": [
+      {
+        "id": "opening",
+        "evidence": "Verified against the current fixtures and openingSnapshot model. The selected terms are login, test, and fail. The first note contains login and test, giving 2 matches; the four notes have overlap counts 2, 1, 0, 0. Inspecting all four is the chosen complete-scan procedure, not a claim that every search requires it. The expired session and provider update are stipulated example facts. The algorithm and complexity descriptions agree with [NIST's algorithm definition](https://xlinux.nist.gov/dads/HTML/algorithm.html) and [resource-accounting explanation](https://xlinux.nist.gov/dads/HTML/complexity.html).",
+        "sourceUrls": [
+          "https://xlinux.nist.gov/dads/HTML/algorithm.html",
+          "https://xlinux.nist.gov/dads/HTML/complexity.html"
+        ]
+      },
+      {
+        "id": "scan",
+        "evidence": "A complete scan performs sum(i=1..n) 1 = n visits. Adding four notes to four produces eight visits, exactly twice four. A fixed inner width c produces cn operations, hence Θ(n). Bounded passages and the fixed three-term query bound the illustrated per-visit work. [NIST](https://xlinux.nist.gov/dads/HTML/theta.html) defines Θ as tight growth and [O](https://xlinux.nist.gov/dads/HTML/bigOnotation.html) as an upper bound. The revised sorting sentence correctly specifies worst-case O(r log r) comparisons and bounded comparison cost. Total work is O(n + r log r), becoming O(n log n) when r=n. The prior sorting issue is closed; [CPython's adaptive-sort design](https://raw.githubusercontent.com/python/cpython/3.13/Objects/listsort.txt) confirms why a tight r log r claim for every input would have been inappropriate.",
+        "sourceUrls": [
+          "https://xlinux.nist.gov/dads/HTML/theta.html",
+          "https://xlinux.nist.gov/dads/HTML/bigOnotation.html",
+          "https://raw.githubusercontent.com/python/cpython/3.13/Objects/listsort.txt"
+        ]
+      },
+      {
+        "id": "ordered-search",
+        "evidence": "Read and executed the actual binarySearchTrace implementation. From [0,8), midpoint 4 is release-guide, leaving [0,4); midpoint 2 is docs-index, leaving [3,4); midpoint 3 is issuer-check, a hit. Searching for the first catalog key visits 4,2,1,0. The narration now fully specifies the midpoint and boundary rules and distinguishes midpoint visits from individual comparison operators. Each unsuccessful visit reduces the remaining interval to at most approximately half, supporting O(log n) work under its stated assumptions. The interior insertion picture moves three later references into a spare slot; insertion at a fixed interior fraction requires Θ(n) movement. [NIST](https://xlinux.nist.gov/dads/HTML/binarySearch.html) supports the search mechanism, and [Python's bisect documentation](https://docs.python.org/3/library/bisect.html) separates logarithmic search from linear insertion. The narration's search-convention issue is closed; the separate quiz ambiguity remains.",
+        "sourceUrls": [
+          "https://xlinux.nist.gov/dads/HTML/binarySearch.html",
+          "https://docs.python.org/3/library/bisect.html"
+        ]
+      },
+      {
+        "id": "hash-lookup",
+        "evidence": "Checked hashKey, the bucket model, and the displayed hash source. Character-code sums modulo eight are token-fixture: 1365 mod 8=5; ci-clock: 773 mod 8=5; issuer-check: 1222 mod 8=6; release-guide: 1308 mod 8=4. Equality confirms issuer-check in bucket 6. In the separately forced constant-hash fixture, missing-login-note is absent and requires four stored-key checks. Extending that chain to n keys gives Θ(n) equality checks on a miss. Expected constant lookup is explicitly conditional on spread and load, consistent with [the chained-hash analysis](https://opendatastructures.org/ods-python/5_1_ChainedHashTable_Hashin.html). This uncached character-sum hash reads every character, adding Θ(L) work for key length L.",
+        "sourceUrls": [
+          "https://opendatastructures.org/ods-python/5_1_ChainedHashTable_Hashin.html"
+        ]
+      },
+      {
+        "id": "radix-prefix",
+        "evidence": "Read and executed the actual radix model. The words split as pla+y, pla+ce, pla+net, pla+za. The naive scan records 4×3=12 prefix comparisons; the radix trace records three edge-label comparisons, p, l, a, and returns all four completions. Child selection and output enumeration are separate work. Compression agrees with [NIST](https://xlinux.nist.gov/dads/HTML/patriciatree.html). Constant expected child selection gives O(p+1) descent: at most p matched symbols plus mismatch detection. The current toy model uses children.find, so the narration's conditional child-lookup bound is not an implementation guarantee about arbitrary token branching. [SGLang's paper](https://arxiv.org/html/2312.07104v2) directly supports token-sequence edges and KV-prefix reuse. [HNSW's paper](https://arxiv.org/abs/1603.09320v4) supports approximate graph-based neighbor search. [vLLM's cache identity documentation](https://docs.vllm.ai/en/latest/design/prefix_caching/) supports additional adapter, multimodal, and cache-isolation identity. Exact-prefix matching and compatible state are necessary conditions; nearby embeddings establish neither. The added transfer explanation is factually supported.",
+        "sourceUrls": [
+          "https://xlinux.nist.gov/dads/HTML/patriciatree.html",
+          "https://arxiv.org/html/2312.07104v2",
+          "https://arxiv.org/abs/1603.09320v4",
+          "https://docs.vllm.ai/en/latest/design/prefix_caching/"
+        ]
+      },
+      {
+        "id": "amortized-append",
+        "evidence": "Checked appendTrace, APPEND_EVENTS, and appendSnapshot. Cumulative writes for arrivals 1 through 8 are 1,2,5,6,11,12,13,14. Arrival 3 copies two references and writes one; arrival 5 copies four and writes one. Eight new-reference writes plus six copies total 14. Starting from the two already-filled slots, the continuation adds 12 writes. For m arrivals under doubling, copied capacities form 2+4+8+...<2m, so total writes are Θ(m), amortized append is Θ(1), and a resize can copy Θ(current size) references. This deterministic sequence argument requires no random arrivals. [Open Data Structures](https://opendatastructures.org/ods-python/2_1_ArrayStack_Fast_Stack_O.html) independently supports the amortized mechanism. The narration stipulates doubling rather than attributing that exact growth factor to Python.",
+        "sourceUrls": [
+          "https://opendatastructures.org/ods-python/2_1_ArrayStack_Fast_Stack_O.html"
+        ]
+      },
+      {
+        "id": "vector-score",
+        "evidence": "Read and executed the actual dense scoring loop. With query [1,0,0], the scores are 1×1+0×0.2+0×0.1=1; 1×0+0×1+0×0.2=0; 1×0.8+0×0.1+0×0.4=0.8; and 1×0.1+0×0.2+0×1=0.1. All three coordinate products execute for each vector, including zero contributions: 4×3=12. The loop performs exactly nd products and Θ(nd) scalar work under fixed-cost arithmetic. Doubling n or d gives 24 products; doubling both gives 48. These supplied vectors demonstrate counting, not independently validated semantic quality.",
+        "sourceUrls": []
+      },
+      {
+        "id": "top-k",
+        "evidence": "Executed boundedHeapTrace. The first scores are 1 and 0, making ci-clock the root. issuer-check scores 0.8 and replaces it; release-guide scores 0.1 and is rejected against the new 0.8 cutoff. Full ranking retains token-fixture and issuer-check. A binary heap of k entries has height floor(log2 k); one-path repairs therefore support O(n log k) selection for k≥2 and O(k) retained entries, consistent with [heapq's invariant and theory](https://docs.python.org/3/library/heapq.html). All twelve scoring products remain. Resident input occupies nd values. Under the explicitly conditional immediate-consumption design, d query coordinates, k fixed-size winner entries, and constant scalar state give O(d+k) extra storage. The new workspace explanation is correct; the trace's precomputed score list is not itself a streaming implementation.",
+        "sourceUrls": [
+          "https://docs.python.org/3/library/heapq.html"
+        ]
+      },
+      {
+        "id": "unique-pairs",
+        "evidence": "Verified unorderedPairs and exactDedupTrace. Reversing distinct endpoints does not create another unordered pair. Counts are 4×3/2=6, 5×4/2=10, and 8×7/2=28; the added rows contribute 4,5,6,7, so 6+4+5+6+7=28. Generally sum(j=1..n−1)j=n(n−1)/2=Θ(n²). Index-based streaming needs constant auxiliary state when each comparison uses bounded workspace; materializing all pairs needs Θ(n²) entries. The five actual dedup arrivals retain exactly three first occurrences: expired login test fixture, CI runner clock drift, and issuer claim requirement. Duplicate flags are false,false,true,false,true. The revised identities close both prior naming issues. Expected linear hash-table work is conditional on ordinary hashing, with text processing costs additional, as supported by [the hash-table analysis](https://opendatastructures.org/ods-python/5_1_ChainedHashTable_Hashin.html). Different full-text strings remain different exact keys regardless of semantic similarity.",
+        "sourceUrls": [
+          "https://opendatastructures.org/ods-python/5_1_ChainedHashTable_Hashin.html"
+        ]
+      },
+      {
+        "id": "attention",
+        "evidence": "Both prior spoken issues are closed. The narration now scopes quadrupling to the conceptual square: 4²=16, 8²=64, ratio 4. Causal permitted pairs instead total 4×5/2=10 and 8×9/2=36, still Θ(t²). [Vaswani et al.](https://arxiv.org/html/1706.03762v7), sections 3.2–3.3, support dot products, causal permissions, and separate model components. Read and executed decodeCostTrace: eight cached positions plus each current input gives 9,10,11 keys, totaling 30 and leaving 11 positions. Per-head query-key products are 30d_k, or 3840 at d_k=128. Generally sum(i=1..G)(t+i)d_k=[Gt+G(G+1)/2]d_k=Θ((Gt+G²)d_k). The revised exact formula excludes other decoder work explicitly. [Hugging Face's cache mechanism](https://huggingface.co/docs/transformers/main/cache_explanation) confirms current-plus-past K/V and last-position prediction of the next token, supporting the consumed-input distinction. [FlashAttention](https://arxiv.org/html/2205.14135v2) supports avoiding full score-matrix materialization while retaining dense quadratic arithmetic.",
+        "sourceUrls": [
+          "https://arxiv.org/html/1706.03762v7",
+          "https://huggingface.co/docs/transformers/main/cache_explanation",
+          "https://arxiv.org/html/2205.14135v2"
+        ]
+      },
+      {
+        "id": "cache-volume",
+        "evidence": "Verified CACHE_SHAPE and cacheValueBytes. Raw bytes per token are 2×32×8×128×2=131072=128×1024 bytes, hence 128 KiB. The first two counts K and V; the last two is bytes per value. Thirty-two query heads divided among eight KV heads gives four query heads per group. [The GQA paper](https://arxiv.org/html/2305.13245v3), section 2.2, supports sharing K/V while preserving separate queries and attention scores. Sixteen streams at 1024 positions require 16×1024×131072=2147483648 bytes=2 GiB; at 4096 positions they require 8589934592 bytes=8 GiB. The conceptual prefill-grid ratio is (4096/1024)²=16. The architecture is explicitly an example, and the exclusions correctly limit these numbers to raw KV values. [The cache documentation](https://huggingface.co/docs/transformers/main/cache_explanation) supports reuse of past causal K/V.",
+        "sourceUrls": [
+          "https://arxiv.org/html/2305.13245v3",
+          "https://huggingface.co/docs/transformers/main/cache_explanation"
+        ]
+      },
+      {
+        "id": "queue-measurement",
+        "evidence": "Read and executed batchWaitSnapshot. Only one request has arrived at 10 ms and two by 40 ms, fewer than eight. Under the stipulated scheduler, a deadline measured from the first arrival releases the partial batch at 0+10=10 ms. If execution is busy until 30 ms, execution starts at max(10,30)=30 ms, adding 20 ms beyond formation. [Ray Serve's documentation](https://docs.ray.io/en/latest/serve/advanced-guides/dyn-req-batch.html) supports timeout-based partial batching. Formation time alone cannot bound execution or total latency. Worker overlap is a possibility rather than a promised speedup; [PyTorch's multiprocessing documentation](https://docs.pytorch.org/docs/2.15/data.html#single-and-multi-process-data-loading) documents avoiding loading-related blocking and associated resource costs. The prior collector issue is closed: the narration now names CPython, preserves reference counting, and allows explicit cyclic collection. These mechanisms agree with [Python's data model](https://docs.python.org/3.13/reference/datamodel.html#objects-values-and-types) and [gc documentation](https://docs.python.org/3.13/library/gc.html). Allocation and collection are possible delay sources, not a diagnosed cause in this invented trace.",
+        "sourceUrls": [
+          "https://docs.ray.io/en/latest/serve/advanced-guides/dyn-req-batch.html",
+          "https://docs.pytorch.org/docs/2.15/data.html#single-and-multi-process-data-loading",
+          "https://docs.python.org/3.13/reference/datamodel.html#objects-values-and-types",
+          "https://docs.python.org/3.13/library/gc.html"
+        ]
+      },
+      {
+        "id": "work-budget",
+        "evidence": "Checked budgetSnapshot and budgetFor directly. The displayed width is 384. First request: 2500×384=960000≤1000000, leaving 40000 products. Second request: 4000×384=1536000, exceeding the budget by 536000. Reducing k from two to one changes retained storage but leaves nd unchanged. Rejecting before scoring bounds this named scoring count; it does not bound filtering, queues, memory, elapsed time, or other stages. Legitimate filtering can reduce eligible n, and an index can change which candidates are scored, subject to quality evaluation. Project/principal filtering is presented as a required ordering and precondition; the scalar fixture does not claim to implement production authorization.",
+        "sourceUrls": []
+      },
+      {
+        "id": "shortlist-payoff",
+        "evidence": "Read and executed shortlist and rankLexical. Literal counts are 2,1,0,0, normalized to 2/3,1/3,0,0. Fixed reference scores are 0.80,0.55,0.95,0.20, so reference winners are issuer-check and token-fixture. At k=2, token-fixture and ci-clock reach refinement, recovering 1/2=50%. At k=3, the model's stable arrival-order tie rule admits issuer-check before the other zero-overlap note, recovering 2/2=100%; this result depends on that fixture tie rule. Cheap scoring still reads four candidates; refinement reads two versus three. An issuer mismatch is a valid synthetic failure mechanism under [OpenID Connect ID-token validation](https://openid.net/specs/openid-connect-core-1_0.html#IDTokenValidation), which requires issuer agreement. It is not evidence of a real incident. The gradient preview is acceptable introductory wording: [backpropagation computes loss derivatives](https://docs.pytorch.org/tutorials/beginner/basics/autogradqs_tutorial.html), which guide parameter updates chosen by an optimizer; no guaranteed improvement is asserted.",
+        "sourceUrls": [
+          "https://openid.net/specs/openid-connect-core-1_0.html#IDTokenValidation",
+          "https://docs.pytorch.org/tutorials/beginner/basics/autogradqs_tutorial.html"
+        ]
+      }
+    ],
+    "findings": [],
+    "limitations": [
+      "No substantive factual error or unsupported spoken guarantee remains in the reviewed narration. Independently verified script hash cf660f0572635d22 and lesson-file SHA-256 850ca9b520f5758767fb2af87b2c477389735c27ef68836580e49f72c7195b49. All 14 scenes were reviewed. readLesson parsing and validation of 77 visual cues passed.",
+      "Local evidence came from the actual fixtures.mjs, arithmetic.mjs, model.mjs, and relevant stage source under /Users/bruno.volpato/githubworkspace/leetllm-wt-rebuild/videos/films/algorithm-complexity. Direct Node assertions passed. The article and repair report were context rather than independent proof.",
+      "The rebuilt stage folder still contains lesson.yaml and script-repair.json without index.mjs or scene implementations. No final film or audio was inspected. Rendered content, pronunciation, pacing, and audiovisual synchronization remain unverified; parsing and source inspection do not establish a visual-production pass.",
+      "Preserved visual issue: legacy attention.mjs still draws an undifferentiated square and labels Θ(td_k) as one-decode-step work. When adapting it, label the square as conceptual, distinguish the causal triangle, and label the decode equations as per-head query-key scoring or coordinate products. The revised spoken claims are correct.",
+      "Preserved visual gap: the legacy binary-search model only animates issuer-check's 4,2,3 trace. Add a separate replay for the spoken first-item search 4,2,1,0, with its own counter. The two searches must not share a displayed three-check result.",
+      "Preserved visual gaps: token-ID matching, cache-compatibility conditions, and HNSW are spoken extensions to the word-prefix picture. The new stage needs a clearly distinguished token-prefix example. The O(d+k) workspace explanation also needs separate resident-input and streaming-workspace accounting; the precomputed-score picture does not demonstrate streaming. Preserve the corrected literal dedup strings and their first occurrences.",
+      "The separate mastery-quiz midpoint ambiguity remains open in content.md near line 1029. For 131072 keys, the narrated floor((lo+hi)/2) rule takes 18 first-item checks; the valid left-middle floor((lo+hi−1)/2) rule takes 17. Independently reproduced both counts. Remedy: specify the midpoint, equality, and boundary-update rules in the quiz stem. This is outside the current narration and is not a new spoken blocker.",
+      "The synthetic relevance scores, vectors, incident story, scheduler, cache shape, and budgets establish their stated calculations only. No production authorization enforcement, retrieval recall, latency, throughput, pause diagnosis, allocator footprint, or runtime speedup was tested. Conditional requirements were not treated as implemented guarantees."
+    ]
+  },
+  "reviewedNarration": {
+    "source": "videos/stage-lessons/algorithm-complexity/lesson.yaml",
+    "script": "cf660f0572635d22",
+    "scenes": [
+      {
+        "id": "opening",
+        "beats": [
+          {
+            "say": "An engineer asks why a login test failed after an identity-provider update. The first note says the login fixture expired. That's plausible. Would you stop here or read the remaining notes?"
+          },
+          {
+            "say": "Compare login, test, and fail with the first note. Two terms match, so it looks plausible. Read the remaining notes; another may explain the provider update. Inspect all four. An algorithm is the recipe we follow. Complexity asks how its work grows with input size."
+          }
+        ]
+      },
+      {
+        "id": "scan",
+        "beats": [
+          {
+            "say": "Keep the four old notes and add four more. Predict the inspection count. Let the second scan visit the rows one at a time. Each extra note adds one visit, so twice the input produces twice this work."
+          },
+          {
+            "say": "Write the input size as n. A complete scan makes n visits. Theta of n names that tight growth shape. Big O names an upper bound, so O of n also applies. With passage length bounded, the work inside each visit stays bounded too. Even a fixed inner loop adds the same strip of work to every row. Sorting the r matching notes adds O of r log r comparisons in the worst case, assuming bounded comparison cost. When every note matches, the full function has an O of n log n worst-case bound. The candidate scan and result ordering have separate costs."
+          }
+        ]
+      },
+      {
+        "id": "ordered-search",
+        "beats": [
+          {
+            "say": "Suppose we already know the note's name. Find issuer-check in this sorted catalog. Use zero-based indices, with lo included and hi excluded. Start lo at zero and hi at the catalog length. Inspect the middle key at mid, found by adding lo and hi, dividing by two, then rounding down. Return on equality. If that key is below the target, set lo to mid plus one. Otherwise set hi to mid. Repeat on the smaller range, then check the surviving key. Stop with a miss when lo reaches hi. Here, indices four, two, then three find issuer-check in three midpoint checks."
+          },
+          {
+            "say": "Every unsuccessful midpoint check roughly halves the possibilities. That repeated halving gives logarithmic lookup work with random access and bounded key-comparison cost. Sorted order makes this possible. To find index zero in eight items, check midpoints four, two, one, then zero. The final one-item range still needs its own check. We count visited midpoints, even if one uses both equality and ordering. Now an identity-provider guide arrives in the middle. Later references must move to make room, so insertion into an array costs linear movement."
+          }
+        ]
+      },
+      {
+        "id": "hash-lookup",
+        "beats": [
+          {
+            "say": "A hash table offers another exact-name lookup. A hash function turns the key into a bucket address. Follow issuer-check to its bucket, then compare the stored key for equality. This small table uses the displayed deterministic hash, so you can check where every key went."
+          },
+          {
+            "say": "Expected constant lookup assumes a useful hash spread and a controlled table load. Force every key into one bucket, then look up missing-login-note. The chain has no match, so the search checks each stored key. In the worst case, this work grows linearly with n. The operation, its assumption, and its bound belong together. A long key also takes more character work to hash."
+          }
+        ]
+      },
+      {
+        "id": "radix-prefix",
+        "beats": [
+          {
+            "say": "Take four familiar words: play, place, planet, and plaza. They share the prefix pla. A scan checks the first three letters in every word. Follow those repeated comparisons."
+          },
+          {
+            "say": "A radix tree stores the shared run pla once in a compressed edge. Follow that edge to the branch, then take y, ce, net, or za to the matching word. This lookup compares three characters, then returns four completions. It answers an exact-prefix question. An HNSW index follows a graph to find approximate nearest neighbors among embedding vectors, whose meanings may be similar. Returning completions has its own output cost. With expected constant-time child lookup, finding a matched prefix of length p takes order p plus one work, including detection of an immediate miss. The same edges can hold token IDs instead of letters. To find the longest shared token prefix, follow exact matching IDs until the next ID differs or a path ends. Reuse cached key-value state for that prefix only when the model, adapter, positions, other inputs, and cache scope are compatible. Process the unmatched suffix as new work. Nearby embedding vectors do not prove an exact token-prefix match."
+          }
+        ]
+      },
+      {
+        "id": "amortized-append",
+        "beats": [
+          {
+            "say": "Now keep arriving note references in a growable array. Two slots are full. To append another reference, allocate a larger block, copy the old references, then write the new one. This single append did extra work because it triggered a resize."
+          },
+          {
+            "say": "Continue the same doubling rule until the array holds eight references. Most arrivals need one write; occasional arrivals copy the existing block as well. Add every write to the running total. Across the sequence, copies form a geometric sum, so total work grows linearly with the number of arriving references. That gives constant amortized cost per append, while an individual resize can cost linear work. Amortized analysis accounts for the operation history; it does not assume random arrivals. An expected hash bound instead depends on the stated hashing assumptions."
+          }
+        ]
+      },
+      {
+        "id": "vector-score",
+        "beats": [
+          {
+            "say": "Return to finding a useful passage when we don't know its name. Here are supplied three-coordinate representations of the same four notes. Multiply matching coordinates and add them to score the first note. The zero query coordinates still take multiplication steps in this dense loop. Count the work even when a contribution is zero."
+          },
+          {
+            "say": "Run that same inner loop over the remaining notes. Four candidates times three coordinates gives twelve products. Now the inputs have two sizes: n candidates and d coordinates. Exact dense scoring has theta of n times d work. Doubling either input doubles the products; doubling both creates four times the work."
+          }
+        ]
+      },
+      {
+        "id": "top-k",
+        "beats": [
+          {
+            "say": "We need two notes for closer review. A full sort would order every score. A bounded min-heap keeps only the strongest scores seen so far, with the weakest retained score at its root. Let the first two arrive. The runner-clock note is the cutoff the next candidate must beat."
+          },
+          {
+            "say": "The issuer-claim note scores above that cutoff. It reaches the root and replaces the runner-clock note. The release checklist scores below the new cutoff and is rejected; the heap stays unchanged. A full ranking confirms the same two note identities."
+          },
+          {
+            "say": "With more retained values, repairing a heap follows one parent-child path. Its height grows logarithmically with k. For at least two retained values, selection is O of n log k with O of k retained storage. The coordinate counter remains unchanged. Every exact score was computed before its heap decision. The resident vector matrix still occupies n times d values. If each computed score goes straight into the heap, we need no list of all n scores. Beyond the resident matrix, keep the d-coordinate query and k score-and-ID winners, plus a running sum and loop indices. With fixed-size scores and IDs, that is O of d plus k extra storage."
+          }
+        ]
+      },
+      {
+        "id": "unique-pairs",
+        "beats": [
+          {
+            "say": "Suppose cleanup compares every pair of candidate notes. Comparing the login-fixture note with the runner-clock note is the same unordered pair as comparing them in reverse. Count each pair once. Four notes make six pairs. Add one more note: it must meet all four already present."
+          },
+          {
+            "say": "Keep extending that triangle to eight notes. The growing rows add up to n times n minus one, divided by two. The square term drives quadratic growth. We can stream these comparisons using constant extra storage, or store the entire quadratic collection. Work and storage are separate choices."
+          },
+          {
+            "say": "If the task is exact duplicate removal, remember previously seen text keys in a hash set. Process each arrival once and keep its first occurrence. The repeated login-fixture and runner-clock strings are skipped, while their first occurrences remain. With normal hashing this is an expected linear pass, plus hashing the text. Two different sentences with similar meanings still have different keys."
+          }
+        ]
+      },
+      {
+        "id": "attention",
+        "beats": [
+          {
+            "say": "The answer generator has another all-pairs operation. A conceptual dense score grid has one cell for every query-key pair. Watch four positions form a square. Double the positions and keep the old square visible while the new rows and columns arrive. The number of score positions in this square grid quadruples. Causal attention permits each position to use only itself and earlier keys. These permitted pairs form a triangle, and dense causal prefill still has quadratic work. Per head, each score also uses the head's coordinate width."
+          },
+          {
+            "say": "Start with eight completed positions already cached. Consuming the next input appends its key and value before attention, so its query reads nine keys, including its own. Follow that single row. Each query-key dot product spans the head width d sub k. Per head, query-key scoring for one decode step takes Theta of t d sub k work, where t is the current total key count. Projections, value mixing, other heads and layers, and feed-forward work need separate accounting. Restart from the same eight-position cache. The next three consumed inputs read nine, ten, then eleven keys. Those rows total thirty key reads, or thirty d sub k query-key coordinate products per head. Starting with t previously cached keys, G consumed inputs use d sub k times [G t plus G(G plus one) over two] query-key coordinate products per head, with growth Theta of [(G t plus G squared) d sub k]. After three consumed inputs, the cache has eleven positions. This trace counts consumed inputs; prompt prefill already predicts the first sampled output. Fused kernels can avoid storing the full score grid while keeping dense attention’s arithmetic."
+          }
+        ]
+      },
+      {
+        "id": "cache-volume",
+        "beats": [
+          {
+            "say": "Cached keys and values save recomputing past states. They still occupy memory. Consider an example architecture with thirty-two layers, eight key-value heads, one hundred twenty-eight coordinates per head, and two bytes per stored value. There are separate keys and values, so multiply by two again. One stored token uses one hundred thirty-one thousand seventy-two bytes, or one hundred twenty-eight kibibytes."
+          },
+          {
+            "say": "Thirty-two query heads can share those eight key-value heads in groups of four. Cache storage uses the key-value head count. Each query head still scores its own attention row. Keep the storage count separate from query-head arithmetic."
+          },
+          {
+            "say": "Now keep sixteen equal-length streams. At one thousand twenty-four positions each, raw cache values occupy two gibibytes. Increase only the context length to four thousand ninety-six and storage becomes eight gibibytes. The same fourfold length change multiplies a dense prefill score grid by sixteen. These cache totals exclude weights, workspace, metadata, partial-block waste and any effects of sharing or quantization."
+          }
+        ]
+      },
+      {
+        "id": "queue-measurement",
+        "beats": [
+          {
+            "say": "Operation counts do not measure elapsed latency. A request can wait even when its arithmetic fits. In this invented batch trace, request R one arrives at time zero and the next request arrives forty milliseconds later. A rule that waits for eight arrivals still has no full batch. Predict what a ten-millisecond batch-formation timeout changes."
+          },
+          {
+            "say": "It releases the partial batch ten milliseconds after the first arrival. That bounds this formation wait under the shown scheduling assumptions. If the executor is already busy, admission and execution queues can add more delay. A batch timeout does not bound total request latency."
+          },
+          {
+            "say": "Time preprocessing, queueing and accelerator execution separately on the intended workload. A worker pool can overlap preparation with execution but adds scheduling, memory and transfer costs. Long-running pauses can also come from allocation or cyclic garbage collection. Measure before changing collection policy. In CPython, disabling automatic cyclic collection leaves reference counting active. Unreachable cycles can accumulate unless they are collected explicitly."
+          }
+        ]
+      },
+      {
+        "id": "work-budget",
+        "beats": [
+          {
+            "say": "Filter by project and principal first; only permitted rows enter this score-stage count. Try an engineering decision. This request has twenty-five hundred eligible vectors with the displayed width. The score-stage budget allows one million coordinate products. Predict whether exact scoring fits. Multiply the two input sizes, compare the result with the budget, then release the scoring pass."
+          },
+          {
+            "say": "The next request has more eligible candidates. Could returning one citation rescue the scoring budget? Shrink the winner storage, then count the score products again. The request still exceeds that named budget, so reroute it before scoring. A legitimate filter or a recall-tested index can change candidate work. Measure elapsed latency, queueing, and memory on the intended workload and machine. This guard bounds score products only. Access filtering and the rest of the request still consume work and time."
+          }
+        ]
+      },
+      {
+        "id": "shortlist-payoff",
+        "beats": [
+          {
+            "say": "Take these same four notes. A cheap first pass counts literal query-word overlap. A full-read reference score represents relevance after reading each note in context. We fix those reference scores for this small experiment. Keep the two highest lexical scores. Which useful note could fall outside?"
+          },
+          {
+            "say": "The identity provider changed its issuer value, while verifier config still expects the old one. That explains the failed login test. This note shares none of login, test, or fail, so literal overlap gives it zero. The context reference ranks it first. At k equals two, the context stage never sees it. Let one more candidate through. The verifier note reaches first place, with the expired-login fixture second."
+          },
+          {
+            "say": "At k equals two, the full-read reference recovers one of its two best notes. At k equals three, it recovers both. The cheap pass still scores all four candidates, and the context stage reads one more note. Compare recall with the added scoring cost on real queries before choosing k. Next, gradients and backpropagation use a prediction's error to determine how the model's adjustable numbers should change."
+          }
+        ]
+      }
+    ]
+  }
+}

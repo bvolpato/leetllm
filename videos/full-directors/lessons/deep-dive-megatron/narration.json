@@ -1,0 +1,363 @@
+[
+  {
+    "id": "c01",
+    "title": "Who needs column six?",
+    "sourceChapters": [
+      "c01"
+    ],
+    "beats": [
+      {
+        "id": "c01-b01",
+        "say": "Follow the notch on column six. This row of weights computes one output. Split the row into four pairs, one per GPU. Count the ranks from zero. The next layer on each rank takes the full output. Which rank multiplies the marked weight, and does rank two need the result?",
+        "hold": 2.4
+      },
+      {
+        "id": "c01-b02",
+        "say": "Rank three owns that pair. Look at the input below it. Column six gets a two. Its weight is one point five, so rank three contributes three. Every other pair contributes zero.",
+        "hold": 0.9
+      },
+      {
+        "id": "c01-b03",
+        "say": "Rank two needs the three as well. Follow the sum back to each buffer. A tensor-parallel all-reduce adds the partial outputs and gives every participant the result. Here each GPU runs one worker. Its rank identifies that process.",
+        "hold": 0.9
+      },
+      {
+        "id": "c01-b04",
+        "say": "A training job can gain GPUs and still take longer per update. Splitting a wide layer helped it fit here, but now a multiplication ends with a wait. Splitting layer depth would instead send an activation to the next stage. Adding data replicas lets other examples run alongside this one.",
+        "hold": 0.8
+      },
+      {
+        "id": "c01-b05",
+        "say": "Megatron Core supplies parallel layers, process groups, schedules and optimizer machinery. Megatron-LM provides reference training recipes around those building blocks. Megatron Bridge maps checkpoint tensors between formats, including Hugging Face and Megatron. We will follow the group doing the work, then find this exact weight after a restart.",
+        "hold": 0.8
+      }
+    ]
+  },
+  {
+    "id": "c02",
+    "title": "Which ranks share the work?",
+    "sourceChapters": [
+      "c02"
+    ],
+    "beats": [
+      {
+        "id": "c02-b01",
+        "say": "Keep your finger on rank three. Here are sixty-four processes arranged by tensor shard, context lane, data replica and pipeline stage. Tensor varies fastest. Our rank is on stage zero, in context lane zero and data replica zero. Which cells change only the tensor coordinate?",
+        "hold": 2.1
+      },
+      {
+        "id": "c02-b02",
+        "say": "The first four cells form its tensor group. Each owns part of the same layer. To send the activation to the next stage, keep the tensor, context and data coordinates fixed. Where does that take you?",
+        "hold": 2.1
+      },
+      {
+        "id": "c02-b03",
+        "say": "Across to rank thirty-five. The pipeline stride is thirty-two in this ordering. Rank numbering describes a logical layout. The launcher must still place those ranks on suitable devices and physical links. A tensor collective across a slow link can delay every layer.",
+        "hold": 0.8
+      },
+      {
+        "id": "c02-b04",
+        "say": "Finally highlight the data peers. Three, eleven, nineteen and twenty-seven hold the same shard and process independent examples. Each step down adds eight. The context peer is seven, just four places from three. Those two ranks process different positions of the same sequence.",
+        "hold": 0.9
+      },
+      {
+        "id": "c02-b05",
+        "say": "Four tensor shards, two context lanes and two stages use sixteen ranks per model copy. Sixty-four divided by sixteen gives four data replicas. For another mesh, divide the world by those three factors and require a whole number. Sequence parallelism reuses tensor peers for selected activation work and adds no extra world-size factor.",
+        "hold": 0.8
+      },
+      {
+        "id": "c02-b06",
+        "say": "Try a smaller mesh. All four axes have size two and the order is still tensor, context, data, pipeline. Start at fourteen. The tensor neighbor is one cell away. The pipeline neighbor is one stage away. Find both before lighting either connection.",
+        "hold": 2.3
+      },
+      {
+        "id": "c02-b07",
+        "say": "Fifteen shares the tensor group with fourteen. Six shares its pipeline group. The tensor stride is one. The pipeline stride is two times two times two, or eight. In any ordered grid, multiply the sizes of all faster axes to get the stride. Change just the coordinate you want.",
+        "hold": 1
+      }
+    ]
+  },
+  {
+    "id": "c03",
+    "title": "Where do the four channels go?",
+    "sourceChapters": [
+      "c03"
+    ],
+    "beats": [
+      {
+        "id": "c03-b01",
+        "say": "Send one input row, one and two, to both ranks of this smaller layer. This is the first projection in a feed-forward block. For each column, multiply its top weight by one and its bottom weight by two, then add. Trace the two columns on each rank. What goes into the four channel positions?",
+        "hold": 2.5
+      },
+      {
+        "id": "c03-b02",
+        "say": "Rank zero writes one and two at coordinates zero and one. Rank one writes one at coordinate two. At coordinate three it writes zero point five. Slide the two pairs into column order to read the whole row. The colors show who keeps each pair. This line is our view of the channels. The GPUs can leave the pairs where they are.",
+        "hold": 0.9
+      },
+      {
+        "id": "c03-b03",
+        "say": "Apply GeLU separately to each local coordinate. An elementwise function needs no neighboring channel values, so these shards can remain local. Each rank multiplies its two activations by the matching two rows of the down projection. On rank one, the first output subtracts the second activation from the first. The other output adds them.",
+        "hold": 0.9
+      },
+      {
+        "id": "c03-b04",
+        "say": "Now add the partial vectors coordinate by coordinate. The display rounds each partial to five decimal places. The ranks keep the extra digits until after the sum. Both get approximately one point three three seven and three point one four two. The serial calculation with the same GeLU gives the same rounded result. Only the two output contributions need to cross the tensor group.",
+        "hold": 1
+      },
+      {
+        "id": "c03-b05",
+        "say": "Try a shared output bias of three on one coordinate with partials of one and two. Would adding it on both workers give the right answer?",
+        "hold": 2
+      },
+      {
+        "id": "c03-b06",
+        "say": "Add it once after reduction and you get six. Add it on both workers and you get nine. In backward, each column shard also contributes to the gradient of the shared input. Those contributions must sum. Sequence-parallel variants can use reduce-scatter and all-gather for activation traffic.",
+        "hold": 0.8
+      },
+      {
+        "id": "c03-b07",
+        "say": "At a larger width, sixteen intermediate channels split four ways leave four per rank. With eight input features the mathematical up shard is eight by four, and the down shard is four by eight. PyTorch stores a linear weight as output by input, so the stored shapes transpose. The same four channels still belong to that worker.",
+        "hold": 0.7
+      }
+    ]
+  },
+  {
+    "id": "c04",
+    "title": "What happens to the empty slots?",
+    "sourceChapters": [
+      "c04"
+    ],
+    "beats": [
+      {
+        "id": "c04-b01",
+        "say": "Stage zero holds the early layers. Stage one holds the late layers. A pair of examples travels together as one microbatch. Trace its forward pass. Stage one has to wait for the activation. Stage zero then waits during the drain. Two out of four stage slots are empty.",
+        "hold": 0.8
+      },
+      {
+        "id": "c04-b02",
+        "say": "Feed several independent microbatches through the stages. Here sixty-four examples, two per microbatch, are shared by four data replicas. Eight microbatches enter each replica. Watch the next pair start on stage zero while the preceding pair runs on stage one.",
+        "hold": 0.8
+      },
+      {
+        "id": "c04-b03",
+        "say": "Count the gaps. Two of eighteen slots are empty, one ninth of the elapsed capacity. Relative to sixteen useful slots the same gap is one eighth. Hold the global batch and microbatch size fixed. Double the data replicas. What happens to the gap as a share of the new schedule?",
+        "hold": 2.5
+      },
+      {
+        "id": "c04-b04",
+        "say": "Four microbatches per replica. The gap still takes two slots, now out of ten. One fifth of the stage capacity sits idle. With equally timed stages, count one fewer idle time slot per stage than the number of stages. Divide that by the total time slots per stage, the microbatch count plus those idle slots. Tensor and context copies add no independent examples.",
+        "hold": 0.8
+      },
+      {
+        "id": "c04-b05",
+        "say": "At a fixed length of two thousand forty-eight, both launches see the same number of token positions per update, before masking. This forward wave isolates startup and drain. Training also schedules backward passes, often interleaving a forward with a backward. Measure communication, stage imbalance and the completed step before choosing a layout.",
+        "hold": 0.8
+      }
+    ]
+  },
+  {
+    "id": "c05",
+    "title": "How much does each context shard count?",
+    "sourceChapters": [
+      "c05"
+    ],
+    "beats": [
+      {
+        "id": "c05-b01",
+        "say": "Place the query at position six. Its context worker holds positions zero, one, two and six. The other worker holds three, four, five and seven. With causal attention, which remote key must stay out even when its value is very large?",
+        "hold": 2.4
+      },
+      {
+        "id": "c05-b02",
+        "say": "Position seven comes after the query. Mask its score to exclude the value of ninety. The other three remote keys belong in the prefix. All seven allowed scores are equal here, so each allowed value gets one vote. The local values sum to twenty-one. The remote values sum to eight.",
+        "hold": 0.9
+      },
+      {
+        "id": "c05-b03",
+        "say": "Consider the two shard means. Four local keys average five and a quarter. Three remote keys average eight thirds. If each worker gets one vote, the marker lands halfway between them. Which way should it move when every allowed key gets one vote?",
+        "hold": 2.6
+      },
+      {
+        "id": "c05-b04",
+        "say": "Toward the local mean. Give the four local keys four votes and the three remote keys three votes. The local worker now has four sevenths of the weight. The remote worker has three sevenths. Twenty-nine divided by seven gives about four point one four three. The large future value stays outside the sum.",
+        "hold": 1
+      },
+      {
+        "id": "c05-b05",
+        "say": "For unequal scores, the weights come from the shards' softmax normalization masses on a common scale. Key counts worked because the scores were equal. Exchange keys and values or combine partial attention with the right masses, preserving global positions and masks. Sequence parallelism can split layer normalization and dropout over tensor peers. A query still needs its legal remote context.",
+        "hold": 0.8
+      }
+    ]
+  },
+  {
+    "id": "c06",
+    "title": "Which token gets the expert outputs?",
+    "sourceChapters": [
+      "c06"
+    ],
+    "beats": [
+      {
+        "id": "c06-b01",
+        "say": "Watch token T three at its source position. Its router assigns a weight of three quarters to expert two and one quarter to expert seven. In this example an all-to-all exchange sends each assignment to its expert. Dispatch creates two assignments from this one token. Both carry the source position. The experts return two different vectors. Where should they land, and in what proportions?",
+        "hold": 2.4
+      },
+      {
+        "id": "c06-b02",
+        "say": "Both return to slot three. Weight the first vector, two and zero, by three quarters. Weight the second, zero and four, by one quarter. Add them at the source and the token gets one and a half, one. Dropping the weights would give two, four.",
+        "hold": 1
+      },
+      {
+        "id": "c06-b03",
+        "say": "Keep all eight tokens and two assignments per token. Change which experts the other tokens choose. Count the entries in each queue. Expert two now has eight. Four workers still share sixteen assignments, yet the longest queue doubled. A cap of four would drop four assignments there. Dropless routing keeps them and pays for the longer tail.",
+        "hold": 0.9
+      },
+      {
+        "id": "c06-b04",
+        "say": "In a separate two-hundred-fifty-six-rank job, attention uses four tensor shards, two context lanes, eight data replicas and four pipeline stages. Spread sixty-four expert owners across each stage, with one tensor shard per expert. How many copies of each expert shard fit in this same world?",
+        "hold": 2
+      },
+      {
+        "id": "c06-b05",
+        "say": "One copy. Divide the world by the number of stages, the number of expert owners per group and the tensor degree of each expert. The two grids describe the same workers. Folding leaves each expert matrix whole here. Check shape divisibility, expert routing, placement and checkpoint support before trying that layout on hardware.",
+        "hold": 0.8
+      }
+    ]
+  },
+  {
+    "id": "c07",
+    "title": "Who owns the next update?",
+    "sourceChapters": [
+      "c07"
+    ],
+    "beats": [
+      {
+        "id": "c07-b01",
+        "say": "Count the bytes for one parameter already assigned to this tensor and pipeline shard. In this conventional Adam recipe the model weight takes two bytes and its main gradient takes four. The master weight and two moments take four bytes each. If four owners divide that second block evenly, what stays on one rank?",
+        "hold": 2.2
+      },
+      {
+        "id": "c07-b02",
+        "say": "Nine bytes per assigned parameter. Six stay replicated and the rank keeps a quarter of twelve. In our sixty-four-rank dense mesh, four data replicas and two context lanes repeat the same dense weights. If all eight ranks share one optimizer instance, how does the ledger change?",
+        "hold": 2.2
+      },
+      {
+        "id": "c07-b03",
+        "say": "Seven and a half bytes per parameter. The six stay put. Only the share of twelve shrinks. Multiply by the parameters on this shard for persistent bytes per rank. For two hundred million assigned parameters, that is one and a half decimal gigabytes per rank. Activations, temporary gathers and communication buffers still need headroom. Expert weights can have a different group.",
+        "hold": 0.8
+      },
+      {
+        "id": "c07-b04",
+        "say": "Watch two data peers reduce four gradients from equally weighted examples. The two rows are the gradients of the same four weights on different examples. The reduce-scatter averages corresponding entries. Rank zero keeps two and four. Rank one keeps six and eight. For the arithmetic here, use ordinary SGD on weights one through four with a learning rate of one tenth. Subtract the local updates. An all-gather then puts all four updated parameters back in order on both ranks. Keep those four columns. Suppose we use Adam instead. Which buffers does each rank keep allocated between steps? Plain data parallelism keeps all four weights, gradient slots and optimizer slots on both ranks. Each optimizer slot holds a master weight and two moments. With a distributed optimizer, the master weights and moments split at the middle. Both ranks still allocate the full model and main gradient buffers. Under full sharding in Megatron-FSDP, all three rows split. Each rank keeps two columns between steps. It gathers the layer weights temporarily when it needs to compute.",
+        "hold": 0.8
+      },
+      {
+        "id": "c07-b05",
+        "say": "Now choose the scaling. One replica has a single valid token with gradient ten. Three valid tokens on the other replica each have gradient zero. Start a weight at one and use a learning rate of one tenth. If the objective averages tokens, where should the weight land?",
+        "hold": 2.5
+      },
+      {
+        "id": "c07-b06",
+        "say": "The four tokens give a mean gradient of two and a half. Subtract a quarter and the weight becomes point seven five. Averaging the two replica means gives five and would move the weight to point five. Both exchanges have matching shapes. Only the first counts every valid token equally.",
+        "hold": 0.9
+      }
+    ]
+  },
+  {
+    "id": "precision",
+    "title": "Which precision run can advance?",
+    "sourceChapters": [
+      "c07"
+    ],
+    "beats": [
+      {
+        "id": "precision-b01",
+        "say": "Transformer Engine can use FP16 or BF16 as a baseline and lower-precision operands on supported hardware. Fewer bits can speed up a matrix multiply. The operand format is one choice. The recipe also specifies how to scale those values, what precision accumulates their products, and which kernels and hardware support them. Delayed FP8 scaling uses earlier peak magnitudes. Current scaling sees the peak in the tensor being converted.",
+        "hold": 0.8
+      },
+      {
+        "id": "precision-b02",
+        "say": "Try two supplied results on the same fixed batch. Both passed validation and checkpoint reload. The FP4 step took eight milliseconds with update error point zero four. The BF16 step took ten with error point zero zero two. The allowed error is one hundredth. Which step can you accept?",
+        "hold": 2.3
+      },
+      {
+        "id": "precision-b03",
+        "say": "The BF16 step meets all three conditions. FP4 crossed the error line even though its step finished sooner. Keep a separate ledger for master weights, gradients and moments. The width of a multiply operand tells you nothing by itself about how many bytes those buffers use.",
+        "hold": 0.8
+      },
+      {
+        "id": "precision-b04",
+        "say": "For a speed comparison, time completed device work after warmup. A CPU timer can stop while queued kernels are still running. Use GPU events or synchronize the streams. In this illustrative interval, forty units of useful arithmetic and ten of recomputation fit into a hundred units of peak capacity. Model FLOPs utilization is forty percent. Counting the repeated work would give fifty.",
+        "hold": 0.9
+      },
+      {
+        "id": "precision-b05",
+        "say": "The Megatron study in the article kept the global batch fixed at eleven hundred fifty-two sequences. Its reported model FLOPs utilization went from forty-seven percent on ninety-six H one hundred GPUs to forty-two percent on four thousand six hundred eight. The workload and the peak convention matter. That study measured scaling. Learning quality needs its own validation run.",
+        "hold": 0.8
+      },
+      {
+        "id": "precision-b06",
+        "say": "When step time grows, line up a completed device trace with the rank map. A wait at the end of each row-parallel projection suggests checking the tensor group's physical links. A gap at a pipeline boundary suggests checking stage balance and microbatches. Nsight Systems can show where those waits occur. Use Nsight Compute to inspect a selected kernel. Keep the same batch, precision and loss masks as you change one axis.",
+        "hold": 0.8
+      },
+      {
+        "id": "precision-b07",
+        "say": "Recognize the operation before looking up its implementation. Shoeybi and colleagues described the column and row split that keeps intermediate channels local. Narayanan and colleagues studied how to schedule model-parallel work across clusters. Korthikanti and colleagues paired sequence parallelism with selective recomputation to save activation memory. The article pins a revision of the NVIDIA-led source. Check bundled notices and the separate terms for any checkpoint, tokenizer and data you use.",
+        "hold": 0.9
+      },
+      {
+        "id": "precision-b08",
+        "say": "Choose a trainer for the work in front of you. If the model and training state already fit on one GPU, a small fine-tune can stay on one device. If the model needs several nodes, map the smallest mesh that relieves its memory limit. Record the software versions and placement. Time completed work and check peak memory. Before a long run, test a fixed batch and a checkpoint round trip. The weight we marked at the start gives us a way to do that.",
+        "hold": 1
+      }
+    ]
+  },
+  {
+    "id": "c08",
+    "title": "Can the new mesh take the same next step?",
+    "sourceChapters": [
+      "c08"
+    ],
+    "beats": [
+      {
+        "id": "c08-b01",
+        "say": "Four ranks wrote the row from the opening. Rebuild it by global column number. The middle writer for columns four and five is still busy. Keep its two slots open. The weight at six has arrived. What would happen if we packed the received values together?",
+        "hold": 2.1
+      },
+      {
+        "id": "c08-b02",
+        "say": "The weight at six would slide into column four. Keep the gap until its writer finishes. Once every required shard and the metadata are complete, this checkpoint can be published. Two workers now load four columns apiece. Which new rank and zero-based slot should take the gold weight?",
+        "hold": 2.6
+      },
+      {
+        "id": "c08-b03",
+        "say": "Rank one, local slot two. Its range starts at four, so subtract four from six. The other seven columns reload in the same order. The marked weight still holds one point five. A forward probe with two at column six and zeros elsewhere still gives three.",
+        "hold": 0.9
+      },
+      {
+        "id": "c08-b04",
+        "say": "Can this job resume training? Model tensors, optimizer shards and the data stream each need support for the requested topology. A data-reshardable optimizer format can support a data-degree change while a tensor-degree change needs a compatible parameter-shaped format. Check the saved rank metadata, iteration, scheduler, random state and data cursor.",
+        "hold": 0.8
+      },
+      {
+        "id": "c08-b05",
+        "say": "Take the next step on that gold weight. The target is two. For half the squared error, multiply prediction minus target by the input. Three minus two, times two, gives a gradient of two. Keep half the previous velocity, add the gradient, then subtract one tenth of the new velocity from the weight. One run kept its saved velocity of point eight. The other reset it to zero. Where will each land?",
+        "hold": 2.6
+      },
+      {
+        "id": "c08-b06",
+        "say": "The saved run reaches one point two six. It carried point four into the gradient. The reset run reaches one point three. Both predicted three before the update. A tolerance of one thousandth separates a correct restart from this four-hundredths error.",
+        "hold": 1
+      },
+      {
+        "id": "c08-b07",
+        "say": "Rewind both to one point five and restore the velocity. Keep the target at two. This time only the restart reads the previous example, whose input is one. Will the weight move left or right?",
+        "hold": 2.3
+      },
+      {
+        "id": "c08-b08",
+        "say": "Right, to one point five one. The stale example gives a gradient of minus one half. Add the carried point four, then subtract a negative step. Advance the cursor and replay the saved example. Both next weights reach one point two six. Compare the next update as well as the forward output. DeepSpeed takes this question further by dividing training state among data peers.",
+        "hold": 1.2
+      }
+    ]
+  }
+]

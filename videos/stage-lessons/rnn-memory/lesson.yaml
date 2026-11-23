@@ -1,0 +1,911 @@
+version: 1
+id: rnn-memory
+title: How a Sequence Model Carries a Memory
+source: preparation/rnns-lstms-grus-sequence-modeling/content.md
+sources:
+  - title: On the difficulty of training Recurrent Neural Networks
+    url: https://arxiv.org/abs/1211.5063
+  - title: Learning Phrase Representations using RNN Encoder–Decoder
+    url: https://arxiv.org/abs/1406.1078
+  - title: PyTorch GRU equations and implementation notes
+    url: https://docs.pytorch.org/docs/stable/generated/torch.nn.GRU.html
+  - title: PyTorch LSTM equations and state geometry
+    url: https://docs.pytorch.org/docs/2.15/generated/torch.nn.LSTM.html
+  - title: PyTorch packed valid-length sequences
+    url: https://docs.pytorch.org/docs/2.15/generated/torch.nn.utils.rnn.pack_padded_sequence.html
+  - title: Attention Is All You Need
+    url: https://arxiv.org/abs/1706.03762
+  - title: Mamba selective scan
+    url: https://arxiv.org/abs/2312.00752
+  - title: FlashAttention
+    url: https://arxiv.org/abs/2205.14135
+scenes:
+  - id: intro
+    title: "Who chased whom?"
+    visual: "The chase arrow starts beside the dog and extends toward the cat under the question. Swapping the nouns reverses the arrow. Both sentences stay beside a single word tally."
+    beats:
+      - say: "The dog chased the cat. Swap the two nouns and the chase goes the other way. Here are the word counts. Which chase do they describe?"
+        caption_starts: ["Swap the two nouns", "Here are the word counts", "Which chase"]
+        hold: 2.2
+        visual_cues:
+          - id: reversed-sentence
+            phrase: "Swap the two nouns"
+            targets: [reversed-sentence]
+          - id: count-question
+            phrase: "Here are the word counts"
+            targets: [word-counts]
+      - say: "They fit both sentences. Dog comes before the verb in the first sentence. Cat comes before it in the second. How can a model reading one word at a time remember who did the chasing?"
+        hold: 0.65
+        visual_cues:
+          - id: actor-position
+            phrase: "Dog comes before the verb"
+            targets: [dog-actor]
+          - id: actor-role-reverses
+            phrase: "Cat comes before it"
+            targets: [cat-actor]
+  - id: recurrence
+    title: "Follow the clue past the last noun"
+    visual: "The two sentences trace opposite paths around a shared zero line. Each word has its own input value and each point records an updated state."
+    beats:
+      - say: "Give the reader one number to carry. We'll supply an actor feature by hand. It sends plus eight tenths for a dog in the actor position, minus eight tenths for a cat in that position, and zero everywhere else. A trained network would learn useful features from examples."
+        hold: 0.55
+        visual_cues:
+          - id: actor-feature
+            phrase: "an actor feature by hand"
+            targets: [actor-inputs]
+      - say: "Start at zero. At each word, add its input to nine tenths of the previous state and apply tanh. Dog writes the first clue. At the verb, the input is zero, but there is still something to feed back. The next word takes another step toward zero. Now comes cat. Can the last noun turn the line negative?"
+        hold: 2
+        visual_cues:
+          - id: previous-memory
+            phrase: "At each word"
+            targets: [recurrence-rule]
+          - id: dog-input
+            phrase: "Dog writes the first clue"
+            targets: [dog-state]
+          - id: step-chased
+            phrase: "At the verb"
+            targets: [verb-state]
+          - id: step-the
+            phrase: "The next word"
+            targets: [article-state]
+          - id: actor-question
+            phrase: "Now comes cat"
+            targets: [sign-question]
+      - say: "Follow the last step. Cat is the object here, so its actor input is zero too. The line ends above zero. A readout that uses the sign can still identify the dog."
+        caption_starts: ["Cat is the object here", "The line ends above zero"]
+        hold: 0.65
+        visual_cues:
+          - id: step-cat
+            phrase: "Follow the last step"
+            targets: [last-dog-state]
+          - id: actor-readout
+            phrase: "The line ends above zero"
+            targets: [dog-answer]
+      - say: "Swap the animals and start at zero again. This time the actor writes a negative value. The same updates carry it through the rest of the sentence. It ends below zero, so the readout picks the cat. That running number is one coordinate of what a recurrent neural network calls its hidden state."
+        hold: 0.75
+        visual_cues:
+          - id: reverse-run
+            phrase: "Swap the animals"
+            targets: [reversed-sentence]
+          - id: cat-input
+            phrase: "the actor writes a negative value"
+            targets: [cat-input]
+          - id: carry-cat
+            phrase: "The same updates carry it"
+            targets: [cat-state-path]
+          - id: cat-readout
+            phrase: "It ends below zero"
+            targets: [cat-answer]
+  - id: shared
+    title: "One reader with two memory coordinates"
+    visual: "A cursor reads the cat sentence. The same two weight matrices update one signed gauge for the actor and one for the verb."
+    beats:
+      - say: "What if the reader also needs to know whether the chase has happened yet? Give it a second coordinate. The input matrix here sends each of our two supplied features straight to its own coordinate. The recurrent matrix feeds back nine tenths of each old value. Add the two contributions and apply tanh separately on each row. In a trained model the matrices can also mix coordinates."
+        hold: 0.65
+        visual_cues:
+          - id: input-matrix
+            phrase: "The input matrix"
+            targets: [input-matrix]
+          - id: recurrent-matrix
+            phrase: "The recurrent matrix"
+            targets: [recurrent-matrix]
+      - say: "Cat writes to the actor coordinate. Chased writes to the verb coordinate, while the actor clue keeps moving through its own update. On the last two words both inputs are zero. The state keeps changing, even though neither matrix has moved."
+        hold: 0.7
+        visual_cues:
+          - id: shared-actor
+            phrase: "Cat writes to the actor coordinate"
+            targets: [actor-gauge]
+          - id: shared-verb
+            phrase: "Chased writes to the verb coordinate"
+            targets: [verb-gauge]
+          - id: shared-suffix
+            phrase: "On the last two words"
+            targets: [shared-state]
+      - say: "Those two numbers together are the hidden vector. If we draw a copy of the cell under every word, we're unrolling the computation in time. All five copies share one set of weights. A longer sentence needs more updates, but the reader can keep streaming with the same state width."
+        hold: 0.75
+  - id: event-order
+    title: "When did the error arrive?"
+    visual: "Colored portions of the state show how often each event has been discounted in the two orders. The original order then feeds the scalar tanh cell."
+    beats:
+      - say: "An incident log has three entries. An error comes in with a signal of one. Reproduction adds four tenths, but first we keep just six tenths of the old state. When rollback arrives, the blue part has been discounted twice. The green part is fresh."
+        hold: 0.65
+        visual_cues:
+          - id: error-arrives
+            phrase: "An error comes in"
+            targets: [first-accumulator]
+          - id: reproduction-arrives
+            phrase: "Reproduction adds four tenths"
+            targets: [second-accumulator]
+          - id: rollback-arrives
+            phrase: "When rollback arrives"
+            targets: [third-accumulator]
+      - say: "Reverse the three entries. Look at the largest signal, the blue one. In which order will more of it reach the end? Which final state will be larger?"
+        hold: 2.1
+        visual_cues:
+          - id: reverse-order
+            phrase: "Reverse the three entries"
+            targets: [reversed-events]
+          - id: event-order-1
+            phrase: "In which order"
+            targets: [order-question]
+      - say: "Rollback goes first this time. Reproduction discounts it. The error goes in last, so the whole blue bar survives. Adding the raw signals gives two point three in either order. Discounting the older signals puts the second history ahead."
+        caption_starts: ["The error goes in last", "Adding the raw signals", "Discounting the older signals"]
+        hold: 0.65
+        visual_cues:
+          - id: reverse-0
+            phrase: "Rollback goes first"
+            targets: [reverse-first]
+          - id: reverse-1
+            phrase: "Reproduction discounts it"
+            targets: [reverse-second]
+          - id: reverse-2
+            phrase: "The error goes in last"
+            targets: [reverse-last]
+          - id: order-sum
+            phrase: "Adding the raw signals"
+            targets: [sum-comparison]
+      - say: "Go back to the original order and change the rule. This cell adds eight tenths of the input to half the previous state, then applies tanh. At the error, the previous state is zero. At reproduction, the cell combines the new signal with what survived the error. Rollback finishes the trace. Tanh keeps each state between minus one and one."
+        hold: 0.8
+        visual_cues:
+          - id: event-order-2
+            phrase: "Go back to the original order"
+            targets: [scalar-incident]
+          - id: scalar-first
+            phrase: "At the error"
+            targets: [scalar-first-state]
+          - id: scalar-second
+            phrase: "At reproduction"
+            targets: [scalar-second-state]
+          - id: scalar-third
+            phrase: "Rollback finishes the trace"
+            targets: [scalar-third-state]
+  - id: vector-build
+    title: "Which numbers enter the next state?"
+    visual: "One selected input column and two recurrent rows feed aligned terms for each of the two hidden coordinates."
+    beats:
+      - say: "Now each event has its own input position. A one in the error position selects the error column. The other two positions are zero. That one describes the event at this step. The hidden state has two coordinates, so each weight matrix has two rows. We'll use zero biases throughout."
+        hold: 0.6
+        visual_cues:
+          - id: vector-columns
+            phrase: "selects the error column"
+            targets: [selected-column]
+      - say: "Read the error column into the two input slots below. The old state is zero, so both recurrent contributions vanish. Apply tanh to each sum. Those two results become the memory for the next event."
+        hold: 0.7
+        visual_cues:
+          - id: vector-build-1
+            phrase: "Read the error column"
+            targets: [input-contribution]
+          - id: vector-first-memory
+            phrase: "The old state is zero"
+            targets: [recurrent-contribution]
+          - id: vector-first-reveal
+            phrase: "Apply tanh to each sum"
+            targets: [result-coordinates]
+      - say: "At reproduction, the one moves across. Only the selected input column changes. The recurrent weights are the same, but their inputs are the two numbers from the error. Follow the first recurrent row. Half of the first number plus a tenth of the second gives about point three four two. Add that to the new input contribution, then apply tanh. The second row does the same job with its own weights."
+        hold: 0.75
+        visual_cues:
+          - id: vector-second-start
+            phrase: "At reproduction"
+            targets: [selected-column]
+          - id: worked-product
+            phrase: "Follow the first recurrent row"
+            targets: [worked-dot-product]
+          - id: vector-second-memory
+            phrase: "gives about point three four two"
+            targets: [recurrent-contribution]
+          - id: vector-second-reveal
+            phrase: "then apply tanh"
+            targets: [result-coordinates]
+      - say: "At rollback the last column comes into play. Carry both coordinates from reproduction through the recurrent matrix. Apply tanh once more. Now we have two numbers to pass to the classifier."
+        hold: 0.75
+        visual_cues:
+          - id: vector-build-2
+            phrase: "At rollback"
+            targets: [selected-column]
+          - id: vector-third-memory
+            phrase: "Carry both coordinates"
+            targets: [recurrent-contribution]
+          - id: vector-third-reveal
+            phrase: "Apply tanh once more"
+            targets: [result-coordinates]
+  - id: action-head
+    title: "Which action does the incident support?"
+    visual: "Each action has a row with its dot product, score and probability. The viewer can rank the scores before softmax appears."
+    beats:
+      - say: "Take the rounded final state and give that same pair of numbers to each action. For ignore, the positive first term is mostly canceled by the negative second term. For rollback, the larger hidden coordinate gets a positive weight. Escalate gives both coordinates modest positive weights. Which action will get the highest probability?"
+        hold: 2.05
+        visual_cues:
+          - id: head-row-0
+            phrase: "For ignore"
+            targets: [ignore-score]
+          - id: head-row-1
+            phrase: "For rollback"
+            targets: [rollback-score]
+          - id: head-row-2
+            phrase: "Escalate gives both coordinates"
+            targets: [escalate-score]
+          - id: head-question
+            phrase: "Which action will get the highest probability"
+            targets: [action-question]
+      - say: "Rollback already leads. Softmax preserves this order. Subtract the largest score before exponentiating, then divide each exponential by their sum. Rollback gets about thirty-nine percent. The other two actions split the rest."
+        caption_starts: ["Subtract the largest score", "Rollback gets about thirty-nine percent"]
+        hold: 0.75
+        visual_cues:
+          - id: action-head-1
+            phrase: "Rollback already leads"
+            targets: [winning-score]
+          - id: head-softmax
+            phrase: "Subtract the largest score"
+            targets: [shifted-exponentials]
+          - id: head-probabilities
+            phrase: "Rollback gets about thirty-nine percent"
+            targets: [action-probabilities]
+      - say: "Count the cell parameters. Six input weights, four recurrent weights and two biases make twelve. The action head adds nine. Give the cell three hundred events and it still shares those twenty-one parameters. A longer sequence runs more updates and saves more states for full backpropagation."
+        caption_starts: ["The action head adds nine", "Give the cell three hundred events"]
+        hold: 0.7
+        visual_cues:
+          - id: action-head-2
+            phrase: "Count the cell parameters"
+            targets: [cell-count]
+          - id: head-parameter-count
+            phrase: "The action head adds nine"
+            targets: [head-count]
+          - id: head-reuse
+            phrase: "Give the cell three hundred events"
+            targets: [shared-count]
+  - id: compression-attention
+    title: "What can the decoder read?"
+    visual: "Sixteen occupied codes receive a seventeenth history. Eight supplied positions then show the distance along a recurrent chain and the keys available to a causal attention row."
+    beats:
+      - say: "Our head reads just two numbers, however long the incident. An encoder can give a decoder a fixed-width summary the same way. Cho and colleagues supplied it at each decoder step. Sutskever and colleagues used the encoder state to initialize the decoder. In both cases the earlier source positions reach the decoder through that fixed-size interface."
+        hold: 0.6
+      - say: "To see the limit, give each of two coordinates just two bits. Assign a different four-bit code to each of sixteen histories. Here comes history seventeen. Where could you put it so the decoder could tell all seventeen apart?"
+        hold: 2
+        visual_cues:
+          - id: quantize-context
+            phrase: "give each of two coordinates just two bits"
+            targets: [four-bit-context]
+          - id: codes-occupied
+            phrase: "Assign a different four-bit code"
+            targets: [occupied-codes]
+          - id: compression-question
+            phrase: "Here comes history seventeen"
+            targets: [extra-history]
+      - say: "Pick any occupied code. Once two histories share it, the decoder receives exactly the same input for both. Even if those histories call for different actions, the decoder sees the same four bits."
+        caption_starts: ["Once two histories share it"]
+        hold: 0.75
+        visual_cues:
+          - id: compression-collision
+            phrase: "Pick any occupied code"
+            targets: [code-collision]
+          - id: collision-result
+            phrase: "the decoder receives exactly the same input"
+            targets: [decoder-collision]
+      - say: "There's also a cost in time. Follow the first state along these eight positions. It takes seven handoffs to reach the last one. With four thousand ninety-six positions, the first state travels through four thousand ninety-five links. Input projections can run in parallel. Each recurrent update waits for the state from the previous one."
+        hold: 0.75
+        visual_cues:
+          - id: compression-attention-1
+            phrase: "a cost in time"
+            targets: [eight-positions]
+          - id: trace-relays
+            phrase: "Follow the first state"
+            targets: [recurrent-probe]
+          - id: serial-relay
+            phrase: "With four thousand ninety-six positions"
+            targets: [dependent-updates]
+      - say: "Give those eight positions to one causal attention layer. Each row is a query. Each column is a key. The mask permits the diagonal and everything to its left. Query eight can read the value at position one directly. The layer builds queries, keys and values across supplied positions, scales the dot products by the square root of key width, masks future positions, and uses softmax weights to mix the values. It still needs positional information to distinguish order."
+        hold: 0.75
+        visual_cues:
+          - id: attention-mask
+            phrase: "Each row is a query"
+            targets: [causal-matrix]
+          - id: attention-direct
+            phrase: "Query eight can read"
+            targets: [direct-pair]
+      - say: "Count the allowed pairs. One key for the first query, two for the second, up to eight for the last. That makes thirty-six interactions. At width d, recurrence takes work proportional to length times d squared. Full attention adds pairwise work quadratic in length. FlashAttention tiles this computation to save GPU memory. Generation still waits for each new token, and full recurrent backpropagation needs intermediate activations even with fixed-width inference state."
+        hold: 0.7
+        visual_cues:
+          - id: attention-pairs
+            phrase: "That makes thirty-six interactions"
+            targets: [pair-count]
+          - id: complexity-curves
+            phrase: "At width d"
+            targets: [computation-comparison]
+      - say: "Mamba uses a different kind of recurrence. Its input-dependent coefficients can be prepared before a parallel scan combines segments during training. For a fixed model, its recurrent state and per-token update cost stay constant as the sequence grows. A standard nonlinear GRU still needs the preceding hidden state at every step."
+        hold: 0.75
+        visual_cues:
+          - id: scan-recurrence
+            phrase: "a parallel scan combines segments"
+            targets: [selective-scan]
+  - id: actual-credit
+    title: "Trace a change backward through the incident"
+    visual: "The saved scalar states sit above their local derivative links. A unit sensitivity travels left before the three uses of the shared weight contribute to one parameter gradient."
+    beats:
+      - say: "Return to the scalar incident. Imagine nudging the initial state. How much of that nudge would reach the final state? The slope of tanh at a step is one minus its output squared. Multiply that by the recurrent weight, one half here. Each saved state supplies a different local slope."
+        hold: 0.75
+        visual_cues:
+          - id: credit-factors
+            phrase: "Each saved state supplies"
+            targets: [local-slopes]
+      - say: "Start on the right with a sensitivity of one. Cross the rollback link first. Only about a fifth gets back to reproduction. Cross the reproduction link and about seven hundredths remain. Cross the error link and less than two percent makes it all the way to the initial state. For a final loss, multiply this fraction by the loss derivative at the final state."
+        hold: 0.65
+        visual_cues:
+          - id: actual-credit-1
+            phrase: "a sensitivity of one"
+            targets: [unit-credit]
+          - id: credit-last
+            phrase: "Cross the rollback link"
+            targets: [last-link]
+          - id: credit-second
+            phrase: "Cross the reproduction link"
+            targets: [second-link]
+          - id: credit-all
+            phrase: "Cross the error link"
+            targets: [first-link]
+      - say: "With vectors, each link has a Jacobian. Scale each row of the recurrent matrix by one minus that coordinate's new state squared. To send a gradient column backward, apply the transposed Jacobian of the last step first. Each matrix can change the direction as well as the size of the gradient."
+        hold: 0.65
+      - say: "Now ask about the shared weight itself. All three steps used it. Take the contributions from each use, with the final scalar state as our objective. The first contributes zero because its incoming state was zero. Add the other two. Most of the weight's gradient comes from recent steps, even though the earliest state gets very little credit. If intermediate steps have losses of their own, their gradients also contribute."
+        hold: 0.75
+        visual_cues:
+          - id: actual-credit-2
+            phrase: "the shared weight itself"
+            targets: [shared-weight]
+          - id: credit-weight-sum
+            phrase: "the contributions from each use"
+            targets: [weight-terms]
+          - id: credit-weight-total
+            phrase: "Add the other two"
+            targets: [weight-gradient]
+  - id: gradients
+    title: "How much credit reaches the far end?"
+    visual: "Two constant-factor paths cross the same twelve links on a shared logarithmic scale."
+    beats:
+      - say: "Backpropagation through time follows the links in reverse. Imagine starting with one unit of credit and crossing identical links. If each link passes six tenths, four links leave you with six tenths multiplied by itself four times. Each horizontal grid line represents ten times the magnitude of the line below it."
+        hold: 0.65
+        visual_cues:
+          - id: gradient-chain-rule-b1-1
+            phrase: "four links leave you"
+            targets: [first-links]
+      - say: "Follow that path through twelve links. Only about two thousandths of the starting credit make it through. The forward state can look perfectly ordinary while the early event receives almost no training signal."
+        hold: 0.65
+        visual_cues:
+          - id: fading-gradient-b2-1
+            phrase: "through twelve links"
+            targets: [twelve-links]
+          - id: faded-value
+            phrase: "Only about two thousandths"
+            targets: [faded-signal]
+      - say: "Change just the local factor to one point four. After twelve links, the same starting credit has grown more than fiftyfold. Gradient norm clipping can cap a large gradient before the optimizer uses it. A tiny one needs a path that preserves more of the signal. Real cells use matrices whose effect depends on direction. How much can we tell from the size of one such matrix?"
+        hold: 0.75
+        visual_cues:
+          - id: growing-gradient
+            phrase: "local factor to one point four"
+            targets: [growing-links]
+          - id: grown-value
+            phrase: "has grown more than fiftyfold"
+            targets: [growing-signal]
+  - id: matrix-bound
+    title: "What happens to the arrow on the next step?"
+    visual: "A matrix moves the tip of an arrow while a graph tracks its length. A second curve shows a uniform contraction bound, then a float32 subtraction shows the effect of a tiny gradient."
+    beats:
+      - say: "Start with an arrow pointing straight up. Its length is one. Apply the matrix once. The tip moves right by one unit. Its height drops to a half. The arrow is now about one point one two units long. Will the next step make it longer or shorter?"
+        caption_starts: ["Apply the matrix once", "Its height drops", "The arrow is now", "Will the next step"]
+        hold: 2
+        visual_cues:
+          - id: matrix-first
+            phrase: "Apply the matrix once"
+            targets: [first-step-norm]
+      - say: "Apply the matrix again. The tip stays one unit to the right. Its height drops from a half to a quarter. The arrow gets shorter. Keep multiplying. After nine steps its length is about point zero three five. Look at the powers of one half. The diagonal entries halve each time. Even the upper-right entry tends to zero as the power of one half shrinks faster than n grows."
+        caption_starts: ["The tip stays", "Its height drops", "The arrow gets shorter", "After nine steps", "Even the upper-right entry"]
+        hold: 0.65
+        visual_cues:
+          - id: matrix-second
+            phrase: "Apply the matrix again"
+            targets: [second-step-norm]
+          - id: matrix-powers
+            phrase: "Keep multiplying"
+            targets: [repeated-powers]
+          - id: matrix-decay
+            phrase: "Look at the powers"
+            targets: [matrix-power-formula]
+      - say: "This matrix has a largest singular value of about one point two one. That's the longest it can make a unit arrow in one step. Our arrow turns, so its next stretch depends on its new direction. For a tanh cell, multiply the recurrent matrix's largest singular value by the steepest tanh slope, which is at most one. That product bounds the Jacobian norm, the maximum stretch of a tiny change in state. Suppose every link passes at most three quarters of the incoming length. Five links leave less than a quarter. Recent events cross fewer links when they contribute to a weight's gradient."
+        hold: 0.65
+        visual_cues:
+          - id: matrix-bound-1
+            phrase: "This matrix has a largest singular value"
+            targets: [maximum-stretch]
+          - id: jacobian-bound
+            phrase: "For a tanh cell"
+            targets: [one-step-bound]
+          - id: bound-product
+            phrase: "Suppose every link passes"
+            targets: [uniform-bound]
+      - say: "After fifty links at six tenths apiece, a unit gradient shrinks to about eight trillionths. Float thirty-two can store it. Set the weight and the learning rate to one. Subtract that tiny gradient. The weight rounds back to one. Measure the early gradients alongside the loss."
+        hold: 0.65
+        visual_cues:
+          - id: finite-decay
+            phrase: "After fifty links"
+            targets: [representable-gradient]
+          - id: rounded-update
+            phrase: "Subtract that tiny gradient"
+            targets: [weight-update]
+          - id: rounded-result
+            phrase: "The weight rounds back to one"
+            targets: [rounded-weight]
+  - id: truncation
+    title: "Where should training credit stop?"
+    visual: "Two runs with the same weights share a forward endpoint. A cut after reproduction removes two input derivatives, while norm clipping changes the length of a separate gradient vector."
+    beats:
+      - say: "Both runs reach the same state after the second event. Detach the state there in the lower run. Rollback gets the same input and the weights stay fixed. Will the lower run finish anywhere different?"
+        caption_starts: ["Detach the state there", "Will the lower run"]
+        hold: 2
+        visual_cues:
+          - id: detach-cut
+            phrase: "Detach the state there"
+            targets: [detach-boundary]
+      - say: "The final values match. Both runs carry the same number into rollback, about point five seven three. Detach passes that number across the boundary. In an LSTM, you carry and detach both the hidden state and the cell state."
+        hold: 0.65
+        visual_cues:
+          - id: detach-forward
+            phrase: "The final values match"
+            targets: [forward-endpoints]
+      - say: "Now trace the gradient backward from the final state. In the top row it reaches all three inputs. In the lower row it stops at the cut. Both earlier inputs get zero. The shared weight still gets a gradient from its use at rollback. Keeping just that last contribution gives about point two four. That's truncated backpropagation through time."
+        caption_starts: ["In the lower row", "Both earlier inputs get zero", "Keeping just that last contribution"]
+        hold: 0.7
+        visual_cues:
+          - id: truncation-1
+            phrase: "Now trace the gradient backward"
+            targets: [uncut-derivatives]
+          - id: detach-earlier
+            phrase: "In the lower row"
+            targets: [rollback-derivative]
+          - id: cut-early-gradients
+            phrase: "Both earlier inputs get zero"
+            targets: [cut-derivatives]
+          - id: detach-weight
+            phrase: "The shared weight still gets a gradient"
+            targets: [weight-comparison]
+      - say: "Clipping changes the gradient itself. This arrow has a length of more than seventy, and our limit is five. Scale both components by five divided by the original length. The tip slides straight back until the length is five. The direction stays the same. Plain gradient descent now steps in the opposite direction by five times the learning rate."
+        hold: 0.75
+        visual_cues:
+          - id: truncation-2
+            phrase: "Clipping changes the gradient itself"
+            targets: [clipping-vector]
+          - id: clip-rescale
+            phrase: "Scale both components"
+            targets: [rescaled-vector]
+  - id: lstm
+    title: "What should a routine check change?"
+    visual: "Two gauges share a scale. An error value passes through keep and write into storage, then the output gate changes what the hidden state exposes."
+    beats:
+      - say: "An error has left a value of point eight five five in memory. The next event is a routine check. In this long short-term memory cell, or LSTM, we'll choose the controls by hand. The forget gate sets how much of the old cell survives. Keep ninety-eight percent and the green bar gets a little shorter."
+        hold: 0.6
+        visual_cues:
+          - id: forget-gate-b1-1
+            phrase: "The forget gate"
+            targets: [retained-term]
+          - id: lstm-retained-term
+            phrase: "Keep ninety-eight percent"
+            targets: [stored-cell]
+      - say: "The input gate controls the write. Our candidate is one tenth and we're writing just two percent of it. Look at the magnified section of the bar. Add that tiny piece to the retained value. That's the new stored cell. To expose it, apply tanh and multiply by the output gate, here eight tenths. The classifier can see the blue value. The green value can travel on to the next cell."
+        hold: 0.75
+        visual_cues:
+          - id: input-gate-b1-2
+            phrase: "The input gate controls the write"
+            targets: [written-term]
+          - id: next-cell-b2-1
+            phrase: "Add that tiny piece"
+            targets: [stored-cell]
+          - id: lstm-expose
+            phrase: "To expose it"
+            targets: [hidden-state]
+      - say: "Keep the event and the first two gates exactly as they are. Suppose we turn the output gate down to one tenth. Which bar should move?"
+        hold: 2.1
+        visual_cues:
+          - id: gate-question
+            phrase: "Suppose we turn the output gate down"
+            targets: [output-gate-question]
+      - say: "Turn it down now. The blue bar shrinks to about seven hundredths. The green bar holds at point eight three nine nine because the output gate enters only the readout at this step. On the next step, the changed hidden state can affect the gates again."
+        caption_starts: ["The blue bar shrinks", "The green bar holds"]
+        hold: 0.8
+        visual_cues:
+          - id: exposed-hidden-state-b3-1
+            phrase: "Turn it down now"
+            targets: [hidden-state]
+  - id: learned-lstm
+    title: "Where do the gate settings come from?"
+    visual: "A reproduction event selects the active terms of two forget rows. The four gate and candidate vectors stay aligned by coordinate through the additive update and the hidden readout."
+    beats:
+      - say: "Take a separate two-coordinate cell. It already carries the two stored values at the bottom. A reproduction event arrives. Join its three input features to the two numbers in the old hidden state. Each gate gets the same five numbers. Two weight rows will produce two settings. These are hand-picked weights so we can follow their effects."
+        hold: 0.7
+        visual_cues:
+          - id: learned-lstm-0
+            phrase: "A reproduction event arrives"
+            targets: [joined-input]
+          - id: lstm-concat
+            phrase: "Two weight rows"
+            targets: [forget-weights]
+      - say: "Follow the nonzero terms in the forget rows. In the first row, the old hidden value contributes four tenths and reproduction contributes six tenths. The second row reads only reproduction, with a negative weight. Apply sigmoid to each sum. The first coordinate will keep about three quarters of its old cell, the second a little over a third. The biases for these rows are zero."
+        hold: 0.65
+        visual_cues:
+          - id: learned-lstm-1
+            phrase: "Follow the nonzero terms"
+            targets: [forget-products]
+          - id: lstm-forget-result
+            phrase: "Apply sigmoid to each sum"
+            targets: [forget-fractions]
+      - say: "For the write gate, the reproduction weights are minus one and zero. Sigmoid turns zero into one half. The candidate has its own weights, one half and zero on that same feature. Apply tanh this time. The second coordinate has permission to write, but it has nothing to write. All the other weights and biases for these two projections are zero."
+        hold: 0.65
+        visual_cues:
+          - id: lstm-input-gate
+            phrase: "For the write gate"
+            targets: [write-projection]
+          - id: lstm-input-result
+            phrase: "Sigmoid turns zero into one half"
+            targets: [write-fractions]
+          - id: lstm-candidate-gate
+            phrase: "The candidate has its own weights"
+            targets: [candidate-projection]
+          - id: lstm-candidate-result
+            phrase: "Apply tanh this time"
+            targets: [candidates]
+      - say: "The output gate reads biases alone here. The first bias is the natural log of four and the second is zero. After sigmoid, the first coordinate will expose four fifths of its filtered cell and the second will expose half. Which stored coordinate comes entirely from the old cell?"
+        hold: 2
+        visual_cues:
+          - id: lstm-output-gate
+            phrase: "The output gate reads biases"
+            targets: [output-projection]
+          - id: lstm-output-result
+            phrase: "After sigmoid"
+            targets: [output-fractions]
+      - say: "Work one coordinate at a time. Multiply the old cell by its forget fraction and the candidate by its write fraction. Read the products. The first gets both a retained part and a fresh write. In the second, half of a zero candidate still writes zero. Add the two terms on each row to get the stored cells. Only now do we apply tanh and scale by the output fractions to get the hidden state. The additive route through storage is the part we'll follow backward."
+        caption_starts: ["Read the products", "The first gets both", "In the second", "Add the two terms"]
+        hold: 0.8
+        visual_cues:
+          - id: lstm-products
+            phrase: "Multiply the old cell by its forget fraction"
+            targets: [gate-products]
+          - id: lstm-cell-join
+            phrase: "Read the products"
+            targets: [kept-and-written]
+          - id: lstm-cell-result
+            phrase: "Add the two terms"
+            targets: [stored-cells]
+          - id: lstm-hidden-result
+            phrase: "scale by the output fractions"
+            targets: [exposed-states]
+  - id: retention
+    title: "How much can the direct cell path carry?"
+    visual: "A shared probe compares the product of two constant forget-gate settings over the same number of steps."
+    beats:
+      - say: "Nudge the old cell while holding the old hidden state and current input fixed. The gates then stay fixed too. On the direct path, the forget gate is the slope from old cell to new cell. Across several steps those factors multiply. The original LSTM had a unit-weight connection called the constant error carousel. A modern forget gate lets the network learn how much passes through."
+        hold: 0.65
+        visual_cues:
+          - id: forget-gate-product-b1-1
+            phrase: "those factors multiply"
+            targets: [direct-path-curves]
+      - say: "Move the probe to thirty steps. Green keeps ninety-eight percent at every step, so more than half the starting signal survives. Pink halves the signal thirty times and falls below one billionth. A trained cell can choose a different fraction for each feature and each new input."
+        hold: 0.7
+        visual_cues:
+          - id: protective-retention-b2-1
+            phrase: "Move the probe to thirty steps"
+            targets: [retention-probe]
+          - id: halving-retention-b2-2
+            phrase: "halves the signal thirty times"
+            targets: [halving-path]
+      - say: "These curves follow one direct path. The full gradient also travels through the hidden state, the gates, the candidate and the output readout. To see whether training actually uses a long connection, measure the gradient back at the early event."
+        hold: 0.75
+        visual_cues:
+          - id: forget-gate-product-b3-1
+            phrase: "one direct path"
+            targets: [full-gradient]
+  - id: gru
+    title: "How much of the previous state survives?"
+    visual: "A read marker travels between the candidate and the old hidden coordinate as the single keep fraction changes."
+    beats:
+      - say: "A gated recurrent unit, or GRU, uses one hidden vector. Take one coordinate. Its previous value is positive and the new candidate is negative. Here the update gate means the fraction of the previous value to keep. The rest of the weight goes to the candidate. Keep ninety-five percent and the new value lands close to the old one."
+        hold: 0.7
+        visual_cues:
+          - id: gru-weights
+            phrase: "the fraction of the previous value to keep"
+            targets: [keep-equation]
+          - id: gru-start
+            phrase: "Keep ninety-five percent"
+            targets: [blend-position]
+      - say: "What happens when you keep half? Where should the marker land?"
+        hold: 1.85
+        visual_cues:
+          - id: gru-question
+            phrase: "What happens when you keep half"
+            targets: [mixture-question]
+      - say: "Move it to halfway. Equal weights take the average, which is still positive for these endpoints. Keep just five percent and the result crosses zero. Because the two nonnegative fractions add to one, the blend has to stay between the endpoints."
+        caption_starts: ["Keep just five percent"]
+        hold: 0.65
+        visual_cues:
+          - id: gru-midpoint
+            phrase: "Move it to halfway"
+            targets: [equal-blend]
+          - id: gru-replace
+            phrase: "Keep just five percent"
+            targets: [candidate-blend]
+      - say: "The reset gate acts earlier. It controls how much of the previous hidden state enters the candidate calculation. When moving trained weights, you need to know exactly where an implementation applies that multiplication. Let's try two placements on the same input."
+        hold: 0.65
+        visual_cues:
+          - id: gru-reset
+            phrase: "The reset gate acts earlier"
+            targets: [reset-function]
+  - id: learned-gru
+    title: "Would the same GRU weights work in both implementations?"
+    visual: "Two routes carry the same hidden state through reset and an identity matrix. Replace the identity with a mixing matrix and follow its second row. Each route shows the terms it actually adds, then carries its result through tanh and the blend."
+    beats:
+      - say: "Replay the same event in two GRUs with the same weights. Their keep gates match. Their reset gates match too. They pass one tenth of the first hidden coordinate and nine tenths of the second. The original GRU applies reset before the matrix multiply. PyTorch applies it afterward."
+        hold: 0.65
+        visual_cues:
+          - id: gru-keep-result
+            phrase: "Their keep gates match"
+            targets: [keep-projection]
+          - id: gru-reset-result
+            phrase: "Their reset gates match too"
+            targets: [reset-projection]
+      - say: "Start with the identity matrix. Set the candidate input contribution and both biases to zero. On the top route, reset scales the two numbers and the identity copies them. PyTorch copies them first, then applies reset. Both routes reach the same pair. What would happen if the matrix mixed the two coordinates?"
+        caption_starts: ["Both routes reach the same pair", "What would happen"]
+        hold: 2
+        visual_cues:
+          - id: gru-identity
+            phrase: "Start with the identity matrix"
+            targets: [identity-matrix]
+          - id: gru-first-operations
+            phrase: "On the top route"
+            targets: [identity-intermediate]
+          - id: gru-agreement
+            phrase: "PyTorch copies them first"
+            targets: [identity-comparison]
+      - say: "Follow the second row of the new matrix. It adds three times the first coordinate to four times the second. Reset first shrinks the positive input from point eight to point zero eight. Now the negative term wins. In PyTorch the matrix gets the full point eight. The sum is positive, and reset keeps nine tenths of it."
+        caption_starts: ["Reset first shrinks", "Now the negative term wins", "In PyTorch", "The sum is positive"]
+        hold: 0.7
+        visual_cues:
+          - id: learned-gru-1
+            phrase: "Follow the second row"
+            targets: [mixing-matrix]
+          - id: gru-mix
+            phrase: "Reset first shrinks"
+            targets: [mix-intermediate]
+          - id: gru-mix-result
+            phrase: "Now the negative term wins"
+            targets: [mix-result]
+          - id: gru-mix-before-reset
+            phrase: "In PyTorch the matrix gets"
+            targets: [mixed-sum]
+          - id: gru-scale-mixed
+            phrase: "reset keeps nine tenths"
+            targets: [scaled-sum]
+      - say: "Apply tanh to get both candidates. The second keep gate is one half, so each cell averages its candidate with the old value, minus point two. With reset first, the new hidden coordinate is negative. In PyTorch it is positive. With zero recurrent bias, a diagonal matrix or equal reset fractions make the two orders agree."
+        caption_starts: ["With reset first", "In PyTorch it is positive"]
+        hold: 0.7
+        visual_cues:
+          - id: gru-candidates
+            phrase: "Apply tanh to get both candidates"
+            targets: [candidate-comparison]
+          - id: gru-blend
+            phrase: "The second keep gate"
+            targets: [keep-rule]
+          - id: gru-original-blend
+            phrase: "With reset first"
+            targets: [hidden-comparison]
+          - id: gru-pytorch-blend
+            phrase: "In PyTorch it is positive"
+            targets: [pytorch-hidden]
+      - say: "Keep an eye on the first coordinate in PyTorch. Give it a candidate recurrent bias of one. On a reproduction event, reset scales that bias to one tenth. Try a rollback event with the same old state. Its reset weight is zero. Sigmoid of zero is one half, so the same bias now adds one half. A fixed input bias would add the same amount both times. When you move weights between GRUs, match the gate order, keep convention and placement of both biases."
+        caption_starts: ["On a reproduction event", "Try a rollback event", "Sigmoid of zero is one half"]
+        hold: 0.8
+        visual_cues:
+          - id: gru-bias
+            phrase: "Give it a candidate recurrent bias of one"
+            targets: [reset-bias]
+          - id: gru-bias-repro
+            phrase: "On a reproduction event"
+            targets: [reproduction-bias]
+          - id: gru-bias-rollback
+            phrase: "Try a rollback event"
+            targets: [rollback-reset]
+          - id: gru-bias-half
+            phrase: "Sigmoid of zero is one half"
+            targets: [rollback-bias]
+  - id: parameter-geometry
+    title: "How many parameters does this GRU have?"
+    visual: "Affine blocks, PyTorch bias tensors and batch-first state geometry are counted at fixed input and hidden widths."
+    beats:
+      - say: "With three input features and two hidden coordinates, one affine block learns two rows of five weights and two biases. That's twelve parameters. Count the blocks in each cell. The vanilla RNN uses one. A GRU uses three for keep, reset and candidate. A modern LSTM uses four. At twelve parameters per block, that's thirty-six for the GRU and forty-eight for the LSTM."
+        hold: 0.65
+        visual_cues:
+          - id: parameter-geometry-0
+            phrase: "three input features"
+            targets: [affine-block]
+          - id: parameter-one-bias
+            phrase: "A modern LSTM uses four"
+            targets: [block-count]
+      - say: "Look at the tensors stored by PyTorch for that GRU. Keep, reset and candidate take three blocks in total, each with two rows. The input weights have three columns and the recurrent weights have two. Count both bias vectors and the total is forty-two. Six of those parameters are the extra recurrent biases. In the candidate, their contribution depends on reset."
+        hold: 0.65
+        visual_cues:
+          - id: parameter-geometry-1
+            phrase: "tensors stored by PyTorch"
+            targets: [pytorch-blocks]
+          - id: parameter-pytorch
+            phrase: "three blocks in total"
+            targets: [pytorch-tensors]
+          - id: parameter-total
+            phrase: "the total is forty-two"
+            targets: [parameter-total]
+      - say: "Now follow four independent sequences of five events through one unidirectional layer. Each event has three features. The output keeps the batch and time axes and gives you two hidden coordinates at every step. The final hidden tensor has one entry per layer and direction, then one per sequence, then both hidden coordinates. Batch first leaves that final axis order alone. An LSTM returns a cell tensor too. With packed input, the output is packed and each final state comes from its own last valid event."
+        hold: 0.7
+        visual_cues:
+          - id: parameter-geometry-2
+            phrase: "four independent sequences"
+            targets: [batch-input]
+          - id: parameter-output
+            phrase: "The output keeps the batch and time axes"
+            targets: [batch-output]
+          - id: parameter-final
+            phrase: "The final hidden tensor"
+            targets: [final-hidden-shape]
+  - id: padding
+    title: "Did the actor survive the batch?"
+    visual: "A sixth input extends the original dog sentence. The masked and unmasked endpoints retain the same sign but have different values."
+    beats:
+      - say: "Go back to the sentence about the dog. After its fifth word the actor clue is still positive. A longer sentence in the same batch needs another slot. Give our sentence a filler row with zero input. If the cell runs again, it takes nine tenths of the old state and applies tanh once more. The pink branch is where that extra step takes it."
+        hold: 0.65
+        visual_cues:
+          - id: pad-slot
+            phrase: "a filler row"
+            targets: [padding-slot]
+          - id: unmasked-ending
+            phrase: "If the cell runs again"
+            targets: [unmasked-state]
+      - say: "Now skip the update at that slot. The green branch keeps the state at the real end of the sentence. Suppose a test only checked which animal the classifier chose. Would it catch the extra update?"
+        hold: 1.85
+        visual_cues:
+          - id: preserved-ending
+            phrase: "skip the update"
+            targets: [valid-state]
+          - id: actor-padding-question
+            phrase: "Suppose a test only checked"
+            targets: [readout-test]
+      - say: "Both signs still say dog. A test of the predicted label would pass either way. Compare the hidden state itself with the one from the unpadded sentence. That's a stronger test of the batch boundary."
+        hold: 0.75
+        visual_cues:
+          - id: opening-payoff
+            phrase: "Both signs still say dog"
+            targets: [unchanged-sign]
+  - id: batch-boundaries
+    title: "Does changing the filler change the readout?"
+    visual: "The two-event vector state is a reference for a zero filler and a changed filler. Packed endpoints can be compared with the reference before a separate incident resets its state."
+    beats:
+      - say: "Use the two-coordinate tanh cell that fed our action head. Batch two incident histories. A has a rollback after reproduction. B ends at reproduction. Run B on its own and you get the two numbers at the bottom. If we give B a third row of zeros and run every slot, the recurrent matrix still acts on those two numbers. Read the result. It has moved, even with zero input and zero bias."
+        hold: 0.75
+        visual_cues:
+          - id: padding-zero
+            phrase: "a third row of zeros"
+            targets: [zero-filler]
+          - id: zero-result
+            phrase: "Read the result"
+            targets: [unmasked-zero]
+      - say: "Keep both real events fixed and change only the filler. Now its input projection contributes as well. Compare with B alone. Both batched readouts differ from the reference and they differ from each other. A state at a fixed point could survive a zero update, so try more than one filler when you test."
+        hold: 0.75
+        visual_cues:
+          - id: padding-junk
+            phrase: "change only the filler"
+            targets: [changed-filler]
+          - id: junk-result
+            phrase: "Compare with B alone"
+            targets: [unmasked-changed]
+      - say: "Pack by valid length. B finishes at its second event. Compare both packed runs with B alone. They match the reference in both coordinates. In the third slot, A is the only active row. For PyTorch packing, give the positive lengths of the right-padded prefixes, at most the number of available slots. Put a lengths tensor on the CPU. Setting enforce sorted to false lets the library sort the batch internally."
+        hold: 0.75
+        visual_cues:
+          - id: packing-prefixes
+            phrase: "Pack by valid length"
+            targets: [packed-histories]
+          - id: padding-compare
+            phrase: "Compare both packed runs"
+            targets: [packed-comparison]
+          - id: active-rows
+            phrase: "In the third slot"
+            targets: [packed-active-rows]
+      - say: "Now start an independent incident with one event, point four, using the scalar cell from earlier. Run it once from zero and once from the previous incident's final state. The same input gives two different answers. Detaching the old state still passes its value forward. Reset each independent stream to its initial state, and if you reorder the batch, keep each continuing state with its own incident."
+        hold: 0.8
+        visual_cues:
+          - id: batch-boundaries-2
+            phrase: "Now start an independent incident"
+            targets: [new-incident]
+          - id: boundary-reset
+            phrase: "The same input gives two different answers"
+            targets: [reset-comparison]
+          - id: boundary-detach
+            phrase: "Detaching the old state"
+            targets: [detached-history]
+  - id: earned-transfer
+    title: "Which zero is an observation?"
+    visual: "Two scalar histories have identical tensor values and different valid lengths. The read markers and threshold decisions are tested by changing only the shorter row’s filler."
+    beats:
+      - say: "This classifier flags an incident if its final state is at least one half. Both runs start at zero. The first event is point two. The next is point eight. Look where that second update puts both states relative to the dashed threshold."
+        hold: 0.65
+        visual_cues:
+          - id: fresh-first
+            phrase: "The first event"
+            targets: [first-states]
+          - id: fresh-second
+            phrase: "The next is point eight"
+            targets: [second-states]
+      - say: "Now both rows contain a zero in slot three. A has three observations, including a genuine zero measurement. B has only two. Do you flag A, B, both, or neither?"
+        hold: 2.25
+        visual_cues:
+          - id: fresh-zero
+            phrase: "both rows contain a zero"
+            targets: [last-slot]
+          - id: fresh-question
+            phrase: "Do you flag"
+            targets: [decision-question]
+      - say: "Run the zero measurement in A. Half the previous state still enters tanh, which pulls the result below the line. Put a finger on each last observation. For B that's the second event, where the state is still above the line. Only B gets flagged."
+        caption_starts: ["For B that's the second event", "Only B gets flagged"]
+        hold: 0.75
+        visual_cues:
+          - id: fresh-real
+            phrase: "Run the zero measurement"
+            targets: [real-zero-state]
+          - id: fresh-read
+            phrase: "Put a finger on each last observation"
+            targets: [valid-ends]
+          - id: fresh-decision
+            phrase: "Only B gets flagged"
+            targets: [classifier-decisions]
+      - say: "Detach B after its second event. Now let the cell read the zero padding. That extra step clears the flag. Change just the filler to point nine. The same incident gets flagged. Which state should the classifier read in both batches?"
+        caption_starts: ["That extra step clears the flag", "The same incident gets flagged", "Which state should the classifier read"]
+        hold: 2
+        visual_cues:
+          - id: fresh-detach
+            phrase: "let the cell read the zero padding"
+            targets: [unmasked-zero]
+          - id: fresh-clear
+            phrase: "That extra step clears the flag"
+            targets: [unmasked-decision]
+          - id: fresh-substitute
+            phrase: "Change just the filler"
+            targets: [changed-filler]
+          - id: fresh-junk-result
+            phrase: "The same incident gets flagged"
+            targets: [unmasked-changed]
+      - say: "Read B at its valid length. B alone ends at point six one six. Change the filler in the batch. B still matches that number. A takes its real third step and drops below the line."
+        caption_starts: ["B alone ends", "Change the filler in the batch", "B still matches", "A takes its real third step"]
+        hold: 1.6
+        visual_cues:
+          - id: fresh-verify
+            phrase: "Read B at its valid length"
+            targets: [verified-readouts]
+          - id: fresh-alone
+            phrase: "B alone ends"
+            targets: [reference-readout]
+          - id: fresh-recheck
+            phrase: "Change the filler in the batch"
+            targets: [filler-invariance]
+          - id: fresh-match
+            phrase: "B still matches"
+            targets: [batched-readout]

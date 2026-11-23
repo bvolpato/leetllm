@@ -1,0 +1,269 @@
+[
+  {
+    "id": "c01",
+    "title": "Give the architecture a problem to solve",
+    "sourceChapters": [
+      "c01"
+    ],
+    "beats": [
+      {
+        "id": "c01-b01",
+        "say": "You have fifteen minutes to explain an engineering project. Put these two source onboarding records up first. In this fictional project, the clock starts when the partner hands over its runbooks and stops when support can search them. Slide the starts together. What could you say from the two endpoints?",
+        "hold": 2.6
+      },
+      {
+        "id": "c01-b02",
+        "say": "Twenty days on the first record, six on the second. The later source took fourteen fewer days to onboard. I wrote the connector, but I would need to compare source complexity, staffing and process changes before crediting it with those fourteen days.",
+        "hold": 1
+      },
+      {
+        "id": "c01-b03",
+        "say": "The lookup traces measure something else. The ninety-fifth percentile fell from seven hundred twenty to six hundred eighty milliseconds. At least ninety-five percent of the measured lookups finished within the reported time in each window. Both percentiles are below the eight hundred millisecond target. That forty millisecond difference is about five point six percent of the earlier time. To claim spare capacity, I'd need measurements under load.",
+        "hold": 1
+      }
+    ]
+  },
+  {
+    "id": "c02",
+    "title": "Write the argument before choosing the slides",
+    "sourceChapters": [
+      "c02"
+    ],
+    "beats": [
+      {
+        "id": "c02-b01",
+        "say": "Before drawing slides, write the argument in six sentences. The problem was repeated credential and pagination code in eight integrations. The constraint was tenant-safe lookup below our latency target. My decision was to put source-specific adapters behind one contract inside the gateway.",
+        "hold": 0.8
+      },
+      {
+        "id": "c02-b02",
+        "say": "A separate service would let us deploy adapters independently. It would add a remote call. For evidence, I can open the onboarding records, a lookup trace and my repeated-cursor test. For the limit, I can point to everything else that changed between those records. Can a listener challenge each sentence with an artifact?",
+        "hold": 1.6
+      },
+      {
+        "id": "c02-b03",
+        "say": "Match the project to the interview prompt. Ask who will listen, how much time is reserved for questions and which materials and tools you may use. Suppose a research prompt permits this public study. A baseline solved thirty of fifty cases. A quantizer solved twenty-eight of the same fifty. What talk can you give?",
+        "hold": 2.4
+      },
+      {
+        "id": "c02-b04",
+        "say": "Two fewer successes on fifty cases is a drop of four percentage points. I could give a research talk about the hypothesis, the matched comparison and the cases I'd inspect next. Deployment was never tested. For the engineering talk, I'd bring approved aggregates and a sanitized trace. Sharing a private artifact with a rehearsal tool takes permission, too.",
+        "hold": 1
+      }
+    ]
+  },
+  {
+    "id": "c03",
+    "title": "Trace one request and one failure",
+    "sourceChapters": [
+      "c03"
+    ],
+    "beats": [
+      {
+        "id": "c03-b01",
+        "say": "Follow one support lookup. Request forty-two enters the gateway. The gateway checks tenant B before the adapter can use its credentials. The connector contract runs inside that service. The tenant store belongs to the platform team. Keep the request ID visible as it crosses into their store.",
+        "hold": 0.8
+      },
+      {
+        "id": "c03-b02",
+        "say": "A page comes back with part of the collection. The source returns cursor C seventeen, a bookmark for the next page. My adapter remembers it and requests the next page with that bookmark. What should it tell support if the source sends back a bookmark it has seen?",
+        "hold": 2.2
+      },
+      {
+        "id": "c03-b03",
+        "say": "The second response returns C seventeen again. The adapter checks its entire history. Even a cursor from two pages ago is a repeat. Only a terminal cursor establishes completion. Stop here. Return an incomplete result and issue no further request.",
+        "hold": 1.2
+      },
+      {
+        "id": "c03-b04",
+        "say": "I wrote the connector contract and the regression test that feeds in those two responses. My assertion checks the status and the number of requests. Our trace records the source and request ID. Tenant credentials stay inside the authorized path. If my demo fails, I can show this sanitized capture.",
+        "hold": 0.9
+      }
+    ]
+  },
+  {
+    "id": "c04",
+    "title": "Defend a choice with a reversal signal",
+    "sourceChapters": [
+      "c04"
+    ],
+    "beats": [
+      {
+        "id": "c04-b01",
+        "say": "Keeping the adapter in process simplified the first migration and avoided a network hop. Here's a serial lookup. The source spends a thousand milliseconds making us wait for quota. The rest takes two hundred. Suppose we split the adapter into a service and add a twenty millisecond call. What happens to the wait?",
+        "hold": 2.4
+      },
+      {
+        "id": "c04-b02",
+        "say": "The split adds twenty milliseconds to the same twelve hundred. The total is twelve twenty. The source still sets the quota. I'd check that limit and try bounded concurrency or backoff before moving the adapter.",
+        "hold": 1
+      },
+      {
+        "id": "c04-b03",
+        "say": "There is a real cost to sharing a process. Adapter A occupies all four workers. B has work ready, but it has to wait. At the next scheduling window, suppose we limit A to three. Where can B run?",
+        "hold": 2
+      },
+      {
+        "id": "c04-b04",
+        "say": "B gets the fourth worker in the new window. If a per-adapter budget still can't protect its neighbor, I'd test isolation in a separate service. Then weigh the gain against network failures, compatibility work and operating another deployment. That's evidence that could reverse my first choice.",
+        "hold": 1
+      }
+    ]
+  },
+  {
+    "id": "c05",
+    "title": "Open the average and count what changed",
+    "sourceChapters": [
+      "c05"
+    ],
+    "beats": [
+      {
+        "id": "c05-b01",
+        "say": "The audience sees two scores. On two hundred frozen queries, the baseline found the labeled runbook in its first five results one hundred forty-eight times. The candidate found it one hundred sixty-two times. Seventy-four to eighty-one percent. Did any queries get worse?",
+        "hold": 2.5
+      },
+      {
+        "id": "c05-b02",
+        "say": "Join the results by query ID. Each thread is one query. One hundred forty kept their hit and thirty missed on both paths. The twenty-two rising threads gained a hit. Eight fall from hit to miss. Subtract those eight from twenty-two. Fourteen extra hits divided by two hundred gives seven percentage points. Relative to the original hundred forty-eight hits, that's about nine and a half percent.",
+        "hold": 1
+      },
+      {
+        "say": "Pull out the eight falling threads. Choose query one forty-one. Start at its old hit. Follow that same ID across to its new miss. The two endpoints tell you which result lists to open.",
+        "hold": 1,
+        "id": "c05-b03"
+      },
+      {
+        "id": "c05-b04",
+        "say": "Query one forty-one asks for the DNS runbook. The baseline placed it fifth. The first four results stay put. Suppose the last two guides trade places. Which guide will take the fifth slot?",
+        "hold": 2.6
+      },
+      {
+        "id": "c05-b05",
+        "say": "Watch the last two guides switch places. Health makes the cutoff. DNS finishes sixth, so query one forty-one lost its hit. I'd open the other seven losses and check how well the held-out queries cover each tenant. We had one relevant guide per query. If there were three relevant guides and we found just one, we'd count a hit, but recall would be one third. Repeating the same queries measures run variation. It adds no new tenants.",
+        "hold": 1
+      },
+      {
+        "id": "c05-b06",
+        "say": "Even the join deserves a test. Here the candidate lists B before A. Match the IDs and both outcomes agree. That's zero change. If a report replaces true with the number one, reject it. The inputs need literal Booleans and identical, nonempty ID sets. A missing ID with a different replacement also makes an invalid pair.",
+        "hold": 1
+      }
+    ]
+  },
+  {
+    "id": "c06",
+    "title": "Spend the fifteen minutes on the question",
+    "sourceChapters": [
+      "c06"
+    ],
+    "beats": [
+      {
+        "id": "c06-b01",
+        "say": "Rehearse against the schedule you were given. For a fifteen-minute slot, try two minutes for context, four for the request path, three for a decision, three for evidence, one for limits and two for questions. If the interviewer sets aside a separate question period, adjust the plan.",
+        "hold": 1
+      },
+      {
+        "id": "c06-b02",
+        "say": "Now rehearse an interruption. You've used six minutes on context and the path. A question takes three more. Answer it first. Look at what's left on the clock. Can you fit the planned decision, evidence and limit?",
+        "hold": 2.4
+      },
+      {
+        "id": "c06-b03",
+        "say": "Six minutes remain. The three planned blocks need seven. Trim a minute from the decision and keep your contribution in it. Two for that choice, three for evidence and one for limits. You finish at minute fifteen.",
+        "hold": 1.4
+      },
+      {
+        "id": "c06-b04",
+        "say": "Practice a ninety-second version aloud. A partner waited twenty days. I put the adapters behind one contract and wrote the repeated-cursor test. The later source took six days. Source difficulty could explain some of the difference. Ask a listener which part you owned and what evidence would change their mind.",
+        "hold": 1.3
+      }
+    ]
+  },
+  {
+    "id": "c07",
+    "title": "Keep operational metrics inside their scope",
+    "sourceChapters": [
+      "c07"
+    ],
+    "beats": [
+      {
+        "id": "c07-b01",
+        "say": "Counts need exposure. In the earlier quarter, five incidents occurred over five million requests. In the later quarter, one occurred over half a million. The count fell eighty percent. If each window had a million requests at its observed rate, which rate would be higher?",
+        "hold": 2.1
+      },
+      {
+        "id": "c07-b02",
+        "say": "The earlier rate is one per million. The later rate is two per million. Check the windows, incident definition and severity. Two small counts leave uncertainty about the underlying rate and the cause of the change.",
+        "hold": 1
+      },
+      {
+        "id": "c07-b03",
+        "say": "Here's a separate service check. Among successful lookups the ninety-fifth percentile is six hundred eighty milliseconds. Twenty of two hundred attempts time out. The rest succeed. The policy requires successful p ninety-five below eight hundred milliseconds and success on at least ninety-nine percent of attempts. Should we promote?",
+        "hold": 2.1
+      },
+      {
+        "id": "c07-b04",
+        "say": "One hundred eighty successes out of two hundred attempts is ninety percent. The latency passes. Availability fails. Hold promotion and report the timeouts with their durations. Excluding those attempts would change the question the gate answers.",
+        "hold": 1
+      },
+      {
+        "id": "c07-b05",
+        "say": "How would you rehearse the migration? First replay a sanitized, labeled fixture on both paths. Check permissions, pagination, errors and retrieval. Then shadow a permitted, bounded sample. In this example the candidate copies a thousand reads. The old path serves every user response. Three audit entries are written. If you stop the shadow now, what remains?",
+        "hold": 2.2
+      },
+      {
+        "id": "c07-b06",
+        "say": "Three audit entries remain. The candidate has served zero responses. Stopping the copy affects future executions. Completed effects need their own recovery plan. Shadow traffic also uses quota and supplies no relevance labels by itself.",
+        "hold": 1
+      },
+      {
+        "id": "c07-b07",
+        "say": "A canary is a separate step. Once prechecks pass, route a small real share to the candidate for a defined window. Test the route back before exposure. If a declared gate fails, switch the next request back to the old path. Earlier writes still need their own recovery.",
+        "hold": 1
+      }
+    ]
+  },
+  {
+    "id": "c08",
+    "title": "Show what evidence would support the next claim",
+    "sourceChapters": [
+      "c08"
+    ],
+    "beats": [
+      {
+        "id": "c08-b01",
+        "say": "Return to query one forty-one. We observed DNS fall from fifth to sixth. The original comparison leaves open whether the index build changed along with the connector. Could the new path explain the loss? What would you keep fixed to find out?",
+        "hold": 2.5
+      },
+      {
+        "id": "c08-b02",
+        "say": "Fork the same query onto two connector paths. Fix the text, DNS label, corpus revision and tenant permissions. Use the same index build, retrieval code, model and settings on both sides. Change only the path. Record both ranked lists, recompute the paired counts across the set and inspect every loss. The replay result is pending. If only the new path loses DNS with the same index, I would inspect how its connector fetched that runbook.",
+        "hold": 1.2
+      },
+      {
+        "id": "c08-b03",
+        "say": "An interviewer asks whether the store needs an index. This trace shows three hundred twenty milliseconds inside a store call. I owned the adapter tests. The platform team owns the store. I'd ask them to compare the query plans for a slow request and a fast one on similar data. Until then, a missing index is a hypothesis. For model-selected calls, keep tenant authorization in the service. Four passing evaluation cases cannot enforce that check at runtime.",
+        "hold": 1
+      },
+      {
+        "id": "c08-b04",
+        "say": "Try a fresh fixture. Forty paired queries give eighteen shared hits, three losses, six gains and thirteen shared misses. Suppose a repair restores two of the lost hits and changes nothing else. Predict the new candidate count and the gain over the baseline.",
+        "hold": 3
+      },
+      {
+        "id": "c08-b05",
+        "say": "Move those two queries into shared hits. Twenty now hit on both paths and one still regresses. The baseline still has twenty-one hits. The candidate has twenty-six. Five extra hits over forty queries gives twelve and a half percentage points.",
+        "hold": 1
+      },
+      {
+        "id": "c08-b06",
+        "say": "Would you recommend moving more traffic? The repair has a separate service check. Successful-request p ninety-five is seven hundred eighty milliseconds. One of forty attempts times out. The rest succeed. Apply the same two gates.",
+        "hold": 2.5
+      },
+      {
+        "id": "c08-b07",
+        "say": "Thirty-nine of forty succeeded. That's ninety-seven and a half percent, below ninety-nine. Hold promotion. After my repair, two queries regained a top-five hit on the retrieval fixture. I'd inspect the remaining regression and trace the timeout before recommending wider use.",
+        "hold": 1.8
+      }
+    ]
+  }
+]

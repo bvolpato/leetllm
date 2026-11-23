@@ -1,0 +1,356 @@
+version: 1
+lesson: moe
+promise: Reconstruct sparse expert routing and its gradients, audit balancing and capacity policies, preserve
+  the weighted function through dispatch and combine, and evaluate the complete memory and serving cost of an
+  MoE.
+framing: []
+objectives:
+  - id: capacity-question
+    can: Trace two different tokens through the same eight stored experts and count the expert calls for each token
+    scenes:
+      - capacity-question
+  - id: shared-and-routed
+    can: Open up the feed-forward layer
+    scenes:
+      - shared-and-routed
+  - id: router-scores
+    can: Let the hidden state choose a path
+    scenes:
+      - router-scores
+  - id: top-two
+    can: Keep two paths and rescale their weights
+    scenes:
+      - top-two
+  - id: weighted-output
+    can: Build the output as a weighted vector sum
+    scenes:
+      - weighted-output
+  - id: routing-rules
+    can: Identify which expert-selection and output-weighting contract a model uses
+    scenes:
+      - routing-rules
+  - id: router-contract
+    can: Make the routing rule executable
+    scenes:
+      - router-contract
+  - id: gate-gradient
+    can: Derive the local task-gradient difference between retained and normalized top-one gates
+    scenes:
+      - gate-gradient
+  - id: batch-dispatch
+    can: Group the work, preserve the token
+    scenes:
+      - batch-dispatch
+  - id: pack-permutation
+    can: Find a token's two gated assignments after five tickets have been sorted into three expert groups
+    scenes:
+      - pack-permutation
+  - id: scatter-combine
+    can: Add two signed returns at the original token address and identify the result of overwriting it or omitting its gates
+    scenes:
+      - scatter-combine
+  - id: expert-choice
+    can: Select the two highest scores in each expert row and count the selected returns in each token column
+    scenes:
+      - expert-choice
+  - id: prefix-consistency
+    can: Let a future token challenge the same prefix
+    scenes:
+      - prefix-consistency
+  - id: training-skew
+    can: Trace how assignment skew can feed back through expert and router updates across batches
+    scenes:
+      - training-skew
+  - id: balance-pressure
+    can: Give the router a balancing signal
+    scenes:
+      - balance-pressure
+  - id: balance-value
+    can: Compute the balancing pressure
+    scenes:
+      - balance-value
+  - id: balance-counterexample
+    can: Calculate a feasible balance score below one and identify its unused expert
+    scenes:
+      - balance-counterexample
+  - id: z-partition
+    can: Change logit scale without changing routing
+    scenes:
+      - z-partition
+  - id: capacity-limit
+    can: Locate a token's surviving return, compute its routed sum with the retained gate, and count overflow assignments across the batch
+    scenes:
+      - capacity-limit
+  - id: capacity-arithmetic
+    can: Count assignments before choosing an overflow policy
+    scenes:
+      - capacity-arithmetic
+  - id: dropless-work
+    can: Compare the same token's returned vector under dropping, dropless execution and rerouting to a different expert
+    scenes:
+      - dropless-work
+  - id: parameter-memory
+    can: Count the stored pool and the active path
+    scenes:
+      - parameter-memory
+  - id: residency-budget
+    can: Place the complete pool in the memory budget
+    scenes:
+      - residency-budget
+  - id: expert-arithmetic
+    can: Count the matrices inside each expert
+    scenes:
+      - expert-arithmetic
+  - id: family-architecture
+    can: Read the dense and shared paths too
+    scenes:
+      - family-architecture
+  - id: selection-bias
+    can: Choose with bias, weight with original affinity
+    scenes:
+      - selection-bias
+  - id: checkpoint-contract
+    can: Inspect the checkpoint routing contract
+    scenes:
+      - checkpoint-contract
+  - id: hybrid-mixer
+    can: Keep token mixing and expert selection independent
+    scenes:
+      - hybrid-mixer
+  - id: expert-parallelism
+    can: Follow a token across the interconnect
+    scenes:
+      - expert-parallelism
+  - id: wire-protocol
+    can: Hold the routes fixed and change the messages
+    scenes:
+      - wire-protocol
+  - id: parallel-layout
+    can: Separate expert identity from matrix placement
+    scenes:
+      - parallel-layout
+  - id: prefetch-dependency
+    can: Distinguish moving weights from moving tokens
+    scenes:
+      - prefetch-dependency
+  - id: evaluate-path
+    can: Compare four dependent decode steps with four prefill positions and explain why the same expert row count can produce different call shapes
+    scenes:
+      - evaluate-path
+  - id: serving-gate
+    can: Apply simultaneous quality, throughput and p95 requirements and revise a decision when only the latency budget changes
+    scenes:
+      - serving-gate
+  - id: diagnose-routing
+    can: Find the failing mechanism before changing the router
+    scenes:
+      - diagnose-routing
+  - id: fresh-route
+    can: Use queue loads to predict which route survives and compute how a larger buffer changes the same token's output
+    scenes:
+      - fresh-route
+sections:
+  - heading: From one FFN to many experts
+    status: taught
+    scenes:
+      - shared-and-routed
+      - expert-arithmetic
+  - heading: A concrete routing walkthrough
+    status: taught
+    scenes:
+      - router-scores
+      - top-two
+      - weighted-output
+      - router-contract
+  - heading: Setup
+    status: taught
+    scenes:
+      - router-contract
+  - heading: Write the selected-expert sum
+    status: taught
+    scenes:
+      - weighted-output
+      - scatter-combine
+      - fresh-route
+  - heading: Why sparse activation can pay off
+    status: taught
+    scenes:
+      - capacity-question
+      - parameter-memory
+      - expert-arithmetic
+  - heading: A top-k router you can run
+    status: taught
+    scenes:
+      - router-contract
+      - gate-gradient
+      - routing-rules
+  - heading: "Alternative: expert choice routing"
+    status: taught
+    scenes:
+      - expert-choice
+      - prefix-consistency
+  - heading: Why routers collapse without a balancing policy
+    status: taught
+    scenes:
+      - training-skew
+      - balance-counterexample
+  - heading: An auxiliary load-balancing loss
+    status: taught
+    scenes:
+      - balance-pressure
+      - balance-value
+      - balance-counterexample
+  - heading: Capacity factor and overflow policy
+    status: taught
+    scenes:
+      - capacity-limit
+      - capacity-arithmetic
+      - dropless-work
+      - fresh-route
+  - heading: How modern architectures scale the idea
+    status: taught
+    scenes:
+      - family-architecture
+      - selection-bias
+      - checkpoint-contract
+      - hybrid-mixer
+  - heading: Mixtral 8x7B[^jiang2024]
+    status: taught
+    scenes:
+      - family-architecture
+      - expert-arithmetic
+  - heading: DeepSeek-V2[^deepseekv2_2024]
+    status: taught
+    scenes:
+      - family-architecture
+  - heading: DeepSeek-V3[^deepseekv3_2024]
+    status: taught
+    scenes:
+      - family-architecture
+      - selection-bias
+  - heading: GLM-5.3 and DeepSeek V4 Flash 0731
+    status: taught
+    scenes:
+      - checkpoint-contract
+  - heading: Qwen3.6 sparse MoE checkpoint[^qwen3635b2026]
+    status: taught
+    scenes:
+      - hybrid-mixer
+  - heading: Serving an MoE on real hardware
+    status: taught
+    scenes:
+      - expert-parallelism
+      - wire-protocol
+      - parallel-layout
+      - prefetch-dependency
+      - serving-gate
+  - heading: Communication overhead
+    status: taught
+    scenes:
+      - expert-parallelism
+      - wire-protocol
+  - heading: Memory requirements
+    status: taught
+    scenes:
+      - capacity-question
+      - parameter-memory
+      - residency-budget
+  - heading: Training instability
+    status: taught
+    scenes:
+      - training-skew
+      - z-partition
+  - heading: Expert parallelism layout
+    status: taught
+    scenes:
+      - parallel-layout
+  - heading: Expert prefetching
+    status: taught
+    scenes:
+      - prefetch-dependency
+  - heading: Batch routing efficiency
+    status: taught
+    scenes:
+      - batch-dispatch
+      - pack-permutation
+      - scatter-combine
+      - evaluate-path
+  - heading: When MoE is worth the complexity
+    status: taught
+    scenes:
+      - serving-gate
+  - heading: Diagnose the failure before changing the router
+    status: taught
+    scenes:
+      - diagnose-routing
+  - heading: The 7B-active model doesn't fit a 14 GB budget
+    status: taught
+    scenes:
+      - residency-budget
+      - diagnose-routing
+  - heading: Uniform counts, worse answers
+    status: taught
+    scenes:
+      - balance-counterexample
+      - diagnose-routing
+  - heading: Faster throughput, slower interactive answers
+    status: taught
+    scenes:
+      - evaluate-path
+      - serving-gate
+      - diagnose-routing
+quiz:
+  - n: 1
+    status: taught
+    scenes:
+      - router-contract
+      - weighted-output
+  - n: 2
+    status: taught
+    scenes:
+      - gate-gradient
+  - n: 3
+    status: taught
+    scenes:
+      - expert-choice
+  - n: 4
+    status: taught
+    scenes:
+      - prefix-consistency
+  - n: 5
+    status: taught
+    scenes:
+      - capacity-limit
+      - capacity-arithmetic
+      - fresh-route
+  - n: 6
+    status: taught
+    scenes:
+      - residency-budget
+  - n: 7
+    status: taught
+    scenes:
+      - wire-protocol
+  - n: 8
+    status: taught
+    scenes:
+      - pack-permutation
+      - scatter-combine
+  - n: 9
+    status: taught
+    scenes:
+      - z-partition
+  - n: 10
+    status: taught
+    scenes:
+      - serving-gate
+removed: []
+reviews:
+  closed_book:
+    script: cbfd5f0aa7d9ca8e
+    taught: 10
+    partial: 0
+    absent: 0
+  fact_check:
+    script: cbfd5f0aa7d9ca8e
+    open_findings: 0

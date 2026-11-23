@@ -1,0 +1,517 @@
+version: 1
+id: kv-cache
+title: "The Memory Behind Every Generated Token"
+source: "fundamentals/kv-cache-paged-attention-llm-serving/content.md"
+voice: "en-US-AndrewNeural"
+sources:
+  - title: "Efficient Memory Management for Large Language Model Serving with PagedAttention"
+    url: "https://arxiv.org/abs/2309.06180"
+  - title: "vLLM Paged Attention design"
+    url: "https://docs.vllm.ai/en/stable/design/paged_attention/"
+  - title: "vLLM Automatic Prefix Caching design"
+    url: "https://docs.vllm.ai/en/latest/design/prefix_caching/"
+scenes:
+  - id: intro
+    title: "The memory behind every token"
+    visual: "A long prompt unfolds as persistent colored tokens. The everyday sentence The bird sings emerges one word at a time as a simplified output sequence. Ghost replays of the prompt accumulate beneath each output until reusable memory replaces them."
+    beats:
+      - say: "You give a language model a long document and ask one question. The answer arrives a token at a time. Each new token can depend on a sentence near the beginning. How does the model keep that history available without reading the entire document through every layer again?"
+        visual_cues:
+          - id: token-answer
+            phrase: answer arrives a token at a time
+            targets:
+              - intro-readout
+            color: blue
+          - id: history-replay
+            phrase: without reading the entire document through every layer again
+            targets:
+              - intro-replay
+            color: yellow
+        hold: 0.7
+      - say: "Its working memory is called the key-value cache. We will build that memory, watch it grow, and discover why serving many conversations becomes a problem of arranging blocks. A small mapping table will let the same GPU memory support a much more flexible collection of requests."
+        visual_cues:
+          - id: attention-memory
+            phrase: working memory is called the key-value cache
+            targets:
+              - intro-cache-object
+            color: cyan
+          - id: memory-map
+            phrase: small mapping table
+            targets:
+              - intro-cache-object
+            color: yellow
+        hold: 0.55
+  - id: causal
+    title: "A question reaches into its history"
+    visual: "Four token vectors fan into Q, K, and V. A newest-token query scans the visible keys; normalized weights grow and gather the corresponding values into an output. A triangular causal mask reveals allowed dependencies."
+    beats:
+      - say: "Inside an attention layer, each token produces a query, a key, and a value. Think of the query as a question, the keys as addresses to compare with that question, and the values as information to gather. These are learned vectors, represented here by small colored strips."
+        visual_cues:
+          - id: query-vector
+            phrase: query as a question
+            targets:
+              - causal-query
+            color: yellow
+          - id: cached-keys
+            phrase: keys as addresses
+            targets:
+              - causal-readout-2
+            color: cyan
+          - id: cached-values
+            phrase: values as information to gather
+            targets:
+              - causal-readout-3
+            color: blue
+        hold: 0.5
+      - say: "The current query is compared with each available key. Softmax turns those scores into weights, and those weights blend the corresponding values. In a causal model, the current position can use earlier positions and itself. Future tokens are still waiting to be generated."
+        visual_cues:
+          - id: compare-history
+            phrase: current query is compared with each available key
+            targets:
+              - causal-readout-2
+              - causal-query
+            color: yellow
+          - id: weighted-gather
+            phrase: weights blend the corresponding values
+            targets:
+              - causal-readout-3
+              - causal-out
+            color: green
+        hold: 0.65
+  - id: reuse
+    title: "Keep what the next step can reuse"
+    visual: "A triangular replay diagram repeatedly builds old K/V entries. The same entries settle into stable cache columns; each subsequent step appends exactly one pair while a moving query reads all valid history. Projection counts compare triangular growth with linear writes."
+    beats:
+      - say: "Imagine generating from scratch at every step. We repeatedly compute keys and values for positions we have already processed. Because causal attention prevents future tokens from changing those earlier states, those keys and values remain useful. We can save them after their first computation."
+        visual_cues:
+          - id: repeated-prefix
+            phrase: repeatedly compute keys and values
+            targets:
+              - projection-ledger
+            color: blue
+          - id: save-pairs
+            phrase: save them after their first computation
+            targets:
+              - reuse-k
+              - reuse-v
+            color: cyan
+        hold: 0.55
+      - say: "Now the newest token supplies a fresh query, key, and value. Its key and value join the cache. Its query reads the saved history. Across these six positions, the projection ledger shrinks from a growing triangle to one new entry per position. The attention reads still grow with the history."
+        visual_cues:
+          - id: append-new-state
+            phrase: Its key and value join the cache
+            targets:
+              - reuse-k
+              - reuse-v
+            color: cyan
+          - id: projection-ledger
+            phrase: ledger shrinks from a growing triangle to one new entry per position
+            targets:
+              - reuse-1-2-3-4-5-6-21
+              - reuse-1-1-1-1-1-1-6
+            color: yellow
+        hold: 0.7
+  - id: phases
+    title: "Prefill builds. Decode extends."
+    visual: "Prompt positions construct a triangular dependency field together during prefill. Then each sampled output becomes the next input, appends one K/V column, and unlocks the next sample, with a clear one-step processing offset."
+    beats:
+      - say: "The initial prompt is known in advance. Prefill processes its positions together, using a causal mask, and populates the cache. The final prompt position produces the distribution from which the first answer token is chosen. The drawing shows one attention layer; the model repeats this through its stack."
+        visual_cues:
+          - id: prompt-prefill
+            phrase: Prefill processes its positions together
+            targets:
+              - phases-known-prompt-positions
+            color: blue
+          - id: first-answer
+            phrase: first answer token is chosen
+            targets:
+              - phases-a0
+            color: yellow
+        hold: 0.55
+      - say: "To produce the following answer token, we process that first answer token and append its state. Each generated choice becomes the next step's input. This dependency makes ordinary decoding sequential along one response, even though a GPU performs substantial parallel work inside each step and across requests."
+        visual_cues:
+          - id: decode-input
+            phrase: process that first answer token and append its state
+            targets:
+              - phases-readout
+            color: cyan
+          - id: next-choice
+            phrase: Each generated choice becomes the next step
+            targets:
+              - phases-readout-2
+            color: yellow
+        hold: 0.65
+  - id: bytes
+    title: "One token carries many vectors"
+    visual: "One token's K and V strips expand into KV heads and layers. The exact cache-payload equation assembles. A fixed example grows from 128 KiB per token to 512 MiB per 4096-token request, then batch copies accumulate. Query heads group around fewer KV heads."
+    beats:
+      - say: "Each token stores both a key and a value, for every key-value head, at every layer. Multiply those dimensions by the bytes per stored number. Then multiply by the number of cached positions and requests. The formula counts tensor payload; runtime buffers and mapping metadata need additional space."
+        visual_cues:
+          - id: payload-dimensions
+            phrase: Multiply those dimensions by the bytes per stored number
+            targets:
+              - bytes-readout
+            color: yellow
+          - id: request-scaling
+            phrase: number of cached positions and requests
+            targets:
+              - bytes-readout-3
+            color: blue
+        hold: 0.6
+      - say: "For this chosen model shape, one token adds one hundred twenty-eight kibibytes. A four-thousand-ninety-six-token request reaches half a gibibyte. Several conversations multiply that bill. Grouped-query attention reduces it by letting several query heads share a key-value head, so the formula uses the key-value head count."
+        visual_cues:
+          - id: per-token-bytes
+            phrase: one hundred twenty-eight kibibytes
+            targets:
+              - bytes-readout-4
+            color: cyan
+          - id: request-bytes
+            phrase: half a gibibyte
+            targets:
+              - bytes-readout-5
+            color: yellow
+        hold: 0.7
+  - id: reservations
+    title: "Empty space can belong to somebody"
+    visual: "A twelve-block pool first reserves six blocks each for requests A and B although each uses two. C waits. Freed nonadjacent holes demonstrate a separate contiguous-allocation problem. Transition to only-current-use uniform blocks admits C."
+    beats:
+      - say: "A simple allocator might reserve each conversation's maximum length in one continuous region. These two requests currently need only two blocks apiece, but their reservations occupy the entire pool. A waiting request sees plenty of blank space and still has nowhere to go. The empty tail belongs to someone else."
+        visual_cues:
+          - id: reserved-regions
+            phrase: reservations occupy the entire pool
+            targets:
+              - reservations-readout-2
+            color: blue
+          - id: unavailable-tail
+            phrase: empty tail belongs to someone else
+            targets:
+              - reservations-readout-3
+            color: yellow
+        hold: 0.5
+      - say: "Variable-sized allocations create another difficulty when completed requests leave separated holes. A large continuous request may fail even when the holes add up to enough space. Small, uniform blocks let us use those holes independently. We allocate the next block when a conversation actually needs it."
+        visual_cues:
+          - id: fragmented-holes
+            phrase: completed requests leave separated holes
+            targets:
+              - reservations-free-hole
+            color: yellow
+          - id: contiguous-failure
+            phrase: large continuous request may fail even when the holes add up to enough space
+            targets:
+              - reservations-constraint
+              - reservations-free-hole
+            color: yellow
+          - id: uniform-blocks
+            phrase: Small, uniform blocks
+            targets:
+              - reservations-pool
+              - reservations-constraint
+            color: green
+        hold: 0.65
+  - id: mapping
+    title: "Logical order. Scattered storage."
+    visual: "A four-slot logical request maps its first block to physical block 7, then fifth token to physical block 2. Stable physical slots are shown as a two-row pool. A pointer walks token positions through floor division, table lookup, and remainder to the exact slot."
+    beats:
+      - say: "PagedAttention divides token positions into fixed-sized logical blocks and maps them onto available physical blocks. Our teaching pool holds four positions per block. Request A's first four positions live in physical block seven. Its fifth position can go in block two, wherever that block happens to be."
+        visual_cues:
+          - id: logical-blocks
+            phrase: fixed-sized logical blocks
+            targets:
+              - mapping-logical0
+              - mapping-logical1
+            color: cyan
+          - id: physical-lookup
+            phrase: physical block seven
+            targets:
+              - mapping-table0
+            color: yellow
+        hold: 0.55
+      - say: "Follow position four, counting from zero. Division by the block size finds logical block one. The table gives physical block two. The remainder selects offset zero. The kernel follows this mapping to recover the right key and value while preserving the request's logical history."
+        visual_cues:
+          - id: logical-index
+            phrase: logical block one
+            targets:
+              - mapping-logical1
+            color: cyan
+          - id: physical-offset
+            phrase: physical block two
+            targets:
+              - mapping-table1
+            color: yellow
+          - id: offset-zero
+            phrase: offset zero
+            targets:
+              - mapping-readout-2
+            color: green
+        hold: 0.8
+  - id: valid-length
+    title: "The tail is reserved. The mask is exact."
+    visual: "A query scans five valid slots through the same table. Three unused tail slots retain distinct muted hatching. Valid length five gates the scan; only the first slot of physical block 2 contributes. Real weighted values accumulate into the attention output."
+    beats:
+      - say: "The last block has three unused slots. They belong to A's block, so another request cannot independently occupy them. More importantly, the attention calculation must ignore them. The kernel receives both the mapping and the valid sequence length, which together identify the actual history."
+        visual_cues:
+          - id: unused-tail
+            phrase: last block has three unused slots
+            targets:
+              - valid-length-bottom
+            color: yellow
+          - id: valid-sequence
+            phrase: valid sequence length
+            targets:
+              - valid-length-valid-length-5
+            color: yellow
+        hold: 0.65
+      - say: "Watch the query gather exactly five entries. The first four come from one physical block; the fifth comes from the other. Their weights and values produce the same intended attention result as ordered continuous storage. Paging changes where the tensors live. A compatible attention kernel knows how to find them."
+        visual_cues:
+          - id: first-block-gather
+            phrase: first four come from one physical block
+            targets:
+              - valid-length-top
+            color: cyan
+          - id: second-block-gather
+            phrase: fifth comes from the other
+            targets:
+              - valid-length-bottom
+            color: cyan
+          - id: gather-result
+            phrase: same intended attention result
+            targets:
+              - valid-length-readout-2
+            color: green
+        hold: 0.7
+        motion_check: { region: [210, 450, 1480, 460], minimumChangedFraction: 0.002 }
+  - id: grow-release
+    title: "A block has a lifetime"
+    visual: "A fills the second block one slot at a time, claims a third only at the boundary, then finishes. Pending read completes before its stable physical IDs become available; C claims one reclaimed ID without moving B."
+    beats:
+      - say: "As the response grows, each processed token fills the next slot. Crossing a block boundary claims another block. In this basic append-only layout, the final partial block leaves fewer than one block's worth of unused positions. Smaller blocks reduce that tail, while increasing the amount of mapping work."
+        visual_cues:
+          - id: append-position
+            phrase: each processed token fills the next slot
+            targets:
+              - grow-release-readout-2
+            color: cyan
+          - id: block-crossing
+            phrase: Crossing a block boundary claims another block
+            targets:
+              - grow-release-readout-3
+            color: yellow
+        hold: 0.5
+      - say: "When A finishes, its ownership can be released. Pending GPU accesses must finish before its storage is overwritten. A new request can then claim the available blocks while B continues in place. A prefix-cache policy may keep reusable contents around until space is needed. Ownership and reuse determine when overwriting is safe."
+        visual_cues:
+          - id: pending-gpu
+            phrase: Pending GPU accesses must finish
+            targets:
+              - grow-release-reader
+            color: yellow
+          - id: reclaim-storage
+            phrase: new request can then claim the available blocks
+            targets:
+              - grow-release-readout-4
+            color: green
+        hold: 0.65
+  - id: sharing
+    title: "Two futures share one past"
+    visual: "A three-position partial block is shared by branches A and B with reference count two. Before A appends, three valid entries copy into a private block. A and B then write different fourth entries without aliasing; reference counts become one each."
+    beats:
+      - say: "Suppose we sample two possible answers from the same prompt. Both branches can read the same prompt state. Their tables point to one physical block, and a reference count records two owners. Sharing a long prompt can save a great deal of occupied cache space."
+        visual_cues:
+          - id: shared-prompt
+            phrase: Both branches can read the same prompt state
+            targets:
+              - sharing-old
+            color: blue
+          - id: reference-count
+            phrase: reference count records two owners
+            targets:
+              - sharing-readout
+            color: yellow
+        hold: 0.5
+      - say: "Our shared block is only partly full. Before A appends, it copies the valid prefix into a private block and changes its table. Now each branch writes its own fourth entry. The two futures stay independent. With a full shared block, each branch could simply allocate its next block and leave the shared past untouched."
+        visual_cues:
+          - id: copy-prefix
+            phrase: copies the valid prefix into a private block
+            targets:
+              - sharing-readout-2
+            color: cyan
+          - id: independent-writes
+            phrase: each branch writes its own fourth entry
+            targets:
+              - sharing-old
+              - sharing-readout-2
+            color: green
+        hold: 0.8
+  - id: prefix
+    title: "Reusable state depends on the full prefix"
+    visual: "Two independently arriving prompts align token-for-token. Completed matching prefix blocks map to one retained physical block; a different earlier token changes downstream hashes. Context-qualified chain shows parent prefix, block tokens, model/adapters, and isolation. Unmatched suffix computes privately."
+    beats:
+      - say: "Independent requests can also reuse a compatible cached prefix. Matching a sentence in isolation is insufficient: its hidden states depend on everything before it. A prefix-cache key therefore includes earlier context as well as the block's tokens and relevant execution identity, such as the model or adapter."
+        visual_cues:
+          - id: history-key
+            phrase: everything before it
+            targets:
+              - prefix-readout-2
+            color: blue
+          - id: prefix-hash
+            phrase: earlier context as well as the block
+            targets:
+              - prefix-readout-3
+            color: yellow
+        hold: 0.55
+      - say: "The matching full blocks can be shared, while the unmatched suffix is processed normally. Isolation keys restrict sharing between trust groups. Current vLLM caches full blocks, and may still recompute a final prompt region to obtain next-token logits. A cache hit saves compatible prefix work; each continuation still reads its history."
+        visual_cues:
+          - id: shared-blocks
+            phrase: matching full blocks can be shared
+            targets:
+              - prefix-readout-2
+            color: green
+          - id: fresh-suffix
+            phrase: unmatched suffix is processed normally
+            targets:
+              - prefix-compute-suffix-privately
+            color: yellow
+        hold: 0.7
+  - id: batching
+    title: "Keep the live batch moving"
+    visual: "Three request lanes advance at iteration boundaries. A ends early, its unshared blocks return after GPU completion, C's prefill enters a later boundary, and C then decodes beside B. Shared pool occupancy tracks exact blocks rather than a timing benchmark."
+    beats:
+      - say: "Memory management becomes especially useful with continuous batching. The scheduler revisits the live requests at iteration boundaries. When a short request finishes, waiting work can enter a later iteration instead of waiting for the longest response. Its cache grows independently through its own mapping table."
+        visual_cues:
+          - id: live-boundaries
+            phrase: iteration boundaries
+            targets:
+              - batching-iteration-boundaries
+            color: blue
+          - id: request-finish
+            phrase: When a short request finishes
+            targets:
+              - batching-eos
+            color: cyan
+          - id: admit-new
+            phrase: waiting work can enter a later iteration
+            targets:
+              - batching-admission
+            color: green
+        hold: 0.6
+      - say: "We can now follow block ownership as requests enter and leave. A large incoming prompt still requires prefill work and can delay ongoing decodes. Token budgets and chunked prefill control how that work is mixed. The scheduler chooses when to run; the block manager provides safe storage for the chosen work."
+        visual_cues:
+          - id: request-ownership
+            phrase: block ownership as requests enter and leave
+            targets:
+              - batching-readout-2
+            color: cyan
+          - id: prefill-work
+            phrase: large incoming prompt still requires prefill work
+            targets:
+              - batching-readout-3
+            color: yellow
+        hold: 0.7
+  - id: bandwidth
+    title: "Saved computation. Growing reads."
+    visual: "A fixed-width bandwidth channel carries all valid cache entries for increasingly long contexts. Projection writes remain one pair per step while read counts grow. Separate memory-capacity and per-token-latency axes reveal distinct limits, with no invented performance numbers."
+    beats:
+      - say: "Return to our original puzzle. The model has saved repeated projections, yet each new query still visits the retained keys and values. For ordinary full attention, the attention work per decode step grows linearly with context length. Across a growing response, those history reads accumulate."
+        visual_cues:
+          - id: saved-projection
+            phrase: saved repeated projections
+            targets:
+              - bandwidth-1-pair
+            color: cyan
+          - id: growing-reads
+            phrase: each new query still visits the retained keys and values
+            targets:
+              - bandwidth-readout
+            color: yellow
+        hold: 0.6
+      - say: "Long histories can make memory bandwidth a limiting resource. Paging improves placement and sharing; grouped-query attention and supported lower-precision caches reduce the payload. Actual latency also depends on kernels, batching, model weights, and scheduling. Measure memory use, time to first token, and time between tokens under the same workload."
+        visual_cues:
+          - id: memory-bandwidth
+            phrase: memory bandwidth a limiting resource
+            targets:
+              - bandwidth-readout-2
+            color: yellow
+          - id: payload-options
+            phrase: supported lower-precision caches reduce the payload
+            targets:
+              - bandwidth-readout-3
+            color: green
+        hold: 0.65
+  - id: conclusion
+    title: "One EOS releases A's private block"
+    visual: "Requests A and B share four tokens in physical block 7. A appends position 4 into physical block 2 after the table lookup. When A emits EOS and its GPU work completes, block 2 becomes available to C while B keeps block 7."
+    beats:
+      - say: "Requests A and B share the same four-token prefix in physical block 7. A is ready to append today at position four. Before the pointer moves, predict the logical block and offset for that token."
+        visual_cues:
+          - id: shared-prefix
+            phrase: share the same four-token prefix
+            targets:
+              - conclusion-token-positions
+              - conclusion-a-and-b-share-prefix
+            color: blue
+          - id: pending-position
+            phrase: today at position four
+            targets:
+              - conclusion-position-four
+            color: yellow
+          - id: predict-address
+            phrase: predict the logical block and offset
+            targets:
+              - conclusion-logical-map
+              - conclusion-address-formula
+            color: yellow
+        hold: 0.85
+      - say: "Floor division puts position four in logical block one, and the remainder is zero. The table maps that block to physical block two, so today fills its first slot. B still points to the shared block seven."
+        visual_cues:
+          - id: position-four-result
+            phrase: physical block two
+            targets:
+              - conclusion-logical-map
+              - conclusion-address-formula
+              - conclusion-address-route
+              - conclusion-physical-two
+            color: blue
+          - id: append-today
+            phrase: today fills its first slot
+            targets:
+              - conclusion-position-four
+              - conclusion-physical-two
+            color: yellow
+          - id: b-keeps-shared-block
+            phrase: B still points to the shared block seven
+            targets:
+              - conclusion-shared-owner
+              - conclusion-physical-seven
+            color: green
+        hold: 0.65
+      - say: "A emits EOS. Keep its pages until the GPU work completes. Then block two is free, while B still owns block seven. C can claim block two without moving B's tokens."
+        visual_cues:
+          - id: a-emits-eos
+            phrase: A emits EOS
+            targets:
+              - conclusion-eos
+              - conclusion-physical-two
+            color: pink
+          - id: gpu-work-completes
+            phrase: GPU work completes
+            targets:
+              - conclusion-gpu-complete
+            color: green
+          - id: a-releases-block-two
+            phrase: block two is free
+            targets:
+              - conclusion-private-owner
+              - conclusion-physical-two
+            color: yellow
+          - id: c-claims-block-two
+            phrase: C can claim block two
+            targets:
+              - conclusion-private-owner
+              - conclusion-status
+            color: green
+          - id: b-keeps-block-seven
+            phrase: B still owns block seven
+            targets:
+              - conclusion-shared-owner
+              - conclusion-physical-seven
+            color: green
+        hold: 0.75

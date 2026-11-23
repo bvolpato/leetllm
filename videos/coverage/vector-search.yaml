@@ -1,0 +1,189 @@
+version: 1
+lesson: vector-search
+promise: Trace a missing rollback passage to the step that excluded it and choose a search budget that meets both recall and latency limits.
+framing:
+  - subject-intro
+objectives:
+  - id: recover-neighbors
+    can: Score an exact pair, identify a missed passage in a graph walk or a posting list, and count recovered IDs.
+    scenes: [exact-baseline, greedy-hops, hierarchy-beam, centroid-partitions, probe-boundary, recall-ledger]
+  - id: budget-index
+    can: Distinguish graph construction from query exploration and estimate the raw bytes, list scores and code bytes each index needs.
+    scenes: [hierarchy-beam, insert-graph, scale-budget, pq-encode]
+  - id: diagnose-shortlist
+    can: Follow two code bytes through their distance tables and decide when reranking or expanding the candidate set can restore a neighbor.
+    scenes: [pq-encode, adc-lookup, probe-boundary, transfer]
+  - id: audit-eligibility
+    can: Recompute eligible winners after a filter, deletion or metric migration, and identify when a shard merge is partial.
+    scenes: [transfer, filtered-distributed, metric-replay]
+  - id: select-setting
+    can: Compare search settings on a fixed query set and apply both a neighbor recall floor and a workload latency ceiling.
+    scenes: [recall-ledger, scale-budget, earned-transfer]
+sections:
+  - heading: The brute-force problem
+    status: taught
+    scenes:
+      - scale-budget
+  - heading: HNSW (Hierarchical Navigable Small World)
+    status: taught
+    scenes:
+      - hierarchy-beam
+  - heading: "Skip-lists in high dimensions: layers skip, then search locally"
+    status: taught
+    scenes:
+      - hierarchy-beam
+  - heading: "A worked example: tracing one insertion"
+    status: taught
+    scenes:
+      - insert-graph
+  - heading: Build a tiny graph, then search it
+    status: taught
+    scenes:
+      - insert-graph
+  - heading: Key parameters
+    status: taught
+    scenes:
+      - insert-graph
+  - heading: IVF (Inverted File Index)
+    status: taught
+    scenes:
+      - centroid-partitions
+  - heading: Centroids select lists
+    status: taught
+    scenes:
+      - centroid-partitions
+  - heading: "A worked example: counting comparisons"
+    status: taught
+    scenes:
+      - scale-budget
+  - heading: "A boundary miss: `nprobe = 1` drops a true neighbor"
+    status: taught
+    scenes:
+      - probe-boundary
+  - heading: Distance metrics
+    status: taught
+    scenes:
+      - exact-baseline
+      - metric-replay
+  - heading: HNSW vs IVF
+    status: taught
+    scenes:
+      - insert-graph
+      - centroid-partitions
+      - filtered-distributed
+  - heading: Product Quantization (PQ)
+    status: taught
+    scenes:
+      - pq-encode
+  - heading: The algorithm
+    status: taught
+    scenes:
+      - pq-encode
+  - heading: "OPQ: rotating before you split"
+    status: taught
+    scenes:
+      - pq-encode
+  - heading: Asymmetric distance computation (ADC)
+    status: taught
+    scenes:
+      - adc-lookup
+  - heading: Filtered search
+    status: taught
+    scenes:
+      - filtered-distributed
+  - heading: Four questions before choosing a database
+    status: taught
+    scenes:
+      - recall-ledger
+      - pq-encode
+      - filtered-distributed
+  - heading: Scaling to billions
+    status: taught
+    scenes:
+      - filtered-distributed
+  - heading: 1. Hybrid approaches (IVF-PQ)
+    status: taught
+    scenes:
+      - filtered-distributed
+  - heading: 2. Disk-based indexes (DiskANN)
+    status: taught
+    scenes:
+      - filtered-distributed
+  - heading: 3. Distributed sharding
+    status: taught
+    scenes:
+      - filtered-distributed
+  - heading: When vector indexes break
+    status: taught
+    scenes:
+      - probe-boundary
+      - adc-lookup
+      - transfer
+      - filtered-distributed
+      - metric-replay
+  - heading: Index family trade-offs
+    status: taught
+    scenes:
+      - recall-ledger
+      - pq-encode
+      - filtered-distributed
+  - heading: Release from a measured index frontier
+    status: taught
+    scenes:
+      - earned-transfer
+  - heading: Replay metric migration and deletion with Faiss
+    status: taught
+    scenes:
+      - metric-replay
+quiz:
+  - n: 1
+    status: taught
+    scenes:
+      - scale-budget
+  - n: 2
+    status: taught
+    scenes:
+      - recall-ledger
+      - earned-transfer
+  - n: 3
+    status: taught
+    scenes:
+      - insert-graph
+  - n: 4
+    status: taught
+    scenes:
+      - insert-graph
+  - n: 5
+    status: taught
+    scenes:
+      - scale-budget
+  - n: 6
+    status: taught
+    scenes:
+      - metric-replay
+  - n: 7
+    status: taught
+    scenes:
+      - pq-encode
+  - n: 8
+    status: taught
+    scenes:
+      - adc-lookup
+  - n: 9
+    status: taught
+    scenes:
+      - filtered-distributed
+  - n: 10
+    status: taught
+    scenes:
+      - filtered-distributed
+removed: []
+reviews:
+  closed_book:
+    taught: 10
+    partial: 0
+    absent: 0
+    script: 1ad086405cdbc255
+  fact_check:
+    open_findings: 0
+    script: 1ad086405cdbc255

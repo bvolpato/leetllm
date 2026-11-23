@@ -1,0 +1,782 @@
+[
+  {
+    "id": "c01",
+    "title": "The bill for overnight testing",
+    "sourceChapters": [
+      "c01"
+    ],
+    "beats": [
+      {
+        "id": "c01-b01",
+        "say": "Slide tonight's bill alongside last night's. Each covers two thousand tests of our support assistant. Last night cost two dollars and eighty-two cents. Tonight we send the same prompts, and the provider bills the same number of output tokens. The saved instructions have expired. Which charge changes?",
+        "hold": 2.5
+      },
+      {
+        "id": "c01-b02",
+        "say": "The input charge changes. The provider has to process those instructions again. Reading the prompts goes from a dollar sixty-two to four dollars fifty. The answers still cost a dollar twenty. That brings tonight's bill to five dollars seventy. Follow one receipt to see where those charges come from.",
+        "hold": 1.6
+      }
+    ]
+  },
+  {
+    "id": "c02",
+    "title": "Price the usage categories in the receipt",
+    "sourceChapters": [
+      "c02"
+    ],
+    "beats": [
+      {
+        "id": "c02-b01",
+        "say": "A token is a piece of text used by the model. The provider returns usage counts, and a rate card assigns a price to each billable category.",
+        "hold": 0.55
+      },
+      {
+        "id": "c02-b02",
+        "say": "Keep ordinary input, cached input, and generated output in separate fields. Reasoning tokens already belong in the reported output total for this rate card, so adding that detail again would double count them.",
+        "hold": 0.65
+      },
+      {
+        "id": "c02-b03",
+        "say": "Record the request ID and outcome. This request came from the U.S. East region and used the global endpoint. Price it with the global rate card for this model, service tier, currency and date. A regional processing endpoint can have a different price. Character counts only estimate usage. Use the provider's token counts for the bill.",
+        "hold": 0.65
+      }
+    ]
+  },
+  {
+    "id": "c03",
+    "title": "Which part of this call costs more?",
+    "sourceChapters": [
+      "c03"
+    ],
+    "beats": [
+      {
+        "id": "c03-b01",
+        "say": "Take a policy answer on the global GPT-five-point-four Standard rate card checked in September twenty twenty-six. A million ordinary input tokens cost two dollars and fifty cents. A million output tokens cost fifteen dollars.",
+        "hold": 0.65
+      },
+      {
+        "id": "c03-b02",
+        "say": "This call uses eighteen hundred ordinary input tokens and generates one hundred eighty output tokens. Output costs six times as much per token. Look at the quantities beside those rates. Which part of this call costs more?",
+        "hold": 1.9
+      },
+      {
+        "id": "c03-b03",
+        "say": "Multiply each count by its own rate and divide by a million. Input costs more. Look at the two charges. The prompt has ten times as many tokens as the answer. Both charges together come to just under three quarters of a cent. Keep the full precision for the next calculation.",
+        "hold": 1.3
+      }
+    ]
+  },
+  {
+    "id": "c04",
+    "title": "The same prompt at two input prices",
+    "sourceChapters": [
+      "c04"
+    ],
+    "beats": [
+      {
+        "id": "c04-b01",
+        "say": "A second request begins with the same policy instructions. Its receipt reports a read for that prefix. Follow those twelve hundred eighty input tokens as they move to the cheaper rate. The order details still need fresh processing.",
+        "hold": 0.7
+      },
+      {
+        "id": "c04-b02",
+        "say": "Subtract the read tokens from eighteen hundred. The five hundred twenty left on the right use the ordinary rate. Price the prefix at twenty-five cents per million and that remainder at two dollars fifty per million. The two input charges are written directly beneath the prompt.",
+        "hold": 0.75
+      },
+      {
+        "id": "c04-b03",
+        "say": "Look at the output on both receipts. The model still generates a hundred eighty tokens, so PolicyOps pays the same output charge. The total falls from just over seven tenths of a cent to just over four tenths. The whole saving comes from processing the same input at a different price.",
+        "hold": 0.75
+      }
+    ]
+  },
+  {
+    "id": "c05",
+    "title": "A return question, then an order question",
+    "sourceChapters": [
+      "c05"
+    ],
+    "beats": [
+      {
+        "id": "c05-b01",
+        "say": "A customer asks for the standard return window. This stored reply is approved for their region and the current policy. Copy the approved text into the response. The customer sees the same thirty-day return window. The model generates zero tokens. The application still pays for its lookup and storage.",
+        "hold": 0.65
+      },
+      {
+        "id": "c05-b02",
+        "say": "The next customer asks about order seventy-seven. An earlier call used the same instructions for order forty-two. Match the policy prefix. The provider can reuse the keys and values it saved for those instructions.",
+        "hold": 0.3
+      },
+      {
+        "id": "c05-b03",
+        "say": "This receipt counts twelve hundred eighty tokens as cache reads and the other five hundred twenty as ordinary input. Which work does the model still owe this customer?",
+        "hold": 2
+      },
+      {
+        "id": "c05-b04",
+        "say": "Generate the answer for order seventy-seven. The answer comes from the new order details and the reused policy context. All one hundred eighty output tokens go on this receipt. On the left we copied an answer. On the right we reused part of the input computation and paid for a new answer.",
+        "hold": 0.85
+      }
+    ]
+  },
+  {
+    "id": "c06",
+    "title": "Separate the machine work from the bill",
+    "sourceChapters": [
+      "c06"
+    ],
+    "beats": [
+      {
+        "id": "c06-b01",
+        "say": "Look at the input positions. The model already has them all. It can process those positions in parallel within each layer. That's prefill. On the output side, each new token supplies context for the next. That's ordinary autoregressive decoding.",
+        "hold": 0.3
+      },
+      {
+        "id": "c06-b02",
+        "say": "A large prefill often keeps the arithmetic units busy. Small-batch decoding often waits for memory. Batching, context length, sparse experts, speculative verification and the kernels in use can change that balance.",
+        "hold": 0.7
+      },
+      {
+        "id": "c06-b03",
+        "say": "Follow an answer through the invoice. Ordinary input, cache reads, separately priced cache writes and output each have their own rate. Those rates describe the bill. A hardware measurement tells you where the time went.",
+        "hold": 0.3
+      },
+      {
+        "id": "c06-b04",
+        "say": "A stored reply skips answer generation, while reusing part of a prompt still leaves an answer to generate. Keep lookup, embeddings, tools, storage and serving in their own cost columns.",
+        "hold": 0.7
+      },
+      {
+        "id": "c06-b05",
+        "say": "Here a request leaves the application and the timer expires before any receipt arrives. The provider may still be generating an answer. Keep the charge open under this request ID. A receipt arrives later. Match the ID and record the actual charge.",
+        "hold": 1
+      }
+    ]
+  },
+  {
+    "id": "c07",
+    "title": "Normalize mutually exclusive token categories",
+    "sourceChapters": [
+      "c07"
+    ],
+    "beats": [
+      {
+        "id": "c07-b01",
+        "say": "This receipt includes reads and writes inside its four thousand input tokens. It reads fifteen hundred tokens from a saved prefix and writes the next two thousand to the cache. Subtract both. The five hundred left are ordinary input. Every input position belongs to one of these three groups.",
+        "hold": 0.3
+      },
+      {
+        "id": "c07-b02",
+        "say": "Use the global Terra rates under each count. The write uses the thirty-minute rate. Multiply each count by its price per million and divide by a million. Add the charge for one hundred output tokens. Together the four lines cost three quarters of a cent. Any reasoning detail already sits inside output.",
+        "hold": 0.7
+      },
+      {
+        "id": "c07-b03",
+        "say": "Check the counts before pricing. Reads plus writes must fit inside input, and reasoning must fit inside output. The lab takes nonnegative whole numbers and rejects a Boolean dressed up as a count. It also checks that each rate is a finite, nonnegative decimal.",
+        "hold": 0.3
+      },
+      {
+        "id": "c07-b04",
+        "say": "Keep the unrounded decimal charges while adding calls. Reconcile rounding and adjustments against the invoice.",
+        "hold": 0.7
+      },
+      {
+        "id": "c07-b05",
+        "say": "Keep the same counts and switch to Anthropic's field names. The input tokens field holds just the five hundred ordinary tokens. Add the fifteen hundred in the cache read field and the two thousand in the cache creation field. That reconstructs all four thousand input tokens. Copying only the ordinary field would lose the cached part.",
+        "hold": 0.3
+      },
+      {
+        "id": "c07-b06",
+        "say": "Match the model, tier, billing scope, currency and rate date. If the write price or Batch price is unknown, find it before quoting a total.",
+        "hold": 0.8
+      }
+    ]
+  },
+  {
+    "id": "c08",
+    "title": "An incomplete answer can consume its output budget",
+    "sourceChapters": [
+      "c08"
+    ],
+    "beats": [
+      {
+        "id": "c08-b01",
+        "say": "This example from the inspected OpenAI reasoning guide reports eleven hundred eighty-six output tokens. Look inside that total. A thousand twenty-four are reasoning tokens. The remaining hundred sixty-two can include formatting as well as visible text.",
+        "hold": 0.7
+      },
+      {
+        "id": "c08-b02",
+        "say": "Price the full output once at fifteen dollars per million. If we add the reasoning detail again, the second calculation charges twice for every yellow token. The correct output charge is just under one point eight cents.",
+        "hold": 0.7
+      },
+      {
+        "id": "c08-b03",
+        "say": "Try a second receipt. This call reads eighteen hundred ordinary input tokens. It spends its entire allowance of a thousand twenty-four output tokens on reasoning. The customer sees no answer. Add the input and output charges. This incomplete call costs almost two cents.",
+        "hold": 0.3
+      },
+      {
+        "id": "c08-b04",
+        "say": "Check the stop reason along with usage. The output cap includes reasoning and non-visible formatting.",
+        "hold": 0.8
+      }
+    ]
+  },
+  {
+    "id": "c09",
+    "title": "One extra input token can change the entire price row",
+    "sourceChapters": [
+      "c09"
+    ],
+    "beats": [
+      {
+        "id": "c09-b01",
+        "say": "The dated GPT-five-point-four rate card on this machine has two rows. Read the condition beside each one. Input above two hundred seventy-two thousand selects the long row for the full session. The two input rates double and output rises by half. Other cards have their own conditions.",
+        "hold": 0.7
+      },
+      {
+        "id": "c09-b02",
+        "say": "Set the counter to exactly two hundred seventy-two thousand ordinary input tokens, with zero output. The charge is sixty-eight cents. One more token is waiting. When it lands, what length of input gets the higher price?",
+        "hold": 2.4
+      },
+      {
+        "id": "c09-b03",
+        "say": "Add one token. The entire prompt changes rows. Follow the ink across the same strip. All two hundred seventy-two thousand and one tokens cost five dollars per million. The new charge is just over a dollar thirty-six. Compare it with the sixty-eight cents we started with.",
+        "hold": 1.4
+      },
+      {
+        "id": "c09-b04",
+        "say": "Now feed in three hundred thousand input tokens and generate a thousand output tokens. The long row still applies. Price all the input at five dollars per million, and output at twenty-two dollars fifty per million. Together they cost just over a dollar fifty-two. Check the provider's effective limits and row again as the history grows. The lab checks only the bounds declared on its card.",
+        "hold": 1.2
+      }
+    ]
+  },
+  {
+    "id": "c10",
+    "title": "Pay once for a write and later for a read",
+    "sourceChapters": [
+      "c10"
+    ],
+    "beats": [
+      {
+        "id": "c10-b01",
+        "say": "Switch cards for these two calls. The September twenty twenty-six GPT-five-point-six Terra Standard row charges for writing a prefix. A thirty-minute write costs a quarter more per token than ordinary input. That price already pays for the written tokens' input processing. This card stays separate from the GPT-five-point-four monthly plan.",
+        "hold": 0.7
+      },
+      {
+        "id": "c10-b02",
+        "say": "On the first call, move twelve hundred eighty policy tokens into the write column. That leaves five hundred twenty ordinary input tokens. Generate a hundred eighty output tokens. Add the three line items and the call costs sixty-four hundredths of a cent.",
+        "hold": 0.3
+      },
+      {
+        "id": "c10-b03",
+        "say": "Counting those policy tokens again as ordinary input would charge their base price twice.",
+        "hold": 0.7
+      },
+      {
+        "id": "c10-b04",
+        "say": "The next call reads the prefix we just wrote. Only that middle charge changes. The same prefix now costs twenty cents per million to read, and this call costs about thirty-five hundredths of a cent. Compare the pair with two ordinary calls.",
+        "hold": 0.3
+      },
+      {
+        "id": "c10-b05",
+        "say": "Reuse repays the write premium here. If no second call reuses the prefix, that premium is all extra cost. A single call can also read an existing prefix and pay to write a new suffix.",
+        "hold": 0.8
+      }
+    ]
+  },
+  {
+    "id": "c11",
+    "title": "Match the rendered prefix and its actual billing policy",
+    "sourceChapters": [
+      "c11"
+    ],
+    "beats": [
+      {
+        "id": "c11-b01",
+        "say": "The current order changes at the end of the prompt. The first two orders share policy version three. Now change that early field to version four. The common run stops there. Even identical words farther along cannot extend a match past that change. Compare the rendered roles, instructions, tools, schemas and relevant settings.",
+        "hold": 0.3
+      },
+      {
+        "id": "c11-b02",
+        "say": "Keep stable material first where that preserves instruction priority and access boundaries. Verify that time-sensitive evidence is still fresh. Count a read when the provider reports one.",
+        "hold": 0.7
+      },
+      {
+        "id": "c11-b03",
+        "say": "The OpenAI guide checked in November twenty twenty-six sets a minimum of a thousand twenty-four visible input tokens for GPT-five-point-six and later. On this card the default thirty-minute write costs one and a quarter times ordinary input.",
+        "hold": 0.3
+      },
+      {
+        "id": "c11-b04",
+        "say": "Keeping it twelve hours costs two and a half times ordinary input. Read discounts depend on the model. Earlier models use different minima and retention rules, with no separate write price. The read we supplied for the older card is an assumption.",
+        "hold": 0.7
+      },
+      {
+        "id": "c11-b05",
+        "say": "The Anthropic guide checked the same month lists its own lifetimes. A five-minute write costs one and a quarter times base input and a one-hour write costs twice base input. Match the minimum and read price to the model and platform.",
+        "hold": 0.3
+      },
+      {
+        "id": "c11-b06",
+        "say": "If you also care about speed, measure time to first token, time between tokens and end-to-end latency. The price alone can't tell you how long the customer waited.",
+        "hold": 0.8
+      }
+    ]
+  },
+  {
+    "id": "c12",
+    "title": "Where does a day’s spend go?",
+    "sourceChapters": [
+      "c12"
+    ],
+    "beats": [
+      {
+        "id": "c12-b01",
+        "say": "Here are all eighty-five hundred customer questions in one supplied day. Each stack repeats the receipt under its name. Read tokens belong inside total input. Look at the number of requests beside each unit charge. Which group spends the most on generation?",
+        "hold": 2.3
+      },
+      {
+        "id": "c12-b02",
+        "say": "Multiply across each row. Live orders cost eleven dollars and a few cents a day. They use fresh order data, and there are three thousand of them. The larger group of stored replies generates nothing. Before changing a prompt, inspect the live orders' tool payloads and repeated instructions.",
+        "hold": 0.85
+      },
+      {
+        "id": "c12-b03",
+        "say": "Now shorten only the exception replies. Keep their policy citations and change the output from two hundred twenty tokens to one hundred thirty. That saves sixty-seven and a half cents per day. Add the overnight checks to get the full day's generation cost. Live orders alone account for about forty-six percent.",
+        "hold": 0.75
+      },
+      {
+        "id": "c12-b04",
+        "say": "What did the stored answers avoid? Price the generation that would have run. At the policy prefix rate, those thirty-two hundred answers would have cost nearly fourteen dollars. Keep that estimate outside the daily bill. For a real forecast, check the distribution of actual receipts before multiplying any one receipt by a whole day's traffic.",
+        "hold": 0.7
+      }
+    ]
+  },
+  {
+    "id": "c13",
+    "title": "What did all five turns cost?",
+    "sourceChapters": [
+      "c13"
+    ],
+    "beats": [
+      {
+        "id": "c13-b01",
+        "say": "Our agent starts with two thousand input tokens. On each turn it generates two hundred tokens. After each of the first four turns a tool contributes another eight hundred. Put those together. The next turn carries a thousand more positions than the last. Lay out all five receipts in order.",
+        "hold": 0.3
+      },
+      {
+        "id": "c13-b02",
+        "say": "Add all five rows and the model has processed twenty thousand input positions and generated a thousand output tokens.",
+        "hold": 0.7
+      },
+      {
+        "id": "c13-b03",
+        "say": "The last receipt says one point eight cents. Look at the four receipts above it. How much did we spend on the whole task?",
+        "hold": 2
+      },
+      {
+        "id": "c13-b04",
+        "say": "Add the five receipts. Together they cost six and a half cents. Five cents paid for input and one and a half for output. The tool's own fee goes on a separate line.",
+        "hold": 0.75
+      },
+      {
+        "id": "c13-b05",
+        "say": "Replay the same five turns with an idealized cache. Suppose each later turn gets credit for every token in the previous input. At the supplied rates, that moves fourteen thousand tokens to the read price and leaves six thousand ordinary. Each turn still generates two hundred tokens.",
+        "hold": 0.3
+      },
+      {
+        "id": "c13-b06",
+        "say": "Under that assumption the five calls cost three point three five cents. On an actual call, use the cached token count on the provider's receipt. It can cover only part of a repeated prefix. Early edits, expiry or different routing can also leave you with no billed reads.",
+        "hold": 0.8
+      }
+    ]
+  },
+  {
+    "id": "c14",
+    "title": "How short can a useful reply be?",
+    "sourceChapters": [
+      "c14"
+    ],
+    "beats": [
+      {
+        "id": "c14-b01",
+        "say": "A customer needs a refund decision, its policy citation, and a next step. Here are excerpts from the full reply. Shorten the wording. All three fields survive when the full reply falls from two hundred twenty output tokens to one hundred thirty.",
+        "hold": 0.65
+      },
+      {
+        "id": "c14-b02",
+        "say": "Now cut the reply to fifty-five tokens. Read what the customer gets. Could they verify the decision and act on it?",
+        "hold": 1.9
+      },
+      {
+        "id": "c14-b03",
+        "say": "Bring back the citation and the next step. Cutting ninety output tokens at fifteen dollars per million saves sixty-seven and a half cents across five hundred attempts. Check whether the shorter answer gets the policy right, then count how many attempts it takes to resolve each case. Take two customers, A and B.",
+        "hold": 0.7
+      }
+    ]
+  },
+  {
+    "id": "c15",
+    "title": "Which reply costs less per accepted task?",
+    "sourceChapters": [
+      "c15"
+    ],
+    "beats": [
+      {
+        "id": "c15-b01",
+        "say": "Take the same two refund cases, A and B. One stamp pays for one attempt. The shorter reply costs point zero zero four five seven dollars each time. A closes. B stays open after the first attempt. Try B again. This time it closes. Leave all three paid stamps in place.",
+        "hold": 0.55
+      },
+      {
+        "id": "c15-b02",
+        "say": "Read the case marks below the stamps. Stack B's two attempts under the same case. B contributes one accepted result, even though it needed two attempts. Its failed receipt stays in spend. We paid point zero one three seven one dollars to complete two distinct tasks.",
+        "hold": 0.65
+      },
+      {
+        "id": "c15-b03",
+        "say": "With the longer reply, one call closed each case. The two formats now have the same two accepted tasks. Look at the charge printed on each stamp. Which format cost less per accepted task?",
+        "hold": 2.2
+      },
+      {
+        "id": "c15-b04",
+        "say": "Place the stamps edge to edge on the same cost scale. The third concise stamp crosses the end of the long strip. Divide each strip's price by two. The long reply costs just under six tenths of a cent per closed case. The short one costs closer to seven tenths on these cases.",
+        "hold": 1.3
+      },
+      {
+        "id": "c15-b05",
+        "say": "For a service-wide comparison, include each attempt's tool and infrastructure charges. Check a representative set before changing the default.",
+        "hold": 0.85
+      }
+    ]
+  },
+  {
+    "id": "c16",
+    "title": "Match lower-cost processing to the deadline",
+    "sourceChapters": [
+      "c16"
+    ],
+    "beats": [
+      {
+        "id": "c16-b01",
+        "say": "Some work needs a reply while the customer is waiting. Other work, such as a nightly evaluation, can finish later. The provider’s batch route trades that response time for a lower token price.",
+        "hold": 0.55
+      },
+      {
+        "id": "c16-b02",
+        "say": "OpenAI’s Batch API, inspected on November sixth, twenty twenty-six, documents a fifty-percent cost discount and a twenty-four-hour completion window. The fixture gives evaluation a forty-eight-hour deadline, leaving time to inspect failures and recover.",
+        "hold": 0.65
+      },
+      {
+        "id": "c16-b03",
+        "say": "Keep live support interactive. For offline work, verify that both the model and endpoint support the route. Add the provider window and the time you need to recover. A deadline exactly equal to that sum qualifies under this scheduling rule. Price the cold case and budget for expired or failed calls.",
+        "hold": 0.7
+      }
+    ]
+  },
+  {
+    "id": "c17",
+    "title": "Price the same evaluation twice",
+    "sourceChapters": [
+      "c17"
+    ],
+    "beats": [
+      {
+        "id": "c17-b01",
+        "say": "Here is one nightly check. This worksheet estimates Batch at half the dated Standard rates. It assumes a read for twelve hundred eighty tokens of policy. Beside them are five hundred twenty new input tokens and eighty output tokens. The receipt gives each group its own charge.",
+        "hold": 0.3
+      },
+      {
+        "id": "c17-b02",
+        "say": "If the read misses, which part of the bill changes?",
+        "hold": 2
+      },
+      {
+        "id": "c17-b03",
+        "say": "Reprice the policy tokens as ordinary input. Each million of those tokens now costs a dollar twenty-five instead of twelve and a half cents. The new input and the output stay put. You can see the two receipts for the same check.",
+        "hold": 0.7
+      },
+      {
+        "id": "c17-b04",
+        "say": "Scale both receipts to two thousand checks. One night costs two dollars and eighty-two cents with the assumed reads, or five dollars and seventy cents without them. Keep the difference, two dollars and eighty-eight cents. That's the amount one cold night takes from the monthly cushion.",
+        "hold": 0.8
+      },
+      {
+        "id": "c17-b05",
+        "say": "Our monthly plan has thirty-two dollars and eighty-two cents to spare. Suppose we lose the saved instructions on twelve nights. How much extra can we afford per night?",
+        "hold": 2.2
+      },
+      {
+        "id": "c17-b06",
+        "say": "Divide the cushion among the twelve nights. That gives us a little under two dollars and seventy-four cents extra per night. Each cold night adds two dollars and eighty-eight cents.",
+        "hold": 0.65
+      }
+    ]
+  },
+  {
+    "id": "c18",
+    "title": "Keep expiry and recovery inside one deadline",
+    "sourceChapters": [
+      "c18"
+    ],
+    "beats": [
+      {
+        "id": "c18-b01",
+        "say": "The support customer needs an answer now. The nightly evaluation is offline and its model and endpoint support Batch. Allow twenty-four hours for the provider and another four to recover unfinished work. Our forty-eight-hour deadline covers both. Four recovery hours are a PolicyOps choice.",
+        "hold": 0.3
+      },
+      {
+        "id": "c18-b02",
+        "say": "Verify the actual service rates and cache reads when the receipts arrive.",
+        "hold": 0.7
+      },
+      {
+        "id": "c18-b03",
+        "say": "What if a batch expires? Here six of ten jobs finish in time. Keep those six receipts and their original job identities. The provider bills the completed work and cancels unfinished requests. Inspect the four missing outcomes and their errors before resubmitting only those jobs. Any recovery call needs its own budget.",
+        "hold": 0.7
+      },
+      {
+        "id": "c18-b04",
+        "say": "Check the clock again before retrying. Here only three hours remain and we reserved four for recovery. A discounted lane that misses the operational deadline cannot deliver the evidence we need. Price any eligible recovery route with cold input.",
+        "hold": 0.8
+      }
+    ]
+  },
+  {
+    "id": "c19",
+    "title": "Bind historical spend to exact rate content",
+    "sourceChapters": [
+      "c19"
+    ],
+    "beats": [
+      {
+        "id": "c19-b01",
+        "say": "Attach each real attempt to a task, a feature and a release. Keep its usage, outcome, model, tier and billing scope with the price record. Include tool and infrastructure charges for that task. Our lab multiplies a unit receipt by a group size.",
+        "hold": 0.3
+      },
+      {
+        "id": "c19-b02",
+        "say": "A production trace needs the individual attempts, including any whose usage is still unresolved.",
+        "hold": 0.7
+      },
+      {
+        "id": "c19-b03",
+        "say": "Here the price table keeps its name while someone changes the output rate from fifteen to sixteen dollars. Compare the two fingerprints. The stored digest catches the edit, just as a different rate ID would fail the identity check. Restore the approved table. The original fingerprint and price now match again. An intentional repricing needs its own record.",
+        "hold": 0.7
+      },
+      {
+        "id": "c19-b04",
+        "say": "A matching fingerprint can tell you that these bytes match the trusted record. You still need the archived table, the provider evidence and a record of who approved the rates. Restrict who can change them. If a trace names a quality report, open that report and check its review status too.",
+        "hold": 0.8
+      }
+    ]
+  },
+  {
+    "id": "c20",
+    "title": "When support traffic grows",
+    "sourceChapters": [
+      "c20"
+    ],
+    "beats": [
+      {
+        "id": "c20-b01",
+        "say": "Back at our monthly budget, the plan has thirty-two dollars and eighty-two cents left. Suppose ten percent more support requests arrive with the same mix of calls. The nightly evaluation still runs two thousand checks. Which daily term changes?",
+        "hold": 1.8
+      },
+      {
+        "id": "c20-b02",
+        "say": "Grow only the support term. Add the same nightly charge, then multiply by thirty days. The forecast reaches seven hundred eighty dollars and forty-four cents. That's over budget even with the expected prefix reads. A change in retries or cache misses would need its own forecast.",
+        "hold": 0.75
+      },
+      {
+        "id": "c20-b03",
+        "say": "Check the quality report separately. Reviewers passed nineteen hundred ninety-four of two thousand cited answers and found zero unsafe stored replies in twelve hundred reviewed hits. The sample meets this lab's quality rules. The higher-volume plan still costs too much.",
+        "hold": 0.75
+      },
+      {
+        "id": "c20-b04",
+        "say": "Reset support traffic to the base plan. Now lose the nightly reads for all thirty nights. Only the evaluation charge grows. The extra eighty-six dollars and forty cents takes the same month to eight hundred three dollars and fifty-eight cents.",
+        "hold": 1
+      },
+      {
+        "id": "c20-b05",
+        "say": "Try a separate replay. Put evaluation back on its warm rate and lose only the interactive prefix reads. Live orders and stored replies stay as they were. Policy and exception inputs get dearer. The forecast reaches nine hundred fifteen dollars and ninety cents.",
+        "hold": 1
+      }
+    ]
+  },
+  {
+    "id": "c21",
+    "title": "What can 1,200 reviews tell us?",
+    "sourceChapters": [
+      "c21"
+    ],
+    "beats": [
+      {
+        "id": "c21-b01",
+        "say": "Start with the report itself. It must cover this release and answer schema, with complete evidence. On the lab clock it can be at most an hour old, and a future timestamp fails.",
+        "hold": 0.3
+      },
+      {
+        "id": "c21-b02",
+        "say": "PolicyOps chose at least two thousand reviewed answers, at least a thousand reviewed cache hits, a cited-answer pass rate of at least ninety-nine point five percent, and zero observed unsafe hits.",
+        "hold": 0.7
+      },
+      {
+        "id": "c21-b03",
+        "say": "Reviewers accepted nineteen hundred ninety-four of two thousand cited answers. That's ninety-nine point seven percent. They found zero unsafe replies in twelve hundred reviewed hits. Now change one reviewed hit to unsafe. The release fails that requirement even with the same high cited-answer score.",
+        "hold": 0.3
+      },
+      {
+        "id": "c21-b04",
+        "say": "A stale report, the wrong release or too few reviewed cases can also fail it.",
+        "hold": 0.7
+      },
+      {
+        "id": "c21-b05",
+        "say": "Return to zero unsafe replies. For independent, representative reviews with zero failures, an approximate one-sided ninety-five-percent upper rate is three divided by the number reviewed. With six hundred reviews that gives half a percent. Double the sample. Three over twelve hundred is about a quarter of one percent.",
+        "hold": 0.3
+      },
+      {
+        "id": "c21-b06",
+        "say": "At that rate we'd expect about eight unsafe replies among thirty-two hundred hits. A single day's count can be higher. The exact one-sided upper rate is one minus point zero five raised to one over the sample size. Keep reviewing representative cases and difficult cases.",
+        "hold": 0.3
+      },
+      {
+        "id": "c21-b07",
+        "say": "Related or selectively sampled hits need a different uncertainty analysis.",
+        "hold": 0.8
+      }
+    ]
+  },
+  {
+    "id": "c22",
+    "title": "Can this generation start?",
+    "sourceChapters": [
+      "c22"
+    ],
+    "beats": [
+      {
+        "id": "c22-b01",
+        "say": "The lab sets its ceiling at half a cent using calls with warm prefixes. Let the policy prefix go cold. The same policy answer now costs more than half a cent. So does a cold concise exception. The reader's gateway example allows one cent for a single generation.",
+        "hold": 0.7
+      },
+      {
+        "id": "c22-b02",
+        "say": "Before the call starts, price all twenty-two hundred input tokens at the cold rate. Send a cap of three hundred output tokens and reserve the cost of all three hundred. Add the two charges. The reservation lands exactly on one cent.",
+        "hold": 0.3
+      },
+      {
+        "id": "c22-b03",
+        "say": "The rule allows equality, so this call can start if the account has the money.",
+        "hold": 0.65
+      },
+      {
+        "id": "c22-b04",
+        "say": "Give the same request one hundred more input tokens. Leave the three-hundred-token output cap alone. Look at the cold input and the cap on the rate card. May this call start under the same one-cent rule?",
+        "hold": 2.2
+      },
+      {
+        "id": "c22-b05",
+        "say": "Refuse this call. Those extra tokens push its reservation to just over a cent. A longer conversation can cross the same line on a later turn. When the provider charges separately for a cache write, include that charge in the worst case too.",
+        "hold": 0.65
+      },
+      {
+        "id": "c22-b06",
+        "say": "A cap limits billed output, including reasoning. Replay the earlier eighteen-hundred-input call with a three-hundred-token cap. Let it spend that whole cap on reasoning. The call can finish incomplete before the customer sees any text. The inspected November twenty twenty-six reasoning guide suggests at least twenty-five thousand output tokens when starting experiments.",
+        "hold": 0.3
+      },
+      {
+        "id": "c22-b07",
+        "say": "Test this small lane with low or no reasoning, or raise the cap and its reservation together.",
+        "hold": 0.75
+      }
+    ]
+  },
+  {
+    "id": "c23",
+    "title": "What can the second call spend?",
+    "sourceChapters": [
+      "c23"
+    ],
+    "beats": [
+      {
+        "id": "c23-b01",
+        "say": "A and B arrive together. Each needs a one-cent reservation and the account has one point six cents. Two separate balance checks could both see enough. Suppose A reserves its cent first. How much will B be able to use?",
+        "hold": 2
+      },
+      {
+        "id": "c23-b02",
+        "say": "Reserve A's cent in one atomic operation. B sees six tenths of a cent, so it waits. Watch what changes when A's usage receipt arrives. The concise answer with a warm prefix cost just under half a cent. Settle that charge. The rest of the held cent returns to free funds. B can now reserve its cent.",
+        "hold": 1.3
+      },
+      {
+        "id": "c23-b03",
+        "say": "Replay the same admission. A has its cent and B is waiting. This time A's timer expires before the receipt arrives. The provider may still bill A. Leave the whole cent under A's name. What evidence could release it?",
+        "hold": 2
+      },
+      {
+        "id": "c23-b04",
+        "say": "A matched usage receipt can settle that attempt. Until then, the cent stays held. Retries and fallbacks must claim the same free balance. The lab describes the rule. A production gateway must enforce it alongside deadlines, attempt limits, privacy and the required answer schema.",
+        "hold": 1.4
+      }
+    ]
+  },
+  {
+    "id": "c24",
+    "title": "Four receipts and two arrivals",
+    "sourceChapters": [
+      "c24"
+    ],
+    "beats": [
+      {
+        "id": "c24-b01",
+        "say": "Here's a fresh workload. X needs a retry. The customer on Y gives up after the failure. Z succeeds the first time. The four receipts show every charge for these tasks. What did one accepted task cost?",
+        "hold": 2.1
+      },
+      {
+        "id": "c24-b02",
+        "say": "Include all four charges. We spent one point four cents. Only X and Z reached an accepted outcome. Divide by two and you get seven tenths of a cent per accepted task. If nothing succeeds, report the spend and failures separately.",
+        "hold": 0.7
+      },
+      {
+        "id": "c24-b03",
+        "say": "Now two new calls arrive together. The account has one point seven cents free. Each sends sixteen hundred cold input tokens and caps output at four hundred tokens. Use the two rates on the card. How much must each call reserve, and how many can start?",
+        "hold": 3.5
+      },
+      {
+        "id": "c24-b04",
+        "say": "Cold input costs four tenths of a cent. The output cap adds six tenths. Reserve one cent for the first call. The second sees only seven tenths of a cent free, so it waits.",
+        "hold": 0.7
+      },
+      {
+        "id": "c24-b05",
+        "say": "The first call times out before its receipt arrives. The provider may still be working. Keep the cent held until you can settle the charge. The second call still has the same seven tenths of a cent available.",
+        "hold": 0.8
+      }
+    ]
+  },
+  {
+    "id": "c25",
+    "title": "Back to the evaluation calendar",
+    "sourceChapters": [
+      "c25"
+    ],
+    "beats": [
+      {
+        "id": "c25-b01",
+        "say": "Return to our thirty-night calendar. At base traffic, the plan with reads costs seven hundred seventeen dollars and eighteen cents. Let eleven nights lose their prefix reads. Each costs two dollars and eighty-eight cents extra. Post those eleven nights. The month now costs seven hundred forty-eight dollars and eighty-six cents.",
+        "hold": 0.65
+      },
+      {
+        "id": "c25-b02",
+        "say": "There’s a dollar fourteen left. Look at night twelve. Its two thousand checks will also run cold. Can the remaining budget cover the extra charge?",
+        "hold": 2.1
+      },
+      {
+        "id": "c25-b03",
+        "say": "Post the twelfth cold night. The month reaches seven hundred fifty-one dollars and seventy-four cents. Hold this plan. Eleven cold nights fit, and twelve leave a dollar seventy-four short. Check the prefix reads on the receipts before promising the next run. Carry the cold-call reservation and the required citation schema forward to the gateway.",
+        "hold": 1.9
+      }
+    ]
+  }
+]

@@ -1,0 +1,755 @@
+version: 1
+id: document-chunking
+title: Where to Cut a Document for Retrieval
+source: retrieval/chunking-strategies-document-processing/content.md
+voice: en-US-AndrewNeural
+rate: +0%
+sources:
+  - title: Retrieval-Augmented Generation for Knowledge-Intensive NLP Tasks
+    url: https://arxiv.org/abs/2005.11401
+  - title: Recursive Character Text Splitter documentation
+    url: https://docs.langchain.com/oss/python/integrations/splitters/recursive_text_splitter
+  - title: Parent Document Retriever documentation
+    url: https://reference.langchain.com/python/langchain-classic/retrievers/parent_document_retriever/ParentDocumentRetriever
+  - title: "Late Chunking: Contextual Chunk Embeddings Using Long-Context Embedding Models"
+    url: https://arxiv.org/abs/2409.04701
+  - title: A Systematic Analysis of Chunking Strategies for Reliable Question Answering
+    url: https://arxiv.org/abs/2601.14123
+  - title: MiniLM L6 embedding model card
+    url: https://huggingface.co/sentence-transformers/all-MiniLM-L6-v2
+scenes:
+  - id: subject-intro
+    title: One cut can remove the rule’s meaning
+    visual: A runbook sentence separates into a condition, deadline, and deploy identifier; a question arrives that needs all three pieces together.
+    beats:
+      - say: An incident runbook says that after a rollback failure, page the on-call person within fifteen minutes and include the deploy ID.
+        hold: 0.55
+        visual_cues:
+          - id: subject-intro-beat-1-focus-1
+            phrase: page the on-call person within fifteen minutes and include the deploy ID
+            targets:
+              - subject-intro-object-incident-runbook-page-7-rollback-failure-page-on-c-1
+            color: blue
+            linger: 0.6
+      - say: An engineer asks what triggers the page and which ID to include. This cut keeps the fifteen-minute deadline and the deploy ID. What went missing? The words “rollback failure” stayed behind.
+        hold: 0.75
+        visual_cues:
+          - id: subject-intro-beat-2-focus-1
+            phrase: This cut keeps the fifteen-minute deadline and the deploy ID
+            targets:
+              - subject-intro-object-incident-runbook-page-7-rollback-failure-page-on-c-1
+            color: blue
+            linger: 0.6
+      - say: Chunking decides where searchable evidence units begin and end. Let’s test how different cuts preserve the rule a reader needs.
+        hold: 0.55
+        visual_cues:
+          - id: subject-intro-beat-3-focus-1
+            phrase: Chunking decides where searchable evidence units begin and end
+            targets:
+              - subject-intro-object-incident-runbook-page-7-rollback-failure-page-on-c-1
+            color: blue
+            linger: 0.6
+  - id: answerable-units
+    title: Judge a chunk by the question it can answer
+    visual: Three candidate passages are compared for condition, deadline, and identifier; only the complete rollback sentence satisfies the runbook question.
+    beats:
+      - say: "A searchable fragment can still be incomplete evidence. “Rollback failure: page on-call within” has the condition, but leaves out the deadline and required identifier."
+        hold: 0.55
+        visual_cues:
+          - id: answerable-units-beat-1-focus-1
+            phrase: but leaves out the deadline and required identifier
+            targets:
+              - answerable-units-simulation-3
+            color: blue
+            linger: 0.6
+      - say: Another fragment has “fifteen minutes with deploy ID” but no condition. It could be mistaken for the routine archive rule beside it.
+        hold: 0.75
+        visual_cues:
+          - id: answerable-units-beat-2-focus-1
+            phrase: Another fragment has “fifteen minutes with deploy ID” but no condition
+            targets:
+              - answerable-units-simulation-3
+            color: blue
+            linger: 0.6
+      - say: The complete sentence keeps the condition, time limit, and identifier together. This query-specific completeness is what the chunk must preserve.
+        hold: 0.55
+        visual_cues:
+          - id: answerable-units-beat-3-focus-1
+            phrase: The complete sentence keeps the condition
+            targets:
+              - answerable-units-simulation-3
+            color: blue
+            linger: 0.6
+  - id: fixed-windows
+    title: A word window makes boundaries easy to see
+    visual: A six-word window advances across the runbook, cutting between the number fifteen and its unit minutes; source positions remain attached to each slice.
+    beats:
+      - say: A fixed window is a simple baseline. Choose a size, move forward by that many tokens, and optionally repeat some overlap from the prior window.
+        hold: 0.55
+        motion_check:
+          region:
+            - 120
+            - 390
+            - 1680
+            - 390
+          minimumChangedFraction: 0.002
+        visual_cues:
+          - id: fixed-windows-beat-1-focus-1
+            phrase: A fixed window is a simple baseline
+            targets:
+              - fixed-windows-simulation-7
+            color: blue
+            linger: 0.6
+      - say: For this visible word-count fixture, the first six-word slice ends at “fifteen.” The unit “minutes” begins the next slice.
+        hold: 0.75
+        visual_cues:
+          - id: fixed-windows-beat-2-focus-1
+            phrase: For this visible word-count fixture
+            targets:
+              - fixed-windows-simulation-7
+            color: blue
+            linger: 0.6
+      - say: Production size checks should use the embedding model’s tokenizer, including headings and special tokens. A word count is only a teaching stand-in.
+        hold: 0.55
+        visual_cues:
+          - id: fixed-windows-beat-3-focus-1
+            phrase: Production size checks should use the embedding model’s tokenizer
+            targets:
+              - fixed-windows-simulation-7
+            color: blue
+            linger: 0.6
+          - id: fixed-windows-beat-3-focus-2
+            phrase: A word count is only a teaching stand-in
+            targets:
+              - fixed-windows-object-item-word-8
+            color: blue
+            linger: 0.6
+  - id: overlap-limit
+    title: Repeated words cannot make a window larger
+    visual: Window overlap repeats boundary words and raises the indexed word count, while a ten-word paging rule remains longer than every seven-word window.
+    beats:
+      - say: Overlap can carry a short phrase across a boundary. It also indexes the repeated words again and can increase storage and retrieval duplication.
+        hold: 0.55
+        visual_cues:
+          - id: overlap-limit-beat-1-focus-1
+            phrase: storage and retrieval duplication
+            targets:
+              - overlap-window-0
+            color: blue
+            linger: 0.6
+          - id: overlap-limit-beat-1-focus-2
+            phrase: Overlap can carry a short phrase across a boundary
+            targets:
+              - overlap-limit-simulation-14
+            color: blue
+            linger: 0.6
+      - say: In this fixture, the complete paging rule is ten words long. A window holds seven, so even four repeated words cannot fit the whole rule inside one window.
+        hold: 0.75
+        visual_cues:
+          - id: overlap-limit-beat-2-focus-1
+            phrase: the complete paging rule is ten words long
+            targets:
+              - overlap-limit-simulation-17
+            color: blue
+            linger: 0.6
+          - id: overlap-limit-beat-2-focus-2
+            phrase: In this fixture
+            targets:
+              - overlap-limit-simulation-14
+            color: blue
+            linger: 0.6
+      - say: The added copies do not restore missing context. Rebalance the cut, return a larger parent, or flag the case for review.
+        hold: 0.55
+        visual_cues:
+          - id: overlap-limit-beat-3-focus-1
+            phrase: The added copies do not restore missing context
+            targets:
+              - overlap-limit-simulation-14
+            color: blue
+            linger: 0.6
+  - id: structure-and-tables
+    title: Use headings and column names as structure
+    visual: Section-aware chunks keep the rollback heading with its rule; table row groups repeat their header so each value retains its column meaning.
+    beats:
+      - say: When a document has useful headings, start with those boundaries. Attach the section title to the searchable text so the condition stays near its deadline.
+        hold: 0.55
+        visual_cues:
+          - id: structure-and-tables-beat-1-focus-1
+            phrase: Attach the section title to the searchable text
+            targets:
+              - structure-and-tables-object-section-heading-n-section-heading-22
+            color: blue
+            linger: 0.6
+      - say: A table row cut away from its column names can make a value ambiguous. Repeat the header for each row group when a table must split.
+        hold: 0.75
+        visual_cues:
+          - id: structure-and-tables-beat-2-focus-1
+            phrase: A table row cut away from its column
+            targets:
+              - structure-table-chunks
+            color: blue
+            linger: 0.6
+          - id: table-repeat-header
+            phrase: Repeat the header for each row group when a table must split
+            targets:
+              - structure-table-chunks
+            color: cyan
+            linger: 0.5
+      - say: Keep source locations, versions, and offsets with each chunk. A heading makes its terms searchable, while provenance lets a reviewer return to the original evidence.
+        hold: 0.55
+        visual_cues:
+          - id: structure-and-tables-beat-3-focus-1
+            phrase: A heading makes its terms searchable
+            targets:
+              - structure-and-tables-object-section-heading-n-section-heading-22
+            color: blue
+            linger: 0.6
+          - id: structure-and-tables-beat-3-focus-2
+            phrase: Keep source locations
+            targets:
+              - structure-and-tables-object-section-rule-23
+            color: blue
+            linger: 0.6
+  - id: parent-child-context
+    title: Search a small child and answer with its checked parent
+    visual: A narrow child span wins the retrieval match, then a version-matched authorized section expands to include the complete rollback condition and locator.
+    beats:
+      - say: A short child span can make a focused search candidate. It may omit the context needed for a complete answer.
+        hold: 0.55
+        visual_cues:
+          - id: parent-child-context-beat-1-focus-1
+            phrase: A short child span can make a focused search candidate
+            targets:
+              - parent-child-context-object-search-child-within-15-minutes-25
+            color: blue
+            linger: 0.6
+      - say: A parent pointer can bring back the containing section after retrieval. The host checks that the parent version and permissions still match.
+        hold: 0.75
+        motion_check:
+          region:
+            - 1320
+            - 390
+            - 500
+            - 280
+          minimumChangedFraction: 0.002
+        visual_cues:
+          - id: parent-child-context-beat-2-focus-1
+            phrase: The host checks that the parent version and permissions still match
+            targets:
+              - parent-child-context-object-beat-0-check-parent-id-version-access-runbook-v3-a-26
+            color: blue
+            linger: 0.6
+          - id: parent-child-context-beat-2-focus-2
+            phrase: A parent pointer can bring back the containing section after retrieval
+            targets:
+              - parent-child-context-object-search-child-within-15-minutes-25
+            color: blue
+            linger: 0.6
+      - say: Deduplicate parents and measure the full packed prompt with the target tokenizer. A parent pointer does not prove that the returned text is sufficient.
+        hold: 0.55
+        visual_cues:
+          - id: parent-child-context-beat-3-focus-1
+            phrase: Deduplicate parents and measure the full packed prompt with the target tokenizer
+            targets:
+              - parent-child-context-object-beat-0-check-parent-id-version-access-runbook-v3-a-26
+            color: blue
+            linger: 0.6
+  - id: semantic-and-late
+    title: Escalate when document meaning crosses the local span
+    visual: A topic change separates rollback steps from commander instructions; an early chunk sees only its span, while late pooling uses contextual token states before making chunk vectors.
+    beats:
+      - say: A long section may change topic without a heading. Semantic boundary detection can propose a split where neighboring sentence representations change.
+        hold: 0.55
+        visual_cues:
+          - id: semantic-and-late-beat-1-focus-1
+            phrase: A long section may change topic without a heading
+            targets:
+              - semantic-and-late-simulation-29
+            color: blue
+            linger: 0.6
+      - say: Late chunking encodes a longer input first, then pools contextual token states for each selected span. A chunk vector can carry information from a name earlier in the document.
+        hold: 0.75
+        motion_check:
+          region:
+            - 1030
+            - 400
+            - 770
+            - 360
+          minimumChangedFraction: 0.002
+        visual_cues:
+          - id: semantic-and-late-beat-2-focus-1
+            phrase: then pools contextual token states for each selected span
+            targets:
+              - late-contextual-states
+            color: blue
+            linger: 0.6
+          - id: semantic-and-late-beat-2-focus-2
+            phrase: Late chunking encodes a longer input first
+            targets:
+              - late-full-input
+            color: blue
+            linger: 0.6
+      - say: The pooled vector does not insert that name into the returned passage. Keep the source text or expand context so the answer can cite what it actually received.
+        hold: 0.55
+        visual_cues:
+          - id: semantic-and-late-beat-3-focus-1
+            phrase: The pooled vector does not insert that name into the returned passage
+            targets:
+              - semantic-and-late-simulation-29
+            color: blue
+            linger: 0.6
+  - id: evaluate-and-release
+    title: Choose the smallest chunk that can answer
+    visual: One runbook question is tested against three real candidate passages and a ten-word cutoff. Coverage checks reveal which chunk carries the condition, deadline, and identifier without exceeding the limit.
+    beats:
+      - say: Our query asks after a rollback failure, who gets paged, when, and which ID to include. This worked example uses a ten-word cutoff. Which candidate stays under it and contains all three answer fields?
+        hold: 0.55
+        visual_cues:
+          - id: release-query-cutoff-b1-1
+            phrase: ten-word cutoff
+            targets:
+              - release-query
+            color: yellow
+            linger: 0.6
+          - id: release-ten-word-cutoff-b1-2
+            phrase: contains all three answer fields
+            targets:
+              - release-candidates
+            color: blue
+            linger: 0.6
+      - say: The five-word fragment fits but omits the deadline and ID. The twelve-word fragment has the deadline and ID, but omits the failure condition and adds an unrelated archive rule. The ten-word rollback sentence has all three fields and meets the cutoff.
+        hold: 0.75
+        visual_cues:
+          - id: release-fragment-check-b2-1
+            phrase: omits the deadline and ID
+            targets:
+              - release-coverage
+            color: cyan
+            linger: 0.6
+          - id: release-complete-rule-b2-2
+            phrase: adds an unrelated archive rule
+            targets:
+              - release-coverage
+            color: yellow
+            linger: 0.6
+          - id: release-all-fields-b2-3
+            phrase: has all three fields and meets the cutoff
+            targets:
+              - release-coverage
+            color: green
+            linger: 0.6
+      - say: "Choose the ten-word sentence. It is the shortest candidate here that answers the labeled question within the cutoff. Keep its source locator attached: incident-runbook-v3.pdf, page 7."
+        hold: 0.55
+        visual_cues:
+          - id: release-cutoff-choice-b3-1
+            phrase: shortest candidate here
+            targets:
+              - release-selection
+            color: green
+            linger: 0.6
+          - id: release-source-span-b3-2
+            phrase: source locator attached
+            targets:
+              - release-source
+            color: blue
+            linger: 0.6
+  - id: token-offsets
+    title: Keep model tokens and source spans separate
+    visual: The same runbook span retains its immutable source positions while added retrieval labels and tokenizer overhead consume a different budget.
+    beats:
+      - say: "Our visible windows count whitespace-separated words. A production embedder consumes its own tokens. Count the complete indexed string: source label, section heading, body and special tokens. Character length and word count cannot certify that input fits. The sentence-transformers checkpoint all-MiniLM-L6-v2 produces three-hundred-eighty-four-dimensional embeddings. Its cited Sentence Transformers configuration limits the whole sequence to two-hundred-fifty-six tokens, including special tokens. That is a model-specific default, not a universal chunk size."
+        hold: 0.8
+        visual_cues:
+          - id: token-offsets-0
+            phrase: Our visible windows count whitespace-separated words
+            targets:
+              - token-offsets-operation
+            linger: 0.4
+          - id: token-model-contract
+            phrase: The sentence-transformers checkpoint all-MiniLM-L6-v2 produces
+            targets:
+              - token-offsets-operation
+            linger: 0.35
+      - say: Keep the original evidence span separate from the retrieval representation. Prepending Source Incident Runbook and Section Rollback failure adds source and section context that may help retrieval. Test the benefit on labeled queries. Those labels consume tokens and are not quotations from the source span. Preserve immutable document version, offsets and a mapping through normalization so a citation can recover the actual evidence. State whether offsets count characters, bytes or tokenizer positions.
+        hold: 0.8
+        visual_cues:
+          - id: token-offsets-1
+            phrase: Keep the original evidence span separate from the retrieval representation
+            targets:
+              - token-offsets-operation
+            linger: 0.4
+          - id: prepend-labels
+            phrase: Prepending Source Incident Runbook and Section Rollback failure
+            targets:
+              - token-offsets-operation
+            linger: 0.35
+      - say: The article parser recognizes a flat pair of Markdown heading marks. It demonstrates a boundary; it is not a general nested-document or fenced-code parser. Its section ordinal is an application locator, not a clickable PDF anchor. Preserve code fences and table structure with an appropriate parser, and use a recursive fallback when usable structure is absent. A recursive character splitter tries separators in order; it does not infer that a policy exception belongs with its condition.
+        hold: 0.8
+        visual_cues:
+          - id: token-offsets-2
+            phrase: The article parser recognizes a flat pair of Markdown heading marks
+            targets:
+              - token-offsets-operation
+            linger: 0.4
+  - id: tail-balancing
+    title: Repair a short tail under the same hard cap
+    visual: Fifteen ordered source words begin as seven,seven,one; their boundaries move while original character spans remain attached.
+    beats:
+      - say: "Construct the article fallback on fifteen words with a hard size cap of seven and a preferred minimum tail of four. A naive split produces seven, seven, one. Merging the last word into the previous seven produces an eight-word child and violates the cap. Keep source order while redistributing boundaries: five, five, five satisfies both requirements. The fixture records exact character spans zero to thirty, thirty-one to fifty-eight, and fifty-nine to ninety-three, with exclusive end positions. Balancing repaired length,not meaning:the first five-word child still omits deploy ID. Prepend required section context,and require parent expansion when a child is incomplete;an unused pointer elsewhere does not supply evidence."
+        hold: 0.8
+        visual_cues:
+          - id: tail-balancing-0
+            phrase: Construct the article fallback on fifteen words with a hard size cap of seven and a preferred minimum tail of four
+            targets:
+              - tail-balancing-operation
+            linger: 0.4
+          - id: tail-merge
+            phrase: Merging the last word
+            targets:
+              - tail-balancing-operation
+            linger: 0.35
+          - id: tail-balance
+            phrase: Keep source order while redistributing boundaries
+            targets:
+              - tail-balancing-operation
+            linger: 0.35
+          - id: balance-not-evidence
+            phrase: Balancing repaired length
+            targets:
+              - tail-balancing-operation
+            linger: 0.35
+      - say: Now change only the preferred minimum from four to six. At least three chunks are needed because two chunks of at most seven hold only fourteen words. Three children of at least six would require eighteen words. Both constraints cannot hold for fifteen. Preserve the hard cap and mark the undersized children for review or choose another representation; a ready flag would conceal the unsatisfied preference.
+        hold: 0.8
+        visual_cues:
+          - id: tail-balancing-1
+            phrase: Now change only the preferred minimum from four to six
+            targets:
+              - tail-balancing-operation
+            linger: 0.4
+          - id: tail-impossible
+            phrase: Three children of at least six would require eighteen words
+            targets:
+              - tail-balancing-operation
+            linger: 0.35
+      - say: For overlapping fixed windows, stride is size minus overlap. Stop when a window reaches the source end; another wholly duplicated tail adds no evidence. At a twenty-percent overlap ratio, a long-document approximation gives one divided by point eight, or one point two five times as many windows. Short documents need exact counts. In our seventeen-word fixture, size seven with overlaps zero, two and four indexes seventeen, twenty-one and thirty-three words, yet still contains zero complete ten-word rollback rules.
+        hold: 0.8
+        visual_cues:
+          - id: tail-balancing-2
+            phrase: For overlapping fixed windows, stride is size minus overlap
+            targets:
+              - tail-balancing-operation
+            linger: 0.4
+          - id: overlap-asymptotic
+            phrase: At a twenty-percent overlap ratio
+            targets:
+              - tail-balancing-operation
+            linger: 0.35
+  - id: labeled-retrieval
+    title: Test returned evidence rather than topic alone
+    visual: The same labeled runbook query scores competing source spans, then missing-condition and budget mutations change the result.
+    beats:
+      - say: The article uses a transparent lexical baseline, not an embedding-quality benchmark. Convert query and passage text into whole-word sets, then count their intersection. For rollback, failure, deploy and minutes, the complete rollback rule matches four of four query terms. The routine archive rule matches only deploy. The condition fragment and deadline fragment each match two. A max operation may break that tie by input order, but neither fragment alone proves the complete rule.
+        hold: 0.8
+        visual_cues:
+          - id: labeled-retrieval-0
+            phrase: The article uses a transparent lexical baseline, not an embedding-quality benchmark
+            targets:
+              - labeled-retrieval-operation
+            linger: 0.4
+      - say: "Keep two checks separate: did retrieval select the intended evidence source, and does the text actually supplied establish the answer? The three-case smoke suite covers paging, archive and commander instructions and passes three of three. That tiny authored fixture establishes only its tested behavior. Add exceptions, tables, boundary-spanning facts, ambiguity and unanswerable cases before comparing realistic retrieval systems."
+        hold: 0.8
+        visual_cues:
+          - id: labeled-retrieval-1
+            phrase: "Keep two checks separate: did retrieval select the intended evidence source, and does the text actually supplied establish the answer? The three-case smoke suite covers paging, archive and commander instructions and passes three of three"
+            targets:
+              - labeled-retrieval-operation
+            linger: 0.4
+          - id: retrieval-suite
+            phrase: passes three of three
+            targets:
+              - labeled-retrieval-operation
+            linger: 0.35
+      - say: Across splitter configurations, chunk IDs and boundaries can change. Label stable source versions and answer-bearing spans rather than requiring an old splitter ID. Score the final context after parent expansion and budget selection. Two approved fragments in source order can together supply a complete rule; dropping the condition-bearing half makes that final context insufficient even if both hits originally retrieved correctly.
+        hold: 0.8
+        visual_cues:
+          - id: labeled-retrieval-2
+            phrase: Across splitter configurations, chunk IDs and boundaries can change
+            targets:
+              - labeled-retrieval-operation
+            linger: 0.4
+          - id: retrieval-drop
+            phrase: dropping the condition-bearing half
+            targets:
+              - labeled-retrieval-operation
+            linger: 0.35
+      - say: Compare under the same generator-token budget, reserving instructions, question and output. Equal top-k is not equal context when chunks have different lengths. Measure duplicated source spans, index size and retrieval latency alongside source recall, evidence sufficiency and answer quality. A larger index or more retrieved words earns no quality claim by itself.
+        hold: 0.8
+        visual_cues:
+          - id: labeled-retrieval-3
+            phrase: Compare under the same generator-token budget, reserving instructions, question and output
+            targets:
+              - labeled-retrieval-operation
+            linger: 0.4
+  - id: checked-parent
+    title: Expand one permitted current parent within budget
+    visual: Two child matches point to one retained parent; stale version,denied access and too-small budget are repaired separately.
+    beats:
+      - say: Follow both child pointers in the actual article fixture. One contains fifteen minutes with deploy ID; the other says include the service name. They point to the same fourteen-word parent section. Two hits yield one parent copy, not twenty-eight words. A twenty-word toy budget accepts it. The complete parent restores the rollback condition and keeps its source page and version.
+        hold: 0.8
+        visual_cues:
+          - id: checked-parent-0
+            phrase: Follow both child pointers in the actual article fixture
+            targets:
+              - checked-parent-operation
+            linger: 0.4
+          - id: parent-dedup
+            phrase: Two hits yield one parent copy
+            targets:
+              - checked-parent-operation
+            linger: 0.35
+      - say: "Change only one child version from three to two. Expansion rejects the stale child-to-parent link. Restore version three and remove the parent permission: parent access denied. Restore permission but lower the word budget to ten: context budget exceeded; select smaller complete evidence. More child hits do not repair any of these failures. The fixture checks permission before version and checks the complete deduplicated context budget before returning it."
+        hold: 0.8
+        visual_cues:
+          - id: checked-parent-1
+            phrase: Change only one child version from three to two
+            targets:
+              - checked-parent-operation
+            linger: 0.4
+          - id: parent-stale
+            phrase: Expansion rejects the stale child-to-parent link
+            targets:
+              - checked-parent-operation
+            linger: 0.35
+          - id: parent-denied
+            phrase: parent access denied
+            targets:
+              - checked-parent-operation
+            linger: 0.35
+          - id: parent-small
+            phrase: context budget exceeded
+            targets:
+              - checked-parent-operation
+            linger: 0.35
+      - say: The serving host supplies allowed parent IDs from a real authorization decision. Carry immutable document and chunking versions, check the expanded parent as well as the child, and deduplicate before measuring the final packed prompt with the generator tokenizer. Never silently remove the deadline to make a parent fit. Words make this lab visible; a production call must reserve its own instruction,question and output tokens.
+        hold: 0.8
+        visual_cues:
+          - id: checked-parent-2
+            phrase: The serving host supplies allowed parent IDs from a real authorization decision
+            targets:
+              - checked-parent-operation
+            linger: 0.4
+  - id: semantic-cosine
+    title: Construct a topic boundary from actual vectors
+    visual: Neighboring sentence vectors share one incident axis before a commander sentence turns onto an orthogonal axis; zero vectors remain unknown.
+    beats:
+      - say: "The semantic lab counts whole words into two hand-written topic coordinates. Rollback failures require deploy IDs activates rollback and deploy, giving two, zero. Page on-call within fifteen minutes activates minutes, giving one, zero. Commander handoff uses the active incident channel gives zero, three. Whole-word matching matters: id is not a substring match inside incident. These are transparent topic counts, not trained embeddings."
+        hold: 0.8
+        visual_cues:
+          - id: semantic-cosine-0
+            phrase: The semantic lab counts whole words into two hand-written topic coordinates
+            targets:
+              - semantic-cosine-operation
+            linger: 0.4
+      - say: "Compute cosine as dot product divided by the product of vector lengths. The first pair has cosine one: same direction despite different magnitude. The second pair has dot product zero and cosine zero. With a supplied point-five threshold, keep the first pair together and propose a boundary before the commander sentence. Similarity proposes a cut; the hard size limit and labeled evidence checks still decide whether it works."
+        hold: 0.8
+        visual_cues:
+          - id: semantic-cosine-1
+            phrase: Compute cosine as dot product divided by the product of vector lengths
+            targets:
+              - semantic-cosine-operation
+            linger: 0.4
+          - id: cosine-first
+            phrase: The first pair has cosine one
+            targets:
+              - semantic-cosine-operation
+            linger: 0.35
+          - id: cosine-second
+            phrase: The second pair has dot product zero and cosine zero
+            targets:
+              - semantic-cosine-operation
+            linger: 0.35
+      - say: Add No action is required. Its vector is zero, zero, so its cosine is undefined rather than evidence of an abrupt topic change. Send that boundary for review. Real embedding thresholds need tuning on representative cases. A similarity rule that detaches an exception, condition or antecedent can still make a well-formed but unanswerable chunk.
+        hold: 0.8
+        visual_cues:
+          - id: semantic-cosine-2
+            phrase: Add No action is required
+            targets:
+              - semantic-cosine-operation
+            linger: 0.4
+          - id: cosine-undefined
+            phrase: undefined rather than evidence
+            targets:
+              - semantic-cosine-operation
+            linger: 0.35
+  - id: late-boundaries
+    title: Keep the encoder context and returned evidence explicit
+    visual: The same token-span boundaries are pooled after shared contextual encoding; cross-scope text is then removed from the encoder input.
+    beats:
+      - say: Our earlier eight-position schematic uses display words and an ellipsis as token stand-ins, with illustrative feature values. It shows shared encoding before pooling a selected span. Late chunking keeps boundary cues but lets contextual token states use a longer shared input before mean pooling. Map source spans to tokenizer offsets, select content-token states, handle special tokens deliberately and apply the model-specific normalization. Averaging independently encoded chunk vectors does not recreate that shared context.
+        hold: 0.8
+        visual_cues:
+          - id: late-boundaries-0
+            phrase: Our earlier eight-position schematic uses display words and an ellipsis as token stand-ins
+            targets:
+              - late-boundaries-operation
+            linger: 0.4
+          - id: late-shared-encode
+            phrase: Late chunking keeps boundary cues
+            targets:
+              - late-boundaries-operation
+            linger: 0.35
+          - id: late-offset-pool
+            phrase: select content-token states
+            targets:
+              - late-boundaries-operation
+            linger: 0.35
+      - say: The encoder must expose token states, the input must fit, and its attention pattern must permit the intended context. Whole-document context is not unlimited. The paper also handles longer documents with overlapping larger windows, so a span sees bounded context. This mean-pooling method stores one vector per chunk. Late interaction retains multiple vectors for token-level scoring; it is a different design.
+        hold: 0.8
+        visual_cues:
+          - id: late-boundaries-1
+            phrase: The encoder must expose token states, the input must fit, and its attention pattern must permit the intended context
+            targets:
+              - late-boundaries-operation
+            linger: 0.4
+      - say: "A public span encoded beside restricted text can have a vector influenced by that restricted context. Filtering the returned text leaves this dependency in the vector. Keep shared encoder inputs within the intended permission and trust scope, and record the context version used to produce each vector. This is a mechanism-based risk, not a measured extraction attack. A better vector also does not insert the missing antecedent into returned evidence: supply that text explicitly or expand the permitted parent."
+        hold: 0.8
+        visual_cues:
+          - id: late-boundaries-2
+            phrase: A public span encoded beside restricted text can have a vector influenced by that restricted context
+            targets:
+              - late-boundaries-operation
+            linger: 0.4
+          - id: late-dependence
+            phrase: vector influenced by that restricted context
+            targets:
+              - late-boundaries-operation
+            linger: 0.35
+          - id: late-trust-repair
+            phrase: Keep shared encoder inputs within the intended permission and trust scope
+            targets:
+              - late-boundaries-operation
+            linger: 0.35
+  - id: manifest-release
+    title: Earn the ready flag before checking metadata
+    visual: A complete evaluated chunk and a broken fragment share plausible metadata; the prior evidence decision determines which enters the index.
+    beats:
+      - say: Build the release manifest from the tested runbook. Its local gate requires a prior ready quality decision, nonempty text, source, locator, heading and chunk checksum. The complete rollback chunk passes; the broken deadline fragment remains in review. The function checks fields and a prior decision. It does not compute answerability, authenticate the reviewer or make a splitter-written ready flag trustworthy.
+        hold: 0.8
+        visual_cues:
+          - id: manifest-release-0
+            phrase: Build the release manifest from the tested runbook
+            targets:
+              - manifest-release-operation
+            linger: 0.4
+          - id: manifest-ready
+            phrase: The complete rollback chunk passes
+            targets:
+              - manifest-release-operation
+            linger: 0.35
+      - say: The chunk checksum hashes this chunk text. Editing its bytes will almost certainly change its SHA-two-fifty-six checksum. Compare against a trusted prior digest to check for changes. A hash does not certify meaning or producer authenticity and is not the original document checksum. Preserve the ingestion checksum and immutable source version separately. Include source version, splitter configuration and source spans in the index manifest. The index update must explicitly replace or deactivate old records, or retrieval must filter to the active release. Recording the manifest alone leaves old records searchable.
+        hold: 0.8
+        visual_cues:
+          - id: manifest-release-1
+            phrase: The chunk checksum hashes this chunk text
+            targets:
+              - manifest-release-operation
+            linger: 0.4
+          - id: manifest-edit
+            phrase: Editing its bytes will almost certainly change its SHA-two-fifty-six checksum
+            targets:
+              - manifest-release-operation
+            linger: 0.35
+      - say: Production records also need ingestion trust labels and authorization scope. Quarantined evidence stays blocked, and permissions apply to the final expanded context. Start this runbook with heading-aware sections, recursive fallback, tokenizer size checks, preserved table headers and source provenance. Add overlap,parent expansion,semantic boundaries or late chunking only when a measured failure justifies their extra work.
+        hold: 0.8
+        visual_cues:
+          - id: manifest-release-2
+            phrase: Production records also need ingestion trust labels and authorization scope
+            targets:
+              - manifest-release-operation
+            linger: 0.4
+  - id: evaluation-limits
+    title: Separate a published finding from a deployment rule
+    visual: Chunk size and retrieved-context budget occupy different rulers; the source experiment remains labeled while the runbook evidence decides its own configuration.
+    beats:
+      - say: Bennani and Moslonka evaluated Wikipedia Natural Questions with SPLADE retrieval and a Ministral eight-billion instruction model. They varied chunks from fifty to five hundred tokens, overlap zero or twenty percent, and retrieved generator context from five hundred to ten thousand tokens. They filled a context budget in rank order rather than holding top-k fixed. This is a particular pipeline and corpus, not proof about every embedder or policy document.
+        hold: 0.8
+        visual_cues:
+          - id: evaluation-limits-0
+            phrase: Bennani and Moslonka evaluated Wikipedia Natural Questions with SPLADE retrieval and a Ministral eight-billion instruction model
+            targets:
+              - evaluation-limits-operation
+            linger: 0.4
+      - say: Their sentence-preserving splits matched semantic splitting up to roughly five thousand retrieved-context tokens. That number is a context budget, not a five-thousand-token chunk recommendation. In their comparisons, overlap added indexing cost without a measurable quality gain. The runbook uses its own complete-rule tests to decide whether a boundary repair earns its cost.
+        hold: 0.8
+        visual_cues:
+          - id: evaluation-limits-1
+            phrase: Their sentence-preserving splits matched semantic splitting up to roughly five thousand retrieved-context tokens
+            targets:
+              - evaluation-limits-operation
+            linger: 0.4
+          - id: study-context-five
+            phrase: roughly five thousand retrieved-context tokens
+            targets:
+              - evaluation-limits-operation
+            linger: 0.35
+      - say: Keep answer metrics distinct. That study reported semantic similarity, exact match and abstention, with uncertainty over questions. More context can add distractors; different metrics can prefer different budgets. Compare the actual answer, citations and useful evidence under a declared budget. Our three smoke cases and hand-written vectors establish arithmetic and boundary behavior, not a production quality ranking.
+        hold: 0.8
+        visual_cues:
+          - id: evaluation-limits-2
+            phrase: Keep answer metrics distinct
+            targets:
+              - evaluation-limits-operation
+            linger: 0.4
+  - id: earned-transfer
+    title: Repair the evidence that actually reaches the answer
+    visual: A fresh two-fragment rollback case passes before a budget cut drops its condition; the same state is repaired with a complete permitted parent.
+    beats:
+      - say: "Work a new case. An approved version-five runbook has a twelve-word rule: Rollback failure, page on-call within twenty minutes with deploy ID and service. A nine-word index window cannot hold that rule alone. Retrieval returns both fragments from the same source version, in source order, and together they contain the condition,deadline and required identifier. Does a faithful answer necessarily fail because neither individual hit is complete? Predict using the final supplied context."
+        hold: 0.8
+        visual_cues:
+          - id: earned-transfer-0
+            phrase: Work a new case
+            targets:
+              - earned-transfer-operation
+            linger: 0.4
+      - say: The combined context can establish the rule. Now a packing limit removes the first fragment, which contained the rollback condition. Keeping only the deadline and identifier fails evidence sufficiency, even though the retained hit still points to the right runbook. A citation or checksum cannot restore omitted text. Repair the same case by selecting a complete permitted parent that fits the available budget, or abstain when no sufficient context fits.
+        hold: 0.8
+        visual_cues:
+          - id: earned-transfer-1
+            phrase: The combined context can establish the rule
+            targets:
+              - earned-transfer-operation
+            linger: 0.4
+          - id: fresh-context-answer
+            phrase: The combined context can establish the rule
+            targets:
+              - earned-transfer-operation
+            linger: 0.35
+          - id: fresh-budget-cut
+            phrase: Now a packing limit removes the first fragment
+            targets:
+              - earned-transfer-operation
+            linger: 0.35
+          - id: fresh-insufficient-result
+            phrase: Keeping only the deadline and identifier fails evidence sufficiency, even though the retained hit still points to the right runbook
+            targets:
+              - earned-transfer-operation
+            linger: 0.35
+          - id: fresh-parent-repair
+            phrase: Repair the same case by selecting a complete permitted parent
+            targets:
+              - earned-transfer-operation
+            linger: 0.35
+          - id: fresh-parent-result
+            phrase: Repair the same case by selecting a complete permitted parent that fits the available budget, or abstain when no sufficient context fits
+            targets:
+              - earned-transfer-operation
+            linger: 0.35
+      - say: "Check that repair with source-version and span labels, full returned text, current parent access and the final generator-token budget. Change the split and the chunk IDs; the evidence requirement stays fixed. Change the budget or permission and rerun the gate. The earned result is an answer supported by the actual retained evidence, with its cost and limits visible. Next, benchmark design turns that evidence requirement into scored cases and tests the evaluator, so a fluent answer cannot earn credit by inventing permission."
+        hold: 0.8
+        visual_cues:
+          - id: earned-transfer-2
+            phrase: Check that repair with source-version and span labels, full returned text, current parent access and the final generator-token budget
+            targets:
+              - earned-transfer-operation
+            linger: 0.4

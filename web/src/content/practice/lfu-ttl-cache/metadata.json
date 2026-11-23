@@ -1,0 +1,446 @@
+{
+  "id": "lfu-ttl-cache",
+  "slug": "lfu-ttl-cache",
+  "title": "LFU TTL Cache",
+  "difficulty": "Hard",
+  "category": "Caching",
+  "language": "python3",
+  "timeEstimateMinutes": 45,
+  "timeLimitMs": 2500,
+  "memoryLimitMb": 128,
+  "order": 65,
+  "tags": [
+    "LFU",
+    "TTL",
+    "eviction",
+    "OrderedDict"
+  ],
+  "source": "Company prep",
+  "summary": "Combine frequency buckets, recency tie-breaks, and TTL cleanup without corrupting eviction state.",
+  "starterCode": [
+    "class LFUTTLCache:",
+    "    def __init__(self, capacity: int, now):",
+    "        pass",
+    "",
+    "    def put(self, key: str, value, ttl: float | None = None) -> None:",
+    "        pass",
+    "",
+    "    def get(self, key: str):",
+    "        pass"
+  ],
+  "testCases": [
+    {
+      "name": "evicts least frequently used entry",
+      "visibility": "sample",
+      "setup": [
+        "from solution import LFUTTLCache",
+        "cache = LFUTTLCache(capacity=2, now=lambda: 0.0)",
+        "cache.put(\"a\", 1)",
+        "cache.put(\"b\", 2)"
+      ],
+      "checks": [
+        {
+          "input": "cache = LFUTTLCache(capacity=2, now=lambda: 0.0)\ncache.put(\"a\", 1)\ncache.put(\"b\", 2)\ncache.get(\"a\")",
+          "expression": "cache.get(\"a\")",
+          "operator": "==",
+          "expected": "1"
+        },
+        {
+          "input": "cache = LFUTTLCache(capacity=2, now=lambda: 0.0)\ncache.put(\"a\", 1)\ncache.put(\"b\", 2)\ncache.get(\"a\")\ncache.put(\"c\", 3)\ncache.get(\"b\")",
+          "expression": "cache.get(\"b\")",
+          "operator": "is",
+          "expected": "None",
+          "before": "cache.put(\"c\", 3)"
+        },
+        {
+          "input": "cache = LFUTTLCache(capacity=2, now=lambda: 0.0)\ncache.put(\"a\", 1)\ncache.put(\"b\", 2)\ncache.get(\"a\")\ncache.put(\"c\", 3)\ncache.get(\"b\")\ncache.get(\"a\")",
+          "expression": "cache.get(\"a\")",
+          "operator": "==",
+          "expected": "1"
+        },
+        {
+          "input": "cache = LFUTTLCache(capacity=2, now=lambda: 0.0)\ncache.put(\"a\", 1)\ncache.put(\"b\", 2)\ncache.get(\"a\")\ncache.put(\"c\", 3)\ncache.get(\"b\")\ncache.get(\"a\")\ncache.get(\"c\")",
+          "expression": "cache.get(\"c\")",
+          "operator": "==",
+          "expected": "3"
+        }
+      ]
+    },
+    {
+      "name": "tie breaks by recency inside frequency",
+      "visibility": "sample",
+      "setup": [
+        "from solution import LFUTTLCache",
+        "cache = LFUTTLCache(capacity=2, now=lambda: 0.0)",
+        "cache.put(\"a\", 1)",
+        "cache.put(\"b\", 2)",
+        "cache.put(\"c\", 3)"
+      ],
+      "checks": [
+        {
+          "input": "cache = LFUTTLCache(capacity=2, now=lambda: 0.0)\ncache.put(\"a\", 1)\ncache.put(\"b\", 2)\ncache.put(\"c\", 3)\ncache.get(\"a\")",
+          "expression": "cache.get(\"a\")",
+          "operator": "is",
+          "expected": "None"
+        },
+        {
+          "input": "cache = LFUTTLCache(capacity=2, now=lambda: 0.0)\ncache.put(\"a\", 1)\ncache.put(\"b\", 2)\ncache.put(\"c\", 3)\ncache.get(\"a\")\ncache.get(\"b\")",
+          "expression": "cache.get(\"b\")",
+          "operator": "==",
+          "expected": "2"
+        },
+        {
+          "input": "cache = LFUTTLCache(capacity=2, now=lambda: 0.0)\ncache.put(\"a\", 1)\ncache.put(\"b\", 2)\ncache.put(\"c\", 3)\ncache.get(\"a\")\ncache.get(\"b\")\ncache.get(\"c\")",
+          "expression": "cache.get(\"c\")",
+          "operator": "==",
+          "expected": "3"
+        }
+      ]
+    },
+    {
+      "name": "frequency beats global recency",
+      "visibility": "hidden",
+      "setup": [
+        "from solution import LFUTTLCache",
+        "cache = LFUTTLCache(capacity=2, now=lambda: 0.0)",
+        "cache.put(\"a\", 1)",
+        "cache.put(\"b\", 2)"
+      ],
+      "checks": [
+        {
+          "input": "cache = LFUTTLCache(capacity=2, now=lambda: 0.0)\ncache.put(\"a\", 1)\ncache.put(\"b\", 2)\ncache.get(\"a\")",
+          "expression": "cache.get(\"a\")",
+          "operator": "==",
+          "expected": "1"
+        },
+        {
+          "input": "cache = LFUTTLCache(capacity=2, now=lambda: 0.0)\ncache.put(\"a\", 1)\ncache.put(\"b\", 2)\ncache.get(\"a\")\ncache.get(\"a\")",
+          "expression": "cache.get(\"a\")",
+          "operator": "==",
+          "expected": "1"
+        },
+        {
+          "input": "cache = LFUTTLCache(capacity=2, now=lambda: 0.0)\ncache.put(\"a\", 1)\ncache.put(\"b\", 2)\ncache.get(\"a\")\ncache.get(\"a\")\ncache.get(\"b\")",
+          "expression": "cache.get(\"b\")",
+          "operator": "==",
+          "expected": "2"
+        },
+        {
+          "input": "cache = LFUTTLCache(capacity=2, now=lambda: 0.0)\ncache.put(\"a\", 1)\ncache.put(\"b\", 2)\ncache.get(\"a\")\ncache.get(\"a\")\ncache.get(\"b\")\ncache.put(\"c\", 3)\ncache.get(\"a\")",
+          "expression": "cache.get(\"a\")",
+          "operator": "==",
+          "expected": "1",
+          "before": "cache.put(\"c\", 3)"
+        },
+        {
+          "input": "cache = LFUTTLCache(capacity=2, now=lambda: 0.0)\ncache.put(\"a\", 1)\ncache.put(\"b\", 2)\ncache.get(\"a\")\ncache.get(\"a\")\ncache.get(\"b\")\ncache.put(\"c\", 3)\ncache.get(\"a\")\ncache.get(\"b\")",
+          "expression": "cache.get(\"b\")",
+          "operator": "is",
+          "expected": "None"
+        },
+        {
+          "input": "cache = LFUTTLCache(capacity=2, now=lambda: 0.0)\ncache.put(\"a\", 1)\ncache.put(\"b\", 2)\ncache.get(\"a\")\ncache.get(\"a\")\ncache.get(\"b\")\ncache.put(\"c\", 3)\ncache.get(\"a\")\ncache.get(\"b\")\ncache.get(\"c\")",
+          "expression": "cache.get(\"c\")",
+          "operator": "==",
+          "expected": "3"
+        }
+      ]
+    },
+    {
+      "name": "update increments frequency and replaces ttl",
+      "visibility": "hidden",
+      "setup": [
+        "from solution import LFUTTLCache",
+        "clock = {\"t\": 0.0}",
+        "cache = LFUTTLCache(capacity=2, now=lambda: clock[\"t\"])",
+        "cache.put(\"a\", 1, ttl=5)",
+        "cache.put(\"b\", 2)",
+        "cache.put(\"a\", 10, ttl=20)",
+        "cache.put(\"c\", 3)"
+      ],
+      "checks": [
+        {
+          "input": "clock = {\"t\": 0.0}\ncache = LFUTTLCache(capacity=2, now=lambda: clock[\"t\"])\ncache.put(\"a\", 1, ttl=5)\ncache.put(\"b\", 2)\ncache.put(\"a\", 10, ttl=20)\ncache.put(\"c\", 3)\ncache.get(\"b\")",
+          "expression": "cache.get(\"b\")",
+          "operator": "is",
+          "expected": "None"
+        },
+        {
+          "input": "clock = {\"t\": 0.0}\ncache = LFUTTLCache(capacity=2, now=lambda: clock[\"t\"])\ncache.put(\"a\", 1, ttl=5)\ncache.put(\"b\", 2)\ncache.put(\"a\", 10, ttl=20)\ncache.put(\"c\", 3)\ncache.get(\"b\")\nclock[\"t\"] = 6.0\ncache.get(\"a\")",
+          "expression": "cache.get(\"a\")",
+          "operator": "==",
+          "expected": "10",
+          "before": "clock[\"t\"] = 6.0"
+        },
+        {
+          "input": "clock = {\"t\": 0.0}\ncache = LFUTTLCache(capacity=2, now=lambda: clock[\"t\"])\ncache.put(\"a\", 1, ttl=5)\ncache.put(\"b\", 2)\ncache.put(\"a\", 10, ttl=20)\ncache.put(\"c\", 3)\ncache.get(\"b\")\nclock[\"t\"] = 6.0\ncache.get(\"a\")\ncache.get(\"c\")",
+          "expression": "cache.get(\"c\")",
+          "operator": "==",
+          "expected": "3"
+        }
+      ]
+    },
+    {
+      "name": "expired entries are removed before eviction",
+      "visibility": "hidden",
+      "description": "put must reclaim expired capacity without a prior get on the expired key; pure LFU must not drop the live hot key.",
+      "setup": [
+        "from solution import LFUTTLCache",
+        "clock = {\"t\": 0.0}",
+        "cache = LFUTTLCache(capacity=2, now=lambda: clock[\"t\"])",
+        "cache.put(\"old\", 1, ttl=5)",
+        "cache.get(\"old\")",
+        "cache.get(\"old\")",
+        "cache.put(\"hot\", 2)",
+        "cache.get(\"hot\")"
+      ],
+      "checks": [
+        {
+          "input": "clock = {\"t\": 0.0}\ncache = LFUTTLCache(capacity=2, now=lambda: clock[\"t\"])\ncache.put(\"old\", 1, ttl=5)\ncache.get(\"old\")\ncache.get(\"old\")\ncache.put(\"hot\", 2)\ncache.get(\"hot\")\nclock[\"t\"] = 5.0\ncache.put(\"new\", 3)\ncache.get(\"hot\")",
+          "expression": "cache.get(\"hot\")",
+          "operator": "==",
+          "expected": "2",
+          "before": "clock[\"t\"] = 5.0\ncache.put(\"new\", 3)",
+          "feedback": "Cleanup expired entries on put before LFU capacity eviction so hot survives."
+        },
+        {
+          "input": "clock = {\"t\": 0.0}\ncache = LFUTTLCache(capacity=2, now=lambda: clock[\"t\"])\ncache.put(\"old\", 1, ttl=5)\ncache.get(\"old\")\ncache.get(\"old\")\ncache.put(\"hot\", 2)\ncache.get(\"hot\")\nclock[\"t\"] = 5.0\ncache.put(\"new\", 3)\ncache.get(\"hot\")\ncache.get(\"new\")",
+          "expression": "cache.get(\"new\")",
+          "operator": "==",
+          "expected": "3"
+        },
+        {
+          "input": "clock = {\"t\": 0.0}\ncache = LFUTTLCache(capacity=2, now=lambda: clock[\"t\"])\ncache.put(\"old\", 1, ttl=5)\ncache.get(\"old\")\ncache.get(\"old\")\ncache.put(\"hot\", 2)\ncache.get(\"hot\")\nclock[\"t\"] = 5.0\ncache.put(\"new\", 3)\ncache.get(\"hot\")\ncache.get(\"new\")\ncache.get(\"old\")",
+          "expression": "cache.get(\"old\")",
+          "operator": "is",
+          "expected": "None"
+        }
+      ]
+    },
+    {
+      "name": "zero capacity stores no entries",
+      "visibility": "hidden",
+      "setup": [
+        "from solution import LFUTTLCache",
+        "cache = LFUTTLCache(capacity=0, now=lambda: 0.0)",
+        "cache.put(\"a\", 1)"
+      ],
+      "input": "cache.get(\"a\")",
+      "expected": "None",
+      "operator": "is"
+    },
+    {
+      "name": "returns none for missing keys",
+      "visibility": "sample",
+      "description": "Reading an absent key is a cache miss and leaves capacity unchanged.",
+      "setup": [
+        "from solution import LFUTTLCache",
+        "cache = LFUTTLCache(capacity=2, now=lambda: 0.0)"
+      ],
+      "input": "cache.get(\"missing\")",
+      "expected": "None",
+      "feedback": "Return None immediately when the key is not present."
+    },
+    {
+      "name": "ttl zero expires immediately",
+      "visibility": "hidden",
+      "description": "A zero TTL reaches its inclusive expiry at insertion time.",
+      "setup": [
+        "from solution import LFUTTLCache",
+        "cache = LFUTTLCache(capacity=1, now=lambda: 4.0)",
+        "cache.put(\"ephemeral\", 7, ttl=0)"
+      ],
+      "input": "cache.get(\"ephemeral\")",
+      "expected": "None",
+      "feedback": "Treat now() >= expires_at as expired, including a zero TTL."
+    },
+    {
+      "name": "updating without a ttl removes the previous deadline",
+      "visibility": "hidden",
+      "description": "Replacing a live expiring entry without a TTL must clear its old deadline.",
+      "setup": [
+        "from solution import LFUTTLCache",
+        "clock = {\"t\": 0.0}",
+        "cache = LFUTTLCache(capacity=1, now=lambda: clock[\"t\"])",
+        "cache.put(\"a\", 1, ttl=2)",
+        "cache.put(\"a\", 2)",
+        "clock[\"t\"] = 20.0"
+      ],
+      "input": "cache.get(\"a\")",
+      "expected": "2",
+      "feedback": "Set expires_at to None when updating a live key without a TTL."
+    },
+    {
+      "name": "negative capacity stores no entries",
+      "visibility": "hidden",
+      "description": "A non-positive capacity never admits values.",
+      "setup": [
+        "from solution import LFUTTLCache",
+        "cache = LFUTTLCache(capacity=-1, now=lambda: 0.0)",
+        "cache.put(\"a\", 1)"
+      ],
+      "input": "cache.get(\"a\")",
+      "expected": "None",
+      "operator": "is",
+      "feedback": "Normalize negative capacity to zero before inserting entries."
+    },
+    {
+      "name": "immediate expiry preserves unrelated live capacity",
+      "visibility": "hidden",
+      "setup": [
+        "from solution import LFUTTLCache",
+        "cache = LFUTTLCache(capacity=1, now=lambda: 0.0)",
+        "cache.put(\"live\", 1)",
+        "cache.put(\"gone\", 2, ttl=0)"
+      ],
+      "checks": [
+        {"input": "cache.get(\"live\")", "expression": "cache.get(\"live\")", "operator": "==", "expected": "1"},
+        {"input": "cache.get(\"gone\")", "expression": "cache.get(\"gone\")", "operator": "is", "expected": "None"},
+        {"input": "cache.put(\"live\", 3, ttl=-1)\ncache.get(\"live\")", "before": "cache.put(\"live\", 3, ttl=-1)", "expression": "cache.get(\"live\")", "operator": "is", "expected": "None"},
+        {"input": "cache.put(\"next\", 4)\ncache.get(\"next\")", "before": "cache.put(\"next\", 4)", "expression": "cache.get(\"next\")", "operator": "==", "expected": "4"}
+      ]
+    },
+    {
+      "name": "expired key reinsertion resets frequency",
+      "visibility": "hidden",
+      "setup": [
+        "from solution import LFUTTLCache",
+        "clock = {\"t\": 0.0}",
+        "cache = LFUTTLCache(capacity=2, now=lambda: clock[\"t\"])",
+        "cache.put(\"old\", 1, ttl=1)",
+        "cache.get(\"old\")",
+        "cache.get(\"old\")",
+        "cache.put(\"peer\", 2)",
+        "cache.get(\"peer\")",
+        "clock[\"t\"] = 1.0",
+        "cache.put(\"old\", 3)",
+        "cache.put(\"new\", 4)"
+      ],
+      "checks": [
+        {"input": "cache.get(\"old\")", "expression": "cache.get(\"old\")", "operator": "is", "expected": "None"},
+        {"input": "cache.get(\"peer\")", "expression": "cache.get(\"peer\")", "operator": "==", "expected": "2"},
+        {"input": "cache.get(\"new\")", "expression": "cache.get(\"new\")", "operator": "==", "expected": "4"}
+      ]
+    }
+  ],
+  "clarifyingQuestions": [
+    "Does updating an existing key count as an access?",
+    "How should ties be broken among keys with the same frequency?",
+    "Are expired entries removed lazily or by background cleanup?",
+    "What should capacity zero do?"
+  ],
+  "followUps": [
+    "Make `get` and `put` O(1) when TTL cleanup is disabled.",
+    "Add hit/miss/eviction metrics split by TTL and capacity evictions.",
+    "Add thread safety around buckets and entries."
+  ],
+  "followUpGuide": [
+    "For O(1) LFU without TTL cleanup, keep `key -> entry`, `freq -> OrderedDict`, and `min_freq`. Moving a key means deleting it from the old bucket, incrementing frequency, and appending it to the new bucket.",
+    "",
+    "With TTL, decide whether cleanup can be lazy and opportunistic or needs a separate min-heap by expiry time. Lazy cleanup is simpler but can scan many expired entries during `put`.",
+    "",
+    "For metrics, count expired `get` as a miss and a TTL eviction. Count capacity eviction only after expired entries are cleaned.",
+    "",
+    "For thread safety, use one `threading.RLock` around all entry and bucket mutations. `get` is a write because it increments frequency and changes recency."
+  ],
+  "complexityAnalysis": [
+    "- Naive LFU approach: scan all keys to find the lowest frequency on eviction. Time: O(n) per eviction. Space: O(n).",
+    "- Frequency buckets approach: map keys to nodes and frequencies to ordered buckets. Time: O(1) average get/set/evict for pure LFU ops. Space: O(n).",
+    "- TTL-aware LFU (shipped guide): live hits and live-key updates use O(1) average dictionary/bucket operations, treating key hashing and comparisons as constant work. A new-key put scans n entries and recomputes the minimum over b occupied frequency buckets, so it costs O(n) and uses O(n) temporary list space. An expired get or immediately expired put recomputes that minimum in O(b), which can be O(n). Persistent metadata is O(n), apart from stored values and key sizes.",
+    "- An expiry heap gives O(log h) insertion/removal per heap event, where h includes stale deadlines left by updates. Validate each popped deadline against the current entry and bound stale heap growth. A separate ordered frequency structure is still needed if arbitrary expiry must preserve efficient minimum-frequency lookup."
+  ],
+  "solutionGuide": [
+    "Keep three pieces of state: a key-to-entry map, a frequency-to-ordered-keys map, and `min_freq`. Each bucket is ordered by recency, so the first key in the lowest-frequency bucket is the eviction victim.",
+    "",
+    "On `get`, reject expired entries before touching frequency. On `put`, a non-positive TTL removes only that key. Otherwise update a live existing key as an access, or clean expired entries before admitting a new key and evicting from the `min_freq` bucket if needed. Read the injected clock once per operation so all those decisions use the same timestamp.",
+    "",
+    "```python",
+    "from collections import OrderedDict, defaultdict",
+    "",
+    "",
+    "class LFUTTLCache:",
+    "    def __init__(self, capacity: int, now):",
+    "        self.capacity = max(0, capacity)",
+    "        self.now = now",
+    "        self.items = {}",
+    "        self.freqs = defaultdict(OrderedDict)",
+    "        self.min_freq = 0",
+    "",
+    "    def _expired(self, entry, timestamp):",
+    "        return entry[\"expires_at\"] is not None and timestamp >= entry[\"expires_at\"]",
+    "",
+    "    def _remove(self, key):",
+    "        entry = self.items.pop(key, None)",
+    "        if entry is None:",
+    "            return",
+    "        bucket = self.freqs[entry[\"freq\"]]",
+    "        bucket.pop(key, None)",
+    "        if not bucket:",
+    "            del self.freqs[entry[\"freq\"]]",
+    "",
+    "    def _refresh_min_freq(self):",
+    "        self.min_freq = min(self.freqs) if self.freqs else 0",
+    "",
+    "    def _cleanup_expired(self, timestamp):",
+    "        for key, entry in list(self.items.items()):",
+    "            if self._expired(entry, timestamp):",
+    "                self._remove(key)",
+    "        self._refresh_min_freq()",
+    "",
+    "    def _touch(self, key, entry):",
+    "        old_freq = entry[\"freq\"]",
+    "        bucket = self.freqs[old_freq]",
+    "        bucket.pop(key, None)",
+    "        if not bucket:",
+    "            del self.freqs[old_freq]",
+    "            if self.min_freq == old_freq:",
+    "                self.min_freq = old_freq + 1",
+    "        entry[\"freq\"] = old_freq + 1",
+    "        self.freqs[entry[\"freq\"]][key] = None",
+    "",
+    "    def put(self, key: str, value, ttl: float | None = None) -> None:",
+    "        if self.capacity <= 0:",
+    "            return",
+    "        timestamp = self.now()",
+    "        if ttl is not None and ttl <= 0:",
+    "            self._remove(key)",
+    "            self._refresh_min_freq()",
+    "            return",
+    "        expires_at = None if ttl is None else timestamp + ttl",
+    "        entry = self.items.get(key)",
+    "        if entry is not None:",
+    "            if self._expired(entry, timestamp):",
+    "                self._remove(key)",
+    "            else:",
+    "                entry[\"value\"] = value",
+    "                entry[\"expires_at\"] = expires_at",
+    "                self._touch(key, entry)",
+    "                return",
+    "",
+    "        self._cleanup_expired(timestamp)",
+    "        if len(self.items) >= self.capacity:",
+    "            bucket = self.freqs[self.min_freq]",
+    "            victim, _ = bucket.popitem(last=False)",
+    "            del self.items[victim]",
+    "            if not bucket:",
+    "                del self.freqs[self.min_freq]",
+    "",
+    "        self.items[key] = {\"value\": value, \"expires_at\": expires_at, \"freq\": 1}",
+    "        self.freqs[1][key] = None",
+    "        self.min_freq = 1",
+    "",
+    "    def get(self, key: str):",
+    "        entry = self.items.get(key)",
+    "        if entry is None:",
+    "            return None",
+    "        if self._expired(entry, self.now()):",
+    "            self._remove(key)",
+    "            self._refresh_min_freq()",
+    "            return None",
+    "        self._touch(key, entry)",
+    "        return entry[\"value\"]",
+    "```",
+    "",
+    "The bug-prone part is `min_freq`. Only reset it to `1` for new inserts, advance it when the old minimum bucket becomes empty, and recompute after TTL cleanup."
+  ]
+}

@@ -1,0 +1,319 @@
+version: 1
+lesson: deep-dive-pytorch
+promise: Trace a tensor from shared storage through dispatch, autograd, attention, compilation and
+  distributed placement, then diagnose and reproduce the state required for a correct next training
+  update.
+objectives:
+  - id: intro
+    can: Use successive storage addresses to predict whether a one-dimensional view is possible
+    scenes:
+      - intro
+  - id: strides
+    can: Calculate the byte offset of an alias write and predict which read changes after a reshape
+    scenes:
+      - strides
+  - id: tensor-contract
+    can: Distinguish ordinary storage metadata, views and consumer copies
+    scenes:
+      - tensor-contract
+  - id: dispatch-layers
+    can: Trace an operator schema through backend and transformation modes
+    scenes:
+      - dispatch-layers
+  - id: tape-lifecycle
+    can: Construct the actual reverse path and detect saved-intermediate mutation
+    scenes:
+      - tape-lifecycle
+  - id: autograd
+    can: Repair a stale saved version using independent storage
+    scenes:
+      - autograd
+  - id: attention
+    can: Place a cached query at its actual position and check its output against the permitted values
+    scenes:
+      - attention
+  - id: attention-selector
+    can: Estimate dense score storage in bytes and distinguish that cost from dot product work
+    scenes:
+      - attention-selector
+  - id: mask-modes
+    can: Use a distinctive padding value to test a boolean mask conversion with dropout off
+    scenes:
+      - mask-modes
+  - id: compile
+    can: Evaluate each guard and reuse the correct specialization
+    scenes:
+      - compile
+  - id: compiler-regions
+    can: Distinguish graph breaks, guard failure and optimized code generation
+    scenes:
+      - compiler-regions
+  - id: autocast-boundary
+    can: Match compiled backward assumptions to its actual precision context
+    scenes:
+      - autocast-boundary
+  - id: placement
+    can: Add matching coordinates and send each sum to the ranks that need it
+    scenes:
+      - placement
+  - id: process-groups
+    can: Diagnose rank-order and collective-contract divergence
+    scenes:
+      - process-groups
+  - id: mesh-shapes
+    can: Calculate a local shard on one named mesh axis
+    scenes:
+      - mesh-shapes
+  - id: tensor-split
+    can: Derive Linear stored-weight sharding and operator ownership
+    scenes:
+      - tensor-split
+  - id: pipeline-schedule
+    can: Trace stage dependencies and exposed fill/drain slots
+    scenes:
+      - pipeline-schedule
+  - id: pipeline-scaling
+    can: Recover the full-batch gradient with exactly one scale division
+    scenes:
+      - pipeline-scaling
+  - id: residency
+    can: Trace parameter gathers and configured release/retention
+    scenes:
+      - residency
+  - id: fsdp-hooks
+    can: Use the entry path and policy that execute the required hooks
+    scenes:
+      - fsdp-hooks
+  - id: live-peak
+    can: Compare simultaneous allocations with a rank budget and predict the effect of delaying prefetch
+    scenes:
+      - live-peak
+  - id: recovery
+    can: Use the first moment to explain why a weights-only restore can reverse the next Adam step
+    scenes:
+      - recovery
+  - id: dcp-load
+    can: Construct canonical destination state and state the actual CPU proof scope
+    scenes:
+      - dcp-load
+  - id: elastic-identity
+    can: Restore saved progress into a new group without old-rank assumptions
+    scenes:
+      - elastic-identity
+  - id: optimizer-counter
+    can: Correct Adam's first two running averages and isolate a scheduler error on the next weight update
+    scenes:
+      - optimizer-counter
+  - id: owners-debug
+    can: Locate the responsible tensor, compiler, distributed or serving owner
+    scenes:
+      - owners-debug
+  - id: project-source
+    can: Separate pinned source, executed wheel, documentation and asset authority
+    scenes:
+      - project-source
+  - id: fresh-counter
+    can: Test a counter-only restore by replaying a zero gradient from the same saved weight and moments
+    scenes:
+      - fresh-counter
+sections:
+  - heading: Eager Python, compiled kernels
+    status: taught
+    scenes:
+      - intro
+      - dispatch-layers
+      - owners-debug
+  - heading: The tensor is metadata plus storage
+    status: taught
+    scenes:
+      - intro
+      - strides
+      - tensor-contract
+  - heading: Operator schemas and the dispatcher
+    status: taught
+    scenes:
+      - dispatch-layers
+  - heading: Autograd records a tape, not a static model
+    status: taught
+    scenes:
+      - tape-lifecycle
+      - autograd
+  - heading: Views and in-place mutation
+    status: taught
+    scenes:
+      - autograd
+      - tape-lifecycle
+  - heading: Attention is a kernel-selection problem
+    status: taught
+    scenes:
+      - attention
+      - attention-selector
+      - mask-modes
+  - heading: "`torch.compile`: capture, transform, lower"
+    status: taught
+    scenes:
+      - compile
+      - compiler-regions
+      - autocast-boundary
+  - heading: Graph breaks and recompilation
+    status: taught
+    scenes:
+      - compiler-regions
+      - autocast-boundary
+  - heading: "Distributed PyTorch: process groups first"
+    status: taught
+    scenes:
+      - process-groups
+      - placement
+  - heading: DeviceMesh and DTensor make placement explicit
+    status: taught
+    scenes:
+      - placement
+      - mesh-shapes
+  - heading: Tensor and pipeline parallelism split different work
+    status: taught
+    scenes:
+      - tensor-split
+      - pipeline-schedule
+      - pipeline-scaling
+  - heading: <span data-glossary="fsdp">FSDP2</span> shards parameters around the forward
+    status: taught
+    scenes:
+      - residency
+      - fsdp-hooks
+      - live-peak
+  - heading: Checkpoint and restart form one recovery contract
+    status: taught
+    scenes:
+      - recovery
+      - dcp-load
+      - elastic-identity
+      - optimizer-counter
+      - fresh-counter
+  - heading: A PyTorch LLM training path
+    status: taught
+    scenes:
+      - owners-debug
+  - heading: Strengths and weaknesses
+    status: taught
+    scenes:
+      - owners-debug
+      - compiler-regions
+      - project-source
+  - heading: Failure-oriented debugging loop
+    status: taught
+    scenes:
+      - owners-debug
+      - strides
+      - autograd
+      - compile
+      - residency
+      - live-peak
+      - fresh-counter
+      - elastic-identity
+  - heading: Project identity
+    status: taught
+    scenes:
+      - project-source
+  - heading: A source-reading path
+    status: taught
+    scenes:
+      - project-source
+  - heading: What to remember
+    status: taught
+    scenes:
+      - tensor-contract
+      - dispatch-layers
+      - attention-selector
+      - compiler-regions
+      - mesh-shapes
+      - fsdp-hooks
+      - elastic-identity
+  - heading: Mastery check
+    status: taught
+    scenes:
+      - strides
+      - autograd
+      - attention
+      - compile
+      - residency
+      - recovery
+      - fresh-counter
+  - heading: Evaluation rubric
+    status: taught
+    scenes:
+      - strides
+      - autograd
+      - attention
+      - compile
+      - residency
+      - recovery
+      - fresh-counter
+  - heading: Follow-up questions
+    status: taught
+    scenes:
+      - strides
+      - tensor-contract
+      - dcp-load
+      - elastic-identity
+      - compiler-regions
+quiz:
+  - n: 1
+    status: taught
+    scenes:
+      - intro
+      - strides
+      - tensor-contract
+  - n: 2
+    status: taught
+    scenes:
+      - tape-lifecycle
+      - autograd
+  - n: 3
+    status: taught
+    scenes:
+      - attention
+      - mask-modes
+  - n: 4
+    status: taught
+    scenes:
+      - compile
+      - compiler-regions
+  - n: 5
+    status: taught
+    scenes:
+      - placement
+      - mesh-shapes
+  - n: 6
+    status: taught
+    scenes:
+      - tensor-split
+      - fsdp-hooks
+  - n: 7
+    status: taught
+    scenes:
+      - pipeline-scaling
+  - n: 8
+    status: taught
+    scenes:
+      - live-peak
+  - n: 9
+    status: taught
+    scenes:
+      - optimizer-counter
+      - elastic-identity
+  - n: 10
+    status: taught
+    scenes:
+      - dcp-load
+      - elastic-identity
+removed: []
+reviews:
+  closed_book:
+    taught: 10
+    partial: 0
+    absent: 0
+    script: b0b8506f3be92cb5
+  fact_check:
+    open_findings: 0
+    script: b0b8506f3be92cb5

@@ -1,0 +1,630 @@
+version: 1
+id: reinforcement-learning
+title: Choose Actions by Their Future Consequences
+source: foundations/introduction-to-reinforcement-learning-fundamentals/content.md
+voice: en-US-AndrewNeural
+rate: +0%
+sources:
+  - title: "Reinforcement Learning: An Introduction, Sutton and Barto"
+    url: https://mitpress.mit.edu/9780262039246/reinforcement-learning/
+  - title: Q-learning, Watkins and Dayan
+    url: https://link.springer.com/article/10.1007/BF00992698
+scenes:
+  - id: intro
+    title: A request creates a decision with consequences
+    visual: A stale access request branches to evidence collection or human review before reaching a safe resolution.
+    beats:
+      - say: A stale access-change request reaches a routing desk. Security policy requires human review unless strong secondary evidence arrives. The router can approve now, ask for evidence, or send the request to a reviewer. Its choice changes the next observation and the eventual outcome.
+        hold: 0.55
+        visual_cues:
+          - id: intro-voice-1
+            phrase: A stale access-change request reaches a routing desk. Security
+            targets:
+              - intro-construction
+            color: cyan
+            linger: 0.5
+      - say: "A classifier could predict whether an access request is risky. The router has a different job: choose an action that shapes what happens next. Reinforcement learning studies decisions through rewards and their consequences over time."
+        hold: 0.6
+        visual_cues:
+          - id: intro-voice-2
+            phrase: A classifier could predict whether an access request is
+            targets:
+              - intro-construction
+            color: yellow
+            linger: 0.5
+      - say: We’ll follow one fictional request through its possible futures. Synthetic reward units let us compare routes in this toy model; real policy settings need measured costs, outcomes, and operational limits. Then we’ll add abandonment and see how uncertainty changes the decision.
+        hold: 0.75
+        visual_cues:
+          - id: intro-voice-3
+            phrase: We’ll follow one fictional request through its possible futures.
+            targets:
+              - intro-construction
+            color: cyan
+            linger: 0.5
+  - id: episode
+    title: Add rewards across the whole episode
+    visual: Three action paths compare an unsafe immediate close, delayed evidence approval, and human review using discounted returns.
+    beats:
+      - say: Start with three paths. Unsupported approval receives minus one hundred twenty. Asking for evidence costs four points now, followed by a supported approval worth seventy. Human review costs eighteen, then reaches a verified approval worth eighty.
+        hold: 0.55
+        visual_cues:
+          - id: episode-voice-1
+            phrase: Start with three paths. Unsupported approval receives minus one
+            targets:
+              - episode-construction
+            color: cyan
+            linger: 0.5
+      - say: We discount one-step-later rewards by point nine. The evidence route is minus four plus point nine times seventy, or fifty-nine. Review is minus eighteen plus point nine times eighty, or fifty-four. With certain evidence, the slower opening action has the higher return.
+        hold: 0.6
+        visual_cues:
+          - id: episode-voice-2
+            phrase: We discount one-step-later rewards by point nine. The evidence
+            targets:
+              - episode-construction
+            color: yellow
+            linger: 0.5
+          - id: episode-evidence-discount
+            phrase: The evidence route is minus four plus point nine times seventy
+            targets:
+              - episode-construction
+            color: green
+            linger: 0.2
+          - id: episode-evidence-return
+            phrase: The evidence route is minus four plus point nine times seventy, or fifty-nine
+            targets:
+              - episode-construction
+            color: green
+            linger: 0.2
+          - id: episode-review-discount
+            phrase: Review is minus eighteen plus point nine times eighty
+            targets:
+              - episode-construction
+            color: cyan
+            linger: 0.2
+          - id: episode-review-return
+            phrase: Review is minus eighteen plus point nine times eighty, or fifty-four
+            targets:
+              - episode-construction
+            color: cyan
+            linger: 0.2
+      - say: Return adds the immediate reward to discounted rewards that arrive later. The discount expresses how this model values timing. It also changes the weight of delayed penalties, so choose it carefully and model waiting or abandonment when those affect outcomes.
+        hold: 0.75
+        visual_cues:
+          - id: episode-voice-3
+            phrase: Return adds the immediate reward to discounted rewards that
+            targets:
+              - episode-construction
+            color: cyan
+            linger: 0.5
+      - say: With bounded rewards and a discount below one, a continuing discounted return has magnitude at most the reward bound divided by one minus gamma. Our short terminating graph also has finite return at gamma one. A per-step discount prices steps, not necessarily equal amounts of wall time. It downweights penalties too, so it cannot replace an explicit action-dependent abandonment cost.
+        hold: 1
+        visual_cues:
+          - id: episode-voice-4
+            phrase: With bounded rewards and a discount below one, a
+            targets:
+              - episode-construction
+            color: yellow
+            linger: 0.5
+  - id: mdp
+    title: Keep enough state to predict the next step
+    visual: A state graph distinguishes new, evidence-ready, review, and closed requests. A constructed elapsed-wait field grows to forty-five seconds. The router sends an ask-evidence action to the environment, which returns supplied event E17 with an evidence-ready observation, reward minus four, and twenty more elapsed seconds.
+    beats:
+      - say: A Markov decision process describes states, actions, transition probabilities, rewards, and a discount factor. Here the states distinguish a new request from one with verified evidence, because the same approval action has different consequences in each state.
+        hold: 0.55
+        visual_cues:
+          - id: mdp-beat-1-focus-1
+            phrase: Here the states distinguish a new request from one with verified evidence
+            targets:
+              - mdp-node-start
+            color: cyan
+            linger: 0.6
+      - say: The Markov assumption says the current state contains the information needed to predict the next state and reward once the action is known. If abandonment depends on how long the requester has waited, include elapsed time or a sufficient summary in the state.
+        motion_check:
+          region:
+            - 1250
+            - 815
+            - 470
+            - 120
+          minimumChangedFraction: 0.002
+        hold: 0.6
+        visual_cues:
+          - id: mdp-beat-2-focus-1
+            phrase: says the current state contains the information needed
+            targets:
+              - mdp-simulation-14
+            color: blue
+            linger: 0.6
+          - id: mdp-beat-2-focus-2
+            phrase: The Markov assumption says the current state contains
+            targets:
+              - mdp-node-start
+            color: cyan
+            linger: 0.6
+      - say: The environment includes requesters, verification, and reviewers. The agent chooses the routing action; the environment produces its next observation and reward. The model can represent uncertain transitions even when the agent sees only part of the environment.
+        motion_check:
+          region:
+            - 150
+            - 340
+            - 1650
+            - 590
+          minimumChangedFraction: 0.002
+        hold: 0.75
+        visual_cues:
+          - id: mdp-beat-3-focus-1
+            phrase: the environment produces its next observation and reward
+            targets:
+              - mdp-node-receipt
+            color: cyan
+            linger: 0.6
+          - id: mdp-beat-3-focus-2
+            phrase: The environment includes requesters
+            targets:
+              - mdp-node-environment
+            color: cyan
+            linger: 0.6
+      - say: Two requests can share the new-request stage yet have different waiting times. If forty-five seconds and sixty-five seconds imply different abandonment chances, the stage label alone cannot predict the next outcome. Include elapsed time or a sufficient history or belief. Partial observation calls for a partially observable model; dropping a field does not change the underlying environment.
+        hold: 1
+        visual_cues:
+          - id: mdp-wait-counterexample
+            phrase: Two requests can share the new-request stage
+            targets:
+              - mdp-construction
+            color: yellow
+  - id: bellman
+    title: Compare actions with a Bellman backup
+    visual: Immediate rewards combine with discounted successor values; evidence scores 59, review 54, and unsupported approval minus 120.
+    beats:
+      - say: A value function estimates the return available from a state. An action value asks what happens if we take one particular action first, then continue well. The Bellman backup combines each possible next state’s probability, immediate reward, and discounted value.
+        hold: 0.55
+        visual_cues:
+          - id: bellman-voice-1
+            phrase: A value function estimates the return available from a
+            targets:
+              - bellman-construction
+            color: cyan
+            linger: 0.5
+      - say: "At the new-request state, unsupported approval is worth minus one hundred twenty. Requesting evidence is worth fifty-nine, while direct review is worth fifty-four. The highest expected action value gives the greedy choice under this model: request evidence."
+        hold: 0.6
+        visual_cues:
+          - id: bellman-voice-2
+            phrase: At the new-request state, unsupported approval is worth minus
+            targets:
+              - bellman-construction
+            color: yellow
+            linger: 0.5
+      - say: The value comes from the full path. In the evidence-ready state, direct approval yields seventy now. A human review after an added minus-ten step has value sixty-two, even though its eventual approval reward is eighty. Backups keep delay and consequence together.
+        hold: 0.75
+        visual_cues:
+          - id: bellman-voice-3
+            phrase: The value comes from the full path. In the
+            targets:
+              - bellman-construction
+            color: cyan
+            linger: 0.5
+      - say: A policy maps each state to an action or an action distribution. A policy value follows those decisions, so its Bellman expectation averages over the policy actions. An optimal backup instead takes the maximum action value. Closed has zero future value; evidence-ready compares immediate seventy with minus ten plus point nine times eighty, which is sixty-two.
+        hold: 1
+        visual_cues:
+          - id: bellman-voice-4
+            phrase: A policy maps each state to an action or
+            targets:
+              - bellman-construction
+            color: yellow
+            linger: 0.5
+  - id: value-iteration
+    title: Let values propagate backward
+    visual: Three Bellman sweeps move terminal reward information from review and evidence states back to the original request.
+    beats:
+      - say: When a small transition model is known, value iteration repeatedly applies Bellman backups. Begin with every value at zero. On the first sweep, the new-request state sees immediate rewards, so asking for evidence looks like the least costly action at minus four.
+        hold: 0.55
+        visual_cues:
+          - id: value-iteration-voice-1
+            phrase: When a small transition model is known, value iteration
+            targets:
+              - value-iteration-construction
+            color: cyan
+            linger: 0.5
+      - say: "The same sweep fills the successor values: seventy for evidence-ready and eighty for the review queue. On the second sweep, those values travel backward. Requesting evidence becomes fifty-nine, review becomes fifty-four, and requesting evidence remains the best first action."
+        hold: 0.6
+        visual_cues:
+          - id: value-iteration-voice-2
+            phrase: "The same sweep fills the successor values: seventy for"
+            targets:
+              - value-iteration-construction
+            color: yellow
+            linger: 0.5
+      - say: For a finite model with bounded rewards and discount below one, exact value iteration converges to the optimal value. Several actions can tie, so the value can be unique while more than one optimal policy exists. The result applies to the declared transition and reward model; re-estimate it when real traffic changes.
+        hold: 0.75
+        visual_cues:
+          - id: value-iteration-voice-3
+            phrase: For a finite model with bounded rewards and discount
+            targets:
+              - value-iteration-construction
+            color: cyan
+            linger: 0.5
+      - say: Policy iteration separates two jobs. First evaluate one fixed policy by solving its expectation equations, then improve greedily using those values. Exact evaluation with consistent tie handling terminates for a finite discounted model. Value iteration applies an optimality backup every sweep instead. Its operator contracts the largest value error by at most gamma, giving the unique optimal value; several actions can still tie. Approximate evaluation needs its own error control.
+        hold: 1
+        visual_cues:
+          - id: value-iteration-voice-4
+            phrase: Policy iteration separates two jobs. First evaluate one fixed
+            targets:
+              - value-iteration-construction
+            color: yellow
+            linger: 0.5
+  - id: uncertain-transition
+    title: Abandonment changes the expected return
+    visual: A probability sweep moves expected evidence return across the fixed human-review value, marking the computed 4.4 percent crossover and changing the chosen action.
+    beats:
+      - say: Now let twenty-five percent of requesters abandon after the evidence request. On that opening transition, the request costs four points and unresolved abandonment costs fifty, so the branch earns minus fifty-four. If evidence arrives, the discounted route earns fifty-nine. Weight both branches by their probabilities to get thirty point seven five.
+        hold: 0.55
+        visual_cues:
+          - id: uncertain-transition-beat-1-focus-1
+            phrase: Now let twenty-five percent of requesters abandon after the evidence request
+            targets:
+              - uncertain-return-curve
+            color: blue
+            linger: 0.6
+      - say: With no abandonment, the evidence route is worth fifty-nine, just above review at fifty-four. As abandonment rises, that return falls. The two choices tie at five divided by one hundred thirteen, about four point four percent; above that, review wins. This cutoff follows the toy reward model.
+        hold: 0.6
+        visual_cues:
+          - id: uncertain-transition-beat-2-focus-1
+            phrase: just above review at fifty-four
+            targets:
+              - uncertain-transition-equation-string-raw-v-mathrm-review-54-27
+            color: yellow
+            linger: 0.6
+          - id: uncertain-transition-beat-2-focus-2
+            phrase: With no abandonment
+            targets:
+              - uncertain-transition-no-abandonment-point
+            color: blue
+            linger: 0.6
+      - say: An expected return of thirty point seven five averages outcomes across possible episodes. Each request realizes one of those outcomes. Real routing needs reliable transition estimates, sensitivity checks, and monitoring for changes in who completes the evidence step.
+        hold: 0.75
+        visual_cues:
+          - id: uncertain-transition-beat-3-focus-1
+            phrase: Each request realizes one of those outcomes
+            targets:
+              - uncertain-return-curve
+            color: blue
+            linger: 0.6
+          - id: uncertain-transition-beat-3-focus-2
+            phrase: An expected return of thirty point seven five
+            targets:
+              - uncertain-transition-quarter-case
+            color: blue
+            linger: 0.6
+  - id: q-learning
+    title: Learn action values from sampled transitions
+    visual: One observed evidence-request transition updates a tabular action value toward its sampled reward plus discounted next-state estimate.
+    beats:
+      - say: A transition record contains the current state, chosen action, received reward, and next state. Q-learning uses each sample to update an action value, bootstrapping from the best estimated value in the next state.
+        hold: 0.55
+        visual_cues:
+          - id: q-learning-voice-1
+            phrase: A transition record contains the current state, chosen action,
+            targets:
+              - q-learning-construction
+            color: cyan
+            linger: 0.5
+      - say: In one teaching update, the evidence request receives minus four and the next state’s best value is seventy. With discount point nine, the target is fifty-nine. Starting from zero and using a step size of one half moves the table entry halfway to that target, or twenty-nine point five.
+        hold: 0.6
+        visual_cues:
+          - id: q-learning-voice-2
+            phrase: In one teaching update, the evidence request receives minus
+            targets:
+              - q-learning-construction
+            color: yellow
+            linger: 0.5
+      - say: This sample changes one tabular action estimate. Convergence requires repeated state-action visits, suitable step sizes, and the stated Markov assumptions. Q-learning is off-policy because its target uses the greedy next action even while behavior may explore; neural function approximation needs separate analysis.
+        hold: 0.75
+        visual_cues:
+          - id: q-learning-voice-3
+            phrase: This sample changes one tabular action estimate. Convergence requires
+            targets:
+              - q-learning-construction
+            color: cyan
+            linger: 0.5
+  - id: td-targets
+    title: Use the future the sample actually has
+    visual: The same transition splits into complete-return, greedy-next-action, selected-next-action and stopped-rollout targets.
+    beats:
+      - say: Monte Carlo learning waits for a completed sampled return. For a fixed policy with correctly sampled episodes, that target has the right conditional mean. It includes later randomness. Temporal difference learning replaces the unobserved tail with a successor value estimate and updates sooner. An inaccurate estimate can bias the target. With exact successor values, replacing a sampled tail by its conditional mean reduces target variance; learned estimates have no universal finite-data advantage.
+        hold: 1
+        visual_cues:
+          - id: td-targets-voice-1
+            phrase: Monte Carlo learning waits for a completed sampled return.
+            targets:
+              - td-targets-construction
+            color: cyan
+            linger: 0.5
+      - say: Keep reward minus four and next-state actions valued seventy and sixty-two. Q-learning uses the greedy seventy, making target fifty-nine. If the behavior actually chooses the sixty-two review action, SARSA instead uses minus four plus point nine times sixty-two, or fifty-one point eight. Q-learning is off-policy; SARSA evaluates the exploratory policy it follows.
+        hold: 1
+        visual_cues:
+          - id: td-targets-voice-2
+            phrase: Keep reward minus four and next-state actions valued seventy
+            targets:
+              - td-targets-construction
+            color: yellow
+            linger: 0.5
+      - say: Now the reward is minus eighteen and the next-state value is eighty. A genuine terminal outcome has target minus eighteen because no future remains. An external collection time limit leaves that future, so its target is fifty-four. Mask true termination, not every stopped rollout, and bootstrap from the actual final observation rather than a reset state. A deadline built into the task can be terminal; include remaining time when it affects decisions.
+        hold: 1
+        visual_cues:
+          - id: td-targets-voice-3
+            phrase: Now the reward is minus eighteen and the next-state
+            targets:
+              - td-targets-construction
+            color: cyan
+            linger: 0.5
+  - id: exploration
+    title: Exploration supplies missing experience
+    visual: A named episode passes through an epsilon test and a uniform action draw. The same eight episode identities then accumulate an auditable action-count ledger.
+    beats:
+      - say: Our current values favor requesting evidence. Epsilon-greedy behavior usually follows that estimate. Here epsilon is one fifth, so the first random draw chooses between exploration and the greedy action. Follow episode E zero two. Its draw falls below the cutoff, so we explore. A second uniform draw chooses among all three actions and lands on human review. That learned proposal still passes through the runtime policy gate.
+        hold: 0.55
+        visual_cues:
+          - id: exploration-beat-1-focus-1
+            phrase: That learned proposal still passes through the runtime policy gate
+            targets:
+              - exploration-policy-result
+            color: blue
+            linger: 0.6
+          - id: exploration-beat-1-focus-2
+            phrase: Epsilon-greedy behavior usually follows that estimate
+            targets:
+              - exploration-simulation-51
+            color: blue
+            linger: 0.6
+          - id: exploration-epsilon-threshold
+            phrase: Here epsilon is one fifth, so the first random draw chooses between exploration and the greedy action
+            targets:
+              - exploration-epsilon-test
+            color: yellow
+            linger: 0.4
+          - id: exploration-second-draw
+            phrase: A second uniform draw chooses among all three actions and lands on human review
+            targets:
+              - exploration-uniform-draw
+            color: cyan
+            linger: 0.4
+      - say: "Now replay eight authored simulator episodes with this same fixed Q snapshot: minus one hundred twenty, fifty-nine and fifty-four. Each row keeps its random draws and proposed action. Watch proposal counts accumulate. Most request evidence; two exploration branches propose approval and review. The unsafe approval exists only in this simulator. A live gate rejects it and can route to allowed human review, so proposal counts are not automatically executed-action learning visits."
+        hold: 0.6
+        visual_cues:
+          - id: exploration-beat-2-focus-1
+            phrase: Now replay eight authored simulator episodes
+            targets:
+              - exploration-episode-ledger
+            color: blue
+            linger: 0.6
+      - say: The fixture proposes every action. A tabular convergence claim instead needs actual repeated updates of every state-action pair in a stationary finite Markov process with bounded rewards and discount below one. Each pair needs visit-indexed steps whose sum diverges and squared sum converges. Runtime rejection changes the executed process. It supplies no experience of the rejected unsafe action. Under epsilon point two with three actions and one unique greedy choice, that greedy choice has probability point eight plus point two divided by three, not just point eight.
+        hold: 0.75
+        visual_cues:
+          - id: exploration-beat-3-focus-1
+            phrase: The fixture proposes every action
+            targets:
+              - exploration-episode-ledger
+              - exploration-action-counts
+            color: blue
+            linger: 0.6
+  - id: policy-gradient
+    title: Move probabilities using the sampled consequence
+    visual: The same action identities become a probability simplex; signed advantage contributions move the opening logits.
+    beats:
+      - say: A parameterized policy outputs action probabilities directly. For a fixed starting-state distribution and environment dynamics independent of policy parameters, REINFORCE estimates the gradient of expected return by multiplying each action log-probability gradient by reward-to-go. Under a discounted start-state objective, also include gamma to the action time. Reward-to-go already discounts from that step; it does not replace the outer time weight.
+        hold: 1
+        visual_cues:
+          - id: policy-gradient-voice-1
+            phrase: A parameterized policy outputs action probabilities directly. For a
+            targets:
+              - policy-gradient-construction
+            color: cyan
+            linger: 0.5
+      - say: For a two-step example, the first action is fixed and the second is Bernoulli with probability one half, earning its selected zero or one. With gamma point nine, the objective derivative is point two two five at logit zero. Omitting the time weight gives point two five, which is the derivative of a different objective.
+        hold: 1
+        visual_cues:
+          - id: policy-gradient-voice-2
+            phrase: For a two-step example, the first action is fixed
+            targets:
+              - policy-gradient-construction
+            color: yellow
+            linger: 0.5
+      - say: An action-independent state baseline leaves the expected score gradient unchanged. With baseline equal to the exact state value, sampled return minus baseline estimates advantage, Q minus V. Treat that baseline as fixed in the actor gradient. A baseline fit from the same action return needs care. For the one-step half-probability example, baselines zero, one half and ten all give mean gradient point two five, but variances point zero six two five, zero and twenty-two point five six two five. A poor baseline can increase variance.
+        hold: 1
+        visual_cues:
+          - id: policy-gradient-voice-3
+            phrase: An action-independent state baseline leaves the expected score gradient
+            targets:
+              - policy-gradient-construction
+            color: cyan
+            linger: 0.5
+      - say: Return to the opening router at twenty-five-percent abandonment. Freeze downstream choices, begin with three equal probabilities and action values minus one hundred twenty, thirty point seven five and fifty-four. One exact expected-gradient step of size point zero three changes approval to about point zero eight nine, evidence to point four zero three and review to point five zero eight. This is an exact opening-policy calculation, not a full sampled trajectory trainer.
+        hold: 1
+        visual_cues:
+          - id: policy-gradient-voice-4
+            phrase: Return to the opening router at twenty-five-percent abandonment. Freeze
+            targets:
+              - policy-gradient-construction
+            color: yellow
+            linger: 0.5
+  - id: llm-policy
+    title: Carry the same probability update into text
+    visual: A prefix appends owned action tokens; actor, critic, reference and reward roles remain separate as group rewards normalize.
+    beats:
+      - say: For text-only completion, the state can be the prompt and generated prefix, and the action is the next token including an end token. The transition appends that token deterministically. A completion reward can come from a learned preference model or an automated verifier. Tool-using agents also receive external observations and actions, so token appending alone does not describe their whole environment.
+        hold: 1
+        visual_cues:
+          - id: llm-policy-voice-1
+            phrase: For text-only completion, the state can be the prompt
+            targets:
+              - llm-policy-construction
+            color: cyan
+            linger: 0.5
+      - say: In classical PPO-based preference training, the actor generates completions, a critic estimates partial-prefix value, a frozen reference controls divergence, and a reward model scores completions. These are four roles even when architectures share weights. PPO ratios compare with the policy that sampled the rollout. That old policy differs from the frozen reference. Clipping discourages some large ratio changes; it is no hard KL bound or improvement guarantee.
+        hold: 1
+        visual_cues:
+          - id: llm-policy-voice-2
+            phrase: In classical PPO-based preference training, the actor generates completions,
+            targets:
+              - llm-policy-construction
+            color: yellow
+            linger: 0.5
+      - say: The original group-relative recipe removes the separate critic and samples a group of completions for one prompt. Subtract the group reward mean and divide by its standard deviation plus a small stabilizer. Rewards zero, one and two give mean one and population standard deviation square root of two thirds, so relative scores are about minus one point two two five, zero and one point two two five. Original outcome supervision gives each token its completion score, with a clipped token-ratio objective and reference KL term.
+        hold: 1
+        visual_cues:
+          - id: llm-policy-voice-3
+            phrase: The original group-relative recipe removes the separate critic and
+            targets:
+              - llm-policy-construction
+            color: cyan
+            linger: 0.5
+      - say: Equal rewards give zero normalized reward component, while the KL term may still update. These empirical scores are not exact Q minus V advantages. Group mean includes the sampled completion, and normalization and length weighting change the objective. Removing a critic saves its resources, but group size, rollout length and the remaining models still determine cost. Better surrogate scores require held-out behavior checks.
+        hold: 1
+        visual_cues:
+          - id: llm-policy-voice-4
+            phrase: Equal rewards give zero normalized reward component, while the
+            targets:
+              - llm-policy-construction
+            color: yellow
+            linger: 0.5
+  - id: off-policy-evaluation
+    title: A counterfactual needs logged support
+    visual: Two logged action likelihood ratios multiply along one trajectory; a zero-probability action leaves a visible missing branch.
+    beats:
+      - say: Our synthetic scorecard knows every branch because we wrote the environment. A real log records only executed actions and outcomes. Evaluating a target policy from a behavior-policy log needs support and recorded action probabilities, under common dynamics and a suitable initial-state distribution.
+        hold: 1
+        visual_cues:
+          - id: off-policy-evaluation-voice-1
+            phrase: Our synthetic scorecard knows every branch because we wrote
+            targets:
+              - off-policy-evaluation-construction
+            color: cyan
+            linger: 0.5
+      - say: For two decisions with behavior probabilities point five and point five, and target probabilities point eight and point six, the trajectory weight is one point six times one point two, or one point nine two. Using only the last ratio misses the first choice. Per-decision weights multiply through the action that earned each reward. Products can have high variance.
+        hold: 1
+        visual_cues:
+          - id: off-policy-evaluation-voice-2
+            phrase: For two decisions with behavior probabilities point five and
+            targets:
+              - off-policy-evaluation-construction
+            color: yellow
+            linger: 0.5
+          - id: ope-behavior
+            phrase: behavior probabilities point five and point five
+            targets:
+              - ope-probability-premises
+            color: yellow
+            linger: 0.5
+          - id: ope-target
+            phrase: target probabilities point eight and point six
+            targets:
+              - ope-probability-premises
+            color: yellow
+            linger: 0.5
+          - id: ope-first-ratio
+            phrase: one point six
+            targets:
+              - ope-ratio-factors
+            color: yellow
+            linger: 0.5
+          - id: ope-second-ratio
+            phrase: one point two
+            targets:
+              - ope-ratio-factors
+            color: yellow
+            linger: 0.5
+          - id: ope-product
+            phrase: one point nine two
+            targets:
+              - ope-product-result
+            color: yellow
+            linger: 0.5
+      - say: If behavior assigns zero probability to an action the target chooses, importance sampling cannot identify that branch from these logs. Positive probability but no observed visit is a separate finite-sample shortage. Unrecorded information that affects both action selection and outcomes can cause confounding. A chronological split alone repairs neither missing support nor confounding. Model-based and doubly robust methods need their own assumptions.
+        hold: 1
+        visual_cues:
+          - id: off-policy-evaluation-voice-3
+            phrase: If behavior assigns zero probability to an action the
+            targets:
+              - off-policy-evaluation-construction
+            color: cyan
+            linger: 0.5
+  - id: reward-design
+    title: Keep reward optimization inside safe boundaries
+    visual: A learned action proposal passes through a separate runtime policy gate before an audited outcome is recorded.
+    beats:
+      - say: An agent optimizes the reward we specify. A reward that values quick closure alone could favor unsupported approvals. Enforce hard policy rules with deterministic controls, then use reward tests to measure learned trade-offs across states.
+        hold: 0.55
+        visual_cues:
+          - id: reward-design-voice-1
+            phrase: An agent optimizes the reward we specify. A reward
+            targets:
+              - reward-design-construction
+            color: cyan
+            linger: 0.5
+      - say: Keep authorization invariants in deterministic controls that can reject an unsafe action. Then evaluate whether the reward captures useful service, security, delay, and escalation outcomes. The simulator should expose failure paths and transition uncertainty before any live use.
+        hold: 0.6
+        visual_cues:
+          - id: reward-design-voice-2
+            phrase: Keep authorization invariants in deterministic controls that can reject
+            targets:
+              - reward-design-construction
+            color: yellow
+            linger: 0.5
+      - say: Reinforcement learning gives us a way to reason about sequences of decisions. Define the state, rewards, transition assumptions, and guardrails first. Then inspect how a policy behaves across complete trajectories, including the branches the average hides.
+        hold: 0.75
+        visual_cues:
+          - id: reward-design-voice-3
+            phrase: Reinforcement learning gives us a way to reason about
+            targets:
+              - reward-design-construction
+            color: cyan
+            linger: 0.5
+      - say: Resolve a fresh case at abandonment probability point one. Evidence return becomes fifty-nine minus eleven point three, or forty-seven point seven, below review at fifty-four. Now change only the speed reward to one hundred for unsupported approval, forty-five for evidence and fifteen for review. The learned proposal becomes approval, but policy P seven still requires evidence or a reviewer. The deterministic gate rejects that exact proposal and sends the request to allowed review. Reward improvement cannot grant permission. You can now compute returns, compare backups, choose learning targets, and audit support before trusting a policy score. Validation and leakage examines the evaluation boundary next.
+        hold: 1
+        visual_cues:
+          - id: reward-design-voice-4
+            phrase: Resolve a fresh case at abandonment probability point one.
+            targets:
+              - reward-design-construction
+            color: yellow
+            linger: 0.5
+          - id: reward-fresh-return
+            phrase: forty-seven point seven, below review at fifty-four
+            targets:
+              - reward-fresh-return
+            color: yellow
+            linger: 0.5
+          - id: reward-speed-approval
+            phrase: one hundred for unsupported approval
+            targets:
+              - reward-speed-values
+            color: yellow
+            linger: 0.5
+          - id: reward-speed-evidence
+            phrase: forty-five for evidence
+            targets:
+              - reward-speed-values
+            color: yellow
+            linger: 0.5
+          - id: reward-speed-review
+            phrase: fifteen for review
+            targets:
+              - reward-speed-values
+            color: yellow
+            linger: 0.5
+          - id: reward-fresh-proposal
+            phrase: learned proposal becomes approval
+            targets:
+              - reward-fresh-proposal
+            color: yellow
+            linger: 0.5
+          - id: reward-fresh-rejection
+            phrase: gate rejects that exact proposal
+            targets:
+              - reward-fresh-rejection
+            color: yellow
+            linger: 0.5
+          - id: reward-fresh-execution
+            phrase: sends the request to allowed review
+            targets:
+              - reward-fresh-execution
+            color: yellow
+            linger: 0.5

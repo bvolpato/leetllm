@@ -1,0 +1,15 @@
+{
+  "framing": "A green test report needs an independent validator",
+  "paragraphs": [
+    "A coding assistant returns a patch alongside a green test report. Before relying on that result, ask which process ran the tests, which exact files and dependencies were present, and whether candidate code could inspect or alter the grader. An effective repair loop depends on clear failure diagnostics, yet trustworthy automation also requires keeping untrusted code separated from host privileges and independent grading decisions.",
+    "Executing candidate patches connects security and correctness tightly. Read-only test files can still expose held-out assertions, and untrusted code sharing a Python interpreter can monkeypatch assertions in memory. Containers, user-space kernels, microVMs, and WebAssembly runtimes place that isolation seam at different depths with distinct compatibility trade-offs, and blocking outbound network packets still cannot stop secrets already mounted inside the worker from leaking back through stdout.",
+    "The repair loop requires failure traces, whereas trust requires an enforced separation of roles: a host supervisor freezes the candidate artifact, a restricted worker runs it under strict resource quotas, and an isolated validator grades that exact snapshot. Pass@k summarizes the probability that at least one of k independent samples clears the suite, while containment demands dedicated negative tests covering quotas, network denial, digest binding, and verified cleanup between runs.",
+    "Guardrails come first in this unit because input and policy checks decide what work reaches an execution worker, and human review follows because a verified test pass informs deployment decisions without replacing explicit approval. Building on earlier tool execution and testing lessons, this chapter shows how to define the threat model, select a runtime isolation tier, and quarantine or scrub runtime slots before reuse."
+  ],
+  "outcomes": [
+    "Separate candidate execution, trusted validation, and the supervisor that controls artifacts.",
+    "Choose an execution sandbox tier and resource controls that fit the workload and threat model.",
+    "Verify cleanup and artifact binding while reporting correctness separately from containment."
+  ],
+  "question": "What independent evidence demonstrates that the exact patch presented for review is the same artifact the trusted validator tested?"
+}

@@ -1,0 +1,359 @@
+[
+  {
+    "id": "c01",
+    "title": "Friday, 09:12",
+    "sourceChapters": [
+      "c01"
+    ],
+    "beats": [
+      {
+        "id": "c01-snippet",
+        "say": "“Refund pending.” Nia is looking at an offline test of a support reranker. It chooses which answers to show first. Her test reader was denied access to the returns note. Where did those words come from?",
+        "hold": 1.4
+      },
+      {
+        "id": "c01-citation",
+        "say": "The snippet gave away a line of the note. A second test returned the citation, “Private returns note.” It is nine twelve on Friday. Product wants a five percent trial before the returns rush. As the engineer writing the release check, what share would you recommend to Priya?",
+        "hold": 3.2
+      },
+      {
+        "id": "c01-hold",
+        "say": "Zero. “I asked Priya to hold the candidate. Even a small trial could give a reader text they had no permission to see. Once someone reads it, switching back cannot take the words back.” This is a fictional practice interview. Follow the evidence until you can tell which part of the decision was Nia’s.",
+        "hold": 1.2
+      }
+    ]
+  },
+  {
+    "id": "c02",
+    "title": "Whose requests went to the candidate?",
+    "sourceChapters": [
+      "c02"
+    ],
+    "beats": [
+      {
+        "id": "c02-population",
+        "say": "Product says, “It’s only two cases.” We chose those cases to test access. To call the failure rare, we would need to sample a representative population and count how many requests returned restricted text. Try a separate routing example. A sends one request. B sends nineteen.",
+        "hold": 0.8
+      },
+      {
+        "id": "c02-route",
+        "say": "Send A’s request to the candidate. The other nineteen go to the prior version. One out of twenty is five percent of all requests. Look only at tenant A. What fraction of A’s requests went to the candidate?",
+        "hold": 2.8
+      },
+      {
+        "id": "c02-share",
+        "say": "All of them. A sent one and the candidate received it. Routing five percent overall can concentrate exposure on one tenant. We still need evidence about which requests would actually return private text. The two Friday tests cannot give us that rate.",
+        "hold": 1.2
+      }
+    ]
+  },
+  {
+    "id": "c03",
+    "title": "What did Nia put in the release check?",
+    "sourceChapters": [
+      "c03"
+    ],
+    "beats": [
+      {
+        "id": "c03-fixture",
+        "say": "“Show me what you wrote.” Nia kept each test reader, request, expected denial, actual response and build together. Her offline check reruns both fixtures on the build Priya will review. The service must enforce permission on each request. These two tests cover the particular responses that failed.",
+        "hold": 0.9
+      },
+      {
+        "id": "c03-extra",
+        "say": "Try her evidence check with a practice build. It expects exactly two named results, one for the snippet and one for the citation. Both say True. A third key appears and it also says True. The other gates passed. What share can Nia recommend?",
+        "hold": 2.6
+      },
+      {
+        "id": "c03-one",
+        "say": "Zero. An extra or missing key makes the packet invalid. Now remove the extra key and replace the snippet’s Boolean True with the number one. Does this repair the packet?",
+        "hold": 2.3
+      },
+      {
+        "id": "c03-literal",
+        "say": "Keep it at zero. One is truthy in Python. The policy requires the literal Boolean True for each named case. With exact names, both results True and the other gates passed, Nia can recommend a five percent canary. Changing live traffic still takes the release owner’s approval.",
+        "hold": 1.1
+      }
+    ]
+  },
+  {
+    "id": "c04",
+    "title": "Three entries in the release record",
+    "sourceChapters": [
+      "c04"
+    ],
+    "beats": [
+      {
+        "id": "c04-log",
+        "say": "Back to Friday. At nine twelve, build B seventeen returned both pieces of text. Nia marked the hold in the release record. “I reproduced the failures and wrote this gate.” The candidate stayed at zero while the service owner investigated.",
+        "hold": 1.1
+      },
+      {
+        "id": "c04-repair",
+        "say": "Omar repaired the access path in build B eighteen. Only the build has changed so far. The release record still needs Nia’s two results for that build.",
+        "hold": 0.85
+      },
+      {
+        "id": "c04-rerun",
+        "say": "Nia reran the snippet check. Withheld. Then the citation. Withheld too. She attached both passes to the new build. Read the traffic entry. Can those two results open the canary?",
+        "hold": 2.8
+      },
+      {
+        "id": "c04-other",
+        "say": "It stays at zero. Priya reviews the other security, correctness and operational checks. They pass. Now the record supports a recommendation, and Priya still has a decision to make.",
+        "hold": 1.2
+      },
+      {
+        "id": "c04-sign",
+        "say": "Priya approved five percent and opened the canary. If the interviewer asks “Who did what?”, point to Nia’s gate, Omar’s repair and Priya’s signature. Each changed a different part of this record.",
+        "hold": 1.2
+      }
+    ]
+  },
+  {
+    "id": "c05",
+    "title": "What if the disagreement stays open?",
+    "sourceChapters": [
+      "c05"
+    ],
+    "beats": [
+      {
+        "id": "c05-positions",
+        "say": "“Were you too cautious?” Product had a good reason to ask. Both sides wanted support ready for the returns rush. A live trial could reveal slow answers while there was still time to act. Waiting cost the team some of that time. Nia saw a different cost in those two returned strings.",
+        "hold": 1.1
+      },
+      {
+        "id": "c05-condition",
+        "say": "“I agreed we needed live timing. I asked to settle the access question offline first. I would support a canary once the two denied responses came back empty and the other checks passed.” That gives Product a way to change the recommendation.",
+        "hold": 1.15
+      },
+      {
+        "id": "c05-unresolved",
+        "say": "Suppose the meeting ended before Priya decided. What could Nia honestly say? “I recorded both views and the failed tests, requested security review and left the release decision with Priya.” A signature line can stay empty. If the owner later makes an authorized decision, describe the work you did to carry it out.",
+        "hold": 1.5
+      }
+    ]
+  },
+  {
+    "id": "c05-suite",
+    "title": "Where did the two failures go?",
+    "sourceChapters": [
+      "c05"
+    ],
+    "beats": [
+      {
+        "id": "c05-suite-hundred",
+        "say": "Try a different disagreement. A development suite passed ninety-eight of a hundred checks. The last two squares are required access checks. The headline looks good. Which evidence would you keep?",
+        "hold": 2.5
+      },
+      {
+        "id": "c05-suite-keep",
+        "say": "Keep all one hundred results and hold promotion. The two failures belong in the record. Use them to guide the repair, then rerun the versioned development suite. Both now pass. Those same cases helped shape the fix.",
+        "hold": 1
+      },
+      {
+        "id": "c05-suite-holdout",
+        "say": "For a claim about fresh cases, open an untouched holdout after tuning. Report its result separately. Friday’s offline failures tell a launch story. For an incident question, choose a case where customers experienced a problem.",
+        "hold": 1.15
+      },
+      {
+        "id": "c05-suite-incident",
+        "say": "For instance, support staff saw blank search results. “I suspected the new index. Jo rolled the release back while I compared the indexes and restored the missing entries. I counted repeat alerts using the same rule. Four in the four weeks before repair, one in the four weeks after.” Those counts give the interviewer an outcome and the time it covers.",
+        "hold": 1.25
+      }
+    ]
+  },
+  {
+    "id": "c06",
+    "title": "What passed during the five percent canary?",
+    "sourceChapters": [
+      "c06"
+    ],
+    "beats": [
+      {
+        "id": "c06-window",
+        "say": "Priya approved five percent after the offline checks passed. Before the canary began, the team agreed on a window and a latency rule. P ninety-five is the time by which about ninety-five percent of requests finished. While the window is open, keep the canary at five percent. Keep it there if the reading is missing, negative or nonfinite. If the complete window has a valid p ninety-five at or above five hundred milliseconds, withdraw the canary to zero.",
+        "hold": 1.2
+      },
+      {
+        "id": "c06-measured",
+        "say": "The window closed. Its p ninety-five was four hundred twenty milliseconds. Our rule required a result strictly below five hundred. What does that observation let Nia say?",
+        "hold": 2.75
+      },
+      {
+        "id": "c06-pass",
+        "say": "Latency passed for these canary requests during this window. The two access checks supplied separate evidence. After reviewing the remaining gates, Priya approved the next stage at twenty percent. Friday’s notes give no before-change latency or sample count.",
+        "hold": 1.3
+      },
+      {
+        "id": "c06-replay",
+        "say": "Replay the decision before that approval. Keep the complete window and its four hundred twenty milliseconds. Change just the snippet check to False. The citation still passes. What candidate share does the policy recommend now?",
+        "hold": 2.7
+      },
+      {
+        "id": "c06-withdraw",
+        "say": "Withdraw to zero. A failed or missing authorization result takes priority over healthy latency. The release system has to route users back to the prior version. The team still has to investigate what was delivered and contain the exposure.",
+        "hold": 1.4
+      }
+    ]
+  },
+  {
+    "id": "c06-rank",
+    "title": "Find the request at the cutoff",
+    "sourceChapters": [
+      "c06"
+    ],
+    "beats": [
+      {
+        "id": "c06-rank-sorted",
+        "say": "Could a request have taken longer than five hundred milliseconds? Here are twenty invented timings, sorted fastest to slowest. This is a separate example. To find the nearest-rank p ninety-five, multiply the number of requests by point nine five, round up, and count from one. Which bar do you read?",
+        "hold": 2.8
+      },
+      {
+        "id": "c06-rank-rank",
+        "say": "The nineteenth. Its height is four hundred twenty milliseconds. One bar remains to its right.",
+        "hold": 0.75
+      },
+      {
+        "id": "c06-rank-tail",
+        "say": "The twentieth request took nine hundred milliseconds. Both measurements belong in the sample. Reporting the percentile leaves room for that slow request, and Friday’s single reported percentile gives us no way to recover its sample count.",
+        "hold": 1.1
+      }
+    ]
+  },
+  {
+    "id": "c07",
+    "title": "Edit the sentence against the evidence",
+    "sourceChapters": [
+      "c07"
+    ],
+    "beats": [
+      {
+        "id": "c07-draft",
+        "say": "Here is a rehearsal partner’s draft for Nia. “I fixed security, cut latency by sixteen percent, and stopped incidents.” Which verb belongs to Nia? What comparison would the latency claim require?",
+        "hold": 2.5
+      },
+      {
+        "id": "c07-replace",
+        "say": "“I wrote the release check. Omar repaired authorization.” For latency, subtract four hundred twenty from the limit of five hundred. Eighty milliseconds is headroom. Dividing by the limit gives sixteen percent headroom. A speed improvement would require a comparable measurement from before the change.",
+        "hold": 1.05
+      },
+      {
+        "id": "c07-reflection",
+        "say": "The notes contain no incident follow-up. Keep the result you observed and the change you can point to. “At my next review I put release and rollback criteria in the draft early enough for others to challenge them.” To claim quicker launches later, record delivery times.",
+        "hold": 1.2
+      }
+    ]
+  },
+  {
+    "id": "c07-habit",
+    "title": "Did the review come before coding?",
+    "sourceChapters": [
+      "c07"
+    ],
+    "beats": [
+      {
+        "id": "c07-habit-cost",
+        "say": "For a weakness question, choose another story. An engineer kept polishing a migration proposal alone. It arrived three days late and a teammate had to redo an integration. On the next migration the engineer shared a one-page proposal and a compatibility checklist for review before coding.",
+        "hold": 1.1
+      },
+      {
+        "id": "c07-habit-marks",
+        "say": "Now look at three separate practice records. Each horizontal line is one project. The diamond marks review, and the upright line marks the start of coding. How many reviews came early? Could you also claim earlier delivery?",
+        "hold": 2.8
+      },
+      {
+        "id": "c07-habit-count",
+        "say": "Two out of three reviews came before coding. The old habit returned on the third project. None of the records has a delivery date. That supports a specific change in practice and leaves delivery speed unmeasured.",
+        "hold": 1.2
+      }
+    ]
+  },
+  {
+    "id": "c08",
+    "title": "Give the interviewer an answer they can check",
+    "sourceChapters": [
+      "c08"
+    ],
+    "beats": [
+      {
+        "id": "c08-answer",
+        "say": "“My job was the release check. Product wanted our new support ranking before returns peaked. I reproduced two permission failures on the scheduled build and asked Priya for zero traffic. I wrote down the two tests that would let me change my recommendation.”",
+        "hold": 1
+      },
+      {
+        "id": "c08-credit",
+        "say": "“Omar fixed access. Both cases passed on his build before any users reached it. Priya approved five percent after checking the other gates. In the agreed window our p ninety-five was four hundred twenty milliseconds against a limit of five hundred. Priya approved the next stage. I now write rollback criteria before review.”",
+        "hold": 1.1
+      },
+      {
+        "id": "c08-bank",
+        "say": "Choose three to five real examples with different decisions. A platform migration can show how you handled compatibility. An incident can show who owned rollback and what customers experienced. A change-of-mind story needs a belief you revised. School projects, research, open source and non-ML work all count when you can show what you did.",
+        "hold": 1
+      },
+      {
+        "id": "c08-mission",
+        "say": "For a mission question, tie a problem you care about to a piece of your own work. Nia can point to the permission check, then ask which tool actions the team finds hardest to evaluate. Read the lab’s public guidance for themes, ask the recruiter about this role, and choose a story that fits the actual question.",
+        "hold": 1.1
+      }
+    ]
+  },
+  {
+    "id": "c08-tool",
+    "title": "Which action can leave the support case?",
+    "sourceChapters": [
+      "c08"
+    ],
+    "beats": [
+      {
+        "id": "c08-tool-control",
+        "say": "Suppose a team asks what worries you about AI tools. A support assistant can read its assigned case to speed triage. It then asks to export private cases in bulk. Customers would bear the cost of disclosure. Which control should act before any data leaves?",
+        "hold": 2.6
+      },
+      {
+        "id": "c08-tool-block",
+        "say": "A scoped permission check denies the export. An audit log records that decision for later review. I would test the denial on controlled cases, check the other actions the tool can take and ask for human review of high-risk actions before expanding access. That separates the control I tested from work still to do.",
+        "hold": 1.1
+      },
+      {
+        "id": "c08-tool-prep",
+        "say": "The same care applies to rehearsal. If preparation tools are allowed, share a sanitized, truthful packet. Leave out private records, code and confidential questions. Ask for one skeptical follow-up and answer before reading the critique. Reject a sample count the tool invents.",
+        "hold": 1.1
+      },
+      {
+        "id": "c08-tool-invite",
+        "say": "A prior interview allowed a live assistant. This invitation says nothing about tools. Does that earlier permission carry over?",
+        "hold": 2.7
+      },
+      {
+        "id": "c08-tool-clarify",
+        "say": "Clarify this format’s policy with the recruiter before using an assistant. Permission for rehearsal or another assessment applies to that setting. If asked, explain how you prepared.",
+        "hold": 1.2
+      }
+    ]
+  },
+  {
+    "id": "c08-practice",
+    "title": "Your turn at the release review",
+    "sourceChapters": [
+      "c08"
+    ],
+    "beats": [
+      {
+        "id": "c08-practice-boundary",
+        "say": "Try a fresh release note. You wrote the gate. Morgan repaired access. Both named cases and the other gates pass. This complete canary window measures exactly five hundred milliseconds. The requirement is strictly below five hundred. What do you recommend?",
+        "hold": 3.1
+      },
+      {
+        "id": "c08-practice-later",
+        "say": "Withdraw to zero. Now consider a separate later canary with the same passing checks. Its complete window measures four hundred eighty milliseconds. What next step can you recommend, and who can approve it?",
+        "hold": 3.1
+      },
+      {
+        "id": "c08-practice-write",
+        "say": "“At four eighty, I recommended twenty percent for release-owner approval. Morgan owned the repair. I owned the check.” Now record a two-minute answer with a true artifact of your own. Give the situation, your task, your action and the observed result. Try reaching the decision in forty-five seconds. Have a partner ask what would change your mind. Can they name your contribution, one result and one unknown?",
+        "hold": 2
+      }
+    ]
+  }
+]

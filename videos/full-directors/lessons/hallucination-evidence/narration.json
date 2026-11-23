@@ -1,0 +1,593 @@
+[
+  {
+    "id": "c01",
+    "title": "Embedding API status page",
+    "sourceChapters": [
+      "c01"
+    ],
+    "beats": [
+      {
+        "id": "c01-b01",
+        "say": "The incident editor has two times in the draft. The database failover happened at eight fourteen UTC. The writer promises recovery by fourteen thirty. Move the cursor down to the incident record.",
+        "hold": 0.6
+      },
+      {
+        "id": "c01-b02",
+        "say": "The May twenty-seventh snapshot records the completed failover on May twenty-sixth at eight fourteen UTC. The status is investigating. Look under the other time. Which time can we publish, and what event does it describe?",
+        "hold": 3.1
+      },
+      {
+        "id": "c01-b03",
+        "say": "Eight fourteen. Trace it back to the runbook entry for the completed failover.",
+        "hold": 0.8
+      },
+      {
+        "id": "c01-b04",
+        "say": "Lift the proposed recovery time. The space underneath stays blank. Drop the recovery promise. The reader can still learn when the database failover completed.",
+        "hold": 1
+      }
+    ]
+  },
+  {
+    "id": "c02",
+    "title": "What exactly are we checking?",
+    "sourceChapters": [
+      "c02"
+    ],
+    "beats": [
+      {
+        "id": "c02-b01",
+        "say": "Read the draft as four things you could get wrong separately. Which service? What happened? When did it happen? When is recovery expected? Each of those is an atomic claim.",
+        "hold": 0.7
+      },
+      {
+        "id": "c02-b02",
+        "say": "Line up the service, the event, and the event time with their own fields. Replace completed with failed. Overlap scores such as BLEU or ROUGE can reward shared words even when that last word reverses the event. Put completed back before checking the original draft.",
+        "hold": 0.7
+      },
+      {
+        "id": "c02-b03",
+        "say": "Now follow the fourth line. There's no field for the estimate. Three correct details can make the whole paragraph sound convincing. They give you no evidence for that last detail.",
+        "hold": 0.9
+      }
+    ]
+  },
+  {
+    "id": "c03",
+    "title": "What did the record establish?",
+    "sourceChapters": [
+      "c03"
+    ],
+    "beats": [
+      {
+        "id": "c03-b01",
+        "say": "The service, event and event time are supported. Each matches a field in the runbook that this request was allowed to use. That's what we'll call the admitted record.",
+        "hold": 0.6
+      },
+      {
+        "id": "c03-b02",
+        "say": "The recovery estimate is unsupported. It adds something the record can't settle. That's an extrinsic hallucination. Now try a different draft that says resolved. The runbook says investigating. Those statuses conflict. This is an intrinsic hallucination.",
+        "hold": 0.8
+      },
+      {
+        "id": "c03-b03",
+        "say": "The distinction matters on call. For a missing estimate, ask whoever owns the incident for a current estimate. For a conflicting status, resolve the discrepancy before sending the update.",
+        "hold": 0.7
+      }
+    ]
+  },
+  {
+    "id": "c04",
+    "title": "What if the service recovers after the snapshot?",
+    "sourceChapters": [
+      "c04"
+    ],
+    "beats": [
+      {
+        "id": "c04-b01",
+        "say": "At ten o'clock the record says investigating. Suppose the service recovers at eleven. At noon the old record still supports a statement about ten. Using that status to describe noon would mislead the reader. Now consider a separate possibility. Suppose recovery really does happen by the guessed time. That later event gives the earlier guess no support at issue time.",
+        "hold": 0.7
+      },
+      {
+        "id": "c04-b02",
+        "say": "Groundedness asks what the admitted record supports. World factuality asks what actually happened. For a current update, get a fresh record and check that it came from an authorized source for this incident.",
+        "hold": 0.8
+      }
+    ]
+  },
+  {
+    "id": "c05",
+    "title": "What does a lucky guess earn?",
+    "sourceChapters": [
+      "c05"
+    ],
+    "beats": [
+      {
+        "id": "c05-b01",
+        "say": "A recovery estimate is a plausible way to finish an incident update. A model learns likely continuations, including ones drawn from stale reports and common mistakes. Kalai and colleagues connect some generation errors to how hard it is to distinguish valid answers from invalid ones.",
+        "hold": 0.3
+      },
+      {
+        "id": "c05-b02",
+        "say": "Their analysis also points to an incentive you can see on a scoreboard.",
+        "hold": 0.65
+      },
+      {
+        "id": "c05-b03",
+        "say": "Give one point for a correct answer and zero for a wrong answer or a pass. On these ten practice questions, answering every time earns eight points. Withholding three answers avoids both mistakes but also loses one correct answer. That's seven points.",
+        "hold": 0.3
+      },
+      {
+        "id": "c05-b04",
+        "say": "A benchmark scored this way rewards guessing. To reward grounded answers in training, count the cost of unsupported guesses and the useful answers you lose.",
+        "hold": 0.8
+      }
+    ]
+  },
+  {
+    "id": "c06",
+    "title": "Bind each claim to the admitted snapshot",
+    "sourceChapters": [
+      "c06"
+    ],
+    "beats": [
+      {
+        "id": "c06-b01",
+        "say": "Follow the citation on the estimate. It names the incident, a snapshot version, and the field to look up. First resolve the source and version in the records admitted for this request. Then look for the field and compare its value.",
+        "hold": 0.6
+      },
+      {
+        "id": "c06-b02",
+        "say": "For the ETA, the citation points to the right incident version, but no recovery field exists. A citation helps when its source field supports the nearby sentence.",
+        "hold": 0.7
+      },
+      {
+        "id": "c06-b03",
+        "say": "The snapshot is time-scoped. Check freshness and authorization before admission, because a faithful claim about yesterday's status can mislead someone asking about now.",
+        "hold": 0.7
+      }
+    ]
+  },
+  {
+    "id": "c07",
+    "title": "What part of a claim did the checker read?",
+    "sourceChapters": [
+      "c07"
+    ],
+    "beats": [
+      {
+        "id": "c07-b01",
+        "say": "Start with the citation. The Python example accepts named fields, nonempty text and a fixed set of statuses for the record. It copies the record into a read-only mapping. Look up the cited source. An old version stops here, even if a value looks familiar.",
+        "hold": 0.3
+      },
+      {
+        "id": "c07-b02",
+        "say": "An unknown source stops one step earlier. In production, an authenticated feed has to establish who supplied the record.",
+        "hold": 0.7
+      },
+      {
+        "id": "c07-b03",
+        "say": "With the right version, compare the value. Resolved and investigating cannot both describe the recorded status. But try finished in place of completed. The event can mean the same thing. Exact equality returns unsupported, a false rejection. The example also rejects duplicate claim IDs or fields. With no claims to check, it withholds the update.",
+        "hold": 0.75
+      },
+      {
+        "id": "c07-b04",
+        "say": "Read the service claim before we print it. Its typed value is embedding API. Its free text adds fully recovered. Which words did the checker verify?",
+        "hold": 3
+      },
+      {
+        "id": "c07-b05",
+        "say": "Print the service from the checked field. The reader gets a fresh service sentence. Fully recovered stays in the draft. If a model rewrites the sentence, extract the claims from the new wording and check them again.",
+        "hold": 1.3
+      }
+    ]
+  },
+  {
+    "id": "c08",
+    "title": "What can reach the status page?",
+    "sourceChapters": [
+      "c08"
+    ],
+    "beats": [
+      {
+        "id": "c08-b01",
+        "say": "Let's put the four claims through the gate. The first three match. The fourth asks for a recovery estimate the source doesn't have. Which facts can the reader receive?",
+        "hold": 2
+      },
+      {
+        "id": "c08-b02",
+        "say": "Copy the service, the event and its time into fresh sentences. Add a note explaining that the record gives no support for the estimate. That's a shortened answer. It tells the reader about the failover. It still omits the recorded status, so usefulness needs its own check.",
+        "hold": 0.9
+      },
+      {
+        "id": "c08-b03",
+        "say": "Keep those three matching claims. Replace the fourth claim with a status. The draft says resolved. The same record says investigating. Can the three matching facts still go out in this response?",
+        "hold": 2.5
+      },
+      {
+        "id": "c08-b04",
+        "say": "Withhold the whole update. The reader gets a request to review the latest runbook state. This product treats a conflicting status, a missing source or an incorrect citation version as a reason to stop the response. An unsupported detail can be dropped when other verified facts remain.",
+        "hold": 1
+      }
+    ]
+  },
+  {
+    "id": "c09",
+    "title": "What does a token probability measure?",
+    "sourceChapters": [
+      "c09"
+    ],
+    "beats": [
+      {
+        "id": "c09-b01",
+        "say": "Say the next word after fully is recovered with probability point nine eight. That's a prediction about a token, given this prompt, prefix and decoding setup. To assess the incident claim, you still need the record.",
+        "hold": 0.3
+      },
+      {
+        "id": "c09-b02",
+        "say": "To measure how spread out the next word is, you need probabilities across the vocabulary. A short list of the top tokens generally leaves that uncertainty undetermined.",
+        "hold": 0.6
+      },
+      {
+        "id": "c09-b03",
+        "say": "Take a toy vocabulary with just three choices. Give them one half, one quarter and one quarter. For each token, multiply its probability by the negative natural log of that probability. Add the three contributions. The entropy is about one point zero four nats.",
+        "hold": 0.3
+      },
+      {
+        "id": "c09-b04",
+        "say": "Several word choices could describe the very same event. Calibrate any risk score on development cases and check its mistakes on held-out requests.",
+        "hold": 0.7
+      }
+    ]
+  },
+  {
+    "id": "c10",
+    "title": "How many different answers did the model give?",
+    "sourceChapters": [
+      "c10"
+    ],
+    "beats": [
+      {
+        "id": "c10-b01",
+        "say": "Now count whole answers. Two say investigating, one says mitigated and one says resolved. Group them by meaning. The groups hold one half, one quarter and one quarter of the samples. Each contributes about point three four seven nats.",
+        "hold": 0.3
+      },
+      {
+        "id": "c10-b02",
+        "say": "Add the unrounded contributions for an entropy of about one point zero four nats. A simpler question is how many answers fall outside the largest group. Two out of four do. That's disagreement of one half.",
+        "hold": 0.8
+      },
+      {
+        "id": "c10-b03",
+        "say": "Switch to estimates. Two answers say fourteen thirty UTC. Two say two thirty PM UTC. How many different times did these four answers give?",
+        "hold": 2.35
+      },
+      {
+        "id": "c10-b04",
+        "say": "All four mean the same time. The observed meaning entropy is zero.",
+        "hold": 1.5
+      },
+      {
+        "id": "c10-b05",
+        "say": "Try grouping by spelling. The four votes split into two pairs. For this question, fourteen thirty UTC implies two thirty PM UTC. The reverse holds too. Merge the pairs again. A semantic entropy system can use that two-way check to group answers in context.",
+        "hold": 0.75
+      },
+      {
+        "id": "c10-b06",
+        "say": "We counted the samples in each group. Another estimator uses the probabilities of the generated sequences. Farquhar and colleagues used this spread to flag confabulations, mistakes that change from one answer to the next. A fifth run could give a different time.",
+        "hold": 0.7
+      }
+    ]
+  },
+  {
+    "id": "c11",
+    "title": "When should agreement change the route?",
+    "sourceChapters": [
+      "c11"
+    ],
+    "beats": [
+      {
+        "id": "c11-b01",
+        "say": "Our selected draft says investigating, and the record supports it. Look at the four alternative status answers. In this example we send a supported draft to review when disagreement is greater than one quarter.",
+        "hold": 0.7
+      },
+      {
+        "id": "c11-b02",
+        "say": "Two answers fall outside the largest group. Two out of four is one half. Send this draft to review so someone can inspect why those answers differ.",
+        "hold": 0.85
+      },
+      {
+        "id": "c11-b03",
+        "say": "Change only the third answer to investigating. Same selected draft, same record, same cutoff. Does it still go to review?",
+        "hold": 2.6
+      },
+      {
+        "id": "c11-b04",
+        "say": "One answer now falls outside the group. With masses of three quarters and one quarter, the meaning entropy is about point five six two nats. Disagreement is one quarter, exactly the cutoff. The rule says greater than, so this supported draft can go through.",
+        "hold": 1
+      },
+      {
+        "id": "c11-b05",
+        "say": "Go back to the draft with the added recovery estimate. This time four samples agree on fourteen thirty. The runbook still has no estimate. Can those four votes get the time onto the status page?",
+        "hold": 2.3
+      },
+      {
+        "id": "c11-b06",
+        "say": "Disagreement is zero. Shorten the draft and keep the estimate off the page. Four samples from one model can repeat the same mistake. They give you four guesses and no new entry in the runbook.",
+        "hold": 1
+      }
+    ]
+  },
+  {
+    "id": "c12",
+    "title": "What did the checker compare?",
+    "sourceChapters": [
+      "c12"
+    ],
+    "beats": [
+      {
+        "id": "c12-b01",
+        "say": "The draft names the service and promises recovery by fourteen thirty. Suppose the extractor picks up just the service name. The runbook confirms it. One claim checked, one supported. What did the extractor miss?",
+        "hold": 2.2
+      },
+      {
+        "id": "c12-b02",
+        "say": "It missed the recovery time. Check that claim too. The runbook gives no estimate. Now only one of the two claims has support. FActScore checks atomic facts against a knowledge source. Its original evaluation also had a label for irrelevant facts.",
+        "hold": 0.3
+      },
+      {
+        "id": "c12-b03",
+        "say": "Ragas checks whether the retrieved context supports each extracted statement. Inspect which claims the extractor kept and how the judge scored each one.",
+        "hold": 0.7
+      },
+      {
+        "id": "c12-b04",
+        "say": "SelfCheckGPT uses other passages sampled from the model. One variant asks whether each passage supports the sentence. Another uses natural language inference. In this toy example, divide contradiction by entailment plus contradiction for each passage. Neutral is left out.",
+        "hold": 0.3
+      },
+      {
+        "id": "c12-b05",
+        "say": "The two scores are point two and point two five. Their mean is point two two five. Other variants compare words, embeddings or answers to questions. All of them depend on the sampled passages.",
+        "hold": 0.7
+      },
+      {
+        "id": "c12-b06",
+        "say": "Now use the runbook as the premise. The claim says resolved. The record says investigating. The expected label is contradiction. A matching status would give entailment. For a claim the record leaves open, the label is neutral.",
+        "hold": 0.3
+      },
+      {
+        "id": "c12-b07",
+        "say": "Test the judge with a changed date, service name or negation. In a long record, a window can cut a qualifier off its sentence. Check how the judge combines the windows.",
+        "hold": 0.7
+      }
+    ]
+  },
+  {
+    "id": "c13",
+    "title": "Which next token gains probability?",
+    "sourceChapters": [
+      "c13"
+    ],
+    "beats": [
+      {
+        "id": "c13-b01",
+        "say": "Here's a toy model choosing among three status words. Read across the investigating row. Its probability rises between the earlier layers and the final one. DoLa uses changes like these to adjust the next token. In the dynamic version, compare each candidate layer with the final distribution.",
+        "hold": 0.3
+      },
+      {
+        "id": "c13-b02",
+        "say": "Pick the largest Jensen-Shannon divergence. Here that's earlier layer two. You need access to those intermediate predictions to do this.",
+        "hold": 0.8
+      },
+      {
+        "id": "c13-b03",
+        "say": "Use that layer for all three rows. Keep every final probability at or above one fifth of the largest, including a value exactly on the boundary. The largest is point seven. The cutoff is point one four, so unknown drops out. The other two qualify.",
+        "hold": 0.7
+      },
+      {
+        "id": "c13-b04",
+        "say": "For investigating, divide point seven by point two. Its weight is three and a half. Resolved gets two thirds. This ratio comes from subtracting earlier log probabilities from final log probabilities. Divide each surviving weight by their sum. Investigating gets eighty-four percent and resolved gets sixteen percent.",
+        "hold": 1
+      },
+      {
+        "id": "c13-b05",
+        "say": "Now change the comparison. Keep the model, question and prefix fixed. Run it once with the incident record and once without. That's context-aware decoding. Follow resolved. Subtract the raw probabilities and you'd get negative point six. You can't sample a token with a negative probability.",
+        "hold": 0.9
+      },
+      {
+        "id": "c13-b06",
+        "say": "Instead, adjust the logits. Multiply the contextual logit by one plus alpha and subtract alpha times the logit without evidence. Softmax normalizes the result. At alpha zero you get ordinary contextual decoding.",
+        "hold": 0.3
+      },
+      {
+        "id": "c13-b07",
+        "say": "At alpha one the equivalent weight is the contextual probability times the ratio between the runs. For investigating that gives four point nine. Divide each weight by the total, five point zero five. Investigating now gets about ninety-seven percent.",
+        "hold": 0.3
+      },
+      {
+        "id": "c13-b08",
+        "say": "If the runbook is stale, the same calculation can make yesterday's status more likely. Check the date on the entry before you use it for today's update.",
+        "hold": 1
+      }
+    ]
+  },
+  {
+    "id": "c14",
+    "title": "What does withholding an answer cost?",
+    "sourceChapters": [
+      "c14"
+    ],
+    "beats": [
+      {
+        "id": "c14-b01",
+        "say": "Return to the ten practice questions. The selective policy gets seven right out of ten. It answers seven out of ten, and zero of those seven answers are wrong. The always-answer policy gets eight right, covers all ten, and gives two wrong answers.",
+        "hold": 0.3
+      },
+      {
+        "id": "c14-b02",
+        "say": "Is avoiding those two errors worth losing one useful answer? That depends on what people do with a wrong answer and what a withheld answer costs them.",
+        "hold": 0.7
+      },
+      {
+        "id": "c14-b03",
+        "say": "Choose your threshold on development data. Then evaluate the whole policy on separate labeled requests. An entropy score needs calibration before you can read it as a probability of error. Here the incident gate checks the source first. A missing estimate can shorten an otherwise supported answer.",
+        "hold": 0.3
+      },
+      {
+        "id": "c14-b04",
+        "say": "Only a fully supported draft reaches the sampling check. Missing samples or disagreement above one quarter send it to review.",
+        "hold": 0.8
+      }
+    ]
+  },
+  {
+    "id": "c15",
+    "title": "Which answers count as unsafe?",
+    "sourceChapters": [
+      "c15"
+    ],
+    "beats": [
+      {
+        "id": "c15-b01",
+        "say": "Each row is one request. Each dot is one claim. The clean update contributes three matches. The next row has those three plus the invented time. The last two rows each contain one failed claim. Send every draft.",
+        "hold": 0.3
+      },
+      {
+        "id": "c15-b02",
+        "say": "Six of nine claims have support, yet three of the four readers get an unsafe answer. One failed claim is enough to spoil a response.",
+        "hold": 0.8
+      },
+      {
+        "id": "c15-b03",
+        "say": "Run the evidence gate on the same four requests. Send the clean answer. Shorten the answer with the extra estimate. Withhold the wrong status and the unknown source. To compute the unsafe-serve rate, how many answers belong in the denominator?",
+        "hold": 2.5
+      },
+      {
+        "id": "c15-b04",
+        "say": "Two answers reached a reader with incident facts. Neither contains an unsafe claim, so the rate is zero out of two. For response coverage, count all four requests. Two received an answer. One was shortened and two were withheld. If you withhold every answer, coverage is zero and the unsafe-serve rate is undefined.",
+        "hold": 1
+      }
+    ]
+  },
+  {
+    "id": "c16",
+    "title": "Would you release this gate?",
+    "sourceChapters": [
+      "c16"
+    ],
+    "beats": [
+      {
+        "id": "c16-b01",
+        "say": "Suppose the logger says shorten but the reader still sees fourteen thirty. Grade what the reader got. Relabel all four original drafts this way and three are still unsafe. Withhold all four and nobody gets incident facts. This small grader recognizes exact accepted responses. It catches the leaked estimate but could reject a harmless paraphrase.",
+        "hold": 0.7
+      },
+      {
+        "id": "c16-b02",
+        "say": "The real candidate keeps the one clean answer and sends a shortened update to one other reader. That's one out of one clean cases kept, two out of four requests answered, and zero unsafe among the two it answered.",
+        "hold": 0.3
+      },
+      {
+        "id": "c16-b03",
+        "say": "We chose those four requests to test known failures. To estimate how often readers see an unsafe answer, sample the requests readers actually make.",
+        "hold": 0.75
+      },
+      {
+        "id": "c16-b04",
+        "say": "The known failures are fixed, the clean case survives, and the admitted versions are logged. Inspect the two empty release checks. We still need a representative held-out set with independently labeled claims and an audited grader. We also need someone responsible for alerts. Would you release this gate?",
+        "hold": 2.8
+      },
+      {
+        "id": "c16-b05",
+        "say": "Hold the release. The four requirements in code take actual booleans from trusted records. A missing key or the text string false cannot stand in for a result.",
+        "hold": 0.9
+      }
+    ]
+  },
+  {
+    "id": "c17",
+    "title": "Which question would you ask the draft?",
+    "sourceChapters": [
+      "c17"
+    ],
+    "beats": [
+      {
+        "id": "c17-b01",
+        "say": "If the draft says recovery by fourteen thirty, ask which field gives that estimate. Chain-of-Verification starts with a draft, plans checks like that one, answers them separately and revises the draft. The paper tested this on lists, closed-book questions and long-form answers.",
+        "hold": 0.3
+      },
+      {
+        "id": "c17-b02",
+        "say": "Answer the verification question on a fresh slip, away from the draft. The admitted runbook has no estimate. Revise the update to keep the failover time. Asking separately can reduce the influence of the first guess. A model's reply still needs a source.",
+        "hold": 0.75
+      },
+      {
+        "id": "c17-b03",
+        "say": "Before adding another model call, find the first failed check. A missing runbook calls for a look at retrieval and admission. A guess added to a valid runbook calls for a look at the generated claims. The request trace lets you tell those cases apart.",
+        "hold": 0.75
+      }
+    ]
+  },
+  {
+    "id": "c18",
+    "title": "Where did this request first fail?",
+    "sourceChapters": [
+      "c18"
+    ],
+    "beats": [
+      {
+        "id": "c18-b01",
+        "say": "The draft cites a runbook. The request trace shows no snapshot. Start at evidence admission. Check the feed response, the caller's permissions and where the citation came from.",
+        "hold": 0.7
+      },
+      {
+        "id": "c18-b02",
+        "say": "Here's our opening draft. A snapshot did arrive. The estimate first appears in the draft. That's a claim generation failure. Keep the record version, the estimate and its verdict, the route and the exact text that reached the reader.",
+        "hold": 0.65
+      },
+      {
+        "id": "c18-b03",
+        "say": "In this request the selected claims pass. The alternatives disagree. Start with generation stability. To replay it, save the sampled answers, the prompt, the model, its temperature and the verifier and policy versions. Protect those artifacts and limit retention according to the sensitivity of the incident.",
+        "hold": 0.7
+      },
+      {
+        "id": "c18-b04",
+        "say": "Compare the gate with a human review. Sending an estimate absent from the record is a false accept. Rejecting finished when it means completed is a false reject. Track both, along with coverage and whether the reader got a useful answer. Now try the next runbook entry yourself.",
+        "hold": 0.8
+      }
+    ]
+  },
+  {
+    "id": "c19",
+    "title": "The next update for INC-48291",
+    "sourceChapters": [
+      "c19"
+    ],
+    "beats": [
+      {
+        "id": "c19-b01",
+        "say": "A new entry arrives for the same incident. Line up its recorded estimate with the draft. Both say fifteen ten UTC. Now read the version on the source. Version two also records the status as mitigated.",
+        "hold": 0.9
+      },
+      {
+        "id": "c19-b02",
+        "say": "Look at the citation attached to the draft's estimate. It still says version one. The status claim cites version two. The writer also added the words fully recovered. Can this draft go out with these citations?",
+        "hold": 2.8
+      },
+      {
+        "id": "c19-b03",
+        "say": "Withhold this update. The estimate has the right digits, but the cited version differs from the admitted version. The checker stops before comparing that value. Changing the wording couldn't fix it.",
+        "hold": 1.05
+      },
+      {
+        "id": "c19-b04",
+        "say": "Open version two and check the estimate there. Cite that version for the time. The status claim already points there. Both typed values now match. Which sentences can the status page print?",
+        "hold": 2.7
+      },
+      {
+        "id": "c19-b05",
+        "say": "Recorded recovery estimate, fifteen ten UTC. Recorded status, mitigated. The draft said fully recovered. The reader gets the status from the runbook. Save the sent text with both verdicts and the runbook version. An HTTP two hundred tells you the request succeeded. Open the trace to see what the reader was told.",
+        "hold": 1.7
+      }
+    ]
+  }
+]

@@ -1,0 +1,320 @@
+{
+  "id": "idempotent-ledger",
+  "slug": "idempotent-ledger",
+  "title": "Idempotent Ledger",
+  "difficulty": "Medium",
+  "category": "Stateful Design",
+  "language": "python3",
+  "timeEstimateMinutes": 30,
+  "timeLimitMs": 2500,
+  "memoryLimitMb": 128,
+  "order": 50,
+  "tags": [
+    "idempotency",
+    "ledger",
+    "state machine",
+    "retries"
+  ],
+  "source": "Frontier coding prep",
+  "summary": "Apply in-memory account mutations once per successful request ID while rejecting mismatched retry payloads.",
+  "starterCode": [
+    "class Ledger:",
+    "    def __init__(self):",
+    "        pass",
+    "",
+    "    def apply(self, request_id: str, account_id: str, amount: int) -> int:",
+    "        pass",
+    "",
+    "    def balance(self, account_id: str) -> int:",
+    "        pass"
+  ],
+  "testCases": [
+    {
+      "name": "deduplicates successful requests",
+      "visibility": "sample",
+      "setup": [
+        "from solution import Ledger",
+        "ledger = Ledger()"
+      ],
+      "checks": [
+        {
+          "input": "ledger = Ledger()\nledger.apply(\"deposit-1\", \"acct\", 100)",
+          "expression": "ledger.apply(\"deposit-1\", \"acct\", 100)",
+          "operator": "==",
+          "expected": "100"
+        },
+        {
+          "input": "ledger = Ledger()\nledger.apply(\"deposit-1\", \"acct\", 100)\nledger.apply(\"deposit-1\", \"acct\", 100)",
+          "expression": "ledger.apply(\"deposit-1\", \"acct\", 100)",
+          "operator": "==",
+          "expected": "100"
+        },
+        {
+          "input": "ledger = Ledger()\nledger.apply(\"deposit-1\", \"acct\", 100)\nledger.apply(\"deposit-1\", \"acct\", 100)\nledger.apply(\"withdraw-1\", \"acct\", -30)",
+          "expression": "ledger.apply(\"withdraw-1\", \"acct\", -30)",
+          "operator": "==",
+          "expected": "70"
+        },
+        {
+          "input": "ledger = Ledger()\nledger.apply(\"deposit-1\", \"acct\", 100)\nledger.apply(\"deposit-1\", \"acct\", 100)\nledger.apply(\"withdraw-1\", \"acct\", -30)\nledger.balance(\"acct\")",
+          "expression": "ledger.balance(\"acct\")",
+          "operator": "==",
+          "expected": "70"
+        }
+      ]
+    },
+    {
+      "name": "rejects overdrafts without mutating balance",
+      "visibility": "hidden",
+      "setup": [
+        "from solution import Ledger",
+        "ledger = Ledger()",
+        "try:",
+        "    ledger.apply(\"withdraw-empty\", \"acct\", -1)",
+        "except ValueError:",
+        "    pass",
+        "else:",
+        "    raise AssertionError(\"overdraft should fail\")"
+      ],
+      "checks": [
+        {
+          "input": "ledger = Ledger()\ntry:\n    ledger.apply(\"withdraw-empty\", \"acct\", -1)\nexcept ValueError:\n    pass\nelse:\n    raise AssertionError(\"overdraft should fail\")\nledger.balance(\"acct\")",
+          "expression": "ledger.balance(\"acct\")",
+          "operator": "==",
+          "expected": "0"
+        },
+        {
+          "input": "ledger = Ledger()\ntry:\n    ledger.apply(\"withdraw-empty\", \"acct\", -1)\nexcept ValueError:\n    pass\nelse:\n    raise AssertionError(\"overdraft should fail\")\nledger.balance(\"acct\")\nledger.apply(\"deposit-1\", \"acct\", 5)",
+          "expression": "ledger.apply(\"deposit-1\", \"acct\", 5)",
+          "operator": "==",
+          "expected": "5"
+        },
+        {
+          "input": "ledger = Ledger()\ntry:\n    ledger.apply(\"withdraw-empty\", \"acct\", -1)\nexcept ValueError:\n    pass\nelse:\n    raise AssertionError(\"overdraft should fail\")\nledger.balance(\"acct\")\nledger.apply(\"deposit-1\", \"acct\", 5)\nledger.apply(\"withdraw-2\", \"acct\", -5)",
+          "expression": "ledger.apply(\"withdraw-2\", \"acct\", -5)",
+          "operator": "==",
+          "expected": "0"
+        },
+        {
+          "input": "ledger = Ledger()\ntry:\n    ledger.apply(\"withdraw-empty\", \"acct\", -1)\nexcept ValueError:\n    pass\nelse:\n    raise AssertionError(\"overdraft should fail\")\nledger.balance(\"acct\")\nledger.apply(\"deposit-1\", \"acct\", 5)\nledger.apply(\"withdraw-2\", \"acct\", -5)\nledger.apply(\"withdraw-2\", \"acct\", -5)",
+          "expression": "ledger.apply(\"withdraw-2\", \"acct\", -5)",
+          "operator": "==",
+          "expected": "0"
+        }
+      ]
+    },
+    {
+      "name": "keeps independent account balances",
+      "visibility": "sample",
+      "setup": [
+        "from solution import Ledger",
+        "ledger = Ledger()"
+      ],
+      "checks": [
+        {
+          "input": "ledger = Ledger()\nledger.apply(\"a-deposit\", \"acct-a\", 10)",
+          "expression": "ledger.apply(\"a-deposit\", \"acct-a\", 10)",
+          "operator": "==",
+          "expected": "10"
+        },
+        {
+          "input": "ledger = Ledger()\nledger.apply(\"a-deposit\", \"acct-a\", 10)\nledger.apply(\"b-deposit\", \"acct-b\", 7)",
+          "expression": "ledger.apply(\"b-deposit\", \"acct-b\", 7)",
+          "operator": "==",
+          "expected": "7"
+        },
+        {
+          "input": "ledger = Ledger()\nledger.apply(\"a-deposit\", \"acct-a\", 10)\nledger.apply(\"b-deposit\", \"acct-b\", 7)\nledger.apply(\"a-noop\", \"acct-a\", 0)",
+          "expression": "ledger.apply(\"a-noop\", \"acct-a\", 0)",
+          "operator": "==",
+          "expected": "10"
+        },
+        {
+          "input": "ledger = Ledger()\nledger.apply(\"a-deposit\", \"acct-a\", 10)\nledger.apply(\"b-deposit\", \"acct-b\", 7)\nledger.apply(\"a-noop\", \"acct-a\", 0)\nledger.balance(\"acct-a\")",
+          "expression": "ledger.balance(\"acct-a\")",
+          "operator": "==",
+          "expected": "10"
+        },
+        {
+          "input": "ledger = Ledger()\nledger.apply(\"a-deposit\", \"acct-a\", 10)\nledger.apply(\"b-deposit\", \"acct-b\", 7)\nledger.apply(\"a-noop\", \"acct-a\", 0)\nledger.balance(\"acct-a\")\nledger.balance(\"acct-b\")",
+          "expression": "ledger.balance(\"acct-b\")",
+          "operator": "==",
+          "expected": "7"
+        },
+        {
+          "input": "ledger = Ledger()\nledger.apply(\"a-deposit\", \"acct-a\", 10)\nledger.apply(\"b-deposit\", \"acct-b\", 7)\nledger.apply(\"a-noop\", \"acct-a\", 0)\nledger.balance(\"acct-a\")\nledger.balance(\"acct-b\")\nledger.balance(\"missing\")",
+          "expression": "ledger.balance(\"missing\")",
+          "operator": "==",
+          "expected": "0"
+        }
+      ]
+    },
+    {
+      "name": "rejects duplicate request id with mismatched payload",
+      "visibility": "sample",
+      "description": "Reusing a recorded request ID with a different account or amount raises ValueError without mutating balances.",
+      "code": [
+        "from solution import Ledger",
+        "ledger = Ledger()",
+        "assert ledger.apply(\"req\", \"acct-a\", 5) == 5",
+        "for bad_account, bad_amount in [(\"acct-b\", 5), (\"acct-a\", 100), (\"acct-b\", 100)]:",
+        "    try:",
+        "        ledger.apply(\"req\", bad_account, bad_amount)",
+        "    except ValueError:",
+        "        pass",
+        "    else:",
+        "        raise AssertionError(\"mismatched payload should raise ValueError\")",
+        "assert ledger.apply(\"req\", \"acct-a\", 5) == 5",
+        "assert ledger.balance(\"acct-a\") == 5",
+        "assert ledger.balance(\"acct-b\") == 0"
+      ]
+    },
+    {
+      "name": "failed requests are not recorded as idempotent successes",
+      "visibility": "hidden",
+      "setup": [
+        "from solution import Ledger",
+        "ledger = Ledger()",
+        "try:",
+        "    ledger.apply(\"withdraw\", \"acct\", -1)",
+        "except ValueError:",
+        "    pass",
+        "else:",
+        "    raise AssertionError(\"initial overdraft should fail\")"
+      ],
+      "checks": [
+        {
+          "input": "ledger = Ledger()\ntry:\n    ledger.apply(\"withdraw\", \"acct\", -1)\nexcept ValueError:\n    pass\nelse:\n    raise AssertionError(\"initial overdraft should fail\")\nledger.apply(\"seed\", \"acct\", 5)",
+          "expression": "ledger.apply(\"seed\", \"acct\", 5)",
+          "operator": "==",
+          "expected": "5"
+        },
+        {
+          "input": "ledger = Ledger()\ntry:\n    ledger.apply(\"withdraw\", \"acct\", -1)\nexcept ValueError:\n    pass\nelse:\n    raise AssertionError(\"initial overdraft should fail\")\nledger.apply(\"seed\", \"acct\", 5)\nledger.apply(\"withdraw\", \"acct\", -1)",
+          "expression": "ledger.apply(\"withdraw\", \"acct\", -1)",
+          "operator": "==",
+          "expected": "4"
+        }
+      ]
+    },
+    {
+      "name": "new account starts with zero balance",
+      "visibility": "sample",
+      "description": "Reading an unseen account needs no initialization.",
+      "feedback": "Default missing balances to zero.",
+      "setup": [
+        "from solution import Ledger",
+        "ledger = Ledger()"
+      ],
+      "input": "ledger.balance(\"new\")",
+      "expected": "0"
+    },
+    {
+      "name": "duplicate returns original result after later changes",
+      "visibility": "hidden",
+      "description": "A matching duplicate request returns its recorded result without rewinding current balance.",
+      "feedback": "Store each successful request record separately from the account's current balance.",
+      "setup": [
+        "from solution import Ledger",
+        "ledger = Ledger()",
+        "ledger.apply(\"first\", \"acct\", 10)",
+        "ledger.apply(\"later\", \"acct\", 5)"
+      ],
+      "input": "(ledger.apply(\"first\", \"acct\", 10), ledger.balance(\"acct\"))",
+      "expected": "(10, 15)"
+    },
+    {
+      "name": "zero amount is an idempotent success and rejects changed amount",
+      "visibility": "hidden",
+      "description": "A zero-value request is recorded; a matching retry returns zero while a changed amount raises ValueError.",
+      "feedback": "Record (account_id, amount, resulting_balance) for every successful request, including zero-amount requests.",
+      "code": [
+        "from solution import Ledger",
+        "ledger = Ledger()",
+        "assert ledger.apply(\"noop\", \"acct\", 0) == 0",
+        "assert ledger.apply(\"noop\", \"acct\", 0) == 0",
+        "try:",
+        "    ledger.apply(\"noop\", \"acct\", 50)",
+        "except ValueError:",
+        "    pass",
+        "else:",
+        "    raise AssertionError(\"reusing noop key with nonzero amount should raise ValueError\")",
+        "assert ledger.balance(\"acct\") == 0"
+      ]
+    },
+    {
+      "name": "failed payload mismatch after later deposit leaves balances intact",
+      "visibility": "hidden",
+      "description": "A mismatched retry after subsequent account activity raises ValueError without altering any balance or overwriting the original record.",
+      "code": [
+        "from solution import Ledger",
+        "ledger = Ledger()",
+        "assert ledger.apply(\"d1\", \"acct\", 25) == 25",
+        "assert ledger.apply(\"d2\", \"acct\", 15) == 40",
+        "try:",
+        "    ledger.apply(\"d1\", \"acct\", -5)",
+        "except ValueError:",
+        "    pass",
+        "else:",
+        "    raise AssertionError(\"changed amount on d1 should raise ValueError\")",
+        "assert ledger.balance(\"acct\") == 40",
+        "assert ledger.apply(\"d1\", \"acct\", 25) == 25"
+      ]
+    }
+  ],
+  "clarifyingQuestions": [
+    "Should balances support decimals, cents, or integer units only?",
+    "Should reusing a request ID with different parameters return the cached result or raise an error?",
+    "How should concurrent applies with different request IDs to the same account serialize?"
+  ],
+  "followUps": [
+    "Add transfer with one idempotency key for the whole transfer.",
+    "Add reversal entries without deleting historical events.",
+    "Add account-level locks and explain deadlock avoidance for transfers."
+  ],
+  "followUpGuide": [
+    "For transfers, validate first, then update both balances and the global idempotency record `(from_account, to_account, amount, balances)` atomically. A matching retry returns the same pair of resulting balances, while a retry with different transfer parameters raises an error. Durable storage must commit both mutations and the idempotency record in one transaction so a crash cannot leave an unrecorded mutation.",
+    "",
+    "For reversals, append a compensating event with its own request ID. Keeping the original mutation preserves auditability.",
+    "",
+    "For transfers, acquire account locks in sorted account ID order consistently to avoid circular wait. Also synchronize the global request-ID check and idempotency record: account locks alone do not stop the same ID from racing across different accounts. Keep one consistent lock acquisition order when combining a request-table lock with account locks."
+  ],
+  "complexityAnalysis": [
+    "- Naive replay approach: append entries and recompute balances on every read. Time: O(n) per read. Space: O(n).",
+    "- Indexed ledger approach: keep balances plus `(account_id, amount, balance)` records keyed by `request_id`. Time: O(1) average per operation. Space: O(a + k), where a is accounts and k is recorded request keys.",
+    "- Auditable ledger approach: keep immutable entries and indexes together. Time: O(1) average writes and reads. Space: O(n + a + k)."
+  ],
+  "solutionGuide": [
+    "Keep two maps: account balances and request ID to `(account_id, amount, recorded_balance)`. Check the request map before mutating balances, verifying that a repeated `request_id` carries the exact same `(account_id, amount)` payload.",
+    "",
+    "For a new request, validate overdraft first. Only after validation succeeds should the balance and idempotency record be stored.",
+    "",
+    "```python",
+    "class Ledger:",
+    "    def __init__(self):",
+    "        self.balances = {}",
+    "        self.records_by_request = {}",
+    "",
+    "    def apply(self, request_id: str, account_id: str, amount: int) -> int:",
+    "        if request_id in self.records_by_request:",
+    "            recorded_account, recorded_amount, recorded_balance = self.records_by_request[request_id]",
+    "            if (account_id, amount) != (recorded_account, recorded_amount):",
+    "                raise ValueError(\"idempotency key payload mismatch\")",
+    "            return recorded_balance",
+    "",
+    "        current = self.balances.get(account_id, 0)",
+    "        next_balance = current + amount",
+    "        if next_balance < 0:",
+    "            raise ValueError(\"insufficient funds\")",
+    "",
+    "        self.balances[account_id] = next_balance",
+    "        self.records_by_request[request_id] = (account_id, amount, next_balance)",
+    "        return next_balance",
+    "",
+    "    def balance(self, account_id: str) -> int:",
+    "        return self.balances.get(account_id, 0)",
+    "```",
+    "",
+    "For transfers, one idempotency key should bind the entire `(from_account, to_account, amount)` tuple across both debit and credit so retries cannot split or alter a transaction."
+  ]
+}

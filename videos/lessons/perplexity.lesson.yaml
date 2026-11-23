@@ -1,0 +1,806 @@
+version: 1
+id: perplexity
+opening: lesson
+title: Measuring a Model's Surprise
+source: fundamentals/perplexity-language-model-evaluation/content.md
+sources:
+  - title: Hugging Face, Perplexity of fixed-length models
+    url: https://huggingface.co/docs/transformers/en/perplexity
+  - title: PyTorch CrossEntropyLoss target masking and reductions
+    url: https://docs.pytorch.org/docs/stable/generated/torch.nn.CrossEntropyLoss.html
+  - title: Salazar et al., Masked Language Model Scoring (ACL2020)
+    url: https://aclanthology.org/2020.acl-main.240/
+  - title: SentencePiece normalization rules and whitespace policies
+    url: https://github.com/google/sentencepiece/blob/master/doc/normalization.md
+  - title: Paloma controlled language-model-fit evaluation
+    url: https://arxiv.org/abs/2312.10523
+scenes:
+  - id: covered-word
+    title: Which word is under the cover?
+    visual: A probability strip unrolls beneath the masked sentence. Each word and its percentage stay in place as the strip reaches them. An underline follows the two spoken choices while the fourth word stays covered.
+    beats:
+      - say: The cat sat. Would you put “on” in the gap? The model gives it half the strip. If the page says “under,” we score its thirty percent instead. Which word is under the cover?
+        caption_starts: [Would you put, The model gives it, If the page says, Which word is]
+        hold: 2.1
+        visual_cues:
+          - id: read-prefix
+            phrase: The cat sat
+            targets: [covered-prefix, wager-strip]
+          - id: deal-half
+            phrase: The model gives it half the strip
+            targets: [wager-strip]
+          - id: deal-under
+            phrase: If the page says “under,” we score its thirty percent instead
+            targets: [wager-strip]
+          - id: ask-word
+            phrase: Which word is under the cover
+            targets: [covered-prefix]
+  - id: intro
+    title: How much probability reached the word that appeared?
+    visual: The first observed word uncovers its slice. A line carries that probability to its loss, then the sentence advances twice and keeps all three conditional probabilities.
+    beats:
+      - say: The cat sat on the mat. A language model reading that sentence assigns probabilities before each next word appears. Evaluation asks how much probability reached the word we actually observed. Perplexity summarizes that predictive fit, giving us a useful comparison when the scoring conditions stay fixed.
+        hold: 0.6
+        visual_cues:
+          - id: intro-beat-1-focus-1
+            phrase: The cat sat on the mat
+            targets:
+              - intro-token-positions
+            color: blue
+            linger: 0.6
+          - id: intro-follow-share
+            phrase: Evaluation asks how much probability reached the word we actually observed
+            targets: [intro-token-positions]
+          - id: intro-observed-on
+            caption_boundary: true
+            phrase: on
+            targets:
+              - intro-token-positions
+            color: green
+            linger: 0.6
+      - say: Here the words on, the, and mat are three scored targets after the supplied prefix. Treat each displayed word as one token in this constructed example. Their probabilities come from three different prediction steps, each conditioned on the actual preceding words. We score the text rather than sample a continuation.
+        hold: 0.65
+        visual_cues:
+          - id: intro-beat-2-focus-1
+            phrase: and mat are three scored targets after the supplied prefix
+            targets:
+              - intro-token-positions
+            color: blue
+            linger: 0.6
+          - id: intro-beat-2-focus-2
+            phrase: Their probabilities come from three different prediction steps
+            targets:
+              - intro-token-positions
+            color: blue
+            linger: 0.6
+          - id: intro-observed-the
+            phrase: words on, the
+            targets:
+              - intro-token-positions
+            color: green
+            linger: 0.6
+          - id: intro-observed-mat
+            phrase: and mat
+            targets:
+              - intro-token-positions
+            color: green
+            linger: 0.6
+      - say: We will turn those probabilities into surprise, combine them into one score, and examine the bookkeeping that makes the result meaningful. The important questions will be which targets were scored, what context they received, and which units sit in the denominator.
+        hold: 0.7
+        visual_cues:
+          - id: intro-beat-3-focus-1
+            phrase: We will turn those probabilities into surprise
+            targets:
+              - intro-token-positions
+            color: blue
+            linger: 0.6
+  - id: surprise
+    title: What does one small share cost?
+    visual: A moving probability probe follows negative log probability while the corresponding surprise value is computed.
+    beats:
+      - say: Keep the word “mat” in view. The model gave it four fifths of the probability. How would its penalty change if the model gave it less? Define a token's surprise as negative natural log probability. A probability of one gives zero surprise. As the assigned probability approaches zero, the penalty grows. This gives a confident miss much more influence than a small change to an already likely observed token.
+        hold: 0.6
+        caption_starts: [Define a token's surprise, As the assigned probability approaches zero]
+        visual_cues:
+          - id: surprise-beat-1-focus-1
+            phrase: Define a token's surprise as negative natural log probability
+            targets:
+              - surprise-object-at-x-at-y-12-c-yellow-3
+            color: blue
+            linger: 0.6
+          - id: surprise-rule
+            phrase: negative natural log probability
+            targets:
+              - surprise-nats
+            linger: 0.5
+      - say: Move the probe down from a likely target to an unlikely one. Notice how quickly the surprise rises near zero. Natural logarithms measure it in nats. Dividing by the natural log of two expresses the same information in bits, with no change to which prediction was more surprising.
+        hold: 0.65
+        motion_check:
+          region:
+            - 240
+            - 350
+            - 1520
+            - 650
+          minimumChangedFraction: 0.002
+        visual_cues:
+          - id: surprise-beat-2-focus-1
+            phrase: Natural logarithms measure it in nats
+            targets:
+              - surprise-nats
+            color: yellow
+            linger: 0.6
+          - id: surprise-beat-2-focus-2
+            phrase: Move the probe down from a likely target to an unlikely one
+            targets:
+              - surprise-object-at-x-at-y-12-c-yellow-3
+            color: blue
+            linger: 0.6
+          - id: surprise-bits
+            phrase: Dividing by the natural log of two
+            targets:
+              - surprise-equation-string-raw-ell-text-bits-frac-ell-text-nats-ln-2-7
+            linger: 0.6
+      - say: Only the probability of the observed target enters that step's loss. In this replay, all the other words share ninety-eight percent. The text still says “mat,” so the narrow slice has to pay for it. This penalty on the single observed word is the one-hot next-token cross-entropy for a causal language model.
+        hold: 0.7
+        visual_cues:
+          - id: surprise-beat-3-focus-1
+            phrase: Only the probability of the observed target enters that step's loss
+            targets:
+              - surprise-object-at-x-at-y-12-c-yellow-3
+            color: blue
+            linger: 0.6
+  - id: mean
+    title: Average the surprise, then exponentiate
+    visual: Three token losses accumulate before the mean and perplexity are revealed, preserving the geometric-mean calculation.
+    beats:
+      - say: Bring back the original sentence. The model gave “mat” four fifths of the probability before we moved the probe. Look at “the” now. The low-probability middle token contributes most of the total loss. Add the three penalties and divide by the number of scored targets. This average is the negative log likelihood per token, under the context supplied by our evaluator.
+        hold: 0.6
+        motion_check:
+          region:
+            - 230
+            - 380
+            - 1040
+            - 420
+          minimumChangedFraction: 0.002
+        visual_cues:
+          - id: mean-beat-1-focus-1
+            phrase: The low-probability middle token contributes most of the total loss
+            targets:
+              - mean-object-distribution-mean-9
+            color: blue
+            linger: 0.6
+          - id: mean-gather
+            phrase: Add the three penalties
+            targets:
+              - mean-object-distribution-mean-9
+            linger: 0.6
+      - say: Exponentiate that average to obtain perplexity. Here the score is about two point nine two. An equally likely choice problem with that effective branching factor has the same average surprise. The interpretation gives the loss a familiar scale while the model's actual vocabulary stays unchanged.
+        hold: 0.65
+        visual_cues:
+          - id: mean-beat-2-focus-1
+            phrase: The interpretation gives the loss a familiar scale
+            targets:
+              - mean-simulation-11
+            color: blue
+            linger: 0.6
+          - id: mean-equalize
+            phrase: Exponentiate that average
+            targets:
+              - mean-simulation-11
+            linger: 0.6
+          - id: mean-exponent
+            phrase: Here the score is about two point nine two
+            targets:
+              - mean-simulation-11
+            linger: 0.6
+      - say: Perplexity is a geometric mean of reciprocal observed probabilities. It can exceed vocabulary size when the model repeatedly assigns very little probability to the targets. The entropy of the model's own distribution averages over different outcomes, so keep that separate from loss on the held-out text.
+        hold: 0.7
+        visual_cues:
+          - id: mean-beat-3-focus-1
+            phrase: so keep that separate from loss on the held-out text
+            targets:
+              - mean-simulation-11
+            color: blue
+            linger: 0.6
+          - id: mean-beat-3-focus-2
+            phrase: Perplexity is a geometric mean of reciprocal observed probabilities
+            targets:
+              - mean-object-distribution-mean-9
+            color: blue
+            linger: 0.6
+  - id: loss-scale
+    title: Equal loss steps multiply perplexity
+    visual: A circle splits into equal choices. Two probability strips compare the sentence with a fair three-way guess, then a confident miss exceeds a two-token vocabulary.
+    beats:
+      - say: Four equally likely choices. Pick any slice. Its probability is one quarter and its perplexity is four. Split every slice in half. The smaller slice costs an extra natural log of two in surprise, and perplexity doubles to eight. Split them once more and perplexity doubles to sixteen. The same increase in loss doubles the score each time.
+        hold: 0.8
+        visual_cues:
+          - id: double-choice
+            phrase: perplexity doubles to eight
+            targets:
+              - choice-count
+            linger: 0.5
+          - id: uniform-four
+            phrase: four equally likely choices
+            targets:
+              - uniform-choices
+            linger: 0.5
+          - id: split-four
+            phrase: Split every slice in half
+            targets: [uniform-choices]
+          - id: split-eight
+            phrase: Split them once more
+            targets: [uniform-choices]
+          - id: double-again
+            phrase: perplexity doubles to sixteen
+            targets:
+              - choice-count
+            linger: 0.5
+      - say: A fair three-way guess gives the word one chance in three. What single probability would give the same average surprise as “on,” “the,” and “mat”? Multiply their three shares and take the cube root. You get about thirty-four percent. That's a little better than one chance in three. Take its reciprocal and you get a perplexity of two point nine two.
+        hold: 0.8
+        caption_starts: [You get about thirty-four percent]
+        visual_cues:
+          - id: equivalent-share
+            phrase: About thirty-four percent
+            targets: [equivalent-share]
+          - id: effective-count
+            phrase: two point nine two
+            targets:
+              - equivalent-count
+            linger: 0.5
+      - say: Now the vocabulary has just two tokens. At each step the word that turns up got only one percent. The other word got ninety-nine percent. How much did the observed words cost? Their perplexity is one hundred. Entropy weights each outcome by the probability the model gave it. Here the model was confident both times and the text surprised it both times.
+        hold: 0.8
+        caption_starts: [Their perplexity is one hundred]
+        visual_cues:
+          - id: wrong-ppl
+            phrase: Their perplexity is one hundred
+            targets:
+              - wrong-count
+            linger: 0.5
+  - id: objective-boundary
+    title: Conditioning defines the objective
+    visual: The same middle token receives left-only context versus left and right context; a generated continuation has no observation of the supplied target likelihood.
+    beats:
+      - say: Ordinary causal perplexity scores each next token from its supplied left context. A masked model can instead hide one token at a time and score that original token using the surrounding text, including words on the right. Exponentiating that average yields pseudo-perplexity. Label the objective separately; its extra conditioning prevents a raw causal-versus-masked ranking.
+        hold: 0.8
+        visual_cues:
+          - id: masked-context
+            phrase: including words on the right
+            targets:
+              - masked-right
+            linger: 0.5
+      - say: A chat evaluation also needs a scored-span policy. In a response-only setup, system and user tokens provide context while only assistant targets enter the loss and count. Scoring the full transcript asks a different question. State the exact chat template, document boundaries, beginning-token and end-token rules before comparing checkpoints.
+        hold: 0.8
+        visual_cues:
+          - id: response-mask
+            phrase: only assistant targets enter the loss and count
+            targets:
+              - response-mask
+            linger: 0.5
+      - say: Generating an answer supplies the probabilities of the generated path only when the interface exposes them. Perplexity needs likelihoods for the supplied test targets at their actual prefixes. A generation-only interface without those likelihoods cannot evaluate arbitrary held-out text this way. Use task checks when that teacher-forced scoring interface is unavailable.
+        hold: 0.8
+        visual_cues:
+          - id: target-access
+            phrase: Perplexity needs likelihoods for the supplied test targets
+            targets:
+              - fixed-target
+            linger: 0.5
+  - id: stable
+    title: Work in log space before probabilities become tiny
+    visual: Large logits shift together into stable coordinates, preserving the computed softmax distribution and observed-token NLL.
+    beats:
+      - say: Models produce logits, unnormalized scores. Exponentiating large logits directly can overflow even when the final probabilities are ordinary. Subtract the maximum first. All scores shift together, leaving the normalized distribution unchanged while the exponentials become numerically manageable. Here logits one thousand, nine hundred ninety-eight and nine hundred ninety-seven become zero, minus two and minus three. Exponentiate each shifted score and divide by their sum to recover the probabilities. The observed target contributes the negative natural log of its probability; equivalently, subtract its shifted score from the log of that exponential sum.
+        hold: 0.6
+        visual_cues:
+          - id: stable-beat-1-focus-1
+            phrase: leaving the normalized distribution unchanged while the exponentials become numerically manageable
+            targets:
+              - stable-object-distribution-stable-21
+            color: blue
+            linger: 0.6
+          - id: stable-beat-1-focus-2
+            phrase: All scores shift together
+            targets:
+              - stable-object-distribution-stable-21
+            color: blue
+            linger: 0.6
+          - id: stable-subtract
+            phrase: Subtract the maximum first
+            targets:
+              - stable-max-marker
+            linger: 0.6
+          - id: stable-normalize
+            phrase: Exponentiate each shifted score and divide by their sum
+            targets:
+              - stable-object-distribution-stable-21
+            linger: 0.6
+      - say: Use stable log-softmax to obtain the observed target's log probability, then accumulate its negative value. Multiplying probabilities across a long document can underflow toward zero. Adding their log losses keeps the calculation usable until we exponentiate the final average. A finite loss can still have an unrepresentably large exponential.
+        hold: 0.7
+        visual_cues:
+          - id: stable-beat-2-focus-1
+            phrase: Use stable log-softmax to obtain the observed target's log probability
+            targets:
+              - stable-equation-string-raw-prod-i-p-i-p-n-17
+            color: yellow
+            linger: 0.6
+          - id: stable-beat-2-focus-2
+            phrase: A finite loss can still have an unrepresentably large exponential
+            targets:
+              - stable-object-accumulated-loss-nats-19
+            color: blue
+            linger: 0.6
+  - id: aggregation
+    title: How much should each window count?
+    visual: Two mean-loss bars split into one bar per target. Their heights stay fixed as eight copies of the larger loss spread across the same row as two smaller losses.
+    beats:
+      - say: Two windows of the same document. The first has two targets, the second has eight. In this example the targets within each window cost the same. Each bar shows one window’s mean loss. If we average those two heights, how much say does each target get?
+        hold: 1.8
+        visual_cues:
+          - id: aggregation-windows
+            phrase: The first has two targets, the second has eight
+            targets: [window-summaries]
+      - say: Expand the windows into their actual token contributions. Each tall bar belongs to a different target. The two short bars cost one nat together. The eight tall ones cost sixteen. Seventeen nats over ten targets gives one point seven nats per target. Now take the exponential. The corpus perplexity is about five point four seven. Averaging the two window perplexities would give that little pair the same weight as the other eight.
+        hold: 1.0
+        visual_cues:
+          - id: aggregation-expand
+            phrase: Expand the windows into their actual token contributions
+            targets: [window-contributions]
+          - id: aggregation-mean
+            phrase: Seventeen nats over ten targets gives one point seven nats per target
+            targets: [window-mean]
+            caption_boundary: true
+          - id: aggregation-ppl
+            phrase: The corpus perplexity is about five point four seven
+            targets: [window-mean]
+            caption_boundary: true
+      - say: A worker can send just two numbers, its summed loss and its valid target count. Add those pairs across workers before dividing. Padding and words used only as context contribute to neither number. If the entire evaluation has zero scored targets, there is no mean to report.
+        hold: 1.0
+        visual_cues:
+          - id: aggregation-worker
+            phrase: its summed loss and its valid target count
+            targets: [window-summaries]
+          - id: aggregation-empty
+            phrase: there is no mean to report
+            targets: [window-mean]
+  - id: fresh-case
+    title: What stays fixed when we change the ruler?
+    visual: Four tokens span the sixteen bytes of “The cat sat down”. The text and its total loss stay in place while new ticks divide the same span into sixteen bytes.
+    beats:
+      - say: The cat sat down. A beginning marker lets us score the first word too. Here are the four shares, one for each token. Multiply as you read. After “The cat,” the chance is one in ten. After “sat,” one in fifty. After “down,” one in a hundred. Its total surprise is natural log one hundred, about four point six zero five nats.
+        hold: 0.8
+        visual_cues:
+          - id: fresh-shares
+            phrase: Here are the four shares, one for each token
+            targets: [fresh-inputs]
+          - id: fresh-pair
+            phrase: After “The cat,” the chance is one in ten
+            targets: [fresh-numeric]
+          - id: fresh-triple
+            phrase: After “sat,” one in fifty
+            targets: [fresh-numeric]
+          - id: fresh-product
+            phrase: After “down,” one in a hundred
+            targets: [fresh-numeric]
+          - id: fresh-loss
+            phrase: Its total surprise is natural log one hundred, about four point six zero five nats
+            targets: [fresh-numeric]
+            caption_boundary: true
+      - say: Split that loss across four targets. Each gets about one point one five nats on average. Exponentiate that mean. The perplexity is the square root of ten, a little over three. Suppose we want bits per byte instead. When we change the ruler, what can we keep from this calculation?
+        hold: 2.0
+        visual_cues:
+          - id: fresh-mean
+            phrase: Each gets about one point one five nats on average
+            targets: [fresh-ppl]
+          - id: fresh-ppl
+            phrase: The perplexity is the square root of ten
+            targets: [fresh-ppl]
+            caption_boundary: true
+      - say: Keep the loss for the whole line. Count the bytes under the very same letters and spaces. There are sixteen. Divide the loss by the natural log of two to get bits, then by sixteen to get bits per byte. That's about point four one five bits per byte. We already had every prediction we needed.
+        hold: 1.4
+        caption_starts: [There are sixteen]
+        visual_cues:
+          - id: fresh-byte-ruler
+            phrase: Count the bytes under the very same letters and spaces
+            targets: [fresh-ruler]
+          - id: fresh-byte-count
+            phrase: There are sixteen
+            targets: [fresh-ruler]
+          - id: fresh-bits
+            phrase: Divide the loss by the natural log of two to get bits
+            targets: [fresh-numeric]
+          - id: fresh-bpb
+            phrase: That's about point four one five bits per byte
+            targets: [fresh-bpb]
+            caption_boundary: true
+  - id: normalization
+    title: What survives the trip from text to tokens?
+    visual: Three raw strings converge into the same normalized string. Its two byte rates stay beside their denominators. Two cuts of that same string then show how much history fits in two tokens.
+    beats:
+      - say: Start with the wide capital A and two spaces. First narrow the letter with Unicode normalization. Then fold the capital to lowercase. Finally collapse the spaces. The top string becomes lowercase a, one space, lowercase a. Ordinary capital A with one space takes the shorter route to that output. So does the last string. If I kept just the output, which original would you give back?
+        hold: 0.8
+        visual_cues:
+          - id: normalizer-width
+            phrase: narrow the letter with Unicode normalization
+            targets: [norm-width]
+          - id: normalizer-case
+            phrase: fold the capital to lowercase
+            targets: [norm-case]
+          - id: normalizer-spaces
+            phrase: collapse the spaces
+            targets: [norm-output]
+          - id: normalizer-last
+            phrase: So does the last string
+            targets: [norm-output]
+          - id: normalizer-output
+            phrase: becomes lowercase a, one space, lowercase a
+            targets:
+              - norm-output
+            linger: 0.5
+          - id: normalizer-other-inputs
+            phrase: Ordinary capital A with one space
+            targets:
+              - norm-output
+            linger: 0.5
+      - say: The wide A alone occupies three bytes. Count its two spaces and the last letter, and you get six U T F eight bytes. The model actually scored the three bytes below. Give that output a loss of one point two nats. Spread it across the original six bytes and you get about point two eight nine bits per raw byte. Across the three bytes the model saw, it costs about point five seven seven. Both calculations start from a prediction that already lost the capital and the extra space.
+        hold: 0.8
+        visual_cues:
+          - id: raw-byte-count
+            phrase: six U T F eight bytes
+            targets:
+              - raw-bytes
+            linger: 0.5
+          - id: normalized-bpb
+            phrase: about point two eight nine bits per raw byte
+            targets:
+              - norm-units
+            linger: 0.5
+          - id: retained-bpb
+            phrase: about point five seven seven
+            targets:
+              - norm-units
+            linger: 0.5
+      - say: Which rate belongs on a benchmark of lowercase, single-spaced text? Use the three scored bytes for both models. The smaller number used six bytes, but the model never had to predict the wide capital or the extra space. For a raw-text benchmark, those distinctions are part of the job.
+        hold: 0.8
+        caption_starts: [Use the three scored bytes]
+        visual_cues:
+          - id: choose-normalized
+            phrase: Use the three scored bytes for both models
+            targets: [scored-rate]
+      - say: Even these three bytes have more than one possible cut. One tokenizer joins the space to the last letter. The other makes three separate tokens. Each model scores the path its tokenizer chose. Now keep just the last two tokens of history. The top model can still read the whole line. The bottom one has lost the first letter. To hold the cuts fixed, train with a shared tokenizer. Each trained checkpoint needs the token IDs it learned.
+        hold: 0.8
+        visual_cues:
+          - id: joined-cut
+            phrase: joins the space to the last letter
+            targets: [joined-history]
+          - id: separate-cut
+            phrase: three separate tokens
+            targets: [separate-history]
+          - id: history-limit
+            phrase: keep just the last two tokens of history
+            targets: [separate-history, joined-history]
+  - id: windows
+    title: Reuse context while scoring each target once
+    visual: Three overlapping windows traverse an everyday ten-word sentence, coloring reused context separately from the nine newly scored targets.
+    beats:
+      - say: A long document may exceed the model's context window. Overlapping windows reuse left context while scoring only newly exposed targets. The first word here supplies initial context because our fixture has no beginning-of-sequence prefix. Each later word should contribute exactly one target loss.
+        hold: 0.6
+        visual_cues:
+          - id: windows-beat-1-focus-1
+            phrase: A long document may exceed the model's context window
+            targets:
+              - windows-simulation-35
+            color: blue
+            linger: 0.6
+          - id: windows-beat-1-focus-2
+            phrase: The first word here supplies initial context because
+            targets:
+              - windows-object-words-i-37
+            color: blue
+            linger: 0.6
+      - say: Follow the second window. Some words have already been scored and now serve only as context. Mask their labels from the loss while letting the model read them. The final window adds the last two targets. Our running count reaches nine distinct scored positions across the three passes.
+        hold: 0.65
+        visual_cues:
+          - id: windows-beat-2-focus-1
+            phrase: Follow the second window
+            targets:
+              - windows-simulation-35
+            color: blue
+            linger: 0.6
+          - id: windows-beat-2-focus-2
+            phrase: Some words have already been scored and now serve only as context
+            targets:
+              - windows-object-words-i-37
+            color: blue
+            linger: 0.6
+          - id: windows-final-targets
+            phrase: The final window adds the last two targets
+            targets:
+              - windows-final-row
+              - windows-scored-count
+            color: green
+            linger: 0.6
+      - say: For a causal model, a position's logits predict the next position's label. Count valid labels after that shift. Blindly subtracting one target per row can undercount when the removed first label was already ignored. Context masks and target masks also serve separate roles in the forward pass and the loss.
+        hold: 0.7
+        visual_cues:
+          - id: windows-beat-3-focus-1
+            phrase: For a causal model
+            targets:
+              - windows-simulation-35
+            color: blue
+            linger: 0.6
+          - id: windows-beat-3-focus-2
+            phrase: Context masks and target masks also serve separate
+            targets:
+              - windows-simulation-35
+            color: blue
+            linger: 0.6
+  - id: shift-count
+    title: Count the labels that survive the causal shift
+    visual: Two padded rows physically pair logits with the next label; an already ignored first label leaves the target count unchanged.
+    beats:
+      - say: "Use the separate padded batch from the article: labels are ignore, one, two in the first row and ignore, ignore, three in the second. Pair each row’s logits except its last with the labels except their first. The surviving target rows are one, two and ignore, three, giving two plus one valid targets."
+        hold: 0.8
+        visual_cues:
+          - id: causal-pairs
+            phrase: Pair each row’s logits except its last
+            targets:
+              - shift-pairs
+            linger: 0.5
+          - id: valid-count
+            phrase: giving two plus one valid targets
+            targets:
+              - shift-count-result
+            linger: 0.5
+      - say: Counting three valid unshifted labels and subtracting the two batch rows would report only one target. Both removed labels were already ignored, so that subtraction throws away two real observations. Count nonignored labels after shifting. If a model wrapper already shifts its loss, do not shift it a second time.
+        hold: 0.8
+        visual_cues:
+          - id: wrong-counter
+            phrase: only one target
+            targets:
+              - shift-count-result
+            linger: 0.5
+      - say: Padding needs a model attention mask as well as ignored loss labels. In a separate uneven-loss example, give the two first-row targets loss point two each and the second-row target loss two. Their token mean is point eight; the mean of row means is one point one. Across workers, combine summed loss and counts. Skip a zero-target batch contribution; reject an entire evaluation with no targets. An all-ignored framework mean can be not-a-number.
+        hold: 0.8
+        visual_cues:
+          - id: row-weight
+            phrase: Their token mean is point eight
+            targets:
+              - mean-weight
+            linger: 0.5
+          - id: empty-targets
+            phrase: no targets
+            targets:
+              - ignored-state
+            linger: 0.5
+  - id: protocol
+    title: Hold the scoring conditions fixed
+    visual: A history bracket slides past the line that explains “amber.” The two probabilities for the same target stay beside the losses they produce.
+    beats:
+      - say: Suppose you want to know which checkpoint better predicts support tickets. Give both the same tickets and tokenizer. Match the context, stride, document boundaries and scored targets. Use the same prediction objective, turn dropout off and score the original logits before any sampling filters or temperature changes. Then a difference in loss tells you what changing the weights did on those tickets.
+        hold: 0.6
+        visual_cues:
+          - id: protocol-beat-1-focus-1
+            phrase: tokenizer
+            targets:
+              - protocol-simulation-43
+            color: blue
+            linger: 0.6
+          - id: protocol-beat-1-focus-2
+            phrase: changing the weights
+            targets:
+              - protocol-object-labels-i-44
+            color: blue
+            linger: 0.6
+      - say: The first line tells us that amber means queued. Asked for amber’s status, our example model gives “queued” eighty percent. Now slide the context boundary past that first line. With the clue out of reach, the same model gives “queued” twenty percent. That one missing line cost over a nat of extra surprise. Give both checkpoints the same history when you compare them.
+        hold: 0.65
+        visual_cues:
+          - id: protocol-beat-2-focus-1
+            phrase: amber means queued
+            targets:
+              - protocol-simulation-43
+            color: blue
+            linger: 0.6
+          - id: protocol-context-cut
+            phrase: slide the context boundary past that first line
+            targets:
+              - protocol-simulation-43
+            linger: 0.6
+          - id: protocol-long-share
+            phrase: gives “queued” eighty percent
+            targets: [protocol-object-labels-i-44]
+          - id: protocol-short-share
+            phrase: gives “queued” twenty percent
+            targets: [protocol-object-labels-i-44]
+      - say: Before you trust the comparison, check where the tickets came from. Did either checkpoint see them during training or selection?
+        hold: 0.7
+        visual_cues:
+          - id: protocol-beat-3-focus-1
+            phrase: check where the tickets came from
+            targets:
+              - protocol-simulation-43
+            color: blue
+            linger: 0.6
+  - id: contamination
+    title: Changing a manifest leaves trained weights intact
+    visual: A copied evaluation record enters a checkpoint, then a manifest deletion fails to remove its memorized response; a new independent source repairs the claim.
+    beats:
+      - say: Follow the article’s shared ticket one zero three. It appears in training and validation, so an identifier intersection catches direct reuse. A new identifier on copied text bypasses that exact check. Compare normalized text, near-duplicates and source provenance too, while keeping the original content for review.
+        hold: 0.8
+        visual_cues:
+          - id: new-copy-id
+            phrase: A new identifier on copied text
+            targets:
+              - copied-record
+            linger: 0.5
+      - say: Deleting the training-manifest row after training leaves the learned checkpoint unchanged. A new evaluation claim needs independent held-out material, or retraining without the exposure. Keep checkpoint-selection cases separate from the final test. Repeatedly choosing models from final-test feedback also weakens the intended generalization evidence.
+        hold: 0.8
+        visual_cues:
+          - id: manifest-delete
+            phrase: leaves the learned checkpoint unchanged
+            targets:
+              - trained-state
+            linger: 0.5
+      - say: Keep the same private tickets to track regressions. Add fresh challenge sources to test how the model handles unfamiliar text. A public test set can turn up in later training. Save its revision and release date alongside the checkpoint’s training history so you know which records to check for overlap.
+        hold: 0.8
+        visual_cues:
+          - id: fresh-challenges
+            phrase: fresh challenge sources
+            targets:
+              - source-holdout
+            linger: 0.5
+  - id: report
+    title: A report carries the evidence behind its score
+    visual: Loss/count ledger, domain rows and an audit link assemble a reproducible result; invalid rows visibly fail their own conditions.
+    beats:
+      - say: Could a teammate recover our cat sentence’s score from this report? Start with its total loss and the three words we scored. Divide, then exponentiate. There’s our two point nine two. To repeat the run, your teammate also needs the checkpoint, the corpus revision and the scoring settings. Link the overlap audit so they can inspect which text you checked.
+        hold: 0.8
+        visual_cues:
+          - id: report-loss
+            phrase: total loss and the three words we scored
+            targets:
+              - report-ledger
+            linger: 0.5
+          - id: report-recover
+            phrase: our two point nine two
+            caption_boundary: true
+            targets: [report-ledger]
+      - say: Check the count first. It takes a positive whole number of targets to form a mean. A flag, a fraction or a negative count signals a bad report. Zero targets leaves the mean undefined. A NaN flags a broken calculation. If the model gave the observed word zero probability, its loss really is infinite. If the loss is finite and only the exponential overflows, keep the loss. You can still compare it.
+        hold: 0.8
+        visual_cues:
+          - id: runtime-values
+            phrase: Check the count first
+            targets:
+              - bad-reports
+            linger: 0.5
+      - say: Report each domain separately. For a close race, score both checkpoints on each document and keep the loss totals and target counts together. To estimate uncertainty, resample independent documents. Here two documents share source A. Draw that source and both documents come along. That keeps related observations together each time you recompute the difference.
+        hold: 0.8
+        visual_cues:
+          - id: resample-documents
+            phrase: Draw that source and both documents come along
+            targets:
+              - group-sample
+            linger: 0.5
+      - say: A program can check an exact status or a source ID. To judge what a sentence claims, read it against the source. This job is queued. Answer A says it’s waiting. Answer B says it finished. Now swap the answers. A still agrees with the record. Does your judge still pick it? Try the same check with a wordier version, and compare the judge’s choices with independent human ratings.
+        hold: 0.8
+        visual_cues:
+          - id: judge-order
+            phrase: Now swap the answers
+            targets:
+              - judge-controls
+            linger: 0.5
+  - id: behavior
+    title: Which assistant would follow the incident policy?
+    visual: The two assistants return different sources and rollback flags. Compare each field with the incident policy before revealing the check results.
+    beats:
+      - say: A scored better on held-out incident reports. Before choosing an assistant, read the policy above the answers. It requires a blocked status, a citation to policy four eight three, and no automatic rollback. A says blocked, cites a runbook and turns rollback on. B says blocked, cites the policy and leaves rollback off. Which answer would you send?
+        hold: 1.6
+        visual_cues:
+          - id: behavior-beat-1-focus-1
+            phrase: A scored better on held-out incident reports
+            targets:
+              - behavior-object-checkpoint-a-48
+            color: blue
+            linger: 0.6
+          - id: behavior-beat-1-focus-2
+            phrase: read the policy above the answers
+            targets: [incident-policy]
+            color: blue
+            linger: 0.6
+          - id: behavior-answer-fields
+            phrase: A says blocked
+            targets:
+              - behavior-object-checkpoint-a-48
+            linger: 0.6
+          - id: behavior-b-fields
+            phrase: B says blocked
+            targets:
+              - behavior-b
+            linger: 0.5
+      - say: Send B. It passes all three checks. A got the status right. It cited the wrong source and would have triggered a rollback. The lower perplexity told us A predicted the wording of the reports better. Reading its answer caught the action it would take.
+        hold: 0.65
+        visual_cues:
+          - id: behavior-beat-2-focus-1
+            phrase: would have triggered a rollback
+            targets: [behavior-object-checkpoint-a-48]
+            color: blue
+            linger: 0.6
+          - id: behavior-beat-2-focus-2
+            phrase: It passes all three checks
+            targets:
+              - behavior-object-required-checks-1-3-52
+            color: blue
+            linger: 0.6
+  - id: export-job
+    title: Two answers for job 612
+    visual: A trusted record stays beside two answers. Each returned field takes its verdict from the requirement on the same row.
+    beats:
+      - say: Two answers came back for this export job. The trusted observation says queued. It names job six one two, and automatic deletion must stay off. Here’s Cedar’s answer. It had the lower perplexity on held-out text. Now read Pine’s source and deletion flag. Which answer clears all three checks?
+        hold: 2.0
+        visual_cues:
+          - id: fresh-job-contract
+            phrase: The trusted observation says queued
+            targets: [fresh-contract]
+          - id: cedar-fields
+            phrase: Here’s Cedar’s answer
+            targets: [cedar-answer]
+          - id: pine-fields
+            phrase: Now read Pine’s source and deletion flag
+            targets: [pine-answer]
+      - say: Cedar got the status right. It cited the job next door and switched deletion on. One of three checks passes. Pine cited the right job and left deletion off. All three pass. That qualifies Pine under these particular requirements.
+        hold: 1.2
+        visual_cues:
+          - id: fresh-cedar
+            phrase: One of three checks passes
+            targets: [fresh-checks]
+            caption_boundary: true
+          - id: fresh-pass
+            phrase: All three pass
+            targets: [fresh-checks]
+            caption_boundary: true
+  - id: tokenizers
+    title: Which model spent fewer bits on this line?
+    visual: Two model rows hold the same fourteen bytes and their original total losses. Token boundaries give way to a common byte ruler. Converting both totals to bits reverses the order of the two displayed scores.
+    beats:
+      - say: Read “Rain falls now” with me. The first tokenizer cuts it into four pieces. The second cuts after every character, spaces included. That gives it fourteen targets. Both models get a beginning marker, so every byte on this short line counts. And every prefix fits.
+        hold: 0.7
+        visual_cues:
+          - id: tokenizers-subword-cut
+            phrase: the first tokenizer cuts it into four pieces
+            targets: [tokenizers-subwords]
+          - id: tokenizers-character-cut
+            phrase: The second cuts after every character, spaces included
+            targets: [tokenizers-characters]
+      - say: To get a cost per token, divide each total loss by its own target count. Look how little one character seems to cost. Exponentiate those means. The scores come out to eight point one seven and one point nine zero. Your colleague circles the smaller number. Which model would you put first if both had to pay by the byte?
+        hold: 2.2
+        visual_cues:
+          - id: token-means
+            phrase: divide each total loss by its own target count
+            targets: [comparison-values]
+          - id: token-ppl
+            phrase: The scores come out to eight point one seven and one point nine zero
+            targets: [comparison-values]
+            caption_boundary: true
+      - say: Keep both loss totals. Use the same fourteen bytes for both rows. Divide each total by the natural log of two to get bits. Now divide both by fourteen. The subword model spent about point eight six six bits per byte. The character model spent about point nine two seven.
+        hold: 1.2
+        visual_cues:
+          - id: shared-bytes
+            phrase: Use the same fourteen bytes for both rows
+            targets: [tokenizers-subwords, tokenizers-characters]
+          - id: convert-bits
+            phrase: Divide each total by the natural log of two to get bits
+            targets: [comparison-totals]
+          - id: subword-bpb
+            phrase: The subword model spent about point eight six six bits per byte
+            targets: [subword-value]
+            caption_boundary: true
+          - id: tokenizers-bpb
+            phrase: The character model spent about point nine two seven
+            targets: [comparison-values]
+            caption_boundary: true
+      - say: Fourteen small predictions made the character model look cheaper per token. Now both rows pay for the same letters and spaces. The subword model spent fewer bits on this line.
+        hold: 3.5
+        visual_cues:
+          - id: choose-fit
+            phrase: The subword model spent fewer bits on this line
+            targets: [comparison-values]
+            caption_boundary: true

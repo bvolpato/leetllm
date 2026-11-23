@@ -1,0 +1,518 @@
+{
+  "id": "differential-privacy",
+  "script": "e68f2bcf14169da4",
+  "articleHash": "d5d3b3030d4f84882a58c1f01c7dffa6ec3383815c85e0091dc6d519a4504e6b",
+  "checked": "2026-11-10T10:21:39.979Z",
+  "closedBook": {
+    "taught": 10,
+    "partial": 0,
+    "absent": 0,
+    "answers": [
+      {
+        "n": 1,
+        "option": 1,
+        "coverage": "taught",
+        "quotes": [
+          {
+            "scene": "adjacency",
+            "quote": "Record-level add-remove adjacency compares datasets that differ by one record. User-level privacy groups a person's contributions and treats that complete group as the protected unit."
+          }
+        ],
+        "reason": "Protecting the user's complete participation requires adding or removing all twelve messages together.",
+        "exact": true,
+        "correct": true,
+        "grade": "taught"
+      },
+      {
+        "n": 2,
+        "option": 3,
+        "coverage": "taught",
+        "quotes": [
+          {
+            "scene": "private-mechanisms",
+            "quote": "Randomized response gives a small complete proof. Report a binary answer truthfully with probability three quarters and flip it with probability one quarter. For either output under opposite inputs, the largest probability ratio is three. Pure-DP epsilon is the natural logarithm of three, about one point zero nine nine. For two possible outputs, the singleton checks also bound every event."
+          }
+        ],
+        "reason": "Applying the taught probability-ratio method gives 0.8 / 0.2 = 4, so epsilon is ln(4).",
+        "exact": true,
+        "correct": true,
+        "grade": "taught"
+      },
+      {
+        "n": 3,
+        "option": 2,
+        "coverage": "taught",
+        "quotes": [
+          {
+            "scene": "clip",
+            "quote": "DP-SGD starts with one gradient contribution per protected record. Set a maximum L2 length C. Each record’s vector passes through that bound before the contributions are combined. This gives us a controlled amount of influence to work with."
+          },
+          {
+            "scene": "noise",
+            "quote": "For this worked mechanism, use add/remove adjacency: clipping bounds the sum's sensitivity by C, so each Gaussian coordinate has standard deviation sigma C."
+          }
+        ],
+        "reason": "Bounding each record's vector before summation limits the change from adding or removing one record to C.",
+        "exact": true,
+        "correct": true,
+        "grade": "taught"
+      },
+      {
+        "n": 4,
+        "option": 4,
+        "coverage": "taught",
+        "quotes": [
+          {
+            "scene": "attack-evidence",
+            "quote": "Approximate-DP delta supplies additive slack in that event bound. It is not an exact fraction of exposed people or a universal per-person extraction chance."
+          }
+        ],
+        "reason": "Delta = 0.05 supplies additive event-probability slack of 0.05, without establishing a patient-exposure percentage.",
+        "exact": true,
+        "correct": true,
+        "grade": "taught"
+      },
+      {
+        "n": 5,
+        "option": 1,
+        "coverage": "taught",
+        "quotes": [
+          {
+            "scene": "coordinate-noise",
+            "quote": "Independent Gaussian coordinates with standard deviation sigma C have expected squared norm d times sigma squared C squared. The root mean square norm is sigma C times square root d."
+          },
+          {
+            "scene": "coordinate-noise",
+            "quote": "Neither quantity is an accuracy ratio or a privacy-budget ratio. Different parameterizations turn equal coordinate-space noise into different functional changes."
+          }
+        ],
+        "reason": "With equal coordinate standard deviations, the RMS ratio is sqrt(3,600,000,000 / 4,000,000) = sqrt(900) = 30. This establishes no accuracy or privacy-budget ratio.",
+        "exact": true,
+        "correct": true,
+        "grade": "taught"
+      },
+      {
+        "n": 6,
+        "option": 3,
+        "coverage": "taught",
+        "quotes": [
+          {
+            "scene": "attack-evidence",
+            "quote": "Low target-model loss can indicate familiarity, but easy public text can also have low loss. Comparing with a reference model or compressed length helps account for text difficulty. Evaluate false positives and missed members against known labels; a successful heuristic score is not a proof of membership."
+          }
+        ],
+        "reason": "The comparison helps distinguish text difficulty from familiarity when scoring possible membership.",
+        "exact": true,
+        "correct": true,
+        "grade": "taught"
+      },
+      {
+        "n": 7,
+        "option": 3,
+        "coverage": "taught",
+        "quotes": [
+          {
+            "scene": "noise",
+            "quote": "For this worked mechanism, use add/remove adjacency: clipping bounds the sum's sensitivity by C, so each Gaussian coordinate has standard deviation sigma C."
+          },
+          {
+            "scene": "noise",
+            "quote": "Under replace-one adjacency, swapping one clipped record for another can change the sum by as much as two C."
+          }
+        ],
+        "reason": "Adding or removing one bounded contribution changes the sum by at most C; replacing one can change it by at most 2 C.",
+        "exact": true,
+        "correct": true,
+        "grade": "taught"
+      },
+      {
+        "n": 8,
+        "option": 4,
+        "coverage": "taught",
+        "quotes": [
+          {
+            "scene": "earned-transfer",
+            "quote": "Public prompts that use only the accounted released model are post-processing and add no new training-data access."
+          }
+        ],
+        "reason": "Answering public prompts using only the released model meets the stated post-processing condition.",
+        "exact": true,
+        "correct": true,
+        "grade": "taught"
+      },
+      {
+        "n": 9,
+        "option": 1,
+        "coverage": "taught",
+        "quotes": [
+          {
+            "scene": "user-aggregate",
+            "quote": "Check the actual sampler as carefully: a Poisson-sampling accountant cannot be borrowed unchanged for deterministic shuffled batches just because their nominal fractions agree."
+          },
+          {
+            "scene": "compose",
+            "quote": "Subsampling can amplify privacy only when the sampler and accounting assumptions match."
+          }
+        ],
+        "reason": "The analysis must support the actual shuffled-batch sampler; matching nominal sampling fractions is insufficient.",
+        "exact": true,
+        "correct": true,
+        "grade": "taught"
+      },
+      {
+        "n": 10,
+        "option": 3,
+        "coverage": "taught",
+        "quotes": [
+          {
+            "scene": "coordinate-noise",
+            "quote": "Private adapter training clips and perturbs its own protected-unit gradients while the base stays fixed. That fine-tuning analysis does not retroactively protect a non-private base trained on the same person. It protects incremental fine-tuning participation conditional on that fixed base. Protecting the person across both stages requires an analysis of both stages data dependence."
+          }
+        ],
+        "reason": "The adapter guarantee protects Alice's incremental fine-tuning participation conditional on the fixed base; it does not cover her non-private pretraining exposure.",
+        "exact": true,
+        "correct": true,
+        "grade": "taught"
+      }
+    ]
+  },
+  "factCheck": {
+    "scenes": [
+      {
+        "id": "intro",
+        "evidence": "Supported. Membership inference and extraction from trained language models are demonstrated in [Carlini et al.](https://arxiv.org/html/2012.07805v2). The narration correctly describes a distributional bound tied to a declared protected unit, without promising zero disclosure. Clipping, perturbation, and accounting match [Abadi et al., Algorithm 1](https://arxiv.org/html/1607.00133v2). Access controls address additional data paths. The legacy introductory densities are explicitly illustrative, rather than measured training results.",
+        "sourceUrls": [
+          "https://arxiv.org/html/2012.07805v2",
+          "https://arxiv.org/html/1607.00133v2",
+          "https://nvlpubs.nist.gov/nistpubs/SpecialPublications/NIST.SP.800-226.pdf"
+        ]
+      },
+      {
+        "id": "adjacency",
+        "evidence": "Supported. Record add/remove adjacency changes one record; user adjacency changes the complete user contribution. These distinctions match [Charles et al., Section 2](https://arxiv.org/pdf/2407.07737). Independently, k separately clipped vectors satisfy ||Σg_i||₂ ≤ Σ||g_i||₂ ≤ kC, so record clipping alone does not establish a single C user bound. The narration requires bounding the person's combined influence without claiming aggregate clipping is the only valid user-level construction.",
+        "sourceUrls": [
+          "https://arxiv.org/pdf/2407.07737"
+        ]
+      },
+      {
+        "id": "definition",
+        "evidence": "Supported; the prior endpoint uncertainty is closed at source level. Independently rearranging the two directed event inequalities gives max(0,(q−δ)/exp(ε)) ≤ p ≤ min(1,exp(ε)q+δ). Complement events additionally require p ≥ 1−exp(ε)(1−q)−δ and p ≤ 1−(1−q−δ)/exp(ε). In arithmetic.mjs::privacyEventBand and stages/definition.mjs::drawDefinition, q=0.001, ε stays within [0,1], and δ within [0,0.0001]; complement constraints do not tighten these endpoints. At ε=1, adding δ=0.0001 changes [0.0003678794,0.0027182818] to [0.0003310915,0.0028182818]. The yellow shifts are therefore δ/exp(ε) and δ, respectively. The affine plotting transform preserves them. An independent 101,101-point check agreed with the full intersection to floating-point precision. Every-event quantification matches [Definition 2.4](https://www.cis.upenn.edu/~aaroth/Papers/privacybook.pdf).",
+        "sourceUrls": [
+          "https://www.cis.upenn.edu/~aaroth/Papers/privacybook.pdf"
+        ]
+      },
+      {
+        "id": "clip",
+        "evidence": "Supported. Independently, ||[0.4,0.3]||₂=√0.25=0.5, so C=1 leaves it unchanged. ||[3,4]||₂=√25=5; multiplying by 1/5 produces [0.6,0.8], whose norm is 1. Positive radial scaling preserves direction. arithmetic.mjs::clipVector implements g·min(1,C/||g||₂), leaving zero unchanged. The drawing uses equal coordinate units. For the three audit vectors, clipping changes their sum from [4,5.1] to [1.6,1.9], demonstrating that it can change the average. The utility statement is appropriately conditional. The mechanism matches [Abadi et al., Algorithm 1](https://arxiv.org/html/1607.00133v2).",
+        "sourceUrls": [
+          "https://arxiv.org/html/1607.00133v2"
+        ]
+      },
+      {
+        "id": "noise",
+        "evidence": "Supported for the stated per-record mechanism, conditional on fixed prior parameters and unchanged contributions from other records. Independently, adding a vector of norm at most C changes the sum by at most C; replacing u with v changes it by ||v−u||₂ ≤ ||v||₂+||u||₂ ≤ 2C. Opposite boundary vectors attain 2C. Gaussian covariance σ²C²I gives coordinate standard deviation σC. Division by fixed public L scales sensitivity and standard deviation by 1/L. model.mjs and stages/noise.mjs match these formulas. The displayed offset is authored; the narration does not certify random generation or derive a complete budget from σ alone. See [Abadi et al., Algorithm 1](https://arxiv.org/html/1607.00133v2).",
+        "sourceUrls": [
+          "https://arxiv.org/html/1607.00133v2"
+        ]
+      },
+      {
+        "id": "compose",
+        "evidence": "Supported. Accounting for the joint update transcript conservatively covers final weights derived from it. Adaptive steps require valid conditional guarantees, rather than independent steps; see [Mironov, Proposition 1](https://arxiv.org/pdf/1702.07476). The listed accounting inputs are relevant, and varying schedules must be represented by their actual configurations. Sampler-specific amplification is supported by [Balle, Barthe, and Gaboardi](https://arxiv.org/pdf/1807.01647). Current [Opacus documentation](https://opacus.ai/api/privacy_engine.html) explicitly warns that retaining a non-Poisson loader does not fit its accounting assumptions. No numerical training guarantee is asserted here.",
+        "sourceUrls": [
+          "https://arxiv.org/pdf/1702.07476",
+          "https://arxiv.org/pdf/1807.01647",
+          "https://opacus.ai/api/privacy_engine.html"
+        ]
+      },
+      {
+        "id": "utility",
+        "evidence": "Supported; the prior geometry uncertainty is closed at source level. model.mjs::utilityDiagnostics uses [0.4,0.3], [0.6,0.8], [3,4], and [0.3,0.4]. At C=1 their clipped sum is [1.9,2.3], so the mean is m=[0.475,0.575]. The authored offset is σC[−m_y,m_x]/||m||₂; its dot product with m is zero and its norm is σC. Independently, cosine(m,m+offset)=||m||₂/√(||m||₂²+(σC)²), giving 0.830616 at σ=0.5 and 0.597854 at σ=1. The arrows, curve, and marker use this same calculation. stages/utility.mjs and the installed axes implementation preserve equal coordinate scales. Only [3,4] has original norm strictly above 1, giving 1/4=25%; the boundary vector is excluded. This monotonic authored proxy establishes neither Gaussian-sample monotonicity nor measured task quality. The clipping operation matches [Abadi et al.](https://arxiv.org/html/1607.00133v2).",
+        "sourceUrls": [
+          "https://arxiv.org/html/1607.00133v2"
+        ]
+      },
+      {
+        "id": "audit",
+        "evidence": "Supported; both prior spoken findings are closed. Independently, [3,4]/5=[0.6,0.8]; [0.4,0.3]+[0.6,0.8]+[0.6,0.8]=[1.6,1.9]; adding [0.2,−0.3] gives [1.8,1.6]. releaseTraceSnapshot computes these values. C7 is now explicitly a supposition, matching the legacy hypothetical selector label; no operational selector result is claimed. The revised composition sentence requires selection's conditional bound for every fixed training transcript, consistent with [Dwork and Roth, Appendix B](https://www.cis.upenn.edu/~aaroth/Papers/privacybook.pdf). This excludes the earlier counterexample: R and R XOR b are individually uniform, but their equality reveals b; conditional on R, the second release is not private. Symbolic budgets and an authored perturbation are correctly distinguished from a training-budget certification.",
+        "sourceUrls": [
+          "https://www.cis.upenn.edu/~aaroth/Papers/privacybook.pdf",
+          "https://arxiv.org/html/1607.00133v2"
+        ]
+      },
+      {
+        "id": "attack-evidence",
+        "evidence": "Supported. [Carlini et al., Sections 4.2, 5.2, and 6](https://arxiv.org/html/2012.07805v2) document fallible likelihood-based membership heuristics, reference-model comparisons, compression scoring, and training-data verification. Known labels permit measuring false positives and missed members. A verified private-text disclosure establishes the tested disclosure, without automatically disproving a numerical DP guarantee; an unsuccessful search cannot establish universal absence of memorization. Independently, for the whole-input mechanism, P_D(S)=(1−δ)1{constant∈S}+δ1{D∈S}; neighboring event probabilities differ by at most δ, proving (0,δ)-DP. Thus δ specifies neither an exposed-person fraction nor every mechanism's extraction probability. Population-sensitive parameter selection and the limits of sensitive-inference protection agree with [NIST SP 800-226](https://nvlpubs.nist.gov/nistpubs/SpecialPublications/NIST.SP.800-226.pdf).",
+        "sourceUrls": [
+          "https://arxiv.org/html/2012.07805v2",
+          "https://nvlpubs.nist.gov/nistpubs/SpecialPublications/NIST.SP.800-226.pdf"
+        ]
+      },
+      {
+        "id": "private-mechanisms",
+        "evidence": "Supported. Independently, randomized response has maximum singleton ratio 0.75/0.25=3, so ε=ln(3)=1.098612289. The empty and complete binary events satisfy the bound trivially, completing the proof. For ε>0, coordinate Laplace scale Δ₁/ε bounds the density ratio by exp(ε||f(D)−f(D′)||₁/Δ₁) ≤ exp(ε). Cauchy–Schwarz gives ||v||₁ ≤ √d||v||₂; for (1,1), the norms are 2 and √2. Formally, global sensitivity is a supremum. The classical Gaussian sufficient condition and its open parameter ranges match [Dwork and Roth, Appendix A](https://www.cis.upenn.edu/~aaroth/Papers/privacybook.pdf). stages/private-mechanisms.mjs displays the correctly grouped expression √(2 ln(1.25/δ))/ε. Exact Gaussian-distribution calibration is established by [Balle and Wang, Theorem 8](https://proceedings.mlr.press/v80/balle18a/balle18a.pdf).",
+        "sourceUrls": [
+          "https://www.cis.upenn.edu/~aaroth/Papers/privacybook.pdf",
+          "https://proceedings.mlr.press/v80/balle18a/balle18a.pdf"
+        ]
+      },
+      {
+        "id": "user-aggregate",
+        "evidence": "Supported against the actual userAggregateFixture. Alice's 0.75+0.75=1.5 clips to 1, whereas separate ticket clipping leaves 1.5. With Bao, (1+0.25)/2=0.625; removing Alice gives 0.25/2=0.125, differing by 0.5=C/2. Sum noise is divided by the same public normalizer. The actual visual rounding example is (1/√2,1/√2) rounded to (0.71,0.71), whose norm is √1.0082=1.004091629>1. Numerical correctness is stated as a production requirement, not an implemented guarantee. Independently, Poisson inclusion yields count variance Nq(1−q)>0 for N>0 and 0<q<1. The update formula matches the declared operations. User constructions are supported by [Charles et al.](https://arxiv.org/pdf/2407.07737), sampler caution by [Opacus](https://opacus.ai/api/privacy_engine.html), and central/local trust boundaries by [NIST](https://nvlpubs.nist.gov/nistpubs/SpecialPublications/NIST.SP.800-226.pdf).",
+        "sourceUrls": [
+          "https://arxiv.org/pdf/2407.07737",
+          "https://opacus.ai/api/privacy_engine.html",
+          "https://nvlpubs.nist.gov/nistpubs/SpecialPublications/NIST.SP.800-226.pdf"
+        ]
+      },
+      {
+        "id": "accountant-calculation",
+        "evidence": "Supported. Using [Mironov, Propositions 1, 3, and 7](https://arxiv.org/pdf/1702.07476), the per-release bound is αC²/(2(4C)²)=α/32. Two conditional releases give α/16. Independently, ln(100000)=11.512925465; the converted bounds at orders 2,4,8,16 are 11.637925, 4.087642, 2.144704, and 1.767528. Order 16 wins this grid; continuous optimization of this conversion gives approximately 1.759035, confirming the finite-grid disclaimer. Three releases give 3α/32 and, at order 16, 1.5+11.512925465/15=2.267528. gaussianAccountantFixture reproduces these figures. Blocking is a certification decision using this worksheet's bound, not proof that every tighter analysis exceeds 2. Accounted-transcript checkpoints are post-processing; raw-score selection opens another data path. Fixed disjoint partition mechanisms permit maximum-budget parallel composition under valid mechanism assumptions, as in [McSherry, Section 2.4.2](https://www.microsoft.com/en-us/research/wp-content/uploads/2009/06/sigmod115-mcsherry.pdf).",
+        "sourceUrls": [
+          "https://arxiv.org/pdf/1702.07476",
+          "https://www.microsoft.com/en-us/research/wp-content/uploads/2009/06/sigmod115-mcsherry.pdf",
+          "https://arxiv.org/html/1607.00133v2"
+        ]
+      },
+      {
+        "id": "coordinate-noise",
+        "evidence": "Supported. Independently, E||Z||₂²=ΣE[Z_i²]=dσ²C², giving RMS σC√d; fixed positive L and nonnegative learning rate give step-noise RMS ησC√d/L. The illustrative dimension ratio is 7,000,000,000/5,000,000=1400, with square root 37.416573868. These calculations establish coordinate-space magnitudes, without accuracy or budget ratios. [Hu et al., Section 4.1](https://arxiv.org/html/2106.09685v2) gives W₀+(α/r)BA with frozen W₀. Counting A and B entries gives rd_in+rd_out, versus d_in d_out full weights. Clipping their concatenated protected-unit gradient is the stated construction. The fixed base still participates in the forward computation. [Yu et al., Figure 1 and introductory footnote](https://arxiv.org/pdf/2110.06500) supports distinguishing private adaptation from already incurred pretraining exposure. A fixed-base fine-tuning guarantee does not establish end-to-end protection of overlapping pretraining participation.",
+        "sourceUrls": [
+          "https://arxiv.org/html/2106.09685v2",
+          "https://arxiv.org/pdf/2110.06500"
+        ]
+      },
+      {
+        "id": "earned-transfer",
+        "evidence": "Supported. Independently, ||[6,8]||₂=10 and 2/10=1/5, producing [1.2,1.6] of norm 2. Add/remove sensitivity is at most 2; opposite replacement produces difference [2.4,3.2] of norm 4. Fixed public normalization scales sensitivity and noise equally. Public prompting using only the accounted release preserves its guarantee by [post-processing](https://www.cis.upenn.edu/~aaroth/Papers/privacybook.pdf), including adaptive prompting. Raw-ticket retrieval and new private prompts or logs introduce other data paths. The third-release worksheet bound is 2.267528, so its declared certification policy blocks it. Public selection does not excuse additional private training runs from accounting. The transition is supported by the actual active-labeling.lesson.yaml: it covers permitted reviewer context, rubrics, and reserved evaluation records.",
+        "sourceUrls": [
+          "https://www.cis.upenn.edu/~aaroth/Papers/privacybook.pdf",
+          "https://arxiv.org/pdf/1702.07476"
+        ]
+      }
+    ],
+    "findings": [],
+    "limitations": [
+      "This review binds to spoken hash e68f2bcf14169da4 and lesson.yaml SHA-256 b6a55b80c4613f868b90e9d9f94bb4fef655a4030383f57148e0af3540bc9bcf. All 14 scenes and 46 beats were reviewed. Only audit beat 2 differs from the legacy narration. Schema and all 85 cue phrases validate; validateModel() passes.",
+      "The two prior audit findings are repaired. The definition and utility findings are closed for the inspected legacy model and drawing sources. This does not certify rendered pixels or playback.",
+      "The rebuilt stage folder contains narration and review artifacts but no index.mjs or scene implementation. Fresh stage-check exits 1: 'No rebuilt lesson at videos/stage-lessons/differential-privacy: it needs a stage lesson script and index.mjs. See videos/stage-lessons/REBUILD.md'. Current stage visuals and measured speech synchronization could not be checked.",
+      "Before visual approval, render the rebuilt scenes against this narration, verify the definition endpoints and utility geometry, preserve C7's hypothetical qualifier and composition's conditional prerequisite, and regenerate timing for the changed audit beat.",
+      "privacyEventBand omits complement-event constraints for arbitrary probabilities. Its output is correct over this lesson's displayed range; expanded demonstrations would need the full intersection.",
+      "No production training, random generator, private selector, utility experiment, or attack evaluation was executed or certified. These are assumptions, authored fixtures, or explicitly stated production requirements in the narration.",
+      "The article was context rather than factual proof. Article-only code, version-specific Opacus example outputs, quiz keys, and article illustrations were outside this narration review. No edits, external writes, or subagents were used."
+    ]
+  },
+  "reviewedNarration": {
+    "source": "videos/stage-lessons/differential-privacy/lesson.yaml",
+    "script": "e68f2bcf14169da4",
+    "scenes": [
+      {
+        "id": "intro",
+        "beats": [
+          {
+            "say": "A model trained on private records can reveal patterns that help an observer infer whether a record shaped its behavior. Differential privacy bounds how much one declared protected unit can shift the model’s output distribution. The bound applies under its stated assumptions; access control and release review remain part of the deployment."
+          },
+          {
+            "say": "We will define the protected unit, clip each record's gradient, add calibrated noise, and account for repeated steps. Each part supports a different piece of the privacy argument."
+          },
+          {
+            "say": "Before choosing a noise setting, ask a concrete question: are we protecting one message, one document, or every record that belongs to one person? That choice changes the guarantee."
+          }
+        ]
+      },
+      {
+        "id": "adjacency",
+        "beats": [
+          {
+            "say": "Differential privacy compares the randomized outputs from two neighboring datasets. The neighbor rule states exactly what changed between them. A neighboring relation defines which one-unit change the probability guarantee compares."
+          },
+          {
+            "say": "Record-level add-remove adjacency compares datasets that differ by one record. User-level privacy groups a person's contributions and treats that complete group as the protected unit."
+          },
+          {
+            "say": "Record-level clipping bounds one message's influence; user-level privacy must bound all of one person's records together. Declare the unit before using a privacy accountant."
+          }
+        ]
+      },
+      {
+        "id": "definition",
+        "beats": [
+          {
+            "say": "For every measurable output event, approximate differential privacy bounds its probability on one dataset by e to the epsilon times the neighbor's probability, plus delta. The event can be any set of outputs, such as a prediction range or a membership-test result."
+          },
+          {
+            "say": "Hold the blue neighbor probability fixed and increase epsilon. The teal interval widens: a larger multiplicative factor permits more difference between the two probabilities. A smaller epsilon tightens that allowance. Both directions matter, so the interval has a lower limit as well as an upper limit."
+          },
+          {
+            "say": "Now add delta. The yellow extensions show its additive probability slack in the two comparisons. This one event lets us inspect the requirement geometrically. Differential privacy requires the comparisons to hold for every output event under the declared neighboring relation and randomized mechanism."
+          }
+        ]
+      },
+      {
+        "id": "clip",
+        "beats": [
+          {
+            "say": "DP-SGD starts with one gradient contribution per protected record. Set a maximum L2 length C. Each record’s vector passes through that bound before the contributions are combined. This gives us a controlled amount of influence to work with."
+          },
+          {
+            "say": "The short vector already lies inside the unit circle, so it stays put. The longer vector has length five. Scale both of its coordinates by one fifth, and its endpoint meets the circle. Watch how clipping preserves direction while limiting length."
+          },
+          {
+            "say": "Clipping introduces a tradeoff. If many contributions hit the boundary, their rescaling can shift the average update and affect learning quality. Track the clipping rate alongside validation performance when choosing C. Next we perturb the aggregate formed from these bounded contributions."
+          }
+        ]
+      },
+      {
+        "id": "noise",
+        "beats": [
+          {
+            "say": "For this worked mechanism, use add/remove adjacency: clipping bounds the sum's sensitivity by C, so each Gaussian coordinate has standard deviation sigma C. The random perturbation limits how much one record can affect the released update. The complete run still needs privacy accounting across its mechanism and releases."
+          },
+          {
+            "say": "This vector lets us inspect one pre-noise update. The privacy accountant combines the declared adjacency, sampling, noise mechanism, and every release."
+          },
+          {
+            "say": "Under replace-one adjacency, swapping one clipped record for another can change the sum by as much as two C. A fixed public batch normalizer scales the bound too. Match the noise calibration to the adjacency and mechanism you actually run."
+          }
+        ]
+      },
+      {
+        "id": "compose",
+        "beats": [
+          {
+            "say": "One noisy update has a privacy cost. Repeated noisy training steps can pass their information into the final model. A conservative analysis composes the sequence of mechanisms even when only final weights are released. It accounts for accumulated influence rather than treating every step as a fresh independent privacy promise."
+          },
+          {
+            "say": "A privacy accountant needs the sampling scheme, noise multiplier, number of steps, adjacency, protected unit, and target delta. Subsampling can amplify privacy only when the sampler and accounting assumptions match."
+          },
+          {
+            "say": "The noise multiplier alone leaves out sampling and repeated releases. Compute the total with a vetted accountant, record the configuration, and include any additional private releases in the budget."
+          }
+        ]
+      },
+      {
+        "id": "utility",
+        "beats": [
+          {
+            "say": "The cyan arrow is the mean of the clipped record gradients. The pink offset uses an authored perpendicular noise direction so we can isolate how scale changes cosine alignment; calibrated Gaussian draws vary from sample to sample. The curve updates this directional proxy as the multiplier grows."
+          },
+          {
+            "say": "The diagnostic counts how many of these record gradients exceed the clipping bound. In a real run, measure held-out accuracy, calibration, and clipping rate beside the accountant result. Tune the norm and noise under a fixed, declared training plan."
+          },
+          {
+            "say": "The cosine curve shows geometry for this authored toy update; task utility comes from held-out evaluation. Choose the clipping norm and noise against that evidence, then report the complete mechanism and account for every release."
+          }
+        ]
+      },
+      {
+        "id": "audit",
+        "beats": [
+          {
+            "say": "R4's gradient is [3, 4], with norm five. Predict its contribution when the clip bound is one. Now scale by one fifth: it contributes [0.6, 0.8]."
+          },
+          {
+            "say": "R1 adds [0.4, 0.3], R2 adds [0.6, 0.8], and clipped R4 adds [0.6, 0.8]. Together they make [1.6, 1.9]. This authored noise draw, [0.2, -0.3], moves the aggregate to [1.8, 1.6]."
+          },
+          {
+            "say": "Suppose a separately accounted private validation mechanism selects C7. For one protected unit and adjacency, record training as epsilon one, delta one and selection as epsilon two, delta two. If training satisfies its bound and selection satisfies its conditional bound for every fixed training transcript, sequential basic composition gives epsilon one plus epsilon two, delta one plus delta two. A matching accountant uses actual sampling and mechanism details. This toy trace is not a training budget. Prompts and retrieval need separate access controls."
+          }
+        ]
+      },
+      {
+        "id": "attack-evidence",
+        "beats": [
+          {
+            "say": "A membership-inference attack predicts whether a candidate appeared in training. Low target-model loss can indicate familiarity, but easy public text can also have low loss. Comparing with a reference model or compressed length helps account for text difficulty. Evaluate false positives and missed members against known labels; a successful heuristic score is not a proof of membership."
+          },
+          {
+            "say": "Extraction instead tries to recover training text. A recovered private passage demonstrates a failure on that tested setting. An attack finding no passage only establishes what that attack found, not absence of memorization. Differential privacy is a bound on randomized output distributions for all neighboring datasets and output events under its declared mechanism."
+          },
+          {
+            "say": "Approximate-DP delta supplies additive slack in that event bound. It is not an exact fraction of exposed people or a universal per-person extraction chance. A mechanism that releases its whole input with probability delta and otherwise returns a constant illustrates how serious that slack can be. Name the unit, releases and assumptions before interpreting the numerical guarantee."
+          },
+          {
+            "say": "Choose target delta against the size and meaning of the protected-unit population and the risk of the releases. Ten to the minus five is a supplied worksheet choice, not a universal safe setting. Differential privacy still permits learning population correlations and inferences supported by other information. Its neighboring-dataset statement limits the incremental influence of one protected unit, rather than suppressing every sensitive attribute inference."
+          }
+        ]
+      },
+      {
+        "id": "private-mechanisms",
+        "beats": [
+          {
+            "say": "Randomized response gives a small complete proof. Report a binary answer truthfully with probability three quarters and flip it with probability one quarter. For either output under opposite inputs, the largest probability ratio is three. Pure-DP epsilon is the natural logarithm of three, about one point zero nine nine. For two possible outputs, the singleton checks also bound every event."
+          },
+          {
+            "say": "For a numerical query, global sensitivity is the largest neighboring change under the norm required by its mechanism. Independent coordinate Laplace noise uses scale L-one sensitivity divided by epsilon and gives pure DP. Gaussian noise uses L-two sensitivity. For a d-coordinate vector, an L-two bound implies an L-one bound up to square root d, so using the wrong norm can undercalibrate noise."
+          },
+          {
+            "say": "One classical sufficient Gaussian rule, for epsilon between zero and one and delta between zero and one, takes standard deviation greater than L-two sensitivity times square root of twice log of one point two five divided by delta, all divided by epsilon. Analytical Gaussian calibration uses a different exact-distribution analysis. These conditions matter: a noisy-looking plot or a large multiplier without valid sensitivity and accounting does not prove privacy."
+          }
+        ]
+      },
+      {
+        "id": "user-aggregate",
+        "beats": [
+          {
+            "say": "Protecting a person requires bounding that person total contribution. In a supplied scalar example, Alice contributes two ticket updates of point seven five each. Their sum is one point five. Clip the combined user value to C equal to one before adding Bao point two five. Clipping each ticket separately at one would leave Alice contribution one point five and miss this user bound."
+          },
+          {
+            "say": "With both users present, divide the clipped sum one point two five by fixed public normalizer two to get point six two five. Remove Alice and keep that same public divisor: the result is point one two five. Their difference is point five, equal to C divided by two. Add calibrated sum noise before the fixed division; a data-dependent denominator would change the mechanism."
+          },
+          {
+            "say": "Compute clipped coordinates at full working precision. Rounding a norm-one vector before aggregation can push its represented norm above C. Production privacy needs numerical behavior within the claimed bound. Check the actual sampler as carefully: a Poisson-sampling accountant cannot be borrowed unchanged for deterministic shuffled batches just because their nominal fractions agree."
+          },
+          {
+            "say": "For independent Poisson sampling, include each declared protected unit with probability q on each step, so the sampled count varies. Sum the clipped contributions, add the Gaussian sum noise, divide by fixed public L, and update theta by subtracting learning rate times that noisy normalized gradient. A trusted central service sees private examples before adding noise. Client randomized response instead randomizes before the collector sees each report; that local-DP trust boundary is different."
+          }
+        ]
+      },
+      {
+        "id": "accountant-calculation",
+        "beats": [
+          {
+            "say": "Work a small explicit accountant worksheet. Assume add-remove sensitivity C, unsampled Gaussian releases with standard deviation four C, and target delta ten to the minus five. At Renyi order alpha greater than one, each release has bound alpha divided by thirty-two. These valid conditional bounds add across releases."
+          },
+          {
+            "say": "After two releases, the total RDP bound is alpha divided by sixteen. Convert to approximate DP by adding log of one over delta divided by alpha minus one. Check orders two, four, eight and sixteen. Among those declared orders, sixteen gives the smallest bound, about one point seven six eight. This is a valid upper bound for the supplied unsampled mechanism, not a Poisson-sampled training budget or a claim that this finite grid is globally optimal."
+          },
+          {
+            "say": "Now selection consults the same protected data through one additional Gaussian statistic with the same sensitivity and noise ratio. Charge that release too. At order sixteen the bound becomes about two point two six eight. A predeclared epsilon cap of two now blocks this plan. Selecting with raw private scores instead has no arbitrary free epsilon charge; it needs a valid mechanism or public validation. A real sampled DP-SGD run uses a vetted accountant matching its sampling, steps, adjacency and all exposed artifacts."
+          },
+          {
+            "say": "Count release dependence correctly. Checkpoints that are post-processing of a joint transcript already covered by one valid DP analysis need no separate budget beyond that transcript guarantee. Separate training runs on overlapping protected users generally compose. For fixed disjoint protected-user groups, parallel composition can use the maximum group budget instead of summing across groups, provided no protected user crosses groups. A checkpoint selected using new raw private scores is an additional data path even when those scores are not published."
+          }
+        ]
+      },
+      {
+        "id": "coordinate-noise",
+        "beats": [
+          {
+            "say": "Independent Gaussian coordinates with standard deviation sigma C have expected squared norm d times sigma squared C squared. The root mean square norm is sigma C times square root d. After fixed public normalizer L and learning rate eta, the parameter-step RMS becomes eta sigma C square root d divided by L."
+          },
+          {
+            "say": "For illustrative seven-billion full-model coordinates versus five-million adapter coordinates at the same scale, the RMS ratio is square root fourteen hundred, about thirty-seven point four two. The ratio of expected squared norms is fourteen hundred. Neither quantity is an accuracy ratio or a privacy-budget ratio. Different parameterizations turn equal coordinate-space noise into different functional changes."
+          },
+          {
+            "say": "Private adapter training clips and perturbs its own protected-unit gradients while the base stays fixed. That fine-tuning analysis does not retroactively protect a non-private base trained on the same person. It protects incremental fine-tuning participation conditional on that fixed base. Protecting the person across both stages requires an analysis of both stages data dependence."
+          },
+          {
+            "say": "A low-rank adapter computes frozen base W-zero plus alpha divided by rank, times B times A. For input width d-in, output width d-out and rank r, those two factors contain r times the sum of d-in and d-out trainable coordinates, compared with d-in times d-out full weights. DP adapter training forms each protected-unit gradient over both factors, clips its joint contribution and perturbs those trainable coordinates. The frozen base still executes; parameter counts alone establish neither training speed nor task quality."
+          }
+        ]
+      },
+      {
+        "id": "earned-transfer",
+        "beats": [
+          {
+            "say": "Try a new gradient with coordinates six and eight at clip bound two. Its norm is ten. Multiply both coordinates by one fifth to get one point two and one point six. Under add-remove adjacency it can change the sum by at most two; replacing one bounded vector with its opposite can change it by four. The same public normalizer scales both the sensitivity and the noise."
+          },
+          {
+            "say": "Return to our two-release accountant and epsilon cap two. Public prompts that use only the accounted released model are post-processing and add no new training-data access. An authorized database lookup of raw private tickets is a separate exposure; the training guarantee does not cover it. New private prompts and logs need their own controls too."
+          },
+          {
+            "say": "If a private selection statistic becomes a third release, the computed bound rises above the cap and the plan stays blocked. Choose public selection or redesign and account for the complete pipeline. You can now connect protected units, sensitivity, clipping, noise, sampling and every release to one declared guarantee, then measure held-out utility and attack behavior without confusing either measurement with the proof. Next, active labeling governs the evidence before training: who may see a trace, which rubric defines its label and which records must remain reserved for evaluation."
+          }
+        ]
+      }
+    ]
+  }
+}

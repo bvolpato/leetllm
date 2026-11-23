@@ -1,0 +1,201 @@
+version: 1
+lesson: docker-containerization-reproducible-ai
+promise: When two runs of the same scorer disagree, trace each run to the file it read and decide
+  whether to repair the host input, rebuild the image, or test the deployment artifact.
+objectives:
+  - id: place-inputs
+    can: Decide which inputs to copy, install, or mount. Check a runtime dependency by retrying its
+      import. Use the builder's cache and Dockerfile order to explain when a source edit can reuse
+      an installation. Identify the step that needs a credential and when it can read it.
+    scenes:
+      - runtime-contract
+      - context
+      - stages
+      - stage-inheritance
+      - dependency-artifacts
+      - cache
+      - failure-map
+      - secrets
+      - credential-exposure
+  - id: prove-runtime
+    can: Identify the Engine's kernel, read the process UID and GID, and trace the scorer's file
+      lookup through a bind mount. Repair a host input and rerun the same image.
+    scenes:
+      - opening
+      - runtime-contract
+      - platform-identity
+      - runtime
+      - permission-boundary
+      - mounts
+      - mount-diagnostics
+      - storage
+      - gpu
+      - gpu-contracts
+      - fresh-container
+  - id: compare-reports
+    can: Apply the integer threshold, compare a report with its fixed reference, and inspect a
+      differing fixture row before choosing which copy to repair.
+    scenes:
+      - evaluation
+      - identity
+      - fresh-container
+  - id: verify-release
+    can: Keep both reports with their read paths and the tested image ID. Identify the bytes a run
+      parsed and verify the application image to promote on the deployment platform.
+    scenes:
+      - platform-identity
+      - compose-gates
+      - identity
+      - ci-rebuild
+      - failure-map
+sections:
+  - heading: Where each input lives
+    status: taught
+    scenes:
+      - runtime-contract
+      - context
+      - stages
+      - storage
+      - secrets
+  - heading: Start with `.dockerignore`
+    status: taught
+    scenes:
+      - context
+      - credential-exposure
+  - heading: Reuse the scorer you already tested
+    status: taught
+    scenes:
+      - opening
+      - evaluation
+      - identity
+  - heading: Give the scorer its own Python environment
+    status: taught
+    scenes:
+      - stages
+      - stage-inheritance
+      - platform-identity
+      - dependency-artifacts
+      - cache
+  - heading: Build, run, and inspect the artifact
+    status: taught
+    scenes:
+      - runtime-contract
+      - runtime
+      - permission-boundary
+      - evaluation
+      - ci-rebuild
+  - heading: A bind mount obscures the copied eval
+    status: taught
+    scenes:
+      - mounts
+      - mount-diagnostics
+  - heading: Turn one boundary into a failure
+    status: taught
+    scenes:
+      - mounts
+      - mount-diagnostics
+      - fresh-container
+  - heading: Check in one Compose file
+    status: taught
+    scenes:
+      - storage
+      - compose-gates
+  - heading: Keep credentials out of image layers
+    status: taught
+    scenes:
+      - secrets
+      - credential-exposure
+  - heading: When the GPU enters the story
+    status: taught
+    scenes:
+      - gpu
+      - gpu-contracts
+  - heading: A build-and-run gate
+    status: taught
+    scenes:
+      - platform-identity
+      - identity
+      - ci-rebuild
+      - failure-map
+      - fresh-container
+  - heading: Failures you'll see first
+    status: taught
+    scenes:
+      - failure-map
+      - mount-diagnostics
+      - permission-boundary
+      - gpu-contracts
+  - heading: What survives a fresh clone
+    status: taught
+    scenes:
+      - failure-map
+      - identity
+      - ci-rebuild
+      - platform-identity
+quiz:
+  - n: 1
+    status: taught
+    scenes:
+      - platform-identity
+  - n: 2
+    status: taught
+    scenes:
+      - stages
+      - stage-inheritance
+  - n: 3
+    status: taught
+    scenes:
+      - context
+      - credential-exposure
+  - n: 4
+    status: taught
+    scenes:
+      - dependency-artifacts
+      - cache
+  - n: 5
+    status: taught
+    scenes:
+      - evaluation
+      - fresh-container
+  - n: 6
+    status: taught
+    scenes:
+      - mounts
+      - mount-diagnostics
+  - n: 7
+    status: taught
+    scenes:
+      - storage
+      - compose-gates
+  - n: 8
+    status: taught
+    scenes:
+      - secrets
+      - credential-exposure
+  - n: 9
+    status: taught
+    scenes:
+      - permission-boundary
+      - gpu
+      - gpu-contracts
+  - n: 10
+    status: taught
+    scenes:
+      - platform-identity
+      - identity
+      - ci-rebuild
+      - failure-map
+removed: []
+reviews:
+  closed_book:
+    script: 4fce094293aab41a
+    taught: 10
+    partial: 0
+    absent: 0
+    reviewer: /root/upgrade_shard2
+    evidence: build/video-delivery-20261106/script-reviews/docker-containerization-reproducible-ai.json
+  fact_check:
+    script: 4fce094293aab41a
+    open_findings: 0
+    reviewer: /root/upgrade_shard2
+    evidence: build/video-delivery-20261106/script-reviews/docker-containerization-reproducible-ai.json

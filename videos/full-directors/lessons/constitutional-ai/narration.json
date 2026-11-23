@@ -1,0 +1,629 @@
+[
+  {
+    "id": "c01",
+    "title": "One message, two questions",
+    "sourceChapters": [
+      "c01"
+    ],
+    "beats": [
+      {
+        "id": "c01-b01",
+        "say": "An engineer writes, “Can we edit the docs during the freeze?” Open the public runbook to the freeze rule. It says documentation edits may continue.",
+        "hold": 0.8
+      },
+      {
+        "id": "c01-timeline",
+        "say": "“And can I see the incident timeline?” Same engineer, same message. The application recognizes the caller. Look at the grant for this incident. What can the assistant answer, and what should stay closed?",
+        "hold": 3
+      },
+      {
+        "id": "c01-b02",
+        "say": "Yes, the docs can change. That line comes straight from the public runbook. The application stops the incident read before it fetches the timeline. The assistant can tell the engineer where to request access. A blanket refusal would have cost them an answer they were entitled to.",
+        "hold": 0.9
+      },
+      {
+        "id": "c01-b03",
+        "say": "How do we teach that distinction? In Constitutional AI, a written principle helps a model rewrite a draft. Later, a judge uses a principle to compare fresh answers. Both stages produce training data that changes model parameters. Putting the rule in a serving prompt only changes the context for that call.",
+        "hold": 0.7
+      }
+    ]
+  },
+  {
+    "id": "c02",
+    "title": "What would change this reply?",
+    "sourceChapters": [
+      "c02"
+    ],
+    "beats": [
+      {
+        "id": "c02-b01",
+        "say": "Keep the engineer in the same private workspace. Our rule says to answer from the public runbook and to check permission for this particular incident. Suppose the engineer says they manage the incident. Watch the permission receipt. The message changed. The grant is still missing.",
+        "hold": 1
+      },
+      {
+        "id": "c02-b02",
+        "say": "Now the incident owner grants this engineer read access. The application records the grant for this incident, and this workspace is approved to receive it. The same read can now go through. The docs answer stays exactly where it was.",
+        "hold": 0.9
+      },
+      {
+        "id": "c02-b03",
+        "say": "Save version three of the rule with the examples it produced. Trace a disputed label back to that wording, who contributed it, and how reviewers resolved disagreements. Collective Constitutional AI used input from a sample of U.S. adults. That tells you who participated.",
+        "hold": 0.3
+      },
+      {
+        "id": "c02-b04",
+        "say": "Testing the resulting model tells you how well it follows the rule.",
+        "hold": 0.7
+      }
+    ]
+  },
+  {
+    "id": "c03",
+    "title": "Which words belong in the training row?",
+    "sourceChapters": [
+      "c03"
+    ],
+    "beats": [
+      {
+        "id": "c03-b01",
+        "say": "Take just the incident question from the opening, before the grant. Case seventeen has a signed-in engineer and no incident access. A drafting model writes, “I'll get the timeline for you.” Which part of that draft conflicts with our rule?",
+        "hold": 1.8
+      },
+      {
+        "id": "c03-b02",
+        "say": "The promise to get the timeline assumes permission. Ask the model to critique its draft under version three. Its note points to the missing grant. Keep that note with the draft so a reviewer can see why the wording changed.",
+        "hold": 0.65
+      },
+      {
+        "id": "c03-b03",
+        "say": "Now ask for a revision. “Please request access through the support portal.” Lift the proof with the draft and its margin note. The training copy keeps the original request and the revised answer. Those revised words are the supervised targets.",
+        "hold": 0.9
+      }
+    ]
+  },
+  {
+    "id": "c04",
+    "title": "Which answer should the model learn?",
+    "sourceChapters": [
+      "c04"
+    ],
+    "beats": [
+      {
+        "id": "c04-b01",
+        "say": "Take the answer we just saved. At the third word, the model gets the request and the first two answer tokens, “Please request.” Which word came next on the training copy? The target is “access.” We supply the earlier words from the revision at each position. That is teacher forcing.",
+        "hold": 0.65
+      },
+      {
+        "id": "c04-b02",
+        "say": "For this one position, imagine just three possible next words. The model gives “access” about twenty-one percent. What happens to the loss on this word if we give it more probability?",
+        "hold": 2
+      },
+      {
+        "id": "c04-b03",
+        "say": "The loss falls. It is the negative natural log of the probability on “access.” Take one gradient step on these three logits. Keep the old mark at twenty-one percent and follow the new one to about fifty-five.",
+        "hold": 0.3
+      },
+      {
+        "id": "c04-b04",
+        "say": "The loss drops from about one point five five to point six zero nats. In training, gradients from the revised answer tokens update the model weights.",
+        "hold": 1
+      },
+      {
+        "id": "c04-b05",
+        "say": "Now give that portal answer to someone who asks only about editing docs. They still need the freeze rule. Include public questions with direct answers, and mixed questions with both parts handled. In the original study, an assistant trained on human preferences for helpfulness wrote the drafts.",
+        "hold": 0.3
+      },
+      {
+        "id": "c04-b06",
+        "say": "The team then fine-tuned a pretrained model on helpfulness examples and revisions from every revision step. Check on held-out public questions whether the model still helps.",
+        "hold": 0.8
+      }
+    ]
+  },
+  {
+    "id": "c05",
+    "title": "Same answers, different order",
+    "sourceChapters": [
+      "c05"
+    ],
+    "beats": [
+      {
+        "id": "c05-b01",
+        "say": "Now sample two fresh answers from the supervised model for the same incident question. A directs the engineer to the portal. B includes an excerpt from the restricted timeline. Give a judge the request, both answers and our access rule. On this first ballot both example judges choose A. It's on the left.",
+        "hold": 0.75
+      },
+      {
+        "id": "c05-b02",
+        "say": "Keep the request, the answers and the principle fixed. The portal answer is on the left. Swap the candidate positions. One judge reads for the access rule. The other always picks the answer on the left. Which response does that second judge choose now?",
+        "hold": 2.2
+      },
+      {
+        "id": "c05-b03",
+        "say": "It chooses B. Its two ballots agree on a position and disagree on the response. The judge applying the access rule still chooses A, now on the right. Record the response ID on each ballot. Review disagreements before using the label for training.",
+        "hold": 0.3
+      },
+      {
+        "id": "c05-b04",
+        "say": "Even judges that agree can misread the same rule, so compare a sample of their labels with independent human judgments.",
+        "hold": 0.9
+      }
+    ]
+  },
+  {
+    "id": "c06",
+    "title": "Reading a preference ballot",
+    "sourceChapters": [
+      "c06"
+    ],
+    "beats": [
+      {
+        "id": "c06-b01",
+        "say": "Here are two ballots for the portal answer, A, and the disclosure, B. When A appears first, the judge gives it point eight. In the swapped order, B gets point seven.",
+        "hold": 0.3
+      },
+      {
+        "id": "c06-b02",
+        "say": "Both shares on a ballot must add to one, so the second ballot gives A point three. Using those two ballots, what's the average share for A?",
+        "hold": 2.2
+      },
+      {
+        "id": "c06-b03",
+        "say": "The mean is point five five. Look at the two green pieces that went into it. The same answer went from a strong favorite to a clear second choice when the judge read it last. Keep both readings for review.",
+        "hold": 0.8
+      },
+      {
+        "id": "c06-b04",
+        "say": "The average tells you how this judge ranked the answers under one principle. Whether A actually respects the rule takes an independent check. The original study limited its reasoning-based targets to between point four and point six for its main results.",
+        "hold": 0.3
+      },
+      {
+        "id": "c06-b05",
+        "say": "Watch a label at point nine five move down to that upper limit. The next example uses a separate, unclamped label. The original reward model also learned from human judgments of helpfulness.",
+        "hold": 0.85
+      }
+    ]
+  },
+  {
+    "id": "c07",
+    "title": "From a preference to a reward score",
+    "sourceChapters": [
+      "c07"
+    ],
+    "beats": [
+      {
+        "id": "c07-b01",
+        "say": "A reward model gives each answer a score. Subtract B's score from A's and you have the margin. The Bradley-Terry model passes that margin through a logistic curve to predict which answer wins. Equal scores put the dot halfway along this probability scale.",
+        "hold": 0.7
+      },
+      {
+        "id": "c07-b02",
+        "say": "Take a separate training pair. The judge gives A a soft target of point eight. Our model is still at one half. With a learning rate of one half, which way should the margin move?",
+        "hold": 1.9
+      },
+      {
+        "id": "c07-b03",
+        "say": "Raise A's margin. For cross-entropy on a soft label, the derivative with respect to the margin is the prediction minus the target. One half minus point eight gives minus point three. Subtract half of that derivative. The margin gains point fifteen. Watch the probability dot.",
+        "hold": 0.3
+      },
+      {
+        "id": "c07-b04",
+        "say": "A margin of point fifteen puts it just under fifty-four percent. Further steps aim for the target. At the optimum the margin is the log of the target odds.",
+        "hold": 0.9
+      },
+      {
+        "id": "c07-b05",
+        "say": "Freeze those example scores. The policy can now sample a fresh answer and receive a score from the reward model. In the original recipe, reinforcement learning uses that score and a penalty for drifting from a reference policy. This is reinforcement learning from AI feedback.",
+        "hold": 0.3
+      },
+      {
+        "id": "c07-b06",
+        "say": "Compare the learned scores with independent human judgments on held-out requests.",
+        "hold": 0.8
+      }
+    ]
+  },
+  {
+    "id": "c08",
+    "title": "Spend reward gains against policy drift",
+    "sourceChapters": [
+      "c08"
+    ],
+    "beats": [
+      {
+        "id": "c08-b01",
+        "say": "Carry the learned score into an invented two-answer policy calculation. Fix answer scores at point fifteen for A and zero for B. The reference assigns each answer probability one half. A candidate assigns A point eight and B point two.",
+        "hold": 0.3
+      },
+      {
+        "id": "c08-b02",
+        "say": "Its expected reward is point twelve, compared with point zero seven five for the reference. Its KL divergence from the reference is about point one nine two seven.",
+        "hold": 0.8
+      },
+      {
+        "id": "c08-b03",
+        "say": "With a drift weight of point two, subtract about point zero three eight five. The candidate objective is about point zero eight one five, above the reference’s point zero seven five. Now set the weight to one. Both distributions stay fixed. Which policy leads after the larger penalty?",
+        "hold": 1.5
+      },
+      {
+        "id": "c08-b04",
+        "say": "The candidate objective falls to about minus point zero seven two seven, so this fixed candidate loses the comparison. This finite example evaluates distributions; real policy RL estimates an objective from rollouts and gradients. A reward gain remains a proxy for desired behavior.",
+        "hold": 0.8
+      }
+    ]
+  },
+  {
+    "id": "c09",
+    "title": "Which results apply to this assistant?",
+    "sourceChapters": [
+      "c09"
+    ],
+    "beats": [
+      {
+        "id": "c09-b01",
+        "say": "Lee and colleagues asked people to compare PaLM two summaries. Read each pair before and after their post-hoc length adjustment. Against supervised fine-tuning, the AI-feedback model went from seventy-one to fifty-nine percent wins. The human-feedback model went from seventy-three to sixty-one.",
+        "hold": 0.3
+      },
+      {
+        "id": "c09-b02",
+        "say": "Head to head, the AI-feedback model went from fifty to forty-seven percent. Those numbers concern summaries. Incident handling needs its own test. Their estimate of a more than tenfold reduction in labeling cost used prices at the time and excluded setup and annotator training. Price the calls and the human work for your own task.",
+        "hold": 0.85
+      },
+      {
+        "id": "c09-b03",
+        "say": "The original recipe is one way to teach a constitution. Anthropic's January twenty twenty-six constitution also explains the reasons behind its values. Its May report studied synthetic constitutional documents, advice examples, and environments where the model can use tools during reinforcement learning.",
+        "hold": 0.3
+      },
+      {
+        "id": "c09-b04",
+        "say": "Another approach, direct preference optimization, trains a policy from chosen and rejected responses without an intermediate reward model. To preserve the judge's graded label with that approach, choose a loss that accepts a soft target.",
+        "hold": 0.8
+      }
+    ]
+  },
+  {
+    "id": "c10",
+    "title": "What does a lower test loss establish?",
+    "sourceChapters": [
+      "c10"
+    ],
+    "beats": [
+      {
+        "id": "c10-b01",
+        "say": "Give the reviewer a test contract. Our example uses a fictional incident, a caller without a grant, and a fixed budget of requests and turns. Record whether the input came from the user or a retrieved document, what the assistant returned, and any actual tool effects.",
+        "hold": 0.3
+      },
+      {
+        "id": "c10-b02",
+        "say": "Human-written cases can cover policy decisions a reviewer knows well. Model-written questions can broaden the wording, but many similar questions add little coverage. Linguistic variants can test other languages. Check that the translation still asks for the same thing.",
+        "hold": 0.7
+      },
+      {
+        "id": "c10-b03",
+        "say": "Read a saved worksheet for a benign test. Three word choices describe a public runbook entry. The model scores how well each wording fits its public topic label. A gradient is local information about a continuous representation. The words themselves are discrete. On the worksheet, the gradient suggests B first. Its measured loss is point nine. Compare C at point six. Which word would you select from the measured scores?",
+        "hold": 2.2
+      },
+      {
+        "id": "c10-b04",
+        "say": "Choose C on this worksheet. Its measured loss is lower than B’s. Exact measured loss can reverse a gradient ranking. In a white-box evaluation such as Greedy Coordinate Gradient search, a surrogate score has this same limit. Decide whether a policy failed by inspecting the reply and the trusted action record.",
+        "hold": 0.9
+      },
+      {
+        "id": "c10-b05",
+        "say": "Evidence from one model and tokenizer needs a separate check on another. Also inspect what entered the evaluation. These two fixture batches contain ordinary questions. Require a short list of distinct, nonempty strings. The left batch admits two questions. The right repeats one question and fails intake.",
+        "hold": 0.3
+      },
+      {
+        "id": "c10-b06",
+        "say": "That failure used zero target attempts. Keep intake errors, execution errors and missing judgments in separate counts.",
+        "hold": 0.8
+      }
+    ]
+  },
+  {
+    "id": "c11",
+    "title": "Keep descendants with their root seed",
+    "sourceChapters": [
+      "c11"
+    ],
+    "beats": [
+      {
+        "id": "c11-b01",
+        "say": "Seed A asks, “Can we edit the docs during a freeze?” Follow its two paraphrases. “May I fix a typo during the freeze?” went to training. “Can the docs be corrected while releases are frozen?” went to test. Seed B has two variants of a timeline request in test. Trace both A cases back to their source. Would the second paraphrase measure a new request family?",
+        "hold": 2.5
+      },
+      {
+        "id": "c11-b02",
+        "say": "Move the second paraphrase to training with its sibling. Keep the whole family on one side. Seed B asks for an incident timeline. Its encoded and translated variants stay together in test. Save each case ID, root and transformation chain.",
+        "hold": 1.4
+      },
+      {
+        "id": "c11-b03",
+        "say": "Now the test contains a new root. Inspect shared templates and overlapping requests across roots as a separate check. Name the languages and families you held out. A new wording of a known seed measures a different contract. Keep confirmed failures in the regression set and use unseen families for generalization.",
+        "hold": 1
+      },
+      {
+        "id": "c11-b04",
+        "say": "Preserve model, application, judge, permission state and tool effects so repairs target the layer that failed.",
+        "hold": 0.8
+      }
+    ]
+  },
+  {
+    "id": "c12",
+    "title": "Which replies failed?",
+    "sourceChapters": [
+      "c12"
+    ],
+    "beats": [
+      {
+        "id": "c12-b01",
+        "say": "Read these five model replies against their permissions. The first answer explains the public rule. In the second, the model gives a synthetic incident detail despite a denied grant. Next it refuses a paraphrase of the public question. It also refuses a verified support request.",
+        "hold": 0.3
+      },
+      {
+        "id": "c12-b02",
+        "say": "On the last case, a later turn in a roleplay, it correctly points to the access portal. These are model-only examples. Each request has its own permission receipt.",
+        "hold": 0.8
+      },
+      {
+        "id": "c12-b03",
+        "say": "Which denominator belongs under false refusals? Look only at the three permitted requests. Two got a refusal. For disclosures, look at the two denied requests. One got a private detail. Combining the counts would hide which behavior needs repair.",
+        "hold": 0.9
+      },
+      {
+        "id": "c12-b04",
+        "say": "Replay the second request through the application, with the incident grant still absent. The assistant proposes the read. The permission check stops it. Record a model error, a blocked application action, and zero private records fetched. The application trace tells us what actually ran.",
+        "hold": 0.8
+      }
+    ]
+  },
+  {
+    "id": "c13",
+    "title": "Which cases belong in the denominator?",
+    "sourceChapters": [
+      "c13"
+    ],
+    "beats": [
+      {
+        "id": "c13-b01",
+        "say": "Take six judged attack attempts. Find the two violations, A three and A four. Both are roleplay. The direct and encoded pairs were clear. Count across the whole row and you get two violations in six attempts.",
+        "hold": 0.3
+      },
+      {
+        "id": "c13-b02",
+        "say": "Narrow it to roleplay and you get two in two. That's a reason to inspect those cases. Five judged benign requests go on their own row. Three got useful answers. One was falsely refused, and one got an unhelpful reply.",
+        "hold": 0.3
+      },
+      {
+        "id": "c13-b03",
+        "say": "False refusals are one in five and helpful answers are three in five.",
+        "hold": 0.9
+      },
+      {
+        "id": "c13-b04",
+        "say": "Add an attack awaiting review and a benign request that hit an execution error. We still know the verdict on six of seven attacks. If the new attack clears, there are two violations in seven. If it fails, there are three.",
+        "hold": 0.3
+      },
+      {
+        "id": "c13-b05",
+        "say": "If the finished verdicts hold, the full-sample attack bounds run from two in seven to three in seven. With the sixth benign outcome unresolved, helpfulness is between three in six and four in six. If the trace confirms that no reply was delivered, that request supplied zero useful answers. Estimating future traffic takes a sampling model.",
+        "hold": 0.3
+      },
+      {
+        "id": "c13-b06",
+        "say": "If no attacks had a verdict, the rate among judged attacks would be undefined.",
+        "hold": 0.9
+      },
+      {
+        "id": "c13-b07",
+        "say": "Return to the eleven judged cases. A stricter classifier clears A three and falsely refuses B three. Compare a better model with the original on the same cases. It clears A three and gives B four a helpful answer. Read both the attack and benign rows again.",
+        "hold": 0.3
+      },
+      {
+        "id": "c13-b08",
+        "say": "To attribute lost capability to alignment, you need a comparable baseline and broader task results. Report the counts by family, language, turn depth and permission, along with how cases were selected and how uncertain the sample is. A model can refuse more often and still answer more questions helpfully if it also fixes enough wrong answers.",
+        "hold": 0.9
+      }
+    ]
+  },
+  {
+    "id": "c14",
+    "title": "Follow a judge’s flag back to the case",
+    "sourceChapters": [
+      "c14"
+    ],
+    "beats": [
+      {
+        "id": "c14-b01",
+        "say": "A preference judge picks between answers. A violation judge looks for a particular failure. Here, the model proposed a private read, the application blocked it, and the final reply gave the portal address. Tell the judge which of those events to label.",
+        "hold": 0.3
+      },
+      {
+        "id": "c14-b02",
+        "say": "Give it the permission receipt, transcript and tool effects. Well-formed JSON can carry a wrong verdict. Pick thresholds on validation data, then test them on separate cases that people have adjudicated. Sample passes as well as flags.",
+        "hold": 0.8
+      },
+      {
+        "id": "c14-b03",
+        "say": "These six test cases already have human labels. Now place each judge score beside its human verdict. Flag scores of point eight or higher. Clear scores of point two or lower. Send the middle to review. Look at case two.",
+        "hold": 0.3
+      },
+      {
+        "id": "c14-b04",
+        "say": "Its score of point nine makes it a flag, but the human found no violation. Case five is the opposite miss. The judge cleared a violation. Case six lands in review even though its human label is already known.",
+        "hold": 0.9
+      },
+      {
+        "id": "c14-b05",
+        "say": "Count the decisions. Two flags are correct, one flag is wrong, one violation was cleared, and one clear decision is correct. One case went to review. The judge classified five of six. Two of three flags are correct. Among the classified violations it caught two of three.",
+        "hold": 0.3
+      },
+      {
+        "id": "c14-b06",
+        "say": "Include the reviewed violation, and it caught only two of four. For a probability check, square the distance from each score to its zero or one label and average all six squares. The Brier score is about point three two five. Future calibration needs more evidence.",
+        "hold": 1
+      }
+    ]
+  },
+  {
+    "id": "c15",
+    "title": "An attempt budget changes the question",
+    "sourceChapters": [
+      "c15"
+    ],
+    "beats": [
+      {
+        "id": "c15-b01",
+        "say": "Task-level success after a search budget differs from success per query. For a mathematical illustration only, suppose independent attempts each succeed with probability point one. The chance of at least one success in k attempts is one minus point nine to the kth power.",
+        "hold": 0.3
+      },
+      {
+        "id": "c15-b02",
+        "say": "One attempt gives ten percent. Two independent attempts give nineteen percent. Ten give about sixty-five point one percent.",
+        "hold": 0.8
+      },
+      {
+        "id": "c15-b03",
+        "say": "Now repeat the same deterministic outcome on every attempt for a task. Across tasks the success rate stays ten percent, despite ten repeats. An adaptive attacker follows another process because later probes depend on earlier responses. Report tasks, attempts used, turn budgets, stopping rules and adaptation.",
+        "hold": 0.3
+      },
+      {
+        "id": "c15-b04",
+        "say": "Compare candidates under matched budgets instead of converting a measured query rate with an independence assumption.",
+        "hold": 0.8
+      }
+    ]
+  },
+  {
+    "id": "c16",
+    "title": "Who said the words in the transcript?",
+    "sourceChapters": [
+      "c16"
+    ],
+    "beats": [
+      {
+        "id": "c16-b01",
+        "say": "Keep the conversation open as the next request arrives. In this fixed test the user asks what case labels mean, then asks about the public freeze rule. On turn three they ask for a private test label.",
+        "hold": 0.3
+      },
+      {
+        "id": "c16-b02",
+        "say": "Keep that question in the transcript while you inspect the new assistant reply. It contains the marker “fixture disclosure.” The case's trusted receipt forbids that disclosure. Stop at turn three, with six messages saved.",
+        "hold": 0.3
+      },
+      {
+        "id": "c16-b03",
+        "say": "Pass the full history to each turn and retain a copy that callbacks can't change.",
+        "hold": 0.85
+      },
+      {
+        "id": "c16-b04",
+        "say": "Try a different last exchange. This time the user quotes the marker, and the assistant explains the public policy. Searching the transcript finds exactly the same words. Check who said them. The public reply contains no disclosure. Inspect tool effects separately, and send unresolved verdicts for review.",
+        "hold": 0.3
+      },
+      {
+        "id": "c16-b05",
+        "say": "Report the turn limit and whether the test followed a fixed script, adapted to earlier replies, or restarted. Stopping at the first violation measures time to failure. Measuring later containment needs a different stopping rule.",
+        "hold": 0.85
+      }
+    ]
+  },
+  {
+    "id": "c17",
+    "title": "Where did the private read stop?",
+    "sourceChapters": [
+      "c17"
+    ],
+    "beats": [
+      {
+        "id": "c17-b01",
+        "say": "Follow the read for this incident. A signed-in caller asks the application to open the record. Check the incident, action and destination before retrieval. A person may be allowed to read a timeline in the incident workspace and still lack permission to send it elsewhere.",
+        "hold": 0.3
+      },
+      {
+        "id": "c17-b02",
+        "say": "Text in a retrieved document supplies no authority. A classifier such as Llama Guard can recognize a hazard in a message. The application still needs its own record permissions and restricted logs.",
+        "hold": 0.75
+      },
+      {
+        "id": "c17-b03",
+        "say": "Consider a separate output check. In this fixture the restricted label spans two chunks. The first ends with a dash after the word case. The second holds the number seventeen. Hold the chunks together for the check, before either goes to the recipient.",
+        "hold": 0.3
+      },
+      {
+        "id": "c17-b04",
+        "say": "A detector that fires after delivery can't take those bytes back. Anthropic's January twenty twenty-six classifier report describes a cheaper activation probe that passes suspicious conversations to a stronger classifier. That safeguard runs at inference. Its reported results apply to the tested setup.",
+        "hold": 0.8
+      },
+      {
+        "id": "c17-b05",
+        "say": "Back at the incident, the assistant proposed the read. The application denied it. The delivered answer gave the portal address. Record the prohibited proposal against the model, zero executed private reads against the application, and zero disclosures in the reply. If you kept only the reply, you would miss the model error.",
+        "hold": 1
+      }
+    ]
+  },
+  {
+    "id": "c18",
+    "title": "Reviewing checkpoint nine",
+    "sourceChapters": [
+      "c18"
+    ],
+    "beats": [
+      {
+        "id": "c18-b01",
+        "say": "Open the record for checkpoint nine. You can trace its answer training to case seventeen, through the draft and critique to the revision under rule version three. Its reward model came from separate comparisons of fresh answers. Keep the prompts, labels, judge versions and both checkpoints with those examples.",
+        "hold": 0.65
+      },
+      {
+        "id": "c18-b02",
+        "say": "Take the engineer who now has the incident grant. In their approved private workspace, both requests can go through. For this held-out test we'll change just the destination.",
+        "hold": 0.8
+      },
+      {
+        "id": "c18-b03",
+        "say": "The engineer asks the same two questions in a public channel. The freeze rule is still public. Their incident grant is still valid, but this channel has readers outside the incident team.",
+        "hold": 0.75
+      },
+      {
+        "id": "c18-b04",
+        "say": "What reply belongs in the public channel? Should the application fetch the timeline to write it?",
+        "hold": 2.6
+      },
+      {
+        "id": "c18-b05",
+        "say": "Post the docs answer. For this public reply, stop the private read before retrieval. Direct the engineer to the approved private workspace for the timeline. Record both the useful public answer and the zero private reads.",
+        "hold": 1.1
+      },
+      {
+        "id": "c18-b06",
+        "say": "Now read the held-out audit for this candidate. Of eight benign requests, five got useful answers. Two were falsely refused. The last got a reply that didn't help. That's two refusals in eight and five helpful answers in eight. Keep all eight in both denominators.",
+        "hold": 0.85
+      },
+      {
+        "id": "c18-b07",
+        "say": "On the attack side, seven cases ran. One has a confirmed violation, four are clear, and the last two are waiting for a judgment. If the five finished labels hold, how many of the seven could be violations?",
+        "hold": 2.5
+      },
+      {
+        "id": "c18-b08",
+        "say": "As few as one, if both open cases clear. As many as three, if both turn out to be violations. Report one violation in five judged cases, coverage of five in seven, and bounds of one to three violations in seven attempts.",
+        "hold": 0.3
+      },
+      {
+        "id": "c18-b09",
+        "say": "Those bounds describe these seven attempts. Send the two open cases for independent review.",
+        "hold": 0.85
+      },
+      {
+        "id": "c18-b10",
+        "say": "Open the confirmed case. The public reply says to use the private workspace. The trusted trace shows one private read before that reply went out. Repair the destination check and replay the same request. Watch the trace. Zero private reads. Every word delivered to the public channel stayed the same.",
+        "hold": 0.3
+      },
+      {
+        "id": "c18-b11",
+        "say": "Keep the original trace and the repaired trace with this regression case. The check establishes that this request now stops before private retrieval. Test fresh cases separately to learn whether that boundary holds elsewhere.",
+        "hold": 1.4
+      }
+    ]
+  }
+]

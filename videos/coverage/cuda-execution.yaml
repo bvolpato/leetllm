@@ -1,0 +1,178 @@
+version: 1
+lesson: cuda-execution
+promise: Follow a ticket from Python to a completed CUDA mean. Decide when its value is safe to read and which elapsed time belongs in the caller's log.
+objectives:
+  - id: execution
+    can: Map valid inputs to threads and warps, guard the tail, and order shared writes before a block reads its sum.
+    scenes:
+      - intro
+      - mapping
+      - warps
+      - barrier
+      - transfer
+      - fresh-runtime
+  - id: placement
+    can: Locate a failure in driver access, the PyTorch build, or tensor placement during a training step.
+    scenes:
+      - residence
+      - stack-contract
+      - ticket-step
+      - full-step-contract
+  - id: memory
+    can: Budget live tensors by dtype, identify when Adam allocates a parameter's moments, test whether a weight update survives storage, and explain which memory a smaller batch frees.
+    scenes:
+      - budget
+      - storage-scope
+      - activation-budget
+      - precision-slots
+      - large-model-budget
+      - precision-controls
+      - allocator-ledger
+  - id: accumulation
+    can: Divide each microbatch's summed loss by the full batch's ticket count, valid token count, or total target weight. Skip the update when that denominator is zero.
+    scenes:
+      - ticket-step
+      - large-model-budget
+  - id: movement
+    can: Count global segments from byte addresses and shared banks from word addresses and the tile's starting bank. Identify conflicts and trace each copied buffer to its consumer.
+    scenes:
+      - coalescing
+      - banks
+      - storage-scope
+      - copy-dependencies
+      - profile-choice
+  - id: measurement
+    can: Choose the timer endpoints for a stream or a caller, calculate the wait left when Python requests a scalar, and verify a layout change against the reference output and whole-step time.
+    scenes:
+      - clocks
+      - fresh-runtime
+      - synthesis
+      - occupancy-resources
+      - profile-choice
+      - full-step-contract
+sections:
+  - heading: Eight tokens onto two blocks
+    status: taught
+    scenes:
+      - intro
+      - mapping
+      - warps
+      - barrier
+  - heading: Check driver, PyTorch build, and device
+    status: taught
+    scenes:
+      - stack-contract
+  - heading: Move the ticket batch once
+    status: taught
+    scenes:
+      - residence
+      - ticket-step
+  - heading: Count memory before the first big batch
+    status: taught
+    scenes:
+      - budget
+      - storage-scope
+      - activation-budget
+      - precision-slots
+      - large-model-budget
+      - precision-controls
+  - heading: Let access order decide bandwidth
+    status: taught
+    scenes:
+      - coalescing
+      - banks
+      - storage-scope
+      - profile-choice
+  - heading: Choose the next optimization with a bound
+    status: taught
+    scenes:
+      - synthesis
+      - occupancy-resources
+      - profile-choice
+  - heading: Measure asynchronous work honestly
+    status: taught
+    scenes:
+      - clocks
+      - full-step-contract
+      - fresh-runtime
+  - heading: Diagnose setup, memory, and throughput failures
+    status: taught
+    scenes:
+      - stack-contract
+      - allocator-ledger
+      - copy-dependencies
+      - precision-controls
+      - large-model-budget
+  - heading: Trace the training step end-to-end
+    status: taught
+    scenes:
+      - full-step-contract
+      - ticket-step
+  - heading: Carry shape, device, and timing forward
+    status: taught
+    scenes:
+      - transfer
+      - fresh-runtime
+quiz:
+  - n: 1
+    status: taught
+    scenes:
+      - mapping
+      - warps
+      - fresh-runtime
+  - n: 2
+    status: taught
+    scenes:
+      - stack-contract
+      - ticket-step
+  - n: 3
+    status: taught
+    scenes:
+      - ticket-step
+  - n: 4
+    status: taught
+    scenes:
+      - precision-controls
+  - n: 5
+    status: taught
+    scenes:
+      - budget
+      - large-model-budget
+  - n: 6
+    status: taught
+    scenes:
+      - coalescing
+      - banks
+      - storage-scope
+  - n: 7
+    status: taught
+    scenes:
+      - barrier
+      - transfer
+      - fresh-runtime
+  - n: 8
+    status: taught
+    scenes:
+      - clocks
+      - full-step-contract
+      - fresh-runtime
+  - n: 9
+    status: taught
+    scenes:
+      - allocator-ledger
+  - n: 10
+    status: taught
+    scenes:
+      - synthesis
+      - occupancy-resources
+      - profile-choice
+removed: []
+reviews:
+  closed_book:
+    script: db5f4acd0be51a08
+    taught: 10
+    partial: 0
+    absent: 0
+  fact_check:
+    script: db5f4acd0be51a08
+    open_findings: 0

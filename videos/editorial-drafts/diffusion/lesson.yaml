@@ -1,0 +1,2324 @@
+version: 1
+id: diffusion
+title: "Diffusion: How Noise Becomes an Image"
+source: system-design/image-generation-diffusion-models/content.md
+voice: en-US-AndrewNeural
+sources:
+  - title: Denoising Diffusion Probabilistic Models
+    url: https://arxiv.org/abs/2006.11239
+  - title: Score-Based Generative Modeling through Stochastic Differential Equations
+    url: https://arxiv.org/abs/2011.13456
+  - title: Denoising Diffusion Implicit Models
+    url: https://arxiv.org/abs/2010.02502
+  - title: Classifier-Free Diffusion Guidance
+    url: https://arxiv.org/abs/2207.12598
+  - title: High-Resolution Image Synthesis with Latent Diffusion Models
+    url: https://arxiv.org/abs/2112.10752
+  - title: Progressive distillation and velocity parameterization
+    url: https://arxiv.org/abs/2202.00512
+  - title: DiT
+    url: https://arxiv.org/abs/2212.09748
+  - title: Rectified-flow multimodal transformer
+    url: https://arxiv.org/abs/2403.03206
+  - title: DiffusionGemma guide and dated model contract
+    url: https://ai.google.dev/gemma/docs/diffusiongemma
+  - title: Diffusers reproducibility
+    url: https://huggingface.co/docs/diffusers/using-diffusers/reusing_seeds
+scenes:
+  - id: intro
+    title: How can random noise become a picture?
+    visual: A small table silhouette dissolves through seeded Gaussian corruption, then freezes beside a
+      cloud of particles. Three density islands emerge as those particles follow a computed score
+      field. Introduce the image mechanism and the exact two-dimensional teaching simulation
+      separately.
+    beats:
+      - say: Ask a computer for a wooden table in soft light. Its first canvas looks like static. A
+          diffusion model turns that randomness into structure through repeated learned predictions.
+          How can it know which way to move?
+        hold: 0.6
+        visual_cues:
+          - id: intro-beat-1-focus-1
+            phrase: A diffusion model turns that randomness into structure through repeated learned predictions
+            targets:
+              - intro-intro-tile
+            color: cyan
+            linger: 0.65
+          - id: df-intro-0
+            phrase: Ask a computer for a wooden table in soft light. Its first canvas looks like static. A
+              diffusion model turns that randomness into structure through repeated learned
+              predictions. How can it know which way to move?
+            targets:
+              - df-intro-operation
+            linger: 0.35
+      - say: We'll start from one brightness value, then watch a probability distribution take shape.
+          Our particle simulation numerically integrates a probability-flow equation with an
+          analytic toy score, making the movement behind image generation visible.
+        hold: 0.6
+        visual_cues:
+          - id: intro-beat-2-focus-1
+            phrase: Our particle simulation numerically integrates a probability-flow equation with an
+              analytic toy score
+            targets:
+              - intro-distribution
+            color: cyan
+            linger: 0.65
+          - id: intro-beat-2-focus-2
+            phrase: We'll start from one brightness value, then watch a probability distribution take shape
+            targets:
+              - intro-intro-tile
+              - intro-distribution
+            color: yellow
+            linger: 0.65
+          - id: df-intro-1
+            phrase: We'll start from one brightness value, then watch a probability distribution take
+              shape. Our particle simulation numerically integrates a probability-flow equation with
+              an analytic toy score, making the movement behind image generation visible.
+            targets:
+              - df-intro-operation
+            linger: 0.35
+      - say: You'll learn what the model predicts, how a prompt steers it, and how repeated computation
+          affects the details an image preserves.
+        hold: 0.6
+        visual_cues:
+          - id: intro-beat-3-focus-1
+            phrase: and how repeated computation affects the details an image preserves
+            targets:
+              - intro-intro-tile
+            color: cyan
+            linger: 0.65
+          - id: df-intro-2
+            phrase: You'll learn what the model predicts, how a prompt steers it, and how repeated computation
+              affects the details an image preserves.
+            targets:
+              - df-intro-operation
+            linger: 0.35
+  - id: product-lanes
+    title: Count predictions before sizing the two routes
+    visual: The same admitted job keeps tenant, request hash, variant seed and route. Preview20×4×6 and
+      quality2×4×50×2 construct separate offered-work counters480/800, followed by a
+      supplied120prediction/s capacity with75% planning ceiling. A bounded preview queue retains a
+      reserved worker while the quality queue waits; first released variant includes output checks.
+    beats:
+      - say: Our proposed product creates synthetic design backgrounds and previews. A job request
+          supplies prompt, negative prompt, dimensions, variant count, route, seed and an
+          idempotency key. It returns a job identity and accepted versions. Status and asset reads
+          require tenant authorization. Our proposed preview target is a first released asset below
+          two seconds at the ninety-fifth percentile, including queue and checks. The quality-job
+          target is complete, review, or failed within thirty seconds, with a separate human-review
+          deadline. Both targets require end-to-end validation.
+        hold: 0.7
+        visual_cues:
+          - id: df-product-lanes-0
+            phrase: Our proposed product creates synthetic design backgrounds and previews. A job request
+              supplies prompt, negative prompt, dimensions, variant count, route, seed and an
+              idempotency key. It returns a job identity and accepted versions. Status and asset
+              reads require tenant authorization. Our proposed preview target is a first released
+              asset below two seconds at the ninety-fifth percentile, including queue and checks.
+              The quality-job target is complete, review, or failed within thirty seconds, with a
+              separate human-review deadline. Both targets require end-to-end validation.
+            targets:
+              - df-product-lanes-operation
+            linger: 0.35
+      - say: Count per-image denoiser predictions by multiplying jobs per second, variants, steps and
+          predictions per step. Twenty preview jobs, four variants and six single-branch steps
+          require four hundred eighty predictions per second. Two quality jobs, four variants, fifty
+          steps and ordinary two-branch guidance require eight hundred. Batching changes
+          network-call count, not these prediction counts. Capacities must use the same model,
+          shape, precision and batch policy.
+        hold: 0.7
+        visual_cues:
+          - id: df-product-lanes-1
+            phrase: Count per-image denoiser predictions by multiplying jobs per second, variants, steps and
+              predictions per step. Twenty preview jobs, four variants and six single-branch steps
+              require four hundred eighty predictions per second. Two quality jobs, four variants,
+              fifty steps and ordinary two-branch guidance require eight hundred. Batching changes
+              network-call count, not these prediction counts. Capacities must use the same model,
+              shape, precision and batch policy.
+            targets:
+              - df-product-lanes-operation
+            linger: 0.35
+          - id: df-preview-count
+            phrase: require four hundred eighty predictions per second
+            targets:
+              - df-product-preview
+            linger: 0.35
+          - id: df-quality-count
+            phrase: require eight hundred
+            targets:
+              - df-product-quality
+            linger: 0.35
+      - say: For a capacity estimate, divide offered work by matched worker capacity times the planning
+          utilization ceiling, then round up. A hypothetical capacity of one hundred twenty
+          predictions per second at seventy-five percent gives six preview workers. That arithmetic
+          does not verify the two-second tail. Bound queues, reserve actual preview capacity and
+          batch compatible configurations. Separate queue names cannot prevent shared-device
+          starvation. Reject work whose deadline is already impossible.
+        hold: 0.7
+        visual_cues:
+          - id: df-product-lanes-2
+            phrase: For a capacity estimate, divide offered work by matched worker capacity times the planning
+              utilization ceiling, then round up. A hypothetical capacity of one hundred twenty
+              predictions per second at seventy-five percent gives six preview workers. That
+              arithmetic does not verify the two-second tail. Bound queues, reserve actual preview
+              capacity and batch compatible configurations. Separate queue names cannot prevent
+              shared-device starvation. Reject work whose deadline is already impossible.
+            targets:
+              - df-product-lanes-operation
+            linger: 0.35
+          - id: df-preview-workers
+            phrase: gives six preview workers
+            targets:
+              - df-product-workers
+            linger: 0.35
+  - id: forward
+    title: First, make the easy direction
+    visual: A persistent 16-by-16 table silhouette mixes with one seeded Gaussian field on a fixed color
+      scale. Signal and noise amplitudes change continuously; the clean image and same noise draw
+      remain visible as separate small tiles. Label this a coupled marginal sweep.
+    beats:
+      - say: Each image channel contains numbers. We will begin with one grayscale brightness value.
+          Add a random number to every coordinate while shrinking the clean signal. As the noise
+          grows, the table's edges fade into the surrounding variation.
+        hold: 0.6
+        motion_check:
+          region:
+            - 145
+            - 330
+            - 500
+            - 500
+          minimumChangedFraction: 0.002
+        visual_cues:
+          - id: forward-add-noise
+            phrase: Add a random number to every coordinate while shrinking the clean signal
+            targets:
+              - forward-signal-strength
+              - forward-noise-strength
+            color: cyan
+            linger: 0.65
+          - id: forward-edges-fade
+            phrase: As the noise grows, the table's edges fade into the surrounding variation
+            targets:
+              - forward-forward-tile
+            color: yellow
+            linger: 0.65
+          - id: df-forward-0
+            phrase: Each image channel contains numbers. We will begin with one grayscale brightness
+              value. Add a random number to every coordinate while shrinking the clean signal. As
+              the noise grows, the table's edges fade into the surrounding variation.
+            targets:
+              - df-forward-operation
+            linger: 0.35
+      - say: The schedule controls how much signal remains at each noise level. Here we keep one noise draw
+          fixed while changing its strength, so you can follow individual pixels. This sweep
+          compares marginal samples at different levels.
+        hold: 0.5
+        visual_cues:
+          - id: forward-sweep
+            phrase: This sweep compares marginal samples at different levels
+            targets:
+              - forward-forward-tile
+            color: cyan
+            linger: 0.65
+          - id: forward-retained-signal
+            phrase: The schedule controls how much signal remains at each noise level
+            targets:
+              - forward-forward-tile
+              - forward-signal-strength
+            color: yellow
+            linger: 0.65
+          - id: df-forward-1
+            phrase: The schedule controls how much signal remains at each noise level. Here we keep one noise
+              draw fixed while changing its strength, so you can follow individual pixels. This
+              sweep compares marginal samples at different levels.
+            targets:
+              - df-forward-operation
+            linger: 0.35
+      - say: Training can reach any level directly. One batch can contain lightly corrupted images and
+          almost pure static, creating a family of related reconstruction tasks.
+        hold: 0.5
+        visual_cues:
+          - id: forward-beat-3-focus-1
+            phrase: Training can reach any level directly
+            targets:
+              - forward-forward-tile
+            color: cyan
+            linger: 0.65
+          - id: forward-beat-3-focus-2
+            phrase: One batch can contain lightly corrupted images and almost pure static
+            targets:
+              - forward-forward-tile
+            color: yellow
+            linger: 0.65
+          - id: df-forward-2
+            phrase: Training can reach any level directly. One batch can contain lightly corrupted images and
+              almost pure static, creating a family of related reconstruction tasks.
+            targets:
+              - df-forward-operation
+            linger: 0.35
+  - id: coefficients
+    title: Two coefficients control the mixture
+    visual: A unit-circle coefficient probe constructs square-root signal and noise amplitudes, then a
+      scalar number line adds the signed contributions for x0=1 and epsilon=-0.4. The probe reaches
+      alpha-bar=0.5 and the numerical sum 0.424 remains readable.
+    beats:
+      - say: The formula combines a scaled clean value and scaled Gaussian noise. Alpha bar measures
+          retained signal variance. Its square root gives the signal amplitude. The remaining
+          variance determines the noise amplitude.
+        hold: 0.5
+        visual_cues:
+          - id: coefficients-mixture
+            phrase: The formula combines a scaled clean value and scaled Gaussian noise
+            targets:
+              - coefficients-mixture
+            color: cyan
+            linger: 0.65
+          - id: coefficients-amplitude
+            phrase: Its square root gives the signal amplitude. The remaining variance determines the noise
+              amplitude
+            targets:
+              - coefficients-amplitudes
+            color: yellow
+            linger: 0.65
+          - id: df-coefficients-0
+            phrase: The formula combines a scaled clean value and scaled Gaussian noise. Alpha bar measures
+              retained signal variance. Its square root gives the signal amplitude. The remaining
+              variance determines the noise amplitude.
+            targets:
+              - df-coefficients-operation
+            linger: 0.35
+      - say: At the halfway setting, both amplitudes are about seven tenths. Our clean pixel is one; its
+          sampled noise is negative. Their contributions partially cancel on the number line.
+        hold: 0.7
+        visual_cues:
+          - id: coefficients-halfway
+            phrase: At the halfway setting, both amplitudes are about seven tenths
+            targets:
+              - coefficients-amplitudes
+            color: cyan
+            linger: 0.65
+          - id: coefficients-cancellation
+            phrase: Their contributions partially cancel on the number line
+            targets:
+              - coefficients-number-line
+            color: yellow
+            linger: 0.65
+          - id: df-coefficients-1
+            phrase: At the halfway setting, both amplitudes are about seven tenths. Our clean pixel is one; its
+              sampled noise is negative. Their contributions partially cancel on the number line.
+            targets:
+              - df-coefficients-operation
+            linger: 0.35
+      - say: The squared coefficients add to one. Their ratio describes the schedule's signal-to-noise ratio
+          under unit-variance assumptions. Lower signal-to-noise means that many different clean
+          images could plausibly explain the observed noisy input.
+        hold: 0.6
+        visual_cues:
+          - id: coefficients-unit-variance
+            phrase: The squared coefficients add to one
+            targets:
+              - coefficients-math-a-2-b-2-1
+            color: cyan
+            linger: 0.65
+          - id: coefficients-snr
+            phrase: Their ratio describes the schedule's signal-to-noise ratio under unit-variance assumptions
+            targets:
+              - coefficients-snr
+            color: yellow
+            linger: 0.65
+          - id: df-coefficients-2
+            phrase: The squared coefficients add to one. Their ratio describes the schedule's signal-to-noise
+              ratio under unit-variance assumptions. Lower signal-to-noise means that many different
+              clean images could plausibly explain the observed noisy input.
+            targets:
+              - df-coefficients-operation
+            linger: 0.35
+  - id: forward-schedule
+    title: The product of retained fractions sets the noise level
+    visual: Three beta cells .02/.03/.04 become alpha .98/.97/.96, multiply into .912576, and visibly
+      retain the table. A separate original1000-step linear schedule ends near4.04e−5. The same
+      x0=1/noise−.4 moves through .9/.5/.001 to .822/.424/−.368 with exact square-root amplitudes
+      and SNR.
+    beats:
+      - say: At one discrete step, beta is the added noise variance and alpha is one minus beta. Alpha bar
+          is the product of all retained alpha factors through that step. The closed-form marginal
+          uses square root alpha bar times the clean value, plus square root one minus alpha bar
+          times a unit Gaussian draw. That gives direct training samples at any chosen level without
+          simulating every earlier corruption.
+        hold: 0.7
+        visual_cues:
+          - id: df-forward-schedule-0
+            phrase: At one discrete step, beta is the added noise variance and alpha is one minus beta. Alpha
+              bar is the product of all retained alpha factors through that step. The closed-form
+              marginal uses square root alpha bar times the clean value, plus square root one minus
+              alpha bar times a unit Gaussian draw. That gives direct training samples at any chosen
+              level without simulating every earlier corruption.
+            targets:
+              - df-forward-schedule-operation
+            linger: 0.35
+      - say: The article’s three supplied betas, point zero two, point zero three and point zero four, leave
+          alpha bar point nine one two five seven six. They barely corrupt the signal compared with
+          the original thousand-step linear schedule, whose final retained fraction is about four
+          times ten to the negative five. Starting the short worksheet from an arbitrary scalar
+          tests arithmetic, not image generation from a well-matched Gaussian prior.
+        hold: 0.7
+        visual_cues:
+          - id: df-forward-schedule-1
+            phrase: The article’s three supplied betas, point zero two, point zero three and point zero four,
+              leave alpha bar point nine one two five seven six. They barely corrupt the signal
+              compared with the original thousand-step linear schedule, whose final retained
+              fraction is about four times ten to the negative five. Starting the short worksheet
+              from an arbitrary scalar tests arithmetic, not image generation from a well-matched
+              Gaussian prior.
+            targets:
+              - df-forward-schedule-operation
+            linger: 0.35
+          - id: df-schedule-product
+            phrase: leave alpha bar point nine one two five seven six
+            targets:
+              - df-forward-schedule-result
+            linger: 0.35
+      - say: For our clean value one and fixed noise negative point four, retained fractions point nine,
+          point five and point zero zero one give about point eight two two, point four two four and
+          negative point three six eight. Signal-to-noise ratio is alpha bar divided by one minus
+          alpha bar under the stated unit-variance convention. Schedule and loss weighting decide
+          which levels receive learning effort; a high-noise row is not automatically harder on
+          every individual example.
+        hold: 0.7
+        visual_cues:
+          - id: df-forward-schedule-2
+            phrase: For our clean value one and fixed noise negative point four, retained fractions point nine,
+              point five and point zero zero one give about point eight two two, point four two four
+              and negative point three six eight. Signal-to-noise ratio is alpha bar divided by one
+              minus alpha bar under the stated unit-variance convention. Schedule and loss weighting
+              decide which levels receive learning effort; a high-noise row is not automatically
+              harder on every individual example.
+            targets:
+              - df-forward-schedule-operation
+            linger: 0.35
+          - id: df-schedule-values
+            phrase: give about point eight two two, point four two four and negative point three six eight
+            targets:
+              - df-forward-schedule-result
+            linger: 0.35
+  - id: training
+    title: Training knows the noise it added
+    visual: Clean image, sampled timestep, and seeded noise construct one noisy input. A compact
+      denoiser receives only noisy input and timestep. Its illustrative prediction and the exact
+      sampled noise travel to a loss panel, where three coordinate residuals shrink with a clearly
+      labeled schematic training update.
+    beats:
+      - say: Choose a clean image, a noise level, and fresh Gaussian noise. Construct the noisy input with
+          our equation. We know the target because we generated that noise ourselves.
+        hold: 0.5
+        visual_cues:
+          - id: training-choose-input
+            phrase: Choose a clean image, a noise level, and fresh Gaussian noise
+            targets:
+              - training-clean
+              - training-noise
+            color: cyan
+            linger: 0.65
+          - id: training-known-noise
+            phrase: We know the target because we generated that noise ourselves
+            targets:
+              - training-noise
+            color: yellow
+            linger: 0.65
+          - id: df-training-0
+            phrase: Choose a clean image, a noise level, and fresh Gaussian noise. Construct the noisy input
+              with our equation. We know the target because we generated that noise ourselves.
+            targets:
+              - df-training-operation
+            linger: 0.35
+      - say: The network receives the noisy input and timestep, then estimates the added noise. Compare its
+          prediction with the target, square the errors, and average them. Gradient descent adjusts
+          the parameters.
+        hold: 0.6
+        visual_cues:
+          - id: training-network-input
+            phrase: The network receives the noisy input and timestep, then estimates the added noise
+            targets:
+              - training-input
+              - training-network
+              - training-timestep
+            color: cyan
+            linger: 0.65
+          - id: training-comparison
+            phrase: Compare its prediction with the target, square the errors, and average them
+            targets:
+              - training-noise-error-center-coordinates-0-1-2-center-8d9cb944-mse-loss-tofixe
+            color: yellow
+            linger: 0.65
+          - id: df-training-1
+            phrase: The network receives the noisy input and timestep, then estimates the added noise. Compare
+              its prediction with the target, square the errors, and average them. Gradient descent
+              adjusts the parameters.
+            targets:
+              - df-training-operation
+            linger: 0.35
+      - say: These invented shrinking errors illustrate the objective. Real training loss can
+          fluctuate between updates. Real training repeats this calculation over many images and
+          noise levels. A single denoiser learns shared patterns that remain useful even when
+          individual images are heavily corrupted.
+        hold: 0.6
+        visual_cues:
+          - id: training-errors
+            phrase: These invented shrinking errors illustrate the objective
+            targets:
+              - training-noise-error-center-coordinates-0-1-2-center-8d9cb944-mse-loss-tofixe
+            color: cyan
+            linger: 0.65
+          - id: training-shared-network
+            phrase: A single denoiser learns shared patterns
+            targets:
+              - training-network
+            color: yellow
+            linger: 0.65
+          - id: df-training-2
+            phrase: These invented shrinking errors illustrate the objective. Real training loss can
+              fluctuate between updates. Real training repeats this calculation over many images and
+              noise levels. A single denoiser learns shared patterns that remain useful even when
+              individual images are heavily corrupted.
+            targets:
+              - df-training-operation
+            linger: 0.35
+  - id: reverse-posterior
+    title: Unknown clean data adds uncertainty to the reverse step
+    visual: Two equally likely clean endpoints−1/+1 retain distinct conditional posterior bells
+      at−.471/+ .471 withvariance1/3. Their mixture is built by adding equal weights; the total
+      variance becomes5/9 while the mean is0. The individual bells persist under the combined
+      density so one Gaussian cannot silently substitute for the mixture.
+    beats:
+      - say: Knowing a noisy observation alone leaves many possible clean causes. DDPM can calculate a
+          Gaussian posterior when both the noisy observation and clean training value are supplied.
+          At generation time the clean value is unknown, so the reverse distribution averages over
+          those possibilities. A learned Gaussian transition approximates that generally more
+          complicated marginal.
+        hold: 0.7
+        visual_cues:
+          - id: df-reverse-posterior-0
+            phrase: Knowing a noisy observation alone leaves many possible clean causes. DDPM can calculate a
+              Gaussian posterior when both the noisy observation and clean training value are
+              supplied. At generation time the clean value is unknown, so the reverse distribution
+              averages over those possibilities. A learned Gaussian transition approximates that
+              generally more complicated marginal.
+            targets:
+              - df-reverse-posterior-operation
+            linger: 0.35
+      - say: Use two equally likely clean values, negative one and positive one. Supply previous alpha bar
+          one half, current beta one half and observed value zero. Current alpha bar is one quarter.
+          The two conditional posterior means are negative and positive square root two divided by
+          three; each conditional variance is one third. Symmetry gives both possibilities equal
+          weight.
+        hold: 0.7
+        visual_cues:
+          - id: df-reverse-posterior-1
+            phrase: Use two equally likely clean values, negative one and positive one. Supply previous alpha
+              bar one half, current beta one half and observed value zero. Current alpha bar is one
+              quarter. The two conditional posterior means are negative and positive square root two
+              divided by three; each conditional variance is one third. Symmetry gives both
+              possibilities equal weight.
+            targets:
+              - df-reverse-posterior-operation
+            linger: 0.35
+          - id: df-posterior-components
+            phrase: each conditional variance is one third
+            targets:
+              - df-reverse-posterior-result
+            linger: 0.35
+      - say: The mixture mean is zero. Total variance is the average within-component variance plus the
+          variance of the component means. Here one third plus two ninths gives five ninths, about
+          point five five six. Choosing either component would erase uncertainty about which clean
+          value occurred. Real image distributions make that averaging difficult; the two-component
+          calculation makes the missing information visible.
+        hold: 0.7
+        visual_cues:
+          - id: df-reverse-posterior-2
+            phrase: The mixture mean is zero. Total variance is the average within-component variance plus the
+              variance of the component means. Here one third plus two ninths gives five ninths,
+              about point five five six. Choosing either component would erase uncertainty about
+              which clean value occurred. Real image distributions make that averaging difficult;
+              the two-component calculation makes the missing information visible.
+            targets:
+              - df-reverse-posterior-operation
+            linger: 0.35
+          - id: df-posterior-total
+            phrase: Here one third plus two ninths gives five ninths, about point five five six
+            targets:
+              - df-reverse-posterior-result
+            linger: 0.35
+  - id: training-targets
+    title: A noise target and a velocity target require different decoders
+    visual: The known injected noise enters a two-row MSE calculation, with individual residual squares
+      then mean .0006/.025. A separate amplitude rotation keeps x0=1,epsilon−.4,alpha-bar.5 fixed,
+      computes v−.990 and converts back to x0=1; interpreting the same v as epsilon visibly
+      produces1.590.
+    beats:
+      - say: Training samples a clean row, a noise level and Gaussian noise, forms the noisy input, and
+          predicts the injected noise. Subtract prediction from target coordinate by coordinate,
+          square each residual and average them for mean squared error. The two fixed article rows
+          have losses about point zero zero zero six and point zero two five. These are supplied
+          predictions, not evidence that a network learned or that one timestep is always harder.
+        hold: 0.7
+        visual_cues:
+          - id: df-training-targets-0
+            phrase: Training samples a clean row, a noise level and Gaussian noise, forms the noisy input, and
+              predicts the injected noise. Subtract prediction from target coordinate by coordinate,
+              square each residual and average them for mean squared error. The two fixed article
+              rows have losses about point zero zero zero six and point zero two five. These are
+              supplied predictions, not evidence that a network learned or that one timestep is
+              always harder.
+            targets:
+              - df-training-targets-operation
+            linger: 0.35
+          - id: df-target-losses
+            phrase: losses about point zero zero zero six and point zero two five
+            targets:
+              - df-training-targets-result
+            linger: 0.35
+      - say: The simple noise objective reweights a variational-bound derivation into supervised regression.
+          Original DDPM training has no discriminator. Other targets include the clean sample and a
+          velocity parameterization. Let a be square root alpha bar and b be square root one minus
+          alpha bar. Define v as a times epsilon minus b times the clean sample. With noisy state x,
+          recover the clean estimate as a times x minus b times v; recover epsilon as b times x plus
+          a times v.
+        hold: 0.7
+        visual_cues:
+          - id: df-training-targets-1
+            phrase: The simple noise objective reweights a variational-bound derivation into supervised
+              regression. Original DDPM training has no discriminator. Other targets include the
+              clean sample and a velocity parameterization. Let a be square root alpha bar and b be
+              square root one minus alpha bar. Define v as a times epsilon minus b times the clean
+              sample. With noisy state x, recover the clean estimate as a times x minus b times v;
+              recover epsilon as b times x plus a times v.
+            targets:
+              - df-training-targets-operation
+            linger: 0.35
+      - say: For the same one-pixel fixture, v is about negative point nine nine zero. Its proper inverse
+          recovers one. Feeding v unchanged into an epsilon scheduler instead yields a clean
+          estimate about one point five nine zero. Conversion rules belong to the model-scheduler
+          contract. This rotational diffusion velocity is different from the straight-pair flow
+          target we will construct later.
+        hold: 0.7
+        visual_cues:
+          - id: df-training-targets-2
+            phrase: For the same one-pixel fixture, v is about negative point nine nine zero. Its proper inverse
+              recovers one. Feeding v unchanged into an epsilon scheduler instead yields a clean
+              estimate about one point five nine zero. Conversion rules belong to the
+              model-scheduler contract. This rotational diffusion velocity is different from the
+              straight-pair flow target we will construct later.
+            targets:
+              - df-training-targets-operation
+            linger: 0.35
+          - id: df-target-v
+            phrase: v is about negative point nine nine zero
+            targets:
+              - df-training-targets-result
+            linger: 0.35
+          - id: df-target-inverse
+            phrase: Its proper inverse recovers one
+            targets:
+              - df-training-targets-result
+            linger: 0.35
+          - id: df-target-wrong
+            phrase: yields a clean estimate about one point five nine zero
+            targets:
+              - df-training-targets-result
+            linger: 0.35
+  - id: reverse
+    title: Sampling turns a prediction into an update
+    visual: A persistent noisy-state tile passes to a denoiser and a separate scheduler, then returns on
+      a routed loop. Timestep decreases as the update repeats. A DDPM mean-plus-variance equation
+      separates the learned prediction from newly sampled noise, with a final-step noise term fading
+      to zero.
+    beats:
+      - say: Generation starts with random noise. The network predicts, and a numerical sampler updates the
+          current state. That state becomes the next input. Repetition produces a sample from the
+          learned image distribution.
+        hold: 0.5
+        visual_cues:
+          - id: reverse-sampler
+            phrase: The network predicts, and a numerical sampler updates the current state
+            targets:
+              - reverse-network
+              - reverse-sampler-center-prediction-state-update-center-reverse-sampler
+            color: cyan
+            linger: 0.65
+          - id: reverse-sample
+            phrase: Repetition produces a sample from the learned image distribution
+            targets:
+              - reverse-reverse-tile
+            color: yellow
+            linger: 0.65
+          - id: df-reverse-0
+            phrase: Generation starts with random noise. The network predicts, and a numerical sampler updates
+              the current state. That state becomes the next input. Repetition produces a sample
+              from the learned image distribution.
+            targets:
+              - df-reverse-operation
+            linger: 0.35
+      - say: A standard stochastic DDPM step combines a learned reverse mean with fresh Gaussian noise on
+          intermediate steps. The sampler chooses the appropriate coefficients and variance. The
+          final step omits that additional random draw.
+        hold: 0.5
+        visual_cues:
+          - id: reverse-ddpm-update
+            phrase: A standard stochastic DDPM step combines a learned reverse mean with fresh Gaussian noise on
+              intermediate steps
+            targets:
+              - reverse-update
+            color: cyan
+            linger: 0.65
+          - id: reverse-final-noise
+            phrase: The final step omits that additional random draw
+            targets:
+              - reverse-noise-state
+              - reverse-update
+            color: yellow
+            linger: 0.65
+          - id: df-reverse-1
+            phrase: A standard stochastic DDPM step combines a learned reverse mean with fresh Gaussian noise on
+              intermediate steps. The sampler chooses the appropriate coefficients and variance. The
+              final step omits that additional random draw.
+            targets:
+              - df-reverse-operation
+            linger: 0.35
+      - say: "The timestep identifies the noise regime. All network layers run during each evaluation.
+          Network depth and sampling time are separate: a complete network prediction supports one
+          update of the evolving state."
+        hold: 0.6
+        visual_cues:
+          - id: reverse-time
+            phrase: The timestep identifies the noise regime
+            targets:
+              - reverse-timestep
+            color: cyan
+            linger: 0.65
+          - id: reverse-layers
+            phrase: All network layers run during each evaluation
+            targets:
+              - reverse-network-layers
+            color: yellow
+            linger: 0.65
+          - id: reverse-depth-time
+            phrase: a complete network prediction supports one update of the evolving state
+            targets:
+              - reverse-network
+              - reverse-sampler-center-prediction-state-update-center-reverse-sampler
+            color: cyan
+            linger: 0.65
+          - id: df-reverse-2
+            phrase: "The timestep identifies the noise regime. All network layers run during each evaluation.
+              Network depth and sampling time are separate: a complete network prediction supports
+              one update of the evolving state."
+            targets:
+              - df-reverse-operation
+            linger: 0.35
+  - id: reverse-trace
+    title: Each completed state becomes the next step input
+    visual: The actual stdlib scalar trace keeps x1.25 and beta3-step worksheet. It constructs
+      predictednoise.603→mean1.193→draw−.256→state1.141, then .534/1.086/.511/1.174, finally
+      .528/1.111/zero/1.111. Saving after firststep retains the consumed RNG state; reseeding
+      visibly repeats the wrong draw and diverges.
+    beats:
+      - say: The actual scalar program uses three betas and the supplied predictor point four five times x
+          plus point zero two times the step index. Start at one point two five. Compute the mean by
+          subtracting beta times predicted epsilon divided by the square root of the quantity one
+          minus alpha bar from x, then dividing by square root alpha. This worksheet adds square
+          root beta times the draw. The first reverse prediction is about point six zero three; the
+          DDPM mean is one point one nine three. A supplied seeded Gaussian draw, negative point two
+          five six, changes the next state to one point one four one. That resulting state is the
+          next predictor’s input.
+        hold: 0.7
+        visual_cues:
+          - id: df-reverse-trace-0
+            phrase: The actual scalar program uses three betas and the supplied predictor point four five times
+              x plus point zero two times the step index. Start at one point two five. Compute the
+              mean by subtracting beta times predicted epsilon divided by the square root of the
+              quantity one minus alpha bar from x, then dividing by square root alpha. This
+              worksheet adds square root beta times the draw. The first reverse prediction is about
+              point six zero three; the DDPM mean is one point one nine three. A supplied seeded
+              Gaussian draw, negative point two five six, changes the next state to one point one
+              four one. That resulting state is the next predictor’s input.
+            targets:
+              - df-reverse-trace-operation
+            linger: 0.35
+          - id: df-trace-first
+            phrase: changes the next state to one point one four one
+            targets:
+              - df-reverse-trace-result
+            linger: 0.35
+      - say: The next row uses predicted noise point five three four, mean one point zero eight six and draw
+          point five one one, giving state one point one seven four. The final row adds no fresh
+          noise and reaches about one point one one one. This program actually executes on CPU; it
+          contains no trained image denoiser. Setting every draw to zero retains the DDPM mean
+          formula and does not turn it into DDIM.
+        hold: 0.7
+        visual_cues:
+          - id: df-reverse-trace-1
+            phrase: The next row uses predicted noise point five three four, mean one point zero eight six and
+              draw point five one one, giving state one point one seven four. The final row adds no
+              fresh noise and reaches about one point one one one. This program actually executes on
+              CPU; it contains no trained image denoiser. Setting every draw to zero retains the
+              DDPM mean formula and does not turn it into DDIM.
+            targets:
+              - df-reverse-trace-operation
+            linger: 0.35
+          - id: df-trace-second
+            phrase: giving state one point one seven four
+            targets:
+              - df-reverse-trace-result
+            linger: 0.35
+          - id: df-trace-final
+            phrase: reaches about one point one one one
+            targets:
+              - df-reverse-trace-result
+            linger: 0.35
+      - say: A checkpoint after the first reverse row must resume with the next Gaussian draw, point five
+          one one. Reseeding while keeping the saved state instead repeats negative point two five
+          six and changes the future. Save the latent, next timestep and consumed generator state,
+          plus any multistep solver history. A seed can restart a full sample; it cannot replace the
+          generator position halfway through that sample.
+        hold: 0.7
+        visual_cues:
+          - id: df-reverse-trace-2
+            phrase: A checkpoint after the first reverse row must resume with the next Gaussian draw, point five
+              one one. Reseeding while keeping the saved state instead repeats negative point two
+              five six and changes the future. Save the latent, next timestep and consumed generator
+              state, plus any multistep solver history. A seed can restart a full sample; it cannot
+              replace the generator position halfway through that sample.
+            targets:
+              - df-reverse-trace-operation
+            linger: 0.35
+          - id: df-trace-resume
+            phrase: the next Gaussian draw, point five one one
+            targets:
+              - df-reverse-trace-result
+            linger: 0.35
+  - id: score
+    title: A map of promising directions
+    visual: Three narrow Gaussian modes are convolved with Gaussian noise. Exact mixture-density
+      contours widen as variance increases. On the same plot, an exact log-density-gradient vector
+      field appears; a selected probe demonstrates the local score direction. During the component
+      explanation, the probe's posterior-weighted local Gaussian score vectors build head to tail
+      into that aggregate score.
+    beats:
+      - say: Replace an image's many coordinates with two. Our clean distribution has three clusters.
+          Gaussian noise broadens them into an overlapping cloud whose density we can calculate
+          exactly.
+        hold: 0.5
+        visual_cues:
+          - id: score-beat-1-focus-1
+            phrase: Our clean distribution has three clusters
+            targets:
+              - score-score-field
+            color: cyan
+            linger: 0.65
+          - id: score-beat-1-focus-2
+            phrase: Gaussian noise broadens them into an overlapping cloud whose density we can calculate
+              exactly
+            targets:
+              - score-score-field
+            color: yellow
+            linger: 0.65
+          - id: df-score-0
+            phrase: Replace an image's many coordinates with two. Our clean distribution has three clusters.
+              Gaussian noise broadens them into an overlapping cloud whose density we can calculate
+              exactly.
+            targets:
+              - df-score-operation
+            linger: 0.35
+      - say: "The arrows show the score: the gradient of log density at this noise level. They point locally
+          toward increasing density, combining contributions from all three clusters according to
+          their plausibility at each location."
+        hold: 0.6
+        visual_cues:
+          - id: score-beat-2-focus-1
+            phrase: "The arrows show the score: the gradient of log density at this noise level"
+            targets:
+              - score-score-field
+            color: cyan
+            linger: 0.65
+          - id: score-beat-2-focus-2
+            phrase: combining contributions from all three clusters according to their plausibility at each
+              location
+            targets:
+              - score-score-field
+              - score-mixture-decomposition
+            color: yellow
+            linger: 0.65
+          - id: df-score-1
+            phrase: "The arrows show the score: the gradient of log density at this noise level. They point
+              locally toward increasing density, combining contributions from all three clusters
+              according to their plausibility at each location."
+            targets:
+              - df-score-operation
+            linger: 0.35
+      - say: This is a toy distribution with an exact score. Image models learn a related field from data.
+          For Gaussian corruption, a noise prediction can be converted into a score estimate using
+          the noise scale, connecting the training target to these directions.
+        hold: 0.6
+        visual_cues:
+          - id: score-conversion
+            phrase: a noise prediction can be converted into a score estimate using the noise scale
+            targets:
+              - score-conversion
+            color: cyan
+            linger: 0.65
+          - id: df-score-2
+            phrase: This is a toy distribution with an exact score. Image models learn a related field from
+              data. For Gaussian corruption, a noise prediction can be converted into a score
+              estimate using the noise scale, connecting the training target to these directions.
+            targets:
+              - df-score-operation
+            linger: 0.35
+  - id: transport
+    title: Watch the distribution take shape
+    visual: Seventy-two seeded particles follow an exact-score probability-flow ODE as added variance
+      decreases. Persistent trails, density contours and arrows share that variance. A separate
+      pixel-mixture analogy carries the opening table and fixed noise draw back toward recognizable
+      structure.
+    beats:
+      - say: We sample starting particles from that same broad noisy mixture. We numerically integrate
+          a deterministic probability-flow equation while reducing the added variance. Here the
+          derivative of position with respect to added variance equals negative one half times the
+          score. A negative variance step therefore moves locally along the score. Every particle
+          follows the same rule, evaluated at its own current position. Watch the cloud separate as
+          the density sharpens.
+        hold: 0.6
+        visual_cues:
+          - id: transport-beat-1-focus-1
+            phrase: We numerically integrate a deterministic probability-flow equation while reducing the added variance
+            targets:
+              - transport-transport-field
+            color: cyan
+            linger: 0.65
+          - id: df-transport-0
+            phrase: We sample starting particles from that same broad noisy mixture. We numerically
+              integrate a deterministic probability-flow equation while reducing the added variance.
+              Here the derivative of position with respect to added variance equals negative one
+              half times the score. A negative variance step therefore moves locally along the
+              score. Every particle follows the same rule, evaluated at its own current position.
+              Watch the cloud separate as the density sharpens.
+            targets:
+              - df-transport-operation
+            linger: 0.35
+      - say: A particle's destination depends on its starting position and the entire changing field. The
+          paths bend as different clusters become more plausible. Together, their paths show
+          probability mass gathering across several plausible clusters.
+        hold: 0.8
+        visual_cues:
+          - id: transport-beat-2-focus-1
+            phrase: A particle's destination depends on its starting position and the entire changing field
+            targets:
+              - transport-transport-field
+            color: cyan
+            linger: 0.65
+          - id: transport-beat-2-focus-2
+            phrase: Together, their paths show probability mass gathering across several plausible clusters
+            targets:
+              - transport-transport-field
+            color: yellow
+            linger: 0.65
+          - id: df-transport-1
+            phrase: A particle's destination depends on its starting position and the entire changing field. The
+              paths bend as different clusters become more plausible. Together, their paths show
+              probability mass gathering across several plausible clusters.
+            targets:
+              - df-transport-operation
+            linger: 0.35
+      - say: This known noisy mixture and analytic field demonstrate a numerical deterministic sampler
+          in two dimensions. The finite solver steps approximate the trajectories. Actual image
+          generation needs a trained model, a compatible solver, and image-quality evaluation.
+        hold: 0.6
+        visual_cues:
+          - id: transport-beat-3-focus-1
+            phrase: This known noisy mixture and analytic field demonstrate a numerical deterministic sampler in two
+              dimensions
+            targets:
+              - transport-transport-field
+            color: cyan
+            linger: 0.65
+          - id: transport-beat-3-focus-2
+            phrase: Actual image generation needs a trained model, a compatible solver, and image-quality
+              evaluation
+            targets:
+              - transport-transport-tile
+            color: yellow
+            linger: 0.65
+          - id: df-transport-2
+            phrase: This known noisy mixture and analytic field demonstrate a numerical deterministic
+              sampler in two dimensions. The finite solver steps approximate the trajectories.
+              Actual image generation needs a trained model, a compatible solver, and image-quality
+              evaluation.
+            targets:
+              - df-transport-operation
+            linger: 0.35
+  - id: samplers
+    title: Different samplers take different paths
+    visual: A two-coordinate schematic separates stochastic DDPM paths from deterministic DDIM paths.
+      Then the exact deterministic DDIM algebra reconstructs x0=1 from xt=0.424 and known
+      epsilon=-0.4 before jumping to alpha-bar=0.9 and xs=0.822. A sparse selected inference
+      schedule shows the jumps between noise levels.
+    beats:
+      - say: The stochastic reverse process and a deterministic sampler use different update rules. DDIM
+          provides a deterministic setting that introduces no fresh noise after initialization.
+          Given a fixed initial state and execution, that setting follows a repeatable trajectory.
+        hold: 0.5
+        visual_cues:
+          - id: samplers-deterministic
+            phrase: DDIM provides a deterministic setting that introduces no fresh noise after initialization
+            targets:
+              - samplers-deterministic-path
+            color: cyan
+            linger: 0.65
+          - id: df-samplers-0
+            phrase: The stochastic reverse process and a deterministic sampler use different update rules. DDIM
+              provides a deterministic setting that introduces no fresh noise after initialization.
+              Given a fixed initial state and execution, that setting follows a repeatable
+              trajectory.
+            targets:
+              - df-samplers-operation
+            linger: 0.35
+      - say: Check the algebra with known noise. Recover a clean estimate, then combine it with the same
+          noise direction at the next selected level. The result matches the forward mixture there.
+        hold: 0.6
+        visual_cues:
+          - id: samplers-beat-2-focus-1
+            phrase: Check the algebra with known noise
+            targets:
+              - samplers-known-noise-algebra-check-center-x-0-x-t-1-t-t-x-t-0-424-x-0-1-x-s-0
+            color: cyan
+            linger: 0.65
+          - id: df-samplers-1
+            phrase: Check the algebra with known noise. Recover a clean estimate, then combine it with the same
+              noise direction at the next selected level. The result matches the forward mixture
+              there.
+            targets:
+              - df-samplers-operation
+            linger: 0.35
+      - say: Selected timesteps can be far apart. That reduces network evaluations, although a coarser
+          numerical path may lose detail. Match the sampler to the model's prediction target and
+          schedule, then compare the resulting images on the same prompts.
+        hold: 0.6
+        visual_cues:
+          - id: samplers-levels
+            phrase: Selected timesteps can be far apart
+            targets:
+              - samplers-selected-levels
+            color: cyan
+            linger: 0.65
+          - id: samplers-evaluations
+            phrase: That reduces network evaluations, although a coarser numerical path may lose detail
+            targets:
+              - samplers-selected-levels
+            color: yellow
+            linger: 0.65
+          - id: df-samplers-2
+            phrase: Selected timesteps can be far apart. That reduces network evaluations, although a coarser
+              numerical path may lose detail. Match the sampler to the model's prediction target and
+              schedule, then compare the resulting images on the same prompts.
+            targets:
+              - df-samplers-operation
+            linger: 0.35
+  - id: ddim-contract
+    title: A sparse reverse jump has its own coefficients
+    visual: The existing .424→x0=1→.822 known-noise construction gains exact operation labels. A
+      selected t→s jump keeps alpha-bars .5/.9, decomposes clean/direction/fresh-noise terms and
+      turns eta0 into zero fresh-noise scale. A separate deterministic DDPM zero-draw path remains
+      visibly different from the DDIM coefficient construction.
+    beats:
+      - say: DDIM builds a non-Markovian forward family with the same per-level marginals and shared
+          training objective. Its sampler can choose a sparse subset of trained noise levels. To
+          recover a clean estimate from an epsilon prediction, subtract square root one minus
+          current alpha bar times predicted epsilon from the current state. Divide that difference
+          by square root current alpha bar. At inference, predicted epsilon replaces the unknown
+          true noise used in our algebra check.
+        hold: 0.7
+        visual_cues:
+          - id: df-ddim-contract-0
+            phrase: DDIM builds a non-Markovian forward family with the same per-level marginals and shared
+              training objective. Its sampler can choose a sparse subset of trained noise levels. To
+              recover a clean estimate from an epsilon prediction, subtract square root one minus
+              current alpha bar times predicted epsilon from the current state. Divide that
+              difference by square root current alpha bar. At inference, predicted epsilon replaces
+              the unknown true noise used in our algebra check.
+            targets:
+              - df-ddim-contract-operation
+            linger: 0.35
+      - say: For a selected reverse jump, combine square root destination alpha bar times the clean
+          estimate, plus square root one minus destination alpha bar minus sigma squared times
+          predicted epsilon, plus sigma times a fresh Gaussian draw. Sigma equals eta times the
+          square root of the ratio of destination remaining variance to current remaining variance,
+          times the square root of the quantity one minus the ratio of current alpha bar to
+          destination alpha bar.
+        hold: 0.7
+        visual_cues:
+          - id: df-ddim-contract-1
+            phrase: For a selected reverse jump, combine square root destination alpha bar times the clean
+              estimate, plus square root one minus destination alpha bar minus sigma squared times
+              predicted epsilon, plus sigma times a fresh Gaussian draw. Sigma equals eta times the
+              square root of the ratio of destination remaining variance to current remaining
+              variance, times the square root of the quantity one minus the ratio of current alpha
+              bar to destination alpha bar.
+            targets:
+              - df-ddim-contract-operation
+            linger: 0.35
+      - say: For a valid reverse schedule, eta from zero to one keeps that direction coefficient real. Zero
+          eta removes newly injected noise while the initial state can still be random. Our
+          known-noise jump returns point eight two two, but a finite-step learned deterministic
+          solver is not guaranteed exactly invertible. Check reconstruction and editing error. Fewer
+          selected steps change compute and numerical error; they do not by themselves certify
+          acceptable images.
+        hold: 0.7
+        visual_cues:
+          - id: df-ddim-contract-2
+            phrase: For a valid reverse schedule, eta from zero to one keeps that direction coefficient real.
+              Zero eta removes newly injected noise while the initial state can still be random. Our
+              known-noise jump returns point eight two two, but a finite-step learned deterministic
+              solver is not guaranteed exactly invertible. Check reconstruction and editing error.
+              Fewer selected steps change compute and numerical error; they do not by themselves
+              certify acceptable images.
+            targets:
+              - df-ddim-contract-operation
+            linger: 0.35
+          - id: df-ddim-known
+            phrase: Our known-noise jump returns point eight two two
+            targets:
+              - df-ddim-contract-result
+            linger: 0.35
+  - id: architectures
+    title: One denoiser uses all of its layers at each selected level
+    visual: The retained noisy state enters U-Net downsample/bottleneck/upsample with same-resolution
+      skip features, and a separate DiT patch grid traverses transformer blocks. MM-DiT keeps
+      distinct text/image projection weights around joint attention;16-channel latent ownership is
+      explicit. Every denoiser evaluation traverses the complete declared backbone.
+    beats:
+      - say: A diffusion U-Net downsamples spatial features, processes a bottleneck, then upsamples while
+          using skip features from matching resolutions. Convolutions and attention combine local
+          detail with wider context. Timestep and text conditions enter that network. Repeated
+          denoising reuses the backbone at different noise levels; fifty sampler steps do not mean
+          fifty different network layers.
+        hold: 0.7
+        visual_cues:
+          - id: df-architectures-0
+            phrase: A diffusion U-Net downsamples spatial features, processes a bottleneck, then upsamples while
+              using skip features from matching resolutions. Convolutions and attention combine
+              local detail with wider context. Timestep and text conditions enter that network.
+              Repeated denoising reuses the backbone at different noise levels; fifty sampler steps
+              do not mean fifty different network layers.
+            targets:
+              - df-architectures-operation
+            linger: 0.35
+      - say: A diffusion transformer instead patchifies the noisy image or latent into tokens, applies
+          transformer blocks and projects predictions back to the state layout. Peebles and Xie’s
+          original DiT results concern class-conditioned ImageNet generation. They do not measure
+          this product’s prompt adherence, safety or service latency. Smaller patches increase token
+          count and can increase attention and projection work.
+        hold: 0.7
+        visual_cues:
+          - id: df-architectures-1
+            phrase: A diffusion transformer instead patchifies the noisy image or latent into tokens, applies
+              transformer blocks and projects predictions back to the state layout. Peebles and
+              Xie’s original DiT results concern class-conditioned ImageNet generation. They do not
+              measure this product’s prompt adherence, safety or service latency. Smaller patches
+              increase token count and can increase attention and projection work.
+            targets:
+              - df-architectures-operation
+            linger: 0.35
+      - say: Stable Diffusion Three’s paper combines rectified-flow training with a multimodal diffusion
+          transformer. Text and image have distinct weights while participating in joint attention,
+          allowing information to flow between modalities. Its selected autoencoder uses sixteen
+          latent channels. These are architecture and training choices; a DiT label alone does not
+          make a route faster than a U-Net. Measure the complete matched workload.
+        hold: 0.7
+        visual_cues:
+          - id: df-architectures-2
+            phrase: Stable Diffusion Three’s paper combines rectified-flow training with a multimodal diffusion
+              transformer. Text and image have distinct weights while participating in joint
+              attention, allowing information to flow between modalities. Its selected autoencoder
+              uses sixteen latent channels. These are architecture and training choices; a DiT label
+              alone does not make a route faster than a U-Net. Measure the complete matched
+              workload.
+            targets:
+              - df-architectures-operation
+            linger: 0.35
+  - id: time-conditioning
+    title: The noise-level input changes the computation inside a block
+    visual: A fixed feature row [.2,−.1,.5] receives high-noise scale.5/shift−.05 to produce
+      [.25,−.2,.7], then low-noise scale.05/shift.02 gives [.23,−.085,.545]. The feature identities
+      stay fixed while the explicit modulation factors change; this is an authored block worksheet,
+      not learned magnitudes.
+    beats:
+      - say: Timestep conditioning tells shared weights which corruption task they are solving. A timestep
+          embedding can add a bias or modulate normalized block features with scale and shift.
+          Transformer denoisers may use adaptive normalization and residual gates. The network must
+          interpret the same observed coordinate differently at different noise levels.
+        hold: 0.7
+        visual_cues:
+          - id: df-time-conditioning-0
+            phrase: Timestep conditioning tells shared weights which corruption task they are solving. A
+              timestep embedding can add a bias or modulate normalized block features with scale and
+              shift. Transformer denoisers may use adaptive normalization and residual gates. The
+              network must interpret the same observed coordinate differently at different noise
+              levels.
+            targets:
+              - df-time-conditioning-operation
+            linger: 0.35
+      - say: "Use the supplied modulation rule: multiply each feature by one plus scale, then add shift.
+          Features point two, negative point one and point five with scale point five and shift
+          negative point zero five become point two five, negative point two and point seven. A
+          separate scale point zero five and shift point zero two give point two three, negative
+          point zero eight five and point five four five. These invented controls show the
+          operation; higher noise does not require a larger learned scale in every trained block."
+        hold: 0.7
+        visual_cues:
+          - id: df-time-conditioning-1
+            phrase: "Use the supplied modulation rule: multiply each feature by one plus scale, then add shift.
+              Features point two, negative point one and point five with scale point five and shift
+              negative point zero five become point two five, negative point two and point seven. A
+              separate scale point zero five and shift point zero two give point two three, negative
+              point zero eight five and point five four five. These invented controls show the
+              operation; higher noise does not require a larger learned scale in every trained
+              block."
+            targets:
+              - df-time-conditioning-operation
+            linger: 0.35
+          - id: df-mod-first
+            phrase: become point two five, negative point two and point seven
+            targets:
+              - df-time-conditioning-result
+            linger: 0.35
+          - id: df-mod-second
+            phrase: give point two three, negative point zero eight five and point five four five
+            targets:
+              - df-time-conditioning-result
+            linger: 0.35
+  - id: flow-paths
+    title: A straight training pair differs from the learned sampling field
+    visual: One data endpoint1 and noise endpoint−1 form x(tau)=(1−tau)xdata+tau xnoise. A negative time
+      step−.25 with target−2 moves current noise−1 to−.5. Several pair paths cross and their
+      conditional-mean field is drawn separately, preventing a global straight-path promise.
+    beats:
+      - say: Flow matching trains a vector field along a specified probability path. In our convention, tau
+          zero is clean data and tau one is noise. A supplied straight pair follows the quantity one
+          minus tau, multiplied by the data endpoint, plus tau times the noise endpoint. Its
+          training target is noise endpoint minus data endpoint. This is a different target and path
+          from the rotational diffusion v parameterization.
+        hold: 0.7
+        visual_cues:
+          - id: df-flow-paths-0
+            phrase: Flow matching trains a vector field along a specified probability path. In our convention,
+              tau zero is clean data and tau one is noise. A supplied straight pair follows the
+              quantity one minus tau, multiplied by the data endpoint, plus tau times the noise
+              endpoint. Its training target is noise endpoint minus data endpoint. This is a
+              different target and path from the rotational diffusion v parameterization.
+            targets:
+              - df-flow-paths-operation
+            linger: 0.35
+      - say: For data one and noise negative one, that pair velocity is negative two. Sampling toward data
+          decreases tau. An Euler step of negative one quarter multiplies the velocity by negative
+          one quarter and adds positive one half to the current value negative one, reaching
+          negative one half. The sign follows the declared time direction.
+        hold: 0.7
+        visual_cues:
+          - id: df-flow-paths-1
+            phrase: For data one and noise negative one, that pair velocity is negative two. Sampling toward
+              data decreases tau. An Euler step of negative one quarter multiplies the velocity by
+              negative one quarter and adds positive one half to the current value negative one,
+              reaching negative one half. The sign follows the declared time direction.
+            targets:
+              - df-flow-paths-operation
+            linger: 0.35
+          - id: df-flow-velocity
+            phrase: that pair velocity is negative two
+            targets:
+              - df-flow-paths-result
+            linger: 0.35
+          - id: df-flow-step
+            phrase: reaching negative one half
+            targets:
+              - df-flow-paths-result
+            linger: 0.35
+      - say: A trained field estimates a conditional average across pairs that can meet near the same point.
+          Its generated trajectories need not be straight even when individual training pairs are.
+          Rectified-flow methods aim to straighten transport and improve integration. Changing an
+          image scheduler without a compatible trained target does not create that model. Match
+          model prediction type, time convention and numerical solver.
+        hold: 0.7
+        visual_cues:
+          - id: df-flow-paths-2
+            phrase: A trained field estimates a conditional average across pairs that can meet near the same
+              point. Its generated trajectories need not be straight even when individual training
+              pairs are. Rectified-flow methods aim to straighten transport and improve integration.
+              Changing an image scheduler without a compatible trained target does not create that
+              model. Match model prediction type, time convention and numerical solver.
+            targets:
+              - df-flow-paths-operation
+            linger: 0.35
+  - id: conditioning
+    title: A prompt enters every prediction
+    visual: Prompt words become distinct embedding tiles and flow through cross-attention into a
+      denoiser containing spatial feature tiles. A moving spatial query changes attention weights
+      over wooden/table/soft/light. Timestep remains a separate visible input; embeddings are
+      clearly labeled schematic.
+    beats:
+      - say: A prompt supplies a second source of information. A text encoder turns its words into vectors.
+          In a cross-attention denoiser, image features form queries that retrieve useful
+          information from those text representations.
+        hold: 0.5
+        visual_cues:
+          - id: conditioning-beat-1-focus-1
+            phrase: image features form queries that retrieve useful information from those text representations
+            targets:
+              - conditioning-evolving-spatial-feature-queries-center-34506e-spatial-queries
+            color: cyan
+            linger: 0.65
+          - id: conditioning-beat-1-focus-2
+            phrase: A prompt supplies a second source of information
+            targets:
+              - conditioning-center-prompt-i
+            color: yellow
+            linger: 0.65
+          - id: df-conditioning-0
+            phrase: A prompt supplies a second source of information. A text encoder turns its words into
+              vectors. In a cross-attention denoiser, image features form queries that retrieve
+              useful information from those text representations.
+            targets:
+              - df-conditioning-operation
+            linger: 0.35
+      - say: Different spatial features can draw on different parts of the prompt. The model learns how
+          concepts such as material, object, and lighting influence its denoising prediction. The
+          weights here illustrate that mechanism; they are schematic attention values.
+        hold: 0.5
+        visual_cues:
+          - id: conditioning-weights
+            phrase: Different spatial features can draw on different parts of the prompt
+            targets:
+              - conditioning-evolving-spatial-feature-queries-center-34506e-spatial-queries
+              - conditioning-attention
+            color: cyan
+            linger: 0.65
+          - id: df-conditioning-1
+            phrase: Different spatial features can draw on different parts of the prompt. The model learns how
+              concepts such as material, object, and lighting influence its denoising prediction.
+              The weights here illustrate that mechanism; they are schematic attention values.
+            targets:
+              - df-conditioning-operation
+            linger: 0.35
+      - say: The prompt conditions repeated predictions. Its embeddings stay fixed while spatial queries
+          evolve. Together with the timestep, they guide corrections that fit the current state and
+          requested scene.
+        hold: 0.6
+        visual_cues:
+          - id: conditioning-beat-3-focus-1
+            phrase: Its embeddings stay fixed while spatial queries evolve
+            targets:
+              - conditioning-evolving-spatial-feature-queries-center-34506e-spatial-queries
+            color: cyan
+            linger: 0.65
+          - id: conditioning-beat-3-focus-2
+            phrase: The prompt conditions repeated predictions
+            targets:
+              - conditioning-center-prompt-i
+            color: yellow
+            linger: 0.65
+          - id: df-conditioning-2
+            phrase: The prompt conditions repeated predictions. Its embeddings stay fixed while spatial queries
+              evolve. Together with the timestep, they guide corrections that fit the current state
+              and requested scene.
+            targets:
+              - df-conditioning-operation
+            linger: 0.35
+  - id: cross-read
+    title: Projected values mix after the query scores the keys
+    visual: The article’s supplied q [.25,.10,.70] scores oak/dining/table keys with sqrt3 scale,
+      softmax yields .359/.292/.349, and separate values sum to [.589,.311]. The same value arrows
+      keep their word identities while the current spatial query changes; schematic omitted
+      heads/residuals remain explicit.
+    beats:
+      - say: Text cross-attention gives the current spatial feature a projected query. Projected text
+          features supply keys and values. Compute each query-key dot product, divide by square root
+          key width, exponentiate centered scores, and divide each mass by their sum. Multiply each
+          value vector by its normalized share, then add those scaled values coordinate by
+          coordinate.
+        hold: 0.7
+        visual_cues:
+          - id: df-cross-read-0
+            phrase: Text cross-attention gives the current spatial feature a projected query. Projected text
+              features supply keys and values. Compute each query-key dot product, divide by square
+              root key width, exponentiate centered scores, and divide each mass by their sum.
+              Multiply each value vector by its normalized share, then add those scaled values
+              coordinate by coordinate.
+            targets:
+              - df-cross-read-operation
+            linger: 0.35
+      - say: The article’s supplied three-dimensional query reads the words oak, dining and table. Its
+          normalized shares are about point three five nine, point two nine two and point three four
+          nine. The weighted two-coordinate value result is about point five eight nine, point three
+          one one. The program actually calculates this small head; it does not load a text encoder
+          or image model.
+        hold: 0.7
+        visual_cues:
+          - id: df-cross-read-1
+            phrase: The article’s supplied three-dimensional query reads the words oak, dining and table. Its
+              normalized shares are about point three five nine, point two nine two and point three
+              four nine. The weighted two-coordinate value result is about point five eight nine,
+              point three one one. The program actually calculates this small head; it does not load
+              a text encoder or image model.
+            targets:
+              - df-cross-read-operation
+            linger: 0.35
+          - id: df-cross-shares
+            phrase: Its normalized shares are about point three five nine, point two nine two and point three
+              four nine
+            targets:
+              - df-cross-shares
+            linger: 0.35
+          - id: df-cross-output
+            phrase: The weighted two-coordinate value result is about point five eight nine, point three one one
+            targets:
+              - df-cross-output
+            linger: 0.35
+      - say: Later spatial features can change their query and therefore the shares while the same prompt
+          keys and values remain fixed. This mixture conditions a feature, not a direct selection of
+          one word or a measured pixel explanation. A full block also has learned projections,
+          multiple heads, residual paths and normalization. Preserve that scope when using the small
+          head to reason about the mechanism.
+        hold: 0.7
+        visual_cues:
+          - id: df-cross-read-2
+            phrase: Later spatial features can change their query and therefore the shares while the same prompt
+              keys and values remain fixed. This mixture conditions a feature, not a direct
+              selection of one word or a measured pixel explanation. A full block also has learned
+              projections, multiple heads, residual paths and normalization. Preserve that scope
+              when using the small head to reason about the mechanism.
+            targets:
+              - df-cross-read-operation
+            linger: 0.35
+  - id: guidance
+    title: Guidance extrapolates between predictions
+    visual: An unconditional noise vector and a conditional vector share one coordinate plot. Their
+      difference is copied head-to-tail and scaled continuously; the guided endpoint is calculated
+      as uncond+w(cond-uncond). The display settles at w=1 then w=3. Evaluation dimensions appear
+      separately from this vector geometry.
+    beats:
+      - say: "Classifier-free guidance compares two predictions: one with the prompt, and one with an empty
+          condition. During training, dropping the condition on some examples teaches the same
+          denoiser to handle both cases."
+        hold: 0.5
+        visual_cues:
+          - id: guidance-beat-1-focus-1
+            phrase: dropping the condition on some examples teaches the same denoiser to handle both cases
+            targets:
+              - guidance-unconditional-vector
+              - guidance-conditional-vector
+            color: cyan
+            linger: 0.65
+          - id: df-guidance-0
+            phrase: "Classifier-free guidance compares two predictions: one with the prompt, and one with an
+              empty condition. During training, dropping the condition on some examples teaches the
+              same denoiser to handle both cases."
+            targets:
+              - df-guidance-operation
+            linger: 0.35
+      - say: Subtract the unconditional prediction from the conditional prediction. That difference supplies
+          a direction in noise-prediction space. Add a scaled copy back to the unconditional
+          baseline. At scale one, we reach the conditional prediction; larger scales extrapolate
+          beyond it.
+        hold: 0.6
+        visual_cues:
+          - id: guidance-difference
+            phrase: That difference supplies a direction in noise-prediction space
+            targets:
+              - guidance-difference
+            color: yellow
+            linger: 0.65
+          - id: guidance-add-scaled
+            phrase: Add a scaled copy back to the unconditional baseline
+            targets:
+              - guidance-guided-vector
+            color: cyan
+            linger: 0.65
+          - id: guidance-unit-scale
+            phrase: At scale one, we reach the conditional prediction
+            targets:
+              - guidance-conditional-vector
+              - guidance-guided-vector
+            color: yellow
+            linger: 0.65
+          - id: guidance-extrapolate
+            phrase: larger scales extrapolate beyond it
+            targets:
+              - guidance-guided-vector
+            color: cyan
+            linger: 0.65
+          - id: df-guidance-1
+            phrase: Subtract the unconditional prediction from the conditional prediction. That difference
+              supplies a direction in noise-prediction space. Add a scaled copy back to the
+              unconditional baseline. At scale one, we reach the conditional prediction; larger
+              scales extrapolate beyond it.
+            targets:
+              - df-guidance-operation
+            linger: 0.35
+      - say: Stronger guidance can improve adherence while reducing variety or introducing oversaturated
+          textures. Compare alignment, diversity, and defects across a prompt set. The vector scale
+          describes this calculation; image quality needs separate measurement.
+        hold: 0.6
+        visual_cues:
+          - id: guidance-beat-3-focus-1
+            phrase: Stronger guidance can improve adherence while reducing variety or introducing oversaturated
+              textures
+            targets:
+              - guidance-conditional-vector
+              - guidance-guided-vector
+            color: cyan
+            linger: 0.65
+          - id: df-guidance-2
+            phrase: Stronger guidance can improve adherence while reducing variety or introducing oversaturated
+              textures. Compare alignment, diversity, and defects across a prompt set. The vector
+              scale describes this calculation; image quality needs separate measurement.
+            targets:
+              - df-guidance-operation
+            linger: 0.35
+  - id: cfg-training
+    title: The unconditional branch is learned by dropping conditions
+    visual: The same clean/noisy training rows retain their epsilon targets while a seeded
+      condition-drop mask substitutes the supported null conditioning. The two shared-weight
+      branches then produce article vectors [.2,−.1,.05] and [.05,−.35,.2], with difference and
+      w7.5/w15 extrapolations constructed coordinate by coordinate.
+    beats:
+      - say: Classifier-free guidance learns conditional and unconditional behavior by sometimes dropping
+          the condition during training. The same denoising target remains. The paper evaluates
+          several dropout probabilities; the article’s seeded dropout fixture uses point three five
+          purely to expose which rows lose conditioning. Use the model’s supported null or empty
+          conditioning, which is not necessarily an all-zero embedding.
+        hold: 0.7
+        visual_cues:
+          - id: df-cfg-training-0
+            phrase: Classifier-free guidance learns conditional and unconditional behavior by sometimes dropping
+              the condition during training. The same denoising target remains. The paper evaluates
+              several dropout probabilities; the article’s seeded dropout fixture uses point three
+              five purely to expose which rows lose conditioning. Use the model’s supported null or
+              empty conditioning, which is not necessarily an all-zero embedding.
+            targets:
+              - df-cfg-training-operation
+            linger: 0.35
+      - say: The common guidance formula starts from the unconditional prediction and adds scale times the
+          conditional-minus-unconditional difference. Subtract vectors coordinate by coordinate,
+          multiply the difference by scale, then add the base. Scale one returns the conditional
+          prediction; values above one extrapolate. For the supplied three-coordinate vectors, scale
+          seven point five gives negative point nine two five, negative one point nine seven five
+          and one point one seven five.
+        hold: 0.7
+        visual_cues:
+          - id: df-cfg-training-1
+            phrase: The common guidance formula starts from the unconditional prediction and adds scale times
+              the conditional-minus-unconditional difference. Subtract vectors coordinate by
+              coordinate, multiply the difference by scale, then add the base. Scale one returns the
+              conditional prediction; values above one extrapolate. For the supplied
+              three-coordinate vectors, scale seven point five gives negative point nine two five,
+              negative one point nine seven five and one point one seven five.
+            targets:
+              - df-cfg-training-operation
+            linger: 0.35
+          - id: df-cfg-seven
+            phrase: scale seven point five gives negative point nine two five, negative one point nine seven
+              five and one point one seven five
+            targets:
+              - df-cfg-training-result
+            linger: 0.35
+      - say: Doubling that scale to fifteen gives negative two point zero five, negative three point eight
+          five and two point three. Scale is not a probability and does not ensure better alignment
+          on every prompt. Larger extrapolations can lose diversity or amplify artifacts. Compare
+          alignment, diversity, safety and accepted quality on a fixed prompt suite instead of
+          judging one dramatic sample.
+        hold: 0.7
+        visual_cues:
+          - id: df-cfg-training-2
+            phrase: Doubling that scale to fifteen gives negative two point zero five, negative three point
+              eight five and two point three. Scale is not a probability and does not ensure better
+              alignment on every prompt. Larger extrapolations can lose diversity or amplify
+              artifacts. Compare alignment, diversity, safety and accepted quality on a fixed prompt
+              suite instead of judging one dramatic sample.
+            targets:
+              - df-cfg-training-operation
+            linger: 0.35
+          - id: df-cfg-fifteen
+            phrase: Doubling that scale to fifteen gives negative two point zero five, negative three point
+              eight five and two point three
+            targets:
+              - df-cfg-training-result
+            linger: 0.35
+  - id: cfg-api
+    title: A library switch and the mathematical scale are separate contracts
+    visual: The same mathematical scalar track atw0/1/>1 is kept beside a documented API decision that
+      enables ordinaryCFG only above1. A negative-prompt embedding replaces the base branch with
+      explicit conditional ownership. One batched call contains two prediction rows, so the work
+      ledger remains two.
+    beats:
+      - say: The original guidance paper writes the conditional prediction plus a paper scale times its
+          difference from the unconditional prediction. In our base-plus-scale convention, the
+          common scale equals one plus that paper scale. At paper scale zero, both equations give the conditional prediction. The common scale is one.
+        hold: 0.7
+        visual_cues:
+          - id: df-cfg-api-0
+            phrase: The original guidance paper writes the conditional prediction plus a paper scale times its
+              difference from the unconditional prediction. In our base-plus-scale convention, the
+              common scale equals one plus that paper scale. At paper scale zero, both equations give the conditional prediction. The common scale is one.
+            targets:
+              - df-cfg-api-operation
+            linger: 0.35
+      - say: The Diffusers StableDiffusionPipeline documentation, checked November tenth, twenty
+          twenty-six, enables ordinary classifier-free guidance above scale one. A scale at or below
+          one can disable the extra branch instead of implementing mathematical interpolation down
+          to unconditional output. With a negative prompt, the comparison branch is negatively
+          conditioned rather than unconditional. A single batched call can still calculate two
+          per-image predictions. Read branch semantics and count predictions, not just calls.
+        hold: 0.7
+        visual_cues:
+          - id: df-cfg-api-1
+            phrase: The Diffusers StableDiffusionPipeline documentation, checked November tenth, twenty
+              twenty-six, enables ordinary classifier-free guidance above scale one. A scale at or
+              below one can disable the extra branch instead of implementing mathematical
+              interpolation down to unconditional output. With a negative prompt, the comparison
+              branch is negatively conditioned rather than unconditional. A single batched call can
+              still calculate two per-image predictions. Read branch semantics and count
+              predictions, not just calls.
+            targets:
+              - df-cfg-api-operation
+            linger: 0.35
+  - id: latent
+    title: Move the expensive loop into latent space
+    visual: A schematic encoder compresses the table tile into a compact multichannel tensor. A separate
+      text-to-image inference row begins directly at seeded latent noise, iterates only inside the
+      latent block, and decodes the final latent into a schematic pixel tile. The 512x512x3 versus
+      64x64x4 count is calculated on screen.
+    beats:
+      - say: Repeatedly processing a full-resolution image is expensive. Latent diffusion moves the
+          iterative work into a compressed continuous representation. During training, an image
+          encoder supplies clean latents, and the diffusion model learns to denoise their corrupted
+          versions.
+        hold: 0.5
+        visual_cues:
+          - id: latent-training-encode
+            phrase: an image encoder supplies clean latents
+            targets:
+              - latent-training-encoder
+              - latent-clean
+            color: cyan
+            linger: 0.65
+          - id: latent-training-corruption
+            phrase: the diffusion model learns to denoise their corrupted versions
+            targets:
+              - latent-corrupted
+              - latent-training-denoiser
+            color: yellow
+            linger: 0.65
+          - id: df-latent-0
+            phrase: Repeatedly processing a full-resolution image is expensive. Latent diffusion moves the
+              iterative work into a compressed continuous representation. During training, an image
+              encoder supplies clean latents, and the diffusion model learns to denoise their
+              corrupted versions.
+            targets:
+              - df-latent-operation
+            linger: 0.35
+      - say: Text-to-image generation starts directly from random latent noise. The loop updates that
+          latent, then the decoder receives the final state. The sampler first converts each noise
+          prediction into the appropriate state update.
+        hold: 0.6
+        visual_cues:
+          - id: latent-generation-seed
+            phrase: Text-to-image generation starts directly from random latent noise
+            targets:
+              - latent-generation-state
+            color: cyan
+            linger: 0.65
+          - id: latent-generation-update
+            phrase: The loop updates that latent
+            targets:
+              - latent-generation-loop
+            color: yellow
+            linger: 0.65
+          - id: latent-generation-decode
+            phrase: then the decoder receives the final state
+            targets:
+              - latent-image-decoder-center-final-latent-pixels-center-latent-decoder
+            color: cyan
+            linger: 0.65
+          - id: df-latent-1
+            phrase: Text-to-image generation starts directly from random latent noise. The loop updates that
+              latent, then the decoder receives the final state. The sampler first converts each
+              noise prediction into the appropriate state update.
+            targets:
+              - df-latent-operation
+            linger: 0.35
+      - say: These example shapes contain forty-eight times fewer scalar values in latent space. Speed
+          depends on the network and hardware too. Compression can lose detail, so evaluate
+          autoencoder reconstruction separately when text or edges blur.
+        hold: 0.6
+        visual_cues:
+          - id: latent-compression
+            phrase: These example shapes contain forty-eight times fewer scalar values in latent space
+            targets:
+              - latent-compression-count
+            color: cyan
+            linger: 0.65
+          - id: df-latent-2
+            phrase: These example shapes contain forty-eight times fewer scalar values in latent space. Speed
+              depends on the network and hardware too. Compression can lose detail, so evaluate
+              autoencoder reconstruction separately when text or edges blur.
+            targets:
+              - df-latent-operation
+            linger: 0.35
+  - id: latent-contract
+    title: Compression changes representation and leaves a reconstruction limit
+    visual: The same clean table is encoded into continuous latent coordinates, diffused without code-ID
+      substitution and decoded after required scaling. A separate encode/decode-only text patch
+      already loses a stroke before the denoiser runs. Actual512×512×3 versus64×64×4 scalar counts
+      give48, spatialsites give64, and wall-clock remains unmeasured.
+    beats:
+      - say: Latent diffusion trains the denoiser on compressed continuous encoder output, then decodes the
+          final denoised latent with the matching autoencoder convention and scale. Text-to-image
+          generation starts from a random latent; it does not need to encode a requested clean image
+          first. Predicted epsilon is an update ingredient, not a final latent for the image
+          decoder.
+        hold: 0.7
+        visual_cues:
+          - id: df-latent-contract-0
+            phrase: Latent diffusion trains the denoiser on compressed continuous encoder output, then decodes
+              the final denoised latent with the matching autoencoder convention and scale.
+              Text-to-image generation starts from a random latent; it does not need to encode a
+              requested clean image first. Predicted epsilon is an update ingredient, not a final
+              latent for the image decoder.
+            targets:
+              - df-latent-contract-operation
+            linger: 0.35
+      - say: Original latent diffusion studies both KL and vector-quantized regularization. In its VQ
+          variant, quantization belongs inside the decoder while the diffusion state is continuous
+          pre-quantization encoder output. This differs from diffusing discrete code identifiers.
+          Five hundred twelve by five hundred twelve by three versus sixty-four by sixty-four by
+          four is forty-eight times fewer scalar values, while spatial sites fall by sixty-four.
+          Neither ratio is a measured speedup.
+        hold: 0.7
+        visual_cues:
+          - id: df-latent-contract-1
+            phrase: Original latent diffusion studies both KL and vector-quantized regularization. In its VQ
+              variant, quantization belongs inside the decoder while the diffusion state is
+              continuous pre-quantization encoder output. This differs from diffusing discrete code
+              identifiers. Five hundred twelve by five hundred twelve by three versus sixty-four by
+              sixty-four by four is forty-eight times fewer scalar values, while spatial sites fall
+              by sixty-four. Neither ratio is a measured speedup.
+            targets:
+              - df-latent-contract-operation
+            linger: 0.35
+          - id: df-latent-ratio
+            phrase: is forty-eight times fewer scalar values, while spatial sites fall by sixty-four
+            targets:
+              - df-latent-contract-result
+            linger: 0.35
+      - say: Compression can discard small text or texture. First test reconstruction by encoding and
+          decoding the same real image without any denoising. If its text is already corrupted,
+          adding sampler steps cannot establish that the autoencoder preserved that information.
+          Separate VAE reconstruction, denoiser prediction, solver error and final output checks.
+          Reducing denoiser work can expose decoder and release costs as the next bottleneck.
+        hold: 0.7
+        visual_cues:
+          - id: df-latent-contract-2
+            phrase: Compression can discard small text or texture. First test reconstruction by encoding and
+              decoding the same real image without any denoising. If its text is already corrupted,
+              adding sampler steps cannot establish that the autoencoder preserved that information.
+              Separate VAE reconstruction, denoiser prediction, solver error and final output
+              checks. Reducing denoiser work can expose decoder and release costs as the next
+              bottleneck.
+            targets:
+              - df-latent-contract-operation
+            linger: 0.35
+  - id: text-canvas
+    title: A provisional token can change before a canvas is committed
+    visual: The actual fixed four-slot plan constructs write/<mask>/<mask>/later, then
+      write/unit/<mask>/first, then write/unit/tests/first. Token3 changes identity in the same cell
+      while earlier draft text remains replaceable. A separate discrete mask versus Gaussian
+      word-vector branch makes the state representation explicit.
+    beats:
+      - say: A masked text diffuser corrupts discrete token positions and repeatedly refines a canvas using
+          context from both sides. It still needs multiple passes, a length policy and rules for
+          which positions remain uncertain. Discrete diffusion also includes categorical
+          transitions. Continuous approaches such as Diffusion-LM instead denoise Gaussian vectors
+          into word vectors. Choose corruption and sampling rules for the actual state
+          representation.
+        hold: 0.7
+        visual_cues:
+          - id: df-text-canvas-0
+            phrase: A masked text diffuser corrupts discrete token positions and repeatedly refines a canvas
+              using context from both sides. It still needs multiple passes, a length policy and
+              rules for which positions remain uncertain. Discrete diffusion also includes
+              categorical transitions. Continuous approaches such as Diffusion-LM instead denoise
+              Gaussian vectors into word vectors. Choose corruption and sampling rules for the
+              actual state representation.
+            targets:
+              - df-text-canvas-operation
+            linger: 0.35
+      - say: The executed text worksheet is a fixed plan, not a language model. Its first round fills write
+          and later with two middle masks. Its second fills unit and changes later to first. Its
+          third fills tests, leaving write unit tests first. No confidence selection, renoising or
+          learning is implemented in that fixture. The earlier last token really changes while the
+          canvas is provisional.
+        hold: 0.7
+        visual_cues:
+          - id: df-text-canvas-1
+            phrase: The executed text worksheet is a fixed plan, not a language model. Its first round fills
+              write and later with two middle masks. Its second fills unit and changes later to
+              first. Its third fills tests, leaving write unit tests first. No confidence selection,
+              renoising or learning is implemented in that fixture. The earlier last token really
+              changes while the canvas is provisional.
+            targets:
+              - df-text-canvas-operation
+            linger: 0.35
+          - id: df-text-first
+            phrase: Its first round fills write and later with two middle masks
+            targets:
+              - df-text-canvas-result
+            linger: 0.35
+          - id: df-text-second
+            phrase: Its second fills unit and changes later to first
+            targets:
+              - df-text-canvas-result
+            linger: 0.35
+          - id: df-text-third
+            phrase: Its third fills tests, leaving write unit tests first
+            targets:
+              - df-text-canvas-result
+            linger: 0.35
+      - say: A user interface promising immutable final text must hold the fixture until its final state, or
+          explicitly show drafts with replacement behavior. Confidence and repeated predictions are
+          stopping signals, not factual validation. Measure time to first committed text as well as
+          completion time and aggregate token rate. A fast block cannot promise useful text before
+          its commit policy permits publication.
+        hold: 0.7
+        visual_cues:
+          - id: df-text-canvas-2
+            phrase: A user interface promising immutable final text must hold the fixture until its final state,
+              or explicitly show drafts with replacement behavior. Confidence and repeated
+              predictions are stopping signals, not factual validation. Measure time to first
+              committed text as well as completion time and aggregate token rate. A fast block
+              cannot promise useful text before its commit policy permits publication.
+            targets:
+              - df-text-canvas-operation
+            linger: 0.35
+  - id: gemma-system
+    title: A cached prefix and a bidirectional canvas have different lifetimes
+    visual: A dated unexecuted model contract builds autoregressive encoder prefixKV, one256-token
+      bidirectional canvas, iterative selected/renoised slots, then encoder append before the next
+      block. The entropy and identical-prediction stopping predicates have separate check cells and
+      cannot imply factual correctness or fleet throughput.
+    beats:
+      - say: Google’s experimental DiffusionGemma documentation, checked November tenth, twenty
+          twenty-six, describes a Gemma Four mixture-of-experts derivative. Its card lists
+          twenty-five point two billion total and three point eight billion active parameters, eight
+          of one hundred twenty-eight routed experts and one shared expert. It accepts text, image
+          and video input and produces text. We have not run that model.
+        hold: 0.7
+        visual_cues:
+          - id: df-gemma-system-0
+            phrase: Google’s experimental DiffusionGemma documentation, checked November tenth, twenty
+              twenty-six, describes a Gemma Four mixture-of-experts derivative. Its card lists
+              twenty-five point two billion total and three point eight billion active parameters,
+              eight of one hundred twenty-eight routed experts and one shared expert. It accepts
+              text, image and video input and produces text. We have not run that model.
+            targets:
+              - df-gemma-system-operation
+            linger: 0.35
+      - say: An autoregressive encoder prefills context into a key-value cache. A decoder uses bidirectional
+          attention over a two-hundred-fifty-six-token canvas and reads cached context. Once the
+          canvas finishes, the encoder appends that completed block to context before the next
+          canvas. The documented sampler can take up to forty-eight refinement steps, with reported
+          typical counts twelve to sixteen.
+        hold: 0.7
+        visual_cues:
+          - id: df-gemma-system-1
+            phrase: An autoregressive encoder prefills context into a key-value cache. A decoder uses
+              bidirectional attention over a two-hundred-fifty-six-token canvas and reads cached
+              context. Once the canvas finishes, the encoder appends that completed block to context
+              before the next canvas. The documented sampler can take up to forty-eight refinement
+              steps, with reported typical counts twelve to sixteen.
+            targets:
+              - df-gemma-system-operation
+            linger: 0.35
+      - say: Adaptive stopping requires both average canvas entropy below the configured threshold and
+          identical predictions in two consecutive rounds. A low-entropy selection is retained while
+          unselected positions are renoised. Those internal selections are not an external
+          immutable-text commitment. The documented advantage is strongest at low-to-medium batch
+          sizes on one accelerator; it does not establish higher saturated cloud throughput,
+          correctness or this product’s latency.
+        hold: 0.7
+        visual_cues:
+          - id: df-gemma-system-2
+            phrase: Adaptive stopping requires both average canvas entropy below the configured threshold and
+              identical predictions in two consecutive rounds. A low-entropy selection is retained
+              while unselected positions are renoised. Those internal selections are not an external
+              immutable-text commitment. The documented advantage is strongest at low-to-medium
+              batch sizes on one accelerator; it does not establish higher saturated cloud
+              throughput, correctness or this product’s latency.
+            targets:
+              - df-gemma-system-operation
+            linger: 0.35
+  - id: controls-fast
+    title: Different controls and accelerators change different work
+    visual: One fixed prompt and seed retain distinct LoRA style, ControlNet depth/edge branch and
+      inpainting mask inputs. A teacher two-step state is matched by one student step; separate LCM
+      consistency and ADD discriminator training rows remain distinguished from training-free
+      DPM-Solver. Compatible versions and quality outcomes stay explicit.
+    beats:
+      - say: Use the conditioning mechanism that matches the requested control. An adapter such as LoRA
+          changes selected learned weights for style or specialization. ControlNet adds trainable
+          spatial-control branches while preserving a pretrained backbone; its original architecture
+          uses zero-initialized connectors. An inpainting route uses a supplied mask and preserved
+          context to decide where edits occur. These mechanisms do not guarantee exact pose,
+          readable text or a permitted brand mark.
+        hold: 0.7
+        visual_cues:
+          - id: df-controls-fast-0
+            phrase: Use the conditioning mechanism that matches the requested control. An adapter such as LoRA
+              changes selected learned weights for style or specialization. ControlNet adds
+              trainable spatial-control branches while preserving a pretrained backbone; its
+              original architecture uses zero-initialized connectors. An inpainting route uses a
+              supplied mask and preserved context to decide where edits occur. These mechanisms do
+              not guarantee exact pose, readable text or a permitted brand mark.
+            targets:
+              - df-controls-fast-operation
+            linger: 0.35
+      - say: Faster numerical solvers and trained acceleration have different contracts. DPM-Solver exploits
+          the diffusion differential equation’s structure without retraining the denoiser.
+          Progressive distillation trains one student step to match two deterministic teacher steps,
+          then repeats the halving. Consistency models learn mappings along trajectories; latent
+          consistency models report few-step results for their trained configurations. LCM-LoRA
+          packages a compatible acceleration adaptation, not a promise for every arbitrary
+          checkpoint.
+        hold: 0.7
+        visual_cues:
+          - id: df-controls-fast-1
+            phrase: Faster numerical solvers and trained acceleration have different contracts. DPM-Solver
+              exploits the diffusion differential equation’s structure without retraining the
+              denoiser. Progressive distillation trains one student step to match two deterministic
+              teacher steps, then repeats the halving. Consistency models learn mappings along
+              trajectories; latent consistency models report few-step results for their trained
+              configurations. LCM-LoRA packages a compatible acceleration adaptation, not a promise
+              for every arbitrary checkpoint.
+            targets:
+              - df-controls-fast-operation
+            linger: 0.35
+      - say: Adversarial diffusion distillation combines a diffusion-teacher signal with adversarial
+          training and reports one-to-four-step generation in its experiments. That does not add a
+          discriminator to the original DDPM noise-regression loop. Guidance distillation can also
+          reduce two branches to a trained single prediction. Verify model, adapter, scheduler,
+          prediction type and supported guidance together, then measure quality, controls, total
+          latency and cost on the intended route.
+        hold: 0.7
+        visual_cues:
+          - id: df-controls-fast-2
+            phrase: Adversarial diffusion distillation combines a diffusion-teacher signal with adversarial
+              training and reports one-to-four-step generation in its experiments. That does not add
+              a discriminator to the original DDPM noise-regression loop. Guidance distillation can
+              also reduce two branches to a trained single prediction. Verify model, adapter,
+              scheduler, prediction type and supported guidance together, then measure quality,
+              controls, total latency and cost on the intended route.
+            targets:
+              - df-controls-fast-operation
+            linger: 0.35
+  - id: compute
+    title: Every refinement spends computation
+    visual: Shared-scale execution bars accumulate one prediction per step for a 50-step baseline, two
+      branches for 50-step ordinary CFG, and one prediction per step for a six-step distilled route.
+      A compatible-model label stays attached to the distilled route. End-to-end latency separates
+      queue, denoising, decoding, and release review.
+    beats:
+      - say: The main recurring cost is a network prediction. Ordinary classifier-free guidance needs two
+          predictions per image per step, even when batching computes both inside one call. Count
+          the work before deciding whether a preview can be interactive.
+        hold: 0.5
+        visual_cues:
+          - id: compute-prediction-cost-0
+            phrase: The main recurring cost is a network prediction
+            targets:
+              - compute-route-0
+            color: cyan
+            linger: 0.65
+          - id: compute-cfg-cost
+            phrase: Ordinary classifier-free guidance needs two predictions per image per step
+            targets:
+              - compute-route-1
+            color: yellow
+            linger: 0.65
+          - id: df-compute-0
+            phrase: The main recurring cost is a network prediction. Ordinary classifier-free guidance needs two
+              predictions per image per step, even when batching computes both inside one call.
+              Count the work before deciding whether a preview can be interactive.
+            targets:
+              - df-compute-operation
+            linger: 0.35
+      - say: A sparse sampler reduces the number of selected levels. Distillation trains a model to take
+          larger effective steps, sometimes absorbing guidance into a single prediction. Those
+          routes use specific training and sampling recipes, which need matching controls and
+          quality checks.
+        hold: 0.5
+        visual_cues:
+          - id: compute-distillation
+            phrase: Distillation trains a model to take larger effective steps, sometimes absorbing guidance
+              into a single prediction
+            targets:
+              - compute-route-2
+            color: cyan
+            linger: 0.65
+          - id: df-compute-1
+            phrase: A sparse sampler reduces the number of selected levels. Distillation trains a model to take
+              larger effective steps, sometimes absorbing guidance into a single prediction. Those
+              routes use specific training and sampling recipes, which need matching controls and
+              quality checks.
+            targets:
+              - df-compute-operation
+            linger: 0.35
+      - say: The bars compare prediction counts. The user's waiting time also includes queueing, decoding,
+          and output checks. Measure accepted image quality and end-to-end latency together, so an
+          impressive isolated sampler speedup translates into a useful product.
+        hold: 0.6
+        visual_cues:
+          - id: compute-count-comparison
+            phrase: The bars compare prediction counts
+            targets:
+              - compute-route-0
+              - compute-route-1
+              - compute-route-2
+            color: cyan
+            linger: 0.65
+          - id: compute-end-to-end
+            phrase: The user's waiting time also includes queueing, decoding, and output checks
+            targets:
+              - compute-end-to-end
+            color: yellow
+            linger: 0.65
+          - id: df-compute-2
+            phrase: The bars compare prediction counts. The user's waiting time also includes queueing,
+              decoding, and output checks. Measure accepted image quality and end-to-end latency
+              together, so an impressive isolated sampler speedup translates into a useful product.
+            targets:
+              - df-compute-operation
+            linger: 0.35
+  - id: reproducibility
+    title: Save the recipe and the result
+    visual: Two matching schematic trajectories sit beside a complete recipe record. Resume-state fields
+      specify latent, timestep, random-generator state, and solver history. Output review and
+      provenance appear together as the final release requirement.
+    beats:
+      - say: A seed selects random draws. Also record the model, encoders, sampler, steps, guidance, and
+          execution environment. Hardware or kernel changes can alter the result. Store final bytes
+          when exact identity matters.
+        hold: 0.6
+        visual_cues:
+          - id: reproducibility-beat-1-focus-1
+            phrase: Also record the model, encoders, sampler, steps, guidance, and execution environment
+            targets:
+              - reproducibility-center-recipe-i
+            color: cyan
+            linger: 0.65
+          - id: df-reproducibility-0
+            phrase: A seed selects random draws. Also record the model, encoders, sampler, steps, guidance, and
+              execution environment. Hardware or kernel changes can alter the result. Store final
+              bytes when exact identity matters.
+            targets:
+              - df-reproducibility-operation
+            linger: 0.35
+      - say: A mid-sample restart needs the current latent, timestep, random-generator state, and any solver
+          history. Reusing the original seed while keeping a partially evolved state repeats the
+          wrong random draws. The whole sampling state has to remain consistent.
+        hold: 0.6
+        visual_cues:
+          - id: reproducibility-resume
+            phrase: A mid-sample restart needs the current latent, timestep, random-generator state, and any
+              solver history
+            targets:
+              - reproducibility-resume
+            color: cyan
+            linger: 0.65
+          - id: df-reproducibility-1
+            phrase: A mid-sample restart needs the current latent, timestep, random-generator state, and any
+              solver history. Reusing the original seed while keeping a partially evolved state
+              repeats the wrong random draws. The whole sampling state has to remain consistent.
+            targets:
+              - df-reproducibility-operation
+            linger: 0.35
+      - say: Check outputs for unwanted content, misleading text, and brand or safety problems. Keep a
+          synthetic-content label and provenance tied to the distributed bytes. Choose an
+          appropriate use and review path.
+        hold: 0.6
+        visual_cues:
+          - id: reproducibility-review
+            phrase: Check outputs for unwanted content, misleading text, and brand or safety problems
+            targets:
+              - reproducibility-review
+            color: cyan
+            linger: 0.65
+          - id: df-reproducibility-2
+            phrase: Check outputs for unwanted content, misleading text, and brand or safety problems. Keep a
+              synthetic-content label and provenance tied to the distributed bytes. Choose an
+              appropriate use and review path.
+            targets:
+              - df-reproducibility-operation
+            linger: 0.35
+  - id: publication
+    title: Publish the final checked derivative under the current attempt
+    visual: An authenticated tenant/key/request-hash row owns separate private attempts. The superseded
+      attempt is fenced, final derivativeB stays private until policy/watermark/digestB evidence and
+      manifest commit agree, and an unchecked CDN resizeC removes publication eligibility. The
+      committed immutable bytes remain the retry result.
+    beats:
+      - say: Enforce a unique binding for each authenticated tenant and idempotency key in durable
+          storage. Atomically create or retrieve that binding together with its job identity and
+          normalized request hash, so concurrent requests cannot create separate jobs. Compare the
+          stored request hash before returning the existing job to an identical retry. Reusing the
+          key for another prompt, shape or route conflicts. Worker attempts have expiring leases and
+          increasing attempt numbers. Completion conditionally checks the current attempt, so an
+          expired worker cannot publish after its replacement. Authorize status and asset reads
+          separately.
+        hold: 0.7
+        visual_cues:
+          - id: df-publication-0
+            phrase: Enforce a unique binding for each authenticated tenant and idempotency key in durable
+              storage. Atomically create or retrieve that binding together with its job identity and
+              normalized request hash, so concurrent requests cannot create separate jobs. Compare
+              the stored request hash before returning the existing job to an identical retry.
+              Reusing the key for another prompt, shape or route conflicts. Worker attempts have
+              expiring leases and increasing attempt numbers. Completion conditionally checks the
+              current attempt, so an expired worker cannot publish after its replacement. Authorize
+              status and asset reads separately.
+            targets:
+              - df-publication-operation
+            linger: 0.35
+      - say: Prepare permitted final sizes and encodings privately. Embed the selected route’s supported
+          watermark and check the exact bytes that will be distributed. SynthID is one documented
+          example designed to survive common edits; it is not an infallible provenance proof or
+          automatically available to any self-hosted model. An uncertain or missing detector result
+          leaves origin unresolved. Disable unchecked transformations after verification.
+        hold: 0.7
+        visual_cues:
+          - id: df-publication-1
+            phrase: Prepare permitted final sizes and encodings privately. Embed the selected route’s supported
+              watermark and check the exact bytes that will be distributed. SynthID is one
+              documented example designed to survive common edits; it is not an infallible
+              provenance proof or automatically available to any self-hosted model. An uncertain or
+              missing detector result leaves origin unresolved. Disable unchecked transformations
+              after verification.
+            targets:
+              - df-publication-operation
+            linger: 0.35
+      - say: Bind the final digest to job, versions, seed, sampler, policy and detector evidence. Commit the
+          matching manifest before exposing an immutable object URL, with the current-attempt check
+          in the real publication transaction. Failed-transaction objects stay private. A repeated
+          successful release reuses committed bytes. Storing a visually convincing image is not the
+          same as authorizing its publication.
+        hold: 0.7
+        visual_cues:
+          - id: df-publication-2
+            phrase: Bind the final digest to job, versions, seed, sampler, policy and detector evidence. Commit
+              the matching manifest before exposing an immutable object URL, with the
+              current-attempt check in the real publication transaction. Failed-transaction objects
+              stay private. A repeated successful release reuses committed bytes. Storing a visually
+              convincing image is not the same as authorizing its publication.
+            targets:
+              - df-publication-operation
+            linger: 0.35
+  - id: release-evidence
+    title: A record validator and an operational release test earn different proof
+    visual: The actual strict release predicate traverses integer current-attempt, exact Boolean
+      human/manifest fields and matching nonempty string digests. The float-attempt and string-false
+      cases fail at their actual gate, then a fixed prompt-suite scorecard separates VAE, denoiser,
+      safety, latency and provenance measurements.
+    beats:
+      - say: The executed release function requires a positive integer current attempt and an exactly typed
+          integer record attempt that equals it. A mismatched or float attempt is stale. Policy must
+          pass and human-review must be exactly false; otherwise review is required. Watermark must
+          be detected and manifest-committed exactly true; otherwise hold. The asset digest must be
+          a nonempty string equal to the checked digest before the fixture returns
+          publish-checked-bytes.
+        hold: 0.7
+        visual_cues:
+          - id: df-release-evidence-0
+            phrase: The executed release function requires a positive integer current attempt and an exactly
+              typed integer record attempt that equals it. A mismatched or float attempt is stale.
+              Policy must pass and human-review must be exactly false; otherwise review is required.
+              Watermark must be detected and manifest-committed exactly true; otherwise hold. The
+              asset digest must be a nonempty string equal to the checked digest before the fixture
+              returns publish-checked-bytes.
+            targets:
+              - df-release-evidence-operation
+            linger: 0.35
+      - say: A nonempty string saying false is not an exact true verdict. Numeric equality between float two
+          and integer two does not satisfy the type contract. Equal lists are not digest strings.
+          These real CPU branches validate supplied record representation. They do not implement
+          detectors, trusted attempt lookup, actual digest computation, tenant isolation or an
+          atomic storage transaction. Test those separately against the real backend.
+        hold: 0.7
+        visual_cues:
+          - id: df-release-evidence-1
+            phrase: A nonempty string saying false is not an exact true verdict. Numeric equality between float
+              two and integer two does not satisfy the type contract. Equal lists are not digest
+              strings. These real CPU branches validate supplied record representation. They do not
+              implement detectors, trusted attempt lookup, actual digest computation, tenant
+              isolation or an atomic storage transaction. Test those separately against the real
+              backend.
+            targets:
+              - df-release-evidence-operation
+            linger: 0.35
+      - say: Pin model, VAE, scheduler, seed, prompt, negative prompt, steps and guidance for a matched
+          release comparison. Track alignment, human preference, diversity, text and layout, unsafe
+          outputs, memorization, failure rate, tail latency and cost per accepted asset. Shadow
+          first, canary one percent then ten percent of eligible jobs, and ramp by route only after
+          its gates pass. A reviewer can approve a labeled illustration, but cannot make generated
+          charts into observed incident evidence.
+        hold: 0.7
+        visual_cues:
+          - id: df-release-evidence-2
+            phrase: Pin model, VAE, scheduler, seed, prompt, negative prompt, steps and guidance for a matched
+              release comparison. Track alignment, human preference, diversity, text and layout,
+              unsafe outputs, memorization, failure rate, tail latency and cost per accepted asset.
+              Shadow first, canary one percent then ten percent of eligible jobs, and ramp by route
+              only after its gates pass. A reviewer can approve a labeled illustration, but cannot
+              make generated charts into observed incident evidence.
+            targets:
+              - df-release-evidence-operation
+            linger: 0.35
+  - id: recap
+    title: A picture emerges from a learned field
+    visual: Replay the exact-score particle transport beside the same table image at corruption,
+      training and reconstructed-mixture states. Corrupt, learn and sample retain one recognizable
+      image motif while the three-mode distribution finishes and the narration poses a prediction.
+    beats:
+      - say: Known corruption creates training tasks. A network learns predictions across noise levels. A
+          compatible sampler turns them into updates, optionally steered by a prompt.
+        hold: 0.6
+        visual_cues:
+          - id: recap-beat-1-focus-1
+            phrase: A compatible sampler turns them into updates, optionally steered by a prompt
+            targets:
+              - recap-recap-field
+            color: cyan
+            linger: 0.65
+          - id: df-recap-0
+            phrase: Known corruption creates training tasks. A network learns predictions across noise levels. A
+              compatible sampler turns them into updates, optionally steered by a prompt.
+            targets:
+              - df-recap-operation
+            linger: 0.35
+      - say: The particles showed a changing field reshaping a distribution. Image models operate in a
+          larger space, where learned regularities express the structure of their training data.
+        hold: 0.6
+        visual_cues:
+          - id: recap-beat-2-focus-1
+            phrase: The particles showed a changing field reshaping a distribution
+            targets:
+              - recap-recap-field
+            color: cyan
+            linger: 0.65
+          - id: recap-beat-2-focus-2
+            phrase: where learned regularities express the structure of their training data
+            targets:
+              - recap-recap-tile
+            color: yellow
+            linger: 0.65
+          - id: df-recap-1
+            phrase: The particles showed a changing field reshaping a distribution. Image models operate in a
+              larger space, where learned regularities express the structure of their training data.
+            targets:
+              - df-recap-operation
+            linger: 0.35
+      - say: Now imagine doubling the guidance while halving the sampling steps. Which images become more
+          faithful, which lose variety, and which details disappear? You have the mechanism to form
+          a prediction. A controlled experiment on the same prompts will tell you what actually
+          happens.
+        hold: 1.1
+        visual_cues:
+          - id: recap-beat-3-focus-1
+            phrase: Which images become more faithful, which lose variety, and which details disappear
+            targets:
+              - recap-recap-field
+            color: cyan
+            linger: 0.65
+          - id: df-recap-2
+            phrase: Now imagine doubling the guidance while halving the sampling steps. Which images become more
+              faithful, which lose variety, and which details disappear? You have the mechanism to
+              form a prediction. A controlled experiment on the same prompts will tell you what
+              actually happens.
+            targets:
+              - df-recap-operation
+            linger: 0.35
+  - id: fresh-release
+    title: Predict the work and the publication state of a changed job
+    visual: A separate supplied job has3variants,8steps,ordinaryCFG and currentattempt5. Attempt4
+      returns its checked private bytes and attempt5 returns a resized derivative whose digest
+      differs from the checked source. Prediction holds before work48/stale/hold; current attempt
+      then checks the actual derivative, commits its matching manifest and only then acquires a URL.
+    beats:
+      - say: Use a separate supplied design job with three variants, eight steps and ordinary two-branch
+          guidance. Its current worker attempt is five. Old attempt four returns a checked image.
+          Attempt five returns a resized derivative whose digest differs from its checked source.
+          How much denoiser work is offered, and may either image be published yet? Pause.
+        hold: 1.5
+        visual_cues:
+          - id: df-fresh-release-0
+            phrase: Use a separate supplied design job with three variants, eight steps and ordinary two-branch
+              guidance. Its current worker attempt is five. Old attempt four returns a checked
+              image. Attempt five returns a resized derivative whose digest differs from its checked
+              source. How much denoiser work is offered, and may either image be published yet?
+              Pause.
+            targets:
+              - df-fresh-release-operation
+            linger: 0.35
+      - say: Three times eight times two gives forty-eight per-image predictions. The old attempt is fenced
+          even if its own checks passed. The current resized derivative is also held because the
+          evidence names different bytes. Completing the denoiser cannot repair either release
+          defect. Retain the old object privately and inspect the actual current derivative.
+        hold: 0.7
+        visual_cues:
+          - id: df-fresh-release-1
+            phrase: Three times eight times two gives forty-eight per-image predictions. The old attempt is
+              fenced even if its own checks passed. The current resized derivative is also held
+              because the evidence names different bytes. Completing the denoiser cannot repair
+              either release defect. Retain the old object privately and inspect the actual current
+              derivative.
+            targets:
+              - df-fresh-release-operation
+            linger: 0.35
+          - id: df-fresh-work
+            phrase: Three times eight times two gives forty-eight per-image predictions
+            targets:
+              - df-fresh-work
+            linger: 0.35
+          - id: df-fresh-old
+            phrase: The old attempt is fenced even if its own checks passed
+            targets:
+              - df-fresh-old
+            linger: 0.35
+          - id: df-fresh-current
+            phrase: The current resized derivative is also held because the evidence names different bytes
+            targets:
+              - df-fresh-current
+            linger: 0.35
+      - say: "When authorized checks pass on that exact derivative, commit its matching digest and manifest with the current-attempt condition, then return its immutable URL. Reusing those committed bytes preserves identity on retry. You can now trace corruption, learned prediction, sampler updates and guidance, count the route’s work, recover state and identify the final release boundary. Evaluate the real image model and backend before promoting this constructed plan. Real-time voice next follows a continuous conversation through listening, generation and actual device playback, including the interruption that determines what belongs in shared history."
+        hold: 0.7
+        visual_cues:
+          - id: df-fresh-release-2
+            phrase: When authorized checks pass on that exact derivative, commit its matching digest and
+              manifest with the current-attempt condition, then return its immutable URL. Reusing
+              those committed bytes preserves identity on retry. You can now trace corruption,
+              learned prediction, sampler updates and guidance, count the route’s work, recover
+              state and identify the final release boundary. Evaluate the real image model and
+              backend before promoting this constructed plan.
+            targets:
+              - df-fresh-release-operation
+            linger: 0.35
+          - id: df-fresh-commit
+            phrase: commit its matching digest and manifest with the current-attempt condition, then return its
+              immutable URL
+            targets:
+              - df-fresh-commit
+            linger: 0.35

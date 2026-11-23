@@ -1,0 +1,281 @@
+version: 1
+lesson: capstone-fine-tuned-classifier
+promise: Follow a ticket from its reviewed label through training and threshold selection, then decide whether a fitted classifier catches every required case within the review budget.
+objectives:
+  - id: intro
+    can: Route a guide request and a freeze exception and identify who can approve a restore.
+    scenes:
+      - intro
+  - id: labels
+    can: Compare independent labels ticket by ticket, count agreement and resolve a disagreement under the label guide.
+    scenes:
+      - labels
+  - id: group-time-manifest
+    can: Keep an account’s history on one side of the boundary
+    scenes:
+      - group-time-manifest
+  - id: baseline-contract
+    can: Identify the exact phrase the rule misses and compare it with a fitted baseline on the same four tickets.
+    scenes:
+      - baseline-contract
+  - id: representation
+    can: Follow text into a decision score
+    scenes:
+      - representation
+  - id: stable-positive-score
+    can: Normalize the logits and retain the positive-class index
+    scenes:
+      - stable-positive-score
+  - id: learning
+    can: Let the reviewed label shape the score
+    scenes:
+      - learning
+  - id: embedding-backward
+    can: Divide the pooled gradient across two live tokens and explain the score difference between frozen and trainable embeddings after the same head update.
+    scenes:
+      - embedding-backward
+  - id: tiny-training-run
+    can: Execute the complete small training path
+    scenes:
+      - tiny-training-run
+  - id: pretrained-encoder
+    can: Replace the representation while keeping the task
+    scenes:
+      - pretrained-encoder
+  - id: training-inputs
+    can: Reject data coercion and lost evidence before training
+    scenes:
+      - training-inputs
+  - id: checkpoint-export
+    can: A selected checkpoint still needs a routing policy
+    scenes:
+      - checkpoint-export
+  - id: reload-contract
+    can: Verify the whole export before selecting score column one
+    scenes:
+      - reload-contract
+  - id: threshold
+    can: Predict which queue each ticket enters as a cutoff passes two fixed scores.
+    scenes:
+      - threshold
+  - id: selection-cost
+    can: Select among three cutoffs by counting required misses and extra reviews, and derive a separate cutoff from calibrated probabilities and constant mistake costs.
+    scenes:
+      - selection-cost
+  - id: frozen-gate
+    can: Apply two predeclared bundle cutoffs to six disjoint gate IDs and interpret the limits of a synthetic receipt.
+    scenes:
+      - frozen-gate
+  - id: receipt-schema
+    can: The evaluator owns labels, slices and policy
+    scenes:
+      - receipt-schema
+  - id: arithmetic-provenance
+    can: Consistent fabricated scores can still pass
+    scenes:
+      - arithmetic-provenance
+  - id: actual-model-gate
+    can: Identify the routine tickets that overload the fitted baseline and the required tickets that the tiny encoder misses on the same gate.
+    scenes:
+      - actual-model-gate
+  - id: calibration
+    can: A score transform can change a threshold route
+    scenes:
+      - calibration
+  - id: reliability-buckets
+    can: A bucket rate is an observed fraction with a sample count
+    scenes:
+      - reliability-buckets
+  - id: fallback
+    can: Handle missing and invalid inference explicitly
+    scenes:
+      - fallback
+  - id: invalid-comparison
+    can: Distinguish a valid low score from NaN before applying the cutoff, and count both special tokens when checking the input limit.
+    scenes:
+      - invalid-comparison
+  - id: serving-policy
+    can: Validate the complete policy before a finite-score route
+    scenes:
+      - serving-policy
+  - id: pinned-handoff
+    can: Matching strings are weaker than authenticated provenance
+    scenes:
+      - pinned-handoff
+  - id: shadow-rollback
+    can: Restore the whole behavior and retain missing outcomes
+    scenes:
+      - shadow-rollback
+  - id: synthesis
+    can: Retain the failing tickets with their scoring runs and bind downstream intake to the producer, ticket and bundle.
+    scenes:
+      - synthesis
+  - id: fresh-intake
+    can: Compare a verified proposal with the independent required label and explain why correcting a miss at equality needs a new gate.
+    scenes:
+      - fresh-intake
+sections:
+  - heading: Write the routing contract before training
+    status: taught
+    note: The freeze exception and the guide request use the article’s two routes. The two reviewers’ marks illustrate how to resolve a disagreement under the label guide.
+    scenes:
+      - intro
+      - labels
+      - fresh-intake
+  - heading: Carry the evidence forward
+    status: taught
+    scenes:
+      - synthesis
+      - shadow-rollback
+  - heading: Build a dataset you can defend
+    status: taught
+    scenes:
+      - group-time-manifest
+      - baseline-contract
+  - heading: Keep related tickets together
+    status: taught
+    scenes:
+      - labels
+      - group-time-manifest
+  - heading: Compare a cheap baseline first
+    status: taught
+    scenes:
+      - baseline-contract
+      - actual-model-gate
+  - heading: Turn a score into a route
+    status: taught
+    scenes:
+      - representation
+      - stable-positive-score
+  - heading: Make the training mechanics visible
+    status: taught
+    note: The two-dimensional SGD step isolates the embedding gradient. The separate six-ticket run uses the article’s eight-dimensional masked mean and 80 Adam updates.
+    scenes:
+      - learning
+      - embedding-backward
+      - tiny-training-run
+  - heading: Fine-tune a pretrained encoder
+    status: taught
+    scenes:
+      - pretrained-encoder
+      - training-inputs
+      - checkpoint-export
+      - reload-contract
+  - heading: Select a threshold on a selection set, not the freeze gate
+    status: taught
+    note: The two-ticket exercise uses 0.44 for the angry guide request. The full sweep uses the article’s 0.71. The separate expected-loss example illustrates the article’s formula with mistake costs of two and six.
+    scenes:
+      - threshold
+      - selection-cost
+      - frozen-gate
+  - heading: Freeze the evidence gate
+    status: taught
+    note: The two bundle receipts use the article’s six supplied scores. The fitted-model comparison uses the retained CPU scores for the same six gate texts.
+    scenes:
+      - frozen-gate
+      - receipt-schema
+      - arithmetic-provenance
+      - actual-model-gate
+      - fresh-intake
+  - heading: Audit scores without overclaiming calibration
+    status: taught
+    scenes:
+      - calibration
+      - reliability-buckets
+  - heading: Ship the serving contract
+    status: taught
+    scenes:
+      - fallback
+      - invalid-comparison
+      - serving-policy
+      - reload-contract
+  - heading: Admit only pinned routes
+    status: taught
+    scenes:
+      - pinned-handoff
+      - fresh-intake
+  - heading: Keep the release evidence together
+    status: taught
+    scenes:
+      - shadow-rollback
+      - checkpoint-export
+  - heading: What the agent receives next
+    status: taught
+    note: S501 extends the zero-required-miss rule. The replay changes only the cutoff and preserves the original failed receipt.
+    scenes:
+      - synthesis
+      - fresh-intake
+  - heading: "Practice: break the intake contract"
+    status: article-only
+    reason: exercise
+    note: The learner runs the mutations on the page. The film demonstrates how the evaluator, fallback and producer checks determine the result.
+quiz:
+  - n: 1
+    status: taught
+    scenes:
+      - representation
+      - stable-positive-score
+      - tiny-training-run
+  - n: 2
+    status: taught
+    scenes:
+      - embedding-backward
+  - n: 3
+    status: taught
+    scenes:
+      - group-time-manifest
+  - n: 4
+    status: taught
+    scenes:
+      - receipt-schema
+      - actual-model-gate
+      - synthesis
+  - n: 5
+    status: taught
+    scenes:
+      - threshold
+      - selection-cost
+  - n: 6
+    status: taught
+    scenes:
+      - selection-cost
+  - n: 7
+    status: taught
+    scenes:
+      - calibration
+      - reliability-buckets
+  - n: 8
+    status: taught
+    scenes:
+      - receipt-schema
+      - arithmetic-provenance
+  - n: 9
+    status: taught
+    scenes:
+      - training-inputs
+      - invalid-comparison
+      - serving-policy
+  - n: 10
+    status: taught
+    scenes:
+      - pinned-handoff
+      - fresh-intake
+removed:
+  - point: Inherited learning narration called a direct logit-space update a full head parameter update.
+    reason: Clarified the original miniature and preserved its causal score/loss trace; added exact
+      head/bias/embedding autograd branches and the actual80-step model run.
+reviews:
+  closed_book:
+    script: 4337040764b496bd
+    reviewer: /root/upgrade_shard4
+    evidence: build/video-delivery-20261106/script-reviews/capstone-fine-tuned-classifier.json
+    evidence_sha256: 1394542cc23efca0b10df443778936513f423e72978e70103726e93c85c3eaf6
+    taught: 10
+    partial: 0
+    absent: 0
+  fact_check:
+    script: 4337040764b496bd
+    reviewer: /root/upgrade_shard4
+    evidence: build/video-delivery-20261106/script-reviews/capstone-fine-tuned-classifier.json
+    evidence_sha256: 1394542cc23efca0b10df443778936513f423e72978e70103726e93c85c3eaf6
+    open_findings: 0

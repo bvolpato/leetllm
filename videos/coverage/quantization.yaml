@@ -1,0 +1,267 @@
+version: 1
+lesson: quantization
+promise: Decide whether a four-bit file can serve a workload by tracing its rounding error, counting its loaded bytes and testing the reloaded file on the tasks it must complete.
+objectives:
+  - id: calibration-output
+    can: Compute the two output shortfalls after rounding one weight, choose a shared correction and test both code pairs on inputs that isolate each channel.
+    scenes:
+      - curvature
+      - gptq
+      - held-out
+      - factor-order
+  - id: budget-inventory
+    can: Compute code bytes, scale overhead and a unit-consistent complete weight estimate.
+    scenes:
+      - payload
+      - budget-inventory
+  - id: affine-range
+    can: Encode and decode real values with either unsigned or signed affine zero codes.
+    scenes:
+      - affine-range
+  - id: codec-contract
+    can: Recover the original signed code count and reject an invalid packed reconstruction contract.
+    scenes:
+      - codec-contract
+  - id: group-sum
+    can: Keep each group scale attached to its partial dot product.
+    scenes:
+      - group-sum
+  - id: factor-order
+    can: Choose the inverse of the still-free Hessian block and retain sequential update dependencies.
+    scenes:
+      - factor-order
+  - id: gptq-layout
+    can: Distinguish uncentered activation energy from variance and verify packed-format compatibility.
+    scenes:
+      - gptq-layout
+  - id: awq-search
+    can: Compare complete calibration output errors across scaling candidates and check separate inputs.
+    scenes:
+      - awq-search
+  - id: precision-sweep
+    can: Calculate held-out layer MSE and distinguish simulated grids from real packed kernels.
+    scenes:
+      - precision-sweep
+  - id: kernel-path
+    can: Count compact reads and reconstructed-matrix writes/reads for a declared execution path.
+    scenes:
+      - kernel-path
+  - id: roofline
+    can: Calculate nominal rate ceilings while retaining their simplifying assumptions.
+    scenes:
+      - roofline
+  - id: precision-roles
+    can: Select weight, activation and cache precision as separately supported decisions.
+    scenes:
+      - precision-roles
+  - id: pool-subtraction
+    can: Compute the integer user limit from the leftover pool and unchanged per-user state.
+    scenes:
+      - pool-subtraction
+  - id: container-layout
+    can: Distinguish mapping, resident page reads, device transfers and first-request completion.
+    scenes:
+      - container-layout
+  - id: q4k-unpack
+    can: Count Q4_K metadata bytes and reconstruct a value from its actual coefficient owners.
+    scenes:
+      - q4k-unpack
+  - id: offload-count
+    can: Apply an output-inclusive trailing placement contract and a separate reserve budget.
+    scenes:
+      - offload-count
+  - id: artifact-lineage
+    can: Trace a saved candidate back to retained source revisions and evaluate after reload.
+    scenes:
+      - artifact-lineage
+  - id: paired-evaluation
+    can: Check the returned destination against the request and compare correct routes across every request sent to each file.
+    scenes:
+      - paired-evaluation
+  - id: diagnose
+    can: Choose a controlled next observation for structured-output, decode and prefill symptoms.
+    scenes:
+      - diagnose
+  - id: fresh-quantization
+    can: Compute both allocation totals, test a smaller cache, then decide whether either file meets the original workload and task requirements.
+    scenes:
+      - paired-evaluation
+      - fresh-quantization
+sections:
+  - heading: From floating-point values to four-bit codes
+    status: taught
+    scenes:
+      - intro
+      - grid
+      - affine-range
+  - heading: Round the values, then pack the codes
+    status: taught
+    scenes:
+      - pack
+      - codec-contract
+  - heading: Symmetric and asymmetric grids
+    status: taught
+    scenes:
+      - affine-range
+      - group-sum
+  - heading: "Granularity: per-tensor, per-channel, and per-group"
+    status: taught
+    scenes:
+      - payload
+      - granularity
+      - group-sum
+      - budget-inventory
+  - heading: "Serving realities: memory-bound decode versus compute-bound prefill"
+    status: taught
+    scenes:
+      - benchmark
+      - kernel-path
+      - roofline
+  - heading: What W4A16 can save during decoding
+    status: taught
+    scenes:
+      - kernel-path
+      - roofline
+  - heading: When weight traffic stops being the bottleneck
+    status: taught
+    scenes:
+      - benchmark
+      - precision-roles
+      - pool-subtraction
+  - heading: "GPTQ: second-order error compensation via Hessian curvature"
+    status: taught
+    scenes:
+      - curvature
+      - gptq
+      - factor-order
+  - heading: The layer reconstruction objective
+    status: taught
+    scenes:
+      - output
+      - curvature
+      - gptq
+      - held-out
+  - heading: Cholesky updates and lazy block batching
+    status: taught
+    scenes:
+      - factor-order
+  - heading: The act-order heuristic and calibration drift
+    status: taught
+    scenes:
+      - gptq-layout
+      - held-out
+  - heading: "AWQ: activation-aware protection via channel scaling"
+    status: taught
+    scenes:
+      - awq
+      - awq-search
+  - heading: Salient channels and the equivalent transformation
+    status: taught
+    scenes:
+      - awq
+      - awq-search
+  - heading: Search a small family, then check unseen inputs
+    status: taught
+    scenes:
+      - awq-search
+      - held-out
+  - heading: GGUF container architecture and layer offloading
+    status: taught
+    scenes:
+      - gguf
+      - container-layout
+      - offload-count
+  - heading: The extensible metadata store and memory mapping
+    status: taught
+    scenes:
+      - container-layout
+      - artifact-lineage
+  - heading: Hierarchical k-quant blocks and layer presets
+    status: taught
+    scenes:
+      - gguf
+      - q4k-unpack
+  - heading: Granular CPU-GPU layer offloading
+    status: taught
+    scenes:
+      - offload-count
+  - heading: Evaluating quantized artifacts beyond perplexity
+    status: taught
+    scenes:
+      - precision-sweep
+      - paired-evaluation
+  - heading: The perplexity trap in downstream tasks
+    status: taught
+    scenes:
+      - precision-sweep
+      - paired-evaluation
+  - heading: Controlled paired benchmarking
+    status: taught
+    scenes:
+      - artifact-lineage
+      - paired-evaluation
+  - heading: Diagnostic troubleshooting playbook
+    status: taught
+    scenes:
+      - diagnose
+  - heading: Mastery check
+    status: taught
+    scenes:
+      - fresh-quantization
+quiz:
+  - n: 1
+    status: taught
+    scenes:
+      - affine-range
+  - n: 2
+    status: taught
+    scenes:
+      - group-sum
+  - n: 3
+    status: taught
+    scenes:
+      - factor-order
+  - n: 4
+    status: taught
+    scenes:
+      - awq
+      - awq-search
+  - n: 5
+    status: taught
+    scenes:
+      - q4k-unpack
+  - n: 6
+    status: taught
+    scenes:
+      - offload-count
+  - n: 7
+    status: taught
+    scenes:
+      - kernel-path
+  - n: 8
+    status: taught
+    scenes:
+      - pool-subtraction
+  - n: 9
+    status: taught
+    scenes:
+      - paired-evaluation
+      - fresh-quantization
+  - n: 10
+    status: taught
+    scenes:
+      - budget-inventory
+      - q4k-unpack
+      - fresh-quantization
+removed: []
+framing:
+  - intro
+reviews:
+  closed_book:
+    script: ff3750cd3bc29300
+    taught: 10
+    partial: 0
+    absent: 0
+  fact_check:
+    script: ff3750cd3bc29300
+    open_findings: 0

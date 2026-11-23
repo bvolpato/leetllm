@@ -1,0 +1,258 @@
+version: 1
+lesson: tool-use
+promise: Decide which tool results support an answer, when a write may execute, and how to recover a lost receipt without applying the same intended change twice.
+framing: []
+objectives:
+  - id: subject-intro
+    can: Use the library’s linked catalog count to answer Lena and identify what a reservation would require.
+    scenes:
+      - subject-intro
+  - id: release-observation
+    can: Link the returned canary record to its request and calculate how far its error rate exceeded the budget.
+    scenes:
+      - release-observation
+  - id: request-envelope
+    can: Make the proposal explicit
+    scenes:
+      - request-envelope
+  - id: provider-linkage
+    can: Attach each observation to its real provider call identity
+    scenes:
+      - provider-linkage
+  - id: complete-batch
+    can: Collect and validate the whole batch before dispatch
+    scenes:
+      - complete-batch
+  - id: schema-validation
+    can: Check shape before touching a resource
+    scenes:
+      - schema-validation
+  - id: strict-contract
+    can: Represent optional values without permitting surprise authority
+    scenes:
+      - strict-contract
+  - id: tool-choice
+    can: Let a required call finish as an answer on a later turn
+    scenes:
+      - tool-choice
+  - id: authorization
+    can: Resolve permission in trusted runtime state
+    scenes:
+      - authorization
+  - id: scoped-read
+    can: Deny a cross-project read without returning another project’s row
+    scenes:
+      - scoped-read
+  - id: observation-loop
+    can: Return the result to the request that made it
+    scenes:
+      - observation-loop
+  - id: same-suite-reader
+    can: Compare scores only under their retained evaluation identities
+    scenes:
+      - same-suite-reader
+  - id: write-gate
+    can: A hold needs an authorized intent
+    scenes:
+      - write-gate
+  - id: promotion-policy
+    can: Decide whether the host may replay an approved promotion when the live release gate fails and later passes again.
+    scenes:
+      - promotion-policy
+  - id: retry-identity
+    can: Predict the holds created when a timed-out request reuses its key or receives a fresh one, and reconcile a write when replay is unsafe.
+    scenes:
+      - retry-identity
+  - id: intent-ledger
+    can: Separate a replayed operation from a newly approved intent
+    scenes:
+      - intent-ledger
+  - id: parameter-boundaries
+    can: Keep validated strings in data positions
+    scenes:
+      - parameter-boundaries
+  - id: error-classes
+    can: Choose recovery from the actual failure class
+    scenes:
+      - error-classes
+  - id: repeated-proposal
+    can: A new call ID cannot repair the same rejected action
+    scenes:
+      - repeated-proposal
+  - id: required-fan-in
+    can: Decide whether to select a release when a required read times out, both reads succeed, or one reply is duplicated.
+    scenes:
+      - required-fan-in
+  - id: permission-before-ranking
+    can: Rank the permitted tools along the query direction and identify a required read that the model’s one slot omits.
+    scenes:
+      - permission-before-ranking
+  - id: deferred-definitions
+    can: Distinguish request catalog bytes from model-visible definitions
+    scenes:
+      - deferred-definitions
+  - id: trajectory-contract
+    can: Score linkage, success and rendered text together
+    scenes:
+      - trajectory-contract
+  - id: typed-release-evidence
+    can: Validate receipts before counting their passes and violations
+    scenes:
+      - typed-release-evidence
+  - id: mcp-integration
+    can: Reuse protocol plumbing while retaining each permission boundary
+    scenes:
+      - mcp-integration
+  - id: mcp-exposure
+    can: Review what crosses the remote and local server boundaries
+    scenes:
+      - mcp-exposure
+  - id: transfer
+    can: Keep proposals, execution, and evidence distinct
+    scenes:
+      - transfer
+  - id: fresh-comparison
+    can: Choose the missing evaluation read, report the same-suite score difference, and decide whether the read-only session may promote the winner.
+    scenes:
+      - fresh-comparison
+sections:
+  - heading: A tool call requests an execution
+    status: taught
+    scenes:
+      - subject-intro
+      - release-observation
+      - provider-linkage
+  - heading: Define the smallest useful tool contract
+    status: taught
+    scenes:
+      - schema-validation
+      - strict-contract
+      - tool-choice
+  - heading: Parse and validate with strict Pydantic models
+    status: taught
+    scenes:
+      - strict-contract
+      - complete-batch
+      - provider-linkage
+  - heading: Reject an unfinished call before execution
+    status: taught
+    scenes:
+      - request-envelope
+      - complete-batch
+  - heading: Build the complete tool loop
+    status: taught
+    scenes:
+      - subject-intro
+      - observation-loop
+      - release-observation
+      - same-suite-reader
+      - fresh-comparison
+  - heading: Check authorization after parsing structure
+    status: taught
+    scenes:
+      - authorization
+      - scoped-read
+  - heading: "Security contracts: confused deputy, prompt injections, and write gates"
+    status: taught
+    scenes:
+      - write-gate
+      - promotion-policy
+      - retry-identity
+      - intent-ledger
+      - fresh-comparison
+  - heading: Pass validated values as parameters
+    status: taught
+    scenes:
+      - parameter-boundaries
+  - heading: Return errors as observations, with limits
+    status: taught
+    scenes:
+      - error-classes
+      - repeated-proposal
+      - retry-identity
+  - heading: Parallelize independent reads and serialize dependent writes
+    status: taught
+    scenes:
+      - required-fan-in
+      - transfer
+  - heading: Route tools dynamically at scale
+    status: taught
+    scenes:
+      - permission-before-ranking
+      - deferred-definitions
+  - heading: Evaluate the full trajectory and final text
+    status: taught
+    scenes:
+      - trajectory-contract
+      - typed-release-evidence
+      - fresh-comparison
+  - heading: From local functions to reusable tools
+    status: taught
+    scenes:
+      - mcp-integration
+      - mcp-exposure
+      - fresh-comparison
+quiz:
+  - n: 1
+    status: taught
+    scenes:
+      - complete-batch
+  - n: 2
+    status: taught
+    scenes:
+      - strict-contract
+  - n: 3
+    status: taught
+    scenes:
+      - scoped-read
+      - authorization
+  - n: 4
+    status: taught
+    scenes:
+      - provider-linkage
+      - trajectory-contract
+  - n: 5
+    status: taught
+    note: Alice’s saved op-A receipt stays visible as the current release gate fails and then passes. Only the restored gate lets the retry reach the ledger.
+    scenes:
+      - promotion-policy
+      - intent-ledger
+  - n: 6
+    status: taught
+    scenes:
+      - repeated-proposal
+  - n: 7
+    status: taught
+    note: Two fixed slots identify the required reads. The film joins each result by call ID and compares clean status and error rate against the budget before choosing a candidate.
+    scenes:
+      - required-fan-in
+  - n: 8
+    status: taught
+    scenes:
+      - permission-before-ranking
+      - deferred-definitions
+  - n: 9
+    status: taught
+    scenes:
+      - mcp-integration
+      - mcp-exposure
+  - n: 10
+    status: taught
+    scenes:
+      - typed-release-evidence
+removed: []
+reviews:
+  closed_book:
+    script: 403b5824bcf0d4b8
+    taught: 10
+    partial: 0
+    absent: 0
+    reviewer: /root/upgrade_shard6
+    evidence: build/video-delivery-20261106/script-reviews/tool-use.json
+    evidence_sha256: cd7e67633a0954e70592972e4be96f7e4fc235b9578948a06d4f8a5b844da669
+  fact_check:
+    script: 403b5824bcf0d4b8
+    open_findings: 0
+    reviewer: /root/upgrade_shard6
+    evidence: build/video-delivery-20261106/script-reviews/tool-use.json
+    evidence_sha256: cd7e67633a0954e70592972e4be96f7e4fc235b9578948a06d4f8a5b844da669

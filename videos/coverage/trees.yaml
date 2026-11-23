@@ -1,0 +1,183 @@
+version: 1
+lesson: trees
+promise: Trace a review score through a tree, a forest and a boosting update, then use the costs and queue load on later requests to choose a routing cutoff.
+framing: []
+objectives:
+  - id: intro
+    can: Move a single ambiguity cut to catch R3 and identify the routine requests that enter the queue with it.
+    scenes:
+      - intro
+  - id: geometry-limits
+    can: Predict how axis-aligned cuts and monotonic transforms route new points.
+    scenes:
+      - geometry-limits
+  - id: impurity
+    can: Compute leaf impurity from label proportions.
+    scenes:
+      - impurity
+  - id: criteria-compare
+    can: Compare Gini, entropy and regression variance reductions.
+    scenes:
+      - criteria-compare
+  - id: search
+    can: Select a feature threshold using weighted child impurity.
+    scenes:
+      - search
+  - id: depth
+    can: Diagnose why perfect training fit can fail on new rows.
+    scenes:
+      - depth
+  - id: forest
+    can: Use each tree's bootstrap membership to compute both the full forest score and the out-of-bag score for R3.
+    scenes:
+      - forest
+  - id: boosting
+    can: Average residuals in a leaf, scale its correction and compute the residual that the next tree must fit.
+    scenes:
+      - boosting
+  - id: classification
+    can: Divide a leaf's residual sum by its curvature sum, scale the logit update and locate its probability relative to the review cutoff.
+    scenes:
+      - classification
+  - id: evaluate
+    can: Trace two policies' validation bills back to individual requests, compare queue loads and measure the cost change from permuting one feature.
+    scenes:
+      - evaluate
+  - id: importance-explanation
+    can: Reconstruct a local score while separating attribution from correctness.
+    scenes:
+      - importance-explanation
+  - id: missing-contract
+    can: Specify missing-value semantics and distinguish bias from fitting error.
+    scenes:
+      - missing-contract
+  - id: transfer
+    can: Reprice the same validation errors, choose between two cutoffs and route a fresh request that lands exactly on the frozen feature cut.
+    scenes:
+      - transfer
+sections:
+  - heading: The same eight requests, now as rectangles
+    status: taught
+    scenes:
+      - intro
+      - geometry-limits
+      - depth
+  - heading: Impurity scores how mixed a leaf is
+    status: taught
+    scenes:
+      - impurity
+  - heading: Two criteria can prefer different cuts
+    status: taught
+    scenes:
+      - criteria-compare
+  - heading: A stump tests midpoints
+    status: taught
+    scenes:
+      - search
+  - heading: Fit the stump
+    status: taught
+    scenes:
+      - search
+  - heading: Held-out cost still picks the threshold
+    status: taught
+    scenes:
+      - evaluate
+      - transfer
+  - heading: Extra depth can memorize R3
+    status: taught
+    scenes:
+      - depth
+  - heading: Forests average perturbed trees
+    status: taught
+    scenes:
+      - forest
+  - heading: Boosting fits the leftover error
+    status: taught
+    scenes:
+      - boosting
+  - heading: Classification boosting uses y minus p
+    status: taught
+    scenes:
+      - classification
+  - heading: What bias and variance can tell us
+    status: taught
+    scenes:
+      - missing-contract
+  - heading: MDI can crown a useless ID
+    status: taught
+    scenes:
+      - evaluate
+      - importance-explanation
+  - heading: A local explanation isn't a verdict
+    status: taught
+    scenes:
+      - importance-explanation
+  - heading: Missing values are a library contract
+    status: taught
+    scenes:
+      - missing-contract
+  - heading: Pick a model the same way you picked logistic
+    status: taught
+    scenes:
+      - evaluate
+  - heading: Change the example, then check your reasoning
+    status: taught
+    scenes:
+      - transfer
+    note: The film works the forty-dollar miss-price exercise and asks for a decision at thirty dollars. The changed training label and learning-rate exercises remain on the page.
+quiz:
+  - n: 1
+    status: taught
+    scenes:
+      - impurity
+      - criteria-compare
+      - search
+  - n: 2
+    status: taught
+    scenes:
+      - search
+  - n: 3
+    status: taught
+    scenes:
+      - evaluate
+      - transfer
+  - n: 4
+    status: taught
+    scenes:
+      - depth
+  - n: 5
+    status: taught
+    scenes:
+      - forest
+  - n: 6
+    status: taught
+    scenes:
+      - boosting
+  - n: 7
+    status: taught
+    scenes:
+      - classification
+  - n: 8
+    status: taught
+    scenes:
+      - importance-explanation
+  - n: 9
+    status: taught
+    scenes:
+      - importance-explanation
+  - n: 10
+    status: taught
+    scenes:
+      - missing-contract
+removed:
+  - point: The previous ending previewed reinforcement learning.
+    reason: The new ending follows the chosen policy through a fresh outcome and records its cost.
+reviews:
+  closed_book:
+    taught: 10
+    partial: 0
+    absent: 0
+    script: cbe0e5f49df554e2
+  fact_check:
+    open_findings: 0
+    script: cbe0e5f49df554e2

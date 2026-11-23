@@ -1,0 +1,736 @@
+{
+  "id": "circuit-breaker-state",
+  "slug": "circuit-breaker-state",
+  "title": "Circuit Breaker State",
+  "difficulty": "Medium",
+  "category": "Reliability",
+  "language": "python3",
+  "timeEstimateMinutes": 35,
+  "timeLimitMs": 2500,
+  "memoryLimitMb": 128,
+  "order": 130,
+  "tags": [
+    "state machine",
+    "cooldown",
+    "reliability",
+    "time abstraction"
+  ],
+  "source": "AI lab prep",
+  "summary": "Model closed, open, and half-open breaker transitions with deterministic cooldown behavior.",
+  "starterCode": [
+    "class CircuitBreaker:",
+    "    def __init__(self, failure_threshold: int, cooldown_seconds: float, now):",
+    "        self.failure_threshold = failure_threshold",
+    "        self.cooldown_seconds = cooldown_seconds",
+    "        self.now = now",
+    "",
+    "    def allow(self) -> bool:",
+    "        pass",
+    "",
+    "    def record_success(self) -> None:",
+    "        pass",
+    "",
+    "    def record_failure(self) -> None:",
+    "        pass",
+    "",
+    "    def state(self) -> str:",
+    "        pass"
+  ],
+  "testCases": [
+    {
+      "name": "opens after threshold and half-open success closes",
+      "visibility": "sample",
+      "setup": [
+        "from solution import CircuitBreaker",
+        "clock = {\"t\": 0.0}",
+        "breaker = CircuitBreaker(2, 10, now=lambda: clock[\"t\"])"
+      ],
+      "checks": [
+        {
+          "input": "clock = {\"t\": 0.0}\nbreaker = CircuitBreaker(2, 10, now=lambda: clock[\"t\"])\nbreaker.allow()",
+          "expression": "breaker.allow()",
+          "operator": "==",
+          "expected": "True"
+        },
+        {
+          "input": "clock = {\"t\": 0.0}\nbreaker = CircuitBreaker(2, 10, now=lambda: clock[\"t\"])\nbreaker.allow()\nbreaker.record_failure()\nbreaker.state()",
+          "expression": "breaker.state()",
+          "operator": "==",
+          "expected": "\"closed\"",
+          "before": "breaker.record_failure()"
+        },
+        {
+          "input": "clock = {\"t\": 0.0}\nbreaker = CircuitBreaker(2, 10, now=lambda: clock[\"t\"])\nbreaker.allow()\nbreaker.record_failure()\nbreaker.state()\nbreaker.record_failure()\nbreaker.state()",
+          "expression": "breaker.state()",
+          "operator": "==",
+          "expected": "\"open\"",
+          "before": "breaker.record_failure()"
+        },
+        {
+          "input": "clock = {\"t\": 0.0}\nbreaker = CircuitBreaker(2, 10, now=lambda: clock[\"t\"])\nbreaker.allow()\nbreaker.record_failure()\nbreaker.state()\nbreaker.record_failure()\nbreaker.state()\nnot breaker.allow()",
+          "expression": "not breaker.allow()",
+          "operator": "==",
+          "expected": "True"
+        },
+        {
+          "input": "clock = {\"t\": 0.0}\nbreaker = CircuitBreaker(2, 10, now=lambda: clock[\"t\"])\nbreaker.allow()\nbreaker.record_failure()\nbreaker.state()\nbreaker.record_failure()\nbreaker.state()\nnot breaker.allow()\nclock[\"t\"] = 10.0\nbreaker.allow()",
+          "expression": "breaker.allow()",
+          "operator": "==",
+          "expected": "True",
+          "before": "clock[\"t\"] = 10.0"
+        },
+        {
+          "input": "clock = {\"t\": 0.0}\nbreaker = CircuitBreaker(2, 10, now=lambda: clock[\"t\"])\nbreaker.allow()\nbreaker.record_failure()\nbreaker.state()\nbreaker.record_failure()\nbreaker.state()\nnot breaker.allow()\nclock[\"t\"] = 10.0\nbreaker.allow()\nbreaker.state()",
+          "expression": "breaker.state()",
+          "operator": "==",
+          "expected": "\"half_open\""
+        },
+        {
+          "input": "clock = {\"t\": 0.0}\nbreaker = CircuitBreaker(2, 10, now=lambda: clock[\"t\"])\nbreaker.allow()\nbreaker.record_failure()\nbreaker.state()\nbreaker.record_failure()\nbreaker.state()\nnot breaker.allow()\nclock[\"t\"] = 10.0\nbreaker.allow()\nbreaker.state()\nbreaker.record_success()\nbreaker.state()",
+          "expression": "breaker.state()",
+          "operator": "==",
+          "expected": "\"closed\"",
+          "before": "breaker.record_success()"
+        },
+        {
+          "input": "clock = {\"t\": 0.0}\nbreaker = CircuitBreaker(2, 10, now=lambda: clock[\"t\"])\nbreaker.allow()\nbreaker.record_failure()\nbreaker.state()\nbreaker.record_failure()\nbreaker.state()\nnot breaker.allow()\nclock[\"t\"] = 10.0\nbreaker.allow()\nbreaker.state()\nbreaker.record_success()\nbreaker.state()\nbreaker.allow()",
+          "expression": "breaker.allow()",
+          "operator": "==",
+          "expected": "True"
+        }
+      ]
+    },
+    {
+      "name": "resets consecutive failures and reopens on half-open failure",
+      "visibility": "hidden",
+      "setup": [
+        "from solution import CircuitBreaker",
+        "clock = {\"t\": 5.0}",
+        "breaker = CircuitBreaker(3, 4, now=lambda: clock[\"t\"])",
+        "breaker.record_failure()",
+        "breaker.record_success()",
+        "breaker.record_failure()",
+        "breaker.record_failure()"
+      ],
+      "checks": [
+        {
+          "input": "clock = {\"t\": 5.0}\nbreaker = CircuitBreaker(3, 4, now=lambda: clock[\"t\"])\nbreaker.record_failure()\nbreaker.record_success()\nbreaker.record_failure()\nbreaker.record_failure()\nbreaker.state()",
+          "expression": "breaker.state()",
+          "operator": "==",
+          "expected": "\"closed\""
+        },
+        {
+          "input": "clock = {\"t\": 5.0}\nbreaker = CircuitBreaker(3, 4, now=lambda: clock[\"t\"])\nbreaker.record_failure()\nbreaker.record_success()\nbreaker.record_failure()\nbreaker.record_failure()\nbreaker.state()\nbreaker.record_failure()\nbreaker.state()",
+          "expression": "breaker.state()",
+          "operator": "==",
+          "expected": "\"open\"",
+          "before": "breaker.record_failure()"
+        },
+        {
+          "input": "clock = {\"t\": 5.0}\nbreaker = CircuitBreaker(3, 4, now=lambda: clock[\"t\"])\nbreaker.record_failure()\nbreaker.record_success()\nbreaker.record_failure()\nbreaker.record_failure()\nbreaker.state()\nbreaker.record_failure()\nbreaker.state()\nclock[\"t\"] = 8.9\nnot breaker.allow()",
+          "expression": "not breaker.allow()",
+          "operator": "==",
+          "expected": "True",
+          "before": "clock[\"t\"] = 8.9"
+        },
+        {
+          "input": "clock = {\"t\": 5.0}\nbreaker = CircuitBreaker(3, 4, now=lambda: clock[\"t\"])\nbreaker.record_failure()\nbreaker.record_success()\nbreaker.record_failure()\nbreaker.record_failure()\nbreaker.state()\nbreaker.record_failure()\nbreaker.state()\nclock[\"t\"] = 8.9\nnot breaker.allow()\nclock[\"t\"] = 9.0\nbreaker.allow()",
+          "expression": "breaker.allow()",
+          "operator": "==",
+          "expected": "True",
+          "before": "clock[\"t\"] = 9.0"
+        },
+        {
+          "input": "clock = {\"t\": 5.0}\nbreaker = CircuitBreaker(3, 4, now=lambda: clock[\"t\"])\nbreaker.record_failure()\nbreaker.record_success()\nbreaker.record_failure()\nbreaker.record_failure()\nbreaker.state()\nbreaker.record_failure()\nbreaker.state()\nclock[\"t\"] = 8.9\nnot breaker.allow()\nclock[\"t\"] = 9.0\nbreaker.allow()\nbreaker.record_failure()\nbreaker.state()",
+          "expression": "breaker.state()",
+          "operator": "==",
+          "expected": "\"open\"",
+          "before": "breaker.record_failure()"
+        },
+        {
+          "input": "clock = {\"t\": 5.0}\nbreaker = CircuitBreaker(3, 4, now=lambda: clock[\"t\"])\nbreaker.record_failure()\nbreaker.record_success()\nbreaker.record_failure()\nbreaker.record_failure()\nbreaker.state()\nbreaker.record_failure()\nbreaker.state()\nclock[\"t\"] = 8.9\nnot breaker.allow()\nclock[\"t\"] = 9.0\nbreaker.allow()\nbreaker.record_failure()\nbreaker.state()\nnot breaker.allow()",
+          "expression": "not breaker.allow()",
+          "operator": "==",
+          "expected": "True"
+        }
+      ]
+    },
+    {
+      "name": "stays closed below failure threshold",
+      "visibility": "sample",
+      "setup": [
+        "from solution import CircuitBreaker",
+        "breaker = CircuitBreaker(failure_threshold=2, cooldown_seconds=10, now=lambda: 0.0)",
+        "breaker.record_failure()"
+      ],
+      "checks": [
+        {
+          "input": "breaker = CircuitBreaker(failure_threshold=2, cooldown_seconds=10, now=lambda: 0.0)\nbreaker.record_failure()\nbreaker.state()",
+          "expression": "breaker.state()",
+          "operator": "==",
+          "expected": "\"closed\""
+        },
+        {
+          "input": "breaker = CircuitBreaker(failure_threshold=2, cooldown_seconds=10, now=lambda: 0.0)\nbreaker.record_failure()\nbreaker.state()\nbreaker.allow()",
+          "expression": "breaker.allow()",
+          "operator": "is",
+          "expected": "True"
+        },
+        {
+          "input": "breaker = CircuitBreaker(failure_threshold=2, cooldown_seconds=10, now=lambda: 0.0)\nbreaker.record_failure()\nbreaker.state()\nbreaker.allow()\nbreaker.record_success()\nbreaker.state()",
+          "expression": "breaker.state()",
+          "operator": "==",
+          "expected": "\"closed\"",
+          "before": "breaker.record_success()"
+        }
+      ]
+    },
+    {
+      "name": "opens exactly at threshold",
+      "visibility": "hidden",
+      "setup": [
+        "from solution import CircuitBreaker",
+        "clock = {\"t\": 3.0}",
+        "breaker = CircuitBreaker(failure_threshold=3, cooldown_seconds=5, now=lambda: clock[\"t\"] )",
+        "breaker.record_failure()",
+        "breaker.record_failure()"
+      ],
+      "checks": [
+        {
+          "input": "clock = {\"t\": 3.0}\nbreaker = CircuitBreaker(failure_threshold=3, cooldown_seconds=5, now=lambda: clock[\"t\"] )\nbreaker.record_failure()\nbreaker.record_failure()\nbreaker.state()",
+          "expression": "breaker.state()",
+          "operator": "==",
+          "expected": "\"closed\""
+        },
+        {
+          "input": "clock = {\"t\": 3.0}\nbreaker = CircuitBreaker(failure_threshold=3, cooldown_seconds=5, now=lambda: clock[\"t\"] )\nbreaker.record_failure()\nbreaker.record_failure()\nbreaker.state()\nbreaker.record_failure()\nbreaker.state()",
+          "expression": "breaker.state()",
+          "operator": "==",
+          "expected": "\"open\"",
+          "before": "breaker.record_failure()"
+        },
+        {
+          "input": "clock = {\"t\": 3.0}\nbreaker = CircuitBreaker(failure_threshold=3, cooldown_seconds=5, now=lambda: clock[\"t\"] )\nbreaker.record_failure()\nbreaker.record_failure()\nbreaker.state()\nbreaker.record_failure()\nbreaker.state()\nbreaker.allow()",
+          "expression": "breaker.allow()",
+          "operator": "is",
+          "expected": "False"
+        }
+      ]
+    },
+    {
+      "name": "cooldown boundary moves to half open",
+      "visibility": "hidden",
+      "setup": [
+        "from solution import CircuitBreaker",
+        "clock = {\"t\": 0.0}",
+        "breaker = CircuitBreaker(failure_threshold=1, cooldown_seconds=5, now=lambda: clock[\"t\"] )",
+        "breaker.record_failure()",
+        "clock[\"t\"] = 4.999"
+      ],
+      "checks": [
+        {
+          "input": "clock = {\"t\": 0.0}\nbreaker = CircuitBreaker(failure_threshold=1, cooldown_seconds=5, now=lambda: clock[\"t\"] )\nbreaker.record_failure()\nclock[\"t\"] = 4.999\nbreaker.allow()",
+          "expression": "breaker.allow()",
+          "operator": "is",
+          "expected": "False"
+        },
+        {
+          "input": "clock = {\"t\": 0.0}\nbreaker = CircuitBreaker(failure_threshold=1, cooldown_seconds=5, now=lambda: clock[\"t\"] )\nbreaker.record_failure()\nclock[\"t\"] = 4.999\nbreaker.allow()\nclock[\"t\"] = 5.0\nbreaker.allow()",
+          "expression": "breaker.allow()",
+          "operator": "is",
+          "expected": "True",
+          "before": "clock[\"t\"] = 5.0"
+        },
+        {
+          "input": "clock = {\"t\": 0.0}\nbreaker = CircuitBreaker(failure_threshold=1, cooldown_seconds=5, now=lambda: clock[\"t\"] )\nbreaker.record_failure()\nclock[\"t\"] = 4.999\nbreaker.allow()\nclock[\"t\"] = 5.0\nbreaker.allow()\nbreaker.state()",
+          "expression": "breaker.state()",
+          "operator": "==",
+          "expected": "\"half_open\""
+        }
+      ]
+    },
+    {
+      "name": "new breaker starts closed and allows traffic",
+      "visibility": "sample",
+      "description": "A breaker starts in its healthy state.",
+      "feedback": "Initialize state to closed and allow requests before failures reach the threshold.",
+      "setup": [
+        "from solution import CircuitBreaker",
+        "breaker = CircuitBreaker(2, 10, now=lambda: 0)"
+      ],
+      "input": "(breaker.state(), breaker.allow())",
+      "expected": "(\"closed\", True)"
+    },
+    {
+      "name": "open state changes only when a probe is allowed",
+      "visibility": "hidden",
+      "description": "Elapsed cooldown makes a probe eligible, but state() alone never admits it.",
+      "feedback": "Perform the open-to-half-open transition in allow(), where the trial request is granted.",
+      "setup": [
+        "from solution import CircuitBreaker",
+        "clock = {\"t\": 0.0}",
+        "breaker = CircuitBreaker(1, 5, now=lambda: clock[\"t\"])",
+        "breaker.record_failure()",
+        "clock[\"t\"] = 5.0"
+      ],
+      "input": "breaker.state()",
+      "expected": "\"open\""
+    },
+    {
+      "name": "zero cooldown permits an immediate probe",
+      "visibility": "hidden",
+      "description": "A zero-second cooldown allows half-open probing immediately after opening.",
+      "feedback": "Use an inclusive cooldown boundary in allow().",
+      "setup": [
+        "from solution import CircuitBreaker",
+        "breaker = CircuitBreaker(1, 0, now=lambda: 3.0)",
+        "breaker.record_failure()"
+      ],
+      "input": "(breaker.allow(), breaker.state())",
+      "expected": "(True, \"half_open\")"
+    },
+    {
+      "name": "half open allows only one trial",
+      "visibility": "hidden",
+      "description": "While half-open, a second allow before record must be denied.",
+      "feedback": "Track that the half-open trial is already in flight after the first allow().",
+      "setup": [
+        "from solution import CircuitBreaker",
+        "clock = {\"t\": 0.0}",
+        "breaker = CircuitBreaker(1, 5, now=lambda: clock[\"t\"])",
+        "breaker.record_failure()",
+        "clock[\"t\"] = 5.0",
+        "first = breaker.allow()"
+      ],
+      "checks": [
+        {
+          "input": "clock = {\"t\": 0.0}\nbreaker = CircuitBreaker(1, 5, now=lambda: clock[\"t\"])\nbreaker.record_failure()\nclock[\"t\"] = 5.0\nfirst = breaker.allow()\nfirst",
+          "expression": "first",
+          "operator": "is",
+          "expected": "True"
+        },
+        {
+          "input": "clock = {\"t\": 0.0}\nbreaker = CircuitBreaker(1, 5, now=lambda: clock[\"t\"])\nbreaker.record_failure()\nclock[\"t\"] = 5.0\nfirst = breaker.allow()\nfirst\nbreaker.state()",
+          "expression": "breaker.state()",
+          "operator": "==",
+          "expected": "\"half_open\""
+        },
+        {
+          "input": "clock = {\"t\": 0.0}\nbreaker = CircuitBreaker(1, 5, now=lambda: clock[\"t\"])\nbreaker.record_failure()\nclock[\"t\"] = 5.0\nfirst = breaker.allow()\nfirst\nbreaker.state()\nbreaker.allow()",
+          "expression": "breaker.allow()",
+          "operator": "is",
+          "expected": "False"
+        }
+      ]
+    },
+    {
+      "name": "open ignores late success",
+      "visibility": "hidden",
+      "description": "Late success responses arriving while open must not close the breaker.",
+      "feedback": "Ignore record_success() when the breaker is open.",
+      "setup": [
+        "from solution import CircuitBreaker",
+        "clock = {\"t\": 0.0}",
+        "breaker = CircuitBreaker(1, 5, now=lambda: clock[\"t\"])",
+        "breaker.record_failure()",
+        "clock[\"t\"] = 4.0",
+        "breaker.record_success()"
+      ],
+      "input": "breaker.state()",
+      "expected": "\"open\""
+    },
+    {
+      "name": "open ignores late failure and keeps opened time",
+      "visibility": "hidden",
+      "description": "Late failures while open must not reset the cooldown timer.",
+      "feedback": "Ignore record_failure() while open so opened_at stays unchanged.",
+      "setup": [
+        "from solution import CircuitBreaker",
+        "clock = {\"t\": 0.0}",
+        "breaker = CircuitBreaker(1, 5, now=lambda: clock[\"t\"])",
+        "breaker.record_failure()",
+        "clock[\"t\"] = 4.0",
+        "breaker.record_failure()",
+        "clock[\"t\"] = 5.0"
+      ],
+      "input": "breaker.allow()",
+      "expected": "True"
+    },
+    {
+      "name": "failed probe restarts the full cooldown",
+      "visibility": "hidden",
+      "setup": [
+        "from solution import CircuitBreaker",
+        "clock = {\"t\": 0}",
+        "breaker = CircuitBreaker(1, 5, now=lambda: clock[\"t\"])",
+        "breaker.record_failure()",
+        "clock[\"t\"] = 7",
+        "breaker.allow()",
+        "breaker.record_failure()",
+        "clock[\"t\"] = 11.999"
+      ],
+      "checks": [
+        {
+          "input": "breaker.allow()",
+          "expression": "breaker.allow()",
+          "operator": "is",
+          "expected": "False"
+        },
+        {
+          "input": "clock[\"t\"] = 12\nbreaker.allow()",
+          "before": "clock[\"t\"] = 12",
+          "expression": "breaker.allow()",
+          "operator": "is",
+          "expected": "True"
+        }
+      ]
+    }
+  ],
+  "languages": {
+    "java": {
+      "starterCode": [
+        "import java.util.function.*;",
+        "",
+        "class Solution {",
+        "    private final int failureThreshold;",
+        "    private final double cooldownSeconds;",
+        "    private final DoubleSupplier now;",
+        "    private String state = \"closed\";",
+        "    private int failures = 0;",
+        "    private double openedAt = 0.0;",
+        "",
+        "    Solution(int failureThreshold, double cooldownSeconds, DoubleSupplier now) {",
+        "        this.failureThreshold = failureThreshold;",
+        "        this.cooldownSeconds = cooldownSeconds;",
+        "        this.now = now;",
+        "    }",
+        "",
+        "    boolean allow() {",
+        "        return false;",
+        "    }",
+        "",
+        "    void recordSuccess() {",
+        "    }",
+        "",
+        "    void recordFailure() {",
+        "    }",
+        "",
+        "    String state() {",
+        "        return \"\";",
+        "    }",
+        "}"
+      ],
+      "testCases": [
+        {
+          "name": "new breaker starts closed",
+          "visibility": "sample",
+          "setup": [
+            "Solution breaker = new Solution(2, 10, () -> 0.0);"
+          ],
+          "input": "breaker.state()",
+          "expected": "\"closed\""
+        },
+        {
+          "name": "closed breaker allows traffic",
+          "visibility": "sample",
+          "setup": [
+            "Solution breaker = new Solution(2, 10, () -> 0.0);"
+          ],
+          "input": "breaker.allow()",
+          "expected": "true"
+        },
+        {
+          "name": "opens after threshold and half-open success closes",
+          "visibility": "sample",
+          "setup": [
+            "double[] clock = {0.0};",
+            "Solution breaker = new Solution(2, 10, () -> clock[0]);",
+            "breaker.recordFailure();",
+            "breaker.recordFailure();",
+            "clock[0] = 10.0;",
+            "breaker.allow();",
+            "breaker.recordSuccess();"
+          ],
+          "input": "breaker.state()",
+          "expected": "\"closed\""
+        },
+        {
+          "name": "success resets consecutive failures",
+          "visibility": "hidden",
+          "setup": [
+            "Solution breaker = new Solution(3, 10, () -> 0.0);",
+            "breaker.recordFailure();",
+            "breaker.recordSuccess();",
+            "breaker.recordFailure();",
+            "breaker.recordFailure();"
+          ],
+          "input": "breaker.state()",
+          "expected": "\"closed\""
+        },
+        {
+          "name": "half-open failure reopens",
+          "visibility": "hidden",
+          "setup": [
+            "double[] clock = {0.0};",
+            "Solution breaker = new Solution(1, 5, () -> clock[0]);",
+            "breaker.recordFailure();",
+            "clock[0] = 5.0;",
+            "breaker.allow();",
+            "breaker.recordFailure();"
+          ],
+          "input": "breaker.state()",
+          "expected": "\"open\""
+        },
+        {
+          "name": "cooldown blocks before boundary",
+          "visibility": "hidden",
+          "setup": [
+            "double[] clock = {0.0};",
+            "Solution breaker = new Solution(1, 5, () -> clock[0]);",
+            "breaker.recordFailure();",
+            "clock[0] = 4.999;"
+          ],
+          "input": "breaker.allow()",
+          "expected": "false"
+        },
+        {
+          "name": "cooldown allows at boundary",
+          "visibility": "hidden",
+          "setup": [
+            "double[] clock = {0.0};",
+            "Solution breaker = new Solution(1, 5, () -> clock[0]);",
+            "breaker.recordFailure();",
+            "clock[0] = 5.0;"
+          ],
+          "input": "breaker.allow()",
+          "expected": "true"
+        },
+        {
+          "name": "state stays open until allow",
+          "visibility": "hidden",
+          "setup": [
+            "double[] clock = {0.0};",
+            "Solution breaker = new Solution(1, 5, () -> clock[0]);",
+            "breaker.recordFailure();",
+            "clock[0] = 5.0;"
+          ],
+          "input": "breaker.state()",
+          "expected": "\"open\""
+        },
+        {
+          "name": "open ignores late success",
+          "visibility": "hidden",
+          "setup": [
+            "double[] clock = {0.0};",
+            "Solution breaker = new Solution(1, 5, () -> clock[0]);",
+            "breaker.recordFailure();",
+            "clock[0] = 4.0;",
+            "breaker.recordSuccess();"
+          ],
+          "input": "breaker.state()",
+          "expected": "\"open\""
+        },
+        {
+          "name": "open ignores late failure and keeps opened time",
+          "visibility": "hidden",
+          "setup": [
+            "double[] clock = {0.0};",
+            "Solution breaker = new Solution(1, 5, () -> clock[0]);",
+            "breaker.recordFailure();",
+            "clock[0] = 4.0;",
+            "breaker.recordFailure();",
+            "clock[0] = 5.0;"
+          ],
+          "input": "breaker.allow()",
+          "expected": "true"
+        },
+        {
+          "name": "half-open admits one trial",
+          "visibility": "hidden",
+          "setup": [
+            "double[] clock = {0.0};",
+            "Solution breaker = new Solution(1, 5, () -> clock[0]);",
+            "breaker.recordFailure();",
+            "clock[0] = 5.0;",
+            "breaker.allow();"
+          ],
+          "input": "breaker.allow()",
+          "expected": "false"
+        },
+        {
+          "name": "zero cooldown allows immediate probe",
+          "visibility": "hidden",
+          "setup": [
+            "Solution breaker = new Solution(1, 0, () -> 3.0);",
+            "breaker.recordFailure();"
+          ],
+          "input": "breaker.allow()",
+          "expected": "true"
+        },
+        {
+          "name": "failed probe restarts full cooldown",
+          "visibility": "hidden",
+          "setup": [
+            "double[] clock = {0.0};",
+            "Solution breaker = new Solution(1, 5, () -> clock[0]);",
+            "breaker.recordFailure();",
+            "clock[0] = 7.0;",
+            "breaker.allow();",
+            "breaker.recordFailure();",
+            "clock[0] = 11.999;"
+          ],
+          "checks": [
+            {
+              "input": "breaker.allow()",
+              "expression": "breaker.allow()",
+              "operator": "==",
+              "expected": "false"
+            },
+            {
+              "input": "clock[0] = 12.0;\nbreaker.allow()",
+              "before": "clock[0] = 12.0;",
+              "expression": "breaker.allow()",
+              "operator": "==",
+              "expected": "true"
+            }
+          ]
+        }
+      ],
+      "solutionGuide": [
+        "Track explicit state, consecutive failures, and the time when the breaker opened. `allow` owns the open to half-open transition at the cooldown boundary.",
+        "",
+        "```java",
+        "import java.util.function.*;",
+        "",
+        "class Solution {",
+        "    private final int failureThreshold;",
+        "    private final double cooldownSeconds;",
+        "    private final DoubleSupplier now;",
+        "    private String state = \"closed\";",
+        "    private int failures = 0;",
+        "    private double openedAt = 0.0;",
+        "",
+        "    Solution(int failureThreshold, double cooldownSeconds, DoubleSupplier now) {",
+        "        this.failureThreshold = failureThreshold;",
+        "        this.cooldownSeconds = cooldownSeconds;",
+        "        this.now = now;",
+        "    }",
+        "",
+        "    boolean allow() {",
+        "        if (state.equals(\"open\")) {",
+        "            if (now.getAsDouble() - openedAt >= cooldownSeconds) {",
+        "                state = \"half_open\";",
+        "                return true;",
+        "            }",
+        "            return false;",
+        "        }",
+        "        if (state.equals(\"half_open\")) return false;",
+        "        return true;",
+        "    }",
+        "",
+        "    void recordSuccess() {",
+        "        if (state.equals(\"open\")) return;",
+        "        state = \"closed\";",
+        "        failures = 0;",
+        "        openedAt = 0.0;",
+        "    }",
+        "",
+        "    void recordFailure() {",
+        "        if (state.equals(\"open\")) return;",
+        "        if (state.equals(\"half_open\")) {",
+        "            state = \"open\";",
+        "            openedAt = now.getAsDouble();",
+        "            failures = failureThreshold;",
+        "            return;",
+        "        }",
+        "        failures++;",
+        "        if (failures >= failureThreshold) {",
+        "            state = \"open\";",
+        "            openedAt = now.getAsDouble();",
+        "        }",
+        "    }",
+        "",
+        "    String state() {",
+        "        return state;",
+        "    }",
+        "}",
+        "```"
+      ]
+    }
+  },
+  "clarifyingQuestions": [
+    "Should failures be consecutive or counted over a rolling window?",
+    "How many trial requests are allowed in half-open?",
+    "Should different exception types count differently?"
+  ],
+  "followUps": [
+    "Use a rolling failure-rate window to react to the proportion of recent failures.",
+    "Allow multiple half-open probes with a maximum concurrency.",
+    "Track breaker state per dependency endpoint."
+  ],
+  "followUpGuide": [
+    "For failure rate, replace `consecutive_failures` with a sliding window of outcomes. Open when enough samples exist and the failure rate crosses a threshold.",
+    "",
+    "For multiple half-open probes, track active probe count and let up to `max_probes` through. Close only after enough successes.",
+    "",
+    "For per-endpoint state, store one breaker object per endpoint key. Don't share one failure counter across unrelated dependencies."
+  ],
+  "complexityAnalysis": [
+    "- Explicit state machine: closed, open, and half-open transitions use a counter and one opening timestamp. Time: O(1) per method call, assuming O(1) injected-clock access. Space: O(1).",
+    "- Per-endpoint breaker follow-up: one breaker per dependency in a hash map. Time: O(1) expected per event. Space: O(d), where d is the number of dependencies."
+  ],
+  "solutionGuide": [
+    "Keep explicit state plus the time when the breaker opened. `allow` alone moves open \u2192 half-open when cooldown has elapsed; `state` never transitions.",
+    "",
+    "While half-open, admit exactly one trial. The transition `allow` returns True once; later half-open `allow` calls return False until success or failure is recorded.",
+    "",
+    "Ignore `record_success` / `record_failure` while open. This prevents a stray failure from refreshing `opened_at` or skipping the probe path.",
+    "",
+    "A successful closed request resets consecutive failures. A half-open success closes the breaker and resets counters.",
+    "",
+    "```python",
+    "class CircuitBreaker:",
+    "    def __init__(self, failure_threshold: int, cooldown_seconds: float, now):",
+    "        self.failure_threshold = failure_threshold",
+    "        self.cooldown_seconds = cooldown_seconds",
+    "        self.now = now",
+    "        self._state = \"closed\"",
+    "        self.failures = 0",
+    "        self.opened_at = None",
+    "",
+    "    def allow(self) -> bool:",
+    "        if self._state == \"open\":",
+    "            if self.now() - self.opened_at >= self.cooldown_seconds:",
+    "                self._state = \"half_open\"",
+    "                return True",
+    "            return False",
+    "        if self._state == \"half_open\":",
+    "            return False",
+    "        return True",
+    "",
+    "    def record_success(self) -> None:",
+    "        if self._state == \"open\":",
+    "            return",
+    "        self._state = \"closed\"",
+    "        self.failures = 0",
+    "        self.opened_at = None",
+    "",
+    "    def record_failure(self) -> None:",
+    "        if self._state == \"open\":",
+    "            return",
+    "        if self._state == \"half_open\":",
+    "            self._state = \"open\"",
+    "            self.opened_at = self.now()",
+    "            self.failures = self.failure_threshold",
+    "            return",
+    "",
+    "        self.failures += 1",
+    "        if self.failures >= self.failure_threshold:",
+    "            self._state = \"open\"",
+    "            self.opened_at = self.now()",
+    "",
+    "    def state(self) -> str:",
+    "        return self._state",
+    "```"
+  ]
+}

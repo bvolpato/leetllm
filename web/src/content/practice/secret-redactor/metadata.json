@@ -1,0 +1,163 @@
+{
+  "id": "secret-redactor",
+  "slug": "secret-redactor",
+  "title": "Secret Redactor",
+  "difficulty": "Easy",
+  "category": "Security",
+  "language": "python3",
+  "timeEstimateMinutes": 25,
+  "timeLimitMs": 2500,
+  "memoryLimitMb": 128,
+  "order": 270,
+  "tags": [
+    "redaction",
+    "regex",
+    "logs",
+    "security"
+  ],
+  "source": "AI lab prep",
+  "summary": "Redact common emails, bearer tokens, and API-key-shaped strings from log text.",
+  "starterCode": [
+    "def redact_secrets(text: str) -> str:",
+    "    pass"
+  ],
+  "testCases": [
+    {
+      "name": "public redacts bearer token",
+      "visibility": "sample",
+      "setup": [
+        "from solution import redact_secrets"
+      ],
+      "input": "redact_secrets(\"Authorization: Bearer abc123\")",
+      "expected": "\"Authorization: Bearer <redacted>\""
+    },
+    {
+      "name": "public redacts email and sk key",
+      "visibility": "sample",
+      "setup": [
+        "from solution import redact_secrets",
+        "text = \"user=a@example.com key=sk-abcdefghi\""
+      ],
+      "input": "text = \"user=a@example.com key=sk-abcdefghi\"\nredact_secrets(text)",
+      "expected": "\"user=<email> key=sk-<redacted>\"",
+      "expression": "redact_secrets(text)"
+    },
+    {
+      "name": "private does not redact short sk strings",
+      "visibility": "hidden",
+      "setup": [
+        "from solution import redact_secrets"
+      ],
+      "input": "redact_secrets(\"value sk-test remains\")",
+      "expected": "\"value sk-test remains\""
+    },
+    {
+      "name": "private redacts multiple occurrences",
+      "visibility": "hidden",
+      "setup": [
+        "from solution import redact_secrets",
+        "text = \"a@b.co Bearer token-123 sk-12345678 z@y.org\""
+      ],
+      "input": "text = \"a@b.co Bearer token-123 sk-12345678 z@y.org\"\nredact_secrets(text)",
+      "expected": "\"<email> Bearer <redacted> sk-<redacted> <email>\"",
+      "expression": "redact_secrets(text)"
+    },
+    {
+      "name": "private preserves punctuation around emails",
+      "visibility": "hidden",
+      "setup": [
+        "from solution import redact_secrets"
+      ],
+      "input": "redact_secrets(\"Contact <me@example.com>, ok\")",
+      "expected": "\"Contact <<email>>, ok\""
+    },
+    {
+      "name": "public preserves text without secrets",
+      "visibility": "sample",
+      "setup": [
+        "from solution import redact_secrets"
+      ],
+      "input": "redact_secrets(\"request completed in 42 ms\")",
+      "expected": "\"request completed in 42 ms\""
+    },
+    {
+      "name": "private enforces the eight character key boundary",
+      "visibility": "hidden",
+      "setup": [
+        "from solution import redact_secrets"
+      ],
+      "input": "(redact_secrets(\"sk-1234567\"), redact_secrets(\"sk-12345678\"))",
+      "expected": "(\"sk-1234567\", \"sk-<redacted>\")"
+    },
+    {
+      "name": "private preserves bearer token punctuation",
+      "visibility": "hidden",
+      "setup": [
+        "from solution import redact_secrets"
+      ],
+      "input": "redact_secrets(\"Authorization: Bearer abc123, next=true\")",
+      "expected": "\"Authorization: Bearer <redacted>, next=true\""
+    },
+    {
+      "name": "private distinguishes precedence and token terminators",
+      "visibility": "hidden",
+      "code": [
+        "from solution import redact_secrets",
+        "assert redact_secrets(\"Bearer a@example.com; user=b@example.com\") == \"Bearer <redacted>; user=<email>\"",
+        "assert redact_secrets(\"Bearer\\txyz, next=true\") == \"Bearer <redacted>, next=true\"",
+        "assert redact_secrets(\"bearer xyz Bearer ,\") == \"bearer xyz Bearer ,\"",
+        "assert redact_secrets(\"Bearer xyz)\") == \"Bearer <redacted>\"",
+        "assert redact_secrets(\"sk-abcdefgh@example.com\") == \"sk-<redacted>@example.com\"",
+        "for separator in (\"\\u001c\", \"\\u001d\", \"\\u001e\", \"\\u001f\"):",
+        "    assert redact_secrets(\"Bearer abc\" + separator + \"next\") == \"Bearer <redacted>\" + separator + \"next\""
+      ]
+    },
+    {
+      "name": "private treats Unicode whitespace as a bearer boundary",
+      "visibility": "hidden",
+      "description": "Unicode whitespace after a bearer token remains in the log.",
+      "feedback": "Treat Unicode whitespace like a token boundary, not part of the bearer body.",
+      "setup": [
+        "from solution import redact_secrets"
+      ],
+      "input": "redact_secrets(\"Bearer abc\\u00a0next\")",
+      "expected": "\"Bearer <redacted>\\u00a0next\""
+    }
+  ],
+  "clarifyingQuestions": [
+    "Which token formats should count as secrets?",
+    "Should redaction preserve enough prefix for debugging?",
+    "Should invalid emails be redacted or left untouched?"
+  ],
+  "followUps": [
+    "Return redaction counts by secret type.",
+    "Support provider-specific token prefixes.",
+    "Redact secrets inside structured log dictionaries."
+  ],
+  "followUpGuide": [
+    "Counts can be gathered by using replacement callbacks.",
+    "",
+    "Provider prefixes should be explicit allowlisted patterns to avoid over-redaction.",
+    "",
+    "Structured logs should be traversed recursively and redacted by value."
+  ],
+  "complexityAnalysis": [
+    "- The published solution makes three substitution passes and retains O(n) output and intermediate text. Ordinary short log fields often scan close to linearly; adversarial inputs can make these backtracking regexes take O(n²) time.",
+    "- For example, a long ASCII-letter run with no @ can make the email pattern consume and backtrack over a suffix at each candidate starting position, producing quadratic work. A combined regex can retain the same backtracking behavior.",
+    "- A streaming extension needs a stateful scanner or a specified maximum match length. The current token and email patterns are unbounded, so choose a scanner or add explicit length limits before sizing an overlap buffer."
+  ],
+  "solutionGuide": [
+    "Apply bearer, sk-key, then email substitutions to the evolving text. Order matters: sk-abcdefgh@example.com becomes sk-<redacted>@example.com, while an email-first pass would produce <email>. Match the exact simplified patterns in the requirements; use a dedicated validator for real email addresses.",
+    "",
+    "```python",
+    "import re",
+    "",
+    "",
+    "def redact_secrets(text: str) -> str:",
+    "    text = re.sub(r\"Bearer\\s+[^\\s,;]+\", \"Bearer <redacted>\", text)",
+    "    text = re.sub(r\"sk-[A-Za-z0-9_-]{8,}\", \"sk-<redacted>\", text)",
+    "    text = re.sub(r\"[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\\.[A-Za-z]{2,}\", \"<email>\", text)",
+    "    return text",
+    "```"
+  ]
+}

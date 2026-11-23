@@ -1,0 +1,1454 @@
+version: 1
+id: softmax
+title: When Does a Lower Loss Mean a Better Prediction?
+source: preparation/softmax-cross-entropy-optimization/content.md
+sources:
+  - title: "Goodfellow, Bengio and Courville: Maximum Likelihood Estimation"
+    url: https://www.deeplearningbook.org/contents/ml.html
+  - title: "PyTorch: CrossEntropyLoss"
+    url: https://docs.pytorch.org/docs/stable/generated/torch.nn.CrossEntropyLoss.html
+  - title: "Hinton, Vinyals and Dean: Distilling the Knowledge in a Neural Network"
+    url: https://arxiv.org/abs/1503.02531
+  - title: Label smoothing in Inception
+    url: https://arxiv.org/abs/1512.00567
+  - title: When Does Label Smoothing Help?
+    url: https://arxiv.org/abs/1906.02629
+  - title: Cut Your Losses in Large-Vocabulary Language Models
+    url: https://arxiv.org/abs/2411.09009
+  - title: Strictly Proper Scoring Rules, Prediction, and Estimation
+    url: https://sites.stat.washington.edu/raftery/Research/PDF/Gneiting2007jasa.pdf
+scenes:
+  - id: intro
+    title: "Which word was on the page?"
+    visual: "A blue card slides the model’s guess, ran, into the sentence. Its 84.4% share stays visible below. When the card lifts, the page reveals slept. A line connects the observed word to its green share."
+    beats:
+      - say: "The model’s first choice is ran. It gets about eighty-four percent. What word is under the card?"
+        hold: 1.6
+        caption_starts: ["It gets about eighty-four percent.", "What word is under the card?"]
+        visual_cues:
+          - id: intro-uncover
+            phrase: "What word is under the card?"
+            targets: [covered-word]
+      - say: "Slept. The word on the page is our target. Which slice gives its probability?"
+        hold: 2.3
+        caption_starts: ["Which slice"]
+        visual_cues:
+          - id: intro-observed
+            phrase: "Slept."
+            targets: [observed-word]
+            caption_boundary: true
+          - id: intro-question
+            phrase: "Which slice"
+            targets: [prediction]
+      - say: "The green slice. Slept got about eleven percent. Give slept more probability and the loss on this word falls. Softmax calculates those shares from three scores."
+        hold: 0.65
+        caption_starts: ["Slept got about eleven percent"]
+        visual_cues:
+          - id: intro-target
+            phrase: "The green slice"
+            targets: [observed-share]
+          - id: intro-scores
+            phrase: "three scores"
+            targets: [score-ruler]
+  - id: scores
+    title: Read the gaps between scores
+    visual: Three positions on a common score ruler show fixed gaps. A shared offset changes every tick value while the two gap lengths remain fixed.
+    beats:
+      - say: Our model gives ran three, slept one, and ate zero. These scores are logits. A larger score means a stronger preference. The two-point lead matters more than the name of the starting point.
+        hold: 0.35
+        visual_cues:
+          - id: score-values
+            phrase: ran three, slept one, and ate zero
+            targets:
+              - score-ruler
+            color: cyan
+            linger: 0.35
+          - id: score-logits
+            phrase: These scores are logits
+            targets:
+              - recipe
+            color: cyan
+            linger: 0.35
+          - id: score-gaps
+            phrase: The two-point lead
+            targets:
+              - score-gaps
+            color: yellow
+            linger: 0.35
+      - say: Add a thousand to every score. Watch the ruler labels change while those gaps hold their lengths. The relative preferences stay the same. Our probability rule should preserve that relationship.
+        hold: 0.35
+        visual_cues:
+          - id: score-offset
+            phrase: Add a thousand to every score
+            targets:
+              - shared-logit-offset
+            color: cyan
+            linger: 0.35
+      - say: Subtract that shared offset and the original scores return. Logits can be any real numbers. Next we will turn their gaps into positive weights, then divide one budget among them.
+        hold: 0.35
+        visual_cues:
+          - id: score-next
+            phrase: turn their gaps into positive weights
+            targets:
+              - score-gaps
+            color: cyan
+            linger: 0.35
+          - id: score-restore
+            phrase: Subtract that shared offset
+            targets:
+              - shared-logit-offset
+            color: cyan
+            linger: 0.35
+  - id: exponentials
+    title: Give each score a positive weight
+    visual: Each exponential is evaluated in turn. Subtracting the maximum shrinks all weights by a common factor; adding a large offset leaves the shifted values and ratio fixed.
+    beats:
+      - say: Exponentiation gives every finite score a positive weight. First ran, then slept, then ate. A two-point score lead becomes a weight ratio of about seven to one. We have weights; their total is still free to vary.
+        hold: 0.35
+        visual_cues:
+          - id: exp-ratio
+            phrase: a weight ratio of about seven to one
+            targets:
+              - weight-ratio
+            color: yellow
+            linger: 0.35
+          - id: exp-ran
+            phrase: First ran
+            targets:
+              - positive-weight-0
+            color: blue
+            linger: 0.35
+          - id: exp-slept
+            phrase: then slept
+            targets:
+              - positive-weight-1
+            color: green
+            linger: 0.35
+          - id: exp-ate
+            phrase: then ate
+            targets:
+              - positive-weight-2
+            color: pink
+            linger: 0.35
+      - say: For safe arithmetic, subtract the largest score first. The largest exponent becomes zero, so its weight is one. Every weight receives the same scale factor. Their ratio survives, ready for normalization.
+        hold: 0.35
+        visual_cues:
+          - id: exp-survives
+            phrase: Their ratio survives
+            targets:
+              - weight-ratio
+            color: yellow
+            linger: 0.35
+          - id: exp-shift
+            phrase: subtract the largest score first
+            targets:
+              - shifted-weights
+            color: yellow
+            linger: 0.35
+      - say: Now add a thousand to the input scores. Subtract the new maximum before taking exponentials. The same small weights remain. This order prevents overflowing exponentials while preserving the intended shares.
+        hold: 0.35
+        visual_cues:
+          - id: exp-overflow
+            phrase: prevents overflowing exponentials
+            targets:
+              - overflow
+            color: red
+            linger: 0.35
+          - id: exp-offset
+            phrase: add a thousand to the input scores
+            targets:
+              - exponential-inputs
+            color: cyan
+            linger: 0.35
+  - id: mass
+    title: Three claims on one budget
+    visual: Each weight contributes to a running denominator. Fractions then fill one unit strip. Raising only slept's score recomputes every share, followed by an explicit restore.
+    beats:
+      - say: Put ran's weight into the total. Add slept's weight, then ate's. Every candidate divides by this same denominator. Fill ran's share, slept's share, and ate's share. Together they use exactly one unit of probability.
+        hold: 0.35
+        visual_cues:
+          - id: mass-unit
+            phrase: exactly one unit of probability
+            targets:
+              - unit-strip
+            color: yellow
+            linger: 0.35
+          - id: mass-add-0
+            phrase: Put ran's weight into the total
+            targets:
+              - normalizing-denominator
+            color: blue
+            linger: 0.1
+          - id: mass-add-1
+            phrase: Add slept's weight
+            targets:
+              - normalizing-denominator
+            color: green
+            linger: 0.1
+          - id: mass-add-2
+            phrase: then ate's
+            targets:
+              - normalizing-denominator
+            color: pink
+            linger: 0.1
+          - id: mass-share-0
+            phrase: Fill ran's share
+            targets:
+              - probability-share-0
+            color: blue
+            linger: 0.1
+          - id: mass-share-1
+            phrase: slept's share
+            targets:
+              - probability-share-1
+            color: green
+            linger: 0.1
+          - id: mass-share-2
+            phrase: and ate's share
+            targets:
+              - probability-share-2
+            color: pink
+            linger: 0.35
+      - say: "Raise only slept's score by one. Its weight grows, the denominator grows, and every share changes. The strip makes the competition visible: slept gains space as both neighbors give some up."
+        hold: 0.35
+        visual_cues:
+          - id: mass-raise
+            phrase: Raise only slept's score by one
+            targets:
+              - mass-distribution
+            color: green
+            linger: 0.35
+      - say: "Restore the original scores. Slept received about eleven percent. Which observation should cost more: the favorite ran, or the surprising slept? Keep your answer while we put both on a loss curve."
+        hold: 0.8
+        visual_cues:
+          - id: mass-eleven
+            phrase: Slept received about eleven percent
+            targets:
+              - prediction
+            color: green
+            linger: 0.35
+          - id: mass-predict
+            phrase: Which observation should cost more
+            targets:
+              - prediction
+            color: yellow
+            linger: 0.35
+          - id: mass-restore
+            phrase: Restore the original scores
+            targets:
+              - mass-distribution
+            color: yellow
+            linger: 0.35
+  - id: loss
+    title: Price the word that actually appeared
+    visual: A selected point moves from the favorite probability to the observed-word probability on a negative-log curve. Stable loss is then assembled from gap and log-total terms, including an underflow example.
+    beats:
+      - say: "Cross-entropy takes the negative natural log of the target's probability. Start at ran's large share: observing that favorite would cost very little. As target probability approaches one, the cost approaches zero."
+        hold: 0.35
+        visual_cues:
+          - id: loss-favorite
+            phrase: Start at ran's large share
+            targets:
+              - target-loss-point
+            color: blue
+            linger: 0.35
+      - say: "Move to the observed slept probability. The point climbs: a small share means a larger loss. That resolves our prediction. The missed word costs about two point one seven nats, using the unrounded probability."
+        hold: 0.35
+        visual_cues:
+          - id: loss-result
+            phrase: The missed word costs about two point one seven nats
+            targets:
+              - target-loss-value
+            color: yellow
+            linger: 0.35
+          - id: loss-observed
+            phrase: Move to the observed slept probability
+            targets:
+              - target-loss-point
+              - target-loss-value
+            color: green
+            linger: 0.35
+      - say: Compute that loss safely from the logits. Take the maximum minus the target score. Add the log of our shifted weight total. Even when a target weight rounds to zero, this log-space calculation can retain its finite loss.
+        hold: 0.35
+        visual_cues:
+          - id: loss-gap
+            phrase: Take the maximum minus the target score
+            targets:
+              - loss-gap
+            color: yellow
+            linger: 0.35
+          - id: loss-log-total
+            phrase: Add the log of our shifted weight total
+            targets:
+              - loss-log-total
+              - target-loss-value
+            color: cyan
+            linger: 0.35
+          - id: loss-extreme
+            phrase: Even when a target weight rounds to zero
+            targets:
+              - stable-extreme
+            color: pink
+            linger: 0.35
+  - id: gradient-chain
+    title: "What moves when one score rises?"
+    visual: "A centered scale measures the three changes in probability from one nudge to the slept logit. At the original scores, signed local slopes on the target share multiply the slope of the loss."
+    beats:
+      - say: "Keep the blue and pink scores fixed. If we raise the score for slept, where will its extra probability come from?"
+        hold: 1.8
+        caption_starts: ["If we raise the score for slept"]
+        visual_cues:
+          - id: gradient-chain-0
+            phrase: "If we raise the score for slept"
+            targets: [share-change-ruler]
+      - say: "Blue and pink both give some up. Watch their bars move left. Together they give up exactly as much probability as green gains."
+        hold: 1.2
+        visual_cues:
+          - id: jacobian-nudge
+            phrase: "Blue and pink both give some up."
+            targets: [slept-score]
+      - say: "Return to the original scores. Imagine making the nudge smaller and smaller. The slope tells us how fast each probability changes per unit of score. Collect those slopes in a table called the softmax Jacobian. In one column we change just one score. For the word we nudged, the delta in the formula is one. Its own slope is its share times the share left for everyone else. For every other word the delta is zero, so the slope is minus the product of the two shares. Each column sums to zero because the whole strip still holds one unit."
+        hold: 0.6
+        visual_cues:
+          - id: jacobian-formula
+            phrase: "Return to the original scores"
+            targets: [jacobian]
+          - id: jacobian-column
+            phrase: "Each column sums to zero"
+            targets: [column-sum]
+      - say: "Now follow just the share of slept. Start with its own score. A tiny increase earns probability at the positive rate on the first line. Raise ran instead and slept loses almost as fast. Raise ate instead and the effect is much smaller. Ran had a much larger share to compete with. To get the change in loss, multiply each of these rates by the slope of the negative log, minus one over the probability of slept."
+        hold: 0.8
+        visual_cues:
+          - id: gradient-chain-1
+            phrase: "Now follow just the share of slept"
+            targets: [target-slope-table]
+          - id: jacobian-self
+            phrase: "the positive rate on the first line"
+            targets: [slept-self-slope]
+          - id: jacobian-ran
+            phrase: "slept loses almost as fast"
+            targets: [ran-cross-slope]
+          - id: jacobian-ate
+            phrase: "the effect is much smaller"
+            targets: [ate-cross-slope]
+          - id: jacobian-loss-slope
+            phrase: "minus one over the probability of slept"
+            targets: [loss-slope]
+      - say: "Follow the first line into the loss. Its probability slope has a factor of p slept. The negative log divides by that same factor. Cancel the two and the gradient on the slept score is p slept minus one. On the ran line the probability slope is negative. The two minus signs give a plus, and the same cancellation leaves p ran. For a normalized soft target, sum the routes with their target weights. Those weights add to one, so the full gradient on the logits is prediction minus target. There’s a shorter route from the logits. Differentiate the log of the sum of exponentials. Each score’s derivative is its own softmax share. For a single observed word, subtracting its score takes one off its derivative. You can check a slope by nudging one score a little each way and dividing the difference in loss by the distance between the nudges."
+        hold: 0.75
+        visual_cues:
+          - id: gradient-chain-2
+            phrase: "Follow the first line into the loss"
+            targets: [gradient-column]
+          - id: chain-target-route
+            phrase: "Its probability slope has a factor of p slept"
+            targets: [target-product]
+          - id: chain-target-cancel
+            phrase: "Cancel the two"
+            targets: [target-cancellation]
+          - id: chain-target
+            phrase: "the gradient on the slept score is p slept minus one"
+            targets: [target-gradient]
+          - id: chain-competitor-route
+            phrase: "On the ran line"
+            targets: [competitor-product]
+          - id: chain-competitor-cancel
+            phrase: "the two minus signs give a plus"
+            targets: [competitor-cancellation]
+          - id: chain-competitor
+            phrase: "the same cancellation leaves p ran"
+            targets: [competitor-gradient]
+          - id: chain-normalized
+            phrase: "the full gradient on the logits is prediction minus target"
+            targets: [gradient-formula]
+          - id: chain-logsumexp
+            phrase: "Each score’s derivative is its own softmax share"
+            targets: [log-sum-exp-gradient]
+  - id: gradient
+    title: Subtract what happened from what was predicted
+    visual: The one-hot observed-word row is selected first. Each probability-minus-target subtraction constructs its own signed gradient bar. Three contributions then cancel in a running sum.
+    beats:
+      - say: "Back to the dog. The target row records what happened: one for slept, zero for each other word. The combined loss derivative is probability minus target. First subtract ran's zero. Its positive gradient says that raising the wrong favorite raises the loss."
+        hold: 0.35
+        visual_cues:
+          - id: gradient-target
+            phrase: one for slept, zero for each other word
+            targets:
+              - one-hot-target
+            color: green
+            linger: 0.35
+          - id: gradient-0
+            phrase: First subtract ran's zero.
+            targets:
+              - logit-gradient-0
+            color: blue
+            linger: 0.35
+      - say: "For slept, subtract one. Its gradient is negative, so raising that score lowers the loss. For ate, subtract zero: a small positive correction. Gradient descent subtracts these gradients, raising slept and lowering its competitors."
+        hold: 0.35
+        visual_cues:
+          - id: gradient-descent
+            phrase: Gradient descent subtracts these gradients
+            targets:
+              - logit-pushes
+            color: yellow
+            linger: 0.35
+          - id: gradient-1
+            phrase: For slept, subtract one. Its gradient is negative, so raising that score lowers the loss.
+            targets:
+              - logit-gradient-1
+            color: green
+            linger: 0.35
+          - id: gradient-2
+            phrase: "For ate, subtract zero: a small positive correction."
+            targets:
+              - logit-gradient-2
+            color: pink
+            linger: 0.35
+      - say: Add the three corrections. The competitors' positive parts exactly balance the target's negative part. The total is zero, matching our fixed score gaps under a common shift. Backpropagation carries this local signal into the network's shared weights.
+        hold: 0.35
+        visual_cues:
+          - id: gradient-zero
+            phrase: The total is zero
+            targets:
+              - gradient-balance
+            color: yellow
+            linger: 0.35
+          - id: gradient-balance
+            phrase: Add the three corrections
+            targets:
+              - gradient-balance
+            color: yellow
+            linger: 0.35
+  - id: update
+    title: Make the correction earn more target probability
+    visual: The existing cue-driven direct logit update recomputes all probability bars and the observed-word loss through intermediate states, then holds the completed result.
+    beats:
+      - say: Try one direct update to these logits. Subtract one point five times each gradient. The corrected target score rises while the competitors fall. Follow the changed gaps into a new probability distribution.
+        hold: 0.35
+        visual_cues:
+          - id: update-step
+            phrase: Subtract one point five times each gradient
+            targets:
+              - recipe
+            color: cyan
+            linger: 0.35
+          - id: logit-update-rule-b1-1
+            phrase: The corrected target score rises
+            targets:
+              - logit-update-values
+              - updated-probabilities
+            color: cyan
+            linger: 0.35
+      - say: Watch slept gain probability. Its share passes the old favorite as cross-entropy decreases. We recompute every bar and the loss from the changing logits throughout the step.
+        hold: 0.35
+        visual_cues:
+          - id: updated-probabilities-b2-1
+            phrase: Watch slept gain probability
+            targets:
+              - updated-probabilities
+            color: green
+            linger: 0.35
+          - id: updated-target-loss-b2-2
+            phrase: as cross-entropy decreases
+            targets:
+              - updated-target-loss
+            color: green
+            linger: 0.35
+      - say: Slept now receives about sixty-one percent. The original eleven percent has become a much better prediction for this observation. Shared network parameters affect other examples too; held-out predictions measure how broadly that learning helps.
+        hold: 0.35
+        visual_cues:
+          - id: update-result
+            phrase: Slept now receives about sixty-one percent
+            targets:
+              - updated-probabilities
+            color: green
+            linger: 0.35
+  - id: temperature
+    title: Can cooling fix the missed word?
+    visual: Temperature first sharpens then flattens the original mistaken ranking, with the observed target always marked. Restoring one and applying learned scores changes the leader.
+    beats:
+      - say: "Bring back the original scores. Ran leads slept by two points. Lower the temperature and ran takes more of the strip. Raise it and the other words gain some space. We divide every score gap by the same positive temperature, so ran keeps its lead."
+        hold: 0.35
+        caption_starts: ["Lower the temperature", "Raise it", "We divide every score gap"]
+        visual_cues:
+          - id: temperature-original
+            phrase: Bring back the original scores
+            targets:
+              - temperature-distribution
+            color: cyan
+            linger: 0.35
+          - id: temperature-order
+            phrase: We divide every score gap
+            targets:
+              - temperature-lead
+            color: yellow
+            linger: 0.35
+          - id: temperature-distribution-b1-1
+            phrase: Lower the temperature
+            targets:
+              - temperature-distribution
+            color: blue
+            linger: 0.35
+          - id: temperature-higher-b1-2
+            phrase: Raise it
+            targets:
+              - temperature-distribution
+            color: cyan
+            linger: 0.35
+      - say: "Turn the temperature down again. Which word gains probability?"
+        hold: 1.8
+      - say: "Ran takes almost the whole strip. Slept, the word on the page, now gets less than one percent."
+        hold: 0.35
+        caption_starts: ["Slept, the word on the page"]
+        visual_cues:
+          - id: temperature-distribution-b2-1
+            phrase: Ran takes almost the whole strip
+            caption_boundary: true
+            targets:
+              - temperature-distribution
+            color: blue
+            linger: 0.35
+      - say: "Bring temperature back to one. Now apply our learned scores. Watch slept pass ran. Learning changed the score order."
+        hold: 0.35
+        caption_starts: ["Now apply our learned scores.", "Watch slept pass ran."]
+        visual_cues:
+          - id: temperature-changed
+            phrase: Learning changed the score order
+            targets:
+              - temperature-order
+            color: yellow
+            linger: 0.35
+          - id: temperature-restore
+            phrase: Bring temperature back to one
+            targets:
+              - temperature-distribution
+            color: cyan
+            linger: 0.35
+          - id: temperature-learned
+            phrase: Now apply our learned scores
+            targets:
+              - temperature-distribution
+            color: green
+            linger: 0.35
+  - id: transfer
+    title: "What changes when the word changes?"
+    visual: A new prefix changes the scores and the observed target. After combining the two original losses, the opening strip returns. Changing only its target to ate leaves every share fixed while the loss and gradient change.
+    beats:
+      - say: "A fresh line begins with the cat. These new scores favor ate. On this page, the observed word is ate. Which score gets the upward correction? Work out the sign of its gradient."
+        hold: 2.4
+        visual_cues:
+          - id: transfer-cat
+            phrase: A fresh line
+            targets:
+              - fresh-sentence
+            color: cyan
+            linger: 0.35
+          - id: transfer-predict
+            phrase: Which score gets the upward correction
+            targets:
+              - fresh-prediction
+            color: yellow
+            linger: 0.35
+          - id: transfer-forward
+            phrase: These new scores favor ate
+            targets:
+              - fresh-distribution
+            color: cyan
+            linger: 0.35
+          - id: transfer-target
+            phrase: the observed word is ate
+            targets:
+              - fresh-target
+            color: pink
+            linger: 0.35
+      - say: "Ate's probability minus one is negative. Subtract that gradient: its score rises and its probability grows. This already likely target needs a smaller correction than the earlier surprising slept."
+        hold: 0.35
+        visual_cues:
+          - id: transfer-smaller
+            phrase: a smaller correction than the earlier surprising slept
+            targets:
+              - fresh-comparison
+            color: yellow
+            linger: 0.35
+          - id: transfer-gradient
+            phrase: Ate's probability minus one is negative.
+            targets:
+              - fresh-gradient
+            color: pink
+            linger: 0.35
+          - id: transfer-update
+            phrase: Subtract that gradient
+            targets:
+              - fresh-distribution
+            color: green
+            linger: 0.35
+      - say: Return to both initial predictions. For these two training examples, multiply the observed-word probabilities. Negative log turns that product into the sum of their two losses. Divide by two to report the mean. The surprising dog example contributes most of that cost.
+        hold: 0.35
+        visual_cues:
+          - id: transfer-return
+            phrase: Return to both initial predictions
+            targets:
+              - fresh-distribution
+            color: cyan
+            linger: 0.35
+          - id: transfer-most
+            phrase: contributes most of that cost
+            targets:
+              - combined-loss
+            color: yellow
+            linger: 0.35
+          - id: transfer-product
+            phrase: For these two training examples, multiply the observed-word probabilities.
+            targets:
+              - joint-probability
+            color: cyan
+            linger: 0.35
+          - id: transfer-loss-sum
+            phrase: Negative log turns that product into the sum of their two losses.
+            targets:
+              - combined-loss
+            color: yellow
+            linger: 0.35
+          - id: transfer-mean
+            phrase: Divide by two to report the mean.
+            targets:
+              - mean-loss
+            color: green
+            linger: 0.35
+      - say: "Bring back the original dog prediction. It still gives slept about eleven percent. Change just the word on the page. This time the dog ate. Does the loss go up or down?"
+        hold: 2.2
+        visual_cues:
+          - id: transfer-replay
+            phrase: "Bring back the original dog prediction"
+            targets: [original-dog-shares]
+          - id: transfer-relabel
+            phrase: "This time the dog ate"
+            targets: [observed-word]
+            caption_boundary: true
+      - say: "Up by exactly one nat. Ate’s score is one below slept’s, and the shared log-sum-exp is the same. Now subtract one from ate’s share. The negative gradient belongs to ate, so its score gets the upward push. Changing the label changed the training signal before we took a single step."
+        hold: 0.8
+        visual_cues:
+          - id: transfer-relabel-loss
+            phrase: "Up by exactly one nat"
+            targets: [changed-target-loss]
+          - id: transfer-relabel-gradient
+            phrase: "The negative gradient belongs to ate"
+            targets: [changed-target-gradient]
+  - id: entropy-reference
+    title: "What loss remains at a perfect match?"
+    visual: "Two readers split the target evenly. The prediction moves away from their split and back while the three costs follow it. Dividing two submitted weights of 0.8 by their sum restores the readers’ target."
+    beats:
+      - say: "Our dog example put the whole target on one word. Now suppose two people complete a new line. One writes ran and one writes slept. Give their answers equal weight. The dashed outlines show that target distribution. Its entropy measures the surprise you would get, on average, from using the target’s own probabilities. Cross-entropy uses the model’s probabilities to score those same answers. The extra cost is the mismatch, called KL divergence."
+        hold: 0.8
+        visual_cues:
+          - id: entropy-reference-0
+            phrase: "the whole target on one word"
+            targets: [hard-target]
+          - id: entropy-reader-one
+            phrase: "One writes ran"
+            targets: [first-answer]
+          - id: entropy-reader-two
+            phrase: "one writes slept"
+            targets: [second-answer]
+          - id: entropy-soft-target
+            phrase: "Give their answers equal weight"
+            targets: [soft-target]
+          - id: entropy-h
+            phrase: "Its entropy measures"
+            targets: [entropy-formula]
+          - id: entropy-ce
+            phrase: "Cross-entropy uses the model’s probabilities"
+            targets: [cross-entropy-formula]
+          - id: entropy-identities
+            phrase: "The extra cost is the mismatch"
+            targets: [kl-formula]
+      - say: "Let the prediction fill those outlines exactly. Either answer gets half. How much loss is left?"
+        hold: 2
+        visual_cues:
+          - id: entropy-reference-1
+            phrase: "fill those outlines exactly"
+            targets: [matching-prediction]
+      - say: "Minus the log of one half. That’s about point six nine three nats. Both words cost the same, so that’s also their average. The mismatch is zero."
+        hold: 1.6
+        caption_starts: ["That’s about point six nine three nats.", "The mismatch is zero."]
+        visual_cues:
+          - id: entropy-half-cost
+            phrase: "That’s about point six nine three nats."
+            targets: [matched-loss]
+          - id: entropy-match
+            phrase: "The mismatch is zero"
+            targets: [matched-loss]
+      - say: "Move the prediction toward ran. Now ran gets eighty percent and slept gets twenty. The extra cost on slept outweighs the saving on ran. Bring the prediction back to the outlines. The extra cost disappears and the readers’ split still costs point six nine three. A teacher model or a smoothing rule can also supply those target shares."
+        hold: 0.8
+        caption_starts: ["Now ran gets eighty percent", "Bring the prediction back to the outlines."]
+        visual_cues:
+          - id: entropy-stays
+            phrase: "Move the prediction toward ran"
+            targets: [mismatched-prediction]
+          - id: entropy-return
+            phrase: "Bring the prediction back"
+            targets: [matching-prediction]
+      - say: "Ate has zero target weight, so it contributes zero loss. Now give slept zero predicted probability. Half the readers chose slept. Scoring their answer now gives infinite loss and infinite KL divergence. Suppose we send PyTorch two weights of point eight. Their total is one point six. PyTorch uses those weights as supplied. With weights y and total a, the gradient on the scores is a times the prediction minus y. To recover the readers’ probabilities, divide both weights by their total. Each reader gets half again. The weights now sum to one, so the gradient is prediction minus target."
+        hold: 0.8
+        caption_starts: ["Suppose we send PyTorch two weights", "Their total is one point six.", "To recover the readers’ probabilities", "Each reader gets half again."]
+        visual_cues:
+          - id: entropy-reference-2
+            phrase: "Ate has zero target weight"
+            targets: [zero-weight-convention]
+          - id: entropy-zero-support
+            phrase: "give slept zero predicted probability"
+            targets: [zero-predicted-support]
+          - id: entropy-malformed
+            phrase: "two weights of point eight"
+            targets: [submitted-target]
+          - id: entropy-check
+            phrase: "Their total is one point six"
+            targets: [target-validation]
+          - id: entropy-scaled-gradient
+            phrase: "the gradient on the scores is a times the prediction minus y"
+            targets: [scaled-gradient]
+          - id: entropy-normalize
+            phrase: "divide both weights by their total"
+            targets: [normalized-weights]
+          - id: entropy-halves
+            phrase: "Each reader gets half again."
+            targets: [normalized-weights]
+          - id: entropy-unit-gradient
+            phrase: "the gradient is prediction minus target"
+            targets: [normalized-gradient]
+  - id: squared-vs-ce
+    title: How far will each loss move the score for slept?
+    visual: A near-certain wrong prediction retains its actual Jacobian while two different probability-space loss slopes flow through it.
+    beats:
+      - say: "The dog slept, but look at these new scores. Ran gets eight and both other words get zero. Ran takes more than ninety-nine point nine percent of the probability. Slept gets about three hundredths of a percent. Compare two ways to score that mistake. Cross-entropy scores the observed word. Half the sum of squared probability errors gives a scaled Brier loss. Both reward predicting the true distribution on average. Here a small change in any score barely moves the probabilities."
+        hold: 0.8
+        visual_cues:
+          - id: squared-vs-ce-0
+            phrase: "Cross-entropy scores the observed word"
+            targets:
+              - squared-vs-ce-operation
+            linger: 0.4
+          - id: brier-half-sum
+            phrase: Half the sum of squared probability errors
+            targets:
+              - squared-vs-ce-operation
+            color: cyan
+            linger: 0.4
+          - id: brier-logits
+            phrase: "Ran gets eight"
+            targets:
+              - squared-vs-ce-operation
+            color: cyan
+            linger: 0.4
+          - id: brier-favorite
+            phrase: "Ran takes more than ninety-nine point nine percent of the probability"
+            targets:
+              - squared-vs-ce-operation
+            color: blue
+            linger: 0.4
+          - id: brier-target
+            phrase: "Slept gets about three hundredths of a percent"
+            targets:
+              - squared-vs-ce-operation
+            color: green
+            linger: 0.4
+          - id: brier-jacobian
+            phrase: "a small change in any score barely moves the probabilities"
+            targets:
+              - squared-vs-ce-operation
+            color: cyan
+            linger: 0.4
+      - say: "For cross-entropy, the negative log has slope minus one over the target share. Multiply by the softmax slope and the target share cancels. The gradient on the slept score is about minus point nine nine nine seven. Squared error multiplies each probability error by its softmax slope and adds the results. Those small slopes stay in the sum. The gradient on slept is about minus point zero zero zero seven."
+        hold: 0.8
+        visual_cues:
+          - id: squared-vs-ce-1
+            phrase: "For cross-entropy"
+            targets:
+              - squared-vs-ce-operation
+            linger: 0.4
+          - id: brier-cancel
+            phrase: "the target share cancels"
+            targets:
+              - squared-vs-ce-operation
+            color: yellow
+            linger: 0.4
+          - id: brier-ce-result
+            phrase: "The gradient on the slept score is about minus point nine nine nine seven"
+            targets:
+              - squared-vs-ce-operation
+            color: cyan
+            linger: 0.4
+          - id: brier-squared-slope
+            phrase: "Squared error multiplies each probability error"
+            targets:
+              - squared-vs-ce-operation
+            color: blue
+            linger: 0.4
+          - id: brier-squared-result
+            phrase: "The gradient on slept is about minus point zero zero zero seven"
+            targets:
+              - squared-vs-ce-operation
+            color: cyan
+            linger: 0.4
+          - id: brier-remain
+            phrase: "Those small slopes stay in the sum"
+            targets:
+              - squared-vs-ce-operation
+            color: yellow
+            linger: 0.4
+      - say: "Take a step of size one directly on the scores. Cross-entropy raises slept by nearly a whole point. Squared error raises it by less than a thousandth. Look at the cyan mark beside zero. That tiny gradient is what squared error sends back through the network for this confident mistake."
+        hold: 0.8
+        caption_starts:
+          - "Cross-entropy raises slept"
+          - "Squared error raises it"
+          - "Look at the cyan mark beside zero."
+        visual_cues:
+          - id: squared-vs-ce-2
+            phrase: "Take a step of size one directly on the scores"
+            targets:
+              - squared-vs-ce-operation
+            linger: 0.4
+          - id: brier-ce-step
+            phrase: "Cross-entropy raises slept by nearly a whole point"
+            targets: [cross-entropy-update]
+          - id: brier-squared-step
+            phrase: "Squared error raises it by less than a thousandth"
+            targets: [squared-error-update]
+          - id: brier-inspect
+            phrase: "That tiny gradient"
+            targets: [squared-error-update]
+            color: cyan
+            linger: 0.4
+  - id: loss-input-contract
+    title: "Did the model get better?"
+    visual: "Two full-width probability strips compare the fixed model with the distribution scored by PyTorch. Inserting and removing a second softmax changes only the lower strip and its loss. Six labeled scores then transpose with their selected target cells intact."
+    beats:
+      - say: "Freeze the dog model at its original scores. The upper strip shows its prediction. Feed those raw scores to PyTorch cross-entropy. With an integer target and no smoothing, it takes a stable log-softmax and reads the negative log at the target index. The two strips agree. Slept costs about two point one seven nats, and the gradient on its raw score is about minus point eight nine."
+        hold: 0.8
+        visual_cues:
+          - id: loss-input-contract-0
+            phrase: "Feed those raw scores"
+            targets: [raw-loss-path]
+          - id: api-direct-result
+            phrase: "the gradient on its raw score is about minus point eight nine"
+            targets: [raw-loss-and-gradient]
+      - say: "Leave the model frozen. This time feed its probabilities to the loss. PyTorch reads them as scores and normalizes again. Watch slept widen on the lower strip. Its share up top hasn’t moved. The reported loss drops to about one point three nine nats. Would you keep this change?"
+        hold: 2.2
+        visual_cues:
+          - id: loss-input-contract-1
+            phrase: "feed its probabilities to the loss"
+            targets: [extra-softmax]
+          - id: api-extra-softmax
+            phrase: "normalizes again"
+            targets: [internal-distribution]
+          - id: api-extra-result
+            phrase: "The reported loss drops to about one point three nine nats"
+            targets: [second-loss-and-gradient]
+      - say: "Remove the extra softmax. That larger green piece existed only inside the loss. The extra operation also weakened the gradient reaching the original slept score. Back on raw scores, the two strips agree again. Compute probabilities on a separate branch when a metric needs them. This input contract holds on CPU and GPU. The backend determines which kernels run."
+        hold: 0.8
+        visual_cues:
+          - id: api-remove-extra
+            phrase: "Remove the extra softmax"
+            targets: [raw-loss-path]
+          - id: api-restored
+            phrase: "the two strips agree again"
+            targets: [restored-loss-and-gradient]
+      - say: "Now score two positions in one sentence. Each position has three scores, one for each possible next word. The gold borders pick out the two observed words. With hard labels, give PyTorch a long integer index for each position. With soft labels, give it a float tensor shaped like the logits and check that each target distribution is nonnegative and sums to one."
+        hold: 0.7
+        visual_cues:
+          - id: api-sequence
+            phrase: "Now score two positions"
+            targets: [score-matrix]
+          - id: api-target-types
+            phrase: "With hard labels"
+            targets: [target-types]
+      - say: "Transpose the last two axes. Now all three words run down each column. The class axis is dimension one, and the two target indices stay in position order. Or flatten batch and position together. Now each position has its own row of three scores and its matching index. Follow those gold cells through either layout. Checking which word each index names takes one more piece of evidence, the sentence itself."
+        hold: 1
+        visual_cues:
+          - id: api-class-axis
+            phrase: "Transpose the last two axes"
+            targets: [transpose-cells]
+          - id: api-transposed
+            phrase: "all three words run down each column"
+            targets: [class-axis]
+          - id: api-flatten
+            phrase: "flatten batch and position together"
+            targets: [flatten-cells]
+          - id: api-flat-result
+            phrase: "each position has its own row of three scores and its matching index"
+            targets: [flat-score-rows]
+  - id: temperature-limits
+    title: What happens to a tie when we cool it?
+    visual: "Two leaders share the probability as the temperature falls. Three equal scores then overflow when divided first. Subtracting their maximum gives three zeros and restores the tie. Masking one candidate leaves two equal shares. Masking all three leaves a zero denominator."
+    beats:
+      - say: "Cool the scores toward zero temperature. Ran leads, so its share approaches one. Now raise slept until it ties ran. The two leaders share that probability equally in the limit. Turn the temperature up and all three shares approach a third. Turning the dial preserves their order. At exactly zero, division is undefined. Some decoders switch to a greedy choice there. A sampler draws from the shares. To calibrate those shares, fit the temperature to held-out outcomes."
+        hold: 0.8
+        caption_starts: ["Now raise slept", "Turn the temperature up", "At exactly zero", "To calibrate those shares"]
+        visual_cues:
+          - id: temperature-limits-0
+            phrase: "Turning the dial preserves their order."
+            targets:
+              - temperature-limits-operation
+            linger: 0.4
+          - id: temperature-zero-limit
+            phrase: "Cool the scores toward zero temperature"
+            targets:
+              - temperature-limits-operation
+            color: cyan
+            linger: 0.4
+          - id: temperature-uniform
+            phrase: "Turn the temperature up"
+            targets:
+              - temperature-limits-operation
+            color: cyan
+            linger: 0.4
+          - id: temperature-greedy
+            phrase: "Some decoders switch to a greedy choice"
+            targets:
+              - temperature-limits-operation
+            color: cyan
+            linger: 0.4
+          - id: temperature-calibration
+            phrase: "To calibrate those shares"
+            targets:
+              - temperature-limits-operation
+            color: cyan
+            linger: 0.4
+          - id: temperature-tied
+            phrase: "Now raise slept until it ties ran"
+            targets:
+              - picture
+      - say: "Here all three scores are equal. Divide by the tiny temperature first. Each quotient overflows. Subtract the largest quotient and we get infinity minus infinity."
+        hold: 1.45
+        caption_starts: ["Each quotient overflows.", "Subtract the largest quotient"]
+        visual_cues:
+          - id: temperature-huge-tie
+            phrase: "Here all three scores are equal"
+            targets: [tied-scores]
+          - id: temperature-overflow
+            phrase: "Each quotient overflows."
+            targets: [scaled-scores]
+          - id: temperature-invalid-difference
+            phrase: "infinity minus infinity"
+            targets: [undefined-difference]
+      - say: "Start again with the same scores. Subtract the largest score first. All three gaps are zero, even after division by temperature. Each exponential is one. Each word gets one third."
+        hold: 0.9
+        caption_starts: ["Subtract the largest score first.", "Each exponential is one.", "Each word gets one third."]
+        visual_cues:
+          - id: temperature-retry
+            phrase: "Start again with the same scores."
+            targets: [tied-scores]
+          - id: temperature-limits-1
+            phrase: "Subtract the largest score first."
+            targets: [shifted-scores]
+          - id: temperature-unit-weights
+            phrase: "Each exponential is one"
+            targets: [candidate-weights]
+          - id: temperature-safe
+            phrase: "Each word gets one third."
+            targets: [equal-shares]
+      - say: "Give ate a score of minus infinity. Its weight drops to zero. Ran and slept split the probability. Mask all three words and their weights add to zero. Each row needs at least one finite score. NaN and positive infinity are invalid scores."
+        hold: 0.8
+        caption_starts: ["Mask all three words", "Each row needs at least one finite score."]
+        visual_cues:
+          - id: temperature-mask-one
+            phrase: "Give ate a score of minus infinity"
+            targets: [allowed-candidates]
+          - id: temperature-all-masked
+            phrase: "Mask all three words"
+            targets: [allowed-candidates]
+      - say: "Distillation uses softened teacher and student distributions to reveal relative alternatives. Through softmax of z divided by T, the raw-logit cross-entropy gradient is p of T minus target, divided by T. When both teacher and student soften at high T, their difference also scales down. Hinton and colleagues multiply the soft-target objective by T squared to balance its contribution. To choose a temperature, compare the students it produces on held-out examples."
+        hold: 0.8
+        visual_cues:
+          - id: temperature-limits-2
+            phrase: Distillation uses softened teacher and student distributions to reveal relative alternatives
+            targets:
+              - temperature-limits-operation
+            linger: 0.4
+          - id: distill-both
+            phrase: When both teacher and student soften at high T
+            targets:
+              - temperature-limits-operation
+            color: cyan
+            linger: 0.4
+          - id: distill-gradient
+            phrase: the raw-logit cross-entropy gradient
+            targets:
+              - temperature-limits-operation
+            color: cyan
+            linger: 0.4
+          - id: distill-scale
+            phrase: multiply the soft-target objective by T squared
+            targets:
+              - temperature-limits-operation
+            color: cyan
+            linger: 0.4
+  - id: smoothing-equilibrium
+    title: When does smoothing stop pushing the score higher?
+    visual: One-hot mass mixes with a uniform target;the same probabilities cross the new target equilibrium and the correction reverses.
+    beats:
+      - say: "Give slept the whole target. Raise its score and the green bar climbs toward the dashed outline. On this one example, every extra point of lead lowers the loss. Reaching zero would take an infinite lead. In a network, other examples share those weights, and regularization can limit how far they move. Label smoothing changes the target. Keep one minus alpha on the word we saw. Spread alpha equally over all three words, including slept."
+        hold: 0.8
+        visual_cues:
+          - id: smoothing-equilibrium-0
+            phrase: Raise its score
+            targets:
+              - smoothing-equilibrium-operation
+            linger: 0.4
+          - id: smooth-mixture
+            phrase: Label smoothing changes the target
+            targets:
+              - smoothing-equilibrium-operation
+            color: cyan
+            linger: 0.4
+      - say: "For our three words and alpha point one, the target is about point nine three three three on slept and point zero three three three on each competitor. Matching these strictly positive shares sets the direct logit gradient to zero. The target-to-competitor ratio is twenty-eight, so the required gap is natural log twenty-eight, about three point three three two. If slept exceeds its smoothed target, the local gradient turns positive and direct descent lowers it. At the minimum, the loss equals the entropy of the smoothed target."
+        hold: 0.8
+        visual_cues:
+          - id: smoothing-equilibrium-1
+            phrase: For our three words and alpha point one, the target is about point nine three three three on slept and point zero three three three on each competitor
+            targets:
+              - smoothing-equilibrium-operation
+            linger: 0.4
+          - id: smooth-match
+            phrase: Matching these strictly positive shares sets the direct logit gradient to zero
+            targets: [ matching-prediction ]
+          - id: smooth-descend
+            phrase: direct descent lowers it
+            targets: [ logit-gap ]
+          - id: smooth-gap
+            phrase: The target-to-competitor ratio is twenty-eight, so the required gap is natural log twenty-eight, about three point three three two.
+            targets:
+              - smoothing-equilibrium-operation
+            color: cyan
+            linger: 0.4
+          - id: smooth-overshoot
+            phrase: If slept exceeds its smoothed target
+            targets:
+              - smoothing-equilibrium-operation
+            color: cyan
+            linger: 0.4
+          - id: smooth-minimum
+            phrase: "the loss equals the entropy of the smoothed target"
+            targets:
+              - smoothing-equilibrium-operation
+            color: cyan
+            linger: 0.4
+      - say: "That gap fixes the proportions for this example. Add ten to all three scores and the proportions stay the same. Many sets of network weights can produce those gaps. Check calibration and accuracy on held-out examples. In distillation, Müller and colleagues found that smoothing the teacher’s labels can make its predictions less useful to the student. Now exclude ate. The model gives it zero probability, but the smoothed target still gives it some weight. Its negative log is infinite, so the loss is infinite."
+        hold: 0.8
+        visual_cues:
+          - id: smoothing-equilibrium-2
+            phrase: "That gap fixes the proportions for this example"
+            targets:
+              - smoothing-equilibrium-operation
+            linger: 0.4
+          - id: smooth-shift
+            phrase: "Add ten to all three scores"
+            targets:
+              - smoothing-equilibrium-operation
+            color: cyan
+            linger: 0.4
+          - id: smooth-support
+            phrase: "Now exclude ate"
+            targets:
+              - smoothing-equilibrium-operation
+            color: cyan
+            linger: 0.4
+          - id: smooth-infinite
+            phrase: "so the loss is infinite"
+            targets: [support-conflict]
+  - id: teacher-forcing
+    title: "Which word did each row score?"
+    visual: "The observed words supply the next-token targets. Scoring the current words instead redistributes the two losses while their mean stays fixed. Restoring the next words restores the original loss at each position."
+    beats:
+      - say: "Read this short training sequence with me. Bug, docs, today. It gives us two next-token predictions. After bug the observed word is docs. After bug docs the observed word is today. Each hidden state produces one score per vocabulary word. The output weights can share the input embedding matrix. At the second position we feed in the actual word docs, even if the model would have guessed bug. That use of the observed history is teacher forcing."
+        hold: 0.7
+        visual_cues:
+          - id: teacher-forcing-0
+            phrase: "this short training sequence"
+            targets: [observed-tokens]
+          - id: teacher-shift
+            phrase: "two next-token predictions"
+            targets: [prefixes]
+          - id: teacher-observed
+            phrase: "After bug the observed word is docs"
+            targets: [first-target]
+          - id: teacher-prefix-target
+            phrase: "After bug docs the observed word is today"
+            targets: [second-target]
+          - id: teacher-logits
+            phrase: "one score per vocabulary word"
+            targets: [output-projection]
+          - id: teacher-context
+            phrase: "we feed in the actual word docs"
+            targets: [observed-context]
+      - say: "Here are the scores again. Read across the first row. Docs got only eleven percent of the probability. In the second row, today got almost three quarters. Take the negative log of each observed word’s share. Together the two losses give a mean of about one point two four nats. Nearly eighty-eight percent of the total comes from the word docs. Keep those individual losses where you can see them."
+        hold: 0.8
+        visual_cues:
+          - id: teacher-forcing-1
+            phrase: "Here are the scores again"
+            targets: [aligned-scores]
+          - id: teacher-token-losses
+            phrase: "Read across the first row"
+            targets: [aligned-shares-and-losses]
+          - id: teacher-loss-mean
+            phrase: "a mean of about one point two four nats"
+            targets: [sequence-mean]
+          - id: teacher-first-contribution
+            phrase: "Nearly eighty-eight percent of the total comes from the word docs"
+            targets: [first-loss-contribution]
+      - say: "Keep both score rows. Slide the targets back one word. Now row one scores bug, the word it just read. Row two scores docs. Which row carries the bigger loss now?"
+        hold: 2
+        visual_cues:
+          - id: teacher-current
+            phrase: "Slide the targets back one word"
+            targets: [current-word-targets]
+      - say: "The second row. On these particular scores, two nats came off the first loss and went onto the second. The mean stayed exactly the same while the training task changed. Put the targets back on the next words. Some model APIs shift labels internally. Applying the shift a second time would train these rows on words two places ahead, wherever such a target exists. A causal mask keeps future words out of the input. A loss mask chooses the target positions to score."
+        hold: 0.8
+        visual_cues:
+          - id: teacher-wrong-result
+            phrase: "The second row"
+            targets: [current-word-losses]
+          - id: teacher-realign
+            phrase: "Put the targets back on the next words"
+            targets: [next-word-targets]
+          - id: teacher-mask-roles
+            phrase: "A causal mask keeps future words out of the input"
+            targets: [mask-roles]
+  - id: token-reduction
+    title: Remove ignored positions from both sums
+    visual: A third extreme-logit row enters the same sequence,but its ignored target contributes no loss,gradient or count.
+    beats:
+      - say: "Add one more row to the batch. Its target is minus one hundred, our ignore index. This position contributes zero loss and zero gradient. The first two losses still sum to about two point four seven six. Two words were scored, so divide by two. Change the ignored row’s scores and the mean stays put."
+        hold: 0.8
+        visual_cues:
+          - id: token-reduction-0
+            phrase: "Add one more row to the batch"
+            targets:
+              - token-reduction-operation
+            linger: 0.4
+          - id: ignore-zero-loss
+            phrase: "This position contributes zero loss and zero gradient"
+            targets: [ ignored-loss ]
+          - id: ignore-loss-sum
+            phrase: The first two losses still sum to about two point four seven six
+            targets: [ loss-sum ]
+          - id: ignore-denominator
+            phrase: "Two words were scored, so divide by two"
+            targets:
+              - token-reduction-operation
+            color: cyan
+            linger: 0.4
+          - id: ignore-row-change
+            phrase: "Change the ignored row’s scores"
+            targets:
+              - token-reduction-operation
+            color: cyan
+            linger: 0.4
+      - say: "Look at these two sequences. The first has one scored word with a loss of two. The second has three scored words with zero loss each. Without class weights, PyTorch pools all four words. Two divided by four gives a mean of one half. Give each sequence equal weight instead. Their means are two and zero. Averaging those gives one. To pool words across microbatches, add their loss sums and divide by the total number of scored words."
+        hold: 0.8
+        visual_cues:
+          - id: token-reduction-1
+            phrase: Look at these two sequences
+            targets:
+              - token-reduction-operation
+            linger: 0.4
+          - id: ignore-pooled
+            phrase: Two divided by four gives a mean of one half
+            targets:
+              - token-reduction-operation
+            color: cyan
+            linger: 0.4
+          - id: ignore-means
+            phrase: Averaging those gives one
+            targets:
+              - token-reduction-operation
+            color: cyan
+            linger: 0.4
+          - id: ignore-sequence-group
+            phrase: Give each sequence equal weight instead
+            targets:
+              - picture
+      - say: An all-ignored batch has an empty denominator. In this batched example, mean cross-entropy returns NaN even with finite logits. Count supervised targets before the optimizer boundary and skip an empty update. An ignored loss position can still be input context for later supervised tokens, and loss masking does not provide attention isolation.
+        hold: 0.8
+        visual_cues:
+          - id: token-reduction-2
+            phrase: An all-ignored batch has an empty denominator
+            targets:
+              - token-reduction-operation
+            linger: 0.4
+          - id: ignore-empty
+            phrase: An all-ignored batch has an empty denominator
+            targets:
+              - token-reduction-operation
+            color: cyan
+            linger: 0.4
+          - id: ignore-input-context
+            phrase: An ignored loss position can still be input context
+            targets:
+              - token-reduction-operation
+            color: cyan
+            linger: 0.4
+          - id: ignore-empty-nan
+            phrase: In this batched example, mean cross-entropy returns NaN even with finite logits.
+            targets:
+              - token-reduction-operation
+            color: cyan
+            linger: 0.4
+          - id: ignore-empty-decision
+            phrase: Count supervised targets before the optimizer boundary and skip an empty update.
+            targets:
+              - token-reduction-operation
+            color: cyan
+            linger: 0.4
+  - id: class-not-position
+    title: Which mask changes the candidates?
+    visual: A supervised docs target retains a high padding-class competitor until a separate candidate mask changes the denominator.
+    beats:
+      - say: "Padding has the highest score in this row. PyTorch checks the target to decide whether to skip it. The ignore index is two. The target is docs, class one, so this row counts. All three words compete, and padding takes almost all the probability. For docs the loss is about nine and the gradient on the padding score is almost one."
+        hold: 0.8
+        visual_cues:
+          - id: class-not-position-0
+            phrase: "Padding has the highest score in this row"
+            targets:
+              - class-not-position-operation
+            linger: 0.4
+          - id: class-loss
+            phrase: "the loss is about nine and the gradient on the padding score is almost one"
+            targets:
+              - class-not-position-operation
+            color: cyan
+            linger: 0.4
+      - say: "Now exclude padding as a possible answer. Set its score to minus infinity. Docs needs to compete only with bug. Its loss falls to about point three one three. Use a candidate mask when the task rules out a word. Keep the observed word available and at least one score finite."
+        hold: 0.8
+        visual_cues:
+          - id: class-not-position-1
+            phrase: "Now exclude padding as a possible answer"
+            targets:
+              - class-not-position-operation
+            linger: 0.4
+          - id: class-exclude
+            phrase: "Set its score to minus infinity"
+            targets:
+              - class-not-position-operation
+            color: cyan
+            linger: 0.4
+          - id: class-excluded-result
+            phrase: "Its loss falls to about point three one three"
+            targets:
+              - class-not-position-operation
+            color: cyan
+            linger: 0.4
+      - say: "With label smoothing, check every class that has positive target weight. Here padding gets some target weight and zero predicted probability. The loss is infinite. A target mask chooses which positions count in the loss. An attention mask controls which words each position can read. A candidate mask chooses which words it can predict."
+        hold: 0.8
+        visual_cues:
+          - id: class-masks
+            phrase: "An attention mask controls which words each position can read"
+            targets:
+              - mask-roles
+            color: cyan
+            linger: 0.35
+          - id: class-not-position-2
+            phrase: "A target mask chooses which positions count in the loss"
+            targets:
+              - class-not-position-operation
+            linger: 0.4
+          - id: class-soft-support
+            phrase: "Here padding gets some target weight"
+            targets:
+              - class-not-position-operation
+            color: cyan
+            linger: 0.4
+          - id: class-support-result
+            phrase: "The loss is infinite"
+            targets: [support-conflict]
+          - id: class-candidate-mask
+            phrase: "A candidate mask chooses which words it can predict"
+            targets: [mask-roles]
+  - id: weighted-reduction
+    title: Carry the denominator with a weighted loss
+    visual: Identical one-hot labels use integer or float target representations;weighted numerators match while their PyTorch means differ.
+    beats:
+      - say: Class weights change the reduction contract. With integer targets, no smoothing and non-ignored positions, each target loss is multiplied by its class weight. PyTorch mean divides by the sum of those target-class weights. Floating-point probability targets instead divide by the number of positions. A float one-hot target can therefore produce a different weighted mean from its integer equivalent.
+        hold: 0.8
+        visual_cues:
+          - id: weighted-count
+            phrase: divide by the number of positions
+            targets:
+              - reduction-rule
+            color: cyan
+            linger: 0.35
+          - id: weighted-reduction-0
+            phrase: Class weights change the reduction contract
+            targets:
+              - weighted-reduction-operation
+            linger: 0.4
+          - id: weighted-contract
+            phrase: PyTorch mean divides by the sum of those target-class weights
+            targets:
+              - weighted-reduction-operation
+            color: cyan
+            linger: 0.4
+      - say: "Take two predictions with two classes each. Both predictions are uniform, so each ordinary loss is natural log two. The two target classes have weights of two and four. The weighted numerator is six times natural log two. Integer-target mean divides by six and returns natural log two. Float one-hot mean divides by two and returns three times natural log two. The same predictions and the same weighted sum give two means because PyTorch uses different divisors."
+        hold: 0.8
+        visual_cues:
+          - id: weighted-reduction-1
+            phrase: "Take two predictions with two classes each"
+            targets:
+              - weighted-reduction-operation
+            linger: 0.4
+          - id: weighted-uniform
+            phrase: each ordinary loss is natural log two
+            targets: [ ordinary-losses ]
+          - id: weighted-weights
+            phrase: "weights of two and four"
+            targets: [ class-weights ]
+          - id: weighted-numerator
+            phrase: The weighted numerator is six times natural log two
+            targets:
+              - weighted-reduction-operation
+            color: cyan
+            linger: 0.4
+          - id: weighted-integer
+            phrase: Integer-target mean divides by six and returns natural log two.
+            targets:
+              - weighted-reduction-operation
+            color: cyan
+            linger: 0.4
+          - id: weighted-float
+            phrase: Float one-hot mean divides by two and returns three times natural log two.
+            targets:
+              - weighted-reduction-operation
+            color: cyan
+            linger: 0.4
+      - say: "To combine shards or microbatches, add the weighted loss sums and add their denominators. Divide once at the end. If you change the target type, class weights or smoothing, check how the loss function computes both parts."
+        hold: 0.8
+        visual_cues:
+          - id: weighted-reduction-2
+            phrase: "To combine shards or microbatches"
+            targets:
+              - weighted-reduction-operation
+            linger: 0.4
+          - id: weighted-combine
+            phrase: "Divide once at the end"
+            targets:
+              - weighted-reduction-operation
+            color: cyan
+            linger: 0.4
+  - id: vocabulary-tiles
+    title: "How much memory does one set of scores need?"
+    visual: "The dimensions and four bytes per score give the allocation for a full logit matrix. Two vocabulary tiles from a single position then contribute to the same running sum. Raising the baseline shrinks the first contribution before the second joins it."
+    beats:
+      - say: "So far each row has held three scores. Take sixteen sequences of four thousand ninety-six positions each. Give every position a score for every vocabulary entry. In this example there are over a hundred and twenty-eight thousand entries. At four bytes per score, the logits alone occupy about thirty-one point three one gibibytes. That’s before you save any other activations or gradients."
+        hold: 0.8
+        visual_cues:
+          - id: vocabulary-tiles-0
+            phrase: "each row has held three scores"
+            targets: [score-matrix]
+          - id: vocab-positions
+            phrase: "sixteen sequences of four thousand ninety-six positions each"
+            targets: [positions]
+          - id: vocab-matrix
+            phrase: "every vocabulary entry"
+            targets: [columns]
+          - id: vocab-bytes
+            phrase: "At four bytes per score"
+            targets: [matrix-bytes]
+          - id: vocab-gib
+            phrase: "about thirty-one point three one gibibytes"
+            targets: [matrix-size]
+      - say: "An ordinary loss call receives the matrix after it’s been allocated. Instead, project one tile of vocabulary scores at a time. Look at just one position. The first tile has a maximum of two. The second brings a new maximum of four. Before adding anything, shrink the first tile’s sum by e to the power of two minus four. Both tiles now use four as their baseline. Add the incoming weights. Four plus the log of that sum gives the log-sum-exp for the whole row. The observed word had the first score in the first tile. Save that two. Subtract the observed word’s score from the log-sum-exp to get a loss of about two point one five nats."
+        hold: 0.8
+        visual_cues:
+          - id: vocabulary-tiles-1
+            phrase: "receives the matrix after it’s been allocated"
+            targets: [matrix-allocation]
+          - id: tile-fused
+            phrase: "project one tile of vocabulary scores at a time"
+            targets: [vocabulary-tiles]
+          - id: tile-incoming
+            phrase: "The second brings a new maximum of four"
+            targets: [second-tile]
+          - id: tile-rescale
+            phrase: "shrink the first tile’s sum by e to the power of two minus four"
+            targets: [rescaled-prior]
+          - id: tile-add
+            phrase: "Add the incoming weights"
+            targets: [merged-sum]
+          - id: tile-result
+            phrase: "Four plus the log of that sum gives the log-sum-exp for the whole row"
+            targets: [tile-result]
+          - id: tile-picked
+            phrase: "The observed word had the first score in the first tile"
+            targets: [selected-score]
+          - id: tile-target
+            phrase: "a loss of about two point one five nats"
+            targets: [target-logit]
+      - say: "Cut Cross-Entropy uses this idea to combine the output projection and the loss without storing the whole matrix in global GPU memory. The paper also filters small gradients for speed. Before adopting an implementation, check its supported objectives and approximation settings. Measure the complete training step on your hardware and compare its loss and gradients with a reference."
+        hold: 0.8
+        visual_cues:
+          - id: vocabulary-tiles-2
+            phrase: "Cut Cross-Entropy uses this idea"
+            targets: [source]
+          - id: tile-full-contract
+            phrase: "without storing the whole matrix in global GPU memory"
+            targets: [allocation-avoided]
+          - id: tile-measure
+            phrase: "Measure the complete training step"
+            targets: [measurement]
+  - id: earned-transfer
+    title: "Two reports on the same batch"
+    visual: "Two copies of a masked batch start with the same probabilities and mean. One report counts an ignored position. In the other, the first target gains probability. Both means reach the same number before the viewer repairs the first report."
+    beats:
+      - say: "Two reports start with the same batch. The first observed word gets a quarter of the probability and the second gets half. The third position is ignored. We have integer targets and no class weights. Take a negative natural log for each observed word. The losses add to about two point zero eight nats. We scored two words, so the starting mean is about one point zero four nats per word."
+        hold: 1
+        visual_cues:
+          - id: fresh-targets
+            phrase: "The first observed word"
+            targets: [target-probabilities]
+          - id: fresh-ignored
+            phrase: "The third position is ignored"
+            targets: [ignored-position]
+          - id: fresh-two-losses
+            phrase: "a negative natural log for each observed word"
+            targets: [position-losses]
+          - id: fresh-loss-sum
+            phrase: "The losses add to about two point zero eight nats"
+            targets: [loss-sum]
+          - id: fresh-start
+            phrase: "the starting mean is about one point zero four nats per word"
+            targets: [baseline-mean]
+      - say: "In report A the dashboard starts counting all three stored positions. Keep your eye on the two predictions. In report B we keep the original divisor and give the first observed word twice its old probability. Now both reports read the same. Which one shows a better prediction on this batch? Point to the evidence."
+        hold: 3.6
+        caption_starts: ["In report B", "Now both reports read the same.", "Which one shows a better prediction"]
+        visual_cues:
+          - id: earned-dashboard
+            phrase: "counting all three stored positions"
+            targets: [first-divisor]
+          - id: fresh-b-update
+            phrase: "give the first observed word twice its old probability"
+            targets: [second-prediction]
+          - id: earned-predict
+            phrase: "Which one shows a better prediction on this batch"
+            targets: [decision]
+      - say: "B. Its first word gained probability while the same two targets were scored. In A the predictions never moved. The extra count came from an ignored position. Restore A’s divisor to two. Its mean goes straight back to where it started. B keeps the lower loss. That first word cost less because the model gave it more probability, just as it did for slept."
+        hold: 1.4
+        caption_starts: ["In A the predictions never moved.", "Restore A’s divisor to two.", "B keeps the lower loss."]
+        visual_cues:
+          - id: fresh-b-answer
+            phrase: "Its first word gained probability"
+            targets: [second-prediction]
+          - id: fresh-counted
+            phrase: "The extra count came from an ignored position"
+            targets: [count-diagnosis]
+          - id: fresh-mean-repair
+            phrase: "Restore A’s divisor to two"
+            targets: [repaired-divisor]
+          - id: fresh-earned
+            phrase: "B keeps the lower loss"
+            targets: [prediction-diagnosis]
+      - say: "Next, a recurrent network will carry the preceding words forward in a hidden state. That changes where the next set of scores comes from. You can still check each prediction against the word that followed."
+        hold: 1.3
+        visual_cues:
+          - id: earned-next
+            phrase: "a recurrent network"
+            targets: [next-lesson]

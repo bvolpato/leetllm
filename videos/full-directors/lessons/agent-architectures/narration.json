@@ -1,0 +1,973 @@
+[
+  {
+    "id": "c01",
+    "title": "Where should the assistant look next?",
+    "sourceChapters": [
+      "c01"
+    ],
+    "beats": [
+      {
+        "id": "c01-b01",
+        "say": "Watch the train at the Art Museum. It still runs as the shutter comes down over the heron. The gallery you came for is closed for repairs.",
+        "hold": 0.55
+      },
+      {
+        "id": "c01-b02",
+        "say": "You could try the History Museum across town. You want ninety minutes inside and you need to finish by five. Which lookup would you spend first, today's opening hours or a train to History?",
+        "hold": 3
+      },
+      {
+        "id": "c01-b03",
+        "say": "Check History's hours. A train there helps only if there's time to visit. If the museum opens today, find a journey and compare the visit with both time limits.",
+        "hold": 1
+      }
+    ]
+  },
+  {
+    "id": "c02",
+    "title": "Who sends the request?",
+    "sourceChapters": [
+      "c02"
+    ],
+    "beats": [
+      {
+        "id": "c02-b01",
+        "say": "The assistant proposes a lookup for today's hours at History. Its policy chooses the question. The request is still here on the left.",
+        "hold": 0.55
+      },
+      {
+        "id": "c02-b02",
+        "say": "The host checks the venue, date and permission to read the hours. Then it sends the request. The model supplies the arguments. Application code runs the tool.",
+        "hold": 0.6
+      },
+      {
+        "id": "c02-b03",
+        "say": "Who picked History? If you wrote the fallback rule, your code picked it. That's a workflow, even if it branches, retries or asks a model for a summary. In Anthropic's terminology, an agent lets the model choose what work or tool to try next.",
+        "hold": 0.55
+      },
+      {
+        "id": "c02-b04",
+        "say": "Keep the request and the returned result in the task's state. That's enough to choose again. A written plan and long-term memory are optional.",
+        "hold": 0.65
+      }
+    ]
+  },
+  {
+    "id": "c03",
+    "title": "What came back from History?",
+    "sourceChapters": [
+      "c03"
+    ],
+    "beats": [
+      {
+        "id": "c03-b01",
+        "say": "Call hours twenty-four asks for History's hours today. The empty half on the right is where its reply will go.",
+        "hold": 0.7
+      },
+      {
+        "id": "c03-b02",
+        "say": "The hours service replies. History is open from one until six today. The host saves the answer with the call ID and the time it arrived. That record is the receipt.",
+        "hold": 0.65
+      },
+      {
+        "id": "c03-b03",
+        "say": "Six is when the museum closes. Five is when you need to finish. The hours service supplied one limit. You supplied the other.",
+        "hold": 0.7
+      }
+    ]
+  },
+  {
+    "id": "c04",
+    "title": "One lookup, two next moves",
+    "sourceChapters": [
+      "c04"
+    ],
+    "beats": [
+      {
+        "id": "c04-b01",
+        "say": "With History open, the assistant asks for a journey to History. That's one pass through the ReAct loop. Choose a lookup, let the host run it, then use the observation to choose again.",
+        "hold": 0.7
+      },
+      {
+        "id": "c04-b02",
+        "say": "Keep the first run in view. Send the same hours request again. This time the reply says closed all day. Would you spend the next lookup on a train to History?",
+        "hold": 2.5
+      },
+      {
+        "id": "c04-b03",
+        "say": "Look for another venue. Changing one reply changed the next action. Both runs leave a trail of requests and results. We'll follow the first run, where History is open.",
+        "hold": 0.6
+      }
+    ]
+  },
+  {
+    "id": "c05",
+    "title": "What did the Act control see?",
+    "sourceChapters": [
+      "c05"
+    ],
+    "beats": [
+      {
+        "id": "c05-b01",
+        "say": "The ReAct paper calls these three parts Thought, Action and Observation. A thought can be a short note about what to try. The paper's prompts sometimes go straight to the action. To see what an assistant actually did, follow the request the host validated to the result it recorded.",
+        "hold": 0.7
+      },
+      {
+        "id": "c05-b02",
+        "say": "In the paper's ALFWorld tasks, the best of six ReAct prompts reached seventy-one percent success. Their average was fifty-seven. The Act control kept the observations and dropped the written reasoning. It reached forty-five at best. BUTLER reported thirty-seven.",
+        "hold": 0.3
+      },
+      {
+        "id": "c05-b03",
+        "say": "On WebShop, ReAct reached forty percent, versus twenty-nine point one for imitation learning and twenty-eight point seven for imitation plus reinforcement learning.",
+        "hold": 0.7
+      }
+    ]
+  },
+  {
+    "id": "c06",
+    "title": "A successful lookup can report a failed build",
+    "sourceChapters": [
+      "c06"
+    ],
+    "beats": [
+      {
+        "id": "c06-b01",
+        "say": "A build failed. Our scripted assistant asks for its CI result. The lookup succeeds. The result says the migration failed. The assistant reads the authorized migration file and finds a column added without a guard. Here's the entry it leaves in the log. Review migration semantics. No write performed.",
+        "hold": 0.7
+      },
+      {
+        "id": "c06-b02",
+        "say": "Change the first reply to runner unavailable. Now there's no migration result to investigate. The assistant reports insufficient evidence after one call. If the CI read times out instead, the host counts the attempt and stores an error receipt before deferral.",
+        "hold": 0.7
+      },
+      {
+        "id": "c06-b03",
+        "say": "Give the assistant two tool attempts. It asks for CI again and gets one receipt. It repeats the read and gets a second copy. The host blocks the third dispatch. It can still give a final answer after the last read.",
+        "hold": 0.3
+      },
+      {
+        "id": "c06-b04",
+        "say": "Each result here fits in a hundred and twenty characters. Open the first receipt. To use that result later, keep its request, repository, revision and retrieval time. Those fields tell you which build the evidence describes.",
+        "hold": 0.7
+      }
+    ]
+  },
+  {
+    "id": "c07",
+    "title": "When has the investigation earned an answer?",
+    "sourceChapters": [
+      "c07"
+    ],
+    "beats": [
+      {
+        "id": "c07-b01",
+        "say": "Here's a second local investigation, with a different stopping rule. Both releases begin by reading the continuous integration result. On release R eighteen forty-two, the migration failed. Read the migration, then run the replay on a throwaway database. This schema diagnosis needs all three results.",
+        "hold": 0.6
+      },
+      {
+        "id": "c07-b02",
+        "say": "On release R eighteen forty-three, the runner was unavailable. That first read is enough to report a runner outage. The host accepts each answer against the evidence its own claim requires. One case took three reads. The other took one.",
+        "hold": 0.65
+      },
+      {
+        "id": "c07-b03",
+        "say": "Start release R eighteen forty-two again. On its very first turn, the policy claims a schema bug and cites all three tools. Look at what actually came back. Can the host accept this answer?",
+        "hold": 2
+      },
+      {
+        "id": "c07-b04",
+        "say": "The host rejects it. The list of observed results is empty. Citing a tool can't fill its slot. This check establishes that the required reads happened. Checking whether a conclusion follows from those results takes a verifier for the claim itself.",
+        "hold": 0.6
+      },
+      {
+        "id": "c07-b05",
+        "say": "Count the turns on the successful migration run. Three turns read tools. A fourth returns the answer. Give this loop only two turns, and it stops before the replay. The earlier loop counted tool attempts instead. For either budget, the counter tells you what the host admitted. A model call can run many forward passes.",
+        "hold": 0.7
+      }
+    ]
+  },
+  {
+    "id": "c08",
+    "title": "Two readers, one closure notice",
+    "sourceChapters": [
+      "c08"
+    ],
+    "beats": [
+      {
+        "id": "c08-b01",
+        "say": "Try an alternative version of the notice from Art. Give exactly the same notice to two assistants. On the left, you wrote a fallback rule. If the main gallery is closed, check History. That assistant follows the route you chose.",
+        "hold": 0.65
+      },
+      {
+        "id": "c08-b02",
+        "say": "Read the second sentence. Other galleries are open through the east entrance. What could the assistant on the right usefully check before it gives up on Art?",
+        "hold": 1.95
+      },
+      {
+        "id": "c08-b03",
+        "say": "It could check today's visiting hours at the east entrance. Here the model proposes that follow-up after reading the notice. You could also write an east-entrance rule. If you can enumerate the cases you need, a coded workflow will handle them.",
+        "hold": 0.3
+      },
+      {
+        "id": "c08-b04",
+        "say": "Try writing that rule. If a notice names an open entrance, ask for its hours first. Both requests now ask about the east entrance. Who chose each one? You chose the rule. The model chose its lookup after reading the notice. Compare their time and cost on the same tasks.",
+        "hold": 1
+      }
+    ]
+  },
+  {
+    "id": "c09",
+    "title": "How often do you send the same observation?",
+    "sourceChapters": [
+      "c09"
+    ],
+    "beats": [
+      {
+        "id": "c09-b01",
+        "say": "Each column is one model request. The first sends two thousand tokens of instructions and tool definitions. After each reply, we add fifteen hundred tokens of actions and observations. Send the whole history again each time. The tenth column has nine extra blocks, for fifteen thousand five hundred input tokens.",
+        "hold": 0.7
+      },
+      {
+        "id": "c09-b02",
+        "say": "Add the blue bases first. Ten copies of two thousand gives twenty thousand. Above them are forty-five extra blocks, one plus two all the way up to nine. At fifteen hundred tokens each, those blocks bring the total to eighty-seven thousand five hundred.",
+        "hold": 0.3
+      },
+      {
+        "id": "c09-b03",
+        "say": "Follow the first observation across the chart. You send it nine times. The tenth observation arrives after the last call.",
+        "hold": 0.7
+      },
+      {
+        "id": "c09-b04",
+        "say": "With K requests, the base goes in K times. The extra blocks form a triangle. Multiply K by one less than K, then divide by two to count those blocks. That's why replaying fixed additions makes total input grow quadratically.",
+        "hold": 0.3
+      },
+      {
+        "id": "c09-b05",
+        "say": "Even when blocks vary in size, a block added after call J goes in K minus J more times. A final synthesis call adds another column. A ReAct loop can also keep full receipts elsewhere and fetch just the evidence it needs.",
+        "hold": 0.7
+      }
+    ]
+  },
+  {
+    "id": "c10",
+    "title": "Where do the repeated tokens go?",
+    "sourceChapters": [
+      "c10"
+    ],
+    "beats": [
+      {
+        "id": "c10-b01",
+        "say": "Keep only the last two blocks above each blue base. Across ten requests you now send forty-five thousand five hundred tokens. Check that the older evidence can still be retrieved when needed. Now restore the full history. Suppose each matching prefix stays in the cache.",
+        "hold": 0.3
+      },
+      {
+        "id": "c10-b02",
+        "say": "Across the same ten calls you get seventy-two thousand cached-read tokens and fifteen thousand five hundred new cache-write tokens.",
+        "hold": 0.7
+      },
+      {
+        "id": "c10-b03",
+        "say": "Follow the yellow block on the first call. The cache writes it once. On the next call those same tokens are blue and can be read from the cache. That reuse depends on the prefix still matching and still being stored.",
+        "hold": 0.3
+      },
+      {
+        "id": "c10-b04",
+        "say": "To work out the bill, apply the service's rates to reads, writes and output, then include tools and retries. To explain a slow answer, measure queues, cache misses, tool time and output length.",
+        "hold": 0.7
+      }
+    ]
+  },
+  {
+    "id": "c11",
+    "title": "Who can authorize a patch draft?",
+    "sourceChapters": [
+      "c11"
+    ],
+    "beats": [
+      {
+        "id": "c11-b01",
+        "say": "A CI log can tell us which migration failed. Keep its source attached when you summarize it. The host has a separate registry for permissions. Read CI is a read. Open patch is a write, even when that suggestion came from a log.",
+        "hold": 0.7
+      },
+      {
+        "id": "c11-b02",
+        "say": "The host expects three fields for a patch draft. Which tool, which path, and what change? This actor has access to the file. Until a person approves the exact change, the host blocks with zero drafts. A trusted event records that exact approval. The next request creates draft one. The migration stays as it was.",
+        "hold": 0.7
+      },
+      {
+        "id": "c11-b03",
+        "say": "The next request includes an extra field. It breaks the exact request shape, so the earlier draft stays in place. A read takes no change payload. A write needs a nonempty change and matching approval. Distinguish three failures when you debug a run. Was the request malformed?",
+        "hold": 0.3
+      },
+      {
+        "id": "c11-b04",
+        "say": "Did policy deny it? Or did the assistant misread a valid result? For concurrent writes and retries, the service also needs a way to recognize a request it already accepted.",
+        "hold": 0.7
+      }
+    ]
+  },
+  {
+    "id": "c12",
+    "title": "Vote on proposals before any real effect",
+    "sourceChapters": [
+      "c12"
+    ],
+    "beats": [
+      {
+        "id": "c12-b01",
+        "say": "Read these three recommendations. Patch, roll back, patch. In self-consistency you sample several reasoning paths and count their answers. Our three example votes give patch a strict majority of two out of three. Take away the last patch vote and it's a tie. The result is needs review.",
+        "hold": 0.7
+      },
+      {
+        "id": "c12-b02",
+        "say": "Return to the original three votes. Two candidates chose patch. Each candidate can inspect the same read-only evidence or work in its own resettable sandbox. The host checks whether the selected patch is authorized. If the service supports deduplication, retry an approved request with its original operation ID to recover the result.",
+        "hold": 0.7
+      },
+      {
+        "id": "c12-b03",
+        "say": "Suppose all three candidates read the same stale log. All three can agree on the wrong patch. Compare voting with one investigation on the same total budget. Count every model call and tool attempt, and check both the recommendation and the effects each run attempted.",
+        "hold": 0.7
+      }
+    ]
+  },
+  {
+    "id": "c13",
+    "title": "Repair feedback before adding another reflection",
+    "sourceChapters": [
+      "c13"
+    ],
+    "beats": [
+      {
+        "id": "c13-b01",
+        "say": "In Reflexion, a failed trial can leave a written note for the next one. The actor tries the task. An evaluator checks the result. The reflection component uses that feedback to suggest what the actor should try next. The model weights stay fixed, and the same task policy applies on every attempt.",
+        "hold": 0.7
+      },
+      {
+        "id": "c13-b02",
+        "say": "The actor picks old-run. It exists, so the first evaluator passes it. Check the revision yourself. The task asks for c eighteen forty-two. The receipt says c eighteen forty-one. A revision-aware evaluator fails the trial and stores a note to match the requested revision.",
+        "hold": 0.3
+      },
+      {
+        "id": "c13-b03",
+        "say": "Selecting the current run passes and adds no second failure note.",
+        "hold": 0.7
+      },
+      {
+        "id": "c13-b04",
+        "say": "Replay the handoff. Leave the note in storage and the next actor has only its original input. Retrieve the note into that call and it can guide the choice. The original work usually kept one to three experiences. A retry waits for its feedback. Independent trials can overlap. Count the actor, evaluator, reflection and tool work for each trial.",
+        "hold": 0.7
+      }
+    ]
+  },
+  {
+    "id": "c14",
+    "title": "When does a passing self-test help?",
+    "sourceChapters": [
+      "c14"
+    ],
+    "beats": [
+      {
+        "id": "c14-b01",
+        "say": "On HumanEval, one GPT-four generation passed eighty point one percent of the Python problems. Reflexion could try a solution, write tests and revise it before submitting one final answer. Its reported pass-at-one was ninety-one percent. The two bars count final answers. The second method could spend extra attempts getting there.",
+        "hold": 0.7
+      },
+      {
+        "id": "c14-b02",
+        "say": "On the second set of Python problems, MBPP, the baseline was again eighty point one percent. Reflexion fell to seventy-seven point one. Look inside the solutions that passed their own tests.",
+        "hold": 0.3
+      },
+      {
+        "id": "c14-b03",
+        "say": "Sixteen point three percent of those were still wrong on MBPP, compared with one point four percent on HumanEval. If a weak test tells the actor to stop, it can keep a broken solution.",
+        "hold": 0.7
+      }
+    ]
+  },
+  {
+    "id": "c15",
+    "title": "Which station does this ticket reach?",
+    "sourceChapters": [
+      "c15"
+    ],
+    "beats": [
+      {
+        "id": "c15-b01",
+        "say": "Back at the station, we know which checks our visit needs. Establish a venue's hours, find a journey to that venue, then decide whether the visit fits. When we write down which step needs which result, we have an explicit plan.",
+        "hold": 0.6
+      },
+      {
+        "id": "c15-b02",
+        "say": "Our hours receipt says History, today, open until six. We also have a perfectly good train route to Art. Two completed lookups. Can we join them to make a recommendation for History?",
+        "hold": 2.1
+      },
+      {
+        "id": "c15-b03",
+        "say": "The destinations differ. Keep the hours and look up a train to History. This service returns a feasible journey for today's visit. Follow the new line to the stop named on the hours receipt. Now both checks refer to the same visit, and the recommendation step can run.",
+        "hold": 0.7
+      },
+      {
+        "id": "c15-b04",
+        "say": "The plan tells the host when a step is ready. Inside a step, a short feedback loop can still choose which timetable to try. What the plan keeps visible is the result the next step is waiting for.",
+        "hold": 0.6
+      }
+    ]
+  },
+  {
+    "id": "c16",
+    "title": "A valid graph exposes readiness without executing it",
+    "sourceChapters": [
+      "c16"
+    ],
+    "beats": [
+      {
+        "id": "c16-b01",
+        "say": "A planner proposes steps, dependencies and a way to tell when each step is done. The runtime checks the plan and schedules its work. Plan-and-Solve uses a plan in a reasoning prompt. HuggingGPT divides work into planning, model selection, execution and response generation. One model can take on several roles.",
+        "hold": 0.7
+      },
+      {
+        "id": "c16-b02",
+        "say": "CI, diff and health each feed the same decision. The effect waits for that decision. Initially all three reads are ready. Once the results come back, only decision is ready. If diff fails while the others succeed, the decision has to wait.",
+        "hold": 0.3
+      },
+      {
+        "id": "c16-b03",
+        "say": "Even a failed build can count as a successful read when CI returns its result.",
+        "hold": 0.7
+      },
+      {
+        "id": "c16-b04",
+        "say": "Reject duplicate or empty step IDs, missing dependencies and cycles. Watch the arrow from decision back to CI. Each would wait for the other forever. Remove the return edge. We're back to the run where diff failed, so the decision still waits. A serial list is a plan too. In either shape, dependencies tell you what's ready.",
+        "hold": 0.3
+      },
+      {
+        "id": "c16-b05",
+        "say": "The scheduler supplies workers with access to run it, and the host checks authorization before any effect.",
+        "hold": 0.7
+      }
+    ]
+  },
+  {
+    "id": "c17",
+    "title": "Which read holds up the decision?",
+    "sourceChapters": [
+      "c17"
+    ],
+    "beats": [
+      {
+        "id": "c17-b01",
+        "say": "Planning takes a hundred and twenty milliseconds. Then three workers start their reads together. Health needs a hundred and fifty milliseconds, CI needs two hundred, and diff needs three hundred and fifty. Trace the last unfinished read. When can the join start?",
+        "hold": 3
+      },
+      {
+        "id": "c17-b02",
+        "say": "At four hundred and seventy milliseconds, the diff comes back. Health and CI have already finished. The join starts there and adds fifty milliseconds. That's five hundred and twenty from the start of planning.",
+        "hold": 0.65
+      },
+      {
+        "id": "c17-b03",
+        "say": "Now give the same work just one worker. Put the reads end to end. Each bar keeps its duration. The last read ends at eight hundred and twenty milliseconds. Add the same join and the total is eight hundred and seventy. The difference comes from overlap.",
+        "hold": 0.65
+      },
+      {
+        "id": "c17-b04",
+        "say": "Drop the health read. On one worker, removing its hundred and fifty milliseconds moves the finish to seven hundred and twenty. Spread the two remaining reads across workers again. Where does the join finish?",
+        "hold": 2.7
+      },
+      {
+        "id": "c17-b05",
+        "say": "Still five hundred and twenty milliseconds. The diff reaches the join at four seventy in both parallel runs. In a running system, queues and retries can change which step you wait for.",
+        "hold": 0.6
+      }
+    ]
+  },
+  {
+    "id": "c18",
+    "title": "The train on the plan",
+    "sourceChapters": [
+      "c18"
+    ],
+    "beats": [
+      {
+        "id": "c18-b01",
+        "say": "Here are the two results behind the History visit. Today's opening hours came from the museum. The train journey came from the transit service. Both point to History.",
+        "hold": 0.55
+      },
+      {
+        "id": "c18-b02",
+        "say": "A new notice arrives from transit. Our train to History has been cancelled. You have time for one more lookup. Which would you ask for again, the museum's hours or a journey to the museum?",
+        "hold": 2.25
+      },
+      {
+        "id": "c18-b03",
+        "say": "Ask for a journey. The cancellation breaks the train leg and the recommendation that used it. History's hours still apply to the same venue on the same day. Keep that receipt.",
+        "hold": 0.7
+      },
+      {
+        "id": "c18-b04",
+        "say": "Transit comes back with a bus. Trace its line to History, then check the visit against the bus timetable. This is replanning. We replaced the broken leg and reopened the decision that depended on it.",
+        "hold": 0.65
+      }
+    ]
+  },
+  {
+    "id": "c19",
+    "title": "One second later",
+    "sourceChapters": [
+      "c19"
+    ],
+    "beats": [
+      {
+        "id": "c19-b01",
+        "say": "Give the release plan a clock, in seconds. CI and diff for this revision are valid until twelve hundred. The health result expires at eleven hundred. The decision used all three, and its own expiry says twelve hundred. At ten ninety-nine all four results are usable.",
+        "hold": 0.65
+      },
+      {
+        "id": "c19-b02",
+        "say": "Move the clock forward one second. The rule is strictly before the expiry time. Which read would you run now, and can you still use the old decision?",
+        "hold": 2.1
+      },
+      {
+        "id": "c19-b03",
+        "say": "Rerun health. The clock has reached its expiry. Follow that cutoff down to the decision. The decision used that health result, so its own later timestamp can't keep it alive. CI and diff still apply. The effect must wait.",
+        "hold": 0.65
+      },
+      {
+        "id": "c19-b04",
+        "say": "A fresh health result arrives. Discard the old decision and compute a new one from these three reads. The host checks the parents before each dependent step. The reader version of the example makes the same check recursively.",
+        "hold": 0.55
+      },
+      {
+        "id": "c19-b05",
+        "say": "Now ask about a different revision. Every stored result here belongs to the old one. Start the CI, diff and health reads again. A dependency can be fresh by the clock and still belong to the wrong release.",
+        "hold": 0.65
+      }
+    ]
+  },
+  {
+    "id": "c20",
+    "title": "Which health result did the decision use?",
+    "sourceChapters": [
+      "c20"
+    ],
+    "beats": [
+      {
+        "id": "c20-b01",
+        "say": "Go back to the original revision at eleven hundred seconds. Look inside the decision we would otherwise reuse. It names version one of the health result. Replace health with version two. The step name is the same, but the decision still points to version one.",
+        "hold": 0.3
+      },
+      {
+        "id": "c20-b02",
+        "say": "Record the exact inputs each conclusion used so the host can tell which decisions need to be made again.",
+        "hold": 0.7
+      },
+      {
+        "id": "c20-b03",
+        "say": "Check replacement steps for duplicate IDs, missing dependencies, cycles, permitted tools and policy. A shared resource can affect work beyond the edges you've drawn. Suppose a previous run already created a proposal. The service ledger records proposal R B twenty forty-one. Remove its step from the plan.",
+        "hold": 0.3
+      },
+      {
+        "id": "c20-b04",
+        "say": "The proposal still exists. Keep the operation ID so the host can reconcile a lost reply before retrying.",
+        "hold": 0.75
+      }
+    ]
+  },
+  {
+    "id": "c21",
+    "title": "Where should this request go?",
+    "sourceChapters": [
+      "c21"
+    ],
+    "beats": [
+      {
+        "id": "c21-b01",
+        "say": "This router looks for keywords. CI points to the build handler. Schema points to migrations. Handbook points to documentation. The router can hand off to a specialist or a whole workflow. It sends a request to review if it finds no match or several.",
+        "hold": 0.7
+      },
+      {
+        "id": "c21-b02",
+        "say": "CI failed during a schema migration. That matches two categories and is held for review. Read the documentation matches one and reaches the read-only handler. If you use a model to classify these requests, test its confidence against labeled cases before setting an acceptance threshold. Let the host map an accepted category to its handler.",
+        "hold": 0.7
+      }
+    ]
+  },
+  {
+    "id": "c22",
+    "title": "Which branch should we try next?",
+    "sourceChapters": [
+      "c22"
+    ],
+    "beats": [
+      {
+        "id": "c22-b01",
+        "say": "At this fork we could inspect the code diff, simulate a retry, or simulate a rollback. Language Agent Tree Search keeps all three available. It selects a branch, expands alternatives and evaluates them using observations from the environment. A simulation follows one path toward an outcome.",
+        "hold": 0.3
+      },
+      {
+        "id": "c22-b02",
+        "say": "Its return travels back up the path, and an unsuccessful trial can supply feedback for another attempt.",
+        "hold": 0.7
+      },
+      {
+        "id": "c22-b03",
+        "say": "How do you decide which branch deserves another try? LATS combines a model's evaluation with a self-consistency heuristic. A mistaken evaluation can favor the wrong branch. We'll work through two pieces of the search using a small table of visits and returns. First choose a branch with UCT. Then update its numbers after a simulation.",
+        "hold": 0.7
+      },
+      {
+        "id": "c22-b04",
+        "say": "Give each branch that changes files its own snapshot. Restarting it means restoring the files and tool state as well as the conversation. Read-only branches can share observations that still apply. Once the search selects a proposal, the host checks permission before applying it outside the simulation.",
+        "hold": 0.7
+      }
+    ]
+  },
+  {
+    "id": "c23",
+    "title": "Which branch gets the next simulation?",
+    "sourceChapters": [
+      "c23"
+    ],
+    "beats": [
+      {
+        "id": "c23-b01",
+        "say": "Here are three possible moves in the same simulation. We have ten earlier visits to this parent. Each branch shows how many of those visits it received and how much return it earned in total. Divide total return by visits to get the blue length on the score ruler, the average return. Which branch leads on that measure?",
+        "hold": 2
+      },
+      {
+        "id": "c23-b02",
+        "say": "The diff leads with an average of point nine. Retry has an average of point one, but we've tried it just once. Let's give rarely visited branches a chance. Take the natural log of parent visits, divide by the branch's visits and take the square root.",
+        "hold": 0.3
+      },
+      {
+        "id": "c23-b03",
+        "say": "Multiply by the exploration weight. Here that weight is the square root of two.",
+        "hold": 0.6
+      },
+      {
+        "id": "c23-b04",
+        "say": "Add that bonus to each average. This is the UCT selection score. The rows use the same scale. Which branch would you spend the next simulation on?",
+        "hold": 1.95
+      },
+      {
+        "id": "c23-b05",
+        "say": "Simulate retry. Its exploration bonus alone exceeds two. The diff's frequent visits give it a smaller bonus. If the parent gets more visits while a child's count stays fixed, the child's bonus grows. At this fork, a higher score earns the next simulation.",
+        "hold": 0.55
+      },
+      {
+        "id": "c23-b06",
+        "say": "For an eligible branch with zero visits, this example assigns an infinite score so it gets priority at selection. A finite budget can still stop the search before every possible branch has been expanded. We'll back up the return from the retry branch we just selected.",
+        "hold": 0.6
+      }
+    ]
+  },
+  {
+    "id": "c24",
+    "title": "What changes after one more retry?",
+    "sourceChapters": [
+      "c24"
+    ],
+    "beats": [
+      {
+        "id": "c24-b01",
+        "say": "Stay on that retry branch. In this example, the next simulated attempt earns a return of one. The branch previously had one visit and a total return of point one. What average should we store after this attempt?",
+        "hold": 1.85
+      },
+      {
+        "id": "c24-b02",
+        "say": "Count both visits. Add the new return to the old one and you get one point one in total. Divide by two. The new average is point five five. Carry that visit and return up to the root. It goes from ten visits to eleven, and its total return goes from five point eight to six point eight. The other two branches keep their statistics.",
+        "hold": 0.65
+      },
+      {
+        "id": "c24-b03",
+        "say": "These are search statistics. The model's weights stay fixed. This example accepts finite returns between zero and one, and checks the visit counts. For another task, choose the reward scale and exploration weight for its budget. Even the branch you select still needs a valid simulation, a reliable evaluation and permission for any real action.",
+        "hold": 0.7
+      }
+    ]
+  },
+  {
+    "id": "c25",
+    "title": "Shape, access and observation are separate",
+    "sourceChapters": [
+      "c25"
+    ],
+    "beats": [
+      {
+        "id": "c25-b01",
+        "say": "Start with a request for CI run R eighteen forty-two. Its run ID is a string. Omit the optional include logs flag and the application uses false. The host checks access and reads the result once. Add an extra field, or send the word yes where a Boolean belongs. Both requests fail shape validation.",
+        "hold": 0.3
+      },
+      {
+        "id": "c25-b02",
+        "say": "The last request has the right shape but names a run outside this actor's scope. It's denied before the backend is read. That leaves one backend read, for R eighteen forty-two.",
+        "hold": 0.7
+      },
+      {
+        "id": "c25-b03",
+        "say": "That is an application-level schema. OpenAI strict schemas require every property in required; a nullable type can represent a conceptually optional value. Provider shape constraints still leave semantic validation, read permission, current scope and budgets to the host. Host-held credentials, timeouts and bounded results complete the external round trip.",
+        "hold": 0.7
+      }
+    ]
+  },
+  {
+    "id": "c26",
+    "title": "An unknown reply does not erase an accepted effect",
+    "sourceChapters": [
+      "c26"
+    ],
+    "beats": [
+      {
+        "id": "c26-b01",
+        "say": "The caller asks the service to open a rollback proposal. It sends the approved request for release R eighteen forty-two with operation seventeen. The service creates R B twenty forty-one, but the caller loses the reply. We can see the proposal in the ledger. From the caller's side, the outcome is still unknown.",
+        "hold": 0.7
+      },
+      {
+        "id": "c26-b02",
+        "say": "Revoke the grant and retry. The host denies the request even though the service has a record. Restore the grant and retry the identical request with operation seventeen. The service returns replay R B twenty forty-one. Reuse the key for a different approved release, R twenty ninety-nine, and the payload conflicts. Count the proposals. There's still one.",
+        "hold": 0.7
+      },
+      {
+        "id": "c26-b03",
+        "say": "A production key must bind actor or tenant scope and the complete intended payload under a supported service contract. Recording the key and applying the effect must be atomic and durable. An in-progress request may return pending rather than a final response.",
+        "hold": 0.3
+      },
+      {
+        "id": "c26-b04",
+        "say": "If deduplication is unsupported or its retention window has expired, reconcile instead of inventing a new identity and assuming failure.",
+        "hold": 0.7
+      }
+    ]
+  },
+  {
+    "id": "c27",
+    "title": "Stop loops and select the evidence each call needs",
+    "sourceChapters": [
+      "c27"
+    ],
+    "beats": [
+      {
+        "id": "c27-b01",
+        "say": "Another request for the same unhelpful page can leave the evidence unchanged. Compare canonical action records with a progress marker. Repetition without new information can trigger another strategy or stop the run before a further dispatch.",
+        "hold": 0.65
+      },
+      {
+        "id": "c27-b02",
+        "say": "The runtime counts failed calls too and enforces the attempt and time budgets. Keep complete receipts outside the prompt, then select the relevant records for the next model turn.",
+        "hold": 0.65
+      },
+      {
+        "id": "c27-b03",
+        "say": "If every request resubmits all earlier observations, the input total grows faster than the number of steps. These supplied counts make that accumulation visible. A compact state can reduce it while preserving the source details needed for the next decision.",
+        "hold": 0.9
+      }
+    ]
+  },
+  {
+    "id": "c28",
+    "title": "Reserve capacity before another dispatch",
+    "sourceChapters": [
+      "c28"
+    ],
+    "beats": [
+      {
+        "id": "c28-b01",
+        "say": "The host has two read attempts and one write attempt. Reserve a read and a write. Now the write pool is zero, so the host blocks a second write. One read remains. Even if a request times out, the host counts the attempt.",
+        "hold": 0.3
+      },
+      {
+        "id": "c28-b02",
+        "say": "It uses its own registry to decide which pool a tool draws from.",
+        "hold": 0.7
+      },
+      {
+        "id": "c28-b03",
+        "say": "After checking permission, reserve the budget just before dispatch. The yellow line marks a hundred and fifty tokens left. This call needs a hundred and twenty for input and up to eighty for output. Together that's two hundred, so the host keeps the call from starting.",
+        "hold": 0.3
+      },
+      {
+        "id": "c28-b04",
+        "say": "Include reasoning usage where it applies. If workers share the budget, reserve it atomically so two calls can't spend the same tokens.",
+        "hold": 0.7
+      },
+      {
+        "id": "c28-b05",
+        "say": "Count steps, tokens, elapsed time and writes separately. A caller can time out while the service is still working. When the investigation stops, report which limit it hit, what came back and which operations still need checking.",
+        "hold": 0.7
+      }
+    ]
+  },
+  {
+    "id": "c29",
+    "title": "Did the second pass make progress?",
+    "sourceChapters": [
+      "c29"
+    ],
+    "beats": [
+      {
+        "id": "c29-b01",
+        "say": "First make the actions comparable. Sort the keys of each validated request and remove whitespace between fields. Keep the space inside a query such as team space id. Removing that space changes the request. Reject nonfinite numbers before building this identity.",
+        "hold": 0.6
+      },
+      {
+        "id": "c29-b02",
+        "say": "Here are four calls, A, B, A, B. Read the cursor before the first call and after each one. All five readings are the same. The pair of actions repeated, and the host saw no progress. Its detector flags this run.",
+        "hold": 0.65
+      },
+      {
+        "id": "c29-b03",
+        "say": "Run the same four calls again. Keep the first four cursor readings. This time the final response advances the verified cursor. Should the detector flag the repeated pair?",
+        "hold": 2.6
+      },
+      {
+        "id": "c29-b04",
+        "say": "Let it continue if there's budget. The sequence of calls is identical, but the last one made progress. The detector looks for exact repeated suffixes of one, two or three calls. It also catches one identical read repeating with no progress.",
+        "hold": 0.3
+      },
+      {
+        "id": "c29-b05",
+        "say": "It can miss longer cycles, and a new display timestamp on the same data is a poor progress marker. Keep the hard limits and the completion check.",
+        "hold": 0.65
+      }
+    ]
+  },
+  {
+    "id": "c30",
+    "title": "Match the recovered state to the affected incident",
+    "sourceChapters": [
+      "c30"
+    ],
+    "beats": [
+      {
+        "id": "c30-b01",
+        "say": "The incident is in US East, on the new revision. Europe still runs an older revision and its sample is healthy. In the release trace the assistant closed the incident while US East was still slow. What should the host check before it accepts a close request?",
+        "hold": 0.7
+      },
+      {
+        "id": "c30-b02",
+        "say": "Suppose the operator rolls US East back to the older revision. Now the host needs a sample from US East on that revision. The sample must be less than sixty seconds old, with a timestamp at or before the current time.",
+        "hold": 0.3
+      },
+      {
+        "id": "c30-b03",
+        "say": "Its ninety-fifth percentile latency must be a finite value from zero through two hundred milliseconds. Closing also needs approval for this incident and revision.",
+        "hold": 0.7
+      },
+      {
+        "id": "c30-b04",
+        "say": "Europe reports a healthy hundred and twenty milliseconds. Wrong region. Switch to US East. Nine hundred and forty milliseconds is too slow. Now US East reports a hundred and twenty, but the approval is missing. The incident stays open. When the matching approval arrives, the incident closes.",
+        "hold": 0.3
+      },
+      {
+        "id": "c30-b05",
+        "say": "If your policy requires sustained recovery, check the window of samples, errors and rollout state. Make the check and the close atomic so an incident update can't slip between them.",
+        "hold": 0.7
+      }
+    ]
+  },
+  {
+    "id": "c31",
+    "title": "What reaches the next call?",
+    "sourceChapters": [
+      "c31"
+    ],
+    "beats": [
+      {
+        "id": "c31-b01",
+        "say": "A new assistant takes over the museum visit. Give it the task, the current hours and the bus timetable. Leave the cancelled train in the history. A stored receipt can guide the next decision once the host puts it in that call.",
+        "hold": 0.3
+      },
+      {
+        "id": "c31-b02",
+        "say": "Carry over the allowed tools and remaining budget, too. If a write is still unresolved, keep its operation ID. Leave credentials with the service that uses them.",
+        "hold": 0.65
+      },
+      {
+        "id": "c31-b03",
+        "say": "In Anthropic's April twenty-twenty-six Managed Agents design, the session keeps an event log, the harness runs the model loop and the sandbox runs tools. A restarted harness can fetch session events. Only selected events become model context. Here it carries the bus timetable forward and leaves the cancelled train in the log.",
+        "hold": 0.7
+      }
+    ]
+  },
+  {
+    "id": "c32",
+    "title": "Two policies on the same release",
+    "sourceChapters": [
+      "c32"
+    ],
+    "beats": [
+      {
+        "id": "c32-b01",
+        "say": "Compare two scripted policies on the releases we investigated earlier. One always asks for CI, migration and replay, in that order. The other can answer after CI if the runner is down. Both use the same host and a budget of four decision turns.",
+        "hold": 0.55
+      },
+      {
+        "id": "c32-b02",
+        "say": "On the migration failure, both do three reads and use the fourth turn to answer. Now switch to the runner outage. The host has one permitted read for this release, the CI result. Both policies receive it. Which policy can finish the task?",
+        "hold": 2
+      },
+      {
+        "id": "c32-b03",
+        "say": "The early exit reports the runner outage. The fixed checklist asks for the migration. The host rejects that request before a read occurs. Count the completed reads. One on each side, with very different outcomes. A coded workflow could use that same early exit. These runs test the rule we gave each policy.",
+        "hold": 0.65
+      },
+      {
+        "id": "c32-b04",
+        "say": "When you compare real systems, hold tasks, tools, permissions, model settings and budget fixed. Keep expected answers out of the prompt. Include ambiguous evidence, expired or unavailable health, denied effects and stuck loops. Measure supported answers, unsupported claims, attempted effects, recovery, elapsed time and total cost.",
+        "hold": 0.3
+      },
+      {
+        "id": "c32-b05",
+        "say": "Look at what the task asks the policy to decide. A router can dispatch known categories. A plan can track dependencies. Reflexion can carry useful feedback to a retry. Search can compare recoverable branches. Add one when it earns its cost on the comparison.",
+        "hold": 0.65
+      }
+    ]
+  },
+  {
+    "id": "c33",
+    "title": "How long can you stay?",
+    "sourceChapters": [
+      "c33"
+    ],
+    "beats": [
+      {
+        "id": "c33-b01",
+        "say": "Let's put the afternoon back together. History's hours receipt is still good. The museum closes at six. Here comes the replacement bus timetable. Both records name History and today's date.",
+        "hold": 0.6
+      },
+      {
+        "id": "c33-b02",
+        "say": "Board at ten past two. The ride takes twenty-five minutes, so you arrive at two thirty-five. Count ninety minutes inside from that arrival. Where does the visit end on the timetable?",
+        "hold": 2.4
+      },
+      {
+        "id": "c33-b03",
+        "say": "At four oh five. That leaves fifty-five minutes before your five o'clock deadline. The doors stay open until six. Take the two-ten bus to History. Both the timetable and the hours receipt support that advice.",
+        "hold": 0.85
+      }
+    ]
+  },
+  {
+    "id": "c34",
+    "title": "The next bus leaves later",
+    "sourceChapters": [
+      "c34"
+    ],
+    "beats": [
+      {
+        "id": "c34-b01",
+        "say": "Suppose you miss that bus. The next one leaves at three twenty. It's still twenty-five minutes to History, and you still want ninety minutes inside. What time would you finish, and would you recommend this bus for the visit you asked for?",
+        "hold": 2.35
+      },
+      {
+        "id": "c34-b02",
+        "say": "You arrive at three forty-five. Ninety minutes inside takes you to five fifteen. The doors are still open, but you'd miss your deadline by fifteen minutes. Keep the hours and this timetable. As things stand, look for an earlier arrival or ask whether a shorter visit would work.",
+        "hold": 1
+      },
+      {
+        "id": "c34-b03",
+        "say": "Now you say seventy minutes inside would be enough. Keep the three forty-five arrival. Slide the end of the visit back twenty minutes. You'd leave at four fifty-five. Both time limits pass. Take the three-twenty bus. You'll have five minutes to spare.",
+        "hold": 2
+      }
+    ]
+  }
+]

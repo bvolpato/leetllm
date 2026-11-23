@@ -1,0 +1,1835 @@
+version: 1
+id: decoding
+title: Choosing the Next Token
+source: fundamentals/decoding-strategies-greedy-beam-nucleus/content.md
+sources:
+  - title: "Holtzman et al.: The Curious Case of Neural Text Degeneration"
+    url: https://arxiv.org/abs/1904.09751
+  - title: "Wu et al.: Google’s Neural Machine Translation System"
+    url: https://arxiv.org/abs/1609.08144
+  - title: "Hugging Face Transformers: Generation strategies"
+    url: https://huggingface.co/docs/transformers/generation_strategies
+  - title: "Fan et al.: Hierarchical Neural Story Generation"
+    url: https://aclanthology.org/P18-1082/
+  - title: "Meister et al.: If Beam Search Is the Answer, What Was the Question?"
+    url: https://aclanthology.org/2020.emnlp-main.170/
+  - title: "Nguyen et al.: Turning Up the Heat"
+    url: https://arxiv.org/html/2407.01082v8
+  - title: "Schaeffer et al.: Min-p, Max Exaggeration"
+    url: https://arxiv.org/html/2506.13681
+  - title: "Keskar et al.: CTRL"
+    url: https://arxiv.org/html/1909.05858
+  - title: DeepSeek-R1 evaluation, original version
+    url: https://arxiv.org/html/2501.12948v1
+  - title: "Leviathan et al.: Speculative Decoding"
+    url: https://arxiv.org/html/2211.17192
+  - title: Transformers pinned generation processors
+    url: https://github.com/huggingface/transformers/blob/0f53828e83f2212060233d2ea552cc76617b8712/src/transformers/generation/logits_process.py
+  - title: Transformers pinned generation pipeline
+    url: https://github.com/huggingface/transformers/blob/0f53828e83f2212060233d2ea552cc76617b8712/src/transformers/generation/utils.py
+  - title: vLLM reproducibility scope
+    url: https://docs.vllm.ai/en/latest/usage/reproducibility/
+  - title: Claude API sampling migration
+    url: https://platform.claude.com/docs/en/api/migration-2026-10-21
+  - title: GPT-six parameter contract
+    url: https://developers.openai.com/api/docs/guides/latest-model
+  - title: Gemini cited sampling-field contract
+    url: https://aistudio.google.com/docs/whats-new-gemini-3.6
+scenes:
+  - id: intro
+    title: "What does the first word decide?"
+    visual: "Slide two word suggestions into a probability strip below the unfinished sentence. Lift the greedy
+      choice into the first blank, then reopen both branches and compare two unfinished products."
+    beats:
+      - say: "Finish “The dog” with two more words, one token per blank. Ran gets sixty percent. Slept gets
+          forty. If you take the likelier word, which endings disappear?"
+        caption_starts:
+          - "Ran gets sixty percent"
+          - "Slept gets forty"
+          - "If you take the likelier word"
+        hold: 2.3
+        visual_cues:
+          - id: intro-ran
+            phrase: "Ran gets sixty percent"
+            targets: [dog-tree]
+            linger: 0.35
+          - id: intro-slept
+            phrase: "Slept gets forty"
+            targets: [dog-tree]
+            linger: 0.35
+      - say: "Ran goes in the blank. Slept drops out, along with every ending that starts with it. Taking the
+          most likely token at each step is greedy decoding."
+        caption_starts:
+          - "Slept drops out"
+          - "Taking the most likely token"
+        hold: 0.8
+        visual_cues:
+          - id: intro-commit
+            phrase: "Ran goes in the blank"
+            targets: [dog-tree]
+            linger: 0.35
+          - id: intro-drop
+            phrase: "Slept drops out"
+            targets: [dog-tree]
+            linger: 0.35
+      - say: "Suppose you get to look one word further before you commit. After ran, home gets seventy percent.
+          After slept, soundly gets ninety percent. Which pair is more likely, ran home or slept soundly?"
+        caption_starts:
+          - "After ran"
+          - "After slept"
+          - "Which pair is more likely"
+        hold: 3
+        visual_cues:
+          - id: intro-home
+            phrase: "home gets seventy percent"
+            targets: [dog-tree]
+            linger: 0.35
+          - id: intro-soundly
+            phrase: "soundly gets ninety percent"
+            targets: [dog-tree]
+            linger: 0.35
+          - id: intro-pair
+            phrase: "Which pair is more likely"
+            targets: [dog-tree]
+            linger: 0.35
+  - id: tree
+    title: "Follow each pair through the fork"
+    visual: "Keep the two unfinished products from the opening in place. Draw each probability bar as its
+      product is spoken. Split the ran branch while the slept bar stays fixed."
+    beats:
+      - say: "Ran home gets sixty percent times seventy percent. That gives it forty-two percent of all two-word
+          endings. Slept soundly gets ninety percent of a smaller first share, so it gets thirty-six percent
+          overall. Ran home wins this comparison."
+        caption_starts:
+          - "That gives it forty-two percent"
+          - "Slept soundly gets ninety percent"
+          - "Ran home wins this comparison"
+        hold: 1
+        visual_cues:
+          - id: tree-home
+            phrase: "forty-two percent of all two-word endings"
+            targets: [dog-tree]
+            linger: 0.35
+          - id: tree-soundly
+            phrase: "thirty-six percent overall"
+            targets: [dog-tree]
+            linger: 0.35
+          - id: tree-original-winner
+            phrase: "Ran home wins this comparison"
+            targets: [dog-tree]
+            linger: 0.35
+      - say: "Here are the other endings. Quickly takes the rest of the ran branch. Outside takes the rest of
+          the slept branch. Now suppose home has to share its seventy percent equally with a new option,
+          outside. Which pair will lead after that split?"
+        hold: 2.7
+        visual_cues:
+          - id: tree-split-question
+            phrase: "home has to share its seventy percent equally with a new option, outside"
+            targets: [dog-tree]
+            linger: 0.35
+      - say: "Keep your eye on the ran branch. Move half of home's share across to outside. Both words finish
+          with thirty-five percent of the ran branch. Multiply by the same sixty percent as before. Each path
+          now gets twenty-one percent overall. Slept soundly wins with the same thirty-six percent it had
+          before."
+        caption_starts:
+          - "Both words finish with thirty-five percent"
+          - "Each path now gets twenty-one percent"
+          - "Slept soundly wins"
+        hold: 1.2
+        visual_cues:
+          - id: tree-b3-1
+            phrase: "Keep your eye on the ran branch"
+            targets: [dog-tree]
+            linger: 0.35
+          - id: tree-branch-spread
+            phrase: "Move half of home's share across to outside"
+            targets: [dog-tree]
+            linger: 0.35
+          - id: tree-final-path-product
+            phrase: "Both words finish with thirty-five percent of the ran branch"
+            targets: [dog-tree]
+            linger: 0.35
+          - id: tree-split-winner
+            phrase: "Slept soundly wins"
+            targets: [dog-tree]
+            linger: 0.35
+  - id: greedy
+    title: "Make one commitment at a time"
+    visual: "Close the slept branch on the first greedy choice. Compare the remaining conditional probabilities,
+      show the tie, and write the selected words into the sentence."
+    beats:
+      - say: "Now run the decoder one word at a time on that revised tree. It compares sixty with forty and
+          keeps ran. Look at the second words still available. Home and outside tie for first place. Our fixed
+          vocabulary order lists home first. Which sentence comes out?"
+        hold: 2.2
+        visual_cues:
+          - id: greedy-commit
+            phrase: "and keeps ran"
+            targets: [dog-tree]
+            linger: 0.35
+          - id: greedy-tie
+            phrase: "Home and outside tie for first place"
+            targets: [dog-tree]
+            linger: 0.35
+      - say: "The dog ran home. The tie rule picks home on every replay of these same scores. Its path gets
+          twenty-one percent. The decoder lost access to slept soundly when it committed to ran. How could we
+          give the second word a say in the decision?"
+        hold: 1.1
+        visual_cues:
+          - id: greedy-pick
+            phrase: "The dog ran home"
+            targets: [dog-tree]
+            linger: 0.35
+  - id: beam
+    title: "Give the decoder a second place"
+    visual: "Reserve two places at the first fork. Expand both prefixes, expose the five multiplication
+      problems, then rank the products on one scale and retain the two winners."
+    beats:
+      - say: "Give the decoder two places to hold unfinished text. At the first fork, keep both ran and slept.
+          Each unfinished string is a prefix. This is beam search with width two. Expand both prefixes by one
+          word. Which two paths earn a place now? Use the same vocabulary order for ties."
+        hold: 2.5
+        visual_cues:
+          - id: beam-keep
+            phrase: "keep both ran and slept"
+            targets: [dog-tree]
+            linger: 0.35
+          - id: beam-expand
+            phrase: "Expand both prefixes by one word"
+            targets: [dog-tree]
+            linger: 0.35
+      - say: "Compare the five products. Slept soundly takes first place, and ran home takes second on the tie.
+          Both paths stop here because this example always ends after two words. For a longer sequence, add the
+          conditional log probabilities. That gives the same ranking as multiplying the probabilities and avoids
+          tiny products."
+        caption_starts:
+          - "Slept soundly takes first place"
+          - "and ran home takes second"
+        hold: 1.25
+        visual_cues:
+          - id: beam-products
+            phrase: "Compare the five products"
+            targets: [dog-tree]
+            linger: 0.35
+          - id: beam-frontier
+            phrase: "Slept soundly takes first place, and ran home takes second on the tie"
+            targets: [dog-tree]
+            linger: 0.35
+      - say: "Here, width two kept every first word. With three or more choices it could discard a prefix before
+          seeing its best continuation. A real search also has to decide when an answer has ended. Let's try
+          those decisions on a status update."
+        hold: 0.7
+  - id: status-model
+    title: Text likelihood and observed status answer different questions
+    visual: A second explicitly supplied status model replaces the dog example. Keep token identities, first-step
+      values and telemetry evidence separate while constructing degraded-period and in-recovery products.
+    beats:
+      - say: Now use the article’s separate status assistant. After the canary status is, degraded has probability
+          point four five, in has point three zero, and on has point one five. Broken has point zero two.
+          Eight other tokens each carry point zero one. Each displayed word represents one token.
+        hold: 0.65
+        visual_cues:
+          - id: dec-status-model-1
+            phrase: Now use the article’s separate status assistant. After the canary status is, degraded has probability
+              point four five, in has point three zero, and on has point one five. Broken has point zero two.
+              Eight other tokens each carry point zero one. Each displayed word represents one token.
+            targets:
+              - dec-status-model-mechanism
+            color: blue
+            linger: 0.35
+      - say: After degraded, a period has probability point four zero. After in, recovery has point nine zero. The
+          path probability is the product of its conditional probabilities. Greedy therefore writes degraded,
+          period, at point one eight, while in recovery scores point two seven.
+        hold: 0.65
+        visual_cues:
+          - id: dec-status-model-2
+            phrase: After degraded, a period has probability point four zero. After in, recovery has point nine zero. The
+              path probability is the product of its conditional probabilities. Greedy therefore writes
+              degraded, period, at point one eight, while in recovery scores point two seven.
+            targets:
+              - dec-status-model-mechanism
+            color: blue
+            linger: 0.35
+          - id: dec-status-products
+            phrase: Greedy therefore writes degraded, period, at point one eight, while in recovery scores point two
+              seven.
+            targets:
+              - dec-status-model-mechanism
+            color: yellow
+            linger: 0.35
+      - say: Those products rank text under this supplied model. The canary’s actual state comes from deployment
+          telemetry. A grammar can constrain the answer’s shape, but a syntactically valid status can still
+          contradict the observations. Keep the evidence check beside the selection policy.
+        hold: 0.65
+        visual_cues:
+          - id: dec-status-model-3
+            phrase: Those products rank text under this supplied model. The canary’s actual state comes from deployment
+              telemetry. A grammar can constrain the answer’s shape, but a syntactically valid status can
+              still contradict the observations. Keep the evidence check beside the selection policy.
+            targets:
+              - dec-status-model-mechanism
+            color: blue
+            linger: 0.35
+  - id: pruned-prefix
+    title: "What can a beam still reach?"
+    visual: "Split each of the two retained prefix bars into ten equal children. Leave the discarded on branch
+      alongside them and uncover its certain continuation. Then rank children from two new conditional rows to
+      test the per-parent shortcut."
+    beats:
+      - say: "Keep the first-word probabilities from the status update. Width two still keeps degraded and in.
+          Change what comes next. Split each of those two prefixes ten equal ways. Give the discarded word on a
+          single certain continuation, track. If you could look down every branch, which two-word path would you
+          find?"
+        hold: 2.6
+        visual_cues:
+          - id: prune-split
+            phrase: "Split each of those two prefixes ten equal ways"
+            targets: [beam-frontier]
+            linger: 0.35
+          - id: prune-track
+            phrase: "a single certain continuation, track"
+            targets: [beam-frontier]
+            linger: 0.35
+      - say: "On track gets fifteen percent. Even the best surviving child gets only four and a half percent. A
+          beam cannot bring back a prefix it has already discarded. Exhaustive search can find that path. In a
+          branching tree the number of paths it has to examine grows exponentially with length."
+        hold: 1.2
+        visual_cues:
+          - id: prune-result
+            phrase: "On track gets fifteen percent"
+            targets: [beam-frontier]
+            linger: 0.35
+      - say: "There is another cut we can make safely. Keep those same two parents, and give each three children
+          with the new conditional probabilities shown here. Rank the path products within each row. Could the
+          third child of either parent earn a place in the global top two?"
+        hold: 2.5
+        visual_cues:
+          - id: prune-children
+            phrase: "give each three children"
+            targets: [beam-frontier]
+            linger: 0.35
+      - say: "Each third child already has two siblings ahead of it. Compare the top two children from each
+          parent and you recover the global top two across this expansion. The same argument works for width B
+          at equal length under cumulative log probability with a consistent tie rule. Diversity bonuses or
+          separate quotas for finished answers can change the ranking. Width counts retained prefixes at a step.
+          The stopping rule determines how many steps you take."
+        hold: 1
+        visual_cues:
+          - id: prune-siblings
+            phrase: "two siblings ahead of it"
+            targets: [beam-frontier]
+            linger: 0.35
+  - id: completed-score
+    title: Score the ending event and retain the stop reason
+    visual: Carry the .18 and .27 prefixes into explicit EOS edges .9 and .5. Construct .162 and .135, then
+      compare EOS-completed versus length-truncated records without inventing an EOS probability.
+    beats:
+      - say: "Our short dog tree deliberately stopped after two tokens. A real completed response also needs its
+          ending event scored. Extend the two status paths with supplied EOS probabilities: point nine after
+          degraded, period, and point five after in recovery. EOS means end of sequence."
+        hold: 0.65
+        visual_cues:
+          - id: dec-completed-score-1
+            phrase: "Our short dog tree deliberately stopped after two tokens. A real completed response also needs its
+              ending event scored. Extend the two status paths with supplied EOS probabilities: point nine
+              after degraded, period, and point five after in recovery. EOS means end of sequence."
+            targets:
+              - dec-completed-score-mechanism
+            color: blue
+            linger: 0.35
+      - say: The completed products are point one six two and point one three five. Including EOS reverses the earlier
+          prefix ranking. Reaching an output limit is a different event. An active prefix stopped by the limit
+          has no scored EOS, even if the visible words look finished.
+        hold: 0.65
+        visual_cues:
+          - id: dec-completed-score-2
+            phrase: The completed products are point one six two and point one three five. Including EOS reverses the
+              earlier prefix ranking. Reaching an output limit is a different event. An active prefix stopped
+              by the limit has no scored EOS, even if the visible words look finished.
+            targets:
+              - dec-completed-score-mechanism
+            color: blue
+            linger: 0.35
+          - id: dec-eos-products
+            phrase: The completed products are point one six two and point one three five.
+            targets:
+              - dec-completed-score-mechanism
+            color: yellow
+            linger: 0.35
+      - say: State the return contract. A complete-only decoder excludes truncated candidates. A prefix-allowed
+          decoder can compare them with finished candidates under its chosen score, while retaining each stop
+          reason. Appending an unscored EOS would invent a completed probability.
+        hold: 0.65
+        visual_cues:
+          - id: dec-completed-score-3
+            phrase: State the return contract. A complete-only decoder excludes truncated candidates. A prefix-allowed
+              decoder can compare them with finished candidates under its chosen score, while retaining each
+              stop reason. Appending an unscored EOS would invent a completed probability.
+            targets:
+              - dec-completed-score-mechanism
+            color: blue
+            linger: 0.35
+  - id: length-objective
+    title: Length normalization changes the search objective
+    visual: Build the GNMT denominator from length and alpha, divide each negative log score, and reveal the
+      ranking flip for lengths 2 and 5 only after both completed inputs are established.
+    beats:
+      - say: Adding conditional log probabilities avoids the underflow of long products. Every extra probability
+          factor is at most one, so extending a particular prefix cannot raise its raw log score. Across
+          different prefixes, though, length alone does not determine which score wins.
+        hold: 0.65
+        visual_cues:
+          - id: dec-length-objective-1
+            phrase: Adding conditional log probabilities avoids the underflow of long products. Every extra probability
+              factor is at most one, so extending a particular prefix cannot raise its raw log score. Across
+              different prefixes, though, length alone does not determine which score wins.
+            targets:
+              - dec-length-objective-mechanism
+            color: blue
+            linger: 0.35
+      - say: GNMT divides the sequence log probability by a length penalty. Add five to the counted length, divide
+          that sum by six, and raise the ratio to alpha. Our two completed examples count length two and five,
+          excluding EOS, and have log scores minus one and minus one point zero eight.
+        hold: 0.65
+        visual_cues:
+          - id: dec-length-objective-2
+            phrase: GNMT divides the sequence log probability by a length penalty. Add five to the counted length, divide
+              that sum by six, and raise the ratio to alpha. Our two completed examples count length two and
+              five, excluding EOS, and have log scores minus one and minus one point zero eight.
+            targets:
+              - dec-length-objective-mechanism
+            color: blue
+            linger: 0.35
+      - say: With alpha point six, their normalized scores are about minus point nine one one seven and minus point
+          seven nine four nine. The longer candidate now wins. Alpha zero restores raw scoring. The GNMT paper
+          also used a coverage penalty; its tuned experiment values are not defaults for a new task.
+        hold: 0.65
+        visual_cues:
+          - id: dec-length-objective-3
+            phrase: With alpha point six, their normalized scores are about minus point nine one one seven and minus point
+              seven nine four nine. The longer candidate now wins. Alpha zero restores raw scoring. The GNMT
+              paper also used a coverage penalty; its tuned experiment values are not defaults for a new task.
+            targets:
+              - dec-length-objective-mechanism
+            color: blue
+            linger: 0.35
+          - id: dec-length-scores
+            phrase: With alpha point six, their normalized scores are about minus point nine one one seven and minus point
+              seven nine four nine.
+            targets:
+              - dec-length-objective-mechanism
+            color: yellow
+            linger: 0.35
+  - id: normalized-stop
+    title: A normalized prefix score can rise after extension
+    visual: Update a length-one log score -1 through an actual .99 conditional and a length-two denominator. Keep
+      raw and normalized trajectories on separate aligned scales.
+    beats:
+      - say: Length normalization also affects stopping. Start with length one and log probability minus one. With
+          alpha point six, its normalized score is minus one. Append a token with conditional probability
+          point nine nine. The raw log score becomes slightly more negative.
+        hold: 0.65
+        visual_cues:
+          - id: dec-normalized-stop-1
+            phrase: Length normalization also affects stopping. Start with length one and log probability minus one. With
+              alpha point six, its normalized score is minus one. Append a token with conditional probability
+              point nine nine. The raw log score becomes slightly more negative.
+            targets:
+              - dec-normalized-stop-mechanism
+            color: blue
+            linger: 0.35
+          - id: dec-normalized-append
+            phrase: Append a token with conditional probability point nine nine.
+            targets:
+              - dec-normalized-stop-mechanism
+            color: yellow
+            linger: 0.35
+      - say: The length-two denominator grows enough that the normalized score improves to about minus point nine two
+          one. An early-stop argument based on raw scores only falling is insufficient for this objective. Use
+          a bound that matches the actual normalization and termination rules.
+        hold: 0.65
+        visual_cues:
+          - id: dec-normalized-stop-2
+            phrase: The length-two denominator grows enough that the normalized score improves to about minus point nine
+              two one. An early-stop argument based on raw scores only falling is insufficient for this
+              objective. Use a bound that matches the actual normalization and termination rules.
+            targets:
+              - dec-normalized-stop-mechanism
+            color: blue
+            linger: 0.35
+          - id: dec-normalized-improve
+            phrase: The length-two denominator grows enough that the normalized score improves to about minus point nine
+              two one.
+            targets:
+              - dec-normalized-stop-mechanism
+            color: yellow
+            linger: 0.35
+  - id: search-quality
+    title: "What does a wider beam buy?"
+    visual: "Match each task with its quality check. Build a row of 50,000 child scores per active prefix.
+      Compare the eight-row batch with the work for one prefix."
+    beats:
+      - say: "In experiments with GPT-two, Holtzman and colleagues found that choosing high-probability text
+          often produced generic or repetitive answers. Some very wide beams even preferred to end the answer
+          immediately. Meister and colleagues studied how changing the search objective affected translation."
+        hold: 0.65
+        visual_cues:
+          - id: dec-search-quality-1
+            phrase: "Some very wide beams even preferred to end the answer immediately"
+            targets:
+              - dec-search-quality-mechanism
+            color: blue
+            linger: 0.35
+      - say: "A translation should preserve the source meaning. A code completion should pass its tests. A
+          canary update should agree with the deployment record. Widening the beam changes which prefixes
+          survive. Compare the finished answers on the check that matters for your task."
+        hold: 0.65
+        visual_cues:
+          - id: dec-search-quality-2
+            phrase: "Widening the beam changes which prefixes survive"
+            targets:
+              - dec-search-quality-mechanism
+            color: blue
+            linger: 0.35
+      - say: "One prefix with a vocabulary of fifty thousand gets one row of fifty thousand scores. Keep eight
+          prefixes, and one step can score four hundred thousand continuations. The engine can batch those rows
+          and share cached state for their common prefix. Each different suffix needs its own state. Measure the
+          time for the whole step."
+        hold: 0.65
+        visual_cues:
+          - id: dec-search-quality-3
+            phrase: "Keep eight prefixes, and one step can score four hundred thousand continuations"
+            targets:
+              - dec-search-quality-mechanism
+            color: blue
+            linger: 0.35
+          - id: dec-beam-work
+            phrase: "four hundred thousand continuations"
+            targets:
+              - dec-search-quality-mechanism
+            color: yellow
+            linger: 0.35
+  - id: temperature
+    title: "Where does the same draw land?"
+    visual: "Lay the five next-word probabilities end to end. Keep a supplied draw at 0.40 while the boundaries
+      move with temperature. The reader can locate the word before the output appears."
+    beats:
+      - say: "This time the dog has five possible next words. Lay their probabilities end to end, so each word
+          owns a piece of a strip from zero to one. Put a draw at point four. At temperature one, which word
+          contains the draw?"
+        hold: 2.6
+        visual_cues:
+          - id: temperature-marker
+            phrase: "Put a draw at point four"
+            targets: [temperature-strip]
+            linger: 0.35
+      - say: "Ran contains it. Its first slice reaches point four five. Cool the row to one half. To do that,
+          divide the model's scores, called logits, by temperature before softmax. Here we can use the log of
+          each original probability as its logit. Halving temperature squares each probability before we divide
+          by the sum. Ran's slice grows."
+        hold: 1
+        visual_cues:
+          - id: temperature-first
+            phrase: "Ran contains it"
+            targets: [temperature-strip]
+            linger: 0.35
+          - id: temperature-cool
+            phrase: "Cool the row to one half"
+            targets: [temperature-strip]
+            linger: 0.35
+      - say: "Keep the draw exactly where it is. Now warm the same original row to temperature two. Taking
+          square roots grows the share for waited from five percent to almost eleven. Ran is still the most
+          likely word. At temperature two, which word contains point four?"
+        hold: 2.8
+        visual_cues:
+          - id: temperature-warm
+            phrase: "warm the same original row to temperature two"
+            targets: [temperature-strip]
+            linger: 0.35
+      - say: "Slept. The boundary moved past our mark. Temperature changed the probabilities deterministically.
+          In ordinary sampling, drawing a fresh point supplies the randomness. Some decoders reserve exact zero
+          for a separate greedy branch. That branch takes the largest eligible score before any division by
+          temperature."
+        hold: 1
+        visual_cues:
+          - id: temperature-second
+            phrase: "Slept"
+            targets: [temperature-strip]
+            linger: 0.35
+  - id: temperature-odds
+    title: A scaled logit gap determines the relative odds
+    visual: Keep a pair of logit columns and their fixed gap while the positive denominator T changes. Construct
+      exp(gap/T), then separate tied eligible maxima from hard-masked entries.
+    beats:
+      - say: For any two eligible tokens, divide their logit gap by positive temperature, then exponentiate. That
+          gives their probability ratio. A gap of two gives odds about seven point four at temperature one,
+          fifty-four point six at one half, and three point eight at one point five.
+        hold: 0.65
+        visual_cues:
+          - id: dec-temperature-odds-1
+            phrase: For any two eligible tokens, divide their logit gap by positive temperature, then exponentiate. That
+              gives their probability ratio. A gap of two gives odds about seven point four at temperature
+              one, fifty-four point six at one half, and three point eight at one point five.
+            targets:
+              - dec-temperature-odds-mechanism
+            color: blue
+            linger: 0.35
+          - id: dec-temperature-odds
+            phrase: A gap of two gives odds about seven point four at temperature one, fifty-four point six at one half,
+              and three point eight at one point five.
+            targets:
+              - dec-temperature-odds-mechanism
+            color: yellow
+            linger: 0.35
+      - say: As positive temperature approaches zero, probability becomes uniform across exactly tied maximum logits.
+          With two tied maxima, each approaches one half; a deterministic argmax tie rule can instead choose
+          one. As temperature grows without bound, a fixed finite eligible set approaches a uniform
+          distribution.
+        hold: 0.65
+        visual_cues:
+          - id: dec-temperature-odds-2
+            phrase: As positive temperature approaches zero, probability becomes uniform across exactly tied maximum
+              logits. With two tied maxima, each approaches one half; a deterministic argmax tie rule can
+              instead choose one. As temperature grows without bound, a fixed finite eligible set approaches a
+              uniform distribution.
+            targets:
+              - dec-temperature-odds-mechanism
+            color: blue
+            linger: 0.35
+          - id: dec-tied-limit
+            phrase: With two tied maxima, each approaches one half; a deterministic argmax tie rule can instead choose
+              one.
+            targets:
+              - dec-temperature-odds-mechanism
+            color: yellow
+            linger: 0.35
+          - id: dec-high-temperature-limit
+            phrase: As temperature grows without bound, a fixed finite eligible set approaches a uniform distribution.
+            targets:
+              - dec-temperature-odds-mechanism
+            color: yellow
+            linger: 0.35
+      - say: Hard-masked tokens remain excluded. For fixed finite logits and masks, Shannon entropy is nondecreasing
+          with temperature. Entropy is minus the sum of probability times its logarithm; using base two gives
+          bits. This describes the next-token row, while complete-answer diversity and correctness need their
+          own evaluation.
+        hold: 0.65
+        visual_cues:
+          - id: dec-temperature-odds-3
+            phrase: Hard-masked tokens remain excluded. For fixed finite logits and masks, Shannon entropy is
+              nondecreasing with temperature. Entropy is minus the sum of probability times its logarithm;
+              using base two gives bits. This describes the next-token row, while complete-answer diversity
+              and correctness need their own evaluation.
+            targets:
+              - dec-temperature-odds-mechanism
+            color: blue
+            linger: 0.35
+  - id: temperature-tail
+    title: "How much goes to the rare words?"
+    visual: "Keep the status probabilities on one scale. Magnify eight separate tail IDs beside their combined
+      bar. Apply temperature to each ID, then add them. Compare with the incorrect result of treating their
+      total as one event."
+    beats:
+      - say: "Return to the status model and look at the eight rare tokens. Each starts at one percent. The bar
+          on the left adds them for display. The model still has eight separate ways to draw a rare token. Raise
+          each probability to the power one over temperature, then divide by the sum of all twelve weights.
+          Dividing every probability by temperature instead would cancel when you normalized."
+        hold: 1.1
+        visual_cues:
+          - id: dec-tail-inputs
+            phrase: "eight rare tokens"
+            targets: [temperature-tail-mass]
+            linger: 0.35
+      - say: "Cool the distribution to point three. Degraded climbs to nearly seventy-eight percent. Now warm it
+          to one and a half. Degraded drops to about a third. Look at the eight small probabilities on the
+          right. Together those tokens now get just over twenty-one percent. That makes their combined share
+          larger than the share for on."
+        hold: 1.1
+        visual_cues:
+          - id: dec-tail-cold
+            phrase: "Cool the distribution to point three"
+            targets: [temperature-tail-mass]
+            linger: 0.35
+          - id: dec-tail-hot
+            phrase: "warm it to one and a half"
+            targets: [temperature-tail-mass]
+            linger: 0.35
+          - id: dec-tail-total
+            phrase: "Together those tokens now get just over twenty-one percent"
+            targets: [temperature-tail-mass]
+            linger: 0.35
+      - say: "Suppose we had combined the eight tokens first and raised that one eight-percent bucket to the
+          same power. The bucket would get about twelve percent. Grouping first changes what counts as a
+          possible draw. Entropy also counts individual tokens. Across these three temperatures it rises from
+          less than one bit to nearly three as the distribution spreads."
+        hold: 1.2
+        visual_cues:
+          - id: dec-tail-wrong
+            phrase: "The bucket would get about twelve percent"
+            targets: [temperature-tail-mass]
+            linger: 0.35
+  - id: stable-eligibility
+    title: Stability preserves the distribution within its numeric limits
+    visual: Construct exp(1000) overflow beside the shifted logits [0,-1], then preserve a -infinity mask while
+      exercising valid, all-masked and zero-temperature branches.
+    beats:
+      - say: For stable softmax, subtract the largest eligible logit before dividing by positive temperature and
+          exponentiating. Scores one thousand and nine hundred ninety-nine become zero and minus one at
+          temperature one. Their normalized probabilities are about point seven three one and point two six
+          nine.
+        hold: 0.65
+        visual_cues:
+          - id: dec-stable-eligibility-1
+            phrase: For stable softmax, subtract the largest eligible logit before dividing by positive temperature and
+              exponentiating. Scores one thousand and nine hundred ninety-nine become zero and minus one at
+              temperature one. Their normalized probabilities are about point seven three one and point two
+              six nine.
+            targets:
+              - dec-stable-eligibility-mechanism
+            color: blue
+            linger: 0.35
+          - id: dec-stable-probabilities
+            phrase: Their normalized probabilities are about point seven three one and point two six nine.
+            targets:
+              - dec-stable-eligibility-mechanism
+            color: yellow
+            linger: 0.35
+      - say: Negative infinity represents a forbidden token and contributes zero weight. The article’s checked sampler
+          rejects NaN, positive infinity and an all-masked vocabulary. Very small positive temperatures can
+          still underflow weak alternatives or expose rounding near a tie. Stability has finite-precision
+          limits.
+        hold: 0.65
+        visual_cues:
+          - id: dec-stable-eligibility-2
+            phrase: Negative infinity represents a forbidden token and contributes zero weight. The article’s checked
+              sampler rejects NaN, positive infinity and an all-masked vocabulary. Very small positive
+              temperatures can still underflow weak alternatives or expose rounding near a tie. Stability has
+              finite-precision limits.
+            targets:
+              - dec-stable-eligibility-mechanism
+            color: blue
+            linger: 0.35
+      - say: The local interface reserves exact temperature zero for argmax after penalties and constraints. It still
+          validates that an eligible token exists before choosing. A separate sampling-temperature processor
+          may instead require a strictly positive value. Check that contract before sending zero to an API.
+        hold: 0.65
+        visual_cues:
+          - id: dec-stable-eligibility-3
+            phrase: The local interface reserves exact temperature zero for argmax after penalties and constraints. It
+              still validates that an eligible token exists before choosing. A separate sampling-temperature
+              processor may instead require a strictly positive value. Check that contract before sending zero
+              to an API.
+            targets:
+              - dec-stable-eligibility-mechanism
+            color: blue
+            linger: 0.35
+  - id: top-k
+    title: Retain a fixed number of candidates
+    visual: The five-word probability row keeps exactly its two highest entries. Discarded tail mass vanishes and
+      the survivors renormalize.
+    beats:
+      - say: Top-k sampling keeps the highest-scoring k eligible tokens, removes the rest, and draws from the retained
+          weights. With k equal to two, our example keeps two candidates regardless of whether the original
+          distribution is sharply peaked or relatively flat.
+        hold: 0.6
+        motion_check:
+          region:
+            - 300
+            - 440
+            - 1320
+            - 330
+          minimumChangedFraction: 0.002
+        visual_cues:
+          - id: top-k-b1-1
+            phrase: keeps two candidates
+            targets:
+              - retained-candidates
+            linger: 0.45
+      - say: After removing the tail, normalize the remaining probabilities if the sampling interface expects a
+          probability distribution. The displayed survivors expand to share one unit of mass. Their ratio
+          stays the same, while each individual probability grows because the discarded mass no longer
+          competes.
+        hold: 0.6
+        visual_cues:
+          - id: top-k-b2-1
+            phrase: normalize
+            targets:
+              - retained-candidates
+            linger: 0.45
+          - id: top-k-b2-2
+            phrase: ratio stays the same
+            targets:
+              - retained-mass
+            linger: 0.45
+      - say: A fixed count is simple, but confidence shapes differ across contexts. Two choices can be plenty in a
+          sharp distribution and restrictive in a flat one. Evaluate the candidate-count rule on the task
+          instead of assuming one value describes every prefix equally well.
+        hold: 0.8
+        visual_cues:
+          - id: top-k-b3-1
+            phrase: candidate-count rule
+            targets:
+              - retained-candidates
+            linger: 0.45
+  - id: tie-contract
+    title: Exact counts and score thresholds have different tie behavior
+    visual: Rank [2,2,2,0] with stable token identities. Contrast exactly-one selection against a threshold
+      retaining all three tied maxima, then normalize the actual retained supports.
+    beats:
+      - say: Our original top-k picture keeps exactly k eligible IDs using a fixed tie rule. A score-threshold
+          implementation can keep more. In the inspected Transformers processor, scores two, two, two, zero
+          with k one retain all three tied leaders, because only scores below the kth score are removed.
+        hold: 0.65
+        visual_cues:
+          - id: dec-tie-contract-1
+            phrase: Our original top-k picture keeps exactly k eligible IDs using a fixed tie rule. A score-threshold
+              implementation can keep more. In the inspected Transformers processor, scores two, two, two,
+              zero with k one retain all three tied leaders, because only scores below the kth score are
+              removed.
+            targets:
+              - dec-tie-contract-mechanism
+            color: blue
+            linger: 0.35
+          - id: dec-threshold-ties
+            phrase: In the inspected Transformers processor, scores two, two, two, zero with k one retain all three tied
+              leaders, because only scores below the kth score are removed.
+            targets:
+              - dec-tie-contract-mechanism
+            color: yellow
+            linger: 0.35
+      - say: The IDs must remain stable while sorting. Once the retained support is known, divide each probability by
+          retained mass if the interface requires a distribution. An API accepting unnormalized nonnegative
+          weights can draw from those weights, but reported probabilities must follow their own normalization
+          contract.
+        hold: 0.65
+        visual_cues:
+          - id: dec-tie-contract-2
+            phrase: The IDs must remain stable while sorting. Once the retained support is known, divide each probability
+              by retained mass if the interface requires a distribution. An API accepting unnormalized
+              nonnegative weights can draw from those weights, but reported probabilities must follow their
+              own normalization contract.
+            targets:
+              - dec-tie-contract-mechanism
+            color: blue
+            linger: 0.35
+          - id: dec-tie-normalized
+            phrase: Once the retained support is known, divide each probability by retained mass if the interface requires
+              a distribution.
+            targets:
+              - dec-tie-contract-mechanism
+            color: yellow
+            linger: 0.35
+      - say: A fixed count ignores how peaked the row is. A large k can admit weak alternatives in a sharp context,
+          while a small k can exclude useful choices in a flat one. Their probability ranking alone does not
+          tell us whether those words are factually or grammatically appropriate.
+        hold: 0.65
+        visual_cues:
+          - id: dec-tie-contract-3
+            phrase: A fixed count ignores how peaked the row is. A large k can admit weak alternatives in a sharp context,
+              while a small k can exclude useful choices in a flat one. Their probability ranking alone does
+              not tell us whether those words are factually or grammatically appropriate.
+            targets:
+              - dec-tie-contract-mechanism
+            color: blue
+            linger: 0.35
+  - id: nucleus
+    title: Retain enough candidates to reach a mass target
+    visual: Sorted probabilities accumulate through the crossing token for top-p .8. The completed three-candidate
+      set persists while the next paragraph inspects the first-two subtotal of .70 and the crossing-token
+      total of .85. The selected set then varies between a peaked and a flatter row.
+    beats:
+      - say: Nucleus sampling sorts candidates by probability and keeps the smallest leading set whose cumulative mass
+          reaches the threshold. Our convention includes the token that crosses the threshold. This makes the
+          retained count depend on the shape of the current distribution.
+        hold: 0.6
+        visual_cues:
+          - id: nucleus-b1-1
+            phrase: cumulative mass
+            targets:
+              - nucleus-candidates
+            linger: 0.45
+      - say: With the supplied probabilities and a threshold of eighty percent, the first two candidates fall short,
+          so the third also enters the nucleus. After renormalization, sampling draws only from those
+          survivors. Every displayed boundary comes from the cumulative sums of this exact row.
+        hold: 0.6
+        motion_check:
+          region:
+            - 300
+            - 440
+            - 1320
+            - 330
+          minimumChangedFraction: 0.002
+        visual_cues:
+          - id: nucleus-b2-1
+            phrase: third also enters
+            targets:
+              - nucleus-candidates
+            linger: 0.45
+          - id: nucleus-prefix-subtotal
+            phrase: first two candidates fall short
+            targets:
+              - nucleus-prefix-subtotal
+            color: cyan
+            linger: 0.45
+      - say: Change temperature first, and the cumulative sums change even though token ranking stays fixed. The
+          nucleus may then include more or fewer entries. Processor order is part of the decoding policy, so
+          record whether masks, temperature, and truncation run before or after one another.
+        hold: 0.8
+        visual_cues:
+          - id: nucleus-b3-1
+            phrase: cumulative sums change
+            targets:
+              - nucleus-mass
+            linger: 0.45
+  - id: adaptive-support
+    title: "Which bars survive the cutoff?"
+    visual: "Align the two rows on the same probability scale. Count the three leading bars, accumulate 90
+      percent of each row, then draw a separate min-p cutoff through each row."
+    beats:
+      - say: "Each bar is one token. The tallest takes seventy-two percent in the top row and forty percent in
+          the bottom row. Those ten short bars on the right each carry one percent."
+        hold: 0.65
+        visual_cues:
+          - id: dec-adaptive-support-1
+            phrase: "Those ten short bars on the right"
+            targets:
+              - dec-adaptive-support-mechanism
+            color: blue
+            linger: 0.35
+      - say: "Top-k keeps the three tallest bars in each row. Now use top-p to cover ninety percent of each
+          row. The first two bars in the top row already hold ninety-two percent. In the bottom row it takes
+          five to reach ninety percent. Include the bar that gets you there, then divide each surviving share by
+          their total."
+        caption_starts:
+          - "Now use top-p"
+          - "The first two bars"
+          - "In the bottom row"
+          - "Include the bar"
+        hold: 0.65
+        visual_cues:
+          - id: dec-adaptive-support-2
+            phrase: "Now use top-p to cover ninety percent of each row"
+            targets:
+              - dec-adaptive-support-mechanism
+            color: blue
+            linger: 0.35
+          - id: dec-adaptive-peak
+            phrase: "The first two bars in the top row already hold ninety-two percent"
+            targets:
+              - dec-adaptive-support-mechanism
+            color: yellow
+            linger: 0.35
+          - id: dec-adaptive-flat
+            phrase: "In the bottom row it takes five to reach ninety percent"
+            targets:
+              - dec-adaptive-support-mechanism
+            color: yellow
+            linger: 0.35
+          - id: dec-adaptive-k-three
+            phrase: "Top-k keeps the three tallest bars in each row"
+            targets:
+              - dec-adaptive-support-mechanism
+            color: yellow
+            linger: 0.35
+      - say: "Min-p sets a cutoff at one tenth of the tallest bar in each row. That puts the top line at seven
+          point two percent and the bottom line at four percent. Two bars clear the top line. Four clear the
+          bottom one. Each one-percent token falls below the cutoff on its own."
+        caption_starts:
+          - "That puts the top line"
+          - "Two bars clear the top line"
+          - "Four clear the bottom one"
+        hold: 0.65
+        visual_cues:
+          - id: dec-adaptive-support-3
+            phrase: "Min-p sets a cutoff at one tenth of the tallest bar in each row"
+            targets:
+              - dec-adaptive-support-mechanism
+            color: blue
+            linger: 0.35
+          - id: dec-adaptive-floors
+            phrase: "That puts the top line at seven point two percent and the bottom line at four percent"
+            targets:
+              - dec-adaptive-support-mechanism
+            color: yellow
+            linger: 0.35
+          - id: dec-adaptive-minp
+            phrase: "Two bars clear the top line"
+            targets:
+              - dec-adaptive-support-mechanism
+            color: yellow
+            linger: 0.35
+          - id: dec-adaptive-minp-flat
+            phrase: "Four clear the bottom one"
+            targets: [dec-adaptive-support-mechanism]
+            linger: 0.35
+  - id: minp-relative
+    title: Min-p follows the peak and the temperature scale
+    visual: Multiply the peak by rho, then move the equivalent logit cutoff zmax+T ln rho across [0,-2,-4]. End on
+      a uniform eight-token counterexample beside a six-token nucleus.
+    beats:
+      - say: In general, min-p keeps a positive-probability token when its probability is at least rho times the
+          largest probability. A peak of point eight and rho point one set a floor of point zero eight. A peak
+          of point zero five lowers that floor to point zero zero five.
+        hold: 0.65
+        visual_cues:
+          - id: dec-minp-relative-1
+            phrase: In general, min-p keeps a positive-probability token when its probability is at least rho times the
+              largest probability. A peak of point eight and rho point one set a floor of point zero eight. A
+              peak of point zero five lowers that floor to point zero zero five.
+            targets:
+              - dec-minp-relative-mechanism
+            color: blue
+            linger: 0.35
+          - id: dec-minp-peak-floor
+            phrase: A peak of point eight and rho point one set a floor of point zero eight.
+            targets:
+              - dec-minp-relative-mechanism
+            color: yellow
+            linger: 0.35
+          - id: dec-minp-flat-floor
+            phrase: A peak of point zero five lowers that floor to point zero zero five.
+            targets:
+              - dec-minp-relative-mechanism
+            color: yellow
+            linger: 0.35
+      - say: For positive rho and temperature, the equivalent logit floor is the maximum logit plus temperature times
+          the natural logarithm of rho. With logits zero, minus two and minus four, rho point one keeps the
+          first two before temperature. After temperature two, all three survive.
+        hold: 0.65
+        visual_cues:
+          - id: dec-minp-relative-2
+            phrase: For positive rho and temperature, the equivalent logit floor is the maximum logit plus temperature
+              times the natural logarithm of rho. With logits zero, minus two and minus four, rho point one
+              keeps the first two before temperature. After temperature two, all three survive.
+            targets:
+              - dec-minp-relative-mechanism
+            color: blue
+            linger: 0.35
+          - id: dec-minp-default
+            phrase: With logits zero, minus two and minus four, rho point one keeps the first two before temperature.
+            targets:
+              - dec-minp-relative-mechanism
+            color: yellow
+            linger: 0.35
+          - id: dec-minp-hot
+            phrase: After temperature two, all three survive.
+            targets:
+              - dec-minp-relative-mechanism
+            color: yellow
+            linger: 0.35
+      - say: On eight equal eligible logits, min-p point one keeps all eight. Top-p point seven five needs six. Min-p
+          therefore does not always make a smaller pool. Its order relative to temperature is part of the
+          configuration, just as it is for cumulative truncation.
+        hold: 0.65
+        visual_cues:
+          - id: dec-minp-relative-3
+            phrase: On eight equal eligible logits, min-p point one keeps all eight. Top-p point seven five needs six.
+              Min-p therefore does not always make a smaller pool. Its order relative to temperature is part
+              of the configuration, just as it is for cumulative truncation.
+            targets:
+              - dec-minp-relative-mechanism
+            color: blue
+            linger: 0.35
+          - id: dec-minp-uniform
+            phrase: On eight equal eligible logits, min-p point one keeps all eight.
+            targets:
+              - dec-minp-relative-mechanism
+            color: yellow
+            linger: 0.35
+          - id: dec-minp-top-p-six
+            phrase: Top-p point seven five needs six.
+            targets:
+              - dec-minp-relative-mechanism
+            color: yellow
+            linger: 0.35
+  - id: minp-evidence
+    title: "How would you compare min-p with top-p?"
+    visual: Show why researchers tried min-p and what a later comparison found. Give top-p and min-p matching
+      prompts, checkpoints, tuning budgets and judges in two aligned columns.
+    beats:
+      - say: "At high temperature, rare words can take up much of the sampling pool. That motivated Nguyen and
+          colleagues to try min-p. A later reanalysis compared min-p with other samplers and found no reliable
+          gain in the balance between quality and variety on the tasks it tested."
+        caption_starts:
+          - "A later reanalysis"
+          - "found no reliable gain"
+        hold: 0.65
+        visual_cues:
+          - id: dec-minp-evidence-1
+            phrase: "A later reanalysis compared min-p with other samplers"
+            targets:
+              - dec-minp-evidence-mechanism
+            color: blue
+            linger: 0.35
+          - id: dec-minp-finding
+            phrase: "found no reliable gain in the balance between quality and variety on the tasks it tested"
+            targets: [dec-minp-evidence-mechanism]
+            linger: 0.35
+      - say: "Try both samplers on the same writing prompts and checkpoint. Give each the same tuning budget.
+          Have the same judges score coherence and variety across repeated drafts. Compare the differences
+          across prompts and how much those differences vary."
+        hold: 0.65
+        visual_cues:
+          - id: dec-minp-evidence-2
+            phrase: "Give each the same tuning budget. Have the same judges score coherence and variety across
+              repeated drafts"
+            targets:
+              - dec-minp-evidence-mechanism
+            color: blue
+            linger: 0.35
+  - id: sign-aware
+    title: The sign branch moves seen logits downward
+    visual: Track repeated positive 2.4 and negative -.5 logits through divide/multiply branches while unobserved
+      .7 stays fixed. Preserve distinct-ID history and show prompt-inclusion as a configured input.
+    beats:
+      - say: The sign-aware repetition processor divides a seen positive logit by its penalty and multiplies a seen
+          negative logit by it. With penalty one point two, two point four becomes two, minus point five
+          becomes minus point six, and an unseen point seven remains unchanged.
+        hold: 0.65
+        visual_cues:
+          - id: dec-sign-aware-1
+            phrase: The sign-aware repetition processor divides a seen positive logit by its penalty and multiplies a seen
+              negative logit by it. With penalty one point two, two point four becomes two, minus point five
+              becomes minus point six, and an unseen point seven remains unchanged.
+            targets:
+              - dec-sign-aware-mechanism
+            color: blue
+            linger: 0.35
+          - id: dec-sign-values
+            phrase: With penalty one point two, two point four becomes two, minus point five becomes minus point six, and
+              an unseen point seven remains unchanged.
+            targets:
+              - dec-sign-aware-mechanism
+            color: yellow
+            linger: 0.35
+      - say: Dividing the negative value would move it toward zero and increase its preference. Apply this transform
+          once per distinct token ID, even when that token appears many times. State whether history includes
+          the prompt. Values above one penalize, one leaves scores unchanged, and values below one reward
+          reuse.
+        hold: 0.65
+        visual_cues:
+          - id: dec-sign-aware-2
+            phrase: Dividing the negative value would move it toward zero and increase its preference. Apply this
+              transform once per distinct token ID, even when that token appears many times. State whether
+              history includes the prompt. Values above one penalize, one leaves scores unchanged, and values
+              below one reward reuse.
+            targets:
+              - dec-sign-aware-mechanism
+            color: blue
+            linger: 0.35
+      - say: CTRL introduced penalized sampling with its own temperature-multiplier rule; the sign-aware runtime
+          variant is a related transform. Required identifiers and names may repeat correctly. Measure that
+          damage as well as loop reduction, and remember that several changing logits can alter each other’s
+          normalized probabilities.
+        hold: 0.65
+        visual_cues:
+          - id: dec-sign-aware-3
+            phrase: CTRL introduced penalized sampling with its own temperature-multiplier rule; the sign-aware runtime
+              variant is a related transform. Required identifiers and names may repeat correctly. Measure
+              that damage as well as loop reduction, and remember that several changing logits can alter each
+              other’s normalized probabilities.
+            targets:
+              - dec-sign-aware-mechanism
+            color: blue
+            linger: 0.35
+  - id: centering-order
+    title: Centering is safe for softmax but can change a penalty
+    visual: Fork [2.4,2.1,1.2,.3] into penalty-first and center-first routes. Update all actual logits and the
+      selected mode, then show seen A gaining relative probability when B receives a larger reduction.
+    beats:
+      - say: Return to raw logits two point four, two point one, one point two and point three, with only the first
+          token seen. Penalty one point two lowers that leader to two. The second token at two point one now
+          wins. Subtract the maximum only after applying this sign-aware transform.
+        hold: 0.65
+        visual_cues:
+          - id: dec-centering-order-1
+            phrase: Return to raw logits two point four, two point one, one point two and point three, with only the first
+              token seen. Penalty one point two lowers that leader to two. The second token at two point one
+              now wins. Subtract the maximum only after applying this sign-aware transform.
+            targets:
+              - dec-centering-order-mechanism
+            color: blue
+            linger: 0.35
+          - id: dec-penalty-first
+            phrase: The second token at two point one now wins.
+            targets:
+              - dec-centering-order-mechanism
+            color: yellow
+            linger: 0.35
+      - say: If we center first, the seen leader becomes zero. Its penalty leaves it at zero while its competitors are
+          negative, so the first token still wins. Softmax alone ignores a shared offset; this sign-aware
+          penalty does not, because the raw signs and distances change.
+        hold: 0.65
+        visual_cues:
+          - id: dec-centering-order-2
+            phrase: If we center first, the seen leader becomes zero. Its penalty leaves it at zero while its competitors
+              are negative, so the first token still wins. Softmax alone ignores a shared offset; this
+              sign-aware penalty does not, because the raw signs and distances change.
+            targets:
+              - dec-centering-order-mechanism
+            color: blue
+            linger: 0.35
+          - id: dec-center-first
+            phrase: Its penalty leaves it at zero while its competitors are negative, so the first token still wins.
+            targets:
+              - dec-centering-order-mechanism
+            color: yellow
+            linger: 0.35
+      - say: A penalized token’s normalized probability can even rise when a stronger seen competitor is reduced
+          further. For scores two, ten and zero with the first two seen, penalty two raises the first token’s
+          probability from about point zero zero zero three to point zero one seven nine. Its raw logit still
+          falls.
+        hold: 0.65
+        visual_cues:
+          - id: dec-centering-order-3
+            phrase: A penalized token’s normalized probability can even rise when a stronger seen competitor is reduced
+              further. For scores two, ten and zero with the first two seen, penalty two raises the first
+              token’s probability from about point zero zero zero three to point zero one seven nine. Its raw
+              logit still falls.
+            targets:
+              - dec-centering-order-mechanism
+            color: blue
+            linger: 0.35
+          - id: dec-probability-rise
+            phrase: For scores two, ten and zero with the first two seen, penalty two raises the first token’s probability
+              from about point zero zero zero three to point zero one seven nine.
+            targets:
+              - dec-centering-order-mechanism
+            color: yellow
+            linger: 0.35
+  - id: count-penalties
+    title: Frequency counts every reuse and presence charges once
+    visual: Keep raw logits [2.4,2.1,1.2] beside counts [3,1,0]. Construct each frequency and presence subtraction
+      separately, then combine the resulting [1,1.5,1.2] row.
+    beats:
+      - say: Frequency and presence penalties subtract from logits. Multiply the frequency coefficient by a token’s
+          count. Add the presence coefficient once if that count is positive. Subtract their sum from the
+          current score. These operate on token IDs, so equivalent words with different IDs can behave
+          differently.
+        hold: 0.65
+        visual_cues:
+          - id: dec-count-penalties-1
+            phrase: Frequency and presence penalties subtract from logits. Multiply the frequency coefficient by a token’s
+              count. Add the presence coefficient once if that count is positive. Subtract their sum from the
+              current score. These operate on token IDs, so equivalent words with different IDs can behave
+              differently.
+            targets:
+              - dec-count-penalties-mechanism
+            color: blue
+            linger: 0.35
+      - say: Use scores two point four, two point one and one point two, with counts three, one and zero. Frequency
+          point four and presence point two subtract one point four from the first, point six from the second
+          and zero from the third. The resulting scores are one, one point five and one point two.
+        hold: 0.65
+        visual_cues:
+          - id: dec-count-penalties-2
+            phrase: Use scores two point four, two point one and one point two, with counts three, one and zero. Frequency
+              point four and presence point two subtract one point four from the first, point six from the
+              second and zero from the third. The resulting scores are one, one point five and one point two.
+            targets:
+              - dec-count-penalties-mechanism
+            color: blue
+            linger: 0.35
+          - id: dec-count-values
+            phrase: The resulting scores are one, one point five and one point two.
+            targets:
+              - dec-count-penalties-mechanism
+            color: yellow
+            linger: 0.35
+      - say: The second token becomes the mode. A repetition penalty can precede these additive deductions, so record
+          the complete order and history definition. Negative coefficients reward reuse. Neither type supplies
+          missing facts, and a format that requires repeating a key can be harmed by aggressive penalties.
+        hold: 0.65
+        visual_cues:
+          - id: dec-count-penalties-3
+            phrase: The second token becomes the mode. A repetition penalty can precede these additive deductions, so
+              record the complete order and history definition. Negative coefficients reward reuse. Neither
+              type supplies missing facts, and a format that requires repeating a key can be harmed by
+              aggressive penalties.
+            targets:
+              - dec-count-penalties-mechanism
+            color: blue
+            linger: 0.35
+  - id: ordered-filters
+    title: "Which token crosses eighty percent?"
+    visual: "Read the same A/B/C/D strip in two orders. The upper strip loses D and expands to one unit. Keep
+      the 80% mark fixed while the A/B boundary passes it. Below, apply top-p to the full original strip. Repeat
+      the cutoff on the twelve individual status tokens."
+    beats:
+      - say: "These four tokens have the probabilities printed on the strip. First keep the three largest. That
+          cuts D off the right and leaves ninety percent of the mass. Stretch those survivors back to one full
+          unit. Now apply top-p at eighty percent. Which token crosses the mark?"
+        hold: 2.7
+        visual_cues:
+          - id: filter-trim
+            phrase: "cuts D off the right"
+            targets: [filter-comparison]
+            linger: 0.35
+          - id: filter-rescale
+            phrase: "Stretch those survivors back to one full unit"
+            targets: [filter-comparison]
+            linger: 0.35
+      - say: "B crosses it. A and B had seventy-five percent of the original mass. Together they now own
+          seventy-five out of ninety, a little over eighty-three percent. Top-p includes the crossing token, so
+          it keeps A and B."
+        hold: 1.05
+        visual_cues:
+          - id: dec-filters-kp
+            phrase: "B crosses it"
+            targets: [filter-comparison]
+            linger: 0.35
+      - say: "Reverse the filters on the lower strip. Start with all four tokens and apply top-p first. The mark
+          stays at eighty percent. Which token do you need this time?"
+        hold: 2.5
+        visual_cues:
+          - id: filter-reverse
+            phrase: "Reverse the filters on the lower strip"
+            targets: [filter-comparison]
+            linger: 0.35
+      - say: "This time C crosses it. On the full strip, A and B reach only seventy-five percent. Including C
+          gets you to ninety. The next filter can keep three tokens, so it keeps all three. The order changed
+          which distribution the cutoff saw."
+        hold: 1.25
+        visual_cues:
+          - id: dec-filters-pk
+            phrase: "This time C crosses it"
+            targets: [filter-comparison]
+            linger: 0.35
+      - say: "Return to the twelve status tokens. At temperature one, the third token takes you to ninety
+          percent. At one and a half, it takes nine tokens to reach the same mark. Heating preserves rank, so an
+          exact top-k with fixed ties still picks the same IDs. Top-p depends on how much mass those IDs carry."
+        hold: 1
+        visual_cues:
+          - id: filter-hot-status
+            phrase: "it takes nine tokens to reach the same mark"
+            targets: [filter-comparison]
+            linger: 0.35
+  - id: grammar-first
+    title: "What emptied the candidate pool?"
+    visual: "Intersect an inclusive nucleus with a grammar that permits only token two. Inspect the empty
+      intersection, then reverse the order on the same row. Finally try an empty grammar on each temperature
+      branch."
+    beats:
+      - say: "The grammar permits only token two. Start with the full probability row and run top-p at eighty
+          percent. Tokens zero and one fill the nucleus. Apply the grammar to those two survivors. Both are
+          forbidden. Where did we lose the one legal token?"
+        hold: 2.7
+        visual_cues:
+          - id: dec-grammar-first-1
+            phrase: "The grammar permits only token two"
+            targets: [dec-grammar-first-mechanism]
+            linger: 0.35
+          - id: dec-grammar-truncation
+            phrase: "Tokens zero and one fill the nucleus"
+            targets: [dec-grammar-first-mechanism]
+            linger: 0.35
+          - id: dec-grammar-empty
+            phrase: "Both are forbidden"
+            targets: [dec-grammar-first-mechanism]
+            linger: 0.35
+      - say: "The first filter threw it away. Start again with the grammar. Only token two survives, so it gets
+          probability one. Now top-p keeps it. If truncation caused the empty pool, recompute the cutoff over
+          the legal tokens and keep the grammar in force."
+        hold: 1.1
+        visual_cues:
+          - id: dec-grammar-first-2
+            phrase: "Start again with the grammar"
+            targets: [dec-grammar-first-mechanism]
+            linger: 0.35
+          - id: dec-grammar-only
+            phrase: "it gets probability one"
+            targets: [dec-grammar-first-mechanism]
+            linger: 0.35
+      - say: "Change one input. This time the grammar allows nothing. Even before truncation, there is no
+          eligible token. The local sampler rejects the row at temperature zero and at temperature one. Inspect
+          the constraint and its tokenizer before retrying. Reordering the filters can recover a legal token
+          only if one existed."
+        hold: 1.1
+        visual_cues:
+          - id: dec-grammar-first-3
+            phrase: "the grammar allows nothing"
+            targets: [dec-grammar-first-mechanism]
+            linger: 0.35
+  - id: actual-sampler
+    title: "Run the status sampler twice"
+    visual: "Follow the article's four logits through the history penalty. Execute temperature zero, then
+      temperature one on the same inputs. Keep the retained CDF still and place Python's seed-zero draw before
+      displaying the sampled word."
+    beats:
+      - say: "Run the article's Python sampler on these four logits. The history already contains degraded, so
+          divide its positive score by one point two. It falls from two point four to two. The word ‘in’ now
+          leads. With temperature zero, the function checks that a token is eligible and returns in."
+        hold: 1
+        visual_cues:
+          - id: dec-sampler-penalty
+            phrase: "falls from two point four to two"
+            targets: [sampler-trace]
+            linger: 0.35
+          - id: dec-sampler-zero
+            phrase: "and returns in"
+            targets: [sampler-trace]
+            linger: 0.35
+      - say: "Run the same input at temperature one with top-p at ninety percent. The two largest probabilities
+          belong to ‘in’ and ‘degraded’. Together they cover about seventy-seven percent. Add the third word,
+          ‘on’, and the total reaches ninety-three percent. Keep those three and divide each probability by
+          their combined mass."
+        hold: 1
+        visual_cues:
+          - id: dec-sampler-probabilities
+            phrase: "The two largest probabilities belong to ‘in’ and ‘degraded’"
+            targets: [sampler-trace]
+            linger: 0.35
+          - id: dec-sampler-support
+            phrase: "the total reaches ninety-three percent"
+            targets: [sampler-trace]
+            linger: 0.35
+      - say: "Here is that retained distribution on a strip. Python's seed zero puts the draw at about point
+          eight four four. Which word owns that point?"
+        hold: 2.7
+        visual_cues:
+          - id: dec-sampler-mark
+            phrase: "the draw at about point eight four four"
+            targets: [sampler-trace]
+            linger: 0.35
+      - say: "The first two slices end at point eight two four. Our draw is a little farther along, at point
+          eight four four. ‘On’ owns that point. Greedy returned ‘in’ from these same scores. A seed fixes this
+          local random stream. The function also rejects invalid history IDs, nonfinite parameter values and all-masked scores. To
+          check a deployment, run the same cases on the actual serving stack."
+        caption_starts:
+          - "‘On’ owns that point"
+          - "Greedy returned ‘in’"
+        hold: 1.2
+        visual_cues:
+          - id: dec-sampler-seed
+            phrase: "‘On’ owns that point"
+            targets: [sampler-trace]
+            linger: 0.35
+  - id: draw
+    title: A random interval chooses one survivor
+    visual: Retained probabilities become adjoining intervals on a unit strip. A seeded random draw moves to one
+      interval and its candidate appends to the prefix.
+    beats:
+      - say: To sample, divide a unit interval into pieces proportional to the retained probabilities. Draw a random
+          number and select the token whose piece contains it. A candidate with more mass occupies more of the
+          interval and wins more often across repeated independent draws.
+        hold: 0.6
+        visual_cues:
+          - id: draw-b1-1
+            phrase: pieces proportional
+            targets:
+              - sampling-interval
+            linger: 0.45
+          - id: draw-b1-2
+            phrase: random number
+            targets:
+              - uniform-draw
+            linger: 0.45
+      - say: The animation uses a specified seed and one retained distribution, so this local fixture is reproducible.
+          Repeat the experiment many times and the empirical frequencies approach the sampling probabilities.
+          One chosen token can be a lower-ranked survivor because sampling deliberately permits alternatives
+          to the mode.
+        hold: 0.6
+        visual_cues:
+          - id: draw-b2-1
+            phrase: Repeat the experiment
+            targets:
+              - sampled-outcomes
+            linger: 0.45
+          - id: draw-b2-2
+            phrase: empirical frequencies approach
+            targets:
+              - empirical-frequencies
+            linger: 0.45
+      - say: A seed controls the random stream under an implementation. Reproducing an entire model response also
+          requires stable logits, tokenization, numerical kernels, processor order, and stopping behavior.
+          Record those conditions when comparing runs, especially when batch shape or serving runtime changes.
+        hold: 0.8
+        visual_cues:
+          - id: draw-b3-1
+            phrase: comparing runs
+            targets:
+              - probability-reference
+            linger: 0.45
+  - id: stop-contract
+    title: "Where does the returned text end?"
+    visual: Compare four reasons for ending a response. Match the stop string across the tokens st and opera.
+      Replay their arrival with the return field visible while the stream buffers its possible stop prefix.
+    beats:
+      - say: Use the checkpoint’s actual ending IDs. An end-of-turn token may end one assistant message while another
+          marker ends a conversation. A maximum output budget is separate. Record end token, length limit,
+          client cancellation or error rather than treating every finished-looking string as a completed
+          response.
+        hold: 0.65
+        visual_cues:
+          - id: dec-stop-contract-1
+            phrase: Use the checkpoint’s actual ending IDs. An end-of-turn token may end one assistant message while
+              another marker ends a conversation. A maximum output budget is separate. Record end token,
+              length limit, client cancellation or error rather than treating every finished-looking string as
+              a completed response.
+            targets:
+              - dec-stop-contract-mechanism
+            color: blue
+            linger: 0.35
+      - say: "Look for the stop string across these two tokens. The first spells S T. The next token is opera.
+          Its first two letters complete the word stop. Three letters are left over. Transformers precomputes
+          vocabulary overlaps so it can check for matches with tensor operations."
+        caption_starts:
+          - "The next token is opera"
+          - "Three letters are left over"
+        hold: 0.65
+        visual_cues:
+          - id: dec-stop-contract-2
+            phrase: "The next token is opera"
+            targets:
+              - dec-stop-contract-mechanism
+            color: blue
+            linger: 0.35
+      - say: "Try a stream that leaves out the stop text and everything past it in the last token. The first
+          token spells S T. Hold those letters. When opera arrives, its first two letters complete the stop
+          string. Drop the match and the leftover letters. The reader gets an empty string. The same match would
+          fire inside a quotation."
+        caption_starts:
+          - "When opera arrives"
+          - "The reader gets an empty string"
+        hold: 0.65
+        visual_cues:
+          - id: dec-stop-contract-3
+            phrase: "When opera arrives"
+            targets:
+              - dec-stop-contract-mechanism
+            color: blue
+            linger: 0.35
+          - id: dec-stop-empty
+            phrase: "The reader gets an empty string"
+            targets: [dec-stop-contract-mechanism]
+            linger: 0.35
+  - id: replay-contract
+    title: A seed fixes a stream and leaves the logits as another input
+    visual: Retain the same PRNG receipt while changing near-tied logits [1.0001,1] to [.9999,1]. Separate token
+      identity, returned text and bitwise tensor checks, then name bounded runtime reproducibility settings.
+    beats:
+      - say: A seed selects a random stream under an implementation; greedy removes the categorical draw. Both still
+          depend on the computed logits. With scores one point zero zero zero one and one, greedy selects the
+          first. If rounding changes the first to point nine nine nine nine, the second now wins despite the
+          same seed.
+        hold: 0.65
+        visual_cues:
+          - id: dec-replay-contract-1
+            phrase: A seed selects a random stream under an implementation; greedy removes the categorical draw. Both
+              still depend on the computed logits. With scores one point zero zero zero one and one, greedy
+              selects the first. If rounding changes the first to point nine nine nine nine, the second now
+              wins despite the same seed.
+            targets:
+              - dec-replay-contract-mechanism
+            color: blue
+            linger: 0.35
+          - id: dec-replay-first
+            phrase: With scores one point zero zero zero one and one, greedy selects the first.
+            targets:
+              - dec-replay-contract-mechanism
+            color: yellow
+            linger: 0.35
+          - id: dec-replay-second
+            phrase: If rounding changes the first to point nine nine nine nine, the second now wins despite the same seed.
+            targets:
+              - dec-replay-contract-mechanism
+            color: yellow
+            linger: 0.35
+      - say: Record checkpoint, tokenizer, chat template, runtime, precision, hardware, processor order, termination
+          and seeds. Compare repeated requests alone and under load. Distinguish matching token choices,
+          matching returned text and bitwise tensor equality. A divergence does not by itself identify which
+          kernel or reduction caused it.
+        hold: 0.65
+        visual_cues:
+          - id: dec-replay-contract-2
+            phrase: Record checkpoint, tokenizer, chat template, runtime, precision, hardware, processor order,
+              termination and seeds. Compare repeated requests alone and under load. Distinguish matching
+              token choices, matching returned text and bitwise tensor equality. A divergence does not by
+              itself identify which kernel or reduction caused it.
+            targets:
+              - dec-replay-contract-mechanism
+            color: blue
+            linger: 0.35
+      - say: The inspected vLLM guide scopes reproducibility to matching hardware and version, with deterministic
+          offline scheduling or supported batch invariance. Online serving uses batch invariance under its
+          documented limits. Exact speculative verification preserves the processed target distribution, while
+          its seeded trace can still differ from ordinary sampling.
+        hold: 0.65
+        visual_cues:
+          - id: dec-replay-contract-3
+            phrase: The inspected vLLM guide scopes reproducibility to matching hardware and version, with deterministic
+              offline scheduling or supported batch invariance. Online serving uses batch invariance under its
+              documented limits. Exact speculative verification preserves the processed target distribution,
+              while its seeded trace can still differ from ordinary sampling.
+            targets:
+              - dec-replay-contract-mechanism
+            color: blue
+            linger: 0.35
+  - id: hosted-contract
+    title: Accepted, rejected and ignored settings produce different experiments
+    visual: Attach an explicit API/model-version contract to three requests. One accepts a sampling change, one
+      returns HTTP400, and one ignores the field. Compare effort and schema controls on separate axes.
+    beats:
+      - say: A hosted model decides which controls you can set. An accepted field, a rejected request and an ignored
+          field are three different outcomes. Inspect the exact model and API version before a sweep, then
+          record the effective configuration. Several nominal temperatures can otherwise describe the same
+          policy.
+        hold: 0.65
+        visual_cues:
+          - id: dec-hosted-contract-1
+            phrase: A hosted model decides which controls you can set. An accepted field, a rejected request and an
+              ignored field are three different outcomes. Inspect the exact model and API version before a
+              sweep, then record the effective configuration. Several nominal temperatures can otherwise
+              describe the same policy.
+            targets:
+              - dec-hosted-contract-mechanism
+            color: blue
+            linger: 0.35
+      - say: The November twenty-twenty-six documentation gives concrete examples. Claude’s new API version rejects
+          temperature, top-p and top-k. The GPT-six guide removes temperature and top-p when reasoning effort
+          is enabled. Gemini’s cited release notes say its listed sampling fields are ignored. The article
+          keeps the exact version table and links.
+        hold: 0.65
+        visual_cues:
+          - id: dec-hosted-contract-2
+            phrase: The November twenty-twenty-six documentation gives concrete examples. Claude’s new API version rejects
+              temperature, top-p and top-k. The GPT-six guide removes temperature and top-p when reasoning
+              effort is enabled. Gemini’s cited release notes say its listed sampling fields are ignored. The
+              article keeps the exact version table and links.
+            targets:
+              - dec-hosted-contract-mechanism
+            color: blue
+            linger: 0.35
+          - id: dec-host-claude
+            phrase: Claude’s new API version rejects temperature, top-p and top-k.
+            targets:
+              - dec-hosted-contract-mechanism
+            color: yellow
+            linger: 0.35
+          - id: dec-host-gpt
+            phrase: The GPT-six guide removes temperature and top-p when reasoning effort is enabled.
+            targets:
+              - dec-hosted-contract-mechanism
+            color: yellow
+            linger: 0.35
+          - id: dec-host-gemini
+            phrase: Gemini’s cited release notes say its listed sampling fields are ignored.
+            targets:
+              - dec-hosted-contract-mechanism
+            color: yellow
+            linger: 0.35
+      - say: Effort controls how much work a response may spend, while a schema constrains output shape. Neither is a
+          replacement for a temperature transform. When a provider removes sampling controls, compare
+          permitted prompts, effort and schemas, validate the returned fields, and repeat cases to measure
+          their variation.
+        hold: 0.65
+        visual_cues:
+          - id: dec-hosted-contract-3
+            phrase: Effort controls how much work a response may spend, while a schema constrains output shape. Neither is
+              a replacement for a temperature transform. When a provider removes sampling controls, compare
+              permitted prompts, effort and schemas, validate the returned fields, and repeat cases to measure
+              their variation.
+            targets:
+              - dec-hosted-contract-mechanism
+            color: blue
+            linger: 0.35
+  - id: evaluation-protocol
+    title: "How often does a draft get the status right?"
+    visual: "Score four drafts of one held-out status prompt against its deployment record. Add two more
+      prompts. Count correct cells for average sampled correctness, then count rows with any success and charge
+      the selector's work."
+    beats:
+      - say: "For a status answer, check each completed draft against the deployment record. For translation you
+          would check the source meaning, and for code you could run its tests. If you want varied writing,
+          score variety as well as coherence. Keep the model revision, prompts, evidence, output budget,
+          stopping rule and scorer fixed while you change one decoding control."
+        hold: 1
+        visual_cues:
+          - id: evaluation-task
+            phrase: "check each completed draft against the deployment record"
+            targets: [draft-outcomes]
+            linger: 0.35
+      - say: "DeepSeek's R1 report averaged repeated correctness samples to estimate pass at one. Its
+          long-reasoning evaluation used temperature point six and top-p point nine five after observing greedy
+          repetition and variation across checkpoints. Take four toy drafts of prompt A. The first and third are
+          correct. Two correct drafts out of four gives fifty percent. Asking whether any draft worked gives
+          this prompt one success."
+        hold: 1
+        visual_cues:
+          - id: evaluation-deal
+            phrase: "The first and third are correct"
+            targets: [draft-outcomes]
+            linger: 0.35
+          - id: dec-evaluation-mean
+            phrase: "Two correct drafts out of four gives fifty percent"
+            targets: [draft-outcomes]
+            linger: 0.35
+          - id: dec-evaluation-any
+            phrase: "gives this prompt one success"
+            targets: [draft-outcomes]
+            linger: 0.35
+      - say: "Add prompts B and C under the same settings. Read across each row. How many drafts are correct in
+          all? And how many prompts have at least one correct draft?"
+        hold: 3
+        visual_cues:
+          - id: evaluation-more
+            phrase: "Add prompts B and C"
+            targets: [draft-outcomes]
+            linger: 0.35
+      - say: "Three of twelve drafts are correct. Two of three prompts have a correct draft somewhere in the
+          row. To return that draft, a system needs a way to pick it. Count the tokens for every candidate and
+          the time spent testing, voting or reranking. Track invalid and truncated outputs, repetition and
+          latency on held-out prompts. Choose the policy that meets the task's requirements at that full cost."
+        caption_starts:
+          - "Two of three prompts"
+        hold: 1.35
+        visual_cues:
+          - id: evaluation-counts
+            phrase: "Two of three prompts have a correct draft somewhere in the row"
+            targets: [draft-outcomes]
+            linger: 0.35
+  - id: transfer
+    title: "Try one change at a time"
+    visual: "Put the five two-word products on a common ruler. Change the slept split to equal halves while the
+      ran marks stay fixed. Cut to the five-word sampling strip for a separate threshold decision."
+    beats:
+      - say: "Back to the dog. Keeping both first words once paid off because soundly got nine tenths of the
+          slept branch. Suppose soundly and outside split that branch equally. Keep everything after ran the
+          same. Would keeping slept still improve the best two-word score?"
+        hold: 2.8
+        visual_cues:
+          - id: transfer-proposal
+            phrase: "Suppose soundly and outside split that branch equally"
+            targets: [edge-comparison]
+            linger: 0.35
+      - say: "Move the split to half and half. Each slept path now gets half of forty percent, or twenty
+          percent. Ran home and ran outside each have twenty-one. Our tie rule picks home. Both beam widths now
+          return the same text. To decide whether the extra search helps on a task, compare completed outputs
+          with the same model, prompts, budget and stopping rule. Measure the quality you need and the latency
+          you pay."
+        caption_starts:
+          - "Each slept path now gets"
+          - "Ran home and ran outside"
+          - "Both beam widths now return"
+        hold: 1.25
+        visual_cues:
+          - id: transfer-edge-change
+            phrase: "Move the split to half and half"
+            targets: [edge-comparison]
+            linger: 0.35
+      - say: "Switch back to drawing a single next word. At a top-p threshold of seventy percent, ran and slept
+          reach the mark exactly. Raise the target to ninety percent. Which word crosses that mark?"
+        hold: 2.6
+        visual_cues:
+          - id: transfer-threshold-question
+            phrase: "Raise the target to ninety percent"
+            targets: [threshold-comparison]
+            linger: 0.35
+      - say: "Move the mark to ninety percent. Played takes us to eighty-five. Barked takes us to ninety-five,
+          so barked gets the last place. A draw can select any of the four survivors after we divide their
+          weights by that ninety-five percent."
+        caption_starts:
+          - "Played takes us to eighty-five"
+          - "Barked takes us to ninety-five"
+        hold: 1.1
+        visual_cues:
+          - id: transfer-nucleus-experiment
+            phrase: "Move the mark to ninety percent"
+            targets: [threshold-comparison]
+            linger: 0.35
+          - id: transfer-crossing
+            phrase: "Barked takes us to ninety-five"
+            targets: [threshold-comparison]
+            linger: 0.35
+  - id: fresh-policy
+    title: "Finish the canary update"
+    visual: "Keep the status words aligned through the support comparisons, temperature change and hard mask.
+      Recompute the 80% cutoff over the surviving 52%. Reveal a toy rollout record, hold the report blank, then
+      fill in the state supported by the record."
+    beats:
+      - say: "Try it on a new status update. Ready has almost half the probability. Four other words share the
+          rest. Start at the top and add until you reach eighty percent. Which word gets the last place?"
+        hold: 2.8
+        visual_cues:
+          - id: dec-fresh-deal
+            phrase: "Four other words share the rest"
+            targets: [status-decision]
+            linger: 0.35
+      - say: "Paused gets the last place. Ready and waiting add to seventy-four percent. Paused brings the total
+          to eighty-eight. Try keeping exactly two instead. Dividing each by their combined seventy-four percent
+          gives ready about sixty-five percent and waiting thirty-five. Min-p at one fifth of the leader sets a
+          floor of point zero nine six. Paused clears it and checking falls below it."
+        caption_starts:
+          - "Ready and waiting add"
+          - "Paused brings the total"
+          - "Try keeping exactly two instead"
+          - "Paused clears it"
+        hold: 1
+        visual_cues:
+          - id: dec-fresh-crossing-word
+            phrase: "Paused gets the last place"
+            targets: [status-decision]
+            linger: 0.35
+          - id: dec-fresh-p
+            phrase: "Paused brings the total to eighty-eight"
+            targets: [status-decision]
+            linger: 0.35
+          - id: dec-fresh-k
+            phrase: "and waiting thirty-five"
+            targets: [status-decision]
+            linger: 0.35
+          - id: dec-fresh-minp
+            phrase: "sets a floor of point zero nine six"
+            targets: [status-decision]
+            linger: 0.35
+      - say: "Go back to all five words and halve the temperature. Square their original shares and divide by
+          the sum of those squares. Ready now has about seventy-one percent. All five words can still be drawn."
+        hold: 1
+        visual_cues:
+          - id: dec-fresh-temperature
+            phrase: "halve the temperature"
+            targets: [status-decision]
+            linger: 0.35
+      - say: "Restore temperature one. Now the output format forbids ready. That leaves fifty-two percent of the
+          original mass. Divide each legal share by that fifty-two percent before applying top-p. Waiting and
+          paused together get just under seventy-seven percent. Which word takes you to eighty?"
+        hold: 3
+        visual_cues:
+          - id: dec-fresh-reset
+            phrase: "Restore temperature one"
+            targets: [status-decision]
+            linger: 0.35
+          - id: dec-fresh-mask-input
+            phrase: "the output format forbids ready"
+            targets: [status-decision]
+            linger: 0.35
+          - id: dec-fresh-rescale
+            phrase: "Divide each legal share by that fifty-two percent"
+            targets: [status-decision]
+            linger: 0.35
+      - say: "Checking takes the total past ninety-two percent. Waiting alone has half the eligible mass, so it
+          is the most likely legal word. Heating this row still leaves ready forbidden. Now read the rollout log
+          for this example. Which word would you put in the status update?"
+        hold: 2.8
+        visual_cues:
+          - id: dec-fresh-mask-result
+            phrase: "Checking takes the total past ninety-two percent"
+            targets: [status-decision]
+            linger: 0.35
+          - id: dec-fresh-record
+            phrase: "read the rollout log for this example"
+            targets: [status-decision]
+            linger: 0.35
+      - say: "Paused. Waiting had the longest bar. The rollout log records a pause at ten forty-two, so that’s
+          what goes in the update. If the log is missing, fetch the current deployment status. Next we'll look
+          at how training data, model size and compute change those scores in the first place."
+        caption_starts:
+          - "The rollout log records a pause"
+          - "If the log is missing"
+          - "Next we'll look"
+        hold: 1.5
+        visual_cues:
+          - id: dec-fresh-verified
+            phrase: "Paused"
+            targets: [status-decision]
+            linger: 0.35

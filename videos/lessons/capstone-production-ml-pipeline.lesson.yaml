@@ -1,0 +1,971 @@
+version: 1
+id: capstone-production-ml-pipeline
+title: Build a Model Release You Can Recover
+source: foundations/capstone-production-ml-pipeline/content.md
+voice: en-US-AndrewNeural
+rate: +0%
+sources:
+  - title: "Google Cloud: MLOps architecture"
+    url: https://cloud.google.com/architecture/mlops-continuous-delivery-and-automation-pipelines-in-machine-learning
+  - title: "Scikit-learn: common pitfalls and data leakage"
+    url: https://scikit-learn.org/stable/common_pitfalls.html
+  - title: "Scikit-learn: model persistence"
+    url: https://scikit-learn.org/stable/model_persistence.html
+  - title: Argo Rollouts analysis states
+    url: https://argoproj.github.io/argo-rollouts/features/analysis/
+scenes:
+  - id: intro
+    title: A cheaper candidate still misses the important case
+    visual: Four evaluation rows feed critical-slice recall and total cost, exposing their different conclusions.
+    beats:
+      - say: A new delivery model costs less on every evaluation row. That sounds promising until we inspect the late
+          deliveries it was meant to catch. One of the two critical cases is missed. A release controller
+          needs to preserve that failure while it considers the cost improvement.
+        hold: 0.75
+        visual_cues:
+          - id: intro-b1-1
+            phrase: costs less on every evaluation row
+            targets:
+              - intro-mechanism
+            linger: 0.45
+          - id: intro-b1-2
+            phrase: two critical cases
+            targets:
+              - intro-mechanism
+            linger: 0.45
+          - id: intro-b1-3
+            phrase: One of the two critical cases is missed
+            targets:
+              - intro-mechanism
+            linger: 0.45
+      - say: We will assemble a small fitted model, a compatible release bundle and a controller that waits for
+          evidence. The program’s alias changes are local simulation. They help us understand how offline
+          checks, delayed canary observations and recovery should connect before any real traffic moves.
+        hold: 0.85
+        visual_cues:
+          - id: intro-b2-1
+            phrase: compatible release bundle
+            targets:
+              - intro-mechanism
+            linger: 0.45
+          - id: intro-b2-2
+            phrase: controller that waits for evidence
+            targets:
+              - intro-mechanism
+            linger: 0.45
+  - id: feature-clocks
+    title: Keep observed and available time behind the prediction cutoff
+    visual: One retained request, release and evidence identity constructs each operation and consequence;
+      predictions precede their computed outcomes.
+    beats:
+      - say: "For the same evaluation request, prediction happens at noon. A scan observed at ten and available at
+          eleven is eligible. Another was observed at eleven thirty but arrived at twelve thirty, so serving
+          could not have used it. A third was observed at thirteen and is also excluded. Filter by entity and
+          require both observed and available time at or before prediction. Only then choose the most recent
+          eligible observation: the retained delay is nine minutes."
+        hold: 0.8
+        visual_cues:
+          - id: feature-clocks-b1
+            phrase: For the same evaluation request, prediction happens at noon
+            targets:
+              - feature-clocks-mechanism
+            linger: 0.8
+          - id: feature-clocks-selected
+            phrase: the retained delay is nine minutes
+            targets:
+              - feature-clocks-mechanism
+            linger: 0.7
+          - id: pipe-result-feature-selected
+            phrase: the retained delay is nine minutes
+            targets:
+              - feature-clocks-mechanism
+            color: cyan
+            linger: 0.45
+      - say: Normalize timezone-aware clocks to UTC before identifying duplicate scan revisions. The same entity and
+          same observed instant must not produce two ambiguous feature versions. Request and outcome IDs are
+          unique and match exactly; a duplicate join must fail instead of multiplying evaluation rows. A
+          missing scan produces a missing feature. This implementation has no maximum scan-age threshold, so a
+          real freshness rule needs its own policy.
+        hold: 0.8
+        visual_cues:
+          - id: feature-clocks-b2
+            phrase: Normalize timezone-aware clocks to UTC before identifying duplicate scan revisions
+            targets:
+              - feature-clocks-mechanism
+            linger: 0.8
+      - say: Training requests precede May twenty-five and their labels must be available by that training cutoff.
+          Evaluation requests are on May twenty-eight and their labels are mature by the May thirty-one
+          snapshot. The label availability clock decides whether fitting or scoring is allowed. It never turns
+          that future outcome into an input feature. A source snapshot assembled retrospectively does not
+          prove the run happened on its historical dates.
+        hold: 0.8
+        visual_cues:
+          - id: feature-clocks-b3
+            phrase: Training requests precede May twenty-five and their labels must be available by that training cutoff
+            targets:
+              - feature-clocks-mechanism
+            linger: 0.8
+  - id: fit
+    title: Fit transformations on the training cohort
+    visual: Six training points determine the center, range and least-squares line; evaluation points enter
+      without refitting.
+    beats:
+      - say: "Our training examples contain one input: observed delay minutes. Fit their preprocessing first. The mean
+          supplies a missing-value replacement and the range supplies the scale. Those quantities come
+          entirely from training rows and must be reused when evaluation requests arrive."
+        hold: 0.75
+        visual_cues:
+          - id: fit-b1-1
+            phrase: observed delay minutes
+            targets:
+              - fit-mechanism
+            linger: 0.45
+          - id: fit-b1-2
+            phrase: mean supplies a missing-value replacement
+            targets:
+              - fit-mechanism
+            linger: 0.45
+          - id: fit-mean
+            phrase: The mean supplies a missing-value replacement
+            targets:
+              - fit-mean-output
+            linger: 0.7
+          - id: fit-range
+            phrase: the range supplies the scale
+            targets:
+              - fit-range-output
+            linger: 0.7
+          - id: pipe-result-fitted-mean
+            phrase: The mean supplies a missing-value replacement
+            targets:
+              - fit-mechanism
+            color: cyan
+            linger: 0.45
+          - id: pipe-result-fitted-range
+            phrase: the range supplies the scale
+            targets:
+              - fit-mechanism
+            color: cyan
+            linger: 0.45
+      - say: Fit a small least-squares score on the transformed delays and binary labels. The plotted line produces
+          the shown evaluation scores. One can be negative, so this estimator is a numeric decision score. A
+          fixed threshold converts it into warnings without implying calibrated probabilities.
+        hold: 0.85
+        visual_cues:
+          - id: fit-b2-1
+            phrase: Fit a small least-squares score on the transformed delays and binary labels.
+            targets:
+              - fit-mechanism
+            linger: 0.45
+          - id: fit-b2-2
+            phrase: shown evaluation scores
+            targets:
+              - fit-mechanism
+            linger: 0.45
+          - id: fit-line
+            phrase: Fit a small least-squares score on the transformed delays and binary labels
+            targets:
+              - fit-mechanism
+            linger: 0.7
+      - say: The six delays are zero, one, two, eight, nine and ten, with labels zero, zero, zero, one, one and one.
+          The center is five and range ten. Their transformed values have mean zero; the label mean is one
+          half. Least squares divides the cross-product sum one point two by the squared-feature sum one,
+          giving slope one point two and intercept one half. The transformed feature is delay minus five,
+          divided by ten. Multiply that feature by one point two, then add one half. Delays nine, eight, one
+          and zero give scores point nine eight, point eight six, point zero two and minus point one.
+        hold: 0.8
+        visual_cues:
+          - id: fit-extension-3
+            phrase: The six delays are zero, one, two, eight, nine and ten, with labels zero, zero, zero, one, one and one
+            targets:
+              - fit-mechanism
+            linger: 0.8
+          - id: fit-z
+            phrase: Their transformed values have mean zero
+            targets:
+              - fit-mechanism
+            linger: 0.7
+          - id: fit-cross
+            phrase: cross-product sum one point two
+            targets:
+              - fit-cross-output
+            linger: 0.7
+          - id: fit-slope
+            phrase: giving slope one point two and intercept one half
+            targets:
+              - fit-slope-output
+            linger: 0.7
+          - id: fit-scores
+            phrase: Delays nine, eight, one and zero give scores
+            targets:
+              - fit-mechanism
+            linger: 0.7
+          - id: pipe-result-cross-product-total
+            phrase: Least squares divides the cross-product sum one point two by the squared-feature sum one
+            targets:
+              - fit-mechanism
+            color: cyan
+            linger: 0.45
+          - id: pipe-result-slope-intercept
+            phrase: giving slope one point two and intercept one half
+            targets:
+              - fit-mechanism
+            color: cyan
+            linger: 0.45
+          - id: pipe-result-four-evaluation-scores
+            phrase: Delays nine, eight, one and zero give scores point nine eight, point eight six, point zero two and
+              minus point one
+            targets:
+              - fit-mechanism
+            color: cyan
+            linger: 0.45
+  - id: bundle
+    title: Save enough state to reproduce a decision
+    visual: Preprocessing and model values enter one bundle, and a reload probe produces the same outputs.
+    beats:
+      - say: Saving coefficients alone leaves the computation incomplete. The fitted transformation, input schema and
+          warning threshold all affect the answer. Put them in the same retained package, together with
+          training identity and the code used to build it, then reload and compare predictions.
+        hold: 0.75
+        visual_cues:
+          - id: bundle-b1-1
+            phrase: fitted transformation
+            targets:
+              - bundle-mechanism
+            linger: 0.45
+          - id: bundle-b1-2
+            phrase: input schema and warning threshold
+            targets:
+              - bundle-mechanism
+            linger: 0.45
+          - id: bundle-b1-3
+            phrase: reload and compare predictions
+            targets:
+              - bundle-mechanism
+            linger: 0.45
+      - say: At a missing delay, this fixture imputes the training mean and warns at threshold equality. That is a
+          policy choice to evaluate, rather than a universal fallback. A schema mismatch or invalid saved
+          parameter should stop the inference path before a plausible score hides the problem.
+        hold: 0.85
+        visual_cues:
+          - id: bundle-b2-1
+            phrase: imputes the training mean
+            targets:
+              - bundle-mechanism
+            linger: 0.45
+          - id: bundle-b2-2
+            phrase: threshold equality
+            targets:
+              - bundle-mechanism
+            linger: 0.45
+          - id: bundle-b2-3
+            phrase: schema mismatch
+            targets:
+              - bundle-mechanism
+            linger: 0.45
+      - say: "The complete release also identifies data snapshot, feature version, model, action policy, promotion
+          policy, monitor and previous release. Restoring vision weights while keeping the failed cropper or
+          review threshold restores a different computation. An artifact registry gives a candidate an
+          identity while production stays on the previous release. In this fixture, the trained package costs
+          four units against fifty for the always-silent baseline: warning costs two, while missing a late
+          delivery costs twenty-five. These assumed units and four easy rows demonstrate plumbing, not
+          measured savings or generalization."
+        hold: 0.8
+        visual_cues:
+          - id: bundle-extension-3
+            phrase: The complete release also identifies data snapshot, feature version, model, action policy, promotion
+              policy, monitor and previous release
+            targets:
+              - bundle-mechanism
+            linger: 0.8
+          - id: pipe-result-trained-cost-receipt
+            phrase: the trained package costs four units against fifty for the always-silent baseline
+            targets:
+              - bundle-mechanism
+            color: cyan
+            linger: 0.45
+  - id: strict-model-loader
+    title: Verify bytes and the computation that those bytes describe
+    visual: One retained request, release and evidence identity constructs each operation and consequence;
+      predictions precede their computed outcomes.
+    beats:
+      - say: The bundle stores the input feature name, fitted imputation, center and range, slope and intercept,
+          warning threshold, training IDs and cutoff, training-row digest, builder-source digest and Python
+          version. The training digest excludes later evaluation outcomes; the separate full-fixture digest
+          includes them. Reload compares predictions from retained bytes with the pre-save computation.
+        hold: 0.8
+        visual_cues:
+          - id: strict-model-loader-b1
+            phrase: The bundle stores the input feature name, fitted imputation, center and range, slope and intercept,
+              warning threshold, training IDs and cutoff, training-row digest, builder-source digest and
+              Python version
+            targets:
+              - strict-model-loader-mechanism
+            linger: 0.8
+      - say: First compare the serialized bytes with the registered digest. Appending one space changes that digest
+          and stops reload. A matching digest still does not make a valid estimator. Reject duplicate JSON
+          keys, nonfinite numbers, a nonpositive scale, an unexpected schema or an unsupported threshold.
+          Reject Boolean or unrepresentably huge numeric inputs. At a missing delay, reuse the saved
+          imputation value; do not fit again on the serving batch.
+        hold: 0.8
+        visual_cues:
+          - id: strict-model-loader-b2
+            phrase: First compare the serialized bytes with the registered digest
+            targets:
+              - strict-model-loader-mechanism
+            linger: 0.8
+      - say: This numeric JSON loader implements its own small contract. General estimator persistence also needs
+          compatible code and dependencies. Scikit-learn does not support loading models across its versions,
+          and untrusted pickle-based artifacts can execute code. Restore a compatible complete computation,
+          then test it; a checksum alone proves only that expected bytes matched.
+        hold: 0.8
+        visual_cues:
+          - id: strict-model-loader-b3
+            phrase: This numeric JSON loader implements its own small contract
+            targets:
+              - strict-model-loader-mechanism
+            linger: 0.8
+  - id: offline
+    title: Bind the gate to the actual rows
+    visual: The failed recall fixture stays held while a separately fitted passing package enters the offline gate.
+    beats:
+      - say: Now return to the cheaper candidate that missed a critical case. Derive recall from its row decisions and
+          compare it with the declared floor. Its cost improvement cannot erase the failed requirement. Keep a
+          separate receipt naming those exact rows and the policy that evaluated them.
+        hold: 0.75
+        visual_cues:
+          - id: offline-b1-1
+            phrase: Derive recall from its row decisions
+            targets:
+              - offline-mechanism
+            linger: 0.45
+          - id: offline-b1-2
+            phrase: cost improvement
+            targets:
+              - offline-mechanism
+            linger: 0.45
+          - id: offline-b1-3
+            phrase: failed requirement
+            targets:
+              - offline-mechanism
+            linger: 0.45
+          - id: failed-evaluation-receipt
+            phrase: Keep a separate receipt naming those exact rows and the policy that evaluated them
+            targets:
+              - offline-mechanism
+            color: pink
+            linger: 0.45
+      - say: The independently fitted package has its own evaluation outputs. A passing offline result can open a
+          limited next stage under this local policy. Bind that result to the release, model bytes and policy
+          values, so changing a package or threshold invalidates the earlier receipt.
+        hold: 0.85
+        visual_cues:
+          - id: offline-b2-1
+            phrase: own evaluation outputs
+            targets:
+              - offline-mechanism
+            linger: 0.45
+          - id: offline-b2-2
+            phrase: Bind that result to the release
+            targets:
+              - offline-mechanism
+            linger: 0.45
+          - id: offline-row-build
+            phrase: The independently fitted package has its own evaluation outputs
+            targets:
+              - offline-mechanism
+            linger: 0.7
+      - say: The no-leakage gate checks intersection of training and evaluation entity IDs. A shared ID fails even
+          when recall passes. Different IDs can still hide related parcels, and the overlap gate does not
+          discover future features. The builder supplies separate clock checks. If the critical slice has no
+          positives, its recall is missing, not perfect. If baseline cost is zero, relative cost change is
+          missing. Both required gates hold rather than divide by zero. The failed hand-entered fixture and
+          the separately trained candidate have different rows and cost rules.
+        hold: 0.8
+        visual_cues:
+          - id: offline-extension-3
+            phrase: The no-leakage gate checks intersection of training and evaluation entity IDs
+            targets:
+              - offline-mechanism
+            linger: 0.8
+  - id: bound-evidence
+    title: Trace a stored decision back to the exact rows and policy
+    visual: One retained request, release and evidence identity constructs each operation and consequence;
+      predictions precede their computed outcomes.
+    beats:
+      - say: The release registry and evaluator have distinct jobs. Registration retains artifact and release values
+          without moving production. Evaluation checks the typed row schema, exact evaluation-ID inventory,
+          split overlap, critical-positive count and cost totals. For positive baseline cost, relative change
+          equals candidate total divided by baseline total, minus one. Critical recall equals correctly warned
+          late critical rows divided by all late critical rows.
+        hold: 0.8
+        visual_cues:
+          - id: bound-evidence-b1
+            phrase: The release registry and evaluator have distinct jobs
+            targets:
+              - bound-evidence-mechanism
+            linger: 0.8
+          - id: bound-evidence-overlap
+            phrase: split overlap
+            targets:
+              - bound-evidence-mechanism
+            linger: 0.7
+      - say: Canonical JSON fingerprints bind artifact values, release values and promotion policy values. Stored
+          offline evidence names all three. Opening canary follows the evidence ID, checks its candidate and
+          bindings, and requires the candidate previous release to match current production. A missing
+          registered receipt or one failing required gate holds the candidate offline; a caller-provided
+          passed flag cannot replace the row calculation.
+        hold: 0.8
+        visual_cues:
+          - id: bound-evidence-b2
+            phrase: Canonical JSON fingerprints bind artifact values, release values and promotion policy values
+            targets:
+              - bound-evidence-mechanism
+            linger: 0.8
+      - say: An ID is a lookup key, not authentication. The helper called immutable fingerprint computes a digest; it
+          does not make dictionaries immutable. An authorized writer who replaces the data and every expected
+          fingerprint can defeat consistency checks. Protect evidence writers and artifact retention, and let
+          a trusted evaluator own inference and datasets. The lab accepts some hand-entered controller
+          fixtures explicitly; those are not independent model measurements.
+        hold: 0.8
+        visual_cues:
+          - id: bound-evidence-b3
+            phrase: An ID is a lookup key, not authentication
+            targets:
+              - bound-evidence-mechanism
+            linger: 0.8
+  - id: canary
+    title: Let fast health and delayed quality arrive separately
+    visual: A canary window initially has healthy service metrics but pending labels. A later four-outcome cohort
+      retains request identities as labels and cost receipts arrive. Partial sums use received rows, and the
+      local controller is called after the complete supplied cost comparison is explained. An alternative
+      ordered history preserves an earlier measured regression.
+    beats:
+      - say: A canary limits initial exposure while the service gathers observations. Latency and errors appear
+          quickly. Prediction usefulness often waits for labels. Our first supplied window looks healthy but
+          lacks enough delayed evidence, so the controller holds the canary instead of calling the missing
+          value a success.
+        hold: 0.75
+        visual_cues:
+          - id: canary-exposure
+            phrase: limits initial exposure
+            targets:
+              - canary-mechanism
+            linger: 0.45
+          - id: canary-b1-2
+            phrase: Latency and errors
+            targets:
+              - canary-mechanism
+            linger: 0.45
+          - id: canary-b1-3
+            phrase: lacks enough delayed evidence
+            targets:
+              - canary-mechanism
+            linger: 0.45
+      - say: When the required ordered windows arrive, inspect every supplied health and mature-quality check. Our
+          later window has four available outcome labels. Their supplied late-warning costs total ninety-two
+          against a baseline of one hundred. That gives an eight percent improvement, clearing the
+          zero-regression limit. This labeled cost measure is our quality check. With healthy service metrics,
+          the local controller becomes ready for a separate promotion call.
+        motion_check:
+          region:
+            - 170
+            - 455
+            - 1040
+            - 350
+          minimumChangedFraction: 0.002
+        hold: 0.85
+        visual_cues:
+          - id: canary-b2-1
+            phrase: required ordered windows
+            targets:
+              - canary-mechanism
+            linger: 0.45
+          - id: canary-b2-2
+            phrase: four available outcome labels
+            targets:
+              - canary-mechanism
+            linger: 0.45
+          - id: canary-b2-3
+            phrase: total ninety-two
+            targets:
+              - canary-mechanism
+            linger: 0.45
+          - id: canary-b2-4
+            phrase: ready for a separate promotion
+            targets:
+              - canary-mechanism
+            linger: 0.45
+          - id: canary-labels-rise
+            phrase: four available outcome labels
+            targets:
+              - canary-mechanism
+            linger: 0.7
+          - id: canary-costs-rise
+            phrase: Their supplied late-warning costs total ninety-two against a baseline of one hundred
+            targets:
+              - canary-mechanism
+            linger: 0.7
+          - id: pipe-result-canary-quality-delta
+            phrase: That gives an eight percent improvement, clearing the zero-regression limit
+            targets:
+              - canary-mechanism
+            color: cyan
+            linger: 0.45
+          - id: pipe-result-canary-ready
+            phrase: the local controller becomes ready for a separate promotion call
+            targets:
+              - canary-mechanism
+            color: cyan
+            linger: 0.45
+      - say: Now inspect an alternative ordered history. An earlier mature cohort has higher late-warning cost, while
+          the later cohort improves. The controller aborts because a measured regression already breached the
+          policy. Keep that earlier failure in the evidence history. A later improvement cannot conceal it by
+          replacing the observations.
+        hold: 0.85
+        visual_cues:
+          - id: canary-b3-1
+            phrase: earlier mature cohort has higher
+            targets:
+              - canary-mechanism
+            linger: 0.45
+          - id: canary-b3-2
+            phrase: later cohort improves
+            targets:
+              - canary-mechanism
+            linger: 0.45
+          - id: canary-b3-3
+            phrase: controller aborts
+            targets:
+              - canary-mechanism
+            linger: 0.45
+          - id: pipe-result-earlier-regression-abort
+            phrase: The controller aborts because a measured regression already breached the policy
+            targets:
+              - canary-mechanism
+            color: cyan
+            linger: 0.45
+  - id: canary-window-contract
+    title: Validate the whole observation history before calling it ready
+    visual: One retained request, release and evidence identity constructs each operation and consequence;
+      predictions precede their computed outcomes.
+    beats:
+      - say: Each canary window carries its own identity, candidate release, nonnegative integer observation day,
+          positive integer request count, error rate, latency and delayed-quality state. Reject duplicate
+          window IDs, mixed releases and non-increasing days. Require finite metrics, an error rate between
+          zero and one, nonnegative latency, and a cost delta no smaller than minus one. Boolean request
+          counts and nonfinite values do not count as valid measurements.
+        hold: 0.8
+        visual_cues:
+          - id: canary-window-contract-b1
+            phrase: Each canary window carries its own identity, candidate release, nonnegative integer observation day,
+              positive integer request count, error rate, latency and delayed-quality state
+            targets:
+              - canary-window-contract-mechanism
+            linger: 0.8
+      - say: The authored policy requires at least two ordered windows, error rate at most one percent, latency at
+          most two hundred fifty milliseconds, and no positive mature cost change. Equality passes these
+          limits. Empty or insufficient history and missing latest delayed quality hold the canary. Any
+          supplied service breach, mature cost regression, malformed telemetry or binding mismatch aborts it.
+          An abort removes only the named candidate canary; it cannot erase another candidate exposure.
+        hold: 0.8
+        visual_cues:
+          - id: canary-window-contract-b2
+            phrase: The authored policy requires at least two ordered windows, error rate at most one percent, latency at
+              most two hundred fifty milliseconds, and no positive mature cost change
+            targets:
+              - canary-window-contract-mechanism
+            linger: 0.8
+          - id: canary-window-contract-missing
+            phrase: missing latest delayed quality
+            targets:
+              - canary-window-contract-mechanism
+            linger: 0.7
+          - id: canary-window-contract-invalid
+            phrase: malformed telemetry
+            targets:
+              - canary-window-contract-mechanism
+            linger: 0.7
+      - say: The first-hour and day-seven article summaries inject their quality delta. Our separate four-outcome
+          picture supplies costs of twenty-three each against twenty-five each to reconstruct the same
+          minus-eight-percent decision. It is distinct from offline four-versus-fifty cost. Real monitoring
+          must retain request identity, served release, prediction time and outcome availability, then apply
+          coverage, sample-size, freshness and uncertainty rules. Caller-supplied later good windows cannot
+          establish that omitted earlier windows passed.
+        hold: 0.8
+        visual_cues:
+          - id: canary-window-contract-b3
+            phrase: The first-hour and day-seven article summaries inject their quality delta
+            targets:
+              - canary-window-contract-mechanism
+            linger: 0.8
+  - id: promotion
+    title: Verify which release the pointer selects
+    visual: A stored ready receipt permits a local production pointer to select the new complete bundle.
+    beats:
+      - say: Readiness and promotion are separate operations. Before changing a pointer, follow the retained ready
+          receipt back to its offline evidence and recheck the package and policy bindings. Also verify which
+          release production currently selects. Another change can make an old decision stale.
+        hold: 0.75
+        visual_cues:
+          - id: promotion-b1-1
+            phrase: retained ready receipt
+            targets:
+              - promotion-mechanism
+            linger: 0.45
+          - id: promotion-b1-2
+            phrase: recheck the package and policy bindings
+            targets:
+              - promotion-mechanism
+            linger: 0.45
+          - id: promotion-b1-3
+            phrase: production currently selects
+            targets:
+              - promotion-mechanism
+            linger: 0.45
+      - say: The local example performs sequential checks. Concurrent controllers need a transaction or
+          compare-and-swap with a generation, plus an audit event committed consistently. Once traffic is
+          involved, verify workers actually loaded the package and routing reached them. A registry alias
+          alone does not demonstrate that serving changed.
+        hold: 0.85
+        visual_cues:
+          - id: promotion-b2-1
+            phrase: sequential checks
+            targets:
+              - promotion-mechanism
+            linger: 0.45
+          - id: promotion-b2-2
+            phrase: workers actually loaded the package
+            targets:
+              - promotion-mechanism
+            linger: 0.45
+          - id: promotion-commit
+            phrase: The local example performs sequential checks
+            targets:
+              - promotion-mechanism
+            linger: 0.7
+          - id: pipe-result-promotion-local-commit
+            phrase: The local example performs sequential checks
+            targets:
+              - promotion-mechanism
+            color: cyan
+            linger: 0.45
+  - id: alias-generation
+    title: Make the production transition atomic with its audit event
+    visual: One retained request, release and evidence identity constructs each operation and consequence;
+      predictions precede their computed outcomes.
+    beats:
+      - say: The Python controller checks production and then assigns it sequentially. A second controller can change
+          the pointer between those actions. A transaction or compare-and-swap must check the expected release
+          and alias generation while committing the pointer and audit event together. This lab does not
+          implement that distributed operation.
+        hold: 0.8
+        visual_cues:
+          - id: alias-generation-b1
+            phrase: The Python controller checks production and then assigns it sequentially
+            targets:
+              - alias-generation-mechanism
+            linger: 0.8
+      - say: Consider production v zero at generation forty-one. Another controller moves it to v two at generation
+          forty-two, then back to v zero at generation forty-three. The text label matches the old receipt
+          again, but generation forty-one is stale. Compare the expected generation as well as the release,
+          and bind freshness and rollout-attempt identity to evidence. A pointer check without a generation
+          cannot detect that history.
+        hold: 0.8
+        visual_cues:
+          - id: alias-generation-b2
+            phrase: Consider production v zero at generation forty-one
+            targets:
+              - alias-generation-mechanism
+            linger: 0.8
+          - id: alias-generation-away
+            phrase: Another controller moves it to v two at generation forty-two
+            targets:
+              - alias-generation-mechanism
+            linger: 0.7
+          - id: alias-generation-returned
+            phrase: then back to v zero at generation forty-three
+            targets:
+              - alias-generation-mechanism
+            linger: 0.7
+          - id: pipe-result-aba-stale-comparison
+            phrase: The text label matches the old receipt again, but generation forty-one is stale
+            targets:
+              - alias-generation-mechanism
+            color: cyan
+            linger: 0.45
+      - say: An alias move is still a control-plane decision. Verify the serving workers loaded the complete
+          compatible package, became ready and actually received routed requests. Restoring an alias cannot
+          undo a warning already delivered. Recovery time includes reload, readiness, routing convergence and
+          any external feature compatibility; the local dictionary example measures none of those times.
+        hold: 0.8
+        visual_cues:
+          - id: alias-generation-b3
+            phrase: An alias move is still a control-plane decision
+            targets:
+              - alias-generation-mechanism
+            linger: 0.8
+  - id: recovery
+    title: Restore the earlier complete computation
+    visual: A later labelled regression requests recovery, moving the simulated pointer back and changing the
+      nine-minute probe.
+    beats:
+      - say: After promotion, monitor both service health and mature prediction quality. A measured regression can
+          request recovery. Missing labels hold for investigation under the declared policy, with a deadline
+          and fallback needed for a real service. Keep the distinction visible in the monitoring record.
+        hold: 0.75
+        visual_cues:
+          - id: recovery-b1-1
+            phrase: measured regression
+            targets:
+              - recovery-mechanism
+            linger: 0.45
+          - id: recovery-b1-2
+            phrase: monitoring record
+            targets:
+              - recovery-mechanism
+            linger: 0.45
+      - say: Recovery selects the retained previous bundle and verifies it loads. Our nine-minute test changes with
+          the restored model, showing that the pointer selected a different computation. A deployed recovery
+          must also measure readiness and routing convergence, and it cannot undo notifications already
+          delivered.
+        hold: 0.85
+        visual_cues:
+          - id: recovery-b2-1
+            phrase: retained previous bundle
+            targets:
+              - recovery-mechanism
+            linger: 0.45
+          - id: recovery-b2-2
+            phrase: pointer selected a different computation
+            targets:
+              - recovery-mechanism
+            linger: 0.45
+          - id: recovery-restore
+            phrase: Recovery selects the retained previous bundle and verifies it loads
+            targets:
+              - recovery-mechanism
+            linger: 0.7
+          - id: pipe-result-restored-package
+            phrase: Recovery selects the retained previous bundle and verifies it loads
+            targets:
+              - recovery-mechanism
+            color: cyan
+            linger: 0.45
+          - id: pipe-result-restored-probe
+            phrase: Our nine-minute test changes with the restored model, showing that the pointer selected a different
+              computation
+            targets:
+              - recovery-mechanism
+            color: cyan
+            linger: 0.45
+  - id: production-history
+    title: Keep missing, invalid and older observations distinct
+    visual: One retained request, release and evidence identity constructs each operation and consequence;
+      predictions precede their computed outcomes.
+    beats:
+      - say: After promotion, healthy service with missing delayed quality yields hold monitor and leaves the current
+          release selected. A finite measured cost increase above policy, error-rate breach or latency breach
+          can require rollback. Malformed production telemetry holds for investigation in this fixture;
+          malformed canary telemetry aborts limited exposure. The real service needs a deadline and fallback
+          when measurement remains unavailable.
+        hold: 0.8
+        visual_cues:
+          - id: production-history-b1
+            phrase: After promotion, healthy service with missing delayed quality yields hold monitor and leaves the
+              current release selected
+            targets:
+              - production-history-mechanism
+            linger: 0.8
+      - say: The monitor retains the latest valid observation day separately from the latest receipt. Suppose valid
+          day nine is followed by malformed day ten. The malformed receipt can hold monitoring, but it cannot
+          erase day nine. A late day-eight report is older than retained valid evidence and must hold rollback
+          without replacing the current receipt pointer. A report for a different release likewise cannot move
+          the live release.
+        hold: 0.8
+        visual_cues:
+          - id: production-history-b2
+            phrase: The monitor retains the latest valid observation day separately from the latest receipt
+            targets:
+              - production-history-mechanism
+            linger: 0.8
+          - id: production-history-malformed
+            phrase: followed by malformed day ten
+            targets:
+              - production-history-mechanism
+            linger: 0.7
+          - id: production-history-older
+            phrase: A late day-eight report
+            targets:
+              - production-history-mechanism
+            linger: 0.7
+          - id: pipe-result-malformed-observation-hold
+            phrase: The malformed receipt can hold monitoring, but it cannot erase day nine
+            targets:
+              - production-history-mechanism
+            color: cyan
+            linger: 0.45
+          - id: pipe-result-older-observation-hold
+            phrase: A late day-eight report is older than retained valid evidence and must hold rollback without replacing
+              the current receipt pointer
+            targets:
+              - production-history-mechanism
+            color: cyan
+            linger: 0.45
+      - say: A newer monitoring receipt supersedes an older rollback receipt. Before recovery, recheck the live
+          release, policy and retained previous-target fingerprints, then reload that previous package. A
+          changed target, changed policy or failed reload holds recovery. Integer days cannot order same-day
+          updates or distinguish repeated rollout attempts; production windows need timestamps and attempt
+          identity.
+        hold: 0.8
+        visual_cues:
+          - id: production-history-b3
+            phrase: A newer monitoring receipt supersedes an older rollback receipt
+            targets:
+              - production-history-mechanism
+            linger: 0.8
+  - id: product-monitoring
+    title: Carry the same evidence contract across four products
+    visual: One retained request, release and evidence identity constructs each operation and consequence;
+      predictions precede their computed outcomes.
+    beats:
+      - say: Change the product while retaining the immediate-versus-delayed distinction. Delivery warnings need scan
+          freshness now and labeled warning cost later. Ranking needs eligible candidate supply now and an
+          assignment-aware purchase or return outcome later. Forecasting needs fresh counts now and residual
+          or alert-decision cost later. Vision needs photo quality now and reviewer-confirmed damage later.
+          Restore the relevant cropper, imputer or other preprocessing with that product model.
+        hold: 0.8
+        visual_cues:
+          - id: product-monitoring-b1
+            phrase: Change the product while retaining the immediate-versus-delayed distinction
+            targets:
+              - product-monitoring-mechanism
+            linger: 0.8
+      - say: A canary bounds initial exposure while checking a release. An A B test uses an assignment and analysis
+          design to estimate an outcome difference. A canary can sit within a randomized experiment; a pair of
+          supplied summaries is not a causal business-lift estimate. A training schedule or drift trigger
+          creates another candidate, which must pass the same data, model, monitoring and promotion evidence
+          checks.
+        hold: 0.8
+        visual_cues:
+          - id: product-monitoring-b2
+            phrase: A canary bounds initial exposure while checking a release
+            targets:
+              - product-monitoring-mechanism
+            linger: 0.8
+  - id: synthesis
+    title: Make every transition answerable
+    visual: The release tuple and bound evidence chain connect fitting, evaluation, canary and recovery.
+    beats:
+      - say: We have built a chain from admitted observations through fitted transformations to a release decision.
+          Each transition has a reason to proceed, hold or recover. The cheap model’s miss remained visible,
+          and the passing model still had to wait for separate operational evidence.
+        hold: 0.75
+        visual_cues:
+          - id: synthesis-b1-1
+            phrase: admitted observations through fitted transformations
+            targets:
+              - synthesis-mechanism
+            linger: 0.45
+          - id: synthesis-b1-2
+            phrase: proceed, hold or recover
+            targets:
+              - synthesis-mechanism
+            linger: 0.45
+      - say: Keep that chain together as the service grows. Store complete compatible bundles, derive metrics from
+          retained rows, control receipt writers and test stale or missing evidence. Then the next training
+          run produces a candidate whose behavior and recovery path another engineer can inspect.
+        hold: 0.85
+        visual_cues:
+          - id: synthesis-b2-1
+            phrase: complete compatible bundles
+            targets:
+              - synthesis-mechanism
+            linger: 0.45
+          - id: synthesis-b2-2
+            phrase: behavior and recovery path
+            targets:
+              - synthesis-mechanism
+            linger: 0.45
+  - id: fresh-stale-receipt
+    title: Predict what the changed receipt can authorize
+    visual: One retained request, release and evidence identity constructs each operation and consequence;
+      predictions precede their computed outcomes.
+    beats:
+      - say: Return to the retained candidate and the same nine-minute probe, with production still v zero. A ready
+          receipt exists. Before promotion, a newer one-window evaluation records hold; then someone changes
+          the latency policy from two hundred fifty to three hundred under the same ID. Predict whether the
+          old ready receipt can move production, and whether the nine-minute warning changes.
+        hold: 0.8
+        visual_cues:
+          - id: fresh-stale-receipt-b1
+            phrase: Return to the retained candidate and the same nine-minute probe, with production still v zero
+            targets:
+              - fresh-stale-receipt-mechanism
+            linger: 0.8
+      - say: Promotion holds for both a superseded canary receipt and the changed policy fingerprint. Production
+          remains v zero and the probe stays silent. Restore only the original two-hundred-fifty policy. The
+          fingerprint matches again, but the old ready receipt is still superseded by the newer hold.
+          Production and the probe still do not change.
+        hold: 0.8
+        visual_cues:
+          - id: fresh-stale-receipt-b2
+            phrase: Promotion holds for both a superseded canary receipt and the changed policy fingerprint
+            targets:
+              - fresh-stale-receipt-mechanism
+            linger: 0.8
+          - id: fresh-stale-receipt-restore-policy
+            phrase: Restore only the original two-hundred-fifty policy
+            targets:
+              - fresh-stale-receipt-policy-output
+            linger: 0.7
+          - id: pipe-result-fresh-compound-hold
+            phrase: Promotion holds for both a superseded canary receipt and the changed policy fingerprint
+            targets:
+              - fresh-stale-receipt-mechanism
+            color: cyan
+            linger: 0.45
+          - id: pipe-result-fresh-unchanged-silent-probe
+            phrase: Production remains v zero and the probe stays silent
+            targets:
+              - fresh-stale-receipt-mechanism
+            color: cyan
+            linger: 0.45
+          - id: pipe-result-restored-policy-match
+            phrase: The fingerprint matches again, but the old ready receipt is still superseded by the newer hold
+            targets:
+              - fresh-stale-receipt-mechanism
+            color: cyan
+            linger: 0.45
+      - say: "Now retain a new complete ordered history under the restored policy and create its new ready receipt. Promotion follows that current evidence chain, reloads both compatible packages and moves the local production pointer to v one. The identical nine-minute probe now warns. Two staged repairs earned this result: restore the policy and obtain fresh current evidence. A service rollout would still need worker and routing verification. Document QA next applies those evidence gates to language: decide which text may speak as policy, what the caller may read and when the answer must abstain."
+        hold: 0.8
+        visual_cues:
+          - id: fresh-stale-receipt-b3
+            phrase: Now retain a new complete ordered history under the restored policy and create its new ready receipt
+            targets:
+              - fresh-stale-receipt-mechanism
+            linger: 0.8
+          - id: fresh-stale-receipt-new-commit
+            phrase: moves the local production pointer to v one
+            targets:
+              - fresh-stale-receipt-probe-output
+            linger: 0.7
+          - id: pipe-result-fresh-promotion
+            phrase: Promotion follows that current evidence chain, reloads both compatible packages and moves the local
+              production pointer to v one
+            targets:
+              - fresh-stale-receipt-mechanism
+            color: cyan
+            linger: 0.45
+          - id: pipe-result-fresh-warning-probe
+            phrase: The identical nine-minute probe now warns
+            targets:
+              - fresh-stale-receipt-mechanism
+            color: cyan
+            linger: 0.45
+          - id: pipe-result-fresh-repair-guidance
+            phrase: "Two staged repairs earned this result: restore the policy and obtain fresh current evidence"
+            targets:
+              - fresh-stale-receipt-mechanism
+            color: cyan
+            linger: 0.45

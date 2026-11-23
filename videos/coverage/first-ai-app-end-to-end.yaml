@@ -1,0 +1,159 @@
+version: 1
+lesson: first-ai-app-end-to-end
+promise: Follow Luna's click through the local app and decide what the page can report from the response it actually receives.
+framing:
+  - opening
+objectives:
+  - id: complete-app
+    can: Run the loopback app and follow an account from the form through the HTTP route to its committed SQLite row.
+    scenes:
+      - assemble-app
+      - input-contract
+      - trace-lifecycle
+      - http-durability
+      - browser-outcome
+  - id: check-candidate
+    can: Use P-7, the server-owned age and stale flag, and the exact evidence list to check a provider's candidate.
+    scenes:
+      - input-contract
+      - policy-check
+      - evaluation
+      - earned-transfer
+  - id: diagnose-attempt
+    can: Use a second connection and a provider call count to distinguish a rejected insert, a rejected update and a recorded provider failure.
+    scenes:
+      - trace-lifecycle
+      - http-durability
+      - failure-boundaries
+      - failure-contract
+  - id: interpret-receipt
+    can: Choose a browser message after a checked decision, a storage error or a lost reply and explain what submitting again would do.
+    scenes:
+      - opening
+      - browser-outcome
+      - failure-boundaries
+      - browser-authority
+      - earned-transfer
+  - id: test-before-deployment
+    can: Choose a test for application behavior, hosted-provider quality, network deadlines or storage recovery.
+    scenes:
+      - failure-contract
+      - evaluation
+sections:
+  - heading: Run the smallest complete app
+    status: taught
+    scenes:
+      - assemble-app
+      - http-durability
+  - heading: Validate input before uncertain work
+    status: taught
+    scenes:
+      - input-contract
+      - evaluation
+  - heading: A well-shaped answer can still be wrong
+    status: taught
+    scenes:
+      - policy-check
+      - earned-transfer
+  - heading: Commit a trace before calling the provider
+    status: taught
+    scenes:
+      - trace-lifecycle
+      - http-durability
+  - heading: Test the actual HTTP path
+    status: taught
+    note: The observing provider in test-real-route.py reads during the call. The two databases in test-storage-failures.py reject different writes for the same POST.
+    scenes:
+      - http-durability
+      - failure-boundaries
+      - evaluation
+  - heading: Record failure codes and protect raw error text
+    status: taught
+    scenes:
+      - failure-boundaries
+      - failure-contract
+  - heading: Trusted facts ground the decision
+    status: taught
+    note: The transfer case holds the dictionary candidate fixed and applies verify_p7 to two stale records on either side of the inclusive threshold.
+    scenes:
+      - policy-check
+      - browser-authority
+      - earned-transfer
+  - heading: Show the outcome without performing an action
+    status: taught
+    scenes:
+      - browser-outcome
+      - browser-authority
+      - earned-transfer
+  - heading: Separate health from decision quality
+    status: taught
+    scenes:
+      - evaluation
+  - heading: Know what remains before deployment
+    status: taught
+    scenes:
+      - assemble-app
+      - browser-authority
+      - evaluation
+  - heading: Check your understanding
+    status: taught
+    scenes:
+      - earned-transfer
+quiz:
+  - n: 1
+    status: taught
+    scenes:
+      - assemble-app
+  - n: 2
+    status: taught
+    scenes:
+      - input-contract
+  - n: 3
+    status: taught
+    scenes:
+      - policy-check
+  - n: 4
+    status: taught
+    scenes:
+      - trace-lifecycle
+      - failure-contract
+  - n: 5
+    status: taught
+    scenes:
+      - trace-lifecycle
+      - failure-boundaries
+  - n: 6
+    status: taught
+    scenes:
+      - browser-authority
+      - earned-transfer
+  - n: 7
+    status: taught
+    scenes:
+      - http-durability
+      - failure-contract
+  - n: 8
+    status: taught
+    scenes:
+      - evaluation
+      - failure-contract
+  - n: 9
+    status: taught
+    scenes:
+      - browser-authority
+  - n: 10
+    status: taught
+    scenes:
+      - browser-authority
+removed:
+  - point: The previous narration described HTTP and SQLite as future adapters.
+    reason: The current article ships and tests those real adapters; narration now teaches their actual transaction and HTTP boundaries.
+reviews:
+  closed_book:
+    taught: 10
+    partial: 0
+    absent: 0
+    script: da2b7cfde0652384
+  fact_check:
+    open_findings: 0
+    script: da2b7cfde0652384

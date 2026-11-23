@@ -1,0 +1,906 @@
+[
+  {
+    "id": "c01",
+    "title": "One hundred squares to spend",
+    "sourceChapters": [
+      "c01"
+    ],
+    "beats": [
+      {
+        "id": "c01-b01",
+        "say": "You can afford these hundred squares of training. Across the bottom are five units of learned weights, the model’s parameters. Up the side are twenty units of training tokens. Each row pays for those weights to process another unit of tokens.",
+        "hold": 0.5
+      },
+      {
+        "id": "c01-b02",
+        "say": "A colleague wants to double the number of weights. You still have the same hundred squares. At ten columns wide, how many rows can you afford?",
+        "hold": 2.7
+      },
+      {
+        "id": "c01-b03",
+        "say": "Ten rows. Slide the top half to the right and lower it beside the bottom half. Both shapes cost the same in this simplified picture. Which one would you train? We need to know how much each shape helps the model predict the next token.",
+        "hold": 1.1
+      }
+    ]
+  },
+  {
+    "id": "c02",
+    "title": "What does one square pay for?",
+    "sourceChapters": [
+      "c02"
+    ],
+    "beats": [
+      {
+        "id": "c02-b01",
+        "say": "A dense layer multiplies the token inputs by a matrix of weights. In the forward pass, count a multiply and an addition for each weight and token. Backward needs two similar multiplications. One sends gradients back to the inputs. The other finds a gradient for each weight.",
+        "hold": 0.65
+      },
+      {
+        "id": "c02-b02",
+        "say": "Each strip costs about twice the parameter count per token. Add the three strips and multiply by the number of token presentations. That gives six N D floating-point operations for the large dense projections. The estimate leaves out work such as attention and recomputation. Hardware utilization and memory traffic also affect elapsed time.",
+        "hold": 0.75
+      },
+      {
+        "id": "c02-b03",
+        "say": "Divide out the common factor of six to get back to the budget sheet. Start with ten parameter units and ten token units. Double the width and follow the height. A model twenty units wide gets just five units of tokens. All three cuts still spend a hundred units.",
+        "hold": 0.85
+      }
+    ]
+  },
+  {
+    "id": "c03",
+    "title": "What gets counted twice?",
+    "sourceChapters": [
+      "c03"
+    ],
+    "beats": [
+      {
+        "id": "c03-b01",
+        "say": "Look at the middle matrix. It has six stored weights. Both rows of inputs use them. In the first output row, one times one plus two times zero plus one times one gives two. If a position appears in another batch, count it again toward D. Four positions seen twice give eight presentations.",
+        "hold": 0.3
+      },
+      {
+        "id": "c03-b02",
+        "say": "For N, check which weights a study counts. Tied input and output weights share storage, yet projecting onto the vocabulary still takes arithmetic.",
+        "hold": 0.65
+      },
+      {
+        "id": "c03-b03",
+        "say": "The first multiply uses the inputs and the weights. To send gradients back to the inputs, multiply the output gradients by the transposed weights. To update the weights, multiply the transposed inputs by the output gradients. Count all three contractions across the batch.",
+        "hold": 0.3
+      },
+      {
+        "id": "c03-b04",
+        "say": "Each contributes about two N D operations. This gives six N D for the dense projections. Attention products, normalization and optimizer steps add work outside that count.",
+        "hold": 0.65
+      },
+      {
+        "id": "c03-b05",
+        "say": "Suppose you discarded the activations to save memory and replay one full forward pass. Add its two N D to the three contractions. That gives eight N D. Replaying fewer layers adds less. At inference you need the forward pass, about two N per processed token.",
+        "hold": 0.3
+      },
+      {
+        "id": "c03-b06",
+        "say": "For scale, ordinary training with a billion parameters and twenty billion presentations costs about one point two times ten to the twentieth FLOPs. Double both counts and the work quadruples.",
+        "hold": 0.65
+      }
+    ]
+  },
+  {
+    "id": "c04",
+    "title": "Where should a second unit of compute go?",
+    "sourceChapters": [
+      "c04"
+    ],
+    "beats": [
+      {
+        "id": "c04-b01",
+        "say": "Here are four invented runs on the same held-out text with the same tokenizer and context length. Start with one billion parameters and ten billion tokens. Give the next run twice as many weights. Give its neighbor twice as many tokens instead.",
+        "hold": 0.3
+      },
+      {
+        "id": "c04-b02",
+        "say": "Each middle run spends twice the original compute. The last run doubles both and costs four times as much. If you could pay for just one of the middle runs, what would you look at next?",
+        "hold": 2.5
+      },
+      {
+        "id": "c04-b03",
+        "say": "Read the losses under the two middle runs. Spending the increment on tokens gives two point five five nats per token. Spending it on weights gives two point six zero.",
+        "hold": 0.3
+      },
+      {
+        "id": "c04-b04",
+        "say": "Lower loss means the model assigned more probability, on average in log space, to the tokens that occurred. Five hundredths of a nat favors more data here. Repeat the runs to see whether that difference survives run-to-run variation.",
+        "hold": 0.3
+      },
+      {
+        "id": "c04-b05",
+        "say": "If the tokenizer changes, the unit of loss changes too.",
+        "hold": 0.65
+      },
+      {
+        "id": "c04-b06",
+        "say": "Now look beyond those four runs. Each equal step to the right multiplies compute by ten. Under this toy law the loss falls toward two and each step buys a smaller absolute improvement.",
+        "hold": 0.3
+      },
+      {
+        "id": "c04-b07",
+        "say": "For a pure power law, plotting log loss against log compute gives a straight line. Here you must subtract the floor of two before taking the log. A different assumed floor can give a different forecast.",
+        "hold": 0.65
+      }
+    ]
+  },
+  {
+    "id": "c05",
+    "title": "How does a bigger budget change the split?",
+    "sourceChapters": [
+      "c05"
+    ],
+    "beats": [
+      {
+        "id": "c05-b01",
+        "say": "Kaplan and colleagues fitted three curves in twenty twenty. On the left they varied non-embedding parameters with plenty of data. In the middle they studied the data-limited regime. On the right they fitted the best loss at each adjusted compute budget. The slopes describe three different experiments.",
+        "hold": 0.3
+      },
+      {
+        "id": "c05-b02",
+        "say": "For instance, the parameter-only slope gives about eighty-four percent of the fitted loss for ten times the weights. That fit has no added floor.",
+        "hold": 0.65
+      },
+      {
+        "id": "c05-b03",
+        "say": "The joint allocation came from the compute-efficient frontier. Give it a hundred times as much compute. Kaplan’s fit assigns the power point seven three to parameters and point two seven to tokens.",
+        "hold": 0.3
+      },
+      {
+        "id": "c05-b04",
+        "say": "The rectangle ends up nearly twenty-nine times wider, but only about three and a half times taller. Multiply those two growth factors and you recover the budget increase.",
+        "hold": 0.65
+      },
+      {
+        "id": "c05-b05",
+        "say": "Compare that with equal growth. The same hundredfold increase makes the rectangle ten times wider and ten times taller. Those are changes from the starting run. A model that started with twenty tokens per parameter would still have twenty per parameter after both doubled. The square on this chart describes growth multipliers.",
+        "hold": 0.65
+      }
+    ]
+  },
+  {
+    "id": "c06",
+    "title": "What does the height of a loss curve mean?",
+    "sourceChapters": [
+      "c06"
+    ],
+    "beats": [
+      {
+        "id": "c06-b01",
+        "say": "Suppose the next word is loom. A model that assigned it probability one quarter gets about one point three nine nats of surprise. Give the same word probability one half and its surprise falls to about point six nine. Average negative log probability across the observed tokens to get cross-entropy. Compare the two models on the same tokenizer and held-out text.",
+        "hold": 0.7
+      },
+      {
+        "id": "c06-b02",
+        "say": "For the next comparison, use an invented loss formula. Start with a floor of one. Add two over the square root of model size. Then add two over the square root of training tokens. Each curve shows how a single shortage contributes to loss when the other term is held fixed.",
+        "hold": 0.65
+      },
+      {
+        "id": "c06-b03",
+        "say": "Move some budget from tokens to weights. The model grows, so its point slides down the parameter curve. To keep the budget fixed, the token count falls. Its point climbs the data curve. Whether the exchange pays off depends on which penalty changes more.",
+        "hold": 0.8
+      }
+    ]
+  },
+  {
+    "id": "c07",
+    "title": "Two shapes on one budget",
+    "sourceChapters": [
+      "c07"
+    ],
+    "beats": [
+      {
+        "id": "c07-b01",
+        "say": "Here are the two cuts from the beginning. Start with five units of parameters and twenty of data. Both loss cords start at one, the fitted floor. Purple adds the penalty for limited weights. Red adds the penalty for limited tokens. The end of the cord gives the predicted loss.",
+        "hold": 0.7
+      },
+      {
+        "id": "c07-b02",
+        "say": "Widen the rectangle at fixed area and follow its second cord. With ten columns and ten rows, the square buys a shorter purple section but pays for a longer red one. Read their ends against the same scale. Which cut has the lower fitted loss?",
+        "hold": 3.1
+      }
+    ]
+  },
+  {
+    "id": "c08",
+    "title": "What would make you change plans?",
+    "sourceChapters": [
+      "c08"
+    ],
+    "beats": [
+      {
+        "id": "c08-b01",
+        "say": "The square wins. Its loss rounds to two point two six five. Going from five to ten weight units saves about a quarter of a nat in the parameter term and gives back less than a fifth in the data term.",
+        "hold": 0.3
+      },
+      {
+        "id": "c08-b02",
+        "say": "Turn a copy of the tall sample on its side. With twenty weight units and five token units the original penalties swap places. Its cord ends at the same loss as the tall plan.",
+        "hold": 0.8
+      },
+      {
+        "id": "c08-b03",
+        "say": "Leave both shapes where they are. Suppose the new fit puts twice as much weight on the data penalty. Change its coefficient from two to four. The data segment grows in each bar. With that change, which shape would you train?",
+        "hold": 3
+      },
+      {
+        "id": "c08-b04",
+        "say": "The tall plan wins. Its cord ends at two point seven eight nine, before the square at two point eight nine seven. Its two penalties now match. Because the exponents are equal, each gives the same first-order saving for a small percentage increase in its resource. That balance gives the bottom of the loss curve.",
+        "hold": 0.3
+      },
+      {
+        "id": "c08-b05",
+        "say": "Changing one fitted coefficient reversed the choice at exactly the same budget.",
+        "hold": 1.1
+      }
+    ]
+  },
+  {
+    "id": "c09",
+    "title": "When do the two gains balance?",
+    "sourceChapters": [
+      "c09"
+    ],
+    "beats": [
+      {
+        "id": "c09-b01",
+        "say": "Return to the square under the original fit, with both coefficients set to two. The curve carries a constant area of one hundred. The pale contours join points with equal predicted loss. At the square, widen it by one percent and keep its area fixed. The height has to fall. In the general formula the parameter penalty falls as N to the power minus alpha.",
+        "hold": 0.3
+      },
+      {
+        "id": "c09-b02",
+        "say": "The data penalty rises because D equals the compute budget divided by six N.",
+        "hold": 0.65
+      },
+      {
+        "id": "c09-b03",
+        "say": "Look at the two penalties before and after that small exchange. Near the square, one falls almost exactly as much as the other rises. At the minimum, the first-order changes cancel. Differentiating with respect to log model size gives the balance on screen.",
+        "hold": 0.3
+      },
+      {
+        "id": "c09-b04",
+        "say": "Multiply each penalty by its own exponent before you compare them. At the square both products are about point three one six two. For the finite move, compare the numbers in the two columns. The one-percent step still adds about sixteen millionths of a nat. Exact first-order cancellation describes the infinitesimal exchange.",
+        "hold": 0.65
+      },
+      {
+        "id": "c09-b05",
+        "say": "Solving that balance tells you how the best split grows. The parameter count grows with compute raised to beta divided by alpha plus beta. The token count takes the other exponent, alpha divided by the same sum.",
+        "hold": 0.3
+      },
+      {
+        "id": "c09-b06",
+        "say": "The two growth exponents add to one, so the product of weights and tokens grows in proportion to compute. The coefficients determine where each curve starts. With rounded exponents of point three four and point two eight, tokens grow a little faster than parameters. Now take a fit with alpha equal to point two and beta equal to point four. Beta over their sum gives two thirds for weights. Alpha over their sum gives one third for tokens. With twenty-seven times the compute, take the cube root for tokens and square that factor for weights. That buys nine times as many weights and three times as many tokens.",
+        "hold": 0.65
+      },
+      {
+        "id": "c09-b07",
+        "say": "Try equal square-root exponents again, now with a million units to allocate. Equal coefficients give a thousand by a thousand. Raise the data coefficient from two to eight. To balance the penalties, D over N must be the square of eight over two. That’s sixteen.",
+        "hold": 0.3
+      },
+      {
+        "id": "c09-b08",
+        "say": "Two hundred fifty parameter units by four thousand token units gives the same million. Equal growth as the budget increases can start from a very tall rectangle.",
+        "hold": 0.65
+      },
+      {
+        "id": "c09-b09",
+        "say": "For a different starting assumption, suppose you choose twenty training tokens per parameter. Substitute twenty N for D. The training bill becomes a hundred twenty times N squared.",
+        "hold": 0.3
+      },
+      {
+        "id": "c09-b10",
+        "say": "At ten to the twenty-fourth FLOPs, take the square root to get about ninety-one billion parameters, then multiply by twenty for about one point eight three trillion training tokens. This is a proposal you can test with your own runs.",
+        "hold": 0.65
+      }
+    ]
+  },
+  {
+    "id": "c10",
+    "title": "What if you had four times the compute?",
+    "sourceChapters": [
+      "c10"
+    ],
+    "beats": [
+      {
+        "id": "c10-b01",
+        "say": "Return to the ten-by-ten square with both coefficients set to two. You can now spend four times as much compute. Double both sides of the square. Follow the gold minima. The new one is at twenty by twenty. Both shortages have eased, so the minimum loss is lower.",
+        "hold": 1
+      },
+      {
+        "id": "c10-b02",
+        "say": "Look at the old and new minima. In this fit, budgets of a hundred and four hundred both favor equal proportions. Hoffmann’s Chinchilla experiments found approximately balanced growth too, on particular data and with particular training recipes. The measured ratio of tokens to weights belongs to those fits.",
+        "hold": 0.7
+      },
+      {
+        "id": "c10-b03",
+        "say": "In that move from ten to twenty, each square-root penalty shrinks by the same factor. The original floor stays put. As you approach it, each doubling buys a smaller absolute drop in loss. That makes even a small error in the estimated floor matter when you forecast much larger runs.",
+        "hold": 0.75
+      }
+    ]
+  },
+  {
+    "id": "c11",
+    "title": "What makes a fair comparison between runs?",
+    "sourceChapters": [
+      "c11"
+    ],
+    "beats": [
+      {
+        "id": "c11-b01",
+        "say": "Hoffmann’s team trained more than four hundred models, from seventy million to sixteen billion parameters. They tried three ways to read the runs. Trace the lowest losses, find the minimum at each fixed compute budget, or fit one surface through the measurements.",
+        "hold": 0.3
+      },
+      {
+        "id": "c11-b02",
+        "say": "Each method put roughly half the growth into parameters and half into tokens. The paired numbers show where the methods differed.",
+        "hold": 0.65
+      },
+      {
+        "id": "c11-b03",
+        "say": "Imagine stopping a long cosine learning-rate schedule early. That checkpoint still has a high learning rate compared with a run scheduled to finish there. Hoffmann suggested that missing the cooldown could make short runs look worse. Compare finished runs at matched horizons.",
+        "hold": 0.3
+      },
+      {
+        "id": "c11-b04",
+        "say": "Porian’s later reproduction also found that counting the output head, shortening warmup and tuning learning rate, batch size and Adam’s second-moment setting across sizes affected the split.",
+        "hold": 0.65
+      },
+      {
+        "id": "c11-b05",
+        "say": "Now lower a whole loss curve by the same amount. Its lowest point stays over the same model size. Porian found that matching cosine decay helped loss but had limited effect on the allocation exponent in those experiments.",
+        "hold": 0.3
+      },
+      {
+        "id": "c11-b06",
+        "say": "Tuned runs with a constant learning rate could also give near-balanced growth. A schedule can improve the runs without changing which allocation wins.",
+        "hold": 0.65
+      }
+    ]
+  },
+  {
+    "id": "c12",
+    "title": "What did the larger experiment establish?",
+    "sourceChapters": [
+      "c12"
+    ],
+    "beats": [
+      {
+        "id": "c12-b01",
+        "say": "Gopher used two hundred eighty billion parameters and three hundred billion training tokens. Chinchilla used a quarter as many weights and trained on one point four trillion tokens.",
+        "hold": 0.3
+      },
+      {
+        "id": "c12-b02",
+        "say": "The researchers compared them at a reported training budget of five point seven six times ten to the twenty-third FLOPs. Put the rounded counts into six N D and you get two different estimates.",
+        "hold": 0.3
+      },
+      {
+        "id": "c12-b03",
+        "say": "The paper’s more detailed appendix revised its estimate to six point three in those units. Keep the counting convention with the number.",
+        "hold": 0.65
+      },
+      {
+        "id": "c12-b04",
+        "say": "Chinchilla improved average MMLU, BIG-bench and LAMBADA results. Look at the four marked tasks where Gopher scored higher on MMLU. The tokenizer, optimizer and mixture also changed, so the comparison includes more than allocation. The study estimated a best-size range of forty to seventy billion parameters.",
+        "hold": 0.3
+      },
+      {
+        "id": "c12-b05",
+        "say": "The researchers chose its larger end partly for data and compute efficiency.",
+        "hold": 0.65
+      },
+      {
+        "id": "c12-b06",
+        "say": "The Llama runs give another view. Each bar counts training-token presentations per nominal parameter. The original eight-billion Llama three saw at least fifteen trillion tokens. That’s at least eighteen hundred seventy-five per parameter.",
+        "hold": 0.3
+      },
+      {
+        "id": "c12-b07",
+        "say": "The later four-hundred-five-billion paper reports fifteen point six trillion tokens for initial pre-training of that larger model. Those two token counts belong to different releases. Historical configurations can suggest candidates. A lifetime optimum takes a quality comparison and a demand forecast.",
+        "hold": 0.65
+      }
+    ]
+  },
+  {
+    "id": "c13",
+    "title": "Where would you run the next experiment?",
+    "sourceChapters": [
+      "c13"
+    ],
+    "beats": [
+      {
+        "id": "c13-b01",
+        "say": "Train several affordable proxy models around the proposed minimum. Vary model size and token budget. Match each learning-rate schedule to its finishing point and record the recipe. Each dot is a run at the same budget of a hundred units. Stopping before cooldown could make an allocation look worse. Where would you place a new run to challenge this fit?",
+        "hold": 0.7
+      },
+      {
+        "id": "c13-b02",
+        "say": "Fit the curve through the small runs. Look at the gaps between the dots and the curve. If they are mostly on one side near the minimum, investigate the fit. Changing the tokenizer, context length, data mix or architecture changes what you’re measuring. If you repeat text, measure how that affects learning too.",
+        "hold": 0.7
+      },
+      {
+        "id": "c13-b03",
+        "say": "Try a larger budget. For twenty-five parameter units and sixteen token units the fit predicts one point nine zero. The example observation is two point zero two. That’s a positive residual of twelve hundredths.",
+        "hold": 0.3
+      },
+      {
+        "id": "c13-b04",
+        "say": "Use larger held-out runs like this to challenge the forecast, especially where plausible floors or exponents would send you to different allocations.",
+        "hold": 0.8
+      }
+    ]
+  },
+  {
+    "id": "c14",
+    "title": "Does one update survive a change of width?",
+    "sourceChapters": [
+      "c14"
+    ],
+    "beats": [
+      {
+        "id": "c14-b01",
+        "say": "Here’s one reason differently sized proxy runs can be hard to compare. In this two-layer model, multiply each top weight by the weight below it, then add. The signs alternate, so at input one the model predicts zero. We want one.",
+        "hold": 0.3
+      },
+      {
+        "id": "c14-b02",
+        "say": "Use half the squared error as the loss. Take both gradients from these old weights before changing either layer.",
+        "hold": 0.75
+      },
+      {
+        "id": "c14-b03",
+        "say": "Start each output weight at one over the square root of the width. With both learning rates set to one, the new prediction is the width plus one. At width sixteen, a single step jumps from zero to seventeen. For the coordinated update, start output weights at one over the width.",
+        "hold": 0.3
+      },
+      {
+        "id": "c14-b04",
+        "say": "Multiply the input-layer rate by width and divide the output-layer rate by width. Across all three widths the new prediction stays at two. Coordinating the layers this way illustrates maximal update parametrization.",
+        "hold": 0.75
+      },
+      {
+        "id": "c14-b05",
+        "say": "Two overshoots the target of one. Turn the base learning rate down to a quarter. Read the target mark at one on the enlarged coordinated scale. Each layer now contributes a quarter to the coordinated prediction, giving a half at every width. For the standard update, first add one to the width, then multiply by the base rate.",
+        "hold": 0.3
+      },
+      {
+        "id": "c14-b06",
+        "say": "Its dependence on width survives. The exact settings depend on the optimizer. An Adam run needs its own recipe. The published study transferred tuned settings from forty million parameters to six point seven billion.",
+        "hold": 0.3
+      },
+      {
+        "id": "c14-b07",
+        "say": "Check the recipe for your optimizer, depth and regularization as well as your intended width.",
+        "hold": 0.75
+      }
+    ]
+  },
+  {
+    "id": "c15",
+    "title": "Can we recover a known loss surface?",
+    "sourceChapters": [
+      "c15"
+    ],
+    "beats": [
+      {
+        "id": "c15-b01",
+        "say": "Here every dot comes from a known formula. Model sizes range from a hundred million to a billion in the fitting rows. Each size has runs at more than one token budget. Set aside the ninth row, a billion parameters trained on a hundred billion tokens.",
+        "hold": 0.3
+      },
+      {
+        "id": "c15-b02",
+        "say": "We can check the fit there without using its loss to pick the curve.",
+        "hold": 0.65
+      },
+      {
+        "id": "c15-b03",
+        "say": "Supply the true floor and both coefficients. Try pairs of exponents on a grid. Each pair predicts eight losses. Square the differences from the eight rounded values and add them. The brightest region has the smallest error.",
+        "hold": 0.3
+      },
+      {
+        "id": "c15-b04",
+        "say": "The best pair is point zero seven zero and point zero nine eight. On the held-out row, the predicted loss rounds to two point four zero eight, about two ten-thousandths above its tabulated value.",
+        "hold": 0.65
+      },
+      {
+        "id": "c15-b05",
+        "say": "At seventy billion parameters and one point four trillion tokens, the same fit forecasts about two point zero nine one. See how far that point lies from the data used to fit it. Recovering a formula from numbers it generated checks the calculation.",
+        "hold": 0.3
+      },
+      {
+        "id": "c15-b06",
+        "say": "To trust a real forecast, vary both resources, fit all five unknowns, inspect the residuals, try plausible starting values and floors, and measure variation across repeated runs.",
+        "hold": 0.65
+      }
+    ]
+  },
+  {
+    "id": "c16",
+    "title": "How far can you trust two points?",
+    "sourceChapters": [
+      "c16"
+    ],
+    "beats": [
+      {
+        "id": "c16-b01",
+        "say": "Take two observations. At one unit of compute, loss is three. At a hundred units, loss is two point five. Suppose the curve is a floor plus a shrinking power of compute. Pick an exponent.",
+        "hold": 0.3
+      },
+      {
+        "id": "c16-b02",
+        "say": "Subtract the two loss equations and the floor cancels. The half-nat gap gives K times one minus a hundred to the negative exponent. Divide by that factor to find K. Then subtract K from three to find the floor.",
+        "hold": 0.65
+      },
+      {
+        "id": "c16-b03",
+        "say": "Fit the blue curve with exponent point one and the lighter curve with point two. Both pass through both dots. Now follow them out to a million units of compute. One predicts just under two nats, the other about two point two two. The choice of exponent changed the floor as well as the forecast.",
+        "hold": 0.65
+      },
+      {
+        "id": "c16-b04",
+        "say": "The fits agree exactly where you measured and differ by almost a quarter of a nat at the proposed budget. That gap shows how much two assumptions matter. To estimate uncertainty from training runs, collect more scales and repeats. Put the next measurement where the plausible forecasts start to separate.",
+        "hold": 0.65
+      }
+    ]
+  },
+  {
+    "id": "c17",
+    "title": "Will the proposed tokens exist?",
+    "sourceChapters": [
+      "c17"
+    ],
+    "beats": [
+      {
+        "id": "c17-b01",
+        "say": "Give the fitted surface the budget of seventy billion weights trained on one point four trillion tokens. Keep that budget fixed and move to the predicted loss minimum. It lands at about seven point eight two billion parameters and twelve point five three trillion token presentations.",
+        "hold": 0.3
+      },
+      {
+        "id": "c17-b02",
+        "say": "The fit favors roughly sixteen hundred presentations per parameter here. That is a forecast from our synthetic data. Where would those tokens come from?",
+        "hold": 0.75
+      },
+      {
+        "id": "c17-b03",
+        "say": "Suppose your inventory has just two trillion usable tokens and the run gets one pass. Draw the ceiling at two trillion and follow the budget curve until it reaches that line. A full-budget run now needs at least forty-nine billion parameters.",
+        "hold": 0.3
+      },
+      {
+        "id": "c17-b04",
+        "say": "The loss rises as you move farther right from the old minimum, so take the first feasible point. Forty-nine billion by two trillion gives about two point zero eight six nats, up from two point zero seven four.",
+        "hold": 0.75
+      },
+      {
+        "id": "c17-b05",
+        "say": "Now add a model-size limit of thirty billion. Keep the two-trillion-token ceiling. Can you spend the whole budget inside both limits?",
+        "hold": 2.6
+      },
+      {
+        "id": "c17-b06",
+        "say": "No full-budget allocation fits. Even the largest model that fits in memory would need more than two trillion tokens. Plan a smaller run or secure more usable data. If you allow repeats, measure their value before using the fresh-data forecast again.",
+        "hold": 1
+      }
+    ]
+  },
+  {
+    "id": "c18",
+    "title": "Does the forecast survive a larger trial?",
+    "sourceChapters": [
+      "c18"
+    ],
+    "beats": [
+      {
+        "id": "c18-b01",
+        "say": "Hold back a run at an intermediate size. Match the tokenizer, mixture, optimizer and numerical setup you plan to use. Decide the acceptable loss error before seeing the result. Use variation across earlier runs and the cost of a wrong forecast to set the tolerance.",
+        "hold": 0.3
+      },
+      {
+        "id": "c18-b02",
+        "say": "In this example, the allowance is two hundredths of a nat per token.",
+        "hold": 0.75
+      },
+      {
+        "id": "c18-b03",
+        "say": "For ten billion parameters trained on a hundred billion tokens, the fit predicts about two point three one zero. The example run comes in at two point three five zero. Measure the gap between them.",
+        "hold": 3
+      },
+      {
+        "id": "c18-b04",
+        "say": "The trial loss minus the forecast is positive four hundredths of a nat per token, twice the allowance. Hold the large run and investigate the data, fit, optimizer and numerics.",
+        "hold": 0.75
+      },
+      {
+        "id": "c18-b05",
+        "say": "Keep that loss miss in view as you check throughput separately. Measure useful tokens per GPU-second. If throughput misses its target, profile the kernels, communication, memory and stalls. A slower link can lengthen a run without changing the loss at the same completed training step. For example, one million useful tokens in one thousand GPU-seconds gives one thousand tokens per GPU-second. Spend two thousand GPU-seconds on the same tokens and throughput falls to five hundred.",
+        "hold": 0.3
+      },
+      {
+        "id": "c18-b06",
+        "say": "Model FLOP utilization compares useful arithmetic per second to a stated compatible hardware peak. To budget time and dollars, measure your own stack.",
+        "hold": 0.75
+      }
+    ]
+  },
+  {
+    "id": "c19",
+    "title": "Before the first request",
+    "sourceChapters": [
+      "c19"
+    ],
+    "beats": [
+      {
+        "id": "c19-b01",
+        "say": "Suppose both models pass the same task evaluation. Start with the larger model. Seventy billion parameters trained on one point four trillion tokens gives the first training bill. Put the compact model beside it. Thirty billion parameters on four trillion tokens costs more to train. Nobody has sent a request yet.",
+        "hold": 0.9
+      },
+      {
+        "id": "c19-b02",
+        "say": "For every processed inference token, the larger model uses about a hundred forty billion dense operations. The smaller one uses sixty billion. That difference is a saving on every token after launch. Before making the choice, measure task quality, latency and memory at the batch sizes and context lengths people will actually use.",
+        "hold": 0.8
+      }
+    ]
+  },
+  {
+    "id": "c20",
+    "title": "How many tokens repay the training bill?",
+    "sourceChapters": [
+      "c20"
+    ],
+    "beats": [
+      {
+        "id": "c20-b01",
+        "say": "Move demand to one trillion processed inference tokens. The serving part grows from the end of each training bar. The seventy-billion model still has the shorter total. Count tokens that actually pass through the model. A cached prefix can spare work when a later request reuses it.",
+        "hold": 0.3
+      },
+      {
+        "id": "c20-b02",
+        "say": "For either model, serving overtakes its own training bill when processed demand exceeds three times its training tokens.",
+        "hold": 0.9
+      },
+      {
+        "id": "c20-b03",
+        "say": "How far apart were the starting bills? The compact model paid an extra one point three two times ten to the twenty-third operations up front. Divide that premium by eighty billion operations saved per inference token. The bars meet at one point six five trillion processed tokens.",
+        "hold": 0.3
+      },
+      {
+        "id": "c20-b04",
+        "say": "Each total is eight point one nine in the units on the chart.",
+        "hold": 1
+      },
+      {
+        "id": "c20-b05",
+        "say": "Before we increase demand again, which model will have the smaller lifetime bill? Now move demand to three trillion tokens. The compact model comes out ahead. With no training premium it would already be competitive at zero demand. With equal parameter counts there would be no per-token saving to repay a premium.",
+        "hold": 0.3
+      },
+      {
+        "id": "c20-b06",
+        "say": "To compare dollars, price the extra training and the saved serving work separately. Twice the price per useful training operation, with serving prices fixed, doubles the payback volume.",
+        "hold": 1
+      }
+    ]
+  },
+  {
+    "id": "c21",
+    "title": "Can four runs share the same text?",
+    "sourceChapters": [
+      "c21"
+    ],
+    "beats": [
+      {
+        "id": "c21-b01",
+        "say": "Put the same fifteen trillion token positions through four separate training runs. Watch the source labels repeat. Each run adds fifteen trillion presentations, but every one points back to the same corpus. Together the models saw sixty trillion presentations drawn from fifteen trillion unique positions.",
+        "hold": 0.3
+      },
+      {
+        "id": "c21-b02",
+        "say": "With four disjoint corpora of the same size, the four runs would use sixty trillion unique positions.",
+        "hold": 0.75
+      },
+      {
+        "id": "c21-b03",
+        "say": "In June twenty twenty-four, Villalobos and colleagues forecast when training demand might meet effective public human-text supply. Their range ran from twenty twenty-six to twenty thirty-two, with a median near twenty twenty-eight.",
+        "hold": 0.3
+      },
+      {
+        "id": "c21-b04",
+        "say": "The roughly four hundred trillion tokens at that intersection included adjustments for quality and useful repetition. Dividing a reported fifteen point six trillion presentations by that future stock gives three point nine percent. The corpus can still be used again.",
+        "hold": 0.75
+      },
+      {
+        "id": "c21-b05",
+        "say": "For your own run, count what remains after licensing, filtering and deduplication. Follow document A. Both copies pass the quality filter, but only one copy adds new positions. Test the value of repeated epochs or verified synthetic data on the task. Epoch’s twenty twenty-five assessment suggested synthetic data might ease a bottleneck. Its usefulness depends on the text you can make and verify.",
+        "hold": 0.3
+      },
+      {
+        "id": "c21-b06",
+        "say": "Sardana’s study of forty-seven models found that fits from ratios up to a hundred could overstate gains far beyond that range. Only the smallest model reached ten thousand tokens per parameter. The larger ones went up to a thousand.",
+        "hold": 0.75
+      }
+    ]
+  },
+  {
+    "id": "c22",
+    "title": "What can change after training ends?",
+    "sourceChapters": [
+      "c22"
+    ],
+    "beats": [
+      {
+        "id": "c22-b01",
+        "say": "This model is already trained. One request can ask it for a long answer, for several independent drafts, or for candidates that an external verifier scores. Those spend compute differently. A long reasoning trace tells you how many tokens were generated. To count a search tree, you also need evidence that a search actually ran.",
+        "hold": 0.75
+      },
+      {
+        "id": "c22-b02",
+        "say": "Give every draft exactly five hundred twelve output tokens. Each position costs about twice the eight-billion weight count in dense operations. Count one draft, then four, then sixteen. Every time you quadruple the drafts, you quadruple the number of generated positions and their dense arithmetic.",
+        "hold": 0.3
+      },
+      {
+        "id": "c22-b03",
+        "say": "Prompt processing, attention and scoring the drafts all add work outside that total. Measure task success to see what those extra drafts bought.",
+        "hold": 0.75
+      },
+      {
+        "id": "c22-b04",
+        "say": "Snell and colleagues tested a difficulty-dependent allocation on MATH, with a model specially trained for revision and scoring. In some matched-compute cases their smaller model beat a single response from a model with roughly fourteen times as many parameters.",
+        "hold": 0.3
+      },
+      {
+        "id": "c22-b05",
+        "say": "Harder problems or high serving demand could favor more pre-training instead. Include the cost of estimating difficulty and scoring the candidates in a deployment comparison.",
+        "hold": 0.75
+      }
+    ]
+  },
+  {
+    "id": "c23",
+    "title": "How many answers were completely right?",
+    "sourceChapters": [
+      "c23"
+    ],
+    "beats": [
+      {
+        "id": "c23-b01",
+        "say": "Suppose the model will help people write code. Held-out loss tells you about predicting the next token. Exponentiating loss in nats gives perplexity, another view of the same predictions. Does the code pass its tests? That takes a separate evaluation. Budget for task checks and any supervised or preference training the deployed model needs.",
+        "hold": 0.75
+      },
+      {
+        "id": "c23-b02",
+        "say": "Here’s a small example of why the score matters. An answer has five tokens. Suppose each is correct independently with the same probability. Multiply the five probabilities to get the chance that the whole answer is right. That fifth power changes smoothly as token accuracy improves.",
+        "hold": 0.3
+      },
+      {
+        "id": "c23-b03",
+        "say": "On a small set, a score that counts only perfect answers can stay at zero for a while.",
+        "hold": 0.75
+      },
+      {
+        "id": "c23-b04",
+        "say": "Score these same ten answers both ways. Each purple square is a correct token. The first three rows earn token credit, but each has a mistake. Row four is the first complete success. Finish counting. How many tokens are correct across all ten rows? How many answers have all five tokens correct?",
+        "hold": 9
+      },
+      {
+        "id": "c23-b05",
+        "say": "Thirty-four of the fifty tokens are correct. Two of the ten answers are completely correct. Rows four and seven each have five correct tokens. Wei and colleagues described apparent emergence. Schaeffer and colleagues showed how scoring and sample size can produce it in some tasks. Compare metrics on the same outputs before attributing a jump to a new capability.",
+        "hold": 0.75
+      }
+    ]
+  },
+  {
+    "id": "c24",
+    "title": "Which weights does this token use?",
+    "sourceChapters": [
+      "c24"
+    ],
+    "beats": [
+      {
+        "id": "c24-b01",
+        "say": "All forty tiles occupy memory. This token uses the shared layers and just the selected experts. Another token in the batch may visit different experts. For a mixture of experts, record both the total stored weights and the active weights per token. Routing, placement, attention and communication also affect what the hardware must do.",
+        "hold": 0.75
+      },
+      {
+        "id": "c24-b02",
+        "say": "Each tile stands for two billion weights. At two bytes per weight, all eighty billion occupy a hundred sixty decimal gigabytes before other state. Count the active tiles for one token.",
+        "hold": 4
+      },
+      {
+        "id": "c24-b03",
+        "say": "Four billion shared weights plus six billion selected weights make ten billion active. For a hundred billion training tokens, six times that active count times the token count gives six times ten to the twenty-first proxy FLOPs.",
+        "hold": 0.75
+      },
+      {
+        "id": "c24-b04",
+        "say": "Changing the architecture can also change the cost of a longer context. During full-sequence attention, pairs of positions interact. During cached decoding, each new query reads a growing history. A state-space model can update a fixed-size recurrent state instead.",
+        "hold": 0.3
+      },
+      {
+        "id": "c24-b05",
+        "say": "Measure throughput in the phase you care about and fit loss on the actual architecture before sizing the next run.",
+        "hold": 0.75
+      }
+    ]
+  },
+  {
+    "id": "c25",
+    "title": "Which trial goes on to the next check?",
+    "sourceChapters": [
+      "c25"
+    ],
+    "beats": [
+      {
+        "id": "c25-b01",
+        "say": "Before you book the large run, practice the decision on two possible results from the same mid-scale trial. At ten billion parameters and a hundred billion training tokens, the fit predicts two point three one zero. Allow two hundredths of a nat on either side.",
+        "hold": 0.3
+      },
+      {
+        "id": "c25-b02",
+        "say": "Both trials use the same tokenizer, held-out text and training recipe.",
+        "hold": 0.7
+      },
+      {
+        "id": "c25-b03",
+        "say": "Place the two observations on that ruler. Run A finishes at two point three five zero. Run B finishes at two point three two zero. Which one goes on to the throughput check?",
+        "hold": 3
+      },
+      {
+        "id": "c25-b04",
+        "say": "Run B goes on. Its miss is about one hundredth. Run A misses by about four hundredths, twice the allowance. Hold that proposal and check the fit, the data and the completed training run. For B, measure useful tokens per GPU-second on the target hardware and check the tasks the model must do.",
+        "hold": 1
+      }
+    ]
+  },
+  {
+    "id": "c26",
+    "title": "Which allocation can you use?",
+    "sourceChapters": [
+      "c26"
+    ],
+    "beats": [
+      {
+        "id": "c26-b01",
+        "say": "Try a fresh budget of nine hundred units. Each plan on the curve spends all of it. In this fit the parameter penalty starts with three and the data penalty starts with six. Both shrink with the square root of their resource. Look at the three plans. Which one balances the penalties?",
+        "hold": 3.3
+      },
+      {
+        "id": "c26-b02",
+        "say": "For the penalties to match, the square root of D must be twice the square root of N. That takes four token units per parameter unit. Plan B fits. Fifteen times sixty spends nine hundred. Each penalty is about point seven seven five.",
+        "hold": 0.3
+      },
+      {
+        "id": "c26-b03",
+        "say": "Add one for the floor. The fitted loss is two point five four nine. Lay the plan on the data inventory. The team has just forty token units and repeats are off the table. Can B run as proposed?",
+        "hold": 3
+      },
+      {
+        "id": "c26-b04",
+        "say": "B needs twenty more token units than we have. Those twenty rows hang past the edge of the available data. To spend the full budget, widen the cloth along the constant-work curve until the last row meets that edge. Nine hundred divided by forty gives twenty-two and a half parameter units.",
+        "hold": 0.3
+      },
+      {
+        "id": "c26-b05",
+        "say": "This is the closest feasible point to the old minimum along the curve. Its fitted loss is two point five eight one.",
+        "hold": 1.2
+      },
+      {
+        "id": "c26-b06",
+        "say": "One more constraint. Memory limits the model to twenty parameter units. Keep the forty-token ceiling. How much of the nine hundred can you spend inside both limits?",
+        "hold": 2.8
+      },
+      {
+        "id": "c26-b07",
+        "say": "Eight hundred units. Even the largest allowed rectangle misses the curve. You can spend eight hundred now. To spend all nine hundred with a model twenty units wide, you’d need forty-five token units. That last strip needs five more usable units of data.",
+        "hold": 0.3
+      },
+      {
+        "id": "c26-b08",
+        "say": "The next lesson follows the text through filtering, deduplication and packing, where you can measure whether those extra tokens exist.",
+        "hold": 1.5
+      }
+    ]
+  }
+]

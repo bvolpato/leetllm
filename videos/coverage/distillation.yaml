@@ -1,0 +1,182 @@
+version: 1
+lesson: distillation
+promise: Decide what a student can learn from a teacher at a particular prefix and which student meets every independent release requirement.
+framing:
+  - intro
+objectives:
+  - id: signal
+    can: Use a probability gap to predict a student update, remap a target by token meaning, and select the valid next-token positions and denominator.
+    scenes:
+      - intro
+      - distribution
+      - temperature
+      - objective
+      - learning
+      - temperature-gradient
+      - alignment-mask
+  - id: family
+    can: Check a projection on two tokens, choose among constrained students under each KL direction, and weight sequence losses by the left model's prefix probabilities.
+    scenes:
+      - feature-projection
+      - reverse-capacity
+      - sequence-kl
+  - id: data
+    can: Choose an available teacher signal, identify probability mass lost in a cache, and filter generated targets while keeping seed families together.
+    scenes:
+      - sequences
+      - prefixes
+      - signal-and-trainer
+      - dataset-gates
+      - recipe-evidence
+  - id: release
+    can: Predict a fresh logit update and decide which candidate clears accuracy, policy error, latency and monthly cost, including a result exactly at its limit.
+    scenes:
+      - capacity
+      - transfer
+      - fresh-distillation
+sections:
+  - heading: Why soft labels teach more than hard labels
+    status: taught
+    scenes:
+      - distribution
+      - temperature
+      - temperature-gradient
+      - recipe-evidence
+  - heading: "Matching the teacher's probabilities: logit distillation"
+    status: taught
+    scenes:
+      - distribution
+      - objective
+      - learning
+      - alignment-mask
+  - heading: Mathematical derivation of the T² gradient scaling factor
+    status: taught
+    note: The same two logits per model give different finite-temperature gradients at 1 and 4. The row at 40 tests the centered-logit limit.
+    scenes:
+      - temperature-gradient
+  - heading: "When you only have text: response distillation"
+    status: taught
+    scenes:
+      - sequences
+      - signal-and-trainer
+      - dataset-gates
+      - recipe-evidence
+  - heading: "Aligning internal layers: feature distillation"
+    status: taught
+    note: The film updates the projection rows with the student features held at [1, 2], then recomputes each output against its fixed teacher tick. A second token tests the fitted rows with features [2, 1].
+    scenes:
+      - feature-projection
+  - heading: Forward versus reverse KL
+    status: taught
+    note: The two-token strips use the four joint paths from the article's sequence KL calculation. Each strip represents probability mass.
+    scenes:
+      - reverse-capacity
+      - sequence-kl
+  - heading: Off-policy versus on-policy distillation
+    status: taught
+    scenes:
+      - prefixes
+      - sequence-kl
+  - heading: Current trainer choices
+    status: taught
+    scenes:
+      - signal-and-trainer
+  - heading: A practical distillation training loop
+    status: taught
+    scenes:
+      - alignment-mask
+      - signal-and-trainer
+      - learning
+  - heading: Building a distillation dataset
+    status: taught
+    note: The constant teacher, two trusted rules, and duplicate follow the article's response selection example. The opening assigns probabilities to two possible replies to that policy question.
+    scenes:
+      - dataset-gates
+  - heading: Seed-Expand-Filter pipeline
+    status: taught
+    scenes:
+      - dataset-gates
+  - heading: Keep training data out of evaluation
+    status: taught
+    scenes:
+      - dataset-gates
+  - heading: When distillation fits the task
+    status: taught
+    scenes:
+      - intro
+      - transfer
+      - capacity
+      - fresh-distillation
+  - heading: Legal and ethical considerations
+    status: taught
+    scenes:
+      - dataset-gates
+  - heading: Cost-quality tradeoff
+    status: taught
+    note: The final exercise uses the four thresholds from mastery question 9. Alder and Birch have assigned costs and latencies and three versus one error in 100 independent policy cases.
+    scenes:
+      - capacity
+      - fresh-distillation
+  - heading: When distillation breaks
+    status: taught
+    scenes:
+      - intro
+      - capacity
+      - alignment-mask
+      - fresh-distillation
+      - signal-and-trainer
+quiz:
+  - n: 1
+    status: taught
+    scenes:
+      - temperature-gradient
+  - n: 2
+    status: taught
+    scenes:
+      - alignment-mask
+      - temperature-gradient
+  - n: 3
+    status: taught
+    scenes:
+      - alignment-mask
+  - n: 4
+    status: taught
+    scenes:
+      - intro
+      - dataset-gates
+  - n: 5
+    status: taught
+    scenes:
+      - feature-projection
+  - n: 6
+    status: taught
+    scenes:
+      - reverse-capacity
+  - n: 7
+    status: taught
+    scenes:
+      - sequence-kl
+      - prefixes
+  - n: 8
+    status: taught
+    scenes:
+      - signal-and-trainer
+  - n: 9
+    status: taught
+    scenes:
+      - fresh-distillation
+  - n: 10
+    status: taught
+    note: Four token losses give a mean of 0.65. Giving each of the two microbatches equal weight gives 0.50.
+    scenes:
+      - alignment-mask
+removed: []
+reviews:
+  closed_book:
+    script: b3f4492dc02f90ce
+    taught: 10
+    partial: 0
+    absent: 0
+  fact_check:
+    script: b3f4492dc02f90ce
+    open_findings: 0

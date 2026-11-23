@@ -1,0 +1,814 @@
+[
+  {
+    "id": "c01",
+    "title": "One gradient descent step",
+    "sourceChapters": [
+      "c01"
+    ],
+    "beats": [
+      {
+        "id": "c01-b01",
+        "say": "Two weights start at one. Set the learning rate to point zero one eight. Which weight will cross zero? Compare the slopes at the two starting marks. Release the two carriages. Blue travels one point eight units. Green travels only eighteen thousandths. What made one step a hundred times longer?",
+        "hold": 1.8
+      }
+    ]
+  },
+  {
+    "id": "c02",
+    "title": "One rate on two slopes",
+    "sourceChapters": [
+      "c02"
+    ],
+    "beats": [
+      {
+        "id": "c02-b01",
+        "say": "Rewind both carriages to one. The height of the copper cut shows the loss from that coordinate. A tangent at the blue tip measures a slope of a hundred. Multiply by the rate, point zero one eight. The first carriage must move left one point eight units.",
+        "hold": 0.3
+      },
+      {
+        "id": "c02-b02",
+        "say": "Green has a slope of one, so we subtract just point zero one eight.",
+        "hold": 0.35
+      },
+      {
+        "id": "c02-b03",
+        "say": "Release the carriages. Only the first crosses zero. The total loss falls from fifty point five to about thirty-two point five. Nearly all the second error remains. The left profile measures fifty times a squared. The right profile measures half of b squared.",
+        "hold": 0.3
+      },
+      {
+        "id": "c02-b04",
+        "say": "Differentiate each term to get the gradient. The slopes are a hundred times a, and just b. Their rates of change have a ratio of a hundred to one. That is the condition number of this quadratic.",
+        "hold": 1
+      },
+      {
+        "id": "c02-b05",
+        "say": "Plot both errors against the update number. At the end of the first step, measure the gradient again. The steep slope was a hundred. Now it is minus eighty. Which way will the next step go? Subtracting it sends a back across zero.",
+        "hold": 0.3
+      },
+      {
+        "id": "c02-b06",
+        "say": "The slope for b is still positive, so b moves a little closer to zero again. Here we can compute the full gradient. With a random minibatch, stochastic gradient descent uses a noisy estimate.",
+        "hold": 0.7
+      }
+    ]
+  },
+  {
+    "id": "c03",
+    "title": "Judge the numbered endpoints",
+    "sourceChapters": [
+      "c03"
+    ],
+    "beats": [
+      {
+        "id": "c03-b01",
+        "say": "Follow eight completed updates. The crossings shrink, while the shallow error moves slowly. A smaller rate would calm the steep direction and slow the other one too. We are seeing one global multiplier serve two very different curvatures.",
+        "hold": 0.65
+      },
+      {
+        "id": "c03-b02",
+        "say": "Suppose we raise the rate slightly to help the slow coordinate. Will the steep error settle or grow? Keep the starting point and objective fixed. Make the prediction before we run the second trace.",
+        "hold": 1.7
+      },
+      {
+        "id": "c03-b03",
+        "say": "Run the larger rate through eight completed updates. Each steep-coordinate crossing now grows. With rate point zero two one, each update multiplies a by minus one point one. To shrink the error, the magnitude of one minus a hundred times the rate must be below one. The rate must lie between zero and point zero two, excluding both ends.",
+        "hold": 0.65
+      }
+    ]
+  },
+  {
+    "id": "c04",
+    "title": "A stored direction can disagree with the slope",
+    "sourceChapters": [
+      "c04"
+    ],
+    "beats": [
+      {
+        "id": "c04-b01",
+        "say": "Momentum keeps a signed average of gradients. Most of the old average survives and one tenth of the new gradient enters. Start its buffer at zero. Store the first weighted gradient, then replay four parameter updates using this memory.",
+        "hold": 0.65
+      },
+      {
+        "id": "c04-b02",
+        "say": "The fourth punch lands just left of the minimum. A fresh descent step would go right. Put the last displacement and the fresh one on the two rails. Read the collar a tenth of the way from the old pin to the fresh pin. It still lies left of zero. The fifth punch lands farther left and higher on the loss curve.",
+        "hold": 0.8
+      },
+      {
+        "id": "c04-b03",
+        "say": "Continue to the eighth punch. The steep buffer turns negative and the carriage finally moves right. The shallow gradients keep reinforcing one another. Each coordinate owns its own buffer. Momentum changes direction and scale, so tune its rate in a separate experiment.",
+        "hold": 0.65
+      }
+    ]
+  },
+  {
+    "id": "c05",
+    "title": "Translate the buffer before copying a learning rate",
+    "sourceChapters": [
+      "c05"
+    ],
+    "beats": [
+      {
+        "id": "c05-b01",
+        "say": "Feed the buffer four fixed gradients so we can follow the signs. In the top row they alternate. In the bottom row they all point the same way. Start with the top row. A tenth of a hundred gives us ten.",
+        "hold": 0.3
+      },
+      {
+        "id": "c05-b02",
+        "say": "Now the gradient flips to minus eighty. Keep nine from the old buffer and add minus eight. That leaves one. The gradient changed sign before the buffer did.",
+        "hold": 0.7
+      },
+      {
+        "id": "c05-b03",
+        "say": "Continue the same recurrence. The third steep buffer is seven point nine and the fourth is one point one one. Opposite signs partially cancel. The shallow buffer ends near zero point three three three because every input reinforces its positive sign.",
+        "hold": 0.3
+      },
+      {
+        "id": "c05-b04",
+        "say": "On the second input the slope points left. A fresh descent step would move right. Subtracting the positive buffer moves the weight left. These four inputs were prescribed so we could inspect the memory. In a training run the next slope comes from the new position.",
+        "hold": 0.7
+      },
+      {
+        "id": "c05-b05",
+        "say": "Return to input four and compare the buffer units. Our normalized exponential average keeps beta times the old memory and adds one minus beta times the gradient. PyTorch SGD with default dampening starts its buffer at the first gradient, then uses beta times the buffer plus the gradient.",
+        "hold": 0.3
+      },
+      {
+        "id": "c05-b06",
+        "say": "Our memory is one minus beta times that library buffer. To reproduce our parameter updates, the library learning rate must be one minus beta times our rate. With beta point nine, point zero one eight becomes point zero zero one eight.",
+        "hold": 0.3
+      },
+      {
+        "id": "c05-b07",
+        "say": "Check initialization and dampening before transferring another implementation.",
+        "hold": 0.7
+      }
+    ]
+  },
+  {
+    "id": "c06",
+    "title": "How far does each gradient move the weight?",
+    "sourceChapters": [
+      "c06"
+    ],
+    "beats": [
+      {
+        "id": "c06-b01",
+        "say": "Feed the same first gradient into two empty buffers. The slope for a is a hundred. The slope for b is one. RMSProp squares each slope and stores a tenth of the square. It keeps nine tenths of the old buffer on later steps.",
+        "hold": 0.3
+      },
+      {
+        "id": "c06-b02",
+        "say": "Take the square root of each buffer. The divisor for a is a hundred times as large as the one for b. With the same learning rate, will a still take a hundred times the step?",
+        "hold": 2.3
+      },
+      {
+        "id": "c06-b03",
+        "say": "Divide each slope by the square root of its buffer plus epsilon. Both ratios are about three point one six two. Now multiply each ratio by the learning rate, point zero one. Each coordinate subtracts about point zero three one six two. The two marks line up because the larger slope met a proportionally larger divisor.",
+        "hold": 0.3
+      },
+      {
+        "id": "c06-b04",
+        "say": "Now feed in minus eighty for a and point nine eight for b. Squaring that minus eighty adds to the first buffer. Watch the amounts we subtract. The first switches sign. The second stays positive. That sends a to the right and b to the left.",
+        "hold": 1
+      },
+      {
+        "id": "c06-b05",
+        "say": "Look at the negative amount on the top ruler. Its sign comes straight from the current gradient. The stored square supplies the size of the divisor. Basic RMSProp uses that raw buffer without startup correction. Here epsilon goes after the square root, as it does in PyTorch.",
+        "hold": 0.3
+      },
+      {
+        "id": "c06-b06",
+        "say": "Putting epsilon inside the root changes the divisor. For the same numerical epsilon, compare the two expressions on a tiny squared buffer. The location of the guard matters most when the buffer is small.",
+        "hold": 0.8
+      }
+    ]
+  },
+  {
+    "id": "c07",
+    "title": "Keep signs and squared sizes separately",
+    "sourceChapters": [
+      "c07"
+    ],
+    "beats": [
+      {
+        "id": "c07-b01",
+        "say": "Adam combines a signed memory with a memory of squared gradient size. Reset at our original point. Store a weighted gradient in the first buffer. Store a weighted square in the second. Squaring keeps magnitude even when a gradient changes sign.",
+        "hold": 0.65
+      },
+      {
+        "id": "c07-b02",
+        "say": "Both buffers started at zero. The observed gradient has received only part of the total weight. Divide the signed buffer by its observed weight, then correct the squared buffer the same way. On this first update, the corrected estimates recover the gradient and its square.",
+        "hold": 0.65
+      },
+      {
+        "id": "c07-b03",
+        "say": "Set the rate to zero, keep the gradients present, and take three steps from empty buffers. Both weights hold at one. The raw buffers fill and the counter advances. Divide by the observed weight at each step. For the steep coordinate, the corrected signed estimate stays at one hundred. The corrected square stays at ten thousand. A changing gradient history can still lag.",
+        "hold": 0.65
+      }
+    ]
+  },
+  {
+    "id": "c08",
+    "title": "Turn those memories into a displacement",
+    "sourceChapters": [
+      "c08"
+    ],
+    "beats": [
+      {
+        "id": "c08-b01",
+        "say": "Return to one with fresh Adam buffers. For coordinate A, the corrected signed estimate is one hundred. Its corrected square is ten thousand. For coordinate B, the corrected signed estimate is one. Its corrected square is one. Use a learning rate of point zero eight. Which coordinate will travel farther?",
+        "hold": 1.6
+      },
+      {
+        "id": "c08-b02",
+        "say": "Take the square root of each corrected squared estimate. Divide the signed estimate by that scale. The hundred-to-one gradient difference nearly cancels. Multiply both ratios by the learning rate and take the step. Both errors move by about the same amount. A small epsilon guards each denominator; gradients near that scale receive different normalization.",
+        "hold": 0.65
+      }
+    ]
+  },
+  {
+    "id": "c09",
+    "title": "One negative gradient, two optimizers",
+    "sourceChapters": [
+      "c09"
+    ],
+    "beats": [
+      {
+        "id": "c09-b01",
+        "say": "Replay those four supplied gradients from empty Adam buffers. For the signed average, keep ninety percent of the old value. For the squares, keep ninety-nine point nine percent. The learning rate is point zero one. After the first hundred, both buffers read ten.",
+        "hold": 0.3
+      },
+      {
+        "id": "c09-b02",
+        "say": "Now send in minus eighty. Nine minus eight leaves one in the signed buffer. The square of minus eighty pushes the other buffer up to sixteen point three nine. RMSProp turned on that input. Which way will Adam move the weight?",
+        "hold": 2.4
+      },
+      {
+        "id": "c09-b03",
+        "say": "Start both parameter moves at zero on this ruler. RMSProp moves right. Adam moves a little to the left. Adam is still subtracting a positive signed average, even though the latest slope is negative.",
+        "hold": 0.3
+      },
+      {
+        "id": "c09-b04",
+        "say": "Compare the fourth Adam update. For a, plus one hundred, minus eighty, plus seventy and minus sixty partly cancel in the signed average. Divide the corrected average by the root of the corrected square plus epsilon, then multiply by point zero one. For a, the subtraction is about point zero zero zero four one. For b, the inputs are one, point nine eight, point nine six and point nine four. All four reinforce the signed average. The same calculation gives a subtraction of about point zero zero nine nine seven. Divide the two step sizes. The step for b is about twenty-four point four times as large. The two rulers use the same scale.",
+        "hold": 0.3
+      },
+      {
+        "id": "c09-b05",
+        "say": "The square buffer measures uncentered magnitude. A constant nonzero gradient has zero variance around its mean, yet its square is positive. That is why the square buffer still fills.",
+        "hold": 0.9
+      },
+      {
+        "id": "c09-b06",
+        "say": "Where do the correction factors come from? Suppose the signed gradient repeats. With a repeated gradient, the first observation enters with weight one minus beta. After two updates the observations carry one minus beta squared.",
+        "hold": 0.3
+      },
+      {
+        "id": "c09-b07",
+        "say": "After three, the three colored pieces still fill only part of a whole unit. After t updates their total is one minus beta to the power t. Divide by that total to give the observed gradients their full weight.",
+        "hold": 0.3
+      },
+      {
+        "id": "c09-b08",
+        "say": "Replay just the first gradient of four at a rate of point zero one. The signed buffer holds point four on an observed weight of one tenth. The square buffer holds point zero one six on one thousandth. Without correction, divide point four by the root of point zero one six plus epsilon, then multiply by the rate. The step is about point zero three one six two. With correction, divide each buffer by its own observed weight. The corrected moments are four and sixteen. That gives a step near point zero one. The correction accounts for the zero start. An old observation still takes time to fade.",
+        "hold": 0.8
+      }
+    ]
+  },
+  {
+    "id": "c10",
+    "title": "Find the limit of Adam scale cancellation",
+    "sourceChapters": [
+      "c10"
+    ],
+    "beats": [
+      {
+        "id": "c10-b01",
+        "say": "Take three identical gradients of two. Their mean is two and their sum is six. At a fixed learning rate, SGD travels three times as far when you use the sum.",
+        "hold": 0.3
+      },
+      {
+        "id": "c10-b02",
+        "say": "If one fixed positive factor multiplies Adam’s entire gradient history, the signed estimate scales by that factor and the squared estimate by its square. Its square root therefore scales by the original factor. Numerator and denominator cancel exactly when epsilon is zero and the denominator is nonzero.",
+        "hold": 0.7
+      },
+      {
+        "id": "c10-b03",
+        "say": "Watch what happens as the gradient gets smaller. The learning rate is one hundredth. Start with a gradient of one. The step uses almost the whole learning rate. When the gradient equals epsilon, the denominator is twice the gradient and the step uses half the rate.",
+        "hold": 0.3
+      },
+      {
+        "id": "c10-b04",
+        "say": "Shrink the gradient to a hundredth of epsilon. Now the step uses about one percent of the rate.",
+        "hold": 0.7
+      },
+      {
+        "id": "c10-b05",
+        "say": "Now change the scale halfway through. Both buffers receive minus eight hundred. Look at what they carry in. The top buffer kept nine from its first gradient. Add minus eighty and it lands at minus seventy-one. The bottom run used the larger scale from the start. How much of that first gradient survives?",
+        "hold": 2.1
+      },
+      {
+        "id": "c10-b06",
+        "say": "It kept ninety. The same minus eighty leaves it at plus ten. Adam will move these weights in opposite directions. Record how you average the loss. Clipping, a penalty added to the loss, or changing an item's share can also change the gradient that reaches the buffers.",
+        "hold": 0.7
+      }
+    ]
+  },
+  {
+    "id": "c11",
+    "title": "Compare complete recipes at one budget",
+    "sourceChapters": [
+      "c11"
+    ],
+    "beats": [
+      {
+        "id": "c11-b01",
+        "say": "Return every method to the same starting point and reset its buffers. Give each forty gradient evaluations. The listed learning rates belong to the recipes we are testing. Predict which recipe will reduce the shallow error most, then compare both coordinates and the loss.",
+        "hold": 1.5
+      },
+      {
+        "id": "c11-b02",
+        "say": "Advance each run through the same forty updates, using its own current point for each gradient, then keep the completed paths beside their two remaining coordinate errors. At the shared numeric rate, plain descent finishes below momentum here. Our chosen Adam rate reduces both errors.",
+        "hold": 0.3
+      },
+      {
+        "id": "c11-b03",
+        "say": "At forty updates, compare the remaining shallow errors. Point four eight for plain descent, point five three for momentum, and about point zero four for Adam at its separate rate. Tune the rates and use validation on the real task.",
+        "hold": 0.65
+      }
+    ]
+  },
+  {
+    "id": "c12",
+    "title": "What changes at a zero learning rate?",
+    "sourceChapters": [
+      "c12"
+    ],
+    "beats": [
+      {
+        "id": "c12-b01",
+        "say": "Reset Adam at one on both coordinates. Watch the stored history for the steep coordinate. The first update uses zero rate. Both weights stay at one while moments and the counter still advance. The next four rates ramp to the peak.",
+        "hold": 0.3
+      },
+      {
+        "id": "c12-b02",
+        "say": "The rates used on the next four updates are point zero two, point zero four, point zero six and point zero eight. Each multiplies the step supplied by the moments. Trace the rising edge of this learning rate schedule as the weights start to move.",
+        "hold": 0.65
+      },
+      {
+        "id": "c12-b03",
+        "say": "Continue the same run through cosine decay. As the rate falls, it changes each displacement produced by the current moments. At the final zero rate, a residual error remains and parameter movement stops. A schedule chooses when to spend the update budget.",
+        "hold": 0.8
+      },
+      {
+        "id": "c12-b04",
+        "say": "Compare the last five updates with constant-rate Adam. These runs share the objective, starting state and update budget; only their schedules differ. The decayed run moves less late, yet finishes with larger loss in this example. Use measured progress and validation to choose the peak, decay and training length.",
+        "hold": 0.65
+      }
+    ]
+  },
+  {
+    "id": "c13",
+    "title": "How much does each item count?",
+    "sourceChapters": [
+      "c13"
+    ],
+    "beats": [
+      {
+        "id": "c13-b01",
+        "say": "Suppose we can fit only part of our data in memory at once. Keep the prediction at one while we collect the gradients. The targets are zero, two and four. For squared error, each derivative is twice the prediction minus twice the target.",
+        "hold": 0.3
+      },
+      {
+        "id": "c13-b02",
+        "say": "That gives plus two, minus two and minus six. Average all three and the full mean gradient is minus two. Now put the first item in one batch and its two neighbors in another. Their mean gradients are two and minus four.",
+        "hold": 0.3
+      },
+      {
+        "id": "c13-b03",
+        "say": "Put one target in the first batch and two in the second. On the strip each target occupies the fraction of the objective that it contributes. If both batches get half the strip, how much say does the first item get?",
+        "hold": 1.5
+      },
+      {
+        "id": "c13-b04",
+        "say": "Slide the batch divider to the middle. One item now gets half the strip. Each neighbor gets a quarter. The mean of the two batch gradients is minus one. At a rate of point one, SGD lands at one point one.",
+        "hold": 0.3
+      },
+      {
+        "id": "c13-b05",
+        "say": "Keep all three targets and start over at the same weight. Give each item the same width. That means one third for the first batch and two thirds for the second. The accumulated gradient is minus two. This time SGD lands at one point two.",
+        "hold": 0.3
+      },
+      {
+        "id": "c13-b06",
+        "say": "For a token mean, count the tokens that contribute to the loss. A short final window uses its actual count. To match a full batch, each item also needs the same forward computation. A batch-dependent layer can change that.",
+        "hold": 0.9
+      },
+      {
+        "id": "c13-b07",
+        "say": "Each row is one process. Each process runs three backward passes with four items apiece. That makes twenty-four items in one optimizer update. With mixed precision, keep the loss scale fixed for the whole window. Finish all backward passes, unscale once, then clip once.",
+        "hold": 0.3
+      },
+      {
+        "id": "c13-b08",
+        "say": "Take one optimizer step, advance the per-update schedule if that step ran, and clear gradients for the next window.",
+        "hold": 0.9
+      }
+    ]
+  },
+  {
+    "id": "c14",
+    "title": "Which gradient reaches AdamW?",
+    "sourceChapters": [
+      "c14"
+    ],
+    "beats": [
+      {
+        "id": "c14-b01",
+        "say": "Draw the two gradient coordinates as one arrow. Its components are three and four, so its length is five. The brass stop marks the limit of five. A tip on or inside the stop passes through unchanged. Now change the batch.",
+        "hold": 0.3
+      },
+      {
+        "id": "c14-b02",
+        "say": "The input jumps to three hundred and four hundred. Its length is five hundred. To keep the direction, multiply every coordinate by the same factor. Use the limit divided by the length. Here that is one hundredth.",
+        "hold": 0.3
+      },
+      {
+        "id": "c14-b03",
+        "say": "Pull the tip back along the same line until it reaches the arc. The optimizer receives three and four. That operation is global-norm clipping.",
+        "hold": 0.7
+      },
+      {
+        "id": "c14-b04",
+        "say": "Give two fresh Adam optimizers the same learning rate. One gets the raw gradient. The other gets the clipped gradient. Compare their buffers. Clipping made the first signed average a hundred times smaller. Now watch the update arrows. They nearly match.",
+        "hold": 0.3
+      },
+      {
+        "id": "c14-b05",
+        "say": "On this first step, each positive gradient divided by its own scale gives almost one. Clipping changes what the optimizer remembers. The learning rate and that history determine the data step, and AdamW applies weight decay separately.",
+        "hold": 0.7
+      },
+      {
+        "id": "c14-b06",
+        "say": "Read the pre-clipping norms in the log. Five passed through. Five hundred came down to five. The next norm is not a number. Have PyTorch raise an error before that gradient enters the buffers. The completed-update count stays at two. A zero gradient passes through as zero.",
+        "hold": 0.3
+      },
+      {
+        "id": "c14-b07",
+        "say": "Only one of the two completed updates needed clipping. If that fraction stays high, check the batches, the loss scale and the threshold.",
+        "hold": 0.7
+      }
+    ]
+  },
+  {
+    "id": "c15",
+    "title": "Keep shrinkage outside the adaptive step",
+    "sourceChapters": [
+      "c15"
+    ],
+    "beats": [
+      {
+        "id": "c15-b01",
+        "say": "Start both weights at one. Set the rate to point zero eight and the decay coefficient to point one. Move the data carriage first. The open ring stays at one. The pin lands at point nine two. Which of those weights should you multiply by the rate and the decay coefficient?",
+        "hold": 2.3
+      },
+      {
+        "id": "c15-b02",
+        "say": "Use the weight at the start of the update. Point zero eight times point one times one gives a shrink of eight thousandths. Subtract that from the data endpoint. AdamW lands at point nine one two. Putting an L2 penalty inside the loss adds a parameter term to the gradient. That term enters both Adam buffers. For our positive first gradients, normalization leaves the coupled endpoint near point nine two.",
+        "hold": 2.2
+      }
+    ]
+  },
+  {
+    "id": "c16",
+    "title": "A zero gradient differs from no gradient",
+    "sourceChapters": [
+      "c16"
+    ],
+    "beats": [
+      {
+        "id": "c16-b01",
+        "say": "Isolate decay with weight ten, a zero data-gradient tensor and zero moment buffers. Set rate point one and decay point zero one. AdamW subtracts point one times point zero one times ten directly from the old weight. The result is nine point nine nine.",
+        "hold": 0.3
+      },
+      {
+        "id": "c16-b02",
+        "say": "Both moments stay zero. The separate shrink uses the prior parameter, and the learning rate still controls its amount.",
+        "hold": 0.7
+      },
+      {
+        "id": "c16-b03",
+        "say": "Put the penalty inside the objective instead. For a penalty equal to one half lambda times weight squared, its gradient is lambda times weight. Here that is point one. It now enters both Adam buffers.",
+        "hold": 0.3
+      },
+      {
+        "id": "c16-b04",
+        "say": "On this first step, adaptive normalization produces a move near point one, giving a weight near nine point nine. That differs from the separate point zero one shrink. Inspect the actual coupled or decoupled rule and parameter-group settings rather than inferring it from a method’s name.",
+        "hold": 0.7
+      },
+      {
+        "id": "c16-b05",
+        "say": "Now change only the gradient representation. In PyTorch AdamW, an explicit zero gradient still permits the step and decay; a missing gradient, grad equals None, makes the optimizer skip that parameter. Old nonzero moments could also move a parameter even when its current gradient tensor is zero.",
+        "hold": 0.3
+      },
+      {
+        "id": "c16-b06",
+        "say": "Our isolated nine point nine nine check began with zero moments. These are distinct state conditions, and the schedule still multiplies decoupled shrinkage.",
+        "hold": 0.7
+      }
+    ]
+  },
+  {
+    "id": "c17",
+    "title": "Place each operation before its consumer",
+    "sourceChapters": [
+      "c17"
+    ],
+    "beats": [
+      {
+        "id": "c17-b01",
+        "say": "Translate the equations into a concrete PyTorch update. Clear old gradients, compute the loss, then call backward. Measure and clip the newly created gradients before optimizer step. The clipping helper returns the norm before clipping. Assign this update’s explicit learning rate before calling optimizer step.",
+        "hold": 0.3
+      },
+      {
+        "id": "c17-b02",
+        "say": "If a built-in scheduler supplies the next rate instead, call its step after optimizer step and choose a per-update or per-epoch cadence deliberately. A plateau scheduler consumes a validation metric.",
+        "hold": 0.7
+      },
+      {
+        "id": "c17-b03",
+        "say": "Here is the sixty-update CPU run. It starts at a peak rate of point zero eight, decays the rate along a cosine, and uses AdamW decay of point zero one. The clipping threshold is twenty. Trace the loss and the pre-clipping norm across sixty updates.",
+        "hold": 0.3
+      },
+      {
+        "id": "c17-b04",
+        "say": "Both errors finish near three hundredths. On the first update the norm was about a hundred, five times the limit. Eleven updates hit the limit in all. When we compare this loop with the eighty-update NumPy run, remember that both the budget and the clipping rule changed.",
+        "hold": 0.9
+      },
+      {
+        "id": "c17-b05",
+        "say": "With mixed precision, unscale before measuring or clipping, so the threshold applies to the real gradients. If the scaler finds a nonfinite gradient, it skips the optimizer step. The Adam counter stays where it was.",
+        "hold": 0.3
+      },
+      {
+        "id": "c17-b06",
+        "say": "A zero rate with present, finite gradients still runs the optimizer. The moment buffers and the Adam counter advance while the parameter holds. Compare two attempts, one skipped by the scaler and one completed at zero rate. Which schedule tick belongs in the log?",
+        "hold": 2.25
+      },
+      {
+        "id": "c17-b07",
+        "say": "The skipped attempt earns no tick. The completed zero-rate update earns one tick because the optimizer ran. After the attempted step, update the AMP scaler once at the end of the complete window, including when the optimizer step was skipped for nonfinite gradients.",
+        "hold": 0.7
+      }
+    ]
+  },
+  {
+    "id": "c18",
+    "title": "Which checkpoint reproduces the next update?",
+    "sourceChapters": [
+      "c18"
+    ],
+    "beats": [
+      {
+        "id": "c18-b01",
+        "say": "Pause the deterministic CPU valley after three AdamW updates. Deep-copy weights, optimizer state and StepLR state before the original continues. The optimizer holds moments and its step count. The scheduler holds its position and rate state. Two runs can have identical weights yet choose different next updates because their histories differ.",
+        "hold": 0.7
+      },
+      {
+        "id": "c18-b02",
+        "say": "Construct the resumed optimizer and scheduler with matching parameter groups and ordering. Construct the scheduler before loading the optimizer, because its constructor can alter learning rates. In this fixture, restore scheduler state first, then optimizer state. Advance the original and resumed runs three more updates.",
+        "hold": 0.3
+      },
+      {
+        "id": "c18-b03",
+        "say": "Read the three continuations from the same fork. The original and the full restore finish at identical tensor values, and both counters read six. The weights-only branch starts fresh histories. After the same three new updates it finishes at a different weight.",
+        "hold": 0.7
+      },
+      {
+        "id": "c18-b04",
+        "say": "If the next gradient comes from a shuffled batch, the checkpoint also needs the data position and random-generator states. Save the update count and the mixed-precision scaler if you use one. Keep track of which optimizer owns each group.",
+        "hold": 0.3
+      },
+      {
+        "id": "c18-b05",
+        "say": "Muon can update a two-dimensional hidden-layer weight as a matrix. AdamW can handle the biases and embeddings in the same model. Restore each group's own state.",
+        "hold": 0.7
+      }
+    ]
+  },
+  {
+    "id": "c19",
+    "title": "Count the state that follows each parameter",
+    "sourceChapters": [
+      "c19"
+    ],
+    "beats": [
+      {
+        "id": "c19-b01",
+        "say": "State has a memory cost. Plain SGD stores no moving-average buffer. EMA momentum stores one signed value per parameter, basic RMSProp one squared value, and AdamW two. At four bytes per float32 value, AdamW moments cost eight bytes per trained parameter.",
+        "hold": 0.3
+      },
+      {
+        "id": "c19-b02",
+        "say": "Seven billion parameters therefore require fifty-six billion bytes, or fifty-six decimal gigabytes, for those two buffers alone.",
+        "hold": 0.7
+      },
+      {
+        "id": "c19-b03",
+        "say": "Split those moments evenly across four devices, as you can with optimizer-state sharding in ZeRO. Each device holds seven gigabytes for the signed averages and seven for the squares. That's fourteen gigabytes per device for moments. Add parameters, gradients, activations and any master-weight copies separately to get the training memory budget.",
+        "hold": 0.7
+      },
+      {
+        "id": "c19-b04",
+        "say": "Now start a fresh AdamW optimizer with four scalar weights. Freeze two before training. Only the two receiving gradients get moment buffers. Count the colored blocks. Four blocks at four bytes each come to sixteen bytes. On a real run, check the stored dtype and measure peak memory while the activations are live.",
+        "hold": 0.7
+      }
+    ]
+  },
+  {
+    "id": "c20",
+    "title": "What does the gradient history change?",
+    "sourceChapters": [
+      "c20"
+    ],
+    "beats": [
+      {
+        "id": "c20-b01",
+        "say": "Reset both valley coordinates to one. This time both recipes get eighty updates with cosine decay. The SGD peak is point zero one eight. AdamW uses a higher peak and also shrinks the old weight. Follow the error bars through the same eighty gradient evaluations.",
+        "hold": 0.3
+      },
+      {
+        "id": "c20-b02",
+        "say": "SGD ends close to zero on the steep wall, with nearly half the shallow error still there. Both AdamW error bars have nearly disappeared. Check its two coordinates before interpreting the smaller loss.",
+        "hold": 1
+      },
+      {
+        "id": "c20-b03",
+        "say": "The full width of each bar is the error we started with. SGD still has almost half a bar left on the shallow side. Both AdamW bars are down to about two hundredths. Look at their equal lengths.",
+        "hold": 0.3
+      },
+      {
+        "id": "c20-b04",
+        "say": "In the AdamW run, the gradients for a were about a hundred times those for b. Adam's divisor grew in the same proportion. That gave the two weights nearly equal steps. To compare the recipes, keep their peak rates beside the endpoints.",
+        "hold": 0.7
+      },
+      {
+        "id": "c20-b05",
+        "say": "What happens when a large gradient fades from memory? Start the squared-gradient buffer at zero and keep half the old value each time. A gradient of four has a square of sixteen, so the buffer starts at eight. A zero gradient cuts it to four.",
+        "hold": 0.3
+      },
+      {
+        "id": "c20-b06",
+        "say": "A gradient of three brings it back to six and a half. AMSGrad also keeps the largest buffer value seen so far. Its line stays at eight. Researchers found convex problems where the original Adam update fails to converge.",
+        "hold": 0.3
+      },
+      {
+        "id": "c20-b07",
+        "say": "Keeping that maximum is the change they studied in AMSGrad.",
+        "hold": 0.7
+      }
+    ]
+  },
+  {
+    "id": "c21",
+    "title": "Which run would you keep?",
+    "sourceChapters": [
+      "c21"
+    ],
+    "beats": [
+      {
+        "id": "c21-b01",
+        "say": "Watch the higher-peak trace rise on its first update at peak rate. Was the peak too high? Align the loss jump with the rate and the gradient norm at that update. Keep the start, data and optimizer fixed.",
+        "hold": 0.3
+      },
+      {
+        "id": "c21-b02",
+        "say": "Halve just the peak rate and replay the two runs through update eight. At this point the lower peak has the lower training loss. Would you expect it still to be ahead four updates later?",
+        "hold": 2.45
+      },
+      {
+        "id": "c21-b03",
+        "say": "Keep both rates and give both runs the extra four updates. Follow the traces to twelve. Now the higher peak has the lower loss. Lowering the peak softened the spike, but the answer to which run was ahead depended on when we stopped.",
+        "hold": 0.3
+      },
+      {
+        "id": "c21-b04",
+        "say": "And both curves measured only the loss we trained on. What if the decision is about data the model has never seen?",
+        "hold": 1.3
+      },
+      {
+        "id": "c21-b05",
+        "say": "Take two separate trials with forty updates each. Their data split is fixed. Look at the training scores first. AdamW gets closer to zero. Now uncover the scores on the held-out examples. SGD has the lower held-out loss.",
+        "hold": 0.3
+      },
+      {
+        "id": "c21-b06",
+        "say": "If that is your selection metric, keep this SGD recipe at this budget. The rates differ, so this comparison evaluates whole recipes. If training keeps improving while validation worsens, check for leakage and try a decay sweep. Fix the split and other settings, and compare held-out loss.",
+        "hold": 0.85
+      },
+      {
+        "id": "c21-b07",
+        "say": "A different symptom needs a different measurement. For a nonfinite batch, inspect its contents, the gradient norm and the mixed-precision scale. If one group stalls while another oscillates, measure their update norms and gradient scales separately.",
+        "hold": 0.3
+      },
+      {
+        "id": "c21-b08",
+        "say": "If clipping fires almost every update, record the pre-clipping norms across batches and investigate the threshold or the data. If the run does not fit, measure optimizer-state bytes and activation peaks. Each of those measurements gives you one change to test on the same data slice.",
+        "hold": 0.8
+      }
+    ]
+  },
+  {
+    "id": "c22",
+    "title": "Start on the other side of zero",
+    "sourceChapters": [
+      "c22"
+    ],
+    "beats": [
+      {
+        "id": "c22-b01",
+        "say": "Bring back the two error carriages from the opening. This time a starts at minus one half and b at plus one half. Reset the buffers. Set the plain and momentum rates to point zero one eight. Give Adam point zero eight. Which first-coordinate carriage will cross zero in one update?",
+        "hold": 1.8
+      },
+      {
+        "id": "c22-b02",
+        "say": "For plain descent, multiply minus point zero one eight by the gradient, minus fifty, giving nine tenths to the right. For momentum, one tenth of minus fifty enters the empty buffer. Multiply minus point zero one eight by minus five, giving nine hundredths. For Adam, the corrected signed value is minus fifty and the corrected square is twenty-five hundred. Multiply minus point zero eight by minus fifty and divide by fifty plus epsilon. The displacement is about eight hundredths to the right. Start all three moves at minus one half.",
+        "hold": 1.4
+      },
+      {
+        "id": "c22-b03",
+        "say": "Release the three carriages and read the pins against zero. Only plain descent crosses zero here. It subtracts a negative gradient, so it moves right. Momentum moves right too, but its empty buffer took in just a tenth of that first gradient. Adam moves about one learning rate to the right.",
+        "hold": 0.3
+      },
+      {
+        "id": "c22-b04",
+        "say": "Knowing the sign told us which way. The buffer and the rate told us how far.",
+        "hold": 0.9
+      }
+    ]
+  },
+  {
+    "id": "c23",
+    "title": "Can you check this update from the saved weight?",
+    "sourceChapters": [
+      "c23"
+    ],
+    "beats": [
+      {
+        "id": "c23-b01",
+        "say": "Try a new weight. The prediction is two. Load targets one and three in the first batch, and four, six and six in the second. The first pair lies one unit to either side of the prediction, so its gradients cancel. Which way does the other batch pull?",
+        "hold": 0.3
+      },
+      {
+        "id": "c23-b02",
+        "say": "Their gradients add to minus twenty, so that batch mean is minus twenty over three. You want the mean over all five items. What gradient should reach the clipper?",
+        "hold": 3.1
+      },
+      {
+        "id": "c23-b03",
+        "say": "Give the batches two fifths and three fifths of the strip. The second batch supplies the whole sum, so the item mean is minus four. Each item has one fifth of the strip. Now split the strip equally between batches. Each batch mean gets one half. Averaging zero and minus twenty over three gives minus ten over three. Keep that alternative for the replay. Follow the item mean into AdamW.",
+        "hold": 0.3
+      },
+      {
+        "id": "c23-b04",
+        "say": "Clip its magnitude to three. The gradient going into the buffers is minus three. Start the moments at zero. Use a rate of point zero five and decay of point zero two. For this nonzero gradient, set epsilon to zero.",
+        "hold": 0.3
+      },
+      {
+        "id": "c23-b05",
+        "say": "Where should the weight land after one step?",
+        "hold": 3.1
+      },
+      {
+        "id": "c23-b06",
+        "say": "The corrected moments are minus three and nine. Divide the signed value by the square root of nine and you get minus one. Subtracting the data step moves the weight to two point zero five. For decay, go back to the old weight two.",
+        "hold": 0.3
+      },
+      {
+        "id": "c23-b07",
+        "say": "Multiply it by the rate and the decay coefficient. The shrink is two thousandths. The final parameter is two point zero four eight. That was one optimizer update for the whole window. A colleague ran the same five items and got that exact weight.",
+        "hold": 0.3
+      },
+      {
+        "id": "c23-b08",
+        "say": "Which entry in their training log would tell you how they weighted the batches?",
+        "hold": 3
+      },
+      {
+        "id": "c23-b09",
+        "say": "Replay the two ways of weighting those same targets. Before clipping, the gradients land in different places. Keep those spots marked. Now apply the same limit to both. Both stop at minus three. Follow either run from there. Each starts at weight two with empty moments, the same rate and the same decay. Feed the shared input through AdamW and both runs save two point zero four eight. The open marks still tell the two histories apart.",
+        "hold": 0.3
+      },
+      {
+        "id": "c23-b10",
+        "say": "Compare the marks upstream of the stop. Minus four is the mean over five items. Minus ten over three gives each batch half the say. A saved weight of two point zero four eight fits either history. Log the counts and the gradient before clipping to distinguish them.",
+        "hold": 0.3
+      },
+      {
+        "id": "c23-b11",
+        "say": "On a fresh minibatch the gradient itself can change. Keep that upstream mark. In the probability lesson we will ask how far it moves across repeated draws.",
+        "hold": 1.5
+      }
+    ]
+  }
+]

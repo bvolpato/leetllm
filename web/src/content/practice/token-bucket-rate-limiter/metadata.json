@@ -1,0 +1,368 @@
+{
+  "id": "token-bucket-rate-limiter",
+  "slug": "token-bucket-rate-limiter",
+  "title": "Token Bucket Rate Limiter",
+  "difficulty": "Medium",
+  "category": "Rate Limiting",
+  "language": "python3",
+  "timeEstimateMinutes": 35,
+  "timeLimitMs": 2500,
+  "memoryLimitMb": 128,
+  "order": 40,
+  "tags": [
+    "token bucket",
+    "retry-after",
+    "time abstraction",
+    "quotas"
+  ],
+  "source": "Company prep",
+  "summary": "Model per-key API quotas with deterministic refill math and caller-friendly retry-after decisions.",
+  "starterCode": [
+    "from dataclasses import dataclass",
+    "",
+    "",
+    "@dataclass",
+    "class Decision:",
+    "    allowed: bool",
+    "    retry_after: float",
+    "    reason: str",
+    "",
+    "",
+    "class TokenBucketLimiter:",
+    "    def __init__(self, capacity: float, refill_rate_per_second: float, now):",
+    "        self.capacity = capacity",
+    "        self.refill_rate_per_second = refill_rate_per_second",
+    "        self.now = now",
+    "",
+    "    def allow(self, key, cost: float = 1) -> Decision:",
+    "        pass"
+  ],
+  "testCases": [
+    {
+      "name": "blocks when empty and returns retry_after",
+      "visibility": "sample",
+      "setup": [
+        "from solution import TokenBucketLimiter",
+        "clock = {\"t\": 0.0}",
+        "limiter = TokenBucketLimiter(capacity=2, refill_rate_per_second=1, now=lambda: clock[\"t\"])"
+      ],
+      "checks": [
+        {
+          "input": "clock = {\"t\": 0.0}\nlimiter = TokenBucketLimiter(capacity=2, refill_rate_per_second=1, now=lambda: clock[\"t\"])\nlimiter.allow((\"org1\", \"messages\")).allowed",
+          "expression": "limiter.allow((\"org1\", \"messages\")).allowed",
+          "operator": "==",
+          "expected": "True"
+        },
+        {
+          "input": "clock = {\"t\": 0.0}\nlimiter = TokenBucketLimiter(capacity=2, refill_rate_per_second=1, now=lambda: clock[\"t\"])\nlimiter.allow((\"org1\", \"messages\")).allowed\nlimiter.allow((\"org1\", \"messages\")).allowed",
+          "expression": "limiter.allow((\"org1\", \"messages\")).allowed",
+          "operator": "==",
+          "expected": "True"
+        },
+        {
+          "input": "clock = {\"t\": 0.0}\nlimiter = TokenBucketLimiter(capacity=2, refill_rate_per_second=1, now=lambda: clock[\"t\"])\nlimiter.allow((\"org1\", \"messages\")).allowed\nlimiter.allow((\"org1\", \"messages\")).allowed\nblocked = limiter.allow((\"org1\", \"messages\"))\nnot blocked.allowed",
+          "expression": "not blocked.allowed",
+          "operator": "==",
+          "expected": "True",
+          "before": "blocked = limiter.allow((\"org1\", \"messages\"))"
+        },
+        {
+          "input": "clock = {\"t\": 0.0}\nlimiter = TokenBucketLimiter(capacity=2, refill_rate_per_second=1, now=lambda: clock[\"t\"])\nlimiter.allow((\"org1\", \"messages\")).allowed\nlimiter.allow((\"org1\", \"messages\")).allowed\nblocked = limiter.allow((\"org1\", \"messages\"))\nnot blocked.allowed\nblocked.retry_after",
+          "expression": "blocked.retry_after",
+          "operator": "==",
+          "expected": "1"
+        },
+        {
+          "input": "clock = {\"t\": 0.0}\nlimiter = TokenBucketLimiter(capacity=2, refill_rate_per_second=1, now=lambda: clock[\"t\"])\nlimiter.allow((\"org1\", \"messages\")).allowed\nlimiter.allow((\"org1\", \"messages\")).allowed\nblocked = limiter.allow((\"org1\", \"messages\"))\nnot blocked.allowed\nblocked.retry_after\nclock[\"t\"] = 1.0\nlimiter.allow((\"org1\", \"messages\")).allowed",
+          "expression": "limiter.allow((\"org1\", \"messages\")).allowed",
+          "operator": "==",
+          "expected": "True",
+          "before": "clock[\"t\"] = 1.0"
+        }
+      ]
+    },
+    {
+      "name": "tracks keys independently and supports cost",
+      "visibility": "hidden",
+      "setup": [
+        "from solution import TokenBucketLimiter",
+        "clock = {\"t\": 10.0}",
+        "limiter = TokenBucketLimiter(capacity=5, refill_rate_per_second=2, now=lambda: clock[\"t\"])"
+      ],
+      "checks": [
+        {
+          "input": "clock = {\"t\": 10.0}\nlimiter = TokenBucketLimiter(capacity=5, refill_rate_per_second=2, now=lambda: clock[\"t\"])\nlimiter.allow(\"a\", cost=5).allowed",
+          "expression": "limiter.allow(\"a\", cost=5).allowed",
+          "operator": "==",
+          "expected": "True"
+        },
+        {
+          "input": "clock = {\"t\": 10.0}\nlimiter = TokenBucketLimiter(capacity=5, refill_rate_per_second=2, now=lambda: clock[\"t\"])\nlimiter.allow(\"a\", cost=5).allowed\nlimiter.allow(\"b\", cost=5).allowed",
+          "expression": "limiter.allow(\"b\", cost=5).allowed",
+          "operator": "==",
+          "expected": "True"
+        },
+        {
+          "input": "clock = {\"t\": 10.0}\nlimiter = TokenBucketLimiter(capacity=5, refill_rate_per_second=2, now=lambda: clock[\"t\"])\nlimiter.allow(\"a\", cost=5).allowed\nlimiter.allow(\"b\", cost=5).allowed\nblocked = limiter.allow(\"a\", cost=2)\nnot blocked.allowed and blocked.retry_after == 1",
+          "expression": "not blocked.allowed and blocked.retry_after == 1",
+          "operator": "==",
+          "expected": "True",
+          "before": "blocked = limiter.allow(\"a\", cost=2)"
+        },
+        {
+          "input": "clock = {\"t\": 10.0}\nlimiter = TokenBucketLimiter(capacity=5, refill_rate_per_second=2, now=lambda: clock[\"t\"])\nlimiter.allow(\"a\", cost=5).allowed\nlimiter.allow(\"b\", cost=5).allowed\nblocked = limiter.allow(\"a\", cost=2)\nnot blocked.allowed and blocked.retry_after == 1\nclock[\"t\"] = 11.0\nlimiter.allow(\"a\", cost=2).allowed",
+          "expression": "limiter.allow(\"a\", cost=2).allowed",
+          "operator": "==",
+          "expected": "True",
+          "before": "clock[\"t\"] = 11.0"
+        }
+      ]
+    },
+    {
+      "name": "refills fractional tokens over time",
+      "visibility": "sample",
+      "setup": [
+        "from solution import TokenBucketLimiter",
+        "clock = {\"t\": 0.0}",
+        "limiter = TokenBucketLimiter(capacity=5, refill_rate_per_second=2, now=lambda: clock[\"t\"])"
+      ],
+      "checks": [
+        {
+          "input": "clock = {\"t\": 0.0}\nlimiter = TokenBucketLimiter(capacity=5, refill_rate_per_second=2, now=lambda: clock[\"t\"])\nlimiter.allow(\"user\", cost=4).allowed",
+          "expression": "limiter.allow(\"user\", cost=4).allowed",
+          "operator": "==",
+          "expected": "True"
+        },
+        {
+          "input": "clock = {\"t\": 0.0}\nlimiter = TokenBucketLimiter(capacity=5, refill_rate_per_second=2, now=lambda: clock[\"t\"])\nlimiter.allow(\"user\", cost=4).allowed\nclock[\"t\"] = 1.0\ndecision = limiter.allow(\"user\", cost=3)\ndecision.allowed",
+          "expression": "decision.allowed",
+          "operator": "is",
+          "expected": "True",
+          "before": "clock[\"t\"] = 1.0\ndecision = limiter.allow(\"user\", cost=3)"
+        },
+        {
+          "input": "clock = {\"t\": 0.0}\nlimiter = TokenBucketLimiter(capacity=5, refill_rate_per_second=2, now=lambda: clock[\"t\"])\nlimiter.allow(\"user\", cost=4).allowed\nclock[\"t\"] = 1.0\ndecision = limiter.allow(\"user\", cost=3)\ndecision.allowed\ndecision.retry_after",
+          "expression": "decision.retry_after",
+          "operator": "==",
+          "expected": "0"
+        }
+      ]
+    },
+    {
+      "name": "does not refill when clock moves backward",
+      "visibility": "hidden",
+      "setup": [
+        "from solution import TokenBucketLimiter",
+        "clock = {\"t\": 10.0}",
+        "limiter = TokenBucketLimiter(capacity=2, refill_rate_per_second=1, now=lambda: clock[\"t\"])"
+      ],
+      "checks": [
+        {
+          "input": "clock = {\"t\": 10.0}\nlimiter = TokenBucketLimiter(capacity=2, refill_rate_per_second=1, now=lambda: clock[\"t\"])\nlimiter.allow(\"key\", cost=2).allowed",
+          "expression": "limiter.allow(\"key\", cost=2).allowed",
+          "operator": "==",
+          "expected": "True"
+        },
+        {
+          "input": "clock = {\"t\": 10.0}\nlimiter = TokenBucketLimiter(capacity=2, refill_rate_per_second=1, now=lambda: clock[\"t\"])\nlimiter.allow(\"key\", cost=2).allowed\nclock[\"t\"] = 5.0\ndecision = limiter.allow(\"key\", cost=1)\ndecision.allowed",
+          "expression": "decision.allowed",
+          "operator": "is",
+          "expected": "False",
+          "before": "clock[\"t\"] = 5.0\ndecision = limiter.allow(\"key\", cost=1)"
+        },
+        {
+          "input": "clock = {\"t\": 10.0}\nlimiter = TokenBucketLimiter(capacity=2, refill_rate_per_second=1, now=lambda: clock[\"t\"])\nlimiter.allow(\"key\", cost=2).allowed\nclock[\"t\"] = 5.0\ndecision = limiter.allow(\"key\", cost=1)\ndecision.allowed\ndecision.retry_after",
+          "expression": "decision.retry_after",
+          "operator": "==",
+          "expected": "1"
+        },
+        {
+          "input": "clock = {\"t\": 10.0}\nlimiter = TokenBucketLimiter(capacity=2, refill_rate_per_second=1, now=lambda: clock[\"t\"])\nlimiter.allow(\"key\", cost=2).allowed\nclock[\"t\"] = 5.0\ndecision = limiter.allow(\"key\", cost=1)\ndecision.allowed\ndecision.retry_after\nclock[\"t\"] = 10.0\nlimiter.allow(\"key\", cost=1).allowed",
+          "expression": "limiter.allow(\"key\", cost=1).allowed",
+          "operator": "is",
+          "expected": "False",
+          "before": "clock[\"t\"] = 10.0"
+        }
+      ]
+    },
+    {
+      "name": "blocked calls become allowed after retry delay",
+      "visibility": "hidden",
+      "setup": [
+        "from solution import TokenBucketLimiter",
+        "clock = {\"t\": 0.0}",
+        "limiter = TokenBucketLimiter(capacity=1, refill_rate_per_second=0.5, now=lambda: clock[\"t\"])"
+      ],
+      "checks": [
+        {
+          "input": "clock = {\"t\": 0.0}\nlimiter = TokenBucketLimiter(capacity=1, refill_rate_per_second=0.5, now=lambda: clock[\"t\"])\nlimiter.allow(\"key\").allowed",
+          "expression": "limiter.allow(\"key\").allowed",
+          "operator": "==",
+          "expected": "True"
+        },
+        {
+          "input": "clock = {\"t\": 0.0}\nlimiter = TokenBucketLimiter(capacity=1, refill_rate_per_second=0.5, now=lambda: clock[\"t\"])\nlimiter.allow(\"key\").allowed\nblocked = limiter.allow(\"key\")\nblocked.allowed",
+          "expression": "blocked.allowed",
+          "operator": "is",
+          "expected": "False",
+          "before": "blocked = limiter.allow(\"key\")"
+        },
+        {
+          "input": "clock = {\"t\": 0.0}\nlimiter = TokenBucketLimiter(capacity=1, refill_rate_per_second=0.5, now=lambda: clock[\"t\"])\nlimiter.allow(\"key\").allowed\nblocked = limiter.allow(\"key\")\nblocked.allowed\nblocked.retry_after",
+          "expression": "blocked.retry_after",
+          "operator": "==",
+          "expected": "2"
+        },
+        {
+          "input": "clock = {\"t\": 0.0}\nlimiter = TokenBucketLimiter(capacity=1, refill_rate_per_second=0.5, now=lambda: clock[\"t\"])\nlimiter.allow(\"key\").allowed\nblocked = limiter.allow(\"key\")\nblocked.allowed\nblocked.retry_after\nclock[\"t\"] = 2.0\nlimiter.allow(\"key\").allowed",
+          "expression": "limiter.allow(\"key\").allowed",
+          "operator": "==",
+          "expected": "True",
+          "before": "clock[\"t\"] = 2.0"
+        }
+      ]
+    },
+    {
+      "name": "allows a request costing the full bucket",
+      "visibility": "sample",
+      "setup": [
+        "from solution import TokenBucketLimiter",
+        "limiter = TokenBucketLimiter(3, 1, now=lambda: 0)",
+        "decision = limiter.allow(\"org\", cost=3)"
+      ],
+      "input": "(decision.allowed, decision.retry_after, decision.reason)",
+      "expected": "(True, 0, \"allowed\")"
+    },
+    {
+      "name": "public blocked reason is rate_limited",
+      "visibility": "sample",
+      "setup": [
+        "from solution import TokenBucketLimiter",
+        "limiter = TokenBucketLimiter(1, 1, now=lambda: 0)",
+        "limiter.allow(\"org\")",
+        "blocked = limiter.allow(\"org\")"
+      ],
+      "input": "(blocked.allowed, blocked.reason, blocked.retry_after)",
+      "expected": "(False, \"rate_limited\", 1.0)"
+    },
+    {
+      "name": "caps refill at bucket capacity",
+      "visibility": "hidden",
+      "setup": [
+        "from solution import TokenBucketLimiter",
+        "clock = {\"t\": 0.0}",
+        "limiter = TokenBucketLimiter(2, 1, now=lambda: clock[\"t\"])",
+        "limiter.allow(\"org\", cost=2)",
+        "clock[\"t\"] = 100.0",
+        "full = limiter.allow(\"org\", cost=2)",
+        "blocked = limiter.allow(\"org\")"
+      ],
+      "input": "(full.allowed, blocked.allowed, blocked.retry_after)",
+      "expected": "(True, False, 1.0)"
+    },
+    {
+      "name": "blocked requests do not consume tokens",
+      "visibility": "hidden",
+      "setup": [
+        "from solution import TokenBucketLimiter",
+        "clock = {\"t\": 0.0}",
+        "limiter = TokenBucketLimiter(2, 1, now=lambda: clock[\"t\"])",
+        "limiter.allow(\"org\", cost=2)",
+        "first = limiter.allow(\"org\", cost=1)",
+        "second = limiter.allow(\"org\", cost=1)",
+        "clock[\"t\"] = 0.5",
+        "third = limiter.allow(\"org\", cost=1)"
+      ],
+      "input": "(first.retry_after, second.retry_after, third.retry_after)",
+      "expected": "(1.0, 1.0, 0.5)"
+    },
+    {
+      "name": "preserves partial balance and refill watermark across clock regression",
+      "visibility": "hidden",
+      "description": "A backward clock jump neither drains existing tokens nor lowers the per-key refill watermark.",
+      "code": [
+        "from solution import TokenBucketLimiter",
+        "clock = {\"t\": 10.0}",
+        "limiter = TokenBucketLimiter(capacity=3.0, refill_rate_per_second=1.0, now=lambda: clock[\"t\"])",
+        "assert limiter.allow(\"key\", cost=2.0).allowed is True",
+        "clock[\"t\"] = 4.0",
+        "blocked_during_regression = limiter.allow(\"key\", cost=2.0)",
+        "assert blocked_during_regression.allowed is False",
+        "assert blocked_during_regression.retry_after == 1.0",
+        "clock[\"t\"] = 8.0",
+        "still_before_watermark = limiter.allow(\"key\", cost=2.0)",
+        "assert still_before_watermark.allowed is False",
+        "assert still_before_watermark.retry_after == 1.0",
+        "clock[\"t\"] = 10.5",
+        "partial_recovery = limiter.allow(\"key\", cost=2.0)",
+        "assert partial_recovery.allowed is False",
+        "assert partial_recovery.retry_after == 0.5",
+        "clock[\"t\"] = 11.0",
+        "assert limiter.allow(\"key\", cost=2.0).allowed is True"
+      ]
+    }
+  ],
+  "clarifyingQuestions": [
+    "Are limits per user, org, endpoint, model, or a tuple of dimensions?",
+    "Can a single request cost more than one token?",
+    "Should retry_after be rounded up for HTTP callers?"
+  ],
+  "followUps": [
+    "Add separate request-token, input-token, and output-token buckets.",
+    "Add priority tiers with different capacities and refill rates.",
+    "Make `allow` thread-safe with one lock around refill and consume."
+  ],
+  "followUpGuide": [
+    "For multiple dimensions, refill and inspect every required bucket before consuming any. Commit every debit only if all dimensions allow; calling allow on each bucket sequentially can spend tokens on an ultimately denied request. If any blocks, return the maximum deficit delay across blockers. Protect the combined decision atomically under concurrency.",
+    "",
+    "For priority tiers, resolve the tier before lookup and decide whether tiers share one caller balance or have separate caller/tier buckets. If policy changes for an existing bucket, explicitly migrate its capacity/rate and refill timestamp; do not grant an accidental fresh burst by changing keys.",
+    "",
+    "For thread safety, guard the read-refill-consume write sequence with one `threading.Lock`; splitting that sequence allows two callers to spend the same tokens."
+  ],
+  "complexityAnalysis": [
+    "- Token bucket (this problem): refill from elapsed time and update one balance per key. Time: O(1) average per allow using a hash map. Space: O(K) total for K remembered keys; idle keys are not evicted automatically.",
+    "- Related pattern (rolling window of timestamps): store accepted requests and prune by their ages. Time: O(k) per call for a naive scan of k retained requests. Space: O(k) per key. Rolling windows measure quota over time; token buckets model burst capacity with continuous refill."
+  ],
+  "solutionGuide": [
+    "Track `(tokens, last_seen)` per key, clamping `effective_now = max(now, last_seen)` so backward clock jumps neither subtract existing tokens nor overwrite the monotonic refill watermark. On every call, refill by `(effective_now - last_seen) * refill_rate_per_second`, capped at `capacity`.",
+    "",
+    "If `tokens >= cost`, subtract `cost` and allow. Otherwise store `(tokens, effective_now)` and compute `(cost - tokens) / refill_rate_per_second` as `retry_after`.",
+    "",
+    "```python",
+    "from dataclasses import dataclass",
+    "",
+    "",
+    "@dataclass",
+    "class Decision:",
+    "    allowed: bool",
+    "    retry_after: float",
+    "    reason: str",
+    "",
+    "",
+    "class TokenBucketLimiter:",
+    "    def __init__(self, capacity: float, refill_rate_per_second: float, now):",
+    "        self.capacity = capacity",
+    "        self.refill_rate_per_second = refill_rate_per_second",
+    "        self.now = now",
+    "        self.buckets = {}",
+    "",
+    "    def allow(self, key, cost: float = 1) -> Decision:",
+    "        now = self.now()",
+    "        tokens, last_seen = self.buckets.get(key, (self.capacity, now))",
+    "        effective_now = max(now, last_seen)",
+    "        elapsed = effective_now - last_seen",
+    "        tokens = min(self.capacity, tokens + elapsed * self.refill_rate_per_second)",
+    "",
+    "        if tokens >= cost:",
+    "            self.buckets[key] = (tokens - cost, effective_now)",
+    "            return Decision(True, 0, \"allowed\")",
+    "",
+    "        self.buckets[key] = (tokens, effective_now)",
+    "        needed = cost - tokens",
+    "        retry_after = needed / self.refill_rate_per_second",
+    "        return Decision(False, retry_after, \"rate_limited\")",
+    "```",
+    "",
+    "In production, key shape matters as much as math. Decide whether the caller is limited by org, workspace, endpoint, model, token dimension, or a combination."
+  ]
+}

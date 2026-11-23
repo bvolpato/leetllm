@@ -1,0 +1,239 @@
+version: 1
+lesson: llm-lifecycle-training-to-deployment
+promise: Follow a checkpoint from training through evaluation, compression and
+  serving, then use a request trace to choose and test a policy repair.
+framing:
+  - opening
+objectives:
+  - id: learn
+    can: Compute frequency-weighted merges, target loss and dense allocation,
+      distinguishing training from recurring inference.
+    scenes:
+      - curated-data
+      - pretraining
+      - compute-budget
+  - id: adapt
+    can: Diagnose target masks, preference training and verifier scope without
+      confusing runtime compute with weight updates.
+    scenes:
+      - post-training
+      - assistant-loss-contract
+      - preference-and-reward
+  - id: evaluate
+    can: Compare both judge ballots, grade pinned cases, and decide whether a
+      report applies after a serving revision changes. State what a data overlap
+      audit actually searched.
+    scenes:
+      - benchmark-evidence
+      - judge-calibration
+      - evaluation
+      - release-report-binding
+  - id: serve
+    can: Compute weight/cache/rounding and block/scheduling effects while enforcing
+      authorized routing.
+    scenes:
+      - compression
+      - quantization-operation
+      - serving
+      - serving-measurements
+      - speculative-prefix
+      - authorized-routing
+  - id: repair
+    can: Replay a saved request to distinguish an outdated checker from a reused
+      reply. Verify the repair at the cutoff and when only the stale flag changes.
+    scenes:
+      - opening
+      - failure-investigation
+      - diagnose
+      - fresh-policy-cache
+sections:
+  - heading: Five lifecycle stages, one key decision
+    status: taught
+    scenes:
+      - opening
+      - release-report-binding
+      - failure-investigation
+      - diagnose
+      - fresh-policy-cache
+  - heading: "Stage 1: pre-training builds the base predictor"
+    status: taught
+    scenes:
+      - curated-data
+      - pretraining
+      - compute-budget
+  - heading: "Stage 2: post-training aligns interface and behavior"
+    status: taught
+    scenes:
+      - post-training
+      - assistant-loss-contract
+      - preference-and-reward
+  - heading: "Data contract 1: raw text to turn messages"
+    status: taught
+    scenes:
+      - assistant-loss-contract
+      - post-training
+  - heading: "Data contract 2: turn messages to preference pairs"
+    status: taught
+    scenes:
+      - preference-and-reward
+      - post-training
+  - heading: "Data contract 3: verifiable rewards and test-time reasoning compute"
+    status: taught
+    scenes:
+      - preference-and-reward
+      - post-training
+  - heading: "Stage 3: evaluation tests capabilities and boundaries"
+    status: taught
+    scenes:
+      - benchmark-evidence
+      - judge-calibration
+      - evaluation
+      - release-report-binding
+  - heading: Standardized benchmarks and contamination audits
+    status: taught
+    scenes:
+      - benchmark-evidence
+  - heading: LLM-as-a-judge and its systematic biases
+    status: taught
+    scenes:
+      - judge-calibration
+  - heading: Golden test suites and deterministic release gating
+    status: taught
+    note: The five graded answers come from the article's scorer audit. The
+      separate 20-case example passes the metric gate at 780 ms. The template
+      comparison changes only the proposed revision.
+    scenes:
+      - evaluation
+      - release-report-binding
+  - heading: "Stage 4: compression shrinks weights for serving"
+    status: taught
+    scenes:
+      - compression
+      - quantization-operation
+  - heading: "The outlier challenge: AWQ and GPTQ"
+    status: taught
+    scenes:
+      - quantization-operation
+  - heading: "Stage 5: deployment optimizes latency and memory"
+    status: taught
+    scenes:
+      - serving
+      - serving-measurements
+      - speculative-prefix
+      - authorized-routing
+  - heading: PagedAttention manages KV-cache memory
+    status: taught
+    scenes:
+      - serving
+      - serving-measurements
+  - heading: Continuous batching prevents pipeline stalls
+    status: taught
+    scenes:
+      - serving
+  - heading: "Speculative decoding: propose tokens, then verify"
+    status: taught
+    scenes:
+      - speculative-prefix
+  - heading: "The runtime gateway: authentication, authorization, and rate limits"
+    status: taught
+    scenes:
+      - authorized-routing
+  - heading: Five symptoms, five investigations
+    status: taught
+    scenes:
+      - failure-investigation
+      - diagnose
+      - fresh-policy-cache
+  - heading: Review questions
+    status: taught
+    scenes:
+      - failure-investigation
+      - diagnose
+      - fresh-policy-cache
+      - quantization-operation
+      - serving-measurements
+      - compute-budget
+  - heading: 1. Does changing the policy from 30 days to 60 days require retraining?
+    status: taught
+    scenes:
+      - opening
+      - diagnose
+      - fresh-policy-cache
+  - heading: 2. Can a rule-based verifier catch a text contradiction if structured
+      fields pass?
+    status: taught
+    scenes:
+      - post-training
+      - preference-and-reward
+  - heading: 3. How does AWQ protect 4-bit models from perplexity collapse?
+    status: taught
+    scenes:
+      - quantization-operation
+  - heading: 4. Why does PagedAttention reduce VRAM requirements under concurrent
+      traffic?
+    status: taught
+    scenes:
+      - serving
+      - serving-measurements
+  - heading: 5. Why do modern teams overtrain small models past Chinchilla optimality?
+    status: taught
+    scenes:
+      - compute-budget
+quiz:
+  - n: 1
+    status: taught
+    scenes:
+      - compute-budget
+  - n: 2
+    status: taught
+    scenes:
+      - compute-budget
+  - n: 3
+    status: taught
+    scenes:
+      - assistant-loss-contract
+  - n: 4
+    status: taught
+    scenes:
+      - preference-and-reward
+  - n: 5
+    status: taught
+    scenes:
+      - judge-calibration
+  - n: 6
+    status: taught
+    scenes:
+      - benchmark-evidence
+  - n: 7
+    status: taught
+    scenes:
+      - quantization-operation
+  - n: 8
+    status: taught
+    scenes:
+      - serving-measurements
+  - n: 9
+    status: taught
+    scenes:
+      - serving
+  - n: 10
+    status: taught
+    note: The live checker and saved reply use the same 75-day facts. The final
+      replay holds age at 90 and changes only the stale flag in the cache key.
+    scenes:
+      - failure-investigation
+      - fresh-policy-cache
+removed: []
+reviews:
+  closed_book:
+    script: 64381fc41b1b34d3
+    taught: 10
+    partial: 0
+    absent: 0
+    reviewer: /root
+    evidence: build/video-delivery-20261106/script-reviews/llm-lifecycle-training-to-deployment.json
+  fact_check:
+    script: 64381fc41b1b34d3
+    open_findings: 0
+    reviewer: /root
+    evidence: build/video-delivery-20261106/script-reviews/llm-lifecycle-training-to-deployment.json

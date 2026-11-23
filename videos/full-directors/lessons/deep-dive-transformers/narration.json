@@ -1,0 +1,294 @@
+[
+  {
+    "id": "c01",
+    "title": "Where do the two conversations first differ?",
+    "sourceChapters": [
+      "c01"
+    ],
+    "beats": [
+      {
+        "id": "c01-compare",
+        "say": "Why do birds sing? In this small example, two clients send the same question to a chatbot. They load the same saved weights, W seven. Read the ends of their rendered conversations. A token ID is the integer that actually reaches the model. At which position do the two inputs first differ?",
+        "hold": 2.8
+      },
+      {
+        "id": "c01-boundary",
+        "say": "Position seven. The approved client sends BEGIN there, then the assistant role. The candidate ends after the user's closing marker at six. Trace the gap with the cursor. The first difference happens before the model runs.",
+        "hold": 1.2
+      },
+      {
+        "id": "c01-restore",
+        "say": "Put the assistant prefix back. Now the two ID sequences match. With the model class and weights fixed, compare the first forward pass on those IDs. Its logits are scores for possible next tokens. If they agree, follow the decoder's choice next.",
+        "hold": 1.2
+      },
+      {
+        "id": "c01-contracts",
+        "say": "Hugging Face Transformers packages model-family definitions, configuration, weight loading, tokenizers, processors and generation conventions. PyTorch supplies the tensor operations. A checkpoint supplies learned values. The configuration tells the loader which modules to build, and the tokenizer turns this conversation into inputs. A successful load establishes only part of that chain.",
+        "hold": 1.3
+      }
+    ]
+  },
+  {
+    "id": "c02",
+    "title": "Which files did main resolve?",
+    "sourceChapters": [
+      "c02"
+    ],
+    "beats": [
+      {
+        "id": "c02-snapshot",
+        "say": "Start with a branch named main. Follow its link to snapshot R one. Two files point into the Hub's content store. The weights point to W seven. The tokenizer points to T three. These short names stand for immutable file and revision identities.",
+        "hold": 0.8
+      },
+      {
+        "id": "c02-switch",
+        "say": "A new snapshot lands. It keeps the weight link and changes the tokenizer link to T four. Move main to R two. Follow the two weight links back. How many physical copies of the weights do these snapshots need?",
+        "hold": 2.5
+      },
+      {
+        "id": "c02-one",
+        "say": "One copy. Both links end on W seven. Recording just the repository and branch loses which tokenizer you used. Pin the model, tokenizer and processor revisions. Save the tokenizer or processor alongside the model when you export it.",
+        "hold": 1
+      },
+      {
+        "id": "c02-load",
+        "say": "A configuration specifies dimensions. Constructing the model makes the modules. A fresh model initializes its parameters and can tie its input embeddings and output head to one parameter. Loading pretrained weights restores the saved tensors by name and shape. Check the actual dtype and any missing or unexpected keys. Safetensors stores tensor data. Repository Python has its own review and revision decision.",
+        "hold": 1
+      },
+      {
+        "id": "c02-fetch",
+        "say": "Will it fit when it runs? Our GPU-backed inference map keeps six gibibytes of weights on the GPU. A two-gibibyte layer lives on the CPU between calls. At its call, a hook fetches that layer to the main GPU. Three gibibytes of cache and one of workspace must fit there too. The device has ten. Would you admit this call?",
+        "hold": 2.7
+      },
+      {
+        "id": "c02-peak",
+        "say": "The peak is twelve gibibytes. The call exceeds the limit by two. Fetching changes where the layer executes, even if the map lists its storage as CPU. In a fitting run, the hook can release the temporary copy after the call. Count simultaneous allocations before admitting the request.",
+        "hold": 1.4
+      }
+    ]
+  },
+  {
+    "id": "c03",
+    "title": "What did the class lookup establish?",
+    "sourceChapters": [
+      "c03"
+    ],
+    "beats": [
+      {
+        "id": "c03-llama",
+        "say": "Keep the Llama shards on the bench. AutoConfig reads model type llama and selects LlamaConfig. AutoModelForCausalLM then chooses the associated causal language model class. Read the route from left to right. The loader can now restore named tensors into that class.",
+        "hold": 1
+      },
+      {
+        "id": "c03-gpt",
+        "say": "Change only the model type to GPT two. Follow the new route. Both names in the metadata lookup are valid. Are these still the right modules for our shards?",
+        "hold": 2.5
+      },
+      {
+        "id": "c03-wrong",
+        "say": "The selected head belongs to GPT two. The supplied tensors belong to Llama. Look at the names on either side of the join. Validate the family, keys and dimensions, then compare a known forward result. Even a shape match by itself cannot establish semantic compatibility.",
+        "hold": 1.1
+      },
+      {
+        "id": "c03-unknown",
+        "say": "Try an unregistered family. The built-in lookup has no route. A new family needs compatible config and model code, a task mapping and loading tests. At the source revision in the article, configuration_auto resolves the config, modeling_auto finds the task head, and the family module implements it. Check the model license as well as the library license before deployment.",
+        "hold": 1.2
+      }
+    ]
+  },
+  {
+    "id": "c04",
+    "title": "Who inserted the second opening marker?",
+    "sourceChapters": [
+      "c04"
+    ],
+    "beats": [
+      {
+        "id": "c04-template",
+        "say": "Return to our bird question. In this teaching vocabulary, BEGIN and END delimit turns. The assistant marker opens the continuation the checkpoint was trained to produce. First render the template, then tokenize it. Keep the intermediate text so you can compare it with the IDs.",
+        "hold": 1
+      },
+      {
+        "id": "c04-duplicate",
+        "say": "A second client starts with that exact rendered text. Its tokenizer adds a beginning token of its own. Scan the IDs from the left. The strings start with the same symbol. Where is the first mismatch now?",
+        "hold": 2.7
+      },
+      {
+        "id": "c04-remove",
+        "say": "Position one. The reference has user there, while the candidate has a second BEGIN. Disable the second insertion. The assistant prefix at the other end stays intact. You can also ask the chat template to tokenize in the same call. Use the template saved for that checkpoint.",
+        "hold": 1
+      },
+      {
+        "id": "c04-inputs",
+        "say": "A tokenizer also owns the vocabulary, truncation and padding choices. A multimodal processor pairs placeholders with preprocessed pixels or audio features. Suppose the same bird image and the same placeholder reach two image processors. Both return the same shape, but they subtract different means from this white pixel.",
+        "hold": 1.1
+      },
+      {
+        "id": "c04-pixel",
+        "say": "With a unit-scaled pixel of one, subtracting one half produces one half. Subtracting zero produces one. The first divergent value is already in the pixel tensor. Compare normalization, resize, shape, dtype and placeholder placement before running the model. For audio, also check the sample rate expected by the extractor.",
+        "hold": 1.4
+      }
+    ]
+  },
+  {
+    "id": "c05",
+    "title": "What sits under the last-column read?",
+    "sourceChapters": [
+      "c05"
+    ],
+    "beats": [
+      {
+        "id": "c05-right",
+        "say": "Batch “Birds sing” with “The sun shines today.” Each word occupies one position in this example. Right padding fills the short row. Each position produces its own next-token scores. This decoder reads the last column for both rows. Which token supplies the short row’s scores?",
+        "hold": 2.6
+      },
+      {
+        "id": "c05-pad",
+        "say": "It reads a pad. Follow the read window. The zero mask keeps that pad out of the attention context, but the read still lands here. In our toy forward pass, the pad’s own embedding contributes to its output. “Again” scores two and “softly” scores one and a half. Greedy selection takes “again.” The longer prompt gives “too.” This time, suppose we put the pads on the left. Predict which word the same window will read.",
+        "hold": 2.6
+      },
+      {
+        "id": "c05-move",
+        "say": "Keep the read fixed. Slide the short prompt to the right and fill its two leading positions with pads. Carry each mask value with its token. Look down the column. The long row still ends in “today.”",
+        "hold": 1.1
+      },
+      {
+        "id": "c05-sing",
+        "say": "It reads “sing.” In this same model, “softly” now scores three and a half and wins. The longer prompt still continues with “too.” The result depends on a loop that reads the final position. A decoder that gathers a different position has a different layout contract.",
+        "hold": 1.1
+      },
+      {
+        "id": "c05-eos",
+        "say": "For training, start with “Birds sing.” Add the end marker, then a trailing pad. Both have ID two. Which label should the loss ignore? Compare the mask beneath those two positions. Only the trailing pad gets minus one hundred. The word “sing” still predicts the end marker. The prediction from the end marker into padding contributes no loss. Masking by ID would erase the genuine end marker too.",
+        "hold": 1.4
+      }
+    ]
+  },
+  {
+    "id": "c06",
+    "title": "Which prediction loses its target?",
+    "sourceChapters": [
+      "c06"
+    ],
+    "beats": [
+      {
+        "id": "c06-shift",
+        "say": "A causal language model predicts the next token. Supply unshifted labels to this head. The model pairs each logit position with the label one place to its right. Our four input words give three targets. The probability assigned to each correct next word appears on its link.",
+        "hold": 1
+      },
+      {
+        "id": "c06-ask",
+        "say": "Each contribution to loss is the negative natural log of its target probability. Average the three contributions. Now suppose the training example should ignore the third label, the word “at.” Which prediction loses its target, and can the model still see “at” when it predicts “dawn”?",
+        "hold": 2.6
+      },
+      {
+        "id": "c06-ignore",
+        "say": "Set the label for “at” to minus one hundred. The prediction at position one drops out. Follow the remaining links. Only the probabilities point seven and point six enter the new mean, about point four three four. The input word “at” still feeds the prediction of “dawn.” Its attention mask stayed one. Shifting labels again in the caller would change the task.",
+        "hold": 1.2
+      },
+      {
+        "id": "c06-output",
+        "say": "Read the named logits field. In a dictionary-style model output, optional fields whose value is None disappear from the tuple view. Without loss, logits occupy slot zero in this example. Add labels and a loss appears first. Slot zero now holds a scalar. The logits field still refers to the same kind of tensor.",
+        "hold": 1.2
+      },
+      {
+        "id": "c06-cpu",
+        "say": "The article tests this on a two-layer Llama with random weights on CPU. Five fixed IDs and a vocabulary of thirty-two give logits of shape one by five by thirty-two. Its masked cross-entropy matches the explicit shift. Gradients reach the tied embedding weight, and local reload reproduces the logits. Changing a future token leaves earlier causal logits alone. These are numerical checks. Language quality needs held-out examples.",
+        "hold": 1.3
+      }
+    ]
+  },
+  {
+    "id": "c07",
+    "title": "How much cache is live, and who owns it?",
+    "sourceChapters": [
+      "c07"
+    ],
+    "beats": [
+      {
+        "id": "c07-bytes",
+        "say": "A decoder saves keys and values so the next step can read the earlier context. For one request in our full-attention example, each layer stores four key heads and four value heads, each sixty-four numbers wide. Each number takes two bytes. Sixteen layers make sixteen kibibytes per token. The sixteen query heads do a different job. Count only stored key and value heads here.",
+        "hold": 1
+      },
+      {
+        "id": "c07-live",
+        "say": "Start with five hundred twelve live positions. The dynamic payload is eight mebibytes. Reserve four thousand ninety-six positions in a static cache for the same prefix. How much additional payload is allocated for the empty slots?",
+        "hold": 2.6
+      },
+      {
+        "id": "c07-reserve",
+        "say": "Fifty-six mebibytes are unused. Eight live and fifty-six unused make sixty-four allocated. Fill those slots. At the limit, live and allocated payloads coincide. We counted cache tensors only. Weights, activations, temporary buffers and allocator overhead need their own budget.",
+        "hold": 1.1
+      },
+      {
+        "id": "c07-hybrid",
+        "say": "For a hybrid decoder, sum the retained lengths across layers. Two layers keep one hundred tokens each. Two windowed layers keep twenty each. Each of those layer positions needs sixty-four bytes here. That gives fifteen thousand three hundred sixty bytes for one sequence. Three independent copies triple the payload. Extra beams can increase that active batch factor.",
+        "hold": 1.1
+      },
+      {
+        "id": "c07-fork",
+        "say": "Two requests start from the same three IDs. Before either appends, make a separate copy for the second request. The first request now appends X to its mutable cache. The other request needs the original prefix followed by Y. Which cache may it extend?",
+        "hold": 2.6
+      },
+      {
+        "id": "c07-copy",
+        "say": "Extend the saved three-position copy. Its new tail is Y. Appending to the mutated cache would leave X between the prefix and Y. A cache belongs to particular prefix IDs, model weights, positions and attention semantics. Verify reuse by comparing cached continuation logits with a full forward on the intended sequence.",
+        "hold": 1.4
+      }
+    ]
+  },
+  {
+    "id": "c08",
+    "title": "Which token still needs a forward pass?",
+    "sourceChapters": [
+      "c08"
+    ],
+    "beats": [
+      {
+        "id": "c08-prefill",
+        "say": "Forward computes model outputs for supplied inputs. Generate wraps repeated forwards with selection, cache updates and stopping decisions. Follow a constructed greedy request. Each lower cell names the token whose keys and values it holds. Prefill the five words “The little birds sing softly.” This writes five cache positions. The highest score selects “near” for the reply.",
+        "hold": 1
+      },
+      {
+        "id": "c08-more",
+        "say": "Forward “near” and select “home.” Now forward “home” and select a period. Stop after that third selection. Compare the ends of the two strips. If we resume without changing the request, which token still needs a forward pass?",
+        "hold": 2.8
+      },
+      {
+        "id": "c08-pending",
+        "say": "The period is pending. The sequence has eight positions and the cache has seven. Send just the period at zero-based position seven, with the seven saved positions and a mask covering all eight. Forward the period once. Now both lengths are eight. The new logits are available, and we have not selected a ninth token.",
+        "hold": 1.3
+      },
+      {
+        "id": "c08-policy",
+        "say": "One more replay. This decoder-only prompt has three tokens, “Birds sing softly.” A saved generation configuration asks for three beams and sampling. The caller switches off sampling and asks for four new tokens. With no early stop, which selection mode and returned width follow?",
+        "hold": 2.5
+      },
+      {
+        "id": "c08-beams",
+        "say": "Three beams still means beam search here. The result includes the three prompt positions and four new ones, seven in all. Ordinary greedy selection also requires one beam. If the input IDs and full-forward logits agree across a release but selection differs, restore the approved generation settings. Record transforms, seed and stopping rules too.",
+        "hold": 1.1
+      },
+      {
+        "id": "c08-quality",
+        "say": "Consider a release with matching fixed-input logits inside the declared tolerance. The application needs eighty-five acceptable answers out of a hundred. It gets eighty-one, and nobody has timed the target workload. Can you promote it on those results?",
+        "hold": 2.5
+      },
+      {
+        "id": "c08-gates",
+        "say": "The numerical replay passes, the quality gate fails, and latency is pending. A plain pipeline can preprocess inputs, run the model and format outputs. To measure serving performance, run the real admission, batching and cache allocation policy at the target load.",
+        "hold": 1.1
+      },
+      {
+        "id": "c08-practice",
+        "say": "Try a fresh handoff. Seven prompt tokens and four greedy selections. Ten positions are cached and the last selected word, “mate,” is pending. This time somebody edits the third prompt token after saving the cache. The new question starts with “birds” where the old one started with “Why.” Can you forward only “mate” from that saved state?",
+        "hold": 2.8
+      },
+      {
+        "id": "c08-rebuild",
+        "say": "Rebuild from the changed prefix, or start from a verified compatible prefix before the edit. The cache still encodes the old question. Forwarding only “mate” would carry the wrong history into the next scores. Replay all eleven supplied tokens on the edited request. Now “mate” is in the rebuilt cache. Record the snapshot, class, preprocessing, dtype, cache and selection policy so someone else can repeat the comparison. The next lesson follows SGLang as it schedules many such requests.",
+        "hold": 1.5
+      }
+    ]
+  }
+]

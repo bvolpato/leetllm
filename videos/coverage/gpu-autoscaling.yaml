@@ -1,0 +1,379 @@
+version: 1
+lesson: gpu-autoscaling
+promise: Choose how many matching GPU workers to warm before a burst. Trace a request through its last legal start, verify the workload and memory assumptions behind a slot, and distinguish a capacity order from a worker that can admit traffic.
+framing: []
+objectives:
+  - id: intro
+    can: Identify the last request one warm worker can start and explain why R21 misses its turn.
+    scenes:
+      - intro
+  - id: token-clocks
+    can: Measure the initial wait, each later gap and mean pacing on one admitted request.
+    scenes:
+      - token-clocks
+  - id: event-units
+    can: Distinguish one observed event gap from mean pacing across four delivered tokens.
+    scenes:
+      - event-units
+  - id: two-loops
+    can: Trace current admission separately from future capacity
+    scenes:
+      - two-loops
+  - id: readiness
+    can: Apply loaded, warm, healthy and local-capacity admission predicates
+    scenes:
+      - readiness
+  - id: probe-contract
+    can: Keep full capacity separate from failed initialization
+    scenes:
+      - probe-contract
+  - id: static-refill
+    can: Reuse a vacated decode slot with the same four requests
+    scenes:
+      - static-refill
+  - id: logical-pages
+    can: Follow logical token order through scattered physical blocks
+    scenes:
+      - logical-pages
+  - id: allocation-slack
+    can: Compute reserved slots from each current sequence
+    scenes:
+      - allocation-slack
+  - id: prefix-state
+    can: Keep cache residency, active references and exact reuse distinct
+    scenes:
+      - prefix-state
+  - id: engine-contract
+    can: Compare one request trace under an installed engine contract
+    scenes:
+      - engine-contract
+  - id: request-benchmark
+    can: Freeze arrivals, lengths and quality before measuring capacity
+    scenes:
+      - request-benchmark
+  - id: goodput-curve
+    can: Choose the highest passing tested offered rate from its attainment and qualified completions per second.
+    scenes:
+      - goodput-curve
+  - id: workload
+    can: Locate the first of five histories that exceeds a fixed cache pool after context length increases.
+    scenes:
+      - workload
+  - id: weight-state
+    can: Build weights, growing KV and overhead separately
+    scenes:
+      - weight-state
+  - id: hybrid-budget
+    can: Count full-attention and recurrent layers with their real shapes
+    scenes:
+      - hybrid-budget
+  - id: resident-v-active
+    can: Use resident bytes for fit and active traffic for decode
+    scenes:
+      - resident-v-active
+  - id: mig-slices
+    can: Check each hardware slice before counting independent replicas
+    scenes:
+      - mig-slices
+  - id: bandwidth-ceiling
+    can: Derive a batch-one weight-traffic ceiling
+    scenes:
+      - bandwidth-ceiling
+  - id: parallel-bytes
+    can: Count where tensor and pipeline splits communicate
+    scenes:
+      - parallel-bytes
+  - id: metric-units
+    can: Distinguish waiting work from useful GPU activity
+    scenes:
+      - metric-units
+  - id: controller
+    can: Set an absolute replica target and decide whether an identical second poll needs another order.
+    scenes:
+      - controller
+  - id: controller-boundaries
+    can: Use the elapsed quiet period and freshness of its samples to decide when one worker can drain.
+    scenes:
+      - controller-boundaries
+  - id: keda-phases
+    can: Separate activation, HPA scaling and node supply
+    scenes:
+      - keda-phases
+  - id: coldpath
+    can: Compare the same serial startup against both burst arrival and the last legal start at two prewarm times.
+    scenes:
+      - coldpath
+  - id: startup-mitigation
+    can: Keep each startup mitigation on its measured critical path
+    scenes:
+      - startup-mitigation
+  - id: burst
+    can: Locate R21 on the three-worker schedule and distinguish eventual admission from an immediate start.
+    scenes:
+      - burst
+  - id: burst-rate
+    can: Convert slots to rate under the declared service time
+    scenes:
+      - burst-rate
+  - id: drain
+    can: Close local admission while preserving each active owner
+    scenes:
+      - drain
+  - id: spot-deadline
+    can: Respect the earliest shutdown budget and streamed-state boundary
+    scenes:
+      - spot-deadline
+  - id: operating-model
+    can: Price warm capacity and operational ownership together
+    scenes:
+      - operating-model
+  - id: failure-diagnosis
+    can: Choose the intervention from the first failed boundary
+    scenes:
+      - failure-diagnosis
+  - id: split-ownership
+    can: Transfer compatible KV between phase-specific pools
+    scenes:
+      - split-ownership
+  - id: speculative-contract
+    can: Count the whole draft cycle under the target generation rule
+    scenes:
+      - speculative-contract
+  - id: regional-recovery
+    can: Verify a compatible ready destination before routing failover
+    scenes:
+      - regional-recovery
+  - id: adapter-authority
+    can: Select an immutable adapter from authenticated membership
+    scenes:
+      - adapter-authority
+  - id: synthesis
+    can: Locate R100 on the last legal start and justify five as the minimum warm pool for the morning burst.
+    scenes:
+      - synthesis
+  - id: fresh-waves
+    can: Identify the twelve requests that lose their start and resize the warm pool when the deadline moves.
+    scenes:
+      - fresh-waves
+sections:
+  - heading: Why GPU serving isn't web serving
+    status: taught
+    scenes:
+      - intro
+      - two-loops
+      - readiness
+  - heading: The GPU serving stack
+    status: taught
+    scenes:
+      - two-loops
+      - keda-phases
+      - split-ownership
+  - heading: Scheduled, started, and ready are different states
+    status: taught
+    scenes:
+      - readiness
+      - probe-contract
+      - drain
+  - heading: Serving frameworks
+    status: taught
+    scenes:
+      - static-refill
+      - logical-pages
+      - engine-contract
+  - heading: Static batches wait for the longest reply
+    status: taught
+    scenes:
+      - static-refill
+  - heading: vLLM and PagedAttention
+    status: taught
+    scenes:
+      - logical-pages
+      - allocation-slack
+      - prefix-state
+  - heading: Compare engines against one request shape
+    status: taught
+    scenes:
+      - engine-contract
+      - request-benchmark
+      - goodput-curve
+  - heading: Benchmark the path you'll operate
+    status: taught
+    scenes:
+      - request-benchmark
+      - goodput-curve
+      - token-clocks
+      - event-units
+  - heading: GPU infrastructure
+    status: taught
+    scenes:
+      - weight-state
+      - hybrid-budget
+      - mig-slices
+      - parallel-bytes
+  - heading: Sizing and selection
+    status: taught
+    scenes:
+      - weight-state
+      - hybrid-budget
+      - resident-v-active
+      - mig-slices
+  - heading: Find the decode ceiling
+    status: taught
+    scenes:
+      - bandwidth-ceiling
+      - resident-v-active
+  - heading: Tensor parallelism
+    status: taught
+    scenes:
+      - parallel-bytes
+  - heading: Autoscaling strategies
+    note: The article controller polls the same 30 waiting and 20 running requests twice. Four replicas are ready and the second poll already includes the six starting replicas.
+    status: taught
+    scenes:
+      - controller
+      - controller-boundaries
+      - keda-phases
+      - metric-units
+  - heading: Key metrics
+    status: taught
+    scenes:
+      - token-clocks
+      - event-units
+      - metric-units
+  - heading: A burst needs capacity before its deadline
+    note: The article queue admits through 30 seconds inclusive. At ten seconds per request and five slots per replica, a fourth start wave is legal even though those requests finish at 40 seconds.
+    status: taught
+    scenes:
+      - intro
+      - burst
+      - burst-rate
+      - synthesis
+      - fresh-waves
+  - heading: Handling cold starts
+    status: taught
+    scenes:
+      - coldpath
+      - startup-mitigation
+      - burst
+  - heading: Cost optimization
+    status: taught
+    scenes:
+      - operating-model
+      - spot-deadline
+  - heading: Spot instances and fault tolerance
+    status: taught
+    scenes:
+      - drain
+      - spot-deadline
+      - regional-recovery
+  - heading: Scale-down cooldown & thrashing
+    status: taught
+    scenes:
+      - controller-boundaries
+      - keda-phases
+      - drain
+      - operating-model
+  - heading: Deployment options
+    status: taught
+    scenes:
+      - operating-model
+  - heading: Diagnose a stalled spike
+    status: taught
+    scenes:
+      - failure-diagnosis
+      - prefix-state
+  - heading: When the baseline isn't enough
+    status: taught
+    scenes:
+      - split-ownership
+      - speculative-contract
+      - regional-recovery
+      - adapter-authority
+  - heading: Prefill-decode disaggregation
+    status: taught
+    scenes:
+      - split-ownership
+  - heading: Speculative decoding
+    status: taught
+    scenes:
+      - speculative-contract
+  - heading: Multi-region failover
+    status: taught
+    scenes:
+      - regional-recovery
+  - heading: Multi-tenancy with LoRA
+    status: taught
+    scenes:
+      - adapter-authority
+      - prefix-state
+  - heading: Choose the next capacity change
+    status: taught
+    scenes:
+      - synthesis
+      - fresh-waves
+      - failure-diagnosis
+quiz:
+  - n: 1
+    status: taught
+    scenes:
+      - token-clocks
+      - event-units
+  - n: 2
+    status: taught
+    scenes:
+      - readiness
+      - probe-contract
+      - drain
+  - n: 3
+    status: taught
+    scenes:
+      - logical-pages
+      - allocation-slack
+  - n: 4
+    status: taught
+    scenes:
+      - weight-state
+      - hybrid-budget
+      - workload
+  - n: 5
+    status: taught
+    scenes:
+      - controller
+      - controller-boundaries
+  - n: 6
+    status: taught
+    scenes:
+      - controller-boundaries
+      - drain
+  - n: 7
+    status: taught
+    scenes:
+      - intro
+      - burst
+      - burst-rate
+      - synthesis
+      - fresh-waves
+  - n: 8
+    status: taught
+    scenes:
+      - spot-deadline
+      - drain
+  - n: 9
+    status: taught
+    scenes:
+      - adapter-authority
+  - n: 10
+    status: taught
+    scenes:
+      - goodput-curve
+      - request-benchmark
+removed: []
+reviews:
+  closed_book:
+    taught: 10
+    partial: 0
+    absent: 0
+    script: 693125b963d4de63
+  fact_check:
+    open_findings: 0
+    script: 693125b963d4de63

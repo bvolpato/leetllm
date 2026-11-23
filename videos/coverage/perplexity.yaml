@@ -1,0 +1,187 @@
+version: 1
+lesson: perplexity
+promise: Decide which model spent less surprise on the same held-out text. Use the scored targets, context and units to justify the comparison, and use task checks to judge the returned answer.
+framing:
+  - covered-word
+objectives:
+  - id: observed-loss
+    can: Trace the observed token’s probability into its loss, then calculate mean NLL and the equivalent choice count.
+    scenes:
+      - intro
+      - surprise
+      - mean
+      - loss-scale
+      - fresh-case
+  - id: numeric-objective
+    can: Diagnose numerical failure, masked conditioning and missing target-likelihood access.
+    scenes:
+      - stable
+      - objective-boundary
+      - report
+  - id: bookkeeping
+    can: Count valid targets after shifting, combine loss totals across windows, and choose a common byte denominator when tokenizers differ.
+    scenes:
+      - aggregation
+      - fresh-case
+      - tokenizers
+      - normalization
+      - windows
+      - shift-count
+  - id: evidence
+    can: Reject changed protocols or leaked evidence and apply independent task requirements.
+    scenes:
+      - protocol
+      - contamination
+      - behavior
+      - report
+      - export-job
+sections:
+  - heading: From surprise to a metric
+    status: taught
+    note: The held-out words receive the article’s three observed probabilities, 0.50, 0.10 and 0.80.
+    scenes:
+      - intro
+      - surprise
+  - heading: Average surprise becomes perplexity
+    status: taught
+    scenes:
+      - mean
+      - loss-scale
+  - heading: Compute from logits without numerical failure
+    status: taught
+    scenes:
+      - stable
+      - report
+  - heading: The comparison contract
+    status: taught
+    scenes:
+      - protocol
+      - objective-boundary
+  - heading: Aggregate loss once
+    status: taught
+    scenes:
+      - aggregation
+      - shift-count
+  - heading: Different tokenizers need common units
+    status: taught
+    note: The four-token cat example changes units for one scored sequence. The final comparison uses the article’s four-piece and fourteen-character segmentations of “Rain falls now” and its 8.4 and 9.0 nat totals.
+    scenes:
+      - fresh-case
+      - tokenizers
+  - heading: Check what survives normalization
+    status: taught
+    scenes:
+      - normalization
+  - heading: Long documents need a scoring policy
+    status: taught
+    scenes:
+      - windows
+      - protocol
+  - heading: Count targets after shifting labels
+    status: taught
+    scenes:
+      - shift-count
+  - heading: Connect text fit to the product's requirements
+    status: taught
+    scenes:
+      - behavior
+      - report
+      - export-job
+  - heading: Keep evaluation data clean
+    status: taught
+    scenes:
+      - contamination
+  - heading: Build an evaluation report
+    status: taught
+    scenes:
+      - report
+  - heading: Perplexity rules worth keeping
+    status: taught
+    scenes:
+      - tokenizers
+      - behavior
+      - export-job
+  - heading: Mastery check
+    status: article-only
+    reason: exercise
+    note: The page provides self-checks and diagnostic practice after the film teaches the corresponding
+      mechanisms.
+  - heading: Key concepts
+    status: taught
+    scenes:
+      - behavior
+      - report
+      - export-job
+  - heading: Evaluation rubric
+    status: article-only
+    reason: exercise
+    note: The page provides self-checks and diagnostic practice after the film teaches the corresponding
+      mechanisms.
+  - heading: Follow-up questions
+    status: article-only
+    reason: exercise
+    note: The page provides self-checks and diagnostic practice after the film teaches the corresponding
+      mechanisms.
+  - heading: Common pitfalls
+    status: taught
+    scenes:
+      - protocol
+      - aggregation
+      - behavior
+      - contamination
+      - report
+quiz:
+  - n: 1
+    status: taught
+    scenes:
+      - mean
+      - loss-scale
+  - n: 2
+    status: taught
+    scenes:
+      - stable
+  - n: 3
+    status: taught
+    scenes:
+      - aggregation
+      - shift-count
+  - n: 4
+    status: taught
+    scenes:
+      - protocol
+      - normalization
+  - n: 5
+    status: taught
+    scenes:
+      - tokenizers
+  - n: 6
+    status: taught
+    scenes:
+      - windows
+  - n: 7
+    status: taught
+    scenes:
+      - behavior
+      - export-job
+  - n: 8
+    status: taught
+    scenes:
+      - shift-count
+  - n: 9
+    status: taught
+    scenes:
+      - contamination
+  - n: 10
+    status: taught
+    scenes:
+      - objective-boundary
+removed: []
+reviews:
+  closed_book:
+    script: e21c4540436c77c5
+    taught: 10
+    partial: 0
+    absent: 0
+  fact_check:
+    script: e21c4540436c77c5
+    open_findings: 0

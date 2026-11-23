@@ -1,0 +1,696 @@
+version: 1
+id: gpt-to-modern-llms
+title: From GPT to Modern LLMs
+opening: lesson
+source: preparation/gpt-to-modern-llms/content.md
+voice: af_heart
+rate: "+12%"
+sources:
+  - title: Attention Is All You Need
+    url: https://arxiv.org/abs/1706.03762
+  - title: Language Models are Few-Shot Learners
+    url: https://arxiv.org/abs/2005.14165
+  - title: Training Compute-Optimal Large Language Models
+    url: https://arxiv.org/abs/2203.15556
+  - title: "GQA: Training Generalized Multi-Query Transformer Models from Multi-Head Checkpoints"
+    url: https://arxiv.org/abs/2305.13245
+  - title: "Training Language Models to Follow Instructions with Human Feedback (InstructGPT)"
+    url: https://arxiv.org/abs/2203.02155
+  - title: "Root Mean Square Layer Normalization"
+    url: https://arxiv.org/abs/1910.07467
+  - title: "GLU Variants Improve Transformer"
+    url: https://arxiv.org/abs/2002.05202
+  - title: "RoFormer: Enhanced Transformer with Rotary Position Embedding"
+    url: https://arxiv.org/abs/2104.09864
+  - title: "Mixtral of Experts"
+    url: https://arxiv.org/abs/2401.04088
+  - title: "Lost in the Middle: How Language Models Use Long Contexts"
+    url: https://aclanthology.org/2024.tacl-1.9/
+scenes:
+  - id: opening
+    title: "What happens after Docs?"
+    visual: "A review note sits beside the model’s live reply. One more token moves the cursor past a period. The allowed labels stay in view for the tracker’s decision."
+    beats:
+      - say: >-
+          The model has written Docs for this stale guide. Give it one more token. It adds a period. Can the tracker still use the reply?
+        hold: 2.5
+        caption_starts: ["Give it one more token", "It adds a period", "Can the tracker still use the reply"]
+        motion_check:
+          region: [1345, 417, 175, 186]
+          minimumChangedFraction: 0.002
+        visual_cues:
+          - id: print-period
+            phrase: "It adds a period"
+            targets: [model-reply]
+            color: yellow
+      - say: >-
+          The tracker rejects it. Look at Docs in the list below. The tracker compares the whole reply, right down to that extra character. Constrained decoding can limit the completed reply to one of those three labels.
+        hold: 1.1
+        visual_cues:
+          - id: exact-match
+            phrase: "The tracker rejects it"
+            targets: [model-reply]
+            color: pink
+            caption_boundary: true
+          - id: allowed-labels
+            phrase: "Docs in the list below"
+            targets: [tracker-label]
+            color: blue
+      - say: >-
+          Each piece came from a separate prediction. To see why the model picked Docs first, look at what it could read.
+        hold: 0.8
+        visual_cues:
+          - id: whole-reply
+            phrase: "Each piece came from a separate prediction"
+            targets: [model-reply]
+            color: yellow
+  - id: task-interfaces
+    title: "What can the position at “guide” read?"
+    visual: "Both masks use the same four token positions. The decoder advances through the prefix and points from guide to the following training target."
+    beats:
+      - say: >-
+          Treat each piece across the top as one token in our toy tokenizer. The start marker, Stale, guide, and the label prompt each get a vector. On the left, an encoder can read both sides of guide. That’s useful for classifying a complete note, extracting a span, or building embeddings with suitable training.
+        hold: 0.8
+        visual_cues:
+          - id: readable-cell-0-2-3-b1-1
+            phrase: "read both sides of guide"
+            targets: [readable-cell-0-2-3]
+            color: blue
+      - say: >-
+          On the right, follow the yellow row down to guide. It can read itself and the two positions before it. The cross under the label prompt hides that later position. This left-to-right visibility rule is the causal mask.
+        hold: 0.9
+        motion_check:
+          region: [900, 420, 710, 400]
+          minimumChangedFraction: 0.002
+        visual_cues:
+          - id: read-to-guide
+            phrase: "follow the yellow row down to guide"
+            targets: [decoder-row-label]
+            color: blue
+          - id: readable-cell-1-2-3-b2-1
+            phrase: "cross under the label prompt"
+            targets: [readable-cell-1-2-3]
+            color: pink
+      - say: >-
+          The very token hidden there is the next training target. At guide, predict the label prompt. At the label prompt, predict the first piece of the reply. With a known training sequence, many positions can practice their own next prediction together. When generating, the model has to select the next token before it can consume it.
+        hold: 0.9
+        visual_cues:
+          - id: guide-next-target-b3-1
+            phrase: "At guide, predict the label prompt"
+            targets: [decoder-row-label]
+            color: yellow
+  - id: context-transform
+    title: "What reaches the last position?"
+    visual: "A row for each prefix token pairs a value with its attention share. Three spoken additions build the last position’s vector on fixed axes."
+    beats:
+      - say: >-
+          Look at the last position as it reads this note. Each earlier piece, and the last position itself, offers a value vector. We’ve supplied the attention shares for this example. They add to one. The start marker gets zero. The other three values will move the dot.
+        hold: 0.8
+        visual_cues:
+          - id: value-rows
+            phrase: "value vector"
+            targets: [attention-values-table]
+            color: blue
+      - say: >-
+          Guide pulls the dot up by seven tenths. Stale nudges it right by one tenth. The label prompt adds one tenth in each direction. Trace that last short diagonal. Where did it leave us?
+        hold: 1.6
+        motion_check:
+          region: [980, 380, 660, 480]
+          minimumChangedFraction: 0.002
+        visual_cues:
+          - id: add-guide
+            phrase: "Guide pulls the dot up by seven tenths"
+            targets: [context-vector-arrow]
+            color: yellow
+          - id: add-stale
+            phrase: "Stale nudges it right by one tenth"
+            targets: [context-vector-arrow]
+            color: yellow
+          - id: add-label
+            phrase: "The label prompt adds one tenth in each direction"
+            targets: [context-vector-arrow]
+            color: yellow
+      - say: >-
+          Two tenths across and eight tenths up. Those two coordinates describe the mixture this position read. A real decoder combines attention and feed-forward updates through many layers. We’ll take this little vector as our final state and ask which reply token it favors.
+        hold: 0.9
+        visual_cues:
+          - id: use-sum
+            phrase: "Two tenths across and eight tenths up"
+            targets: [context-vector-result]
+            color: green
+            caption_boundary: true
+  - id: token-path
+    title: "Which output row wins?"
+    visual: "The same contextual vector meets four learned output rows. Products form logits, a shared probability scale appears, and greedy selection fills the empty slot."
+    beats:
+      - say: >-
+          We’ll use four possible outputs in this toy model. Each has a row of learned weights. Look at Docs. Half of the first coordinate gives one tenth. The second coordinate contributes eight tenths. Add those products to get a score of point nine. That score before normalization is called a logit. Apply the same calculation to the other rows.
+        hold: 1
+        motion_check:
+          region: [920, 500, 185, 370]
+          minimumChangedFraction: 0.002
+        visual_cues:
+          - id: add-products
+            phrase: "Add those products to get a score of point nine"
+            targets: [projection-readout]
+            color: yellow
+            caption_boundary: true
+      - say: >-
+          Softmax turns those scores into probabilities. It exponentiates each score and divides by the sum of all four exponentials. The bars use the same scale. Sampling could select any of these tokens. With greedy decoding, which one gets written?
+        hold: 2.2
+        visual_cues:
+          - id: normalize-scores
+            phrase: "turns those scores into probabilities"
+            targets: [probability-rows]
+            color: blue
+      - say: >-
+          Greedy decoding writes Docs. Its bar is the longest, even though its probability is less than half. The model has picked one token. Whether the tracker receives a bare label also depends on where generation stops.
+        hold: 1
+        visual_cues:
+          - id: pick-docs
+            phrase: "Greedy decoding writes Docs"
+            targets: [projection-readout]
+            color: green
+            caption_boundary: true
+  - id: prompting-and-training
+    title: "Where did the prediction change?"
+    visual: "A demonstration adds input with fixed model weights. In a separate training example gradient steps move the output rows on a fixed probability scale."
+    beats:
+      - say: >-
+          Suppose we show the assistant a solved note before asking about the old button. That example takes up space in the prompt. It gives attention another place to read. The weights stay fixed on this pass. Changing the examples can change the answer.
+        hold: 0.9
+        visual_cues:
+          - id: fixed-model
+            phrase: "weights stay fixed"
+            targets: [fixed-model-weights]
+            color: green
+      - say: >-
+          Now train on the original note with Docs as the target. Follow the updates as they increase its score, give it more probability, and lower the loss. Each gradient step changes the output weights. All four probabilities adjust because they share the same denominator.
+        hold: 1
+        motion_check:
+          region: [800, 390, 880, 460]
+          minimumChangedFraction: 0.002
+        visual_cues:
+          - id: update-rows
+            phrase: "the updates as they increase its score, give it more probability, and lower the loss"
+            targets: [trained-label-weights]
+            color: blue
+      - say: >-
+          These twelve steps made one training label easier to predict. A held-out note can still go wrong. Large-scale pretraining uses next-token targets from varied text. Instructions and human preferences can shape the weights further. First, let’s go back to the original weights and let our assistant write a second token.
+        hold: 0.8
+        visual_cues:
+          - id: training-loss
+            phrase: "one training label"
+            targets: [learned-probabilities]
+            color: green
+  - id: prefill-decode
+    title: "When does a written token enter the cache?"
+    visual: "Text and cache slots stay aligned at fixed positions. Docs appears over an empty slot. Its next forward pass fills that slot, and a period can then appear over another empty slot."
+    beats:
+      - say: >-
+          Start again with the original weights. Four known prompt pieces go through the model together in this example. Their IDs select learned embeddings. In each decoder layer, residual additions carry the attention and feed-forward updates forward. Save the four keys and values for this layer. That first pass over the prompt is called prefill.
+        hold: 1
+        visual_cues:
+          - id: prefill-store
+            phrase: "Save the four keys and values"
+            targets: [cache-count]
+            color: green
+      - say: >-
+          The last prompt row selects Docs. Look straight below the new token. Its cache slot is still empty. If the output budget is one token, the tracker gets the bare label. Give this run room for another token. Which position still needs a forward pass?
+        hold: 2.4
+        visual_cues:
+          - id: waiting-slot
+            phrase: "Its cache slot is still empty"
+            targets: [docs-slot]
+            color: yellow
+      - say: >-
+          Process Docs. It supplies a new key and value, and its query can read all five positions. For this second toy state, we’ve supplied a different feature vector. The output weights are the same. Compare the two leading scores. This time greedy decoding picks the period. Now read the whole reply on the top line.
+        hold: 1.3
+        motion_check:
+          region: [1220, 354, 441, 370]
+          minimumChangedFraction: 0.002
+        visual_cues:
+          - id: docs-read
+            phrase: "Process Docs"
+            targets: [docs-slot]
+            color: green
+          - id: supply-vector
+            phrase: "we’ve supplied a different feature vector"
+            targets: [last-row]
+            color: blue
+          - id: second-pick
+            phrase: "This time greedy decoding picks the period"
+            targets: [last-row]
+            color: yellow
+            caption_boundary: true
+      - say: >-
+          The period is waiting for its own pass, just as Docs was. The earlier keys and values can be reused. Each new position still needs projections, attention, and feed-forward work. Long prefill can reuse a projection’s weights across many rows. Batch-one decode has one new row. Moving weights and cache data can then dominate. Profile at the batch size, precision and context length you actually serve.
+        hold: 1
+        visual_cues:
+          - id: decode-rows
+            phrase: "one new row"
+            targets: [last-row]
+            color: cyan
+  - id: assistant-training
+    title: "How did a text completer learn the task?"
+    visual: "The review note stays on screen as weight updates give way to zero-shot and few-shot input. Two proposed RUN-842 explanations then compete against the same log line."
+    beats:
+      - say: >-
+          GPT stands for Generative Pre-trained Transformer. It’s one family of large language models. The original translation Transformer had an encoder and a decoder. GPT uses a causal stack without the translation decoder’s attention to an encoder. GPT-1 pretrained on text, then fine-tuned the weights for tasks with labeled examples. Our review notes could serve as training data in that second step.
+        hold: 1
+        visual_cues:
+          - id: adapt-weights
+            phrase: "fine-tuned the weights"
+            targets: [stage-weights]
+            color: yellow
+      - say: >-
+          GPT-2 asked how far a model could get from the task prompt alone. Here the instruction asks for a label and the next line gives the new note. There’s no solved example in this input, and the model weights stay fixed. That’s a zero-shot test.
+        hold: 0.8
+        visual_cues:
+          - id: zero-shot
+            phrase: "task prompt alone"
+            targets: [stage-input]
+            color: blue
+      - say: >-
+          Add one solved example to the input. Now the stale guide shows how to answer the note about an old flag. GPT-3 studied this kind of few-shot prediction with weights fixed. You can change the example between requests.
+        hold: 0.8
+        visual_cues:
+          - id: add-demo
+            phrase: "Add one solved example to the input"
+            targets: [stage-input]
+            color: blue
+      - say: >-
+          An engineer wants an explanation for run eight forty-two. Here are two possible replies. Which can you defend from line forty-one? A reviewer prefers the report of an expired fixture. InstructGPT fine-tuned on demonstrations, learned a reward model from human comparisons, then used a reinforcement learning method called PPO to update its policy with a penalty for drifting from the reference policy. Other assistants can use different training recipes.
+        hold: 1
+        visual_cues:
+          - id: prefer-report
+            phrase: "A reviewer prefers the report of an expired fixture"
+            targets: [ranked-answers]
+            color: green
+            caption_boundary: true
+      - say: >-
+          That preference gives the policy a training signal. To check the clock-skew claim, we’d need the clock readings and the fixture’s expiry time. Also check the checkpoint’s expected chat template, role tokens and generation prefix. The application supplies the conversation history. Those choices can change what an engineer sees even with the same weights.
+        hold: 0.9
+        visual_cues:
+          - id: trace-claim
+            phrase: "clock-skew claim"
+            targets: [logged-fact]
+            color: yellow
+  - id: training-budget
+    title: "How much text fits in the training budget?"
+    visual: "Two grids trade parameter units for training-token units under fixed dense compute. The final example distinguishes equal growth under a new budget from a trade within one budget."
+    beats:
+      - say: >-
+          Suppose a training run has a fixed budget. In a dense projection, each token uses the whole weight matrix. For a dense Transformer, six times parameters times training tokens gives a rough count of floating-point operations for the forward and backward passes. These little grids show allocation units.
+        hold: 0.9
+        visual_cues:
+          - id: fixed-compute-budget-b1-1
+            phrase: "six times parameters times training tokens"
+            targets: [fixed-compute-budget]
+            color: yellow
+      - say: >-
+          Double the parameter count while keeping that budget fixed. The token grid has to halve. Double the parameters again, and you can afford only four token units. The product stays the same across all three allocations. A training token here counts one exposure, even if the same text has appeared before.
+        hold: 0.9
+        motion_check:
+          region: [230, 400, 1450, 430]
+          minimumChangedFraction: 0.002
+        visual_cues:
+          - id: parameter-allocation-b2-1
+            phrase: "Double the parameter count"
+            targets: [parameter-allocation]
+            color: blue
+          - id: token-allocation-b2-2
+            phrase: "token grid has to halve"
+            targets: [token-allocation]
+            color: green
+          - id: double-again
+            phrase: "Double the parameters again"
+            targets: [parameter-allocation]
+            color: blue
+      - say: >-
+          Return to the middle allocation, eight units of each. Now imagine four times the compute. Chinchilla’s fitted allocation grew parameters and training tokens about equally. Doubling both spends that fourfold budget. Its roughly twenty tokens per parameter was a result for those training conditions. If you expect to serve millions of requests, extra training on a smaller model may pay for itself. Measure quality and the cost per request to find out.
+        hold: 1
+        visual_cues:
+          - id: fixed-compute-budget-b3-1
+            phrase: "Doubling both spends that fourfold budget"
+            targets: [fixed-compute-budget]
+            color: yellow
+  - id: kv-memory
+    title: "What changes when queries share a KV head?"
+    visual: "Eight query heads read four cached positions. A second layout gives groups of four queries their own shared KV head, followed by two different reads from one head and a raw-byte comparison at batch scale."
+    beats:
+      - say: >-
+          Keep the four prompt positions from our label task. This time look inside one attention layer with eight query heads. As we store each position, every head gets a key and a value, with two coordinates apiece. Four positions fill the bottom row. That’s a hundred twenty-eight stored numbers for this one layer and request.
+        hold: 1
+        motion_check:
+          region: [220, 450, 1480, 390]
+          minimumChangedFraction: 0.002
+        visual_cues:
+          - id: fill-four
+            phrase: "As we store each position, every head gets a key and a value"
+            targets: [kv-group-0]
+            color: green
+      - say: >-
+          Keep those four positions and all eight queries. Compare a model designed so that four queries can read the same key and value head. How many distinct heads would its cache need to store?
+        hold: 2.2
+        visual_cues:
+          - id: hold-queries
+            phrase: "all eight queries"
+            targets: [query-head-0]
+            color: blue
+      - say: >-
+          Two stored heads serve the eight queries. Follow the lines from each group of four. Four positions times two heads times two coordinates each for the key and the value gives thirty-two stored numbers. That’s a quarter of the original payload. This design is called grouped-query attention.
+        hold: 1
+        visual_cues:
+          - id: group-heads
+            phrase: "Two stored heads serve the eight queries"
+            targets: [query-head-0]
+            color: cyan
+            caption_boundary: true
+          - id: group-count
+            phrase: "gives thirty-two stored numbers"
+            targets: [kv-payload-calculation]
+            color: green
+            caption_boundary: true
+      - say: >-
+          Do two queries that share a head get the same answer? Read the four stored values with both queries. They see the same alternating horizontal and vertical values. The first query gives more weight to the horizontal steps. The second favors the vertical steps. The two dots land in different places even though there’s only one copy of the keys and values they read.
+        hold: 1
+        caption_starts: ["Read the four stored values", "The first query gives more weight", "The second favors the vertical steps", "The two dots land in different places"]
+        visual_cues:
+          - id: query-read
+            phrase: "Read the four stored values with both queries"
+            targets: [shared-query-read]
+            color: green
+          - id: horizontal-read
+            phrase: "The first query gives more weight to the horizontal steps"
+            targets: [query-path-0]
+            color: yellow
+          - id: vertical-read
+            phrase: "The second favors the vertical steps"
+            targets: [query-path-1]
+            color: cyan
+      - say: >-
+          Start with the key and value coordinates for one position. Multiply by positions per request, requests, layers, and bytes per coordinate. With the dimensions on screen, thirty-two separate heads occupy thirty-two gibibytes. Eight KV heads take eight. A single shared head takes one. These are raw cache sizes. Weights, reserved pages and runtime buffers also need memory. Measure complete latency and task quality on each compatible checkpoint.
+        hold: 1
+        visual_cues:
+          - id: batch-size
+            phrase: "raw cache sizes"
+            targets: [batch-payload]
+            color: green
+  - id: modern-norm
+    title: "What happens to these two features?"
+    visual: "Feature bars 3 and 4 become squared areas and a divisor. A fixed zero line shows the signs of the same features after RMSNorm and centered LayerNorm."
+    beats:
+      - say: >-
+          Now look inside the block that produced a token’s features. Many modern decoders rescale the features before attention and before the feed-forward branch. Take three and four at one position. Set the learned gains to one and leave out the tiny epsilon. Square the features. Average nine and sixteen. Take the square root of twelve and a half. That’s the root mean square, about three point five four.
+        hold: 1
+        visual_cues:
+          - id: rms-square
+            phrase: "Square the features"
+            targets: [rms-statistic]
+            color: yellow
+          - id: rms-average
+            phrase: "Average nine and sixteen"
+            targets: [rms-statistic]
+            color: yellow
+          - id: rms-root
+            phrase: "the root mean square, about three point five four"
+            targets: [rms-statistic]
+            color: yellow
+            caption_boundary: true
+      - say: >-
+          Divide both features by that same number. Three becomes about point eight five and four becomes one point one three. Both bars still point up. This is RMSNorm with unit gains. A trained layer can scale each resulting feature by its own learned gain.
+        hold: 1
+        visual_cues:
+          - id: rms-divide
+            phrase: "Divide both features by that same number"
+            targets: [rms-statistic]
+            color: green
+          - id: rms-result
+            phrase: "Three becomes about point eight five and four becomes one point one three"
+            targets: [rms-divide]
+            color: yellow
+            caption_boundary: true
+      - say: >-
+          LayerNorm first subtracts the mean, three and a half. That puts the first feature below zero and the second above. Divide by their standard deviation, one half, and you get minus one and one with unit gain and zero bias. Ordinary RMSNorm leaves out centering and the additive bias. Both operations can use fused kernels, so measure speed and training quality on the actual model.
+        hold: 1
+        visual_cues:
+          - id: norm-limits
+            phrase: "subtracts the mean"
+            targets: [rms-output]
+            color: cyan
+  - id: modern-gate
+    title: "How much of this feature gets through?"
+    visual: "A fixed up projection meets a changing SiLU gate. The widths of three matrices are then chosen under the weight budget of two ordinary matrices."
+    beats:
+      - say: >-
+          A feed-forward branch works on one position at a time. Here two learned projections of its features meet. One branch produces four. The other goes through SiLU, which multiplies a number by its sigmoid. SwiGLU multiplies the two branches element by element, then projects the result back to the model width.
+        hold: 0.9
+        visual_cues:
+          - id: gate-input
+            phrase: "goes through SiLU"
+            targets: [gate-input]
+            color: yellow
+      - say: >-
+          At a gate input of zero the product vanishes, even though the other branch still holds four. Change only the gate input to one. SiLU now gives about point seven three. Multiply by four and about two point nine two gets through. A negative gate can even reverse the sign of a feature inside the block.
+        hold: 1
+        visual_cues:
+          - id: open-gate
+            phrase: "Change only the gate input to one"
+            targets: [open-gate]
+            color: green
+      - say: >-
+          The extra projection also needs weights. In an ordinary bias-free block, two matrices each have twelve times forty-eight weights. Keep that total, eleven hundred fifty-two. If the gated block has three matrices with model width twelve, what hidden width can you afford?
+        hold: 2.2
+        visual_cues:
+          - id: matrix-budget
+            phrase: "three matrices with model width twelve"
+            targets: [gate-matrix-budget]
+            color: cyan
+      - say: >-
+          Each hidden width is thirty-two. Three lots of twelve times thirty-two use the same weight budget as the two wider matrices. At model width d, that’s eight d over three instead of four d. Rounding to hardware-friendly widths and evaluating the gate can change the runtime.
+        hold: 1
+        visual_cues:
+          - id: matched-width
+            phrase: "Each hidden width is thirty-two"
+            targets: [gate-matrix-budget]
+            color: green
+            caption_boundary: true
+  - id: modern-positions
+    title: "How does attention see a position change?"
+    visual: "A later query reads an earlier key. On equal-scale axes both rotate through ten positions together. Then only the key moves three positions and the measured dot product changes."
+    beats:
+      - say: >-
+          A decoder also needs to tell when a token appeared. The yellow arrow is a query at position nine. The blue arrow is a key it can read at position three. Rotary position embeddings, or RoPE, rotate coordinate pairs in the query and key before taking their dot product. Here we draw one pair. Other coordinate pairs can turn at different rates.
+        hold: 1
+        visual_cues:
+          - id: rotary-pair
+            phrase: "rotate coordinate pairs"
+            targets: [rotary-arrows]
+            color: yellow
+      - say: >-
+          Keep the underlying content vectors fixed. Shift both positions forward by ten. The arrows turn together. The key is still six positions behind the query, so the angle between them and their dot product stay the same.
+        hold: 1
+        motion_check:
+          region: [280, 359, 520, 520]
+          minimumChangedFraction: 0.002
+        visual_cues:
+          - id: common-rotation
+            phrase: "Shift both positions forward by ten"
+            targets: [rotary-arrows]
+            color: green
+      - say: >-
+          Now bring only the key three positions closer. The blue arrow turns away from the yellow one. Their dot product drops from about point five six to point three. Moving the pair together preserved the score. Changing the gap changed it. The content of the two vectors also matters, so another pair at this gap can have a different score.
+        hold: 1
+        caption_starts: ["The blue arrow turns away", "Their dot product drops"]
+        visual_cues:
+          - id: key-only
+            phrase: "bring only the key three positions closer"
+            targets: [rotary-arrows]
+            color: cyan
+  - id: sparse-experts
+    title: "Which weights does this token use?"
+    visual: "Two token score vectors route to different pairs in the same bank. A fixed GPU capacity mark then separates active raw weights from the full resident pool."
+    beats:
+      - say: >-
+          A decoder can have several feed-forward networks available at one layer. Each one is called an expert. In this four-expert example the router scores the token “import”. Follow the two largest scores to their experts. Normalize just those scores and use the shares to mix the two outputs. The other two experts stay available.
+        hold: 1
+        visual_cues:
+          - id: route-import
+            phrase: "Follow the two largest scores to their experts"
+            targets: [expert-banks]
+            color: yellow
+      - say: >-
+          Now the token is “assertion”. The expert bank stays in place. Read the four new scores. Which expert takes over the first route, and which expert still gets some work?
+        hold: 2.3
+        visual_cues:
+          - id: swap-token
+            phrase: "Now the token is assertion"
+            targets: [route-token]
+            color: yellow
+          - id: new-token
+            phrase: "four new scores"
+            targets: [expert-banks]
+            color: blue
+      - say: >-
+          Expert one takes over from expert zero. Expert two is selected again. Its share has changed because the router normalized a different pair of scores. Across a batch, routing many tokens to one expert can make that expert the bottleneck. Load balance and communication affect elapsed time.
+        hold: 1
+        visual_cues:
+          - id: route-assertion
+            phrase: "Expert one takes over from expert zero. Expert two is selected again"
+            targets: [expert-banks]
+            color: cyan
+            caption_boundary: true
+      - say: >-
+          Now size the Mixtral eight by seven billion checkpoint. Each sparse layer has eight experts and selects two per token. Use the rounded counts on screen. Forty-seven billion parameters in total, thirteen billion active per token. At two bytes per weight, the active subset accounts for twenty-six gigabytes. You have a thirty-two gigabyte GPU. Can the whole checkpoint stay on that card?
+        hold: 2.5
+        visual_cues:
+          - id: active-bytes
+            phrase: "active subset accounts for twenty-six gigabytes"
+            targets: [weight-budget]
+            color: cyan
+      - say: >-
+          The full weight pool needs ninety-four gigabytes. The other experts must be there when a different token selects them. That alone exceeds the card’s capacity, before a single cached token. The active count helps estimate work for one token. Full residency sets this memory requirement.
+        hold: 1
+        motion_check:
+          region: [300, 530, 1320, 200]
+          minimumChangedFraction: 0.002
+        visual_cues:
+          - id: resident-total
+            phrase: "The full weight pool needs ninety-four gigabytes"
+            targets: [weight-budget]
+            color: blue
+            caption_boundary: true
+      - say: >-
+          Add space for the cache and work buffers. Sharding, quantization and offloading can change the fit. Include scales and transfers where they apply, then measure serving speed and answer quality. For downloadable weights, also check the exact checkpoint license and runtime revision before choosing it for your application.
+        hold: 1
+        visual_cues:
+          - id: full-budget
+            phrase: "space for the cache and work buffers"
+            targets: [weight-budget]
+            color: yellow
+  - id: reasoning-context
+    title: "Did the assistant use the evidence?"
+    visual: "The reported fixture failure stays separate from its unverified cause. In three matched prompt layouts a single evidence document changes position. The article’s illustrative supported-answer counts appear beside each layout."
+    beats:
+      - say: >-
+          Line forty-one says the test fixture expired. Could the machine clock be wrong? Check for clock skew by comparing the clock reading with the fixture’s expiry time. The clock reading is missing from this log. Extra reasoning effort can help an assistant work through possible causes. Try two effort settings on the same cases and compare supported answers, latency and cost.
+        hold: 1
+        caption_starts: ["Check for clock skew", "The clock reading is missing", "Try two effort settings"]
+        visual_cues:
+          - id: verify-cause
+            phrase: "Check for clock skew"
+            targets: [verification]
+            color: cyan
+      - say: >-
+          Suppose the decisive line is present but the assistant sometimes misses it. First check that the line survives retrieval and truncation. Here each prompt fits twenty documents. Put the evidence first. In a matched copy, put it in the middle. In a third, put it last. Keep the question, evidence, other documents and total length the same.
+        hold: 1.5
+        visual_cues:
+          - id: middle-slot
+            phrase: "put it in the middle"
+            targets: [document-10]
+            color: yellow
+          - id: last-slot
+            phrase: "put it last"
+            targets: [document-20]
+            color: yellow
+      - say: >-
+          Ask the same twenty questions in each layout. Fifteen answers have support in the text when the evidence comes first. That drops to seven in the middle and climbs back to fourteen at the end. All twenty documents fit in every layout. Moving one document from the front to the middle cost eight supported answers.
+        hold: 1
+        caption_starts: ["Fifteen answers have support", "That drops to seven", "and climbs back to fourteen", "All twenty documents fit"]
+        visual_cues:
+          - id: count-first
+            phrase: "fifteen answers"
+            targets: [count-1]
+            color: cyan
+          - id: count-middle
+            phrase: "drops to seven"
+            targets: [count-10]
+            color: cyan
+          - id: count-last
+            phrase: "back to fourteen"
+            targets: [count-20]
+            color: cyan
+      - say: >-
+          The Lost in the Middle study found position effects on many of its tested tasks. For this assistant, try putting the decisive excerpt next to the question. Preserve event order and mark logs as evidence, separate from the application’s instructions. Repeat the position test and check supported answers, latency and cost on the workload you want to improve.
+        hold: 1
+        visual_cues:
+          - id: retry-layout
+            phrase: "Repeat the position test"
+            targets: [sweep-result]
+            color: cyan
+  - id: workload-choice
+    title: "Which run gets the review queue?"
+    visual: "One valid but incorrect label establishes verified success. Two measured runs stay still while the deadline moves and then a worker gains memory. Each choice is revealed separately."
+    beats:
+      - say: >-
+          Return to the stale guide. A fresh reply is Bug. The format check accepts it. The reviewer’s reference label is Docs. If we count correctly labeled notes, how much does this reply add?
+        hold: 2
+        visual_cues:
+          - id: valid-field
+            phrase: "format check accepts it"
+            targets: [test-reply]
+            color: yellow
+      - say: >-
+          It adds zero. Use the whole reply for the format check. Then compare the allowed label to the reference for that note. An extraction task would need an exact match to the source identifier. An explanation would need a claim supported by the log.
+        hold: 1
+        visual_cues:
+          - id: wrong-category
+            phrase: "It adds zero"
+            targets: [verified-count]
+            color: pink
+            caption_boundary: true
+      - say: >-
+          Here are two licensed runs on the same hundred held-out notes. We want the most correct labels we can get within both limits. Read across each row. The yellow lines mark the live worker’s memory limit and its deadline for complete responses at the ninety-fifth percentile. Which run gets the live queue?
+        hold: 2.6
+        visual_cues:
+          - id: live-test
+            phrase: "Which run gets the live queue"
+            targets: [decision]
+            color: yellow
+      - say: >-
+          Choose A for live requests. Its response time and total memory both fit. B gets four more notes right, but it crosses both limits. Keep the measured rows where they are.
+        hold: 1
+        visual_cues:
+          - id: live-result
+            phrase: "Choose A for live requests"
+            targets: [decision]
+            color: green
+            caption_boundary: true
+      - say: >-
+          Move just the deadline. The nightly queue allows fifteen hundred milliseconds. Follow B’s response time, then check the same worker’s memory. Which run can you use now?
+        hold: 2.1
+        motion_check:
+          region: [700, 410, 450, 398]
+          minimumChangedFraction: 0.002
+        visual_cues:
+          - id: extend-deadline
+            phrase: "nightly queue allows fifteen hundred milliseconds"
+            targets: [deadline]
+            color: yellow
+      - say: >-
+          A still gets the queue. B now meets the deadline, but sixteen gigabytes won’t fit on the twelve-gigabyte worker. One failed requirement is enough to rule it out.
+        hold: 1
+        visual_cues:
+          - id: night-result
+            phrase: "A still gets the queue"
+            targets: [decision]
+            color: green
+            caption_boundary: true
+      - say: >-
+          For the next nightly run, keep that deadline and give the worker sixteen gigabytes. Everything else stays the same. Which run would you choose for these notes?
+        hold: 2.5
+        visual_cues:
+          - id: larger-worker
+            phrase: "give the worker sixteen gigabytes"
+            targets: [memory-cap]
+            color: yellow
+      - say: >-
+          Choose B on the larger worker. Its memory use lands exactly on the allowed limit. Both runs now qualify, so the four extra correct labels decide it. Next we’ll keep the weights fixed and change the instructions, examples, and evidence that the model reads.
+        hold: 1.5
+        visual_cues:
+          - id: final-result
+            phrase: "Choose B on the larger worker"
+            targets: [decision]
+            color: green
+            caption_boundary: true

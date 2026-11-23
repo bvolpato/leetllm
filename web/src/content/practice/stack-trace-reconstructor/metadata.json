@@ -1,0 +1,212 @@
+{
+  "id": "stack-trace-reconstructor",
+  "slug": "stack-trace-reconstructor",
+  "title": "Stack Trace Reconstructor",
+  "difficulty": "Medium",
+  "category": "Parsing",
+  "language": "python3",
+  "timeEstimateMinutes": 30,
+  "timeLimitMs": 2500,
+  "memoryLimitMb": 128,
+  "order": 5,
+  "tags": [
+    "stack",
+    "state machine",
+    "profiling",
+    "parsing"
+  ],
+  "source": "Company prep",
+  "summary": "Reconstruct exclusive function runtimes from nested start/end profiler events.",
+  "starterCode": [
+    "def exclusive_time(logs: list[str]) -> dict[str, int]:",
+    "    pass"
+  ],
+  "testCases": [
+    {
+      "name": "computes exclusive time for nested calls",
+      "visibility": "sample",
+      "setup": [
+        "from solution import exclusive_time",
+        "logs = [",
+        "    \"0 root start\",",
+        "    \"2 parse start\",",
+        "    \"5 parse end\",",
+        "    \"6 fetch start\",",
+        "    \"9 fetch end\",",
+        "    \"10 root end\",",
+        "]"
+      ],
+      "input": "logs = [\n    \"0 root start\",\n    \"2 parse start\",\n    \"5 parse end\",\n    \"6 fetch start\",\n    \"9 fetch end\",\n    \"10 root end\",\n]\nexclusive_time(logs)",
+      "expected": "{\"root\": 4, \"parse\": 3, \"fetch\": 3}",
+      "expression": "exclusive_time(logs)"
+    },
+    {
+      "name": "aggregates repeated calls",
+      "visibility": "hidden",
+      "setup": [
+        "from solution import exclusive_time",
+        "logs = [",
+        "    \"0 main start\",",
+        "    \"1 helper start\",",
+        "    \"3 helper end\",",
+        "    \"4 helper start\",",
+        "    \"7 helper end\",",
+        "    \"8 main end\",",
+        "]"
+      ],
+      "input": "logs = [\n    \"0 main start\",\n    \"1 helper start\",\n    \"3 helper end\",\n    \"4 helper start\",\n    \"7 helper end\",\n    \"8 main end\",\n]\nexclusive_time(logs)",
+      "expected": "{\"main\": 3, \"helper\": 5}",
+      "expression": "exclusive_time(logs)"
+    },
+    {
+      "name": "rejects mismatched stack endings",
+      "visibility": "hidden",
+      "code": [
+        "from solution import exclusive_time",
+        "",
+        "for logs in ([\"0 a start\", \"1 b end\"], [\"0 a end\"]):",
+        "    try:",
+        "        exclusive_time(logs)",
+        "    except ValueError as exc:",
+        "        assert \"mismatched\" in str(exc)",
+        "    else:",
+        "        raise AssertionError(\"expected ValueError\")"
+      ]
+    },
+    {
+      "name": "handles sequential non nested calls",
+      "visibility": "sample",
+      "setup": [
+        "from solution import exclusive_time",
+        "logs = [\"0 load start\", \"3 load end\", \"3 save start\", \"5 save end\"]"
+      ],
+      "input": "logs = [\"0 load start\", \"3 load end\", \"3 save start\", \"5 save end\"]\nexclusive_time(logs)",
+      "expected": "{\"load\": 3, \"save\": 2}",
+      "expression": "exclusive_time(logs)"
+    },
+    {
+      "name": "rejects unknown events",
+      "visibility": "hidden",
+      "code": [
+        "from solution import exclusive_time",
+        "",
+        "try:",
+        "    exclusive_time([\"0 main start\", \"1 main pause\", \"2 main end\"])",
+        "except ValueError:",
+        "    pass",
+        "else:",
+        "    raise AssertionError(\"unknown event should fail\")"
+      ]
+    },
+    {
+      "name": "empty trace has no runtime totals",
+      "visibility": "sample",
+      "setup": [
+        "from solution import exclusive_time"
+      ],
+      "input": "exclusive_time([])",
+      "expected": "{}"
+    },
+    {
+      "name": "keeps zero duration calls in the result",
+      "visibility": "hidden",
+      "setup": [
+        "from solution import exclusive_time"
+      ],
+      "input": "exclusive_time([\"4 noop start\", \"4 noop end\"])",
+      "expected": "{\"noop\": 0}"
+    },
+    {
+      "name": "parent resumes after a zero duration child",
+      "visibility": "hidden",
+      "setup": [
+        "from solution import exclusive_time"
+      ],
+      "input": "exclusive_time([\"0 root start\", \"2 child start\", \"2 child end\", \"5 root end\"])",
+      "expected": "{\"root\": 5, \"child\": 0}"
+    },
+    {
+      "name": "aggregates recursive frames without counting idle gaps",
+      "visibility": "hidden",
+      "setup": ["from solution import exclusive_time"],
+      "input": "exclusive_time([\"0 work start\", \"2 work start\", \"5 work end\", \"7 work end\", \"20 work start\", \"21 work end\"])",
+      "expected": "{\"work\": 8}"
+    },
+    {
+      "name": "rejects an unclosed call",
+      "visibility": "hidden",
+      "code": [
+        "from solution import exclusive_time",
+        "",
+        "try:",
+        "    exclusive_time([\"0 main start\"])",
+        "except ValueError as exc:",
+        "    assert \"unclosed\" in str(exc)",
+        "else:",
+        "    raise AssertionError(\"expected ValueError\")"
+      ]
+    }
+  ],
+  "clarifyingQuestions": [
+    "Are end timestamps inclusive or exclusive?",
+    "Can functions recurse or appear more than once in the stream?",
+    "Should invalid nesting raise, skip, or return partial results?"
+  ],
+  "followUps": [
+    "Return a call tree alongside the aggregate exclusive-time totals.",
+    "Track top functions by exclusive runtime.",
+    "Handle streaming logs where a call can remain open across batches."
+  ],
+  "followUpGuide": [
+    "For a call tree, push a frame object with name, start time, child time, and children. On `end`, compute total time and exclusive time, then attach the frame to its parent.",
+    "",
+    "For top functions, keep the same `totals` dictionary and sort by `(-runtime, name)` at the end. Clarify whether ties should be deterministic.",
+    "",
+    "For streaming input, retain the stack and last timestamp across batches and validate unclosed calls only at an explicit finish(). Decide whether each batch returns runtime deltas or cumulative totals; summing cumulative snapshots would double count. Idle time after a completed top-level call remains unattributed."
+  ],
+  "complexityAnalysis": [
+    "- Stack guide: O(n) event operations for n logs, with O(d + f) records including output totals, where d is maximum nesting depth and f is the distinct function count. Reading/splitting/hashing strings adds O(L) character work for L total input characters; integer arithmetic is treated as constant cost. Peak parsing space also includes the longest line.",
+    "- Per-frame alternative: store each call's start time and accumulated child duration. At end, exclusive time is end - start - child_duration; add its full duration to the parent's child_duration. The same stack gives O(n) event operations and O(d + f) space without storing a complete tree.",
+    "- Call-tree follow-up retains one node per invocation, so space can grow to O(n). Ranking f totals costs O(f log f) comparisons. Sorting the input isn't needed and mustn't reorder events at equal timestamps."
+  ],
+  "solutionGuide": [
+    "Use an explicit stack of active function names. Keep `last_ts`, the timestamp where the currently active frame started accumulating time.",
+    "",
+    "Before every event, add `timestamp - last_ts` to the function on top of the stack. Then process the event. This keeps parent time exclusive because children take over the active slot.",
+    "",
+    "```python",
+    "from collections import defaultdict",
+    "",
+    "",
+    "def exclusive_time(logs: list[str]) -> dict[str, int]:",
+    "    totals = defaultdict(int)",
+    "    stack = []",
+    "    last_ts = None",
+    "",
+    "    for line in logs:",
+    "        raw_ts, name, event = line.split()",
+    "        ts = int(raw_ts)",
+    "",
+    "        if last_ts is not None and stack:",
+    "            totals[stack[-1]] += ts - last_ts",
+    "",
+    "        if event == \"start\":",
+    "            stack.append(name)",
+    "        elif event == \"end\":",
+    "            if not stack or stack[-1] != name:",
+    "                raise ValueError(f\"mismatched end event for {name}\")",
+    "            stack.pop()",
+    "        else:",
+    "            raise ValueError(f\"unknown event {event}\")",
+    "",
+    "        last_ts = ts",
+    "",
+    "    if stack:",
+    "        raise ValueError(\"unclosed function call\")",
+    "",
+    "    return dict(totals)",
+    "```",
+    "",
+    "The invariant is that last_ts marks the beginning of the next interval to attribute. Only stack[-1] earns that interval; an empty stack means idle time. A recursive child has the same name as its parent but still occupies a separate stack slot, so its interval is added once to that name's total. Complexity is O(n) event operations and O(d + f) stored records, plus the character/parsing costs described above."
+  ]
+}

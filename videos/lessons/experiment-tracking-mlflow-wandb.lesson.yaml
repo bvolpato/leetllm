@@ -1,0 +1,1349 @@
+version: 1
+id: experiment-tracking-mlflow-wandb
+title: Which run earns a fresh evaluation?
+source: llmops/experiment-tracking-mlflow-wandb/content.md
+sources:
+  - title: MLflow experiment tracking
+    url: https://mlflow.org/docs/latest/ml/tracking/
+  - title: W&B run tracking
+    url: https://docs.wandb.ai/models/track
+  - title: W&B artifacts
+    url: https://docs.wandb.ai/models/artifacts
+scenes:
+  - id: opening
+    title: What changed when we replayed the request?
+    visual: Follow a returned route from a deployment question into the run report. Keep the original result while the first repair handles the same request, then replay a question with a rollback runbook.
+    beats:
+      - say: May I deploy? The assistant gives the go-ahead. The report records that decision as serve. The approval record is missing. Replay the request with a rule that requires a release record. This time it abstains.
+        hold: 0.6
+        caption_starts:
+          - "The assistant gives the go-ahead."
+          - "Replay the request"
+          - "This time it abstains."
+        visual_cues:
+          - id: original-approval
+            phrase: gives the go-ahead
+            targets:
+              - approval-row
+            color: pink
+            linger: 0.3
+          - id: use-release-record
+            phrase: a rule that requires a release record
+            targets:
+              - rule
+            color: cyan
+            linger: 0.3
+          - id: withhold-approval
+            phrase: This time it abstains
+            targets:
+              - approval-row
+            color: green
+            linger: 0.3
+      - say: Now ask for rollback steps. The runbook has them. The rule still requires a release record. Will the assistant serve the steps or abstain?
+        hold: 2.3
+        caption_starts:
+          - "The rule still requires a release record."
+          - "Will the assistant serve the steps or abstain?"
+        visual_cues:
+          - id: bring-runbook
+            phrase: Now ask for rollback steps
+            targets:
+              - rollback
+            color: cyan
+            linger: 0.3
+          - id: ask-rollback
+            phrase: Will the assistant serve the steps or abstain
+            targets:
+              - rollback
+              - rule
+              - decision
+            color: yellow
+            linger: 0.3
+      - say: It abstains. The rule skipped the runbook. Save both rows from this simulated run. The same repair fixed the approval mistake and turned away someone who needed rollback steps.
+        hold: 0.85
+        caption_starts:
+          - "Save both rows from this simulated run."
+        visual_cues:
+          - id: rollback-answer
+            phrase: It abstains
+            targets:
+              - decision
+            color: pink
+            linger: 0.3
+            caption_boundary: true
+          - id: keep-both
+            phrase: Save both rows
+            targets:
+              - approval-row
+              - runbook-row
+              - decision
+            color: cyan
+            linger: 0.3
+  - id: record-contract
+    title: What belongs in one run?
+    visual: Record the opening replay as one execution, with its actual refusal count and a report of both routes. Try a conflicting parameter and append ordinary step-indexed loss measurements.
+    beats:
+      - say: The incident trace gave us a request to investigate. Our experiment asks whether we can fix that approval and keep useful answers. A run records one execution, like the two requests we just replayed. The chosen rule is a parameter. The unnecessary refusal is a measured outcome, a metric. The saved report is an artifact you can open. An incident tag lets someone find this run later. A separate release decision controls traffic.
+        hold: 0.65
+        visual_cues:
+          - id: replay-run
+            phrase: the two requests we just replayed
+            targets:
+              - record
+            color: cyan
+            linger: 0.3
+          - id: measure-outcome
+            phrase: The unnecessary refusal is a measured outcome
+            targets:
+              - record
+            color: cyan
+            linger: 0.3
+      - say: Suppose the run has already logged a temperature of zero. Try to log point seven under the same parameter name. Both the local tracker and MLflow reject the conflicting value. Start another run for that setting. A metric works differently. Append a loss at each training step and the earlier measurements stay in the history. For a sampled model, keep the effective settings, source revision and trial ID with each result.
+        hold: 0.7
+        visual_cues:
+          - id: conflict
+            phrase: Try to log point seven
+            targets:
+              - parameter
+            color: pink
+            linger: 0.3
+          - id: append-loss
+            phrase: Append a loss at each training step
+            targets:
+              - history
+            color: cyan
+            linger: 0.3
+  - id: fingerprint
+    title: What did the run actually score?
+    visual: Keep the original four-case digest beside a working copy. Sort the displayed IDs, then edit a single expected route in the copy.
+    beats:
+      - say: First, freeze what each case should do. The incident and the missing approval should abstain. A release record supports an answer about the freeze. A rollback runbook supports an answer about the steps. Each case gets its own identifier, even where two answers should be the same.
+        hold: 0.6
+        visual_cues:
+          - id: freeze-suite
+            phrase: freeze what each case should do
+            targets:
+              - suite-rows
+            color: cyan
+            linger: 0.3
+          - id: identify-rows
+            phrase: Each case gets its own identifier
+            targets:
+              - suite-rows
+            color: cyan
+            linger: 0.3
+      - say: A fingerprint is a checksum of the case data. We put the rows in case ID order and write the fields in a fixed format before hashing the bytes. Sort the copy by case ID. Its fingerprint still matches the frozen suite. Now change the freeze case’s label to abstain. The copy gets a different fingerprint. A reviewer still has to decide whether that label makes sense.
+        hold: 0.85
+        visual_cues:
+          - id: sort-inputs
+            phrase: Sort the copy by case ID
+            targets:
+              - suite-rows
+              - digests
+            color: cyan
+            linger: 0.3
+          - id: edit-expectation
+            phrase: change the freeze case’s label to abstain
+            targets:
+              - suite-rows
+              - digests
+            color: cyan
+            linger: 0.3
+          - id: compare-hashes
+            phrase: The copy gets a different fingerprint
+            targets:
+              - digests
+            color: pink
+            linger: 0.3
+  - id: input-lineage
+    title: What is inside the fingerprint?
+    visual: Hash the five article fields of the incident row. Change its source, then change an example question outside that representation.
+    beats:
+      - say: Take just the incident row. On the left are the five things that enter its hash. The slice says which behavior we’re testing. The source says where the case came from. Change the source to a reviewed copy. The digest moves. If two rows use the same case ID, reject the suite before hashing it.
+        hold: 0.7
+        visual_cues:
+          - id: one-row
+            phrase: the five things that enter its hash
+            targets:
+              - hashed-fields
+            color: cyan
+            linger: 0.3
+          - id: change-source
+            phrase: Change the source to a reviewed copy
+            targets:
+              - hashed-fields
+            color: cyan
+            linger: 0.3
+      - say: Now change the question on the right. The digest stays put. This worksheet describes an evidence category. The question’s words never went into the calculation. In a real run, retain the actual questions, evidence, label policy and model inputs the job used. MLflow can log a dataset digest even when you still need to archive its rows.
+        hold: 0.7
+        visual_cues:
+          - id: change-question
+            phrase: change the question on the right
+            targets:
+              - outside-hash
+              - hashed-fields
+            color: cyan
+            linger: 0.3
+          - id: retain-inputs
+            phrase: retain the actual questions
+            targets:
+              - outside-hash
+            color: cyan
+            linger: 0.3
+  - id: paired
+    title: Which case changes the score?
+    visual: Score the first repair one case at a time. The two regression matches stay in place as rollback adds a mismatch and the missing approval adds a match.
+    beats:
+      - say: Run the release-record rule on the two regression cases. With no evidence for the deployment, it abstains. With a release record for the freeze, it serves. Two matches out of two checked. The lower two cases were reserved before we looked at the results.
+        hold: 0.65
+        visual_cues:
+          - id: check-incident
+            phrase: it abstains
+            targets:
+              - case-0
+              - matches
+            color: cyan
+            linger: 0.3
+          - id: check-freeze
+            phrase: it serves
+            targets:
+              - case-1
+              - matches
+            color: cyan
+            linger: 0.3
+          - id: reserved-cases
+            phrase: The lower two cases were reserved
+            targets:
+              - case-2
+              - case-3
+            color: cyan
+            linger: 0.3
+      - say: Add the rollback request. It should serve, and the first repair abstains. Now we have two matches in three. The last request lacks approval, and the repair abstains again. This time abstaining is correct. That makes three matches in four. That seventy-five percent score includes a user who asked for rollback steps and got a refusal.
+        hold: 0.9
+        visual_cues:
+          - id: check-rollback
+            phrase: the first repair abstains
+            targets:
+              - case-2
+              - matches
+            color: pink
+            linger: 0.3
+          - id: check-missing
+            phrase: the repair abstains again
+            targets:
+              - case-3
+              - matches
+            color: cyan
+            linger: 0.3
+          - id: inspect-count
+            phrase: three matches in four
+            targets:
+              - case-2
+              - matches
+            color: cyan
+            linger: 0.3
+  - id: tradeoff
+    title: Where do the errors go?
+    visual: Keep the four expected routes and the first repair in place. Compare the original rule on the same rows, then fill the revision column from its predictions.
+    beats:
+      - say: Keep those rows and bring back the original rule. It serves every case. Find the two serves across from an abstain label. Those are unsafe routes. In the first repair the error runs the other way. It withholds a supported answer. Record both counts so a rule that refuses everything can’t win on safety alone.
+        hold: 0.65
+        visual_cues:
+          - id: serve-every-case
+            phrase: It serves every case
+            targets:
+              - case-0
+              - case-3
+            color: cyan
+            linger: 0.3
+          - id: two-directions
+            phrase: It withholds a supported answer
+            targets:
+              - case-2
+              - errors
+            color: pink
+            linger: 0.3
+      - say: For run three, accept a release record or a rollback runbook. The candidate reads the evidence category. The evaluator compares its output with each frozen label. All four routes match. Only the rollback answer changed from run two. We still need to read what the assistant actually says when it serves. A routing label can’t tell us whether the instructions are accurate.
+        hold: 0.85
+        visual_cues:
+          - id: accept-runbook
+            phrase: accept a release record or a rollback runbook
+            targets:
+              - case-2
+              - errors
+            color: cyan
+            linger: 0.3
+          - id: score-revision
+            phrase: All four routes match
+            targets:
+              - matches
+              - case-2
+            color: green
+            linger: 0.3
+            caption_boundary: true
+          - id: inspect-answer
+            phrase: read what the assistant actually says
+            targets:
+              - case-2
+            color: cyan
+            linger: 0.3
+  - id: lineage
+    title: Which cases are in the saved report?
+    visual: File each retained run-three row under its frozen case ID. In a damaged copy the last row becomes another incident and travels to the incident slot. Test the damaged and restored bytes with the same verifier.
+    beats:
+      - say: Open the saved report from run three. Across the top are the case IDs we meant to test. File each returned route under its ID. The verifier reads the saved rows, checks the candidate’s predictions, and recomputes the logged counts. The original report passes.
+        hold: 0.7
+        visual_cues:
+          - id: open-report
+            phrase: Open the saved report
+            targets:
+              - receipt
+              - saved-rows
+            color: cyan
+            linger: 0.3
+          - id: check-original
+            phrase: The original report passes
+            targets:
+              - readback
+            color: green
+            linger: 0.3
+      - say: Make a copy. Replace its last row with another copy of the incident. Give these changed bytes their own checksum. Now file that last row by its ID. The dashboard still says four out of four. Which case has no saved result?
+        hold: 2.3
+        visual_cues:
+          - id: duplicate-bytes
+            phrase: Replace its last row with another copy of the incident
+            targets:
+              - saved-rows
+            color: cyan
+            linger: 0.3
+          - id: file-by-id
+            phrase: Now file that last row by its ID
+            targets:
+              - saved-rows
+              - slots
+            color: cyan
+            linger: 0.3
+          - id: ask-missing
+            phrase: Which case has no saved result
+            targets:
+              - slots
+              - saved-rows
+              - readback
+            color: yellow
+            linger: 0.3
+      - say: The missing-approval case has no row. The incident has two. The same verifier returns false. A checksum can identify the bytes in that copy even when one case is absent. Read the intact original again. Its four rows and its metrics agree. Keep that report, the candidate manifest, the code and the evaluation conditions with the run.
+        hold: 0.8
+        visual_cues:
+          - id: check-copy
+            phrase: The same verifier returns false
+            targets:
+              - readback
+            color: pink
+            linger: 0.3
+            caption_boundary: true
+          - id: restore-bytes
+            phrase: Read the intact original again
+            targets:
+              - receipt
+              - saved-rows
+              - readback
+            color: cyan
+            linger: 0.3
+  - id: run-storage
+    title: Where can you read the report tomorrow?
+    visual: Trace the two saved files to their run directory. Try creating the report at the same path again, then distinguish temporary storage from persistent shared storage.
+    beats:
+      - say: In the article’s local tracker, a run has two homes. Its metadata stays in memory, while the report and simulation manifest are JSON files in a temporary directory. Try logging a second report at the first report’s path. Exclusive creation rejects the overwrite. The tracker also requires its own run object, a unique run ID and a path inside that run’s directory.
+        hold: 0.65
+        visual_cues:
+          - id: tr-run-storage-0-0
+            phrase: In the article’s local tracker, a run has two homes.
+            targets:
+              - tr-run-storage-trace
+            color: blue
+            linger: 0.3
+          - id: tr-run-storage-0-1
+            phrase: Its metadata stays in memory, while the report and simulation manifest are JSON files in a temporary directory.
+            targets:
+              - tr-run-storage-trace
+            color: blue
+            linger: 0.3
+          - id: tr-run-storage-0-2
+            phrase: Try logging a second report at the first report’s path. Exclusive creation rejects the overwrite.
+            targets:
+              - tr-run-storage-trace
+            color: blue
+            linger: 0.3
+          - id: tr-run-storage-0-3
+            phrase: The tracker also requires its own run object, a unique run ID and a path inside that run’s directory.
+            targets:
+              - tr-run-storage-trace
+            color: blue
+            linger: 0.3
+      - say: When the temporary directory closes, those files disappear. For a shared project, keep run metadata in a persistent database and approved reports in an artifact store with access and retention controls. Check that a logged metric is a finite number. That rules out a Boolean or NaN. If a metric or a report is missing, return to the saved evidence before reviewing the run. A tag saying that raw text was excluded only describes intent. Redact the actual payload before logging it.
+        hold: 0.65
+        visual_cues:
+          - id: tr-run-storage-1-0
+            phrase: When the temporary directory closes, those files disappear.
+            targets:
+              - tr-run-storage-trace
+            color: blue
+            linger: 0.3
+          - id: tr-run-storage-1-1
+            phrase: For a shared project, keep run metadata in a persistent database and approved reports in an artifact store with access and retention controls.
+            targets:
+              - tr-run-storage-trace
+            color: blue
+            linger: 0.3
+          - id: tr-run-storage-1-2
+            phrase: Check that a logged metric is a finite number. That rules out a Boolean or NaN.
+            targets:
+              - tr-run-storage-trace
+            color: blue
+            linger: 0.3
+          - id: tr-run-storage-1-3
+            phrase: If a metric or a report is missing, return to the saved evidence before reviewing the run.
+            targets:
+              - tr-run-storage-trace
+            color: blue
+            linger: 0.3
+          - id: tr-run-storage-1-4
+            phrase: A tag saying that raw text was excluded only describes intent. Redact the actual payload before logging it.
+            targets:
+              - tr-run-storage-trace
+            color: blue
+            linger: 0.3
+  - id: comparability
+    title: Did run three answer the same question?
+    visual: Hold the three frozen suite fingerprints in place. Change only the evaluator recorded for run three and inspect whether it can still be ranked with the other runs.
+    beats:
+      - say: All three runs saw the same case IDs. They also have to agree on the evidence snapshot, policy and scoring rules for this comparison. The routing rule is what we intended to vary. That gives a difference on the rollback row a useful interpretation.
+        hold: 0.65
+        visual_cues:
+          - id: matched-context
+            phrase: the evidence snapshot, policy and scoring rules
+            targets:
+              - evaluator-identities
+            color: blue
+            linger: 0.5
+          - id: tr-comparability-0-0
+            phrase: All three runs saw the same case IDs.
+            targets:
+              - tr-comparability-trace
+            color: blue
+            linger: 0.3
+          - id: tr-comparability-0-1
+            phrase: They also have to agree on the evidence snapshot, policy and scoring rules for this comparison.
+            targets:
+              - tr-comparability-trace
+            color: blue
+            linger: 0.3
+          - id: tr-comparability-0-2
+            phrase: The routing rule is what we intended to vary.
+            targets:
+              - tr-comparability-trace
+            color: blue
+            linger: 0.3
+          - id: tr-comparability-0-3
+            phrase: That gives a difference on the rollback row a useful interpretation.
+            targets:
+              - tr-comparability-trace
+            color: blue
+            linger: 0.3
+      - say: In a copy of run three, change only the evaluator version. Leave the logged score alone. The comparison check now refuses to rank it with the other two. Version three might count an error differently. Editing the label hasn’t run the new scorer. Inspect the scoring change and rerun the candidates under matching conditions. If the suite changed, inspect the cases too.
+        hold: 0.65
+        visual_cues:
+          - id: changed-evaluator
+            phrase: change only the evaluator version
+            targets:
+              - evaluator-identities
+              - comparison-verdict
+            color: pink
+            linger: 0.5
+          - id: tr-comparability-1-0
+            phrase: In a copy of run three, change only the evaluator version.
+            targets:
+              - tr-comparability-trace
+            color: blue
+            linger: 0.3
+          - id: tr-comparability-1-1
+            phrase: Leave the logged score alone. The comparison check now refuses to rank it with the other two.
+            targets:
+              - tr-comparability-trace
+            color: blue
+            linger: 0.3
+          - id: tr-comparability-1-2
+            phrase: Version three might count an error differently. Editing the label hasn’t run the new scorer.
+            targets:
+              - tr-comparability-trace
+            color: blue
+            linger: 0.3
+          - id: tr-comparability-1-3
+            phrase: Inspect the scoring change and rerun the candidates under matching conditions. If the suite changed, inspect the cases too.
+            targets:
+              - tr-comparability-trace
+            color: blue
+            linger: 0.3
+  - id: saturation
+    title: What can a perfect tie tell you?
+    visual: Inspect a separate three-way tie at four matches. Add a reviewed case to a new suite version, and distinguish changing the suite from changing the judge.
+    beats:
+      - say: Imagine three other candidates that all match four routes in four cases. Keep the four cases. They can still catch a regression. To rank these candidates, first check the scorer and look for behavior the cases never test. If a new reviewed case exposes that difference, add it under a new suite version. Run all the candidates on that version so they face the same question.
+        hold: 0.65
+        visual_cues:
+          - id: tr-saturation-0-0
+            phrase: Imagine three other candidates that all match four routes in four cases.
+            targets:
+              - tr-saturation-trace
+            color: blue
+            linger: 0.3
+          - id: tr-saturation-0-1
+            phrase: Keep the four cases. They can still catch a regression.
+            targets:
+              - tr-saturation-trace
+            color: blue
+            linger: 0.3
+          - id: tr-saturation-0-2
+            phrase: To rank these candidates, first check the scorer and look for behavior the cases never test.
+            targets:
+              - tr-saturation-trace
+            color: blue
+            linger: 0.3
+          - id: tr-saturation-0-3
+            phrase: If a new reviewed case exposes that difference, add it under a new suite version.
+            targets:
+              - tr-saturation-trace
+            color: blue
+            linger: 0.3
+          - id: tr-saturation-0-4
+            phrase: Run all the candidates on that version so they face the same question.
+            targets:
+              - tr-saturation-trace
+            color: blue
+            linger: 0.3
+      - say: Suppose a model judges each answer using a prompt. If the judge’s instructions change, a score can rise while the candidate stays fixed. Record the judge prompt, model revision and inference settings with the evaluator version. Then repeat the comparison. Logging a candidate stores a record. Someone still has to run the evaluation. MLflow’s GenAI evaluation runs predictions and scorers. A model-backed judge can make separately billable calls.
+        hold: 0.65
+        visual_cues:
+          - id: tr-saturation-1-0
+            phrase: Suppose a model judges each answer using a prompt.
+            targets:
+              - tr-saturation-trace
+            color: blue
+            linger: 0.3
+          - id: tr-saturation-1-1
+            phrase: If the judge’s instructions change, a score can rise while the candidate stays fixed.
+            targets:
+              - tr-saturation-trace
+            color: blue
+            linger: 0.3
+          - id: tr-saturation-1-2
+            phrase: Record the judge prompt, model revision and inference settings with the evaluator version. Then repeat the comparison.
+            targets:
+              - tr-saturation-trace
+            color: blue
+            linger: 0.3
+          - id: tr-saturation-1-3
+            phrase: Logging a candidate stores a record. Someone still has to run the evaluation.
+            targets:
+              - tr-saturation-trace
+            color: blue
+            linger: 0.3
+          - id: tr-saturation-1-4
+            phrase: MLflow’s GenAI evaluation runs predictions and scorers. A model-backed judge can make separately billable calls.
+            targets:
+              - tr-saturation-trace
+            color: blue
+            linger: 0.3
+  - id: platforms
+    title: Where would you find the failed rollback row?
+    visual: Map the recorded rule, measured refusal count, saved report and consumed suite across both trackers. Follow the one unnecessary refusal back to the row that produced it.
+    beats:
+      - say: Say a colleague opens run two in MLflow or Weights and Biases. Where should they look? Record the chosen rule as a parameter in MLflow or in the run configuration in Weights and Biases. Log the one unnecessary refusal as a metric. To find the request behind that one, open the saved report. Both tools can store that file as an artifact.
+        hold: 0.7
+        caption_starts:
+          - "Record the chosen rule"
+          - "Log the one unnecessary refusal"
+          - "To find the request behind that one"
+          - "open the saved report"
+        visual_cues:
+          - id: record-input
+            phrase: Record the chosen rule
+            targets:
+              - field-0
+            color: cyan
+            linger: 0.3
+          - id: record-metric
+            phrase: one unnecessary refusal as a metric
+            targets:
+              - field-1
+            color: cyan
+            linger: 0.3
+          - id: follow-file
+            phrase: open the saved report
+            targets:
+              - field-2
+              - read-row
+            color: cyan
+            linger: 0.3
+      - say: Now follow the input in the other direction. MLflow can log the dataset description. Keep the approved rows in an archive or at an immutable source. An online Weights and Biases run can record which versioned artifact it consumed. Choose an exact version or digest so a later run can recover the same cases. Choose the platform whose storage, access and retention fit your team.
+        hold: 0.8
+        visual_cues:
+          - id: bind-dataset
+            phrase: follow the input in the other direction
+            targets:
+              - field-3
+            color: cyan
+            linger: 0.3
+  - id: registry-object
+    title: What exactly are you registering?
+    visual: Compare a prompt template with a model package. Follow a hypothetical registration that returns version four and locate the version a reviewed alias would need.
+    beats:
+      - say: Suppose the repair is now an actual prompt with a placeholder for evidence. MLflow’s Prompt Registry can version that string or a list of chat messages, with optional model settings. If you also change the code that serves it, you can package the application as an MLflow model. The Model Registry can track weights, a Python function or an inference wrapper, along with its source. Choose the object that contains the change you evaluated.
+        hold: 0.65
+        visual_cues:
+          - id: tr-registry-object-0-0
+            phrase: Suppose the repair is now an actual prompt with a placeholder for evidence.
+            targets:
+              - tr-registry-object-trace
+            color: blue
+            linger: 0.3
+          - id: tr-registry-object-0-1
+            phrase: MLflow’s Prompt Registry can version that string or a list of chat messages, with optional model settings.
+            targets:
+              - tr-registry-object-trace
+            color: blue
+            linger: 0.3
+          - id: tr-registry-object-0-2
+            phrase: If you also change the code that serves it, you can package the application as an MLflow model.
+            targets:
+              - tr-registry-object-trace
+            color: blue
+            linger: 0.3
+          - id: tr-registry-object-0-3
+            phrase: The Model Registry can track weights, a Python function or an inference wrapper, along with its source.
+            targets:
+              - tr-registry-object-trace
+            color: blue
+            linger: 0.3
+          - id: tr-registry-object-0-4
+            phrase: Choose the object that contains the change you evaluated.
+            targets:
+              - tr-registry-object-trace
+            color: blue
+            linger: 0.3
+      - say: Keep the evaluated template and register it. Suppose registration returns version four. Use that returned version. Hardcoding version one would select an older object here. A separate operation moves a registry alias. Keep the source run, evaluated bytes and effective serving configuration together for release review.
+        hold: 0.65
+        visual_cues:
+          - id: tr-registry-object-1-0
+            phrase: Keep the evaluated template and register it.
+            targets:
+              - tr-registry-object-trace
+            color: blue
+            linger: 0.3
+          - id: tr-registry-object-1-1
+            phrase: Suppose registration returns version four.
+            targets:
+              - tr-registry-object-trace
+            color: blue
+            linger: 0.3
+          - id: tr-registry-object-1-2
+            phrase: Use that returned version. Hardcoding version one would select an older object here.
+            targets:
+              - tr-registry-object-trace
+            color: blue
+            linger: 0.3
+          - id: tr-registry-object-1-3
+            phrase: A separate operation moves a registry alias.
+            targets:
+              - tr-registry-object-trace
+            color: blue
+            linger: 0.3
+          - id: tr-registry-object-1-4
+            phrase: Keep the source run, evaluated bytes and effective serving configuration together for release review.
+            targets:
+              - tr-registry-object-trace
+            color: blue
+            linger: 0.3
+  - id: version-config
+    title: What does prompt version four keep fixed?
+    visual: Keep one template above the saved run and registry settings. Update the registry temperature and compare the two values and their configuration fingerprints.
+    beats:
+      - say: Here’s the prompt we tested, version four at temperature zero. Open version four in the MLflow registry. The settings match. Editing the prompt text would create a new version. What happens if we edit just the registry temperature?
+        hold: 2
+        caption_starts:
+          - "Open version four"
+          - "What happens if we edit just the registry temperature?"
+        visual_cues:
+          - id: saved-template
+            phrase: version four at temperature zero
+            targets:
+              - template
+              - run-copy
+            color: cyan
+            linger: 0.3
+          - id: open-registry
+            phrase: Open version four in the MLflow registry
+            targets:
+              - registry-copy
+            color: cyan
+            linger: 0.3
+          - id: compare-settings
+            phrase: The settings match
+            targets:
+              - run-copy
+              - registry-copy
+            color: green
+            linger: 0.3
+          - id: edit-text
+            phrase: Editing the prompt text
+            targets:
+              - template
+            color: blue
+            linger: 0.3
+          - id: ask-temperature
+            phrase: What happens if we edit just the registry temperature
+            targets:
+              - run-copy
+              - registry-copy
+            color: yellow
+            linger: 0.3
+      - say: Set it to point seven. The saved run still shows zero. Both copies use the same prompt text. Only the registry settings got a new fingerprint. MLflow lets you remove those settings or delete a version. Keep the evaluated template and settings with the run, then check what each worker loaded.
+        hold: 0.65
+        caption_starts:
+          - "The saved run still shows zero."
+          - "Only the registry settings got a new fingerprint."
+          - "MLflow lets you remove those settings"
+          - "Keep the evaluated template"
+        visual_cues:
+          - id: set-temperature
+            phrase: Set it to point seven
+            targets:
+              - registry-copy
+            color: yellow
+            linger: 0.3
+          - id: read-run
+            phrase: The saved run still shows zero
+            targets:
+              - run-copy
+            color: cyan
+            linger: 0.3
+          - id: config-fingerprint
+            phrase: Only the registry settings got a new fingerprint
+            targets:
+              - registry-copy
+            color: yellow
+            linger: 0.3
+          - id: retain-run
+            phrase: Keep the evaluated template and settings with the run
+            targets:
+              - template
+              - run-copy
+            color: cyan
+            linger: 0.3
+          - id: check-worker
+            phrase: check what each worker loaded
+            targets:
+              - run-copy
+            color: cyan
+            linger: 0.3
+  - id: alias-workers
+    title: What did each worker load?
+    visual: Move champion while worker A keeps its loaded object. Start worker B, move the pointer back, then reload B and read back both identities.
+    beats:
+      - say: Worker A loaded version two through the champion alias. An alias is a name the registry can point at another version. Move champion to version three. A keeps the object it already loaded. Now start worker B and let it resolve champion. It loads version three. The same name led to different running versions.
+        hold: 0.6
+        visual_cues:
+          - id: worker-start
+            phrase: Worker A loaded version two
+            targets:
+              - worker-a
+              - pointer
+            color: cyan
+            linger: 0.3
+          - id: move-alias
+            phrase: Move champion to version three
+            targets:
+              - pointer
+              - worker-a
+            color: cyan
+            linger: 0.3
+          - id: new-worker
+            phrase: It loads version three
+            targets:
+              - worker-b
+              - pointer
+            color: cyan
+            linger: 0.3
+      - say: In MLflow three point sixteen point one, an alias lookup is cached for sixty seconds by default. An explicit version has no default cache expiry. You can change the lifetime or bypass the cache with zero. The reserved latest alias follows the newest available version, so a worker that resolves it can pick up a draft. To roll back, move champion back to version two. B still has three. Reload B from the known-good version and configuration, then read back both workers. Now both report version two.
+        hold: 0.85
+        visual_cues:
+          - id: cache-policy
+            phrase: an alias lookup is cached for sixty seconds by default
+            targets:
+              - cache
+            color: cyan
+            linger: 0.3
+          - id: move-back
+            phrase: move champion back to version two
+            targets:
+              - pointer
+              - worker-b
+            color: cyan
+            linger: 0.3
+          - id: refresh-worker
+            phrase: both report version two
+            targets:
+              - worker-a
+              - worker-b
+            color: green
+            linger: 0.3
+  - id: sdk-readback
+    title: What can you read back locally?
+    visual: Identify where MLflow retained its run and report. Compare a W&B offline run file with a disabled logging call and distinguish local recording from hosted lineage.
+    beats:
+      - say: The article’s MLflow example stores its run metadata in a local SQLite database. It writes the suite, report and manifest to a local artifact directory. A client reopens the finished run, checks the suite fingerprint and reads all four report rows. The registry example also reads the alias after rollback and checks the changed temperature on the same prompt version. Finished tells you the logging lifecycle completed. A candidate that refused the rollback steps could finish too.
+        hold: 0.65
+        visual_cues:
+          - id: tr-sdk-readback-0-0
+            phrase: The article’s MLflow example stores its run metadata in a local SQLite database.
+            targets:
+              - tr-sdk-readback-trace
+            color: blue
+            linger: 0.3
+          - id: tr-sdk-readback-0-1
+            phrase: It writes the suite, report and manifest to a local artifact directory.
+            targets:
+              - tr-sdk-readback-trace
+            color: blue
+            linger: 0.3
+          - id: tr-sdk-readback-0-2
+            phrase: A client reopens the finished run, checks the suite fingerprint and reads all four report rows.
+            targets:
+              - tr-sdk-readback-trace
+            color: blue
+            linger: 0.3
+          - id: tr-sdk-readback-0-3
+            phrase: The registry example also reads the alias after rollback and checks the changed temperature on the same prompt version.
+            targets:
+              - tr-sdk-readback-trace
+            color: blue
+            linger: 0.3
+          - id: tr-sdk-readback-0-4
+            phrase: Finished tells you the logging lifecycle completed. A candidate that refused the rollback steps could finish too.
+            targets:
+              - tr-sdk-readback-trace
+            color: blue
+            linger: 0.3
+      - say: Run Weights and Biases in offline mode. A run file lands on disk. You can sync that file when you reconnect. In disabled mode the same logging call writes nothing. For an online evaluation, the use artifact method records which input version the run consumed. Pin that version or its digest and keep the approved rows so a teammate can replay the same cases.
+        hold: 0.65
+        caption_starts:
+          - "A run file lands on disk."
+          - "In disabled mode"
+          - "For an online evaluation"
+        visual_cues:
+          - id: tr-sdk-readback-1-0
+            phrase: A run file lands on disk
+            targets:
+              - offline
+            color: green
+            linger: 0.3
+          - id: tr-sdk-readback-1-1
+            phrase: You can sync that file when you reconnect
+            targets:
+              - offline
+            color: cyan
+            linger: 0.3
+          - id: tr-sdk-readback-1-2
+            phrase: In disabled mode the same logging call writes nothing
+            targets:
+              - disabled
+            color: blue
+            linger: 0.3
+          - id: tr-sdk-readback-1-3
+            phrase: the use artifact method records which input version the run consumed
+            targets:
+              - online
+            color: cyan
+            linger: 0.3
+          - id: tr-sdk-readback-1-4
+            phrase: keep the approved rows
+            targets:
+              - online
+            color: cyan
+            linger: 0.3
+  - id: weave-call-tree
+    title: Follow one row into a trace
+    visual: Show three sequential siblings under one request and three nested operations beneath retrieval. Then score two actual first-repair outputs beside their expected routes.
+    beats:
+      - say: Weights and Biases Models keeps the run. Weave can show the calls inside one request. After a project is initialized, a tracked operation records its inputs, output, timing and parent. In this example the request retrieves evidence, generates an answer and checks it, in that order. Open retrieval and you see embedding, index search and reranking inside it. A gap in instrumentation can hide work.
+        hold: 0.65
+        visual_cues:
+          - id: request-tree
+            phrase: the calls inside one request
+            targets:
+              - call-tree
+            color: cyan
+            linger: 0.3
+          - id: retrieval-children
+            phrase: Open retrieval
+            targets:
+              - call-tree
+            color: cyan
+            linger: 0.3
+      - say: A Weave evaluation brings a dataset, a candidate and a scorer together. The scorer gets the dataset’s expected route and the candidate’s result in an argument named output. On the incident, both say abstain. The scorer returns true for that row. On rollback, the label says serve and the candidate abstains. The same comparison returns false. Each result is a dictionary with a named score.
+        hold: 0.7
+        visual_cues:
+          - id: score-incident
+            phrase: The scorer returns true for that row
+            targets:
+              - score-rows
+            color: cyan
+            linger: 0.3
+          - id: score-rollback
+            phrase: The same comparison returns false
+            targets:
+              - score-rows
+            color: cyan
+            linger: 0.3
+      - say: Evaluation runs asynchronously. In a notebook with an active event loop, await the evaluation. A standalone script can start the loop with asyncio run. Before enabling hosted tracing, redact the data you’re allowed to keep and review where it will be sent.
+        hold: 0.75
+        visual_cues:
+          - id: await-evaluation
+            phrase: await the evaluation
+            targets:
+              - await-eval
+            color: cyan
+            linger: 0.3
+  - id: token-cost
+    title: What did this request cost?
+    visual: Measure the two sequential spans. Price three disjoint token buckets, then move all cached input into the uncached bucket while keeping the request size fixed.
+    beats:
+      - say: In this example retrieval takes four hundred twenty milliseconds and generation takes eighteen hundred fifty. Generation occupies the longer span. To find out why, inspect queue waits, retries, provider timings and resource use. A reader may see the first chunk well before generation ends. Measure that delay from the client’s request to the first visible chunk.
+        hold: 0.65
+        visual_cues:
+          - id: time-spans
+            phrase: Generation occupies the longer span
+            targets:
+              - spans
+            color: cyan
+            linger: 0.3
+          - id: first-visible
+            phrase: the first visible chunk
+            targets:
+              - first-chunk
+            color: cyan
+            linger: 0.3
+      - say: The same request has two thousand input tokens. Twelve hundred are cached, leaving eight hundred billed as uncached. Price those two buckets separately, then add a hundred billed output tokens at the output rate. The rates on screen are per million, so divide each product by a million. The total is just over a third of a cent.
+        hold: 0.85
+        visual_cues:
+          - id: token-buckets
+            phrase: Price those two buckets separately
+            targets:
+              - buckets
+            color: cyan
+            linger: 0.3
+          - id: first-cost
+            phrase: just over a third of a cent
+            targets:
+              - bill
+            color: cyan
+            linger: 0.3
+      - say: Keep the input and output lengths fixed. Suppose every input token misses the cache. All two thousand now pay the uncached rate. The estimate rises to just under seven tenths of a cent. For a real estimate, use the provider’s rate for that model, date and tier. Include additional billable work, and count reasoning tokens only once if the output bill already includes them.
+        hold: 0.85
+        visual_cues:
+          - id: cache-return
+            phrase: every input token misses the cache
+            targets:
+              - buckets
+            color: cyan
+            linger: 0.3
+          - id: second-cost
+            phrase: just under seven tenths of a cent
+            targets:
+              - bill
+            color: cyan
+            linger: 0.3
+          - id: price-scope
+            phrase: use the provider’s rate
+            targets:
+              - buckets
+            color: cyan
+            linger: 0.3
+  - id: receipt-validation
+    title: What did the saved field actually contain?
+    visual: Read the saved count and the simulation flag from cloned run-three records. Change a number into a Boolean, restore it, and change the manifest Boolean into a string with its own valid checksum.
+    beats:
+      - say: A reviewer has checked the case IDs. Now check the types of the saved fields. Read the incident link, policy, evidence version and evaluator with the report and its candidate manifest. Verify each prediction against the frozen row. Recount the cases, unsafe serves, unnecessary refusals and exact matches. The logged values have to agree.
+        hold: 0.55
+        visual_cues:
+          - id: check-types
+            phrase: check the types of the saved fields
+            targets:
+              - fields
+              - type-check
+            color: cyan
+            linger: 0.3
+      - say: Replace the numeric case count with the Boolean true. The verifier rejects it. This tracker requires a finite number, even in a one-case run where Python treats true as equal to one. A missing count or a value like NaN also fails. Restore the count to four. The original record passes again.
+        hold: 0.65
+        visual_cues:
+          - id: boolean-count
+            phrase: Replace the numeric case count with the Boolean true
+            targets:
+              - fields
+              - type-check
+            color: pink
+            linger: 0.3
+          - id: restore-count
+            phrase: Restore the count to four
+            targets:
+              - fields
+              - type-check
+            color: cyan
+            linger: 0.3
+      - say: Now put quotation marks around the simulation flag and save that manifest with a matching checksum. The file contains text where the verifier requires a Boolean. The check fails again. This procedure establishes that a local record is internally consistent. A real job also needs evidence of what ran, and the answers it generated still need factual review.
+        hold: 0.75
+        visual_cues:
+          - id: string-flag
+            phrase: put quotation marks around the simulation flag
+            targets:
+              - fields
+              - type-check
+            color: pink
+            linger: 0.3
+          - id: scope-check
+            phrase: a local record is internally consistent
+            targets:
+              - type-check
+            color: cyan
+            linger: 0.3
+  - id: feedback
+    title: When does a holdout become development data?
+    visual: Start with the two regression cases in development and the two holdout cases reserved. Move only the used holdout into development. Keep the independent final suite unscored.
+    beats:
+      - say: The approval and freeze cases started as regressions. We reserved two more cases before the first test. Then we used the rollback failure to change the rule. Move the two inspected holdout cases into development. They can catch this regression again, but we’ve already used their results to choose the revision.
+        hold: 0.75
+        visual_cues:
+          - id: reserved-rollback
+            phrase: We reserved two more cases
+            targets:
+              - split
+            color: cyan
+            linger: 0.3
+          - id: use-feedback
+            phrase: Move the two inspected holdout cases into development
+            targets:
+              - split
+            color: cyan
+            linger: 0.3
+      - say: Freeze the revised candidate. Choose a separate final set with representative cases and decide how to review claims, latency and cost before using it. Zero of these four new cases have been scored. Even seeing only a final score can guide tuning if you keep going back to it. Control access and record each use.
+        hold: 0.8
+        visual_cues:
+          - id: freeze-next
+            phrase: Freeze the revised candidate
+            targets:
+              - fresh-cases
+            color: cyan
+            linger: 0.3
+          - id: protect-final
+            phrase: Zero of these four new cases have been scored
+            targets:
+              - fresh-cases
+            color: cyan
+            linger: 0.3
+  - id: review-boundary
+    title: When should the canary stop?
+    visual: Recheck the three saved runs, then apply the future canary rule to one known unsafe claim, a partial review with zero known unsafe claims, and a complete clean window.
+    beats:
+      - say: Of the three original runs, only the revision clears both development checks. The example selection function raises an error if zero or more than one qualify. Its nomination records the source run, artifact, suite fingerprint and known-good fallback. This writes a review record. Production traffic still goes to the known-good release. Fresh factual and operational evaluation and a release owner’s decision come before a canary.
+        hold: 0.65
+        visual_cues:
+          - id: tr-review-boundary-0-0
+            phrase: Of the three original runs, only the revision clears both development checks.
+            targets:
+              - tr-review-boundary-trace
+            color: blue
+            linger: 0.3
+          - id: tr-review-boundary-0-1
+            phrase: The example selection function raises an error if zero or more than one qualify.
+            targets:
+              - tr-review-boundary-trace
+            color: blue
+            linger: 0.3
+          - id: tr-review-boundary-0-2
+            phrase: Its nomination records the source run, artifact, suite fingerprint and known-good fallback.
+            targets:
+              - tr-review-boundary-trace
+            color: blue
+            linger: 0.3
+          - id: tr-review-boundary-0-3
+            phrase: This writes a review record. Production traffic still goes to the known-good release.
+            targets:
+              - tr-review-boundary-trace
+            color: blue
+            linger: 0.3
+          - id: tr-review-boundary-0-4
+            phrase: Fresh factual and operational evaluation and a release owner’s decision come before a canary.
+            targets:
+              - tr-review-boundary-trace
+            color: blue
+            linger: 0.3
+      - say: Suppose an approved canary is now serving a small share of traffic. Count reviewed unsafe claims in its actual answers. One known unsafe claim aborts the canary, even while some reviews are outstanding. With zero known unsafe claims and incomplete coverage, pause for review. With a complete window and zero unsafe claims, continue monitoring. These counts describe claims in served answers. The earlier route counts only described whether to answer. Aborting a canary leaves production on the known-good version. Production rollback is the action after a production change.
+        hold: 0.65
+        visual_cues:
+          - id: tr-review-boundary-1-0
+            phrase: Suppose an approved canary is now serving a small share of traffic. Count reviewed unsafe claims in its actual answers.
+            targets:
+              - tr-review-boundary-trace
+            color: blue
+            linger: 0.3
+          - id: tr-review-boundary-1-1
+            phrase: One known unsafe claim aborts the canary, even while some reviews are outstanding.
+            targets:
+              - tr-review-boundary-trace
+            color: blue
+            linger: 0.3
+          - id: tr-review-boundary-1-2
+            phrase: With zero known unsafe claims and incomplete coverage, pause for review.
+            targets:
+              - tr-review-boundary-trace
+            color: blue
+            linger: 0.3
+          - id: tr-review-boundary-1-3
+            phrase: With a complete window and zero unsafe claims, continue monitoring.
+            targets:
+              - tr-review-boundary-trace
+            color: blue
+            linger: 0.3
+          - id: tr-review-boundary-1-4
+            phrase: These counts describe claims in served answers. The earlier route counts only described whether to answer.
+            targets:
+              - tr-review-boundary-trace
+            color: blue
+            linger: 0.3
+          - id: tr-review-boundary-1-5
+            phrase: Aborting a canary leaves production on the known-good version. Production rollback is the action after a production change.
+            targets:
+              - tr-review-boundary-trace
+            color: blue
+            linger: 0.3
+  - id: compiled-contract
+    title: Which program earned the score?
+    visual: Follow a compiled candidate from optimizer inputs and split identities to frozen program state and an independent final evaluation.
+    beats:
+      - say: An optimizer can try different instructions and demonstrations for you. Record the program signature, optimizer settings and model revision, and identify the training, development and final splits. Save the compiled program itself, the metric version and the redacted per-case reports. Keep rejected candidates too. If the optimizer saw the holdout, the judge changed or a safety slice disappeared, its higher score needs a different explanation.
+        hold: 0.65
+        visual_cues:
+          - id: tr-compiled-contract-0-0
+            phrase: An optimizer can try different instructions and demonstrations for you.
+            targets:
+              - tr-compiled-contract-trace
+            color: blue
+            linger: 0.3
+          - id: tr-compiled-contract-0-1
+            phrase: Record the program signature, optimizer settings and model revision, and identify the training, development and final splits.
+            targets:
+              - tr-compiled-contract-trace
+            color: blue
+            linger: 0.3
+          - id: tr-compiled-contract-0-2
+            phrase: Save the compiled program itself, the metric version and the redacted per-case reports. Keep rejected candidates too.
+            targets:
+              - tr-compiled-contract-trace
+            color: blue
+            linger: 0.3
+          - id: tr-compiled-contract-0-3
+            phrase: If the optimizer saw the holdout, the judge changed or a safety slice disappeared, its higher score needs a different explanation.
+            targets:
+              - tr-compiled-contract-trace
+            color: blue
+            linger: 0.3
+      - say: Freeze the chosen program before running the independent final test. Check factual answers, safety, cost and latency on the workload that matters. Release review can then connect the result to the compiled artifact and the settings serving actually uses.
+        hold: 0.65
+        visual_cues:
+          - id: tr-compiled-contract-1-0
+            phrase: Freeze the chosen program before running the independent final test.
+            targets:
+              - tr-compiled-contract-trace
+            color: blue
+            linger: 0.3
+          - id: tr-compiled-contract-1-1
+            phrase: Check factual answers, safety, cost and latency on the workload that matters.
+            targets:
+              - tr-compiled-contract-trace
+            color: blue
+            linger: 0.3
+          - id: tr-compiled-contract-1-2
+            phrase: Release review can then connect the result to the compiled artifact and the settings serving actually uses.
+            targets:
+              - tr-compiled-contract-trace
+            color: blue
+            linger: 0.3
+  - id: handoff
+    title: Which run would you hand to a reviewer?
+    visual: Reopen the three original reports in the same case-by-run layout. Trace the rollback row to the nominated run and its manifest, report, suite and known-good release.
+    beats:
+      - say: Here are the three intact reports again. Follow the rollback row, then the two rows without approval. Which run serves the supported requests and abstains on both unsupported ones?
+        hold: 2
+        visual_cues:
+          - id: trace-rollback
+            phrase: Follow the rollback row
+            targets:
+              - case-2
+            color: cyan
+            linger: 0.3
+          - id: choose-source
+            phrase: Which run serves the supported requests and abstains on both unsupported ones
+            targets:
+              - choice
+            color: cyan
+            linger: 0.3
+      - say: Nominate run three for fresh evaluation. Run one shows why the approval gate exists. Run two shows why it has to recognize a runbook. Keep both rejected runs so a reviewer can retrace that choice.
+        hold: 0.75
+        visual_cues:
+          - id: name-source
+            phrase: Nominate run three for fresh evaluation
+            targets:
+              - matches
+              - choice
+            color: green
+            linger: 0.3
+            caption_boundary: true
+      - say: Open the nomination. The saved rollback row leads back to the case report, the candidate manifest and the frozen suite. Keep the known-good release with them. Before this artifact gets traffic, a reviewer still needs fresh answers checked against their evidence, matched latency and cost measurements, and a release owner’s approval.
+        hold: 0.85
+        visual_cues:
+          - id: open-nomination
+            phrase: Open the nomination
+            targets:
+              - record
+            color: cyan
+            linger: 0.3
+          - id: pending-review
+            phrase: fresh answers checked against their evidence
+            targets:
+              - record
+            color: cyan
+            linger: 0.3
+  - id: fresh-contract
+    title: What would you ask each run to recover?
+    visual: Align two six-row reports with the frozen A through F roster. Restore the missing row and reload the worker on separate cues. Keep both repairs visible as the final line follows an optimizer score back to the saved program.
+    beats:
+      - say: Try two new records. Each claims six matching routes in six cases. R eight’s checksum matches its saved bytes, and its worker has the evaluated settings. R nine kept all six case IDs. Compare its evaluated temperature with the value its worker loaded. Which original row would you request for R eight? Which temperature should R nine reload?
+        hold: 3
+        visual_cues:
+          - id: tr-fresh-contract-0-0
+            phrase: two new records
+            targets:
+              - expected-ids
+            color: cyan
+            linger: 0.3
+          - id: tr-fresh-contract-0-1
+            phrase: R eight’s checksum matches its saved bytes
+            targets:
+              - r-eight
+              - expected-ids
+            color: cyan
+            linger: 0.3
+          - id: tr-fresh-contract-0-2
+            phrase: R nine kept all six case IDs
+            targets:
+              - r-nine
+            color: cyan
+            linger: 0.3
+          - id: tr-fresh-contract-0-3
+            phrase: the value its worker loaded
+            targets:
+              - worker
+            color: cyan
+            linger: 0.3
+          - id: tr-fresh-contract-0-4
+            phrase: Which original row would you request for R eight
+            targets:
+              - r-eight
+              - expected-ids
+            color: cyan
+            linger: 0.3
+          - id: tr-fresh-contract-0-5
+            phrase: Which temperature should R nine reload
+            targets:
+              - worker
+              - next-action
+            color: yellow
+            linger: 0.3
+      - say: Recover F for R eight and reload zero for R nine. A appears twice in the first report. Relabeling the second A would invent a result. Read F’s original result from the saved evaluation and verify the repaired report. For R nine, reload the evaluated configuration and read back zero on the worker. If you want to keep the warmer setting, give it its own evaluation.
+        hold: 0.9
+        visual_cues:
+          - id: tr-fresh-contract-1-0
+            phrase: Recover F for R eight and reload zero for R nine
+            targets:
+              - next-action
+            color: yellow
+            linger: 0.3
+            caption_boundary: true
+          - id: tr-fresh-contract-1-1
+            phrase: A appears twice in the first report
+            targets:
+              - r-eight
+            color: cyan
+            linger: 0.3
+          - id: tr-fresh-contract-1-2
+            phrase: verify the repaired report
+            targets:
+              - r-eight
+              - expected-ids
+            color: cyan
+            linger: 0.3
+          - id: tr-fresh-contract-1-3
+            phrase: read back zero on the worker
+            targets:
+              - worker
+            color: cyan
+            linger: 0.3
+          - id: tr-fresh-contract-1-4
+            phrase: give it its own evaluation
+            targets:
+              - next-action
+            color: cyan
+            linger: 0.3
+      - say: Both runs now pass these checks. Six out of six leaves a tie. Apply your selection rule, then keep the chosen artifact with its run, settings and known-good fallback. Test its answers on fresh cases and measure latency and cost. When an optimizer picks a prompt, follow its winning score back to the run and open the program that earned it.
+        hold: 1.5
+        caption_starts:
+          - "Six out of six leaves a tie."
+          - "Test its answers on fresh cases"
+          - "When an optimizer picks a prompt"
+        visual_cues:
+          - id: tr-fresh-contract-2-0
+            phrase: Both runs now pass these checks
+            targets:
+              - next-action
+            color: cyan
+            linger: 0.3
+          - id: tr-fresh-contract-2-1
+            phrase: Apply your selection rule
+            targets:
+              - next-action
+            color: cyan
+            linger: 0.3
+          - id: tr-fresh-contract-2-2
+            phrase: Test its answers on fresh cases
+            targets:
+              - next-action
+            color: cyan
+            linger: 0.3
+          - id: tr-fresh-contract-2-3
+            phrase: When an optimizer picks a prompt
+            targets:
+              - next-action
+            color: cyan
+            linger: 0.3
+          - id: follow-source-run
+            phrase: back to the run
+            targets:
+              - next-action
+            color: cyan
+            linger: 0.3
+          - id: open-program
+            phrase: open the program that earned it
+            targets:
+              - next-action
+            color: cyan
+            linger: 0.3

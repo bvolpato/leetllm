@@ -1,0 +1,219 @@
+version: 1
+lesson: attention
+promise: Explain how scaled dot-product attention lets each token blend content from the positions it may read, work it by hand, and say what makes it fail or get expensive at real sizes.
+framing: []
+objectives:
+  - id: read-paper-mechanism
+    can: Map the paper’s equation and figure to score, scale, mask, shares, value mixing and separate per-head projections.
+    scenes: [ paper-reference ]
+  - id: route-then-mix
+    can: Identify where queries, keys and values come from. Use a source's share and value together to decide how much it contributes to one output coordinate.
+    scenes: [ hook, vectors, score, mix, heads, close ]
+  - id: work-by-hand
+    can: Calculate one query's dot product with two different keys, scale the scores, apply softmax, and mix the values by hand.
+    scenes: [ score, softmax, mix, your-turn, close ]
+  - id: matrix-and-shapes
+    can: Write the matrix formula and state the shape and softmax axis at each step.
+    scenes: [ matrix, paper-reference ]
+  - id: masks
+    can: Build a causal mask, add a padding mask, and handle a row with no key to read.
+    scenes: [ mask, decode ]
+  - id: why-scale
+    can: Derive why scores spread like the square root of the width, and explain what that does to softmax and its gradients.
+    scenes: [ why-scale ]
+  - id: three-types
+    can: Choose among bidirectional, causal, and cross attention from where Q, K, and V come from.
+    scenes: [ types ]
+  - id: heads
+    can: Follow one query-key pair through different head layouts. Count its products and stored scores, then explain how head outputs join and project.
+    scenes: [ heads, paper-reference ]
+  - id: gradients
+    can: Predict how the same increase in one logit moves the output with distinct or identical values, and identify the gradient path when only one source is allowed.
+    scenes: [ learn ]
+  - id: costs
+    can: Estimate quadratic score memory and explain how it differs from decode-time cache traffic.
+    scenes: [ cost, decode ]
+  - id: cache-sharing
+    can: Explain what multi-query and grouped-query attention shrink, what they leave alone, and what they require.
+    scenes: [ decode ]
+  - id: numerics
+    can: Explain the max shift, and tell softmax overflow from a score that overflowed earlier.
+    scenes: [ stable ]
+  - id: flashattention
+    can: Trace online softmax across tiles, and say which bottleneck FlashAttention targets.
+    scenes: [ flash ]
+  - id: diagnose
+    can: Map a symptom to the step of attention that causes it.
+    scenes: [ mistakes ]
+sections:
+  - heading: Three views of one token
+    status: taught
+    scenes: [ hook, vectors, close ]
+    note: The opening labels each word by its distance back from sing. The count starts at zero under the verb and reaches four under its subject, Birds.
+  - heading: The core formula
+    status: taught
+    scenes: [ matrix ]
+  - heading: Step by step
+    status: taught
+    scenes: [ matrix, mask ]
+  - heading: A trace with real numbers
+    status: taught
+    scenes: [ hook, score, softmax, mix, matrix, your-turn, close ]
+    note: The opening highlights sing as the reader reaches it. The two contributions to its first coordinate, about 0.84 from Birds and 0.58 from sing, stay visible while the viewer adds them. The caption gives their sum when the narrator reaches it. In score, the query [0.5, 1] stays fixed. After seeing the Birds score of 0.60, viewers get two seconds to work out the sing score using its key [0.3, 0.9]. Viewers can multiply the new reader state [1, 3] by the same query matrix to get [2.5, 3.5]. In your-turn, two bars measure sing's lead over Birds in raw dot products. The lead grows from 1.05 − 0.60 = 0.45 to 3.90 − 2.70 = 1.20. In each output stack, Birds supplies about 30% of its value coordinate and sing supplies about 70% of its own. Viewers have two seconds to add 0.60 + 0.70 and 0.30 + 1.40 before the answer caption gives the two totals. The final read changes only the second coordinate of the Birds value.
+  - heading: Add the causal mask
+    status: taught
+    scenes: [ mask ]
+    note: The boolean mask conventions of PyTorch stay on the page, because they are product details.
+  - heading: Common shape mistakes
+    status: taught
+    scenes: [ matrix, mistakes ]
+  - heading: Why scale by $\sqrt{d_k}$? The variance proof
+    status: taught
+    scenes: [ why-scale ]
+  - heading: Deriving the raw dot-product variance
+    status: taught
+    scenes: [ why-scale ]
+  - heading: The softmax gradient saturation trap
+    status: taught
+    scenes: [ why-scale ]
+  - heading: Restoring unit variance
+    status: taught
+    scenes: [ why-scale ]
+  - heading: Three types of attention
+    status: taught
+    scenes: [ types ]
+  - heading: 1. Bidirectional self-attention (encoder)
+    status: taught
+    scenes: [ types, close ]
+  - heading: 2. Causal self-attention (decoder)
+    status: taught
+    scenes: [ mask, types ]
+  - heading: Cached queries need absolute positions
+    status: taught
+    scenes: [ decode ]
+    note: The PyTorch mask API and the broadcast shapes for batched padding stay on the page.
+  - heading: 3. Cross-attention (encoder-decoder)
+    status: taught
+    scenes: [ types ]
+  - heading: Multi-head attention
+    status: taught
+    scenes: [ heads ]
+    note: For head two, viewers compare the weighted sums for the first and second coordinates. Birds supplies the larger share and has its one in the second coordinate. Later, one pair is marked in every eight-by-eight score grid. The film compares the products per pair with the count of scores stored across all heads.
+  - heading: Gradient flow through attention
+    status: taught
+    scenes: [ learn ]
+    note: With both values at [3, -1], the Birds share rises from 42% to 66% before the viewer predicts the output. The gold point stays at [3, -1] as the share returns to 42%. The row-reduction implementation of backward stays on the page.
+  - heading: Complexity analysis
+    status: taught
+    scenes: [ cost, decode ]
+    note: The roofline estimate and arithmetic-intensity derivation stay on the page. The film says that bandwidth can become the limit.
+  - heading: Concrete memory example
+    status: taught
+    scenes: [ cost ]
+  - heading: Softmax numerical stability
+    status: taught
+    scenes: [ stable ]
+  - heading: The max-shift technique
+    status: taught
+    scenes: [ stable ]
+  - heading: Overflow can happen before softmax
+    status: taught
+    scenes: [ stable ]
+  - heading: "FlashAttention: tiled exact attention"
+    status: taught
+    scenes: [ flash ]
+  - heading: The GPU memory hierarchy bottleneck
+    status: taught
+    scenes: [ flash ]
+  - heading: SRAM tiling and the online softmax trick
+    status: taught
+    scenes: [ flash ]
+    note: The film keeps each value beside its score as the running maximum moves from 1000 to 1001. The old mass and weighted sum are rescaled against this new maximum before the second tile contributes. The viewer chooses whether to divide the weighted sum (2.277) by the value count (3) or the total mass (1.503).
+  - heading: Backward pass recomputation
+    status: taught
+    scenes: [ flash ]
+  - heading: Mistakes that break attention
+    status: taught
+    scenes: [ mistakes ]
+  - heading: Going deeper
+    status: article-only
+    reason: beyond-promise
+    note: Additive attention is history that the promise does not need. The film covers tied scores through softmax, and the zero-context remark is a side note.
+  - heading: Practice drill
+    status: taught
+    scenes: [ learn ]
+    note: Both value rows show [3, -1] while viewers predict the output. The gold point lands where the rings meet and stays there as the Birds share grows from 42% to 66%. The scene then tests a single allowed key. The finite-difference cell stays on the page.
+quiz:
+  - n: 1
+    status: taught
+    scenes:
+      - types
+  - n: 2
+    status: taught
+    scenes:
+      - matrix
+  - n: 3
+    status: taught
+    scenes:
+      - why-scale
+  - n: 4
+    status: taught
+    scenes:
+      - mask
+  - n: 5
+    status: taught
+    scenes:
+      - decode
+  - n: 6
+    status: taught
+    scenes:
+      - heads
+  - n: 7
+    status: taught
+    scenes:
+      - cost
+  - n: 8
+    status: taught
+    scenes:
+      - learn
+  - n: 9
+    status: taught
+    scenes:
+      - flash
+      - decode
+  - n: 10
+    status: taught
+    scenes:
+      - flash
+removed:
+  - point: The earlier film's line "That's most of what a transformer is."
+    reason: Overclaim. A transformer block also has an output projection, normalization, and a feed-forward network. The close now says that attention is one part of a block.
+  - point: The earlier film's line "The word now knows who's singing."
+    reason: Overclaim for invented numbers. The script now says that the numbers are invented and the mechanism is real.
+  - point: The earlier film's close, which called the key and value cache the next story.
+    reason: The article's next lesson is vision transformers, so the handoff now goes there. The cache moved into the decode scene.
+  - point: The old script's spoken row-by-column multiplication for each of the query, key, and value projections.
+    reason: The arithmetic stays visible on screen, and speaking three identical walks repeats the same operation. The script still names the projections and gives the token states.
+  - point: The old script's width-four variance example, where four product terms give variance four.
+    reason: It repeats the argument. The general rule and the width sixty-four case teach the same step.
+  - point: The term "convex hull" from the old script.
+    reason: The idea stays in plain words, as a point on the line between the two values, with the same limits.
+  - point: The old script's three-token multi-head example, with head queries of one, one and one point two, point six.
+    reason: It needed a new setup. The two-head example continues the running example, so the viewer can compare it with the numbers already worked.
+  - point: The old script's output-matrix arithmetic, with signed products entering an accumulator and bars growing from a residual state.
+    reason: The join, the output matrix, and the residual addition stay in the script. The coordinate-level arithmetic adds no new idea.
+  - point: The old script's repeated remark that runtime depends on kernel reuse, on the cache and grouped-query lines.
+    reason: One statement in the FlashAttention scene now says that the time saved depends on the hardware and the workload, and the decode scene says that bandwidth can become the limit. The kernel detail stays on the page.
+reviews:
+  closed_book:
+    method: Original ten literal supports preserved in all eighteen unchanged scenes; independent ROOT comparison, not a fresh quiz review.
+    evidence: build/video-delivery-20261106/attention-paper-epoch/root-fact-check.json
+    taught: 10
+    partial: 0
+    absent: 0
+    script: ca7b8f6fdf8f2b02
+  fact_check:
+    method: ROOT independently checked the five added beats against v7 pp4–5 and residual scope in section3.1, preserving the prior script scope.
+    evidence: build/video-delivery-20261106/attention-paper-epoch/root-fact-check.json
+    open_findings: 0
+    script: ca7b8f6fdf8f2b02

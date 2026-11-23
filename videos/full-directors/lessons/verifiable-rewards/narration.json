@@ -1,0 +1,938 @@
+[
+  {
+    "id": "c01",
+    "title": "What score will submission B get?",
+    "sourceChapters": [
+      "c01"
+    ],
+    "beats": [
+      {
+        "id": "c01-b01",
+        "say": "Slide one job into each open slot. Each shelf belongs to one worker. Twelve jobs fit on a shelf and we have fourteen shelves. If each job uses one slot and nothing else limits the cluster, all fourteen workers together can run a hundred and sixty-eight jobs at once.",
+        "hold": 0.45
+      },
+      {
+        "id": "c01-b02",
+        "say": "Read submission B from left to right. It boxes a hundred and sixty-eight, then boxes a hundred and forty-eight. A stops after the first number. Our checker pays one point if the first boxed value matches the capacity. Predict B’s reward.",
+        "hold": 2.2
+      },
+      {
+        "id": "c01-b03",
+        "say": "Follow the read head on B. It stops at the first box. B earns one point. So does A. The score applies to the whole submission, including the later contradiction.",
+        "hold": 0.3
+      },
+      {
+        "id": "c01-b04",
+        "say": "Using an executable check to train a policy this way is called reinforcement learning with verifiable rewards. Keep that second submission. We'll replay it when we change the checker.",
+        "hold": 0.8
+      }
+    ]
+  },
+  {
+    "id": "c02",
+    "title": "Choose the signal separately from the learning loop",
+    "sourceChapters": [
+      "c02"
+    ],
+    "beats": [
+      {
+        "id": "c02-b01",
+        "say": "The rack tells us how many jobs fit at once. To measure throughput we would also need to know how quickly jobs finish. Suppose we give a student model the worked multiplication as a demonstration. Supervised fine-tuning, or SFT, fits those target tokens by cross-entropy.",
+        "hold": 0.3
+      },
+      {
+        "id": "c02-b02",
+        "say": "Now suppose people rank two answers. Reward-model RLHF fits a scorer to those preferences, then uses its scores on new answers in reinforcement learning. Direct preference optimization, or DPO, fits the preferred and rejected answers as a pair.",
+        "hold": 0.7
+      },
+      {
+        "id": "c02-b03",
+        "say": "RLVR uses that executable feedback to update sampled behavior. PPO and GRPO are possible optimizers, not definitions of the reward source. A checker can order a DPO pair too, but that offline pair objective remains different from sampling new policy answers and reinforcing their rewards.",
+        "hold": 0.3
+      },
+      {
+        "id": "c02-b04",
+        "say": "Follow the actual supervision and objective rather than the training label.",
+        "hold": 0.7
+      },
+      {
+        "id": "c02-b05",
+        "say": "The eight-billion-parameter Tülu three model used PPO. In that recipe, if a response includes the end-of-sequence token, a correct answer scores plus ten. An incorrect answer scores zero. What happens if both answers lose the end token? Without it, the trainer sets both terminal scores to minus ten. These terminal scores come before any tokenwise KL costs. Our rack checker uses one or zero. Other checkers can award partial credit or combine several signals.",
+        "hold": 0.7
+      }
+    ]
+  },
+  {
+    "id": "c03",
+    "title": "Define the verifier's contract",
+    "sourceChapters": [
+      "c03"
+    ],
+    "beats": [
+      {
+        "id": "c03-b01",
+        "say": "Send our prompt and one response through verifier version one. It extracts a field, checks it against the reference, and returns a number. Here a match earns one and a mismatch earns zero. Save the rule with the response. Someone training tomorrow needs to know what that digit meant.",
+        "hold": 0.55
+      },
+      {
+        "id": "c03-b02",
+        "say": "The checker can parse a final number, run tests on a program, or ask a proof system to validate a formal statement. The exact contract determines what a passing answer means.",
+        "hold": 0.55
+      },
+      {
+        "id": "c03-b03",
+        "say": "If the checking service stops before it can return a result, put that submission aside with its identity. A healthy comparison can establish a mismatch. A crashed checker leaves the outcome unknown.",
+        "hold": 0.75
+      }
+    ]
+  },
+  {
+    "id": "c04",
+    "title": "Keep a broken measurement out of the reward vector",
+    "sourceChapters": [
+      "c04"
+    ],
+    "beats": [
+      {
+        "id": "c04-b01",
+        "say": "Validate the task and trusted reference before judging its candidate. A malformed candidate, wrong result or candidate-owned runtime timeout receives zero when the verifier infrastructure is healthy. A host crash, unavailable prover or invalid reference leaves that sample unscored. Store prompt, rollout and verifier versions with both reward and failure type.",
+        "hold": 0.7
+      },
+      {
+        "id": "c04-b02",
+        "say": "Keep unscored identities in quarantine while excluding their missing outcomes from the reward vector. Use a bounded retry policy for genuine infrastructure failures, preserving the original candidate. Resampling until a passing answer appears changes the experiment.",
+        "hold": 0.3
+      },
+      {
+        "id": "c04-b03",
+        "say": "Imagine two measured answers, a pass and a miss. Their average is one half. Add a lost-host record as a made-up zero and the average drops to one third. The model wrote exactly the same answers. During an outage the same mistake can even make a batch look like an all-fail group.",
+        "hold": 0.7
+      },
+      {
+        "id": "c04-b04",
+        "say": "Checker coverage needs adversarial fixtures for the checker itself: repeated answer fields, invalid reference values, crashes, excessive output and timeouts. Measure their routing before trusting a rising average reward. Failure ownership is part of the training contract, not a cosmetic status attached after advantage computation.",
+        "hold": 0.7
+      }
+    ]
+  },
+  {
+    "id": "c05",
+    "title": "What can a final field tell us?",
+    "sourceChapters": [
+      "c05"
+    ],
+    "beats": [
+      {
+        "id": "c05-b01",
+        "say": "Check the reference by counting the slots. Ten workers with twelve slots each give us a hundred and twenty. Four more workers give us forty-eight. Add the two groups. Their hundred and sixty-eight slots give us the capacity.",
+        "hold": 0.65
+      },
+      {
+        "id": "c05-b02",
+        "say": "Give the checker two fresh responses. The first gives only the answer. The second shows the calculation. Each submits one final field. If the checker compares just that field with the reference, which response earns more?",
+        "hold": 2.05
+      },
+      {
+        "id": "c05-b03",
+        "say": "They tie. Each final field says a hundred and sixty-eight, so each response earns one. If a customer needs a sound explanation too, inspect the steps separately. A reviewer can catch a faulty argument even when its last number matches.",
+        "hold": 0.7
+      }
+    ]
+  },
+  {
+    "id": "c06",
+    "title": "A correct last value does not validate its argument",
+    "sourceChapters": [
+      "c06"
+    ],
+    "beats": [
+      {
+        "id": "c06-b01",
+        "say": "Change the task. Is ninety-seven prime? One response says yes because it ends in seven. Another tries the prime divisors up to its square root, two, three, five and seven. None divides it. Both Yes fields pass. Test the first explanation on twenty-seven. It ends in seven too, and three divides it.",
+        "hold": 0.7
+      },
+      {
+        "id": "c06-b02",
+        "say": "In Lightman’s study, people marked individual steps in math solutions. A process reward model learned from those labels. It ranked solutions sampled from a fixed generator so the team could choose one. Cobbe’s team used final-answer correctness to train an outcome verifier. It scored completed solutions and the team chose the highest-ranked one. Back at our rack, the checker just compares the boxed number with the key. A hundred and sixty-eight matches. A hundred and forty-eight misses.",
+        "hold": 0.7
+      },
+      {
+        "id": "c06-b03",
+        "say": "If the product needs a sound argument, a step rubric can flag the last-digit shortcut. A formal proof checker can verify a proof of the specified statement under its allowed assumptions. To measure what a policy update teaches, start with two copies of the same generator. Update one using the checker’s rewards. Give both copies fresh problems at the same sampling budget and compare their independently checked accuracy.",
+        "hold": 0.7
+      }
+    ]
+  },
+  {
+    "id": "c07",
+    "title": "Extract one bounded field before comparing exact values",
+    "sourceChapters": [
+      "c07"
+    ],
+    "beats": [
+      {
+        "id": "c07-b01",
+        "say": "The actual mathematics program first requires one literal boxed marker in at most four thousand ninety-six characters. It balances braces, accepts a field of at most sixty-four characters and restricts it to a signed integer, fraction or decimal grammar. Fraction conversion makes one half and zero point five equal without accepting arbitrary Python expressions.",
+        "hold": 0.7
+      },
+      {
+        "id": "c07-b02",
+        "say": "The trusted reference is parsed first. A zero denominator or invalid gold field quarantines the task. A malformed candidate, second box or candidate zero denominator returns zero under a healthy checker. The same written text can pass a permissive first-match extractor and fail this deliberately strict single-field contract.",
+        "hold": 0.7
+      },
+      {
+        "id": "c07-b03",
+        "say": "Math-Verify instead separates extraction, symbolic representation and comparison, with configurable priorities and tolerance. Symbolic equivalence also needs variable domains, assumptions and time limits; failed simplification does not itself prove inequality. If useful working legitimately contains several boxes, define a dedicated final-answer field rather than applying our toy contract blindly.",
+        "hold": 0.7
+      }
+    ]
+  },
+  {
+    "id": "c08",
+    "title": "Grade actual behavior outside the candidate process",
+    "sourceChapters": [
+      "c08"
+    ],
+    "beats": [
+      {
+        "id": "c08-b01",
+        "say": "In the code exercise, the host keeps the expected answer. Fixed, trusted Python examples run in isolated-mode child processes. For a case expecting one, the child returns JSON true. The host requires the exact integer type, so that result fails. An integer twenty-seven passes a case expecting twenty-seven. A child's own claim of a perfect score supplies no evidence about either case.",
+        "hold": 0.7
+      },
+      {
+        "id": "c08-b02",
+        "say": "This subprocess exercise does not sandbox arbitrary generated code. A production code verifier needs a restricted, patched execution environment with bounded CPU, wall time, memory, filesystem, network and output. Firecracker uses KVM microVMs; gVisor interposes its Sentry application kernel. Their different boundaries still depend on host configuration and allowed interfaces.",
+        "hold": 0.7
+      },
+      {
+        "id": "c08-b03",
+        "say": "A sleeping program can exhaust wall time without using its CPU allowance. A spawned descendant can outlive one child unless cancellation covers the whole execution boundary. Keep tests and secrets outside candidate authority, terminate and clean the sandbox, and record infrastructure failures separately. None of our local CPU outputs establishes a deployed microVM boundary.",
+        "hold": 0.7
+      }
+    ]
+  },
+  {
+    "id": "c09",
+    "title": "Expose the memorized lookup by changing the inputs",
+    "sourceChapters": [
+      "c09"
+    ],
+    "beats": [
+      {
+        "id": "c09-b01",
+        "say": "A lookup table remembers fourteen times twelve and eight times twelve. It earns two out of two on those exposed examples. Hold the table fixed and ask seven times nine and eleven times thirteen. The authored lookup now earns zero out of two. The visible checker rewarded matching cases without establishing multiplication.",
+        "hold": 0.7
+      },
+      {
+        "id": "c09-b02",
+        "say": "Use separate hidden inputs and varied execution conditions to test transfer. Keep duplicates and near-duplicates across the optimization boundary under control. Hidden tests can also be overfit through repeated reward queries, so a final held-out set needs a declared access and selection policy. Secrecy alone is not an unlimited source of fresh evidence.",
+        "hold": 0.7
+      },
+      {
+        "id": "c09-b03",
+        "say": "Broader checks reduce some shortcuts while leaving other inputs untested. Preserve exact test and verifier versions when comparing runs. A policy that cannot see gold outputs can still infer a weak grader through its feedback, so validate the full reward interface as well as each individual test.",
+        "hold": 0.7
+      }
+    ]
+  },
+  {
+    "id": "c10",
+    "title": "Count the whole response under the declared constraint",
+    "sourceChapters": [
+      "c10"
+    ],
+    "beats": [
+      {
+        "id": "c10-b01",
+        "say": "Read the three directions on the strip. Each line must start with a hyphen and a space, followed by nonblank item text. The response must contain exactly three lines. Append a fourth line that says Done. Count the markers, then count every line. Which checker accepts the response? The weak checker gives one point for three markers. The strict checker gives zero because Done is a fourth line.",
+        "hold": 0.7
+      },
+      {
+        "id": "c10-b02",
+        "say": "Erase the item text and drop the fourth line. You now have exactly three lines and three markers. What does the strict checker award? Zero again. Every marker needs an item after it, and spaces alone leave the item empty. A program can check the requested format, schema or permissions. Helpfulness needs a separate judgment, with a rubric and a way to review disagreements.",
+        "hold": 0.7
+      },
+      {
+        "id": "c10-b03",
+        "say": "Fix a parser defect before interpreting its reward as model improvement. If a low-reward base produces unreadable syntax, a small supervised or distilled cold start may make useful candidates reachable. If the gold or runner is broken, more model training treats a measurement failure as a capability problem.",
+        "hold": 0.7
+      }
+    ]
+  },
+  {
+    "id": "c11",
+    "title": "Own the theorem and preserve query multiplicity",
+    "sourceChapters": [
+      "c11"
+    ],
+    "beats": [
+      {
+        "id": "c11-b01",
+        "say": "The formal fixture is an authored result record, not a Lean prover run. The trusted theorem and imports stay outside candidate control. Acceptance requires the expected theorem, accepted proof status and only approved axiom dependencies. Our allowed set names Classical dot choice, propext and Quot dot sound; sorryAx fails the audit.",
+        "hold": 0.7
+      },
+      {
+        "id": "c11-b02",
+        "say": "Compilation alone is weaker than that contract. A proof can hide an inadmissible axiom without containing a literal sorry. Lean tracks dependencies for an axiom audit; native-evaluation mechanisms have their own compiler and trust assumptions. Validate the exact environment and statement before treating a successful process exit as a proof of the intended claim.",
+        "hold": 0.7
+      },
+      {
+        "id": "c11-b03",
+        "say": "For an unordered SQL result, try three rows in each tray. We expect two copies of A and one B with a null value. The query returns one A and two copies of B with null. Same row count. Same distinct rows. Different multiplicities. Preserve the types and nulls too. SQLite needs an explicit order clause to promise ordering, and equal keys can still tie.",
+        "hold": 0.3
+      },
+      {
+        "id": "c11-b04",
+        "say": "Keep the two queries. Our reference selects readings from batch one. The query we are testing selects readings from rack one. On a second snapshot, both readings belong to batch one and rack one. Both queries return A with one and B with null. Now add another A with one to batch one, on rack two. Which query picks up the extra copy?",
+        "hold": 2.2
+      },
+      {
+        "id": "c11-counterexample",
+        "say": "Only the batch query picks it up. It returns two copies of A. The rack query still returns one. That single difference rules out equivalence. A match describes the snapshot you tested. Equivalence would require matching results on every allowed snapshot.",
+        "hold": 0.8
+      }
+    ]
+  },
+  {
+    "id": "c12",
+    "title": "Sample answers for the same prompt",
+    "sourceChapters": [
+      "c12"
+    ],
+    "beats": [
+      {
+        "id": "c12-b01",
+        "say": "Reinforcement learning samples several completions for the same prompt. The checker assigns each one its outcome reward, giving us a group of successes and misses. For a fair comparison, completions share the same prompt, sampling setup, and reward contract.",
+        "hold": 0.55
+      },
+      {
+        "id": "c12-b02",
+        "say": "Two responses pass and two fail. Centering outcomes around this prompt group places successes above its average and misses below it.",
+        "hold": 0.55
+      },
+      {
+        "id": "c12-b03",
+        "say": "The two successful responses beat this prompt's group average; the two misses fall below it. The comparison is local to one prompt, so every rollout must keep the same prompt identity. A hard prompt should be compared with its own sampled group, since unrelated prompts can differ greatly in difficulty.",
+        "hold": 0.75
+      }
+    ]
+  },
+  {
+    "id": "c13",
+    "title": "An expectation can differ from one observed continuation",
+    "sourceChapters": [
+      "c13"
+    ],
+    "beats": [
+      {
+        "id": "c13-b01",
+        "say": "Imagine a token prefix with two equally likely continuations. One ends in a correct answer and one ends in a miss. In this terminal-only example the expected remaining reward is one half. A PPO critic tries to estimate that expectation. Follow the miss. With no discount or intermediate costs, its observed advantage is zero minus one half. That miss is consistent with the early estimate.",
+        "hold": 0.7
+      },
+      {
+        "id": "c13-b02",
+        "say": "With tokenwise reference costs or discounting, use the corresponding remaining return; many implementations use generalized advantage estimation. The critic adds parameters, optimizer state, activations and work. Removing it saves that state, while sharding, offload, reference residency and rollout buffers determine how much peak memory actually falls.",
+        "hold": 0.7
+      },
+      {
+        "id": "c13-b03",
+        "say": "GRPO replaces that learned value baseline with statistics of responses to the same prompt. The comparison is local. Mixing the easy prompt’s outcomes into a hard prompt’s baseline changes the estimator, and standard-deviation scaling can change how separate prompts are weighted in the complete batch.",
+        "hold": 0.7
+      }
+    ]
+  },
+  {
+    "id": "c14",
+    "title": "Where do these four answers set the baseline?",
+    "sourceChapters": [
+      "c14"
+    ],
+    "beats": [
+      {
+        "id": "c14-b01",
+        "say": "Take the four scores for fourteen times twelve. Two passes out of four put the mean halfway up the scale. Trace the first answer down to that line. Its reward sits half a point above the group. The second answer is half a point below.",
+        "hold": 0.3
+      },
+      {
+        "id": "c14-b02",
+        "say": "Group relative policy optimization, or GRPO, uses this group mean in place of the return estimate from a learned critic.",
+        "hold": 0.65
+      },
+      {
+        "id": "c14-b03",
+        "say": "Those gaps are all half a point in magnitude. Square them, average over the four responses, and take the square root. The population standard deviation is one half. Divide each signed gap by that spread.",
+        "hold": 0.3
+      },
+      {
+        "id": "c14-b04",
+        "say": "Now the first answer is one standard deviation above average, and the second is one below. Those signed numbers are the advantages.",
+        "hold": 0.8
+      },
+      {
+        "id": "c14-b05",
+        "say": "Suppose the next group contains four passes. Where will the comparison line go?",
+        "hold": 2.2
+      },
+      {
+        "id": "c14-replay",
+        "say": "Replace one miss, then the other. The mean rises to one. Every reward sits on it. The spread is zero. Guard the division and assign zero reward advantage to all four. With four misses, the mean falls to zero and again every gap vanishes. Log both kinds of uniform group. Other loss terms can still move the policy.",
+        "hold": 1
+      }
+    ]
+  },
+  {
+    "id": "c15",
+    "title": "Construct the mean and population spread from all eight outcomes",
+    "sourceChapters": [
+      "c15"
+    ],
+    "beats": [
+      {
+        "id": "c15-b01",
+        "say": "Draw a fresh group of eight for the same prompt. Four responses pass. Sum four and divide by eight for mean one half. Subtract that mean from every reward. Square the deviations, average over all eight and take the square root for population standard deviation one half.",
+        "hold": 0.7
+      },
+      {
+        "id": "c15-b02",
+        "say": "An advantage is reward minus that group mean, divided by that standard deviation. These passed responses receive plus one and misses minus one. This arithmetic supports continuous rewards too. It supplies loss coefficients under the active surrogate; clipping, regularizers and shared parameters still determine the final parameter update.",
+        "hold": 0.7
+      },
+      {
+        "id": "c15-b03",
+        "say": "Now set all eight rewards to one, then all to zero. Both have zero spread; the guard gives zero reward advantages and logs the uniform group. Enabled KL, entropy or another loss may still contribute, and other prompts can change shared weights.",
+        "hold": 0.3
+      },
+      {
+        "id": "c15-b04",
+        "say": "Try three continuous rewards instead: two, zero, one. Their mean is one. The squared gaps are one, one, zero. Divide their sum by three and take the square root. The spread is about point eight two. The advantages are about plus one point two two, minus one point two two, and zero. Group centering works beyond binary scores.",
+        "hold": 0.7
+      }
+    ]
+  },
+  {
+    "id": "c16",
+    "title": "Which token incentive survives clipping?",
+    "sourceChapters": [
+      "c16"
+    ],
+    "beats": [
+      {
+        "id": "c16-b01",
+        "say": "Pick one generated token from a response with advantage plus one. The policy that sampled it gave it probability one half at that position. The current policy gives it point six five. Divide current by rollout to get one point three. In code we exponentiate the difference of their log probabilities.",
+        "hold": 0.5
+      },
+      {
+        "id": "c16-b02",
+        "say": "Set the clipping margin to point two. The raw product lands at one point three. Clip the ratio to one point two and multiply by the same advantage. Keep the smaller product. Further increases in this ratio earn no more reward on this branch.",
+        "hold": 0.6
+      },
+      {
+        "id": "c16-b03",
+        "say": "Now take a token from a response with advantage minus one. Its rollout probability was also one half. Its current probability is point three five. The raw ratio is point seven, and clipping lifts it to point eight. Multiply both by minus one. Which product is smaller?",
+        "hold": 2.1
+      },
+      {
+        "id": "c16-b04",
+        "say": "Minus point eight is farther left. That's the term we keep. For a negative advantage the plateau is below point eight. A ratio moving the other way can still change the loss. The denominator belongs to the rollout policy. A reference policy enters separately if we use a drift penalty.",
+        "hold": 0.55
+      },
+      {
+        "id": "c16-b05",
+        "say": "Put each selected term back in its response. Suppose every other included token has ratio one. The first response averages two terms. The second averages three. Skip the padding, average the two response means, and negate that result for the reward loss. This is DeepSeekMath's tokenwise objective.",
+        "hold": 0.3
+      },
+      {
+        "id": "c16-b06",
+        "say": "Clipping a product of ratios once for the whole response would give a different objective.",
+        "hold": 0.7
+      }
+    ]
+  },
+  {
+    "id": "c17",
+    "title": "Do equal KL values give the same gradient?",
+    "sourceChapters": [
+      "c17"
+    ],
+    "beats": [
+      {
+        "id": "c17-b01",
+        "say": "Clipping used the policy that generated our batch. Now bring in a separate reference policy. It gives these two tokens equal probability. The current policy gives the first token eighty percent. For each token take the log of reference probability divided by current probability. Call it ell.",
+        "hold": 0.3
+      },
+      {
+        "id": "c17-b02",
+        "say": "Exponentiate ell, subtract ell, then subtract one. Each sample term is nonnegative.",
+        "hold": 0.65
+      },
+      {
+        "id": "c17-b03",
+        "say": "Weight those two terms by how often the current policy picks each token. The sum is about point one nine three. With current-policy sampling and shared full support, that expectation equals forward KL. A single token gives one term.",
+        "hold": 0.3
+      },
+      {
+        "id": "c17-b04",
+        "say": "The lower copy freezes the weights at eighty and twenty percent. The sums agree here. If we raise the first logit, will they still agree?",
+        "hold": 2.1
+      },
+      {
+        "id": "c17-b05",
+        "say": "Raise just the first logit by point two. Both copies recalculate the token terms. The upper copy also shifts weight toward the cheaper first token. The lower copy misses that shift. Both sums rose, but the upper one rose less.",
+        "hold": 0.7
+      },
+      {
+        "id": "c17-b06",
+        "say": "Return to the starting point and measure the slope there. For the first logit, the full KL slope is about point two two two. Holding the sampled-token weights fixed gives point three. The second logit has the opposite derivative in each case.",
+        "hold": 0.3
+      },
+      {
+        "id": "c17-b07",
+        "say": "Before comparing updates, check which policy supplied the samples and whether gradients flowed through their weights. Older rollout samples can change the weighting too.",
+        "hold": 0.75
+      }
+    ]
+  },
+  {
+    "id": "c18",
+    "title": "Calculate whether another group is likely to be informative",
+    "sourceChapters": [
+      "c18"
+    ],
+    "beats": [
+      {
+        "id": "c18-b01",
+        "say": "Under independent binary outcomes with pass probability p and group size G, all-pass probability is p to G and all-fail probability is the quantity one minus p, raised to G. Subtract both from one for the chance of a mixed group. At one-percent success and sixty-four draws it is only about forty-seven point four percent.",
+        "hold": 0.7
+      },
+      {
+        "id": "c18-b02",
+        "say": "More samples therefore do not guarantee reward variation. Correlated outputs can change this independent-draw calculation, and zero success probability remains uninformative at every finite group size. Log sampled and discarded responses, wall time and token costs, not just the group eventually admitted to an update.",
+        "hold": 0.7
+      },
+      {
+        "id": "c18-b03",
+        "say": "DAPO filters uniform groups and samples more to fill an informative batch. Keep count of the work that filtering discards. In our example the run can generate eight groups. When that budget runs out, report the missing mixed groups. Spending more can change both cost and the tasks represented. Check syntax, task difficulty and verifier health before deciding whether a cold start or a new task mix would help.",
+        "hold": 0.7
+      }
+    ]
+  },
+  {
+    "id": "c19",
+    "title": "Changing the denominator changes what a token contributes",
+    "sourceChapters": [
+      "c19"
+    ],
+    "beats": [
+      {
+        "id": "c19-b01",
+        "say": "DAPO divides accumulated token terms by the total active-token count rather than giving every response an equal mean weight. For an authored two-token response with per-token loss two and a four-token response with loss zero, equal response averaging gives one. Global token averaging gives four divided by six, or two thirds.",
+        "hold": 0.7
+      },
+      {
+        "id": "c19-b02",
+        "say": "DAPO also separates upper and lower clipping thresholds and studies filtering and soft penalties around overlong outputs. Its reported setup removes the reference KL term. These are stated design choices rather than necessary properties of every trainer named GRPO. Truncation, actual ending markers and additional masks affect the active token set.",
+        "hold": 0.7
+      },
+      {
+        "id": "c19-b03",
+        "say": "The article records an inspected TRL guide edition with dapo loss, group reward scaling, token-level ratios and beta zero by default. No reference is loaded for that disabled KL term. Pin the installed version and record reduction, scaling, masks, clipping, sampling and KL settings.",
+        "hold": 0.3
+      },
+      {
+        "id": "c19-b04",
+        "say": "Our CPU categorical checks execute none of that full transformer training stack.",
+        "hold": 0.7
+      }
+    ]
+  },
+  {
+    "id": "c20",
+    "title": "Will the passing pair gain probability?",
+    "sourceChapters": [
+      "c20"
+    ],
+    "beats": [
+      {
+        "id": "c20-b01",
+        "say": "Return to the four responses to fourteen times twelve. Give each one its own logit, starting at zero. Each bar starts at one quarter. Only the first and third responses passed. Together they have half the probability. What will happen to that share if we take a step with their signed advantages?",
+        "hold": 1.8
+      },
+      {
+        "id": "c20-b02",
+        "say": "Take one gradient step. We're using a learning rate of one in this small example. The passing logits rise by a quarter, and the two others fall by a quarter. Normalizing gives each passing response about thirty-one percent. The two green bars now account for about sixty-two percent of the probability.",
+        "hold": 0.65
+      },
+      {
+        "id": "c20-b03",
+        "say": "That sum is the chance of sampling either passing response from these four choices. A language model shares parameters across all its generated tokens. Each included token gets a contribution from its response's advantage, and the full update combines them. To find out whether new answers improve, sample and check them.",
+        "hold": 0.65
+      }
+    ]
+  },
+  {
+    "id": "c21",
+    "title": "A zero scalar loss can still move the eight logits",
+    "sourceChapters": [
+      "c21"
+    ],
+    "beats": [
+      {
+        "id": "c21-b01",
+        "say": "The executable eight-outcome exercise starts uniform, with one eighth probability per authored response. Positive and negative advantages average to zero, so the initial reward loss is zero. Its gradient is still negative advantage divided by eight. The positive and negative terms cancel in the loss. Raising one logit changes the balance between those terms.",
+        "hold": 0.7
+      },
+      {
+        "id": "c21-b02",
+        "say": "One gradient step with learning rate point one raises successful-response logits by point zero one two five and lowers failed ones by the same amount. Exponentiate and normalize all eight. Rewarded mass rises from one half to about point five zero six two five, while total probability stays one.",
+        "hold": 0.7
+      },
+      {
+        "id": "c21-b03",
+        "say": "The policy starts at the reference distribution, so the sample reference term and its gradient both start at zero. Compare the four rows. At a ratio of point seven, which row stays flat if the ratio moves a little? With a negative advantage, the clipped product wins at minus point eight. The positive row follows the raw ratio. Now try one point three. Which row stays flat here? The positive row is flat at one point two. With a negative advantage, the raw product wins at minus one point three. That last row has a slope of minus one.",
+        "hold": 0.7
+      }
+    ]
+  },
+  {
+    "id": "c22",
+    "title": "Keep each reported aggregation and report edition attached",
+    "sourceChapters": [
+      "c22"
+    ],
+    "beats": [
+      {
+        "id": "c22-b01",
+        "say": "DeepSeek R1’s original January twenty-twenty-five report distinguishes R1-Zero from the four-stage R1 recipe. R1-Zero began reinforcement learning directly from V3-Base, without a preliminary reasoning SFT stage. It also had readability and language-mixing problems. Cold-start supervision is a useful intervention to test, not a universal prerequisite or prohibition.",
+        "hold": 0.7
+      },
+      {
+        "id": "c22-b02",
+        "say": "The original R1-Zero curve reports AIME twenty-twenty-four rising from fifteen point six to seventy-one percent. Its figure averages correctness labels from sixteen responses per question to estimate single-answer accuracy. Table two separately reports eighty-six point seven percent for consensus over sixty-four responses. Averaging correctness does not choose a modal answer.",
+        "hold": 0.7
+      },
+      {
+        "id": "c22-b03",
+        "say": "The expanded report gives the curve endpoint as seventy-seven point nine. Keep the edition, task, aggregation and sampling budget with each number. Try eight answers to a question whose target is seventeen. Three match, but four say sixteen. Mean correctness is three eighths. The modal answer is wrong, even though the group contains a correct answer.",
+        "hold": 0.7
+      }
+    ]
+  },
+  {
+    "id": "c23",
+    "title": "Follow the actual base checkpoint and supervision through all four stages",
+    "sourceChapters": [
+      "c23"
+    ],
+    "beats": [
+      {
+        "id": "c23-b01",
+        "say": "For R1, stage one fine-tunes V3-Base on several thousand readable cold-start traces. Stage two uses GRPO on math, code, science and logic with well-defined solutions. It adds a target-language word-fraction reward to accuracy; the original ablation reports a slight capability cost for readability. This is a composite reward, not our binary correctness gate.",
+        "hold": 0.7
+      },
+      {
+        "id": "c23-b02",
+        "say": "The researchers sampled answers from the stage two checkpoint and kept about six hundred thousand reasoning examples. For some answers, DeepSeek-V3 judged correctness against a reference. The V3 data pipeline supplied about two hundred thousand general examples, including some from its existing supervised dataset. Which weights receive this mix? Stage three starts again from V3-Base and trains on all eight hundred thousand examples for two epochs.",
+        "hold": 0.7
+      },
+      {
+        "id": "c23-b03",
+        "say": "Stage four combines rule-based reasoning rewards with learned preference rewards for general behavior. The original helpfulness reward evaluates the final summary; harmlessness evaluates the whole response including reasoning. These streams target desired behavior without certifying safety. The public multi-stage case study is not a mandatory contemporary recipe.",
+        "hold": 0.7
+      }
+    ]
+  },
+  {
+    "id": "c24",
+    "title": "An authored backtrack is observable text rather than a tree search",
+    "sourceChapters": [
+      "c24"
+    ],
+    "beats": [
+      {
+        "id": "c24-b01",
+        "say": "Watch a written answer grow. It says fourteen times twelve is a hundred and forty-eight. Then it says wait, splits fourteen into ten and four, and adds a hundred and twenty to forty-eight. The new total is a hundred and sixty-eight. You can still read the earlier error. R1-Zero outputs showed checking and backtracking in text. Those words alone cannot establish that an external search tree ran or explain an accuracy gain.",
+        "hold": 0.7
+      },
+      {
+        "id": "c24-b02",
+        "say": "Our fourteen-by-twelve reflection examples are authored demonstrations, not quoted paper transcripts. A base model may already contain such patterns from pretraining. Use controlled interventions and matched evaluation to ask whether a particular extra check caused improvement rather than treating reflective language as proof of useful reasoning.",
+        "hold": 0.7
+      },
+      {
+        "id": "c24-b03",
+        "say": "Longer traces consume generation time and tokens. Compare task accuracy, end-to-end latency and budget by workload, including easy questions that do not need a long derivation. Test shortened budgets and downstream behavior. Observed length growth and general assistant regression are possibilities to measure, not inevitable effects of verifier training.",
+        "hold": 0.7
+      }
+    ]
+  },
+  {
+    "id": "c25",
+    "title": "Keep a surprising ablation bounded to its models and setup",
+    "sourceChapters": [
+      "c25"
+    ],
+    "beats": [
+      {
+        "id": "c25-b01",
+        "say": "The article cites a study where spurious rewards improved one Qwen two-point-five Math seven-B setup. Its reported random-reward gain on MATH five hundred was twenty-one point four percentage points, versus twenty-nine point one with ground truth. The same report found weak or harmful results for other tested model families.",
+        "hold": 2
+      },
+      {
+        "id": "c25-b02",
+        "say": "The ground-truth run gained seven point seven percentage points more than the random-reward run. Now change the starting model. Random rewards had little benefit or hurt performance on the Llama three and OLMo two variants the researchers tested.",
+        "hold": 0.7
+      },
+      {
+        "id": "c25-b03",
+        "say": "What helped the random-reward run? The starting model, clipping and the answers it sampled are possible explanations. To test the reward itself, first check that both rules score as intended. Hold the base model, data, clipping, sampling settings and compute budget fixed. Change only the reward. Score both runs on the same held-out questions. Evaluate instruction following, safety and performance on new tasks separately.",
+        "hold": 0.7
+      }
+    ]
+  },
+  {
+    "id": "c26",
+    "title": "Find what the checker leaves unmeasured",
+    "sourceChapters": [
+      "c26"
+    ],
+    "beats": [
+      {
+        "id": "c26-b01",
+        "say": "Keep two counters for the same answer. The first asks whether the response supplied the required box. The second checks its value. A box containing a hundred and forty-eight advances only the format counter on our capacity task. If we track only format, a model can look better while still getting the capacity wrong.",
+        "hold": 0.55
+      },
+      {
+        "id": "c26-b02",
+        "say": "Both submissions put the correct number in exactly one box. The unexplained guess earns the same point as the worked answer. The checker reads the final field. Checking the derivation would take another test.",
+        "hold": 0.55
+      },
+      {
+        "id": "c26-b03",
+        "say": "Subjective helpfulness needs judgment suited to that task. A deterministic checker is valuable when the task has a reliable external criterion, such as compiled code tests or exact arithmetic. Subjective feedback needs its own calibration and disagreement checks before it becomes part of the objective.",
+        "hold": 0.75
+      }
+    ]
+  },
+  {
+    "id": "c27",
+    "title": "Replay the two submissions",
+    "sourceChapters": [
+      "c27"
+    ],
+    "beats": [
+      {
+        "id": "c27-b01",
+        "say": "Here are the two submissions from the opening. Replay the first-box checker. It reads a hundred and sixty-eight twice. Both submissions get one point, including the one that changes its answer.",
+        "hold": 0.7
+      },
+      {
+        "id": "c27-b02",
+        "say": "Keep every character. This time require exactly one box in the entire submission. Watch where the lower read head goes. It reaches a second marker. The upper row has one field to compare with the reference. What reward belongs on each row now?",
+        "hold": 1.9
+      },
+      {
+        "id": "c27-b03",
+        "say": "One for the upper row. Zero for the lower row, because its two fields make the answer ambiguous. The checker changed while the model stood still. Keep the original responses and their verifier versions. Before another update, rescore every affected group and recompute its mean and advantages.",
+        "hold": 0.65
+      }
+    ]
+  },
+  {
+    "id": "c28",
+    "title": "What earns format credit?",
+    "sourceChapters": [
+      "c28"
+    ],
+    "beats": [
+      {
+        "id": "c28-b01",
+        "say": "A recognized box gets seven tenths of a point. If there is no recognized box, plain text containing the expected number gets three tenths. Compare the boxed wrong number with the plain correct number. Which earns more?",
+        "hold": 2.2
+      },
+      {
+        "id": "c28-broken",
+        "say": "The boxed wrong answer wins. Even the correct boxed answer ties it, because the box alone triggers seven tenths.",
+        "hold": 0.8
+      },
+      {
+        "id": "c28-b02",
+        "say": "Change the contract. Require one box containing the correct number. What happens to the plain answer that says one hundred sixty-eight?",
+        "hold": 1.9
+      },
+      {
+        "id": "c28-b03",
+        "say": "It gets zero. The number is right, but the required field is missing. The boxed wrong answer also gets zero. Only the boxed correct answer gets one. If you want to accept correct plain text, you need a different parser. Log accuracy and format separately so you can see which one moved.",
+        "hold": 0.75
+      }
+    ]
+  },
+  {
+    "id": "c29",
+    "title": "Did the policy learn to count slots?",
+    "sourceChapters": [
+      "c29"
+    ],
+    "beats": [
+      {
+        "id": "c29-b01",
+        "say": "Keep the training reward on the left and the held-out checks beside it. This toy policy prints the same number on every prompt. Watch what happens when it learns the answer to its one training example. Fourteen times twelve now passes. The policy carries that same answer into both new racks.",
+        "hold": 0.55
+      },
+      {
+        "id": "c29-b02",
+        "say": "Remove one worker from held-out rack A. That's twelve slots gone, so only a hundred and fifty-six jobs fit. In held-out rack B, remove one slot from every worker. That's fourteen slots gone. The policy still says a hundred and sixty-eight. It missed both held-out cases.",
+        "hold": 0.55
+      },
+      {
+        "id": "c29-b03",
+        "say": "The training reward rose because the policy learned one answer. To measure transfer, reserve new prompts and limit reuse of the final test set. Track malformed answers and other capabilities separately. Audit the checker itself with ambiguous fields, hidden code tests, or a fixed proof statement, as the task requires.",
+        "hold": 0.75
+      }
+    ]
+  },
+  {
+    "id": "c30",
+    "title": "The same candidate can improve reasoning and fail release",
+    "sourceChapters": [
+      "c30"
+    ],
+    "beats": [
+      {
+        "id": "c30-b01",
+        "say": "The worksheet has three requirements. Checked reasoning must improve. Instruction following can fall by at most three percentage points, and unnecessary refusal can rise by at most two. Reasoning goes from sixty-one to seventy-four percent. Instructions fall from ninety-two to eighty-one, and refusals rise from four to thirteen. Which conditions does this candidate meet? Hold this candidate. Only the thirteen-point reasoning gain passes.",
+        "hold": 0.7
+      },
+      {
+        "id": "c30-b02",
+        "say": "Instruction following lost eleven percentage points against an allowance of three. Unnecessary refusals rose nine points against an allowance of two. Either breach blocks release. Even if both stayed within their limits, a tie on reasoning would still block release. These are point estimates. For a release evaluation, define the cohorts, uncertainty measures, selection criteria and access rules in advance.",
+        "hold": 0.7
+      },
+      {
+        "id": "c30-b03",
+        "say": "Cold-start SFT, verifier RL, general-behavior data and teacher supervision can be combined to repair different failures. Re-evaluate the full candidate after a repair. A correct answer checker covers a useful capability, while the served assistant still owns its broader instruction, safety, latency and operating contract.",
+        "hold": 0.7
+      }
+    ]
+  },
+  {
+    "id": "c31",
+    "title": "Preserve a tiny decimal difference instead of rounding it away",
+    "sourceChapters": [
+      "c31"
+    ],
+    "beats": [
+      {
+        "id": "c31-b01",
+        "say": "The final verifier lab accepts a trusted integer or bounded decimal string, rejecting Boolean and floating reference objects. It bounds the candidate field, requires exactly one box and validates a nonnegative decimal-string tolerance. Each decimal has at most twenty digits before and after its point, keeping conversion and comparison bounded.",
+        "hold": 0.7
+      },
+      {
+        "id": "c31-b02",
+        "say": "Convert these decimal strings to exact fractions. Pass when absolute predicted minus expected is no larger than the declared tolerance. At expected fifty point three five with tolerance point zero one, fifty point three six passes at equality; fifty point three six one fails. Keep the whole subtraction inside the absolute value.",
+        "hold": 0.7
+      },
+      {
+        "id": "c31-b03",
+        "say": "A twenty-digit tail can differ exactly even when binary floating conversion would erase it. The lab preserves that difference rather than broadening a zero-tolerance contract accidentally. Reference validation happens before candidate scoring, so an invalid reference quarantines the task even when its candidate is also malformed.",
+        "hold": 0.7
+      }
+    ]
+  },
+  {
+    "id": "c32",
+    "title": "Teacher traces and rewards enter different optimization steps",
+    "sourceChapters": [
+      "c32"
+    ],
+    "beats": [
+      {
+        "id": "c32-b01",
+        "say": "Distillation transfers teacher outputs, distributions or other signals through a supervised objective. Response SFT fits teacher text with token cross-entropy. RLVR samples candidate behavior and uses executable reward feedback for a policy update. A teacher can supply a useful cold start, and a stronger verified teacher can later supply student examples.",
+        "hold": 0.7
+      },
+      {
+        "id": "c32-b02",
+        "say": "For distillation, the R1 team reused the stage three mix. Roughly six hundred thousand reasoning examples came from the reasoning checkpoint, with a model judging some answers. About two hundred thousand general examples came from the V3 data pipeline. Smaller Qwen and Llama students learned by fitting this fixed set of answers.",
+        "hold": 0.7
+      },
+      {
+        "id": "c32-b03",
+        "say": "Table six of the original R1 report compares two Qwen thirty-two-B models on AIME twenty twenty-four. The distilled model scored seventy-two point six percent at pass-at-one. The direct RL run scored forty-seven percent. To compare costs, count the work of generating the teacher’s answers, filtering them, verifying them, and training the student on the saved examples. For direct RL, count the student’s own rollouts, the verifier calls, and the policy updates.",
+        "hold": 0.7
+      }
+    ]
+  },
+  {
+    "id": "c33",
+    "title": "Which zero belongs in the next update?",
+    "sourceChapters": [
+      "c33"
+    ],
+    "beats": [
+      {
+        "id": "c33-b01",
+        "say": "A fresh cluster has eighteen workers with fourteen slots each. Again, one job takes one slot. The first response boxes the product. The second boxes that same number, then changes its answer. The third runs out of its own time on a healthy runner.",
+        "hold": 0.3
+      },
+      {
+        "id": "c33-b02",
+        "say": "The fourth loses its host. An old run recorded two ones and two zeros. Which zero belongs in training?",
+        "hold": 2.15
+      },
+      {
+        "id": "c33-b03",
+        "say": "Keep the third response’s zero. Its time limit was part of the task. Lift the lost-host attempt out for a bounded retry. Keep its original identity and submitted work. Three measurements remain. Under the first-box rule, two earn a point. Their group mean is two thirds. The contradictory answer still sits above average.",
+        "hold": 0.7
+      },
+      {
+        "id": "c33-b04",
+        "say": "Score the same three measurements with the single-box rule. The first answer has one box matching two hundred fifty-two. The second contains two boxes. Its reward falls to zero. One pass among three puts the mean at one third.",
+        "hold": 0.3
+      },
+      {
+        "id": "c33-b05",
+        "say": "The spread stays the same because we've exchanged two passes and one miss for one pass and two misses.",
+        "hold": 0.55
+      },
+      {
+        "id": "c33-b06",
+        "say": "Read across the second row. With the first parser its advantage was positive. With the repaired parser it's negative. The timeout still earned zero, yet its advantage changed too. Both answers are now compared with the new mean. Which of those two versions of the group should supply the next update?",
+        "hold": 1.55
+      }
+    ]
+  },
+  {
+    "id": "c34",
+    "title": "What will the next update reinforce?",
+    "sourceChapters": [
+      "c34"
+    ],
+    "beats": [
+      {
+        "id": "c34-b01",
+        "say": "Use the repaired group. Give each of its three measured responses one category in a tiny policy. Start the three logits at zero. Each response has probability one third. Look at the second row again. Which way should its probability move on this step?",
+        "hold": 1.95
+      },
+      {
+        "id": "c34-b02",
+        "say": "At the starting policy every current-to-rollout ratio is one. Negate the mean of ratio times advantage, with no reference penalty. The gradient for each logit here is its negative advantage divided by three. Take one step of size point three. The first logit rises. The other two each fall by about seven hundredths.",
+        "hold": 0.45
+      },
+      {
+        "id": "c34-b03",
+        "say": "Exponentiate those three logits and divide each result by their sum. Find the new marks against the one-third tick. The single-box answer now gets about thirty-eight percent of the probability. The two-box answer and the timeout each get about thirty-one percent. Their unrounded shares still add to one.",
+        "hold": 0.7
+      },
+      {
+        "id": "c34-b04",
+        "say": "Keep the repaired result in view. Start a second copy at one third. This time use the first-box scores on those same submissions and repeat the step. The contradictory answer rises to nearly thirty-six percent. The single-box checker pushed that very same text below its starting share.",
+        "hold": 0.3
+      },
+      {
+        "id": "c34-b05",
+        "say": "Train on the rescored group, and keep the missing host measurement out. To find out whether a model learned to count slots, give it new worker counts and check the answers.",
+        "hold": 0.95
+      }
+    ]
+  }
+]

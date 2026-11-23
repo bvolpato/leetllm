@@ -1,0 +1,213 @@
+{
+  "id": "sse-event-parser",
+  "slug": "sse-event-parser",
+  "title": "SSE Event Parser",
+  "difficulty": "Medium",
+  "category": "Parsing",
+  "language": "python3",
+  "timeEstimateMinutes": 35,
+  "timeLimitMs": 2500,
+  "memoryLimitMb": 128,
+  "order": 170,
+  "tags": [
+    "streaming",
+    "parser",
+    "state machine",
+    "sse"
+  ],
+  "source": "AI lab prep",
+  "summary": "Parse chunked server-sent events while handling split lines, comments, and multiline data payloads.",
+  "starterCode": [
+    "def parse_sse_events(chunks: list[str]) -> list[str]:",
+    "    pass"
+  ],
+  "testCases": [
+    {
+      "name": "parses multiline data split across chunks",
+      "visibility": "sample",
+      "setup": [
+        "from solution import parse_sse_events",
+        "chunks = [\"data: hello\\n\", \"data: world\\n\\n\"]"
+      ],
+      "input": "chunks = [\"data: hello\\n\", \"data: world\\n\\n\"]\nparse_sse_events(chunks)",
+      "expected": "[\"hello\\nworld\"]",
+      "expression": "parse_sse_events(chunks)"
+    },
+    {
+      "name": "ignores comments fields and incomplete final event",
+      "visibility": "hidden",
+      "setup": [
+        "from solution import parse_sse_events",
+        "chunks = [",
+        "    \": keepalive\\nida\",",
+        "    \"ta: ignored\\ndata: first\\n\\n\",",
+        "    \"event: message\\ndata: se\",",
+        "    \"cond\\n\\n\",",
+        "    \"data: incomplete\",",
+        "]"
+      ],
+      "input": "chunks = [\n    \": keepalive\\nida\",\n    \"ta: ignored\\ndata: first\\n\\n\",\n    \"event: message\\ndata: se\",\n    \"cond\\n\\n\",\n    \"data: incomplete\",\n]\nparse_sse_events(chunks)",
+      "expected": "[\"first\", \"second\"]",
+      "expression": "parse_sse_events(chunks)"
+    },
+    {
+      "name": "handles crlf line endings",
+      "visibility": "sample",
+      "setup": [
+        "from solution import parse_sse_events"
+      ],
+      "input": "parse_sse_events([\"data: one\\r\\n\\r\\n\"])",
+      "expected": "[\"one\"]"
+    },
+    {
+      "name": "parses multiple events from one chunk",
+      "visibility": "hidden",
+      "setup": [
+        "from solution import parse_sse_events"
+      ],
+      "input": "parse_sse_events([\"data: a\\n\\ndata: b\\n\\n\"])",
+      "expected": "[\"a\", \"b\"]"
+    },
+    {
+      "name": "preserves explicit empty data lines",
+      "visibility": "hidden",
+      "setup": [
+        "from solution import parse_sse_events"
+      ],
+      "input": "parse_sse_events([\"data: top\\ndata:\\ndata: bottom\\n\\n\"])",
+      "expected": "[\"top\\n\\nbottom\"]"
+    },
+    {
+      "name": "empty stream returns no events",
+      "visibility": "sample",
+      "setup": [
+        "from solution import parse_sse_events"
+      ],
+      "input": "parse_sse_events([])",
+      "expected": "[]"
+    },
+    {
+      "name": "recognizes a blank delimiter split across chunks",
+      "visibility": "hidden",
+      "setup": [
+        "from solution import parse_sse_events"
+      ],
+      "input": "parse_sse_events([\"data: ready\\n\", \"\\n\"])",
+      "expected": "[\"ready\"]"
+    },
+    {
+      "name": "removes at most one optional data space",
+      "visibility": "hidden",
+      "setup": [
+        "from solution import parse_sse_events"
+      ],
+      "input": "parse_sse_events([\"data:  indented\\n\\n\"])",
+      "expected": "[\" indented\"]"
+    },
+    {
+      "name": "handles a long line split across chunks",
+      "visibility": "hidden",
+      "setup": [
+        "from solution import parse_sse_events",
+        "chunks = [\"data: \"] + [\"x\"] * 100000 + [\"\\n\\n\"]"
+      ],
+      "input": "parse_sse_events(chunks)",
+      "expected": "[\"x\" * 100000]"
+    },
+    {
+      "name": "emits an explicitly empty payload",
+      "visibility": "hidden",
+      "setup": [
+        "from solution import parse_sse_events"
+      ],
+      "input": "parse_sse_events([\"data:\\n\\n\"])",
+      "expected": "[\"\"]"
+    },
+    {
+      "name": "ignores a comment-only event block",
+      "visibility": "hidden",
+      "setup": [
+        "from solution import parse_sse_events"
+      ],
+      "input": "parse_sse_events([\": ping\\n\\nevent: message\\n\\n\"])",
+      "expected": "[]"
+    },
+    {
+      "name": "handles CRLF split between chunks",
+      "visibility": "hidden",
+      "setup": [
+        "from solution import parse_sse_events"
+      ],
+      "input": "parse_sse_events([\"data: ready\\r\", \"\\n\\r\", \"\\n\"])",
+      "expected": "[\"ready\"]"
+    }
+  ],
+  "clarifyingQuestions": [
+    "Should incomplete trailing events be emitted or buffered for later?",
+    "After `data:`, should at most one space after the colon be removed while further spaces stay?",
+    "Do we need to parse event names and IDs or only data payloads?"
+  ],
+  "followUps": [
+    "Return event objects with `event`, `id`, and `data` fields.",
+    "Support incremental parsing across multiple calls.",
+    "Support bare CR line endings and incremental UTF-8 decoding from byte chunks."
+  ],
+  "followUpGuide": [
+    "For event objects, reset data and event type after dispatch, default an empty event type to message, and preserve the last event ID across events. Apply the standard's null-character and retry-field rules; event IDs persist across dispatches while data and event type reset.",
+    "",
+    "For incremental parsing, turn the function into a class with persistent `buffer` and `current_data` fields.",
+    "",
+    "The base solution already handles split CRLF because it waits for LF before stripping CR. To also support bare CR, recognize CR as a terminator and suppress a following LF even across chunks. Decode byte chunks with one persistent UTF-8 decoder so split multibyte characters survive."
+  ],
+  "complexityAnalysis": [
+    "- Let N be total input characters and K the number of chunks. The supplied split-and-buffer solution processes characters and fragments once. Time: O(N + K). Space: O(N + K) worst case, including accumulated returned events and partial-line fragment references (even empty chunks cost bookkeeping).",
+    "- Joining the whole stream first is also O(N + K) time and O(N + K) space, but makes an additional full-stream copy before parsing.",
+    "- An incremental parser that yields each event and discards empty fragments can use O(m + p) auxiliary buffering, where m is current event size and p is partial-line size. A function returning every event must also retain the output."
+  ],
+  "solutionGuide": [
+    "Maintain two pieces of state: a partial line buffer and the `data` lines for the current event.",
+    "",
+    "When a blank line arrives, emit the joined data lines if at least one data: field was seen, even if its value is empty. A comment-only block emits nothing. At end of input, discard the partial event.",
+    "",
+    "```python",
+    "def parse_sse_events(chunks: list[str]) -> list[str]:",
+    "    events = []",
+    "    line_parts = []",
+    "    data_lines = []",
+    "",
+    "    def handle_line(line):",
+    "        nonlocal data_lines",
+    "        if line == \"\":",
+    "            if data_lines:",
+    "                events.append(\"\\n\".join(data_lines))",
+    "                data_lines = []",
+    "            return",
+    "        if line.startswith(\":\"):",
+    "            return",
+    "        if line.startswith(\"data:\"):",
+    "            value = line[5:]",
+    "            if value.startswith(\" \"):",
+    "                value = value[1:]",
+    "            data_lines.append(value)",
+    "",
+    "    for chunk in chunks:",
+    "        parts = chunk.split(\"\\n\")",
+    "        if len(parts) == 1:",
+    "            line_parts.append(parts[0])",
+    "            continue",
+    "",
+    "        line_parts.append(parts[0])",
+    "        line = \"\".join(line_parts)",
+    "        if line.endswith(\"\\r\"):",
+    "            line = line[:-1]",
+    "        handle_line(line)",
+    "        for line in parts[1:-1]:",
+    "            if line.endswith(\"\\r\"):",
+    "                line = line[:-1]",
+    "            handle_line(line)",
+    "        line_parts = [parts[-1]]",
+    "",
+    "    return events",
+    "```"
+  ]
+}

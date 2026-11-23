@@ -1,0 +1,820 @@
+version: 1
+id: capstone-delivery-eta-prediction
+title: An Arrival Estimate You Can Explain
+source: foundations/capstone-delivery-eta-prediction/content.md
+voice: en-US-AndrewNeural
+rate: +0%
+sources:
+  - title: "Scikit-learn: probability calibration"
+    url: https://scikit-learn.org/stable/modules/calibration.html
+  - title: A Gentle Introduction to Conformal Prediction
+    url: https://arxiv.org/abs/2107.07511
+  - title: Scikit-learn threshold tuning
+    url: https://scikit-learn.org/stable/modules/classification_threshold.html
+  - title: Feast point-in-time joins
+    url: https://github.com/feast-dev/feast/blob/master/docs/getting-started/concepts/point-in-time-joins.md
+  - title: Scikit-learn data leakage
+    url: https://scikit-learn.org/stable/common_pitfalls.html#data-leakage
+  - title: Google Cloud MLOps
+    url: https://docs.cloud.google.com/architecture/mlops-continuous-delivery-and-automation-pipelines-in-machine-learning
+scenes:
+  - id: intro
+    title: Give an arrival estimate a memory
+    visual: A package timeline connects pickup, prediction and historical arrivals while the estimate stays attached to its evidence.
+    beats:
+      - say: A package is still travelling when its customer checks the tracking page. An arrival estimate can help them plan their evening. Operations also wants to know whether to warn about a delay. We will build those two outputs and inspect the evidence each requires.
+        hold: 0.75
+        visual_cues:
+          - id: intro-b1-1
+            phrase: A package is still travelling
+            targets:
+              - package
+            linger: 0.45
+          - id: intro-b1-2
+            phrase: An arrival estimate can help them
+            targets:
+              - package
+            linger: 0.45
+      - say: Begin by fixing the prediction moment. Our package left at ten, and we are looking at noon. Every feature must describe what this service could know then. Later delivery outcomes will teach and evaluate the system after they become available.
+        hold: 0.85
+        visual_cues:
+          - id: intro-b2-1
+            phrase: Our package left at ten
+            targets:
+              - pickup
+              - now
+            linger: 0.45
+          - id: intro-b2-2
+            phrase: Later delivery outcomes
+            targets:
+              - later-delivery-outcome
+            linger: 0.45
+  - id: prediction-contract
+    title: Pin the target and the two outputs
+    visual: The original promise remains fixed on the shipment clock while remaining duration and breach probability receive separate owners.
+    beats:
+      - say: Pin one scheduled snapshot while the shipment is still in transit. Noon happens to be two hours after this pickup; the service can also score a cross-country shipment thirty hours into its trip. Store the exact prediction instant. Define late as delivery after the original customer promise, preserving that promise even if operations revises an internal estimate.
+        hold: 1
+        visual_cues:
+          - id: prediction-contract-b0
+            phrase: Pin one scheduled snapshot while the shipment is
+            targets:
+              - prediction-contract-construction
+            linger: 0.4
+          - id: original-promise
+            phrase: original customer promise
+            targets:
+              - prediction-contract-construction
+            linger: 0.4
+      - say: The arrival regressor predicts remaining hours from the snapshot. The historical baseline predicts total duration from pickup. A late-risk classifier instead estimates the chance of breaching the original promise. None of those scores changes the promise. After the deadline has already passed, a separately defined post-breach policy handles the incident.
+        hold: 1
+        visual_cues:
+          - id: prediction-contract-b1
+            phrase: The arrival regressor predicts remaining hours from the
+            targets:
+              - prediction-contract-construction
+            linger: 0.4
+          - id: remaining-clock
+            phrase: remaining hours
+            targets:
+              - prediction-contract-construction
+            linger: 0.4
+      - say: Use timezone-aware instants. Convert a local deadline using its declared destination time zone and daylight-saving rules before storing UTC. Canceled and returned shipments need explicit cohort rules. An unresolved shipment has no delivered label yet; recording it as on time changes the target.
+        hold: 1
+        visual_cues:
+          - id: prediction-contract-b2
+            phrase: Use timezone-aware instants. Convert a local deadline using
+            targets:
+              - prediction-contract-construction
+            linger: 0.4
+      - say: Build features from scan age, backlog age, service tier, elapsed transit and time remaining to the promise. A source must both occur and become queryable online by the snapshot. A lake write or an event-time-only join can still admit information the online service lacked. Feast’s opt-in created-time filter needs a mapped availability clock and a supporting offline store.
+        hold: 1
+        visual_cues:
+          - id: prediction-contract-b3
+            phrase: Build features from scan age, backlog age, service
+            targets:
+              - prediction-contract-construction
+            linger: 0.4
+          - id: feature-availability
+            phrase: become queryable online
+            targets:
+              - prediction-contract-construction
+            linger: 0.4
+  - id: clocks
+    title: Check two clocks on every scan
+    visual: Event and availability clocks independently decide which scan enters the noon feature row.
+    beats:
+      - say: "A scan has two useful times: when it happened, and when our scoring service could read it. The eleven oclock scan arrived a few minutes later, so it is available at noon. The next scan happened before noon but reached us afterward."
+        hold: 0.75
+        visual_cues:
+          - id: clocks-b1-1
+            phrase: when it happened
+            targets:
+              - event
+            linger: 0.45
+          - id: clocks-b1-2
+            phrase: when our scoring service could read it
+            targets:
+              - readable
+            linger: 0.45
+      - say: Apply both boundaries before choosing the latest scan. The delayed record stays outside this snapshot, and the afternoon scan is still in the future. The admitted record now supplies the scan age. This is how we reconstruct information available at a historical decision.
+        hold: 0.85
+        visual_cues:
+          - id: clocks-b2-1
+            phrase: Apply both boundaries
+            targets:
+              - cutoff
+              - boundary-rule
+            linger: 0.45
+          - id: clocks-b2-2
+            phrase: The delayed record stays outside
+            targets:
+              - admission
+            linger: 0.45
+          - id: clocks-b2-3
+            phrase: supplies the scan age
+            targets:
+              - scan-age
+            linger: 0.45
+  - id: history
+    title: Turn completed journeys into a baseline
+    visual: Four eligible durations accumulate into a sorted sample and a median arrival.
+    beats:
+      - say: We need a first estimate before a complicated model. Select completed journeys on the same route and service tier whose outcomes were already recorded. Their durations supply a small historical baseline. A journey completed this afternoon cannot help a noon prediction.
+        hold: 0.75
+        visual_cues:
+          - id: history-b1-1
+            phrase: Select completed journeys
+            targets:
+              - journeys
+            linger: 0.45
+          - id: history-b1-2
+            phrase: small historical baseline
+            targets:
+              - journeys
+            linger: 0.45
+      - say: Sort the four eligible durations. The middle pair gives an eleven-hour median journey, so a ten oclock pickup produces a nine in the evening estimate. Keep the sample count and observed range beside it. We still need held-out evaluation to calibrate uncertainty.
+        hold: 0.85
+        visual_cues:
+          - id: history-b2-1
+            phrase: middle pair gives an eleven-hour median
+            targets:
+              - journeys
+              - median
+            linger: 0.45
+          - id: history-b2-2
+            phrase: sample count and observed range
+            targets:
+              - sample-range
+            linger: 0.45
+  - id: arrival-targets
+    title: Use the duration’s own clock
+    visual: A total-duration ruler starts at pickup; a remaining-duration ruler starts at noon; finite historical rank positions expose the extreme-range coverage calculation.
+    beats:
+      - say: Our eleven-hour historical total duration starts at ten oclock pickup, reaching twenty-one hundred. If a remaining-hours regressor instead outputs nine at noon, add nine to noon and reach the same arrival. Adding eleven to noon would shift the historical estimate two hours late. Match route, tier and still-in-transit eligibility; require both delivery and recorded outcome to be known at the cutoff.
+        hold: 1
+        visual_cues:
+          - id: arrival-targets-b0
+            phrase: Our eleven-hour historical total duration starts at ten
+            targets:
+              - arrival-targets-construction
+            linger: 0.4
+          - id: duration-clock
+            phrase: reach the same arrival
+            targets:
+              - arrival-targets-construction
+            linger: 0.4
+          - id: wrong-anchor
+            phrase: two hours late
+            targets:
+              - arrival-targets-construction
+            linger: 0.4
+      - say: The four historical extremes do not establish a ninety-percent interval. Under exchangeability with no ties, the next observation has five equally likely ranks relative to four past values. Only the three interior ranks lie within the past extremes. Three over five gives sixty-percent marginal coverage across random histories and next examples, not coverage conditional on these particular four durations.
+        hold: 1
+        visual_cues:
+          - id: arrival-targets-b1
+            phrase: The four historical extremes do not establish a
+            targets:
+              - arrival-targets-construction
+            linger: 0.4
+          - id: range-ranks
+            phrase: three interior ranks
+            targets:
+              - arrival-targets-construction
+            linger: 0.4
+      - say: Squared error targets a conditional mean at the population optimum; a fitted linear model may miss it. Pinball loss for quantile q multiplies an underprediction residual by q and an overprediction magnitude by one minus q. At q point nine, missing two hours below costs one point eight, while being two hours above costs point two. Separate fifth and ninety-fifth percentile fits define a nominal ninety-percent interval. They can cross, and ordering them does not establish coverage.
+        hold: 1
+        visual_cues:
+          - id: arrival-targets-b2
+            phrase: Squared error targets a conditional mean at the
+            targets:
+              - arrival-targets-construction
+            linger: 0.4
+          - id: pinball-cost
+            phrase: one point eight
+            targets:
+              - arrival-targets-construction
+            linger: 0.4
+  - id: conformal-calibration
+    title: Let the corrected rank choose the radius
+    visual: An untouched ordered residual rack preserves each calibration shipment; the required rank can fall outside the finite rack.
+    beats:
+      - say: Fit the predictor independently of an untouched calibration cohort. Compute each absolute residual, actual remaining hours minus predicted remaining hours in magnitude, and sort those residuals. For n scores and target one minus alpha, take the ceiling of n plus one times one minus alpha. Use that order statistic as the radius; if its rank exceeds n, use infinity.
+        hold: 1
+        visual_cues:
+          - id: conformal-calibration-b0
+            phrase: Fit the predictor independently of an untouched calibration
+            targets:
+              - conformal-calibration-construction
+            linger: 0.4
+          - id: conformal-rank
+            phrase: ceiling of n plus one
+            targets:
+              - conformal-calibration-construction
+            linger: 0.4
+      - say: With four residuals one, two, three and four, and alpha point one, the corrected rank is ceiling of five times point nine, which is five. There is no fifth residual. The construction returns an unbounded interval. Clamping to the fourth residual changes its finite-sample guarantee. With nine residuals one through nine, rank nine exists and the radius is nine hours.
+        hold: 1
+        visual_cues:
+          - id: conformal-calibration-b1
+            phrase: With four residuals one, two, three and four,
+            targets:
+              - conformal-calibration-construction
+            linger: 0.4
+          - id: conformal-infinite
+            phrase: unbounded interval
+            targets:
+              - conformal-calibration-construction
+            linger: 0.4
+          - id: conformal-nine
+            phrase: radius is nine hours
+            targets:
+              - conformal-calibration-construction
+            linger: 0.4
+          - id: conformal-nine-rank
+            phrase: rank nine exists
+            targets:
+              - conformal-calibration-construction
+            color: yellow
+            linger: 0.4
+          - id: conformal-nine-inputs
+            phrase: With nine residuals one through nine
+            targets:
+              - conformal-calibration-construction
+            color: blue
+            linger: 0.4
+          - id: conformal-five-rank
+            phrase: corrected rank is ceiling of five times point nine, which is five
+            targets:
+              - conformal-calibration-construction
+            color: yellow
+            linger: 0.4
+      - say: Return predicted hours minus the radius through predicted hours plus the radius. Exchangeability of calibration and next scores gives marginal coverage at least the target. Individual shipments and routes can differ. These supplied residuals demonstrate arithmetic; they are not fitted ETA calibration data. Represent an unbounded result explicitly in an API instead of serializing infinity as a customer promise. Drift, rolling windows and nonexchangeable methods need their own conditions. Monitor widths, coverage and delayed-label counts by slice.
+        hold: 1
+        visual_cues:
+          - id: conformal-calibration-b2
+            phrase: Return predicted hours minus the radius through predicted
+            targets:
+              - conformal-calibration-construction
+            linger: 0.4
+  - id: freshness
+    title: A high score still needs current evidence
+    visual: A risk score is held fixed while scan age crosses the policy freshness limit.
+    beats:
+      - say: A separate classifier estimates the chance of missing the original promised deadline. Its score enters a policy alongside data freshness. Watch the scan grow older while the score stays high. The input evidence can become unusable even though the prediction sounds confident.
+        hold: 0.75
+        motion_check:
+          region:
+            - 230
+            - 380
+            - 1540
+            - 520
+          minimumChangedFraction: 0.002
+        visual_cues:
+          - id: freshness-b1-1
+            phrase: Watch the scan grow older
+            targets:
+              - aging-scan
+            linger: 0.45
+          - id: freshness-b1-2
+            phrase: input evidence can become unusable
+            targets:
+              - stale-boundary
+            linger: 0.45
+      - say: Our declared gate sends stale inputs to internal review. When scan age exceeds its limit, the response action is manual_review with reason stale_scan_features, even if the risk score is high. Fresh inputs can continue to the warning threshold. Missing values, invalid scores and schema mismatches need explicit handling too. Preserve these reasons so an operator can distinguish a low risk from unavailable evidence.
+        hold: 0.85
+        visual_cues:
+          - id: freshness-b2-1
+            phrase: gate sends stale inputs
+            targets:
+              - freshness-route
+            linger: 0.45
+          - id: freshness-b2-2
+            phrase: Fresh inputs can continue
+            targets:
+              - freshness-rule
+            linger: 0.45
+  - id: cost
+    title: Count the decisions the score causes
+    visual: Four labelled orders receive candidate and scan-age-rule actions, with penalties calculated from those same actions.
+    beats:
+      - say: A model matters through the decisions it changes. Here a simple rule warns when scans are old. It misses an expedited late delivery with a recent scan. Compare that rule with a risk threshold on the exact same labelled orders and assumed penalty schedule.
+        hold: 0.75
+        visual_cues:
+          - id: cost-b1-1
+            phrase: simple rule warns
+            targets:
+              - age-rule
+            linger: 0.45
+          - id: cost-b1-2
+            phrase: expedited late delivery
+            targets:
+              - order-evidence
+            linger: 0.45
+          - id: cost-b1-3
+            phrase: exact same labelled orders
+            targets:
+              - age-rule
+              - risk-rule
+            linger: 0.45
+      - say: The candidate catches both late cases but also warns one on-time customer. Add the penalties from the displayed decisions. This four-case fixture checks the arithmetic and policy wiring. The article also fits a separate synthetic model whose final cost comparison fails its release requirement.
+        hold: 0.85
+        visual_cues:
+          - id: cost-b2-1
+            phrase: candidate catches both late cases
+            targets:
+              - risk-rule
+            linger: 0.45
+          - id: cost-b2-2
+            phrase: Add the penalties
+            targets:
+              - age-total
+              - candidate-total
+            linger: 0.45
+  - id: cost-threshold
+    title: Derive the threshold from two action costs
+    visual: Warning and silence share a probability ruler; their expected-cost lines intersect at the threshold implied by the declared penalties.
+    beats:
+      - say: "Keep the simplified penalties: false warning eight, missed standard delay sixty, missed expedited delay one hundred fifty, correct decisions zero. For a calibrated late probability point two, warning a standard shipment costs point eight times eight, or six point four. Silence costs point two times sixty, or twelve. Under those supplied costs, warning has lower expected penalty."
+        hold: 1
+        visual_cues:
+          - id: cost-threshold-b0
+            phrase: "Keep the simplified penalties: false warning eight, missed"
+            targets:
+              - cost-threshold-construction
+            linger: 0.4
+          - id: expected-cost
+            phrase: six point four
+            targets:
+              - cost-threshold-construction
+            linger: 0.4
+          - id: expected-cost-choice
+            phrase: Under those supplied costs, warning has lower expected penalty
+            targets:
+              - cost-threshold-construction
+            color: green
+            linger: 0.4
+          - id: silent-expected-cost
+            phrase: Silence costs point two times sixty, or twelve
+            targets:
+              - cost-threshold-construction
+            color: pink
+            linger: 0.4
+      - say: In symbols, warning costs one minus p times the false-warning cost; silence costs p times the missed-delay cost. Warning is at least as good when the former is no larger. Rearranging gives p at least false-warning cost divided by false-warning plus missed-delay cost. Standard threshold eight over sixty-eight is about point one one eight; expedited eight over one hundred fifty-eight is about point zero five zero six.
+        hold: 1
+        visual_cues:
+          - id: cost-threshold-b1
+            phrase: In symbols, warning costs one minus p times
+            targets:
+              - cost-threshold-construction
+            linger: 0.4
+          - id: analytic-threshold
+            phrase: eight over sixty-eight
+            targets:
+              - cost-threshold-construction
+            linger: 0.4
+          - id: expedited-threshold-result
+            phrase: expedited eight over one hundred fifty-eight is about point zero five zero six
+            targets:
+              - cost-threshold-construction
+            color: pink
+            linger: 0.4
+          - id: standard-threshold-result
+            phrase: Standard threshold eight over sixty-eight is about point one one eight
+            targets:
+              - cost-threshold-construction
+            color: blue
+            linger: 0.4
+      - say: An expedited probability exactly point zero five stays below eight over one hundred fifty-eight; point zero five one clears it. Rounding across the boundary can change the action. This derivation assumes calibrated probabilities, two available actions, zero correct-outcome costs and no capacity constraint. A warning does not prevent lateness. Add true-warning burden and workload when the real objective needs them. The lab’s point four is a different policy selected among four validation candidates.
+        hold: 1
+        visual_cues:
+          - id: cost-threshold-b2
+            phrase: An expedited probability exactly point zero five stays
+            targets:
+              - cost-threshold-construction
+            linger: 0.4
+          - id: threshold-nearby
+            phrase: point zero five one clears it
+            targets:
+              - cost-threshold-construction
+            linger: 0.4
+  - id: selection
+    title: Freeze the policy before the final comparison
+    visual: Raising the threshold removes a false warning and then misses a critical late case.
+    beats:
+      - say: The threshold trades warning workload against missed delays. Moving it upward removes some unnecessary warnings. Continue moving and a genuinely late case drops out too. Choose this tradeoff on validation data using the operational objective, then lock it before final evaluation.
+        hold: 0.75
+        visual_cues:
+          - id: selection-b1-1
+            phrase: Moving it upward
+            targets:
+              - threshold
+            linger: 0.45
+          - id: selection-b1-2
+            phrase: genuinely late case drops out
+            targets:
+              - risk-cases
+              - decisions
+            linger: 0.45
+      - say: Keep training, threshold selection and final testing distinct. Features must be available at each prediction, and labels must be available when fitting. An unresolved delivery remains unresolved. Recording an absent outcome as on-time would change the target and bias the comparison.
+        hold: 0.85
+        visual_cues:
+          - id: selection-b2-1
+            phrase: threshold selection and final testing
+            targets:
+              - policy-tradeoff
+            linger: 0.45
+          - id: selection-b2-2
+            phrase: unresolved delivery remains unresolved
+            targets:
+              - risk-cases
+            linger: 0.45
+  - id: temporal-fit
+    title: Freeze transformations before later cohorts
+    visual: A UTC calendar assigns all 136 synthetic shipments to train, validation, test, embargo gaps or unavailable-label exclusion before any weight or policy fit.
+    beats:
+      - say: The downloadable lab creates one hundred thirty-six synthetic shipments, one snapshot each. Training predictions precede March twenty-two at noon, and their labels must be recorded strictly before that fitting instant. Validation predictions run March twenty-six through April eighteen, with labels known before the April nineteen freeze. Test predictions run April twenty-three through May sixteen, and labels must be known before May twenty-one evaluation.
+        hold: 1
+        visual_cues:
+          - id: temporal-fit-b0
+            phrase: The downloadable lab creates one hundred thirty-six synthetic
+            targets:
+              - temporal-fit-construction
+            linger: 0.4
+      - say: Four-day gaps exclude eight rows; one more training label arrives after fitting. That leaves seventy-nine training, twenty-four validation, twenty-four test and nine excluded. An early prediction does not make its future label available to the trainer. The gap is illustrative; grouping, overlapping journeys and label delays determine the real eligibility contract. Repeated scoring can share outcomes, so define whether the evaluation concerns new shipments or later snapshots of existing ones.
+        hold: 1
+        visual_cues:
+          - id: temporal-fit-b1
+            phrase: Four-day gaps exclude eight rows; one more training
+            targets:
+              - temporal-fit-construction
+            linger: 0.4
+          - id: split-counts
+            phrase: seventy-nine training
+            targets:
+              - temporal-fit-construction
+            linger: 0.4
+      - say: Fit the logistic classifier’s standard scaler on training features only, then fit its weights. The ordinary least-squares remaining-hours regressor uses the same five allowed raw features. Delivery outcomes and recording times never enter that matrix. Freeze both models before threshold selection. Validation costs at thresholds point two, point four, point six and point eight are thirty-two, sixteen, three hundred sixty-eight and five hundred forty-eight. Select point four, breaking any tie toward the larger threshold. Lock it before touching the later test cohort.
+        hold: 1
+        visual_cues:
+          - id: temporal-fit-b2
+            phrase: Fit the logistic classifier’s standard scaler on training
+            targets:
+              - temporal-fit-construction
+            linger: 0.4
+          - id: validation-costs
+            phrase: Validation costs
+            targets:
+              - temporal-fit-construction
+            linger: 0.4
+          - id: locked-threshold
+            phrase: Select point four
+            targets:
+              - temporal-fit-construction
+            linger: 0.4
+      - say: One chronological split evaluates this one future cohort. Rolling-origin evaluation repeats fitting at several cutoffs; the lab does not run that procedure. Shuffled splits answer a different question about freight conditions. Selecting only outcomes that have matured can overrepresent fast shipments, so report exclusions and choose an adequate follow-up window.
+        hold: 1
+        visual_cues:
+          - id: temporal-fit-b3
+            phrase: One chronological split evaluates this one future cohort.
+            targets:
+              - temporal-fit-construction
+            linger: 0.4
+  - id: fitted-predictions
+    title: Follow one fitted mistake into the test cost
+    visual: The actual frozen S-133 feature row becomes standardized contributions, a risk below the locked threshold, a missed expedited outcome and its owned 150-unit charge.
+    beats:
+      - say: Follow actual synthetic test shipment S one thirty-three. The five frozen standardized feature contributions, rounded, are point three three six, minus point eight two four, minus point five one two, minus point one nine nine and point nine five one. Add intercept minus point eight three two to get logit about minus one point zero eight. The logistic function produces late probability about point two five three five. The frozen point four policy stays silent.
+        hold: 1
+        visual_cues:
+          - id: fitted-predictions-b0
+            phrase: Follow actual synthetic test shipment S one thirty-three.
+            targets:
+              - fitted-predictions-construction
+            linger: 0.4
+          - id: feature-contributions
+            phrase: five frozen standardized feature contributions
+            targets:
+              - fitted-predictions-construction
+            linger: 0.4
+          - id: fitted-logit
+            phrase: logit about minus one point zero eight
+            targets:
+              - fitted-predictions-construction
+            linger: 0.4
+          - id: fitted-probability
+            phrase: late probability about point two five three five
+            targets:
+              - fitted-predictions-construction
+            linger: 0.4
+          - id: fitted-action
+            phrase: The frozen point four policy stays silent
+            targets:
+              - fitted-predictions-construction
+            color: pink
+            linger: 0.4
+          - id: fitted-contribution-promise
+            phrase: point nine five one
+            targets:
+              - fitted-predictions-construction
+            color: cyan
+            linger: 0.4
+          - id: fitted-contribution-elapsed
+            phrase: minus point one nine nine
+            targets:
+              - fitted-predictions-construction
+            color: pink
+            linger: 0.4
+          - id: fitted-contribution-tier
+            phrase: minus point five one two
+            targets:
+              - fitted-predictions-construction
+            color: pink
+            linger: 0.4
+          - id: fitted-contribution-backlog
+            phrase: minus point eight two four
+            targets:
+              - fitted-predictions-construction
+            color: pink
+            linger: 0.4
+          - id: fitted-contribution-scan
+            phrase: point three three six
+            targets:
+              - fitted-predictions-construction
+            color: cyan
+            linger: 0.4
+      - say: This expedited shipment has about ten point nine zero four hours until its promise, but actually needs eleven point five one four hours. It is late. The regressor predicts eight point three seven one remaining hours; its absolute error is about three point one four three hours. The missed expedited warning owns one hundred fifty penalty units. A separate standard false warning adds eight, making the candidate test total one hundred fifty-eight.
+        hold: 1
+        visual_cues:
+          - id: fitted-predictions-b1
+            phrase: This expedited shipment has about ten point nine
+            targets:
+              - fitted-predictions-construction
+            linger: 0.4
+          - id: missed-expedited
+            phrase: one hundred fifty penalty units
+            targets:
+              - fitted-predictions-construction
+            linger: 0.4
+          - id: final-cost-sum
+            phrase: total one hundred fifty-eight
+            targets:
+              - fitted-predictions-construction
+            linger: 0.4
+          - id: fitted-arrival
+            phrase: The regressor predicts eight point three seven one remaining hours
+            targets:
+              - fitted-predictions-construction
+            color: blue
+            linger: 0.4
+      - say: The identical twenty-four test rows contain thirteen late and eleven on-time shipments. The age rule costs one thousand four hundred ten. Always silent also costs one thousand four hundred ten; always warn costs eleven times eight, or eighty-eight. The fitted warning model beats the age rule and loses to always warning. It misses one of seven expedited late shipments; the standard slice misses zero of six. These denominators remain small.
+        hold: 1
+        visual_cues:
+          - id: fitted-predictions-b2
+            phrase: The identical twenty-four test rows contain thirteen late
+            targets:
+              - fitted-predictions-construction
+            linger: 0.4
+          - id: always-warn-baseline
+            phrase: eighty-eight
+            targets:
+              - fitted-predictions-construction
+            linger: 0.4
+          - id: fitted-slice-results
+            phrase: It misses one of seven expedited late shipments; the standard slice misses zero of six
+            targets:
+              - fitted-predictions-construction
+            color: pink
+            linger: 0.4
+          - id: silent-rule-baseline
+            phrase: Always silent also costs one thousand four hundred ten
+            targets:
+              - fitted-predictions-construction
+            color: blue
+            linger: 0.4
+          - id: age-rule-baseline
+            phrase: The age rule costs one thousand four hundred ten
+            targets:
+              - fitted-predictions-construction
+            color: blue
+            linger: 0.4
+      - say: The regressor’s mean absolute remaining-hours error is two point four seven nine hours, compared with four point two zero three for the training-tier median baseline. Those errors measure arrival estimation, not warning cost. The synthetic cost gate fails, and the final decision holds for representative real-data validation. Retuning on the revealed test mistake spends that holdout; develop a new policy on separate data and obtain a new final evaluation.
+        hold: 1
+        visual_cues:
+          - id: fitted-predictions-b3
+            phrase: The regressor’s mean absolute remaining-hours error is two
+            targets:
+              - fitted-predictions-construction
+            linger: 0.4
+          - id: failed-cost-gate
+            phrase: cost gate fails
+            targets:
+              - fitted-predictions-construction
+            linger: 0.4
+          - id: eta-error-comparison
+            phrase: The regressor’s mean absolute remaining-hours error is two point four seven nine hours, compared with four point two zero three for the training-tier median baseline
+            targets:
+              - fitted-predictions-construction
+            color: cyan
+            linger: 0.4
+  - id: artifact-replay
+    title: Reload the complete frozen calculation
+    visual: The same feature order, scaler, coefficients and threshold cross a strict JSON boundary, then score the unchanged test row again.
+    beats:
+      - say: The lab exports synthetic dataset, model parameters, test predictions and report. Its model JSON stores the ordered feature schema, training scaler means and positive scales, classifier coefficients and intercept, raw-feature ETA coefficients and intercept, and locked threshold. At scoring, subtract each training mean, divide by its training scale, take the classifier coefficient dot product, add the saved classifier intercept, and apply the logistic function.
+        hold: 1
+        visual_cues:
+          - id: artifact-replay-b0
+            phrase: The lab exports synthetic dataset, model parameters, test
+            targets:
+              - artifact-replay-construction
+            linger: 0.4
+          - id: reloaded-dot
+            phrase: apply the logistic function
+            targets:
+              - artifact-replay-construction
+            linger: 0.4
+      - say: Validate schema, feature order, vector shapes, numeric types, finite parameters, positive scales and threshold range before scoring the reloaded JSON. The lab checks that the reloaded parameters match the original estimators on the test rows. This explicit format covers these two linear models. A byte fingerprint identifies an artifact; it does not authenticate who produced it. Dependency versions in a report do not pin the environment. Retain an immutable run directory and locked dependencies.
+        hold: 1
+        visual_cues:
+          - id: artifact-replay-b1
+            phrase: Validate schema, feature order, vector shapes, numeric types,
+            targets:
+              - artifact-replay-construction
+            linger: 0.4
+          - id: artifact-validation
+            phrase: positive scales
+            targets:
+              - artifact-replay-construction
+            linger: 0.4
+      - say: At the policy boundary, reject malformed identifiers and non-UTC prediction envelopes. A snapshot mismatch, model mismatch, feature mismatch, unsupported tier, invalid age or score produces its named handling. Finite nonnegative ages must pass their own limits before the threshold comparison. JSON fallbacks turn nonfinite numbers into null; Boolean true is not a probability. Trusted scheduling and source provenance still need real service controls.
+        hold: 1
+        visual_cues:
+          - id: artifact-replay-b2
+            phrase: At the policy boundary, reject malformed identifiers and
+            targets:
+              - artifact-replay-construction
+            linger: 0.4
+          - id: boolean-score
+            phrase: Boolean true is not a probability
+            targets:
+              - artifact-replay-construction
+            linger: 0.4
+  - id: monitor
+    title: Let outcomes arrive on their own clock
+    visual: Immediate freshness measurements appear before delayed warning outcomes are joined.
+    beats:
+      - say: Once requests arrive, we can immediately measure freshness, missing fields, latency and fallbacks. This lab waits for recorded delivery labels to measure warning cost and probability quality. In an eligible cohort, a trustworthy confirmation that a shipment is still undelivered after its original deadline can establish a late outcome before final delivery. That confirmed binary outcome determines its simplified warning penalty and probability error, but exact arrival error still needs the delivery timestamp. Do not report only the early known late cases as the whole cohort; retain unresolved counts and follow-up windows. Join each mature outcome to the original prediction and the original promise rather than rewriting the record.
+        hold: 0.75
+        visual_cues:
+          - id: monitor-b1-1
+            phrase: immediately measure freshness
+            targets:
+              - immediate-checks
+            linger: 0.45
+          - id: monitor-b1-2
+            phrase: This lab waits for recorded delivery labels
+            targets:
+              - outcome
+            linger: 0.45
+          - id: monitor-b1-3
+            phrase: original prediction and the original promise
+            targets:
+              - prediction
+              - outcome-join
+            linger: 0.45
+      - say: Watch counts as well as rates, including route and service-tier slices. A calibration plot compares score buckets with observed late fractions. A new candidate still needs a compatible model, feature transformation and policy, plus readiness and recovery checks on the serving path.
+        hold: 0.85
+        visual_cues:
+          - id: monitor-b2-1
+            phrase: Watch counts as well as rates
+            targets:
+              - mature-checks
+            linger: 0.45
+          - id: monitor-b2-2
+            phrase: compatible model, feature transformation and policy
+            targets:
+              - immediate-checks
+            linger: 0.45
+      - say: For a separate authored bucket demonstration, four frozen late probabilities are point two, point three, point three and point four. Their mean is point three. After the four outcomes mature, two are late, so observed fraction is point five. Plot mean score point three against two over four, point five, with count four. A future label updates the same prediction cohort; it never rewrites the old score. A Brier score combines calibration, resolution and outcome uncertainty, so it is not a pure calibration measure.
+        hold: 1
+        visual_cues:
+          - id: bucket-mean
+            phrase: mean is point three
+            targets:
+              - monitor-construction
+            linger: 0.4
+          - id: bucket-labels
+            phrase: two are late
+            targets:
+              - monitor-construction
+            linger: 0.4
+          - id: bucket-point
+            phrase: count four
+            targets:
+              - monitor-construction
+            linger: 0.4
+  - id: serving-recovery
+    title: Verify which bundle actually serves
+    visual: A registry pointer moves while loaded workers initially remain old; readiness, routed-release verification and a complete prior bundle complete the serving transition.
+    beats:
+      - say: A registry alias can point to a candidate while workers still serve the prior model. Promotion requires compatible preprocessing, schema, model and threshold policy, ready loaded workers, verified traffic routing and online checks. Compare the candidate with incumbents and simple policies on identical rows and report critical slices with predeclared support and uncertainty.
+        hold: 1
+        visual_cues:
+          - id: serving-recovery-b0
+            phrase: A registry alias can point to a candidate
+            targets:
+              - serving-recovery-construction
+            linger: 0.4
+          - id: workers-loaded
+            phrase: ready loaded workers
+            targets:
+              - serving-recovery-construction
+            linger: 0.4
+      - say: For recovery, retain the complete prior bundle and enough loading capacity. Switch traffic through a tested procedure, measure recovery time and verify the release actually answering requests. Restoring a pointer alone does not restore cached workers and cannot undo a notification already sent. Retain prediction time, source records, model bytes, transformation and policy so each proposed warning remains replayable.
+        hold: 1
+        visual_cues:
+          - id: serving-recovery-b1
+            phrase: For recovery, retain the complete prior bundle and
+            targets:
+              - serving-recovery-construction
+            linger: 0.4
+          - id: recovery-traffic
+            phrase: Switch traffic
+            targets:
+              - serving-recovery-construction
+            linger: 0.4
+  - id: synthesis
+    title: Keep the estimate and decision replayable
+    visual: The input snapshot, median and warning policy converge into a versioned local response.
+    beats:
+      - say: We have separated an arrival estimate from a late-warning decision, reconstructed the available scans, and compared the actions those scores produce. The historical range tells us about our sample. Future uncertainty needs its own calibration and evaluation on later deliveries.
+        hold: 0.75
+        visual_cues:
+          - id: synthesis-b1-1
+            phrase: arrival estimate from a late-warning decision
+            targets:
+              - prediction-output
+            linger: 0.45
+          - id: synthesis-b1-2
+            phrase: available scans
+            targets:
+              - source-snapshot
+            linger: 0.45
+      - say: Build the small service around that evidence chain. Retain the prediction time, source records, fitted artifact, input contract and threshold policy. The versioned_trace gate requires threshold_policy_id alongside the model and feature contract identifiers, because a different threshold can change the action for the same score. Then a surprising warning becomes a decision you can replay, explain and improve while keeping customer-facing claims grounded.
+        hold: 0.85
+        visual_cues:
+          - id: synthesis-b2-1
+            phrase: prediction time, source records
+            targets:
+              - source-snapshot
+            linger: 0.45
+          - id: synthesis-b2-2
+            phrase: fitted artifact, input contract and threshold policy
+            targets:
+              - release-contract
+            linger: 0.45
+      - say: "Try a fresh order picked up at nine and scored at thirteen hundred. Its noon scan becomes readable at one fifteen. The eleven thirty scan was readable by eleven forty. Which scan can the one o’clock prediction use, and how old is it?"
+        hold: 2
+      - say: "Choose eleven thirty, giving one point five hours. Known matched total durations six, ten, twelve and sixteen have median eleven, giving twenty hundred arrival from pickup, with an observed range only. A supplied risk point five two, scan age one point five and backlog age three pass the point four warning policy and freshness gates. The proposal is warn customer. This one replay establishes its policy calculation; representative outcome and recovery evidence still govern release. Product ranking next keeps eligibility ahead of scores and retains the proposed response slate before outcomes arrive. Separate client rendering records are needed to establish what was displayed; exposure also depends on what the shopper could see and examine."
+        hold: 2
+        visual_cues:
+          - id: fresh-scan-answer
+            phrase: Choose eleven thirty, giving one point five hours
+            targets:
+              - synthesis-construction
+            linger: 0.4
+          - id: fresh-arrival-answer
+            phrase: twenty hundred arrival
+            targets:
+              - synthesis-construction
+            linger: 0.4
+          - id: fresh-warn-answer
+            phrase: proposal is warn customer
+            targets:
+              - synthesis-construction
+            linger: 0.4
+          - id: fresh-median
+            phrase: median eleven
+            targets:
+              - synthesis-construction
+            linger: 0.4

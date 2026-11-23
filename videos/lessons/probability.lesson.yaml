@@ -1,0 +1,764 @@
+version: 1
+id: probability
+title: Would You Trust This Flag?
+opening: lesson
+source: foundations/probability-for-machine-learning/content.md
+sources:
+  - title: "Deep Learning: Probability"
+    url: https://www.deeplearningbook.org/contents/prob.html
+  - title: Stanford probability review
+    url: https://cs229.stanford.edu/section/cs229-prob.pdf
+  - title: NIST Binomial distribution
+    url: https://www.itl.nist.gov/div898/handbook/eda/section3/eda366i.htm
+  - title: PyTorch CrossEntropyLoss input contract
+    url: https://docs.pytorch.org/docs/stable/generated/torch.nn.CrossEntropyLoss.html
+  - title: Deep Learning Chapter3 probability and information theory
+    url: https://www.deeplearningbook.org/contents/prob.html
+  - title: On Calibration of Modern Neural Networks
+    url: https://proceedings.mlr.press/v70/guo17a.html
+scenes:
+  - id: intro
+    title: "What are the chances a flag caught abuse?"
+    visual: Ninety-five marked slips stay in view as five misses drop out and the clean flags fill the review queue.
+    beats:
+      - say: "This detector flagged ninety-five of these hundred abusive signups. See the five it missed?"
+        hold: 0.85
+        visual_cues:
+          - id: opening-misses
+            phrase: "See the five it missed"
+            targets: [opening-misses]
+      - say: "Now pick a flag at random from the review queue. Would you expect most of those flags to have caught abuse?"
+        hold: 2.6
+      - say: "Keep the ninety-five that got flags. Now add the flags on clean signups. There are four hundred ninety-five of them. Only about one flag in six caught abuse. Where did all those clean flags come from?"
+        hold: 1
+        caption_starts:
+          - "Now add the flags on clean signups"
+          - "There are four hundred ninety-five of them"
+          - "Only about one flag in six caught abuse"
+          - "Where did all those clean flags come from"
+        visual_cues:
+          - id: opening-keep
+            phrase: "Keep the ninety-five that got flags"
+            targets: [opening-marks]
+          - id: opening-clean
+            phrase: "Now add the flags on clean signups"
+            targets: [opening-marks]
+          - id: opening-risk
+            phrase: "Only about one flag in six caught abuse"
+            targets: [opening-count]
+  - id: population
+    title: "Who could we have picked?"
+    visual: One tile holds the audited hundred. Ninety-nine more tiles bring the clean signups into the sampling frame.
+    beats:
+      - say: "Put those hundred abusive signups in one red tile. Now bring in the clean signups from the same labeled batch. Each blue tile holds another hundred. Pick one signup at random from all ten thousand, giving each the same chance. The whole population is our sample space. An event is a subset of possible picks. Here it's the hundred abusive signups in that red tile."
+        hold: 0.7
+        visual_cues:
+          - id: population-build
+            phrase: "bring in the clean signups from the same labeled batch"
+            targets: [population-grid]
+      - say: "One abusive tile out of a hundred gives one percent. That's the prior, the chance of abuse before seeing a flag. To estimate it for tomorrow, sample incoming signups whether the detector flags them or lets them through."
+        hold: 0.7
+        visual_cues:
+          - id: population-prior
+            phrase: "One abusive tile out of a hundred gives one percent"
+            targets: [population-fraction]
+            caption_boundary: true
+  - id: indicator
+    title: "What does one randomly picked label look like?"
+    visual: A picked label has two possible values. Each squared distance from their mean gets its own population weight.
+    beats:
+      - say: "Write one on each abusive signup and zero on each clean one. The number you get depends on which signup you pick. That's a random variable. For a zero-or-one label like this, the name is Bernoulli. Multiply each value by its population share, then add. That average is the expected value. Here it's the same one percent we got by counting."
+        hold: 0.75
+        visual_cues:
+          - id: indicator-mean
+            phrase: "Multiply each value by its population share, then add"
+            targets: [indicator-arithmetic]
+      - say: "One actual pick still gives zero or one. Variance averages squared distances from the mean. A one lies almost a whole unit away, but it turns up only one time in a hundred. The zeros crowd right up against the mean. Weight each square by how often its label occurs. Both weighted pieces contribute to the variance of an individual label. Later we'll ask how much an average over many labels moves."
+        hold: 0.8
+        visual_cues:
+          - id: variance-squares
+            phrase: "Variance averages squared distances"
+            targets: [indicator-arithmetic]
+          - id: variance-weights
+            phrase: "Weight each square by how often its label occurs"
+            targets: [indicator-arithmetic]
+          - id: indicator-variance
+            phrase: "Both weighted pieces contribute"
+            targets: [indicator-arithmetic]
+  - id: filter
+    title: Let each source send its flags
+    visual: Exact source packets enter one count-scale queue. Counts follow completed arrivals and the total waits for its cue.
+    beats:
+      - say: The detector flags ninety-five percent inside the abusive source and five percent inside the clean source. Keep those denominators separate. A small rate on a large source can contribute the larger pile. Before the pieces arrive, predict which color will dominate review.
+        hold: 1.05
+        visual_cues:
+          - id: filter-rates
+            phrase: Keep those denominators separate
+            targets:
+              - source-rates
+            linger: 0.7
+      - say: Follow the abusive flags into review, then the clean flags. The first source supplies ninety-five rows. The second supplies four hundred ninety-five. Each packet prints its row count. Wider packets hold more signups on one shared scale. Membership stays attached as the queue fills.
+        hold: 0.75
+        caption_starts:
+          - "The first source supplies ninety-five rows"
+          - "The second supplies four hundred ninety-five"
+        motion_check:
+          region:
+            - 270
+            - 350
+            - 1370
+            - 480
+          minimumChangedFraction: 0.002
+        visual_cues:
+          - id: queue-arrivals
+            phrase: Follow the abusive flags into review, then the clean flags
+            targets:
+              - queue-packets
+            linger: 0.7
+          - id: queue-abuse-arrivals
+            phrase: The first source supplies ninety-five rows
+            targets:
+              - queue-packets
+            linger: 0.7
+          - id: queue-clean-arrivals
+            phrase: The second supplies four hundred ninety-five
+            targets:
+              - queue-packets
+            linger: 0.7
+      - say: Now count everyone in the queue. Ninety-five plus four hundred ninety-five gives five hundred ninety reviews. The blue packets dominate. Recall counted inside abuse. The reviewer is about to divide inside a different population.
+        hold: 0.75
+        visual_cues:
+          - id: queue-total
+            phrase: gives five hundred ninety reviews
+            targets:
+              - queue-summary
+            linger: 0.7
+  - id: conditional
+    title: Keep the intersection, change the world
+    visual: Passed cohorts leave the eligible world. Reversing the condition preserves the 95-row intersection while changing the denominator.
+    beats:
+      - say: The detector let two groups through. Five abusive signups went through with the clean ones. Now keep only flagged rows. The passed groups move outside the tray, but the red flags stay right where they were. If you pick a ticket from that tray, what goes in the denominator?
+        hold: 0.95
+        motion_check:
+          region:
+            - 240
+            - 310
+            - 1450
+            - 560
+          minimumChangedFraction: 0.002
+        visual_cues:
+          - id: select-flagged
+            phrase: Now keep only flagged rows
+            targets:
+              - eligible-population
+            linger: 0.7
+      - say: Divide the ninety-five abusive flags by all five hundred ninety selected rows. The result is about sixteen percent. That's the risk for the signup on your desk after seeing its flag. We call it the posterior. Read the vertical bar as given. The right side tells you which rows to keep. The left side tells you what to count among them.
+        hold: 0.75
+        visual_cues:
+          - id: conditional-result
+            phrase: The result is about sixteen percent
+            caption_boundary: true
+            targets:
+              - conditional-fraction
+            linger: 0.7
+      - say: "Reverse the question: given abuse, how often was there a flag? The blue rows leave, and the five missed abusive rows return. Our same ninety-five-row intersection now sits inside one hundred abusive rows. That fraction is ninety-five percent."
+        hold: 0.75
+        caption_starts:
+          - "The blue rows leave"
+          - "That fraction is ninety-five percent"
+        visual_cues:
+          - id: reverse-condition
+            phrase: The blue rows leave, and the five missed abusive rows return
+            targets:
+              - eligible-population
+            linger: 0.7
+  - id: bayes
+    title: Give the counting a compact name
+    visual: The joint and marginal shares build from the same counts, then the common population scale cancels.
+    beats:
+      - say: "Pick from all ten thousand again. Count both events together, abusive and flagged. That joint event has ninety-five rows out of ten thousand. Add flags from both sources for the marginal flag probability. Conditional probability divides the joint share by the selected world's share. The common population scale cancels."
+        hold: 0.75
+        visual_cues:
+          - id: joint-to-conditional
+            phrase: The common population scale cancels
+            targets:
+              - bayes-arithmetic
+            linger: 0.7
+      - say: "Build the joint share another way: abuse prior times the flag rate within abuse. Replace the joint term with that product and we have Bayes' rule. Its denominator includes every way a flag can arise. These symbols preserve the counting we already checked."
+        hold: 0.7
+        visual_cues:
+          - id: bayes-rule
+            phrase: Replace the joint term with that product
+            targets:
+              - bayes-arithmetic
+            linger: 0.7
+  - id: prior-shift
+    title: "Same detector, different traffic"
+    visual: The source split moves while both within-class rates stay fixed. A second strip uses a fixed count scale for the flags.
+    beats:
+      - say: "The flag on our desk came from a batch with one percent abuse. Suppose another signup surface has ten percent abuse in a batch of the same size. Keep both detector rates fixed. First predict the direction of queue risk. Would you expect a larger or a smaller fraction of the queue to be abusive?"
+        hold: 2.3
+        visual_cues:
+          - id: prior-prediction
+            phrase: "First predict the direction of queue risk"
+            targets: [prior-controls]
+      - say: "Change the prior and follow both contributions. The red part grows to nine hundred fifty flags. The blue part actually shrinks. Five percent now applies to fewer clean signups. How much of the queue is red?"
+        hold: 1.8
+        visual_cues:
+          - id: prior-change
+            phrase: "Change the prior and follow both contributions"
+            targets: [prior-masses]
+      - say: "Nine hundred fifty out of fourteen hundred gives about sixty-eight percent. Same behavior within each class, very different odds on the reviewer's desk. On real traffic we'd check all three rates again."
+        hold: 0.75
+        visual_cues:
+          - id: prior-result
+            phrase: "Nine hundred fifty out of fourteen hundred gives about sixty-eight percent"
+            targets: [prior-masses]
+            caption_boundary: true
+  - id: independence
+    title: What would equal selection rates do?
+    visual: An equal 20-percent selection within each class preserves the original class proportion.
+    beats:
+      - say: Return to the one-percent population and try a different detector. It flags twenty percent of each class. Should its flag change our abuse probability? Both classes pass through the same fraction. Predict the composition before we join the selected pieces.
+        hold: 1.05
+        visual_cues:
+          - id: independent-prediction
+            phrase: Predict the composition before we join the selected pieces
+            targets:
+              - independent-sources
+            linger: 0.7
+      - say: Select one fifth from each source and bring those pieces together. Twenty abusive rows sit beside nineteen hundred eighty clean rows. That's twenty out of two thousand flags, still one percent abusive. Independence means the evidence leaves our belief unchanged. This flag creates work while preserving the original mix.
+        hold: 0.75
+        visual_cues:
+          - id: independent-select
+            phrase: Select one fifth from each source and bring those pieces together
+            targets:
+              - independent-sources
+            linger: 0.7
+      - say: Independence differs from mutual exclusion. Abuse and clean cannot both describe the same binary label. Learning abuse makes clean impossible, changing its probability from ninety-nine percent to zero, so those two events are not independent.
+        hold: 1
+        visual_cues:
+          - id: exclude-update
+            phrase: Learning abuse makes clean impossible
+            targets:
+              - mutually-exclusive
+            color: yellow
+  - id: copied-evidence
+    title: Does a copied flag narrow the queue?
+    visual: Original packet IDs survive a second copied check. A separate conditional-independence model exposes the incorrect inflation.
+    beats:
+      - say: "The review queue has five hundred ninety signups. A second service copies every flag. If a reviewer keeps only signups with both flags, which signups drop out?"
+        hold: 2
+        caption_starts:
+          - "If a reviewer keeps only signups with both flags"
+      - say: "Follow the blue packet. It passes both checks with the same signup IDs. Every one of the original five hundred ninety is still here. The abuse fraction stays at sixteen percent."
+        hold: 0.95
+        caption_starts:
+          - "It passes both checks"
+          - "Every one of the original five hundred ninety"
+        visual_cues:
+          - id: copied-result
+            phrase: The abuse fraction stays at sixteen percent
+            targets: [copied-comparison]
+            caption_boundary: true
+          - id: copied-pass
+            phrase: "It passes both checks with the same signup IDs"
+            targets:
+              - copied-packets
+            linger: 0.7
+      - say: "Now give each detector its own test. Keep the original flag rates. If the tests are independent within each class, multiply the two rates for that class. Among clean signups, the first test flags five percent. The second flags five percent of those. That leaves about twenty-five clean signups on average. Nearly four fifths of the signups with both flags are abusive. When detectors share rules, count how often they both flag the same signup in each class."
+        hold: 0.8
+        caption_starts:
+          - "Nearly four fifths of the signups with both flags"
+        visual_cues:
+          - id: independent-counterfactual
+            phrase: "The second flags five percent of those"
+            targets:
+              - copied-comparison
+            linger: 0.7
+          - id: independent-risk
+            phrase: "Nearly four fifths of the signups with both flags are abusive"
+            targets: [copied-comparison]
+  - id: posterior-contract
+    title: "When can the function return a risk?"
+    visual: Two flag masses make one denominator. An empty queue and a positive mass that rounds to zero take different paths through the calculation.
+    beats:
+      - say: "Turn the count into a function. Give it the original one-percent prior and the two flag rates. Each input must be a finite number between zero and one. A prior of one point four is an error. The red contribution is the prior times recall, the fraction caught among abusive signups. Add the false-flag mass from the remaining population. Dividing the red part by the whole strip recovers the risk we counted."
+        hold: 0.9
+        visual_cues:
+          - id: invalid-prior
+            phrase: "A prior of one point four is an error"
+            targets: [posterior-inputs]
+          - id: true-source
+            phrase: "the prior times recall"
+            targets: [posterior-inputs]
+          - id: source-masses
+            phrase: "false-flag mass from the remaining population"
+            targets: [posterior-inputs]
+      - say: "Turn both flag rates down to zero. Who could be in this queue? Neither group can send anybody. Asking for the fraction of an empty queue gives zero divided by zero. That probability is undefined. Report the empty event to the caller."
+        hold: 1.1
+        caption_starts:
+          - "Neither group can send anybody"
+        visual_cues:
+          - id: empty-rates
+            phrase: "both flag rates down to zero"
+            targets: [posterior-inputs]
+          - id: empty-result
+            phrase: "That probability is undefined"
+            targets: [posterior-inputs]
+            caption_boundary: true
+      - say: "Now try a numerical stress test. Call the smallest positive number a sixty-four-bit float can store one unit. Set the prior and the clean flag rate to one unit each. Recall is one half. The abusive flag mass lands halfway between zero and one unit. At that tie the product rounds down to zero. The clean mass rounds to one unit. Direct division reports zero risk. Both sources could actually produce a flag."
+        hold: 1.25
+        visual_cues:
+          - id: tiny-inputs
+            phrase: "Set the prior and the clean flag rate to one unit each"
+            targets: [posterior-numerics]
+          - id: half-unit
+            phrase: "lands halfway between zero and one unit"
+            targets: [posterior-numerics]
+          - id: round-half
+            phrase: "the product rounds down to zero"
+            targets: [posterior-numerics]
+          - id: clean-unit
+            phrase: "The clean mass rounds to one unit"
+            targets: [posterior-numerics]
+          - id: raw-result
+            phrase: "Direct division reports zero risk"
+            targets: [posterior-numerics]
+            caption_boundary: true
+      - say: "Go back to the inputs, while they're still positive. For each group, add the log of its population share to the log of its flag rate. That gives the two log masses. Now normalize on a scale where the larger mass is one. Subtract the larger log mass from both and exponentiate. This is the scaling step in log-sum-exp. On that common scale, the red contribution is about half the blue one. Red gets about a third of the queue. A tiny event can have a perfectly ordinary conditional probability."
+        hold: 1.15
+        visual_cues:
+          - id: log-normalize
+            phrase: "Subtract the larger log mass from both and exponentiate"
+            targets: [posterior-numerics]
+          - id: stable-result
+            phrase: "Red gets about a third of the queue"
+            targets: [posterior-numerics]
+            caption_boundary: true
+  - id: likelihood
+    title: Freeze the labels, move the candidate rate
+    visual: Fixed outcomes acquire probability factors and a partial product before a live candidate moves along the likelihood curve.
+    beats:
+      - say: "What if the queue's abuse rate is unknown? Take three reviewed outcomes in this order, abuse, clean, abuse. Keep those labels fixed. Try a candidate rate called p. Assume the labels are independent draws at that rate. Each abuse contributes p. The clean label contributes one minus p. Multiply the three assigned probabilities."
+        hold: 0.75
+        visual_cues:
+          - id: likelihood-factors
+            phrase: Multiply the three assigned probabilities
+            targets:
+              - likelihood-products
+            linger: 0.7
+      - say: At a candidate rate of one fifth, this sequence is fairly unlikely. Move the candidate to four fifths and recompute each factor. The labels stay still while their assigned probabilities change. The product increases. This comparison of candidate explanations is a likelihood.
+        hold: 0.75
+        visual_cues:
+          - id: likelihood-candidate
+            phrase: Move the candidate to four fifths and recompute each factor
+            targets:
+              - likelihood-products
+            linger: 0.7
+      - say: Follow the yellow point to the peak. The maximum sits at two abuses out of three. Its height is the probability of those three labels in that order if the rate is two thirds. In Bayesian inference we combine this likelihood with a prior over rates. The three labels then update which rates are most plausible.
+        hold: 0.75
+        visual_cues:
+          - id: likelihood-maximum
+            phrase: The maximum sits at two abuses out of three
+            targets:
+              - likelihood-curve
+            linger: 0.7
+      - say: If we observe only two abuses out of three and discard their order, three sequences qualify. The count probability is three times the ordered-sequence likelihood. That factor changes the probability of the observed event, while the maximizing rate remains two thirds.
+        hold: 1
+        visual_cues:
+          - id: count-sequences
+            phrase: three sequences qualify
+            targets:
+              - count-likelihood
+            color: yellow
+          - id: count-answer
+            phrase: The count probability is three times the ordered-sequence likelihood
+            caption_boundary: true
+            targets:
+              - count-likelihood
+            color: yellow
+  - id: calibration-check
+    title: "Would you quote this score as a risk?"
+    visual: Six nearby scores share a ruler. The viewer sees their outcomes before comparing the observed fraction to the average prediction.
+    beats:
+      - say: "A reviewer opens six signups scored close to point eight. If those scores are good probabilities, we'd expect abuse about eight times in ten across a large group like this. Uncover the six labels. What fraction in this little group is actually abusive?"
+        hold: 2.2
+        visual_cues:
+          - id: bucket-labels
+            phrase: "Uncover the six labels"
+            targets: [calibration-bucket]
+      - say: "Three divided by six is point five. Mark that on the same ruler as the average score. The gap here is thirty percentage points. Checking observed frequencies against predictions in groups like this is called calibration."
+        hold: 1
+        visual_cues:
+          - id: bucket-count
+            phrase: "Three divided by six is point five"
+            targets: [calibration-bucket]
+            caption_boundary: true
+          - id: bucket-gap
+            phrase: "The gap here is thirty percentage points"
+            targets: [calibration-bucket]
+            caption_boundary: true
+      - say: "Six labels give us one noisy comparison. To use these scores on all incoming signups, check many representative cases across score ranges, including signups the detector let through. Even a constant one-percent score matches the overall frequency in our original batch. It offers a reviewer no way to rank two signups."
+        hold: 0.85
+  - id: distribution-choice
+    title: "What values can we observe?"
+    visual: Ten labeled signups give one observed count. Their ten expected contributions slide together on a ruler before a Poisson count and a continuous timing error appear.
+    beats:
+      - say: "Take ten independent signups, each with a one percent chance of abuse. Each label is Bernoulli, zero or one. Add the ten labels. That's a binomial count. This batch has one abusive signup. What count would we expect on average across many batches?"
+        hold: 2
+        caption_starts:
+          - "This batch has one abusive signup"
+        visual_cues:
+          - id: binomial-observation
+            phrase: "Add the ten labels"
+            targets: [distribution-support]
+      - say: "Each signup contributes one hundredth to the expected count. Slide those ten pieces together. That's a tenth per batch, or one abusive signup per ten batches on average. With n signups at probability p, the mean count is n times p. Independence lets us add the ten label variances too."
+        hold: 1
+        caption_starts:
+          - "That's a tenth per batch"
+          - "With n signups at probability p"
+        visual_cues:
+          - id: binomial-pieces
+            phrase: "Each signup contributes one hundredth"
+            targets: [distribution-support]
+          - id: binomial-expectation
+            phrase: "Slide those ten pieces together"
+            targets: [distribution-support]
+          - id: binomial-variance
+            phrase: "add the ten label variances"
+            targets: [distribution-support]
+      - say: "Now count alerts in a minute. There's no fixed number of trials. If alerts arrive independently at a steady rate of two per minute, a Poisson model gives the count both a mean and a variance of two. Even a quiet minute with no alerts is possible. Its zero-count probability is e to minus two. For a continuous measurement like a timing error, a Normal model may be more reasonable. Match the possible values and the assumptions to what you're measuring."
+        hold: 1
+        visual_cues:
+          - id: poisson-model
+            phrase: zero-count probability is e to minus two
+            targets:
+              - distribution-support
+            color: yellow
+          - id: continuous-error
+            phrase: For a continuous measurement like a timing error
+            targets: [distribution-support]
+  - id: softmax-sampling
+    title: Which token comes next?
+    visual: Four logits set the widths on a sampling strip. Two draws from the same strip land on different tokens.
+    beats:
+      - say: "Try finishing the words 'function returns the'. In this little model there are four possible next tokens. Look at banana. Its score is below zero. These raw scores are called logits. Exponentiate each score and divide by the shared sum. Each token now owns a positive share of one strip. This is a categorical distribution, and the operation that built it is called softmax."
+        hold: 0.8
+        visual_cues:
+          - id: softmax-mass
+            phrase: Exponentiate each score and divide by the shared sum
+            targets: [softmax-normalization]
+      - say: "Watch the widths. Subtract the largest logit before exponentiating. Every weight gets divided by the same factor, so their shares stay put. Now even the largest exponential is only one, which avoids overflow. The gap of point eight between result and value is still there. That makes result about two point two three times as likely as value."
+        hold: 0.9
+        visual_cues:
+          - id: softmax-shift
+            phrase: Subtract the largest logit before exponentiating
+            targets: [softmax-normalization]
+      - say: "Greedy decoding takes the widest segment, result, every time we repeat this exact request. To sample, pick a point uniformly along the strip. Our first point lands on result. Make another draw on the very same strip. This one lands on None. Both draws used exactly the same token probabilities."
+        hold: 0.85
+        caption_starts:
+          - "Our first point lands on result"
+          - "Make another draw on the very same strip"
+          - "This one lands on None"
+        visual_cues:
+          - id: first-draw
+            phrase: Our first point lands on result
+            targets: [sampling-counts]
+          - id: second-draw
+            phrase: This one lands on None
+            targets: [sampling-counts]
+      - say: "Keep drawing from that same distribution. The repeated draws fluctuate around its probabilities. In a thousand draws we'd expect about six hundred eighteen copies of result. A fixed seed lets us replay this particular sample. Another seed can give us a different count."
+        hold: 0.9
+        visual_cues:
+          - id: sampling-draws
+            phrase: repeated draws fluctuate around its probabilities
+            targets: [sampling-counts]
+  - id: token-chain
+    title: What chance did the model give this line?
+    visual: Each observed word keeps its prefix while three conditional probabilities become a product and then three token losses.
+    beats:
+      - say: "Now score a line someone actually wrote. In our toy vocabulary, each word in 'rain fell here' is one token. The first probability belongs to rain at the start. The second belongs to fell after rain. The third belongs to here after both words. For three supplied probabilities point five, point two and point one, what probability did the model give the whole line?"
+        hold: 2.4
+        visual_cues:
+          - id: chain-factors
+            phrase: For three supplied probabilities point five, point two and point one
+            targets: [token-chain-result]
+      - say: "It is point zero one. Multiply the three factors. That's the chain rule. Each probability already accounts for the prefix at that position, so this multiplication even works when earlier words strongly influence later ones."
+        hold: 1
+        visual_cues:
+          - id: chain-answer
+            phrase: It is point zero one
+            targets: [token-chain-result]
+            caption_boundary: true
+      - say: "A much longer line can break that calculation on a computer. Give each of two hundred tokens the same probability of one hundredth. Follow the sum of logs as the sequence grows. The mathematical product is ten to the minus four hundred. A sixty-four-bit float stores that product as zero, but the natural logs still add up to about minus nine hundred twenty-one. Keep that finite log probability. A genuinely impossible token would have log probability minus infinity."
+        hold: 1.05
+        visual_cues:
+          - id: underflow-chain
+            phrase: Follow the sum of logs as the sequence grows
+            targets: [token-chain-result]
+      - say: "Back to our three words. Take the negative natural log of each target probability. We measure those losses in nats. Add them and divide by the three tokens we scored. That's about one point five three five nats per token. Exponentiate the average and you get a perplexity of about four point six four. To compare models this way, use comparable data, tokenization and scoring masks. The model is scoring the words someone wrote. Their probability tells us little about whether it actually rained."
+        hold: 1
+        visual_cues:
+          - id: token-loss
+            phrase: about one point five three five nats per token
+            targets: [token-chain-result]
+          - id: perplexity
+            phrase: a perplexity of about four point six four
+            targets: [token-chain-result]
+  - id: log-loss
+    title: How much does the fourth token cost?
+    visual: The same observed token keeps its identity while assigned probability moves along the negative-log curve; four loss terms accumulate.
+    beats:
+      - say: Find the probability assigned to the token that actually occurred, then take its negative natural log. A target probability point nine costs about point one zero five nats. At point zero one it costs about four point six zero five. As target probability approaches zero, this penalty grows without bound.
+        hold: 1
+        visual_cues:
+          - id: surprise-curve
+            phrase: negative natural log
+            targets:
+              - loss-receipt
+            color: yellow
+      - say: "Give three models the same four targets. The moderate model gives each target a reasonable share. Its mean loss is point six one nine nats. The unsure model gives every target one chance in four, costing one point three eight six. Now watch the fourth bar. This model gives point nine nine to each of the first three targets, then point zero zero one to the fourth. That one miss takes its mean to about one point seven three four nats, the highest loss on these four tokens."
+        hold: 1
+        visual_cues:
+          - id: three-hits
+            phrase: point nine nine to each of the first three targets
+            targets: [loss-receipt]
+          - id: loss-mean
+            phrase: one point seven three four nats
+            targets: [loss-receipt]
+            caption_boundary: true
+          - id: loss-models
+            phrase: point zero zero one to the fourth
+            targets:
+              - loss-receipt
+            color: yellow
+          - id: moderate-loss
+            phrase: point six one nine
+            targets:
+              - loss-receipt
+            color: yellow
+          - id: unsure-loss
+            phrase: costing one point three eight six
+            targets:
+              - loss-receipt
+            color: yellow
+      - say: "Four observed tokens let us compare losses on this text. To check calibration we'd need many outcomes in each score range. Look what happens if we feed these probabilities to a loss function that expects logits. PyTorch CrossEntropyLoss expects raw logits. It normalizes them internally. Normalizing an extra time changes the target's share and the loss even though we're still scoring the same token. Also check which tokens enter the average."
+        hold: 1
+        visual_cues:
+          - id: loss-library
+            phrase: CrossEntropyLoss expects raw logits
+            targets:
+              - loss-receipt
+            color: yellow
+  - id: sampling-error
+    title: The rate changes even when the system does not
+    visual: Independent repeated fifty-case evaluations build a rate distribution; the system probability stays fixed while sample size changes.
+    beats:
+      - say: "Imagine grading one unchanged system over and over on fresh sets of fifty cases. Each dot marks one test's pass rate. A reported pass rate needs a sample size because the cases you happen to draw can move the dot. Assume independent cases with the same chance of passing. The pass count has binomial variance, n times p times one minus p. Dividing the count by n divides its variance by n squared. The square root is the standard error of the rate."
+        hold: 1
+        visual_cues:
+          - id: repeat-evaluations
+            phrase: reported pass rate needs a sample size
+            targets:
+              - rate-uncertainty
+            color: yellow
+      - say: At p point eight and fifty cases, that standard error is about point zero five seven. A band extending two standard errors either way reaches about eleven percentage points below and above eighty percent. That's how much repeated tests can fluctuate under this model. In practice we often plug in the observed pass rate. For small samples or very rare failures, use an interval suited to binomial counts. For related cases, account for their groups.
+        hold: 1
+      - say: Quadrupling the number of independent cases halves this standard error. More labels from a biased flagged queue still do not estimate the all-signup prior. Sampling noise, population selection and distribution shift are separate questions.
+        hold: 1
+        visual_cues:
+          - id: sample-size
+            phrase: Quadrupling the number of independent cases
+            targets:
+              - rate-uncertainty
+            color: yellow
+  - id: rate-gap
+    title: The comparison has its own sampling noise
+    visual: New and old pass counts are compared first on independent sets, then as matched outcomes on the same fifty cases.
+    beats:
+      - say: "On separate sets of fifty independent cases, the new model passes forty-two and the old model passes forty. Would you ship on that four-point lead? Both scores can move when we draw new cases. To find the noise in their difference, add their rate variances and take the square root. One standard error of the gap is nearly eight percentage points. A rough two-standard-error margin is about fifteen points. This test leaves the direction of the advantage open."
+        hold: 1
+        caption_starts:
+          - "Both scores can move when we draw new cases"
+        visual_cues:
+          - id: gap-noise
+            phrase: add their rate variances
+            targets:
+              - gap-receipt
+            color: yellow
+      - say: "What if both models take the very same test? Stack their marks in pairs, one pair per case. Suppose both pass thirty-nine, only the new model passes three, only the old model passes one, and both fail seven. Set aside the pairs that agree. Three cases swing the score toward the new model. One swings it back. That's the entire four-point gap. For a paired comparison, estimate uncertainty from these case-by-case differences, keeping related cases grouped."
+        hold: 1
+        visual_cues:
+          - id: paired-cancel
+            phrase: Set aside the pairs that agree
+            targets: [gap-receipt]
+          - id: paired-cases
+            phrase: both pass thirty-nine
+            targets:
+              - gap-receipt
+            color: yellow
+          - id: paired-new
+            phrase: only the new model passes three
+            targets:
+              - gap-receipt
+            color: yellow
+          - id: paired-old
+            phrase: only the old model passes one
+            targets:
+              - gap-receipt
+            color: yellow
+          - id: paired-fail
+            phrase: both fail seven
+            targets:
+              - gap-receipt
+            color: yellow
+      - say: For rough planning near eighty percent on independent samples, making two standard errors as small as a two-point gap takes about three thousand two hundred cases per model. To clear that threshold reliably under a true two-point advantage needs more cases and a chosen power target. Halving the target gap roughly quadruples the required count. A paired design can help when models make correlated errors.
+        hold: 1
+        visual_cues:
+          - id: planning-count
+            phrase: Halving the target gap
+            targets:
+              - gap-receipt
+            color: yellow
+          - id: planning-first
+            phrase: takes about three thousand two hundred cases per model
+            targets:
+              - gap-receipt
+            color: yellow
+  - id: decisions
+    title: Which threshold can the team staff?
+    visual: Strict review removes exact original members into their correct passed cohorts, retaining count scale and identity.
+    beats:
+      - say: "Back at the signup desk, the team has two hundred slots for the original batch. Broad review would send five hundred ninety signups. Try raising the score a signup needs to qualify. Track the packets leaving review. Most of the released signups are clean. Watch the small red packet go too. Those fifteen abusive signups join the five we already missed."
+        hold: 0.8
+        motion_check:
+          region:
+            - 240
+            - 340
+            - 1450
+            - 500
+          minimumChangedFraction: 0.002
+        visual_cues:
+          - id: strict-removal
+            phrase: Track the packets leaving review
+            targets:
+              - policy-membership
+            linger: 0.7
+      - say: "The strict queue now holds one hundred seventy-nine signups. Eighty are abusive. That share of the queue, about forty-five percent, is the detector's precision. Which queue fits two hundred review slots? Before you pick, count how many abusive signups will never reach a reviewer."
+        hold: 2.4
+        visual_cues:
+          - id: policy-prediction
+            phrase: Which queue fits two hundred review slots
+            targets:
+              - policy-receipt
+            linger: 0.7
+      - say: "The strict queue fits. With these two settings, that choice leaves twenty abusive signups outside review. If the cost of those misses is too high, the team needs more slots or a detector that sends a different mix."
+        hold: 0.7
+        visual_cues:
+          - id: policy-choice
+            phrase: The strict queue fits
+            caption_boundary: true
+            targets:
+              - policy-receipt
+            linger: 0.7
+  - id: payoff
+    title: One more detector for the original batch
+    visual: A distinct improved detector restores the same fifteen abusive members while retaining 99 clean flags; the 194-row result tests capacity.
+    beats:
+      - say: Here's one last prediction. Suppose a better detector keeps broad review's recall and matches strict review's lower false-alarm rate. Can it fit our capacity and recover the lost abuse? Work out what can stay fixed and what must return.
+        hold: 1.25
+        visual_cues:
+          - id: improved-prediction
+            phrase: Can it fit our capacity and recover the lost abuse
+            targets:
+              - improved-membership
+            linger: 0.7
+      - say: Keep the clean flags fixed; bring those fifteen abusive rows back. They're the same abusive members removed by the stricter threshold. Here the detector itself improves, so we recover coverage while keeping its false-alarm count low.
+        hold: 0.75
+        visual_cues:
+          - id: improved-recovery
+            phrase: bring those fifteen abusive rows back
+            targets:
+              - improved-membership
+            linger: 0.7
+      - say: Now there are one hundred ninety-four reviews and five missed abuse cases. This supplied improvement fits our capacity and catches more abuse than the strict threshold. Our opening flag meant about sixteen-percent risk because we counted every source. Rebuild the selected world whenever the evidence or population changes.
+        hold: 0.75
+        visual_cues:
+          - id: improved-result
+            phrase: one hundred ninety-four reviews and five missed abuse cases
+            caption_boundary: true
+            targets:
+              - improved-receipt
+            linger: 0.7
+  - id: new-batch
+    title: "Would you staff this queue?"
+    visual: The extra clean flags fill the last thirty-two slots and cross the capacity line. Both queues then share that line for a final comparison.
+    beats:
+      - say: "You're staffing review for twenty thousand incoming signups. You have nine hundred slots. Suppose three percent of signups are abusive. The detector flags eighty percent of abusive signups and two percent of clean ones. Does the expected queue fit? How many abusive signups would you miss?"
+        hold: 4
+        visual_cues:
+          - id: fresh-rates
+            phrase: "eighty percent of abusive signups and two percent of clean ones"
+            targets: [fresh-sources]
+      - say: "Split the batch first. The prior gives six hundred abusive signups and nineteen thousand four hundred clean. Take eighty percent from the red group. That's four hundred eighty true flags. Take two percent from the much bigger blue group. That's three hundred eighty-eight false flags."
+        hold: 0.85
+        visual_cues:
+          - id: fresh-population
+            phrase: "six hundred abusive signups and nineteen thousand four hundred clean"
+            targets: [fresh-sources]
+          - id: fresh-true
+            phrase: "four hundred eighty true flags"
+            targets: [fresh-queue]
+            caption_boundary: true
+          - id: fresh-false
+            phrase: "three hundred eighty-eight false flags"
+            targets: [fresh-queue]
+            caption_boundary: true
+      - say: "Together that's eight hundred sixty-eight reviews. There's room for thirty-two more. Six hundred were abusive to begin with. That leaves one hundred twenty abusive signups outside review. For a reviewer opening a flag, four hundred eighty out of eight hundred sixty-eight is about fifty-five percent."
+        hold: 0.9
+        visual_cues:
+          - id: fresh-total
+            phrase: "Together that's eight hundred sixty-eight reviews"
+            targets: [fresh-queue]
+            caption_boundary: true
+          - id: fresh-slots
+            phrase: "There's room for thirty-two more"
+            targets: [fresh-queue]
+            caption_boundary: true
+          - id: fresh-misses
+            phrase: "one hundred twenty abusive signups outside review"
+            targets: [fresh-queue]
+            caption_boundary: true
+          - id: fresh-risk
+            phrase: "about fifty-five percent"
+            targets: [fresh-queue]
+            caption_boundary: true
+      - say: "Keep the batch, the recall and the staffing exactly as they were. Change just the clean flag rate from two to two and a half percent. You've got those thirty-two empty slots. Will the extra flags fit?"
+        hold: 3.6
+        caption_starts:
+          - "You've got those thirty-two empty slots"
+        visual_cues:
+          - id: fresh-rate-change
+            phrase: "from two to two and a half percent"
+            targets: [fresh-sources]
+      - say: "Apply that extra half percentage point to the clean signups. That's ninety-seven more tickets for the reviewers. Thirty-two fit in the empty slots. The other sixty-five cross the staffing line."
+        hold: 1.5
+        visual_cues:
+          - id: fresh-extra
+            phrase: "Apply that extra half percentage point to the clean signups"
+            targets: [fresh-queue]
+          - id: fresh-addition
+            phrase: "That's ninety-seven more tickets for the reviewers"
+            targets: [fresh-queue]
+            caption_boundary: true
+          - id: fresh-fill-spare
+            phrase: "Thirty-two fit in the empty slots"
+            targets: [fresh-queue]
+            caption_boundary: true
+          - id: fresh-over
+            phrase: "The other sixty-five cross the staffing line"
+            targets: [fresh-queue]
+            caption_boundary: true
+      - say: "Both settings catch four hundred eighty abusive signups on average. The extra work comes from clean signups. To staff the second queue, add sixty-five slots to the nine hundred you have."
+        hold: 1.6

@@ -1,0 +1,308 @@
+version: 1
+objectives:
+  - id: intro
+    can: Find a saved weight's new tensor rank and local index from its global column.
+    scenes:
+      - intro
+      - recovery
+  - id: diagnosis
+    can: Choose an ownership axis from a supplied memory or communication bottleneck.
+    scenes:
+      - diagnosis
+  - id: source-contract
+    can: Distinguish pinned rank semantics, CPU fixtures and an installed training stack.
+    scenes:
+      - source-contract
+  - id: small-lattice
+    can: Derive group peers by varying one coordinate while holding the others fixed.
+    scenes:
+      - small-lattice
+  - id: mesh
+    can: Compute rank-three peers and distinguish logical rank order from physical placement.
+    scenes:
+      - mesh
+  - id: rank-algorithm
+    can: Compute a fresh rank coordinate and distinguish pure-data from data-with-context groups.
+    scenes:
+      - rank-algorithm
+  - id: stored-shapes
+    can: Translate channel-shard shapes between mathematical and PyTorch storage conventions.
+    scenes:
+      - stored-shapes
+  - id: tensor
+    can: Reconstruct a column-then-row MLP from local channels and summed partial outputs.
+    scenes:
+      - tensor
+  - id: backward-bias
+    can: Diagnose a duplicated output bias and identify the backward input-gradient reduction.
+    scenes:
+      - backward-bias
+  - id: pipeline
+    can: Count microbatches and idle stage slots before and after doubling data replicas at fixed global batch.
+    scenes:
+      - pipeline
+  - id: microbatch-budget
+    can: Calculate microbatch count, token positions and the two different bubble denominators.
+    scenes:
+      - microbatch-budget
+  - id: data-ownership
+    can: Trace the state-sharding ladder without multiplying another hardware axis.
+    scenes:
+      - data-ownership
+  - id: context
+    can: Use a query's global position to select remote keys and weight each peer's mean by its normalization mass.
+    scenes:
+      - context
+  - id: sequence-role
+    can: Choose between TP activation partitioning and CP remote-context exchange for a supplied operation.
+    scenes:
+      - sequence-role
+  - id: experts
+    can: Restore weighted expert outputs to the original token and compare rank factorizations.
+    scenes:
+      - experts
+  - id: expert-capacity
+    can: Diagnose skew from per-expert assignment counts and distinguish it from total token count.
+    scenes:
+      - expert-capacity
+  - id: folded-grid
+    can: Compute a folded expert factorization and verify that it covers the same rank population.
+    scenes:
+      - folded-grid
+  - id: optimizer
+    can: Compute persistent-state savings using the actual sharding domain.
+    scenes:
+      - optimizer
+  - id: objective-weighting
+    can: Compute a token-weighted gradient and recognize when equal-replica averaging changes the loss.
+    scenes:
+      - objective-weighting
+  - id: optimizer-step
+    can: Reconstruct the reduce-scatter, local-update and parameter-all-gather ownership sequence.
+    scenes:
+      - optimizer-step
+  - id: recovery
+    can: Keep the gap left by a missing checkpoint shard and test global positions after its arrival.
+    scenes:
+      - recovery
+  - id: resume-state
+    can: Compare the next momentum update with saved and reset velocity after a matching forward pass.
+    scenes:
+      - resume-state
+  - id: checkpoint-formats
+    can: Separate model, optimizer and data-stream compatibility before approving a checkpoint migration.
+    scenes:
+      - checkpoint-formats
+  - id: precision-recipes
+    can: Distinguish operand format, scale policy, persistent state and numerical acceptance evidence.
+    scenes:
+      - precision-recipes
+  - id: mfu-receipt
+    can: Compute MFU using useful work and distinguish it from recomputation-inclusive utilization.
+    scenes:
+      - mfu-receipt
+  - id: measured-trace
+    can: Choose a completed-work timing boundary and a trace tool from a supplied performance symptom.
+    scenes:
+      - measured-trace
+  - id: research-ownership
+    can: Match a communication mechanism to its research contribution and distinguish code from asset terms.
+    scenes:
+      - research-ownership
+  - id: fit-boundary
+    can: Select a proportional training stack and specify correctness evidence beyond a throughput claim.
+    scenes:
+      - fit-boundary
+  - id: earned-return
+    can: Isolate lost velocity and a stale example by replaying the same weight update on a new mesh.
+    scenes:
+      - earned-return
+sections:
+  - heading: Split the dimensions that hurt
+    status: taught
+    scenes:
+      - diagnosis
+      - fit-boundary
+  - heading: Two projects in one repository, plus a bridge
+    status: taught
+    scenes:
+      - source-contract
+  - heading: Megatron Core
+    status: taught
+    scenes:
+      - source-contract
+  - heading: Megatron-LM reference scripts
+    status: taught
+    scenes:
+      - source-contract
+      - measured-trace
+  - heading: Megatron Bridge
+    status: taught
+    scenes:
+      - source-contract
+      - checkpoint-formats
+  - heading: "Rank groups: factor world size first"
+    status: taught
+    scenes:
+      - small-lattice
+      - mesh
+      - rank-algorithm
+  - heading: What each parallel axis does
+    status: taught
+    scenes:
+      - tensor
+      - pipeline
+      - data-ownership
+      - context
+      - experts
+  - heading: "Tensor parallelism: split width"
+    status: taught
+    scenes:
+      - intro
+      - stored-shapes
+      - tensor
+      - backward-bias
+  - heading: "Pipeline parallelism: split depth"
+    status: taught
+    scenes:
+      - pipeline
+      - microbatch-budget
+  - heading: "Data parallelism: split samples, then maybe shard state"
+    status: taught
+    scenes:
+      - data-ownership
+      - optimizer-step
+  - heading: "Context and sequence parallelism: split token work"
+    status: taught
+    scenes:
+      - context
+      - sequence-role
+  - heading: "Expert parallelism: split sparse capacity"
+    status: taught
+    scenes:
+      - experts
+      - expert-capacity
+  - heading: MoE parallel folding
+    status: taught
+    scenes:
+      - experts
+      - folded-grid
+  - heading: "Distributed optimizer: trade replicated state for collectives"
+    status: taught
+    scenes:
+      - optimizer
+      - objective-weighting
+      - optimizer-step
+  - heading: Checkpoints, resharding, and recovery
+    status: taught
+    scenes:
+      - intro
+      - recovery
+      - resume-state
+      - checkpoint-formats
+      - earned-return
+  - heading: "Precision: FP16, BF16, FP8, and FP4"
+    status: taught
+    scenes:
+      - precision-recipes
+      - mfu-receipt
+  - heading: Project identity
+    status: taught
+    scenes:
+      - research-ownership
+  - heading: Research lineage
+    status: taught
+    scenes:
+      - research-ownership
+  - heading: Strengths and weaknesses
+    status: taught
+    scenes:
+      - fit-boundary
+      - diagnosis
+  - heading: Production topology and debugging loop
+    status: taught
+    scenes:
+      - measured-trace
+      - fit-boundary
+      - earned-return
+  - heading: Evaluation rubric
+    status: taught
+    scenes:
+      - earned-return
+      - fit-boundary
+  - heading: Follow-up questions
+    status: taught
+    scenes:
+      - microbatch-budget
+      - optimizer-step
+quiz:
+  - n: 1
+    status: taught
+    scenes:
+      - small-lattice
+      - rank-algorithm
+      - sequence-role
+  - n: 2
+    status: taught
+    scenes:
+      - small-lattice
+      - rank-algorithm
+  - n: 3
+    status: taught
+    scenes:
+      - backward-bias
+      - tensor
+  - n: 4
+    status: taught
+    scenes:
+      - microbatch-budget
+      - pipeline
+  - n: 5
+    status: taught
+    scenes:
+      - context
+      - sequence-role
+  - n: 6
+    status: taught
+    scenes:
+      - optimizer-step
+      - optimizer
+      - data-ownership
+  - n: 7
+    status: taught
+    scenes:
+      - objective-weighting
+      - optimizer
+  - n: 8
+    status: taught
+    scenes:
+      - folded-grid
+      - experts
+  - n: 9
+    status: taught
+    scenes:
+      - resume-state
+      - checkpoint-formats
+      - earned-return
+  - n: 10
+    status: taught
+    scenes:
+      - precision-recipes
+      - fit-boundary
+reviews:
+  closed_book:
+    script: b6a7c6903383ecd7
+    taught: 10
+    partial: 0
+    absent: 0
+    reviewer: independent closed-book review
+    evidence: videos/reviews/script-renewal/deep-dive-megatron.json
+  fact_check:
+    script: b6a7c6903383ecd7
+    open_findings: 0
+    reviewer: independent factual review
+    evidence: videos/reviews/script-renewal/deep-dive-megatron.json
+lesson: deep-dive-megatron
+promise: Trace a weight from its saved shard to its next update, and use rank groups, pipeline slots,
+  remote keys and expert assignments to decide whether a new training mesh preserves the work.
+removed: []

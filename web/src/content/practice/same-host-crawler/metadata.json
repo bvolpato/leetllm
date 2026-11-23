@@ -1,0 +1,240 @@
+{
+  "id": "same-host-crawler",
+  "slug": "same-host-crawler",
+  "title": "Same-host Crawler",
+  "difficulty": "Medium",
+  "category": "Graph Traversal",
+  "language": "python3",
+  "timeEstimateMinutes": 30,
+  "timeLimitMs": 2500,
+  "memoryLimitMb": 128,
+  "order": 10,
+  "tags": [
+    "BFS",
+    "URL parsing",
+    "visited set",
+    "interview systems"
+  ],
+  "source": "Frontier coding prep",
+  "summary": "Traverse a web graph in breadth-first order while enforcing same-host and duplicate-visit invariants.",
+  "starterCode": [
+    "from collections import deque",
+    "from urllib.parse import urljoin, urlparse",
+    "",
+    "",
+    "def crawl(start_url: str, get_links) -> list[str]:",
+    "    pass"
+  ],
+  "testCases": [
+    {
+      "name": "same-scheme relative references inherit the current authority",
+      "visibility": "hidden",
+      "setup": [
+        "from solution import crawl",
+        "pages = {\"https://a.test/dir/root?q=old\": [\"https:child\", \"HTTPS:/rooted\", \"https:?q=new\", \"https:#frag\"]}"
+      ],
+      "input": "crawl(\"https://a.test/dir/root?q=old\", lambda url: pages.get(url, []))",
+      "expected": "[\"https://a.test/dir/root?q=old\", \"https://a.test/dir/child\", \"https://a.test/rooted\", \"https://a.test/dir/root?q=new\", \"https://a.test/dir/root?q=old#frag\"]"
+    },
+    {
+      "name": "skips URLs that raise parsing errors and continues crawling",
+      "visibility": "hidden",
+      "setup": [
+        "from solution import crawl",
+        "pages = {\"https://a.test/root\": [\"https://[broken/\", \"//[also-broken/\", \"/good\"], \"https://a.test/good\": []}"
+      ],
+      "input": "crawl(\"https://a.test/root\", lambda url: pages.get(url, []))",
+      "expected": "[\"https://a.test/root\", \"https://a.test/good\"]"
+    },
+    {
+      "name": "filters off-host links and keeps BFS order",
+      "visibility": "sample",
+      "setup": [
+        "from solution import crawl",
+        "graph = {",
+        "    \"https://docs.example.com/\": [\"/a\", \"https://docs.example.com/b\", \"https://other.example.com/x\"],",
+        "    \"https://docs.example.com/a\": [\"/c\"],",
+        "    \"https://docs.example.com/b\": [\"/c\"],",
+        "    \"https://docs.example.com/c\": [],",
+        "}",
+        "def get_links(url):",
+        "    return graph.get(url, [])"
+      ],
+      "input": "graph = {\n    \"https://docs.example.com/\": [\"/a\", \"https://docs.example.com/b\", \"https://other.example.com/x\"],\n    \"https://docs.example.com/a\": [\"/c\"],\n    \"https://docs.example.com/b\": [\"/c\"],\n    \"https://docs.example.com/c\": [],\n}\ndef get_links(url):\n    return graph.get(url, [])\ncrawl(\"https://docs.example.com/\", get_links)",
+      "expected": "[\n    \"https://docs.example.com/\",\n    \"https://docs.example.com/a\",\n    \"https://docs.example.com/b\",\n    \"https://docs.example.com/c\",\n]",
+      "expression": "crawl(\"https://docs.example.com/\", get_links)"
+    },
+    {
+      "name": "handles cycles and malformed links",
+      "visibility": "hidden",
+      "setup": [
+        "from solution import crawl",
+        "graph = {",
+        "    \"https://a.test/root\": [\"child\", \"not a url\", \"mailto:nope@example.com\"],",
+        "    \"https://a.test/child\": [\"/root\", \"https://a.test/leaf#frag\", \"https://b.test/off\"],",
+        "    \"https://a.test/leaf#frag\": [],",
+        "}",
+        "def get_links(url):",
+        "    return graph.get(url, [])"
+      ],
+      "input": "graph = {\n    \"https://a.test/root\": [\"child\", \"not a url\", \"mailto:nope@example.com\"],\n    \"https://a.test/child\": [\"/root\", \"https://a.test/leaf#frag\", \"https://b.test/off\"],\n    \"https://a.test/leaf#frag\": [],\n}\ndef get_links(url):\n    return graph.get(url, [])\ncrawl(\"https://a.test/root\", get_links)",
+      "expected": "[\n    \"https://a.test/root\",\n    \"https://a.test/child\",\n    \"https://a.test/leaf#frag\",\n]",
+      "expression": "crawl(\"https://a.test/root\", get_links)"
+    },
+    {
+      "name": "resolves relative links against current pages",
+      "visibility": "sample",
+      "setup": [
+        "from solution import crawl",
+        "pages = {",
+        "    \"https://docs.test/a/index.html\": [\"../b\", \"./c\"],",
+        "    \"https://docs.test/b\": [],",
+        "    \"https://docs.test/a/c\": [],",
+        "}"
+      ],
+      "input": "pages = {\n    \"https://docs.test/a/index.html\": [\"../b\", \"./c\"],\n    \"https://docs.test/b\": [],\n    \"https://docs.test/a/c\": [],\n}\ncrawl(\"https://docs.test/a/index.html\", lambda url: pages.get(url, []))",
+      "expected": "[\n    \"https://docs.test/a/index.html\",\n    \"https://docs.test/b\",\n    \"https://docs.test/a/c\",\n]",
+      "expression": "crawl(\"https://docs.test/a/index.html\", lambda url: pages.get(url, []))"
+    },
+    {
+      "name": "treats query strings as distinct same host urls",
+      "visibility": "hidden",
+      "setup": [
+        "from solution import crawl",
+        "pages = {",
+        "    \"https://app.test/start\": [\"/item?id=1\", \"/item?id=1\", \"/item?id=2\"],",
+        "    \"https://app.test/item?id=1\": [],",
+        "    \"https://app.test/item?id=2\": [],",
+        "}"
+      ],
+      "input": "pages = {\n    \"https://app.test/start\": [\"/item?id=1\", \"/item?id=1\", \"/item?id=2\"],\n    \"https://app.test/item?id=1\": [],\n    \"https://app.test/item?id=2\": [],\n}\ncrawl(\"https://app.test/start\", lambda url: pages.get(url, []))",
+      "expected": "[\n    \"https://app.test/start\",\n    \"https://app.test/item?id=1\",\n    \"https://app.test/item?id=2\",\n]",
+      "expression": "crawl(\"https://app.test/start\", lambda url: pages.get(url, []))"
+    },
+    {
+      "name": "resolves query fragment and protocol-relative links",
+      "visibility": "hidden",
+      "setup": [
+        "from solution import crawl",
+        "pages = {",
+        "    \"https://a.test/root\": [\"?q=1\", \"#frag\", \"\", \"//a.test/next\", \"//b.test/off\"],",
+        "    \"https://a.test/root?q=1\": [],",
+        "    \"https://a.test/root#frag\": [],",
+        "    \"https://a.test/next\": [],",
+        "}"
+      ],
+      "input": "crawl(\"https://a.test/root\", lambda url: pages.get(url, []))",
+      "expected": "[\"https://a.test/root\", \"https://a.test/root?q=1\", \"https://a.test/root#frag\", \"https://a.test/next\"]",
+      "expression": "crawl(\"https://a.test/root\", lambda url: pages.get(url, []))"
+    },
+    {
+      "name": "allows http and https on the same host",
+      "visibility": "hidden",
+      "setup": [
+        "from solution import crawl",
+        "pages = {",
+        "    \"http://app.test/\": [\"https://app.test/secure\", \"mailto:team@app.test\"],",
+        "    \"https://app.test/secure\": [],",
+        "}"
+      ],
+      "input": "pages = {\n    \"http://app.test/\": [\"https://app.test/secure\", \"mailto:team@app.test\"],\n    \"https://app.test/secure\": [],\n}\ncrawl(\"http://app.test/\", lambda url: pages.get(url, []))",
+      "expected": "[\"http://app.test/\", \"https://app.test/secure\"]",
+      "expression": "crawl(\"http://app.test/\", lambda url: pages.get(url, []))"
+    },
+    {
+      "name": "returns only the start page when no links exist",
+      "visibility": "sample",
+      "setup": [
+        "from solution import crawl"
+      ],
+      "input": "crawl(\"https://solo.test/root\", lambda url: [])",
+      "expected": "[\"https://solo.test/root\"]"
+    },
+    {
+      "name": "treats a different port as a different host",
+      "visibility": "hidden",
+      "setup": [
+        "from solution import crawl",
+        "pages = {\"https://app.test:8443/root\": [\"/next\", \"https://app.test:9443/off\"], \"https://app.test:8443/next\": []}"
+      ],
+      "input": "crawl(\"https://app.test:8443/root\", lambda url: pages.get(url, []))",
+      "expected": "[\"https://app.test:8443/root\", \"https://app.test:8443/next\"]"
+    },
+    {
+      "name": "fetches duplicate discoveries only once",
+      "visibility": "hidden",
+      "setup": [
+        "from solution import crawl",
+        "calls = []",
+        "pages = {\"https://dup.test/\": [\"/a\", \"/a\"], \"https://dup.test/a\": []}",
+        "def get_links(url):",
+        "    calls.append(url)",
+        "    return pages.get(url, [])"
+      ],
+      "input": "(crawl(\"https://dup.test/\", get_links), calls)",
+      "expected": "([\"https://dup.test/\", \"https://dup.test/a\"], [\"https://dup.test/\", \"https://dup.test/a\"])"
+    }
+  ],
+  "clarifyingQuestions": [
+    "Should trailing slashes and redirects be normalized? (Fragments and query strings stay part of the visit key for this problem.)",
+    "Should failed fetches be retried, skipped, or returned separately?",
+    "Does deterministic order still matter if worker fanout is added later?"
+  ],
+  "followUps": [
+    "Add worker fanout with a lock around the URL claim point.",
+    "Add a per-host rate limiter before each fetch.",
+    "Add cancellation with a threading.Event checked before enqueue and before fetch."
+  ],
+  "followUpGuide": [
+    "For worker fanout, keep the queue shared but make URL claiming atomic. Hold a lock only while checking and adding to `visited`, then release it before calling `get_links`.",
+    "",
+    "For cancellation, pass a `threading.Event` into workers and check it before dequeue, before fetch, and before enqueue. Use timed queue waits and bounded fetch timeouts too: an event alone can't interrupt a worker blocked inside `get_links`.",
+    "",
+    "For rate limiting, put a per-host limiter before fetch. Since this problem enforces one host, a single limiter is enough; generalized crawlers should key the limiter by parsed host."
+  ],
+  "complexityAnalysis": [
+    "- Naive DFS approach: recursively follow links and filter after traversal. Time: O(V + E) on reachable pages but may waste work on off-host edges. Space: O(V) for visited plus recursion depth.",
+    "- Recommended BFS approach: claim each same-host URL before enqueueing. Time: O(V + E). Space: O(V), where V is visited same-host URLs and E is inspected links.",
+    "- Worker follow-up: shared queue plus locked claim set keeps total work O(V + E). Space: O(V + W), where W is worker count."
+  ],
+  "solutionGuide": [
+    "Use a FIFO queue for breadth-first traversal. Parse the start URL once for its exact netloc, seed the queue with the start URL as-is, then accept only discovered candidates with HTTP(S) schemes and that netloc. Keep fragments and query strings; reject resolved candidates that contain whitespace or fail parsing with ValueError.",
+    "",
+    "The important invariant is: a URL enters the queue only after it has been accepted into `visited`. In threaded follow-ups, protect that claim step with a lock and fetch outside the lock.",
+    "",
+    "```python",
+    "from collections import deque",
+    "from urllib.parse import urljoin, urlparse",
+    "",
+    "",
+    "def crawl(start_url: str, get_links) -> list[str]:",
+    "    host = urlparse(start_url).netloc",
+    "    queue = deque([start_url])",
+    "    visited = {start_url}",
+    "    order = []",
+    "",
+    "    while queue:",
+    "        url = queue.popleft()",
+    "        order.append(url)",
+    "",
+    "        for raw_link in get_links(url):",
+    "            try:",
+    "                candidate = urljoin(url, raw_link)",
+    "                parsed = urlparse(candidate)",
+    "            except ValueError:",
+    "                continue",
+    "            if any(ch.isspace() for ch in candidate):",
+    "                continue",
+    "            if parsed.scheme not in {\"http\", \"https\"}:",
+    "                continue",
+    "            if parsed.netloc != host or candidate in visited:",
+    "                continue",
+    "            visited.add(candidate)",
+    "            queue.append(candidate)",
+    "",
+    "    return order",
+    "```",
+    "",
+    "Complexity is O(V + E) over visited pages and inspected links when URL lengths are bounded. For variable-length URLs, add the total characters scanned during resolution, parsing, whitespace checks, and hashing; storage also includes the strings in visited and the queue."
+  ]
+}

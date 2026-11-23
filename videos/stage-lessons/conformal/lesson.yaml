@@ -1,0 +1,1266 @@
+version: 1
+id: conformal
+title: Prediction Sets with Measured Coverage
+source: foundations/conformal-prediction-uncertainty-sets/content.md
+voice: af_heart
+rate: +12%
+sources:
+  - title: "Angelopoulos and Bates: A Gentle Introduction to Conformal Prediction"
+    url: https://arxiv.org/abs/2107.07511
+  - title: "Shafer and Vovk: A Tutorial on Conformal Prediction"
+    url: https://jmlr.org/papers/v9/shafer08a.html
+  - title: "Romano, Sesia and Candes: Classification with Valid and Adaptive Coverage"
+    url: https://arxiv.org/abs/2006.02544
+  - title: "Angelopoulos et al.: Conformal Risk Control, version 4"
+    url: https://arxiv.org/abs/2208.02814v4
+  - title: "Barber et al.: Conformal Prediction Beyond Exchangeability"
+    url: https://arxiv.org/abs/2202.13415
+  - title: NumPy quantile method conventions
+    url: https://numpy.org/doc/stable/reference/generated/numpy.quantile.html
+scenes:
+  - id: intro
+    title: Does the edge of the arrival window count?
+    visual: A train moves along a time scale and stops at the right edge of its arrival window. Move the same
+      arrival a minute later, then use held-out server requests to ask how wide a new interval should be.
+    beats:
+      - say: The app predicts eight forty. The yellow window reaches two minutes either way. The train pulls in
+          at eight forty-two. Does the edge count as covered?
+        hold: 2.3
+        caption_starts:
+          - Does the edge count as covered
+        visual_cues:
+          - id: stop
+            phrase: The train pulls in at eight forty-two
+            targets: [picture]
+            caption_boundary: true
+      - say: Yes. Both endpoints count. Move the arrival one minute later. Now it's outside. This window is for
+          today's train. A confidence interval for the mean would estimate its average arrival time across days.
+        hold: 1
+        visual_cues:
+          - id: covered
+            phrase: Yes
+            targets: [picture]
+          - id: later
+            phrase: Move the arrival one minute later
+            targets: [picture]
+            caption_boundary: true
+          - id: miss
+            phrase: Now it's outside
+            targets: [picture]
+            caption_boundary: true
+      - say: How wide should a prediction interval be for a server response? The forecast is forty milliseconds.
+          The caller gives up at fifty. Nine held-out errors will set the radius.
+        hold: 0.9
+        visual_cues:
+          - id: server
+            phrase: How wide should a prediction interval be
+            targets: [picture]
+          - id: deadline
+            phrase: The caller gives up at fifty
+            targets: [picture]
+            caption_boundary: true
+          - id: held-out
+            phrase: Nine held-out errors
+            targets: [picture]
+            caption_boundary: true
+  - id: split
+    title: Which requests can calibrate the interval?
+    visual: Separate fitting, selection, calibration and testing. Trace what happens when calibration outcomes feed
+      back into the fitted procedure.
+    beats:
+      - say: This is split conformal prediction. Fit the predictor on training requests. Choose the model using separate
+          validation data. Then freeze the whole procedure, including preprocessing, the predictor and the scoring
+          rule. Only now open the calibration outcomes and measure the misses. Test requests come later.
+        hold: 0.8
+        visual_cues:
+          - id: fit
+            phrase: Fit the predictor on training requests
+            targets:
+              - picture
+            caption_boundary: true
+          - id: freeze
+            phrase: freeze the whole procedure
+            targets:
+              - picture
+            caption_boundary: true
+      - say: Suppose you send the calibration errors back to the training step and keep the model that does best on
+          them. Those requests just helped pick the winner. Its errors can look smaller there than on fresh
+          traffic. Picking only the easy calibration requests after seeing their errors would bias the sample too.
+        hold: 1
+        visual_cues:
+          - id: feedback
+            phrase: send the calibration errors back to the training step
+            targets:
+              - picture
+            caption_boundary: true
+      - say: Keep that winning model frozen and bring in an untouched calibration split. The new requests and that split
+          must come from a process that lets them trade places in the rank argument. Given the fitted procedure,
+          the coverage probability averages over the calibration data and a new request together. For each
+          held-out record, keep its forecast next to its outcome.
+        hold: 1
+        visual_cues:
+          - id: independent
+            phrase: bring in an untouched calibration split
+            targets:
+              - picture
+            caption_boundary: true
+          - id: audit
+            phrase: For each held-out record
+            targets:
+              - picture
+            caption_boundary: true
+  - id: scores
+    title: How far did each forecast miss?
+    visual: Compare opposite signed errors on two aligned latency tracks. Both gaps become 3 ms sticks in the
+      calibration rack.
+    beats:
+      - say: Look at request C two. The forecast was thirty-five milliseconds. It finished at thirty-two. Now look at C
+          three. The forecast was forty and it finished at forty-three. Which forecast missed by more?
+        hold: 2.2
+        visual_cues:
+          - id: first
+            phrase: It finished at thirty-two
+            targets:
+              - picture
+            caption_boundary: true
+          - id: second
+            phrase: Now look at C three
+            targets:
+              - picture
+            caption_boundary: true
+          - id: second-actual
+            phrase: it finished at forty-three
+            targets:
+              - picture
+            caption_boundary: true
+          - id: ask
+            phrase: Which forecast missed by more
+            targets:
+              - picture
+            caption_boundary: true
+      - say: They both missed by three milliseconds. One finished early and the other finished late. Measure the
+          distance between each pair of dots and you get the absolute residual. That's our nonconformity score.
+          A bigger score means the forecast missed by more.
+        hold: 1.1
+        visual_cues:
+          - id: tie
+            phrase: They both missed by three milliseconds
+            targets:
+              - picture
+            caption_boundary: true
+      - say: Here are all nine held-out requests. The two sticks of height three still belong to different requests. Mix
+          up the records and the gaps travel with them. We want a radius we can apply to the next forecast before
+          we know its outcome.
+        hold: 1
+        visual_cues:
+          - id: nine
+            phrase: Here are all nine held-out requests
+            targets:
+              - picture
+            caption_boundary: true
+          - id: reorder
+            phrase: Mix up the records
+            targets:
+              - picture
+            caption_boundary: true
+  - id: quantile
+    title: Which slot sets the radius?
+    visual: Count the future position, sort the named residuals and move the selection from the eighth slot to the
+      ninth when the coverage target rises.
+    beats:
+      - say: We want the set to cover at least eighty percent of new outcomes across repeated draws. That leaves twenty
+          percent for misses, the quantity called alpha. Count nine held-out errors and one future position.
+          Multiply ten by point eight and round up. That gives rank eight.
+        hold: 0.9
+        visual_cues:
+          - id: future
+            phrase: nine held-out errors and one future position
+            targets:
+              - picture
+            caption_boundary: true
+          - id: rank
+            phrase: That gives rank eight
+            targets:
+              - picture
+            caption_boundary: true
+      - say: Sort the nine sticks from shortest to tallest. Count to the eighth slot. The stick there measures eight
+          milliseconds. Eight is doing two jobs here. The position is a count. The stick's height is an error in
+          milliseconds.
+        hold: 1
+        visual_cues:
+          - id: sort
+            phrase: Sort the nine sticks from shortest to tallest
+            targets:
+              - picture
+            caption_boundary: true
+          - id: value
+            phrase: The stick there measures eight milliseconds
+            targets:
+              - picture
+            caption_boundary: true
+      - say: Raise the target to eighty-five percent. Ten times point eight five lands halfway between eight and nine.
+          Which stick do we take?
+        hold: 2.4
+        visual_cues:
+          - id: higher-target
+            phrase: Raise the target to eighty-five percent
+            targets:
+              - picture
+            caption_boundary: true
+      - say: Round up to rank nine. That stick measures twelve milliseconds. The rule is the ceiling of the number of
+          positions, including the future one, times the desired coverage. Take the value at that rank.
+        hold: 1
+        visual_cues:
+          - id: next-rank
+            phrase: That stick measures twelve milliseconds
+            targets:
+              - picture
+            caption_boundary: true
+      - say: Back at eighty percent, we need the eighth stick. Let's make sure the code picks it.
+        hold: 0.8
+        visual_cues:
+          - id: restore
+            phrase: Back at eighty percent
+            targets:
+              - picture
+            caption_boundary: true
+  - id: index-contract
+    title: Which value did the library return?
+    visual: Compare two NumPy expressions on the sorted residuals. Two rank tracks show why the 95% target needs at
+      least nineteen scores for a finite observed threshold.
+    beats:
+      - say: Python starts counting at zero. To select rank eight, ask partition for index seven and read that element.
+          It returns eight milliseconds. Partition only needs to put the requested order statistic in the right
+          place.
+        hold: 1
+        visual_cues:
+          - id: partition
+            phrase: ask partition for index seven
+            targets:
+              - picture
+            caption_boundary: true
+          - id: direct
+            phrase: It returns eight milliseconds
+            targets:
+              - picture
+            caption_boundary: true
+      - say: Try NumPy's higher quantile with the level set to eight ninths. For nine scores its last index is eight. It
+          multiplies that last index by the level and rounds up. That picks index eight, the ninth stick. The call
+          returns twelve milliseconds. An interval this wide is conservative here, but it uses a different stick.
+        hold: 1.2
+        visual_cues:
+          - id: level
+            phrase: Try NumPy's higher quantile
+            targets:
+              - picture
+            caption_boundary: true
+          - id: higher
+            phrase: The call returns twelve milliseconds
+            targets:
+              - picture
+            caption_boundary: true
+      - say: Now try both calls for the ninety percent target. Rank nine uses index eight. The quantile level is nine
+          ninths, or one. This time both calls return twelve. Agreement at the maximum could hide the earlier
+          indexing mistake.
+        hold: 1
+        visual_cues:
+          - id: max
+            phrase: Now try both calls for the ninety percent target
+            targets:
+              - picture
+            caption_boundary: true
+          - id: ninety
+            phrase: This time both calls return twelve
+            targets:
+              - picture
+            caption_boundary: true
+      - say: At ninety-five percent the corrected rank is ten. Look at the empty slot. With only nine calibration errors
+          the ordinary rule gives an infinite radius. Clipping to the largest stick would cover just nine of ten
+          possible distinct ranks.
+        hold: 1
+        visual_cues:
+          - id: missing
+            phrase: At ninety-five percent
+            targets:
+              - picture
+            caption_boundary: true
+          - id: infinite
+            phrase: the ordinary rule gives an infinite radius
+            targets:
+              - picture
+            caption_boundary: true
+      - say: How much calibration data would give us a finite threshold at ninety-five percent? With nineteen scores for
+          twenty possible positions, rank nineteen exists. That's the first sample size where the required slot
+          holds an observed error. A stable threshold may need many more.
+        hold: 1
+        visual_cues:
+          - id: samples
+            phrase: How much calibration data
+            targets:
+              - picture
+            caption_boundary: true
+          - id: minimum
+            phrase: rank nineteen exists
+            targets:
+              - picture
+            caption_boundary: true
+  - id: interval
+    title: Where do the endpoints land?
+    visual: Return to the 80% radius, open the interval around forty and check an interior outcome, a miss and the
+      inclusive boundary on the same axis.
+    beats:
+      - say: Back to our original request and the eighty percent target. The forecast is forty. The selected error is
+          eight milliseconds. Where do the two endpoints land?
+        hold: 2.4
+      - say: Subtract eight on the left and add eight on the right. The interval is thirty-two to forty-eight, sixteen
+          milliseconds wide. An arrival at forty-four fits. At fifty-three, the arrival falls outside.
+        hold: 0.9
+        visual_cues:
+          - id: unfold
+            phrase: Subtract eight on the left and add eight on the right
+            targets:
+              - picture
+            caption_boundary: true
+          - id: endpoints
+            phrase: The interval is thirty-two to forty-eight, sixteen milliseconds wide
+            targets:
+              - picture
+            caption_boundary: true
+          - id: hit
+            phrase: An arrival at forty-four fits
+            targets:
+              - picture
+            caption_boundary: true
+          - id: miss
+            phrase: the arrival falls outside
+            targets:
+              - picture
+            caption_boundary: true
+      - say: Bring the arrival back to exactly forty-eight. Its distance from forty equals the radius. An error at the
+          boundary counts because the test allows any error less than or equal to eight.
+        hold: 1
+        visual_cues:
+          - id: boundary
+            phrase: Bring the arrival back to exactly forty-eight
+            targets:
+              - picture
+            caption_boundary: true
+      - say: Switch to the ninety-five percent target with those same nine errors. Now the radius is infinite. Both ends
+          run off the ruler. Every finite outcome fits, including ones long after the caller gives up. If you know
+          a bound on possible outcomes you can use that information, but it didn't come from these nine errors.
+        hold: 0.9
+        visual_cues:
+          - id: infinite
+            phrase: Now the radius is infinite
+            targets:
+              - picture
+            caption_boundary: true
+  - id: exchangeability
+    title: Which score gets to be the future one?
+    visual: Hold each of ten distinct scores out in turn. Compare what occupies calibration slot eight when the
+      future score is eight and when it is nine.
+    beats:
+      - say: For the rank argument, imagine that any of these ten requests could have been the next one. Formally, their
+          joint distribution must stay the same when you permute their positions, given the frozen procedure.
+          That's exchangeability. Independent draws from the same distribution give you one way to satisfy it.
+          Scrambling one observed log can't establish it.
+        hold: 0.9
+      - say: Use the distinct scores one through ten just for counting. Hold out the first seven one at a time. Each
+          time, close the gap and count to the eighth remaining score. It's nine in every one of these trials. The
+          held-out score fits each time.
+        hold: 0.9
+        visual_cues:
+          - id: enumerate
+            phrase: Hold out the first seven one at a time
+            targets:
+              - picture
+            caption_boundary: true
+      - say: Now hold out eight. With that gap closed, which score sits in the highlighted eighth slot? Does it cover
+          the score we've put aside?
+        hold: 2.3
+        visual_cues:
+          - id: eight
+            phrase: Now hold out eight
+            targets:
+              - picture
+            caption_boundary: true
+      - say: Nine sits in that slot. Eight is covered. Now hold out nine instead. Look at the eighth calibration slot
+          again. What changed?
+        hold: 2.3
+        visual_cues:
+          - id: inside
+            phrase: Eight is covered
+            targets:
+              - picture
+            caption_boundary: true
+          - id: nine
+            phrase: Now hold out nine instead
+            targets:
+              - picture
+            caption_boundary: true
+      - say: Eight stayed in the rack. Nine exceeds eight, so this time we miss. Hold out ten and the threshold stays at
+          eight. Ten misses too. Eight of the ten possible positions are covered. Exchangeability makes those
+          distinct future ranks equally likely. That's where the eighty percent comes from.
+        hold: 1.2
+        visual_cues:
+          - id: outside
+            phrase: so this time we miss
+            targets:
+              - picture
+            caption_boundary: true
+          - id: ten
+            phrase: Hold out ten
+            targets:
+              - picture
+            caption_boundary: true
+          - id: last
+            phrase: Ten misses too
+            targets:
+              - picture
+            caption_boundary: true
+          - id: total
+            phrase: Eight of the ten possible positions are covered
+            targets:
+              - picture
+            caption_boundary: true
+  - id: ties-bound
+    title: What happens when errors tie?
+    visual: Retain both requests with a 3 ms error. Compare an all-zero boundary to the exact distinct-rank result
+      and its looser upper bound.
+    beats:
+      - say: Back in the latency data, two requests had a three-millisecond error. Keep both in the ranking. We include
+          the boundary, so a tie there can let extra outcomes into the set. Take the extreme case where every
+          score is zero, including the future one. An inclusive threshold of zero covers one hundred percent.
+        hold: 1
+        visual_cues:
+          - id: tie
+            phrase: two requests had a three-millisecond error
+            targets:
+              - picture
+            caption_boundary: true
+          - id: zero
+            phrase: every score is zero
+            targets:
+              - picture
+            caption_boundary: true
+          - id: hundred
+            phrase: covers one hundred percent
+            targets:
+              - picture
+            caption_boundary: true
+      - say: With distinct scores the counting argument gives exactly k divided by n plus one. In our ten positions
+          that's eight out of ten. You may also see a looser upper bound that adds one rank's worth to the target.
+          Here that range is eighty to ninety percent. For tied scores we can rely on the lower bound, while the
+          zero example shows how far above it coverage can go.
+        hold: 1
+        visual_cues:
+          - id: distinct
+            phrase: exactly k divided by n plus one
+            targets:
+              - picture
+            caption_boundary: true
+          - id: bound
+            phrase: Here that range is eighty to ninety percent
+            targets:
+              - picture
+            caption_boundary: true
+      - say: We're averaging over a fresh calibration sample and the next outcome together. Holding one particular
+          calibration sample fixed gives a different question. Neither its chosen radius nor the target tells one
+          tenant their individual chance of being covered.
+        hold: 1
+        visual_cues:
+          - id: scope
+            phrase: averaging over a fresh calibration sample and the next outcome together
+            targets:
+              - picture
+            caption_boundary: true
+  - id: coverage
+    title: Which arrivals fall inside?
+    visual: Place each observed latency on its own interval. Replay the fourth observation exactly at the upper
+      endpoint while the other three records stay fixed.
+    beats:
+      - say: Take four new requests. Center an eight-millisecond radius on each forecast. All four intervals have width
+          sixteen. Here come the first three arrivals. Each lands inside its own interval. Look at the fourth
+          forecast, forty-four. Its upper endpoint is fifty-two.
+        hold: 0.8
+        visual_cues:
+          - id: radius
+            phrase: Center an eight-millisecond radius
+            targets:
+              - picture
+            caption_boundary: true
+          - id: width
+            phrase: All four intervals have width sixteen
+            targets:
+              - picture
+            caption_boundary: true
+          - id: first-three
+            phrase: Here come the first three arrivals
+            targets:
+              - picture
+            caption_boundary: true
+      - say: The fourth request finishes at fifty-five. What fraction of these four arrivals did we cover?
+        hold: 2.1
+        visual_cues:
+          - id: fourth
+            phrase: The fourth request finishes at fifty-five
+            targets:
+              - picture
+            caption_boundary: true
+      - say: Three of four, or seventy-five percent. The calibration sample gave us one particular radius. The test then
+          gave us just four outcomes. Even a million test requests with this one radius would measure coverage for
+          this calibration sample. The marginal guarantee averages over fresh calibration samples and fresh
+          requests together.
+        hold: 0.9
+        visual_cues:
+          - id: rate
+            phrase: Three of four, or seventy-five percent
+            targets:
+              - picture
+            caption_boundary: true
+      - say: Keep the forecasts fixed. Replay only the fourth outcome at fifty-two. Where does the count go now?
+        hold: 2.1
+        visual_cues:
+          - id: replay
+            phrase: Replay only the fourth outcome at fifty-two
+            targets:
+              - picture
+            caption_boundary: true
+      - say: All four are covered. The endpoint belongs to the interval. Changing one outcome moved the observed
+          fraction from three quarters to one. The target and the sixteen-millisecond width stayed the same.
+        hold: 1
+        visual_cues:
+          - id: all
+            phrase: All four are covered
+            targets:
+              - picture
+            caption_boundary: true
+  - id: classifier-score
+    title: Which class probabilities are large enough?
+    visual: Use the true labels to calibrate the individual score. Compare four probability bars with one fixed
+      cutoff, then flatten the probabilities.
+    beats:
+      - say: What if the outcome is a class label? Here's a classifier that gives almost all its probability to class
+          zero. Give each candidate a score of one minus its probability. A large score now means the model
+          assigned that candidate very little probability.
+        hold: 0.8
+        visual_cues:
+          - id: score
+            phrase: a score of one minus its probability
+            targets:
+              - picture
+            caption_boundary: true
+      - say: Start a separate calibration set for the classifier. The true class is zero on all nine held-out rows.
+          Read each score from the probability the model assigned to that true class. Sort those scores. At our
+          eighty percent target the eighth score is point four. To score at most point four, a candidate needs
+          probability at least point six.
+        hold: 1
+        visual_cues:
+          - id: calibration
+            phrase: Start a separate calibration set for the classifier
+            targets:
+              - picture
+            caption_boundary: true
+          - id: cutoff
+            phrase: the eighth score is point four
+            targets:
+              - picture
+            caption_boundary: true
+          - id: probability-cutoff
+            phrase: probability at least point six
+            targets:
+              - picture
+            caption_boundary: true
+      - say: Back on the confident request, look for bars that reach the cutoff. Which labels go in the set?
+        hold: 2
+        visual_cues:
+          - id: candidate
+            phrase: Back on the confident request
+            targets:
+              - picture
+            caption_boundary: true
+      - say: Only class zero makes it. Its probability is point nine eight. Now spread the probability equally over the
+          four classes. Where does that leave the set?
+        hold: 2
+        visual_cues:
+          - id: confident
+            phrase: Only class zero makes it
+            targets:
+              - picture
+            caption_boundary: true
+          - id: uniform
+            phrase: spread the probability equally
+            targets:
+              - picture
+            caption_boundary: true
+      - say: The set is empty. Each bar stops at a quarter and the cutoff is still point six. You can use these model
+          outputs even if they aren't calibrated probabilities. Poor scores can still give awkward sets. A caller
+          needs a policy for an empty answer as well as for a single label.
+        hold: 0.8
+        visual_cues:
+          - id: empty
+            phrase: The set is empty
+            targets:
+              - picture
+            caption_boundary: true
+  - id: aps-inversion
+    title: Which labels end inside the cutoff?
+    visual: Assemble a probability strip in descending order. Calibrate its cutoff on true-label endpoints, then
+      read the direct sets on two queries.
+    beats:
+      - say: Keep the four equal shares. Lay them end to end, largest first. When two shares tie, use the smaller class
+          number first. Start with class zero. To score class two, add the next two pieces. Its right edge sits at
+          three quarters. That distance from zero is the cumulative score for class two.
+        hold: 1.1
+        visual_cues:
+          - id: first
+            phrase: Start with class zero
+            targets:
+              - picture
+            caption_boundary: true
+          - id: third
+            phrase: add the next two pieces
+            targets:
+              - picture
+            caption_boundary: true
+      - say: This score needs its own calibration. In the nine held-out rows, class zero was the true label and had the
+          largest share every time. Its right edge was just that first share. Here are those nine endpoints in
+          order. For eighty percent coverage, which one sets the cutoff?
+        hold: 2.2
+        visual_cues:
+          - id: calibrate
+            phrase: This score needs its own calibration
+            targets:
+              - picture
+            caption_boundary: true
+      - say: Rank eight gives us point nine. That's the mark we'll use for every label on the next request.
+        hold: 1.3
+        visual_cues:
+          - id: threshold
+            phrase: Rank eight gives us point nine
+            targets:
+              - picture
+            caption_boundary: true
+      - say: Return to the four equal pieces and add the last one. A label qualifies if its right edge is on or to the
+          left of the yellow line. Which class numbers qualify?
+        hold: 2.2
+        visual_cues:
+          - id: return
+            phrase: Return to the four equal pieces
+            targets:
+              - picture
+            caption_boundary: true
+          - id: last
+            phrase: add the last one
+            targets:
+              - picture
+            caption_boundary: true
+      - say: Classes zero, one and two qualify. Class three ends at one. This way of keeping the labels that pass the
+          score test is called direct inversion. The individual probability test gave us an empty set on this very
+          same input.
+        hold: 0.9
+        visual_cues:
+          - id: three
+            phrase: Classes zero, one and two qualify
+            targets:
+              - picture
+            caption_boundary: true
+      - say: Switch to the confident request. Class zero alone takes point nine eight. Where could a qualifying label
+          end now?
+        hold: 2.1
+        visual_cues:
+          - id: confident
+            phrase: Switch to the confident request
+            targets:
+              - picture
+            caption_boundary: true
+          - id: first-end
+            phrase: Class zero alone takes point nine eight
+            targets:
+              - picture
+            caption_boundary: true
+      - say: The direct set is empty. The first edge already passed the cutoff, and every following piece adds mass. A
+          model can give one class almost all the probability and still produce this result.
+        hold: 1
+        visual_cues:
+          - id: empty
+            phrase: The direct set is empty
+            targets:
+              - picture
+            caption_boundary: true
+  - id: aps-crossing
+    title: Where does the first crossing occur?
+    visual: Compare two stopping rules on the same strip, then sort a fresh row whose second cumulative score lands
+      exactly on the cutoff.
+    beats:
+      - say: Follow the blue bar from zero to its tip. It passes the yellow cutoff and ends at point nine eight.
+          Keep the first class that crosses the line. Here that gives us class zero. Every label the direct rule
+          kept stays in the set, so adding the crossing label preserves the lower coverage bound.
+        hold: 1
+        visual_cues:
+          - id: trace
+            phrase: Follow the blue bar from zero to its tip
+            targets: [picture]
+          - id: one
+            phrase: Here that gives us class zero
+            targets:
+              - picture
+            caption_boundary: true
+      - say: Go back to the equal shares. The first three end inside. The fourth piece carries us past the line, so the
+          conservative rule keeps all four. If nothing crosses the cutoff, this rule keeps every class.
+        hold: 1
+        visual_cues:
+          - id: uniform
+            phrase: Go back to the equal shares
+            targets:
+              - picture
+            caption_boundary: true
+          - id: first-three
+            phrase: The first three end inside
+            targets:
+              - picture
+            caption_boundary: true
+          - id: fourth
+            phrase: The fourth piece
+            targets:
+              - picture
+            caption_boundary: true
+          - id: all-four
+            phrase: the conservative rule keeps all four
+            targets:
+              - picture
+            caption_boundary: true
+      - say: Try this fresh row. Read the probabilities by class number across the top. Place the two largest shares
+          first. The edge of class three lands exactly on point nine. Which class numbers qualify for the direct set?
+          Which class will the conservative rule add?
+        hold: 3
+        visual_cues:
+          - id: fresh
+            phrase: Try this fresh row
+            targets:
+              - picture
+            caption_boundary: true
+          - id: sorted
+            phrase: Place the two largest shares first
+            targets:
+              - picture
+            caption_boundary: true
+      - say: Equality counts. The direct set contains classes one and three. The two remaining shares tie. Class zero
+          comes first and takes the total to point nine five. That makes zero the crossing class. Class two comes
+          later and stays out of both sets.
+        hold: 1.2
+        visual_cues:
+          - id: equality
+            phrase: The direct set contains classes one and three
+            targets:
+              - picture
+            caption_boundary: true
+          - id: tie
+            phrase: Class zero comes first
+            targets:
+              - picture
+            caption_boundary: true
+          - id: crossed
+            phrase: That makes zero the crossing class
+            targets:
+              - picture
+            caption_boundary: true
+          - id: last-label
+            phrase: Class two comes later
+            targets:
+              - picture
+            caption_boundary: true
+      - say: Keeping the crossing label makes this version of adaptive prediction sets nonempty. Randomized APS
+          can drop that label. If it was the only one, the set becomes empty. Calibrate the randomized score when
+          you use that version.
+        hold: 0.8
+  - id: subgroup-mix
+    title: Which requests account for the misses?
+    visual: The width of each group represents its share of a thousand arrivals and the filled height its coverage.
+      Change the mix while keeping the two heights fixed.
+    beats:
+      - say: Each column is a group in a separate report of a thousand requests. Its width tells you how common that
+          group is. Short requests take up three quarters of the space. Filled height is coverage. The short group
+          covers ninety-six percent, the long group only fifty-four percent.
+        hold: 0.9
+      - say: Read the filled areas together. That's seven hundred twenty covered short requests and one hundred
+          thirty-five covered long ones. Together they cover eighty-five point five percent of arrivals. The total
+          clears the eighty percent target. Nearly half the long requests still miss.
+        hold: 1
+        visual_cues:
+          - id: counts
+            phrase: seven hundred twenty covered short requests and one hundred thirty-five covered long ones
+            targets:
+              - picture
+            caption_boundary: true
+          - id: aggregate
+            phrase: Together they cover eighty-five point five percent of arrivals
+            targets:
+              - picture
+            caption_boundary: true
+      - say: Give the two groups equal shares of traffic. Keep the heights fixed. Does the combined area still clear
+          eighty percent?
+        hold: 2.3
+        visual_cues:
+          - id: mixture
+            phrase: Give the two groups equal shares of traffic
+            targets:
+              - picture
+            caption_boundary: true
+      - say: Now only seventy-five percent are covered. The short group contributed four hundred eighty hits and the
+          long group two hundred seventy. Neither group's rate moved. Log group counts as well as rates. Two long
+          requests could tell a very different story by chance.
+        hold: 1
+        visual_cues:
+          - id: seventy-five
+            phrase: only seventy-five percent are covered
+            targets:
+              - picture
+            caption_boundary: true
+      - say: If you need a target within each request type, define the groups in advance and calibrate them separately
+          when there's enough exchangeable data in each. Ordinary marginal coverage alone can leave a particular
+          group far below target.
+        hold: 0.9
+  - id: normalized-score
+    title: How wide should T4's interval be?
+    visual: Divide the nine errors by their own frozen scales, select the eighth normalized score, then resize the
+      original four bands around their fixed observations.
+    beats:
+      - say: Suppose a second model estimates how large an error to expect for each input. Freeze it along with the
+          predictor before calibration. Its scale must be positive. It can be useful without being the exact
+          conditional standard deviation. Look at request C eight. Its eight-millisecond error divided by its
+          four-millisecond scale gives two. The units cancel.
+        hold: 1
+        visual_cues:
+          - id: divide
+            phrase: divided by its four-millisecond scale gives two
+            targets:
+              - picture
+            caption_boundary: true
+      - say: Divide each held-out error by its own scale, then sort those scores. Use the same corrected rank as before.
+          The eighth normalized score is two. This threshold has no units. To get a radius in milliseconds,
+          multiply by the new request's scale.
+        hold: 1
+        visual_cues:
+          - id: sort
+            phrase: sort those scores
+            targets:
+              - picture
+            caption_boundary: true
+          - id: threshold
+            phrase: The eighth normalized score is two
+            targets:
+              - picture
+            caption_boundary: true
+      - say: Go back to the original four arrivals, including T four at fifty-five. The fixed interval misses that one.
+          Now use the scales predicted before seeing these outcomes. For T one the scale is three milliseconds.
+          Twice three gives a six-millisecond radius. Watch the two middle intervals resize around their own
+          forecasts.
+        hold: 1
+        visual_cues:
+          - id: return
+            phrase: Go back to the original four arrivals
+            targets:
+              - picture
+            caption_boundary: true
+          - id: scales
+            phrase: Now use the scales
+            targets:
+              - picture
+            caption_boundary: true
+          - id: first
+            phrase: Twice three gives a six-millisecond radius
+            targets:
+              - picture
+            caption_boundary: true
+          - id: middle
+            phrase: the two middle intervals resize
+            targets:
+              - picture
+            caption_boundary: true
+      - say: T four has a six-millisecond scale and a forecast of forty-four. Where does its new upper endpoint land?
+          Will it reach the observed fifty-five?
+        hold: 2.6
+        visual_cues:
+          - id: question
+            phrase: Where does its new upper endpoint land
+            targets: [picture]
+            caption_boundary: true
+      - say: Twice six gives a radius of twelve, so the endpoint reaches fifty-six. The dot stays at fifty-five while
+          the band passes it. All four of these outcomes are now inside. That's a reason to test this fixed rule
+          on more traffic. Choosing whichever score looks best on calibration would require fresh calibration or a
+          separate selection analysis. The coverage promise is still marginal.
+        hold: 1.2
+        visual_cues:
+          - id: fourth
+            phrase: the endpoint reaches fifty-six
+            targets:
+              - picture
+            caption_boundary: true
+  - id: shift
+    title: Can the old calibration travel with the queue?
+    visual: Keep the radius fixed as new requests arrive. Separate the illustrated stream from the population
+      mixture calculation and inspect the source of the misses.
+    beats:
+      - say: Exchangeable requests can include a few very slow ones. Watch these arrivals with the radius fixed
+          at eight milliseconds. Red rings mark misses. In the traffic mix above, raise the long requests' share
+          to one half. The coverage bar drops below the target.
+        hold: 1
+        visual_cues:
+          - id: tail
+            phrase: Exchangeable requests can include a few very slow ones
+            targets:
+              - picture
+            caption_boundary: true
+          - id: stream
+            phrase: Watch these arrivals
+            targets:
+              - picture
+            caption_boundary: true
+          - id: drift
+            phrase: raise the long requests' share
+            targets:
+              - picture
+            caption_boundary: true
+      - say: Look at the current outcomes and how you collected them. Were slow requests less likely to get a label? Did
+          a new tenant change the mix? A burst of related requests, a time trend or a deployment can break
+          exchangeability. Shuffling those records won't recover the old sampling process.
+        hold: 1
+        visual_cues:
+          - id: monitor
+            phrase: Look at the current outcomes and how you collected them
+            targets:
+              - picture
+            caption_boundary: true
+      - say: Before you recalibrate, separate a biased forecast, input-dependent error size, a changed mix and records
+          reused in fitting. Compare signed errors, widths and subgroup counts over time. New calibration data
+          help when they and the following traffic meet the method's assumptions. Methods for shift or time
+          dependence need their own assumptions.
+        hold: 0.9
+        visual_cues:
+          - id: diagnose
+            phrase: separate a biased forecast, input-dependent error size, a changed mix and records reused in fitting
+            targets:
+              - picture
+            caption_boundary: true
+  - id: crc-loss
+    title: What counts as a costly answer?
+    visual: Follow three incorrect answers as a stricter router removes them. Identify the drop at each score before
+      applying the bounded-loss correction.
+    beats:
+      - say: Suppose a router can send an answer or hold it for review. Count an error when a wrong answer actually goes
+          out. Divide by all incoming requests and you get joint error. Divide by just the answers you sent and
+          you get error among accepted answers. Now make the router stricter. Both the number of mistakes sent and
+          the number of answers sent can change.
+        hold: 1
+        visual_cues:
+          - id: denominators
+            phrase: error among accepted answers
+            targets:
+              - picture
+            caption_boundary: true
+          - id: stricter
+            phrase: Now make the router stricter
+            targets:
+              - picture
+            caption_boundary: true
+      - say: Follow the loss for each wrong answer. While its verifier score beats the threshold, the answer goes out
+          and its loss is one. Raise the threshold past more scores and those losses fall to zero. At the score
+          itself we already withhold the answer. That's a right-continuous drop. A correct answer always
+          contributes zero.
+        hold: 0.9
+        visual_cues:
+          - id: curves
+            phrase: Follow the loss for each wrong answer
+            targets:
+              - picture
+            caption_boundary: true
+          - id: non-increasing
+            phrase: Raise the threshold past more scores
+            targets:
+              - picture
+            caption_boundary: true
+          - id: right-continuous
+            phrase: At the score itself we already withhold the answer
+            targets:
+              - picture
+            caption_boundary: true
+      - say: Conformal risk control uses this shape. Given exchangeable loss curves that stay between zero and one,
+          never increase with the threshold and are right-continuous, start with the total calibration loss. Add
+          one and divide by n plus one. Choose the least conservative passing threshold. You also need a maximally
+          conservative fallback whose loss meets the target.
+        hold: 1
+        visual_cues:
+          - id: criterion
+            phrase: Add one and divide by n plus one
+            targets:
+              - picture
+            caption_boundary: true
+      - say: This bounds expected loss over the calibration sample and the next request together. Among the answers
+          you send, the error rate can rise as the router gets stricter. The denominator shrinks too. Measure that
+          rate with a fixed generator and verifier, and label the sent answers for correctness.
+        hold: 1
+        visual_cues:
+          - id: expected
+            phrase: This bounds expected loss over the calibration sample and the next request together
+            targets:
+              - picture
+            caption_boundary: true
+  - id: crc-threshold
+    title: Which threshold passes the joint-error test?
+    visual: Move the acceptance threshold across nine labeled answers. Compare the observed rate and corrected
+      decision at 0.1 and 0.6, then run the fallback.
+    beats:
+      - say: The red marks are the three wrong answers among nine. The router sends an answer when its verifier
+          score is strictly above the threshold, lambda. The yellow mark is at point one. The red answer directly
+          below it stays back. The wrong answers at point six and point nine still go out.
+        hold: 0.9
+      - say: Two mistakes in nine arrivals is about twenty-two percent, below our twenty-five percent target. Now use
+          the correction. Count the two mistakes plus one, over nine arrivals plus one. Does this threshold pass?
+        hold: 2
+      - say: Three tenths is thirty percent, so point one fails. Keep raising the threshold until another wrong answer
+          drops out. That happens at point six. Count the mistakes above the line again. What's their corrected
+          rate?
+        hold: 2.1
+        visual_cues:
+          - id: fail
+            phrase: Three tenths is thirty percent, so point one fails
+            targets:
+              - picture
+            caption_boundary: true
+          - id: six
+            phrase: That happens at point six
+            targets:
+              - picture
+            caption_boundary: true
+      - say: One mistake plus one, divided by ten, gives twenty percent. Point six passes. Now read the actual
+          calibration counts. One wrong answer among nine arrivals is about eleven percent. The router sent three
+          answers, so one wrong among the three it sent is about thirty-three percent. The twenty-five percent
+          target was for joint risk.
+        hold: 1.2
+        visual_cues:
+          - id: pass
+            phrase: Point six passes
+            targets:
+              - picture
+            caption_boundary: true
+      - say: If no threshold meets the correction, use the fallback. At threshold one the router sends nothing, so its
+          joint loss is zero. Error among sent answers has an empty denominator there. These are calibration
+          counts. Measuring future errors requires new labeled requests.
+        hold: 1
+        visual_cues:
+          - id: fallback
+            phrase: At threshold one the router sends nothing
+            targets:
+              - picture
+            caption_boundary: true
+  - id: selected-error
+    title: Which requests belong in the denominator?
+    visual: A hundred prediction sets retain their label identities. Filter to the ten singletons and compare the
+      same wrong answers against all arrivals and against the selected rows.
+    beats:
+      - say: Here are a hundred help requests. Ninety get the pair billing and technical. Ten get just billing. In this
+          constructed population the true label is technical every time. Count the sets that contain it. Ninety of
+          the hundred cover the truth.
+        hold: 1
+        visual_cues:
+          - id: truth
+            phrase: the true label is technical every time
+            targets:
+              - picture
+            caption_boundary: true
+          - id: coverage
+            phrase: Ninety of the hundred cover the truth
+            targets:
+              - picture
+            caption_boundary: true
+      - say: Send only the singletons. Look at the highlighted row. How many wrong answers went out per hundred incoming
+          requests? And what fraction of the answers we actually sent were wrong?
+        hold: 2.5
+        visual_cues:
+          - id: select
+            phrase: Send only the singletons
+            targets:
+              - picture
+            caption_boundary: true
+      - say: Ten wrong answers went out per hundred arrivals. That's ten percent joint error. Now use just the sent
+          answers as the denominator. Ten wrong out of ten sent is one hundred percent. The population coverage
+          figure was accurate, and every answer this policy sent was wrong.
+        hold: 1.2
+        visual_cues:
+          - id: joint
+            phrase: That's ten percent joint error
+            targets:
+              - picture
+            caption_boundary: true
+          - id: selected
+            phrase: Ten wrong out of ten sent is one hundred percent
+            targets:
+              - picture
+            caption_boundary: true
+      - say: To measure error among automated answers, label the answers the policy actually sends. The set size
+          can help route a request for review. A tool still checks the caller's identity, permissions and any
+          required confirmation before it acts.
+        hold: 0.9
+  - id: transfer
+    title: What moved the upper endpoint?
+    visual: Compare a forecast shift, a target change, and a one-score change against the same 40 ms prediction and
+      50 ms deadline. Restore the original inputs between experiments.
+    beats:
+      - say: Return to that caller who gives up at fifty. The original interval ends at forty-eight. You could choose to
+          route requests whose whole interval fits under the deadline. But that rule selects a subgroup. The
+          eighty percent marginal coverage target doesn't tell you how many of those routed requests will finish
+          on time.
+        hold: 0.9
+      - say: Change just the forecast to forty-four. The interval slides to thirty-six through fifty-two. It still spans
+          sixteen milliseconds, but now it straddles the deadline.
+        hold: 1.1
+        visual_cues:
+          - id: center
+            phrase: Change just the forecast to forty-four
+            targets:
+              - picture
+            caption_boundary: true
+      - say: Restore the forty-millisecond forecast. Leave the errors alone and raise the target to ninety percent. We
+          now need the ninth stick. Its twelve-millisecond radius puts the interval at twenty-eight through
+          fifty-two. This time the band got wider.
+        hold: 1
+        visual_cues:
+          - id: restore-center
+            phrase: Restore the forty-millisecond forecast
+            targets:
+              - picture
+            caption_boundary: true
+          - id: coverage-start
+            phrase: raise the target to ninety percent
+            targets:
+              - picture
+            caption_boundary: true
+          - id: coverage
+            phrase: Its twelve-millisecond radius puts the interval at twenty-eight through fifty-two
+            targets:
+              - picture
+            caption_boundary: true
+      - say: Restore the eighty percent target. This time change just the eighth error from eight to nine. Does that
+          move the rank or just the endpoints?
+        hold: 2.3
+        visual_cues:
+          - id: restore-target
+            phrase: Restore the eighty percent target
+            targets:
+              - picture
+            caption_boundary: true
+          - id: residual-start
+            phrase: change just the eighth error from eight to nine
+            targets:
+              - picture
+            caption_boundary: true
+      - say: We still use rank eight. The interval now runs from thirty-one to forty-nine, eighteen milliseconds wide.
+          To audit a decision like this, record the model and calibration versions, the score rule, target,
+          interval, group and observed latency. Keep the width and the group counts next to coverage, and measure
+          the deadline failures on the requests your policy actually selects.
+        hold: 1
+        visual_cues:
+          - id: residual
+            phrase: The interval now runs from thirty-one to forty-nine
+            targets:
+              - picture
+            caption_boundary: true
+          - id: record
+            phrase: To audit a decision like this
+            targets:
+              - picture
+            caption_boundary: true
+  - id: fresh-deadline
+    title: What goes in the request log?
+    visual: Use a fresh rank and two arrival times on the opening clock. Recalibrate one score while leaving the
+      second arrival pinned on both tracks.
+    beats:
+      - say: A different model predicts fifty-two milliseconds. Its caller gives up at fifty-five. This time we have
+          nineteen ordered calibration errors. The first seventeen are at most six milliseconds. The last two are
+          seven and twelve. For ninety percent coverage, which rank do you use, and where do the endpoints land?
+        hold: 3.5
+      - say: Nineteen plus the future request gives twenty positions. Ninety percent of twenty gives rank eighteen. Read
+          seven milliseconds from that slot. Center seven on either side of fifty-two and the interval runs from
+          forty-five to fifty-nine. Its width is fourteen milliseconds.
+        hold: 1.1
+        visual_cues:
+          - id: rank
+            phrase: Ninety percent of twenty gives rank eighteen
+            targets:
+              - picture
+            caption_boundary: true
+          - id: range
+            phrase: the interval runs from forty-five to fifty-nine
+            targets:
+              - picture
+            caption_boundary: true
+      - say: The response arrives at fifty-nine. Look at the same arrival on both tracks. What goes in the log for
+          coverage and for the deadline?
+        hold: 2.4
+        visual_cues:
+          - id: arrival
+            phrase: The response arrives at fifty-nine
+            targets:
+              - picture
+            caption_boundary: true
+      - say: The endpoint counts, so mark it covered. The caller stopped at fifty-five. Mark it four milliseconds late.
+        hold: 1.1
+        visual_cues:
+          - id: covered
+            phrase: so mark it covered
+            targets:
+              - picture
+            caption_boundary: true
+          - id: late
+            phrase: Mark it four milliseconds late
+            targets:
+              - picture
+            caption_boundary: true
+      - say: Replay the request one millisecond slower. It arrives at sixty. The upper endpoint is still fifty-nine.
+          This one is outside by one millisecond and five milliseconds late.
+        hold: 1.1
+        visual_cues:
+          - id: replay
+            phrase: It arrives at sixty
+            targets:
+              - picture
+            caption_boundary: true
+          - id: outside
+            phrase: outside by one millisecond
+            targets:
+              - picture
+            caption_boundary: true
+          - id: five-late
+            phrase: five milliseconds late
+            targets:
+              - picture
+            caption_boundary: true
+      - say: Keep that sixty-millisecond arrival pinned. Change just the error in slot eighteen from seven to eight. The
+          number of scores and the target stay fixed. Which verdict changes for that arrival, coverage or meeting the deadline?
+        hold: 2.8
+        visual_cues:
+          - id: change
+            phrase: the error in slot eighteen from seven to eight
+            targets:
+              - picture
+            caption_boundary: true
+      - say: We still take rank eighteen. Eight on either side of fifty-two gives forty-four through sixty. The
+          width is now sixteen. The same arrival is covered. It's still five milliseconds late.
+        hold: 2.4
+        visual_cues:
+          - id: new-range
+            phrase: gives forty-four through sixty
+            targets:
+              - picture
+            caption_boundary: true
+          - id: new-hit
+            phrase: The same arrival is covered
+            targets:
+              - picture
+            caption_boundary: true
+          - id: still-late
+            phrase: It's still five milliseconds late
+            targets:
+              - picture
+            caption_boundary: true

@@ -1,0 +1,1240 @@
+version: 1
+id: ab-testing
+title: How to Tell Whether a Product Change Helped
+source: foundations/experiment-design-ab-testing/content.md
+voice: en-US-AndrewNeural
+rate: +0%
+sources:
+  - title: Online Experimentation at Microsoft
+    url: https://www.microsoft.com/en-us/research/publication/online-experimentation-at-microsoft/
+  - title: Practical Guide to Controlled Experiments on the Web
+    url: https://ai.stanford.edu/~ronnyk/GuideControlledExperiments.pdf
+  - title: "Statsmodels: power for two independent proportions"
+    url: https://www.statsmodels.org/stable/generated/statsmodels.stats.power.NormalIndPower.solve_power.html
+  - title: "Deng et al.: CUPED variance reduction"
+    url: https://exp-platform.com/Documents/2013-02-CUPED-ImprovingSensitivityOfControlledExperiments.pdf
+  - title: gsDesign Lan-DeMets spending and actual sequential boundaries
+    url: https://keaven.github.io/gsDesign/reference/sfLDOF.html
+  - title: "Johari et al.: Always Valid Inference"
+    url: https://arxiv.org/abs/1512.04922
+  - title: "Russo et al.: A Tutorial on Thompson Sampling"
+    url: https://arxiv.org/abs/1707.02038
+scenes:
+  - id: intro
+    title: The rewrite sounds better. Did it help?
+    visual: A recovery question becomes a measurable outcome. Two distinct incident objects then enter their
+      hash-assigned experiment groups.
+    beats:
+      - say: An on-call engineer asks an incident assistant how to recover a payment service. A rewritten search query
+          brings back a clearer runbook, and the answer reads well. The real question is whether the change
+          helps engineers resolve more incidents while keeping evidence quality, speed, and escalation risk
+          within their budgets. For a supplied miniature, the runbook says rollback requires owner
+          acknowledgement. A candidate answer says acknowledgement alone authorizes rollback. The answer adds
+          sufficiency that the cited sentence does not provide. This illustrates a grounding failure, not an
+          actual service response or the later experiment counts.
+        hold: 0.55
+        visual_cues:
+          - id: intro-beat-1-focus-1
+            phrase: recover a payment service
+            targets:
+              - recovery-question
+            color: yellow
+            linger: 0.65
+          - id: intro-beat-1-focus-2
+            phrase: clearer runbook
+            targets:
+              - clearer-runbook
+            color: cyan
+            linger: 0.65
+          - id: intro-beat-1-focus-3
+            phrase: resolve more incidents
+            targets:
+              - resolution-outcome
+            color: yellow
+            linger: 0.65
+          - id: intro-evidence
+            phrase: the runbook says rollback requires owner acknowledgement
+            targets:
+              - intro-mechanism
+            linger: 0.45
+          - id: intro-overclaim
+            phrase: The answer adds sufficiency
+            targets:
+              - intro-mechanism
+            linger: 0.45
+      - say: We can answer with an experiment. Eligible incidents are assigned to the current raw query or a rewrite.
+          The model, index, decoder, and answer policy stay fixed, so the comparison has one intentional
+          change.
+        hold: 0.6
+        motion_check:
+          region:
+            - 260
+            - 390
+            - 800
+            - 380
+          minimumChangedFraction: 0.002
+        visual_cues:
+          - id: intro-beat-2-focus-1
+            phrase: Eligible incidents
+            targets:
+              - eligible-incidents
+            color: yellow
+            linger: 0.65
+          - id: intro-beat-2-focus-2
+            phrase: current raw query or a rewrite
+            targets:
+              - experiment-arms
+            color: cyan
+            linger: 0.65
+      - say: A/B testing turns a product decision into a measurement plan. We’ll define who enters, what counts as a
+          resolved incident, how uncertainty changes the result, and which guardrail could keep a promising
+          treatment from launching.
+        hold: 0.75
+        visual_cues:
+          - id: intro-beat-3-focus-1
+            phrase: A/B testing turns a product decision
+            targets:
+              - experiment-arms
+            color: yellow
+            linger: 0.65
+  - id: randomize
+    title: Assign each incident once
+    visual: An incident ID is randomized into a sticky arm; its later messages inherit that same policy.
+    beats:
+      - say: Make the incident ID the randomization unit. A hash or random assignment sends each eligible incident to
+          control or treatment, then keeps the choice for its later messages. That gives each incident one
+          well-defined policy to experience.
+        hold: 0.55
+        visual_cues:
+          - id: randomize-unit
+            phrase: incident ID
+            targets:
+              - incident-identity
+            color: yellow
+            linger: 0.65
+          - id: randomize-hash
+            phrase: A hash or random assignment
+            targets:
+              - experiment-hash
+            color: cyan
+            linger: 0.65
+          - id: randomize-arm
+            phrase: control or treatment
+            targets:
+              - stored-assignment
+            color: yellow
+            linger: 0.65
+          - id: randomize-inherit
+            phrase: later messages
+            targets:
+              - inherited-assignment
+            color: cyan
+            linger: 0.65
+      - say: If messages changed arms mid-incident, an answer from one policy could affect the next message scored
+          under the other. The outcomes would mix both experiences. Assigning the whole incident keeps the
+          experimental contrast meaningful.
+        hold: 0.6
+        motion_check:
+          region:
+            - 170
+            - 515
+            - 1600
+            - 390
+          minimumChangedFraction: 0.002
+        visual_cues:
+          - id: randomize-beat-2-focus-1
+            phrase: If messages changed arms mid-incident
+            targets:
+              - inherited-assignment
+            color: yellow
+            linger: 0.65
+          - id: randomize-beat-2-focus-2
+            phrase: Assigning the whole incident
+            targets:
+              - incident-unit
+              - stored-assignment
+            color: cyan
+            linger: 0.65
+      - say: Randomization supports a causal comparison when assignment is implemented correctly, outcomes are
+          measured consistently, and each incident’s outcome is independent of other incidents’ assignments.
+          Shared staff learning or overloaded compute can create interference, so monitor the setting as well
+          as the assignment log.
+        hold: 0.75
+        visual_cues:
+          - id: randomize-beat-3-focus-1
+            phrase: assignment is implemented correctly
+            targets:
+              - experiment-hash
+              - stored-assignment
+            color: yellow
+            linger: 0.65
+          - id: randomize-beat-3-focus-2
+            phrase: monitor the setting
+            targets:
+              - incident-unit
+            color: cyan
+            linger: 0.65
+  - id: unit-and-interference
+    title: Name the effect and the paths that mix exposure
+    visual: The raw canary question and its supplied rewrite share one pinned generator receipt. Two incident
+      identities then exchange learned procedure or compete for a shared worker.
+    beats:
+      - say: Keep the actual policy contrast visible. Control retrieves from the raw canary question. Treatment uses
+          the query canary rollback error-rate policy owner acknowledgement. The rewrite policy forbids adding
+          unsupported thresholds, but its outputs still need auditing. Both paths use the same runbook
+          snapshot, generator prompt, model and greedy decoder schema. The estimand is the average effect of
+          assignment to that rewrite policy among eligible incidents, including its delays and failures. A
+          deliberate factorial experiment could study several changes; an unplanned decoder difference cannot
+          isolate this one.
+        hold: 0.55
+        visual_cues:
+          - id: unit-and-interference-step-1
+            phrase: including its delays and failures
+            targets:
+              - unit-and-interference-mechanism
+            linger: 0.4
+      - say: "SUTVA names two requirements: no interference between randomized units and no consequential hidden
+          treatment versions. A technician can learn a rollback procedure from a treatment incident and apply
+          it to a later control incident. Extra rewrite work can also delay control through shared compute.
+          Randomizing teams may contain within-team learning, but it does not remove shared-infrastructure
+          interference. Choose the unit for the intended effect and actual spillover pattern."
+        hold: 0.55
+        visual_cues:
+          - id: unit-and-interference-step-2
+            phrase: no consequential hidden treatment versions
+            targets:
+              - unit-and-interference-mechanism
+            linger: 0.4
+          - id: unit-learning
+            phrase: A technician can learn
+            targets:
+              - unit-and-interference-mechanism
+            linger: 0.45
+          - id: unit-compute
+            phrase: Extra rewrite work
+            targets:
+              - unit-and-interference-mechanism
+            linger: 0.45
+      - say: For equal clusters of twenty incidents with common intracluster correlation zero point one, the planning
+          design effect is one plus nineteen times zero point one, or two point nine. This approximation
+          inflates variance relative to independent outcomes. Unequal clusters and different estimators need a
+          specific calculation. Analyze team-randomized data with team-aware inference. More messages cannot
+          substitute for more independent teams. Salt assignment with the locked experiment version, prevent
+          callers choosing favorable IDs, and retain the assigned arm on events. A hash does not force exactly
+          equal counts.
+        hold: 0.75
+        visual_cues:
+          - id: unit-and-interference-step-3
+            phrase: two point nine
+            targets:
+              - unit-and-interference-mechanism
+            linger: 0.4
+          - id: unit-deff
+            phrase: or two point nine
+            targets:
+              - unit-and-interference-mechanism
+            linger: 0.45
+  - id: metric
+    title: Decide what a resolved incident means
+    visual: An incident counts as resolved after a usable answer arrives within ten minutes and no new human page
+      occurs before the deadline.
+    beats:
+      - say: Pick one primary outcome before traffic arrives. In this plan, an incident counts as resolved if it gets
+          a usable answer within ten minutes and receives no new human escalation page through that deadline.
+          Every enrolled incident remains in the denominator in its assigned arm.
+        hold: 0.55
+        visual_cues:
+          - id: metric-beat-1-focus-1
+            phrase: usable answer within ten minutes
+            targets:
+              - outcome-answer
+              - outcome-deadline
+            color: yellow
+            linger: 0.65
+          - id: metric-beat-1-focus-2
+            phrase: no new human escalation page
+            targets:
+              - outcome-page
+            color: cyan
+            linger: 0.65
+          - id: metric-beat-1-focus-3
+            phrase: Every enrolled incident
+            targets:
+              - outcome-denominator
+            color: yellow
+            linger: 0.65
+      - say: The outcome window matters. A treatment answer that arrives late, a missing answer, or an escalation near
+          the deadline needs a predeclared rule. Wait until every ten-minute window matures before the
+          fixed-horizon analysis.
+        hold: 0.6
+        visual_cues:
+          - id: metric-beat-2-focus-1
+            phrase: every ten-minute window matures
+            targets:
+              - outcome-deadline
+            color: yellow
+            linger: 0.65
+      - say: This metric is a proxy for service recovery. An engineer can mark an answer useful while the service
+          remains down; an appropriate escalation can protect users while counting as a metric failure.
+          Validate the proxy against operational recovery and keep grounding, latency, and human pages as
+          separate guardrails.
+        hold: 0.75
+        visual_cues:
+          - id: metric-beat-3-focus-1
+            phrase: proxy for service recovery
+            targets:
+              - outcome-answer
+            color: yellow
+            linger: 0.65
+          - id: metric-beat-3-focus-2
+            phrase: counting as a metric failure
+            targets:
+              - resolution-rule
+            color: cyan
+            linger: 0.65
+  - id: event-maturity
+    title: Move the same incident through its outcome deadline
+    visual: Stable incident timelines retain usable-answer and page events across the ten-minute boundary. A
+      rewrite timeout remains in its originally assigned denominator.
+    beats:
+      - say: Follow three supplied incident clocks. A usable mark at minute eight with no new page through ten
+          qualifies. The same mark with a new page exactly at minute ten fails. A page first arriving at
+          minute eighteen does not disqualify this ten-minute metric. At minute nine the outcome is pending,
+          even if the answer is already useful. Keep pending distinct from an observed failure.
+        hold: 0.55
+        visual_cues:
+          - id: event-maturity-step-1
+            phrase: At minute nine the outcome is pending
+            targets:
+              - event-maturity-mechanism
+            linger: 0.4
+          - id: maturity-eight
+            phrase: usable mark at minute eight
+            targets:
+              - event-maturity-mechanism
+            linger: 0.45
+          - id: maturity-ten
+            phrase: exactly at minute ten
+            targets:
+              - event-maturity-mechanism
+            linger: 0.45
+          - id: maturity-eighteen
+            phrase: at minute eighteen
+            targets:
+              - event-maturity-mechanism
+            linger: 0.45
+          - id: maturity-nine
+            phrase: At minute nine
+            targets:
+              - event-maturity-mechanism
+            linger: 0.45
+      - say: "A genuinely absent usable mark after full observation is unresolved. Missing telemetry is a measurement
+          problem that needs investigation. Keep a timed-out rewrite in its treatment arm: intention to treat
+          estimates the effect of assignment, rather than selecting successful executions. Dropping timeouts
+          can select a treatment-affected subset. It does not matter whether difficulty or overload caused the
+          timeout; the randomized assignment target includes it. Intention to treat alone cannot reconstruct
+          missing outcomes."
+        hold: 0.55
+        visual_cues:
+          - id: event-maturity-step-2
+            phrase: intention to treat estimates the effect of assignment
+            targets:
+              - event-maturity-mechanism
+            linger: 0.4
+      - say: Grounding audits need their own denominator. The compact launch fixture supplies a completed answer and
+          the same blinded audit for each incident. A sampled audit requires its declared sampling design and
+          audit denominator, not sampled failures divided by every enrolled incident. Predeclare how timeouts
+          enter first-request p95 latency. Omitting unfinished slow requests can make a failing treatment look
+          faster. The original page before enrollment is not a new escalation.
+        hold: 0.75
+        visual_cues:
+          - id: event-maturity-step-3
+            phrase: their own denominator
+            targets:
+              - event-maturity-mechanism
+            linger: 0.4
+  - id: lift
+    title: Read the rate difference in the right units
+    visual: Counts of 760/2,000 and 840/2,000 become 38% and 42%, with a two-arm uncertainty interval around four
+      percentage points.
+    beats:
+      - say: In a compact teaching fixture, the raw-query arm resolves 760 of 2,000 incidents, or thirty-eight
+          percent. The rewrite arm resolves 840 of 2,000, or forty-two percent. Subtract the rates and the
+          observed absolute lift is four percentage points.
+        hold: 0.55
+        motion_check:
+          region:
+            - 180
+            - 350
+            - 750
+            - 600
+          minimumChangedFraction: 0.002
+        visual_cues:
+          - id: lift-beat-1-focus-1
+            phrase: 760 of 2,000 incidents
+            targets:
+              - control-outcomes
+            color: yellow
+            linger: 0.65
+          - id: lift-beat-1-focus-2
+            phrase: 840 of 2,000
+            targets:
+              - treatment-outcomes
+            color: cyan
+            linger: 0.65
+          - id: lift-beat-1-focus-3
+            phrase: four percentage points
+            targets:
+              - absolute-lift
+            color: yellow
+            linger: 0.65
+      - say: Relative lift asks how large that increase is compared with the thirty-eight-percent baseline. Four
+          points divided by thirty-eight percent is about ten and a half percent. Percentage points report
+          additional successes per hundred; percent reports a proportional change.
+        hold: 0.6
+        visual_cues:
+          - id: lift-beat-2-focus-1
+            phrase: Relative lift
+            targets:
+              - relative-lift
+            color: yellow
+            linger: 0.65
+      - say: Incidents differ, so another experiment would produce different counts. For two independent
+          binary-outcome arms, an approximate standard error adds the sampling variances from both rates. Here
+          it is about one point five five points, giving a rough ninety-five-percent interval from one to
+          seven points.
+        hold: 0.75
+        visual_cues:
+          - id: lift-beat-3-focus-1
+            phrase: standard error
+            targets:
+              - lift-standard-error
+            color: yellow
+            linger: 0.65
+          - id: lift-beat-3-focus-2
+            phrase: ninety-five-percent interval
+            targets:
+              - lift-interval
+            color: cyan
+            linger: 0.65
+  - id: independent-units
+    title: A duplicated outcome cannot supply new precision
+    visual: One incident tile is copied into four message rows. Rates stay fixed while a fictitious denominator
+      wrongly compresses the confidence interval.
+    beats:
+      - say: Copy every incident outcome into four message rows. Both success counts and denominators multiply by
+          four, so thirty-eight and forty-two percent remain unchanged. Substituting four times the sample
+          size into the independence formula halves the standard error without adding evidence. The article’s
+          interval shrinks falsely from one through seven points to about two point five through five point
+          five. Aggregate once per randomized incident before applying that calculation.
+        hold: 0.55
+        visual_cues:
+          - id: independent-units-step-1
+            phrase: halves the standard error
+            targets:
+              - independent-units-mechanism
+            linger: 0.4
+          - id: dup-four
+            phrase: four message rows
+            targets:
+              - independent-units-mechanism
+            linger: 0.45
+          - id: dup-false-se
+            phrase: halves the standard error
+            targets:
+              - independent-units-mechanism
+            linger: 0.45
+      - say: Build the independent-arm standard error from each arm’s rate times one minus that rate divided by its
+          own incident count, then add and take the square root. Multiplying that standard error by one point
+          nine six makes the normal-approximation margin. Across repeated suitable experiments the procedure
+          targets ninety-five-percent coverage of the defined effect. It does not assign ninety-five-percent
+          probability to this fixed true effect or predict another experiment’s outcome. Rare events,
+          clustering and multiple claims need their own methods.
+        hold: 0.75
+        visual_cues:
+          - id: independent-units-step-2
+            phrase: add and take the square root
+            targets:
+              - independent-units-mechanism
+            linger: 0.4
+  - id: power
+    title: Plan traffic around an effect worth finding
+    visual: Intervals narrow as the number of independent incidents grows; the planning target calls for a
+      two-point effect and eighty-percent power.
+    beats:
+      - say: A small experiment can estimate a lift imprecisely. The chart keeps the same two teaching rates and
+          compares projected interval widths at two hundred, five hundred, and two thousand incidents per arm.
+          This lets us see how planned sample size changes precision.
+        hold: 0.55
+        motion_check:
+          region:
+            - 250
+            - 350
+            - 920
+            - 460
+          minimumChangedFraction: 0.002
+        visual_cues:
+          - id: power-beat-1-focus-1
+            phrase: projected interval widths
+            targets:
+              - sample-size-intervals
+            color: yellow
+            linger: 0.65
+          - id: power-beat-1-focus-2
+            phrase: planned sample size changes precision
+            targets:
+              - sample-size-value
+            color: cyan
+            linger: 0.65
+      - say: "Before launch, choose a minimum detectable effect: a true improvement you want a specified chance of
+          detecting under the planning model. With a thirty-eight-percent baseline, a two-point target, a
+          five-percent two-sided threshold, and eighty-percent power, a common shortcut gives about nine
+          thousand two hundred forty-six incidents per arm."
+        hold: 0.6
+        visual_cues:
+          - id: power-beat-2-focus-1
+            phrase: minimum detectable effect
+            targets:
+              - planning-assumptions
+            color: yellow
+            linger: 0.65
+          - id: power-beat-2-focus-2
+            phrase: nine thousand two hundred forty-six
+            targets:
+              - planning-result
+            color: cyan
+            linger: 0.65
+      - say: In this fixture, two thousand incidents per arm give an interval above zero for the observed four-point
+          lift. Detecting the smaller two-point planning target reliably requires the larger sample we just
+          calculated. Power changes with effect size, sample size, outcome variation, analysis, and the launch
+          rule.
+        hold: 0.75
+        visual_cues:
+          - id: power-beat-3-focus-1
+            phrase: observed four-point lift
+            targets:
+              - sample-size-intervals
+            color: yellow
+            linger: 0.65
+          - id: power-beat-3-focus-2
+            phrase: smaller two-point planning target
+            targets:
+              - planning-assumptions
+              - planning-result
+            color: cyan
+            linger: 0.65
+  - id: power-and-decision
+    title: Detection probability and launch probability differ
+    visual: Repeated hypothetical effect estimates cross a zero-detection boundary and a separate observed-value
+      threshold. The design MDE and two sample-size approximations stay distinct.
+    beats:
+      - say: Power is the probability of rejecting the no-effect null at a specified true alternative. Eighty percent
+          power leaves twenty percent Type Two error under that planning model. Five percent two-sided alpha
+          budgets apparent harms as well as benefits under no effect. A minimum detectable effect is the
+          planning alternative, not a hard boundary below which detection is impossible. Holding the other
+          assumptions fixed, sample size scales approximately with one divided by squared target effect.
+          Halving the target requires about four times the enrollment.
+        hold: 0.55
+        visual_cues:
+          - id: power-and-decision-step-1
+            phrase: not a hard boundary
+            targets:
+              - power-and-decision-mechanism
+            linger: 0.4
+      - say: The shortcut uses twice the baseline Bernoulli variance times the squared sum of the alpha and power
+          normal cutoffs, divided by the squared effect. At baseline thirty-eight percent and a two-point
+          target it gives nine thousand two hundred forty-six per arm. The fuller independent-proportions
+          calculation gives about seventy-nine point six percent power there and needs nine thousand three
+          hundred thirty-six for eighty percent. Use an analysis suited to the actual allocation and design
+          rather than treating the shortcut as an exact specification.
+        hold: 0.55
+        visual_cues:
+          - id: power-and-decision-step-2
+            phrase: nine thousand three hundred thirty-six
+            targets:
+              - power-and-decision-mechanism
+            linger: 0.4
+          - id: power-shortcut
+            phrase: nine thousand two hundred forty-six
+            targets:
+              - power-and-decision-mechanism
+            linger: 0.45
+          - id: power-fuller
+            phrase: seventy-nine point six percent
+            targets:
+              - power-and-decision-mechanism
+            linger: 0.45
+      - say: The launch rule also requires an observed effect of at least two points. If the true effect is exactly
+          two points and estimates are approximately symmetric around it, only about half clear that observed
+          threshold. Requiring guardrails reduces the chance further. Eighty-percent detection power therefore
+          is not eighty-percent launch probability. Predeclare the calendar duration as well as enrollment
+          when weekday mix, rotations or novelty matter. More rows improve precision; they do not make the
+          treatment better.
+        hold: 0.75
+        visual_cues:
+          - id: power-and-decision-step-3
+            phrase: not eighty-percent launch probability
+            targets:
+              - power-and-decision-mechanism
+            linger: 0.4
+          - id: power-launch
+            phrase: only about half
+            targets:
+              - power-and-decision-mechanism
+            linger: 0.45
+  - id: srm
+    title: Check that assignment reached the analysis table
+    visual: A planned 50/50 split is compared with 1,650 control and 2,350 treatment assignments before lift is
+      interpreted.
+    beats:
+      - say: Suppose the experiment planned equal allocation but the analysis table contains one thousand six hundred
+          fifty control incidents and two thousand three hundred fifty treatment incidents. That sample-ratio
+          mismatch is a reason to pause before reading the outcome difference.
+        hold: 0.55
+        visual_cues:
+          - id: srm-beat-1-focus-1
+            phrase: analysis table contains
+            targets:
+              - assignment-counts
+            color: yellow
+            linger: 0.65
+      - say: Against two thousand expected incidents per arm, subtract expected from observed, square that difference,
+          divide by expected, and sum across both arms. The chi-square diagnostic is one hundred twenty-two
+          point five. Inspect assignment code, eligibility filters, event joins, bots, and missing outcomes.
+          The discrepancy points to a data path that needs explanation.
+        hold: 0.6
+        visual_cues:
+          - id: srm-beat-2-focus-1
+            phrase: two thousand expected incidents per arm
+            targets:
+              - expected-allocation
+            color: yellow
+            linger: 0.65
+          - id: srm-diagnostic
+            phrase: chi-square diagnostic
+            targets:
+              - assignment-diagnostic
+            color: cyan
+            linger: 0.65
+      - say: A mismatch alert flags unexpected assignment counts, so inspect assignment code, eligibility, and event
+          joins. Audit outcome fields separately even when the split is balanced. Check distinct incident IDs
+          at the planned unit because treatment can change the number of messages.
+        hold: 0.75
+        visual_cues:
+          - id: srm-beat-3-focus-1
+            phrase: unexpected assignment counts
+            targets:
+              - assignment-counts
+            color: yellow
+            linger: 0.65
+  - id: peeking
+    title: Run the same null path through different stopping rules
+    visual: A cumulative A/A z path briefly crosses and then returns. Five thousand actual seeded paths feed
+      counts for one final versus5,10,20 repeated looks.
+    beats:
+      - say: Now both simulated arms have the same true forty-percent resolution rate. One ordinary final test can
+          still flag a difference from noise. Watching a cumulative interval after each batch and stopping at
+          its first crossing changes the procedure. Earlier observations occur in later looks, so the looks
+          are correlated. Multiplying independent five-percent survival probabilities does not describe these
+          repeated looks.
+        hold: 0.55
+        visual_cues:
+          - id: peeking-step-1
+            phrase: the looks are correlated
+            targets:
+              - peeking-mechanism
+            linger: 0.4
+      - say: The article actually simulates five thousand A A experiments with twenty batches of one hundred new
+          incidents per arm. The single final look produces two hundred thirty-one false alarms, about four
+          point six percent. First-crossing policies give seven hundred eight alarms at five looks, nine
+          hundred sixty-one at ten, and one thousand two hundred forty-four at twenty. The last rate is
+          twenty-four point nine percent. These are two-sided alarms, including apparent harms, under this
+          exact simulation.
+        hold: 0.55
+        visual_cues:
+          - id: peeking-step-2
+            phrase: one thousand two hundred forty-four
+            targets:
+              - peeking-mechanism
+            linger: 0.4
+          - id: peek-final
+            phrase: two hundred thirty-one false alarms
+            targets:
+              - peeking-mechanism
+            linger: 0.45
+          - id: peek-five
+            phrase: seven hundred eight alarms
+            targets:
+              - peeking-mechanism
+            linger: 0.45
+          - id: peek-ten
+            phrase: nine hundred sixty-one
+            targets:
+              - peeking-mechanism
+            linger: 0.45
+          - id: peek-twenty
+            phrase: one thousand two hundred forty-four
+            targets:
+              - peeking-mechanism
+            linger: 0.45
+      - say: Choose one planned final analysis or a justified sequential design. Searching variants, metrics or
+          subgroups for a crossing also multiplies claims. Predeclare the family and its error control, such
+          as Bonferroni, or mark discovered subgroups exploratory and confirm on fresh data. A displayed
+          dashboard may update operationally without making its ordinary interval valid for an
+          outcome-triggered stopping decision.
+        hold: 0.75
+        visual_cues:
+          - id: peeking-step-3
+            phrase: confirm on fresh data
+            targets:
+              - peeking-mechanism
+            linger: 0.4
+  - id: alpha-spending
+    title: Spend cumulative error without treating it as a p cutoff
+    visual: A cumulative error-budget curve grows slowly early and reaches .05 at full information. Correlated
+      crossing regions are separate from that budget.
+    beats:
+      - say: Group sequential alpha spending allocates total false-alarm probability over information time.
+          Information fraction is accumulated statistical information divided by the planned maximum; it
+          resembles enrollment fraction only when information grows proportionally. An O Brien Fleming-style
+          spending function starts at zero, spends little early and reaches the chosen total alpha at full
+          information. The displayed equation takes the two-sided normal cutoff, divides by square root
+          information fraction, then converts the tail back to a cumulative budget.
+        hold: 0.55
+        visual_cues:
+          - id: alpha-spending-step-1
+            phrase: cumulative budget
+            targets:
+              - alpha-spending-mechanism
+            linger: 0.4
+      - say: That budget is not the p-value cutoff for each look. Boundaries must account for correlation and the
+          probability of earlier crossings. The official six-look gsDesign example ends near z two point zero
+          four five, rather than the ordinary one point nine six. Calibrate the look process and power;
+          flexible look times still require the design’s monitoring assumptions. Comparing each ordinary
+          p-value directly with cumulative spending does not implement the design.
+        hold: 0.75
+        visual_cues:
+          - id: alpha-spending-step-2
+            phrase: not the p-value cutoff
+            targets:
+              - alpha-spending-mechanism
+            linger: 0.4
+          - id: spend-not-cutoff
+            phrase: not the p-value cutoff
+            targets:
+              - alpha-spending-mechanism
+            linger: 0.45
+          - id: spend-critical
+            phrase: z two point zero four five
+            targets:
+              - alpha-spending-mechanism
+            linger: 0.45
+  - id: mixture-evidence
+    title: Track current likelihood evidence and its running maximum
+    visual: Two alternative likelihood products update from the same20 supplied outcomes. Their half-weighted mean
+      crosses20, then falls while the retained maximum and anytime p stay.
+    beats:
+      - say: For a simpler sequential calculation, use one independent Bernoulli stream with a known null success rate
+          of forty percent. Fix equal prior mass on alternatives twenty and sixty percent before outcomes
+          arrive. Each alternative multiplies by its success probability divided by the null’s for a success,
+          and by its failure probability divided by the null’s for a failure. Average the two products. Under
+          the known null, each next multiplier has expected value one, so the nonnegative mixture likelihood
+          ratio starts at one and is a null martingale.
+        hold: 0.55
+        visual_cues:
+          - id: mixture-evidence-step-1
+            phrase: expected value one
+            targets:
+              - mixture-evidence-mechanism
+            linger: 0.4
+      - say: The supplied fixture has ten successes followed by ten failures. After ten successes the current mixture
+          ratio is about twenty-eight point eight three three, crossing the five-percent threshold of twenty.
+          After ten failures it falls to about zero point five zero nine. Keep its running maximum at
+          twenty-eight point eight three three. The anytime p-value is the smaller of one and the reciprocal
+          of the running maximum, about zero point zero three four seven at both checkpoints. Falling current
+          evidence does not erase a prior crossing.
+        hold: 0.55
+        visual_cues:
+          - id: mixture-evidence-step-2
+            phrase: does not erase a prior crossing
+            targets:
+              - mixture-evidence-mechanism
+            linger: 0.4
+          - id: mixture-ten
+            phrase: After ten successes
+            targets:
+              - mixture-evidence-mechanism
+            linger: 0.45
+          - id: mixture-twenty
+            phrase: After ten failures
+            targets:
+              - mixture-evidence-mechanism
+            linger: 0.45
+          - id: mixture-ten-value
+            phrase: current mixture ratio is about twenty-eight point eight three three
+            targets:
+              - mixture-evidence-mechanism
+            linger: 0.45
+          - id: mixture-final-value
+            phrase: zero point five zero nine
+            targets:
+              - mixture-evidence-mechanism
+            linger: 0.45
+          - id: mixture-max-value
+            phrase: running maximum at twenty-eight point eight three three
+            targets:
+              - mixture-evidence-mechanism
+            linger: 0.45
+          - id: mixture-p-value
+            phrase: about zero point zero three four seven
+            targets:
+              - mixture-evidence-mechanism
+            linger: 0.45
+      - say: Ville’s inequality bounds the probability of ever crossing one divided by alpha under the stated null.
+          The simple density, common support, independent observations and fixed normalized mixing
+          distribution matter. A two-arm null with an unknown shared baseline is composite; plugging in the
+          observed control rate does not automatically preserve this martingale. Use a method derived for the
+          actual observation model. Inverting valid tests can form a confidence sequence with simultaneous
+          time coverage. It does not control unrelated metrics, and long likelihood products need stable
+          numerical evaluation.
+        hold: 0.75
+        visual_cues:
+          - id: mixture-evidence-step-3
+            phrase: unknown shared baseline is composite
+            targets:
+              - mixture-evidence-mechanism
+            linger: 0.4
+  - id: cuped-adjustment
+    title: Subtract predictable variation without conditioning on treatment
+    visual: A pre-experiment X coordinate predicts the Y cloud. One common fitted line is subtracted to reveal
+      residual scores, including values beyond0–1.
+    beats:
+      - say: CUPED uses a covariate unaffected by treatment, such as a frozen service-history summary collected before
+          this experiment. A new incident has no previous outcome of its own. Adjust Y by subtracting theta
+          times X minus one common center. With a common fixed coefficient and randomized assignment, the
+          expected arm difference in the covariate is zero, so the adjustment preserves the expected treatment
+          contrast. Treatment-period rewrite latency can be affected by assignment and is not a safe baseline
+          merely because it predicts the outcome.
+        hold: 0.55
+        visual_cues:
+          - id: cuped-adjustment-step-1
+            phrase: one common center
+            targets:
+              - cuped-adjustment-mechanism
+            linger: 0.4
+      - say: The adjusted variance is variance Y plus theta squared times variance X minus twice theta times
+          covariance. For positive finite variance X, minimizing gives theta equal to covariance divided by
+          variance X. In a supplied numerical example, variance Y is nine, variance X is four and covariance
+          is three. Theta is three quarters; residual variance becomes six point seven five, a
+          twenty-five-percent reduction. Reversing the covariate’s sign reverses theta and leaves that
+          reduction unchanged. The optimal factor is one minus squared correlation, not one minus correlation.
+        hold: 0.55
+        visual_cues:
+          - id: cuped-adjustment-step-2
+            phrase: six point seven five
+            targets:
+              - cuped-adjustment-mechanism
+            linger: 0.4
+          - id: cuped-theta
+            phrase: Theta is three quarters
+            targets:
+              - cuped-adjustment-mechanism
+            linger: 0.45
+          - id: cuped-variance
+            phrase: six point seven five
+            targets:
+              - cuped-adjustment-mechanism
+            linger: 0.45
+      - say: The article’s executed twenty-thousand-unit simulation has correlation about point four seven zero and
+          pooled outcome variance reduction twenty-two point one percent. Its raw lift is four point six eight
+          points and adjusted lift four point three nine; finite samples need not give identical estimates.
+          Fitting theta on these same outcomes is not the fixed-coefficient finite-sample proof. Predeclare
+          suitable adjusted inference, use regression or cross-fitting where appropriate, and check the actual
+          standard error. Adjusted scores may lie outside zero and one; they are not new Bernoulli labels.
+        hold: 0.75
+        visual_cues:
+          - id: cuped-adjustment-step-3
+            phrase: not new Bernoulli labels
+            targets:
+              - cuped-adjustment-mechanism
+            linger: 0.4
+  - id: bandit-routing
+    title: Adapt new-incident allocation without switching an existing incident
+    visual: Two Beta posteriors supply competing draws. Only a matured chosen reward updates its posterior;
+      follow-up messages retain the stored arm.
+    beats:
+      - say: A fixed-allocation test estimates the defined contrast under predeclared assignment probabilities; it
+          need not be fifty fifty. A reward-seeking bandit instead trades exploration for cumulative reward.
+          For a stationary Bernoulli arm, begin with a Beta prior, add a success to alpha or a failure to
+          beta, draw one possible success rate for each arm and choose the largest. Thompson sampling draws
+          from uncertainty, not simply from the largest posterior mean.
+        hold: 0.55
+        visual_cues:
+          - id: bandit-routing-step-1
+            phrase: add a success to alpha
+            targets:
+              - bandit-routing-mechanism
+            linger: 0.4
+          - id: bandit-sample
+            phrase: draw one possible success rate
+            targets:
+              - bandit-routing-mechanism
+            linger: 0.45
+      - say: In the article’s seeded immediate-reward toy, control receives four hundred sixty-three of two thousand
+          pulls and treatment fifteen hundred thirty-seven, about seventy-six point eight percent. Treatment’s
+          true simulation rate is higher, but that allocation is not a measured counterfactual recovery gain
+          over fixed routing. In our incident service, choose only for a new incident, keep its follow-ups
+          fixed, and update after the outcome window matures. Delays and nonstationarity complicate the
+          immediate-reward toy.
+        hold: 0.55
+        visual_cues:
+          - id: bandit-routing-step-2
+            phrase: after the outcome window matures
+            targets:
+              - bandit-routing-mechanism
+            linger: 0.4
+          - id: bandit-count
+            phrase: fifteen hundred thirty-seven
+            targets:
+              - bandit-routing-mechanism
+            linger: 0.45
+      - say: Adaptive sample sizes depend on earlier rewards. Ordinary fixed-design inference is not automatically
+          calibrated, and sampling, stopping and choosing which arm to report can create bias in different
+          directions. Retain routing probabilities and use estimators and sequential methods designed for that
+          policy with adequate exploration. A resolution reward does not encode grounding or latency
+          constraints. A bandit can support scientific learning, but it answers a different operational
+          objective and needs explicit guardrail design.
+        hold: 0.75
+        visual_cues:
+          - id: bandit-routing-step-3
+            phrase: bias in different directions
+            targets:
+              - bandit-routing-mechanism
+            linger: 0.4
+  - id: paired-prompts
+    title: Subtract two outcomes before averaging away shared difficulty
+    visual: The same prompt difficulty column feeds control and treatment scores. Subtraction cancels that shared
+      column; independent prompt samples do not cancel.
+    beats:
+      - say: For offline paired answer evaluation, generate both candidates for the same prompt. In a simple additive
+          score model, control is prompt difficulty plus its noise; treatment is the same difficulty plus
+          effect and its noise. Subtraction cancels the shared difficulty exactly in that model. In general,
+          variance of the difference is the two score variances minus twice their covariance. Positive
+          covariance helps, zero gives no gain, and negative covariance can make pairing noisier.
+        hold: 0.55
+        visual_cues:
+          - id: paired-prompts-step-1
+            phrase: Subtraction cancels the shared difficulty
+            targets:
+              - paired-prompts-mechanism
+            linger: 0.4
+          - id: paired-cancel
+            phrase: Subtraction cancels
+            targets:
+              - paired-prompts-mechanism
+            linger: 0.45
+      - say: The actual synthetic Gaussian lab scores two thousand answers in either design. Independent prompts give
+          lift about point five seven zero with standard error point zero eight five. One thousand shared
+          prompts give lift point four four three with standard error point zero two seven, about eighty-nine
+          point five percent less variance for the contrast. These scores are unbounded numerical toys, not a
+          one-to-ten rating scale or measured model performance. Estimate covariance before promising this
+          gain for real answers.
+        hold: 0.55
+        visual_cues:
+          - id: paired-prompts-step-2
+            phrase: unbounded numerical toys
+            targets:
+              - paired-prompts-mechanism
+            linger: 0.4
+          - id: paired-se
+            phrase: standard error point zero two seven
+            targets:
+              - paired-prompts-mechanism
+            linger: 0.45
+      - say: Search interleaving mixes ranked result lists and credits clicks under a specified rule. Two complete
+          answers judged side by side are paired answer evaluation, not that list mechanism. Randomize answer
+          order, blind identities, declare ties and calibrate the judge. A preference vote needs inference for
+          its vote metric. Showing an engineer both answers changes their exposure, so later resolution is not
+          the original one-answer incident effect. A preferred answer can still be ungrounded.
+        hold: 0.75
+        visual_cues:
+          - id: paired-prompts-step-3
+            phrase: changes their exposure
+            targets:
+              - paired-prompts-mechanism
+            linger: 0.4
+  - id: evaluation-stack
+    title: Keep each evaluator and receipt inside its actual scope
+    visual: Offline regression, online assigned outcomes, product guardrails and integrity artifacts inspect
+      different parts of the same rewrite path. A decoder mismatch stops the comparison.
+    beats:
+      - say: Check unsupported rollback claims in an offline regression set before exposing live incidents. Online
+          resolution measures the assigned product outcome; guardrails protect grounding, speed, human pages
+          and cost. The integrity record binds assignment, eligible units, data snapshots, prompts, model and
+          decoder policies. A passing offline score does not establish live task benefit, and a positive
+          online metric does not excuse unsupported evidence.
+        hold: 0.55
+        visual_cues:
+          - id: evaluation-stack-step-1
+            phrase: Check unsupported rollback claims
+            targets:
+              - evaluation-stack-mechanism
+            linger: 0.4
+      - say: If a model judge assesses an offline rubric, pin its model and prompt, compare with human labels on
+          retained calibration cases, and inspect position, verbosity and reasoning limitations. The article’s
+          receipt function catches declared differences in index, generator, prompt and decoder. Its
+          deliberate schema mismatch is rejected before lift is read. Matching those fields does not verify
+          actual deployed bytes, truthful logs, random assignment or absence of interference. Keep source and
+          run evidence behind the receipt.
+        hold: 0.75
+        visual_cues:
+          - id: evaluation-stack-step-2
+            phrase: does not verify actual deployed bytes
+            targets:
+              - evaluation-stack-mechanism
+            linger: 0.4
+          - id: receipt-bad-schema
+            phrase: schema mismatch is rejected
+            targets:
+              - evaluation-stack-mechanism
+            linger: 0.45
+  - id: guardrails
+    title: A positive lift still has to protect quality
+    visual: Lift, latency, human-page change, and the upper grounding-failure bound are evaluated against the
+      preregistered budgets.
+    beats:
+      - say: The rewrite improves the primary metric by four points in this fixture. Its p95 latency is eighty
+          milliseconds slower, within a one-hundred-fifty-millisecond budget. Human pages fall by point two
+          points, and grounding failures rise by point zero five points.
+        hold: 0.55
+        visual_cues:
+          - id: guardrails-beat-1-focus-1
+            phrase: primary metric by four points
+            targets:
+              - guardrail-lift
+            color: yellow
+            linger: 0.65
+          - id: guardrails-beat-1-focus-2
+            phrase: eighty milliseconds slower
+            targets:
+              - guardrail-latency
+            color: cyan
+            linger: 0.65
+          - id: guardrails-beat-1-focus-3
+            phrase: Human pages fall
+            targets:
+              - guardrail-pages
+            color: yellow
+            linger: 0.65
+          - id: guardrails-beat-1-focus-4
+            phrase: grounding failures rise
+            targets:
+              - guardrail-grounding
+            color: cyan
+            linger: 0.65
+      - say: For grounding, the decision rule asks whether the upper end of a two-sided approximate interval stays
+          below a half-point increase. The estimated upper end is about point seven points, so the evidence
+          remains too uncertain for that non-inferiority requirement.
+        hold: 0.6
+        visual_cues:
+          - id: guardrails-upper
+            phrase: upper end of a two-sided approximate interval
+            targets:
+              - guardrail-grounding
+            color: yellow
+            linger: 0.65
+          - id: guardrails-beat-2-focus-2
+            phrase: half-point increase
+            targets:
+              - grounding-budget
+            color: cyan
+            linger: 0.65
+          - id: guardrails-bound-value
+            phrase: estimated upper end is about point seven points
+            targets:
+              - guardrail-grounding
+            linger: 0.45
+      - say: The teaching decision is to hold and investigate. A favorable point estimate can coexist with an
+          unresolved safety budget. Real launch rules should specify uncertainty for every important
+          guardrail, including latency tails and audit sampling.
+        hold: 0.75
+        visual_cues:
+          - id: guardrails-beat-3-focus-1
+            phrase: hold and investigate
+            targets:
+              - guardrail-grounding
+              - grounding-budget
+            color: yellow
+            linger: 0.65
+  - id: decision
+    title: Combine the estimate with the declared launch rule
+    visual: A launch checklist passes traffic integrity, positive lift, and the minimum observed effect, then
+      holds on grounding uncertainty.
+    beats:
+      - say: Before looking at outcomes, the team declares a positive lift interval, at least a two-point observed
+          lift, guardrails within budget, and trustworthy assignment. These are separate conditions. The
+          four-point result clears the primary metric threshold in our practice fixture.
+        hold: 0.55
+        visual_cues:
+          - id: decision-beat-1-focus-1
+            phrase: positive lift interval, at least a two-point observed lift
+            targets:
+              - launch-condition-1
+              - launch-condition-2
+            color: yellow
+            linger: 0.6
+          - id: decision-beat-1-focus-2
+            phrase: guardrails within budget
+            targets:
+              - launch-condition-3
+            color: cyan
+            linger: 0.6
+          - id: decision-beat-1-focus-3
+            phrase: trustworthy assignment
+            targets:
+              - launch-condition-0
+            color: blue
+            linger: 0.6
+      - say: The lower endpoint of the lift interval is one point, above zero. That supports a positive effect under
+          the approximate fixed-horizon analysis. Yet the upper grounding bound exceeds the declared
+          half-point limit, so the full launch rule stays closed.
+        hold: 0.6
+        visual_cues:
+          - id: decision-beat-2-focus-1
+            phrase: lower endpoint of the lift interval
+            targets:
+              - launch-condition-1
+            color: yellow
+            linger: 0.65
+          - id: decision-beat-2-focus-2
+            phrase: upper grounding bound
+            targets:
+              - launch-condition-3
+            color: cyan
+            linger: 0.65
+          - id: decision-hold
+            phrase: full launch rule stays closed
+            targets:
+              - launch-decision
+            color: yellow
+            linger: 0.65
+      - say: "A hold is useful information. It tells the team which uncertainty to reduce: collect more audited
+          outcomes, inspect the changed retrieval passages, or improve the grounding measurement. Keep the
+          experiment receipt, code version, and analysis plan together so the next decision has a clear
+          trail."
+        hold: 0.75
+        visual_cues:
+          - id: decision-beat-3-focus-1
+            phrase: which uncertainty to reduce
+            targets:
+              - launch-condition-3
+            color: yellow
+            linger: 0.65
+          - id: decision-beat-3-focus-2
+            phrase: clear trail
+            targets:
+              - launch-decision
+            color: cyan
+            linger: 0.65
+  - id: takeaway
+    title: Treat the experiment as a measurement system
+    visual: A four-stage path links the locked question, random assignment, mature outcome, and guardrail review
+      to an auditable release decision.
+    beats:
+      - say: Start with a decision that matters to users, then choose a unit and an outcome that actually represent
+          it. Random assignment handles many sources of baseline difference; careful instrumentation keeps the
+          comparison tied to the policy each incident received.
+        hold: 0.55
+        visual_cues:
+          - id: takeaway-beat-1-focus-1
+            phrase: decision that matters to users
+            targets:
+              - recap-question
+            color: yellow
+            linger: 0.65
+          - id: takeaway-beat-1-focus-2
+            phrase: Random assignment
+            targets:
+              - recap-unit
+            color: cyan
+            linger: 0.65
+      - say: Plan enough traffic for the improvement you care about, mature every outcome window, and use one
+          predeclared analysis. Separate a metric’s estimate from its uncertainty, and inspect sample-ratio
+          integrity before interpreting either.
+        hold: 0.6
+        visual_cues:
+          - id: takeaway-beat-2-focus-1
+            phrase: mature every outcome window
+            targets:
+              - recap-outcome
+            color: yellow
+            linger: 0.65
+      - say: Finally, launch only when the primary lift and every declared guardrail meet their rules. A/B testing
+          produces evidence for a defined population and period. Future traffic still deserves monitoring,
+          because products and incidents change over time.
+        hold: 0.75
+        visual_cues:
+          - id: takeaway-beat-3-focus-1
+            phrase: every declared guardrail
+            targets:
+              - recap-guardrails
+            color: yellow
+            linger: 0.65
+  - id: fresh-grounding
+    title: Predict whether changed audit evidence clears the fixed rule
+    visual: A separate supplied counterfactual keeps2000-per-arm resolution, latency and page counts. Treatment
+      audit failures change23→18; its interval is rebuilt before the gate result appears.
+    beats:
+      - say: Keep the original hold in its record. Now inspect a separate supplied counterfactual, not an edited live
+          result or permission to peek again. There are still two thousand mature incidents per arm, seven
+          hundred sixty and eight hundred forty resolution successes, and the same latency and page counts.
+          Control has twenty-two grounding failures, but this packet has eighteen treatment failures instead
+          of twenty-three. The fixed grounding rule still requires the upper two-sided approximate
+          ninety-five-percent endpoint below a half-point increase. Predict the compact teaching gate. Pause.
+        hold: 0.55
+        visual_cues:
+          - id: fresh-grounding-step-1
+            phrase: Predict the compact teaching gate
+            targets:
+              - fresh-grounding-mechanism
+            linger: 0.4
+      - say: Grounding failure rates are one point one percent and zero point nine percent. Their difference is minus
+          zero point two percentage points. Add one point nine six times the unpooled two-arm standard error,
+          giving an upper endpoint about zero point four two points. It is below the unchanged half-point
+          budget. The resolution and other point screens still pass, so this counterfactual clears the compact
+          teaching gate. The original twenty-three-failure packet remains held.
+        hold: 0.55
+        visual_cues:
+          - id: fresh-grounding-step-2
+            phrase: about zero point four two points
+            targets:
+              - fresh-grounding-mechanism
+            linger: 0.4
+          - id: fresh-grounding-delta
+            phrase: minus zero point two percentage points
+            targets:
+              - fresh-grounding-mechanism
+            linger: 0.45
+          - id: fresh-grounding-upper
+            phrase: zero point four two points
+            targets:
+              - fresh-grounding-mechanism
+            linger: 0.45
+          - id: fresh-grounding-pass
+            phrase: clears the compact teaching gate
+            targets:
+              - fresh-grounding-mechanism
+            linger: 0.45
+      - say: Passing this arithmetic gate still leaves the omitted uncertainty rules for latency and human pages,
+          rare-event method choice and actual instrumentation to validate. After an inconclusive planned final
+          look, do not add incidents until the same ordinary interval passes. Plan a fresh confirmatory
+          experiment or use a previously justified sequential continuation. Preserve unit, assignment, outcome
+          query, mature-window rule, analysis schedule, sample-ratio check, uncertainty, guardrails and
+          decision together. Then carry that causal measurement question into the counterfactuals lesson.
+        hold: 0.75
+        visual_cues:
+          - id: fresh-grounding-step-3
+            phrase: fresh confirmatory experiment
+            targets:
+              - fresh-grounding-mechanism
+            linger: 0.4

@@ -1,0 +1,1982 @@
+version: 1
+id: agent-orchestration
+title: Coordinating Work with Typed State
+source: agents/multi-agent-dags-langgraph-orchestration/content.md
+voice: en-US-AndrewNeural
+rate: +0%
+sources:
+  - title: LangGraph graph API
+    url: https://docs.langchain.com/oss/javascript/langgraph/graph-api
+  - title: LangGraph persistence
+    url: https://docs.langchain.com/oss/javascript/langgraph/persistence
+  - title: LangGraph interrupts
+    url: https://docs.langchain.com/oss/javascript/langgraph/interrupts
+scenes:
+  - id: subject-intro
+    title: Can the new search ranker take more traffic?
+    visual: Two receipts sit beside a dial set to the requested traffic share. Reveal the policy ceiling, then follow all three workers to the join.
+    beats:
+      - say: "One search in four would go to the new ranker. Two checks are in. Two regressions in a hundred test cases. Four errors in ten thousand canary requests. Both pass. What else could limit the rollout?"
+        caption_starts:
+          - "Two checks are in"
+          - "Two regressions"
+          - "Four errors"
+          - "Both pass"
+          - "What else"
+        visual_cues:
+          - id: requested-share
+            phrase: One search in four
+            targets:
+              - picture
+          - id: eval-question
+            phrase: "Two regressions"
+            targets:
+              - picture
+          - id: health-question
+            phrase: "Four errors"
+            targets:
+              - picture
+        hold: 2
+      - say: "The rollout policy. Its ceiling is twenty-five percent, exactly the share we asked for. Follow the three receipts back to their workers. These reads can run independently. The policy worker finishes first. The health worker takes longest. Once all three arrive, bring them back together. Each receipt names the revision and shows the age of the evidence. Each branch contributes its own result. The arrows show where those results go. A join waits for the required work, validates the receipts, and creates one proposal. The proposal goes to a reviewer. The writer changes traffic only after approval."
+        caption_starts:
+          - "Its ceiling is"
+          - "Follow the three"
+          - "These reads can"
+          - "The policy worker"
+          - "The health worker"
+          - "Once all three"
+          - "Each receipt names"
+          - "and shows the age"
+          - "Each branch contributes"
+          - "The arrows show"
+          - "A join waits"
+          - "validates the receipts"
+          - "The proposal goes"
+          - "The writer changes"
+          - "only after approval"
+        visual_cues:
+          - id: explicit
+            phrase: "The arrows show"
+            targets:
+              - picture
+          - id: join-waits
+            phrase: A join waits for the required work
+            targets:
+              - picture
+          - id: one-proposal
+            phrase: creates one proposal
+            targets:
+              - picture
+          - id: separate-boundary
+            phrase: "The writer changes traffic"
+            targets:
+              - picture
+          - id: after-review
+            phrase: "only after approval"
+            targets:
+              - picture
+          - id: owned-results
+            phrase: "Each branch contributes its own result"
+            targets:
+              - eval-read
+              - health-read
+              - policy-read
+            color: cyan
+          - id: validated-join
+            phrase: validates the receipts
+            targets:
+              - validated-merge
+            color: green
+          - id: danger-mixed
+            phrase: "names the revision"
+            targets:
+              - picture
+          - id: danger-stale
+            phrase: "the age of the evidence"
+            targets:
+              - picture
+          - id: trace-workers
+            phrase: Follow the three receipts back to their workers
+            targets:
+              - picture
+          - id: read-branches
+            phrase: These reads can run independently
+            targets:
+              - eval-read
+              - health-read
+              - policy-read
+            color: cyan
+          - id: receipts-reunite
+            phrase: bring them back together
+            targets:
+              - validated-merge
+            color: yellow
+          - id: policy-answer
+            phrase: The rollout policy
+            caption_boundary: true
+            targets:
+              - picture
+        hold: 0.75
+      - say: "The proposal still says twenty-five percent traffic. Look at the lengths of the three reads. Starting them together saves time. Now look at the revision on each receipt. All three workers checked version three."
+        caption_starts:
+          - "Look at the lengths"
+          - "Starting them together"
+          - "Now look at"
+          - "All three workers"
+        visual_cues:
+          - id: timing-example
+            phrase: "Look at the lengths"
+            targets:
+              - picture
+          - id: traffic-proposal
+            phrase: twenty-five percent traffic
+            targets:
+              - proposal-parameters
+            color: yellow
+          - id: same-action
+            phrase: "the revision on each receipt"
+            targets:
+              - validated-merge
+            color: green
+        hold: 0.55
+      - say: "First decide whether extra agents earn their cost. Independent semantic research with bounded context and a typed merge can benefit from specialists. Independent deterministic ETL runs in ordinary code. If six seconds of serial reads miss a four-second deadline, this job needs parallel code. Start the branches together when their outputs can be combined and the time saved covers the overhead. Coupled edits sharing an evolving trace often fit one scoped agent. Extra contexts add token cost. Measure the benefit of giving each specialist a separate trace."
+        caption_starts:
+          - "with bounded context"
+          - "runs in ordinary code"
+          - "If six seconds"
+          - "this job needs"
+          - "Start the branches"
+          - "and the time saved"
+          - "Measure the benefit"
+        visual_cues:
+          - id: coupled-result
+            phrase: often fit one scoped agent
+            caption_boundary: true
+            targets:
+              - picture
+          - id: etl-result
+            phrase: needs parallel code
+            caption_boundary: true
+            targets:
+              - picture
+          - id: research-result
+            phrase: can benefit from specialists
+            caption_boundary: true
+            targets:
+              - picture
+          - id: case-research
+            phrase: Independent semantic research
+            caption_boundary: true
+            targets:
+              - picture
+          - id: case-etl
+            phrase: Independent deterministic ETL
+            caption_boundary: true
+            targets:
+              - picture
+          - id: case-coupled
+            phrase: Coupled edits
+            caption_boundary: true
+            targets:
+              - picture
+          - id: extra-cost
+            phrase: Extra contexts add token cost
+            caption_boundary: true
+            targets:
+              - picture
+          - id: measure
+            phrase: Measure the benefit
+            targets:
+              - picture
+          - id: subject-intro-construct-3
+            phrase: First decide whether extra agents earn their cost.
+            targets:
+              - subject-intro-construction
+            color: yellow
+            linger: 0.6
+          - id: etl-deadline
+            phrase: a four-second deadline
+            targets:
+              - picture
+        hold: 1
+  - id: dependency-graph
+    title: Edges describe readiness
+    visual: Directed edges connect triage to three independent reads and a merge; a re-review loop is drawn separately as a state-machine transition.
+    beats:
+      - say: A directed graph represents operations as nodes and prerequisites as arrows. In our read phase, triage comes first, three checks follow, and merge waits for all three. No path leads back to an earlier node, so this portion is a directed acyclic graph, or DAG.
+        caption_starts:
+          - "and prerequisites as"
+          - "In our read"
+          - "three checks follow"
+          - "No path leads"
+          - "so this portion"
+        visual_cues:
+          - id: nodes
+            phrase: operations as nodes
+            targets:
+              - picture
+          - id: arrows
+            phrase: prerequisites as arrows
+            targets:
+              - picture
+          - id: no-path-back
+            phrase: No path leads back to an earlier node
+            targets:
+              - picture
+          - id: dag
+            phrase: directed acyclic graph
+            targets:
+              - picture
+          - id: read-branches
+            phrase: triage comes first, three checks follow
+            targets:
+              - release-request
+              - eval-read
+              - health-read
+              - policy-read
+            color: cyan
+          - id: merge-ready
+            phrase: merge waits for all three
+            targets:
+              - validated-merge
+            color: yellow
+        hold: 0.55
+      - say: A node can be ordinary code, a database read, or a model that interprets evidence. Its position in a graph does not turn it into an agent. Use model-based specialists where their interpretation helps, and deterministic validators for rules the application can specify directly.
+        caption_starts:
+          - "or a model"
+          - "Its position in"
+          - "Use model-based specialists"
+          - "where their interpretation"
+          - "and deterministic validators"
+          - "for rules the"
+        visual_cues:
+          - id: kind-database
+            phrase: a database read
+            targets:
+              - picture
+          - id: kind-model
+            phrase: a model that interprets evidence
+            targets:
+              - picture
+          - id: model-specialist
+            phrase: model-based specialists
+            targets:
+              - picture
+          - id: operation-node
+            phrase: ordinary code
+            targets:
+              - health-read
+            color: blue
+          - id: deterministic-merge
+            phrase: deterministic validators for rules the application can specify directly
+            targets:
+              - validated-merge
+            color: green
+        hold: 0.75
+      - say: A pause does not create a cycle. A retry inside a node can also leave the outer graph acyclic. An explicitly configured transition from review back to a revised proposal does create a cycle, making that larger control flow a state machine around the read DAG. This is an optional design. The article's review example instead routes reviewer rejection to cancel.
+        caption_starts:
+          - "A retry inside"
+          - "leave the outer"
+          - "An explicitly configured"
+          - "from review back"
+          - "does create a"
+          - "a state machine"
+          - "This is an"
+          - "The article's review"
+          - "reviewer rejection to"
+        visual_cues:
+          - id: pause
+            phrase: A pause does not create a cycle
+            targets:
+              - picture
+          - id: retry-inside
+            phrase: A retry inside a node
+            targets:
+              - picture
+          - id: state-machine
+            phrase: state machine around the read DAG
+            targets:
+              - picture
+          - id: review-cycle
+            phrase: transition from review back to a revised proposal
+            targets:
+              - review-cycle
+            color: yellow
+          - id: review-cancel
+            phrase: routes reviewer rejection to cancel
+            targets:
+              - picture
+        hold: 0.55
+  - id: parallel-clock
+    title: Which receipt keeps Vega waiting?
+    visual: Three supplied read durations animate on one clock and compare serial summation with parallel completion plus explicit merge overhead.
+    beats:
+      - say: "Start the clock. We have two seconds for evaluation, three for health, and one for policy. Run them serially and their durations add. Now give each worker the same starting signal. Run them together under ideal independent scheduling and the read phase waits for the slowest branch. Which receipt keeps Vega waiting?"
+        caption_starts:
+          - "We have two seconds"
+          - "three for health"
+          - "Run them serially"
+          - "Now give each"
+          - "Run them together"
+          - "Which receipt keeps"
+        visual_cues:
+          - id: parallel-result
+            phrase: Run them together under ideal independent scheduling and the read phase waits for the slowest branch
+            targets:
+              - picture
+          - id: eval-two
+            phrase: two seconds for evaluation
+            targets:
+              - picture
+          - id: health-three
+            phrase: three for health
+            targets:
+              - picture
+          - id: policy-one
+            phrase: one for policy
+            targets:
+              - picture
+          - id: parallel-run
+            phrase: Run them together
+            targets:
+              - picture
+          - id: serial-reads
+            phrase: Run them serially and their durations add
+            targets:
+              - eval-read
+              - health-read
+              - policy-read
+            color: blue
+        hold: 2
+      - say: "The bars share one clock. Policy finishes first, then evaluation, then health. Merge still waits for health. With a half-second merge step, the packet is ready in three and a half seconds."
+        caption_starts:
+          - "Policy finishes first"
+          - "then evaluation"
+          - "then health"
+          - "Merge still waits for health"
+          - "With a half-second merge step"
+          - "the packet is ready"
+          - "three and a half seconds"
+        visual_cues:
+          - id: one-clock
+            phrase: The bars share one clock
+            targets:
+              - picture
+          - id: merge-waits
+            phrase: Merge still waits for health
+            targets:
+              - picture
+          - id: parallel-reads
+            phrase: Policy finishes first, then evaluation, then health
+            targets:
+              - policy-read
+              - eval-read
+              - health-read
+            color: cyan
+          - id: merge-overhead
+            phrase: With a half-second merge step
+            targets:
+              - merge-step
+            color: yellow
+          - id: parallel-total
+            phrase: three and a half seconds
+            targets:
+              - read-time-comparison
+            color: green
+          - id: health-answer
+            phrase: then health
+            caption_boundary: true
+            targets:
+              - picture
+        hold: 0.75
+      - say: "Six seconds of read work either way. The saving is time spent waiting. Dispatch overhead, rate limits, contention, and model queueing can eat into that saving. In a real run, measure wall time and total cost."
+        caption_starts:
+          - "The saving is"
+          - "Dispatch overhead"
+          - "and model queueing"
+          - "In a real run"
+        visual_cues:
+          - id: rate-limits
+            phrase: rate limits
+            targets:
+              - picture
+          - id: contention
+            phrase: contention
+            targets:
+              - picture
+          - id: queueing
+            phrase: model queueing
+            targets:
+              - picture
+          - id: measure-wall
+            phrase: measure wall time and total cost
+            targets:
+              - picture
+          - id: same-total-work
+            phrase: Six seconds of read work
+            targets:
+              - eval-read
+              - health-read
+              - policy-read
+            color: blue
+          - id: overhead
+            phrase: Dispatch overhead
+            targets:
+              - merge-step
+            color: yellow
+        hold: 0.55
+  - id: typed-receipts
+    title: Give each worker a narrow update contract
+    visual: Graph state enters the branch node. Its helper gets a copied request view, and the checked update carries only its own receipt. The merge compares the record with the request.
+    beats:
+      - say: "LangGraph gives each Python branch node the graph state. Look inside the evaluation node. It copies the request fields into a read-only view for its receipt helper. The helper gets the request identity, tenant, release, and expected revision. It uses the traffic target when it checks the source. Each node returns only its own receipt through a checked output wrapper. The evaluation branch supplies evaluation evidence. Its update cannot replace the approval field or quietly change the requested traffic amount."
+        caption_starts:
+          - "Look inside"
+          - "It copies the request"
+          - "The helper gets"
+          - "and expected revision"
+          - "It uses the traffic"
+          - "Each node returns"
+          - "The evaluation branch"
+          - "Its update cannot"
+          - "or quietly change"
+        visual_cues:
+          - id: eval-evidence
+            phrase: supplies evaluation evidence
+            targets:
+              - picture
+          - id: cannot-approval
+            phrase: cannot replace the approval field
+            targets:
+              - picture
+          - id: cannot-traffic
+            phrase: quietly change the requested traffic amount
+            targets:
+              - picture
+          - id: trusted-identity
+            phrase: the request identity, tenant, release, and expected revision
+            targets:
+              - receipt-identity
+            color: blue
+          - id: owned-branch-results
+            phrase: Each node returns only its own receipt
+            targets:
+              - owned-results
+            color: cyan
+          - id: node-state
+            phrase: each Python branch node the graph state
+            targets:
+              - picture
+          - id: copied-view
+            phrase: copies the request fields into a read-only view
+            targets:
+              - picture
+        hold: 0.55
+      - say: "The tenant field takes a string. Watch it change from tenant seven to tenant nine. The type still fits. The receipt names the wrong tenant. Compare the source record’s identity and revision against the request, then check its age. Replace the evaluation count with the word “passed.” The source digest no longer matches. The join rejects the claim. Here the join compares the tenant and revision with the ticket and uses the clock to check the age. The local registry supplies the counts we hash. Which tenant produced those counts? That field is missing from the registry. A release service needs an authenticated source record that names the tenant, revision and observation time."
+        caption_starts:
+          - "Watch it change"
+          - "The type still fits"
+          - "The receipt names"
+          - "Compare the source record’s"
+          - "then check its age"
+          - "Replace the evaluation count"
+          - "The source digest"
+          - "The join rejects"
+          - "Here the join"
+          - "and uses the clock"
+          - "The local registry"
+          - "Which tenant"
+          - "That field"
+          - "A release service"
+          - "that names the tenant"
+        visual_cues:
+          - id: types
+            phrase: "The tenant field takes a string"
+            targets:
+              - picture
+          - id: text-claim
+            phrase: "the word “passed”"
+            targets:
+              - picture
+          - id: stand-in
+            phrase: "The source digest no longer matches"
+            targets:
+              - picture
+          - id: field-ownership
+            phrase: "change from tenant seven to tenant nine"
+            targets:
+              - owned-results
+            color: yellow
+          - id: source-identity
+            phrase: the source record’s identity and revision against the request
+            targets:
+              - source-digest
+            color: green
+          - id: film-scope
+            phrase: "Here the join compares"
+            targets:
+              - picture
+          - id: registry-values
+            phrase: "The local registry supplies the counts we hash"
+            targets:
+              - picture
+          - id: authenticate-source
+            phrase: "an authenticated source record"
+            targets:
+              - picture
+          - id: fixture-trust
+            phrase: "That field is missing from the registry"
+            targets:
+              - picture
+        hold: 0.75
+      - say: Framework reducers specify how concurrent updates combine. Concatenating lists keeps duplicates and depends on the order of the reducer inputs. That order need not follow network completion. Sort the validated branch identities before constructing the packet. Two workers replacing a scalar can conflict. Choose an update rule deliberately, then validate the merged meaning instead of treating successful reduction as trustworthy agreement.
+        caption_starts:
+          - "how concurrent updates"
+          - "Concatenating lists keeps"
+          - "and depends on"
+          - "That order need"
+          - "Sort the validated"
+          - "before constructing the"
+          - "Two workers replacing a scalar"
+          - "can conflict"
+          - "Choose an update rule deliberately, then"
+          - "then validate the"
+          - "instead of treating"
+          - "as trustworthy agreement"
+        visual_cues:
+          - id: list-duplicates
+            phrase: Concatenating lists keeps duplicates
+            targets:
+              - picture
+          - id: reducer-order
+            phrase: the order of the reducer inputs
+            targets:
+              - picture
+          - id: choose-rule
+            phrase: Choose an update rule deliberately
+            targets:
+              - picture
+          - id: branch-ownership
+            phrase: concurrent updates combine
+            targets:
+              - branch-owners
+            color: cyan
+          - id: scalar-conflict
+            phrase: Two workers replacing a scalar can conflict
+            targets:
+              - scalar-write-collision
+            color: pink
+          - id: unique-owners
+            phrase: then validate the merged meaning instead of treating successful reduction as trustworthy agreement
+            targets:
+              - branch-ownership-rule
+              - unique-owner-resolution
+            color: yellow
+        hold: 0.55
+  - id: superstep-join
+    title: A scheduling barrier does not validate evidence
+    visual: A constructed scheduling probe records one partial and one complete merge for separate edges, then a single waiting-edge merge. It does not execute the release validator, which rejects missing evidence.
+    beats:
+      - say: "LangGraph plans a superstep and chooses which nodes to run. These three workers start from the same state. Watch their receipts collect at the barrier. When the workers finish, the runtime applies their updates together. The next step starts with all three receipts."
+        caption_starts:
+          - "These three workers"
+          - "Watch their receipts"
+          - "When the workers finish"
+          - "The next step starts"
+        hold: 1
+        visual_cues:
+          - id: executes
+            phrase: "These three workers start"
+            targets:
+              - picture
+          - id: applies
+            phrase: "applies their updates together"
+            targets:
+              - picture
+          - id: next-step
+            phrase: "The next step starts"
+            targets:
+              - picture
+          - id: superstep-join-construct-0
+            phrase: "plans a superstep"
+            targets:
+              - superstep-join-construction
+            color: yellow
+            linger: 0.6
+      - say: For a default scalar channel, one update replaces its value. Concurrent updates to that unreduced key raise an invalid-concurrent-graph-update error, even when the supplied values agree. A list-add reducer concatenates results; it is associative but not commutative, and it keeps duplicates. Adding an empty list leaves the saved receipts in place. For a new full attempt, start a fresh thread, use Overwrite to replace the saved list with an empty one, or use an attempt-aware reducer. When resuming the same failed attempt, keep the successful branches’ saved writes and retry the failed work.
+        caption_starts:
+          - "Concurrent updates to that unreduced key"
+          - "raise an invalid-concurrent-graph-update error"
+          - "even when the"
+          - "A list-add reducer"
+          - "it is associative"
+          - "and it keeps"
+          - "Adding an empty list leaves the"
+          - "For a new"
+          - "use Overwrite to"
+          - "or use an"
+          - "When resuming the"
+          - "keep the successful"
+          - "and retry the"
+        hold: 1
+        visual_cues:
+          - id: values-agree
+            phrase: even when the supplied values agree
+            targets:
+              - picture
+          - id: not-commutative
+            phrase: associative but not commutative
+            targets:
+              - picture
+          - id: keeps-duplicates
+            phrase: it keeps duplicates
+            targets:
+              - picture
+          - id: new-attempt
+            phrase: use Overwrite to replace the saved list with an empty one
+            targets:
+              - picture
+          - id: add-empty
+            phrase: Adding an empty list leaves the saved receipts in place
+            targets:
+              - picture
+          - id: resume-saved
+            phrase: keep the successful branches’ saved writes
+            targets:
+              - picture
+          - id: retry-failed-work
+            phrase: retry the failed work
+            targets:
+              - picture
+          - id: attempt-aware
+            phrase: attempt-aware reducer
+            targets:
+              - picture
+          - id: superstep-join-construct-1
+            phrase: For a default scalar channel, one update replaces
+            targets:
+              - superstep-join-construction
+            color: yellow
+            linger: 0.6
+          - id: scalar-update-error
+            phrase: Concurrent updates to that unreduced key raise an invalid-concurrent-graph-update error, even when the supplied values agree
+            targets:
+              - superstep-join-construction
+            color: yellow
+            linger: 0.5
+          - id: reducer-lists
+            phrase: A list-add reducer concatenates results
+            targets:
+              - superstep-join-construction
+            color: yellow
+            linger: 0.5
+      - say: "The article's separate scheduling probe only records which receipts reach merge. It does not validate a release proposal. When every required branch runs, one waiting edge from the list of evaluation, health and policy terminal nodes holds merge until all finish. Three separate edges are different: if health has an extra preparation step, evaluation and policy can trigger a partial merge, then health triggers another. A waiting edge naming an unselected branch never completes. For dynamic selected branches, deferred execution can wait for graph-wide pending work, and merge must still validate that selected set. With the real release validator, the partial merge raises for missing evidence and the invocation fails."
+        caption_starts:
+          - "only records which"
+          - "It does not"
+          - "When every required branch runs"
+          - "one waiting edge"
+          - "from the list"
+          - "holds merge until all finish"
+          - "Three separate edges are different: if"
+          - "if health has"
+          - "evaluation and policy"
+          - "trigger a partial merge"
+          - "then health triggers another"
+          - "A waiting edge naming an unselected branch"
+          - "never completes"
+          - "For dynamic selected branches, deferred execution"
+          - "deferred execution can"
+          - "for graph-wide pending"
+          - "and merge must"
+          - "With the real release validator"
+          - "raises for missing evidence"
+          - "the invocation fails"
+        hold: 1
+        visual_cues:
+          - id: three-edges
+            phrase: Three separate edges are different
+            targets:
+              - picture
+          - id: extra-step
+            phrase: an extra preparation step
+            targets:
+              - picture
+          - id: partial-merge
+            phrase: trigger a partial merge
+            targets:
+              - picture
+          - id: another-merge
+            phrase: then health triggers another
+            targets:
+              - picture
+          - id: unselected
+            phrase: A waiting edge naming an unselected branch never completes
+            targets:
+              - picture
+          - id: deferred
+            phrase: deferred execution can wait for graph-wide pending work
+            targets:
+              - picture
+          - id: validate-set
+            phrase: merge must still validate that selected set
+            targets:
+              - picture
+          - id: superstep-join-construct-2
+            phrase: When every required branch runs, one waiting edge from the list of evaluation, health and policy terminal nodes holds merge until all finish
+            targets:
+              - superstep-join-construction
+            color: yellow
+            linger: 0.6
+          - id: probe-only
+            phrase: The article's separate scheduling probe
+            targets:
+              - picture
+          - id: release-case
+            phrase: With the real release validator
+            targets:
+              - picture
+          - id: invocation-fails
+            phrase: the invocation fails
+            targets:
+              - picture
+          - id: release-validator
+            phrase: the partial merge raises for missing evidence
+            targets:
+              - picture
+      - say: "Runtime output ownership limits a read worker to its own receipt. Types describe the expected shape but do not authorize a write. A read-only mapping proxy is shallow: a nested list can still be mutated. A deep copy separates this fixture’s values, but neither is a hostile-code sandbox. Use trusted scope, credentials and isolation at the execution boundary."
+        caption_starts:
+          - "to its own"
+          - "Types describe the"
+          - "but do not"
+          - "A read-only mapping"
+          - "a nested list"
+          - "A deep copy"
+          - "but neither is"
+          - "Use trusted scope"
+          - "and isolation at"
+        hold: 1
+        visual_cues:
+          - id: types-not-auth
+            phrase: do not authorize a write
+            targets:
+              - picture
+          - id: proxy-shallow
+            phrase: A read-only mapping proxy is shallow
+            targets:
+              - picture
+          - id: nested-mutated
+            phrase: a nested list can still be mutated
+            targets:
+              - picture
+          - id: deep-copy
+            phrase: A deep copy separates this fixture’s values
+            targets:
+              - picture
+          - id: neither-sandbox
+            phrase: neither is a hostile-code sandbox
+            targets:
+              - picture
+          - id: boundary
+            phrase: trusted scope, credentials and isolation
+            targets:
+              - picture
+          - id: superstep-join-construct-3
+            phrase: Runtime output ownership limits a read worker to its own receipt
+            targets:
+              - superstep-join-construction
+            color: yellow
+            linger: 0.6
+  - id: validated-join
+    title: Wait for all results, then check what they mean
+    visual: All three workers finish. The join refuses a foreign tenant, orders a valid batch, canonicalizes its JSON, and checks the measured rates before sending the proposal for review.
+    beats:
+      - say: Pause before the merge. Evaluation and policy name the intended tenant, but health names another one. Every branch has finished and each receipt has the expected fields. Should the request proceed to an approval packet?
+        caption_starts:
+          - "Evaluation and policy"
+          - "but health names"
+          - "Every branch has"
+          - "and each receipt"
+        visual_cues:
+          - id: intended-tenant
+            phrase: Evaluation and policy name the intended tenant
+            targets:
+              - picture
+          - id: all-finished
+            phrase: Every branch has finished
+            targets:
+              - picture
+          - id: expected-fields
+            phrase: each receipt has the expected fields
+            targets:
+              - picture
+          - id: other-tenant
+            phrase: health names another one
+            targets:
+              - health-receipt
+            color: pink
+          - id: predict-join
+            phrase: Should the request proceed
+            caption_boundary: true
+            targets:
+              - join-decision
+            color: yellow
+        hold: 0.55
+      - say: "The scheduling barrier is satisfied, while the state contract fails. Reject the cross-tenant result. Also reject duplicate branches, missing required evidence, stale versions, or source mismatches. Now replace health with a receipt for the requested tenant. For a valid batch, sort the receipts by branch. The packet now has the same order whichever reply arrived first. Look inside evaluation. Swap the order of its two fields. The counts still mean the same thing. Before hashing, encode each object with its keys in a fixed order. This gives our records a canonical encoding. Now both copies give the same digest."
+        caption_starts:
+          - "Also reject duplicate"
+          - "missing required evidence"
+          - "or source mismatches"
+          - "Now replace health"
+          - "For a valid batch"
+          - "The packet now"
+          - "Look inside evaluation"
+          - "Swap the order"
+          - "The counts still"
+          - "Before hashing"
+          - "Now both copies"
+        visual_cues:
+          - id: barrier-ok
+            phrase: The scheduling barrier is satisfied
+            targets:
+              - picture
+          - id: contract-fails
+            phrase: while the state contract fails
+            caption_boundary: true
+            targets:
+              - picture
+          - id: reason-duplicate
+            phrase: duplicate branches
+            targets:
+              - picture
+          - id: reason-missing
+            phrase: missing required evidence
+            targets:
+              - picture
+          - id: reason-stale
+            phrase: stale versions
+            targets:
+              - picture
+          - id: reason-source
+            phrase: source mismatches
+            targets:
+              - picture
+          - id: arrived-first
+            phrase: whichever reply arrived first
+            caption_boundary: true
+            targets:
+              - picture
+          - id: reject-scope
+            phrase: Reject the cross-tenant result
+            caption_boundary: true
+            targets:
+              - health-receipt
+              - join-decision
+            color: pink
+          - id: valid-identities
+            phrase: sort the receipts by branch
+            targets:
+              - matching-receipts
+            color: green
+          - id: matching-receipts
+            phrase: replace health with a receipt for the requested tenant
+            targets:
+              - picture
+          - id: json-fields
+            phrase: Look inside evaluation
+            targets:
+              - picture
+          - id: swap-fields
+            phrase: Swap the order of its two fields
+            targets:
+              - picture
+          - id: canonical-fields
+            phrase: encode each object with its keys in a fixed order
+            targets:
+              - picture
+          - id: same-digest
+            phrase: both copies give the same digest
+            caption_boundary: true
+            targets:
+              - picture
+        hold: 0.75
+      - say: "With one matching receipt from each branch, Vega can check the numbers. Evaluation and health must meet their limits, and policy must allow the requested traffic. These fictional thresholds let us follow one decision all the way to the reviewer."
+        caption_starts:
+          - "With one matching"
+          - "Vega can check"
+          - "Evaluation and health"
+          - "and policy must"
+          - "These fictional thresholds"
+        visual_cues:
+          - id: rates-inside
+            phrase: Evaluation and health must meet their limits
+            targets:
+              - picture
+          - id: policy-allows
+            phrase: policy must allow the requested traffic
+            targets:
+              - picture
+          - id: fictional
+            phrase: These fictional thresholds
+            targets:
+              - picture
+          - id: numerical-rules
+            phrase: Vega can check the numbers
+            targets:
+              - release-checks
+            color: yellow
+        hold: 0.55
+      - say: "The evaluation found two regressions among one hundred cases, or two percent, below the three-percent limit. Four errors among ten thousand canary requests. That’s point zero four percent. Mark the point one-percent allowance on the same scale. That’s forty percent of the allowed error rate, or point four times the allowance. Policy caps traffic at twenty-five percent. The request is right at the cap. This proposal is ready for review. Traffic is still at zero. Also validate the requested percentage as an in-range integer. Try minus one. It passes a simple upper-bound-only comparison. Now the evaluation source changes from two regressions to one. Both rates pass. The reviewer would see different evidence, so the two packets require different proposal digests."
+        caption_starts:
+          - "among one hundred"
+          - "two percent"
+          - "Four errors among ten thousand canary requests"
+          - "That’s point"
+          - "point zero four percent"
+          - "Mark the"
+          - "That’s forty percent"
+          - "point four times"
+          - "Policy caps traffic"
+          - "The request is right at the cap"
+          - "This proposal is ready"
+          - "Traffic is still"
+          - "Also validate the requested percentage as"
+          - "as an in-range"
+          - "minus one"
+          - "It passes"
+          - "passes a simple upper-bound-only comparison"
+          - "Now the evaluation"
+          - "Both rates pass"
+          - "The reviewer would"
+          - "require different proposal digests"
+        visual_cues:
+          - id: eval-limit
+            phrase: three-percent limit
+            targets:
+              - picture
+          - id: health-count
+            phrase: Four errors among ten thousand canary requests
+            targets:
+              - picture
+          - id: health-allowance
+            phrase: point one-percent allowance
+            targets:
+              - picture
+          - id: policy-cap
+            phrase: Policy caps traffic at twenty-five percent
+            targets:
+              - picture
+          - id: in-range
+            phrase: Also validate the requested percentage as an in-range integer
+            targets:
+              - picture
+          - id: minus-one
+            phrase: passes a simple upper-bound-only comparison
+            targets:
+              - picture
+          - id: digests
+            phrase: different proposal digests
+            targets:
+              - picture
+          - id: source-refresh
+            phrase: "the evaluation source changes"
+            targets:
+              - picture
+          - id: thresholds-still-pass
+            phrase: "Both rates pass"
+            targets:
+              - picture
+          - id: validated-join-construct-3
+            phrase: "The evaluation found two regressions among one hundred cases"
+            targets:
+              - validated-join-construction
+            color: yellow
+            linger: 0.6
+          - id: join-eval-rate
+            phrase: two percent
+            targets:
+              - validated-join-construction
+            color: yellow
+            linger: 0.5
+          - id: join-health-rate
+            phrase: point zero four percent
+            targets:
+              - validated-join-construction
+            color: yellow
+            linger: 0.5
+          - id: burn-share
+            phrase: That’s forty percent of the allowed error rate
+            caption_boundary: true
+            targets:
+              - picture
+          - id: ready-review
+            phrase: This proposal is ready for review
+            targets:
+              - picture
+          - id: negative-reset
+            phrase: Try minus one
+            targets:
+              - picture
+        hold: 1
+  - id: checkpoint-retry
+    title: Resume from a meaningful state
+    visual: An integration sketch uses a configured checkpointer to retain successful writes. A supplied host clock changes receipt age from 10 to 210 seconds against the film model’s 60-second limit.
+    beats:
+      - say: With a configured checkpointer, a checkpoint stores enough workflow state to resume a particular thread after interruption. When health times out, completed evaluation and policy work may already be saved. A bounded retry can refresh the failed read without pretending the whole workflow never started. The earlier read DAG has no checkpointer; this picture sketches that integration.
+        caption_starts:
+          - "a checkpoint stores"
+          - "to resume a"
+          - "When health times"
+          - "completed evaluation and"
+          - "A bounded retry"
+          - "without pretending the"
+          - "The earlier read"
+          - "this picture sketches"
+        visual_cues:
+          - id: cp-stores
+            phrase: a checkpoint stores enough workflow state
+            targets:
+              - picture
+          - id: health-timeout
+            phrase: When health times out
+            targets:
+              - picture
+          - id: not-restart
+            phrase: without pretending the whole workflow never started
+            targets:
+              - picture
+          - id: saved-results
+            phrase: completed evaluation and policy work may already be saved
+            targets:
+              - saved-checkpoint
+            color: blue
+          - id: retry-health-read
+            phrase: A bounded retry can refresh the failed read
+            targets:
+              - health-retry
+              - receipt-freshness
+            color: yellow
+        hold: 0.55
+      - say: Persistence is a separate contract from external effects. Re-entering a node can execute code again, including work before an interrupt. Keep retryable operations explicit, and make side effects repeat safe using the destination's supported contract or reconciliation procedure.
+        caption_starts:
+          - "from external effects"
+          - "Re-entering a node"
+          - "including work before"
+          - "Keep retryable operations"
+          - "and make side"
+          - "using the destination's"
+          - "or reconciliation procedure"
+        visual_cues:
+          - id: re-enter
+            phrase: Re-entering a node can execute code again
+            targets:
+              - picture
+          - id: retryable-explicit
+            phrase: Keep retryable operations explicit
+            targets:
+              - picture
+          - id: persistent-checkpoint
+            phrase: Persistence is a separate contract from external effects
+            targets:
+              - saved-checkpoint
+            color: blue
+          - id: repeat-safe-retry
+            phrase: make side effects repeat safe using the destination's supported contract or reconciliation procedure
+            targets:
+              - health-retry
+            color: yellow
+        hold: 0.75
+      - say: "Authorize access to the thread and its checkpoint data. A thread identifier selects stored state; possession of that identifier does not grant permission to inspect or resume it. After a long pause, supply current time from a trusted host. Recheck freshness after a long pause because previously valid receipts may have aged out. The film supplies the clock value: receipt age changes from ten to two hundred ten seconds, beyond its sixty-second limit. The article's separate merge uses a three-hundred-second limit."
+        caption_starts:
+          - "A thread identifier"
+          - "possession of that"
+          - "to inspect or"
+          - "After a long pause, supply"
+          - "from a trusted"
+          - "Recheck freshness after"
+          - "because previously valid"
+          - "The film supplies"
+          - "receipt age changes"
+          - "two hundred ten"
+          - "beyond its sixty-second limit"
+          - "The article's separate"
+        visual_cues:
+          - id: thread-selects
+            phrase: A thread identifier selects stored state
+            targets:
+              - picture
+          - id: no-permission
+            phrase: does not grant permission
+            targets:
+              - picture
+          - id: measured-age
+            phrase: receipt age changes from ten to two hundred ten seconds
+            targets:
+              - picture
+          - id: film-expiry
+            phrase: beyond its sixty-second limit
+            targets:
+              - picture
+          - id: checkpoint-access
+            phrase: Authorize access to the thread and its checkpoint data
+            targets:
+              - saved-checkpoint
+            color: blue
+          - id: recheck-age
+            phrase: Recheck freshness after a long pause
+            targets:
+              - receipt-freshness
+            color: yellow
+          - id: article-limit
+            phrase: The article's separate merge uses a three-hundred-second limit
+            targets:
+              - picture
+          - id: host-now
+            phrase: supply current time from a trusted host
+            targets:
+              - picture
+        hold: 0.55
+      - say: "A metrics read times out. It’s safe to repeat this read. Back off with jitter and stop at the deadline or retry limit. A release lookup comes back “not found.” Check the alias or ask for review. Reviewer rejection routes to cancel. What if the writer times out? The destination may already have changed traffic. Look up the operation there and use the same key for any replay it supports. Follow the outcome back to the component that recorded it."
+        caption_starts:
+          - "It’s safe"
+          - "Back off"
+          - "A release lookup"
+          - "Check the alias"
+          - "Reviewer rejection"
+          - "What if the writer"
+          - "The destination may"
+          - "Look up the operation"
+          - "and use the same key"
+          - "Follow the outcome"
+        hold: 1
+        visual_cues:
+          - id: writer-recovery
+            phrase: "use the same key for any replay it supports"
+            targets:
+              - picture
+          - id: identity-recovery
+            phrase: "Check the alias or ask for review"
+            targets:
+              - picture
+          - id: read-recovery
+            phrase: "Back off with jitter and stop at the deadline or retry limit"
+            targets:
+              - picture
+          - id: wrong-identity
+            phrase: "A release lookup comes back"
+            targets:
+              - picture
+          - id: reviewer-rejects
+            phrase: Reviewer rejection routes to cancel
+            targets:
+              - picture
+          - id: writer-timeout
+            phrase: "What if the writer times out"
+            targets:
+              - picture
+          - id: different-semantics
+            phrase: "Follow the outcome back"
+            targets:
+              - picture
+          - id: checkpoint-retry-construct-3
+            phrase: "A metrics read times out"
+            targets:
+              - checkpoint-retry-construction
+            color: yellow
+            linger: 0.6
+  - id: single-writer
+    title: Bind approval to one exact proposal
+    visual: The fixture matches a digest-only proposal and supplied approval and live revision. Explicitly assumed v4 evidence is supplied as example inputs, then a simulated effect replays from memory. Production requirements remain a separate diagram.
+    beats:
+      - say: "The validated merge creates a concrete proposal: this release, this revision, this traffic amount, and a digest of the validated receipts. For a new write, the example requires an approval marked true. Its tenant, request, release, revision, traffic amount and evidence digest must match that exact packet. Changing the proposal creates a different decision to review. The film packet returns the digest without explicit source references. In production, retain the reviewed evidence and its resolvable source references."
+        caption_starts:
+          - "this release, this"
+          - "and a digest"
+          - "For a new"
+          - "an approval marked"
+          - "Its tenant, request"
+          - "traffic amount and evidence"
+          - "must match that"
+          - "Changing the proposal"
+          - "a different decision"
+          - "The film packet"
+          - "without explicit source"
+          - "In production, retain"
+          - "and its resolvable"
+        visual_cues:
+          - id: merge-creates
+            phrase: The validated merge creates a concrete proposal
+            targets:
+              - picture
+          - id: evidence-digest
+            phrase: a digest of the validated receipts
+            targets:
+              - picture
+          - id: different-decision
+            phrase: Changing the proposal creates a different decision to review
+            targets:
+              - picture
+          - id: concrete-proposal
+            phrase: this release, this revision, this traffic amount
+            targets:
+              - exact-proposal
+            color: blue
+          - id: exact-approval
+            phrase: Its tenant, request, release, revision, traffic amount and evidence digest must match that exact packet
+            targets:
+              - proposal-approval
+            color: yellow
+        hold: 0.55
+      - say: "The reviewer approved version three. Before a new write, the writer compares the supplied live release revision with the approved one. Watch the live revision change to four. The stamp still says three. Stop and rebuild the evidence and proposal, then obtain fresh approval. For a live rollout, fetch the current revision and verify the evidence before applying the change."
+        caption_starts:
+          - "Before a new write"
+          - "with the approved one"
+          - "Watch the live revision"
+          - "The stamp still"
+          - "Stop and rebuild"
+          - "then obtain fresh approval"
+          - "For a live rollout"
+          - "and verify the evidence"
+        visual_cues:
+          - id: old-packet
+            phrase: "The stamp still says three"
+            targets:
+              - picture
+          - id: rebuild
+            phrase: Stop and rebuild the evidence and proposal
+            targets:
+              - picture
+          - id: writer-rechecks
+            phrase: compares the supplied live release revision
+            targets:
+              - guarded-writer
+            color: cyan
+          - id: live-revision-change
+            phrase: "live revision change to four"
+            targets:
+              - live-revision-check
+            color: pink
+        hold: 0.75
+      - say: "For this write, assume fresh evidence for version four. We supply three receipts with the same counts and policy cap as before. A fresh approval names the new revision. The target records one effect. Now the writer loses its reply. Keep the operation key. The writer can ask the target about that key and return the earlier result. The change count stays at one. This target keeps the entry in memory. To recover after a crash, the destination needs a durable record or another way to look up the change."
+        caption_starts:
+          - "We supply three receipts"
+          - "A fresh approval"
+          - "The target records"
+          - "one effect"
+          - "Now the writer"
+          - "Keep the operation key"
+          - "The writer can ask"
+          - "return the earlier result"
+          - "The change count"
+          - "This target keeps"
+          - "To recover"
+          - "or another way"
+        visual_cues:
+          - id: first-effect
+            phrase: "The target records one effect"
+            targets:
+              - picture
+          - id: preserve-identity
+            phrase: "Keep the operation key"
+            targets:
+              - picture
+          - id: fresh-approval
+            phrase: A fresh approval names the new revision
+            targets:
+              - proposal-approval
+            color: green
+          - id: write-reply-lost
+            phrase: "the writer loses its reply"
+            targets:
+              - operation-receipt
+            color: yellow
+          - id: reconcile-operation
+            phrase: "return the earlier result"
+            targets:
+              - effect-reconciliation
+            color: green
+          - id: assumed-v4
+            phrase: "assume fresh evidence for version four"
+            targets:
+              - picture
+          - id: supplied-v4
+            phrase: "We supply three receipts with the same counts and policy cap as before"
+            targets:
+              - picture
+        hold: 0.55
+      - say: In production, authenticate the reviewer and writer, and bind the approval to the exact packet, policy revision and expiry. Before a new effect, recheck current permissions, policy, expiry and independent live dependencies. Use the target’s atomic preconditions and record the operation durably with the effect. Authorize access to saved results as well. In this example, the target looks up the key in memory and compares the packet fingerprint. This lookup comes before new-write approval and revision checks. Reusing the key for a different packet is rejected. An exact replay can return the original result while the entry is in memory.
+        caption_starts:
+          - "and bind the"
+          - "policy revision and"
+          - "Before a new"
+          - "recheck current permissions"
+          - "and independent live"
+          - "Use the target’s"
+          - "and record the"
+          - "Authorize access to"
+          - "In this example"
+          - "and compares the"
+          - "This lookup comes"
+          - "and revision checks"
+          - "Reusing the key"
+          - "An exact replay"
+          - "while the entry"
+        hold: 1
+        visual_cues:
+          - id: recheck-deps
+            phrase: recheck current permissions, policy, expiry and independent live dependencies
+            targets:
+              - picture
+          - id: atomic
+            phrase: Use the target’s atomic preconditions and record the operation durably with the effect
+            targets:
+              - picture
+          - id: volatile
+            phrase: the target looks up the key in memory
+            targets:
+              - picture
+          - id: key-reuse
+            phrase: Reusing the key for a different packet is rejected
+            targets:
+              - picture
+          - id: exact-replay
+            phrase: An exact replay can return the original result while the entry is in memory
+            targets:
+              - picture
+          - id: single-writer-construct-3
+            phrase: In production, authenticate the reviewer
+            targets:
+              - single-writer-construction
+            color: yellow
+            linger: 0.6
+          - id: bind-expiry
+            phrase: and expiry
+            targets:
+              - picture
+          - id: recheck-policy
+            phrase: Before a new effect, recheck current permissions, policy, expiry and independent live dependencies
+            targets:
+              - picture
+          - id: recheck-expiry
+            phrase: expiry and independent live dependencies
+            targets:
+              - picture
+          - id: policy-and-expiry
+            phrase: bind the approval to the exact packet, policy revision and expiry
+            targets:
+              - picture
+  - id: topology-ownership
+    title: Who keeps the conversation when work returns?
+    visual: A question and verdict travel while Vega holds the conversation. A handoff moves control within one run. A separate application choice routes the operator’s next message.
+    beats:
+      - say: A graph workflow makes dependencies, reducers and gates explicit. It can include loops or generated workers, so it is not inherently a DAG. A supervisor retains conversation ownership while specialists return bounded results. A handoff moves active control to the receiver, with application-configured history. A selected-speaker group chat is a different routing mechanism.
+        caption_starts:
+          - "reducers and gates"
+          - "It can include"
+          - "so it is"
+          - "A supervisor retains conversation ownership"
+          - "while specialists return"
+          - "A handoff moves active control"
+          - "with application-configured history"
+          - "A selected-speaker group chat is a"
+          - "is a different"
+        hold: 1
+        visual_cues:
+          - id: not-dag
+            phrase: It can include loops or generated workers
+            targets:
+              - picture
+          - id: supervisor
+            phrase: A supervisor retains conversation ownership
+            targets:
+              - picture
+          - id: handoff-moves
+            phrase: A handoff moves active control to the receiver
+            targets:
+              - picture
+          - id: configured-history
+            phrase: application-configured history
+            targets:
+              - picture
+          - id: group-chat
+            phrase: A selected-speaker group chat
+            targets:
+              - picture
+          - id: topology-ownership-construct-0
+            phrase: A graph workflow makes dependencies, reducers and gates
+            targets:
+              - topology-ownership-construction
+            color: yellow
+            linger: 0.6
+      - say: "Vega wants one answer. Is the canary healthy? Who should get the operator’s next message? For this case, call the health specialist as a tool and keep the manager’s conversation. If triage should give the release specialist control of this run, use a handoff. For the next message, the application chooses who starts the next run. Start it with the release specialist to carry on there. Bound inputs, outputs, turns and spend in either case. A hierarchy adds coordinator layers. Watch how far that same question travels now. Vega asks the coordinator, who asks health. The verdict comes back through the coordinator to Vega. Every extra hop can cost time or lose part of the request. In a real run, measure those costs."
+        caption_starts:
+          - "Is the canary healthy"
+          - "Who should get"
+          - "For this case"
+          - "call the health specialist"
+          - "tool and"
+          - "keep the manager’s conversation"
+          - "If triage should"
+          - "use a handoff"
+          - "For the next message"
+          - "Start it with"
+          - "Bound inputs"
+          - "A hierarchy adds coordinator layers"
+          - "Watch how far"
+          - "Vega asks the coordinator"
+          - "who asks health"
+          - "The verdict comes back"
+          - "through the coordinator"
+          - "Every extra hop"
+          - "In a real run"
+        visual_cues:
+          - id: bound-all
+            phrase: Bound inputs, outputs, turns and spend
+            targets:
+              - picture
+          - id: hierarchy
+            phrase: A hierarchy adds coordinator layers
+            targets:
+              - picture
+          - id: measure-costs
+            phrase: measure those costs
+            targets:
+              - picture
+          - id: topology-ownership-construct-1
+            phrase: Vega wants one answer
+            targets:
+              - topology-ownership-construction
+            color: yellow
+            linger: 0.6
+          - id: bounded-tool-call
+            phrase: call the health specialist as a tool and keep the manager’s conversation
+            targets:
+              - picture
+          - id: name-tool
+            phrase: tool and keep
+            targets:
+              - picture
+          - id: release-triage
+            phrase: If triage should give the release specialist control of this run
+            targets:
+              - picture
+          - id: handoff-active-control
+            phrase: use a handoff
+            targets:
+              - topology-ownership-construction
+            color: yellow
+            linger: 0.5
+          - id: next-run
+            phrase: the application chooses who starts the next run
+            targets:
+              - picture
+          - id: start-specialist
+            phrase: Start it with the release specialist
+            targets:
+              - picture
+          - id: replay-hops
+            phrase: Watch how far that same question travels now
+            targets:
+              - picture
+          - id: ask-coordinator
+            phrase: Vega asks the coordinator
+            targets:
+              - picture
+          - id: ask-health
+            phrase: who asks health
+            targets:
+              - picture
+          - id: return-verdict
+            phrase: The verdict comes back
+            targets:
+              - picture
+          - id: return-vega
+            phrase: through the coordinator to Vega
+            targets:
+              - picture
+        hold: 1
+      - say: Transferred history remains untrusted evidence. Rebuild receiver tools from trusted application policy rather than inheriting sender capabilities from text. In a handoff SDK, validating generated arguments is distinct from filtering history. An enablement check before arguments exist cannot decide argument-specific access; validate that access at the actual transfer boundary and raise on denial. Tool guardrails do not automatically cover handoffs.
+        caption_starts:
+          - "Rebuild receiver tools"
+          - "from trusted application"
+          - "rather than inheriting"
+          - "In a handoff"
+          - "validating generated arguments"
+          - "is distinct from"
+          - "An enablement check"
+          - "cannot decide argument-specific"
+          - "validate that access"
+          - "and raise on"
+          - "Tool guardrails do"
+        hold: 1
+        visual_cues:
+          - id: rebuild-tools
+            phrase: from trusted application policy
+            targets:
+              - picture
+          - id: two-checks
+            phrase: validating generated arguments is distinct from filtering history
+            targets:
+              - picture
+          - id: enablement
+            phrase: An enablement check before arguments exist
+            targets:
+              - picture
+          - id: transfer-boundary
+            phrase: validate that access at the actual transfer boundary and raise on denial
+            targets:
+              - picture
+          - id: guardrails
+            phrase: Tool guardrails do not automatically cover handoffs
+            targets:
+              - picture
+          - id: topology-ownership-construct-2
+            phrase: Transferred history remains untrusted evidence. Rebuild receiver tools
+            targets:
+              - topology-ownership-construction
+            color: yellow
+            linger: 0.6
+      - say: Framework names and interfaces evolve. A migration between graph or conversation systems can change routing and typed-message contracts rather than merely imports. Pin and test the framework you actually execute. Instructions saying a worker is read-only express intent; removing write credentials and tools enforces that boundary.
+        caption_starts:
+          - "A migration between"
+          - "can change routing"
+          - "rather than merely"
+          - "Pin and test"
+          - "Instructions saying a"
+          - "express intent; removing"
+          - "removing write credentials"
+          - "enforces that boundary"
+        hold: 1
+        visual_cues:
+          - id: migration
+            phrase: can change routing
+            targets:
+              - picture
+          - id: pin-test
+            phrase: Pin and test the framework
+            targets:
+              - picture
+          - id: read-only-intent
+            phrase: Instructions saying a worker is read-only express intent
+            targets:
+              - picture
+          - id: enforces
+            phrase: removing write credentials and tools enforces that boundary
+            targets:
+              - picture
+          - id: topology-ownership-construct-3
+            phrase: Framework names and interfaces evolve. A migration between
+            targets:
+              - topology-ownership-construction
+            color: yellow
+            linger: 0.6
+  - id: wire-protocols
+    title: A capability call and an independent agent task
+    visual: The same request ID follows a capability invocation or a remote specialist’s message/task and artifact lifecycle; both end at an unchanged authorization gate.
+    beats:
+      - say: A workflow framework owns scheduling and state. A wire protocol defines an interoperable boundary it can call. Either can cross processes. Model Context Protocol exposes tools, resources and prompts from a capability server to a model host. An agent-to-agent protocol exposes an independent agent with discovery, messages and task operations.
+        caption_starts:
+          - "A wire protocol"
+          - "an interoperable boundary"
+          - "Either can cross"
+          - "Model Context Protocol"
+          - "tools, resources and"
+          - "from a capability"
+          - "An agent-to-agent protocol"
+          - "an independent agent"
+          - "with discovery, messages"
+        hold: 1
+        visual_cues:
+          - id: wire-boundary
+            phrase: A wire protocol defines an interoperable boundary
+            targets:
+              - picture
+          - id: cross-processes
+            phrase: Either can cross processes
+            targets:
+              - picture
+          - id: mcp
+            phrase: Model Context Protocol exposes tools, resources and prompts
+            targets:
+              - picture
+          - id: a2a
+            phrase: An agent-to-agent protocol exposes an independent agent
+            targets:
+              - picture
+          - id: wire-protocols-construct-0
+            phrase: A workflow framework owns scheduling and state. A
+            targets:
+              - wire-protocols-construction
+            color: yellow
+            linger: 0.6
+      - say: Both can represent long-running work, so duration does not choose the protocol. A deployment lookup API fits a capability tool. An independent vendor investigator with its own task identity, progress and outputs fits an agent message or task. A direct message need not create an asynchronous task; streaming and push updates depend on supported capabilities.
+        caption_starts:
+          - "so duration does"
+          - "A deployment lookup"
+          - "An independent vendor"
+          - "with its own"
+          - "fits an agent"
+          - "A direct message"
+          - "an asynchronous task"
+          - "streaming and push"
+          - "on supported capabilities"
+        hold: 1
+        visual_cues:
+          - id: lookup-tool
+            phrase: A deployment lookup API fits a capability tool
+            targets:
+              - picture
+          - id: vendor-task
+            phrase: An independent vendor investigator
+            targets:
+              - picture
+          - id: task-progress
+            phrase: its own task identity, progress and outputs
+            targets:
+              - picture
+          - id: direct-message
+            phrase: A direct message need not create an asynchronous task
+            targets:
+              - picture
+          - id: streaming
+            phrase: streaming and push updates
+            targets:
+              - picture
+          - id: wire-protocols-construct-1
+            phrase: Both can represent long-running work, so duration does
+            targets:
+              - wire-protocols-construction
+            color: yellow
+            linger: 0.6
+      - say: "The vendor marks the task complete and attaches the evaluation receipt as an artifact. How old is the observation? Two hundred ten seconds. Vega accepts receipts up to sixty seconds old. The join sends this one back. Save the artifact if the reviewer will need it later. The transcript asks for a traffic shift. That request stops at the writer. Credentials and application policy determine who can make the change. Vega’s policy requires a person to approve this rollout."
+        caption_starts:
+          - "and attaches the evaluation"
+          - "How old"
+          - "Two hundred ten seconds"
+          - "Vega accepts"
+          - "The join sends"
+          - "Save the artifact"
+          - "The transcript asks"
+          - "That request stops"
+          - "Credentials and application policy"
+          - "Vega’s policy requires"
+        hold: 1
+        visual_cues:
+          - id: receipt-age
+            phrase: Two hundred ten seconds
+            targets:
+              - picture
+          - id: completed-not-proof
+            phrase: "Vega accepts receipts up to sixty seconds old"
+            targets:
+              - picture
+          - id: no-authority
+            phrase: "That request stops at the writer"
+            targets:
+              - picture
+          - id: credentials-policy
+            phrase: "Credentials and application policy"
+            targets:
+              - picture
+          - id: human-review
+            phrase: "Vega’s policy requires a person"
+            targets:
+              - picture
+          - id: wire-protocols-construct-2
+            phrase: "The vendor marks the task complete"
+            targets:
+              - wire-protocols-construction
+            color: yellow
+            linger: 0.6
+  - id: transfer
+    title: Three receipts. Can Vega proceed?
+    visual: A v3/v4/v3 batch reaches one barrier twice. The target revision determines which owners must refresh evidence. Vega waits for review while a separately approved fixture replays one write.
+    beats:
+      - say: "Give all three workers the same release ticket. With stable inputs, each can read while the others work. When the receipts return, the join checks them against that one ticket. Now try splitting three edits that build on one another. The second editor needs the first editor’s result. Starting earlier just means waiting for it."
+        caption_starts:
+          - "With stable inputs"
+          - "When the receipts return"
+          - "Now try splitting"
+          - "The second editor"
+          - "Starting earlier"
+        visual_cues:
+          - id: coupled-steps
+            phrase: three edits that build on one another
+            targets:
+              - picture
+          - id: no-overlap
+            phrase: Starting earlier just means waiting for it
+            targets:
+              - picture
+          - id: stable-inputs
+            phrase: With stable inputs
+            targets:
+              - independent-reads
+            color: blue
+          - id: validation-result
+            phrase: the join checks them against that one ticket
+            targets:
+              - validated-state
+            color: green
+          - id: transfer-construct-0
+            phrase: Give all three workers the same release ticket
+            targets:
+              - transfer-construction
+            color: yellow
+            linger: 0.6
+        hold: 0.55
+      - say: "Trace evaluation back to its inputs. The worker may read this release and return its own receipt. The join checks which release the workers actually read. Now follow the packet down to the writer. A new write needs current policy and approval for this exact packet. If the writer loses a reply, it must reconcile the same operation at the destination. While Vega waits for a reviewer, the live gauge stays at zero."
+        caption_starts:
+          - "The worker may read"
+          - "and return its own receipt"
+          - "The join checks"
+          - "Now follow the packet"
+          - "A new write needs"
+          - "and approval for"
+          - "If the writer loses"
+          - "it must reconcile"
+          - "While Vega waits"
+          - "the live gauge"
+        visual_cues:
+          - id: effect-result
+            phrase: reconcile the same operation at the destination
+            targets:
+              - picture
+          - id: ask-read
+            phrase: may read this release
+            targets:
+              - picture
+          - id: ask-update
+            phrase: return its own receipt
+            targets:
+              - picture
+          - id: current-policy
+            phrase: current policy
+            targets:
+              - picture
+          - id: exact-approval
+            phrase: approval for this exact packet
+            targets:
+              - picture
+          - id: repeat-safe
+            phrase: If the writer loses a reply
+            targets:
+              - picture
+          - id: verify-state
+            phrase: the live gauge stays at zero
+            targets:
+              - picture
+          - id: branch-contract
+            phrase: which release the workers actually read
+            targets:
+              - validated-state
+            color: cyan
+          - id: effect-boundary
+            phrase: follow the packet down to the writer
+            targets:
+              - guarded-writer
+            color: yellow
+          - id: transfer-construct-1
+            phrase: Trace evaluation back to its inputs
+            targets:
+              - transfer-construction
+            color: yellow
+            linger: 0.6
+        hold: 0.75
+      - say: "Get the board ready for a new batch. The last lamp tells the join when it can start. Each receipt carries the revision its worker checked. If a receipt needs replacing, the worker must go back to its source. Keep your eye on those revisions."
+        caption_starts:
+          - "The last lamp"
+          - "Each receipt carries"
+          - "If a receipt needs replacing"
+          - "Keep your eye"
+        visual_cues:
+          - id: arrow-readiness
+            phrase: The last lamp tells the join when it can start
+            targets:
+              - picture
+          - id: receipt-identity
+            phrase: the revision its worker checked
+            targets:
+              - validated-state
+            color: blue
+          - id: recovery-meaning
+            phrase: the worker must go back to its source
+            targets:
+              - guarded-writer
+            color: green
+          - id: transfer-construct-2
+            phrase: Get the board ready for a new batch
+            targets:
+              - transfer-construction
+            color: yellow
+            linger: 0.6
+        hold: 0.55
+      - say: "A new batch returns evaluation revision three, health revision four and policy revision three. All three report success. Predict the owner of the repair. The join rejects the mixed release revision. Before choosing a repair, get the intended revision from trusted release state. For this example, assume the target is still revision three and fresh health evidence for that revision is available. Refresh the health receipt. Compare every receipt’s digest with the digest recomputed from its trusted source, then recheck revision and freshness before creating a packet. If the target has moved to revision four, look again. Which two receipts belong to the old target? We need to refresh evaluation and policy, revalidate all three receipts, and rebuild the proposal for fresh review. If health instead returns twice under one identity, reject the duplicate rather than counting it as more evidence. The final writer remains unchanged until a valid current packet and its required review exist."
+        caption_starts:
+          - "evaluation revision three"
+          - "and policy revision"
+          - "All three report"
+          - "Before choosing a repair"
+          - "get the intended revision"
+          - "the target is"
+          - "and fresh health"
+          - "for that revision"
+          - "with the digest"
+          - "then recheck revision"
+          - "before creating a"
+          - "look again"
+          - "Which two receipts"
+          - "We need to"
+          - "refresh evaluation and policy"
+          - "rebuild the proposal for fresh review"
+          - "rather than counting"
+          - "until a valid"
+          - "and its required"
+        visual_cues:
+          - id: batch-health
+            phrase: health revision four
+            targets:
+              - picture
+          - id: batch-policy
+            phrase: policy revision three
+            targets:
+              - picture
+          - id: all-success
+            phrase: All three report success
+            targets:
+              - picture
+          - id: predict-owner
+            phrase: Predict the owner of the repair
+            caption_boundary: true
+            targets:
+              - picture
+          - id: revision-three-repair
+            phrase: For this example, assume the target is still revision three and fresh health evidence for that revision is available. Refresh the health receipt.
+            caption_boundary: true
+            targets:
+              - picture
+          - id: refresh-branch
+            phrase: Refresh the health receipt
+            caption_boundary: true
+            targets:
+              - picture
+          - id: revalidate
+            phrase: Compare every receipt’s digest with the digest recomputed from its trusted source
+            caption_boundary: true
+            targets:
+              - picture
+          - id: trusted-target
+            phrase: get the intended revision from trusted release state
+            targets:
+              - picture
+          - id: alternate-target
+            phrase: If the target has moved to revision four
+            caption_boundary: true
+            targets:
+              - picture
+          - id: refresh-v4-inputs
+            phrase: refresh evaluation and policy
+            caption_boundary: true
+            targets:
+              - picture
+          - id: validate-v4-inputs
+            phrase: revalidate all three receipts
+            caption_boundary: true
+            targets:
+              - picture
+          - id: check-scope-and-age
+            phrase: then recheck revision and freshness before creating a packet
+            targets:
+              - picture
+          - id: rebuild-review
+            phrase: rebuild the proposal for fresh review
+            targets:
+              - picture
+          - id: writer-unchanged
+            phrase: The final writer remains unchanged
+            caption_boundary: true
+            targets:
+              - picture
+          - id: transfer-construct-3
+            phrase: A new batch returns evaluation revision three, health
+            targets:
+              - transfer-construction
+            color: yellow
+            linger: 0.6
+          - id: fresh-revision-rejection
+            phrase: The join rejects the mixed release revision
+            caption_boundary: true
+            targets:
+              - transfer-construction
+            color: yellow
+            linger: 0.5
+          - id: fresh-duplicate-rejection
+            phrase: reject the duplicate
+            caption_boundary: true
+            targets:
+              - transfer-construction
+            color: yellow
+            linger: 0.5
+          - id: fresh-duplicate-input
+            phrase: If health instead returns twice under one identity
+            caption_boundary: true
+            targets:
+              - transfer-construction
+            color: cyan
+            linger: 0.4
+          - id: inspect-v4
+            phrase: Which two receipts belong to the old target
+            targets:
+              - picture
+        hold: 1.7
+      - say: "Leave Vega’s packet there, awaiting review. Now test a separate writer. This fixture supplies approval for its own version-four packet. The first call records a change, but its reply gets lost. Send the same operation again. Watch the change ID and the effect count. The target returns the original change. One effect in the fixture. Still zero traffic on Vega’s release. In the capstone, draft from policy evidence, save the exact review packet, and try a lost reply against the local writer."
+        caption_starts:
+          - "Now test a separate writer"
+          - "This fixture supplies"
+          - "The first call"
+          - "but its reply"
+          - "Send the same operation"
+          - "Watch the change"
+          - "The target returns"
+          - "One effect"
+          - "Still zero traffic"
+          - "In the capstone"
+        visual_cues:
+          - id: await-review
+            phrase: awaiting review
+            targets:
+              - picture
+          - id: fixture-writer
+            phrase: Now test a separate writer
+            targets:
+              - picture
+          - id: fixture-approval
+            phrase: supplies approval for its own version-four packet
+            targets:
+              - picture
+          - id: first-call
+            phrase: The first call records a change
+            targets:
+              - picture
+          - id: lost-reply
+            phrase: its reply gets lost
+            targets:
+              - picture
+          - id: replay-call
+            phrase: Send the same operation again
+            targets:
+              - picture
+          - id: replay-result
+            phrase: The target returns the original change
+            caption_boundary: true
+            targets:
+              - picture
+          - id: live-zero
+            phrase: Still zero traffic on Vega’s release
+            targets:
+              - picture
+          - id: capstone-practice
+            phrase: save the exact review packet
+            targets:
+              - picture
+        hold: 2.7

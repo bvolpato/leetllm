@@ -1,0 +1,359 @@
+version: 1
+lesson: safety-guardrails
+promise: Decide which text the caller can see, which data can leave the host, and which proposed action the host can execute. Use the article’s local checks and deployment list to explain each decision.
+framing: []
+objectives:
+  - id: subject-intro
+    can: Place safe text, unapproved deployment and secret export at their proper stop points
+    scenes:
+      - subject-intro
+  - id: checks-by-boundary
+    can: Locate the evidence needed before generation, text release and effects
+    scenes:
+      - checks-by-boundary
+  - id: input-fixtures
+    can: Apply label-and-score conjunction to the actual three local input stubs
+    scenes:
+      - input-fixtures
+  - id: detector-contract
+    can: Reject malformed required results without promoting scores into permission
+    scenes:
+      - detector-contract
+  - id: text-and-action-paths
+    can: Find the actor mismatch even when the approval ID, target and action hash match
+    scenes:
+      - text-and-action-paths
+  - id: output-fixture
+    can: Demonstrate the literal text predicate’s false positives and paraphrase miss
+    scenes:
+      - output-fixture
+  - id: argument-contract
+    can: Construct the exact action digest and validate actor, target, approver and capability
+    scenes:
+      - argument-contract
+  - id: approval-replay
+    can: Predict the return value and local deployment count for an identical retry, a changed artifact, a new operation ID and an expired grant
+    scenes:
+      - approval-replay
+  - id: approval-atomic
+    can: Diagnose the concurrent reservation and unknown remote-outcome gaps
+    scenes:
+      - approval-atomic
+  - id: schema-mask
+    can: Distinguish constrained token structure from effect authority and evidence support
+    scenes:
+      - schema-mask
+  - id: untrusted-observations
+    can: Retain useful evidence while refusing instructions embedded in observations
+    scenes:
+      - untrusted-observations
+  - id: canary-stream
+    can: Compute exact split-marker results and the length-minus-one carry contract
+    scenes:
+      - canary-stream
+  - id: minimize-data
+    can: Trace the two contact replacements while keeping the permitted incident number and follow-up request in the remote copy
+    scenes:
+      - minimize-data
+  - id: sensitive-formats
+    can: Match recognizers to contact, contextual, checksum and credential formats
+    scenes:
+      - sensitive-formats
+  - id: claim-agreement
+    can: Compute toy claim-set consistency and show a shared unsupported answer
+    scenes:
+      - claim-agreement
+  - id: evidence-verdict
+    can: Derive premise-relative entailment, contradiction, neutrality and necessity limits
+    scenes:
+      - evidence-verdict
+  - id: retrieval-proof
+    can: Require permitted versioned claim evidence rather than a citation-shaped string
+    scenes:
+      - retrieval-proof
+  - id: policy-snapshot
+    can: Predict which request continues after a policy reload by comparing the same injection score with the threshold each request captured on arrival
+    scenes:
+      - policy-snapshot
+  - id: policy-reload
+    can: Reject an invalid candidate and preserve the last validated copied snapshot
+    scenes:
+      - policy-reload
+  - id: policy-live-authority
+    can: Keep content consistency separate from live approval expiry and revocation
+    scenes:
+      - policy-live-authority
+  - id: order-and-latency
+    can: Hold text and effects through their required release gates
+    scenes:
+      - order-and-latency
+  - id: budget-schedule
+    can: Calculate when a remote review can start and when both input-check branches finish
+    scenes:
+      - budget-schedule
+  - id: streaming-contract
+    can: Separate generated first token from reviewed user-visible release
+    scenes:
+      - streaming-contract
+  - id: async-deadline
+    can: Trace model-call counts, held drafts and cooperative cancellation at one deadline
+    scenes:
+      - async-deadline
+  - id: model-taxonomy
+    can: Select and evaluate the task, modality, context and framework configuration actually required
+    scenes:
+      - model-taxonomy
+  - id: measure-errors
+    can: Calculate FPR, FNR and blocked precision using their labeled denominators
+    scenes:
+      - measure-errors
+  - id: prevalence-shift
+    can: Predict blocked precision under changed prevalence and assumed stable rates
+    scenes:
+      - prevalence-shift
+  - id: decision-records
+    can: Reconstruct which message reached chat from a scoped decision receipt after a pass or timeout
+    scenes:
+      - decision-records
+  - id: fallback-policy
+    can: Choose a scoped safe fallback and test both misses and overblocking
+    scenes:
+      - fallback-policy
+  - id: governance-logs
+    can: Apply purpose-specific evidence, retention and scoped dated compliance facts
+    scenes:
+      - governance-logs
+  - id: fresh-boundary
+    can: Compare a rollback draft with its runbook and decide which message reaches chat and how many deployments run
+    scenes:
+      - fresh-boundary
+sections:
+  - heading: Put checks where failures can happen
+    status: taught
+    scenes:
+      - checks-by-boundary
+      - argument-contract
+  - heading: Three requests, three stop points
+    status: taught
+    scenes:
+      - subject-intro
+      - input-fixtures
+  - heading: "Input guards: stop unsafe requests before the model"
+    status: taught
+    scenes:
+      - input-fixtures
+      - detector-contract
+  - heading: "Output guards: inspect what the model produced"
+    status: taught
+    scenes:
+      - output-fixture
+      - text-and-action-paths
+  - heading: Tool-argument guardrails (first-class channel)
+    status: taught
+    scenes:
+      - argument-contract
+      - text-and-action-paths
+  - heading: Authorize before a tool side effect
+    status: taught
+    note: The authorization fixture checks the signed-in engineer and action hash before looking up a completed operation. Its list keeps the first deployment after a denied retry.
+    scenes:
+      - text-and-action-paths
+      - approval-replay
+      - approval-atomic
+  - heading: Constrained decoding as a guardrail
+    status: taught
+    scenes:
+      - schema-mask
+  - heading: Enforce authorization outside the prompt
+    status: taught
+    scenes:
+      - argument-contract
+      - untrusted-observations
+  - heading: Indirect prompt injection
+    status: taught
+    scenes:
+      - untrusted-observations
+      - canary-stream
+  - heading: Minimize sensitive data before it leaves the host
+    status: taught
+    note: The outgoing copy keeps INC-2048 and replaces the two contact formats shown in the article.
+    scenes:
+      - minimize-data
+      - sensitive-formats
+  - heading: Types of PII to detect
+    status: taught
+    scenes:
+      - sensitive-formats
+  - heading: A simple PII scanner
+    status: taught
+    scenes:
+      - sensitive-formats
+  - heading: Test whether agreement reflects grounded evidence
+    status: taught
+    scenes:
+      - claim-agreement
+      - evidence-verdict
+  - heading: Self-consistency check
+    status: taught
+    scenes:
+      - claim-agreement
+  - heading: NLI-based verification
+    status: taught
+    scenes:
+      - evidence-verdict
+      - fresh-boundary
+  - heading: Retrieval-augmented verification
+    status: taught
+    scenes:
+      - retrieval-proof
+  - heading: Version policy separately from model releases
+    status: taught
+    scenes:
+      - policy-snapshot
+      - policy-live-authority
+  - heading: Configurable rules engine
+    status: taught
+    scenes:
+      - policy-snapshot
+      - policy-reload
+  - heading: Dynamic loading
+    status: taught
+    scenes:
+      - policy-reload
+      - policy-snapshot
+  - heading: Safety has a latency cost
+    status: taught
+    scenes:
+      - order-and-latency
+      - budget-schedule
+  - heading: Multi-tier latency and consequence routing
+    status: taught
+    scenes:
+      - budget-schedule
+      - model-taxonomy
+  - heading: Strategy trade-offs
+    status: taught
+    scenes:
+      - streaming-contract
+      - model-taxonomy
+      - fallback-policy
+  - heading: Async guard pattern
+    status: taught
+    scenes:
+      - async-deadline
+  - heading: Graceful degradation
+    status: taught
+    scenes:
+      - fallback-policy
+  - heading: Log decisions without copying raw prompts
+    status: taught
+    scenes:
+      - decision-records
+      - governance-logs
+  - heading: Structured safety logs
+    status: taught
+    note: The logging fixture stores a host trace, the redaction outcome and the policy version. The separate R51 and R52 example shows why hashing identical questions would link two traces.
+    scenes:
+      - governance-logs
+      - decision-records
+  - heading: Key metrics to track
+    status: taught
+    note: The labeled safe and harmful populations supply the error-rate denominators. Pooling the 100 safe blocks with 90 harmful blocks gives the review queue its own denominator of 190.
+    scenes:
+      - measure-errors
+      - prevalence-shift
+  - heading: Compliance and audit requirements
+    status: taught
+    scenes:
+      - governance-logs
+  - heading: Failure patterns worth testing
+    status: taught
+    scenes:
+      - fallback-policy
+      - canary-stream
+  - heading: Probe the boundaries
+    status: taught
+    scenes:
+      - fallback-policy
+      - fresh-boundary
+  - heading: Secret disclosure
+    status: article-only
+    reason: exercise
+    note: Independent learner practice remains on the page. The complete prerequisite mechanism and controlled
+      failures are taught in canary-stream, sensitive-formats and fresh-boundary.
+  - heading: PII minimization
+    status: article-only
+    reason: exercise
+    note: The page provides the independent scanner exercise. The incident note and the limits of its two contact recognizers appear in minimize-data and sensitive-formats.
+  - heading: What to check before moving on
+    status: taught
+    scenes:
+      - fresh-boundary
+      - fallback-policy
+quiz:
+  - n: 1
+    status: taught
+    scenes:
+      - input-fixtures
+      - detector-contract
+  - n: 2
+    status: taught
+    scenes:
+      - argument-contract
+      - approval-replay
+  - n: 3
+    status: taught
+    scenes:
+      - canary-stream
+  - n: 4
+    status: taught
+    scenes:
+      - claim-agreement
+  - n: 5
+    status: taught
+    scenes:
+      - evidence-verdict
+      - fresh-boundary
+  - n: 6
+    status: taught
+    scenes:
+      - policy-reload
+      - policy-snapshot
+  - n: 7
+    status: taught
+    scenes:
+      - budget-schedule
+      - minimize-data
+  - n: 8
+    status: taught
+    scenes:
+      - async-deadline
+      - streaming-contract
+  - n: 9
+    status: taught
+    scenes:
+      - measure-errors
+      - prevalence-shift
+  - n: 10
+    status: taught
+    scenes:
+      - fresh-boundary
+      - decision-records
+      - governance-logs
+      - fallback-policy
+removed: []
+reviews:
+  closed_book:
+    script: c2ca7694b0d6d2d5
+    reviewer: /root/upgrade_shard4
+    evidence: build/video-delivery-20261106/script-reviews/safety-guardrails.json
+    evidence_sha256: dd21f5cbf0f9549faba13ecf6e4d1d825f56fa13ce4e5a0ce8895f2746f55175
+    taught: 10
+    partial: 0
+    absent: 0
+  fact_check:
+    script: c2ca7694b0d6d2d5
+    reviewer: /root/upgrade_shard4
+    evidence: build/video-delivery-20261106/script-reviews/safety-guardrails.json
+    evidence_sha256: dd21f5cbf0f9549faba13ecf6e4d1d825f56fa13ce4e5a0ce8895f2746f55175
+    open_findings: 0

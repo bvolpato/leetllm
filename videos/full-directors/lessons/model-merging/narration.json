@@ -1,0 +1,463 @@
+[
+  {
+    "id": "c01",
+    "title": "One checkpoint for three jobs",
+    "sourceChapters": [
+      "c01"
+    ],
+    "beats": [
+      {
+        "id": "c01-b01",
+        "say": "Slide Code, Math, and Chat into the server. Each started at the same eight-billion-parameter checkpoint. Follow one address across the three copies. The learned numbers can differ, but the address still names the same weight in the starting model. At two bytes per parameter, each image takes about sixteen gigabytes. Keeping all three weights resident takes forty-eight gigabytes. If those addresses line up, would you try building a single image to test?",
+        "hold": 2.5
+      },
+      {
+        "id": "c01-b02",
+        "say": "Combine the three values at each matching address and save a single image. That's model merging. The server would load about sixteen gigabytes for weights and run one model on each request. This recipe needs no new training run. Cache and other serving memory still depend on the requests.",
+        "hold": 2.2
+      },
+      {
+        "id": "c01-b03",
+        "say": "Here's the first number from our example release report. It's the average of the three task scores, eighty-seven point two percent. Can you switch all three jobs over on that evidence?",
+        "hold": 2.6
+      },
+      {
+        "id": "c01-b04",
+        "say": "We need the score for each job. Each has a minimum, and each has a specialist whose performance we want to keep. We'll come back to those rows after we build the candidate.",
+        "hold": 0.7
+      }
+    ]
+  },
+  {
+    "id": "c02",
+    "title": "Which weights belong together?",
+    "sourceChapters": [
+      "c02"
+    ],
+    "beats": [
+      {
+        "id": "c02-b01",
+        "say": "Start at the fork. Both fine-tunes inherit the same layers and channels. If you average a weight at one address, you're assuming it still does the same job on both sides. Check the base revision, tensor names, shapes, and architecture before you pair them.",
+        "hold": 0.5
+      },
+      {
+        "id": "c02-b02",
+        "say": "Look inside these two tiny networks. Each neuron multiplies the input by its first weight, keeps the positive part, then multiplies by its outgoing weight. Add the two neuron outputs. Both networks return one for a negative-one input and two for a positive-one input. The positive-input neuron lives in a different slot on the right. Average by slot. The incoming weights cancel. What comes out for our two inputs?",
+        "hold": 2.3
+      },
+      {
+        "id": "c02-b03",
+        "say": "Both outputs are zero. Now swap the two complete neurons on the right, taking their outgoing weights with them.",
+        "hold": 1.1
+      },
+      {
+        "id": "c02-b04",
+        "say": "The aligned average returns one and two again. We knew the swap in this example. Independently trained models can learn different features altogether. Matching tensor shapes tells you which arrays fit. Shared lineage and a functional check give you a reason to combine the entries.",
+        "hold": 0.65
+      }
+    ]
+  },
+  {
+    "id": "c03",
+    "title": "Follow one weight at a time",
+    "sourceChapters": [
+      "c03"
+    ],
+    "beats": [
+      {
+        "id": "c03-b01",
+        "say": "Start with Code and Math. Each row follows one weight through two toy checkpoints. Give the sources equal weight. In the first row Code has one and Math has three. Where should the merged weight land?",
+        "hold": 2.2
+      },
+      {
+        "id": "c03-b02",
+        "say": "Halfway is two. In the second row the sources trade places. Half of three plus half of one gives two again. Apply that average to every matching coordinate and you have a uniform model soup. At inference, one set of weights makes the prediction.",
+        "hold": 0.8
+      },
+      {
+        "id": "c03-b03",
+        "say": "These two numbers are weights. To find out whether their midpoint can still do the job, run the checkpoint on held-out examples. We can repeat that test at other mixing ratios.",
+        "hold": 0.65
+      }
+    ]
+  },
+  {
+    "id": "c04",
+    "title": "Test the checkpoints between the endpoints",
+    "sourceChapters": [
+      "c04"
+    ],
+    "beats": [
+      {
+        "id": "c04-b01",
+        "say": "Put Code at the left end and Math at the right. Each dot is one checkpoint scored on the same held-out cases. These are toy measurements. To pass this screen, loss must be at most point three, and task accuracy at least eighty-four percent. Both endpoints clear it. Can you clear the halfway checkpoint yet?",
+        "hold": 2.5
+      },
+      {
+        "id": "c04-b02",
+        "say": "Test the halfway mixture. Loss comes back at point six one and accuracy at seventy percent. It fails both checks. The dotted line connects the endpoint losses. Halfway along that line, the height is point one eight five. The measured loss sits point four two five above that line.",
+        "hold": 1.05
+      },
+      {
+        "id": "c04-b03",
+        "say": "Move a quarter of the way from Code toward Math instead. Loss is point two zero and accuracy is eighty-six percent. Would you keep this checkpoint for the next round of tests?",
+        "hold": 2.1
+      },
+      {
+        "id": "c04-b04",
+        "say": "Yes. It clears both limits. The three-quarter mixture clears them too. Four of these five checkpoints pass. The gaps between the dots are mixtures we haven't tested.",
+        "hold": 0.75
+      },
+      {
+        "id": "c04-b05",
+        "say": "Now measure loss on a second toy path with exactly the same endpoint losses. Halfway along this one, loss is just point zero nine. Nearby fine-tunes can have a low-loss route between them. We sampled five places. Between samples the loss could rise, and this second path still needs task scores.",
+        "hold": 0.85
+      }
+    ]
+  },
+  {
+    "id": "c05",
+    "title": "Interpolate directions along a sphere",
+    "sourceChapters": [
+      "c05"
+    ],
+    "beats": [
+      {
+        "id": "c05-b01",
+        "say": "Place two unit vectors sixty degrees apart. Stretch a straight chord between their tips. A linear halfway merge lands at the middle of that chord. Its distance from the origin is about point eight seven. Could we reach a halfway direction while keeping the original radius?",
+        "hold": 2
+      },
+      {
+        "id": "c05-b02",
+        "say": "Follow the arc instead. Spherical linear interpolation, or SLERP, turns at a constant angular rate here. Half the turn is thirty degrees. The tip sits on the same unit circle as the endpoints.",
+        "hold": 0.55
+      },
+      {
+        "id": "c05-b03",
+        "say": "Equal, nonzero radii make this comparison possible. Unequal radii do not share one circle, and opposite directions need a choice of arc. Score both candidates on the same coding examples. Keeping a radius tells us where the weights landed. The coding test tells us whether they work.",
+        "hold": 0.75
+      }
+    ]
+  },
+  {
+    "id": "c06",
+    "title": "Measure the changes from a common base",
+    "sourceChapters": [
+      "c06"
+    ],
+    "beats": [
+      {
+        "id": "c06-b01",
+        "say": "You can also choose how much of each fine-tune's change to keep. Start at this toy base. Subtract the base from each checkpoint. The remaining displacement is its task vector. Code moved one step across. Math moved one step up.",
+        "hold": 0.75
+      },
+      {
+        "id": "c06-b02",
+        "say": "Keep eight tenths of Code's step. Then keep six tenths of Math's step. The second arrow can move without changing its length or direction. If its tail starts at the tip of the first, where will its head land?",
+        "hold": 2.4
+      },
+      {
+        "id": "c06-b03",
+        "say": "Eight tenths across and six tenths up. Add those changes to the original base. That's task arithmetic. Here the arrows act on different weights. At a shared coordinate the changes might pull in opposite directions.",
+        "hold": 0.65
+      }
+    ]
+  },
+  {
+    "id": "c07",
+    "title": "What happens to the base weight?",
+    "sourceChapters": [
+      "c07"
+    ],
+    "beats": [
+      {
+        "id": "c07-b01",
+        "say": "Now both specialists change the same weight. The base is two. Code takes it up to two point four and Math takes it down to one point eight. Keep seven tenths of Code's change and half of Math's. Start your calculation at the base. Where do the two steps end?",
+        "hold": 2.2
+      },
+      {
+        "id": "c07-b02",
+        "say": "Code adds point two eight. From there, Math takes away point one zero. The weight lands at two point one eight. If you weight the two endpoints directly, you get two point five eight. That counted the base one point two times.",
+        "hold": 0.3
+      },
+      {
+        "id": "c07-b03",
+        "say": "Subtract the extra fifth of the base, point four, and the two paths meet.",
+        "hold": 0.9
+      },
+      {
+        "id": "c07-b04",
+        "say": "In the endpoint expression, the base keeps a coefficient of one minus the sum of the delta coefficients. If they sum to one, the endpoints alone give the same answer. Giving a task vector a negative coefficient reverses its entire fine-tuning change.",
+        "hold": 0.3
+      },
+      {
+        "id": "c07-b05",
+        "say": "Suppose we subtract the whole Code change from this base. The weight moves four tenths to the left, ending at one point six. A drop in unwanted outputs on one test still leaves a question. What happened to the skills you wanted to keep? Measure them on their own cases.",
+        "hold": 0.7
+      }
+    ]
+  },
+  {
+    "id": "c08",
+    "title": "Which adapter weights should you average?",
+    "sourceChapters": [
+      "c08"
+    ],
+    "beats": [
+      {
+        "id": "c08-b01",
+        "say": "A low-rank adapter stores a B column and an A row in this rank-one example. Their outer product is a grid. B selects an output row and A selects an input column. Multiply by the configured scale, one for each adapter here. Code selects top and left. Math selects bottom and right. Each adapter writes one diagonal cell.",
+        "hold": 0.65
+      },
+      {
+        "id": "c08-b02",
+        "say": "Give each complete update half the weight. The diagonal cells get a half each. Look at the untouched upper right. Its base weight is three. Suppose we average the B factors first, average the A factors, then multiply those two averages. What change would that send to this corner?",
+        "hold": 2.8
+      },
+      {
+        "id": "c08-b03",
+        "say": "Trace Code's top row to Math's right column. A half times a half gives a quarter. The two factors have different owners. The other three intersections also get a quarter. Our untouched base weight would move from three to three and a quarter.",
+        "hold": 1.05
+      },
+      {
+        "id": "c08-b04",
+        "say": "Return each factor to its own partner. Stack the original A rows and put the half-weighted B columns side by side. The product now adds a half of Code's update and a half of Math's. The diagonal halves return. The upper right gets zero and the base weight there stays three.",
+        "hold": 0.3
+      },
+      {
+        "id": "c08-b05",
+        "say": "The two diagonal changes are independent. Their matrix has rank two. Compress it to rank one and at least one direction is lost. Preserve the base revision, target modules, and configured scales along with the factors.",
+        "hold": 0.8
+      }
+    ]
+  },
+  {
+    "id": "c09",
+    "title": "Which updates count in the mean?",
+    "sourceChapters": [
+      "c09"
+    ],
+    "beats": [
+      {
+        "id": "c09-b01",
+        "say": "Look across each specialist's row. These four numbers are changes to four weights. Keep the two largest changes by magnitude in each row. The entries in columns two and four survive. This trimming is the first step of TIES.",
+        "hold": 0.8
+      },
+      {
+        "id": "c09-b02",
+        "say": "Follow column two. Code and Chat pull left. Math alone pulls right. TIES elects the sign of the signed sum. Add the lengths with their signs. Which way does the balance tip?",
+        "hold": 2.4
+      },
+      {
+        "id": "c09-b03",
+        "say": "Right, by point two. That sum chooses a direction. Now average only the entries pointing right. Math is the sole contributor, so the update is plus one point one. Dividing by three here would dilute the only entry you kept.",
+        "hold": 1
+      },
+      {
+        "id": "c09-b04",
+        "say": "Try column four. Code adds point eight, Math subtracts point six, and Chat adds point seven. Use the same rule. Which values go in the mean, and what update do you get?",
+        "hold": 3.2
+      },
+      {
+        "id": "c09-b05",
+        "say": "The sum is positive again. This time Code and Chat both point right. Divide their combined one point five by two. The update is plus point seven five. Scale the resulting task vector and add it to the base. Compare its held-out scores with plain task arithmetic to see what filtering bought you.",
+        "hold": 0.9
+      }
+    ]
+  },
+  {
+    "id": "c10",
+    "title": "What does a random mask preserve?",
+    "sourceChapters": [
+      "c10"
+    ],
+    "beats": [
+      {
+        "id": "c10-b01",
+        "say": "Here's another way to thin a task vector. Give each entry a fair coin. In this draw the first two entries drop out. The last two survive. Double those survivors because each had only half a chance to be kept. This drop-and-rescale step is called DARE.",
+        "hold": 0.3
+      },
+      {
+        "id": "c10-b02",
+        "say": "Feed the result to a merge rule such as task arithmetic.",
+        "hold": 0.8
+      },
+      {
+        "id": "c10-b03",
+        "say": "Follow the negative entry across repeated draws. Half the time it becomes zero. Half the time it survives at minus point eight. Average the two equally likely outcomes and you recover minus point four, its original signed change.",
+        "hold": 0.3
+      },
+      {
+        "id": "c10-b04",
+        "say": "In this example each outcome sits four tenths from that mean. Square that distance and you get a variance of point one six. At higher drop rates survivors get bigger and the variance grows.",
+        "hold": 0.3
+      },
+      {
+        "id": "c10-b05",
+        "say": "For a drop probability p below one, the variance is the original change squared times p over one minus p. The expected signed weight change survives averaging over draws. A single draw can change the vector's length and the model's answers.",
+        "hold": 0.7
+      },
+      {
+        "id": "c10-b06",
+        "say": "Change the drop rate to ninety percent and mask two initially nonzero task updates independently. This square has a hundred equally likely outcomes. The top row keeps Code. The first column keeps Math. They overlap in one square. If you consider only squares where at least one update survives, what denominator belongs under that one?",
+        "hold": 2.35
+      },
+      {
+        "id": "c10-b07",
+        "say": "Nineteen. Count ten in the row and nine more down the column. Both survive in one percent of all draws, or about five point three percent of active draws. Overlap can include updates that agree. And once you add a sparse change back to a dense base, you still have a dense checkpoint to serve.",
+        "hold": 0.7
+      }
+    ]
+  },
+  {
+    "id": "c11",
+    "title": "What will the saved model read?",
+    "sourceChapters": [
+      "c11"
+    ],
+    "beats": [
+      {
+        "id": "c11-b01",
+        "say": "Even checkpoints from one base can have different vocabularies. Look up row four seventeen. One source reads it as return. The other uses it for a fill-in-the-middle marker that our code prompts need. Pairing by row number would mix two meanings.",
+        "hold": 0.9
+      },
+      {
+        "id": "c11-b02",
+        "say": "Choose an output vocabulary. Here a compatible union keeps both strings. For return, look up the matching row in each source. For the marker, only the code source has a row to supply. Align the input embeddings and the output head this way.",
+        "hold": 0.3
+      },
+      {
+        "id": "c11-b03",
+        "say": "Run a fill-in-the-middle prompt through the saved tokenizer and template. Check which ID reaches the model for the prefix marker and which string its output row decodes to. If a base-only vocabulary omits that marker, this serving contract has to change.",
+        "hold": 0.8
+      },
+      {
+        "id": "c11-b04",
+        "say": "Recipes also choose which checkpoints to include. Here two linear weights predict the outputs on the two coordinate axes. The validation target is one on each. Start with A. Adding B lowers mean squared error, so keep the pair. Try adding C. The error rises. Keep A and B. A greedy soup tests each addition, accepting improvements or ties.",
+        "hold": 0.3
+      },
+      {
+        "id": "c11-b05",
+        "say": "Run the chosen pair on fresh inputs. This time the targets are still one, but one prediction is two. The new cases expose a miss. Searching more recipes costs more evaluations. Four coefficients to choose from for each of three task vectors already gives sixty-four combinations. Evolutionary search can also choose coefficients and layer ranges. Reserve untouched cases for the final choice.",
+        "hold": 0.75
+      },
+      {
+        "id": "c11-b06",
+        "say": "A splice makes a different kind of candidate. Copy the first four layers from A and the last four from B. Both sides have two channels, so the pieces fit. Now follow the first probe. Each B layer doubles its first channel. One becomes sixteen.",
+        "hold": 0.3
+      },
+      {
+        "id": "c11-b07",
+        "say": "The other probe uses only the second channel and comes through unchanged. The dimensions let you build the splice. The first probe tells you why it can still fail.",
+        "hold": 0.8
+      }
+    ]
+  },
+  {
+    "id": "c12",
+    "title": "Which value reaches the saved checkpoint?",
+    "sourceChapters": [
+      "c12"
+    ],
+    "beats": [
+      {
+        "id": "c12-b01",
+        "say": "A mergekit recipe can cast weights as it reads them and again as it saves them. Zoom in on a weight just above one. The base is one and the specialist is one point zero zero two.",
+        "hold": 0.3
+      },
+      {
+        "id": "c12-b02",
+        "say": "The next bfloat sixteen tick is one plus one over one hundred twenty-eight. Round the specialist to the nearest tick before merging. It lands on the base. The change is already gone.",
+        "hold": 0.75
+      },
+      {
+        "id": "c12-b03",
+        "say": "Rewind to the same two inputs and keep them in float thirty-two. Go halfway. The working value is about one point zero zero one. Now save that result in bfloat sixteen. It rounds to one again. The first route lost the change on input.",
+        "hold": 0.3
+      },
+      {
+        "id": "c12-b04",
+        "say": "This route lost the change on output. Test the checkpoint you actually save and reload. In a mergekit recipe, record the working dtype and the output dtype separately.",
+        "hold": 0.9
+      },
+      {
+        "id": "c12-b05",
+        "say": "Start from the original floating-point weights when you can. Dequantizing an already rounded source gives an approximation. If a saved model produces incoherent text, check the tensor layouts, token rows, and output head. Format the same prompt with the audited chat template.",
+        "hold": 0.3
+      },
+      {
+        "id": "c12-b06",
+        "say": "Compare the sources and the merge under the same decoding settings. Once the artifact is sound, investigate interference. If you quantize it for serving, recalibrate and evaluate that version.",
+        "hold": 0.7
+      }
+    ]
+  },
+  {
+    "id": "c13",
+    "title": "Open the three task scores",
+    "sourceChapters": [
+      "c13"
+    ],
+    "beats": [
+      {
+        "id": "c13-b01",
+        "say": "Open the report from the opening. Eighty-seven point two was the mean of three percentages, with one vote per task. Open the rows. Code scored ninety-two point four, Math eighty-two point one, and Chat eighty-seven. Each score comes from the saved candidate on that task's held-out cases.",
+        "hold": 0.85
+      },
+      {
+        "id": "c13-b02",
+        "say": "Compare each dot with its task minimum. Code and Chat cross theirs. Look at Math. Its minimum is eighty-five. How far short is that dot?",
+        "hold": 2.35
+      },
+      {
+        "id": "c13-b03",
+        "say": "Two point nine percentage points. There's a second condition in this example. On the same cases each task can lose at most one percentage point against its specialist. The Math specialist scored eighty-eight, so the effective minimum for Math is eighty-seven. Our candidate is four point nine points below that line.",
+        "hold": 0.95
+      },
+      {
+        "id": "c13-b04",
+        "say": "Keep the specialists in service. Math misses both checks. Record the source revisions, tokenizer, template, merge method, coefficients, and evaluation cases. Try a new recipe on validation data. Apply the same gates to a spherical merge.",
+        "hold": 0.3
+      },
+      {
+        "id": "c13-b05",
+        "say": "Suppose a separate spherical merge keeps unit radius, but scores eighty-nine percent on Code. Compare that dot with the same ninety percent minimum. Set this candidate aside. Use separate release cases to judge the recipe you select, including safety and the prompts you will actually serve.",
+        "hold": 0.75
+      }
+    ]
+  },
+  {
+    "id": "c14",
+    "title": "Would the next candidate clear the same checks?",
+    "sourceChapters": [
+      "c14"
+    ],
+    "beats": [
+      {
+        "id": "c14-b01",
+        "say": "Try a fresh weight from another recipe. Start at two. Code ended at two point five and Math ended at one point five. Keep six tenths of Code's change and four tenths of Math's. What weight would you save?",
+        "hold": 2.7
+      },
+      {
+        "id": "c14-b02",
+        "say": "You take three tenths of a step right, then two tenths left. That lands at two point one. You can calculate the weight that way. You still have to measure its behavior.",
+        "hold": 0.8
+      },
+      {
+        "id": "c14-b03",
+        "say": "Suppose the new evaluation gives the same Code and Chat scores, but Math now scores eighty-six point four. The absolute Math minimum is still eighty-five. Would you clear all three score gates?",
+        "hold": 2.8
+      },
+      {
+        "id": "c14-b04",
+        "say": "Hold this candidate. Math clears eighty-five, but it lost one point six percentage points against its specialist. We allowed one. In a final comparison, change only Math. Slide its dot to eighty-seven exactly. Does this report clear all three score gates?",
+        "hold": 2.8
+      },
+      {
+        "id": "c14-b05",
+        "say": "Yes. Math is exactly one point behind its specialist. That's within the allowance, and the other two tasks still pass. This report clears the score gates. Check the remaining safety and serving tests before switching traffic. Next we'll look at how a vector index finds the evidence the assistant needs to answer.",
+        "hold": 1.2
+      }
+    ]
+  }
+]

@@ -1,0 +1,393 @@
+[
+  {
+    "id": "c01",
+    "title": "The next cache write",
+    "sourceChapters": [
+      "c01"
+    ],
+    "beats": [
+      {
+        "id": "c01-b01",
+        "say": "A language model writes one token at a time. This request has reached “the tide.” Watch what happens when the decoder reads “rose.” It keeps a key for matching and a value to retrieve at each cached position.",
+        "hold": 0.8
+      },
+      {
+        "id": "c01-b02",
+        "say": "Freeze just before the write. Eight query heads can look back through two key and value histories. For this one new position in this layer, how many new pairs must the request store?",
+        "hold": 2.8
+      },
+      {
+        "id": "c01-b03",
+        "say": "Two pairs. Watch the write heads stamp one key and one value onto each track. The earlier positions stay where they were. The eight readers can now attend to all three positions, including the current token.",
+        "hold": 1
+      },
+      {
+        "id": "c01-b04",
+        "say": "Trace the four readers connected to the upper track. Standard multi-head attention would keep a separate history for each reader. Here they share one. We will follow two of their reads, price the growing cache, and decide whether a converted model can serve another request.",
+        "hold": 0.9
+      }
+    ]
+  },
+  {
+    "id": "c02",
+    "title": "Two different readings of the same values",
+    "sourceChapters": [
+      "c02"
+    ],
+    "beats": [
+      {
+        "id": "c02-b01",
+        "say": "Look back one step, at the first two positions. Use a two-coordinate example. At both positions the key and value happen to match. Our first query is two, zero. Its dot products with these keys are two and zero.",
+        "hold": 0.7
+      },
+      {
+        "id": "c02-b02",
+        "say": "Divide by the square root of the key width, here the square root of two. Softmax exponentiates the scaled scores and divides each exponential by their sum across visible positions. The first position gets about eighty percent. With these basis values, the two weights become the output coordinates.",
+        "hold": 1
+      },
+      {
+        "id": "c02-b03",
+        "say": "Leave both cached rows alone and turn the query from two, zero to zero, two. Which value will carry more weight now?",
+        "hold": 2.2
+      },
+      {
+        "id": "c02-b04",
+        "say": "The second value. Look at the two output marks. Their coordinates swap because the dot products swap. Each head has its own learned query projection and keeps its own result, even when the layer gives both the very same keys and values.",
+        "hold": 1
+      }
+    ]
+  },
+  {
+    "id": "c03",
+    "title": "Find the history for query five",
+    "sourceChapters": [
+      "c03"
+    ],
+    "beats": [
+      {
+        "id": "c03-b01",
+        "say": "With eight query heads and two key-value heads, the group size is eight divided by two, or four. Query heads zero through three use the first stored pair. The kernel numbers the heads from zero and groups consecutive readers together in this example.",
+        "hold": 0.8
+      },
+      {
+        "id": "c03-b02",
+        "say": "Now trace query five. Divide its index by the number of readers in a group and take the whole-number part. Which stored history does it reach?",
+        "hold": 2.1
+      },
+      {
+        "id": "c03-b03",
+        "say": "History one. Follow the wire. Heads four through seven use the second history, and head five still computes its own scores, softmax weights, and output. The same rule gives six readers per group for sixty queries and ten stored heads.",
+        "hold": 1
+      }
+    ]
+  },
+  {
+    "id": "c04",
+    "title": "Rewire the same eight readers",
+    "sourceChapters": [
+      "c04"
+    ],
+    "beats": [
+      {
+        "id": "c04-b01",
+        "say": "Hold sequence length, vector width and precision fixed. Multi-head attention stores eight key-value pairs for eight query heads at each position. Here is one position, with one separate pair underneath each reader.",
+        "hold": 0.7
+      },
+      {
+        "id": "c04-b02",
+        "say": "Switch to the two-group model. Follow the connections down. The raw key and value payload is now one quarter as large. Each group has its own learned key projection and value projection. That gives the two groups different ways to represent the same positions.",
+        "hold": 1
+      },
+      {
+        "id": "c04-b03",
+        "say": "Switch to multi-query attention. All eight readers now use one key projection and one value projection. The payload is one eighth of multi-head attention. A query can still prefer a different position, but all heads must choose from the same learned representation. Compare quality on the tasks the model will actually serve.",
+        "hold": 1
+      }
+    ]
+  },
+  {
+    "id": "c05",
+    "title": "Open a cache track",
+    "sourceChapters": [
+      "c05"
+    ],
+    "beats": [
+      {
+        "id": "c05-b01",
+        "say": "Take one request with three cached positions. Open a track edge-on. Each stamped key contains four numbers, and its value contains four more. Look down each array for the token position, then across for the four coordinates. These are illustrative cell contents.",
+        "hold": 0.9
+      },
+      {
+        "id": "c05-b02",
+        "say": "Write the dimensions in this order. Batch, stored heads, positions, width. In multi-head attention the key array is one by eight by three by four. Values have the same shape. Count a separate sheet for every head in each array.",
+        "hold": 1
+      },
+      {
+        "id": "c05-b03",
+        "say": "Return to the grouped model. The key shape is one by two by three by four, and so is the value shape. Eight query readers remain. At a single decode step each query has just one current row. Three is the length of its visible history.",
+        "hold": 1
+      },
+      {
+        "id": "c05-b04",
+        "say": "To price the cache, count both arrays, then multiply by layers, requests, retained positions, stored heads, width, and bytes per number. This product assumes uniform full-attention layers and equal widths. If a layer has a sliding window, count the positions it actually retains.",
+        "hold": 0.8
+      }
+    ]
+  },
+  {
+    "id": "c06",
+    "title": "Price one more position",
+    "sourceChapters": [
+      "c06"
+    ],
+    "beats": [
+      {
+        "id": "c06-b01",
+        "say": "Count two layers, one request, three cached positions, head width four, and two bytes per number. With eight key-value heads, keys and values occupy seven hundred sixty-eight bytes. Two stored heads take one hundred ninety-two. One takes ninety-six.",
+        "hold": 0.9
+      },
+      {
+        "id": "c06-b02",
+        "say": "Now keep the same model dimensions and add a fourth position to each layout. Each new segment is the size of one earlier position. How many more bytes does the two-group layout need?",
+        "hold": 2.1
+      },
+      {
+        "id": "c06-b03",
+        "say": "Sixty-four more bytes. Append the segments. Grouped attention now uses two hundred fifty-six bytes, alongside one thousand twenty-four for multi-head and one hundred twenty-eight for multi-query. The slope changes with stored heads. Weights, temporary tensors and runtime reserves have their own budgets.",
+        "hold": 1
+      }
+    ]
+  },
+  {
+    "id": "scale",
+    "title": "How many complete requests fit?",
+    "sourceChapters": [
+      "c06"
+    ],
+    "beats": [
+      {
+        "id": "scale-b01",
+        "say": "Scale this up to eighty full-attention layers, width one hundred twenty-eight, two-byte numbers and sixty-four query heads. Give one request four thousand ninety-six positions. Its raw cache occupies ten gibibytes with multi-head attention, one and a quarter with eight stored heads, or five thirty-seconds of a gibibyte with one.",
+        "hold": 1
+      },
+      {
+        "id": "scale-b02",
+        "say": "Fill a dedicated ten-gibibyte cache pool with those requests. The three layouts fit one, eight, or sixty-four complete requests. This count assumes equal retained lengths and excludes future growth, fragmentation, weights and workspaces.",
+        "hold": 1
+      },
+      {
+        "id": "scale-b03",
+        "say": "For thirty-two such requests, the grouped cache alone occupies about forty-three decimal gigabytes. One request with the same total number of positions has the same raw payload in these uniform layers. A seventy-two-billion-parameter model with two-byte weights would need another hundred forty-four gigabytes for weights alone.",
+        "hold": 1
+      },
+      {
+        "id": "scale-b04",
+        "say": "Get head counts and retention from the checkpoint. For example, Llama three point one seventy billion has sixty-four queries and eight stored heads. That ratio tells you the sharing. Supported context and the positions retained by each layer are separate configuration choices.",
+        "hold": 0.8
+      }
+    ]
+  },
+  {
+    "id": "reads",
+    "title": "What work survives sharing?",
+    "sourceChapters": [
+      "c06"
+    ],
+    "beats": [
+      {
+        "id": "reads-b01",
+        "say": "During prefill, a layer can process many new token rows together. In ordinary decode each request contributes one new row. Each query still scores all visible keys and blends their values. At equal widths, each of these two matrix products costs about two floating-point operations per coordinate and position per query.",
+        "hold": 0.7
+      },
+      {
+        "id": "reads-b02",
+        "say": "Suppose each distinct cached key and value is fetched once and reused across its group. Count only the two matrix products and those cache reads. The common batch, history length and width cancel. Ideal intensity is twice the query heads divided by stored heads and by bytes per number.",
+        "hold": 0.8
+      },
+      {
+        "id": "reads-b03",
+        "say": "Try twenty-four queries, six stored heads and one byte per coordinate. Four readers share each fetch. How many floating-point operations does the layer get per byte in this ideal count?",
+        "hold": 2.3
+      },
+      {
+        "id": "reads-b04",
+        "say": "Eight operations per byte. Actual traffic depends on kernel reuse. Time the training and decode paths separately.",
+        "hold": 1.0
+      },
+      {
+        "id": "reads-b05",
+        "say": "Consider a read-only timing model. Each step moves fifty-six gigabytes of weights and eight of cache over one terabyte per second. The lower bound is sixty-four milliseconds. Shrink only the cache reads eightfold. Where does the new bound land?",
+        "hold": 2.4
+      },
+      {
+        "id": "reads-b06",
+        "say": "Fifty-seven milliseconds. The weights still take fifty-six, and the cache takes one. That is about one point one two times faster in this model. Compute, communication, scheduling and queues also affect measured service time.",
+        "hold": 1
+      }
+    ]
+  },
+  {
+    "id": "c07",
+    "title": "Test the pooled checkpoint",
+    "sourceChapters": [
+      "c07"
+    ],
+    "beats": [
+      {
+        "id": "c07-b01",
+        "say": "Take two learned projection slices in a toy layer. Use the same held-out sequence for both, with hidden rows one, zero and zero, one. Those basis inputs pick out the two entries of each weight slice. Fix both scalar queries at one. The first head puts its larger weight on value ten. The other head reverses both keys and values and also returns about eight point eight.",
+        "hold": 0.9
+      },
+      {
+        "id": "c07-b02",
+        "say": "Lay the slices on top of each other and average corresponding weights, keys with keys and values with values. Plus one and minus one cancel in each key coordinate. Ten and zero average to five in each value coordinate. Keep the query and output projections at their original initialization. On the same input, where will the head outputs land?",
+        "hold": 2.3
+      },
+      {
+        "id": "c07-b03",
+        "say": "Both outputs land at five. Run the pooled weights on those same hidden rows. Both scores are zero, so each value gets half the weight. The difference was already present before any cache implementation entered the experiment.",
+        "hold": 1
+      },
+      {
+        "id": "c07-b04",
+        "say": "For a larger checkpoint, pool matching key and value slices and compatible biases within each group. Forty old heads pooled into five groups contribute eight slices apiece. Continue pretraining so the model can adapt. Set quality limits before conversion, then compare held-out task scores against the original. An adaptation budget that worked for one model needs testing on the next.",
+        "hold": 0.9
+      }
+    ]
+  },
+  {
+    "id": "latent",
+    "title": "Carry the projection to the query",
+    "sourceChapters": [
+      "c07"
+    ],
+    "beats": [
+      {
+        "id": "latent-b01",
+        "say": "Multi-head latent attention trains another representation. In the absorbed DeepSeek V two layout, each token keeps a joint latent with five hundred twelve content numbers and a separate positional key with sixty-four. That makes five hundred seventy-six. Eight ordinary key-value heads of width one hundred twenty-eight would store two thousand forty-eight numbers. These are different learned architectures.",
+        "hold": 0.9
+      },
+      {
+        "id": "latent-b02",
+        "say": "How can a head score a compressed row? Take a small up-projection whose rows are one, two and zero, one. For latent one, two, expanding the key gives five, two. Query one, zero takes its first coordinate, giving a content score of five.",
+        "hold": 0.9
+      },
+      {
+        "id": "latent-b03",
+        "say": "Move the transposed projection onto the query instead. Dot the query with each column of the original matrix. It gives one, two. Dot that with the same latent and the score is five again. This projected query can be reused across history. For values, take the weighted sum of the latents first, then apply the linear value projection once.",
+        "hold": 1
+      }
+    ]
+  },
+  {
+    "id": "rotation",
+    "title": "Rotate the same expanded key",
+    "sourceChapters": [
+      "c07"
+    ],
+    "beats": [
+      {
+        "id": "rotation-b01",
+        "say": "Keep that projection and latent. Fix the current rotated query at one, zero. With identity key rotation, the expanded key points to five, two. The score is five. Now imagine applying rotary position encoding directly to each expanded historical key. At a second position it turns this same key a quarter turn counterclockwise. Will the old absorbed query still work?",
+        "hold": 2.1
+      },
+      {
+        "id": "rotation-b02",
+        "say": "Watch the rotation. The expanded key ends at minus two, five. The fixed query reads minus two. Move the inverse rotation onto the query before applying the transposed projection. Its new coordinates in latent space are zero, minus one. Regrouping works at each position, but the two positions need different absorbed queries.",
+        "hold": 1
+      },
+      {
+        "id": "rotation-b03",
+        "say": "Decoupled rotary encoding keeps the reusable content query and gives position its own dot product. Add the content and positional scores, divide by the square root of their combined score width, then apply softmax over valid positions. That is why the positional key travels beside the latent.",
+        "hold": 1
+      }
+    ]
+  },
+  {
+    "id": "copies",
+    "title": "Find the extra allocation",
+    "sourceChapters": [
+      "c08"
+    ],
+    "beats": [
+      {
+        "id": "copies-b01",
+        "say": "Check the actual serving kernel. A native grouped read can use the query index to select its stored head directly. Take twenty-four queries and three key-value heads. In one layer with two requests, a thousand twenty-four positions, width sixty-four and two-byte numbers, the compact key and value arrays occupy one and a half mebibytes.",
+        "hold": 0.9
+      },
+      {
+        "id": "copies-b02",
+        "say": "A reference implementation repeats each key and value head eight times to match the query count. Suppose it materializes the expanded arrays and the compact cache is still live. Which allocations contribute to the peak?",
+        "hold": 2.1
+      },
+      {
+        "id": "copies-b03",
+        "say": "Both allocations. The temporary arrays alone take twelve mebibytes. Place them beside the retained one and a half for a combined thirteen and a half. A native grouped kernel can avoid the copies. Inspect dispatch, peak allocations and memory traffic for the path your engine actually runs.",
+        "hold": 1
+      }
+    ]
+  },
+  {
+    "id": "mask",
+    "title": "Repair the latest query’s view",
+    "sourceChapters": [
+      "c08"
+    ],
+    "beats": [
+      {
+        "id": "mask-b01",
+        "say": "Track one request through an append. Its next logical position is two. Rotate the new queries and keys for that position, keep values unrotated, and write the pairs to the assigned storage. The latest query reads positions zero through two. After this step advance the length to three. A stale write at two must leave those rows intact.",
+        "hold": 1
+      },
+      {
+        "id": "mask-b02",
+        "say": "Zoom in on one head. Give the three positions scalar values one, two and nine, and set every score to zero. An upper-left triangular mask on one query row exposes only the first key. That produces one. Which keys actually precede or coincide with the query at position two?",
+        "hold": 2
+      },
+      {
+        "id": "mask-b03",
+        "say": "All three keys. Use their absolute positions. Each gets one third of the weight and the output becomes four. Omitting the mask works for a single latest query only when every supplied key is valid and there are no future keys or padding.",
+        "hold": 1
+      },
+      {
+        "id": "mask-b04",
+        "say": "For a chunk with queries at positions three and four, the first must stop before key four. The second can use it. Carry each request’s positions, length and physical slots through batch reordering. Compare both rows against full-prefix outputs of the same converted model within numerical tolerance. This tests cache correctness separately from conversion quality.",
+        "hold": 1
+      }
+    ]
+  },
+  {
+    "id": "c08",
+    "title": "Can every rank admit this request?",
+    "sourceChapters": [
+      "c08"
+    ],
+    "beats": [
+      {
+        "id": "c08-b01",
+        "say": "Try a fresh layout. Forty-eight queries share six logical histories in contiguous groups. The engine splits them over twelve tensor-parallel ranks. Which history serves query nineteen, and which ranks must keep a copy of that history?",
+        "hold": 2.5
+      },
+      {
+        "id": "c08-b02",
+        "say": "History two. Each history serves eight queries. Each rank owns four. Ranks four and five therefore both need history two. In this Llama head-sharding layout, queries must divide evenly across ranks. With fewer ranks than stored heads, shard the heads evenly. With more ranks, the rank count must be a multiple of the stored head count.",
+        "hold": 1
+      },
+      {
+        "id": "c08-b03",
+        "say": "Price one request with thirty-two uniform layers, a thousand twenty-four positions, width sixty-four and two-byte numbers. Each rank holds one physical head, which costs eight mebibytes. The six logical histories cost forty-eight mebibytes before replication. Twelve physical copies cost ninety-six.",
+        "hold": 0.9
+      },
+      {
+        "id": "c08-b04",
+        "say": "After weights, workspaces, existing requests and reserves, rank five has seven mebibytes free for this request. Every other rank has nine. The machine has more than ninety-six free in total. Can this layout admit the request?",
+        "hold": 2.5
+      },
+      {
+        "id": "c08-b05",
+        "say": "It cannot fit on rank five. That rank needs eight and has seven. The other ranks cannot lend it a place for its local copy under this layout. Once a layout fits, check cached parity, held-out quality, peak device memory, latency and tokens per second at the intended batch and context. Next, paged attention shows how the engine assigns the physical slots.",
+        "hold": 1.3
+      }
+    ]
+  }
+]

@@ -1,0 +1,2391 @@
+version: 1
+id: capstone-damaged-package-vision-classifier
+title: A Vision Classifier Needs Usable Evidence
+source: foundations/capstone-damaged-package-vision-classifier/content.md
+voice: en-US-AndrewNeural
+rate: +0%
+sources:
+  - title: "PyTorch: binary cross-entropy with logits"
+    url: https://docs.pytorch.org/docs/stable/generated/torch.nn.BCEWithLogitsLoss.html
+scenes:
+  - id: intro
+    title: Which photo deserves the next review slot?
+    visual: Three schematic photo frames show a dark package, a clear torn parcel and an empty frame with their
+      supplied scores.
+    beats:
+      - say: A specialist has time to inspect one photo next. A very dark image carries the largest damage score,
+          while a clear torn parcel has a slightly lower score. Which one supplies evidence the specialist can
+          actually use? The answer depends on input quality before ranking scores.
+        hold: 0.75
+        visual_cues:
+          - id: intro-b1-1
+            phrase: very dark image
+            targets:
+              - dark-photo
+            linger: 0.45
+          - id: intro-b1-2
+            phrase: clear torn parcel
+            targets:
+              - clear-photo
+            linger: 0.45
+          - id: intro-b1-3
+            phrase: input quality before ranking
+            targets:
+              - damage-scores
+            linger: 0.45
+      - say: We will build a photo-review policy, keep related images together when evaluating it, and join specialist
+          outcomes afterward. The scores and sketches here are supplied teaching fixtures. A trained
+          classifier needs real permitted photographs, labels and measured results under the same contract.
+        hold: 0.85
+        visual_cues:
+          - id: intro-b2-1
+            phrase: photo-review policy
+            targets:
+              - case-routes
+            linger: 0.45
+          - id: intro-b2-2
+            phrase: supplied teaching fixtures
+            targets:
+              - photo-cases
+            linger: 0.45
+  - id: evidence-contract
+    title: Separate a review route from a damage or refund claim
+    visual: Retain one dark0.94 photo and explicitly separate route, external label and order-authorized claim
+      before showing the absent real training artifacts.
+    beats:
+      - say: The three actions answer which evidence enters which review queue. A request for a new photo asks for
+          useful light, focus or parcel coverage. Normal review does not establish undamaged contents.
+          Priority review does not authorize a refund, replacement or restocking decision; those need their
+          separate order policy and specialist workflow.
+        hold: 0.7
+        visual_cues:
+          - id: dv-evidence-contract-0
+            phrase: The three actions answer which evidence enters which review queue
+            targets:
+              - dv-evidence-contract-mechanism
+            color: cyan
+            linger: 0.4
+          - id: dv-evidence-contract-operation-0
+            phrase: The three actions answer which evidence enters which review queue. A request for a new photo asks for
+              useful light, focus or parcel coverage. Normal review does not establish undamaged contents.
+              Priority review does not authorize a refund, replacement or restocking decision; those need
+              their separate order policy and specialist workflow.
+            targets:
+              - dv-evidence-contract-mechanism
+            color: cyan
+            linger: 0.45
+      - say: This article supplies invented metadata, scores and specialist labels. It supplies no photographs,
+          trained weights or measured model results. The tiny training split contains two positive photos of
+          one parcel and no negative case; validation contains no usable positive. These records can test a
+          contract but cannot establish damage discrimination.
+        hold: 0.7
+        visual_cues:
+          - id: dv-evidence-contract-1
+            phrase: This article supplies invented metadata, scores and specialist labels
+            targets:
+              - dv-evidence-contract-mechanism
+            color: yellow
+            linger: 0.4
+          - id: dv-evidence-contract-operation-1
+            phrase: This article supplies invented metadata, scores and specialist labels. It supplies no photographs,
+              trained weights or measured model results. The tiny training split contains two positive photos
+              of one parcel and no negative case; validation contains no usable positive. These records can
+              test a contract but cannot establish damage discrimination.
+            targets:
+              - dv-evidence-contract-mechanism
+            color: cyan
+            linger: 0.45
+          - id: dv-training-evidence
+            phrase: The tiny training split contains two positive photos of one parcel and no negative case
+            targets:
+              - dv-evidence-contract-mechanism
+            color: yellow
+            linger: 0.45
+      - say: For a real classifier, obtain permission for varied photographs and retain the allowed-use record.
+          Restrict access and remove personal shipping details from a public portfolio. A model card should
+          name intended use, excluded uses, evaluated slices, thresholds and limitations. None of those
+          documents alone establishes that a model works.
+        hold: 0.7
+        visual_cues:
+          - id: dv-evidence-contract-2
+            phrase: For a real classifier, obtain permission for varied photographs and retain the allowed-use record
+            targets:
+              - dv-evidence-contract-mechanism
+            color: green
+            linger: 0.4
+          - id: dv-evidence-contract-operation-2
+            phrase: For a real classifier, obtain permission for varied photographs and retain the allowed-use record.
+              Restrict access and remove personal shipping details from a public portfolio. A model card
+              should name intended use, excluded uses, evaluated slices, thresholds and limitations. None of
+              those documents alone establishes that a model works.
+            targets:
+              - dv-evidence-contract-mechanism
+            color: cyan
+            linger: 0.45
+  - id: labels
+    title: Define the question the image can answer
+    visual: A visible seam defect and hidden package contents occupy separate regions of an annotated parcel sketch.
+    beats:
+      - say: Define visible external packaging damage before collecting examples. A torn seam, crushed corner or
+          puncture can support that label. The contents remain hidden from this photograph. Keep uncertain and
+          unusable images explicit so a missing judgment never becomes an undamaged training example.
+        hold: 0.75
+        visual_cues:
+          - id: labels-b1-1
+            phrase: visible external packaging damage
+            targets:
+              - external-photo
+            linger: 0.45
+          - id: labels-b1-2
+            phrase: torn seam
+            targets:
+              - visible-seam
+            linger: 0.45
+          - id: labels-b1-3
+            phrase: contents remain hidden
+            targets:
+              - hidden-contents
+            linger: 0.45
+      - say: Our product makes a review-queue decision. It can ask for another photo, retain an ordinary review or
+          request priority inspection. These actions preserve specialist judgment. The label guide should
+          explain ambiguous cases and record reviewer disagreement before any neural architecture enters the
+          experiment.
+        hold: 0.85
+        visual_cues:
+          - id: labels-b2-1
+            phrase: review-queue decision
+            targets:
+              - review-actions
+            linger: 0.45
+          - id: labels-b2-2
+            phrase: ambiguous cases
+            targets:
+              - label-state
+            linger: 0.45
+  - id: groups
+    title: One physical parcel owns all its views
+    visual: Alternate photo cards converge into physical case groups before those groups enter train, validation
+      and test lanes.
+    beats:
+      - say: A customer takes several pictures of the same crushed box. Those images share the barcode, background and
+          markings. Splitting the photographs independently can place almost the same parcel on both sides of
+          evaluation, making recognition of a familiar case look like generalization.
+        hold: 0.75
+        visual_cues:
+          - id: groups-b1-1
+            phrase: several pictures of the same crushed box
+            targets:
+              - same-case-views
+            linger: 0.45
+          - id: groups-b1-2
+            phrase: both sides of evaluation
+            targets:
+              - train-case
+            linger: 0.45
+      - say: Group alternate views and reuploads by the physical case first. Then apply time boundaries, keeping an
+          entire case together or quarantining a case that spans the boundary. Exact file hashes catch
+          identical bytes; recompressed photographs still need the same physical-case grouping.
+        hold: 0.85
+        visual_cues:
+          - id: groups-b2-1
+            phrase: Group alternate views and reuploads
+            targets:
+              - same-case-views
+            linger: 0.45
+          - id: groups-b2-2
+            phrase: entire case together
+            targets:
+              - train-case
+              - validation-case
+              - test-case
+            linger: 0.45
+          - id: dv-group-repair
+            phrase: Then apply time boundaries, keeping an entire case together or quarantining a case that spans the
+              boundary
+            targets:
+              - train-case
+            color: yellow
+            linger: 0.45
+  - id: manifest-identity
+    title: Keep content identity, physical identity and label time distinct
+    visual: Construct the actual eleven-photo/nine-case manifest with immutable photo IDs; alternate R401/R404
+      views share physical owners and train/validation/test totals.
+    beats:
+      - say: The actual manifest has eleven photos from nine physical cases. R four-oh-one owns two training views,
+          and R four-oh-four owns two test views. Train, validation and test contain two, two and seven
+          photos, but one, two and six physical cases. Photo count and case count answer different questions.
+        hold: 0.7
+        visual_cues:
+          - id: dv-manifest-identity-0
+            phrase: The actual manifest has eleven photos from nine physical cases
+            targets:
+              - dv-manifest-identity-mechanism
+            color: cyan
+            linger: 0.4
+          - id: dv-manifest-identity-operation-0
+            phrase: The actual manifest has eleven photos from nine physical cases. R four-oh-one owns two training views,
+              and R four-oh-four owns two test views. Train, validation and test contain two, two and seven
+              photos, but one, two and six physical cases. Photo count and case count answer different
+              questions.
+            targets:
+              - dv-manifest-identity-mechanism
+            color: cyan
+            linger: 0.45
+          - id: dv-manifest-total
+            phrase: The actual manifest has eleven photos from nine physical cases
+            targets:
+              - dv-manifest-identity-mechanism
+            color: yellow
+            linger: 0.45
+          - id: dv-manifest-splits
+            phrase: Train, validation and test contain two, two and seven photos, but one, two and six physical cases
+            targets:
+              - dv-manifest-identity-mechanism
+            color: yellow
+            linger: 0.45
+      - say: A complete real manifest also binds image location and content hash, capture time, source and packaging,
+          human usability, damage label, reviewer and guideline version. A cryptographic hash identifies the
+          exact file bytes. Recompression can change that hash while preserving the same physical parcel, so
+          retain and audit the case identity too.
+        hold: 0.7
+        visual_cues:
+          - id: dv-manifest-identity-1
+            phrase: A complete real manifest also binds image location and content hash, capture time, source and
+              packaging, human usability, damage label, reviewer and guideline version
+            targets:
+              - dv-manifest-identity-mechanism
+            color: yellow
+            linger: 0.4
+          - id: dv-manifest-identity-operation-1
+            phrase: A complete real manifest also binds image location and content hash, capture time, source and
+              packaging, human usability, damage label, reviewer and guideline version. A cryptographic hash
+              identifies the exact file bytes. Recompression can change that hash while preserving the same
+              physical parcel, so retain and audit the case identity too.
+            targets:
+              - dv-manifest-identity-mechanism
+            color: cyan
+            linger: 0.45
+      - say: Group before chronological splitting. Group K Fold prevents a group crossing its folds but does not
+          itself enforce chronological direction. Quarantine a case whose views span the chosen time boundary,
+          and use only labels available at the historical training cutoff. Apply augmentation afterward so
+          transformed siblings cannot cross splits.
+        hold: 0.7
+        visual_cues:
+          - id: dv-manifest-identity-2
+            phrase: Group before chronological splitting
+            targets:
+              - dv-manifest-identity-mechanism
+            color: green
+            linger: 0.4
+          - id: dv-manifest-identity-operation-2
+            phrase: Group before chronological splitting. Group K Fold prevents a group crossing its folds but does not
+              itself enforce chronological direction. Quarantine a case whose views span the chosen time
+              boundary, and use only labels available at the historical training cutoff. Apply augmentation
+              afterward so transformed siblings cannot cross splits.
+            targets:
+              - dv-manifest-identity-mechanism
+            color: cyan
+            linger: 0.45
+          - id: dv-quarantine
+            phrase: Quarantine a case whose views span the chosen time boundary, and use only labels available at the
+              historical training cutoff
+            targets:
+              - dv-manifest-identity-mechanism
+            color: yellow
+            linger: 0.45
+  - id: typed-inputs
+    title: Reject malformed records before routing
+    visual: One actual validated metadata/output pair enters the router; boolean probability and unobserved damage
+      label attempts fail before any queue action.
+    beats:
+      - say: The fixture validates its inputs before choosing a route. IDs must be nonblank strings with no outside
+          whitespace. Capture day must be a positive integer rather than a Boolean. A usable photo needs a
+          literal Boolean damage label; an unusable photo must instead retain an unknown label.
+        hold: 0.7
+        visual_cues:
+          - id: dv-typed-inputs-0
+            phrase: The fixture validates its inputs before choosing a route
+            targets:
+              - dv-typed-inputs-mechanism
+            color: cyan
+            linger: 0.4
+          - id: dv-typed-inputs-operation-0
+            phrase: The fixture validates its inputs before choosing a route. IDs must be nonblank strings with no outside
+              whitespace. Capture day must be a positive integer rather than a Boolean. A usable photo needs a
+              literal Boolean damage label; an unusable photo must instead retain an unknown label.
+            targets:
+              - dv-typed-inputs-mechanism
+            color: cyan
+            linger: 0.45
+          - id: dv-unknown-label
+            phrase: an unusable photo must instead retain an unknown label
+            targets:
+              - dv-typed-inputs-mechanism
+            color: yellow
+            linger: 0.45
+      - say: Each damage, blur and brightness value must be a finite integer or float in the closed interval zero
+          through one; Boolean values are rejected despite Python treating them as integer-like. The
+          package-visible flag must itself be a literal Boolean. The range is checked before converting an
+          arbitrarily large integer to a float.
+        hold: 0.7
+        visual_cues:
+          - id: dv-typed-inputs-1
+            phrase: Each damage, blur and brightness value must be a finite integer or float in the closed interval zero
+              through one; Boolean values are rejected despite Python treating them as integer-like
+            targets:
+              - dv-typed-inputs-mechanism
+            color: yellow
+            linger: 0.4
+          - id: dv-typed-inputs-operation-1
+            phrase: Each damage, blur and brightness value must be a finite integer or float in the closed interval zero
+              through one; Boolean values are rejected despite Python treating them as integer-like. The
+              package-visible flag must itself be a literal Boolean. The range is checked before converting an
+              arbitrarily large integer to a float.
+            targets:
+              - dv-typed-inputs-mechanism
+            color: cyan
+            linger: 0.45
+          - id: dv-numeric-boolean
+            phrase: Boolean values are rejected despite Python treating them as integer-like
+            targets:
+              - dv-typed-inputs-mechanism
+            color: yellow
+            linger: 0.45
+      - say: Offline human labels and model outputs live in separate objects. Routing reads validated capture identity
+          and the supplied output, not the human label. The human-usability label later tests whether the
+          quality stage wrongly accepted or rejected evidence. Keeping these channels apart prevents the
+          expected answer leaking into the router.
+        hold: 0.7
+        visual_cues:
+          - id: dv-typed-inputs-2
+            phrase: Offline human labels and model outputs live in separate objects
+            targets:
+              - dv-typed-inputs-mechanism
+            color: green
+            linger: 0.4
+          - id: dv-typed-inputs-operation-2
+            phrase: Offline human labels and model outputs live in separate objects. Routing reads validated capture
+              identity and the supplied output, not the human label. The human-usability label later tests
+              whether the quality stage wrongly accepted or rejected evidence. Keeping these channels apart
+              prevents the expected answer leaking into the router.
+            targets:
+              - dv-typed-inputs-mechanism
+            color: cyan
+            linger: 0.45
+          - id: dv-label-channel
+            phrase: Routing reads validated capture identity and the supplied output, not the human label
+            targets:
+              - dv-typed-inputs-mechanism
+            color: yellow
+            linger: 0.45
+  - id: quality
+    title: Check whether the pixels support inspection
+    visual: Brightness and blur positions enter a quality plane while a separate package-visible flag vetoes an
+      otherwise acceptable point.
+    beats:
+      - say: The quality policy checks package visibility, brightness and blur before consulting the damage threshold.
+          In this fixture, larger blur values mean more blur. The dark photo fails brightness despite its high
+          damage score, so the proposed route requests a better image.
+        hold: 0.75
+        visual_cues:
+          - id: quality-b1-1
+            phrase: brightness and blur
+            targets:
+              - brightness-limit
+              - blur-limit
+            linger: 0.45
+          - id: quality-b1-2
+            phrase: dark photo fails brightness
+            targets:
+              - selected-photo
+            linger: 0.45
+          - id: quality-b1-3
+            phrase: requests a better image
+            targets:
+              - quality-route
+            linger: 0.45
+          - id: dv-original-dark-route
+            phrase: the proposed route requests a better image
+            targets:
+              - quality-route
+            color: yellow
+            linger: 0.45
+      - say: The empty frame shows another failure. It passes the numeric brightness and blur limits but contains no
+          package. Keep that visibility condition as its own gate. Measure quality rejection errors too,
+          because incorrectly rejecting a genuinely damaged parcel can delay the very case we hoped to
+          recover.
+        hold: 0.85
+        visual_cues:
+          - id: quality-b2-1
+            phrase: empty frame
+            targets:
+              - selected-photo
+            linger: 0.45
+          - id: quality-b2-2
+            phrase: visibility condition as its own gate
+            targets:
+              - visibility-gate
+            linger: 0.45
+          - id: dv-original-empty-route
+            phrase: Keep that visibility condition as its own gate
+            targets:
+              - quality-route
+            color: yellow
+            linger: 0.45
+  - id: focus-stencil
+    title: Construct the signed focus response before its variance
+    visual: Move the four-neighbor Laplacian stencil over the actual5×5edge; retain interior9responses
+      [1,-1,0]×3,mean0,variance2/3.
+    beats:
+      - say: Now compute a real local image statistic on the article’s hand-built five-by-five intensity grid. The
+          discrete Laplacian adds the north, south, east and west neighbors and subtracts four times the
+          center. Use signed or floating-point arithmetic so a negative response survives.
+        hold: 0.7
+        visual_cues:
+          - id: dv-focus-stencil-0
+            phrase: Now compute a real local image statistic on the article’s hand-built five-by-five intensity grid
+            targets:
+              - dv-focus-stencil-mechanism
+            color: cyan
+            linger: 0.4
+          - id: dv-focus-stencil-operation-0
+            phrase: Now compute a real local image statistic on the article’s hand-built five-by-five intensity grid. The
+              discrete Laplacian adds the north, south, east and west neighbors and subtracts four times the
+              center. Use signed or floating-point arithmetic so a negative response survives.
+            targets:
+              - dv-focus-stencil-mechanism
+            color: cyan
+            linger: 0.45
+          - id: dv-stencil-operation
+            phrase: The discrete Laplacian adds the north, south, east and west neighbors and subtracts four times the
+              center
+            targets:
+              - dv-focus-stencil-mechanism
+            color: yellow
+            linger: 0.45
+      - say: This implementation drops the outer pixels, leaving nine interior responses. Each of the three rows
+          contains one, minus one and zero, so the mean is zero. Subtract the mean from each response, square
+          the difference, sum those squares and divide by all nine retained pixels. The population variance is
+          two thirds.
+        hold: 0.7
+        visual_cues:
+          - id: dv-focus-stencil-1
+            phrase: This implementation drops the outer pixels, leaving nine interior responses
+            targets:
+              - dv-focus-stencil-mechanism
+            color: yellow
+            linger: 0.4
+          - id: dv-focus-stencil-operation-1
+            phrase: This implementation drops the outer pixels, leaving nine interior responses. Each of the three rows
+              contains one, minus one and zero, so the mean is zero. Subtract the mean from each response,
+              square the difference, sum those squares and divide by all nine retained pixels. The population
+              variance is two thirds.
+            targets:
+              - dv-focus-stencil-mechanism
+            color: cyan
+            linger: 0.45
+          - id: dv-response-nine
+            phrase: This implementation drops the outer pixels, leaving nine interior responses
+            targets:
+              - dv-focus-stencil-mechanism
+            color: yellow
+            linger: 0.45
+          - id: dv-response-mean
+            phrase: Each of the three rows contains one, minus one and zero, so the mean is zero
+            targets:
+              - dv-focus-stencil-mechanism
+            color: yellow
+            linger: 0.45
+          - id: dv-response-variance
+            phrase: The population variance is two thirds
+            targets:
+              - dv-focus-stencil-mechanism
+            color: yellow
+            linger: 0.45
+      - say: Boundary handling, region and resizing are part of the measurement. OpenCV’s tutorial smooths before
+          differentiation to reduce noise; that is a different preprocessing choice from this explicit
+          no-padding grid. Texture, contrast and noise can raise the response variance even when useful parcel
+          detail is absent.
+        hold: 0.7
+        visual_cues:
+          - id: dv-focus-stencil-2
+            phrase: Boundary handling, region and resizing are part of the measurement
+            targets:
+              - dv-focus-stencil-mechanism
+            color: green
+            linger: 0.4
+          - id: dv-focus-stencil-operation-2
+            phrase: Boundary handling, region and resizing are part of the measurement. OpenCV’s tutorial smooths before
+              differentiation to reduce noise; that is a different preprocessing choice from this explicit
+              no-padding grid. Texture, contrast and noise can raise the response variance even when useful
+              parcel detail is absent.
+            targets:
+              - dv-focus-stencil-mechanism
+            color: cyan
+            linger: 0.45
+  - id: contrast-intervention
+    title: Change contrast while preserving the same sharp edge
+    visual: Halve only pixel amplitudes to0/.5,show signedresponses .5/−.5/0 and computedvariance1/6;retain
+      boundary location.
+    beats:
+      - say: "Keep the sharp edge in the same position and multiply every intensity by one half. Linearity halves each
+          Laplacian response. Squaring deviations then multiplies variance by one quarter: two thirds becomes
+          one sixth, or approximately point one six six seven. No blur was added."
+        hold: 0.7
+        visual_cues:
+          - id: dv-contrast-intervention-0
+            phrase: Keep the sharp edge in the same position and multiply every intensity by one half
+            targets:
+              - dv-contrast-intervention-mechanism
+            color: cyan
+            linger: 0.4
+          - id: dv-contrast-intervention-operation-0
+            phrase: "Keep the sharp edge in the same position and multiply every intensity by one half. Linearity halves
+              each Laplacian response. Squaring deviations then multiplies variance by one quarter: two thirds
+              becomes one sixth, or approximately point one six six seven. No blur was added."
+            targets:
+              - dv-contrast-intervention-mechanism
+            color: cyan
+            linger: 0.45
+          - id: dv-contrast-input
+            phrase: Keep the sharp edge in the same position and multiply every intensity by one half
+            targets:
+              - dv-contrast-intervention-mechanism
+            color: yellow
+            linger: 0.45
+          - id: dv-contrast-responses
+            phrase: Linearity halves each Laplacian response
+            targets:
+              - dv-contrast-intervention-mechanism
+            color: yellow
+            linger: 0.45
+          - id: dv-contrast-variance
+            phrase: two thirds becomes one sixth, or approximately point one six six seven
+            targets:
+              - dv-contrast-intervention-mechanism
+            color: yellow
+            linger: 0.45
+      - say: In general, scaling all intensities by a factor c scales this linear operator’s responses by c and their
+          variance by c squared. A low value cannot by itself distinguish blur from a sharp low-contrast
+          image. Test those competing cases against human usability.
+        hold: 0.7
+        visual_cues:
+          - id: dv-contrast-intervention-1
+            phrase: In general, scaling all intensities by a factor c scales this linear operator’s responses by c and
+              their variance by c squared
+            targets:
+              - dv-contrast-intervention-mechanism
+            color: yellow
+            linger: 0.4
+          - id: dv-contrast-intervention-operation-1
+            phrase: In general, scaling all intensities by a factor c scales this linear operator’s responses by c and
+              their variance by c squared. A low value cannot by itself distinguish blur from a sharp
+              low-contrast image. Test those competing cases against human usability.
+            targets:
+              - dv-contrast-intervention-mechanism
+            color: cyan
+            linger: 0.45
+          - id: dv-contrast-law
+            phrase: scaling all intensities by a factor c scales this linear operator’s responses by c and their variance
+              by c squared
+            targets:
+              - dv-contrast-intervention-mechanism
+            color: yellow
+            linger: 0.45
+      - say: The separate routing fixture uses an invented zero-to-one blur score whose larger values mean more blur.
+          Raw Laplacian variance has a different direction and scale, and the article implements no conversion
+          between them. Do not paste the fixture’s point-four-five cutoff onto a raw focus variance.
+        hold: 0.7
+        visual_cues:
+          - id: dv-contrast-intervention-2
+            phrase: The separate routing fixture uses an invented zero-to-one blur score whose larger values mean more
+              blur
+            targets:
+              - dv-contrast-intervention-mechanism
+            color: green
+            linger: 0.4
+          - id: dv-contrast-intervention-operation-2
+            phrase: The separate routing fixture uses an invented zero-to-one blur score whose larger values mean more
+              blur. Raw Laplacian variance has a different direction and scale, and the article implements no
+              conversion between them. Do not paste the fixture’s point-four-five cutoff onto a raw focus
+              variance.
+            targets:
+              - dv-contrast-intervention-mechanism
+            color: cyan
+            linger: 0.45
+          - id: dv-blur-score-boundary
+            phrase: the article implements no conversion between them
+            targets:
+              - dv-contrast-intervention-mechanism
+            color: yellow
+            linger: 0.45
+  - id: exposure-detail
+    title: Measure the parcel region and retain its small cue
+    visual: Contrast a bright shipping label with a darkparcel region,then shrink an explicit4pixel defect
+      under1024→224resizing without claiming inference.
+    beats:
+      - say: Mean pixel brightness can hide a dark parcel next to a bright shipping label. A parcel-region histogram
+          and clipped-pixel fraction can expose that distribution. Pixel intensity is not illumination in lux;
+          a physical illumination estimate needs sensor calibration.
+        hold: 0.7
+        visual_cues:
+          - id: dv-exposure-detail-0
+            phrase: Mean pixel brightness can hide a dark parcel next to a bright shipping label
+            targets:
+              - dv-exposure-detail-mechanism
+            color: cyan
+            linger: 0.4
+          - id: dv-exposure-detail-operation-0
+            phrase: Mean pixel brightness can hide a dark parcel next to a bright shipping label. A parcel-region
+              histogram and clipped-pixel fraction can expose that distribution. Pixel intensity is not
+              illumination in lux; a physical illumination estimate needs sensor calibration.
+            targets:
+              - dv-exposure-detail-mechanism
+            color: cyan
+            linger: 0.45
+          - id: dv-region-exposure
+            phrase: A parcel-region histogram and clipped-pixel fraction can expose that distribution
+            targets:
+              - dv-exposure-detail-mechanism
+            color: yellow
+            linger: 0.45
+      - say: Resizing a one-thousand-twenty-four-pixel-wide frame to two hundred twenty-four multiplies widths by two
+          hundred twenty-four divided by one thousand twenty-four. A four-pixel feature then spans point eight
+          seven five output pixels. That geometric result does not prove how a learned classifier will
+          respond.
+        hold: 0.7
+        visual_cues:
+          - id: dv-exposure-detail-1
+            phrase: Resizing a one-thousand-twenty-four-pixel-wide frame to two hundred twenty-four multiplies widths by
+              two hundred twenty-four divided by one thousand twenty-four
+            targets:
+              - dv-exposure-detail-mechanism
+            color: yellow
+            linger: 0.4
+          - id: dv-exposure-detail-operation-1
+            phrase: Resizing a one-thousand-twenty-four-pixel-wide frame to two hundred twenty-four multiplies widths by
+              two hundred twenty-four divided by one thousand twenty-four. A four-pixel feature then spans
+              point eight seven five output pixels. That geometric result does not prove how a learned
+              classifier will respond.
+            targets:
+              - dv-exposure-detail-mechanism
+            color: cyan
+            linger: 0.45
+          - id: dv-resize-detail
+            phrase: A four-pixel feature then spans point eight seven five output pixels
+            targets:
+              - dv-exposure-detail-mechanism
+            color: yellow
+            linger: 0.45
+      - say: Check parcel presence and retained detail separately from exposure and focus. Physical centimeters
+          require scale information before converting to pixels. Compare a whole-frame input, a parcel crop
+          and higher resolution using real small-defect cases, and measure the complete quality-plus-model
+          path on the intended device.
+        hold: 0.7
+        visual_cues:
+          - id: dv-exposure-detail-2
+            phrase: Check parcel presence and retained detail separately from exposure and focus
+            targets:
+              - dv-exposure-detail-mechanism
+            color: green
+            linger: 0.4
+          - id: dv-exposure-detail-operation-2
+            phrase: Check parcel presence and retained detail separately from exposure and focus. Physical centimeters
+              require scale information before converting to pixels. Compare a whole-frame input, a parcel
+              crop and higher resolution using real small-defect cases, and measure the complete
+              quality-plus-model path on the intended device.
+            targets:
+              - dv-exposure-detail-mechanism
+            color: cyan
+            linger: 0.45
+  - id: ordered-router
+    title: Apply each exact quality condition before the threshold
+    visual: Build the actual branch order and boundaryvalues,retaining score even when the presence or
+      numeric-quality veto fires.
+    beats:
+      - say: The actual route first tests whether the package is visible. If not, its reason is package not visible.
+          Otherwise blur strictly above point four five or brightness strictly below point two requests
+          another photo for image quality. Only after both stages pass does damage at least point seven enter
+          priority review.
+        hold: 0.7
+        visual_cues:
+          - id: dv-ordered-router-0
+            phrase: The actual route first tests whether the package is visible
+            targets:
+              - dv-ordered-router-mechanism
+            color: cyan
+            linger: 0.4
+          - id: dv-ordered-router-operation-0
+            phrase: The actual route first tests whether the package is visible. If not, its reason is package not
+              visible. Otherwise blur strictly above point four five or brightness strictly below point two
+              requests another photo for image quality. Only after both stages pass does damage at least point
+              seven enter priority review.
+            targets:
+              - dv-ordered-router-mechanism
+            color: cyan
+            linger: 0.45
+          - id: dv-presence-route
+            phrase: If not, its reason is package not visible
+            targets:
+              - dv-ordered-router-mechanism
+            color: yellow
+            linger: 0.45
+          - id: dv-quality-route
+            phrase: Otherwise blur strictly above point four five or brightness strictly below point two requests another
+              photo for image quality
+            targets:
+              - dv-ordered-router-mechanism
+            color: yellow
+            linger: 0.45
+          - id: dv-priority-route
+            phrase: Only after both stages pass does damage at least point seven enter priority review
+            targets:
+              - dv-ordered-router-mechanism
+            color: yellow
+            linger: 0.45
+      - say: Equality at the brightness minimum and blur maximum passes those numeric quality conditions, while
+          equality at the damage threshold chooses priority. A lower accepted damage score stays in normal
+          review. A high score remains recorded when quality fails, so reviewers can see what the gate vetoed.
+        hold: 0.7
+        visual_cues:
+          - id: dv-ordered-router-1
+            phrase: Equality at the brightness minimum and blur maximum passes those numeric quality conditions, while
+              equality at the damage threshold chooses priority
+            targets:
+              - dv-ordered-router-mechanism
+            color: yellow
+            linger: 0.4
+          - id: dv-ordered-router-operation-1
+            phrase: Equality at the brightness minimum and blur maximum passes those numeric quality conditions, while
+              equality at the damage threshold chooses priority. A lower accepted damage score stays in normal
+              review. A high score remains recorded when quality fails, so reviewers can see what the gate
+              vetoed.
+            targets:
+              - dv-ordered-router-mechanism
+            color: cyan
+            linger: 0.45
+          - id: dv-inclusive-route
+            phrase: Equality at the brightness minimum and blur maximum passes those numeric quality conditions, while
+              equality at the damage threshold chooses priority
+            targets:
+              - dv-ordered-router-mechanism
+            color: yellow
+            linger: 0.45
+      - say: The seven test photos produce three priority routes, two normal routes and two new-photo requests. Those
+          are photo routes, not three distinct confirmed damaged cases. A learned parcel detector also
+          consumes inference resources; quality-first ordering does not by itself promise a speedup.
+        hold: 0.7
+        visual_cues:
+          - id: dv-ordered-router-2
+            phrase: The seven test photos produce three priority routes, two normal routes and two new-photo requests
+            targets:
+              - dv-ordered-router-mechanism
+            color: green
+            linger: 0.4
+          - id: dv-ordered-router-operation-2
+            phrase: The seven test photos produce three priority routes, two normal routes and two new-photo requests.
+              Those are photo routes, not three distinct confirmed damaged cases. A learned parcel detector
+              also consumes inference resources; quality-first ordering does not by itself promise a speedup.
+            targets:
+              - dv-ordered-router-mechanism
+            color: cyan
+            linger: 0.45
+          - id: dv-route-counts
+            phrase: The seven test photos produce three priority routes, two normal routes and two new-photo requests
+            targets:
+              - dv-ordered-router-mechanism
+            color: yellow
+            linger: 0.45
+  - id: threshold
+    title: Choose a queue after quality passes
+    visual: Accepted photo scores retain their IDs while a fixed damage threshold separates normal from priority
+      review.
+    beats:
+      - say: Once quality passes, compare the damage score with a threshold chosen on validation cases. A lower
+          threshold can recover more damaged cases while adding unnecessary specialist work. Keep the review
+          budget and the cost of misses visible when choosing that operating point.
+        hold: 0.75
+        visual_cues:
+          - id: threshold-b1-1
+            phrase: compare the damage score
+            targets:
+              - usable-scores
+            linger: 0.45
+          - id: threshold-b1-2
+            phrase: threshold chosen on validation
+            targets:
+              - damage-threshold
+            linger: 0.45
+          - id: dv-original-threshold
+            phrase: compare the damage score with a threshold chosen on validation cases
+            targets:
+              - review-routes
+            color: yellow
+            linger: 0.45
+      - say: Freeze the threshold before evaluating the final held-out cases. Our supplied values exercise the policy
+          wiring and do not calibrate a model. A normal-review route leaves the damage question open, while a
+          priority route asks a specialist to inspect the same evidence sooner.
+        hold: 0.85
+        visual_cues:
+          - id: threshold-b2-1
+            phrase: Freeze the threshold
+            targets:
+              - threshold-contract
+            linger: 0.45
+          - id: threshold-b2-2
+            phrase: priority route asks a specialist
+            targets:
+              - review-routes
+            linger: 0.45
+  - id: development-threshold
+    title: Move a development threshold and count its workload
+    visual: Separate authored6casevalidationworksheet
+      scores.92T,.84F,.74T,.70T,.48F,.30T;move.8→.7→.3whilebudget4/recall.75remainfixed.
+    beats:
+      - say: "The real fixture cannot select a threshold because its validation split lacks a usable positive case.
+          Work a separate invented development worksheet: scores point nine two, point eight four, point seven
+          four, point seven zero, point four eight and point three zero. Their confirmed labels are damaged,
+          clear, damaged, damaged, clear and damaged."
+        hold: 0.7
+        visual_cues:
+          - id: dv-development-threshold-0
+            phrase: The real fixture cannot select a threshold because its validation split lacks a usable positive case
+            targets:
+              - dv-development-threshold-mechanism
+            color: cyan
+            linger: 0.4
+          - id: dv-development-threshold-operation-0
+            phrase: "The real fixture cannot select a threshold because its validation split lacks a usable positive case.
+              Work a separate invented development worksheet: scores point nine two, point eight four, point
+              seven four, point seven zero, point four eight and point three zero. Their confirmed labels are
+              damaged, clear, damaged, damaged, clear and damaged."
+            targets:
+              - dv-development-threshold-mechanism
+            color: cyan
+            linger: 0.45
+          - id: dv-development-inputs
+            phrase: Their confirmed labels are damaged, clear, damaged, damaged, clear and damaged
+            targets:
+              - dv-development-threshold-mechanism
+            color: yellow
+            linger: 0.45
+      - say: "Choose priority at score at least the threshold. At point eight, two cases enter priority: one true
+          positive and one false positive. Three damaged cases are missed, so recall is one quarter. At point
+          seven, four enter priority: three true positives and one false positive. One damaged case is missed,
+          so precision and recall are both three quarters."
+        hold: 0.7
+        visual_cues:
+          - id: dv-development-threshold-1
+            phrase: Choose priority at score at least the threshold
+            targets:
+              - dv-development-threshold-mechanism
+            color: yellow
+            linger: 0.4
+          - id: dv-development-threshold-operation-1
+            phrase: "Choose priority at score at least the threshold. At point eight, two cases enter priority: one true
+              positive and one false positive. Three damaged cases are missed, so recall is one quarter. At
+              point seven, four enter priority: three true positives and one false positive. One damaged case
+              is missed, so precision and recall are both three quarters."
+            targets:
+              - dv-development-threshold-mechanism
+            color: cyan
+            linger: 0.45
+          - id: dv-threshold-eight-counts
+            phrase: "At point eight, two cases enter priority: one true positive and one false positive"
+            targets:
+              - dv-development-threshold-mechanism
+            color: yellow
+            linger: 0.45
+          - id: dv-threshold-eight-recall
+            phrase: Three damaged cases are missed, so recall is one quarter
+            targets:
+              - dv-development-threshold-mechanism
+            color: yellow
+            linger: 0.45
+          - id: dv-threshold-seven-counts
+            phrase: "At point seven, four enter priority: three true positives and one false positive"
+            targets:
+              - dv-development-threshold-mechanism
+            color: yellow
+            linger: 0.45
+          - id: dv-threshold-seven-metrics
+            phrase: One damaged case is missed, so precision and recall are both three quarters
+            targets:
+              - dv-development-threshold-mechanism
+            color: yellow
+            linger: 0.45
+      - say: At point three all six enter, recovering all four damaged cases but using six review slots. Under this
+          toy’s predeclared four-slot budget and minimum recall three quarters, point seven is the only one of
+          these tested candidates that qualifies. Freeze its choice before an untouched holdout, rather than
+          tuning it on test outcomes.
+        hold: 0.7
+        visual_cues:
+          - id: dv-development-threshold-2
+            phrase: At point three all six enter, recovering all four damaged cases but using six review slots
+            targets:
+              - dv-development-threshold-mechanism
+            color: green
+            linger: 0.4
+          - id: dv-development-threshold-operation-2
+            phrase: At point three all six enter, recovering all four damaged cases but using six review slots. Under this
+              toy’s predeclared four-slot budget and minimum recall three quarters, point seven is the only
+              one of these tested candidates that qualifies. Freeze its choice before an untouched holdout,
+              rather than tuning it on test outcomes.
+            targets:
+              - dv-development-threshold-mechanism
+            color: cyan
+            linger: 0.45
+          - id: dv-threshold-three-counts
+            phrase: At point three all six enter, recovering all four damaged cases but using six review slots
+            targets:
+              - dv-development-threshold-mechanism
+            color: yellow
+            linger: 0.45
+          - id: dv-threshold-choice
+            phrase: Under this toy’s predeclared four-slot budget and minimum recall three quarters, point seven is the
+              only one of these tested candidates that qualifies
+            targets:
+              - dv-development-threshold-mechanism
+            color: yellow
+            linger: 0.45
+  - id: preprocess
+    title: Keep the corner inside the model input
+    visual: A crop window moves across the same parcel sketch and visibly removes or preserves the marked torn
+      corner.
+    beats:
+      - say: The model sees its transformed input. Resize and crop settings can remove a corner that contains the
+          useful cue. Inspect the actual image after preprocessing rather than assuming the original
+          photograph reached the network unchanged. Keep this transform paired with the weights.
+        hold: 0.75
+        motion_check:
+          region:
+            - 300
+            - 340
+            - 1440
+            - 600
+          minimumChangedFraction: 0.002
+        visual_cues:
+          - id: preprocess-b1-1
+            phrase: Resize and crop settings
+            targets:
+              - crop-window
+            linger: 0.45
+          - id: preprocess-b1-2
+            phrase: actual image after preprocessing
+            targets:
+              - transformed-photo
+            linger: 0.45
+      - say: A pretrained vision encoder can provide a representation, followed by a head trained for the agreed
+          label. Compare frozen features and further tuning on the same case holdout. A multi-label extension
+          needs separate defect annotations and masked losses for unknown categories rather than silently
+          treating them as negatives.
+        hold: 0.85
+        visual_cues:
+          - id: preprocess-b2-1
+            phrase: pretrained vision encoder
+            targets:
+              - transformed-photo
+            linger: 0.45
+          - id: preprocess-b2-2
+            phrase: same case holdout
+            targets:
+              - original-photo
+            linger: 0.45
+  - id: transform-bundle
+    title: Treat transformed pixels and weights as one model contract
+    visual: Construct shortside256resize/224centercrop and perchannelrescale-normalize;track a corner through crop
+      into fixedmodelinput.
+    beats:
+      - say: The documented ResNet eighteen ImageNet-one-K-v-one transform resizes the short side to two hundred
+          fifty-six, then takes a central two-hundred-twenty-four crop. It rescales pixels to zero through
+          one, then subtracts each channel’s documented mean and divides by its standard deviation.
+        hold: 0.7
+        visual_cues:
+          - id: dv-transform-bundle-0
+            phrase: The documented ResNet eighteen ImageNet-one-K-v-one transform resizes the short side to two hundred
+              fifty-six, then takes a central two-hundred-twenty-four crop
+            targets:
+              - dv-transform-bundle-mechanism
+            color: cyan
+            linger: 0.4
+          - id: dv-transform-bundle-operation-0
+            phrase: The documented ResNet eighteen ImageNet-one-K-v-one transform resizes the short side to two hundred
+              fifty-six, then takes a central two-hundred-twenty-four crop. It rescales pixels to zero through
+              one, then subtracts each channel’s documented mean and divides by its standard deviation.
+            targets:
+              - dv-transform-bundle-mechanism
+            color: cyan
+            linger: 0.45
+          - id: dv-resnet-transform
+            phrase: The documented ResNet eighteen ImageNet-one-K-v-one transform resizes the short side to two hundred
+              fifty-six, then takes a central two-hundred-twenty-four crop
+            targets:
+              - dv-transform-bundle-mechanism
+            color: yellow
+            linger: 0.45
+          - id: dv-channel-normalization
+            phrase: It rescales pixels to zero through one, then subtracts each channel’s documented mean and divides by
+              its standard deviation
+            targets:
+              - dv-transform-bundle-mechanism
+            color: yellow
+            linger: 0.45
+      - say: A corner outside that crop never reaches the classifier. That omission does not imply a zero damage
+          score; other features and the learned weights still determine the output. A letterboxed full-frame
+          resize preserves frame extent but can shrink small detail, so compare complete policies on
+          validation images.
+        hold: 0.7
+        visual_cues:
+          - id: dv-transform-bundle-1
+            phrase: A corner outside that crop never reaches the classifier
+            targets:
+              - dv-transform-bundle-mechanism
+            color: yellow
+            linger: 0.4
+          - id: dv-transform-bundle-operation-1
+            phrase: A corner outside that crop never reaches the classifier. That omission does not imply a zero damage
+              score; other features and the learned weights still determine the output. A letterboxed
+              full-frame resize preserves frame extent but can shrink small detail, so compare complete
+              policies on validation images.
+            targets:
+              - dv-transform-bundle-mechanism
+            color: cyan
+            linger: 0.45
+          - id: dv-lost-corner
+            phrase: A corner outside that crop never reaches the classifier
+            targets:
+              - dv-transform-bundle-mechanism
+            color: yellow
+            linger: 0.45
+      - say: Pin resize, crop, color normalization, weights, precision and label contract with the route policy and
+          thresholds. Changing only the serving transform changes model behavior while leaving weights fixed.
+          Training augmentation may differ intentionally, but evaluation and serving must follow the chosen
+          documented deterministic policy.
+        hold: 0.7
+        visual_cues:
+          - id: dv-transform-bundle-2
+            phrase: Pin resize, crop, color normalization, weights, precision and label contract with the route policy and
+              thresholds
+            targets:
+              - dv-transform-bundle-mechanism
+            color: green
+            linger: 0.4
+          - id: dv-transform-bundle-operation-2
+            phrase: Pin resize, crop, color normalization, weights, precision and label contract with the route policy and
+              thresholds. Changing only the serving transform changes model behavior while leaving weights
+              fixed. Training augmentation may differ intentionally, but evaluation and serving must follow
+              the chosen documented deterministic policy.
+            targets:
+              - dv-transform-bundle-mechanism
+            color: cyan
+            linger: 0.45
+  - id: representation-choice
+    title: Compare representations under the same physical-case evidence
+    visual: Expose ResNetfrozenfeatures→trainablehead,then separatelyunfreeze;compare ConvNeXtspatialdepthwise
+      andViTpatchprojection without inventedqualityrank.
+    beats:
+      - say: A pretrained ResNet provides a representation learned for its original task. Replace its ImageNet head
+          for the agreed visible-damage label; the supplied weights do not already output a parcel-damage
+          probability. First compare a trained linear head on frozen features, then treat backbone fine-tuning
+          as a separate experiment.
+        hold: 0.7
+        visual_cues:
+          - id: dv-representation-choice-0
+            phrase: A pretrained ResNet provides a representation learned for its original task
+            targets:
+              - dv-representation-choice-mechanism
+            color: cyan
+            linger: 0.4
+          - id: dv-representation-choice-operation-0
+            phrase: A pretrained ResNet provides a representation learned for its original task. Replace its ImageNet head
+              for the agreed visible-damage label; the supplied weights do not already output a parcel-damage
+              probability. First compare a trained linear head on frozen features, then treat backbone
+              fine-tuning as a separate experiment.
+            targets:
+              - dv-representation-choice-mechanism
+            color: cyan
+            linger: 0.45
+          - id: dv-frozen-head
+            phrase: First compare a trained linear head on frozen features, then treat backbone fine-tuning as a separate
+              experiment
+            targets:
+              - dv-representation-choice-mechanism
+            color: yellow
+            linger: 0.45
+      - say: ConvNeXt combines seven-by-seven depthwise spatial convolutions with channel mixing, inverted
+          bottlenecks, LayerNorm and GELU. The original ViT linearly projects flattened image patches, adds
+          positions and mixes their tokens with global self-attention. A patch projection is not a pixel
+          average, so being smaller than a patch does not automatically erase a cue.
+        hold: 0.7
+        visual_cues:
+          - id: dv-representation-choice-1
+            phrase: ConvNeXt combines seven-by-seven depthwise spatial convolutions with channel mixing, inverted
+              bottlenecks, LayerNorm and GELU
+            targets:
+              - dv-representation-choice-mechanism
+            color: yellow
+            linger: 0.4
+          - id: dv-representation-choice-operation-1
+            phrase: ConvNeXt combines seven-by-seven depthwise spatial convolutions with channel mixing, inverted
+              bottlenecks, LayerNorm and GELU. The original ViT linearly projects flattened image patches,
+              adds positions and mixes their tokens with global self-attention. A patch projection is not a
+              pixel average, so being smaller than a patch does not automatically erase a cue.
+            targets:
+              - dv-representation-choice-mechanism
+            color: cyan
+            linger: 0.45
+          - id: dv-convnext-spatial
+            phrase: ConvNeXt combines seven-by-seven depthwise spatial convolutions with channel mixing, inverted
+              bottlenecks, LayerNorm and GELU
+            targets:
+              - dv-representation-choice-mechanism
+            color: yellow
+            linger: 0.45
+          - id: dv-vit-patches
+            phrase: The original ViT linearly projects flattened image patches, adds positions and mixes their tokens with
+              global self-attention
+            targets:
+              - dv-representation-choice-mechanism
+            color: yellow
+            linger: 0.45
+      - say: Use the same physical-case holdout, agreed review budget and documented training budget for comparisons.
+          Record checkpoint, resolution, preprocessing, batch, precision, device and measured latency. Their
+          published benchmark successes do not rank these candidates on our absent photographs or guarantee
+          transfer to unfamiliar packaging.
+        hold: 0.7
+        visual_cues:
+          - id: dv-representation-choice-2
+            phrase: Use the same physical-case holdout, agreed review budget and documented training budget for
+              comparisons
+            targets:
+              - dv-representation-choice-mechanism
+            color: green
+            linger: 0.4
+          - id: dv-representation-choice-operation-2
+            phrase: Use the same physical-case holdout, agreed review budget and documented training budget for
+              comparisons. Record checkpoint, resolution, preprocessing, batch, precision, device and measured
+              latency. Their published benchmark successes do not rank these candidates on our absent
+              photographs or guarantee transfer to unfamiliar packaging.
+            targets:
+              - dv-representation-choice-mechanism
+            color: cyan
+            linger: 0.45
+  - id: head-forward
+    title: Compute one supplied feature-to-head prediction
+    visual: Actual scalar toy freezes suppliedfeatures[2,−1],weights[.25,.5],bias−1;construct dotproduct z−1
+      andsigmoid .268941.
+    beats:
+      - say: "To see what training a head means, use a separate arithmetic toy, not an image encoder. Its supplied
+          feature vector is two and minus one. The head weights are point two five and point five, with bias
+          minus one. Multiply matching coordinates, sum their products and add the bias: the logit is minus
+          one."
+        hold: 0.7
+        visual_cues:
+          - id: dv-head-forward-0
+            phrase: To see what training a head means, use a separate arithmetic toy, not an image encoder
+            targets:
+              - dv-head-forward-mechanism
+            color: cyan
+            linger: 0.4
+          - id: dv-head-forward-operation-0
+            phrase: "To see what training a head means, use a separate arithmetic toy, not an image encoder. Its supplied
+              feature vector is two and minus one. The head weights are point two five and point five, with
+              bias minus one. Multiply matching coordinates, sum their products and add the bias: the logit is
+              minus one."
+            targets:
+              - dv-head-forward-mechanism
+            color: cyan
+            linger: 0.45
+          - id: dv-head-logit
+            phrase: "Multiply matching coordinates, sum their products and add the bias: the logit is minus one"
+            targets:
+              - dv-head-forward-mechanism
+            color: yellow
+            linger: 0.45
+      - say: Sigmoid is one divided by the quantity one plus exponential of negative logit. At minus one it gives
+          approximately point two six eight nine. For a known damaged target one, binary cross-entropy is
+          negative log probability, approximately one point three one three three. This is a loss for this
+          supplied feature example.
+        hold: 0.7
+        visual_cues:
+          - id: dv-head-forward-1
+            phrase: Sigmoid is one divided by the quantity one plus exponential of negative logit
+            targets:
+              - dv-head-forward-mechanism
+            color: yellow
+            linger: 0.4
+          - id: dv-head-forward-operation-1
+            phrase: Sigmoid is one divided by the quantity one plus exponential of negative logit. At minus one it gives
+              approximately point two six eight nine. For a known damaged target one, binary cross-entropy is
+              negative log probability, approximately one point three one three three. This is a loss for this
+              supplied feature example.
+            targets:
+              - dv-head-forward-mechanism
+            color: cyan
+            linger: 0.45
+          - id: dv-head-probability
+            phrase: At minus one it gives approximately point two six eight nine
+            targets:
+              - dv-head-forward-mechanism
+            color: yellow
+            linger: 0.45
+          - id: dv-head-loss
+            phrase: For a known damaged target one, binary cross-entropy is negative log probability, approximately one
+              point three one three three
+            targets:
+              - dv-head-forward-mechanism
+            color: yellow
+            linger: 0.45
+      - say: A frozen encoder would keep the feature mapping fixed while the head learns. Fine-tuning would also send
+          gradients into the encoder, requiring an actual training set and its own budget. Neither choice
+          creates image evidence from the metadata fixture.
+        hold: 0.7
+        visual_cues:
+          - id: dv-head-forward-2
+            phrase: A frozen encoder would keep the feature mapping fixed while the head learns
+            targets:
+              - dv-head-forward-mechanism
+            color: green
+            linger: 0.4
+          - id: dv-head-forward-operation-2
+            phrase: A frozen encoder would keep the feature mapping fixed while the head learns. Fine-tuning would also
+              send gradients into the encoder, requiring an actual training set and its own budget. Neither
+              choice creates image evidence from the metadata fixture.
+            targets:
+              - dv-head-forward-mechanism
+            color: cyan
+            linger: 0.45
+  - id: head-update
+    title: Move the actual head parameters along the signed gradient
+    visual: Compute p−y,alltwo weightgradients andbiasgradient;applyeta.1andrerun samefeaturevector
+      toobtainz−.561365,p.363232,loss1.012714.
+    beats:
+      - say: For binary cross-entropy from one sigmoid logit, the logit gradient is probability minus target. Here
+          that is approximately minus point seven three one one. Each weight gradient multiplies that value by
+          its feature coordinate; the bias gradient is the same logit gradient.
+        hold: 0.7
+        visual_cues:
+          - id: dv-head-update-0
+            phrase: For binary cross-entropy from one sigmoid logit, the logit gradient is probability minus target
+            targets:
+              - dv-head-update-mechanism
+            color: cyan
+            linger: 0.4
+          - id: dv-head-update-operation-0
+            phrase: For binary cross-entropy from one sigmoid logit, the logit gradient is probability minus target. Here
+              that is approximately minus point seven three one one. Each weight gradient multiplies that
+              value by its feature coordinate; the bias gradient is the same logit gradient.
+            targets:
+              - dv-head-update-mechanism
+            color: cyan
+            linger: 0.45
+          - id: dv-logit-gradient
+            phrase: Here that is approximately minus point seven three one one
+            targets:
+              - dv-head-update-mechanism
+            color: yellow
+            linger: 0.45
+          - id: dv-parameter-gradients
+            phrase: Each weight gradient multiplies that value by its feature coordinate; the bias gradient is the same
+              logit gradient
+            targets:
+              - dv-head-update-mechanism
+            color: yellow
+            linger: 0.45
+      - say: Subtract learning rate point one times each gradient. The weights become approximately point three nine
+          six two and point four two six nine; bias becomes minus point nine two six nine. On the unchanged
+          two-feature input, the new logit is minus point five six one four, probability point three six three
+          two, and loss about one point zero one two seven.
+        hold: 0.7
+        visual_cues:
+          - id: dv-head-update-1
+            phrase: Subtract learning rate point one times each gradient
+            targets:
+              - dv-head-update-mechanism
+            color: yellow
+            linger: 0.4
+          - id: dv-head-update-operation-1
+            phrase: Subtract learning rate point one times each gradient. The weights become approximately point three
+              nine six two and point four two six nine; bias becomes minus point nine two six nine. On the
+              unchanged two-feature input, the new logit is minus point five six one four, probability point
+              three six three two, and loss about one point zero one two seven.
+            targets:
+              - dv-head-update-mechanism
+            color: cyan
+            linger: 0.45
+          - id: dv-parameter-update
+            phrase: The weights become approximately point three nine six two and point four two six nine; bias becomes
+              minus point nine two six nine
+            targets:
+              - dv-head-update-mechanism
+            color: yellow
+            linger: 0.45
+          - id: dv-updated-prediction
+            phrase: On the unchanged two-feature input, the new logit is minus point five six one four, probability point
+              three six three two, and loss about one point zero one two seven
+            targets:
+              - dv-head-update-mechanism
+            color: yellow
+            linger: 0.45
+      - say: This one positive example now has lower loss. It establishes the local update arithmetic, not held-out
+          discrimination, calibration or damage recall. A model assessment needs unseen positive and negative
+          physical cases rather than more optimization on this one feature vector.
+        hold: 0.7
+        visual_cues:
+          - id: dv-head-update-2
+            phrase: This one positive example now has lower loss
+            targets:
+              - dv-head-update-mechanism
+            color: green
+            linger: 0.4
+          - id: dv-head-update-operation-2
+            phrase: This one positive example now has lower loss. It establishes the local update arithmetic, not held-out
+              discrimination, calibration or damage recall. A model assessment needs unseen positive and
+              negative physical cases rather than more optimization on this one feature vector.
+            targets:
+              - dv-head-update-mechanism
+            color: cyan
+            linger: 0.45
+  - id: masked-categories
+    title: Exclude unknown labels from both loss and its denominator
+    visual: Three sigmoidheads co-occur;actualtoylogits[0,2,−1],targets[1,0,unknown]construct two
+      losses,observedcount2andzero unknowngradient.
+    beats:
+      - say: For multiple defect categories, use one sigmoid logit per category. A torn seam and crushed corner can
+          both be present. Separate outputs model marginal probabilities; they do not assert that defects are
+          statistically independent. Substance identification or unreadable-label judgments need their own
+          task definitions.
+        hold: 0.7
+        visual_cues:
+          - id: dv-masked-categories-0
+            phrase: For multiple defect categories, use one sigmoid logit per category
+            targets:
+              - dv-masked-categories-mechanism
+            color: cyan
+            linger: 0.4
+          - id: dv-masked-categories-operation-0
+            phrase: For multiple defect categories, use one sigmoid logit per category. A torn seam and crushed corner can
+              both be present. Separate outputs model marginal probabilities; they do not assert that defects
+              are statistically independent. Substance identification or unreadable-label judgments need their
+              own task definitions.
+            targets:
+              - dv-masked-categories-mechanism
+            color: cyan
+            linger: 0.45
+      - say: Binary cross-entropy for an observed category is negative target times log probability, minus the
+          quantity one minus target multiplied by log of the quantity one minus probability. Mask unknown
+          entries, sum only observed losses, then divide by the number observed. If none are observed, skip
+          this supervised contribution rather than divide by zero.
+        hold: 0.7
+        visual_cues:
+          - id: dv-masked-categories-1
+            phrase: Binary cross-entropy for an observed category is negative target times log probability, minus the
+              quantity one minus target multiplied by log of the quantity one minus probability
+            targets:
+              - dv-masked-categories-mechanism
+            color: yellow
+            linger: 0.4
+          - id: dv-masked-categories-operation-1
+            phrase: Binary cross-entropy for an observed category is negative target times log probability, minus the
+              quantity one minus target multiplied by log of the quantity one minus probability. Mask unknown
+              entries, sum only observed losses, then divide by the number observed. If none are observed,
+              skip this supervised contribution rather than divide by zero.
+            targets:
+              - dv-masked-categories-mechanism
+            color: cyan
+            linger: 0.45
+          - id: dv-mask-reduction
+            phrase: Mask unknown entries, sum only observed losses, then divide by the number observed
+            targets:
+              - dv-masked-categories-mechanism
+            color: yellow
+            linger: 0.45
+      - say: In a supplied three-category toy, logits zero, two and minus one have targets one, zero and unknown. The
+          first two losses are about point six nine three one and two point one two six nine. Their mean is
+          one point four one zero zero; the unknown contributes no loss or gradient. Treating it as negative
+          or dividing by three changes the objective.
+        hold: 0.7
+        visual_cues:
+          - id: dv-masked-categories-2
+            phrase: In a supplied three-category toy, logits zero, two and minus one have targets one, zero and unknown
+            targets:
+              - dv-masked-categories-mechanism
+            color: green
+            linger: 0.4
+          - id: dv-masked-categories-operation-2
+            phrase: In a supplied three-category toy, logits zero, two and minus one have targets one, zero and unknown.
+              The first two losses are about point six nine three one and two point one two six nine. Their
+              mean is one point four one zero zero; the unknown contributes no loss or gradient. Treating it
+              as negative or dividing by three changes the objective.
+            targets:
+              - dv-masked-categories-mechanism
+            color: cyan
+            linger: 0.45
+          - id: dv-masked-losses
+            phrase: The first two losses are about point six nine three one and two point one two six nine
+            targets:
+              - dv-masked-categories-mechanism
+            color: yellow
+            linger: 0.45
+          - id: dv-masked-mean
+            phrase: Their mean is one point four one zero zero; the unknown contributes no loss or gradient
+            targets:
+              - dv-masked-categories-mechanism
+            color: yellow
+            linger: 0.45
+      - say: With this mean, each observed logit gradient is its probability minus target, divided by two. Use a
+          stable combined logits-and-BCE operator instead of explicitly rounding sigmoid then taking
+          logarithms. Category-specific precision, recall and workload still need annotated real cases before
+          new queue rules.
+        hold: 0.7
+        visual_cues:
+          - id: dv-masked-categories-3
+            phrase: With this mean, each observed logit gradient is its probability minus target, divided by two
+            targets:
+              - dv-masked-categories-mechanism
+            color: cyan
+            linger: 0.4
+          - id: dv-masked-categories-operation-3
+            phrase: With this mean, each observed logit gradient is its probability minus target, divided by two. Use a
+              stable combined logits-and-BCE operator instead of explicitly rounding sigmoid then taking
+              logarithms. Category-specific precision, recall and workload still need annotated real cases
+              before new queue rules.
+            targets:
+              - dv-masked-categories-mechanism
+            color: cyan
+            linger: 0.45
+          - id: dv-masked-gradients
+            phrase: With this mean, each observed logit gradient is its probability minus target, divided by two
+            targets:
+              - dv-masked-categories-mechanism
+            color: yellow
+            linger: 0.45
+  - id: calibration-quality
+    title: Keep score calibration separate from operating-point choice
+    visual: Divide
+      onepositivez2byT2tochangeprob.8808→.7311whilepreservingzsign;separatelyretainqualityrejecteddamagedcasesoutsidetheaccepted-onlytable.
+    beats:
+      - say: Probability calibration asks whether predicted probabilities agree with observed frequencies on the
+          relevant evaluated distribution. A high score on a dark unfamiliar frame is not enough. Reserve
+          appropriate held-out validation cases for fitting a calibrator, separate from the final test.
+        hold: 0.7
+        visual_cues:
+          - id: dv-calibration-quality-0
+            phrase: Probability calibration asks whether predicted probabilities agree with observed frequencies on the
+              relevant evaluated distribution
+            targets:
+              - dv-calibration-quality-mechanism
+            color: cyan
+            linger: 0.4
+          - id: dv-calibration-quality-operation-0
+            phrase: Probability calibration asks whether predicted probabilities agree with observed frequencies on the
+              relevant evaluated distribution. A high score on a dark unfamiliar frame is not enough. Reserve
+              appropriate held-out validation cases for fitting a calibrator, separate from the final test.
+            targets:
+              - dv-calibration-quality-mechanism
+            color: cyan
+            linger: 0.45
+      - say: Temperature scaling divides logits by a positive fitted temperature. For a supplied binary logit two,
+          changing temperature from one to two changes probability from approximately point eight eight zero
+          eight to point seven three one one. The sign stays positive; a point-five class boundary stays on
+          the same side. Another queue threshold can still change its route.
+        hold: 0.7
+        visual_cues:
+          - id: dv-calibration-quality-1
+            phrase: Temperature scaling divides logits by a positive fitted temperature
+            targets:
+              - dv-calibration-quality-mechanism
+            color: yellow
+            linger: 0.4
+          - id: dv-calibration-quality-operation-1
+            phrase: Temperature scaling divides logits by a positive fitted temperature. For a supplied binary logit two,
+              changing temperature from one to two changes probability from approximately point eight eight
+              zero eight to point seven three one one. The sign stays positive; a point-five class boundary
+              stays on the same side. Another queue threshold can still change its route.
+            targets:
+              - dv-calibration-quality-mechanism
+            color: cyan
+            linger: 0.45
+          - id: dv-temperature-scores
+            phrase: For a supplied binary logit two, changing temperature from one to two changes probability from
+              approximately point eight eight zero eight to point seven three one one
+            targets:
+              - dv-calibration-quality-mechanism
+            color: yellow
+            linger: 0.45
+          - id: dv-temperature-boundary
+            phrase: The sign stays positive; a point-five class boundary stays on the same side
+            targets:
+              - dv-calibration-quality-mechanism
+            color: yellow
+            linger: 0.45
+      - say: Choose quality and damage thresholds against the whole intended workflow. Report the fraction rejected,
+          the human-usable images incorrectly rejected, and damaged-case recovery. An accepted-only classifier
+          table can look strong while the quality gate discards the evidence needed to detect a miss.
+        hold: 0.7
+        visual_cues:
+          - id: dv-calibration-quality-2
+            phrase: Choose quality and damage thresholds against the whole intended workflow
+            targets:
+              - dv-calibration-quality-mechanism
+            color: green
+            linger: 0.4
+          - id: dv-calibration-quality-operation-2
+            phrase: Choose quality and damage thresholds against the whole intended workflow. Report the fraction
+              rejected, the human-usable images incorrectly rejected, and damaged-case recovery. An
+              accepted-only classifier table can look strong while the quality gate discards the evidence
+              needed to detect a miss.
+            targets:
+              - dv-calibration-quality-mechanism
+            color: cyan
+            linger: 0.45
+          - id: dv-rejected-cohort
+            phrase: An accepted-only classifier table can look strong while the quality gate discards the evidence needed
+              to detect a miss
+            targets:
+              - dv-calibration-quality-mechanism
+            color: yellow
+            linger: 0.45
+  - id: bundle-replay
+    title: Replay the actual served decision from its retained snapshot
+    visual: Retain the actual20fieldtrace alongside copies of metadata,scores andbundle;active thresholdchanges do
+      not rewrite old servedinput.
+    beats:
+      - say: "A route emits twenty fields: attempt key, photo and case IDs, day, source, packaging, bundle and prior
+          target, preprocessing, guideline, route policy, all three thresholds, all three numeric outputs,
+          visibility, action and reason. Those values let the local replay recompute the served decision."
+        hold: 0.7
+        visual_cues:
+          - id: dv-bundle-replay-0
+            phrase: "A route emits twenty fields: attempt key, photo and case IDs, day, source, packaging, bundle and
+              prior target, preprocessing, guideline, route policy, all three thresholds, all three numeric
+              outputs, visibility, action and reason"
+            targets:
+              - dv-bundle-replay-mechanism
+            color: cyan
+            linger: 0.4
+          - id: dv-bundle-replay-operation-0
+            phrase: "A route emits twenty fields: attempt key, photo and case IDs, day, source, packaging, bundle and
+              prior target, preprocessing, guideline, route policy, all three thresholds, all three numeric
+              outputs, visibility, action and reason. Those values let the local replay recompute the served
+              decision."
+            targets:
+              - dv-bundle-replay-mechanism
+            color: cyan
+            linger: 0.45
+          - id: dv-trace-fields
+            phrase: Those values let the local replay recompute the served decision
+            targets:
+              - dv-bundle-replay-mechanism
+            color: yellow
+            linger: 0.45
+      - say: The replay checks exact field membership and types, then compares the entire dictionary with a route
+          rebuilt from the copied metadata, output and original bundle. Changing the active bundle cannot
+          change that reference. A missing threshold, an altered action or a substituted Boolean numeric value
+          fails replay.
+        hold: 0.7
+        visual_cues:
+          - id: dv-bundle-replay-1
+            phrase: The replay checks exact field membership and types, then compares the entire dictionary with a route
+              rebuilt from the copied metadata, output and original bundle
+            targets:
+              - dv-bundle-replay-mechanism
+            color: yellow
+            linger: 0.4
+          - id: dv-bundle-replay-operation-1
+            phrase: The replay checks exact field membership and types, then compares the entire dictionary with a route
+              rebuilt from the copied metadata, output and original bundle. Changing the active bundle cannot
+              change that reference. A missing threshold, an altered action or a substituted Boolean numeric
+              value fails replay.
+            targets:
+              - dv-bundle-replay-mechanism
+            color: cyan
+            linger: 0.45
+          - id: dv-snapshot-replay
+            phrase: Changing the active bundle cannot change that reference
+            targets:
+              - dv-bundle-replay-mechanism
+            color: yellow
+            linger: 0.45
+          - id: dv-snapshot-tamper
+            phrase: A missing threshold, an altered action or a substituted Boolean numeric value fails replay
+            targets:
+              - dv-bundle-replay-mechanism
+            color: yellow
+            linger: 0.45
+      - say: The copies are editable Python dictionaries, not immutable storage or independent provenance. Its
+          bundle-colon-photo key assumes one attempt per photo per bundle, and its route day reuses capture
+          day. A service needs a unique attempt event, its actual timestamp, enforced retention and a bundle
+          identifier resolving to retained artifacts.
+        hold: 0.7
+        visual_cues:
+          - id: dv-bundle-replay-2
+            phrase: The copies are editable Python dictionaries, not immutable storage or independent provenance
+            targets:
+              - dv-bundle-replay-mechanism
+            color: green
+            linger: 0.4
+          - id: dv-bundle-replay-operation-2
+            phrase: The copies are editable Python dictionaries, not immutable storage or independent provenance. Its
+              bundle-colon-photo key assumes one attempt per photo per bundle, and its route day reuses
+              capture day. A service needs a unique attempt event, its actual timestamp, enforced retention
+              and a bundle identifier resolving to retained artifacts.
+            targets:
+              - dv-bundle-replay-mechanism
+            color: cyan
+            linger: 0.45
+          - id: dv-storage-boundary
+            phrase: The copies are editable Python dictionaries, not immutable storage or independent provenance
+            targets:
+              - dv-bundle-replay-mechanism
+            color: yellow
+            linger: 0.45
+  - id: outcomes
+    title: Count a parcel once when labels arrive
+    visual: Two priority photographs collapse to one case before four specialist outcomes populate the confusion
+      matrix.
+    beats:
+      - say: Now join later specialist outcomes by physical case. Two priority photos of the same parcel still
+          represent one decision unit. In our four usable cases, one priority decision is confirmed, one is a
+          false alarm, one damaged case stayed in normal review, and one clear case did too.
+        hold: 0.75
+        visual_cues:
+          - id: outcomes-b1-1
+            phrase: Two priority photos
+            targets:
+              - view-one
+              - view-two
+            linger: 0.45
+          - id: outcomes-b1-2
+            phrase: one decision unit
+            targets:
+              - physical-case
+            linger: 0.45
+          - id: outcomes-b1-3
+            phrase: four usable cases
+            targets:
+              - case-confusion
+            linger: 0.45
+          - id: dv-original-case-table
+            phrase: one priority decision is confirmed, one is a false alarm, one damaged case stayed in normal review,
+              and one clear case did too
+            targets:
+              - case-confusion
+            color: yellow
+            linger: 0.45
+      - say: Compute precision and recall from those case decisions. Both are one half in this fixture. Cases with no
+          human-usable image need a separate quality report. Collect outcomes outside the priority queue as
+          well, or the evaluation cannot discover damaged cases the router failed to prioritize.
+        hold: 0.85
+        visual_cues:
+          - id: outcomes-b2-1
+            phrase: precision and recall
+            targets:
+              - precision-recall
+            linger: 0.45
+          - id: outcomes-b2-2
+            phrase: outcomes outside the priority queue
+            targets:
+              - normal-review-outcomes
+            linger: 0.45
+          - id: dv-original-half-metrics
+            phrase: Both are one half in this fixture
+            targets:
+              - precision-recall
+            color: yellow
+            linger: 0.45
+  - id: outcome-clock
+    title: Join only matching specialist evidence available at readout
+    visual: Keep routeimmutable while reviewedday/availableday/guideline flow
+      throughthreeindependenteligibilitychecks againstlastcapture andcutoff.
+    beats:
+      - say: Each specialist record names a physical case, reviewer, guideline, review day and availability day. At
+          the day-twelve readout, accept only a routed usable test case with an available outcome, the
+          bundle’s guideline, and review strictly after that case’s last capture. Capture time and label
+          availability are different clocks.
+        hold: 0.7
+        visual_cues:
+          - id: dv-outcome-clock-0
+            phrase: Each specialist record names a physical case, reviewer, guideline, review day and availability day
+            targets:
+              - dv-outcome-clock-mechanism
+            color: cyan
+            linger: 0.4
+          - id: dv-outcome-clock-operation-0
+            phrase: Each specialist record names a physical case, reviewer, guideline, review day and availability day. At
+              the day-twelve readout, accept only a routed usable test case with an available outcome, the
+              bundle’s guideline, and review strictly after that case’s last capture. Capture time and label
+              availability are different clocks.
+            targets:
+              - dv-outcome-clock-mechanism
+            color: cyan
+            linger: 0.45
+          - id: dv-eligible-join
+            phrase: At the day-twelve readout, accept only a routed usable test case with an available outcome, the
+              bundle’s guideline, and review strictly after that case’s last capture
+            targets:
+              - dv-outcome-clock-mechanism
+            color: yellow
+            linger: 0.45
+      - say: A review completed on day twelve but available on day thirteen cannot enter a day-twelve report. A new
+          guideline cannot silently replace the old label contract. Unknown case IDs do not become evaluation
+          evidence, and duplicate outcomes raise an error instead of overwriting the first record.
+        hold: 0.7
+        visual_cues:
+          - id: dv-outcome-clock-1
+            phrase: A review completed on day twelve but available on day thirteen cannot enter a day-twelve report
+            targets:
+              - dv-outcome-clock-mechanism
+            color: yellow
+            linger: 0.4
+          - id: dv-outcome-clock-operation-1
+            phrase: A review completed on day twelve but available on day thirteen cannot enter a day-twelve report. A new
+              guideline cannot silently replace the old label contract. Unknown case IDs do not become
+              evaluation evidence, and duplicate outcomes raise an error instead of overwriting the first
+              record.
+            targets:
+              - dv-outcome-clock-mechanism
+            color: cyan
+            linger: 0.45
+          - id: dv-late-join
+            phrase: A review completed on day twelve but available on day thirteen cannot enter a day-twelve report
+            targets:
+              - dv-outcome-clock-mechanism
+            color: yellow
+            linger: 0.45
+          - id: dv-outcome-duplicates
+            phrase: duplicate outcomes raise an error instead of overwriting the first record
+            targets:
+              - dv-outcome-clock-mechanism
+            color: yellow
+            linger: 0.45
+      - say: The one-outcome fixture is deliberately limited. Corrections need versioned history and an explicit
+          selection rule; real evaluation must retain the served route and append the later outcome. Auditing
+          only priority cases cannot discover the damaged cases left in ordinary review or rejected by
+          quality.
+        hold: 0.7
+        visual_cues:
+          - id: dv-outcome-clock-2
+            phrase: The one-outcome fixture is deliberately limited
+            targets:
+              - dv-outcome-clock-mechanism
+            color: green
+            linger: 0.4
+          - id: dv-outcome-clock-operation-2
+            phrase: The one-outcome fixture is deliberately limited. Corrections need versioned history and an explicit
+              selection rule; real evaluation must retain the served route and append the later outcome.
+              Auditing only priority cases cannot discover the damaged cases left in ordinary review or
+              rejected by quality.
+            targets:
+              - dv-outcome-clock-mechanism
+            color: cyan
+            linger: 0.45
+  - id: case-reducer
+    title: Reduce photo actions once and preserve conditional evaluation
+    visual: Actual R404two priorityphotos
+      ownonecase;priority>normal>newphoto,rejectedrouteonhumanusablecasecountsasamisswhenlabeldamaged.
+    beats:
+      - say: The case reducer gives priority precedence if any of its photo routes requests priority. Otherwise any
+          normal route makes the case normal; only an all-new-photo case stays at request new photo. An
+          unsupported action raises an error. A second priority photograph does not create a second physical
+          decision unit.
+        hold: 0.7
+        visual_cues:
+          - id: dv-case-reducer-0
+            phrase: The case reducer gives priority precedence if any of its photo routes requests priority
+            targets:
+              - dv-case-reducer-mechanism
+            color: cyan
+            linger: 0.4
+          - id: dv-case-reducer-operation-0
+            phrase: The case reducer gives priority precedence if any of its photo routes requests priority. Otherwise any
+              normal route makes the case normal; only an all-new-photo case stays at request new photo. An
+              unsupported action raises an error. A second priority photograph does not create a second
+              physical decision unit.
+            targets:
+              - dv-case-reducer-mechanism
+            color: cyan
+            linger: 0.45
+          - id: dv-case-priority
+            phrase: The case reducer gives priority precedence if any of its photo routes requests priority
+            targets:
+              - dv-case-reducer-mechanism
+            color: yellow
+            linger: 0.45
+          - id: dv-case-normal
+            phrase: Otherwise any normal route makes the case normal; only an all-new-photo case stays at request new
+              photo
+            targets:
+              - dv-case-reducer-mechanism
+            color: yellow
+            linger: 0.45
+      - say: The damage table includes test cases with at least one human-usable image and an eligible specialist
+          label. That human quality label chooses the conditional evaluation cohort; it never changes what the
+          router actually served. A genuinely damaged usable case incorrectly asked for a new photo is still a
+          false negative.
+        hold: 0.7
+        visual_cues:
+          - id: dv-case-reducer-1
+            phrase: The damage table includes test cases with at least one human-usable image and an eligible specialist
+              label
+            targets:
+              - dv-case-reducer-mechanism
+            color: yellow
+            linger: 0.4
+          - id: dv-case-reducer-operation-1
+            phrase: The damage table includes test cases with at least one human-usable image and an eligible specialist
+              label. That human quality label chooses the conditional evaluation cohort; it never changes what
+              the router actually served. A genuinely damaged usable case incorrectly asked for a new photo is
+              still a false negative.
+            targets:
+              - dv-case-reducer-mechanism
+            color: cyan
+            linger: 0.45
+          - id: dv-quality-false-negative
+            phrase: A genuinely damaged usable case incorrectly asked for a new photo is still a false negative
+            targets:
+              - dv-case-reducer-mechanism
+            color: yellow
+            linger: 0.45
+      - say: Count priority and damaged as true positive, priority and clear as false positive, nonpriority and
+          damaged as false negative, and nonpriority and clear as true negative. Precision divides true
+          positives by true plus false positives. Recall divides true positives by true positives plus false
+          negatives. A zero denominator is undefined, not perfect.
+        hold: 0.7
+        visual_cues:
+          - id: dv-case-reducer-2
+            phrase: Count priority and damaged as true positive, priority and clear as false positive, nonpriority and
+              damaged as false negative, and nonpriority and clear as true negative
+            targets:
+              - dv-case-reducer-mechanism
+            color: green
+            linger: 0.4
+          - id: dv-case-reducer-operation-2
+            phrase: Count priority and damaged as true positive, priority and clear as false positive, nonpriority and
+              damaged as false negative, and nonpriority and clear as true negative. Precision divides true
+              positives by true plus false positives. Recall divides true positives by true positives plus
+              false negatives. A zero denominator is undefined, not perfect.
+            targets:
+              - dv-case-reducer-mechanism
+            color: cyan
+            linger: 0.45
+          - id: dv-confusion-definition
+            phrase: Count priority and damaged as true positive, priority and clear as false positive, nonpriority and
+              damaged as false negative, and nonpriority and clear as true negative
+            targets:
+              - dv-case-reducer-mechanism
+            color: yellow
+            linger: 0.45
+          - id: dv-confusion-ratios
+            phrase: Precision divides true positives by true plus false positives. Recall divides true positives by true
+              positives plus false negatives
+            targets:
+              - dv-case-reducer-mechanism
+            color: yellow
+            linger: 0.45
+  - id: missing-evidence
+    title: Repair an incomplete join without rewriting the served route
+    visual: ActualR408availability
+      moves12→13,removingFNfromobservedday12tablewhilecompletenessfails;advancecutoff13restorescaseandhonest.5recall.
+    beats:
+      - say: Now delay only R four-oh-eight’s label availability from day twelve to thirteen. Keep all routes and
+          specialist judgments fixed. At day twelve, only three cases join. The observed table has one true
+          positive, one false positive and no observed false negative, so its precision is one half and
+          observed recall becomes one.
+        hold: 0.7
+        visual_cues:
+          - id: dv-missing-evidence-0
+            phrase: Now delay only R four-oh-eight’s label availability from day twelve to thirteen
+            targets:
+              - dv-missing-evidence-mechanism
+            color: cyan
+            linger: 0.4
+          - id: dv-missing-evidence-operation-0
+            phrase: Now delay only R four-oh-eight’s label availability from day twelve to thirteen. Keep all routes and
+              specialist judgments fixed. At day twelve, only three cases join. The observed table has one
+              true positive, one false positive and no observed false negative, so its precision is one half
+              and observed recall becomes one.
+            targets:
+              - dv-missing-evidence-mechanism
+            color: cyan
+            linger: 0.45
+          - id: dv-late-case-change
+            phrase: Now delay only R four-oh-eight’s label availability from day twelve to thirteen
+            targets:
+              - dv-missing-evidence-mechanism
+            color: yellow
+            linger: 0.45
+          - id: dv-late-observed-metrics
+            phrase: The observed table has one true positive, one false positive and no observed false negative, so its
+              precision is one half and observed recall becomes one
+            targets:
+              - dv-missing-evidence-mechanism
+            color: yellow
+            linger: 0.45
+      - say: That apparent recall improvement is missing evidence. The available-at-cutoff and outcome-completeness
+          gates fail. Advancing the permitted readout to day thirteen restores the same missed damaged case,
+          and recall returns to one half. The model and routing never improved.
+        hold: 0.7
+        visual_cues:
+          - id: dv-missing-evidence-1
+            phrase: That apparent recall improvement is missing evidence
+            targets:
+              - dv-missing-evidence-mechanism
+            color: yellow
+            linger: 0.4
+          - id: dv-missing-evidence-operation-1
+            phrase: That apparent recall improvement is missing evidence. The available-at-cutoff and outcome-completeness
+              gates fail. Advancing the permitted readout to day thirteen restores the same missed damaged
+              case, and recall returns to one half. The model and routing never improved.
+            targets:
+              - dv-missing-evidence-mechanism
+            color: cyan
+            linger: 0.45
+          - id: dv-late-completeness
+            phrase: The available-at-cutoff and outcome-completeness gates fail
+            targets:
+              - dv-missing-evidence-mechanism
+            color: yellow
+            linger: 0.45
+          - id: dv-late-restored-metrics
+            phrase: Advancing the permitted readout to day thirteen restores the same missed damaged case, and recall
+              returns to one half
+            targets:
+              - dv-missing-evidence-mechanism
+            color: yellow
+            linger: 0.45
+      - say: With no outcomes at all, both metric denominators are empty and the helper returns unknown metrics. Hold
+          the report instead of crashing or treating the empty window as a pass. A future label, duplicate
+          label or different guideline cannot cure incompleteness by changing the served history.
+        hold: 0.7
+        visual_cues:
+          - id: dv-missing-evidence-2
+            phrase: With no outcomes at all, both metric denominators are empty and the helper returns unknown metrics
+            targets:
+              - dv-missing-evidence-mechanism
+            color: green
+            linger: 0.4
+          - id: dv-missing-evidence-operation-2
+            phrase: With no outcomes at all, both metric denominators are empty and the helper returns unknown metrics.
+              Hold the report instead of crashing or treating the empty window as a pass. A future label,
+              duplicate label or different guideline cannot cure incompleteness by changing the served
+              history.
+            targets:
+              - dv-missing-evidence-mechanism
+            color: cyan
+            linger: 0.45
+          - id: dv-empty-metrics
+            phrase: With no outcomes at all, both metric denominators are empty and the helper returns unknown metrics
+            targets:
+              - dv-missing-evidence-mechanism
+            color: yellow
+            linger: 0.45
+  - id: source-slices
+    title: Expose the error counts behind the aggregate half
+    visual: Retain actualfourcaseidentities;customerTP1FP1
+      versuswarehouseTN1FN1,conditionalprecisionundefinedforzeroprioritywithoutinventedcameraqualitycauses.
+    beats:
+      - say: "The actual two customer-phone cases contain one true positive and one false positive. Their precision is
+          one half and recall one. The two warehouse cases contain one true negative and one false negative:
+          recall zero, but precision undefined because none entered priority."
+        hold: 0.7
+        visual_cues:
+          - id: dv-source-slices-0
+            phrase: The actual two customer-phone cases contain one true positive and one false positive
+            targets:
+              - dv-source-slices-mechanism
+            color: cyan
+            linger: 0.4
+          - id: dv-source-slices-operation-0
+            phrase: "The actual two customer-phone cases contain one true positive and one false positive. Their precision
+              is one half and recall one. The two warehouse cases contain one true negative and one false
+              negative: recall zero, but precision undefined because none entered priority."
+            targets:
+              - dv-source-slices-mechanism
+            color: cyan
+            linger: 0.45
+          - id: dv-phone-metrics
+            phrase: Their precision is one half and recall one
+            targets:
+              - dv-source-slices-mechanism
+            color: yellow
+            linger: 0.45
+          - id: dv-warehouse-metrics
+            phrase: "The two warehouse cases contain one true negative and one false negative: recall zero, but precision
+              undefined because none entered priority"
+            targets:
+              - dv-source-slices-mechanism
+            color: yellow
+            linger: 0.45
+      - say: Keep the denominators alongside these values. Two cases per source demonstrate arithmetic, not a measured
+          claim about which camera is better. A source name alone does not establish lighting, focal distance
+          or image quality. Cases with photos from both sources can belong to both slice reports under this
+          convention, so slice counts need not sum to the overall total.
+        hold: 0.7
+        visual_cues:
+          - id: dv-source-slices-1
+            phrase: Keep the denominators alongside these values
+            targets:
+              - dv-source-slices-mechanism
+            color: yellow
+            linger: 0.4
+          - id: dv-source-slices-operation-1
+            phrase: Keep the denominators alongside these values. Two cases per source demonstrate arithmetic, not a
+              measured claim about which camera is better. A source name alone does not establish lighting,
+              focal distance or image quality. Cases with photos from both sources can belong to both slice
+              reports under this convention, so slice counts need not sum to the overall total.
+            targets:
+              - dv-source-slices-mechanism
+            color: cyan
+            linger: 0.45
+          - id: dv-slice-overlap
+            phrase: Cases with photos from both sources can belong to both slice reports under this convention, so slice
+              counts need not sum to the overall total
+            targets:
+              - dv-source-slices-mechanism
+            color: yellow
+            linger: 0.45
+      - say: Predeclare packaging, lighting and defect-scale slices using real annotations. Examine actual transformed
+          small tears and harmless wrinkles instead of assigning error rates to a material by intuition.
+          Include uncertainty and quality-stage rejection errors as well as the accepted-image damage table.
+        hold: 0.7
+        visual_cues:
+          - id: dv-source-slices-2
+            phrase: Predeclare packaging, lighting and defect-scale slices using real annotations
+            targets:
+              - dv-source-slices-mechanism
+            color: green
+            linger: 0.4
+          - id: dv-source-slices-operation-2
+            phrase: Predeclare packaging, lighting and defect-scale slices using real annotations. Examine actual
+              transformed small tears and harmless wrinkles instead of assigning error rates to a material by
+              intuition. Include uncertainty and quality-stage rejection errors as well as the accepted-image
+              damage table.
+            targets:
+              - dv-source-slices-mechanism
+            color: cyan
+            linger: 0.45
+  - id: receipt-boundary
+    title: Require the evidence layer that the proposed action needs
+    visual: Actual20fieldreplayandcompleteoutcomes
+      feedharnesspass;syntheticfixtureflagcontinuesHOLDwhilepointernameisvisiblyseparatefromloadedpreviousartifact.
+    beats:
+      - say: The local receipt combines manifest invariants, complete routed photos, quality abstention, exact replay,
+          eligible case outcomes, defined metrics, source and packaging slices, and a previous-bundle name.
+          All these harness checks pass on the supplied synthetic records, while the decision remains hold
+          synthetic fixture.
+        hold: 0.7
+        visual_cues:
+          - id: dv-receipt-boundary-0
+            phrase: The local receipt combines manifest invariants, complete routed photos, quality abstention, exact
+              replay, eligible case outcomes, defined metrics, source and packaging slices, and a
+              previous-bundle name
+            targets:
+              - dv-receipt-boundary-mechanism
+            color: cyan
+            linger: 0.4
+          - id: dv-receipt-boundary-operation-0
+            phrase: The local receipt combines manifest invariants, complete routed photos, quality abstention, exact
+              replay, eligible case outcomes, defined metrics, source and packaging slices, and a
+              previous-bundle name. All these harness checks pass on the supplied synthetic records, while the
+              decision remains hold synthetic fixture.
+            targets:
+              - dv-receipt-boundary-mechanism
+            color: cyan
+            linger: 0.45
+          - id: dv-synthetic-hold
+            phrase: All these harness checks pass on the supplied synthetic records, while the decision remains hold
+              synthetic fixture
+            targets:
+              - dv-receipt-boundary-mechanism
+            color: yellow
+            linger: 0.45
+      - say: A named previous bundle proves only that a nonblank target is recorded. A recovery drill must locate
+          retained code, transforms, weights and policy, load them and demonstrate restored behavior. The
+          proposed repository layout is a design to implement; these cells do not create a service or
+          downloadable model package.
+        hold: 0.7
+        visual_cues:
+          - id: dv-receipt-boundary-1
+            phrase: A named previous bundle proves only that a nonblank target is recorded
+            targets:
+              - dv-receipt-boundary-mechanism
+            color: yellow
+            linger: 0.4
+          - id: dv-receipt-boundary-operation-1
+            phrase: A named previous bundle proves only that a nonblank target is recorded. A recovery drill must locate
+              retained code, transforms, weights and policy, load them and demonstrate restored behavior. The
+              proposed repository layout is a design to implement; these cells do not create a service or
+              downloadable model package.
+            targets:
+              - dv-receipt-boundary-mechanism
+            color: cyan
+            linger: 0.45
+          - id: dv-pointer-limit
+            phrase: A named previous bundle proves only that a nonblank target is recorded
+            targets:
+              - dv-receipt-boundary-mechanism
+            color: yellow
+            linger: 0.45
+          - id: dv-restoration-required
+            phrase: A recovery drill must locate retained code, transforms, weights and policy, load them and demonstrate
+              restored behavior
+            targets:
+              - dv-receipt-boundary-mechanism
+            color: yellow
+            linger: 0.45
+      - say: A real shadow comparison additionally needs permission, a pinned runnable model, representative new
+          cases, predeclared quality and service acceptance criteria, and a tested recovery path. Changing a
+          hand-written score until a fixture metric rises is a test mutation, not training or held-out
+          evidence.
+        hold: 0.7
+        visual_cues:
+          - id: dv-receipt-boundary-2
+            phrase: A real shadow comparison additionally needs permission, a pinned runnable model, representative new
+              cases, predeclared quality and service acceptance criteria, and a tested recovery path
+            targets:
+              - dv-receipt-boundary-mechanism
+            color: green
+            linger: 0.4
+          - id: dv-receipt-boundary-operation-2
+            phrase: A real shadow comparison additionally needs permission, a pinned runnable model, representative new
+              cases, predeclared quality and service acceptance criteria, and a tested recovery path. Changing
+              a hand-written score until a fixture metric rises is a test mutation, not training or held-out
+              evidence.
+            targets:
+              - dv-receipt-boundary-mechanism
+            color: cyan
+            linger: 0.45
+  - id: monitoring-response
+    title: React to new pixels before their delayed accuracy label exists
+    visual: A newdarkcameraarrivesspikequalityqueue;latency/exposure stay separate
+      fromlatercaseprecision;candidatecannotreplaceactivebundlewithoutmatureevidence.
+    beats:
+      - say: Monitor unreadable images, brightness, blur, package presence and actual service latency immediately. A
+          spike after a new camera or upload compressor can justify capture investigation, requesting better
+          evidence or manual intake. It does not yet supply specialist-confirmed accuracy.
+        hold: 0.7
+        visual_cues:
+          - id: dv-monitoring-response-0
+            phrase: Monitor unreadable images, brightness, blur, package presence and actual service latency immediately
+            targets:
+              - dv-monitoring-response-mechanism
+            color: cyan
+            linger: 0.4
+          - id: dv-monitoring-response-operation-0
+            phrase: Monitor unreadable images, brightness, blur, package presence and actual service latency immediately.
+              A spike after a new camera or upload compressor can justify capture investigation, requesting
+              better evidence or manual intake. It does not yet supply specialist-confirmed accuracy.
+            targets:
+              - dv-monitoring-response-mechanism
+            color: cyan
+            linger: 0.45
+          - id: dv-immediate-evidence
+            phrase: It does not yet supply specialist-confirmed accuracy
+            targets:
+              - dv-monitoring-response-mechanism
+            color: yellow
+            linger: 0.45
+      - say: Later join case precision, missed damage and route rate by source and packaging. Drift can start a
+          retraining candidate; it does not authorize an automatic weight swap. Unsupported escalations or
+          attempted policy effects need their safety response while the separate model investigation
+          continues.
+        hold: 0.7
+        visual_cues:
+          - id: dv-monitoring-response-1
+            phrase: Later join case precision, missed damage and route rate by source and packaging
+            targets:
+              - dv-monitoring-response-mechanism
+            color: yellow
+            linger: 0.4
+          - id: dv-monitoring-response-operation-1
+            phrase: Later join case precision, missed damage and route rate by source and packaging. Drift can start a
+              retraining candidate; it does not authorize an automatic weight swap. Unsupported escalations or
+              attempted policy effects need their safety response while the separate model investigation
+              continues.
+            targets:
+              - dv-monitoring-response-mechanism
+            color: cyan
+            linger: 0.45
+          - id: dv-candidate-boundary
+            phrase: Drift can start a retraining candidate; it does not authorize an automatic weight swap
+            targets:
+              - dv-monitoring-response-mechanism
+            color: yellow
+            linger: 0.45
+      - say: Retain the complete original bundle and route with each outcome. The next production-pipeline capstone
+          connects data validation, training, evaluation, controlled promotion and tested restoration. Here
+          the contribution is a review policy whose failures remain inspectable as evidence arrives.
+        hold: 0.7
+        visual_cues:
+          - id: dv-monitoring-response-2
+            phrase: Retain the complete original bundle and route with each outcome
+            targets:
+              - dv-monitoring-response-mechanism
+            color: green
+            linger: 0.4
+          - id: dv-monitoring-response-operation-2
+            phrase: Retain the complete original bundle and route with each outcome. The next production-pipeline capstone
+              connects data validation, training, evaluation, controlled promotion and tested restoration.
+              Here the contribution is a review policy whose failures remain inspectable as evidence arrives.
+            targets:
+              - dv-monitoring-response-mechanism
+            color: cyan
+            linger: 0.45
+  - id: synthesis
+    title: Recover the evidence behind every route
+    visual: Preprocessing, model, quality policy and damage threshold form a complete review bundle linked to its
+      case trace.
+    beats:
+      - say: A useful vision system carries more than a damage score. The case grouping defines evaluation, input
+          quality determines inspectability, preprocessing defines the pixels seen, and a threshold controls
+          workload. Later specialist labels tell us whether the queue choices helped on the evaluated cohort.
+        hold: 0.75
+        visual_cues:
+          - id: synthesis-b1-1
+            phrase: case grouping defines evaluation
+            targets:
+              - case-trace
+            linger: 0.45
+          - id: synthesis-b1-2
+            phrase: input quality determines inspectability
+            targets:
+              - serving-bundle
+            linger: 0.45
+      - say: Retain those components and the original route together. Monitor capture quality immediately and
+          case-level outcomes as they mature, with counts by source and packaging. That gives the next model
+          comparison concrete failures to solve and a complete earlier bundle to restore if service behavior
+          degrades.
+        hold: 0.85
+        visual_cues:
+          - id: synthesis-b2-1
+            phrase: original route together
+            targets:
+              - case-trace
+            linger: 0.45
+          - id: synthesis-b2-2
+            phrase: complete earlier bundle
+            targets:
+              - serving-bundle
+            linger: 0.45
+  - id: fresh-parcel
+    title: Predict the new case route and the missing outcome
+    visual: NewphysicalR520twoexistingphotos:dark.97andusable.69,threshold.70;retainfourmatureothercasesTP2FP1TN1;newdamagedreviewday21available22notjoinat21.
+    beats:
+      - say: Predict a fresh supplied case at cutoff day twenty-one. Parcel R five-twenty has two day-twenty photos.
+          The first scores point nine seven but brightness point one eight fails the point two minimum. The
+          second passes quality and scores point six nine below threshold point seven. Its specialist confirms
+          damage on day twenty-one, but that record becomes available on day twenty-two. Four other complete
+          cases have two true positives, one false positive and one true negative. What is this parcel’s case
+          action, and can the report count its outcome yet?
+        hold: 1.6
+        visual_cues:
+          - id: dv-fresh-parcel-0
+            phrase: Predict a fresh supplied case at cutoff day twenty-one
+            targets:
+              - dv-fresh-parcel-mechanism
+            color: cyan
+            linger: 0.4
+          - id: dv-fresh-parcel-operation-0
+            phrase: Predict a fresh supplied case at cutoff day twenty-one. Parcel R five-twenty has two day-twenty
+              photos. The first scores point nine seven but brightness point one eight fails the point two
+              minimum. The second passes quality and scores point six nine below threshold point seven. Its
+              specialist confirms damage on day twenty-one, but that record becomes available on day
+              twenty-two. Four other complete cases have two true positives, one false positive and one true
+              negative. What is this parcel’s case action, and can the report count its outcome yet?
+            targets:
+              - dv-fresh-parcel-mechanism
+            color: cyan
+            linger: 0.45
+      - say: The dark view requests another photo, the accepted lower-score view stays normal, and the case reducer
+          therefore chooses normal review. At day twenty-one the new label is unavailable. The four observed
+          cases have precision two thirds and recall one, but the required five-case evidence is incomplete,
+          so that report holds.
+        hold: 0.7
+        visual_cues:
+          - id: dv-fresh-parcel-1
+            phrase: The dark view requests another photo, the accepted lower-score view stays normal, and the case reducer
+              therefore chooses normal review
+            targets:
+              - dv-fresh-parcel-mechanism
+            color: yellow
+            linger: 0.4
+          - id: dv-fresh-parcel-operation-1
+            phrase: The dark view requests another photo, the accepted lower-score view stays normal, and the case reducer
+              therefore chooses normal review. At day twenty-one the new label is unavailable. The four
+              observed cases have precision two thirds and recall one, but the required five-case evidence is
+              incomplete, so that report holds.
+            targets:
+              - dv-fresh-parcel-mechanism
+            color: cyan
+            linger: 0.45
+          - id: dv-fresh-route
+            phrase: The dark view requests another photo, the accepted lower-score view stays normal, and the case reducer
+              therefore chooses normal review
+            targets:
+              - dv-fresh-parcel-mechanism
+            color: yellow
+            linger: 0.45
+          - id: dv-fresh-incomplete-metrics
+            phrase: The four observed cases have precision two thirds and recall one, but the required five-case evidence
+              is incomplete, so that report holds
+            targets:
+              - dv-fresh-parcel-mechanism
+            color: yellow
+            linger: 0.45
+      - say: "Perform an evidence repair on the same fixed routes: advance the readout to day twenty-two. The damaged
+          normal case now joins as one false negative. Precision remains two thirds; recall becomes two
+          divided by three. Keep both original photo routes and the dated label. Repairing observation
+          completeness reveals a miss rather than improving the classifier."
+        hold: 0.7
+        visual_cues:
+          - id: dv-fresh-parcel-2
+            phrase: "Perform an evidence repair on the same fixed routes: advance the readout to day twenty-two"
+            targets:
+              - dv-fresh-parcel-mechanism
+            color: green
+            linger: 0.4
+          - id: dv-fresh-parcel-operation-2
+            phrase: "Perform an evidence repair on the same fixed routes: advance the readout to day twenty-two. The
+              damaged normal case now joins as one false negative. Precision remains two thirds; recall
+              becomes two divided by three. Keep both original photo routes and the dated label. Repairing
+              observation completeness reveals a miss rather than improving the classifier."
+            targets:
+              - dv-fresh-parcel-mechanism
+            color: cyan
+            linger: 0.45
+          - id: dv-fresh-cutoff
+            phrase: "Perform an evidence repair on the same fixed routes: advance the readout to day twenty-two"
+            targets:
+              - dv-fresh-parcel-mechanism
+            color: yellow
+            linger: 0.45
+          - id: dv-fresh-missed-case
+            phrase: The damaged normal case now joins as one false negative
+            targets:
+              - dv-fresh-parcel-mechanism
+            color: yellow
+            linger: 0.45
+          - id: dv-fresh-complete-metrics
+            phrase: Precision remains two thirds; recall becomes two divided by three
+            targets:
+              - dv-fresh-parcel-mechanism
+            color: yellow
+            linger: 0.45
+      - say: "This new record set is still an invented routing exercise. Even complete case bookkeeping cannot promote absent photographs or weights. You can now identify the missing evidence, compute the actual policy consequences and tell a testable prototype from a measured vision system. Next, the production-ML capstone joins admitted data, saved transformations, model artifacts and evaluated slices into a controlled promotion and recovery path."
+        hold: 0.7
+        visual_cues:
+          - id: dv-fresh-parcel-3
+            phrase: This new record set is still an invented routing exercise
+            targets:
+              - dv-fresh-parcel-mechanism
+            color: cyan
+            linger: 0.4
+          - id: dv-fresh-parcel-operation-3
+            phrase: This new record set is still an invented routing exercise. Even complete case bookkeeping cannot
+              promote absent photographs or weights. You can now identify the missing evidence, compute the
+              actual policy consequences and tell a testable prototype from a measured vision system.
+            targets:
+              - dv-fresh-parcel-mechanism
+            color: cyan
+            linger: 0.45

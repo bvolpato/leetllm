@@ -1,0 +1,190 @@
+{
+  "id": "canary-metric-judge",
+  "slug": "canary-metric-judge",
+  "title": "Canary Metric Judge",
+  "difficulty": "Medium",
+  "category": "Evaluation",
+  "language": "python3",
+  "timeEstimateMinutes": 35,
+  "timeLimitMs": 2500,
+  "memoryLimitMb": 128,
+  "order": 280,
+  "tags": [
+    "canary",
+    "metrics",
+    "release safety",
+    "evals"
+  ],
+  "source": "AI lab prep",
+  "summary": "Judge canary promotion with traffic, error-rate, latency, and quality thresholds.",
+  "starterCode": [
+    "def judge_canary(baseline: dict, candidate: dict, thresholds: dict) -> dict:",
+    "    pass"
+  ],
+  "testCases": [
+    {
+      "name": "private explicit none metrics fail closed",
+      "visibility": "hidden",
+      "setup": [
+        "from solution import judge_canary",
+        "thresholds = {\"min_requests\": 1, \"max_error_rate\": 1, \"max_latency_ratio\": 2, \"min_quality_delta\": -1}"
+      ],
+      "input": "judge_canary({\"p95_latency_ms\": 100, \"quality\": 1}, {\"requests\": 2, \"error_rate\": None, \"p95_latency_ms\": None, \"quality\": None}, thresholds)",
+      "expected": "{\"decision\": \"rollback\", \"reasons\": [\"error_rate\", \"latency\", \"quality\"]}"
+    },
+    {
+      "name": "public promotes healthy canary",
+      "visibility": "sample",
+      "setup": [
+        "from solution import judge_canary",
+        "baseline = {\"p95_latency_ms\": 100, \"quality\": 0.8}",
+        "candidate = {\"requests\": 1000, \"error_rate\": 0.01, \"p95_latency_ms\": 110, \"quality\": 0.82}",
+        "thresholds = {\"min_requests\": 100, \"max_error_rate\": 0.05, \"max_latency_ratio\": 1.5, \"min_quality_delta\": 0}"
+      ],
+      "input": "baseline = {\"p95_latency_ms\": 100, \"quality\": 0.8}\ncandidate = {\"requests\": 1000, \"error_rate\": 0.01, \"p95_latency_ms\": 110, \"quality\": 0.82}\nthresholds = {\"min_requests\": 100, \"max_error_rate\": 0.05, \"max_latency_ratio\": 1.5, \"min_quality_delta\": 0}\njudge_canary(baseline, candidate, thresholds)",
+      "expected": "{\"decision\": \"promote\", \"reasons\": []}",
+      "expression": "judge_canary(baseline, candidate, thresholds)"
+    },
+    {
+      "name": "public holds for low traffic",
+      "visibility": "sample",
+      "setup": [
+        "from solution import judge_canary",
+        "result = judge_canary({\"p95_latency_ms\": 100, \"quality\": 1}, {\"requests\": 9, \"error_rate\": 1, \"p95_latency_ms\": 999, \"quality\": 0}, {\"min_requests\": 10, \"max_error_rate\": 0.1, \"max_latency_ratio\": 2, \"min_quality_delta\": -1})"
+      ],
+      "input": "result = judge_canary({\"p95_latency_ms\": 100, \"quality\": 1}, {\"requests\": 9, \"error_rate\": 1, \"p95_latency_ms\": 999, \"quality\": 0}, {\"min_requests\": 10, \"max_error_rate\": 0.1, \"max_latency_ratio\": 2, \"min_quality_delta\": -1})\nresult",
+      "expected": "{\"decision\": \"hold\", \"reasons\": [\"not_enough_traffic\"]}",
+      "expression": "result"
+    },
+    {
+      "name": "private rolls back for error and latency in order",
+      "visibility": "hidden",
+      "setup": [
+        "from solution import judge_canary",
+        "baseline = {\"p95_latency_ms\": 100, \"quality\": 0.9}",
+        "candidate = {\"requests\": 100, \"error_rate\": 0.2, \"p95_latency_ms\": 250, \"quality\": 0.91}",
+        "thresholds = {\"min_requests\": 10, \"max_error_rate\": 0.05, \"max_latency_ratio\": 2, \"min_quality_delta\": -0.1}"
+      ],
+      "input": "baseline = {\"p95_latency_ms\": 100, \"quality\": 0.9}\ncandidate = {\"requests\": 100, \"error_rate\": 0.2, \"p95_latency_ms\": 250, \"quality\": 0.91}\nthresholds = {\"min_requests\": 10, \"max_error_rate\": 0.05, \"max_latency_ratio\": 2, \"min_quality_delta\": -0.1}\njudge_canary(baseline, candidate, thresholds)",
+      "expected": "{\"decision\": \"rollback\", \"reasons\": [\"error_rate\", \"latency\"]}",
+      "expression": "judge_canary(baseline, candidate, thresholds)"
+    },
+    {
+      "name": "private rolls back for quality regression",
+      "visibility": "hidden",
+      "setup": [
+        "from solution import judge_canary",
+        "baseline = {\"p95_latency_ms\": 100, \"quality\": 0.9}",
+        "candidate = {\"requests\": 100, \"error_rate\": 0.0, \"p95_latency_ms\": 100, \"quality\": 0.85}",
+        "thresholds = {\"min_requests\": 10, \"max_error_rate\": 0.05, \"max_latency_ratio\": 1.5, \"min_quality_delta\": -0.02}"
+      ],
+      "input": "baseline = {\"p95_latency_ms\": 100, \"quality\": 0.9}\ncandidate = {\"requests\": 100, \"error_rate\": 0.0, \"p95_latency_ms\": 100, \"quality\": 0.85}\nthresholds = {\"min_requests\": 10, \"max_error_rate\": 0.05, \"max_latency_ratio\": 1.5, \"min_quality_delta\": -0.02}\njudge_canary(baseline, candidate, thresholds)",
+      "expected": "{\"decision\": \"rollback\", \"reasons\": [\"quality\"]}",
+      "expression": "judge_canary(baseline, candidate, thresholds)"
+    },
+    {
+      "name": "private missing metrics fail closed",
+      "visibility": "hidden",
+      "setup": [
+        "from solution import judge_canary",
+        "thresholds = {\"min_requests\": 1, \"max_error_rate\": 0.1, \"max_latency_ratio\": 2, \"min_quality_delta\": 0}",
+        "result = judge_canary({}, {\"requests\": 2}, thresholds)"
+      ],
+      "input": "thresholds = {\"min_requests\": 1, \"max_error_rate\": 0.1, \"max_latency_ratio\": 2, \"min_quality_delta\": 0}\nresult = judge_canary({}, {\"requests\": 2}, thresholds)\nresult",
+      "expected": "{\"decision\": \"rollback\", \"reasons\": [\"error_rate\", \"latency\", \"quality\"]}",
+      "expression": "result"
+    },
+    {
+      "name": "public promotes at exact thresholds",
+      "visibility": "sample",
+      "description": "Values equal to each allowed threshold still pass.",
+      "feedback": "Rollback comparisons are strict: error and latency use greater-than, quality uses less-than.",
+      "setup": [
+        "from solution import judge_canary",
+        "baseline = {\"p95_latency_ms\": 100, \"quality\": 0.8}",
+        "candidate = {\"requests\": 100, \"error_rate\": 0.05, \"p95_latency_ms\": 150, \"quality\": 0.8}",
+        "thresholds = {\"min_requests\": 100, \"max_error_rate\": 0.05, \"max_latency_ratio\": 1.5, \"min_quality_delta\": 0}"
+      ],
+      "input": "judge_canary(baseline, candidate, thresholds)",
+      "expected": "{\"decision\": \"promote\", \"reasons\": []}"
+    },
+    {
+      "name": "private zero baseline latency fails closed",
+      "visibility": "hidden",
+      "description": "A latency ratio is undefined when baseline latency is zero.",
+      "feedback": "Avoid division by zero and add the latency rollback reason.",
+      "setup": [
+        "from solution import judge_canary",
+        "baseline = {\"p95_latency_ms\": 0, \"quality\": 0.9}",
+        "candidate = {\"requests\": 10, \"error_rate\": 0, \"p95_latency_ms\": 0, \"quality\": 0.9}",
+        "thresholds = {\"min_requests\": 10, \"max_error_rate\": 0.1, \"max_latency_ratio\": 2, \"min_quality_delta\": 0}"
+      ],
+      "input": "judge_canary(baseline, candidate, thresholds)",
+      "expected": "{\"decision\": \"rollback\", \"reasons\": [\"latency\"]}"
+    },
+    {
+      "name": "private missing traffic count holds evaluation",
+      "visibility": "hidden",
+      "description": "Missing requests is treated as zero traffic.",
+      "feedback": "Apply the traffic gate before evaluating candidate metrics.",
+      "setup": [
+        "from solution import judge_canary",
+        "baseline = {\"p95_latency_ms\": 100, \"quality\": 1}",
+        "candidate = {\"error_rate\": 0, \"p95_latency_ms\": 100, \"quality\": 1}",
+        "thresholds = {\"min_requests\": 1, \"max_error_rate\": 0.1, \"max_latency_ratio\": 2, \"min_quality_delta\": 0}"
+      ],
+      "input": "judge_canary(baseline, candidate, thresholds)",
+      "expected": "{\"decision\": \"hold\", \"reasons\": [\"not_enough_traffic\"]}"
+    }
+  ],
+  "clarifyingQuestions": [
+    "Should low traffic hold even if metrics look bad?",
+    "Are quality metrics higher-is-better?",
+    "Should a missing metric hold or roll back?"
+  ],
+  "followUps": [
+    "Add confidence intervals before promotion.",
+    "Support per-segment canary metrics.",
+    "Add automatic rollback cooldown."
+  ],
+  "followUpGuide": [
+    "Confidence intervals quantify sampling uncertainty after the traffic gate. Define the confidence level, minimum effect, and rule for an interval crossing the promotion boundary. Repeated polling also needs a sequential-testing policy; apply that policy and promotion rule together when deciding whether to promote.",
+    "",
+    "Segment checks prevent an aggregate win from hiding failures for one tenant or device class.",
+    "",
+    "Rollback cooldown avoids repeated promotion attempts while the same issue is active."
+  ],
+  "complexityAnalysis": [
+    "- Fixed-field canary judge: compare a constant handful of dict fields. Time: O(1). Space: O(1).",
+    "- Multi-slice judge follow-up: aggregate metrics by route, model, or cohort before gating. Time: O(n). Space: O(s), where n is events and s is slice count.",
+    "- Streaming judge follow-up: counters can update in O(1); exact rolling quantiles need an ordered structure supporting insertion and expiration, typically O(log W) per event. Time: depends on the chosen quantile structure. Space: O(s * W) for s slices retaining W events each; bounded approximate sketches have different bounds."
+  ],
+  "solutionGuide": [
+    "Gate low traffic first. After that, collect rollback reasons in deterministic order.",
+    "",
+    "```python",
+    "def judge_canary(baseline: dict, candidate: dict, thresholds: dict) -> dict:",
+    "    if candidate.get(\"requests\", 0) < thresholds[\"min_requests\"]:",
+    "        return {\"decision\": \"hold\", \"reasons\": [\"not_enough_traffic\"]}",
+    "",
+    "    reasons = []",
+    "    error_rate = candidate.get(\"error_rate\")",
+    "    if error_rate is None or error_rate > thresholds[\"max_error_rate\"]:",
+    "        reasons.append(\"error_rate\")",
+    "",
+    "    base_latency = baseline.get(\"p95_latency_ms\")",
+    "    candidate_latency = candidate.get(\"p95_latency_ms\")",
+    "    if not base_latency or candidate_latency is None or candidate_latency / base_latency > thresholds[\"max_latency_ratio\"]:",
+    "        reasons.append(\"latency\")",
+    "",
+    "    base_quality = baseline.get(\"quality\")",
+    "    candidate_quality = candidate.get(\"quality\")",
+    "    if base_quality is None or candidate_quality is None or candidate_quality - base_quality < thresholds[\"min_quality_delta\"]:",
+    "        reasons.append(\"quality\")",
+    "",
+    "    if reasons:",
+    "        return {\"decision\": \"rollback\", \"reasons\": reasons}",
+    "    return {\"decision\": \"promote\", \"reasons\": []}",
+    "```"
+  ]
+}

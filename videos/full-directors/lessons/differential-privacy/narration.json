@@ -1,0 +1,508 @@
+[
+  {
+    "id": "c01",
+    "title": "Support tickets in the training sum",
+    "sourceChapters": [
+      "c01"
+    ],
+    "beats": [
+      {
+        "id": "c01-b01",
+        "say": "Bao’s green ticket adds a quarter to the training sum. Slide Alice’s first blue ticket into place, then her second. Each adds three quarters. Each ticket fits under a limit of one.",
+        "hold": 0.65
+      },
+      {
+        "id": "c01-b02",
+        "say": "The endpoint reads one and three quarters. The team promises each customer can change the sum by at most one. Keep the upper sum still. If Alice leaves the copy below, how far will its endpoint retreat?",
+        "hold": 3.1
+      },
+      {
+        "id": "c01-b03",
+        "say": "Lift out both of Alice’s tickets together. Only Bao’s quarter stays. The distance between the endpoints is one and a half. Calibrating noise for a change of at most one would underestimate a customer’s influence.",
+        "hold": 1.5
+      }
+    ]
+  },
+  {
+    "id": "c02",
+    "title": "Which change does the promise cover?",
+    "sourceChapters": [
+      "c02"
+    ],
+    "beats": [
+      {
+        "id": "c02-b01",
+        "say": "Now open Alice’s whole history. She has twelve messages across three tickets. Start with two identical copies. Remove just the last message from the lower copy. That pair tests a promise about one message.",
+        "hold": 0.65
+      },
+      {
+        "id": "c02-b02",
+        "say": "Reset the copy and remove the last ticket. Four messages disappear together. A ticket-level promise covers that change.",
+        "hold": 0.6
+      },
+      {
+        "id": "c02-b03",
+        "say": "Reset once more and remove Alice. Bao’s ticket stays. All twelve of Alice’s messages go, wherever they were filed. That pair of datasets differs by one customer. Differential privacy calls them neighbors. The customer is our protected unit, and adding or removing one whole unit is our rule for forming neighbors.",
+        "hold": 1
+      }
+    ]
+  },
+  {
+    "id": "c03",
+    "title": "One customer’s contribution",
+    "sourceChapters": [
+      "c03"
+    ],
+    "beats": [
+      {
+        "id": "c03-b01",
+        "say": "Return to the two tickets that exposed the problem. Join Alice’s tickets into one contribution. It still measures one and a half. If we cap that whole piece at one, how far apart will the sums be?",
+        "hold": 2.1
+      },
+      {
+        "id": "c03-b02",
+        "say": "Clip Alice’s combined contribution to one. Bao’s quarter stays put. Compare the endpoints now. Removing Alice changes the sum by exactly one. Even a customer with a hundred tickets can move this sum by at most one, because only one bounded contribution per customer enters it. The largest possible change between neighbors is called sensitivity.",
+        "hold": 0.9
+      },
+      {
+        "id": "c03-b03",
+        "say": "Divide both sums by the same public number, two. Read the endpoints, five eighths with Alice and one eighth without her. The gap is a half. These are values before noise. A private update adds calibrated noise to the clipped sum before division. Dividing by the number of customers still present would also change the divisor when Alice leaves.",
+        "hold": 1
+      }
+    ]
+  },
+  {
+    "id": "c04",
+    "title": "How likely is the same event?",
+    "sourceChapters": [
+      "c04"
+    ],
+    "beats": [
+      {
+        "id": "c04-b01",
+        "say": "The service randomizes the sum before release. Watch one event, a released total of at least two. Imagine running the same mechanism over and over without Alice. Suppose the event happens once in a thousand runs, or ten times per ten thousand on our scale. The randomness is inside the release.",
+        "hold": 0.8
+      },
+      {
+        "id": "c04-b02",
+        "say": "Starting at zero, raise epsilon to one half. With delta at zero, the event can be at most about one point six five times as likely with Alice as without her. Swap the datasets and the same rule applies. That gives the interval both an upper and a lower end.",
+        "hold": 0.9
+      },
+      {
+        "id": "c04-b03",
+        "say": "Try the pink point. With Alice present, the proposed probability is seventeen in ten thousand. Does it fit when delta is zero?",
+        "hold": 2.2
+      },
+      {
+        "id": "c04-b04",
+        "say": "The point sits just beyond the upper end. At zero delta, the proposal misses. Add one ten-thousandth of slack to each inequality. Now the point fits. Delta is that additive allowance on event probabilities. To establish differential privacy, the mechanism has to satisfy both directions for every event on every neighboring pair.",
+        "hold": 1.2
+      }
+    ]
+  },
+  {
+    "id": "c05",
+    "title": "What does the audit actually observe?",
+    "sourceChapters": [
+      "c05"
+    ],
+    "beats": [
+      {
+        "id": "c05-b01",
+        "say": "Here are two synthetic audit documents. The model assigns both the same low loss. It finds both phrases easy to predict. Could those tied scores tell us which document was in training?",
+        "hold": 2
+      },
+      {
+        "id": "c05-b02",
+        "say": "Compare a reference model. It also finds the public phrase easy, and the second phrase much harder. That comparison helps account for text difficulty in a membership inference test. Compressed length can serve a similar purpose. Open the known labels.",
+        "hold": 0.3
+      },
+      {
+        "id": "c05-b03",
+        "say": "Calling both documents members gives one false positive. A stricter threshold could also miss a member. An extraction audit asks whether the model reproduces a known synthetic passage. Here the model repeats the whole blue acorn phrase, but drops the last word of the copper kite phrase. Only the first matches exactly. Either audit measures this set of examples and this interface. A passing test cannot establish a bound for every output event.",
+        "hold": 0.9
+      },
+      {
+        "id": "c05-b04",
+        "say": "Consider a wheel with twenty equally likely slots. Nineteen return the same constant for either dataset. The last slot releases the whole input. Changing one customer can therefore change an event’s probability by at most one twentieth.",
+        "hold": 0.3
+      },
+      {
+        "id": "c05-b05",
+        "say": "That gives this mechanism epsilon zero and delta point zero five. On that outcome, everyone’s data comes out together. Five percent is an allowance on probability, not a list of exposed customers. Choose delta with the number of protected customers and the harm of disclosure in mind. Population patterns can still support guesses about an individual.",
+        "hold": 1.1
+      }
+    ]
+  },
+  {
+    "id": "c06",
+    "title": "Which probability or distance sets the noise?",
+    "sourceChapters": [
+      "c06"
+    ],
+    "beats": [
+      {
+        "id": "c06-b01",
+        "say": "Look inside a library survey booth. Each reader chooses the pouch marked with their true answer. A fresh pouch has four chips that feel alike. Three tell the truth and one flips it. The reader mixes the chips and draws one by touch.",
+        "hold": 0.8
+      },
+      {
+        "id": "c06-b02",
+        "say": "Look for the word in the tray, yes. How many chips could send that report from the true yes pouch? Now look in the true no pouch. Keep the reported word fixed while you compare.",
+        "hold": 2.4
+      },
+      {
+        "id": "c06-b03",
+        "say": "Three of four chips match in the first pouch. One of four matches in the second. That same report is three times as likely when the reader’s real answer is yes.",
+        "hold": 0.9
+      },
+      {
+        "id": "c06-b04",
+        "say": "What if a no landed in the tray? The matching chips switch sides. Three out of four versus one out of four gives the same largest ratio in the other direction.",
+        "hold": 1
+      },
+      {
+        "id": "c06-b05",
+        "say": "Those two reports cover every possible output. Take the natural log of three to get epsilon, about one point one, with delta zero. Adding randomness before the collector sees the answer gives local differential privacy.",
+        "hold": 1
+      },
+      {
+        "id": "c06-b06",
+        "say": "For a numeric release, look at the change between neighbors. This change goes one across and one up. Along the axes the distances add to two. Directly across the diagonal the length is the square root of two.",
+        "hold": 0.8
+      },
+      {
+        "id": "c06-b07",
+        "say": "For independent Laplace noise on each coordinate, divide the largest axis-distance sum by epsilon. That gives pure differential privacy. Gaussian calibration uses the largest straight-line distance. Take the maximum over all neighboring pairs for each calibration. Across many coordinates the two distances can differ by a factor as large as the square root of the dimension.",
+        "hold": 1
+      },
+      {
+        "id": "c06-b08",
+        "say": "For one Gaussian release, the classical formula on screen gives a sufficient noise scale when epsilon and delta are both strictly between zero and one. Multiply the largest straight-line change by the square root term, then divide by epsilon. Choose a standard deviation above that threshold. A smaller epsilon or a smaller delta raises it.",
+        "hold": 0.9
+      },
+      {
+        "id": "c06-b09",
+        "say": "Analytical Gaussian calibration uses the Gaussian distribution directly. For repeated steps, carry the actual mechanism into the accountant.",
+        "hold": 1
+      }
+    ]
+  },
+  {
+    "id": "c07",
+    "title": "Where does this gradient meet the circle?",
+    "sourceChapters": [
+      "c07"
+    ],
+    "beats": [
+      {
+        "id": "c07-b01",
+        "say": "For a training step, the contribution is a gradient, an arrow telling the optimizer how the loss changes. Let’s work one record at a time under a record-level promise. The yellow circle marks length one. The little blue arrow already fits. A zero gradient would also stay where it is.",
+        "hold": 0.55
+      },
+      {
+        "id": "c07-b02",
+        "say": "Record four points three units across and four up. Its length is five. Keep its direction. Where does that arrow meet the circle?",
+        "hold": 2.5
+      },
+      {
+        "id": "c07-b03",
+        "say": "Shrink both coordinates by one fifth. The tip lands at point six, point eight. Any longer gradient gets scaled by the bound divided by its length. Clip each record before you sum. If you clip only a finished batch average, two neighbors can land on opposite sides of the circle, two units apart.",
+        "hold": 1.1
+      },
+      {
+        "id": "c07-b04",
+        "say": "Look closely at a different tip on the circle. Both coordinates are one over the square root of two. Round each to point seven one. That puts the tip just outside the circle, with a length of about one point zero zero four. Use full working precision to sum clipped gradients. Keep rounding for the display.",
+        "hold": 1.1
+      }
+    ]
+  },
+  {
+    "id": "c08",
+    "title": "Follow one record into a noisy sum",
+    "sourceChapters": [
+      "c08"
+    ],
+    "beats": [
+      {
+        "id": "c08-b01",
+        "say": "Hold the blue arrow still. It sums two records, one across and one point one up. Set the tail of the clipped fourth record on that tip. Its head lands at the sum with the record. The segment between those endpoints has length one. Removing the record takes us back along that same segment.",
+        "hold": 0.8
+      },
+      {
+        "id": "c08-b02",
+        "say": "For add or remove neighbors, the maximum segment length is C. Sigma is the noise multiplier. Give each coordinate of the Gaussian sum noise a standard deviation of sigma times C. Here is one illustrative draw. It adds point two horizontally and subtracts point three vertically. Where will the noisy sum land?",
+        "hold": 2.2
+      },
+      {
+        "id": "c08-b03",
+        "say": "Go right and down from the clipped sum. The new endpoint is one point eight, one point six. Another draw would usually land elsewhere. It takes the noise distribution and the whole training schedule to turn that sensitivity bound into a privacy guarantee.",
+        "hold": 0.9
+      },
+      {
+        "id": "c08-divide-sum",
+        "say": "Keep those same records and divide every coordinate by three. The blue sum, the clipped contribution, and the pink draw all shrink together. The distance due to record four is now one third. Each coordinate’s noise standard deviation becomes one third of its value on the sum. The divisor is public and stays the same when the record leaves.",
+        "hold": 1.3
+      },
+      {
+        "id": "c08-b04",
+        "say": "Try replacement on a single axis with C equal to one. Hold the other records at a sum of zero. Replace a record at minus C with one at plus C. The two sums are two radii apart. The triangle inequality bounds every replacement by two C, and these opposite records attain it.",
+        "hold": 0.3
+      },
+      {
+        "id": "c08-b05",
+        "say": "Now divide both sums by the same public divisor, three. Their separation shrinks to two C over three. Gaussian noise goes through the same division. A standard deviation of sigma C on the sum becomes sigma C over three on the released average. Use the sensitivity for the neighbor rule you promised.",
+        "hold": 1.2
+      }
+    ]
+  },
+  {
+    "id": "c09",
+    "title": "Which sampler produced these steps?",
+    "sourceChapters": [
+      "c09"
+    ],
+    "beats": [
+      {
+        "id": "c09-b01",
+        "say": "Go back to whole customers and clip each customer’s combined update. On this step, give each of the four customers an independent half chance of getting picked. This time we get Alice and Cai. The trusted training service sees the raw contributions and adds noise before releasing anything.",
+        "hold": 0.8
+      },
+      {
+        "id": "c09-b02",
+        "say": "Draw again on the next step. This time only Bao gets picked. This is Poisson sampling. The count can vary while the public divisor stays at two.",
+        "hold": 0.3
+      },
+      {
+        "id": "c09-b03",
+        "say": "Add Gaussian noise to the sampled, clipped sum, divide by that fixed number, and subtract the learning rate times the result from the weights. With accounting across steps, this is differentially private stochastic gradient descent, or DP-SGD.",
+        "hold": 0.8
+      },
+      {
+        "id": "c09-b04",
+        "say": "An engineer proposes shuffling the same four customers into fixed pairs. That also samples half the customers per step on average. Could a shuffle into fixed batches of two produce the second row?",
+        "hold": 2.2
+      },
+      {
+        "id": "c09-b05",
+        "say": "Bao was on his own. A fixed pair always contains two customers. A privacy accountant that assumes independent inclusion analyzes a different distribution. Any amplification from sampling depends on how units are picked and on keeping their identities private.",
+        "hold": 0.8
+      },
+      {
+        "id": "c09-b06",
+        "say": "Repeated updates all affect the final weights. Use an accountant that matches the sampler you ran. For example, in the article’s record-level Poisson run, one percent inclusion and a noise multiplier of one give epsilon about one point four five at three hundred steps. At six hundred steps it is about one point seven five, at the same delta. Record the accountant version, protected unit, neighbor rule, clipping and noise settings, step count, delta and covered releases.",
+        "hold": 0.9
+      }
+    ]
+  },
+  {
+    "id": "c10",
+    "title": "What happened to the update direction?",
+    "sourceChapters": [
+      "c10"
+    ],
+    "beats": [
+      {
+        "id": "c10-b01",
+        "say": "Take four record gradients and clip them at one. The blue arrow is their mean. Add an illustrative offset at right angles to it. Keep the direction of the offset fixed and stretch it. The endpoint swings away from the mean. Watch the angle open and the cosine fall.",
+        "hold": 0.8
+      },
+      {
+        "id": "c10-b02",
+        "say": "One of the four gradients was too long. Clipping happened before we added the pink offset, so stretching it left the clipping count at one. Imagine raising the bound from one to two. The length-five gradient would keep two units. It would still be the only one clipped, but the mean would move. For a second gradient to count, the bound would have to fall below its length.",
+        "hold": 0.8
+      },
+      {
+        "id": "c10-b03",
+        "say": "The cosine measures alignment. To learn whether the copilot still does its job, measure accuracy and calibration on held-out tasks under the same training plan. If private validation affects the released model, its data use belongs in the privacy analysis too.",
+        "hold": 0.9
+      }
+    ]
+  },
+  {
+    "id": "c11",
+    "title": "How many coordinates receive noise?",
+    "sourceChapters": [
+      "c11"
+    ],
+    "beats": [
+      {
+        "id": "c11-b01",
+        "say": "Each square stands for a trainable coordinate. Each gets an independent, zero-mean Gaussian perturbation with standard deviation sigma C. Add the expected squared lengths, one per coordinate. Taking the square root gives sigma C times the square root of the number of coordinates.",
+        "hold": 0.3
+      },
+      {
+        "id": "c11-b02",
+        "say": "That is the root mean square length of the sum noise. To get the RMS length of the noise in the parameter step, divide by the fixed public divisor and multiply by the learning rate. The gradient signal contributes separately to the full step.",
+        "hold": 0.85
+      },
+      {
+        "id": "c11-b03",
+        "say": "Compare five million trainable adapter coordinates with seven billion full-model coordinates. Keep the per-coordinate standard deviation at one in both. The full model gets fourteen hundred times the expected squared noise length. Take the square root. Its root mean square length is about thirty-seven times as large.",
+        "hold": 0.3
+      },
+      {
+        "id": "c11-b04",
+        "say": "Multiply both noise vectors by the same learning rate and divide by the same public divisor. For the adapter, the step noise has an RMS length of about zero point one seven. For the full model, it is about six point five four. The ratio stays the same. How much model behavior changes depends on the parameterization. Measure accuracy, and get the privacy bound from the accountant.",
+        "hold": 0.8
+      },
+      {
+        "id": "c11-b05",
+        "say": "Suppose Alice’s tickets also appeared in pretraining. During private fine-tuning, hold the base fixed and change only her contribution to the adapter. That comparison protects her incremental participation in fine-tuning. Any information already in the base can still surface.",
+        "hold": 0.3
+      },
+      {
+        "id": "c11-b06",
+        "say": "A promise covering both stages needs to account for how the base depended on her tickets too.",
+        "hold": 0.9
+      },
+      {
+        "id": "c11-b07",
+        "say": "Here is one adapted layer. A frozen four by four matrix still runs on every input. A rank-one update learns one column and one row. Multiply the column by the row, scale by alpha divided by rank, and add the result to the frozen matrix.",
+        "hold": 0.3
+      },
+      {
+        "id": "c11-b08",
+        "say": "This is low-rank adaptation, or LoRA. Together those factors contain eight trainable numbers. In general the count is rank times input width plus rank times output width. Clip each customer’s joint gradient over both factors and add noise there.",
+        "hold": 0.3
+      },
+      {
+        "id": "c11-b09",
+        "say": "The frozen matrix still does work at the original width.",
+        "hold": 1
+      }
+    ]
+  },
+  {
+    "id": "c12",
+    "title": "Trace clipping through a checkpoint release",
+    "sourceChapters": [
+      "c12"
+    ],
+    "beats": [
+      {
+        "id": "c12-b01",
+        "say": "Record four points three units across and four up. Its norm is five. If we clip at one, where do its coordinates land?",
+        "hold": 2.6
+      },
+      {
+        "id": "c12-clip",
+        "say": "Scale both coordinates by one fifth. The clipped record contributes point six across and point eight up. We can carry that arrow into the sum.",
+        "hold": 0.8
+      },
+      {
+        "id": "c12-b02",
+        "say": "R1 adds zero point four to the right and zero point three up. R2 adds zero point six to the right and zero point eight up. From that tip, clipped R4 adds another zero point six to the right and zero point eight up.",
+        "hold": 0.3
+      },
+      {
+        "id": "c12-b03",
+        "say": "Together the three arrows reach one point six, one point nine. For this noise draw, the first coordinate is zero point two and the second is minus zero point three. Follow the pink arrow right and down to one point eight, one point six.",
+        "hold": 0.55
+      },
+      {
+        "id": "c12-b04",
+        "say": "Private validation selects checkpoint seven. The published choice now depends on training and on a fresh look at private records. For this record-level example, let both stages protect the addition or removal of one record. Give training and private selection a row each.",
+        "hold": 0.3
+      },
+      {
+        "id": "c12-b05",
+        "say": "If selection meets its bound for every training outcome, add the two epsilons and add the two deltas. That gives a basic composition bound. The training row comes from the accountant for the sampler, noise scale and step count you used.",
+        "hold": 0.3
+      },
+      {
+        "id": "c12-b06",
+        "say": "Reading a raw ticket needs a separate permission check.",
+        "hold": 0.65
+      }
+    ]
+  },
+  {
+    "id": "c13",
+    "title": "What do two measurements cost together?",
+    "sourceChapters": [
+      "c13"
+    ],
+    "beats": [
+      {
+        "id": "c13-b01",
+        "say": "Let's put numbers on a smaller release plan. Both statistics use the same customers. Each has add or remove sensitivity C, uses the whole dataset, and adds Gaussian noise with standard deviation four C. Each row tracks how much the releases can distinguish neighboring datasets, at a different order called alpha.",
+        "hold": 0.3
+      },
+      {
+        "id": "c13-b02",
+        "say": "This is Rényi differential privacy. For this Gaussian mechanism, each charge is alpha divided by twice the squared noise multiplier. Follow order sixteen. One measurement costs a half at that order.",
+        "hold": 0.8
+      },
+      {
+        "id": "c13-b03",
+        "say": "Add a second measurement with the same guarantee, valid even given the first. At order sixteen the two halves add to one. To compare this with an epsilon cap, convert each row at the same target delta, one in a hundred thousand.",
+        "hold": 0.3
+      },
+      {
+        "id": "c13-b04",
+        "say": "Add the natural log of one over delta, divided by the order minus one. You pay that conversion once for the pair.",
+        "hold": 0.9
+      },
+      {
+        "id": "c13-b05",
+        "say": "Read the smallest bound in the last column. Among these four orders, sixteen gives about one point seven seven. Our cap is two, so the pair fits. This worksheet used unsampled Gaussian releases. A sampled training run needs its own matching accountant.",
+        "hold": 1
+      },
+      {
+        "id": "c13-b06",
+        "say": "Suppose we choose a checkpoint using only these two saved noisy scores. Both are already covered together. Comparing them is post-processing. Public validation can also guide that choice. A fresh lookup of raw private scores needs its own privacy analysis even if we publish only the choice.",
+        "hold": 0.3
+      },
+      {
+        "id": "c13-b07",
+        "say": "The same post-processing rule applies to checkpoints derived entirely from a jointly accounted training transcript. Separate runs on overlapping customers generally compose. For fixed disjoint customer groups, with no customer in both, parallel composition can take the largest group bound.",
+        "hold": 1
+      }
+    ]
+  },
+  {
+    "id": "c14",
+    "title": "Which private score can we afford?",
+    "sourceChapters": [
+      "c14"
+    ],
+    "beats": [
+      {
+        "id": "c14-b01",
+        "say": "Now the checkpoint decision needs one fresh score from the same customers. Keep the two saved measurements. Keep Alice’s whole history clipped as a unit, the add or remove rule, and the same target delta.",
+        "hold": 0.3
+      },
+      {
+        "id": "c14-b02",
+        "say": "Both proposals measure the same statistic of sensitivity C on the full dataset, with fresh, independent Gaussian noise. Only its scale changes.",
+        "hold": 0.8
+      },
+      {
+        "id": "c14-b03",
+        "say": "The top plan gives the new score a standard deviation of four C. The lower plan uses eight C. The two saved measurements already put us at about one point seven seven. Use the charge at order sixteen. Which new score can we approve under the cap of two?",
+        "hold": 3.3
+      },
+      {
+        "id": "c14-b04",
+        "say": "Try four C first. The new order-sixteen charge is a half. The bound reaches about two point two seven. Even the smallest bound among these four orders misses our cap. Keep the saved pair and try eight C instead. Doubling the standard deviation quarters the new charge. The new charge is one eighth. Place it beside the two saved halves.",
+        "hold": 1
+      },
+      {
+        "id": "c14-b05",
+        "say": "Add the same conversion as before. The bound is about one point eight nine three. That puts the eight C plan below the cap of two. We can approve it on this accounting, then measure whether the noisier score still picks a useful checkpoint.",
+        "hold": 1.4
+      },
+      {
+        "id": "c14-b06",
+        "say": "Choose the checkpoint using the three protected scores. Suppose the noisy scores for checkpoints five, seven and eight are point six eight, point seven four and point seven one. Take the largest. Checkpoint seven wins. Comparing saved scores adds no privacy charge. Once training and selection are both accounted for, answering a public prompt with that model alone is post-processing. Now the copilot requests Alice’s original ticket.",
+        "hold": 0.3
+      },
+      {
+        "id": "c14-b07",
+        "say": "Before it can read that ticket, check the copilot’s permission. Protect new prompts and logs separately. A copied sentence could have come from the prompt, retrieval, or training. Trace which source supplied it. The next lesson follows the people who label tickets. Their work needs permission, provenance and consent too.",
+        "hold": 1.5
+      }
+    ]
+  }
+]

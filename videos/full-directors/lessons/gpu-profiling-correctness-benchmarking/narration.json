@@ -1,0 +1,290 @@
+[
+  {
+    "id": "c01",
+    "title": "Where would you stop the clock?",
+    "sourceChapters": [
+      "c01"
+    ],
+    "beats": [
+      {
+        "id": "launch",
+        "say": "The launch returns. Freeze the host clock. Three microseconds for the patch. The baseline took five point four. That gives the patch its headline, one point eight times faster. Look down one track. The GPU still has the kernel ahead of it. Where would you put a second stop mark to time the whole request?",
+        "hold": 2.7
+      },
+      {
+        "id": "finish",
+        "say": "Follow the pulse. Both kernels start at ten and finish at seventy-five in this constructed trace. The CPU learns the work is complete when its wait returns at seventy-eight. Put the request stop there. Both requests took the same time, even though the patch released the calling thread earlier.",
+        "hold": 1.25
+      },
+      {
+        "id": "events",
+        "say": "To time work on the GPU, record two timing events in the same CUDA stream, one before the launch and one after it. Wait for the stop event before reading the interval. The first event executed at five. Count the gap from five to ten, then sixty-five in the kernel. Seventy microseconds between events. Queueing before the first mark falls outside that interval.",
+        "hold": 1.3
+      }
+    ]
+  },
+  {
+    "id": "c02",
+    "title": "Which thread changed the spare cell?",
+    "sourceChapters": [
+      "c02"
+    ],
+    "beats": [
+      {
+        "id": "five",
+        "say": "The kernel multiplies each X by a scale and adds Z. Here the scale is one and a quarter, and Z is one. Five threads each own one output. With four threads per block, the grid launches eight. Compare the five results with an independent reference. Every value matches. Look at the spare cell just past the last result. What will thread five do under this guard?",
+        "hold": 2.6
+      },
+      {
+        "id": "six",
+        "say": "It writes twenty-six. Five is outside the logical result, but all three buffers have spare space, so the write lands inside the allocation. An elementwise comparison over the five requested values misses it. Give the output exactly five slots and run the same guard again. Now the sixth store crosses the allocation boundary. Run memcheck on that case.",
+        "hold": 1.2
+      },
+      {
+        "id": "repair",
+        "say": "Change the guard to strictly less than the length. The sixth thread skips the store. For this bounded test, fill the output with NaNs before each run. Suppose thread two skips its own store. The poison survives in the middle. Check every valid position and reject any nonfinite result. A checksum could also hide two errors that cancel.",
+        "hold": 1.2
+      },
+      {
+        "id": "blocks",
+        "say": "On the full triad, a million and three elements fill three thousand nine hundred six whole blocks of two hundred fifty-six, plus sixty-seven positions in the last block. Test empty and singleton inputs, lengths on either side of a block boundary, several seeds, mixed signs and cancellation. A clean checker report covers the inputs and paths you exercised.",
+        "hold": 1.3
+      }
+    ]
+  },
+  {
+    "id": "c03",
+    "title": "How far can one answer move?",
+    "sourceChapters": [
+      "c03"
+    ],
+    "beats": [
+      {
+        "id": "allowance",
+        "say": "Compute each reference on the CPU in double precision, then cast to float. The GPU uses a float fused multiply-add with one rounding. For this bounded triad, freeze the error allowance before ranking either version. Start with two millionths of absolute tolerance. Add twenty millionths times the reference magnitude. With a reference of one tenth, how much room does that give the output?",
+        "hold": 2.3
+      },
+      {
+        "id": "zero",
+        "say": "Four millionths. The measured error is one millionth. Move the reference toward zero and keep that error still. The relative part shrinks with the reference. At zero the absolute allowance still gives us two millionths. Would an error of five millionths fit?",
+        "hold": 2.3
+      },
+      {
+        "id": "cross",
+        "say": "Move the error to five millionths. Watch it cross the limit. The same output check now fails. Choose tolerances for the precision, input range, operation and downstream use. A long reduction accumulates rounding error differently and needs its own analysis.",
+        "hold": 1.4
+      }
+    ]
+  },
+  {
+    "id": "c04",
+    "title": "Which history belongs to launch four?",
+    "sourceChapters": [
+      "c04"
+    ],
+    "beats": [
+      {
+        "id": "cold",
+        "say": "Keep the launches in the order they happened. These are constructed event samples. The first-use series starts at forty-four microseconds. Follow it to the sixth launch, nineteen. On a real device, record clocks, power, temperature and competing work as the run settles. A first-request wall timer can include compilation, initialization and allocation. Events around a warmed kernel measure a smaller scope.",
+        "hold": 1.2
+      },
+      {
+        "id": "slots",
+        "say": "Now warm the kernel first. One run reuses the same three buffers in slot zero. The rotating run uses six distinct slots. It starts at zero and advances one slot per launch. Follow launch four down through both runs. Which slot did each run touch?",
+        "hold": 2.2
+      },
+      {
+        "id": "inspect",
+        "say": "Slot zero again in the first run. Slot three in the second. The event times are twelve and twenty microseconds. Reuse gives the cache a chance to serve a load. Rotation encourages turnover. Check traffic counters under the matching policy before saying which memory served it.",
+        "hold": 1.2
+      }
+    ]
+  },
+  {
+    "id": "pool",
+    "title": "How many slots reach the rotation target?",
+    "sourceChapters": [
+      "c04"
+    ],
+    "beats": [
+      {
+        "id": "nine",
+        "say": "One slot holds X, Z and Y. At four bytes per float, one full slot takes just over twelve megabytes. The lab chooses the larger of eight slots or twice the L two cache size plus one slot. Here the target is about a hundred and thirteen megabytes. Nine whole slots reach a hundred and eight. Does that cross the mark?",
+        "hold": 2.3
+      },
+      {
+        "id": "ten",
+        "say": "Add a tenth slot. The pool crosses the mark at about a hundred and twenty megabytes. Round up to a whole slot. This lab stops if the pool would take more than a quarter of free memory. Start warmup at slot zero. Touch each slot twice, with at least twenty launches, then extend warmup if the measurements still drift.",
+        "hold": 1.3
+      }
+    ]
+  },
+  {
+    "id": "c05",
+    "title": "What does useful bandwidth count?",
+    "sourceChapters": [
+      "c05"
+    ],
+    "beats": [
+      {
+        "id": "bytes",
+        "say": "Read X, read Z, write Y. Each float occupies four bytes. Twelve useful bytes for each of a million and three elements gives twelve million and thirty-six bytes. Divide by eight microseconds. About fifteen hundred gigabytes per second of useful bandwidth. Keep those bytes fixed. What would a three microsecond interval do to the rate?",
+        "hold": 2.3
+      },
+      {
+        "id": "rate",
+        "say": "Replace eight with three. The useful rate climbs to about four thousand gigabytes per second. Even a device rated for three thousand gigabytes per second can sustain that useful rate if a cache serves enough input loads. An inefficient transaction can move extra bytes. To find out what crossed the high-bandwidth memory interface, collect the counters there. Keep the profile's bytes together with its own duration. A cache-flushed profile and a clean warm run can have different traffic.",
+        "hold": 1.3
+      }
+    ]
+  },
+  {
+    "id": "roof",
+    "title": "How much work can device memory feed?",
+    "sourceChapters": [
+      "c05"
+    ],
+    "beats": [
+      {
+        "id": "roof-point",
+        "say": "Give our invented GPU three terabytes per second at device memory and a float compute peak of sixty teraflops per second. Count two operations per element, one multiply and one add. Suppose twelve bytes per element cross this memory level. Two over twelve gives the intensity. Multiply that by the bandwidth. Half a teraflop per second is the ceiling here. Mark that spot on the slope. The lower of the bandwidth and compute limits sets the roof.",
+        "hold": 1.25
+      },
+      {
+        "id": "roof-shift",
+        "say": "Suppose the counter shows sixteen bytes per element for the same two operations. Where on the ceiling would you put the sixteen-byte marker?",
+        "hold": 2.3
+      },
+      {
+        "id": "lower-roof",
+        "say": "Three eighths of a teraflop per second. The ceiling marker moves left and down. Two over sixteen gives one eighth of a flop per byte. At that intensity the memory bandwidth sets the ceiling. To place the run itself, we need to know how long the work took.",
+        "hold": 1.4
+      },
+      {
+        "id": "profile-time",
+        "say": "Zoom in on those two ceiling marks. Suppose the same profile that counted sixteen bytes per element timed the kernel at eight microseconds. Across a million and three elements the triad does two million and six floating-point operations. Divide that work by the profiled duration. At the same intensity, where would you place the run?",
+        "hold": 2.6
+      },
+      {
+        "id": "achieved-rate",
+        "say": "About a quarter of a teraflop per second. The diamond sits directly below the sixteen-byte ceiling. The kernel reached about two thirds of that bound. What accounts for those four extra bytes per element? Change just the access order, then remeasure traffic and clean latency under matching conditions. High memory utilization can include wasted transfers.",
+        "hold": 1.4
+      }
+    ]
+  },
+  {
+    "id": "distribution",
+    "title": "Where did the slow first launch go?",
+    "sourceChapters": [
+      "c06"
+    ],
+    "beats": [
+      {
+        "id": "copy",
+        "say": "For each completed launch save its sample index, slot and elapsed time. In this six-launch example, forty came first. Sort a copy to compute percentiles. With zero-based indices, the position is the quantile times five. The median sits at two and a half, between twelve and fourteen. The ninetieth percentile sits at four and a half. What value lies there?",
+        "hold": 2.5
+      },
+      {
+        "id": "upper",
+        "say": "Twenty-eight microseconds, halfway between sixteen and forty. The median is thirteen. Report the count and spread, and keep the forty at the start of the original record. If you put one pair of events around a batch of tiny kernels, divide the interval by the batch size for an average. Percentiles of batch averages describe batches. Individual launch tails require individual observations.",
+        "hold": 1.3
+      }
+    ]
+  },
+  {
+    "id": "c06",
+    "title": "Did the candidate get slower?",
+    "sourceChapters": [
+      "c06"
+    ],
+    "beats": [
+      {
+        "id": "round-one",
+        "say": "Time two correct builds on the same device with the same shape, dtype, flags, inputs, timer and buffer policy. In each round, run baseline A, candidate B, then B and A again. The first round gives eleven, nine, eleven, thirteen microseconds in that order. Pair the two A readings and the two B readings. Which build wins this round?",
+        "hold": 2.2
+      },
+      {
+        "id": "round-two",
+        "say": "Twelve over ten gives one point two. B wins. Leave that line in place. Repeat the same order in round two. A takes eight, B nine, B eleven, A ten. Look at B's two readings in each round. Did the candidate get slower?",
+        "hold": 2.4
+      },
+      {
+        "id": "reversal",
+        "say": "B stayed at ten. A fell to nine. The new line slopes up from A to B, and nine over ten gives zero point nine. The candidate lost its lead. Keep both rounds. Investigate clocks, temperature, power and competing work, then repeat balanced rounds. Thousands of launches sharing the same conditions do not give thousands of independent rounds for uncertainty.",
+        "hold": 1.4
+      }
+    ]
+  },
+  {
+    "id": "replay",
+    "title": "Which bytes come back for the second pass?",
+    "sourceChapters": [
+      "c07"
+    ],
+    "beats": [
+      {
+        "id": "save",
+        "say": "Start with Nsight Systems to locate the critical path across CPU calls, waits, copies and GPU streams. If a kernel owns a critical interval, use Nsight Compute to inspect its resources, stalls and traffic. Some counters need multiple passes. For kernel replay the profiler can save all accessible memory before pass one. Here the inputs are X and Z. The output Y starts at minus one in both cells.",
+        "hold": 1
+      },
+      {
+        "id": "write-output",
+        "say": "Execute the triad once. Only Y changes. Its two answers are four point two five and six point five. Compare the live arrays with the saved copy. Which bytes need restoring before the second pass?",
+        "hold": 2.3
+      },
+      {
+        "id": "restore",
+        "say": "Restore the saved Y. The untouched inputs stay in place. One-pass collection may avoid this work. Replay can serialize launches, flush caches or change clocks. Record the profiler's settings and collect clean timing in a separate linked run. In the course lab, counter access was denied on a shared GPU. The passing reference and memcheck still stand. Device-memory traffic stays unmeasured until permitted counters are available.",
+        "hold": 1.3
+      }
+    ]
+  },
+  {
+    "id": "receipt",
+    "title": "Can this timing file support the old receipt?",
+    "sourceChapters": [
+      "c07"
+    ],
+    "beats": [
+      {
+        "id": "lab",
+        "say": "The shared GPU run shows why raw samples matter. These are two hundred event intervals from the repaired triad with rotating buffers. The spike at sample one hundred eighty-nine stays in the file. The final check reads the last result in each slot. Separate poisoned runs catch skipped writes. Memcheck checks memory accesses. Racecheck targets shared-memory hazards, initcheck uninitialized global reads, and synccheck invalid synchronization.",
+        "hold": 1
+      },
+      {
+        "id": "bytes-file",
+        "say": "A colleague gets a receipt with the source and binary identities, device and tool versions, commands, tolerances, checker logs, buffer policy, raw timings and hardware state. In this separate example, the last timing row ends in eighty-two. Save it as eighty-two point zero. The number is the same. Can the original file hash still vouch for these bytes?",
+        "hold": 2.4
+      },
+      {
+        "id": "hash",
+        "say": "Compare the digests. They differ. Stop before computing a median. Recover the original from trusted storage or recollect a matched round and bind the new files. After the hash matches, validate the conditions, schema, acquisition order, slot sequence and finite positive durations. The hash identifies bytes. A trusted collection process ties those bytes to an actual GPU and build.",
+        "hold": 1.3
+      }
+    ]
+  },
+  {
+    "id": "c07",
+    "title": "When will the user get the answer?",
+    "sourceChapters": [
+      "c07"
+    ],
+    "beats": [
+      {
+        "id": "predict",
+        "say": "Try the request clock yourself. These two stages run in sequence. Preparation takes eighty milliseconds. The checked kernel takes twenty. A clean matched benchmark doubles kernel speed. If preparation stays fixed, where should the request end?",
+        "hold": 2.6
+      },
+      {
+        "id": "payoff",
+        "say": "Ninety milliseconds. The kernel fell to ten. Add the eighty on the CPU. Dividing the old hundred by ninety gives about one point one one times for the whole request. Now the clean request timer comes back at a hundred. Where would you look for the missing ten milliseconds?",
+        "hold": 2.6
+      },
+      {
+        "id": "account",
+        "say": "Open the matching system trace. Preparation grew to ninety milliseconds. The ten in the kernel still holds. The two requests finish together. You can report the kernel improvement and point to the CPU interval that used up the saving. When stages overlap, follow dependencies to completion on the trace. Keep the request stop beside the result the user actually waited for.",
+        "hold": 1.8
+      }
+    ]
+  }
+]

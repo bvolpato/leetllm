@@ -1,0 +1,697 @@
+[
+  {
+    "id": "c01",
+    "title": "Does this key still qualify for rotation?",
+    "sourceChapters": [
+      "c01"
+    ],
+    "beats": [
+      {
+        "id": "c01-b01",
+        "say": "Find the key marked forty-two on this age scale. Yesterday a stale key qualified at thirty days. Today the minimum moves to sixty. Watch the app's reply as the cutoff passes the key.",
+        "hold": 0.9
+      },
+      {
+        "id": "c01-b02",
+        "say": "The key hasn't moved. The app still says eligible. Under the new policy, should that reply have changed?",
+        "hold": 2.8
+      },
+      {
+        "id": "c01-b03",
+        "say": "Forty-two is eighteen days short. The reply still fits the thirty-day rule. Which part of the request used thirty? Keep that question as we follow the artifacts that produced the answer.",
+        "hold": 1.8
+      },
+      {
+        "id": "c01-b04",
+        "say": "Training turns text into a checkpoint, a saved set of model weights. The application can use checkpoint four under either rule. At request time it supplies the key's age and a policy passage. A separate checker decides eligibility. We'll trace a reply back to the artifact we can repair.",
+        "hold": 1
+      }
+    ]
+  },
+  {
+    "id": "c02",
+    "title": "Which text reaches training?",
+    "sourceChapters": [
+      "c02"
+    ],
+    "beats": [
+      {
+        "id": "c02-b01",
+        "say": "Ten pages contain the same paragraph. Keep them all and the model gets ten chances to practice the same words. C C Net normalizes each paragraph and hashes it with a truncated S H A one digest. These ten hashes match. Keep one copy.",
+        "hold": 0.3
+      },
+      {
+        "id": "c02-b02",
+        "say": "Count the remaining training examples of this paragraph. One copy can still be memorized. Deduplication changed how often the model practices it.",
+        "hold": 0.8
+      },
+      {
+        "id": "c02-b03",
+        "say": "Which writing survives the filters? C C Net uses fastText to identify languages and a Wikipedia-trained language model to score text by perplexity. Original C four selects English text and removes repeated three-sentence spans. For near-duplicates, MinHash can find similar passages.",
+        "hold": 0.3
+      },
+      {
+        "id": "c02-b04",
+        "say": "Sample the discarded text to see which languages and topics lost examples. The words that survive are the ones the tokenizer will count.",
+        "hold": 0.8
+      }
+    ]
+  },
+  {
+    "id": "c03",
+    "title": "Which pieces become a token?",
+    "sourceChapters": [
+      "c03"
+    ],
+    "beats": [
+      {
+        "id": "c03-b01",
+        "say": "A base model learns from text. First we need pieces it can predict. In this little corpus the word key occurs four times, stale three times, and rotation twice. We'll skip preprocessing and start with letters inside each word. A pair in a word we saw three times gets counted three times.",
+        "hold": 0.8
+      },
+      {
+        "id": "c03-b02",
+        "say": "Look at the letters t and a. Here they are in stale. Here they are again in rotation. Compare their combined count with the k and e at the start of key. Which of these two pairs occurs more often?",
+        "hold": 2.1
+      },
+      {
+        "id": "c03-b03",
+        "say": "T followed by a occurs five times. Three plus two beats four. Join those letters wherever they sit together. The two rows now share one token. Recount the neighbors of that new piece before choosing another merge. That's one step of byte-pair encoding.",
+        "hold": 0.9
+      },
+      {
+        "id": "c03-b04",
+        "say": "Read the merged rotation row. After r and o, the observed next token is the piece we just made. Suppose the model gave it probability point two. The training loss is minus the natural log of that probability, about one point six one nats.",
+        "hold": 0.3
+      },
+      {
+        "id": "c03-b05",
+        "say": "On the same target, raise the probability to point eight. The loss drops to about point two two nats. Training adjusts weights to reduce losses like these across examples. That teaches the model to predict text. The current rotation rule still comes from the policy.",
+        "hold": 1
+      }
+    ]
+  },
+  {
+    "id": "c04",
+    "title": "Training allocation depends on the compute objective",
+    "sourceChapters": [
+      "c04"
+    ],
+    "beats": [
+      {
+        "id": "c04-b01",
+        "say": "A useful first estimate for dense-model training is six times parameter count times token count. Gopher’s reported two hundred eighty billion parameters and three hundred billion tokens give about five point zero four times ten to the twenty-third FLOPs.",
+        "hold": 0.8
+      },
+      {
+        "id": "c04-b02",
+        "say": "Chinchilla’s seventy-billion-parameter run used one point four trillion tokens. The same approximation gives five point eight eight times ten to the twenty-third FLOPs, near the Gopher estimate with a different allocation.",
+        "hold": 0.8
+      },
+      {
+        "id": "c04-b03",
+        "say": "Llama 3’s eight-billion-parameter model trained on about fifteen trillion tokens reflects a different goal: useful capability from a smaller model with recurring inference costs in view. Training and serving optimize different budgets.",
+        "hold": 0.85
+      },
+      {
+        "id": "c04-b04",
+        "say": "Give the dense training run four times the compute. Under the fitted Chinchilla rule, parameters and tokens each grow with the square root of the budget. How could you fill four copies of the original square? Double both sides. The product grows fourfold.",
+        "hold": 0.3
+      },
+      {
+        "id": "c04-b05",
+        "say": "Six N D estimates dense training arithmetic. Hardware utilization and the extra cost of long-sequence attention also matter when you plan the run.",
+        "hold": 0.8
+      },
+      {
+        "id": "c04-b06",
+        "say": "Both models meet our quality target. The smaller one costs half a unit more to train, but saves three tenths on each request. After one request it's still more expensive overall. Send a second request.",
+        "hold": 0.3
+      },
+      {
+        "id": "c04-b07",
+        "say": "Now the smaller model costs one point four units in total, against one point five. Run them out to twenty requests. The total cost is five units for the smaller model and ten point five for the other.",
+        "hold": 0.8
+      }
+    ]
+  },
+  {
+    "id": "c05",
+    "title": "Two ways to report the same decision",
+    "sourceChapters": [
+      "c05"
+    ],
+    "beats": [
+      {
+        "id": "c05-b01",
+        "say": "Give the model an example of the answer we want. The system asks for a structured decision. The user supplies the stale key, its age and the thirty-day rule. The assistant's example answer says eligible and cites the policy. Training on demonstrations like this is supervised fine-tuning.",
+        "hold": 0.9
+      },
+      {
+        "id": "c05-b02",
+        "say": "Give two candidates the same key facts and ask each to report the decision. Each calls the key eligible. Only one says a rotation finished. There was no job. We'd choose the answer that reports what happened and reject the invented claim. A preference pair records that choice.",
+        "hold": 0.8
+      },
+      {
+        "id": "c05-b03",
+        "say": "Try a checker on the output. It reads three fields. The eligible verdict, P-seven and a false action flag match the fixture, so the score is one. Flip the action flag to true. The score drops to zero.",
+        "hold": 0.3
+      },
+      {
+        "id": "c05-b04",
+        "say": "Restore the three fields. Under them, the assistant writes that the rotation finished. The execution record is still empty. Predict the score before the checker reads this reply.",
+        "hold": 2.7
+      },
+      {
+        "id": "c05-b05",
+        "say": "One again. The three fields match, and the checker never reads that sentence. A user would see a claim the checker missed. Build the displayed job status from verified execution records, or check every channel that can make the claim.",
+        "hold": 1.2
+      }
+    ]
+  },
+  {
+    "id": "c06",
+    "title": "Which parts of a chat supply targets?",
+    "sourceChapters": [
+      "c06"
+    ],
+    "beats": [
+      {
+        "id": "c06-b01",
+        "say": "Put the demonstration through the checkpoint's chat template. It arranges the system instruction, user request and assistant reply in one sequence. To train on the reply, keep the whole prompt in view. In this assistant-only recipe, mask the prompt targets. Only the assistant span contributes direct next-token loss.",
+        "hold": 1
+      },
+      {
+        "id": "c06-b02",
+        "say": "Take the value true in the reply. To predict it, the model can use the age and the rule earlier in the conversation. An error on that prediction can send a gradient back through those prompt computations. Seeing a gradient there is consistent with masking their direct targets.",
+        "hold": 1
+      },
+      {
+        "id": "c06-b03",
+        "say": "The template must identify the assistant span and the recipe must select it. Another recipe can train on the full sequence. Before training, compare the answer with the required fields.",
+        "hold": 0.3
+      },
+      {
+        "id": "c06-b04",
+        "say": "Remove the policy ID and the example still parses as JSON, but it teaches the model to omit a required field. Check types, extra fields, the evidence and the verdict too.",
+        "hold": 0.9
+      }
+    ]
+  },
+  {
+    "id": "c07",
+    "title": "Different objectives change weights through different evidence",
+    "sourceChapters": [
+      "c07"
+    ],
+    "beats": [
+      {
+        "id": "c07-b01",
+        "say": "Start with the same two answers. We prefer the one that reports the job record accurately. Instruct G P T used rankings like these to train a reward model. It then scored new responses with that model and updated the policy using P P O. D P O takes the pair straight into training.",
+        "hold": 0.3
+      },
+      {
+        "id": "c07-b02",
+        "say": "It compares the probabilities of the chosen and rejected answers relative to a reference policy. The gradient of that preference loss updates the weights.",
+        "hold": 0.8
+      },
+      {
+        "id": "c07-b03",
+        "say": "With verifiable rewards, a checker grades an outcome such as a numerical answer or an executed test. Reinforcement learning uses that score to update the policy. DeepSeek R one Zero began reinforcement learning without preliminary supervised fine-tuning. R one combined supervised data and reinforcement learning. Try our field checker as the reward.",
+        "hold": 0.3
+      },
+      {
+        "id": "c07-b04",
+        "say": "Its fields earned full credit even though its sentence contradicts the job record. A training run that used this score would reward that answer. Build the status the user sees from the execution receipt.",
+        "hold": 0.8
+      },
+      {
+        "id": "c07-b05",
+        "say": "At request time, the same checkpoint can generate several candidates and score them, or spend more tokens reasoning through one answer. That's test-time compute. Try it on the same cases. How much quality did the extra time and cost buy?",
+        "hold": 0.8
+      }
+    ]
+  },
+  {
+    "id": "c08",
+    "title": "Did this question appear in training?",
+    "sourceChapters": [
+      "c08"
+    ],
+    "beats": [
+      {
+        "id": "c08-b01",
+        "say": "M M L U samples fifty-seven academic subjects, while G S M eight K tests grade-school multistep mathematics. For the key assistant, we also need cases that exercise the live rotation rule. A public math problem can turn up in a web crawl, answer and all. Remembering it would raise the model's score.",
+        "hold": 0.8
+      },
+      {
+        "id": "c08-b02",
+        "say": "Search fifty thousand training documents for the exact question. Zero matches. Record all three facts together. Another document could use different wording, or sit outside the sample. If you find a match, read it. A common phrase carries less evidence than a copied problem and its answer.",
+        "hold": 0.3
+      },
+      {
+        "id": "c08-b03",
+        "say": "Change names or numbers while keeping the skill and difficulty as close as possible. A lower score could also mean the new problem was harder. Pin fresh cases from after a known training cutoff for another comparison. If a benchmark publishes a canary string, search for that marker too.",
+        "hold": 0.8
+      }
+    ]
+  },
+  {
+    "id": "c09",
+    "title": "Two ballots for one answer pair",
+    "sourceChapters": [
+      "c09"
+    ],
+    "beats": [
+      {
+        "id": "c09-b01",
+        "say": "These two answers are for the same request. Answer A says that the key qualifies and no job ran. Answer B claims a rotation finished. In the first trial the judge picks A. Keep the ballot. Now swap the positions and leave every word alone.",
+        "hold": 0.3
+      },
+      {
+        "id": "c09-b02",
+        "say": "The second ballot picks B. Read the two ballots side by side. Did the judge follow the answer or its position?",
+        "hold": 2.2
+      },
+      {
+        "id": "c09-b03",
+        "say": "It picked the first position twice. The two ballots disagree on which answer is better. Count both. Throwing out pairs like this changes the denominator. For this request, the job record can settle the factual claim regardless of how the judge voted.",
+        "hold": 1
+      },
+      {
+        "id": "c09-b04",
+        "say": "To check whether length influences the judge, vary length while holding the answer's substance fixed. To investigate a possible preference for its own model family, blind the names and control for differences in quality and style. The M T Bench study looked at these effects.",
+        "hold": 0.3
+      },
+      {
+        "id": "c09-b05",
+        "say": "Chatbot Arena collects human preferences. Calibrate your scoring rubric against blinded human judgments and the records for your task.",
+        "hold": 0.9
+      }
+    ]
+  },
+  {
+    "id": "c10",
+    "title": "Grade five answers under the 30-day rule",
+    "sourceChapters": [
+      "c10"
+    ],
+    "beats": [
+      {
+        "id": "c10-b01",
+        "say": "We're back under the thirty-day rule. We saved five answers about stale keys and the job records for each one. A passing answer gets three things right. Does the key qualify? Which policy applies? Did a job actually start? We can grade each new version of the app against the same cases.",
+        "hold": 0.75
+      },
+      {
+        "id": "c10-b02",
+        "say": "Read the first two rows. At forty-two days the answer says eligible. At fifteen it says ineligible. Both pass. Freeze the fifty-day key. The assistant claims a job started. Read the execution record before you grade it.",
+        "hold": 2.7
+      },
+      {
+        "id": "c10-b03",
+        "say": "It says a job started. The execution record shows none. That claim costs it a pass. The next key is ten days old, yet the answer calls it eligible. The last one cites P-nine. Two of the five answers pass.",
+        "hold": 1.1
+      },
+      {
+        "id": "c10-b04",
+        "say": "Could we promote this candidate on that evidence? The fixture has one false action claim, and we haven't measured the time to deliver a checked decision. The release stays blocked. Let's look at why someone running these very same rows might see a five out of five.",
+        "hold": 0.8
+      }
+    ]
+  },
+  {
+    "id": "c11",
+    "title": "What did the evaluator test?",
+    "sourceChapters": [
+      "c11"
+    ],
+    "beats": [
+      {
+        "id": "c11-b01",
+        "say": "Keep those five grades. Before running the scorer, the author marked which answers ought to pass. Compare the two columns, row by row. On the fifty-day key the scorer rejected the false claim, exactly as the author expected. Even that rejection counts as agreement.",
+        "hold": 0.3
+      },
+      {
+        "id": "c11-b02",
+        "say": "The scorer matched all five labels. Only two candidate answers passed. We tested the scorer on supplied answers without calling a model.",
+        "hold": 1
+      },
+      {
+        "id": "c11-b03",
+        "say": "Take a fresh report. All twenty cases passed. Zero answers claimed an action without a receipt. The ninety-fifth percentile time to a checked decision was seven hundred eighty milliseconds, inside our one-second budget. Those numbers clear the metric gate. Now count one pass twice.",
+        "hold": 0.3
+      },
+      {
+        "id": "c11-b04",
+        "say": "Twenty-one passes from twenty cases. The gate blocks the release until we can account for every pass.",
+        "hold": 1
+      },
+      {
+        "id": "c11-b05",
+        "say": "Go back to the valid twenty-pass report. Compare its bundle with what we'd serve. Every revision matches, so the report applies to this bundle. Now switch only the chat template from four to five. The weights are the same.",
+        "hold": 0.3
+      },
+      {
+        "id": "c11-b06",
+        "say": "The report still reads seven hundred eighty milliseconds. The proposed template is now version five. Which bundle did we actually time?",
+        "hold": 2.3
+      },
+      {
+        "id": "c11-b07",
+        "say": "Run the evaluation again. The report is pinned to template four. Template five can turn the same conversation into different input tokens. Keep the two runs tied to their own revisions. Replacing the weights with a compressed copy also changes the bundle. Measure that copy on the workload you plan to serve.",
+        "hold": 1.3
+      }
+    ]
+  },
+  {
+    "id": "c12",
+    "title": "Weight savings share memory with the KV cache",
+    "sourceChapters": [
+      "c12"
+    ],
+    "beats": [
+      {
+        "id": "c12-b01",
+        "say": "Seventy billion parameters at two bytes each require about one hundred thirty point four GiB for BF16 weights alone. Ideal INT4 storage uses one quarter as many bytes, about thirty-two point six GiB before scales and runtime overhead.",
+        "hold": 0.8
+      },
+      {
+        "id": "c12-b02",
+        "say": "Serving also keeps keys and values from attention for every cached token. At thirty-two thousand seven hundred sixty-eight tokens, our example needs ten gibibytes per request. Put two requests beside the packed weights. What has to fit now?",
+        "hold": 0.85
+      },
+      {
+        "id": "c12-b03",
+        "say": "The subtotal is fifty-two point six gibibytes. It crosses the forty-eight-gibibyte device limit by four point six. A sixty-gibibyte budget leaves seven point four for everything else. Different quantizers can produce different errors at the same size. Evaluate the actual compressed artifact on the target workload.",
+        "hold": 0.9
+      },
+      {
+        "id": "c12-b04",
+        "say": "Follow one token into the cache. Each of eighty layers saves a key and a value for each of its eight K V heads. Each vector has one hundred twenty-eight elements. Multiply by the number of cached tokens and two bytes per element.",
+        "hold": 0.3
+      },
+      {
+        "id": "c12-b05",
+        "say": "Divide the byte count by two to the thirtieth for ten gibibytes per request. Packing the weights leaves the cache size alone. Now suppose every layer uses a sliding window that keeps just the newest half of those tokens. The cache drops to five gibibytes.",
+        "hold": 0.3
+      },
+      {
+        "id": "c12-b06",
+        "say": "Sharing a prefix across requests, compressing the cache or moving entries off the GPU can save GPU memory. Weight scales, higher-precision weights and runtime buffers also need space.",
+        "hold": 0.8
+      }
+    ]
+  },
+  {
+    "id": "c13",
+    "title": "Where does the rounding error go?",
+    "sourceChapters": [
+      "c13"
+    ],
+    "beats": [
+      {
+        "id": "c13-b01",
+        "say": "First give the weights a storage grid. For this symmetric eight-bit example, the largest absolute weight gets code one hundred twenty-seven. Divide that weight magnitude by one hundred twenty-seven to get the step size. An all-zero tensor can use any nonzero step.",
+        "hold": 0.3
+      },
+      {
+        "id": "c13-b02",
+        "say": "Round each weight to the nearest grid point. Multiply its code by the step to read the weight back. The largest difference here is about point zero zero two nine. Serving needs those codes in a packed tensor.",
+        "hold": 0.9
+      },
+      {
+        "id": "c13-b03",
+        "say": "Which rounding error matters to the output? Look at these two channels. The first weight is off by just one hundredth, but the input multiplies that by ten. Its contribution is a tenth. The second weight is off by four hundredths, and its input is one. Which channel moves the output farther?",
+        "hold": 2
+      },
+      {
+        "id": "c13-b04",
+        "say": "Channel one moves the output farther. Its contribution is a tenth, compared with four hundredths for channel two. This is why activation-aware quantization, or A W Q, uses calibration inputs to choose channel scales. The method can keep weights at low precision throughout.",
+        "hold": 1
+      },
+      {
+        "id": "c13-b05",
+        "say": "Try scaling one channel on this simpler grid, with a step of one tenth. The first weight is point two four and its input is ten. Add the second channel and the exact output is two point eight four. Leave a mark there.",
+        "hold": 0.3
+      },
+      {
+        "id": "c13-b06",
+        "say": "Rounding the weights directly gives two point four. That's where the first attempt lands.",
+        "hold": 0.9
+      },
+      {
+        "id": "c13-b07",
+        "say": "Now double the first weight and halve its input. Before rounding, that product is unchanged. On the same grid, point four eight rounds to point five. Multiply by five and add the rounded second channel. Where does this attempt land relative to the mark?",
+        "hold": 2.6
+      },
+      {
+        "id": "c13-b08",
+        "say": "Two point nine. Just six hundredths above the exact output, compared with forty-four hundredths below it on the first attempt. Reciprocal scaling preserved the exact operation and changed the error after rounding. This little decimal grid illustrates the idea. A W Q searches for scales on calibration data.",
+        "hold": 1.1
+      },
+      {
+        "id": "c13-b09",
+        "say": "G P T Q also starts from calibration inputs. It compensates for a rounded weight by adjusting weights that remain. Suppose the first input is two. Rounding its weight down by point zero five loses a tenth at the output. The second input is one.",
+        "hold": 0.3
+      },
+      {
+        "id": "c13-b10",
+        "say": "Raise its weight by a tenth and the sum recovers before that weight is rounded. G P T Q chooses corrections using damped inverse-Hessian information from the layer's squared reconstruction error. For a linear layer its Hessian is twice X times X transpose.",
+        "hold": 0.3
+      },
+      {
+        "id": "c13-b11",
+        "say": "Calibration and the final grid determine the error that remains. Other compression methods train a smaller student, prune structure, or simulate quantization during training.",
+        "hold": 1
+      }
+    ]
+  },
+  {
+    "id": "c14",
+    "title": "Iteration-level scheduling reuses a freed slot",
+    "sourceChapters": [
+      "c14"
+    ],
+    "beats": [
+      {
+        "id": "c14-b01",
+        "say": "Change the scale to decode iterations. One request will need fifteen steps, its neighbor six hundred. Each step adds a token per active request in this example. Stop at fifteen. The first request has finished. In a static batch, what happens to its slot while its neighbor keeps going?",
+        "hold": 2.7
+      },
+      {
+        "id": "c14-b02",
+        "say": "The slot sits idle for five hundred eighty-five iterations. Replay the finish under continuous batching. Check the waiting request's cache space and prefill budget. When both fit and policy permits, admit it at the next scheduling boundary. The long request carries on.",
+        "hold": 0.8
+      },
+      {
+        "id": "c14-b03",
+        "say": "Zoom in on the long request's cache. At sixteen live tokens, four blocks of four slots are full. Add one token. The allocator takes a fifth physical block from the pool, even though it sits away from the first four. PagedAttention limits over-reservation and fragmentation. Every live token still needs its keys and values.",
+        "hold": 0.9
+      }
+    ]
+  },
+  {
+    "id": "c15",
+    "title": "What does one request cost to serve?",
+    "sourceChapters": [
+      "c15"
+    ],
+    "beats": [
+      {
+        "id": "c15-b01",
+        "say": "Start the clock when the model server receives the request. Mark the first token at two hundred milliseconds. That's time to first token. It includes queueing, prefill and the first generation step. A client can also wait for retrieval and the network.",
+        "hold": 0.3
+      },
+      {
+        "id": "c15-b02",
+        "say": "Use the server's token timestamps for the gaps between outputs. One network chunk can carry several tokens.",
+        "hold": 0.8
+      },
+      {
+        "id": "c15-b03",
+        "say": "The next two tokens appear at two hundred forty and three hundred milliseconds. Read the gaps. Forty milliseconds between tokens one and two. Sixty between two and three. For throughput, count output tokens from every active stream and divide by elapsed time.",
+        "hold": 0.3
+      },
+      {
+        "id": "c15-b04",
+        "say": "Under the same load, measure the memory for weights, K V states, activations and workspace separately.",
+        "hold": 0.8
+      },
+      {
+        "id": "c15-b05",
+        "say": "Give this request six live tokens. Its cache grows four slots at a time. The first four tokens fill one block. The next two need a second block, leaving two slots free.",
+        "hold": 0.3
+      },
+      {
+        "id": "c15-b06",
+        "say": "PagedAttention places the two blocks in separate parts of memory. Two requests with a common prefix can share a block. Count its readers. If one writes to the shared block, copy it first and redirect that writer. The other request keeps the original.",
+        "hold": 0.8
+      }
+    ]
+  },
+  {
+    "id": "c16",
+    "title": "Only the accepted draft prefix becomes target output",
+    "sourceChapters": [
+      "c16"
+    ],
+    "beats": [
+      {
+        "id": "c16-b01",
+        "say": "A draft proposes five tokens. The target checks them in one parallel pass. Suppose the first four pass and the fifth fails. Keep the four-token prefix and sample a correction at the rejection using the target algorithm. Acceptance stops at the first rejection.",
+        "hold": 0.3
+      },
+      {
+        "id": "c16-b02",
+        "say": "Try the same five proposals again. This time all five pass. The target can also supply a bonus token. Count the emitted tokens in that one verification pass.",
+        "hold": 0.8
+      },
+      {
+        "id": "c16-b03",
+        "say": "With exact acceptance and correction sampling, the output follows the target model's sampling distribution. If you approximate that step or change the sampling settings, measure quality again. For speed, time the draft and verification pass together. How many tokens did that work buy?",
+        "hold": 0.3
+      },
+      {
+        "id": "c16-b04",
+        "say": "Frequent rejections mean more discarded work. Retrieval and prefill happen earlier in the request.",
+        "hold": 0.8
+      }
+    ]
+  },
+  {
+    "id": "c17",
+    "title": "Can the gateway use the backup?",
+    "sourceChapters": [
+      "c17"
+    ],
+    "beats": [
+      {
+        "id": "c17-b01",
+        "say": "A staging credential asks for the production route. It is still valid for staging. The gateway looks up the token with a parameterized query, then checks the required scope. This credential lacks production access. Now compare it with an expired production credential.",
+        "hold": 0.3
+      },
+      {
+        "id": "c17-b02",
+        "say": "Check expiry against the current time. An expired production credential fails too. Only the live credential with the required production scope reaches a provider.",
+        "hold": 0.8
+      },
+      {
+        "id": "c17-b03",
+        "say": "Send the authorized production request. At time one hundred, the primary returns five oh three. The gateway starts a ten-tick cooldown and picks the approved production backup. At one hundred ten it can try the primary again. A four twenty-nine calls for a different response.",
+        "hold": 0.3
+      },
+      {
+        "id": "c17-b04",
+        "say": "Return the rate limit to the caller. The quota may cover the whole project or model.",
+        "hold": 0.8
+      },
+      {
+        "id": "c17-b05",
+        "say": "Before sending traffic to a backup, check which data it may receive, how much load it can carry and how its answers score on the release cases. Before reusing a request trace for testing or training, check who received the key facts and what they kept.",
+        "hold": 0.3
+      },
+      {
+        "id": "c17-b06",
+        "say": "Protect the credentials and enforce the caller's account permissions, including revocation. When the cooldown ends, limit concurrent recovery probes and give each one a deadline.",
+        "hold": 0.8
+      }
+    ]
+  },
+  {
+    "id": "c18",
+    "title": "Which part of the request should we inspect?",
+    "sourceChapters": [
+      "c18"
+    ],
+    "beats": [
+      {
+        "id": "c18-b01",
+        "say": "This reply stops at a colon. The parser needs a value for eligible. Read the completion status. The provider hit its output limit. A refusal has its own status. Now look at a completed reply. The raw field says true. The parsed object is empty.",
+        "hold": 0.3
+      },
+      {
+        "id": "c18-b02",
+        "say": "Follow that field through the adapter. It disappeared between the raw output and the parsed object. If the completed raw reply itself lacks the field, check the schema and chat template, then audit demonstrations if the evidence points there.",
+        "hold": 0.8
+      },
+      {
+        "id": "c18-b03",
+        "say": "Both models get the same prompt, chat template and decoding settings. The original checkpoint says eligible and stops. The compressed copy keeps repeating the word. Check its calibration, packed weights and kernel. If both versions repeat, investigate the inputs and settings they share.",
+        "hold": 0.8
+      },
+      {
+        "id": "c18-b04",
+        "say": "This server took two hundred milliseconds to produce its first token. A hundred and fifty went to queueing. That leaves fifty for prefill and the first generation step together. Start with the queue. Client timing also includes the network. For a memory error, compare demand with capacity.",
+        "hold": 0.3
+      },
+      {
+        "id": "c18-b05",
+        "say": "Our packed weights and two live caches need fifty-two point six gibibytes. The card holds forty-eight.",
+        "hold": 0.8
+      }
+    ]
+  },
+  {
+    "id": "c19",
+    "title": "Replay the request with its trace",
+    "sourceChapters": [
+      "c19"
+    ],
+    "beats": [
+      {
+        "id": "c19-b01",
+        "say": "Reopen the trace for the forty-two-day key. Read the active policy, then the exact passage delivered on this request. Both say sixty. Follow the trace to the comparison that produced the reply. Its cutoff is thirty. Which artifact owns that number?",
+        "hold": 2.5
+      },
+      {
+        "id": "c19-b02",
+        "say": "Update the checker. Install the sixty-day rule and record its new version. Replay the saved request. This time the checker returns ineligible. We used the same passage and the same checkpoint. Moving that one cutoff changed the result.",
+        "hold": 1.1
+      },
+      {
+        "id": "c19-b03",
+        "say": "Now test the edge with stale keys. Fifty-nine days falls short. Sixty days qualifies. That second case catches a checker that uses strictly greater than when the policy says at least. Save the policy, checker, checkpoint and case revisions with the result.",
+        "hold": 1.1
+      }
+    ]
+  },
+  {
+    "id": "c20",
+    "title": "A second request for the same key",
+    "sourceChapters": [
+      "c20"
+    ],
+    "beats": [
+      {
+        "id": "c20-b01",
+        "say": "Here is the same stale key at seventy-five days. The active policy, the delivered passage and checker three all say ninety days. The app still returns eligible. Send one copy of this request past the response cache, straight to the current checker. What should it return?",
+        "hold": 2.5
+      },
+      {
+        "id": "c20-b02",
+        "say": "Ineligible. Seventy-five falls short of ninety. Now rewind to the lookup and replay the original route. It matched only the key ID and checkpoint. That branch returned an eligible reply saved under the sixty-day rule, before the request reached checker three. Which artifact would you repair?",
+        "hold": 2.4
+      },
+      {
+        "id": "c20-b03",
+        "say": "Retire the old entry. Include the age and stale flag in the lookup, along with the policy and checker revisions. Keep the ID and checkpoint. Replay the request. This time the lookup misses. The checker returns ineligible, with no action executed. Store that reply under the complete key. An identical request can now reuse it.",
+        "hold": 0.9
+      },
+      {
+        "id": "c20-b04",
+        "say": "Replay this stale key on each side of the cutoff. At eighty-nine days the checker returns ineligible. At ninety it returns eligible. Save the ninety-day result. Now change just one fact about that last request. The registry marks the key as current. Same age, same policy, same checker. Can we reuse the eligible reply?",
+        "hold": 2.8
+      },
+      {
+        "id": "c20-b05",
+        "say": "The stale flag differs, so the lookup misses. The checker returns ineligible, and no rotation ran. Save both replays with their policy, checker and checkpoint versions. At ninety days the stale key qualifies and the current key doesn't. Both decisions used checkpoint four.",
+        "hold": 0.3
+      },
+      {
+        "id": "c20-b06",
+        "say": "Use the trace to name the owner. A stale checker needed a rule change. A stale reply needed a new cache key. In both repairs we replayed the boundary with checkpoint four. Next you'll fit weights yourself and test a latency prediction on a new request.",
+        "hold": 1.5
+      }
+    ]
+  }
+]

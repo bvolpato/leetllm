@@ -1,0 +1,236 @@
+[
+  {
+    "id": "c01",
+    "title": "One request, two feature paths",
+    "sourceChapters": ["c01"],
+    "beats": [
+      {
+        "id": "c01-open",
+        "say": "DeployBuddy predicted Tuesday at noon. The deployment finished Wednesday at noon. This western region had passed the release checks. Reports of the error came in two days after release. Open one request. What did the offline check feed the model, and what did serving feed it?",
+        "hold": 1.7
+      },
+      {
+        "id": "c01-overlay",
+        "say": "Lay the serving vector over the offline vector. They point in the same direction. The serving copy extends five times as far. The prompt, base weights and adapter match. Which preprocessing path would you replay to reproduce the input that reached the user?",
+        "hold": 2.4
+      },
+      {
+        "id": "c01-replay",
+        "say": "Replay the raw path. Both paths start with three, four. The offline job divides by the length, five. Serving keeps the original values. Our test scorer averages the coordinates. The offline score is point seven. The serving score is three and a half.",
+        "hold": 1.25
+      },
+      {
+        "id": "c01-lineage",
+        "say": "That score comes from a two-weight test. To explain the day-long miss, replay the recorded request through the assistant and compare its estimates. Machine learning operations keeps the inputs behind a release versioned, tested and recoverable. The trace identifies the release and links to timestamped feature values. Its manifest pins the prompt, weights, adapter, feature computation, retrieval corpus and index, tool schema, guardrails, evaluation and runtime settings.",
+        "hold": 0.85
+      }
+    ]
+  },
+  {
+    "id": "c02",
+    "title": "Which document wins the search?",
+    "sourceChapters": ["c02"],
+    "beats": [
+      {
+        "id": "c02-raw",
+        "say": "Use the same raw vector as document A. Document B lies on the horizontal axis at two. Both arrows start at zero. Our query points one unit to the right. Its dot product with each document is the horizontal distance to that arrow's tip. Which document ranks first?",
+        "hold": 2
+      },
+      {
+        "id": "c02-shadow",
+        "say": "Drop the tips onto the query axis. A reaches three and B reaches two. A wins the raw search. Now keep the query and both directions fixed. If both documents had length one, which tip would reach farther right? That distance gives the score because the query is a unit vector pointing right.",
+        "hold": 2.5
+      },
+      {
+        "id": "c02-unit",
+        "say": "Slide both tips back to the unit circle. A still points upward. B still lies along the query. Read the projections again. A reaches point six and B reaches one. B wins the normalized search.",
+        "hold": 1.1
+      },
+      {
+        "id": "c02-metric",
+        "say": "Length helped A in the raw dot product. Cosine similarity already divides by both lengths, so it gives B the higher score on either copy. A zero vector has no direction and needs an explicit fallback. Compare computed vectors on shared fixtures within a declared tolerance, then test the scoring metric your application actually serves.",
+        "hold": 0.8
+      }
+    ]
+  },
+  {
+    "id": "c03",
+    "title": "What could the feature store know at noon?",
+    "sourceChapters": ["c03"],
+    "beats": [
+      {
+        "id": "c03-two-clocks",
+        "say": "Replay the noon request. The western region recorded five failures at nine. Serving had that count five minutes later. A correction changes the count to nine for the very same event. Follow its arrival time. It reached serving at one in the afternoon.",
+        "hold": 1
+      },
+      {
+        "id": "c03-join",
+        "say": "A feature store keeps computed inputs under an entity key, here the region. With a one-day lookback, search the western region for the latest eligible event. Include the oldest allowed instant. For corrections to the same event, take the latest one already available. Which count could the assistant use at noon?",
+        "hold": 2.3
+      },
+      {
+        "id": "c03-close-window",
+        "say": "It could use five. Nine arrived too late. Now tighten only the allowed event age to one hour. Keep the request at noon. Which western reading is still eligible?",
+        "hold": 2
+      },
+      {
+        "id": "c03-missing",
+        "say": "Neither reading survives. Both refer to nine o'clock, before the new cutoff at eleven. Return an explicit missing value. The eastern region keeps its own recent reading. In production, an online lookup by region returns a current stored value. A historical join needs an example time as well. Monitor the lag between event and availability.",
+        "hold": 1
+      }
+    ]
+  },
+  {
+    "id": "c04",
+    "title": "Can a better answer clear the release gate?",
+    "sourceChapters": ["c04"],
+    "beats": [
+      {
+        "id": "c04-pin",
+        "say": "A small prompt edit can change refusals, tool use and output length. Before editing, pin reviewed requests, expected behavior and the judge's rubric. Check schemas, digests and feature parity first. Then generate fresh answers with the exact candidate, feature snapshot and generation settings. Check critical categories separately, including grounding and safety.",
+        "hold": 0.8
+      },
+      {
+        "id": "c04-budget",
+        "say": "On the same requests, quality rises from point eight four to point eight seven. The candidate's ninety-fifth percentile latency is nine hundred seventy milliseconds, below the thousand millisecond limit. The baseline used six hundred twenty tokens per request. The policy allows fifteen percent growth. The candidate used seven hundred ninety. How many tokens would it have to save?",
+        "hold": 2.4
+      },
+      {
+        "id": "c04-hold",
+        "say": "The ceiling is seven hundred thirteen. The candidate is seventy-seven over. Hold promotion. Even with quality and latency held fixed, saving seventy-six tokens leaves the candidate one over. Try the last token.",
+        "hold": 1.4
+      },
+      {
+        "id": "c04-edge",
+        "say": "At seven hundred thirteen, the inclusive cap passes. That's an arithmetic check. A real prompt edit needs fresh evaluation against the same rubric. Estimate uncertainty in quality, and price comparable token categories, cache discounts and tool calls before drawing a cost conclusion. Approve the exact bytes that passed.",
+        "hold": 1
+      }
+    ]
+  },
+  {
+    "id": "c05",
+    "title": "Who receives the candidate's reply?",
+    "sourceChapters": ["c05"],
+    "beats": [
+      {
+        "id": "c05-fork",
+        "say": "Follow a sampled request asking when a deployment can start. Control answers nine o'clock. The gateway sends that answer to the user. It also copies the request to a shadow candidate. Its answer is one in the afternoon. Where can that second answer go?",
+        "hold": 1.9
+      },
+      {
+        "id": "c05-log",
+        "say": "Into the shadow log. The candidate uses recorded tool results and isolated credentials. Cap concurrency, time and spending. Apply the same data-access and retention rules to the copy. You can compare the answers on the same inputs. Only control reached the user.",
+        "hold": 0.8
+      },
+      {
+        "id": "c05-pairs",
+        "say": "Take three paired requests. Subtract each live judge score from its shadow score, then average the three differences. The mean gain is point zero two. Compare total tokens across those same requests. Divide the extra three hundred twenty by the live total, eighteen hundred sixty. Shadow uses seventeen point two percent more. The cost review threshold is ten percent. This calls for review. User preference remains unmeasured.",
+        "hold": 1.25
+      },
+      {
+        "id": "c05-buckets",
+        "say": "A canary exposes real users. At ten percent, bucket seventeen goes to control. Save that immutable release with conversation X. Raise the threshold to twenty percent. Conversation Y is new and has the same bucket. Where does the next turn of each conversation go?",
+        "hold": 2.4
+      },
+      {
+        "id": "c05-sticky",
+        "say": "X keeps control. Y gets the candidate because seventeen is below twenty. Consult a saved assignment first and apply the current threshold only when a conversation is created. A stable hash gives a stable bucket. Persisting the release keeps the conversation together as traffic ramps. Subjects can send very different numbers of requests and tokens.",
+        "hold": 1
+      }
+    ]
+  },
+  {
+    "id": "c06",
+    "title": "Can this rollback command still move traffic?",
+    "sourceChapters": ["c06"],
+    "beats": [
+      {
+        "id": "c06-rules",
+        "say": "In this release window the ninety-fifth percentile wait for a first token is nine hundred ten milliseconds. The limit is eight hundred fifty. Groundedness also falls below its review threshold. The latency rule requests rollback. The quality rule requests a pause for review. Our policy chooses rollback when both fire.",
+        "hold": 1
+      },
+      {
+        "id": "c06-bad-record",
+        "say": "Try two healthy-looking measurements. The latency count is a Boolean, where at least a hundred integer samples are required. The quality window is five minutes, where fifteen are required. Which readings can the controller use?",
+        "hold": 1.9
+      },
+      {
+        "id": "c06-invalid",
+        "say": "Both are unavailable. Apply each rule's unavailable-data action. Latency calls for rollback and quality calls for review. Check release identity, aggregation window, finite value, units, count and age before using any threshold. A sample floor alone tells you little about statistical uncertainty.",
+        "hold": 1
+      },
+      {
+        "id": "c06-streak",
+        "say": "A different policy requires three consecutive valid five-minute windows above eight hundred fifty. Read the values from left to right. A healthy window resets the count. Which window first triggers rollback?",
+        "hold": 2.2
+      },
+      {
+        "id": "c06-latch",
+        "say": "The third window resets the streak. The next three breaches fire at window six. The final healthy window arrives after the decision has latched. Keep the emitted command bound to the deployment and window that supplied its evidence.",
+        "hold": 1
+      },
+      {
+        "id": "c06-gen",
+        "say": "Return to the first policy's queued command. It observed candidate C at generation twelve. While it waits, another controller restores B, then redeploys the identical C. The two fingerprints now match. Can the old command change the live route?",
+        "hold": 2.2
+      },
+      {
+        "id": "c06-cas",
+        "say": "Zero rows match. The live generation is fourteen. The atomic routing update compares both the full release identity and generation against the measured pair. This command leaves traffic on C and adds no audit row. Reassess the new deployment before issuing another.",
+        "hold": 1
+      },
+      {
+        "id": "c06-tx",
+        "say": "Now use a fresh token for C at fourteen in the local database. The update tentatively writes B at fifteen. The audit insert fails and the exception leaves the transaction. What survives?",
+        "hold": 2.1
+      },
+      {
+        "id": "c06-abort",
+        "say": "The committed pointer stays at C, fourteen, with no new audit row. If the insert succeeds on a valid retry, the same transaction commits B, fifteen, together with the audit. That guarantee ends at the database. The registry, workers and Git each need separate confirmation.",
+        "hold": 1
+      }
+    ]
+  },
+  {
+    "id": "c07",
+    "title": "Which release answers after the next sync?",
+    "sourceChapters": ["c07"],
+    "beats": [
+      {
+        "id": "c07-alias",
+        "say": "Back in the western region, the registry alias now names the known-good release. A worker still holds the candidate it loaded earlier. Changing an alias leaves that object in memory. Consider a separate registry change. Template six stays fixed while temperature goes from point two to point seven and the model alias moves from twelve to thirteen. Snapshot the new settings. A worker holding twelve still needs to load thirteen and serve a fresh probe.",
+        "hold": 0.85
+      },
+      {
+        "id": "c07-emergency",
+        "say": "Return to the incident. Load the complete baseline on another worker. Verify its bytes, warm it, and check health and capacity. Shift the live route. Follow the first new request. It reaches B. Its trace confirms the known-good corpus and normalized features. Keep that observation.",
+        "hold": 1.3
+      },
+      {
+        "id": "c07-fork-sync",
+        "say": "Git still declares C. Git holds the desired release in a versioned, immutable history. The operator pulls that declaration and repeatedly reconciles the live route to it. Here automatic drift correction is enabled and both workers are ready. Replay from that first B trace twice. Leave Git at C in the upper take. In the lower take, commit B's complete manifest before sync. Who will answer after each sync?",
+        "hold": 2.4
+      },
+      {
+        "id": "c07-sync-c",
+        "say": "Follow the upper sync. It restores C. A fresh request now records the failed release, corpus C and the raw transform. The earlier B trace remains true about the request that produced it.",
+        "hold": 1.1
+      },
+      {
+        "id": "c07-sync-b",
+        "say": "Follow the lower sync. B stays live. A fresh request records corpus B and the normalized transform together. A reviewed Git change supplies durable intent. The post-sync request tells you which compatible release actually served.",
+        "hold": 1.1
+      },
+      {
+        "id": "c07-practice",
+        "say": "Open that lower trace. The request was at ten. Its feature event was at nine forty and became available at nine fifty-five. The age allowance was one hour. The estimate was thirteen hours and the observed finish took twelve. With two hours of error allowed, which recovery checks pass?",
+        "hold": 2.6
+      },
+      {
+        "id": "c07-verify",
+        "say": "Both pass on this request. The event is twenty minutes old and arrived five minutes before use. The estimate missed by one hour. Keep checking latency, capacity and task outcomes across the region. A rollback leaves earlier tool actions in place, and a damaged shared index needs separate repair. You can trace the release that served a request, replay its inputs and verify recovery after sync. Next comes GPU serving. A healthy baseline needs enough warm capacity to take the traffic.",
+        "hold": 1.5
+      }
+    ]
+  }
+]

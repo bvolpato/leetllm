@@ -1,0 +1,672 @@
+[
+  {
+    "id": "c01",
+    "title": "Which line stops on this Mac?",
+    "sourceChapters": [
+      "c01"
+    ],
+    "beats": [
+      {
+        "id": "c01-b01",
+        "say": "A customer asks for a refund. Our Mac needs to score that ticket. Look at the eight rows of features on the CPU. Average the positions, then feed that vector into the classifier on the Apple GPU. Which of those two calls will stop?",
+        "hold": 2.2
+      },
+      {
+        "id": "c01-b02",
+        "say": "The mean succeeds. It reads eight CPU rows and writes one CPU row. At the linear layer, that row meets weights on MPS, PyTorch’s Apple GPU device. The call stops here. To repair it, move the batch to the weights’ device and keep the returned tensor. We’ll follow that same refund through a training step, then measure its time and memory.",
+        "hold": 1.2
+      }
+    ]
+  },
+  {
+    "id": "c02",
+    "title": "Open the Mac's GPU path",
+    "sourceChapters": [
+      "c02"
+    ],
+    "beats": [
+      {
+        "id": "c02-b01",
+        "say": "The letters on those weights are PyTorch’s name for the Apple GPU backend. When Python dispatches the tensor work, the backend can use Metal Performance Shaders, Apple’s optimized GPU operations. Metal supplies the underlying compute framework. Python itself keeps running on the CPU.",
+        "hold": 0.5
+      },
+      {
+        "id": "c02-b02",
+        "say": "A build can include MPS even when the runtime is unavailable. Those two checks ask different questions. When both checks succeed, our program can put the classifier on the GPU.",
+        "hold": 0.6
+      }
+    ]
+  },
+  {
+    "id": "c03",
+    "title": "Which installation can run this ticket?",
+    "sourceChapters": [
+      "c03"
+    ],
+    "beats": [
+      {
+        "id": "c03-b01",
+        "say": "A colleague can import PyTorch on their Mac, but moving a tensor to the GPU fails. Start with their release. For PyTorch two point eleven, Apple lists a Mac with Apple silicon, macOS fourteen or later, Python three point ten or later, and Xcode command-line tools.",
+        "hold": 0.3
+      },
+      {
+        "id": "c03-b02",
+        "say": "The macOS fifteen example on the right comes from a different PyTorch release, two point fifteen.",
+        "hold": 0.65
+      },
+      {
+        "id": "c03-b03",
+        "say": "Check their developer tools, Python version and macOS version. Choose Mac, Pip and Python in the installer. For a specific PyTorch release, check that its macOS wheel matches the Python version and architecture of their interpreter. Try that wheel in a project virtual environment.",
+        "hold": 0.55
+      },
+      {
+        "id": "c03-b04",
+        "say": "Read the two results from left to right. If the build check is false, inspect the wheel. If only the runtime check is false, keep the CPU route while you check hardware, macOS and runtime access. An available runtime permits MPS placement. Apple labels this backend beta.",
+        "hold": 0.3
+      },
+      {
+        "id": "c03-b05",
+        "say": "When you report a failure, include the PyTorch release and the first operation that failed. Those two details let another person test the same path.",
+        "hold": 0.75
+      }
+    ]
+  },
+  {
+    "id": "c04",
+    "title": "Shared hardware, explicit tensor placement",
+    "sourceChapters": [
+      "c04"
+    ],
+    "beats": [
+      {
+        "id": "c04-b01",
+        "say": "Think back to a discrete GPU. The CPU puts the ticket in system RAM. To place it on that card, its features have to cross into video memory. Now look at the Mac.",
+        "hold": 0.5
+      },
+      {
+        "id": "c04-b02",
+        "say": "The two processors draw from one physical pool. Look at the different device tags. The ticket is on CPU and the weights are on MPS. Those tags help PyTorch choose an implementation. The mean can run on CPU. The linear layer needs its input and weights on compatible devices.",
+        "hold": 0.7
+      }
+    ]
+  },
+  {
+    "id": "c05",
+    "title": "Which tensor does batch name?",
+    "sourceChapters": [
+      "c05"
+    ],
+    "beats": [
+      {
+        "id": "c05-b01",
+        "say": "Keep the CPU tensor under the name source. For now, batch points there too. Save the result of the device move as placed. Watch the features arrive in a new allocation. The original CPU tensor still exists. Each copy holds two kibibytes of raw features.",
+        "hold": 0.3
+      },
+      {
+        "id": "c05-b02",
+        "say": "Which copy would the mean read if we used batch now? Could the classifier on MPS score that vector?",
+        "hold": 2
+      },
+      {
+        "id": "c05-b03",
+        "say": "The name batch still points to CPU. The mean would give us a CPU vector, and the classifier would fail at the linear layer. Both copies are alive, so the raw features take four kibibytes together. Assign the return value to batch.",
+        "hold": 0.3
+      },
+      {
+        "id": "c05-b04",
+        "say": "Now the mean reads the MPS copy and the classifier can score its vector. A tensor’s device-changing call returns a copy. Moving a module updates the module in place and moves its registered parameters and buffers to the requested device.",
+        "hold": 0.3
+      },
+      {
+        "id": "c05-b05",
+        "say": "That’s how our classifier got there while its input was still on CPU.",
+        "hold": 0.65
+      }
+    ]
+  },
+  {
+    "id": "c06",
+    "title": "Read the device on each operand",
+    "sourceChapters": [
+      "c06"
+    ],
+    "beats": [
+      {
+        "id": "c06-b01",
+        "say": "If your check still fails, read the actual parameter and batch devices. MPS with no index requests the default GPU. MPS colon zero names an indexed device. Those device objects can compare unequal even when both select the same GPU.",
+        "hold": 0.3
+      },
+      {
+        "id": "c06-b02",
+        "say": "For this single-device model, use the parameter’s own device as the destination for each batch tensor, including the labels.",
+        "hold": 0.7
+      },
+      {
+        "id": "c06-b03",
+        "say": "Look inside that device. Several core groups can execute work on the same GPU. PyTorch counts available MPS devices. A CUDA recipe that expects several cards needs a framework and communication backend that support that arrangement.",
+        "hold": 0.3
+      },
+      {
+        "id": "c06-b04",
+        "say": "Apple’s MLX takes a different approach and selects where operations run on shared arrays. Our copy and assignment rule belongs to PyTorch.",
+        "hold": 0.75
+      }
+    ]
+  },
+  {
+    "id": "c07",
+    "title": "Follow one feature through eight positions",
+    "sourceChapters": [
+      "c07"
+    ],
+    "beats": [
+      {
+        "id": "c07-b01",
+        "say": "The first of four support tickets asks for a refund. Each ticket has eight positions and sixteen features per position. We use a fixed pattern of numbers so you can follow the arithmetic. If we average down the positions, which two dimensions survive?",
+        "hold": 1.8
+      },
+      {
+        "id": "c07-b02",
+        "say": "Watch the first column. The eight values add up to one point one six eight. Divide by eight and the mean is zero point one four six. Repeat for each feature. Each ticket now has one row of sixteen features, and all four tickets keep their place.",
+        "hold": 0.65
+      }
+    ]
+  },
+  {
+    "id": "c08",
+    "title": "Build one class score",
+    "sourceChapters": [
+      "c08"
+    ],
+    "beats": [
+      {
+        "id": "c08-b01",
+        "say": "The refund now has sixteen numbers. To get its Billing score, pair each pooled feature with the weight that Billing gives it. Some weights pull the score up. Others pull it down.",
+        "hold": 0.5
+      },
+      {
+        "id": "c08-b02",
+        "say": "Start with the bias. Add each feature times its Billing weight. Watch the running sum rise and fall. Two flat marks show features with zero weight. After sixteen products, the sum is Billing’s score. We need a separate set of weights for each of the other two classes.",
+        "hold": 0.6
+      }
+    ]
+  },
+  {
+    "id": "c09",
+    "title": "Where would this refund go?",
+    "sourceChapters": [
+      "c09"
+    ],
+    "beats": [
+      {
+        "id": "c09-b01",
+        "say": "Run the same calculation with the Delivery and Login weights. Login just edges ahead. Softmax turns them into an almost even probability split. Even the leading class gets only about a third of the probability.",
+        "hold": 0.7
+      },
+      {
+        "id": "c09-b02",
+        "say": "The customer asked for a refund, so the training label is Billing. Cross-entropy measures how much probability the model gave that label by taking its negative log. Moving probability toward Billing would lower this ticket’s loss, even before Billing takes the lead.",
+        "hold": 0.65
+      }
+    ]
+  },
+  {
+    "id": "c10",
+    "title": "Let the batch change a weight",
+    "sourceChapters": [
+      "c10"
+    ],
+    "beats": [
+      {
+        "id": "c10-b01",
+        "say": "The other tickets have their own destinations. Average the four ticket losses to obtain the batch loss. Now changing a shared weight can help one ticket and hurt another. The gradient accounts for all four.",
+        "hold": 0.65
+      },
+      {
+        "id": "c10-b02",
+        "say": "Backward computes each parameter’s gradient. The optimizer subtracts a scaled gradient, changing this weight. Run the same four tickets through the updated classifier. Two losses rise and two fall. Compare the sizes of those changes. The drops for Refund and Double charge outweigh the increases, so the average falls.",
+        "hold": 2
+      }
+    ]
+  },
+  {
+    "id": "c11",
+    "title": "What did one training step establish?",
+    "sourceChapters": [
+      "c11"
+    ],
+    "beats": [
+      {
+        "id": "c11-b01",
+        "say": "The article uses seeded random features to stand in for encoded text. A tokenizer would give you integer IDs. Follow the four tickets. Averaging the eight positions leaves four rows of sixteen features. The linear layer returns four rows of three scores.",
+        "hold": 0.3
+      },
+      {
+        "id": "c11-b02",
+        "say": "Each row still goes with the same label. To budget raw float32 input, multiply the dimensions and allow four bytes per value. That’s two kibibytes for this entire batch.",
+        "hold": 0.75
+      },
+      {
+        "id": "c11-b03",
+        "say": "The labels are zero, two, one and zero. Watch the weight while backward fills the gradient buffer. The weight is still at its old value. Now the optimizer changes the weight, using a learning rate of one tenth.",
+        "hold": 0.3
+      },
+      {
+        "id": "c11-b04",
+        "say": "We can check that the weight matrix changed and the loss before the update was finite. Even shuffled labels or wrong gradients can pass both checks. To see whether routing improved, try held-out tickets.",
+        "hold": 0.75
+      },
+      {
+        "id": "c11-b05",
+        "say": "The article shows the expected shapes, a changed weight matrix and a finite loss. To test the Apple GPU path, repeat the complete step on your Mac. Record the actual devices for the model, inputs and labels. Keep the PyTorch version, dtype and shape with those results.",
+        "hold": 0.65
+      }
+    ]
+  },
+  {
+    "id": "c12",
+    "title": "Where does operation U execute?",
+    "sourceChapters": [
+      "c12"
+    ],
+    "beats": [
+      {
+        "id": "c12-b01",
+        "say": "The batch and the weights now match. Watch operation U in the middle of the chain. This build has no MPS kernel for U. Which change could let the ticket get past it?",
+        "hold": 0.55
+      },
+      {
+        "id": "c12-b02",
+        "say": "If that operation has a working CPU fallback, enable the flag before importing PyTorch. The ticket detours through the CPU and returns to MPS. That can mean waiting and converting data on both sides, even in shared memory. How much time can one detour add?",
+        "hold": 1.25
+      }
+    ]
+  },
+  {
+    "id": "c13",
+    "title": "When can operation B finish?",
+    "sourceChapters": [
+      "c13"
+    ],
+    "beats": [
+      {
+        "id": "c13-b01",
+        "say": "Leave the tokenizer outside the clock. That’s ordinary host preparation. In this example the operations run in series. Run A for three milliseconds, U for two, then B for four. With all three on MPS, the chain finishes at nine milliseconds.",
+        "hold": 0.75
+      },
+      {
+        "id": "c13-b02",
+        "say": "Replay A on the same clock. Cross to the CPU for one millisecond. Run U there for six. Spend one more crossing back. Now B gets its four milliseconds. Trace the two right edges. How much later does B finish?",
+        "hold": 2.15
+      },
+      {
+        "id": "c13-b03",
+        "say": "B finishes at fifteen milliseconds, six milliseconds later. Four of the extra milliseconds came from U itself. The other two came from the crossings. If U runs on every ticket, measure the detour on your Mac. Compare it with a supported rewrite or a full CPU run.",
+        "hold": 0.3
+      },
+      {
+        "id": "c13-b04",
+        "say": "Check the operator in the release you plan to use. The flag helps only where a working fallback exists.",
+        "hold": 0.9
+      }
+    ]
+  },
+  {
+    "id": "c14",
+    "title": "Can this pair reach the GPU?",
+    "sourceChapters": [
+      "c14"
+    ],
+    "beats": [
+      {
+        "id": "c14-b01",
+        "say": "Here’s another failure that can look like a missing kernel. NumPy supplies two floating-point features in double precision. PyTorch keeps that dtype when it wraps the array. In PyTorch two point fourteen point one, MPS rejects float64 before creating the device tensor. There’s no tensor for an operator fallback to use.",
+        "hold": 0.7
+      },
+      {
+        "id": "c14-b02",
+        "say": "If the calculation needs double precision, keep it on CPU. Otherwise, convert floating features to a supported dtype before placement. Keep this classifier’s class indices in torch long, PyTorch’s sixty-four-bit integer dtype. The float32 features can now reach MPS. Did the cast keep the difference between them?",
+        "hold": 1.45
+      }
+    ]
+  },
+  {
+    "id": "c15",
+    "title": "Two inputs on the float32 ruler",
+    "sourceChapters": [
+      "c15"
+    ],
+    "beats": [
+      {
+        "id": "c15-b01",
+        "say": "The lower ruler has a tick at two to the twenty-fourth. The next float32 value is two units away. One feature sits on the left tick. The other is exactly halfway to the next tick. Predict whether these adjacent integers survive the cast as two different values.",
+        "hold": 2
+      },
+      {
+        "id": "c15-b02",
+        "say": "Follow both markers down to the float32 ruler. Both round to the same number, so their difference is zero. The second input started halfway between ticks. This cast rounds to the nearest float32 value. It breaks ties by choosing the even significand. Here the ticks are two units apart.",
+        "hold": 0.3
+      },
+      {
+        "id": "c15-b03",
+        "say": "Divide the left tick by two to see its integer significand. It ends in eight, so it’s even. Take one tick to the right and the significand goes up by one.",
+        "hold": 0.9
+      },
+      {
+        "id": "c15-b04",
+        "say": "Slide the second input to the next gap. It’s halfway again. Which neighbor has the even significand this time?",
+        "hold": 2.15
+      },
+      {
+        "id": "c15-b05",
+        "say": "This time the second input rounds up. The even tick is on the right. The original gap was three. Subtract after the cast and you get four. Converting those rounded values back to double keeps that error.",
+        "hold": 0.3
+      },
+      {
+        "id": "c15-b06",
+        "say": "If the gap is the feature you need, subtract on the CPU first, then cast. Float32 stores three exactly.",
+        "hold": 2
+      }
+    ]
+  },
+  {
+    "id": "c16",
+    "title": "Which precision earns a timing run?",
+    "sourceChapters": [
+      "c16"
+    ],
+    "beats": [
+      {
+        "id": "c16-b01",
+        "say": "Keep a float32 classifier to compare against. First ask whether autocast is available for MPS in this build. If the probe says no, run this ticket in float32.",
+        "hold": 0.65
+      },
+      {
+        "id": "c16-b02",
+        "say": "Suppose it is available. Leave the input and weights in their usual dtype. Wrap the forward pass and loss. Autocast chooses dtypes operation by operation. Check the resulting dtypes on your build and leave backward and the optimizer outside that scope. Some float16 training also needs gradient scaling.",
+        "hold": 0.6
+      },
+      {
+        "id": "c16-b03",
+        "say": "Both runs finish with finite loss. Suppose float32 routes ninety-six percent of held-out tickets correctly. We agreed to stay within one percentage point of that reference. Autocast routes ninety-three percent correctly on the same tickets. Has it earned a timing run?",
+        "hold": 2.1
+      },
+      {
+        "id": "c16-b04",
+        "say": "Keep float32 here. Three percentage points separate those markers. Even a faster run would miss the quality requirement. Keep the same tickets and the same rule. Suppose a second autocast configuration scores exactly ninety-five percent, again with finite loss. Has it earned a timing run?",
+        "hold": 2
+      },
+      {
+        "id": "c16-b05",
+        "say": "The lower edge counts. This candidate meets the quality rule. Now compare its synchronized step time and peak memory with float32 before deciding which configuration to keep.",
+        "hold": 0.85
+      }
+    ]
+  },
+  {
+    "id": "c17",
+    "title": "When would you stop this clock?",
+    "sourceChapters": [
+      "c17"
+    ],
+    "beats": [
+      {
+        "id": "c17-b01",
+        "say": "Start a clock as Python submits this block. Python returns after three milliseconds. On this first pass we stop the clock right there. Watch the device lane while that number stays frozen. Would you use that reading to compare this step with CPU?",
+        "hold": 2
+      },
+      {
+        "id": "c17-b02",
+        "say": "Replay the same warmed block. Synchronize first to clear earlier work. Start the clock and submit the block again. This time wait for completion before stopping. In this example, thirty-five milliseconds of GPU work follow the three spent dispatching. The block finishes thirty-eight milliseconds from the start.",
+        "hold": 0.3
+      },
+      {
+        "id": "c17-b03",
+        "say": "On your Mac, use the same shape, dtype and step count for both devices.",
+        "hold": 0.85
+      }
+    ]
+  },
+  {
+    "id": "c18",
+    "title": "What goes inside a timing bracket?",
+    "sourceChapters": [
+      "c18"
+    ],
+    "beats": [
+      {
+        "id": "c18-b01",
+        "say": "Allocate both matrices on the selected device before timing. Each is two hundred fifty-six on a side. Run three warmup products. If you selected MPS, synchronize to finish the warmup. Start the clock. Submit ten products, one after another. On MPS, synchronize again.",
+        "hold": 0.3
+      },
+      {
+        "id": "c18-b02",
+        "say": "When that call returns, stop the clock. On CPU, start the clock when the third warmup returns. Stop when the tenth timed product returns. Divide the completed block time by ten. Both timings include Python dispatch. The MPS timing also includes the final wait.",
+        "hold": 0.3
+      },
+      {
+        "id": "c18-b03",
+        "say": "Repeat the whole bracket several times.",
+        "hold": 0.75
+      },
+      {
+        "id": "c18-b04",
+        "say": "Now suppose you print the loss on every iteration. Detaching it stops gradient tracking. Copying its value to CPU can make Python wait for the GPU. Read the scalar there, or use the CPU tensor for NumPy.",
+        "hold": 0.3
+      },
+      {
+        "id": "c18-b05",
+        "say": "Asking for an item directly from an MPS tensor can also wait. That changes when Python gets to submit the next step.",
+        "hold": 0.65
+      }
+    ]
+  },
+  {
+    "id": "c19",
+    "title": "What holds up the next launch?",
+    "sourceChapters": [
+      "c19"
+    ],
+    "beats": [
+      {
+        "id": "c19-b01",
+        "say": "The completed block looks slow. Where did the time go? Warm up, then wrap the repeated operations in the MPS profiler. Its signposts mark PyTorch operations in Instruments. Several operations can share a command buffer. The numbered blocks here illustrate GPU execution.",
+        "hold": 0.3
+      },
+      {
+        "id": "c19-b02",
+        "say": "Find the matrix product on the PyTorch track. Follow its right edge down to the end of kernel one. The numbers below mark intervals when the GPU was busy. On your Mac, line up the tracks in Metal System Trace to see which work and idle time fall inside an operation.",
+        "hold": 0.65
+      },
+      {
+        "id": "c19-b03",
+        "say": "Keep the queued run above the replay. This time Python reads the loss between launches. Reading the scalar waits for the GPU. Logging then delays the next launch. Find the first strip marked log and look straight down.",
+        "hold": 0.3
+      },
+      {
+        "id": "c19-b04",
+        "say": "The replay GPU lane is empty there. Kernel one has finished. Python has yet to submit kernel two. Each kernel still takes four illustrative milliseconds. For a representative trace, leave per-operation waiting disabled. Enabling it would insert extra waits of its own.",
+        "hold": 0.75
+      }
+    ]
+  },
+  {
+    "id": "c20",
+    "title": "Give GPU launch overhead enough work",
+    "sourceChapters": [
+      "c20"
+    ],
+    "beats": [
+      {
+        "id": "c20-b01",
+        "say": "Try a small square matrix on both devices. The CPU can finish the product while the GPU path is still paying to launch it. In this example the launch cost takes most of that GPU interval.",
+        "hold": 0.6
+      },
+      {
+        "id": "c20-b02",
+        "say": "Double the matrix width. Dense multiplication now has eight times the arithmetic. With the same launch cost, our modeled MPS path wins. On a real Mac, kernel choice and memory pressure can change with size. Compare warmed, synchronized blocks at one square-matrix size at a time.",
+        "hold": 0.7
+      }
+    ]
+  },
+  {
+    "id": "c21",
+    "title": "Make room for the next batch",
+    "sourceChapters": [
+      "c21"
+    ],
+    "beats": [
+      {
+        "id": "c21-b01",
+        "say": "Scale from four short tickets to thirty-two longer ones. Each of the hundred and twenty-eight positions holds seven hundred sixty-eight float32 features. Just the input needs twelve mebibytes. Training adds weights, activations, gradients and temporary storage. Some optimizers also keep state. What happens to this input if we halve the batch?",
+        "hold": 1.7
+      },
+      {
+        "id": "c21-b02",
+        "say": "Halve the batch, and the input allocation halves to six mebibytes. Each ticket is just as long as before. Plain stochastic gradient descent here has no momentum buffer. Other training state and the rest of the Mac still compete for room. Measure the full step before deciding that it fits.",
+        "hold": 0.7
+      }
+    ]
+  },
+  {
+    "id": "c22",
+    "title": "Separate live tensors from cached memory",
+    "sourceChapters": [
+      "c22"
+    ],
+    "beats": [
+      {
+        "id": "c22-b01",
+        "say": "Here’s a forty-eight-mebibyte example budget. The live-tensor counter measures current tensors. The Metal process counter also includes cached blocks and backend allocations. Which colored blocks could you release before running another batch?",
+        "hold": 1.8
+      },
+      {
+        "id": "c22-b02",
+        "say": "Empty cache releases the unoccupied cached blocks. The process drops to thirty-two mebibytes, with twenty-four still live. Watch the outlined block. The next activation request still pushes the projected peak beyond the example budget. What can you change without raising the limit?",
+        "hold": 1.75
+      },
+      {
+        "id": "c22-b03",
+        "say": "Try half the batch. The smaller input and activation request fit this budget. The twelve mebibytes of training state and eight of driver extras stayed put. If macOS starts swapping, stop, reduce the workload and check other memory-heavy apps. Compare live bytes and total Metal allocation around the next complete step.",
+        "hold": 0.75
+      }
+    ]
+  },
+  {
+    "id": "c23",
+    "title": "What has to fit in memory?",
+    "sourceChapters": [
+      "c23"
+    ],
+    "beats": [
+      {
+        "id": "c23-b01",
+        "say": "Metal recommends a GPU working set for this machine. Suppose it recommends six gibibytes. The documented high-watermark ratio is one point seven. Multiply that by the recommended working set. In this example the hard limit is ten point two gibibytes. The Mac’s installed RAM is a different number.",
+        "hold": 0.75
+      },
+      {
+        "id": "c23-b02",
+        "say": "The low watermark tells the allocator when to clean up and commit command buffers more aggressively. That can change when memory gets reused. Setting the high ratio to zero removes the hard limit and risks exhausting memory across the whole Mac. Shrink the live workload first.",
+        "hold": 0.75
+      },
+      {
+        "id": "c23-b03",
+        "say": "Each row on the left is one ticket. Halving batch size halves the input’s batch dimension and many activations. Each remaining ticket is still eight positions long. Put all four tickets back. Suppose we add an encoder with full self-attention.",
+        "hold": 0.3
+      },
+      {
+        "id": "c23-b04",
+        "say": "In this example the encoder keeps the whole score matrix in memory. Look at one head on one ticket. Eight queries meet eight keys, with one stored score for each pair. Now halve just the sequence length. How much of that square does this head still need?",
+        "hold": 2.1
+      },
+      {
+        "id": "c23-b05",
+        "say": "Four queries meet four keys. That leaves sixteen scores out of sixty-four. Keep those same four positions. This time, give the encoder one small tile to hold scores. Start with the first two queries and the first two keys.",
+        "hold": 0.3
+      },
+      {
+        "id": "c23-b06",
+        "say": "For each query, the encoder keeps a running weighted sum and the information it needs to normalize that sum. Move to the other two keys. Their scores replace the first four in the same slots. For the last two queries, start again with the first two keys.",
+        "hold": 0.3
+      },
+      {
+        "id": "c23-b07",
+        "say": "Finish with the last two keys. Every pair still contributes to the same attention calculation. In this example, four score slots served all sixteen pairs. The running results and other tensors also take memory. Measure the peak of the whole step on your Mac.",
+        "hold": 1.1
+      }
+    ]
+  },
+  {
+    "id": "c24",
+    "title": "Score the refund ticket again",
+    "sourceChapters": [
+      "c24"
+    ],
+    "beats": [
+      {
+        "id": "c24-b01",
+        "say": "Replay the opening with the original weights and bias. This time the batch is on MPS. Average its eight placed positions. Carry the vector to the same linear layer. Look at the two device tags. The forward pass returns three scores per ticket.",
+        "hold": 0.3
+      },
+      {
+        "id": "c24-b02",
+        "say": "Take the update and compare the two losses on these four tickets. For the larger Mac run, try the smaller batch and time it through completion. There is one more way placement can fool us, even when the call succeeds.",
+        "hold": 0.9
+      }
+    ]
+  },
+  {
+    "id": "c25",
+    "title": "The first ticket in a new batch",
+    "sourceChapters": [
+      "c25"
+    ],
+    "beats": [
+      {
+        "id": "c25-b01",
+        "say": "A new batch has three tickets, six positions and eight features. The model maps eight features to three classes. We keep the CPU source and give it a second name, batch. Call the device move. Watch the copy fill. This line discards the returned tensor.",
+        "hold": 0.3
+      },
+      {
+        "id": "c25-b02",
+        "say": "Which device does batch still point to? Once the move is fixed, what shapes will pooling and scoring give us?",
+        "hold": 2.1
+      },
+      {
+        "id": "c25-b03",
+        "say": "The original name still identifies the CPU tensor. The discarded copy left that name in place. Assign the returned placed tensor to batch. Pooling keeps one row per ticket, so the shape is three by eight and the classifier returns three by three. Follow the first feature of the first ticket.",
+        "hold": 0.3
+      },
+      {
+        "id": "c25-b04",
+        "say": "Its six positions sum to twenty-one. Its mean is three point five. Look at the weight beside each class. Billing keeps the mean, Delivery multiplies it by zero, and Login reverses its sign. All other weights and all three biases are zero.",
+        "hold": 0.3
+      },
+      {
+        "id": "c25-b05",
+        "say": "The scores are three point five, zero and minus three point five. Billing takes the ticket.",
+        "hold": 1.5
+      },
+      {
+        "id": "c25-b06",
+        "say": "Change just the last value in the first ticket’s CPU row. Six becomes minus twenty-one. Leave the weights alone. We’ll average the positions in batch and score the result. Which class gets this ticket on the next call?",
+        "hold": 2.3
+      },
+      {
+        "id": "c25-b07",
+        "say": "Follow the name batch to the MPS row. Its last value is still six, so the sum is still twenty-one. The mean is three point five. The scores are three point five, zero and minus three point five. Billing gets the ticket again. The CPU edit touched a different allocation in the same physical memory. To score the correction, which tensor do we need to place?",
+        "hold": 2
+      },
+      {
+        "id": "c25-b08",
+        "say": "Place the updated source and keep the returned tensor as batch. Follow that new copy into the classifier. Its six positions sum to minus six, so their mean is minus one. The weights are unchanged. The scores are minus one, zero and one. Login takes the ticket.",
+        "hold": 1.5
+      },
+      {
+        "id": "c25-b09",
+        "say": "The correction took effect on the call that read the new copy. When a ticket seems to lose an edit, trace the name passed to the classifier back to its allocation. The next lesson looks at the host-side queues and lookups that keep work arriving at the GPU.",
+        "hold": 1.45
+      }
+    ]
+  }
+]

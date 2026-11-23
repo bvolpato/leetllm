@@ -1,0 +1,609 @@
+[
+  {
+    "id": "c01",
+    "title": "A Sunday book return",
+    "sourceChapters": [
+      "c01"
+    ],
+    "beats": [
+      {
+        "id": "c01-b01",
+        "say": "The book goes in on Sunday. The return slot takes it. The assistant says, “Use the box. A receipt arrives immediately.” Look at the inbox. What evidence would settle that last word?",
+        "hold": 1.8
+      },
+      {
+        "id": "c01-b02",
+        "say": "Look at the two notices in the prompt. A says you can use the box on Sunday. B says receipts are emailed the next day. Which day should you check your inbox?",
+        "hold": 2.25
+      },
+      {
+        "id": "c01-b03",
+        "say": "Monday. The receipt arrives a day later than the assistant promised. The Sunday return itself went through.",
+        "hold": 0.9
+      },
+      {
+        "id": "c01-b04",
+        "say": "Keep the instruction to use the box. Change “immediately” to “the next day.” In retrieval-augmented generation, the model uses retrieved passages to write its answer. Both notices reached the model. We can fix the receipt claim without changing search.",
+        "hold": 0.9
+      }
+    ]
+  },
+  {
+    "id": "c02",
+    "title": "Check what reached the model",
+    "sourceChapters": [
+      "c02"
+    ],
+    "beats": [
+      {
+        "id": "c02-b01",
+        "say": "Where would you look if the assistant had never received notice B? Replay an earlier search for the same question. Read across from the notices this reader can use, to the search results, to the passages in the prompt. Keep the revision of each passage. Tomorrow’s edit could change the answer.",
+        "hold": 0.55
+      },
+      {
+        "id": "c02-b02",
+        "say": "This search found A and the Friday event notice, C. Only A helps answer our question. Required-source recall counts distinct needed notices found, divided by the number needed. Here that is one half. Run the search again. Bring B through search and into the prompt.",
+        "hold": 0.3
+      },
+      {
+        "id": "c02-b03",
+        "say": "Both needed notices made it. C is still there, so two of the three selected notices are useful. That is selected-set precision.",
+        "hold": 0.75
+      },
+      {
+        "id": "c02-b04",
+        "say": "C is a distraction that the reader is allowed to see. A private notice would be a different problem even if it gave exactly the right answer. First check access and freshness for this reader. Then ask how much of that permitted evidence actually helped.",
+        "hold": 0.55
+      }
+    ]
+  },
+  {
+    "id": "c03",
+    "title": "Give each statement a checkable meaning",
+    "sourceChapters": [
+      "c03"
+    ],
+    "beats": [
+      {
+        "id": "c03-b01",
+        "say": "Read the corrected reply with the Sunday closure included. The library is closed, the return box is available, and the receipt comes the next day. Separate those three statements. Each can be checked on its own. We call a statement with one checkable meaning an atomic claim.",
+        "hold": 0.55
+      },
+      {
+        "id": "c03-b02",
+        "say": "Go back to the original receipt sentence. Watch what happens when an extractor drops “immediately.” What’s left just says that a receipt arrives. B supports those words. The extractor has changed what the assistant promised. Compare the extracted words with the original, especially times, quantities, conditions and exceptions.",
+        "hold": 0.75
+      },
+      {
+        "id": "c03-b03",
+        "say": "Here a reviewer supplied the claim labels. If a new paraphrase is missing from the reviewed key, keep it in the report for review. Discarding that sentence would change the denominator and could make the answer look better.",
+        "hold": 0.55
+      }
+    ]
+  },
+  {
+    "id": "c04",
+    "title": "What do the two notices establish?",
+    "sourceChapters": [
+      "c04"
+    ],
+    "beats": [
+      {
+        "id": "c04-b01",
+        "say": "Go back to the original reply. Its first claim says the return box is available. Notice A says exactly that. A passage that establishes the full claim is said to entail it. Now read “immediately” in the second claim against the timing in B.",
+        "hold": 0.6
+      },
+      {
+        "id": "c04-b02",
+        "say": "B says the next day. Those times conflict. That claim is contradicted. Count the claims the passages support, then divide by all the claims in the reply. That fraction is faithfulness. Here it is one half.",
+        "hold": 1.05
+      },
+      {
+        "id": "c04-b03",
+        "say": "Suppose the assistant adds a third claim. “Delivery service is available.” The two notices still cover only returns and receipts. Do they rule out a delivery service?",
+        "hold": 2
+      },
+      {
+        "id": "c04-b04",
+        "say": "They leave delivery open. That claim is unestablished. Reviewers also call that relation neutral. You now have one supported claim out of three. Both a contradiction and missing evidence lower faithfulness. Keep the distinction when you investigate. Some claims depend on two passages together, or on a calculation. Check all the evidence the claim needs.",
+        "hold": 0.85
+      }
+    ]
+  },
+  {
+    "id": "c05",
+    "title": "Follow the footnote",
+    "sourceChapters": [
+      "c05"
+    ],
+    "beats": [
+      {
+        "id": "c05-b01",
+        "say": "Take a different sentence from the same assistant. “The library is closed on Sunday.” Both notices are in the prompt. Follow the B in brackets to see what a reader would open. Would that passage establish the closure?",
+        "hold": 2.1
+      },
+      {
+        "id": "c05-b02",
+        "say": "It tells you when the receipt arrives. B cannot establish the closure. A does establish it, so the claim is faithful. There is a citation on the page. Those checks both pass. The one that fails is support from the cited passage.",
+        "hold": 0.9
+      },
+      {
+        "id": "c05-b03",
+        "say": "Move the footnote to A. Follow it again. The sentence stays put and the reader lands on the Sunday closure notice. Only cited support changes. Store the cited span and its source revision so a reviewer can open that same passage later.",
+        "hold": 0.9
+      }
+    ]
+  },
+  {
+    "id": "c06",
+    "title": "Supported text can leave the task unfinished",
+    "sourceChapters": [
+      "c06"
+    ],
+    "beats": [
+      {
+        "id": "c06-b01",
+        "say": "Let the answer end here. The library is closed on Sunday. The return box is available. Both statements are supported. A reader can return the book, but our library rubric also asks the assistant to tell them when to expect a receipt. Find the empty row.",
+        "hold": 0.55
+      },
+      {
+        "id": "c06-b02",
+        "say": "Start from the library’s side. Two of three required points have an answer. That gives two thirds for completeness. Start from the assistant’s side and there are only two claims to check. Both are supported. That gives two out of two for faithfulness. The empty row counts on just one side.",
+        "hold": 0.75
+      },
+      {
+        "id": "c06-b03",
+        "say": "Try a reply that says only when the receipt arrives. The statement is true, and it covers one of the three points. Look at the return-box row. Someone holding a book on Sunday still needs to know where to put it.",
+        "hold": 0.55
+      }
+    ]
+  },
+  {
+    "id": "c07",
+    "title": "Choose what an average gives weight to",
+    "sourceChapters": [
+      "c07"
+    ],
+    "beats": [
+      {
+        "id": "c07-b01",
+        "say": "Read the two answers from left to right. The first contains nine supported claims. The second contains one unsupported claim. Pool all ten claims. Nine of ten are supported, or ninety percent. What would happen if each answer had one vote?",
+        "hold": 2.2
+      },
+      {
+        "id": "c07-b02",
+        "say": "Draw a boundary around each answer. The long answer contributes nine out of nine. The short one contributes zero out of one. Average those two rates. One plus zero, divided by two, gives fifty percent. Every claim stayed where it was. The unit changed. Report the unit, the counts, the question slices and the amount of reviewed evidence.",
+        "hold": 0.75
+      },
+      {
+        "id": "c07-b03",
+        "say": "Empty answers and justified abstentions need explicit labels because a ratio with no emitted claims has no denominator. If the permitted corpus has the answer but retrieval misses it, a bounded refusal can be appropriate generation behavior while retrieval still fails. Preserve both observations.",
+        "hold": 0.55
+      }
+    ]
+  },
+  {
+    "id": "c08",
+    "title": "Where did the receipt instruction go?",
+    "sourceChapters": [
+      "c08"
+    ],
+    "beats": [
+      {
+        "id": "c08-b01",
+        "say": "One last visit to the library. You ask when your receipt will come. The assistant says it can’t tell from these instructions. The library has the next-day notice. Search returned it. Follow B across the row. Where did the receipt instruction disappear?",
+        "hold": 2.2
+      },
+      {
+        "id": "c08-b02",
+        "say": "Between search and the prompt. Only A reached the assistant, so declining to guess was reasonable. Inspect what the selector kept and what fit in the prompt. The gap tells you where to investigate. Replay that step to find the cause.",
+        "hold": 0.85
+      },
+      {
+        "id": "c08-b03",
+        "say": "Try the same reply with one change. Keep B in the prompt this time. Both notices reach the assistant. It still says it can’t tell. Where would you look first now?",
+        "hold": 2.2
+      },
+      {
+        "id": "c08-b04",
+        "say": "At the answer. It leaves out the next-day instruction even with the evidence in front of it. Replay generation on that recorded context. Changing search would give this reader the very notice the assistant already had.",
+        "hold": 1
+      }
+    ]
+  },
+  {
+    "id": "c09",
+    "title": "Replay the actual policy sentence",
+    "sourceChapters": [
+      "c09"
+    ],
+    "beats": [
+      {
+        "id": "c09-b01",
+        "say": "Maya asks what DEPLOY-17 requires for a payment-service production deploy during a release freeze. Read the recorded sentence. It requires incident commander approval and a linked rollback plan before rollout. A good answer states the scope and both conditions. Maya still needs authorization to start the deploy.",
+        "hold": 0.7
+      },
+      {
+        "id": "c09-b02",
+        "say": "Find the rule at rank three, below a rollback-drill runbook and a rule for frontend documentation. Reranking moves it to first place. Only the freeze rule enters the prompt. The trace pins it to June first.",
+        "hold": 0.3
+      },
+      {
+        "id": "c09-b03",
+        "say": "The trace also records each retrieval component’s version, from the sparse and dense searches through fusion and reranking, so you can reconstruct those choices.",
+        "hold": 0.7
+      },
+      {
+        "id": "c09-b04",
+        "say": "Replay the June revision to ask whether the answer followed the evidence it received. For a question about today, open the current policy. A claim can faithfully repeat a mistaken passage. A true claim can lack support in this prompt.",
+        "hold": 0.3
+      },
+      {
+        "id": "c09-b05",
+        "say": "Checking historical compliance also takes the rule in force at the time. To reproduce the answer, save the assembled prompt, generator version, decoding settings and original output. Even with those records, a hosted model may sample different words.",
+        "hold": 0.9
+      }
+    ]
+  },
+  {
+    "id": "c10",
+    "title": "Can this policy be replayed?",
+    "sourceChapters": [
+      "c10"
+    ],
+    "beats": [
+      {
+        "id": "c10-b01",
+        "say": "Who could see those search results? In this system a returned candidate has already crossed Maya’s access boundary. A private note enters the returned list. It fails the access check, even if reranking later drops it. Internal index entries scanned during search are outside this particular contract. Read access and freshness from trusted application records.",
+        "hold": 0.7
+      },
+      {
+        "id": "c10-b02",
+        "say": "Match the case and question. Check the IDs, the component versions and each selected revision. An unknown or duplicate ID stops this replay. Here the reranker can only receive returned candidates. Its output must contain the same IDs it received, and everything selected must come from that output.",
+        "hold": 0.7
+      },
+      {
+        "id": "c10-b03",
+        "say": "Keep the source ID and the June revision. In the returned text, change “and” to “or.” Read the two conditions side by side. May the evaluator use this record to grade Maya’s answer?",
+        "hold": 1.5
+      },
+      {
+        "id": "c10-b04",
+        "say": "It fails. The change from “and” to “or” makes one condition enough where the recorded policy required both. Compare the fingerprints under the two excerpts. The replay checks the full record, including its parent document. Resolve the original bytes before grading the answer.",
+        "hold": 0.3
+      },
+      {
+        "id": "c10-b05",
+        "say": "A fingerprint lets a reviewer detect a changed record when the reference comes from trusted storage. In a service, protect those versioned records, authenticate the caller and check their current access.",
+        "hold": 0.9
+      }
+    ]
+  },
+  {
+    "id": "c11",
+    "title": "Did the freeze rule reach the prompt?",
+    "sourceChapters": [
+      "c11"
+    ],
+    "beats": [
+      {
+        "id": "c11-b01",
+        "say": "Track the freeze rule itself. Both columns start with the one required rule. Suppose search returns it, but selection drops it before the prompt. Search still found one out of one. The prompt kept zero out of one. Those are candidate recall and context recall.",
+        "hold": 0.3
+      },
+      {
+        "id": "c11-b02",
+        "say": "Inspect the shortlist, reranking, filters and prompt packing to locate the loss.",
+        "hold": 0.7
+      },
+      {
+        "id": "c11-b03",
+        "say": "This time keep all three candidates in the prompt. Only the freeze rule is useful, so selected-set precision is one third. Change their order. Move the freeze rule from first to third. The set still has one useful passage out of three.",
+        "hold": 0.3
+      },
+      {
+        "id": "c11-b04",
+        "say": "A rank-weighted measure averages precision at the useful ranks. There is just one such rank here. Its precision goes from one out of one to one out of three.",
+        "hold": 0.7
+      },
+      {
+        "id": "c11-b05",
+        "say": "Mean reciprocal rank and discounted gain also reward finding useful passages early. In the Lost in the Middle experiments, moving the evidence changed how well models answered. Test position with the same passages before you vary the distractors. Now search returns an approved copy of the rule.",
+        "hold": 0.3
+      },
+      {
+        "id": "c11-b06",
+        "say": "Compare the two source IDs. An exact ID check gives the copy zero credit. Read both passages. Each requires commander approval and a linked rollback plan before rollout. Accept either source for this rule, or grade the facts the passage establishes.",
+        "hold": 0.9
+      }
+    ]
+  },
+  {
+    "id": "c12",
+    "title": "Which requirement does each claim cover?",
+    "sourceChapters": [
+      "c12"
+    ],
+    "beats": [
+      {
+        "id": "c12-b01",
+        "say": "Maya gets two claims back. The freeze rule applies. The deploy can start without a linked rollback plan. Look across at what the rule requires before rollout. Only the first claim follows from it. Faithfulness is one of two.",
+        "hold": 0.3
+      },
+      {
+        "id": "c12-b02",
+        "say": "Both claims cite the policy, but cited support is one of two. Only the scope is covered, so the answer covers one of three required points. The release check stops at faithfulness. These other counts help explain the damage.",
+        "hold": 0.95
+      },
+      {
+        "id": "c12-b03",
+        "say": "Now read a partial answer. It states the scope and says approval is required before rollout. Both claims are supported and correctly cited. Follow their lines. Two policy requirements are covered. Rollback still has no line coming in.",
+        "hold": 0.75
+      },
+      {
+        "id": "c12-b04",
+        "say": "Give a third claim the identifier rollback-plan. Under that label, repeat the approval sentence word for word. Follow the text. Which requirement should get the third line?",
+        "hold": 2.5
+      },
+      {
+        "id": "c12-b05",
+        "say": "Approval again. Three claims have support. Only two distinct requirements have a line coming in. The evaluator looks up the reviewed meaning of the words. The name the answer gives a claim cannot fill that empty slot.",
+        "hold": 0.9
+      },
+      {
+        "id": "c12-b06",
+        "say": "Keep that identifier. Replace the repeated sentence with “A linked rollback plan is required before rollout.” The third line now reaches rollback. All three claims have support, all three citations lead back to the rule, and Maya has all three required points.",
+        "hold": 1
+      }
+    ]
+  },
+  {
+    "id": "c13",
+    "title": "When the answer key can decide",
+    "sourceChapters": [
+      "c13"
+    ],
+    "beats": [
+      {
+        "id": "c13-b01",
+        "say": "This evaluator has a small answer key. It recognizes the exact approval sentence. Someone else writes that sign-off is mandatory. Another person writes that approval is unnecessary. Both unfamiliar wordings need review. One may be faithful and the other contradicted. The claim ID cannot decide that.",
+        "hold": 0.3
+      },
+      {
+        "id": "c13-b02",
+        "say": "Rename the recognized approval claim “rollback-plan” and its reviewed meaning is still approval.",
+        "hold": 0.7
+      },
+      {
+        "id": "c13-b03",
+        "say": "Take three correct claims and attach the rollback-drill runbook to each. The freeze policy in the prompt supports all three claims. Follow any citation. It opens drill instructions from a runbook outside the prompt. Citation support becomes zero. Now erase one attachment. Citation coverage drops to two of three. Cited support stays at zero out of three. Both fractions count every emitted claim in the denominator, including the claim with the blank citation.",
+        "hold": 0.7
+      },
+      {
+        "id": "c13-b04",
+        "say": "Count the statements the key could decide. In these three examples it recognized one wording and referred two. Report that review rate beside the scores. Keep the claim extraction and duplicate handling consistent across runs. Otherwise a change to the evaluator can look like an improvement in the assistant.",
+        "hold": 0.9
+      },
+      {
+        "id": "c13-b05",
+        "say": "Try the article’s short Python evaluator on the partial answer. It reports full support and correct citations. At completeness it prints zero point six seven and stops. Add the correctly cited rollback sentence. Now the complete answer passes all three checks.",
+        "hold": 1
+      },
+      {
+        "id": "c13-b06",
+        "say": "Keep all three sentences. Change their citations to the rollback runbook. Which check will stop this call?",
+        "hold": 2.1
+      },
+      {
+        "id": "c13-b07",
+        "say": "The citation check. The output ends at zero point zero zero for citations. There’s no completeness score in that string. The checker stopped before it reached that question. You can still inspect the complete answer separately on the recorded context.",
+        "hold": 0.95
+      }
+    ]
+  },
+  {
+    "id": "c14",
+    "title": "When is “I can’t tell” a good answer?",
+    "sourceChapters": [
+      "c14"
+    ],
+    "beats": [
+      {
+        "id": "c14-b01",
+        "say": "Maya asks whether an executive can waive the rollback requirement. Her permitted policies do not address waivers. One possible reply is “The available policy lists no waiver. Ask the policy owner.” That reply tells her where the evidence ends. A reply that says “No waiver exists anywhere” goes beyond the evidence.",
+        "hold": 0.3
+      },
+      {
+        "id": "c14-b02",
+        "say": "To grade a refusal, label two things independently. Could this caller’s permitted, current collection answer the question? Did enough of it reach the prompt? Keep the retrieved text and the actual reply with those labels.",
+        "hold": 0.7
+      },
+      {
+        "id": "c14-b03",
+        "say": "Compare the four cases on the page. With enough evidence, a complete, supported answer succeeds. When the permitted collection has no answer, a bounded refusal can finish the task under our rubric. Now suppose the collection has the rule and selection loses it.",
+        "hold": 0.3
+      },
+      {
+        "id": "c14-b04",
+        "say": "Refusing avoids a guess, but the evidence path and the task both fail. Finally, give the assistant the rule and leave the refusal unchanged. The evidence reached it. The task is still unfinished.",
+        "hold": 0.7
+      },
+      {
+        "id": "c14-b05",
+        "say": "“Safe” in this table means the reply avoided unsupported policy claims. With no claims at all, the support fraction is zero over zero. The reference harness records a conventional zero and checks separately whether an answerable case produced a claim.",
+        "hold": 0.3
+      },
+      {
+        "id": "c14-b06",
+        "say": "The short Python evaluator asks you to grade the abstention. Keep that state in the report, along with the actual reply and the passages the reader could use.",
+        "hold": 0.9
+      }
+    ]
+  },
+  {
+    "id": "c15",
+    "title": "Damage one concrete trace at a time",
+    "sourceChapters": [
+      "c15"
+    ],
+    "beats": [
+      {
+        "id": "c15-b01",
+        "say": "Before trusting the evaluator, give it answers whose faults you know. Remove the rule from search, then try a separate case where search found it but selection dropped it. The first failure moves from retrieval to selection. Let the rule reach the prompt.",
+        "hold": 0.3
+      },
+      {
+        "id": "c15-b02",
+        "say": "Now reverse a condition, change the citations, omit rollback, or return an empty answer. Each should stop at a different check.",
+        "hold": 0.7
+      },
+      {
+        "id": "c15-b03",
+        "say": "Here are the six cases in the release suite. Only the complete answer should pass. The other five should stop. If the harness makes those six decisions, it has recognized the defects you put there. You still need different evidence to estimate how often those defects occur in production.",
+        "hold": 0.7
+      },
+      {
+        "id": "c15-b04",
+        "say": "Suppose search misses the rule and the assistant invents a way around it. Read across the top row. After the source-access check comes candidate recall. That’s the first failure here. The later release checks stay unscored.",
+        "hold": 0.3
+      },
+      {
+        "id": "c15-b05",
+        "say": "As a separate diagnostic, compare the two written claims with what reached the model. Neither has support. Replay one change at a time to see which repair helps.",
+        "hold": 0.9
+      }
+    ]
+  },
+  {
+    "id": "c16",
+    "title": "Keep the failing workflow visible in the report",
+    "sourceChapters": [
+      "c16"
+    ],
+    "beats": [
+      {
+        "id": "c16-b01",
+        "say": "Use the article’s five synthetic outcomes. Release-freeze has one correct release decision out of two, incident-hotfix has two of two, and schema-migration has zero of one. The overall decision accuracy is three of five, or sixty percent. Preserve these case identities when grouping; the perfect hotfix slice does not repair the other workflows.",
+        "hold": 0.7
+      },
+      {
+        "id": "c16-b02",
+        "say": "The local release rule requires every named slice to be nonempty and at least ninety-five percent correct. For k successes among n cases, compare one hundred times k with ninety-five times n.",
+        "hold": 0.3
+      },
+      {
+        "id": "c16-b03",
+        "say": "Two of two passes that local count rule; one of two and zero of one fail. Missing or empty required slices fail as well. This report therefore blocks release even though its supported-answer and known-bad regression checks passed.",
+        "hold": 0.7
+      },
+      {
+        "id": "c16-b04",
+        "say": "Two correct hotfix decisions can catch regressions in those cases. They tell you little about the hotfix error rate in production. Decide which workflows and severe failures to track, how many cases you need, and how to estimate uncertainty before you tune the system.",
+        "hold": 0.3
+      },
+      {
+        "id": "c16-b05",
+        "say": "Compare versions on the same questions. Ten paraphrases of one rule can share a failure. To estimate a production error rate, sample real traffic and report uncertainty across independent questions or policy families. Keep those test cases separate from the ones you tune on.",
+        "hold": 0.9
+      },
+      {
+        "id": "c16-b06",
+        "say": "Try a second report. Nineteen of twenty freeze decisions are correct. Thirty-nine of forty hotfix decisions are correct. Migration has no cases. Can this report clear the same release rule?",
+        "hold": 2.4
+      },
+      {
+        "id": "c16-b07",
+        "say": "Hold the build. Freeze meets the threshold exactly and hotfix clears it. Migration has no denominator. Collect cases for that required workflow before you make the release decision.",
+        "hold": 1.3
+      }
+    ]
+  },
+  {
+    "id": "c17",
+    "title": "Would you trust this support judge?",
+    "sourceChapters": [
+      "c17"
+    ],
+    "beats": [
+      {
+        "id": "c17-b01",
+        "say": "How could you check a new way of saying “approval is required”? The original RAGAS method breaks an answer into statements and checks their support against the retrieved text. FActScore also measures support one fact at a time.",
+        "hold": 0.3
+      },
+      {
+        "id": "c17-b02",
+        "say": "For answer relevance, RAGAS generates questions from the answer and compares their embeddings with the original question. For context relevance, it extracts sentences that help answer the question. These measurements can work without a gold answer. A required-point list still matters when you check for omissions.",
+        "hold": 0.7
+      },
+      {
+        "id": "c17-b03",
+        "say": "Here are three hand-labeled examples for our freeze case. Give human reviewers and the judge the same question, source revision, claims and citations. Keep these test examples separate from the ones used to tune the judge.",
+        "hold": 0.3
+      },
+      {
+        "id": "c17-b04",
+        "say": "ARES trains judges on synthetic examples, then combines predictions with human labels to estimate an aggregate score and its uncertainty through prediction-powered inference.",
+        "hold": 0.7
+      },
+      {
+        "id": "c17-b05",
+        "say": "Try these illustrative judge decisions. The judge accepts the first two claims and rejects the third. Which acceptance could give Maya bad advice?",
+        "hold": 2.1
+      },
+      {
+        "id": "c17-b06",
+        "say": "It accepts “We can link the plan after rollout starts.” The policy requires the link before rollout starts. That is a false acceptance. It also rejects a supported rollback claim. That is a false rejection. Include contradictions, missing evidence, valid paraphrases and bounded abstentions in a held-out set.",
+        "hold": 0.3
+      },
+      {
+        "id": "c17-b07",
+        "say": "A set of supported answers alone can’t measure false acceptance. Count a missing verdict field separately as a format failure. Record the model, prompt and rubric. Treat instructions inside a quoted passage as evidence to evaluate.",
+        "hold": 0.3
+      },
+      {
+        "id": "c17-b08",
+        "say": "A readability score measures something else, and the application still decides who may see a source.",
+        "hold": 0.95
+      }
+    ]
+  },
+  {
+    "id": "c18",
+    "title": "Maya asks again in July",
+    "sourceChapters": [
+      "c18"
+    ],
+    "beats": [
+      {
+        "id": "c18-b01",
+        "say": "Maya asks again. Keep June’s three claims in view and open the July revision. July adds a maintenance-window identifier before rollout. The application has checked Maya’s access and the revision. Do the same three sentences still finish the job?",
+        "hold": 0.3
+      },
+      {
+        "id": "c18-b02",
+        "say": "The answer repeats its three earlier claims, each citing the July rule. Look down the two columns. Which answer check stops this replay?",
+        "hold": 2.4
+      },
+      {
+        "id": "c18-b03",
+        "say": "Every sentence still follows from the rule. Faithfulness stays three of three. Each cited passage supports its claim, so cited support stays three of three. Count down the policy column. Completeness is three of four. That is the first failed check.",
+        "hold": 0.3
+      },
+      {
+        "id": "c18-b04",
+        "say": "Add the maintenance-window claim and cite the July rule. All four requirements now have supported, correctly cited claims. This trace passes.",
+        "hold": 1
+      },
+      {
+        "id": "c18-b05",
+        "say": "Now open the five-case release report. Each workflow needs at least ninety-five percent correct release decisions. The freeze cases split one and one. Both hotfix decisions were right. The migration decision was wrong. Can this build ship? Which cases would you open?",
+        "hold": 2.15
+      },
+      {
+        "id": "c18-b06",
+        "say": "Hold the release. Open the second freeze case and the migration case. Trace each answer back to its sources and find the first failed check.",
+        "hold": 1.15
+      }
+    ]
+  }
+]

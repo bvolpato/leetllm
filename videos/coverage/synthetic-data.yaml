@@ -1,0 +1,175 @@
+version: 1
+lesson: synthetic-data
+promise: Decide which generated search-client examples belong in a training shard, then use an
+  independent comparison to decide whether the trained assistant meets its release rules.
+framing: []
+objectives:
+  - id: construct
+    can: Generate a task for a missing behavior, follow its request trace, screen its wording
+      against held-out tasks and recheck novelty when a proposed reference fails a later gate.
+    scenes:
+      - intro
+      - seed
+      - generate
+      - task-growth
+      - evolution
+      - verifier
+      - execution-boundaries
+      - overlap
+      - diversity
+      - judge
+      - evaluate
+      - admission-economics
+  - id: release
+    can: Construct policy-correct preference records, trace framework dependencies and verify approved
+      dataset bytes.
+    scenes:
+      - safe-preferences
+      - framework-preview
+      - shard-identity
+  - id: measure
+    can: Compute finite-sample tail loss, distinguish retained rows from training exposure, account
+      for generation costs and apply each release threshold to its own held-out cases.
+    scenes:
+      - recursive-tail
+      - accumulation-weight
+      - downstream-trial
+      - fresh-admission
+sections:
+  - heading: Why generate data if real text already exists?
+    status: taught
+    scenes:
+      - intro
+      - seed
+      - task-growth
+  - heading: "Seed curation: anchor the distribution in human intent"
+    status: taught
+    scenes:
+      - seed
+  - heading: "Self-Instruct: grow task coverage from seeds"
+    status: taught
+    scenes:
+      - task-growth
+  - heading: "Evol-Instruct: make each task more demanding"
+    status: taught
+    scenes:
+      - evolution
+  - heading: "Grounded execution: test the claims you can execute"
+    status: taught
+    scenes:
+      - intro
+      - verifier
+      - execution-boundaries
+    note: The film runs two-page search clients from seed S12. The article's unified verifier checks a three-field JSON configuration.
+  - heading: "Calibrated LLM judges: position stability over prose polish"
+    status: taught
+    scenes:
+      - judge
+      - admission-economics
+  - heading: "Multi-tier admission filtering: shift cheap checks left"
+    status: taught
+    scenes:
+      - overlap
+      - diversity
+      - evaluate
+      - admission-economics
+  - heading: "Red-teaming data synthesis: probe adversarial boundaries"
+    status: taught
+    scenes:
+      - safe-preferences
+    note: The two logging fixtures receive the same support event. The chosen answer declines the email request and logs the request ID. The rejected answer reports success and logs the email.
+  - heading: Preference pair synthesis for DPO and RLHF
+    status: taught
+    scenes:
+      - safe-preferences
+  - heading: The unified admission loop in practice
+    status: taught
+    scenes:
+      - evaluate
+      - admission-economics
+    note: The six search candidates stop at their first failed gate. The separate B and C replay uses the article's two reference vectors and 0.82 cutoff.
+  - heading: From the fixture to an actual generation framework
+    status: taught
+    scenes:
+      - framework-preview
+  - heading: Avoiding model collapse in recursive training loops
+    status: taught
+    scenes:
+      - recursive-tail
+      - accumulation-weight
+  - heading: "Shard identity: what hashes verify"
+    status: taught
+    scenes:
+      - shard-identity
+  - heading: "Downstream evaluation: measure capability directly"
+    status: taught
+    scenes:
+      - downstream-trial
+      - fresh-admission
+quiz:
+  - n: 1
+    status: taught
+    scenes:
+      - downstream-trial
+      - fresh-admission
+  - n: 2
+    status: taught
+    scenes:
+      - recursive-tail
+  - n: 3
+    status: taught
+    scenes:
+      - execution-boundaries
+  - n: 4
+    status: taught
+    scenes:
+      - diversity
+  - n: 5
+    status: taught
+    scenes:
+      - admission-economics
+  - n: 6
+    status: taught
+    scenes:
+      - safe-preferences
+  - n: 7
+    status: taught
+    scenes:
+      - shard-identity
+  - n: 8
+    status: taught
+    scenes:
+      - admission-economics
+  - n: 9
+    status: taught
+    scenes:
+      - accumulation-weight
+      - fresh-admission
+  - n: 10
+    status: taught
+    scenes:
+      - fresh-admission
+removed: []
+reviews:
+  closed_book:
+    script: bed5eeb0da9dcd2e
+    taught: 10
+    partial: 0
+    absent: 0
+  fact_check:
+    script: bed5eeb0da9dcd2e
+    open_findings: 0
+practice:
+  - source_question: 3
+    status: taught
+    scenes:
+      - evolution
+    note: Former independently accepted scored item retained as an unscored contextual checkpoint before
+      the mastery quiz.
+  - source_question: 5
+    status: taught
+    scenes:
+      - judge
+      - admission-economics
+    note: Former independently accepted scored item retained as an unscored contextual checkpoint before
+      the mastery quiz.

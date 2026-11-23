@@ -1,0 +1,245 @@
+version: 1
+lesson: training-run-operations
+promise: Choose which checkpoint and data position to load after a failure, then rehearse the next update on the replacement workers.
+objectives:
+  - id: restart-packet
+    can: Identify which fields each restart restores and use the consumed cursor to predict where the sampler reads next.
+    scenes:
+      - intro
+  - id: first-read
+    can: Choose which of eight accumulation rounds to replay when the weights and the live data cursor stop at different boundaries.
+    scenes:
+      - first-read
+      - cursor-and-window
+      - fresh-restore
+  - id: moments
+    can: Trace a full restore and a reset-moment branch against the same uninterrupted updates.
+    scenes:
+      - moments
+  - id: adam-first-step
+    can: Calculate a fresh adaptive-step bound and distinguish complete continuation from initialization or
+      export.
+    scenes:
+      - adam-first-step
+  - id: checkpoint-ownership
+    can: Diagnose tensor aliasing and publish only a fully completed, validated checkpoint packet.
+    scenes:
+      - checkpoint-ownership
+  - id: durable
+    can: Decide which pointer a loader follows when the fourth shard fails, and when a complete save can replace it.
+    scenes:
+      - durable
+  - id: cursor-and-window
+    can: Reconstruct the consumed data boundary and identify complete in-flight numerical state.
+    scenes:
+      - cursor-and-window
+  - id: deadline
+    can: Calculate whether the entire warning path fits before attempting a boundary save.
+    scenes:
+      - deadline
+  - id: interval-and-reliability
+    can: Calculate checkpoint overhead and qualify independent-device failure-rate estimates.
+    scenes:
+      - interval-and-reliability
+  - id: reshard
+    can: Preserve logical tensor coordinates and rehearse a supported destination restore.
+    scenes:
+      - reshard
+  - id: storage-topology-contract
+    can: Calculate state-storage floors and distinguish logical slicing from reader allocation and compatibility.
+    scenes:
+      - storage-topology-contract
+  - id: replicas
+    can: Count sequences as each GPU pair finishes a round and predict the batch after changing both the replica count and accumulation length.
+    scenes:
+      - replicas
+  - id: batch-and-schedule
+    can: Compute mesh batch size and intentionally remap schedule or conditional Adam coefficients.
+    scenes:
+      - batch-and-schedule
+  - id: tokens
+    can: Construct the global supervised-token objective under ordinary DDP averaging.
+    scenes:
+      - tokens
+  - id: overflow
+    can: Keep consumed data and successful-update schedule counters distinct across skipped steps.
+    scenes:
+      - overflow
+  - id: diagnosis-and-rollback
+    can: Diagnose an observed failure, reject nonfinite recovery state and choose a bounded evidence-based rewind.
+    scenes:
+      - diagnosis-and-rollback
+  - id: adaptation-and-memory
+    can: Separate adaptation choices and reject impossible base-memory plans without claiming complete fit.
+    scenes:
+      - adaptation-and-memory
+  - id: fresh-restore
+    can: Choose a recovery boundary under a new deadline, find a tensor coordinate on the destination mesh and detect a cursor error from the next sample IDs.
+    scenes:
+      - fresh-restore
+sections:
+  - heading: Weights are only one part of a continuation
+    status: taught
+    scenes:
+      - intro
+      - adam-first-step
+    note: Both packets load the weights from update 1840. In this replayable order, the cursor starts over at zero or resumes after 117,760 consumed examples.
+  - heading: What lost optimizer moments break
+    status: taught
+    scenes:
+      - moments
+      - adam-first-step
+  - heading: Reliability and the two checkpoint completion points
+    status: taught
+    scenes:
+      - checkpoint-ownership
+      - durable
+      - interval-and-reliability
+  - heading: Atomic manifest publishing and data cursor alignment
+    status: taught
+    scenes:
+      - intro
+      - first-read
+      - checkpoint-ownership
+      - durable
+      - cursor-and-window
+      - fresh-restore
+    note: The five unfinished rounds come from the article’s update-1840 example. The final drill uses a separate deterministic sample order.
+  - heading: Treat preemption as a deadline and trigger saves explicitly
+    status: taught
+    scenes:
+      - cursor-and-window
+      - deadline
+  - heading: Budget the entire remaining path
+    status: taught
+    scenes:
+      - deadline
+      - interval-and-reliability
+      - fresh-restore
+    note: The deadline scene uses the article’s can_finish example at 120 and 119 seconds. The drill uses a 59-second warning and a 60-second path.
+  - heading: Sharded saves need a compatible restore path
+    status: taught
+    scenes:
+      - reshard
+      - storage-topology-contract
+  - heading: Resharding across topologies without single-node bottlenecks
+    status: taught
+    scenes:
+      - reshard
+      - storage-topology-contract
+      - fresh-restore
+  - heading: Keep the update size separate from the GPU count
+    status: taught
+    scenes:
+      - replicas
+      - batch-and-schedule
+    note: Each pair shares two sequences. Four pairs over eight rounds and eight pairs over four rounds both supply 64 sequences.
+  - heading: Sequences versus supervised tokens and loss reduction
+    status: taught
+    scenes:
+      - tokens
+      - batch-and-schedule
+  - heading: Preserve the scheduler before tuning a new batch
+    status: taught
+    scenes:
+      - batch-and-schedule
+      - overflow
+  - heading: Detect AMP overflow before counting an optimizer update
+    status: taught
+    scenes:
+      - overflow
+      - batch-and-schedule
+  - heading: Scaling rules are hypotheses to test
+    status: taught
+    scenes:
+      - batch-and-schedule
+  - heading: Diagnose a symptom before choosing a recovery
+    status: taught
+    scenes:
+      - diagnosis-and-rollback
+  - heading: What a rollback policy must decide
+    status: taught
+    scenes:
+      - diagnosis-and-rollback
+  - heading: Choose the objective, trainable weights, and precision separately
+    status: taught
+    scenes:
+      - adaptation-and-memory
+  - heading: Reject impossible memory plans before launching
+    status: taught
+    scenes:
+      - adaptation-and-memory
+  - heading: Rehearse the restart before the long run
+    status: taught
+    scenes:
+      - reshard
+      - diagnosis-and-rollback
+      - fresh-restore
+quiz:
+  - n: 1
+    status: taught
+    scenes:
+      - adam-first-step
+    note: Fresh calculation or diagnosis; independent exact-hash script/quiz review pending.
+  - n: 2
+    status: taught
+    scenes:
+      - deadline
+      - fresh-restore
+    note: Fresh calculation or diagnosis; independent exact-hash script/quiz review pending.
+  - n: 3
+    status: taught
+    scenes:
+      - replicas
+      - batch-and-schedule
+    note: Fresh calculation or diagnosis; independent exact-hash script/quiz review pending.
+  - n: 4
+    status: taught
+    scenes:
+      - tokens
+    note: Fresh calculation or diagnosis; independent exact-hash script/quiz review pending.
+  - n: 5
+    status: taught
+    scenes:
+      - overflow
+    note: Fresh calculation or diagnosis; independent exact-hash script/quiz review pending.
+  - n: 6
+    status: taught
+    scenes:
+      - adaptation-and-memory
+    note: Fresh calculation or diagnosis; independent exact-hash script/quiz review pending.
+  - n: 7
+    status: taught
+    scenes:
+      - checkpoint-ownership
+      - durable
+    note: Fresh calculation or diagnosis; independent exact-hash script/quiz review pending.
+  - n: 8
+    status: taught
+    scenes:
+      - first-read
+      - cursor-and-window
+      - fresh-restore
+    note: Fresh calculation or diagnosis; independent exact-hash script/quiz review pending.
+  - n: 9
+    status: taught
+    scenes:
+      - reshard
+      - storage-topology-contract
+      - fresh-restore
+    note: Fresh calculation or diagnosis; independent exact-hash script/quiz review pending.
+  - n: 10
+    status: taught
+    scenes:
+      - diagnosis-and-rollback
+    note: Fresh calculation or diagnosis; independent exact-hash script/quiz review pending.
+removed: []
+reviews:
+  closed_book:
+    script: 363cbae82822c6da
+    taught: 10
+    partial: 0
+    absent: 0
+  fact_check:
+    script: 363cbae82822c6da
+    open_findings: 0

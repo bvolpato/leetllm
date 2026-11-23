@@ -1,0 +1,726 @@
+{
+  "version": 1,
+  "partition": "curriculum-completion",
+  "sources": [],
+  "concepts": [
+    {
+      "id": "accelerator-dataflow-map",
+      "representation": "diagram",
+      "title": "Accelerator memory and peer dataflow",
+      "meaning": "Data moves from device memory into local tiles, through compute, and across peer links when needed.",
+      "family": "GPU execution",
+      "aliases": [],
+      "brief": "Trace a working tile from device memory into on-chip local storage, through a compute engine, then over a peer link when the workload requires another device. Mark the owner and capacity boundary at each stage.",
+      "pitfalls": [
+        "Capacity and bandwidth belong to specific memory levels and owners.",
+        "Peer exchange may route over a shared link or host staging; measure the actual topology."
+      ],
+      "sourcePaths": [
+        "web/src/content/fundamentals/accelerator-architecture-field-guide/content.md"
+      ],
+      "references": [
+        {
+          "path": "web/src/content/fundamentals/accelerator-architecture-field-guide/content.md",
+          "headings": [
+            "Memory paths: capacity belongs to an owner",
+            "Thread execution and matrix dataflow",
+            "Interconnect topologies: count exchanges, then measure the route"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "adapter-artifact-lineage",
+      "representation": "diagram",
+      "title": "Adapter artifact lineage",
+      "meaning": "Trainable adapter state, pruning records, resume checkpoints and exported weights follow different paths from a frozen base model.",
+      "family": "Model training",
+      "aliases": [
+        "Light-PEFT and Tinker artifact paths"
+      ],
+      "brief": "Draw two clearly separate workflows. Light-PEFT estimates masks and scores, saves records with PEFT weights, physically slices compatible base and adapter tensors, then continues with a smaller shape. Tinker keeps a frozen base with LoRA A/B updates and offers distinct training-resume state, sampler weights and merged export artifacts. Label which artifacts preserve optimizer history, which can be sampled, and the base revision needed to reproduce the result.",
+      "pitfalls": [
+        "A soft mask or adapter update is not the same artifact as a physically pruned model.",
+        "A sampler snapshot does not restore optimizer state; a merged model does not preserve remote training history.",
+        "Light-PEFT tensor surgery and Tinker hosted LoRA are different implementations, not one shared lifecycle."
+      ],
+      "sourcePaths": [
+        "web/src/content/projects/deep-dive-light-peft/content.md",
+        "web/src/content/projects/deep-dive-tinker/content.md"
+      ],
+      "references": [
+        {
+          "path": "web/src/content/projects/deep-dive-light-peft/content.md",
+          "headings": [
+            "Lifecycle: estimate, prune, continue"
+          ]
+        },
+        {
+          "path": "web/src/content/projects/deep-dive-tinker/content.md",
+          "headings": [
+            "Checkpoints and export paths"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "ai-app-contract",
+      "representation": "simulation",
+      "title": "End-to-end AI app contract",
+      "meaning": "A request passes input validation and trusted-fact checks before an uncertain model answer can affect a decision.",
+      "family": "Systems & serving",
+      "aliases": [],
+      "brief": "Follow an invented account request through input validation, trusted server-side facts, a deterministic policy check and a visible result. Preserve a trace receipt and place uncertain model output behind the application contract.",
+      "pitfalls": [
+        "Client-provided facts do not become trusted because they arrived in JSON.",
+        "A well-shaped model response can still violate the underlying policy."
+      ],
+      "sourcePaths": [],
+      "references": []
+    },
+    {
+      "id": "collective-reduce-scatter",
+      "representation": "simulation",
+      "title": "Collective reduce-scatter ownership",
+      "meaning": "Matching tensor chunks reduce across ranks and each rank retains the chunk at its own index.",
+      "family": "Distributed systems",
+      "aliases": [
+        "NCCL reduce-scatter"
+      ],
+      "brief": "Give four ranks four-element vectors. Reduce corresponding indices, move the completed chunks through a ring or tree schedule, and leave chunk r on rank r. Then optionally run all-gather to reconstruct the full vector everywhere. Keep rank order, communicator agreement, buffer offsets and stream completion visible.",
+      "pitfalls": [
+        "Reduce-scatter leaves one reduced shard per rank; it does not leave the full tensor everywhere.",
+        "Every rank must call matching collectives in matching order with compatible arguments.",
+        "In-place reduce-scatter and all-gather use rank-offset shard locations, not automatically the buffer base."
+      ],
+      "sourcePaths": [
+        "web/src/content/projects/deep-dive-nccl/content.md"
+      ],
+      "references": [
+        {
+          "path": "web/src/content/projects/deep-dive-nccl/content.md",
+          "headings": [
+            "Choose the operation from desired ownership"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "compiler-ownership-stack",
+      "representation": "diagram",
+      "title": "GPU compiler artifact ownership",
+      "meaning": "Source code is compiled into packaged device images with architecture-specific ownership and target rules.",
+      "family": "GPU execution",
+      "aliases": [],
+      "brief": "Trace one CUDA source through host compilation and device compilation into virtual and architecture-specific device images inside an executable. Highlight the artifact and diagnostic owned by each stage.",
+      "pitfalls": [
+        "A host executable may contain multiple device images; source text is not the packaged artifact.",
+        "PTX and native machine code expose different compilation stages."
+      ],
+      "sourcePaths": [
+        "web/src/content/fundamentals/gpu-compilers-kernel-languages/content.md"
+      ],
+      "references": [
+        {
+          "path": "web/src/content/fundamentals/gpu-compilers-kernel-languages/content.md",
+          "headings": [
+            "`nvcc` packages host code with architecture-specific device images"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "distributed-object-reference",
+      "representation": "simulation",
+      "title": "Distributed object reference",
+      "meaning": "A future-like handle connects a remote task result to a consumer while ownership and stored bytes have separate lifetimes.",
+      "family": "Distributed systems",
+      "aliases": [
+        "Ray ObjectRef"
+      ],
+      "brief": "Submit several remote feature tasks and keep their ObjectRef handles at the driver. Pass top-level references directly to an actor consumer so the driver need not fetch each payload; reveal local object-store copies, reference counting, owner and reconstructable task lineage as separate layers. Contrast this with serial ray.get submission and an unbounded gather.",
+      "pitfalls": [
+        "An ObjectRef is a handle and dependency, not a location or a guarantee that bytes are resident on one node.",
+        "Reference metadata and retained objects still consume resources.",
+        "Task-result lineage, actor process state and durable checkpointing are different recovery contracts."
+      ],
+      "sourcePaths": [
+        "web/src/content/projects/deep-dive-ray/content.md"
+      ],
+      "references": [
+        {
+          "path": "web/src/content/projects/deep-dive-ray/content.md",
+          "headings": [
+            "Three pieces of a running job",
+            "Keep the dependency remote",
+            "Object bytes, owners, and memory"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "docker-image-layers",
+      "representation": "diagram",
+      "title": "Docker image layers",
+      "meaning": "An image assembles reusable base and application layers into a runnable container.",
+      "family": "Developer workflow",
+      "aliases": [],
+      "brief": "Stack the pinned base, dependency environment, application and scorer into an image. Show the built artifact running read-only, then mount a host directory over the copied evaluation path to reveal why filesystem boundaries matter.",
+      "pitfalls": [
+        "Image layers are cached build inputs; a running container adds its own writable layer.",
+        "A bind mount can replace the directory view inside the container."
+      ],
+      "sourcePaths": [
+        "web/src/content/foundations/docker-containerization-reproducible-ai/content.md"
+      ],
+      "references": [
+        {
+          "path": "web/src/content/foundations/docker-containerization-reproducible-ai/content.md",
+          "headings": [
+            "A bind mount obscures the copied eval"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "document-evidence-answer",
+      "representation": "simulation",
+      "title": "Evidence-bound document answer",
+      "meaning": "An approved passage supports an answer through a bound, auditable evidence receipt.",
+      "family": "Data & retrieval",
+      "aliases": [],
+      "brief": "Retrieve candidate passages, check access policy and bind the approved excerpt to a question-support receipt. Return the passage with provenance only after the evidence contract passes.",
+      "pitfalls": [
+        "Retrieval proposes candidates and never grants authorization.",
+        "A declared fixture label is not an independent verifier judgment."
+      ],
+      "sourcePaths": [
+        "web/src/content/foundations/capstone-document-qa-product/content.md"
+      ],
+      "references": [
+        {
+          "path": "web/src/content/foundations/capstone-document-qa-product/content.md",
+          "headings": [
+            "Let the first answer be easy to audit"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "evaluation-decision-dashboard",
+      "representation": "simulation",
+      "title": "Evaluation slice dashboard",
+      "meaning": "A suite-level score and per-slice results expose a safety failure hidden by an aggregate.",
+      "family": "Evaluation & evidence",
+      "aliases": [],
+      "brief": "Grade a frozen fixture set and place the overall score above all capability and safety slices. Keep failed or missing slices visible as release blockers even when the aggregate is strong.",
+      "pitfalls": [
+        "Equal-weight fixture pass rate is not a production traffic success rate.",
+        "A missing safety slice must not silently disappear from aggregation."
+      ],
+      "sourcePaths": [
+        "web/src/content/foundations/capstone-evaluation-dashboard/content.md"
+      ],
+      "references": [
+        {
+          "path": "web/src/content/foundations/capstone-evaluation-dashboard/content.md",
+          "headings": [
+            "Extend the frozen fixture set fairly",
+            "Aggregate without hiding safety slices",
+            "Write gates in product language",
+            "Make a hold decision inspectable"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "forecasting-alert-loop",
+      "representation": "simulation",
+      "title": "Forecast maturity and alerts",
+      "meaning": "A frozen forecast is compared with mature outcomes before an operational alert fires.",
+      "family": "Evaluation & evidence",
+      "aliases": [],
+      "brief": "Freeze forecasts before targets mature, reveal only outcomes available by the evaluation cutoff, calculate held-out residuals, then apply a separate operational alert rule to the same ledger.",
+      "pitfalls": [
+        "Provisional and missing outcomes remain pending rather than counting as zero or perfect.",
+        "Forecast accuracy and alert utility answer different questions."
+      ],
+      "sourcePaths": [
+        "web/src/content/foundations/capstone-demand-forecasting-alerts/content.md"
+      ],
+      "references": [
+        {
+          "path": "web/src/content/foundations/capstone-demand-forecasting-alerts/content.md",
+          "headings": [
+            "Evaluate forecasts and operational alerts separately"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "git-commit-history",
+      "representation": "simulation",
+      "title": "Git regression history",
+      "meaning": "Commit snapshots narrow a regression to the change that introduced it.",
+      "family": "Developer workflow",
+      "aliases": [],
+      "brief": "Mark a passing commit and a failing commit on one history spine, then test a midpoint. Animate the remaining interval narrowing until a single regression change remains; keep the dirty worktree as a separate state.",
+      "pitfalls": [
+        "A green working tree run is weaker evidence than a passing commit with a clean status.",
+        "Bisect identifies a first failing change only when the test is deterministic and endpoints are labeled correctly."
+      ],
+      "sourcePaths": [
+        "web/src/content/foundations/git-shell-linux-reproducible-ai/content.md"
+      ],
+      "references": [
+        {
+          "path": "web/src/content/foundations/git-shell-linux-reproducible-ai/content.md",
+          "headings": [
+            "Trace a regression through Git history",
+            "Prove it with a throwaway clone"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "gpt-training-loop",
+      "representation": "simulation",
+      "title": "From token stream to GPT checkpoint",
+      "meaning": "A causal decoder predicts the next token, updates weights from loss and samples from the checkpoint.",
+      "family": "Model training",
+      "aliases": [],
+      "brief": "Pack a contiguous token stream into context windows and shifted next-token labels. Reveal causal attention, loss and weight update, then sample from the resulting checkpoint and resume from saved optimizer state.",
+      "pitfalls": [
+        "Input tokens and next-token labels are shifted by one position.",
+        "Held-out chunks must not be concatenated into fake transitions."
+      ],
+      "sourcePaths": [
+        "web/src/content/training/build-gpt-from-scratch-lab/content.md"
+      ],
+      "references": [
+        {
+          "path": "web/src/content/training/build-gpt-from-scratch-lab/content.md",
+          "headings": [
+            "The causal LM contract",
+            "Train, sample, then keep going",
+            "What a resume file has to remember"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "gpu-timing-boundary",
+      "representation": "simulation",
+      "title": "GPU benchmark timing boundary",
+      "meaning": "Host submission and asynchronous device work require a declared scope and synchronization boundary.",
+      "family": "GPU execution",
+      "aliases": [],
+      "brief": "Draw host submission and asynchronous device execution on separate lanes. Mark event boundaries and synchronization, then label whether launch, compilation, allocation, transfer and steady-state work belong in the measured interval.",
+      "pitfalls": [
+        "A successful host launch return does not prove device work has completed.",
+        "Different measurement scopes need distinct labels and timing methods."
+      ],
+      "sourcePaths": [
+        "web/src/content/fundamentals/gpu-profiling-correctness-benchmarking/content.md"
+      ],
+      "references": [
+        {
+          "path": "web/src/content/fundamentals/gpu-profiling-correctness-benchmarking/content.md",
+          "headings": [
+            "Host and device asynchrony: time GPU streams separately from host launches",
+            "Gate 3: Synchronized timing and benchmark state control"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "grouped-gemm-scale-grid",
+      "representation": "simulation",
+      "title": "Grouped GEMM padding and scale",
+      "meaning": "Uneven expert token groups pack into an aligned M axis whose padding trades useful work for scheduling efficiency.",
+      "family": "GPU execution",
+      "aliases": [
+        "DeepGEMM grouped MoE GEMM"
+      ],
+      "brief": "Route tokens into four expert groups with 64, 192, 32 and 128 valid rows. Pack each segment to a declared M alignment, show the concatenated launch grid, highlight useful versus padded rows, and unpack outputs back to original token order. Compare one persistent grouped launch with separate per-expert launches while measuring total time and useful-token throughput.",
+      "pitfalls": [
+        "M counts token-expert assignments, not unique source tokens.",
+        "Padding can raise traffic and arithmetic work; a single launch can still win if it amortizes launch cost.",
+        "Configured and theoretical alignment helpers may differ on a pinned hardware/library snapshot."
+      ],
+      "sourcePaths": [
+        "web/src/content/projects/deep-dive-deepgemm/content.md"
+      ],
+      "references": [
+        {
+          "path": "web/src/content/projects/deep-dive-deepgemm/content.md",
+          "headings": [
+            "Worked routing example"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "jax-transform-pytree",
+      "representation": "simulation",
+      "title": "JAX function transformations",
+      "meaning": "JAX wraps a pure function with gradient, batching and compilation transformations over pytree state.",
+      "family": "Model training",
+      "aliases": [],
+      "brief": "Start with a pure scalar loss over structured parameter leaves. Derive gradients, batch the function with vmap, and compile a shape-specific call with jit, making each transformation visible as a callable wrapper.",
+      "pitfalls": [
+        "Transformations derive callable functions; they are not sequential runtime lifecycle stages.",
+        "JIT specialization depends on compatible shapes and static control flow."
+      ],
+      "sourcePaths": [
+        "web/src/content/training/jax-for-ml-research/content.md"
+      ],
+      "references": [
+        {
+          "path": "web/src/content/training/jax-for-ml-research/content.md",
+          "headings": [
+            "Transform one small function at a time",
+            "Transformation order changes the derived program",
+            "Pytrees carry structured state",
+            "JIT compiles a shape-specific contract"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "jev-kev-decision-tree",
+      "representation": "diagram",
+      "title": "Option-scoring decision readout",
+      "meaning": "A decision readout scores the options that were actually offered and can preserve an abstain route.",
+      "family": "Model training",
+      "aliases": [],
+      "brief": "Encode state, question and offered options, then compare each option marker with a decision marker and normalize scores over that option set. Keep a contract-approved abstain branch and separate the public interface from undisclosed implementation details.",
+      "pitfalls": [
+        "Kev’s public implementation does not establish Jev’s undisclosed architecture or training recipe.",
+        "Scores over offered options are not probabilities over every possible action."
+      ],
+      "sourcePaths": [
+        "web/src/content/training/decision-models-jev-kev/content.md"
+      ],
+      "references": [
+        {
+          "path": "web/src/content/training/decision-models-jev-kev/content.md",
+          "headings": [
+            "Three inspectable routes, one undisclosed model"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "kernel-candidate-gates",
+      "representation": "simulation",
+      "title": "Kernel candidate promotion gates",
+      "meaning": "A candidate earns a performance claim only after correctness, safety, comparable timing and traffic checks.",
+      "family": "GPU execution",
+      "aliases": [],
+      "brief": "Move a candidate through the reference oracle, compilation, numerical and shape checks, sanitizer coverage, comparable timing and traffic sanity. Stop at the first failed gate and keep its evidence receipt.",
+      "pitfalls": [
+        "Passing finite tests and sanitizer paths does not prove correctness over every input.",
+        "Performance claims require comparable timing scope and declared cache state."
+      ],
+      "sourcePaths": [
+        "web/src/content/fundamentals/ai-generated-kernel-engineering/content.md"
+      ],
+      "references": [
+        {
+          "path": "web/src/content/fundamentals/ai-generated-kernel-engineering/content.md",
+          "headings": [
+            "Six gates before a performance claim"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "kernel-fusion-traffic",
+      "representation": "simulation",
+      "title": "Fused kernel traffic",
+      "meaning": "Fusion keeps intermediate values local so adjacent operations avoid writing and rereading temporary tensors.",
+      "family": "GPU execution",
+      "aliases": [],
+      "brief": "Compare separate kernels that materialize and reread intermediate vectors with one fused kernel that holds intermediates in registers or a local tile. Show fewer global-memory trips beside the longer live range and occupancy cost.",
+      "pitfalls": [
+        "Fusion can increase live ranges and register or local-memory pressure.",
+        "Fewer launches do not guarantee lower latency when spills add memory traffic."
+      ],
+      "sourcePaths": [],
+      "references": []
+    },
+    {
+      "id": "kernel-plan-contract",
+      "representation": "simulation",
+      "title": "Inspector-executor plan contract",
+      "meaning": "A metadata plan assigns irregular requests to GPU tiles and workspace that a stable attention run consumes.",
+      "family": "GPU execution",
+      "aliases": [
+        "FlashInfer plan and run"
+      ],
+      "brief": "Show three requests with different query lengths and scattered KV pages. A CPU-side inspector reads offsets and page metadata once, assigns tiles, sizes scratch workspace and decides whether to split KV work. The executor consumes the plan plus query/cache tensors, emits partial states when needed, then merges them. Animate compatibility checks for lengths, masks, pointer layout and workspace lifetime; distinguish a reusable plan from stale decode metadata.",
+      "pitfalls": [
+        "A plan is reusable only across compatible batch specifications; decode lengths can change between steps.",
+        "Stable buffer addresses do not make stale metadata contents correct.",
+        "The pinned prefill plan performs host-side work and copies, so verify graph-capture constraints for the selected wrapper."
+      ],
+      "sourcePaths": [
+        "web/src/content/projects/deep-dive-flashinfer/content.md"
+      ],
+      "references": [
+        {
+          "path": "web/src/content/projects/deep-dive-flashinfer/content.md",
+          "headings": [
+            "Plan then run: inspector-executor for GPU kernels"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "llm-api-request",
+      "representation": "diagram",
+      "title": "Server-side LLM API request",
+      "meaning": "An authenticated server turns a user task into a bounded provider request and records the result.",
+      "family": "Systems & serving",
+      "aliases": [],
+      "brief": "Route a browser task through backend authentication, tenant authorization, trusted database facts, redaction and a typed provider request. Return a traceable result and show a retry reusing its idempotency key.",
+      "pitfalls": [
+        "Provider credentials stay on the server and outside client bundles.",
+        "A timeout leaves the remote outcome uncertain; use idempotency and reconcile before repeating side effects."
+      ],
+      "sourcePaths": [
+        "web/src/content/preparation/calling-llm-apis-production/content.md"
+      ],
+      "references": [
+        {
+          "path": "web/src/content/preparation/calling-llm-apis-production/content.md",
+          "headings": [
+            "Keep credentials on the server",
+            "A task contract for the model",
+            "Timeouts, rate limits, and resilience",
+            "Idempotency and side-effect isolation"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "llm-lifecycle-map",
+      "representation": "diagram",
+      "title": "LLM lifecycle stages",
+      "meaning": "A model moves from pre-training through post-training, evaluation, compression and deployment.",
+      "family": "Model training",
+      "aliases": [],
+      "brief": "Move a base checkpoint through post-training, versioned evaluation, optional compression and deployment. Keep evaluation as a release decision and feed failed evidence back to the candidate under review.",
+      "pitfalls": [
+        "Evaluation can test an unchanged checkpoint and still change the release decision.",
+        "Compression may alter representation or retrain weights; evaluate the compressed candidate again."
+      ],
+      "sourcePaths": [
+        "web/src/content/preparation/llm-lifecycle-training-to-deployment/content.md"
+      ],
+      "references": [
+        {
+          "path": "web/src/content/preparation/llm-lifecycle-training-to-deployment/content.md",
+          "headings": [
+            "Five lifecycle stages, one key decision"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "ml-release-tuple",
+      "representation": "diagram",
+      "title": "ML release tuple",
+      "meaning": "A release binds data, features, model, policy, monitor and rollback artifact before promotion.",
+      "family": "Evaluation & evidence",
+      "aliases": [],
+      "brief": "Bind snapshot, preprocessing, model, action policy and monitor into one release record. Advance a candidate through registration and canary evidence; promote only after gates pass and retain the previous tuple for rollback.",
+      "pitfalls": [
+        "A model file alone cannot reproduce a decision when preprocessing and policy also changed.",
+        "Registering a candidate is distinct from promoting it to production."
+      ],
+      "sourcePaths": [
+        "web/src/content/foundations/capstone-production-ml-pipeline/content.md"
+      ],
+      "references": [
+        {
+          "path": "web/src/content/foundations/capstone-production-ml-pipeline/content.md",
+          "headings": [
+            "Define the shared release tuple"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "mps-unified-memory",
+      "representation": "diagram",
+      "title": "Unified-memory allocation",
+      "meaning": "CPU and GPU share physical system memory while a device change can still create a distinct buffer.",
+      "family": "GPU execution",
+      "aliases": [],
+      "brief": "Compare discrete host RAM and device VRAM with Apple CPU and GPU sharing one physical pool. Show a separate MPS buffer allocation inside that pool, then add weights, cache and activations to the memory ledger.",
+      "pitfalls": [
+        "Shared physical memory does not mean every tensor has identical device placement or allocation lifetime.",
+        "A Mac can run out of memory after model weights fit because runtime state and other apps also consume the pool."
+      ],
+      "sourcePaths": [
+        "web/src/content/foundations/mps-metal-mac-ml-training/content.md"
+      ],
+      "references": [
+        {
+          "path": "web/src/content/foundations/mps-metal-mac-ml-training/content.md",
+          "headings": [
+            "One memory pool, two PyTorch devices"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "production-agent-workflow",
+      "representation": "simulation",
+      "title": "Bounded production agent loop",
+      "meaning": "Trusted admission, verified evidence and a bounded action precede a separately authorized write.",
+      "family": "Systems & serving",
+      "aliases": [],
+      "brief": "Admit a trusted request, retrieve and verify evidence, check account state, draft a response and log the proposed action. Put a separate authorization checkpoint before a state-changing write.",
+      "pitfalls": [
+        "A deep copy protects trusted runtime evidence from planner mutation but is not a process sandbox.",
+        "Context and model output do not grant authority."
+      ],
+      "sourcePaths": [
+        "web/src/content/foundations/capstone-production-llm-agent/content.md"
+      ],
+      "references": [
+        {
+          "path": "web/src/content/foundations/capstone-production-llm-agent/content.md",
+          "headings": [
+            "Execute approved writes separately"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "python-dataflow",
+      "representation": "simulation",
+      "title": "Python row to batch",
+      "meaning": "A keyed record becomes a batch of rows whose labels feed an explicit comparison.",
+      "family": "Developer workflow",
+      "aliases": [],
+      "brief": "Begin with one JSON record, map its keys to named Python values, normalize expected and predicted strings, and produce one Boolean. Expand the same transformation to a list only after the row contract is clear.",
+      "pitfalls": [
+        "A dictionary lookup gives a field value; it does not validate the input schema by itself.",
+        "Keep a numeric score separate from its formatted display."
+      ],
+      "sourcePaths": [
+        "web/src/content/foundations/python-for-ai-engineering/content.md"
+      ],
+      "references": [
+        {
+          "path": "web/src/content/foundations/python-for-ai-engineering/content.md",
+          "headings": [
+            "One row is ordinary Python data",
+            "A list turns one row into a batch",
+            "Trace request 102 through the boundaries"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "research-seed-pairs",
+      "representation": "simulation",
+      "title": "Paired-seed experiment",
+      "meaning": "Each random seed runs both arms, so the comparison uses matched within-seed differences.",
+      "family": "Evaluation & evidence",
+      "aliases": [],
+      "brief": "Run baseline and candidate under the same indexed seed, connect each pair, calculate per-seed differences and summarize uncertainty across those differences. Separate pilot seeds from confirmatory seeds.",
+      "pitfalls": [
+        "Shared random draws do not guarantee positive covariance or lower variance.",
+        "Independent resampling of the two arms discards the pairing."
+      ],
+      "sourcePaths": [
+        "web/src/content/foundations/capstone-reproducible-research-study/content.md"
+      ],
+      "references": [
+        {
+          "path": "web/src/content/foundations/capstone-reproducible-research-study/content.md",
+          "headings": [
+            "The paired seed trial protocol"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "runtime-buffer-lifetime",
+      "representation": "simulation",
+      "title": "Runtime buffer lifetime",
+      "meaning": "A copy-stream event orders a consumer stream, and the buffer remains alive through consumption and completion.",
+      "family": "GPU execution",
+      "aliases": [],
+      "brief": "Queue a copy on a producer stream, record a ready event and enqueue a consumer wait on another stream. Keep the allocation live through the consumer and release it only after dependent work completes.",
+      "pitfalls": [
+        "A stream wait orders device work without blocking the host.",
+        "A wait on an unrecorded event represents empty prior work; record before waiting."
+      ],
+      "sourcePaths": [
+        "web/src/content/fundamentals/gpu-runtime-execution-lab/content.md"
+      ],
+      "references": [
+        {
+          "path": "web/src/content/fundamentals/gpu-runtime-execution-lab/content.md",
+          "headings": [
+            "Cross-stream coordination via events"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "sql-relational-links",
+      "representation": "simulation",
+      "title": "Relational row join",
+      "meaning": "Foreign keys connect rows across tables so a join can recover each chunk’s source.",
+      "family": "Data & retrieval",
+      "aliases": [],
+      "brief": "Connect a chunk row to its document through a foreign-key value and a join. Animate constraints rejecting a dangling source ID, then reopen the file-backed database to show committed relationships persist.",
+      "pitfalls": [
+        "A join recovers relationships expressed by keys; it does not infer semantic relevance.",
+        "SQLite foreign-key enforcement must be enabled on the connection."
+      ],
+      "sourcePaths": [
+        "web/src/content/foundations/sql-databases-data-modeling-ai/content.md"
+      ],
+      "references": [
+        {
+          "path": "web/src/content/foundations/sql-databases-data-modeling-ai/content.md",
+          "headings": [
+            "Join a chunk to its source"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "prediction-application",
+      "representation": "diagram",
+      "title": "From text to a useful prediction",
+      "meaning": "An application collects input, calls a learned model, presents the prediction, and saves useful results.",
+      "family": "Systems & serving",
+      "aliases": [],
+      "brief": "Follow one support message from a browser through an HTTP endpoint into a text classifier. Show the returned probability vector, the threshold that selects automatic handling or review, and the saved result. Keep model prediction separate from the routing decision.",
+      "pitfalls": [
+        "A high model score needs measured calibration before it can be read as an observed success rate.",
+        "Application tests and labeled model evaluation answer different questions."
+      ],
+      "sourcePaths": [
+        "web/src/content/preparation/first-ai-app-end-to-end/content.md"
+      ],
+      "references": [
+        {
+          "path": "web/src/content/preparation/first-ai-app-end-to-end/content.md",
+          "headings": [
+            "Turn that prediction into an API"
+          ]
+        }
+      ]
+    }
+  ]
+}

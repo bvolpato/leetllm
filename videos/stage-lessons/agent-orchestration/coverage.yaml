@@ -1,0 +1,126 @@
+version: 1
+lesson: agent-orchestration
+promise: Use the target revision to decide which release evidence Vega must refresh, when a proposal can go to review, and which writer may act.
+framing: []
+objectives:
+  - id: orchestration-contract
+    can: Choose which reads can overlap, validate one receipt per branch, and distinguish review of a current packet from a replayed write.
+    scenes:
+      - subject-intro
+      - dependency-graph
+      - parallel-clock
+      - typed-receipts
+      - superstep-join
+      - validated-join
+      - checkpoint-retry
+      - single-writer
+      - topology-ownership
+      - wire-protocols
+      - transfer
+  - id: stable-evidence
+    can: Distinguish a new source observation from a change in receipt or JSON field order when comparing proposal digests.
+    scenes:
+      - typed-receipts
+      - validated-join
+      - transfer
+  - id: conversation-owner
+    can: Choose between a tool call and a handoff, and select the agent that starts the next run.
+    scenes:
+      - topology-ownership
+sections:
+  - heading: Decide whether multiple agents earn their cost
+    status: taught
+    scenes:
+      - subject-intro
+  - heading: Keep one release workflow stable
+    status: taught
+    scenes:
+      - dependency-graph
+      - parallel-clock
+  - heading: Make state the contract between workers
+    status: taught
+    scenes:
+      - typed-receipts
+      - superstep-join
+      - validated-join
+  - heading: Persist, retry, and resume by semantics
+    status: taught
+    scenes:
+      - checkpoint-retry
+  - heading: Choose topology from ownership
+    status: taught
+    scenes:
+      - topology-ownership
+  - heading: Separate workflow frameworks from wire protocols
+    status: taught
+    scenes:
+      - wire-protocols
+  - heading: Diagnose failures from state and ownership
+    status: taught
+    scenes:
+      - superstep-join
+  - heading: Practice the release trace
+    status: taught
+    scenes:
+      - transfer
+  - heading: Follow each failure to its owner
+    status: taught
+    scenes:
+      - transfer
+quiz:
+  - n: 1
+    status: taught
+    scenes:
+      - subject-intro
+  - n: 2
+    status: taught
+    scenes:
+      - dependency-graph
+  - n: 3
+    status: taught
+    scenes:
+      - validated-join
+  - n: 4
+    status: taught
+    scenes:
+      - superstep-join
+  - n: 5
+    status: taught
+    scenes:
+      - validated-join
+  - n: 6
+    status: taught
+    scenes:
+      - single-writer
+  - n: 7
+    status: taught
+    scenes:
+      - checkpoint-retry
+  - n: 8
+    status: taught
+    scenes:
+      - topology-ownership
+  - n: 9
+    status: taught
+    scenes:
+      - wire-protocols
+  - n: 10
+    status: taught
+    scenes:
+      - typed-receipts
+      - validated-join
+      - topology-ownership
+removed: []
+reviews:
+  closed_book:
+    script: 7a091d91cc901913
+    taught: 10
+    partial: 0
+    absent: 0
+    reviewer: independent closed-book review
+    evidence: videos/reviews/script-renewal/agent-orchestration.json
+  fact_check:
+    script: 7a091d91cc901913
+    open_findings: 0
+    reviewer: independent factual review
+    evidence: videos/reviews/script-renewal/agent-orchestration.json

@@ -1,0 +1,599 @@
+[
+  {
+    "id": "c01",
+    "title": "The weights are only one part of training memory",
+    "sourceChapters": [
+      "c01"
+    ],
+    "beats": [
+      {
+        "id": "c01-b01",
+        "say": "The weights take three gigabytes on this sixteen-gigabyte GPU. That's one and a half billion parameters at two bytes each. The gradients come next. As you follow the first Adam update, which array will run out of room?",
+        "hold": 2.6
+      },
+      {
+        "id": "c01-b02",
+        "say": "Backward produces three gigabytes of gradients. The weights and gradients now occupy six gigabytes. This mixed-precision Adam recipe also keeps a master copy with four bytes per weight. How much room will that leave?",
+        "hold": 2.6
+      },
+      {
+        "id": "c01-b03",
+        "say": "Place the master copy. That brings us to twelve gigabytes, with four left. Here comes the first moment, Adam's running average of the gradients. It needs six gigabytes. Will it fit?",
+        "hold": 2.8
+      },
+      {
+        "id": "c01-b04",
+        "say": "Try the first moment. The request is two gigabytes too wide. All six stay outside. The GPU still holds twelve gigabytes. Adam also needs a second moment to track squared gradients. With both moments, all five arrays would take twenty-four gigabytes before activations, communication buffers or workspace.",
+        "hold": 1.15
+      },
+      {
+        "id": "c01-b05",
+        "say": "DeepSpeed coordinates a training engine. Its Zero Redundancy Optimizer, or ZeRO, lets data-parallel workers share the responsibility for keeping these arrays. Follow one slice through an update, a parameter gather and a restart.",
+        "hold": 1.15
+      }
+    ]
+  },
+  {
+    "id": "c02",
+    "title": "Shard the arrays according to their owners",
+    "sourceChapters": [
+      "c02"
+    ],
+    "beats": [
+      {
+        "id": "c02-b01",
+        "say": "A rank is one worker in a distributed job. These four data ranks train on different examples. Start with a full replica on each rank. Follow slice B on rank one. A copy of B sits in all four replicas, in each row of the ledger. Which copies will disappear first?",
+        "hold": 2.6
+      },
+      {
+        "id": "c02-b02",
+        "say": "Stage one partitions the optimizer arrays. Rank one keeps B's master weight and moments. The other three ranks free those copies. Put rank one's share in the same GPU. Its weights and gradients still take six gigabytes. Each of the three optimizer arrays now takes one and a half. All five fit in ten and a half gigabytes per rank, before activations and temporary buffers.",
+        "hold": 1.15
+      },
+      {
+        "id": "c02-b03",
+        "say": "Stage two also partitions the reduced gradients. Stage three partitions the compute weights as well. Look down the rank-one column. B still has an owner for every array. To run a conventional layer, stage three must gather a full parameter view. Compare its live peak and communication with a stage that already fits.",
+        "hold": 1.15
+      }
+    ]
+  },
+  {
+    "id": "c03",
+    "title": "Give every state array its own element width",
+    "sourceChapters": [
+      "c03"
+    ],
+    "beats": [
+      {
+        "id": "c03-b01",
+        "say": "Here are the five arrays again, all replicated. Each of the first two uses two bytes per parameter. Each of the last three uses four. At one and a half billion parameters the total is twenty-four decimal gigabytes. Adam's second moment tracks squared gradients.",
+        "hold": 1.15
+      },
+      {
+        "id": "c03-b02",
+        "say": "Keep the compute weights at two bytes. Use four bytes for gradient accumulation. The gradient now occupies six gigabytes. The total is twenty-seven. Check the actual buffer dtypes and whether the optimizer keeps a master copy before you use the sixteen-byte recipe.",
+        "hold": 1.15
+      },
+      {
+        "id": "c03-b03",
+        "say": "Use the model partition served by this data group. Call its parameter count P. Use lowercase p for weight bytes per parameter, g for gradient bytes, and o for all optimizer bytes including the master. With four data ranks, stage two keeps all weights and one quarter of the other arrays. Stage three quarters all three terms. Both estimates exclude gathered buffers, padding, activations and workspace.",
+        "hold": 1.15
+      }
+    ]
+  },
+  {
+    "id": "c04",
+    "title": "Reduce the gradient before applying Adam",
+    "sourceChapters": [
+      "c04"
+    ],
+    "beats": [
+      {
+        "id": "c04-b01",
+        "say": "Two equally weighted ranks send gradients of one and three for the same weight. Follow those values to its owner. The reduced mean is two. Adam has to square a gradient for its second moment. Where should the square go?",
+        "hold": 2.6
+      },
+      {
+        "id": "c04-b02",
+        "say": "Square the mean and you get four. Square first on each rank and the two squares average to five. Starting at zero, with beta two of point nine nine nine, those histories become four thousandths and five thousandths. The owner needs the reduced gradient before it writes either moment.",
+        "hold": 1.15
+      },
+      {
+        "id": "c04-b03",
+        "say": "Try minus three and plus three with the same equal weights and fresh zero moments. They cancel. Squaring first would leave a history even for this zero gradient. Return to the first pair. With bias correction, a learning rate of one hundredth and epsilon of ten to the minus eight, the first update takes the weight from one to about point nine nine.",
+        "hold": 1.15
+      }
+    ]
+  },
+  {
+    "id": "c05",
+    "title": "Preserve the intended token objective before sharding",
+    "sourceChapters": [
+      "c05"
+    ],
+    "beats": [
+      {
+        "id": "c05-b01",
+        "say": "Imagine that every valid token on rank zero contributes a gradient of one. Each valid token on rank one contributes three. There are two tokens here and six there. Average the two rank means and you get two. If every valid token counts equally, what is the gradient across all eight?",
+        "hold": 2.6
+      },
+      {
+        "id": "c05-b02",
+        "say": "Count the valid tokens. Two ones and six threes sum to twenty. Divide by eight and the gradient is two and a half. Use the valid-token loss sums and counts and compensate for the engine's distributed scaling. A padding position contributes neither a loss nor a count.",
+        "hold": 1.15
+      },
+      {
+        "id": "c05-b03",
+        "say": "Only then apply Adam's second-moment rule. Multiply the old moment by beta two, and add one minus beta two times the square of the reduced gradient. The article's equal-weight CPU reference checks eleven parameters over four owners and five updates. With unequal tokens, compare a small loss and update using the same masks, examples and accumulation schedule.",
+        "hold": 1.15
+      }
+    ]
+  },
+  {
+    "id": "c06",
+    "title": "Microsteps and optimizer updates have different clocks",
+    "sourceChapters": [
+      "c06"
+    ],
+    "beats": [
+      {
+        "id": "c06-b01",
+        "say": "Follow a managed accumulation window. The microbatch holds two examples per data rank. Each backward call contributes a gradient. Call engine step after every backward call. Watch the microsteps advance while Adam waits.",
+        "hold": 1.15
+      },
+      {
+        "id": "c06-b02",
+        "say": "Seven calls are complete. What will the eighth call change? Four data ranks have processed different examples. Tensor-parallel workers share the same examples within their group. Only independent data replicas multiply the batch.",
+        "hold": 2.6
+      },
+      {
+        "id": "c06-b03",
+        "say": "The eighth call closes the window. Adam advances once. Two examples times eight microsteps times four data ranks gives sixty-four examples per update. The default engine already applies its configured accumulation scaling. Dividing the loss by eight again would shrink the gradient a second time.",
+        "hold": 1.15
+      }
+    ]
+  },
+  {
+    "id": "c07",
+    "title": "Use the microstep contract of the installed engine",
+    "sourceChapters": [
+      "c07"
+    ],
+    "beats": [
+      {
+        "id": "c07-b01",
+        "say": "Keep all eight backward calls. Suppose the loop calls step only once, at the end. Under managed accumulation the engine has advanced one microstep. It needs eight step calls to close this window. Count the actual calls when diagnosing a missing update.",
+        "hold": 1.15
+      },
+      {
+        "id": "c07-b02",
+        "say": "Now run that very same loop in supported unmanaged mode. The caller chooses the boundary. One step call makes one optimizer update. If the actual and configured counts differ, disable accumulation-count scaling and supply the intended loss weights. Weight unequal token counts by the chosen objective.",
+        "hold": 1.15
+      },
+      {
+        "id": "c07-b03",
+        "say": "Can this unmanaged loop use optimizer offload? The August source pinned for the lesson rejects unmanaged accumulation with optimizer or parameter offload. The training guide inspected in November documents support. Check the installed engine and wrapper before combining them.",
+        "hold": 2.6
+      },
+      {
+        "id": "c07-b04",
+        "say": "Save the exact commit, the resolved configuration and the loop with the result. They identify which of those two contracts the test actually exercised.",
+        "hold": 1.15
+      }
+    ]
+  },
+  {
+    "id": "c08",
+    "title": "Convert element counts after choosing the process groups",
+    "sourceChapters": [
+      "c08"
+    ],
+    "beats": [
+      {
+        "id": "c08-b01",
+        "say": "A bucket size of two hundred million counts elements. At two bytes per element it needs four hundred decimal megabytes. Keep the element count fixed. Four-byte elements occupy eight hundred megabytes. Inspect the buffer dtype before comparing it with available memory.",
+        "hold": 1.15
+      },
+      {
+        "id": "c08-b02",
+        "say": "Arrange twelve GPUs in tensor groups of three. Workers in a group cooperate on the same examples. There are four independent data replicas. With two examples per microbatch and eight microsteps, the global batch is sixty-four. There is no other parallel axis in this example.",
+        "hold": 1.15
+      },
+      {
+        "id": "c08-b03",
+        "say": "Regroup the same twelve GPUs into groups of four. The data degree falls to three and the batch to forty-eight. The engine can infer one missing value from compatible batch size, microbatch size, accumulation count and data degree. Read back the resolved values whenever topology or accumulation changes. Check the objective, communication frequency and working set again.",
+        "hold": 1.15
+      }
+    ]
+  },
+  {
+    "id": "c09",
+    "title": "Shards and gathered buffers can coexist",
+    "sourceChapters": [
+      "c09"
+    ],
+    "beats": [
+      {
+        "id": "c09-b01",
+        "say": "Four tensors each contain eight elements. On four ranks each tensor leaves two elements here. Count the pairs. Rank zero starts with eight resident elements. A conventional layer needs its full weight tensor. Where will that view live?",
+        "hold": 2.6
+      },
+      {
+        "id": "c09-b02",
+        "say": "Reserve a separate eight-slot buffer for layer A. Even while its values are arriving, all eight slots belong to the allocation. The two local A values remain in their original shard and are copied into the destination. The other six slots come from peers. That makes sixteen live parameter slots.",
+        "hold": 1.15
+      },
+      {
+        "id": "c09-b03",
+        "say": "Reserve layer B for prefetch while A is still in use. There are now twenty-four slots in use. Overlap can hide a future gather if the schedule allows it. After A's last use, release its full view. The local A shard stays. Include activations, optimizer arrays and workspace when you test the peak.",
+        "hold": 1.15
+      }
+    ]
+  },
+  {
+    "id": "c10",
+    "title": "Count the full allocation that coexists with its shard",
+    "sourceChapters": [
+      "c10"
+    ],
+    "beats": [
+      {
+        "id": "c10-b01",
+        "say": "Now gather a tensor of five elements across four ranks. Split it into equal whole-element chunks. Round five divided by four up to two. Follow rank zero's pair. How many new slots must rank zero allocate before the other ranks send anything?",
+        "hold": 2.6
+      },
+      {
+        "id": "c10-b02",
+        "say": "Reserve eight slots. Two slots per rank, four ranks. Keep the local pair where it is. Six slots come from peers, including three padding positions. Only the first five entries of the completed view are model values. Count the two allocations together. This tensor alone now occupies ten slots on rank zero.",
+        "hold": 1.15
+      },
+      {
+        "id": "c10-b03",
+        "say": "Add a second tensor of length seven. Its local shard takes two slots too. With the first gather still live, the count is twelve. Prefetch that second tensor and the count becomes twenty. Only verified storage aliasing could remove an allocation from this sum. ZeRO initialization can shard weights during construction. If the largest live layer still exceeds capacity, consider tiling or model parallelism.",
+        "hold": 1.15
+      }
+    ]
+  },
+  {
+    "id": "c11",
+    "title": "Coordinate external access and dynamic selection separately",
+    "sourceChapters": [
+      "c11"
+    ],
+    "beats": [
+      {
+        "id": "c11-b01",
+        "say": "A classifier wants to reuse the embedding's weight after the embedding releases its gathered view. This is an existing trainable parameter. DeepSpeed can discover common external uses. Otherwise register the consuming module's external parameter or gather it explicitly around that read. Watch the same weight become available to the classifier.",
+        "hold": 1.15
+      },
+      {
+        "id": "c11-b02",
+        "say": "Now rank zero picks expert A while rank one picks B. Their gathers disagree. Set a supported ZeRO leaf boundary on the enclosing router before engine initialization. Both ranks gather the same descendants before entering it. They still execute only their chosen expert. Two expert weights may now be live together.",
+        "hold": 1.15
+      },
+      {
+        "id": "c11-b03",
+        "say": "Choose the repair from the first failed use. Coordinate the external reader for a tied weight. Coordinate the enclosing subtree for divergent gathers. Neither repair adds a new weight to the optimizer. Keep the actual use order and earliest rank error when a peer eventually times out.",
+        "hold": 1.15
+      }
+    ]
+  },
+  {
+    "id": "c12",
+    "title": "Count a named collective schedule before predicting time",
+    "sourceChapters": [
+      "c12"
+    ],
+    "beats": [
+      {
+        "id": "c12-b01",
+        "say": "Start a four-rank ring all-gather. Follow rank zero's chunk as the three rounds run. The vector holds twelve elements. Each round moves three elements per sender. After three rounds each rank has sent nine. In general, one all-gather or reduce-scatter sends N minus one over N of a full vector per rank.",
+        "hold": 1.15
+      },
+      {
+        "id": "c12-b02",
+        "say": "Count sends in both schedules, at equal element widths. Replicated data parallelism uses gradient reduce-scatter and all-gather. Two volumes give eighteen elements per rank. A simple stage-three schedule gathers weights for forward and again for backward, then reduce-scatters gradients. Three volumes give twenty-seven. At large N these approach twice and three times the full vector.",
+        "hold": 1.15
+      },
+      {
+        "id": "c12-b03",
+        "say": "In the stage-two example, each owner updates its slice. All-gather the updated slices so every compute replica sees the current weights. Stage one also needs current compute replicas. Storage ownership alone cannot tell you every collective an implementation uses.",
+        "hold": 1.15
+      },
+      {
+        "id": "c12-b04",
+        "say": "Does half again as much volume mean half again as much time? Give each collective two milliseconds and each compute pass four, all in series. The example takes twelve versus fourteen milliseconds. Real dtypes, recomputation, persistence, bucket sizes, collectives and overlap change the timing. On NVIDIA hardware NCCL commonly executes the schedule DeepSpeed chooses.",
+        "hold": 2.6
+      }
+    ]
+  },
+  {
+    "id": "c13",
+    "title": "Keep communication and optimizer clocks distinct",
+    "sourceChapters": [
+      "c13"
+    ],
+    "beats": [
+      {
+        "id": "c13-b01",
+        "say": "Four equally weighted backward calls contribute to one update. With default ZeRO stages two and three, each backward reduces and partitions the gradient. The owner can retain just its slice between calls. Watch the reduction count advance before the optimizer advances. The fourth reduction completes the window. Now Adam takes its one step.",
+        "hold": 1.15
+      },
+      {
+        "id": "c13-b02",
+        "say": "Replay those four calls inside a supported coalesced-gradient-reduction scope. Keep the full local gradient through the fourth call. At scope exit, reduce once and retain the owned slice. At the update boundary, Adam advances once. A DDP-style no-sync context is rejected for these ZeRO stages. Check the engine, precision wrapper and boundary restrictions of the coalesced API.",
+        "hold": 1.15
+      },
+      {
+        "id": "c13-b03",
+        "say": "Compare the same token objective and completed update. The coalesced path exchanges three reduction events for a larger live buffer in this example. Count events and measure both the peak storage and elapsed step time.",
+        "hold": 1.15
+      }
+    ]
+  },
+  {
+    "id": "c14",
+    "title": "Moving state creates a service-time requirement",
+    "sourceChapters": [
+      "c14"
+    ],
+    "beats": [
+      {
+        "id": "c14-b01",
+        "say": "Offload creates room on the GPU by moving state. Follow twelve decimal gigabytes across a link sustaining six gigabytes per second. The transfer needs two seconds of service. The consumer needs all twelve gigabytes.",
+        "hold": 1.15
+      },
+      {
+        "id": "c14-b02",
+        "say": "Give the device three seconds of independent compute. Start compute with the transfer. At the two-second mark the data is ready, and compute still has one second to run. With ideal overlap both finish at three seconds.",
+        "hold": 1.15
+      },
+      {
+        "id": "c14-b03",
+        "say": "Replay exactly the same bytes and compute with one dependency changed. The consumer needs the transferred state before it can start. Compute begins at two seconds. The lower bound is now five. Test actual host and pinned memory, optimizer work, storage queues and tokens per second at fixed effective batch and sequence lengths.",
+        "hold": 1.15
+      }
+    ]
+  },
+  {
+    "id": "c15",
+    "title": "Keep storage location and optimizer computation distinct",
+    "sourceChapters": [
+      "c15"
+    ],
+    "beats": [
+      {
+        "id": "c15-b01",
+        "say": "Where do the Adam instructions run if optimizer state lives on NVMe? Follow a block from storage into host memory. The CPU reads that block and updates the moments. ZeRO-Offload moves optimizer work to the CPU. ZeRO-Infinity can stage state through CPU memory to NVMe. Optimizer offload is documented for stages one through three. Parameter offload belongs to stage three.",
+        "hold": 2.6
+      },
+      {
+        "id": "c15-b02",
+        "say": "Try a slower path. Twenty gigabytes at five gigabytes per second take four seconds to transfer. Independent compute takes six. The ideal overlap bound is six seconds. If that compute waits for all the bytes, the bound becomes ten. Queueing, setup and shared links can lengthen either schedule.",
+        "hold": 1.15
+      },
+      {
+        "id": "c15-b03",
+        "say": "A device field in a configuration supplies only a placement request. Check the local NVMe path, capacity, compatible I/O operators and host staging memory. Measure CPU Adam time, pinned memory and queues alongside throughput at the same batch and sequence lengths.",
+        "hold": 1.15
+      }
+    ]
+  },
+  {
+    "id": "c16",
+    "title": "Trace the failing operation to its engine path",
+    "sourceChapters": [
+      "c16"
+    ],
+    "beats": [
+      {
+        "id": "c16-b01",
+        "say": "Start at initialization. It picks the engine and its groups. Follow a backward or step call into runtime engine bookkeeping. The stage-one-and-two code manages gradient and optimizer ownership. Stage three also coordinates parameter availability. Partition parameters contains the partition, gather and status operations.",
+        "hold": 1.15
+      },
+      {
+        "id": "c16-b02",
+        "say": "Trace weight seven. Its local shard remains while the full view goes from unavailable to in flight to available. After use the full view can be released. For an early optimizer update inspect the engine's accumulation boundary instead. Offload staging has a swap-tensor path and pipelines have their own engine.",
+        "hold": 1.15
+      },
+      {
+        "id": "c16-b03",
+        "say": "Check the path selected for the model. The pinned PipelineEngine rejects ZeRO two and three. The separate AutoTP training guide describes stages zero through three with model-specific partition rules. FSDP uses PyTorch-native interfaces. Megatron supplies model-parallel components and schedules. Test the chosen combination on loss parity and checkpoint recovery.",
+        "hold": 1.15
+      }
+    ]
+  },
+  {
+    "id": "c17",
+    "title": "The next update depends on more than the saved weight",
+    "sourceChapters": [
+      "c17"
+    ],
+    "beats": [
+      {
+        "id": "c17-b01",
+        "say": "Start one weight at one, with empty moments. Apply the five gradients in order. Save the weight, both moments and the step counter. A weights export may already match a reference inference output. Will this weight alone take the same next step?",
+        "hold": 2.6
+      },
+      {
+        "id": "c17-b02",
+        "say": "Give both branches the saved weight, step six and the same next gradient of point four. Keep both saved moments on the left. On the right, reset both moments to zero. Apply Adam. Read the two marks on the magnified weight scale. The two next weights separate by about seven ten-thousandths. The difference measures the effect of losing optimizer history with the input held fixed.",
+        "hold": 1.15
+      },
+      {
+        "id": "c17-b03",
+        "say": "Test the full distributed trajectory in a fresh engine, including scheduler state, required random state and data progress. Every participating rank follows the save contract. Then test the consolidated inference weights on matching inputs. Those two checks answer different questions.",
+        "hold": 1.15
+      }
+    ]
+  },
+  {
+    "id": "c18",
+    "title": "Make every participant agree on the saved trajectory",
+    "sourceChapters": [
+      "c18"
+    ],
+    "beats": [
+      {
+        "id": "c18-b01",
+        "say": "Rank zero calls save with the tag step five. Three ranks still own part of the checkpoint. Whose calls are missing? Every participating process must call save with the same tag. A missing participant can hang the save. Now check the four tags. Which rank used a different tag? Rank three used step four. Give it the same step-five tag as its peers. For ZeRO three, stop and create a fresh model and engine before loading.",
+        "hold": 1.15
+      },
+      {
+        "id": "c18-b02",
+        "say": "Keep the restored weight, moments, scheduler, counters and random state identical. The reference takes sample six. The lower branch repeats sample one. Which saved position would you check first? The intended sample gives a gradient of point four. The repeated sample gives one. Apply the update. Even with both moments present the next weights differ. Save the sampler position in client state so the restored run can read the same next input.",
+        "hold": 1.15
+      },
+      {
+        "id": "c18-b03",
+        "say": "Compare the next input, loss, update and scheduler state with an uninterrupted reference. Separately compare inference outputs on fixed inputs. Our scalar CPU example checks one weight's arithmetic. Distributed checkpoint files, restoration on fresh workers and topology conversion each need their own run.",
+        "hold": 1.15
+      }
+    ]
+  },
+  {
+    "id": "c19",
+    "title": "Choose a supported conversion path for the actual layout",
+    "sourceChapters": [
+      "c19"
+    ],
+    "beats": [
+      {
+        "id": "c19-b01",
+        "say": "Take a dense weight named W with three rows and four columns. Its twelve coordinates can be reconstructed in full precision from supported dense ZeRO shards. Twelve full-precision values at four bytes each occupy forty-eight bytes. Budget host memory for all the final weights. Lazy conversion lets you choose when each tensor materializes. An inference export still omits training progress.",
+        "hold": 1.15
+      },
+      {
+        "id": "c19-b02",
+        "say": "Keep those coordinates in order and repartition the same named tensor for two target ranks. Each takes six consecutive entries. A matching element count alone is insufficient. Names and shapes must agree. The documented universal conversion path distinguishes AutoTP and AutoEP layouts. For partition-native AutoEP use the supported universal tool. The dense FP32 script cannot read that layout.",
+        "hold": 1.15
+      },
+      {
+        "id": "c19-b03",
+        "say": "Keep the source checkpoint, conversion command, target topology and output together. Load the converted result in fresh workers and compare its continuation with the reference. A file written successfully answers only the conversion question. Our CPU arithmetic does not exercise a distributed restore.",
+        "hold": 1.15
+      }
+    ]
+  },
+  {
+    "id": "c20",
+    "title": "Attach a source-level investigation to an exact version",
+    "sourceChapters": [
+      "c20"
+    ],
+    "beats": [
+      {
+        "id": "c20-b01",
+        "say": "The original ZeRO authors worked at Microsoft. The charter in the inspected source identifies a Technical Steering Committee and its relationship with Linux Foundation AI and Data. Use the dated roster for affiliations at that revision. Its code license is Apache two. The charter calls for DCO sign-off and licenses the documentation under Creative Commons Attribution four.",
+        "hold": 1.15
+      },
+      {
+        "id": "c20-b02",
+        "say": "A report arrives from a four-rank job. Rank two recorded a parameter-use exception at one point two seconds. Peers timed out at one point eight. Which operation would you reproduce first?",
+        "hold": 2.6
+      },
+      {
+        "id": "c20-b03",
+        "say": "Start with rank two's parameter use. Record the exact version, resolved configuration, group sizes, smallest module and failing input order. Classify the boundary as initialization, correctness, performance or recovery. A later collective timeout can be the consequence of a rank that never reached the call.",
+        "hold": 1.15
+      }
+    ]
+  },
+  {
+    "id": "c21",
+    "title": "Follow ownership, readiness and update identity together",
+    "sourceChapters": [
+      "c21"
+    ],
+    "beats": [
+      {
+        "id": "c21-b01",
+        "say": "Six of eight microsteps are complete. Follow weight zero through the seventh. Gather the full view, run forward and release it. Gather for backward. At each microstep, rank zero supplies one and rank one supplies three. The ranks carry equal weight. Their mean is two. With the engine’s one-eighth scaling, each microstep adds one quarter to the accumulator. The reduction returns the owned slice to rank zero.",
+        "hold": 1.15
+      },
+      {
+        "id": "c21-b02",
+        "say": "Seven microsteps have contributed one quarter each. The owner has one and three quarters in its accumulator. Keep the weight and moments still until the last microstep closes the window. The final quarter brings the accumulated gradient to two. Then update the owned state. A gather peak points back to simultaneous buffers. A changed loss points to weighting or update count.",
+        "hold": 1.15
+      },
+      {
+        "id": "c21-b03",
+        "say": "If the offload step is slow, measure how long compute waits on the transfer. If the restart diverges, compare the first different input or state. Keep the resolved configuration, state recipe, groups and checkpoint with the trace. Count the peak and check the next update against a reference.",
+        "hold": 1.15
+      }
+    ]
+  },
+  {
+    "id": "c22",
+    "title": "A completed window can still lack a gradient",
+    "sourceChapters": [
+      "c22"
+    ],
+    "beats": [
+      {
+        "id": "c22-b01",
+        "say": "Now move the delay. All eight microbatches have finished. Rank zero owns weight zero. The weight is one and both moments start at zero. One contribution has arrived.",
+        "hold": 1.15
+      },
+      {
+        "id": "c22-b02",
+        "say": "Rank zero supplies one. Rank one has computed three for the same weight, but the owner has not received it. May the owner take its first Adam step?",
+        "hold": 2.6
+      },
+      {
+        "id": "c22-b03",
+        "say": "Hold the update. The window is complete and the second socket is empty. Receive the three. With equal rank weighting, add one and three, then divide by two. The mean is two.",
+        "hold": 1.15
+      },
+      {
+        "id": "c22-b04",
+        "say": "Write the moments from that mean. With beta one of zero point nine and beta two of zero point nine nine nine, the first moment becomes point two and the second becomes point zero zero four. On this first step, divide each stored moment by one minus its beta to correct for starting at zero. That gives two for the first moment and four for the second. Take the square root of four and add epsilon. Divide two by that denominator. The ratio is just under one. Subtract one hundredth times that ratio from the starting weight of one. The new weight is about point nine nine.",
+        "hold": 1.15
+      },
+      {
+        "id": "c22-b05",
+        "say": "Try rank zero's gradient alone. Both corrected moments would be one. Take the square root of one and add epsilon. One divided by that denominator is again just under one. The weight still rounds to point nine nine. Now compare the stored moments. The local step would save one tenth in the first and one thousandth in the second. Both ranks together gave four thousandths in the second moment. The missing contribution shows up in the history even when the rounded weights match.",
+        "hold": 1.15
+      }
+    ]
+  },
+  {
+    "id": "c23",
+    "title": "Predict the next live allocation before admitting it",
+    "sourceChapters": [
+      "c23"
+    ],
+    "beats": [
+      {
+        "id": "c23-b01",
+        "say": "On one of three ranks, keep shards of tensors A, B and C. Their lengths are seven, eleven and five. Round each local shard up to whole elements. Three plus four plus two leaves nine resident. The allowance for parameters is thirty elements. Other training allocations have their own line below.",
+        "hold": 1.15
+      },
+      {
+        "id": "c23-b02",
+        "say": "B is next. Its eleven logical weights need a separate full padded allocation. How many slots must that gather reserve, and how much of the allowance will still be free while B is in use?",
+        "hold": 2.6
+      },
+      {
+        "id": "c23-b03",
+        "say": "B takes twelve slots. Now twenty-one are live. Leave those buffers in place. A prefetch of the seven-element tensor is waiting at the boundary. Round its shard size up, then count all three shares. Will it fit before B releases?",
+        "hold": 2.6
+      },
+      {
+        "id": "c23-b04",
+        "say": "Admit A. Its three slots per rank require nine for the full view, and all thirty are occupied. It fits exactly. You still have to budget for gradients, Adam arrays, activations and workspace below. A parameter-only fit leaves the total job peak to measure.",
+        "hold": 1.15
+      },
+      {
+        "id": "c23-b05",
+        "say": "Replay the same request with a twenty-nine-slot allowance. Keep B in use. Can A overlap it now? Which allocation can you release after B finishes?",
+        "hold": 2.6
+      },
+      {
+        "id": "c23-b06",
+        "say": "The overlap would require thirty. Wait for B's last use and release its full twelve-slot buffer. The nine resident shards stay in place. Admit A on its own. Eighteen slots are now live, and the scheduled peak was twenty-one. You have a release schedule you can test. The next lesson follows Ray as it schedules tasks and actors.",
+        "hold": 1.15
+      }
+    ]
+  }
+]

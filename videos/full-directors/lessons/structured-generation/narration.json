@@ -1,0 +1,772 @@
+[
+  {
+    "id": "c01",
+    "title": "Which reply can Python read?",
+    "sourceChapters": [
+      "c01"
+    ],
+    "beats": [
+      {
+        "id": "c01-b01",
+        "say": "Start at the first character. Which reply can Python read as JSON?",
+        "hold": 2.8
+      },
+      {
+        "id": "c01-b02",
+        "say": "Python stops at the S in “Sure!” In B, follow the cursor from the opening brace to the closing brace. Python can read the word passed. Would you display it on the dashboard?",
+        "hold": 3
+      },
+      {
+        "id": "c01-b03",
+        "say": "Open the runner log. The run failed. B says passed. Send B to review. A grammar for these records can rule out the greeting while the model writes. It allows both status words. We need the log to decide which one describes this run.",
+        "hold": 1.2
+      }
+    ]
+  },
+  {
+    "id": "c02",
+    "title": "What does the parser check?",
+    "sourceChapters": [
+      "c02"
+    ],
+    "beats": [
+      {
+        "id": "c02-b01",
+        "say": "Give the reply a run ID so the dashboard knows which row to update. Remove the preamble. Now Python can read both fields. A prompt asking for JSON still leaves the model free to add that greeting.",
+        "hold": 0.75
+      },
+      {
+        "id": "c02-b02",
+        "say": "Suppose JSON mode gives you this object instead. Python reads it. Look for the run ID and the status. Both keys are missing. A supported strict schema can require those keys and their types while the model writes.",
+        "hold": 0.8
+      },
+      {
+        "id": "c02-b03",
+        "say": "For a dashboard, ask for a record. To find out what happened, the model can instead ask for a tool by name and supply the run ID. If the caller can read this run, the host can perform the lookup and return the snapshot to the model.",
+        "hold": 0.8
+      }
+    ]
+  },
+  {
+    "id": "c03",
+    "title": "Two ways to finish the same prefix",
+    "sourceChapters": [
+      "c03"
+    ],
+    "beats": [
+      {
+        "id": "c03-b01",
+        "say": "For the decoding experiment, keep just the status field. These are the only two complete strings we'll allow. This tiny grammar allows no spaces.",
+        "hold": 0.6
+      },
+      {
+        "id": "c03-b02",
+        "say": "Watch the opening brace, the key and the opening quote of the value go into the buffer. Both records begin with all of those characters. The text already in the buffer is called the prefix.",
+        "hold": 0.75
+      },
+      {
+        "id": "c03-b03",
+        "say": "Now append the letters F A. Compare the two spellings. Only the failed record starts with everything in the buffer. To test a candidate token, extend the prefix on a trial copy. Keep it eligible if some allowed record still starts that way.",
+        "hold": 1.2
+      }
+    ]
+  },
+  {
+    "id": "c04",
+    "title": "The first draw",
+    "sourceChapters": [
+      "c04"
+    ],
+    "beats": [
+      {
+        "id": "c04-b01",
+        "say": "Go back to the empty buffer. Here are four possible first tokens and four scores we chose for the example. These scores are called logits. At temperature one, softmax gives the word “The” the largest share of the draw. Only one of these four tokens starts either record.",
+        "hold": 1.5
+      },
+      {
+        "id": "c04-b02",
+        "say": "Keep the brace's score. Set the other three to negative infinity. Softmax exponentiates each score. Those three now have zero weight. Divide by the surviving weight and the brace gets the entire draw.",
+        "hold": 1
+      },
+      {
+        "id": "c04-b03",
+        "say": "This filter on the next draw is the grammar mask. A larger vocabulary might also contain a token for the brace and the whole key together. The same prefix test decides whether that token gets a chance.",
+        "hold": 0.8
+      }
+    ]
+  },
+  {
+    "id": "c05",
+    "title": "What share of the next draw goes to fa?",
+    "sourceChapters": [
+      "c05"
+    ],
+    "beats": [
+      {
+        "id": "c05-b01",
+        "say": "Now the value is about to start. The token passed would spell the whole word. The token F A would start the word failed. The third token says chatty. We chose these logits so their exponentials are two, three and five. Each square is one unit of weight, ten units in all.",
+        "hold": 0.75
+      },
+      {
+        "id": "c05-b02",
+        "say": "Which squares go into the new denominator? Chatty can't start either status. Cross out its five squares. The first two rows still have two squares and three squares. What share of the next draw goes to F A?",
+        "hold": 3
+      },
+      {
+        "id": "c05-b03",
+        "say": "Three out of five, or sixty percent. Passed gets the remaining forty percent. The filter changed the denominator from ten to five. It kept the ratio between the two legal weights. In code you can subtract the largest finite logit before exponentiating. That keeps the same ratios and avoids overflow.",
+        "hold": 1.1
+      }
+    ]
+  },
+  {
+    "id": "c06",
+    "title": "A legal choice can still be the wrong choice",
+    "sourceChapters": [
+      "c06"
+    ],
+    "beats": [
+      {
+        "id": "c06-b01",
+        "say": "Those are probabilities for the next token. Here, either surviving token commits the spelling to one branch of our two-record language. In a larger grammar several token paths can spell the same value.",
+        "hold": 0.6
+      },
+      {
+        "id": "c06-b02",
+        "say": "Leave passed at two and double the weight on F A. Watch the boundary move. Now six of the eight units lead toward failed. Passed still gets a quarter of the strip.",
+        "hold": 0.85
+      },
+      {
+        "id": "c06-b03",
+        "say": "The runner reported a failure. A good prompt tells the model what the status field means and where to find the evidence. Both values still fit the grammar, so the host needs the run log when it checks the answer.",
+        "hold": 0.9
+      }
+    ]
+  },
+  {
+    "id": "c07",
+    "title": "Which whole token can the decoder append?",
+    "sourceChapters": [
+      "c07"
+    ],
+    "beats": [
+      {
+        "id": "c07-b01",
+        "say": "The model picks a whole vocabulary token at a time. One token can contain half a word and two punctuation marks. Look at the florist’s sign. Our directory grammar permits open or closed. The accepted reply already ends in C L O.",
+        "hold": 0.55
+      },
+      {
+        "id": "c07-b02",
+        "say": "Try the longer blue piece on a copy. The letters finish closed. The quote ends the string. The brace ends the object. There is still one character left on the piece. Can the sampler use this token?",
+        "hold": 3
+      },
+      {
+        "id": "c07-b03",
+        "say": "The exclamation mark has no legal continuation. Cross out the entire token. The accepted reply still ends in C L O. Try the shorter piece. It ends at the brace. If the sampler selects it, append all five characters together. Now the decoder can choose its end token.",
+        "hold": 0.55
+      },
+      {
+        "id": "c07-b04",
+        "say": "The completed record agrees with the sign. The grammar could also have spelled open at the start of the value. The window supplies the evidence for closed. An engine can precompute many token checks and consult the live parser for the rest. Measure both compilation and per-token costs.",
+        "hold": 1.2
+      }
+    ]
+  },
+  {
+    "id": "c08",
+    "title": "Will this call return a record?",
+    "sourceChapters": [
+      "c08"
+    ],
+    "beats": [
+      {
+        "id": "c08-b01",
+        "say": "Back to the CI status grammar. It allows passed or failed. This decoder returns its buffer only when it samples the end token, labeled E O S. Give it three draws. First it picks the shared prefix. Next it picks F A. On the third draw, one token finishes failed and closes the object. Will this call return the record?",
+        "hold": 3
+      },
+      {
+        "id": "c08-b02",
+        "say": "It raises a budget error. The closing brace used the last draw. The end token is legal now, but the decoder has no draw left to sample it. In other grammars, even legal whitespace or characters inside a string can use up the budget.",
+        "hold": 0.8
+      },
+      {
+        "id": "c08-b03",
+        "say": "Give the same run one more draw. The decoder picks the end token. Now it returns the record. The text in the buffer is identical in both runs. On a real response, read the provider's completion and refusal state before sending the text to your parser.",
+        "hold": 1.15
+      }
+    ]
+  },
+  {
+    "id": "c09",
+    "title": "Follow each unresolved object",
+    "sourceChapters": [
+      "c09"
+    ],
+    "beats": [
+      {
+        "id": "c09-b01",
+        "say": "One fixed set of states was enough for our two status records. You could even allow a flat list with any number of empty objects. Each comma takes you around the same loop again. Now put a child inside a child.",
+        "hold": 0.3
+      },
+      {
+        "id": "c09-b02",
+        "say": "Every opening brace leaves another object to come back to. The parser remembers those unfinished objects on a stack. Its top frame identifies the innermost object still waiting for a closing brace.",
+        "hold": 0.65
+      },
+      {
+        "id": "c09-b03",
+        "say": "Try a tiny grammar. A node can be empty, or it can have one child that is another node. Our prefix opens three objects. Follow A through three closing braces. Each one pops a frame, and the last one closes the root.",
+        "hold": 0.65
+      },
+      {
+        "id": "c09-b04",
+        "say": "Start B from the original three frames. Two braces fit. The square bracket fails on the third character. The trial pops belong to B alone. Rejecting B leaves the original prefix intact. A stack handles unbounded nesting. Checking that two records name the same run still takes an application check.",
+        "hold": 0.65
+      }
+    ]
+  },
+  {
+    "id": "c10",
+    "title": "Where the two token paths split",
+    "sourceChapters": [
+      "c10"
+    ],
+    "beats": [
+      {
+        "id": "c10-b01",
+        "say": "Back at the CI status prefix ending in F A, two candidate tokens share six bytes. Trace those bytes once to the brace. One token ends there. The other takes one more edge to the exclamation mark. A tokenizer trie stores token spellings along paths that can share edges like these.",
+        "hold": 0.3
+      },
+      {
+        "id": "c10-b02",
+        "say": "In our CI vocabulary the shorter suffix has score one. Its longer neighbor has score eight. The longer token is illegal here. An index can take us straight to the eligible token ID. For a finite grammar, Willard and Louf index legal token IDs by state. Building and storing that index costs work, but later lookups reuse it.",
+        "hold": 0.65
+      },
+      {
+        "id": "c10-b03",
+        "say": "XGrammar can precheck tokens whose legality follows from the local rule. For a token that closes a parent, consult this request's stack. Start a second request. It gets its own stack even when both requests use the same compiled grammar.",
+        "hold": 0.65
+      },
+      {
+        "id": "c10-b04",
+        "say": "Another engine, llguidance, combines an Earley parser, a regular-expression lexer and a tokenizer trie. Our example used ASCII, where each character occupies one byte. A tokenizer may split one Unicode character across tokens. Its parser must carry those partial bytes forward.",
+        "hold": 0.65
+      }
+    ]
+  },
+  {
+    "id": "c11",
+    "title": "Separate a shared prefix from a forced continuation",
+    "sourceChapters": [
+      "c11"
+    ],
+    "beats": [
+      {
+        "id": "c11-b01",
+        "say": "These two requests have the same grammar. They also start with some of the same prompt tokens. The model may reuse cached keys and values for that matching prefix. Change the first prompt token in B. The compiled grammar can still be reused, even though those cached model states no longer match.",
+        "hold": 0.65
+      },
+      {
+        "id": "c11-b02",
+        "say": "Sometimes the grammar determines the next stretch of text completely. Take the literal key here. With this illustrative tokenization it takes three sampling steps. The original S G Lang design could append the forced text together, then let the model process it. The model still needs state for those tokens.",
+        "hold": 0.65
+      },
+      {
+        "id": "c11-b03",
+        "say": "Retokenize across the join. Put the forced text inside an outer object. The old prefix ends with a colon. In this illustrative tokenizer the colon and the next opening brace form one token. Use the original tokenizer to find the new boundaries before extending model state. RadixAttention reuses matching prompt tokens. Jump-forward skips sampling steps with a forced continuation. The edition of the article used here lists XGrammar as S G Lang’s default grammar backend.",
+        "hold": 0.65
+      }
+    ]
+  },
+  {
+    "id": "c12",
+    "title": "Wait for both the logits and the mask",
+    "sourceChapters": [
+      "c12"
+    ],
+    "beats": [
+      {
+        "id": "c12-b01",
+        "say": "Time one step from the same accepted prefix. In series, the GPU scores take eight milliseconds. Then the CPU makes the mask in three. Sampling takes one more. The token is ready at twelve.",
+        "hold": 0.65
+      },
+      {
+        "id": "c12-b02",
+        "say": "Replay with both jobs starting together. The mask arrives at three. The scores arrive at eight. Watch the sampler. Only now can it start. It finishes at nine. With ideal overlap, take the longer of the two jobs, then add sampling.",
+        "hold": 0.65
+      },
+      {
+        "id": "c12-b03",
+        "say": "Give the CPU a ten-millisecond mask. The scores arrive at eight. Can the sampler move yet? The mask arrives at ten. Sampling finishes at eleven. Sampling had to wait two milliseconds after the scores were ready. The next mask needs the token just sampled. Measure the wait at your batch sizes, separately from compiling a new schema.",
+        "hold": 0.65
+      }
+    ]
+  },
+  {
+    "id": "c13",
+    "title": "What does the backend enforce?",
+    "sourceChapters": [
+      "c13"
+    ],
+    "beats": [
+      {
+        "id": "c13-b01",
+        "say": "In Outlines version one, the caller gives Generator a Pydantic type and gets raw text back. Parse that text with the local model. Now the dashboard has a typed record and can read its status.",
+        "hold": 0.65
+      },
+      {
+        "id": "c13-b02",
+        "say": "Llama dot C P P converts a subset of JSON Schema to a grammar. Our build duration is a number measured in seconds, with a minimum of zero. Look at the emitted number rule. The question mark makes the minus sign optional. Try minus zero point five seconds. How will the grammar and the local validator handle that duration?",
+        "hold": 3
+      },
+      {
+        "id": "c13-b02-result",
+        "say": "The grammar admits this negative decimal. The converter supports bounds on integer fields and skips the minimum on this number field. The local validator rejects the duration because it falls below zero. Keep the original validator, and describe the field and its units in the prompt.",
+        "hold": 0.85
+      },
+      {
+        "id": "c13-b03",
+        "say": "The article's November twenty twenty-six v L L M example uses the structured outputs field. The older guided fields were removed in version zero point twelve. For a hosted model, compare the schema in the outgoing request with the rules that endpoint supports.",
+        "hold": 0.65
+      }
+    ]
+  },
+  {
+    "id": "c14",
+    "title": "Parse one unambiguous completed record",
+    "sourceChapters": [
+      "c14"
+    ],
+    "beats": [
+      {
+        "id": "c14-b01",
+        "say": "A streaming fragment is provisional. This reply has finished. Read its two run ID fields in order. At the second run ID, reject the duplicate. Python normally keeps the last value when it builds a dictionary. Once that happens the first ID is gone.",
+        "hold": 0.65
+      },
+      {
+        "id": "c14-b02",
+        "say": "Python's JSON parser also accepts nonstandard constants by default. Reject NaN and infinity. There's another route to infinity. A decimal exponent can overflow when converted to a float. Reject a nonfinite conversion too. Then check the expected object and its fields. An empty array parses and still fails that check.",
+        "hold": 0.65
+      },
+      {
+        "id": "c14-b03",
+        "say": "Change the response state to incomplete. The text even has a broken brace, but the host never calls the parser. Keep the incomplete result. Bound the size and nesting of the input when you do accept complete text for parsing.",
+        "hold": 0.65
+      }
+    ]
+  },
+  {
+    "id": "c15",
+    "title": "What goes in the job field?",
+    "sourceChapters": [
+      "c15"
+    ],
+    "beats": [
+      {
+        "id": "c15-b01",
+        "say": "The whole build log says “Build failed.” The schema requires a job field whose value can be a string or null. One reply leaves the field out. The other writes null. Which one passes?",
+        "hold": 3
+      },
+      {
+        "id": "c15-b02",
+        "say": "The first reply fails. The key is missing. The null passes. It fills the required field with an allowed value. Our strict Pydantic model declares the field without a default. In the OpenAI strict schema, the root object requires every listed key and forbids extra ones.",
+        "hold": 0.85
+      },
+      {
+        "id": "c15-b03",
+        "say": "Now try the job name “tests.” A string passes the schema check. Which of the two passing values can you justify from the log?",
+        "hold": 3
+      },
+      {
+        "id": "c15-b04",
+        "say": "The log gives us the failure. It never names a job. Keep the null and show “Job unknown.”",
+        "hold": 1.35
+      }
+    ]
+  },
+  {
+    "id": "c16",
+    "title": "Which rule reaches the backend?",
+    "sourceChapters": [
+      "c16"
+    ],
+    "beats": [
+      {
+        "id": "c16-b01",
+        "say": "Here the reply asks for a retry count of minus one. The local schema requires an integer at least zero. Follow the copy sent to the backend. Move the lower bound into the wire copy’s description. Minus one is still an integer. The remaining wire rule admits it.",
+        "hold": 0.9
+      },
+      {
+        "id": "c16-b02",
+        "say": "Run the original validator on the completed reply. It rejects minus one. The number has the right type and fails the minimum. A model might follow the description, but the description doesn't enforce a numerical bound.",
+        "hold": 1
+      },
+      {
+        "id": "c16-b03",
+        "say": "Now replace the host validator with the wire copy. Both sides accept the same minus one. Keep the original validator when an adapter simplifies a schema. The Claude helpers described in the article can remove unsupported bounds on the wire and check them locally afterward.",
+        "hold": 0.3
+      },
+      {
+        "id": "c16-b04",
+        "say": "Also keep your local checks on enum spelling. Suppose the local contract requires lowercase failed, and the reply says Failed with a capital F. The spelling fails the local enum. The article describes provider exceptions like this one.",
+        "hold": 1.25
+      }
+    ]
+  },
+  {
+    "id": "c17",
+    "title": "Which run does the evidence describe?",
+    "sourceChapters": [
+      "c17"
+    ],
+    "beats": [
+      {
+        "id": "c17-b01",
+        "say": "Bring back the log from the opening. Of the two finished status records, which agrees with the runner? It reported failed. Both records have the required shape, but only one describes this run.",
+        "hold": 1
+      },
+      {
+        "id": "c17-b02",
+        "say": "A citation adds another check. The record names run eight forty-two. At first the cited log is for that very run. Suppose the citation instead resolves to a log from run eight forty-three. It also says failed.",
+        "hold": 0.85
+      },
+      {
+        "id": "c17-b03",
+        "say": "Compare the run IDs. The cited log exists and the status words agree, yet those words describe another run. Ask for evidence tied to eight forty-two before displaying its status.",
+        "hold": 1
+      }
+    ]
+  },
+  {
+    "id": "c18",
+    "title": "What may this caller see?",
+    "sourceChapters": [
+      "c18"
+    ],
+    "beats": [
+      {
+        "id": "c18-b01",
+        "say": "Now the record includes a project, run ID and status. All three fields are strings and the status is allowed. The caller can read project alpha. This first candidate names beta. Deny the request before the lookup, so the caller learns nothing about a beta run.",
+        "hold": 0.85
+      },
+      {
+        "id": "c18-b02",
+        "say": "Try a second candidate for alpha. It claims passed. The host can now read the snapshot for this project and run. CI says failed, so send the claim to review.",
+        "hold": 0.95
+      },
+      {
+        "id": "c18-b03",
+        "say": "Keep the project and run fixed. Change only the claim to failed. It agrees with CI, so show the snapshot. That's a read. A request to change a deployment needs its own evidence and permission.",
+        "hold": 1.05
+      }
+    ]
+  },
+  {
+    "id": "c19",
+    "title": "Check what an exact quote establishes",
+    "sourceChapters": [
+      "c19"
+    ],
+    "beats": [
+      {
+        "id": "c19-b01",
+        "say": "Compare the quoted sentence with the log above it. The words occur there and identify run eight forty-two as a complete ID. The quote passes. Try the sentence demanding immediate rollback. Those words are absent, so the quote check fails.",
+        "hold": 0.65
+      },
+      {
+        "id": "c19-b02",
+        "say": "Bring back the genuine quote. Change the proposed action from retry tests to rollback. Check the quote again. It still passes. The test timed out, but the log tells us nothing about a deployed release we could undo.",
+        "hold": 0.65
+      },
+      {
+        "id": "c19-b03",
+        "say": "A quote before a decision gives the host something it can verify. JSON Schema itself doesn't require that order. Check your backend if the order matters. Then ask whether the quote supports this particular action and whether this caller may take it.",
+        "hold": 0.65
+      }
+    ]
+  },
+  {
+    "id": "c20",
+    "title": "Reconstruct relationships after flattening",
+    "sourceChapters": [
+      "c20"
+    ],
+    "beats": [
+      {
+        "id": "c20-b01",
+        "say": "Suppose you encode a tree as a flat list of IDs and parent IDs. Start with a root and its two children. The validator checks the node limit, unique nonempty IDs, a single root and a known parent for every other node. Walk outward from the root. This time both children are reachable.",
+        "hold": 0.65
+      },
+      {
+        "id": "c20-b02",
+        "say": "Change the two children so A and B name each other as parent. Both parent IDs exist. Start the walk again. How many nodes can you reach? From the root you visit only the root. Reject the disconnected cycle. Keeping only the reachable part would silently change the submitted tree.",
+        "hold": 0.65
+      },
+      {
+        "id": "c20-b03",
+        "say": "A flat record is easier for some backends to generate. You moved work into the host when you chose that representation. It has to reconstruct and check the connections. A duplicate ID or an unknown parent can fail even before the root traversal begins.",
+        "hold": 0.65
+      }
+    ]
+  },
+  {
+    "id": "c21",
+    "title": "Follow one named call and its returned result",
+    "sourceChapters": [
+      "c21"
+    ],
+    "beats": [
+      {
+        "id": "c21-b01",
+        "say": "How can the model find out whether this run passed? It asks for the tool named get run status. Its argument is the run ID. The tool schema requires that string and forbids extra fields.",
+        "hold": 0.65
+      },
+      {
+        "id": "c21-b02",
+        "say": "Receive the proposed name and arguments. Check the argument shape, then the caller's read scope. The host can now look up run eight forty-two and return the failed snapshot to the model. The model can use that observation on its next turn.",
+        "hold": 0.65
+      },
+      {
+        "id": "c21-b03",
+        "say": "Follow the result back to the model. It can now return a structured record directly to the dashboard. Reading the snapshot took permission to read this project. Changing a deployment would take a separate grant.",
+        "hold": 0.65
+      }
+    ]
+  },
+  {
+    "id": "c22",
+    "title": "Inspect the completed envelope before parsed data",
+    "sourceChapters": [
+      "c22"
+    ],
+    "beats": [
+      {
+        "id": "c22-b01",
+        "say": "The application can use a Pydantic model with the OpenAI Responses parse helper. On the wire, Responses puts the strict schema under text dot format. Claude Messages uses output config dot format. These are the interfaces documented in November twenty twenty-six. Read the actual outgoing request when adapting between them.",
+        "hold": 0.65
+      },
+      {
+        "id": "c22-b02",
+        "say": "Read the completion state. Check for a refusal. Then look for the parsed record and handle a parsing exception if one was raised. A transport error is a separate failure. If a streamed fragment happens to parse, keep it provisional until the response finishes.",
+        "hold": 0.65
+      },
+      {
+        "id": "c22-b03",
+        "say": "The final schema describes the visible response. A hosted reasoning model may spend tokens before that response starts. Allow for those tokens in the budget. Once the result arrives, apply the same completion and validation checks whether the client streamed text or returned a typed object.",
+        "hold": 0.65
+      }
+    ]
+  },
+  {
+    "id": "c23",
+    "title": "Let application code select the contract",
+    "sourceChapters": [
+      "c23"
+    ],
+    "beats": [
+      {
+        "id": "c23-b01",
+        "say": "This consumer expects version two. Its schema includes the run ID, status and failing job. Validate the payload, then attach version two in application code. The tag records which validator the application chose.",
+        "hold": 0.65
+      },
+      {
+        "id": "c23-b02",
+        "say": "A second consumer accepts only version one. It knows the run ID and status. This envelope is tagged version two. Hold it at the router until the application supplies a compatible consumer or a verified conversion. If the model could choose its own validator, it could choose weaker rules.",
+        "hold": 0.65
+      },
+      {
+        "id": "c23-b03",
+        "say": "Change the schema or adapter and recheck the compiled grammar's identity. Try real payloads, refusals and truncated responses at that boundary. In November twenty twenty-six, Claude documented a twenty-four-hour grammar cache measured from last use. This cache holds compiled rules. Prompt-token caching saves different work.",
+        "hold": 0.65
+      }
+    ]
+  },
+  {
+    "id": "c24",
+    "title": "Which stop gets a second call?",
+    "sourceChapters": [
+      "c24"
+    ],
+    "beats": [
+      {
+        "id": "c24-b01",
+        "say": "The first call hits its limit of one hundred twenty tokens. We have time for a second call and validation. Four hundred tokens fit the token and cost limits. Retry with four hundred tokens and the same schema. If the reply completes, check for the expected message and text item, then parse and validate.",
+        "hold": 1
+      },
+      {
+        "id": "c24-b02",
+        "say": "What if the first response is a refusal? Stop after one call. A content-filter stop also ends the attempt. Go back to the first row. Suppose the second call hits its limit too. Report failure after two calls.",
+        "hold": 1.25
+      },
+      {
+        "id": "c24-b03",
+        "say": "Read the stop reason in the provider's envelope. Responses gives an incomplete reason. Chat Completions can report length as its finish reason. If the schema is unsupported, fix the configuration. For a recoverable data error, ask for a bounded correction. Guessing a missing bracket can change the meaning of the reply.",
+        "hold": 1
+      }
+    ]
+  },
+  {
+    "id": "c25",
+    "title": "Match permission to this resource and operation",
+    "sourceChapters": [
+      "c25"
+    ],
+    "beats": [
+      {
+        "id": "c25-b01",
+        "say": "The proposal for run eight forty-two says approved. Look in the host's approval store. An empty store gives you no grant. An approval for run nine ninety-nine also fails, even when the action name matches. This policy only considers retrying tests.",
+        "hold": 0.65
+      },
+      {
+        "id": "c25-b02",
+        "say": "Now the stored run and action both match. The host can continue its checks. At execution time it verifies the caller’s identity, their current access to this run, and whether the approval still applies.",
+        "hold": 0.65
+      },
+      {
+        "id": "c25-b03",
+        "say": "Change only the proposal to rollback. The stored approval still says retry tests. The host denies the rollback because the requested action falls outside this policy.",
+        "hold": 0.65
+      }
+    ]
+  },
+  {
+    "id": "c26",
+    "title": "Preserve each service identity through validation",
+    "sourceChapters": [
+      "c26"
+    ],
+    "beats": [
+      {
+        "id": "c26-b01",
+        "say": "This incident report mentions three services. The authentication service recovered. The vector indexer is still degraded. The report says the worker has no known impact, so our policy marks its status unknown. The worker's name is missing from the catalog. Send that mention for review.",
+        "hold": 0.65
+      },
+      {
+        "id": "c26-b02",
+        "say": "Unknown impact and an unknown service name are different problems. What if the report mentions no services at all? This contract accepts an empty list. Run extraction checks separately. A validator can accept a well-shaped list that omitted a mention.",
+        "hold": 0.65
+      },
+      {
+        "id": "c26-b03",
+        "say": "Now two entries name the same authentication service. One says healthy and one says outage. Convert them straight to a dictionary and the last entry wins. Check identities in the original list and the duplicate is rejected. To establish which state is current, use timestamps or telemetry.",
+        "hold": 0.65
+      }
+    ]
+  },
+  {
+    "id": "c27",
+    "title": "What does one mask cost?",
+    "sourceChapters": [
+      "c27"
+    ],
+    "beats": [
+      {
+        "id": "c27-b01",
+        "say": "A new schema may need compilation before the first token. A reused grammar avoids that cold work. During decoding, mask computation may overlap the model's work. Also count the input tokens used by field descriptions and instructions. Compare cold and warm requests at the batch sizes you actually serve.",
+        "hold": 0.65
+      },
+      {
+        "id": "c27-b02",
+        "say": "The twenty twenty-four XGrammar paper reported mask times below forty microseconds on its test setup. At one hundred output tokens a second, one token takes ten thousand microseconds on average. Forty divided by ten thousand is four tenths of a percent.",
+        "hold": 0.3
+      },
+      {
+        "id": "c27-b03",
+        "say": "That compares the reported mask time with one token's budget. End-to-end latency also includes the rest of the request.",
+        "hold": 0.65
+      },
+      {
+        "id": "c27-b04",
+        "say": "Count two example replies. Both parse, but only one matches the run log. Parse success alone hides the wrong answer. In a twenty twenty-four study, Tam and colleagues found that some formatting restrictions hurt reasoning tasks while sometimes helping classification. They studied prompt formats and JSON mode.",
+        "hold": 0.3
+      },
+      {
+        "id": "c27-b05",
+        "say": "Measure your chosen model and schema on held-out decisions, along with completion, source support, authorization and latency.",
+        "hold": 0.65
+      }
+    ]
+  },
+  {
+    "id": "c28",
+    "title": "Which request has time for a retry?",
+    "sourceChapters": [
+      "c28"
+    ],
+    "beats": [
+      {
+        "id": "c28-b01",
+        "say": "Two requests stopped at the token limit. Both qualify for one same-schema retry if it fits. Each needs five hundred tokens, within the six hundred allowed. Each has spent four cost units and needs three more, within the limit of eight. Look at the time left.",
+        "hold": 0.3
+      },
+      {
+        "id": "c28-b02",
+        "say": "With a three-second call and a second for validation, which request fits?",
+        "hold": 3
+      },
+      {
+        "id": "c28-b03",
+        "say": "Lay the three-second call after the time each request has already spent. Now add one second for validation to both. The deadline is twelve seconds from the original start.",
+        "hold": 0.9
+      },
+      {
+        "id": "c28-b04",
+        "say": "Only A fits. Seven plus four is eleven seconds. B has already spent eight and a half, so its validation would finish half a second late. Keep B incomplete. If A had spent six cost units, three more would exceed eight. A refusal also stops the request even with time and money left.",
+        "hold": 1.1
+      }
+    ]
+  },
+  {
+    "id": "c29",
+    "title": "Which token fits the four open objects?",
+    "sourceChapters": [
+      "c29"
+    ],
+    "beats": [
+      {
+        "id": "c29-b01",
+        "say": "One more token trial. This time the accepted prefix contains four open objects. Both candidates start from that same stack. A has four braces. B has three braces and an exclamation mark. Which whole token can be accepted? And before either one is sampled, may the decoder end?",
+        "hold": 3
+      },
+      {
+        "id": "c29-b02",
+        "say": "Try A on a copy. Four closing braces pop four frames. The copy is complete. If A is sampled, the decoder can choose its end token next. Set A aside. For B, copy the original four frames again. Three braces pop three frames. One object is still open. The exclamation mark has no transition. Pull B away. Count the four frames still waiting in the accepted stack. At that prefix the end token is blocked.",
+        "hold": 0.65
+      },
+      {
+        "id": "c29-b03",
+        "say": "If the budget ends at that original prefix, retain an incomplete result. Now suppose the only available tokens are an exclamation mark and a closing square bracket. Neither fits. Report the dead end. Replace the square bracket with four closing braces. Even at a score of minus one thousand, that legal token gets the whole draw. Sampling from the original unfiltered scores would abandon the grammar.",
+        "hold": 0.65
+      }
+    ]
+  },
+  {
+    "id": "c30",
+    "title": "What can the dashboard show for RUN-915?",
+    "sourceChapters": [
+      "c30"
+    ],
+    "beats": [
+      {
+        "id": "c30-b01",
+        "say": "This caller can read project gamma. Compare the completed reply with the CI snapshot. The rollback proposal says approved. Look at the host's approval list. What can the dashboard show, and should the host send the rollback?",
+        "hold": 3
+      },
+      {
+        "id": "c30-b02",
+        "say": "Show the failed snapshot. Leave the job unknown until CI names it. Deny the rollback. The host has no approval for it.",
+        "hold": 0.95
+      },
+      {
+        "id": "c30-b03",
+        "say": "Replay the request with the same completed reply and the same empty approval list. Change the caller’s read scope to delta. How many gamma snapshots should the host look up on this request?",
+        "hold": 3
+      },
+      {
+        "id": "c30-b04",
+        "say": "Zero. Stop at the project check. The reply stayed the same. The new caller has access to a different project. In the next lesson, an agent uses a tool result to choose its next step.",
+        "hold": 1.65
+      }
+    ]
+  }
+]

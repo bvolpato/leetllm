@@ -1,0 +1,598 @@
+[
+  {
+    "id": "c01",
+    "title": "Why did the login test fail?",
+    "sourceChapters": [
+      "c01"
+    ],
+    "beats": [
+      {
+        "id": "c01-b01",
+        "say": "A login test failed after a provider update. We have four notes this engineer can read. Look at the words on card A. Our search asks for login, test, and fail. Which of those words can the reader find?",
+        "hold": 2.5
+      },
+      {
+        "id": "c01-b02",
+        "say": "Login and test each get a mark. The word fail is missing. That's two hits. Before you choose a note, how many more cards must the reader check to rank all four?",
+        "hold": 2.5
+      },
+      {
+        "id": "c01-b03",
+        "say": "Feed the remaining three through. The runner clock matches test. The last two notes match none of the words. Each card leaves a visit mark, even if its score is zero. Four cards, four visits. Counting word matches is our search algorithm. Complexity describes how the work or memory a recipe needs grows with its inputs.",
+        "hold": 0.7
+      }
+    ]
+  },
+  {
+    "id": "c02",
+    "title": "What does one more note cost?",
+    "sourceChapters": [
+      "c02"
+    ],
+    "beats": [
+      {
+        "id": "c02-b01",
+        "say": "Keep those notes and add four more, copies of the first four. Same question, same three words. How many notes will the next scan visit?",
+        "hold": 2.5
+      },
+      {
+        "id": "c02-b02",
+        "say": "Let the second scan visit the notes one at a time. A note with zero hits still took a visit. Here twice the input produces twice this work. Call the number of notes n. Theta of n names that tight growth shape.",
+        "hold": 0.3
+      },
+      {
+        "id": "c02-b03",
+        "say": "Big O gives an upper bound on growth, ignoring constant factors. O of n fits this scan too. A visit counter tells us what repeats. To get seconds on a particular machine, we'd need a clock.",
+        "hold": 0.5
+      },
+      {
+        "id": "c02-b04",
+        "say": "With passage length bounded, each note takes bounded work. Sixteen notes give sixteen visits. Thirty-two give thirty-two. You could write the three word tests as a loop inside the scan, but a fixed inner loop adds the same strip of work to every note.",
+        "hold": 0.3
+      },
+      {
+        "id": "c02-b05",
+        "say": "If passage length can grow, count the words you read as well.",
+        "hold": 0.45
+      },
+      {
+        "id": "c02-b06",
+        "say": "Keep the four matches from the doubled scan. A and B made one run. Their copies, E and F, made the other. Compare the scores within each run and put the higher one first. To merge, take the stronger front card. Break a tie by input order. A goes first. Who comes next?",
+        "hold": 2.5
+      },
+      {
+        "id": "c02-b07",
+        "say": "E goes next. Its two hits beat B's one. Finish the merge with the two runner notes. This is merge sort. Call the number of matches r. Each level handles all r notes, and the run length doubles at each level.",
+        "hold": 0.3
+      },
+      {
+        "id": "c02-b08",
+        "say": "That gives at most order r log r score comparisons. With bounded comparison cost, the sort takes at most order r log r time. If every note matches, r equals n. Scanning and sorting together can then take order n log n time.",
+        "hold": 0.7
+      }
+    ]
+  },
+  {
+    "id": "c03",
+    "title": "Where is issuer-check in the catalog?",
+    "sourceChapters": [
+      "c03"
+    ],
+    "beats": [
+      {
+        "id": "c03-b01",
+        "say": "Suppose the engineer already knows the note's ID, issuer-check. The catalog is in alphabetical order. Number the slots from zero. The lower bound includes its slot. The upper bound sits just past the last possible slot. Inspect the middle key.",
+        "hold": 0.3
+      },
+      {
+        "id": "c03-b02",
+        "say": "Add the two bounds, divide by two, and round down. At four we find release-guide. Issuer comes earlier, so four becomes the upper bound.",
+        "hold": 0.4
+      },
+      {
+        "id": "c03-b03",
+        "say": "Repeat on the smaller range. Docs-index comes too early. The next lower bound is its index plus one. Check the surviving key. There's issuer-check. Return when the keys are equal. If the bounds meet while we're still searching, the key is missing.",
+        "hold": 0.45
+      },
+      {
+        "id": "c03-b04",
+        "say": "Discarding about half the range each time gives logarithmic lookup work with random access and bounded key comparisons. To find index zero in eight items, the first three midpoints are four, two, one. Now there's only one possible slot. Have we read its key?",
+        "hold": 2.5
+      },
+      {
+        "id": "c03-b05",
+        "say": "Read slot zero. That's the fourth midpoint check. Sixteen slots would add one check on that path. For sixty-five thousand five hundred thirty-six slots, sixteen halvings leave one last key to read. Seventeen checks. Applying both equality and ordering at one slot still counts as one visited midpoint. Keep the catalog sorted between requests.",
+        "hold": 0.3
+      },
+      {
+        "id": "c03-b06",
+        "say": "If an identity-provider guide arrives, later references must move to make room. Slip the new key into slot three. A middle insertion into this array can move a linear number of references.",
+        "hold": 0.7
+      }
+    ]
+  },
+  {
+    "id": "c04",
+    "title": "Where does an exact key land?",
+    "sourceChapters": [
+      "c04"
+    ],
+    "beats": [
+      {
+        "id": "c04-b01",
+        "say": "We still have the ID in hand. Here the table adds up the character codes and takes the remainder after division by eight. Follow issuer-check to its bucket, then compare the stored key for equality. That's a hash lookup. With a good spread and a controlled load, the expected number of probes stays constant.",
+        "hold": 0.5
+      },
+      {
+        "id": "c04-b02",
+        "say": "Force every key into one bucket, then look up missing-login-note. A bucket address got us to the chain. To rule out a match, the search checks each stored key. In this worst case the probe count grows linearly with n.",
+        "hold": 0.3
+      },
+      {
+        "id": "c04-b03",
+        "say": "Look back at the key entering the table. This toy hash adds every character code. Longer keys take more work even when the bucket takes one probe.",
+        "hold": 0.65
+      }
+    ]
+  },
+  {
+    "id": "c05",
+    "title": "How often do we read the same prefix?",
+    "sourceChapters": [
+      "c05"
+    ],
+    "beats": [
+      {
+        "id": "c05-b01",
+        "say": "Try a different lookup. We'd like all the words here that start with the letters p, l, a. They share the prefix pla. Starting over at p for each word costs three letter checks per word.",
+        "hold": 0.3
+      },
+      {
+        "id": "c05-b02",
+        "say": "Follow those repeated comparisons from the first letter to the last letter of the prefix. Twelve checks, just to read the same beginning four times.",
+        "hold": 0.6
+      },
+      {
+        "id": "c05-b03",
+        "say": "A trie shares the path for those letters. A radix tree compresses the shared run into an edge labeled pla. In this implementation p selects the edge. The label comparison starts again at p, then reads l and a. One child lookup and three label comparisons.",
+        "hold": 0.3
+      },
+      {
+        "id": "c05-b04",
+        "say": "From here, take y, ce, net, or za to finish each word. Returning those four completions has its own output cost. With expected constant-time child lookups, reaching a matched prefix of length p takes order p plus one work, including the check for a missing branch.",
+        "hold": 0.6
+      },
+      {
+        "id": "c05-b05",
+        "say": "Say we wanted similar meaning instead. An HNSW index follows a graph to find approximate nearest neighbors among embedding vectors. Watch where the search starts and where the query sits. Each hop uses distance in that space. A prefix lookup needs something we can check symbol by symbol.",
+        "hold": 0.5
+      },
+      {
+        "id": "c05-b06",
+        "say": "Try the same lookup on token IDs. The first three match. At the fourth token, the stored request has ninety-nine and the new one has eight. Here the model, adapter, positions, other inputs, and cache scope all match.",
+        "hold": 0.3
+      },
+      {
+        "id": "c05-b07",
+        "say": "Reuse the cached keys and values for the first three tokens. Compute fresh keys and values for eight.",
+        "hold": 0.7
+      }
+    ]
+  },
+  {
+    "id": "c06",
+    "title": "Who pays when the array fills?",
+    "sourceChapters": [
+      "c06"
+    ],
+    "beats": [
+      {
+        "id": "c06-b01",
+        "say": "Another note arrives. We keep references to the notes in an array, and both slots are occupied. Allocate four slots. In this trace we copy the two old references first, then write the third reference into the new block. Three writes for one arrival.",
+        "hold": 0.3
+      },
+      {
+        "id": "c06-b02",
+        "say": "Look at the next free slot. How many writes will reference four need?",
+        "hold": 2.5
+      },
+      {
+        "id": "c06-b03",
+        "say": "Write reference four. It fits in the same block, so one write finishes the job.",
+        "hold": 0.65
+      },
+      {
+        "id": "c06-b04",
+        "say": "Reference five needs a bigger block again. Continue the same doubling rule until the array holds eight references. Add every write to the running total. Eight were for the arrivals themselves. The rest were copies, first of two old references, then of four.",
+        "hold": 0.3
+      },
+      {
+        "id": "c06-b05",
+        "say": "Over a long run those powers of two add up to linear total work. That's constant amortized cost per append. A single resize can still cost linear work. The doubling rule gives that bound for any sequence of arrivals.",
+        "hold": 0.3
+      },
+      {
+        "id": "c06-b06",
+        "say": "The copy bill follows from the doubling rule for any arrival order. The hash table's expected lookup cost makes a different promise. Its probe count depends on how the keys spread.",
+        "hold": 0.8
+      }
+    ]
+  },
+  {
+    "id": "c07",
+    "title": "What does a zero cost?",
+    "sourceChapters": [
+      "c07"
+    ],
+    "beats": [
+      {
+        "id": "c07-b01",
+        "say": "Here's the login question as a vector. Beside it are four note vectors. To score a note, multiply the matching coordinates and add the products. Pair the two ones. The first note's score is already one. The query has two zeros left. How much more work does this loop do on that row?",
+        "hold": 2.5
+      },
+      {
+        "id": "c07-b02",
+        "say": "Pair the remaining coordinates. The sum stays put through both multiplies. That's a raw dot product. For unit-length vectors it also equals cosine similarity. Run that same inner loop over the remaining notes. Four times three gives twelve products. Even the runner-clock note, whose score is zero, cost a whole row.",
+        "hold": 0.65
+      },
+      {
+        "id": "c07-b03",
+        "say": "There are n candidates running down the grid and d coordinates across it. Double the row count with the width held fixed. Each original row now has a partner. Now double the width too. The grid holds four copies of the original work. Exact dense scoring grows as theta of n times d.",
+        "hold": 0.8
+      }
+    ]
+  },
+  {
+    "id": "c08",
+    "title": "Which score sets the cutoff?",
+    "sourceChapters": [
+      "c08"
+    ],
+    "beats": [
+      {
+        "id": "c08-b01",
+        "say": "Run the four-note scan again, keeping two citation slots beside it. Let the first two arrive. Each finished row supplies a score. Put the weaker winner at the root, where the next note can reach it.",
+        "hold": 0.3
+      },
+      {
+        "id": "c08-b02",
+        "say": "A bounded min-heap keeps the strongest entries seen so far that way. Score the issuer note. Its row is paid for now. Which entry should give up its slot?",
+        "hold": 2.5
+      },
+      {
+        "id": "c08-b03",
+        "say": "The issuer note reaches the root and replaces the runner-clock note. The fixture stays. Score the release checklist. A tenth is below the new cutoff, so the heap stays unchanged. The two survivors are the same ones a full sort would return. A full sort would also order the two we threw away.",
+        "hold": 0.65
+      },
+      {
+        "id": "c08-b04",
+        "say": "Try a seven-slot heap. The cutoff is one tenth. A score of point eight takes the root. Look at its children. The weaker child belongs above point eight, so swap those two. Compare again one level down. Swap with the weaker child there too. At a leaf, the repair stops. It followed one parent-child path.",
+        "hold": 0.6
+      },
+      {
+        "id": "c08-b05",
+        "say": "Keep that tree. Here comes a score of point two five. It beats the new cutoff, so put it at the root. Does this replacement have to move?",
+        "hold": 2.5
+      },
+      {
+        "id": "c08-b06",
+        "say": "It can stay. Even its weaker child, point three, scores higher. After a replacement, compare with the weakest child that exists. Swap only if that child is weaker than the replacement. With one child, check that one.",
+        "hold": 0.3
+      },
+      {
+        "id": "c08-b07",
+        "say": "Stop as soon as the order holds or you reach a leaf. The height grows logarithmically with k. For k between two and n, selection takes at most order n log k work, including ordering the final winners. For one winner, keep a running maximum.",
+        "hold": 0.65
+      },
+      {
+        "id": "c08-b08",
+        "say": "Return to our four scores. Four rows, three coordinates each. Whether we sort all four scores or keep two winners in a heap, the counter still reads twelve products. A scored one and C scored point eight. D has just scored point one. Which score can we release?",
+        "hold": 2.5
+      },
+      {
+        "id": "c08-b09",
+        "say": "Look at D in the scratch slot. Its score falls below C, the weaker winner. Discard D. The same slot is free for the next row. A and C keep their scores and IDs. Beyond the resident matrix we need the query, the k winners, a running sum and indices. With fixed-size IDs and scores, that takes O of d plus k extra space.",
+        "hold": 0.3
+      },
+      {
+        "id": "c08-b10",
+        "say": "Now scale the matrix to fifty thousand notes with seven hundred sixty-eight coordinates each. Multiply the row count by the row width. That gives thirty-eight point four million coordinate products for one exact scan. The resident matrix holds that many values. Returning two citations still requires scoring every row.",
+        "hold": 0.8
+      }
+    ]
+  },
+  {
+    "id": "c09",
+    "title": "How many partners does the next note have?",
+    "sourceChapters": [
+      "c09"
+    ],
+    "beats": [
+      {
+        "id": "c09-b01",
+        "say": "To find similar notes, compare A with B. Comparing B with A checks the same unordered pair. Each note also matches itself, so skip the diagonal. Count each pair once. Four notes make six pairs. Here comes E. How many new pairs does it add?",
+        "hold": 2.5
+      },
+      {
+        "id": "c09-b02",
+        "say": "E meets A, B, C, and D. Four new pairs bring the total to ten.",
+        "hold": 1.2
+      },
+      {
+        "id": "c09-b03",
+        "say": "Keep extending that triangle to eight notes. Each new row has one more earlier partner than the row above it. H meets seven earlier notes. One through seven makes twenty-eight. For n notes, that's n times the quantity n minus one, divided by two. The square term drives quadratic growth. At a thousand notes the loop compares nearly half a million pairs.",
+        "hold": 0.6
+      },
+      {
+        "id": "c09-b04",
+        "say": "Return to the first four notes. Look down A's column. A with B, A with C, A with D. Keep one index on A while the other visits those three partners. Start with B. For each pair, add the squared coordinate differences into one sum. Flag a pair if that sum is at most a quarter.",
+        "hold": 0.3
+      },
+      {
+        "id": "c09-b05",
+        "say": "A and B are far apart. Move to C. This pair is close enough. Send the flag downstream. Now check D in the same scratch space. The loop keeps two note indices. The distance check reuses its coordinate index and its sum.",
+        "hold": 0.3
+      },
+      {
+        "id": "c09-b06",
+        "say": "Stream each flag as you find it. With the vectors already stored, the pass uses constant extra scratch space. Keeping every pair would take quadratic space. The pair count tracks the outer work. Comparing two dense vectors also reads their coordinates.",
+        "hold": 0.7
+      },
+      {
+        "id": "c09-b07",
+        "say": "Now suppose we only need to remove identical strings. Process each arrival once and keep its first occurrence. On a repeat the seen-key list stays still. A hash set gives an expected linear pass under normal hashing, with the cost of reading long strings counted separately.",
+        "hold": 0.3
+      },
+      {
+        "id": "c09-b08",
+        "say": "But two different sentences with similar meanings still have different keys. Use the set when the requirement really is exact equality.",
+        "hold": 0.7
+      }
+    ]
+  },
+  {
+    "id": "c10",
+    "title": "Which keys does the next token read?",
+    "sourceChapters": [
+      "c10"
+    ],
+    "beats": [
+      {
+        "id": "c10-b01",
+        "say": "Look for that shape again in the model that writes the answer. During prompt processing, or prefill, each query position can be paired with each key position in a conceptual score grid. Watch four positions form a square.",
+        "hold": 0.3
+      },
+      {
+        "id": "c10-b02",
+        "say": "Keep those cells where they are as the new rows and columns arrive. We doubled both edges. The number of score positions in this square grid quadruples.",
+        "hold": 0.55
+      },
+      {
+        "id": "c10-b03",
+        "say": "Causal attention permits each position to use only itself and earlier keys. The triangle that's left still grows quadratically. Each score takes a dot product across the head width. A fused kernel can avoid storing the whole grid in memory while still doing dense attention arithmetic.",
+        "hold": 0.55
+      },
+      {
+        "id": "c10-b04",
+        "say": "Now the prompt is complete. Start with eight completed positions already cached. Consuming the next input appends its key and value before attention. Follow its query across the row. It reads the eight old keys and its own.",
+        "hold": 0.3
+      },
+      {
+        "id": "c10-b05",
+        "say": "Each read needs one dot product across the head width. That's why one decode step costs current length times head width in query-key products per head. Projections, value mixing and feed-forward work have their own costs.",
+        "hold": 0.6
+      },
+      {
+        "id": "c10-b06",
+        "say": "Consume a second input. Its query reads one more key than the last one did. Keep both rows in view. How many keys will the third input read?",
+        "hold": 2.5
+      },
+      {
+        "id": "c10-b07",
+        "say": "Append the third input. Eleven keys are in reach now. Look down the blue columns. The same eight old keys appear in each of three rows. That's twenty-four reads. Follow the green steps. One new key, then two, then three contribute another six.",
+        "hold": 0.3
+      },
+      {
+        "id": "c10-b08",
+        "say": "Together the rows cost thirty key reads, each multiplied by the head width.",
+        "hold": 0.55
+      },
+      {
+        "id": "c10-b09",
+        "say": "Extend that picture to any continuation. The blue rectangle has one row per consumed input and one column per starting key. For G inputs after T cached keys, that's G times T. The green staircase adds one through G. Each key has d sub k coordinates.",
+        "hold": 0.3
+      },
+      {
+        "id": "c10-b10",
+        "say": "Multiply the number of key reads by that width for query-key work per head. Doubling the starting history doubles the blue part. Extending the continuation adds a longer green row each time, so the green part grows quadratically with the number of new inputs.",
+        "hold": 0.3
+      },
+      {
+        "id": "c10-b11",
+        "say": "Our three rows belong to three inputs fed back to the decoder. The prompt had already produced scores for the first sampled output. If you return that output and stop, you never pay for the first of these extra rows.",
+        "hold": 0.75
+      }
+    ]
+  },
+  {
+    "id": "c11",
+    "title": "How much space do those keys and values take?",
+    "sourceChapters": [
+      "c11"
+    ],
+    "beats": [
+      {
+        "id": "c11-b01",
+        "say": "The decoder read the old keys again. Keeping the keys and values in memory saved it from having to compute them again. What do we pay to keep one token? In this example a key has one hundred twenty-eight coordinates per head. Each coordinate uses two bytes.",
+        "hold": 0.3
+      },
+      {
+        "id": "c11-b02",
+        "say": "Stack eight key-value heads at each of thirty-two layers. Now make room for the values. Multiply by two again. That's the raw byte count for one token, or one hundred twenty-eight kibibytes.",
+        "hold": 0.75
+      },
+      {
+        "id": "c11-b03",
+        "say": "This model has thirty-two query heads. They use the eight stored key-value heads in groups of four. Counting a separate copy for every query head would overstate the cache. Each query head does still score its own attention row.",
+        "hold": 0.55
+      },
+      {
+        "id": "c11-b04",
+        "say": "Now keep sixteen equal-length streams. At a thousand twenty-four tokens per stream the raw cache values occupy two gibibytes.",
+        "hold": 1.8
+      },
+      {
+        "id": "c11-b05",
+        "say": "Increase only the context length to four thousand ninety-six. Each bar stretches fourfold and storage becomes eight gibibytes. Look at the square beside it. The same fourfold length change multiplies a dense prefill score grid by sixteen. These byte counts assume unshared values at two bytes each.",
+        "hold": 0.3
+      },
+      {
+        "id": "c11-b06",
+        "say": "Weights, workspace, metadata and unused space in cache blocks need their own budget.",
+        "hold": 0.8
+      }
+    ]
+  },
+  {
+    "id": "c12",
+    "title": "When can this request start?",
+    "sourceChapters": [
+      "c12"
+    ],
+    "beats": [
+      {
+        "id": "c12-b01",
+        "say": "The arithmetic may fit while the engineer is still waiting. On this example clock, request one arrives at zero. Request two arrives forty milliseconds later. A worker waiting for eight arrivals still has no full batch. Replay the same arrivals with a ten-millisecond batch timer. When can the first request leave batch formation?",
+        "hold": 2.5
+      },
+      {
+        "id": "c12-b02",
+        "say": "The timer releases the partial batch ten milliseconds after the first arrival. Now watch the execution lane. If the executor is already busy until thirty, request one waits another twenty milliseconds after the timer fires. The timer controls how long this scheduler tries to fill the batch. It's only one part of the user's wait.",
+        "hold": 0.7
+      },
+      {
+        "id": "c12-b03",
+        "say": "Time preprocessing, queueing and accelerator execution separately. In this second trace one worker prepares the next request while the accelerator runs the first. A worker pool can give us that overlap, at the cost of scheduling, transfers and memory.",
+        "hold": 0.3
+      },
+      {
+        "id": "c12-b04",
+        "say": "Time the slow requests as well as the median. If a pause lines up with allocation or cyclic garbage collection, measure its contribution. In CPython, switching off automatic cyclic collection leaves reference counting active. Here two unreachable objects still hold references to one another. More such cycles can accumulate.",
+        "hold": 0.7
+      }
+    ]
+  },
+  {
+    "id": "c13",
+    "title": "Would you run this request?",
+    "sourceChapters": [
+      "c13"
+    ],
+    "beats": [
+      {
+        "id": "c13-b01",
+        "say": "Before we promise a response, count the work this caller is allowed to ask for. In this small request the project is auth and the reader is user three. Check both on each row.",
+        "hold": 0.3
+      },
+      {
+        "id": "c13-b02",
+        "say": "Only user one can read the private auth note, so we skip it for user three. The billing note has the right reader but the wrong project. Each surviving vector has three coordinates. Three allowed rows need nine products.",
+        "hold": 0.3
+      },
+      {
+        "id": "c13-b03",
+        "say": "A budget of eight would stop the score pass here. We already paid to check permissions.",
+        "hold": 0.65
+      },
+      {
+        "id": "c13-b04",
+        "say": "Try that guard at service size. There are twenty-five hundred allowed vectors, each three hundred eighty-four coordinates wide. The budget is one million multiplications. Predict whether the whole rectangle fits before we measure it.",
+        "hold": 2.5
+      },
+      {
+        "id": "c13-b05",
+        "say": "Multiply the two input sizes, then compare the result with the budget. Nine hundred sixty thousand leaves forty thousand products to spare. We can release the scoring pass and keep the two best results.",
+        "hold": 0.65
+      },
+      {
+        "id": "c13-b06",
+        "say": "The next request has more eligible candidates. Four thousand rows at the same width. Let's count the score products again. The red part alone is over half a million products. A teammate suggests returning just one citation. Which part of the picture would get smaller?",
+        "hold": 2.5
+      },
+      {
+        "id": "c13-b07",
+        "say": "Shrink the winner storage. The score rectangle hasn't moved. One or two winners, it still takes one million five hundred thirty-six thousand products to score those rows. Reroute it before scoring. A legitimate narrower filter can reduce the rows. An approximate index can also visit fewer rows.",
+        "hold": 0.3
+      },
+      {
+        "id": "c13-b08",
+        "say": "Apply authorization on either route. Time the whole request on the intended hardware. On the same authorized rows, compare the evidence from the faster route with the exact winners. The next question is how much evidence a shortcut costs.",
+        "hold": 0.75
+      }
+    ]
+  },
+  {
+    "id": "c14",
+    "title": "Which two notes would you send?",
+    "sourceChapters": [
+      "c14"
+    ],
+    "beats": [
+      {
+        "id": "c14-b01",
+        "say": "Return to the login failure after the provider update. The answer has two citation slots. A full read in context costs more than a word count. Pass only the two largest word counts to the context reader and see what it can return.",
+        "hold": 0.3
+      },
+      {
+        "id": "c14-b02",
+        "say": "The live reader gets the fixture and the runner clock. How would you find out whether those two were enough?",
+        "hold": 2.5
+      },
+      {
+        "id": "c14-b03",
+        "say": "Read all four once offline. Each note has a fixed context score in this example. Which two scores are highest? C ranks first at point nine five. A comes second at point eight. Compare those reference notes with the two live citations. Only A appears in both lists. Two live reads recovered one of the two reference notes. The live reader never saw C.",
+        "hold": 0.7
+      },
+      {
+        "id": "c14-b04",
+        "say": "Here's what's in C. The identity provider changed its issuer value. The verifier config still expects the old one. That verifier would reject the new issuer. Check the rejection reason from the failed run to see whether that happened here.",
+        "hold": 0.3
+      },
+      {
+        "id": "c14-b05",
+        "say": "C shares none of login, test, or fail. Its word count ties the release list at zero. For tied word counts this pass keeps input order, and C comes before D. What happens if we pay for one more full read but still return just two citations?",
+        "hold": 2.5
+      },
+      {
+        "id": "c14-b06",
+        "say": "Let one more candidate through. Follow C up the bracket and into the live answer. The verifier note reaches first place, with the login fixture second. The runner clock drops out. With three candidates we recover both reference notes. That fraction is called recall at two.",
+        "hold": 0.3
+      },
+      {
+        "id": "c14-b07",
+        "say": "The cheap pass still read all four. On the wider run, the context stage reads one more note. There's one note left outside the bracket. The output still has two slots. Could a fourth full read improve recall on this question?",
+        "hold": 2.5
+      },
+      {
+        "id": "c14-b08",
+        "say": "Read the release list. Its context score falls below both citations already in the answer. We paid for a fourth read and recovered the same two notes. For this question I'd stop at three. The third read brought the engineer a lead worth checking.",
+        "hold": 0.3
+      },
+      {
+        "id": "c14-b09",
+        "say": "On real questions, repeat that comparison against the fully scored, authorized reference. Pick a shortlist width using the extra read cost and the evidence it recovers. A perfect result on this one case gives us a baseline to test.",
+        "hold": 0.7
+      },
+      {
+        "id": "c14-b10",
+        "say": "One request took five seconds. At three seconds per hundred tokens, our model predicts six seconds for its two hundred tokens. Which way should that rate move?",
+        "hold": 2.5
+      },
+      {
+        "id": "c14-b11",
+        "say": "Down a little. At two point six seconds per hundred tokens, the prediction drops to five point two. The gap to the measured time shrinks. In the next lesson we'll use a gradient to choose that adjustment.",
+        "hold": 1.1
+      }
+    ]
+  }
+]

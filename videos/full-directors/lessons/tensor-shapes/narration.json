@@ -1,0 +1,400 @@
+[
+  {
+    "id": "c01",
+    "title": "Which word did the code read?",
+    "sourceChapters": [
+      "c01"
+    ],
+    "beats": [
+      {
+        "id": "c01-b01",
+        "say": "Read the word on this proof. It says migrate. Each numbered piece of type stands for one feature. We asked the press for the first two. The proof came back with two and three. Find those pieces in the tray. Which word supplied them?",
+        "hold": 2.7
+      },
+      {
+        "id": "c01-b02",
+        "say": "Two and three belong to Birds. Look at the tail of its row. Migrate starts at four and five, one row down. Keep that wrong proof. By the end we'll be able to reproduce the error and test a repair.",
+        "hold": 1.5
+      }
+    ]
+  },
+  {
+    "id": "c02",
+    "title": "Where is migrate in the batch?",
+    "sourceChapters": [
+      "c02"
+    ],
+    "beats": [
+      {
+        "id": "c02-b01",
+        "say": "Put a second sentence beside the first. Together they make one batch. A token is a piece of text. Here each word is one token. We made up four numbered features per word so we can track them. The batch index picks a sentence, the token index picks a word, and the feature index picks one number.",
+        "hold": 0.3
+      },
+      {
+        "id": "c02-b02",
+        "say": "An array gives each choice an axis. This tensor has three axes, so its rank is three. Its shape lists the number of choices in order. Two sentences, three words per sentence, four features per word. Counting backward, the feature axis is also axis minus one.",
+        "hold": 0.8
+      },
+      {
+        "id": "c02-b03",
+        "say": "Suppose the loader stored these values as integers. Its storage type, or dtype, is int sixteen. The model expects float thirty-two. The shape passes and the dtype fails. Cast the array to float thirty-two. All twenty-four values fit exactly, so four still belongs to migrate.",
+        "hold": 1
+      }
+    ]
+  },
+  {
+    "id": "c03",
+    "title": "What survives the brackets?",
+    "sourceChapters": [
+      "c03"
+    ],
+    "beats": [
+      {
+        "id": "c03-b01",
+        "say": "Count from zero. Choose batch index one for the second sentence, then token index one for its middle word, enjoy. A colon retains every feature. We spent two indices choosing the word. Only the feature axis remains.",
+        "hold": 0.7
+      },
+      {
+        "id": "c03-b02",
+        "say": "A caller expects a table, even for a single word. Try a slice from one up to two. What happens to enjoy's four numbers?",
+        "hold": 2
+      },
+      {
+        "id": "c03-b03",
+        "say": "The values stay the same. The slice keeps a token axis of length one. The integer gave us a vector. With just one axis, transposing that vector does nothing. Add an axis before the features for a row, or after them for a column.",
+        "hold": 0.9
+      },
+      {
+        "id": "c03-b04",
+        "say": "Now take the middle word from both sentences in the batch. The first colon keeps them in their original order. The token index removes the word axis. Read down the result and you get migrate, then enjoy, with all four features in each row.",
+        "hold": 0.85
+      }
+    ]
+  },
+  {
+    "id": "c04",
+    "title": "Which way do the offsets run?",
+    "sourceChapters": [
+      "c04"
+    ],
+    "beats": [
+      {
+        "id": "c04-b01",
+        "say": "Give each feature its own offset. Follow migrate as every feature adds its matching offset. The same offsets serve every word in both sentences. NumPy calls this broadcasting. It reuses the four offsets. The new sum still needs space for all twenty-four values.",
+        "hold": 0.9
+      },
+      {
+        "id": "c04-b02",
+        "say": "Now give each word position one offset. Broadcasting aligns dimensions from the right. Three offsets for three words sounds right, until the three collides with the four-feature axis. NumPy stops here. Insert a size-one axis after the three.",
+        "hold": 0.3
+      },
+      {
+        "id": "c04-b03",
+        "say": "That trailing one lets one offset serve an entire word. The missing batch axis also counts as one. At each position, the axis sizes must match or one of them must be one.",
+        "hold": 1
+      },
+      {
+        "id": "c04-b04",
+        "say": "Drop the fourth feature of each word in the first sentence. Now there are three rows and three columns. Both additions fit. We want to add ten to each feature of Birds. Predict the first word under each line. What should happen to its middle value?",
+        "hold": 2.5
+      },
+      {
+        "id": "c04-b05",
+        "say": "Start them together. The first additions agree. At the middle feature the bare vector supplies twenty. One plus twenty gives twenty-one. Now look underneath. Birds keeps its ten across the row, so one plus ten gives eleven. The first cell alone would have passed both tests.",
+        "hold": 1.3
+      }
+    ]
+  },
+  {
+    "id": "c05",
+    "title": "Which inputs can this function accept?",
+    "sourceChapters": [
+      "c05"
+    ],
+    "beats": [
+      {
+        "id": "c05-b01",
+        "say": "For a change of scale, take thirty-two satellite tiles, each two hundred twenty-four pixels on a side. Use all-white tiles and three invented training means. This pixel starts at one in all three channels. Subtract the means. Red keeps point four eight. Green keeps point five two. Blue keeps point five six. One set of means serves every pixel.",
+        "hold": 0.3
+      },
+      {
+        "id": "c05-b02",
+        "say": "If color moves to axis one, the three in the means must move with it. Give height and width their own size-one slots. The same red mean still reaches every red channel.",
+        "hold": 0.9
+      },
+      {
+        "id": "c05-b03",
+        "say": "Back at migrate, a caller promises one offset per feature. We reject inputs unless the tensor has rank three and the bias is a vector of exactly the feature width. Check dtype separately if the model requires float32. This caller sent three offsets. Where will the addition stop?",
+        "hold": 1.8
+      },
+      {
+        "id": "c05-b04",
+        "say": "The fourth feature has no partner. Raise a value error at the boundary, before doing arithmetic. Python can remove assertions when it runs with optimization. With a four-entry bias, all four partners are there. Now an internal assertion can check that the output kept the input shape.",
+        "hold": 1
+      }
+    ]
+  },
+  {
+    "id": "c06",
+    "title": "Which direction gives one vector per sentence?",
+    "sourceChapters": [
+      "c06"
+    ],
+    "beats": [
+      {
+        "id": "c06-b01",
+        "say": "Return to the original numbers. We want one feature vector for each sentence. Look at the first column. Its three words contribute zero, four, and eight. Average down the token axis, one feature column at a time. Follow the highlighted column into its sum, then its mean.",
+        "hold": 0.3
+      },
+      {
+        "id": "c06-b02",
+        "say": "The four in the first output slot describes a whole sentence. It happens to equal migrate's first feature. You can tell the difference by asking which three numbers went into the average.",
+        "hold": 0.9
+      },
+      {
+        "id": "c06-b03",
+        "say": "Suppose we average across features. Now each word gets one scalar. The output keeps batch and token positions. The arithmetic follows the highlighted row. You can still ask for migrate's mean, but its four separate features are gone.",
+        "hold": 0.8
+      },
+      {
+        "id": "c06-b04",
+        "say": "What if we want to subtract each sentence's mean from all its words? Read the two shapes from the right. Four matches four. Then two meets three. To keep the batch aligned, keep the collapsed token slot. Its size is one.",
+        "hold": 0.3
+      },
+      {
+        "id": "c06-b05",
+        "say": "Subtract the kept mean from each word. Watch the first column. Birds goes from zero to minus four. Migrate goes from four to zero, and south from eight to four. Average those centered values and you're back at zero.",
+        "hold": 1
+      }
+    ]
+  },
+  {
+    "id": "c07",
+    "title": "What happened to the extra one?",
+    "sourceChapters": [
+      "c07"
+    ],
+    "beats": [
+      {
+        "id": "c07-b01",
+        "say": "Take one feature across three tokens. The inputs, two to the twenty-fourth, one, and minus two to the twenty-fourth, all fit exactly in float thirty-two. Add the first two. Find their exact sum at the ring on the ruler. Can float thirty-two store it?",
+        "hold": 2.4
+      },
+      {
+        "id": "c07-b02",
+        "say": "It lands halfway between two float thirty-two values. With the default rounding mode, an exact tie goes to the neighbor whose significand ends in a zero bit. Here that's the left tick. Follow the marker there. Subtract the large value. The sum is zero. Divide by three. The returned mean is a float thirty-two zero.",
+        "hold": 1
+      },
+      {
+        "id": "c07-b03",
+        "say": "Keep the stored inputs. Ask NumPy to use float sixty-four for accumulation and for the returned mean. The wider accumulator represents the middle value exactly. Follow the lower marker. Subtract the large value again. This time the sum is one.",
+        "hold": 0.3
+      },
+      {
+        "id": "c07-b04",
+        "say": "Divide by three. You get the nearest float sixty-four value to one third. The extra one was present in the stored inputs. Widening the accumulator can preserve that information during a sum. Information already lost while storing an input stays lost.",
+        "hold": 1.5
+      }
+    ]
+  },
+  {
+    "id": "c08",
+    "title": "Which row holds each word's last feature?",
+    "sourceChapters": [
+      "c08"
+    ],
+    "beats": [
+      {
+        "id": "c08-b01",
+        "say": "We want the last feature of each word in one row. Try a reshape with three places per row. Zero, one, two fill the first row. Three starts the next row. It's the last feature of Birds. Four and five come from migrate.",
+        "hold": 0.3
+      },
+      {
+        "id": "c08-b02",
+        "say": "Reshape follows flat index order through the rest of the sentence. Across both sentences we still have twenty-four values. Ask for four per row and give NumPy minus one for the row count. Twenty-four divided by four gives six rows. Keep that four-feature grouping in mind when we inspect the buffer.",
+        "hold": 1
+      },
+      {
+        "id": "c08-b03",
+        "say": "Keep the first layout. For the second, transpose the axes. The stored buffer stays still while the view reads different positions. Track feature three: each value stays attached to its original word. From three to seven, we pass over three values.",
+        "hold": 0.3
+      },
+      {
+        "id": "c08-b04",
+        "say": "The two addresses are four float32 positions apart. At four bytes each, that's a stride of sixteen bytes. Which row would you hand to someone who asked for the last feature of every word?",
+        "hold": 2.3
+      },
+      {
+        "id": "c08-b05",
+        "say": "Compare where seven lands. In the reshape its neighbors are six and eight. Read across the bottom row of the transpose. Three from Birds, seven from migrate, eleven from south. That's the last feature of each word.",
+        "hold": 1.2
+      }
+    ]
+  },
+  {
+    "id": "c09",
+    "title": "Which array gets the write?",
+    "sourceChapters": [
+      "c09"
+    ],
+    "beats": [
+      {
+        "id": "c09-b01",
+        "say": "Keep the original buffer and take the middle word from each sentence. A basic slice is another window into that buffer. We'll write ninety-nine into the slice, on top of migrate's first feature. Where else should ninety-nine appear?",
+        "hold": 2.4
+      },
+      {
+        "id": "c09-b02",
+        "say": "The source changes at the same address. Read it through either window. Both reach the same four bytes. An array keeps a shape, dtype, and byte strides so it can find its values in memory.",
+        "hold": 0.8
+      },
+      {
+        "id": "c09-b03",
+        "say": "Now retrieve both sentences using a list of integer indices. Call the result picked. Look at Birds this time. Its first feature is zero in both arrays. We're about to write minus one into picked. Will Birds change in the source too?",
+        "hold": 2.2
+      },
+      {
+        "id": "c09-b04",
+        "say": "Write to the retrieved row. The zero in the source survives. Selecting the two sentences with a list of indices made a copy. Birds now has a different first feature in each array.",
+        "hold": 1
+      },
+      {
+        "id": "c09-b05",
+        "say": "Rewind that write. Keep the same word, feature, and value. Put the batch index on the source itself this time. Where will the minus one land?",
+        "hold": 2.2
+      },
+      {
+        "id": "c09-b06",
+        "say": "Write through the source indices. This time Birds changes in the source. The copy still holds the zero it read earlier. If you want to edit a basic slice independently, call copy on the slice first.",
+        "hold": 1
+      },
+      {
+        "id": "c09-b07",
+        "say": "Reset the values and return to the transpose. Read across its first row and you visit zero, four, eight. The next row starts at one. Two steps forward by four, then back by seven. A flat view needs one stride. Here, NumPy copies the transposed rows into a new buffer.",
+        "hold": 1.1
+      }
+    ]
+  },
+  {
+    "id": "c10",
+    "title": "Which words can migrate compare with?",
+    "sourceChapters": [
+      "c10"
+    ],
+    "beats": [
+      {
+        "id": "c10-b01",
+        "say": "Select the vector for migrate as our query. The same snippet supplies three key vectors, one for each token. Every vector keeps the same four feature positions, so we can compare matching positions directly. Models usually learn the projections that produce queries and keys. Here we use identity matrices so the numbered values stay unchanged.",
+        "hold": 0.55
+      },
+      {
+        "id": "c10-b02",
+        "say": "A dot product multiplies matching features, then adds the products. Keep migrate as the query. First use Birds as the key. Then slide to migrate. Now try south. Follow the four products into their sum. Each completed score goes in that key's column.",
+        "hold": 0.6
+      },
+      {
+        "id": "c10-b03",
+        "say": "The three totals fill the migrate row first. Birds and south each get a turn as the query. Each row holds three scores, one for each key. We need a grid like this for each sentence. The full output shape is two by three by three.",
+        "hold": 0.75
+      },
+      {
+        "id": "c10-b04",
+        "say": "Keep the first grid on the left. Build the second grid with Children, enjoy, and stories. Both sentences share one batch. Can you find a score for migrate against stories in either grid?",
+        "hold": 2.4
+      },
+      {
+        "id": "c10-b05",
+        "say": "Follow migrate's row. Its keys end at south. Stories is in the other sentence. To compute both grids, swap the last two axes of the keys before multiplying. That puts each key in a column. Matrix multiplication sums over the four matching features.",
+        "hold": 0.3
+      },
+      {
+        "id": "c10-b06",
+        "say": "Elementwise multiplication pairs only tokens in the same position. Sum those products over features and you keep just the diagonal. Migrate against south is an off-diagonal score. That shortcut misses it.",
+        "hold": 1
+      }
+    ]
+  },
+  {
+    "id": "c11",
+    "title": "What reaches the caller?",
+    "sourceChapters": [
+      "c11"
+    ],
+    "beats": [
+      {
+        "id": "c11-b01",
+        "say": "A caller asks for just migrate's comparisons in the first sentence. Find the cell where migrate meets south. Now read the brackets on the caller's slip. The batch index is an integer. The query index is a slice. How many axes will the caller receive?",
+        "hold": 2.3
+      },
+      {
+        "id": "c11-b02",
+        "say": "The slice keeps one query row and all three keys. Read its last cell. Two hundred fourteen is a raw comparison with south. The batch index selected sentence zero. The slice left a length-one query axis in place for the next operation.",
+        "hold": 1.1
+      }
+    ]
+  },
+  {
+    "id": "c12",
+    "title": "Which pair belongs in this slot?",
+    "sourceChapters": [
+      "c12"
+    ],
+    "beats": [
+      {
+        "id": "c12-b01",
+        "say": "Back to our wrong proof. An attention head uses a group of features from every token. For equal groups, the feature width must divide evenly by the head count. Four features and two heads give us two numbers per slot. We have two ways to fill those slots. Both promise the same shape.",
+        "hold": 0.3
+      },
+      {
+        "id": "c12-b02",
+        "say": "Choose the one that gives migrate its own first pair.",
+        "hold": 2.5
+      },
+      {
+        "id": "c12-b03",
+        "say": "Try the direct reshape. Fill two places for Birds, then two for migrate. The destination has moved down a word, but the reader is still on Birds.",
+        "hold": 1.6
+      },
+      {
+        "id": "c12-b04",
+        "say": "Wind back. Cut each four-feature word into two pairs before moving anything across words. Move the head axis beside batch. Watch the right halves slide into their own column. Migrate still occupies the middle row. Its first pair belongs to head zero and its second to head one.",
+        "hold": 1.2
+      },
+      {
+        "id": "c12-b05",
+        "say": "Read head zero at the middle word in both outputs. The direct reshape places another word's features there. Those are the last two numbers from Birds. Exposing the groups before moving the axis preserves the owner. Migrate gets its first two features back.",
+        "hold": 1.1
+      },
+      {
+        "id": "c12-b06",
+        "say": "Try your test in the other sentence. Take Children, the first word, and ask for head one this time. Which two input values should the test require?",
+        "hold": 2.5
+      },
+      {
+        "id": "c12-b07",
+        "say": "The second half of Children is fourteen and fifteen. Check the source row. The direct reshape gives eighteen and nineteen instead. Look at enjoy. That's whose second pair landed under Children. Compare the same slot in each candidate.",
+        "hold": 0.3
+      },
+      {
+        "id": "c12-b08",
+        "say": "Check the output against the slice of the original word. Only the split followed by the transpose passes. Both candidates still pass the shape test.",
+        "hold": 1.3
+      },
+      {
+        "id": "c12-b09",
+        "say": "Suppose someone simplifies the test. Fill the input with zeros. The words and their positions stay the same. Would this check still catch the direct reshape?",
+        "hold": 2.5
+      },
+      {
+        "id": "c12-b10",
+        "say": "Both lines pass. Every pair reads zero, including the one taken from enjoy. Restore the distinct values. The direct reshape fails again. For a regression test, choose a slot where the two layouts read different pairs.",
+        "hold": 0.3
+      },
+      {
+        "id": "c12-b11",
+        "say": "Give each feature a distinct value and check its owner by indexing back into the original word. You can use that test at model scale. With seven hundred sixty-eight features and twelve equal heads, the second head starts at feature sixty-four of that same word. In the CUDA lesson we'll add another question. On which device does the tensor live?",
+        "hold": 2
+      }
+    ]
+  }
+]

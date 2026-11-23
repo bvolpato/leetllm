@@ -1,0 +1,670 @@
+[
+  {
+    "id": "c01",
+    "title": "Where did “30 days” come from?",
+    "sourceChapters": [
+      "c01"
+    ],
+    "beats": [
+      {
+        "id": "c01-b01",
+        "say": "Luna asked about rotating a stale service key. Her reply is still in the outbox. It promises thirty days and cites E one. Open that link. Read the subject of the sentence. Would you press Send?",
+        "hold": 2.6
+      },
+      {
+        "id": "c01-b02",
+        "say": "Idle browser sessions expire after thirty days of inactivity. Hold the draft. A limit on a browser session tells Luna nothing about the age of her key.",
+        "hold": 0.7
+      },
+      {
+        "id": "c01-b03",
+        "say": "Search for the current EU key policy. The assistant fetches passages and gives them to its language model as evidence for the answer. That's retrieval-augmented generation, or RAG.",
+        "hold": 0.55
+      }
+    ]
+  },
+  {
+    "id": "c02",
+    "title": "One policy on three paths",
+    "sourceChapters": [
+      "c02"
+    ],
+    "beats": [
+      {
+        "id": "c02-b01",
+        "say": "Here is the governing page. Its limits and our timings are invented for this example. The page gives a key fourteen days, provided the risk signal is at most forty-eight hours old. Luna supplies two readings of her own. The key went stale ten days ago. The signal arrived forty-eight hours ago.",
+        "hold": 0.65
+      },
+      {
+        "id": "c02-b02",
+        "say": "Follow the page when it changes. Background ingestion parses the text, records its revision and builds a searchable index. When Luna asks her question, the service selects passages she may read and sends enough evidence to answer or abstain.",
+        "hold": 0.65
+      },
+      {
+        "id": "c02-b03",
+        "say": "Before switching to a candidate index, replay a frozen question. Hold the expected source and answer fixed while testing the new index, retriever, prompt or model. Updating the index can change what the assistant knows while its model weights stay fixed. The replay tells us whether this particular answer still holds.",
+        "hold": 0.65
+      }
+    ]
+  },
+  {
+    "id": "c03",
+    "title": "Make each evidence record traceable",
+    "sourceChapters": [
+      "c03"
+    ],
+    "beats": [
+      {
+        "id": "c03-b01",
+        "say": "Start during ingestion. Parse a source into searchable spans, then preserve the document, parent section, page locator, version, region, access tag, and effective dates with each span.",
+        "hold": 0.55
+      },
+      {
+        "id": "c03-b02",
+        "say": "In our policy fixture, the current EU key rule allows rotation within fourteen days when the risk signal is at most forty-eight hours old. Its older thirty-day rule remains available for historical review.",
+        "hold": 0.75
+      },
+      {
+        "id": "c03-b03",
+        "say": "Set the request date to May twenty-seventh. Only the April key revision is current for Luna in the EU. The older bytes remain in the archive. A content hash lets you compare those bytes later. Trust in the policy comes from who supplied it and how it entered the index.",
+        "hold": 0.55
+      }
+    ]
+  },
+  {
+    "id": "c04",
+    "title": "Attach validity to the exact source revision",
+    "sourceChapters": [
+      "c04"
+    ],
+    "beats": [
+      {
+        "id": "c04-b01",
+        "say": "Our reference fixture uses inclusive calendar dates. The old EU revision ends March thirty-first, and the replacement begins April first. It rejects duplicate chunk IDs, reversed date ranges and more than one active version for the same region and document.",
+        "hold": 0.3
+      },
+      {
+        "id": "c04-b02",
+        "say": "Several chunks of one active version are valid. A product or jurisdiction variant needs its own scope dimension.",
+        "hold": 0.65
+      },
+      {
+        "id": "c04-b03",
+        "say": "The reader's program measures logical time and uses half-open intervals. For example, an old record runs from four up to twelve, and its replacement runs from twelve up to twenty. At exactly twelve, which record covers the request?",
+        "hold": 1.9
+      },
+      {
+        "id": "c04-b04",
+        "say": "The replacement includes its start. The old record excludes its end. Preserve the unit and the endpoint convention when you copy a validity check.",
+        "hold": 0.65
+      },
+      {
+        "id": "c04-b05",
+        "say": "A policy’s effective time can differ from when an update reached the index. Preserve both when replay needs them. A digest verifies supplied bytes, while trusted ingestion establishes source authority. Keep content revision and authorization revision separate: an unchanged page can lose its grant. Malformed required scope metadata must stay out of serving until resolved.",
+        "hold": 0.65
+      }
+    ]
+  },
+  {
+    "id": "c05",
+    "title": "Filter the corpus before ranking candidates",
+    "sourceChapters": [
+      "c05"
+    ],
+    "beats": [
+      {
+        "id": "c05-b01",
+        "say": "At request time, the application supplies the caller’s trusted identity, region, access tags, and request date. The retrieval path uses those values to form its allowed evidence set.",
+        "hold": 0.55
+      },
+      {
+        "id": "c05-b02",
+        "say": "Now search inside that set. Our small lexical fixture ranks permitted text by shared terms; a dense or hybrid scorer can replace the ranking while the permission boundary stays in place.",
+        "hold": 0.75
+      },
+      {
+        "id": "c05-b03",
+        "say": "A restricted admin page can share more words with the question and still stay outside the caller’s search lane. Only permitted candidate text moves toward reranking, context packing, or generation.",
+        "hold": 0.55
+      }
+    ]
+  },
+  {
+    "id": "c06",
+    "title": "Which three passages can Luna receive?",
+    "sourceChapters": [
+      "c06"
+    ],
+    "beats": [
+      {
+        "id": "c06-b01",
+        "say": "Our word search scored only the rows Luna could read. Now follow a graph search inside a trusted vector service. It visits a restricted node on the way to a permitted neighbor. The service checks which passages may leave its boundary.",
+        "hold": 0.65
+      },
+      {
+        "id": "c06-b02",
+        "say": "Take the first three rows by distance. Two are restricted. Remove those two and Luna gets one passage. Now take the three nearest permitted rows. This search also finds the two passages just below the original cut. Measure how many useful passages each method returns and how long it takes.",
+        "hold": 0.65
+      },
+      {
+        "id": "c06-b03",
+        "say": "At the boundary, use the caller's verified identity, tenant and grants to check each passage. Keep restricted text inside. The external reranker can reorder or drop the permitted passages it receives. If none qualify, return an empty list without naming any restricted document.",
+        "hold": 0.65
+      }
+    ]
+  },
+  {
+    "id": "c07",
+    "title": "What did the search terms match?",
+    "sourceChapters": [
+      "c07"
+    ],
+    "beats": [
+      {
+        "id": "c07-b01",
+        "say": "This little retriever counts distinct words shared with Luna's query. The key rule shares seven terms. The session rule shares two. The words “after” and “days” get the session page onto the list. A count of shared terms tells us nothing about which clock those days measure.",
+        "hold": 0.65
+      },
+      {
+        "id": "c07-b02",
+        "say": "Now ask to refresh an expired machine credential. How many words does that wording share with either passage?",
+        "hold": 1.6
+      },
+      {
+        "id": "c07-b03",
+        "say": "Zero for both. The shorter program in the article takes the first two records anyway. Ties go by chunk ID, so the key rule comes first. Supply ten days and a forty-eight-hour signal and the answerer says eligible. Alphabetical order chose its evidence.",
+        "hold": 0.7
+      },
+      {
+        "id": "c07-b04",
+        "say": "The reference fixture requires two shared terms. With this wording it returns no passages. That's a missed paraphrase. To set a cutoff for real search, measure both the answerable questions you turn away and the unsupported answers you allow. Calibrate it for your model, index and traffic.",
+        "hold": 0.3
+      },
+      {
+        "id": "c07-b05",
+        "say": "Cosine similarity and a cross-encoder logit use different scales.",
+        "hold": 0.65
+      }
+    ]
+  },
+  {
+    "id": "c08",
+    "title": "Which parent belongs to this request?",
+    "sourceChapters": [
+      "c08"
+    ],
+    "beats": [
+      {
+        "id": "c08-b01",
+        "say": "Luna's request starts on bundle A. The service pins the child index, parent store, source manifest and retrieval settings together. The child on screen belongs to A. Its parent must come from that same snapshot.",
+        "hold": 0.65
+      },
+      {
+        "id": "c08-b02",
+        "say": "Meanwhile, build B alongside A. If the embedding model changes, its query and document encoders need compatible preprocessing, dimensions and a shared distance metric. Two encoders can produce vectors of the same length in different coordinate systems.",
+        "hold": 0.3
+      },
+      {
+        "id": "c08-b03",
+        "say": "Replay versioned source spans, compare authorized shadow queries and catch up on source changes. Validate the parent store and configuration with the new index.",
+        "hold": 0.65
+      },
+      {
+        "id": "c08-b04",
+        "say": "Switch the serving pointer to B. The next request starts there. Keep your eye on the line from Luna's child to its parent. Which bundle should her packer open? Both stores have a section for the same document.",
+        "hold": 2.2
+      },
+      {
+        "id": "c08-b05",
+        "say": "Open parent A. Luna searched revision A, and the section in B has a different revision. Check A against current permissions and the effective date. Pin the index, parent store, manifest and retrieval settings through packing and cache lookup.",
+        "hold": 0.65
+      }
+    ]
+  },
+  {
+    "id": "c09",
+    "title": "Which passage will E1 open?",
+    "sourceChapters": [
+      "c09"
+    ],
+    "beats": [
+      {
+        "id": "c09-b01",
+        "say": "Search can match the words “automated rotation up to fourteen days.” If a chunk ended there, we'd lose the condition about the risk signal. In this fixture the child already contains both clauses. We still need the exact parent that Luna will open when she follows the citation.",
+        "hold": 0.7
+      },
+      {
+        "id": "c09-b02",
+        "say": "Two hits point to the same key-rotation section. Resolve their parent inside the bundle this request pinned. Check its parent ID, document and revision against the child. Then check the parent's effective dates, region and permissions for Luna.",
+        "hold": 0.6
+      },
+      {
+        "id": "c09-b03",
+        "say": "Copy the checked section into the prompt as E one. A second hit on that parent uses the same copy. The distinct session section gets E two. For the model budget, count the whole formatted request with the target tokenizer.",
+        "hold": 0.3
+      },
+      {
+        "id": "c09-b04",
+        "say": "Luna’s question gives the model both readings. Her key went stale ten days ago, and her signal is forty-eight hours old. Our toy tokenizer counts one token per byte. Each strip counts a part of the formatted input, including the instructions, question, wrappers and labeled passages. The rest of the window has room for the reply.",
+        "hold": 0.7
+      }
+    ]
+  },
+  {
+    "id": "c10",
+    "title": "Which complete sections fit?",
+    "sourceChapters": [
+      "c10"
+    ],
+    "beats": [
+      {
+        "id": "c10-b01",
+        "say": "A search hit can be one sentence. A sentence window brings in its neighbors so the reader can see a condition on either side. A definition ten sentences away still falls outside a window of three neighbors on either side. Check the actual boundary before widening it.",
+        "hold": 0.65
+      },
+      {
+        "id": "c10-b02",
+        "say": "Give the packer four hundred characters for labeled evidence. The key section uses two hundred seventeen, label included. That leaves one hundred eighty-three. Try the longer policy appendix next. With its label and separator, it needs two hundred ninety-seven. What should the packer do with a section that won't fit?",
+        "hold": 1.8
+      },
+      {
+        "id": "c10-b03",
+        "say": "Skip the whole appendix. The smaller session section fits with its label and separator. We have both complete sections in three hundred thirty-eight characters. Another hit on the same key parent takes no more space. The retriever examined an extra hit, but the model still receives only one copy of that parent.",
+        "hold": 0.65
+      },
+      {
+        "id": "c10-b04",
+        "say": "Those three hundred thirty-eight characters cover the labeled evidence. The fully formatted request includes Luna’s question with both ages. Our toy tokenizer counts five hundred fifty-four input tokens. Reserving two hundred fifty-six for the reply brings the total to eight hundred ten, within the window of one thousand twenty-four. Use the target model’s own tokenizer in production.",
+        "hold": 0.3
+      },
+      {
+        "id": "c10-b05",
+        "say": "Even a permitted passage that fits can distract the model. Long-context experiments found that the position of the evidence affected accuracy on the tasks studied. Test placement and coverage on your own questions.",
+        "hold": 0.7
+      }
+    ]
+  },
+  {
+    "id": "c11",
+    "title": "Where does Luna’s request land?",
+    "sourceChapters": [
+      "c11"
+    ],
+    "beats": [
+      {
+        "id": "c11-b01",
+        "say": "The yellow dot is Luna's request. Ten days across for the key, forty-eight hours up for the signal. Read the key policy beside it. Fourteen days sets the right edge. Forty-eight hours sets the top edge. Both edges count. Her dot sits on the top edge, so the answer is eligible.",
+        "hold": 0.7
+      },
+      {
+        "id": "c11-b02",
+        "say": "Keep the signal where it is. Move the key to day fourteen. Does the corner itself qualify?",
+        "hold": 2
+      },
+      {
+        "id": "c11-b03",
+        "say": "Yes, the corner qualifies. Both ages equal their limits. Move to day fifteen. The dot crosses the right edge. The key is now ineligible. Luna can open the cited policy and check which condition failed.",
+        "hold": 0.7
+      },
+      {
+        "id": "c11-b04",
+        "say": "Leave those ages alone. Suppose packing returns only the session page this time. It's the first source in this new prompt, so the application calls it E one. Can the service still give Luna a denial?",
+        "hold": 2
+      },
+      {
+        "id": "c11-b05",
+        "say": "Abstain. The dot is in exactly the same place, but this page gives us no key-rotation boundary to test. Retrieve the governing rule or send the question for review. If an age is missing, ask Luna for it. Guessing a value would change her question.",
+        "hold": 0.8
+      }
+    ]
+  },
+  {
+    "id": "c12",
+    "title": "Would you send this cited reply?",
+    "sourceChapters": [
+      "c12"
+    ],
+    "beats": [
+      {
+        "id": "c12-b01",
+        "say": "The prompt gives the model two passages and Luna's question. It asks for a cited answer in at most two sentences, or an abstention. The passages are data. As the application builds the prompt, it records which passage each label opens.",
+        "hold": 0.65
+      },
+      {
+        "id": "c12-b02",
+        "say": "Look up the bracketed labels in a draft reply. E seven has no entry in the map, so hold that reply. Try E two. The label exists and Luna may read its page. The draft says a key can rotate after thirty days. Does the cited sentence support that claim?",
+        "hold": 2.2
+      },
+      {
+        "id": "c12-b03",
+        "say": "The sentence is about idle browser sessions. Hold the key claim. Check each claim against the exact passage its citation opens. If your service promises to catch unsupported claims before delivery, buffer the draft until those checks pass. A later review can flag an error after the caller has seen it.",
+        "hold": 0.65
+      }
+    ]
+  },
+  {
+    "id": "c13",
+    "title": "What did the model read?",
+    "sourceChapters": [
+      "c13"
+    ],
+    "beats": [
+      {
+        "id": "c13-b01",
+        "say": "The article recorded three replies from a small Qwen model. It used the model's chat template, turned thinking and sampling off, and capped the output at eighty tokens. We're looking at excerpts from that run. With both policies and a ten-day key, the model says yes and cites E one. The checked answer is eligible.",
+        "hold": 0.65
+      },
+      {
+        "id": "c13-b02",
+        "say": "Change the key age to fifteen days. The two policies stay put. Read the explanation the model gave. It says the key is stale for less than fourteen days. It goes on to say the sources don't settle the question. But fifteen exceeds fourteen.",
+        "hold": 0.3
+      },
+      {
+        "id": "c13-b03",
+        "say": "The checked answer is ineligible. The label checker found zero unknown labels in both replies.",
+        "hold": 0.7
+      },
+      {
+        "id": "c13-b04",
+        "say": "Reset the key to ten days. Now supply only the session page. That page becomes E one. What key-rotation claim does this source support?",
+        "hold": 1.8
+      },
+      {
+        "id": "c13-b05",
+        "say": "None. The recorded reply compares the risk signal with the thirty-day expiration for idle sessions. It then allows the key to rotate. Again the label exists. The checked answer abstains. These three replies show why checking a known citation can't catch a bad comparison.",
+        "hold": 0.7
+      },
+      {
+        "id": "c13-b06",
+        "say": "Keep the numerical decision in code for this contract. The reference answerer requires the supported intent, the reviewed revision and exact text, and two nonnegative integer ages. Missing values, booleans and negative ages all require an abstention.",
+        "hold": 0.3
+      },
+      {
+        "id": "c13-b07",
+        "say": "Test how the service interprets a question and how the model words the answer separately. Exact generated wording can change with the model or runtime.",
+        "hold": 0.65
+      }
+    ]
+  },
+  {
+    "id": "c14",
+    "title": "A note in the policy margin",
+    "sourceChapters": [
+      "c14"
+    ],
+    "beats": [
+      {
+        "id": "c14-b01",
+        "say": "Luna may read this page. The application has permission to read policy documents. Look at the tools it can use. There is no ticket tool here.",
+        "hold": 0.6
+      },
+      {
+        "id": "c14-b02",
+        "say": "An editor adds a note to the page asking a colleague to open a review ticket. The source still has the same parent ID, revision and access tag, so the packer admits it. Can a note in a document give the assistant a new tool?",
+        "hold": 1.8
+      },
+      {
+        "id": "c14-b03",
+        "say": "Only the application can grant that tool. The note is data. Our narrow rule checker also compares the full passage with the reviewed text. With this addition it abstains. A model-backed service needs its own tests with instruction-like text in permitted documents. Check its answers and enforce tool permissions in application code.",
+        "hold": 0.7
+      }
+    ]
+  },
+  {
+    "id": "c15",
+    "title": "Recheck a buffered answer",
+    "sourceChapters": [
+      "c15"
+    ],
+    "beats": [
+      {
+        "id": "c15-b01",
+        "say": "Both passages go into the draft. The reply cites only E one, the key policy. While the answer is still buffered, access to one document changes. In this example Luna loses permission for the session page alone.",
+        "hold": 0.3
+      },
+      {
+        "id": "c15-b02",
+        "say": "The key rule, her two ages and the bytes stored in the index stay the same. Can Luna receive this draft?",
+        "hold": 2.2
+      },
+      {
+        "id": "c15-b03",
+        "say": "Discard the draft. The citation names one page, but the model read both. Rebuild with the key policy alone. It still supports a fresh yes. Now revoke the whole EU support grant. No governing evidence remains, so abstain.",
+        "hold": 0.65
+      },
+      {
+        "id": "c15-b04",
+        "say": "Apply the same check to cached answers and all their model inputs. Read current grants and document deletions from trusted serving state. A matching hash proves the bytes are the same. A historical snapshot can preserve those bytes for an authorized audit even after serving access ends.",
+        "hold": 0.65
+      },
+      {
+        "id": "c15-b05",
+        "say": "The article's fixture checks immediately before the answerer. In a live service, permissions can change again while the model works. Define how long an authorization lease lasts, or cancel the request on a grant change. Recheck before releasing a buffered answer. That protects what you send next. Anything already delivered is beyond that check.",
+        "hold": 0.65
+      }
+    ]
+  },
+  {
+    "id": "c16",
+    "title": "A similar question can cross the decision boundary",
+    "sourceChapters": [
+      "c16"
+    ],
+    "beats": [
+      {
+        "id": "c16-b01",
+        "say": "An answer cache is another evidence path. Partition by principal or proven-equivalent authorization scope, ACL revision, region, effective date and index, prompt and model versions. Check those dimensions before a hit becomes a response. Store evidence dependencies so a deletion or permission change can invalidate the entry.",
+        "hold": 0.65
+      },
+      {
+        "id": "c16-b02",
+        "say": "The cache holds a yes for ten days and a forty-eight-hour signal. Change the request to fifteen days. All the versions and grants still match. Can you reuse the yes? Compare the ages. Fifteen exceeds fourteen. Compute a fresh denial. Bind intent, ages and other decision inputs before reusing an answer.",
+        "hold": 0.65
+      },
+      {
+        "id": "c16-b03",
+        "say": "Protect traces as well. Record versions, permitted candidate IDs, source maps, decisions and stage timings without making general logs a second private corpus. Store exact inputs and outputs in a separately controlled audit store when retention allows, since temperature zero does not promise byte-identical replay. Sensitive IDs and scope metadata still require access control.",
+        "hold": 0.65
+      }
+    ]
+  },
+  {
+    "id": "c17",
+    "title": "Keep a trace that locates a failed promise",
+    "sourceChapters": [
+      "c17"
+    ],
+    "beats": [
+      {
+        "id": "c17-b01",
+        "say": "Record enough request state to explain how the answer was formed: a request ID, pinned index revision, permitted candidate identifiers, parent versions, decision, and stage timings.",
+        "hold": 0.55
+      },
+      {
+        "id": "c17-b02",
+        "say": "If the rule never appears among candidates, inspect ingestion and ranking. If the child is right but its parent is missing, inspect version matching, permission checks, and context budget.",
+        "hold": 0.75
+      },
+      {
+        "id": "c17-b03",
+        "say": "If complete evidence reaches the answerer and the response still invents a limit, replay that same context against generation and claim checks. Keep sensitive text out of caller-visible errors and traces.",
+        "hold": 0.55
+      }
+    ]
+  },
+  {
+    "id": "c18",
+    "title": "Which search result matters to Luna?",
+    "sourceChapters": [
+      "c18"
+    ],
+    "beats": [
+      {
+        "id": "c18-b01",
+        "say": "Here are the ten nearest passages when we score the entire eligible corpus. Number nine, R, is the one rule Luna needs. Keep the corpus, distance metric and normalization fixed. Now run a faster approximate search. Compare its row with the exact row above.",
+        "hold": 0.3
+      },
+      {
+        "id": "c18-b02",
+        "say": "How many exact neighbors came back? And did Luna get her rule?",
+        "hold": 1.9
+      },
+      {
+        "id": "c18-b03",
+        "say": "Eight of ten exact neighbors came back. That's an approximate nearest-neighbor recall of point eight. For Luna's question, we needed one rule and recovered none. That's her candidate recall. Exact search found R, so try increasing approximate search effort and measure the extra latency.",
+        "hold": 0.3
+      },
+      {
+        "id": "c18-b04",
+        "say": "Take volume eight out and put R in its place. Both were exact neighbors. Eight of ten still match, and now Luna gets her one required rule. If exact search itself missed R, inspect how the passages were represented and scored.",
+        "hold": 0.7
+      },
+      {
+        "id": "c18-b05",
+        "say": "Return to the first search, the one that missed R. Suppose every returned hit fits in the prompt. Context recall for the one required rule is still zero. If the model says the key qualifies, the prompt lacks evidence for that claim. That's a faithfulness failure. Context relevance asks how useful the packed passages are.",
+        "hold": 0.3
+      },
+      {
+        "id": "c18-b06",
+        "say": "Answer relevance asks whether the response addresses Luna's question. Calibrate graders for those judgments against people, and check permission and policy validity separately.",
+        "hold": 0.7
+      }
+    ]
+  },
+  {
+    "id": "c19",
+    "title": "Follow one clock from admission to first token and completion",
+    "sourceChapters": [
+      "c19"
+    ],
+    "beats": [
+      {
+        "id": "c19-b01",
+        "say": "The supplied serial trace uses two milliseconds for authorization, eighteen for retrieval, one for packing and three hundred twenty for model startup. Assume immediate streaming and no extra transport delay. The caller sees token one after three hundred forty-one milliseconds.",
+        "hold": 0.3
+      },
+      {
+        "id": "c19-b02",
+        "say": "Model TTFT measures only the three-hundred-twenty-millisecond startup interval. The following four hundred ten milliseconds of generation finish the answer at seven hundred fifty-one.",
+        "hold": 0.65
+      },
+      {
+        "id": "c19-b03",
+        "say": "A nonblocking trace write finishes three milliseconds later, at seven hundred fifty-four. If policy requires durable acknowledgment, the caller waits for it. Now try buffered delivery with fifteen milliseconds of final validation and an asynchronous trace. What does the caller see first? The whole checked reply at seven hundred sixty-six milliseconds. The model still produced its first token at three hundred forty-one on the request clock.",
+        "hold": 0.65
+      },
+      {
+        "id": "c19-b04",
+        "say": "Component budgets do not replace one deadline. The supplied ten, eighty, ten, five hundred and four hundred fifty milliseconds each pass their stage caps but sum to one thousand fifty, missing the one-second response limit.",
+        "hold": 0.3
+      },
+      {
+        "id": "c19-b05",
+        "say": "The article checker diagnoses supplied timings after the fact; runtime enforcement needs a propagated remaining deadline and tested cancellation or fallback.",
+        "hold": 0.65
+      }
+    ]
+  },
+  {
+    "id": "c20",
+    "title": "Replay one frozen answer",
+    "sourceChapters": [
+      "c20"
+    ],
+    "beats": [
+      {
+        "id": "c20-b01",
+        "say": "Freeze Luna's ten-day request, its forty-eight-hour signal and the expected answer. Run the first case with the reviewed answerer. The returned records, decision, wording and cited parent match. This run passes.",
+        "hold": 0.8
+      },
+      {
+        "id": "c20-b02",
+        "say": "Run that same case with a candidate that changes one number in the reply. It still says eligible. It still cites E one. Should this candidate pass the same case?",
+        "hold": 2.1
+      },
+      {
+        "id": "c20-b03",
+        "say": "Block it. The source allows fourteen days. The candidate promises thirty. Its yes happens to be correct for this key, but Luna could act on that promise for an older key. A check that reads just the decision and the citation would miss the error.",
+        "hold": 0.7
+      },
+      {
+        "id": "c20-b04",
+        "say": "For this failure, start with the reply. Replay generation and its claim check with the same packed parent. Other frozen cases also check that expired and restricted records stay out, and that an unsupported request gets an abstention. Score evidence retrieval, condition coverage, claim support and whether the response addresses the question separately.",
+        "hold": 0.65
+      }
+    ]
+  },
+  {
+    "id": "c21",
+    "title": "What does the release report prove?",
+    "sourceChapters": [
+      "c21"
+    ],
+    "beats": [
+      {
+        "id": "c21-b01",
+        "say": "For latency, measure complete requests under representative load. Imagine five independent stages. Each stays within its own bound ninety-five percent of the time. How often do all five stay within their bounds on the same request? Each extra stage takes another ninety-five percent of the previous group.",
+        "hold": 0.3
+      },
+      {
+        "id": "c21-b02",
+        "say": "That gives about seventy-seven point four percent. It tells us how often all five meet those bounds. To find the ninety-fifth percentile of their total time, measure the totals.",
+        "hold": 0.75
+      },
+      {
+        "id": "c21-b03",
+        "say": "Open the report for the candidate with the thirty-day claim. It failed a frozen case. The seven cases in the article check specific boundaries, including forbidden records, numerical decisions, abstentions and citations. For a model, allow equivalent supported wording. If chunking changes, compare stable versioned source spans.",
+        "hold": 0.65
+      },
+      {
+        "id": "c21-b04",
+        "say": "Switch to the reviewed candidate. Its report records true for all six required gates. Each name must be present with the Boolean value true. Remove the lifecycle result. Even though every remaining row says true, this report is incomplete.",
+        "hold": 0.3
+      },
+      {
+        "id": "c21-b05",
+        "say": "Enter the number one in the empty row. It still fails because the report requires a Boolean. A Boolean false also blocks release. Only a report with every required gate present and true passes this check.",
+        "hold": 0.65
+      },
+      {
+        "id": "c21-b06",
+        "say": "A passing fixture report earns an integration trial. For a rollout decision, use untouched representative questions, calibrate graders against human judgments and exercise the real identity and model services under load. Measure false refusals along with unsupported answers. Start a canary with a rollback condition you can observe.",
+        "hold": 0.65
+      }
+    ]
+  },
+  {
+    "id": "c22",
+    "title": "What can Luna receive now?",
+    "sourceChapters": [
+      "c22"
+    ],
+    "beats": [
+      {
+        "id": "c22-b01",
+        "say": "One last request. This key is thirteen days stale and the signal is forty-seven hours old. Bundle C contains the current rule. The cache holds a draft that says eligible and cites E one. Luna hasn't received it yet.",
+        "hold": 0.7
+      },
+      {
+        "id": "c22-b02",
+        "say": "Before delivery, the policy owner deletes the key document. A deletion record, called a tombstone, stays outside the index. Roll the serving pointer back to B. Its shelf still holds the old bytes. The pending reply came from C. Your cursor is on Send. Can Luna receive that draft?",
+        "hold": 2.6
+      },
+      {
+        "id": "c22-b03",
+        "say": "Discard the draft. Check the current deletion record against the evidence behind the cache entry. Bundle B still points to the same deleted policy. Invalidate the entry and abstain. Seek another permitted source or escalate the question.",
+        "hold": 0.8
+      },
+      {
+        "id": "c22-b04",
+        "say": "Try a separate case, before deletion. Return the pointer to C with permission to read the key policy. Keep the key at thirteen days. Change the signal to forty-nine hours. What decision can Luna receive, and which source supports it?",
+        "hold": 2.2
+      },
+      {
+        "id": "c22-b05",
+        "say": "Ineligible under E one. The dot crossed the forty-eight-hour edge. The service can cite the key rule and explain which condition failed. If the next question uses different words and search misses the policy altogether, try hybrid search. Keep this same check on the evidence it brings back.",
+        "hold": 1.1
+      }
+    ]
+  }
+]

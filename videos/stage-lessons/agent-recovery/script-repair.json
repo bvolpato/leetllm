@@ -1,0 +1,942 @@
+{
+  "version": 2,
+  "lesson": "agent-recovery",
+  "status": "revised_awaiting_fresh_closed_book_and_factual_reviews",
+  "scope": "Repair the two findings in the current renewal review. Preserve the running rollback example, maintenance example, scope, scene order, existing IDs, and prior narration repairs. This record describes only the current delta unless marked historical.",
+  "checked_at": "2026-11-10T02:13:19.026Z",
+  "input_review": {
+    "path": "videos/reviews/script-renewal/agent-recovery.json",
+    "script": "7fa29b7ca9515a9d",
+    "sha256": "bf8aeb4c1947aed19f0b49b62006dd64680a9eca8ae7372cd1ac3d40b4cec87d",
+    "article_sha256": "4b24b0786c14e64bdf4963f48002547c6e5af61f2b752c9c1bbf977f612566b5",
+    "interpretation": "The review is input to investigate. Its closed-book results do not apply to the changed narration."
+  },
+  "script_binding": {
+    "before": "7fa29b7ca9515a9d",
+    "after": "92d488cc9f3da03d",
+    "algorithm": "videos/lib/coverage.mjs scriptHash",
+    "stage_yaml_before_sha256": "268135f672fdefed4067e25faf192cc580ecc328ad1d25e6e87316eb2dafb280",
+    "stage_yaml_after_sha256": "8abd324fcae48b6c071d328b4fd1251fb05c86d7f943fc4320324a690bc30f72"
+  },
+  "findings": [
+    {
+      "id": "pod-instance-identity",
+      "scene": "compensation",
+      "decision": "confirmed_visual_error_with_small_spoken_clarification",
+      "refutation_attempt": "The original spoken sentence correctly denied restoration of prior placement. The unlabelled stage squares might represent workloads rather than Pod instances. However, the YAML explicitly described evicted pod identities remaining on new nodes, and the animation moved the same objects from node A to B and C. The canvas source labels those objects pod 1 and pod 2 and explicitly calls them the same evicted pods. A workload interpretation cannot explain away that identity claim.",
+      "verified_primary_evidence": [
+        {
+          "url": "https://kubernetes.io/docs/concepts/workloads/pods/pod-lifecycle/#pod-lifetime",
+          "sections": [
+            "Pod lifetime",
+            "Pods and fault recovery"
+          ],
+          "evidence": "A Pod binds to one node during its lifetime. Eviction ends that instance. A controller can create a replacement with a different UID, even when its name is reused. Replacement placement can differ.",
+          "implication": "Remove original instances at node A and create distinct replacement objects at the illustrated destinations."
+        },
+        {
+          "url": "https://kubernetes.io/docs/tasks/administer-cluster/safely-drain-node/",
+          "sections": [
+            "Draining a node"
+          ],
+          "evidence": "Uncordon enables scheduling of new Pods onto the node after maintenance.",
+          "implication": "Show scheduling admission changing while existing replacement objects stay in place. Admission alone supplies no health observation."
+        }
+      ],
+      "local_evidence": [
+        {
+          "path": "videos/stage-lessons/agent-recovery/lesson.yaml",
+          "anchor": "compensation.visual",
+          "old": "Evicted pod identities remain on their new nodes while an approved uncordon only changes future scheduling admission."
+        },
+        {
+          "path": "videos/stage-lessons/agent-recovery/scenes/compensation.mjs",
+          "anchor": "pods-evicted",
+          "evidence": "Entry animation used moveTo on pods[0] to destinations on other nodes."
+        },
+        {
+          "path": "videos/films/agent-recovery/stages/compensation.mjs",
+          "anchor": "drawCompensation",
+          "evidence": "The original canvas interpolates pod 1 and pod 2 between nodes and displays the same-evicted-pods label. This file remains untouched."
+        },
+        {
+          "path": "web/src/content/agents/agent-failure-states-retry-fallback/content.md",
+          "anchor": "maintenance example, line 265",
+          "evidence": "The article already says controllers may have created replacement pods elsewhere. Its example is preserved."
+        }
+      ],
+      "beat_index": 0,
+      "old_sentences": [
+        "Uncordoning permits future scheduling; it does not restore the evicted pods’ previous placement or establish that the node is healthy."
+      ],
+      "new_sentences": [
+        "Evicted pods terminate; controllers may create replacements elsewhere with new identities.",
+        "Uncordoning permits future scheduling; it does not move those replacements back or establish that the node is healthy."
+      ],
+      "unchanged_context": "The authorized cordon and eviction, unavailable replacement image, and choice among forward repair, compensation, or human review remain.",
+      "assumptions": "This schematic shows one possible controller-managed workload recovery with room for replacements on nodes B and C. It does not promise that controllers always create replacements, choose those nodes, or complete replacement startup.",
+      "limitation": "Pod counts, labels, and placement are authored illustration choices. No cluster, scheduler, Pod UID lookup, eviction lifecycle, or node-health check ran."
+    },
+    {
+      "id": "fleet-breaker-design",
+      "scene": "breaker-contract",
+      "decision": "confirmed_visual_ambiguity_narration_retained",
+      "refutation_attempt": "A shared design can mean a policy agreed across workers rather than shared live state. On that reading the chip is defensible. However, a viewer can read it as mandatory coordination, and the accompanying article explicitly recommends shared storage. The spoken sentence already permits a distributed design, so changing that sentence is unnecessary.",
+      "verified_primary_evidence": [
+        {
+          "url": "https://www.envoyproxy.io/docs/envoy/latest/intro/arch_overview/upstream/circuit_breaking",
+          "sections": [
+            "Circuit breaking"
+          ],
+          "evidence": "Envoy supports distributed circuit breaking without coordination. Within one Envoy instance, worker threads share limits, and races can exceed them.",
+          "implication": "A fleet does not universally need globally shared breaker state. The chip must leave the shared or distributed choice explicit. Envoy resource limits illustrate the design choice, not the exact health-probe state machine in this lesson."
+        }
+      ],
+      "local_evidence": [
+        {
+          "path": "videos/stage-lessons/agent-recovery/scenes/breaker-contract.mjs",
+          "anchor": "lines[2]",
+          "old": "a fleet needs a shared design of its own"
+        }
+      ],
+      "old_sentences": [
+        "The article’s breaker is local to one event loop, with one probe and a deliberate failure policy; a fleet needs its own shared or distributed design."
+      ],
+      "new_sentences": [
+        "The article’s breaker is local to one event loop, with one probe and a deliberate failure policy; a fleet needs its own shared or distributed design."
+      ],
+      "spoken_change": false,
+      "limitation": "No fleet coordination, shared storage, distributed admission, or deployment behavior was tested."
+    }
+  ],
+  "spoken_changes": [
+    {
+      "scene": "compensation",
+      "beat_index": 0,
+      "old": "A compensation is a new action on current state. Suppose an authorized maintenance flow cordons a node and evicts pods, then its replacement image is unavailable. Uncordoning permits future scheduling; it does not restore the evicted pods’ previous placement or establish that the node is healthy. Inspect the real effects and current permissions before selecting forward repair, compensation or human review.",
+      "new": "A compensation is a new action on current state. Suppose an authorized maintenance flow cordons a node and evicts pods, then its replacement image is unavailable. Evicted pods terminate; controllers may create replacements elsewhere with new identities. Uncordoning permits future scheduling; it does not move those replacements back or establish that the node is healthy. Inspect the real effects and current permissions before selecting forward repair, compensation or human review."
+    }
+  ],
+  "cue_changes": [
+    {
+      "scene": "compensation",
+      "beat_index": 0,
+      "id": "not-restore",
+      "old_phrase": "it does not restore the evicted pods’ previous placement",
+      "new_phrase": "it does not move those replacements back",
+      "action": "Updated phrase. Existing ID and picture target retained."
+    },
+    {
+      "scene": "compensation",
+      "beat_index": 0,
+      "id": "replacement-pods",
+      "old_phrase": null,
+      "new_phrase": "controllers may create replacements elsewhere with new identities",
+      "action": "Added a cue for the new replacement objects and their labels. All existing cue IDs remain."
+    }
+  ],
+  "visual_changes": [
+    {
+      "path": "lesson.yaml",
+      "scene": "compensation",
+      "old": "Evicted pod identities remain on their new nodes while an approved uncordon only changes future scheduling admission.",
+      "new": "Original pods terminate on node A. Distinct replacement pods appear elsewhere and stay there while an approved uncordon only changes future scheduling admission."
+    },
+    {
+      "path": "scenes/compensation.mjs",
+      "old": "The same four Pod objects move from node A to B and C.",
+      "new": "Originals A1 through A4 fade out at node A. New objects R1 through R4 appear at B and C, with labels identifying them as new Pod identities. Existing B1 and C1 remain. Uncordon changes the border and scheduling label without moving replacements."
+    },
+    {
+      "path": "scenes/compensation.mjs",
+      "old": "place the pods again",
+      "new": "repair workload placement",
+      "reason": "Keep the compensation row about workload repair rather than reuse of terminated Pod identities."
+    },
+    {
+      "path": "scenes/compensation.mjs",
+      "old": "place the pods again: timed out",
+      "new": "placement repair: timed out",
+      "reason": "Carry the same identity correction through the failure state."
+    },
+    {
+      "path": "scenes/compensation.mjs",
+      "old": "saved progress, and a key for each one",
+      "new": "saved progress + destination repeat safety",
+      "reason": "Align the adjacent chip with the existing narration and article. A specific idempotency-key API is one possible repeat-safety mechanism, not a requirement for every compensation."
+    },
+    {
+      "path": "scenes/breaker-contract.mjs",
+      "old": "a fleet needs a shared design of its own",
+      "new": "fleet behavior: choose shared or distributed control"
+    }
+  ],
+  "primary_evidence_for_adjacent_visual": [
+    {
+      "url": "https://learn.microsoft.com/en-us/azure/architecture/patterns/compensating-transaction",
+      "sections": [
+        "Solution",
+        "Problems and considerations"
+      ],
+      "evidence": "Compensation follows domain rules, can fail, and needs recorded progress and steps that tolerate retry. Independent repairs can run in parallel, and reversing the original order is not universal.",
+      "implication": "The existing recovery scope remains. The repeat-safety chip now matches that mechanism without prescribing a key API."
+    }
+  ],
+  "numerical_source_review": {
+    "changes": "No existing numerical claim or example value changed.",
+    "inspected": [
+      {
+        "paths": [
+          "videos/films/agent-recovery/arithmetic.mjs",
+          "videos/films/agent-recovery/fixtures.mjs",
+          "videos/films/agent-recovery/model.mjs"
+        ],
+        "result": "The source derives caps 1, 2, 4 from the exponential rule, uses fractions 0.3, 0.7, 0.4, and adds the optional 1.5-second floor. Waits are 0.3/1.4/1.6 without the floor and 1.8/2.9/3.1 with it. Cumulative endpoints with the floor are 1.8/4.7/7.8, so the last wait exceeds five seconds. The page sequence produces stalls 0/1/0 and calls left 7/6/5. These results were independently asserted in a one-off Node invocation."
+      },
+      {
+        "paths": [
+          "videos/stage-lessons/agent-recovery/scenes/spend-budget.mjs",
+          "videos/stage-lessons/agent-recovery/scenes/recovery-transfer.mjs"
+        ],
+        "result": "Inspected scene constants and assertions: 3 squared = 9, 4 cubed = 64, prompt lengths 100/150/200/250 sum to 700, and 120 + 80 exceeds 150. The transfer uses 1.2 + 0.3 = 1.5 > 1.4 and counts 60/12/18/10 totaling 100, with completion 60% and safe disposition 90%. Arithmetic was independently asserted. These two scenes were not recompiled in this targeted check."
+      },
+      {
+        "paths": [
+          "videos/stage-lessons/agent-recovery/scenes/breaker-contract.mjs",
+          "videos/films/agent-recovery/model.mjs"
+        ],
+        "result": "The targeted compilation executes the scene assertions for threshold two, one probe, and the newer open generation four. Standalone model checks also confirmed that stale success leaves generation four open and that after-commit replay returns job-1."
+      }
+    ],
+    "limitations": "Retry arithmetic omits request durations. The model accepts a wait ending exactly at its deadline, whereas the article helper rejects equality. None of the supplied examples hits that boundary. The JavaScript Maps do not establish database durability. Pod labels and counts illustrate identities rather than measured cluster data."
+  },
+  "unresolved_decisions": [
+    {
+      "kind": "old_canvas_visual",
+      "status": "unresolved_outside_write_scope",
+      "path": "videos/films/agent-recovery/stages/compensation.mjs",
+      "decision_needed": "Replace movement of pod 1 and pod 2 with termination and distinct replacement objects, and correct the same-evicted-pods label if the canvas film remains in use.",
+      "source": "https://kubernetes.io/docs/concepts/workloads/pods/pod-lifecycle/#pod-lifetime",
+      "action_taken": "Documented only. No canvas source or canvas script was changed."
+    },
+    {
+      "kind": "article",
+      "status": "unresolved_editorial_clarification",
+      "path": "web/src/content/agents/agent-failure-states-retry-fallback/content.md:1242",
+      "old_sentences": [
+        "For a fleet, keep this state in shared storage, or each worker will open and close its own breaker."
+      ],
+      "decision_needed": "Clarify that independent breaker state across workers can be deliberate. Shared storage is one design option rather than a universal requirement.",
+      "source": "https://www.envoyproxy.io/docs/envoy/latest/intro/arch_overview/upstream/circuit_breaking",
+      "action_taken": "Rechecked the article and primary source. Documented only."
+    },
+    {
+      "kind": "article",
+      "status": "unresolved_clarification_from_prior_repair_reverified",
+      "path": "web/src/content/agents/agent-failure-states-retry-fallback/content.md:283",
+      "old_sentences": [
+        "A persistent backend is needed to retain it across process restarts."
+      ],
+      "decision_needed": "Keep the persistent-backend requirement and qualify when persistence finishes. For an operation identity that must survive before dispatch, specify an earlier step and successful persistence before the dispatch step starts.",
+      "source": "https://docs.langchain.com/oss/python/langgraph/checkpointers#durability-modes",
+      "verified_primary_evidence": "Exit mode skips intermediate persistence, async mode can overlap the next step, and sync mode persists before that next step. The existing stage repair already makes this condition explicit.",
+      "action_taken": "Rechecked the article and primary source. No further stage change and no article edit."
+    }
+  ],
+  "quiz_scope": {
+    "action_taken": "Read the current ten questions and explanations, including their arithmetic and the compensation transfer. No quiz text or key was changed.",
+    "assessment": "No additional quiz defect identified within the two-finding repair scope. This is not an independent Q1-Q7 certification or a fresh closed-book result."
+  },
+  "validation": [
+    {
+      "command": "node ../../tools/stage-check.mjs agent-recovery --scene compensation,breaker-contract",
+      "exit_code": 0,
+      "result": "Both selected scenes compiled with estimated timing. The check reported no findings at rest or in motion and no small-text or empty-space findings.",
+      "rest_moments": 27,
+      "motion_frames": 28679,
+      "elapsed_seconds": 6.7,
+      "limits": "The full lesson timeline is 956.0 seconds on estimated speech. Only the two selected scenes were compiled. No file output, speech generation, or render was produced."
+    },
+    {
+      "command": "One-off Node comparison of entry YAML and current YAML, readLesson validation, and SHA-256 checks of captured files.",
+      "result": "Only compensation beat zero changes in this revision. Every existing lesson, scene, and cue ID survives. Scene order, beat order, beat counts, and holds match entry state. The cue reader validates the saved declarations. Only lesson.yaml and the two affected scene sources differ among the bound inputs, aside from this repair record."
+    },
+    {
+      "command": "One-off Node assertions against imported film model and the inspected numerical examples.",
+      "exit_code": 0,
+      "result": "Source-bound arithmetic, page-counter, commit/replay, and breaker-state assertions completed.",
+      "limits": "No Python fixture, SQLite connection, real concurrency, remote controller, or live cluster ran."
+    }
+  ],
+  "file_bindings": [
+    {
+      "path": "./PLAN.md",
+      "before_sha256": "7cb578b6813840c2f095b8c338351d407cc5608a69a49be19bb4f4707410f64f",
+      "after_sha256": "7cb578b6813840c2f095b8c338351d407cc5608a69a49be19bb4f4707410f64f"
+    },
+    {
+      "path": "./index.mjs",
+      "before_sha256": "0fd82c07eadf8a93f2b80f0a30d193042c788bff6c0d20b78c3018e780aef358",
+      "after_sha256": "0fd82c07eadf8a93f2b80f0a30d193042c788bff6c0d20b78c3018e780aef358"
+    },
+    {
+      "path": "./lesson.yaml",
+      "before_sha256": "268135f672fdefed4067e25faf192cc580ecc328ad1d25e6e87316eb2dafb280",
+      "after_sha256": "8abd324fcae48b6c071d328b4fd1251fb05c86d7f943fc4320324a690bc30f72"
+    },
+    {
+      "path": "./parts.mjs",
+      "before_sha256": "bc2e91ae3e615159605dce1aacb284355cb9462842ce5667eac68c31dcdaa5fc",
+      "after_sha256": "bc2e91ae3e615159605dce1aacb284355cb9462842ce5667eac68c31dcdaa5fc"
+    },
+    {
+      "path": "./scenes/action-boundary.mjs",
+      "before_sha256": "d41a97b26ea407c683d843cefc5f4cbcc4a66a08efdde5093c6faa1d6fef9f0f",
+      "after_sha256": "d41a97b26ea407c683d843cefc5f4cbcc4a66a08efdde5093c6faa1d6fef9f0f"
+    },
+    {
+      "path": "./scenes/breaker-contract.mjs",
+      "before_sha256": "a63436e66aca765c1c0be5cadd06cdf29c4ac615c284f4a512e70a18636488b3",
+      "after_sha256": "055d60d0083c1b148692861e9fb0a7ac4735ff58b3d9ae0f94d4829df1b1274d"
+    },
+    {
+      "path": "./scenes/circuit-breaker.mjs",
+      "before_sha256": "ae5810091b73a1424b1d23e11902c37d9389bdd09408c8c4a1c301a1e54a867b",
+      "after_sha256": "ae5810091b73a1424b1d23e11902c37d9389bdd09408c8c4a1c301a1e54a867b"
+    },
+    {
+      "path": "./scenes/commit-boundary.mjs",
+      "before_sha256": "bbda89a0e382746cb5a021d6e1aff1b21a1bfa58e265b18462ec0be2399ead60",
+      "after_sha256": "bbda89a0e382746cb5a021d6e1aff1b21a1bfa58e265b18462ec0be2399ead60"
+    },
+    {
+      "path": "./scenes/compensation.mjs",
+      "before_sha256": "e9c22e8193187fbe4cb33423de7694891219af21536e46d2ca8bfd1e6eafbc1b",
+      "after_sha256": "1dd81133eb41cd0802c402a6808823f363e365919753f1be41ae21a9080de6e6"
+    },
+    {
+      "path": "./scenes/fallback-evidence.mjs",
+      "before_sha256": "3924fd7089170a8830e58f32a9e6d1e2f7da4f5bda639c9599e623a23c19cffc",
+      "after_sha256": "3924fd7089170a8830e58f32a9e6d1e2f7da4f5bda639c9599e623a23c19cffc"
+    },
+    {
+      "path": "./scenes/operation-identity.mjs",
+      "before_sha256": "6705bbe9402f2806f69a94dab0d399ea6905dede1e1ff262714e43caf5b6913c",
+      "after_sha256": "6705bbe9402f2806f69a94dab0d399ea6905dede1e1ff262714e43caf5b6913c"
+    },
+    {
+      "path": "./scenes/progress-budget.mjs",
+      "before_sha256": "e88d6e8fd2d9066cb1e3683e1a5846948b831901624bef40401b9289bfb0ccaf",
+      "after_sha256": "e88d6e8fd2d9066cb1e3683e1a5846948b831901624bef40401b9289bfb0ccaf"
+    },
+    {
+      "path": "./scenes/recovery-transfer.mjs",
+      "before_sha256": "5514210dbfe178947174820aa127f1dbab032b40f5a9e419f8896b9434e7aabc",
+      "after_sha256": "5514210dbfe178947174820aa127f1dbab032b40f5a9e419f8896b9434e7aabc"
+    },
+    {
+      "path": "./scenes/replay-contract.mjs",
+      "before_sha256": "c6b01b609f517104e86e95af2851c854cd4e9b3e7483e0220c497f59dde672c9",
+      "after_sha256": "c6b01b609f517104e86e95af2851c854cd4e9b3e7483e0220c497f59dde672c9"
+    },
+    {
+      "path": "./scenes/resume-with-evidence.mjs",
+      "before_sha256": "6550b5bcd565ea52ea06629cf58dc5b34424454ea7ce4a3ee0ffda4261096e2c",
+      "after_sha256": "6550b5bcd565ea52ea06629cf58dc5b34424454ea7ce4a3ee0ffda4261096e2c"
+    },
+    {
+      "path": "./scenes/retry-clock.mjs",
+      "before_sha256": "61e580f281ddf26aa93e604b601bb37dc2b4bef2b5d9f2cb7e015e0918a476fd",
+      "after_sha256": "61e580f281ddf26aa93e604b601bb37dc2b4bef2b5d9f2cb7e015e0918a476fd"
+    },
+    {
+      "path": "./scenes/spend-budget.mjs",
+      "before_sha256": "a52a36d62bc22a28972a25dedb0f9ee28e912a0f627db9705eca22a525273f33",
+      "after_sha256": "a52a36d62bc22a28972a25dedb0f9ee28e912a0f627db9705eca22a525273f33"
+    },
+    {
+      "path": "./scenes/subject-intro.mjs",
+      "before_sha256": "c69533cf829affe17f83d2b039008748353d0cda8c1efbe5bf8940c461d56c0c",
+      "after_sha256": "c69533cf829affe17f83d2b039008748353d0cda8c1efbe5bf8940c461d56c0c"
+    },
+    {
+      "path": "./scenes/workflow-world.mjs",
+      "before_sha256": "9df221c8103eb8dbd7d0e4d83a312c236071e12cdb0a8a154bd455c3d5288e0b",
+      "after_sha256": "9df221c8103eb8dbd7d0e4d83a312c236071e12cdb0a8a154bd455c3d5288e0b"
+    },
+    {
+      "path": "../../reviews/script-renewal/agent-recovery.json",
+      "before_sha256": "bf8aeb4c1947aed19f0b49b62006dd64680a9eca8ae7372cd1ac3d40b4cec87d",
+      "after_sha256": "bf8aeb4c1947aed19f0b49b62006dd64680a9eca8ae7372cd1ac3d40b4cec87d"
+    },
+    {
+      "path": "../../lessons/agent-recovery.lesson.yaml",
+      "before_sha256": "7b7471982183c8906808b4da83964201e03f91eb8533f309041eb36ad33d3ddd",
+      "after_sha256": "7b7471982183c8906808b4da83964201e03f91eb8533f309041eb36ad33d3ddd"
+    },
+    {
+      "path": "../../coverage/agent-recovery.yaml",
+      "before_sha256": "b29c02af32d82cafc0a1bc27325a5b433650148554ce2bcc8c573e5f631a6b1e",
+      "after_sha256": "b29c02af32d82cafc0a1bc27325a5b433650148554ce2bcc8c573e5f631a6b1e"
+    },
+    {
+      "path": "../../films/agent-recovery/model.mjs",
+      "before_sha256": "6e400caca766def276f86898bd0b2d3a35f4756c551b5a178d845d3c6a7f3626",
+      "after_sha256": "6e400caca766def276f86898bd0b2d3a35f4756c551b5a178d845d3c6a7f3626"
+    },
+    {
+      "path": "../../films/agent-recovery/stages/compensation.mjs",
+      "before_sha256": "eef4ca5f08c1e2cc9bb32716e1926907b0ab6f617b1e4e25d585643a19fbf457",
+      "after_sha256": "eef4ca5f08c1e2cc9bb32716e1926907b0ab6f617b1e4e25d585643a19fbf457"
+    },
+    {
+      "path": "../../../web/src/content/agents/agent-failure-states-retry-fallback/content.md",
+      "before_sha256": "4b24b0786c14e64bdf4963f48002547c6e5af61f2b752c9c1bbf977f612566b5",
+      "after_sha256": "4b24b0786c14e64bdf4963f48002547c6e5af61f2b752c9c1bbf977f612566b5"
+    }
+  ],
+  "cues_and_visuals_requiring_review": [
+    {
+      "scene": "compensation",
+      "cues": [
+        "pods-evicted",
+        "image-unavailable",
+        "replacement-pods",
+        "uncordon",
+        "not-restore",
+        "not-healthy",
+        "saga-progress",
+        "durable-progress"
+      ],
+      "review": "Use fresh speech to review original-instance disappearance, delayed appearance of distinct replacement identities, the unchanged replacements after uncordon, and the health-unknown label. Review workload repair and repeat-safety wording in the second beat. A real scheduler can interleave controller creation with termination. This animation illustrates one sequence."
+    },
+    {
+      "scene": "breaker-contract",
+      "cues": [
+        "local-loop",
+        "fleet"
+      ],
+      "review": "Review the revised shared-or-distributed chip against the unchanged narration and its hold before probe cancellation."
+    }
+  ],
+  "remaining_limitations": [
+    "Fresh closed-book and factual reviewers must bind their results to script 92d488cc9f3da03d and the current scene hashes. This repair does not declare the lesson passed.",
+    "The stage check is a mechanical compilation and geometry check on estimated speech. No fresh audio, measured-word timeline, encoded frames, continuous playback, or human watch was produced.",
+    "Primary-source review focused on the two current findings and the explicitly retained article decisions. This is not a new claim-by-claim certification of the full lesson.",
+    "No deployed workflow engine, controller authentication, tenant isolation, replica consistency, remote cancellation, process-crash, power-loss, or queued-job execution integration was tested.",
+    "The original canvas Pod-identity error remains outside this write scope. Article, quiz, coverage, review inputs, old canvas script, film model, and unrelated lesson sources retain their entry hashes.",
+    "All writes were confined to this lesson directory. No Git operation, helper agent, external write, or browser session was used."
+  ],
+  "prior_repair_record": {
+    "status": "historical_entry_record_not_current_validation",
+    "entry_sha256": "7d84bab04561fbaec5dbcac3e585478c0688405f2dfbd00f32a7f4773e5c3cb6",
+    "record": {
+      "version": 1,
+      "lesson": "agent-recovery",
+      "status": "revised_awaiting_independent_closed_book_and_factual_reviews",
+      "scope": "Stage narration repairs for the five findings in videos/reviews/script-renewal/agent-recovery.json. The running approved rollback, lesson scope, numerical examples, scene order, and all existing IDs are preserved.",
+      "input_review": {
+        "path": "videos/reviews/script-renewal/agent-recovery.json",
+        "script": "c38ca79015682349",
+        "article_sha256": "4b24b0786c14e64bdf4963f48002547c6e5af61f2b752c9c1bbf977f612566b5",
+        "interpretation": "The prior review is input evidence. Its scores and findings do not certify the revised narration.",
+        "sha256": "6e4b557366c0e65e8e257b3630c4a96c3a713b4e862d4aefac11fe2f445e5509"
+      },
+      "findings": [
+        {
+          "id": "langgraph-durability",
+          "scene": "workflow-world",
+          "beat_index": 1,
+          "decision": "repair",
+          "refutation_attempt": "The documentation overview describes checkpoints at super-step boundaries, matching the original sentence. However, its explicit durability modes distinguish checkpoint creation from persistence. A persistent backend does not force an asynchronous checkpoint to finish before the next node sends a write.",
+          "verified_primary_evidence": [
+            {
+              "url": "https://docs.langchain.com/oss/python/langgraph/checkpointers#durability-modes",
+              "sections": [
+                "Durability modes",
+                "First durable checkpoint on a new thread",
+                "Why use checkpointers"
+              ],
+              "evidence": "Exit mode persists at graph exit. Async mode overlaps persistence with the next step and can lose state on a crash. Sync mode persists before the next step starts. Pending writes preserve successful sibling-node results.",
+              "implication": "Place the operation identity in a completed earlier step and confirm its persistence before dispatch. Backend choice alone is insufficient."
+            }
+          ],
+          "old_sentences": [
+            "LangGraph saves thread-scoped state at super-step boundaries; pending writes can preserve successful node results within a failed step.",
+            "Surviving process restart needs a persistent backend."
+          ],
+          "new_sentences": [
+            "LangGraph supports thread-scoped checkpoints at super-step boundaries.",
+            "Pending writes can preserve successful node results within a failed step.",
+            "Restart recovery needs a persistent backend and an appropriate durability mode.",
+            "Exit mode omits intermediate persistence, and asynchronous mode can lose a checkpoint on a crash.",
+            "To make identity durable before dispatch, put it in an earlier step and wait for successful synchronous persistence before starting the dispatch step."
+          ],
+          "local_evidence": [
+            "web/src/content/agents/agent-failure-states-retry-fallback/content.md:277-285",
+            "videos/stage-lessons/agent-recovery/scenes/workflow-world.mjs: workflow track saves the key before dispatch; remote records remain after local rewind."
+          ],
+          "limitation": "No deployed LangGraph version, checkpointer, storage acknowledgment contract, or crash test was supplied. Synchronous mode cannot persist an identity created inside the same node before that node dispatches unless the node separately persists it."
+        },
+        {
+          "id": "rlm-source-access",
+          "scene": "recovery-transfer",
+          "beat_index": 4,
+          "decision": "repair",
+          "refutation_attempt": "Keeping the full manual available could be called source coverage in a loose sense. The paper supports source access, but selective inspection does not establish that every relevant passage was processed. Its trajectories include keyword filtering and incorrect final answers. Runtime bounds are configured controls, not an automatic property of the abstraction.",
+          "verified_primary_evidence": [
+            {
+              "url": "https://arxiv.org/html/2512.24601v1",
+              "sections": [
+                "1 Introduction",
+                "3.1 Emergent Patterns in RLM Trajectories",
+                "5 Limitations and Future Work"
+              ],
+              "evidence": "The input resides in an external REPL variable and is inspected with code and recursive calls. Observed strategies filter by keywords and may produce wrong answers. The experiments configure recursion depth.",
+              "implication": "Retaining source access does not prove complete inspection. Execution budgets and coverage checks remain application responsibilities."
+            }
+          ],
+          "old_sentences": [
+            "Recursive language models next keep a large manual outside the prompt and inspect it through bounded code and sub-calls, preserving source coverage without assuming a summary kept every exception."
+          ],
+          "new_sentences": [
+            "In the next lesson, recursive language models can keep a large manual outside the model context and inspect it through code and sub-calls.",
+            "This preserves access to the original source.",
+            "Explicit execution budgets and coverage checks are still needed for material the model may miss."
+          ],
+          "local_evidence": [
+            "videos/stage-lessons/agent-recovery/scenes/recovery-transfer.mjs: the closing visual names the next lesson without claiming exhaustive coverage.",
+            "web/src/content/agents/agent-failure-states-retry-fallback/content.md:883 names the next RLM lesson."
+          ],
+          "limitation": "No RLM run, manual-coverage measurement, or enforcement implementation was evaluated. Coverage checks can detect omissions without guaranteeing that every semantic exception is found."
+        },
+        {
+          "id": "cancellation-versus-timeout",
+          "scene": "spend-budget",
+          "beat_index": 2,
+          "decision": "repair",
+          "refutation_attempt": "The article's synchronous retry wrapper cannot interrupt a callable that ignores its timeout argument, which supports a narrower statement. The spoken sentence covers I/O clients generally. A coroutine can ignore a timeout argument while still honoring cancellation at an await. Conversely, suppression or blocking work can prevent prompt termination.",
+          "verified_primary_evidence": [
+            {
+              "url": "https://docs.python.org/3/library/asyncio-task.html#asyncio.Task.cancel",
+              "sections": [
+                "Task.cancel",
+                "Timeouts",
+                "Shielding from cancellation"
+              ],
+              "evidence": "Task.cancel requests cancellation by injecting CancelledError, which a coroutine can suppress. Cancellation normally propagates through awaited objects. wait_for can exceed its timeout while waiting for cancellation.",
+              "implication": "Timeout enforcement and cancellation support are separate properties. Neither a local request nor a deadline proves that a remote effect stopped."
+            }
+          ],
+          "old_sentences": [
+            "Cancellation cannot force an I O client that ignores its timeout to stop."
+          ],
+          "new_sentences": [
+            "A deadline or cancellation request does not guarantee that underlying I O stops.",
+            "Use clients with enforced timeouts and cancellation support, and reconcile remote effects separately."
+          ],
+          "local_evidence": [
+            "web/src/content/agents/agent-failure-states-retry-fallback/content.md:424",
+            "videos/stage-lessons/agent-recovery/scenes/spend-budget.mjs: cancel label retains remote-use uncertainty."
+          ],
+          "limitation": "No actual I/O client or remote cancellation protocol was tested. The repair separates documented local task behavior from unobserved remote effects."
+        },
+        {
+          "id": "production-controller-safeguards",
+          "scene": "replay-contract",
+          "beat_index": 2,
+          "decision": "repair",
+          "refutation_attempt": "The article recommends these safeguards, so the original may have intended a normative statement. Its wording asserts that real services implement them. The local fixture explicitly omits authentication and authorization, while documented key scopes vary by API, account, sandbox, and retention window. No actual production controller was inspected.",
+          "verified_primary_evidence": [
+            {
+              "url": "https://docs.stripe.com/api-v2-overview#idempotency",
+              "sections": [
+                "Idempotency",
+                "Idempotency differences between API v1 and API v2"
+              ],
+              "evidence": "Stripe v2 replay scope combines the same API and idempotency key, the same account or sandbox, and a retention interval. This is a specific service contract."
+            },
+            {
+              "url": "https://cheatsheetseries.owasp.org/cheatsheets/Authorization_Cheat_Sheet.html#validate-the-permissions-on-every-request",
+              "sections": [
+                "Validate the Permissions on Every Request",
+                "Ensure Lookup IDs are Not Accessible Even When Guessed or Cannot Be Tampered With"
+              ],
+              "evidence": "OWASP recommends permission checks on every request and object-specific access checks. This is design guidance, not proof of a particular service's implementation."
+            }
+          ],
+          "old_sentences": [
+            "Real services also authenticate callers, scope keys by tenant, and verify access before returning stored results."
+          ],
+          "new_sentences": [
+            "A production controller should authenticate callers, document key scope and retention, isolate tenants where applicable, and authorize access before returning stored results.",
+            "Verify these safeguards in the actual service."
+          ],
+          "local_evidence": [
+            "web/src/content/agents/agent-failure-states-retry-fallback/content.md:250 explicitly lists missing fixture safeguards.",
+            "videos/films/agent-recovery/model.mjs: dispatchOperation uses one in-memory key namespace without caller authentication."
+          ],
+          "limitation": "The lesson still demonstrates a local fixture. The revised recommendation does not certify any production controller, tenant isolation, or authorization integration."
+        },
+        {
+          "id": "retry-after-policy",
+          "scene": "retry-clock",
+          "beat_index": 1,
+          "decision": "repair",
+          "refutation_attempt": "RFC 9110 explicitly describes a minimum wait for redirects, and treating a hint as a floor is a defensible conservative policy. For 503, however, it describes expected unavailability and a suggested wait. The article already identifies the floor as its own policy. The original first sentence omitted that scope.",
+          "verified_primary_evidence": [
+            {
+              "url": "https://www.rfc-editor.org/rfc/rfc9110.html#section-10.2.3",
+              "sections": [
+                "10.2.3 Retry-After",
+                "15.6.4 503 Service Unavailable"
+              ],
+              "evidence": "Retry-After indicates a wait before a follow-up request and accepts delay seconds or an HTTP date. The redirect description explicitly specifies a minimum. The 503 description suggests a wait.",
+              "implication": "State the lesson's floor policy explicitly and retain the caller deadline check. This does not authorize repeating a write."
+            }
+          ],
+          "old_sentences": [
+            "A Retry-After value supplies a minimum wait."
+          ],
+          "new_sentences": [
+            "Under this policy, treat a valid Retry-After hint as a minimum wait.",
+            "Parse either delay seconds or an HTTP date."
+          ],
+          "local_evidence": [
+            "web/src/content/agents/agent-failure-states-retry-fallback/content.md:301",
+            "videos/films/agent-recovery/model.mjs: retrySchedule adds RETRY_AFTER to sampled jitter.",
+            "videos/stage-lessons/agent-recovery/scenes/retry-clock.mjs: floor shifts waits before the deadline judgment."
+          ],
+          "limitation": "The film and article helper receive a parsed numeric hint. They do not implement an HTTP-date parser. A production adapter must validate hints and translate dates to a nonnegative wait."
+        }
+      ],
+      "visual_changes": [
+        {
+          "path": "scenes/workflow-world.mjs",
+          "old": "a persistent backend",
+          "new": "persistent backend + sync",
+          "reason": "The selected pre-dispatch persistence contract now includes synchronous checkpointing. The existing save-key, dispatch, save-receipt track remains intact."
+        },
+        {
+          "path": "scenes/replay-contract.mjs",
+          "old": "tenant",
+          "new": "tenant, if any",
+          "reason": "Tenant isolation applies when the controller serves multiple tenants. The visual no longer suggests every key namespace requires a tenant."
+        }
+      ],
+      "numerical_source_review": {
+        "changes": "No numerical claims or example values changed.",
+        "inspected": [
+          {
+            "path": "videos/films/agent-recovery/arithmetic.mjs and fixtures.mjs",
+            "result": "Exponential caps are 1, 2, 4 seconds. Fractions 0.3, 0.7, 0.4 produce waits 0.3, 1.4, 1.6. Adding the 1.5-second floor gives cumulative endpoints 1.8, 4.7, 7.8 against a five-second deadline. The third retry is rejected."
+          },
+          {
+            "path": "videos/stage-lessons/agent-recovery/scenes/spend-budget.mjs",
+            "result": "Scene assertions derive nine sends, sixty-four sends, prompt lengths 100/150/200/250, total 700, and a rejected 120 + 80 reservation against 150. These assertions executed during the targeted stage compilation."
+          },
+          {
+            "path": "videos/stage-lessons/agent-recovery/scenes/recovery-transfer.mjs",
+            "result": "Scene assertions derive 1.2 + 0.3 = 1.5 seconds, exceeding 1.4, and counts 60/12/18/10 totaling 100 with rates 60% and 90%. The freshness picture uses 40 minutes and a one-minute policy. These remain synthetic examples."
+          },
+          {
+            "path": "videos/films/agent-recovery/model.mjs and scenes/replay-contract.mjs",
+            "result": "A same-key replay returns the same queued job, changed payload conflicts, and the second logical key has job-2. The scene asserts two jobs for two logical operations. Its in-memory model is distinct from the article's real SQLite fixture."
+          }
+        ]
+      },
+      "unresolved_decisions": [
+        {
+          "kind": "article",
+          "status": "unresolved_outside_write_scope",
+          "path": "web/src/content/agents/agent-failure-states-retry-fallback/content.md:283",
+          "old_sentences": [
+            "LangGraph checkpointers preserve thread-scoped graph state at super-step boundaries, with pending writes supporting recovery of successful nodes within a failed super-step.",
+            "A persistent backend is needed to retain it across process restarts."
+          ],
+          "decision_needed": "Qualify persistence by durability mode, and explain how an operation identity becomes durable before dispatch. The stage now makes this condition explicit, while the article still omits it.",
+          "source": "https://docs.langchain.com/oss/python/langgraph/checkpointers#durability-modes",
+          "action_taken": "Documented only. The article was not edited."
+        },
+        {
+          "kind": "article",
+          "status": "unresolved_editorial_clarification",
+          "path": "web/src/content/agents/agent-failure-states-retry-fallback/content.md:1242",
+          "old_sentences": [
+            "For a fleet, keep this state in shared storage, or each worker will open and close its own breaker."
+          ],
+          "decision_needed": "Clarify that independent worker breakers can be deliberate, and shared state is one design option. The statement about independent workers is true, but the instruction omits a documented distributed alternative. The stage already permits a shared or distributed design.",
+          "source": "https://www.envoyproxy.io/docs/envoy/latest/intro/arch_overview/upstream/circuit_breaking",
+          "evidence": "Envoy documents fully distributed circuit breaking without fleet coordination.",
+          "action_taken": "Documented only. The reader-edition article was not edited."
+        }
+      ],
+      "quiz_scope": {
+        "action_taken": "Read the ten current mastery questions and explanations to check the repaired concepts and preserve their assumptions. No quiz or key was changed.",
+        "assessment": "No answer-key defect was identified in this repair scope. This is not an independent quiz certification or a fresh closed-book result.",
+        "sha256": "e90fce4e7a5cb3b1f1410ddf0a3b51e9bb4b09635b3f8758cf818dc7dbd5bda3"
+      },
+      "validation": [
+        {
+          "command": "node ../../tools/stage-check.mjs agent-recovery --scene retry-clock,replay-contract,workflow-world,spend-budget,recovery-transfer",
+          "exit_code": 0,
+          "result": "Five selected scenes compiled on estimated timing. The tool reported no rest, motion, small-text, or empty-space findings.",
+          "rest_moments": 105,
+          "checked_motion_frames": 28571,
+          "elapsed_seconds": 22.6,
+          "limits": "This targeted check is not a review of the full delivered film. Timing is estimated, not measured from fresh speech."
+        },
+        {
+          "command": "Direct comparison of the saved entry script, revised YAML, repair record, and entry file hashes.",
+          "result": "All lesson, scene, and cue IDs, beat order, holds, targets, and other metadata match the entry state. Exactly five spoken beats change, and every changed sentence matches the report. All other inspected source files retain their entry hashes."
+        },
+        {
+          "command": "Inspect film arithmetic, fixtures, models, and scene assertions.",
+          "result": "All reviewed numerical examples retain their values and agree with their source calculations. The targeted stage compilation executed the selected scene assertions."
+        }
+      ],
+      "remaining_limitations": [
+        "Fresh closed-book and factual reviews must bind to the revised script hash. No lesson pass is declared here.",
+        "No new speech, measured-word timeline, encoded movie, continuous playback, or human watch was produced.",
+        "Changed cue phrases resolve on estimated timing. Review their placement again after fresh narration is recorded.",
+        "The stage check verifies mechanical scene properties. It does not establish teaching quality, factual completeness, production reliability, or complete RLM coverage.",
+        "The article's Python fixtures were inspected but not executed in this task. No model evaluation, live controller, distributed concurrency, power-loss, or external-effect cancellation test ran.",
+        "Existing local changes were present on entry. Only the repair delta described here is attributable to this task."
+      ],
+      "cues_and_visuals_requiring_review": [
+        {
+          "scene": "workflow-world",
+          "cues": [
+            "langgraph",
+            "pending-writes",
+            "persistent-backend",
+            "temporal"
+          ],
+          "review": "Check the longer durability explanation, the backend + sync label, and the transition into Temporal using fresh speech. The key is saved in an earlier workflow step."
+        },
+        {
+          "scene": "retry-clock",
+          "cues": [
+            "retry-after-floor",
+            "bounded-offset",
+            "combined-deadline"
+          ],
+          "review": "Check the policy-floor reveal and its hold through the added parsing sentence. Existing bars and values remain unchanged."
+        },
+        {
+          "scene": "replay-contract",
+          "cues": [
+            "auth-tenant"
+          ],
+          "review": "Check the safeguard chips against the recommendation and explicit verification sentence. Tenant isolation is conditional."
+        },
+        {
+          "scene": "spend-budget",
+          "cues": [
+            "cancel"
+          ],
+          "review": "Check the local-cancel and remote-use-unverified label against the two replacement sentences."
+        },
+        {
+          "scene": "recovery-transfer",
+          "cues": [
+            "next-lesson"
+          ],
+          "review": "The next-lesson chip names RLMs. Check the closing hold through the source-access and coverage-limit explanation after recording."
+        }
+      ],
+      "checked_at": "2026-11-10T02:01:07.280Z",
+      "script_binding": {
+        "before": "c38ca79015682349",
+        "after": "7fa29b7ca9515a9d",
+        "algorithm": "videos/lib/coverage.mjs scriptHash",
+        "stage_yaml_before_sha256": "3e0273e84b07996b17cea2f91bf3dbaf337b2300b0b79bdf75355b87c6045eec",
+        "stage_yaml_after_sha256": "268135f672fdefed4067e25faf192cc580ecc328ad1d25e6e87316eb2dafb280"
+      },
+      "file_bindings": [
+        {
+          "path": "videos/stage-lessons/agent-recovery/lesson.yaml",
+          "before_sha256": "3e0273e84b07996b17cea2f91bf3dbaf337b2300b0b79bdf75355b87c6045eec",
+          "after_sha256": "268135f672fdefed4067e25faf192cc580ecc328ad1d25e6e87316eb2dafb280",
+          "changed": true
+        },
+        {
+          "path": "videos/stage-lessons/agent-recovery/PLAN.md",
+          "before_sha256": "7cb578b6813840c2f095b8c338351d407cc5608a69a49be19bb4f4707410f64f",
+          "after_sha256": "7cb578b6813840c2f095b8c338351d407cc5608a69a49be19bb4f4707410f64f",
+          "changed": false
+        },
+        {
+          "path": "videos/stage-lessons/agent-recovery/index.mjs",
+          "before_sha256": "0fd82c07eadf8a93f2b80f0a30d193042c788bff6c0d20b78c3018e780aef358",
+          "after_sha256": "0fd82c07eadf8a93f2b80f0a30d193042c788bff6c0d20b78c3018e780aef358",
+          "changed": false
+        },
+        {
+          "path": "videos/stage-lessons/agent-recovery/parts.mjs",
+          "before_sha256": "bc2e91ae3e615159605dce1aacb284355cb9462842ce5667eac68c31dcdaa5fc",
+          "after_sha256": "bc2e91ae3e615159605dce1aacb284355cb9462842ce5667eac68c31dcdaa5fc",
+          "changed": false
+        },
+        {
+          "path": "videos/stage-lessons/agent-recovery/scenes/action-boundary.mjs",
+          "before_sha256": "d41a97b26ea407c683d843cefc5f4cbcc4a66a08efdde5093c6faa1d6fef9f0f",
+          "after_sha256": "d41a97b26ea407c683d843cefc5f4cbcc4a66a08efdde5093c6faa1d6fef9f0f",
+          "changed": false
+        },
+        {
+          "path": "videos/stage-lessons/agent-recovery/scenes/breaker-contract.mjs",
+          "before_sha256": "a63436e66aca765c1c0be5cadd06cdf29c4ac615c284f4a512e70a18636488b3",
+          "after_sha256": "a63436e66aca765c1c0be5cadd06cdf29c4ac615c284f4a512e70a18636488b3",
+          "changed": false
+        },
+        {
+          "path": "videos/stage-lessons/agent-recovery/scenes/circuit-breaker.mjs",
+          "before_sha256": "ae5810091b73a1424b1d23e11902c37d9389bdd09408c8c4a1c301a1e54a867b",
+          "after_sha256": "ae5810091b73a1424b1d23e11902c37d9389bdd09408c8c4a1c301a1e54a867b",
+          "changed": false
+        },
+        {
+          "path": "videos/stage-lessons/agent-recovery/scenes/commit-boundary.mjs",
+          "before_sha256": "bbda89a0e382746cb5a021d6e1aff1b21a1bfa58e265b18462ec0be2399ead60",
+          "after_sha256": "bbda89a0e382746cb5a021d6e1aff1b21a1bfa58e265b18462ec0be2399ead60",
+          "changed": false
+        },
+        {
+          "path": "videos/stage-lessons/agent-recovery/scenes/compensation.mjs",
+          "before_sha256": "e9c22e8193187fbe4cb33423de7694891219af21536e46d2ca8bfd1e6eafbc1b",
+          "after_sha256": "e9c22e8193187fbe4cb33423de7694891219af21536e46d2ca8bfd1e6eafbc1b",
+          "changed": false
+        },
+        {
+          "path": "videos/stage-lessons/agent-recovery/scenes/fallback-evidence.mjs",
+          "before_sha256": "3924fd7089170a8830e58f32a9e6d1e2f7da4f5bda639c9599e623a23c19cffc",
+          "after_sha256": "3924fd7089170a8830e58f32a9e6d1e2f7da4f5bda639c9599e623a23c19cffc",
+          "changed": false
+        },
+        {
+          "path": "videos/stage-lessons/agent-recovery/scenes/operation-identity.mjs",
+          "before_sha256": "6705bbe9402f2806f69a94dab0d399ea6905dede1e1ff262714e43caf5b6913c",
+          "after_sha256": "6705bbe9402f2806f69a94dab0d399ea6905dede1e1ff262714e43caf5b6913c",
+          "changed": false
+        },
+        {
+          "path": "videos/stage-lessons/agent-recovery/scenes/progress-budget.mjs",
+          "before_sha256": "e88d6e8fd2d9066cb1e3683e1a5846948b831901624bef40401b9289bfb0ccaf",
+          "after_sha256": "e88d6e8fd2d9066cb1e3683e1a5846948b831901624bef40401b9289bfb0ccaf",
+          "changed": false
+        },
+        {
+          "path": "videos/stage-lessons/agent-recovery/scenes/recovery-transfer.mjs",
+          "before_sha256": "5514210dbfe178947174820aa127f1dbab032b40f5a9e419f8896b9434e7aabc",
+          "after_sha256": "5514210dbfe178947174820aa127f1dbab032b40f5a9e419f8896b9434e7aabc",
+          "changed": false
+        },
+        {
+          "path": "videos/stage-lessons/agent-recovery/scenes/replay-contract.mjs",
+          "before_sha256": "f0a707942178e83c675753837b37c6dba377c3b6b940c79ec4cb765220d23a1a",
+          "after_sha256": "c6b01b609f517104e86e95af2851c854cd4e9b3e7483e0220c497f59dde672c9",
+          "changed": true
+        },
+        {
+          "path": "videos/stage-lessons/agent-recovery/scenes/resume-with-evidence.mjs",
+          "before_sha256": "6550b5bcd565ea52ea06629cf58dc5b34424454ea7ce4a3ee0ffda4261096e2c",
+          "after_sha256": "6550b5bcd565ea52ea06629cf58dc5b34424454ea7ce4a3ee0ffda4261096e2c",
+          "changed": false
+        },
+        {
+          "path": "videos/stage-lessons/agent-recovery/scenes/retry-clock.mjs",
+          "before_sha256": "61e580f281ddf26aa93e604b601bb37dc2b4bef2b5d9f2cb7e015e0918a476fd",
+          "after_sha256": "61e580f281ddf26aa93e604b601bb37dc2b4bef2b5d9f2cb7e015e0918a476fd",
+          "changed": false
+        },
+        {
+          "path": "videos/stage-lessons/agent-recovery/scenes/spend-budget.mjs",
+          "before_sha256": "a52a36d62bc22a28972a25dedb0f9ee28e912a0f627db9705eca22a525273f33",
+          "after_sha256": "a52a36d62bc22a28972a25dedb0f9ee28e912a0f627db9705eca22a525273f33",
+          "changed": false
+        },
+        {
+          "path": "videos/stage-lessons/agent-recovery/scenes/subject-intro.mjs",
+          "before_sha256": "c69533cf829affe17f83d2b039008748353d0cda8c1efbe5bf8940c461d56c0c",
+          "after_sha256": "c69533cf829affe17f83d2b039008748353d0cda8c1efbe5bf8940c461d56c0c",
+          "changed": false
+        },
+        {
+          "path": "videos/stage-lessons/agent-recovery/scenes/workflow-world.mjs",
+          "before_sha256": "6c69fa7dbf7467eeabeb8c96689c8532a859e21a26c2161babcd772f6276c965",
+          "after_sha256": "9df221c8103eb8dbd7d0e4d83a312c236071e12cdb0a8a154bd455c3d5288e0b",
+          "changed": true
+        },
+        {
+          "path": "videos/lessons/agent-recovery.lesson.yaml",
+          "before_sha256": "7b7471982183c8906808b4da83964201e03f91eb8533f309041eb36ad33d3ddd",
+          "after_sha256": "7b7471982183c8906808b4da83964201e03f91eb8533f309041eb36ad33d3ddd",
+          "changed": false
+        },
+        {
+          "path": "videos/coverage/agent-recovery.yaml",
+          "before_sha256": "b29c02af32d82cafc0a1bc27325a5b433650148554ce2bcc8c573e5f631a6b1e",
+          "after_sha256": "b29c02af32d82cafc0a1bc27325a5b433650148554ce2bcc8c573e5f631a6b1e",
+          "changed": false
+        },
+        {
+          "path": "web/src/content/agents/agent-failure-states-retry-fallback/content.md",
+          "before_sha256": "4b24b0786c14e64bdf4963f48002547c6e5af61f2b752c9c1bbf977f612566b5",
+          "after_sha256": "4b24b0786c14e64bdf4963f48002547c6e5af61f2b752c9c1bbf977f612566b5",
+          "changed": false
+        },
+        {
+          "path": "videos/films/agent-recovery/model.mjs",
+          "before_sha256": "6e400caca766def276f86898bd0b2d3a35f4756c551b5a178d845d3c6a7f3626",
+          "after_sha256": "6e400caca766def276f86898bd0b2d3a35f4756c551b5a178d845d3c6a7f3626",
+          "changed": false
+        }
+      ],
+      "cue_changes": [
+        {
+          "scene": "retry-clock",
+          "beat_index": 1,
+          "id": "retry-after-floor",
+          "old_phrase": "A Retry-After value supplies a minimum wait",
+          "new_phrase": "Under this policy, treat a valid Retry-After hint as a minimum wait"
+        },
+        {
+          "scene": "replay-contract",
+          "beat_index": 2,
+          "id": "auth-tenant",
+          "old_phrase": "authenticate callers, scope keys by tenant, and verify access",
+          "new_phrase": "authenticate callers, document key scope and retention"
+        },
+        {
+          "scene": "workflow-world",
+          "beat_index": 1,
+          "id": "langgraph",
+          "old_phrase": "LangGraph saves thread-scoped state at super-step boundaries",
+          "new_phrase": "LangGraph supports thread-scoped checkpoints at super-step boundaries"
+        },
+        {
+          "scene": "workflow-world",
+          "beat_index": 1,
+          "id": "persistent-backend",
+          "old_phrase": "needs a persistent backend",
+          "new_phrase": "needs a persistent backend and an appropriate durability mode"
+        },
+        {
+          "scene": "spend-budget",
+          "beat_index": 2,
+          "id": "cancel",
+          "old_phrase": "Cancellation cannot force",
+          "new_phrase": "A deadline or cancellation request does not guarantee"
+        },
+        {
+          "scene": "recovery-transfer",
+          "beat_index": 4,
+          "id": "next-lesson",
+          "old_phrase": "Recursive language models next",
+          "new_phrase": "In the next lesson, recursive language models"
+        }
+      ]
+    }
+  }
+}

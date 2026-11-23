@@ -1,0 +1,1746 @@
+version: 1
+id: deep-dive-ray
+title: Ray and the Life of a Remote Result
+source: projects/deep-dive-ray/content.md
+voice: en-US-AndrewNeural
+rate: +0%
+sources:
+  - title: Ray actors documentation
+    url: https://docs.ray.io/en/latest/ray-core/actors.html
+  - title: Ray placement groups documentation
+    url: https://docs.ray.io/en/latest/ray-core/scheduling/placement-group.html
+  - title: Ray actor fault tolerance
+    url: https://docs.ray.io/en/latest/ray-core/fault_tolerance/actors.html
+  - title: Pinned Ray2.58 object fault tolerance
+    url: https://github.com/ray-project/ray/blob/ray-2.58.0/doc/source/ray-core/fault_tolerance/objects.rst
+  - title: Pinned Ray2.58 GCS fault tolerance
+    url: https://github.com/ray-project/ray/blob/ray-2.58.0/doc/source/ray-core/fault_tolerance/gcs.rst
+  - title: Ray2.58 release notes
+    url: https://github.com/ray-project/ray/releases/tag/ray-2.58.0
+  - title: Ray OSDI2018 paper
+    url: https://www.usenix.org/conference/osdi18/presentation/moritz
+  - title: Ownership NSDI2021 paper
+    url: https://www.usenix.org/conference/nsdi21/presentation/cheng
+scenes:
+  - id: intro
+    title: When can the ledger count all three?
+    visual: Fly cache and router onto two worker lanes. Keep trace waiting until router finishes. Compare
+      the two schedules on one ruler, then keep the three results visible while the ledger restarts.
+    beats:
+      - say: Ray sends cache to one worker and router to the other. Trace is waiting. Cache needs four ticks.
+          Router needs two. Watch router finish. Worker two picks up trace. Three more ticks and all three
+          results are ready at five. With one worker they'd finish at nine. The ledger counts three.
+          The driver holds a handle for each result. Now the process that kept count exits. Its replacement
+          starts with the constructor shown here. What count will it report?
+        hold: 2.4
+        caption_starts:
+          - Worker two picks up trace
+          - With one worker
+        visual_cues:
+          - id: intro-first-finish
+            phrase: Cache needs four ticks. Router needs two. Watch router finish
+            targets: [intro-cache-task, intro-router-task]
+            color: cyan
+            linger: 0.3
+          - id: intro-worker
+            phrase: Worker two picks up trace
+            targets: [intro-trace-task]
+            color: yellow
+            linger: 0.3
+          - id: intro-finish
+            phrase: Three more ticks and all three results are ready at five
+            targets: [intro-ledger-count]
+            color: green
+            linger: 0.3
+          - id: intro-schedule
+            phrase: With one worker they'd finish at nine
+            targets:
+              - intro-schedule-payoff
+              - intro-ledger-count
+            color: cyan
+            linger: 0.3
+          - id: intro-lab
+            phrase: The ledger counts three
+            targets:
+              - word-rows
+            color: cyan
+            linger: 0.3
+          - id: intro-words
+            phrase: The driver holds a handle for each result
+            targets:
+              - word-rows
+            color: cyan
+            linger: 0.3
+          - id: intro-exit
+            phrase: the process that kept count exits
+            targets:
+              - process-number
+            color: pink
+            linger: 0.3
+          - id: intro-question
+            phrase: What count will it report
+            targets:
+              - process-number
+            color: yellow
+            linger: 0.3
+      - say: Zero. The old process kept the count in memory. Look at router. A worker already computed that pair of
+          numbers. The driver owns the handle for the result, and the driver is still alive.
+        hold: 0.8
+        visual_cues:
+          - id: intro-zero
+            phrase: Zero
+            targets:
+              - process-number
+            color: yellow
+            linger: 0.3
+          - id: intro-router
+            phrase: Look at router
+            targets:
+              - router-row
+            color: green
+            linger: 0.3
+      - say: Give the new ledger those same three handles in one call. Ray delivers the three values to it. The
+          ledger counts them and we're back at three. That ledger is a Ray actor. Each call goes to an
+          instance that can remember what the last call did.
+        hold: 1
+        visual_cues:
+          - id: intro-send
+            phrase: Ray delivers the three values to it
+            targets:
+              - record-path
+            color: cyan
+            linger: 0.3
+          - id: intro-record
+            phrase: we're back at three
+            targets:
+              - process-number
+            color: green
+            linger: 0.3
+  - id: primitive-contract
+    title: What is inside a feature result?
+    visual: Add the five character codes of cache, reduce the sum modulo 101 and pair the remainder with the
+      length. Keep the handle for each word distinct from the completed tuple and the ledger's mutable state.
+    beats:
+      - say: Where did those pairs come from? Take the word cache. It has five letters. Add their character codes and
+          you get five hundred. Four lots of one hundred and one fit into that sum. The remainder is ninety-six.
+          The first number is the length, and the second is that remainder. Router and trace use exactly the same
+          calculation.
+        hold: 1.1
+        visual_cues:
+          - id: ray-primitive-contract-op-0
+            phrase: Add their character codes and you get five hundred
+            targets:
+              - primitive-codes
+            color: cyan
+            linger: 0.3
+          - id: primitive-cache-remainder
+            phrase: The remainder is ninety-six
+            targets:
+              - primitive-cache
+            color: green
+            linger: 0.3
+          - id: ray-feature-values
+            phrase: Router and trace use exactly the same calculation
+            targets:
+              - primitive-other-rows
+            color: green
+            linger: 0.3
+      - say: Each word takes one remote function call. That's a task. Submission gives the driver a handle that Ray
+          calls an object reference. A worker can still be computing the tuple when that handle arrives. Once
+          complete, the tuple keeps its value. These tiny calculations make the results easy to check by hand.
+          Real jobs need enough work per task to pay for scheduling it.
+        hold: 0.75
+        visual_cues:
+          - id: ray-primitive-contract-op-1
+            phrase: a handle that Ray calls an object reference
+            targets:
+              - primitive-handles
+            color: cyan
+            linger: 0.3
+          - id: ray-tuple-immutable
+            phrase: Once complete
+            targets:
+              - primitive-values
+            color: green
+            linger: 0.3
+      - say: The ledger has a different job. It keeps a running count between calls. Our ordinary synchronous actor
+          takes one method call at a time. If a second caller joins in, the callers can't assume a shared
+          order. Async and threaded actors can also run methods concurrently. A single ledger makes the state
+          easy to locate, but calls can pile up here.
+        hold: 0.85
+        visual_cues:
+          - id: ray-primitive-contract-op-2
+            phrase: takes one method call at a time
+            targets:
+              - primitive-queue
+            color: cyan
+            linger: 0.3
+  - id: dependencies
+    title: Two workers, three feature calls
+    visual: Grow task intervals along one fixed ruler. Immediate get postpones submission. Allowing the same
+      calls to overlap shortens elapsed time while keeping total worker time fixed.
+    beats:
+      - say: Give our three calls two available worker slots. We'll use simple durations and leave out scheduling
+          overhead. Cache takes four time units. Router takes two and trace takes three. Watch a driver that
+          fetches each answer immediately. The second worker sits idle because the next call hasn't been
+          submitted. When does the last answer arrive?
+        hold: 1.6
+        visual_cues:
+          - id: schedule-serial
+            phrase: fetches each answer immediately
+            targets:
+              - schedule-trace
+            color: cyan
+            linger: 0.3
+      - say: At nine time units. Now submit the three calls before waiting. Cache and router can start together.
+          Router finishes at two, so that worker takes trace. Before the clock moves again, work out when both
+          workers will be free.
+        hold: 2
+        visual_cues:
+          - id: schedule-pair
+            phrase: Cache and router can start together
+            targets:
+              - schedule-trace
+            color: cyan
+            linger: 0.3
+          - id: schedule-handoff
+            phrase: Router finishes at two
+            targets:
+              - schedule-trace
+            color: yellow
+            linger: 0.3
+          - id: schedule-nine
+            phrase: At nine time units
+            targets:
+              - schedule-comparison
+            color: green
+            linger: 0.3
+      - say: At five. Trace used three more units after router's two. Cache finished at four. Put the two runs on
+          the same ruler. We still spent nine worker units on the three words. Overlap shortened the wait for
+          the last result. Passing handles on to the ledger lets the driver leave those values with their
+          consumers.
+        hold: 1
+        visual_cues:
+          - id: schedule-finish
+            phrase: At five
+            targets:
+              - schedule-trace
+            color: green
+            linger: 0.3
+          - id: schedule-compare
+            phrase: Put the two runs on the same ruler
+            targets:
+              - schedule-comparison
+            color: cyan
+            linger: 0.3
+  - id: argument-inspection
+    title: What reaches the actor method?
+    visual: Pin the three handles and their values to the same rows. Separate arguments arrive as tuples. Change
+      only the outer brackets and compare the contents in the method on the right.
+    beats:
+      - say: Look at the call to record. The star in front of refs supplies three separate arguments. The driver can
+          submit this call while the workers are still busy. Ray resolves all three handles before the method
+          starts. The ledger sees one tuple per document and increments its count by three. The driver fetches
+          that one small count.
+        hold: 0.9
+        visual_cues:
+          - id: argument-splat
+            phrase: three separate arguments
+            targets:
+              - argument-call
+            color: cyan
+            linger: 0.3
+          - id: argument-resolved
+            phrase: Ray resolves all three handles
+            targets:
+              - argument-result
+            color: green
+            linger: 0.3
+          - id: argument-count
+            phrase: increments its count by three
+            targets:
+              - argument-reply
+            color: green
+            linger: 0.3
+      - say: Send the same handles to the inspection method, this time inside a single list. All three tasks have
+          finished. When the actor opens that list, does it find tuples or handles?
+        hold: 2
+        visual_cues:
+          - id: argument-list
+            phrase: inside a single list
+            targets:
+              - argument-call
+            color: yellow
+            linger: 0.3
+      - say: Handles. The actor can choose when to fetch any of them. Finishing a task changes whether its value is
+          ready. The brackets change what arrives as a method argument. The lab checks both the count and the
+          types in this list. The driver can avoid gathering the feature values and still pay for references
+          and the data they keep alive.
+        hold: 0.9
+        visual_cues:
+          - id: argument-nested
+            phrase: Handles
+            targets:
+              - argument-result
+            color: green
+            linger: 0.3
+          - id: argument-checked
+            phrase: both the count and the types in this list
+            targets:
+              - argument-reply
+            color: cyan
+            linger: 0.3
+  - id: local-lab
+    title: Bind each result to the process actually tested
+    visual: Start the actual Ray2.58/Python3.12 source file in a fresh temporary runtime. Reserve and consume
+      two CPU bundles, record three results, observe a changed actor PID/count0, and retry one deliberately
+      exited worker. Four actual single-node checks pass while node/object/GCS/GPU failures remain untested.
+    beats:
+      - say: The lab runs on one machine with Ray two point fifty-eight point zero and Python three point twelve. It
+          starts its own runtime with two logical CPUs, the dashboard off, and an eighty-mebibyte object store.
+          Python heaps and control services use extra memory. You can run the whole example on a CPU.
+        hold: 0.65
+        visual_cues:
+          - id: ray-local-lab-op-0
+            phrase: The lab runs on one machine with Ray two point fifty-eight point zero and Python three point twelve.
+              It starts its own runtime with two logical CPUs, the dashboard off, and an eighty-mebibyte object
+              store. Python heaps and control services use extra memory. You can run the whole example on a CPU.
+            targets:
+              - ray-local-lab-mechanism
+            color: cyan
+            linger: 0.45
+      - say: The actual local run reserves two one-CPU bundles and executes a task in each, then removes the group.
+          It records three feature results and confirms nested handles. After killing the ledger with restart
+          enabled, it waits for a different process ID before checking count zero. An immediate count read
+          could race with termination and still describe the old actor.
+        hold: 0.65
+        visual_cues:
+          - id: ray-local-lab-op-1
+            phrase: The actual local run reserves two one-CPU bundles and executes a task in each, then removes the
+              group. It records three feature results and confirms nested handles. After killing the ledger
+              with restart enabled, it waits for a different process ID before checking count zero. An
+              immediate count read could race with termination and still describe the old actor.
+            targets:
+              - ray-local-lab-mechanism
+            color: cyan
+            linger: 0.45
+          - id: ray-lab-bundles
+            phrase: reserves two one-CPU bundles and executes a task in each
+            targets:
+              - ray-local-lab-mechanism
+            color: blue
+            linger: 0.45
+          - id: ray-lab-count
+            phrase: It records three feature results and confirms nested handles
+            targets:
+              - ray-local-lab-mechanism
+            color: green
+            linger: 0.45
+          - id: ray-lab-newpid
+            phrase: it waits for a different process ID before checking count zero
+            targets:
+              - ray-local-lab-mechanism
+            color: yellow
+            linger: 0.45
+      - say: A marker in a temporary directory makes one task worker exit exactly once. A second worker finds the
+          marker, skips the exit and returns worker crash retried. One system-failure retry was enough. The
+          marker serves this single-node experiment. A ledger that can restart on another node needs a record
+          it can reach there. The script bounds its waits and shuts down its local runtime.
+        hold: 0.65
+        visual_cues:
+          - id: ray-local-lab-op-2
+            phrase: A marker in a temporary directory makes one task worker exit exactly once. A second worker finds the
+              marker, skips the exit and returns worker crash retried. One system-failure retry was enough.
+              The marker serves this single-node experiment. A ledger that can restart on another node needs a
+              record it can reach there. The script bounds its waits and shuts down its local runtime.
+            targets:
+              - ray-local-lab-mechanism
+            color: cyan
+            linger: 0.45
+          - id: ray-lab-exit
+            phrase: one task worker exit exactly once
+            targets:
+              - ray-local-lab-mechanism
+            color: pink
+            linger: 0.45
+          - id: ray-lab-retry
+            phrase: returns worker crash retried
+            targets:
+              - ray-local-lab-mechanism
+            color: green
+            linger: 0.45
+  - id: scheduler-owners
+    title: Move work through its execution owner
+    visual: A driver submits taskA while an existing actorL stays on nodeB. Route the task request through
+      CoreWorker to node-local raylet scheduling; send a large argument to actorL rather than relocating L;
+      keep GCS cluster records separate. Resource/data locality and actor process identity produce different
+      paths.
+    beats:
+      - say: The driver builds dependencies through the Python API and CoreWorker. A raylet on each node manages
+          local workers and resources and helps decide where a task runs. The worker executes the Python
+          function. The Global Control Service tracks the cluster's nodes, actors and placement groups.
+        hold: 0.65
+        visual_cues:
+          - id: ray-scheduler-owners-op-0
+            phrase: The driver builds dependencies through the Python API and CoreWorker. A raylet on each node
+              manages local workers and resources and helps decide where a task runs. The worker executes the
+              Python function. The Global Control Service tracks the cluster's nodes, actors and placement
+              groups.
+            targets:
+              - ray-scheduler-owners-mechanism
+            color: cyan
+            linger: 0.45
+      - say: Ray can place an ordinary task close to its data if the resources it needs are free there. Look at
+          actor L on node B. Its process keeps the ledger there between calls. When a large argument starts on
+          node A, the bytes travel to L on B.
+        hold: 0.65
+        visual_cues:
+          - id: ray-scheduler-owners-op-1
+            phrase: Ray can place an ordinary task close to its data if the resources it needs are free there. Look at
+              actor L on node B. Its process keeps the ledger there between calls. When a large argument starts
+              on node A, the bytes travel to L on B.
+            targets:
+              - ray-scheduler-owners-mechanism
+            color: cyan
+            linger: 0.45
+          - id: ray-actor-fixed
+            phrase: the bytes travel to L on B
+            targets:
+              - ray-scheduler-owners-mechanism
+            color: yellow
+            linger: 0.45
+      - say: A task that requests one CPU takes one logical slot. The operating system still schedules its threads
+          on physical cores. Ray uses the explicit CPU request to set the OpenMP thread count unless you
+          override it. Other libraries may have their own thread pools. A GPU request tells a worker which
+          device to use. Set memory limits and isolation separately.
+        hold: 0.65
+        visual_cues:
+          - id: ray-scheduler-owners-op-2
+            phrase: A task that requests one CPU takes one logical slot. The operating system still schedules its
+              threads on physical cores. Ray uses the explicit CPU request to set the OpenMP thread count unless
+              you override it. Other libraries may have their own thread pools. A GPU request tells a worker
+              which device to use. Set memory limits and isolation separately.
+            targets:
+              - ray-scheduler-owners-mechanism
+            color: cyan
+            linger: 0.45
+  - id: actor-resource
+    title: Count resources held by a waiting actor
+    visual: Two explicit one-CPU actors occupy both slots of a two-CPU illustrative node. Submit a one-CPU child
+      while an actor waits; retain both lifetime reservations, then free one actor’s resource in a separate
+      repair. The child cannot fit until a slot exists; waiting does not release an explicitly reserved actor
+      CPU.
+    beats:
+      - say: Give each actor one logical CPU for as long as it lives. Our machine has two. Start actor L and one slot
+          is left. Start actor M and both slots are taken. L asks for a one-CPU child task and waits. Look at L's
+          slot. The waiting actor still holds it, so the child stays queued.
+        hold: 0.65
+        visual_cues:
+          - id: ray-actor-resource-op-0
+            phrase: Give each actor one logical CPU for as long as it lives. Our machine has two. Start actor L and one
+              slot is left. Start actor M and both slots are taken. L asks for a one-CPU child task and waits. Look
+              at L's slot. The waiting actor still holds it, so the child stays queued.
+            targets:
+              - ray-actor-resource-mechanism
+            color: cyan
+            linger: 0.45
+          - id: ray-actor-two
+            phrase: Start actor M and both slots are taken
+            targets:
+              - ray-actor-resource-mechanism
+            color: yellow
+            linger: 0.45
+          - id: ray-actor-child
+            phrase: L asks for a one-CPU child task and waits
+            targets: [ray-actor-resource-mechanism]
+            color: yellow
+            linger: 0.3
+          - id: ray-actor-held
+            phrase: The waiting actor still holds it
+            targets:
+              - ray-actor-resource-mechanism
+            color: pink
+            linger: 0.45
+      - say: Release actor M. Its slot goes to the child, and L keeps its own slot while it waits. To size a worker
+          pool, start with the available logical CPUs. Subtract what the actors reserve and what the other tasks
+          are using. The child needs to fit in what's left.
+        hold: 0.65
+        visual_cues:
+          - id: ray-actor-resource-op-1
+            phrase: Release actor M. Its slot goes to the child, and L keeps its own slot while it waits. To size a
+              worker pool, start with the available logical CPUs. Subtract what the actors reserve and what the
+              other tasks are using. The child needs to fit in what's left.
+            targets:
+              - ray-actor-resource-mechanism
+            color: cyan
+            linger: 0.45
+          - id: ray-actor-release
+            phrase: Release actor M. Its slot goes to the child
+            targets:
+              - ray-actor-resource-mechanism
+            color: green
+            linger: 0.45
+      - say: Ray's default for actors works differently. A default actor needs one CPU for placement and requests zero
+          while running. Set the CPU request explicitly when an actor needs a slot for its lifetime. Size its
+          memory and thread pools separately.
+        hold: 0.65
+        visual_cues:
+          - id: ray-actor-resource-op-2
+            phrase: Ray's default for actors works differently. A default actor needs one CPU for placement and requests
+              zero while running. Set the CPU request explicitly when an actor needs a slot for its lifetime. Size
+              its memory and thread pools separately.
+            targets:
+              - ray-actor-resource-mechanism
+            color: cyan
+            linger: 0.45
+          - id: ray-actor-default
+            phrase: A default actor needs one CPU for placement and requests zero while running
+            targets:
+              - ray-actor-resource-mechanism
+            color: yellow
+            linger: 0.45
+  - id: references
+    title: A handle connects ownership to stored bytes
+    visual: The owner row connects Driver metadata to ObjectRef A. Separate Node A and Node B rows label producer
+      and consumer workers beside their local object stores. The constructed trace adds a 64-byte Node B copy
+      and calculates total stored-copy bytes.
+    beats:
+      - say: >
+          An object reference is a handle to a result, with ownership and lifetime rules. The process that
+          submits a task generally owns its result reference. A different worker computes the bytes. Keeping
+          the owner and the physical storage separate makes several failure cases easier to understand.
+        hold: 0.6
+        visual_cues:
+          - id: references-beat-1-focus-1
+            phrase: The process that submits a task generally owns its result reference
+            targets:
+              - references-owner-metadata
+            color: cyan
+            linger: 0.65
+          - id: references-beat-1-focus-2
+            phrase: A different worker computes the bytes
+            targets:
+              - references-producer-result
+              - references-node-a-copy
+            color: yellow
+            linger: 0.65
+      - say: >
+          A consumer on another node needs access to the value. Our constructed trace adds a second stored
+          copy while preserving the original owner. Eligible arrays can use shared-memory views locally.
+          Remote transfer, retained storage and reference bookkeeping still consume resources even when the
+          driver avoids materializing the payload.
+        hold: 0.6
+        visual_cues:
+          - id: references-beat-2-focus-1
+            phrase: Our constructed trace adds a second stored copy while preserving the original owner
+            targets:
+              - references-owner-metadata
+              - references-node-a-copy
+              - references-copy-transfer
+              - references-node-b-copy
+              - references-copy-total
+            color: cyan
+            linger: 0.65
+          - id: references-beat-2-focus-2
+            phrase: A consumer on another node needs access to the value
+            targets:
+              - references-consumer-node-b
+              - references-node-b-copy
+              - references-copy-transfer
+            color: yellow
+            linger: 0.65
+      - say: >
+          Losing one copy can be repaired from another. Reconstructing all lost copies of a task result
+          requires live ownership information, usable lineage and available dependencies. A value placed
+          directly into storage has no generating task to replay. Surviving bytes alone also cannot restore a
+          lost owner's metadata contract.
+        hold: 0.6
+        visual_cues:
+          - id: references-beat-3-focus-1
+            phrase: Surviving bytes alone also cannot restore a lost owner's metadata contract
+            targets:
+              - references-owner-metadata
+              - references-node-a-copy
+              - references-node-b-copy
+            color: cyan
+            linger: 0.65
+          - id: references-beat-3-focus-2
+            phrase: Reconstructing all lost copies of a task result requires live ownership information
+            targets:
+              - references-owner-metadata
+              - references-node-a-copy
+              - references-node-b-copy
+            color: yellow
+            linger: 0.65
+  - id: lost-result
+    title: Which part of the result did we lose?
+    visual: ObjectRefA remains owned by live driverD while copies exist on nodeA and nodeB. Remove copyA and
+      fetch B; separately remove every copy and replay task lineage; finally lose ownerD while bytesB remain.
+      Stored bytes, replayable generation and live ownership are independent recovery requirements.
+    beats:
+      - say: Start with the driver alive and a copy on each of two nodes. Remove the copy on A. Ray can fetch the
+          surviving copy on B, even if the task has no retries left. Now remove every copy of the task result.
+          Can Ray make another one? Here the owner still has the task's lineage, its inputs can be recovered,
+          and a retry is available. Replay the generating task. A deterministic calculation gives us the same
+          value. Any external write needs its own protection.
+        hold: 0.65
+        caption_starts:
+          - Here the owner still has the task's lineage
+        visual_cues:
+          - id: ray-lost-result-op-0
+            phrase: Start with the driver alive and a copy on each of two nodes. Remove the copy on A. Ray can fetch the
+              surviving copy on B, even if the task has no retries left. Now remove every copy of the task
+              result. Can Ray make another one? Here the owner still has the task's lineage, its inputs can be
+              recovered, and a retry is available. Replay the generating task. A deterministic calculation
+              gives us the same value. Any external write needs its own protection.
+            targets:
+              - ray-lost-result-mechanism
+            color: cyan
+            linger: 0.45
+          - id: ray-copy-survives
+            phrase: Ray can fetch the surviving copy on B
+            targets:
+              - ray-lost-result-mechanism
+            color: green
+            linger: 0.45
+          - id: ray-all-copies
+            phrase: remove every copy of the task result
+            targets:
+              - ray-lost-result-mechanism
+            color: pink
+            linger: 0.45
+          - id: ray-reconstruct
+            phrase: Replay the generating task
+            targets:
+              - ray-lost-result-mechanism
+            color: green
+            linger: 0.45
+          - id: ray-copy-a-lost
+            phrase: Remove the copy on A
+            targets:
+              - ray-lost-result-mechanism
+            color: pink
+            linger: 0.3
+      - say: Try a different failure with the copy on B still there. This time driver D dies. It owned the original
+          reference. A read through that reference can raise an owner died error. Passing the handle to
+          another worker never moved the ownership metadata. Ray can eventually clean up the remaining copy.
+        hold: 0.65
+        visual_cues:
+          - id: ray-lost-result-op-1
+            phrase: Try a different failure with the copy on B still there. This time driver D dies. It owned the
+              original reference. A read through that reference can raise an owner died error. Passing the
+              handle to another worker never moved the ownership metadata. Ray can eventually clean up the
+              remaining copy.
+            targets:
+              - ray-lost-result-mechanism
+            color: cyan
+            linger: 0.45
+          - id: ray-owner-dies
+            phrase: driver D dies
+            targets:
+              - ray-lost-result-mechanism
+            color: pink
+            linger: 0.45
+          - id: ray-owner-error
+            phrase: can raise an owner died error
+            targets:
+              - ray-lost-result-mechanism
+            color: pink
+            linger: 0.45
+      - say: Bring the owner back for a separate example. It calls Ray put to store an input directly. The copy on B
+          is reachable. Now lose that last copy. Which task could we replay to make the input again? There is
+          no generating task. Even a downstream task with retries can get stuck if it needs that input. Actor
+          method outputs also have no reconstruction by default. Replaying a method can repeat a mutation.
+        hold: 0.65
+        caption_starts:
+          - There is no generating task
+        visual_cues:
+          - id: ray-lost-result-op-2
+            phrase: Bring the owner back for a separate example. It calls Ray put to store an input directly. The copy
+              on B is reachable. Now lose that last copy. Which task could we replay to make the input again?
+              There is no generating task. Even a downstream task with retries can get stuck if it needs that
+              input. Actor method outputs also have no reconstruction by default. Replaying a method can
+              repeat a mutation.
+            targets:
+              - ray-lost-result-mechanism
+            color: cyan
+            linger: 0.45
+          - id: ray-put-no-lineage
+            phrase: There is no generating task
+            targets:
+              - ray-lost-result-mechanism
+            color: pink
+            linger: 0.45
+          - id: ray-put-last-copy
+            phrase: lose that last copy
+            targets:
+              - ray-lost-result-mechanism
+            color: pink
+            linger: 0.3
+  - id: memory-lifetime
+    title: Which bytes does the view keep alive?
+    visual: Eight equal pages represent a 32 MiB local shared array. A worker keeps a zero-copy view of it and
+      12 MiB of unrelated heap data. Remove the ObjectRef, release the view, and track the two payload totals
+      separately.
+    beats:
+      - say: Give the result some size. These eight blocks are one thirty-two-mebibyte array in a node's shared
+          object store. The worker has twelve mebibytes of its own Python data. Its NumPy view reads the
+          shared array in place. Counting the array a second time in the worker heap would overstate the
+          payload. Other Python values can need deserialization, and another node may need to fetch the bytes
+          before it can read them.
+        hold: 0.65
+        visual_cues:
+          - id: ray-memory-lifetime-op-0
+            phrase: Give the result some size. These eight blocks are one thirty-two-mebibyte array in a node's shared
+              object store. The worker has twelve mebibytes of its own Python data. Its NumPy view reads the
+              shared array in place. Counting the array a second time in the worker heap would overstate the
+              payload. Other Python values can need deserialization, and another node may need to fetch the
+              bytes before it can read them.
+            targets:
+              - ray-memory-lifetime-mechanism
+            color: cyan
+            linger: 0.45
+      - say: Delete the reference variable. Follow the green arrow. The view still points into the array, so all
+          thirty-two mebibytes stay pinned. Other variables, task arguments and handles inside containers can
+          also keep data alive. Here the view is the last one. Release the view and the store can reclaim
+          those blocks. The worker still has its own twelve mebibytes.
+        hold: 0.65
+        visual_cues:
+          - id: ray-memory-lifetime-op-1
+            phrase: Delete the reference variable. Follow the green arrow. The view still points into the array, so all
+              thirty-two mebibytes stay pinned. Other variables, task arguments and handles inside containers
+              can also keep data alive. Here the view is the last one. Release the view and the store can
+              reclaim those blocks. The worker still has its own twelve mebibytes.
+            targets:
+              - ray-memory-lifetime-mechanism
+            color: cyan
+            linger: 0.45
+          - id: ray-delete-ref
+            phrase: Delete the reference variable
+            targets:
+              - ray-memory-lifetime-mechanism
+            color: yellow
+            linger: 0.45
+          - id: ray-view-pins
+            phrase: the view still points into the array
+            targets:
+              - ray-memory-lifetime-mechanism
+            color: yellow
+            linger: 0.45
+          - id: ray-release-view
+            phrase: Release the view
+            targets:
+              - ray-memory-lifetime-mechanism
+            color: green
+            linger: 0.45
+      - say: Small results may travel inline. For large results in the store, Ray can spill eligible objects to disk
+          under pressure. That trades store space for disk space and extra reads and writes. The lab's
+          eighty-mebibyte budget covers the store. Worker heaps and control processes need memory of their
+          own. Look for retained views and work waiting on a slow sink before raising the budget.
+        hold: 0.65
+        visual_cues:
+          - id: ray-memory-lifetime-op-2
+            phrase: Small results may travel inline. For large results in the store, Ray can spill eligible objects to
+              disk under pressure. That trades store space for disk space and extra reads and writes. The
+              lab's eighty-mebibyte budget covers the store. Worker heaps and control processes need memory of
+              their own. Look for retained views and work waiting on a slow sink before raising the budget.
+            targets:
+              - ray-memory-lifetime-mechanism
+            color: cyan
+            linger: 0.45
+          - id: ray-eligible-spill
+            phrase: spill eligible objects to disk under pressure
+            targets:
+              - ray-memory-lifetime-mechanism
+            color: blue
+            linger: 0.45
+  - id: placement
+    title: Where do four GPU bundles fit?
+    visual: Try the same four one-GPU bundles on two nodes. PACK can split the group. Request one node for all
+      four, inspect a pending group with zero reservations, then add capacity to node zero.
+    beats:
+      - say: Each box is a worker that needs one GPU. We have two free GPUs on each node. Each bundle must fit on
+          one node. A placement group asks Ray to reserve all four bundles together. With pack, two here and
+          two there works. Suppose the model needs all four workers on the same node. Can this cluster run it?
+        hold: 2
+        visual_cues:
+          - id: placement-beat-1-focus-1
+            phrase: Each bundle must fit on one node
+            targets:
+              - placement-array-from-length-cap-j-j-s-assigned-i-bundle-i-j-2-j-free
+            color: cyan
+            linger: 0.65
+      - say: Switch the request to strict pack. Each node has room for only half this group. The initial reservation
+          remains pending. All four GPUs are available to other work while Ray waits for a node that can fit
+          the whole request.
+        hold: 0.7
+        visual_cues:
+          - id: placement-beat-2-focus-1
+            phrase: Switch the request to strict pack
+            targets:
+              - placement-array-from-length-cap-j-j-s-assigned-i-bundle-i-j-2-j-free
+            color: cyan
+            linger: 0.65
+          - id: ray-placement-pending
+            phrase: The initial reservation remains pending
+            targets:
+              - placement-reservation-status
+            color: pink
+            linger: 0.45
+      - say: Give node zero four free GPUs. Try strict pack again. All four bundles can now be reserved there. The
+          workers still have to join the group to use those GPUs. Their declarations tell Ray what to admit.
+          Device memory, native thread limits and isolation each need separate configuration.
+        hold: 0.6
+        visual_cues:
+          - id: placement-beat-3-focus-1
+            phrase: Device memory, native thread limits and isolation
+            targets:
+              - placement-array-from-length-cap-j-j-s-assigned-i-bundle-i-j-2-j-free
+            color: cyan
+            linger: 0.65
+          - id: ray-placement-reserved
+            phrase: All four bundles can now be reserved there
+            targets:
+              - placement-array-from-length-cap-j-j-s-assigned-i-bundle-i-j-2-j-free
+              - placement-reservation-status
+            color: green
+            linger: 0.45
+          - id: ray-placement-grow
+            phrase: Give node zero four free GPUs
+            targets:
+              - placement-array-from-length-cap-j-j-s-assigned-i-bundle-i-j-2-j-free
+            color: cyan
+            linger: 0.3
+  - id: bundle-membership
+    title: Reserve a group and consume its actual bundles
+    visual: Retain four one-GPU bundles and two two-GPU nodes from the original topology example. Bind each worker
+      to an explicit group/bundle, compare all four placement strategies, and separately remove one node after
+      successful creation. Atomic initial placement does not promise an all-or-nothing worker group after
+      later failure.
+    beats:
+      - say: The group is ready. To claim a bundle, give the worker a placement group scheduling strategy with this
+          group and, when needed, a bundle index. Watch each worker take its reserved bundle. Ordinary work cannot
+          simply borrow the reservation. Remove an unused group so its reserved resources stop blocking unrelated
+          tasks; removal itself is asynchronous.
+        hold: 0.65
+        visual_cues:
+          - id: ray-bundle-membership-op-0
+            phrase: The group is ready. To claim a bundle, give the worker a placement group scheduling strategy with
+              this group and, when needed, a bundle index. Watch each worker take its reserved bundle. Ordinary
+              work cannot simply borrow the reservation. Remove an unused group so its reserved resources stop
+              blocking unrelated tasks; removal itself is asynchronous.
+            targets:
+              - ray-bundle-membership-mechanism
+            color: cyan
+            linger: 0.45
+          - id: ray-group-consume
+            phrase: Watch each worker take its reserved bundle
+            targets:
+              - ray-bundle-membership-mechanism
+            color: green
+            linger: 0.45
+          - id: ray-group-remove
+            phrase: Remove an unused group so its reserved resources stop blocking unrelated tasks
+            targets:
+              - ray-bundle-membership-mechanism
+            color: green
+            linger: 0.45
+      - say: PACK prefers one node but may use several. STRICT PACK requires one node. SPREAD prefers different nodes
+          but may reuse them. STRICT SPREAD requires a distinct node for every bundle. Every individual bundle
+          must fit on one node. Replacing four one-GPU bundles with one four-GPU bundle cannot split that
+          larger bundle across two smaller nodes.
+        hold: 0.65
+        visual_cues:
+          - id: ray-bundle-membership-op-1
+            phrase: PACK prefers one node but may use several. STRICT PACK requires one node. SPREAD prefers different
+              nodes but may reuse them. STRICT SPREAD requires a distinct node for every bundle. Every
+              individual bundle must fit on one node. Replacing four one-GPU bundles with one four-GPU bundle
+              cannot split that larger bundle across two smaller nodes.
+            targets:
+              - ray-bundle-membership-mechanism
+            color: cyan
+            linger: 0.45
+          - id: ray-pack-prefers
+            phrase: PACK prefers one node but may use several
+            targets:
+              - ray-bundle-membership-mechanism
+            color: blue
+            linger: 0.45
+          - id: ray-strict-pack
+            phrase: STRICT PACK requires one node
+            targets:
+              - ray-bundle-membership-mechanism
+            color: pink
+            linger: 0.45
+          - id: ray-spread-prefers
+            phrase: SPREAD prefers different nodes but may reuse them
+            targets:
+              - ray-bundle-membership-mechanism
+            color: blue
+            linger: 0.45
+          - id: ray-strict-spread
+            phrase: STRICT SPREAD requires a distinct node for every bundle
+            targets:
+              - ray-bundle-membership-mechanism
+            color: pink
+            linger: 0.45
+          - id: ray-bundle-fits
+            phrase: Replacing four one-GPU bundles with one four-GPU bundle cannot split that larger bundle across two
+              smaller nodes
+            targets:
+              - ray-bundle-membership-mechanism
+            color: yellow
+            linger: 0.45
+      - say: Initial group creation is atomic. After a node fails, surviving bundles and their work can remain while
+          lost bundles await recovery. Runtime retry policies govern workers on recovered bundles, and the
+          application must decide how to handle a partial training group. These node-level strategies alone do
+          not promise NVLink connections or physical GPU rank ordering.
+        hold: 0.65
+        visual_cues:
+          - id: ray-bundle-membership-op-2
+            phrase: Initial group creation is atomic. After a node fails, surviving bundles and their work can remain
+              while lost bundles await recovery. Runtime retry policies govern workers on recovered bundles,
+              and the application must decide how to handle a partial training group. These node-level
+              strategies alone do not promise NVLink connections or physical GPU rank ordering.
+            targets:
+              - ray-bundle-membership-mechanism
+            color: cyan
+            linger: 0.45
+          - id: ray-node-loss
+            phrase: After a node fails, surviving bundles and their work can remain while lost bundles await recovery
+            targets:
+              - ray-bundle-membership-mechanism
+            color: pink
+            linger: 0.45
+  - id: window
+    title: When can we submit document four?
+    visual: Three submitted references each occupy a fixed slot until the sink consumes one. Ready values stay
+      in their slots. A fourth input crosses the submission boundary only after the first value reaches the
+      sink.
+    beats:
+      - say: We have nine documents to process. We've submitted the first three. Watch their tasks finish while the
+          sink is busy. All three results are ready. Our rule allows at most three submitted results that the
+          sink has yet to consume. Can we submit document four now?
+        hold: 2.1
+        visual_cues:
+          - id: window-fill
+            phrase: Watch their tasks finish
+            targets:
+              - window-slots
+            color: green
+            linger: 0.3
+          - id: window-gate
+            phrase: Can we submit document four now
+            targets:
+              - window-source
+              - window-count
+            color: yellow
+            linger: 0.3
+      - say: Keep four at the driver. A worker finishing frees that worker, but the result still occupies a slot.
+          Use Ray wait to select one ready reference. Fetch the value and let the sink consume it. How many
+          slots are free now?
+        hold: 1.7
+        visual_cues:
+          - id: window-select
+            phrase: select one ready reference
+            targets:
+              - window-first
+            color: yellow
+            linger: 0.3
+          - id: window-take
+            phrase: let the sink consume it
+            targets:
+              - window-delivery
+              - window-count
+            color: green
+            linger: 0.3
+      - say: One. Submit document four into that slot. Four submissions minus one consumed result leaves three
+          outstanding. If we'd submitted all nine first, waiting for one would still leave eight. Limit
+          submissions where the driver creates the work.
+        hold: 1.1
+        visual_cues:
+          - id: window-refill
+            phrase: Submit document four into that slot
+            targets:
+              - window-arrival
+            color: blue
+            linger: 0.3
+          - id: window-total
+            phrase: leaves three outstanding
+            targets:
+              - window-count
+            color: green
+            linger: 0.3
+  - id: granularity-pressure
+    title: What does a three-slot window cost?
+    visual: Continue from the admission of document four. Its result becomes ready while the same three slots
+      stay occupied. Enlarge the three payloads on an 80 MiB ruler, then compare per-document and per-block
+      submission costs.
+    beats:
+      - say: Document four has just taken the open slot. It finishes while the sink is busy. Now documents two,
+          three and four are ready. All three slots are still full. An idle worker could run another task, but
+          its result would also need a place to wait. The sink sets the pace.
+        hold: 0.65
+        visual_cues:
+          - id: ray-granularity-pressure-op-0
+            phrase: Document four has just taken the open slot. It finishes while the sink is busy. Now documents two,
+              three and four are ready. All three slots are still full. An idle worker could run another task,
+              but its result would also need a place to wait. The sink sets the pace.
+            targets:
+              - ray-granularity-pressure-mechanism
+            color: cyan
+            linger: 0.45
+          - id: ray-sink-full
+            phrase: It finishes while the sink is busy
+            targets:
+              - ray-granularity-pressure-mechanism
+            color: yellow
+            linger: 0.45
+      - say: Keep the number of results at three. Change their size to sixty-four mebibytes each. Together they take
+          one hundred ninety-two mebibytes before metadata. Compare that with the eighty-mebibyte store. Even
+          this small window can exceed its budget. To predict spill traffic we'd also need to know which
+          objects are pinned, which can spill, and what the workers keep in their own heaps.
+        hold: 0.65
+        visual_cues:
+          - id: ray-granularity-pressure-op-1
+            phrase: Keep the number of results at three. Change their size to sixty-four mebibytes each. Together they
+              take one hundred ninety-two mebibytes before metadata. Compare that with the eighty-mebibyte
+              store. Even this small window can exceed its budget. To predict spill traffic we'd also need to
+              know which objects are pinned, which can spill, and what the workers keep in their own heaps.
+            targets:
+              - ray-granularity-pressure-mechanism
+            color: cyan
+            linger: 0.45
+          - id: ray-payload-total
+            phrase: one hundred ninety-two mebibytes before metadata
+            targets:
+              - ray-granularity-pressure-mechanism
+            color: yellow
+            linger: 0.45
+          - id: ray-store-exceeded
+            phrase: this small window can exceed its budget
+            targets:
+              - ray-granularity-pressure-mechanism
+            color: pink
+            linger: 0.45
+      - say: Now change how we package the work. Twelve documents need ten milliseconds of compute each. Allow two
+          extra milliseconds per task submission, with the tasks running one at a time. Twelve single-document
+          tasks take one hundred forty-four milliseconds. Pack four documents into each task. We still spend one
+          hundred twenty milliseconds computing, but now we pay for three submissions. The total drops to one
+          hundred twenty-six. Time a submission and a document on your own workers to choose a batch size.
+        hold: 0.65
+        visual_cues:
+          - id: ray-granularity-pressure-op-2
+            phrase: Now change how we package the work. Twelve documents need ten milliseconds of compute each. Allow two
+              extra milliseconds per task submission, with the tasks running one at a time. Twelve single-document
+              tasks take one hundred forty-four milliseconds. Pack four documents into each task. We still spend
+              one hundred twenty milliseconds computing, but now we pay for three submissions. The total drops to
+              one hundred twenty-six. Time a submission and a document on your own workers to choose a batch size.
+            targets:
+              - ray-granularity-pressure-mechanism
+            color: cyan
+            linger: 0.45
+          - id: ray-cost-single
+            phrase: one hundred forty-four milliseconds
+            targets:
+              - ray-granularity-pressure-mechanism
+            color: yellow
+            linger: 0.45
+          - id: ray-cost-batched
+            phrase: one hundred twenty-six
+            targets:
+              - ray-granularity-pressure-mechanism
+            color: green
+            linger: 0.45
+  - id: restart
+    title: Which process answered?
+    visual: Read (completed, PID) before termination, on an illustrative stale poll, and after the replacement
+      answers. Run the lab's exact identity and counter check. Repeat with a separately checkpointed
+      constructor.
+    beats:
+      - say: Our ledger has counted three documents. Its state method returns the count and the process ID together.
+          Say the old process is one oh one. We ask Ray to kill it with restart enabled. An immediate poll can
+          still reach that old process. This one says three. Have we observed a restart yet?
+        hold: 2.1
+        visual_cues:
+          - id: restart-old
+            phrase: the count and the process ID together
+            targets:
+              - restart-before
+            color: cyan
+            linger: 0.3
+          - id: restart-stale
+            phrase: This one says three
+            targets:
+              - restart-poll
+            color: yellow
+            linger: 0.3
+      - say: Keep polling. This time process two oh two answers. Now check its count. Zero. That's the constructor
+          value in the lab. The driver still holds the three feature results. Checking the process ID first
+          keeps us from mistaking a stale reply for a read of the new ledger.
+        hold: 0.9
+        caption_starts:
+          - Zero
+        visual_cues:
+          - id: restart-new
+            phrase: process two oh two answers
+            targets:
+              - restart-poll
+            color: cyan
+            linger: 0.3
+          - id: restart-zero
+            phrase: Zero
+            targets:
+              - restart-test
+            color: green
+            linger: 0.3
+      - say: Change just the constructor. Suppose batch seventeen's count and receipt were committed to durable
+          storage before the crash. On restart, load that record. The replacement now reports three. Its
+          process ID still changed. The restored count tells us what the application saved.
+        hold: 1.2
+        visual_cues:
+          - id: restart-record-boundary
+            phrase: committed to durable storage
+            targets:
+              - restart-store
+            color: green
+            linger: 0.3
+          - id: restart-load-durable-ledger
+            phrase: load that record
+            targets:
+              - restart-store
+              - restart-poll
+            color: green
+            linger: 0.3
+  - id: retry
+    title: What did the first attempt change?
+    visual: Compare two runs of B18 from a count of three. Mark the lost reply separately from the commit. A
+      blind retry applies the same two documents twice. An atomic receipt lets the second attempt return the
+      first result.
+    beats:
+      - say: Batch eighteen brings two more documents. Start both runs at three. The ledger commits five. Its reply
+          gets lost on the way back. Look at the caller's empty reply box. Can the caller tell whether the
+          count changed?
+        hold: 2
+        visual_cues:
+          - id: retry-first
+            phrase: The ledger commits five
+            targets:
+              - retry-ledger
+            color: cyan
+            linger: 0.3
+          - id: retry-lost
+            phrase: Its reply gets lost on the way back
+            targets:
+              - retry-wire
+            color: pink
+            linger: 0.3
+      - say: The caller can't tell. It sends the same batch again. In the upper run the ledger blindly adds two
+          again. That makes seven for five documents. In the lower run the first commit saved a receipt for
+          batch eighteen together with the count. Follow that receipt back to the caller. The second attempt
+          returns five.
+        hold: 1.1
+        visual_cues:
+          - id: retry-again
+            phrase: It sends the same batch again
+            targets:
+              - retry-wire
+            color: cyan
+            linger: 0.3
+          - id: retry-blind
+            phrase: blindly adds two again
+            targets:
+              - retry-blind-ledger
+            color: pink
+            linger: 0.3
+          - id: retry-hit
+            phrase: saved a receipt for batch eighteen
+            targets:
+              - retry-safe-ledger
+            color: green
+            linger: 0.3
+          - id: retry-return
+            phrase: Follow that receipt back to the caller
+            targets:
+              - retry-wire
+            color: green
+            linger: 0.3
+      - say: Each caller sent two requests. Count the committed changes on each ledger. The upper one has two. The
+          lower one has one. A stable batch ID lets even a replacement process recognize an old request,
+          provided the count and its original reply survive together.
+        hold: 1
+        visual_cues:
+          - id: retry-audit
+            phrase: Count the committed changes on each ledger
+            targets:
+              - retry-ledger
+            color: yellow
+            linger: 0.3
+  - id: durable-restore
+    title: What does batch eighteen get back?
+    visual: Inspect the transaction behind the receipt one publication at a time. After a lost reply and a
+      restart, B19 advances the count. Look up B18 against the same durable ledger and return its own stored
+      value.
+    beats:
+      - say: Rewind the lower run to a count of three. The actor has just restarted. Its constructor reads the
+          external ledger. Beside the count is a receipt for batch seventeen. Detaching an actor lets it
+          outlive its creator. To outlive its own process, the actor's state needs storage it can read when it
+          starts again.
+        hold: 0.8
+        visual_cues:
+          - id: ray-restore-load
+            phrase: constructor reads the external ledger
+            targets:
+              - durable-disk
+              - durable-hand
+            color: green
+            linger: 0.3
+      - say: Batch eighteen adds two. Stage both writes together. The published count still reads three and there's
+          no receipt for eighteen yet. Commit the transaction. Both writes are now visible. Five is in the
+          ledger even though the reply never makes it home.
+        hold: 1.1
+        visual_cues:
+          - id: ray-batch-pending
+            phrase: Stage both writes together
+            targets:
+              - durable-hand
+            color: yellow
+            linger: 0.3
+          - id: ray-transaction-after
+            phrase: Commit the transaction
+            targets:
+              - durable-disk
+            color: green
+            linger: 0.3
+          - id: durable-reply-lost
+            phrase: the reply never makes it home
+            targets:
+              - durable-hand
+            color: pink
+            linger: 0.3
+      - say: The actor restarts and reads the committed ledger. While the first caller is waiting, a different
+          caller sends batch nineteen with one document. Its commit takes the count to six. Now eighteen comes
+          back with the same two documents. Which number should its caller get back?
+        hold: 2.5
+        visual_cues:
+          - id: durable-b19
+            phrase: Its commit takes the count to six
+            targets:
+              - durable-disk
+            color: green
+            linger: 0.3
+          - id: durable-ask
+            phrase: Which number should its caller get back
+            targets:
+              - durable-hand
+            color: yellow
+            linger: 0.3
+      - say: Five. Read across the row for eighteen. That was its reply the first time. The count stays at six. A
+          list of seen IDs could prevent a second addition, but you'd still need the stored reply to answer
+          this caller. Keep both writes in one transaction on storage the replacement can reach.
+        hold: 1.1
+        visual_cues:
+          - id: ray-old-result
+            phrase: Five
+            targets:
+              - durable-b18
+              - durable-hand
+            color: green
+            linger: 0.3
+  - id: retry-controls
+    title: Count attempts under the right retry control
+    visual: Show task system retry, Python-exception eligibility, actor restart and actor-method retry as four
+      separate controls. Spend the retry budget after an initial attempt, then recreate an actor without
+      granting method replay; retain an external-effect receipt across both. At-most-once method execution
+      does not prove that a reported failure had no effect.
+    beats:
+      - say: An ordinary task defaults to three retries for system failures, allowing up to four executions including
+          the first. Setting max retries to two allows at most three executions under that policy. Retrying Python
+          exceptions is separately controlled by retry exceptions, which defaults to false.
+        hold: 0.65
+        visual_cues:
+          - id: ray-retry-controls-op-0
+            phrase: An ordinary task defaults to three retries for system failures, allowing up to four executions
+              including the first. Setting max retries to two allows at most three executions under that policy.
+              Retrying Python exceptions is separately controlled by retry exceptions, which defaults to false.
+            targets:
+              - ray-retry-controls-mechanism
+            color: cyan
+            linger: 0.45
+          - id: ray-task-four
+            phrase: allowing up to four executions including the first
+            targets:
+              - ray-retry-controls-mechanism
+            color: yellow
+            linger: 0.45
+          - id: ray-task-three
+            phrase: Setting max retries to two allows at most three executions under that policy
+            targets:
+              - ray-retry-controls-mechanism
+            color: yellow
+            linger: 0.45
+          - id: ray-exception-false
+            phrase: retry exceptions, which defaults to false
+            targets:
+              - ray-retry-controls-mechanism
+            color: pink
+            linger: 0.45
+      - say: Actors have two settings. Max restarts controls how often Ray can recreate the process. Max task
+          retries controls how often it can retry a method. Both default to zero. Give the actor one restart and
+          leave method retries at zero. The process comes back. The failed call stays failed. With method
+          retries enabled, an attempt can be spent while the process is still restarting.
+        hold: 0.65
+        visual_cues:
+          - id: ray-retry-controls-op-1
+            phrase: Actors have two settings. Max restarts controls how often Ray can recreate the process. Max task
+              retries controls how often it can retry a method. Both default to zero. Give the actor one restart
+              and leave method retries at zero. The process comes back. The failed call stays failed. With
+              method retries enabled, an attempt can be spent while the process is still restarting.
+            targets:
+              - ray-retry-controls-mechanism
+            color: cyan
+            linger: 0.45
+          - id: ray-separate-restart
+            phrase: The process comes back. The failed call stays failed
+            targets:
+              - ray-retry-controls-mechanism
+            color: yellow
+            linger: 0.45
+      - say: By default Ray attempts an actor method at most once. Suppose the ledger commits a batch and then dies
+          before its reply reaches the caller. The caller gets an error, and the batch is already in the ledger.
+          If you enable method retries, that call can run again. Saving the batch ID and original reply with the
+          count lets the next attempt return the receipt.
+        hold: 0.65
+        visual_cues:
+          - id: ray-retry-controls-op-2
+            phrase: By default Ray attempts an actor method at most once. Suppose the ledger commits a batch and then
+              dies before its reply reaches the caller. The caller gets an error, and the batch is already in
+              the ledger. If you enable method retries, that call can run again. Saving the batch ID and
+              original reply with the count lets the next attempt return the receipt.
+            targets:
+              - ray-retry-controls-mechanism
+            color: cyan
+            linger: 0.45
+          - id: ray-once-error
+            phrase: The caller gets an error, and the batch is already in the ledger
+            targets:
+              - ray-retry-controls-mechanism
+            color: pink
+            linger: 0.45
+  - id: library-owners
+    title: Give each higher-level library its own job
+    visual: Keep the task/actor/reference runtime beneath five distinct workflow owners. Move dataset blocks
+      through Data, a worker group through Train, trial records through Tune, samples/learners through RLlib
+      and requests through Serve. A shared runtime does not transfer model, objective, reward or kernel
+      correctness to the orchestration library.
+    beats:
+      - say: Ray Data organizes blocks, transformations, batch inference and training ingest. Its streaming executor
+          applies backpressure, but a global shuffle, oversized block or slow sink can still dominate memory
+          and elapsed time. Data owns execution structure; the application still owns whether a transformation
+          produces the intended values.
+        hold: 0.65
+        visual_cues:
+          - id: ray-library-owners-op-0
+            phrase: Ray Data organizes blocks, transformations, batch inference and training ingest. Its streaming
+              executor applies backpressure, but a global shuffle, oversized block or slow sink can still
+              dominate memory and elapsed time. Data owns execution structure; the application still owns
+              whether a transformation produces the intended values.
+            targets:
+              - ray-library-owners-mechanism
+            color: cyan
+            linger: 0.45
+      - say: Ray Train coordinates distributed workers, reports and checkpoints. PyTorch still computes gradients,
+          DeepSpeed can partition optimizer work, and the chosen communication backend performs collectives.
+          Ray Tune organizes trials, resource allocation, search and stopping. A well-scheduled trial can
+          still optimize an invalid objective or evaluate on a leaked split.
+        hold: 0.65
+        visual_cues:
+          - id: ray-library-owners-op-1
+            phrase: Ray Train coordinates distributed workers, reports and checkpoints. PyTorch still computes gradients,
+              DeepSpeed can partition optimizer work, and the chosen communication backend performs
+              collectives. Ray Tune organizes trials, resource allocation, search and stopping. A
+              well-scheduled trial can still optimize an invalid objective or evaluate on a leaked split.
+            targets:
+              - ray-library-owners-mechanism
+            color: cyan
+            linger: 0.45
+      - say: RLlib organizes reinforcement-learning sampling and learning components. The application must establish
+          that its reward and environment match the task. Serve owns deployment replicas, routing and scaling
+          around a model engine. Measure throughput at the slow stage to decide where distributed workers will
+          help.
+        hold: 0.65
+        visual_cues:
+          - id: ray-library-owners-op-2
+            phrase: RLlib organizes reinforcement-learning sampling and learning components. The application must
+              establish that its reward and environment match the task. Serve owns deployment replicas, routing and
+              scaling around a model engine. Measure throughput at the slow stage to decide where distributed
+              workers will help.
+            targets:
+              - ray-library-owners-mechanism
+            color: cyan
+            linger: 0.45
+  - id: synthesis
+    title: Where is request R7 waiting?
+    visual: Follow R7 into replica 1 and leave it in the engine queue while R4 and R9 occupy both illustrative
+      cache slots. After R9 releases a slot, the engine admits R7 alongside R4.
+    beats:
+      - say: A request arrives for a language model. Here's R seven at the entrance. Serve can see load or cache
+          information when it picks a replica. Follow R seven to replica one. Has that engine started work on
+          its first token yet?
+        hold: 2
+        visual_cues:
+          - id: serve-route
+            phrase: Follow R seven to replica one
+            targets:
+              - serve-track
+            color: cyan
+            linger: 0.3
+      - say: Look inside the engine. In this example both cache slots are occupied. R seven has reached the queue.
+          It waits there while R four and R nine run. A healthy HTTP response from the replica tells us little
+          about this wait.
+        hold: 0.8
+        visual_cues:
+          - id: serve-queue
+            phrase: R seven has reached the queue
+            targets:
+              - serve-queue-slot
+            color: yellow
+            linger: 0.3
+      - say: R nine finishes and releases its slot. Now the engine admits R seven alongside R four. Serve chose
+          where the request went. To explain the delay after it arrived, measure the engine queue and cache
+          pressure. A placement group can reserve these workers while the engine chooses their token work.
+        hold: 1
+        visual_cues:
+          - id: serve-release
+            phrase: releases its slot
+            targets:
+              - serve-cache
+            color: yellow
+            linger: 0.3
+          - id: serve-admit
+            phrase: the engine admits R seven
+            targets:
+              - serve-cache
+              - serve-queue-slot
+            color: green
+            linger: 0.3
+  - id: engine-boundary
+    title: Inside the selected replica
+    visual: R7 is assigned to replica1 while that engine retains R4/R9 work and finite KV slots. Move R7 through
+      ingress and replica admission, then let the internal engine choose token work only when its own slots
+      permit; count a separately supplied TP×PP worker layout. Replica routing and engine token/cache
+      scheduling remain independent controls.
+    beats:
+      - say: Go back to the instant R seven reached replica one. Both cache slots were occupied. R seven had to wait
+          inside the engine. We can time that wait separately from the trip through ingress and the router.
+          Here's what Ray had to reserve to put an engine behind that queue.
+        hold: 0.65
+        visual_cues:
+          - id: ray-engine-boundary-op-0
+            phrase: Go back to the instant R seven reached replica one. Both cache slots were occupied. R seven had to
+              wait inside the engine. We can time that wait separately from the trip through ingress and the
+              router. Here's what Ray had to reserve to put an engine behind that queue.
+            targets:
+              - ray-engine-boundary-mechanism
+            color: cyan
+            linger: 0.45
+          - id: ray-engine-wait
+            phrase: R seven had to wait inside the engine
+            targets:
+              - ray-engine-boundary-mechanism
+            color: yellow
+            linger: 0.45
+      - say: The pinned standard vLLM layout requests one CPU for the LLMServer replica actor and GPU-worker bundles
+          equal to tensor-parallel size times pipeline-parallel size. A supplied four-by-two layout therefore
+          has eight GPU workers plus that CPU actor. Two isolated replicas double those totals.
+          Expert-parallel and disaggregated layouts need their own calculation; a reservation does not specify
+          every kernel or link.
+        hold: 0.65
+        visual_cues:
+          - id: ray-engine-boundary-op-1
+            phrase: The pinned standard vLLM layout requests one CPU for the LLMServer replica actor and GPU-worker
+              bundles equal to tensor-parallel size times pipeline-parallel size. A supplied four-by-two
+              layout therefore has eight GPU workers plus that CPU actor. Two isolated replicas double those
+              totals. Expert-parallel and disaggregated layouts need their own calculation; a reservation does
+              not specify every kernel or link.
+            targets:
+              - ray-engine-boundary-mechanism
+            color: cyan
+            linger: 0.45
+          - id: ray-engine-eight
+            phrase: eight GPU workers plus that CPU actor
+            targets:
+              - ray-engine-boundary-mechanism
+            color: green
+            linger: 0.45
+          - id: ray-engine-double
+            phrase: Two isolated replicas double those totals
+            targets:
+              - ray-engine-boundary-mechanism
+            color: green
+            linger: 0.45
+      - say: Ray two point fifty-eight release notes describe in-process ingress tokenization and KV-cache-aware
+          routing, including engine cache events. Ray can therefore use token and cache information without owning
+          the selected engine’s continuous batching or KV allocator. Diagnose route concentration, ingress CPU and
+          network separately from the engine queue, cache pressure and inter-token delays.
+        hold: 0.65
+        visual_cues:
+          - id: ray-engine-boundary-op-2
+            phrase: Ray two point fifty-eight release notes describe in-process ingress tokenization and KV-cache-aware
+              routing, including engine cache events. Ray can therefore use token and cache information without
+              owning the selected engine’s continuous batching or KV allocator. Diagnose route concentration,
+              ingress CPU and network separately from the engine queue, cache pressure and inter-token delays.
+            targets:
+              - ray-engine-boundary-mechanism
+            color: cyan
+            linger: 0.45
+  - id: gcs-recovery
+    title: Recover the control record without resetting every worker
+    visual: Keep a running actor with count7 and an existing task separate from GCS actor/node/group records.
+      Interrupt only GCS, pause new control operations, restore records from surviving backing storage and
+      reconnect workers without replacing the actor process. Recovered control metadata is neither actor
+      checkpoint restoration nor proof of uninterrupted requests.
+    beats:
+      - say: The default in-memory GCS does not survive losing its state. A recoverable configuration persists
+          control metadata and reloads it after GCS restarts. During that recovery, running tasks and actors
+          can remain alive and existing objects can remain available, while actor creation and reconstruction,
+          placement-group operations, resource management and worker registration or creation are unavailable.
+        hold: 0.65
+        visual_cues:
+          - id: ray-gcs-recovery-op-0
+            phrase: The default in-memory GCS does not survive losing its state. A recoverable configuration persists
+              control metadata and reloads it after GCS restarts. During that recovery, running tasks and
+              actors can remain alive and existing objects can remain available, while actor creation and
+              reconstruction, placement-group operations, resource management and worker registration or
+              creation are unavailable.
+            targets:
+              - ray-gcs-recovery-mechanism
+            color: cyan
+            linger: 0.45
+          - id: ray-gcs-pause
+            phrase: actor creation and reconstruction, placement-group operations, resource management and worker
+              registration or creation are unavailable
+            targets:
+              - ray-gcs-recovery-mechanism
+            color: pink
+            linger: 0.45
+      - say: The pinned documentation officially supports external Redis fault tolerance with KubeRay for Ray Serve.
+          It also documents a Linux-only alpha embedded RocksDB backend on durable storage. Backing storage must
+          survive and reconnect to the recovered GCS. Reconnection deadlines still apply. Configure the backing
+          store when setting up the cluster.
+        hold: 0.65
+        visual_cues:
+          - id: ray-gcs-recovery-op-1
+            phrase: The pinned documentation officially supports external Redis fault tolerance with KubeRay for Ray
+              Serve. It also documents a Linux-only alpha embedded RocksDB backend on durable storage. Backing
+              storage must survive and reconnect to the recovered GCS. Reconnection deadlines still apply.
+              Configure the backing store when setting up the cluster.
+            targets:
+              - ray-gcs-recovery-mechanism
+            color: cyan
+            linger: 0.45
+          - id: ray-gcs-reload
+            phrase: Backing storage must survive and reconnect to the recovered GCS
+            targets:
+              - ray-gcs-recovery-mechanism
+            color: green
+            linger: 0.45
+      - say: Look at what the ledger carried through that outage. The actor process stayed alive and still reports
+          seven. Its constructor never ran again. The service that's restarting owns cluster metadata. A
+          failed actor would need its own application checkpoint. If the head node or the backing volume also
+          went down, we'd have a different experiment. Check which operations paused and which kept running
+          before declaring the service available.
+        hold: 0.65
+        visual_cues:
+          - id: ray-gcs-recovery-op-2
+            phrase: Look at what the ledger carried through that outage. The actor process stayed alive and still
+              reports seven. Its constructor never ran again. The service that's restarting owns cluster
+              metadata. A failed actor would need its own application checkpoint. If the head node or the
+              backing volume also went down, we'd have a different experiment. Check which operations paused
+              and which kept running before declaring the service available.
+            targets:
+              - ray-gcs-recovery-mechanism
+            color: cyan
+            linger: 0.45
+          - id: ray-actor-survives
+            phrase: The actor process stayed alive and still reports seven
+            targets:
+              - ray-gcs-recovery-mechanism
+            color: green
+            linger: 0.45
+  - id: failure-evidence
+    title: What would you record during a failure?
+    visual: Pair each local check with its observed outcome. For the two-node experiments, follow the bytes,
+      the generating task and the old handle. For a restart, track the calls that succeed and the writes that commit.
+    beats:
+      - say: On one machine the lab runs a task in each of two reserved bundles. It records three results and finds
+          handles inside the nested list. Then the ledger comes back with a new process ID and a count of zero. The
+          worker retry leaves a different clue. The first worker writes a local marker and exits. The second sees
+          it and finishes.
+        hold: 0.65
+        visual_cues:
+          - id: ray-failure-evidence-op-0
+            phrase: On one machine the lab runs a task in each of two reserved bundles. It records three results and
+              finds handles inside the nested list. Then the ledger comes back with a new process ID and a count of
+              zero. The worker retry leaves a different clue. The first worker writes a local marker and exits. The
+              second sees it and finishes.
+            targets:
+              - ray-failure-evidence-mechanism
+            color: cyan
+            linger: 0.45
+      - say: Now put the producer on node A and the consumer on B. Record their node IDs and watch the bytes arrive on
+          B. To test reconstruction, keep the owner alive and remove every copy. Watch the task run again and
+          compare the new value with the old one. To test owner loss, leave a copy on B and stop the owner. Try
+          reading through the original handle.
+        hold: 0.65
+        visual_cues:
+          - id: ray-failure-evidence-op-1
+            phrase: Now put the producer on node A and the consumer on B. Record their node IDs and watch the bytes
+              arrive on B. To test reconstruction, keep the owner alive and remove every copy. Watch the task run
+              again and compare the new value with the old one. To test owner loss, leave a copy on B and stop the
+              owner. Try reading through the original handle.
+            targets:
+              - ray-failure-evidence-mechanism
+            color: cyan
+            linger: 0.45
+      - say: For a control service restart, record where its metadata lives and how long workers have to reconnect.
+          While the service reloads, call a surviving actor and try to create another. For a lost reply, follow one
+          batch ID through the restart. Count how many times its write committed. Then check which reply the caller
+          received.
+        hold: 0.65
+        visual_cues:
+          - id: ray-failure-evidence-op-2
+            phrase: For a control service restart, record where its metadata lives and how long workers have to
+              reconnect. While the service reloads, call a surviving actor and try to create another. For a lost
+              reply, follow one batch ID through the restart. Count how many times its write committed. Then check
+              which reply the caller received.
+            targets:
+              - ray-failure-evidence-mechanism
+            color: cyan
+            linger: 0.45
+  - id: source-history
+    title: Follow one contract through the pinned source
+    visual: Keep the ray2.58 tag beside separate execution and result-ownership questions. Trace
+      remote_function/actor through CoreWorker to raylet/GCS, then distinguish historical papers, technical
+      governance and artifact license. Source version, commercial platform and runtime ownership have
+      different meanings.
+    beats:
+      - say: To follow a call in the Ray two point fifty-eight source, start with the remote function module for a
+          task or the actor module for a method. Both lead into CoreWorker. Follow the raylet to see where the work
+          runs. Follow the reference back to the process that owns its metadata. The GCS keeps the cluster's node,
+          actor and placement group records.
+        hold: 0.65
+        visual_cues:
+          - id: ray-source-history-op-0
+            phrase: To follow a call in the Ray two point fifty-eight source, start with the remote function module for a
+              task or the actor module for a method. Both lead into CoreWorker. Follow the raylet to see where the
+              work runs. Follow the reference back to the process that owns its metadata. The GCS keeps the
+              cluster's node, actor and placement group records.
+            targets:
+              - ray-source-history-mechanism
+            color: cyan
+            linger: 0.45
+      - say: Ray began at Berkeley in twenty-sixteen and twenty-seventeen. The twenty-eighteen paper explains how
+          tasks and actors share an execution engine. Anyscale was founded in twenty-nineteen. The
+          twenty-twenty-one Ownership paper answers our question about the handle. The process that creates a
+          reference keeps the metadata that other processes need to use it.
+        hold: 0.65
+        visual_cues:
+          - id: ray-source-history-op-1
+            phrase: Ray began at Berkeley in twenty-sixteen and twenty-seventeen. The twenty-eighteen paper explains how
+              tasks and actors share an execution engine. Anyscale was founded in twenty-nineteen. The
+              twenty-twenty-one Ownership paper answers our question about the handle. The process that creates a
+              reference keeps the metadata that other processes need to use it.
+            targets:
+              - ray-source-history-mechanism
+            color: cyan
+            linger: 0.45
+      - say: Contributors, committers, a technical steering committee and lead maintainers guide the open-source
+          project under LF Projects. Anyscale runs a commercial platform. Ray's source uses the Apache two license.
+          A model or dataset that passes through Ray keeps its own license. When Ray calls a process an owner, it
+          means that process tracks a reference.
+        hold: 0.65
+        visual_cues:
+          - id: ray-source-history-op-2
+            phrase: Contributors, committers, a technical steering committee and lead maintainers guide the open-source
+              project under LF Projects. Anyscale runs a commercial platform. Ray's source uses the Apache two
+              license. A model or dataset that passes through Ray keeps its own license. When Ray calls a process
+              an owner, it means that process tracks a reference.
+            targets:
+              - ray-source-history-mechanism
+            color: cyan
+            linger: 0.45
+  - id: fresh-owner
+    title: What would you run again?
+    visual: Test the opening distinction with a different process failure. Remove the owner link to X while node
+      B keeps the bytes. A separate durable ledger has current count eight and B41's earlier receipt. Follow
+      the old receipt and compute a new result under a live supervisor.
+    beats:
+      - say: This time the driver dies. It owned the handle called X. There's still a copy of the result on node B.
+          A different process has restored the ledger. Its latest count is eight, and batch forty-one's
+          receipt says five. What will a read of X and a retry of forty-one each return?
+        hold: 2.6
+        visual_cues:
+          - id: fresh-driver-dies
+            phrase: the driver dies
+            targets:
+              - fresh-link
+            color: pink
+            linger: 0.3
+          - id: fresh-ask
+            phrase: What will a read of X and a retry of forty-one each return
+            targets:
+              - fresh-old-answer
+              - fresh-reply
+            color: yellow
+            linger: 0.3
+      - say: Follow X back to its owner. Ray can report an owner died error even while those bytes survive. Now find
+          forty-one's receipt. It returns five. A later batch took the total to eight. The earlier caller gets
+          the result it would have received the first time.
+        hold: 1.1
+        caption_starts:
+          - an owner died error
+          - It returns five
+        visual_cues:
+          - id: ray-fresh-owner-error
+            phrase: an owner died error
+            targets:
+              - fresh-old-answer
+            color: pink
+            linger: 0.3
+          - id: ray-fresh-batch-result
+            phrase: It returns five
+            targets:
+              - fresh-reply
+            color: green
+            linger: 0.3
+          - id: fresh-lookup
+            phrase: Now find forty-one's receipt
+            targets:
+              - fresh-receipt-row
+            color: yellow
+            linger: 0.3
+      - say: Suppose we still need the feature value. A live supervisor reads the saved input and submits the
+          calculation again. It gets a new handle, Y. Keep the original batch ID when recording the result.
+          That lets us replace the missing value and count those documents just once. In the next lesson,
+          MLflow records which inputs and artifacts belong to each run.
+        hold: 1.3
+        visual_cues:
+          - id: fresh-recompute
+            phrase: submits the calculation again
+            targets:
+              - fresh-new-work
+            color: blue
+            linger: 0.3
+          - id: ray-fresh-newref
+            phrase: a new handle, Y
+            targets:
+              - fresh-new-work
+            color: green
+            linger: 0.3
+          - id: fresh-finish
+            phrase: count those documents just once
+            targets:
+              - fresh-reply
+            color: green
+            linger: 0.3

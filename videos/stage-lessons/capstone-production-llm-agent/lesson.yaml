@@ -1,0 +1,388 @@
+version: 1
+id: capstone-production-llm-agent
+title: Can This Agent Retry the Restore?
+source: foundations/capstone-production-llm-agent/content.md
+sources:
+  - title: "Debenedetti et al.: AgentDojo"
+    url: https://arxiv.org/abs/2406.13352
+  - title: "SQLite: transactions"
+    url: https://www.sqlite.org/lang_transaction.html
+  - title: LangGraph interrupt persistence and restart semantics
+    url: https://docs.langchain.com/oss/python/langgraph/interrupts
+scenes:
+  - id: intro
+    title: "A reply about a disabled key"
+    visual: "A disabled key sits beside the customer's question. The reviewed policy and its citation become a draft. The key keeps its disabled tag while SQLite reveals the restore count."
+    beats:
+      - say: "This production API key is disabled. The customer asks support what it takes to get access back. The agent reads the policy and drafts a reply for review. In this lab, each completed restore adds one row. Starting with an empty table, how many restore rows does this ticket leave?"
+        hold: 2.4
+        visual_cues:
+          - {id: read-policy, phrase: "reads the policy", targets: [picture]}
+          - {id: make-draft, phrase: "drafts a reply for review", targets: [picture]}
+          - {id: count-query, phrase: "each completed restore adds one row", targets: [picture]}
+          - {id: count-question, phrase: "how many restore rows does this ticket leave", targets: [picture]}
+      - say: "Zero. The reply cites the policy. The key stays disabled. A restore starts with a separate operator request. A reviewer must approve it before the executor can commit the change. What if the executor fails just before that commit?"
+        hold: 0.8
+        visual_cues:
+          - {id: draft-count, phrase: "Zero", targets: [picture], caption_boundary: true}
+          - {id: separate-request, phrase: "a separate operator request", targets: [picture]}
+          - {id: before-commit, phrase: "fails just before that commit", targets: [picture]}
+  - id: intake
+    title: "Check the ticket at the door"
+    visual: "Three receipts reach different points on the same admission route. Only the current routine receipt can spend planner steps."
+    beats:
+      - say: "Who supplied the ticket? The classifier capstone gave us a route and a bundle version. Here the host loads a fixed receipt by ticket ID. In a service, get the receipt from a trusted producer who ties it to this ticket and principal. Then check the bundle version, the route and the account grant. Anyone can type the expected words into a form."
+        hold: 0.5
+        visual_cues:
+          - {id: trusted-intake, phrase: "the bundle version, the route and the account grant", targets: [picture]}
+          - {id: bound-principal, phrase: "ties it to this ticket and principal", targets: [picture]}
+      - say: "Follow the first receipt. It's current, and routine support can enter planning. The second goes straight to a person. The third has the routine route but an old bundle. Both stop with zero planner steps. Even the admitted ticket gives this support worker a read grant for just one account, A three hundred."
+        hold: 0.8
+        visual_cues:
+          - {id: routine-plans, phrase: "routine support can enter planning", targets: [picture]}
+          - {id: human-route, phrase: "The second goes straight to a person", targets: [picture]}
+          - {id: old-bundle, phrase: "the routine route but an old bundle", targets: [picture]}
+          - {id: preplanning-stops, phrase: "Both stop with zero planner steps", targets: [picture]}
+          - {id: account-grant, phrase: "a read grant for just one account", targets: [picture]}
+  - id: source-evidence
+    title: "Read the policy clause"
+    visual: "The approved passage stays on the desk. Change one word in the proposed answer, leave its source ID in place, compare the two clauses, then copy the checked wording."
+    beats:
+      - say: "Here's the policy our support worker found. The first sentence requires identity verification. For a privileged scope, the second requires manager approval before access is queued. The document question-answering capstone returned a supported answer or an abstention. Our local lookup recognizes the ticket's exact question. An unrelated private note and even a reasonable paraphrase both get an abstention. A real search system needs permission filters, current sources and tests on how customers actually ask."
+        hold: 0.65
+        visual_cues:
+          - {id: source-evidence-b1, phrase: "requires identity verification", targets: [picture]}
+          - {id: privileged-condition, phrase: "requires manager approval", targets: [picture]}
+          - {id: exact-question, phrase: "recognizes the ticket's exact question", targets: [picture]}
+          - {id: both-abstain, phrase: "both get an abstention", targets: [picture]}
+      - say: "Check a proposed answer against that passage. The host compares the status, answer, citation, question and policy hash. Keep the citation and change the word “require” to “recommend.” Would you hand this answer to the customer?"
+        hold: 2.2
+        visual_cues:
+          - {id: source-evidence-b2, phrase: "compares the status, answer, citation, question and policy hash", targets: [picture]}
+          - {id: edit-word, phrase: "change the word", targets: [picture]}
+          - {id: check-question, phrase: "Would you hand this answer to the customer", targets: [picture]}
+      - say: "Reject it. Recommending approval makes it optional. The policy requires it. The source hash still identifies the same bytes. Checking who supplied them and whether they support the answer takes separate evidence. Restore the reviewed wording. Once the host has also read the authorized account, it copies both sentences and their citation into the draft. This fixture tests that copy. A generated answer needs its own accuracy evaluation."
+        hold: 0.75
+        visual_cues:
+          - {id: forged-answer, phrase: "Reject it", targets: [picture], caption_boundary: true}
+          - {id: hash-bytes, phrase: "source hash still identifies the same bytes", targets: [picture]}
+          - {id: restore-word, phrase: "Restore the reviewed wording", targets: [picture]}
+          - {id: admit-context, phrase: "read the authorized account", targets: [picture]}
+          - {id: copy-evidence, phrase: "copies both sentences and their citation", targets: [picture]}
+  - id: loop
+    title: "Build the draft from two observations"
+    visual: "Host observations fill in order. A fresh premature draft stops at two empty inputs. Copies of the admitted observations return to the planner while the originals stay put."
+    beats:
+      - say: "Read the top row from left to right. First the host checks the policy response. Then it looks up the account on the ticket. With those two results it can draft the reply and stop for a human. Start a fresh run and ask for the draft first. Both inputs are empty, so the host blocks the draft."
+        hold: 0.65
+        visual_cues:
+          - {id: policy-evidence, phrase: "checks the policy response", targets: [picture]}
+          - {id: account-context, phrase: "looks up the account on the ticket", targets: [picture]}
+          - {id: cited-draft, phrase: "draft the reply", targets: [picture]}
+          - {id: review-stop, phrase: "stop for a human", targets: [picture]}
+          - {id: fresh-attempt, phrase: "Start a fresh run", targets: [picture]}
+          - {id: early-draft, phrase: "the host blocks the draft", targets: [picture]}
+      - say: "Go back to the moment before drafting. The planner gets a copy of the two observations. It can propose the next action. The host checks that proposal against its own originals. Editing the copy leaves those originals in place. A deep copy works for this trusted adapter. Untrusted executable code needs isolation of its files, credentials, network and resources. A planner can also hand off early with no draft. If it keeps requesting reads instead, the default loop stops after four dispatch iterations."
+        hold: 0.8
+        visual_cues:
+          - {id: state-transitions, phrase: "Go back to the moment before drafting", targets: [picture]}
+          - {id: planner-copy, phrase: "gets a copy of the two observations", targets: [picture]}
+          - {id: validated-action, phrase: "checks that proposal against its own originals", targets: [picture]}
+  - id: dispatch
+    title: "Read a blocked attempt"
+    visual: "A well-formed lookup stops at the resource gate. A restore stops at the tool gate. The attempt and executed flag remain separate in the trace."
+    beats:
+      - say: "Suppose the planner asks for an account lookup. The tool is available and the argument is a string. This time it names A three oh one. Compare that with the read grant for A three hundred. The host blocks the lookup before reading the other account."
+        hold: 0.65
+        visual_cues:
+          - {id: dispatch-gates, phrase: "asks for an account lookup", targets: [picture]}
+          - {id: wrong-account, phrase: "it names A three oh one", targets: [picture]}
+          - {id: unauthorized, phrase: "blocks the lookup before reading the other account", targets: [picture]}
+      - say: "Keep the attempt in the trace. Next a planner proposes a restore. Look at where it stops. The planner has no restore tool. The event says executed false, and the database has zero effects. Dropping the event would hide the attempt. Counting it as a write would give you a restore that never happened."
+        hold: 0.65
+        visual_cues:
+          - {id: separate-attempt, phrase: "Keep the attempt in the trace", targets: [picture]}
+          - {id: restore-attempt, phrase: "a planner proposes a restore", targets: [picture]}
+          - {id: zero-effects, phrase: "the database has zero effects", targets: [picture]}
+      - say: "The envelope has two fields, action and args. Each tool expects exact argument names and types. A string must contain a nonblank character and can be at most sixteen hundred characters long. Adding an approved field to the envelope fails that first check. A well formed draft request can still fail the last check if the policy or account evidence is missing. Starting a restore takes a separate operator request. The lab represents that request with a host command."
+        hold: 0.8
+        visual_cues:
+          - {id: dispatch-core-3, phrase: "two fields, action and args", targets: [picture]}
+          - {id: nonblank, phrase: "must contain a nonblank character", targets: [picture]}
+          - {id: max-string, phrase: "at most sixteen hundred characters", targets: [picture]}
+          - {id: invented-approval, phrase: "Adding an approved field", targets: [picture]}
+          - {id: state-check, phrase: "a well formed draft request", targets: [picture]}
+  - id: approval
+    title: "Open the operator’s request"
+    visual: "One operator stages a packet. A new process finds the packet before it can find a review. A second record receives the digest of the whole packet, including its first expiry."
+    beats:
+      - say: "Now an operator separately asks to restore access for this account. The stage command writes a packet for the ticket, account, scope, policy hash and exact draft. Those five inputs give the operation its stable ID. Stage it at time one thousand. The first insert fixes the expiry three hundred seconds later, at thirteen hundred."
+        hold: 0.7
+        visual_cues:
+          - {id: stage-fields, phrase: "writes a packet", targets: [picture]}
+          - {id: operation-key, phrase: "give the operation its stable ID", targets: [picture]}
+          - {id: first-expiry, phrase: "at thirteen hundred", targets: [picture]}
+      - say: "The staging process exits. Open the same SQLite file from another process. There's the packet, ready for a reviewer. The approval row is still missing. Try to execute and the restore stops here."
+        hold: 0.7
+        visual_cues:
+          - {id: reopen-db, phrase: "Open the same SQLite file", targets: [picture]}
+          - {id: before-review, phrase: "the restore stops here", targets: [picture], caption_boundary: true}
+      - say: "The reviewer checks the whole packet, including that expiry. The approve command stores the decision and a digest of exactly those contents in a second row. This first decision survives a restart. Restaging the same payload keeps the original expiry. Extending the window calls for a new operation and review. The label manager one stands in for a person here. A service must authenticate its reviewer, protect these rows and define how to revoke a decision."
+        hold: 0.8
+        visual_cues:
+          - {id: include-expiry, phrase: "including that expiry", targets: [picture]}
+          - {id: record-review, phrase: "stores the decision and a digest", targets: [picture]}
+          - {id: restage, phrase: "Restaging the same payload", targets: [picture]}
+  - id: replay
+    title: "What survives the failed write?"
+    visual: "A writer and an independent SQLite reader count the same operation before rollback and after commit. Two remote requests then show how losing the reply or losing the outbound request produces the same receipt count."
+    beats:
+      - say: "Let's interrupt the first execution. SQLite starts an immediate write transaction before the executor reads the records. Only one writer can hold it. Another writer can get a busy error. The approval already committed in a previous transaction. The writer checks that approval and inserts the effect for our operation. Leave its transaction open."
+        hold: 0.65
+        visual_cues:
+          - {id: begin-write, phrase: "starts an immediate write transaction", targets: [picture]}
+          - {id: insert-pending, phrase: "inserts the effect for our operation", targets: [picture]}
+      - say: "Run the same count on two connections. The writer sees its own insert, one row. A separate reader sees zero. Now the executor raises before commit. After rollback, which record can a retry still find, the approval or the effect?"
+        hold: 2.4
+        visual_cues:
+          - {id: count-both, phrase: "Run the same count on two connections", targets: [picture]}
+          - {id: writer-one, phrase: "one row", targets: [picture], caption_boundary: true}
+          - {id: reader-zero, phrase: "A separate reader sees zero", targets: [picture], caption_boundary: true}
+          - {id: precommit-fault, phrase: "raises before commit", targets: [picture]}
+          - {id: survival-question, phrase: "which record can a retry still find", targets: [picture]}
+      - say: "The approval survives. Rollback discards the pending effect. The reader still counts zero. At time one thousand two, retry the same operation. Check the review, the live account and the clock again. The writer inserts its row again. For now only the writer sees it. This time the transaction commits. Now the reader counts one."
+        hold: 0.8
+        visual_cues:
+          - {id: rollback, phrase: "Rollback discards the pending effect", targets: [picture]}
+          - {id: retry, phrase: "retry the same operation", targets: [picture]}
+          - {id: retry-insert, phrase: "The writer inserts its row again", targets: [picture]}
+          - {id: commit, phrase: "the transaction commits", targets: [picture], caption_boundary: true}
+          - {id: reader-one, phrase: "Now the reader counts one", targets: [picture], caption_boundary: true}
+      - say: "Replay once more while the review is valid. The executor finds the operation's primary key in the effects table and returns duplicate ignored. The reader still counts one. If you need a history of failed attempts, log them separately."
+        hold: 0.8
+        visual_cues:
+          - {id: replay-key, phrase: "finds the operation's primary key", targets: [picture]}
+          - {id: duplicate, phrase: "returns duplicate ignored", targets: [picture], caption_boundary: true}
+      - say: "Now send the restore to a remote service. The caller times out. Follow the top request. It reaches the service, which restores access. The reply gets lost on its way back. On the lower path the request itself gets lost. The caller has zero receipts in both cases. Should it send the request again?"
+        hold: 2
+        visual_cues:
+          - {id: remote-uncertain, phrase: "send the restore to a remote service", targets: [picture]}
+          - {id: remote-timeout, phrase: "The caller times out", targets: [picture]}
+          - {id: remote-arrival, phrase: "It reaches the service", targets: [picture]}
+          - {id: remote-applied, phrase: "which restores access", targets: [picture]}
+          - {id: remote-no-reply, phrase: "The reply gets lost", targets: [picture]}
+          - {id: remote-absent, phrase: "the request itself gets lost", targets: [picture]}
+          - {id: remote-predict, phrase: "zero receipts in both cases", targets: [picture]}
+      - say: "If the service still honors the same request key for these exact parameters, reuse that key. Otherwise, check the account at the destination to find out whether it still needs a restore."
+        hold: 0.8
+        visual_cues:
+          - {id: remote-reuse, phrase: "still honors the same request key", targets: [picture]}
+          - {id: remote-reconcile, phrase: "check the account at the destination", targets: [picture]}
+  - id: expiry
+    title: "Retry at the deadline"
+    visual: "Two requests hit the same committed row on opposite sides of its deadline. A fresh database then separates a changed packet from a changed live account."
+    beats:
+      - say: "Back in our local database, keep the row the retry committed. The clock reads twelve ninety nine, one second before expiry. Retrying now still finds the duplicate. The reader can point to the row it already has. Move the clock to thirteen hundred and leave everything else alone. What will the executor return, and how many restores will the reader count?"
+        hold: 2.4
+        visual_cues:
+          - {id: before-boundary, phrase: "one second before expiry", targets: [picture]}
+          - {id: before-result, phrase: "still finds the duplicate", targets: [picture]}
+          - {id: at-boundary, phrase: "Move the clock to thirteen hundred", targets: [picture]}
+      - say: "Expired. The deadline check runs before the duplicate check. The reader still counts one. A refusal today tells you whether the current attempt can proceed. The row tells you what already committed."
+        hold: 0.7
+        visual_cues:
+          - {id: expiry-verdict, phrase: "Expired", targets: [picture], caption_boundary: true}
+          - {id: prior-count, phrase: "The reader still counts one", targets: [picture], caption_boundary: true}
+      - say: "Start over in a fresh database with an approved packet and no effects. Its reviewed expiry is thirteen hundred. Restaging the same payload at twelve hundred leaves that value in place. Compare it with a stored packet whose expiry alone changed to twenty three hundred after review. At thirteen oh one the stored window looks open. Would the original decision cover it?"
+        hold: 2.1
+        visual_cues:
+          - {id: fresh-case, phrase: "Start over in a fresh database", targets: [picture]}
+          - {id: restage-time, phrase: "Restaging the same payload at twelve hundred", targets: [picture]}
+          - {id: change-field, phrase: "expiry alone changed to twenty three hundred", targets: [picture]}
+          - {id: execute-time, phrase: "At thirteen oh one", targets: [picture]}
+      - say: "The packet changed. Its operation ID stays the same, but its full digest differs from the saved review. Execution stops with zero effects. With the original packet back in place, check live eligibility too. In three independent fresh runs, revoke verification, change the account scope, or change the ticket question. Each returns stale preconditions with zero effects. These sequential checks use local fixtures. A service must decide how fresh its identity and policy evidence must be and how to handle a change during a write."
+        hold: 0.8
+        visual_cues:
+          - {id: binding-fails, phrase: "Execution stops with zero effects", targets: [picture], caption_boundary: true}
+          - {id: live-cases, phrase: "check live eligibility too", targets: [picture]}
+          - {id: revoke-live, phrase: "revoke verification", targets: [picture]}
+          - {id: rescope-live, phrase: "change the account scope", targets: [picture]}
+          - {id: reword-live, phrase: "change the ticket question", targets: [picture]}
+          - {id: stale-result, phrase: "Each returns stale preconditions with zero effects", targets: [picture]}
+  - id: trace-budget
+    title: "Read the usage receipts"
+    visual: "Each synthetic receipt contributes to three bars. Slowing only call four changes the time total. After resetting it, a fifth call takes all three totals beyond their limits. A missing receipt removes the affected totals."
+    beats:
+      - say: "Each of these four receipts belongs to one completed call. The token counts add up to five hundred seventy. Add the four durations too. These calls ran one after another, so their times add up to five hundred thirty milliseconds. Compare each total with its own limit. Four calls, nine hundred tokens, twelve hundred milliseconds. This run fits all three."
+        hold: 0.65
+        visual_cues:
+          - {id: trace-budget-b1, phrase: "these four receipts", targets: [picture]}
+          - {id: budget-input-tokens, phrase: "The token counts", targets: [picture]}
+          - {id: budget-token-result, phrase: "five hundred seventy", targets: [picture], caption_boundary: true}
+          - {id: budget-input-ms, phrase: "Add the four durations", targets: [picture]}
+          - {id: budget-ms-result, phrase: "five hundred thirty milliseconds", targets: [picture], caption_boundary: true}
+          - {id: budget-limits, phrase: "Compare each total", targets: [picture]}
+          - {id: budget-pass-result, phrase: "This run fits all three", targets: [picture], caption_boundary: true}
+      - say: "Keep those four calls and every token count. Suppose the fourth call takes nine hundred fifty milliseconds instead of forty. Which limit does this run cross?"
+        hold: 2.1
+        visual_cues:
+          - {id: slower-call, phrase: "the fourth call takes nine hundred fifty milliseconds instead of forty", targets: [picture]}
+      - say: "Add the new duration to the first three. Fourteen hundred forty milliseconds. Only time crosses its limit. A step cap alone couldn't have caught that slow call."
+        hold: 0.7
+        visual_cues:
+          - {id: slow-total, phrase: "Fourteen hundred forty milliseconds", targets: [picture], caption_boundary: true}
+          - {id: slow-verdict, phrase: "Only time crosses its limit", targets: [picture], caption_boundary: true}
+      - say: "Put the fourth call back at forty milliseconds. Now a fifth call finishes. Its receipt adds five hundred tokens and nine hundred fifty milliseconds. Where will the bars finish?"
+        hold: 1.8
+        visual_cues:
+          - {id: reset-fourth, phrase: "Put the fourth call back at forty milliseconds", targets: [picture]}
+          - {id: trace-budget-b2, phrase: "Its receipt adds five hundred tokens and nine hundred fifty milliseconds", targets: [picture]}
+      - say: "Start with the extra receipt. We have five calls, one thousand seventy tokens, and fourteen hundred eighty milliseconds. All three exceed their limits. Equality is allowed. A separate run at exactly nine hundred tokens passes that check. At exactly twelve hundred milliseconds the time check passes too. Lose the last receipt's usage fields and both totals become unknown. Invalid types, negative values, infinity and sums that overflow floating point also invalidate the audit. An all-integer sum stays exact."
+        hold: 0.65
+        visual_cues:
+          - {id: budget-expanded-result, phrase: "Start with the extra receipt", targets: [picture]}
+          - {id: five-events, phrase: "five calls", targets: [picture], caption_boundary: true}
+          - {id: expanded-tokens, phrase: "one thousand seventy tokens", targets: [picture], caption_boundary: true}
+          - {id: expanded-ms, phrase: "fourteen hundred eighty milliseconds", targets: [picture], caption_boundary: true}
+          - {id: budget-fail-result, phrase: "All three exceed their limits", targets: [picture], caption_boundary: true}
+          - {id: exact-tokens, phrase: "exactly nine hundred tokens passes that check", targets: [picture]}
+          - {id: exact-time, phrase: "exactly twelve hundred milliseconds the time check passes too", targets: [picture]}
+          - {id: budget-invalid, phrase: "both totals become unknown", targets: [picture]}
+      - say: "Those bars describe completed work. Before dispatch, reserve enough time and tokens for the next call. One call can stall even with a four-step cap. Enforce call timeouts, an episode deadline, output limits and concurrency around the work. A cancelled request may still run remotely. Reconcile late usage, failures and retries against the same request."
+        hold: 0.8
+        visual_cues:
+          - {id: trace-budget-b3, phrase: "Those bars describe completed work", targets: [picture]}
+          - {id: before-dispatch, phrase: "Before dispatch", targets: [picture]}
+          - {id: late-usage, phrase: "Reconcile late usage", targets: [picture]}
+  - id: evaluation
+    title: "Where the effect count comes from"
+    visual: "An independent count from SQLite lands in the replay episode. Compare six observed paths against the same candidate’s regression contract."
+    beats:
+      - say: "The dashboard capstone asked for versioned evidence. Here are six runs from a fresh database. Follow the forbidden proposal and the approved replay. Their action traces alone can't tell you how many restores committed. For the replay, read the effects table directly. That count goes in the report. The grader compares it with the expected integer."
+        hold: 0.65
+        visual_cues:
+          - {id: episode-boundaries, phrase: "the forbidden proposal and the approved replay", targets: [picture]}
+          - {id: effect-store, phrase: "read the effects table directly", targets: [picture]}
+      - say: "Keep the episode names and the candidate identity with those observations. They identify which contract to grade. Runtime limits on steps, tokens and time act during execution. Evaluating an episode later lets you see where it stopped."
+        hold: 0.55
+        visual_cues:
+          - {id: complete-inventory, phrase: "episode names and the candidate identity", targets: [picture]}
+          - {id: runtime-limits, phrase: "Runtime limits on steps, tokens and time", targets: [picture]}
+      - say: "Read each mark as an attempt. The urgent and stale tickets stop with zero planner steps. The grounded draft takes four permitted actions. The private note gets an abstention and a handoff. The forbidden restore has one attempt marked executed false. Its effect count is zero. The separate executor runs twice and leaves one effect. These rows export action names and flags. To check the arguments it actually used, open the full trace and the host's resource grant."
+        hold: 0.85
+        visual_cues:
+          - {id: evaluation-core-3, phrase: "Read each mark as an attempt", targets: [picture]}
+          - {id: zero-planning, phrase: "stop with zero planner steps", targets: [picture]}
+          - {id: four-actions, phrase: "four permitted actions", targets: [picture]}
+          - {id: injected-handoff, phrase: "an abstention and a handoff", targets: [picture]}
+          - {id: recorded-false, phrase: "one attempt marked executed false", targets: [picture]}
+          - {id: one-replayed-effect, phrase: "runs twice and leaves one effect", targets: [picture]}
+  - id: release-mutations
+    title: "Grade the rows before a release"
+    visual: "Replace one episode name, candidate ID, execution flag, effect count type or schema field while the unchanged grounded draft remains visible."
+    beats:
+      - say: "Leave the good draft in place. This report has six rows, with the expected agent, dataset and grader versions. Replace the stale episode with a second urgent episode. There are still six rows. Has the candidate covered its cases?"
+        hold: 2
+        visual_cues:
+          - {id: release-mutations-b1, phrase: "Leave the good draft in place", targets: [picture]}
+          - {id: duplicate-name, phrase: "a second urgent episode", targets: [picture]}
+      - say: "Hold it. Only five distinct episodes remain. The second urgent run tells us nothing about the old bundle. Restore the missing episode. Now change just the candidate version. Hold this report too. The passing rows belong to a different build."
+        hold: 0.65
+        visual_cues:
+          - {id: incomplete-coverage, phrase: "Only five distinct episodes remain", targets: [picture], caption_boundary: true}
+          - {id: restore-inventory, phrase: "Restore the missing episode", targets: [picture]}
+          - {id: wrong-build, phrase: "change just the candidate version", targets: [picture]}
+          - {id: build-verdict, phrase: "Hold this report too", targets: [picture], caption_boundary: true}
+      - say: "Go back to the correct build and flip the forbidden restore to executed true. That flag fails the row even with a zero effect count. Reset the flag. Replace the replay count of one with Boolean true. Python treats those values as numerically equal, but the contract requires an integer count. That column measures rows in the database. Add a passed field to an otherwise correct row and the grader rejects the extra field. It makes its own decision from the observations."
+        hold: 0.65
+        visual_cues:
+          - {id: release-mutations-b2, phrase: "flip the forbidden restore to executed true", targets: [picture]}
+          - {id: forbidden-verdict, phrase: "That flag fails the row", targets: [picture], caption_boundary: true}
+          - {id: reset-flag, phrase: "Reset the flag", targets: [picture]}
+          - {id: boolean-edit, phrase: "Replace the replay count of one with Boolean true", targets: [picture]}
+          - {id: boolean-rejected, phrase: "requires an integer count", targets: [picture], caption_boundary: true}
+          - {id: passed-field, phrase: "Add a passed field", targets: [picture]}
+          - {id: schema-rejected, phrase: "rejects the extra field", targets: [picture], caption_boundary: true}
+      - say: "Restore the original observations. The result is fixture suite pass. This planner follows a fixed sequence. For a learned planner, grade the required checks along each valid path. Before deciding whether to deploy, have a trusted evaluator tie the run to the actual build and test held-out tasks and safety cases."
+        hold: 0.8
+        visual_cues:
+          - {id: release-mutations-b3, phrase: "Restore the original observations", targets: [picture]}
+          - {id: suite-result, phrase: "The result is fixture suite pass", targets: [picture], caption_boundary: true}
+          - {id: trusted-run, phrase: "tie the run to the actual build", targets: [picture]}
+  - id: operational-contract
+    title: "Recover a review after a disconnect"
+    visual: "The handler loses its local wait. The durable review store supplies a new handler. A separate transaction ordering shows why a post-commit error leaves a row."
+    beats:
+      - say: "Here the planner and policy lookup are deterministic. When you add a model, test whether it retrieves a permitted source and whether the answer follows from that source. Replace fixture names with authenticated callers and current account grants. To run the article's Python module locally, start with a fresh version four database. Its approval rows store the reviewed packet digest. An older version three file needs a migration."
+        hold: 0.65
+        visual_cues:
+          - {id: operational-contract-b1, phrase: "the planner and policy lookup are deterministic", targets: [picture]}
+          - {id: model-dependency, phrase: "When you add a model", targets: [picture]}
+          - {id: principal-dependency, phrase: "Replace fixture names", targets: [picture]}
+      - say: "Save the pending review in the database. Beside it is a handler waiting in memory. An async handler can yield its thread while it waits. If the process exits, that wait disappears. Now keep the process running. Just the client's connection drops. Some servers cancel the handler. Others let it finish. Persist the packet and the decision so a new handler can recover them in either case. Here it reopens SQLite. LangGraph can use a thread ID to reload state and restart the interrupted node on resume. Authenticate the reviewer, support revocation, and separate duties where required."
+        hold: 0.65
+        visual_cues:
+          - {id: operational-contract-b2, phrase: "Save the pending review", targets: [picture]}
+          - {id: process-loss, phrase: "a handler waiting in memory", targets: [picture]}
+          - {id: lose-wait, phrase: "that wait disappears", targets: [picture]}
+          - {id: disconnect, phrase: "Now keep the process running", targets: [picture]}
+          - {id: cut-http, phrase: "connection drops", targets: [picture]}
+          - {id: may-cancel, phrase: "cancel the handler", targets: [picture]}
+          - {id: connection-only, phrase: "Others let it finish", targets: [picture]}
+          - {id: independent-review, phrase: "Persist the packet and the decision", targets: [picture]}
+          - {id: resume-handler, phrase: "a new handler can recover them", targets: [picture]}
+          - {id: restart-node, phrase: "restart the interrupted node on resume", targets: [picture]}
+      - say: "For a remote write, check the destination. Protect sensitive tickets and reviews with access controls, encryption, redaction and retention limits. Look again at the local transaction. If the writer commits first and the failure comes afterward, a later rollback leaves the row in place. The six-episode suite checks replay after a commit. Run a separate test in a fresh database. Interrupt the write before commit and roll it back. The independent reader should count zero."
+        hold: 0.8
+        visual_cues:
+          - {id: operational-contract-b3, phrase: "For a remote write", targets: [picture]}
+          - {id: rollback-proof, phrase: "Look again at the local transaction", targets: [picture]}
+          - {id: counterfactual-commit, phrase: "the writer commits first", targets: [picture]}
+          - {id: injected-failure, phrase: "the failure comes afterward", targets: [picture]}
+          - {id: durable-counterfactual-result, phrase: "a later rollback leaves the row in place", targets: [picture]}
+          - {id: rollback-test, phrase: "a separate test in a fresh database", targets: [picture]}
+          - {id: fail-before-commit, phrase: "Interrupt the write before commit", targets: [picture]}
+          - {id: test-rollback, phrase: "roll it back", targets: [picture]}
+          - {id: test-count, phrase: "The independent reader should count zero", targets: [picture], caption_boundary: true}
+  - id: synthesis
+    title: "Decide the next attempt"
+    visual: "A new review fixes expiry at 2300. Follow the executor across packet, live state and deadline checks. Its trace stops at the first refusal. Read the effect count beside each decision."
+    beats:
+      - say: "The reviewer approved this restore until twenty three hundred. It's now two thousand one. The effects table is empty. Watch two things change after review. The stored expiry moves to twenty four hundred. The account loses identity verification. Which check stops this attempt first? How many restores will the reader count?"
+        hold: 3
+        visual_cues:
+          - {id: fresh-review, phrase: "approved this restore until twenty three hundred", targets: [picture]}
+          - {id: test-clock, phrase: "It's now two thousand one", targets: [picture]}
+          - {id: edit-expiry, phrase: "stored expiry moves to twenty four hundred", targets: [picture]}
+          - {id: revoke-verification, phrase: "loses identity verification", targets: [picture]}
+          - {id: predict-order, phrase: "Which check stops this attempt first", targets: [picture]}
+      - say: "The packet check stops it. The reader counts zero. The executor compares the stored packet with the review before asking about the live account. Put just the expiry back. Which check can the executor reach now?"
+        hold: 2.1
+        visual_cues:
+          - {id: packet-result, phrase: "The packet check stops it", targets: [picture], caption_boundary: true}
+          - {id: packet-count, phrase: "The reader counts zero", targets: [picture], caption_boundary: true}
+          - {id: fix-expiry, phrase: "Put just the expiry back", targets: [picture]}
+          - {id: predict-live, phrase: "Which check can the executor reach now", targets: [picture]}
+      - say: "It reaches the account check. Verification is still false, so it returns stale preconditions. Still zero. Restore verification and keep the same clock. The packet matches, the account is eligible, and the window is open. The executor commits one effect. Replay that same request. The executor returns duplicate ignored. The reader still counts one."
+        hold: 0.7
+        visual_cues:
+          - {id: live-result, phrase: "returns stale preconditions", targets: [picture], caption_boundary: true}
+          - {id: live-count, phrase: "Still zero", targets: [picture], caption_boundary: true}
+          - {id: fix-account, phrase: "Restore verification", targets: [picture]}
+          - {id: pass-checks, phrase: "The packet matches, the account is eligible, and the window is open", targets: [picture]}
+          - {id: commit-result, phrase: "The executor commits one effect", targets: [picture], caption_boundary: true}
+          - {id: try-replay, phrase: "Replay that same request", targets: [picture]}
+          - {id: replay-verdict, phrase: "The executor returns duplicate ignored", targets: [picture], caption_boundary: true}
+          - {id: duplicate-result, phrase: "The reader still counts one", targets: [picture], caption_boundary: true}
+      - say: "One more try. Move the clock to the exact deadline. Leave the row where it is. What does this call return, and what count goes beside it?"
+        hold: 2.2
+        visual_cues:
+          - {id: advance-clock, phrase: "Move the clock to the exact deadline", targets: [picture]}
+          - {id: predict-deadline, phrase: "What does this call return", targets: [picture]}
+      - say: "Expired. One committed restore. The deadline stops today's call before it reaches the duplicate check. That row came from the operator's approved request. The person who asked about the disabled key still gets the cited reply."
+        hold: 1
+        visual_cues:
+          - {id: deadline-result, phrase: "Expired", targets: [picture], caption_boundary: true}
+          - {id: deadline-count, phrase: "One committed restore", targets: [picture], caption_boundary: true}
+          - {id: whose-request, phrase: "the operator's approved request", targets: [picture]}
+          - {id: ticket-payoff, phrase: "The person who asked about the disabled key", targets: [picture]}

@@ -1,0 +1,959 @@
+[
+  {
+    "id": "c01",
+    "title": "Which explanation can start?",
+    "sourceChapters": [
+      "c01"
+    ],
+    "beats": [
+      {
+        "id": "c01-b01",
+        "say": "Someone wants dark mode in Settings. The support assistant has already chosen a label for this request. Feature. A second user tried to sign in and got a five hundred error. That request still needs a label. Which explanation can start?",
+        "hold": 2.6
+      },
+      {
+        "id": "c01-b02",
+        "say": "Take the dark-mode request. Copy feature into its assistant prompt. Now start its explanation. Dark mode would add a display option.",
+        "hold": 1
+      },
+      {
+        "id": "c01-b03",
+        "say": "SGLang’s Python frontend kept the selected word and put it in the next prompt. The serving runtime runs the model calls. An ordinary HTTP request can enter that runtime directly. These two requests can share work on identical instructions. Each one still needs its own category before the program can ask for its explanation.",
+        "hold": 1
+      }
+    ]
+  },
+  {
+    "id": "c02",
+    "title": "Where does the next prompt begin?",
+    "sourceChapters": [
+      "c02"
+    ],
+    "beats": [
+      {
+        "id": "c02-b01",
+        "say": "Rewind ticket R forty-two to the selection call. The program appends system instructions, then the user’s dark-mode request, then an assistant boundary. Select scores a finite choice among bug, feature and question.",
+        "hold": 1
+      },
+      {
+        "id": "c02-b02",
+        "say": "The interpreter submits each expression as the Python program runs. The scheduler sees the resulting model work. While the named value is pending, a reader of that value waits.",
+        "hold": 1
+      },
+      {
+        "id": "c02-b03",
+        "say": "Selection returns feature. Append it after Label. Add Explanation on the next line. Now the cursor marks the first place the second call may write. Generate at most sixty-four tokens, stopping at a newline.",
+        "hold": 1
+      },
+      {
+        "id": "c02-b04",
+        "say": "A missing variable or a wrong role boundary can fail in the frontend before a GPU batch exists. This is a trace of the article’s example. A live integration check needs a configured model backend.",
+        "hold": 1
+      }
+    ]
+  },
+  {
+    "id": "c03",
+    "title": "Which branches can run together?",
+    "sourceChapters": [
+      "c03"
+    ],
+    "beats": [
+      {
+        "id": "c03-b01",
+        "say": "Fork creates independent prompt-state branches from a common prefix; join brings their results back to the program. The shared instructions can reuse model context, while each branch still owns its generated values and stopping state. Independent branches may run together.",
+        "hold": 0.3
+      },
+      {
+        "id": "c03-b02",
+        "say": "Give the two copies independent jobs. The first writes a reason. The second writes a short heading. Each can stop at its own newline. Join collects both named results. Now change the heading task: ask it to summarize the reason. Its input must contain the completed reason before it can run.",
+        "hold": 1
+      },
+      {
+        "id": "c03-b03",
+        "say": "A plain HTTP request and an offline Engine call can enter the runtime without this frontend. Identical tokenized contexts and placement can produce the same prefix hits through HTTP. The original paper reports completed program instances per second, and single-program latency in separate experiments.",
+        "hold": 0.3
+      },
+      {
+        "id": "c03-b04",
+        "say": "One multi-call program is not one token or necessarily one HTTP request. Keep that unit with any historical comparison.",
+        "hold": 0.65
+      }
+    ]
+  },
+  {
+    "id": "c04",
+    "title": "Who owns the next handoff?",
+    "sourceChapters": [
+      "c04"
+    ],
+    "beats": [
+      {
+        "id": "c04-b01",
+        "say": "Inside the runtime, entrypoints parse the request. The tokenizer manager prepares model inputs and tracks request and output state. In the usual multiprocess path, a separate detokenizer manager turns generated IDs into text.",
+        "hold": 0.3
+      },
+      {
+        "id": "c04-b02",
+        "say": "The scheduler owns runnable work and cache locations. The KV cache holds the attention keys and values already computed for earlier token positions. Later tokens can read them without running that prefix again. The model runner builds the forward batch, selects a supported attention path and executes the loaded model.",
+        "hold": 0.65
+      },
+      {
+        "id": "c04-b03",
+        "say": "Follow the selected ID. Grammar and sampling determine which token can advance this request. Detokenization supplies its text, and streaming delivers it to the client. The process split can vary with server mode. Keep the request ID through each handoff to distinguish a selected token from a delivered one.",
+        "hold": 1
+      }
+    ]
+  },
+  {
+    "id": "c05",
+    "title": "Where did the client wait?",
+    "sourceChapters": [
+      "c05"
+    ],
+    "beats": [
+      {
+        "id": "c05-b01",
+        "say": "Use a separate supplied clock. A request arrives at zero milliseconds and its first output reaches the client at two hundred forty. Later output arrivals are two hundred eighty and three hundred fifty.",
+        "hold": 0.3
+      },
+      {
+        "id": "c05-b02",
+        "say": "Use those arrival marks to predict the first wait and the two gaps between tokens.",
+        "hold": 2.3
+      },
+      {
+        "id": "c05-b03",
+        "say": "Time to first token is two hundred forty; the two observed inter-token gaps are forty and seventy. These constructed times demonstrate measurement boundaries, not SGLang performance.",
+        "hold": 0.65
+      },
+      {
+        "id": "c05-b04",
+        "say": "TTFT can include tokenizer work, queueing, prefix lookup, the first model forward, sampling and delivery. ITL can include later scheduling, collectives, grammar or draft work and transport. High TTFT with low GPU use is consistent with waiting before kernels, but does not identify its cause. A throughput count alone cannot reconstruct either per-request clock.",
+        "hold": 0.65
+      }
+    ]
+  },
+  {
+    "id": "c06",
+    "title": "What fits into six fresh positions?",
+    "sourceChapters": [
+      "c06"
+    ],
+    "beats": [
+      {
+        "id": "c06-b01",
+        "say": "Four prompt positions are already cached. R zero needs one decode input. R one has nine unmatched prompt inputs. This simplified mixed step admits six fresh positions. After reserving one for decode, how much of the new prompt fits?",
+        "hold": 1
+      },
+      {
+        "id": "c06-b02",
+        "say": "Five prompt positions fit. Four remain in the queue. The four cached positions cost no fresh slots here.",
+        "hold": 1
+      },
+      {
+        "id": "c06-b03",
+        "say": "On the second step, reserve one decode position again. Process the remaining four prompt positions. One slot goes unused. The final prefill selects R one’s first output. The selected token is ready to send. Its own KV is still pending.",
+        "hold": 1
+      },
+      {
+        "id": "c06-b04",
+        "say": "Feed that selected output back on the next decode step. Only after its forward pass does that position have its own keys and values. Now both requests have taken a decode step.",
+        "hold": 1
+      },
+      {
+        "id": "c06-b05",
+        "say": "For any such budget, reserve the scheduled decode positions first. Take the smaller of the unmatched prompt length and the remaining budget. Those positions count model inputs. Now look at a separate run. R zero is ready for its next decode when the worker starts a twenty-millisecond prefill chunk for R forty-two. The prompt advances while R zero waits. Smaller chunks give the scheduler more chances to run that decode, but can delay the new request’s first token.",
+        "hold": 0.65
+      }
+    ]
+  },
+  {
+    "id": "c07",
+    "title": "Will the five prompt inputs fit in memory?",
+    "sourceChapters": [
+      "c07"
+    ],
+    "beats": [
+      {
+        "id": "c07-b01",
+        "say": "At the pinned revision mixed chunking starts disabled. With mixed chunking enabled, PrefillAdder subtracts the decode positions from its input budget and its chunk budget when present. Five prompt positions fit the arithmetic budget. A new page holds four positions. Only one page is free. Can the allocator admit all five?",
+        "hold": 1
+      },
+      {
+        "id": "c07-b02",
+        "say": "The fifth position needs a second page. Admission waits. Check free KV, page alignment, the running-request limit and reservations for future output. The queue can wait while compute is idle. Read the actual batch and allocator trace before choosing a chunk size.",
+        "hold": 1
+      }
+    ]
+  },
+  {
+    "id": "c08",
+    "title": "Where does the shared sentence split?",
+    "sourceChapters": [
+      "c08"
+    ],
+    "beats": [
+      {
+        "id": "c08-b01",
+        "say": "Begin with the cached sentence, Birds sing near the lake at dawn. For this drawing, each word is one constructed token. A new sentence begins, Birds sing near the old oak tree. Compare from the start. Four tokens agree, so their existing key-value states can be reused under the same compatible cache namespace.",
+        "hold": 0.6
+      },
+      {
+        "id": "c08-b02",
+        "say": "Insert the new sentence. A compressed edge splits after the common prefix, leaving two different suffix branches. The tree stores paths and their associated cache locations. An attention kernel later consumes those locations. The scheduler and tree decide which locations belong to this request.",
+        "hold": 0.6
+      },
+      {
+        "id": "c08-b03",
+        "say": "Try Birds fly over the lake. Compare from the left. Only Birds matches. Lake reappears too late to extend that prefix. Keep the words and switch the adapter. Zero positions carry over to the new namespace. Real backends can also require page alignment.",
+        "hold": 1
+      }
+    ]
+  },
+  {
+    "id": "c09",
+    "title": "Which caller saw the adapter mismatch?",
+    "sourceChapters": [
+      "c09"
+    ],
+    "beats": [
+      {
+        "id": "c09-b01",
+        "say": "Read the token IDs from the left. A, B, C, D and E agree. In this example both keys use adapter A and the cache reuses whole pages of four. Locations twelve through fifteen hold the keys and values for the first four positions. E starts another page.",
+        "hold": 1
+      },
+      {
+        "id": "c09-b02",
+        "say": "The radix tree supplies the locations. The attention kernel reads their tensors. A request’s extra key can include the LoRA identity. A salt can partition reuse while the service separately authenticates the caller.",
+        "hold": 1
+      },
+      {
+        "id": "c09-b03",
+        "say": "Keep every token, its position and the stored page. Change only the requested adapter to B. What happens when the teaching helper and the pinned key class compare these keys?",
+        "hold": 2.5
+      },
+      {
+        "id": "c09-b04",
+        "say": "The teaching helper returns zero reusable tokens. The direct match on the pinned key class raises ValueError.",
+        "hold": 1
+      }
+    ]
+  },
+  {
+    "id": "c10",
+    "title": "Can two equal suffixes share KV?",
+    "sourceChapters": [
+      "c10"
+    ],
+    "beats": [
+      {
+        "id": "c10-b01",
+        "say": "The two ticket requests share system instructions and the user-role opening, then their ticket tokens diverge. Repeated Label and Explanation strings later in those prompts are not shared leading context: their hidden states depend on the different earlier tickets. Inside one request, the explanation can reuse its own already processed label context.",
+        "hold": 0.65
+      },
+      {
+        "id": "c10-b02",
+        "say": "An early template token, timestamp or random ID can shorten the longest hit. A model or adapter update can invalidate stale KV even when visible text stays identical.",
+        "hold": 0.3
+      },
+      {
+        "id": "c10-b03",
+        "say": "Restore the original template. Now change only the output grammar. The same leading tokens still qualify for reuse. Each request keeps its own grammar and sampling state. If the schema is rendered into the prompt instead, the token sequence changes at that position.",
+        "hold": 0.65
+      }
+    ]
+  },
+  {
+    "id": "c11",
+    "title": "Who still owns the shared path?",
+    "sourceChapters": [
+      "c11"
+    ],
+    "beats": [
+      {
+        "id": "c11-b01",
+        "say": "Reuse creates a lifetime problem. Two requests can depend on the same cached prefix while generating different suffixes. Our live owner set contains both request identities. Their shared path must stay available until the model work that references it has finished.",
+        "hold": 0.6
+      },
+      {
+        "id": "c11-b02",
+        "say": "Request zero completes and releases its reference. One owner remains, so the shared locations stay protected. Counting only the completed request would free data that request one still needs. The lifetime belongs to all live users of the path.",
+        "hold": 0.6
+      },
+      {
+        "id": "c11-b03",
+        "say": "Release the second owner and the path becomes eligible for eviction. Eligibility gives the cache manager permission to reclaim space according to its policy. It does not require immediate deletion. A request routed to another replica will see that replica's own cache, so routing and cache residency also affect reuse.",
+        "hold": 0.6
+      }
+    ]
+  },
+  {
+    "id": "c12",
+    "title": "When can the allocator reuse the page?",
+    "sourceChapters": [
+      "c12"
+    ],
+    "beats": [
+      {
+        "id": "c12-b01",
+        "say": "Lookup and insertion need allocator ownership. Insert a new computed suffix after the forward work creates its KV. Protect every matched segment while live model work can read it; the real tree propagates locks through ancestors.",
+        "hold": 0.3
+      },
+      {
+        "id": "c12-b02",
+        "say": "A completed application response or cancellation notification is not permission to recycle memory still referenced by an outstanding device operation.",
+        "hold": 0.65
+      },
+      {
+        "id": "c12-b03",
+        "say": "R zero has finished. R one is cancelled, but its final GPU reader is pending. Keep the KV page even though the client has gone. The reader completes. Now R one releases its reference. The segment is eligible for eviction. The policy can keep it resident until space is needed.",
+        "hold": 1
+      },
+      {
+        "id": "c12-b04",
+        "say": "Early release risks overwritten live data, while a leaked reference can leave admission stalled with little GPU activity.",
+        "hold": 0.65
+      }
+    ]
+  },
+  {
+    "id": "c13",
+    "title": "Who can use the cached prefix?",
+    "sourceChapters": [
+      "c13"
+    ],
+    "beats": [
+      {
+        "id": "c13-b01",
+        "say": "A radix cache is local to an engine or replica unless a higher-level layer coordinates placement and state. Route the same compatible prompt to a different cold replica and its local lookup can miss. Extra replicas can raise independent request capacity while changing warm-up and reuse. Cache-aware routing trades locality against queueing and load balance.",
+        "hold": 0.65
+      },
+      {
+        "id": "c13-b02",
+        "say": "Back on worker A, two requests are waiting for one slot. R fifty-one arrived first. Its prefix starts with X. R forty-two came second and matches the whole page. The scheduler gives priority to the longest matched prefix. Who gets this slot?",
+        "hold": 2.5
+      },
+      {
+        "id": "c13-b02-pick",
+        "say": "R forty-two goes first. It reuses four positions. R fifty-one is still waiting. If requests with longer matches keep arriving, that wait can keep growing. The paper’s optimality result concerns an offline workload and assumes enough cache for the longest request. An online queue still needs a fairness policy.",
+        "hold": 0.8
+      },
+      {
+        "id": "c13-b03",
+        "say": "Replay the lookup on A with the same tokens and adapter. This time HiCache finds the compatible page in host memory. A colder tier can also use storage. The device slot is empty. Copy the four positions and their keys and values onto the device. Once the copy completes, the attention kernel reads the page on A.",
+        "hold": 1
+      }
+    ]
+  },
+  {
+    "id": "c14",
+    "title": "Where can batch B move?",
+    "sourceChapters": [
+      "c14"
+    ],
+    "beats": [
+      {
+        "id": "c14-b01",
+        "say": "In this illustrative schedule each batch needs one unit of host planning and four units on the GPU. In the serial loop the host prepares A. The GPU runs A from one to five. Planning B leaves a gap, then the GPU runs B from six to ten. Which interval can move underneath A?",
+        "hold": 2.6
+      },
+      {
+        "id": "c14-b02",
+        "say": "Slide B’s planning underneath A. Leave A’s GPU work exactly where it was. B is now ready when A finishes. Slide B’s GPU work into the gap. The finish moves from ten to nine. The GPU still does eight units of work.",
+        "hold": 1
+      },
+      {
+        "id": "c14-b03",
+        "say": "Overlap requires a valid batch. Token budgets, cache locations, grammar state and finished requests must agree when the runner takes over. To measure service performance, use realistic request lengths and record correctness, completion rate and latency.",
+        "hold": 1
+      }
+    ]
+  },
+  {
+    "id": "c15",
+    "title": "Is the prepared batch still usable?",
+    "sourceChapters": [
+      "c15"
+    ],
+    "beats": [
+      {
+        "id": "c15-b01",
+        "say": "Keep the prepared batch B record attached to the host lane from the overlap example. Its request IDs, input positions, KV locations and grammar progress must describe the same step when the runner consumes it. Overlapping work hides host time only when these dependencies are ready.",
+        "hold": 0.3
+      },
+      {
+        "id": "c15-b02",
+        "say": "A queued record that points to recycled locations is not a valid faster schedule.",
+        "hold": 0.65
+      },
+      {
+        "id": "c15-b03",
+        "say": "The record carries grammar revision two. The runner now needs revision three. Hold the launch. Once the current grammar arrives and the KV mapping is still valid, hand B to the runner. Extra queues and synchronization can offset time saved on the host. Measure the complete request.",
+        "hold": 1
+      }
+    ]
+  },
+  {
+    "id": "c16",
+    "title": "What can the grammar cursor write?",
+    "sourceChapters": [
+      "c16"
+    ],
+    "beats": [
+      {
+        "id": "c16-b01",
+        "say": "Look at another run on the dark-mode ticket. The JSON cursor is at the category value. Here each quoted category is one toy token. Bug, feature and question are legal. The number forty-two has probability point zero five. Mask the number. What probability mass remains?",
+        "hold": 1
+      },
+      {
+        "id": "c16-b02",
+        "say": "Point nine five remains. Divide each legal weight by that mass. Bug now has about forty-seven percent of the probability. The sampler picks bug. The cursor moves past the closing quote. In this one-field grammar, what may follow?",
+        "hold": 2.4
+      },
+      {
+        "id": "c16-b03",
+        "say": "Only the closing brace. It has all the legal probability mass.",
+        "hold": 1.7
+      },
+      {
+        "id": "c16-b03-next",
+        "say": "Write it. The client can now parse a complete object. Read the ticket beside it. Is bug the right category?",
+        "hold": 1.3
+      },
+      {
+        "id": "c16-b04",
+        "say": "The ticket requests a new display option. Its expected category is feature. The object passes the grammar check and fails the task check. Real tokenizers can split a quoted value across tokens. Each request carries its own grammar cursor.",
+        "hold": 1
+      }
+    ]
+  },
+  {
+    "id": "c17",
+    "title": "What should a client do with an unfinished reply?",
+    "sourceChapters": [
+      "c17"
+    ],
+    "beats": [
+      {
+        "id": "c17-b01",
+        "say": "A server request can choose JSON schema, regex or EBNF; those three constraint parameters are mutually exclusive in the documented contract. The pinned frontend gen signature exposes regex and JSON schema but not an EBNF argument.",
+        "hold": 0.3
+      },
+      {
+        "id": "c17-b02",
+        "say": "The documentation used for this lesson lists XGrammar as the default, with Outlines and llguidance alternatives. Check which constraint the chosen backend and entry point support.",
+        "hold": 0.65
+      },
+      {
+        "id": "c17-b03",
+        "say": "For any supplied probabilities and legal set, zero illegal entries, sum the remaining mass, and divide each legal entry by that mass. If no legal continuation remains, there is no distribution to normalize. Surface an explicit error or incomplete result rather than choosing an illegal token.",
+        "hold": 0.3
+      },
+      {
+        "id": "c17-b04",
+        "say": "This rule still needs a correct mapping from tokenizer vocabulary to grammar transitions.",
+        "hold": 0.65
+      },
+      {
+        "id": "c17-b05",
+        "say": "Watch a separate reply stop at the colon. Its finish reason is a token limit. A valid prefix still lacks a category and a closing brace. Cancellation and transport failures can also truncate a reply. Validate a complete object against the original schema before acting, including after a looser retry. Then check the label against the task.",
+        "hold": 1
+      }
+    ]
+  },
+  {
+    "id": "c18",
+    "title": "Which characters can travel together?",
+    "sourceChapters": [
+      "c18"
+    ],
+    "beats": [
+      {
+        "id": "c18-b01",
+        "say": "The original paper describes a compressed character or string finite-state machine. Consecutive transitions with a single allowed continuation can become one forced string path, reducing model steps for constant syntax. A variable value still presents a choice. This historical mechanism explains why grammar structure can expose work beyond independently masking one token.",
+        "hold": 0.65
+      },
+      {
+        "id": "c18-b02",
+        "say": "Strings and model tokens can have different boundaries. In this toy tokenizer, the longest available piece for the joined text a b is the token ab. The paper retokenizes prior text together with the forced string to preserve its interpretation. It also discusses probability distortion at compressed choices. Measure preparation, per-step mask work and complete latency on the actual backend.",
+        "hold": 0.65
+      }
+    ]
+  },
+  {
+    "id": "c19",
+    "title": "Which word owns position six?",
+    "sourceChapters": [
+      "c19"
+    ],
+    "beats": [
+      {
+        "id": "c19-b01",
+        "say": "A cheaper draft proposes eight words. The birds sing near the sea at dawn. Treat each word as one token. The target can score the proposed positions together. An empty output slot still belongs to neither candidate.",
+        "hold": 1
+      },
+      {
+        "id": "c19-b02",
+        "say": "Read the target from the left. Five words agree. At position six the draft says sea. The target says lake. Which word should the client receive, and does it already have its own keys and values?",
+        "hold": 1
+      },
+      {
+        "id": "c19-b03",
+        "say": "Commit the five matching words and lake. The verified inputs provide five ready KV entries. Lake still needs its own forward. Discard sea, at and dawn. The rejected words cannot supply the replacement’s history.",
+        "hold": 1
+      },
+      {
+        "id": "c19-b04",
+        "say": "Feed lake into the target. Its forward finishes, and the sixth KV entry now belongs to lake. This is greedy verification. Exact stochastic decoding has its own probability-based acceptance and correction rules. A tree draft also requires a branch selection.",
+        "hold": 1
+      }
+    ]
+  },
+  {
+    "id": "c20",
+    "title": "How much time does each emitted token cost?",
+    "sourceChapters": [
+      "c20"
+    ],
+    "beats": [
+      {
+        "id": "c20-b01",
+        "say": "Draft candidates can come from a smaller model, target-model features, trained multi-token heads or an n-gram lookup. Greedy verification compares target choices; stochastic verification instead needs its specified probability acceptance and correction rule. Tree candidates add branch selection. Accepted token order, positions, grammar state and KV ownership must advance together.",
+        "hold": 0.65
+      },
+      {
+        "id": "c20-b02",
+        "say": "Use a constructed cost model. An ordinary step emits one token in four milliseconds. A draft cycle spends three milliseconds proposing, nine verifying and one committing. In the first run five drafts are accepted. Add one target replacement. Compare elapsed time per emitted token.",
+        "hold": 1
+      },
+      {
+        "id": "c20-b03",
+        "say": "The six tokens take thirteen milliseconds, about two point one seven per token. Six ordinary steps cost twenty-four milliseconds. Keep those costs fixed. This time zero drafts are accepted. One replacement still goes out. Which path costs less per token?",
+        "hold": 1
+      },
+      {
+        "id": "c20-b04",
+        "say": "Now the cycle costs thirteen milliseconds per emitted token. The ordinary path takes four. Short outputs, strong target batching, draft KV and grammar work can all change that comparison. Measure draft and verification time, rejected positions, memory and inter-token gaps on the actual workload.",
+        "hold": 1
+      },
+      {
+        "id": "c20-b05",
+        "say": "With the supplied costs, the draft cycle wins the five-accepted run. Ordinary decoding wins the zero-accepted run.",
+        "hold": 1
+      }
+    ]
+  },
+  {
+    "id": "c21",
+    "title": "Which speculative mode fits this worker?",
+    "sourceChapters": [
+      "c21"
+    ],
+    "beats": [
+      {
+        "id": "c21-b01",
+        "say": "Separate the immutable pin from the moving release guide. The inspected built-in enum includes EAGLE, EAGLE three, standalone, n-gram and DFlash-family entries, while UNO is not a built-in enum member there. A plugin registry is another explicit boundary.",
+        "hold": 0.3
+      },
+      {
+        "id": "c21-b02",
+        "say": "The guide checked for this lesson also documents UNO using a trained LoRA draft pass and base-weight verification, with no separate draft transformer.",
+        "hold": 0.65
+      },
+      {
+        "id": "c21-b03",
+        "say": "In the guide used here, UNO requires CUDA and FA three, tensor and pipeline sizes one, and excludes grammar decoding. N-gram speculation disables overlap scheduling and mixed chunked prefill.",
+        "hold": 0.3
+      },
+      {
+        "id": "c21-b04",
+        "say": "The EAGLE or standalone V two overlap path instead requires branching top-k one; a larger explicit value errors and omitted auto-tuning can choose an incompatible width. These are method-specific contracts, not one universal speculation flag recipe.",
+        "hold": 0.65
+      },
+      {
+        "id": "c21-b05",
+        "say": "Take a service that requires a grammar. The UNO configuration in this guide cannot serve it. Choose a method whose installed backend supports the schema and chosen width. Compare that mode against its disabled baseline with the same requests, schema and scoring.",
+        "hold": 0.3
+      },
+      {
+        "id": "c21-b06",
+        "say": "The guide’s Llama three point one eight-B MT-bench H one-hundred table is a historical workload lead, not a complete precision, concurrency, warmup and correctness protocol for this service.",
+        "hold": 0.65
+      }
+    ]
+  },
+  {
+    "id": "c22",
+    "title": "What crosses between devices?",
+    "sourceChapters": [
+      "c22"
+    ],
+    "beats": [
+      {
+        "id": "c22-b01",
+        "say": "Tensor parallelism splits model dimensions and adds per-layer collectives. Pipeline parallelism splits layer ranges and adds stage synchronization and fill/drain bubbles. Data parallelism assigns independent requests to replicated models or request groups, affecting memory and cache locality. Expert parallelism routes token work among experts and can add all-to-all communication and imbalance.",
+        "hold": 0.65
+      },
+      {
+        "id": "c22-b02",
+        "say": "Context or sequence paths split positions or attention work under layout constraints. In data-parallel attention, different request groups use separate attention replicas while other model parts remain sharded. Match the backend, quantization, model-specific layers and topology.",
+        "hold": 0.3
+      },
+      {
+        "id": "c22-b03",
+        "say": "A parallel setting that fits weights can still make ITL worse if its communication dominates.",
+        "hold": 0.65
+      }
+    ]
+  },
+  {
+    "id": "c23",
+    "title": "What changes when prefill moves to its own pool?",
+    "sourceChapters": [
+      "c23"
+    ],
+    "beats": [
+      {
+        "id": "c23-b01",
+        "say": "Return to the shared worker. R zero is ready to decode at time zero. The worker runs the long prefill chunk for R forty-two first. R zero waits twenty milliseconds before its next decode starts. Keep both requests and their work. If prefill runs on a separate pool, when could R zero start?",
+        "hold": 2.5
+      },
+      {
+        "id": "c23-b01-split",
+        "say": "R zero can start at time zero on the free decode worker. The prefill worker runs the same twenty-millisecond chunk for R forty-two. When that prefill finishes, R forty-two needs its KV on the decode worker. This request now waits for the handoff. On your workload, does the shorter wait for active decodes justify the new wait for incoming prompts?",
+        "hold": 2.3
+      },
+      {
+        "id": "c23-b01-measure",
+        "say": "Replay the same arrivals and lengths with the same hardware budget and latency targets. Measure the gaps between tokens for active decodes, both pool queues and the time until new KV is ready. Compare how many requests meet the targets. Follow R forty-two’s handoff from the beginning. The prefill worker produces both keys and values. With these dimensions, its unsharded prompt fills half a gibibyte.",
+        "hold": 0.8
+      },
+      {
+        "id": "c23-b02",
+        "say": "Reserve destination capacity early, then follow the transfer after prefill finishes. Reserved memory describes available space. Ready memory contains the data that decoding can consume. On the supplied link, payload divided by bandwidth gives the transfer-time lower bound shown on screen, before protocol and contention costs.",
+        "hold": 0.6
+      },
+      {
+        "id": "c23-b03",
+        "say": "The last bytes arrive. The reader gets a ready event for this transfer. Decode can start on its compatible buffer. Production workers must match model revision, layout, data type and position range. Track prefill completion, reservation, stream readiness and active decode separately when investigating a wait.",
+        "hold": 1
+      }
+    ]
+  },
+  {
+    "id": "c24",
+    "title": "Can the payload cross in ten milliseconds?",
+    "sourceChapters": [
+      "c24"
+    ],
+    "beats": [
+      {
+        "id": "c24-b01",
+        "say": "Build the article’s hypothetical full-attention payload. One key tensor has four thousand ninety-six positions, one hundred twenty-eight scalars per position, and two bytes per scalar. That makes one mebibyte. That is just the key tensor for one head in one layer. Add a matching value tensor. The pair holds two mebibytes.",
+        "hold": 1.5
+      },
+      {
+        "id": "c24-b02",
+        "say": "Take eight of those KV heads. That gives sixteen mebibytes per layer. Each layer has the same shape. Stack thirty-two layers. The complete payload is five hundred twelve mebibytes.",
+        "hold": 1.5
+      },
+      {
+        "id": "c24-b03",
+        "say": "Generally count two times layers times KV heads times head dimension times token positions times bytes per scalar. Here that is five hundred thirty-six million, eight hundred seventy thousand, nine hundred twelve bytes. We assume no sharding, compression, quantization or prefix reuse.",
+        "hold": 0.3
+      },
+      {
+        "id": "c24-b04",
+        "say": "Use an achieved payload rate of twenty-five decimal gigabytes per second. Divide bytes by bytes per second, then convert to milliseconds. The payload alone takes about twenty-one point four seven milliseconds. Compare it with a ten-millisecond allowance.",
+        "hold": 2.3
+      },
+      {
+        "id": "c24-b05",
+        "say": "A ten-millisecond allowance already fails on payload time alone. A smaller payload can pass that screen without proving the full handoff fits: setup, queues, synchronization and contention add time. Advertised link rate is not achieved payload bandwidth. This CPU calculation measures no network and predicts no whole-service speedup.",
+        "hold": 0.65
+      }
+    ]
+  },
+  {
+    "id": "c25",
+    "title": "Who has reserved space before bytes arrive?",
+    "sourceChapters": [
+      "c25"
+    ],
+    "beats": [
+      {
+        "id": "c25-b01",
+        "say": "A decode pool can be capacity-constrained while waiting for data. In the article’s unsharded example, ten pending prefills reserve five hundred twelve mebibytes each, totaling five gibibytes of destination capacity. Reserved slots are not additional received KV and not active decode tokens. Track those three states separately instead of adding overlapping inventories.",
+        "hold": 0.65
+      },
+      {
+        "id": "c25-b02",
+        "say": "The documented early policy reserves destination KV before prefill finishes. The prefill-complete alternative waits for the final prefill result, then reserves and starts the transfer handshake. It can leave more destination space available early, while retaining source KV longer and removing chunked-prefill/transfer overlap.",
+        "hold": 0.3
+      },
+      {
+        "id": "c25-b03",
+        "say": "The initial guide limits this mode to Mooncake, a Python bootstrap registry and specified attention and pipeline sizes of one.",
+        "hold": 0.65
+      },
+      {
+        "id": "c25-b04",
+        "say": "Workers must agree on policy, revision and layout. Deferred allocation changes a per-request reservation boundary, not the creation of the global KV pool. Compare reserved capacity, both queues and exposed transfer latency before claiming an improvement. Read the installed implementation because a later release can change these constraints.",
+        "hold": 0.65
+      }
+    ]
+  },
+  {
+    "id": "c26",
+    "title": "Which attempt finished?",
+    "sourceChapters": [
+      "c26"
+    ],
+    "beats": [
+      {
+        "id": "c26-b01",
+        "say": "Attempt eight has reserved five hundred twelve mebibytes on the decode worker. Each of the four sections holds one hundred twenty-eight. Three have arrived. How much is missing? Can the reader start?",
+        "hold": 2.4
+      },
+      {
+        "id": "c26-b02",
+        "say": "One hundred twenty-eight mebibytes are missing. Three of the four sections contain KV. The reader waits here.",
+        "hold": 2.4
+      },
+      {
+        "id": "c26-b02-arrival",
+        "say": "Watch the final section fill. The bytes are all here. A late ready event comes in for attempt seven. It belongs beside seven. Eight is still waiting.",
+        "hold": 1.8
+      },
+      {
+        "id": "c26-b03",
+        "say": "The ready event for eight arrives. Its model, layout, data type and position range all match. Its reader can start. Keep the complete buffer and this event for a separate replay.",
+        "hold": 1
+      },
+      {
+        "id": "c26-b04",
+        "say": "Change just the received layout to L one. The reader expects L two. What does its current event authorize now?",
+        "hold": 2.2
+      },
+      {
+        "id": "c26-b05",
+        "say": "The reader waits for compatible KV. Retry with the expected layout or cancel and release the buffers after outstanding readers finish. In this replay the current event arrived for a buffer in the wrong layout.",
+        "hold": 1
+      }
+    ]
+  },
+  {
+    "id": "c27",
+    "title": "What did the CPU lookup establish?",
+    "sourceChapters": [
+      "c27"
+    ],
+    "beats": [
+      {
+        "id": "c27-b01",
+        "say": "Run the article’s lookup on five matching IDs with four-token pages. Both keys use A. The helper returns four. Change only the requested key to B. The helper returns zero. The article also tests reference lifetime and the payload byte bound on CPU.",
+        "hold": 1
+      },
+      {
+        "id": "c27-b02",
+        "say": "A model-backed replay needs a supported backend, weights and a worker. First check the frontend’s named outputs. Repeat an identical tokenized prompt on the same warm worker, then change one early token. Which two counts show whether the worker saved prefill?",
+        "hold": 1
+      },
+      {
+        "id": "c27-b03",
+        "say": "Read matched positions and fresh prefill positions from the same batch trace. The Python helper predicts a reusable page. A mock can check call order. Only the worker can report which model inputs it actually processed.",
+        "hold": 1
+      }
+    ]
+  },
+  {
+    "id": "c28",
+    "title": "Can we attribute a timing change to speculation?",
+    "sourceChapters": [
+      "c28"
+    ],
+    "beats": [
+      {
+        "id": "c28-b01",
+        "say": "Record accelerator model, count and topology; SGLang, model and tokenizer revisions; prompt/output length distribution; concurrency or arrival process; and warmup plus steady-state duration. Include precision, quantization, attention backend, flags, cache state, baseline and correctness checks. A frontend program benchmark and a plain-API serving benchmark need their own workload definitions.",
+        "hold": 0.65
+      },
+      {
+        "id": "c28-b02",
+        "say": "Measure tokenization, queue wait, matched tokens, KV allocations, batch positions, chunk sizes, forward time, collectives, grammar masks, draft acceptance and delivery. Separate cold and warm trials. Disable one mechanism in an isolated replay, preserving the service’s required schema and quality contract. A grammar-off run can diagnose overhead while failing to represent the constrained product.",
+        "hold": 0.65
+      },
+      {
+        "id": "c28-b03",
+        "say": "Nsight Systems can expose host gaps, queues, transfers and GPU launches. Nsight Compute explains selected kernel behavior such as occupancy and memory traffic. A profiler screenshot without a fixed request replay is an observation, not attribution. Keep p fifty and p ninety-nine latency, memory pressure, compile or warmup time and errors beside throughput.",
+        "hold": 0.65
+      }
+    ]
+  },
+  {
+    "id": "c29",
+    "title": "Which offered load meets the service rule?",
+    "sourceChapters": [
+      "c29"
+    ],
+    "beats": [
+      {
+        "id": "c29-b01",
+        "say": "Name both service quantities. Qualified goodput is the number of valid completions meeting the declared TTFT and ITL conditions divided by the full measurement duration. Offered-load capacity is the highest tested offered rate that also meets the required qualifying fraction.",
+        "hold": 0.3
+      },
+      {
+        "id": "c29-b02",
+        "say": "Count rejected, failed, cancelled and late work in the offered-request denominator according to the declared policy.",
+        "hold": 0.65
+      },
+      {
+        "id": "c29-b03",
+        "say": "In a separate ten-second fixture, ten requests per second offers one hundred attempts and ninety-two qualify. Goodput is nine point two qualified requests per second and the qualifying fraction is ninety-two percent.",
+        "hold": 0.3
+      },
+      {
+        "id": "c29-b04",
+        "say": "Try twelve offered per second. Of one hundred twenty attempts, one hundred five qualify. The service requires ninety percent. Does the higher qualified count make this load pass?",
+        "hold": 2.4
+      },
+      {
+        "id": "c29-b05",
+        "say": "The second run delivers ten point five qualified completions per second, but only eighty-seven point five percent qualify. At ten offered per second, ninety-two percent qualified. Ten is the highest passing rate we tested. Eleven would need its own replay.",
+        "hold": 1
+      },
+      {
+        "id": "c29-b06",
+        "say": "The larger qualified count does not repair the failed fraction, and untested loads do not inherit a capacity claim. Fix each SLO threshold, request population, duration and quality test before selecting a point. Output-token TPS alone can rise while valid, timely task completions get worse.",
+        "hold": 0.65
+      }
+    ]
+  },
+  {
+    "id": "c30",
+    "title": "Why did two prefix hits disappear?",
+    "sourceChapters": [
+      "c30"
+    ],
+    "beats": [
+      {
+        "id": "c30-b01",
+        "say": "First-token latency doubles and GPU use falls to thirty-five percent. Start with a redacted warm replay. The first four IDs match on replica A. Change only the leading template ID from ten to ninety-nine. The prefix hit falls to zero at the first mismatch.",
+        "hold": 1
+      },
+      {
+        "id": "c30-b02",
+        "say": "Restore ten on the same worker. All four positions match again. Now send the restored prompt to cold replica B. How much of A’s page can this worker find?",
+        "hold": 2
+      },
+      {
+        "id": "c30-b03",
+        "say": "Zero on B. The first miss followed a template edit. The second followed a routing change. To explain idle GPU time, trace tokenization, queue wait and the first forward on that request. Check allocator free slots and evictable KV if admission waits.",
+        "hold": 1
+      },
+      {
+        "id": "c30-b04",
+        "say": "Now hits stay high but a long prompt delays an existing decode. Compare the admitted chunk, runner time, collective waits and split-worker queues. In a controlled replay, change one mechanism and keep the required schema and quality test fixed.",
+        "hold": 1
+      }
+    ]
+  },
+  {
+    "id": "c31",
+    "title": "Where would you look for a stalled batch?",
+    "sourceChapters": [
+      "c31"
+    ],
+    "beats": [
+      {
+        "id": "c31-b01",
+        "say": "The founding paper names Lianmin Zheng, Liangsheng Yin, Zhiqiang Xie, Ying Sheng and collaborators around Berkeley, Stanford and the broader research community. SGLang is a multi-contributor project under sgl-project, incubated by LMSYS.",
+        "hold": 0.3
+      },
+      {
+        "id": "c31-b02",
+        "say": "SGLang’s core source uses the Apache two point zero license. Check the license for each model checkpoint, tokenizer, dataset and third-party kernel you use. Suppose you change the scheduler. Look up its directory in the code owners file at this revision. Ying Sheng is one of the reviewers listed there.",
+        "hold": 1.2
+      },
+      {
+        "id": "c31-b03",
+        "say": "The article pins the code revision shown here. Follow a named output from the language API through the interpreter. For a stalled batch inspect admission budgets and radix keys and locks.",
+        "hold": 1
+      },
+      {
+        "id": "c31-b04",
+        "say": "The grammar manager tracks legal continuations. The speculative registry identifies draft methods. The prefill and decode modules own the transfer. For a worker running a newer wheel, follow the same route at the installed revision.",
+        "hold": 1
+      },
+      {
+        "id": "c31-b05",
+        "say": "The full source route remains available on the article page.",
+        "hold": 0.65
+      }
+    ]
+  },
+  {
+    "id": "c32",
+    "title": "Which completed reply should the desk accept?",
+    "sourceChapters": [
+      "c32"
+    ],
+    "beats": [
+      {
+        "id": "c32-b01",
+        "say": "Follow the dark-mode request back to the desk. Tokenization defined its input IDs. The scheduler chose compatible cache locations and runnable work. The model and grammar produced a category, and detokenization delivered its text. Here are two complete replies to compare.",
+        "hold": 1
+      },
+      {
+        "id": "c32-b02",
+        "say": "Both objects pass the same schema. The human reference for this ticket is feature. Which reply should the desk accept?",
+        "hold": 2.5
+      },
+      {
+        "id": "c32-b03",
+        "say": "Accept the feature reply. Send the bug reply for review. The grammar allowed both categories. A quality check needs the original ticket and the returned value. If the problem is latency instead, trace this same request through host planning, queues, model execution and transfer.",
+        "hold": 1
+      }
+    ]
+  },
+  {
+    "id": "c33",
+    "title": "When can this worker decode?",
+    "sourceChapters": [
+      "c33"
+    ],
+    "beats": [
+      {
+        "id": "c33-b01",
+        "say": "Seven leading IDs match a stored path. Pages hold four positions. The store uses namespace A and the request needs B. B has its own compatible transfer on attempt two. Its receiver holds sixty-four of ninety-six mebibytes. Predict the reusable positions, the missing bytes and what has to happen before the reader starts.",
+        "hold": 3.1
+      },
+      {
+        "id": "c33-b02",
+        "say": "Zero positions carry over from A. With the same namespace, one full page of four would qualify. B still needs thirty-two mebibytes. Two sections are full and the third is empty.",
+        "hold": 2.5
+      },
+      {
+        "id": "c33-b02-arrival",
+        "say": "Watch the last thirty-two arrive. Its buffer is full. Keep it there while the reader waits for its event.",
+        "hold": 1.6
+      },
+      {
+        "id": "c33-b03",
+        "say": "Replay the full buffer twice. Both workers still require attempt two. The left event belongs to attempt one. The right event belongs to attempt two. Which reader may start?",
+        "hold": 2.5
+      },
+      {
+        "id": "c33-b04",
+        "say": "Only the right reader may start. Its own bytes and readiness event agree. The left reader keeps waiting for two. Both replays still get zero positions from A.",
+        "hold": 1
+      },
+      {
+        "id": "c33-b05",
+        "say": "To diagnose a serving request, follow the token IDs, namespace, KV owner, scheduled inputs, grammar cursor and delivered output to their first disagreement. In the next lesson, slime carries sampled tokens, loss masks and group IDs to a trainer. There the model version that produced the tokens matters too.",
+        "hold": 1
+      }
+    ]
+  }
+]

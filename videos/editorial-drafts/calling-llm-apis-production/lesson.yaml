@@ -1,0 +1,1538 @@
+version: 1
+id: calling-llm-apis-production
+title: Follow One LLM Request Through Its Production Boundary
+source: preparation/calling-llm-apis-production/content.md
+voice: en-US-AndrewNeural
+rate: +0%
+sources:
+  - title: Timeouts, retries, and backoff with jitter
+    url: https://aws.amazon.com/builders-library/timeouts-retries-and-backoff-with-jitter/
+  - title: HTTP Semantics, RFC 9110
+    url: https://www.rfc-editor.org/rfc/rfc9110.html
+  - title: OpenAI Structured Outputs guide
+    url: https://platform.openai.com/docs/guides/structured-outputs
+  - title: OpenTelemetry GenAI semantic conventions
+    url: https://opentelemetry.io/docs/specs/semconv/gen-ai/
+  - title: Server-sent events
+    url: https://developer.mozilla.org/en-US/docs/Web/API/Server-sent_events/Using_server-sent_events
+scenes:
+  - id: opening
+    title: A correct notebook call times out in production
+    visual: A shared clock advances through separate local-wait and remote-execution lanes. The local
+      deadline closes while the illustrative remote job continues. Then a model candidate disagrees
+      with trusted account age and policy, and the server compares those known values.
+    beats:
+      - say: >
+          A model answers correctly in a notebook, then the deployed call stalls. The client times
+          out, and the provider may still be processing the request. A local timeout ends the wait; remote
+          work can continue.
+        hold: 0.7
+        motion_check:
+          region:
+            - 400
+            - 400
+            - 1300
+            - 280
+          minimumChangedFraction: 0.002
+        visual_cues:
+          - id: remote-lifetime-b1-1
+            phrase: remote work can continue
+            targets:
+              - remote-lifetime
+            color: pink
+            linger: 0.6
+          - id: ap-opening-0
+            phrase: >
+              A model answers correctly in a notebook, then the deployed call stalls. The client
+              times out, and the provider may still be processing the request. A local timeout ends the
+              wait; remote work can continue.
+            targets:
+              - ap-opening-trace
+            color: blue
+            linger: 0.4
+      - say: >
+          Our fictional account has a stale forty-five-day-old key. Policy P-7 sets rotation
+          eligibility at thirty days, while the model proposes “not eligible.”
+        hold: 0.75
+        visual_cues:
+          - id: trusted-key-age-b2-1
+            phrase: forty-five-day-old key
+            targets:
+              - trusted-key-age
+            color: blue
+            linger: 0.6
+          - id: ap-opening-1
+            phrase: >
+              Our fictional account has a stale forty-five-day-old key. Policy P-7 sets rotation
+              eligibility at thirty days, while the model proposes “not eligible.”
+            targets:
+              - ap-opening-trace
+            color: cyan
+            linger: 0.4
+      - say: >
+          The server can check that answer against trusted facts. We’ll build a boundary that owns
+          the credential, the deadline, validation, and the result shown to the caller.
+        hold: 0.8
+        visual_cues:
+          - id: rotation-policy-result-b3-1
+            phrase: check that answer
+            targets:
+              - rotation-policy-result
+            color: green
+            linger: 0.6
+          - id: ap-opening-2
+            phrase: >
+              The server can check that answer against trusted facts. We’ll build a boundary that
+              owns the credential, the deadline, validation, and the result shown to the caller.
+            targets:
+              - ap-opening-trace
+            color: yellow
+            linger: 0.4
+  - id: secret-probe
+    title: Keep the credential behind an enforced boundary
+    visual: Carry one intent7e3b across caller/server boundary; key bytes remain in server scope.
+      Compare missing/blank startup values, public-prefix build exposure and separate unauthorized
+      caller admission.
+    beats:
+      - say: "Keep one account, intent and trace identity attached to the request. A provider credential authorizes billable work. Delivering its bytes to a browser or mobile client exposes them to that client, even when the connection uses encryption."
+        hold: 0.6
+        visual_cues:
+          - id: ap-secret-probe-0
+            phrase: "Keep one account, intent and trace identity attached to the request. A provider credential authorizes billable work. Delivering its bytes to a browser or mobile client exposes them to that client, even when the connection uses encryption."
+            targets:
+              - ap-secret-probe-trace
+            color: blue
+            linger: 0.4
+      - say: The actual startup helper rejects an absent or blank key and prints only loaded status for its
+          placeholder. That checks configuration presence. It does not establish provider
+          permissions, isolation or a deployed access boundary. Next dot j s can inline referenced
+          NEXT PUBLIC environment values into browser bundles; Vite exposes its configured public
+          prefix, normally VITE. A secret must stay outside those public values.
+        hold: 0.6
+        visual_cues:
+          - id: ap-secret-probe-1
+            phrase: The actual startup helper rejects an absent or blank key and prints only loaded status for
+              its placeholder. That checks configuration presence. It does not establish provider
+              permissions, isolation or a deployed access boundary. Next dot j s can inline
+              referenced NEXT PUBLIC environment values into browser bundles; Vite exposes its
+              configured public prefix, normally VITE. A secret must stay outside those public
+              values.
+            targets:
+              - ap-secret-probe-trace
+            color: cyan
+            linger: 0.4
+      - say: Load deployment secrets through an authorized server integration, keep environment credentials
+          separate, and revoke a leaked value. Authenticate the user, enforce tenant and resource
+          permissions, and bound public route usage. Hiding the provider key does not stop an
+          unauthenticated proxy from spending your quota. These local examples create no public
+          route and use no live credential.
+        hold: 0.6
+        visual_cues:
+          - id: ap-secret-probe-2
+            phrase: Load deployment secrets through an authorized server integration, keep environment
+              credentials separate, and revoke a leaked value. Authenticate the user, enforce tenant
+              and resource permissions, and bound public route usage. Hiding the provider key does
+              not stop an unauthenticated proxy from spending your quota. These local examples
+              create no public route and use no live credential.
+            targets:
+              - ap-secret-probe-trace
+            color: yellow
+            linger: 0.4
+  - id: contract-boundary
+    title: Put provider calls behind one server wrapper
+    visual: A caller request passes authorization, a task wrapper, and a provider adapter. The server
+      injects its credential and sends back a typed, validated result.
+    beats:
+      - say: >
+          The browser sends intent and an account identifier. The server authenticates the caller
+          and checks tenant access before it loads key age and policy.
+        hold: 0.7
+        visual_cues:
+          - id: authenticated-server-b1-1
+            phrase: authenticates the caller
+            targets:
+              - authenticated-server
+            color: cyan
+            linger: 0.6
+          - id: ap-contract-boundary-0
+            phrase: >
+              The browser sends intent and an account identifier. The server authenticates the
+              caller and checks tenant access before it loads key age and policy.
+            targets:
+              - ap-contract-boundary-trace
+            color: blue
+            linger: 0.4
+      - say: >
+          A shared wrapper maps the task to the provider format, keeps the API key server-side, and
+          records the prompt version and trace identifier.
+        hold: 0.7
+        visual_cues:
+          - id: server-secret-b2-1
+            phrase: API key server-side
+            targets:
+              - server-secret
+            color: yellow
+            linger: 0.6
+          - id: ap-contract-boundary-1
+            phrase: >
+              A shared wrapper maps the task to the provider format, keeps the API key server-side,
+              and records the prompt version and trace identifier.
+            targets:
+              - ap-contract-boundary-trace
+            color: cyan
+            linger: 0.4
+      - say: >
+          The adapter returns a candidate to one validation path. Every route can share timeouts,
+          retry rules, privacy scrubbing, and operational telemetry. Connect, first-text, read, and
+          total deadlines cover different waits.
+        hold: 0.75
+        visual_cues:
+          - id: validated-api-result-b3-1
+            phrase: one validation path
+            targets:
+              - validated-api-result
+            color: blue
+            linger: 0.6
+          - id: ap-contract-boundary-2
+            phrase: >
+              The adapter returns a candidate to one validation path. Every route can share
+              timeouts, retry rules, privacy scrubbing, and operational telemetry. Connect,
+              first-text, read, and total deadlines cover different waits.
+            targets:
+              - ap-contract-boundary-trace
+            color: yellow
+            linger: 0.4
+  - id: domain-wire
+    title: Keep application intent distinct from provider bytes
+    visual: Construct LLMTask fields one at a time from server-authorized facts; attach trace7e3b and
+      promptversion, then explicitly map internal fields to actual Responses text.format. Keep
+      legacy minimum-age interpretation beside field.
+    beats:
+      - say: The internal L L M Task names an allowed task, authorized account, policy IDs, question, trace
+          and prompt version. It also carries separate connect and read timeouts, an overall
+          deadline and a retry cap. A Python dataclass and Literal annotation describe intended
+          types; they do not validate an external request at runtime.
+        hold: 0.6
+        visual_cues:
+          - id: ap-domain-wire-0
+            phrase: The internal L L M Task names an allowed task, authorized account, policy IDs, question,
+              trace and prompt version. It also carries separate connect and read timeouts, an
+              overall deadline and a retry cap. A Python dataclass and Literal annotation describe
+              intended types; they do not validate an external request at runtime.
+            targets:
+              - ap-domain-wire-trace
+            color: blue
+            linger: 0.4
+      - say: Check allowed tasks, caller access, finite positive timeout values and nonnegative retry counts
+          before constructing that object. The adapter then maps it to a provider-specific request.
+          Our earlier required-response-fields array is internal metadata, not a wire parameter that
+          makes a provider enforce those fields. The later SDK example sends an actual supported
+          schema.
+        hold: 0.6
+        visual_cues:
+          - id: ap-domain-wire-1
+            phrase: Check allowed tasks, caller access, finite positive timeout values and nonnegative retry
+              counts before constructing that object. The adapter then maps it to a
+              provider-specific request. Our earlier required-response-fields array is internal
+              metadata, not a wire parameter that makes a provider enforce those fields. The later
+              SDK example sends an actual supported schema.
+            targets:
+              - ap-domain-wire-trace
+            color: cyan
+            linger: 0.4
+      - say: The article preserves the legacy name rotation-window-days, but here its meaning is a minimum
+          key age. It is not a deadline to finish rotation after approval. Keep that meaning in the
+          typed response and user interface. The provider proposes a candidate; trusted database
+          facts and policy remain authoritative, and the separate write operation still needs
+          authorization.
+        hold: 0.6
+        visual_cues:
+          - id: ap-domain-wire-2
+            phrase: The article preserves the legacy name rotation-window-days, but here its meaning is a
+              minimum key age. It is not a deadline to finish rotation after approval. Keep that
+              meaning in the typed response and user interface. The provider proposes a candidate;
+              trusted database facts and policy remain authoritative, and the separate write
+              operation still needs authorization.
+            targets:
+              - ap-domain-wire-trace
+            color: yellow
+            linger: 0.4
+  - id: candidate-validation
+    title: Check the response against policy and facts
+    visual: The same P-7 threshold and account age test three structured model candidates. A conflicting
+      answer, changed threshold, and grounded decision take distinct branches.
+    beats:
+      - say: >
+          First, the candidate says the forty-five-day-old key is not eligible. Its fields parse,
+          but that decision conflicts with the trusted age and thirty-day threshold.
+        hold: 0.75
+        visual_cues:
+          - id: candidate-field-comparison-b1-1
+            phrase: decision conflicts
+            targets:
+              - candidate-field-comparison
+            color: pink
+            linger: 0.6
+          - id: ap-candidate-validation-0
+            phrase: >
+              First, the candidate says the forty-five-day-old key is not eligible. Its fields
+              parse, but that decision conflicts with the trusted age and thirty-day threshold.
+            targets:
+              - ap-candidate-validation-trace
+            color: blue
+            linger: 0.4
+      - say: >
+          Next, the candidate cites P-7 while changing its threshold to ninety days. The source ID
+          exists, yet the number fails the policy check.
+        hold: 0.75
+        visual_cues:
+          - id: candidate-field-comparison-b2-1
+            phrase: threshold to ninety days
+            targets:
+              - candidate-field-comparison
+            color: pink
+            linger: 0.6
+          - id: ap-candidate-validation-1
+            phrase: >
+              Next, the candidate cites P-7 while changing its threshold to ninety days. The source
+              ID exists, yet the number fails the policy check.
+            targets:
+              - ap-candidate-validation-trace
+            color: cyan
+            linger: 0.4
+      - say: >
+          The final candidate says eligible, names thirty days, and cites P-7. The server accepts it
+          only after field types, evidence, and the comparison agree. Extra fields and duplicate
+          keys also need explicit handling.
+        hold: 0.8
+        visual_cues:
+          - id: candidate-verdict-b3-1
+            phrase: server accepts it
+            targets:
+              - candidate-verdict
+            color: green
+            linger: 0.6
+          - id: ap-candidate-validation-2
+            phrase: >
+              The final candidate says eligible, names thirty days, and cites P-7. The server
+              accepts it only after field types, evidence, and the comparison agree. Extra fields
+              and duplicate keys also need explicit handling.
+            targets:
+              - ap-candidate-validation-trace
+            color: yellow
+            linger: 0.4
+  - id: parser-layers
+    title: Reject ambiguous bytes before comparing policy
+    visual: Use raw ordered JSON key pairs, including identical duplicate decision keys, then exact
+      field and type checks and trusted age and stale inputs. A visible conjunction stale AND
+      age>=threshold computes eligible/not_eligible in both directions. The parser footer must say
+      that NaN and Infinity are rejected and decoder RecursionError is relabeled. Explicit depth
+      and response-size bounds still need enforcement. Do not label exception translation as a depth guard.
+    beats:
+      - say: "A complete candidate must first survive parsing. Python JSON parsing can otherwise accept duplicate keys by retaining one value and can accept nonstandard NaN or Infinity. This parser observes object pairs before dictionary conversion and rejects duplicate fields and nonstandard numbers. If the decoder raises RecursionError, the parser translates it into a named rejection. That catch sets no explicit nesting limit. Explicit depth and response-size bounds still need enforcement around decoding."
+        hold: 0.6
+        visual_cues:
+          - id: ap-parser-layers-0
+            phrase: "A complete candidate must first survive parsing. Python JSON parsing can otherwise accept duplicate keys by retaining one value and can accept nonstandard NaN or Infinity. This parser observes object pairs before dictionary conversion and rejects duplicate fields and nonstandard numbers. If the decoder raises RecursionError, the parser translates it into a named rejection. That catch sets no explicit nesting limit. Explicit depth and response-size bounds still need enforcement around decoding."
+            targets:
+              - ap-parser-layers-trace
+            color: blue
+            linger: 0.4
+      - say: Next require exactly decision, rotation-window-days and source-line-IDs. The decision is one of
+          two strings; the threshold is an actual integer, so Boolean true is rejected even though
+          Python treats Boolean as an integer subclass. Evidence must be a string list matching the
+          supported P seven line, and its numeric threshold must equal the trusted value.
+        hold: 0.6
+        visual_cues:
+          - id: ap-parser-layers-1
+            phrase: Next require exactly decision, rotation-window-days and source-line-IDs. The decision is one
+              of two strings; the threshold is an actual integer, so Boolean true is rejected even
+              though Python treats Boolean as an integer subclass. Evidence must be a string list
+              matching the supported P seven line, and its numeric threshold must equal the trusted
+              value.
+            targets:
+              - ap-parser-layers-trace
+            color: cyan
+            linger: 0.4
+      - say: "Validate the trusted inputs too: key age is a nonnegative actual integer, stale is a Boolean,
+          and policy threshold is present and nonnegative. Eligibility equals stale AND age at least
+          threshold. At equality a stale key is eligible; a younger key or a nonstale key is not.
+          Check both directions. A fabricated negative result is still a policy error, not a safe
+          replacement for missing evidence."
+        hold: 0.6
+        visual_cues:
+          - id: ap-parser-layers-2
+            phrase: "Validate the trusted inputs too: key age is a nonnegative actual integer, stale is a
+              Boolean, and policy threshold is present and nonnegative. Eligibility equals stale AND
+              age at least threshold. At equality a stale key is eligible; a younger key or a
+              nonstale key is not. Check both directions. A fabricated negative result is still a
+              policy error, not a safe replacement for missing evidence."
+            targets:
+              - ap-parser-layers-trace
+            color: yellow
+            linger: 0.4
+  - id: failure-receipt
+    title: A rejected call still emits its real outcome
+    visual: Execute actual parser wrapper success and failure receipts with fake clock, preserving trace
+      ID. Unknown account stops before providerstub; finally writes failed rather than success or
+      invented negative decision.
+    beats:
+      - say: The actual wrapper initializes status to failed, looks up trusted account facts, calls its
+          local provider stub, and changes status to okay only after validation succeeds. Its
+          finally block records elapsed time on success and on an exception. The supplied fake clock
+          produces a point zero five millisecond success; this is deterministic arithmetic, not
+          measured model latency.
+        hold: 0.6
+        visual_cues:
+          - id: ap-failure-receipt-0
+            phrase: The actual wrapper initializes status to failed, looks up trusted account facts, calls its
+              local provider stub, and changes status to okay only after validation succeeds. Its
+              finally block records elapsed time on success and on an exception. The supplied fake
+              clock produces a point zero five millisecond success; this is deterministic
+              arithmetic, not measured model latency.
+            targets:
+              - ap-failure-receipt-trace
+            color: blue
+            linger: 0.4
+      - say: Temporarily substitute a provider that contradicts the known forty-five-day stale key, then try
+          an unknown account. Both paths print failed and reject. The provider-call count is one
+          because the unknown account fails lookup first. The original stub is restored in a finally
+          block. This executable exercise checks failure telemetry and lookup order; the stub
+          ignores its prompt and cannot establish grounding or access enforcement.
+        hold: 0.6
+        visual_cues:
+          - id: ap-failure-receipt-1
+            phrase: Temporarily substitute a provider that contradicts the known forty-five-day stale key, then
+              try an unknown account. Both paths print failed and reject. The provider-call count is
+              one because the unknown account fails lookup first. The original stub is restored in a
+              finally block. This executable exercise checks failure telemetry and lookup order; the
+              stub ignores its prompt and cannot establish grounding or access enforcement.
+            targets:
+              - ap-failure-receipt-trace
+            color: cyan
+            linger: 0.4
+      - say: Keep task outcome separate from individual attempt outcomes. Record a provider request
+          identifier and reported usage when available. A local timeout leaves generation and
+          billing uncertain; missing usage remains unknown until reconciliation. Return a stable
+          named application failure rather than inventing not-eligible or zero-token success.
+        hold: 0.6
+        visual_cues:
+          - id: ap-failure-receipt-2
+            phrase: Keep task outcome separate from individual attempt outcomes. Record a provider request
+              identifier and reported usage when available. A local timeout leaves generation and
+              billing uncertain; missing usage remains unknown until reconciliation. Return a stable
+              named application failure rather than inventing not-eligible or zero-token success.
+            targets:
+              - ap-failure-receipt-trace
+            color: yellow
+            linger: 0.4
+  - id: timeout-contract
+    title: Connection activity can outlive useful progress
+    visual: Shared wall-clock shows separate connect/read/firsttext/overall timers. Heartbeat arrivals
+      reset only readgap; firsttext timer expires independently. Separate cooperative cancellation
+      cleanup extends actual wait while remote state remains unknown.
+    beats:
+      - say: A connect timeout covers connection establishment under that transport’s semantics, including
+          the effects of D N S, T L S, proxies and connection reuse. A read timeout covers waiting
+          for a received data chunk. HTTP clients can also bound writes and connection-pool
+          acquisition. A read chunk is not necessarily one generated token.
+        hold: 0.6
+        visual_cues:
+          - id: ap-timeout-contract-0
+            phrase: A connect timeout covers connection establishment under that transport’s semantics,
+              including the effects of D N S, T L S, proxies and connection reuse. A read timeout
+              covers waiting for a received data chunk. HTTP clients can also bound writes and
+              connection-pool acquisition. A read chunk is not necessarily one generated token.
+            targets:
+              - ap-timeout-contract-trace
+            color: blue
+            linger: 0.4
+      - say: "A first-visible-text deadline needs a product-defined displayable-text milestone. A nonempty delta can contain only spaces or newlines, so receiving one does not necessarily satisfy that deadline. Metadata and heartbeats can keep a read timer satisfied while useful text remains absent. The overall task clock still includes retrieval, attempts, waits and validation. Choose these limits from the product and measured workload rather than assigning one universal number to every phase."
+        hold: 0.6
+        visual_cues:
+          - id: ap-timeout-contract-1
+            phrase: "A first-visible-text deadline needs a product-defined displayable-text milestone. A nonempty delta can contain only spaces or newlines, so receiving one does not necessarily satisfy that deadline. Metadata and heartbeats can keep a read timer satisfied while useful text remains absent. The overall task clock still includes retrieval, attempts, waits and validation. Choose these limits from the product and measured workload rather than assigning one universal number to every phase."
+            targets:
+              - ap-timeout-contract-trace
+            color: cyan
+            linger: 0.4
+      - say: The actual asyncio exercise waits one millisecond for a stub that sleeps twenty milliseconds
+          and returns timeout. Wait-for requests cancellation and waits for cleanup, so elapsed time
+          can exceed its timeout. It cannot interrupt blocking synchronous work or prove a remote
+          generator stopped. Use cooperative transport, measure overruns and preserve the uncertain
+          remote outcome.
+        hold: 0.6
+        visual_cues:
+          - id: ap-timeout-contract-2
+            phrase: The actual asyncio exercise waits one millisecond for a stub that sleeps twenty milliseconds
+              and returns timeout. Wait-for requests cancellation and waits for cleanup, so elapsed
+              time can exceed its timeout. It cannot interrupt blocking synchronous work or prove a
+              remote generator stopped. Use cooperative transport, measure overruns and preserve the
+              uncertain remote outcome.
+            targets:
+              - ap-timeout-contract-trace
+            color: yellow
+            linger: 0.4
+  - id: timeout-retry
+    title: Share one deadline across attempts and waits
+    visual: A supplied timeline lays a fourteen-second attempt, a Retry-After floor plus jitter, and a
+      three-second retry inside one twenty-second task budget.
+    beats:
+      - say: >
+          Give the whole task twenty seconds. When its first attempt uses fourteen, six seconds
+          remain for any wait, another call, and final validation.
+        hold: 0.75
+        visual_cues:
+          - id: retry-budget-b1-1
+            phrase: six seconds remain
+            targets:
+              - retry-budget
+            color: yellow
+            linger: 0.6
+          - id: ap-timeout-retry-0
+            phrase: >
+              Give the whole task twenty seconds. When its first attempt uses fourteen, six seconds
+              remain for any wait, another call, and final validation.
+            targets:
+              - ap-timeout-retry-trace
+            color: blue
+            linger: 0.4
+      - say: >
+          This rate-limit response requests two seconds. Full jitter adds a half-second in our
+          constructed trace, so the next attempt starts after two and a half seconds.
+        hold: 0.75
+        visual_cues:
+          - id: retry-clock-b2-1
+            phrase: two and a half seconds
+            targets:
+              - retry-clock
+            color: cyan
+            linger: 0.6
+          - id: ap-timeout-retry-1
+            phrase: >
+              This rate-limit response requests two seconds. Full jitter adds a half-second in our
+              constructed trace, so the next attempt starts after two and a half seconds.
+            targets:
+              - ap-timeout-retry-trace
+            color: cyan
+            linger: 0.4
+      - say: "The three-second retry ends at nineteen and a half, inside the budget. That leaves only half a second for validation and all other remaining work. With only one point two seconds left, the requested wait cannot fit, so stop. Use a monotonic clock to measure remaining time.\n"
+        hold: 0.8
+        visual_cues:
+          - id: retry-clock-b3-1
+            phrase: nineteen and a half
+            targets:
+              - retry-clock
+            color: green
+            linger: 0.6
+          - id: ap-timeout-retry-2
+            phrase: "The three-second retry ends at nineteen and a half, inside the budget. That leaves only half a second for validation and all other remaining work. With only one point two seconds left, the requested wait cannot fit, so stop. Use a monotonic clock to measure remaining time."
+            targets:
+              - ap-timeout-retry-trace
+            color: yellow
+            linger: 0.4
+  - id: admission-limits
+    title: Classify the failure before spending another attempt
+    visual: Map request and token admission buckets separately, then route exact
+      normalized429codes,503,401 and completed refusal to bounded retry/quota/request/inspect
+      destinations. Keep tenant quota separate from providerhealth.
+    beats:
+      - say: Providers may limit requests per minute, tokens per minute and concurrent work at different
+          scopes. An average request rate can hide bursts. Long inputs, reserved output allowances
+          and repeated retries can consume token admission differently from a final invoice. Inspect
+          the chosen provider’s actual accounting instead of deriving one universal quota from a
+          token count.
+        hold: 0.6
+        visual_cues:
+          - id: ap-admission-limits-0
+            phrase: Providers may limit requests per minute, tokens per minute and concurrent work at different
+              scopes. An average request rate can hide bursts. Long inputs, reserved output
+              allowances and repeated retries can consume token admission differently from a final
+              invoice. Inspect the chosen provider’s actual accounting instead of deriving one
+              universal quota from a token count.
+            targets:
+              - ap-admission-limits-trace
+            color: blue
+            linger: 0.4
+      - say: The executable classifier receives normalized status and error details. It retries a mapped
+          rate-limit four-twenty-nine and transient statuses such as five-zero-three within a safe
+          read’s budget. Credit or spending exhaustion needs quota intervention. Four-hundred,
+          four-oh-one and four-oh-three need request, credential or access repair. An unknown
+          four-twenty-nine goes to inspection, not an automatic retry.
+        hold: 0.6
+        visual_cues:
+          - id: ap-admission-limits-1
+            phrase: The executable classifier receives normalized status and error details. It retries a mapped
+              rate-limit four-twenty-nine and transient statuses such as five-zero-three within a
+              safe read’s budget. Credit or spending exhaustion needs quota intervention.
+              Four-hundred, four-oh-one and four-oh-three need request, credential or access repair.
+              An unknown four-twenty-nine goes to inspection, not an automatic retry.
+            targets:
+              - ap-admission-limits-trace
+            color: cyan
+            linger: 0.4
+      - say: A refusal, incomplete output or validation rejection can arrive with transport success and
+          still fail the application. This fixture sends those to inspection rather than retrying
+          every HTTP two-hundred response. Normalize provider-specific errors at the adapter. Scope
+          tenant limits separately from provider health; one tenant’s exhausted credit does not
+          prove a global provider outage.
+        hold: 0.6
+        visual_cues:
+          - id: ap-admission-limits-2
+            phrase: A refusal, incomplete output or validation rejection can arrive with transport success and
+              still fail the application. This fixture sends those to inspection rather than
+              retrying every HTTP two-hundred response. Normalize provider-specific errors at the
+              adapter. Scope tenant limits separately from provider health; one tenant’s exhausted
+              credit does not prove a global provider outage.
+            targets:
+              - ap-admission-limits-trace
+            color: yellow
+            linger: 0.4
+  - id: jitter-geometry
+    title: Randomize retry arrivals under an explicit delay rule
+    visual: Six persistent worker IDs first align at one and three seconds in a hypothetical schedule,
+      then replay supplied independent uniforms. Shared axes construct the full-jitter ceiling
+      and decorrelated previous-sleep window with the supplied 0.5 draw. Keep capped ties visible.
+      Label the lab values as calculated delays passed to a no-op sleeper, not measured elapsed waits.
+    beats:
+      - say: If workers fail together and all wait one second, then two, their next attempts cluster at
+          elapsed times one and three seconds when request durations are omitted. Randomizing each
+          worker’s waits spreads these arrivals. That reduces synchronization; it does not guarantee
+          different time buckets or provider recovery.
+        hold: 0.6
+        visual_cues:
+          - id: ap-jitter-geometry-0
+            phrase: If workers fail together and all wait one second, then two, their next attempts cluster at
+              elapsed times one and three seconds when request durations are omitted. Randomizing
+              each worker’s waits spreads these arrivals. That reduces synchronization; it does not
+              guarantee different time buckets or provider recovery.
+            targets:
+              - ap-jitter-geometry-trace
+            color: blue
+            linger: 0.4
+      - say: For full jitter, take the smaller of the cap and base times two raised to the quantity retry
+          number minus one, then multiply that ceiling by a uniform draw from zero to one. The
+          actual lab uses base one, cap eight and a supplied draw of one-half. Its first two waits
+          are one-half and one second. Production workers need independent draws.
+        hold: 0.6
+        visual_cues:
+          - id: ap-jitter-geometry-1
+            phrase: For full jitter, take the smaller of the cap and base times two raised to the quantity retry
+              number minus one, then multiply that ceiling by a uniform draw from zero to one. The
+              actual lab uses base one, cap eight and a supplied draw of one-half. Its first two
+              waits are one-half and one second. Production workers need independent draws.
+            targets:
+              - ap-jitter-geometry-trace
+            color: cyan
+            linger: 0.4
+      - say: Decorrelated jitter instead uses the previous sleep. Draw uniformly between the base and three
+          times that previous sleep, then cap the result. Equivalently, add base to the draw times
+          the difference between three times previous sleep and base, before capping. Starting at
+          one second with a half draw gives two seconds, then three point five. Capping can make
+          workers coincide again. The lab prints this alternative and passes the full-jitter delays
+          to an injected sleeper. This local exercise uses a no-op sleeper.
+        hold: 0.6
+        visual_cues:
+          - id: ap-jitter-geometry-2
+            phrase: Decorrelated jitter instead uses the previous sleep. Draw uniformly between the base and
+              three times that previous sleep, then cap the result. Equivalently, add base to the
+              draw times the difference between three times previous sleep and base, before capping.
+              Starting at one second with a half draw gives two seconds, then three point five.
+              Capping can make workers coincide again. The lab prints this alternative and passes
+              the full-jitter delays to an injected sleeper. This local exercise uses a no-op sleeper.
+            targets:
+              - ap-jitter-geometry-trace
+            color: yellow
+            linger: 0.4
+  - id: deadline-floor
+    title: A legal wait does not prove the next call fits
+    visual: One ruler explicitly supplies RetryAfter seconds/date→floor, remainingbudget upperbound,
+      jitter abovefloor and separate call/validationreservation. Replay fresh shortcase on its own
+      reset clock and preserve earlier19.5s trace as quiethistory.
+    beats:
+      - say: For this wrapper, parse Retry-After as delay seconds or an HTTP date. An expired date becomes
+          zero delay, and an invalid header needs an explicit fallback. Treat a valid value as the
+          minimum wait. Add jitter above that floor rather than shortening the provider’s requested
+          delay to squeeze inside the caller’s budget.
+        hold: 0.6
+        visual_cues:
+          - id: ap-deadline-floor-0
+            phrase: For this wrapper, parse Retry-After as delay seconds or an HTTP date. An expired date
+              becomes zero delay, and an invalid header needs an explicit fallback. Treat a valid
+              value as the minimum wait. Add jitter above that floor rather than shortening the
+              provider’s requested delay to squeeze inside the caller’s budget.
+            targets:
+              - ap-deadline-floor-trace
+            color: blue
+            linger: 0.4
+      - say: The wait helper compares that full wait with remaining time and rejects equality as well as an
+          excess, because another attempt needs time afterward. It validates the positive retry
+          index and finite nonnegative floor. It does not reserve the next call itself. Recompute
+          remaining monotonic time after sleeping, then reserve and enforce the next attempt and
+          validation budget.
+        hold: 0.6
+        visual_cues:
+          - id: ap-deadline-floor-1
+            phrase: The wait helper compares that full wait with remaining time and rejects equality as well as
+              an excess, because another attempt needs time afterward. It validates the positive
+              retry index and finite nonnegative floor. It does not reserve the next call itself.
+              Recompute remaining monotonic time after sleeping, then reserve and enforce the next
+              attempt and validation budget.
+            targets:
+              - ap-deadline-floor-trace
+            color: cyan
+            linger: 0.4
+      - say: Let one layer own retries. If your wrapper permits three attempts and its nested SDK
+          independently permits three, a simple nested execution can reach nine calls. Disable the
+          SDK loop when the wrapper owns the policy; our real SDK fixture sets max-retries to zero.
+          A fitting wait, a healthy fallback or a successful HTTP connection does not extend the
+          original task deadline.
+        hold: 0.6
+        visual_cues:
+          - id: ap-deadline-floor-2
+            phrase: Let one layer own retries. If your wrapper permits three attempts and its nested SDK
+              independently permits three, a simple nested execution can reach nine calls. Disable
+              the SDK loop when the wrapper owns the policy; our real SDK fixture sets max-retries
+              to zero. A fitting wait, a healthy fallback or a successful HTTP connection does not
+              extend the original task deadline.
+            targets:
+              - ap-deadline-floor-trace
+            color: yellow
+            linger: 0.4
+  - id: circuit-breaker
+    title: Stop loading a failing provider
+    visual: Two 503 responses move the circuit from closed to open. A cooldown admits one half-open
+      probe, while error classes choose retry, quota repair, or credential repair.
+    beats:
+      - say: >
+          A mapped rate-limit response can receive a bounded retry. Credit exhaustion needs an
+          operator to fix quota, and an unauthorized response needs credential or access repair.
+        hold: 0.75
+        visual_cues:
+          - id: provider-failure-map-b1-1
+            phrase: Credit exhaustion
+            targets:
+              - provider-failure-map
+            color: yellow
+            linger: 0.6
+          - id: ap-circuit-breaker-0
+            phrase: >
+              A mapped rate-limit response can receive a bounded retry. Credit exhaustion needs an
+              operator to fix quota, and an unauthorized response needs credential or access repair.
+            targets:
+              - ap-circuit-breaker-trace
+            color: blue
+            linger: 0.4
+      - say: >
+          When repeated server failures reach this breaker’s two-failure threshold, it opens. New
+          requests fail quickly or use an approved fallback with matching checks.
+        hold: 0.75
+        visual_cues:
+          - id: breaker-first-receipt
+            phrase: When repeated server failures
+            targets:
+              - breaker-failure-one
+            color: pink
+            linger: 0.6
+          - id: breaker-failure-two-b2-1
+            phrase: two-failure threshold
+            targets:
+              - breaker-failure-one
+              - breaker-failure-two
+              - breaker-failure-count
+              - breaker-state-open
+            color: pink
+            linger: 0.6
+          - id: ap-circuit-breaker-1
+            phrase: >
+              When repeated server failures reach this breaker’s two-failure threshold, it opens.
+              New requests fail quickly or use an approved fallback with matching checks.
+            targets:
+              - ap-circuit-breaker-trace
+            color: cyan
+            linger: 0.4
+      - say: >
+          After ten seconds, one probe enters the half-open state. Success closes the circuit, while
+          another failure opens it again and leaves recovery controlled. Fallbacks need compatible
+          behavior, permission, capacity, and the same validator.
+        hold: 0.8
+        visual_cues:
+          - id: breaker-probe-b3-1
+            phrase: one probe
+            targets:
+              - breaker-probe
+            color: cyan
+            linger: 0.6
+          - id: ap-circuit-breaker-2
+            phrase: >
+              After ten seconds, one probe enters the half-open state. Success closes the circuit,
+              while another failure opens it again and leaves recovery controlled. Fallbacks need
+              compatible behavior, permission, capacity, and the same validator.
+            targets:
+              - ap-circuit-breaker-trace
+            color: yellow
+            linger: 0.4
+  - id: breaker-clock
+    title: A single recovery permit changes actual admission
+    visual: Replay actualCPUclock100/101/102/103/104/114A/114B/115/126/127 with sameprovider gate. Probe
+      packettraversesHALFOPEN, returnedsuccesscloses and failureopens; distinguish
+      actualsequentiallabelmodel from atomicconcurrencyimplementation.
+    beats:
+      - say: The actual sequential breaker starts closed and sends requests at one hundred and one hundred
+          two seconds to the primary. Failures recorded at one hundred one and one hundred three
+          reach its two-failure threshold. A request at one hundred four receives the fallback label
+          without primary admission. Its ten-second cooldown ends at one hundred thirteen.
+        hold: 0.6
+        visual_cues:
+          - id: ap-breaker-clock-0
+            phrase: The actual sequential breaker starts closed and sends requests at one hundred and one
+              hundred two seconds to the primary. Failures recorded at one hundred one and one
+              hundred three reach its two-failure threshold. A request at one hundred four receives
+              the fallback label without primary admission. Its ten-second cooldown ends at one
+              hundred thirteen.
+            targets:
+              - ap-breaker-clock-trace
+            color: blue
+            linger: 0.4
+      - say: At one hundred fourteen, arrival A takes the only probe permit and the state becomes half-open.
+          Arrival B at that same supplied time goes to fallback because the probe remains pending.
+          Failure at one hundred fifteen reopens the breaker. A new probe at one hundred twenty-six
+          can succeed, resetting the failure count and closing it for the next request.
+        hold: 0.6
+        visual_cues:
+          - id: ap-breaker-clock-1
+            phrase: At one hundred fourteen, arrival A takes the only probe permit and the state becomes
+              half-open. Arrival B at that same supplied time goes to fallback because the probe
+              remains pending. Failure at one hundred fifteen reopens the breaker. A new probe at
+              one hundred twenty-six can succeed, resetting the failure count and closing it for the
+              next request.
+            targets:
+              - ap-breaker-clock-trace
+            color: cyan
+            linger: 0.4
+      - say: This CPU program chooses labels sequentially. It does not call providers or enforce atomic
+          multiworker admission, probe leases or old-generation result fencing. A production router
+          needs those mechanisms. Its fallback must have approved privacy, retention, permission,
+          schema, capability and spare capacity. Regions require supported deployments; public
+          OpenAI model IDs do not gain arbitrary region suffixes, and an availability zone is not a
+          region.
+        hold: 0.6
+        visual_cues:
+          - id: ap-breaker-clock-2
+            phrase: This CPU program chooses labels sequentially. It does not call providers or enforce atomic
+              multiworker admission, probe leases or old-generation result fencing. A production
+              router needs those mechanisms. Its fallback must have approved privacy, retention,
+              permission, schema, capability and spare capacity. Regions require supported
+              deployments; public OpenAI model IDs do not gain arbitrary region suffixes, and an
+              availability zone is not a region.
+            targets:
+              - ap-breaker-clock-trace
+            color: yellow
+            linger: 0.4
+  - id: idempotency
+    title: Give each write intent a durable identity
+    visual: One authorized intent creates JOB-001. After a lost response, repeating its key returns the
+      same job and leaves the created-job count at one.
+    beats:
+      - say: >
+          Eligibility is a read. Creating a rotation job is a separate write that needs fresh
+          authorization and current account state.
+        hold: 0.7
+        visual_cues:
+          - id: write-authorization-b1-1
+            phrase: fresh authorization
+            targets:
+              - write-authorization
+            color: blue
+            linger: 0.6
+          - id: ap-idempotency-0
+            phrase: >
+              Eligibility is a read. Creating a rotation job is a separate write that needs fresh
+              authorization and current account state.
+            targets:
+              - ap-idempotency-trace
+            color: blue
+            linger: 0.4
+      - say: >
+          The first authorized request stores intent key 7e3b and creates job JOB-001. A timeout
+          leaves the caller unsure whether the remote action completed.
+        hold: 0.75
+        visual_cues:
+          - id: durable-intent-key-b2-1
+            phrase: intent key 7e3b
+            targets:
+              - durable-intent-key
+            color: yellow
+            linger: 0.6
+          - id: ap-idempotency-1
+            phrase: >
+              The first authorized request stores intent key 7e3b and creates job JOB-001. A timeout
+              leaves the caller unsure whether the remote action completed.
+            targets:
+              - ap-idempotency-trace
+            color: cyan
+            linger: 0.4
+      - say: >
+          Retry the same intent with the same key, and the service returns JOB-001. Durable
+          idempotency prevents a duplicate job, while permissions remain a separate check. The
+          downstream service must honor that key or support status reconciliation.
+        hold: 0.8
+        visual_cues:
+          - id: same-job-retry-b3-1
+            phrase: returns JOB-001
+            targets:
+              - same-job-retry
+            color: green
+            linger: 0.6
+          - id: ap-idempotency-2
+            phrase: >
+              Retry the same intent with the same key, and the service returns JOB-001. Durable
+              idempotency prevents a duplicate job, while permissions remain a separate check. The
+              downstream service must honor that key or support status reconciliation.
+            targets:
+              - ap-idempotency-trace
+            color: yellow
+            linger: 0.4
+  - id: write-uncertainty
+    title: A local claim cannot establish a remote write outcome
+    visual: Holdonejobandintentledger while acknowledgmentpacketisphysicallylost.
+      Restartsequentialinmemorydictlosesrecord;separate durabletenant/keyclaim
+      retainsargumentsbutremoteunknownstillneedsdestinationidempotency/status. Newintentgetsnewkey.
+    beats:
+      - say: The article’s actual create-once function uses an in-memory dictionary. The first request
+          creates job zero-zero-one and the same key returns that job with created false on a
+          sequential retry. Restart loses this dictionary, and concurrent check-then-create
+          operations are not protected. This local fixture does not implement durable distributed
+          exactly-once effects.
+        hold: 0.6
+        visual_cues:
+          - id: ap-write-uncertainty-0
+            phrase: The article’s actual create-once function uses an in-memory dictionary. The first request
+              creates job zero-zero-one and the same key returns that job with created false on a
+              sequential retry. Restart loses this dictionary, and concurrent check-then-create
+              operations are not protected. This local fixture does not implement durable
+              distributed exactly-once effects.
+            targets:
+              - ap-write-uncertainty-trace
+            color: blue
+            linger: 0.4
+      - say: A durable local ledger can atomically claim a tenant-and-intent key, retain its argument
+          fingerprint and pending, completed or failed state, and reject conflicting reuse. But a
+          crash after a remote dispatch can still leave the remote result unknown. Reuse a
+          destination-supported action key or reconcile its status before another dispatch. A local
+          unique constraint alone does not tell you whether the remote job exists.
+        hold: 0.6
+        visual_cues:
+          - id: ap-write-uncertainty-1
+            phrase: A durable local ledger can atomically claim a tenant-and-intent key, retain its argument
+              fingerprint and pending, completed or failed state, and reject conflicting reuse. But
+              a crash after a remote dispatch can still leave the remote result unknown. Reuse a
+              destination-supported action key or reconcile its status before another dispatch. A
+              local unique constraint alone does not tell you whether the remote job exists.
+            targets:
+              - ap-write-uncertainty-trace
+            color: cyan
+            linger: 0.4
+      - say: The key represents one authorized user intent, not merely an account forever. A later
+          legitimate rotation needs a new intent identity, while a retry of the existing intent
+          keeps its original key and arguments. Recheck current authorization and account state at
+          the action boundary. Idempotency does not prove permission, policy correctness or that an
+          old approval remains applicable.
+        hold: 0.6
+        visual_cues:
+          - id: ap-write-uncertainty-2
+            phrase: The key represents one authorized user intent, not merely an account forever. A later
+              legitimate rotation needs a new intent identity, while a retry of the existing intent
+              keeps its original key and arguments. Recheck current authorization and account state
+              at the action boundary. Idempotency does not prove permission, policy correctness or
+              that an old approval remains applicable.
+            targets:
+              - ap-write-uncertainty-trace
+            color: yellow
+            linger: 0.4
+  - id: format-contract
+    title: Shape constraints stop before policy truth
+    visual: Samecandidatepasses strictsupportedJSONschema butfailsP7semanticcomparison. Contrast
+      JSONmodekeysunchecked;refusal/incompletebranchesbypassbusinessparser.
+      RecursivegrammartoydifferentfromfiniteFSMexplicit.
+    beats:
+      - say: "Successful OpenAI strict structured output follows its supported JSON Schema subset. JSON mode targets valid JSON syntax without enforcing your chosen keys and types. Both still need completion, refusal and application checks; a schema allowing eligible and not-eligible cannot decide which matches the trusted account."
+        hold: 0.6
+        visual_cues:
+          - id: ap-format-contract-0
+            phrase: "Successful OpenAI strict structured output follows its supported JSON Schema subset. JSON mode targets valid JSON syntax without enforcing your chosen keys and types. Both still need completion, refusal and application checks; a schema allowing eligible and not-eligible cannot decide which matches the trusted account."
+            targets:
+              - ap-format-contract-trace
+            color: blue
+            linger: 0.4
+      - say: The Responses request supplies the strict schema through text dot format with required fields
+          and additional-properties false. The schema constrains enum, integer and string-list
+          shape. It does not verify whether a cited policy exists or whether the number equals that
+          policy. Recursive output structures can need grammar machinery beyond a simple
+          finite-state machine, as the preceding lesson explained.
+        hold: 0.6
+        visual_cues:
+          - id: ap-format-contract-1
+            phrase: The Responses request supplies the strict schema through text dot format with required
+              fields and additional-properties false. The schema constrains enum, integer and
+              string-list shape. It does not verify whether a cited policy exists or whether the
+              number equals that policy. Recursive output structures can need grammar machinery
+              beyond a simple finite-state machine, as the preceding lesson explained.
+            targets:
+              - ap-format-contract-trace
+            color: cyan
+            linger: 0.4
+      - say: Keep a refusal distinct from valid task output, and incomplete or empty text distinct from a
+          completed decision. The adapter checks terminal status and refusal content before sending
+          text to the local parser. Validate supported features on the selected live model and
+          endpoint; accepting a schema-shaped SDK object locally does not prove the hosted model
+          supports it.
+        hold: 0.6
+        visual_cues:
+          - id: ap-format-contract-2
+            phrase: Keep a refusal distinct from valid task output, and incomplete or empty text distinct from a
+              completed decision. The adapter checks terminal status and refusal content before
+              sending text to the local parser. Validate supported features on the selected live
+              model and endpoint; accepting a schema-shaped SDK object locally does not prove the
+              hosted model supports it.
+            targets:
+              - ap-format-contract-trace
+            color: yellow
+            linger: 0.4
+  - id: sdk-wire
+    title: Exercise the actual adapter with a local transport
+    visual: Show a fixture for OpenAI SDK 3.16.2 and HTTPX2 2.13.0, with a planned /v1/responses
+      request, text.format and trusted facts inspected by MockTransport. Label all four outcomes
+      as expected, covering eligible, wrong threshold, refusal and incomplete output. Use the footer
+      "Confirm by running the pinned fixture." Keep request bytes schematic until a runtime
+      receipt establishes execution. TLS, system CA trust and provider storage remain outside the mock.
+    beats:
+      - say: "This adapter fixture is written for OpenAI Python three point sixteen point two with HTTP X two version two point thirteen. Its native MockTransport is configured to inspect the outgoing slash v one slash responses request, its strict schema and the trusted forty-five-day fact. The key and model name are placeholders. When run as written, all four requests stay inside the local transport and spend no model tokens."
+        hold: 0.6
+        visual_cues:
+          - id: ap-sdk-wire-0
+            phrase: "This adapter fixture is written for OpenAI Python three point sixteen point two with HTTP X two version two point thirteen. Its native MockTransport is configured to inspect the outgoing slash v one slash responses request, its strict schema and the trusted forty-five-day fact. The key and model name are placeholders. When run as written, all four requests stay inside the local transport and spend no model tokens."
+            targets:
+              - ap-sdk-wire-trace
+            color: blue
+            linger: 0.4
+      - say: "The expected first outcome is an eligible RotationDecision. A supplied ninety-day threshold fails policy validation. A refusal fails with refusal, and a token-limited incomplete response fails with incomplete-output. The adapter never fabricates a fallback policy decision. These cases are designed to test real request mapping and constructed-reply handling. Confirm them by running the pinned fixture. That mock cannot establish learned quality, hosted schema support, latency or provider permissions."
+        hold: 0.6
+        visual_cues:
+          - id: ap-sdk-wire-1
+            phrase: "The expected first outcome is an eligible RotationDecision. A supplied ninety-day threshold fails policy validation. A refusal fails with refusal, and a token-limited incomplete response fails with incomplete-output. The adapter never fabricates a fallback policy decision. These cases are designed to test real request mapping and constructed-reply handling. Confirm them by running the pinned fixture. That mock cannot establish learned quality, hosted schema support, latency or provider permissions."
+            targets:
+              - ap-sdk-wire-trace
+            color: cyan
+            linger: 0.4
+      - say: "The declared SDK version uses HTTP X two by default. HTTP X two’s migration guide documents default T L S trust moving from the old certificate bundle to the operating-system store. Check container certificates and corporate proxies separately because a mock transport does not exercise T L S. Reuse configured connection pools, keep one retry owner, and separate its five-second transport timeout from the overall task deadline."
+        hold: 0.6
+        visual_cues:
+          - id: ap-sdk-wire-2
+            phrase: "The declared SDK version uses HTTP X two by default. HTTP X two’s migration guide documents default T L S trust moving from the old certificate bundle to the operating-system store. Check container certificates and corporate proxies separately because a mock transport does not exercise T L S. Reuse configured connection pools, keep one retry owner, and separate its five-second transport timeout from the overall task deadline."
+            targets:
+              - ap-sdk-wire-trace
+            color: yellow
+            linger: 0.4
+      - say: For this foreground text request, store false opts out of Responses application-state storage
+          under the inspected data controls. It does not by itself disable abuse-monitoring logs,
+          approve Zero Data Retention or set every tool and cache retention policy. Verify the
+          endpoint, organization and complete data path before sending sensitive inputs.
+        hold: 0.6
+        visual_cues:
+          - id: ap-sdk-wire-3
+            phrase: For this foreground text request, store false opts out of Responses application-state
+              storage under the inspected data controls. It does not by itself disable
+              abuse-monitoring logs, approve Zero Data Retention or set every tool and cache
+              retention policy. Verify the endpoint, organization and complete data path before
+              sending sensitive inputs.
+            targets:
+              - ap-sdk-wire-trace
+            color: yellow
+            linger: 0.4
+  - id: streaming
+    title: Treat streamed text as provisional
+    visual: Metadata appears before the first text delta. A checked event timeline fills the response
+      buffer and marks completion before the full result reaches validation.
+    beats:
+      - say: >
+          A stream may send metadata before a person sees any words. Measure time to first visible
+          text separately from connection activity and total completion time.
+        hold: 0.75
+        visual_cues:
+          - id: streaming-timing-b1-1
+            phrase: first visible text
+            targets:
+              - streaming-timing
+            color: yellow
+            linger: 0.6
+          - id: ap-streaming-0
+            phrase: >
+              A stream may send metadata before a person sees any words. Measure time to first
+              visible text separately from connection activity and total completion time.
+            targets:
+              - ap-streaming-trace
+            color: blue
+            linger: 0.4
+      - say: >
+          In this illustrative trace, text begins at three seconds and arrives in several deltas.
+          The client can show progress while buffering the full response. Event spacing measures
+          received chunks, not necessarily individual model tokens.
+        hold: 0.75
+        visual_cues:
+          - id: streamed-api-draft-b2-1
+            phrase: several deltas
+            targets:
+              - streamed-api-draft
+            color: blue
+            linger: 0.6
+          - id: ap-streaming-1
+            phrase: >
+              In this illustrative trace, text begins at three seconds and arrives in several
+              deltas. The client can show progress while buffering the full response. Event spacing
+              measures received chunks, not necessarily individual model tokens.
+            targets:
+              - ap-streaming-trace
+            color: cyan
+            linger: 0.4
+      - say: >
+          At five seconds, a terminal completion event arrives. The complete object can move into
+          schema and policy checks; earlier text remains a provisional draft.
+        hold: 0.8
+        visual_cues:
+          - id: streamed-api-draft-b3-1
+            phrase: terminal completion event
+            targets:
+              - streamed-api-draft
+            color: green
+            linger: 0.6
+          - id: ap-streaming-2
+            phrase: >
+              At five seconds, a terminal completion event arrives. The complete object can move
+              into schema and policy checks; earlier text remains a provisional draft.
+            targets:
+              - ap-streaming-trace
+            color: yellow
+            linger: 0.4
+  - id: stream-events
+    title: Separate byte, event and token boundaries
+    visual: FeedfragmentedUTF8networkchunksinto blanklineSSEeventframing then
+      typedmetadata/text/terminalevents.
+      SeparatelylabelbrowserGETEventSourceandSDKPOST;ChatDONEsentinelisprotocolspecific.
+    beats:
+      - say: Server-Sent Events uses U T F eight text, fields such as event, data and ID, and blank lines to
+          dispatch events. A network read can stop inside a character or event. Use a compliant
+          parser or the SDK rather than treating every received byte chunk as one event or one model
+          token.
+        hold: 0.6
+        visual_cues:
+          - id: ap-stream-events-0
+            phrase: Server-Sent Events uses U T F eight text, fields such as event, data and ID, and blank lines
+              to dispatch events. A network read can stop inside a character or event. Use a
+              compliant parser or the SDK rather than treating every received byte chunk as one
+              event or one model token.
+            targets:
+              - ap-stream-events-trace
+            color: blue
+            linger: 0.4
+      - say: Browser EventSource normally opens a G E T request and supports reconnection behavior. Provider
+          SDKs can parse event streams from P O S T responses. The bracketed DONE marker shown in
+          the article is a Chat Completions protocol convention, not an S S E standard. Responses
+          instead emits typed events such as output-text delta and response completed.
+        hold: 0.6
+        visual_cues:
+          - id: ap-stream-events-1
+            phrase: Browser EventSource normally opens a G E T request and supports reconnection behavior.
+              Provider SDKs can parse event streams from P O S T responses. The bracketed DONE
+              marker shown in the article is a Chat Completions protocol convention, not an S S E
+              standard. Responses instead emits typed events such as output-text delta and response
+              completed.
+            targets:
+              - ap-stream-events-trace
+            color: cyan
+            linger: 0.4
+      - say: "An event may contain metadata, text, tool arguments or a terminal state. Real responses can include several output items, so select and bound the intended item buffer. Record first nonempty text separately from first bytes, metadata or a heartbeat. Keep that metric separate from the product’s first-visible-text milestone. Inter-delta arrival gaps describe received chunks; transport buffering prevents inferring individual-token gaps from them alone."
+        hold: 0.6
+        visual_cues:
+          - id: ap-stream-events-2
+            phrase: "An event may contain metadata, text, tool arguments or a terminal state. Real responses can include several output items, so select and bound the intended item buffer. Record first nonempty text separately from first bytes, metadata or a heartbeat. Keep that metric separate from the product’s first-visible-text milestone. Inter-delta arrival gaps describe received chunks; transport buffering prevents inferring individual-token gaps from them alone."
+            targets:
+              - ap-stream-events-trace
+            color: yellow
+            linger: 0.4
+  - id: stream-failures
+    title: All displayed text can still lack a successful completion
+    visual: Actualnormalizedstreambufferlengths8/19/31/41persistwithdraftlabel. Replaythreepaths
+      terminalsuccess,dropafterdelta2,alltextthenEOF.
+      Completedtypedcandidatephysicallyenterssamevalidator;displaydraftnevercrossesactiongate.
+    beats:
+      - say: The actual normalized single-text fixture starts with metadata, then appends Account, the
+          account ID, is eligible and under P seven. Including spaces, its cumulative lengths are
+          eight, nineteen, thirty-one and forty-one characters. A successful terminal event ends
+          that draft stream, but the displayed text still awaits typed-result, policy and
+          authorization checks.
+        hold: 0.6
+        visual_cues:
+          - id: ap-stream-failures-0
+            phrase: The actual normalized single-text fixture starts with metadata, then appends Account, the
+              account ID, is eligible and under P seven. Including spaces, its cumulative lengths
+              are eight, nineteen, thirty-one and forty-one characters. A successful terminal event
+              ends that draft stream, but the displayed text still awaits typed-result, policy and
+              authorization checks.
+            targets:
+              - ap-stream-failures-trace
+            color: blue
+            linger: 0.4
+      - say: In the second replay, the connection drops after delta two. Nineteen characters remain as a
+          failed display-only draft. In the third replay, all forty-one characters arrive and then
+          the stream ends without a successful terminal event. That full-looking text also fails.
+          Completed text and completed protocol state are different facts.
+        hold: 0.6
+        visual_cues:
+          - id: ap-stream-failures-1
+            phrase: In the second replay, the connection drops after delta two. Nineteen characters remain as a
+              failed display-only draft. In the third replay, all forty-one characters arrive and
+              then the stream ends without a successful terminal event. That full-looking text also
+              fails. Completed text and completed protocol state are different facts.
+            targets:
+              - ap-stream-failures-trace
+            color: cyan
+            linger: 0.4
+          - id: ap-stream-drop
+            phrase: In the second replay, the connection drops after delta two.
+            targets:
+              - ap-stream-failures-trace
+            color: yellow
+            linger: 0.4
+          - id: ap-stream-third
+            phrase: In the third replay, all forty-one characters arrive and then the stream ends without a
+              successful terminal event.
+            targets:
+              - ap-stream-failures-trace
+            color: yellow
+            linger: 0.4
+      - say: The actual fixture operates after event normalization. It does not test wire-level parsing or
+          real model correctness. Inspect terminal failure, incomplete and refusal states as well as
+          the intended output item. A product may choose to withhold sensitive or misleading
+          previews entirely. No partial explanation, even a convincing sentence, authorizes a
+          rotation job.
+        hold: 0.6
+        visual_cues:
+          - id: ap-stream-failures-2
+            phrase: The actual fixture operates after event normalization. It does not test wire-level parsing
+              or real model correctness. Inspect terminal failure, incomplete and refusal states as
+              well as the intended output item. A product may choose to withhold sensitive or
+              misleading previews entirely. No partial explanation, even a convincing sentence,
+              authorizes a rotation job.
+            targets:
+              - ap-stream-failures-trace
+            color: yellow
+            linger: 0.4
+  - id: cost-privacy
+    title: Measure useful work and protect customer text
+    visual: Input and output usage divide a fictional per-call cost. The monthly estimate then gives way
+      to an actual allowlisted telemetry object. A scoped HMAC replaces question text, private
+      identifiers and credentials stay excluded, and unreported usage remains unknown.
+    beats:
+      - say: >
+          At fictional rates of two dollars per million input tokens and six per million output
+          tokens, this request costs just under one tenth of a cent.
+        hold: 0.75
+        visual_cues:
+          - id: request-cost-calculation-b1-1
+            phrase: request costs
+            targets:
+              - request-cost-calculation
+            color: yellow
+            linger: 0.6
+          - id: ap-cost-privacy-0
+            phrase: >
+              At fictional rates of two dollars per million input tokens and six per million output
+              tokens, this request costs just under one tenth of a cent.
+            targets:
+              - ap-cost-privacy-trace
+            color: blue
+            linger: 0.4
+      - say: >
+          Two hundred thousand calls a day for thirty days produce an illustrated base estimate of
+          five thousand eight hundred eighty dollars, before retries or other charges.
+        hold: 0.8
+        visual_cues:
+          - id: monthly-api-cost-b2-1
+            phrase: five thousand eight hundred eighty
+            targets:
+              - monthly-api-cost
+            color: yellow
+            linger: 0.6
+          - id: ap-cost-privacy-1
+            phrase: >
+              Two hundred thousand calls a day for thirty days produce an illustrated base estimate
+              of five thousand eight hundred eighty dollars, before retries or other charges.
+            targets:
+              - ap-cost-privacy-trace
+            color: cyan
+            linger: 0.4
+      - say: >
+          Record model, prompt version, latency, token counts, and outcome. A scoped fingerprint can
+          help correlate requests while the raw customer prompt stays out of logs. Keep missing
+          usage unknown until provider reconciliation.
+        hold: 0.8
+        motion_check:
+          region:
+            - 870
+            - 500
+            - 880
+            - 450
+          minimumChangedFraction: 0.002
+        visual_cues:
+          - id: scrubbed-api-record-b3-1
+            phrase: raw customer prompt stays out of logs
+            targets:
+              - scrubbed-api-record
+            color: blue
+            linger: 0.6
+          - id: ap-cost-privacy-2
+            phrase: >
+              Record model, prompt version, latency, token counts, and outcome. A scoped fingerprint
+              can help correlate requests while the raw customer prompt stays out of logs. Keep
+              missing usage unknown until provider reconciliation.
+            targets:
+              - ap-cost-privacy-trace
+            color: yellow
+            linger: 0.4
+  - id: usage-subsets
+    title: A subset of usage must not be priced twice
+    visual: Construct2000input as700ordinary+1200cached+100write and200output as120visible+80reasoning.
+      Preservebothwholebrackets whileactualweightedcosttermsaccumulate3450microdollars.
+      Unknownretryusage staysquestionmarked.
+    beats:
+      - say: Our second cost worksheet supplies two thousand total input tokens, including twelve hundred
+          cached and one hundred cache-write tokens. Subtract both subsets to get seven hundred
+          ordinary input tokens. Its two hundred output tokens already include eighty reasoning
+          tokens, leaving one hundred twenty visible output tokens. The provider’s adapter must
+          establish these category relationships.
+        hold: 0.6
+        visual_cues:
+          - id: ap-usage-subsets-0
+            phrase: Our second cost worksheet supplies two thousand total input tokens, including twelve hundred
+              cached and one hundred cache-write tokens. Subtract both subsets to get seven hundred
+              ordinary input tokens. Its two hundred output tokens already include eighty reasoning
+              tokens, leaving one hundred twenty visible output tokens. The provider’s adapter must
+              establish these category relationships.
+            targets:
+              - ap-usage-subsets-trace
+            color: blue
+            linger: 0.4
+          - id: ap-usage-ordinary
+            phrase: Subtract both subsets to get seven hundred ordinary input tokens.
+            targets:
+              - ap-usage-subsets-trace
+            color: yellow
+            linger: 0.4
+          - id: ap-usage-visible
+            phrase: Its two hundred output tokens already include eighty reasoning tokens, leaving one hundred
+              twenty visible output tokens.
+            targets:
+              - ap-usage-subsets-trace
+            color: yellow
+            linger: 0.4
+      - say: At fictional per-million rates of two dollars ordinary, fifty cents cached, two dollars fifty
+          for writes and six dollars output, multiply each disjoint input category by its own rate
+          and add the output total once. Divide the combined weighted sum by one million. The actual
+          CPU result is point zero zero three four five dollars.
+        hold: 0.6
+        visual_cues:
+          - id: ap-usage-subsets-1
+            phrase: At fictional per-million rates of two dollars ordinary, fifty cents cached, two dollars
+              fifty for writes and six dollars output, multiply each disjoint input category by its
+              own rate and add the output total once. Divide the combined weighted sum by one
+              million. The actual CPU result is point zero zero three four five dollars.
+            targets:
+              - ap-usage-subsets-trace
+            color: cyan
+            linger: 0.4
+      - say: Adding reasoning tokens to the output total would count them twice. Pricing all input
+          ordinarily before adding cache charges also counts subsets twice. Tools and media can add
+          other charges. An attempt with unknown usage is not a zero-cost attempt; preserve that
+          unknown and reconcile with provider billing. Caching eligibility, writes, retained state
+          and prices vary by provider and model.
+        hold: 0.6
+        visual_cues:
+          - id: ap-usage-subsets-2
+            phrase: Adding reasoning tokens to the output total would count them twice. Pricing all input
+              ordinarily before adding cache charges also counts subsets twice. Tools and media can
+              add other charges. An attempt with unknown usage is not a zero-cost attempt; preserve
+              that unknown and reconcile with provider billing. Caching eligibility, writes,
+              retained state and prices vary by provider and model.
+            targets:
+              - ap-usage-subsets-trace
+            color: yellow
+            linger: 0.4
+  - id: telemetry-scope
+    title: Retain useful evidence without copying private prompts
+    visual: One root trace owns lookup, provider-attempt and validation children. Construct the
+      allowlisted record from the actual HMAC question fingerprint and omit the raw key. Keep
+      requested and reported model IDs and unknown usage distinct. Scope the key to tenant and
+      environment explicitly. Use the footer "Pin instrumentation and convention versions."
+      Show no historical Development-status assertion without an identified immutable snapshot.
+    beats:
+      - say: "OpenTelemetry generative-A I field names and stability can change between convention versions. Pin the instrumentation and convention version. Its provider-name and operation-name fields identify the service and operation; requested and reported model IDs are separate. Token usage and finish reasons need their own provider accounting, not a universal complete invoice."
+        hold: 0.6
+        visual_cues:
+          - id: ap-telemetry-scope-0
+            phrase: "OpenTelemetry generative-A I field names and stability can change between convention versions. Pin the instrumentation and convention version. Its provider-name and operation-name fields identify the service and operation; requested and reported model IDs are separate. Token usage and finish reasons need their own provider accounting, not a universal complete invoice."
+            targets:
+              - ap-telemetry-scope-trace
+            color: blue
+            linger: 0.4
+      - say: Link fact lookup, model work and validation to the same application trace, while retaining
+          attempt identities and the task’s overall outcome. Record status, latency, prompt revision
+          and available provider request ID. Failed validation should not disappear because an
+          earlier HTTP response was successful. Enforce log access and retention alongside the
+          provider data policy.
+        hold: 0.6
+        visual_cues:
+          - id: ap-telemetry-scope-1
+            phrase: Link fact lookup, model work and validation to the same application trace, while retaining
+              attempt identities and the task’s overall outcome. Record status, latency, prompt
+              revision and available provider request ID. Failed validation should not disappear
+              because an earlier HTTP response was successful. Enforce log access and retention
+              alongside the provider data policy.
+            targets:
+              - ap-telemetry-scope-trace
+            color: cyan
+            linger: 0.4
+      - say: The actual H M A C example fingerprints the customer question with a separate key and emits
+          thirty-two hexadecimal characters, representing one hundred twenty-eight bits. It omits
+          raw question, account and provider credential. Scope the real correlation key to its
+          intended tenant and environment. The fingerprint is still linkable, truncation permits
+          collisions, and it does not anonymize every input or justify unlimited retention.
+        hold: 0.6
+        visual_cues:
+          - id: ap-telemetry-scope-2
+            phrase: The actual H M A C example fingerprints the customer question with a separate key and emits
+              thirty-two hexadecimal characters, representing one hundred twenty-eight bits. It
+              omits raw question, account and provider credential. Scope the real correlation key to
+              its intended tenant and environment. The fingerprint is still linkable, truncation
+              permits collisions, and it does not anonymize every input or justify unlimited
+              retention.
+            targets:
+              - ap-telemetry-scope-trace
+            color: yellow
+            linger: 0.4
+  - id: execution-shapes
+    title: Choose the work shape and preserve result identity
+    visual: Sameintentbecomesbufferedobject,streameddraft,queuedjoborbatchcustomID.
+      Threebatchrowsreturnoutoforderwithoneexpiry;joinbyID,cacheprefixoptimizationseparatefromexecutionshape.
+      Endonexplicitlocal-v-liveevidenceboundary.
+    beats:
+      - say: Buffer one structured eligibility object when the caller needs an immediate decision. Stream a
+          long human-readable draft when provisional progress is useful. For work exceeding the
+          interactive route budget, use durable background state, polling, bounded retries and
+          checkpoints. Prompt caching is an optimization that can accompany more than one execution
+          shape.
+        hold: 0.6
+        visual_cues:
+          - id: ap-execution-shapes-0
+            phrase: Buffer one structured eligibility object when the caller needs an immediate decision. Stream
+              a long human-readable draft when provisional progress is useful. For work exceeding
+              the interactive route budget, use durable background state, polling, bounded retries
+              and checkpoints. Prompt caching is an optimization that can accompany more than one
+              execution shape.
+            targets:
+              - ap-execution-shapes-trace
+            color: blue
+            linger: 0.4
+      - say: The inspected OpenAI Batch guide describes supported asynchronous requests with a
+          twenty-four-hour completion window and a fifty-percent discount against synchronous APIs.
+          Individual requests can fail and a batch can expire. Join output and error records to
+          original requests by custom ID, not line order. A completed batch is not proof that every
+          item succeeded.
+        hold: 0.6
+        visual_cues:
+          - id: ap-execution-shapes-1
+            phrase: The inspected OpenAI Batch guide describes supported asynchronous requests with a
+              twenty-four-hour completion window and a fifty-percent discount against synchronous
+              APIs. Individual requests can fail and a batch can expire. Join output and error
+              records to original requests by custom ID, not line order. A completed batch is not
+              proof that every item succeeded.
+            targets:
+              - ap-execution-shapes-trace
+            color: cyan
+            linger: 0.4
+      - say: "Place stable repeated context at the prefix and verify actual cache usage. Before exposing the application route, test authentication, tenant authorization, rate admission, slow connections, cancellation, concurrency and provider-specific failures. The sixteen local exercises are designed to check fixture and adapter behavior. Verify their outcomes in the declared runtime. They do not establish a deployed secret boundary, live reliability or a complete browser-to-service product."
+        hold: 0.6
+        visual_cues:
+          - id: ap-execution-shapes-2
+            phrase: "Place stable repeated context at the prefix and verify actual cache usage. Before exposing the application route, test authentication, tenant authorization, rate admission, slow connections, cancellation, concurrency and provider-specific failures. The sixteen local exercises are designed to check fixture and adapter behavior. Verify their outcomes in the declared runtime. They do not establish a deployed secret boundary, live reliability or a complete browser-to-service product."
+            targets:
+              - ap-execution-shapes-trace
+            color: yellow
+            linger: 0.4
+  - id: fresh-request
+    title: Predict a changed policy, budget and uncertain write
+    visual: NewaccountB/traceB/intentB hasstaleage28/P7threshold21,task10s
+      first6floor1ceiling2draw.25/next2/validation.7. Holdcandidate/window30
+      andretryadmissionanswers;revealpolicyrejectandbudgetreject.
+      Laterapprovedseparateintentreusesremoteactionkeyafterlostack,usagefirstattemptunknown.
+    beats:
+      - say: Apply the same boundary to a new supplied case. Account B has a stale twenty-eight-day key; its
+          applicable P seven threshold is twenty-one days, but the model returns eligible with
+          threshold thirty. Separately, a ten-second task has used six seconds. Retry-After is one
+          second, jitter ceiling two with draw one-quarter, next-call allowance two seconds and
+          validation reserve point seven. Predict the candidate and retry-admission outcomes. Pause.
+        hold: 1.5
+        visual_cues:
+          - id: ap-fresh-request-0
+            phrase: Apply the same boundary to a new supplied case. Account B has a stale twenty-eight-day key;
+              its applicable P seven threshold is twenty-one days, but the model returns eligible
+              with threshold thirty. Separately, a ten-second task has used six seconds. Retry-After
+              is one second, jitter ceiling two with draw one-quarter, next-call allowance two
+              seconds and validation reserve point seven. Predict the candidate and retry-admission
+              outcomes. Pause.
+            targets:
+              - ap-fresh-request-trace
+            color: blue
+            linger: 0.4
+      - say: The eligibility label matches stale and twenty-eight at least twenty-one, but the returned
+          thirty-day threshold invents policy. Reject that candidate. The wait is one plus
+          one-quarter times two, or one point five seconds. Four seconds remained; wait, call and
+          validation need four point two seconds. Stop before dispatch rather than treating the
+          fitting wait as permission to exceed the task budget.
+        hold: 0.6
+        visual_cues:
+          - id: ap-fresh-request-1
+            phrase: The eligibility label matches stale and twenty-eight at least twenty-one, but the returned
+              thirty-day threshold invents policy. Reject that candidate. The wait is one plus
+              one-quarter times two, or one point five seconds. Four seconds remained; wait, call
+              and validation need four point two seconds. Stop before dispatch rather than treating
+              the fitting wait as permission to exceed the task budget.
+            targets:
+              - ap-fresh-request-trace
+            color: cyan
+            linger: 0.4
+          - id: ap-fresh-candidate-rejected
+            phrase: Reject that candidate.
+            targets:
+              - ap-fresh-request-trace
+            color: pink
+            linger: 0.4
+          - id: ap-fresh-wait
+            phrase: The wait is one plus one-quarter times two, or one point five seconds.
+            targets:
+              - ap-fresh-request-trace
+            color: yellow
+            linger: 0.4
+      - say: "If a later separately authorized rotation loses its acknowledgment, retain that intent’s action key and reconcile or reuse supported downstream idempotency. Do not create a new intent merely because the caller timed out. Keep the first attempt’s missing usage unknown. The receipt should distinguish validated eligibility, denied retry admission and uncertain remote effects; none can silently stand in for another. Next, the first application follows this provider call from a browser click through server-owned facts, a saved request trace and the outcome shown after refresh."
+        hold: 0.6
+        visual_cues:
+          - id: ap-fresh-request-2
+            phrase: If a later separately authorized rotation loses its acknowledgment, retain that intent’s
+              action key and reconcile or reuse supported downstream idempotency. Do not create a
+              new intent merely because the caller timed out. Keep the first attempt’s missing usage
+              unknown. The receipt should distinguish validated eligibility, denied retry admission
+              and uncertain remote effects; none can silently stand in for another.
+            targets:
+              - ap-fresh-request-trace
+            color: yellow
+            linger: 0.4

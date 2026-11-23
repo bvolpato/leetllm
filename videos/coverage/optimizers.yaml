@@ -1,0 +1,185 @@
+version: 1
+lesson: optimizers
+promise: Predict a parameter update from its gradient and history, then choose a measurement that can explain how the run produced it.
+objectives:
+  - id: construct-history
+    can: Predict which errors cross zero and which way a weight moves when SGD, momentum, RMSProp or Adam receives a slope that changes sign.
+    scenes:
+      - intro
+      - first-step
+      - stability
+      - momentum
+      - momentum-conventions
+      - rmsprop
+      - adam-buffers
+      - adam-step
+      - adam-history
+      - objective-scale
+  - id: complete-step
+    can: Reconstruct an update from item counts, clipping, moments and prior-weight decay. Identify where two loss reductions can differ even when they produce the same saved weight.
+    scenes:
+      - schedule
+      - decay
+      - zero-data-decay
+      - accumulation
+      - clipping
+      - torch-loop
+      - transfer
+      - fresh-recipe
+  - id: evaluate-recipe
+    can: Restore a training run, estimate its moment storage and choose between measured recipes at a stated update budget and validation metric.
+    scenes:
+      - comparison
+      - checkpoint-history
+      - optimizer-memory
+      - evidence-budget
+      - diagnostic-trace
+sections:
+  - heading: A 100-to-1 valley
+    status: taught
+    scenes:
+      - intro
+      - first-step
+  - heading: SGD gives every coordinate one learning rate
+    status: taught
+    scenes:
+      - first-step
+      - stability
+      - transfer
+  - heading: Momentum remembers directions that agree
+    status: taught
+    scenes:
+      - momentum
+      - momentum-conventions
+  - heading: RMSProp rescales by recent gradient magnitude
+    status: taught
+    scenes:
+      - rmsprop
+      - adam-history
+  - heading: Adam stores direction and squared-gradient scale
+    status: taught
+    scenes:
+      - adam-buffers
+      - adam-step
+      - adam-history
+      - objective-scale
+  - heading: Bias correction repairs zero-initialized state
+    status: taught
+    scenes:
+      - adam-buffers
+      - adam-history
+  - heading: AdamW separates data gradients from weight shrinkage
+    status: taught
+    scenes:
+      - decay
+      - zero-data-decay
+      - fresh-recipe
+  - heading: Schedules change pace across the run
+    note: The first scheduled update changes the two stored moments for a while both parameters stay at one. The next four rates move the parameters toward zero.
+    status: taught
+    scenes:
+      - schedule
+      - torch-loop
+  - heading: Accumulate the objective you intended
+    note: The closing replay pairs each set of microbatch shares with its gradient before clipping. The same clipped input and final weight can come from either reduction.
+    status: taught
+    scenes:
+      - accumulation
+      - fresh-recipe
+  - heading: Gradient clipping bounds the input to the optimizer
+    note: The five-item example applies the article's global norm rule to each candidate scalar gradient. Both magnitudes exceed three, so both paths feed the same gradient to cold-start AdamW.
+    status: taught
+    scenes:
+      - clipping
+      - torch-loop
+      - fresh-recipe
+  - heading: "Build it: optimize the valley with AdamW"
+    status: taught
+    scenes:
+      - comparison
+      - evidence-budget
+  - heading: Use PyTorch after understanding the state
+    status: taught
+    scenes:
+      - torch-loop
+      - checkpoint-history
+  - heading: Resume the history, not just the weights
+    status: taught
+    scenes:
+      - checkpoint-history
+  - heading: Optimizer state is also a memory budget
+    status: taught
+    scenes:
+      - optimizer-memory
+  - heading: Read optimizer failures from traces
+    note: The diagnostic scene uses the forty-update SGD and AdamW trials from this section's held-out selection checkpoint after the separate warmup comparison.
+    status: taught
+    scenes:
+      - diagnostic-trace
+  - heading: Worked checks
+    status: article-only
+    reason: exercise
+    note: Worked practice follows the fully taught mechanisms and has supplied solutions.
+quiz:
+  - n: 1
+    status: taught
+    scenes:
+      - intro
+      - first-step
+      - stability
+  - n: 2
+    status: taught
+    scenes:
+      - momentum
+      - momentum-conventions
+  - n: 3
+    status: taught
+    scenes:
+      - rmsprop
+  - n: 4
+    status: taught
+    scenes:
+      - adam-history
+  - n: 5
+    status: taught
+    scenes:
+      - decay
+      - zero-data-decay
+  - n: 6
+    status: taught
+    scenes:
+      - accumulation
+      - torch-loop
+  - n: 7
+    status: taught
+    scenes:
+      - accumulation
+      - fresh-recipe
+  - n: 8
+    status: taught
+    scenes:
+      - clipping
+  - n: 9
+    status: taught
+    scenes:
+      - accumulation
+      - clipping
+      - torch-loop
+  - n: 10
+    status: taught
+    scenes:
+      - diagnostic-trace
+removed: []
+reviews:
+  closed_book:
+    script: 87de48aecb6e0d80
+    taught: 10
+    partial: 0
+    absent: 0
+    reviewer: /root/upgrade_shard1
+    evidence: build/video-delivery-20261106/script-reviews/optimizers.json
+  fact_check:
+    script: 87de48aecb6e0d80
+    open_findings: 0
+    reviewer: /root/upgrade_shard1
+    evidence: build/video-delivery-20261106/script-reviews/optimizers.json

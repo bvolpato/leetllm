@@ -1,0 +1,1984 @@
+version: 1
+id: benchmark-audits
+title: Recover the Experiment Behind the Benchmark Score
+source: llmops/llm-evaluation-benchmarks-limitations/content.md
+voice: en-US-AndrewNeural
+rate: +0%
+sources:
+  - title: "Liang et al.: Holistic Evaluation of Language Models"
+    url: https://arxiv.org/abs/2211.09110
+  - title: "Chen et al.: Evaluating Large Language Models Trained on Code"
+    url: https://arxiv.org/abs/2107.03374
+  - title: "NIST: Binomial distribution"
+    url: https://www.itl.nist.gov/div898/handbook/eda/section3/eda366i.htm
+  - title: Ragas metrics
+    url: https://docs.ragas.io/en/stable/concepts/metrics/available_metrics/
+  - title: HELM custom scenarios
+    url: https://crfm-helm.readthedocs.io/en/latest/adding_new_scenarios/
+  - title: GPQA paper
+    url: https://arxiv.org/abs/2311.12022
+  - title: HumanEval estimator implementation
+    url: https://raw.githubusercontent.com/openai/human-eval/master/human_eval/evaluation.py
+  - title: Arena Bradley-Terry implementation
+    url: https://raw.githubusercontent.com/lmarena/arena-rank/main/arena_rank/models/bradley_terry.py
+  - title: SWE-bench Verified audit
+    url: https://openai.com/index/why-we-no-longer-evaluate-swe-bench-verified/
+  - title: SWE-bench Pro audit and recommendation retraction
+    url: https://openai.com/index/separating-signal-from-noise-coding-evaluations/
+  - title: HLE release history
+    url: https://www.lastexam.ai/
+  - title: FrontierMath release history
+    url: https://epoch.ai/frontiermath/tiers-1-4
+  - title: Exact McNemar API contract
+    url: https://www.statsmodels.org/stable/generated/statsmodels.stats.contingency_tables.mcnemar.html
+scenes:
+  - id: intro
+    title: Open the score and inspect its questions
+    visual: Two equal ninety-percent scores unfold into identified case grids. Each grid carries the
+      same questions but a different pattern of failures.
+    beats:
+      - say: Two assistants pass ninety percent of the same test. Would you expect them to make the same
+          mistakes? Open the score into its individual questions. One assistant struggles with a
+          small, important group that the other usually handles. The average has compressed away the
+          difference we need to see.
+        hold: 0.65
+        visual_cues:
+          - id: intro-beat-1-focus-1
+            phrase: Two assistants pass ninety percent of the same test
+            targets:
+              - benchmark-score-a
+              - benchmark-score-b
+            color: blue
+            linger: 0.6
+      - say: A benchmark combines tasks with a scoring procedure. Its result describes performance on those
+          tasks under that procedure. We will build a small evaluation, test the checker, inspect
+          hidden failure patterns, and follow the evidence needed to compare systems fairly.
+        hold: 0.7
+        visual_cues:
+          - id: intro-beat-2-focus-1
+            phrase: A benchmark combines tasks with a scoring procedure
+            targets:
+              - benchmark-case-results
+            color: blue
+            linger: 0.6
+      - say: All the examples here are small teaching fixtures. Keep the question identities in view as
+          their scores are grouped, sampled, and moved between datasets. That lets us see exactly
+          what each reported number measures.
+        hold: 0.6
+        visual_cues:
+          - id: intro-beat-3-focus-1
+            phrase: All the examples here are small teaching fixtures
+            targets:
+              - benchmark-case-results
+            color: blue
+            linger: 0.6
+  - id: contract
+    title: Keep the comparison contract visible
+    visual: Two aligned harness rows preserve dataset, input path, prompt, budget, and scorer. A changed
+      retrieval depth moves the comparison from model replacement to a whole-system experiment.
+    beats:
+      - say: Imagine changing the model inside a library assistant. Both candidates should receive the same
+          questions, available evidence, response requirements, and scoring rules. Record the
+          prompt, tools, sampling settings, and attempt budget as well. Each model still needs its
+          own correct chat formatting.
+        hold: 0.6
+        visual_cues:
+          - id: contract-beat-1-focus-1
+            phrase: Imagine changing the model inside a library assistant
+            targets:
+              - contract-simulation-6
+            color: blue
+            linger: 0.6
+      - say: Now give the second system five retrieved passages where the first received three. Its answers
+          may improve, and that is useful to measure. The experiment now compares two complete
+          systems. Retrieval changed along with the model, so the report must describe both changes.
+        hold: 0.7
+        visual_cues:
+          - id: contract-beat-2-focus-1
+            phrase: Now give the second system five retrieved passages
+            targets:
+              - contract-simulation-6
+            color: blue
+            linger: 0.6
+          - id: ba-contract-passages
+            phrase: five retrieved passages
+            targets:
+              - ba-contract-passages
+            color: cyan
+            linger: 0.4
+          - id: ba-contract-consequence
+            phrase: Its answers may improve
+            targets:
+              - ba-contract-consequence
+            color: cyan
+            linger: 0.4
+      - say: Public benchmarks also have distinct contracts. Multiple-choice knowledge, executable programs,
+          and human preferences score different units. Use those results to choose promising
+          candidates, then compare them on the task your application actually needs.
+        hold: 0.65
+        visual_cues:
+          - id: contract-beat-3-focus-1
+            phrase: Public benchmarks also have distinct contracts
+            targets:
+              - contract-simulation-6
+            color: blue
+            linger: 0.6
+  - id: gold-contract
+    title: Validate the questions before grading the answers
+    visual: Construct three actual CodeAssist gold records. Keep their IDs and policy source beside
+      required clauses, duplicate one identity, then repair an unsupported requirement before
+      admitting any model output.
+    beats:
+      - say: "Before trusting those library scores, inspect what each test asks. The article’s executable
+          companion uses three fictional platform policies: freeze deployment needs commander
+          approval, a threshold breach calls the rollback runbook, and exposed tokens need
+          revocation within fifteen minutes. Preserve the question, authoritative evidence, required
+          facts and forbidden claims together. These are supplied teaching policies, not general
+          deployment instructions."
+        hold: 0.7
+        visual_cues:
+          - id: gold-contract-phase-0
+            phrase: Before trusting those library scores, inspect what each test asks
+            targets:
+              - gold-contract-mechanism
+            color: cyan
+            linger: 0.55
+          - id: ba-gold-contract-approval
+            phrase: commander approval
+            targets:
+              - ba-gold-contract-approval
+            color: cyan
+            linger: 0.4
+      - say: Give each row a unique identity. Duplicating an identity can overwrite or ambiguously join the
+          result. Then compare each gold requirement with its cited evidence before scoring an
+          answer. A required claim absent from that source can punish a grounded answer or reward
+          invented permission. The actual validator checks unique IDs and literal required phrases;
+          it does not establish the source’s authority or semantic truth.
+        hold: 0.7
+        visual_cues:
+          - id: gold-contract-phase-1
+            phrase: Give each row a unique identity
+            targets:
+              - gold-contract-mechanism
+            color: cyan
+            linger: 0.55
+          - id: ba-gold-contract-unique
+            phrase: Duplicating an identity
+            targets:
+              - ba-gold-contract-unique
+            color: cyan
+            linger: 0.4
+          - id: ba-gold-contract-gold
+            phrase: compare each gold requirement
+            targets:
+              - ba-gold-contract-gold
+            color: cyan
+            linger: 0.4
+      - say: Now deliberately require keep deploying from the rollback source. That requirement has no
+          support, so repair the gold row first. Preserve a reviewed expected answer and label the
+          failure severity. A useful golden set mirrors the service’s requests, including critical
+          slices and valid abstentions. Testing the model against an impossible answer key would
+          measure the key’s defect.
+        hold: 0.7
+        visual_cues:
+          - id: gold-contract-phase-2
+            phrase: Now deliberately require keep deploying from the rollback source
+            targets:
+              - gold-contract-mechanism
+            color: cyan
+            linger: 0.55
+          - id: ba-gold-contract-unsupported
+            phrase: require keep deploying
+            targets:
+              - ba-gold-contract-unsupported
+            color: pink
+            linger: 0.4
+          - id: ba-gold-contract-repair
+            phrase: repair the gold row first
+            targets:
+              - ba-gold-contract-repair
+            color: cyan
+            linger: 0.4
+  - id: checker
+    title: Test the checker with controlled answers
+    visual: One library rule stays fixed while three answer probes enter a literal phrase checker and a
+      separately supplied semantic review label. Both judgments remain attached to the answer
+      identity.
+    beats:
+      - say: Our library rule says that borrowed books are due on Friday. A cheap checker looks for the
+          words books and Friday. The first answer repeats the rule correctly. Both the phrase check
+          and our reviewed semantic label agree that it preserves the deadline.
+        hold: 0.6
+        visual_cues:
+          - id: checker-beat-1-focus-1
+            phrase: Our library rule says that borrowed books are due on Friday
+            targets:
+              - checker-object-rule-borrowed-books-are-due-on-friday-12
+            color: blue
+            linger: 0.6
+          - id: checker-beat-1-focus-2
+            phrase: A cheap checker looks for the words books and Friday
+            targets:
+              - checker-object-phrase-checker-14
+            color: blue
+            linger: 0.6
+          - id: ba-checker-on
+            phrase: due on Friday
+            targets:
+              - ba-checker-on
+            color: cyan
+            linger: 0.4
+      - say: Replace the answer with books are due after Friday. The same two words remain, so the literal
+          checker still passes it. Our reviewed label rejects the changed deadline. This probe
+          exposes a specific false positive in the checker.
+        hold: 0.7
+        visual_cues:
+          - id: checker-beat-2-focus-1
+            phrase: Replace the answer with books are due after Friday
+            targets:
+              - checker-candidate-answer
+              - checker-object-phrase-checker-14
+              - checker-object-reviewed-meaning-15
+            color: blue
+            linger: 0.6
+          - id: ba-checker-after
+            phrase: due after Friday
+            targets:
+              - ba-checker-after
+            color: pink
+            linger: 0.4
+      - say: A familiar abbreviation can fail in the other direction. Return the books by Friday preserves
+          this rule. The displayed answer shortens the weekday to Fri, so our exact word check
+          misses it. Keep exact checks for exact fields, and validate meaning with reviewed examples
+          that include these harder cases.
+        hold: 0.7
+        visual_cues:
+          - id: checker-beat-3-focus-1
+            phrase: Return the books by Friday preserves this rule
+            targets:
+              - checker-object-rule-borrowed-books-are-due-on-friday-12
+            color: blue
+            linger: 0.6
+          - id: checker-beat-3-focus-2
+            phrase: and validate meaning with reviewed examples that include these harder cases
+            targets:
+              - checker-object-reviewed-meaning-15
+            color: blue
+            linger: 0.6
+          - id: ba-checker-abbrev
+            phrase: shortens the weekday to Fri
+            targets:
+              - ba-checker-abbrev
+            color: cyan
+            linger: 0.4
+  - id: rag-stage
+    title: Locate the first missing policy fact
+    visual: Carry one source clause through retrieved context and generated answer. Remove it before
+      assembly, restore it, then omit it only from the response; retain each actual first-failure
+      label.
+    beats:
+      - say: Follow the commander-approval fact through the actual request. First inspect the final context
+          sent to the model, after permissions, ranking and token-budget selection. If that clause
+          is absent there, the response never received the required evidence. A relevant document
+          retrieved earlier but dropped during assembly does not count as evidence the model saw.
+        hold: 0.7
+        visual_cues:
+          - id: rag-stage-phase-0
+            phrase: Follow the commander-approval fact through the actual request
+            targets:
+              - rag-stage-mechanism
+            color: cyan
+            linger: 0.55
+          - id: ba-rag-stage-drop
+            phrase: clause is absent there
+            targets:
+              - ba-rag-stage-drop
+            color: cyan
+            linger: 0.4
+      - say: "Keep the context complete and change only the answer: it mentions the freeze but substitutes
+          an on-call engineer for commander approval. Now the first observed failure is generation
+          or instruction following. The article’s literal classifier reports bad retrieval, bad
+          generation or pass by checking required phrases in that order. It inherits the same
+          negation and paraphrase limits as its checker."
+        hold: 0.7
+        visual_cues:
+          - id: rag-stage-phase-1
+            phrase: "Keep the context complete and change only the answer: it mentions the freeze but
+              substitutes an on-call engineer for commander approval"
+            targets:
+              - rag-stage-mechanism
+            color: cyan
+            linger: 0.55
+          - id: ba-rag-stage-complete
+            phrase: Keep the context complete
+            targets:
+              - ba-rag-stage-complete
+            color: cyan
+            linger: 0.4
+          - id: ba-rag-stage-engineer
+            phrase: substitutes an on-call engineer
+            targets:
+              - ba-rag-stage-engineer
+            color: cyan
+            linger: 0.4
+      - say: An exact citation can identify a source while an attached claim contradicts it. Exercise
+          correct answer with correct page, correct answer with wrong page, and a negated answer
+          with correct page. Source identity and semantic entailment are separate checks. Preserve
+          context, answer and source versions so a repair targets the observed boundary and then
+          repeats the complete regression path.
+        hold: 0.7
+        visual_cues:
+          - id: rag-stage-phase-2
+            phrase: An exact citation can identify a source while an attached claim contradicts it
+            targets:
+              - rag-stage-mechanism
+            color: cyan
+            linger: 0.55
+          - id: ba-rag-stage-citation
+            phrase: Source identity and semantic entailment
+            targets:
+              - ba-rag-stage-citation
+            color: cyan
+            linger: 0.4
+  - id: rag-metrics
+    title: Measure what arrived and what was said
+    visual: Build ranked relevance flags, reference-fact coverage and generated-claim support from one
+      retained policy packet. Construct their different denominators and leave an omitted answer
+      fact visible.
+    beats:
+      - say: Retrieval precision and recall answer different questions. In a supplied ranked list with
+          relevance flags one, zero, one, precision at the first relevant rank is one, and at the
+          third is two thirds. Averaging those precisions gives five sixths, about point eight three
+          three. This rank-weighted precision rewards useful context appearing early; it cannot
+          discover a required fact missing from every returned chunk.
+        hold: 0.7
+        visual_cues:
+          - id: rag-metrics-phase-0
+            phrase: Retrieval precision and recall answer different questions
+            targets:
+              - rag-metrics-mechanism
+            color: cyan
+            linger: 0.55
+          - id: precision-first
+            phrase: precision at the first relevant rank is one
+            targets:
+              - rag-metrics-mechanism
+            color: yellow
+            linger: 0.45
+          - id: precision-third
+            phrase: at the third is two thirds
+            targets:
+              - rag-metrics-mechanism
+            color: yellow
+            linger: 0.45
+          - id: precision-average
+            phrase: five sixths, about point eight three three
+            targets:
+              - rag-metrics-mechanism
+            color: yellow
+            linger: 0.45
+          - id: ba-rag-metrics-rank1
+            phrase: precision at the first relevant rank is one
+            targets:
+              - ba-rag-metrics-rank1
+            color: cyan
+            linger: 0.4
+          - id: ba-rag-metrics-rank3
+            phrase: at the third is two thirds
+            targets:
+              - ba-rag-metrics-rank3
+            color: cyan
+            linger: 0.4
+          - id: ba-rag-metrics-average
+            phrase: five sixths
+            targets:
+              - ba-rag-metrics-average
+            color: cyan
+            linger: 0.4
+      - say: For reference-based context recall, divide covered reference facts by required reference facts.
+          Suppose the context contains two of three required facts. Recall is two thirds. If the
+          response states only those two supported facts, its faithfulness is two supported claims
+          divided by two claims, or one. The response is still incomplete. A supported claim can
+          also repeat an outdated source.
+        hold: 0.7
+        visual_cues:
+          - id: rag-metrics-phase-1
+            phrase: For reference-based context recall, divide covered reference facts by required reference
+              facts
+            targets:
+              - rag-metrics-mechanism
+            color: cyan
+            linger: 0.55
+          - id: context-recall
+            phrase: Recall is two thirds
+            targets:
+              - rag-metrics-mechanism
+            color: yellow
+            linger: 0.45
+          - id: faithfulness-one
+            phrase: or one
+            targets:
+              - rag-metrics-mechanism
+            color: yellow
+            linger: 0.45
+          - id: ba-rag-metrics-recall
+            phrase: Recall is two thirds
+            targets:
+              - ba-rag-metrics-recall
+            color: cyan
+            linger: 0.4
+          - id: ba-rag-metrics-faithful
+            phrase: or one
+            targets:
+              - ba-rag-metrics-faithful
+            color: cyan
+            linger: 0.4
+      - say: Current Ragas response relevancy generates questions from the response and compares their
+          embeddings with the original question, averaging cosine similarities. It measures topical
+          alignment, not truth. Keep retrieval coverage, supported claims, completeness and
+          relevance separate, and check model-based scoring against reviewed labels. No Ragas model
+          or embedding service was executed in this deterministic lab.
+        hold: 0.7
+        visual_cues:
+          - id: rag-metrics-phase-2
+            phrase: Current Ragas response relevancy generates questions from the response and compares their
+              embeddings with the original question, averaging cosine similarities
+            targets:
+              - rag-metrics-mechanism
+            color: cyan
+            linger: 0.55
+          - id: ba-rag-metrics-relevance
+            phrase: averaging cosine similarities
+            targets:
+              - ba-rag-metrics-relevance
+            color: cyan
+            linger: 0.4
+  - id: knowledge-contract
+    title: Keep the task and parser attached to the score
+    visual: The same candidate choices pass through choice-probability and generated-letter scoring
+      contracts. Construct four versus ten uniform-guess branches, then retain GPQA subset ancestry
+      and a private HELM scenario.
+    beats:
+      - say: Public benchmarks help shortlist capabilities. MMLU covers fifty-seven subjects with four
+          choices per question. Uniform guessing has expected accuracy one fourth, not a minimum any
+          finite run must achieve. Common evaluations use five demonstrations and choice-token
+          probabilities; generated-answer parsing is another protocol. Changing that path changes
+          what a score measures, even when both results are percentages.
+        hold: 0.7
+        visual_cues:
+          - id: knowledge-contract-phase-0
+            phrase: Public benchmarks help shortlist capabilities
+            targets:
+              - knowledge-contract-mechanism
+            color: cyan
+            linger: 0.55
+          - id: mmlu-guess
+            phrase: one fourth
+            targets:
+              - knowledge-contract-mechanism
+            color: yellow
+            linger: 0.45
+          - id: ba-knowledge-contract-four
+            phrase: four choices per question
+            targets:
+              - ba-knowledge-contract-four
+            color: cyan
+            linger: 0.4
+          - id: ba-knowledge-contract-quarter
+            phrase: one fourth
+            targets:
+              - ba-knowledge-contract-quarter
+            color: cyan
+            linger: 0.4
+      - say: "MMLU-Pro adds reviewed, reasoning-focused questions with up to ten choices. Exactly ten
+          choices give a one-tenth guessing expectation. Its reported chain-of-thought advantage
+          belongs to the tested models and protocol. GPQA instead uses expert biology, physics and
+          chemistry: Extended has five hundred forty-six questions, main four hundred forty-eight,
+          and Diamond one hundred ninety-eight. Validator-based filtering changes the subsets, so
+          name the actual split."
+        hold: 0.7
+        visual_cues:
+          - id: knowledge-contract-phase-1
+            phrase: MMLU-Pro adds reviewed, reasoning-focused questions with up to ten choices
+            targets:
+              - knowledge-contract-mechanism
+            color: cyan
+            linger: 0.55
+          - id: pro-guess
+            phrase: a one-tenth guessing expectation
+            targets:
+              - knowledge-contract-mechanism
+            color: yellow
+            linger: 0.45
+          - id: ba-knowledge-contract-ten
+            phrase: up to ten choices
+            targets:
+              - ba-knowledge-contract-ten
+            color: cyan
+            linger: 0.4
+          - id: ba-knowledge-contract-gpqa
+            phrase: Extended has five hundred forty-six questions
+            targets:
+              - ba-knowledge-contract-gpqa
+            color: cyan
+            linger: 0.4
+      - say: The original GPQA study’s non-expert validators scored about thirty-four percent on Extended
+          despite internet access; that historical result is not a universal human ceiling. HELM
+          evaluates several dimensions, including accuracy, calibration, robustness, fairness and
+          bias. Its public scenarios do not measure private policy compliance, but its modular
+          framework accepts custom scenarios. Run the relevant private evaluation instead of
+          treating an unrelated leaderboard as release authority.
+        hold: 0.7
+        visual_cues:
+          - id: knowledge-contract-phase-2
+            phrase: The original GPQA study’s non-expert validators scored about thirty-four percent on Extended
+              despite internet access; that historical result is not a universal human ceiling
+            targets:
+              - knowledge-contract-mechanism
+            color: cyan
+            linger: 0.55
+          - id: ba-knowledge-contract-human
+            phrase: thirty-four percent
+            targets:
+              - ba-knowledge-contract-human
+            color: cyan
+            linger: 0.4
+          - id: ba-knowledge-contract-custom
+            phrase: accepts custom scenarios
+            targets:
+              - ba-knowledge-contract-custom
+            color: cyan
+            linger: 0.4
+  - id: math-frontier
+    title: An answer parser and a dataset version change the experiment
+    visual: Extract a numeric answer under two declared parsers, preserve a symbolic derivation
+      separately, then construct a visible version transition and a small authored colored-grid
+      rule.
+    beats:
+      - say: GSM8K contains about eight and a half thousand grade-school word problems, typically two to
+          eight arithmetic steps. Its reference solutions mark the final number after four hash
+          characters; a particular harness decides whether model outputs need that delimiter. MATH
+          has twelve thousand five hundred competition problems with worked solutions. Extracted
+          final-answer correctness and a valid derivation are different contracts; record parser and
+          tool access.
+        hold: 0.7
+        visual_cues:
+          - id: math-frontier-phase-0
+            phrase: GSM8K contains about eight and a half thousand grade-school word problems, typically two to
+              eight arithmetic steps
+            targets:
+              - math-frontier-mechanism
+            color: cyan
+            linger: 0.55
+          - id: ba-math-frontier-parser
+            phrase: a particular harness decides
+            targets:
+              - ba-math-frontier-parser
+            color: cyan
+            linger: 0.4
+          - id: ba-math-frontier-proof
+            phrase: correctness and a valid derivation
+            targets:
+              - ba-math-frontier-proof
+            color: cyan
+            linger: 0.4
+      - say: Harder suites also need exact versions. Humanity’s Last Exam finalized its original
+          twenty-five-hundred-question public set in April twenty-twenty-five and retains a private
+          holdout. Its site lists Rolling in October twenty-twenty-five and Diamond in September
+          twenty-twenty-six. FrontierMath spans advanced-undergraduate through research-level tiers.
+          Its Tiers One through Four page reports a June twelfth twenty-twenty-six version-two
+          release addressing errors in forty-two percent of problems. Older scores do not transfer
+          automatically.
+        hold: 0.7
+        visual_cues:
+          - id: math-frontier-phase-1
+            phrase: Harder suites also need exact versions
+            targets:
+              - math-frontier-mechanism
+            color: cyan
+            linger: 0.55
+          - id: ba-math-frontier-hle
+            phrase: April twenty-twenty-five
+            targets:
+              - ba-math-frontier-hle
+            color: cyan
+            linger: 0.4
+          - id: ba-math-frontier-versions
+            phrase: forty-two percent
+            targets:
+              - ba-math-frontier-versions
+            color: cyan
+            linger: 0.4
+      - say: ARC-AGI-two asks a system to infer a rule from example input and output grids, then apply it to
+          a new grid. Symbolic interpretation, composition and context-dependent rules go beyond
+          geometric rotation. Public, semi-private and private sets have different exposure
+          histories. A supplied toy grid can demonstrate rule application, but it is not a scored
+          ARC task or evidence that a platform assistant preserves deployment permissions.
+        hold: 0.7
+        visual_cues:
+          - id: math-frontier-phase-2
+            phrase: ARC-AGI-two asks a system to infer a rule from example input and output grids, then apply it
+              to a new grid
+            targets:
+              - math-frontier-mechanism
+            color: cyan
+            linger: 0.55
+          - id: ba-math-frontier-arc
+            phrase: apply it to a new grid
+            targets:
+              - ba-math-frontier-arc
+            color: cyan
+            linger: 0.4
+  - id: code-contract
+    title: Follow the patch into the actual selected tests
+    visual: Retain a function docstring, a repository issue, the patch and selected repair/regression
+      assertions. A deliberately unselected failing behavior stays visible after the selected tests
+      pass.
+    beats:
+      - say: HumanEval measures function synthesis with one hundred sixty-four handwritten Python problems
+          and unit tests. SWE-bench’s original collection has two thousand two hundred ninety-four
+          issue-based tasks across twelve Python repositories. The system must inspect a repository,
+          edit code and submit a patch. Those are different task contracts, and neither percentage
+          directly measures our library or policy answers.
+        hold: 0.7
+        visual_cues:
+          - id: code-contract-phase-0
+            phrase: HumanEval measures function synthesis with one hundred sixty-four handwritten Python
+              problems and unit tests
+            targets:
+              - code-contract-mechanism
+            color: cyan
+            linger: 0.55
+          - id: ba-code-contract-function
+            phrase: one hundred sixty-four
+            targets:
+              - ba-code-contract-function
+            color: cyan
+            linger: 0.4
+          - id: ba-code-contract-repo
+            phrase: two thousand two hundred ninety-four
+            targets:
+              - ba-code-contract-repo
+            color: cyan
+            linger: 0.4
+      - say: The SWE-bench Docker harness applies the patch and grades named Fail-to-Pass repair tests and
+          Pass-to-Pass regression tests under its parser rules. Inspect which assertions those
+          selected tests exercise. A patch can pass selected checks while an omitted behavior
+          remains wrong. A resolved label describes that harness result; it is not proof that every
+          repository test or intended behavior was preserved.
+        hold: 0.7
+        visual_cues:
+          - id: code-contract-phase-1
+            phrase: The SWE-bench Docker harness applies the patch and grades named Fail-to-Pass repair tests
+              and Pass-to-Pass regression tests under its parser rules
+            targets:
+              - code-contract-mechanism
+            color: cyan
+            linger: 0.55
+          - id: ba-code-contract-selected
+            phrase: named Fail-to-Pass
+            targets:
+              - ba-code-contract-selected
+            color: cyan
+            linger: 0.4
+          - id: ba-code-contract-omitted
+            phrase: omitted behavior remains wrong
+            targets:
+              - ba-code-contract-omitted
+            color: pink
+            linger: 0.4
+      - say: The measured coding system includes model, prompt loop, tools, repository environment and
+          attempt budget. Ten agent attempts can contain many model and tool calls. Preserve
+          failures, timeouts, selected tests and the returned patch, then compare at a common budget
+          or report the tradeoff. Changing the agent scaffold can change the result while model
+          weights stay fixed.
+        hold: 0.7
+        visual_cues:
+          - id: code-contract-phase-2
+            phrase: The measured coding system includes model, prompt loop, tools, repository environment and
+              attempt budget
+            targets:
+              - code-contract-mechanism
+            color: cyan
+            linger: 0.55
+          - id: ba-code-contract-attempts
+            phrase: many model and tool calls
+            targets:
+              - ba-code-contract-attempts
+            color: cyan
+            linger: 0.4
+  - id: benchmark-audit
+    title: Keep the audited subset inside its real denominator
+    visual: Show the five-hundred-task Verified universe with a distinct selected138-task audit subset.
+      Keep the subset percentage inside that boundary, then replace the old Pro recommendation with
+      the dated later audit.
+    beats:
+      - say: Human review improves a suite without guaranteeing flawless tasks. SWE-bench Verified selected
+          five hundred tasks. OpenAI stopped reporting it in February twenty-twenty-six after
+          finding material test or description issues in fifty-nine point four percent of a selected
+          one-hundred-thirty-eight-task subset that o three did not consistently solve. That
+          denominator is the selected subset, not all five hundred tasks.
+        hold: 0.7
+        visual_cues:
+          - id: benchmark-audit-phase-0
+            phrase: Human review improves a suite without guaranteeing flawless tasks
+            targets:
+              - benchmark-audit-mechanism
+            color: cyan
+            linger: 0.55
+          - id: ba-benchmark-audit-subset
+            phrase: selected one-hundred-thirty-eight-task subset
+            targets:
+              - ba-benchmark-audit-subset
+            color: cyan
+            linger: 0.4
+          - id: ba-benchmark-audit-denominator
+            phrase: not all five hundred tasks
+            targets:
+              - ba-benchmark-audit-denominator
+            color: cyan
+            linger: 0.4
+      - say: The same audit found signs that tested frontier models could reproduce human fixes or verbatim
+          task details for some tasks. A public test may therefore mix engineering ability with
+          exposure. OpenAI initially recommended SWE-bench Pro, then retracted that recommendation
+          in July twenty-twenty-six after auditing its seven hundred thirty-one public tasks and
+          estimating that about thirty percent were broken. Preserve dates and scope rather than
+          repeating an obsolete recommendation.
+        hold: 0.7
+        visual_cues:
+          - id: benchmark-audit-phase-1
+            phrase: The same audit found signs that tested frontier models could reproduce human fixes or
+              verbatim task details for some tasks
+            targets:
+              - benchmark-audit-mechanism
+            color: cyan
+            linger: 0.55
+          - id: ba-benchmark-audit-retract
+            phrase: retracted that recommendation
+            targets:
+              - ba-benchmark-audit-retract
+            color: cyan
+            linger: 0.4
+          - id: ba-benchmark-audit-pro
+            phrase: thirty percent were broken
+            targets:
+              - ba-benchmark-audit-pro
+            color: cyan
+            linger: 0.4
+      - say: Use these audits to ask what the actual verifier accepts, which environments execute and which
+          examples the system may have seen. The cited papers and official reports describe their
+          examined workloads; we did not rerun those benchmark suites. A private reviewed test with
+          a matching request path and retained failures remains necessary for this product decision.
+        hold: 0.7
+        visual_cues:
+          - id: benchmark-audit-phase-2
+            phrase: Use these audits to ask what the actual verifier accepts, which environments execute and
+              which examples the system may have seen
+            targets:
+              - benchmark-audit-mechanism
+            color: cyan
+            linger: 0.55
+          - id: ba-benchmark-audit-verifier
+            phrase: actual verifier accepts
+            targets:
+              - ba-benchmark-audit-verifier
+            color: cyan
+            linger: 0.4
+  - id: preference-ratings
+    title: A modeled preference is a different axis from factual accuracy
+    visual: Construct a Bradley-Terry win-probability curve from an adjustable rating difference.
+      Preserve the same answer pair and separate its independently checked source-support status
+      from the preference dot.
+    beats:
+      - say: "MT-Bench uses an LLM judge on fixed multi-turn conversations. Chatbot Arena, renamed Arena in
+          January twenty-twenty-six, collects blind pairwise human preferences. Its Bradley-Terry
+          model fits a logistic relationship to sampled votes. On the published base-ten,
+          four-hundred-point scale, probability that A beats B is one divided by one plus ten raised
+          to this exponent: subtract rating A from rating B, then divide that whole difference by
+          four hundred."
+        hold: 0.7
+        visual_cues:
+          - id: preference-ratings-phase-0
+            phrase: MT-Bench uses an LLM judge on fixed multi-turn conversations
+            targets:
+              - preference-ratings-mechanism
+            color: cyan
+            linger: 0.55
+          - id: ba-preference-ratings-logistic
+            phrase: logistic relationship
+            targets:
+              - ba-preference-ratings-logistic
+            color: cyan
+            linger: 0.4
+          - id: ba-preference-ratings-exponent
+            phrase: divide that whole difference by four hundred
+            targets:
+              - ba-preference-ratings-exponent
+            color: cyan
+            linger: 0.4
+      - say: Equal ratings give one half. A four-hundred-point advantage gives ten elevenths, about
+          ninety-one percent. That scale is a reporting convention, not factual accuracy. Prompt and
+          voter selection, presentation, and private-variant selection affect interpretation. A
+          twenty-twenty-five study documented providers testing many private variants and releasing
+          selected winners. Preserve uncertainty and the sampling context before using preferences
+          to shortlist a model.
+        hold: 0.7
+        visual_cues:
+          - id: preference-ratings-phase-1
+            phrase: Equal ratings give one half
+            targets:
+              - preference-ratings-mechanism
+            color: cyan
+            linger: 0.55
+          - id: rating-equal
+            phrase: Equal ratings give one half
+            targets:
+              - preference-ratings-mechanism
+            color: yellow
+            linger: 0.45
+          - id: rating-gap
+            phrase: about ninety-one percent
+            targets:
+              - preference-ratings-mechanism
+            color: yellow
+            linger: 0.45
+          - id: ba-preference-ratings-equal
+            phrase: Equal ratings give one half
+            targets:
+              - ba-preference-ratings-equal
+            color: cyan
+            linger: 0.4
+          - id: ba-preference-ratings-advantage
+            phrase: ten elevenths
+            targets:
+              - ba-preference-ratings-advantage
+            color: cyan
+            linger: 0.4
+          - id: ba-preference-ratings-variants
+            phrase: releasing selected winners
+            targets:
+              - ba-preference-ratings-variants
+            color: cyan
+            linger: 0.4
+  - id: slices
+    title: Follow the failures into their categories
+    visual: Two ten-by-ten result grids separate ninety ordinary questions from ten renewal questions.
+      The renewal column moves into a magnified comparison whose counts and rates come from the same
+      case rows.
+    beats:
+      - say: Return to our hundred questions. Ninety ask ordinary library questions, and ten concern
+          renewals. The two assistants each pass ninety cases overall. In these grids, every square
+          is one identified question, and a failed square stays with that question as we reorganize
+          the results.
+        hold: 0.65
+        visual_cues:
+          - id: slices-beat-1-focus-1
+            phrase: Return to our hundred questions
+            targets:
+              - benchmark-case-results
+            color: blue
+            linger: 0.6
+          - id: slices-beat-1-focus-2
+            phrase: and ten concern renewals
+            targets:
+              - benchmark-case-results
+            color: blue
+            linger: 0.6
+      - say: Pull out the renewal column. Assistant A passed only two of these ten questions; assistant B
+          passed nine. Their equal overall scores concealed very different behavior on this
+          category. The slice denominator matters as much as its percentage.
+        hold: 0.75
+        visual_cues:
+          - id: slices-beat-2-focus-1
+            phrase: Pull out the renewal column
+            targets:
+              - benchmark-renewal-cases
+            color: blue
+            linger: 0.6
+          - id: ba-slices-renewals
+            phrase: only two of these ten
+            targets:
+              - ba-slices-renewals
+            color: cyan
+            linger: 0.4
+      - say: Suppose our declared renewal requirement is eighty percent on this fixture. Only B clears that
+          particular check. A release still needs its other requirements and enough representative
+          evidence. Reporting categories gives a team a concrete failure to investigate.
+        hold: 0.7
+        visual_cues:
+          - id: slices-beat-3-focus-1
+            phrase: Suppose our declared renewal requirement is eighty percent on this fixture
+            targets:
+              - slices-simulation-3
+            color: blue
+            linger: 0.6
+          - id: ba-slices-cutoff
+            phrase: eighty percent
+            targets:
+              - ba-slices-cutoff
+            color: cyan
+            linger: 0.4
+  - id: candidates
+    title: Count candidate sets that contain a passing program
+    visual: Eight identified programs contain two test-passing samples. All twenty-eight distinct pairs
+      appear in a checked grid, revealing thirteen pairs with at least one success. A separate
+      selected-program card can still fail.
+    beats:
+      - say: Some benchmarks allow several attempts per problem. Here eight generated programs include two
+          that pass the tests. Choose two distinct sample indices. There are twenty-eight possible
+          pairs, and we can inspect every one instead of guessing what a success percentage means.
+        hold: 0.6
+        visual_cues:
+          - id: candidates-beat-1-focus-1
+            phrase: Here eight generated programs include two that pass the tests
+            targets:
+              - candidates-simulation-18
+            color: blue
+            linger: 0.6
+          - id: candidates-beat-1-focus-2
+            phrase: Choose two distinct sample indices
+            targets:
+              - candidate-pair-outcomes
+            color: blue
+            linger: 0.6
+          - id: ba-candidates-pairs
+            phrase: twenty-eight possible pairs
+            targets:
+              - ba-candidates-pairs
+            color: cyan
+            linger: 0.4
+      - say: "A pair succeeds when either member passes. Thirteen of the twenty-eight pairs contain a
+          passing program. The pass-at-two estimator uses this same complement: subtract the
+          all-failing subsets from the full set of subsets. The formula scales to much larger sample
+          pools."
+        hold: 0.75
+        visual_cues:
+          - id: candidates-beat-2-focus-1
+            phrase: "The pass-at-two estimator uses this same complement: subtract"
+            targets:
+              - candidates-simulation-18
+            color: blue
+            linger: 0.6
+          - id: candidates-beat-2-focus-2
+            phrase: A pair succeeds when either member passes
+            targets:
+              - candidate-pair-outcomes
+            color: blue
+            linger: 0.6
+          - id: ba-candidates-success
+            phrase: Thirteen of the twenty-eight
+            targets:
+              - ba-candidates-success
+            color: cyan
+            linger: 0.4
+      - say: Now let a selector choose program one. That program fails, although successful programs exist
+          in the pool. Candidate coverage and the selector's actual result answer separate
+          questions. Report selection accuracy, test coverage, and total attempt cost alongside the
+          sampling metric.
+        hold: 0.7
+        visual_cues:
+          - id: candidates-beat-3-focus-1
+            phrase: That program fails
+            targets:
+              - candidates-simulation-18
+            color: blue
+            linger: 0.6
+          - id: ba-candidates-select
+            phrase: choose program one
+            targets:
+              - ba-candidates-select
+            color: cyan
+            linger: 0.4
+  - id: sample-estimator
+    title: Separate the observed pool from the unknown success rate
+    visual: Retain the original eight programs and their28 pairs, then grow a100-index pool with20
+      passes. Compare the plug-in curve with exact subset counting; move two different problems into
+      separate pools before averaging.
+    beats:
+      - say: For independent attempts with one fixed true pass probability p, the chance of at least one
+          pass in k attempts is one minus the quantity one minus p raised to k. The true p is
+          unknown. Replacing it with the observed fraction c over n is biased downward for k greater
+          than one under this common-probability model. Convexity of the all-failure power explains
+          that direction.
+        hold: 0.7
+        visual_cues:
+          - id: sample-estimator-phase-0
+            phrase: For independent attempts with one fixed true pass probability p, the chance of at least one
+              pass in k attempts is one minus the quantity one minus p raised to k
+            targets:
+              - sample-estimator-mechanism
+            color: cyan
+            linger: 0.55
+          - id: ba-sample-estimator-plugin
+            phrase: biased downward
+            targets:
+              - ba-sample-estimator-plugin
+            color: cyan
+            linger: 0.4
+      - say: Instead count distinct sample indices. The estimator is one minus choose n minus c comma k
+          divided by choose n comma k, or the corresponding product of failure fractions without
+          replacement. If fewer than k failures exist, the result is one. Identical program text can
+          occupy multiple indices; this estimator does not deduplicate text. Correlated or adaptive
+          attempts do not automatically justify the independent common-p guarantee.
+        hold: 0.7
+        visual_cues:
+          - id: sample-estimator-phase-1
+            phrase: Instead count distinct sample indices
+            targets:
+              - sample-estimator-mechanism
+            color: cyan
+            linger: 0.55
+          - id: ba-sample-estimator-subset
+            phrase: without replacement
+            targets:
+              - ba-sample-estimator-subset
+            color: cyan
+            linger: 0.4
+      - say: The actual hundred-sample, twenty-pass fixture gives about point eight nine two six by the
+          plug-in at k ten and point nine zero four nine by subset counting. Compute each problem’s
+          score before averaging. A four-pass pool and a four-failure pool have mean pass-at-two one
+          half; pooling all eight candidates incorrectly gives about point seven eight six. Preserve
+          per-problem identity, selector success, test coverage and total request cost.
+        hold: 0.7
+        visual_cues:
+          - id: sample-estimator-phase-2
+            phrase: The actual hundred-sample, twenty-pass fixture gives about point eight nine two six by the
+              plug-in at k ten and point nine zero four nine by subset counting
+            targets:
+              - sample-estimator-mechanism
+            color: cyan
+            linger: 0.55
+          - id: plugin-result
+            phrase: point eight nine two six
+            targets:
+              - sample-estimator-mechanism
+            color: yellow
+            linger: 0.45
+          - id: subset-result
+            phrase: point nine zero four nine
+            targets:
+              - sample-estimator-mechanism
+            color: yellow
+            linger: 0.45
+          - id: problem-average
+            phrase: mean pass-at-two one half
+            targets:
+              - sample-estimator-mechanism
+            color: yellow
+            linger: 0.45
+          - id: pooled-result
+            phrase: point seven eight six
+            targets:
+              - sample-estimator-mechanism
+            color: yellow
+            linger: 0.45
+          - id: ba-sample-estimator-hundred
+            phrase: point nine zero four nine
+            targets:
+              - ba-sample-estimator-hundred
+            color: cyan
+            linger: 0.4
+          - id: ba-sample-estimator-separate
+            phrase: mean pass-at-two one half
+            targets:
+              - ba-sample-estimator-separate
+            color: cyan
+            linger: 0.4
+          - id: ba-sample-estimator-pooled
+            phrase: point seven eight six
+            targets:
+              - ba-sample-estimator-pooled
+            color: cyan
+            linger: 0.4
+  - id: judge-controls
+    title: Map every verdict back to answer identity
+    visual: Move the actual concise and friendly answers through both display positions. Retain the
+      literal toy judge votes, map each slot to its original answer, and separately test a supported
+      versus unsupported answer.
+    beats:
+      - say: An LLM judge needs its own reviewed labels, rubric and disagreement policy. The MT-Bench study
+          documented position effects and a repetitive-list verbosity attack in its tested judges.
+          It investigated self-enhancement but could not establish that bias conclusively. JudgeLM
+          also examines knowledge and format biases. Those findings motivate controls, not a claim
+          that every judge always prefers its own family or the longest answer.
+        hold: 0.7
+        visual_cues:
+          - id: judge-controls-phase-0
+            phrase: An LLM judge needs its own reviewed labels, rubric and disagreement policy
+            targets:
+              - judge-controls-mechanism
+            color: cyan
+            linger: 0.55
+          - id: ba-judge-controls-rubric
+            phrase: reviewed labels
+            targets:
+              - ba-judge-controls-rubric
+            color: cyan
+            linger: 0.4
+      - say: "The actual toy judge deliberately picks slot A when required-fact counts tie. Show concise
+          then friendly: concise wins. Swap them: friendly wins. Map the slots back to names before
+          comparing. Our conservative policy records an unresolved pair because named winners
+          differ. With a stochastic judge, two inconsistent votes alone do not isolate position
+          bias; repeat controlled probes."
+        hold: 0.7
+        visual_cues:
+          - id: judge-controls-phase-1
+            phrase: The actual toy judge deliberately picks slot A when required-fact counts tie
+            targets:
+              - judge-controls-mechanism
+            color: cyan
+            linger: 0.55
+          - id: judge-first
+            phrase: concise wins
+            targets:
+              - judge-controls-mechanism
+            color: yellow
+            linger: 0.45
+          - id: judge-swapped
+            phrase: friendly wins
+            targets:
+              - judge-controls-mechanism
+            color: yellow
+            linger: 0.45
+          - id: judge-unresolved
+            phrase: records an unresolved pair
+            targets:
+              - judge-controls-mechanism
+            color: yellow
+            linger: 0.45
+          - id: ba-judge-controls-tie
+            phrase: picks slot A
+            targets:
+              - ba-judge-controls-tie
+            color: cyan
+            linger: 0.4
+          - id: ba-judge-controls-swap
+            phrase: Swap them
+            targets:
+              - ba-judge-controls-swap
+            color: cyan
+            linger: 0.4
+          - id: ba-judge-controls-unresolved
+            phrase: unresolved pair
+            targets:
+              - ba-judge-controls-unresolved
+            color: pink
+            linger: 0.4
+      - say: Now compare the grounded answer with one missing approval. The same named answer wins both
+          orders, but consistency still does not establish semantic truth. Supply current source
+          evidence, check supporting spans and calibrate on independent human labels with negations
+          and paraphrases. Evaluate candidate instructions as data. Control needless repetition
+          separately from completeness; silently truncating an answer can remove the condition being
+          tested.
+        hold: 0.7
+        visual_cues:
+          - id: judge-controls-phase-2
+            phrase: Now compare the grounded answer with one missing approval
+            targets:
+              - judge-controls-mechanism
+            color: cyan
+            linger: 0.55
+          - id: ba-judge-controls-grounded
+            phrase: same named answer wins both orders
+            targets:
+              - ba-judge-controls-grounded
+            color: cyan
+            linger: 0.4
+          - id: ba-judge-controls-truth
+            phrase: does not establish semantic truth
+            targets:
+              - ba-judge-controls-truth
+            color: cyan
+            linger: 0.4
+  - id: exposure
+    title: Preserve case identity through development
+    visual: Four dated case cards move into regression and potential-holdout lanes according to their
+      recorded development exposure. A later-created case used in tuning follows the regression
+      route.
+    beats:
+      - say: A holdout supplies useful evidence about examples kept outside development. Suppose a team
+          froze its tuning run at the end of March. These four cases have creation dates and an
+          exposure record. Two were used to choose prompts or adjust the evaluator.
+        hold: 0.6
+        visual_cues:
+          - id: exposure-beat-1-focus-1
+            phrase: A holdout supplies useful evidence about examples kept outside development
+            targets:
+              - exposure-simulation-28
+            color: blue
+            linger: 0.6
+          - id: exposure-beat-1-focus-2
+            phrase: Suppose a team froze its tuning run at the end of March
+            targets:
+              - exposure-simulation-28
+            color: blue
+            linger: 0.6
+      - say: Move those exposed cases into regression. They remain useful for catching old mistakes. Notice
+          the April case following the same route as the February case. A recent creation date alone
+          cannot establish that a question stayed outside development.
+        hold: 0.7
+        visual_cues:
+          - id: exposure-beat-2-focus-1
+            phrase: cannot establish that a question stayed outside development
+            targets:
+              - exposure-simulation-28
+            color: blue
+            linger: 0.6
+          - id: exposure-beat-2-focus-2
+            phrase: Notice the April case following the same route as the February case
+            targets:
+              - exposure-object-case-29
+            color: blue
+            linger: 0.6
+      - say: The remaining cases are candidates for a fresh holdout after provenance checks. Keep their
+          questions and answer keys out of the application's retrieval index. The underlying library
+          rules belong in retrieval; the private test fixtures belong in a separate evaluation
+          store.
+        hold: 0.7
+        visual_cues:
+          - id: exposure-beat-3-focus-1
+            phrase: The remaining cases are candidates for a fresh holdout after provenance checks
+            targets:
+              - exposure-simulation-28
+            color: blue
+            linger: 0.6
+  - id: exposure-screen
+    title: A screen reports its own detection boundary
+    visual: Preserve the same private fact through an exact copied phrase, a paraphrase, renamed code
+      and a translated version. A literal13-gram scanner lights only matching spans; canary and date
+      fields remain separate evidence.
+    beats:
+      - say: Training exposure puts test material or solutions into model learning. Development exposure
+          uses holdout results to choose prompts, examples or judges. Optimizing a proxy can improve
+          the intended skill, exploit a shortcut, or both. A rising score alone does not distinguish
+          those outcomes. Once a case guides a choice, preserve it as regression and find genuinely
+          untouched evaluation evidence.
+        hold: 0.7
+        visual_cues:
+          - id: exposure-screen-phase-0
+            phrase: Training exposure puts test material or solutions into model learning
+            targets:
+              - exposure-screen-mechanism
+            color: cyan
+            linger: 0.55
+          - id: ba-exposure-screen-train
+            phrase: model learning
+            targets:
+              - ba-exposure-screen-train
+            color: cyan
+            linger: 0.4
+          - id: ba-exposure-screen-dev
+            phrase: choose prompts, examples or judges
+            targets:
+              - ba-exposure-screen-dev
+            color: cyan
+            linger: 0.4
+          - id: ba-exposure-screen-regression
+            phrase: preserve it as regression
+            targets:
+              - ba-exposure-screen-regression
+            color: cyan
+            linger: 0.4
+      - say: GPT three’s analysis used an approximately thirteen-gram overlap criterion with special
+          handling for short examples. A match can be background text; inspect what overlaps. A
+          non-match can miss paraphrases, renamed variables and translations. BIG-bench asks
+          contributors to include a recognizable canary string so collectors can exclude the
+          material. Collectors must honor it, and copies can lose it. Neither screen proves no
+          exposure.
+        hold: 0.7
+        visual_cues:
+          - id: exposure-screen-phase-1
+            phrase: GPT three’s analysis used an approximately thirteen-gram overlap criterion with special
+              handling for short examples
+            targets:
+              - exposure-screen-mechanism
+            color: cyan
+            linger: 0.55
+          - id: ba-exposure-screen-ngram
+            phrase: thirteen-gram
+            targets:
+              - ba-exposure-screen-ngram
+            color: cyan
+            linger: 0.4
+          - id: ba-exposure-screen-paraphrase
+            phrase: miss paraphrases
+            targets:
+              - ba-exposure-screen-paraphrase
+            color: cyan
+            linger: 0.4
+          - id: ba-exposure-screen-canary
+            phrase: Collectors must honor it
+            targets:
+              - ba-exposure-screen-canary
+            color: cyan
+            linger: 0.4
+      - say: LiveCodeBench dates contest tasks so an evaluation can select items after a known
+          model-checkpoint cutoff. LiveBench refreshes several capability tests and uses objective
+          answers rather than an LLM judge. Record the release, task window, exact checkpoint and
+          tool access. Unknown training cutoffs, later post-training or retrieval of published
+          solutions can compromise a fresh-looking comparison. Creation date is evidence to
+          investigate, not proof of independence.
+        hold: 0.7
+        visual_cues:
+          - id: exposure-screen-phase-2
+            phrase: LiveCodeBench dates contest tasks so an evaluation can select items after a known
+              model-checkpoint cutoff
+            targets:
+              - exposure-screen-mechanism
+            color: cyan
+            linger: 0.55
+          - id: ba-exposure-screen-dated
+            phrase: after a known model-checkpoint cutoff
+            targets:
+              - ba-exposure-screen-dated
+            color: cyan
+            linger: 0.4
+          - id: ba-exposure-screen-cutoff
+            phrase: not proof of independence
+            targets:
+              - ba-exposure-screen-cutoff
+            color: cyan
+            linger: 0.4
+  - id: uncertainty
+    title: Ask how easily a small perfect sample can occur
+    visual: A fixed hypothetical eighty-percent success probability generates exact all-pass
+      probabilities for three and thirty independent cases. A shared probability curve changes
+      exponent while the operating point stays fixed.
+    beats:
+      - say: Three successes feel reassuring. To understand their strength, consider a hypothetical system
+          that succeeds on eighty percent of independent cases. Its chance of passing all three is
+          the success probability multiplied by itself three times. That happens more than half the
+          time.
+        hold: 0.65
+        visual_cues:
+          - id: uncertainty-beat-1-focus-1
+            phrase: Its chance of passing all three is the
+            targets:
+              - uncertainty-equation-string-raw-p-text-all-pass-0-8-s-n-35
+            color: yellow
+            linger: 0.6
+          - id: uncertainty-beat-1-focus-2
+            phrase: Three successes feel reassuring
+            targets:
+              - uncertainty-object-point-x-point-y-9-c-yellow-32
+            color: blue
+            linger: 0.6
+      - say: Keep the hypothetical success rate fixed and expand to thirty cases. The chance of another
+          perfect sample falls sharply. The two experiments show why sample size changes the
+          evidence carried by a perfect observed score. The actual system's unknown rate still needs
+          an estimation procedure.
+        hold: 0.7
+        visual_cues:
+          - id: uncertainty-beat-2-focus-1
+            phrase: Keep the hypothetical success rate fixed and expand to thirty cases
+            targets:
+              - uncertainty-object-point-x-point-y-9-c-yellow-32
+            color: blue
+            linger: 0.6
+      - say: The article develops Wilson intervals for that estimation step. Choose the interval and release
+          rule before inspecting results, and check the assumptions behind them. Repeated
+          paraphrases, biased case selection, and an incorrect checker each need their own
+          investigation.
+        hold: 0.7
+        visual_cues:
+          - id: uncertainty-beat-3-focus-1
+            phrase: The article develops Wilson intervals for that estimation step
+            targets:
+              - uncertainty-object-point-x-point-y-9-c-yellow-32
+            color: blue
+            linger: 0.6
+  - id: wilson-construction
+    title: Invert the score test instead of collapsing the uncertainty
+    visual: Place candidate population rates on one axis. Evaluate their score-test distances using each
+      candidate rate in the standard deviation, then keep the accepted interval and compare
+      actual3/3,49/50,990/1000 examples.
+    beats:
+      - say: The ordinary Wald interval plugs the observed pass fraction into its standard error. Three of
+          three makes that variance zero and falsely produces a zero-width interval. Wilson instead
+          tests each candidate population probability using that candidate’s p times one minus p
+          divided by n. Keep probabilities whose score distance from the observed fraction is at
+          most the chosen z. Squaring produces a quadratic inequality.
+        hold: 0.7
+        visual_cues:
+          - id: wilson-construction-phase-0
+            phrase: The ordinary Wald interval plugs the observed pass fraction into its standard error
+            targets:
+              - wilson-construction-mechanism
+            color: cyan
+            linger: 0.55
+          - id: ba-wilson-construction-wald
+            phrase: zero-width interval
+            targets:
+              - ba-wilson-construction-wald
+            color: cyan
+            linger: 0.4
+          - id: ba-wilson-construction-candidate
+            phrase: each candidate population probability
+            targets:
+              - ba-wilson-construction-candidate
+            color: cyan
+            linger: 0.4
+          - id: ba-wilson-construction-quadratic
+            phrase: quadratic inequality
+            targets:
+              - ba-wilson-construction-quadratic
+            color: cyan
+            linger: 0.4
+      - say: The quadratic has coefficient one plus z squared over n on p squared. Subtract the quantity two
+          times the observed fraction plus z squared over n, multiplied by p; then add the observed
+          fraction squared. Its two roots bound the accepted rates. For direct calculation, call one
+          plus z squared over n the denominator. The center is observed fraction plus z squared over
+          two n, divided by that denominator. The radius is z divided by the denominator, times the
+          square root of observed fraction times one minus that fraction divided by n, plus z
+          squared divided by four n squared.
+        hold: 0.7
+        visual_cues:
+          - id: wilson-construction-phase-1
+            phrase: The quadratic has coefficient one plus z squared over n on p squared
+            targets:
+              - wilson-construction-mechanism
+            color: cyan
+            linger: 0.55
+          - id: ba-wilson-construction-roots
+            phrase: two roots
+            targets:
+              - ba-wilson-construction-roots
+            color: cyan
+            linger: 0.4
+          - id: ba-wilson-construction-formula
+            phrase: The center is
+            targets:
+              - ba-wilson-construction-formula
+            color: cyan
+            linger: 0.4
+      - say: At z one point nine six, the actual lower endpoints are about point four three eight for three
+          of three, point eight nine five for forty-nine of fifty, and point nine eight two for nine
+          hundred ninety of a thousand. For all passes, the lower endpoint simplifies to n divided
+          by n plus z squared. This is a two-sided nominal ninety-five-percent interval; a one-sided
+          ninety-five-percent bound uses about one point six four five. Choose the procedure
+          beforehand. Coverage concerns repeated samples, not the posterior probability of this
+          fixed interval, and biased or correlated cases need separate investigation.
+        hold: 0.7
+        visual_cues:
+          - id: wilson-construction-phase-2
+            phrase: At z one point nine six, the actual lower endpoints are about point four three eight for
+              three of three, point eight nine five for forty-nine of fifty, and point nine eight
+              two for nine hundred ninety of a thousand
+            targets:
+              - wilson-construction-mechanism
+            color: cyan
+            linger: 0.55
+          - id: wilson-three
+            phrase: point four three eight
+            targets:
+              - wilson-construction-mechanism
+            color: yellow
+            linger: 0.45
+          - id: wilson-fifty
+            phrase: point eight nine five
+            targets:
+              - wilson-construction-mechanism
+            color: yellow
+            linger: 0.45
+          - id: wilson-thousand
+            phrase: point nine eight two
+            targets:
+              - wilson-construction-mechanism
+            color: yellow
+            linger: 0.45
+          - id: wilson-all-pass
+            phrase: n divided by n plus z squared
+            targets:
+              - wilson-construction-mechanism
+            color: yellow
+            linger: 0.45
+          - id: ba-wilson-construction-bound3
+            phrase: point four three eight
+            targets:
+              - ba-wilson-construction-bound3
+            color: cyan
+            linger: 0.4
+          - id: ba-wilson-construction-bound50
+            phrase: point eight nine five
+            targets:
+              - ba-wilson-construction-bound50
+            color: cyan
+            linger: 0.4
+          - id: ba-wilson-construction-bound1000
+            phrase: point nine eight two
+            targets:
+              - ba-wilson-construction-bound1000
+            color: cyan
+            linger: 0.4
+  - id: paired-diagnosis
+    title: Retain the cases that improved and the ones that broke
+    visual: Construct the actual paired2×2 outcome table. Remove concordant cells from the McNemar
+      calculation while keeping their identities available; enumerate fair-coin allocations of the
+      discordant cases and highlight both tails.
+    beats:
+      - say: "Compare replacements on the same cases. Build four cells: both pass, both fail, baseline-only
+          pass and candidate-only pass. The latter two identify regressions and fixes. McNemar’s
+          equal-marginal null uses only those discordant counts. Conditional on their total and
+          independent cases under this null, either direction has probability one half. Shared easy
+          and hard cases remain paired instead of becoming unrelated samples."
+        hold: 0.7
+        visual_cues:
+          - id: paired-diagnosis-phase-0
+            phrase: Compare replacements on the same cases
+            targets:
+              - paired-diagnosis-mechanism
+            color: cyan
+            linger: 0.55
+          - id: ba-paired-diagnosis-cells
+            phrase: Build four cells
+            targets:
+              - ba-paired-diagnosis-cells
+            color: cyan
+            linger: 0.4
+          - id: ba-paired-diagnosis-discordant
+            phrase: only those discordant counts
+            targets:
+              - ba-paired-diagnosis-discordant
+            color: cyan
+            linger: 0.4
+          - id: ba-paired-diagnosis-coins
+            phrase: probability one half
+            targets:
+              - ba-paired-diagnosis-coins
+            color: cyan
+            linger: 0.4
+      - say: For the exact two-sided calculation, sum binomial coefficients from zero through the smaller
+          discordant count, divide by two raised to the total discordant count, double that
+          lower-tail probability, and cap the result at one. The executed nine-fix, one-break
+          example gives about point zero two one five. Three fixes and one break gives point six two
+          five; five fixes and no breaks still gives point zero six two five.
+        hold: 0.7
+        visual_cues:
+          - id: paired-diagnosis-phase-1
+            phrase: For the exact two-sided calculation, sum binomial coefficients from zero through the smaller
+              discordant count, divide by two raised to the total discordant count, double that
+              lower-tail probability, and cap the result at one
+            targets:
+              - paired-diagnosis-mechanism
+            color: cyan
+            linger: 0.55
+          - id: paired-nine-one
+            phrase: point zero two one five
+            targets:
+              - paired-diagnosis-mechanism
+            color: yellow
+            linger: 0.45
+          - id: paired-three-one
+            phrase: point six two five
+            targets:
+              - paired-diagnosis-mechanism
+            color: yellow
+            linger: 0.45
+          - id: paired-five-zero
+            phrase: point zero six two five
+            targets:
+              - paired-diagnosis-mechanism
+            color: yellow
+            linger: 0.45
+          - id: ba-paired-diagnosis-exact
+            phrase: double that lower-tail probability
+            targets:
+              - ba-paired-diagnosis-exact
+            color: cyan
+            linger: 0.4
+          - id: ba-paired-diagnosis-nine
+            phrase: point zero two one five
+            targets:
+              - ba-paired-diagnosis-nine
+            color: cyan
+            linger: 0.4
+          - id: ba-paired-diagnosis-three
+            phrase: point six two five
+            targets:
+              - ba-paired-diagnosis-three
+            color: cyan
+            linger: 0.4
+          - id: ba-paired-diagnosis-five
+            phrase: point zero six two five
+            targets:
+              - ba-paired-diagnosis-five
+            color: cyan
+            linger: 0.4
+      - say: A small p-value is evidence against the specified equal-marginal null under its assumptions,
+          not the probability that a useful improvement is real. Read broken cases and check
+          critical gates separately. Near-duplicate cases undermine independence. For variable
+          hosted outputs, predeclare how repeats become each case’s pass or fail, and preserve those
+          repeated runs rather than choosing their best answer.
+        hold: 0.7
+        visual_cues:
+          - id: paired-diagnosis-phase-2
+            phrase: A small p-value is evidence against the specified equal-marginal null under its assumptions,
+              not the probability that a useful improvement is real
+            targets:
+              - paired-diagnosis-mechanism
+            color: cyan
+            linger: 0.55
+          - id: ba-paired-diagnosis-broken
+            phrase: Read broken cases
+            targets:
+              - ba-paired-diagnosis-broken
+            color: cyan
+            linger: 0.4
+  - id: gates
+    title: Check quality and operational limits together
+    visual: Three separate release candidates enter a quality-versus-latency plot. The quality boundary
+      appears, then the latency boundary, while cost and schema checks determine the final
+      eligibility labels.
+    beats:
+      - say: Consider three separate release candidates with the supplied measurements shown here. Begin
+          with the quality requirement. The fast candidate falls below it. Balanced and specialist
+          clear this point-estimate check, so we continue with their operational measurements.
+        hold: 0.65
+        motion_check:
+          region:
+            - 1190
+            - 330
+            - 620
+            - 650
+          minimumChangedFraction: 0.002
+        visual_cues:
+          - id: gates-beat-1-focus-1
+            phrase: Balanced and specialist clear this point-estimate check
+            targets:
+              - gates-simulation-39
+            color: blue
+            linger: 0.6
+          - id: gates-beat-1-focus-2
+            phrase: Consider three separate release candidates with the supplied measurements shown here
+            targets:
+              - gates-object-point-x-point-y-11-color-40
+            color: blue
+            linger: 0.6
+      - say: Add the interactive latency limit. Specialist lies above it, while balanced stays inside the
+          permitted region. Every point keeps its identity as the boundaries appear. A different
+          workflow could justify different limits and would need a fresh evaluation of its own.
+        hold: 0.7
+        visual_cues:
+          - id: gates-beat-2-focus-1
+            phrase: Specialist lies above it
+            targets:
+              - gates-simulation-39
+            color: blue
+            linger: 0.6
+          - id: gates-beat-2-focus-2
+            phrase: Add the interactive latency limit
+            targets:
+              - gates-object-point-x-point-y-11-color-40
+            color: blue
+            linger: 0.6
+      - say: Finally inspect schema validity and cost. Balanced clears all four supplied checks. This is an
+          eligibility result for the displayed measurements. A release report must still include
+          critical categories, sampling uncertainty, and evidence from the actual request path.
+        hold: 0.75
+        visual_cues:
+          - id: gates-beat-3-focus-1
+            phrase: Balanced clears all four supplied checks
+            targets:
+              - gates-simulation-39
+            color: blue
+            linger: 0.6
+          - id: gates-beat-3-focus-2
+            phrase: Finally inspect schema validity and cost
+            targets:
+              - gates-object-point-x-point-y-11-color-40
+            color: blue
+            linger: 0.6
+          - id: ba-gates-cost
+            phrase: inspect schema validity and cost
+            targets:
+              - ba-gates-cost
+            color: cyan
+            linger: 0.4
+  - id: finite-report
+    title: Validate the evidence before applying the release rule
+    visual: Decode the exact candidate metric tuple. Send Boolean,NaN,infinite,missing and out-of-range
+      values through the actual strict reference validator, then apply the separate
+      quality/schema/latency/cost gates only to a valid tuple.
+    beats:
+      - say: A gate cannot interpret missing or invalid evidence as a good measurement. The reference
+          validator requires actual integer or float metric values, rejects Booleans, checks
+          finiteness and valid rate ranges, and rejects negative latency or cost. It also catches
+          integer telemetry too large for its floating-point validation. Check the domain before
+          reading a point estimate against a threshold.
+        hold: 0.7
+        visual_cues:
+          - id: finite-report-phase-0
+            phrase: A gate cannot interpret missing or invalid evidence as a good measurement
+            targets:
+              - finite-report-mechanism
+            color: cyan
+            linger: 0.55
+          - id: ba-finite-report-typed
+            phrase: rejects Booleans
+            targets:
+              - ba-finite-report-typed
+            color: cyan
+            linger: 0.4
+          - id: ba-finite-report-domain
+            phrase: negative latency or cost
+            targets:
+              - ba-finite-report-domain
+            color: cyan
+            linger: 0.4
+      - say: Ordered comparisons such as NaN less than a quality floor and NaN greater than a latency
+          ceiling are both false. A naive reject-if-bad rule can therefore admit a report with
+          neither measurement. The executed mutation fixture rejects that invalid record. The
+          simpler reader-edition finite-value helper demonstrates this NaN trap; it is not the full
+          strict typed reference validator.
+        hold: 0.7
+        visual_cues:
+          - id: finite-report-phase-1
+            phrase: Ordered comparisons such as NaN less than a quality floor and NaN greater than a latency
+              ceiling are both false
+            targets:
+              - finite-report-mechanism
+            color: cyan
+            linger: 0.55
+          - id: invalid-nan
+            phrase: rejects that invalid record
+            targets:
+              - finite-report-mechanism
+            color: yellow
+            linger: 0.45
+          - id: ba-finite-report-nan
+            phrase: both false
+            targets:
+              - ba-finite-report-nan
+            color: cyan
+            linger: 0.4
+          - id: ba-finite-report-reject
+            phrase: rejects that invalid record
+            targets:
+              - ba-finite-report-reject
+            color: pink
+            linger: 0.4
+      - say: Valid metrics still face separate gates. A quality pass cannot compensate for a schema,
+          latency, cost or critical-slice failure. The article’s supplied fast, balanced and
+          specialist candidates illustrate eligibility for their stated point estimates. A slower
+          route needs its own evaluation. These pure functions propose a decision; they do not
+          authenticate telemetry, execute a model, route traffic or establish production safety.
+        hold: 0.7
+        visual_cues:
+          - id: finite-report-phase-2
+            phrase: Valid metrics still face separate gates
+            targets:
+              - finite-report-mechanism
+            color: cyan
+            linger: 0.55
+          - id: ba-finite-report-scope
+            phrase: pure functions propose a decision
+            targets:
+              - ba-finite-report-scope
+            color: cyan
+            linger: 0.4
+  - id: reproducible-package
+    title: Bind the score to the evidence that produced it
+    visual: Build one retained record from exact question ID,final context,source versions,answer,scorer
+      and per-case outcomes. Keep declared hosted-model identity beside actual run date and repeat
+      evidence, then expose the confounded report.
+    beats:
+      - say: Preserve dataset version and case IDs, the final input context and policy versions, model
+          identity, prompt and decoding settings, tools, output schema and scorer version. Keep
+          actual outputs, failed cases, timing and cost boundaries. Record all attempt work,
+          including timeouts. A scalar score or a matching manifest cannot recreate missing evidence
+          or establish that a run really occurred.
+        hold: 0.7
+        visual_cues:
+          - id: reproducible-package-phase-0
+            phrase: Preserve dataset version and case IDs, the final input context and policy versions, model
+              identity, prompt and decoding settings, tools, output schema and scorer version
+            targets:
+              - reproducible-package-mechanism
+            color: cyan
+            linger: 0.55
+          - id: ba-reproducible-package-outputs
+            phrase: actual outputs
+            targets:
+              - ba-reproducible-package-outputs
+            color: cyan
+            linger: 0.4
+          - id: ba-reproducible-package-missing
+            phrase: cannot recreate missing evidence
+            targets:
+              - ba-reproducible-package-missing
+            color: cyan
+            linger: 0.4
+      - say: For hosted models, pin a dated snapshot when available and record the run date. Outputs can
+          still vary under deterministic-looking settings, so repeat under a fixed protocol and
+          rerun the baseline contemporaneously. The article’s suspicious report changes model and
+          top-three retrieval to top-five, tunes its judge on holdout cases and accepts negated
+          approval. Freeze the full system and validated evaluator, move exposed cases to regression
+          and repeat an untouched matched comparison.
+        hold: 0.7
+        visual_cues:
+          - id: reproducible-package-phase-1
+            phrase: For hosted models, pin a dated snapshot when available and record the run date
+            targets:
+              - reproducible-package-mechanism
+            color: cyan
+            linger: 0.55
+          - id: ba-reproducible-package-repeat
+            phrase: repeat under a fixed protocol
+            targets:
+              - ba-reproducible-package-repeat
+            color: cyan
+            linger: 0.4
+          - id: ba-reproducible-package-changed
+            phrase: top-five
+            targets:
+              - ba-reproducible-package-changed
+            color: cyan
+            linger: 0.4
+          - id: ba-reproducible-package-repair
+            phrase: repeat an untouched matched comparison
+            targets:
+              - ba-reproducible-package-repair
+            color: cyan
+            linger: 0.4
+  - id: synthesis
+    title: Make the result inspectable
+    visual: The score unfolds into a report with its frozen contract, case identities, reviewed
+      failures, exposure history, sample sizes, and operational measurements.
+    beats:
+      - say: We began with a single score and recovered the experiment behind it. The contract tells us what
+          was compared. Checker probes reveal scoring failures. Categories expose concentrated
+          mistakes. Candidate-set metrics, exposure records, and sample sizes explain the remaining
+          scope of the claim.
+        hold: 0.65
+        visual_cues:
+          - id: synthesis-beat-1-focus-1
+            phrase: We began with a single score and recovered the experiment behind it
+            targets:
+              - synthesis-object-evaluation-report-45
+            color: blue
+            linger: 0.6
+      - say: Before adopting the next model, freeze a relevant evaluation, preserve its provenance, inspect
+          its failures, and record the operational tradeoffs. A useful benchmark gives another
+          person enough evidence to rerun the experiment and understand why its result matters.
+        hold: 0.9
+        visual_cues:
+          - id: synthesis-beat-2-focus-1
+            phrase: freeze a relevant evaluation
+            targets:
+              - synthesis-object-evaluation-report-45
+            color: blue
+            linger: 0.6
+  - id: fresh-report
+    title: Does a statistically detectable gain clear the critical gate?
+    visual: Keep a new200-case archive-service packet distinct from the opening100-question library
+      example. Construct10fixes/2breaks,retain the two broken IDs,and hold the9/10critical-slice
+      lower-bound result until the spoken reveal.
+    beats:
+      - say: Predict a fresh archive-service decision. A separate supplied packet evaluates the same two
+          hundred independent cases under one pinned system contract. Baseline passes one hundred
+          eighty; candidate one hundred eighty-eight. Ten cases are fixed and two are broken. The
+          critical permission slice passes nine of ten, and its predeclared gate requires the lower
+          end of a two-sided ninety-five-percent Wilson interval to reach point eight five. Does the
+          aggregate gain authorize release? Pause.
+        hold: 1.5
+        visual_cues:
+          - id: fresh-report-phase-0
+            phrase: Predict a fresh archive-service decision
+            targets:
+              - fresh-report-mechanism
+            color: cyan
+            linger: 0.55
+          - id: fresh-predict
+            phrase: Does the aggregate gain authorize release
+            targets:
+              - fresh-report-mechanism
+            color: yellow
+            linger: 0.45
+          - id: ba-fresh-report-premise
+            phrase: Ten cases are fixed and two are broken
+            targets:
+              - ba-fresh-report-premise
+            color: cyan
+            linger: 0.4
+          - id: ba-fresh-report-critical
+            phrase: nine of ten
+            targets:
+              - ba-fresh-report-critical
+            color: cyan
+            linger: 0.4
+      - say: "The paired test conditions on twelve disagreements. Zero, one or two changes in the less
+          common direction have binomial counts one, twelve and sixty-six. Double their sum and
+          divide by four thousand ninety-six: about point zero three eight six. That is evidence
+          against equal marginal pass rates under the given assumptions. The permission slice’s
+          Wilson lower endpoint is only about point five nine six, below point eight five."
+        hold: 0.7
+        visual_cues:
+          - id: fresh-report-phase-1
+            phrase: The paired test conditions on twelve disagreements
+            targets:
+              - fresh-report-mechanism
+            color: cyan
+            linger: 0.55
+          - id: fresh-paired-p
+            phrase: point zero three eight six
+            targets:
+              - fresh-report-mechanism
+            color: yellow
+            linger: 0.45
+          - id: fresh-slice-bound
+            phrase: point five nine six
+            targets:
+              - fresh-report-mechanism
+            color: yellow
+            linger: 0.45
+          - id: ba-fresh-report-coin
+            phrase: one, twelve and sixty-six
+            targets:
+              - ba-fresh-report-coin
+            color: cyan
+            linger: 0.4
+          - id: ba-fresh-report-pvalue
+            phrase: point zero three eight six
+            targets:
+              - ba-fresh-report-pvalue
+            color: cyan
+            linger: 0.4
+          - id: ba-fresh-report-bound
+            phrase: point five nine six, below point eight five
+            targets:
+              - ba-fresh-report-bound
+            color: cyan
+            linger: 0.4
+      - say: "Hold this candidate. Keep both broken case identities and inspect the permission failure instead of letting the aggregate buy it back. Repair the gold, evidence path, generation or evaluator boundary actually implicated by the retained record. Cases used to choose that repair become regression; a new frozen comparison needs untouched evidence. You can now recover a benchmark claim’s contract, calculation, failure and decision without treating one impressive score as permission. Instruction tuning next follows the input behind those answers: chat roles, serialized markers and scored targets determine which demonstrated behavior the model learns."
+        hold: 0.7
+        visual_cues:
+          - id: fresh-report-phase-2
+            phrase: Hold this candidate
+            targets:
+              - fresh-report-mechanism
+            color: cyan
+            linger: 0.55
+          - id: fresh-hold
+            phrase: Hold this candidate
+            targets:
+              - fresh-report-mechanism
+            color: yellow
+            linger: 0.45
+          - id: ba-fresh-report-hold
+            phrase: Hold this candidate
+            targets:
+              - ba-fresh-report-hold
+            color: pink
+            linger: 0.4
+          - id: ba-fresh-report-broken
+            phrase: both broken case identities
+            targets:
+              - ba-fresh-report-broken
+            color: cyan
+            linger: 0.4
+          - id: ba-fresh-report-regression
+            phrase: become regression
+            targets:
+              - ba-fresh-report-regression
+            color: cyan
+            linger: 0.4

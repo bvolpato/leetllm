@@ -1,0 +1,827 @@
+version: 1
+id: differential-privacy
+title: Differential Privacy for a Support Copilot
+source: llmops/privacy-preserving-ml-differential-privacy/content.md
+sources:
+  - title: Abadi et al. Deep Learning with Differential Privacy
+    url: https://arxiv.org/abs/1607.00133
+  - title: Dwork and Roth The Algorithmic Foundations of Differential Privacy
+    url: https://www.cis.upenn.edu/~aaroth/Papers/privacybook.pdf
+  - title: Opacus Privacy Engine documentation
+    url: https://opacus.ai/api/privacy_engine.html
+  - title: Mironov, Rényi Differential Privacy
+    url: https://arxiv.org/abs/1702.07476
+  - title: "Hu et al., LoRA: Low-Rank Adaptation of Large Language Models"
+    url: https://arxiv.org/abs/2106.09685
+scenes:
+  - id: intro
+    title: Support tickets in the training sum
+    visual: Alice’s second support ticket slides beside her first. Ticket widths show their contributions.
+      Both tickets lift out of the lower sum together, leaving Bao’s quarter in place.
+    beats:
+      - say: Alice filed both blue tickets. Each adds three quarters to the training sum, so each fits under
+          the limit of one per ticket. Bao’s ticket adds a quarter.
+        hold: 0.65
+        caption_starts: [Each adds three quarters, Bao’s ticket adds a quarter]
+        visual_cues:
+          - id: first-ticket
+            phrase: Alice filed both blue tickets
+            targets:
+              - alice-tickets
+            linger: 0.25
+          - id: ticket-limit
+            phrase: the limit of one per ticket
+            targets:
+              - ticket-limit
+            linger: 0.25
+      - say: The team wants each customer to change the sum by at most one. Look at the copy below.
+          If Alice leaves, how far does the sum fall?
+        hold: 2.6
+        caption_starts: [If Alice leaves]
+        visual_cues:
+          - id: compare-copy
+            phrase: Look at the copy below
+            targets:
+              - customer-sums
+            linger: 0.25
+      - say: Lift out both of Alice’s tickets. Only Bao’s quarter stays. The sum fell by one and a half.
+          A noise calculation that assumes a change of at most one starts from too small a bound.
+        hold: 1.1
+        caption_starts: [Only Bao’s quarter stays, The sum fell by one and a half]
+        visual_cues:
+          - id: remove-alice
+            phrase: Lift out both of Alice’s tickets
+            targets:
+              - customer-sums
+            linger: 0.25
+          - id: measure-change
+            phrase: The sum fell by one and a half
+            targets:
+              - customer-sums
+            linger: 0.25
+  - id: adjacency
+    title: Which change does the promise cover?
+    visual: Two copies of a message grid keep ticket and customer ownership visible. One message, one ticket
+      and all twelve of Alice’s messages disappear in turn.
+    beats:
+      - say: Now open Alice’s whole history. She has twelve messages across three tickets. Start with two
+          identical copies. Remove just the last message from the lower copy. That pair tests a promise
+          about one message.
+        hold: 0.65
+        visual_cues:
+          - id: one-message
+            phrase: Remove just the last message
+            targets:
+              - message-grid
+            linger: 0.25
+      - say: Reset the copy and remove the last ticket. Four messages disappear together. A ticket-level promise
+          covers that change.
+        hold: 0.6
+        visual_cues:
+          - id: one-ticket
+            phrase: remove the last ticket
+            targets:
+              - message-grid
+            linger: 0.25
+      - say: Reset once more and remove Alice. Bao’s ticket stays. All twelve of Alice’s messages go, wherever
+          they were filed. That pair of datasets differs by one customer. Differential privacy calls them
+          neighbors. The customer is our protected unit, and adding or removing one whole unit is our rule
+          for forming neighbors.
+        hold: 1
+        visual_cues:
+          - id: one-customer
+            phrase: remove Alice
+            targets:
+              - message-grid
+            linger: 0.25
+  - id: user-aggregate
+    title: One customer’s contribution
+    visual: The opening sums return on the same scale. Alice’s two pieces join, stop at one, and yield a
+      normalized difference of one half.
+    beats:
+      - say: Return to the two tickets that exposed the problem. Join Alice’s tickets into one contribution. It
+          still measures one and a half. If we cap that whole piece at one, how far apart will the sums be?
+        hold: 2.1
+        visual_cues:
+          - id: group-tickets
+            phrase: Join Alice’s tickets into one contribution
+            targets:
+              - customer-sums
+            linger: 0.25
+      - say: Clip Alice’s combined contribution to one. Bao’s quarter stays put. Now removing Alice changes the
+          sum by exactly one. Even a customer with a hundred tickets can move this sum by at most one,
+          because only one bounded contribution per customer enters it. That largest possible change is the
+          sensitivity.
+        hold: 0.9
+        caption_starts: [Now removing Alice changes the sum]
+        visual_cues:
+          - id: clip-customer
+            phrase: Clip Alice’s combined contribution to one
+            targets:
+              - customer-sums
+            linger: 0.25
+      - say: Divide both sums by the same public number, two. The gap shrinks to a half. These are the values
+          before noise. For a private update, add calibrated noise to the clipped sum before dividing.
+          Using the number of customers still present as the divisor would change this calculation when
+          Alice leaves.
+        hold: 1
+        visual_cues:
+          - id: divide-both
+            phrase: Divide both sums by the same public number, two
+            targets:
+              - customer-sums
+            linger: 0.25
+  - id: definition
+    title: How likely is the same event?
+    visual: A fixed neighbor probability anchors a ruler. A candidate event sits beyond the pure-DP interval,
+      then inside the widened interval after delta is added.
+    beats:
+      - say: Suppose the service randomizes the sum before it releases it. Look at one event, a released total of
+          at least two. Without Alice, suppose that happens once in a thousand runs. Keep each dataset
+          fixed. The probability comes from the randomness inside the release.
+        hold: 0.8
+        visual_cues:
+          - id: fix-event
+            phrase: a released total of at least two
+            targets:
+              - event-ruler
+            linger: 0.25
+      - say: Starting at zero, raise epsilon to one half. With delta at zero, the event can be at most about one
+          point six five times as likely with Alice as without her. Swap the datasets and the same rule
+          applies. That gives the blue interval both an upper and a lower end.
+        hold: 0.9
+        visual_cues:
+          - id: allow-ratio
+            phrase: raise epsilon to one half
+            targets:
+              - event-ruler
+            linger: 0.25
+      - say: Try the pink point. With Alice present, the proposed probability is seventeen in ten thousand. Does
+          it fit when delta is zero?
+        hold: 2.2
+        visual_cues:
+          - id: test-event
+            phrase: Try the pink point
+            targets:
+              - event-ruler
+            linger: 0.25
+      - say: It sits just past the upper end. Add one ten-thousandth of slack to each inequality. The point now
+          fits. Delta is that additive allowance on event probabilities. To establish differential privacy,
+          the mechanism has to satisfy both directions for every event on every neighboring pair.
+        hold: 1.2
+        caption_starts: [Add one ten-thousandth of slack, The point now fits]
+        visual_cues:
+          - id: add-slack
+            phrase: Add one ten-thousandth of slack to each inequality
+            targets:
+              - event-ruler
+            linger: 0.25
+  - id: attack-evidence
+    title: What does the audit actually observe?
+    visual: Two labeled synthetic documents tie on target loss. A reference model separates their difficulty.
+      A separate two-outcome example gives delta a denominator.
+    beats:
+      - say: Here are two synthetic audit documents. The model assigns both the same low loss. It finds both
+          phrases easy to predict. Could those tied scores tell us which document was in training?
+        hold: 2
+        visual_cues:
+          - id: compare-loss
+            phrase: both the same low loss
+            targets:
+              - loss-audit
+            linger: 0.25
+      - say: Compare a reference model. It also finds the public phrase easy, and the second phrase much harder.
+          That comparison helps account for text difficulty in a membership inference test. Compressed length can serve a similar purpose.
+          Open the known labels. Calling both documents members would give one false positive. Check for
+          missed members too. An extraction audit checks whether the model reproduces a training passage.
+          Report which synthetic passages it reproduced on the audit set.
+        hold: 0.9
+        caption_starts: [Open the known labels, An extraction audit checks]
+        visual_cues:
+          - id: read-reference
+            phrase: Compare a reference model
+            targets:
+              - loss-audit
+            linger: 0.25
+          - id: open-labels
+            phrase: Open the known labels
+            targets:
+              - loss-audit
+            linger: 0.25
+      - say: Pick one of these twenty squares at random, each with the same chance. Nineteen return the same
+          constant for either dataset. The last square releases the whole input. Changing one customer
+          can therefore change an event’s probability by at most one twentieth. That gives this mechanism
+          epsilon zero and delta point zero five. On that outcome, everyone’s data comes out together.
+          Choose delta with the number of customers and the harm of disclosure in mind. A private model
+          can still learn patterns shared by many customers.
+        hold: 1.1
+        caption_starts: [The last square releases the whole input, That gives this mechanism]
+        visual_cues:
+          - id: whole-input
+            phrase: The last square releases the whole input
+            targets:
+              - delta-example
+            linger: 0.25
+          - id: delta-bound
+            phrase: That gives this mechanism epsilon zero and delta point zero five
+            targets:
+              - delta-example
+            linger: 0.25
+  - id: private-mechanisms
+    title: Which probability or distance sets the noise?
+    visual: A two-output table checks local randomized response. A diagonal and a two-leg path measure the
+      same displacement for Gaussian and Laplace calibration.
+    beats:
+      - say: Try a release with only two possible answers. A customer reports the true bit three times out of
+          four and flips it the rest of the time. Read down the first output column. Seeing a zero is three
+          times as likely on one input. The other column reverses the roles. The largest ratio is three.
+          Taking its natural log gives epsilon about one point one, with delta zero. Checking both
+          individual outputs covers every event here. Randomizing on the customer’s device protects the
+          report before the collector sees it. This is local differential privacy.
+        hold: 1
+        visual_cues:
+          - id: private-mechanisms-b1
+            phrase: Read down the first output column
+            targets:
+              - private-mechanisms-mechanism
+            linger: 0.25
+          - id: dp-result-private-mechanisms-rr-ratio
+            phrase: The largest ratio is three
+            targets:
+              - private-mechanisms-mechanism
+            linger: 0.25
+          - id: dp-result-private-mechanisms-rr-epsilon
+            phrase: Taking its natural log gives epsilon about one point one
+            targets:
+              - private-mechanisms-mechanism
+            linger: 0.25
+      - say: For a numeric release, look at the change between neighbors. This change goes one across and one up.
+          Along the axes the distances add to two. Directly across the diagonal the length is the square
+          root of two. For independent Laplace noise on each coordinate, divide the largest axis-distance
+          sum by epsilon. That gives pure differential privacy. Gaussian calibration uses the largest
+          straight-line distance. Across many coordinates the two distances can differ by a factor as large
+          as the square root of the dimension.
+        hold: 0.9
+        visual_cues:
+          - id: private-mechanisms-b2
+            phrase: Along the axes the distances add to two
+            targets:
+              - private-mechanisms-mechanism
+            linger: 0.25
+          - id: measure-diagonal
+            phrase: Directly across the diagonal
+            targets:
+              - private-mechanisms-mechanism
+            linger: 0.25
+      - say: For a single Gaussian release, this classical rule gives a sufficient standard deviation. It applies
+          when epsilon and delta are both strictly between zero and one. Start with the largest
+          straight-line change. A smaller epsilon or a smaller delta raises the required scale in this
+          formula. Analytical Gaussian calibration uses the Gaussian distribution directly. For repeated
+          steps, carry the actual mechanism into the accountant.
+        hold: 1
+        visual_cues:
+          - id: private-mechanisms-b3
+            phrase: this classical rule gives a sufficient standard deviation
+            targets:
+              - private-mechanisms-mechanism
+            linger: 0.25
+  - id: clip
+    title: Where does this gradient meet the circle?
+    visual: A short vector stays inside the circle as a length-five gradient contracts on its original ray. A
+      magnified norm ruler tests a rounding decision.
+    beats:
+      - say: For a training step, the contribution is a gradient, an arrow telling the optimizer how the loss
+          changes. Let’s work one record at a time under a record-level promise. The yellow circle marks
+          length one. The little blue arrow already fits. A zero gradient would also stay where it is.
+        hold: 0.55
+        visual_cues:
+          - id: record-gradient
+            phrase: The yellow circle marks length one
+            targets:
+              - gradient-plane
+            linger: 0.25
+      - say: Record four points three units across and four up. Its length is five. Keep its direction. Where
+          does that arrow meet the circle?
+        hold: 2.5
+        visual_cues:
+          - id: predict-tip
+            phrase: Where does that arrow meet the circle
+            targets:
+              - gradient-plane
+            linger: 0.25
+      - say: Shrink both coordinates by one fifth. The tip lands at point six, point eight. Any longer gradient
+          gets scaled by the bound divided by its length. Clip each record before you sum. If you clip only
+          a finished batch average, two neighbors can land on opposite sides of the circle, two units
+          apart.
+        hold: 1.1
+        caption_starts: [The tip lands at point six]
+        visual_cues:
+          - id: shorten-vector
+            phrase: Shrink both coordinates by one fifth
+            targets:
+              - gradient-plane
+            linger: 0.25
+      - say: This tip sits exactly on the circle. Both coordinates are one over the square root of two.
+          Round both coordinates to point seven one and watch the dot cross the limit. Those rounded values
+          give a length just over one. Sum the clipped coordinates at full working precision.
+          Round the numbers you display.
+        hold: 1.1
+        caption_starts: [Round both coordinates to point seven one, Those rounded values]
+        visual_cues:
+          - id: round-coordinates
+            phrase: Round both coordinates to point seven one and watch the dot cross the limit
+            targets:
+              - precision-ruler
+            linger: 0.25
+  - id: noise
+    title: Follow one record into a noisy sum
+    visual: A common two-record sum anchors the plot. R4 extends it by one unit. A separate noise arrow then
+      moves the endpoint. A ruler measures replacement sensitivity.
+    beats:
+      - say: The blue arrow is the sum of the other two records. Add the clipped record we just made. Its tip
+          takes us from the sum without record four to the sum with it. The segment between those points
+          has length one. Removing a record takes us back along its own segment.
+        hold: 0.8
+        visual_cues:
+          - id: add-record
+            phrase: Add the clipped record we just made
+            targets:
+              - sum-plane
+            linger: 0.25
+      - say: For add or remove neighbors, the maximum segment length is C. Give each coordinate of the Gaussian
+          sum noise a standard deviation of sigma times C. Here is one illustrative draw. It adds point two
+          horizontally and subtracts point three vertically. Where will the noisy sum land?
+        hold: 2.2
+        visual_cues:
+          - id: draw-offset
+            phrase: Here is one illustrative draw
+            targets:
+              - sum-plane
+            linger: 0.25
+      - say: Go right and down from the clipped sum. The new endpoint is one point eight, one point six. Another
+          draw would usually land elsewhere. It takes the noise distribution and the whole training
+          schedule to turn that sensitivity bound into a privacy guarantee.
+        hold: 0.9
+        caption_starts: [The new endpoint is one point eight]
+        visual_cues:
+          - id: apply-draw
+            phrase: Go right and down from the clipped sum
+            targets:
+              - sum-plane
+            linger: 0.25
+      - say: Replace the record at minus C with one at plus C. The other records stay put. The sum travels two
+          radii, so replacement sensitivity is two C. Now divide both sums by three, the same public
+          divisor for both datasets. Watch the gap shrink to two C over three. Dividing the noisy sum also
+          divides each coordinate’s noise standard deviation by three.
+        hold: 1.1
+        caption_starts: [The sum travels two radii, Now divide both sums by three, Watch the gap shrink]
+        visual_cues:
+          - id: swap-record
+            phrase: Replace the record at minus C with one at plus C
+            targets:
+              - neighbor-ruler
+            linger: 0.25
+          - id: fixed-division
+            phrase: Now divide both sums by three
+            targets:
+              - neighbor-ruler
+            linger: 0.25
+          - id: shrink-gap
+            phrase: Watch the gap shrink to two C over three
+            targets:
+              - neighbor-ruler
+            linger: 0.25
+          - id: divide-noise
+            phrase: divides each coordinate’s noise standard deviation by three
+            targets:
+              - neighbor-ruler
+            linger: 0.25
+  - id: compose
+    title: Which sampler produced these steps?
+    visual: Two possible Poisson samples are drawn from four customers. Their sizes differ while the public
+      divisor stays at two.
+    beats:
+      - say: Go back to whole customers and clip each customer’s combined update. On this step, give each of the
+          four customers an independent half chance of getting picked. This time we get Alice and Cai. The
+          trusted training service sees the raw contributions and adds noise before releasing anything.
+        hold: 0.8
+        visual_cues:
+          - id: draw-one
+            phrase: This time we get Alice and Cai
+            targets:
+              - sampler
+            linger: 0.25
+      - say: Draw again on the next step. This time only Bao gets picked. This is Poisson sampling. The count can
+          vary while the public divisor stays at two. Add Gaussian noise to the sampled, clipped sum,
+          divide by that fixed number, and subtract the learning rate times the result from the weights.
+          With accounting across steps, this is differentially private stochastic gradient descent, or DP-SGD.
+        hold: 0.8
+        visual_cues:
+          - id: draw-two
+            phrase: This time only Bao gets picked
+            targets:
+              - sampler
+            linger: 0.25
+      - say: An engineer proposes shuffling the same four customers into fixed pairs. That also samples half
+          the customers per step on average. Could a shuffle into fixed batches of two produce the second row?
+        hold: 2.2
+        visual_cues:
+          - id: compare-sampler
+            phrase: Could a shuffle into fixed batches of two produce the second row
+            targets:
+              - sampler
+            linger: 0.25
+      - say: Bao was on his own. A fixed pair always contains two customers. A privacy accountant that assumes
+          independent inclusion analyzes a different distribution. Any amplification from sampling depends
+          on how units are picked and on keeping their identities private.
+        hold: 0.8
+        visual_cues:
+          - id: explain-sampler
+            phrase: Bao was on his own
+            targets: [sampler]
+            linger: 0.25
+      - say: Repeated updates can all affect the final weights. Use an accountant that matches the sampler you
+          ran. Record its version, the customer rule, the clipping and noise settings, how many steps ran,
+          the target delta, and which releases it covers.
+        hold: 0.9
+        visual_cues:
+          - id: account-run
+            phrase: Use an accountant that matches the sampler you ran
+            targets:
+              - sampler
+            linger: 0.25
+  - id: utility
+    title: What happened to the update direction?
+    visual: The clipped mean stays fixed. A perpendicular offset moves its endpoint and changes the cosine
+      between the clean and perturbed updates. The clipping count stays fixed.
+    beats:
+      - say: Take four record gradients and clip them at one. The blue arrow is their mean. Add an offset at
+          right angles to that arrow. Keep the direction of the offset fixed and stretch it. The endpoint
+          swings away from the original direction, and the cosine on the right falls.
+        hold: 0.8
+        visual_cues:
+          - id: clipped-mean
+            phrase: The blue arrow is their mean
+            targets:
+              - mean-gradient
+            linger: 0.25
+          - id: grow-noise
+            phrase: Keep the direction of the offset fixed and stretch it
+            targets:
+              - noise-direction
+            linger: 0.25
+        motion_check:
+          region:
+            - 180
+            - 380
+            - 1540
+            - 520
+          minimumChangedFraction: 0.002
+      - say: One of the four gradients was too long. The clipping count stayed at one the whole time the pink
+          offset grew. Clipping happened before noise. Raising or lowering the clipping bound would change
+          which gradients get shortened and could change the direction of the mean itself.
+        hold: 0.8
+        visual_cues:
+          - id: clipping-diagnostic
+            phrase: One of the four gradients was too long
+            targets:
+              - clipping-rate
+            linger: 0.25
+      - say: The cosine measures alignment. To learn whether the copilot still does its job, measure accuracy and
+          calibration on held-out tasks under the same training plan. If private validation affects the
+          released model, its data use belongs in the privacy analysis too.
+        hold: 0.9
+        visual_cues:
+          - id: proxy-limit
+            phrase: The cosine measures alignment
+            targets:
+              - cosine-curve
+            linger: 0.25
+  - id: coordinate-noise
+    title: How many coordinates receive noise?
+    visual: Equal Gaussian coordinate variances add to the expected squared length. Full weights and adapter
+      coordinates get labeled sum and parameter-step RMS values.
+    beats:
+      - say: Each square stands for a trainable coordinate. Each gets an independent, zero-mean Gaussian
+          perturbation with standard deviation sigma C. Add the expected squared lengths, one per
+          coordinate. Taking the square root gives sigma C times the square root of the number of
+          coordinates. That is the root mean square length of the sum noise. To get its effect on a
+          parameter step, divide by the fixed public divisor and multiply by the learning rate.
+        hold: 0.85
+        visual_cues:
+          - id: coordinate-noise-b1
+            phrase: Add the expected squared lengths, one per coordinate
+            targets:
+              - coordinate-noise-mechanism
+            linger: 0.25
+      - say: Compare five million trainable adapter coordinates with seven billion full-model coordinates. Keep
+          the per-coordinate standard deviation at one in both. The full model gets fourteen hundred times
+          the expected squared noise length. Take the square root. Its root mean square length is about
+          thirty-seven times as large. That ratio survives the same division and learning rate. How much
+          model behavior changes depends on the parameterization. Measure accuracy, and get the privacy
+          bound from the accountant.
+        hold: 0.8
+        visual_cues:
+          - id: coordinate-noise-b2
+            phrase: Compare five million trainable adapter coordinates with seven billion full-model coordinates
+            targets:
+              - coordinate-noise-mechanism
+            linger: 0.25
+          - id: dp-result-coordinate-noise-energy-ratio
+            phrase: fourteen hundred times the expected squared noise length
+            targets:
+              - coordinate-noise-mechanism
+            linger: 0.25
+          - id: dp-result-coordinate-noise-rms-ratio
+            phrase: Its root mean square length is about thirty-seven times as large
+            targets:
+              - coordinate-noise-mechanism
+            linger: 0.25
+      - say: Suppose Alice’s tickets also appeared in pretraining. During private fine-tuning, hold the base
+          fixed and change only her contribution to the adapter. That comparison protects her incremental
+          participation in fine-tuning. Any information already in the base can still surface. A promise
+          covering both stages needs to account for how the base depended on her tickets too.
+        hold: 0.9
+        visual_cues:
+          - id: coordinate-noise-b3
+            phrase: hold the base fixed
+            targets:
+              - coordinate-noise-mechanism
+            linger: 0.25
+      - say: Here is one adapted layer. A frozen four by four matrix still runs on every input. A rank-one update
+          learns one column and one row. Multiply the column by the row, scale by alpha divided by rank,
+          and add the result to the frozen matrix. This is low-rank adaptation, or LoRA.
+          Together those factors contain eight trainable numbers. In general
+          the count is rank times input width plus rank times output width. Clip each customer’s joint
+          gradient over both factors and add noise there. The frozen matrix still does work at the original
+          width.
+        hold: 1
+        visual_cues:
+          - id: coordinate-noise-extension-4
+            phrase: one column and one row
+            targets:
+              - coordinate-noise-extension-4
+            linger: 0.25
+  - id: audit
+    title: Trace clipping through a checkpoint release
+    visual: One record gradient shrinks to the clipping bound, joins two other clipped vectors, and moves
+      through an authored noise draw; a private checkpoint choice then adds a separate accountant entry.
+    beats:
+      - say: "R4's gradient is [3, 4], with norm five. Predict its contribution when the clip bound is one. Now
+          scale by one fifth: it contributes [0.6, 0.8]."
+        hold: 0.5
+        caption_starts: [Now scale by one fifth, it contributes]
+        visual_cues:
+          - id: trace-clip
+            phrase: Now scale by one fifth
+            targets:
+              - clip-vector
+            color: yellow
+            linger: 0.45
+          - id: trace-clip-result
+            phrase: it contributes [0.6, 0.8]
+            targets:
+              - clip-outcome
+            color: green
+            linger: 0.4
+          - id: dp-result-audit-clip
+            phrase: it contributes [0.6, 0.8]
+            targets:
+              - clip-outcome
+            color: cyan
+            linger: 0.4
+      - say: R1 adds zero point four to the right and zero point three up. R2 adds zero point six to
+          the right and zero point eight up. From that tip, clipped R4 adds another zero point six to the
+          right and zero point eight up. Together the three arrows reach one point six, one point nine. For this noise
+          draw, the first coordinate is zero point two and the second is minus zero point three. Follow
+          the pink arrow right and down to one point eight, one point six.
+        hold: 0.55
+        visual_cues:
+          - id: trace-add
+            phrase: R1 adds zero point four to the right and zero point three up. R2 adds zero point
+              six to the right and zero point eight up. From that tip, clipped R4 adds another zero point
+              six to the right and zero point eight up
+            targets:
+              - record-sum
+            color: cyan
+            linger: 0.35
+          - id: trace-add-r1
+            phrase: R1 adds zero point four to the right and zero point three up
+            targets: [record-r1]
+            color: blue
+            linger: 0.35
+          - id: trace-add-r2
+            phrase: R2 adds zero point six to the right and zero point eight up
+            targets: [record-r2]
+            color: cyan
+            linger: 0.35
+          - id: trace-add-r4
+            phrase: clipped R4 adds another zero point six to the right and zero point eight up
+            targets: [record-r4]
+            color: green
+            linger: 0.35
+          - id: trace-aggregate
+            phrase: Together the three arrows reach
+            targets:
+              - aggregate-point
+            color: yellow
+            linger: 0.35
+          - id: trace-noise
+            phrase: For this noise draw, the first coordinate is zero point two and the second is minus zero point three
+            targets:
+              - noise-step
+              - noisy-release
+            color: pink
+            linger: 0.4
+          - id: dp-result-audit-aggregate
+            phrase: Together the three arrows reach one point six, one point nine
+            targets:
+              - aggregate-point
+            color: cyan
+            linger: 0.4
+          - id: dp-result-audit-noise
+            phrase: Follow the pink arrow right and down to one point eight, one point six
+            targets:
+              - noisy-release
+            color: cyan
+            linger: 0.4
+      - say: Private validation selects C7. That choice depends on training and a fresh look at private records.
+          Give each release a row. Use the same protected unit and the same rule for neighbors in both rows.
+          If selection meets its bound for every training outcome, add the two epsilons and add the two deltas.
+          That gives a basic composition bound. The training row comes from the accountant for the sampler,
+          noise scale and step count you used. Reading a raw ticket needs a separate permission check.
+        hold: 0.65
+        caption_starts: [Give each release a row, If selection meets its bound, The training row comes from the accountant]
+        visual_cues:
+          - id: select-checkpoint
+            phrase: selects C7
+            targets:
+              - candidate-selection
+            color: green
+            linger: 0.35
+          - id: account-selection
+            phrase: Give each release a row
+            targets:
+              - training-ledger
+              - selection-ledger
+              - selection-to-ledger
+              - composition-assumptions
+            color: yellow
+            linger: 0.4
+          - id: compose-releases
+            phrase: add the two epsilons and add the two deltas
+            targets:
+              - composition-flow
+              - composed-budget
+            color: yellow
+            linger: 0.45
+          - id: matching-accountant
+            phrase: The training row comes from the accountant
+            targets:
+              - matching-accountant
+            color: cyan
+            linger: 0.4
+          - id: other-data-paths
+            phrase: Reading a raw ticket needs a separate permission check
+            targets:
+              - other-data-controls
+            color: pink
+            linger: 0.4
+          - id: dp-result-audit-selection
+            phrase: selects C7
+            targets:
+              - candidate-selection
+            color: cyan
+            linger: 0.4
+          - id: dp-result-audit-composition
+            phrase: add the two epsilons and add the two deltas
+            targets:
+              - composed-budget
+            color: cyan
+            linger: 0.4
+  - id: accountant-calculation
+    title: What do two measurements cost together?
+    visual: A four-order RDP worksheet adds a second customer-level Gaussian release. The scores then feed a
+      checkpoint choice without opening the private data again.
+    beats:
+      - say: Let's put numbers on a smaller release plan. Both statistics use the same customers. Each has add or
+          remove sensitivity C, uses the whole dataset, and adds Gaussian noise with standard deviation
+          four C. Each row tracks how much the releases can distinguish neighboring datasets, at a different
+          order called alpha. This is Rényi differential privacy. For this Gaussian mechanism, each charge
+          is alpha divided by twice the squared noise multiplier.
+          Follow order sixteen. One measurement costs a half at that order.
+        hold: 0.8
+        visual_cues:
+          - id: charge-order
+            phrase: Follow order sixteen
+            targets:
+              - order-table
+            linger: 0.25
+      - say: Add a second measurement with the same guarantee, valid even given the first. At order sixteen the
+          two halves add to one. Now convert each row to an epsilon bound at the same target delta, one in
+          a hundred thousand. Add the natural log of one over delta, divided by the order minus one. You
+          pay that conversion once for the pair.
+        hold: 0.9
+        visual_cues:
+          - id: second-release
+            phrase: Add a second measurement
+            targets:
+              - order-table
+            linger: 0.25
+          - id: convert-orders
+            phrase: Now convert each row to an epsilon bound
+            targets:
+              - order-table
+            linger: 0.25
+      - say: Read the smallest bound in the last column. Among these four orders, sixteen gives about one point
+          seven seven. Our cap is two, so the pair fits. This worksheet used unsampled Gaussian releases. A
+          sampled training run needs its own matching accountant.
+        hold: 1
+        visual_cues:
+          - id: read-minimum
+            phrase: Read the smallest bound in the last column
+            targets:
+              - order-table
+            linger: 0.25
+      - say: Suppose we choose a checkpoint using only these two saved noisy scores. Both are already covered
+          together. Comparing them is post-processing. Public validation can also guide that choice.
+          A fresh lookup of raw private scores needs its own privacy analysis even if we publish only the
+          choice. The same post-processing rule applies to checkpoints derived
+          entirely from a jointly accounted training transcript. Separate runs on overlapping customers
+          generally compose. For fixed disjoint customer groups, with no customer in both, parallel
+          composition can take the largest group bound.
+        hold: 1
+        visual_cues:
+          - id: reuse-scores
+            phrase: these two saved noisy scores
+            targets:
+              - transcript
+            linger: 0.25
+  - id: earned-transfer
+    title: Which private score can we afford?
+    visual: The two saved releases start both candidate bars at the same position. The proposed third
+      measurement uses either four or eight C. Its order-specific charge moves each endpoint against the
+      same epsilon cap.
+    beats:
+      - say: Now the checkpoint decision needs one fresh score from the same customers. Keep the two saved
+          measurements. Keep Alice’s whole history clipped as a unit, the add or remove rule, and the same
+          target delta. Both proposals measure the same statistic of sensitivity C on the full dataset,
+          with fresh, independent Gaussian noise. Only its scale changes.
+        hold: 0.8
+        visual_cues:
+          - id: new-score
+            phrase: one fresh score from the same customers
+            targets:
+              - selection-budget
+            linger: 0.25
+      - say: The top plan gives the new score a standard deviation of four C. The lower plan uses eight C. The
+          two saved measurements already put us at about one point seven seven. Use the charge at order
+          sixteen. Which new score can we approve under the cap of two?
+        hold: 3.3
+        visual_cues:
+          - id: choose-scale
+            phrase: The lower plan uses eight C
+            targets:
+              - selection-budget
+            linger: 0.25
+      - say: Charge the four C score first. Another half takes the bound past two, even at the best of our four
+          orders. Charge the eight C score instead. Doubling the standard deviation quarters this new
+          charge, to one eighth. The bound now comes in just under one point nine. We can approve the eight
+          C plan on this accounting and measure whether its noisier score still makes a useful choice.
+        hold: 1.2
+        caption_starts: [Charge the eight C score instead, The bound now comes in]
+        visual_cues:
+          - id: charge-four
+            phrase: Charge the four C score first
+            targets:
+              - selection-budget
+            linger: 0.25
+          - id: charge-eight
+            phrase: Charge the eight C score instead
+            targets:
+              - selection-budget
+            linger: 0.25
+          - id: choose-plan
+            phrase: We can approve the eight C plan
+            targets:
+              - selection-budget
+            linger: 0.25
+      - say: Choose the checkpoint using the three protected scores. Their privacy cost stays the same.
+          Once training and selection are both accounted for, answering a public prompt with that model
+          alone is post-processing. Now the copilot
+          requests Alice’s original ticket. Before it can read that ticket, check its permission. Protect
+          new prompts and logs separately. When you collect labels from those tickets, the reviewers need
+          permission to read them too.
+        hold: 1.4
+        caption_starts: [Once training and selection, Now the copilot requests, When you collect labels]
+        visual_cues:
+          - id: open-retrieval
+            phrase: Now the copilot requests Alice’s original ticket
+            targets:
+              - serving-path
+            linger: 0.25
+          - id: reviewer-read
+            phrase: When you collect labels from those tickets
+            targets:
+              - serving-path
+            linger: 0.25

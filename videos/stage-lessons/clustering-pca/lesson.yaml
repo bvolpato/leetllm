@@ -1,0 +1,1120 @@
+version: 1
+id: clustering-pca
+title: Which Message Does the Shortcut Return?
+source: foundations/clustering-pca-representation-learning/content.md
+voice: en-US-AndrewNeural
+rate: +0%
+sources:
+  - title: "scikit-learn: Clustering"
+    url: https://scikit-learn.org/stable/modules/clustering.html
+  - title: "Arthur and Vassilvitskii: k-means++ initialization"
+    url: https://doi.org/10.1145/1283383.1283494
+  - title: "scikit-learn: PCA"
+    url: https://scikit-learn.org/stable/modules/decomposition.html#pca
+  - title: "FAISS: IVF indexes"
+    url: https://github.com/facebookresearch/faiss/wiki/Faiss-indexes
+scenes:
+  - id: intro
+    title: "Which past message will the circle reach first?"
+    visual: "A distance ring grows from a customer's chat bubble. The two nearest messages sit at their relative positions. A magnified ruler shows the last part of the race, then the view widens to all six messages."
+    beats:
+      - say: "“Why was I charged twice?” The circle grows from that request toward the two closest messages."
+        hold: 0.5
+      - say: "Look at the last stretch on the ruler. The yellow dot tracks the radius. Which message will the circle touch first?"
+        hold: 2.2
+        visual_cues:
+          - id: ruler
+            phrase: "Look at the last stretch on the ruler"
+            targets: [picture]
+          - id: predict
+            phrase: "Which message will the circle touch first"
+            targets: [picture]
+      - say: "B, the duplicate payment. The reset link is about seven hundredths of a unit farther away. Here's the full map. Each message has two coordinates. Searching all six gives us B. We'll try two shortcuts on this request. PCA gives each message fewer coordinates. Clustering lets us search one group at a time."
+        hold: 0.7
+        visual_cues:
+          - id: answer
+            phrase: "B, the duplicate payment"
+            caption_boundary: true
+            targets: [picture]
+          - id: all
+            phrase: "Here's the full map"
+            targets: [picture]
+  - id: neighbors
+    title: Build a distance from two coordinate changes
+    visual: A magnified pair retains its identities while horizontal and vertical differences build the distance,
+      then a competing message is compared.
+    beats:
+      - say: Start at the first billing message. Move horizontally to match the second, then vertically. Square those
+          two coordinate changes and add them. Taking the square root gives the straight-line distance. The
+          diagonal now has a value we can check.
+        hold: 0.65
+        visual_cues:
+          - id: x
+            phrase: Move horizontally to match the second
+            targets:
+              - picture
+          - id: y
+            phrase: then vertically
+            targets:
+              - picture
+          - id: square
+            phrase: Square those two coordinate changes and add them
+            targets:
+              - picture
+          - id: root
+            phrase: Taking the square root gives the straight-line distance
+            targets:
+              - picture
+      - say: Compare that short diagonal with the distance to a login message. The billing partner is closer.
+          Repeating this check pairs all six messages. People supplied the topic names by reading the text;
+          the algorithm receives only coordinates and a distance rule.
+        hold: 0.65
+        visual_cues:
+          - id: compete
+            phrase: distance to a login message
+            targets:
+              - picture
+          - id: winner
+            phrase: The billing partner is closer
+            targets:
+              - picture
+          - id: pairs
+            phrase: Repeating this check pairs all six messages
+            targets:
+              - picture
+  - id: algorithm-contract
+    title: Check the matrix before assigning a group
+    visual: Same six vectors enter an n-by-d matrix and three k-by-d centers. A mismatched one-coordinate center
+      is shown broadcasting before rejection; one NaN blocks assignment. The squared-error gradient resolves
+      to the actual arithmetic mean.
+    beats:
+      - say: The distance rule needs an input contract. Documents have n rows and d features, while centers have k
+          rows and the same d features. Reject a center matrix with the wrong feature width and reject
+          nonfinite coordinates. NumPy can silently broadcast a one-coordinate center across several features,
+          so a calculation that runs can still compare the wrong objects.
+        hold: 0.5
+        visual_cues:
+          - id: width
+            phrase: Documents have n rows and d features
+            targets:
+              - picture
+          - id: reject
+            phrase: Reject a center matrix with the wrong feature width
+            targets:
+              - picture
+          - id: broadcast
+            phrase: NumPy can silently broadcast
+            targets:
+              - picture
+      - say: For fixed memberships, differentiate the sum of squared distances to a center. The gradient is minus two
+          times the sum of each point minus the center. Setting it to zero makes the center the
+          coordinate-wise arithmetic mean. That is the unique minimizer for a nonempty group under this
+          objective. A change of metric needs its own update rule.
+        hold: 0.5
+        visual_cues:
+          - id: objective
+            phrase: differentiate the sum of squared distances
+            targets:
+              - picture
+          - id: gradient
+            phrase: The gradient is minus two
+            targets:
+              - picture
+          - id: mean
+            phrase: Setting it to zero makes the center the coordinate-wise arithmetic mean
+            targets:
+              - picture
+          - id: metric
+            phrase: A change of metric needs its own update rule
+            targets:
+              - picture
+  - id: kmeans
+    title: Assign points, then move their centers
+    visual: Neutral points attach one at a time to fixed seeds, one coordinate mean is derived, then centers move
+      with live squared-error totals.
+    beats:
+      - say: K-means asks for a number of groups. Choose three centers here, with one seed in each visible area. Hold
+          them still. Compare each point with the centers and connect it to the nearest one. The colors now
+          record assignments, rather than supplied topic labels.
+        hold: 0.65
+        visual_cues:
+          - id: seed
+            phrase: Choose three centers here
+            targets:
+              - picture
+          - id: assign
+            phrase: connect it to the nearest one
+            targets:
+              - picture
+      - say: Keep those memberships fixed. Where should the left center move? Average its two horizontal coordinates,
+          then its two vertical coordinates. That midpoint minimizes the sum of squared distances to these
+          members. Move all three centers to their own means and watch the objective fall.
+        hold: 0.65
+        visual_cues:
+          - id: predict
+            phrase: Where should the left center move
+            targets:
+              - picture
+          - id: meanx
+            phrase: Average its two horizontal coordinates
+            targets:
+              - picture
+          - id: meany
+            phrase: then its two vertical coordinates
+            targets:
+              - picture
+          - id: update
+            phrase: Move all three centers to their own means
+            targets:
+              - picture
+      - say: Assign again around the new centers. The same pairs remain, so this run has settled. Lloyd's algorithm
+          alternates these two steps. Exact assignments and means preserve or reduce inertia. Different seeds
+          can find different solutions; compare restarts, and repair an empty group before averaging it.
+        hold: 0.65
+        visual_cues:
+          - id: again
+            phrase: Assign again around the new centers
+            targets:
+              - picture
+          - id: settled
+            phrase: The same pairs remain
+            targets:
+              - picture
+          - id: restarts
+            phrase: Different seeds can find different solutions
+            targets:
+              - picture
+  - id: initialization
+    title: An empty center cannot take a mean
+    visual: Use the same six points with seeds A/B/(100,100), construct assignment counts1/5/0, stop the empty
+      mean and reseed it at the actual farthest current point before a controlled restart.
+    beats:
+      - say: Our successful seeds covered three visible areas. Put two seeds on the billing pair and the third at one
+          hundred, one hundred instead. The same nearest-center rule assigns one point to the first seed, five
+          to the second and none to the third. There is no arithmetic mean for an empty group. The article's
+          teaching loop raises rather than propagating a not-a-number center.
+        hold: 0.5
+        visual_cues:
+          - id: bad
+            phrase: Put two seeds on the billing pair
+            targets:
+              - picture
+          - id: counts
+            phrase: assigns one point to the first seed, five to the second and none to the third
+            targets:
+              - picture
+          - id: empty
+            phrase: There is no arithmetic mean for an empty group
+            targets:
+              - picture
+      - say: An explicit repair policy could reseed the empty center at the point farthest from any current center,
+          then run assignments again. It must also state tie handling and stopping. Our NumPy loop resolves
+          distance ties to the first center, stops when assignments repeat and enforces a twenty-step cap.
+          Exact assignments and means with consistent ties and nonempty groups reach a fixed assignment; a
+          tolerance or iteration cap may stop a library run earlier.
+        hold: 0.5
+        visual_cues:
+          - id: repair
+            phrase: reseed the empty center at the point farthest from any current center
+            targets:
+              - picture
+          - id: again
+            phrase: then run assignments again
+            targets:
+              - picture
+          - id: cap
+            phrase: enforces a twenty-step cap
+            targets:
+              - picture
+      - say: The centers have settled. Different seeds can settle into different groups on these same six
+          points. Compare their total squared error under the same metric and budget. Watch the colors come off. The letters
+          still identify the same messages. A new run can give their groups different numbers.
+        hold: 0.5
+        visual_cues:
+          - id: identity-reset
+            phrase: Watch the colors come off
+            targets:
+              - picture
+          - id: local
+            phrase: The centers have settled
+            targets:
+              - picture
+  - id: seeding-mass
+    title: Where does the next seed land?
+    visual: The six messages share a probability strip. The distance from A to B buys a sliver. The longer reach to F buys a much larger interval. Place a supplied draw on the strip, then rebuild it after F becomes a seed.
+    beats:
+      - say: Start this run with A. In the original k-means-plus-plus rule, every message had the same chance to be the first seed. The next seed is a different draw. Look at the short link to B, then the long link to F. Square those distances. A long link buys more room on this strip.
+        hold: 0.5
+        visual_cues:
+          - {id: first, phrase: "Start this run with A", targets: [picture]}
+          - {id: small, phrase: "the short link to B", targets: [picture]}
+          - {id: large, phrase: "the long link to F", targets: [picture]}
+          - {id: weights, phrase: "Square those distances", targets: [picture]}
+      - say: Add the squared distances for all six messages. Divide each one by that total to get its share. A gets zero. B gets less than half of one percent. E and F together take up more than seventy-two percent. Put a supplied draw of zero point eight on the strip. Which interval contains it?
+        hold: 2.0
+        visual_cues:
+          - {id: normalize, phrase: "Divide each one by that total", targets: [picture]}
+          - {id: draw, phrase: "a supplied draw of zero point eight", targets: [picture]}
+          - {id: predict, phrase: "Which interval contains it", targets: [picture]}
+      - say: F gets the seed. Watch E now. Measure to the nearer of A and F. E is close to F, so its share shrinks on the next draw. F's share falls to zero. If every point sits on a selected seed, the total is zero. We've run out of distinct locations.
+        hold: 0.65
+        visual_cues:
+          - {id: selected, phrase: "F gets the seed", caption_boundary: true, targets: [picture]}
+          - {id: recompute, phrase: "Measure to the nearer of A and F", targets: [picture]}
+          - {id: zero, phrase: "the total is zero", targets: [picture]}
+      - say: For this single-candidate rule, the theorem bounds the expected starting inertia by eight times the quantity natural log k plus two, times the best possible inertia. That's an average over random starts. An individual run can still settle at a poor solution. The scikit-learn version in the article tries several candidates at each draw. Its automatic setting makes one run with k-means-plus-plus. Set the restart count explicitly if you want several.
+        hold: 0.65
+        visual_cues:
+          - {id: bound, phrase: "bounds the expected starting inertia", targets: [picture]}
+          - {id: greedy, phrase: "tries several candidates at each draw", targets: [picture]}
+  - id: choose-k
+    title: Expose the groups behind the score
+    visual: Computed two-, three- and four-group partitions replace one another; own-group and competing-group
+      distances construct a silhouette for a retained point.
+    beats:
+      - say: Try two groups on these same points. The best converged run among our tested data-point seeds merges two
+          nearby pairs. Add a third center and they separate. Add a fourth and one reviewed pair splits. Each
+          picture has its own computed inertia.
+        hold: 0.65
+        visual_cues:
+          - id: two
+            phrase: Try two groups on these same points
+            targets:
+              - picture
+          - id: three
+            phrase: Add a third center and they separate
+            targets:
+              - picture
+          - id: four
+            phrase: Add a fourth and one reviewed pair splits
+            targets:
+              - picture
+      - say: Return to three groups and inspect point A. Its own-group distance is the distance to B. For each
+          competing group, average the distances to its members; keep the smaller average. Silhouette compares
+          those two quantities. A value near one means tight membership with substantial separation.
+        hold: 0.65
+        visual_cues:
+          - id: return
+            phrase: Return to three groups
+            targets:
+              - picture
+          - id: own
+            phrase: Its own-group distance is the distance to B
+            targets:
+              - picture
+          - id: other
+            phrase: average the distances to its members
+            targets:
+              - picture
+          - id: formula
+            phrase: Silhouette compares those two quantities
+            targets:
+              - picture
+      - say: Average over the points to compare the tested partitions. Three groups have the strongest silhouette
+          here. Four still reduce inertia, but their singleton points receive silhouette zero. Use the scores
+          to nominate a partition, then inspect its messages. Cluster numbers identify groups within a run.
+        hold: 0.65
+        visual_cues:
+          - id: means
+            phrase: Three groups have the strongest silhouette here
+            targets:
+              - picture
+          - id: singletons
+            phrase: their singleton points receive silhouette zero
+            targets:
+              - picture
+          - id: clear-search
+            phrase: Cluster numbers identify groups within a run
+            targets:
+              - picture
+  - id: silhouette-ledger
+    title: What does the fourth center buy?
+    visual: Actual pointA within/other-cluster distances construct a,b and normalized silhouette. Collect all six
+      actual scores, show singleton zeros for k4, then compare full means and inertia under stable partition
+      IDs.
+    beats:
+      - say: Start at A. Average its distances to the other members of its own group to get a. Here, that's one
+          link to B. For each other group, average the distances from A to its members. The smallest of
+          those averages is b. Subtract a from b and divide by the larger of a and b. That's A's silhouette.
+        hold: 0.5
+        visual_cues:
+          - id: own
+            phrase: other members of its own group to get a
+            targets:
+              - picture
+          - id: other
+            phrase: the smallest of those averages is b
+            targets:
+              - picture
+          - id: score
+            phrase: Subtract a from b and divide by the larger
+            targets:
+              - picture
+      - say: A singleton gets silhouette zero by the convention used here, and the score is also zero when both
+          distances vanish. Mean silhouette requires at least two and fewer than n nonempty groups. Collect
+          all six point contributions before taking their arithmetic average. Our tested two-, three- and
+          four-group partitions give about zero point five six, zero point seven six and zero point five one.
+        hold: 0.5
+        visual_cues:
+          - id: single
+            phrase: A singleton gets silhouette zero
+            targets:
+              - picture
+          - id: collect
+            phrase: Collect all six point contributions
+            targets:
+              - picture
+          - id: mean
+            phrase: about zero point five six, zero point seven six and zero point five one
+            targets:
+              - picture
+      - say: Look at the inertia curve for the same runs. The third center cuts the error sharply.
+          The fourth barely lowers it. That bend is the elbow. Adding a center can only improve or match
+          the best possible fit, though individual restarts can land higher. A negative silhouette means
+          a point is closer on average to another group's members. Equal average distances give zero.
+          Read messages to decide what the groups mean.
+        hold: 0.5
+        visual_cues:
+          - id: elbow
+            phrase: Look at the inertia curve
+            targets:
+              - picture
+          - {id: third, phrase: "The third center", targets: [picture]}
+          - {id: fourth, phrase: "The fourth barely lowers it", targets: [picture]}
+          - {id: signs, phrase: "A negative silhouette", targets: [picture]}
+          - id: read
+            phrase: Read messages to decide what the groups mean
+            targets:
+              - picture
+  - id: objective-ties
+    title: Equal inertia can support different stories
+    visual: A separate four-point square is partitioned left/right and bottom/top. Actual member IDs, means and
+      squared errors update; both totals4 remain visible while their human interpretation differs.
+    beats:
+      - say: Put a message at each corner of this square. Splitting left from right gives inertia four.
+          Now turn the split. Splitting bottom from top also gives four. Every message has a different partner,
+          and the error stays the same.
+        hold: 0.5
+        visual_cues:
+          - id: left
+            phrase: Splitting left from right gives inertia four
+            targets:
+              - picture
+          - id: bottom
+            phrase: Splitting bottom from top also gives four
+            targets:
+              - picture
+      - say: If one axis represented user tier and the other severity, the support workflow would need a reason to
+          prefer one grouping. Geometry does not select that product meaning. Euclidean k-means creates convex
+          nearest-center regions and favors compact squared-distance groups; it does not impose a statistical
+          equal-size or spherical-distribution assumption. It can split an elongated semantic group or spend a
+          center on an outlier.
+        hold: 0.5
+        visual_cues:
+          - id: meaning
+            phrase: the support workflow would need a reason
+            targets:
+              - picture
+          - id: outlier
+            phrase: spend a center on an outlier
+            targets:
+              - picture
+  - id: fresh-seed-repair
+    title: "What changes when we stretch the square?"
+    visual: "The square example becomes an eight-by-two rectangle. Two runs keep the four points fixed. Compare the length of each member's link and retain both squared-error totals."
+    beats:
+      - say: "Here's that square again. Stretch it from two units wide to eight. Keep the height at two. We still want two groups. Put both seeds on the left edge. The bottom points pick the lower seed. The top points pick the upper seed. Where will the two means land, and how much squared error will remain?"
+        hold: 2.1
+        visual_cues:
+          - id: stretch
+            phrase: "Stretch it from two units wide to eight"
+            targets: [picture]
+          - id: seeds
+            phrase: "Put both seeds on the left edge"
+            targets: [picture]
+          - id: assign
+            phrase: "The bottom points pick the lower seed"
+            targets: [picture]
+          - id: predict
+            phrase: "Where will the two means land"
+            targets: [picture]
+      - say: "Both means land halfway across. Each of the four links is four units long. Four squared for each of four points gives sixty-four. Assign again and every point stays put."
+        hold: 0.7
+        visual_cues:
+          - id: mean
+            phrase: "Both means land halfway across"
+            caption_boundary: true
+            targets: [picture]
+          - id: bad
+            phrase: "gives sixty-four"
+            targets: [picture]
+          - id: settled
+            phrase: "every point stays put"
+            targets: [picture]
+      - say: "Keep that first total. Move just the seeds to the bottom corners. Now the pairs run up and down. Move each center halfway up its pair. Each link is one unit long. The four squared distances add to four. Both runs settled. Comparing their errors tells us which restart to keep for this objective."
+        hold: 0.8
+        visual_cues:
+          - id: restart
+            phrase: "Move just the seeds to the bottom corners"
+            targets: [picture]
+          - id: newpairs
+            phrase: "Now the pairs run up and down"
+            targets: [picture]
+          - id: bettermean
+            phrase: "Move each center halfway up its pair"
+            targets: [picture]
+          - id: good
+            phrase: "The four squared distances add to four"
+            targets: [picture]
+  - id: scale
+    title: A change of units changes the neighbors
+    visual: Three retained rows isolate the raw versus standardized distance reversal; arithmetic and distance
+      comparison build before membership receipts.
+    beats:
+      - say: "Now use a separate feature table: a topic coordinate and message length. Compare this short billing note
+          with a longer billing note and a short release note. In raw units, the length difference dominates.
+          The short release note is nearer, despite its different topic."
+        hold: 0.65
+        visual_cues:
+          - id: raw
+            phrase: In raw units, the length difference dominates
+            targets:
+              - picture
+          - id: winnerraw
+            phrase: The short release note is nearer
+            targets:
+              - picture
+      - say: Subtract each column mean and divide by its standard deviation. Work through both coordinates of the same
+          billing row. Recompute the same two distances. The longer billing note is now nearer, and clustering
+          the full six-row fixture separates the reviewed topics.
+        hold: 0.65
+        visual_cues:
+          - id: transform
+            phrase: Subtract each column mean
+            targets:
+              - picture
+          - id: divide
+            phrase: divide by its standard deviation
+            targets:
+              - picture
+          - id: row
+            phrase: Work through both coordinates of the same billing row
+            targets:
+              - picture
+          - id: recompute
+            phrase: Recompute the same two distances
+            targets:
+              - picture
+          - id: winner
+            phrase: The longer billing note is now nearer
+            targets:
+              - picture
+      - say: Scaling chooses how much each feature contributes. Follow the embedding model's metric and normalization
+          contract when returning to vectors. Fit the transform on permitted corpus or development data, then
+          apply that same transform to new queries. Record which representation each result used.
+        hold: 0.65
+        visual_cues:
+          - id: contract
+            phrase: Fit the transform on permitted corpus or development data
+            targets:
+              - picture
+          - id: clear-search
+            phrase: Record which representation each result used
+            targets:
+              - picture
+  - id: scale-boundary
+    title: Apply the same fitted transform to the query
+    visual: Full six-row metadata fixture retains row IDs and fitted means/stds. A new query enters the exact
+      stored transform; a separately refitted query transform visibly loses comparability. Corpus/development
+      and promised-unseen-query boundaries remain distinct.
+    beats:
+      - say: We fitted each column's mean and population standard deviation on the six messages. To scale a
+          value, subtract the column mean and divide by its standard deviation. Here comes a query with three
+          hundred characters. It's shorter than the corpus average of five hundred and five, so its length
+          coordinate is negative. Use the query's own length as the mean and it jumps to zero. Restore the
+          stored transform so the query and the messages share an origin.
+        hold: 0.5
+        visual_cues:
+          - id: fit
+            phrase: fitted each column
+            targets:
+              - picture
+          - id: formula
+            phrase: subtract the column mean
+            targets:
+              - picture
+          - id: query
+            phrase: Here comes a query with three hundred characters
+            targets:
+              - picture
+          - id: restore
+            phrase: Restore the stored transform
+            targets:
+              - picture
+          - id: bad
+            phrase: Use the query's own length as the mean
+            targets:
+              - picture
+      - say: Scaling changes how much each feature counts toward distance. For embeddings, use the normalization
+          the model specifies for search. You can fit a transform on documents available when you build the index.
+          To test on new queries, save that version and apply it to each one. If you include the test queries
+          when fitting, you're measuring performance on that known set. That's a transductive evaluation.
+        hold: 0.5
+        visual_cues:
+          - id: weights
+            phrase: Scaling changes how much each feature counts
+            targets:
+              - picture
+          - id: held
+            phrase: To test on new queries
+            targets:
+              - picture
+  - id: pca
+    title: Find a direction that keeps the cloud wide
+    visual: The original cloud translates by its computed mean, a candidate axis rotates with actual projections
+      and energy, and one named point gains a scalar score.
+    beats:
+      - say: Return to our six message vectors. Principal component analysis gives the cloud fewer continuous
+          coordinates. First subtract the same coordinate-wise mean from every point. The cloud moves together
+          around zero; distances between its points stay unchanged.
+        hold: 0.65
+        visual_cues:
+          - id: center
+            phrase: First subtract the same coordinate-wise mean
+            targets:
+              - picture
+      - say: Pass a line through this centered cloud. Project each point onto it at a right angle. Rotate the line and
+          compare the sum of squared scores. The first principal component chooses a unit direction with the
+          largest total. Our almost-horizontal direction keeps the widest spread.
+        hold: 0.65
+        visual_cues:
+          - id: project
+            phrase: Project each point onto it at a right angle
+            targets:
+              - picture
+          - id: rotate
+            phrase: Rotate the line and compare the sum of squared scores
+            targets:
+              - picture
+          - id: best
+            phrase: Our almost-horizontal direction keeps the widest spread
+            targets:
+              - picture
+      - say: For point C, take the dot product with that unit direction. Its scalar score locates the foot on the
+          line. A covariance eigendecomposition or a singular-value decomposition finds these directions.
+          Reversing the direction flips every score while preserving the represented line.
+        hold: 0.65
+        visual_cues:
+          - id: score
+            phrase: Its scalar score locates the foot on the line
+            targets:
+              - picture
+          - id: sign
+            phrase: Reversing the direction flips every score
+            targets:
+              - picture
+  - id: solver-contract
+    title: "How much spread runs along each axis?"
+    visual: "Six centered rows supply two principal directions. Squared singular values give two lengths of squared spread. Partition each length into five equal pieces to read sample variance. Compare the storage shapes for a second matrix."
+    beats:
+      - say: "Look along the two perpendicular axes of our six centered messages. Along each axis, square the six scores and add them. The lengths of these strips show how much squared spread each axis carries."
+        hold: 0.6
+        visual_cues:
+          - id: energy
+            phrase: "The lengths of these strips"
+            targets: [picture]
+      - say: "There are two ways to get those lengths. Direct singular value decomposition, or SVD, works on the centered rows. Its right singular vectors give the axes. Square the singular value for each axis and you get the length of its strip."
+        hold: 0.5
+        visual_cues:
+          - id: svd
+            phrase: "Direct singular value decomposition"
+            targets: [picture]
+          - id: square
+            phrase: "Square the singular value for each axis"
+            targets: [picture]
+      - say: "For sample variance, the divisor is the number of rows minus one. We subtracted the mean, so the six deviations along each axis sum to zero. Once you know five, the sixth is fixed. How many equal pieces should we cut each strip into?"
+        hold: 1.8
+        visual_cues:
+          - id: predict
+            phrase: "How many equal pieces should we cut each strip into"
+            targets: [picture]
+      - say: "Five pieces. Take one piece from each strip. Those are the two sample variances. You get the same pair by forming the sample covariance matrix and finding its eigenvalues. Its eigenvectors give the principal axes."
+        hold: 0.65
+        visual_cues:
+          - id: split
+            phrase: "Five pieces"
+            caption_boundary: true
+            targets: [picture]
+          - id: piece
+            phrase: "Take one piece from each strip"
+            targets: [picture]
+          - id: cov
+            phrase: "forming the sample covariance matrix"
+            targets: [picture]
+      - say: "Both strips used the same divisor. The first still accounts for about eighty-five percent of their combined length. That's its explained variance ratio. If every row is identical, both lengths are zero and the ratio is undefined."
+        hold: 0.65
+        visual_cues:
+          - id: share
+            phrase: "about eighty-five percent of their combined length"
+            targets: [picture]
+          - id: zero
+            phrase: "both lengths are zero and the ratio is undefined"
+            targets: [picture]
+      - say: "Now suppose we have a hundred documents with fifteen hundred thirty-six features each. The centered input is this thin rectangle. To form covariance, we need a square with one row and one column per feature. Its rank is at most ninety-nine. Its ordinary condition number is infinite."
+        hold: 0.6
+        visual_cues:
+          - id: wide
+            phrase: "The centered input is this thin rectangle"
+            targets: [picture]
+          - id: gram
+            phrase: "we need a square"
+            targets: [picture]
+          - id: rank
+            phrase: "Its rank is at most ninety-nine"
+            targets: [picture]
+      - say: "Even among the nonzero directions, forming that matrix squares the ratio of the largest to the smallest singular value. Rounding can bury a small direction. Direct SVD avoids forming the square. Covariance can be efficient when the data are tall and narrow. Randomized SVD approximates the leading directions. Oversampling and power iterations affect that approximation."
+        hold: 0.5
+        visual_cues:
+          - id: ratio
+            phrase: "squares the ratio of the largest to the smallest singular value"
+            targets: [picture]
+          - id: solver
+            phrase: "Direct SVD avoids forming the square"
+            targets: [picture]
+      - say: "Record which solver you used. You can flip the sign of an axis and its scores together. If two variances tie, their axes can even rotate together within that plane. Keeping just one then leaves a choice of lines, each with the same captured variance."
+        hold: 0.65
+        visual_cues:
+          - id: tie
+            phrase: "If two variances tie"
+            targets: [picture]
+          - id: rotate
+            phrase: "rotate together within that plane"
+            targets: [picture]
+  - id: compression
+    title: "Who is closest along the fitted line?"
+    visual: "Reconstruct C from its first score, then project all six messages and the original query on the same fitted line. Compare B and C before and after projection. Restore both coordinates to verify the reversal."
+    beats:
+      - say: "Follow C, the reset-link message. Its first score tells us how far to go along the fitted line from the mean. That's our reconstruction of C. The shortfall is perpendicular to the line. Square that length to count C's contribution to reconstruction error."
+        hold: 0.7
+        visual_cues:
+          - id: single
+            phrase: "That's our reconstruction of C"
+            targets: [picture]
+          - id: error
+            phrase: "Square that length"
+            targets: [picture]
+      - say: "Put C back. Here's the duplicate-charge request again. B was the closest of all six. Keep all six in the search. This time we'll give each message and the query just their position along the line. Watch the two distances as the points drop."
+        hold: 0.45
+        visual_cues:
+          - id: rewind
+            phrase: "Put C back"
+            targets: [picture]
+          - id: query
+            phrase: "Here's the duplicate-charge request again"
+            targets: [picture]
+          - id: baseline
+            phrase: "B was the closest of all six"
+            targets: [picture]
+          - id: drop
+            phrase: "as the points drop"
+            targets: [picture]
+      - say: "The line keeps about eighty-five percent of the spread across the messages. The red gaps account for the rest. Look at B and C now. Which message will the one-coordinate search return?"
+        hold: 2
+        visual_cues:
+          - id: kept
+            phrase: "about eighty-five percent of the spread"
+            targets: [picture]
+          - id: predict
+            phrase: "Which message will the one-coordinate search return"
+            targets: [picture]
+      - say: "C, the reset link. It lost more of its separation from the query when we dropped the perpendicular coordinate. B is still in the search. Searching more messages couldn't fix this result because we already searched all six."
+        hold: 0.65
+        visual_cues:
+          - id: wrong
+            phrase: "C, the reset link"
+            caption_boundary: true
+            targets: [picture]
+      - say: "Bring back the second scores from the original vectors. The red gaps close, the reconstruction error goes to zero, and B is nearest again. The first line minimizes squared reconstruction error across the corpus. This query needs some of the spread that line leaves out."
+        hold: 0.75
+        visual_cues:
+          - id: restore
+            phrase: "Bring back the second scores"
+            targets: [picture]
+          - id: zero
+            phrase: "the reconstruction error goes to zero"
+            targets: [picture]
+          - id: answer
+            phrase: "B is nearest again"
+            targets: [picture]
+  - id: variance-ledger
+    title: Retained and discarded squares account for the same cloud
+    visual: Retain original pointC and its centered vector, projection foot and residual. Build the Pythagorean
+      squared-energy split, then accumulate all six retained/residual terms into constant65.6333 total; keep
+      covariance/sample-divisor units separate.
+    beats:
+      - say: For a unit principal direction, the squared length of a centered point equals its squared scalar score
+          plus its squared perpendicular residual. The two contributions add because the projection and
+          residual are orthogonal. Summing over points keeps total centered energy fixed. Maximizing retained
+          squared scores therefore minimizes the discarded squared error.
+        hold: 0.5
+        visual_cues:
+          - id: origin
+            phrase: For a unit principal direction
+            targets:
+              - picture
+          - id: split
+            phrase: equals its squared scalar score plus its squared perpendicular residual
+            targets:
+              - picture
+          - id: orthogonal
+            phrase: because the projection and residual are orthogonal
+            targets:
+              - picture
+          - id: sum
+            phrase: Summing over points keeps total centered energy fixed
+            targets:
+              - picture
+      - say: Our full six-point cloud has about sixty-five point six three three total squared energy. The first
+          direction retains about fifty-five point nine one three and discards about nine point seven two one.
+          Divide by the same n minus one if you want sample variance units. Reconstruction multiplies scores
+          by their retained basis directions and adds the fitted mean back. A complete orthonormal basis
+          recovers these source vectors; a truncated one can lose a query-critical distinction.
+        hold: 0.5
+        visual_cues:
+          - id: total
+            phrase: about sixty-five point six three three total squared energy
+            targets:
+              - picture
+          - id: retained
+            phrase: retains about fifty-five point nine one three
+            targets:
+              - picture
+          - id: discarded
+            phrase: discards about nine point seven two one
+            targets:
+              - picture
+          - id: divide
+            phrase: Divide by the same n minus one
+            targets:
+              - picture
+          - id: reconstruct
+            phrase: adds the fitted mean back
+            targets:
+              - picture
+  - id: metric-choice
+    title: Which arrow points closer to the query?
+    visual: The raw dot products compare two support documents with a unit query. Normalize both arrows, then magnify them on the same scale to inspect their angles. Compare the resulting cosine scores.
+    beats:
+      - say: The yellow query points straight to the right. One document is about a duplicate charge. The other is a much longer arrow for a release page. The dot product multiplies matching coordinates and adds them. Here it reads off each arrow's horizontal reach. The release page wins eight to one.
+        hold: 0.6
+        visual_cues:
+          - {id: dot, phrase: "each arrow's horizontal reach", targets: [picture]}
+      - say: Now compare directions. Check for zero length or nonfinite coordinates before normalizing. Divide each arrow by its length. Both documents now have unit length, and the query already did. Their dot products in this view are their cosines. Which document points closer to the query?
+        hold: 1.7
+        visual_cues:
+          - {id: invalid, phrase: "Check for zero length", targets: [picture]}
+          - {id: cosine, phrase: "Divide each arrow by its length", targets: [picture]}
+          - {id: ask, phrase: "Which document points closer to the query", targets: [picture]}
+      - say: The duplicate-charge document wins. For unit vectors, squared Euclidean distance is two minus twice the dot product. As cosine rises, distance falls, so the rankings agree. Use the same metric and normalization for index construction, query routing and evaluation. Mixing in raw metadata changes the vectors that comparison uses.
+        hold: 0.6
+        visual_cues:
+          - {id: winner, phrase: "The duplicate-charge document wins", caption_boundary: true, targets: [picture]}
+          - {id: identity, phrase: "squared Euclidean distance is two minus twice the dot product", targets: [picture]}
+          - {id: contract, phrase: "index construction, query routing and evaluation", targets: [picture]}
+  - id: spherical-centers
+    title: Which center gets the query?
+    visual: Two unit input arrows average to a shorter center. Separate declared groups create C0[.1,0] and
+      unitC1[.8,.6], changing Euclidean versus cosine routing. Normalize an actual sum for spherical update;
+      opposite inputs yield zero and explicit fallback.
+    beats:
+      - say: Both arrows have length one. One points right and the other points up. Their mean lands halfway
+          between the tips, inside the unit circle. Its length is about zero point seven. Euclidean k-means
+          uses that mean as the center. A query's distance to it depends on the center's length as well as its direction.
+        hold: 0.5
+        visual_cues:
+          - id: mean
+            phrase: Their mean lands halfway between the tips
+            targets:
+              - picture
+          - id: norm
+            phrase: Its length is about zero point seven
+            targets:
+              - picture
+      - say: Try two group means with the yellow query. Start at the tip of the query arrow.
+          The shorter trip is to center one. Now look from the origin. Center zero points in exactly
+          the same direction as the query, so cosine picks center zero. If we file messages by distance
+          and choose a list by direction, we can open a different list.
+        hold: 0.5
+        visual_cues:
+          - id: groups
+            phrase: Try two group means
+            targets:
+              - picture
+          - id: euclidean
+            phrase: Start at the tip of the query arrow
+            targets:
+              - picture
+          - {id: near, phrase: "The shorter trip is to center one", targets: [picture]}
+          - id: cosine
+            phrase: Now look from the origin
+            targets:
+              - picture
+          - {id: aligned, phrase: "so cosine picks center zero", targets: [picture]}
+      - say: Spherical k-means uses unit centers. Normalize each nonzero input and assign it to the center
+          with the largest dot product. Add the arrows in the group. Divide their sum by its length and the
+          new center lands on the unit circle. Now point the arrows in opposite directions. They cancel.
+          A zero sum has no direction, and an empty group has no arrows to average. In either case we need a
+          fallback, such as choosing a new seed.
+        hold: 0.5
+        visual_cues:
+          - id: normalize
+            phrase: Add the arrows in the group
+            targets:
+              - picture
+          - {id: unit, phrase: "Divide their sum by its length", targets: [picture]}
+          - id: zero
+            phrase: Now point the arrows in opposite directions
+            targets:
+              - picture
+          - {id: fallback, phrase: "such as choosing a new seed", targets: [picture]}
+  - id: centered-cosine
+    title: What changes when the origin moves?
+    visual: Keep the source cosine for each document beside its live cosine as the corpus and query translate by the fitted document mean. Join the query to each document to show the fixed distances. A separate marker locates a hypothetical document at the mean.
+    beats:
+      - say: Look from the origin along the yellow query. The first document points almost the same way. The second points farther to the right, but its cosine is positive too. Keep those two scores beside their documents.
+        hold: 0.5
+        visual_cues:
+          - {id: original, phrase: "The first document points almost the same way", targets: [picture]}
+      - say: Subtract the fitted document mean from both documents and the query. Watch the second arrow swing past a right angle to the query. Its cosine has become negative. The first document still wins, even though both angles have changed.
+        hold: 0.65
+        visual_cues:
+          - {id: translate, phrase: "Subtract the fitted document mean", targets: [picture]}
+          - {id: values, phrase: "Its cosine has become negative", targets: [picture]}
+      - say: Join the query to each document. Their separations stayed the same because the mean cancels in each difference. A full orthonormal change of basis keeps distances and angles about the same origin. Truncating that basis can change both. Now imagine a document exactly at the fitted mean. It lands on the origin with zero length, so its cosine is undefined. Test zero-vector handling and retrieval rankings when you change the representation.
+        hold: 0.6
+        visual_cues:
+          - {id: distance, phrase: "Join the query to each document", targets: [picture]}
+          - {id: zero, phrase: "It lands on the origin with zero length", targets: [picture]}
+  - id: ivf
+    title: "Which list gets opened?"
+    visual: "The opening query returns to the original two-dimensional map. Measured center distances control three posting lists. Each opened row exposes its documents and their distances. B enters the comparison only when its list opens."
+    beats:
+      - say: "Let's try the other shortcut on our duplicate-charge request. Give every message back both coordinates. We've filed each message under its nearest cluster center. Those three lists make an inverted-file index. We can save document comparisons by opening just the list whose center is closest to the query."
+        hold: 0.65
+        visual_cues:
+          - id: query
+            phrase: "our duplicate-charge request"
+            targets: [picture]
+          - id: route
+            phrase: "nearest cluster center"
+            targets: [picture]
+      - say: "Compare all three centers. The upper center is just a little closer than the left one. The upper list holds C and D. Our full search picked B. If we open only the upper list, can it possibly return B?"
+        hold: 2
+        visual_cues:
+          - id: coarse
+            phrase: "Compare all three centers"
+            targets: [picture]
+          - id: predict
+            phrase: "can it possibly return B"
+            targets: [picture]
+      - say: "B is in the closed left list. Open the upper list and measure its two documents. C, the reset link, wins that search. Its distance hasn't changed. What changed is which messages we compared."
+        hold: 1
+        visual_cues:
+          - id: one
+            phrase: "Open the upper list"
+            targets: [picture]
+          - id: wrong
+            phrase: "C, the reset link, wins that search"
+            caption_boundary: true
+            targets: [picture]
+      - say: "Open the next closest list too. Now compare B's distance with C's. B is closer and the duplicate-payment message comes back. We made three center comparisons and four document comparisons. That's seven distances to recover a neighbor we found with six in the flat search."
+        hold: 0.8
+        visual_cues:
+          - id: two
+            phrase: "Open the next closest list too"
+            targets: [picture]
+          - id: winner
+            phrase: "B is closer and the duplicate-payment message comes back"
+            targets: [picture]
+          - id: work
+            phrase: "seven distances to recover a neighbor"
+            targets: [picture]
+  - id: ivf-work
+    title: Count the centroids and the lists actually opened
+    visual: Retain explicit posting lists and query identity. Balanced large-scale worksheet constructs K
+      comparisons plus N*nprobe/K document comparisons; an uneven-list case recomputes from exact opened IDs.
+      Flat vectors and compressed codes remain separate.
+    beats:
+      - say: An IVF cell stores assigned document IDs and their vector payloads. With full vectors and exact
+          distances, probing all lists recovers exhaustive search under consistent tie handling. Compressed
+          IVF codes can still change rankings after every list is opened. Candidate recovery and distance
+          precision are separate properties.
+        hold: 0.5
+        visual_cues:
+          - id: payload
+            phrase: full vectors and exact distances
+            targets:
+              - picture
+          - id: all
+            phrase: probing all lists recovers exhaustive search
+            targets:
+              - picture
+          - id: codes
+            phrase: Compressed IVF codes can still change rankings
+            targets:
+              - picture
+      - say: If lists are balanced, probing nprobe of K cells scans N times nprobe divided by K documents. Add K
+          coarse-center comparisons before counting total distance work. With four thousand ninety-six cells
+          and sixteen probes, the balanced document scan touches about zero point three nine percent of the
+          corpus, but coarse routing still costs work. Uneven list lengths require summing the actual opened
+          lists. For fixed K and nprobe, candidate work still grows linearly with corpus size.
+        hold: 0.5
+        visual_cues:
+          - id: grid
+            phrase: If lists are balanced
+            targets:
+              - picture
+          - id: coarse
+            phrase: Add K coarse-center comparisons
+            targets:
+              - picture
+          - id: sixteen
+            phrase: four thousand ninety-six cells and sixteen probes
+            targets:
+              - picture
+          - id: uneven
+            phrase: Uneven list lengths require summing the actual opened lists
+            targets:
+              - picture
+      - say: ANN recall compares approximate neighbors with the exact geometric neighbors under the same
+          representation and tie rule. It is distinct from semantic recall against reviewed relevance labels.
+          A perfect ANN index can reproduce bad embedding neighborhoods exactly. Keep the flat baseline,
+          measure latency as well as candidate work, and evaluate the queries your product must answer.
+        hold: 0.5
+        visual_cues:
+          - id: ann
+            phrase: ANN recall compares approximate neighbors with the exact geometric neighbors
+            targets:
+              - picture
+          - id: semantic
+            phrase: semantic recall against reviewed relevance labels
+            targets:
+              - picture
+          - id: latency
+            phrase: measure latency as well as candidate work
+            targets:
+              - picture
+  - id: audit-labels
+    title: A reviewed name belongs to evidence and a run
+    visual: Six original message IDs reconnect to nearest, boundary and centroid audit samples. Count current
+      reviewed topics and purity; split into singleton groups to show purity1 without useful grouping, while
+      an independent final benchmark remains unscored.
+    beats:
+      - say: A plot should produce a testable representation audit. Read nearest-message pairs, examples near centers
+          and boundaries, mixed intents and multilingual cases. Compare axes with formatting or length
+          metadata. Verify the serving metric and evaluate retrieval before and after compression on reviewed
+          query-document pairs. Cluster integer zero has no permanent meaning across restarts; attach a run ID
+          and reviewed label separately.
+        hold: 0.5
+        visual_cues:
+          - id: samples
+            phrase: Read nearest-message pairs
+            targets:
+              - picture
+          - id: metadata
+            phrase: Compare axes with formatting or length metadata
+            targets:
+              - picture
+          - id: run
+            phrase: attach a run ID and reviewed label separately
+            targets:
+              - picture
+      - say: Purity divides the dominant reviewed-topic count by cluster size. Our invented clean groups have purity
+          one because every member was designed and read. Singleton groups also have purity one, so that
+          number alone rewards fragmentation. Record sizes, topic coverage and boundary examples. Repeatedly
+          tuned audit cases become development data; preserve a separate untouched final benchmark.
+        hold: 0.5
+        visual_cues:
+          - id: purity
+            phrase: Purity divides the dominant reviewed-topic count by cluster size
+            targets:
+              - picture
+          - id: clean
+            phrase: Our invented clean groups have purity one
+            targets:
+              - picture
+          - id: singletons
+            phrase: Singleton groups also have purity one
+            targets:
+              - picture
+          - id: sizes
+            phrase: Record sizes, topic coverage and boundary examples
+            targets:
+              - picture
+          - id: final
+            phrase: preserve a separate untouched final benchmark
+            targets:
+              - picture
+  - id: takeaway
+    title: "Which message does the sign-in search return?"
+    visual: "A new five-document corpus has a wide first axis. Separate lanes magnify the vertical coordinate of the three documents at zero and their query. Remove that coordinate, resolve the tie in storage order, then test whether restoring it recovers sign-in help."
+    beats:
+      - say: "One last search. Someone asks why their sign-in code fails. These five documents are stored in the order across the top. The two policy pages sit far apart on the horizontal axis. The three documents in the middle all have horizontal coordinate zero. So does the query."
+        hold: 0.65
+        visual_cues:
+          - id: policies
+            phrase: "The two policy pages sit far apart"
+            targets: [picture]
+          - id: middle
+            phrase: "The three documents in the middle"
+            targets: [picture]
+      - say: "Look at their heights. Each lane shows one item on the same vertical scale. The query sits just above sign-in help. Billing help and the runbook are farther away. Searching all five in two dimensions returns L, the sign-in document."
+        hold: 0.65
+        visual_cues:
+          - id: height
+            phrase: "Look at their heights"
+            targets: [picture]
+          - id: dist
+            phrase: "The query sits just above sign-in help"
+            targets: [picture]
+          - id: baseline
+            phrase: "returns L, the sign-in document"
+            targets: [picture]
+      - say: "The horizontal axis alone keeps almost ninety-eight percent of the corpus variance. Keep just that axis for every document and for the query. Watch their vertical separations disappear."
+        hold: 0.9
+        visual_cues:
+          - id: variance
+            phrase: "keeps almost ninety-eight percent of the corpus variance"
+            targets: [picture]
+          - id: project
+            phrase: "Watch their vertical separations disappear"
+            targets: [picture]
+      - say: "Three documents now tie at distance zero. Our search returns the first tied document in storage order. Which ID comes back?"
+        hold: 2.25
+        visual_cues:
+          - id: tie
+            phrase: "Three documents now tie at distance zero"
+            targets: [picture]
+          - id: predict
+            phrase: "Which ID comes back"
+            targets: [picture]
+      - say: "B, billing help. L was in the search and got exactly the same score. For this query, would you open another list or bring back the second coordinate?"
+        hold: 2.15
+        visual_cues:
+          - id: wrong
+            phrase: "B, billing help"
+            caption_boundary: true
+            targets: [picture]
+          - id: repair-question
+            phrase: "open another list or bring back the second coordinate"
+            targets: [picture]
+      - say: "Bring back the second coordinate from the saved vectors. Sign-in help is two tenths of a unit from the query again, and L wins. We needed that small vertical gap to answer this question. Before choosing a shortcut, compare the returned messages with full search and with answers people have reviewed on held-out queries. Next we'll let a point belong to several groups by different amounts."
+        hold: 1
+        visual_cues:
+          - id: restore
+            phrase: "Bring back the second coordinate from the saved vectors"
+            caption_boundary: true
+            targets: [picture]
+          - id: answer
+            phrase: "and L wins"
+            targets: [picture]

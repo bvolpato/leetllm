@@ -1,0 +1,504 @@
+version: 1
+id: persistent-memory
+opening: lesson
+title: Giving an Agent a Memory That Lasts
+source: agents/agent-memory-persistence-patterns/content.md
+sources:
+  - title: Cognitive Architectures for Language Agents
+    url: https://arxiv.org/abs/2309.02427
+  - title: "Generative Agents: Interactive Simulacra of Human Behavior"
+    url: https://arxiv.org/abs/2304.03442
+  - title: "MemGPT: Towards LLMs as Operating Systems"
+    url: https://arxiv.org/abs/2310.08560
+  - title: Retrieval-Augmented Generation for Knowledge-Intensive NLP Tasks
+    url: https://arxiv.org/abs/2005.11401
+  - title: LangGraph persistence
+    url: https://docs.langchain.com/oss/python/langgraph/persistence
+  - title: OWASP Top 10 for LLM Applications 2025
+    url: https://genai.owasp.org/resource/owasp-top-10-for-llm-applications-2025/
+  - title: "Lost in the Middle: How Language Models Use Long Contexts"
+    url: https://aclanthology.org/2024.tacl-1.9/
+scenes:
+  - id: subject-intro
+    title: What comes back when Ada types “Continue”?
+    visual: Ada types into a fresh chat beside her saved test command and yesterday’s tool output. The model context starts with instructions and her message. A scoped profile read adds the command, a replay lookup adds the result, and the repository supplies the branch.
+    beats:
+      - say: “Continue.”
+        hold: 0.25
+        motion_check:
+          region: [925, 330, 825, 360]
+          minimumChangedFraction: 0.002
+        visual_cues:
+          - id: type-continue
+            phrase: Continue
+            targets: [request]
+            linger: 0.3
+      - say: Ada saved that test command four days ago. Can the model see her note in a fresh chat?
+        caption_starts: [Can the model see her note]
+        hold: 2.15
+        visual_cues:
+          - id: saved-command
+            phrase: saved that test command
+            targets: [note, request]
+            linger: 0.3
+      - say: The model has its instructions and one word from Ada. The app checks her access and copies the test command from her current billing profile into the prompt. Now the model can name her test.
+        caption_starts: [The app checks her access, and copies the test command, Now the model can name her test]
+        hold: 0.9
+        visual_cues:
+          - id: profile-lookup
+            phrase: copies the test command from her current billing profile into the prompt
+            targets: [note, request]
+            linger: 0.3
+      - say: Ada’s billing task links to yesterday’s failed replay. The app checks her access and copies the result into the prompt. Two deliveries of the same event created two invoices. The original stays in the log. For the active branch, the app checks the repository.
+        caption_starts: [The app checks her access, Two deliveries of the same event, For the active branch]
+        hold: 0.7
+        visual_cues:
+          - id: copy-receipt
+            phrase: copies the result into the prompt
+            targets: [receipt, request]
+            linger: 0.3
+          - id: replay-count
+            phrase: created two invoices
+            targets: [receipt, request]
+            linger: 0.3
+          - id: branch-lookup
+            phrase: the app checks the repository
+            targets: [request]
+            linger: 0.3
+  - id: context-and-memory
+    title: What travels with the receipt?
+    visual: The same replay moves between storage and a single call. A dense attention grid and two cache strips grow from four positions to eight. The stored PR retains its role when copied.
+    beats:
+      - say: The model reads the instructions, Ada’s message and the evidence selected for this call. The application also has working state it can carry into the next decision. When this prompt goes away, the retained receipt is still there for a future lookup.
+        hold: 0.65
+        visual_cues:
+          - id: context-and-memory-b1-1
+            phrase: evidence selected for this call
+            targets: [context-and-memory-construction]
+            linger: 0.3
+      - say: Serving the same prefix twice gives us another way to save work. A key-value cache reuses attention keys and values for positions already processed. Look at four positions, then double the length. Count every position against every position. The dense grid goes from sixteen pairs to sixty-four. FlashAttention reduces memory traffic and avoids storing that whole grid. The number of pairs still grows quadratically. Double the retained positions and the two cache strips double in length. A new query reads that growing history. To find last month’s receipt, the application still needs a store it can search.
+        hold: 0.65
+        visual_cues:
+          - id: context-and-memory-b2-1
+            phrase: key-value cache
+            targets: [context-and-memory-construction]
+            linger: 0.3
+          - id: dense-pairs
+            phrase: double the length
+            targets: [context-and-memory-construction]
+            linger: 0.3
+          - id: linear-kv
+            phrase: two cache strips double
+            targets: [context-and-memory-construction]
+            linger: 0.3
+      - say: Here are the records on Ada’s desk. Keep the fresh replay in working state. Pin the owner from current repository metadata when the model needs it. Last week’s pull request describes one event. CoALA calls that episodic memory. A retry should return the original invoice. Once the team checks that rule against the source evidence, it can keep the rule as semantic knowledge. The reviewed playbook tells the agent how to verify a change. That’s procedural knowledge. Copy the pull request into a prompt. It still describes that one event.
+        hold: 0.8
+        visual_cues:
+          - id: coala-episodic
+            phrase: episodic memory
+            targets: [context-and-memory-construction]
+            linger: 0.3
+          - id: coala-semantic
+            phrase: semantic knowledge
+            targets: [context-and-memory-construction]
+            linger: 0.3
+          - id: coala-procedural
+            phrase: procedural knowledge
+            targets: [context-and-memory-construction]
+            linger: 0.3
+          - id: episode-placement
+            phrase: Copy the pull request into a prompt
+            targets: [context-and-memory-construction]
+            linger: 0.3
+  - id: sliding-window
+    title: Five messages, three places
+    visual: The window admits one message at a time. The marked first turn leaves its event number in the summary. The unmarked second turn falls out without adding any text.
+    beats:
+      - say: These three messages fill the window. The first one has an event number marked FACT. In this example, only marked text goes into the summary. Watch the number as Ada adds a fourth message.
+        hold: 0.65
+        visual_cues:
+          - id: fourth-message
+            phrase: adds a fourth message
+            targets: [window]
+            linger: 0.3
+      - say: The first turn slides out. Its marked event number survives. Now add the fifth message. The second turn just said to inspect a file. It had no marker, so the summary stays exactly the same. We can still read the replay, the canary restriction and Ada’s question word for word.
+        hold: 0.85
+        visual_cues:
+          - id: fifth-message
+            phrase: add the fifth message
+            targets: [window]
+            linger: 0.3
+      - say: Replace the last message with a long tool result. Still three messages. Will they fit?
+        caption_starts: [Will they fit]
+        hold: 1.8
+        visual_cues:
+          - id: long-message
+            phrase: a long tool result
+            targets: [window]
+            linger: 0.3
+      - say: Count tokens with the target model’s tokenizer, including the summary. Keep each tool call with its result and reserve room for instructions, tool schemas, retrieved records and the answer. If you use a model to write the summary, compare it with the original. To reopen that original later, the app must save it and check Ada’s access when she returns.
+        hold: 0.65
+        visual_cues:
+          - id: count-tokens
+            phrase: Count tokens with the target model’s tokenizer
+            targets: [window]
+            linger: 0.3
+  - id: scope-and-provenance
+    title: Which records may billing search?
+    visual: A scoped register separates accessible billing receipts from a stronger private match. A historical test receipt and a current preference then answer distinct questions.
+    beats:
+      - say: Ada’s signed-in session belongs to billing and can read the webhook repository. The two billing replays are current and readable. There’s also a private payments incident. The payments incident looks most like her question. Which rows can enter the comparison?
+        hold: 2.15
+      - say: Both billing replays can. The payments record stays outside the search. The host checks tenant, repository and current source access before ranking. It also drops expired records, deleted sources and copies whose version has been replaced. A bigger similarity score can’t change any of those checks.
+        hold: 0.75
+        visual_cues:
+          - id: scope-filter
+            phrase: Both billing replays can
+            targets: [candidate-register]
+            linger: 0.3
+      - say: The log shows the command the agent ran last time. Ada has since chosen the billing test. Her project profile tells us which command to use now. Compare instructions for the same field, project and conditions. Ada’s explicit change retires the old preference. If two current instructions still disagree, check their sources and configuration. Ask Ada if the conflict remains.
+        hold: 0.75
+        visual_cues:
+          - id: receipt-vs-rule
+            phrase: which command to use now
+            targets: [preference]
+            linger: 0.3
+          - id: source-replacement
+            phrase: retires the old preference
+            targets: [preference]
+            linger: 0.3
+  - id: retrieval-ranking
+    title: Which replay goes into the prompt?
+    visual: Two eligible billing receipts share one score ruler. Similarity puts the older receipt ahead. The age contribution reverses the lead. An unbounded frequency input breaks the scale.
+    beats:
+      - say: Yesterday someone replayed Ada’s event again. The other billing receipt describes a different retry from two weeks ago. Its wording is a slightly closer match. Give wording half the score. The older receipt takes a small lead.
+        hold: 0.65
+        motion_check:
+          region: [599, 410, 1010, 390]
+          minimumChangedFraction: 0.002
+        visual_cues:
+          - id: rank-sim
+            phrase: Give wording half the score
+            targets: [ranking]
+            linger: 0.3
+      - say: Now give age three tenths of the score. In this example the age signal halves every week. The older receipt has been through two halvings. For yesterday’s replay, just one day of that first week has passed. When we add age, which bar will be longer?
+        hold: 2.1
+        visual_cues:
+          - id: rank-half-life
+            phrase: age signal halves every week
+            targets: [ranking]
+            linger: 0.3
+      - say: Yesterday’s replay takes the lead. Two halvings leave the older receipt with a quarter of its original age signal. Its age contribution is just point zero seven five. Compare the two age segments. Yesterday’s is more than three times as long.
+        hold: 0.65
+        visual_cues:
+          - id: rank-age
+            phrase: Yesterday’s replay takes the lead
+            targets: [ranking]
+            linger: 0.3
+      - say: Importance gets the last fifth. The billing team gave the replay a higher importance, so its lead grows. Round at the end and the scores are point eight eight two and point six one zero. Use the first receipt as evidence. For an exact branch or contract, look up its current version directly. An old contract can still be in force.
+        hold: 0.8
+        visual_cues:
+          - id: rank-importance
+            phrase: Importance gets the last fifth
+            targets: [ranking]
+            linger: 0.3
+          - id: rank-total
+            phrase: point eight eight two and point six one zero
+            targets: [ranking]
+            linger: 0.3
+      - say: These weights are a design choice. They keep the score between zero and one when all three inputs are in that range. Map or calibrate raw cosine similarity first because it can be negative. The Generative Agents simulation used equal weights, min-max scaling and time since last access. Here we measure time since the event.
+        hold: 0.5
+      - say: Try changing just the importance input in this scoring rule. Give an irrelevant record zero for wording and age, but count a million reads. Even after taking the natural log of one plus that count, frequency alone contributes about two point seven six. It beats every bounded record. Cap or normalize frequency and test whether serving a result makes it ever more likely to be served again.
+        hold: 0.8
+        visual_cues:
+          - id: rank-frequency
+            phrase: frequency alone contributes about two point seven six
+            targets: [frequency]
+            linger: 0.3
+  - id: paging-and-admission
+    title: What makes room for another turn?
+    visual: A message is copied into an archive. Its prompt slots stay occupied until the queue manager replaces older turns with a bounded summary. A separate host check admits only the verification field.
+    beats:
+      - say: Five entries in the queue. The replay is number three. The model asks the host to copy it to the archive. How many entries are still in the prompt?
+        hold: 2
+        visual_cues:
+          - id: archive-insert
+            phrase: copy it to the archive
+            targets: [queue, archive]
+            linger: 0.3
+      - say: All five. The archive has a copy, and the prompt still has the original. Now fold the two older turns into the first entry. That leaves one short summary and the two newest turns, word for word. MemGPT keeps the system instructions and writable working block separately. Check the token count to see how much room the answer has. Retained messages go to recall storage as they arrive. Either recall or archival storage can hold a past event or a preference. To recover a detail the summary dropped, ask the host for a page of results that fits the token budget.
+        hold: 0.75
+        visual_cues:
+          - id: evict-turns
+            phrase: fold the two older turns into the first entry
+            targets: [queue, archive]
+            linger: 0.3
+      - say: A model can request a memory write too. Ada directly supplied this billing test preference. The host resolves the source and checks the session, field, size and retention. The verifier passes. Now try writing merge approval from the same message. The host refuses that field. The stored preference count stays one. A current policy service owns approval.
+        hold: 0.85
+        motion_check:
+          region: [110, 465, 1690, 520]
+          minimumChangedFraction: 0.002
+        visual_cues:
+          - id: check-preference
+            phrase: checks the session, field, size and retention
+            targets: [write-register]
+            linger: 0.3
+          - id: write-admitted
+            phrase: The verifier passes
+            targets: [write-register]
+            linger: 0.3
+          - id: write-blocked
+            phrase: The host refuses that field
+            targets: [write-register]
+            linger: 0.3
+      - say: MemGPT’s paper illustrates a warning at seventy percent and a flush at one hundred percent. Choose thresholds from the actual window and response budget. The host governs these moves. LangGraph, for example, keeps a thread checkpoint separate from long-term records in a namespace. With model-extracted or file-backed memory, the host still checks sources, allowed fields or paths, size and retention.
+        hold: 0.55
+        visual_cues:
+          - id: queue-warning
+            phrase: seventy percent
+            targets: [pressure]
+            linger: 0.3
+          - id: queue-flush
+            phrase: one hundred percent
+            targets: [pressure]
+            linger: 0.3
+  - id: supersession-and-revocation
+    title: Read the verifier while the index catches up
+    visual: The same SQLite recall runs before and after a source revision and an index refresh. A pair of reads brackets the exclusive expiry time. A saved packet remains visible through a source tombstone. A separate restored fixture isolates grant revocation.
+    beats:
+      - say: Let’s rewind to when Ada changed her test preference. In the article’s SQLite exercise, the host resolves source T three for the signed-in session, checks access and writes an index entry pointing to that source and version. That derived record is called a projection. Admission and storage happen inside one trusted service. Values go into the SQL as parameters. Close the database connection and reopen it. The source and index both say version one, and the read returns the old command.
+        hold: 0.8
+        visual_cues:
+          - id: read-reopened
+            phrase: the read returns the old command
+            targets: [read-result]
+            linger: 0.3
+      - say: Ada replaces the command with the billing test. The profile commits version two from her direct statement. Mark the earlier preference superseded and propagate the correction to summaries, search and caches. Keep your eye on the index. It still points to version one. Ada still has access and the record hasn’t expired. What will a read through that index return now?
+        hold: 2.2
+        visual_cues:
+          - id: source-update
+            phrase: The profile commits version two
+            targets: [source-row]
+            linger: 0.3
+      - say: It returns an empty list. The lookup joins on the source identity and requires the current version. That old index entry can’t supply the old value or the new one. Watch the index row. The worker commits version two to the index. Run the same read at the same time. This time it returns the billing command.
+        hold: 0.9
+        motion_check:
+          region: [115, 500, 1690, 335]
+          minimumChangedFraction: 0.002
+        visual_cues:
+          - id: empty-read
+            phrase: It returns an empty list
+            targets: [read-result]
+            linger: 0.3
+          - id: projection-refresh
+            phrase: The worker commits version two to the index
+            caption_boundary: true
+            targets: [index-row, read-result]
+            linger: 0.3
+          - id: refreshed-read
+            phrase: This time it returns the billing command
+            caption_boundary: true
+            targets: [read-result]
+            linger: 0.3
+      - say: Keep both versions and Ada’s grant fixed. This record expires at second two hundred. Read it one second before expiry. The command still comes back. Advance the clock one second. Now the read returns an empty list. Both reads used the refreshed index. The source still sets the deadline.
+        hold: 0.8
+        visual_cues:
+          - id: before-expiry
+            phrase: Read it one second before expiry
+            targets: [read-result]
+            linger: 0.3
+          - id: at-expiry
+            phrase: Advance the clock one second
+            targets: [read-result]
+            linger: 0.3
+          - id: expired-read
+            phrase: Now the read returns an empty list
+            targets: [read-result]
+            linger: 0.3
+      - say: Back at second one hundred and two, the index returns the billing command. Save that result in Ada’s prompt packet. Now mark the source deleted. Its tombstone keeps the identity, so even a late refresh can see the deletion. A fresh read comes back empty and the queued write is refused. Look at the packet we saved earlier. It still contains the command. Propagate deletion to summaries, caches and indexes. Already sent prompts, logs and backups have their own retention paths.
+        hold: 0.8
+        visual_cues:
+          - id: keep-packet
+            phrase: Save that result
+            targets: [saved-packet]
+            linger: 0.3
+          - id: source-tombstone
+            phrase: mark the source deleted
+            targets: [source-row]
+            linger: 0.3
+          - id: late-refresh
+            phrase: the queued write is refused
+            targets: [read-result]
+            linger: 0.3
+      - say: Here’s a separate check in the same exercise. Restore the test source and its index at version four. Both match. Take away Ada’s grant. The next read is empty again, and a refresh is denied. This local database tests persistence and read rules. The service in production must supply the authenticated session. A content hash can check the expected bytes. Authorship still needs a trusted source.
+        hold: 0.75
+        visual_cues:
+          - id: grant-reset
+            phrase: version four
+            targets: [source-row]
+            linger: 0.3
+          - id: revoke-grant
+            phrase: Take away Ada’s grant
+            targets: [index-row]
+            linger: 0.3
+          - id: denied-read
+            phrase: a refresh is denied
+            targets: [read-result]
+            linger: 0.3
+  - id: compression-lineage
+    title: What did the summary leave out?
+    visual: A pair of four-message summaries compresses into one. Following a source link restores the canary-only condition. A second comparison catches a missing CI condition.
+    beats:
+      - say: Start with eight messages. Make two groups of four. Each summary here says how many items went in. Now summarize those two results together. The final summary says “two items.” What did anyone actually say? To find out, you need a link back to the messages.
+        caption_starts: [The final summary says, What did anyone actually say, To find out]
+        hold: 0.7
+        visual_cues:
+          - id: compress-groups
+            phrase: two groups
+            targets: [compression-lineage-construction]
+            linger: 0.3
+          - id: compress-again
+            phrase: those two results together
+            targets: [compression-lineage-construction]
+            linger: 0.3
+      - say: Here’s what a lost word can cost. The short version says “rollout approved.” Which rollout did the reviewer actually approve?
+        hold: 2
+        visual_cues:
+          - id: summary-lost-condition
+            phrase: rollout approved
+            targets: [compression-lineage-construction]
+            linger: 0.3
+      - say: Follow its source link. The reviewer wrote “canary only.” That limits who can receive the change. Check the current release record before acting. Keep the original turn IDs through every summary level, and put a token limit on each level.
+        caption_starts: [The reviewer wrote]
+        hold: 0.75
+        visual_cues:
+          - id: reopen-condition
+            phrase: Follow its source link
+            targets: [compression-lineage-construction]
+            linger: 0.3
+      - say: Extracting a field can lose a condition too. The user wrote “merge after CI.” The extracted request says “merge now.” The source ID exists, but the words after CI are missing. Reject that change. Validate the field, source and support for the claim. Even a confidence of point nine needs calibration before it can tell us how often an extraction is right.
+        hold: 0.75
+        visual_cues:
+          - id: unsupported-extraction
+            phrase: merge now
+            targets: [compression-lineage-construction]
+            linger: 0.3
+          - id: reject-extraction
+            phrase: Reject that change
+            targets: [compression-lineage-construction]
+            linger: 0.3
+  - id: tenant-boundary
+    title: Two people sign in as Ada
+    visual: A reused database connection serves two tenants with the same username. The application binds each transaction to its authenticated scope and combines allowed private and reviewed shared records.
+    beats:
+      - say: Both tenants have a user named Ada. Billing Ada can read her own replay and a reviewed shared retry rule. Payments Ada’s incident belongs to another tenant. The server derives tenant, user, repository and thread access from the signed-in session. A name can locate a record. Membership and resource grants decide who can read it.
+        hold: 0.65
+        visual_cues:
+          - id: same-username
+            phrase: user named Ada
+            targets: [tenant-boundary-construction]
+            linger: 0.3
+      - say: An application service can enforce that boundary if every read and write goes through it and callers cannot reach the store directly. In PostgreSQL, row security can enforce policies for ordinary roles. Owners normally bypass them unless forced to use row security. Superusers and roles with the bypass privilege still bypass them. Only the trusted service should be able to set the tenant for a request.
+        hold: 0.75
+        visual_cues:
+          - id: rls-owner
+            phrase: unless forced to use row security
+            targets: [tenant-boundary-construction]
+            linger: 0.3
+          - id: rls-bypass
+            phrase: still bypass them
+            targets: [tenant-boundary-construction]
+            linger: 0.3
+      - say: Reuse this database connection. Clear the first transaction’s scope. Until the next request has its own trusted scope, it gets no private rows. Now bind Payments Ada’s session. Only her permitted records come back. Test missing grants, revoked membership, cross-tenant reads and writes on the real access path. A stored instruction can turn up in a later prompt. Treat it as historical data, screen sensitive content and check each proposed action under current policy.
+        hold: 0.65
+        visual_cues:
+          - id: pool-clear
+            phrase: Clear the first transaction’s scope
+            targets: [tenant-boundary-construction]
+            linger: 0.3
+          - id: pool-rebind
+            phrase: bind Payments Ada’s session
+            targets: [tenant-boundary-construction]
+            linger: 0.3
+  - id: memory-and-execution-state
+    title: Did the merge happen?
+    visual: Two restarts have the same historical note and pending key. Only the merge destination distinguishes a committed result from a confirmed uncommitted request. An unresolved lookup leaves the key pending.
+    beats:
+      - say: Ada’s billing fix reaches review. The workflow saves a checkpoint with merge key M seventeen. It sends the request and crashes before it saves a reply. On restart, the last note says “merge approved,” and the checkpoint still says “pending.” Could the merge already have happened?
+        hold: 2.05
+        visual_cues:
+          - id: pending-key
+            phrase: checkpoint with merge key
+            targets: [checkpoint]
+            linger: 0.3
+      - say: Yes. Look up that same key at the merge destination. In this run you find a receipt for the exact repository and revision. Record that result in the checkpoint. Recovery sends zero new merge calls. The lost reply hid a completed operation.
+        hold: 0.85
+        visual_cues:
+          - id: found-receipt
+            phrase: a receipt for the exact repository and revision
+            targets: [destination]
+            linger: 0.3
+          - id: record-result
+            phrase: Record that result in the checkpoint
+            targets: [checkpoint]
+            linger: 0.3
+      - say: Replay the crash with the same saved note and key. This time the destination confirms the operation never committed. Before a retry, check current approval for this actor, repository and exact revision, along with required CI and reviews. Here approval has expired. Leave the merge pending and request a new decision.
+        hold: 0.8
+        visual_cues:
+          - id: uncommitted
+            phrase: confirms the operation never committed
+            targets: [destination]
+            linger: 0.3
+          - id: expired-approval
+            phrase: approval has expired
+            targets: [resume-action]
+            linger: 0.3
+      - say: If the destination can’t establish the outcome, keep the key and reconcile again. A missing reply or a missing row may leave a write in flight. Retry only when the current rules allow it and the destination can safely accept the same key. The note can help Ada understand the attempt. The checkpoint and the destination tell her where to resume.
+        hold: 0.7
+        visual_cues:
+          - id: still-unknown
+            phrase: can’t establish the outcome
+            targets: [destination]
+            linger: 0.3
+  - id: return-session
+    title: Which test belongs in Ada’s reply?
+    visual: The opening prompt returns. A newer billing preference competes with a stale search hit for its verifier line. The direct read fills the line before the queued refresh, while the merge stays pending.
+    beats:
+      - say: Ada changes one setting in her billing project. She wants the invoices test. The current profile now says version three. The search copy still has the billing test at version two. Which command belongs on the empty verifier line?
+        caption_starts: [She wants the invoices test, The search copy still has, Which command belongs]
+        hold: 2.3
+        visual_cues:
+          - id: fresh-source-three
+            phrase: current profile now says version three
+            targets: [profiles]
+            linger: 0.3
+          - id: fresh-choice
+            phrase: empty verifier line
+            targets: [request]
+            linger: 0.3
+      - say: Skip the stale search copy and read Ada’s current project profile. Pin its invoices test in the next prompt. The application commits a direct preference before the turn that needs it. This prompt can use the scoped profile read as soon as it arrives. The summary and search index can catch up in the background.
+        hold: 0.9
+        visual_cues:
+          - id: fresh-stale-answer
+            phrase: Skip the stale search copy and read Ada’s current project profile
+            targets: [profiles]
+            linger: 0.3
+          - id: fresh-profile-pin
+            phrase: Pin its invoices test in the next prompt
+            caption_boundary: true
+            targets: [request]
+            linger: 0.3
+      - say: The app can read the profile and search for related replays in parallel. Give the search a deadline. If it runs late, Ada can get her test command now and the extra history on a later call. On real return visits, track missed receipts, stale or unauthorized records, prompt tokens and time to first token.
+        hold: 0.6
+        visual_cues:
+          - id: background-refresh
+            phrase: If it runs late
+            targets: [profiles]
+            linger: 0.3
+      - say: The receipt tells Ada what happened. The profile tells her which test to run. Her merge is still pending. Recovery uses the saved key to find out what happened at the destination and checks current approval for that exact change before any retry.
+        hold: 1.6
+        visual_cues:
+          - id: final-checkpoint
+            phrase: her merge is still pending
+            targets: [request]
+            linger: 0.3

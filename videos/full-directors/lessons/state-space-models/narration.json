@@ -1,0 +1,592 @@
+[
+  {
+    "id": "c01",
+    "title": "Which memory can revisit the retry limit?",
+    "sourceChapters": [
+      "c01"
+    ],
+    "beats": [
+      {
+        "id": "c01-b01",
+        "say": "Look at the retry limit near the top of each file. File A allows three retries. File B allows one retry. Below each limit is a timeout. Close both files.",
+        "hold": 0.8
+      },
+      {
+        "id": "c01-b02",
+        "say": "Your reader will get a question about that first field. It can keep a representation for each position, or fold the numbers into one running value. Which gives the question a place to look?",
+        "hold": 3.2
+      },
+      {
+        "id": "c01-b03",
+        "say": "Keep the positions and the first field stays addressable. Full attention stores a key and a value for each position. That gives a later query a route back to the field. Whether it returns the right value depends on the trained reader.",
+        "hold": 0.8
+      },
+      {
+        "id": "c01-b04",
+        "say": "The other reader averages each input with the state, starting from zero. Both files leave one and a quarter. A state-space model updates a fixed number of activations with each input. With fixed widths its one live state has the same size after two positions or two thousand. That makes memory predictable, but this particular update loses the retry limit. We will trace what gets through, then test a fresh pair of files.",
+        "hold": 0.8
+      }
+    ]
+  },
+  {
+    "id": "c02",
+    "title": "Carry the old value, write the new input",
+    "sourceChapters": [
+      "c02"
+    ],
+    "beats": [
+      {
+        "id": "c02-b01",
+        "say": "Start one state coordinate at zero. Keep nine tenths of its old value and write one fifth of each new input. Three writes point six. One comes next. The retained point five four plus the new point two gives point seven four.",
+        "hold": 0.8
+      },
+      {
+        "id": "c02-b02",
+        "say": "Follow the third input, four. What part of point seven four survives? How much does four write?",
+        "hold": 2.4
+      },
+      {
+        "id": "c02-b03",
+        "say": "The carry is point six six six. The write is point eight. Together they give one point four six six. Input two repeats the calculation and leaves one point seven one nine four. Keep full precision between steps.",
+        "hold": 0.8
+      },
+      {
+        "id": "c02-b04",
+        "say": "In a larger model, matrix A carries state, B writes input, and C reads the updated state. D can send the current input straight to the output. Here C is one and D is zero. Double C alone and the output doubles. The stored history is still the same.",
+        "hold": 0.8
+      }
+    ]
+  },
+  {
+    "id": "c03",
+    "title": "Slide the same lag weights",
+    "sourceChapters": [
+      "c03"
+    ],
+    "beats": [
+      {
+        "id": "c03-b01",
+        "say": "Set C back to one and keep D at zero. The output again equals the stored state. At position four, trace that state back to the start, when it was zero. Each input writes one fifth of its value. Each intervening transition multiplies that write by point nine. The first input passes through three decays. The last input passes through none.",
+        "hold": 0.8
+      },
+      {
+        "id": "c03-b02",
+        "say": "Slide the readout to position two. These same lag weights give point seven four. Move it back to position four and all four terms give one point seven one nine four. This is a causal convolution. S4 can use this view on a known sequence and the recurrent view during generation.",
+        "hold": 0.8
+      },
+      {
+        "id": "c03-b03",
+        "say": "Keep the four inputs and the decay fixed. Suppose only the input four gets a larger write coefficient. Will the old lag kernel still give the fourth output?",
+        "hold": 2.6
+      },
+      {
+        "id": "c03-b04",
+        "say": "Raise that coefficient from point two to point five. The contribution of four, one step later, grows from point seven two to one point eight. The new total is two point seven nine nine four. A coefficient that depends on the input needs more information than its lag.",
+        "hold": 0.8
+      }
+    ]
+  },
+  {
+    "id": "c04",
+    "title": "Turn the step-size dial",
+    "sourceChapters": [
+      "c04"
+    ],
+    "beats": [
+      {
+        "id": "c04-b01",
+        "say": "Start with continuous decay at rate minus one. A discrete step of length delta keeps exponential of minus delta of the old state. At a tenth of a unit, most survives. Stretch the step to two units and watch how much remains.",
+        "hold": 0.8
+      },
+      {
+        "id": "c04-b02",
+        "say": "Bring the probe back to one. With B equal to one and a unit input held constant, the exact write is the area under this decay curve. The Mamba-one reference write uses the step size times B times the input. At one unit, compare the two areas.",
+        "hold": 0.8
+      },
+      {
+        "id": "c04-b03",
+        "say": "At a unit step the exact write is about point six three two. The reference write is one. Shorten the step again. Over a very short interval the curve is almost flat, so the rectangle is a close approximation. Keep the write convention with its example.",
+        "hold": 0.8
+      }
+    ]
+  },
+  {
+    "id": "c05",
+    "title": "Let an activation set the coefficients",
+    "sourceChapters": [
+      "c05"
+    ],
+    "beats": [
+      {
+        "id": "c05-b01",
+        "say": "In Mamba-one the post-convolution activation sets B, C and a positive step size. A stays fixed. Our scalar example uses simple hand-chosen maps. Process three, then one. Compare their step sizes and the separate writes they produce.",
+        "hold": 0.8
+      },
+      {
+        "id": "c05-b02",
+        "say": "Here comes four. Compared with one, its step is larger. Which fraction of the old state survives, and where does the new evidence enter?",
+        "hold": 2.5
+      },
+      {
+        "id": "c05-b03",
+        "say": "At four the carry fraction falls to about point four five. The write is about one point two eight. Add it to the retained state, then multiply by the current C to read the result. C changes the output without changing what was stored.",
+        "hold": 0.8
+      },
+      {
+        "id": "c05-b04",
+        "say": "Process two to finish the sequence. A larger step with negative A shrinks the old-state multiplier. Holding B times the input fixed, it scales the implemented write up in magnitude. The sign and size of that write, and how C reads it, determine what evidence gets through.",
+        "hold": 0.8
+      }
+    ]
+  },
+  {
+    "id": "c06",
+    "title": "Join adjacent updates in order",
+    "sourceChapters": [
+      "c06"
+    ],
+    "beats": [
+      {
+        "id": "c06-b01",
+        "say": "For a known sequence, the inputs determine these coefficients before the states are evaluated. Treat each update as an affine function. Multiply the incoming state, then add a write. Two updates can be composed into one affine pair, using the second transition to scale the first write.",
+        "hold": 0.6
+      },
+      {
+        "id": "c06-b02",
+        "say": "Use our four inputs and the fixed smoother. Each slip gives a carry multiplier and a write. Join the first two. Which multiplier acts on the first write?",
+        "hold": 2
+      },
+      {
+        "id": "c06-b03",
+        "say": "The second carry acts on it. Now join the last two the same way. Joining those two ranges gives one update for the whole strip. That reduction knows only the final state. An inclusive prefix scan also returns the state at each earlier position.",
+        "hold": 0.8
+      },
+      {
+        "id": "c06-b04",
+        "say": "A fused selective scan can keep intermediate states in fast local memory. Writing each expanded state to high-bandwidth device memory and reading it back costs time. Compare the fused output with a serial reference using a meaningful numerical tolerance. If a nonlinear recurrence needs the previous hidden state to determine its coefficients, you may be unable to prepare the pairs in advance.",
+        "hold": 0.7
+      }
+    ]
+  },
+  {
+    "id": "c07",
+    "title": "Can the memory still tell which fish faced left?",
+    "sourceChapters": [
+      "c07"
+    ],
+    "beats": [
+      {
+        "id": "c07-b01",
+        "say": "Which fish faces left? Remember your answer. Let’s see what survives when these frames pass through a small state-space model.",
+        "hold": 0.65
+      },
+      {
+        "id": "c07-b02",
+        "say": "The model keeps one number per pixel. They all start at zero. As the frame arrives, the model averages each stored number with its incoming pixel and writes the answer back in place.",
+        "hold": 0.65
+      },
+      {
+        "id": "c07-b03",
+        "say": "Look at the marked square. In A it caught a bright scale, worth three. In B it caught water, worth one. Starting from zero leaves one and a half in A, and just half in B.",
+        "hold": 0.7
+      },
+      {
+        "id": "c07-b04",
+        "say": "Here comes the second frame. The bright scale gets a darker exposure, one. The patch of water gets a lighter exposure, two. Look at what’s already stored in those squares. What happens when we average again?",
+        "hold": 3
+      },
+      {
+        "id": "c07-b05",
+        "say": "Watch the pixels as the frame lands. Both marked squares reach one and a quarter. Every fin and every patch of water lands on that value too. The direction is gone.",
+        "hold": 1.25
+      },
+      {
+        "id": "c07-b06",
+        "say": "Send the same bubbles through both runs. Each pixel starts from the same value on both sides and gets the same input. Even the little glint on each bubble comes out the same.",
+        "hold": 0.75
+      },
+      {
+        "id": "c07-b07",
+        "say": "Up top, the first frames still tell you which fish faced left. A readout gets only the stored pixels below. Whichever direction it chooses, it gives the same answer for both fish.",
+        "hold": 2.6
+      },
+      {
+        "id": "c07-b08",
+        "say": "At our marked square the two input histories were three then one, and one then two. Both left one point two five. Return to the uniform state before the bubbles. Give that coordinate four and then two in both runs. Both end at two point three one two five. More coordinates and selective dynamics can preserve other distinctions. Test the trained model on rare identifiers at different positions, with distractors.",
+        "hold": 0.8
+      }
+    ]
+  },
+  {
+    "id": "c08",
+    "title": "Which checkpoint can accept the correction?",
+    "sourceChapters": [
+      "c08"
+    ],
+    "beats": [
+      {
+        "id": "c08-b01",
+        "say": "Start from the common state one and a quarter. A draft proposes ninety-nine and seventy-seven. Accept ninety-nine and save its state. The next input, seventy-seven, overwrites the live value. The verifier rejects it and supplies four instead.",
+        "hold": 0.8
+      },
+      {
+        "id": "c08-b02",
+        "say": "The list of accepted inputs ends at ninety-nine. Which state should receive four? You can follow the branch in use, or return to the saved point.",
+        "hold": 3
+      },
+      {
+        "id": "c08-b03",
+        "say": "Restore the accepted checkpoint, then process the correction. The result matches a run that never processed seventy-seven. Processing four from the rejected branch would carry the rejected evidence forward.",
+        "hold": 0.8
+      },
+      {
+        "id": "c08-b04",
+        "say": "A real Mamba-one request also owns a short convolution history. A complete checkpoint must restore that history along with the recurrent state. Extra snapshots and provisional branches take memory. We will test a restart by withholding just that history.",
+        "hold": 0.8
+      }
+    ]
+  },
+  {
+    "id": "c09",
+    "title": "Measure the area of a held write",
+    "sourceChapters": [
+      "c09"
+    ],
+    "beats": [
+      {
+        "id": "c09-b01",
+        "say": "For a held input, the exact discrete transition is the matrix exponential of step size times A. The input coefficient integrates exponential of u times A, multiplied by B, from zero to the step size.",
+        "hold": 0.3
+      },
+      {
+        "id": "c09-b02",
+        "say": "For invertible A and a positive step, this equals inverse A times the exponential transition minus identity, then B. A singular matrix still has the integral form.",
+        "hold": 1.1
+      },
+      {
+        "id": "c09-b03",
+        "say": "At scalar A equal to minus one, B equal to one and unit step, old state retains about point three six eight. A unit held input contributes one minus that retention, about point six three two.",
+        "hold": 0.3
+      },
+      {
+        "id": "c09-b04",
+        "say": "The official Mamba-one-style write uses step size times B, giving one here. Both agree approximately for small steps. They are different finite-step models.",
+        "hold": 0.7
+      },
+      {
+        "id": "c09-b05",
+        "say": "Try half carry and half write with three, one, four and two, starting from zero. The states are one point five, one point two five, two point six two five and two point three one two five. C reads the state. D supplies the direct input skip.",
+        "hold": 0.8
+      },
+      {
+        "id": "c09-b06",
+        "say": "Reset to zero. Use the same rule for two, seven, six and one. After the first three inputs the state is five. What is the fourth state?",
+        "hold": 3
+      },
+      {
+        "id": "c09-b07",
+        "say": "Half of five plus half of one gives three. A change to the output map can change what the layer reports while leaving all four states intact.",
+        "hold": 0.8
+      }
+    ]
+  },
+  {
+    "id": "c10",
+    "title": "Follow one activation through a Mamba block",
+    "sourceChapters": [
+      "c10"
+    ],
+    "beats": [
+      {
+        "id": "c10-b01",
+        "say": "Imagine a rising ramp and a falling ramp. Their average heights match. A coordinate that tracks their slope can distinguish them. HiPPO initializes S4 dynamics from projections of history onto orthogonal polynomial modes. With fixed coefficients, S4 can convolve a known sequence or update one recurrent state during generation. Both computations use the same trained parameters.",
+        "hold": 1.1
+      },
+      {
+        "id": "c10-b02",
+        "say": "The Mamba-one core sits inside a larger block. Project the input into a main lane and a gate lane. The main lane passes through a causal convolution and SiLU activation.",
+        "hold": 0.3
+      },
+      {
+        "id": "c10-b03",
+        "say": "Call that activation u. From u we get B, C and a positive step size, delta. Follow the previous state into the selective update. Delta and A determine how much of it survives. Add the write, delta times B times u. That gives the new state. C reads that new state. A second path adds D times u directly to the readout. The learned A and D stay fixed across inputs.",
+        "hold": 0.7
+      },
+      {
+        "id": "c10-b04",
+        "say": "The separate lane applies SiLU to z and multiplies the readout before output projection. SiLU is z times sigmoid z and can be negative or exceed one. Softplus makes the step size positive in real arithmetic.",
+        "hold": 0.3
+      },
+      {
+        "id": "c10-b05",
+        "say": "Return to our scalar example. At activation four, the updated state was about one point four seven. With D set to zero, the readout was about one point seven six. A fused kernel should reproduce both. Check every prefix at the intended precision. If a value differs, check the write convention and which batch, channel and position supplied B, C and delta.",
+        "hold": 0.7
+      },
+      {
+        "id": "c10-b06",
+        "say": "Original S4 uses bilinear discretization. Its diagonal-plus-low-rank transition structure is doing real computational work. An efficient structured transition can process L positions with order L times state-width work for one channel, while a generic dense state-width by state-width matrix costs quadratic work per step.",
+        "hold": 0.8
+      },
+      {
+        "id": "c10-b07",
+        "say": "For zero initial state and fixed coefficients, an FFT can apply the prepared convolution kernel in order L log L work. Kernel construction has a separate cost, and the direct Python convolution in the article is intentionally quadratic.",
+        "hold": 0.3
+      },
+      {
+        "id": "c10-b08",
+        "say": "With a nonzero initial state, add its separately propagated readout contribution. These conditions explain when the two execution views implement the same dynamics.",
+        "hold": 0.8
+      }
+    ]
+  },
+  {
+    "id": "c11",
+    "title": "Which outputs does a scan retain?",
+    "sourceChapters": [
+      "c11"
+    ],
+    "beats": [
+      {
+        "id": "c11-b01",
+        "say": "Construct a tiny inclusive scan from two affine updates. The first maps h to point five h plus two. The second maps h to point two h plus one. From zero, the first prefix gives two.",
+        "hold": 0.3
+      },
+      {
+        "id": "c11-b02",
+        "say": "The second applies its decay to that first write, giving point two times two plus one, or one point four.",
+        "hold": 1.1
+      },
+      {
+        "id": "c11-b03",
+        "say": "The composite pair keeps transition point one and write one point four. A reduction returns only that final pair. A prefix scan also retains the first pair and yields both states, two and one point four. Swap the updates and the answer becomes two point five.",
+        "hold": 0.3
+      },
+      {
+        "id": "c11-b04",
+        "say": "Associativity permits changing the grouping while preserving order. Swapping the two functions changes which write the later carry multiplies.",
+        "hold": 0.7
+      },
+      {
+        "id": "c11-b05",
+        "say": "For a longer sequence, first combine adjacent ordered ranges. Pass the incoming prefix from the left range into each right range, composing it before that range's own updates. Continue down until each position has its complete prefix.",
+        "hold": 0.3
+      },
+      {
+        "id": "c11-b06",
+        "say": "Fused kernels keep expanded recurrent work in fast memory where possible instead of spilling every intermediate state to HBM. Floating-point regrouping still needs a tolerance-based reference comparison.",
+        "hold": 0.7
+      },
+      {
+        "id": "c11-b07",
+        "say": "Try two new updates. The first keeps point four of the state and adds five. The second keeps one quarter and adds two. Starting at zero, which two prefix states should your kernel return?",
+        "hold": 3
+      },
+      {
+        "id": "c11-b08",
+        "say": "The first prefix is five. The second is a quarter of five plus two, or three point two five. Keeping only the last number would lose the output at the first position.",
+        "hold": 0.8
+      }
+    ]
+  },
+  {
+    "id": "c12",
+    "title": "Pass a boundary state between chunks",
+    "sourceChapters": [
+      "c12"
+    ],
+    "beats": [
+      {
+        "id": "c12-b01",
+        "say": "Mamba-two uses structured state space duality, or SSD. Its transition within a head is scalar times identity. Unrolled recurrence weights factor into an earlier write, intervening decay and current read, so off-diagonal interaction blocks have low-rank structure. This connects the recurrence to structured masked kernel attention, not arbitrary softmax attention.",
+        "hold": 1.1
+      },
+      {
+        "id": "c12-b02",
+        "say": "Split three, one, four and two into two chunks. Compute local outputs from zero in parallel. The left chunk ends at point seven four. Pass that boundary to the right chunk. Its two outputs gain the boundary after one and two decays respectively. The reconstructed sequence matches the recurrence.",
+        "hold": 0.8
+      },
+      {
+        "id": "c12-b03",
+        "say": "Chunking groups the local products into batched matrix multiplications. Only chunk boundaries need the shorter propagation. At a width of two hundred fifty-six, sixteen thousand three hundred eighty-four inputs fill sixty-four chunks. One extra input opens chunk sixty-five. The state width stays fixed.",
+        "hold": 0.8
+      },
+      {
+        "id": "c12-b04",
+        "say": "Mamba-three changes the update itself. In its exponential-trapezoidal rule the previous write can contribute alongside the current one. At weight one, only the current endpoint writes, as in exponential Euler. At one half, both endpoints contribute. Second-order accuracy also needs smooth, stable dynamics and a weight within order delta of one half.",
+        "hold": 0.8
+      },
+      {
+        "id": "c12-b05",
+        "say": "A complex state can track phase. Start the pointer facing right. In this example, a one turns it halfway around. A zero leaves it in place. Feed the first one. Feed the second one. Now feed zero. Where will it point after the last one?",
+        "hold": 2.8
+      },
+      {
+        "id": "c12-b06",
+        "say": "Apply the last one. It turns left again. Three ones have arrived. The direction of this single pointer tells us whether the count of ones is odd or even.",
+        "hold": 0.8
+      },
+      {
+        "id": "c12-b07",
+        "say": "Now take a head with two input directions and two output directions. Start its state at zero. The first input writes two units to the right. The second input writes three units up. Add those vectors in one update. The new state has coordinates two and three. Mark that point. One read adds the coordinates. A second read subtracts the vertical coordinate from the horizontal one. What will each return?",
+        "hold": 2.8
+      },
+      {
+        "id": "c12-b08",
+        "say": "The sum is five. The difference is minus one. Both reads use the same updated state. These multiple write and read directions let Mamba-three do more arithmetic each time it reads state from memory. The block drops the separate short convolution and keeps the previous state-input write. More arithmetic at similar latency shows better hardware utilization. To measure tokens per second, time the serving workload.",
+        "hold": 0.8
+      }
+    ]
+  },
+  {
+    "id": "c13",
+    "title": "Restart the same stream twice",
+    "sourceChapters": [
+      "c13"
+    ],
+    "beats": [
+      {
+        "id": "c13-b01",
+        "say": "One live state has a fixed size, but a service may keep earlier copies. In this worksheet one complete stack state uses five mebibytes, and a separate snapshot is saved every one thousand twenty-four positions.",
+        "hold": 0.3
+      },
+      {
+        "id": "c13-b02",
+        "say": "Eight thousand one hundred ninety-two positions then need eight snapshots plus the live state, forty-five mebibytes. Sixty-five thousand five hundred thirty-six positions need three hundred twenty-five mebibytes under that policy.",
+        "hold": 1.1
+      },
+      {
+        "id": "c13-b03",
+        "say": "Pause the stream after three and one. This toy block first applies a width-three causal convolution, then carries half the old state and adds the convolution write. The saved state is two point one five and the history is zero, three, one. Each request owns its own mutable buffers, including across batch reordering.",
+        "hold": 0.8
+      },
+      {
+        "id": "c13-b04",
+        "say": "Restore two point one five in both takes. Restore the history only in take A. Take B gets zeros. Four is next in both streams. At the first suffix input, will the two recurrent states still agree?",
+        "hold": 3.2
+      },
+      {
+        "id": "c13-b05",
+        "say": "Shift four into both windows. Read oldest to newest with weights point two, point three and point five. The writes are two point nine and two. Both runs carry one point zero seven five. The first differing states are three point nine seven five and three point zero seven five. Stop here and find the missing inputs.",
+        "hold": 2.8
+      },
+      {
+        "id": "c13-b06",
+        "say": "Now feed two. The complete restore ends at four point three eight seven five, matching uninterrupted processing. The incomplete restore ends at three point seven three seven five. Restore every live dependency of the block. A new request starts clean. A resumed request needs its own history.",
+        "hold": 0.8
+      },
+      {
+        "id": "c13-b07",
+        "say": "Rejection requires the accepted boundary too. Under half carry and half write, prefix three, one leaves one point two five. Accepted provisional ninety-nine gives fifty point one two five. Rejected seventy-seven overwrites it with sixty-three point five six two five.",
+        "hold": 0.3
+      },
+      {
+        "id": "c13-b08",
+        "say": "Restore the accepted state before correction four to get twenty-seven point zero six two five. Continuing from rejected state gives thirty-three point seven eight one two five instead. Inverting tiny or zero carry factors is not a general rollback plan.",
+        "hold": 0.7
+      }
+    ]
+  },
+  {
+    "id": "c14",
+    "title": "When does cheaper decode pay for itself?",
+    "sourceChapters": [
+      "c14"
+    ],
+    "beats": [
+      {
+        "id": "c14-b01",
+        "say": "Predict an end-to-end result with supplied times. Attention prefill takes one hundred twenty milliseconds and each later decode step three point two. The SSM prefill takes one hundred fifty and each later step one point eight. Prefill already emits token one. Predict the faster reader at sixteen outputs.",
+        "hold": 2.5
+      },
+      {
+        "id": "c14-b02",
+        "say": "Sixteen generated tokens need fifteen later steps. Attention totals one hundred sixty-eight, versus one hundred seventy-seven milliseconds for the SSM.",
+        "hold": 1.1
+      },
+      {
+        "id": "c14-b03",
+        "say": "Keep those timings. At two hundred fifty-six outputs there are two hundred fifty-five later steps. Which reader finishes first now?",
+        "hold": 2.7
+      },
+      {
+        "id": "c14-b04",
+        "say": "The totals become nine hundred thirty-six and six hundred nine milliseconds. The crossing is about twenty-two point four three output tokens. The first integer SSM win is twenty-three. These authored numbers demonstrate amortization in a hypothetical workload.",
+        "hold": 0.7
+      },
+      {
+        "id": "c14-b05",
+        "say": "Keep exact-identifier lookup beside these timings. Test single and multiple needles across context lengths, distractors and target positions under a fixed quality gate. Attention layers in a hybrid retain explicit positions while recurrent layers bound their own live state.",
+        "hold": 0.3
+      },
+      {
+        "id": "c14-b06",
+        "say": "Every token in a hybrid traverses a fixed stack containing both recurrent and attention layers. Attention is not switched on only for a difficult query. In a supplied thirty-two-layer cache worksheet, keeping four attention layers reduces thirty-two gibibytes of matching all-attention KV to four gibibytes.",
+        "hold": 0.3
+      },
+      {
+        "id": "c14-b07",
+        "say": "Add recurrent state, snapshots and other memory separately. Use the measured quality and speed for your workload. At fixed width, full causal attention scores quadratically many pairs in prefill. Each later step reads a growing cache. Recurrent work scales linearly with sequence length, and each new step updates the same size state.",
+        "hold": 0.8
+      },
+      {
+        "id": "c14-b08",
+        "say": "The original Jamba configuration uses one attention mixer and seven Mamba mixers per eight layers, each paired with a feed-forward block. Selected feed-forward blocks use mixture-of-experts routing. The twenty-twenty-five Nemotron-H eight-billion recipe counts sublayers separately. It has four attention, twenty-four Mamba-two and twenty-four feed-forward sublayers.",
+        "hold": 0.3
+      },
+      {
+        "id": "c14-b09",
+        "say": "Those fractions use different counting conventions. Compare compute using measured work. Delta-rule linear attention is a separate recurrence family. Identify it from the update and buffer shapes.",
+        "hold": 0.3
+      },
+      {
+        "id": "c14-b10",
+        "say": "Try another timing worksheet. Attention starts at eighty milliseconds and adds three per later step. The SSM starts at one hundred twenty-five and adds one point six. Compare sixteen outputs with two hundred fifty-six.",
+        "hold": 2.8
+      },
+      {
+        "id": "c14-b11",
+        "say": "The short request takes one hundred twenty-five versus one hundred forty-nine milliseconds. The long one takes eight hundred forty-five versus five hundred thirty-three. The faster architecture changes with output length. Now test whether the reader can return the right identifier.",
+        "hold": 0.8
+      }
+    ]
+  },
+  {
+    "id": "c15",
+    "title": "Which reader should the service benchmark?",
+    "sourceChapters": [
+      "c14"
+    ],
+    "beats": [
+      {
+        "id": "c15-b01",
+        "say": "Two fresh files. C allows six retries with a one-second timeout. D allows two retries with a three-second timeout. Start each state at zero and average in each number. Return that state as the retry limit. Which file gets the correct answer?",
+        "hold": 3.3
+      },
+      {
+        "id": "c15-b02",
+        "say": "Both files return two. Only D matches its required retry limit. A readout that always returned six from that shared state would miss D instead. Exact recovery of both answers requires some difference to survive upstream.",
+        "hold": 0.8
+      },
+      {
+        "id": "c15-b03",
+        "say": "The service needs rare identifier lookup on long API specs. In this one-request worksheet, full attention needs thirty-two gibibytes of keys and values at sixty-five thousand five hundred thirty-six positions. The device holds twenty-four gibibytes. Which candidate keeps token access while reducing that cache?",
+        "hold": 2.6
+      },
+      {
+        "id": "c15-b04",
+        "say": "Benchmark the hybrid. Four attention layers need four gibibytes of keys and values here. Add the twenty-eight recurrent layers, weights, snapshots and workspace before deciding whether the whole request fits. Benchmark a trained SSM as well. Either candidate must meet the same exact-answer target.",
+        "hold": 0.8
+      },
+      {
+        "id": "c15-b05",
+        "say": "Keep the question fixed. Move the retry field from early to middle to late. Now amend six retries to two, then add a timeout of six seconds. What retry limit should the service return?",
+        "hold": 3
+      },
+      {
+        "id": "c15-b06",
+        "say": "Two retries. Score the latest setting, even when an old value reappears in another field. Include questions requiring multiple fields and questions with no supported answer. Compare exact accuracy across positions and lengths. Among models that pass, measure peak memory, time to first token, and later-token latency at serving concurrency. Extra branches for test-time checks also spend that budget.",
+        "hold": 0.8
+      }
+    ]
+  }
+]

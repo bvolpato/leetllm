@@ -1,0 +1,1599 @@
+version: 1
+id: deep-dive-deepep
+title: DeepEP and the Round Trip Through Expert Parallelism
+source: projects/deep-dive-deepep/content.md
+sources:
+  - title: Historical V2 routing and resource model
+    url: https://github.com/deepseek-ai/DeepEP/blob/dd758caf451848bd150e1046af3d0a73e5fff38d/README.md
+  - title: V2.5 migration snapshot
+    url: https://github.com/deepseek-ai/DeepEP/blob/93eb6eb238127e96c6d7a4a625a6dad158348509/README.md
+  - title: Pinned V2 route metadata, sizing and exact cached-route contract
+    url: https://github.com/deepseek-ai/DeepEP/blob/dd758caf451848bd150e1046af3d0a73e5fff38d/deep_ep/buffers/elastic.py
+  - title: Pinned V2.5 wait result and hook lifetime
+    url: https://github.com/deepseek-ai/DeepEP/blob/93eb6eb238127e96c6d7a4a625a6dad158348509/deep_ep/utils/event.py
+  - title: Mixed-fabric system-scope visibility repair
+    url: https://github.com/deepseek-ai/DeepEP/commit/11d1cab604bba8ebe15022be44e09c22a659c857
+  - title: Experimental Engram tail submission repair
+    url: https://github.com/deepseek-ai/DeepEP/commit/a56d6156febcd9976e55adc85b5155bfac9f28f8
+scenes:
+  - id: intro
+    title: Where does this copy of token a go?
+    visual: >-
+      One copy of row a stays on GPU 0 as its twin crosses to GPU 1. The router changes one expert.
+      Compare it with the saved handle, then follow one fresh delivery to two expert slots on GPU 1.
+    beats:
+      - say: >-
+          Watch this copy of token a cross to GPU one. Another copy stays on GPU zero. The router picked
+          expert zero on the left and expert three on the right. Each expert is a neural network block.
+          Its weights stay on its GPU, so DeepEP brings the row to it.
+        hold: 0.7
+        caption_starts: ["Another copy stays on GPU zero", "The router picked expert zero"]
+        visual_cues:
+          - id: de-intro-choices
+            phrase: >-
+              The router picked expert zero on the left and expert three on the right
+            targets: [de-intro-choices]
+            linger: 0.3
+          - id: de-intro-dispatch
+            phrase: >-
+              Watch this copy of token a cross to GPU one
+            targets: [de-intro-ranks]
+            linger: 0.3
+      - say: >-
+          Dispatch saved those choices in a route handle. Run the same row again. This time the router
+          replaces expert zero with expert two. Compare the new pair with the saved pair. Which expert
+          would the cached route visit by mistake?
+        hold: 2.5
+        caption_starts: ["This time the router replaces", "Which expert would the cached route visit"]
+        visual_cues:
+          - id: de-intro-change
+            phrase: "replaces expert zero with expert two"
+            targets: [de-intro-choices]
+            linger: 0.3
+          - id: de-intro-question
+            phrase: "Which expert would the cached route visit by mistake"
+            targets: [de-intro-decision, de-intro-choices]
+            linger: 0.3
+      - say: >-
+          Expert zero. Build a fresh handle from the new choices. Now one copy goes to GPU one. There it
+          splits into slots for experts two and three. The caller weights each expert’s output. DeepEP
+          uses the handle to bring both contributions back to a.
+        hold: 0.9
+        caption_starts: ["Build a fresh handle", "Now one copy goes to GPU one", "There it splits"]
+        visual_cues:
+          - id: de-intro-wrong
+            phrase: "Expert zero"
+            targets: [de-intro-ranks, de-intro-choices]
+            linger: 0.3
+          - id: de-intro-rebuild
+            phrase: "Build a fresh handle from the new choices"
+            targets: [de-intro-choices]
+            linger: 0.3
+          - id: de-intro-deliver
+            phrase: "one copy goes to GPU one"
+            targets: [de-intro-ranks]
+            linger: 0.3
+          - id: de-intro-expand
+            phrase: "splits into slots for experts two and three"
+            targets: [de-intro-ranks]
+            linger: 0.3
+  - id: version-boundary
+    title: >-
+      Which buffer runs the dispatch?
+    visual: >-
+      Token a keeps its identity and its two expert choices as the API changes from ElasticBuffer to
+      EPBuffer.
+    beats:
+      - say: >-
+          Keep row a and its two expert choices. In the historical V two API, one ElasticBuffer
+          dispatches the row and combines the outputs. Our four-token CPU example traces which slot each
+          row visits and what value comes back.
+        hold: 0.7
+        visual_cues:
+          - id: de-version-boundary-b0
+            phrase: >-
+              one ElasticBuffer dispatches the row and combines the outputs
+            targets:
+              - de-version-boundary-mechanism
+            color: cyan
+            linger: 0.35
+      - say: >-
+          In the V two point five snapshot, expert dispatch moves to E P Buffer. Bucket, pipeline and
+          Engram each get a dedicated buffer too. They share allocation and lifetime management.
+          Installation builds the host extension. DeepJIT compiles the GPU kernels at runtime. This
+          release also removes V one and its NVSHMEM dependency.
+        hold: 0.7
+        visual_cues:
+          - id: de-version-boundary-b1
+            phrase: >-
+              expert dispatch moves to E P Buffer
+            targets:
+              - de-version-boundary-mechanism
+            color: cyan
+            linger: 0.35
+  - id: dispatch
+    title: Destination copies and expert assignments count different work
+    visual: The article's four-token routing table computes eight expert assignments and eight token-destination
+      rows. Moving one selection to the same rank reduces destination rows to seven; the final beat preserves
+      that first selection and disables only the second, removing one expert assignment.
+    beats:
+      - say: >
+          Two source ranks own two tokens each. Each token chooses two of four experts, with two experts per
+          rank. In the first route, every token touches both destination ranks. Count eight expert assignments
+          and eight distinct token-destination rows, including local work that crosses no remote link.
+        hold: 0.6
+        visual_cues:
+          - id: dispatch-beat-1-focus-1
+            phrase: Two source ranks own two tokens each
+            targets:
+              - dispatch-grid-token-source-rank-selection-0-selection-1-rows-250-390-1420-400
+            color: cyan
+            linger: 0.65
+          - id: dep-result-dispatch-eight
+            phrase: Count eight expert assignments and eight distinct token-destination rows, including local work that crosses no remote link
+            targets:
+              - dep-dispatch-summary
+            color: cyan
+            linger: 0.35
+      - say: >-
+          Change only a's first choice, from expert zero to expert two. The receiver on rank one
+          owns both selected experts. Send one row to rank one. Copy it to expert two's slot with
+          the first gate, then to expert three's slot with the second. Look at both counts. Eight
+          assignments still feed the experts, while seven destination rows suffice for transport.
+          Dispatch used fresh metadata for those choices.
+        hold: 0.8
+        motion_check:
+          region:
+            - 780
+            - 330
+            - 1040
+            - 540
+          minimumChangedFraction: 0.002
+        visual_cues:
+          - id: de-dispatch-send
+            phrase: "Send one row to rank one"
+            targets: [dispatch-ex-delivered-a-one-row-at-rank-1-rank-1-receive-pending]
+            linger: 0.3
+          - id: de-dispatch-e2
+            phrase: "Copy it to expert two's slot with the first gate"
+            targets: [dispatch-ex-expertrows-includes-expert-a-e-expert-gate-7-3-i-e-expert-slot-pe]
+            linger: 0.3
+          - id: de-dispatch-e3
+            phrase: "then to expert three's slot with the second"
+            targets: [dispatch-ex-expertrows-includes-expert-a-e-expert-gate-7-3-i-e-expert-slot-pe]
+            linger: 0.3
+          - id: dep-result-dispatch-seven
+            phrase: "seven destination rows suffice for transport"
+            targets: [dep-dispatch-summary]
+            caption_boundary: true
+            linger: 0.3
+      - say: >
+          Disable a's second selection with the unused-slot marker. The reference skips it explicitly, leaving
+          seven expert assignments. The remaining gate keeps its supplied weight. Masking a selection,
+          deduplicating a destination and padding an allocation are three different operations with different
+          effects on the ledger.
+        hold: 0.6
+        visual_cues:
+          - id: dispatch-beat-3-focus-1
+            phrase: Disable a's second selection with the unused-slot marker
+            targets:
+              - dispatch-grid-token-source-rank-selection-0-selection-1-rows-250-390-1420-400
+            color: cyan
+            linger: 0.65
+          - id: dep-result-dispatch-mask
+            phrase: leaving seven expert assignments
+            targets:
+              - dep-dispatch-summary
+            color: cyan
+            linger: 0.35
+  - id: layout
+    title: Aligned storage contains gaps that have no source token
+    visual: Counts three and one create aligned expert starts zero and four, valid endpoints three and five, and
+      eight allocated slots. The displayed slot-to-source inverse map restores every valid row and actually
+      rejects a lookup for displayed padding slot three.
+    beats:
+      - say: >
+          Expert computation wants rows grouped into segments. Our local example has three real rows for one
+          expert and one for another. Without alignment, four slots hold all four rows. The inverse map
+          assigns each real expert slot its source identity.
+        hold: 0.6
+        visual_cues:
+          - id: layout-beat-1-focus-1
+            phrase: Without alignment, four slots hold all four rows
+            targets:
+              - layout-labels
+            color: cyan
+            linger: 0.65
+      - say: >
+          Align each segment to four slots. The second expert starts at four, and its one real row ends at
+          five. Allocated capacity is eight, while only four slots are valid. The displayed starts, endpoints
+          and row counts come from the same segment calculation.
+        hold: 0.6
+        visual_cues:
+          - id: layout-beat-2-focus-1
+            phrase: The displayed starts, endpoints and row counts come from the same segment calculation
+            targets:
+              - layout-labels
+            color: cyan
+            linger: 0.65
+          - id: dep-result-layout-eight
+            phrase: Allocated capacity is eight, while only four slots are valid
+            targets:
+              - dep-layout-summary
+            color: cyan
+            linger: 0.35
+      - say: >
+          Return an output from an alignment gap and the reference rejects it: that slot has no source
+          identity. Zeroing padding can make kernel inputs convenient, but it cannot turn capacity into a real
+          token. No-CPU-sync integrations must consume valid device ranges rather than treating the entire
+          receive allocation as populated data.
+        hold: 0.6
+        visual_cues:
+          - id: layout-beat-3-focus-1
+            phrase: Zeroing padding can make kernel inputs convenient
+            targets:
+              - layout-labels
+            color: cyan
+            linger: 0.65
+          - id: dep-result-layout-reject
+            phrase: Return an output from an alignment gap and the reference rejects it
+            targets:
+              - dep-layout-summary
+            color: cyan
+            linger: 0.35
+  - id: layout-boundaries
+    title: Construct valid endpoints separately from allocated segments
+    visual: The existing three-and-one row fixture keeps source identities while aligned regions are constructed.
+    beats:
+      - say: For an alignment A, divide the actual row count by A, take the ceiling, then multiply by A to get the
+          allocated segment size. The next segment starts after that allocation. Its valid endpoint is its
+          start plus its actual count. Our three-and-one fixture therefore has two four-slot allocations, but
+          only four valid rows. Capacity and population use different counts.
+        hold: 0.7
+        visual_cues:
+          - id: de-layout-boundaries-b0
+            phrase: For an alignment A, divide the actual row count by A, take the ceiling, then multiply by A
+              to get the allocated segment size.
+            targets:
+              - de-layout-boundaries-mechanism
+            color: cyan
+            linger: 0.35
+          - id: de-layout-four
+            phrase: only four valid rows
+            targets:
+              - de-layout-boundaries-mechanism
+            color: cyan
+            linger: 0.35
+      - say: Expanded layout creates an expert slot for each valid selection. Non-expanded layout retains one
+          destination row with its expert metadata. An unused selection has no contribution; an alignment gap
+          has no source identity. In a no-CPU-sync path, a large receive tensor can represent capacity rather
+          than a completely populated batch. Use the valid device counts and ranges.
+        hold: 0.7
+        visual_cues:
+          - id: de-layout-boundaries-b1
+            phrase: Expanded layout creates an expert slot for each valid selection.
+            targets:
+              - de-layout-boundaries-mechanism
+            color: cyan
+            linger: 0.35
+  - id: handle-lifetime
+    title: What comes back to row a?
+    visual: >-
+      Two runs share an input and gates. Only the first expert changes. Compare the first
+      coordinate from a cached dispatch with the value required by the new router choices.
+    beats:
+      - say: >-
+          Put a back on the route to experts two and three. Here's a way to catch an accidental
+          replay. Give each expert a simple job. Expert k multiplies both coordinates by k plus
+          one. The old handle visits zero and three, so the first coordinate comes back as one
+          point nine. What first coordinate should a get on the new route?
+        hold: 2.5
+        visual_cues:
+          - id: de-handle-old
+            phrase: "comes back as one point nine"
+            targets: [de-handle-old-row]
+            caption_boundary: true
+            linger: 0.3
+          - id: de-handle-ask
+            phrase: "What first coordinate should a get on the new route"
+            targets: [de-handle-new-row]
+            linger: 0.3
+      - say: >-
+          Only the first term changes. Expert two triples the one, and its gate keeps seventy
+          percent. That's two point one. Expert three still contributes one point two. Together
+          they give three point three. If this fixture returns one point nine, check which route
+          dispatch actually used. Both results fit the same row.
+        hold: 1.1
+        visual_cues:
+          - id: de-handle-first
+            phrase: "Expert two triples the one"
+            targets: [de-handle-new-row]
+            linger: 0.3
+          - id: de-handle-new
+            phrase: "Together they give three point three"
+            targets: [de-handle-new-row]
+            caption_boundary: true
+            linger: 0.3
+      - say: >-
+          Dispatch saves the source identities, expert slots and segment offsets in the handle. A
+          hybrid route also needs its forwarding information. The gates accompany the received
+          rows separately. Reuse a handle only while its route and layout still match. Historical
+          V two can copy its indices. The V two point five snapshot retains them by reference.
+          Keep those indices unmodified and the referenced storage alive until the last consumer
+          finishes. A compatible buffer can serve a fresh dispatch.
+        hold: 0.8
+        visual_cues:
+          - id: de-handle-storage
+            phrase: "retains them by reference"
+            targets: [de-handle-storage]
+            linger: 0.3
+  - id: combine
+    title: What does combine receive?
+    visual: >-
+      Start with the original E0/E3 route. Scale each raw output on its own bar before addition,
+      then deliver all eight weighted results in reverse order using their expert-slot identities.
+    beats:
+      - say: >-
+          Go back to a's original pair, experts zero and three. Expert k multiplies its input by k
+          plus one. The first coordinates on these two bars are one and four. Add them raw and you
+          get five. Each expert also received a gate from the router. What should the caller send
+          into combine?
+        hold: 2
+        visual_cues:
+          - id: combine-beat-1-focus-1
+            phrase: "experts zero and three"
+            targets: [combine-a-e-row-expert-saved-slot-row-key]
+            linger: 0.3
+          - id: dep-result-combine-five
+            phrase: "Add them raw and you get five"
+            targets: [dep-combine-summary]
+            caption_boundary: true
+            linger: 0.3
+      - say: >-
+          Take seventy percent of the one. Now take thirty percent of the four. Combine receives
+          point seven and one point two for a. Their sum is one point nine. Here's a second
+          failure with the same shape. If the caller applied the gates again, a would get point
+          eight five.
+        hold: 1
+        visual_cues:
+          - id: de-combine-e0
+            phrase: "Take seventy percent of the one"
+            targets: [combine-weighted-contributions]
+            linger: 0.3
+          - id: de-combine-e3
+            phrase: "take thirty percent of the four"
+            targets: [combine-weighted-contributions]
+            linger: 0.3
+          - id: dep-result-combine-once
+            phrase: "Their sum is one point nine"
+            targets: [dep-combine-summary]
+            caption_boundary: true
+            linger: 0.3
+          - id: dep-result-combine-twice
+            phrase: "a would get point eight five"
+            targets: [dep-combine-summary]
+            caption_boundary: true
+            linger: 0.3
+      - say: >-
+          Now return all eight results in reverse order. Follow each expert and slot number to the
+          source row that dispatch saved for it. Even though a's contributions arrive last, a
+          still gets one point nine. Try omitting a's slot from expert zero. The reference rejects
+          the missing return. Send that slot twice and it rejects the duplicate. On the device,
+          compare the restored rows with this small reference.
+        hold: 1
+        visual_cues:
+          - id: de-combine-reverse
+            phrase: "Follow each expert and slot number to the source row that dispatch saved for it"
+            targets: [combine-source-token-accumulator]
+            linger: 0.3
+          - id: dep-result-combine-missing
+            phrase: "rejects the missing return"
+            targets: [combine-source-token-accumulator]
+            caption_boundary: true
+            linger: 0.3
+          - id: dep-result-combine-duplicate
+            phrase: "rejects the duplicate"
+            targets: [combine-source-token-accumulator]
+            caption_boundary: true
+            linger: 0.3
+  - id: backward-operators
+    title: Separate reverse communication from differentiation through the experts
+    visual: Fixed routing is represented as an expansion matrix and its reverse sum, with gate derivatives on a
+      separate path.
+    beats:
+      - say: With routing fixed, unweighted dispatch is a linear copy-and-expansion operator D. Its transpose sums
+          matching returned contributions into their source rows. That explains the communication relationship
+          used by backward wrappers. The full MoE layer also contains expert computation and gate
+          multiplication. Transposing communication alone does not compute their derivatives, and discrete
+          expert selection is another boundary.
+        hold: 0.7
+        visual_cues:
+          - id: de-backward-operators-b0
+            phrase: With routing fixed, unweighted dispatch is a linear copy-and-expansion operator D.
+            targets:
+              - de-backward-operators-mechanism
+            color: cyan
+            linger: 0.35
+      - say: "In our original token a example, expert gains are one and four with gates point seven and point three.
+          The combined gain is one point nine. For an upstream vector two, one, the input gradient is three
+          point eight, one point nine. The two gate derivatives are the upstream dot products with the raw
+          expert outputs: two and eight. Reusing route metadata does not justify applying those gates twice."
+        hold: 0.7
+        visual_cues:
+          - id: de-backward-operators-b1
+            phrase: In our original token a example, expert gains are one and four with gates point seven and
+              point three.
+            targets:
+              - de-backward-operators-mechanism
+            color: cyan
+            linger: 0.35
+          - id: de-backward-input
+            phrase: the input gradient is three point eight, one point nine
+            targets:
+              - de-backward-input-result
+            color: cyan
+            linger: 0.35
+          - id: de-backward-gates
+            phrase: two and eight
+            targets:
+              - de-backward-gate-result
+            color: cyan
+            linger: 0.35
+  - id: rounding
+    title: Where is the subtotal stored?
+    visual: >-
+      Two rulers carry the same subtotal from 256 to 257. Only the BF16 marker snaps back when the
+      intermediate result is stored. Subtracting 256 exposes the unit that survived on the FP32
+      path.
+    beats:
+      - say: >-
+          Even the right expert values can change on the way home. A rank can sum contributions
+          locally and forward the subtotal to save traffic. Here one source row gets three already
+          weighted values. Start at two hundred fifty-six on both rulers. Add one. The subtotal
+          is halfway between two bfloat sixteen marks. At a tie, the last retained bit must be zero.
+          Look at the bit under each neighbor. Which neighbor gets stored?
+        hold: 2.4
+        visual_cues:
+          - id: de-round-add
+            phrase: "Add one"
+            targets: [rounding-bf16-operation, rounding-fp32-operation]
+            linger: 0.3
+          - id: de-round-question
+            phrase: "At a tie, the last retained bit must be zero"
+            targets: [rounding-bf16-operation]
+            linger: 0.3
+      - say: >-
+          Here that's two hundred fifty-six. The left marker moves back one unit. Now the negative
+          contribution arrives. Subtract two hundred fifty-six from the stored value and zero
+          comes home.
+        hold: 1
+        visual_cues:
+          - id: dep-result-round-cast
+            phrase: "Here that's two hundred fifty-six"
+            targets: [rounding-bf16-operation]
+            caption_boundary: true
+            linger: 0.3
+          - id: dep-result-round-zero
+            phrase: "zero comes home"
+            targets: [rounding-bf16-operation]
+            caption_boundary: true
+            linger: 0.3
+      - say: >-
+          On the right, float thirty-two keeps the subtotal at two hundred fifty-seven. Make the
+          same subtraction before the final cast, and one comes home. All three inputs fit in
+          bfloat sixteen. The difference came from storing the subtotal between additions. Check
+          where your kernel stores intermediate results before choosing an error tolerance.
+        hold: 1.1
+        visual_cues:
+          - id: dep-result-round-one
+            phrase: "one comes home"
+            targets: [rounding-fp32-operation]
+            caption_boundary: true
+            linger: 0.3
+  - id: deterministic-order
+    title: Sort the data and the coordinates that identify it
+    visual: The same reversed arrivals are sorted while source-to-slot links update coherently.
+    beats:
+      - say: >-
+          Watch each arriving value move with its source identity. If the sorter moves a value alone,
+          combine credits the wrong token. Historical V two sorts non-expanded rows together with their
+          scales, expert indices, weights and source metadata. In expanded mode it sorts within each
+          expert segment and updates the slot pointers in the source metadata.
+        hold: 0.7
+        visual_cues:
+          - id: de-deterministic-order-b0
+            phrase: >-
+              each arriving value move with its source identity
+            targets:
+              - de-deterministic-order-mechanism
+            color: cyan
+            linger: 0.35
+      - say: >-
+          The sort uses source-global identity and expert grouping, with padding kept outside valid data.
+          You can now compare the same expert slots across runs. Later reductions still depend on their
+          own order and precision. Time the sorted path separately because sorting adds work and can add
+          an epilogue on the waiting stream.
+        hold: 0.7
+        visual_cues:
+          - id: de-deterministic-order-b1
+            phrase: The sort uses source-global identity and expert grouping, with padding kept outside valid data.
+            targets:
+              - de-deterministic-order-mechanism
+            color: cyan
+            linger: 0.35
+  - id: topology
+    title: Logical payload and physical links use different ledgers
+    visual: A direct rank-zero-to-rank-three route contrasts with a hybrid RDMA rail followed by an NVLink hop. A
+      supplied byte ledger calculates logical and remote bandwidth from their explicit payloads and interval.
+    beats:
+      - say: >
+          Place two ranks in each of two nodes. Direct mode represents a flat logical domain, while hybrid
+          mode models scale-out traffic and local forwarding separately. Our highlighted hybrid route crosses
+          the network to a rail peer, then travels inside the destination node to its final rank.
+        hold: 0.6
+        visual_cues:
+          - id: topology-direct-domain
+            phrase: Direct mode represents a flat logical domain
+            targets:
+              - topology-direct-link
+              - topology-rank-3
+            color: blue
+            linger: 0.15
+          - id: topology-rail-hop
+            phrase: Our highlighted hybrid route crosses the network to a rail peer
+            targets:
+              - topology-rail-link
+              - topology-rank-2
+            color: blue
+            linger: 0.65
+          - id: topology-beat-1-focus-1
+            phrase: then travels inside the destination node to its final rank
+            targets:
+              - topology-local-link
+              - topology-rank-3
+            color: cyan
+            linger: 0.65
+          - id: topology-beat-1-focus-2
+            phrase: while hybrid mode models scale-out traffic and local forwarding separately
+            targets:
+              - topology-rail-link
+              - topology-local-link
+            color: yellow
+            linger: 0.65
+      - say: >-
+          The route carries the original global source and destination through both hops. Before the
+          consumer reads the row, the writes must be visible on the destination GPU. Check that ordering
+          on the links your deployment actually uses.
+        hold: 0.6
+        visual_cues:
+          - id: topology-beat-2-focus-1
+            phrase: The route carries the original global source and destination through both hops
+            targets:
+              - topology-rail-link
+              - topology-local-link
+              - topology-rank-3
+            color: cyan
+            linger: 0.65
+          - id: topology-beat-2-focus-2
+            phrase: the writes must be visible on the destination GPU
+            targets:
+              - topology-rank-3
+            color: yellow
+            linger: 0.65
+      - say: >
+          One hundred mebibytes of logical payload includes fifty that stay local. Over the same
+          millisecond, the logical byte rate is twice the remote payload rate. Check which rows crossed
+          the network when reading a NIC counter.
+        hold: 0.6
+        visual_cues:
+          - id: topology-beat-3-focus-1
+            phrase: the logical byte rate is twice the remote payload rate
+            targets:
+              - topology-byte-ledger
+            color: cyan
+            linger: 0.65
+          - id: topology-beat-3-focus-2
+            phrase: Check which rows crossed the network when reading a NIC counter
+            targets:
+              - topology-byte-ledger
+            color: yellow
+            linger: 0.65
+          - id: dep-result-topology-rates
+            phrase: is twice the remote payload rate
+            targets:
+              - topology-byte-ledger
+            color: cyan
+            linger: 0.35
+  - id: visibility-fence
+    title: >-
+      Make the row visible before signaling
+    visual: The same mixed-fabric route separates a data write, a visibility boundary and a published barrier.
+    beats:
+      - say: >-
+          Follow the write from left to right. On this mixed-fabric path, the bytes travel over NVLink
+          and the barrier uses a Gin signal. The repair after the historical V two pin adds a
+          system-scope fence. It orders the earlier writes before the barrier is published.
+        hold: 0.7
+        visual_cues:
+          - id: de-visibility-fence-b0
+            phrase: >-
+              adds a system-scope fence
+            targets:
+              - de-visibility-fence-mechanism
+            color: cyan
+            linger: 0.35
+      - say: >-
+          A row can have the right address while its data is still in flight. Trace three steps on the
+          deployed links. The sender submits the write, the peer can see the data, and the consumer
+          stream waits before reading it. Check which revision both peers run when you test that
+          sequence.
+        hold: 0.7
+        visual_cues:
+          - id: de-visibility-fence-b1
+            phrase: >-
+              the consumer stream waits before reading it
+            targets:
+              - de-visibility-fence-mechanism
+            color: cyan
+            linger: 0.35
+  - id: backend-ownership
+    title: Follow the communicator into a registered device window
+    visual: Host communicator, Gin contexts, symmetric allocation and device window have distinct owners and
+      lifetimes.
+    beats:
+      - say: The V two backend receives or creates a host NCCL communicator, queries its physical domains and Gin
+          capability, requests queue contexts and signals, allocates symmetric memory, registers a window and
+          obtains device pointers. Hybrid mode uses rail-oriented connections; direct mode uses a flat logical
+          domain. The source’s global rank mapping must agree with the physical grouping.
+        hold: 0.7
+        visual_cues:
+          - id: de-backend-ownership-b0
+            phrase: The V two backend receives or creates a host NCCL communicator, queries its physical domains
+              and Gin capability, requests queue contexts and signals, allocates symmetric memory, registers a
+              window and obtains device pointers.
+            targets:
+              - de-backend-ownership-mechanism
+            color: cyan
+            linger: 0.35
+      - say: DeepEP owns its layouts, kernels and window lifecycle. NCCL supplies communicator and network primitives;
+          the application owns process groups, rank placement and shutdown order. Do not abort or replace a
+          communicator while pending kernels, hooks or consumer streams still reference the window. Record the
+          deployed topology and ownership transition when diagnosing an initialization assertion or timeout.
+        hold: 0.7
+        visual_cues:
+          - id: de-backend-ownership-b1
+            phrase: DeepEP owns its layouts, kernels and window lifecycle.
+            targets:
+              - de-backend-ownership-mechanism
+            color: cyan
+            linger: 0.35
+  - id: logical-receipts
+    title: Reconcile byte definitions before comparing bandwidth
+    visual: The same supplied payload is divided into local and remote paths over one explicit interval.
+    beats:
+      - say: >-
+          Count the two colored halves. Dispatch handles both the local and remote rows. Only the remote
+          half goes through the network port. A port counter can also include headers, and a forwarded
+          row can use another link along the way.
+        hold: 0.7
+        visual_cues:
+          - id: de-logical-receipts-b0
+            phrase: Only the remote half goes through the network port
+            targets:
+              - de-logical-receipts-mechanism
+            color: cyan
+            linger: 0.35
+      - say: >-
+          Take the same millisecond for both rates. Convert the mebibytes to bytes and the millisecond to
+          seconds. Divide each byte count by the time, then by a billion for decimal gigabytes per
+          second. Dispatch accounts for about a hundred and five. The remote payload accounts for about
+          fifty-two. To compare two runs, use the same byte definition and the same start and end events.
+        hold: 0.7
+        visual_cues:
+          - id: de-logical-receipts-b1
+            phrase: Take the same millisecond for both rates
+            targets:
+              - de-logical-receipts-mechanism
+            color: cyan
+            linger: 0.35
+          - id: de-byte-conversion
+            phrase: Convert the mebibytes to bytes
+            targets:
+              - de-logical-receipts-mechanism
+            color: cyan
+            linger: 0.35
+          - id: de-time-conversion
+            phrase: the millisecond to seconds
+            targets:
+              - de-logical-receipts-mechanism
+            color: cyan
+            linger: 0.35
+          - id: de-rate-completion
+            phrase: decimal gigabytes per second
+            targets:
+              - de-logical-rate-results
+            color: cyan
+            linger: 0.35
+  - id: historical-benchmark
+    title: >-
+      How many SMs bought that bandwidth?
+    visual: >-
+      Two rows from the historical V2 NVLink benchmark keep the same workload in view while communication
+      SMs and reported logical rates change.
+    beats:
+      - say: >-
+          Look at these two runs on eight GPUs. Both use eight thousand tokens, hidden width seven
+          thousand one hundred sixty-eight and eight experts per token. Dispatch uses FP eight and
+          combine uses bfloat sixteen. Give communication twenty-four streaming multiprocessors, or SMs.
+          The historical V two table reports six hundred forty-three gigabytes per second for dispatch.
+        hold: 0.7
+        visual_cues:
+          - id: de-historical-benchmark-b0
+            phrase: >-
+              twenty-four streaming multiprocessors
+            targets:
+              - de-historical-benchmark-mechanism
+            color: cyan
+            linger: 0.35
+      - say: >-
+          With sixty-four SMs, dispatch reaches seven hundred twenty-six gigabytes per second on the same
+          NVLink topology. Reserving more SMs for communication leaves fewer for the experts. To choose a
+          setting, compare correct whole-layer times after warm-up with the same routes, local fraction,
+          precision and queue budget. The V two point five snapshot leaves out this table. Measure that
+          version on its own workload and domain size.
+        hold: 0.7
+        visual_cues:
+          - id: de-historical-benchmark-b1
+            phrase: >-
+              With sixty-four SMs
+            targets:
+              - de-historical-benchmark-mechanism
+            color: cyan
+            linger: 0.35
+  - id: precision
+    title: What travels with an FP8 row?
+    visual: >-
+      Compare one group of 128 values in BF16 and FP8 on the same byte scale. Attach the
+      four-byte scale to the shorter bar, then read both totals for the full row.
+    beats:
+      - say: >-
+          Take one group of a hundred twenty-eight values. Bfloat sixteen uses two bytes per value.
+          That's two hundred fifty-six bytes. The FP eight values take half the space. What else
+          does the receiver need to read them?
+        hold: 1.8
+        caption_starts: ["That's two hundred fifty-six bytes", "What else does the receiver need"]
+        visual_cues:
+          - id: dep-result-precision-bf16
+            phrase: "two hundred fifty-six bytes"
+            targets: [precision-payload]
+          - id: precision-fp8
+            phrase: "The FP eight values take half the space"
+            targets: [precision-payload]
+      - say: >-
+          The scale. Attach four bytes to the end of the values. Now the group takes a hundred
+          thirty-two bytes. The pink strip is what carries us past the halfway mark.
+        hold: 0.9
+        caption_starts: ["Attach four bytes", "Now the group takes a hundred thirty-two bytes", "The pink strip"]
+        visual_cues:
+          - id: precision-scale
+            phrase: "Attach four bytes to the end of the values"
+            targets: [precision-payload]
+          - id: dep-result-precision-total
+            phrase: "a hundred thirty-two bytes"
+            targets: [precision-payload]
+      - say: >-
+          The full row has fifty-six groups. Include all fifty-six scales on the FP eight side.
+          The bfloat sixteen row is about one point nine four times as large as that FP eight row.
+          Route metadata and headers add bytes on the wire. Check the decoded values, then time
+          dispatch, expert work and combine together.
+        hold: 0.8
+        caption_starts: ["The bfloat sixteen row is about", "Route metadata and headers"]
+        visual_cues:
+          - id: dep-result-precision-ratio
+            phrase: "about one point nine four times as large"
+            targets: [precision-payload]
+  - id: scale-contract
+    title: Decoding a row of FP8 values
+    visual: >-
+      Attach a four-byte scale to each 128-value FP8 group, then magnify the first two groups. The
+      receiver reads the neighboring scale until its index moves back over the group containing
+      coordinate 42.
+    beats:
+      - say: >-
+          Pack one row of seven thousand one hundred sixty-eight values. Each blue strip holds one
+          hundred twenty-eight FP eight values. Give each strip its four-byte scale. That's
+          fifty-six scales, or two hundred twenty-four scale bytes. Add them to the values and the
+          payload is seven thousand three hundred ninety-two bytes. The bfloat sixteen values
+          alone take fourteen thousand three hundred thirty-six bytes. Routes and protocol headers
+          cost extra.
+        hold: 0.8
+        visual_cues:
+          - id: de-scale-groups
+            phrase: "Give each strip its four-byte scale"
+            targets: [de-scale-contract-mechanism]
+            linger: 0.3
+          - id: de-scale-count
+            phrase: "two hundred twenty-four scale bytes"
+            targets: [de-scale-bytes]
+            linger: 0.3
+          - id: de-scale-total
+            phrase: "the payload is seven thousand three hundred ninety-two bytes"
+            targets: [de-scale-total-result]
+            linger: 0.3
+          - id: de-scale-bf16
+            phrase: "take fourteen thousand three hundred thirty-six bytes"
+            targets: [de-scale-bf16-result]
+            linger: 0.3
+      - say: >-
+          Zoom in on coordinate forty-two. Its encoded value, ten, arrived intact. The receiver
+          takes a scale of two from group one, so it decodes twenty. Look at the index ranges
+          above the two scales. Which scale belongs to coordinate forty-two?
+        hold: 2.1
+        visual_cues:
+          - id: de-scale-wrong
+            phrase: "it decodes twenty"
+            targets: [de-scale-decoded]
+            caption_boundary: true
+            linger: 0.3
+          - id: de-scale-ask
+            phrase: "Which scale belongs to coordinate forty-two"
+            targets: [de-scale-pair]
+            linger: 0.3
+      - say: >-
+          Move the scale lookup back to group zero. This group covers coordinates zero through one
+          hundred twenty-seven. Its scale is one half. Ten now decodes to five. The payload size
+          stayed the same. Check the receiver's scale grouping, dtype, layout and stride against
+          the sender's. A later bfloat sixteen cast will preserve a perfectly representable wrong
+          value like twenty.
+        hold: 0.9
+        caption_starts: ["Its scale is one half"]
+        visual_cues:
+          - id: de-scale-move
+            phrase: "Move the scale lookup back to group zero"
+            targets: [de-scale-pair]
+            linger: 0.3
+          - id: de-scale-right
+            phrase: "Ten now decodes to five"
+            targets: [de-scale-decoded]
+            caption_boundary: true
+            linger: 0.3
+  - id: events
+    title: Deferred results and stream readiness have separate lifetimes
+    visual: A one-shot deferred-result object returns a handle on its first wait and none on its second. A
+      supplied stream timeline delays expert consumption until dispatch completes while independent work
+      overlaps.
+    beats:
+      - say: >
+          DeepEP's API generation matters at integration time. Historical V2 used ElasticBuffer. The V2.5
+          boundary splits dedicated buffers, including EPBuffer. With deferred epilogues, dispatch returns an
+          event wrapper, and its first wait returns the four dispatch results. Code expecting an immediate
+          five-value tuple must change.
+        hold: 0.6
+        visual_cues:
+          - id: events-beat-1-focus-1
+            phrase: With deferred epilogues, dispatch returns an event wrapper, and its first wait returns the four
+              dispatch results
+            targets:
+              - events-id-comm-label-dispatch-id-independent-label-independent-work-id-expe
+            color: cyan
+            linger: 0.65
+      - say: >
+          In our executable wrapper, the first wait delivers the results once. On the GPU, waiting establishes
+          a consumer-stream dependency; it does not mean the CPU has synchronized with completed device work.
+          Independent computation can overlap dispatch, while the expert consumer begins only after its
+          required data is ready.
+        hold: 0.6
+        visual_cues:
+          - id: events-beat-2-focus-1
+            phrase: Independent computation can overlap dispatch, while the expert consumer begins only after its required
+              data is ready
+            targets:
+              - events-id-comm-label-dispatch-id-independent-label-independent-work-id-expe
+            color: cyan
+            linger: 0.65
+      - say: >
+          A second wait returns no second copy of the epilogue results. Retain the tensors and route handle
+          from the first result, and keep their storage alive through every consumer. Pin the actual buffer
+          and event contract used by the deployment before reusing an integration written for an older
+          release.
+        hold: 0.6
+        visual_cues:
+          - id: events-beat-3-focus-1
+            phrase: and keep their storage alive through every consumer
+            targets:
+              - events-id-comm-label-dispatch-id-independent-label-independent-work-id-expe
+            color: cyan
+            linger: 0.65
+          - id: dep-result-events-second
+            phrase: A second wait returns no second copy of the epilogue results
+            targets:
+              - events-id-comm-label-dispatch-id-independent-label-independent-work-id-expe
+            color: cyan
+            linger: 0.35
+  - id: buffer-capacity
+    title: Plan a finite buffer before launching concurrent work
+    visual: One declared maximum-envelope allocation is shared only by compatible operations whose lifetimes are
+      accounted for.
+    beats:
+      - say: >-
+          Plan space for twelve rows. Start with the most tokens per rank, the hidden width, the number
+          of experts per token and the topology. The size hint tells you how many bytes to reserve.
+          Construct the buffer to allocate them. Historical V two can need more memory than V one. Mixed
+          GPU and CPU backing was planned at that pin.
+        hold: 0.7
+        visual_cues:
+          - id: de-buffer-capacity-b0
+            phrase: >-
+              Construct the buffer to allocate them
+            targets:
+              - de-buffer-capacity-mechanism
+            color: cyan
+            linger: 0.35
+      - say: >-
+          The first session still owns eight rows. A second session wants five. Only four slots are free,
+          so one row would spill past the allocation. Wait for a reader to finish or reserve more
+          storage. Include scratch space when sizing the buffer and check that both sessions use a
+          compatible group.
+        hold: 0.7
+        visual_cues:
+          - id: de-buffer-capacity-b1
+            phrase: >-
+              Only four slots are free
+            targets:
+              - de-buffer-capacity-mechanism
+            color: cyan
+            linger: 0.35
+  - id: deferred-contract
+    title: What does the next wait return?
+    visual: >-
+      The V2.5 dispatch contract is modeled on two consumer streams. Each wait adds a dependency.
+      Only the first consumes the result hook and places its four results in caller-owned
+      variables.
+    beats:
+      - say: >-
+          In the version two point five API, deferred dispatch gives the caller one event object.
+          Trying to unpack it as the old five values raises a type error. Wait on the first
+          consumer stream. Its wait runs the epilogue and returns four results. Save the rows,
+          indices, gates and handle. The hook has done its job.
+        hold: 1
+        visual_cues:
+          - id: dep-result-deferred-typeerror
+            phrase: "raises a type error"
+            targets: [de-deferred-results]
+            caption_boundary: true
+            linger: 0.3
+          - id: de-first-four
+            phrase: "returns four results"
+            targets: [de-deferred-contract-mechanism, de-deferred-results]
+            caption_boundary: true
+            linger: 0.3
+      - say: >-
+          Now a second stream needs the same rows. Call wait on that stream too. It gets a
+          dependency on the event. The hook has already run, so this wait returns None. Both
+          streams can use the saved results after their dependencies. Keep the storage alive until
+          both finish. A stream wait allows the host to carry on.
+        hold: 1
+        visual_cues:
+          - id: de-deferred-contract-b1
+            phrase: "a second stream needs the same rows"
+            targets: [de-deferred-contract-mechanism]
+            linger: 0.3
+          - id: de-second-none
+            phrase: "this wait returns None"
+            targets: [de-deferred-contract-mechanism, de-deferred-results]
+            caption_boundary: true
+            linger: 0.3
+  - id: redundant-experts
+    title: Replicate expert state only through a shared collective contract
+    visual: Expert weights and scales move to named redundant slots, while matching FP32 gradients return to their
+      original owners.
+    beats:
+      - say: The V two point five snapshot adds NVLink weight prefetch and gradient reduction for redundant experts.
+          All ranks in the participating local domain must join the collective, including ranks with no useful
+          redundant assignment. Every rank must agree on the same mapping. Prefetch weights and matching
+          scales before the expert consumer; preserve those allocations through its event dependencies.
+        hold: 0.7
+        visual_cues:
+          - id: de-redundant-experts-b0
+            phrase: The V two point five snapshot adds NVLink weight prefetch and gradient reduction for
+              redundant experts.
+            targets:
+              - de-redundant-experts-mechanism
+            color: cyan
+            linger: 0.35
+      - say: >-
+          Start with the gradient already on the original owner. The reduction adds the replicas’ float
+          thirty-two gradients to it. Add one and three to the original two and four. The owner now has
+          three and seven. Initialize that destination and use the same redundancy map on
+          every participating rank. The caller picks which experts to replicate, reroutes the tokens and
+          keeps the weights alive until the experts finish.
+        hold: 0.7
+        caption_starts: ["The owner now has three and seven"]
+        visual_cues:
+          - id: de-redundant-experts-b1
+            phrase: >-
+              adds the replicas’ float thirty-two gradients
+            targets:
+              - de-redundant-experts-mechanism
+            color: cyan
+            linger: 0.35
+          - id: de-redundant-add
+            phrase: The owner now has three and seven
+            targets:
+              - de-redundant-gradient-result
+            color: cyan
+            linger: 0.35
+  - id: resources
+    title: Resource planning starts from the route distribution
+    visual: >-
+      Enumerate destination counts and cap the historical V2 queue request. Before timing a
+      configuration, compare its four output rows and per-expert counts with the CPU reference for
+      the requested route.
+    beats:
+      - say: >
+          A balanced routing estimate counts distinct destinations. Enumerate every pair of two distinct
+          experts among four. Two pairs stay on one rank and four touch both. Their mean destination count is
+          five thirds. A production router with skew or group limits can violate this uniform-subset
+          assumption.
+        hold: 0.6
+        visual_cues:
+          - id: resources-beat-1-focus-1
+            phrase: Enumerate every pair of two distinct experts among four
+            targets:
+              - resources-grid-s-pairs-map-v-v-experts-join-s-pairs-map-v-v-destinations-230-4
+            color: cyan
+            linger: 0.65
+          - id: resources-beat-1-focus-2
+            phrase: A balanced routing estimate counts distinct destinations
+            targets:
+              - resources-math-mathbb-e-mathrm-destinations-rac-6-rac53
+            color: yellow
+            linger: 0.65
+          - id: dep-result-resources-mean
+            phrase: Their mean destination count is five thirds
+            targets:
+              - resources-math-mathbb-e-mathrm-destinations-rac-6-rac53
+            color: cyan
+            linger: 0.35
+      - say: >
+          Historical V2 sizing also maps a supplied communication-SM budget to requested queue pairs. Direct
+          and hybrid modes request different counts, and the allocated pool caps the result. The calculation
+          on screen separates what the helper asks for from what the buffer actually has available.
+        hold: 0.6
+        visual_cues:
+          - id: resources-beat-2-focus-1
+            phrase: Historical V2 sizing also maps a supplied communication-SM budget to requested queue pairs
+            targets:
+              - resources-qp-budget
+              - resources-qp-requests
+            color: cyan
+            linger: 0.65
+          - id: resources-beat-2-focus-2
+            phrase: Direct and hybrid modes request different counts, and the allocated pool caps the result
+            targets:
+              - resources-qp-requests
+              - resources-qp-cap
+            color: yellow
+            linger: 0.65
+          - id: dep-result-resources-pool
+            phrase: Direct and hybrid modes request different counts, and the allocated pool caps the result
+            targets:
+              - resources-qp-cap
+            color: cyan
+            linger: 0.35
+      - say: >-
+          Before timing that configuration, check the result on a known batch. The router changed
+          token a's first choice from expert zero to expert two. The cached dispatch and the reference each return eight
+          contributions. Compare the four source rows. Only a differs. Compare the counts per
+          expert and you can see where its slot went. The cached run did one extra job at expert
+          zero and one too few at expert two. Fix the route before comparing device precision,
+          stream waits or whole-layer latency on the target links.
+        hold: 1.2
+        visual_cues:
+          - id: resources-beat-3-focus-1
+            phrase: "Compare the four source rows"
+            targets: [resources-restored-results]
+            linger: 0.3
+          - id: resources-return-home
+            phrase: "Only a differs"
+            targets: [resources-restored-results]
+            caption_boundary: true
+            linger: 0.3
+          - id: de-resources-counts
+            phrase: "Compare the counts per expert"
+            targets: [de-resources-histogram]
+            linger: 0.3
+  - id: balanced-assumptions
+    title: Generalize the destination count without confusing it with top-k
+    visual: Distinct expert pairs are enumerated by destination grouping, then compared with an explicit
+      uniform-subset assumption.
+    beats:
+      - say: The expected destination count depends on repeated ownership. For E experts evenly divided over G
+          destinations and k uniformly chosen distinct experts, ask whether one destination is missed. Start
+          with E experts and subtract the quotient E divided by G to count experts outside that destination.
+          Count k-subsets drawn only from those outside experts, then divide by all k-subsets of all E
+          experts. Subtract that miss probability from one and multiply by G.
+        hold: 0.7
+        visual_cues:
+          - id: de-balanced-assumptions-b0
+            phrase: The expected destination count depends on repeated ownership.
+            targets:
+              - de-balanced-assumptions-mechanism
+            color: cyan
+            linger: 0.35
+          - id: de-expected-miss
+            phrase: ask whether one destination is missed
+            targets:
+              - de-balanced-assumptions-mechanism
+            color: cyan
+            linger: 0.35
+          - id: de-expected-outside
+            phrase: count experts outside that destination
+            targets:
+              - de-balanced-assumptions-mechanism
+            color: cyan
+            linger: 0.35
+          - id: de-expected-ratio
+            phrase: divide by all k-subsets of all E experts
+            targets:
+              - de-balanced-assumptions-mechanism
+            color: cyan
+            linger: 0.35
+          - id: de-expected-final
+            phrase: Subtract that miss probability from one and multiply by G
+            targets:
+              - de-balanced-assumptions-mechanism
+            color: cyan
+            linger: 0.35
+      - say: For two choices, the number of possible unordered expert pairs is E times the quantity E minus one,
+          divided by two. Our four-expert enumeration has six pairs and mean destination count five thirds.
+          Real group-limited or skewed gates need not follow this uniform law. Measure actual destination,
+          expert and link histograms before interpreting a balanced estimate as a workload budget.
+        hold: 0.7
+        visual_cues:
+          - id: de-balanced-assumptions-b1
+            phrase: For two choices, the number of possible unordered expert pairs is E times the quantity E
+              minus one, divided by two.
+            targets:
+              - de-balanced-assumptions-mechanism
+            color: cyan
+            linger: 0.35
+          - id: de-expected-five-thirds
+            phrase: mean destination count five thirds
+            targets:
+              - de-balanced-result
+            color: cyan
+            linger: 0.35
+  - id: resource-budget
+    title: Which setting finishes the layer sooner?
+    visual: >-
+      Cap the historical V2 SM and queue estimates. Place two warm, serial settings on the same
+      time axis and see which stage consumes the half millisecond saved on communication.
+    beats:
+      - say: >-
+          A streaming multiprocessor, or SM, can do communication work or expert computation.
+          Start with a bandwidth estimate of fifteen point two SMs. Historical V two multiplies
+          by one point two five to get nineteen. Round up to an even count and you get twenty.
+          With overlap preferred, the minimum is four. Turn off that preference and the minimum
+          rises to sixty-four. The device's total SM count caps the request in either case.
+        hold: 0.7
+        visual_cues:
+          - id: de-resource-budget-b0
+            phrase: "get nineteen"
+            targets: [de-resource-budget-mechanism]
+          - id: de-sm-cap
+            phrase: "you get twenty"
+            targets: [de-resource-budget-mechanism]
+          - id: de-sm-floor
+            phrase: "rises to sixty-four"
+            targets: [de-resource-budget-mechanism]
+      - say: >-
+          Go back to twenty communication SMs. For the direct path, take the smaller of twenty
+          and nine. For the hybrid path, take sixteen times twenty and add one. That's three
+          hundred twenty-one queue pairs requested. The buffer only has one hundred twenty-eight,
+          so the hybrid path gets one hundred twenty-eight. Now measure what a change in
+          communication costs the experts.
+        hold: 0.8
+        visual_cues:
+          - id: de-qp-clamp
+            phrase: "the hybrid path gets one hundred twenty-eight"
+            targets: [de-resource-budget-mechanism]
+      - say: >-
+          Take two warm runs with the same routes and correct outputs. In this example the stages
+          run one after the other. Setting A takes one millisecond to dispatch, four for the experts
+          and one to combine. That's six milliseconds. With B, dispatch and combine both get shorter.
+          Expert work takes four and a half milliseconds. Does setting B finish the layer sooner?
+        hold: 2.2
+        visual_cues:
+          - id: de-serial-six
+            phrase: "That's six milliseconds"
+            targets: [de-resource-layer-result]
+      - say: >-
+          Start both runs at zero. Lay B's three stages end to end. Both finish at six milliseconds.
+          The half millisecond saved on communication went into the experts. On a system where
+          these stages overlap, measure elapsed time from dispatch to the combined output on the
+          critical path.
+        hold: 1.1
+        caption_starts: ["Both finish at six milliseconds", "The half millisecond saved on communication"]
+        visual_cues:
+          - id: de-serial-verdict
+            phrase: "Both finish at six milliseconds"
+            targets: [de-resource-layer-result]
+          - id: de-serial-six-again
+            phrase: "Lay B's three stages end to end"
+            targets: [de-resource-layer-result]
+            linger: 0.3
+  - id: jit-cold-start
+    title: Separate installation, first specialization and steady-state execution
+    visual: A specialization receipt reaches a compiler/cache boundary before its first kernel can run.
+    beats:
+      - say: Historical V two generates runtime kernel specializations from topology, layout, hidden bytes, alignment,
+          warps, SMs and QPs. Compiler identity, flags and generated code contribute to its cache signature.
+          Missing headers, compiler support, permissions or target instructions can fail the first dispatch
+          even when importing Python succeeded. A warm receipt and a cold receipt have different work.
+        hold: 0.7
+        visual_cues:
+          - id: de-jit-cold-start-b0
+            phrase: Historical V two generates runtime kernel specializations from topology, layout, hidden
+              bytes, alignment, warps, SMs and QPs.
+            targets:
+              - de-jit-cold-start-mechanism
+            color: cyan
+            linger: 0.35
+      - say: >-
+          Change the alignment and the kernel needs a new specialization. Warm up each required shape on
+          every worker, or count its first compile in startup time. In V two point five, installation
+          builds the host extension. DeepJIT builds the kernel for the active GPU at runtime. Record the
+          compiler, target and cache signature so you can identify a matching warm run.
+        hold: 0.7
+        visual_cues:
+          - id: de-jit-cold-start-b1
+            phrase: Change the alignment and the kernel needs a new specialization
+            targets:
+              - de-jit-cold-start-mechanism
+            color: cyan
+            linger: 0.35
+  - id: runtime-identity
+    title: A minimum version and a loaded-version match answer different questions
+    visual: The loaded NCCL library is compared to the build headers before the device communicator is created.
+    beats:
+      - say: At the historical backend, headers older than NCCL two point thirty-one require an exact match with the
+          loaded runtime version. Two installations can both exceed the stated minimum yet fail that equality.
+          The newer-header branch requests a runtime-version device communicator. Check the version of the
+          library that the worker actually loaded.
+        hold: 0.7
+        visual_cues:
+          - id: de-runtime-identity-b0
+            phrase: At the historical backend, headers older than NCCL two point thirty-one require an exact
+              match with the loaded runtime version.
+            targets:
+              - de-runtime-identity-mechanism
+            color: cyan
+            linger: 0.35
+      - say: Also verify GPU capability, the NVLink peer map, usable RDMA rails, Gin properties, queue allocation and
+          symmetric memory. The pinned V two and migration snapshots have different software floors. The
+          migration names CUDA toolkit thirteen point one, PyTorch two point ten and NCCL two point thirty-two
+          point three, with Hopper or newer GPUs and a suitable C plus plus twenty toolchain.
+        hold: 0.7
+        visual_cues:
+          - id: de-runtime-identity-b1
+            phrase: Also verify GPU capability, the NVLink peer map, usable RDMA rails, Gin properties, queue
+              allocation and symmetric memory.
+            targets:
+              - de-runtime-identity-mechanism
+            color: cyan
+            linger: 0.35
+  - id: legacy-experimental
+    title: Keep different communication products in separate contracts
+    visual: V1, historical V2 and V2.5 remain separate while experimental primitives retain their own consumers.
+    beats:
+      - say: >-
+          Archived V one uses Buffer, separate NVLink and RDMA sizing, NVSHMEM and distinct normal or
+          low-latency paths. Its low-latency RDMA path can use zero SMs. V two budgets SMs for expert
+          communication, and V two point five removes the legacy path. When porting, trace one weighted
+          row back to its source before timing the new transport.
+        hold: 0.7
+        visual_cues:
+          - id: de-legacy-experimental-b0
+            phrase: Archived V one uses Buffer, separate NVLink and RDMA sizing, NVSHMEM and distinct normal or
+              low-latency paths.
+            targets:
+              - de-legacy-experimental-mechanism
+            color: cyan
+            linger: 0.35
+      - say: >-
+          A pipeline send carries activations between stages. The application schedules those stages and
+          defines how attention uses any transferred context. Engram takes an integer index. Follow index
+          two to entry C. The entry can come from a remote peer while its scale comes from a local copy.
+          Bucket transfers and indexed lookups each have their own consumer.
+        hold: 0.7
+        visual_cues:
+          - id: de-engram-entry
+            phrase: "Follow index two to entry C"
+            targets: [de-legacy-experimental-mechanism]
+          - id: de-legacy-experimental-b1
+            phrase: >-
+              Engram takes an integer index
+            targets:
+              - de-legacy-experimental-mechanism
+            color: cyan
+            linger: 0.35
+  - id: engram-doorbell
+    title: >-
+      Submit the last fetch for each peer
+    visual: Queued remote gets retain their requested entry identities while the final per-peer submission is made
+      explicit.
+    beats:
+      - say: >-
+          Look at the last fetch in each queue. An older experimental Engram path could queue those
+          requests and miss the NIC doorbell that submits them. The repair saves one get per peer, issues
+          that deferred get without aggregation, then records the asynchronous flush.
+        hold: 0.7
+        visual_cues:
+          - id: de-engram-doorbell-b0
+            phrase: >-
+              the last fetch in each queue
+            targets:
+              - de-engram-doorbell-mechanism
+            color: cyan
+            linger: 0.35
+          - id: de-doorbell-final
+            phrase: issues that deferred get without aggregation
+            targets:
+              - de-engram-doorbell-mechanism
+            color: cyan
+            linger: 0.35
+          - id: de-doorbell-flush
+            phrase: records the asynchronous flush
+            targets:
+              - de-engram-doorbell-mechanism
+            color: cyan
+            linger: 0.35
+      - say: >-
+          Check the tail entry on each peer. Run the fetch on the deployed links and wait for completion
+          before comparing what arrived. If Engram runs alongside pipeline or expert traffic, all three
+          can compete for the same queues, memory and streams.
+        hold: 0.7
+        visual_cues:
+          - id: de-engram-doorbell-b1
+            phrase: >-
+              Check the tail entry on each peer
+            targets:
+              - de-engram-doorbell-mechanism
+            color: cyan
+            linger: 0.35
+  - id: post-training-receipt
+    title: Keep transport changes separate from rollout and training changes
+    visual: The same expert route is attached to actor, teacher and trainer receipts with distinct model versions
+      and timing boundaries.
+    beats:
+      - say: An MoE rollout can repeat this exchange for every generated token. A trainer needs its corresponding
+          route metadata and gradients; a teacher needs its own valid output and precision contract. Separate
+          rollout and trainer clusters own separate groups. Alternating colocated phases may reuse compatible
+          resources only after prior consumers finish. Record pause and synchronization costs as well as layer
+          throughput.
+        hold: 0.7
+        visual_cues:
+          - id: de-post-training-receipt-b0
+            phrase: An MoE rollout can repeat this exchange for every generated token.
+            targets:
+              - de-post-training-receipt-mechanism
+            color: cyan
+            linger: 0.35
+      - say: Keep model and rollout weight versions, routes, prompt/output mix, dtypes, scales and quality fixed when
+          changing one communication lever. Report dispatch, expert and combine times plus the end-to-end
+          critical path. Overlapped phases cannot generally be added as though they were serial. A reward drop
+          after a topology or dtype change needs separate checks for delay, numerics and the learning
+          algorithm.
+        hold: 0.7
+        visual_cues:
+          - id: de-post-training-receipt-b1
+            phrase: Keep model and rollout weight versions, routes, prompt/output mix, dtypes, scales and
+              quality fixed when changing one communication lever.
+            targets:
+              - de-post-training-receipt-mechanism
+            color: cyan
+            linger: 0.35
+  - id: ownership-license
+    title: Keep the source license and dependency inventory separate
+    visual: Pinned project identity is retained while the software image’s separately governed assets are enumerated.
+    beats:
+      - say: >-
+          DeepSeek publishes the source under the MIT license. Keep its copyright and license notice when
+          distributing the source. The pinned README credits the project contributors and their NCCL
+          collaborators. When packaging a deployment, check each component in the image.
+        hold: 0.7
+        visual_cues:
+          - id: de-ownership-license-b0
+            phrase: >-
+              Keep its copyright and license notice
+            targets:
+              - de-ownership-license-mechanism
+            color: cyan
+            linger: 0.35
+      - say: CUDA, NCCL, legacy NVSHMEM, model checkpoints, datasets and firmware retain their own terms. The
+          historical image can still need NVSHMEM for legacy methods even while its V two EP uses Gin; the
+          later migration removes that legacy dependency. Keep the source pin, dependency inventory and actual
+          target image together when reproducing an old integration.
+        hold: 0.7
+        visual_cues:
+          - id: de-ownership-license-b1
+            phrase: CUDA, NCCL, legacy NVSHMEM, model checkpoints, datasets and firmware retain their own terms.
+            targets:
+              - de-ownership-license-mechanism
+            color: cyan
+            linger: 0.35
+  - id: source-diagnosis
+    title: Two returns from expert three
+    visual: >-
+      Exchange the two weighted rows from expert three. Moving slot and value together restores a.
+      Leaving the slot labels in place as the values cross changes a's second coordinate.
+    beats:
+      - say: >-
+          Here's another way to get a plausible wrong row. Use a's original route again. Look at
+          expert three. Slot zero holds a's weighted result. Slot one holds a result for token c.
+          Reverse the two pairs, keeping each value with its slot number. Combine uses slot zero
+          for a even though it arrived second. Add a's other contribution and a gets one point nine,
+          zero.
+        hold: 0.9
+        visual_cues:
+          - id: de-swap-pairs
+            phrase: "Reverse the two pairs, keeping each value with its slot number"
+            targets: [de-slot-pairs]
+            linger: 0.3
+          - id: de-paired-result
+            phrase: "a gets one point nine, zero"
+            targets: [de-source-sum]
+            caption_boundary: true
+            linger: 0.3
+      - say: >-
+          This time leave both slot numbers in place. Swap just the two values. Every expected slot
+          still occurs exactly once. Follow the value under slot zero. What lands in the second
+          coordinate of a?
+        hold: 2.5
+        visual_cues:
+          - id: de-swap-values
+            phrase: "Swap just the two values"
+            targets: [de-slot-pairs]
+            linger: 0.3
+          - id: de-detached-ask
+            phrase: "What lands in the second coordinate of a"
+            targets: [de-slot-pairs, de-source-sum]
+            linger: 0.3
+      - say: >-
+          One point eight came from c. So row a reads two point five, one point eight.
+          Put the values back with their slots. In an integration, check the saved
+          source-to-slot mapping across the permutation. For a count mismatch, inspect the valid
+          expert ranges. A Gin initialization error points to the communicator and topology.
+          A first-use compilation failure points to the target, compiler or cache. The CPU comparison
+          checks the restored rows. The stream waits and the physical links need a run on the device.
+        hold: 1.0
+        visual_cues:
+          - id: de-detached-result
+            phrase: "two point five, one point eight"
+            targets: [de-source-sum]
+            caption_boundary: true
+            linger: 0.3
+          - id: de-repair-pair
+            phrase: "Put the values back with their slots"
+            targets: [de-slot-pairs, de-source-sum]
+            linger: 0.3
+          - id: de-diagnose-count
+            phrase: "For a count mismatch"
+            targets: [de-source-sum]
+          - id: de-diagnose-gin
+            phrase: "A Gin initialization error"
+            targets: [de-source-sum]
+          - id: de-diagnose-jit
+            phrase: "A first-use compilation failure"
+            targets: [de-source-sum]
+          - id: de-diagnose-device
+            phrase: "The stream waits and the physical links"
+            targets: [de-source-sum]
+  - id: earned-return
+    title: Another token comes home
+    visual: >-
+      Token z keeps both coordinates in view as one expert pair replaces another. After comparing
+      cached and rebuilt dispatch, trace two reverse arrivals into z and place its first expert
+      read on the consumer stream.
+    beats:
+      - say: >-
+          Here's a new row for token z, two and minus one. Keep the same expert rule. Multiply
+          both coordinates by the expert number plus one. The saved route uses zero and three. Now
+          the router chooses one and two. The first gate is point two and the second is point
+          eight. Both routes touch both GPUs. Which handle would you use, and what row should come
+          back?
+        hold: 3
+        visual_cues:
+          - id: de-fresh-change
+            phrase: "Now the router chooses one and two"
+            targets: [de-fresh-route-result]
+            caption_boundary: true
+            linger: 0.3
+          - id: de-earned-return-b0
+            phrase: "Which handle would you use, and what row should come back"
+            targets: [de-fresh-vector-result, de-fresh-route-result]
+            linger: 0.3
+      - say: >-
+          Rebuild the handle for one and two before dispatch. Expert one doubles the input. Keep
+          one fifth of that row and you have point eight, minus point four. Expert two triples the
+          input. Keep four fifths and you have four point eight, minus two point four. Add each
+          column. Five point six, minus two point eight comes back to z.
+        hold: 1.4
+        visual_cues:
+          - id: de-fresh-route
+            phrase: "Rebuild the handle for one and two"
+            targets: [de-fresh-route-result]
+            caption_boundary: true
+            linger: 0.3
+          - id: de-fresh-raw-one
+            phrase: "Expert one doubles the input"
+            targets: [de-fresh-vector-result]
+            caption_boundary: true
+            linger: 0.3
+          - id: de-fresh-first
+            phrase: "you have point eight, minus point four"
+            targets: [de-fresh-vector-result]
+            caption_boundary: true
+            linger: 0.3
+          - id: de-fresh-raw-two
+            phrase: "Expert two triples the input"
+            targets: [de-fresh-vector-result]
+            caption_boundary: true
+            linger: 0.3
+          - id: de-fresh-second
+            phrase: "you have four point eight, minus two point four"
+            targets: [de-fresh-vector-result]
+            caption_boundary: true
+            linger: 0.3
+          - id: de-fresh-result
+            phrase: "Five point six, minus two point eight comes back to z"
+            targets: [de-fresh-vector-result]
+            caption_boundary: true
+            linger: 0.3
+      - say: >-
+          Replay the old choices with the same gates and z gets six point eight, minus three point
+          four. The count of destination GPUs missed that error. On the rebuilt route, let expert
+          two come home first. Its slot puts the first contribution in z. Now expert one's slot
+          adds the rest. Reversing arrival order works because each value kept its identity.
+        hold: 1.1
+        visual_cues:
+          - id: de-stale-result
+            phrase: "six point eight, minus three point four"
+            targets: [de-fresh-stale-result]
+            linger: 0.3
+          - id: de-fresh-arrive
+            phrase: "let expert two come home first"
+            targets: [de-fresh-vector-result]
+            caption_boundary: true
+            linger: 0.3
+          - id: de-fresh-inverse
+            phrase: "expert one's slot adds the rest"
+            targets: [de-fresh-vector-result]
+            caption_boundary: true
+            linger: 0.3
+      - say: >-
+          Keep that rebuilt route and run the historical asynchronous dispatch. Python has
+          returned. The expert stream can do independent work while the communication stream
+          writes the rows. Now remove the wait before the first activation read. The read could
+          start while the write is still in flight. Which event must the expert stream wait for?
+        hold: 2.5
+        visual_cues:
+          - id: de-fresh-remove-wait
+            phrase: "remove the wait before the first activation read"
+            targets: [de-fresh-wait-result]
+            caption_boundary: true
+            linger: 0.3
+      - say: >-
+          Make the expert stream wait for the dispatch event. Its first read now follows the
+          writes, and the independent work can still overlap them. Keep the received rows and the
+          handle alive through their consumers. On your GPUs, check z against the reference and
+          inspect that dependency in the stream trace. Once both checks pass, time the whole layer
+          from dispatch through combine.
+        hold: 1.4
+        visual_cues:
+          - id: de-fresh-wait
+            phrase: "Make the expert stream wait for the dispatch event"
+            targets: [de-fresh-wait-result]
+            caption_boundary: true
+            linger: 0.3

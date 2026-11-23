@@ -1,0 +1,906 @@
+version: 1
+id: constitutional-ai
+title: Constitutional AI and Honest Red-Team Evaluation
+source: training/constitutional-ai-automated-red-teaming/content.md
+voice: en-US-AndrewNeural
+rate: +0%
+sources:
+  - title: Bai et al. Constitutional AI Harmlessness from AI Feedback
+    url: https://arxiv.org/abs/2212.08073
+  - title: Bai et al. Helpful and Harmless Assistant with Reinforcement Learning from Human Feedback
+    url: https://arxiv.org/abs/2204.05862
+  - title: "RLAIF vs. RLHF: Scaling Reinforcement Learning from Human Feedback with AI Feedback"
+    url: https://arxiv.org/abs/2309.00267
+  - title: Red Teaming Language Models with Language Models
+    url: https://arxiv.org/abs/2202.03286
+  - title: Universal and Transferable Adversarial Attacks on Aligned Language Models
+    url: https://arxiv.org/abs/2307.15043
+  - title: "Collective Constitutional AI: Aligning a Language Model with Public Input"
+    url: https://arxiv.org/abs/2406.07814
+  - title: Claude’s New Constitution
+    url: https://www.anthropic.com/news/claude-new-constitution
+  - title: Teaching Claude Why
+    url: https://alignment.anthropic.com/2026/teaching-claude-why/
+  - title: Next-generation Constitutional Classifiers
+    url: https://www.anthropic.com/research/next-generation-constitutional-classifiers
+  - title: Llama Guard 4 12B
+    url: https://huggingface.co/meta-llama/Llama-Guard-4-12B
+  - title: The Crescendo Multi-Turn LLM Jailbreak Attack
+    url: https://arxiv.org/abs/2404.01833
+scenes:
+  - id: intro
+    title: Teach a model where a careful answer belongs
+    visual: One infrastructure assistant receives a public release-policy question and a confidential
+      incident request; the written principle separates their responses.
+    beats:
+      - say: An infrastructure assistant should explain a public release freeze and protect a private
+          incident report. Both requests sound urgent, so its response needs a clear rule about
+          evidence and access. This example keeps the public procedure available while routing
+          confidential details through trusted access checks.
+        hold: 0.55
+        visual_cues:
+          - id: intro-b1-1
+            phrase: public release freeze
+            targets:
+              - public-request
+            linger: 0.45
+          - id: intro-b1-2
+            phrase: private incident report
+            targets:
+              - private-request
+            linger: 0.45
+      - say: Constitutional AI turns written principles into training examples through critique, revision,
+          and AI feedback. We will follow the distinct artifacts produced by each phase. The
+          workflow creates a supervised answer first, then uses AI feedback to rank fresh outputs in
+          a later training stage. These two phases update model parameters. Supplying principles in
+          a serving prompt is a separate inference mechanism.
+        hold: 0.55
+        visual_cues:
+          - id: intro-b2-1
+            phrase: distinct artifacts
+            targets:
+              - permission-gate
+            linger: 0.45
+      - say: The principle can guide the model's language around a boundary. The application authorizes
+          retrieval and tool access through trusted identity and permission checks.
+        hold: 0.75
+        visual_cues:
+          - id: intro-b3-1
+            phrase: trusted identity and permission checks
+            targets:
+              - permission-gate
+            linger: 0.45
+  - id: principle
+    title: Write a principle that distinguishes the cases
+    visual: A direct public runbook answer and a private incident response are placed side by side under
+      a rule about authorization.
+    beats:
+      - say: "Start with a specific rule: answer questions about published release procedures, and use the
+          application's permission result before discussing confidential incident records. A usable
+          rule names the information category, approved source, and condition for discussing private
+          records."
+        hold: 0.55
+        visual_cues:
+          - id: principle-b1-1
+            phrase: specific rule
+            targets:
+              - written-principle
+            linger: 0.45
+          - id: trusted-condition
+            phrase: condition for discussing private records
+            targets:
+              - roleplay-request
+      - say: A request to explain the freeze can receive a direct answer. A roleplay claim of executive
+          authority carries no trusted permission result for the incident timeline.
+        hold: 0.55
+        visual_cues:
+          - id: principle-b2-1
+            phrase: direct answer
+            targets:
+              - benign-request
+            linger: 0.45
+          - id: principle-b2-2
+            phrase: roleplay claim
+            targets:
+              - roleplay-request
+            linger: 0.45
+      - say: Principled distinctions are easier to review than a vague instruction to be safe. Record who
+          shaped the rules, how conflicts were resolved, and which version produced each example.
+          Version principles as carefully as code because small wording changes can alter evaluator
+          preferences. Collective Constitutional AI studied input from a sample of U.S. adults;
+          participation describes whose views entered that process, rather than establishing
+          representation of every community or reliable adherence.
+        hold: 0.75
+        visual_cues:
+          - id: principle-b3-1
+            phrase: which version
+            targets:
+              - written-principle
+            linger: 0.45
+  - id: critique
+    title: Turn a flawed draft into a supervised target
+    visual: A draft reveals the incident timeline, a principle-specific critique identifies the
+      permission failure, and a revised answer points to the access-request process.
+    beats:
+      - say: First sample a draft for a difficult request. In our example, the assistant treats a
+          conversational roleplay as permission and begins to reveal a private incident timeline.
+          The flawed draft becomes training material because it exposes a concrete case for the
+          principle to address.
+        hold: 0.55
+        visual_cues:
+          - id: critique-b1-1
+            phrase: flawed draft
+            targets:
+              - flawed-draft
+            linger: 0.45
+      - say: Ask the model to critique that draft against the authorization principle. Its critique
+          identifies the missing permission check and the disclosure of confidential details.
+        hold: 0.55
+        visual_cues:
+          - id: critique-b2-1
+            phrase: missing permission check
+            targets:
+              - principle-critique
+            linger: 0.45
+      - say: The model revises the answer to explain the boundary and direct the requester to the access
+          portal. That revised answer becomes the supervised target; the critique remains training
+          scaffolding. Keep critique and answer target as separate artifacts so the model learns the
+          approved response format directly.
+        hold: 0.75
+        visual_cues:
+          - id: critique-b3-1
+            phrase: revised answer
+            targets:
+              - revised-answer
+            linger: 0.45
+  - id: sft
+    title: Fit the model to revised answers
+    visual: Requests and approved revisions enter a supervised dataset; next-token probabilities move
+      toward the revised response under a cross-entropy objective.
+    beats:
+      - say: Supervised Constitutional AI fine-tunes on prompt and revised-answer pairs. The model
+          predicts each next token in the selected response given the request and earlier target
+          tokens. Cross-entropy compares the next-token distribution with the selected response at
+          each target position. The optimizer uses the loss gradients to update the model's parameters.
+          Our trace selects one revision. The original study generated drafts
+          with a helpful-only RLHF assistant, then fine-tuned a pretrained model on revisions from
+          all revision steps together with helpfulness samples.
+        hold: 0.55
+        visual_cues:
+          - id: sft-b1-1
+            phrase: next token in
+            targets:
+              - answer-tokens
+            linger: 0.45
+          - id: sft-b1-2
+            phrase: Cross-entropy
+            targets:
+              - target-loss
+            linger: 0.45
+      - say: In the example, the target explains a public boundary and offers the access-request route. The
+          critique helps create that target, while direct-answer training fits the revised text.
+        hold: 0.55
+        visual_cues:
+          - id: sft-b2-1
+            phrase: revised text
+            targets:
+              - next-token-distribution
+            linger: 0.45
+      - say: Keep benign and mixed requests in the training set too. A collection dominated by refusal
+          examples can reduce helpful answers, so measure both appropriate refusals and correct
+          assistance. Include answerable benign requests to preserve helpfulness and audit refusal
+          rates by topic.
+        hold: 0.75
+        visual_cues:
+          - id: sft-b3-1
+            phrase: benign and mixed requests
+            targets:
+              - answer-tokens
+            linger: 0.45
+  - id: rlaif
+    title: Let an evaluator compare fresh answers
+    visual: Two policy replies for one request are compared under the written principle; a second order
+      reveals whether the preference follows answer identity.
+    beats:
+      - say: A second phase samples fresh policy replies and asks an evaluator which one better follows a
+          selected principle. Here one answer protects the incident record while the other discloses
+          it. Control candidate prompts and order so the evaluator judges answer quality under the
+          selected principle.
+        hold: 0.55
+        visual_cues:
+          - id: rlaif-b1-1
+            phrase: protects the incident record
+            targets:
+              - answer-a
+            linger: 0.45
+          - id: rlaif-b1-2
+            phrase: discloses it
+            targets:
+              - answer-b
+            linger: 0.45
+      - say: Swap the candidate positions and map the verdict back to each response. A preference that
+          changes with position needs review before it becomes a training label.
+        hold: 0.55
+        motion_check:
+          region:
+            - 180
+            - 450
+            - 1560
+            - 380
+          minimumChangedFraction: 0.002
+        visual_cues:
+          - id: rlaif-b2-1
+            phrase: Swap the candidate positions
+            targets:
+              - answer-a
+              - answer-b
+            linger: 0.45
+          - id: rlaif-position-probe
+            phrase: A preference that changes with position needs review before it becomes a training label
+            targets:
+              - order-verdict
+            color: pink
+            linger: 0.4
+          - id: rlaif-b2-2
+            phrase: verdict
+            targets:
+              - order-verdict
+            linger: 0.45
+      - say: AI feedback supplies scalable comparisons, while the evaluator can share blind spots with the
+          policy. Keep human helpfulness evidence and independent review in the evaluation plan.
+        hold: 0.75
+        visual_cues:
+          - id: rlaif-b3-1
+            phrase: comparisons
+            targets:
+              - order-verdict
+            linger: 0.45
+  - id: order-normalization
+    title: Remap the vote before averaging
+    visual: The same A/B answer identities retain their colors while presentation order and first-label
+      probability change. Remapped vote lengths join into an identity-based mean.
+    beats:
+      - say: "A judge may return normalized answer-label probabilities. Use our authored order audit: when A appears
+          first, its probability is point eight. In the swapped order, B appears first and receives point seven.
+          That second vote assigns A point three. Predict A’s average before we combine them."
+        hold: 1.5
+        visual_cues:
+          - id: order-first
+            phrase: when A appears first
+            targets:
+              - remapped-votes
+          - id: order-swapped
+            phrase: In the swapped order
+            targets:
+              - remapped-votes
+          - id: order-remap
+            phrase: That second vote assigns A point three
+            targets:
+              - remapped-votes
+      - say: The mean is point five five, not point seven five. The large disagreement still needs review.
+        hold: 0.8
+        visual_cues:
+          - id: order-normalization-1
+            phrase: The mean is point five five
+            targets:
+              - remapped-votes
+      - say: Averaging orders can reduce presentation bias while preserving a shared mistake about the access rule. A
+          soft preference is a graded prediction under one principle, not a calibrated probability that a
+          response is safe. The original study clamped overconfident reasoning-based preference targets between
+          point four and point six for its main results. Our separate point-eight reward example is an unclamped
+          teaching fixture. Human helpfulness comparisons remain part of the original reward-training mix.
+        hold: 0.8
+        visual_cues:
+          - id: order-normalization-2
+            phrase: not a calibrated probability
+            targets:
+              - label-limit
+          - id: clamp-target
+            phrase: between point four and point six
+            targets:
+              - label-limit
+  - id: reward
+    title: Train a reward model from preference labels
+    visual: A soft preference target moves the reward margin between responses; the reward model then
+      scores policy samples for a separate reinforcement-learning update.
+    beats:
+      - say: Pairwise labels train a reward model to score candidate responses. The reward difference
+          predicts how likely the evaluator is to prefer one answer under the selected principle. A
+          common pairwise model applies a logistic function to the reward difference and maps it to
+          preference likelihood.
+        hold: 0.55
+        visual_cues:
+          - id: reward-b1-1
+            phrase: preference likelihood
+            targets:
+              - reward-probabilities
+            linger: 0.45
+      - say: In our small binary example, the evaluator gives answer A a soft target probability of point
+          eight. Equal starting scores imply an even prediction, so the gradient raises A's score
+          margin. For any target q and prediction p, the derivative with respect to the margin is p
+          minus q. Gradient descent subtracts the learning rate times that derivative from the
+          margin. With a margin step size of point five, the derivative is minus point three, so the
+          margin moves from zero to point fifteen and its predicted probability rises to about point
+          five three seven. This illustrates one update; the optimum margin is the log of q divided
+          by one minus q.
+        hold: 0.55
+        visual_cues:
+          - id: reward-b2-1
+            phrase: soft target probability
+            targets:
+              - soft-target
+            linger: 0.45
+          - id: reward-b2-2
+            phrase: gradient raises
+            targets:
+              - margin-gradient
+            linger: 0.45
+          - id: reward-update
+            phrase: margin moves from zero to point fifteen
+            targets:
+              - margin-gradient
+      - say: Reinforcement learning then uses the learned score on fresh policy samples and can penalize
+          drift from a reference policy. This is the RLAIF route through a reward model. The learned
+          score is a proxy, so compare it with human judgments on held-out request types.
+        hold: 0.75
+        visual_cues:
+          - id: reward-b3-1
+            phrase: fresh policy samples
+            targets:
+              - policy-samples
+            linger: 0.45
+          - id: reward-b3-2
+            phrase: reference policy
+            targets:
+              - reference-penalty
+            linger: 0.45
+  - id: policy-rl
+    title: Spend reward gains against policy drift
+    visual: A two-answer distribution changes from [0.5,0.5] to [0.8,0.2]. The learned scores and reference
+      probabilities remain fixed while actual expectation and KL contributions accumulate.
+    beats:
+      - say: Carry the learned score into an invented two-answer policy calculation. Fix answer scores at point
+          fifteen for A and zero for B. The reference assigns each answer probability one half. A candidate
+          assigns A point eight and B point two. Its expected reward is point twelve, compared with point zero
+          seven five for the reference. Its KL divergence from the reference is about point one nine two seven.
+        hold: 0.8
+        visual_cues:
+          - id: policy-rl-1
+            phrase: Its expected reward is point twelve, compared with point zero seven five for the reference
+            targets:
+              - policy-expectation
+          - id: policy-candidate
+            phrase: A candidate assigns A point eight
+            targets:
+              - policy-expectation
+          - id: policy-kl
+            phrase: Its KL divergence from the reference is about point one nine two seven
+            targets:
+              - policy-expectation
+      - say: With a drift weight of point two, subtract about point zero three eight five. The candidate objective is
+          about point zero eight one five, above the reference’s point zero seven five. Predict the result if
+          that weight becomes one.
+        hold: 1.5
+        visual_cues:
+          - id: policy-rl-2
+            phrase: if that weight becomes one
+            targets:
+              - drift-comparison
+          - id: policy-penalty
+            phrase: subtract about point zero three eight five
+            targets:
+              - drift-comparison
+          - id: policy-base-objective
+            phrase: The candidate objective is about point zero eight one five, above the reference’s point zero seven
+              five
+            targets:
+              - drift-comparison
+      - say: The candidate objective falls to about minus point zero seven two seven, so this fixed candidate loses
+          the comparison. This finite example evaluates distributions; real policy RL estimates an objective
+          from rollouts and gradients. A reward gain remains a proxy for desired behavior.
+        hold: 0.8
+        visual_cues:
+          - id: policy-changed-answer
+            phrase: The candidate objective falls to about minus point zero seven two seven, so this fixed candidate loses
+              the comparison
+            targets:
+              - drift-comparison
+  - id: method-context
+    title: Keep published results inside their setup
+    visual: Three paired bars retain the same comparison identities before and after length adjustment.
+      A dated artifact timeline distinguishes policy training data from inference classifiers.
+    beats:
+      - say: Lee and colleagues compared RLAIF and RLHF on PaLM two summarization. Unadjusted human win
+          rates against supervised fine-tuning were seventy-one and seventy-three percent; their
+          head-to-head rate was fifty percent. After a post-hoc length adjustment those figures were
+          fifty-nine, sixty-one and forty-seven percent. These are results for that setup. The
+          historical estimate of over tenfold cheaper AI labels used then-current prices and
+          excluded setup and annotator training. Measure current costs and security separately.
+        hold: 0.8
+        visual_cues:
+          - id: method-context-1
+            phrase: After a post-hoc length adjustment
+            targets:
+              - published-comparisons
+          - id: published-original
+            phrase: Unadjusted human win rates
+            targets:
+              - published-comparisons
+      - say: "Constitutional training has also broadened. Anthropic’s January twenty-two, twenty twenty-six
+          constitution explains values and reasons. Its May eight report studies synthetic
+          constitutional documents, advice examples and tool-equipped reinforcement learning
+          environments. Those reported interventions extend the original recipe; they do not
+          establish success on our incident-access cases. DPO is another later route: chosen and
+          rejected AI comparisons can train a policy without an intermediate reward model, while
+          preserving soft labels requires a suitable loss."
+        hold: 0.8
+        visual_cues:
+          - id: method-context-2
+            phrase: extend the original recipe
+            targets:
+              - method-artifacts
+          - id: artifact-document
+            phrase: synthetic constitutional documents
+            targets:
+              - method-artifacts
+          - id: artifact-advice
+            phrase: advice examples
+            targets:
+              - method-artifacts
+          - id: artifact-rl
+            phrase: tool-equipped reinforcement learning environments
+            targets:
+              - method-artifacts
+  - id: attack-search
+    title: Separate a proposed attack from a demonstrated failure
+    visual: A synthetic incident threat model fixes caller permission, entry point, reachable tools and
+      budgets. Invented token substitutions move from gradient suggestions to exact-loss checks.
+    beats:
+      - say: Automated red teaming proposes probes, runs the target, and inspects actual responses and tool
+          effects. Define caller permissions, direct and retrieved-text entry points, reachable
+          tools, query and turn budgets first. Use synthetic records in an authorized environment.
+          An attacker language model can generate and mutate prose; linguistic transformations can
+          change language or encoding. More diverse phrasing does not establish coverage, and a
+          transformation may change the intended attack.
+        hold: 0.8
+        visual_cues:
+          - id: attack-search-1
+            phrase: actual responses and tool effects
+            targets:
+              - threat-model
+      - say: Greedy Coordinate Gradient search uses target gradients with respect to continuous one-hot
+          token representations. Token IDs themselves are discrete. Negative-gradient coordinates
+          suggest replacements; sampled candidates receive exact forward-loss evaluations. In our
+          invented one-coordinate fixture, B has the strongest gradient suggestion, but exact losses
+          are point nine for B and point six for C. Exact evaluation selects C. A lower
+          affirmative-prefix loss still requires a separate check of the actual policy violation.
+        hold: 0.8
+        visual_cues:
+          - id: attack-search-2
+            phrase: Exact evaluation selects C
+            targets:
+              - exact-candidates
+          - id: gcg-gradient
+            phrase: Negative-gradient coordinates suggest replacements
+            targets:
+              - exact-candidates
+          - id: gcg-exact
+            phrase: exact losses are point nine for B and point six for C
+            targets:
+              - exact-candidates
+      - say: Gradient access makes this a white-box search on the accessible model. Transfer to a different
+          target or tokenizer must be measured. Black-box generation has its own query cost and
+          repetition risk. Parse generated attack batches as nonempty, unique strings within a
+          strict count limit. A malformed batch is a generator failure, not a defended target
+          attempt. Keep generation, target execution, and evaluator failures in separate counters.
+        hold: 0.8
+        visual_cues:
+          - id: attack-search-3
+            phrase: not a defended target attempt
+            targets:
+              - attack-accounting
+          - id: batch-parse
+            phrase: Parse generated attack batches
+            targets:
+              - attack-accounting
+  - id: attack-lineage
+    title: Keep descendants with their root seed
+    visual: Two seed trees produce direct, roleplay, encoding and translation descendants. A crossing
+      descendant is rejected, then the whole seed family moves together into one partition.
+    beats:
+      - say: Suppose seed A produces direct and roleplay variants, while seed B produces encoding and
+          translation variants. A random row split can put descendants of A in both training and
+          test. For an unseen-seed test, keep every descendant with its root seed. Reject the
+          crossing row before evaluation. Record the seed, family and transformation chain, and
+          preserve unique case identities.
+        hold: 0.8
+        visual_cues:
+          - id: attack-lineage-1
+            phrase: Reject the crossing row
+            targets:
+              - seed-partitions
+          - id: lineage-cross
+            phrase: A random row split
+            targets:
+              - seed-partitions
+          - id: lineage-repair
+            phrase: keep every descendant with its root seed
+            targets:
+              - seed-partitions
+      - say: Grouping answers the unseen-lineage question. Different seeds may still share templates or
+          underlying requests, so inspect those overlaps and name held-out languages and families.
+          Known-seed variants measure a different contract. Keep confirmed exploits in a
+          seen-development regression set, and reserve separate unseen families for generalization.
+          Preserve model, application, judge, permission state and tool effects so repairs target
+          the layer that failed.
+        hold: 0.8
+        visual_cues:
+          - id: attack-lineage-2
+            phrase: Different seeds may still share templates
+            targets:
+              - split-contract
+  - id: red-team
+    title: Probe public help and private records
+    visual: Benign policy questions, unauthorized requests, and roleplay attacks enter separate tests;
+      each counter waits for the first observed case in its own permission group before showing a fraction.
+    beats:
+      - say: Red-team probes can test roleplay, urgency, mixed requests, and multi-turn pressure. Measure
+          whether private information is protected and whether public rules remain answerable.
+          Include paraphrases and multi-turn context, since a boundary can shift after several
+          harmless requests.
+        hold: 0.55
+        visual_cues:
+          - id: red-team-b1-1
+            phrase: roleplay, urgency, mixed requests
+            targets:
+              - probe-requests
+            linger: 0.45
+      - say: Track false refusals on permitted requests separately from unsafe disclosures. Separate
+          measures can reveal a model that blocks routine help while missing a targeted attack.
+        hold: 0.55
+        visual_cues:
+          - id: red-team-b2-1
+            phrase: false refusals
+            targets:
+              - false-refusals
+            linger: 0.45
+          - id: red-team-b2-2
+            phrase: unsafe disclosures
+            targets:
+              - unsafe-disclosures
+            linger: 0.45
+      - say: Keep access checks in the application, and use the language model to explain the result. A
+          trained refusal expresses model behavior; the application enforces data permission.
+        hold: 0.75
+        visual_cues:
+          - id: red-team-b3-1
+            phrase: application enforces data permission
+            targets:
+              - trusted-denial
+            linger: 0.45
+  - id: audit-accounting
+    title: Count cases before quoting rates
+    visual: Six attack outcomes and five benign outcomes occupy separate bands with family IDs. One unresolved
+      attack and one benign execution error are then added without changing known counts.
+    beats:
+      - say: Use a second, larger authored fixture. Six adjudicated attack attempts contain two roleplay violations
+          and four non-violations, giving attack success rate two of six. Five adjudicated benign requests
+          contain three helpful answers, one false refusal and one unhelpful non-refusal. False refusal rate is
+          one of five; helpfulness is three of five. Keep refusals and unhelpful answers in that utility
+          denominator. The roleplay slice is two failures of two, which warrants investigation without
+          predicting every future roleplay outcome.
+        hold: 0.8
+        visual_cues:
+          - id: audit-accounting-1
+            phrase: False refusal rate is one of five; helpfulness is three of five
+            targets:
+              - outcome-bands
+          - id: audit-attacks
+            phrase: Six adjudicated attack attempts
+            targets:
+              - outcome-bands
+          - id: audit-asr
+            phrase: giving attack success rate two of six
+            targets:
+              - outcome-bands
+          - id: audit-benign
+            phrase: Five adjudicated benign requests
+            targets:
+              - outcome-bands
+          - id: audit-frr
+            phrase: False refusal rate is one of five; helpfulness is three of five
+            targets:
+              - outcome-bands
+      - say: "Add one attack awaiting review and one benign execution error. The known attack rate remains two of six,
+          and judgment coverage is six of seven. Assuming known labels are correct, the full seven-case attack
+          sample can have two or three violations: bounds two of seven to three of seven. If the benign result
+          exists but remains unjudged, helpfulness across all six attempted cases lies between three of six and
+          four of six. If execution produced no usable result, end-to-end helpfulness is three of six. Report
+          that execution error separately. Missing-label bounds
+          describe this sample, not a confidence interval for future traffic. With no adjudicated attacks, the
+          conditional rate is undefined."
+        hold: 0.8
+        visual_cues:
+          - id: audit-accounting-2
+            phrase: bounds two of seven to three of seven
+            targets:
+              - missing-bounds
+          - id: audit-add
+            phrase: Add one attack awaiting review and one benign execution error
+            targets:
+              - missing-bounds
+          - id: audit-benign-bounds
+            phrase: lies between three of six and four of six
+            targets:
+              - missing-bounds
+      - say: A stricter fixed classifier can trade missed violations against blocked benign requests, while better
+          data or models can improve both. A false-refusal rate alone cannot identify an alignment tax.
+          Attributing lost capability to alignment requires a comparable baseline and broader task outcomes.
+          Report family, language, conversational depth and permission slices, raw counts, selection procedures
+          and sampling uncertainty. Judge timeouts are unresolved labels; target-execution errors are different
+          events.
+        hold: 0.8
+        visual_cues:
+          - id: audit-accounting-3
+            phrase: comparable baseline
+            targets:
+              - utility-baseline
+          - id: audit-comparison
+            phrase: while better data or models can improve both
+            targets:
+              - utility-baseline
+  - id: judge-audit
+    title: Audit the evaluator against independent labels
+    visual: Six human-adjudicated fixture labels and authored violation probabilities share a 0–1 score axis.
+      Thresholds route each identified case to flag, clear or review; error counts retain abstentions.
+    beats:
+      - say: Preference likelihood asks which response wins a comparison; violation probability asks whether a
+          response or action breaks a rule. Supply the relevant permissions, transcript and tool effects. Select
+          thresholds on validation data and measure on a separate human-adjudicated test. Structured JSON checks
+          format, while a correct meaning requires a reliable evaluator. Review a sample of passes as well as
+          flags to find false negatives and shared actor-judge blind spots.
+        hold: 0.8
+        visual_cues:
+          - id: judge-audit-1
+            phrase: Review a sample of passes
+            targets:
+              - judge-context
+      - say: In our authored six-case audit, true labels are one, zero, one, zero, one, one. Scores are point nine
+          five, point nine, point eight, point two, point one, point five. Flag at least point eight; clear at
+          most point two; review the middle. We obtain two true positives, one false positive, one false
+          negative, one true negative and one review. Coverage is five of six. Flag precision and recall among
+          classified cases are each two thirds, but only two of four known violations are flagged. Mean squared
+          probability error, the Brier score, is point three two five. This fixture does not establish future
+          calibration.
+        hold: 0.8
+        visual_cues:
+          - id: judge-audit-2
+            phrase: Coverage is five of six. Flag precision and recall among classified cases are each two thirds, but
+              only two of four known violations are flagged
+            targets:
+              - judge-confusion
+          - id: judge-scores
+            phrase: Scores are point nine five, point nine, point eight, point two, point one, point five
+            targets:
+              - judge-confusion
+          - id: judge-route
+            phrase: Flag at least point eight
+            targets:
+              - judge-confusion
+          - id: judge-counts
+            phrase: We obtain two true positives, one false positive, one false negative, one true negative and one review
+            targets:
+              - judge-confusion
+          - id: judge-brier
+            phrase: Brier score, is point three two five
+            targets:
+              - judge-confusion
+  - id: attack-budget
+    title: An attempt budget changes the question
+    visual: The same toy ten-percent attempt success probability feeds two explicit dependence models.
+      Ten independent trials contrast with ten identical deterministic outcomes.
+    beats:
+      - say: Task-level success after a search budget differs from success per query. For a mathematical
+          illustration only, suppose independent attempts each succeed with probability point one.
+          The chance of at least one success in k attempts is one minus point nine to the kth power.
+          One attempt gives ten percent; two give nineteen percent; ten give about sixty-five point
+          one percent.
+        hold: 0.8
+        visual_cues:
+          - id: attack-budget-1
+            phrase: ten give about sixty-five point one percent
+            targets:
+              - independent-budget
+          - id: budget-one
+            phrase: One attempt gives ten percent
+            targets:
+              - independent-budget
+          - id: budget-two
+            phrase: two give nineteen percent
+            targets:
+              - independent-budget
+      - say: Now repeat the same deterministic outcome on every attempt for a task. Across tasks the success
+          rate stays ten percent, despite ten repeats. An adaptive attacker follows another process
+          because later probes depend on earlier responses. Report tasks, attempts used, turn
+          budgets, stopping rules and adaptation. Compare candidates under matched budgets instead
+          of converting a measured query rate with an independence assumption.
+        hold: 0.8
+        visual_cues:
+          - id: attack-budget-2
+            phrase: success rate stays ten percent
+            targets:
+              - dependent-budget
+  - id: multi-turn
+    title: Keep the transcript and the role of every message
+    visual: Three successive user/assistant pairs remain in one transcript. The first two replies are background;
+      the third synthetic assistant disclosure ends the run. A user-quoted marker is then compared separately.
+    beats:
+      - say: "A multi-turn runner sends accumulated history to the target and judges each new assistant turn. Our
+          fixed fixture first discusses unsafe requests, then asks for public policy, then requests a synthetic
+          disclosure. The target’s third reply contains the fixture disclosure marker. Stop on that confirmed
+          violation: turn three, with six stored messages. Do not restart each turn as an isolated request.
+          Preserve history against callback mutation and enforce the declared turn limit."
+        hold: 0.8
+        visual_cues:
+          - id: multi-turn-1
+            phrase: "Stop on that confirmed violation: turn three, with six stored messages"
+            targets:
+              - conversation-state
+          - id: turn-one
+            phrase: first discusses unsafe requests
+            targets:
+              - conversation-state
+          - id: turn-two
+            phrase: then asks for public policy
+            targets:
+              - conversation-state
+          - id: turn-three
+            phrase: then requests a synthetic disclosure
+            targets:
+              - conversation-state
+          - id: turn-answer
+            phrase: target’s third reply contains the fixture disclosure marker
+            targets:
+              - conversation-state
+      - say: "Change only the marker’s role: a user quotes it while the assistant gives background information. That
+          quoted input is not an assistant disclosure. A real audit must also inspect unauthorized actions and
+          tool effects, not merely match text. A review verdict needs adjudication; it cannot become a clean
+          defense. A fixed plan, an adaptive multi-turn attack and independent restarts use different budgets.
+          Stopping at the first failure answers time to first failure; subsequent containment requires a
+          different stopping rule."
+        hold: 0.8
+        visual_cues:
+          - id: multi-turn-2
+            phrase: quoted input is not an assistant disclosure
+            targets:
+              - role-comparison
+          - id: role-change
+            phrase: a user quotes it
+            targets:
+              - role-comparison
+  - id: defense-effects
+    title: Enforce the boundary before data or effects escape
+    visual: The same private record remains behind IAM, while public runbook bytes pass. A tool
+      proposal, denied execution and delivered answer have separate result bins; output bytes wait
+      in a checked buffer.
+    beats:
+      - say: Training cannot replace application authorization. Authenticate the caller, authorize the
+          particular record and action, and check the destination before retrieval or side effects.
+          Retrieved emails and documents remain untrusted instruction sources. A hazard classifier
+          such as Llama Guard classifies its taxonomy; it does not issue incident-record
+          entitlements. An allowed record can still have an unauthorized recipient. Input checks,
+          aligned behavior, output checks and restricted telemetry provide complementary coverage.
+        hold: 0.8
+        visual_cues:
+          - id: defense-effects-1
+            phrase: check the destination before retrieval
+            targets:
+              - effect-boundary
+          - id: effect-check
+            phrase: authorize the particular record and action
+            targets:
+              - effect-boundary
+          - id: effect-destination
+            phrase: check the destination before retrieval
+            targets:
+              - effect-boundary
+      - say: Check output before releasing the relevant bytes. A late streaming detection cannot retract a
+          secret already delivered, and incremental checks need cross-chunk context. Anthropic’s
+          January nine, twenty twenty-six classifier report describes a cheap activation probe
+          escalating suspicious conversations to a stronger classifier. This is an inference
+          safeguard distinct from policy training; reported robustness belongs to its tested setup.
+          If our model proposes the denied read, record a model behavior issue, the blocked
+          application action and no delivered disclosure as separate outcomes.
+        hold: 0.8
+        visual_cues:
+          - id: defense-effects-2
+            phrase: as separate outcomes
+            targets:
+              - separate-effects
+          - id: output-buffer
+            phrase: Check output before releasing the relevant bytes
+            targets:
+              - separate-effects
+          - id: effect-proposal
+            phrase: If our model proposes the denied read
+            targets:
+              - separate-effects
+  - id: evaluate
+    title: Audit the behavior the principles produced
+    visual: A versioned principle, generation trace, preference label, reward model, and held-out attack suite
+      connect to one candidate checkpoint and a human review gate.
+    beats:
+      - say: Store the principle version, prompts, drafts, critiques, revisions, pair labels, and reward-model
+          checkpoint with their training lineage.
+        hold: 0.55
+        visual_cues:
+          - id: evaluate-b1-1
+            phrase: principle version
+            targets:
+              - principle-version
+            linger: 0.45
+          - id: evaluate-b1-2
+            phrase: revisions
+            targets:
+              - draft-lineage
+            linger: 0.45
+          - id: evaluate-b1-3
+            phrase: pair labels
+            targets:
+              - preference-lineage
+            linger: 0.45
+          - id: lineage-checkpoint
+            phrase: reward-model checkpoint
+            targets:
+              - independent-tests
+      - say: Evaluate task quality, private-data handling, refusal precision, and resistance to held-out attacks.
+          Review samples where judges disagree or the policy changes after a prompt rephrasing. Evaluator
+          disagreement can reveal an ambiguous principle or missing context and deserves a review path.
+        hold: 0.55
+        visual_cues:
+          - id: evaluate-b2-1
+            phrase: held-out attacks
+            targets:
+              - independent-tests
+            linger: 0.45
+      - say: Written principles make intended behavior discussable and reusable as data. Evidence from independent
+          tests decides whether the resulting assistant follows them in the situations that matter.
+        hold: 0.75
+        visual_cues:
+          - id: evaluate-b3-1
+            phrase: independent tests
+            targets:
+              - independent-tests
+            linger: 0.45
+      - say: "Finish with a fresh authored release audit. A mixed request asks for public freeze rules and a denied
+          incident timeline. Predict which parts may pass:"
+        hold: 1.5
+        visual_cues:
+          - id: release-transfer
+            phrase: Predict which parts may pass
+            targets:
+              - mixed-release
+      - say: "answer the public rule, keep private retrieval blocked and offer the access portal. In eight adjudicated benign cases, five are helpful, two are false refusals and one is unhelpful. False refusal rate is twenty-five percent and helpfulness is sixty-two point five percent. Seven attack attempts contain one confirmed violation, four clear outcomes and two unresolved judgments. Report one of five adjudicated, coverage five of seven, and full-sample bounds one of seven to three of seven. Keep the unresolved cases open; the fixture alone does not certify release. Verifiable rewards next replace a preference judgment with an executable check for a declared property, then test whether optimizing that check really serves the task."
+        hold: 1.4
+        visual_cues:
+          - id: release-counts
+            phrase: Report one of five adjudicated, coverage five of seven, and full-sample bounds one of seven to three
+              of seven
+            targets:
+              - transfer-counts
+          - id: release-answer
+            phrase: answer the public rule, keep private retrieval blocked and offer the access portal
+            targets:
+              - mixed-release
+          - id: release-benign
+            phrase: In eight adjudicated benign cases
+            targets:
+              - transfer-counts
+          - id: release-benign-rates
+            phrase: False refusal rate is twenty-five percent and helpfulness is sixty-two point five percent
+            targets:
+              - transfer-counts
+          - id: release-attacks
+            phrase: Seven attack attempts contain one confirmed violation
+            targets:
+              - transfer-counts

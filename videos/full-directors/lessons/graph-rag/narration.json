@@ -1,0 +1,636 @@
+[
+  {
+    "id": "c01",
+    "title": "Who published Lena’s book?",
+    "sourceChapters": [
+      "c01"
+    ],
+    "beats": [
+      {
+        "id": "c01-b01",
+        "say": "Lena wrote River Walk. Both the jacket and the park map say River Walk. Look at the work ID beside Lena’s name. Which one would you open to find her publisher?",
+        "hold": 2.8
+      },
+      {
+        "id": "c01-b02",
+        "say": "Follow the matching ID. Turn to the imprint. Willow Press published this book.",
+        "hold": 1.3
+      },
+      {
+        "id": "c01-b03",
+        "say": "A identifies the work Lena wrote. B names its publisher. Retrieval-augmented generation brings evidence into a language model’s context. Here a graph retrieves both passages, so the answer can cite one for each step.",
+        "hold": 1
+      }
+    ]
+  },
+  {
+    "id": "c02",
+    "title": "Give relationships direction and type",
+    "sourceChapters": [
+      "c02"
+    ],
+    "beats": [
+      {
+        "id": "c02-b01",
+        "say": "Start with three kinds of entity: a person, a book, and a publisher. A relationship joins two entities with a meaningful direction. Lena wrote River Walk. River Walk was published by Willow Press. Reversing either arrow would change the statement.",
+        "hold": 0.55
+      },
+      {
+        "id": "c02-b02",
+        "say": "Each relationship keeps its own source reference. The author edge comes from one record and the publisher edge from another. Combining the nodes into a graph must preserve those separate receipts so we can retrieve the supporting text for each step.",
+        "hold": 0.75
+      },
+      {
+        "id": "c02-b03",
+        "say": "Try three extractions against the same pages. First, omit the publisher link. Restore that link before the next trial. Now reverse the author link. It points from the book to Lena. Put the author arrow back. For the third trial, replace wrote with owns. All three proposals could pass a schema check. Which change do the source sentences support?",
+        "hold": 2
+      },
+      {
+        "id": "c02-b04",
+        "say": "Neither sentence supports those changes. Follow the wrote arrow and you retrieve a sentence. A graph neural network can use the same neighborhood differently. Two neighbor messages have values point four and point eight. Their mean is point six. That aggregate feeds the next node update and can help rank search results.",
+        "hold": 0.8
+      },
+      {
+        "id": "c02-b05",
+        "say": "This is learned message passing. Standard GraphRAG builds its index by extracting relationships, clustering the graph and writing reports.",
+        "hold": 0.7
+      }
+    ]
+  },
+  {
+    "id": "c03",
+    "title": "A link arrives without a type",
+    "sourceChapters": [
+      "c03"
+    ],
+    "beats": [
+      {
+        "id": "c03-b01",
+        "say": "A new record arrives with a link to River Walk. Someone left the type field blank. You have a book and a park with exactly that title. Where can you store the link on this evidence?",
+        "hold": 1.9
+      },
+      {
+        "id": "c03-b02",
+        "say": "Hold the link. Either destination would be a guess. The cataloguer checks the original and supplies River Walk, revised edition, with the type Book. Our reviewed alias table maps that edition to the book on file. Now join the link to that book ID. The park keeps its own ID.",
+        "hold": 0.9
+      },
+      {
+        "id": "c03-b03",
+        "say": "Deciding when two names identify the same thing is entity resolution. In this catalogue, the title and type narrow the candidates and the reviewed alias settles the match. In a service catalogue, also check the tenant, environment and stable source identifiers. If descriptions disagree, preserve their dates and sources so someone can resolve the disagreement.",
+        "hold": 0.75
+      }
+    ]
+  },
+  {
+    "id": "c04",
+    "title": "Follow a path, then fetch its sources",
+    "sourceChapters": [
+      "c04"
+    ],
+    "beats": [
+      {
+        "id": "c04-b01",
+        "say": "Now start at Lena. Follow the wrote relation to the book, then the published-by relation to the publisher. At each hop, collect the source record supporting that edge. The path tells us which records to inspect together.",
+        "hold": 0.55
+      },
+      {
+        "id": "c04-b02",
+        "say": "Before admitting their text, check current access, source version, and each relationship’s provenance. Both records pass. Cite A for the author and B for the publisher. A reader can check the two steps separately.",
+        "hold": 1
+      },
+      {
+        "id": "c04-b03",
+        "say": "A short path is a retrieval lead. Its meaning depends on the relations and their support. A path through a shared topic does not automatically establish authorship, ownership, or causation. Read the supporting text before turning a connected diagram into an answer.",
+        "hold": 0.55
+      }
+    ]
+  },
+  {
+    "id": "c05",
+    "title": "Two claims cite the same sentence",
+    "sourceChapters": [
+      "c05"
+    ],
+    "beats": [
+      {
+        "id": "c05-b01",
+        "say": "Read the sentence from record A again. Lena wrote River Walk. Here are two proposed links. The second changes just the verb to owns. The names match, and both citations lead back to these exact words. Which claim can we keep?",
+        "hold": 2.4
+      },
+      {
+        "id": "c05-b02",
+        "say": "Keep wrote. The author record says that directly. Withhold owns. Lena could have written the book and sold the rights. To add ownership, find a source that actually identifies the owner.",
+        "hold": 1
+      },
+      {
+        "id": "c05-b03",
+        "say": "A matching hash tells you which version of the text you read. Deciding what that text supports takes a separate judgment. Test both kinds of claim on reviewed examples, including uncertain wording, changed dates and ambiguous names. Count the relevant sources you retrieved separately from the relationships a reader could verify.",
+        "hold": 0.75
+      }
+    ]
+  },
+  {
+    "id": "c06",
+    "title": "Read the words that produced the edge",
+    "sourceChapters": [
+      "c06"
+    ],
+    "beats": [
+      {
+        "id": "c06-b01",
+        "say": "Take that same reading habit to an incident note. Record eighteen forty-two says the inference API depends on the Redis cache. The extractor proposes a service, a datastore and the dependency between them. The program attaches the source ID from the record it read.",
+        "hold": 0.3
+      },
+      {
+        "id": "c06-b02",
+        "say": "Validate the proposed fields and types, then check the meaning against the sentence. A phrase like “might depend on” would require keeping that uncertainty. Standard GraphRAG builds text units, extracts entities and relationship descriptions and can extract claims.",
+        "hold": 0.3
+      },
+      {
+        "id": "c06-b03",
+        "say": "It merges records, clusters the graph, writes reports and embeds the artifacts used in search.",
+        "hold": 0.75
+      },
+      {
+        "id": "c06-b04",
+        "say": "Suppose one entry spells Redis Cache with capital letters and the next uses lowercase. The article’s resolver normalizes case and spaces and checks a reviewed alias table. It preserves punctuation. Joining two names that differ by a dash requires a reviewed alias.",
+        "hold": 0.8
+      },
+      {
+        "id": "c06-b05",
+        "say": "Match a canonical title and type within the same tenant and environment. Reject unknown or ambiguous endpoints. If two descriptions conflict, keep both sources and dates through the merge. A summary can smooth away the disagreement.",
+        "hold": 0.75
+      },
+      {
+        "id": "c06-b06",
+        "say": "The article’s little extractor accepts two exact reviewed texts. Change the text and it asks for review. Its numeric weights were supplied for the example. Now read the phrase “cache timeout during migration.” FastGraphRAG can link noun phrases that occur in one text unit.",
+        "hold": 0.3
+      },
+      {
+        "id": "c06-b07",
+        "say": "That gives us co-occurrence. To say the migration caused the timeout would take more evidence. A broad extractor can create hubs out of common nouns, while a narrow type list can miss real links. Inspect high-degree nodes and measure what useful evidence filtering removes.",
+        "hold": 0.3
+      },
+      {
+        "id": "c06-b08",
+        "say": "FastGraphRAG still uses a model for reports. These artifacts can live in tables without a dedicated graph database.",
+        "hold": 0.75
+      }
+    ]
+  },
+  {
+    "id": "c07",
+    "title": "What can the on-call engineer report?",
+    "sourceChapters": [
+      "c07"
+    ],
+    "beats": [
+      {
+        "id": "c07-b01",
+        "say": "An engineer wants to know why a service breached its latency target, and whether it will happen again. In the article’s three-note lab, search for the service name, latency and S L O. Rank the notes by the number of distinct search terms they contain. Which note will a top-two search leave out?",
+        "hold": 2.2
+      },
+      {
+        "id": "c07-b02",
+        "say": "The cache policy drops out. The breach note matches all three terms. The dependency note matches two. Those are two of the three notes the test author marked as relevant. This search matches words. The lab runs without embeddings, a learned extractor or an answer generator.",
+        "hold": 0.6
+      },
+      {
+        "id": "c07-b03",
+        "say": "Keep the two hits. Start at the service and follow its dependency to the cache. That first link cites a note we already have. From the cache, follow the policy link. Which note does this second hop add?",
+        "hold": 1.8
+      },
+      {
+        "id": "c07-b04",
+        "say": "Note twenty thirty-one completes the set. The old policy is still in use and a compatibility test is holding up the migration. Start at the policy instead. No arrow leads out of it, so only the two lexical hits remain. Return to the service with both links intact. The walk reaches all three notes again. Remove only the policy link. The first hop still reaches Redis, but note twenty thirty-one drops out.",
+        "hold": 1
+      },
+      {
+        "id": "c07-b05",
+        "say": "Restore the policy link. From the same service, two hops reach the policy note again. Replace the policy edge with a proposed link straight from the service to a future breach. It cites the same policy sentence. One hop now adds that note to the two lexical hits.",
+        "hold": 0.7
+      },
+      {
+        "id": "c07-b06",
+        "say": "The lab checks that this reader has access, that the source exists, and that the stored hash and quotation still match. Read that quotation. Would you tell the engineer another breach is likely?",
+        "hold": 2.4
+      },
+      {
+        "id": "c07-b07",
+        "say": "Leave the forecast open. The quote establishes which policy the cache used. The other notes establish that evictions and a breach occurred, and that latency recovered after rollback. To test a causal role for the policy, compare the two settings under the same release and load.",
+        "hold": 0.3
+      },
+      {
+        "id": "c07-b08",
+        "say": "A full set of source IDs cannot do that comparison for you.",
+        "hold": 0.75
+      },
+      {
+        "id": "c07-b09",
+        "say": "Now withdraw this reader’s access to the policy note. The other two notes can still enter context. Withhold the old report that used the policy note as well. Editing or deleting the source also invalidates evidence tied to that version. Check retrieval coverage, the extractor’s precision and recall, and support for the final answer separately.",
+        "hold": 0.8
+      }
+    ]
+  },
+  {
+    "id": "c08",
+    "title": "Score a grouping without changing the graph",
+    "sourceChapters": [
+      "c08"
+    ],
+    "beats": [
+      {
+        "id": "c08-b01",
+        "say": "Keep the directed source links on the left. Make a second view on the right. For clustering, the pipeline normalizes endpoint order, deduplicates pairs and carries their weights. Here each pair has weight one. Which nodes would a largest-connected-component filter leave out?",
+        "hold": 2.5
+      },
+      {
+        "id": "c08-b02",
+        "say": "The little pair on the right would drop out. Keep it for this calculation. Count the lines that touch each node. That number is its degree. There are six edges and twelve edge ends, because each line has two ends.",
+        "hold": 0.8
+      },
+      {
+        "id": "c08-b03",
+        "say": "Use a simple, unweighted, undirected graph with at least one edge. For each group, take its internal edges as a fraction of all six. Subtract the square of its share of all twelve edge ends. Add the contributions. That gives modularity at resolution one.",
+        "hold": 0.9
+      },
+      {
+        "id": "c08-b04",
+        "say": "In the cache group the degrees add to ten. Five of the six edges lie inside. Five sixths minus ten twelfths squared gives five thirty-sixths. In the little eval group, one sixth minus two twelfths squared also gives five thirty-sixths. The two groups contribute equally.",
+        "hold": 0.3
+      },
+      {
+        "id": "c08-b05",
+        "say": "Add the two contributions and you get five eighteenths, about point two seven eight. What would happen to that score if we put all six nodes in one group?",
+        "hold": 2.2
+      },
+      {
+        "id": "c08-b06",
+        "say": "Join the two outlines. Every edge is internal to the one group. Every edge end belongs to it. One minus one squared gives zero. The directed sources on the left still say exactly what they said before. Modularity measures structure against a degree-based expectation. For an individual pair the expected adjacency can exceed one.",
+        "hold": 1
+      },
+      {
+        "id": "c08-b07",
+        "say": "The total scores structure. Open the receipt on the edge between E and F. It says the evaluation run records a metric. That tells us what those two nodes mean. To name a cause we would need a source that establishes one.",
+        "hold": 1
+      },
+      {
+        "id": "c08-b08",
+        "say": "We scored two partitions by hand. Leiden searches for communities and refines them so they stay connected under the algorithm’s assumptions. Further guarantees depend on iteration. Leiden can use different objectives. The GraphRAG implementation in the article uses modularity at resolution one.",
+        "hold": 0.3
+      },
+      {
+        "id": "c08-b09",
+        "say": "Now look at a separate example of the hierarchy. Recursive subdivision splits large communities toward a size limit. There are two roots. The cache branch splits again while the eval branch stops. That hierarchy is a separate operation from aggregation inside one Leiden run.",
+        "hold": 0.8
+      },
+      {
+        "id": "c08-b10",
+        "say": "Each community report includes a title, summary, referenced findings and a model-rated impact from zero to ten. Use its references to check a finding. An impact rating tells you neither its frequency nor its relevance to your question.",
+        "hold": 0.85
+      }
+    ]
+  },
+  {
+    "id": "c09",
+    "title": "What’s on the rest of the shelf?",
+    "sourceChapters": [
+      "c09"
+    ],
+    "beats": [
+      {
+        "id": "c09-b01",
+        "say": "Back at the library, a visitor asks what subjects the collection covers. Suppose the search returns the compost passage and the balcony herb passage. Both are relevant. Look down the rest of the shelf. Which subjects did those two hits leave out?",
+        "hold": 1.95
+      },
+      {
+        "id": "c09-b02",
+        "say": "Travel and cooking. To cover more of the collection, build reports for groups of related books. Here the two gardening books share one report. Travel and cooking each have their own. We supplied these groups. In standard GraphRAG, the indexing pipeline finds communities in the extracted graph and writes the reports ahead of time.",
+        "hold": 0.65
+      },
+      {
+        "id": "c09-b03",
+        "say": "At query time, pack the reports into batches that fit the prompt. Gardening and travel fit together. Cooking goes in the second batch. Each map call returns partial answers with relevance ratings. Trace each retained subject back through its report. Which book IDs would you cite for each subject in the combined answer?",
+        "hold": 3.2
+      },
+      {
+        "id": "c09-b04",
+        "say": "Gardening comes from B one and B two. Travel comes from B three, and cooking from B four. The reducer brings all three subjects into one answer with those references. A summary can still omit a detail. A reader who asks how many books cover a subject needs a count of the underlying books.",
+        "hold": 0.9
+      }
+    ]
+  },
+  {
+    "id": "c10",
+    "title": "Pack a local answer into ninety tokens",
+    "sourceChapters": [
+      "c10"
+    ],
+    "beats": [
+      {
+        "id": "c10-b01",
+        "say": "For a single fact, such as the timeout of an embeddings API, try Basic search first. It ranks passages by vector similarity. In this example, one API guide gives the setting as thirty seconds. For a service investigation, Microsoft’s Local search starts with semantically related entity descriptions. It ranks nearby entities, relationships, linked text and reports for a shared context. Optional claim records are called covariates.",
+        "hold": 0.5
+      },
+      {
+        "id": "c10-b02",
+        "say": "Our earlier walk followed directed edges. For candidate search, look in both directions from Redis. An incoming edge leads you back to the service that depends on Redis. An outgoing edge leads you to the policy Redis uses. Each claim keeps its original direction.",
+        "hold": 0.65
+      },
+      {
+        "id": "c10-b03",
+        "say": "Give the evidence ninety tokens. These scores and lengths are supplied. Work from the highest score down and take a whole item whenever it fits. Place the dependency first. Slide the policy note in beside it. We’ve spent eighty-five tokens and have five left. Will the cache report fit?",
+        "hold": 1.8
+      },
+      {
+        "id": "c10-b04",
+        "say": "Leave out the report. It costs eighty tokens. A high score can move a source up the list, but its whole text still has to fit the space that’s left.",
+        "hold": 0.7
+      },
+      {
+        "id": "c10-b05",
+        "say": "Try the same three items again. Raise just the report’s score to point nine nine. The lengths and the budget stay fixed. Keep the earlier pack above the empty space. Which items will the packer take now?",
+        "hold": 2.5
+      },
+      {
+        "id": "c10-b06",
+        "say": "Take the report first. That leaves ten tokens, too little for either remaining item. The order changed which sources the model could read. This greedy rule can leave space unused. In a real prompt, count the fully serialized evidence with the target tokenizer and reserve room for instructions, the question and the answer.",
+        "hold": 0.8
+      },
+      {
+        "id": "c10-b07",
+        "say": "Read the evidence in the first pack. A vector hit gives us the service. Note eighteen forty-two says that service depends on Redis. Redis is the subject of the next claim. Note twenty thirty-one says the cache still uses the old maxmemory policy. Try short supported paths as a ranking feature, then check whether more answers have evidence.",
+        "hold": 0.8
+      },
+      {
+        "id": "c10-b08",
+        "say": "Three chunks from the same book can occupy three result slots. Removing duplicates makes room for other sources. It still takes a separate count to measure how common a theme is.",
+        "hold": 0.7
+      }
+    ]
+  },
+  {
+    "id": "c11",
+    "title": "Which reports get a turn?",
+    "sourceChapters": [
+      "c11"
+    ],
+    "beats": [
+      {
+        "id": "c11-b01",
+        "say": "Here are twelve reports at one level of the hierarchy. At these lengths, six reports fit into each map call. Each map returns points rated for the question. A reducer combines the points that pass its filter.",
+        "hold": 0.3
+      },
+      {
+        "id": "c11-b02",
+        "say": "Longer reports could mean more batches for those same twelve reports. Running calls in parallel can shorten the wait while you still pay for the tokens in each call.",
+        "hold": 0.75
+      },
+      {
+        "id": "c11-b03",
+        "say": "We can also choose which reports to visit. Start at the two roots. In this example a score of at least point five opens a branch. Serving scores point nine. Its children get a turn. Cache gets point eight and Queue gets point seven. Both leaves pass.",
+        "hold": 0.3
+      },
+      {
+        "id": "c11-b04",
+        "say": "Eval gets point one, so its child stays unrated.",
+        "hold": 0.85
+      },
+      {
+        "id": "c11-b05",
+        "say": "Run the same selector again. Change just the Serving score to point two. Keep the first pass beside it. Which leaves will the selector visit on this pass?",
+        "hold": 2.5
+      },
+      {
+        "id": "c11-b06",
+        "say": "It visits neither leaf under Serving. Both roots failed, so it rates no children at all. The cache report that passed last time never gets a chance. This little selector has no fallback. The reference implementation has recovery behavior.",
+        "hold": 1
+      },
+      {
+        "id": "c11-b07",
+        "say": "When you measure savings from pruning, count the extra rating calls and check what evidence they hide.",
+        "hold": 0.8
+      },
+      {
+        "id": "c11-b08",
+        "say": "In November twenty twenty-four, Microsoft compared dynamic and static level-one search on fifty global questions about AP News. Dynamic selection reduced average token cost by seventy-seven percent. A smaller model rated reports and a larger model ran map and reduce. The model judges found no statistically significant difference on their criteria. Factual accuracy still needs its own evaluation.",
+        "hold": 0.3
+      },
+      {
+        "id": "c11-b09",
+        "say": "On twenty-nine questions, dynamic search at level three selected more reports than static level one. On that subset, average token cost rose thirty-four percent. The comparison tells us what deeper search cost on those selected questions.",
+        "hold": 0.7
+      }
+    ]
+  },
+  {
+    "id": "c12",
+    "title": "Following a travel report back to its sources",
+    "sourceChapters": [
+      "c12"
+    ],
+    "beats": [
+      {
+        "id": "c12-b01",
+        "say": "A reader wants travel books and their publishers. DRIFT starts its answer from community reports related to that request. The travel report lists River Walk. That gives us a title and a follow-up question. Who published River Walk?",
+        "hold": 0.7
+      },
+      {
+        "id": "c12-b02",
+        "say": "Local search brings back two records. A identifies the book and B names Willow Press. Each local answer can raise another question. DRIFT combines the answers from those branches with the broad answer. Now the library corrects B. Block the old record and any reports that used it.",
+        "hold": 0.3
+      },
+      {
+        "id": "c12-b03",
+        "say": "Fetch the current version before naming the publisher again. Until then, A still identifies the author. The publisher field in the answer stays open.",
+        "hold": 1
+      },
+      {
+        "id": "c12-b04",
+        "say": "Could we just put all the current records in one long prompt? Try asking who wrote River Walk. Put card A first, then move it to the middle and ask again. A model can overlook evidence in the middle.",
+        "hold": 0.3
+      },
+      {
+        "id": "c12-b05",
+        "say": "Check whether both answers cite the sentence that names Lena. For broad questions the original GraphRAG study compared answers about podcasts and news. Its model judges preferred the report-based answers for breadth and variety.",
+        "hold": 0.3
+      },
+      {
+        "id": "c12-b06",
+        "say": "For your own questions, compare the details each route supports, how many calls it makes and how long the reader waits.",
+        "hold": 0.7
+      }
+    ]
+  },
+  {
+    "id": "c13",
+    "title": "What goes into the index?",
+    "sourceChapters": [
+      "c13"
+    ],
+    "beats": [
+      {
+        "id": "c13-b01",
+        "say": "Suppose the collection changes every morning. Standard GraphRAG uses a model to extract entities and relationships, summarize their descriptions and write reports in advance. FastGraphRAG links noun phrases that occur together and still uses a model to write the reports.",
+        "hold": 0.3
+      },
+      {
+        "id": "c13-b02",
+        "say": "LazyGraphRAG builds a phrase graph and records statistics. It waits for a question before spending model calls to test which passages are relevant. Its budget sets how many relevance tests it can run.",
+        "hold": 0.7
+      },
+      {
+        "id": "c13-b03",
+        "say": "How much did that save on one collection? In Microsoft’s November twenty twenty-four study, building the Lazy index on five thousand five hundred ninety AP news articles cost about a tenth of one percent of the full GraphRAG index.",
+        "hold": 0.3
+      },
+      {
+        "id": "c13-b04",
+        "say": "The researchers also ran a hundred synthetic questions and used model judges to compare the answers. For a collection that changes daily, count both the rebuilds and the questions people actually ask between them.",
+        "hold": 0.7
+      },
+      {
+        "id": "c13-b05",
+        "say": "LightRAG keeps text profiles for entities and relationships. A low-level keyword like Redis can retrieve an entity profile. High-level keywords like service dependencies can retrieve a relationship and its source passage. Now add one note. Search also depends on Redis.",
+        "hold": 0.3
+      },
+      {
+        "id": "c13-b06",
+        "say": "LightRAG extracts the new document’s graph and merges it with the existing one. Both services now point to the same cache. Now test a deletion. Withdraw the new note. The link from Search should drop out because it lost its only source.",
+        "hold": 0.3
+      },
+      {
+        "id": "c13-b07",
+        "say": "The inference API still points to Redis. Its original note still supports that link. Test both the insertion and the withdrawal when you compare incremental indexing with a full rebuild.",
+        "hold": 1
+      }
+    ]
+  },
+  {
+    "id": "c14",
+    "title": "How often will people ask?",
+    "sourceChapters": [
+      "c14"
+    ],
+    "beats": [
+      {
+        "id": "c14-b01",
+        "say": "Suppose both strategies meet our ninety percent floor for supported answers. The yellow line defers model work. It costs one unit to index and one point seven for each query. Blue precomputes reports. That costs two hundred up front, then point eight per query.",
+        "hold": 0.3
+      },
+      {
+        "id": "c14-b02",
+        "say": "These are example units. If ten queries arrive before the next refresh, which bill is smaller?",
+        "hold": 1.8
+      },
+      {
+        "id": "c14-b03",
+        "say": "At ten queries, deferred costs eighteen units. Precomputing costs two hundred eight. Deferred work is cheaper at that volume. Now move to five hundred queries before the next refresh. Which strategy makes better use of that many requests?",
+        "hold": 1.8
+      },
+      {
+        "id": "c14-b04",
+        "say": "Precomputing now costs six hundred units. Deferred work costs eight hundred fifty-one. You pay an extra hundred ninety-nine up front to save point nine per query. The lines meet a little above two hundred twenty-one queries per refresh. At two hundred twenty-two whole queries, precomputing is cheaper. Each refresh starts that count again.",
+        "hold": 1
+      },
+      {
+        "id": "c14-b05",
+        "say": "Refresh more often at the same traffic level and you have fewer queries to pay back each build.",
+        "hold": 0.8
+      },
+      {
+        "id": "c14-b06",
+        "say": "Now decide which routes to release. In this example every route needs at least ninety percent supported accuracy. Fact lookups get two hundred milliseconds at the ninety-fifth percentile. Trend questions get seven hundred. Which route passes both tests for each class?",
+        "hold": 2.2
+      },
+      {
+        "id": "c14-b07",
+        "say": "Release Basic for facts. Local gets the same accuracy, but takes two hundred forty milliseconds, beyond the limit. Release Global for trends. The fast Basic route supports only sixty-one percent of its answers. If every candidate for a question class misses a limit, hold that class back.",
+        "hold": 0.85
+      },
+      {
+        "id": "c14-b08",
+        "say": "Measure those tradeoffs on a representative corpus. A new source can change an entity match, move a community boundary or add report and embedding work. If a deleted source was the only support for a fact, withdraw the fact and block any report that used it.",
+        "hold": 0.3
+      },
+      {
+        "id": "c14-b09",
+        "say": "Rebuild more broadly when an incremental update cannot repair those changes. Compare supported answers, access failures, latency and total spend with the simpler retrieval route.",
+        "hold": 0.7
+      }
+    ]
+  },
+  {
+    "id": "c15",
+    "title": "Who can read the report?",
+    "sourceChapters": [
+      "c15"
+    ],
+    "beats": [
+      {
+        "id": "c15-b01",
+        "say": "Before a global search sends a report to the model, check who can read the sources it used. A and B are open to staff and security. Record R is open to security alone. This reader is staff. Which report can go into the map step?",
+        "hold": 2.1
+      },
+      {
+        "id": "c15-b02",
+        "say": "Send the public report alone. The mixed report could disclose R even if we removed its citation. We can build a report from just the permitted sources, precompute reports for readers who share access, or fall back to authorized local search.",
+        "hold": 0.8
+      },
+      {
+        "id": "c15-b03",
+        "say": "Switch to a security reader. Can this reader open A, B and R? Yes. Admit both reports. The permitted audience of a report is the intersection of all its sources’ current audiences.",
+        "hold": 0.9
+      },
+      {
+        "id": "c15-b04",
+        "say": "Back at the library, a child report uses the publisher edge and its parent quotes the child. The library replaces record B with version two. At that instant, block version one, the old edge and both old reports. Block cached context built from them as well.",
+        "hold": 1
+      },
+      {
+        "id": "c15-b05",
+        "say": "The separate travel report can stay in service. Rebuilding takes time. Someone is already waiting at the desk.",
+        "hold": 0.65
+      }
+    ]
+  },
+  {
+    "id": "c16",
+    "title": "Back at the library desk",
+    "sourceChapters": [
+      "c16"
+    ],
+    "beats": [
+      {
+        "id": "c16-b01",
+        "say": "The original reader is back. Record A still identifies the same book. You have access to the corrected publisher record. The old report still says Willow Press. Its rebuild is waiting. Which source can you cite now?",
+        "hold": 2.8
+      },
+      {
+        "id": "c16-b02",
+        "say": "Follow A to the current book record. Turn to the corrected imprint. Juniper Press. Cite A and version two of B. Leave the old report in the rebuild queue.",
+        "hold": 1.4
+      },
+      {
+        "id": "c16-b03",
+        "say": "The next reader wants to know which topic has the most books. Each book has one reviewed topic label. These five entries cover the shelf. Count books by their catalogue IDs. Which topic leads?",
+        "hold": 2.35
+      },
+      {
+        "id": "c16-b04",
+        "say": "The two travel entries refer to the same book. Count it once. Look at the two gardening IDs. Gardening leads with two of the four books. Travel and cooking have one each. A community report can describe themes across the shelf. Its impact rating gives you no way to count those books.",
+        "hold": 0.85
+      },
+      {
+        "id": "c16-b05",
+        "say": "One more travel entry arrives. This one has a new ID, B five. Who leads now?",
+        "hold": 2.25
+      },
+      {
+        "id": "c16-b06",
+        "say": "Gardening and travel now tie. Each has two of the five books. It was the new book that changed the answer. A second mention of the old one left the count exactly where it was.",
+        "hold": 1.25
+      }
+    ]
+  }
+]

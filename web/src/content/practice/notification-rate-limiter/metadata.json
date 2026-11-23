@@ -1,0 +1,340 @@
+{
+  "id": "notification-rate-limiter",
+  "slug": "notification-rate-limiter",
+  "title": "Notification Rate Limiter",
+  "difficulty": "Medium",
+  "category": "Rate Limiting",
+  "language": "python3",
+  "timeEstimateMinutes": 35,
+  "timeLimitMs": 2500,
+  "memoryLimitMb": 128,
+  "order": 54,
+  "tags": [
+    "rate limiting",
+    "dedupe",
+    "rolling window",
+    "notifications"
+  ],
+  "source": "Cursor coding prep",
+  "summary": "Throttle noisy notification channels while deduping repeated webhook or automation events.",
+  "starterCode": [
+    "class NotificationLimiter:",
+    "    def __init__(self, limit: int, window_seconds: float, now):",
+    "        pass",
+    "",
+    "    def allow(self, channel: str, dedupe_key: str) -> tuple[bool, float]:",
+    "        pass"
+  ],
+  "testCases": [
+    {
+      "name": "public allows until channel limit",
+      "visibility": "sample",
+      "description": "The third unique key in the same window is blocked.",
+      "input": "limit=2, window=10, calls=(slack:a, slack:b, slack:c)",
+      "expected": "True, True, False",
+      "feedback": "Track timestamps per channel and evict expired records before checking capacity.",
+      "setup": [
+        "from solution import NotificationLimiter",
+        "clock = {\"now\": 0.0}",
+        "limiter = NotificationLimiter(2, 10.0, lambda: clock[\"now\"])"
+      ],
+      "checks": [
+        {
+          "input": "limit=2, window=10, calls=(slack:a, slack:b, slack:c)",
+          "expression": "limiter.allow(\"slack\", \"a\")",
+          "operator": "==",
+          "expected": "(True, 0.0)",
+          "feedback": "Track timestamps per channel and evict expired records before checking capacity."
+        },
+        {
+          "input": "limit=2, window=10, calls=(slack:a, slack:b, slack:c)",
+          "expression": "limiter.allow(\"slack\", \"b\")",
+          "operator": "==",
+          "expected": "(True, 0.0)",
+          "feedback": "Track timestamps per channel and evict expired records before checking capacity."
+        },
+        {
+          "input": "limit=2, window=10, calls=(slack:a, slack:b, slack:c)",
+          "expression": "allowed is False and retry_after == 10.0",
+          "operator": "==",
+          "expected": "True",
+          "before": "allowed, retry_after = limiter.allow(\"slack\", \"c\")",
+          "feedback": "Track timestamps per channel and evict expired records before checking capacity."
+        }
+      ]
+    },
+    {
+      "name": "public dedupes repeated key",
+      "visibility": "sample",
+      "description": "Blocking a repeated dedupe key leaves channel capacity unchanged.",
+      "input": "slack:a, slack:a, slack:b",
+      "expected": "True, False, True",
+      "feedback": "Keep dedupe keys beside timestamps so retries stay separate from fresh sends.",
+      "setup": [
+        "from solution import NotificationLimiter",
+        "clock = {\"now\": 0.0}",
+        "limiter = NotificationLimiter(2, 10.0, lambda: clock[\"now\"])"
+      ],
+      "checks": [
+        {
+          "input": "slack:a, slack:a, slack:b",
+          "expression": "limiter.allow(\"slack\", \"a\")",
+          "operator": "==",
+          "expected": "(True, 0.0)",
+          "feedback": "Keep dedupe keys beside timestamps so retries stay separate from fresh sends."
+        },
+        {
+          "input": "slack:a, slack:a, slack:b",
+          "expression": "limiter.allow(\"slack\", \"a\")[0]",
+          "operator": "is",
+          "expected": "False",
+          "feedback": "Keep dedupe keys beside timestamps so retries stay separate from fresh sends."
+        },
+        {
+          "input": "slack:a, slack:a, slack:b",
+          "expression": "limiter.allow(\"slack\", \"b\")",
+          "operator": "==",
+          "expected": "(True, 0.0)",
+          "feedback": "Keep dedupe keys beside timestamps so retries stay separate from fresh sends."
+        }
+      ]
+    },
+    {
+      "name": "hidden expires old records",
+      "visibility": "hidden",
+      "setup": [
+        "from solution import NotificationLimiter",
+        "clock = {\"now\": 0.0}",
+        "limiter = NotificationLimiter(1, 5.0, lambda: clock[\"now\"])"
+      ],
+      "checks": [
+        {
+          "input": "clock = {\"now\": 0.0}\nlimiter = NotificationLimiter(1, 5.0, lambda: clock[\"now\"])\nlimiter.allow(\"slack\", \"a\")",
+          "expression": "limiter.allow(\"slack\", \"a\")",
+          "operator": "==",
+          "expected": "(True, 0.0)"
+        },
+        {
+          "input": "clock = {\"now\": 0.0}\nlimiter = NotificationLimiter(1, 5.0, lambda: clock[\"now\"])\nlimiter.allow(\"slack\", \"a\")\nclock[\"now\"] = 5.0\nlimiter.allow(\"slack\", \"b\")",
+          "expression": "limiter.allow(\"slack\", \"b\")",
+          "operator": "==",
+          "expected": "(True, 0.0)",
+          "before": "clock[\"now\"] = 5.0"
+        }
+      ]
+    },
+    {
+      "name": "hidden channels isolated",
+      "visibility": "hidden",
+      "setup": [
+        "from solution import NotificationLimiter",
+        "limiter = NotificationLimiter(1, 10.0, lambda: 0.0)"
+      ],
+      "checks": [
+        {
+          "input": "limiter = NotificationLimiter(1, 10.0, lambda: 0.0)\nlimiter.allow(\"slack\", \"a\")",
+          "expression": "limiter.allow(\"slack\", \"a\")",
+          "operator": "==",
+          "expected": "(True, 0.0)"
+        },
+        {
+          "input": "limiter = NotificationLimiter(1, 10.0, lambda: 0.0)\nlimiter.allow(\"slack\", \"a\")\nlimiter.allow(\"github\", \"a\")",
+          "expression": "limiter.allow(\"github\", \"a\")",
+          "operator": "==",
+          "expected": "(True, 0.0)"
+        }
+      ]
+    },
+    {
+      "name": "hidden retry after from oldest event",
+      "visibility": "hidden",
+      "setup": [
+        "from solution import NotificationLimiter",
+        "clock = {\"now\": 2.0}",
+        "limiter = NotificationLimiter(1, 10.0, lambda: clock[\"now\"])"
+      ],
+      "checks": [
+        {
+          "input": "clock = {\"now\": 2.0}\nlimiter = NotificationLimiter(1, 10.0, lambda: clock[\"now\"])\nlimiter.allow(\"slack\", \"a\")",
+          "expression": "limiter.allow(\"slack\", \"a\")",
+          "operator": "==",
+          "expected": "(True, 0.0)"
+        },
+        {
+          "input": "clock = {\"now\": 2.0}\nlimiter = NotificationLimiter(1, 10.0, lambda: clock[\"now\"])\nlimiter.allow(\"slack\", \"a\")\nclock[\"now\"] = 7.0\nlimiter.allow(\"slack\", \"b\")",
+          "expression": "limiter.allow(\"slack\", \"b\")",
+          "operator": "==",
+          "expected": "(False, 5.0)",
+          "before": "clock[\"now\"] = 7.0"
+        }
+      ]
+    },
+    {
+      "name": "hidden dedupe expires",
+      "visibility": "hidden",
+      "setup": [
+        "from solution import NotificationLimiter",
+        "clock = {\"now\": 0.0}",
+        "limiter = NotificationLimiter(2, 3.0, lambda: clock[\"now\"])"
+      ],
+      "checks": [
+        {
+          "input": "clock = {\"now\": 0.0}\nlimiter = NotificationLimiter(2, 3.0, lambda: clock[\"now\"])\nlimiter.allow(\"linear\", \"issue-1\")",
+          "expression": "limiter.allow(\"linear\", \"issue-1\")",
+          "operator": "==",
+          "expected": "(True, 0.0)"
+        },
+        {
+          "input": "clock = {\"now\": 0.0}\nlimiter = NotificationLimiter(2, 3.0, lambda: clock[\"now\"])\nlimiter.allow(\"linear\", \"issue-1\")\nclock[\"now\"] = 3.0\nlimiter.allow(\"linear\", \"issue-1\")",
+          "expression": "limiter.allow(\"linear\", \"issue-1\")",
+          "operator": "==",
+          "expected": "(True, 0.0)",
+          "before": "clock[\"now\"] = 3.0"
+        }
+      ]
+    },
+    {
+      "name": "hidden invalid limit rejected",
+      "visibility": "hidden",
+      "code": [
+        "from solution import NotificationLimiter",
+        "try:",
+        "    NotificationLimiter(0, 10.0, lambda: 0.0)",
+        "except ValueError:",
+        "    pass",
+        "else:",
+        "    raise AssertionError(\"expected invalid limit\")"
+      ]
+    },
+    {
+      "name": "hidden invalid window rejected",
+      "visibility": "hidden",
+      "description": "window_seconds must be positive.",
+      "code": [
+        "from solution import NotificationLimiter",
+        "try:",
+        "    NotificationLimiter(1, 0.0, lambda: 0.0)",
+        "except ValueError:",
+        "    pass",
+        "else:",
+        "    raise AssertionError(\"expected invalid window\")"
+      ]
+    },
+    {
+      "name": "public duplicate reports full retry delay",
+      "visibility": "sample",
+      "description": "An immediate duplicate is blocked until its original event leaves the window.",
+      "setup": [
+        "from solution import NotificationLimiter",
+        "limiter = NotificationLimiter(2, 10.0, lambda: 0.0)",
+        "limiter.allow(\"slack\", \"deploy-1\")"
+      ],
+      "input": "limiter.allow(\"slack\", \"deploy-1\")",
+      "expected": "(False, 10.0)",
+      "feedback": "Compute duplicate retry time from the matching event timestamp."
+    },
+    {
+      "name": "hidden duplicate retry decreases with elapsed time",
+      "visibility": "hidden",
+      "description": "A duplicate reports only the remaining portion of its rolling window.",
+      "setup": [
+        "from solution import NotificationLimiter",
+        "clock = {\"now\": 0.0}",
+        "limiter = NotificationLimiter(2, 10.0, lambda: clock[\"now\"])",
+        "limiter.allow(\"slack\", \"deploy-1\")",
+        "clock[\"now\"] = 4.0"
+      ],
+      "input": "limiter.allow(\"slack\", \"deploy-1\")",
+      "expected": "(False, 6.0)",
+      "feedback": "Subtract elapsed time from the duplicate's original window."
+    },
+    {
+      "name": "hidden blocked keys do not consume capacity",
+      "visibility": "hidden",
+      "description": "A rejected notification leaves channel history unchanged and can pass after accepted events expire.",
+      "setup": [
+        "from solution import NotificationLimiter",
+        "clock = {\"now\": 0.0}",
+        "limiter = NotificationLimiter(1, 10.0, lambda: clock[\"now\"])",
+        "limiter.allow(\"slack\", \"accepted\")",
+        "clock[\"now\"] = 1.0",
+        "limiter.allow(\"slack\", \"blocked\")",
+        "clock[\"now\"] = 10.0"
+      ],
+      "input": "limiter.allow(\"slack\", \"blocked\")",
+      "expected": "(True, 0.0)",
+      "feedback": "Record only allowed notifications; rejected attempts must not occupy capacity."
+    },
+    {
+      "name": "hidden duplicate delay wins over capacity delay",
+      "visibility": "hidden",
+      "description": "A duplicate in a full channel uses its own timestamp; unrelated older events keep their timestamps.",
+      "setup": [
+        "from solution import NotificationLimiter",
+        "clock = {\"now\": 0.0}",
+        "limiter = NotificationLimiter(2, 10.0, lambda: clock[\"now\"])",
+        "limiter.allow(\"slack\", \"first\")",
+        "clock[\"now\"] = 4.0",
+        "limiter.allow(\"slack\", \"second\")",
+        "clock[\"now\"] = 6.0"
+      ],
+      "input": "limiter.allow(\"slack\", \"second\")",
+      "expected": "(False, 8.0)",
+      "feedback": "Check duplicate keys before capacity and compute retry delay from the matching accepted event."
+    }
+  ],
+  "clarifyingQuestions": [
+    "Is dedupe scoped per channel or global?",
+    "Should repeated dedupe keys return a retry time or a permanent duplicate signal?",
+    "Is the window rolling or fixed?",
+    "Should limit count notification weight?"
+  ],
+  "followUps": [
+    "Add per-tenant and per-provider hierarchy.",
+    "Add weighted notifications.",
+    "Move counters to Redis with atomic updates."
+  ],
+  "followUpGuide": [
+    "For hierarchy, check most-specific policy first but account against every required dimension atomically.",
+    "",
+    "For weights, store remaining capacity and deduct each notification's cost.",
+    "",
+    "For Redis, use a per-channel sorted set with dedupe keys as members and accepted timestamps as scores. In one atomic script or function, remove scores <= now - window, check the duplicate, check capacity, and insert only if allowed. A whole-key TTL may reclaim idle channels but cannot expire individual rolling-window members."
+  ],
+  "complexityAnalysis": [
+    "- Each call filters and scans one channel. Time: O(k), where k is that channel's retained records (at most limit). Space: O(k) temporary; O(C + E) total for C remembered channels and E retained events. Idle channels can retain stale records until accessed.",
+    "- With a deque plus a key-to-timestamp map per channel, duplicate lookup is average O(1) and expiry is amortized O(1) per accepted event. A deque alone still needs an O(k) duplicate scan.",
+    "- Distributed follow-up moves expiry, duplicate lookup, capacity checks, and insertion into one atomic operation."
+  ],
+  "solutionGuide": [
+    "Keep `(timestamp, dedupe_key)` records per channel. Remove expired records before dedupe or capacity checks.",
+    "",
+    "```python",
+    "class NotificationLimiter:",
+    "    def __init__(self, limit: int, window_seconds: float, now):",
+    "        if limit <= 0 or window_seconds <= 0:",
+    "            raise ValueError(\"invalid limit\")",
+    "        self.limit = limit",
+    "        self.window = window_seconds",
+    "        self.now = now",
+    "        self.events: dict[str, list[tuple[float, str]]] = {}",
+    "",
+    "    def _active(self, channel: str, current: float) -> list[tuple[float, str]]:",
+    "        active = [(ts, key) for ts, key in self.events.get(channel, []) if current - ts < self.window]",
+    "        self.events[channel] = active",
+    "        return active",
+    "",
+    "    def allow(self, channel: str, dedupe_key: str) -> tuple[bool, float]:",
+    "        current = self.now()",
+    "        active = self._active(channel, current)",
+    "        if any(key == dedupe_key for _, key in active):",
+    "            oldest = min(ts for ts, key in active if key == dedupe_key)",
+    "            return False, max(0.0, self.window - (current - oldest))",
+    "        if len(active) >= self.limit:",
+    "            oldest = min(ts for ts, _ in active)",
+    "            return False, max(0.0, self.window - (current - oldest))",
+    "        active.append((current, dedupe_key))",
+    "        return True, 0.0",
+    "```"
+  ]
+}

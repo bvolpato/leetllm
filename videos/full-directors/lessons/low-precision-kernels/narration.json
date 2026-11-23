@@ -1,0 +1,290 @@
+[
+  {
+    "id": "c01",
+    "title": "Does this peak survive conversion?",
+    "sourceChapters": ["c01"],
+    "beats": [
+      {
+        "id": "c01-b01",
+        "say": "This activation just reached five hundred. Yesterday the largest magnitude in its batch was ten. The encoder still uses yesterday’s scale. It reports a finite value. Would you pass the conversion on that evidence?",
+        "hold": 3
+      },
+      {
+        "id": "c01-b02",
+        "say": "Overlay the decoded peak. Only ten comes back. The gap is four hundred ninety, or ninety-eight percent of the original height. A finite check passes even though the next multiplier receives ten.",
+        "hold": 1.6
+      },
+      {
+        "id": "c01-b03",
+        "say": "Give that operand a weight of two. The multiplier gets twenty where the original gives a thousand. Smaller operands can save memory traffic and unlock specialized matrix instructions. To decide whether the trade pays off, follow the encoding, the scale and the operation that consumes the result.",
+        "hold": 0.8
+      }
+    ]
+  },
+  {
+    "id": "c02",
+    "title": "Which mark can the encoder store?",
+    "sourceChapters": ["c02"],
+    "beats": [
+      {
+        "id": "c02-b01",
+        "say": "A floating-point format stores a sign, an exponent and fraction bits. Take E four M three. Its four exponent bits choose a range. Its three fraction bits divide each normal octave into eight equal steps. Between one and two, how far apart are the marks?",
+        "hold": 1.8
+      },
+      {
+        "id": "c02-b02",
+        "say": "One eighth. Put the probe exactly halfway between one and one and an eighth. Round to nearest even picks the neighbor whose last stored bit is zero. Here it picks one. Move the probe to the next midpoint. Which way this time?",
+        "hold": 2
+      },
+      {
+        "id": "c02-b03",
+        "say": "Up to one and a quarter. The low bit decides a tie in either direction. Zoom out across four. The octave starting at two has quarter steps. The octave starting at four has half steps. An extra exponent bit in E five M two buys range by giving up a fraction bit.",
+        "hold": 1
+      },
+      {
+        "id": "c02-b04",
+        "say": "Zoom in on zero. Here the smallest positive E four M three subnormal is one over five hundred twelve. Call that step d. A quarter step rounds to zero. One and a half steps is a tie. The even code is two. If an instruction flushes subnormals to zero, test that mode separately.",
+        "hold": 1.1
+      },
+      {
+        "id": "c02-b05",
+        "say": "Try an input one quarter of the way from one to one and an eighth. With stochastic rounding, what fraction of writes should land on the upper mark to preserve the input on average?",
+        "hold": 2.4
+      },
+      {
+        "id": "c02-b06",
+        "say": "One quarter. Divide the distance from the lower mark by the whole gap. Three quarters of the probability stays on the lower mark. Their weighted mean is the input, even though each write must choose a neighbor. This argument needs an input between finite neighbors.",
+        "hold": 1
+      },
+      {
+        "id": "c02-b07",
+        "say": "At the high end, round first. With scale one, four hundred forty-nine rounds to four hundred forty-eight. Four hundred sixty-five rounds beyond the ceiling. Saturating conversion returns four hundred forty-eight. A non-saturating overflow yields a NaN in OCP E four M three, or infinity in E five M two at its own ceiling.",
+        "hold": 0.9
+      },
+      {
+        "id": "c02-b08",
+        "say": "Choose the format for the range and spacing you need. FP sixteen has finer spacing near one than B F sixteen, whose eight exponent bits cover a wider range. T F thirty-two matrix inputs keep FP thirty-two storage even though the multiplier uses fewer fraction bits. When choosing an eight-bit input, E four M three gives finer steps. E five M two extends the finite ceiling from four hundred forty-eight to fifty-seven thousand three hundred forty-four.",
+        "hold": 1
+      }
+    ]
+  },
+  {
+    "id": "c03",
+    "title": "Which batch supplies the scale?",
+    "sourceChapters": ["c03"],
+    "beats": [
+      {
+        "id": "c03-b01",
+        "say": "We use a reconstruction scale. Divide the real value by the scale before encoding, then multiply after decoding. Yesterday’s peak of ten sets the scale to ten over four hundred forty-eight. Ten maps to the top code value and returns as ten.",
+        "hold": 1
+      },
+      {
+        "id": "c03-b02",
+        "say": "Reuse the scale on five hundred. Division gives twenty-two thousand four hundred. Saturation leaves four hundred forty-eight. Multiply by the old scale and the answer is ten. What if the current batch supplies the scale?",
+        "hold": 2.4
+      },
+      {
+        "id": "c03-b03",
+        "say": "Measure the current peak. Five hundred divided by four hundred forty-eight gives the new scale. Now the same top code reconstructs five hundred. Some APIs store the reciprocal. Multiply by that factor on the way in and divide on the way out. For an all-zero group we choose a positive scale of one.",
+        "hold": 0.9
+      },
+      {
+        "id": "c03-b04",
+        "say": "Watch the device reads. Current scaling can read the tensor once to find the maximum, then again to cast. Delayed scaling starts the cast with a scale from history and records today’s maximum on the same pass for a later batch. A stale high maximum can also bury small inputs. Check the history and the clipping count.",
+        "hold": 1
+      },
+      {
+        "id": "c03-b05",
+        "say": "Measuring a maximum online says when the scale is known. It still costs whatever data movement the implementation performs. The reported DeepSeek V three path read wider values, quantized them, wrote FP eight, then read it for matrix math. Fusing the cast with the transfer was a proposed optimization. In that implementation, groups of one hundred twenty-eight contraction terms were promoted to FP thirty-two accumulation. That interval belongs to the reported kernel.",
+        "hold": 1
+      }
+    ]
+  },
+  {
+    "id": "c04",
+    "title": "Which values share the spike’s scale?",
+    "sourceChapters": ["c04"],
+    "beats": [
+      {
+        "id": "c04-b01",
+        "say": "Put a small-valued row beside a row containing the large spike. Each row has thirty-two real activations. One tensor scale gives five hundred the top code. The first small value is one thousandth. Compare it with half the smallest reconstructed step. Which code wins?",
+        "hold": 2.2
+      },
+      {
+        "id": "c04-b02",
+        "say": "Zero. The scale set by five hundred makes that half step slightly greater than one thousandth. Now give each row its own thirty-two-value block. Round each scale up to the next power of two that covers its row. Watch the selected value in each row.",
+        "hold": 0.9
+      },
+      {
+        "id": "c04-b03",
+        "say": "The small row gets one over two hundred fifty-six. The tiny value comes back near one thousandth. The other row gets two. Its spike now comes back as five hundred twelve. Local scales rescued detail in one group and changed rounding in the other.",
+        "hold": 1.3
+      },
+      {
+        "id": "c04-b04",
+        "say": "Turn the grouping. In this wider source matrix the tiny value and a seven-hundred spike share a row. The column through the tiny value contains ones and leaves the spike outside. A kernel asks for fresh column groups. Can you get them by turning the stored bytes?",
+        "hold": 2
+      },
+      {
+        "id": "c04-b05",
+        "say": "Read the wider matrix again. The row had scale two and lost the tiny value. The column has scale one over two hundred fifty-six and retains it. Transposing the old codes carries the old grouping with them. Supply the new codes and their matching column scales.",
+        "hold": 1.1
+      }
+    ]
+  },
+  {
+    "id": "c05",
+    "title": "Can two sums agree with different operands?",
+    "sourceChapters": ["c05"],
+    "beats": [
+      {
+        "id": "c05-b01",
+        "say": "A dot product multiplies corresponding entries and adds the products. Trace the signed products from the spike row. Four copies of this eight-position pattern make thirty-two terms. Follow the running sum through the dips as well as the rises.",
+        "hold": 1
+      },
+      {
+        "id": "c05-b02",
+        "say": "Replay the same weights on the reconstructed row. The spike gets twelve larger. A negative weight turns that into a negative product error. Later in the pattern another changed operand gives the opposite error. The last negative operand has a negative weight. Where will the second trace finish?",
+        "hold": 2.3
+      },
+      {
+        "id": "c05-b03",
+        "say": "At the same endpoint. Both sums are seven point seven five. Within each repeat, minus three quarters and plus three quarters cancel. Which single weight could you switch on to test the spike at position three?",
+        "hold": 2.5
+      },
+      {
+        "id": "c05-b04",
+        "say": "Sweep a single weight of one along the row, keeping all other weights zero. Each stop reads exactly one operand. Stop on the spike. The original gives five hundred and the reconstruction gives five hundred twelve. The earlier agreement hid a twelve-unit error.",
+        "hold": 1.3
+      }
+    ]
+  },
+  {
+    "id": "c06",
+    "title": "Where does each scale multiply?",
+    "sourceChapters": ["c06"],
+    "beats": [
+      {
+        "id": "c06-b01",
+        "say": "The contraction runs along the positions where the activation and weight meet. If the activation row scale and the weight column scale stay constant along the contraction, multiply their product by the completed coded dot. Now split the contraction into two blocks. Can you still pull the first scale product outside the whole sum?",
+        "hold": 2.1
+      },
+      {
+        "id": "c06-b02",
+        "say": "Follow the first pair. The coded products add to two, and the two scales multiply to five. That block contributes ten. In the second block the coded products add to three. Its scales multiply to eight. Work out that block’s contribution before adding.",
+        "hold": 2.4
+      },
+      {
+        "id": "c06-b03",
+        "say": "Twenty-four. The two scaled contributions add to thirty-four. Try taking five outside both blocks. That gives twenty-five. The misplaced factor changes the second contribution from twenty-four to fifteen. A kernel needs the scale for the contraction block it is consuming.",
+        "hold": 1.3
+      }
+    ]
+  },
+  {
+    "id": "c07",
+    "title": "Where did the quarter go?",
+    "sourceChapters": ["c07"],
+    "beats": [
+      {
+        "id": "c07-b01",
+        "say": "Start with a stored FP sixteen sum of one thousand twenty-four. Add a quarter and round after each addition. With no wider residual, will four additions carry the sum up by one? Look at the next grid point above the start.",
+        "hold": 2.4
+      },
+      {
+        "id": "c07-b02",
+        "say": "Make the four writes. Each proposed sum is closer to one thousand twenty-four than to one thousand twenty-five. Each write returns to the start. Replay those same additions while keeping the sum in FP thirty-two.",
+        "hold": 1
+      },
+      {
+        "id": "c07-b03",
+        "say": "Now each quarter survives. Four writes reach one thousand twenty-five. A wider accumulator preserves these updates. It still multiplies whatever operands survived conversion. Choose the supported arithmetic for the reduction length, including internal rounding, accumulator storage and the output cast.",
+        "hold": 1
+      },
+      {
+        "id": "c07-b04",
+        "say": "Locate a discrepancy with two references. Use the spike selector again. The wide original-input calculation gives five hundred. Feeding the reconstructed operand to the same reference gives five hundred twelve. Suppose the kernel also gives five hundred twelve. Which boundary explains the difference?",
+        "hold": 2.1
+      },
+      {
+        "id": "c07-b05",
+        "say": "The difference already appears at input reconstruction. The kernel agrees with the reconstructed reference on this case. If it diverged there too, inspect internal reductions, scale placement and output rounding. A decoded CPU matrix test establishes an operand reference. Kernel accuracy and speed need a run on the target device.",
+        "hold": 1.2
+      }
+    ]
+  },
+  {
+    "id": "c08",
+    "title": "Which transfers cross device memory?",
+    "sourceChapters": ["c08"],
+    "beats": [
+      {
+        "id": "c08-b01",
+        "say": "These are the same two thirty-two-value activation blocks. Each element occupies one byte. Follow the scale byte at the end of each block. Sixty-four element bytes plus two scale bytes gives sixty-six bytes before padding. We are counting this activation operand alone.",
+        "hold": 1
+      },
+      {
+        "id": "c08-b02",
+        "say": "Unpack both rows to FP thirty-two in a separate kernel. Write the wider buffer to memory, then read it back for matrix multiplication. Each trip carries sixty-four four-byte values. Which two trips can a compatible block-scaled kernel remove?",
+        "hold": 2.5
+      },
+      {
+        "id": "c08-b03",
+        "say": "Feed the packed blocks directly to the compatible kernel. It reads the codes with their scale bytes and applies each scale inside the contraction. Both wide-buffer transfers disappear. That saves five hundred twelve bytes of logical intermediate traffic here. Measure the whole workload to learn the speedup.",
+        "hold": 1.3
+      },
+      {
+        "id": "c08-b04",
+        "say": "Change the layout to five rows of thirty-three FP eight values. Each row must occupy two full thirty-two-value blocks. Count the unused lanes as stored bytes. Then count one scale byte per block. How many bytes does this operand occupy?",
+        "hold": 2.5
+      },
+      {
+        "id": "c08-b05",
+        "say": "Three hundred thirty. There are ten blocks of thirty-two element bytes plus ten scale bytes. E eight M zero stores a power of two. For finite scale codes zero through two hundred fifty-four, subtract one hundred twenty-seven from the unsigned code to get its exponent.",
+        "hold": 1
+      },
+      {
+        "id": "c08-b06",
+        "say": "Finally pack sixty-four four-bit activations, two per byte. MX FP four adds two E eight M zero scales, one per thirty-two values. N V FP four adds four E four M three scales, one per sixteen, and a four-byte tensor scale. Count thirty-four bytes for MX and forty for N V, before padding. MX can also store six-bit elements with a scale per thirty-two. The named format tells you how many bits to budget for each part.",
+        "hold": 1
+      }
+    ]
+  },
+  {
+    "id": "c09",
+    "title": "Which byte restores the crater?",
+    "sourceChapters": ["c09"],
+    "beats": [
+      {
+        "id": "c09-b01",
+        "say": "Multiply this lunar image by one. The OCP E four M three weight has a zero sign bit and a zero fraction. Its exponent field is seven. Subtract the bias of seven, and two to the zero gives one. The F N U Z reader uses a bias of eight. With that same byte, what will it write for a crater pixel of one hundred ninety-two?",
+        "hold": 2
+      },
+      {
+        "id": "c09-b02",
+        "say": "Copy the byte unchanged. The F N U Z reader subtracts eight from seven. Two to the minus one gives a weight of one half. The crater pixel falls from one hundred ninety-two to ninety-six. What exponent field would preserve the original weight of one?",
+        "hold": 2.7
+      },
+      {
+        "id": "c09-b03",
+        "say": "Store eight. Decode the source value, then encode it with the receiving bias. Run the multiplication again. The bright crater returns. Identical width can hide different meanings even for zero codes. The sign-only byte is negative zero in OCP and a NaN under F N U Z.",
+        "hold": 1
+      },
+      {
+        "id": "c09-dispatch",
+        "say": "Would these two rows run on any kernel that lists FP eight? Check the launch contract. Suppose the selected kernel requires sixteen rows per tile and accepts only full tiles. Our two-row shape fails that requirement. Choose a compatible path or supply the required padding, scale layout and alignment. Time that actual operation on its target device.",
+        "hold": 1.2
+      },
+      {
+        "id": "c09-b04",
+        "say": "Try a fresh input. Put one thousandth and seven hundred into the same thirty-two-value block, with zeros elsewhere. Use our power-of-two scale rule. A one-hot weight selects the tiny value. Predict the selected output, then move only the spike to the empty second block and try again.",
+        "hold": 3
+      },
+      {
+        "id": "c09-b05",
+        "say": "Together they get scale two. The tiny value rounds to zero. Separate the spike. The small block now has a fine enough scale to return about one thousandth, while the spike still returns seven hundred four. You can now test the operand the consumer actually reads. In the GPU runtime lab, trace the launch and synchronization costs of that path.",
+        "hold": 1.8
+      }
+    ]
+  }
+]

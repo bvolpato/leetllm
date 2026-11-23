@@ -1,0 +1,235 @@
+version: 1
+lesson: gpu-profiling-correctness-benchmarking
+promise: Decide which speedup a GPU patch can claim by following the completed work, checking the last writer and reproducing a matched timing round from its original files.
+framing:
+  - intro
+objectives:
+  - id: completion
+    can: Locate launch return, event completion and request completion on a trace, then calculate the time a faster kernel saves the user.
+    scenes:
+      - intro
+      - event-contract
+      - system-payoff
+      - receipt
+  - id: correctness
+    can: Diagnose hidden logical tail writes and apply reference, tolerance and checker scopes.
+    scenes:
+      - tail
+      - reference-cases
+      - tolerance
+      - sanitizer-scopes
+      - lab-execution
+      - fresh-artifact
+  - id: mechanism
+    can: Match each timed launch to its buffer slot, size a rotating pool and use matching traffic counters to test a roofline hypothesis.
+    scenes:
+      - warmup
+      - cache-allocation
+      - traffic
+      - roofline
+      - roofline-diagnosis
+      - replay-contract
+  - id: evidence
+    can: Preserve a slow sample and a reversal across rounds, then check whether the timing file still matches the receipt even if its values look identical.
+    scenes:
+      - sample-contract
+      - paired
+      - receipt-parser
+      - receipt
+      - fresh-artifact
+sections:
+  - heading: Turn “faster” into a testable claim
+    status: taught
+    scenes:
+      - intro
+      - event-contract
+      - system-payoff
+  - heading: "Gate 1: Reference verification and numerical tolerance"
+    status: taught
+    scenes:
+      - tail
+      - reference-cases
+      - tolerance
+  - heading: "Gate 2: Compute Sanitizer and runtime memory safety"
+    status: taught
+    scenes:
+      - sanitizer-scopes
+      - lab-execution
+  - heading: "Profiler scope: Nsight Systems versus Nsight Compute"
+    status: taught
+    scenes:
+      - roofline-diagnosis
+      - replay-contract
+  - heading: Nsight Systems finds system-level bottlenecks
+    status: taught
+    scenes:
+      - roofline-diagnosis
+      - system-payoff
+      - receipt
+  - heading: Nsight Compute diagnoses kernel microarchitecture
+    status: taught
+    scenes:
+      - roofline
+      - roofline-diagnosis
+  - heading: "Profiler distortions: multi-pass replay and counter perturbation"
+    status: taught
+    scenes:
+      - replay-contract
+  - heading: Sanitizers run outside timing
+    status: taught
+    scenes:
+      - sanitizer-scopes
+      - lab-execution
+  - heading: "Gate 3: Synchronized timing and benchmark state control"
+    status: taught
+    scenes:
+      - event-contract
+      - warmup
+      - paired
+  - heading: "Host and device asynchrony: time GPU streams separately from host launches"
+    status: taught
+    scenes:
+      - intro
+      - event-contract
+  - heading: "Cache policy: test residency rather than assume it"
+    status: taught
+    scenes:
+      - cache-allocation
+      - warmup
+      - traffic
+  - heading: Warm until mechanism is steady
+    status: taught
+    scenes:
+      - warmup
+      - cache-allocation
+  - heading: Record clocks, power, and thermal state
+    status: taught
+    scenes:
+      - warmup
+      - sample-contract
+      - paired
+  - heading: Preserve the distribution with alternating paired rounds (ABBA)
+    status: taught
+    scenes:
+      - sample-contract
+      - paired
+  - heading: "Gate 4: Hardware Roofline and Speed-of-Light bounds"
+    status: taught
+    scenes:
+      - roofline
+      - roofline-diagnosis
+  - heading: "Run the triad investigation: five gates in code"
+    status: taught
+    scenes:
+      - reference-cases
+      - sanitizer-scopes
+      - cache-allocation
+      - replay-contract
+      - lab-execution
+      - sample-contract
+      - receipt-parser
+  - heading: Diagnose contradictory evidence
+    status: taught
+    scenes:
+      - roofline-diagnosis
+      - replay-contract
+      - system-payoff
+      - fresh-artifact
+  - heading: "Gate 5: Reproducible receipts and machine-readable evidence"
+    status: taught
+    scenes:
+      - receipt-parser
+      - receipt
+      - fresh-artifact
+  - heading: Defend the claim in another engineer's rerun
+    status: taught
+    scenes:
+      - receipt
+      - system-payoff
+      - fresh-artifact
+  - heading: Mastery check
+    status: article-only
+    reason: exercise
+    note: The article supplies the self-assessment rubric and reader follow-up exercises after the film teaches
+      their mechanisms.
+  - heading: Evaluation rubric
+    status: article-only
+    reason: exercise
+    note: The article supplies the self-assessment rubric and reader follow-up exercises after the film teaches
+      their mechanisms.
+  - heading: Common pitfalls
+    status: taught
+    scenes:
+      - tail
+      - tolerance
+      - cache-allocation
+      - replay-contract
+      - receipt-parser
+  - heading: Follow-up questions
+    status: article-only
+    reason: exercise
+    note: The article supplies the self-assessment rubric and reader follow-up exercises after the film teaches
+      their mechanisms.
+quiz:
+  - n: 1
+    status: taught
+    scenes:
+      - system-payoff
+  - n: 2
+    status: taught
+    scenes:
+      - tail
+      - reference-cases
+      - sanitizer-scopes
+      - fresh-artifact
+  - n: 3
+    status: taught
+    scenes:
+      - tolerance
+  - n: 4
+    status: taught
+    scenes:
+      - intro
+      - event-contract
+  - n: 5
+    status: taught
+    scenes:
+      - cache-allocation
+  - n: 6
+    status: taught
+    scenes:
+      - roofline
+  - n: 7
+    status: taught
+    scenes:
+      - replay-contract
+      - lab-execution
+  - n: 8
+    status: taught
+    scenes:
+      - sample-contract
+  - n: 9
+    status: taught
+    scenes:
+      - replay-contract
+  - n: 10
+    status: taught
+    scenes:
+      - paired
+      - sample-contract
+removed: []
+reviews:
+  closed_book:
+    script: f9b9ef4a45610dc9
+    reviewer: /root/upgrade_shard4
+    evidence: build/video-delivery-20261106/script-reviews/gpu-profiling-correctness-benchmarking.json
+    evidence_sha256: a77267618d5546cc0ff5b77bd10be446468b3404028971ce96972170d60fa3e9
+    taught: 10
+    partial: 0
+    absent: 0
+  fact_check:
+    script: f9b9ef4a45610dc9
+    reviewer: /root/upgrade_shard4
+    evidence: build/video-delivery-20261106/script-reviews/gpu-profiling-correctness-benchmarking.json
+    evidence_sha256: a77267618d5546cc0ff5b77bd10be446468b3404028971ce96972170d60fa3e9
+    open_findings: 0

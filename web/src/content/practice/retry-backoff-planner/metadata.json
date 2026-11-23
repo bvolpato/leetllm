@@ -1,0 +1,271 @@
+{
+  "id": "retry-backoff-planner",
+  "slug": "retry-backoff-planner",
+  "title": "Retry Backoff Planner",
+  "difficulty": "Easy",
+  "category": "Reliability",
+  "language": "python3",
+  "timeEstimateMinutes": 25,
+  "timeLimitMs": 2500,
+  "memoryLimitMb": 128,
+  "order": 180,
+  "tags": [
+    "retries",
+    "backoff",
+    "deterministic policy",
+    "transient errors"
+  ],
+  "source": "AI lab prep",
+  "summary": "Plan retry delays with capped exponential backoff and explicit retryable error classes.",
+  "starterCode": [
+    "class RetryPolicy:",
+    "    def __init__(self, max_attempts: int, base_delay: float, max_delay: float, retryable_errors: set[str]):",
+    "        self.max_attempts = max_attempts",
+    "        self.base_delay = base_delay",
+    "        self.max_delay = max_delay",
+    "        self.retryable_errors = retryable_errors",
+    "",
+    "    def next_delay(self, attempt: int, error_code: str):",
+    "        pass"
+  ],
+  "testCases": [
+    {
+      "name": "public capped exponential delays",
+      "visibility": "sample",
+      "setup": [
+        "from solution import RetryPolicy",
+        "policy = RetryPolicy(5, 0.5, 5, {\"timeout\", \"rate_limit\"})"
+      ],
+      "checks": [
+        {
+          "input": "policy = RetryPolicy(5, 0.5, 5, {\"timeout\", \"rate_limit\"})\npolicy.next_delay(1, \"timeout\")",
+          "expression": "policy.next_delay(1, \"timeout\")",
+          "operator": "==",
+          "expected": "0.5"
+        },
+        {
+          "input": "policy = RetryPolicy(5, 0.5, 5, {\"timeout\", \"rate_limit\"})\npolicy.next_delay(1, \"timeout\")\npolicy.next_delay(2, \"timeout\")",
+          "expression": "policy.next_delay(2, \"timeout\")",
+          "operator": "==",
+          "expected": "1.0"
+        },
+        {
+          "input": "policy = RetryPolicy(5, 0.5, 5, {\"timeout\", \"rate_limit\"})\npolicy.next_delay(1, \"timeout\")\npolicy.next_delay(2, \"timeout\")\npolicy.next_delay(4, \"rate_limit\")",
+          "expression": "policy.next_delay(4, \"rate_limit\")",
+          "operator": "==",
+          "expected": "4.0"
+        }
+      ]
+    },
+    {
+      "name": "public stops after max attempts",
+      "visibility": "sample",
+      "setup": [
+        "from solution import RetryPolicy",
+        "policy = RetryPolicy(3, 1, 10, {\"timeout\"})"
+      ],
+      "checks": [
+        {
+          "input": "policy = RetryPolicy(3, 1, 10, {\"timeout\"})\npolicy.next_delay(2, \"timeout\")",
+          "expression": "policy.next_delay(2, \"timeout\")",
+          "operator": "==",
+          "expected": "2"
+        },
+        {
+          "input": "policy = RetryPolicy(3, 1, 10, {\"timeout\"})\npolicy.next_delay(2, \"timeout\")\npolicy.next_delay(3, \"timeout\")",
+          "expression": "policy.next_delay(3, \"timeout\")",
+          "operator": "is",
+          "expected": "None"
+        },
+        {
+          "input": "policy = RetryPolicy(3, 1, 10, {\"timeout\"})\npolicy.next_delay(2, \"timeout\")\npolicy.next_delay(3, \"timeout\")\npolicy.next_delay(4, \"timeout\")",
+          "expression": "policy.next_delay(4, \"timeout\")",
+          "operator": "is",
+          "expected": "None"
+        }
+      ]
+    },
+    {
+      "name": "private rejects non retryable errors",
+      "visibility": "hidden",
+      "setup": [
+        "from solution import RetryPolicy",
+        "policy = RetryPolicy(5, 1, 8, {\"timeout\"})"
+      ],
+      "checks": [
+        {
+          "input": "policy = RetryPolicy(5, 1, 8, {\"timeout\"})\npolicy.next_delay(1, \"bad_request\")",
+          "expression": "policy.next_delay(1, \"bad_request\")",
+          "operator": "is",
+          "expected": "None"
+        },
+        {
+          "input": "policy = RetryPolicy(5, 1, 8, {\"timeout\"})\npolicy.next_delay(1, \"bad_request\")\npolicy.next_delay(2, \"auth\")",
+          "expression": "policy.next_delay(2, \"auth\")",
+          "operator": "is",
+          "expected": "None"
+        }
+      ]
+    },
+    {
+      "name": "private caps long backoff",
+      "visibility": "hidden",
+      "setup": [
+        "from solution import RetryPolicy",
+        "policy = RetryPolicy(10, 3, 20, {\"overloaded\"})"
+      ],
+      "checks": [
+        {
+          "input": "policy = RetryPolicy(10, 3, 20, {\"overloaded\"})\npolicy.next_delay(1, \"overloaded\")",
+          "expression": "policy.next_delay(1, \"overloaded\")",
+          "operator": "==",
+          "expected": "3"
+        },
+        {
+          "input": "policy = RetryPolicy(10, 3, 20, {\"overloaded\"})\npolicy.next_delay(1, \"overloaded\")\npolicy.next_delay(4, \"overloaded\")",
+          "expression": "policy.next_delay(4, \"overloaded\")",
+          "operator": "==",
+          "expected": "20"
+        },
+        {
+          "input": "policy = RetryPolicy(10, 3, 20, {\"overloaded\"})\npolicy.next_delay(1, \"overloaded\")\npolicy.next_delay(4, \"overloaded\")\npolicy.next_delay(9, \"overloaded\")",
+          "expression": "policy.next_delay(9, \"overloaded\")",
+          "operator": "==",
+          "expected": "20"
+        }
+      ]
+    },
+    {
+      "name": "private handles first attempt boundary",
+      "visibility": "hidden",
+      "setup": [
+        "from solution import RetryPolicy",
+        "policy = RetryPolicy(1, 2, 5, {\"timeout\"})"
+      ],
+      "checks": [
+        {
+          "input": "policy = RetryPolicy(1, 2, 5, {\"timeout\"})\npolicy.next_delay(1, \"timeout\")",
+          "expression": "policy.next_delay(1, \"timeout\")",
+          "operator": "is",
+          "expected": "None"
+        },
+        {
+          "input": "policy = RetryPolicy(1, 2, 5, {\"timeout\"})\npolicy.next_delay(1, \"timeout\")\npolicy.next_delay(0, \"timeout\")",
+          "expression": "policy.next_delay(0, \"timeout\")",
+          "operator": "==",
+          "expected": "2"
+        }
+      ]
+    },
+    {
+      "name": "public first retry uses base delay",
+      "visibility": "sample",
+      "description": "Failed attempt one has exponent zero.",
+      "setup": [
+        "from solution import RetryPolicy",
+        "policy = RetryPolicy(3, 0.25, 10, {\"timeout\"})"
+      ],
+      "input": "policy.next_delay(1, \"timeout\")",
+      "expected": "0.25",
+      "feedback": "Compute base_delay * 2 ** (attempt - 1)."
+    },
+    {
+      "name": "private caps the first retry",
+      "visibility": "hidden",
+      "description": "The maximum delay applies even when base delay already exceeds it.",
+      "setup": [
+        "from solution import RetryPolicy",
+        "policy = RetryPolicy(3, 10, 3, {\"timeout\"})"
+      ],
+      "input": "policy.next_delay(1, \"timeout\")",
+      "expected": "3",
+      "feedback": "Apply min(max_delay, computed_delay) on every retry attempt."
+    },
+    {
+      "name": "private error codes are case sensitive",
+      "visibility": "hidden",
+      "description": "Only exact members of retryable_errors are retryable.",
+      "setup": [
+        "from solution import RetryPolicy",
+        "policy = RetryPolicy(3, 1, 5, {\"timeout\"})"
+      ],
+      "input": "policy.next_delay(1, \"Timeout\")",
+      "expected": "None",
+      "feedback": "Check exact set membership before computing a delay."
+    },
+    {
+      "name": "private caps without exponential overflow",
+      "visibility": "hidden",
+      "setup": ["from solution import RetryPolicy"],
+      "checks": [
+        {
+          "input": "RetryPolicy(20000, 0.5, 5, {'timeout'}).next_delay(10000, 'timeout')",
+          "expression": "RetryPolicy(20000, 0.5, 5, {'timeout'}).next_delay(10000, 'timeout')",
+          "operator": "==",
+          "expected": "5",
+          "feedback": "The delay cap must work even when the uncapped exponential overflows."
+        },
+        {
+          "input": "RetryPolicy(20000, 0, 5, {'timeout'}).next_delay(10000, 'timeout')",
+          "expression": "RetryPolicy(20000, 0, 5, {'timeout'}).next_delay(10000, 'timeout')",
+          "operator": "==",
+          "expected": "0",
+          "feedback": "A zero base delay stays zero; it doesn't multiply an overflowing exponential."
+        }
+      ]
+    }
+  ],
+  "clarifyingQuestions": [
+    "Is `attempt` the failed attempt or the next attempt to schedule?",
+    "Which error classes are retryable?",
+    "Should jitter be added in production?"
+  ],
+  "followUps": [
+    "Add deterministic jitter using an injected random function.",
+    "Honor `Retry-After` headers when present.",
+    "Track retry budget per caller to prevent retry storms."
+  ],
+  "followUpGuide": [
+    "For jitter, inject a deterministic function in tests and multiply delay by a bounded factor.",
+    "",
+    "For `Retry-After`, parse either delay seconds or an HTTP date, then wait at least that long. If it exceeds your remaining deadline or retry budget, stop the request sequence; shortening the server's delay would retry early.",
+    "",
+    "For retry budgets, combine this policy with a token bucket keyed by caller or dependency."
+  ],
+  "complexityAnalysis": [
+    "- `next_delay(attempt, error_code)`: set membership, attempt budget check, and one capped exponential. Time: O(1). Space: O(1).",
+    "- Optional schedule helper (not required): precompute delays for attempts 1..a. Time: O(a). Space: O(a).",
+    "- Runtime scheduler follow-up: use a heap of next retry times. Time: O(log n) per scheduled retry. Space: O(n)."
+  ],
+  "solutionGuide": [
+    "Retry policy should make one small deterministic decision: retryable error, attempt budget, then capped exponential delay.",
+    "",
+    "```python",
+    "import math",
+    "",
+    "class RetryPolicy:",
+    "    def __init__(self, max_attempts: int, base_delay: float, max_delay: float, retryable_errors: set[str]):",
+    "        self.max_attempts = max_attempts",
+    "        self.base_delay = base_delay",
+    "        self.max_delay = max_delay",
+    "        self.retryable_errors = set(retryable_errors)",
+    "",
+    "    def next_delay(self, attempt: int, error_code: str):",
+    "        if error_code not in self.retryable_errors:",
+    "            return None",
+    "        if attempt >= self.max_attempts:",
+    "            return None",
+    "        # Exponent clamped so attempt < 1 still uses base_delay (2 ** 0).",
+    "        exponent = max(0, attempt - 1)",
+    "        if self.base_delay == 0 or self.max_delay == 0:",
+    "            return 0.0",
+    "        if self.base_delay >= self.max_delay:",
+    "            return self.max_delay",
+    "        try:",
+    "            delay = math.ldexp(self.base_delay, exponent)",
+    "        except OverflowError:",
+    "            return self.max_delay",
+    "        return min(self.max_delay, delay)",
+    "```"
+  ]
+}

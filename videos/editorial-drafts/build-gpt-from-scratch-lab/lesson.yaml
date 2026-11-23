@@ -1,0 +1,940 @@
+version: 1
+id: build-gpt-from-scratch-lab
+title: Build a Tiny GPT and Verify Every Training Contract
+source: training/build-gpt-from-scratch-lab/content.md
+voice: en-US-AndrewNeural
+rate: +0%
+sources:
+  - title: GPT-2 report
+    url: https://cdn.openai.com/better-language-models/language_models_are_unsupervised_multitask_learners.pdf
+  - title: PyTorch saving and loading
+    url: https://docs.pytorch.org/tutorials/beginner/saving_loading_models.html
+  - title: GPT-2 published implementation
+    url: https://github.com/openai/gpt-2/blob/master/src/model.py
+  - title: tiktoken0.14.0 decode contract
+    url: https://github.com/openai/tiktoken/blob/0.14.0/tiktoken/core.py
+  - title: Llama2 historical architecture
+    url: https://arxiv.org/html/2307.09288v2
+  - title: RMSNorm
+    url: https://arxiv.org/html/1910.07467v1
+  - title: GLU variants
+    url: https://arxiv.org/html/2002.05202v1
+  - title: GQA
+    url: https://arxiv.org/html/2305.13245v3
+  - title: FlashAttention
+    url: https://arxiv.org/html/2205.14135v2
+scenes:
+  - id: intro
+    title: Turn a sentence into many prediction problems
+    visual: A familiar four-token prefix grows one word at a time. The final word stays hidden during the
+      question.
+    beats:
+      - say: A tiny language model can learn recognizable phrases while still producing broken sentences.
+          Building one yourself makes that behavior much easier to explain. We will trace text through
+          targets, attention, probability, and an update, then ask what a falling loss actually tells us
+          about the model.
+        hold: 0.8
+        visual_cues:
+          - id: intro-b1-1
+            phrase: trace text through targets, attention, probability, and an update
+            targets:
+              - prefix-tokens
+            linger: 0.45
+      - say: Our teaching example starts with a short sentence. At each position, the model has a prefix and must
+          predict what comes next. Training scores many such positions together. Generation uses the same
+          rule repeatedly, appending one chosen token before making the next prediction.
+        hold: 0.8
+        visual_cues:
+          - id: intro-b2-1
+            phrase: prefix and must predict what comes next
+            targets:
+              - next-token-law
+            linger: 0.45
+  - id: corpus-exposure
+    title: Count the stream actually sampled
+    visual: "Reported corpus inventory stays separate from counted training and validation target positions. A constant no-input predictor challenges the uniform reference."
+    beats:
+      - say: "This is the article’s bounded CPU experiment, not a pretrained GPT checkpoint. The bundled Shakespeare file yields about one and a quarter million tokens with the article’s GPT-2 tokenizer. Treat these token counts as fixture assumptions until you rerun its pinned tokenizer. The first ninety percent supplies the training tokens. The remainder supplies validation. This split preserves file order rather than establishing chronological authorship. Repeated phrases can cross it."
+        hold: 0.7
+        visual_cues:
+          - id: corpus-exposure-1
+            phrase: This is the article’s bounded CPU experiment, not a pretrained GPT checkpoint.
+            targets:
+              - corpus-exposure-mechanism
+          - id: corpus-tokenize
+            phrase: "about one and a quarter million tokens"
+            targets:
+              - corpus-exposure-mechanism
+            color: blue
+            linger: 0.6
+          - id: corpus-split
+            phrase: training tokens
+            targets:
+              - corpus-exposure-mechanism
+            color: blue
+            linger: 0.6
+      - say: At batch twelve and context forty-eight, each update scores five hundred seventy-six successors.
+          Three hundred twenty-one updates therefore score one hundred eighty-four thousand eight hundred
+          ninety-six target positions, about sixteen point four percent of the training-stream length.
+          Random windows can overlap; that count is neither unique coverage nor a complete pass. Eight
+          validation batches likewise score four thousand six hundred eight positions, which need not be
+          distinct.
+        hold: 0.7
+        visual_cues:
+          - id: corpus-exposure-2
+            phrase: At batch twelve and context forty-eight, each update scores five hundred seventy-six successors.
+            targets:
+              - corpus-exposure-mechanism
+          - id: score-exposure
+            phrase: one hundred eighty-four thousand eight hundred ninety-six target positions
+            targets:
+              - corpus-exposure-mechanism
+            color: blue
+            linger: 0.6
+          - id: sampled-fraction
+            phrase: about sixteen point four percent of the training-stream length
+            targets:
+              - corpus-exposure-mechanism
+            color: blue
+            linger: 0.6
+          - id: validation-exposure
+            phrase: four thousand six hundred eight positions
+            targets:
+              - corpus-exposure-mechanism
+            color: blue
+            linger: 0.6
+      - say: "A uniform predictor on seventeen thousand four hundred eighty-five active IDs has cross-entropy log
+          of that vocabulary size, about nine point seven six nine nats per token. This is an analytic
+          reference, not a measured checkpoint. Low loss alone does not prove leakage: in a separate
+          four-piece toy whose targets are all zero, a constant no-input predictor assigning target ID
+          zero a probability of zero point nine scores about zero point one zero five nats. Inspect
+          targets and visibility directly."
+        hold: 0.9
+        visual_cues:
+          - id: corpus-exposure-3
+            phrase: A uniform predictor on seventeen thousand four hundred eighty-five active IDs has cross-entropy
+              log of that vocabulary size, about nine point seven six nine nats per token.
+            targets:
+              - corpus-exposure-mechanism
+          - id: uniform-reference
+            phrase: nine point seven six nine nats per token
+            targets:
+              - corpus-exposure-mechanism
+            color: blue
+            linger: 0.6
+          - id: constant-reference
+            phrase: zero point one zero five nats
+            targets:
+              - corpus-exposure-mechanism
+            color: blue
+            linger: 0.6
+  - id: targets
+    title: The target sits one position ahead
+    visual: Two aligned rows reveal current tokens and their actual successors. A moving selector pairs each
+      input with its shifted target.
+    beats:
+      - say: Take the pieces of a continuous token stream. Make the input by leaving off the final piece, and
+          make the target by leaving off the first. Before revealing the lower row, consider what the
+          first position should predict. It must learn the following piece in the stream.
+        hold: 0.8
+        visual_cues:
+          - id: targets-b1-1
+            phrase: input by leaving off the final piece
+            targets:
+              - input-tokens
+            linger: 0.45
+      - say: Now follow each aligned pair. Every target is one place ahead of its input. Predicting the current
+          input would reward copying. A real tokenizer can split words into several pieces, so preserve
+          the exact sequence and reverse mapping rather than assuming one word always means one token.
+        hold: 0.8
+        visual_cues:
+          - id: targets-b2-1
+            phrase: Every target is one place ahead
+            targets:
+              - shift-contract
+            linger: 0.45
+          - id: targets-b2-2
+            phrase: aligned pair
+            targets:
+              - input-tokens
+              - target-tokens
+            linger: 0.45
+  - id: byte-boundaries
+    title: Keep the bytes behind each BPE piece
+    visual: All six GPT-2 IDs retain their exact literal bytes; two incomplete emoji byte pieces join before
+      Unicode decoding.
+    beats:
+      - say: "The article’s pinned GPT-2 fixture reports six IDs for Good sir, newline, Speak: ten thousand two hundred forty-eight, fifteen thousand nine hundred sixty-seven, eleven, one hundred ninety-eight, five thousand two hundred forty-eight, and four hundred sixty-one. Their pieces are Good, space sir, comma, newline, Spe, and ak. Keep that final ak. At the comma position, the next-token target is the newline; word boundaries do not replace the shifted-token contract."
+        hold: 0.7
+        visual_cues:
+          - id: byte-boundaries-1
+            phrase: "The article’s pinned GPT-2 fixture reports six IDs for Good sir, newline, Speak: ten thousand two hundred forty-eight, fifteen thousand nine hundred sixty-seven, eleven, one hundred ninety-eight, five thousand two hundred forty-eight, and four hundred sixty-one."
+            targets:
+              - byte-boundaries-mechanism
+          - id: six-byte-pieces
+            phrase: Their pieces are Good, space sir, comma, newline, Spe, and ak
+            targets:
+              - byte-boundaries-mechanism
+            color: blue
+            linger: 0.6
+          - id: newline-target
+            phrase: the next-token target is the newline
+            targets:
+              - byte-boundaries-mechanism
+            color: blue
+            linger: 0.6
+      - say: "Byte-level pieces need not be complete Unicode characters. The article’s smiling-face fixture reports UTF-8 pieces hexadecimal f zero nine f and nine nine eight two. Decoding those pieces separately inserts replacement characters; concatenating their original bytes and decoding the full sequence recovers the character. Streaming decoding must retain incomplete bytes. An arbitrary generated sequence can still be invalid UTF-8: default replacement and strict rejection are different explicit policies. This independent full-tokenizer fixture does not expand the compact Shakespeare support."
+        hold: 0.9
+        visual_cues:
+          - id: byte-boundaries-2
+            phrase: Byte-level pieces need not be complete Unicode characters.
+            targets:
+              - byte-boundaries-mechanism
+          - id: separate-bytes
+            phrase: Decoding those pieces separately inserts replacement characters
+            targets:
+              - byte-boundaries-mechanism
+            color: blue
+            linger: 0.6
+          - id: joined-bytes
+            phrase: decoding the full sequence recovers the character
+            targets:
+              - byte-boundaries-mechanism
+            color: blue
+            linger: 0.6
+  - id: mask
+    title: Visibility and target alignment are separate checks
+    visual: A four-by-four causal mask constructs its lower triangle. Later input tokens change while earlier
+      output signatures remain fixed.
+    beats:
+      - say: Correct targets still leave another way to cheat. The next token already appears elsewhere in a
+          training window. If an earlier position can attend to that future input, the answer can enter
+          its hidden state. The lower triangle admits only the current position and its preceding keys.
+        hold: 0.8
+        visual_cues:
+          - id: mask-b1-1
+            phrase: lower triangle admits only the current position
+            targets:
+              - causal-query
+            linger: 0.45
+      - say: Change the final input while holding the prefix fixed. Under the causal boundary, earlier
+          predictions remain unchanged. This perturbation checks information flow directly. Run the
+          target-shift check separately, because a perfectly causal model can still be trained against
+          the wrong labels. Both agreements belong in the training pipeline.
+        hold: 0.8
+        visual_cues:
+          - id: mask-b2-1
+            phrase: Change the final input
+            targets:
+              - future-change
+            linger: 0.45
+          - id: mask-b2-2
+            phrase: earlier predictions remain unchanged
+            targets:
+              - prefix-output
+            linger: 0.45
+  - id: vocab
+    title: Keep token identity through a compact vocabulary
+    visual: Three sparse original IDs map to three dense local IDs and return to the same literal pieces.
+      Label this table "Illustrative three-piece map, separate from the corpus map". Keep the full-corpus
+      capacity strip separate and the later hypothetical sampling map distinct.
+    beats:
+      - say: "The article uses the published GPT-2 tokenizer, then keeps only pieces present in its Shakespeare
+          file. A dense local index shrinks the tied embedding matrix. Watch the comma travel through the
+          mapping: its index changes, while the piece it identifies stays the same."
+        hold: 0.8
+        visual_cues:
+          - id: vocab-b1-1
+            phrase: comma travel through the mapping
+            targets:
+              - original-id
+              - local-id
+              - token-piece
+            linger: 0.45
+      - say: Removing unused output rows also removes candidates from the softmax denominator. That changes the
+          prediction problem and limits which prompts remain representable. This lab chooses its support
+          using the entire file, including validation identities. Declare that preprocessing boundary
+          when interpreting the held-out result.
+        hold: 0.8
+        visual_cues:
+          - id: vocab-b2-1
+            phrase: removes candidates from the softmax denominator
+            targets:
+              - vocab-support
+            linger: 0.45
+  - id: compact-denominator
+    title: A smaller support changes probability and gradients
+    visual: A single tied matrix supplies input and output rows; the unused third row receives an output
+      gradient before removal changes the denominator.
+    beats:
+      - say: The tied vocabulary matrix has vocabulary size times hidden width parameters. Full GPT-2 support
+          gives four million eight hundred twenty-four thousand six hundred seventy-two weights at width
+          ninety-six; active support gives one million six hundred seventy-eight thousand five hundred
+          sixty. That removes sixty-five point two percent of this matrix’s rows. The complete compact
+          model has one million nine hundred seven thousand forty parameters; removed rows are about
+          sixty-two point three percent of the corresponding full-vocabulary model, a different
+          denominator.
+        hold: 0.7
+        visual_cues:
+          - id: compact-denominator-1
+            phrase: The tied vocabulary matrix has vocabulary size times hidden width parameters.
+            targets:
+              - compact-denominator-mechanism
+          - id: compact-weights
+            phrase: active support gives one million six hundred seventy-eight thousand five hundred sixty
+            targets:
+              - compact-denominator-mechanism
+            color: blue
+            linger: 0.6
+          - id: removed-matrix
+            phrase: That removes sixty-five point two percent of this matrix’s rows
+            targets:
+              - compact-denominator-mechanism
+            color: blue
+            linger: 0.6
+          - id: whole-model
+            phrase: a different denominator
+            targets:
+              - compact-denominator-mechanism
+            color: blue
+            linger: 0.6
+      - say: "Inspect the article’s three-row tied fixture. Input row zero is one, zero; target row one is zero,
+          one; unused row two is one, one. The selected hidden vector produces logits one, zero, one.
+          Softmax gives the unused row probability about zero point four two two three, and its output
+          gradient is that probability times the hidden vector: zero point four two two three, zero. A
+          row can receive an output-side gradient without being an input or target."
+        hold: 0.7
+        visual_cues:
+          - id: compact-denominator-2
+            phrase: Inspect the article’s three-row tied fixture.
+            targets:
+              - compact-denominator-mechanism
+          - id: unused-gradient
+            phrase: zero point four two two three, zero
+            targets:
+              - compact-denominator-mechanism
+            color: blue
+            linger: 0.6
+      - say: "Remove that unused output row while holding the other logits fixed. The target probability rises from about zero point one five five four to zero point two six eight nine, and loss falls from about one point eight six two to one point three one three. Relabeling the retained pieces is reversible; removing competitors changes the objective. The algorithm builds the map over the full file. The article reports three hundred thirty-five validation-only IDs. Verify that count by finding original IDs in validation that are absent from training. Validation supplies no gradient updates, but its identities influenced preprocessing. An independent evaluation needs support chosen without that inspection or a declared missing-piece policy."
+        hold: 0.9
+        visual_cues:
+          - id: compact-denominator-3
+            phrase: Remove that unused output row while holding the other logits fixed.
+            targets:
+              - compact-denominator-mechanism
+          - id: drop-competitor
+            phrase: holding the other logits fixed
+            targets:
+              - compact-denominator-mechanism
+            color: blue
+            linger: 0.6
+          - id: validation-support
+            phrase: three hundred thirty-five validation-only IDs
+            targets:
+              - compact-denominator-mechanism
+            color: blue
+            linger: 0.6
+  - id: stream-boundaries
+    title: Preserve a successor that existed in the stream
+    visual: A 20-token ruler exposes the false 3→8 join; a separate 49-token boundary fixture builds the only
+      legal 48-token window.
+    beats:
+      - say: Keep a source-token ruler from zero through nineteen. Concatenating chunk zero through three with
+          chunk eight through eleven invents a transition from three to eight. A contiguous sixteen-token
+          training prefix followed by a four-token validation suffix preserves within-portion adjacency;
+          the transition crossing the split is not scored. Concatenating independent documents can be an
+          intentional objective, but independent-document training also needs attention isolation and
+          boundary-target handling. Resetting position numbers alone does not isolate history.
+        hold: 0.7
+        visual_cues:
+          - id: stream-boundaries-1
+            phrase: Keep a source-token ruler from zero through nineteen.
+            targets:
+              - stream-boundaries-mechanism
+          - id: false-join
+            phrase: invents a transition from three to eight
+            targets:
+              - stream-boundaries-mechanism
+            color: blue
+            linger: 0.6
+          - id: contiguous-split
+            phrase: preserves within-portion adjacency
+            targets:
+              - stream-boundaries-mechanism
+            color: blue
+            linger: 0.6
+      - say: One context of length T needs T plus one source tokens to supply its last successor. The batch
+          sampler selects a start, copies T inputs and copies the same stream one place ahead as targets.
+          Its exclusive random upper bound is source length minus T, so the largest legal start is source
+          length minus T minus one. No sampled window crosses the training-validation boundary.
+        hold: 0.7
+        visual_cues:
+          - id: stream-boundaries-2
+            phrase: One context of length T needs T plus one source tokens to supply its last successor.
+            targets:
+              - stream-boundaries-mechanism
+          - id: sampler-window
+            phrase: largest legal start is source length minus T minus one
+            targets:
+              - stream-boundaries-mechanism
+            color: blue
+            linger: 0.6
+      - say: "For the exact edge case, source IDs zero through forty-eight contain forty-nine tokens. A
+          forty-eight-token context has one legal start, zero. Inputs end at forty-seven and targets end
+          at forty-eight. A forty-eight-token source cannot provide the last successor and must fail this
+          sampler’s length check. Inspect the final target as well as the overlapping middle: an
+          off-by-one can hide at that boundary."
+        hold: 0.9
+        visual_cues:
+          - id: stream-boundaries-3
+            phrase: For the exact edge case, source IDs zero through forty-eight contain forty-nine tokens.
+            targets:
+              - stream-boundaries-mechanism
+          - id: last-successor
+            phrase: targets end at forty-eight
+            targets:
+              - stream-boundaries-mechanism
+            color: blue
+            linger: 0.6
+          - id: short-stream
+            phrase: must fail this sampler’s length check
+            targets:
+              - stream-boundaries-mechanism
+            color: blue
+            linger: 0.6
+  - id: forward
+    title: Carry token and position information through the decoder
+    visual: "A two-coordinate miniature follows Birds at position zero through token-plus-position addition, permitted history, and four vocabulary scores. Footer labels describe the complete lab batch."
+    beats:
+      - say: An embedding lookup gives each token a learned vector. A position embedding adds where that token
+          sits in the window. Each decoder block mixes permitted history through attention and transforms
+          each position through a feed-forward network. Residual additions carry the earlier
+          representation alongside those branches.
+        hold: 0.8
+        visual_cues:
+          - id: forward-b1-1
+            phrase: position embedding adds where that token sits
+            targets:
+              - embedding-addition
+            linger: 0.45
+          - id: forward-b1-2
+            phrase: permitted history through attention
+            targets:
+              - attention-value
+            linger: 0.45
+      - say: "The two-coordinate miniature follows Birds at position zero. The shape labels describe the complete lab batch. Four attention heads divide the feature width and compare query positions with key positions. After recombination, the tied output matrix scores every active vocabulary item. Its final axis must match the local vocabulary."
+        hold: 0.8
+        visual_cues:
+          - id: forward-b2-1
+            phrase: Four attention heads divide the feature width
+            targets:
+              - head-shapes
+            linger: 0.45
+          - id: forward-b2-2
+            phrase: scores every active vocabulary item
+            targets:
+              - vocabulary-logits
+            linger: 0.45
+  - id: preln-block
+    title: Earn the full decoder shapes and residual branches
+    visual: The same batch expands into exact QKV/head/score axes, enters two Pre-LN residual branches and
+      reaches its tied vocabulary projection.
+    beats:
+      - say: The full batch enters as twelve by forty-eight integer IDs. Token and learned position embeddings
+          make twelve by forty-eight by ninety-six hidden states. One fused projection produces Q, K and
+          V, each split into twelve by four by forty-eight by twenty-four. Queries and keys form twelve
+          by four by forty-eight by forty-eight scores. Divide their dot products by square root of
+          twenty-four, mask future keys with minus infinity, then normalize and weight values. A valid
+          row needs at least one allowed finite score.
+        hold: 0.7
+        visual_cues:
+          - id: preln-block-1
+            phrase: The full batch enters as twelve by forty-eight integer IDs.
+            targets:
+              - preln-block-mechanism
+          - id: split-heads
+            phrase: each split into twelve by four by forty-eight by twenty-four
+            targets:
+              - preln-block-mechanism
+            color: blue
+            linger: 0.6
+          - id: score-shape
+            phrase: then normalize and weight values
+            targets:
+              - preln-block-mechanism
+            color: blue
+            linger: 0.6
+      - say: In each Pre-LN block, normalize h before attention and add the attention branch back to h, making u.
+          Normalize u before the MLP and add that branch back to u. The MLP expands ninety-six to three
+          hundred eighty-four, applies GELU, then contracts to ninety-six. Exact GELU is x times the
+          standard normal cumulative distribution at x. These per-position operations preserve the causal
+          input boundary. The residual’s identity derivative path helps explain the arrangement; it is
+          not a universal stability guarantee.
+        hold: 0.7
+        visual_cues:
+          - id: preln-block-2
+            phrase: In each Pre-LN block, normalize h before attention and add the attention branch back to h, making
+              u.
+            targets:
+              - preln-block-mechanism
+          - id: residual-block
+            phrase: add that branch back to u
+            targets:
+              - preln-block-mechanism
+            color: blue
+            linger: 0.6
+          - id: gelu-width
+            phrase: applies GELU, then contracts to ninety-six
+            targets:
+              - preln-block-mechanism
+            color: blue
+            linger: 0.6
+      - say: Two such blocks and final normalization feed the transpose of the same token embedding matrix.
+          Logits have shape twelve by forty-eight by seventeen thousand four hundred eighty-five.
+          Flattening gives five hundred seventy-six rows for cross-entropy; targets flatten to five
+          hundred seventy-six integers. One FP32 logit tensor alone contains forty million two hundred
+          eighty-five thousand four hundred forty bytes, before gradients and backward caches. The lab
+          has no dropout and omits GPT-2’s depth-scaled residual initialization; its exact GELU also
+          differs from GPT-2’s tanh approximation.
+        hold: 0.9
+        visual_cues:
+          - id: preln-block-3
+            phrase: Two such blocks and final normalization feed the transpose of the same token embedding matrix.
+            targets:
+              - preln-block-mechanism
+          - id: tied-output
+            phrase: same token embedding matrix
+            targets:
+              - preln-block-mechanism
+            color: blue
+            linger: 0.6
+          - id: logit-storage
+            phrase: forty million two hundred eighty-five thousand four hundred forty bytes
+            targets:
+              - preln-block-mechanism
+            color: blue
+            linger: 0.6
+  - id: loss
+    title: Reward probability on the actual successor
+    visual: Four supplied logits normalize to probabilities. The target probability and cross-entropy appear
+      before one explicit free-logit gradient update.
+    beats:
+      - say: A logit is an unnormalized score. Softmax turns the supplied scores into probabilities, and
+          cross-entropy takes the negative logarithm of the probability on the true successor. More
+          probability on that target means lower loss. The equation averages this penalty across the
+          scored positions.
+        hold: 0.8
+        visual_cues:
+          - id: loss-b1-1
+            phrase: Softmax turns the supplied scores into probabilities
+            targets:
+              - softmax-sum
+            linger: 0.45
+          - id: loss-b1-2
+            phrase: negative logarithm of the probability on the true successor
+            targets:
+              - position-loss
+            linger: 0.45
+      - say: "This direct-logit illustration starts with scores zero, one, two, minus one for Birds, sing, dawn, and the period. The target is sing, at index one. Gradient descent on these independent logits, with step size one half, subtracts each predicted probability and adds one at the target, all scaled by that step size. This raises the target logit relative to its competitors. The target probability moves from about zero point two three seven to zero point three seven four with the recomputed denominator. A real training step backpropagates through all the layers that produced those logits, then updates their parameters. The miniature exposes that learning signal. An update to shared network parameters need not improve every individual prediction."
+        hold: 0.8
+        motion_check:
+          region:
+            - 260
+            - 330
+            - 1500
+            - 590
+          minimumChangedFraction: 0.002
+        visual_cues:
+          - id: loss-b2-1
+            phrase: "raises the target logit"
+            targets:
+              - updated-logits
+            linger: 0.45
+          - id: loss-b2-2
+            phrase: "target probability moves from about zero point two three seven to zero point three seven four with the recomputed denominator"
+            targets:
+              - target-probability
+            linger: 0.45
+  - id: checkpoints
+    title: Read the loss curve beside the generated text
+    visual: The article’s reported sampled validation points reveal chronologically. Label the metric
+      "Reported validation loss at this update" and identify both excerpts as article-reported
+      continuations. The early excerpt remains a labeled reference while the curve completes; the later
+      excerpt appears beside its already plotted checkpoint.
+    beats:
+      - say: "The article reports a bounded CPU experiment. Its displayed early continuation contains frequent pieces and broken fragments. The reported sampled validation curve improves as training continues. These displayed points describe the article’s reported run, which still needs an independent reproduction."
+        hold: 0.8
+        motion_check:
+          region:
+            - 230
+            - 330
+            - 1050
+            - 590
+          minimumChangedFraction: 0.002
+        visual_cues:
+          - id: checkpoints-b1-1
+            phrase: validation curve improves
+            targets:
+              - validation-curve
+            linger: 0.45
+      - say: "Its displayed later continuation contains short phrases alongside repetition and agreement errors. Lower average cross-entropy captures improved prediction across sampled positions, while a continuation exposes different behavior. Compare several fixed prompts, held-out tasks, and overlap checks before selecting a checkpoint. One attractive sentence cannot characterize the whole model."
+        hold: 0.8
+        visual_cues:
+          - id: checkpoints-b2-1
+            phrase: short phrases alongside repetition and agreement errors
+            targets:
+              - recorded-text
+            linger: 0.45
+  - id: generation-choice
+    title: Sample one retained token, then decode its identity
+    visual: A new supplied logit vector is top-k truncated, temperature-scaled, normalized and sampled with a
+      declared CDF draw; the chosen local ID travels through its saved inverse map.
+    beats:
+      - say: Generation keeps the most recent forty-eight local IDs and reads only the final position’s logits.
+          The lab retains exactly eight top indices, divides their logits by temperature zero point nine,
+          and samples one categorical outcome. Tail removal changes the distribution. Positive
+          temperature scaling preserves retained-logit order; lower temperature sharpens it. A unique
+          maximum dominates as temperature approaches zero, while tied maxima retain equal limiting
+          probability. Greedy temperature zero needs an explicit argmax branch.
+        hold: 0.7
+        visual_cues:
+          - id: generation-choice-1
+            phrase: Generation keeps the most recent forty-eight local IDs and reads only the final position’s
+              logits.
+            targets:
+              - generation-choice-mechanism
+          - id: retain-eight
+            phrase: retains exactly eight top indices
+            targets:
+              - generation-choice-mechanism
+            color: blue
+            linger: 0.6
+          - id: sampling-temperature
+            phrase: temperature zero point nine
+            targets:
+              - generation-choice-mechanism
+            color: blue
+            linger: 0.6
+      - say: For a separate supplied four-logit example, use two, one, zero, minus one and retain the first two.
+          At temperature one half, retained scores become four and two. Their probabilities are about
+          zero point eight eight zero eight and zero point one one nine two. Use a supplied uniform draw
+          of zero point nine with a cumulative-probability sampler. It passes the first bin and selects
+          the second candidate, local ID one. This is a transparent categorical illustration, not a claim
+          about the internal algorithm of torch multinomial.
+        hold: 0.7
+        visual_cues:
+          - id: generation-choice-2
+            phrase: For a separate supplied four-logit example, use two, one, zero, minus one and retain the first
+              two.
+            targets:
+              - generation-choice-mechanism
+          - id: retained-scale
+            phrase: retained scores become four and two
+            targets:
+              - generation-choice-mechanism
+            color: blue
+            linger: 0.6
+          - id: categorical-choice
+            phrase: selects the second candidate, local ID one
+            targets:
+              - generation-choice-mechanism
+            color: blue
+            linger: 0.6
+      - say: "If this toy’s saved inverse map sends local zero to GPT-2 comma ID eleven and local one to ak ID four hundred sixty-one, the chosen token decodes as ak after reversing the map. Append the local ID before the next forward pass; decode the complete reverse-mapped sequence together. A prompt piece outside saved support must fail before lookup. With identical weights, prompt, numerical execution, and retained-candidate ordering, resetting the sampling generator to seed seventeen repeats the trace. Its draws do not advance the separate training or validation generators. Tied top-k indices can change order, so the seed alone does not guarantee identical text. Top-k and temperature can still produce repetition."
+        hold: 0.9
+        visual_cues:
+          - id: generation-choice-3
+            phrase: If this toy’s saved inverse map sends local zero to GPT-2 comma ID eleven and local one to ak ID
+              four hundred sixty-one, the chosen token decodes as ak after reversing the map.
+            targets:
+              - generation-choice-mechanism
+          - id: reverse-map-choice
+            phrase: the chosen token decodes as ak
+            targets:
+              - generation-choice-mechanism
+            color: blue
+            linger: 0.6
+          - id: unsupported-prompt
+            phrase: must fail before lookup
+            targets:
+              - generation-choice-mechanism
+            color: blue
+            linger: 0.6
+  - id: resume
+    title: Resume the state and repeat the generation rule
+    visual: A checkpoint packet reveals weights, moments, token map and progressed random streams. Generation
+      then appends one selected local ID through its inverse mapping.
+    beats:
+      - say: "A continuation needs more than weights. Preserve optimizer moments, completed updates, token mappings, configuration, corpus identity, and progressed sampler states. The article’s round-trip fixture checks whether restoring those values reproduces the next batch and next update in its controlled environment. An initial seed alone loses how far a generator has advanced."
+        hold: 0.8
+        visual_cues:
+          - id: resume-b1-1
+            phrase: Preserve optimizer moments
+            targets:
+              - restore-packet
+            linger: 0.45
+      - say: For generation, keep the recent context, read final-position logits, choose a local token, and
+          reverse-map it before decoding. Repeat that operation to extend the text. You can now inspect a
+          tiny GPT as one connected experiment, with separate evidence for token identity, causal
+          prediction, learning, and exact continuation.
+        hold: 0.8
+        visual_cues:
+          - id: resume-b2-1
+            phrase: reverse-map it before decoding
+            targets:
+              - inverse-token-map
+            linger: 0.45
+          - id: resume-b2-2
+            phrase: extend the text
+            targets:
+              - generated-tokens
+            linger: 0.45
+  - id: resume-fork
+    title: Restore the state that determines the next update
+    visual: A live state-dictionary alias changes with weights while a frozen copy does not; two identical
+      weight/batch branches differ only in their saved Adam moments and step. Label the separate checkpoint
+      panel "CPU round-trip assertions" and its four cards "Equality to check". Cue progress reveals
+      assertions, not verified execution outcomes.
+    beats:
+      - say: The in-memory checkpoint must be frozen. A model state dictionary contains references to its tensor
+          storage; continuing in-place updates can change a saved dictionary unless it is deep-copied or
+          serialized. Save weights, optimizer moments and counter, completed updates, model and training
+          configuration, tokenizer and active-ID ordering, corpus fingerprint, split, and progressed
+          training and validation generator states. Initial seeds do not retain how many draws already
+          occurred.
+        hold: 0.7
+        visual_cues:
+          - id: resume-fork-1
+            phrase: The in-memory checkpoint must be frozen.
+            targets:
+              - resume-fork-mechanism
+          - id: freeze-storage
+            phrase: deep-copied or serialized
+            targets:
+              - resume-fork-mechanism
+            color: blue
+            linger: 0.6
+          - id: save-progress
+            phrase: Initial seeds do not retain how many draws already occurred
+            targets:
+              - resume-fork-mechanism
+            color: blue
+            linger: 0.6
+      - say: Compare two paths from the same weights and exact next batch. Resetting only optimizer state does
+          not change that deterministic batch’s loss before the update, but it can change the weights
+          afterward. A separate scalar Adam illustration uses both betas one half, epsilon zero, learning
+          rate one tenth and no decay. After gradients one and one, weight one has become zero point
+          eight. At the next gradient minus one, restored moments give weight about zero point eight one
+          four three; resetting moments and the counter gives zero point nine. The learning rate stayed
+          fixed.
+        hold: 0.7
+        visual_cues:
+          - id: resume-fork-2
+            phrase: Compare two paths from the same weights and exact next batch.
+            targets:
+              - resume-fork-mechanism
+          - id: restore-moments
+            phrase: restored moments give weight about zero point eight one four three
+            targets:
+              - resume-fork-mechanism
+            color: blue
+            linger: 0.6
+          - id: reset-moments
+            phrase: resetting moments and the counter gives zero point nine
+            targets:
+              - resume-fork-mechanism
+            color: blue
+            linger: 0.6
+      - say: "At update three hundred twenty-one, the article’s CPU round-trip fixture checks identical probe logits, the same next sampled batch, the same pre-update loss and the same weights after update three hundred twenty-two. These are separate assertions to execute in one pinned environment. They do not establish a cross-device guarantee. Extra dropout, CUDA randomness, schedulers or mixed-precision scalers need their additional states. AdamW’s decoupled decay is a separate choice from parameter grouping: this lab’s simple call applies default decay to all supplied parameters, including bias and normalization scales."
+        hold: 0.9
+        visual_cues:
+          - id: resume-fork-3
+            phrase: "At update three hundred twenty-one, the article’s CPU round-trip fixture checks identical probe logits, the same next sampled batch, the same pre-update loss and the same weights after update three hundred twenty-two."
+            targets:
+              - resume-fork-mechanism
+          - id: exact-resume
+            phrase: same weights after update three hundred twenty-two
+            targets:
+              - resume-fork-mechanism
+            color: blue
+            linger: 0.6
+  - id: architecture-choices
+    title: Compare a changed component without changing the objective
+    visual: The same [1,3] vector is centered or RMS-scaled; shared KV groups reduce ideal storage while the
+      causal next-token target stays fixed.
+    beats:
+      - say: The GPT-2 heritage here includes learned absolute positions, Pre-LN, causal multi-head attention, a
+          GELU MLP and tied input/output embeddings. Llama two is a historical twenty-twenty-three
+          comparison, not a universal successor recipe. It uses RMSNorm, rotary positions and SwiGLU; its
+          seven- and thirteen-billion models use multi-head attention, while the released seventy-billion
+          model uses grouped-query attention.
+        hold: 0.7
+        visual_cues:
+          - id: architecture-choices-1
+            phrase: The GPT-2 heritage here includes learned absolute positions, Pre-LN, causal multi-head attention,
+              a GELU MLP and tied input/output embeddings.
+            targets:
+              - architecture-choices-mechanism
+          - id: historical-stack
+            phrase: released seventy-billion model uses grouped-query attention
+            targets:
+              - architecture-choices-mechanism
+            color: blue
+            linger: 0.6
+      - say: Compare normalization on a separate vector one, three, with unit gains, zero offsets and no epsilon.
+          LayerNorm subtracts mean two and divides by standard deviation one, giving minus one, one.
+          RMSNorm divides by square root of the mean squared values, square root of five, giving about
+          zero point four four seven and one point three four two. It does not center. Mean square is a
+          second moment, not variance about the mean. RoPE rotates query-key coordinate pairs to encode
+          relative position; its context-length behavior still needs evaluation.
+        hold: 0.7
+        visual_cues:
+          - id: architecture-choices-2
+            phrase: Compare normalization on a separate vector one, three, with unit gains, zero offsets and no
+              epsilon.
+            targets:
+              - architecture-choices-mechanism
+          - id: norm-compare
+            phrase: It does not center
+            targets:
+              - architecture-choices-mechanism
+            color: blue
+            linger: 0.6
+          - id: relative-rotation
+            phrase: RoPE rotates query-key coordinate pairs to encode relative position
+            targets:
+              - architecture-choices-mechanism
+            color: blue
+            linger: 0.6
+      - say: SwiGLU multiplies a linear branch by a SiLU gate before output projection. GQA shares key and value
+          heads across query groups. With four query heads, changing four KV heads to two halves ideal
+          stored KV elements when sequence length, head width and dtype remain fixed. This is a storage
+          calculation, not a measured serving speedup or a change to the next-token objective. Parameter
+          widths, checkpoint conversion and quality need their own comparison.
+        hold: 0.9
+        visual_cues:
+          - id: architecture-choices-3
+            phrase: SwiGLU multiplies a linear branch by a SiLU gate before output projection.
+            targets:
+              - architecture-choices-mechanism
+          - id: shared-kv
+            phrase: changing four KV heads to two halves ideal stored KV elements
+            targets:
+              - architecture-choices-mechanism
+            color: blue
+            linger: 0.6
+  - id: kernel-diagnostics
+    title: Use each check to test the failure it can see
+    visual: "Stored manual causal attention and CPU SDPA fixture arrays agree, while independent labels, masks, token maps and pre-update state expose distinct faults."
+    beats:
+      - say: "The article’s separate CPU fixture compares manual scaled causal attention with PyTorch’s scaled dot-product-attention API using zero dropout. It checks output shape one by two by four by eight and numerical agreement with an absolute tolerance of one millionth and the API’s default relative tolerance. API use alone does not show that a fused CUDA kernel ran, used less memory or trained faster. On eligible CUDA inputs, the API has optimized backends. FlashAttention avoids storing the whole score matrix in high-bandwidth memory while retaining quadratic full-attention arithmetic."
+        hold: 0.7
+        visual_cues:
+          - id: kernel-diagnostics-1
+            phrase: The article’s separate CPU fixture compares manual scaled causal attention with PyTorch’s scaled
+              dot-product-attention API using zero dropout.
+            targets:
+              - kernel-diagnostics-mechanism
+          - id: cpu-attention-check
+            phrase: "numerical agreement with an absolute tolerance of one millionth"
+            targets:
+              - kernel-diagnostics-mechanism
+            color: blue
+            linger: 0.6
+      - say: A faithful refactor retains label shifting, causal visibility, positions, normalization, dropout
+          behavior and gradient checks. An all-masked row can create NaNs; clipping a gradient cannot
+          repair an already-NaN forward pass. Locate the first nonfinite tensor. Near-zero loss with
+          gibberish suggests checking both self-copy labels and future-input leakage, but the earlier
+          constant-predictor counterexample shows that low loss does not uniquely identify either fault.
+        hold: 0.7
+        visual_cues:
+          - id: kernel-diagnostics-2
+            phrase: A faithful refactor retains label shifting, causal visibility, positions, normalization, dropout
+              behavior and gradient checks.
+            targets:
+              - kernel-diagnostics-mechanism
+          - id: invalid-mask
+            phrase: An all-masked row can create NaNs
+            targets:
+              - kernel-diagnostics-mechanism
+            color: blue
+            linger: 0.6
+          - id: first-finite
+            phrase: Locate the first nonfinite tensor
+            targets:
+              - kernel-diagnostics-mechanism
+            color: blue
+            linger: 0.6
+      - say: A scrambled continuation can come from the wrong inverse map even when decoding raises no error.
+          Repetition can involve the learned distribution, repetitive data, lost context or decoding
+          settings. If the next pre-update loss differs after resume, compare weights and the exact batch
+          first; optimizer moments affect the following update. Lower held-out loss, fixed prompts,
+          overlap checks and task metrics remain separate evidence. A novel prompt does not establish
+          that its completion was not memorized.
+        hold: 0.9
+        visual_cues:
+          - id: kernel-diagnostics-3
+            phrase: A scrambled continuation can come from the wrong inverse map even when decoding raises no error.
+            targets:
+              - kernel-diagnostics-mechanism
+          - id: wrong-inverse
+            phrase: wrong inverse map even when decoding raises no error
+            targets:
+              - kernel-diagnostics-mechanism
+            color: blue
+            linger: 0.6
+  - id: changed-contract
+    title: Predict the target and the information boundary
+    visual: A distinct five-ID stream supplies four input/target pairs. The third row’s future input changes
+      while its reference label remains fixed, exposing the difference between causality and label
+      alignment.
+    beats:
+      - say: "Finish with a fresh constructed local-ID stream: two, five, eight, nine, twelve, inside a
+          sixteen-ID vocabulary. Use context length four. At input position two, which IDs may attention
+          read, and which successor should the loss reward? Now change only the final input from nine to
+          fourteen, leaving the first three inputs and reference labels fixed. Predict whether logits at
+          position two change in this causal architecture. Keep the answers covered until the reveal."
+        hold: 0.7
+        visual_cues:
+          - id: changed-contract-1
+            phrase: "Finish with a fresh constructed local-ID stream: two, five, eight, nine, twelve, inside a
+              sixteen-ID vocabulary."
+            targets:
+              - changed-contract-mechanism
+          - id: future-input-change
+            phrase: change only the final input from nine to fourteen
+            targets:
+              - changed-contract-mechanism
+            color: blue
+            linger: 0.6
+      - say: "Position two may read two, five and eight. Its correct target is nine. Changing the future input at position three leaves the earlier logits unchanged under the causal boundary; this counterfactual probe deliberately keeps the original targets fixed. Unshifted training would instead reward eight at that position. Such a self-copy label bug can pass the same visibility probe, so verify shifted targets separately. The repaired contract keeps both the successor and the permitted prefix correct before interpreting its learning curve. JAX next makes the numerical step an explicit function of parameters, state and random keys, then tests what differentiation, mapping and compilation preserve."
+        hold: 0.9
+        visual_cues:
+          - id: changed-contract-2
+            phrase: Position two may read two, five and eight.
+            targets:
+              - changed-contract-mechanism
+          - id: answer-prefix
+            phrase: Position two may read two, five and eight
+            targets:
+              - changed-contract-mechanism
+            color: green
+            linger: 0.6
+          - id: answer-target
+            phrase: Its correct target is nine
+            targets:
+              - changed-contract-mechanism
+            color: green
+            linger: 0.6
+          - id: answer-invariant
+            phrase: leaves the earlier logits unchanged
+            targets:
+              - changed-contract-mechanism
+            color: green
+            linger: 0.6
+          - id: answer-copy
+            phrase: Unshifted training would instead reward eight
+            targets:
+              - changed-contract-mechanism
+            color: green
+            linger: 0.6

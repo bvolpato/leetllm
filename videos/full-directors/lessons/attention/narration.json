@@ -1,0 +1,838 @@
+[
+  {
+    "id": "c01",
+    "title": "What comes back to sing?",
+    "sourceChapters": [
+      "c01"
+    ],
+    "beats": [
+      {
+        "id": "c01-b01",
+        "say": "Birds in the garden sing softly at dawn. Follow the words to the verb, sing. Who sings?",
+        "hold": 2.3
+      },
+      {
+        "id": "c01-b02",
+        "say": "Birds. Count back four positions from sing to its subject. Keep just two tokens for our calculation, Birds and sing. Unroll a ribbon under each word. Its length measures the first coordinate of that word's value.",
+        "hold": 0.6
+      },
+      {
+        "id": "c01-b03",
+        "say": "Birds carries two units of blue. Sing carries one unit of red. For this read, chalk off about forty two percent of the blue and fifty eight percent of the red. Which cut gives sing the longer piece?",
+        "hold": 3.2
+      },
+      {
+        "id": "c01-b04",
+        "say": "Cut at the chalk marks and compare the two edges. The blue piece reaches about point eight four. The red reaches point five eight. Birds supplied more because its ribbon started twice as long. Slide the pieces end to end. Their lengths add to about one point four two. Where did sing get those shares? Follow its query.",
+        "hold": 0.8
+      }
+    ]
+  },
+  {
+    "id": "c02",
+    "title": "Every word asks, answers, and carries",
+    "sourceChapters": [
+      "c02"
+    ],
+    "beats": [
+      {
+        "id": "c02-b01",
+        "say": "Each word gets three vectors, each with its own job. A query says what this word is looking for. A key says what this word can be found by. And a value is what it actually hands over in proportion to its share.",
+        "hold": 0.4
+      },
+      {
+        "id": "c02-b02",
+        "say": "Where do they come from? Each word starts with a state, which is just a list of numbers. In our toy example, birds is one, zero, and sing is zero, one. Three learned matrices project that one state three different ways.",
+        "hold": 0.3
+      },
+      {
+        "id": "c02-b03",
+        "say": "We call them W Q, W K, and W V, and training sets their numbers.",
+        "hold": 0.8
+      },
+      {
+        "id": "c02-b04",
+        "say": "Try two states, A at one, zero and B at one, one. Their raw dot product is one in either direction. Normalize each row of raw scores. A splits evenly because its scores tie. B gives A only twenty seven percent because B scores two against itself. Back with Birds and sing, separate query and key matrices let even the raw scores differ by direction. The value matrix chooses the contents of each ribbon.",
+        "hold": 0.8
+      },
+      {
+        "id": "c02-b05",
+        "say": "Each arrow has two coordinates. The query for sing points up and to the right. The key for birds lies low. The key for sing stands tall.",
+        "hold": 0.7
+      }
+    ]
+  },
+  {
+    "id": "c03",
+    "title": "A match is a dot product",
+    "sourceChapters": [
+      "c03"
+    ],
+    "beats": [
+      {
+        "id": "c03-b01",
+        "say": "How well does a query match a key? Multiply them, piece by piece, and add. That's a dot product. Watch what that number does as the query turns. Pointing the same way, it's high. Pointing apart, it falls.",
+        "hold": 0.4
+      },
+      {
+        "id": "c03-b02",
+        "say": "Length counts too. Keep the query fixed. A short key points exactly along it and scores point seven five. A longer key points farther away and scores point nine five. A dot product measures length as well as angle.",
+        "hold": 0.4
+      },
+      {
+        "id": "c03-b03",
+        "say": "Hold the query for sing still. Against the birds key, point five times point eight, plus one times point two, gives point six. Keep that query. Now try the sing key. What score do you get?",
+        "hold": 2
+      },
+      {
+        "id": "c03-b04",
+        "say": "One point oh five. So sing matches itself better than it matches birds, but birds isn't zero. Remember that.",
+        "hold": 1.6
+      }
+    ]
+  },
+  {
+    "id": "c04",
+    "title": "Scores become shares",
+    "sourceChapters": [
+      "c04"
+    ],
+    "beats": [
+      {
+        "id": "c04-b01",
+        "say": "Before we use these scores, we divide by the square root of the key width, which is how many numbers each key holds. We'll earn that step in a few minutes. With a width of two, that's root two. Point four two, and point seven four.",
+        "hold": 0.7
+      },
+      {
+        "id": "c04-b02",
+        "say": "Softmax turns those into shares that add up to exactly one. Papers call the scaled scores logits, and the shares attention weights. Raise e to each score, then divide by the total. Forty two percent for birds, and fifty eight percent for sing.",
+        "hold": 1.6
+      },
+      {
+        "id": "c04-b03",
+        "say": "These shares compete. Add one to the sing logit and keep the Birds logit fixed. Watch the seam move. Sing now has about seventy nine percent. Birds gets the rest. The two still fill one whole row.",
+        "hold": 0.4
+      }
+    ]
+  },
+  {
+    "id": "c05",
+    "title": "The answer is a mixture",
+    "sourceChapters": [
+      "c05"
+    ],
+    "beats": [
+      {
+        "id": "c05-b01",
+        "say": "We're back at the opening split. The query and the keys gave us the shares. Now bring in the two values. Each has two coordinates, so each source has two numbers to contribute.",
+        "hold": 0.4
+      },
+      {
+        "id": "c05-b02",
+        "say": "Birds hands over two, one. Sing hands over one, two. Take forty two percent of each blue coordinate and fifty eight percent of each red coordinate. Join the two cut pieces in each row.",
+        "hold": 0.3
+      },
+      {
+        "id": "c05-b03",
+        "say": "One point four two, one point five eight. That's the vector attention hands back to sing. In the first coordinate, the blue piece extends farther than the red piece. Now compare the other seam.",
+        "hold": 0.3
+      },
+      {
+        "id": "c05-b04",
+        "say": "The red piece supplies more of the second coordinate. The same two shares produced both seams.",
+        "hold": 1.8
+      },
+      {
+        "id": "c05-b05",
+        "say": "With dropout off, the shares are positive and add to one, so the output lands on the segment between the values. During training, attention dropout divides each surviving weight by its keep probability. Here each weight has a one-half chance of surviving. Suppose Birds drops out and sing survives. What weight does sing use?",
+        "hold": 2.5
+      },
+      {
+        "id": "c05-b06",
+        "say": "Point five eight divided by one half gives about one point one six. With that weight on sing alone, the output lands beyond the segment. The weights in this draw add to more than one. Later layers can move the point again.",
+        "hold": 0.4
+      }
+    ]
+  },
+  {
+    "id": "c06",
+    "title": "One line for every word",
+    "sourceChapters": [
+      "c06"
+    ],
+    "beats": [
+      {
+        "id": "c06-b01",
+        "say": "In one pass over a sentence, every word does this together, so stack the vectors into matrices. Q, K, and V.",
+        "hold": 0.3
+      },
+      {
+        "id": "c06-b02",
+        "say": "Q times K transposed gives every score at once. Divide by root d, where d is the key width. Softmax each row, so every word gets its own shares. Multiply by V. That's scaled dot product attention, in one line.",
+        "hold": 0.5
+      },
+      {
+        "id": "c06-b03",
+        "say": "Run both rows through it. Birds gives fifty three percent to itself and forty seven to sing, and lands at one point five three, one point four seven. Sing gets the shares we just worked out.",
+        "hold": 1.4
+      },
+      {
+        "id": "c06-b04",
+        "say": "Now watch the shapes, because this is where code goes wrong. Q has one row per query, and K has one row per key, and their widths must match. Transposing K turns its rows into columns, so every query meets every key.",
+        "hold": 0.3
+      },
+      {
+        "id": "c06-b05",
+        "say": "The score grid gets one row per query and one column per key. Forget the transpose, and you usually get a crash. But if the number of keys happens to equal the key width, it runs and computes the wrong thing. So test with unequal sizes.",
+        "hold": 1
+      },
+      {
+        "id": "c06-b06",
+        "say": "Softmax runs across each row, over the keys, so each query gets its own budget of one. Run it over the queries instead, and you silently get a different operation. Rows add to one. Columns don't have to. Here the mistake even passes a row sum check. Look at sing's weight on Birds. Our hand calculation gave forty two percent. Normalizing down the columns gives forty five.",
+        "hold": 0.3
+      },
+      {
+        "id": "c06-b07",
+        "say": "Here they're about point nine five and one point oh five in the correct matrix. These are the column totals. One source can feed many readers.",
+        "hold": 0.4
+      },
+      {
+        "id": "c06-b08",
+        "say": "Then multiply by V. The key axis is replaced by the width of a value, so you get one output row per query. Take five queries and twenty keys, each sixty four numbers wide. What happens if each value is one hundred twenty eight numbers wide?",
+        "hold": 2.4
+      },
+      {
+        "id": "c06-shapes",
+        "say": "In each batch item and head, the weights have five rows and twenty columns. Each of those five rows mixes twenty values into one row of width one hundred twenty eight.",
+        "hold": 0.8
+      }
+    ]
+  },
+  {
+    "id": "c07",
+    "title": "Masks: the future and the padding",
+    "sourceChapters": [
+      "c07"
+    ],
+    "beats": [
+      {
+        "id": "c07-b01",
+        "say": "One more rule. Scores say what's relevant. A mask says what's allowed. While a model generates text, a word can't read words that don't exist yet. In training those words do exist, so without a mask the model can read the very answer it's meant to predict. Its loss looks good, and then generation fails.",
+        "hold": 0.4
+      },
+      {
+        "id": "c07-b02",
+        "say": "After scaling and before softmax, set blocked logits to negative infinity. Try logits two, one, and five. Block the third key. The first two split the whole budget, about seventy three and twenty seven percent. Softmax first and erase the last share afterward, and only about six percent of the budget survives.",
+        "hold": 0.4
+      },
+      {
+        "id": "c07-b03",
+        "say": "Birds can only read itself, so it keeps its own value. Sing can read both. Do that for a whole sentence, and the allowed reads form a triangle. Each word can read itself and everything before it, and nothing after.",
+        "hold": 0.9
+      },
+      {
+        "id": "c07-b04",
+        "say": "Padding needs its own care. A batch fills short sentences with fake tokens, and a padding mask stops every query from reading them. But a fake token can also be a query.",
+        "hold": 0.3
+      },
+      {
+        "id": "c07-b05",
+        "say": "With left padding, where the fake tokens come first, the triangle and the padding mask together can leave it with no key it's allowed to read.",
+        "hold": 0.4
+      },
+      {
+        "id": "c07-b06",
+        "say": "Softmax has no answer for a row with nothing allowed. The textbook formula gives not a number, and some fast implementations, called kernels, quietly return zeros. And don't paper over it with a large negative number.",
+        "hold": 0.3
+      },
+      {
+        "id": "c07-b07",
+        "say": "Fill all three blocked logits with minus ten thousand. They tie, so softmax invents three equal shares. Every real query needs at least one allowed key. Skip the padded queries or zero their outputs explicitly.",
+        "hold": 0.8
+      }
+    ]
+  },
+  {
+    "id": "c08",
+    "title": "Why divide by the square root?",
+    "sourceChapters": [
+      "c08"
+    ],
+    "beats": [
+      {
+        "id": "c08-b01",
+        "say": "Now, that division. In our toy example, scaling changes the shares by just a few percentage points. Why might wider vectors need it? Watch the score spread.",
+        "hold": 0.4
+      },
+      {
+        "id": "c08-b02",
+        "say": "Take a simple model. Every number in the query and the key is random and independent, with average zero and variance one. Each product in the dot product then has variance one as well.",
+        "hold": 0.3
+      },
+      {
+        "id": "c08-b03",
+        "say": "Add up d of those products, and their variances add, so the total variance is d, and the standard deviation is root d.",
+        "hold": 1
+      },
+      {
+        "id": "c08-b04",
+        "say": "At width sixty four, that's a standard deviation of eight. At five hundred twelve, about twenty three. The raw scores spread out as the vectors get wider.",
+        "hold": 0.4
+      },
+      {
+        "id": "c08-b05",
+        "say": "And softmax cares about gaps, not sizes. Add a thousand to every score, and the shares don't change at all. But a gap of ten makes one share about twenty two thousand times bigger than another.",
+        "hold": 0.3
+      },
+      {
+        "id": "c08-b06",
+        "say": "If one key leads all the others by that much, and there are only a few keys, nearly all the share lands on it.",
+        "hold": 0.9
+      },
+      {
+        "id": "c08-b07",
+        "say": "Why does that hurt? Learning depends on how much the output changes when a score changes. With three tied keys, nudging one score moves its share by about point two two per unit of score.",
+        "hold": 0.3
+      },
+      {
+        "id": "c08-b08",
+        "say": "With a twenty point lead, the same nudge moves the leader's share by about four billionths. So the gradient through the scores nearly vanishes, and that row can barely learn to look somewhere else.",
+        "hold": 0.3
+      },
+      {
+        "id": "c08-b09",
+        "say": "The leading key's value can still learn, because changing it still moves the output.",
+        "hold": 0.5
+      },
+      {
+        "id": "c08-b10",
+        "say": "So divide by root d. Dividing a number by root d divides its variance by d, so the variance returns to one at every width. Eight shrinks back to one. Why not divide by d?",
+        "hold": 0.3
+      },
+      {
+        "id": "c08-b11",
+        "say": "Because the spread grows like root d, so dividing by d would shrink the scores more and more as the vectors widen.",
+        "hold": 0.9
+      },
+      {
+        "id": "c08-b12",
+        "say": "We got that spread of one by drawing each coordinate independently. A trained head builds queries and keys from shared states, so their coordinates can be correlated. To see the spread that head actually uses, measure its scores across inputs.",
+        "hold": 0.5
+      }
+    ]
+  },
+  {
+    "id": "c09",
+    "title": "Who may read whom",
+    "sourceChapters": [
+      "c09"
+    ],
+    "beats": [
+      {
+        "id": "c09-b01",
+        "say": "The formula doesn't decide who may read whom. The mask and the sources of Q, K, and V do. That gives three common patterns.",
+        "hold": 0.3
+      },
+      {
+        "id": "c09-b02",
+        "say": "First, bidirectional self attention. Q, K, and V all come from one sequence, and each real token can read all the others, before and after it. Encoders are models that read a complete input, such as BERT and the original Vision Transformer.",
+        "hold": 0.3
+      },
+      {
+        "id": "c09-b03",
+        "say": "They work this way because the whole input is already there. If there's any padding, that's all you mask.",
+        "hold": 0.4
+      },
+      {
+        "id": "c09-b04",
+        "say": "Second, causal self attention. It's the same single sequence, with the triangle you just saw. Decoders generate output one token at a time. Decoder only models, such as GPT style models, use it to predict the next token.",
+        "hold": 0.4
+      },
+      {
+        "id": "c09-b05",
+        "say": "Third, cross attention. Queries come from one sequence, and keys and values come from another. In the original Transformer, a decoder state asks the question, and the encoder's outputs answer it. So the grid doesn't have to be square. Two target queries reading three source positions make a two by three grid.",
+        "hold": 0.4
+      },
+      {
+        "id": "c09-b06",
+        "say": "If the source has padding, block its column for every decoder query. An offline translator can still read real source words to the right because the whole source is already available.",
+        "hold": 0.5
+      }
+    ]
+  },
+  {
+    "id": "c10",
+    "title": "One token read by several heads",
+    "sourceChapters": [
+      "c10"
+    ],
+    "beats": [
+      {
+        "id": "c10-b01",
+        "say": "One head gives each query one set of shares. Several heads let the same token use several sets at once. In standard multi head attention, each head has its own learned matrices, even when the code stores them as one big matrix and splits the result. So each head can score the same words differently.",
+        "hold": 0.4
+      },
+      {
+        "id": "c10-b02",
+        "say": "Let's see it. Imagine the model is four numbers wide, with two heads, each two wide. Each head projects the whole state down to its own two numbers. Choose projections that give head one the same two-dimensional query, keys and values we just used. Sing gives forty two percent to birds, and lands at one point four two, one point five eight.",
+        "hold": 1.5
+      },
+      {
+        "id": "c10-b03",
+        "say": "Head two uses different projections. Its values are zero, one for birds and one, zero for sing. Now sing gives sixty seven percent to birds and thirty three to itself. Which output coordinate is larger?",
+        "hold": 2
+      },
+      {
+        "id": "c10-b04",
+        "say": "The second. Only Birds has a one there. Sing has its one in the first coordinate. The output is point three three, point six seven. Same words, different reading.",
+        "hold": 1.5
+      },
+      {
+        "id": "c10-b05",
+        "say": "Put the outputs side by side, and you're back to four numbers. A learned output matrix mixes them, and the result is added to the token's state. So a layer adjusts the state rather than replacing it.",
+        "hold": 0.5
+      },
+      {
+        "id": "c10-b06",
+        "say": "Keep eight tokens and a total width of five hundred twelve. Compare one wide head with eight heads of width sixty four. Follow one query and one key. The wide head adds up five hundred twelve products for their score. Each narrow head adds up sixty four.",
+        "hold": 0.3
+      },
+      {
+        "id": "c10-b07",
+        "say": "Across eight heads that's the same number of products. Splitting the value width the same way also preserves the leading work of mixing the values. Each head still runs its own softmax over the keys.",
+        "hold": 0.5
+      },
+      {
+        "id": "c10-b08",
+        "say": "Count the bright cells for that pair. The wide head stores one score. The eight narrow heads store eight. Over the whole sentence there are sixty four pairs.",
+        "hold": 0.3
+      },
+      {
+        "id": "c10-b09",
+        "say": "If we save all the scores, that's sixty four numbers in one layout and five hundred twelve in the other. At the same precision the stored scores take eight times the memory.",
+        "hold": 1
+      },
+      {
+        "id": "c10-b10",
+        "say": "Compare two illustrative heads in the full sentence. Read the garden row first. Follow the thread of each head to its largest share. Head one reads the previous word, the. Head two reads the first word, Birds.",
+        "hold": 0.3
+      },
+      {
+        "id": "c10-b11",
+        "say": "Move the reader one word to sing. Follow both threads. Head one shifts its gaze to garden. Head two stays on Birds. Does head two follow the subject or the first position? Move the subject. Try At dawn birds sing.",
+        "hold": 2.3
+      },
+      {
+        "id": "c10-b12",
+        "say": "For this example head, the largest share goes to At. The subject is now birds, at position three if we count from one. This second sentence separates the two explanations. A pattern on a single sentence is only a hypothesis.",
+        "hold": 0.5
+      }
+    ]
+  },
+  {
+    "id": "c11",
+    "title": "Read the paper through the mechanism",
+    "sourceChapters": [
+      "c11"
+    ],
+    "beats": [
+      {
+        "id": "c11-b01",
+        "say": "Let's read the source through the mechanism we have built. Attention Is All You Need is the 2017 Transformer paper by Vaswani and colleagues. Equation one writes the unmasked calculation we just followed.",
+        "hold": 0.8
+      },
+      {
+        "id": "c11-b02",
+        "say": "Here, Q holds the queries and K the keys. Q times K transpose makes the grid of query key dot products. The denominator is the square root of d k, the key width. Softmax runs across the keys for each query.",
+        "hold": 0.3
+      },
+      {
+        "id": "c11-b03",
+        "say": "Multiplying those shares by V gives a weighted blend of values. Our two word row is one row of this equation.",
+        "hold": 1.2
+      },
+      {
+        "id": "c11-b04",
+        "say": "The left half of Figure two draws the same data path from the bottom upward. Q and K enter the lower matrix multiply. Scale divides its scores, the optional mask excludes disallowed keys, and softmax forms the shares.",
+        "hold": 0.3
+      },
+      {
+        "id": "c11-b05",
+        "say": "V joins at the upper matrix multiply, where those shares mix the value rows. Follow the arrows. The weights choose the route, and the values carry what moves along it.",
+        "hold": 1
+      },
+      {
+        "id": "c11-b06",
+        "say": "On the right, the stacked Linear blocks are learned projections, one set for each head. For self attention, their inputs come from the same token states, while the projection parameters differ between heads.",
+        "hold": 0.3
+      },
+      {
+        "id": "c11-b07",
+        "say": "Read the first product as Q times head i's query projection. The next two multiply K by that head's key projection and V by its value projection. The raised letter on each W names its role. Each head then runs the left hand calculation.",
+        "hold": 0.3
+      },
+      {
+        "id": "c11-b08",
+        "say": "The h marks the number of heads. Our drawing used two.",
+        "hold": 1.2
+      },
+      {
+        "id": "c11-b09",
+        "say": "Concat joins the head outputs side by side. The last Linear is the learned output projection, W O. This diagram stops at attention's projected result. The residual addition we showed belongs to the surrounding Transformer block. The paper's equation, its arrows, and our moving vectors describe the same score, share, and mix mechanism.",
+        "hold": 1.5
+      }
+    ]
+  },
+  {
+    "id": "c12",
+    "title": "Follow the output point",
+    "sourceChapters": [
+      "c12"
+    ],
+    "beats": [
+      {
+        "id": "c12-b01",
+        "say": "Find the gold point. That's the output of our original read. The blue ring marks the Birds value and the red ring marks the sing value. Dropout is off. Raise the Birds logit by one and leave the sing logit alone. More of the row goes to Birds. The point travels toward its blue ring.",
+        "hold": 0.7
+      },
+      {
+        "id": "c12-b02",
+        "say": "How strong is that pull? For a small increase in one logit, the change per unit is its share times the difference between its value and the current output. A training loss can use that movement to adjust the query and key projections through backpropagation.",
+        "hold": 0.7
+      },
+      {
+        "id": "c12-b03",
+        "say": "Put the score back. Here the slope is about point two four in the first coordinate and minus point two four in the second. Now give both sources the same value, three, minus one. The rings meet. Birds has forty two percent again.",
+        "hold": 0.3
+      },
+      {
+        "id": "c12-b04",
+        "say": "Raise its logit by one, just as before. Its share climbs to sixty six percent. Where will the gold output point land?",
+        "hold": 2
+      },
+      {
+        "id": "c12-b05",
+        "say": "The gold point lands where the rings meet, at three, minus one. Give Birds its old logit back. Its share drops to forty two percent and the point stays put. Both routes deliver the same vector, and together the shares still add to one.",
+        "hold": 0.3
+      },
+      {
+        "id": "c12-b06",
+        "say": "The gradient through either score is zero. The values can still learn. If the loss changes when this output moves, each value receives its share of that gradient.",
+        "hold": 1.2
+      },
+      {
+        "id": "c12-b07",
+        "say": "Keep those scores. Bring back the two distinct values. This time block Birds before softmax. Sing gets the whole read. Raise the sing logit by one. Its share stays at one because it's the only allowed key. Once again the routing gradient for this row is zero.",
+        "hold": 0.8
+      },
+      {
+        "id": "c12-b08",
+        "say": "Let Birds back in and restore the original logits. Now add four to the sing logit. Birds still has a share, just over one percent. The output nearly reaches the sing value. A large gap can leave very little gradient through the scores even when both keys are legal.",
+        "hold": 0.3
+      },
+      {
+        "id": "c12-b09",
+        "say": "Scaling helps control those gaps. To trace what reaches the rest of the model, follow the weighted values through the output projection and the later layers.",
+        "hold": 0.9
+      }
+    ]
+  },
+  {
+    "id": "c13",
+    "title": "Why long sequences get expensive",
+    "sourceChapters": [
+      "c13"
+    ],
+    "beats": [
+      {
+        "id": "c13-b01",
+        "say": "Now the bill. Each query meets each key. Four tokens make sixteen scores. Double to eight tokens, and you get sixty four. Doubling the length makes the grid four times bigger.",
+        "hold": 0.4
+      },
+      {
+        "id": "c13-b02",
+        "say": "At real sizes, that hurts. Take a batch of eight, thirty two heads, eight thousand one hundred ninety two tokens, and two bytes per score. Multiply them, with the token count squared. That's about thirty four gigabytes for one temporary stack of score grids, before the model's weights or anything else.",
+        "hold": 1.5
+      },
+      {
+        "id": "c13-b03",
+        "say": "Notice when this happens. In training and prompt processing, all the tokens run together, and a naive implementation stores that whole grid in the GPU's main memory. Generating text is a different problem.",
+        "hold": 0.4
+      },
+      {
+        "id": "c13-size",
+        "say": "Try a smaller batch. Four requests, sixteen heads, four thousand ninety six tokens and two bytes per score. Multiply those five factors, counting sequence length twice. The tensor alone occupies exactly two gibibytes. A gibibyte is two to the thirtieth bytes.",
+        "hold": 0.8
+      }
+    ]
+  },
+  {
+    "id": "c14",
+    "title": "One new token at a time",
+    "sourceChapters": [
+      "c14"
+    ],
+    "beats": [
+      {
+        "id": "c14-b01",
+        "say": "When a model generates, it adds one token at a time, so there's one new query, and the grid shrinks to a single row. Earlier keys and values are saved in the K V cache. In ordinary full attention, that new query scores against every cached key, and mixes every cached value.",
+        "hold": 0.4
+      },
+      {
+        "id": "c14-b02",
+        "say": "This is where a small mistake breaks things. Say the new query sits at position four, counting from zero. In this one row batch, it's row zero. Build a triangle from local row numbers, and it can read only key zero. Most of its history is gone.",
+        "hold": 0.3
+      },
+      {
+        "id": "c14-b03",
+        "say": "It should read all five keys, because none is in the future. Use absolute positions. Now mark key one as padding. Query three may read zero, two, and three. Query four also picks up four. Both skip key one.",
+        "hold": 0.8
+      },
+      {
+        "id": "c14-b04",
+        "say": "In decoding, the score grid usually isn't the problem, because each new query makes only one row. The cache is. It has to fit in the GPU's main memory, and for each new token it's read again onto the chip, so memory capacity or bandwidth can become the limit.",
+        "hold": 0.4
+      },
+      {
+        "id": "c14-b05",
+        "say": "One answer is to store fewer key and value heads. In multi query attention, all the query heads share one key head and one value head. Grouped query attention sits in between, and each group of query heads shares one.",
+        "hold": 0.4
+      },
+      {
+        "id": "c14-b06",
+        "say": "Here's a hypothetical layout. Eighty layers, sixty four query heads of width one hundred twenty eight, sixteen requests of eight thousand one hundred ninety two tokens, keys and values stored separately, and two bytes per number.",
+        "hold": 0.3
+      },
+      {
+        "id": "c14-b07",
+        "say": "With sixty four key and value heads, the cache holds about three hundred forty four gigabytes. With eight, about forty three. With one, about five.",
+        "hold": 1.6
+      },
+      {
+        "id": "c14-b08",
+        "say": "There are limits. Each query head still computes its own scores, so sharing shrinks the cache, not a stored score grid. And you can't just reshape a trained model's cache.",
+        "hold": 0.3
+      },
+      {
+        "id": "c14-b09",
+        "say": "The saved model has to be trained for the new layout, or converted from an existing model and then trained further, and you still need to measure quality on your own task.",
+        "hold": 0.5
+      }
+    ]
+  },
+  {
+    "id": "c15",
+    "title": "When the numbers overflow",
+    "sourceChapters": [
+      "c15"
+    ],
+    "beats": [
+      {
+        "id": "c15-b01",
+        "say": "Softmax has one more practical trap. It raises e to each score, and e to the one thousand is too big for standard floating point. It becomes infinity, and infinity over infinity is not a number.",
+        "hold": 0.4
+      },
+      {
+        "id": "c15-b02",
+        "say": "The fix uses what we just learned. Only gaps matter, so subtract the largest score from every score first. A thousand, a thousand and one, and nine hundred ninety nine become minus one, zero, and minus two.",
+        "hold": 0.3
+      },
+      {
+        "id": "c15-b03",
+        "say": "The same factor cancels from the top and the bottom, so the shares don't change. Twenty four, sixty seven, and nine percent. For finite scores, the largest term is now e to the zero, which is one.",
+        "hold": 0.9
+      },
+      {
+        "id": "c15-b04",
+        "say": "That can't rescue a score that has already broken. In the common sixteen bit format called F P sixteen, which takes two bytes per number, the largest number is about sixty five thousand.",
+        "hold": 0.3
+      },
+      {
+        "id": "c15-b05",
+        "say": "In F P sixteen, storing the score three hundred times three hundred overflows to infinity. Some kernels accumulate in a wider type. What matters here is the intermediate that reaches softmax. Casting infinity to thirty two bits keeps infinity. Recompute the dot product with a wide enough result and it gives ninety thousand.",
+        "hold": 0.5
+      }
+    ]
+  },
+  {
+    "id": "c16",
+    "title": "Exact attention, with or without the grid",
+    "sourceChapters": [
+      "c16"
+    ],
+    "beats": [
+      {
+        "id": "c16-b01",
+        "say": "Back to that temporary grid. A data center GPU has a large main memory, called H B M, and much smaller, faster memory on the chip.",
+        "hold": 0.3
+      },
+      {
+        "id": "c16-b02",
+        "say": "A naive kernel writes the whole score grid to main memory, reads it back for softmax, writes the result, and reads that back to mix the values. Those trips can take more time than the arithmetic.",
+        "hold": 0.4
+      },
+      {
+        "id": "c16-b03",
+        "say": "FlashAttention starts from a simple point. The grid is only a step on the way to the output, so don't store it. Hold a block of queries on the chip, and stream small blocks of keys and values past it. These blocks are called tiles.",
+        "hold": 0.4
+      },
+      {
+        "id": "c16-b04",
+        "say": "But subtracting the largest score from every score needs the largest score in the row, and we haven't seen the whole row yet. Online softmax handles that with two running numbers, the largest score so far and the running sum of exponentials.",
+        "hold": 0.3
+      },
+      {
+        "id": "c16-b05",
+        "say": "FlashAttention adds one more running total, the weighted sum of values. When a larger score arrives, multiply both sums by e to the old maximum minus the new maximum, and carry on.",
+        "hold": 0.5
+      },
+      {
+        "id": "c16-b06",
+        "say": "Try it with one number in each value. The first tile has score one thousand and value two. Subtract that score from itself and the exponent is zero. So the running sum is one, and the weighted sum is two.",
+        "hold": 0.9
+      },
+      {
+        "id": "c16-b07",
+        "say": "The next tile brings two pairs. The score one thousand and one carries value one. Nine hundred ninety nine carries four. Look at the old maximum and the new high score. What factor should we apply to both sums from the first tile?",
+        "hold": 3
+      },
+      {
+        "id": "c16-b08",
+        "say": "The maximum moved up by one, so multiply both old sums by e to the minus one. One unit of mass becomes about point three seven. Two units in the weighted sum become about point seven four. Now add the new terms.",
+        "hold": 0.3
+      },
+      {
+        "id": "c16-b09",
+        "say": "The new high score has a shifted score of zero. It adds one unit of mass and one unit of weighted value. The low score sits two below the maximum. It adds about point one four of mass, and four times that much to the weighted sum. We've counted three values.",
+        "hold": 0.3
+      },
+      {
+        "id": "c16-b10",
+        "say": "To get their weighted average, do we divide by the total mass or by three?",
+        "hold": 3
+      },
+      {
+        "id": "c16-b11",
+        "say": "Divide the weighted sum by the mass. Only the highest score contributes a full unit to the mass. The other two contribute fractions. The output is about one point five one. A single softmax over all three scores gives the same answer.",
+        "hold": 1.4
+      },
+      {
+        "id": "c16-b12",
+        "say": "FlashAttention computes exact attention up to floating point rounding. Tiles preserve the contribution of every allowed key. Once a tile has contributed to the output, its scores can go. Saving row statistics takes space proportional to the number of queries. On the backward pass the kernel recomputes the tiles.",
+        "hold": 0.3
+      },
+      {
+        "id": "c16-b13",
+        "say": "That extra arithmetic saves trips to main memory. To see what that trade buys on your GPU, time a training step at your sequence length.",
+        "hold": 0.5
+      },
+      {
+        "id": "c16-b14",
+        "say": "Keep the two fixes apart. If training is limited by storing and moving score grids, that's temporary data, and FlashAttention targets it. If generation is limited by storing and reading the cache, that's persistent data, and multi query or grouped query attention targets it.",
+        "hold": 0.5
+      },
+      {
+        "id": "c16-transfer",
+        "say": "Change the second tile's high score to one thousand and two. The old maximum was one thousand. What happens to the old unit of mass?",
+        "hold": 2.7
+      },
+      {
+        "id": "c16-resolve",
+        "say": "It becomes e to the minus two. The new high adds one. The low score is now three below the maximum and adds e to the minus three. The updated mass is about one point one nine.",
+        "hold": 0.8
+      }
+    ]
+  },
+  {
+    "id": "c17",
+    "title": "Reading the symptoms",
+    "sourceChapters": [
+      "c17"
+    ],
+    "beats": [
+      {
+        "id": "c17-b01",
+        "say": "When attention misbehaves, the symptom usually points to the step. A shape error, or wrong scores when the sizes happen to match, points to a missing transpose.",
+        "hold": 0.3
+      },
+      {
+        "id": "c17-b02",
+        "say": "With attention dropout off, a real query's row that doesn't add to one points to softmax on the wrong axis, or to a mask applied after softmax. Shares that pile onto one key as the width grows point to missing scaling.",
+        "hold": 0.8
+      },
+      {
+        "id": "c17-b03",
+        "say": "If you see not a number, check in order. Are the inputs finite? Did the scores overflow before masking? Does each row have a key it may read? Only then look at softmax.",
+        "hold": 0.4
+      },
+      {
+        "id": "c17-b04",
+        "say": "A new token that reads only the start of its history points to local row indices in a cached mask. A decoder reading fake tokens points to a missing padding mask. For long contexts, count temporary score storage, persistent cache storage, and arithmetic separately. Measure runtime on the target device.",
+        "hold": 0.5
+      }
+    ]
+  },
+  {
+    "id": "c18",
+    "title": "Change the reader",
+    "sourceChapters": [
+      "c18"
+    ],
+    "beats": [
+      {
+        "id": "c18-b01",
+        "say": "Here are the same two source tokens. Keep their keys and values fixed. Give a separate reader the state one, three. Multiply that row by the same query matrix. The new query is two point five, three point five. Compare its two dot products with the old ones. Which source gains share?",
+        "hold": 5
+      },
+      {
+        "id": "c18-b02",
+        "say": "Multiply across each key. Birds scores two point seven. Sing scores three point nine. Both scores rose. Subtract the Birds score from the sing score. With the old query, sing led by point four five. Now it leads by one point two. Divide both scores by root two and run softmax over the pair.",
+        "hold": 0.6
+      },
+      {
+        "id": "c18-b03",
+        "say": "Birds gets about thirty percent and sing gets about seventy. Sing gains. Keep those shares. Cut thirty percent from each blue value coordinate and seventy percent from each red one. Join the pieces in each row. What are the two output coordinates?",
+        "hold": 2.8
+      },
+      {
+        "id": "c18-b04",
+        "say": "About one point three, one point seven.",
+        "hold": 1.6
+      }
+    ]
+  },
+  {
+    "id": "c19",
+    "title": "Keep the shares",
+    "sourceChapters": [
+      "c19"
+    ],
+    "beats": [
+      {
+        "id": "c19-b01",
+        "say": "Leave the reader and both keys alone. The blue chalk mark stays at thirty percent. Give the second Birds value two extra units, from one to three. Keep the red value fixed. Which output coordinate changes, and by how much?",
+        "hold": 3.5
+      },
+      {
+        "id": "c19-b02",
+        "say": "Keep the first seam in place. Slide the red piece to make room for the extra blue cloth. The second coordinate rises by about point six. Birds carries two extra units there, and this reader takes thirty percent of them. The red piece keeps its length. The first coordinate is still one point three. The second is now two point three.",
+        "hold": 1.4
+      },
+      {
+        "id": "c19-b03",
+        "say": "The output projection mixes this blend with the other heads' outputs. The residual connection adds the result to the reader's state. The next block can read from states that already carry context.",
+        "hold": 0.5
+      },
+      {
+        "id": "c19-b04",
+        "say": "Now take an image of a bird. Cut it into four patches. In a vision transformer's image encoder, each patch has a token. Which patches may the top left patch read?",
+        "hold": 2
+      },
+      {
+        "id": "c19-b05",
+        "say": "In full bidirectional attention it can read all four patches, including itself. The whole image is already there. That's the read we'll build in the next lesson.",
+        "hold": 1.6
+      }
+    ]
+  }
+]

@@ -1,0 +1,15 @@
+{
+  "framing": "More devices create more choices",
+  "paragraphs": [
+    "Eight available GPUs can form one large serving group or several smaller replicas. Both plans use every device while producing different waits, memory limits, and costs. Before choosing a rank count, separate three questions: can the model and request state fit, how long does one request take, and how much useful traffic can the deployment sustain?",
+    "The answers depend on where tensors live and when their owners must communicate. A total memory sum can hide one overloaded rank. Dividing weights may stop reducing local KV state when heads are replicated. A pipeline can have idle stages without multiplying one request's compute time. Profile the actual deployment before drawing speed conclusions from a capacity calculation.",
+    "You will begin with actual tensor slices: a column-parallel expansion and row-parallel projection reconstruct the dense MLP result. The chapter then counts communication, traces pipeline fill and drain, and follows long-context state across devices. A numerical attention example shows how to combine locally normalized outputs using their partition weights. Expert dispatch adds another placement axis before worked candidate comparisons separate fit, latency eligibility, and unit cost.",
+    "Tensor shapes, attention, and the cache and scheduler models from earlier chapters provide the foundations here. The distributed-training chapter introduces familiar names, while inference changes what must be stored and which delays users observe. Inspect the local examples on a single machine, then profile the deployment to measure topology, per-rank allocations, and sustained client-visible behavior. The next chapter develops expert routing more fully."
+  ],
+  "outcomes": [
+    "Reconstruct a sharded MLP and identify the required reduction and bias placement.",
+    "Distinguish tensor, pipeline, context, and expert partitioning by state and communication.",
+    "Compare serving layouts using per-rank fit, latency targets, and useful work per cost."
+  ],
+  "question": "Which resource does another rank relieve, and which new dependency does it place on the request's critical path?"
+}

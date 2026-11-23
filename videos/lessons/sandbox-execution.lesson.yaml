@@ -1,0 +1,855 @@
+version: 1
+id: sandbox-execution
+title: Giving Generated Code a Safe Place to Run
+source: agents/code-generation-agents-sandboxing/content.md
+voice: en-US-AndrewNeural
+rate: +0%
+sources:
+  - title: Docker Engine security
+    url: https://docs.docker.com/engine/security/
+  - title: gVisor security model
+    url: https://gvisor.dev/docs/architecture_guide/security/
+  - title: Firecracker design and security
+    url: https://github.com/firecracker-microvm/firecracker/blob/main/docs/design.md
+  - title: WebAssembly Core Specification
+    url: https://webassembly.github.io/spec/core/
+  - title: Wasmtime security
+    url: https://docs.wasmtime.dev/security.html
+  - title: Evaluating Large Language Models Trained on Code
+    url: https://arxiv.org/abs/2107.03374
+  - title: Linux cgroup v2 resource and lifecycle semantics
+    url: https://docs.kernel.org/admin-guide/cgroup-v2.html
+  - title: Wasmtime interrupting execution
+    url: https://docs.wasmtime.dev/examples-interrupting-wasm.html
+  - title: Python ElementTree namespace and existence semantics
+    url: https://docs.python.org/3/library/xml.etree.elementtree.html
+scenes:
+  - id: subject-intro
+    title: A useful traceback arrives with a dangerous process
+    visual: A parser attempt fails on a test report; the traceback points to the missing child element while the
+      candidate code sits behind a host-controlled boundary.
+    beats:
+      - say: A coding agent writes a small parser for a test report. The first attempt assumes every test case has a
+          status attribute and stops with a KeyError.
+        hold: 0.55
+        visual_cues:
+          - id: subject-intro-b1-1
+            phrase: KeyError
+            targets:
+              - subject-intro-mechanism
+            linger: 0.45
+      - say: The traceback gives a precise clue for the next attempt. Running generated code directly with the host
+          user’s authority can give that code access to files, network routes, and a share of the host’s
+          resources.
+        hold: 0.75
+        visual_cues:
+          - id: subject-intro-b2-1
+            phrase: traceback
+            targets:
+              - subject-intro-mechanism
+            linger: 0.45
+          - id: subject-intro-b2-2
+            phrase: host’s resources
+            targets:
+              - subject-intro-mechanism
+            linger: 0.45
+          - id: subject-intro-host-authority
+            phrase: directly with the host user’s authority
+            targets:
+              - subject-intro-mechanism
+            linger: 0.7
+      - say: "We need two cooperating systems: a repair loop that uses bounded evidence, and an execution boundary
+          that limits what the candidate can reach."
+        hold: 0.55
+        visual_cues:
+          - id: subject-intro-b3-1
+            phrase: execution boundary
+            targets:
+              - subject-intro-mechanism
+            linger: 0.45
+  - id: evidence-loop
+    title: Feedback makes the next patch respond to a real failure
+    visual: The same XML fixture moves through a flawed parser, a bounded error report, and a repaired parser that
+      finds child failure elements in source order.
+    beats:
+      - say: Start with a contract. For this fixture, report failed or errored tests as class and name, keep
+          first-seen order, and remove duplicate pairs.
+        hold: 0.55
+        visual_cues:
+          - id: evidence-loop-b1-1
+            phrase: failed or errored tests
+            targets:
+              - evidence-loop-mechanism
+            linger: 0.45
+          - id: evidence-loop-b1-2
+            phrase: class and name
+            targets:
+              - evidence-loop-mechanism
+            linger: 0.45
+      - say: The initial parser asks for a status attribute that the fixture does not contain. A useful report names
+          the command, exit code, KeyError, and a byte-limited excerpt.
+        hold: 0.75
+        visual_cues:
+          - id: evidence-loop-b2-1
+            phrase: status attribute
+            targets:
+              - evidence-loop-mechanism
+            linger: 0.45
+      - say: The repair reads direct failure and error children, handles the report namespace, and checks the fixture.
+          Its result shows this test contract; broader XML producers still need their own cases.
+        hold: 0.55
+        visual_cues:
+          - id: evidence-loop-b3-1
+            phrase: failure and error children
+            targets:
+              - evidence-loop-mechanism
+            linger: 0.45
+          - id: evidence-loop-b3-2
+            phrase: result
+            targets:
+              - evidence-loop-mechanism
+            linger: 0.45
+          - id: evidence-loop-scan-cases
+            phrase: The repair reads direct failure and error children
+            targets:
+              - evidence-loop-mechanism
+            linger: 0.7
+      - say: "The namespace and child depth are part of this contract. A direct skipped child in the root namespace
+          wins even when a direct error also exists. A foreign-namespace failure or a failure nested under
+          details does not count. Keep the first occurrence of each class-and-name pair; failure plus error in
+          one case still yields one identity. Reject a selected case with a missing or blank identifier, and
+          reject malformed XML. Do not test a child element by truthiness: a childless element can be false;
+          use an explicit existence check or its direct tag."
+        hold: 0.8
+        visual_cues:
+          - id: evidence-loop-extension-4
+            phrase: The namespace and child depth are part of this contract
+            targets:
+              - evidence-loop-mechanism
+            linger: 0.8
+          - id: evidence-loop-skip-priority
+            phrase: A direct skipped child
+            targets:
+              - evidence-loop-mechanism
+            linger: 0.7
+          - id: evidence-loop-namespace-exclusion
+            phrase: foreign-namespace failure
+            targets:
+              - evidence-loop-mechanism
+            linger: 0.7
+          - id: evidence-loop-reject-identity
+            phrase: Reject a selected case
+            targets:
+              - evidence-loop-mechanism
+            linger: 0.7
+  - id: feedback-contract
+    title: Bound evidence before it enters the repair loop
+    visual: Persistent parser artifact, exact boundary state and computed results build with the spoken operation;
+      predictions hold before their outcomes.
+    beats:
+      - say: Keep the actual failing parser artifact and fixture fixed while collecting evidence. A useful packet
+          includes the invoked command, numeric exit status, exact exception or assertion, and byte-bounded
+          stdout and stderr. A line count alone cannot bound a single megabyte-long line. Preserve useful
+          beginning and ending excerpts because the root cause can precede the tail. Cap retries and diagnose
+          repeated identical failures before changing any privilege.
+        hold: 0.8
+        visual_cues:
+          - id: feedback-contract-b1
+            phrase: Keep the actual failing parser artifact and fixture fixed while collecting evidence
+            targets:
+              - feedback-contract-mechanism
+            linger: 0.8
+          - id: feedback-contract-feedback-cap
+            phrase: A line count alone cannot bound
+            targets:
+              - feedback-contract-mechanism
+            linger: 0.7
+      - say: "Traceback content remains untrusted. A test name or source line can carry forged instructions, terminal
+          escapes or a copied secret. Escape control sequences before displaying it, and do not promote text
+          inside the traceback into supervisor policy. Supply an explicit environment and enforce filesystem
+          and network access separately: an empty environment removes inherited environment secrets, while a
+          temporary working directory only changes relative path resolution. Absolute paths remain governed by
+          operating-system authority."
+        hold: 0.8
+        visual_cues:
+          - id: feedback-contract-b2
+            phrase: Traceback content remains untrusted
+            targets:
+              - feedback-contract-mechanism
+            linger: 0.8
+          - id: feedback-contract-feedback-data
+            phrase: Traceback content remains untrusted
+            targets:
+              - feedback-contract-mechanism
+            linger: 0.7
+      - say: Untrusted XML needs input and decompressed-size bounds, parsing time and memory limits, and a check of
+          the actual Expat version. A byte cap does not erase parser vulnerabilities. These are deliberately
+          authored regression functions and bounded guests. No Docker, gVisor or Firecracker deployment or
+          hostile resource attack is executed by this lesson.
+        hold: 0.8
+        visual_cues:
+          - id: feedback-contract-b3
+            phrase: Untrusted XML needs input and decompressed-size bounds, parsing time and memory limits, and a check of
+              the actual Expat version
+            targets:
+              - feedback-contract-mechanism
+            linger: 0.8
+  - id: separated-authority
+    title: Keep the worker away from the grading authority
+    visual: A trusted supervisor sends an input and frozen candidate into an isolated worker; bounded output
+      reaches a separate validator that holds expected results.
+    beats:
+      - say: The supervisor owns the repair loop, runtime setup, timeout, and artifact that will be tested. The worker
+          contains generated code and its untrusted dependencies.
+        hold: 0.55
+        visual_cues:
+          - id: separated-authority-b1-1
+            phrase: supervisor owns
+            targets:
+              - separated-authority-mechanism
+            linger: 0.45
+          - id: separated-authority-b1-2
+            phrase: worker contains generated code
+            targets:
+              - separated-authority-mechanism
+            linger: 0.45
+      - say: A validator compares the worker result with expected output outside the worker. Keeping the oracle
+          outside prevents the candidate from rewriting the grader in the same process.
+        hold: 0.75
+        visual_cues:
+          - id: separated-authority-b2-1
+            phrase: expected output outside the worker
+            targets:
+              - separated-authority-mechanism
+            linger: 0.45
+      - say: Bind the verdict to the exact files, base revision, image, dependencies, and grading version. A digest
+          can detect changed bytes when a trusted supervisor checks it; the hash alone does not authenticate a
+          verdict.
+        hold: 0.55
+        visual_cues:
+          - id: separated-authority-b3-1
+            phrase: exact files, base revision
+            targets:
+              - separated-authority-mechanism
+            linger: 0.45
+      - say: A read-only test file can still be read. If the candidate shares the Python interpreter with a test
+          runner, it can replace an assertion method in memory without writing the file. A passing exit code
+          then describes the compromised runner. The pure input-output fixture keeps expected results and
+          comparison outside candidate control. Repository tests may run beside candidate code, so protect
+          runner integrity and check results independently. A transferable receipt needs an authenticated
+          validator; a protected supervisor record is another option. The worker cannot own the signing key or
+          the expected answers.
+        hold: 0.8
+        visual_cues:
+          - id: separated-authority-extension-4
+            phrase: A read-only test file can still be read
+            targets:
+              - separated-authority-mechanism
+            linger: 0.8
+          - id: separated-authority-readonly-attack
+            phrase: A read-only test file can still be read
+            targets:
+              - separated-authority-mechanism
+            linger: 0.7
+          - id: separated-authority-patch-memory
+            phrase: replace an assertion method in memory
+            targets:
+              - separated-authority-mechanism
+            linger: 0.7
+          - id: separated-authority-external-compare
+            phrase: comparison outside candidate control
+            targets:
+              - separated-authority-mechanism
+            linger: 0.7
+  - id: execution-boundaries
+    title: Different runtimes mediate different host access
+    visual: Four execution paths compare a container’s shared kernel, gVisor’s syscall mediation, a KVM-backed
+      microVM, and WebAssembly with linked host imports.
+    beats:
+      - say: A container uses namespaces, resource controls, capabilities, and configured syscall filters, while its
+          processes still share the host kernel. The effective boundary depends on mounts, devices, and daemon
+          access.
+        hold: 0.55
+        visual_cues:
+          - id: execution-boundaries-b1-1
+            phrase: host kernel
+            targets:
+              - execution-boundaries-mechanism
+            linger: 0.45
+      - say: gVisor mediates many application system calls through its Sentry. A Firecracker microVM runs a guest
+          kernel on KVM. Each adds a different compatibility and operations profile.
+        hold: 0.75
+        visual_cues:
+          - id: execution-boundaries-b2-1
+            phrase: Sentry
+            targets:
+              - execution-boundaries-mechanism
+            linger: 0.45
+          - id: execution-boundaries-b2-2
+            phrase: guest kernel on KVM
+            targets:
+              - execution-boundaries-mechanism
+            linger: 0.45
+      - say: WebAssembly checks guest memory and control flow. Files, clocks, and network access arrive through host
+          imports. Choose for the workload, then test the real configuration instead of treating these options
+          as one security ranking.
+        hold: 0.55
+        visual_cues:
+          - id: execution-boundaries-b3-1
+            phrase: host imports
+            targets:
+              - execution-boundaries-mechanism
+            linger: 0.45
+      - say: Trace one file-read request through these alternatives. A container request reaches the shared host
+          kernel through configured permissions and filters. In gVisor, the Sentry implements much of the
+          application interface, and filesystem access can involve a Gofer or a configured DirectFS path. A
+          microVM adds a guest kernel and a minimal virtual machine monitor over KVM, while host devices and
+          policy still matter. The Wasm request must reach a linked host import; the import-free lab provides
+          none. An unrestricted rootful Docker daemon can expose effective host-root authority by mounting
+          host paths. Keep its control socket outside the worker. Measure workload-ready startup,
+          distinguishing image pull, boot, compilation and runner launch; a guest-init timing is a different
+          endpoint.
+        hold: 0.8
+        visual_cues:
+          - id: execution-boundaries-extension-4
+            phrase: Trace one file-read request through these alternatives
+            targets:
+              - execution-boundaries-mechanism
+            linger: 0.8
+          - id: execution-boundaries-microvm-pair
+            phrase: A microVM adds a guest kernel
+            targets:
+              - execution-boundaries-mechanism
+            linger: 0.7
+          - id: execution-boundaries-wasm-import
+            phrase: The Wasm request must reach a linked host import
+            targets:
+              - execution-boundaries-mechanism
+            linger: 0.7
+  - id: controls-by-failure
+    title: Give each control one clear job
+    visual: Secret access, outbound traffic, scratch storage, excess tasks, and wall time each meet a separate
+      control; a denied write leaves the worker running for diagnosis.
+    beats:
+      - say: Do not put production credentials in an untrusted worker. Network isolation cannot stop code from
+          printing an environment token into output that returns to the supervisor.
+        hold: 0.55
+        visual_cues:
+          - id: controls-by-failure-b1-1
+            phrase: production credentials
+            targets:
+              - controls-by-failure-mechanism
+            linger: 0.45
+      - say: A scratch quota can make another write fail. A process limit can reject a new task. Those responses are
+          distinct from terminating the existing process.
+        hold: 0.75
+        visual_cues:
+          - id: controls-by-failure-b2-1
+            phrase: scratch quota
+            targets:
+              - controls-by-failure-mechanism
+            linger: 0.45
+          - id: controls-by-failure-b2-2
+            phrase: reject a new task
+            targets:
+              - controls-by-failure-mechanism
+            linger: 0.45
+          - id: controls-by-failure-scratch-full
+            phrase: A scratch quota can make another write fail
+            targets:
+              - controls-by-failure-mechanism
+            linger: 0.7
+          - id: controls-by-failure-task-full
+            phrase: A process limit can reject a new task
+            targets:
+              - controls-by-failure-mechanism
+            linger: 0.7
+      - say: A CPU quota limits bandwidth while a supervisor deadline limits elapsed time. The supervisor also needs a
+          bound on output, logs, memory, and total concurrent jobs.
+        hold: 0.55
+        visual_cues:
+          - id: controls-by-failure-b3-1
+            phrase: CPU quota
+            targets:
+              - controls-by-failure-mechanism
+            linger: 0.45
+          - id: controls-by-failure-b3-2
+            phrase: elapsed time
+            targets:
+              - controls-by-failure-mechanism
+            linger: 0.45
+          - id: controls-by-failure-cpu-bandwidth
+            phrase: CPU quota limits bandwidth
+            targets:
+              - controls-by-failure-mechanism
+            linger: 0.7
+      - say: "With a one-hundred-millisecond CPU period, a fifty-millisecond quota permits about half of one logical
+          CPU in aggregate across tasks, not half a core per thread. Compute aggregate CPU equivalents as
+          quota divided by period. It neither reserves progress nor terminates an infinite loop. The
+          illustrative Docker recipe gives a sixty-four-mebibyte scratch mount inside a
+          five-hundred-twelve-mebibyte memory limit: scratch usage also consumes that memory budget. Equal
+          memory and memory-plus-swap limits disable container swap where supported; memory pressure may
+          reclaim, fail allocation or kill a process. A task cap includes threads. No-exec on scratch blocks
+          direct execution, while Python can still read and interpret a script there. Read-only root, non-root
+          identity, dropped capabilities and no-new-privileges each constrain a different operation; none
+          proves absence of exploitable bugs."
+        hold: 0.8
+        visual_cues:
+          - id: controls-by-failure-extension-4
+            phrase: With a one-hundred-millisecond CPU period, a fifty-millisecond quota permits about half of one logical
+              CPU in aggregate across tasks, not half a core per thread
+            targets:
+              - controls-by-failure-mechanism
+            linger: 0.8
+          - id: controls-by-failure-cpu-result
+            phrase: a fifty-millisecond quota permits about half of one logical CPU in aggregate across tasks
+            targets:
+              - controls-by-failure-mechanism
+            color: cyan
+            linger: 0.45
+  - id: prepared-dependencies
+    title: Fetch dependencies without granting the candidate a route to secrets
+    visual: Persistent parser artifact, exact boundary state and computed results build with the spoken operation;
+      predictions hold before their outcomes.
+    beats:
+      - say: The preparation stage fetches approved pinned artifacts through limited egress and verifies their hashes
+          against a trusted lockfile. Package installation and build scripts are also untrusted execution.
+          Keep production secrets and broad internal access out of that builder. Matching a hash establishes
+          which bytes arrived; it does not establish that those bytes are benign. Run the candidate offline
+          from the approved cache or image, mounting only what it needs.
+        hold: 0.8
+        visual_cues:
+          - id: prepared-dependencies-b1
+            phrase: The preparation stage fetches approved pinned artifacts through limited egress and verifies their
+              hashes against a trusted lockfile
+            targets:
+              - prepared-dependencies-mechanism
+            linger: 0.8
+          - id: prepared-dependencies-prepared-cache
+            phrase: Matching a hash establishes which bytes arrived
+            targets:
+              - prepared-dependencies-mechanism
+            linger: 0.7
+      - say: When egress is required, the policy belongs outside worker control. Resolve allowed destinations under
+          that policy, accounting for IPv4 and IPv6, DNS, redirects, metadata endpoints, proxies and Unix
+          sockets. A domain allowlist that checks a TLS name does not inspect the request body or prove the
+          destination application is allowed; shared endpoints can permit domain fronting. Internal access may
+          be legitimate when specifically scoped. A short private-address denylist cannot express every
+          permitted workload.
+        hold: 0.8
+        visual_cues:
+          - id: prepared-dependencies-b2
+            phrase: When egress is required, the policy belongs outside worker control
+            targets:
+              - prepared-dependencies-mechanism
+            linger: 0.8
+          - id: prepared-dependencies-domain-front
+            phrase: shared endpoints can permit domain fronting
+            targets:
+              - prepared-dependencies-mechanism
+            linger: 0.7
+      - say: Network denial and secret omission answer different questions. Even offline code can print an environment
+          token into logs or encode it in an exported file. Output scrubbing does not reliably recover a
+          secret already handed to untrusted code. Bound output and artifacts while collecting them, protect
+          host-side logs and file descriptors, and enforce total concurrency and host headroom as well as
+          individual limits. Native builds may require executable scratch space; adapt that one capability to
+          the task with a reviewed policy. Docker network none retains loopback; stdout and exported artifacts
+          remain communication channels.
+        hold: 0.8
+        visual_cues:
+          - id: prepared-dependencies-b3
+            phrase: Network denial and secret omission answer different questions
+            targets:
+              - prepared-dependencies-mechanism
+            linger: 0.8
+          - id: prepared-dependencies-encoded-secret
+            phrase: encode it in an exported file
+            targets:
+              - prepared-dependencies-mechanism
+            linger: 0.7
+  - id: teardown-lifecycle
+    title: A cancellation request still needs cleanup evidence
+    visual: A leased worker moves through cancellation, termination, and reset checks; an uncertain slot stays
+      quarantined while a reaper targets its immutable generation.
+    beats:
+      - say: A candidate can leave child processes or mounted state behind. Stopping the top-level process is an
+          event; confirming that its whole job is gone is another.
+        hold: 0.55
+        visual_cues:
+          - id: teardown-lifecycle-b1-1
+            phrase: whole job is gone
+            targets:
+              - teardown-lifecycle-mechanism
+            linger: 0.45
+      - say: Give every worker an immutable runtime identity, lease generation, and maximum lifetime. An independent
+          reaper can retry cleanup after the supervisor loses contact.
+        hold: 0.75
+        visual_cues:
+          - id: teardown-lifecycle-b2-1
+            phrase: immutable runtime identity
+            targets:
+              - teardown-lifecycle-mechanism
+            linger: 0.45
+      - say: Reuse a slot only after termination and reset are verified. If generation seven is gone and the same slot
+          hosts generation eight, an old cleanup request must still target seven.
+        hold: 0.55
+        visual_cues:
+          - id: teardown-lifecycle-b3-1
+            phrase: generation eight
+            targets:
+              - teardown-lifecycle-mechanism
+            linger: 0.45
+          - id: teardown-lifecycle-b3-2
+            phrase: target seven
+            targets:
+              - teardown-lifecycle-mechanism
+            linger: 0.45
+          - id: teardown-lifecycle-terminate-confirm
+            phrase: Reuse a slot only after termination
+            targets:
+              - teardown-lifecycle-mechanism
+            linger: 0.7
+          - id: teardown-lifecycle-reset-confirm
+            phrase: reset are verified
+            targets:
+              - teardown-lifecycle-mechanism
+            linger: 0.7
+          - id: teardown-lifecycle-new-occupant
+            phrase: same slot hosts generation eight
+            targets:
+              - teardown-lifecycle-mechanism
+            linger: 0.7
+          - id: teardown-lifecycle-old-action
+            phrase: old cleanup request must still target seven
+            targets:
+              - teardown-lifecycle-mechanism
+            linger: 0.7
+      - say: A child can start a new session and escape a process-group kill. Adopted orphans do not disappear merely
+          because a subreaper can wait for them. Use a trusted runtime to terminate the whole namespace or job
+          cgroup; on supporting cgroup-version-two hosts, cgroup-dot-kill targets the job tree if the worker
+          cannot migrate out. Verify that it is empty. Persist the original runtime ID, generation and finite
+          lifetime outside worker control. Lease expiry schedules cleanup; it does not prove that a backend
+          was reached or memory reclaimed. If a backend destroys only reusable names, it must enforce the
+          generation with that action; a separate check followed by a name-based destroy still races.
+        hold: 0.8
+        visual_cues:
+          - id: teardown-lifecycle-extension-4
+            phrase: A child can start a new session and escape a process-group kill
+            targets:
+              - teardown-lifecycle-mechanism
+            linger: 0.8
+  - id: wasm-boundary
+    title: Fuel and imports define a narrower guest contract
+    visual: A Wasm guest grows bounded linear memory, consumes a configured fuel counter, and reaches host
+      functions only through imports explicitly linked by the embedding.
+    beats:
+      - say: A WebAssembly module can expose a small function interface. The host checks the module shape and links
+          only the imports that the task needs.
+        hold: 0.55
+        visual_cues:
+          - id: wasm-boundary-b1-1
+            phrase: function interface
+            targets:
+              - wasm-boundary-mechanism
+            linger: 0.45
+      - say: With Wasmtime fuel metering enabled, guest instructions consume a budget and exhaustion traps. A denied
+          memory growth can return failure to the guest under the configured limit.
+        hold: 0.75
+        motion_check:
+          region:
+            - 200
+            - 300
+            - 1520
+            - 310
+          minimumChangedFraction: 0.002
+        visual_cues:
+          - id: wasm-boundary-b2-1
+            phrase: consume a budget
+            targets:
+              - wasm-boundary-mechanism
+            linger: 0.45
+          - id: wasm-boundary-b2-2
+            phrase: exhaustion traps
+            targets:
+              - wasm-boundary-mechanism
+            linger: 0.45
+          - id: wasm-boundary-consume-fuel
+            phrase: guest instructions consume a budget
+            targets:
+              - wasm-boundary-mechanism
+            linger: 0.7
+          - id: wasm-boundary-fuel-trap
+            phrase: exhaustion traps
+            targets:
+              - wasm-boundary-mechanism
+            linger: 0.7
+      - say: Fuel bounds metered guest instructions. Compilation, host imports, and other host allocations need
+          separate resource limits and supervision.
+        hold: 0.55
+        visual_cues:
+          - id: wasm-boundary-b3-1
+            phrase: host imports
+            targets:
+              - wasm-boundary-mechanism
+            linger: 0.45
+  - id: actual-wasm-host
+    title: Execute the actual import-free integer contract
+    visual: Persistent parser artifact, exact boundary state and computed results build with the spoken operation;
+      predictions hold before their outcomes.
+    beats:
+      - say: "The article embedding accepts run of signed i-thirty-two to signed i-thirty-two, links no imports, and
+          permits at most one linear memory. It checks strict integer arguments and limits: booleans are
+          rejected even though Python treats them as integers in other contexts. The supplied defaults are one
+          thousand fuel units, sixty-five thousand five hundred thirty-six guest-memory bytes and at most four
+          thousand ninety-six UTF-eight bytes of WebAssembly text. Those bounds refer to separate resources."
+        hold: 0.8
+        visual_cues:
+          - id: actual-wasm-host-b1
+            phrase: The article embedding accepts run of signed i-thirty-two to signed i-thirty-two, links no imports, and
+              permits at most one linear memory
+            targets:
+              - actual-wasm-host-mechanism
+            linger: 0.8
+      - say: The supplied add-one guest maps forty-one to forty-two and minus one to zero. At the largest signed
+          thirty-two-bit input, two billion one hundred forty-seven million four hundred eighty-three thousand
+          six hundred forty-seven, addition wraps to minus two billion one hundred forty-seven million four
+          hundred eighty-three thousand six hundred forty-eight. Whether wrapping is acceptable comes from the
+          task contract, not the sandbox. The host validates the function export and type, then checks the
+          returned value against an external oracle.
+        hold: 0.8
+        visual_cues:
+          - id: actual-wasm-host-b2
+            phrase: The supplied add-one guest maps forty-one to forty-two and minus one to zero
+            targets:
+              - actual-wasm-host-mechanism
+            linger: 0.8
+          - id: actual-wasm-host-wasm-result
+            phrase: maps forty-one to forty-two and minus one to zero
+            targets:
+              - actual-wasm-host-mechanism
+            linger: 0.7
+          - id: actual-wasm-host-signed-wrap
+            phrase: addition wraps to minus two billion one hundred forty-seven million four hundred eighty-three thousand six hundred forty-eight
+            targets:
+              - actual-wasm-host-bits
+            linger: 0.7
+      - say: Set fuel before instantiation because a start function can execute then. Fuel is metered guest work, not
+          milliseconds or one unit per source statement. Compilation, imported host functions and total engine
+          allocations still require host CPU, memory and deadline supervision. The larger fuel grid in the
+          earlier scene is a supplied one-unit-per-step teaching model; it is not a measurement of this
+          compiled guest.
+        hold: 0.8
+        visual_cues:
+          - id: actual-wasm-host-b3
+            phrase: Set fuel before instantiation because a start function can execute then
+            targets:
+              - actual-wasm-host-mechanism
+            linger: 0.8
+          - id: actual-wasm-host-before-start
+            phrase: Set fuel before instantiation
+            targets:
+              - actual-wasm-host-mechanism
+            linger: 0.7
+  - id: wasm-failure-matrix
+    title: Give each guest failure its actual result
+    visual: Persistent parser artifact, exact boundary state and computed results build with the spoken operation;
+      predictions hold before their outcomes.
+    beats:
+      - say: The bounded lab runs an infinite loop and checks an out-of-fuel trap. A start-function loop traps during
+          instantiation under the same fuel bound. With one sixty-four-kibibyte memory page already allocated
+          and no space for another, memory-dot-grow returns minus one to the guest. It does not raise an
+          out-of-bounds trap. An i-thirty-two load needs four bytes starting at its address; every byte must
+          remain inside the allocated memory. Loading beyond the allocated memory does trap; initial memory
+          larger than the configured store limit fails instantiation.
+        hold: 0.8
+        visual_cues:
+          - id: wasm-failure-matrix-b1
+            phrase: The bounded lab runs an infinite loop and checks an out-of-fuel trap
+            targets:
+              - wasm-failure-matrix-mechanism
+            linger: 0.8
+          - id: wasm-failure-matrix-grow-denied
+            phrase: memory-dot-grow returns minus one to the guest
+            targets:
+              - wasm-failure-matrix-mechanism
+            linger: 0.7
+          - id: wasm-failure-matrix-load-trap
+            phrase: Loading beyond the allocated memory does trap
+            targets:
+              - wasm-failure-matrix-access
+            linger: 0.7
+      - say: "The embedding rejects any declared import, a missing run export, or the wrong function type. Linking a
+          host file reader would grant a capability the import-free guest lacks. Its implementation must
+          validate the actual resolved resource: a path that begins with an allowed directory can still reach
+          an outside file through a symbolic link. Guest linear-memory bounds do not constrain what a
+          privileged host import chooses to read."
+        hold: 0.8
+        visual_cues:
+          - id: wasm-failure-matrix-b2
+            phrase: The embedding rejects any declared import, a missing run export, or the wrong function type
+            targets:
+              - wasm-failure-matrix-mechanism
+            linger: 0.8
+          - id: wasm-failure-matrix-host-resolution
+            phrase: actual resolved resource
+            targets:
+              - wasm-failure-matrix-mechanism
+            linger: 0.7
+      - say: "For a fixed deterministic execution path and runtime settings, fuel interruption is repeatable. That
+          does not make every Wasm program deterministic: imports, memory-growth failure, NaN representation
+          and relaxed SIMD can require additional controls. Repeat the failure probes with the real
+          configuration and inspect the results separately from correct integer output. These tests provide
+          narrow functional boundary evidence, not proof of an implementation free of vulnerabilities."
+        hold: 0.8
+        visual_cues:
+          - id: wasm-failure-matrix-b3
+            phrase: For a fixed deterministic execution path and runtime settings, fuel interruption is repeatable
+            targets:
+              - wasm-failure-matrix-mechanism
+            linger: 0.8
+  - id: evaluate-two-axes
+    title: Passing tests and containment answer separate questions
+    visual: A two-axis evaluation plots functional success against containment evidence; a pass-at-two calculation
+      summarizes candidate selection while leaving runtime probes separate.
+    beats:
+      - say: Functional tests ask whether a patch matches expected behavior. Containment probes ask whether the
+          runtime enforces its access and resource boundaries.
+        hold: 0.55
+        visual_cues:
+          - id: evaluate-two-axes-b1-1
+            phrase: Functional tests
+            targets:
+              - evaluate-two-axes-mechanism
+            linger: 0.45
+          - id: evaluate-two-axes-b1-2
+            phrase: Containment probes
+            targets:
+              - evaluate-two-axes-mechanism
+            linger: 0.45
+      - say: In a fixed pool of five candidates, two pass. Choosing two without replacement has seven successful pairs
+          among ten possible pairs, so pass-at-two is seventy percent for this pool.
+        hold: 0.75
+        visual_cues:
+          - id: evaluate-two-axes-b2-1
+            phrase: five candidates
+            targets:
+              - evaluate-two-axes-mechanism
+            linger: 0.45
+          - id: evaluate-two-axes-b2-2
+            phrase: seven successful pairs
+            targets:
+              - evaluate-two-axes-mechanism
+            linger: 0.45
+          - id: evaluate-two-axes-b2-3
+            phrase: seventy percent
+            targets:
+              - evaluate-two-axes-mechanism
+            linger: 0.45
+          - id: evaluate-two-axes-ratio-result
+            phrase: pass-at-two is seventy percent for this pool
+            targets:
+              - evaluate-two-axes-mechanism
+            color: cyan
+            linger: 0.45
+      - say: That arithmetic says nothing about secret isolation or network policy. Keep the tested artifact and
+          environment fixed, then report correctness, containment, timeouts, and cleanup evidence separately.
+        hold: 0.55
+        visual_cues:
+          - id: evaluate-two-axes-b3-1
+            phrase: correctness, containment
+            targets:
+              - evaluate-two-axes-mechanism
+            linger: 0.45
+      - say: For n observed candidate indices with c passes, selecting k indices uniformly without replacement has
+          pass-at-k equal to one minus choose n-minus-c comma k, divided by choose n comma k. In the
+          five-candidate example, drawing indices with replacement instead gives one minus three-fifths
+          squared, or sixty-four percent, a different experiment. The combinatorial estimator is unbiased for
+          fresh sampling under its independent, identically distributed assumptions; plugging the observed
+          pass fraction into the replacement formula generally is not. Identical code may occupy two different
+          sampled indices. Successive repairs depend on feedback, so evaluate independent whole trajectories
+          rather than calling their dependent patches independent samples. Freeze tasks, environment, tool
+          budgets and grading, and separate infrastructure failures and incomplete evaluations.
+        hold: 0.8
+        visual_cues:
+          - id: evaluate-two-axes-extension-4
+            phrase: For n observed candidate indices with c passes, selecting k indices uniformly without replacement has
+              pass-at-k equal to one minus choose n-minus-c comma k, divided by choose n comma k
+            targets:
+              - evaluate-two-axes-mechanism
+            linger: 0.8
+          - id: evaluate-two-axes-replacement-input
+            phrase: drawing indices with replacement
+            targets:
+              - evaluate-two-axes-mechanism
+            color: cyan
+            linger: 0.45
+          - id: evaluate-two-axes-replacement-result
+            phrase: drawing indices with replacement instead gives one minus three-fifths squared, or sixty-four percent, a different experiment
+            targets:
+              - evaluate-two-axes-mechanism
+            color: cyan
+            linger: 0.45
+  - id: earned-parser-case
+    title: Return to the parser with a new input and separate receipts
+    visual: Persistent parser artifact, exact boundary state and computed results build with the spoken operation;
+      predictions hold before their outcomes.
+    beats:
+      - say: Try the repaired parser on a fresh namespaced report. Case payments retry has a direct failure and error
+          and occurs twice. Case payments later has a direct skipped and error. Case payments nested has a
+          failure inside details. Predict the ordered result before displaying it. Preserve the same parser
+          artifact identity and the root namespace rule; only this input report changes.
+        hold: 0.8
+        visual_cues:
+          - id: earned-parser-case-b1
+            phrase: Try the repaired parser on a fresh namespaced report
+            targets:
+              - earned-parser-case-mechanism
+            linger: 0.8
+      - say: Only payments retry appears, once. Skipped wins for later; the nested failure is not a direct status
+          child, and the repeated retry identity is deduplicated. The trusted validator can bind this
+          functional result to the tested parser and environment. Now suppose a separate bounded egress probe
+          has an enforcement record confirming denial, but termination of that same worker is unconfirmed.
+          Functional pass and that network denial do not permit slot reuse. Keep it quarantined for the
+          reaper.
+        hold: 0.8
+        visual_cues:
+          - id: earned-parser-case-b2
+            phrase: Only payments retry appears, once
+            targets:
+              - earned-parser-case-mechanism
+            linger: 0.8
+          - id: earned-parser-case-parser-result
+            phrase: Only payments retry appears, once
+            targets:
+              - earned-parser-case-output
+            linger: 0.7
+          - id: earned-parser-case-unknown-cleanup
+            phrase: termination of that same worker is unconfirmed
+            targets:
+              - earned-parser-case-verdicts
+            linger: 0.7
+          - id: earned-parser-case-quarantine-result
+            phrase: Functional pass and that network denial do not permit slot reuse. Keep it quarantined for the reaper
+            targets:
+              - earned-parser-case-verdicts
+            color: pink
+            linger: 0.45
+      - say: "After termination and reset are verified, a new generation may occupy the slot. A delayed cleanup record must still address the original immutable worker ID. Report functional behavior, specific containment probes, timeouts, artifact binding and cleanup evidence separately. An unreachable test server would not itself prove network enforcement, and an authenticated passing receipt still needs the authorized acceptance decision. Local agent sandboxing next applies that boundary to a developer workstation, combining narrow resource grants with host-native controls and protection for files trusted tools may execute later."
+        hold: 0.8
+        visual_cues:
+          - id: earned-parser-case-b3
+            phrase: After termination and reset are verified, a new generation may occupy the slot
+            targets:
+              - earned-parser-case-mechanism
+            linger: 0.8
+          - id: earned-parser-case-new-generation
+            phrase: a new generation may occupy the slot
+            targets:
+              - earned-parser-case-mechanism
+            linger: 0.7
+          - id: earned-parser-case-late-id-result
+            phrase: A delayed cleanup record must still address the original immutable worker ID
+            targets:
+              - earned-parser-case-mechanism
+            color: cyan
+            linger: 0.45

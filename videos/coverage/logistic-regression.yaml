@@ -1,0 +1,251 @@
+version: 1
+lesson: logistic-regression
+promise: Fit and audit the access-review classifier, compare it with multiclass and kernel models, and choose
+  the least expensive tested cut that fits the available review slots.
+objectives:
+  - id: fit
+    can: Compute binary likelihood, stable loss, row/batch gradients and the geometry of a threshold
+    scenes:
+      - evidence-score
+      - sigmoid
+      - boundary-geometry
+      - log-loss
+      - bernoulli-likelihood
+      - loss-curvature
+      - gradient
+      - batch-gradient
+      - data-contract
+      - learning
+      - separation
+      - boundary
+  - id: policy
+    can: Route a scored request, use its later label to price the action, and compare observed or expected
+      bills for the cuts a desk can staff before testing the chosen policy on fresh requests
+    scenes:
+      - intro
+      - confusion
+      - denominators
+      - harmonic-mean
+      - capacity
+      - calibrated-cost
+      - fresh-operating-point
+      - decision
+  - id: ranking
+    can: Calculate AUC and AP with ties and diagnose prevalence or negative-sampling changes
+    scenes:
+      - ranking
+      - rescaling
+      - rare-event-population
+      - ap-and-ties
+  - id: calibration
+    can: Compute ECE/Brier and distinguish calibrator fitting, ranking invariance and verification
+    scenes:
+      - calibration
+      - calibration-error
+      - calibration-maps
+  - id: extensions
+    can: Compute stable multiclass residuals, signed margin losses and one-observation GP uncertainty
+    scenes:
+      - multiclass-heads
+      - stable-softmax
+      - margin-objective
+      - kernel-uncertainty
+      - implementation-parity
+sections:
+  - heading: From a latency number to a review decision
+    status: taught
+    scenes:
+      - intro
+      - boundary-geometry
+      - decision
+  - heading: Squeeze the score into (0, 1)
+    status: taught
+    scenes:
+      - evidence-score
+      - sigmoid
+      - boundary-geometry
+  - heading: The log-odds and logit link
+    status: taught
+    scenes:
+      - sigmoid
+  - heading: The linear decision boundary hyperplane
+    status: taught
+    scenes:
+      - boundary-geometry
+      - boundary
+  - heading: Eight historical requests
+    status: taught
+    scenes:
+      - batch-gradient
+      - data-contract
+      - learning
+  - heading: Log-loss (binary cross-entropy) is the right loss for probabilities
+    status: taught
+    scenes:
+      - log-loss
+      - bernoulli-likelihood
+      - loss-curvature
+  - heading: Deriving binary cross-entropy from maximum likelihood
+    status: taught
+    scenes:
+      - bernoulli-likelihood
+  - heading: Why not reuse Mean Squared Error?
+    status: taught
+    scenes:
+      - boundary-geometry
+      - loss-curvature
+      - separation
+  - heading: The log-loss gradient collapses to (p - y) · x
+    status: taught
+    scenes:
+      - gradient
+      - batch-gradient
+  - heading: Chain rule step by step
+    status: taught
+    scenes:
+      - gradient
+  - heading: The bridge to linear regression
+    status: taught
+    scenes:
+      - bernoulli-likelihood
+      - data-contract
+  - heading: Fit the eight rows in NumPy
+    status: taught
+    scenes:
+      - batch-gradient
+      - learning
+      - data-contract
+  - heading: Select a threshold on held-out requests
+    status: taught
+    scenes:
+      - intro
+      - confusion
+      - capacity
+      - calibrated-cost
+      - fresh-operating-point
+      - decision
+  - heading: Precision, recall, F1, and class imbalance
+    status: taught
+    scenes:
+      - denominators
+      - rare-event-population
+  - heading: Why F1 uses the harmonic mean
+    status: taught
+    scenes:
+      - denominators
+      - harmonic-mean
+  - heading: The accuracy trap under class imbalance
+    status: taught
+    scenes:
+      - rare-event-population
+  - heading: ROC and precision-recall curves measure ranking
+    status: taught
+    scenes:
+      - ranking
+      - rescaling
+      - ap-and-ties
+  - heading: ROC-AUC versus PR-AUC under class imbalance
+    status: taught
+    scenes:
+      - rare-event-population
+      - ap-and-ties
+  - heading: "Calibration: do scores represent frequencies?"
+    status: taught
+    scenes:
+      - calibration
+      - calibration-error
+      - calibration-maps
+  - heading: Verify the NumPy fit with scikit-learn
+    status: taught
+    scenes:
+      - implementation-parity
+  - heading: "Multiclass routing: the softmax extension"
+    status: taught
+    scenes:
+      - multiclass-heads
+      - stable-softmax
+  - heading: Linear heads and the softmax function
+    status: taught
+    scenes:
+      - multiclass-heads
+  - heading: Categorical cross-entropy and its gradient
+    status: taught
+    scenes:
+      - multiclass-heads
+  - heading: "Numerical stability: the log-sum-exp trick"
+    status: taught
+    scenes:
+      - stable-softmax
+      - log-loss
+  - heading: Margins, kernels, and predictive uncertainty
+    status: taught
+    scenes:
+      - margin-objective
+      - kernel-uncertainty
+  - heading: When the numbers look wrong
+    status: taught
+    scenes:
+      - implementation-parity
+  - heading: Try it yourself
+    status: article-only
+    reason: exercise
+    note: Independent practice repeats the fully taught update, threshold, uncertainty and calibration
+      calculations.
+quiz:
+  - n: 1
+    status: taught
+    scenes:
+      - evidence-score
+      - boundary-geometry
+  - n: 2
+    status: taught
+    scenes:
+      - gradient
+      - batch-gradient
+  - n: 3
+    status: taught
+    scenes:
+      - confusion
+      - capacity
+  - n: 4
+    status: taught
+    scenes:
+      - rare-event-population
+  - n: 5
+    status: taught
+    scenes:
+      - ranking
+      - ap-and-ties
+  - n: 6
+    status: taught
+    scenes:
+      - calibration-error
+  - n: 7
+    status: taught
+    scenes:
+      - multiclass-heads
+      - stable-softmax
+  - n: 8
+    status: taught
+    scenes:
+      - margin-objective
+      - kernel-uncertainty
+  - n: 9
+    status: taught
+    scenes:
+      - kernel-uncertainty
+  - n: 10
+    status: taught
+    scenes:
+      - calibrated-cost
+      - fresh-operating-point
+removed: []
+reviews:
+  closed_book:
+    taught: 10
+    partial: 0
+    absent: 0
+    script: 1aa10127e24ead6a
+  fact_check:
+    open_findings: 0
+    script: 1aa10127e24ead6a

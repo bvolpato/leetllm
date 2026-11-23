@@ -1,0 +1,191 @@
+name: Native Mac Catalyst screenshots
+
+on:
+  workflow_dispatch:
+    inputs:
+      macos_marketing_version:
+        description: Marketing version for native Mac screenshots
+        required: false
+        default: '1.7'
+        type: string
+      macos_build_number:
+        description: Build number for native Mac screenshots
+        required: false
+        default: '34'
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: leetllm-mac-screenshots-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  prepare-data:
+    name: Export and validate bundled content
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - name: Check out source
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@73e46992e05b19abd31f2f3c20e0e7370d762115 # v6
+        with:
+          version: 10.33.0
+
+      - name: Set up Node.js
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7
+        with:
+          node-version: 22
+          cache: pnpm
+          cache-dependency-path: web/pnpm-lock.yaml
+
+      - name: Install locked web dependencies
+        working-directory: web
+        run: pnpm install --frozen-lockfile
+
+      - name: Install illustration video encoder
+        run: sudo apt-get update && sudo apt-get install -y --no-install-recommends ffmpeg
+
+      - name: Restore generated visual cache
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6
+        with:
+          path: |
+            web/src/content/**/_generated
+            web/tools/illustrations/.cache
+            web/tools/diagrams/.cache
+          key: generated-visuals-v1-${{ runner.os }}-${{ hashFiles('web/src/content/**/*.md', 'web/src/content/**/illustrations/*.tsx', 'web/tools/illustrations/**/*.ts', 'web/tools/diagrams/**/*.ts', 'web/scripts/hydrate-ios-images.ts', 'web/pnpm-lock.yaml') }}
+          restore-keys: |
+            generated-visuals-v1-${{ runner.os }}-
+
+      - name: Hydrate published images and rebuild missing generated images
+        working-directory: web
+        shell: bash
+        run: |
+          set -euo pipefail
+          missing_images="${RUNNER_TEMP}/missing-generated-images.txt"
+          if LEETLLM_IOS_MISSING_IMAGES_FILE="${missing_images}" pnpm ios:hydrate-images; then
+            exit 0
+          fi
+          if [[ ! -s "${missing_images}" ]]; then
+            echo "Image hydration failed without a recoverable missing-image list" >&2
+            exit 1
+          fi
+          mapfile -t illustration_bundles < <(
+            awk -F/ '$3 == "illustrations" && $4 == "_generated" { print $1 "/" $2 }' "${missing_images}" | sort -u
+          )
+          mapfile -t diagram_bundles < <(
+            awk -F/ '$3 == "diagrams" && $4 == "_generated" { print $1 "/" $2 }' "${missing_images}" | sort -u
+          )
+          for bundle in "${illustration_bundles[@]}"; do
+            pnpm illustrations:build:article "${bundle}"
+          done
+          for bundle in "${diagram_bundles[@]}"; do
+            pnpm diagrams:build:article "${bundle}"
+          done
+
+      - name: Export and validate bundled content
+        env:
+          LEETLLM_IOS_EXPORT_MODE: ci
+        run: ./scripts/sync-ios-data.sh
+
+      - name: Pack prepared resources
+        run: |
+          tar -C mobile/ios/LeetLLM/LeetLLM/Resources \
+            -cf "${RUNNER_TEMP}/leetllm-ios-resources.tar" data
+
+      - name: Upload prepared resources
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: leetllm-mac-screenshot-resources-${{ github.run_id }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/leetllm-ios-resources.tar
+          if-no-files-found: error
+          compression-level: 0
+          retention-days: 1
+
+  macos-screenshots:
+    name: Capture native Mac Catalyst screenshots
+    needs: prepare-data
+    runs-on: xcode-27
+    timeout-minutes: 30
+    steps:
+      - name: Check out source
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Download prepared application resources
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: leetllm-mac-screenshot-resources-${{ github.run_id }}-${{ github.run_attempt }}
+          path: ${{ github.workspace }}
+
+      - name: Unpack bundled content
+        run: |
+          set -euo pipefail
+          tar -tf leetllm-ios-resources.tar >/dev/null
+          mkdir -p mobile/ios/LeetLLM/LeetLLM/Resources
+          tar -xf leetllm-ios-resources.tar -C mobile/ios/LeetLLM/LeetLLM/Resources
+          test -s mobile/ios/LeetLLM/LeetLLM/Resources/data/manifest.json
+          rm leetllm-ios-resources.tar
+
+      - name: Select stable Xcode 27.2
+        run: |
+          sudo xcode-select --switch /Applications/Xcode_27.2.app/Contents/Developer
+          [[ "$(xcodebuild -version)" == $'Xcode 27.2\nBuild version 27B52' ]]
+
+      - name: Capture the running Catalyst app
+        env:
+          MACOS_MARKETING_VERSION: ${{ inputs.macos_marketing_version }}
+          MACOS_BUILD_NUMBER: ${{ inputs.macos_build_number }}
+        run: |
+          set -euo pipefail
+          [[ "$MACOS_MARKETING_VERSION" =~ ^[0-9]+\.[0-9]+(\.[0-9]+)?$ ]]
+          [[ "$MACOS_BUILD_NUMBER" =~ ^[1-9][0-9]*$ ]]
+          mkdir -p "$RUNNER_TEMP/native-mac-screenshots"
+          xcrun swift scripts/macos-capture-display.swift \
+            | tee "$RUNNER_TEMP/native-mac-screenshots/display.log"
+          xcrun swift -e 'import CoreGraphics; let bounds = CGDisplayBounds(CGMainDisplayID()); print("Persistent display bounds:", bounds); precondition(bounds.width >= 1440 && bounds.height >= 1000, "Native display mode did not persist")' \
+            | tee -a "$RUNNER_TEMP/native-mac-screenshots/display.log"
+          xcodebuild build \
+            -project mobile/ios/LeetLLM/LeetLLM.xcodeproj \
+            -scheme LeetLLM -configuration Release \
+            -destination 'platform=macOS,variant=Mac Catalyst' \
+            -derivedDataPath "$RUNNER_TEMP/mac-screenshot-build" \
+            MARKETING_VERSION="$MACOS_MARKETING_VERSION" CURRENT_PROJECT_VERSION="$MACOS_BUILD_NUMBER" \
+            CODE_SIGNING_ALLOWED=NO \
+            | tee "$RUNNER_TEMP/native-mac-screenshots/release-build.log"
+          xcodebuild test \
+            -project mobile/ios/LeetLLM/LeetLLM.xcodeproj \
+            -scheme LeetLLMMacScreenshots \
+            -configuration Debug \
+            -destination 'platform=macOS,variant=Mac Catalyst' \
+            -derivedDataPath "$RUNNER_TEMP/mac-screenshot-build" \
+            -resultBundlePath "$RUNNER_TEMP/native-mac-screenshots/Capture.xcresult" \
+            -parallel-testing-enabled NO \
+            MARKETING_VERSION="$MACOS_MARKETING_VERSION" CURRENT_PROJECT_VERSION="$MACOS_BUILD_NUMBER" \
+            CODE_SIGN_IDENTITY=- CODE_SIGN_STYLE=Manual DEVELOPMENT_TEAM= \
+            | tee "$RUNNER_TEMP/native-mac-screenshots/xcodebuild.log"
+          xcrun xcresulttool export attachments \
+            --path "$RUNNER_TEMP/native-mac-screenshots/Capture.xcresult" \
+            --output-path "$RUNNER_TEMP/native-mac-screenshots/attachments"
+          xcrun swift scripts/macos-capture-export.swift \
+            "$RUNNER_TEMP/native-mac-screenshots/attachments" \
+            "$RUNNER_TEMP/native-mac-screenshots/screenshots"
+          jq -n --arg sourceRevision "$GITHUB_SHA" --arg runId "$GITHUB_RUN_ID" \
+            --arg version "$MACOS_MARKETING_VERSION" --arg build "$MACOS_BUILD_NUMBER" \
+            '{sourceRevision:$sourceRevision,runId:$runId,version:$version,build:$build,platform:"Mac Catalyst",capture:"XCUIElement.screenshot",export:"xcresulttool export attachments",offlineBundledContent:true}' \
+            > "$RUNNER_TEMP/native-mac-screenshots/provenance.json"
+
+      - name: Upload screenshots and native test evidence
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: leetllm-native-mac-screenshots
+          path: ${{ runner.temp }}/native-mac-screenshots
+          if-no-files-found: error
+          retention-days: 30

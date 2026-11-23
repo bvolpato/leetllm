@@ -1,0 +1,396 @@
+version: 1
+id: capstone-demand-forecasting-alerts
+title: Friday’s Forecast at the Parcel Dock
+source: foundations/capstone-demand-forecasting-alerts/content.md
+voice: en-US-AndrewNeural
+rate: +0%
+sources:
+  - title: "Forecasting Principles and Practice: evaluation, intervals and quantile scores"
+    url: https://otexts.com/fpp3/toolbox.html
+  - title: "Forecasting regression: scenario and calendar predictors"
+    url: https://otexts.com/fpp3/regression.html
+  - title: NumPy 2.2 least squares
+    url: https://numpy.org/doc/2.2/reference/generated/numpy.linalg.lstsq.html
+  - title: MIT single-period newsvendor
+    url: https://ocw.mit.edu/courses/15-772j-d-lab-supply-chains-fall-2014/6952be57b43aa185119c6f114908bcc5_MIT15_772JF14_Newsboy.pdf
+  - title: Ben Taieb and Hyndman on recursive and direct forecasting
+    url: https://proceedings.mlr.press/v32/taieb14.pdf
+scenes:
+  - id: intro
+    title: "Would you review Friday’s staffing?"
+    visual: "A strip of forecast parcels extends past the crew’s capacity bracket. The parcel ruler then compares the issued forecast first with capacity and later with Friday’s verified count."
+    beats:
+      - say: "Friday’s crew can handle a hundred fifty parcels. Each box stands for ten. Sunday’s forecast reaches about a hundred sixty-three. Would you review Friday’s staffing?"
+        hold: 2.4
+        caption_starts: ["Sunday’s forecast reaches", "Would you review Friday’s staffing?"]
+      - say: "Yes. Review the roster while there’s time to change it. The forecast puts demand about thirteen parcels above scheduled capacity. The rule flags a day only when its forecast is strictly above that line."
+        hold: 0.85
+        visual_cues:
+          - {id: review, phrase: "Review the roster", targets: [staffing-decision]}
+          - {id: margin, phrase: "thirteen parcels", targets: [planning-gap]}
+      - say: "Now it’s Saturday morning. At six, Friday’s final count comes in. One hundred seventy-six requests. Keep the blue forecast mark where it was. From that mark to the actual count is almost thirteen parcels again. This time we’re measuring forecast error. It falls outside our six-parcel tolerance. The planner had an early warning. Now the data or model owner has a forecast miss to investigate."
+        hold: 1
+        visual_cues:
+          - {id: saturday, phrase: "Now it’s Saturday", targets: [evaluation-time]}
+          - {id: actual, phrase: "One hundred seventy-six requests", targets: [mature-label]}
+          - {id: error, phrase: "From that mark", targets: [residual-gap]}
+          - {id: difference, phrase: "almost thirteen parcels again", targets: [residual-parcels]}
+          - {id: outside, phrase: "outside our six-parcel tolerance", targets: [error-review]}
+  - id: target
+    title: "What came through the dock?"
+    visual: "Two days produce the same completed count. The request bar extends beyond the dock limit on only one day."
+    beats:
+      - say: "Imagine the dock at full capacity on two different days. The shipping log shows a hundred fifty completions on each. On day A, that was every request. On day B, another twenty-six requests came in after the dock filled. Look at the extra stretch of green. Which log would tell the planner that those days were different?"
+        hold: 1.9
+        visual_cues:
+          - {id: completions, phrase: "a hundred fifty completions", targets: [shipment-cap]}
+          - {id: day-a, phrase: "On day A", targets: [matched-requests]}
+          - {id: day-b, phrase: "On day B", targets: [excess-requests]}
+          - {id: ask, phrase: "Which log would tell", targets: [measurement-question]}
+      - say: "Count requests for the center’s standard service. A shipping log loses the excess. A request log can have gaps too. If ordering closes when the dock fills, customers who leave before placing an order never appear in that count."
+        hold: 0.75
+        visual_cues:
+          - {id: measure, phrase: "Count requests", targets: [target-series]}
+  - id: cost-quantile
+    title: "How many places would you book?"
+    visual: "Three possible demand levels keep their probabilities while a booking moves from 100 to 160 to 240 and the weighted shortage and spare costs change."
+    beats:
+      - say: "Try a separate one-day booking. Each parcel over capacity costs three units. Each unused place costs one. Here are three possible demand levels and their chances. Read down the cumulative column. There’s a fifty-five percent chance that one hundred places cover demand, and an eighty percent chance that one hundred sixty do."
+        hold: 0.6
+        visual_cues:
+          - {id: distribution, phrase: "three possible demand levels", targets: [demand-distribution]}
+          - {id: cumulative, phrase: "cumulative column", targets: [cumulative-mass]}
+      - say: "For constant unit costs, divide the shortage cost by the sum of the shortage and spare costs. Three over four gives a target quantile of seventy-five percent. Which demand level reaches it first?"
+        hold: 2.3
+        visual_cues:
+          - {id: quantile, phrase: "Three over four", targets: [critical-quantile]}
+      - say: "One hundred sixty. The median is only one hundred. Let’s price that smaller booking first. On the busiest day it leaves a hundred forty parcels short. At three units each, weighted by a one-in-five chance, that one outcome contributes eighty-four units. Add the other rows and the expected cost is a hundred twenty-nine."
+        hold: 0.7
+        visual_cues:
+          - {id: choose, phrase: "One hundred sixty", targets: [quantile-choice]}
+          - {id: median, phrase: "smaller booking", targets: [booking-one-hundred]}
+      - say: "Move the booking to one hundred sixty. Now the quiet day leaves sixty places empty. Those places are cheap enough that expected cost falls to eighty-one, even as the mean absolute gap rises from forty-three parcels to forty-nine. Book all two hundred forty and the spare places bring expected cost back up to ninety-seven."
+        hold: 0.7
+        visual_cues:
+          - {id: book-more, phrase: "Move the booking", targets: [booking-one-sixty]}
+          - {id: new-booking, phrase: "to one hundred sixty", targets: [one-sixty-costs]}
+          - {id: book-all, phrase: "Book all two hundred forty", targets: [booking-two-forty]}
+          - {id: max-booking, phrase: "all two hundred forty", targets: [two-forty-costs]}
+      - say: "Divide each booking’s loss by four, the sum of our two unit costs. That gives the quantile loss, also called pinball loss. The same booking still wins. If days share capacity, check what today’s booking leaves for tomorrow. To measure savings at a real dock, price the bookings the planner actually made, including any booking fees."
+        hold: 0.75
+        visual_cues:
+          - {id: scope, phrase: "Divide each booking’s loss by four", targets: [cost-assumptions]}
+  - id: forecast-contract
+    title: "Seven days from Sunday"
+    visual: "A dated strip identifies each horizon and issued capacity. A recursive prediction supplies the input for the next step before the calendar model is introduced."
+    beats:
+      - say: "Come back to our parcel center. On each of two Sundays it issues seven forecasts, one per future UTC day. Friday is five days out on the first strip. Wednesday has room for a hundred forty parcels. The other days have room for a hundred fifty. At a real dock, start with the lead time for changing a booking. Pin down the local business day, including clock changes."
+        hold: 0.65
+        visual_cues:
+          - {id: week, phrase: "seven forecasts", targets: [seven-day-schedule]}
+      - say: "Suppose we use the preceding day’s volume to predict the next day. Start at one hundred. Halve it and add ten. The first prediction is sixty. Feed that sixty into the same rule. Now we get forty. That’s a recursive forecast. An error in the first step can travel into the second before either actual arrives."
+        hold: 0.65
+        visual_cues:
+          - {id: recursive, phrase: "Start at one hundred", targets: [recursive-first]}
+          - {id: first-value, phrase: "first prediction is sixty", targets: [recursive-first-result]}
+          - {id: feedback, phrase: "Feed that sixty", targets: [recursive-feedback]}
+          - {id: second-value, phrase: "Now we get forty", targets: [recursive-second-result]}
+      - say: "Separate direct models fit a predictor for each horizon. A joint model predicts all seven outputs together. Either design needs evaluation on the horizons we care about. Here we use one calendar regression. Each future date supplies its own weekday, trend and announced campaign. All seven rows use the same fitted weights. None needs yesterday’s prediction. The synthetic demand has a weekday rhythm, a rising trend, campaigns, noise and two surges. It supplies no weather or monthly pattern."
+        hold: 0.8
+        visual_cues:
+          - {id: direct, phrase: "Separate direct models", targets: [direct-horizons]}
+          - {id: joint, phrase: "A joint model", targets: [joint-horizons]}
+          - {id: calendar, phrase: "one calendar regression", targets: [calendar-design]}
+  - id: origins
+    title: "What was available on Sunday?"
+    visual: "The second fit admits six newly finalized days while the February 7 audit stays pending beyond the February 8 issue."
+    beats:
+      - say: "Rewind to February first. The first fit can read sixty-two final counts, through January thirty-first. It issues forecasts for Monday through the following Sunday. This calendar strip starts on issue day and ends the day before we fit again. Watch which counts clear audit in that time."
+        hold: 0.7
+        visual_cues:
+          - {id: first, phrase: "sixty-two final counts", targets: [first-fit]}
+      - say: "Advance the clock one week, to eight on Sunday the eighth. The counts for Sunday the first through Friday the sixth have cleared audit. Saturday is already over, but its batch becomes readable on Monday the ninth at six. Can the February eighth fit use Saturday’s count?"
+        hold: 2.05
+        visual_cues:
+          - {id: advance, phrase: "Advance the clock", targets: [second-fit]}
+          - {id: six, phrase: "Sunday the first through Friday the sixth", targets: [new-history]}
+          - {id: saturday, phrase: "its batch becomes readable", targets: [saturday-availability]}
+          - {id: ask, phrase: "Can the February eighth fit", targets: [saturday-question]}
+      - say: "Leave Saturday pending. The six newly available days take us from sixty-two training rows to sixty-eight. That is the difference between the day a parcel was requested and the time its count became available. Rolling the forecast origin forward lets us reuse mature history as a planner could. Shuffling these rows would let later information travel back into the fit."
+        hold: 0.9
+        visual_cues:
+          - {id: arrives, phrase: "Leave Saturday pending", targets: [pending-saturday]}
+          - {id: total, phrase: "sixty-two training rows to sixty-eight", targets: [second-training-size]}
+  - id: baseline
+    title: "Which weekday can supply the baseline?"
+    visual: "The matching weekday lookup skips first an unfinished Sunday and then an audited Saturday, retaining each selected source date."
+    beats:
+      - say: "Give the calendar model a simple competitor. These three Sundays are a week apart. We’re standing at eight on February first, forecasting Sunday the eighth. Which earlier Sunday has a final count we can copy?"
+        hold: 2.15
+        visual_cues:
+          - {id: sundays, phrase: "three Sundays", targets: [matching-weekdays]}
+          - {id: ask, phrase: "Which earlier Sunday", targets: [baseline-question]}
+      - say: "January twenty-fifth. Copy its eighty-six requests. February first is closer, but its business day has barely begun. Copying the latest available matching weekday is called a seasonal naive forecast."
+        hold: 0.75
+        visual_cues:
+          - {id: copy, phrase: "January twenty-fifth", targets: [eligible-sunday]}
+      - say: "Try the second issue, on February eighth. We need a baseline for Saturday the fourteenth. The seventh is still in audit, so skip back to January thirty-first and copy eighty-eight. Save the source date with the forecast. It lets someone check exactly what the planner could have seen."
+        hold: 0.85
+        visual_cues:
+          - {id: saturdays, phrase: "Try the second issue", targets: [saturday-lookup]}
+          - {id: skip, phrase: "skip back to January", targets: [eligible-saturday]}
+  - id: fit-construction
+    title: "Where did Friday’s forecast come from?"
+    visual: "Friday lights one weekday indicator. The weekday offset, elapsed trend and known campaign build a single forecast bar."
+    beats:
+      - say: "Use the sixty-two mature training days at the first issue. Give each row seven weekday columns, elapsed weeks and a flag for a known campaign. One weekday is on in each row, so the seven weekday columns already add to one. Least squares chooses weights that minimize the sum of squared errors against the final counts. In these training rows, none of the nine columns is a linear combination of the others. The matrix has rank nine. An extra column of ones would be redundant. This fit requires full rank and finite weights."
+        hold: 0.65
+        visual_cues:
+          - {id: design, phrase: "Give each row seven weekday columns", targets: [feature-columns]}
+          - {id: least-squares, phrase: "Least squares chooses", targets: [least-squares-fit]}
+          - {id: rank, phrase: "rank nine", targets: [full-rank]}
+      - say: "Take Friday February sixth. Only the Friday indicator is on. Its fitted offset supplies about a hundred thirty-one parcels. The trend adds a little over eleven. That’s sixty-seven days since December first, divided by seven to get weeks, times the weekly weight. The announced campaign adds almost twenty-one more. If the flag were zero, that entire piece would disappear."
+        hold: 0.8
+        visual_cues:
+          - {id: friday, phrase: "Take Friday", targets: [friday-row]}
+          - {id: offset, phrase: "fitted offset", targets: [weekday-product]}
+          - {id: trend, phrase: "The trend adds", targets: [trend-product]}
+          - {id: campaign, phrase: "announced campaign adds", targets: [campaign-product]}
+      - say: "Using the unrounded weights gives one hundred sixty-three point two eight four parcels to three decimal places. A negative result would be clipped to zero. We have a point prediction. Its weights were fitted to squared error, separately from the booking calculation."
+        hold: 0.8
+        visual_cues:
+          - {id: point, phrase: "one hundred sixty-three point two eight four parcels", targets: [issued-point]}
+      - say: "For a future date, use announcements known when the forecast goes out. For a historical training day, the cutoff is the earlier of the fit time and the start of that day. Reconstructing every historical seven-day issue would also need the plan version available at that lead time."
+        hold: 0.75
+        visual_cues:
+          - {id: historical, phrase: "historical training day", targets: [plan-availability]}
+  - id: issued
+    title: "Wednesday’s campaign record"
+    visual: "A Wednesday issue mark stays at 145.017 when the campaign is canceled. A separate count at 123 reveals what the issued record got wrong."
+    beats:
+      - say: "Take Wednesday from that same Sunday issue. The promotion had been announced on January twenty-eighth. With the campaign flag on, the model filed a forecast just over a hundred forty-five. Wednesday’s schedule allowed a hundred forty. The planner had a reason to check capacity."
+        hold: 0.8
+        visual_cues:
+          - {id: announced, phrase: "promotion had been announced", targets: [announced-plan]}
+          - {id: file, phrase: "filed a forecast", targets: [frozen-point]}
+          - {id: signal, phrase: "reason to check capacity", targets: [capacity-warning]}
+      - say: "The promotion was later canceled. If we switch the campaign flag off and run Sunday’s weights again, we get about a hundred twenty-four. On Thursday morning the final count for Wednesday arrived. One hundred twenty-three requests. Which forecast belongs in the score, the one we filed or the one we just recalculated?"
+        hold: 2.35
+        visual_cues:
+          - {id: canceled, phrase: "later canceled", targets: [plan-change]}
+          - {id: flag-off, phrase: "switch the campaign flag off", targets: [replay-mark]}
+          - {id: replay, phrase: "we get about a hundred twenty-four", targets: [recalculated-point]}
+          - {id: arrived, phrase: "On Thursday morning", targets: [evaluation-time]}
+          - {id: count, phrase: "One hundred twenty-three requests", targets: [verified-requests]}
+          - {id: ask, phrase: "Which forecast belongs", targets: [issue-evidence-question]}
+      - say: "Score the original. Wednesday came in about twenty-two parcels below it. The recalculation would make that miss look like just one parcel. Keep any revised forecast under its own time and identity. This fixture records announcements. Replaying a cancellation as it happened would also require a dated cancellation record."
+        hold: 0.9
+        visual_cues:
+          - {id: original, phrase: "Score the original", targets: [issued-residual]}
+          - {id: erased, phrase: "just one parcel", targets: [retrospective-error]}
+  - id: ledger-contract
+    title: "Two ways to record Friday"
+    visual: "An appended Friday count preserves the original residual. Overwriting the issued point erases it and changes the row fingerprint."
+    beats:
+      - say: "Here’s the number the planner saw on Sunday. The key above it names the center, service tier, issue time, target date and code version. Count five days from Sunday and you land on Friday. That’s one check we can make from the key."
+        hold: 0.8
+        visual_cues:
+          - {id: key, phrase: "Count five days from Sunday", targets: [forecast-identity]}
+      - say: "Append Friday’s verified count beside the issued forecast. Match the center, tier and target date so every forecast for that day keeps its own issue time and horizon. The dock counted a hundred seventy-six requests. We were about twelve point seven low. Look at the second row. Someone copied the final count over the forecast. The error now reads zero. How could a reviewer detect that change?"
+        hold: 2
+        caption_starts: ["Look at the second row.", "How could a reviewer detect that change?"]
+        visual_cues:
+          - {id: join, phrase: "The dock counted a hundred seventy-six requests", targets: [append-outcome]}
+          - {id: miss, phrase: "We were about twelve point seven low", targets: [issued-error]}
+          - {id: second-row, phrase: "Look at the second row", targets: [edited-row]}
+          - {id: rewrite, phrase: "Someone copied the final count over the forecast", targets: [overwrite-forecast]}
+          - {id: apparent, phrase: "The error now reads zero", targets: [apparent-error]}
+      - say: "Look at the original row’s fingerprint. Now compare the edited row. Changing one number gave it a different hash. The lab checks the whole ledger this way. At issue time, save the issuer’s hash in a separately protected record. Later, hash the ledger again and compare it with the saved value. A mismatch flags changed bytes. Protect the issued file too. Keep the input snapshots, feature order, fitted weights, source hashes and runtime versions so you can replay the forecast."
+        hold: 0.8
+        visual_cues:
+          - {id: fingerprint, phrase: "Look at the original row’s fingerprint", targets: [original-row-fingerprint]}
+          - {id: edited, phrase: "Now compare the edited row", targets: [edited-row-fingerprint]}
+          - {id: whole, phrase: "The lab checks the whole ledger", targets: [ledger-digest]}
+          - {id: reference, phrase: "separately protected record", targets: [trusted-reference]}
+          - {id: compare, phrase: "Later, hash the ledger again", targets: [integrity-check]}
+  - id: metrics
+    title: "Which forecasts can we score?"
+    visual: "Two rows of seven dates show absolute errors only when counts are final. Three cells cross the six-parcel tolerance."
+    beats:
+      - say: "It’s February eighth again. Both weeks have been issued. Only five have final counts. We can pair those five with their forecasts, take each absolute difference, add them and divide by five. Mean absolute error is about eight point one five parcels. The other nine rows stay pending. With no mature labels, the mean error, peak penalty and fraction within tolerance are all undefined."
+        hold: 0.8
+        visual_cues:
+          - {id: early, phrase: "It’s February eighth", targets: [early-evaluation]}
+          - {id: five, phrase: "Only five have final counts", targets: [mature-denominator]}
+      - say: "Keep the issued rows and advance to February sixteenth. Now all fourteen have final labels. Score the seasonal baseline and the candidate on those same days. Mean absolute error drops from about seven point six four to six point two five parcels."
+        hold: 0.8
+        visual_cues:
+          - {id: later, phrase: "advance to February sixteenth", targets: [late-evaluation]}
+          - {id: fourteen, phrase: "all fourteen", targets: [complete-denominator]}
+      - say: "Mark each miss greater than six parcels. The canceled Wednesday, the first campaign Friday and the surprise surge on Tuesday the tenth cross that limit. Eleven dates stay inside. Tuesday is only two days from issue. Each horizon appears twice here, so its average tells us where to inspect a miss. We need more windows to estimate how an entire horizon usually performs."
+        hold: 0.85
+        visual_cues:
+          - {id: six, phrase: "greater than six parcels", targets: [residual-breaches]}
+  - id: evaluation-contract
+    title: "What counts toward the peak penalty?"
+    visual: "Three qualifying days build the peak-cost sum. A six-parcel perturbation contributes differently to the penalty and to MAE."
+    beats:
+      - say: "Now take the days with at least a hundred fifty actual requests. For this diagnostic, each parcel the model underforecast on a qualifying day costs three fictional units. Take the first Friday. The baseline was thirty-three short. The candidate was about twelve point seven short. Multiply each gap by three. Friday contributes ninety-nine units on the left and about thirty-eight on the right."
+        hold: 0.8
+        visual_cues:
+          - {id: qualify, phrase: "at least a hundred fifty actual requests", targets: [peak-filter]}
+          - {id: friday, phrase: "Take the first Friday", targets: [peak-row-friday]}
+      - say: "Tuesday’s surge costs the candidate a little more than it costs the baseline. The second Friday also qualifies by volume, but both forecasts were high enough. Its underforecast charge is zero. Sum the three rows at full precision. The total falls from two hundred one to about a hundred forty-three units."
+        hold: 0.75
+        visual_cues:
+          - {id: surge, phrase: "Tuesday’s surge", targets: [peak-row-tuesday]}
+          - {id: second-friday, phrase: "The second Friday", targets: [zero-shortfall]}
+          - {id: sum, phrase: "Sum the three rows", targets: [peak-sum]}
+      - say: "Suppose that first Friday forecast were another six parcels too low. The peak sum would gain eighteen units. Mean absolute error would rise by only six divided by fourteen parcels because it averages across all mature days. The peak charge measures a forecast shortfall on selected days. Actual operating cost would also depend on what was booked and what happened at the dock."
+        hold: 0.8
+        visual_cues:
+          - {id: change, phrase: "another six parcels too low", targets: [peak-vs-mean]}
+      - say: "The six-parcel tolerance serves another purpose. We chose its width as an error limit. To give an interval a probability, estimate uncertainty from earlier errors or a model, then check coverage and width on later untouched windows. An interval can stay the same width across several horizons. If it assumes a campaign will run, a cancellation introduces uncertainty outside that assumption."
+        hold: 0.8
+        visual_cues:
+          - {id: band, phrase: "six-parcel tolerance", targets: [tolerance-vs-interval]}
+  - id: signals
+    title: "Which days enter each denominator?"
+    visual: "Four dated rows compare forecast and actual against the same issued capacity. The warning days and overload days form different sets of three."
+    beats:
+      - say: "Read across Wednesday the fourth. The forecast cleared capacity. To score the warning, check whether actual requests also strictly exceeded the issued capacity. They stayed below it after the campaign was canceled. That gives us a false warning. On Friday the sixth, both numbers cleared the schedule. That warning was correct, even though we also missed Friday’s count by more than six."
+        hold: 0.65
+        visual_cues:
+          - {id: wed, phrase: "Wednesday the fourth", targets: [canceled-wednesday]}
+          - {id: fri, phrase: "Friday the sixth", targets: [true-warning]}
+      - say: "Tuesday the tenth went the other way. The surge put actual demand above capacity without a warning. The next Friday did get a warning, and its actual count was within one parcel of the forecast. The other ten days were quiet on both checks."
+        hold: 0.75
+        visual_cues:
+          - {id: tue, phrase: "Tuesday the tenth", targets: [missed-overload]}
+          - {id: again, phrase: "The next Friday", targets: [accurate-warning]}
+      - say: "For precision, start with the three days we warned about. Two really exceeded the schedule. For recall, start with the three days that actually exceeded it. We caught both Fridays and missed Tuesday. Both fractions are two thirds, but look at the dates in their denominators. Wednesday belongs only to the first. Tuesday belongs only to the second. With no verified warning days, precision is undefined. With no verified overloads, recall is undefined."
+        hold: 0.85
+        visual_cues:
+          - {id: precision, phrase: "For precision", targets: [warning-denominator]}
+          - {id: recall, phrase: "For recall", targets: [overload-denominator]}
+  - id: synthesis
+    title: "Would you accept these fourteen forecasts?"
+    visual: "Fourteen dated tolerance decisions remain visible beneath the two improving scores while the viewer applies the predeclared 85 percent gate."
+    beats:
+      - say: "The candidate improved average error. The peak penalty fell too. Here is every February date the planner asked us to forecast. Count the days within six parcels of their issued point. Eleven qualify. The rule set before evaluation requires at least eighty-five percent. Does this candidate pass the local comparison?"
+        hold: 2.4
+        visual_cues:
+          - {id: peak, phrase: "peak penalty fell", targets: [peak-improvement]}
+          - {id: count-days, phrase: "every February date", targets: [tolerance-dates]}
+          - {id: require, phrase: "Eleven qualify", targets: [tolerance-requirement]}
+          - {id: ask, phrase: "Does this candidate pass", targets: [gate-question]}
+      - say: "With fourteen days we need at least twelve inside. Eleven out of fourteen is only seventy-eight point six percent. Hold the candidate and keep this result. If we widen the tolerance now to rescue the score, we’ve used these days to design the new rule. Test that rule on later untouched dates."
+        hold: 0.95
+        visual_cues:
+          - {id: minimum, phrase: "need at least twelve", targets: [failed-comparison]}
+  - id: receipt-contract
+    title: "What would a perfect replay establish?"
+    visual: "The issued and perfect-replay rows have different comparison results but the same operational decision."
+    beats:
+      - say: "The local receipt asks for both origins, all seven horizons, mature labels and a named previous model. It requires strictly lower average error and a strictly lower peak penalty. A tie on either fails. The issued candidate misses the tolerance gate. Equality at the eighty-five percent tolerance threshold would pass that gate. Precision and recall must each reach sixty percent."
+        hold: 0.85
+        visual_cues:
+          - {id: requirements, phrase: "both origins", targets: [receipt-gates]}
+          - {id: original, phrase: "issued candidate", targets: [original-receipt]}
+          - {id: limits, phrase: "Equality at the eighty-five percent", targets: [inclusive-thresholds]}
+      - say: "Give a hypothetical candidate the exact final counts. Its local comparison passes. Read the next two fields. The decision still says hold, and live ready is false. Both candidates were tested only on synthetic demand."
+        hold: 0.85
+        visual_cues:
+          - {id: perfect, phrase: "local comparison passes", targets: [perfect-replay]}
+          - {id: fixture, phrase: "only on synthetic demand", targets: [readiness-scope]}
+      - say: "Before a pilot, backtest representative real seasons and events. Run forecasts alongside the incumbent. If a warning prompts a planner to add a shift, record both the original schedule and the extra shift. That lets you score the warning and see what the planner did with it. Rehearse restoring the previous model with its data and features."
+        hold: 0.85
+        visual_cues:
+          - {id: pilot, phrase: "Before a pilot", targets: [operational-evidence]}
+          - {id: shift, phrase: "add a shift", targets: [planner-action]}
+          - {id: recover, phrase: "Rehearse restoring", targets: [recovery-evidence]}
+  - id: monitoring-contract
+    title: "A zero arrives in the feed"
+    visual: "An unverified zero stops at reconciliation before the next fit. The observed breach count opens a review rather than triggering a refit."
+    beats:
+      - say: "Suppose the feed suddenly reports zero requests. Is the dock quiet? Check reconciliation. If the count is still pending, leave it out of the next fit. Training on that zero could teach the model the shape of a tracking outage. Track how long labels take to arrive and how many are missing. Append each verified count with both its event day and its availability time."
+        hold: 0.8
+        visual_cues:
+          - {id: zero, phrase: "reports zero requests", targets: [unverified-zero]}
+          - {id: verify, phrase: "Check reconciliation", targets: [verification]}
+          - {id: exclude, phrase: "leave it out", targets: [training-set]}
+          - {id: arrival, phrase: "Track how long", targets: [label-delay]}
+      - say: "In our two-week window, three of fourteen forecasts breached tolerance. That clears an example review threshold of fifteen percent. Precision below sixty percent could also open a review. Look at the size of the window, delayed labels, changed plans and event mix before interpreting a crossing. Repeated weekly checks can produce alarms by chance."
+        hold: 0.65
+        visual_cues:
+          - {id: review, phrase: "three of fourteen", targets: [monitoring-threshold]}
+          - {id: window, phrase: "size of the window", targets: [review-window]}
+      - say: "A weekly refit is one policy to evaluate. Keep every fitted version and compare it forward on newly mature labels. A residual alone can’t tell you whether demand changed, a predictor is missing, or the data pipeline failed. Check those explanations before retraining."
+        hold: 0.8
+  - id: failure-construction
+    title: "Try changing the evidence"
+    visual: "The same Sunday fit ignores a large mutation after the cutoff and responds when the changed count belongs to its training history."
+    beats:
+      - say: "Try a deliberate edit in a copy of the raw data. Add ten thousand parcels to each of the fifteen counts unavailable at the first issue. Fit again at the same Sunday cutoff. Will rerunning the same fit change Friday’s forecast?"
+        hold: 2.2
+        visual_cues:
+          - {id: mutation, phrase: "Add ten thousand parcels", targets: [future-count-edit]}
+          - {id: ask, phrase: "Will rerunning the same fit", targets: [invariance-question]}
+      - say: "Friday stays at one hundred sixty-three point two eight four. All seven differences are zero. The sixty-two eligible target values and their feature rows were identical across the runs."
+        hold: 0.85
+        visual_cues:
+          - {id: same, phrase: "Friday stays", targets: [unchanged-friday]}
+          - {id: deltas, phrase: "All seven differences", targets: [unchanged-window]}
+      - say: "Reset the copy. This time add ten thousand to just January thirtieth, a Friday that was already final. Repeat the same fit. Friday’s forecast jumps to about six hundred sixty-one parcels. Move the edit from a future count to a training count and the same fit responds."
+        hold: 0.8
+        visual_cues:
+          - {id: control, phrase: "just January thirtieth", targets: [eligible-control]}
+          - {id: moved, phrase: "jumps to about", targets: [control-result]}
+      - say: "Try the cutoff on a different input. Add a campaign announcement on Monday. A plan announced after issue stays out of Sunday’s forecast. Now check the records themselves. A duplicate Friday row and a missing Thursday could still give you fourteen rows. Check every issue and horizon to catch both."
+        hold: 0.85
+        visual_cues:
+          - {id: late-plan, phrase: "plan announced after issue", targets: [other-boundaries]}
+          - {id: duplicate, phrase: "A duplicate Friday row", targets: [horizon-completeness]}
+  - id: earned-forecast-transfer
+    title: "Three days on the planner’s sheet"
+    visual: "A late Wednesday count changes the three-day worksheet. On the opening parcel ruler, 145 lands above issued capacity and the tolerance band, but below the separate peak cutoff."
+    beats:
+      - say: "Here’s a different three-day worksheet. The bookings and forecasts are fixed. Compare them across each row. Only Tuesday’s forecast exceeds its schedule. Tuesday and Thursday have final counts. Wednesday is still in audit. Which rows belong in today’s mean absolute error?"
+        hold: 2.3
+        visual_cues:
+          - {id: book, phrase: "bookings and forecasts", targets: [new-issued-rows]}
+          - {id: verified, phrase: "Tuesday and Thursday have final counts", targets: [partial-observations]}
+          - {id: first-question, phrase: "Which rows belong", targets: [partial-question]}
+      - say: "Use Tuesday and Thursday. Their errors are one parcel and zero. Divide their sum by two. That’s half a parcel, and both days are within six. The worksheet still needs its third outcome to be complete. Tuesday’s warning caught the only confirmed overload. So far, precision and recall are both one."
+        hold: 0.8
+        visual_cues:
+          - {id: two, phrase: "Use Tuesday and Thursday", targets: [mature-rows]}
+          - {id: mean, phrase: "Divide their sum by two", targets: [partial-score]}
+          - {id: caught, phrase: "Tuesday’s warning caught", targets: [partial-confusion]}
+      - say: "Now Wednesday’s count clears audit. One hundred forty-five requests. Look across the row from the issued point to the final count. Did we miss an overload? Was the error greater than six parcels?"
+        hold: 2.55
+        visual_cues:
+          - {id: wednesday, phrase: "One hundred forty-five requests", targets: [delayed-actual]}
+          - {id: last-question, phrase: "Did we miss an overload", targets: [routing-question]}
+      - say: "At issue, a hundred thirty-eight was below capacity, so there was no warning. A hundred forty-five later exceeded capacity by five. Record a missed overload. The forecast was seven parcels low. That puts its error outside tolerance. Now the three absolute errors add to eight. Divide by three. Two of the three days stayed within tolerance."
+        hold: 0.8
+        visual_cues:
+          - {id: compare, phrase: "At issue", targets: [wednesday-comparisons]}
+          - {id: missed, phrase: "Record a missed overload", targets: [missed-overload]}
+          - {id: seven, phrase: "seven parcels low", targets: [residual-breach]}
+          - {id: update-error, phrase: "three absolute errors", targets: [complete-score]}
+      - say: "The worksheet still has one warning, and it was right. Now there are two overloads and we caught only one. Precision stays at one. Recall falls to one half."
+        hold: 0.8
+        visual_cues:
+          - {id: update-recall, phrase: "two overloads", targets: [updated-denominators]}
+      - say: "Bring Wednesday back to the parcel scale. Our final count sits just beyond the blue band. The peak penalty starts at a hundred fifty actual requests. How many peak penalty units does Wednesday add?"
+        hold: 2.25
+        visual_cues:
+          - {id: scale, phrase: "back to the parcel scale", targets: [wednesday-parcel-ruler]}
+          - {id: peak-cutoff, phrase: "starts at a hundred fifty", targets: [peak-cutoff]}
+          - {id: peak-question, phrase: "How many peak penalty units", targets: [peak-question]}
+      - say: "Zero units. A hundred forty-five crossed Wednesday’s capacity line and stopped short of the peak cutoff. Record the missed overload. Give the data or model owner the seven-parcel error to investigate. Leave the issued forecast at a hundred thirty-eight."
+        hold: 1.3
+        visual_cues:
+          - {id: zero, phrase: "Zero units", targets: [wednesday-peak-penalty]}
+          - {id: route, phrase: "Record the missed overload", targets: [follow-up-decision]}

@@ -1,0 +1,223 @@
+version: 1
+lesson: jax-for-ml-research
+promise: Decide whether a padded JAX training step preserves the experiment by comparing its loss, gradients, and returned state with the unpadded call.
+objectives:
+  - id: numerical
+    can: Compute the loss and gradient on real rows, compare the padded reduction, and decide whether an empty batch should advance momentum.
+    scenes:
+      - intro
+      - regression-oracle
+      - gradient
+      - transform-order
+      - state
+      - state-replay
+      - regularizer
+      - masked-padding
+      - last-batch
+  - id: state
+    can: Match parameter paths and shapes, keep the returned array, and trace matching dropout bits back to their keys.
+    scenes:
+      - tree
+      - dynamic-static
+      - values
+      - indexing-bounds
+      - keys
+      - key-replay
+      - key-ownership
+  - id: staging
+    can: Diagnose extra compilation, a captured global, and a failure in traced control flow by changing one input at a time.
+    scenes:
+      - jit
+      - compile-stages
+      - captured-global
+      - weak-typing
+      - masked-padding
+      - tracer-branch
+      - inactive-log
+      - loop-contract
+      - fresh-boundary
+  - id: execution
+    can: Distinguish example axes from physical shards and measure cold and warm calls through result completion.
+    scenes:
+      - device-layout
+      - timing
+      - measurement-contract
+  - id: research
+    can: Use a retained input and its expected results to locate a failing transformation and justify a narrow change to the research code.
+    scenes:
+      - program-contract
+      - evidence-preservation
+      - fresh-boundary
+      - last-batch
+sections:
+  - heading: Read the program before choosing a rewrite
+    status: taught
+    scenes:
+      - program-contract
+      - evidence-preservation
+  - heading: One step is a state transition
+    status: taught
+    scenes:
+      - state
+      - state-replay
+  - heading: Pure means observable through arguments and returns
+    status: taught
+    scenes:
+      - program-contract
+      - captured-global
+  - heading: Immutable arrays remove aliasing surprises
+    status: taught
+    scenes:
+      - values
+      - indexing-bounds
+  - heading: Randomness is explicit data
+    status: taught
+    scenes:
+      - keys
+      - key-replay
+  - heading: Split at ownership boundaries
+    status: taught
+    scenes:
+      - key-ownership
+      - state-replay
+  - heading: Transform one small function at a time
+    status: taught
+    scenes:
+      - gradient
+      - transform-order
+  - heading: Transformation order changes the derived program
+    status: taught
+    scenes:
+      - transform-order
+  - heading: Pytrees carry structured state
+    status: taught
+    scenes:
+      - tree
+      - dynamic-static
+  - heading: Separate dynamic leaves from static metadata
+    status: taught
+    scenes:
+      - dynamic-static
+      - weak-typing
+  - heading: Translate a tiny training step
+    status: taught
+    scenes:
+      - regression-oracle
+      - state
+      - state-replay
+      - regularizer
+  - heading: JIT compiles a shape-specific contract
+    status: taught
+    scenes:
+      - jit
+      - compile-stages
+      - captured-global
+      - weak-typing
+      - masked-padding
+      - last-batch
+  - heading: Tracers aren't ordinary Python values
+    status: taught
+    scenes:
+      - tracer-branch
+      - inactive-log
+      - loop-contract
+  - heading: Measure completed accelerator work
+    status: taught
+    scenes:
+      - timing
+      - measurement-contract
+  - heading: Treat devices as another state boundary
+    status: taught
+    scenes:
+      - device-layout
+      - key-ownership
+  - heading: Failure cases that look like model bugs
+    status: taught
+    scenes:
+      - captured-global
+      - indexing-bounds
+      - tracer-branch
+      - evidence-preservation
+  - heading: Debug outside in
+    status: taught
+    scenes:
+      - evidence-preservation
+  - heading: Preserve JAX when its structure carries evidence
+    status: taught
+    scenes:
+      - program-contract
+      - evidence-preservation
+  - heading: A focused modification workflow
+    status: taught
+    scenes:
+      - regularizer
+      - evidence-preservation
+      - fresh-boundary
+      - last-batch
+quiz:
+  - n: 1
+    status: taught
+    scenes:
+      - transform-order
+  - n: 2
+    status: taught
+    scenes:
+      - values
+      - indexing-bounds
+  - n: 3
+    status: taught
+    scenes:
+      - keys
+      - key-replay
+      - key-ownership
+  - n: 4
+    status: taught
+    scenes:
+      - captured-global
+      - fresh-boundary
+  - n: 5
+    status: taught
+    scenes:
+      - intro
+      - masked-padding
+      - last-batch
+  - n: 6
+    status: taught
+    scenes:
+      - tree
+      - dynamic-static
+  - n: 7
+    status: taught
+    scenes:
+      - inactive-log
+      - tracer-branch
+  - n: 8
+    status: taught
+    scenes:
+      - loop-contract
+  - n: 9
+    status: taught
+    scenes:
+      - state-replay
+      - masked-padding
+  - n: 10
+    status: taught
+    scenes:
+      - timing
+      - measurement-contract
+removed: []
+reviews:
+  closed_book:
+    script: fabb0962a447cfa5
+    reviewer: /root/upgrade_shard4
+    evidence: build/video-delivery-20261106/script-reviews/jax-for-ml-research.json
+    evidence_sha256: bfda86337de648237913f76455703f7f2d5cca72e4358aad450c5fac57d77a76
+    taught: 10
+    partial: 0
+    absent: 0
+  fact_check:
+    script: fabb0962a447cfa5
+    reviewer: /root/upgrade_shard4
+    evidence: build/video-delivery-20261106/script-reviews/jax-for-ml-research.json
+    evidence_sha256: bfda86337de648237913f76455703f7f2d5cca72e4358aad450c5fac57d77a76
+    open_findings: 0

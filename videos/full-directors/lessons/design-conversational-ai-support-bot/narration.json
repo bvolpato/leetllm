@@ -1,0 +1,488 @@
+[
+  {
+    "id": "c01",
+    "title": "Can the bot credit the second charge?",
+    "sourceChapters": ["c01"],
+    "beats": [
+      {
+        "id": "c01-b01",
+        "say": "“I was charged nine hundred dollars twice. Can you credit the second one?” Open the invoice through Alex’s account. Circle the second GPU charge. Billing confirms that it duplicates the first. The invoice is nine days old.",
+        "hold": 0.8
+      },
+      {
+        "id": "c01-b02",
+        "say": "Mark day nine on the published US policy’s thirty-day window. Now carry the amount on that second line over to the dollar scale. Specialist review starts at five hundred dollars. Where does the nine-hundred-dollar request belong?",
+        "hold": 3
+      },
+      {
+        "id": "c01-b03",
+        "say": "Send it for specialist review. The date fits. The amount crosses the review threshold. Tell Alex, “Your invoice shows a duplicate. A billing specialist needs to review it.” Once the specialist queue accepts the case, Alex can get a reference.",
+        "hold": 0.8
+      }
+    ]
+  },
+  {
+    "id": "c02",
+    "title": "Two workers on one ticket",
+    "sourceChapters": ["c02"],
+    "beats": [
+      {
+        "id": "c02-b01",
+        "say": "Alex submits a correction while the invoice lookup is running. The correction comes in on an HTTP request. The service can stream progress back through server-sent events. A WebSocket can carry messages both ways.",
+        "hold": 0.3
+      },
+      {
+        "id": "c02-b02",
+        "say": "A ticketing webhook sends event seventeen twice. Count that event once. Rate-limit by authenticated tenant and serialize accepted updates. Reading public policy, reading a private invoice and requesting a credit each require different permissions.",
+        "hold": 0.8
+      },
+      {
+        "id": "c02-b03",
+        "say": "Worker seven is still running when its lease expires. Its replacement takes token eight, and the database records eight. Seven comes back with a write. Compare the two tokens. Reject seven at the database. That check is called fencing. Keep financial uniqueness in shared storage.",
+        "hold": 0.3
+      },
+      {
+        "id": "c02-b04",
+        "say": "A row lock protects a selected row. An advisory lock works across the paths that honor it, and a transaction-level lock ends with the transaction. Commit a case update before waiting for a model or a customer.",
+        "hold": 0.8
+      },
+      {
+        "id": "c02-b05",
+        "say": "One supervisor owns the case. Give each reader a narrow job, scoped credentials, a deadline and a bounded result. The supervisor checks the identity, revision, source and success of each read before accepting it. Separate model contexts still need access checks.",
+        "hold": 0.3
+      },
+      {
+        "id": "c02-b06",
+        "say": "For a short sequential workflow, start with one agent. If you add workers, measure the time they save and the tokens and queue capacity they use on your own tickets.",
+        "hold": 0.8
+      }
+    ]
+  },
+  {
+    "id": "c03",
+    "title": "Which invoice came back?",
+    "sourceChapters": ["c03"],
+    "beats": [
+      {
+        "id": "c03-b01",
+        "say": "Alex’s original GPU charge is nine hundred dollars. We store the money as integer cents alongside the authenticated customer, invoice and item. Watch the invoice number and revision on the two copies. One belongs to the supervisor. The other travels with the worker.",
+        "hold": 0.8
+      },
+      {
+        "id": "c03-b02",
+        "say": "Alex switches to the storage invoice. The supervisor moves to revision five and clears any earlier confirmation. The worker finishes the GPU lookup successfully. Compare the invoice numbers and revisions. Discard the old result. A successful read can belong to the wrong version of this case.",
+        "hold": 1.3
+      },
+      {
+        "id": "c03-b03",
+        "say": "Read the storage invoice again. This time both copies say revision five and name the same customer and invoice. The supervisor can accept the twenty-dollar charge. Workers return what they observed. Only the supervisor updates the case.",
+        "hold": 0.8
+      },
+      {
+        "id": "c03-b04",
+        "say": "Replay the original GPU case at revision four. The live storage case stays at revision five. On the replay, the chat summary says ninety dollars. The owned invoice and validated request say nine hundred. Which amount reaches the gate?",
+        "hold": 2.8
+      },
+      {
+        "id": "c03-amount-answer",
+        "say": "Use nine hundred dollars. Ninety is a well-formed number. It fails the comparison with billing.",
+        "hold": 1.2
+      },
+      {
+        "id": "c03-b05",
+        "say": "Use dialogue for wording and history for context. A chat buffer can disappear on disconnect. Bind durable case and action records to the tenant and customer, and get identity and region from server records. The lab uses decimal dollars to the cent.",
+        "hold": 0.3
+      },
+      {
+        "id": "c03-b06",
+        "say": "Reject nonfinite amounts, fractions of a cent, zero and negative requests.",
+        "hold": 0.8
+      }
+    ]
+  },
+  {
+    "id": "c04",
+    "title": "What follows a request into fallback?",
+    "sourceChapters": ["c04"],
+    "beats": [
+      {
+        "id": "c04-b01",
+        "say": "Before a lookup or draft, compile one contract from the gateway and billing rules. It carries identity, privacy class, policy versions, citations, reply format, review requirement and generation limit. Release the published words and the executable rule together under one reviewed version.",
+        "hold": 0.3
+      },
+      {
+        "id": "c04-b02",
+        "say": "A digest can detect changed bytes. A trusted publisher has to establish which version governs.",
+        "hold": 0.8
+      },
+      {
+        "id": "c04-b03",
+        "say": "The lab declares half a cent per generation. Its routing stub returns a lane name. A real gateway has to check the processor, returned output and actual usage. Move the same contract into the fallback lane.",
+        "hold": 0.3
+      },
+      {
+        "id": "c04-b04",
+        "say": "The replacement still owes Alex a private, cited reply for a case that needs review. Every attempt draws on the same time and spend budget. Record each observation and the policy reason in the case trace. A status poll can return no change. Set its cadence, deadline and stopping point.",
+        "hold": 0.8
+      },
+      {
+        "id": "c04-b05",
+        "say": "Alex’s private write bypasses the public reply cache. A public policy answer can be cached for a particular region, version and access scope. Change the policy version and the old entry no longer matches. Minimize private fields and protect the mapping if you use reversible placeholders.",
+        "hold": 0.3
+      },
+      {
+        "id": "c04-b06",
+        "say": "Screen incoming text for unsafe instructions and outgoing replies for harmful content. Before a private write, the application checks whether this customer may act on this invoice.",
+        "hold": 0.8
+      }
+    ]
+  },
+  {
+    "id": "c05",
+    "title": "Which record governs the credit?",
+    "sourceChapters": ["c05"],
+    "beats": [
+      {
+        "id": "c05-b01",
+        "say": "Search for US duplicate-charge policy. Check region, topic and current version across the four hits. Now check who published each record. The private note can mention the right customer and still have no policy authority. Compare the content digest with the trusted copy. Only the current published US record passes all five checks.",
+        "hold": 1.5
+      },
+      {
+        "id": "c05-b02",
+        "say": "Keep the record ID and the digest registered by the publisher. Edit the window in the retrieved document. Compute its digest again. The two digests differ. No policy passes now. Send the discrepancy for review. A digest identifies the bytes. Publication and subject review establish which rule governs.",
+        "hold": 0.8
+      },
+      {
+        "id": "c05-b03",
+        "say": "Restore the original documents. Now the account is Canadian. The US policy is still authentic. The region column tells you why it cannot answer this ticket. Preserve the missing Canadian policy as the reason for review and abstain from promising a credit.",
+        "hold": 0.8
+      }
+    ]
+  },
+  {
+    "id": "c06",
+    "title": "What did Alex sign?",
+    "sourceChapters": ["c06"],
+    "beats": [
+      {
+        "id": "c06-b01",
+        "say": "Back on the US ticket, nine days is inside the window. Nine hundred dollars takes the original request to a specialist. For this next example, keep the same invoice. The queue policy permits one partial request up to the verified duplicate.",
+        "hold": 0.8
+      },
+      {
+        "id": "c06-b02",
+        "say": "Alex now asks for thirty-five dollars. Put the exact proposal on a form the application controls. Ask Alex to confirm it. The form names the customer, invoice, item, request type, amount, policy version and case revision.",
+        "hold": 0.8
+      },
+      {
+        "id": "c06-b03",
+        "say": "Alex signs the displayed form. Keep the signed copy on the right. With every field matching, the request is eligible for the queue. The executor will recheck it at the write. Now Alex changes just the proposed amount to forty dollars. Does the signed copy cover it?",
+        "hold": 3
+      },
+      {
+        "id": "c06-b04",
+        "say": "Ask Alex to confirm forty dollars. Both amounts are below the threshold. The signature on the right still covers thirty-five. Now open a separate proposal for exactly five hundred dollars with its own matching signature. This time the request needs a specialist. Equality counts at the threshold.",
+        "hold": 0.3
+      },
+      {
+        "id": "c06-b05",
+        "say": "The policy sets the limit. The reader’s shorter helper requires a full duplicate match. A system that accepts multiple partial credits also needs to track the remaining balance.",
+        "hold": 0.8
+      }
+    ]
+  },
+  {
+    "id": "c07",
+    "title": "When can the supervisor merge the reads?",
+    "sourceChapters": ["c07"],
+    "beats": [
+      {
+        "id": "c07-b01",
+        "say": "Fix Alex’s invoice and revision before starting either read. On this example clock, run the policy lookup for two ticks. Then run the invoice lookup for three. The merge takes one more tick. The serial run ends at six.",
+        "hold": 0.8
+      },
+      {
+        "id": "c07-b02",
+        "say": "Start both lookups together. Watch their pens. The policy lookup finishes at tick two. Leave its receipt there. The invoice lookup is still running. Can the supervisor start merging at this point?",
+        "hold": 3
+      },
+      {
+        "id": "c07-b03",
+        "say": "Wait for the invoice. It arrives at tick three. Compare the receipts. Both succeeded for Alex, on the same invoice and revision. Start the merge. It takes one tick. The parallel run finishes at four. We saved the two ticks the reads overlapped. The write still needs authorization.",
+        "hold": 1.6
+      },
+      {
+        "id": "c07-b04",
+        "say": "Replay the parallel run. Policy still comes back at two. This time the invoice reaches its deadline at three. Its receipt slot stays empty. Keep the policy result. Hand off the missing invoice read with the timeout as the reason. Bound retries, time and spend across the whole ticket.",
+        "hold": 1.5
+      }
+    ]
+  },
+  {
+    "id": "c08",
+    "title": "The reply disappears",
+    "sourceChapters": ["c08"],
+    "beats": [
+      {
+        "id": "c08-b01",
+        "say": "Return to the signed thirty-five-dollar proposal and the two successful reads. The executor checks the current facts and inserts one pending request. The queue sends back an acknowledgment. The reply disappears before it reaches the app. Look at the two sides. Billing has the row.",
+        "hold": 0.3
+      },
+      {
+        "id": "c08-b02",
+        "say": "Alex’s app has no receipt. Should it start a new operation or retry the original one?",
+        "hold": 2.5
+      },
+      {
+        "id": "c08-b03",
+        "say": "Retry the original operation with the same key and identical parameters. The queue returns its stored acknowledgment. Once that receipt reaches the app, Alex can be told the thirty-five-dollar request is pending and given its reference. Look at the number of rows.",
+        "hold": 0.3
+      },
+      {
+        "id": "c08-b04",
+        "say": "A second attempt recovered the first row. A billing worker would still have to apply the credit.",
+        "hold": 0.8
+      },
+      {
+        "id": "c08-b05",
+        "say": "Start a separate queue test with the recovered row still in billing. Alex signs a new forty-dollar GPU request. Its terms pass the write check. Send it with the old ticket key. Compare the two amounts. Billing returns a conflict and keeps the signed thirty-five-dollar row.",
+        "hold": 1.5
+      },
+      {
+        "id": "c08-b06",
+        "say": "On a different ticket, Alex confirms twenty dollars for a verified storage duplicate on the same invoice. This request also passes the write check. The ticket key and item both changed. Can billing insert it?",
+        "hold": 2.6
+      },
+      {
+        "id": "c08-b07",
+        "say": "The invoice already has a request in Alex’s account. The GPU row stays pending. Replay both tickets against an empty queue. Process A and process B each read it before either inserts. A commits the GPU request and its outbox entry together. That entry holds the work for billing. B then tries the signed storage request. The database checks the account and invoice inside the transaction. It rejects the second insert. One request and one outbox entry survive.",
+        "hold": 0.3
+      },
+      {
+        "id": "c08-b08",
+        "say": "Check the balance inside that transaction. The billing worker revalidates before applying money. A remote API also has its own retry contract. In the article’s Stripe version one example, the service retains the first executed response, including errors, while it keeps the key.",
+        "hold": 0.3
+      },
+      {
+        "id": "c08-b09",
+        "say": "Keys can be pruned after at least twenty-four hours. Version two handles failed work differently. Reconcile an old, uncertain operation before starting another.",
+        "hold": 0.8
+      }
+    ]
+  },
+  {
+    "id": "c09",
+    "title": "Which sentence can Alex receive?",
+    "sourceChapters": ["c09"],
+    "beats": [
+      {
+        "id": "c09-b01",
+        "say": "Return to the original nine-hundred-dollar request. Its credit queue is empty. Now read the assistant’s first draft. It says, “I’ve credited nine hundred dollars back to your account!” In the reader’s small checker, the word credited and the empty citation list trigger two errors.",
+        "hold": 0.3
+      },
+      {
+        "id": "c09-b02",
+        "say": "Try another draft with a valid citation ID. It says, “Your refund is on the way.” This wording passes the phrase list. Read what the cited passage actually allows. It requires specialist review. There’s no support for a refund on its way.",
+        "hold": 0.8
+      },
+      {
+        "id": "c09-b03",
+        "say": "Let the application render the money and status sentence from the case record. The model can explain why a specialist is needed. Check even that explanation for privacy and support. For a restricted reply, use the template and the admitted passage alone. Keep tool calls from a rejected draft away from dispatch.",
+        "hold": 0.8
+      },
+      {
+        "id": "c09-b04",
+        "say": "Suppose three generation attempts were allowed and two are used. One attempt remains. With time and spend left and the revision still unused, revise once. Give the writer the violation codes and original evidence. Keep the permissions. Rerun all checks. If policy or access changed, rebuild the contract first.",
+        "hold": 0.3
+      },
+      {
+        "id": "c09-b05",
+        "say": "Replay with a cap of two attempts. The first call times out. The fallback consumes the second attempt. Its draft fails the checks. The unused revision allowance cannot buy a third call.",
+        "hold": 0.3
+      },
+      {
+        "id": "c09-b06",
+        "say": "With no generation attempt left, the app can abstain or send Alex’s case for review and wait for a receipt.",
+        "hold": 0.8
+      }
+    ]
+  },
+  {
+    "id": "c10",
+    "title": "Has a specialist received Alex’s case?",
+    "sourceChapters": ["c10"],
+    "beats": [
+      {
+        "id": "c10-b01",
+        "say": "Build Alex’s review packet. Include the requested nine hundred dollars, the verified invoice, the policy version and the reason a specialist must decide. At this point support can say the case needs review. Send the packet. How will the app know the specialist queue has it?",
+        "hold": 2
+      },
+      {
+        "id": "c10-b02",
+        "say": "The specialist queue returns a receipt. Compare the destination on both slips. Check the success field. Now compare the packet identifiers. The slips show the start of each digest. The app compares every digit, so a receipt for an earlier revision would fail. The reference on this receipt is what Alex can use for follow-up. Now the app can say the review is queued. The specialist still has a decision to make.",
+        "hold": 0.8
+      },
+      {
+        "id": "c10-b03",
+        "say": "Try the handoff with identity unverified. Remove the private fields from the outgoing copy. The server keeps its case record on the left. The destination gets a ticket reference and the reason it needs to verify identity. Give each destination its own access and delivery checks.",
+        "hold": 0.8
+      },
+      {
+        "id": "c10-b04",
+        "say": "Return to the authenticated case. An approval would come from the review service, bound to the exact action. Check the reviewer’s permission, the expiry and whether the approval was already consumed. Track waiting, accepted, resolved and expired tasks. On resume, recheck ownership, evidence, balance and current policy.",
+        "hold": 0.3
+      },
+      {
+        "id": "c10-b05",
+        "say": "A framework checkpoint locates the paused thread. The application still has to authorize the write. If a submission times out, its effect stays unknown until the original operation is reconciled.",
+        "hold": 0.8
+      }
+    ]
+  },
+  {
+    "id": "c11",
+    "title": "What did the two drafts cost?",
+    "sourceChapters": ["c11"],
+    "beats": [
+      {
+        "id": "c11-b01",
+        "say": "Use the reader’s separate budget example. Each generation has a one-cent ceiling and a three-hundred-token output cap. The whole ticket has two attempts, two cents and twenty-five hundred milliseconds. The rates beside the rows are the example’s prices per million tokens.",
+        "hold": 0.3
+      },
+      {
+        "id": "c11-b02",
+        "say": "Cached reads are already in the input total. Subtract them to find fresh input. Multiply each count by its own rate. Add the three products and divide by one million to get dollars.",
+        "hold": 0.8
+      },
+      {
+        "id": "c11-b03",
+        "say": "Start with two thousand input tokens. Twelve hundred eighty come from cache, leaving seven hundred twenty fresh. Price those two groups and the hundred thirty output tokens. The first draft costs about four tenths of a cent. The revision includes the rejected draft and feedback.",
+        "hold": 0.3
+      },
+      {
+        "id": "c11-b04",
+        "say": "Its input grows to twenty-one hundred seventy tokens, but only two hundred fifty are fresh. Output stays at a hundred thirty. Which draft costs less at these rates?",
+        "hold": 2.1
+      },
+      {
+        "id": "c11-b05",
+        "say": "The revision costs less. Its larger cached share brings it down to about three tenths of a cent. Together the calls cost just over seven tenths of a cent.",
+        "hold": 0.3
+      },
+      {
+        "id": "c11-b06",
+        "say": "Before each call, reserve all its input at the fresh rate and all three hundred output tokens. Each reservation fits under one cent. Add a hundred eighty milliseconds for the reads, nine hundred forty for each draft, and ten for each check. That leaves four hundred twenty milliseconds.",
+        "hold": 0.3
+      },
+      {
+        "id": "c11-b07",
+        "say": "Fifty revisions a day for thirty days add about four dollars fifty-eight at these rates.",
+        "hold": 0.8
+      },
+      {
+        "id": "c11-b08",
+        "say": "Now the first call times out after nine hundred forty milliseconds. Keep its reservation until the provider reports usage. Give the fallback a cold cache. This call takes eleven hundred milliseconds. The same two thousand inputs and hundred thirty outputs now cost just under seven tenths of a cent.",
+        "hold": 0.3
+      },
+      {
+        "id": "c11-b09",
+        "say": "The unresolved reservation plus that known charge uses about one point six five cents of the two-cent cap. Add the reads, timeout, fallback and final check. The total is twenty-two hundred thirty milliseconds. How much time is left? Two hundred seventy milliseconds. Both attempts are gone. Caching can reduce prefill work while a busy queue still delays the reply.",
+        "hold": 0.3
+      },
+      {
+        "id": "c11-b10",
+        "say": "Price the tools, storage, embeddings and specialist’s time separately.",
+        "hold": 0.8
+      }
+    ]
+  },
+  {
+    "id": "c12",
+    "title": "The test that reads the queue",
+    "sourceChapters": ["c12"],
+    "beats": [
+      {
+        "id": "c12-b01",
+        "say": "Replay the twelve tickets. Six need a human, three abstain, one answers a policy question and one asks for confirmation. Only the confirmed thirty-five-dollar request should enter the queue. Compare each reported outcome and then compare the full stored row with an independent expected record. Billing and the test agree on Alex’s pending request.",
+        "hold": 0.8
+      },
+      {
+        "id": "c12-b02",
+        "say": "Keep all twelve reported outcomes. Add a ten-dollar row for another invoice. Its amount is small and its invoice is different. The high-value check and the duplicate-invoice check both stay quiet. Which row holds the release?",
+        "hold": 2.1
+      },
+      {
+        "id": "c12-b03",
+        "say": "The ten-dollar row has no expected counterpart. Hold release. Keep it in view. The extra row belongs to a different invoice. Now restore the clean queue and remove Alex’s expected entry. The ticket still says queued. The empty slot is the evidence that the thirty-five-dollar write is missing. Hold this run too.",
+        "hold": 0.8
+      },
+      {
+        "id": "c12-copy-question",
+        "say": "Restore the one expected request. Now copy that exact row into billing a second time. The key, amount and every other field are identical. Pair the expected row with one stored copy. What accounts for the second?",
+        "hold": 2.6
+      },
+      {
+        "id": "c12-copy-answer",
+        "say": "The second copy has no partner. Hold release. The test consumes one expected occurrence for each match. Any extra or missing occurrence fails the comparison, even when every reported outcome is correct.",
+        "hold": 1.0
+      },
+      {
+        "id": "c12-b04",
+        "say": "Those fixtures exercise control logic. To measure resolution, independently check what happened to the customer’s task. A closed chat can be abandonment. Look for repeat contacts and reopened tickets within a stated time window. Report satisfaction alongside who answered the survey.",
+        "hold": 0.3
+      },
+      {
+        "id": "c12-b05",
+        "say": "Look at five independently labeled cases. We sent three to review. Two of those three needed it. That is escalation precision. Four cases in all needed review. We sent two of the four. That is recall. On the clock, separate the acknowledgment, first useful output and full resolution.",
+        "hold": 0.3
+      },
+      {
+        "id": "c12-b06",
+        "say": "Include queue wait and specialist delay. Count unfinished cases, retries, fan-out and tokens by case type under a stated arrival load. Before enabling writes, replay concurrent tickets and lost replies against the shared database. Sample the replies customers would receive.",
+        "hold": 0.8
+      }
+    ]
+  },
+  {
+    "id": "c13",
+    "title": "What can each customer be told?",
+    "sourceChapters": ["c13"],
+    "beats": [
+      {
+        "id": "c13-b01",
+        "say": "Maya owns this invoice. Billing verified a two-hundred-forty-dollar duplicate, and she wants that exact amount. The same published policy gives her thirty days, with review starting at five hundred dollars. Her invoice is thirty-one days old. Maya has signed the exact request. Can the app queue Maya’s credit?",
+        "hold": 2.8
+      },
+      {
+        "id": "c13-b02",
+        "say": "Send it for review. The signed request matches. Day thirty-one is outside the window. Change only the invoice age to thirty days. Her signature stays on the request. Day thirty is inside the window. Now it is eligible.",
+        "hold": 0.8
+      },
+      {
+        "id": "c13-b03",
+        "say": "Rewind to before Maya signed, keeping the invoice at day thirty. What does the app need now?",
+        "hold": 2
+      },
+      {
+        "id": "c13-b04",
+        "say": "Ask Maya to confirm two hundred forty dollars on this invoice. She signs. Compare the customer, invoice, item, request type, amount, policy version and revision with the current proposal. Every field matches. Recheck and insert the request. Billing acknowledges one pending entry.",
+        "hold": 0.8
+      },
+      {
+        "id": "c13-b05",
+        "say": "Retry the same key and payload. The same reference comes back. Compare the full retained record against the expected entry. Start with the key and signed terms, then check the pending status and policy digest. Count the rows. They match, with one copy in billing. Maya asks, “Is the money back?” What can you tell her from this receipt?",
+        "hold": 2.6
+      },
+      {
+        "id": "c13-b06",
+        "say": "“Your credit request is pending.” Give Maya the reference on the receipt. It identifies the request her billing worker will pick up. Alex received a different kind of reference. His identifies the specialist review of the nine-hundred-dollar request. What record would tell us that money actually moved?",
+        "hold": 2.8
+      },
+      {
+        "id": "c13-b07",
+        "say": "Open Maya’s invoice. Look at posted credits. Zero dollars. Her receipt is still valid and her request is still pending. Alex’s invoice also has zero applied credits. You can now tell each customer exactly what happened. In the next lesson, a delivery scan will help you tell a customer when to expect a package.",
+        "hold": 3
+      }
+    ]
+  }
+]

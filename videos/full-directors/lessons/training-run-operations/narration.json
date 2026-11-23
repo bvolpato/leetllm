@@ -1,0 +1,613 @@
+[
+  {
+    "id": "c01",
+    "title": "What comes back with the weights?",
+    "sourceChapters": ["c01"],
+    "beats": [
+      {
+        "id": "c01-b01",
+        "say": "A strip of training history stops at update eighteen forty. Each pulse records one completed update. That checkpoint is published. Both replacement workers load its weights. Watch where their samplers put the read head.",
+        "hold": 1
+      },
+      {
+        "id": "c01-b02",
+        "say": "One head drops onto the first example again, the sentence about birches. Its learning rate starts warmup again, too. The other head lands just beyond the examples already used. Which restart can continue the experiment?",
+        "hold": 3
+      },
+      {
+        "id": "c01-b03",
+        "say": "Choose the second restart. Its saved cursor and sampler order identify the next example after one hundred seventeen thousand seven hundred sixty consumed. The first worker initialized a new run from the same weights.",
+        "hold": 1
+      },
+      {
+        "id": "c01-b04",
+        "say": "We will choose which checkpoint to load after a failure and rehearse its next update. That takes the optimizer history, scheduler phase, sampler and consumed position, random state, and any gradient scaler at the same boundary as the weights.",
+        "hold": 1
+      }
+    ]
+  },
+  {
+    "id": "c02",
+    "title": "Where does the next read begin?",
+    "sourceChapters": ["c02"],
+    "beats": [
+      {
+        "id": "c02-b01",
+        "say": "The last checkpoint is update eighteen forty. Look at the eight groups of examples lined up for the next update. Each group holds eight examples. The workers read A through E and then lose power. The weights on disk are still at eighteen forty.",
+        "hold": 0.3
+      },
+      {
+        "id": "c02-b02",
+        "say": "Look at the empty gradient window. When the weights come back, should the loader start at A or F?",
+        "hold": 3
+      },
+      {
+        "id": "c02-b03",
+        "say": "Start at A. Those five groups contributed gradients in memory. The workers lost them before they could change the weights. Starting at F would silently skip forty examples. Replay A through E from the saved data position.",
+        "hold": 0.3
+      },
+      {
+        "id": "c02-b04",
+        "say": "Keep the optimizer history and the learning rate at that same boundary. We'll follow this run until a new checkpoint earns its place on disk.",
+        "hold": 1.2
+      }
+    ]
+  },
+  {
+    "id": "c03",
+    "title": "How many examples did the workers read?",
+    "sourceChapters": ["c03"],
+    "beats": [
+      {
+        "id": "c03-b01",
+        "say": "Look down column A. GPUs zero and one split the model between them. They work on the same two sequences. Each of the other three pairs gets two sequences of its own. Fill one round across the four pairs. That's eight sequences. Each pair is one independent replica.",
+        "hold": 1
+      },
+      {
+        "id": "c03-b02",
+        "say": "Carry the count forward to the end of round E. Forty sequences have contributed gradients. Finish F, G and H. Now all sixty-four belong to one update. Counting both GPUs in each pair separately would count each sequence twice.",
+        "hold": 1
+      },
+      {
+        "id": "c03-b03",
+        "say": "Try the replacement cluster. Double the pairs to eight and cut the window to four rounds. Each pair still takes two sequences at a time. How many sequences will this update use?",
+        "hold": 2.5
+      },
+      {
+        "id": "c03-b04",
+        "say": "Fill the four rounds across eight pairs. That gives sixty-four again. You can keep the same sequence count and still change the number of supervised tokens if the responses have different lengths or masks.",
+        "hold": 1.1
+      }
+    ]
+  },
+  {
+    "id": "c04",
+    "title": "Which position did the loader actually use?",
+    "sourceChapters": ["c04"],
+    "beats": [
+      {
+        "id": "c04-b01",
+        "say": "Here’s a smaller stream you can read left to right. Its IDs happen to run in order from zero. Training used the first eight. The producer prefetched four more. If you saved its position, which examples would disappear from the next batch?",
+        "hold": 2.4
+      },
+      {
+        "id": "c04-b02",
+        "say": "Eight through eleven. The next ID training needs is eight. In this toy, a count and the sampler order reconstruct that ID. Packed or randomly transformed streams may also need buffered examples and random state.",
+        "hold": 0.3
+      },
+      {
+        "id": "c04-b03",
+        "say": "TorchData’s Stateful DataLoader can skip ahead by batches already yielded, or use a dataset or sampler’s saved state. It collects state from workers inside one rank. Restoring an iterable dataset’s worker state requires the same worker count. Changing ranks needs a tested partition for the data.",
+        "hold": 0.5
+      },
+      {
+        "id": "c04-b04",
+        "say": "Back at update eighteen forty, five rounds have contributed gradients. All forty examples are still waiting for a weight update. Each earlier update used sixty-four examples and none skipped. Eighteen forty times sixty-four gives the saved count, one hundred seventeen thousand seven hundred sixty. That is a count in this sampler order. The actual next sample ID depends on that order.",
+        "hold": 0.3
+      },
+      {
+        "id": "c04-b05",
+        "say": "To resume in the middle you would also need the gradients, their accumulation count, the buffers, random streams, loader and matching scaler. Those gradients may still be scaled. Hold the scale fixed until the window ends.",
+        "hold": 0.3
+      },
+      {
+        "id": "c04-b06",
+        "say": "A warning handler sets a flag so the main loop can coordinate the save. If a member dies, ordinary fixed-group collectives can no longer finish.",
+        "hold": 0.65
+      }
+    ]
+  },
+  {
+    "id": "c05",
+    "title": "When does a snapshot stop changing?",
+    "sourceChapters": ["c05"],
+    "beats": [
+      {
+        "id": "c05-b01",
+        "say": "Start with a weight of one. Its state dictionary points to the same storage. A deep copy gets its own storage. Take one step of gradient descent on the square of the weight. The gradient is two.",
+        "hold": 0.3
+      },
+      {
+        "id": "c05-b02",
+        "say": "A learning rate of one tenth brings the live weight to point eight. Read it through the dictionary and you see point eight again. The deep copy still reads one. It owns separate storage. On a GPU that copy can require a second device allocation.",
+        "hold": 0.5
+      },
+      {
+        "id": "c05-b03",
+        "say": "A large job stages its copy on the host. With PyTorch’s standard asynchronous save, staging can block before the call returns a storage future. The optional Default Stager introduced in version two point nine can copy on a background CPU thread.",
+        "hold": 0.3
+      },
+      {
+        "id": "c05-b04",
+        "say": "Wait for staging to finish before changing any value it’s copying. Even a forward pass can change a buffer, and fetching data can move a random stream. Capture the cursor with the tensors. The stable copy can upload while training moves on.",
+        "hold": 0.3
+      },
+      {
+        "id": "c05-b05",
+        "say": "Handle errors from both futures, limit pending saves and close the stager.",
+        "hold": 0.5
+      },
+      {
+        "id": "c05-b06",
+        "say": "Give this save its own name. Its manifest lists the expected files and their sizes or hashes, all from one boundary. Validate every artifact before changing the latest pointer. On a filesystem that supports atomic replacement, synchronize the file and directory for crash durability.",
+        "hold": 0.3
+      },
+      {
+        "id": "c05-b07",
+        "say": "Cloud Storage writes each object atomically. Use a generation-match condition on the pointer so a competing writer can’t overwrite it unnoticed. A loader checks the published packet again.",
+        "hold": 0.65
+      }
+    ]
+  },
+  {
+    "id": "c06",
+    "title": "Which update can a new worker load?",
+    "sourceChapters": ["c06"],
+    "beats": [
+      {
+        "id": "c06-b01",
+        "say": "Suppose the workers finish update eighteen forty-one. Hold its weights, buffers and data state still while the host makes a copy. Once that copy is stable, training takes another step. Watch the consumed count on the left. The host copy on the right still belongs to eighteen forty-one. That’s the copy that gets uploaded.",
+        "hold": 1
+      },
+      {
+        "id": "c06-b02",
+        "say": "The manifest expects four shards. Three reach storage and pass their checks. The host copy still exists, and training has already moved on. If the fourth write fails and the workers disappear, which update can their replacements load?",
+        "hold": 2.7
+      },
+      {
+        "id": "c06-b03",
+        "say": "Eighteen forty. Follow the interrupted write along the top row. Its last shard is missing. In the second row, the fourth shard passes. Check the manifest and the rest of the application state, then publish the new pointer.",
+        "hold": 0.3
+      },
+      {
+        "id": "c06-b04",
+        "say": "Only now can the replacements load eighteen forty-one with its matching cursor. Readers validate that packet again when they open it.",
+        "hold": 1.2
+      }
+    ]
+  },
+  {
+    "id": "c07",
+    "title": "Will the warning last long enough?",
+    "sourceChapters": ["c07"],
+    "beats": [
+      {
+        "id": "c07-b01",
+        "say": "Go back to the warning just after E. All workers are still healthy. The last three rounds and the weight update take twenty seconds. Saving through publication takes ninety. Reserve ten seconds for jitter. The warning gives us two minutes. With those estimates, would you attempt the save?",
+        "hold": 2.4
+      },
+      {
+        "id": "c07-b02",
+        "say": "Yes. Twenty plus ninety plus ten is exactly one hundred twenty seconds. That passes the time check. The old checkpoint stays published until the new files pass their checks and the pointer moves.",
+        "hold": 1.2
+      },
+      {
+        "id": "c07-b03",
+        "say": "Keep all three costs. Shorten the warning by one second. Does the same plan still fit?",
+        "hold": 2.2
+      },
+      {
+        "id": "c07-b04",
+        "say": "No. At one hundred nineteen seconds, the estimated save leaves nine seconds of margin. The plan requires ten. Use the published eighteen forty and its matching consumed count. Saving only the new cursor would skip A through E on restart.",
+        "hold": 1.2
+      }
+    ]
+  },
+  {
+    "id": "c08",
+    "title": "How much work lies between saves?",
+    "sourceChapters": ["c08"],
+    "beats": [
+      {
+        "id": "c08-b01",
+        "say": "What if nobody warns you? Suppose the job saves every five minutes of compute. Three minutes after the last save, a node loses power. You lose those three minutes. Periodic checkpoints give the launcher somewhere to go even on abrupt failure. The interval determines how much work can be exposed before the next publication.",
+        "hold": 0.5
+      },
+      {
+        "id": "c08-b02",
+        "say": "A blocking save costs ninety seconds here. Save after five minutes of compute, and you spend ninety of three hundred ninety seconds saving. That’s twenty-three point one percent. Wait twenty minutes, and ninety out of twelve hundred ninety is about seven percent.",
+        "hold": 0.3
+      },
+      {
+        "id": "c08-b03",
+        "say": "You save less often and risk more replay. With an asynchronous upload, work done before publication is still exposed. Measure staging time, upload time, throughput and how often your job stops.",
+        "hold": 0.5
+      },
+      {
+        "id": "c08-b04",
+        "say": "The Llama Three team recorded four hundred nineteen unexpected interruptions and forty-seven planned ones in fifty-four days. Configurations reached sixteen thousand three hundred eighty-four H one hundreds. For a simple estimate, suppose identical devices fail independently at a constant rate and any failure stops the job.",
+        "hold": 0.3
+      },
+      {
+        "id": "c08-b05",
+        "say": "Their rates add, so divide a device’s mean time between failures by device count. Shared power, network and software failures break those assumptions. Use your own interruption record to set an interval.",
+        "hold": 0.65
+      }
+    ]
+  },
+  {
+    "id": "c09",
+    "title": "Two restarts from exactly the same weight",
+    "sourceChapters": ["c09"],
+    "beats": [
+      {
+        "id": "c09-b01",
+        "say": "We’ve saved the data order. Would the next five updates agree if we threw away just the optimizer history? Watch one weight in a small Adam run. Each gradient contributes to two moving averages, one of the gradient and one of its square.",
+        "hold": 0.3
+      },
+      {
+        "id": "c09-b02",
+        "say": "Stop at update seven. Make two copies of the weight, the step and the cursor. Keep the moments in one and clear them in the other. If both see the same next targets and learning rates, will their weights still match?",
+        "hold": 2.8
+      },
+      {
+        "id": "c09-b03",
+        "say": "Feed both copies the same five targets at the same learning rates. Trace their weights one update at a time. The teal line follows the uninterrupted run. The red line ends a little higher. Both runs finished and the sample IDs agree.",
+        "hold": 0.3
+      },
+      {
+        "id": "c09-b04",
+        "say": "The weight difference tells you which part of the restart to inspect.",
+        "hold": 0.8
+      }
+    ]
+  },
+  {
+    "id": "c10",
+    "title": "What did the optimizer remember?",
+    "sourceChapters": ["c10"],
+    "beats": [
+      {
+        "id": "c10-b01",
+        "say": "When a loader opens this file, ask what it was saved for. With compatible weights you can start a new run. A fresh optimizer starts its moments at zero. A new sampler can replay the first examples while the schedule starts warmup again.",
+        "hold": 0.3
+      },
+      {
+        "id": "c10-b02",
+        "say": "To continue this run, bring back the architecture, weights, optimizer moments and counters, schedule, consumed cursor, random streams and any scaler. For adapters, use the correct frozen base and adapter configuration. A merged export can serve predictions. Keep the tokenizer, data version and training configuration that give those states their meaning.",
+        "hold": 0.3
+      },
+      {
+        "id": "c10-b03",
+        "say": "You need the original training state to continue tuning the adapters. A change in kernels or topology can also affect bitwise replay.",
+        "hold": 0.5
+      },
+      {
+        "id": "c10-b04",
+        "say": "Now reset the step counter as well as the moments. On the first gradient, bias correction gives you the gradient and its square. Take the square root of that corrected second moment. You get the absolute gradient. Add epsilon to form the denominator.",
+        "hold": 0.3
+      },
+      {
+        "id": "c10-b05",
+        "say": "Multiply the gradient by the learning rate and divide by that denominator. Subtract the result from the weight. This adaptive move has magnitude at most the learning rate. Try a rate of point zero zero two.",
+        "hold": 0.3
+      },
+      {
+        "id": "c10-b06",
+        "say": "With a gradient one tenth as large as epsilon, the fraction is one eleventh. The move is about point zero zero zero one eight two. With a gradient a hundred times as large as epsilon, the move approaches the learning rate. This calculation leaves weight decay separate.",
+        "hold": 0.5
+      },
+      {
+        "id": "c10-b07",
+        "say": "Return to our fork at seven. Here both copies kept the old step counter. On this magnified scale you can see a small difference after just five more updates. Full restoration reaches about point one two five four.",
+        "hold": 0.3
+      },
+      {
+        "id": "c10-b08",
+        "say": "Clearing just the moments gives about point one two six seven. The next target and learning rate matched in both runs. The different moment history changed the update without requiring a sudden jump in loss.",
+        "hold": 0.65
+      }
+    ]
+  },
+  {
+    "id": "c11",
+    "title": "Follow coordinate six to its new owner",
+    "sourceChapters": ["c11"],
+    "beats": [
+      {
+        "id": "c11-b01",
+        "say": "Here is one tensor, laid out in global coordinate order. Four saved ranks own four coordinates each. Look at six and seven. The bracket above both belongs to rank one. Keep your eye on those two cells.",
+        "hold": 1
+      },
+      {
+        "id": "c11-b02",
+        "say": "Eight replacement ranks need equal slices of the same sixteen coordinates. How wide is each new slice, and which rank gets six and seven? Count ranks from zero.",
+        "hold": 3
+      },
+      {
+        "id": "c11-b03",
+        "say": "Each new owner gets two coordinates. Divide six by two and take the integer part. Destination rank three owns six and seven. Their values and their positions stay fixed while the ownership boundary changes. Map the matching optimizer tensors by coordinate too.",
+        "hold": 1
+      },
+      {
+        "id": "c11-b04",
+        "say": "Rehearse the load on the replacement stack. Check parameter identity, shape and optimizer mapping. Then test the data partition by comparing what each worker reads. Tensor ownership and sample ownership need separate checks.",
+        "hold": 1
+      }
+    ]
+  },
+  {
+    "id": "c12",
+    "title": "How many bytes must the reader hold?",
+    "sourceChapters": ["c12"],
+    "beats": [
+      {
+        "id": "c12-b01",
+        "say": "Gather a seventy-billion-parameter model on one host. Its two-byte weights take one hundred forty decimal gigabytes. Each four-byte Adam moment takes twice as much. The two moments and the weights alone need seven hundred gigabytes. Master weights and buffers add to that floor.",
+        "hold": 0.3
+      },
+      {
+        "id": "c12-b02",
+        "say": "Check RAM and transfer time at the destination before you choose a consolidated save.",
+        "hold": 0.5
+      },
+      {
+        "id": "c12-b03",
+        "say": "Distributed Checkpoint lets the workers save local shards. On restore, first allocate the destination model and optimizer tensors in a supported layout. The metadata records tensor identities, global shapes and coordinates. This worker needs ten and eleven.",
+        "hold": 0.3
+      },
+      {
+        "id": "c12-b04",
+        "say": "Find the source ranges that intersect its slice, then copy the matching coordinates. The article’s single-process exercise checks for gaps and overlaps. It constructs a full list so you can inspect the result.",
+        "hold": 0.5
+      },
+      {
+        "id": "c12-b05",
+        "say": "How much does the reader allocate to retrieve those two values? In the PyTorch filesystem reader examined in the article, the reader loads the serialized source tensor on the CPU, then narrows it. Here it can hold eight values to return two.",
+        "hold": 0.3
+      },
+      {
+        "id": "c12-b06",
+        "say": "Peak RAM and physical reads depend on the format and reader. Distributed Checkpoint leaves cross-version compatibility unspecified, even within a major release. DeepSpeed’s Universal path needs a ZeRO save, conversion and a compatible load. Test the actual parameter identities, shapes, optimizer mapping and data partitions.",
+        "hold": 0.65
+      }
+    ]
+  },
+  {
+    "id": "c13",
+    "title": "Which clock should warmup follow?",
+    "sourceChapters": ["c13"],
+    "beats": [
+      {
+        "id": "c13-b01",
+        "say": "On this regular mesh, tensor workers split a layer, pipeline workers split the stages, and context workers split a sequence. All three cooperate on the same examples. Divide sixty-four GPUs by two times two times two. That leaves eight independent replicas.",
+        "hold": 0.3
+      },
+      {
+        "id": "c13-b02",
+        "say": "Each takes two sequences per round for four rounds, giving sixty-four sequences per complete update. This division assumes distinct axes. Check the actual groups in an overlapping expert or hybrid mesh. Count shifted, unmasked targets separately.",
+        "hold": 0.5
+      },
+      {
+        "id": "c13-b03",
+        "say": "Restore the saved schedule first. Now suppose you deliberately double the batch. At sixty-four examples per update, a hundred warmup updates use six thousand four hundred examples. At one hundred twenty-eight, they use twelve thousand eight hundred.",
+        "hold": 0.3
+      },
+      {
+        "id": "c13-b04",
+        "say": "To keep the old data budget, divide six thousand four hundred by the new batch size. Warmup ends after fifty successful updates. Record whether your clock counts updates, examples or tokens. Many optimizers return None even on success, so use the framework’s overflow signal to count updates.",
+        "hold": 0.5
+      },
+      {
+        "id": "c13-b05",
+        "say": "Would you double the learning rate too? Goyal and colleagues studied linear scaling with warmup for large-batch gradient descent on ResNet. Adam uses different state. For a batch multiplier called kappa, Malladi and colleagues propose multiplying the learning rate by the square root of kappa.",
+        "hold": 0.3
+      },
+      {
+        "id": "c13-b06",
+        "say": "Divide epsilon by the same factor. For each beta, multiply its distance from one by kappa, then subtract from one. Check that both coefficients remain valid. The rule assumes a particular noise and moment model. Compare it with a fixed rate at the same data budget.",
+        "hold": 0.3
+      },
+      {
+        "id": "c13-b07",
+        "say": "Gradient-noise scale, the covariance trace over the squared mean gradient norm, estimates useful batch sizes in studied settings. Wall time also depends on kernels and communication.",
+        "hold": 0.65
+      }
+    ]
+  },
+  {
+    "id": "c14",
+    "title": "Whose gradient gets the extra weight?",
+    "sourceChapters": ["c14"],
+    "beats": [
+      {
+        "id": "c14-b01",
+        "say": "Each tile gives one supervised token’s gradient along the same weight coordinate. The blue replica has one token at plus ten. The other has three at minus two apiece. Average within each replica, then average the two replica means. You get four.",
+        "hold": 0.3
+      },
+      {
+        "id": "c14-b02",
+        "say": "What gradient would give each of the four tokens equal weight?",
+        "hold": 2.5
+      },
+      {
+        "id": "c14-b03",
+        "say": "Keep the tokens where they are. Add each row first. That's ten in the top row and minus six in the bottom. Four units of gradient spread across four tokens gives one. In the earlier calculation the lone blue token had half the vote. Here it gets one quarter.",
+        "hold": 1.4
+      },
+      {
+        "id": "c14-b04",
+        "say": "How do you get that one from distributed data parallel training? It will average across two replicas. Scale each local loss sum by two over four before backpropagation. The resulting gradients are five and minus three. Their average is one.",
+        "hold": 0.3
+      },
+      {
+        "id": "c14-b05",
+        "say": "In general the multiplier is the replica count divided by the number of shifted, unmasked targets across the entire window. Check which divisions your trainer already makes. Dividing by the accumulation length again would shrink this gradient.",
+        "hold": 1.1
+      }
+    ]
+  },
+  {
+    "id": "c15",
+    "title": "Which clock moves on a skipped step?",
+    "sourceChapters": ["c15"],
+    "beats": [
+      {
+        "id": "c15-b01",
+        "say": "Our earlier calculation counted sixty-four examples in a complete window. Does reading them always move the weights? Start three new windows with the counters at zero and the loss scale at eight. The first window applies cleanly. Sixty-four examples consumed, one update, one tick of the schedule.",
+        "hold": 0.3
+      },
+      {
+        "id": "c15-b02",
+        "say": "The next window reads another sixty-four. Its gradients overflow. We've now read one hundred twenty-eight examples. Will the optimizer step? Will the schedule that counts successful updates advance?",
+        "hold": 2.4
+      },
+      {
+        "id": "c15-b03",
+        "say": "The scaler skips the optimizer step. The weights stay put, so the update count and the schedule both stay at one. The scaler halves the loss scale to four for the next window. Save that scale with the cursor for all one hundred twenty-eight examples.",
+        "hold": 1.2
+      },
+      {
+        "id": "c15-b04",
+        "say": "The third window applies cleanly. Three attempts have read one hundred ninety-two examples. Two updates reached the weights, and this scheduler is at two. A schedule indexed by examples uses a different clock. Keep the scale fixed within each accumulation window and let the framework handle overflow at its boundary.",
+        "hold": 1.2
+      }
+    ]
+  },
+  {
+    "id": "c16",
+    "title": "Which symptom explains the failed run?",
+    "sourceChapters": ["c16"],
+    "beats": [
+      {
+        "id": "c16-b01",
+        "say": "Keep the failing batch and the last good checkpoint. If old IDs reappear, check the sampler, cursor and buffers. If the first learning rate changes, check the schedule and optimizer groups. For a slow step, compare when each rank finishes computing with when the collective finishes.",
+        "hold": 0.3
+      },
+      {
+        "id": "c16-b02",
+        "say": "Here the ranks arrive at different times. Real communication can overlap backward computation. Compare clock and fabric counters under matched work before blaming a node.",
+        "hold": 0.5
+      },
+      {
+        "id": "c16-b03",
+        "say": "The resumed loss is now undefined. Every device passes the same canary computation. Look at the mask. It leaves zero supervised targets. The mean divides by zero. In this batch, cold is the labeled answer. Repair its mask, then replay from consistent state. If a batch really has no labels, handle that case before taking a mean.",
+        "hold": 0.3
+      },
+      {
+        "id": "c16-b04",
+        "say": "Canaries cover their particular inputs, kernels, precision and tolerance. The Llama Three report recorded six silent-corruption incidents. A passing canary is evidence about the work it actually tested.",
+        "hold": 0.5
+      },
+      {
+        "id": "c16-b05",
+        "say": "Keep nonfinite state out of the recovery pointer. Here sixteen hundred had the best evaluation score. Eighteen forty is the latest resumable update. Tag both. Replay the suspect batch on healthy hardware with its mask, learning rate, scaler and gradient norms. Limit retries.",
+        "hold": 0.3
+      },
+      {
+        "id": "c16-b06",
+        "say": "For a finite loss spike, calibrate the trigger to this run. Even a threshold like the median plus three standard deviations over fifty steps needs validation. Rewind to before the first affected state. Skipping data or changing its shuffle changes what the continuing run will learn.",
+        "hold": 0.65
+      }
+    ]
+  },
+  {
+    "id": "c17",
+    "title": "Will the replacement device hold the model?",
+    "sourceChapters": ["c17"],
+    "beats": [
+      {
+        "id": "c17-b01",
+        "say": "Before you move the job, identify what must fit. This run learns from labeled responses. That’s supervised fine-tuning. Domain text supplies a different training objective, and distillation can use teacher scores or generated answers. LoRA chooses which parameters train. Here only the adapters change.",
+        "hold": 0.3
+      },
+      {
+        "id": "c17-b02",
+        "say": "Four-bit NF4 stores the frozen base. You can change one choice while keeping the other two. Check the architecture, backend, adapter implementation and hardware together. Evaluate held-out text and the tasks people will use.",
+        "hold": 0.5
+      },
+      {
+        "id": "c17-b03",
+        "say": "Try a seventy-billion-parameter base on a twenty-four gibibyte budget. Multiply the parameter count by four bits. Divide by eight for bytes. That’s thirty-five billion bytes. Divide by two to the thirtieth for gibibytes.",
+        "hold": 0.3
+      },
+      {
+        "id": "c17-b04",
+        "say": "You need thirty-two point six gibibytes for the ideal weights alone, eight point six more than you have. A smaller eight-billion-parameter base in sixteen-bit format needs fourteen point nine gibibytes before any training allocations.",
+        "hold": 0.5
+      },
+      {
+        "id": "c17-b05",
+        "say": "Give the same four-bit base forty-eight gibibytes. After the ideal weights, fifteen point four gibibytes remain. Quantization metadata, higher-precision tensors, adapters, activations, gradients, moments and temporary buffers must all fit there. Measure peak memory during an actual training step. The original QLoRA experiment fit sixty-five billion parameters on one forty-eight-gigabyte GPU.",
+        "hold": 0.3
+      },
+      {
+        "id": "c17-b06",
+        "say": "For the smaller budget, choose a smaller model, a supported lower-bit format, sharding or offload, and measure again.",
+        "hold": 0.65
+      }
+    ]
+  },
+  {
+    "id": "c18",
+    "title": "Rehearse the first read after a crash",
+    "sourceChapters": ["c18"],
+    "beats": [
+      {
+        "id": "c18-b01",
+        "say": "You have a different job now. Update seventy-three is published. Every update so far used four rounds, with three examples on each of two replicas. None skipped. Two rounds into the next window, a warning gives you fifty-nine seconds.",
+        "hold": 0.3
+      },
+      {
+        "id": "c18-b02",
+        "say": "Finishing takes twelve, saving through publication takes forty, and the margin is eight. This job requires that margin and restores only complete updates. Which checkpoint and consumed count would you load?",
+        "hold": 3.4
+      },
+      {
+        "id": "c18-b03",
+        "say": "The path needs sixty seconds. After the estimated save, seven seconds remain. The policy requires eight. Reopen update seventy-three. With twenty-four examples per complete update, its first one thousand seven hundred fifty-two examples have already been consumed. The twelve examples read since then belong to the unfinished window.",
+        "hold": 1.3
+      },
+      {
+        "id": "c18-b04",
+        "say": "One of its tensors has twenty-four coordinates. Three workers saved eight each. Six replacement workers on a supported layout now split the same tensor evenly. Find nineteen on the ruler. Which destination owns it, counting ranks from zero?",
+        "hold": 2.7
+      },
+      {
+        "id": "c18-b05",
+        "say": "Cut the ruler every four coordinates. Zero through three go to rank zero. Follow nineteen straight down. It lands on rank four, which owns sixteen up to, but excluding, twenty. The value stays at coordinate nineteen. Check that the loader preserves the optimizer tensors there as well.",
+        "hold": 1.2
+      },
+      {
+        "id": "c18-b06",
+        "say": "For the data check, use the original two replicas and their original partition. The tensors loaded. Now compare the first six sample IDs with a run you kept going from seventy-three. Both copies use the same sampler order. To test the drill, give the restored worker the count from the crash.",
+        "hold": 0.3
+      },
+      {
+        "id": "c18-b07",
+        "say": "Its first ID is fifty-five. The reference starts at forty-two. Which cursor would you move, and by how much?",
+        "hold": 2.6
+      },
+      {
+        "id": "c18-b08",
+        "say": "Rewind the restored cursor by twelve examples. Both replicas now get the same IDs as the reference. That settles the data check. Compare the learning rate, Adam moments and next weight update within your numerical tolerance. On the target stack, interrupt a save and repeat the drill.",
+        "hold": 0.3
+      },
+      {
+        "id": "c18-b09",
+        "say": "Before the long run, check that an interrupted upload leaves the previous checkpoint readable. Reopen it and test both the first batch and the next update. That is the recovery drill we can carry into training a reward model from ranked answers.",
+        "hold": 1.6
+      }
+    ]
+  }
+]

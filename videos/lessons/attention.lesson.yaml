@@ -1,0 +1,712 @@
+version: 1
+id: attention
+title: How Attention Builds Context
+source: fundamentals/scaled-dot-product-attention/content.md
+voice: en-US-AndrewNeural
+rate: +0%
+sources:
+  - title: Attention Is All You Need
+    url: https://arxiv.org/abs/1706.03762
+  - title: PyTorch scaled dot product attention
+    url: https://docs.pytorch.org/docs/stable/generated/torch.nn.functional.scaled_dot_product_attention.html
+scenes:
+  - id: subject-intro
+    title: Does attention choose one source?
+    visual: The sentence builds word by word. The subject and action connect, another possible source joins, and a prediction asks whether the new state copies one value or blends several.
+    beats:
+      - say: Birds in the garden sing softly at dawn. The action needs its subject. How can a token gather clues across the sentence?
+        hold: 0.35
+        visual_cues:
+          - id: intro-word-0
+            phrase: Birds in
+            targets:
+              - context-token-0
+            color: blue
+            linger: 0.35
+          - id: intro-word-1
+            phrase: in
+            targets:
+              - context-token-1
+            color: blue
+            linger: 0.35
+          - id: intro-word-2
+            phrase: in the
+            targets:
+              - context-token-2
+            color: blue
+            linger: 0.35
+          - id: intro-word-3
+            phrase: garden
+            targets:
+              - context-token-3
+            color: blue
+            linger: 0.35
+          - id: intro-word-4
+            phrase: sing softly
+            targets:
+              - context-token-4
+            color: yellow
+            linger: 0.35
+          - id: intro-word-5
+            phrase: softly
+            targets:
+              - context-token-5
+            color: blue
+            linger: 0.35
+          - id: intro-word-6
+            phrase: at
+            targets:
+              - context-token-6
+            color: blue
+            linger: 0.35
+          - id: intro-word-7
+            phrase: dawn
+            targets:
+              - context-token-7
+            color: blue
+            linger: 0.35
+          - id: intro-verb-context
+            phrase: action needs its subject
+            targets:
+              - context-token-0
+              - context-token-4
+            color: yellow
+            linger: 0.35
+      - say: "Attention assigns a share to each source word, then blends the selected values. Predict: will the new state copy one value or blend several? We will follow that read through a small example."
+        hold: 0.35
+        visual_cues:
+          - id: intro-read
+            phrase: assigns a share to each source word
+            targets:
+              - context-token-0
+              - context-token-4
+            color: yellow
+            linger: 0.35
+          - id: intro-prediction
+            phrase: copy one value or blend several
+            targets:
+              - intro-prediction
+            color: yellow
+            linger: 0.35
+  - id: token-vectors
+    title: Give each position two coordinates
+    visual: Birds and sing word cards unfold into persistent coordinate strips, then form a two-row state matrix.
+    beats:
+      - say: A token state is a list of numbers. For our tiny example, give Birds the state one, zero, and sing the state zero, one.
+        hold: 0.35
+        visual_cues:
+          - id: token-vectors-token-state-0-b1-1
+            phrase: give Birds the state one, zero, and sing the state zero, one
+            targets:
+              - token-state-0
+              - token-state-1
+            color: blue
+            linger: 0.35
+      - say: These are supplied toy states, chosen so we can check every multiplication. Real states have many coordinates. Training gives those coordinates useful roles that can vary with context.
+        hold: 0.35
+        visual_cues:
+          - id: token-vectors-token-state-0-b2-1
+            phrase: check every multiplication
+            targets:
+              - token-state-0
+              - token-state-1
+            color: cyan
+            linger: 0.35
+      - say: "Stack the states as rows of matrix X. Keep their order: Birds first, sing second. Every output we build must still belong to its original position."
+        hold: 0.35
+        visual_cues:
+          - id: token-vectors-stacked-token-states-b3-1
+            phrase: Stack the states as rows of matrix X
+            targets:
+              - stacked-token-states
+            color: yellow
+            linger: 0.35
+  - id: three-projections
+    title: Build the controls and the content
+    visual: The camera follows one input row through the Q, K, and V matrices. Each selected matrix column builds a projected coordinate from its spoken products, then the next learned view takes its turn.
+    beats:
+      - say: "The query asks what this position should find. Birds starts at one, zero. One times one plus zero times one-half gives one; the second coordinate is one-half. The other row uses the same transform."
+        hold: 0.35
+        motion_check: { region: [1200, 320, 420, 440], minimumChangedFraction: 0.002 }
+        visual_cues:
+          - id: three-projections-row-q-birds
+            phrase: One times one plus zero times one-half gives one; the second coordinate is one-half
+            targets:
+              - projection-input
+              - projection-weight-q
+              - projected-state-q
+            color: yellow
+            linger: 0.35
+          - id: three-projections-row-q-sing
+            phrase: The other row uses the same transform
+            targets:
+              - projection-input
+              - projected-state-q
+            color: yellow
+            linger: 0.35
+      - say: The key describes features a source offers. With the same Birds row, its first coordinate is one times point eight plus zero times point three, giving point eight. The second is point two; both rows share this matrix.
+        hold: 0.35
+        visual_cues:
+          - id: three-projections-row-k-birds
+            phrase: With the same Birds row, its first coordinate is one times point eight plus zero times point three, giving point eight
+            targets:
+              - projection-input
+              - projection-weight-k
+              - projected-state-k
+            color: pink
+            linger: 0.35
+          - id: three-projections-row-k-sing
+            phrase: The second is point two; both rows share this matrix
+            targets:
+              - projection-input
+              - projected-state-k
+            color: pink
+            linger: 0.35
+      - say: The value carries the content that gets mixed. Birds maps to two, one; sing maps to one, two. The row-by-column operation stays the same, with a separate learned matrix for each role.
+        hold: 0.35
+        visual_cues:
+          - id: three-projections-row-v-birds
+            phrase: Birds maps to two, one
+            targets:
+              - projection-input
+              - projection-weight-v
+              - projected-state-v
+            color: green
+            linger: 0.35
+          - id: three-projections-row-v-sing
+            phrase: sing maps to one, two
+            targets:
+              - projection-input
+              - projected-state-v
+            color: green
+            linger: 0.35
+  - id: dot-geometry
+    title: Which key fits the sing query?
+    visual: A stable coordinate plane shows the sing query and both keys; a perpendicular projection makes the dot-product geometry explicit.
+    beats:
+      - say: "Take the sing query, one half, one. Compare it with each key: multiply matching coordinates, then add. Which of these two arrows will give the larger score?"
+        hold: 0.8
+        visual_cues:
+          - id: dot-geometry-attention-query-arrow-b1-1
+            phrase: "Compare it with each key: multiply matching coordinates, then add"
+            targets:
+              - attention-query-arrow
+            color: yellow
+            linger: 0.35
+      - say: For a fixed query, the key that projects farther along its direction scores higher. A longer key can beat a shorter, better-aligned key. The dot product measures lengths as well as angle.
+        hold: 0.35
+        visual_cues:
+          - id: dot-geometry-query-projection-segment-b2-1
+            phrase: projects farther along its direction
+            targets:
+              - query-projection-segment
+            color: green
+            linger: 0.35
+      - say: Check the products. The Birds key scores zero point six; the sing key scores one point zero five. In this example, sing gives its own key the higher score.
+        hold: 0.35
+        visual_cues:
+          - id: dot-score-birds
+            phrase: The Birds key scores zero point six
+            targets:
+              - first-dot-score
+            color: blue
+            linger: 0.35
+          - id: dot-score-sing
+            phrase: the sing key scores one point zero five
+            targets:
+              - second-dot-score
+            color: cyan
+            linger: 0.35
+  - id: scale-the-scores
+    title: Keep a wider score from drowning the mix
+    visual: Schematic normal curves with the model variance widen as integer head dimensionality grows, then contract under square-root scaling; the width and standard-deviation readouts follow the same computation.
+    beats:
+      - say: Before turning scores into controls, check their scale. In a simple initialization model, all query and key coordinates are independent, with zero mean and unit variance. Four product terms give variance four.
+        hold: 0.35
+        visual_cues:
+          - id: scale-the-scores-score-distribution-b1-1
+            phrase: Four product terms give variance four
+            targets:
+              - score-distribution
+            color: yellow
+            linger: 0.35
+      - say: Now add more independent terms. At width sixty-four, variance is sixty-four and standard deviation is eight. The curve spreads out. Larger score gaps can make one source dominate.
+        hold: 0.35
+        visual_cues:
+          - id: scale-the-scores-score-distribution-b2-1
+            phrase: Now add more independent terms. At width sixty-four
+            targets:
+              - score-distribution
+            color: yellow
+            linger: 0.35
+      - say: "Divide those scores by eight: the square root of sixty-four. The spread returns to one. Our two-coordinate example divides by the square root of two. Trained scores still need measurement."
+        hold: 0.35
+        visual_cues:
+          - id: scale-the-scores-scaled-dot-rule-b3-1
+            phrase: "Divide those scores by eight: the square root of sixty-four"
+            targets:
+              - scaled-dot-rule
+              - score-distribution
+            color: green
+            linger: 0.35
+          - id: scale-toy-rule
+            phrase: Our two-coordinate example divides by the square root of two
+            targets:
+              - toy-scaled-dot-rule
+            color: cyan
+            linger: 0.35
+  - id: softmax-mass
+    title: Two scores become one shared budget
+    visual: Two score markers exponentiate into positive lengths and normalize into a conserved-width probability ribbon; changing one score continuously redistributes mass.
+    beats:
+      - say: Softmax makes the controls positive and gives them one shared budget. Exponentiate each scaled score, then divide by the total. The two shares must add to one.
+        hold: 0.35
+        visual_cues:
+          - id: softmax-mass-key-exponential-0-b1-1
+            phrase: Exponentiate each scaled score
+            targets:
+              - key-exponential-0
+            color: blue
+            linger: 0.35
+          - id: softmax-mass-attention-shares-b1-2
+            phrase: then divide by the total. The two shares must add to one
+            targets:
+              - attention-shares
+            color: yellow
+            linger: 0.35
+      - say: Sing gets about fifty-eight percent; Birds gets forty-two. Turn the sing score up. Its share grows by taking share from Birds. The controls still add to one.
+        hold: 0.35
+        visual_cues:
+          - id: softmax-raise-score
+            phrase: Turn the sing score up. Its share grows by taking share from Birds
+            targets:
+              - attention-shares
+            color: cyan
+            linger: 0.35
+      - say: "Subtract the same maximum from both scores. The numbers change, but the shares stay put: their relative gap is unchanged. This prevents exponential overflow. Return the controls to our original read."
+        hold: 0.35
+        visual_cues:
+          - id: softmax-common-shift
+            phrase: Subtract the same maximum from both scores
+            targets:
+              - attention-shares
+            color: green
+            linger: 0.35
+          - id: softmax-return
+            phrase: Return the controls to our original read
+            targets:
+              - attention-shares
+            color: yellow
+            linger: 0.35
+  - id: value-mixture
+    title: Follow what actually passes through
+    visual: Actual value vectors shrink by attention shares, concatenate head-to-tail, and meet the moving convex combination on the line joining the source values.
+    beats:
+      - say: Here comes the content. Multiply each value vector by its share, then add those weighted vectors. The output is a contextual mixture for this query. Watch the running total become complete.
+        hold: 0.35
+        motion_check: { region: [230, 320, 730, 550], minimumChangedFraction: 0.002 }
+        visual_cues:
+          - id: value-mixture-first-weighted-value-b1-1
+            phrase: Multiply each value vector by its share
+            targets:
+              - first-weighted-value
+            color: blue
+            linger: 0.35
+          - id: value-mixture-add-weighted-values
+            phrase: then add those weighted vectors
+            targets:
+              - first-weighted-value
+              - second-weighted-value
+              - running-context-vector
+            color: cyan
+            linger: 0.35
+          - id: value-mixture-completed-output
+            phrase: The output is a contextual mixture for this query
+            targets:
+              - contextual-mixture-point
+              - running-context-vector
+            color: yellow
+            linger: 0.35
+      - say: The first arrow starts at zero. The second begins at its tip. Together they land between the two source values. Move a control and the endpoint moves toward that source.
+        hold: 0.35
+        visual_cues:
+          - id: value-mixture-first-weighted-value-b2-1
+            phrase: Move a control and the endpoint moves toward that source
+            targets:
+              - first-weighted-value
+              - second-weighted-value
+            color: cyan
+            linger: 0.35
+      - say: "There is our opening payoff: the output blends content from both source words. With dropout disabled, nonnegative shares adding to one keep this point inside the sources' convex hull. Later layers can move it elsewhere."
+        hold: 0.6
+        visual_cues:
+          - id: value-mixture-contextual-mixture-point-b3-1
+            phrase: the output blends content from both source words
+            targets:
+              - contextual-mixture-point
+            color: yellow
+            linger: 0.35
+  - id: every-query
+    title: Give every position its own controls
+    visual: The two query rows sweep across two key columns, filling the score matrix, then transforming each row into its own normalized distribution and output.
+    beats:
+      - say: Sing has its mixture. Now let Birds ask. Build a row of scores for each query, with source keys across the columns. Every row represents a different receiver.
+        hold: 0.35
+        visual_cues:
+          - id: every-query-attention-matrix-0-b1-1
+            phrase: Build a row of scores for each query
+            targets:
+              - attention-matrix-0
+            color: cyan
+            linger: 0.35
+      - say: Q times K transpose computes all those comparisons. Scale the scores, then normalize each row across its keys. Each receiver gets its own complete budget.
+        hold: 0.35
+        visual_cues:
+          - id: every-query-attention-matrix-2-b2-1
+            phrase: Scale the scores, then normalize each row across its keys
+            targets:
+              - attention-matrix-1
+              - attention-matrix-2
+            color: yellow
+            linger: 0.35
+      - say: Multiply those shares by V to build one output row per query. Each weight row sums to one. A source can help several receivers, so its column total can differ.
+        hold: 0.35
+        visual_cues:
+          - id: every-query-attention-matrix-3-b3-1
+            phrase: Multiply those shares by V
+            targets:
+              - attention-matrix-3
+            color: green
+            linger: 0.35
+  - id: causal-mask
+    title: A good match still needs permission
+    visual: A four-position grid constructs lower-triangular legality; the two-token example suppresses its future weight before renormalizing the first row.
+    beats:
+      - say: "A token predicting what comes next cannot peek at future tokens. Predict the allowed cells in this grid: each query can read itself and every earlier key."
+        hold: 0.65
+        visual_cues:
+          - id: causal-mask-mask-cell-3-0-b1-1
+            phrase: each query can read itself and every earlier key
+            targets:
+              - mask-cell-3-0
+            color: green
+            linger: 0.35
+      - say: "For Birds, block the future sing score with negative infinity. Its exponential becomes zero. Now normalize: Birds gets one, sing gets zero. The later sing query keeps both sources."
+        hold: 0.35
+        visual_cues:
+          - id: mask-block-score
+            phrase: block the future sing score with negative infinity
+            targets:
+              - masked-logits
+            color: pink
+            linger: 0.35
+          - id: mask-zero-exp
+            phrase: Its exponential becomes zero
+            targets:
+              - masked-exponentials
+            color: pink
+            linger: 0.35
+          - id: causal-mask-causal-weights-b2-1
+            phrase: "Now normalize: Birds gets one, sing gets zero"
+            targets:
+              - causal-weights
+            color: yellow
+            linger: 0.35
+      - say: "Relevance chooses among permitted sources. Every active query needs at least one. In cached decoding, compare absolute positions: a new query at position four may read all five keys through position four."
+        hold: 0.35
+        visual_cues:
+          - id: mask-absolute-positions
+            phrase: a new query at position four may read all five keys through position four
+            targets:
+              - absolute-cache-mask
+            color: green
+            linger: 0.35
+  - id: parallel-heads
+    title: Two heads, the same input stream
+    visual: Three shared input states branch into two large head lanes. Actual query and key transforms form distinct distributions; projected values create two identifiable outputs that visibly recombine by concatenation.
+    beats:
+      - say: The same three token states fan out into two heads. Each head applies its own query and key matrices. The last query becomes one, one in head one and one point two, point six in head two.
+        hold: 0.35
+        visual_cues:
+          - id: parallel-heads-shared-head-input-0-b1-1
+            phrase: fan out into two heads
+            targets:
+              - shared-head-input-0
+              - shared-head-input-1
+              - shared-head-input-2
+            color: blue
+            linger: 0.35
+          - id: parallel-heads-projections
+            phrase: Each head applies its own query and key matrices
+            targets:
+              - head-query-matrix-0
+              - head-key-matrix-0
+              - head-query-matrix-1
+              - head-key-matrix-1
+            color: cyan
+            linger: 0.35
+          - id: parallel-heads-query-head-1
+            phrase: one, one in head one
+            targets:
+              - head-query-result-0
+            color: cyan
+            linger: 0.35
+          - id: parallel-heads-query-head-2
+            phrase: one point two, point six in head two
+            targets:
+              - head-query-result-1
+            color: pink
+            linger: 0.35
+      - say: Both heads read positions zero through two. Their different queries and keys produce separate scores, so each head forms its own distribution over the same sources.
+        hold: 0.35
+        visual_cues:
+          - id: parallel-heads-head-source-shares-0-b2-1
+            phrase: each head forms its own distribution
+            targets:
+              - head-source-shares-0
+              - head-source-shares-1
+            color: cyan
+            linger: 0.35
+      - say: Each distribution weights its head's projected values. The two outputs retain their distinct learned views. Concatenate them before the shared output projection.
+        hold: 0.35
+        visual_cues:
+          - id: heads-value-content
+            phrase: Each distribution weights its head's projected values
+            targets:
+              - head-value-content-0
+              - head-value-content-1
+            color: green
+            linger: 0.35
+          - id: heads-value-output
+            phrase: Concatenate them before the shared output projection
+            targets:
+              - head-output-0
+              - head-output-1
+              - concatenated-head-outputs
+            color: yellow
+            linger: 0.35
+  - id: combine-heads
+    title: Return the mixtures to the token state
+    visual: Four identified head coordinates multiply a visible four-by-two output matrix. Signed products accumulate into two outputs, which extend the original state bars.
+    beats:
+      - say: Place both head outputs side by side. Four coordinates enter a four-by-two output matrix. Follow each signed product into the accumulator. The result has our original two-coordinate stream width.
+        hold: 0.35
+        visual_cues:
+          - id: combine-heads-construction-0
+            phrase: Four coordinates enter a four-by-two output matrix. Follow each signed product into the accumulator
+            targets:
+              - projected-head-contribution
+            color: yellow
+            linger: 0.35
+      - say: Add that contribution to the existing state. Each blue bar starts at one. Its green extension is the projected coordinate. The combined length is the next residual state.
+        hold: 0.35
+        visual_cues:
+          - id: combine-heads-construction-1
+            phrase: Its green extension is the projected coordinate
+            targets:
+              - residual-context-state
+            color: green
+            linger: 0.35
+      - say: The heads brought several readings back to one token. With total projected width fixed, more, narrower heads reorganize the leading score-and-value work. Actual memory and runtime depend on kernels, layouts, and buffers.
+        hold: 0.35
+        visual_cues:
+          - id: combine-heads-construction-2
+            phrase: several readings back to one token
+            targets:
+              - fixed-projected-width
+            color: cyan
+            linger: 0.35
+  - id: learning-to-route
+    title: Turn a control. Did the content change?
+    visual: Increasing one scaled score moves the exact output toward its source value; equalizing the values collapses the path and removes the routing effect.
+    beats:
+      - say: Turn up the Birds score. The mixture moves toward its value. A training loss can use that change to adjust the query and key matrices through backpropagation.
+        hold: 0.35
+        visual_cues:
+          - id: learning-to-route-contextual-mixture-point-b1-1
+            phrase: The mixture moves toward its value
+            targets:
+              - contextual-mixture-point
+            color: yellow
+            linger: 0.35
+          - id: routing-raise-score
+            phrase: Turn up the Birds score. The mixture moves toward its value
+            targets:
+              - source-weight-ribbon
+              - contextual-mixture-point
+            color: yellow
+            linger: 0.35
+      - say: Here is a trickier prediction. Give both sources identical values, then move the controls again. What moves now? The shares change, but the output stays fixed. Both channels carry the same content.
+        hold: 0.8
+        visual_cues:
+          - id: learning-to-route-contextual-mixture-point-b2-1
+            phrase: the output stays fixed
+            targets:
+              - contextual-mixture-point
+            color: green
+            linger: 0.35
+          - id: routing-equal-values
+            phrase: Give both sources identical values
+            targets:
+              - routing-source-values
+            color: blue
+            linger: 0.35
+          - id: routing-change-controls
+            phrase: then move the controls again. What moves now
+            targets:
+              - source-weight-ribbon
+            color: yellow
+            linger: 0.35
+      - say: To understand an answer, trace the weighted content, the output projection, and the later layers. Our identical-value experiment shows why the shares are one part of that story.
+        hold: 0.35
+        visual_cues:
+          - id: learning-to-route-running-context-vector-b3-1
+            phrase: trace the weighted content
+            targets:
+              - running-context-vector
+            color: yellow
+            linger: 0.35
+  - id: context-and-cost
+    title: Why does dense attention grow quadratically?
+    visual: A large four-by-four grid moves aside as both axes double. The eight-by-eight grid makes the fourfold growth in dense score entries visible.
+    beats:
+      - say: Each of four queries meets each of four keys, so the grid holds sixteen scores.
+        hold: 0.35
+        visual_cues:
+          - id: context-and-cost-four-token-pairs
+            phrase: Each of four queries meets each of four keys
+            targets:
+              - query-key-pairs
+            color: blue
+            linger: 0.35
+          - id: context-and-cost-sixteen-entries
+            phrase: so the grid holds sixteen scores
+            targets:
+              - query-key-pairs
+            color: blue
+            linger: 0.35
+      - say: Double both axes. Eight queries meet eight keys, creating sixty-four scores.
+        hold: 0.35
+        visual_cues:
+          - id: context-and-cost-doubling-pairs
+            phrase: Double both axes
+            targets:
+              - query-key-pairs
+            color: yellow
+            linger: 0.35
+          - id: context-and-cost-eight-by-eight
+            phrase: Eight queries meet eight keys
+            targets:
+              - query-key-pairs
+            color: cyan
+            linger: 0.35
+          - id: context-and-cost-sixty-four-entries
+            phrase: creating sixty-four scores
+            targets:
+              - query-key-pairs
+            color: cyan
+            linger: 0.35
+  - id: decode-cache
+    title: Decoding repeatedly reads the KV cache
+    visual: A single new query scans stored key and value positions. The next query scans the longer cache again as a fresh key-value pair is appended.
+    beats:
+      - say: At one-token decoding, the new query scores against every cached key and mixes their values. Earlier keys and values stay in memory for the next step.
+        hold: 0.35
+        visual_cues:
+          - id: decode-cache-scan
+            phrase: new query scores against every cached key
+            targets:
+              - decode-cache-lane
+            color: green
+            linger: 0.35
+      - say: The next query reads that longer cache again, so repeated key-and-value loads make memory bandwidth a decode bottleneck. Kernel reuse and other model work affect runtime.
+        hold: 0.35
+        visual_cues:
+          - id: decode-cache-next-query
+            phrase: The next query reads that longer cache again
+            targets:
+              - decode-next-query
+            color: green
+            linger: 0.35
+  - id: flashattention-tiles
+    title: FlashAttention streams score tiles
+    visual: A query block stays in focus while key and value tiles sweep across the dense interaction field. Running softmax state updates as the tiles arrive.
+    beats:
+      - say: FlashAttention holds a query block and streams key and value blocks past it. Its tile visits every required query-key pair.
+        hold: 0.35
+        visual_cues:
+          - id: flashattention-tiles-sweep
+            phrase: streams key and value blocks past it
+            targets:
+              - flash-pair-field
+            color: yellow
+            linger: 0.35
+      - say: For each tile, online softmax updates a running maximum, normalizer, and weighted-value accumulator. Tiling avoids writing the full score and probability grids to HBM; dense pair arithmetic remains.
+        hold: 0.35
+        visual_cues:
+          - id: flashattention-tiles-online-state
+            phrase: updates a running maximum, normalizer, and weighted-value accumulator
+            targets:
+              - flash-pair-field
+            color: cyan
+            linger: 0.35
+  - id: grouped-query-cache
+    title: Group query heads around shared KV
+    visual: Four query heads keep separate score distributions while their arrows converge on one shared key-value head. A cache comparison shows the raw payload change for equal shapes.
+    beats:
+      - say: In a GQA group, four query heads can share one key and value head. Each query still computes its own scores and source distribution while reading that shared cache.
+        hold: 0.35
+        visual_cues:
+          - id: grouped-query-cache-sharing
+            phrase: four query heads can share one key and value head
+            targets:
+              - grouped-query-cache-storage
+            color: green
+            linger: 0.35
+      - say: With equal head widths, precision, and cache length, this group stores one-quarter the raw KV payload of four separate heads. The checkpoint needs GQA training or uptraining; runtime depends on kernel reuse.
+        hold: 0.35
+        visual_cues:
+          - id: grouped-query-cache-limit
+            phrase: one-quarter the raw KV payload of four separate heads
+            targets:
+              - grouped-query-cache-storage
+              - grouped-query-cache-payload
+            color: yellow
+            linger: 0.35
+  - id: complete-read
+    title: "Your turn: change the query"
+    visual: A new state [1,3] computes its query, then actual scores and shares. Two weighted value arrows join head to tail to give the computed new context beside the previous result.
+    beats:
+      - say: Your turn at the desk. A new state, one, three, gives query coordinates two point five and three point five. Keep the matrices and source values fixed. Predict which source gains share.
+        hold: 1.4
+        visual_cues:
+          - id: complete-read-transfer-0
+            phrase: gives query coordinates two point five and three point five
+            targets:
+              - read-stage-1
+            color: cyan
+            linger: 0.35
+      - say: "Sing gains share: about seventy percent. Scale the same values by the new shares. Add their arrows head to tail. The endpoint is our new context, about one point three, one point seven."
+        hold: 0.35
+        visual_cues:
+          - id: complete-read-transfer-1
+            phrase: Add their arrows head to tail
+            targets:
+              - weighted-read-box
+            color: cyan
+            linger: 0.35
+          - id: complete-read-output
+            phrase: The endpoint is our new context
+            targets:
+              - read-stage-5
+            color: yellow
+            linger: 0.35
+      - say: "Same content, different question, different mixture. You can now follow the entire read: match queries to keys, set the shares, and mix the values. That is attention working with numbers you can check."
+        hold: 0.65
+        visual_cues:
+          - id: complete-read-transfer-2
+            phrase: different mixture
+            targets:
+              - read-stage-5
+            color: green
+            linger: 0.35

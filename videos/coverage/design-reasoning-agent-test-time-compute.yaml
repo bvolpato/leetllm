@@ -1,0 +1,350 @@
+version: 1
+lesson: design-reasoning-agent-test-time-compute
+promise: Decide which reasoning call to fund and which completed advisory to return when the deadline arrives.
+objectives:
+  - id: xml-contract
+    can: Validate the response fields and match a fresh metrics receipt to the current rollout before applying policy.
+    scenes:
+      - intro
+      - xml-contract
+      - evidence
+      - synthesis
+  - id: api-controls
+    can: Distinguish model reasoning settings from external hard budgets
+    scenes:
+      - api-controls
+  - id: coverage-operation
+    can: Compute independent candidate coverage without promising returned accuracy
+    scenes:
+      - coverage-operation
+  - id: voting-baseline
+    can: Compare voting, token beams and explicit thought alternatives
+    scenes:
+      - voting-baseline
+  - id: tree-contract
+    can: Preserve completed plans separately from unfinished frontiers
+    scenes:
+      - tree-contract
+  - id: puct-allocation
+    can: Update visit counts and the mean outcome, then choose which feasible branch gets the next rollout.
+    scenes:
+      - puct-allocation
+  - id: verifier-evidence
+    can: Find the first failed step and count the generator calls saved by checking before continuation.
+    scenes:
+      - process
+      - verifier-evidence
+  - id: answer-bias
+    can: Measure evaluator false acceptance independently of solver accuracy
+    scenes:
+      - answer-bias
+  - id: trained-policy
+    can: Separate training improvement from request-time controls
+    scenes:
+      - trained-policy
+  - id: router-evaluation
+    can: Apply routing, escalation and plateau rules under evidence gates
+    scenes:
+      - router-evaluation
+  - id: reservation-reconcile
+    can: Fit a new call into free capacity and reconcile duplicate, conflicting, oversized and missing usage receipts.
+    scenes:
+      - budget
+      - reservation-reconcile
+      - fresh-deadline
+  - id: incomplete-advisory
+    can: Withhold incomplete candidates despite nonempty text
+    scenes:
+      - incomplete-advisory
+  - id: kv-byte-model
+    can: Derive binary KV capacity from dimensions and live slots
+    scenes:
+      - kv-byte-model
+  - id: prefix-lease
+    can: Preserve reference and reader lifetimes during shared-prefix reuse
+    scenes:
+      - prefix-lease
+  - id: eviction-architecture
+    can: Separate lossy eviction from a purpose-built recurrent architecture
+    scenes:
+      - eviction-architecture
+  - id: safe-progress
+    can: Project trusted progress and measure three different latency boundaries
+    scenes:
+      - safe-progress
+  - id: evaluation-release
+    can: Compare controllers on held-out incidents at total cost
+    scenes:
+      - evaluation-release
+  - id: fresh-deadline
+    can: At the deadline, return a completed eligible answer or abstain when its evidence expires, while retaining reservations for outstanding calls.
+    scenes:
+      - fresh-deadline
+      - synthesis
+  - id: path-eligibility
+    can: Trace both hops of a proposed repair and exclude a blocked path before comparing scores.
+    scenes:
+      - candidates
+      - voting-baseline
+      - tree
+sections:
+  - heading: Fast answers aren't a release contract
+    status: taught
+    scenes:
+      - intro
+      - api-controls
+      - xml-contract
+  - heading: "The simplest form of extra compute: one deliberate path"
+    status: taught
+    scenes:
+      - api-controls
+      - xml-contract
+      - evidence
+  - heading: "Comparing complete candidates: Best-of-N sampling"
+    status: taught
+    scenes:
+      - candidates
+      - coverage-operation
+  - heading: "Why this helps: a worked example"
+    status: taught
+    scenes:
+      - coverage-operation
+  - heading: "Self-consistency: Best-of-N without a reward model"
+    status: taught
+    scenes:
+      - voting-baseline
+  - heading: Where beam search fits
+    status: taught
+    scenes:
+      - voting-baseline
+      - tree-contract
+  - heading: "When one path isn't enough: exploring a tree"
+    status: taught
+    scenes:
+      - tree
+      - tree-contract
+  - heading: When revisiting branches beats a fixed beam
+    status: taught
+    scenes:
+      - puct-allocation
+  - heading: Who judges the plans? Verifiers and reward models
+    status: taught
+    scenes:
+      - process
+      - verifier-evidence
+  - heading: How a PRM works
+    status: taught
+    scenes:
+      - verifier-evidence
+      - process
+  - heading: ORM vs PRM at a glance
+    status: taught
+    scenes:
+      - verifier-evidence
+  - heading: A correct answer can hide a broken evaluator
+    status: taught
+    scenes:
+      - answer-bias
+  - heading: Training reasoning models with RL
+    status: taught
+    scenes:
+      - trained-policy
+  - heading: "Putting it together: a production reasoning agent"
+    status: taught
+    scenes:
+      - router-evaluation
+      - safe-progress
+      - reservation-reconcile
+  - heading: What the system must handle
+    status: taught
+    scenes:
+      - router-evaluation
+      - reservation-reconcile
+      - prefix-lease
+      - safe-progress
+  - heading: Architecture overview
+    status: taught
+    scenes:
+      - router-evaluation
+      - tree
+      - safe-progress
+  - heading: The difficulty router
+    status: taught
+    scenes:
+      - router-evaluation
+  - heading: Escalation is a measured policy
+    status: taught
+    scenes:
+      - router-evaluation
+      - stopping
+      - evaluation-release
+  - heading: Reserving the request budget
+    status: taught
+    scenes:
+      - budget
+      - reservation-reconcile
+      - incomplete-advisory
+  - heading: KV cache limits live branch width
+    status: taught
+    scenes:
+      - memory
+      - kv-byte-model
+      - prefix-lease
+  - heading: KV cache pressure
+    status: taught
+    scenes:
+      - kv-byte-model
+  - heading: Prefix sharing and paged KV storage
+    status: taught
+    scenes:
+      - memory
+      - prefix-lease
+  - heading: Compression needs value awareness; recurrent depth changes architecture
+    status: taught
+    scenes:
+      - eviction-architecture
+  - heading: First update vs final-answer latency
+    status: taught
+    scenes:
+      - safe-progress
+  - heading: A sample capacity plan
+    status: taught
+    scenes:
+      - kv-byte-model
+      - memory
+  - heading: Streaming safe updates
+    status: taught
+    scenes:
+      - safe-progress
+  - heading: When reasoning is the wrong tool
+    status: taught
+    scenes:
+      - trained-policy
+      - router-evaluation
+      - evaluation-release
+  - heading: "Overthinking: when more thinking lowers accuracy"
+    status: taught
+    scenes:
+      - evaluation-release
+      - stopping
+  - heading: Why a bigger model isn't enough
+    status: taught
+    scenes:
+      - evaluation-release
+      - trained-policy
+  - heading: Common pitfalls
+    status: taught
+    scenes:
+      - evaluation-release
+      - router-evaluation
+      - reservation-reconcile
+      - stopping
+  - heading: '"Higher temperature will reveal a great answer if I sample enough"'
+    status: taught
+    scenes:
+      - coverage-operation
+      - voting-baseline
+  - heading: '"Tree search is always better than single-path reasoning"'
+    status: taught
+    scenes:
+      - router-evaluation
+      - voting-baseline
+  - heading: '"More thinking always improves the answer"'
+    status: taught
+    scenes:
+      - evaluation-release
+      - stopping
+  - heading: '"One budget policy can serve every request"'
+    status: taught
+    scenes:
+      - router-evaluation
+      - reservation-reconcile
+  - heading: '"Users need raw chain-of-thought to trust the system"'
+    status: taught
+    scenes:
+      - safe-progress
+  - heading: '"Reasoning quality comes only from prompts"'
+    status: taught
+    scenes:
+      - trained-policy
+      - verifier-evidence
+      - prefix-lease
+  - heading: '"Stop criteria are an optional cleanup detail"'
+    status: taught
+    scenes:
+      - router-evaluation
+      - stopping
+  - heading: Defending the design
+    status: taught
+    scenes:
+      - synthesis
+      - fresh-deadline
+      - evaluation-release
+  - heading: Evaluation rubric
+    status: taught
+    scenes:
+      - evaluation-release
+      - xml-contract
+      - kv-byte-model
+  - heading: Follow-up questions
+    status: taught
+    scenes:
+      - tree-contract
+      - evaluation-release
+      - fresh-deadline
+quiz:
+  - n: 1
+    status: taught
+    scenes:
+      - xml-contract
+      - evidence
+      - synthesis
+  - n: 2
+    status: taught
+    scenes:
+      - coverage-operation
+  - n: 3
+    status: taught
+    scenes:
+      - puct-allocation
+  - n: 4
+    status: taught
+    scenes:
+      - tree-contract
+  - n: 5
+    status: taught
+    scenes:
+      - incomplete-advisory
+  - n: 6
+    status: taught
+    scenes:
+      - budget
+      - reservation-reconcile
+      - fresh-deadline
+  - n: 7
+    status: taught
+    scenes:
+      - kv-byte-model
+  - n: 8
+    status: taught
+    scenes:
+      - prefix-lease
+  - n: 9
+    status: taught
+    scenes:
+      - answer-bias
+  - n: 10
+    status: taught
+    scenes:
+      - router-evaluation
+      - stopping
+removed: []
+reviews:
+  closed_book:
+    script: 3025a5f41c3362df
+    taught: 10
+    partial: 0
+    absent: 0
+  fact_check:
+    script: 3025a5f41c3362df
+    open_findings: 0

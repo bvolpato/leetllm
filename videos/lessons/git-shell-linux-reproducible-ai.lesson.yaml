@@ -1,0 +1,1180 @@
+version: 1
+id: git-shell-linux-reproducible-ai
+title: "Git, Shell and Linux: Rebuild the Committed Run"
+source: foundations/git-shell-linux-reproducible-ai/content.md
+voice: en-US-AndrewNeural
+rate: +0%
+sources:
+  - title: Pro Git, Recording Changes to the Repository
+    url: https://git-scm.com/book/en/v2/Git-Basics-Recording-Changes-to-the-Repository
+  - title: Pro Git, Git Tools
+    url: https://git-scm.com/book/en/v2/Git-Tools
+  - title: GNU Bash Reference Manual
+    url: https://www.gnu.org/software/bash/manual/bash.html
+  - title: GNU Findutils, multiple files and exit status
+    url: https://www.gnu.org/software/findutils/manual/html_node/Multiple-Files.html
+  - title: Python virtual environments
+    url: https://docs.python.org/3/library/venv.html
+  - title: uv locking and syncing
+    url: https://docs.astral.sh/uv/concepts/projects/sync/
+  - title: pip secure installations
+    url: https://pip.pypa.io/en/stable/topics/secure-installs/
+  - title: CUDA device visibility
+    url: https://docs.nvidia.com/cuda/cuda-programming-guide/05-appendices/environment-variables.html
+  - title: Git LFS pointer specification
+    url: https://github.com/git-lfs/git-lfs/blob/main/docs/spec.md
+scenes:
+  - id: opening
+    title: Same command. What changed?
+    visual: The same repository command succeeds locally and names a missing JSONL file in a fresh
+      clone. The cause stays hidden while the learner compares the two receipts.
+    beats:
+      - say: >
+          Your saved predictions pass their tiny evaluation. A teammate clones the project and runs
+          the same command. The scorer starts, then names a missing file. Before changing any
+          Python, what would you check?
+        hold: 1.3
+        visual_cues:
+          - id: local-receipt
+            phrase: pass their tiny evaluation
+            targets:
+              - local-terminal
+            color: green
+            linger: 0.5
+          - id: clone-error
+            phrase: names a missing file
+            targets:
+              - clone-terminal
+            color: pink
+            linger: 0.5
+      - say: >
+          Both terminals are inside access-rag. The terminal is the window; its shell launches the
+          command. Git gave the clone a recorded snapshot. Keep your prediction: which required
+          input might still exist only in the original working directory?
+        hold: 1.6
+        visual_cues:
+          - id: opening-question
+            phrase: Keep your prediction
+            targets:
+              - missing-question
+            color: yellow
+            linger: 0.6
+  - id: navigation-contract
+    title: A relative input starts from the current directory
+    visual: A retained scorer input path resolves from two actual working directories. One quoted
+      filename remains a single argument; a failed directory change prevents the scorer launch.
+    beats:
+      - say: Make the directory part of the experiment. P w d prints the current directory; c d changes it.
+          A relative path starts there, while an absolute path starts at the filesystem root. From
+          access-rag, eval slash access requests dot jsonl reaches our fixture. Move into scripts
+          and the same relative name points somewhere else. The program can be unchanged while its
+          input lookup changes.
+        hold: 0.9
+        visual_cues:
+          - id: relative-base
+            phrase: Move into scripts
+            targets:
+              - path-resolution
+            color: cyan
+            linger: 0.5
+          - id: path-miss
+            phrase: points somewhere else
+            targets:
+              - path-resolution
+            color: cyan
+            linger: 0.4
+      - say: Quote a path variable so a space stays inside one argument. Check a directory change with or
+          exit one before launching the next command. Git init creates a local repository; add
+          selects contents; commit records them locally. Clone reconstructs recorded project files.
+          A commit does not upload them. These different operations supply the handoff we are about
+          to inspect.
+        hold: 0.9
+        visual_cues:
+          - id: quoted-argument
+            phrase: one argument
+            targets:
+              - path-arguments
+            color: cyan
+            linger: 0.5
+          - id: guarded-directory
+            phrase: before launching the next command
+            targets:
+              - directory-gate
+            color: cyan
+            linger: 0.5
+          - id: git-operation-chain
+            phrase: commit records them locally
+            targets:
+              - directory-gate
+            color: cyan
+            linger: 0.4
+  - id: find-file
+    title: Ask Git which files it knows
+    visual: Actual status and tracked-file output reveal the untracked fixture. The three JSONL objects
+      remain visible while local secrets and environments are kept outside the committed contract.
+    beats:
+      - say: >
+          Run git status in the original checkout. Those two question marks name the evaluation
+          fixture as untracked. It was readable on your laptop, but no commit contained it. The
+          clone carried the scorer and left this input behind.
+        hold: 0.8
+        visual_cues:
+          - id: untracked-fixture
+            phrase: two question marks
+            targets:
+              - status-output
+            color: pink
+            linger: 0.5
+          - id: missing-answer
+            phrase: no commit contained it
+            targets:
+              - file-membership
+            color: yellow
+            linger: 0.6
+      - say: >
+          Here is that file: one JSON object per line, with a request, an expected label, and a
+          saved prediction. Track this small test input. Keep the real secret, virtual environment,
+          and generated model cache local. An example environment file can carry variable names
+          safely.
+        hold: 0.8
+        visual_cues:
+          - id: fixture-rows
+            phrase: one JSON object per line
+            targets:
+              - jsonl-rows
+            color: cyan
+            linger: 0.5
+          - id: local-files
+            phrase: real secret
+            targets:
+              - local-residue
+            color: yellow
+            linger: 0.5
+  - id: ignore-contract
+    title: Ignore matching untracked files; inspect existing history
+    visual: Stable file identities travel through an ignore-pattern test and index membership. The
+      ignored environment file remains local, the example and fixture remain trackable, and an
+      already indexed placeholder survives a new pattern until untracked.
+    beats:
+      - say: Apply the project’s patterns to actual paths. The real dot env, virtual environment, generated
+          runs and local caches stay untracked. The negated example pattern keeps dot env dot
+          example trackable, and the small evaluation fixture travels with the scorer. The example
+          carries a variable name with an empty value. Our three saved predictions need no secret.
+        hold: 0.9
+        visual_cues:
+          - id: ignore-patterns
+            phrase: negated example pattern
+            targets:
+              - ignore-membership
+            color: cyan
+            linger: 0.5
+      - say: Now imagine a credential file was already tracked. Adding an ignore pattern leaves it in the
+          index and earlier commits. Git remove cached stops future tracking while preserving the
+          working file; a later deletion still leaves old history. Rotate an exposed active
+          credential before sharing. A force add can also select an ignored file. Inspect selected
+          paths because an ignore file supplies neither access control nor history removal.
+        hold: 0.9
+        visual_cues:
+          - id: tracked-ignore
+            phrase: leaves it in the index
+            targets:
+              - ignore-history
+            color: cyan
+            linger: 0.5
+          - id: untrack-current
+            phrase: preserving the working file
+            targets:
+              - untrack-effect
+            color: cyan
+            linger: 0.5
+          - id: old-history-remains
+            phrase: still leaves old history
+            targets:
+              - untrack-effect
+            color: cyan
+            linger: 0.4
+          - id: rotate-exposed
+            phrase: Rotate an exposed active credential
+            targets:
+              - untrack-effect
+            color: cyan
+            linger: 0.4
+  - id: git-states
+    title: Staging selects contents
+    visual: Three large views retain the actual middle JSONL object. Its original prediction moves to
+      the index, a later working edit changes only the left view, and a commit records the original
+      selected contents. Real diff receipts identify each comparison.
+    beats:
+      - say: >
+          Follow the middle request through three views. The working tree is editable. Git add
+          copies its current contents into the index, the staging area for the next commit. Watch
+          the prediction travel with the expected label; the selected snapshot contains the same
+          miss.
+        hold: 0.8
+        motion_check:
+          region:
+            - 165
+            - 570
+            - 1050
+            - 270
+        visual_cues:
+          - id: stage-row
+            phrase: copies its current contents into the index
+            targets:
+              - index-row
+            color: yellow
+            linger: 0.5
+      - say: >
+          Now change the working prediction to blocked, which matches the expected label. The index
+          still contains escalated. Git diff compares these two views and exposes the unstaged
+          repair. A second git add would replace the selected contents with that repair.
+        hold: 1
+        visual_cues:
+          - id: edit-row
+            phrase: change the working prediction to blocked
+            targets:
+              - working-row
+            color: pink
+            linger: 0.6
+          - id: working-diff
+            phrase: Git diff compares these two views
+            targets:
+              - diff-output
+            color: cyan
+            linger: 0.6
+      - say: >
+          Before committing, git diff cached compares the index with the current commit. It shows
+          the selected miss. Predict what a plain commit records now. It records the index, so the
+          recorded prediction remains escalated. A later working repair stays outside that snapshot
+          until you stage it.
+        hold: 1
+        visual_cues:
+          - id: commit-row
+            phrase: recorded prediction remains escalated
+            targets:
+              - history-row
+            color: green
+            linger: 0.6
+          - id: cached-diff
+            phrase: compares the index with the current commit
+            targets:
+              - diff-output
+            color: cyan
+            linger: 0.5
+  - id: score
+    title: Count the committed evidence
+    visual: The three original committed rows are compared in narration order. Each completed row
+      increments the denominator, matching rows increment the numerator. A held fourth-row
+      prediction resolves through the exact integer gate.
+    beats:
+      - say: >
+          Read the original committed fixture. The approved request matches, so both counts grow.
+          The blocked request was predicted as escalated: only the total grows. The restored request
+          matches too. Every row contributes evidence, including the mistake.
+        hold: 0.8
+        motion_check:
+          region:
+            - 1320
+            - 390
+            - 330
+            - 450
+        visual_cues:
+          - id: compare-first
+            phrase: approved request matches
+            targets:
+              - comparison-rows
+            color: green
+            linger: 0.3
+          - id: compare-second
+            phrase: only the total grows
+            targets:
+              - comparison-rows
+            color: pink
+            linger: 0.3
+          - id: compare-third
+            phrase: restored request matches too
+            targets:
+              - comparison-rows
+            color: green
+            linger: 0.4
+      - say: >
+          The display rounds two thirds to three decimal places. The gate keeps the integer counts:
+          three times correct must be at least twice total. Equality passes. Now imagine one more
+          wrong prediction. Hold your answer: would this fixture still clear the gate?
+        hold: 1.4
+        visual_cues:
+          - id: integer-gate
+            phrase: three times correct must be at least twice total
+            targets:
+              - count-gate
+            color: yellow
+            linger: 0.6
+      - say: >
+          Append the wrong row. The total increases while the two matches stay fixed. The comparison
+          becomes six against eight, so the scorer returns failure. The message says the score fell
+          below two thirds. A missing input would name the missing path instead.
+        hold: 0.8
+        visual_cues:
+          - id: append-wrong
+            phrase: Append the wrong row
+            targets:
+              - comparison-rows
+            color: pink
+            linger: 0.5
+          - id: failed-gate
+            phrase: scorer returns failure
+            targets:
+              - count-gate
+            color: pink
+            linger: 0.5
+  - id: input-contract
+    title: Count validated records separately from raw bytes
+    visual: The actual scorer rejects an array, missing field and empty input before counting. The same
+      fixture loses only its final newline through byteDifference; wc loses one count while JSON
+      parsing retains all three rows.
+    beats:
+      - say: Before counting matches, parse each nonblank line as a JSON object. Require prompt, expected
+          and prediction to be nonempty strings. An array is valid JSON but fails this object
+          contract. A missing field, malformed object or empty dataset also returns failure with an
+          error. The scorer validates records; a substring search cannot establish their types or
+          completeness.
+        hold: 0.9
+        visual_cues:
+          - id: record-validation
+            phrase: fails this object contract
+            targets:
+              - input-validation
+            color: cyan
+            linger: 0.5
+          - id: record-valid
+            phrase: Require prompt
+            targets:
+              - input-validation
+            color: cyan
+            linger: 0.4
+      - say: For each accepted record, strip surrounding whitespace and lowercase both labels before
+          comparing. An expected label blocked and a saved label with spaces around uppercase
+          BLOCKED count as equal. The normalization rule changes the comparison, while the stored
+          text remains inspectable. A different word such as escalated still misses.
+        hold: 0.9
+        visual_cues:
+          - id: normalize-labels
+            phrase: count as equal
+            targets:
+              - normalized-labels
+            color: cyan
+            linger: 0.5
+          - id: normalization-miss
+            phrase: escalated still misses
+            targets:
+              - normalized-labels
+            color: cyan
+            linger: 0.4
+      - say: Inspect one byte-level change to our original fixture. Remove only its final newline, the byte
+          shown as zero A in hexadecimal. Predict the two counts. Word count now reports two newline
+          characters; the scorer still parses three JSON objects and keeps two matches. The byte
+          strip preserves original offsets and shows a deletion without inventing a replacement.
+          File-byte equality, record count and model accuracy answer different questions.
+        hold: 1.1
+        visual_cues:
+          - id: remove-final-newline
+            phrase: Remove only its final newline
+            targets:
+              - fixture-bytes
+            color: cyan
+            linger: 0.5
+          - id: newline-count-reveal
+            phrase: Word count now reports two
+            targets:
+              - newline-counts
+            color: cyan
+            linger: 0.5
+          - id: record-count-reveal
+            phrase: still parses three JSON objects
+            targets:
+              - record-counts
+            color: cyan
+            linger: 0.5
+          - id: match-count-reveal
+            phrase: keeps two matches
+            targets:
+              - record-counts
+            color: cyan
+            linger: 0.4
+          - id: byte-verdict
+            phrase: shows a deletion without inventing a replacement
+            targets:
+              - fixture-bytes
+            color: cyan
+            linger: 0.4
+  - id: local-hook
+    title: Put the command in the checkout
+    visual: The tracked hook source is copied into the local active hook path. A real commit command
+      calls the shared scorer on four rows and stops before creating a commit.
+    beats:
+      - say: >
+          A tracked repro script gives every checkout one official command. To run it before a
+          commit, track the hook source and an installer. The installer places an executable copy in
+          this clone's private hooks directory. A fresh clone needs its own installation.
+        hold: 0.8
+        visual_cues:
+          - id: install-hook
+            phrase: places an executable copy
+            targets:
+              - hook-installation
+            color: yellow
+            linger: 0.6
+      - say: >
+          Try committing the four-row trial. Git runs the installed hook, which calls the same
+          scorer. The score fails and the commit stops. An installer should preserve an existing
+          different hook and respect a configured hooks path, so setup cannot silently replace
+          somebody else's check.
+        hold: 0.8
+        visual_cues:
+          - id: hook-failure
+            phrase: score fails and the commit stops
+            targets:
+              - hook-terminal
+            color: pink
+            linger: 0.6
+  - id: commit-boundary
+    title: Which snapshot did the green check test?
+    visual: A three-row working repair passes while the four-row index remains failing. Commit copies
+      the index; a clean CI checkout reconstructs that snapshot and fails. A local bypass is shown
+      as a separate explicit route.
+    beats:
+      - say: >
+          Here is the trap. Leave four rows staged, then remove the trial row only from the working
+          copy. The local hook sees three rows and passes. The selected snapshot still has four.
+          Predict the result when a clean checkout runs the committed contents.
+        hold: 1.3
+        visual_cues:
+          - id: unstaged-repair
+            phrase: remove the trial row only from the working copy
+            targets:
+              - snapshot-counts
+            color: cyan
+            linger: 0.5
+          - id: local-pass
+            phrase: local hook sees three rows and passes
+            targets:
+              - snapshot-counts
+            color: green
+            linger: 0.5
+      - say: >
+          Continuous integration receives the four-row commit and fails the same gate. A green
+          working-tree hook described a different input. Developers can also bypass a local hook
+          explicitly. Run the tracked command in CI, and compare staged and unstaged differences
+          before trusting a local success.
+        hold: 0.9
+        visual_cues:
+          - id: committed-check
+            phrase: four-row commit and fails the same gate
+            targets:
+              - ci-terminal
+            color: pink
+            linger: 0.6
+          - id: explicit-bypass
+            phrase: bypass a local hook explicitly
+            targets:
+              - bypass-command
+            color: yellow
+            linger: 0.5
+  - id: history
+    title: Let the same test narrow history
+    visual: A concrete eight-snapshot fixture history is searched. The active interval shrinks after the
+      same scorer tests c3, c5 and c4; the added fourth JSONL row explains the first failing
+      snapshot.
+    beats:
+      - say: >
+          Suppose the committed check once passed and now fails. Start from a clean worktree with
+          one known-good and one known-bad snapshot. Bisect tests the middle. Here, commit three
+          passes. Move the good boundary there, keeping exactly the same evaluation command.
+        hold: 0.8
+        motion_check:
+          region:
+            - 230
+            - 390
+            - 1460
+            - 220
+        visual_cues:
+          - id: bisect-three
+            phrase: commit three passes
+            targets:
+              - history-interval
+            color: green
+            linger: 0.5
+      - say: >
+          Commit five fails, so the bad boundary moves left. Commit four passes. Those boundaries
+          are now neighbors: five introduced the extra wrong row. Inspect its diff, then reset
+          bisect to your branch. Skip a revision if an unrelated setup failure prevents this test
+          from running fairly.
+        hold: 0.8
+        visual_cues:
+          - id: bisect-five
+            phrase: Commit five fails
+            targets:
+              - history-interval
+            color: pink
+            linger: 0.4
+          - id: bisect-four
+            phrase: Commit four passes
+            targets:
+              - history-interval
+            color: green
+            linger: 0.4
+          - id: first-bad
+            phrase: five introduced the extra wrong row
+            targets:
+              - history-receipt
+            color: yellow
+            linger: 0.5
+  - id: shell-inspection
+    title: Read a little. Check the status.
+    visual: Actual head and wc output refer to the same three-row file. A valid zero-match grep returns
+      stdout zero and status one, while opening a missing path produces stderr and status two.
+    beats:
+      - say: >
+          The shell can inspect this input without flooding your terminal. First confirm the
+          directory. Head prints one JSON object; word count counts newline characters. Our three
+          objects each end with a newline. Parsing and field validation remain the scorer's job.
+        hold: 0.8
+        visual_cues:
+          - id: inspect-head
+            phrase: Head prints one JSON object
+            targets:
+              - inspection-terminal
+            color: cyan
+            linger: 0.5
+          - id: inspect-count
+            phrase: counts newline characters
+            targets:
+              - inspection-terminal
+            color: green
+            linger: 0.5
+      - say: >
+          Search for a denied label. This file exists, but no line matches: grep prints zero and
+          returns status one. Change the path to a missing file. Now standard error names the path
+          and the status is two. Preserve that distinction between an empty result and a failed
+          read.
+        hold: 0.9
+        visual_cues:
+          - id: grep-empty
+            phrase: no line matches
+            targets:
+              - search-terminal
+            color: yellow
+            linger: 0.5
+          - id: grep-missing
+            phrase: standard error names the path
+            targets:
+              - search-terminal
+            color: pink
+            linger: 0.6
+  - id: helper-contract
+    title: Keep path identities and propagate helper failure
+    visual: The same eval directory gains one space-containing filename with two newline-terminated
+      records and one newline-containing filename with one. find passes each whole path to wc;
+      numeric counts combine only after all reads succeed.
+    beats:
+      - say: "A personal GPU helper queries the NVIDIA tool when available. Our data-size helper uses G N U
+          utilities on Linux: disk usage reports storage, while find selects JSONL files and word
+          count reads each through standard input. Keep filenames as arguments, including spaces and
+          embedded newlines. Passing them with find’s exec form preserves those identities instead
+          of parsing a printed list of names."
+        hold: 0.9
+        visual_cues:
+          - id: helper-paths
+            phrase: including spaces and embedded newlines
+            targets:
+              - helper-path-arguments
+            color: cyan
+            linger: 0.5
+          - id: helper-read-counts
+            phrase: word count reads each through standard input
+            targets:
+              - helper-path-arguments
+            color: cyan
+            linger: 0.4
+      - say: "Add a two-line file whose name contains a space and a one-line file whose name contains a
+          newline. Alongside our original three lines, the helper totals six. For an absent
+          directory, disk usage fails and the helper returns before printing a count. Declare a
+          local variable separately from its command substitution: the local builtin can otherwise
+          hide the failed command behind its own successful status. Capture successful counts, then
+          sum them."
+        hold: 0.9
+        visual_cues:
+          - id: helper-total
+            phrase: the helper totals six
+            targets:
+              - helper-count-result
+            color: cyan
+            linger: 0.5
+          - id: helper-failure
+            phrase: before printing a count
+            targets:
+              - helper-failure-result
+            color: cyan
+            linger: 0.5
+          - id: helper-declaration
+            phrase: hide the failed command
+            targets:
+              - helper-status
+            color: cyan
+            linger: 0.5
+  - id: pipeline
+    title: A successful last command can hide an error
+    visual: A missing-file grep sends no stdout into wc, which prints zero and exits successfully. The
+      pipeline first adopts that last status, then pipefail exposes the upstream status two while
+      preserving the same streams.
+    beats:
+      - say: >
+          A pipe connects one command's standard output to the next command's input. The failing
+          grep sends no matching lines to word count. Word count prints zero successfully. With
+          Bash's default rule, the whole pipeline reports the last command's success. Where did the
+          file error go?
+        hold: 1.2
+        visual_cues:
+          - id: pipe-stream
+            phrase: sends no matching lines to word count
+            targets:
+              - pipe-processes
+            color: cyan
+            linger: 0.5
+          - id: last-status
+            phrase: whole pipeline reports the last command's success
+            targets:
+              - pipeline-status
+            color: yellow
+            linger: 0.5
+      - say: >
+          Enable pipefail and repeat it. The same upstream read error now makes the pipeline fail.
+          Both processes still finish. Handle expected search statuses deliberately; strict shell
+          options support that handling, while the scorer still validates every JSON object.
+        hold: 0.8
+        visual_cues:
+          - id: pipefail-result
+            phrase: upstream read error now makes the pipeline fail
+            targets:
+              - pipeline-status
+            color: pink
+            linger: 0.6
+  - id: strict-shell
+    title: Strict options still need deliberate status handling
+    visual: A three-stage pipeline retains each terminal status and selects the last nonzero status
+      under pipefail. A tested function executes false then a later successful print; the explicit
+      checked version stops the dependent action.
+    beats:
+      - say: Generalize the pipeline rule. With pipefail, Bash uses the rightmost nonzero status, or zero if
+          every stage succeeds. For supplied stage statuses two, seven and zero, the pipeline
+          reports seven. It still waits for the pipeline to finish. An ordinary pipe carries
+          standard output; standard error stays separate unless you redirect it deliberately.
+          Capture the status before another command replaces it.
+        hold: 0.9
+        visual_cues:
+          - id: rightmost-status
+            phrase: the pipeline reports seven
+            targets:
+              - pipeline-status-selection
+            color: cyan
+            linger: 0.5
+          - id: stderr-separate
+            phrase: standard error stays separate
+            targets:
+              - pipeline-streams
+            color: cyan
+            linger: 0.4
+      - say: The u option rejects expansion of an unset variable. The e option has conditional exceptions.
+          If a function is tested by an if statement, a false command inside it can be followed by a
+          successful print, making the function report success. Our executed probe does exactly
+          that. Explicitly handle important failures and distinguish grep’s no-match status one from
+          a read error. Strict options support the contract; the branch logic supplies the intended
+          decision.
+        hold: 0.9
+        visual_cues:
+          - id: conditional-errexit
+            phrase: making the function report success
+            targets:
+              - conditional-status
+            color: cyan
+            linger: 0.5
+          - id: explicit-status
+            phrase: Explicitly handle important failures
+            targets:
+              - explicit-check
+            color: cyan
+            linger: 0.5
+          - id: unset-variable
+            phrase: rejects expansion of an unset variable
+            targets:
+              - conditional-status
+            color: cyan
+            linger: 0.4
+  - id: remote-jobs
+    title: Follow the evaluation process
+    visual: A labeled evaluation loop keeps writing the same scorer receipt while an SSH connection
+      drops. Tmux detach and reattach preserve the session; the noninteractive nohup alternative has
+      a named log and input redirection.
+    beats:
+      - say: >
+          Now repeat this evaluation as a long-running job on Linux. Inside tmux, the job keeps its
+          terminal when SSH disconnects. The log gains another completed check while your connection
+          is gone. Reattach to the named session and inspect that same running command.
+        hold: 0.8
+        visual_cues:
+          - id: ssh-detach
+            phrase: SSH disconnects
+            targets:
+              - session-state
+            color: pink
+            linger: 0.4
+          - id: log-continues
+            phrase: log gains another completed check
+            targets:
+              - job-log
+            color: green
+            linger: 0.5
+          - id: session-reattach
+            phrase: Reattach to the named session
+            targets:
+              - session-state
+            color: cyan
+            linger: 0.5
+      - say: >
+          For a noninteractive run, nohup can ignore hangup while output goes to this log and input
+          comes from the null device. The ampersand backgrounds it. Nice changes CPU scheduling
+          priority. Pick these tools for their specific jobs; the tracked fixture and environment
+          still supply reproducibility.
+        hold: 0.8
+        visual_cues:
+          - id: nohup-command
+            phrase: output goes to this log
+            targets:
+              - launch-command
+            color: cyan
+            linger: 0.5
+          - id: nice-priority
+            phrase: changes CPU scheduling priority
+            targets:
+              - launch-command
+            color: yellow
+            linger: 0.5
+  - id: shutdown
+    title: Identify. Request. Wait. Recheck.
+    visual: An illustrative named evaluation process is identified by owner, PID, start identity and
+      command. TERM triggers its handler, log flush and bounded wait before a completion receipt. A
+      reused PID counterexample has a different identity and receives no escalation.
+    beats:
+      - say: >
+          Before stopping a job, inspect its owner, process ID, start identity, and command. Check
+          the input is readable and the runner executable too. On a GPU host, the GPU process table
+          supplies a candidate ID; this process listing establishes which command you are actually
+          authorized to stop.
+        hold: 0.8
+        visual_cues:
+          - id: process-identity
+            phrase: owner, process ID, start identity, and command
+            targets:
+              - process-row
+            color: cyan
+            linger: 0.6
+          - id: file-permissions
+            phrase: input is readable and the runner executable
+            targets:
+              - permission-check
+            color: green
+            linger: 0.5
+      - say: >
+          Send TERM to your identified evaluation job. Our loop handles that request, writes a final
+          log line, and exits during the bounded wait. Wait then collects its exit status. The
+          request and the completed shutdown are separate events; allow the program time to finish
+          its cleanup.
+        hold: 0.9
+        visual_cues:
+          - id: send-term
+            phrase: Send TERM
+            targets:
+              - shutdown-action
+            color: yellow
+            linger: 0.4
+          - id: flush-log
+            phrase: writes a final log line
+            targets:
+              - shutdown-log
+            color: cyan
+            linger: 0.4
+          - id: collect-exit
+            phrase: Wait then collects its exit status
+            targets:
+              - shutdown-action
+            color: green
+            linger: 0.6
+      - say: >
+          If a process still appears after the grace period, inspect its identity again before
+          considering a forced signal. Here the number has been reused by a different command. A
+          successful existence check cannot authorize stopping that replacement. Our finished
+          evaluation needs no forced signal.
+        hold: 0.9
+        visual_cues:
+          - id: identity-recheck
+            phrase: number has been reused by a different command
+            targets:
+              - replacement-process
+            color: pink
+            linger: 0.6
+  - id: environment
+    title: Rebuild local machinery from a tracked contract
+    visual: The exact tracked version declaration, empty standard-library requirements and
+      environment-name example feed a new local venv. A selected Python executable and verified
+      version appear after activation; secrets and LFS pointer/object boundaries stay explicit.
+    beats:
+      - say: >
+          A clone brings setup instructions. Build a new virtual environment there, select its
+          Python, and verify the version. This scorer uses the standard library, so its requirements
+          file is empty. When packages arrive, commit a complete lock or fully pinned, hashed
+          requirements and rebuild from that contract.
+        hold: 0.8
+        visual_cues:
+          - id: rebuild-venv
+            phrase: Build a new virtual environment there
+            targets:
+              - environment-build
+            color: cyan
+            linger: 0.5
+          - id: environment-receipt
+            phrase: select its Python, and verify the version
+            targets:
+              - environment-build
+            color: green
+            linger: 0.5
+      - say: >
+          The example environment file carries a name with an empty value; provide real secrets
+          locally when required. This evaluation needs none. Large versioned weights can use Git
+          LFS, which records a pointer and fetches separate bytes. Check those bytes arrived
+          whenever the evaluation actually needs them.
+        hold: 0.8
+        visual_cues:
+          - id: environment-names
+            phrase: name with an empty value
+            targets:
+              - environment-contract
+            color: yellow
+            linger: 0.5
+          - id: lfs-boundary
+            phrase: records a pointer and fetches separate bytes
+            targets:
+              - lfs-contract
+            color: blue
+            linger: 0.5
+  - id: environment-contract
+    title: A setup return value controls the dependent run
+    visual: A selected Python executable flows into a new venv, then a complete dependency contract. A
+      failing interpreter probe returns through the sourced script and prevents repro.sh; a later
+      success reconstructs the environment.
+    beats:
+      - say: Follow the selected interpreter into a new virtual environment. Dot python version suggests a
+          release to version managers; it does not install or enforce that release itself. This lab
+          checks Python three point twelve or newer and exports the environment’s interpreter for
+          the scorer. Virtual environments can embed absolute interpreter paths, so rebuild them at
+          the destination instead of copying a laptop directory.
+        hold: 0.9
+        visual_cues:
+          - id: interpreter-contract
+            phrase: exports the environment’s interpreter
+            targets:
+              - selected-interpreter
+            color: cyan
+            linger: 0.5
+          - id: venv-rebuild
+            phrase: rebuild them at the destination
+            targets:
+              - selected-interpreter
+            color: cyan
+            linger: 0.4
+      - say: For packages, choose a complete dependency contract. A uv project carries its project
+          declaration and lockfile; sync locked refuses an out-of-date lock instead of rewriting it.
+          With pip’s require hashes mode, pin and hash all direct and transitive requirements and
+          accept the intended artifacts. Package constraints still leave the operating system,
+          driver and system libraries as host inputs.
+        hold: 0.9
+        visual_cues:
+          - id: locked-dependencies
+            phrase: all direct and transitive requirements
+            targets:
+              - dependency-closure
+            color: cyan
+            linger: 0.5
+          - id: uv-locked
+            phrase: refuses an out-of-date lock
+            targets:
+              - dependency-closure
+            color: cyan
+            linger: 0.4
+      - say: Our activation file is sourced into the caller. Its helper checks each important step; the
+          outer conditional preserves a failure through cleanup and returns it. In the executed
+          missing-interpreter trial, source returns one, so the following and-and evaluation never
+          starts. Loading a dot env file as shell source would execute its contents. This setup
+          leaves real secrets local and loads none for the scorer.
+        hold: 0.9
+        visual_cues:
+          - id: activation-failure
+            phrase: the following and-and evaluation never starts
+            targets:
+              - activation-dependent-run
+            color: cyan
+            linger: 0.5
+  - id: device-contract
+    title: A GPU visibility mask changes application numbering
+    visual: A declared three-device host maps physical devices through a CUDA_VISIBLE_DEVICES list into
+      application-local indices. Empty versus unset masks produce distinct visible sets; driver and
+      framework checks remain separate.
+    beats:
+      - say: A GPU diagnosis needs more than one observation. NVIDIA’s process and device listing describes
+          its driver view; the framework reports what that application can use. In a supplied host
+          with devices zero, one and two, set the CUDA visibility list to two comma zero.
+          Application device zero now names physical device two, and application device one names
+          physical device zero.
+        hold: 0.9
+        visual_cues:
+          - id: mask-device-map
+            phrase: Application device zero now names physical device two
+            targets:
+              - device-enumeration
+            color: cyan
+            linger: 0.5
+          - id: mask-second-device
+            phrase: application device one names physical device zero
+            targets:
+              - device-enumeration
+            color: cyan
+            linger: 0.4
+      - say: Set the mask to an empty string and no CUDA devices are visible to that application. Unset
+          normally leaves available devices unmasked. Neither choice installs a driver, exposes a
+          device missing from a container, or repairs incompatible framework binaries. Record the
+          mask, driver view, interpreter and framework probe together. Diagnose an unavailable
+          device separately from a missing Python package.
+        hold: 0.9
+        visual_cues:
+          - id: empty-device-mask
+            phrase: no CUDA devices are visible
+            targets:
+              - device-empty-mask
+            color: cyan
+            linger: 0.5
+          - id: device-probe-boundary
+            phrase: framework probe together
+            targets:
+              - device-evidence
+            color: cyan
+            linger: 0.5
+          - id: unset-device-mask
+            phrase: Unset normally leaves available devices unmasked
+            targets:
+              - device-empty-mask
+            color: cyan
+            linger: 0.4
+  - id: lfs-contract
+    title: A pointer and its required object are separate inputs
+    visual: A computed small binary fixture has a real SHA-256 and byte size. A Git LFS pointer occupies
+      the commit lane while the separate payload occupies object storage; missing payload prevents
+      model input admission.
+    beats:
+      - say: For a large artifact that genuinely belongs in version control, Git L F S records a pointer
+          while object storage carries the payload. The pointer identifies its object by digest and
+          size. A checkout can leave pointer text when the L F S tool or object is missing, or
+          smudging was skipped. Fetch the required object and check it arrived before claiming the
+          model input is available. Our actual article run found no L F S tool and safely committed
+          no weights.
+        hold: 0.9
+        visual_cues:
+          - id: lfs-pointer-object
+            phrase: digest and size
+            targets:
+              - lfs-object-binding
+            color: cyan
+            linger: 0.5
+          - id: lfs-missing-object
+            phrase: pointer text
+            targets:
+              - lfs-object-state
+            color: cyan
+            linger: 0.5
+          - id: lfs-no-tool
+            phrase: safely committed no weights
+            targets:
+              - lfs-object-state
+            color: cyan
+            linger: 0.4
+      - say: Keep the tracking attributes committed and selected artifact patterns out of ignore rules. A
+          model path hidden by an ignore pattern will not enter an ordinary add merely because an L
+          F S pattern names it. Generated checkpoints can stay local; large changing datasets can
+          use an external versioned manifest. Choose storage deliberately, then include every
+          required nonsecret input in the clone’s setup contract.
+        hold: 0.9
+        visual_cues:
+          - id: lfs-ignore-conflict
+            phrase: will not enter an ordinary add
+            targets:
+              - lfs-selection
+            color: cyan
+            linger: 0.5
+          - id: lfs-artifact-selection
+            phrase: include every required nonsecret input
+            targets:
+              - lfs-selection
+            color: cyan
+            linger: 0.4
+  - id: clean-clone
+    title: Earn the receipt in a fresh clone
+    visual: Only committed fixture, scorer and setup files arrive. Hook installation and environment
+      activation complete before repro.sh runs. Three retained rows earn the same two-match receipt,
+      clean status and exit zero; host assumptions remain visibly outside the proof.
+    beats:
+      - say: >
+          Return the trial to the original three rows, commit the fixture and setup, and clone into
+          an empty temporary directory. Keep your local files out of the test. Install the tracked
+          hook source, rebuild the environment, then run the repository command. What should this
+          fresh input produce?
+        hold: 1.2
+        visual_cues:
+          - id: clone-files
+            phrase: clone into an empty temporary directory
+            targets:
+              - clone-files
+            color: blue
+            linger: 0.5
+          - id: clone-setup
+            phrase: Install the tracked hook source
+            targets:
+              - clone-setup
+            color: yellow
+            linger: 0.5
+      - say: >
+          The clone reads three rows, finds the same two matches, and passes. The status is clean
+          and the clone check exits successfully. The missing input now travels with its scorer.
+          This proves the file and setup handoff on this host; another operating system or GPU
+          driver still needs its own check.
+        hold: 1
+        visual_cues:
+          - id: final-receipt
+            phrase: reads three rows, finds the same two matches, and passes
+            targets:
+              - clone-receipt
+            color: green
+            linger: 0.6
+          - id: host-boundary
+            phrase: on this host
+            targets:
+              - host-boundary
+            color: yellow
+            linger: 0.6
+  - id: fresh-handoff
+    title: Predict the fresh fixture before recording its result
+    visual: A fresh seven-row fixture retains five exact matches. A wrong eighth row is staged after a
+      working-only repair; the clone reconstructs the eight-row selected snapshot and the integer
+      boundary supplies the final diagnosis.
+    beats:
+      - say: Use a new fixture with seven valid requests and five normalized matches. Predict whether the
+          same two-thirds gate admits it. Five times three is fifteen; seven times two is fourteen.
+          It passes, and the display rounds five sevenths to zero point seven one four. The integers
+          settle the decision before rounding.
+        hold: 1.2
+        visual_cues:
+          - id: fresh-gate-question
+            phrase: Predict whether
+            targets:
+              - fresh-gate-input
+            color: cyan
+            linger: 0.5
+          - id: fresh-gate-pass
+            phrase: It passes
+            targets:
+              - fresh-gate-result
+            color: cyan
+            linger: 0.5
+          - id: fresh-integer-left
+            phrase: Five times three is fifteen
+            targets:
+              - fresh-gate-result
+            color: cyan
+            linger: 0.4
+          - id: fresh-integer-right
+            phrase: seven times two is fourteen
+            targets:
+              - fresh-gate-result
+            color: cyan
+            linger: 0.4
+          - id: fresh-rounded-rate
+            phrase: zero point seven one four
+            targets:
+              - fresh-gate-result
+            color: cyan
+            linger: 0.4
+      - say: "Append a wrong eighth request and stage that file. Then remove the extra row only in the
+          working copy. The local check again sees five matches in seven and passes. Predict the
+          clean clone. It receives the selected eight rows: fifteen is below sixteen, accuracy
+          rounds to zero point six two five, and the gate fails. The green local result described a
+          different file."
+        hold: 1.3
+        visual_cues:
+          - id: fresh-stage-eight
+            phrase: stage that file
+            targets:
+              - fresh-snapshot-input
+            color: cyan
+            linger: 0.5
+          - id: fresh-clone-question
+            phrase: Predict the clean clone
+            targets:
+              - fresh-snapshot-question
+            color: cyan
+            linger: 0.5
+          - id: fresh-clone-fails
+            phrase: the gate fails
+            targets:
+              - fresh-snapshot-result
+            color: cyan
+            linger: 0.5
+          - id: fresh-append-eight
+            phrase: Append a wrong eighth request
+            targets:
+              - fresh-snapshot-input
+            color: cyan
+            linger: 0.4
+          - id: fresh-working-repair
+            phrase: remove the extra row only in the working copy
+            targets:
+              - fresh-snapshot-input
+            color: cyan
+            linger: 0.4
+          - id: fresh-working-pass
+            phrase: five matches in seven and passes
+            targets:
+              - fresh-snapshot-input
+            color: cyan
+            linger: 0.4
+          - id: fresh-clone-input
+            phrase: It receives the selected eight rows
+            targets:
+              - fresh-snapshot-question
+            color: cyan
+            linger: 0.4
+      - say: Stage the intended repair, review the selected difference and rebuild the clone from that
+          recorded candidate. Confirm setup, fixture counts, exact gate, clean status and terminal
+          exit together. The ignored local environment may exist while status remains clean. This
+          earns the file and setup handoff on the tested host. Carry its operating-system and driver
+          assumptions into the container lesson, where the next boundary becomes explicit.
+        hold: 0.9
+        visual_cues:
+          - id: fresh-repair
+            phrase: Stage the intended repair
+            targets:
+              - fresh-repair-input
+            color: cyan
+            linger: 0.5
+          - id: fresh-final-receipt
+            phrase: earns the file and setup handoff
+            targets:
+              - fresh-repair-result
+            color: cyan
+            linger: 0.5

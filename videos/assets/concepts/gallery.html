@@ -1,0 +1,510 @@
+<!doctype html>
+<html lang="en" data-theme="dark">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="dark light">
+  <link rel="icon" href="data:,">
+  <title>Concept Atlas · LeetLLM</title>
+  <style>
+    :root { color-scheme: dark; --page:#0a1020; --panel:#111d34; --panel-2:#162541; --ink:#e9efff; --muted:#8d9cb9; --line:#263653; --cyan:#63deec; --yellow:#f4d477; --blue:#79aaff; --pink:#ef9ac8; --shadow:0 24px 70px #03081180; }
+    [data-theme="light"] { color-scheme:light; --page:#f2f5fa; --panel:#fff; --panel-2:#e8eef7; --ink:#17243c; --muted:#5d6d88; --line:#d5deeb; --cyan:#087783; --blue:#385da4; --yellow:#84600c; --pink:#a23e77; --shadow:0 20px 60px #233b5b18; }
+    * { box-sizing:border-box; }
+    body { margin:0; background:radial-gradient(ellipse at 52% -20%, #1e4160 0, var(--page) 48rem); color:var(--ink); font:16px/1.5 Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; transition:background .2s,color .2s; }
+    [data-theme="light"] body { background:radial-gradient(ellipse at 52% -20%, #d7f3f5 0, var(--page) 46rem); }
+    a { color:inherit; }
+    .shell { max-width:1420px; margin:0 auto; padding:32px clamp(18px,4vw,56px) 72px; }
+    header { display:flex; align-items:center; justify-content:space-between; gap:24px; }
+    .brand { display:flex; align-items:center; gap:12px; text-decoration:none; font-weight:750; letter-spacing:-.03em; }
+    .brand-logo { width:36px; height:36px; flex:0 0 36px; color:var(--cyan); filter:drop-shadow(0 0 14px #63deec40); }
+    .eyebrow { color:var(--cyan); font-size:12px; text-transform:uppercase; letter-spacing:.16em; font-weight:750; }
+    .toolbar { display:flex; align-items:center; gap:10px; }
+    button,input,select { font:inherit; color:var(--ink); }
+    button { cursor:pointer; }
+    .quiet-button { border:1px solid var(--line); border-radius:11px; background:var(--panel); padding:9px 13px; font-size:13px; font-weight:650; }
+    .quiet-button:hover,.quiet-button:focus-visible { border-color:var(--cyan); outline:none; }
+    .hero { padding:clamp(38px,7vw,86px) 0 46px; display:grid; grid-template-columns:minmax(300px,.95fr) minmax(400px,1.05fr); align-items:center; gap:clamp(32px,7vw,100px); }
+    h1 { max-width:700px; margin:13px 0 18px; font-size:clamp(42px,6.3vw,78px); line-height:.99; letter-spacing:-.065em; }
+    .lede { color:var(--muted); max-width:590px; font-size:clamp(16px,1.6vw,19px); }
+    .stats { display:flex; gap:22px; margin-top:27px; color:var(--muted); font-size:13px; }
+    .stats strong { color:var(--ink); font-size:16px; margin-right:5px; }
+    .showcase { border:1px solid var(--line); border-radius:24px; padding:20px; background:linear-gradient(145deg,var(--panel),var(--panel-2)); box-shadow:var(--shadow); }
+    .showcase-top { display:flex; justify-content:space-between; align-items:center; gap:12px; color:var(--muted); font-size:12px; margin-bottom:17px; }
+    .showcase-top strong { color:var(--ink); font-size:14px; }
+    .demo { display:flex; align-items:center; justify-content:center; gap:clamp(10px,2vw,22px); min-height:96px; padding:12px; border:1px solid var(--line); border-radius:16px; background:var(--page); }
+    .demo + .demo { margin-top:10px; }
+    .demo-step { text-align:center; min-width:72px; color:var(--muted); font-size:11px; }
+    .demo-step img { display:block; width:58px; height:58px; object-fit:contain; margin:0 auto 2px; }
+    .demo-arrow { color:var(--yellow); font-size:24px; }
+    .search-row { position:sticky; top:0; z-index:2; display:flex; gap:12px; align-items:center; padding:16px 0; background:color-mix(in srgb,var(--page) 92%,transparent); backdrop-filter:blur(14px); }
+    .search { flex:1; position:relative; }
+    .search input { width:100%; padding:14px 16px 14px 44px; border:1px solid var(--line); border-radius:14px; background:var(--panel); outline:none; }
+    .search input:focus { border-color:var(--cyan); box-shadow:0 0 0 3px #63deec22; }
+    .search-icon { position:absolute; left:16px; top:11px; color:var(--muted); font-size:20px; pointer-events:none; }
+    .size-picker { display:flex; padding:4px; gap:3px; border:1px solid var(--line); border-radius:13px; background:var(--panel); }
+    .size-picker button { width:36px; height:33px; border:0; border-radius:9px; color:var(--muted); background:transparent; font-size:12px; }
+    .size-picker button[aria-pressed="true"] { color:#0a1020; background:var(--cyan); font-weight:800; }
+    .catalog-head { margin:26px 0 15px; display:flex; justify-content:space-between; align-items:end; gap:16px; }
+    .catalog-head h2 { margin:0; font-size:22px; letter-spacing:-.03em; }
+    #result-count { color:var(--muted); font-size:13px; }
+    .grid { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:14px; }
+    .card { min-width:0; overflow:hidden; border:1px solid var(--line); border-radius:17px; background:var(--panel); box-shadow:0 8px 24px #03081114; transition:transform .16s,border-color .16s,box-shadow .16s; }
+    .card:hover { transform:translateY(-3px); border-color:#63deec80; box-shadow:var(--shadow); }
+    .icon-stage { height:142px; display:grid; place-items:center; background:radial-gradient(circle,#1b2a45 0,#0a1020 72%); border-bottom:1px solid var(--line); }
+    [data-theme="light"] .icon-stage { background:radial-gradient(circle,#edf3fa 0,#fff 72%); }
+    .icon-stage img { width:var(--icon-size,64px); height:var(--icon-size,64px); transition:width .18s,height .18s; }
+    .card-body { padding:14px 15px 13px; }
+    .card-title-row { display:flex; justify-content:space-between; align-items:center; gap:8px; }
+    .card h3 { margin:0; font-size:15px; line-height:1.25; letter-spacing:-.02em; }
+    .id { color:var(--muted); font:10px/1.3 ui-monospace,SFMono-Regular,Consolas,monospace; }
+    .card p { min-height:42px; margin:9px 0 12px; color:var(--muted); font-size:12px; line-height:1.45; }
+    .card-foot { display:flex; justify-content:space-between; align-items:center; gap:8px; }
+    .category { color:var(--cyan); font-size:10px; font-weight:700; }
+    .actions { display:flex; gap:5px; }
+    .actions button { padding:5px 8px; border:1px solid var(--line); border-radius:8px; background:transparent; color:var(--muted); font-size:10px; }
+    .actions button:hover,.actions button:focus-visible { border-color:var(--cyan); color:var(--ink); outline:none; }
+    .empty { display:none; padding:38px 18px; border:1px dashed var(--line); border-radius:16px; color:var(--muted); text-align:center; }
+    .usage { margin-top:50px; display:grid; grid-template-columns:1fr 1fr; gap:18px; }
+    .usage-card { border:1px solid var(--line); border-radius:17px; padding:21px; background:var(--panel); }
+    .usage-card h2 { margin:0 0 8px; font-size:17px; }
+    .usage-card p { margin:0; color:var(--muted); font-size:13px; }
+    .view-bar { display:flex; align-items:center; justify-content:space-between; gap:14px; margin:12px 0; }
+    .view-switch,.data-links { display:flex; align-items:center; flex-wrap:wrap; gap:8px; }
+    .view-switch { padding:4px; border:1px solid var(--line); border-radius:13px; background:var(--panel); }
+    .view-switch button { border:0; border-radius:9px; padding:8px 12px; background:transparent; color:var(--muted); font-size:12px; font-weight:700; }
+    .view-switch button[aria-pressed="true"] { color:#0a1020; background:var(--cyan); }
+    .data-links { font-size:12px; color:var(--muted); }
+    .data-links a { text-underline-offset:3px; }
+    .data-links a:hover,.reference a:hover { color:var(--cyan); }
+    .filter-select { min-height:43px; max-width:220px; padding:8px 10px; border:1px solid var(--line); border-radius:12px; background:var(--panel); color:var(--ink); font-size:13px; }
+    .brief-note { margin:0 0 14px; border-left:3px solid var(--cyan); border-radius:0 10px 10px 0; padding:10px 13px; background:var(--panel); color:var(--muted); font-size:12px; }
+    .card-meta { display:flex; flex-wrap:wrap; gap:6px; margin:0 0 8px; }
+    .pill { display:inline-block; border:1px solid var(--line); border-radius:999px; padding:3px 8px; color:var(--muted); font-size:10px; line-height:1.4; }
+    .pill.format { border-color:color-mix(in srgb,var(--cyan) 40%,var(--line)); color:var(--cyan); }
+    .pill.category { color:var(--blue); }
+    .aliases { margin:0 0 8px; color:var(--muted); font-size:11px; }
+    .card details,.source-card details { border-top:1px solid var(--line); }
+    .card details summary,.source-card details summary { cursor:pointer; padding:9px 0 3px; color:var(--cyan); font-size:12px; font-weight:650; }
+    .detail { padding:5px 0 4px; color:var(--muted); font-size:12px; overflow-wrap:anywhere; }
+    .detail ul { margin:4px 0 10px; padding-left:18px; }
+    .detail li { margin:4px 0; }
+    .detail h4 { margin:10px 0 4px; color:var(--ink); font-size:11px; }
+    .reference-list { display:grid; gap:7px; }
+    .reference { border-left:2px solid var(--line); padding-left:8px; }
+    .reference small { display:block; color:var(--muted); font-size:10px; overflow-wrap:anywhere; }
+    .actions { display:flex; gap:6px; margin-top:8px; }
+    .source-grid { display:grid; gap:10px; }
+    .source-card { min-width:0; border:1px solid var(--line); border-radius:14px; padding:14px 16px; background:var(--panel); }
+    .source-top { display:flex; justify-content:space-between; gap:12px; }
+    .source-title { margin:0; font-size:14px; overflow-wrap:anywhere; }
+    .source-path { display:block; margin-top:4px; color:var(--muted); font:10px/1.45 ui-monospace,SFMono-Regular,Consolas,monospace; overflow-wrap:anywhere; }
+    .source-reason { margin:8px 0; color:var(--muted); font-size:12px; }
+    .source-tags { display:flex; flex-wrap:wrap; gap:5px; }
+    button.pill { cursor:pointer; background:transparent; color:var(--cyan); }
+    button.pill:hover { border-color:var(--cyan); }
+    .pager { display:flex; justify-content:center; align-items:center; gap:12px; margin-top:18px; }
+    .pager span { color:var(--muted); font-size:12px; }
+    [hidden] { display:none!important; }
+    code { padding:2px 5px; border-radius:5px; background:var(--panel-2); color:var(--cyan); font-size:.91em; }
+    footer { margin-top:44px; padding-top:18px; border-top:1px solid var(--line); display:flex; justify-content:space-between; gap:18px; color:var(--muted); font-size:12px; }
+    @media (max-width:1000px) { .hero { grid-template-columns:1fr; gap:28px; } .grid { grid-template-columns:repeat(3,minmax(0,1fr)); } }
+    @media (max-width:700px) { .shell { padding-top:20px; } header .eyebrow { display:none; } .grid { grid-template-columns:repeat(2,minmax(0,1fr)); gap:10px; } .toolbar .quiet-button { padding:8px 10px; } .usage { grid-template-columns:1fr; } .search-row { flex-wrap:wrap; } .search { flex-basis:100%; } .catalog-head { margin-top:16px; } .icon-stage { height:124px; } .filter-select { flex:1; max-width:none; } .view-bar { align-items:flex-start; flex-direction:column; } }
+    @media (max-width:430px) { .grid { grid-template-columns:1fr; } .card { display:grid; grid-template-columns:104px minmax(0,1fr); } .icon-stage { height:100%; min-height:126px; border-right:1px solid var(--line); border-bottom:0; } .card-body { padding:12px; } .card p { min-height:0; } .demo { gap:6px; } .demo-step { min-width:58px; } .demo-step img { width:46px;height:46px; } .source-card { padding:12px; } .view-switch button { padding:7px 9px; } }
+    @media (prefers-reduced-motion:reduce) { *,*::before,*::after { scroll-behavior:auto!important; transition:none!important; } }
+  </style>
+</head>
+<body>
+  <div class="shell">
+    <header>
+      <a class="brand" href="#top" aria-label="LeetLLM Concept Atlas home"><svg class="brand-logo" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 5a3 3 0 1 0-5.997.125 4 4 0 0 0-2.526 5.77 4 4 0 0 0 .556 6.588A4 4 0 1 0 12 18Z"/><path d="M9 13a4.5 4.5 0 0 0 3-4"/><path d="M6.003 5.125A3 3 0 0 0 6.401 6.5"/><path d="M3.477 10.896a4 4 0 0 1 .585-.396"/><path d="M6 18a4 4 0 0 1-1.967-.516"/><path d="M12 13h4"/><path d="M12 18h6a2 2 0 0 1 2 2v1"/><path d="M12 8h8"/><path d="M16 8V5a2 2 0 0 1 2-2"/><circle cx="16" cy="13" r=".5" fill="currentColor"/><circle cx="18" cy="3" r=".5" fill="currentColor"/><circle cx="20" cy="21" r=".5" fill="currentColor"/><circle cx="20" cy="8" r=".5" fill="currentColor"/></svg><span>LeetLLM</span></a>
+      <div class="toolbar"><span class="eyebrow">A visual language for machine learning</span><button id="theme-toggle" class="quiet-button" type="button" aria-label="Switch to light theme">☼ <span>Light mode</span></button></div>
+    </header>
+    <main id="top">
+      <section class="hero" aria-labelledby="page-title">
+        <div>
+          <div class="eyebrow">LeetLLM visual vocabulary</div>
+          <h1 id="page-title">Ideas you can <span style="color:var(--cyan)">see.</span></h1>
+          <p class="lede">Reusable SVG symbols and visual briefs for the machinery inside modern AI. Every entry connects its visual idea to the articles and glossary terms where it appears.</p>
+          <div class="stats"><span><strong id="hero-concepts">…</strong> concepts</span><span><strong id="hero-symbols">…</strong> SVG symbols</span><span><strong id="hero-articles">…</strong> articles · <strong id="hero-glossary">…</strong> glossary entries</span></div>
+        </div>
+        <div class="showcase" aria-label="Three example concept sequences">
+          <div class="showcase-top"><strong>Concepts in context</strong><span>Reusable building blocks</span></div>
+          <div class="demo" aria-label="Prompt routed to experts">
+            <div class="demo-step"><img data-concept="prompt" src="prompt.svg" alt=""><span>prompt</span></div><span class="demo-arrow" aria-hidden="true">→</span>
+            <div class="demo-step"><img data-concept="router" src="router.svg" alt=""><span>route</span></div><span class="demo-arrow" aria-hidden="true">→</span>
+            <div class="demo-step"><img data-concept="moe" src="moe.svg" alt=""><span>experts</span></div>
+          </div>
+          <div class="demo" aria-label="Query reads from an attention cache">
+            <div class="demo-step"><img data-concept="query" src="query.svg" alt=""><span>query</span></div><span class="demo-arrow" aria-hidden="true">→</span>
+            <div class="demo-step"><img data-concept="cache" src="cache.svg" alt=""><span>cache</span></div><span class="demo-arrow" aria-hidden="true">→</span>
+            <div class="demo-step"><img data-concept="attention" src="attention.svg" alt=""><span>attention</span></div>
+          </div>
+          <div class="demo" aria-label="Noise is denoised into an image">
+            <div class="demo-step"><img data-concept="noise" src="noise.svg" alt=""><span>noise</span></div><span class="demo-arrow" aria-hidden="true">→</span>
+            <div class="demo-step"><img data-concept="denoiser" src="denoiser.svg" alt=""><span>denoise</span></div><span class="demo-arrow" aria-hidden="true">→</span>
+            <div class="demo-step"><img data-concept="diffusion" src="diffusion.svg" alt=""><span>image</span></div>
+          </div>
+        </div>
+      </section>
+      <section id="concept-view" aria-labelledby="catalog-title">
+        <div class="view-bar">
+          <div class="view-switch" role="group" aria-label="Catalog view"><button type="button" data-view="concepts" aria-pressed="true">Visual concepts</button><button type="button" data-view="sources" aria-pressed="false">Article &amp; glossary map</button></div>
+          <nav class="data-links" aria-label="Catalog data"><a href="catalog.json">Catalog JSON</a><a href="manifest.json">SVG manifest</a><a href="curation/foundations.json">Foundation review</a><a href="curation/systems.json">Systems review</a><a href="curation/applications.json">Application review</a><a id="atlas-zip-link" href="../leetllm-concept-atlas.zip" hidden>Portable atlas ZIP</a></nav>
+        </div>
+        <div class="search-row">
+          <label class="search"><span class="search-icon" aria-hidden="true">⌕</span><input id="search" type="search" placeholder="Search concepts, aliases, mechanisms…" autocomplete="off" aria-label="Search concepts"></label>
+          <select id="category-filter" class="filter-select" aria-label="Filter by concept family"><option value="">All families</option></select>
+          <select id="format-filter" class="filter-select" aria-label="Filter by visual format"><option value="">All visual formats</option><option value="icon">Has SVG symbol</option><option value="diagram">Diagram brief</option><option value="simulation">Simulation brief</option></select>
+          <div class="size-picker" role="group" aria-label="Preview icon size">
+            <button type="button" data-size="24" aria-pressed="false">24</button><button type="button" data-size="40" aria-pressed="false">40</button><button type="button" data-size="64" aria-pressed="true">64</button><button type="button" data-size="96" aria-pressed="false">96</button>
+          </div>
+          <button id="clear-search" type="button" class="quiet-button">Clear search</button>
+        </div>
+        <div class="catalog-head"><h2 id="catalog-title">The collection</h2><span id="result-count" aria-live="polite">Loading catalog…</span></div>
+        <p class="brief-note">A symbol gives a concept a reusable visual identity; a diagram or simulation brief describes how to teach its underlying mechanism.</p>
+        <div class="grid" id="concept-grid"></div>
+        <div class="empty" id="concept-empty">No concepts match. Try “route”, “memory”, “confidence”, or “quantization”.</div>
+      </section>
+      <section id="source-view" aria-labelledby="source-heading" hidden>
+        <div class="catalog-head"><h2 id="source-heading">Reviewed content map</h2><span id="source-count" aria-live="polite"></span></div>
+        <p class="brief-note">Coverage uses article and glossary metadata, definitions, section headings, figure and diagram labels, math markers, and selected relevant sections. The index maps visual opportunities; full editorial and factual review remains a separate task.</p>
+        <div class="source-grid" id="source-grid"></div><div class="empty" id="source-empty">No content entries match that search.</div>
+        <div class="pager" id="pager" hidden><button class="quiet-button" id="previous-page" type="button">Previous</button><span id="page-status"></span><button class="quiet-button" id="next-page" type="button">Next</button></div>
+      </section>
+      <section class="usage" aria-label="Using these icons">
+        <article class="usage-card"><h2>Use the SVG symbols</h2><p>Each symbol is a standalone vector with a transparent <code>0 0 64 64</code> canvas, named parts, and dark and light palette variants. Copy or download the active theme from any concept card.</p></article>
+        <article class="usage-card"><h2>Build a complete visual</h2><p>Open a concept's details to see its preferred format, visual brief, pitfalls, and source sections. A brief describes a future illustration or animation.</p></article>
+        <article class="usage-card"><h2>Trace it to the curriculum</h2><p>The content map covers every inventoried article and glossary entry. Search a title, file path, heading, or concept to see why that source was reviewed.</p></article>
+      </section>
+    </main>
+    <footer><span>LeetLLM Concept Atlas · Original teaching symbols and visual briefs</span><span id="footer-count"></span></footer>
+  </div>
+  <script type="module">
+    const root = document.documentElement;
+    const input = document.querySelector('#search');
+    const conceptGrid = document.querySelector('#concept-grid');
+    const sourceGrid = document.querySelector('#source-grid');
+    const categoryFilter = document.querySelector('#category-filter');
+    const formatFilter = document.querySelector('#format-filter');
+    const pageSize = 40;
+    let catalog;
+    let manifest;
+    let concepts = [];
+    let sources = [];
+    let svgById = new Map();
+    let iconById = new Map();
+    let page = 0;
+    let view = 'concepts';
+    let iconSize = 64;
+    const el = (tag, cls, text) => {
+      const node = document.createElement(tag);
+      if (cls) node.className = cls;
+      if (text !== undefined) node.textContent = text;
+      return node;
+    };
+    const safeSourcePath = (path) => typeof path === 'string' && /^web\/src\/content\/[a-zA-Z0-9_./-]+\.md$/.test(path) && !path.split('/').includes('..');
+    const symbolFile = (concept) => concept.symbol && concept.symbol.file || (iconById.get(concept.id) || {}).file || '';
+    const hasSymbol = (concept) => Boolean(symbolFile(concept) && svgById.has(concept.id));
+    const sourceUrl = (path, heading) => {
+      const encoded = path.split('/').map(encodeURIComponent).join('/');
+      let url = 'https://github.com/bvolpato/leetllm/blob/main/' + encoded;
+      if (heading) {
+        const slug = heading.toLocaleLowerCase().replace(/[^a-z0-9\s-]/g, '').trim().replace(/\s+/g, '-').replace(/-+/g, '-');
+        if (slug) url += '#' + encodeURIComponent(slug);
+      }
+      return url;
+    };
+    const makeLink = (label, path, heading) => {
+      const link = document.createElement('a');
+      link.textContent = label;
+      link.href = sourceUrl(path, heading);
+      link.target = '_blank';
+      link.rel = 'noopener noreferrer';
+      return link;
+    };
+    const themedSvg = (concept) => {
+      let svg = svgById.get(concept.id) || '';
+      const palette = manifest.paletteVariants[root.dataset.theme] || {};
+      for (const [from, to] of Object.entries(palette).sort(([a], [b]) => b.length - a.length)) svg = svg.replaceAll(from, to);
+      return svg;
+    };
+    const dataUrl = (concept) => 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(themedSvg(concept));
+    const formatLabel = (concept) => {
+      const symbol = hasSymbol(concept);
+      if (concept.preferredFormat === 'diagram') return symbol ? 'Symbol + diagram brief' : 'Diagram brief';
+      if (concept.preferredFormat === 'simulation') return symbol ? 'Symbol + simulation brief' : 'Simulation brief';
+      return symbol ? 'Reusable SVG symbol' : 'Visual brief needed';
+    };
+    const conceptText = (concept) => [
+      concept.id, concept.title, concept.meaning, concept.category, concept.preferredFormat, concept.brief,
+      ...(concept.aliases || []), ...(concept.pitfalls || []), ...(concept.sourcePaths || []),
+      ...(concept.sourceRefs || []).flatMap((ref) => [ref.title, ref.path, ...(ref.headings || []), ...(ref.glossaryIds || [])])
+    ].join(' ').toLocaleLowerCase();
+    function renderReferences(container, refs) {
+      const list = el('div', 'reference-list');
+      for (const ref of refs || []) {
+        if (!safeSourcePath(ref.path)) continue;
+        const item = el('div', 'reference');
+        const headings = ref.headings || [];
+        item.append(makeLink(ref.title || ref.path, ref.path, headings[0]));
+        item.append(el('small', '', ref.path));
+        for (const heading of headings) item.append(el('small', '', 'Section: ' + heading));
+        if ((ref.glossaryIds || []).length) item.append(el('small', '', 'Glossary terms: ' + ref.glossaryIds.join(', ')));
+        list.append(item);
+      }
+      container.append(list);
+    }
+    function renderConcepts() {
+      const query = input.value.trim().toLocaleLowerCase();
+      const category = categoryFilter.value;
+      const format = formatFilter.value;
+      const visible = concepts.filter((concept) => {
+        if (category && concept.category !== category) return false;
+        if (format === 'icon' && !hasSymbol(concept)) return false;
+        if ((format === 'diagram' || format === 'simulation') && concept.preferredFormat !== format) return false;
+        return conceptText(concept).includes(query);
+      });
+      conceptGrid.replaceChildren();
+      for (const concept of visible) {
+        const card = el('article', 'card');
+        const stage = el('div', 'icon-stage');
+        if (hasSymbol(concept)) {
+          const image = document.createElement('img');
+          image.src = dataUrl(concept);
+          image.alt = '';
+          image.loading = 'lazy';
+          image.decoding = 'async';
+          image.style.setProperty('--icon-size', iconSize + 'px');
+          stage.append(image);
+        } else {
+          const placeholder = el('div', 'id', concept.preferredFormat === 'icon' ? 'Visual brief' : concept.preferredFormat + ' brief');
+          stage.append(placeholder);
+        }
+        const body = el('div', 'card-body');
+        const titleRow = el('div', 'card-title-row');
+        titleRow.append(el('h3', '', concept.title), el('span', 'id', concept.id));
+        body.append(titleRow, el('p', '', concept.meaning));
+        const meta = el('div', 'card-meta');
+        meta.append(el('span', 'pill category', concept.category), el('span', 'pill format', formatLabel(concept)));
+        body.append(meta);
+        if ((concept.aliases || []).length) body.append(el('div', 'aliases', 'Also called: ' + concept.aliases.join(' · ')));
+        const details = document.createElement('details');
+        details.append(el('summary', '', concept.brief ? 'Visual brief & sources' : 'Sources'));
+        const detail = el('div', 'detail');
+        if (concept.brief) detail.append(el('p', '', concept.brief));
+        if ((concept.pitfalls || []).length) {
+          detail.append(el('h4', '', 'Teaching pitfalls'));
+          const list = document.createElement('ul');
+          for (const pitfall of concept.pitfalls) list.append(el('li', '', pitfall));
+          detail.append(list);
+        }
+        if ((concept.sourceRefs || []).length) {
+          detail.append(el('h4', '', 'Source sections'));
+          renderReferences(detail, concept.sourceRefs);
+        } else if ((concept.sourcePaths || []).length) {
+          detail.append(el('h4', '', 'Source files'));
+          const list = document.createElement('ul');
+          for (const path of concept.sourcePaths) {
+            if (!safeSourcePath(path)) continue;
+            const li = document.createElement('li');
+            li.append(makeLink(path, path));
+            list.append(li);
+          }
+          detail.append(list);
+        }
+        details.append(detail);
+        body.append(details);
+        if (hasSymbol(concept)) {
+          const actions = el('div', 'actions');
+          const copy = el('button', '', 'Copy SVG');
+          copy.type = 'button';
+          copy.addEventListener('click', async () => {
+            try { await navigator.clipboard.writeText(themedSvg(concept)); copy.textContent = 'Copied'; }
+            catch { copy.textContent = 'Clipboard unavailable'; }
+            setTimeout(() => { copy.textContent = 'Copy SVG'; }, 1500);
+          });
+          const download = el('button', '', 'Download SVG');
+          download.type = 'button';
+          download.addEventListener('click', () => {
+            const url = URL.createObjectURL(new Blob([themedSvg(concept)], { type: 'image/svg+xml;charset=utf-8' }));
+            const link = document.createElement('a');
+            link.href = url;
+            link.download = symbolFile(concept);
+            link.click();
+            setTimeout(() => URL.revokeObjectURL(url), 30000);
+          });
+          actions.append(copy, download);
+          body.append(actions);
+        }
+        card.append(stage, body);
+        conceptGrid.append(card);
+      }
+      document.querySelector('#result-count').textContent = visible.length + ' of ' + concepts.length + ' concepts';
+      document.querySelector('#concept-empty').style.display = visible.length ? 'none' : 'block';
+      conceptGrid.style.display = visible.length ? 'grid' : 'none';
+    }
+    function renderSources() {
+      const query = input.value.trim().toLocaleLowerCase();
+      const filtered = query ? sources.filter((source) => JSON.stringify(source).toLocaleLowerCase().includes(query)) : sources;
+      const pageCount = Math.max(1, Math.ceil(filtered.length / pageSize));
+      page = Math.min(page, pageCount - 1);
+      const rows = filtered.slice(page * pageSize, (page + 1) * pageSize);
+      sourceGrid.replaceChildren();
+      for (const source of rows) {
+        const card = el('article', 'source-card');
+        const top = el('div', 'source-top');
+        const title = el('h3', 'source-title');
+        if (safeSourcePath(source.path)) title.append(makeLink(source.title || source.path, source.path));
+        else title.textContent = source.title || source.path || 'Untitled source';
+        const sourceFlags = el('div', 'source-tags');
+        sourceFlags.append(el('span', 'pill', source.type + (source.hidden ? ' · hidden' : '')), el('span', 'pill', source.status || 'unclassified'));
+        top.append(title, sourceFlags);
+        card.append(top, el('span', 'source-path', source.path));
+        const conceptsRow = el('div', 'source-tags');
+        for (const id of source.conceptIds || []) {
+          const concept = concepts.find((item) => item.id === id);
+          if (!concept) continue;
+          const button = el('button', 'pill', concept.title);
+          button.type = 'button';
+          button.addEventListener('click', () => {
+            setView('concepts');
+            input.value = concept.id;
+            categoryFilter.value = '';
+            formatFilter.value = '';
+            renderConcepts();
+            document.querySelector('#catalog-title').scrollIntoView({ block: 'start' });
+          });
+          conceptsRow.append(button);
+        }
+        if (conceptsRow.childElementCount) card.append(conceptsRow);
+        card.append(el('p', 'source-reason', source.reason || 'No visual opportunity recorded.'));
+        const basis = el('div', 'source-tags');
+        for (const label of source.basis || []) basis.append(el('span', 'pill', label));
+        if (basis.childElementCount) card.append(basis);
+        const details = document.createElement('details');
+        const markers = source.markers || {};
+        const markerCount = ['headings', 'diagramBlocks', 'figureMarkers', 'formulaHeadings'].reduce((sum, key) => sum + (markers[key] || []).length, 0);
+        details.append(el('summary', '', 'Review evidence' + (markerCount ? ' · ' + markerCount + ' recorded items' : '')));
+        const detail = el('div', 'detail');
+        detail.append(el('p', '', 'Visual review status: ' + (source.status || 'unclassified')));
+        for (const key of ['headings', 'diagramBlocks', 'figureMarkers', 'formulaHeadings']) {
+          const values = markers[key] || [];
+          if (!values.length) continue;
+          detail.append(el('h4', '', key === 'headings' ? 'Section headings' : key === 'diagramBlocks' ? 'Diagram labels' : key === 'figureMarkers' ? 'Figure markers' : 'Formula headings'));
+          const list = document.createElement('ul');
+          for (const value of values) {
+            const li = document.createElement('li');
+            if (key === 'headings' && safeSourcePath(source.path)) li.append(makeLink(value, source.path, value));
+            else if (value && Array.isArray(value.labels)) li.textContent = value.labels.join(' · ');
+            else li.textContent = typeof value === 'string' ? value : JSON.stringify(value);
+            list.append(li);
+          }
+          detail.append(list);
+        }
+        if (markers.mathMarkers) {
+          const math = Object.entries(markers.mathMarkers).map(([key, value]) => key + ': ' + (Array.isArray(value) ? value.length : value)).join(' · ');
+          detail.append(el('h4', '', 'Math markers'), el('p', '', math));
+        }
+        details.append(detail);
+        card.append(details);
+        sourceGrid.append(card);
+      }
+      document.querySelector('#source-count').textContent = filtered.length + ' of ' + sources.length + ' sources · ' + rows.length + ' shown';
+      document.querySelector('#source-empty').style.display = filtered.length ? 'none' : 'block';
+      sourceGrid.style.display = filtered.length ? 'grid' : 'none';
+      document.querySelector('#pager').hidden = filtered.length <= pageSize;
+      document.querySelector('#page-status').textContent = 'Page ' + (page + 1) + ' of ' + pageCount;
+      document.querySelector('#previous-page').disabled = page === 0;
+      document.querySelector('#next-page').disabled = page >= pageCount - 1;
+    }
+    function setView(next) {
+      view = next;
+      document.querySelector('#concept-view').hidden = view !== 'concepts';
+      document.querySelector('#source-view').hidden = view !== 'sources';
+      categoryFilter.hidden = view !== 'concepts';
+      formatFilter.hidden = view !== 'concepts';
+      document.querySelector('.size-picker').hidden = view !== 'concepts';
+      document.querySelectorAll('[data-view]').forEach((button) => button.setAttribute('aria-pressed', String(button.dataset.view === view)));
+      input.placeholder = view === 'concepts' ? 'Search concepts, aliases, mechanisms…' : 'Search titles, paths, headings, labels, or concept IDs…';
+      input.setAttribute('aria-label', view === 'concepts' ? 'Search concepts' : 'Search articles and glossary entries');
+      page = 0;
+      if (view === 'concepts') renderConcepts(); else renderSources();
+    }
+    function updateSummary() {
+      const summary = catalog.summary;
+      document.querySelector('#hero-concepts').textContent = summary.concepts;
+      document.querySelector('#hero-symbols').textContent = summary.symbols;
+      document.querySelector('#hero-articles').textContent = summary.articles;
+      document.querySelector('#hero-glossary').textContent = summary.glossary;
+      document.querySelector('#footer-count').textContent = summary.symbols + ' SVG symbols · ' + summary.diagramBriefs + ' diagram briefs · ' + summary.simulationBriefs + ' simulation briefs';
+      for (const name of [...new Set(concepts.map((concept) => concept.category))].sort()) {
+        const option = el('option', '', name);
+        option.value = name;
+        categoryFilter.append(option);
+      }
+      updateShowcase();
+      fetch('../leetllm-concept-atlas.zip', { method: 'HEAD' }).then((response) => {
+        if (response.ok) document.querySelector('#atlas-zip-link').hidden = false;
+      }).catch(() => {});
+    }
+    function updateShowcase() {
+      document.querySelectorAll('[data-concept]').forEach((image) => {
+        const concept = concepts.find((item) => item.id === image.dataset.concept && hasSymbol(item));
+        if (concept) image.src = dataUrl(concept);
+        else image.closest('.demo').hidden = true;
+      });
+    }
+    try {
+      const [catalogResponse, manifestResponse] = await Promise.all([fetch('catalog.json'), fetch('manifest.json')]);
+      if (!catalogResponse.ok) throw new Error('Catalog request failed (' + catalogResponse.status + ')');
+      if (!manifestResponse.ok) throw new Error('SVG manifest request failed (' + manifestResponse.status + ')');
+      catalog = await catalogResponse.json();
+      manifest = await manifestResponse.json();
+      concepts = catalog.concepts || [];
+      sources = catalog.sources || [];
+      iconById = new Map((manifest.icons || []).map((icon) => [icon.id, icon]));
+      const files = concepts.map((concept) => [concept, symbolFile(concept)])
+        .filter(([concept, file]) => file && /^[a-z0-9-]+\.svg$/.test(file) && (concept.symbol || iconById.has(concept.id)));
+      const loaded = await Promise.all(files.map(async ([concept, file]) => {
+        const response = await fetch(encodeURI(file));
+        if (!response.ok) return [concept.id, ''];
+        return [concept.id, await response.text()];
+      }));
+      svgById = new Map(loaded.filter(([, svg]) => svg));
+      updateSummary();
+      renderConcepts();
+    } catch (error) {
+      document.querySelector('#result-count').textContent = 'Could not load catalog data';
+      const empty = document.querySelector('#concept-empty');
+      empty.style.display = 'block';
+      empty.textContent = error instanceof Error ? error.message : 'Serve this folder over HTTP to browse the atlas.';
+    }
+    input.addEventListener('input', () => { page = 0; view === 'concepts' ? renderConcepts() : renderSources(); });
+    categoryFilter.addEventListener('change', renderConcepts);
+    formatFilter.addEventListener('change', renderConcepts);
+    document.querySelector('#clear-search').addEventListener('click', () => {
+      input.value = '';
+      page = 0;
+      view === 'concepts' ? renderConcepts() : renderSources();
+      input.focus();
+    });
+    document.querySelectorAll('[data-view]').forEach((button) => button.addEventListener('click', () => setView(button.dataset.view)));
+    document.querySelectorAll('[data-size]').forEach((button) => button.addEventListener('click', () => {
+      iconSize = Number(button.dataset.size);
+      document.querySelectorAll('[data-size]').forEach((other) => other.setAttribute('aria-pressed', String(other === button)));
+      document.querySelectorAll('.icon-stage img').forEach((image) => image.style.setProperty('--icon-size', iconSize + 'px'));
+    }));
+    document.querySelector('#previous-page').addEventListener('click', () => { page = Math.max(0, page - 1); renderSources(); });
+    document.querySelector('#next-page').addEventListener('click', () => { page += 1; renderSources(); });
+    const themeButton = document.querySelector('#theme-toggle');
+    themeButton.addEventListener('click', () => {
+      const light = root.dataset.theme !== 'light';
+      root.dataset.theme = light ? 'light' : 'dark';
+      themeButton.setAttribute('aria-label', 'Switch to ' + (light ? 'dark' : 'light') + ' theme');
+      themeButton.querySelector('span').textContent = (light ? 'Dark' : 'Light') + ' mode';
+      updateShowcase();
+      renderConcepts();
+    });
+  </script>
+</body>
+</html>

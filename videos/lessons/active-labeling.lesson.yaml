@@ -1,0 +1,1005 @@
+version: 1
+id: active-labeling
+title: How Active Learning Chooses Feedback Cases
+source: llmops/data-labeling-human-feedback-active-learning/content.md
+voice: en-US-AndrewNeural
+rate: +0%
+sources:
+  - title: Active Learning Literature Survey
+    url: https://burrsettles.com/pub/settles.activelearning.pdf
+  - title: Active Learning for Convolutional Neural Networks, a Core-Set Approach
+    url: https://arxiv.org/abs/1708.00489
+  - title: A Coefficient of Agreement for Nominal Scales
+    url: https://doi.org/10.1177/001316446002000104
+  - title: Datasheets for Datasets
+    url: https://arxiv.org/abs/1803.09010
+  - title: "Direct Preference Optimization: Your Language Model is Secretly a Reward Model"
+    url: https://arxiv.org/abs/2305.18290
+  - title: Training language models to follow instructions with human feedback
+    url: https://arxiv.org/abs/2203.02155
+  - title: Fleiss kappa implementation and chance models
+    url: https://www.statsmodels.org/stable/generated/statsmodels.stats.inter_rater.fleiss_kappa.html
+  - title: Cohen kappa definition and ordinal weights
+    url: https://sklearn.org/stable/modules/generated/sklearn.metrics.cohen_kappa_score.html
+  - title: "Constitutional AI: Harmlessness from AI Feedback"
+    url: https://arxiv.org/abs/2212.08073
+  - title: Judging LLM-as-a-Judge with MT-Bench and Chatbot Arena
+    url: https://arxiv.org/abs/2306.05685
+scenes:
+  - id: subject-intro
+    title: A clear preference still needs a permitted source
+    visual: Reviewers prefer an approval-gated canary answer. The source then exposes a private identifier and the reserved
+      attack-014 case, blocking its use in training.
+    beats:
+      - say: >
+          A model-promotion assistant proposes a small canary. One answer cites the required approval; another claims
+          traffic has already moved and suggests an unauthorized deployment. Reviewers prefer the first answer. Turning
+          that judgment into useful training data requires a few more decisions.
+        hold: 0.65
+        visual_cues:
+          - id: compare-answers
+            phrase: One answer cites the required approval
+            targets:
+              - answer-a
+            color: green
+            linger: 0.5
+          - id: unsafe-answer
+            phrase: claims traffic has already moved
+            targets:
+              - answer-b
+            color: pink
+            linger: 0.5
+          - id: prefer-a
+            phrase: Reviewers prefer the first answer
+            targets:
+              - review-preference
+            color: yellow
+            linger: 0.5
+      - say: >
+          The source contains a private email, and the case belongs to a reserved safety evaluation. Its easy preference
+          label cannot authorize training use. Keep this trace for its permitted evaluation and incident-review jobs
+          while choosing a different source for training.
+        hold: 0.65
+        visual_cues:
+          - id: source-permission
+            phrase: source contains a private email
+            targets:
+              - reserved-source
+            color: pink
+            linger: 0.5
+          - id: block-training
+            phrase: cannot authorize training use
+            targets:
+              - training-boundary
+            color: pink
+            linger: 0.5
+      - say: >
+          We will follow a permitted trace through cleaning, a rubric, active selection and a release check. The aim is
+          to spend limited review effort on useful examples while preserving the evidence needed to understand each
+          judgment.
+        hold: 0.65
+        visual_cues:
+          - id: permitted-path
+            phrase: permitted trace through cleaning, a rubric, active selection and a release check
+            targets:
+              - permitted-trace
+            color: cyan
+            linger: 0.5
+  - id: record-types
+    title: Each feedback record has a different job
+    visual: Demonstration, pointwise assessment, preference, evaluation and incident rows appear in the order they are
+      introduced; their shapes identify their distinct purposes.
+    beats:
+      - say: >
+          A demonstration pairs a prompt with an approved target answer. A pointwise assessment scores one completion. A
+          preference pair records which answer better follows a rubric. These records provide different signals to a
+          learning system, even when they came from the same application.
+        hold: 0.6
+        visual_cues:
+          - id: training-signals
+            phrase: demonstration pairs a prompt with an approved target answer
+            targets:
+              - record-jobs
+            color: cyan
+            linger: 0.5
+      - say: >
+          An evaluation fixture preserves expected behavior for a later test. An incident record preserves a failure and
+          its investigation. Decide each record's job before selecting examples, so the training pipeline keeps a
+          separate boundary around the answer key and unsafe source material.
+        hold: 0.7
+        visual_cues:
+          - id: record-purpose
+            phrase: An evaluation fixture preserves expected behavior for a later test
+            targets:
+              - record-jobs
+            color: yellow
+            linger: 0.5
+  - id: preference-loss
+    title: Derive what a comparison trains
+    visual: A ranking of four specific answers expands into six distinct pairs. Scalar reward difference enters a sigmoid.
+      The same pair becomes two policy/reference log ratios; shared partition terms cancel and the numeric DPO loss is
+      earned.
+    beats:
+      - say: "A ranking of four answers supplies six unordered comparisons: each of the four answers pairs with the others, and
+          dividing by two avoids double counting. InstructGPT collected rankings of four to nine outputs for reward
+          modeling. Bradley–Terry predicts a comparison from scalar reward difference. Give the preferred answer reward
+          two and the other reward zero. Their difference is two; one over one plus exponential negative two gives about
+          point eight eight one. Adding five to both rewards leaves that probability unchanged."
+        hold: 0.7
+        visual_cues:
+          - id: six-pairs
+            phrase: supplies six unordered comparisons
+            targets:
+              - ranking-pairs
+            color: cyan
+            linger: 0.5
+          - id: reward-difference
+            phrase: Their difference is two
+            targets:
+              - reward-difference
+            color: yellow
+            linger: 0.5
+          - id: reward-probability
+            phrase: about point eight eight one
+            targets:
+              - reward-probability
+            color: green
+            linger: 0.5
+      - say: DPO trains the policy from the same winner and loser without fitting a separate reward model. Under its
+          KL-regularized derivation, reward equals beta times the log of policy probability divided by reference
+          probability, plus beta log Z of the prompt. The two answers share the same prompt, so subtracting their
+          rewards cancels that final term. The reference must assign positive probability to both compared completions,
+          and beta is positive.
+        hold: 0.7
+        visual_cues:
+          - id: policy-ratios
+            phrase: log of policy probability divided by reference probability
+            targets:
+              - policy-ratios
+            color: blue
+            linger: 0.5
+          - id: cancel-partition
+            phrase: cancels that final term
+            targets:
+              - cancel-partition
+            color: pink
+            linger: 0.5
+      - say: "Use supplied completion probabilities: policy gives the winner point four and loser point one, while the reference
+          gives both point two. The log ratios are log two and log one half. With beta point five, their scaled
+          difference is log two, sigmoid is two thirds, and the negative log loss is about point four zero five. Average
+          this per-pair loss over the dataset. It rewards relative preference under the model assumptions. It does not
+          certify that either answer is safe, so this pipeline still excludes both-bad pairs from winner-only training."
+        hold: 0.7
+        visual_cues:
+          - id: loss-inputs
+            phrase: policy gives the winner point four
+            targets:
+              - loss-inputs
+            color: blue
+            linger: 0.5
+          - id: loss-result
+            phrase: negative log loss is about point four zero five
+            targets:
+              - loss-result
+            color: green
+            linger: 0.5
+          - id: relative-limit
+            phrase: does not certify that either answer is safe
+            targets:
+              - relative-limit
+            color: pink
+            linger: 0.5
+          - id: loss-ratios
+            phrase: The log ratios are log two and log one half
+            targets:
+              - loss-ratios
+            color: blue
+            linger: 0.4
+          - id: loss-margin
+            phrase: their scaled difference is log two
+            targets:
+              - loss-margin
+            color: yellow
+            linger: 0.4
+  - id: redact-and-provenance
+    title: Clean the trace and retain its lineage
+    visual: A real email replacement runs before the reviewer copy appears. Trace, prompt and policy versions remain
+      attached alongside the redactor and rubric versions throughout the change.
+    beats:
+      - say: >
+          Begin with the raw trace and check its permitted use. Remove the identifying field before sending text to
+          selectors or reviewers. Watch the cleaned copy replace the email with a placeholder. Any reversible identity
+          mapping belongs in separately restricted storage.
+        hold: 0.6
+        visual_cues:
+          - id: raw-permission
+            phrase: raw trace and check its permitted use
+            targets:
+              - raw-trace
+            color: pink
+            linger: 0.5
+          - id: redact-copy
+            phrase: cleaned copy replace the email with a placeholder
+            targets:
+              - clean-copy
+            color: green
+            linger: 0.5
+      - say: >
+          Preserve the trace, prompt and policy versions while adding the redactor and rubric versions. A reviewer needs
+          to reconstruct which instructions and evidence produced the answers. Cleaning identity and retaining the
+          decision's technical context work together in this record.
+        hold: 0.7
+        visual_cues:
+          - id: retain-lineage
+            phrase: trace, prompt and policy versions
+            targets:
+              - source-lineage
+            color: blue
+            linger: 0.5
+      - say: Keep placeholders stable within one trace and reset their numbering in the next trace. Our article scrubber
+          recognizes email, owner tokens and twelve-character commit IDs; it rejects preexisting reserved placeholders
+          rather than confusing raw input with its own output. A pattern scrubber still misses identifying descriptions.
+          The separate mapping, source permissions, consent and purpose review remain necessary. Keep only the
+          authorized facts a reviewer needs, including the applicable policy and whether approval exists.
+        hold: 0.7
+        visual_cues:
+          - id: placeholder-scope
+            phrase: stable within one trace
+            targets:
+              - placeholder-scope
+            color: blue
+            linger: 0.5
+          - id: redaction-limit
+            phrase: still misses identifying descriptions
+            targets:
+              - redaction-limit
+            color: pink
+            linger: 0.5
+  - id: write-rubric
+    title: Apply the rule to the answers actually shown
+    visual: A safe, correct A beats an unauthorized B under the executable rubric. A visibly different C/D pair then
+      triggers both-bad escalation; safe equivalents and unknown evidence retain separate outcomes.
+    beats:
+      - say: >
+          Write the rubric before collecting preferences. This one checks safety and authorization first, then
+          correctness. The answer must cite the approval and stay within its permitted canary scope. Ask whether each
+          candidate meets those requirements before comparing its style.
+        hold: 0.6
+        visual_cues:
+          - id: policy-first
+            phrase: safety and authorization first, then correctness
+            targets:
+              - policy-rubric
+            color: yellow
+            linger: 0.5
+      - say: >
+          The first pair has one acceptable answer. A follows the approval rule, while B invents a completed migration
+          and an unauthorized write. The computed decision chooses A. The preference is traceable to the displayed
+          policy criteria.
+        hold: 0.65
+        visual_cues:
+          - id: compare-pair
+            phrase: A follows the approval rule
+            targets:
+              - candidate-answers
+            color: green
+            linger: 0.5
+          - id: choose-a
+            phrase: computed decision chooses A
+            targets:
+              - rubric-decision
+            color: green
+            linger: 0.5
+      - say: >
+          Now inspect a different pair. C exposes private notes and D executes an unapproved write. Both violate the
+          safety rule, so the pair goes to incident review. Safe equivalent answers can tie; missing evidence calls for
+          adjudication. Keep those outcomes distinct when exporting training records.
+        hold: 0.7
+        visual_cues:
+          - id: both-unsafe
+            phrase: Both violate the safety rule
+            targets:
+              - candidate-answers
+              - rubric-decision
+            color: pink
+            linger: 0.5
+          - id: separate-outcomes
+            phrase: Safe equivalent answers can tie
+            targets:
+              - decision-types
+            color: yellow
+            linger: 0.5
+      - say: After safety and correctness, compare the useful next step, then clarity. A pointwise citation score of five means
+          both the required suite and approval ID are cited; three omits approval; one invents it. Those are ordered
+          anchors, with no assumed equal spacing. Missing approval evidence means review, rather than a style-based
+          winner. Blind model identity and balance display order. Store response identities, order, sampling settings,
+          permissions and policy versions so the judgment can be replayed.
+        hold: 0.7
+        visual_cues:
+          - id: rating-anchors
+            phrase: ordered anchors
+            targets:
+              - rating-anchors
+            color: blue
+            linger: 0.5
+          - id: missing-context
+            phrase: Missing approval evidence means review
+            targets:
+              - missing-context
+            color: pink
+            linger: 0.5
+  - id: reviewer-agreement
+    title: Check the full reviewer table
+    visual: The article's A-better/B-better/Tie contingency matrix supplies all counts. Observed agreement, marginal chance
+      agreement and kappa are computed; the last beat highlights the 13 off-diagonal cases.
+    beats:
+      - say: >
+          Two reviewers can disagree because evidence is missing, a rule is unclear or a preference is subjective. Read
+          the full contingency table first. Rows record the first reviewer's category and columns record the second's.
+          The diagonal contains their matching decisions.
+        hold: 0.6
+        visual_cues:
+          - id: review-table
+            phrase: Read the full contingency table first
+            targets:
+              - review-table
+            color: blue
+            linger: 0.5
+          - id: matching-diagonal
+            phrase: diagonal contains their matching decisions
+            targets:
+              - matched-count
+              - review-table
+            color: green
+            linger: 0.5
+      - say: >
+          Cohen's kappa compares observed agreement with chance agreement calculated from each reviewer's label
+          proportions. In this supplied table the coefficient is about point eight three five. The calculation describes
+          consistency for these cases under this rubric.
+        hold: 0.65
+        visual_cues:
+          - id: chance-proportions
+            phrase: chance agreement calculated from each reviewer's label proportions
+            targets:
+              - review-marginals
+              - chance-agreement
+            color: yellow
+            linger: 0.5
+          - id: kappa-result
+            phrase: coefficient is about point eight three five
+            targets:
+              - kappa
+            color: green
+            linger: 0.5
+      - say: >
+          Inspect the off-diagonal cases before setting a gate. Reviewers can consistently share a flawed rule or miss
+          the same user need. Agreement belongs beside label correctness, safety review and held-out model behavior in
+          the evaluation record.
+        hold: 0.65
+        visual_cues:
+          - id: inspect-disagreement
+            phrase: Inspect the off-diagonal cases
+            targets:
+              - review-table
+            color: pink
+            linger: 0.5
+      - say: "Calculate from counts before rounding. The diagonal is one hundred and seven out of one hundred and twenty.
+          Multiply each row proportion by its matching column proportion and add: four thousand nine hundred and
+          fifty-six over fourteen thousand four hundred. Subtract that chance agreement from observed agreement, then
+          divide by one minus chance agreement. Kappa is about point eight three five, above this team’s point six five
+          gate. The thirteen disagreements still need fact adjudication or a versioned rubric repair, and sample
+          agreements to catch shared mistakes."
+        hold: 0.7
+        visual_cues:
+          - id: exact-counts
+            phrase: diagonal is one hundred and seven
+            targets:
+              - matched-count
+            color: green
+            linger: 0.5
+          - id: chance-counts
+            phrase: four thousand nine hundred and fifty-six
+            targets:
+              - chance-agreement
+            color: yellow
+            linger: 0.5
+  - id: agreement-models
+    title: Choose the chance model deliberately
+    visual: Observed agreement stays fixed while separate versus pooled marginals change the chance baseline. The four-item
+      three-rater table constructs ordered matching pairs and Fleiss kappa. Degenerate all-one-category data has an
+      undefined denominator.
+    beats:
+      - say: "Raw agreement can look impressive when labels are imbalanced. With approval proportions point nine two and point
+          eight eight, the independent-marginal benchmark is point nine two times point eight eight plus point zero
+          eight times point one two: point eight one nine two. Observed agreement point eight four yields kappa about
+          point one one five. Chance correction supplies a comparison baseline; it does not claim the reviewers
+          literally guessed. If both always choose the same single category, chance and observed agreement are one and
+          the denominator is zero. Report undefined, with the category counts."
+        hold: 0.7
+        visual_cues:
+          - id: base-rate
+            phrase: point eight one nine two
+            targets:
+              - base-rate
+            color: yellow
+            linger: 0.5
+          - id: small-kappa
+            phrase: about point one one five
+            targets:
+              - small-kappa
+            color: pink
+            linger: 0.5
+          - id: undefined-kappa
+            phrase: denominator is zero
+            targets:
+              - undefined-kappa
+            color: pink
+            linger: 0.5
+      - say: Cohen uses separate marginals for two named reviewers. Fleiss uses pooled category proportions with the same number
+          of ratings per item, although different people may rate different items. In our four-item table with three
+          ratings each, rows are three-zero-zero, zero-two-one, zero-three-zero, and one-zero-two. For each row,
+          multiply each category count by the quantity that count minus one, sum those products, then divide by three
+          times two. The four agreements are one, one third, one and one third. Their mean is two thirds. Pooled
+          category counts four, five and three give chance fifty over one hundred and forty-four. Fleiss kappa is
+          twenty-three over forty-seven, about point four eight nine.
+        hold: 0.7
+        visual_cues:
+          - id: rating-table
+            phrase: rows are three-zero-zero
+            targets:
+              - rating-table
+            color: blue
+            linger: 0.5
+          - id: ordered-pairs
+            phrase: multiply each category count by the quantity that count minus one
+            targets:
+              - ordered-pairs
+            color: yellow
+            linger: 0.5
+          - id: fleiss-result
+            phrase: twenty-three over forty-seven, about point four eight nine
+            targets:
+              - fleiss-result
+            color: green
+            linger: 0.5
+      - say: Two ratings per item do not make Fleiss identical to Cohen when the named reviewers have different marginals. Both
+          formulas here treat every categorical mismatch alike. Weighted Cohen kappa can represent ordinal disagreement
+          for two raters; Krippendorff alpha accommodates missing ratings with an appropriate nominal or ordinal
+          distance. Choose the statistic for the design and report category mix, counts and uncertainty. Agreement
+          establishes consistency. Independent correctness and held-out behavior establish different claims.
+        hold: 0.7
+        visual_cues:
+          - id: chance-models
+            phrase: different marginals
+            targets:
+              - chance-models
+            color: yellow
+            linger: 0.5
+          - id: ordinal-distance
+            phrase: ordinal disagreement
+            targets:
+              - ordinal-distance
+            color: blue
+            linger: 0.5
+  - id: uncertainty-selection
+    title: Queue uncertain cases while preserving their estimates
+    visual: Four fixed preference estimates remain on the probability line. The selector ranks their computed uncertainty
+      and admits A then B to a separate review queue without moving their probabilities.
+    beats:
+      - say: >
+          Suppose the current model estimates which answer a reviewer will prefer. An estimate near one half expresses
+          uncertainty between the pair. Rank the candidates by distance from that midpoint and send the most uncertain
+          records to the review queue. Their current estimates remain fixed while selection changes membership.
+        hold: 0.65
+        visual_cues:
+          - id: fixed-uncertainty
+            phrase: estimate near one half expresses uncertainty
+            targets:
+              - fixed-estimates
+              - estimate-ruler
+            color: blue
+            linger: 0.5
+          - id: select-queue
+            phrase: send the most uncertain records to the review queue
+            targets:
+              - review-queue
+            color: yellow
+            linger: 0.5
+      - say: >
+          The two queued items are questions for a reviewer, rather than new labels. Corrupted text can also look
+          uncertain, while an overconfident model can hide a dangerous miss. Keep a representative random audit sample
+          to estimate prevalence and check what this selector overlooks.
+        hold: 0.7
+        visual_cues:
+          - id: review-questions
+            phrase: questions for a reviewer
+            targets:
+              - review-queue
+            color: yellow
+            linger: 0.5
+  - id: diversity-selection
+    title: Recompute distance after each selection
+    visual: The actual hybrid selector grows from its uncertainty seed to four cases. Equal-scale coordinates stay fixed;
+      the same-size uncertainty-only queue repeats canary variants while hybrid nearest-selected distances spread the
+      chosen cases.
+    beats:
+      - say: >
+          Uncertainty alone can fill a quota with near-duplicate canary cases. The embedding picture places these
+          variants close together. Our hybrid selector begins with the most uncertain item, then considers how far each
+          remaining candidate lies from the selected set.
+        hold: 0.6
+        visual_cues:
+          - id: near-duplicates
+            phrase: embedding picture places these variants close together
+            targets:
+              - embedding-candidates
+            color: blue
+            linger: 0.5
+          - id: seed-selection
+            phrase: hybrid selector begins with the most uncertain item
+            targets:
+              - embedding-candidates
+              - hybrid-queue
+            color: yellow
+            linger: 0.5
+      - say: >
+          Compute the distance to each candidate's nearest selected neighbor. Normalize that distance and combine it
+          with uncertainty. Choose the largest score, then recompute for the next slot. The queues now use the same
+          review budget, and the hybrid fixture covers four supplied domains.
+        hold: 0.7
+        visual_cues:
+          - id: nearest-distance
+            phrase: distance to each candidate's nearest selected neighbor
+            targets:
+              - nearest-neighbor
+            color: yellow
+            linger: 0.5
+          - id: combine-score
+            phrase: combine it with uncertainty
+            targets:
+              - candidate-scores
+            color: cyan
+            linger: 0.5
+          - id: fill-quota
+            phrase: hybrid fixture covers four supplied domains
+            targets:
+              - hybrid-queue
+            color: green
+            linger: 0.5
+          - id: select-diverse
+            phrase: Choose the largest score, then recompute for the next slot
+            targets:
+              - embedding-candidates
+              - hybrid-queue
+            color: yellow
+            linger: 0.5
+        motion_check:
+          region:
+            - 160
+            - 350
+            - 1620
+            - 580
+          minimumChangedFraction: 0.002
+      - say: >
+          These coordinates and scores are teaching inputs. Distance encourages geometric spread; useful learning still
+          needs evidence. Compare the trained model's behavior and total review cost on separate development data,
+          including a random-selection baseline.
+        hold: 0.65
+        visual_cues:
+          - id: geometry-limit
+            phrase: Distance encourages geometric spread
+            targets:
+              - embedding-candidates
+            color: cyan
+            linger: 0.5
+  - id: selection-score
+    title: Earn the uncertainty and distance scores
+    visual: Four binary distributions build least-confidence, normalized margin and entropy together. The existing
+      nearest-neighbor geometry becomes an explicit weighted sum. A separate minimax covering radius makes the k-center
+      objective and limits visible.
+    beats:
+      - say: For a binary preference probability p, least confidence is one minus the larger of p and one minus p. Our
+          normalized margin uncertainty is one minus the absolute value of two p minus one. Entropy is negative p times
+          log base two p, minus the quantity one minus p times log base two of that same quantity, with zero log zero
+          defined as zero. At point four nine, these are point four nine, point nine eight and almost one bit. At point
+          nine seven, they are point zero three, point zero six and about point one nine four bits. All three order
+          binary cases by closeness to one half, but need not rank multiclass distributions alike.
+        hold: 0.7
+        visual_cues:
+          - id: binary-scores
+            phrase: least confidence is
+            targets:
+              - binary-scores
+            color: blue
+            linger: 0.5
+          - id: entropy-build
+            phrase: Entropy is
+            targets:
+              - entropy-build
+            color: yellow
+            linger: 0.5
+          - id: binary-ranking
+            phrase: All three order binary cases
+            targets:
+              - binary-ranking
+            color: green
+            linger: 0.5
+      - say: The hybrid score uses point six times uncertainty plus point four times normalized nearest-selected distance. With
+          the first point selected, the handoff case scores about point seven nine six, beating the next canary’s point
+          six three four. Select it, then recompute distances before choosing another case. A fixed cluster centroid may
+          not be a real record; a medoid is a record. Geometric diversity and named task coverage are related only
+          through the supplied representation and annotations.
+        hold: 0.7
+        visual_cues:
+          - id: weighted-score
+            phrase: point six times uncertainty
+            targets:
+              - weighted-score
+            color: yellow
+            linger: 0.5
+          - id: recompute-distance
+            phrase: then recompute distances
+            targets:
+              - recompute-distance
+            color: cyan
+            linger: 0.5
+      - say: "The k-center objective is different: choose a budgeted subset to minimize the largest distance from any pool point
+          to its nearest selected or already labeled point. Farthest-first targets that covering radius. Our weighted
+          uncertainty heuristic is not that optimization and carries no automatic k-center guarantee. Noise can be
+          distant and systematic mistakes can be confident. Selected-case failure rates are biased toward the selector’s
+          targets. A representative random sample, or a probability sample with known inclusion rates and justified
+          weights, is needed to estimate production prevalence."
+        hold: 0.7
+        visual_cues:
+          - id: covering-radius
+            phrase: largest distance from any pool point
+            targets:
+              - covering-radius
+            color: blue
+            linger: 0.5
+          - id: sampling-bias
+            phrase: Selected-case failure rates are biased
+            targets:
+              - sampling-bias
+            color: pink
+            linger: 0.5
+  - id: selector-trial
+    title: Compare learning gains under a fixed budget
+    visual: Two branches begin at the same checkpoint and receive equal accepted-label budgets. Their score gains construct
+      labels-per-percentage-point bars; rejected reviews add cost rather than disappearing. Validation tuning feeds a
+      separate gate while the private test remains sealed.
+    beats:
+      - say: To test a selector, reserve source-family train, validation and private test partitions before sampling. Draw
+          comparable random and selected training batches, use the same rubric and reviewers, start from the same
+          checkpoint and training settings, then repeat the comparison across seeds. Report paired differences and their
+          spread. Category coverage alone is not a measured learning gain.
+        hold: 0.7
+        visual_cues:
+          - id: paired-experiment
+            phrase: same checkpoint and training settings
+            targets:
+              - paired-experiment
+            color: blue
+            linger: 0.5
+          - id: seed-differences
+            phrase: paired differences and their spread
+            targets:
+              - seed-differences
+            color: yellow
+            linger: 0.5
+      - say: "In the supplied score illustration, four hundred accepted labels move validation from sixty-one percent to
+          sixty-four for random selection and sixty-eight for hybrid. These are three and seven percentage points.
+          Divide four hundred by those gains: about one hundred and thirty-three point three versus fifty-seven point
+          one labels per percentage point. These supplied scores are not results of the article’s selector code training
+          a model. Add rejected attempts, triage, adjudication, review time and compute to compare total cost. A harder
+          queue can consume more work per accepted row."
+        hold: 0.7
+        visual_cues:
+          - id: score-gain
+            phrase: three and seven percentage points
+            targets:
+              - score-gain
+            color: green
+            linger: 0.5
+          - id: label-efficiency
+            phrase: one hundred and thirty-three point three versus fifty-seven point one labels per percentage point
+            targets:
+              - label-efficiency
+            color: yellow
+            linger: 0.5
+          - id: full-cost
+            phrase: Add rejected attempts
+            targets:
+              - full-cost
+            color: pink
+            linger: 0.5
+      - say: Tune selector weights and checkpoints on validation. If the team repeatedly checks the private test and adjusts the
+          weight until it wins, it has adapted to that test without copying any test row into training. Use a fresh
+          independent test for the resulting claim. Record sampling policy and inclusion information with each row so
+          future analysts can distinguish targeted review from a prevalence estimate.
+        hold: 0.7
+        visual_cues:
+          - id: test-adaptation
+            phrase: adapted to that test
+            targets:
+              - test-adaptation
+            color: pink
+            linger: 0.5
+          - id: sampling-record
+            phrase: sampling policy and inclusion information
+            targets:
+              - sampling-record
+            color: blue
+            linger: 0.5
+  - id: evaluation-boundary
+    title: Check lineage and map swapped answer identities
+    visual: Different training/test IDs still share attack-014 source lineage and trigger an overlap finding. The final beat
+      shows original, swapped and identity-mapped judge choices against human labels.
+    beats:
+      - say: >
+          Split related source families before selection. Training can supply examples and development can guide the
+          selector. A private test stays untouched while those choices are tuned. Renaming a copied record does not
+          create an independent case.
+        hold: 0.6
+        visual_cues:
+          - id: separate-test
+            phrase: A private test stays untouched
+            targets:
+              - private-test
+            color: yellow
+            linger: 0.5
+      - say: >
+          Here the training copy has a different ID, but its parent is the reserved test case. The lineage check catches
+          the overlap. Normalized content hashes can detect some copies; near-duplicates still need broader review and
+          knowledge of how the records were produced.
+        hold: 0.7
+        visual_cues:
+          - id: source-overlap
+            phrase: parent is the reserved test case
+            targets:
+              - source-parent
+              - train-copy
+            color: pink
+            linger: 0.5
+          - id: detect-overlap
+            phrase: lineage check catches the overlap
+            targets:
+              - lineage-overlap
+            color: pink
+            linger: 0.5
+      - say: >
+          A model judge also needs checking. Swap answer positions, then map its choices back to the original answer
+          identities. This fixture matched human labels in the first order but changed two mapped choices. That
+          instability matters when deciding how much authority to give its scores.
+        hold: 0.65
+        visual_cues:
+          - id: map-identities
+            phrase: Swap answer positions, then map its choices back to the original answer identities
+            targets:
+              - mapped-choices
+            color: yellow
+            linger: 0.5
+          - id: changed-choices
+            phrase: changed two mapped choices
+            targets:
+              - mapping-count
+            color: pink
+            linger: 0.5
+      - say: The original-order judge matched all three human labels, but that alone does not pass the audit. Mapping swapped
+          positions back to answer identity exposes two changes. With a stochastic judge, repeat balanced trials before
+          attributing systematic position bias. Keep it advisory while calibration fails. Constitutional AI instead used
+          human-authored principles for critiques, revisions, supervised learning and AI preference feedback followed by
+          reinforcement learning; its original method did not require human harmfulness labels. Our human checks are a
+          separate task-specific design choice.
+        hold: 0.7
+        visual_cues:
+          - id: judge-limits
+            phrase: repeat balanced trials
+            targets:
+              - judge-repeat
+            color: yellow
+            linger: 0.5
+          - id: synthetic-scope
+            phrase: human-authored principles
+            targets:
+              - synthetic-scope
+            color: blue
+            linger: 0.5
+  - id: lineage-audit
+    title: Audit copies and families at their actual scope
+    visual: Two visibly different strings converge after NFC, case folding and whitespace normalization. A
+      changed-paraphrase hash remains different; explicit family and parent links still join it to the reserved case. A
+      bounded trigram score is labeled a detector rather than semantic proof.
+    beats:
+      - say: An exact content hash identifies bytes, not semantic independence. The article first normalizes Unicode to NFC,
+          case-folds and collapses whitespace, then hashes. A renamed copy differing only in case and spaces matches
+          after normalization; a real paraphrase can still hash differently. That normalization itself is a declared
+          equivalence policy and can merge distinctions a different task needs.
+        hold: 0.7
+        visual_cues:
+          - id: normalized-copy
+            phrase: matches after normalization
+            targets:
+              - normalized-copy
+            color: yellow
+            linger: 0.5
+          - id: paraphrase-hash
+            phrase: paraphrase can still hash differently
+            targets:
+              - paraphrase-hash
+            color: pink
+            linger: 0.5
+      - say: Track source incident, conversation, document, user or generating seed according to the generalization claim. Keep
+          the selected group and all derivatives in one split. The supplied detector combines known source families,
+          parents and a bounded word-trigram overlap check. A threshold of point five is a fixture choice; short text,
+          paraphrases and unknown lineage can evade it. A clean detector report establishes no detected overlap within
+          that check’s scope, not universal absence of contamination.
+        hold: 0.7
+        visual_cues:
+          - id: source-family
+            phrase: all derivatives in one split
+            targets:
+              - source-family
+            color: blue
+            linger: 0.5
+          - id: detector-scope
+            phrase: no detected overlap within that check’s scope
+            targets:
+              - detector-scope
+            color: yellow
+            linger: 0.5
+  - id: dataset-release
+    title: Bind the audit to the rebuilt dataset
+    visual: Checks run over actual row objects and a computed SHA-256 snapshot digest. The reserved source and derivative
+      block the draft; rebuilding removes both, changes the digest and leaves the gate closed until the new overlap
+      audit completes.
+    beats:
+      - say: >
+          The release manifest names the source window, selector, redactor, rubric, row count and frozen evaluation set.
+          Its digest identifies the exact dataset rows. Redaction, agreement, safety, resolved decisions and provenance
+          all participate in this fixture's release check.
+        hold: 0.6
+        visual_cues:
+          - id: release-manifest
+            phrase: source window, selector, redactor, rubric, row count and frozen evaluation set
+            targets:
+              - release-manifest
+            color: cyan
+            linger: 0.5
+          - id: exact-dataset
+            phrase: digest identifies the exact dataset rows
+            targets:
+              - dataset-digest
+              - dataset-rows
+            color: yellow
+            linger: 0.5
+      - say: >
+          The draft fails because the reserved case and its derived copy remain in training. A clean agreement score
+          cannot compensate for that overlap. Repair the source set and rebuild the artifact instead of merely editing
+          the findings list.
+        hold: 0.7
+        visual_cues:
+          - id: reserved-overlap
+            phrase: reserved case and its derived copy remain in training
+            targets:
+              - dataset-rows
+              - release-checks
+            color: pink
+            linger: 0.5
+      - say: >
+          Both related rows are removed and the digest changes. The gate stays closed while the new audit is pending.
+          Once the completed checks bind to this rebuilt snapshot, the fixture opens. Train from that exact artifact and
+          evaluate the resulting behavior on preserved held-out cases.
+        hold: 0.8
+        visual_cues:
+          - id: remove-related
+            phrase: Both related rows are removed and the digest changes
+            targets:
+              - dataset-rows
+              - dataset-digest
+            color: pink
+            linger: 0.5
+          - id: audit-gate
+            phrase: new audit is pending
+            targets:
+              - release-checks
+              - release-state
+            color: yellow
+            linger: 0.5
+          - id: complete-audit
+            phrase: Once the completed checks bind to this rebuilt snapshot
+            targets:
+              - release-checks
+              - release-state
+            color: green
+            linger: 0.5
+      - say: "A manifest with all keys is still metadata. Bind source permissions, intended use, model and rubric revisions,
+          label counts and unresolved decisions to the immutable row snapshot and authentic completed reports. The
+          article’s one hundred and eighty-two demonstrations and nine hundred and four preferences are illustrative
+          manifest counts, not a measured model gain. Reject absent audits, false completion flags, non-finite or
+          Boolean kappa, invalid counts and unresolved unsafe pairs. Test that these failures stay closed. If
+          contamination is found after training, deleting rows cannot undo the update: retrain cleanly or obtain a fresh
+          independent test."
+        hold: 0.7
+        visual_cues:
+          - id: manifest-evidence
+            phrase: still metadata
+            targets:
+              - manifest-evidence
+            color: yellow
+            linger: 0.5
+          - id: closed-gate
+            phrase: Reject absent audits
+            targets:
+              - closed-gate
+            color: pink
+            linger: 0.5
+          - id: post-training
+            phrase: deleting rows cannot undo the update
+            targets:
+              - post-training
+            color: pink
+            linger: 0.5
+  - id: fresh-release
+    title: Resolve a new release without reusing the answer key
+    visual: A new 80-case balanced confusion table constructs a new coefficient. A copied source with a new ID crosses the
+      frozen family boundary and blocks the same otherwise passing release; removing source plus derivative changes the
+      digest and requires a new audit.
+    beats:
+      - say: Try a new batch. Eighty duplicate reviews have thirty-two A agreements, thirty-two B agreements and eight
+          disagreements in each direction. The local kappa gate is point six five. A separate release row renamed
+          ticket-nine derives from frozen test family incident-seven. Redaction and all other checks passed. Predict
+          whether the release can proceed.
+        hold: 0.7
+        visual_cues:
+          - id: fresh-premises
+            phrase: Eighty duplicate reviews
+            targets:
+              - fresh-premises
+            color: blue
+            linger: 0.5
+          - id: fresh-predict
+            phrase: Predict whether the release can proceed
+            targets:
+              - fresh-predict
+            color: yellow
+            linger: 0.5
+      - say: Observed agreement is sixty-four over eighty, point eight. Both reviewers have forty A and forty B decisions, so
+          chance agreement is point five. Kappa is point six, below point six five. The reserved family overlap is a
+          second independent blocker. Renaming the row repairs neither condition. Review the sixteen disagreements and
+          repair the rule or evidence where warranted; recheck fresh cases rather than force agreement.
+        hold: 0.7
+        visual_cues:
+          - id: fresh-kappa
+            phrase: Kappa is point six, below point six five
+            targets:
+              - fresh-kappa
+            color: pink
+            linger: 0.5
+          - id: fresh-overlap
+            phrase: second independent blocker
+            targets:
+              - fresh-overlap
+            color: pink
+            linger: 0.5
+          - id: fresh-disagreements
+            phrase: Review the sixteen disagreements
+            targets:
+              - fresh-disagreements
+            color: yellow
+            linger: 0.5
+      - say: "Remove the reserved source and every known derivative before training, rebuild the exact row snapshot, and complete new audits against its new digest. Keep the gate closed while that evidence is missing or the agreement requirement fails. A future passing release supplies a reproducible training signal. Its resulting model must still earn its behavior score on independent cases. Agent evaluation next follows what an agent actually did with that evidence, checking environment changes and recovery rather than trusting its final claim of completion."
+        hold: 0.7
+        visual_cues:
+          - id: fresh-rebuild
+            phrase: rebuild the exact row snapshot
+            targets:
+              - fresh-rebuild
+            color: cyan
+            linger: 0.5
+          - id: fresh-gate
+            phrase: Keep the gate closed while that evidence is missing or the agreement requirement fails
+            targets:
+              - fresh-gate
+            color: pink
+            linger: 0.5

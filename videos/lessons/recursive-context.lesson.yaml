@@ -1,0 +1,772 @@
+version: 1
+id: recursive-context
+title: "Recursive Language Models: External Sources, Bounded Work and Verified Evidence"
+source: training/recursive-language-models-rlm/content.md
+sources:
+  - title: Recursive Language Models, v3
+    url: https://arxiv.org/abs/2512.24601v3
+  - title: Recursive Language Models reference implementation
+    url: https://github.com/alexzhang13/rlm
+scenes:
+  - id: subject-intro
+    title: "Can this job still use the old token?"
+    visual: "An October 1 calendar leaf sits beside a migration summary with an empty expiry field. Page six supplies September 30. A copy of the dated clause slides into a child request with its page number."
+    beats:
+      - say: |
+          This job runs on October first. Audit logging is on, just as the migration summary requires. When does the exception expire?
+        hold: 2.15
+        visual_cues:
+          - id: october-run
+            phrase: "This job runs on October first"
+            targets: [scheduled-job]
+            color: cyan
+          - id: summary-check
+            phrase: "just as the migration summary requires"
+            targets: [summary]
+            color: blue
+          - id: missing-date
+            phrase: "When does the exception expire"
+            targets: [expiry-field]
+            color: yellow
+      - say: |
+          Open the original manual. Page six says September thirtieth. The October job is one day late. A recursive language model can find that date even when the manual is too long for one request. It keeps the pages outside its prompt, searches them with code, and sends just the matching clause to a child model. The page number travels with it.
+        hold: 0.7
+        visual_cues:
+          - id: reopen-manual
+            phrase: "Open the original manual"
+            targets: [manual]
+            color: blue
+          - id: late-job
+            phrase: "The October job is one day late"
+            targets: [scheduled-job, manual]
+            color: pink
+          - id: pass-clause
+            phrase: "sends just the matching clause to a child model"
+            targets: [child-passage]
+            color: cyan
+  - id: external-source
+    title: "What goes into the request?"
+    visual: "A search over the eight-page external snapshot finds page five. Its original text and page pointer move into the child request."
+    beats:
+      - say: |
+          Let's trace how the model finds both parts of the exception. The root gets a question, the manual version, and permission to read page text. The eight pages stay in a read-only snapshot. The root writes its search in a read-eval-print loop, or REPL. Look for the words audit logging. One page matches.
+        hold: 0.65
+        visual_cues:
+          - id: root-scope
+            phrase: "a question, the manual version, and permission to read page text"
+            targets: [root-task]
+            color: cyan
+          - id: source-index
+            phrase: "eight pages stay in a read-only snapshot"
+            targets: [manual-index]
+            color: blue
+          - id: search-text
+            phrase: "Look for the words audit logging"
+            targets: [search-call, manual-index]
+            color: yellow
+      - say: |
+          Copy that clause into the child request. It goes in with the task and its page number. Those forty source characters fit our ninety-six-character slice limit. The model's window is measured in tokens. Count the whole request with its tokenizer, instructions included, and leave room for the reply. The child returns the condition and its page number. The root has the logging rule. What should it search for next?
+        hold: 0.75
+        visual_cues:
+          - id: copy-clause
+            phrase: "Copy that clause into the child request"
+            targets: [child-input, manual-index]
+            color: cyan
+          - id: slice-size
+            phrase: "forty source characters fit our ninety-six-character slice limit"
+            targets: [child-input]
+            color: yellow
+          - id: return-condition
+            phrase: "the child returns the condition and its page number"
+            targets: [child-input]
+            color: cyan
+  - id: inspect-source
+    title: "Read the two clauses against the calendar"
+    visual: "The page-five condition stays in the notes. Searching for “expires” opens page six and places its date between the two runs."
+    beats:
+      - say: |
+          Here are two jobs using the old token. Both have audit logging on. Keep the condition from page five and change the search to the word expires. Page six gives us September thirtieth. Mark that expiry on the calendar. Which job falls inside the exception?
+        hold: 2.1
+        visual_cues:
+          - id: keep-condition
+            phrase: "Keep the condition from page five"
+            targets: [field-notes]
+            color: blue
+          - id: find-expiry
+            phrase: "change the search to the word expires"
+            targets: [open-page]
+            color: cyan
+          - id: mark-expiry
+            phrase: "Mark that expiry on the calendar"
+            targets: [run-calendar]
+            color: yellow
+      - say: |
+          The September run falls before expiry. The October run falls after it. Both satisfy the logging condition. The date on page six is what separates them. Keep both page pointers so another reader can check the answer.
+        hold: 0.9
+        visual_cues:
+          - id: place-runs
+            phrase: "The September run falls before expiry. The October run falls after it"
+            targets: [run-calendar]
+            color: green
+  - id: environment-contract
+    title: "What does a child inherit?"
+    visual: "An interpreter variable changes while the authoritative manual stays fixed. A plain child receives one task. A nested controller can inspect again."
+    beats:
+      - say: |
+          We got the date from an authoritative snapshot. The working interpreter holds a variable with the selected text. Try rebinding that variable. The working value changes. The source page stays where we can reopen it. Keep that original outside writable state. A search can still skip the right clause, and a reader can still misread one it finds.
+        hold: 0.7
+        visual_cues:
+          - id: authoritative-source
+            phrase: "an authoritative snapshot"
+            targets: [environment-contract-mechanism]
+            color: blue
+          - id: writable-rebind
+            phrase: "rebinding that variable"
+            targets: [environment-contract-mechanism]
+            color: cyan
+      - say: |
+          Give a child the mission, the relevant constraints and the authorized slice. To classify one clause, the library can make a plain completion with L L M query. To follow references and inspect again, R L M query can start a nested controller with its own working variables. The parent gets response text. That private workspace still needs an enforced execution boundary.
+        hold: 0.8
+        visual_cues:
+          - id: plain-call
+            phrase: "make a plain completion"
+            targets: [environment-contract-mechanism]
+            color: cyan
+          - id: nested-call
+            phrase: "a nested controller with its own working variables"
+            targets: [environment-contract-mechanism]
+            color: cyan
+          - id: child-string
+            phrase: "The parent gets response text"
+            targets: [environment-contract-mechanism]
+            color: cyan
+      - say: |
+          Each underlying model still has a finite window. Dense attention relates pairs of tokens during prefill. With a conventional cache, each new decoding token attends to the existing context. External storage lets us choose what goes into that context. In the paper, depth zero keeps the interpreter and disables model sub-calls. Depth one permits plain sub-calls. Higher depths allow nested controllers. In the October twenty twenty-six runtime cited by the article, setting maximum depth to zero takes the plain-model fallback. To reproduce the paper’s depth zero, retain the interpreter and disable sub-calling separately.
+        hold: 0.75
+        visual_cues:
+          - id: depth-mismatch
+            phrase: "setting maximum depth to zero takes the plain-model fallback"
+            targets: [environment-contract-mechanism]
+            color: yellow
+  - id: split-merge
+    title: "What survives the merge?"
+    visual: "Eight leaf calls and seven dependent merges complete. Two source fields are aligned with the supplied merge. The viewer chooses a page before a bounded lookup restores the empty field."
+    beats:
+      - say: |
+          Try a fixed plan on the same eight pages. Give each page to one reader. As the eight readers finish, count one request for each page. That buys us a visit to every page. We still need to combine what they found.
+        hold: 0.65
+        visual_cues:
+          - id: leaf-work
+            phrase: "As the eight readers finish"
+            targets: [leaf-requests]
+            color: blue
+          - id: completed-count
+            phrase: "count one request for each page"
+            targets: [request-count]
+            color: green
+      - say: |
+          Merge the four pairs of reports. Merge those four results into two. One final merge takes those two inputs. Eight leaf requests and seven merge requests make fifteen. Every merge must fit both inputs, its instructions and its output reserve.
+        hold: 0.75
+        visual_cues:
+          - id: merge-pairs
+            phrase: "Merge the four pairs of reports"
+            targets: [pair-merges]
+            color: cyan
+          - id: merge-upward
+            phrase: "Merge those four results into two"
+            targets: [upper-merges]
+            color: yellow
+          - id: root-ready
+            phrase: "One final merge takes those two inputs"
+            targets: [root-merge]
+            color: green
+        motion_check:
+          region: [140, 265, 1680, 545]
+          minimumChangedFraction: 0.002
+      - say: |
+          Here is a possible merged answer. It kept the condition. The expiry field is empty. The counter still says fifteen. Which page supplies the missing field?
+        hold: 2.05
+        visual_cues:
+          - id: lossy-answer
+            phrase: "The expiry field is empty"
+            targets: [missing-field]
+            color: yellow
+      - say: |
+          Copy the date back from page six. Keep its page number with it. We can now check both required fields directly, even though the merge lost one of them.
+        hold: 0.85
+        visual_cues:
+          - id: merge-return-source
+            phrase: "Copy the date back from page six"
+            targets: [source-fields, missing-field]
+            color: blue
+  - id: baseline-contract
+    title: "Will the next request fit?"
+    visual: "A token plan and a character-counting digest run have separate units. Halving the character window changes the number of requests. A separate exact-field check measures retention."
+    beats:
+      - say: |
+          For a full binary tree, every merge turns two results into one. To turn sixteen leaves into one answer takes fifteen merges. In general, L leaves need L minus one merges. Say the manual has forty thousand source tokens. Halve the source until each leaf fits. Sixteen leaves of about twenty-five hundred tokens give thirty-one requests, provided each complete leaf and merge fits the window.
+        hold: 0.8
+        visual_cues:
+          - id: binary-total
+            phrase: "L leaves need L minus one merges"
+            targets: [baseline-contract-mechanism]
+            color: cyan
+          - id: binary-token-plan
+            phrase: "Sixteen leaves of about twenty-five hundred tokens give thirty-one requests"
+            targets: [baseline-contract-mechanism]
+            color: blue
+      - say: |
+          Now switch units. This run splits fifty-seven hundred characters and returns a sixteen-character digest from each call. In a window of five hundred twelve, eighteen characters of instruction and thirty-two of output reserve leave four hundred sixty-two for source. Halving gives sixteen leaves and thirty-one requests. The largest input plus reserve is four hundred seven characters. At half the window, the same source needs thirty-two leaves and sixty-three requests. At sixty-four characters even a merge cannot fit. Reject that setting before the first call.
+        hold: 0.85
+        visual_cues:
+          - id: character-plan
+            phrase: "Halving gives sixteen leaves and thirty-one requests"
+            caption_boundary: true
+            targets: [baseline-contract-mechanism]
+            color: green
+          - id: character-max
+            phrase: "four hundred seven characters"
+            targets: [baseline-contract-mechanism]
+            color: cyan
+          - id: half-window
+            phrase: "At half the window"
+            caption_boundary: true
+            targets: [baseline-contract-mechanism]
+            color: cyan
+          - id: character-small
+            phrase: "the same source needs thirty-two leaves and sixty-three requests"
+            targets: [baseline-contract-mechanism]
+            color: cyan
+          - id: tiny-window
+            phrase: "At sixty-four characters"
+            caption_boundary: true
+            targets: [baseline-contract-mechanism]
+            color: yellow
+          - id: character-reject
+            phrase: "Reject that setting before the first call"
+            targets: [baseline-contract-mechanism]
+            color: pink
+      - say: |
+          The digest tells us the requests ran. To check meaning, take a separate candidate with the correct condition and the wrong date. One match out of two gives recall of one half. Correct the date and both fields match. Now remove the condition. Only one match remains. Add an unsupported claim and that score stays put. It counts the required fields only. Check extra claims separately, and keep clauses together when splitting the text.
+        hold: 0.8
+        visual_cues:
+          - id: fact-half
+            phrase: "recall of one half"
+            targets: [baseline-contract-mechanism]
+            color: cyan
+          - id: fact-correct
+            phrase: "Correct the date and both fields match"
+            targets: [baseline-contract-mechanism]
+            color: green
+          - id: fact-drop
+            phrase: "Now remove the condition"
+            targets: [baseline-contract-mechanism]
+            color: pink
+          - id: extra-false
+            phrase: "Add an unsupported claim"
+            targets: [baseline-contract-mechanism]
+            color: pink
+  - id: completion
+    title: "When can the controller stop?"
+    visual: "The host inspects a printed date, then the same candidate in a record. It changes only the ready field before running the same strict check again."
+    beats:
+      - say: |
+          The interpreter can print a date and a citation while it is still searching. That printed line belongs in the working history. Our host looks for a separate answer record before it ends the loop.
+        hold: 0.65
+        visual_cues:
+          - id: printed-line
+            phrase: "That printed line belongs in the working history"
+            targets: [returned-state]
+            color: blue
+      - say: |
+          Here is the answer record. The content names page six. Look at the quotation marks around false. Our host needs a dictionary, a ready field equal to Boolean true, and nonempty text. Can this record leave the loop?
+        hold: 2
+      - say: |
+          The quotes make false a string. The host rejects it with a missing Boolean ready signal. Keep the content exactly as it was. Change just the ready field to Boolean true. Run the same check again. This time the host returns the candidate. Now verify the date against its source.
+        hold: 0.9
+        caption_starts: ["Now verify the date against its source"]
+        visual_cues:
+          - id: reject-string
+            phrase: "The host rejects it with a missing Boolean ready signal"
+            targets: [gate-outcome]
+            color: pink
+          - id: boolean-edit
+            phrase: "Change just the ready field to Boolean true"
+            caption_boundary: true
+            targets: [returned-state]
+            color: cyan
+          - id: typed-result
+            phrase: "This time the host returns the candidate"
+            caption_boundary: true
+            targets: [host-test, gate-outcome]
+            color: yellow
+          - id: verify-source
+            phrase: "verify the date against its source"
+            targets: [gate-outcome]
+            color: green
+  - id: source-lineage
+    title: "How many sources are behind the date?"
+    visual: "Report connectors converge on one source. A second record first concerns billing exports. Replacing it with a legacy-token bulletin changes which records can settle the claim."
+    beats:
+      - say: |
+          One child read page six. Two more children cite the same page. Follow their citations. All three lines end at one source. Counting the reports as three votes would give that page three times the influence. Ask each child to look for an applicable policy, including one that could overturn the date.
+        hold: 0.7
+        visual_cues:
+          - id: repeated-reports
+            phrase: "Two more children cite the same page"
+            targets: [citations]
+            color: cyan
+          - id: unique-source
+            phrase: "All three lines end at one source"
+            targets: [citations, applicable-sources]
+            color: blue
+      - say: |
+          A fourth reader brings back an October date. Read the scope beside it. This one covers billing exports. Set it aside for a legacy-token question. When checking structured records, discard unknown IDs, count a repeated ID once, and keep records that apply to the claim. If none remain, ask for evidence.
+        hold: 0.7
+        visual_cues:
+          - id: compare-scope
+            phrase: "This one covers billing exports"
+            targets: [applicable-sources]
+            color: blue
+      - say: |
+          Replace that fourth citation with the bulletin below. The bulletin covers the very same legacy-token exception. The dates disagree and we have no rule giving either source priority. Can we certify September thirtieth?
+        hold: 2
+        visual_cues:
+          - id: second-source
+            phrase: "Replace that fourth citation with the bulletin below"
+            targets: [applicable-sources]
+            color: yellow
+      - say: |
+          One applicable record says September thirtieth. The other says October fifteenth for the same exception. In this exact-field check the result is conflict. Leave the date unresolved. Find out which policy governs this run before clearing it.
+        hold: 0.8
+        visual_cues:
+          - id: computed-conflict
+            phrase: "In this exact-field check the result is conflict"
+            caption_boundary: true
+            targets: [applicable-sources, source-verdict]
+            color: yellow
+  - id: runtime-stop
+    title: "What ended the loop?"
+    visual: "One quoted flag produces different outcomes at two interfaces. Thirty iterations lead to a separately counted fallback. Limit breaches preserve their own stop reasons."
+    beats:
+      - say: |
+          The type of that ready field matters at integration time. Our wrapper requires Boolean true. The runtime version checked in October twenty twenty-six accepts a truthy ready value and converts the content to text. Even the string false is truthy in Python. Validate the record before conversion. The paper’s Final variable and its experimental final-answer syntax are two other interfaces with their own rules.
+        hold: 0.65
+        visual_cues:
+          - id: strict-shape
+            phrase: "Our wrapper requires Boolean true"
+            targets: [runtime-stop-mechanism]
+            color: cyan
+          - id: truthy-runtime
+            phrase: "accepts a truthy ready value"
+            targets: [runtime-stop-mechanism]
+            color: yellow
+      - say: |
+          Suppose the controller never produces a final record. At the default limit of thirty iterations the pinned runtime makes one extra best-effort call. Record that fallback and count its request. A timeout, token breach or spending breach raises its own typed exception. Store the stop reason with the text, so a caller knows whether the investigation finished or ran out of room.
+        hold: 0.8
+        visual_cues:
+          - id: iteration-fallback
+            phrase: "one extra best-effort call"
+            targets: [runtime-stop-mechanism]
+            color: cyan
+          - id: typed-breach
+            phrase: "raises its own typed exception"
+            targets: [runtime-stop-mechanism]
+            color: pink
+      - say: |
+          The runtime checks tokens and cost after an iteration. It checks elapsed time before starting another. A child can already have work in flight. Some helper failures come back as strings, and a missing price counts as zero in the pinned calculation. Give the host a deadline it can enforce and reserve capacity before each request, including a depth-capped plain call. Keep unknown usage charged until the provider outcome is known.
+        hold: 0.7
+        visual_cues:
+          - id: after-iteration
+            phrase: "after an iteration"
+            targets: [runtime-stop-mechanism]
+            color: cyan
+          - id: unknown-cost
+            phrase: "Keep unknown usage charged"
+            targets: [runtime-stop-mechanism]
+            color: yellow
+  - id: history-cap
+    title: "How much of the inspection fits next time?"
+    visual: "A 409-character observation becomes a 40-character preview. Its marker consumes part of the allowance. Complete histories grow on a shared scale."
+    beats:
+      - say: |
+          Keep this raw observation outside the prompt. It is four hundred nine characters long. Make a forty-character preview for the next turn. The truncation marker takes fourteen of those characters. That leaves twenty-six for the source text. If the cap is shorter than the marker, shorten the marker too. Keep the pointer so the controller can reopen the full observation.
+        hold: 0.7
+        visual_cues:
+          - id: history-raw
+            phrase: "Keep this raw observation outside the prompt"
+            targets: [history-cap-mechanism]
+            color: cyan
+          - id: history-preview
+            phrase: "Make a forty-character preview"
+            targets: [history-cap-mechanism]
+            color: cyan
+          - id: history-marker
+            phrase: "That leaves twenty-six for the source text"
+            targets: [history-cap-mechanism]
+            color: yellow
+      - say: |
+          Keep taking observations of the same size. At twenty returns, compare the two totals. The full returns occupy eight thousand one hundred eighty characters, the previews eight hundred. Both keep growing. Before every call, tokenize the whole input, including code, instructions and wrappers. Add the output reserve before checking the window. If you compact the history, preserve the mission and the evidence pointers outside it.
+        hold: 0.8
+        visual_cues:
+          - id: history-grow
+            phrase: "At twenty returns, compare the two totals"
+            targets: [history-cap-mechanism]
+            color: cyan
+      - say: |
+          Here is a small controller with two fixed actions. Peek at the manual, then finish. The second step stores a candidate. Keep peeking instead and the step limit ends the run. Tighten the history limit, and the same peek can exhaust the history budget. Save the partial findings and the actual stop reason. A persistent interpreter can retain variables, and a log records a trajectory. For recovery across processes you still need a saved checkpoint scoped to this user and source.
+        hold: 0.8
+        visual_cues:
+          - id: history-candidate
+            phrase: "The second step stores a candidate"
+            caption_boundary: true
+            targets: [history-cap-mechanism]
+            color: green
+          - id: repeat-peek
+            phrase: "Keep peeking instead"
+            caption_boundary: true
+            targets: [history-cap-mechanism]
+            color: yellow
+          - id: tight-history
+            phrase: "Tighten the history limit"
+            targets: [history-cap-mechanism]
+            color: yellow
+          - id: history-stop
+            phrase: "exhaust the history budget"
+            targets: [history-cap-mechanism]
+            color: pink
+  - id: request-waves
+    title: "How much work can one tree start?"
+    visual: "Four levels of run nodes expand into a request allowance. Eight requests regroup into waves. Four reservations cross a 20-cent balance line, then a locked balance admits one request."
+    beats:
+      - say: |
+          Allow each controller four children over its whole run, down to three edges from the root. The first three levels contain one, four and sixteen controllers. The last level has sixty-four plain leaves. That gives eighty-five runs. A controller can make thirty turns and one fallback. Give each leaf one request. Twenty-one times thirty-one, plus sixty-four, gives seven hundred fifteen possible requests before compaction or retries. A limit on each batch would still let the same parent start another batch.
+        hold: 0.8
+        visual_cues:
+          - id: run-tree
+            phrase: "That gives eighty-five runs"
+            targets: [request-waves-mechanism]
+            color: cyan
+          - id: run-requests
+            phrase: "seven hundred fifteen possible requests"
+            targets: [request-waves-mechanism]
+            color: yellow
+      - say: |
+          These eight requests each take the same time. One slot runs them in eight waves. Give them two slots and each pair finishes together. Give them four slots and the eight finish in two waves. You still pay for eight prompts and eight completions. A partly filled wave takes a turn too, so round up when you divide calls by slots. Slow calls and queueing stretch the time between finishes. Combining records in one prompt changes which records you retry together.
+        hold: 0.75
+        visual_cues:
+          - id: waves-two
+            phrase: "Give them two slots"
+            targets: [request-waves-mechanism]
+            color: cyan
+          - id: waves-four
+            phrase: "Give them four slots"
+            targets: [request-waves-mechanism]
+            color: cyan
+      - say: |
+          Each of these four workers wants fifteen cents. They share a balance of twenty cents. Suppose all four read that balance before anyone records a reservation. How much could they promise?
+        hold: 1.8
+      - say: |
+          Sixty cents. See where the second reservation crosses the line? Now put the check and the reservation under one lock. The first worker reserves fifteen cents. The next worker sees five cents. Five cents is too little for any of the three remaining requests. A lock works within one process. For workers in different processes, use a shared coordinator or transaction. Reserve retries, compaction and fallback against that balance too.
+        hold: 0.85
+        visual_cues:
+          - id: race-stale
+            phrase: "Sixty cents"
+            targets: [request-waves-mechanism]
+            color: pink
+          - id: race-lock
+            phrase: "put the check and the reservation under one lock"
+            targets: [request-waves-mechanism]
+            color: cyan
+          - id: first-reservation
+            phrase: "The first worker reserves fifteen cents"
+            targets: [request-waves-mechanism]
+            color: cyan
+          - id: remaining-balance
+            phrase: "The next worker sees five cents"
+            targets: [request-waves-mechanism]
+            color: green
+  - id: shared-budget
+    title: Reserve before dispatch and retain unknown outcomes
+    visual: An executable shared ledger reserves calls and cost, dispatches only admitted requests, reconciles known usage and retains a timed-out child's reservation. An oversized final child remains queued.
+    beats:
+      - say: |
+          Depth alone leaves the amount of work open. A controller can take several turns, retry or launch more children. Give the whole tree one shared ledger. Watch the root reserve capacity before dispatch. When actual usage becomes known, reconciliation releases the unused part of its cost estimate.
+        visual_cues:
+          - id: shared-capacity
+            phrase: one shared ledger
+            targets:
+              - budget-availability
+            color: yellow
+          - id: reserve-root
+            phrase: root reserve capacity
+            targets:
+              - budget-root
+            color: blue
+          - id: dispatch-root
+            phrase: dispatch
+            targets:
+              - budget-root
+            color: cyan
+          - id: settle-root
+            phrase: When actual usage becomes known, reconciliation releases the unused part of its cost estimate
+            targets:
+              - budget-root
+            color: green
+        hold: 0.6
+      - say: |
+          A child now times out with an unknown provider outcome. Its reservation stays charged. Another child completes and is reconciled. The final request asks for more capacity than remains, so it stays queued. Releasing the unknown reservation early could promise capacity that the timed-out request still consumes.
+        visual_cues:
+          - id: admit-child-a
+            phrase: "A child now"
+            targets: [budget-child-a]
+            color: cyan
+          - id: timeout-child-a
+            phrase: "times out"
+            targets: [budget-child-a]
+            color: pink
+          - id: unknown-outcome
+            phrase: reservation stays charged
+            targets:
+              - budget-child-a
+            color: pink
+          - id: known-outcome
+            phrase: Another child completes and is reconciled
+            targets:
+              - budget-child-b
+            color: green
+          - id: last-request
+            phrase: "The final request asks for more capacity than remains"
+            targets: [budget-request, budget-availability]
+            color: yellow
+          - id: queued-child
+            phrase: so it stays queued
+            targets:
+              - budget-child-c
+            color: pink
+        hold: 0.7
+        motion_check:
+          region:
+            - 600
+            - 390
+            - 1100
+            - 430
+          minimumChangedFraction: 0.002
+      - say: |
+          The host enforces admission, execution limits and deadlines. Generated code cannot award itself a larger budget. The cost units here are supplied teaching estimates; real reservations need valid upper bounds. A private interpreter namespace organizes state, while the executor supplies the actual isolation boundary.
+        visual_cues:
+          - id: host-budget
+            phrase: host enforces admission, execution limits and deadlines
+            targets:
+              - budget-availability
+            color: yellow
+          - id: upper-bound
+            phrase: valid upper bounds
+            targets:
+              - budget-request
+            color: blue
+        hold: 0.65
+  - id: executor-boundary
+    title: "Who enforces the limits?"
+    visual: "A host-side proxy and a guest have different permissions. The configuration fixture checks declared limits. An observed breach requires repairing and testing the executor."
+    beats:
+      - say: |
+          The pinned local executor runs Python inside the host process. A fresh set of variables gives each child a workspace. It does nothing to restrict which host resources that process can use. Even an internal document can influence generated code. Enforce filesystem isolation, network policy, memory limits and deadlines outside the guest. Keep child permissions within the parent’s scope.
+        hold: 0.65
+        visual_cues:
+          - id: host-exec
+            phrase: "runs Python inside the host process"
+            targets: [executor-boundary-mechanism]
+            color: pink
+          - id: enforced-boundary
+            phrase: "Enforce filesystem isolation"
+            targets: [executor-boundary-mechanism]
+            color: cyan
+      - say: |
+          The article checks declared settings. A container or micro V M with denied network access, no guest secrets, ephemeral storage and bounded positive resource limits passes the declaration check. Host execution, an open network, invalid limits and missing fields fail it. Now suppose the guest can still make a network connection. The declaration passed, but the executor needs repair. Verify the actual restrictions on mounts, network, secrets and memory, and verify that a stalled job gets terminated.
+        hold: 0.85
+        visual_cues:
+          - id: configuration-pass
+            phrase: "passes the declaration check"
+            targets: [executor-boundary-mechanism]
+            color: cyan
+          - id: guest-observation
+            phrase: "the guest can still make a network connection"
+            targets: [executor-boundary-mechanism]
+            color: yellow
+          - id: sandbox-proof
+            phrase: "the executor needs repair"
+            targets: [executor-boundary-mechanism]
+            color: pink
+      - say: |
+          Keep the provider key in a trusted proxy outside the guest. When the controller asks for a model call, the proxy checks the user, input and output limits, and the same shared budget. Containment restricts the effects of code. To trust a returned date we still need the source check we used on the manual.
+        hold: 0.75
+        visual_cues:
+          - id: host-proxy
+            phrase: "trusted proxy outside the guest"
+            targets: [executor-boundary-mechanism]
+            color: cyan
+  - id: historical-evidence
+    title: "Which tasks benefited from another level?"
+    visual: "Published depth and cost comparisons keep their task, units and model labels. A separate score calculation explains a relative gain."
+    beats:
+      - say: |
+          Follow the bars within each task. In the May twenty twenty-six paper, GPT-five compares pairs of records. Going from depth one to three lifts F one from fifty-eight to seventy-six. Switch to code questions and look at accuracy. For Qwen, the interpreter alone beats the route with plain sub-calls. For GPT-five, watch what happens at depth two and then at depth three. The score rises and then returns to where it started.
+        hold: 0.7
+        visual_cues:
+          - id: paper-depth
+            phrase: "going from depth one to three lifts F one from fifty-eight to seventy-six"
+            targets: [historical-evidence-mechanism]
+            color: cyan
+          - id: paper-repl
+            phrase: "the interpreter alone beats the route with plain sub-calls"
+            targets: [historical-evidence-mechanism]
+            color: cyan
+          - id: paper-nonmonotonic
+            phrase: "The score rises and then returns to where it started"
+            targets: [historical-evidence-mechanism]
+            color: cyan
+      - say: |
+          For code questions, average API cost falls from thirteen cents to eleven with depth one. On the pair task, it rises from sixteen to thirty-three. Some base runs hit their input window and the paper used sequential calls. Include failures and measure the cost and latency distribution for your workload. On a separate reasoning task, hints about how to split the problem changed performance. The choice of split matters.
+        hold: 0.75
+        visual_cues:
+          - id: code-cost
+            phrase: "falls from thirteen cents to eleven"
+            targets: [historical-evidence-mechanism]
+            color: cyan
+          - id: paper-cost
+            phrase: "rises from sixteen to thirty-three"
+            targets: [historical-evidence-mechanism]
+            color: cyan
+      - say: |
+          The authors also trained the smaller root controller. Seven hundred fifty tasks supplied twenty-two hundred fifty trajectories. Drop zero-score runs and one-turn runs, and one thousand seventy-two trajectories remain. Individual root turns then become training examples after length filtering and protocol corrections. The appendix gives three hundred training steps, a batch size of sixty-four and forty-eight H one hundred GPU hours. For the eight-billion-parameter root the paper reports a twenty-eight point three percent relative median improvement across four tasks. A separate length experiment changes both source length and needle count.
+        hold: 0.75
+        visual_cues:
+          - id: training-filter
+            phrase: "one thousand seventy-two trajectories remain"
+            targets: [historical-evidence-mechanism]
+            color: green
+          - id: training-turns
+            phrase: "Individual root turns then become training examples"
+            targets: [historical-evidence-mechanism]
+            color: cyan
+          - id: relative-gain
+            phrase: "relative median improvement across four tasks"
+            targets: [historical-evidence-mechanism]
+            color: yellow
+      - say: |
+          What would a relative gain mean on one task? Take a starting score of forty. A twenty-five percent gain adds a quarter of that bar. A quarter of forty is ten. Add ten and the new score is fifty. Each task has its own starting score and its own relative gain. The paper reports the median across four tasks.
+        hold: 0.7
+        visual_cues:
+          - id: relative-quarter
+            phrase: "adds a quarter of that bar"
+            targets: [historical-evidence-mechanism]
+            color: cyan
+          - id: relative-example
+            phrase: "Add ten and the new score is fifty"
+            targets: [historical-evidence-mechanism]
+            color: yellow
+  - id: complexity-and-choice
+    title: "What does the task ask the model to do?"
+    visual: "The strict upper triangle counts each unordered pair once. A separate held-out-task fixture places each route beside its recall, latency and a shared cost ceiling."
+    beats:
+      - say: |
+          Four records take four visits to scan. If you must compare every pair, read the lit squares. Each pairs one record with a different record. Leave out the diagonal and count only one side. Now double the record count. For eight records, each has seven possible partners. Divide by two because each pair has two ends. That gives twenty-eight pairs. Ten thousand records give nearly fifty million pairs before pruning. Relationships are work to account for. They need not each become a model call. Even a single fact can take a search to find.
+        hold: 0.7
+        visual_cues:
+          - id: scan-records
+            phrase: "read the lit squares"
+            targets: [pair-grid]
+            color: cyan
+          - id: pair-growth
+            phrase: "Now double the record count"
+            targets: [pair-grid]
+            color: blue
+          - id: count-pairs
+            phrase: "That gives twenty-eight pairs"
+            targets: [work-count]
+            color: cyan
+      - say: |
+          To choose a route, compare all three on the same labeled questions. These are invented results. Require recall of at least point nine, a ninety-fifth percentile cost of at most thirty cents per task, and a ninety-fifth percentile latency of at most twelve seconds. Which route clears all three limits?
+        hold: 2.1
+      - say: |
+          Direct is cheap, but its recall is only point seven three. The recursive route crosses both the time and cost limits. The interpreter working alone clears all three. The policy chooses the lowest-cost eligible route, using lower latency to break a cost tie. If none qualifies, hold deployment. Estimate these percentiles across enough trials, report uncertainty, and enforce separate limits on each live request.
+        hold: 0.8
+        caption_starts: ["The recursive route crosses both the time and cost limits"]
+        visual_cues:
+          - id: direct-recall-result
+            phrase: "its recall is only point seven three"
+            targets: [route-direct-result]
+            color: blue
+          - id: recursive-limit-result
+            phrase: "crosses both the time and cost limits"
+            targets: [route-recursive-result]
+            color: blue
+          - id: eligible-route
+            phrase: "The interpreter working alone clears all three"
+            caption_boundary: true
+            targets: [route-repl-result, selected-route]
+            color: blue
+  - id: fresh-exception
+    title: "What changes the decision?"
+    visual: "The route worksheet tests a tighter cost ceiling. Then the cited restore policy corrects a summary date and settles two scheduled restores on one calendar."
+    beats:
+      - say: |
+          Keep the same recall, cost and latency limits. Here are new results for the three routes. Predict the lowest-cost eligible choice.
+        hold: 2.1
+      - say: |
+          Direct qualifies at twenty-five cents. The interpreter-only route qualifies too, but it costs two cents more. The recursive route comes in fastest and still exceeds the thirty-cent ceiling.
+        hold: 0.85
+        visual_cues:
+          - id: fresh-route
+            phrase: "Direct qualifies at twenty-five cents"
+            targets: [route-direct-result, selected-route]
+            color: green
+      - say: |
+          Keep every result fixed and lower the cost ceiling to twenty cents. Which route, if any, can still run?
+        hold: 2.05
+        visual_cues:
+          - id: lower-cap
+            phrase: "lower the cost ceiling to twenty cents"
+            targets: [cost-cap]
+            color: yellow
+      - say: |
+          Hold deployment. Even the cheapest dot is to the right of the new ceiling. When you compare routes on your own questions, include retrieval too. Track unsupported claims, token use, retries, failures and tail latency across the same questions.
+        hold: 0.85
+        visual_cues:
+          - id: fresh-hold
+            phrase: "Hold deployment"
+            targets: [selected-route]
+            color: pink
+      - say: |
+          A backup restore is booked for November twelfth. Approval logging is on. The summary says November first. The cited page says November fifteenth. Count how many of the two required fields match, then predict exact recall.
+        hold: 2.1
+      - say: |
+          It is one half. Only the logging condition matches. Copy November fifteenth from the cited page into the summary. The November twelfth restore now falls inside the documented exception. Both required fields now match.
+        hold: 0.85
+        visual_cues:
+          - id: fresh-fact-half
+            phrase: "It is one half"
+            targets: [restore-fields, restore-answer]
+            color: yellow
+          - id: fresh-fact-correct
+            phrase: "Copy November fifteenth from the cited page into the summary"
+            caption_boundary: true
+            targets: [restore-fields, restore-calendar]
+            color: blue
+      - say: |
+          Add one more restore on November sixteenth. It has approval logging on. Does the same page cover this restore?
+        hold: 2
+        visual_cues:
+          - id: extra-restore
+            phrase: "Add one more restore on November sixteenth"
+            targets: [restore-calendar]
+            color: cyan
+      - say: |
+          November sixteenth falls after expiry. Only the twelfth qualifies. You can trace both decisions to page two. Next, we'll see how several workers bring their evidence together.
+        hold: 1.25
+        visual_cues:
+          - id: restore-outcome
+            phrase: "November sixteenth falls after expiry"
+            targets: [restore-calendar, restore-answer]
+            color: pink

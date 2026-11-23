@@ -1,0 +1,188 @@
+version: 1
+lesson: rnn-memory
+promise: Decide which recurrent state a classifier should read by tracing what each event stores, what training can change, and where each history ends.
+framing:
+  - intro
+objectives:
+  - id: recurrent-computation
+    can: Predict how event order changes a shared recurrence, build a two-coordinate state, and use its logits to select an action.
+    scenes:
+      - recurrence
+      - shared
+      - event-order
+      - vector-build
+      - action-head
+  - id: temporal-credit
+    can: Trace a final-state derivative to an early event and distinguish graph detachment from gradient clipping.
+    scenes:
+      - actual-credit
+      - gradients
+      - matrix-bound
+      - truncation
+  - id: gated-memory
+    can: Compute stored and exposed LSTM coordinates, blend a GRU candidate, and select a matrix that tests reset placement.
+    scenes:
+      - lstm
+      - learned-lstm
+      - retention
+      - gru
+      - learned-gru
+      - parameter-geometry
+  - id: sequence-boundaries
+    can: Use valid lengths to distinguish a real zero observation from filler, verify the final state against the unpadded prefix, and initialize the next incident.
+    scenes:
+      - padding
+      - batch-boundaries
+      - earned-transfer
+  - id: encoder-interface
+    can: Identify a collision in a finite context and compare a recurrent relay with a direct causal attention read.
+    scenes:
+      - compression-attention
+sections:
+  - heading: Order is part of the input
+    status: taught
+    scenes:
+      - event-order
+      - intro
+      - recurrence
+  - heading: One cell, reused at every step
+    status: taught
+    scenes:
+      - shared
+      - event-order
+  - heading: Trace a vector RNN
+    status: taught
+    scenes:
+      - vector-build
+      - action-head
+  - heading: "Backpropagation through time: why a distant signal can fade"
+    status: taught
+    scenes:
+      - actual-credit
+      - gradients
+  - heading: A matrix bound, and what it actually proves
+    status: taught
+    scenes:
+      - matrix-bound
+  - heading: Truncation and gradient clipping
+    status: taught
+    scenes:
+      - truncation
+      - gradients
+  - heading: "LSTM: Additive cell state and gated memory"
+    status: taught
+    scenes:
+      - lstm
+      - learned-lstm
+  - heading: The full LSTM equations
+    status: taught
+    scenes:
+      - learned-lstm
+  - heading: Follow the direct cell-state gradient path
+    status: taught
+    scenes:
+      - retention
+      - learned-lstm
+  - heading: "GRU: Unified hidden state and streamlined gating"
+    status: taught
+    scenes:
+      - gru
+      - learned-gru
+  - heading: "Reset gate placement: Cho et al. versus PyTorch"
+    status: taught
+    scenes:
+      - gru
+      - learned-gru
+  - heading: Parameter auditing and tensor geometry
+    status: taught
+    scenes:
+      - parameter-geometry
+  - heading: Sequence padding and batch masking
+    status: taught
+    scenes:
+      - padding
+      - batch-boundaries
+      - earned-transfer
+  - heading: Sequence compression and the encoder-decoder bottleneck
+    status: taught
+    scenes:
+      - compression-attention
+  - heading: The sequential bottleneck, and how attention changes it
+    status: taught
+    scenes:
+      - compression-attention
+  - heading: Self-attention breaks the serial chain
+    status: taught
+    scenes:
+      - compression-attention
+  - heading: Diagnosing recurrent failure modes
+    status: taught
+    scenes:
+      - batch-boundaries
+      - lstm
+      - padding
+      - learned-gru
+      - matrix-bound
+      - earned-transfer
+quiz:
+  - n: 1
+    status: taught
+    scenes:
+      - event-order
+      - shared
+  - n: 2
+    status: taught
+    scenes:
+      - vector-build
+      - action-head
+  - n: 3
+    status: taught
+    scenes:
+      - gradients
+      - truncation
+  - n: 4
+    status: taught
+    scenes:
+      - lstm
+      - learned-lstm
+  - n: 5
+    status: taught
+    scenes:
+      - retention
+  - n: 6
+    status: taught
+    scenes:
+      - gru
+      - learned-gru
+  - n: 7
+    status: taught
+    scenes:
+      - batch-boundaries
+      - earned-transfer
+  - n: 8
+    status: taught
+    scenes:
+      - compression-attention
+  - n: 9
+    status: taught
+    scenes:
+      - parameter-geometry
+  - n: 10
+    status: taught
+    scenes:
+      - compression-attention
+removed: []
+reviews:
+  closed_book:
+    script: 3c3f17adc2f889df
+    taught: 10
+    partial: 0
+    absent: 0
+    reviewer: independent closed-book review
+    evidence: videos/reviews/script-renewal/rnn-memory.json
+  fact_check:
+    script: 3c3f17adc2f889df
+    open_findings: 0
+    reviewer: independent factual review
+    evidence: videos/reviews/script-renewal/rnn-memory.json
+  evidence: build/video-delivery-20261106/script-reviews/rnn-memory.json

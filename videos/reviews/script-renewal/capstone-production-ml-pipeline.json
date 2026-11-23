@@ -1,0 +1,544 @@
+{
+  "id": "capstone-production-ml-pipeline",
+  "script": "15b17be36593f0a7",
+  "articleHash": "beae499ba2bf665d49ac1c78ebb4da5880fe22daac01d27459d4dcfae8a147ae",
+  "checked": "2026-11-10T04:13:28.384Z",
+  "closedBook": {
+    "taught": 10,
+    "partial": 0,
+    "absent": 0,
+    "answers": [
+      {
+        "n": 1,
+        "option": 1,
+        "coverage": "taught",
+        "quotes": [
+          {
+            "scene": "bundle",
+            "quote": "Saving coefficients alone leaves the computation incomplete. The fitted transformation, input schema and warning threshold all affect the answer. Put them in the same retained package, together with training identity and the code used to build it, then reload and compare predictions."
+          },
+          {
+            "scene": "bundle",
+            "quote": "Restoring vision weights while keeping the failed cropper or review threshold restores a different computation."
+          }
+        ],
+        "reason": "Restore the weights, cropper and action threshold together, then reload and compare the complete computation.",
+        "exact": true,
+        "correct": true,
+        "grade": "taught"
+      },
+      {
+        "n": 2,
+        "option": 2,
+        "coverage": "taught",
+        "quotes": [
+          {
+            "scene": "bound-evidence",
+            "quote": "Registration retains artifact and release values without moving production."
+          },
+          {
+            "scene": "bound-evidence",
+            "quote": "Opening canary follows the evidence ID, checks its candidate and bindings, and requires the candidate previous release to match current production. A missing registered receipt or one failing required gate holds the candidate offline; a caller-provided passed flag cannot replace the row calculation."
+          }
+        ],
+        "reason": "R4 does not match current production R5, so opening canary holds offline. Production remains R5 and no candidate canary opens.",
+        "exact": true,
+        "correct": true,
+        "grade": "taught"
+      },
+      {
+        "n": 3,
+        "option": 1,
+        "coverage": "taught",
+        "quotes": [
+          {
+            "scene": "bound-evidence",
+            "quote": "For positive baseline cost, relative change equals candidate total divided by baseline total, minus one. Critical recall equals correctly warned late critical rows divided by all late critical rows."
+          },
+          {
+            "scene": "offline",
+            "quote": "Derive recall from its row decisions and compare it with the declared floor. Its cost improvement cannot erase the failed requirement."
+          },
+          {
+            "scene": "bound-evidence",
+            "quote": "A missing registered receipt or one failing required gate holds the candidate offline; a caller-provided passed flag cannot replace the row calculation."
+          }
+        ],
+        "reason": "Recall is 4/5 = 0.80. Cost delta is 96/120 − 1 = −0.20. Recall fails the 0.90 floor, so the decision is hold_offline.",
+        "exact": true,
+        "correct": true,
+        "grade": "taught"
+      },
+      {
+        "n": 4,
+        "option": 4,
+        "coverage": "taught",
+        "quotes": [
+          {
+            "scene": "canary-window-contract",
+            "quote": "The authored policy requires at least two ordered windows, error rate at most one percent, latency at most two hundred fifty milliseconds, and no positive mature cost change. Equality passes these limits. Empty or insufficient history and missing latest delayed quality hold the canary. For accepted window records, invalid metrics, supplied service breaches, mature cost regressions or binding mismatches abort it."
+          }
+        ],
+        "reason": "Empty history A holds the canary. B supplies a measured positive mature cost change, so it aborts the canary.",
+        "exact": true,
+        "correct": true,
+        "grade": "taught"
+      },
+      {
+        "n": 5,
+        "option": 2,
+        "coverage": "taught",
+        "quotes": [
+          {
+            "scene": "feature-clocks",
+            "quote": "Filter by entity and require both observed and available time at or before prediction. Only then choose the most recent eligible observation: the retained delay is nine minutes."
+          }
+        ],
+        "reason": "Only scan A meets both clock conditions at 16:00, so the retained delay is 7.",
+        "exact": true,
+        "correct": true,
+        "grade": "taught"
+      },
+      {
+        "n": 6,
+        "option": 3,
+        "coverage": "taught",
+        "quotes": [
+          {
+            "scene": "promotion",
+            "quote": "Readiness and promotion are separate operations. Before changing a pointer, follow the retained ready receipt back to its offline evidence and recheck the package and policy bindings. Also verify which release production currently selects. Another change can make an old decision stale."
+          },
+          {
+            "scene": "bound-evidence",
+            "quote": "Opening canary follows the evidence ID, checks its candidate and bindings, and requires the candidate previous release to match current production."
+          }
+        ],
+        "reason": "The sequential recheck finds R9 instead of the receipt's R8 base. Promotion holds and R9 remains selected.",
+        "exact": true,
+        "correct": true,
+        "grade": "taught"
+      },
+      {
+        "n": 7,
+        "option": 1,
+        "coverage": "taught",
+        "quotes": [
+          {
+            "scene": "production-history",
+            "quote": "After promotion, healthy service with missing delayed quality yields hold monitor and leaves the current release selected. A finite measured cost increase above policy, error-rate breach or latency breach can require rollback."
+          },
+          {
+            "scene": "production-history",
+            "quote": "A report for a different release likewise cannot move the live release."
+          }
+        ],
+        "reason": "The healthy R7 window has mature quality and no cost regression, so it keeps production. The regression report for R6 holds rollback because R6 is not the live release.",
+        "exact": true,
+        "correct": true,
+        "grade": "taught"
+      },
+      {
+        "n": 8,
+        "option": 4,
+        "coverage": "taught",
+        "quotes": [
+          {
+            "scene": "production-history",
+            "quote": "The monitor retains the latest valid observation day separately from the latest receipt. Suppose valid day nine is followed by malformed day ten. The malformed receipt can hold monitoring, but it cannot erase day nine. A late day-eight report is older than retained valid evidence and must hold rollback without replacing the current receipt pointer."
+          }
+        ],
+        "reason": "Malformed day 14 leaves valid-day memory at 12. Day 11 is stale, so it yields hold_rollback without replacing the day-14 receipt.",
+        "exact": true,
+        "correct": true,
+        "grade": "taught"
+      },
+      {
+        "n": 9,
+        "option": 1,
+        "coverage": "taught",
+        "quotes": [
+          {
+            "scene": "offline",
+            "quote": "Bind that result to the release, model bytes and policy values, so changing a package or threshold invalidates the earlier receipt."
+          },
+          {
+            "scene": "strict-model-loader",
+            "quote": "First compare the serialized bytes with the registered digest. Appending one space changes that digest and stops reload."
+          },
+          {
+            "scene": "promotion",
+            "quote": "Before changing a pointer, follow the retained ready receipt back to its offline evidence and recheck the package and policy bindings."
+          }
+        ],
+        "reason": "Restore the bound policy values first. The appended space still changes the model digest, so reload fails and promotion remains held.",
+        "exact": true,
+        "correct": true,
+        "grade": "taught"
+      },
+      {
+        "n": 10,
+        "option": 2,
+        "coverage": "taught",
+        "quotes": [
+          {
+            "scene": "fit",
+            "quote": "The mean supplies a missing-value replacement and the range supplies the scale. Those quantities come entirely from training rows and must be reused when evaluation requests arrive."
+          },
+          {
+            "scene": "fit",
+            "quote": "The transformed feature is delay minus five, divided by ten."
+          },
+          {
+            "scene": "strict-model-loader",
+            "quote": "At a missing delay, reuse the saved imputation value; do not fit again on the serving batch."
+          }
+        ],
+        "reason": "The training mean is 6 and range is 10. Serving imputes and centers with 6, so a missing input transforms to (6 − 6)/10 = 0.",
+        "exact": true,
+        "correct": true,
+        "grade": "taught"
+      }
+    ]
+  },
+  "factCheck": {
+    "scenes": [
+      {
+        "id": "intro",
+        "evidence": "Verified HAND_FAIL in fixtures.mjs and executed pipelineOffline: each candidate cost is 24 versus baseline 25; totals are 4×24=96 and 4×25=100, so relative change is 96/100−1=−4%. Only one of two critical positives is warned: recall=1/2=0.50<0.90. Independently executing the Python controller produced hold_offline and preserved production v0. The subsequently fitted model is a separate candidate. Alias operations change local dictionaries; they do not route traffic.",
+        "sourceUrls": []
+      },
+      {
+        "id": "feature-clocks",
+        "evidence": "Inspected and executed production_pipeline.py:46–113, 233–283. For eval-1, 10:00 observed/11:00 available passes both noon cutoffs and supplies delay 9. The 11:30/12:30 scan fails availability; the 13:00 scan fails observation time. Filtering precedes selection of the greatest eligible observed timestamp. Tested duplicate requests, duplicate/missing outcomes, and equivalent-instant scan duplicates, including 06:00−04:00 versus 10:00Z; all were rejected. Removing scans produced None. There is no maximum-age predicate. Training requests are May 20, labels May 22, cutoff May 25; evaluation requests are May 28, labels May 30, snapshot May 31. Label availability controls admission, while delay supplies the model input. Historical execution is not established by these synthetic timestamps. UTC conversion preserves the instant, consistent with [Python datetime](https://docs.python.org/3/library/datetime.html#datetime.datetime.astimezone).",
+        "sourceUrls": [
+          "https://docs.python.org/3/library/datetime.html#datetime.datetime.astimezone"
+        ]
+      },
+      {
+        "id": "fit",
+        "evidence": "Independently recomputed and executed the Python and JavaScript fits. Mean=(0+1+2+8+9+10)/6=5; range=10−0=10. Transformed values are −0.5,−0.4,−0.3,0.3,0.4,0.5, with mean zero; label mean=3/6=0.5. Cross-products total 0.25+0.20+0.15+0.15+0.20+0.25=1.20; squared features total 0.25+0.16+0.09+0.09+0.16+0.25=1.00. Thus slope=1.2 and intercept=0.5. Substitution into 0.5+1.2(x−5)/10 gives 0.98,0.86,0.02,−0.10 for delays 9,8,1,0, allowing floating-point rounding. Threshold 0.5 yields [1,1,0,0]. The unconstrained score is not a calibrated probability. fit.mjs plots this same score function. Training-only preprocessing and reuse agree with [scikit-learn guidance](https://scikit-learn.org/stable/common_pitfalls.html#inconsistent-preprocessing).",
+        "sourceUrls": [
+          "https://scikit-learn.org/stable/common_pitfalls.html#inconsistent-preprocessing"
+        ]
+      },
+      {
+        "id": "bundle",
+        "evidence": "Verified the package's transformation, schema, coefficients, threshold and training metadata in production_pipeline.py:116–223. Missing input becomes 5, hence transformed value 0 and score 0.5; inclusive >=0.5 warns. Schema mismatch and invalid saved parameters reject inference. Offline candidate cost is 2+2+0+0=4; the silent baseline misses two positives for 25+25=50. These are authored costs on synthetic rows, not measured savings. Both label and critical cohort use delay>=8, so the generalization qualification is necessary. Independently inspected Release's nine fields: none identifies a monitor; PromotionPolicy retains monitoring thresholds. The prior monitor-identity finding is closed because the narration now distinguishes the proposed production contract from the fixture. Retaining compatible preprocessing follows [scikit-learn guidance](https://scikit-learn.org/stable/common_pitfalls.html#inconsistent-preprocessing).",
+        "sourceUrls": [
+          "https://scikit-learn.org/stable/common_pitfalls.html#inconsistent-preprocessing"
+        ]
+      },
+      {
+        "id": "strict-model-loader",
+        "evidence": "Verified every narrated package field in fit_bundle and validate_bundle. source_sha256 hashes admitted training rows; the separate source fixture digest includes evaluation outcomes. run_pipeline compares pre-save and reloaded warning predictions. Executed checksum rejection after appending whitespace, matching-checksum duplicate-key rejection, zero-scale rejection, NaN-coefficient rejection, schema rejection and huge-input rejection. Exact numeric type checks exclude Boolean inputs; saved imputation is reused. These are custom protections: [Python JSON](https://docs.python.org/3/library/json.html#standard-compliance-and-interoperability) normally accepts duplicate names and nonfinite constants. The version-sensitive statement is accurate: cross-version loading is unsupported, rather than necessarily impossible, and pickle-based loading can execute arbitrary code, according to [scikit-learn persistence](https://scikit-learn.org/stable/model_persistence.html#security-maintainability-limitations). The checksum statement describes integrity comparison under cryptographic assumptions, not authentication or model validity; see [NIST's hash standard](https://nvlpubs.nist.gov/nistpubs/FIPS/NIST.FIPS.180-4.pdf).",
+        "sourceUrls": [
+          "https://docs.python.org/3/library/json.html#standard-compliance-and-interoperability",
+          "https://scikit-learn.org/stable/model_persistence.html#security-maintainability-limitations",
+          "https://nvlpubs.nist.gov/nistpubs/FIPS/NIST.FIPS.180-4.pdf"
+        ]
+      },
+      {
+        "id": "offline",
+        "evidence": "Executed evaluate_candidate and open_canary. The supplied failure yields recall 0.50 and cost delta −0.04, retaining a failed critical_slice_pass gate. The reloaded fitted candidate yields recall 2/2=1 and cost delta 4/50−1=−0.92, allowing canary entry under this policy. Binding checks compare retained release, artifact and policy values; serialized byte changes are detected when reload occurs, without asynchronous receipt invalidation. The no_leakage gate is exactly training/evaluation entity-set intersection. Distinct IDs do not prove parcel independence or correct feature clocks. Independent mutations produced recall=None with no critical positives and cost_delta=None with zero baseline cost; the respective required gates failed. These boundaries agree with the broader leakage concerns in [scikit-learn guidance](https://scikit-learn.org/stable/common_pitfalls.html#data-leakage).",
+        "sourceUrls": [
+          "https://scikit-learn.org/stable/common_pitfalls.html#data-leakage"
+        ]
+      },
+      {
+        "id": "bound-evidence",
+        "evidence": "Inspected and executed the row constructors, evaluate_candidate, evidence_binding_failures and open_canary. Constructors enforce Boolean cohort membership, integer binary decisions, valid event clocks and finite nonnegative costs. Evaluation checks unique row IDs against the exact declared inventory, split overlap, critical positives/hits and cost totals. For positive baseline B and candidate C, delta=C/B−1; recall=critical hits/critical positives. Offline evidence stores artifact, release and policy fingerprints. Canary admission follows stored evidence, checks required gates and current production against previous_release. There is no caller-provided passed argument. IDs provide lookup, not authentication, and immutable_fingerprint does not freeze stores. Replacing trusted objects and their expected fingerprints can preserve consistency while changing evidence. This integrity/authenticity distinction is consistent with [NIST's hash standard](https://nvlpubs.nist.gov/nistpubs/FIPS/NIST.FIPS.180-4.pdf).",
+        "sourceUrls": [
+          "https://nvlpubs.nist.gov/nistpubs/FIPS/NIST.FIPS.180-4.pdf"
+        ]
+      },
+      {
+        "id": "canary",
+        "evidence": "Executed the actual film fixtures and arithmetic.mjs. Empty and pending-only histories return HOLD; pending plus the mature window returns READY. The four supplied outcome records total 4×23=92 versus 4×25=100, giving 92/100−1=−8%. The alternative history first totals 4×28.5=114, or +14%, then 92, or −8%; canary returns ABORT because an earlier supplied mature window regressed. Python separately reproduces abort with an earlier injected +25% delta followed by −8%. Failure preservation applies to the supplied history; append-only completeness is a production requirement, not implemented enforcement. Limited exposure followed by evaluation agrees with [Google SRE's canary definition](https://sre.google/workbook/canarying-releases/). Hold/readiness/abort are this lesson's states, not universal controller semantics; [Argo analysis](https://argoproj.github.io/argo-rollouts/features/analysis/) provides analogous policy-dependent outcomes.",
+        "sourceUrls": [
+          "https://sre.google/workbook/canarying-releases/",
+          "https://argoproj.github.io/argo-rollouts/features/analysis/"
+        ]
+      },
+      {
+        "id": "canary-window-contract",
+        "evidence": "Verified CanaryWindow, valid_window and evaluate_canary. Valid fields require nonnegative integer day, positive integer requests excluding bool, finite error in [0,1], finite nonnegative latency, Boolean label readiness and optional finite cost delta>=−1. Duplicate identities, mixed releases and non-increasing valid days abort. Executed equality at error=0.01, latency=250 and cost delta=0: readiness passes with complete evidence. Empty/insufficient histories hold when other bindings pass. Independently reproduced the repaired distinction: None, [None], a tuple and a dictionary raise before receipt creation and retain the existing candidate alias; a CanaryWindow containing NaN produces abort_canary and removes that candidate alias. Unrelated candidate exposure is preserved. Thus the prior malformed-telemetry spoken finding is closed. The 92/100 online costs remain separate from offline 4/50. Identity, coverage, uncertainty and freshness requirements are proposed production controls.",
+        "sourceUrls": []
+      },
+      {
+        "id": "promotion",
+        "evidence": "Executed missing-receipt, early/superseded-receipt and current-ready promotion paths. Only the current ready receipt promoted. promote follows its offline receipt and evidence, rechecks bindings and current production, then reloads candidate and current production packages before assignment. Removing offline evidence independently caused hold_promotion. Checks, alias assignments and audit append are separate sequential operations. The additional atomic update requirement is supported by [etcd transactions](https://etcd.io/docs/v3.6/learning/api/#transaction); stale-version rejection is illustrated by [Kubernetes resource versions](https://kubernetes.io/docs/reference/using-api/api-concepts/#resource-versions). No serving-worker or routing integration exists. [Kubernetes readiness semantics](https://kubernetes.io/docs/concepts/workloads/pods/probes/#readiness-probe) support distinguishing package selection from readiness to receive traffic.",
+        "sourceUrls": [
+          "https://etcd.io/docs/v3.6/learning/api/#transaction",
+          "https://kubernetes.io/docs/reference/using-api/api-concepts/#resource-versions",
+          "https://kubernetes.io/docs/concepts/workloads/pods/probes/#readiness-probe"
+        ]
+      },
+      {
+        "id": "alias-generation",
+        "evidence": "Checked the interleaving and ABA example directly. Reading v0 before another writer changes the alias does not constrain a later unguarded assignment. The stated sequence is (v0,41)→(v2,42)→(v0,43): release equality succeeds again, while expected generation 41 differs from 43. This requires a generation that changes on every move and is not reused. The Python controller contains neither such a generation nor a distributed atomic commit. [etcd transactions](https://etcd.io/docs/v3.6/learning/api/#transaction) support guarded atomic writes, and [Kubernetes resource versions](https://kubernetes.io/docs/reference/using-api/api-concepts/#resource-versions) demonstrate stale-update detection. A dictionary assignment cannot reverse an already delivered notification. Worker loading, readiness, routing and external compatibility are additional recovery concerns; no corresponding durations are measured here.",
+        "sourceUrls": [
+          "https://etcd.io/docs/v3.6/learning/api/#transaction",
+          "https://kubernetes.io/docs/reference/using-api/api-concepts/#resource-versions"
+        ]
+      },
+      {
+        "id": "recovery",
+        "evidence": "Executed production monitoring and rollback. Healthy service with missing delayed cost yields hold_monitor without moving production. The valid day-eight +14% cost window yields rollback_required; rollback reloads the retained v0 package and restores the local pointer. For delay 9, candidate score=0.5+1.2×0.4=0.98 and warns; baseline slope/intercept are zero, so score=0 and it remains silent. This establishes changed package selection and prediction behavior. Missing-measurement deadlines and fallback are recommendations absent from the implementation. Serving readiness remains separate, consistent with [Kubernetes readiness probes](https://kubernetes.io/docs/concepts/workloads/pods/probes/#readiness-probe). Neither routing convergence nor notification reversal is demonstrated.",
+        "sourceUrls": [
+          "https://kubernetes.io/docs/concepts/workloads/pods/probes/#readiness-probe"
+        ]
+      },
+      {
+        "id": "production-history",
+        "evidence": "Verified production_gate_results, evaluate_production and rollback_if_needed. Independently executed valid day 9, NaN day 10 and late day 8: decisions were keep_production, hold_monitor and hold_rollback; retained valid day stayed 9, and day 8 did not replace the day-10 receipt pointer. Wrong-release evidence cannot move live production. evaluate_production(None) raises before recording any receipt, whereas invalid numeric fields in an accepted current window produce the investigation hold. The prior production-ingestion spoken finding is therefore closed. A newer eligible receipt supersedes an older rollback receipt. Recovery checks live release, policy, previous-release identity and target fingerprint, then reloads the target; binding changes or reload failure hold recovery. Day comparisons cannot order same-day observations or identify a repeated rollout attempt.",
+        "sourceUrls": []
+      },
+      {
+        "id": "product-monitoring",
+        "evidence": "The delivery, ranking, forecast and vision signals are proposed product-monitoring choices, not claimed measurements or universally sufficient gates. Restoring fitted preprocessing with its model follows [scikit-learn consistency guidance](https://scikit-learn.org/stable/common_pitfalls.html#inconsistent-preprocessing). The canary/A/B distinction is accurate with the narrated overlap: [Google SRE](https://sre.google/workbook/canarying-releases/) describes canary evaluation as an A/B process, while [Microsoft's experimentation paper](https://www.microsoft.com/en-us/research/publication/online-experimentation-at-microsoft/) explains randomization and proper design for causal conclusions. Two supplied summaries do not establish causal business lift. Scheduled and monitored-condition training triggers are documented in [Google Cloud's MLOps architecture](https://docs.cloud.google.com/architecture/mlops-continuous-delivery-and-automation-pipelines-in-machine-learning). Requiring the same lesson gates for subsequent candidates is an authored production requirement, not a claim that every platform implements them.",
+        "sourceUrls": [
+          "https://scikit-learn.org/stable/common_pitfalls.html#inconsistent-preprocessing",
+          "https://sre.google/workbook/canarying-releases/",
+          "https://www.microsoft.com/en-us/research/publication/online-experimentation-at-microsoft/",
+          "https://docs.cloud.google.com/architecture/mlops-continuous-delivery-and-automation-pipelines-in-machine-learning"
+        ]
+      },
+      {
+        "id": "synthesis",
+        "evidence": "Independently executed all 14 current article Python blocks with model file operations redirected to memory, reproducing feature admission, training, serialization/reload, evaluation, canary receipts, promotion and rollback. The failing hand fixture retained its critical-recall failure; the fitted candidate required separate supplied operational evidence. The film model's validateModel also passed. Retaining compatible bundles, deriving metrics from rows, controlling writers and exercising stale/missing evidence are recommendations consistent with the demonstrated boundaries. The narration does not claim immutable storage, authenticated writers, live observations or distributed deployment.",
+        "sourceUrls": []
+      },
+      {
+        "id": "fresh-stale-receipt",
+        "evidence": "Independently reproduced the Python sequence and executed freshPipelineState stages 0–3. A newer one-window hold plus latency changed from 250 to 300 causes superseded-receipt and policy-binding failures; v0 remains silent. Restoring 250 removes policy mismatches but leaves supersession. A current ready receipt permits promotion and changes the identical delay-9 probe to warning. Inspection of model.mjs:169–230 confirms the film stages ready-5 rather than evaluating new history. The revised narration explicitly assumes evaluator output and describes the illustration accordingly, closing that prior finding. Python follows offline evidence: deleting it holds promotion. Re-evaluating the original first-hour/day-seven observations creates a current ready receipt and promotes, confirming the newly stated absence of observation-age freshness enforcement. Both packages reload before Python promotion. The Document QA sentence is a curricular handoff, not a claim of implemented access control or abstention.",
+        "sourceUrls": []
+      }
+    ],
+    "findings": [],
+    "limitations": [
+      "Reviewed narration hash 15b17be36593f0a7; current lesson.yaml SHA-256 is 4400537a6e3910d7b5689396f6a5f6762f759199721d4f2e35eadcf16d51f46d. All four prior spoken findings are closed. No new substantive spoken factual error or unsupported implementation guarantee was found.",
+      "No rebuilt stage index.mjs or scene implementations exist in videos/stage-lessons/capstone-production-ml-pipeline. No rendered frames, audio, measured timing, layout or cue synchronization were checked. Legacy film source inspection does not establish current rendered visual agreement.",
+      "Legacy visual-source defect: canary-window-contract.mjs:75 still says 'Malformed telemetry aborts limited exposure'; production-history.mjs:37 and :45 retain similarly blanket labels. Before reuse, specify invalid metrics in accepted records and add that wrong record/container types raise without receipt creation or automatic cleanup. The repaired spoken claims are accurate.",
+      "Legacy visual follow-up: bundle.mjs:92 retains a Monitor card without the fixture qualification. Label the diagram as a proposed production tuple and state that this fixture stores thresholds in PromotionPolicy but has no separate monitor identity. The card alone is not evidence of implementation.",
+      "Legacy visual follow-up: fresh-stale-receipt.mjs:84 and :140 should identify ready-5 as assumed evaluator output and distinguish receipt currentness from observation-age freshness. The current narration already makes both distinctions.",
+      "Read-only execution used Python 3.15.0 with Path model writes, reads and deletion redirected to an in-memory store. Serialization, digest checks, parsing, prediction and controller logic executed; physical filesystem durability and permissions were not tested. uv could not run because its temporary-directory creation was denied, so the same review code ran directly with python3 -B.",
+      "No live traffic, telemetry collection, protected storage, authenticated evidence writers, distributed concurrency, worker deployment, routing convergence, causal savings, statistical sufficiency or recovery duration was verified. These remain production requirements or explicit fixture limits.",
+      "The article still contains broader malformed-telemetry prose at content.md:761 and :1353. Those article sentences retain the wrong-record-type exception; they are context defects, not unresolved claims in the repaired narration. No files or external state were changed."
+    ]
+  },
+  "reviewedNarration": {
+    "source": "videos/stage-lessons/capstone-production-ml-pipeline/lesson.yaml",
+    "script": "15b17be36593f0a7",
+    "scenes": [
+      {
+        "id": "intro",
+        "beats": [
+          {
+            "say": "A new delivery model costs less on every evaluation row. That sounds promising until we inspect the late deliveries it was meant to catch. One of the two critical cases is missed. A release controller needs to preserve that failure while it considers the cost improvement."
+          },
+          {
+            "say": "We will assemble a small fitted model, a compatible release bundle and a controller that waits for evidence. The program’s alias changes are local simulation. They help us understand how offline checks, delayed canary observations and recovery should connect before any real traffic moves."
+          }
+        ]
+      },
+      {
+        "id": "feature-clocks",
+        "beats": [
+          {
+            "say": "For the same evaluation request, prediction happens at noon. A scan observed at ten and available at eleven is eligible. Another was observed at eleven thirty but arrived at twelve thirty, so serving could not have used it. A third was observed at thirteen and is also excluded. Filter by entity and require both observed and available time at or before prediction. Only then choose the most recent eligible observation: the retained delay is nine minutes."
+          },
+          {
+            "say": "Normalize timezone-aware clocks to UTC before identifying duplicate scan revisions. The same entity and same observed instant must not produce two ambiguous feature versions. Request and outcome IDs are unique and match exactly; a duplicate join must fail instead of multiplying evaluation rows. A missing scan produces a missing feature. This implementation has no maximum scan-age threshold, so a real freshness rule needs its own policy."
+          },
+          {
+            "say": "Training requests precede May twenty-five and their labels must be available by that training cutoff. Evaluation requests are on May twenty-eight and their labels are mature by the May thirty-one snapshot. The label availability clock decides whether fitting or scoring is allowed. It never turns that future outcome into an input feature. A source snapshot assembled retrospectively does not prove the run happened on its historical dates."
+          }
+        ]
+      },
+      {
+        "id": "fit",
+        "beats": [
+          {
+            "say": "Our training examples contain one input: observed delay minutes. Fit their preprocessing first. The mean supplies a missing-value replacement and the range supplies the scale. Those quantities come entirely from training rows and must be reused when evaluation requests arrive."
+          },
+          {
+            "say": "Fit a small least-squares score on the transformed delays and binary labels. The plotted line produces the shown evaluation scores. One can be negative, so this estimator is a numeric decision score. A fixed threshold converts it into warnings without implying calibrated probabilities."
+          },
+          {
+            "say": "The six delays are zero, one, two, eight, nine and ten, with labels zero, zero, zero, one, one and one. The center is five and range ten. Their transformed values have mean zero; the label mean is one half. Least squares divides the cross-product sum one point two by the squared-feature sum one, giving slope one point two and intercept one half. The transformed feature is delay minus five, divided by ten. Multiply that feature by one point two, then add one half. Delays nine, eight, one and zero give scores point nine eight, point eight six, point zero two and minus point one."
+          }
+        ]
+      },
+      {
+        "id": "bundle",
+        "beats": [
+          {
+            "say": "Saving coefficients alone leaves the computation incomplete. The fitted transformation, input schema and warning threshold all affect the answer. Put them in the same retained package, together with training identity and the code used to build it, then reload and compare predictions."
+          },
+          {
+            "say": "At a missing delay, this fixture imputes the training mean and warns at threshold equality. That is a policy choice to evaluate, rather than a universal fallback. A schema mismatch or invalid saved parameter should stop the inference path before a plausible score hides the problem."
+          },
+          {
+            "say": "A production release should identify data snapshot, feature version, model, action policy, promotion policy, monitor and previous release. This fixture keeps monitoring thresholds in its promotion policy, but its Release record has no separate monitor identity. Restoring vision weights while keeping the failed cropper or review threshold restores a different computation. An artifact registry gives a candidate an identity while production stays on the previous release. In this fixture, the trained package costs four units against fifty for the always-silent baseline: warning costs two, while missing a late delivery costs twenty-five. These assumed units and four easy rows demonstrate plumbing, not measured savings or generalization."
+          }
+        ]
+      },
+      {
+        "id": "strict-model-loader",
+        "beats": [
+          {
+            "say": "The bundle stores the input feature name, fitted imputation, center and range, slope and intercept, warning threshold, training IDs and cutoff, training-row digest, builder-source digest and Python version. The training digest excludes later evaluation outcomes; the separate full-fixture digest includes them. Reload compares predictions from retained bytes with the pre-save computation."
+          },
+          {
+            "say": "First compare the serialized bytes with the registered digest. Appending one space changes that digest and stops reload. A matching digest still does not make a valid estimator. Reject duplicate JSON keys, nonfinite numbers, a nonpositive scale, an unexpected schema or an unsupported threshold. Reject Boolean or unrepresentably huge numeric inputs. At a missing delay, reuse the saved imputation value; do not fit again on the serving batch."
+          },
+          {
+            "say": "This numeric JSON loader implements its own small contract. General estimator persistence also needs compatible code and dependencies. Scikit-learn does not support loading models across its versions, and untrusted pickle-based artifacts can execute code. Restore a compatible complete computation, then test it; a checksum alone proves only that expected bytes matched."
+          }
+        ]
+      },
+      {
+        "id": "offline",
+        "beats": [
+          {
+            "say": "Now return to the cheaper candidate that missed a critical case. Derive recall from its row decisions and compare it with the declared floor. Its cost improvement cannot erase the failed requirement. Keep a separate receipt naming those exact rows and the policy that evaluated them."
+          },
+          {
+            "say": "The independently fitted package has its own evaluation outputs. A passing offline result can open a limited next stage under this local policy. Bind that result to the release, model bytes and policy values, so changing a package or threshold invalidates the earlier receipt."
+          },
+          {
+            "say": "The no-leakage gate checks intersection of training and evaluation entity IDs. A shared ID fails even when recall passes. Different IDs can still hide related parcels, and the overlap gate does not discover future features. The builder supplies separate clock checks. If the critical slice has no positives, its recall is missing, not perfect. If baseline cost is zero, relative cost change is missing. Both required gates hold rather than divide by zero. The failed hand-entered fixture and the separately trained candidate have different rows and cost rules."
+          }
+        ]
+      },
+      {
+        "id": "bound-evidence",
+        "beats": [
+          {
+            "say": "The release registry and evaluator have distinct jobs. Registration retains artifact and release values without moving production. Evaluation checks the typed row schema, exact evaluation-ID inventory, split overlap, critical-positive count and cost totals. For positive baseline cost, relative change equals candidate total divided by baseline total, minus one. Critical recall equals correctly warned late critical rows divided by all late critical rows."
+          },
+          {
+            "say": "Canonical JSON fingerprints bind artifact values, release values and promotion policy values. Stored offline evidence names all three. Opening canary follows the evidence ID, checks its candidate and bindings, and requires the candidate previous release to match current production. A missing registered receipt or one failing required gate holds the candidate offline; a caller-provided passed flag cannot replace the row calculation."
+          },
+          {
+            "say": "An ID is a lookup key, not authentication. The helper called immutable fingerprint computes a digest; it does not make dictionaries immutable. An authorized writer who replaces the data and every expected fingerprint can defeat consistency checks. Protect evidence writers and artifact retention, and let a trusted evaluator own inference and datasets. The lab accepts some hand-entered controller fixtures explicitly; those are not independent model measurements."
+          }
+        ]
+      },
+      {
+        "id": "canary",
+        "beats": [
+          {
+            "say": "A canary limits initial exposure while the service gathers observations. Latency and errors appear quickly. Prediction usefulness often waits for labels. Our first supplied window looks healthy but lacks enough delayed evidence, so the controller holds the canary instead of calling the missing value a success."
+          },
+          {
+            "say": "When the required ordered windows arrive, inspect every supplied health and mature-quality check. Our later window has four available outcome labels. Their supplied late-warning costs total ninety-two against a baseline of one hundred. That gives an eight percent improvement, clearing the zero-regression limit. This labeled cost measure is our quality check. With healthy service metrics, the local controller becomes ready for a separate promotion call."
+          },
+          {
+            "say": "Now inspect an alternative ordered history. An earlier mature cohort has higher late-warning cost, while the later cohort improves. The controller aborts because a measured regression already breached the policy. Keep that earlier failure in the evidence history. A later improvement cannot conceal it by replacing the observations."
+          }
+        ]
+      },
+      {
+        "id": "canary-window-contract",
+        "beats": [
+          {
+            "say": "Each canary window carries its own identity, candidate release, nonnegative integer observation day, positive integer request count, error rate, latency and delayed-quality state. Reject duplicate window IDs, mixed releases and non-increasing days. Require finite metrics, an error rate between zero and one, nonnegative latency, and a cost delta no smaller than minus one. Boolean request counts and nonfinite values do not count as valid measurements."
+          },
+          {
+            "say": "The authored policy requires at least two ordered windows, error rate at most one percent, latency at most two hundred fifty milliseconds, and no positive mature cost change. Equality passes these limits. Empty or insufficient history and missing latest delayed quality hold the canary. For accepted window records, invalid metrics, supplied service breaches, mature cost regressions or binding mismatches abort it. Wrong container or record types raise before evaluation, so that Python path records no abort receipt and leaves an existing canary in place. An abort removes only the named candidate canary; it cannot erase another candidate exposure."
+          },
+          {
+            "say": "The first-hour and day-seven article summaries inject their quality delta. Our separate four-outcome picture supplies costs of twenty-three each against twenty-five each to reconstruct the same minus-eight-percent decision. It is distinct from offline four-versus-fifty cost. Real monitoring must retain request identity, served release, prediction time and outcome availability, then apply coverage, sample-size, freshness and uncertainty rules. Caller-supplied later good windows cannot establish that omitted earlier windows passed."
+          }
+        ]
+      },
+      {
+        "id": "promotion",
+        "beats": [
+          {
+            "say": "Readiness and promotion are separate operations. Before changing a pointer, follow the retained ready receipt back to its offline evidence and recheck the package and policy bindings. Also verify which release production currently selects. Another change can make an old decision stale."
+          },
+          {
+            "say": "The local example performs sequential checks. Concurrent controllers need a transaction or compare-and-swap with a generation, plus an audit event committed consistently. Once traffic is involved, verify workers actually loaded the package and routing reached them. A registry alias alone does not demonstrate that serving changed."
+          }
+        ]
+      },
+      {
+        "id": "alias-generation",
+        "beats": [
+          {
+            "say": "The Python controller checks production and then assigns it sequentially. A second controller can change the pointer between those actions. A transaction or compare-and-swap must check the expected release and alias generation while committing the pointer and audit event together. This lab does not implement that distributed operation."
+          },
+          {
+            "say": "Consider production v zero at generation forty-one. Another controller moves it to v two at generation forty-two, then back to v zero at generation forty-three. The text label matches the old receipt again, but generation forty-one is stale. Compare the expected generation as well as the release, and bind freshness and rollout-attempt identity to evidence. A pointer check without a generation cannot detect that history."
+          },
+          {
+            "say": "An alias move is still a control-plane decision. Verify the serving workers loaded the complete compatible package, became ready and actually received routed requests. Restoring an alias cannot undo a warning already delivered. Recovery time includes reload, readiness, routing convergence and any external feature compatibility; the local dictionary example measures none of those times."
+          }
+        ]
+      },
+      {
+        "id": "recovery",
+        "beats": [
+          {
+            "say": "After promotion, monitor both service health and mature prediction quality. A measured regression can request recovery. Missing labels hold for investigation under the declared policy, with a deadline and fallback needed for a real service. Keep the distinction visible in the monitoring record."
+          },
+          {
+            "say": "Recovery selects the retained previous bundle and verifies it loads. Our nine-minute test changes with the restored model, showing that the pointer selected a different computation. A deployed recovery must also measure readiness and routing convergence, and it cannot undo notifications already delivered."
+          }
+        ]
+      },
+      {
+        "id": "production-history",
+        "beats": [
+          {
+            "say": "After promotion, healthy service with missing delayed quality yields hold monitor and leaves the current release selected. A finite measured cost increase above policy, error-rate breach or latency breach can require rollback. For accepted window records, invalid production metrics hold for investigation, while invalid canary metrics abort limited exposure. Wrong record types raise before either receipt is recorded and need separate ingestion-error handling. The real service needs a deadline and fallback when measurement remains unavailable."
+          },
+          {
+            "say": "The monitor retains the latest valid observation day separately from the latest receipt. Suppose valid day nine is followed by malformed day ten. The malformed receipt can hold monitoring, but it cannot erase day nine. A late day-eight report is older than retained valid evidence and must hold rollback without replacing the current receipt pointer. A report for a different release likewise cannot move the live release."
+          },
+          {
+            "say": "A newer monitoring receipt supersedes an older rollback receipt. Before recovery, recheck the live release, policy and retained previous-target fingerprints, then reload that previous package. A changed target, changed policy or failed reload holds recovery. Integer days cannot order same-day updates or distinguish repeated rollout attempts; production windows need timestamps and attempt identity."
+          }
+        ]
+      },
+      {
+        "id": "product-monitoring",
+        "beats": [
+          {
+            "say": "Change the product while retaining the immediate-versus-delayed distinction. Delivery warnings need scan freshness now and labeled warning cost later. Ranking needs eligible candidate supply now and an assignment-aware purchase or return outcome later. Forecasting needs fresh counts now and residual or alert-decision cost later. Vision needs photo quality now and reviewer-confirmed damage later. Restore the relevant cropper, imputer or other preprocessing with that product model."
+          },
+          {
+            "say": "A canary bounds initial exposure while checking a release. An A B test uses an assignment and analysis design to estimate an outcome difference. A canary can sit within a randomized experiment; a pair of supplied summaries is not a causal business-lift estimate. A training schedule or drift trigger creates another candidate, which must pass the same data, model, monitoring and promotion evidence checks."
+          }
+        ]
+      },
+      {
+        "id": "synthesis",
+        "beats": [
+          {
+            "say": "We have built a chain from admitted observations through fitted transformations to a release decision. Each transition has a reason to proceed, hold or recover. The cheap model’s miss remained visible, and the passing model still had to wait for separate operational evidence."
+          },
+          {
+            "say": "Keep that chain together as the service grows. Store complete compatible bundles, derive metrics from retained rows, control receipt writers and test stale or missing evidence. Then the next training run produces a candidate whose behavior and recovery path another engineer can inspect."
+          }
+        ]
+      },
+      {
+        "id": "fresh-stale-receipt",
+        "beats": [
+          {
+            "say": "Return to the retained candidate and the same nine-minute probe, with production still v zero. A ready receipt exists. Before promotion, a newer one-window evaluation records hold; then someone changes the latency policy from two hundred fifty to three hundred under the same ID. Predict whether the old ready receipt can move production, and whether the nine-minute warning changes."
+          },
+          {
+            "say": "Promotion holds for both a superseded canary receipt and the changed policy fingerprint. Production remains v zero and the probe stays silent. Restore only the original two-hundred-fifty policy. The fingerprint matches again, but the old ready receipt is still superseded by the newer hold. Production and the probe still do not change."
+          },
+          {
+            "say": "Assume the trusted evaluator has checked the complete ordered history under the restored policy and issued a current ready receipt. The illustration checks that staged receipt, reloads both compatible packages and moves the local production pointer to v one. The identical nine-minute probe now warns. These staged repairs restore the policy and supply a current ready receipt. The Python controller follows the full offline evidence chain, but it can accept the same observations again. Observation-age freshness requires its own policy. A service rollout would still need worker and routing verification. Document QA next applies those evidence gates to language: decide which text may speak as policy, what the caller may read and when the answer must abstain."
+          }
+        ]
+      }
+    ]
+  }
+}

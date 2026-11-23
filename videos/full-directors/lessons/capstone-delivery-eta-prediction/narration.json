@@ -1,0 +1,611 @@
+[
+  {
+    "id": "c01",
+    "title": "Which time counts?",
+    "sourceChapters": [
+      "c01"
+    ],
+    "beats": [
+      {
+        "id": "c01-b01",
+        "say": "Look up at the door. When you placed the order, the store promised delivery by nine tonight. Tracking now says ten. The promise above the door stays where it was.",
+        "hold": 0.7
+      },
+      {
+        "id": "c01-b02",
+        "say": "At nine thirty the doorbell rings. The parcel is here. Did it arrive late?",
+        "hold": 3
+      },
+      {
+        "id": "c01-b03",
+        "say": "Yes. The parcel arrived thirty minutes after the nine o'clock promise. If we used the revised estimate, the same delivery would count as on time. Every label needs the original deadline. Now rewind to noon. What could the service have known then?",
+        "hold": 1.1
+      }
+    ]
+  },
+  {
+    "id": "c02",
+    "title": "What goes on the noon receipt?",
+    "sourceChapters": [
+      "c02"
+    ],
+    "beats": [
+      {
+        "id": "c02-b01",
+        "say": "The East Seven van picked up order two oh one at ten. At noon it is still traveling. Pin that scoring instant and the promise together. On another route a shipment could have been on the road for thirty hours when we score it.",
+        "hold": 0.65
+      },
+      {
+        "id": "c02-b02",
+        "say": "For the customer, we want an arrival time. Past journeys give us a total duration to add to pickup. A fitted arrival model predicts the hours still to go from noon. For operations, we need the chance of arriving after nine.",
+        "hold": 0.3
+      },
+      {
+        "id": "c02-b03",
+        "say": "A warning policy decides what to do with that score. A package already past its deadline needs a separate incident policy.",
+        "hold": 0.75
+      },
+      {
+        "id": "c02-b04",
+        "say": "Convert the original promise from the destination's local time using its time zone and daylight saving rules. Store the resulting instant in UTC. We will use UTC on our working clocks. Without delivery confirmation the label stays unknown. Set cohort rules for canceled or returned orders before evaluation.",
+        "hold": 0.6
+      },
+      {
+        "id": "c02-b05",
+        "say": "For this snapshot we can use the service tier, the time on the road and the time left to the promise. Two more fields depend on updates from elsewhere. How old is the last carrier scan? How old is the warehouse backlog report?",
+        "hold": 0.3
+      },
+      {
+        "id": "c02-b06",
+        "say": "For each, we need to know when our service could actually read it.",
+        "hold": 0.9
+      }
+    ]
+  },
+  {
+    "id": "c03",
+    "title": "Which scan belongs on the receipt?",
+    "sourceChapters": [
+      "c03"
+    ],
+    "beats": [
+      {
+        "id": "c03-b01",
+        "say": "Here is the carrier log for the noon snapshot. A solid dot marks the scan at the depot. The ring marks when tracking could read it. Follow the hub row. The depot scanned at eleven thirty. The record reached tracking at twelve thirty. Which scan can supply the age at noon?",
+        "hold": 2.1
+      },
+      {
+        "id": "c03-b02",
+        "say": "Use the eleven o'clock transit scan. Both marks are before noon. Subtract its event time from noon and the scan is one hour old. The hub report was still on its way, and the afternoon delay scan hadn't happened yet.",
+        "hold": 0.9
+      },
+      {
+        "id": "c03-b03",
+        "say": "Replay noon. This time the hub report reached tracking at eleven forty-five. Only its availability changes. With the same three scan events, which one now supplies the age?",
+        "hold": 2.6
+      },
+      {
+        "id": "c03-b04",
+        "say": "Use the hub scan. Both marks qualify, and its event is the most recent. Noon minus eleven thirty gives half an hour. Filter both clocks first, including equality at the cutoff. Then take the latest event. A write to a data lake counts only if it made the record readable online.",
+        "hold": 0.95
+      }
+    ]
+  },
+  {
+    "id": "c04",
+    "title": "When should the customer be home?",
+    "sourceChapters": [
+      "c04"
+    ],
+    "beats": [
+      {
+        "id": "c04-b01",
+        "say": "Back on the original noon receipt, the customer wants a time. Look up completed trips on the same route and service tier. Each trip must have lasted longer than the two hours this package has already traveled.",
+        "hold": 0.3
+      },
+      {
+        "id": "c04-b02",
+        "say": "Look at today's four-hour trip. Delivery happens at one and the confirmation arrives at one oh five. Both times fall after our noon snapshot. Keep that trip outside the comparison.",
+        "hold": 0.8
+      },
+      {
+        "id": "c04-b03",
+        "say": "These four trips met both cutoff checks. They took eight, ten, twelve and fourteen hours from pickup. Find the midpoint of the two middle bars. With a ten o'clock pickup, where does that put the arrival?",
+        "hold": 2
+      },
+      {
+        "id": "c04-b04",
+        "say": "Nine this evening. The middle durations average eleven hours. Add those hours to pickup. The four trips span six in the evening to midnight on this clock. Put the count and observed range beside the estimate so the customer can see where it came from.",
+        "hold": 0.3
+      },
+      {
+        "id": "c04-b05",
+        "say": "What if we change routes and none of those trips match? With zero eligible trips, leave the estimate empty and send the case for review.",
+        "hold": 0.9
+      }
+    ]
+  },
+  {
+    "id": "c05",
+    "title": "Which clock starts the estimate?",
+    "sourceChapters": [
+      "c05"
+    ],
+    "beats": [
+      {
+        "say": "Follow the printed street from the ten o'clock pickup to the customer's house. The van is at noon. Each panel is one hour. Where would the house land if we started all eleven at noon?",
+        "hold": 2.4,
+        "id": "c05-b01"
+      },
+      {
+        "say": "Try starting the whole trip at noon. Eleven tonight. See the red depot twice? We counted two hours twice.",
+        "hold": 1,
+        "id": "c05-b02"
+      },
+      {
+        "say": "Leave the van at noon. Where would the house land if we folded away the two hours already traveled?",
+        "hold": 2.2,
+        "id": "c05-b03"
+      },
+      {
+        "say": "Fold those two hours under the van. The house lands at nine tonight. Eleven hours from pickup, nine remaining from noon. A remaining-time model starts at the snapshot.",
+        "hold": 1,
+        "id": "c05-b04"
+      },
+      {
+        "id": "c05-b05",
+        "say": "Imagine slipping one more delivery into the four sorted journeys. With exchangeable observations and no ties, its five possible ranks are equally likely. The two outside positions would set a new extreme. That leaves three inside.",
+        "hold": 0.3
+      },
+      {
+        "id": "c05-b06",
+        "say": "The old range covers three out of five, or sixty percent, across such histories. Those four trips alone can't give this customer a ninety percent window.",
+        "hold": 0.8
+      },
+      {
+        "id": "c05-b07",
+        "say": "Squared error favors the conditional mean. A linear fit can miss it. To aim for a high percentile, charge more for guessing too early. At the ninetieth percentile, a two-hour underestimate costs one point eight, and a two-hour overestimate costs point two. That's pinball loss.",
+        "hold": 0.3
+      },
+      {
+        "id": "c05-b08",
+        "say": "Fit the fifth and ninety-fifth percentiles for a nominal ninety percent interval. Separate fits can cross. Put the lower endpoint first. Then count held-out deliveries between the two endpoints. If eight of ten land inside, the measured coverage on those ten is eighty percent.",
+        "hold": 0.75
+      }
+    ]
+  },
+  {
+    "id": "c06",
+    "title": "How wide a window can the errors support?",
+    "sourceChapters": [
+      "c06"
+    ],
+    "beats": [
+      {
+        "id": "c06-b01",
+        "say": "Fit the arrival predictor first. Then open a separate group of recorded deliveries. Measure the absolute difference between each prediction and its actual duration. An early miss and a late miss of the same size have equal length. Sort those errors from shortest to longest.",
+        "hold": 0.3
+      },
+      {
+        "id": "c06-b02",
+        "say": "For a ninety percent window, multiply the number of errors plus one by point nine, then round up. That gives the rank of the error to use as a radius.",
+        "hold": 0.85
+      },
+      {
+        "say": "We have four sorted errors of one, two, three and four hours. Multiply five by point nine and round up. Reach for the fifth error. What radius can you take from that slot?",
+        "hold": 3,
+        "id": "c06-b03"
+      },
+      {
+        "say": "There is no fifth error. The rule gives an unbounded radius. Stopping at four hours would change the coverage guarantee. Try a larger untouched group with errors from one through nine hours.",
+        "hold": 1.2,
+        "id": "c06-b04"
+      },
+      {
+        "id": "c06-b05",
+        "say": "Ten times point nine gives rank nine. The ninth error gives a nine-hour radius.",
+        "hold": 0.95
+      },
+      {
+        "id": "c06-b06",
+        "say": "Start at eleven hours. Nine hours to the left gives two. Nine to the right gives twenty. With four errors we had to report an unbounded window. With nine, we can draw both ends.",
+        "hold": 0.3
+      },
+      {
+        "id": "c06-b07",
+        "say": "If the calibration errors and the next error are exchangeable, these windows cover at least ninety percent of deliveries across draws. An individual route can fall short. When a route slows down, check later deliveries against their windows.",
+        "hold": 0.3
+      },
+      {
+        "id": "c06-b08",
+        "say": "Track the number delivered, the fraction inside, and the widths. Repeat those checks if you move the calibration window forward.",
+        "hold": 0.8
+      }
+    ]
+  },
+  {
+    "id": "c07",
+    "title": "Will tracking propose a warning?",
+    "sourceChapters": [
+      "c07"
+    ],
+    "beats": [
+      {
+        "id": "c07-b01",
+        "say": "A warning needs current evidence. Order two oh four has a four-hour-old scan. Its backlog report is twelve hours old. The supplied risk is seventy-five percent and the warning threshold is forty percent. The scan limit is twenty-four hours. Find the backlog limit on the ruler. Where should this order go?",
+        "hold": 2
+      },
+      {
+        "id": "c07-b02",
+        "say": "Send it to manual review. The backlog report exceeds its eight-hour limit. The router stops there. It keeps the score and records stale backlog features as the reason.",
+        "hold": 0.8
+      },
+      {
+        "id": "c07-b03",
+        "say": "Try the same fixture with a newer backlog report. Its age is seven hours. Keep the scan, score and threshold fixed. Which action gets through now?",
+        "hold": 2
+      },
+      {
+        "id": "c07-b04",
+        "say": "Propose a customer warning. Both ages pass, so the router can compare seventy-five percent with forty percent. A fresh score below threshold gives normal tracking. A missing age, a schema mismatch or an invalid probability needs its own review reason. The harness records proposals. Sending a notification would be a separate action.",
+        "hold": 0.85
+      },
+      {
+        "id": "c07-b05",
+        "say": "Compare order two oh three. Its backlog report is just two hours old, but its scan is thirty-one hours old. Even with an eighty-one percent risk, this one goes to manual review for stale scan features. The reason tells the operator which source to check.",
+        "hold": 1
+      }
+    ]
+  },
+  {
+    "id": "c08",
+    "title": "Which order costs each policy the most?",
+    "sourceChapters": [
+      "c08"
+    ],
+    "beats": [
+      {
+        "id": "c08-b01",
+        "say": "Each mark is a shipment whose outcome we know. Move right for an older scan and up for a higher risk. The diamonds are the two late deliveries. The age rule warns when the last scan is at least eighteen hours old. Which late delivery does it miss?",
+        "hold": 2.1
+      },
+      {
+        "id": "c08-b02",
+        "say": "The expedited order, three oh one. Its last scan was only five hours old. Missing it costs a hundred fifty units. The standard late order gets a warning. Both on-time orders get normal tracking, so every other age-rule charge is zero.",
+        "hold": 0.85
+      },
+      {
+        "id": "c08-b03",
+        "say": "Keep all four orders in place. Now warn at or above a risk of forty percent. Both late orders clear that line. Which on-time customer also gets a warning?",
+        "hold": 2
+      },
+      {
+        "id": "c08-b04",
+        "say": "Order three oh four. Its score is fifty-eight percent and it arrived on time. That false warning costs eight units. On these four supplied scores, the age rule pays a hundred fifty and the score rule pays eight, with zero expedited misses. This checks our accounting. We still need to evaluate a fitted model.",
+        "hold": 1
+      }
+    ]
+  },
+  {
+    "id": "c09",
+    "title": "What would a warning cost?",
+    "sourceChapters": [
+      "c09"
+    ],
+    "beats": [
+      {
+        "id": "c09-b01",
+        "say": "Imagine a standard shipment with a calibrated twenty percent chance of being late. A correct call costs zero. If we warn, we pay eight units only when it's on time. Eighty percent of eight is six point four.",
+        "hold": 0.3
+      },
+      {
+        "id": "c09-b02",
+        "say": "If we stay silent, we pay sixty only when it's late. Twenty percent of sixty is twelve. Warning has the lower expected cost.",
+        "hold": 0.9
+      },
+      {
+        "id": "c09-b03",
+        "say": "Call the late probability p. The two costs meet when one minus p times the false-warning penalty equals p times the missed-delay penalty. Solve for p. Divide the false-warning cost by the sum of the two penalties.",
+        "hold": 0.3
+      },
+      {
+        "id": "c09-b04",
+        "say": "For standard service that is eight divided by sixty-eight, about eleven point eight percent. Missing an expedited delivery costs a hundred fifty units. Eight divided by a hundred fifty-eight gives a lower cutoff, just over five percent.",
+        "hold": 0.8
+      },
+      {
+        "id": "c09-b05",
+        "say": "Zoom in on that expedited boundary. Five percent falls just short. Five point one percent clears it. Compare the full precision values before rounding for display. This rule assumes calibrated risks, two available actions and enough capacity to warn. A warning doesn't make a truck arrive sooner.",
+        "hold": 0.3
+      },
+      {
+        "id": "c09-b06",
+        "say": "Suppose handling each warning takes another three units of staff time, even for a correct warning. Add three to the expected cost of warning. At twenty percent standard risk, that gives nine point four against twelve for staying silent. For a fitted policy, the lab compares costs on validation data.",
+        "hold": 1
+      }
+    ]
+  },
+  {
+    "id": "c10",
+    "title": "What changes when the threshold moves?",
+    "sourceChapters": [
+      "c10"
+    ],
+    "beats": [
+      {
+        "say": "Find the on-time order with a fifty-eight percent score. At forty percent it gets a warning that costs eight units. Move the cutoff to fifty-nine percent. Which charge disappears?",
+        "hold": 2.2,
+        "id": "c10-b01"
+      },
+      {
+        "say": "The false warning disappears. Both late orders still get warned. Now try sixty-five percent, just above the standard late order's score. What would silence cost?",
+        "hold": 2.2,
+        "id": "c10-b02"
+      },
+      {
+        "say": "We miss the standard delivery for sixty units. At eighty percent, the expedited order also loses its warning. The zero expedited misses gate now fails.",
+        "hold": 1.2,
+        "id": "c10-b03"
+      },
+      {
+        "id": "c10-b04",
+        "say": "Sixty for the standard miss plus a hundred fifty for the expedited miss comes to two hundred ten. We saved an eight-unit warning and picked up two expensive misses. To choose a policy, fit on earlier deliveries, compare costs on validation data, then freeze the cutoff before opening the test outcomes.",
+        "hold": 0.9
+      }
+    ]
+  },
+  {
+    "id": "c11",
+    "title": "Was the answer known when training began?",
+    "sourceChapters": [
+      "c11"
+    ],
+    "beats": [
+      {
+        "id": "c11-b01",
+        "say": "The lab gives each of a hundred thirty-six synthetic shipments one snapshot. Look at shipment seventy-nine. Its prediction is dated March twenty-first at noon. Fitting starts the next day at noon. The delivery label reaches the trainer eight minutes later. Can this shipment teach the model at that fit?",
+        "hold": 2.05
+      },
+      {
+        "id": "c11-b02",
+        "say": "Leave it out. Both the prediction and recorded label must precede fitting. Eight more shipments fall in the two four-day gaps. That leaves seventy-nine for training, twenty-four for validation and twenty-four for testing. The validation labels must arrive before the April nineteenth policy freeze.",
+        "hold": 0.3
+      },
+      {
+        "id": "c11-b03",
+        "say": "Give test labels until the May twenty-first evaluation. The gaps alone can't guarantee that a label has arrived.",
+        "hold": 0.8
+      },
+      {
+        "id": "c11-b04",
+        "say": "On the five allowed features, fit the classifier's scaler and logistic weights using only training rows. Fit a least-squares model on the raw features for remaining hours. Freeze both. Price four thresholds on the later validation rows. Forty percent has the lowest cost, sixteen units.",
+        "hold": 0.3
+      },
+      {
+        "id": "c11-b05",
+        "say": "Lock that threshold. If costs tie, the lab takes the larger threshold. Only now open the test cohort.",
+        "hold": 0.9
+      },
+      {
+        "id": "c11-b06",
+        "say": "This split tests one later period. A rolling-origin evaluation would refit at several cutoffs. Shuffling can put later freight conditions into training. With repeated snapshots, decide whether you're evaluating new shipments or later forecasts for the same shipment. Report exclusions and allow enough follow-up, or short trips can dominate your mature labels.",
+        "hold": 0.75
+      }
+    ]
+  },
+  {
+    "id": "c12",
+    "title": "Open the frozen test predictions",
+    "sourceChapters": [
+      "c12"
+    ],
+    "beats": [
+      {
+        "id": "c12-b01",
+        "say": "Look at test shipment one thirty-three. These bars show how its five features move the classifier's log odds. Its scan age pushes up. Its recent backlog reading pulls down. The service tier pulls down too, as does elapsed transit. The time left to the promise pushes up.",
+        "hold": 0.3
+      },
+      {
+        "id": "c12-b02",
+        "say": "Add those contributions to the intercept. The log odds come to about minus one point zero eight. The logistic curve converts that to about twenty-five percent late risk. Under the frozen forty percent policy, tracking stays silent.",
+        "hold": 0.85
+      },
+      {
+        "id": "c12-b03",
+        "say": "Set the clock at noon on May fourteenth. The original promise is just before eleven tonight. The separate arrival model puts the doorbell at about eight twenty-two. Now open the delivery record. It reached the door at eleven thirty-one, about thirty-seven minutes past the promise.",
+        "hold": 0.3
+      },
+      {
+        "id": "c12-b04",
+        "say": "The arrival estimate missed by a little over three hours. The silent expedited shipment costs a hundred fifty units. A false warning on shipment one twenty-six adds eight. Together they cost a hundred fifty-eight. Now open the other test records. Eleven orders arrived on time.",
+        "hold": 0.3
+      },
+      {
+        "id": "c12-b05",
+        "say": "With eight units per false warning and zero for a correct warning, what would it cost to warn everyone?",
+        "hold": 2.25
+      },
+      {
+        "id": "c12-b06",
+        "say": "Keep all twenty-four test orders. Thirteen were late, eleven on time. The age rule costs fourteen hundred ten. Always staying silent costs the same. Warning everyone catches all thirteen late deliveries. Each of the eleven on-time orders costs eight units. That's eighty-eight.",
+        "hold": 0.3
+      },
+      {
+        "id": "c12-b07",
+        "say": "The fitted policy beats the age rule and loses to this simple alternative. It missed one of seven expedited late deliveries and zero of six standard late deliveries. Those are small samples.",
+        "hold": 0.9
+      },
+      {
+        "id": "c12-b08",
+        "say": "Compare arrival errors on those same test orders. The training median for each tier misses by four point two hours on average. The fitted arrival model cuts that to about two and a half. The warning policy still fails the declared cost gate. Hold this release. Synthetic shipments alone could never authorize a production launch.",
+        "hold": 0.3
+      },
+      {
+        "id": "c12-b09",
+        "say": "Changing the policy after seeing these mistakes would use up the test set. Develop on separate data and evaluate again on representative shipments.",
+        "hold": 1
+      },
+      {
+        "id": "c12-b10",
+        "say": "Here's a different question about those same decisions. Suppose a false warning cost twenty units. Keep every prediction fixed. Which policy would be cheaper now?",
+        "hold": 2.1
+      },
+      {
+        "id": "c12-b11",
+        "say": "The fitted policy would cost a hundred seventy. It still owns one expedited miss and one false warning. Warning everyone would cost two hundred twenty. The ranking flips because we changed the price of a false warning. The original evaluation and the decision to hold still stand.",
+        "hold": 0.95
+      }
+    ]
+  },
+  {
+    "id": "c13",
+    "title": "Can the saved model reproduce that score?",
+    "sourceChapters": [
+      "c13"
+    ],
+    "beats": [
+      {
+        "id": "c13-b01",
+        "say": "To replay that quiet tracking page, reload the lab's model file and the original inputs. Read the features in the saved order. For each, subtract its training mean, divide by its training scale and multiply by its frozen weight. Add the intercept and apply the logistic function.",
+        "hold": 0.3
+      },
+      {
+        "id": "c13-b02",
+        "say": "The arrival model has its own coefficients for the raw features. Keep the dataset, parameters, predictions and report together.",
+        "hold": 0.8
+      },
+      {
+        "id": "c13-b03",
+        "say": "Check the schema, feature order and vector lengths on reload. The parameters must be finite numbers, the scales positive, and the threshold between zero and one. The lab compares the reloaded scores with both original estimators on the test rows.",
+        "hold": 0.3
+      },
+      {
+        "id": "c13-b04",
+        "say": "A fingerprint tells you which bytes you loaded. Verify who supplied them, retain an immutable run directory and lock the dependencies as well.",
+        "hold": 0.8
+      },
+      {
+        "id": "c13-b05",
+        "say": "At the service boundary, check the order ID, UTC scoring instant, expected model, feature contract, tier and both ages. Order two oh five has a nonfinite risk. Replace it with one point four. That exceeds the largest possible probability. A Boolean value also fails.",
+        "hold": 0.3
+      },
+      {
+        "id": "c13-b06",
+        "say": "Route the invalid risk to manual review. Encode unavailable numbers as null so the response is valid JSON. Keep the named reason and the supplied value when it is a finite number. Replay also needs the trusted schedule and source records.",
+        "hold": 0.9
+      },
+      {
+        "id": "c13-b07",
+        "say": "Here is order two oh one's noon response. The saved model and feature IDs match the expected versions. The threshold policy has an ID too. All five fields carry a value, so the version check passes. Remove just the threshold policy ID. Does this trace still pass the version check?",
+        "hold": 2.1
+      },
+      {
+        "id": "c13-b08",
+        "say": "The versioned trace check fails. We still have the score. We need the missing policy to reconstruct the action. Keep its ID and the configuration it names with the original snapshot and model.",
+        "hold": 1
+      }
+    ]
+  },
+  {
+    "id": "c14",
+    "title": "When can we measure warning quality?",
+    "sourceChapters": [
+      "c14"
+    ],
+    "beats": [
+      {
+        "id": "c14-b01",
+        "say": "Four shipments just got scores. Right now we know the input ages, missing fields, serving version, latency and fallback counts. The label spaces are empty. Even a customer who hasn't complained yet might get a late delivery. What belongs in the observed late fraction today?",
+        "hold": 1.9
+      },
+      {
+        "id": "c14-b02",
+        "say": "Leave the fraction pending. Match each delivered label to the original prediction and promise. A false warning or a missed delay can now incur its charge. Keep all four scoring rows fixed while those confirmations arrive.",
+        "hold": 0.8
+      },
+      {
+        "id": "c14-b03",
+        "say": "Take these four illustrative scores as one bucket. Their mean predicted risk is thirty percent. Here come the labels. The first was late. The second was on time. The third was late. The fourth was on time. Two of the four arrived after the original promise. The observed late fraction is one half. Plot that pair with its count.",
+        "hold": 0.3
+      },
+      {
+        "id": "c14-b04",
+        "say": "With more data, examine reliability by route and tier, alongside widths and warning penalties. A Brier score measures overall probability error, including more than calibration.",
+        "hold": 0.95
+      }
+    ]
+  },
+  {
+    "id": "c15",
+    "title": "Which version answered the request?",
+    "sourceChapters": [
+      "c15"
+    ],
+    "beats": [
+      {
+        "id": "c15-b01",
+        "say": "Suppose the next model passes its cost and slice checks on representative deliveries. An operator changes the registry alias to version three. Follow the request. It returns version two's fingerprint. Which version served that customer?",
+        "hold": 2
+      },
+      {
+        "id": "c15-b02",
+        "say": "Version two served the request. To put version three into service, load compatible workers with the new preprocessing, schema, model and policy. Wait for readiness. Route a request to them and verify the returned fingerprint.",
+        "hold": 0.9
+      },
+      {
+        "id": "c15-b03",
+        "say": "For a recovery drill, keep the complete prior bundle and capacity to load it. Get version two ready, switch traffic back, then probe the routed worker. Check the old fingerprint and measure recovery time. A warning sent before the switch still reached its customer.",
+        "hold": 0.3
+      },
+      {
+        "id": "c15-b04",
+        "say": "Its original snapshot, model bytes and policy are what let you explain it.",
+        "hold": 1
+      }
+    ]
+  },
+  {
+    "id": "c16",
+    "title": "Replay a fresh tracking receipt",
+    "sourceChapters": [
+      "c16"
+    ],
+    "beats": [
+      {
+        "say": "One last parcel. It left at nine. Follow the carrier and the tracking service separately. The transit scan happens at eleven thirty and reaches tracking at eleven forty. At noon the hub scans the parcel. Watch when that second entry appears in tracking.",
+        "hold": 1,
+        "id": "c16-b01"
+      },
+      {
+        "say": "At one, the hub entry is still missing. It reaches tracking at one fifteen. Now replay the one o'clock snapshot. Which scan could the service use, and how old was it?",
+        "hold": 3,
+        "id": "c16-b02"
+      },
+      {
+        "id": "c16-b03",
+        "say": "Use the eleven thirty transit scan. At one it's an hour and a half old. Now look at the four matching journeys. Their durations run from pickup, and this parcel left at nine. What arrival time do the two middle trips give you?",
+        "hold": 2.3
+      },
+      {
+        "id": "c16-b04",
+        "say": "The middle journeys average eleven hours. Count forward from the nine o'clock pickup. That puts the arrival at eight tonight. The fastest of the four would arrive at three this afternoon, the slowest at one tomorrow morning. Both the scan and the three-hour-old backlog report are fresh.",
+        "hold": 0.3
+      },
+      {
+        "id": "c16-b05",
+        "say": "The score is fifty-two percent. At a forty percent cutoff, with both ages inside their limits, what should tracking propose?",
+        "hold": 2.6
+      },
+      {
+        "id": "c16-b06",
+        "say": "Propose a customer warning. Fifty-two clears forty. Change only the warning policy to sixty percent. Would the ETA change, the warning, or both?",
+        "hold": 2.05
+      },
+      {
+        "id": "c16-b07",
+        "say": "The proposal switches to normal tracking. The eight o'clock estimate stays put. Save the policy ID and its threshold alongside the snapshot time, source records, feature contract and model. Then you can reconstruct both proposals from the evidence tracking had at one. In product ranking, the corresponding record includes the list the shopper saw before they clicked.",
+        "hold": 2
+      }
+    ]
+  }
+]

@@ -1,0 +1,15 @@
+{
+  "framing": "Shared tools still enforce permission checks in the host",
+  "paragraphs": [
+    "Suppose three model-backed applications need to check whether release reranker-v17 is healthy. Separate hand-built adapters drift whenever the underlying deployment API changes, whereas one shared Model Context Protocol server lets every application talk through a single wire interface. Even with a common protocol, the host still decides which callers may inspect a release or alter live traffic.",
+    "Protocol standardization does not collapse client and server responsibilities. A local stdio server can still write diagnostics onto standard output and corrupt framed JSON-RPC messages, while a remote HTTP endpoint can receive an OAuth token issued for a completely different resource audience. A tool discovered during session setup may fit the user's question semantically yet remain forbidden for that caller's role. Keep transport validation, caller identity, scope, and consent under explicit host and server checks.",
+    "Trace the health check end to end across the wire before relying on an SDK wrapper. Distinguish the model's unverified tool request inside the host from the approved JSON-RPC call sent by a dedicated client, and reject even a schema-valid response if its target release mismatches what was asked. Moving from line-delimited local stdio to Streamable HTTP changes header and browser-origin checks without relaxing authorization.",
+    "The previous function-calling chapter showed how a single application validates tool arguments and checks caller scope in process, and MCP extends that discipline across separate processes and remote services. Once larger catalogs and retrieved resources share one context window, the next long-context chapter examines how to select and budget what reaches the model. Treat every external server as an unprivileged dependency: inspect its catalog, verify the authenticated caller, and gate every invocation explicitly."
+  ],
+  "outcomes": [
+    "Trace host, client, and server responsibilities across an MCP request and response.",
+    "Validate transport framing, Origin headers, token audience, and caller scope before invoking server tools.",
+    "Audit dynamic tool catalogs and evaluate complete trajectories without treating socket reachability as permission."
+  ],
+  "question": "When a client connects to an MCP server and lists a matching tool, what checks still separate discovery from safe execution?"
+}

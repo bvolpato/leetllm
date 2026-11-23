@@ -1,0 +1,654 @@
+[
+  {
+    "id": "c01",
+    "title": "Would you teach this reply?",
+    "sourceChapters": [
+      "c01"
+    ],
+    "beats": [
+      {
+        "id": "c01-b01",
+        "say": "Watch this service key age. At fourteen days it is right on the line. By day eighteen it is past it. Our example policy sends keys older than fourteen days to security for review. The proposed answer says, “Rotation can wait until next month.” Would you teach the model that reply?",
+        "hold": 4
+      },
+      {
+        "id": "c01-b02",
+        "say": "Replace the reply with “Open a rotation ticket for security review.” Put that answer in the demonstration. Opening the ticket starts a review. Approval is still pending. Only security decides whether access can continue.",
+        "hold": 1.4
+      },
+      {
+        "id": "c01-b03",
+        "say": "Try putting the policy in the prompt, or retrieving it when the user asks. Compare replies on new cases. If the assistant can read the rule and still misses the procedure, train it to predict the approved reply one token at a time. That is supervised fine-tuning.",
+        "hold": 0.3
+      },
+      {
+        "id": "c01-b04",
+        "say": "If loss falls and the assistant still says wait, check the split, the labels and the checkpoint before changing the learning rate.",
+        "hold": 0.9
+      }
+    ]
+  },
+  {
+    "id": "c02",
+    "title": "Which incident belongs in validation?",
+    "sourceChapters": [
+      "c02"
+    ],
+    "beats": [
+      {
+        "id": "c02-b01",
+        "say": "Give each demonstration a request, an approved answer and an incident ID. Keep T one oh two. The next row has an empty answer. The last has no incident ID. Set those two aside before tokenizing anything.",
+        "hold": 0.8
+      },
+      {
+        "id": "c02-b02",
+        "say": "Here are two turns of the same incident. One asks about the key. The other asks who approves the rotation. Put both in training with P seven seven one. Hold out R five fifty. The lists of incident IDs now have no overlap.",
+        "hold": 0.8
+      },
+      {
+        "id": "c02-b03",
+        "say": "Now suppose T one oh two and R five fifty both cite document D one. We held out an incident, but the document crossed the split. For an unseen-document test, keep cases connected by the same document together. Deduplicate across groups, check time windows at a chronological cutoff, and reserve a final test until checkpoint selection is over.",
+        "hold": 1.1
+      }
+    ]
+  },
+  {
+    "id": "c03",
+    "title": "What belongs in the demonstration?",
+    "sourceChapters": [
+      "c03"
+    ],
+    "beats": [
+      {
+        "id": "c03-b01",
+        "say": "Take the approved reply from our training incident. To see where the loss comes from, we’ll represent the words “Open a rotation ticket for security review” with two pieces, open and ticket. These are teaching symbols. A real tokenizer would split that sentence differently.",
+        "hold": 0.8
+      },
+      {
+        "id": "c03-b02",
+        "say": "The text is complete. How will the model learn where to stop? Include the turn-ending token in the demonstration. We’ll call it end. Predicting that token after ticket is part of the job.",
+        "hold": 1.1
+      }
+    ]
+  },
+  {
+    "id": "c04",
+    "title": "Put the incident in the model’s format",
+    "sourceChapters": [
+      "c04"
+    ],
+    "beats": [
+      {
+        "id": "c04-b01",
+        "say": "Keep the roles attached. The system supplies the policy, the user supplies the age, and the assistant supplies the approved reply. The checkpoint’s chat template puts those messages into a single sequence. Follow the order along the bottom.",
+        "hold": 0.9
+      },
+      {
+        "id": "c04-b02",
+        "say": "Position four marks the beginning of the assistant’s turn. The reply starts at five. In a real checkpoint, spaces, newlines and special IDs can all mark boundaries. Render a complete training exchange once, tokenize it, and check the IDs against the text. Save the template and tokenizer revisions together.",
+        "hold": 0.9
+      },
+      {
+        "id": "c04-b03",
+        "say": "Switch to serving. For a new reply, render the request with the template’s generation header if it provides one. For a partial reply, keep the words already supplied and continue after them. Compare the last position in those two inputs.",
+        "hold": 0.3
+      },
+      {
+        "id": "c04-b04",
+        "say": "Adding another header would start the wrong turn. Check for duplicate special tokens when you tokenize formatted text.",
+        "hold": 0.95
+      }
+    ]
+  },
+  {
+    "id": "c05",
+    "title": "Where does the first prediction come from?",
+    "sourceChapters": [
+      "c05"
+    ],
+    "beats": [
+      {
+        "id": "c05-b01",
+        "say": "We know the first word of the approved reply. Find open at position five. To predict it, the model can read the user’s age and the assistant marker. Which position gives us the scores for open?",
+        "hold": 2.8
+      },
+      {
+        "id": "c05-b02",
+        "say": "Use position four. Its scores predict open, one place to the right. Now give the model the approved word open. Its scores predict ticket. Give it ticket and the next target is end. Supplying the known prefix at every step is called teacher forcing.",
+        "hold": 1.1
+      },
+      {
+        "id": "c05-b03",
+        "say": "Print the input positions beside their targets. You should see four, five and six predicting five, six and seven. If your trainer shifts internally, give it the labels in their original positions. Shifting them yourself as well would move every prediction one place too far.",
+        "hold": 0.8
+      }
+    ]
+  },
+  {
+    "id": "c06",
+    "title": "Which labels contribute to the loss?",
+    "sourceChapters": [
+      "c06"
+    ],
+    "beats": [
+      {
+        "id": "c06-b01",
+        "say": "Send the whole conversation through the model. All eight positions stay on the input track. We grade the assistant’s words and the end of its turn. Set the five context labels to minus one hundred, the ignore index for this loss. Which parts of the prompt can still help predict ticket?",
+        "hold": 1
+      },
+      {
+        "id": "c06-b02",
+        "say": "Trace ticket back to its predictor. The model is at open. It can still read everything from the policy through open, including the user’s eighteen days. That is how a prompt with ignored labels can shape the reply. Gradients from the reply can flow through the weights that processed the prompt.",
+        "hold": 1.1
+      },
+      {
+        "id": "c06-b03",
+        "say": "Open, ticket and end each contribute one prediction. If the objective covers several assistant turns, repeat this check at each supervised span. Print the labels after batching and length limits have been applied. Those are the labels the loss function gets.",
+        "hold": 0.85
+      }
+    ]
+  },
+  {
+    "id": "c07",
+    "title": "What does this example contribute?",
+    "sourceChapters": [
+      "c07"
+    ],
+    "beats": [
+      {
+        "id": "c07-b01",
+        "say": "Use these three supplied probabilities. The model gave open sixty percent, ticket seventy percent and end eighty percent, each after its own prefix. A less likely target costs more. Take the negative natural log of each probability to get its loss.",
+        "hold": 0.9
+      },
+      {
+        "id": "c07-b02",
+        "say": "Include all three targets. Their losses add to about one point zero nine one. Divide by three. Each target gets an equal vote, and the mean is about point three six four.",
+        "hold": 1.25
+      },
+      {
+        "id": "c07-b03",
+        "say": "Keep the same probabilities. Suppose a collator accidentally ignores the end label. Which term leaves the mean, and what changes in the divisor?",
+        "hold": 2.7
+      },
+      {
+        "id": "c07-b04",
+        "say": "The stop term drops out. Now there are two targets. The mean rises to about point four three four because we removed the easiest prediction. The model read the same input both times. Only the second set of labels lost the direct signal for stopping.",
+        "hold": 1.25
+      }
+    ]
+  },
+  {
+    "id": "c08",
+    "title": "When the stop ID also means padding",
+    "sourceChapters": [
+      "c08"
+    ],
+    "beats": [
+      {
+        "id": "c08-b01",
+        "say": "Here’s one way to lose that stop term. In this toy batch the end token has ID two. To make the row as long as its neighbors, the collator also uses two for right padding. Look at the three identical IDs. Which one belongs in the loss?",
+        "hold": 3
+      },
+      {
+        "id": "c08-b02",
+        "say": "Keep ID two at the end of the real reply. Ignore the two padded positions to its right. A rule that masks every occurrence of ID two would erase a real target. Use the padding positions when you build the labels.",
+        "hold": 1.2
+      },
+      {
+        "id": "c08-b03",
+        "say": "Check the dataset format too. In T R L one point seventeen, prompt and completion fields default to completion-only loss. Plain messages use full-sequence loss by default. For assistant turns only, enable assistant-only loss with a template that identifies its generation spans. Inspect a collated row to see which labels survived.",
+        "hold": 0.85
+      }
+    ]
+  },
+  {
+    "id": "c09",
+    "title": "Did a usable target survive?",
+    "sourceChapters": [
+      "c09"
+    ],
+    "beats": [
+      {
+        "id": "c09-b01",
+        "say": "A four-position check makes the shift easy to verify. The answer is ID two and the stop is ID three. Give all four vocabulary entries equal scores.",
+        "hold": 0.3
+      },
+      {
+        "id": "c09-b02",
+        "say": "Each target gets probability one quarter and loss equal to the natural log of four, about one point three eight six. On the score tensor, only rows one and two receive direct loss gradients.",
+        "hold": 0.95
+      },
+      {
+        "id": "c09-b03",
+        "say": "Return to our incident and set a length limit of five. The context fills the row. Truncation removes the entire reply. Count usable labels after the shift. Even a label in position zero of an isolated row has no predictor.",
+        "hold": 0.3
+      },
+      {
+        "id": "c09-b04",
+        "say": "Reject or reformat rows with zero usable labels and count how many you dropped. An empty row in a mixed batch costs work. An entire batch of ignored targets gives an undefined mean, reported as NaN by PyTorch.",
+        "hold": 1
+      }
+    ]
+  },
+  {
+    "id": "c10",
+    "title": "Why did the reported mean fall?",
+    "sourceChapters": [
+      "c10"
+    ],
+    "beats": [
+      {
+        "id": "c10-b01",
+        "say": "Here the answer losses are two point two and one point eight. Their mean is two. Switch on scoring for five easy prompt targets from a longer exchange. Together they add only point one seven to the sum, yet they add five to the count.",
+        "hold": 0.3
+      },
+      {
+        "id": "c10-b02",
+        "say": "The combined mean falls to about point five nine six. Look back at the answer bars. Neither moved.",
+        "hold": 1.1
+      },
+      {
+        "id": "c10-b03",
+        "say": "At eight hundred prompt positions and thirty reply positions, the prompt supplies about ninety-six percent of the terms in that mean. Each term can have a different gradient. A study on Llama models found that fractional prompt weights helped on some short-completion tasks.",
+        "hold": 0.3
+      },
+      {
+        "id": "c10-b04",
+        "say": "For this assistant, report response loss separately and compare the alternatives on the same held-out behavior.",
+        "hold": 1
+      }
+    ]
+  },
+  {
+    "id": "c11",
+    "title": "Which weights should learn from the reply?",
+    "sourceChapters": [
+      "c11"
+    ],
+    "beats": [
+      {
+        "id": "c11-b01",
+        "say": "We chose demonstrations because the assistant could read the policy and still missed the procedure. If the trouble were unfamiliar vocabulary, continued pretraining on domain text would be worth testing. If people were ranking several acceptable replies, preference training would use those comparisons. Those choices change the learning signal.",
+        "hold": 0.8
+      },
+      {
+        "id": "c11-b02",
+        "say": "Keep our response loss fixed. Backpropagation gives the optimizer a direction that favors the approved next tokens. Which weights can take that step? Full tuning can update every eligible model weight. With LoRA, freeze the base and train two small matrices whose product changes the layer’s output.",
+        "hold": 0.3
+      },
+      {
+        "id": "c11-b03",
+        "say": "Their rank and the layers you attach them to determine how many weights can move. With QLoRA the frozen base also takes less space because it’s stored in four bits.",
+        "hold": 0.9
+      },
+      {
+        "id": "c11-b04",
+        "say": "The original QLoRA recipe used NormalFloat four, quantized scaling constants and paged optimizers. The base is dequantized for computation. Check the compute and adapter precisions separately. Activations and adapter optimizer state still take memory.",
+        "hold": 0.3
+      },
+      {
+        "id": "c11-b05",
+        "say": "The original LoRA study on a one-hundred-seventy-five-billion-parameter model reported up to ten thousand times fewer trainable parameters and three times lower GPU memory than full tuning with Adam. Measure your recipe and compare its held-out replies.",
+        "hold": 0.8
+      }
+    ]
+  },
+  {
+    "id": "c12",
+    "title": "Two incidents in one block",
+    "sourceChapters": [
+      "c12"
+    ],
+    "beats": [
+      {
+        "id": "c12-b01",
+        "say": "Each incident occupies three slots in a row that holds six. Slide B into the unused half of A’s row. We now store the same six tokens in one block. The incidents still need independent contexts. Less padding saves slots. Actual speed depends on the attention and padding kernels.",
+        "hold": 0.9
+      },
+      {
+        "id": "c12-b02",
+        "say": "Start at B’s answer. Trace its allowed reads back to B’s prompt and to the answer position itself. The join blocks the path to A. A block-causal mask enforces those reads. Position numbers restart at zero for B. The attention implementation must use that boundary.",
+        "hold": 1
+      },
+      {
+        "id": "c12-b03",
+        "say": "Now start at the end of A. Follow its scores one place right. A global shift would grade A on the first token of B. How can we remove just that prediction?",
+        "hold": 3.2
+      },
+      {
+        "id": "c12-b04",
+        "say": "Mask the label at the start of B. The prompt stays in B’s input, so its answer can still read it. The attention mask controls reading. This ignored label controls grading.",
+        "hold": 1.2
+      }
+    ]
+  },
+  {
+    "id": "c13",
+    "title": "Change one incident and inspect the other",
+    "sourceChapters": [
+      "c13"
+    ],
+    "beats": [
+      {
+        "id": "c13-b01",
+        "say": "Let’s test those reads on six synthetic values. We borrow the incident names for this CPU check. Keep R five fifty out of the actual training loader. Both paths see the same values. With zero queries and keys, every permitted value gets equal weight.",
+        "hold": 0.3
+      },
+      {
+        "id": "c13-b02",
+        "say": "Follow position four in the second incident. The isolated path averages ten and twenty, giving fifteen. The global path can also read the first incident, giving seven point two.",
+        "hold": 1
+      },
+      {
+        "id": "c13-b03",
+        "say": "Suppose we add one hundred to each of A’s three values and leave B alone. Look at which numbers feed each mean. What will position four return on each path?",
+        "hold": 3.3
+      },
+      {
+        "id": "c13-b04",
+        "say": "Make the change. The isolated output stays at fifteen. The global output rises to sixty-seven point two. Three extra hundreds entered a five-value mean. Run this perturbation through the actual collator and attention kernel with dropout off. An unchanged B output is the expected result for this fixture.",
+        "hold": 1.2
+      },
+      {
+        "id": "c13-b05",
+        "say": "The Transformers helper inspected in the article can derive the segment mask from reset positions under eager or scaled dot-product attention, with no supplied attention mask and caching off. Other paths accept an explicit block mask or segment lengths. Check the join labels as well.",
+        "hold": 0.3
+      },
+      {
+        "id": "c13-b06",
+        "say": "Best-fit packing can truncate overflow, splitting can separate an answer from its prompt, and a wrapped stream can lose the independent boundaries entirely.",
+        "hold": 0.9
+      }
+    ]
+  },
+  {
+    "id": "c14",
+    "title": "How much weight does one token get?",
+    "sourceChapters": [
+      "c14"
+    ],
+    "beats": [
+      {
+        "id": "c14-b01",
+        "say": "Build one optimizer update from two microbatches. The first contains one scored token with loss four. The second contains nine scored tokens with loss one each. If every token should count equally, what should we divide their combined loss by?",
+        "hold": 2.5
+      },
+      {
+        "id": "c14-b02",
+        "say": "Divide by ten. The two loss sums are four and nine. Thirteen divided by ten gives one point three. Averaging the two batch means would give two point five instead. That would give the single difficult token as much weight as the other nine put together.",
+        "hold": 1
+      },
+      {
+        "id": "c14-b03",
+        "say": "Accumulate the loss sums and active shifted-target counts over the whole update window. If the window ends after the first microbatch, divide its four by its one actual target. If the window has zero targets, skip or reject the update before dividing. Equal weight per conversation is another possible objective.",
+        "hold": 0.9
+      }
+    ]
+  },
+  {
+    "id": "c15",
+    "title": "What reaches one optimizer update?",
+    "sourceChapters": [
+      "c15"
+    ],
+    "beats": [
+      {
+        "id": "c15-b01",
+        "say": "Four items per worker, eight microbatches and four workers give one hundred twenty-eight loader items in a complete update. If each worker contributes fifteen hundred sixty scored tokens across that window, the update sees sixty-two hundred forty scored tokens. With packing, each item can contain several demonstrations. Count original examples and processed input positions too.",
+        "hold": 0.85
+      },
+      {
+        "id": "c15-b02",
+        "say": "Now halve the local batch to two, double accumulation to sixteen and use eight workers. You get two hundred fifty-six items per update. The smaller local batch hides a doubling in total items. Longer prompts can also cost more work even when the number of scored tokens stays fixed.",
+        "hold": 0.9
+      },
+      {
+        "id": "c15-b03",
+        "say": "Try a two-worker gradient check. Their loss-sum gradients are two and four. Across both workers there are four targets, so the intended gradient is six divided by four. If each worker divides by four and distributed training then averages their gradients, we get point seven five.",
+        "hold": 0.3
+      },
+      {
+        "id": "c15-b04",
+        "say": "Multiply by the worker count once to recover one point five. Check whether the trainer already does this, and test unequal counts and partial windows.",
+        "hold": 1
+      }
+    ]
+  },
+  {
+    "id": "c16",
+    "title": "Compare recipes at the same exposure",
+    "sourceChapters": [
+      "c16"
+    ],
+    "beats": [
+      {
+        "id": "c16-b01",
+        "say": "Before changing the learning rate, freeze the data, template, trainable modules and held-out grader. Give each candidate the same exposure to approved targets. One times ten to the minus four is one adapter rate you could test. Record the schedule, clipping, decay groups, precision and number of updates so you can interpret any difference.",
+        "hold": 0.8
+      },
+      {
+        "id": "c16-b02",
+        "say": "Here is an actual schedule from InstructGPT’s supervised baseline. The search selected learning rates and epoch counts. This run used sixteen epochs, with no warmup, and cosine decay to a tenth of its starting rate. A standard cosine schedule can instead end at zero.",
+        "hold": 0.3
+      },
+      {
+        "id": "c16-b03",
+        "say": "Warmup, when used, reduces early step sizes. Adam still needs its moment bias correction.",
+        "hold": 0.85
+      },
+      {
+        "id": "c16-b04",
+        "say": "With AdamW, weight decay acts separately from the gradient moments. Try a first step with zero decay, a rate of point one and a gradient of two. Clip the gradient to one. The bias-corrected moments are one and one. The weight moves by about point one. Measure both the gradient norm and the resulting parameter change. Compare held-out ticket behavior and regressions on unrelated requests.",
+        "hold": 0.9
+      }
+    ]
+  },
+  {
+    "id": "c17",
+    "title": "Which direction after a restart?",
+    "sourceChapters": [
+      "c17"
+    ],
+    "beats": [
+      {
+        "id": "c17-b01",
+        "say": "Suppose the job stops just after a step. In this scalar AdamW example, a gradient of plus two took the weight from one to about point nine. The learning rate is point one and decay is zero. Save the weight, the step counter and the two moments.",
+        "hold": 0.3
+      },
+      {
+        "id": "c17-b02",
+        "say": "Both branches start at the saved weight, about point nine. Both get the same next gradient, minus one. Restoring the optimizer brings back its moments and step counter. Its first moment is point two. The fresh optimizer starts at zero. To update the first moment, take nine tenths of the old moment and add one tenth of the new gradient. With zero decay, the weight moves opposite the sign of that new moment. Which way will each weight move?",
+        "hold": 5
+      },
+      {
+        "id": "c17-b03",
+        "say": "In the restored branch, the old moment contributes point one eight. The new gradient subtracts a tenth, leaving a first moment of plus point zero eight. That positive moment moves the weight down to about point eight seven three. In the fresh branch, the old moment contributes zero. The gradient contributes the same negative tenth, so the new moment is minus point one zero. That negative moment moves the weight up to about one. Adam corrects both moments for their starting bias before scaling the step.",
+        "hold": 0.3
+      },
+      {
+        "id": "c17-b04",
+        "say": "For the fresh step, those corrected moments are the gradient and its square. That explains the move of about one learning rate.",
+        "hold": 1.1
+      },
+      {
+        "id": "c17-b05",
+        "say": "You can see the same effect with momentum S G D. Multiply old velocity by point nine, add the gradient, then subtract a tenth of the new velocity from the weight.",
+        "hold": 0.3
+      },
+      {
+        "id": "c17-b06",
+        "say": "From saved weight point eight and velocity two, the next gradient of one gives velocity two point eight and weight point five two. Reset the velocity first and the next weight is point seven. Only the history changed.",
+        "hold": 0.9
+      }
+    ]
+  },
+  {
+    "id": "c18",
+    "title": "Can you reproduce the next update?",
+    "sourceChapters": [
+      "c18"
+    ],
+    "beats": [
+      {
+        "id": "c18-b01",
+        "say": "For serving, save the weights, architecture, tokenizer and template. An adapter also needs its configuration and exact base revision. To resume training, add the optimizer moments and counters, schedule, global step, sampler position and random generator states.",
+        "hold": 0.3
+      },
+      {
+        "id": "c18-b02",
+        "say": "Keep the resolved recipe, data and evaluation manifests, best metric, and the loss scaler if the recipe uses one.",
+        "hold": 0.8
+      },
+      {
+        "id": "c18-b03",
+        "say": "A seed can start a shuffle over. Suppose the saved order is C, A, B, and the loader already used C. Which item should come next? Restore the cursor and random state to get A. Open the saved artifacts too. A complete list of names can still point to a missing file.",
+        "hold": 0.85
+      },
+      {
+        "id": "c18-b04",
+        "say": "Run a restore drill next to an uninterrupted run. Use the earlier momentum example. Both take batch A at a rate of point one. Both see loss point five and gradient one, and both reach weight point five two. Reset just the velocity. The next loss and gradient still match, but the weight reaches point seven. Compare through the update within your numerical tolerance. Save just after an optimizer step.",
+        "hold": 0.3
+      },
+      {
+        "id": "c18-b05",
+        "say": "To save midway through accumulation, keep partial gradients and microbatch progress as well.",
+        "hold": 0.95
+      }
+    ]
+  },
+  {
+    "id": "c19",
+    "title": "What needs to fit on one device?",
+    "sourceChapters": [
+      "c19"
+    ],
+    "beats": [
+      {
+        "id": "c19-b01",
+        "say": "Run the pilot on the smallest setup that fits. During training, add gradients, optimizer state, activations and temporary buffers to the weights you already held for inference. If the peak fits one device and the run fits your time budget, use that device to check the data path and a checkpoint restore.",
+        "hold": 0.85
+      },
+      {
+        "id": "c19-b02",
+        "say": "If persistent state exceeds memory, ZeRO stage one shards optimizer state. Stage two also shards gradients. Stage three also shards the weights. Fully sharded data parallel training likewise gathers weights when a layer needs them. That communication costs time. Long contexts may still need smaller microbatches or activation checkpointing.",
+        "hold": 0.9
+      },
+      {
+        "id": "c19-b03",
+        "say": "Even when the model needs sharding, test its example boundaries on a small fixture first. The article’s trainer configuration is a blueprint. Its evaluation loop scores reference tokens. To find out whether the exported assistant follows the policy, we have to let it answer.",
+        "hold": 0.95
+      }
+    ]
+  },
+  {
+    "id": "c20",
+    "title": "What did the checkpoint actually answer?",
+    "sourceChapters": [
+      "c20"
+    ],
+    "beats": [
+      {
+        "id": "c20-b01",
+        "say": "Here is a new validation incident. A service key is twenty-one days old. On the top track we supply the approved prefix, open. We measure how likely ticket is after that word. Can we count that as a policy pass yet? What would we need to see?",
+        "hold": 2.5
+      },
+      {
+        "id": "c20-b02",
+        "say": "Generate from the request alone. In this example the first word is wait. Feed wait back in and the reply continues, “until next month.” The reference track can score well while that generated reply fails the policy. Grade the actual request and completion together.",
+        "hold": 1.2
+      },
+      {
+        "id": "c20-b03",
+        "say": "Score the required action and the output format separately. Include ordinary support requests to catch false refusals or an assistant that opens a ticket for everything. For open-ended replies, use a calibrated rubric or blinded, randomized human comparisons. Keep the final test apart from this validation set.",
+        "hold": 0.85
+      }
+    ]
+  },
+  {
+    "id": "c21",
+    "title": "Which checkpoint earns the next test?",
+    "sourceChapters": [
+      "c21"
+    ],
+    "beats": [
+      {
+        "id": "c21-b01",
+        "say": "These are supplied validation results. Each row belongs to one checkpoint. First require at least ninety-eight percent valid format. Among the rows that pass, choose the highest policy pass rate. Use lower validation loss to break a policy tie, then the earlier step. Which row would you take?",
+        "hold": 3
+      },
+      {
+        "id": "c21-b02",
+        "say": "Step six hundred wins. Its format rate lands exactly on the cutoff, and its generated replies follow policy most often. Step four hundred has the lowest reference loss, but a lower policy pass rate. Keep your eye on the format column for one more case.",
+        "hold": 0.95
+      },
+      {
+        "id": "c21-b03",
+        "say": "Suppose the format requirement rises to one hundred percent. The measured rates and losses stay fixed. Apply the new floor first. Which checkpoint survives now?",
+        "hold": 3.4
+      },
+      {
+        "id": "c21-b04",
+        "say": "Only step four hundred qualifies. If none qualify, take none. In a real report include the number of cases, uncertainty and failure slices. Freeze the choice before running the final test. Reload the exact export and repeat generation checks with its tokenizer, template and base.",
+        "hold": 1.15
+      }
+    ]
+  },
+  {
+    "id": "c22",
+    "title": "Inspect one batch before you scale",
+    "sourceChapters": [
+      "c22"
+    ],
+    "beats": [
+      {
+        "id": "c22-b01",
+        "say": "Before the expensive run, inspect this collated row. The assistant’s reply ends here, and the padding begins. Watch what happens if we ignore every ID that matches the pad ID. The text looks fine. Which prediction just disappeared?",
+        "hold": 2.5
+      },
+      {
+        "id": "c22-b02",
+        "say": "The last answer token lost its stop target. Mask only the padding positions. Now the end label is back. Overfit a small verified batch and generate from its prompts to check the response and stopping settings. Then turn packing on and inspect a join.",
+        "hold": 1.1
+      }
+    ]
+  },
+  {
+    "id": "c23",
+    "title": "From a packed row to a held-out reply",
+    "sourceChapters": [
+      "c23"
+    ],
+    "beats": [
+      {
+        "id": "c23-b01",
+        "say": "One last batch. This time the key is nineteen days old. The approved reply is open, ticket, end. A second, independent user request starts immediately afterward. The collator reports three active targets. Look at the label row and follow the arrows. Which two labels would you change before training?",
+        "hold": 3.5
+      },
+      {
+        "id": "c23-b02",
+        "say": "Move the third target one slot left. Restore end under the stop token and ignore the first user token of the next incident. Ticket now predicts the end of its own reply. Before the repair, end predicted a stranger’s request. Both versions count three targets.",
+        "hold": 1.6
+      },
+      {
+        "id": "c23-b03",
+        "say": "Hold the model’s probabilities fixed. The first two terms stay put. In the old mean, the third loss was the negative log of one tenth, the probability of that stray user token. In the corrected mean, it’s the negative log of eight tenths, the probability of end.",
+        "hold": 0.3
+      },
+      {
+        "id": "c23-b04",
+        "say": "With the same divisor of three, the loss falls from about one point four six one to point seven six eight. We changed what was graded.",
+        "hold": 1.2
+      },
+      {
+        "id": "c23-b05",
+        "say": "To test the export, set the training row aside. This held-out key is twenty-two days old. Give the reloaded model just the request and its usual policy context. Check whether its own reply calls for a rotation ticket, leaves approval to security and ends its turn.",
+        "hold": 0.3
+      },
+      {
+        "id": "c23-b06",
+        "say": "That answer is the evidence we still need. In the next lesson we’ll follow a weight update through mixed precision.",
+        "hold": 1.8
+      }
+    ]
+  }
+]

@@ -1,0 +1,169 @@
+version: 1
+lesson: agent-recovery
+promise: After a lost reply, use the saved key, the current permission and the controller’s observation to choose the next call and tell the operator what happened.
+framing: []
+objectives:
+  - id: identity
+    can: Read the same key after a fault on either side of commit, then decide whether to replay, query status or seek fresh approval.
+    scenes:
+      - subject-intro
+      - recovery-transfer
+      - action-boundary
+      - operation-identity
+      - commit-boundary
+      - replay-contract
+      - workflow-world
+      - resume-with-evidence
+  - id: budget
+    can: Check a retry against the caller deadline, decide whether a fourth read is allowed from the evidence it gained, and reserve cumulative spend before dispatch.
+    scenes:
+      - retry-clock
+      - progress-budget
+      - spend-budget
+      - recovery-transfer
+  - id: health
+    can: Trace probe slots and generation checks under cancellation and stale completions.
+    scenes:
+      - circuit-breaker
+      - breaker-contract
+  - id: claim
+    can: Date a status claim, choose a permitted fallback or compensation, and count completed tasks separately from safe handoffs.
+    scenes:
+      - fallback-evidence
+      - compensation
+      - recovery-transfer
+sections:
+  - heading: A status question doesn't authorize a rollback
+    status: taught
+    scenes:
+      - subject-intro
+      - action-boundary
+      - recovery-transfer
+  - heading: Choose recovery from the failed boundary
+    status: taught
+    scenes:
+      - action-boundary
+      - progress-budget
+      - fallback-evidence
+  - heading: The uncertain write has an identity
+    status: taught
+    scenes:
+      - operation-identity
+      - replay-contract
+  - heading: Lose the reply after a real local commit
+    status: taught
+    scenes:
+      - commit-boundary
+      - replay-contract
+  - heading: Choose replay from the idempotency and status contracts
+    status: taught
+    scenes:
+      - replay-contract
+      - compensation
+  - heading: Restore workflow checkpoints and reconcile external effects
+    status: taught
+    scenes:
+      - resume-with-evidence
+      - workflow-world
+  - heading: Back off without multiplying the damage
+    status: taught
+    scenes:
+      - retry-clock
+      - spend-budget
+      - recovery-transfer
+  - heading: Repeated calls aren't always a loop
+    status: taught
+    scenes:
+      - progress-budget
+  - heading: Context capacity and cumulative spend are different limits
+    status: taught
+    scenes:
+      - spend-budget
+  - heading: Stop rediscovering an outage
+    status: taught
+    scenes:
+      - circuit-breaker
+      - breaker-contract
+  - heading: Tiered model fallbacks and graceful capability degradation
+    status: taught
+    scenes:
+      - fallback-evidence
+  - heading: Measure recovery without hiding unfinished work
+    status: taught
+    scenes:
+      - recovery-transfer
+  - heading: "Fault injection: change the failure point"
+    status: taught
+    scenes:
+      - commit-boundary
+      - replay-contract
+      - breaker-contract
+      - recovery-transfer
+  - heading: Mastery check
+    status: taught
+    scenes:
+      - recovery-transfer
+quiz:
+  - n: 1
+    status: taught
+    scenes:
+      - action-boundary
+      - recovery-transfer
+  - n: 2
+    status: taught
+    scenes:
+      - operation-identity
+      - replay-contract
+  - n: 3
+    status: taught
+    scenes:
+      - workflow-world
+      - resume-with-evidence
+      - recovery-transfer
+  - n: 4
+    status: taught
+    scenes:
+      - retry-clock
+      - recovery-transfer
+  - n: 5
+    status: taught
+    scenes:
+      - progress-budget
+  - n: 6
+    status: taught
+    scenes:
+      - circuit-breaker
+      - breaker-contract
+  - n: 7
+    status: taught
+    scenes:
+      - breaker-contract
+  - n: 8
+    status: taught
+    scenes:
+      - fallback-evidence
+      - recovery-transfer
+  - n: 9
+    status: taught
+    scenes:
+      - spend-budget
+  - n: 10
+    status: taught
+    scenes:
+      - compensation
+removed:
+  - point: The closing preview of recursive language models inspecting a manual through subcalls.
+    reason: The new closing exercise gives the operator a verified status report. The reference article links to the separate lesson on recursive language models.
+reviews:
+  closed_book:
+    script: 92d488cc9f3da03d
+    taught: 10
+    partial: 0
+    absent: 0
+    reviewer: independent closed-book review
+    evidence: videos/reviews/script-renewal/agent-recovery.json
+  fact_check:
+    script: 92d488cc9f3da03d
+    open_findings: 0
+    reviewer: independent factual review
+    evidence: videos/reviews/script-renewal/agent-recovery.json

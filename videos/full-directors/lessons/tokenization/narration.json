@@ -1,0 +1,800 @@
+[
+  {
+    "id": "c01",
+    "title": "rain falls softly",
+    "sourceChapters": [
+      "c01"
+    ],
+    "beats": [
+      {
+        "id": "c01-b01",
+        "say": "Read the line on the composing stick. Rain falls softly. A tokenizer cuts this text into pieces and gives each piece a number called an ID. Watch the seams. Soft and its ending, L Y, sit on separate pieces. The dots stand for spaces.",
+        "hold": 0.5
+      },
+      {
+        "id": "c01-b02",
+        "say": "The upper edge shows the tokenizer used in training. Each ID selects the row of learned values for that piece. A replacement tokenizer marks the lower edge of the very same letters. Look from left to right. The cuts line up. Where does the first row number change?",
+        "hold": 3
+      },
+      {
+        "id": "c01-b03",
+        "say": "Falls is the first mismatch. The upper guide sends it to row five. Follow the lower guide to row one. That row holds the values learned for soft. The replacement still decodes its own IDs back to rain falls softly, spaces and all.",
+        "hold": 1.1
+      },
+      {
+        "id": "c01-b04",
+        "say": "How did softly get two pieces in the first place? Keep this line of type. We'll try three ways of cutting it, then follow the numbers through the model in both directions.",
+        "hold": 0.65
+      }
+    ]
+  },
+  {
+    "id": "c02",
+    "title": "You have to cut somewhere",
+    "sourceChapters": [
+      "c02"
+    ],
+    "beats": [
+      {
+        "id": "c02-b01",
+        "say": "Suppose the tokenizer keeps whole words. Rain, falls, softly. That gives you three pieces, one model position per word.",
+        "hold": 0.4
+      },
+      {
+        "id": "c02-b02",
+        "say": "Now drop the T from softly. This typo has no entry in the word list. Without a fallback, the model loses which word you typed. Every missing word gets the same unknown token. Adding a new word to the dictionary costs another row of model weights.",
+        "hold": 0.4
+      },
+      {
+        "id": "c02-b03",
+        "say": "So go the other way, and cut single characters. Now a new word is just familiar letters. A character outside your alphabet would still be a problem, and we'll come back to that. But the same sentence just grew to seventeen pieces, counting the spaces.",
+        "hold": 0.4
+      },
+      {
+        "id": "c02-b04",
+        "say": "Dense attention compares positions across a prompt. A cell in this grid means one position can look at another.",
+        "hold": 0.3
+      },
+      {
+        "id": "c02-b05",
+        "say": "Over a whole prompt, you can picture it as a grid that compares every position with every position, so seventeen positions means two hundred eighty nine comparisons, and a real model repeats that work many times over.",
+        "hold": 0.3
+      },
+      {
+        "id": "c02-b06",
+        "say": "A causal model hides the later positions. The lower triangle still holds a hundred fifty three comparisons. Doubling the prompt length roughly quadruples this part of the work. A single new position attending to a cached prompt only adds one row.",
+        "hold": 0.9
+      },
+      {
+        "id": "c02-b07",
+        "say": "Cut in the middle, into pieces you see often, and in our example you get four pieces and sixteen comparisons. Nearly as short as words, and much more flexible, because a rare word can fall apart into reusable pieces. That's usually the practical balance, and it's where all three methods in this video land.",
+        "hold": 0.9
+      }
+    ]
+  },
+  {
+    "id": "c03",
+    "title": "Let the text choose its pieces",
+    "sourceChapters": [
+      "c03"
+    ],
+    "beats": [
+      {
+        "id": "c03-b01",
+        "say": "So how do you find good pieces? You let the text tell you. That's the idea behind byte pair encoding, or BPE. Take a tiny corpus, small enough to count by hand. Rain, three times. Rainy, twice. Rail, twice. Start with every letter on its own.",
+        "hold": 0.4
+      },
+      {
+        "id": "c03-b02",
+        "say": "Thirty positions. Now count the neighboring pairs, weighted by how often each word appears. R A appears three plus two plus two, seven times, and so does A I. Our trainer breaks ties by taking the first pair it saw. We glue R and A together.",
+        "hold": 0.6
+      },
+      {
+        "id": "c03-b03",
+        "say": "That one merge removed seven positions. Twenty three remain. Count the neighbors again. The A is now inside R A. Which pair can use it? R A followed by I occurs seven times. Glue them together and sixteen positions remain.",
+        "hold": 0.6
+      },
+      {
+        "id": "c03-b04",
+        "say": "Then R A I and N, five times. Eleven. We went from thirty positions to eleven, and nobody told it which pieces to keep. The counts decided.",
+        "hold": 0.8
+      },
+      {
+        "id": "c03-b05",
+        "say": "That ordered list of merges is the heart of this tokenizer. A real trainer keeps going until it reaches a target size or another stopping rule, and we stopped at three so you can read it. Frequent strings collapse into single pieces, and rarer ones stay in fragments.",
+        "hold": 0.9
+      }
+    ]
+  },
+  {
+    "id": "c04",
+    "title": "Replay the saved merges",
+    "sourceChapters": [
+      "c04"
+    ],
+    "beats": [
+      {
+        "id": "c04-b01",
+        "say": "Try our invented word, rainly. All six letters belong to the starting alphabet. Follow the first rule and join R to A. The next rule attaches I to that piece. The last one attaches N. The L and the Y stay loose. That's three pieces for a word the trainer never saw.",
+        "hold": 0.8
+      },
+      {
+        "id": "c04-b02",
+        "say": "Encoding replays the saved rules. There's nothing to count on this new word. Try five letters, rainy. It takes two positions here, rain plus Y. Rail takes two as well, R A I plus L.",
+        "hold": 0.7
+      },
+      {
+        "id": "c04-b03",
+        "say": "Try two competing rules on rain. Read the upper list in order. First join R to A. The next rule needs a separate A beside I. Our A is already inside the new piece. Now reverse the rules for the lower run. After you try both rules in order, which pieces remain?",
+        "hold": 3
+      },
+      {
+        "id": "c04-b04",
+        "say": "A and I join first. That leaves R, the piece A I, and N. The second rule needs R next to an A on its own. The A is inside A I, so the second rule leaves those three pieces in place. Both cuts spell rain. The saved order decides which pieces reach the model.",
+        "hold": 0.3
+      },
+      {
+        "id": "c04-b05",
+        "say": "If the encoder invented a new piece for your prompt, it would have no trained row in the model.",
+        "hold": 0.75
+      }
+    ]
+  },
+  {
+    "id": "c05",
+    "title": "Boundaries decide which merges can happen",
+    "sourceChapters": [
+      "c05"
+    ],
+    "beats": [
+      {
+        "id": "c05-b01",
+        "say": "Left to run on raw text, BPE can learn pieces that glue letters to punctuation. Failed with a period and failed with an exclamation mark can end up as separate entries. The authors of GPT two reported that kind of vocabulary waste.",
+        "hold": 0.4
+      },
+      {
+        "id": "c05-b02",
+        "say": "So many BPE tokenizers cut the text first, with a regular expression. It separates categories such as letters, digits, punctuation, and runs of whitespace, and merges stay inside those spans. Each tokenizer has its own exact pattern, so read the one you're using.",
+        "hold": 0.4
+      },
+      {
+        "id": "c05-b03",
+        "say": "Slide a divider between A and I in rain. Encode each side on its own. We get R A, then I, then N. Pull the divider out and encode the whole word. Three pieces become one. To count a request exactly, encode its complete serialized text.",
+        "hold": 0.5
+      }
+    ]
+  },
+  {
+    "id": "c06",
+    "title": "Bytes give every character somewhere to go",
+    "sourceChapters": [
+      "c06"
+    ],
+    "beats": [
+      {
+        "id": "c06-b01",
+        "say": "Now back to that missing character. If the starting alphabet comes only from a corpus, a character that corpus never had has nowhere to go. Ours has only six letters, so even the letter B would be stuck.",
+        "hold": 0.3
+      },
+      {
+        "id": "c06-b02",
+        "say": "Byte level BPE, which GPT two uses, starts instead from all two hundred fifty six possible byte values. Unicode is the standard that numbers the world's characters, and UTF eight is its way of writing them as bytes.",
+        "hold": 0.3
+      },
+      {
+        "id": "c06-b03",
+        "say": "So valid Unicode text can be represented with no unknown token. Some other tokenizers fall back to bytes only for characters they don't know.",
+        "hold": 0.4
+      },
+      {
+        "id": "c06-b04",
+        "say": "Take the two Japanese characters and the sparkle. Each takes three UTF eight bytes. Under the lens, the sparkle becomes E two, nine C, A eight, written in hexadecimal. Without any applicable merges, those nine bytes use nine token positions.",
+        "hold": 0.3
+      },
+      {
+        "id": "c06-b05",
+        "say": "Scripts that appeared rarely in training can use up a window this way.",
+        "hold": 0.8
+      },
+      {
+        "id": "c06-b06",
+        "say": "Watch the output cursor after the two Japanese characters. Send the first sparkle byte. The cursor waits. The decoder keeps that byte in a buffer.",
+        "hold": 1.1
+      },
+      {
+        "id": "c06-b07",
+        "say": "Send the second. Two of the three bytes have arrived. What can the decoder print at this point?",
+        "hold": 2.4
+      },
+      {
+        "id": "c06-b08",
+        "say": "It still has to wait. Send the third. Only now can the decoder print the sparkle and advance. Decoding each isolated byte with replacement would lose the character. A streaming decoder keeps incomplete bytes for the next call.",
+        "hold": 1.5
+      }
+    ]
+  },
+  {
+    "id": "c07",
+    "title": "How often do these pieces appear together?",
+    "sourceChapters": [
+      "c07"
+    ],
+    "beats": [
+      {
+        "id": "c07-b01",
+        "say": "BPE picks the most frequent pair. Two common pieces can win even if they usually appear apart. WordPiece started in Japanese and Korean speech recognition and was later used in BERT. Its training objective asks which piece improves a language model of the training text.",
+        "hold": 0.4
+      },
+      {
+        "id": "c07-b02",
+        "say": "Here's a teaching score from the Hugging Face reconstruction. Trainers can differ. Put the pair count on top. Below it, multiply the counts of the two pieces. With the same numerator, a larger denominator gives a lower score.",
+        "hold": 0.4
+      },
+      {
+        "id": "c07-b03",
+        "say": "Compare two pairs inside words. BERT's vocabulary uses two hash marks to label a continuation. Read the letters after those marks as part of the word. T and continuation H occur together ninety times. Rain and continuation bow, only forty two. By raw count, T H wins easily.",
+        "hold": 0.7
+      },
+      {
+        "id": "c07-b04",
+        "say": "But T appears nine hundred times, and H three hundred, so most of their appearances are apart. Rain appears fifty times, and bow forty four, so they're nearly always together. The scores come out at about point zero zero zero three, and about point zero one nine.",
+        "hold": 0.3
+      },
+      {
+        "id": "c07-b05",
+        "say": "Rain and bow win by more than fifty times, with the lower count.",
+        "hold": 5.5
+      }
+    ]
+  },
+  {
+    "id": "c08",
+    "title": "What does WordPiece return for rainbow?",
+    "sourceChapters": [
+      "c08"
+    ],
+    "beats": [
+      {
+        "id": "c08-b01",
+        "say": "Encoding works differently too. BERT's pipeline first cleans the text, splits on whitespace and punctuation, and can lowercase it. Then, for each word, WordPiece takes the longest piece in its vocabulary, starting from the left.",
+        "hold": 0.4
+      },
+      {
+        "id": "c08-b02",
+        "say": "Suppose the vocabulary holds rain and continuation bow. Is all of rainbow in there? No. Rainbo? No. R A I N B? No. Rain? Yes. Take it, and look for a continuation that matches the rest. Bow is there. Rainbow becomes rain, then continuation bow.",
+        "hold": 0.7
+      },
+      {
+        "id": "c08-puzzle-1",
+        "say": "Follow the blue stripe. When the ends meet, read across the join. Rain, then bow. Together they spell rainbow.",
+        "hold": 1.2
+      },
+      {
+        "id": "c08-puzzle-2",
+        "say": "Our WordPiece vocabulary has two entries. The hash marks mean bow can follow another piece inside a word. Both tokens reach the model.",
+        "hold": 0.9
+      },
+      {
+        "id": "c08-puzzle-3",
+        "say": "Keep both entries and add one more. It spells rain with a B on the end. Where does the next piece start if we use it?",
+        "hold": 1.8
+      },
+      {
+        "id": "c08-puzzle-4",
+        "say": "Start at the R. BERT’s WordPiece tokenizer takes the longest piece in its vocabulary that matches here. This time the B goes with rain.",
+        "hold": 0.9
+      },
+      {
+        "id": "c08-puzzle-5",
+        "say": "Line up the old ending. Its B lands on a letter we’ve already used. The next match has to start one letter farther along.",
+        "hold": 1.2
+      },
+      {
+        "id": "c08-puzzle-6",
+        "say": "Look at the O. Is there a continuation for O W? How about O alone? Neither is in the vocabulary. WordPiece won’t go back to try rain.",
+        "hold": 1.25
+      },
+      {
+        "id": "c08-puzzle-7",
+        "say": "The model gets one unknown token. Follow the bracket. It covers the whole word, including the five letters on the painted piece.",
+        "hold": 2.6
+      },
+      {
+        "id": "c08-compare",
+        "say": "So adding a piece made this word worse. Compare that with our BPE tokenizer, where an unfamiliar word fell apart into smaller pieces. Here, one dead end loses the entire word.",
+        "hold": 0.5
+      }
+    ]
+  },
+  {
+    "id": "c09",
+    "title": "SentencePiece: raw sentences, visible spaces",
+    "sourceChapters": [
+      "c09"
+    ],
+    "beats": [
+      {
+        "id": "c09-b01",
+        "say": "The third name is SentencePiece, and it's a toolkit rather than a single algorithm. It can train BPE or Unigram, and it packages decoding and normalization, a text cleanup step we'll cover soon, with the model.",
+        "hold": 0.4
+      },
+      {
+        "id": "c09-b02",
+        "say": "Many pipelines need text split by whitespace or by a language specific segmenter first. Whitespace is a poor fit for languages that don't put spaces between every word, such as Japanese, Chinese, and Thai, and a segmenter is one more language specific tool to run.",
+        "hold": 0.3
+      },
+      {
+        "id": "c09-b03",
+        "say": "SentencePiece trains from raw sentences instead, though its default trainer still keeps pieces from crossing whitespace, script, and number boundaries.",
+        "hold": 0.4
+      },
+      {
+        "id": "c09-b04",
+        "say": "It also makes spaces visible. Each space becomes a marker character, and by default one more goes at the start. So rain falls becomes marker rain, marker falls. To decode, join the pieces, drop the marker at the start, and turn the others back into spaces.",
+        "hold": 0.7
+      },
+      {
+        "id": "c09-b05",
+        "say": "Try two spaces before falls and a sparkle the vocabulary hasn't seen. The default cleanup turns the two spaces into one before the marker is written. Without byte fallback, this tokenizer returns an unknown ID for the sparkle. When we decode, we recover the surviving space. Neither the extra space nor the original sparkle survives.",
+        "hold": 1.2
+      }
+    ]
+  },
+  {
+    "id": "c10",
+    "title": "Three paths through the same word",
+    "sourceChapters": [
+      "c10"
+    ],
+    "beats": [
+      {
+        "id": "c10-b01",
+        "say": "Read across any row, from the space marker to the N. Each row covers the same five symbols with a different set of pieces. In Unigram, a path is one complete segmentation, from the first boundary to the last. Each piece has a probability.",
+        "hold": 0.3
+      },
+      {
+        "id": "c10-b02",
+        "say": "Look under the pieces on each row. Each number is the probability of the piece above it. Multiply those numbers to score that complete path.",
+        "hold": 0.4
+      },
+      {
+        "id": "c10-b03",
+        "say": "The whole piece crosses in one step, at point three. Take the marker on its own and then rain. Multiply point one five by point one. The product is fifteen thousandths. Split rain again, between A and I. Now multiply the three factors under the pieces. What product do you get?",
+        "hold": 3
+      },
+      {
+        "id": "c10-b04",
+        "say": "Their product is nine parts in a hundred thousand. Which path wins?",
+        "hold": 2
+      },
+      {
+        "id": "c10-b05",
+        "say": "The whole piece wins at point three. Keep its length exactly the same. Lower its probability to point zero one. Give the spare probability to pieces that cannot spell this word. Now the marker followed by rain wins, at fifteen thousandths. Unigram compares complete paths.",
+        "hold": 0.3
+      },
+      {
+        "id": "c10-b06",
+        "say": "In practice it adds logarithms of the piece probabilities, which picks the same winner.",
+        "hold": 0.9
+      },
+      {
+        "id": "c10-b07",
+        "say": "A long string has too many paths to list. Viterbi keeps the best score at each boundary it can reach. At the last boundary, compare the direct route with each earlier best times its final piece. Keep the largest product and follow its links back to read the pieces.",
+        "hold": 0.5
+      }
+    ]
+  },
+  {
+    "id": "c11",
+    "title": "Which piece can we afford to lose?",
+    "sourceChapters": [
+      "c11"
+    ],
+    "beats": [
+      {
+        "id": "c11-b01",
+        "say": "Go back to our first set of probabilities for marker rain. The whole piece is back at point three. The other two cuts can produce exactly the same spelling. When we train a Unigram model, all three ways of producing this word count.",
+        "hold": 0.55
+      },
+      {
+        "id": "c11-b02",
+        "say": "Add the three path scores to get the word's probability. The total is just over point three one five. Keep the surviving piece scores fixed for this comparison. We can drop the piece spelled I N, or the whole piece, marker rain. Which removal leaves more probability on this word?",
+        "hold": 3.2
+      },
+      {
+        "id": "c11-b03",
+        "say": "Take away I N. Only the bottom path breaks. The best cut stays the same, but the total loses nine parts in a hundred thousand. The two surviving scores add to point three one five.",
+        "hold": 1.1
+      },
+      {
+        "id": "c11-b04",
+        "say": "Put I N back so we start from the same three paths. Now take away marker rain. The best surviving cut uses the marker and rain separately. Its score is one twentieth of the old best, a drop of about three natural log units.",
+        "hold": 0.3
+      },
+      {
+        "id": "c11-b05",
+        "say": "Add up both surviving paths. Together they keep just under five percent of the original total.",
+        "hold": 1.25
+      },
+      {
+        "id": "c11-b06",
+        "say": "Dropping I N costs less on this word. A piece that's dispensable here might matter in thousands of other words. That's why a trainer estimates the loss across its whole corpus.",
+        "hold": 0.7
+      },
+      {
+        "id": "c11-b07",
+        "say": "BPE builds pieces up. A Unigram trainer starts with an oversized vocabulary of single characters and frequent substrings. It fits their probabilities by expectation maximization, then removes the optional pieces it estimates would cost least. The paper illustrates keeping about four fifths each round.",
+        "hold": 0.3
+      },
+      {
+        "id": "c11-b08",
+        "say": "This shelf illustrates the change in vocabulary size. Forty one candidates become thirty three. Before the next cut, the trainer refits the surviving pieces on the corpus. Removing pieces changed which paths are possible. The trainer uses the new probabilities to estimate the cost of each removal. Our next cut leaves twenty six. Repeat that cycle of fitting and pruning. One more round leaves twenty one. The required characters, in green, survive every round. That protects the chosen alphabet. A new character outside it may still need a fallback.",
+        "hold": 0.85
+      }
+    ]
+  },
+  {
+    "id": "c12",
+    "title": "Optional: training on sampled cuts",
+    "sourceChapters": [
+      "c12"
+    ],
+    "beats": [
+      {
+        "id": "c12-b01",
+        "say": "Having many valid paths opens up an optional training trick, called subword regularization. While training a model, you can sample among the valid paths, instead of always taking the best one. One pass, the model sees the whole piece. The next, it sees marker, then rain.",
+        "hold": 0.4
+      },
+      {
+        "id": "c12-b02",
+        "say": "That's data augmentation. Keep the original path probabilities. To set the sampling chances, raise each path score to an exponent and divide by the sum. Turn the exponent down from one to a quarter. The thinner slices widen. The model can practice on more cuts of the same word. At serving time, use the encoding mode specified for the checkpoint.",
+        "hold": 0.5
+      }
+    ]
+  },
+  {
+    "id": "c13",
+    "title": "Normalization often runs before any cut",
+    "sourceChapters": [
+      "c13"
+    ],
+    "beats": [
+      {
+        "id": "c13-b01",
+        "say": "Before any of these methods cuts anything, there's often one more step, normalization. Two strings can look identical and still be different. Unicode numbers each character with a code point. Cafe with an accent can be four code points, or five, where the accent is its own combining mark.",
+        "hold": 0.4
+      },
+      {
+        "id": "c13-b02",
+        "say": "If the tokenizer doesn't unify those forms, two requests that look the same can get different IDs, and miss a prompt cache, which reuses earlier work only when the start of a request matches exactly.",
+        "hold": 0.3
+      },
+      {
+        "id": "c13-b03",
+        "say": "The form called NFC unifies them, and leaves this single F I ligature alone. The form called NFKC unifies them too, and also folds that ligature into a plain F and I, so two different identifiers can collapse into one.",
+        "hold": 0.4
+      },
+      {
+        "id": "c13-b04",
+        "say": "That folding only goes one way. Once the ligature is folded, decoding can't bring it back. A SentencePiece model can bundle a variant of NFKC with whitespace cleanup. For exact identifiers and code, the distinction matters. Apply the normalizer specified by the checkpoint.",
+        "hold": 0.5
+      }
+    ]
+  },
+  {
+    "id": "c14",
+    "title": "Each number picks a row",
+    "sourceChapters": [
+      "c14"
+    ],
+    "beats": [
+      {
+        "id": "c14-b01",
+        "say": "Bring back the IDs the model saw during training for rain falls softly. Once a tokenizer has chosen the pieces, their IDs select rows in a table of learned vectors. Follow rain to row two. Follow falls to row five.",
+        "hold": 0.4
+      },
+      {
+        "id": "c14-b02",
+        "say": "So the number means nothing by itself. The meaning lives in the row, and training put it there. Your sentence is now four vectors, one per piece.",
+        "hold": 0.8
+      },
+      {
+        "id": "c14-b03",
+        "say": "There's also an output table. The model compares its final vector with every output row by taking a dot product. Multiply corresponding coordinates and add. Each row gives one score for the next token. Some models tie input and output weights, so both lookups use the same table.",
+        "hold": 0.3
+      },
+      {
+        "id": "c14-b04",
+        "say": "Others keep them separate, and then each row number has to mean the same piece in both.",
+        "hold": 0.4
+      },
+      {
+        "id": "c14-b05",
+        "say": "Falls took the vector for soft. Now follow the swap in the other direction. The replacement gives the number five to soft. Follow it to the row that was learned for falls. Both IDs fit in the table. The lookup succeeds and hands the model two different vectors.",
+        "hold": 0.8
+      },
+      {
+        "id": "c14-b06",
+        "say": "Both vocabularies have eight rows. Both spell softly the same way. Look at the IDs for soft. One tokenizer picks row one. The other picks row five. The ending, L Y, keeps its six in both.",
+        "hold": 0.3
+      },
+      {
+        "id": "c14-b07",
+        "say": "To catch a swap, encode fixed test strings, including special tokens such as the end of a message. Compare the IDs for each piece.",
+        "hold": 0.4
+      },
+      {
+        "id": "c14-b08",
+        "say": "Renumbering can be safe, but only if everything moves together. Say a migration renumbers the IDs and remaps only the input table. The input now reads correctly.",
+        "hold": 0.3
+      },
+      {
+        "id": "c14-b09",
+        "say": "But on a model with a separate output table, those rows keep their old order, so the model's choices decode as the wrong pieces. Move the input rows, the output rows, any other indexed values, and the special IDs, all together.",
+        "hold": 0.4
+      },
+      {
+        "id": "c14-b10",
+        "say": "A tokenizer that cuts text differently is a bigger change, because the model never trained on those inputs. That needs adapting and testing, and more than a renumbering. So ship a model and its tokenizer together, and pin both by hash.",
+        "hold": 0.6
+      }
+    ]
+  },
+  {
+    "id": "c15",
+    "title": "Every row has a price",
+    "sourceChapters": [
+      "c15"
+    ],
+    "beats": [
+      {
+        "id": "c15-b01",
+        "say": "So why not just learn a bigger vocabulary? Because every row costs memory. Multiply the rows by the width of each vector, called the hidden size, and by the bytes per number. Double it if the output table is separate.",
+        "hold": 0.4
+      },
+      {
+        "id": "c15-b02",
+        "say": "For illustration, take a hidden size of four thousand ninety six, two bytes per weight, and separate tables. Thirty two thousand rows cost five hundred mebibytes. One hundred twenty eight thousand cost two thousand. That's fifteen hundred extra mebibytes for the two tables together.",
+        "hold": 0.3
+      },
+      {
+        "id": "c15-b03",
+        "say": "And a whole word dictionary with a million rows would take over fifteen thousand mebibytes, about sixteen billion bytes, before the model has a single transformer layer.",
+        "hold": 1
+      },
+      {
+        "id": "c15-b04",
+        "say": "A larger vocabulary can fit the same text into fewer positions. For fixed text, positions are characters divided by characters per token, so the drop in positions is one minus the old rate over the new rate.",
+        "hold": 0.3
+      },
+      {
+        "id": "c15-b05",
+        "say": "Going from three characters per token to four is a twenty five percent drop, even though the rate rose by a third.",
+        "hold": 0.3
+      },
+      {
+        "id": "c15-b06",
+        "say": "The Llama three report measured about three point nine four characters per token, against three point one seven for Llama two, on a sample of English.",
+        "hold": 0.3
+      },
+      {
+        "id": "c15-b07",
+        "say": "If those rates held for your text, that's about twenty percent fewer positions, and because comparisons grow with the square of length, about thirty five percent fewer of those. Those rates compare two complete tokenizers.",
+        "hold": 0.3
+      },
+      {
+        "id": "c15-b08",
+        "say": "The report found that adding twenty eight thousand tokens for other languages left English tokenization unchanged.",
+        "hold": 0.9
+      },
+      {
+        "id": "c15-b09",
+        "say": "The memory bill is fixed by arithmetic. The saving depends on the text you send. To price the trade, measure representative text from your own languages, code, and numbers.",
+        "hold": 0.9
+      }
+    ]
+  },
+  {
+    "id": "c16",
+    "title": "The same content can cost far more tokens",
+    "sourceChapters": [
+      "c16"
+    ],
+    "beats": [
+      {
+        "id": "c16-b01",
+        "say": "Now, how this goes wrong in production, starting with language. Fertility means how many tokens a tokenizer needs per word, or per some other unit of text. It can vary a lot.",
+        "hold": 0.3
+      },
+      {
+        "id": "c16-b02",
+        "say": "A twenty twenty three study compared translations of the same content, and found that a tokenizer used by ChatGPT at the time needed about fifteen times as many tokens for Shan as for English. That was the widest gap it found for that tokenizer.",
+        "hold": 0.3
+      },
+      {
+        "id": "c16-b03",
+        "say": "Italian needed about one point six times.",
+        "hold": 0.9
+      },
+      {
+        "id": "c16-b04",
+        "say": "Take an example window with thirty places. If an English passage uses two, what would a fifteenfold ratio do? The translated passage fills all thirty. A per-token price applies to every position, and the longer prompt takes more work to process. Measure comparable content in the languages you serve before quoting a budget.",
+        "hold": 0.5
+      }
+    ]
+  },
+  {
+    "id": "c17",
+    "title": "A number can be cut many ways",
+    "sourceChapters": [
+      "c17"
+    ],
+    "beats": [
+      {
+        "id": "c17-b01",
+        "say": "Numbers are next. Tokenization is one of several reasons that multi digit arithmetic is hard, because it decides whether each digit position stays visible. In a byte level tokenizer like GPT two's, digits can merge according to the learned list, so similar looking numbers can get cut differently.",
+        "hold": 0.4
+      },
+      {
+        "id": "c17-b02",
+        "say": "One policy splits a number into single digits. That exposes every column. Another groups digits from the left, up to three at a time, before merging. Look at the last column. Seven and eight each stand alone. Those first groups are spans. Merges may still cut them into smaller tokens. Read the actual pattern to see which digits can share a piece.",
+        "hold": 0.8
+      }
+    ]
+  },
+  {
+    "id": "c18",
+    "title": "Code spends tokens on layout and casing",
+    "sourceChapters": [
+      "c18"
+    ],
+    "beats": [
+      {
+        "id": "c18-b01",
+        "say": "Code has its own problems. In Python, indentation is structure. Four levels of four spaces is sixteen leading spaces. With only single space pieces, that's sixteen tokens. A tokenizer that learned a four space piece needs four. That's seventy five percent less, for that one run.",
+        "hold": 0.9
+      },
+      {
+        "id": "c18-b02",
+        "say": "Write token count in camel case. The article's small tokenizer splits that name into five pieces. Token, capital C, O, U N, T. It never learned a piece for count with a capital C. A second tokenizer in the article encodes the same name in just two tokens.",
+        "hold": 0.3
+      },
+      {
+        "id": "c18-b03",
+        "say": "Try the article's measured code sample. This encoder packs sixteen spaces into a single token. The camel case name takes two. The sixty four characters of a hexadecimal digest cost thirty eight. In a request full of these strings, the digests can dominate the bill. Count representative code with the tokenizer you plan to use.",
+        "hold": 0.5
+      }
+    ]
+  },
+  {
+    "id": "c19",
+    "title": "Glitch tokens: some rows may barely get trained",
+    "sourceChapters": [
+      "c19"
+    ],
+    "beats": [
+      {
+        "id": "c19-b01",
+        "say": "And some vocabulary entries are strange. Researchers have documented glitch tokens, such as Solid Gold Magikarp, that can trigger anomalous behavior. Building a tokenizer and training a model have different goals, and can use different data. So a token can enter the vocabulary and then barely appear in model training, leaving its row under trained.",
+        "hold": 0.4
+      },
+      {
+        "id": "c19-b02",
+        "say": "Suppose the model replies with banana. That reply alone doesn't tell us why. Count the token's appearances in model training, compare its vector with other rows, and check whether the behavior repeats across prompts. In this toy sample, it appears just once. That's evidence worth investigating.",
+        "hold": 0.5
+      }
+    ]
+  },
+  {
+    "id": "c20",
+    "title": "Special tokens, chat templates, and the whole request",
+    "sourceChapters": [
+      "c20"
+    ],
+    "beats": [
+      {
+        "id": "c20-b01",
+        "say": "A chat template uses special tokens to mark roles and message boundaries. Here the template ends a message with a dedicated control ID. The same spelling typed by a user goes through the ordinary text encoder. Keep those two paths apart so the template controls where messages begin and end.",
+        "hold": 0.4
+      },
+      {
+        "id": "c20-b02",
+        "say": "The chat template formats the conversation before encoding. One format puts angle brackets around the roles. Change those to square brackets and the tokenizer sees different pieces. Ship the template the model trained with.",
+        "hold": 0.4
+      },
+      {
+        "id": "c20-b03",
+        "say": "Count the whole request. Rainy is two positions, rain plus Y. This window holds seven, so the message fits. Add three positions for system instructions, two for role markers, and one to start the reply. That's six more positions. Add them to the two in rainy.",
+        "hold": 0.3
+      },
+      {
+        "id": "c20-b04",
+        "say": "Eight positions in all. The reply marker lands one past the edge. Count the formatted request before you send it.",
+        "hold": 1
+      }
+    ]
+  },
+  {
+    "id": "c21",
+    "title": "Your turn",
+    "sourceChapters": [
+      "c21"
+    ],
+    "beats": [
+      {
+        "id": "c21-b01",
+        "say": "Try BPE on these three words. Snow, four times. Snowy, twice. Show, three times. How many positions do we start with, and which pair merges first?",
+        "hold": 5
+      },
+      {
+        "id": "c21-b02",
+        "say": "Thirty eight positions. O W appears nine times, more than any other pair, so it merges first. Nine positions disappear, which leaves twenty nine.",
+        "hold": 2
+      },
+      {
+        "id": "c21-b03",
+        "say": "Now BERT style WordPiece, with a vocabulary of snow, continuation ball, and S N O W B. What happens to snowball?",
+        "hold": 4
+      },
+      {
+        "id": "c21-b04",
+        "say": "The longest match takes S N O W B, and nothing can finish A L L. It doesn't go back, so the whole word becomes unknown.",
+        "hold": 2
+      },
+      {
+        "id": "c21-b05",
+        "say": "Last, Unigram. Marker snow has probability point zero five. The marker alone has point two five, and snow has point four. Which path wins?",
+        "hold": 4
+      },
+      {
+        "id": "c21-b06",
+        "say": "The two pieces, because point two five times point four is point one, and that beats point zero five. The path with fewer pieces lost, because only the complete path's score counts.",
+        "hold": 1
+      }
+    ]
+  },
+  {
+    "id": "c22",
+    "title": "What will the model write?",
+    "sourceChapters": [
+      "c22"
+    ],
+    "beats": [
+      {
+        "id": "c22-b01",
+        "say": "Here's the replacement tokenizer from the opening. Its dictionary gives one to falls and five to soft. This time we've moved the input rows to match. Each piece selects its original vector, so the model reads the sentence correctly.",
+        "hold": 0.6
+      },
+      {
+        "id": "c22-b02",
+        "say": "Now let it write one more piece. The output weights are in a separate table, still in training order. Suppose the hidden vector at this step is zero, zero, one. Take its dot product with each row.",
+        "hold": 0.3
+      },
+      {
+        "id": "c22-b03",
+        "say": "The first two coordinates drop out, so each score is the last number in its row. The best of the six other rows scores point five.",
+        "hold": 0.5
+      },
+      {
+        "id": "c22-b04",
+        "say": "For greedy decoding, take the highest score and follow its ID down to the dictionary. Which piece will the replacement print?",
+        "hold": 3.4
+      },
+      {
+        "id": "c22-b05",
+        "say": "Soft. Row five still wins, just as it did when five meant falls. The dictionary gives that ID a different meaning.",
+        "hold": 1.2
+      },
+      {
+        "id": "c22-b06",
+        "say": "Leave the hidden vector and dictionary alone. Swap the two output weight rows. The score of point seven travels with its weights. Follow it through the lookup again. Row one now wins, and the model writes falls. That's the piece the original model would have written here.",
+        "hold": 1.6
+      },
+      {
+        "id": "c22-b07",
+        "say": "Before shipping a renumbering, check both what the model reads and what it writes. Pin the verified tokenizer to its checkpoint. Next we'll follow one of those learned vectors and see how its meaning changes in context.",
+        "hold": 0.9
+      }
+    ]
+  }
+]

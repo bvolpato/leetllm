@@ -1,0 +1,272 @@
+version: 1
+lesson: voice-agents
+promise: Design a voice hotline that answers promptly, stops when Alex interrupts, and resumes using
+  the words the player confirmed and the actions the incident service recorded.
+objectives:
+  - id: clock-contract
+    can: Compute both first-playback delays and locate the first confirmed status word on the call clock
+    scenes:
+      - clock-contract
+      - overlap-timeline
+      - speak-in-chunks
+      - transfer
+  - id: vad-worksheet
+    can: Count retained pre-roll and threshold-rounded silence frames
+    scenes:
+      - vad-worksheet
+  - id: partial-transcripts
+    can: Reject untyped commit flags and withhold irreversible work on interim text
+    scenes:
+      - partial-transcripts
+  - id: operation-ledger
+    can: Separate authorized service acceptance from spoken acknowledgement and human receipt
+    scenes:
+      - operation-ledger
+      - fresh-interruption
+  - id: alignment-ledger
+    can: Choose the last complete text chunk at a playback receipt and reject a late receipt for a different reply
+    scenes:
+      - barge-in
+      - alignment-ledger
+      - fresh-interruption
+  - id: pcm-contract
+    can: Compute PCM duration and bytes from actual sample rate and channels
+    scenes:
+      - pcm-contract
+  - id: deadline-transport
+    can: Diagnose packet deadline and ordered-delivery tradeoffs on a negotiated transport
+    scenes:
+      - transport-and-buffer
+      - deadline-transport
+  - id: prefix-reuse
+    can: Identify when stable text lacks an eligible cached endpoint
+    scenes:
+      - prefix-reuse
+  - id: cache-economics
+    can: Compute disjoint read/write/ordinary input cost
+    scenes:
+      - cache-economics
+  - id: media-affinity
+    can: Preserve media-state affinity and specify recovery after worker loss
+    scenes:
+      - media-affinity
+  - id: release-metrics
+    can: Evaluate all-call attainment without hiding silent failures
+    scenes:
+      - release-metrics
+sections:
+  - heading: The latency illusion
+    status: taught
+    scenes:
+      - clock-contract
+      - transfer
+  - heading: One packet through the incident-status agent
+    status: taught
+    scenes:
+      - media-owners
+      - partial-transcripts
+      - speak-in-chunks
+  - heading: "The latency budget: a worked example"
+    status: taught
+    scenes:
+      - overlap-timeline
+      - clock-contract
+  - heading: What Alex's call has to do
+    status: taught
+    scenes:
+      - subject-intro
+      - media-owners
+      - operation-ledger
+  - heading: Example service objectives
+    status: taught
+    scenes:
+      - clock-contract
+      - release-metrics
+  - heading: Latency budget breakdown
+    status: taught
+    scenes:
+      - overlap-timeline
+      - batch-recognition
+  - heading: How the pieces fit together
+    status: taught
+    scenes:
+      - media-owners
+      - media-affinity
+  - heading: "Knowing when to listen: voice activity detection"
+    status: taught
+    scenes:
+      - detect-and-commit
+      - vad-worksheet
+  - heading: "VAD deployment: client vs. server"
+    status: taught
+    scenes:
+      - vad-worksheet
+      - media-owners
+  - heading: Acoustic echo cancellation (AEC)
+    status: taught
+    scenes:
+      - echo-loop
+  - heading: "From sound to text: speech-to-text"
+    status: taught
+    scenes:
+      - partial-transcripts
+      - batch-recognition
+  - heading: Streaming STT (recommended for latency)
+    status: taught
+    scenes:
+      - partial-transcripts
+  - heading: End-of-utterance STT
+    status: taught
+    scenes:
+      - batch-recognition
+  - heading: Speak a first clause, not a full plan
+    status: taught
+    scenes:
+      - speak-in-chunks
+      - speakable-gate
+      - clause-queue
+  - heading: Slow tools don't get to steal the first word
+    status: taught
+    scenes:
+      - speakable-gate
+      - operation-ledger
+  - heading: Serving optimizations that matter in voice
+    status: taught
+    scenes:
+      - serving-pressure
+      - prefix-reuse
+      - cache-economics
+  - heading: "Speaking without waiting for the full answer: TTS with streaming"
+    status: taught
+    scenes:
+      - clause-queue
+      - speak-in-chunks
+  - heading: How parallel execution reduces latency
+    status: taught
+    scenes:
+      - overlap-timeline
+  - heading: "When the user interrupts: barge-in handling"
+    status: taught
+    scenes:
+      - subject-intro
+      - barge-in
+      - alignment-ledger
+      - fresh-interruption
+  - heading: Cascaded pipeline vs. native audio
+    status: taught
+    scenes:
+      - cascaded-vs-native
+      - native-session
+      - provider-interruption
+  - heading: Session shape
+    status: taught
+    scenes:
+      - native-session
+      - provider-interruption
+  - heading: Sample rates belong to the audio contract
+    status: taught
+    scenes:
+      - pcm-contract
+  - heading: Audio tokenization
+    status: taught
+    scenes:
+      - audio-representation
+  - heading: Trade-offs
+    status: taught
+    scenes:
+      - cascaded-vs-native
+      - provider-interruption
+  - heading: Moving audio across the internet
+    status: taught
+    scenes:
+      - transport-and-buffer
+      - deadline-transport
+  - heading: Jitter buffers and packet loss concealment
+    status: taught
+    scenes:
+      - transport-and-buffer
+      - deadline-transport
+  - heading: "Protocol comparison: WebRTC vs. WebSocket"
+    status: taught
+    scenes:
+      - deadline-transport
+  - heading: Scaling to thousands of conversations
+    status: taught
+    scenes:
+      - media-affinity
+      - release-metrics
+  - heading: Review the voice design
+    status: taught
+    scenes:
+      - transfer
+      - release-metrics
+      - fresh-interruption
+  - heading: Follow-up questions
+    status: taught
+    scenes:
+      - clock-contract
+      - operation-ledger
+      - fresh-interruption
+  - heading: Evaluation rubric
+    status: taught
+    scenes:
+      - release-metrics
+      - fresh-interruption
+quiz:
+  - n: 1
+    status: taught
+    scenes:
+      - clock-contract
+      - transfer
+  - n: 2
+    status: taught
+    scenes:
+      - vad-worksheet
+  - n: 3
+    status: taught
+    scenes:
+      - partial-transcripts
+  - n: 4
+    status: taught
+    scenes:
+      - operation-ledger
+      - alignment-ledger
+  - n: 5
+    status: taught
+    scenes:
+      - barge-in
+      - alignment-ledger
+      - fresh-interruption
+  - n: 6
+    status: taught
+    scenes:
+      - pcm-contract
+  - n: 7
+    status: taught
+    scenes:
+      - transport-and-buffer
+      - deadline-transport
+  - n: 8
+    status: taught
+    scenes:
+      - native-session
+      - operation-ledger
+  - n: 9
+    status: taught
+    scenes:
+      - cache-economics
+  - n: 10
+    status: taught
+    scenes:
+      - release-metrics
+cuts: []
+framing: []
+reviews:
+  closed_book:
+    script: 3a6550bb248c24bd
+    taught: 10
+    partial: 0
+    absent: 0
+  fact_check:
+    script: 3a6550bb248c24bd
+    open_findings: 0

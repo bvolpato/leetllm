@@ -1,0 +1,448 @@
+[
+  {
+    "id": "c01",
+    "title": "Follow one write into the stream",
+    "sourceChapters": [
+      "c01"
+    ],
+    "beats": [
+      {
+        "id": "c01-b01",
+        "say": "One unit of blue fills the first groove. That is the first feature of one decoder token. The other three features are zero. Slide one brass piece up against the blue one. An attention branch just wrote one unit in the same direction. Its write supplies half of this new length.",
+        "hold": 0.7
+      },
+      {
+        "id": "c01-b02",
+        "say": "Let six more unit writes land end to end. This running sum is the residual stream. Seven writes have landed. Slide the eighth into place. Look at the full length now. What fraction of it came from that last piece?",
+        "hold": 3.8
+      },
+      {
+        "id": "c01-b03",
+        "say": "One ninth. Eight units were already there. One more makes nine. Writes in other directions can cancel. Here they all line up, so you can see exactly what accumulated. If the prediction head reads this first feature directly, its input has grown from one to nine.",
+        "hold": 0.3
+      },
+      {
+        "id": "c01-b04",
+        "say": "The branches can normalize what they read. Does that also fix what the prediction head reads? We will trace one token through the block, then diagnose a checkpoint port at the head.",
+        "hold": 0.9
+      }
+    ]
+  },
+  {
+    "id": "c02",
+    "title": "Where is zero for this token?",
+    "sourceChapters": [
+      "c02"
+    ],
+    "beats": [
+      {
+        "id": "c02-b01",
+        "say": "Take a token with four different features. Their sum is eight. Divide by four and the mean is two. Subtract two from every feature. The first point moves from three to one. The last moves from five to three. They are still two units apart.",
+        "hold": 0.7
+      },
+      {
+        "id": "c02-b02",
+        "say": "The four points now balance around zero. Those four features supplied every number in the mean. Another token in the sequence gets a separate mean, even if it sits right beside this one.",
+        "hold": 0.65
+      },
+      {
+        "id": "c02-b03",
+        "say": "Now add three to each input. The mean rises by three as well. Subtract the new mean and each feature ends up exactly where it was after the first subtraction. Centering removes a shared offset. The next step measures how far these centered points sit from zero.",
+        "hold": 0.7
+      }
+    ]
+  },
+  {
+    "id": "c03",
+    "title": "How much spread is there?",
+    "sourceChapters": [
+      "c03"
+    ],
+    "beats": [
+      {
+        "id": "c03-b01",
+        "say": "Square the four distances and add the squares. One plus one plus nine plus nine makes twenty. Divide by all four features. That's the population variance, five. Add epsilon and take the square root. Our divisor is about two point two four.",
+        "hold": 0.3
+      },
+      {
+        "id": "c03-b02",
+        "say": "Divide each centered coordinate by that number. The first ends up near point four five. The third stays negative.",
+        "hold": 0.8
+      },
+      {
+        "id": "c03-b03",
+        "say": "Try a token with four sevens. Every centered value is zero. Positive epsilon keeps the divisor above zero, so every standardized output is zero. In general the variance after this division is the original variance divided by variance plus epsilon. That's close to one when the variance is much larger than epsilon. A learned shift could move those zeros later.",
+        "hold": 0.7
+      }
+    ]
+  },
+  {
+    "id": "c04",
+    "title": "Change one feature at a time",
+    "sourceChapters": [
+      "c04"
+    ],
+    "beats": [
+      {
+        "id": "c04-b01",
+        "say": "LayerNorm usually gives each feature its own learned gain and shift. Start every gain at one and every shift at zero. The first feature is still about point four five. Keep your eye on it.",
+        "hold": 0.7
+      },
+      {
+        "id": "c04-b02",
+        "say": "Double the first gain. That point is now near point eight nine. Now move the last shift to point seven. That adds point seven to its standardized value. The middle two stay put. The learned parameters can change both the mean and the variance. The zero mean belonged to the standardized values we started with.",
+        "hold": 0.8
+      }
+    ]
+  },
+  {
+    "id": "c05",
+    "title": "Can the next token change this one?",
+    "sourceChapters": [
+      "c05"
+    ],
+    "beats": [
+      {
+        "id": "c05-b01",
+        "say": "Put two tokens in the same sentence. The first feature of the first token is one. In the top calculation, only that token's three features set its mean and variance. The bottom calculation uses all six numbers.",
+        "hold": 0.3
+      },
+      {
+        "id": "c05-b02",
+        "say": "Suppose we add a hundred to every feature of the later token. Which calculation changes the first token's output?",
+        "hold": 3.5
+      },
+      {
+        "id": "c05-b03",
+        "say": "Change the later token. The top result stays put. Its three inputs never moved. The bottom result changes because the later token pulled up the shared mean and changed the spread. That is a route for future information in a causal decoder, even with a mask on attention.",
+        "hold": 0.8
+      },
+      {
+        "id": "c05-b04",
+        "say": "For per-token LayerNorm, give normalized shape just the hidden width, three here. Giving it both time and width selects both rows. Training BatchNorm can mix peers too. On batch, channel, time data, it reduces each channel across batch and time. Padding then counts unless excluded.",
+        "hold": 0.3
+      },
+      {
+        "id": "c05-b05",
+        "say": "In evaluation, BatchNorm normally uses stored statistics. With running statistics disabled it uses the current batch again. Hidden-only LayerNorm computes a fresh mean for each token in either mode.",
+        "hold": 0.75
+      }
+    ]
+  },
+  {
+    "id": "c06",
+    "title": "Which vector gets normalized?",
+    "sourceChapters": [
+      "c06"
+    ],
+    "beats": [
+      {
+        "id": "c06-b01",
+        "say": "Now place LayerNorm inside a block. Both copies start with the same four features. Follow the brass mark on feature one. Each branch takes one fifth of whatever it reads and adds a tenth to each feature. The blue wire carries the original token straight to the addition.",
+        "hold": 0.7
+      },
+      {
+        "id": "c06-b02",
+        "say": "On the upper route, normalize the four input features. The first feature starts at one. The mean is three point seven five, so subtracting it takes that feature below zero. Run that through the branch. It writes a small negative update.",
+        "hold": 0.3
+      },
+      {
+        "id": "c06-b03",
+        "say": "Add it to the original one on the blue wire. The first output is still positive. This is Pre-LN. The branch read a normalized copy.",
+        "hold": 0.8
+      },
+      {
+        "id": "c06-b04",
+        "say": "On the lower route, feed the original token to the branch. Its first update is point three. Add it back. The first feature of the sum is now one point three. Compare it with the other three features in that sum. After LayerNorm, will that first feature be positive or negative?",
+        "hold": 3.6
+      },
+      {
+        "id": "c06-b05",
+        "say": "Negative. The sum has mean four point six. Normalizing that sum takes the first feature just below minus one. This is Post-LN. Both contributions, including the one from the blue wire, passed through LayerNorm together.",
+        "hold": 0.9
+      },
+      {
+        "id": "c06-b06",
+        "say": "Feed each result into a second block of the same kind. Look at the two output means. With unit gains and zero shifts, the bottom sum gets centered again. The top stream has mean three point nine five.",
+        "hold": 0.3
+      },
+      {
+        "id": "c06-b07",
+        "say": "In a GPT-two-style checkpoint a final norm sits between that accumulated stream and the prediction head. Keep it when you port the weights. A branch input norm serves a different reader.",
+        "hold": 1
+      }
+    ]
+  },
+  {
+    "id": "c07",
+    "title": "Trace a change back through the fork",
+    "sourceChapters": [
+      "c07"
+    ],
+    "beats": [
+      {
+        "id": "c07-b01",
+        "say": "Trace the blue wire backward. In Pre-LN it gives a gradient a direct route around the branch. In the block derivative, the Jacobian, that's the additive identity. In Post-LN, even that wire crosses the derivative of the outer norm. To carry a loss gradient backward, use the transpose of each block's Jacobian.",
+        "hold": 0.65
+      },
+      {
+        "id": "c07-b02",
+        "say": "Choose a branch that multiplies by a fixed negative number. Its magnitude is this token's forward divisor. The probe has mean zero and is perpendicular to the centered token. Along that direction LayerNorm divides by the divisor, and the branch multiplies by its negative. The skip gets the same probe. Where will the sum land?",
+        "hold": 3.1
+      },
+      {
+        "id": "c07-b03",
+        "say": "The skip carries the probe unchanged. The branch sends it exactly the opposite way. Follow the first two components back to the origin. All four components cancel for this probe.",
+        "hold": 0.8
+      },
+      {
+        "id": "c07-b04",
+        "say": "The identity term tells you which route exists. The final norm, the head and the rest of the stack also affect what a loss sends back. To diagnose training, measure the actual gradient and parameter update at each depth.",
+        "hold": 0.65
+      }
+    ]
+  },
+  {
+    "id": "c08",
+    "title": "What changes when centering is removed?",
+    "sourceChapters": [
+      "c08"
+    ],
+    "beats": [
+      {
+        "id": "c08-b01",
+        "say": "Return to the token whose third feature was minus one. Square the four original values and their mean square is nine. Take the square root after adding epsilon. Divide by that uncentered root mean square and the third feature is about minus a third. That's RMSNorm.",
+        "hold": 0.3
+      },
+      {
+        "id": "c08-b02",
+        "say": "It usually has a learned gain and omits the learned shift. Its output can have a nonzero mean. You can put RMSNorm at the input of a residual branch. The skip still bypasses it. Now imagine lifting all four inputs five units. Which reference will follow the third feature up, zero or the token mean?",
+        "hold": 3.3
+      },
+      {
+        "id": "c08-b03",
+        "say": "Add five to all four inputs. The third feature crosses zero and reaches four. Its mean moves from two to seven. Four is still three below the mean. LayerNorm still reads about minus one point three four. RMSNorm measures from zero. Its new divisor is about seven point three five, so four now gives a positive output. With positive epsilon, rescaling a token can also change its normalized magnitude, especially near zero.",
+        "hold": 0.7
+      },
+      {
+        "id": "c08-b04",
+        "say": "Skipping the centering saves arithmetic. Suppose the rest of a step takes ninety-eight milliseconds and normalization takes two. Cut those two milliseconds in half. The whole step goes from a hundred milliseconds to ninety-nine. A fused LayerNorm kernel can compute both statistics in one pass.",
+        "hold": 0.3
+      },
+      {
+        "id": "c08-b05",
+        "say": "Benchmark the operator and the full step with matching shapes, precision and backward work. For a fresh arithmetic check, take one, three, five and seven with unit gain. Their mean square is twenty-one. Divide by its square root, ignoring epsilon here. The four answers are all positive. Their mean stays above zero.",
+        "hold": 0.8
+      }
+    ]
+  },
+  {
+    "id": "c09",
+    "title": "Differentiate one token",
+    "sourceChapters": [
+      "c09"
+    ],
+    "beats": [
+      {
+        "id": "c09-b01",
+        "say": "This token receives four upstream gradients. Multiply each by its feature's gain, here one. Subtract the mean of that product, one half, from all four. Now subtract the normalized input times the mean of its products with the gain-weighted gradient. Divide by the same forward scale.",
+        "hold": 0.3
+      },
+      {
+        "id": "c09-b02",
+        "say": "That's the input gradient. Both averages ran across features of this one token.",
+        "hold": 0.8
+      },
+      {
+        "id": "c09-b03",
+        "say": "Now read down the first column. Two tokens share the same shift. The first contributes one to its gradient. The second contributes a half. Together they give one and a half. For the gain, multiply each upstream gradient by its own token's standardized feature before you sum. Here token two is an offset copy, so both first features standardize to the same value.",
+        "hold": 0.3
+      },
+      {
+        "id": "c09-b04",
+        "say": "Positive epsilon leaves a small sensitivity to the input's scale.",
+        "hold": 0.75
+      }
+    ]
+  },
+  {
+    "id": "c10",
+    "title": "What should a depth measurement change?",
+    "sourceChapters": [
+      "c10"
+    ],
+    "beats": [
+      {
+        "id": "c10-b01",
+        "say": "Suppose a seventy-two-layer Post-LN model diverges at startup. Xiong and colleagues studied a simplified initialization with uniform attention. Their bound concerned the gradient of the last feed-forward network's second weight matrix. In that analysis the Pre-LN upper bound has an extra factor of one over the square root of depth. What would you measure in this run?",
+        "hold": 0.3
+      },
+      {
+        "id": "c10-b02",
+        "say": "They found large gradients near the output in their Post-LN setup. Here are two illustrative gradients, one and eight. With plain gradient descent, a tenfold smaller early rate shrinks both updates tenfold.",
+        "hold": 0.3
+      },
+      {
+        "id": "c10-b03",
+        "say": "If your top blocks take unusually large early updates, test warmup and keep measuring what the optimizer actually does.",
+        "hold": 0.8
+      },
+      {
+        "id": "c10-b04",
+        "say": "Return to our aligned writes. The stream's length grew by one every time. Now assume instead that each write has unit variance and is uncorrelated with the stream. The variances add, so standard deviation grows like the square root of depth.",
+        "hold": 0.3
+      },
+      {
+        "id": "c10-b05",
+        "say": "A branch with normalized inputs can still learn to produce large outputs. Check the assumptions on the trained model.",
+        "hold": 0.75
+      },
+      {
+        "id": "c10-b06",
+        "say": "If a late write is small compared with the stream, compare the normalized states immediately before and after it. Then bypass that block and measure the change on a held-out task. Similar states can signal the representation-collapse risk reported for some Pre-LN models. The task comparison tells you whether that block helped on your data. In this miniature classification test, three examples keep the same answer. One borderline example changes sign when we bypass the block. For a layout comparison, keep the data and training recipe matched.",
+        "hold": 0.8
+      }
+    ]
+  },
+  {
+    "id": "c11",
+    "title": "Where do the two DeepNorm scales act?",
+    "sourceChapters": [
+      "c11"
+    ],
+    "beats": [
+      {
+        "id": "c11-b01",
+        "say": "In this sixteen-layer decoder, DeepNorm multiplies the skip input by alpha, adds the branch output, then normalizes the whole sum. That's a Post-LN layout. The fourth root of twice the layer count gives alpha, about two point three eight here. Follow the tall blue skip contribution into the addition.",
+        "hold": 0.8
+      },
+      {
+        "id": "c11-b02",
+        "say": "Beta acts when the weights are initialized. For this decoder it's the inverse fourth root of eight times the layer count. It scales the feed-forward weights and attention's value and output matrices. Query and key keep gain one.",
+        "hold": 0.3
+      },
+      {
+        "id": "c11-b03",
+        "say": "Later, suppose the trained branch writes two to the first feature. Would you scale that two by beta again?",
+        "hold": 3.4
+      },
+      {
+        "id": "c11-b04",
+        "say": "Add the full two to the scaled skip, then normalize the sum across features. Encoder-decoder stacks use different coefficients. Preserve the initialization and check the schedule, including warmup.",
+        "hold": 0.9
+      }
+    ]
+  },
+  {
+    "id": "c12",
+    "title": "Which tensor does each norm control?",
+    "sourceChapters": [
+      "c12"
+    ],
+    "beats": [
+      {
+        "id": "c12-b01",
+        "say": "Keep the blue skip and put two norms on the branch. One controls what the branch reads. The other controls what it writes before the add. The skip still has its direct route. Gemma two uses RMSNorm on the input and output of its residual branches.",
+        "hold": 0.3
+      },
+      {
+        "id": "c12-b02",
+        "say": "The full Peri-LN recipe also specifies embedding and final norms. The operator in any of these positions can be a separate checkpoint choice.",
+        "hold": 0.85
+      },
+      {
+        "id": "c12-b03",
+        "say": "Now look inside attention. Both keys have a score of a thousand. Each gets half the attention. Add eight hundred to both and they still split it equally. Score gaps matter. Normalizing queries and keys before their dot product controls one source of those gaps.",
+        "hold": 0.3
+      },
+      {
+        "id": "c12-b04",
+        "say": "The feed-forward writes and the main residual stream have their own paths. Keep their checkpoint norms when you add query and key normalization.",
+        "hold": 0.75
+      },
+      {
+        "id": "c12-b05",
+        "say": "Give a query and a key four features each, unit RMS and no learned gain. Their lengths are two. Their dot product is bounded by four, reached when they line up. Divide by the square root of four.",
+        "hold": 0.3
+      },
+      {
+        "id": "c12-b06",
+        "say": "One aligned key scores two, and one opposite key scores minus two. Even bounded scores can give the first key about ninety-eight percent of the attention. Learned gains can change the bound itself.",
+        "hold": 0.8
+      }
+    ]
+  },
+  {
+    "id": "c13",
+    "title": "Where did the numbers first change?",
+    "sourceChapters": [
+      "c13"
+    ],
+    "beats": [
+      {
+        "id": "c13-b01",
+        "say": "Before comparing a port with its checkpoint, give them the same numbers. Take three hundred and minus three hundred. Both fit in half precision. Squaring in half precision overflows, because ninety thousand exceeds its finite limit. Widen those infinities and they stay infinite.",
+        "hold": 0.3
+      },
+      {
+        "id": "c13-b02",
+        "say": "On the second path, cast before squaring. Now both squares fit and the root mean square comes back as three hundred.",
+        "hold": 0.8
+      },
+      {
+        "id": "c13-b03",
+        "say": "Here's a different failure. These four features sit close to ten thousand. The big ticks are the values half precision can store here. They're eight apart. If we store this token in half precision, which tick takes each feature?",
+        "hold": 3.7
+      },
+      {
+        "id": "c13-b04",
+        "say": "All four land on ten thousand. Cast that stored row back to a wider type. Each value is still ten thousand. LayerNorm subtracts their common mean and gets four zeros before gain and shift. The original row had real differences.",
+        "hold": 0.3
+      },
+      {
+        "id": "c13-b05",
+        "say": "To check the kernel, run the wide reference on the same stored row. Compare against the original separately to measure what was lost at storage.",
+        "hold": 1
+      }
+    ]
+  },
+  {
+    "id": "c14",
+    "title": "Which input belongs at the head?",
+    "sourceChapters": [
+      "c14"
+    ],
+    "beats": [
+      {
+        "id": "c14-b01",
+        "say": "Back at the prediction head. This little head reads the first feature as one logit. Test a GPT-two-style port with these two invented residual vectors. Use unit gains and zero shifts in the norms. On the first vector the port reads two.",
+        "hold": 0.3
+      },
+      {
+        "id": "c14-b02",
+        "say": "The reference reads about minus one point three four. Add five to every feature and run both again. The port now reads seven. The reference hasn't moved. Which operation belongs between the last addition and this head?",
+        "hold": 4
+      },
+      {
+        "id": "c14-b03",
+        "say": "Restore the checkpoint's final LayerNorm. Take the mean of each row. Two minus five and seven minus ten both give minus three. Both rows have population variance five. Divide by the same scale and the two brass marks land at the same value. Route that feature to the head.",
+        "hold": 0.3
+      },
+      {
+        "id": "c14-b04",
+        "say": "Both logits now match the reference with the checkpoint's epsilon, unit gain and zero shift.",
+        "hold": 0.85
+      },
+      {
+        "id": "c14-b05",
+        "say": "Try the same two inputs with RMSNorm instead. It divides the positive first features by different uncentered scales. The scores stay positive and miss both reference values. Put LayerNorm back, and check the actual head inputs across more tokens when you port a full checkpoint.",
+        "hold": 0.3
+      },
+      {
+        "id": "c14-b06",
+        "say": "Once the numbers agree, there's another question. What do those features represent? The next lesson uses sparse autoencoders and causal tests to investigate that.",
+        "hold": 1
+      }
+    ]
+  }
+]

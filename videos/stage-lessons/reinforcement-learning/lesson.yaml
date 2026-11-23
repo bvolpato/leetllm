@@ -1,0 +1,871 @@
+version: 1
+id: reinforcement-learning
+title: Choose Actions by Their Future Consequences
+source: foundations/introduction-to-reinforcement-learning-fundamentals/content.md
+sources:
+  - title: "Reinforcement Learning: An Introduction, Sutton and Barto"
+    url: https://mitpress.mit.edu/9780262039246/reinforcement-learning/
+  - title: Q-learning, Watkins and Dayan
+    url: https://link.springer.com/article/10.1007/BF00992698
+scenes:
+  - id: intro
+    title: "Where should this access request go?"
+    visual: "An access request slides up to a fork. Both routes stay visible as their costs and later rewards appear in two rows. The totals stay hidden for the decision."
+    beats:
+      - say: "This access request is missing proof. Would you ask for it or send the ticket straight to a reviewer?"
+        hold: 0.6
+        visual_cues:
+          - id: ask-route
+            phrase: "ask for it"
+            targets: [picture]
+          - id: review-route
+            phrase: "straight to a reviewer"
+            targets: [picture]
+      - say: "Suppose everyone sends valid proof when asked. In our simulator, asking costs four points now. Approval with that proof earns seventy on the next step. Sending the ticket to review costs eighteen now. The reviewer verifies it and earns eighty on the next step."
+        hold: 0.6
+        visual_cues:
+          - id: certain
+            phrase: "Suppose everyone sends valid proof"
+            targets: [picture]
+          - id: ask-cost
+            phrase: "asking costs four points now"
+            targets: [picture]
+          - id: ask-later
+            phrase: "seventy on the next step"
+            targets: [picture]
+          - id: review-cost
+            phrase: "costs eighteen now"
+            targets: [picture]
+          - id: review-later
+            phrase: "eighty on the next step"
+            targets: [picture]
+      - say: "Each point earned one step later counts for nine tenths of a point now. Review earns more at the end, but it also costs more up front. Which first move earns the larger return?"
+        hold: 2.6
+        visual_cues:
+          - id: discount
+            phrase: "nine tenths of a point"
+            targets: [picture]
+          - id: decide
+            phrase: "Which first move earns the larger return"
+            targets: [picture]
+  - id: episode
+    title: "What each route is worth at nine"
+    visual: "Copies of the later rewards move back to the desk at their discounted values. The two immediate costs complete the totals on the same request slip."
+    beats:
+      - say: "Bring the seventy points back one step. At nine o’clock they’re worth sixty-three. Pay the four-point cost of asking, and the evidence route comes to fifty-nine."
+        caption_starts:
+          - "At nine o’clock"
+          - "and the evidence route comes to fifty-nine"
+        hold: 0.55
+        visual_cues:
+          - id: ask-back
+            phrase: "Bring the seventy points back one step"
+            targets: [picture]
+          - id: ask-now
+            phrase: "worth sixty-three"
+            targets: [picture]
+          - id: ask-total
+            phrase: "comes to fifty-nine"
+            targets: [picture]
+      - say: "Do the same for the reviewer’s eighty. Its value at the desk is seventy-two. The eighteen-point cost brings the return to fifty-four."
+        caption_starts:
+          - "Its value at the desk"
+          - "The eighteen-point cost"
+        hold: 0.7
+        visual_cues:
+          - id: review-back
+            phrase: "Do the same for the reviewer’s eighty"
+            targets: [picture]
+          - id: review-now
+            phrase: "is seventy-two"
+            targets: [picture]
+          - id: review-total
+            phrase: "brings the return to fifty-four"
+            targets: [picture]
+      - say: "Ask for evidence. Review has the larger final reward, but its extra handling cost outweighs that difference. In the simulator, approving right away closes this ticket without proof and earns minus one hundred twenty. P seven blocks that action at the real desk."
+        hold: 0.6
+        visual_cues:
+          - id: choose
+            phrase: "Ask for evidence"
+            targets: [picture]
+          - id: unsafe
+            phrase: "earns minus one hundred twenty"
+            targets: [picture]
+      - say: "From a new ticket to a closed one, that sequence of decisions and rewards is an episode. Its return adds the rewards, counting a reward two steps away with two factors of the discount. Reinforcement learning uses experience of those consequences to choose actions. Predicting a label on a finished ticket leaves an open question here. What would we learn if we asked for proof?"
+        hold: 0.8
+        visual_cues:
+          - id: return-rule
+            phrase: "counting a reward two steps away"
+            targets: [picture]
+      - say: "These tickets all close in a few steps, so even an undiscounted sum is finite. For a continuing task with bounded rewards and a discount below one, the geometric sum on screen bounds the size of the return. Here we discount per step. A step might take a minute or an hour. That timing downweights later penalties, too. If waiting makes people leave, we need to include that outcome and its cost."
+        hold: 0.8
+        visual_cues:
+          - id: bound
+            phrase: "the geometric sum on screen"
+            targets: [picture]
+          - id: wait
+            phrase: "If waiting makes people leave"
+            targets: [picture]
+  - id: mdp
+    title: "What did the desk know?"
+    visual: "A receipt turns a new request into a verified one. Two requests at the same stage then expose the missing elapsed-time field."
+    beats:
+      - say: "Try the same action on either side of verification. Approve a new request with no proof, and P seven blocks it. Approve after verification, and the ticket can close safely. That single field changes what approval can do. It belongs in the state the router sees."
+        hold: 0.55
+        visual_cues:
+          - id: different-state
+            phrase: "Approve after verification"
+            targets: [picture]
+      - say: "Suppose this ticket has waited forty-five seconds. If waiting makes people more likely to leave, include elapsed time too. Given a state and an action, ask whether any earlier detail would change the distribution of the next state or reward. If the state already captures everything that matters for that prediction, it has the Markov property."
+        hold: 0.55
+        visual_cues:
+          - id: wait-field
+            phrase: "include elapsed time too"
+            targets: [picture]
+          - id: markov
+            phrase: "the Markov property"
+            targets: [picture]
+      - say: "The router is the agent. It asks for proof. The requester and verifier are part of its environment. Now receipt E seventeen comes back. It records verified proof, a cost of four points, and twenty more seconds on the clock. That’s one transition. The states, available actions, transition probabilities, rewards and discount together specify a Markov decision process."
+        hold: 0.6
+        visual_cues:
+          - id: agent-action
+            phrase: "It asks for proof"
+            targets: [picture]
+          - id: observation
+            phrase: "Now receipt E seventeen comes back"
+            targets: [picture]
+      - say: "Compare two new tickets again. Both still lack proof. One has waited forty-five seconds and the other sixty-five. If their chances of leaving differ, the label new hides something the router needs. Keep the elapsed time, or use enough history to infer the missing state. If the agent only ever sees part of the environment, it can use a belief over possible states. The environment itself hasn’t changed."
+        hold: 0.9
+        visual_cues:
+          - id: counterexample
+            phrase: "Compare two new tickets again"
+            targets: [picture]
+          - id: partial
+            phrase: "the label new hides something the router needs"
+            targets: [picture]
+  - id: bellman
+    title: "Work backward from the next state"
+    visual: "Rewards and successor values travel back along the request graph. The comparison switches from a new ticket to a verified ticket."
+    beats:
+      - say: "The router’s policy chooses which move to propose. P seven separately governs what may execute. The router can choose a single action or draw one at random. A state value asks what return you expect if you start there and follow that policy. An action value fixes the first move and then follows the policy. To plan the best route, let the later decisions be the best available too."
+        hold: 0.6
+        visual_cues:
+          - id: value
+            phrase: "A state value asks"
+            targets: [picture]
+      - say: "Start with the new ticket. In our simulator, immediate unsupported approval costs one hundred twenty. Requesting evidence brings back fifty-nine points after the cost of asking. Sending it to review brings back fifty-four. The largest return tells the desk which opening move to make. Request evidence."
+        caption_starts:
+          - "Request evidence"
+        hold: 0.65
+        visual_cues:
+          - id: approve-value
+            phrase: "immediate unsupported approval costs one hundred twenty"
+            targets: [picture]
+          - id: evidence-backup
+            phrase: "Requesting evidence"
+            targets: [picture]
+          - id: evidence-value
+            phrase: "brings back fifty-nine points"
+            targets: [picture]
+          - id: review-backup
+            phrase: "Sending it to review"
+            targets: [picture]
+          - id: review-value
+            phrase: "brings back fifty-four"
+            targets: [picture]
+          - id: greedy
+            phrase: "Request evidence"
+            targets: [picture]
+      - say: "Move the decision forward one step. The evidence has been verified. Approval now earns seventy immediately. Asking a human to check that proof costs another ten before the reviewer can earn eighty. Discount the eighty, then subtract the ten. The review route is worth sixty-two. That’s where the value of seventy at the verified state came from."
+        caption_starts:
+          - "The review route is worth sixty-two"
+        hold: 0.65
+        visual_cues:
+          - id: successor
+            phrase: "Move the decision forward one step"
+            targets: [picture]
+          - id: supported-approval
+            phrase: "Approval now earns seventy immediately"
+            targets: [picture]
+          - id: successor-result
+            phrase: "The review route is worth sixty-two"
+            targets: [picture]
+      - say: "Using successor values to update an earlier value is a Bellman backup. For a fixed policy, average over its action probabilities and the possible outcomes of each action. For an optimal backup, average the outcomes for each action first, then take the best action. A closed ticket contributes zero future value. The reward for closing it was paid on the way in."
+        hold: 0.8
+        visual_cues:
+          - id: policy
+            phrase: "For a fixed policy"
+            targets: [picture]
+          - id: terminal
+            phrase: "A closed ticket contributes zero future value"
+            targets: [picture]
+  - id: value-iteration
+    title: "How many sweeps reach the desk?"
+    visual: "Synchronous sweeps carry successor values back one step at a time. A separate policy-iteration calculation first evaluates the review rule and then changes the first action."
+    beats:
+      - say: "Suppose the desk knows the transitions and rewards, but every state value starts at zero. On the first sweep, read only those old zeros. At the new ticket the best immediate score is the four-point cost of asking, so its value is minus four."
+        hold: 0.65
+        visual_cues:
+          - id: zero
+            phrase: "every state value starts at zero"
+            targets: [picture]
+          - id: first
+            phrase: "On the first sweep"
+            targets: [picture]
+          - id: immediate
+            phrase: "its value is minus four"
+            targets: [picture]
+      - say: "That first sweep also writes seventy for verified evidence and eighty for the review queue. On the second sweep, bring those entries back to the desk. Asking becomes fifty-nine, and direct review becomes fifty-four. Asking still wins. This time the desk can see the reward beyond its first move."
+        hold: 0.6
+        visual_cues:
+          - id: successors
+            phrase: "seventy for verified evidence and eighty for the review queue"
+            targets: [picture]
+          - id: second
+            phrase: "On the second sweep"
+            targets: [picture]
+          - id: backward
+            phrase: "bring those entries back to the desk"
+            targets: [picture]
+          - id: updated
+            phrase: "Asking becomes fifty-nine"
+            targets: [picture]
+          - id: review-result
+            phrase: "direct review becomes fifty-four"
+            targets: [picture]
+          - id: best
+            phrase: "Asking still wins"
+            targets: [picture]
+      - say: "A third sweep leaves these values in place. This is value iteration. In a finite model with bounded rewards and a discount below one, exact optimality backups converge from any finite starting values. Each sweep shrinks the largest possible error by a factor no greater than the discount. The optimal value is unique, though several actions can tie for it."
+        hold: 0.65
+        visual_cues:
+          - id: stable
+            phrase: "A third sweep leaves these values in place"
+            targets: [picture]
+          - id: converges
+            phrase: "exact optimality backups converge"
+            targets: [picture]
+          - id: contract
+            phrase: "shrinks the largest possible error"
+            targets: [picture]
+      - say: "Now try policy iteration. Give the desk a fixed rule. Send a new ticket to review, approve a verified ticket, and let the reviewer finish any queued ticket. Evaluating that rule gives the new ticket a value of fifty-four. Only then ask whether changing the first move helps. Asking for evidence gives fifty-nine, so switch the opening action. Exact evaluation and greedy improvement with consistent tie handling eventually settle on an optimal rule in this finite discounted model. Approximate evaluation needs its own error check."
+        caption_starts:
+          - "Evaluating that rule"
+          - "Asking for evidence gives fifty-nine"
+        hold: 0.8
+        visual_cues:
+          - id: policy-iteration
+            phrase: "Now try policy iteration"
+            targets: [picture]
+          - id: evaluate
+            phrase: "a value of fifty-four"
+            targets: [picture]
+          - id: improve
+            phrase: "so switch the opening action"
+            targets: [picture]
+  - id: uncertain-transition
+    title: "When the requester walks away"
+    visual: "One hundred marks show the probability mass of the evidence request. A quarter switches to an abandoned outcome. A return ruler keeps direct review fixed at 54 as the evidence mean moves to the tie."
+    beats:
+      - say: "Until now, everyone sent proof. These hundred marks show that assumption. Each stands for one percent of the possible outcomes of asking. A green mark is a reply with verified proof, worth fifty-nine points over the route. Direct review is still worth fifty-four."
+        hold: 0.6
+        visual_cues:
+          - id: certain
+            phrase: "Each stands for one percent"
+            targets: [picture]
+          - id: review-line
+            phrase: "Direct review is still worth fifty-four"
+            targets: [picture]
+      - say: "Change just the chance of a reply. Suppose one in four requesters leaves. We still spend four points asking. Closing the ticket unresolved costs another fifty on that same step. Each abandoned route therefore returns minus fifty-four."
+        caption_starts:
+          - "Each abandoned route"
+        hold: 0.6
+        visual_cues:
+          - id: quarter
+            phrase: "one in four requesters leaves"
+            targets: [picture]
+          - id: costs
+            phrase: "costs another fifty on that same step"
+            targets: [picture]
+          - id: abandoned
+            phrase: "returns minus fifty-four"
+            targets: [picture]
+      - say: "Seventy-five parts of the hundred earn fifty-nine each. The other twenty-five earn minus fifty-four each. If you had to route the next ticket before seeing its outcome, would you ask or send it to review?"
+        hold: 2.55
+        visual_cues:
+          - id: weigh
+            phrase: "The other twenty-five earn minus fifty-four each"
+            targets: [picture]
+          - id: predict
+            phrase: "would you ask or send it to review"
+            targets: [picture]
+      - say: "The evidence route averages thirty point seven five. Send the ticket to review. One request can earn fifty-nine or minus fifty-four. Thirty point seven five is the weighted mean across possible requests. An actual batch of a hundred can have a different mix."
+        caption_starts:
+          - "Send the ticket to review"
+        hold: 0.7
+        visual_cues:
+          - id: mean
+            phrase: "averages thirty point seven five"
+            targets: [picture]
+          - id: winner
+            phrase: "Send the ticket to review"
+            targets: [picture]
+      - say: "Watch the green marker as we lower the abandonment chance. Each time one percentage point switches from abandonment back to a reply, it replaces minus fifty-four with fifty-nine. That gains one hundred thirteen points per hundred requests, or one point one three in the mean. Review stays put."
+        hold: 0.55
+        visual_cues:
+          - id: sweep
+            phrase: "as we lower the abandonment chance"
+            targets: [picture]
+          - id: gain
+            phrase: "one point one three in the mean"
+            targets: [picture]
+      - say: "At zero abandonment, asking leads review by five. If p is the fraction who leave, asking loses one hundred thirteen times p. The lead disappears when p is five divided by one hundred thirteen, about four point four two percent. Below that point ask for evidence. Above it choose review. The cutoff depends on the costs and on when we charge them. To use it on real tickets, we’d need to measure how often requesters actually reply."
+        hold: 0.85
+        visual_cues:
+          - id: lead
+            phrase: "asking leads review by five"
+            targets: [picture]
+          - id: equation
+            phrase: "asking loses one hundred thirteen times p"
+            targets: [picture]
+          - id: tie
+            phrase: "about four point four two percent"
+            targets: [picture]
+          - id: regions
+            phrase: "Above it choose review"
+            targets: [picture]
+  - id: q-learning
+    title: "What does one observed reply change?"
+    visual: "One observed reply moves the evidence action's table entry halfway toward its greedy target. The two other opening estimates stay at zero."
+    beats:
+      - say: "Suppose we don’t know the chance of a reply. We could estimate a transition model. Or we could update an action value directly from experience. Here’s one transition record. This ticket was new, we asked for proof, paid four points and received verified evidence. That row tells us what happened once."
+        hold: 0.55
+        visual_cues:
+          - id: record
+            phrase: "Here’s one transition record"
+            targets: [picture]
+          - id: sample
+            phrase: "paid four points and received verified evidence"
+            targets: [picture]
+      - say: "Look at the entry for asking on a new ticket. It starts at zero. Our best estimated next action at the verified state is worth seventy. Discount it by point nine and subtract the four points we spent. The target is fifty-nine. With a step size of one half, how far does the entry move?"
+        caption_starts:
+          - "The target is fifty-nine"
+        hold: 2.1
+        visual_cues:
+          - id: target-rule
+            phrase: "Discount it by point nine"
+            targets: [picture]
+          - id: target
+            phrase: "The target is fifty-nine"
+            targets: [picture]
+          - id: ask-step
+            phrase: "how far does the entry move"
+            targets: [picture]
+      - say: "Twenty-nine point five. Only the cell for asking changed. Approval and review still have their old estimates. This is a Q-learning update. It uses the best estimated next action even when the router that supplies the data explores. For tabular values to converge, the learner needs repeated visits and suitable step sizes in a stationary finite model with bounded rewards and a discount below one. A neural network shares weights across estimates, so one update can change several action values."
+        hold: 0.85
+        visual_cues:
+          - id: half
+            phrase: "Twenty-nine point five"
+            targets: [picture]
+          - id: one-cell
+            phrase: "Only the cell for asking changed"
+            targets: [picture]
+          - id: off-policy
+            phrase: "the best estimated next action"
+            targets: [picture]
+  - id: td-targets
+    title: "Which future belongs in the update?"
+    visual: "A receipt for one observed ask is replayed before and after closure. Two next-action estimates travel into distinct target slots. Two more records stop at the same cost, but only one has a continuing review queue."
+    beats:
+      - say: "Here’s one ticket that did get a reply. We paid four points to ask. At the evidence-ready state, put a finger over the rest of the record. Suppose our current estimate of the future under this policy is fifty. What target can we form right now?"
+        hold: 2.1
+        visual_cues:
+          - id: paid
+            phrase: "We paid four points to ask"
+            targets: [picture]
+          - id: estimate
+            phrase: "our current estimate of the future under this policy is fifty"
+            targets: [picture]
+          - id: predict-td
+            phrase: "What target can we form right now"
+            targets: [picture]
+      - say: "Minus four plus nine tenths of fifty gives forty-one. That’s a one-step temporal difference target. Now uncover what actually happened. This ticket closed with a verified approval worth seventy. Its observed discounted return was fifty-nine. Monte Carlo uses that completed return."
+        caption_starts:
+          - "Now uncover what actually happened"
+          - "Its observed discounted return"
+        hold: 0.6
+        visual_cues:
+          - id: td-answer
+            phrase: "gives forty-one"
+            targets: [picture]
+          - id: uncover
+            phrase: "Now uncover what actually happened"
+            targets: [picture]
+          - id: recorded
+            phrase: "a verified approval worth seventy"
+            targets: [picture]
+          - id: mc-answer
+            phrase: "return was fifty-nine"
+            targets: [picture]
+      - say: "Across complete episodes sampled from a fixed policy, Monte Carlo has the right average target for that policy. It also picks up all the later randomness. Using the exact conditional mean for the tail removes that source of variation. Using an estimate lets us update sooner, but a bad estimate can bias the target. On this ticket, the estimate was fifty and the observed reward was seventy."
+        hold: 0.6
+        visual_cues:
+          - id: compare
+            phrase: "the estimate was fifty and the observed reward was seventy"
+            targets: [picture]
+      - say: "Replay the moment just after the same four-point cost. This time we have estimates for each next action. Approving with proof is worth seventy. Sending the verified request on for review is worth sixty-two. One update follows the action the router actually selects. That rule is called SARSA. The exploratory router picks review. Which next-action value goes into the SARSA target?"
+        hold: 2.45
+        visual_cues:
+          - id: replay
+            phrase: "Replay the moment"
+            targets: [picture]
+          - id: approve-value
+            phrase: "Approving with proof is worth seventy"
+            targets: [picture]
+          - id: review-value
+            phrase: "on for review is worth sixty-two"
+            targets: [picture]
+          - id: selected
+            phrase: "The exploratory router picks review"
+            targets: [picture]
+          - id: predict-action
+            phrase: "Which next-action value goes into the SARSA target"
+            targets: [picture]
+      - say: "Sixty-two. The router picked review. With the four-point cost and the discount, the SARSA target is fifty-one point eight. That’s on-policy learning. Q-learning takes the higher estimate, seventy. Its target stays fifty-nine even when the router takes the other action. That’s what makes this update off-policy."
+        caption_starts:
+          - "The router picked review."
+          - "With the four-point cost"
+          - "Its target stays fifty-nine"
+        hold: 0.65
+        visual_cues:
+          - id: take-selected
+            phrase: "Sixty-two"
+            targets: [picture]
+          - id: sarsa-total
+            phrase: "the SARSA target is fifty-one point eight"
+            targets: [picture]
+          - id: take-max
+            phrase: "takes the higher estimate, seventy"
+            targets: [picture]
+          - id: q-total
+            phrase: "Its target stays fifty-nine"
+            targets: [picture]
+      - say: "Two tickets each cost eighteen points. One ticket closes. The other is still in the review queue when the recorder stops. The queue is worth eighty. Which ticket keeps a future value in its target?"
+        hold: 2.25
+        visual_cues:
+          - id: both-stop
+            phrase: "Two tickets each cost eighteen points"
+            targets: [picture]
+          - id: terminal
+            phrase: "One ticket closes"
+            targets: [picture]
+          - id: truncated
+            phrase: "still in the review queue"
+            targets: [picture]
+          - id: next-value
+            phrase: "The queue is worth eighty"
+            targets: [picture]
+          - id: predict-stop
+            phrase: "Which ticket keeps a future value in its target"
+            targets: [picture]
+      - say: "Keep the queued ticket’s eighty. Its target is fifty-four. The closed ticket has no future, so its target is minus eighteen. When a recording times out, use the last observation from that ticket. A reset gives you a different ticket. If the task itself has a deadline, reaching it ends the episode. Include the time left in the state when it changes the decision."
+        caption_starts:
+          - "Its target is fifty-four"
+          - "The closed ticket"
+        hold: 1
+        visual_cues:
+          - id: keep-next
+            phrase: "Keep the queued ticket’s eighty"
+            targets: [picture]
+          - id: limit-total
+            phrase: "Its target is fifty-four"
+            targets: [picture]
+          - id: end-total
+            phrase: "its target is minus eighteen"
+            targets: [picture]
+  - id: exploration
+    title: "Which actions did the router try?"
+    visual: "A named episode passes through an exploration draw and a uniform action draw. Eight proposals accumulate by action so a proposed unsafe move can be distinguished from an executed learning visit."
+    beats:
+      - say: "Freeze a table in which asking has the highest estimated value. Most of the time the router takes that move. One time in five, on average, it explores. Follow episode E zero two. The first draw is point zero nine, below the one-fifth cutoff. The second draw is point nine one. It lands in the last of three equal slots, so this episode proposes human review. This mixture of the best current move and a random draw is called epsilon-greedy. Epsilon is the chance of exploring. Every proposal still goes through the authorization gate."
+        hold: 0.55
+        visual_cues:
+          - id: epsilon
+            phrase: "One time in five"
+            targets: [picture]
+          - id: explore
+            phrase: "The first draw is point zero nine"
+            targets: [picture]
+          - id: uniform
+            phrase: "The second draw is point nine one"
+            targets: [picture]
+          - id: proposal
+            phrase: "this episode proposes human review"
+            targets: [picture]
+          - id: gate
+            phrase: "the authorization gate"
+            targets: [picture]
+      - say: "Replay eight simulator tickets with those estimates fixed. Each ticket goes into the bin for the action it proposes. Six ask for proof. One goes to review. Look at the ticket in the approval bin. With no proof, a live gate would reject it and route to a reviewer. Count that as a proposal to approve. Only the executed action supplies an observed outcome."
+        hold: 0.6
+        visual_cues:
+          - id: episodes
+            phrase: "Replay eight simulator tickets"
+            targets: [picture]
+          - id: unsafe
+            phrase: "a live gate would reject it"
+            targets: [picture]
+      - say: "Eight proposals are a small sample. Tabular Q-learning’s convergence result needs every state-action pair updated infinitely often. For each pair, its visit-indexed learning rates must sum to infinity while their squares sum to a finite number. One more detail about these odds. Asking can also win the uniform draw. Its probability is point eight plus one fifth of one third, about eighty-seven percent."
+        hold: 0.8
+        visual_cues:
+          - id: convergence
+            phrase: "every state-action pair updated infinitely often"
+            targets: [picture]
+          - id: greedy-odds
+            phrase: "Its probability is point eight"
+            targets: [picture]
+          - id: probability
+            phrase: "about eighty-seven percent"
+            targets: [picture]
+  - id: policy-gradient
+    title: "How should the policy change its odds?"
+    visual: "A two-step payoff supplies a time-weighted derivative. A table pairs each baseline with its gradient variance. The opening action probabilities then move by one exact logit update."
+    beats:
+      - say: "Suppose the router gives each action a probability. After a good episode, we can adjust the parameters that set those odds. REINFORCE weights the gradient of each chosen action’s log probability by its reward-to-go, the discounted return from that action onward. For an objective measured from the start of the episode, also discount back to the start. Sum those contributions along the episode and average over sampled episodes. This calculation assumes a fixed starting distribution and environment dynamics that do not depend directly on those parameters."
+        hold: 0.55
+        visual_cues:
+          - id: reinforce
+            phrase: "weights the gradient of each chosen action’s log probability"
+            targets: [picture]
+      - say: "Take just two steps. The first is fixed. On the second, a coin with adjustable odds pays one on heads and zero on tails. At logit zero the coin is fair. The probability of heads changes at a rate of one quarter per unit of logit there. The reward arrives one step from the start. With our discount, the objective’s derivative is point two two five. Drop that time weight and you get point two five."
+        hold: 0.65
+        visual_cues:
+          - id: bernoulli
+            phrase: "a coin with adjustable odds"
+            targets: [picture]
+          - id: derivative
+            phrase: "the objective’s derivative is point two two five"
+            targets: [picture]
+          - id: wrong
+            phrase: "you get point two five"
+            targets: [picture]
+      - say: "Now use just the coin toss, with its reward paid immediately. Subtract the same baseline from either outcome. When the baseline is zero, the two sampled gradients differ. Set it to one half and both samples give the same gradient. Set it to ten and the samples scatter much farther apart. Every row has the same mean of one quarter. The baseline changes the noise in the estimate."
+        hold: 0.6
+        visual_cues:
+          - id: baseline
+            phrase: "Subtract the same baseline"
+            targets: [picture]
+          - id: zero-row
+            phrase: "When the baseline is zero"
+            targets: [picture]
+          - id: half-row
+            phrase: "both samples give the same gradient"
+            targets: [picture]
+          - id: ten-row
+            phrase: "the samples scatter much farther apart"
+            targets: [picture]
+          - id: variance
+            phrase: "Every row has the same mean of one quarter"
+            targets: [picture]
+      - say: "A baseline can depend on the state. For this argument it must be independent of the action we draw, and we hold it fixed when differentiating the actor. With the true state value as baseline, the sampled return minus that value estimates advantage. That’s how much better the action is than following the policy on average in that state. Fitting a baseline to the very action return it weights needs care."
+        hold: 0.65
+        visual_cues:
+          - id: baseline-fixed
+            phrase: "we hold it fixed"
+            targets: [picture]
+          - id: true-value
+            phrase: "With the true state value as baseline"
+            targets: [picture]
+      - say: "Back at our routing desk, one requester in four leaves. Freeze the later decisions and start with equal odds for the three opening actions. Look at the review row. Review earns fifty-four against a policy average of minus eleven point seven five. For a softmax logit, multiply that advantage by the action’s probability. Review starts with one third. At those odds, raising its logit increases expected return at about twenty-two points per unit of logit. Add point zero three times each slope to its logit, then normalize with softmax. Review now gets just over half the probability. Approval drops below a tenth. Here we could sum over all three opening actions exactly. A trajectory trainer estimates its gradient from sampled decisions."
+        hold: 0.85
+        visual_cues:
+          - id: router
+            phrase: "Back at our routing desk"
+            targets: [picture]
+          - id: row-review
+            phrase: "Look at the review row"
+            targets: [picture]
+          - id: update
+            phrase: "Review now gets just over half the probability"
+            targets: [picture]
+          - id: scope
+            phrase: "sum over all three opening actions exactly"
+            targets: [picture]
+  - id: llm-policy
+    title: "What did each token earn?"
+    visual: "A proposed token appends to a prefix. Three completions receive group-relative scores. On a replay the verifier gives all three the same reward and the viewer predicts the score that reaches each token."
+    beats:
+      - say: "Turn the route into text. For this first token, give our toy model the same three probabilities as the router. The prompt names the ticket. The model can start its reply with a token such as Request. That next token is the action. Append it to the prefix and you have the next state. An end token can stop generation, and a preference model or a verifier can score the finished reply. A tool-using agent also acts on the outside world and receives observations from it."
+        hold: 0.65
+        visual_cues:
+          - id: tokens
+            phrase: "a token such as Request"
+            targets: [picture]
+          - id: append
+            phrase: "Append it to the prefix"
+            targets: [picture]
+      - say: "In classical preference training with PPO, the actor generates the reply. The critic estimates the value of a partial reply. The reward model scores the completion. A frozen reference supplies the comparison for a divergence penalty. For the update ratio, divide the token’s new probability by its probability under the rollout policy that sampled the tokens. Give this token an advantage of one and set the upper clip at one point two. Raise the ratio to one point four. The clipped score stays at one point two. The policy can still move farther, so measure its divergence and its return after the update."
+        caption_starts:
+          - "Raise the ratio"
+          - "The clipped score stays"
+        hold: 0.65
+        visual_cues:
+          - id: actor
+            phrase: "the actor generates the reply"
+            targets: [picture]
+          - id: critic
+            phrase: "The critic estimates the value of a partial reply"
+            targets: [picture]
+          - id: reward
+            phrase: "The reward model scores the completion"
+            targets: [picture]
+          - id: reference
+            phrase: "A frozen reference supplies the comparison"
+            targets: [picture]
+          - id: old-policy
+            phrase: "the rollout policy that sampled the tokens"
+            targets: [picture]
+          - id: clip-limit
+            phrase: "set the upper clip at one point two"
+            targets: [picture]
+          - id: clip-ratio
+            phrase: "Raise the ratio to one point four"
+            targets: [picture]
+          - id: clip-score
+            phrase: "The clipped score stays at one point two"
+            targets: [picture]
+      - say: "Now generate three replies to the same prompt. In the original group-relative method, called GRPO, their scores supply a comparison in place of a trained critic. Our verifier gives Approve access zero points. Request evidence earns one. Review this request earns two. Subtract the group mean of one. Divide by the population standard deviation, about zero point eight two, plus a tiny positive stabilizer. The reply worth two ends up about one point two two five above the mean in these units."
+        hold: 0.6
+        visual_cues:
+          - id: group
+            phrase: "generate three replies to the same prompt"
+            targets: [picture]
+          - id: reward-approve
+            phrase: "Approve access zero points"
+            targets: [picture]
+          - id: reward-proof
+            phrase: "Request evidence earns one"
+            targets: [picture]
+          - id: reward-review
+            phrase: "Review this request earns two"
+            targets: [picture]
+          - id: normalize
+            phrase: "the population standard deviation"
+            targets: [picture]
+          - id: relative
+            phrase: "about one point two two five above the mean"
+            targets: [picture]
+      - say: "Follow that score back to the words that produced it. Under the original outcome-supervised recipe, every token in the last reply receives that same positive score. The tokens in the first reply all get the negative score. The update uses a clipped token ratio and a separate penalty for diverging from the reference policy."
+        hold: 0.6
+        visual_cues:
+          - id: token-score
+            phrase: "every token in the last reply receives that same positive score"
+            targets: [picture]
+      - say: "Try the verifier again. This time every reply earns one. Keep the positive stabilizer. What normalized reward score reaches each token now?"
+        hold: 2.25
+        visual_cues:
+          - id: equal-input
+            phrase: "This time every reply earns one"
+            targets: [picture]
+          - id: equal-question
+            phrase: "What normalized reward score reaches each token now"
+            targets: [picture]
+      - say: "Zero for every token. Each reward equals the group mean, so each numerator is zero. The reference penalty can still contribute an update. These scores compare sampled replies within a group. They include each reply in its own baseline and scale it by that group’s spread. They differ from the exact advantage of an action at a state. The weight given to long replies also affects the training objective. Dropping the critic saves its resources. Generating more replies, or longer ones, still takes work. Check performance on held-out tasks before trusting a higher training score."
+        hold: 0.9
+        visual_cues:
+          - id: equal
+            phrase: "Zero for every token"
+            targets: [picture]
+          - id: limits
+            phrase: "compare sampled replies within a group"
+            targets: [picture]
+  - id: off-policy-evaluation
+    title: "What can the routing log support?"
+    visual: "The scorecard averages four constructed starts. Two logged decisions accumulate an importance weight. A target action with zero visits is compared under two different logging policies."
+    beats:
+      - say: "In our simulator we can price a move even if nobody took it. Start two tickets with no proof, and two with proof already verified. The policy sends the first pair to review and approves the second pair. That mixture gives a mean return of sixty-two. To use that as a traffic estimate, we’d need to know how often those starting cases actually occur."
+        hold: 0.7
+        visual_cues:
+          - id: starts
+            phrase: "two tickets with no proof"
+            targets: [picture]
+          - id: known
+            phrase: "approves the second pair"
+            targets: [picture]
+          - id: oracle
+            phrase: "a mean return of sixty-two"
+            targets: [picture]
+      - say: "A real log records the action the router took. Follow one logged ticket. It asked for evidence, then approved after verification. We want to evaluate a different policy using this log. Assume both policies face the same starting distribution and the same environment. We can compare the chances of the two moves in the log."
+        hold: 1.3
+        visual_cues:
+          - id: logs
+            phrase: "A real log records the action the router took"
+            targets: [picture]
+          - id: logged-ask
+            phrase: "It asked for evidence"
+            targets: [picture]
+          - id: path
+            phrase: "then approved after verification"
+            targets: [picture]
+      - say: "At the first decision the logger asked with probability one half. The new policy would ask with probability point eight. That gives the first decision a weight of one point six. After proof arrived, the logger approved with probability one half, and the new policy would approve with probability point six. The second ratio is one point two. How many times as likely is the whole path under the new policy?"
+        hold: 2.35
+        visual_cues:
+          - id: behavior
+            phrase: "the logger asked with probability one half"
+            targets: [picture]
+          - id: target
+            phrase: "would ask with probability point eight"
+            targets: [picture]
+          - id: first-ratio
+            phrase: "a weight of one point six"
+            targets: [picture]
+          - id: behavior-next
+            phrase: "the logger approved with probability one half"
+            targets: [picture]
+          - id: target-next
+            phrase: "approve with probability point six"
+            targets: [picture]
+          - id: second-ratio
+            phrase: "The second ratio is one point two"
+            targets: [picture]
+          - id: predict-weight
+            phrase: "How many times as likely is the whole path"
+            targets: [picture]
+      - say: "Multiply along the path. This ticket’s return gets a trajectory weight of one point nine two."
+        hold: 0.65
+        caption_starts: ["This ticket’s return", "one point nine two"]
+        visual_cues:
+          - id: product
+            phrase: "one point nine two"
+            targets: [picture]
+      - say: "Using just the final ratio would miss how often the policy gets to the verified state. For a reward earned at the first action, use the first ratio alone. For a reward earned after both actions, use their product. These products can vary widely across tickets."
+        hold: 0.65
+        visual_cues:
+          - id: prefix
+            phrase: "For a reward earned at the first action"
+            targets: [picture]
+      - say: "Try a different log. Fifty thousand tickets went to review. Nobody asked for proof. If the logger never allowed that move, a policy that asks has no support here. Now suppose the logger allowed it with a tiny positive probability. Support exists in principle, but this file still contains zero examples of the outcome. We would need more evidence or modeling assumptions to value that move."
+        hold: 0.75
+        visual_cues:
+          - id: other-log
+            phrase: "Try a different log"
+            targets: [picture]
+          - id: support
+            phrase: "the logger never allowed that move"
+            targets: [picture]
+          - id: shortage
+            phrase: "a tiny positive probability"
+            targets: [picture]
+          - id: empty-log
+            phrase: "zero examples of the outcome"
+            targets: [picture]
+      - say: "Even with recorded probabilities, a reviewer might have seen a private warning that affected both routing and outcomes. That unrecorded information can confound the comparison. Splitting the same tickets by date supplies neither the missing warning nor the missing outcomes. Model-based and doubly robust estimates also depend on their assumptions."
+        hold: 0.8
+        visual_cues:
+          - id: confounding
+            phrase: "a private warning that affected both routing and outcomes"
+            targets: [picture]
+  - id: reward-design
+    title: "Back at the routing desk"
+    visual: "One more abandonment per hundred moves the evidence return across a fixed review mark. The same approval proposal reaches P-7 with an empty evidence field and, on a separate replay, with verified evidence."
+    beats:
+      - say: "Back at the desk. Suppose four percent of requesters leave when we ask for proof. A reply is still worth fifty-nine. An abandonment still costs fifty-four in total. With that mix, asking is worth fifty-four point four eight. It just edges out review at fifty-four."
+        caption_starts:
+          - "With that mix"
+          - "It just edges out review"
+        hold: 0.6
+        visual_cues:
+          - id: four
+            phrase: "four percent of requesters leave"
+            targets: [picture]
+          - id: first-mean
+            phrase: "worth fifty-four point four eight"
+            targets: [picture]
+          - id: first-choice
+            phrase: "just edges out review"
+            targets: [picture]
+      - say: "Now five percent leave. Look at the one mark that changed. Use the two branch returns. Which route should we choose at five percent?"
+        hold: 3.1
+        visual_cues:
+          - id: fifth
+            phrase: "Now five percent leave"
+            targets: [picture]
+          - id: predict
+            phrase: "Which route should we choose at five percent"
+            targets: [picture]
+      - say: "One reply became one abandonment per hundred. That costs one point one three in the mean. Asking falls to fifty-three point three five. Send the ticket to review. Its return is still fifty-four."
+        caption_starts:
+          - "Asking falls"
+          - "Send the ticket to review"
+        hold: 0.7
+        visual_cues:
+          - id: difference
+            phrase: "costs one point one three in the mean"
+            targets: [picture]
+          - id: new-mean
+            phrase: "falls to fifty-three point three five"
+            targets: [picture]
+          - id: safe-choice
+            phrase: "Send the ticket to review"
+            targets: [picture]
+      - say: "Keep that unverified ticket. Change only what the simulator rewards. Score each action for speed of closure. Immediate approval earns a hundred speed points. Asking earns forty-five, and review earns fifteen. Which action will the speed score propose?"
+        hold: 2
+        visual_cues:
+          - id: speed
+            phrase: "Score each action for speed of closure"
+            targets: [picture]
+          - id: speed-approve
+            phrase: "a hundred speed points"
+            targets: [picture]
+          - id: speed-ask
+            phrase: "Asking earns forty-five"
+            targets: [picture]
+          - id: speed-review
+            phrase: "review earns fifteen"
+            targets: [picture]
+          - id: predict-speed
+            phrase: "Which action will the speed score propose"
+            targets: [picture]
+      - say: "It proposes approval. Follow that proposal to the authorization check. P seven reads the evidence field. It’s empty. The gate rejects approval and sends this ticket to a human reviewer. The speed score can change a proposal. The gate decides what executes."
+        caption_starts:
+          - "The gate rejects approval"
+        hold: 0.75
+        visual_cues:
+          - id: propose
+            phrase: "It proposes approval"
+            targets: [picture]
+          - id: gate
+            phrase: "to the authorization check"
+            targets: [picture]
+          - id: empty
+            phrase: "It’s empty"
+            targets: [picture]
+          - id: denied
+            phrase: "rejects approval"
+            targets: [picture]
+          - id: fallback
+            phrase: "sends this ticket to a human reviewer"
+            targets: [picture]
+      - say: "Replay the check on a copy of the same ticket after the evidence has been verified. Feed it the same approval proposal. What will the gate execute this time?"
+        hold: 2.25
+        visual_cues:
+          - id: replay
+            phrase: "Replay the check on a copy"
+            targets: [picture]
+          - id: verified
+            phrase: "the evidence has been verified"
+            targets: [picture]
+          - id: same-proposal
+            phrase: "the same approval proposal"
+            targets: [picture]
+          - id: predict-gate
+            phrase: "What will the gate execute this time"
+            targets: [picture]
+      - say: "Approval goes through. At nine, the gate sent that same proposal to a reviewer. The proof arrived later. To evaluate the nine o’clock decision, give the router only the evidence it had at nine. We’ll use that rule in Validation and Leakage."
+        hold: 1.3
+        visual_cues:
+          - id: allow
+            phrase: "Approval goes through"
+            targets: [picture]
+          - id: audit
+            phrase: "To evaluate the nine o’clock decision"
+            targets: [picture]

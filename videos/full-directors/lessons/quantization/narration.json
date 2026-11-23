@@ -1,0 +1,564 @@
+[
+  {
+    "id": "c01",
+    "title": "Will the rim of the wing survive?",
+    "sourceChapters": [
+      "c01"
+    ],
+    "beats": [
+      {
+        "id": "c01-b01",
+        "say": "Look at the rim of this moth’s eyespot. Cross one pixel to the right and dark becomes light. Our edge filter multiplies those two brightness values by learned numbers called weights, then adds the products.",
+        "hold": 1.1
+      },
+      {
+        "id": "c01-b02",
+        "say": "With the original weights, the response here is point seven. That bright mark tells us the rim is present. Suppose a smaller model has to find that very same edge.",
+        "hold": 1.2
+      },
+      {
+        "id": "c01-b03",
+        "say": "We will store four bits per weight. The grid in this first file puts both edge weights at zero. What will appear at the marked pixel?",
+        "hold": 2.8
+      },
+      {
+        "id": "c01-b04",
+        "say": "The mark disappears. Zero times dark plus zero times light gives zero. The wing stayed put. We will follow the missing edge through the file, recover it, then test what the smaller model can actually do.",
+        "hold": 1.5
+      }
+    ]
+  },
+  {
+    "id": "c02",
+    "title": "How much room do the codes buy?",
+    "sourceChapters": [
+      "c02"
+    ],
+    "beats": [
+      {
+        "id": "c02-b01",
+        "say": "Each sixteen-bit weight occupies two bytes. Seven billion weights fill this fourteen-gigabyte row. Every cell is part of the same payload.",
+        "hold": 1.1
+      },
+      {
+        "id": "c02-b02",
+        "say": "Keep four bits for each code. Pair them in bytes. The same seven billion weights now occupy three and a half decimal gigabytes of codes. That is one quarter of the original row.",
+        "hold": 1.1
+      },
+      {
+        "id": "c02-b03",
+        "say": "We also store scales that turn codes back into values. If each complete group of a hundred twenty-eight weights shares one two-byte scale, that adds one eighth of a bit per weight. The file needs about three point six one gigabytes before any other tensors or padding.",
+        "hold": 1.1
+      },
+      {
+        "id": "c02-b04",
+        "say": "Activations, workspace and attention memory need their own room. A device budget uses every loaded byte. We’ll spend the space left over when we choose a context length.",
+        "hold": 1.1
+      }
+    ]
+  },
+  {
+    "id": "c03",
+    "title": "Which mark will the weight land on?",
+    "sourceChapters": [
+      "c03"
+    ],
+    "beats": [
+      {
+        "id": "c03-b01",
+        "say": "Imagine a ruler with only a few marks. A low-bit code names one of those marks. The scale tells us how far apart they are.",
+        "hold": 1.1
+      },
+      {
+        "id": "c03-b02",
+        "say": "Our weight is point seven three. This ruler has a tenth between marks, and it has room for codes seven and eight. Which mark is closer?",
+        "hold": 2.1
+      },
+      {
+        "id": "c03-b03",
+        "say": "It lands at point seven. The stored integer is seven and the gap is three hundredths. Multiplying the code by its scale reconstructs the value that the layer will use.",
+        "hold": 1.3
+      },
+      {
+        "id": "c03-b04",
+        "say": "Now take an unsigned four-bit grid from minus one to two. Sixteen marks enclose fifteen intervals. Each step is point two. Starting at minus one, which code lands on real zero?",
+        "hold": 2.4
+      },
+      {
+        "id": "c03-b05",
+        "say": "Code five lands on zero. That integer is the zero-point. Add it after rounding to encode, and subtract it before multiplying by the scale to decode. Switch to signed labels from minus eight to seven. Real zero is now code minus three, on exactly the same mark.",
+        "hold": 1.1
+      },
+      {
+        "id": "c03-b06",
+        "say": "A weight of three lies beyond this grid. We clip its code to the last mark and reconstruct two. That whole unit of clipping error is much larger than the gap from ordinary rounding.",
+        "hold": 1.1
+      }
+    ]
+  },
+  {
+    "id": "c04",
+    "title": "Which half-byte should the reader leave alone?",
+    "sourceChapters": [
+      "c04"
+    ],
+    "beats": [
+      {
+        "id": "c04-b01",
+        "say": "Here are five weights on one signed four-bit grid. Its largest magnitude is two point four, so the scale is two point four divided by seven. Rounding chose these five codes. Now our job is to pack them without losing any more information.",
+        "hold": 1.1
+      },
+      {
+        "id": "c04-b02",
+        "say": "Slide each pair into its byte, low nibble first. A nibble is four bits. Negative four has the bit pattern one one zero zero. It goes in the high half of the first byte, beside zero in the low half. The other pairs follow.",
+        "hold": 1.1
+      },
+      {
+        "id": "c04-b03",
+        "say": "Read the three bytes back, low half first. The header says five weights. Which half of the last byte can stay unopened?",
+        "hold": 2.3
+      },
+      {
+        "id": "c04-b04",
+        "say": "Open the first byte low half first, then the second, then the third. Stop after the fifth code. The high half is padding. Read the signed nibbles with their original scale and each approximate weight returns to its position. A zero in the first slot was a real weight code. The stored count distinguishes it from padding.",
+        "hold": 1.6
+      },
+      {
+        "id": "c04-b05",
+        "say": "Our teaching file also needs twelve header bytes for its count and scale. Reject a payload with the wrong length or an unused minus-eight code among the five weights. At model scale many weights share metadata.",
+        "hold": 1.1
+      }
+    ]
+  },
+  {
+    "id": "c05",
+    "title": "Which grid erased the moth’s rim?",
+    "sourceChapters": [
+      "c05"
+    ],
+    "beats": [
+      {
+        "id": "c05-b01",
+        "say": "Come back to the same two pixels. These two filters share a symmetric four-bit grid from minus seven to seven. A weight of fourteen in the second filter forces a step of two for the whole tensor.",
+        "hold": 1.1
+      },
+      {
+        "id": "c05-b02",
+        "say": "The edge filter’s weights are minus point seven and plus point seven. Both are closer to zero than to either neighboring mark. With one shared scale, we lost the whole outline. What happens if each filter gets its own ruler?",
+        "hold": 2.4
+      },
+      {
+        "id": "c05-b03",
+        "say": "The edge filter gets a step of one tenth. Its codes are minus seven and plus seven. Read them back at that scale and the original weights return. Run the filter again. There is the rim, at the same pixel.",
+        "hold": 1.5
+      },
+      {
+        "id": "c05-b04",
+        "say": "Each row is an output channel. The second filter still reaches fourteen. Storing one extra scale paid for that recovered edge. We can also divide a long row into smaller groups. Each group limits an outlier’s reach and costs another scale.",
+        "hold": 1.1
+      }
+    ]
+  },
+  {
+    "id": "c05-groups",
+    "title": "Where does each scale go in the sum?",
+    "sourceChapters": [
+      "c05"
+    ],
+    "beats": [
+      {
+        "id": "c05-groups-b01",
+        "say": "Here is one output row split into two groups. Within each group, multiply the codes by the inputs and add. The left pair gives six. The right pair gives two. Those partials count steps of different sizes.",
+        "hold": 1.1
+      },
+      {
+        "id": "c05-groups-b02",
+        "say": "The first group’s step is one quarter. The second group’s step is two. What number should the layer return?",
+        "hold": 2.4
+      },
+      {
+        "id": "c05-groups-b03",
+        "say": "The output is five and a half. Six quarter steps give one and a half. Two double steps give four. Scale each group’s partial before adding. One scale outside the entire sum works when every term shares that scale.",
+        "hold": 1.1
+      }
+    ]
+  },
+  {
+    "id": "c06",
+    "title": "How far does one error move the output?",
+    "sourceChapters": [
+      "c06"
+    ],
+    "beats": [
+      {
+        "id": "c06-b01",
+        "say": "A weight multiplies an input value, called an activation. The layer adds those products. So which rounding error matters more: one on a quiet input, or one on an active input?",
+        "hold": 1.8
+      },
+      {
+        "id": "c06-b02",
+        "say": "Keep the weight error fixed at plus point zero five. On a quiet input of one tenth, the output changes by five thousandths. Leave that distance marked.",
+        "hold": 1.1
+      },
+      {
+        "id": "c06-b03",
+        "say": "Now use an input of two. The same error moves the output by one tenth. That is twenty times the distance. Representative activations tell a quantizer where accuracy deserves the most care.",
+        "hold": 1.1
+      }
+    ]
+  },
+  {
+    "id": "c07",
+    "title": "What do two calibration inputs tell us?",
+    "sourceChapters": [
+      "c07"
+    ],
+    "beats": [
+      {
+        "id": "c07-b01",
+        "say": "Calibration collects input activations while the model runs. Here are two observations of a two-weight layer. Five arrives with one. Four arrives with one. Each vertical pair is an input to the same weights.",
+        "hold": 1.1
+      },
+      {
+        "id": "c07-b02",
+        "say": "Take the first column times its transpose. That makes a square of pairwise products. Add the square from the second column. Double the sum to get the Hessian for the sum of squared output errors.",
+        "hold": 1.1
+      },
+      {
+        "id": "c07-b03",
+        "say": "The diagonal records twice each channel’s sum of squares. The second channel is always one. Its variance is zero, yet its energy counts here. The off-diagonal is an uncentered cross-product. Twice the sum of five times one and four times one gives eighteen. Increasing the second weight raises both outputs because both observations multiply that weight by one.",
+        "hold": 1.1
+      },
+      {
+        "id": "c07-b04",
+        "say": "Keep these inputs. The source weights are one point two and point six one. Multiplying and adding gives six point six one on the first column and five point four one on the second. Those are the two outputs we want to preserve.",
+        "hold": 1.1
+      }
+    ]
+  },
+  {
+    "id": "c08",
+    "title": "Can a worse weight make a better layer?",
+    "sourceChapters": [
+      "c08"
+    ],
+    "beats": [
+      {
+        "id": "c08-b01",
+        "say": "On this teaching grid, the allowed weights are zero, one and two. Nearest rounding puts both weights at one. The two outputs fall short of their targets. Their squared errors add to about point five four. Could moving the second weight farther away help?",
+        "hold": 2.2
+      },
+      {
+        "id": "c08-b02",
+        "say": "Fix the first weight at one. Leave the second at point six one for a moment. We lost one unit of output on the first input, and point eight on the second. Adding to the free weight helps both, because its input is one both times.",
+        "hold": 1.1
+      },
+      {
+        "id": "c08-b03",
+        "say": "Split the difference and add point nine. The second weight reaches one point five one. Look at the residuals now. One is a tenth low and one is a tenth high. This is the best continuous correction with the first weight fixed.",
+        "hold": 1.1
+      },
+      {
+        "id": "c08-b04",
+        "say": "Round the adjusted neighbor. It lands at two. The squared errors now add to about point five zero, just below nearest rounding. GPTQ uses the inverse curvature to choose these sequential corrections. Its target is the layer output on calibration inputs.",
+        "hold": 1.1
+      },
+      {
+        "id": "c08-b05",
+        "say": "What inverse belongs to the coordinate still free after we fix the first one? Keep the second row and column of the Hessian. Its remaining entry is four, so its inverse is one quarter. Keeping the old inverse diagonal of twenty point five would solve a different problem.",
+        "hold": 1.1
+      },
+      {
+        "id": "c08-b06",
+        "say": "Implementations use a triangular factor to carry the updates forward. Finishing one column still changes the next. They can batch the accumulated corrections to later blocks. Damping adds a small diagonal term for stability, and activation order can process high-energy columns while more neighbors remain free.",
+        "hold": 1.1
+      }
+    ]
+  },
+  {
+    "id": "c09",
+    "title": "Stretch a channel before rounding",
+    "sourceChapters": [
+      "c09"
+    ],
+    "beats": [
+      {
+        "id": "c09-b01",
+        "say": "AWQ measures average activation magnitudes. Here the first channel averages nine and its neighbor averages one. Follow the first contribution on an input of ten, with weight point three.",
+        "hold": 1.1
+      },
+      {
+        "id": "c09-b02",
+        "say": "Multiply this weight by eight and divide its input by eight. Watch the rectangle change shape. What happens to its area?",
+        "hold": 2.5
+      },
+      {
+        "id": "c09-b03",
+        "say": "The product is still three. At the new coordinates, two point four times one and a quarter covers the same area. The other channel has weight two and input one in both cases. Which weight sets the spacing when both channels share one grid?",
+        "hold": 2.4
+      },
+      {
+        "id": "c09-b04",
+        "say": "Look at the two weight rows. On each symmetric grid the largest magnitude takes code seven. The original step is two sevenths. Rounding gives codes one and seven. After stretching, the largest weight is two point four. That sets a wider step of two point four sevenths. The codes become seven and six. Read the first code on each grid and multiply by its input. One step times ten gives about two point eight six. Seven wider steps times one and a quarter gives three. Now read the neighbor. Seven original steps reproduce two. Six wider steps give about two point zero five seven. Its input is still one, so that whole difference reaches the output.",
+        "hold": 1.1
+      },
+      {
+        "id": "c09-b05",
+        "say": "Across four calibration inputs, factors one, two and four tie. Factor eight has the lowest mean squared output error of the four. Stretching farther can hurt the neighbor. AWQ searches scale choices this way and may also clip weights. Check the winner on separate inputs. Here the remaining error from the neighbor gets multiplied by just one half in magnitude. Its mean square falls to about eight ten-thousandths.",
+        "hold": 1.1
+      }
+    ]
+  },
+  {
+    "id": "c10",
+    "title": "Which pair survives a change of input?",
+    "sourceChapters": [
+      "c10"
+    ],
+    "beats": [
+      {
+        "id": "c10-b01",
+        "say": "Our compensated pair just won on calibration error. Keep both weight pairs fixed. We’ll switch only the inputs. Which pair would you trust when the two channels arrive separately?",
+        "hold": 2.6
+      },
+      {
+        "id": "c10-b02",
+        "say": "Send one through the first channel alone. The source returns one point two. Both pairs return one. This first probe is a tie. It could not distinguish the second weights.",
+        "hold": 1.7
+      },
+      {
+        "id": "c10-b03",
+        "say": "Now isolate the second channel. The source returns point six one. Watch the two outputs. Which one misses the target by less?",
+        "hold": 2.7
+      },
+      {
+        "id": "c10-b04",
+        "say": "Nearest returns one. The compensated pair returns two. The distances are point three nine and one point three nine. Nearest wins on this input. Keep the two marks in view.",
+        "hold": 2.4
+      },
+      {
+        "id": "c10-b05",
+        "say": "Add the squared errors across both fresh probes. Nearest has about point one nine, and compensation about one point nine seven. The calibration ranking has reversed. A layer-error calculation tells us what a particular set of inputs exercised.",
+        "hold": 1.1
+      },
+      {
+        "id": "c10-b06",
+        "say": "To judge useful answers, reload the saved artifact. Match the tokenizer, template, prompts and decoding settings. Test fresh application tasks. We will practice scoring the destination in a parcel request.",
+        "hold": 1.1
+      }
+    ]
+  },
+  {
+    "id": "c10-grids",
+    "title": "What does another bit buy?",
+    "sourceChapters": [
+      "c10"
+    ],
+    "beats": [
+      {
+        "id": "c10-grids-b01",
+        "say": "Try three grid widths on a different row of four weights. A narrow symmetric two-bit grid has just three usable marks. With a step of two, the first and last weights both land on zero. What happens to those neighbors on finer grids?",
+        "hold": 2.3
+      },
+      {
+        "id": "c10-grids-b02",
+        "say": "Four bits separates the weights again. Eight bits places the marks closer still. To compare outputs, give each row the same three held-out inputs. Start with the first input and the two-bit row. Take the dot product with the source weights, then with the reconstructed weights. The source gives minus two point four six. The reconstruction gives minus four. Subtract the second output from the first. What difference do you get?",
+        "hold": 2.4
+      },
+      {
+        "id": "c10-grids-b03",
+        "say": "The first difference is positive one point five four. On the other two inputs the differences are minus one tenth and plus eight tenths. Square each difference and average the three squares. The two-bit mean squared output error is one point zero zero seven two. Repeat with the finer rows. Four bits brings the error down to about seven hundredths, and eight bits to about two ten-thousandths. The corresponding code payloads are one, two and four bytes. These grids were simulated. Timing a packed kernel takes a saved file and a compatible runtime.",
+        "hold": 1.4
+      }
+    ]
+  },
+  {
+    "id": "c11",
+    "title": "What does the file contain?",
+    "sourceChapters": [
+      "c11"
+    ],
+    "beats": [
+      {
+        "id": "c11-b01",
+        "say": "We have chosen approximate weight values. They still need an address and a packing recipe. GGUF is a container for typed tensors, tokenizer information and model metadata.",
+        "hold": 1.1
+      },
+      {
+        "id": "c11-b02",
+        "say": "Open one Q four K block. Its two hundred fifty-six weights take a hundred twenty-eight code bytes. Eight groups each get a six-bit scale coefficient and a six-bit minimum coefficient. That makes twelve more bytes, plus four bytes for two shared floating-point factors.",
+        "hold": 1.1
+      },
+      {
+        "id": "c11-b03",
+        "say": "Count the whole block. A hundred forty-four bytes times eight bits divided by two hundred fifty-six weights is four and a half bits per weight. Follow one code. Multiply code five by its local scale coefficient of three and its shared factor of one tenth. Then subtract the minimum term, two times two tenths. The reconstructed weight is one point one.",
+        "hold": 1.1
+      },
+      {
+        "id": "c11-b04",
+        "say": "A file can mix tensor encodings. Some tensors stay at higher precision. The method chooses values, the encoding tells us how to read them, and the container locates them. Keep the source revision and check the saved tensor types against the loader and its kernels.",
+        "hold": 1.1
+      }
+    ]
+  },
+  {
+    "id": "c11-place",
+    "title": "Where will the last five layers go?",
+    "sourceChapters": [
+      "c11"
+    ],
+    "beats": [
+      {
+        "id": "c11-place-b01",
+        "say": "Mapping a file gives the engine addresses. A page still has to become resident, and a GPU layer needs its data on the device. Time the first completed request separately from warm serving.",
+        "hold": 1.1
+      },
+      {
+        "id": "c11-place-b02",
+        "say": "Try this placement rule. The input stays on the CPU. Count five GPU slots backward from the output, with twelve repeating blocks numbered zero through eleven. Which block crosses the device boundary first?",
+        "hold": 2.4
+      },
+      {
+        "id": "c11-place-b03",
+        "say": "Block eight is the first on the GPU. The output used one slot, leaving four for blocks eight through eleven. An activation crosses from block seven on the CPU to block eight on the GPU. Check actual placement and transfers in the runtime.",
+        "hold": 1.1
+      }
+    ]
+  },
+  {
+    "id": "c12",
+    "title": "How far do the weights travel?",
+    "sourceChapters": [
+      "c12"
+    ],
+    "beats": [
+      {
+        "id": "c12-b01",
+        "say": "Small-batch decoding often spends substantial time reading weights. Four-bit weights with sixteen-bit activations is called W four A sixteen. A fused kernel reads compact codes and scales, then unpacks and rescales near the multiply.",
+        "hold": 1.1
+      },
+      {
+        "id": "c12-b02",
+        "say": "Suppose the compact read is two megabytes, including scales. A separate unpacking kernel writes eight megabytes of reconstructed weights to device memory. The multiply must read them back. How much weight traffic does that path move?",
+        "hold": 2.2
+      },
+      {
+        "id": "c12-b03",
+        "say": "Eighteen megabytes. Count the compact read, the full write and the full read. The fused path can avoid both eight-megabyte transfers. Unpacking still costs work. Time the kernel and shape you actually serve.",
+        "hold": 1.1
+      },
+      {
+        "id": "c12-b04",
+        "say": "Follow one two-byte weight. Each multiply-add counts as two floating-point operations. At one position we read two bytes and do two operations. That gives one operation per byte of weight traffic. During prefill, reuse that same weight at four positions. The single read now supports eight operations, or four operations per byte.",
+        "hold": 1.1
+      },
+      {
+        "id": "c12-b05",
+        "say": "Suppose memory can supply one hundred gigabytes per second and compute peaks at three hundred gigaflops per second. For an ideal bound, multiply bandwidth by operations per byte, then take the smaller of that rate and the compute peak. For one use, the memory rate is one hundred gigaflops per second. That sets the ceiling. With four uses, which limit wins?",
+        "hold": 2.5
+      },
+      {
+        "id": "c12-b06",
+        "say": "Compute sets the ceiling. Four operations per byte times one hundred gigabytes per second would supply four hundred gigaflops per second. The compute peak caps that at three hundred. Once compute sets the bound, reading fewer weight bytes cannot raise it on this hardware. We counted weight traffic alone. Measure prompt processing and token generation separately on the actual kernel.",
+        "hold": 1.6
+      }
+    ]
+  },
+  {
+    "id": "c12-room",
+    "title": "What fits beside the weights?",
+    "sourceChapters": [
+      "c12"
+    ],
+    "beats": [
+      {
+        "id": "c12-room-b01",
+        "say": "Return to our seven billion weights, including their scales. In binary gibibytes they occupy about three point three six. Add one gibibyte of other allocations and two of attention cache, the keys and values kept for earlier tokens.",
+        "hold": 1.1
+      },
+      {
+        "id": "c12-room-b02",
+        "say": "Our device has eight gibibytes. Double the cache for a longer context, keeping the same weights. Will this workload fit?",
+        "hold": 2.2
+      },
+      {
+        "id": "c12-room-b03",
+        "say": "The longer context crosses the limit. The total reaches about eight point three six gibibytes with the larger cache. Now restore the shorter context. Two gibibytes of cache brings the total back to six point three six.",
+        "hold": 1.1
+      },
+      {
+        "id": "c12-room-b04",
+        "say": "Try a user limit in decimal gigabytes. On a forty-gigabyte device, reserve four. Sixteen gigabytes of weights leaves twenty for cache. At half a gigabyte per user that holds forty. Shrink the weights to four. How many can fit now?",
+        "hold": 2.4
+      },
+      {
+        "id": "c12-room-b05",
+        "say": "Sixty-four users fit by memory alone. The pool grew to thirty-two gigabytes and each user still costs half a gigabyte. Weights, activations and cache have separate precisions. A different cache format needs its own support and accuracy check. Measure latency at that user count.",
+        "hold": 1.1
+      }
+    ]
+  },
+  {
+    "id": "c12-trial",
+    "title": "Did the parcel reach the requested dock?",
+    "sourceChapters": [
+      "c12"
+    ],
+    "beats": [
+      {
+        "id": "c12-trial-b01",
+        "say": "Here is a worked example with supplied replies. The source and a reloaded four-bit file get the same request. Send the parcel to dock seven. Both replies parse as JSON. Read the destinations. Would both deliveries succeed?",
+        "hold": 2
+      },
+      {
+        "id": "c12-trial-b02",
+        "say": "Only the source routes it to seven. File A sends it to one. Perplexity measures token likelihood. It can miss a wrong argument in a perfectly readable reply. Check the destination against the request.",
+        "hold": 1.1
+      },
+      {
+        "id": "c12-trial-b03",
+        "say": "For a real paired trial, send the same held-out requests to each model. Our example supplies outcomes for a hundred requests each. The source gives ninety parse-valid replies. Of those, eighty-five reach the right dock. File A gives ninety-five parse-valid replies. Of those, eighty reach the right dock. Count every request, including rejected and truncated replies. What happened to task success?",
+        "hold": 2.3
+      },
+      {
+        "id": "c12-trial-b04",
+        "say": "It fell from eighty-five percent to eighty percent. Better parsing concealed five fewer correct deliveries. Keep those outcomes beside cold load time, warm time to first token, gaps between tokens, output length and peak memory. For a regression, check the template and decoding policy before changing calibration.",
+        "hold": 1.1
+      }
+    ]
+  },
+  {
+    "id": "c12-practice",
+    "title": "Which file can serve the parcel route?",
+    "sourceChapters": [
+      "c12"
+    ],
+    "beats": [
+      {
+        "id": "c12-practice-b01",
+        "say": "Now choose between two six-billion-weight files for an eight-gigabyte device. Reserve four decimal gigabytes for the required cache and three quarters for other allocations. A uses four-bit codes and a two-byte scale per sixty-four weights. B uses complete Q four K blocks. Which fits?",
+        "hold": 3
+      },
+      {
+        "id": "c12-practice-b02",
+        "say": "A fits. Its three gigabytes of codes need another point one eight seven five for scales. That leaves sixty-two and a half megabytes free. B uses three point three seven five gigabytes of blocks. With the same workload it goes a hundred twenty-five megabytes over.",
+        "hold": 1.4
+      },
+      {
+        "id": "c12-practice-b03",
+        "say": "Try a smaller cache for B alone. At three point eight seven five gigabytes of cache, B exactly fills the device. That test uses a shorter context than the service requires.",
+        "hold": 1.1
+      },
+      {
+        "id": "c12-practice-b04",
+        "say": "Restore the required cache. The service also requires eighty-five correct deliveries per hundred requests. In our worked example, file A routed eighty correctly. Which file can you accept on this evidence?",
+        "hold": 2.8
+      },
+      {
+        "id": "c12-practice-b05",
+        "say": "Hold both files. A fits. It needs five more correct deliveries per hundred to meet the target. B exceeds the memory limit before its task trial. On the next candidate, reload the file, rerun the same routes and measure timing at the required context and concurrency.",
+        "hold": 2.4
+      }
+    ]
+  }
+]

@@ -1,0 +1,451 @@
+name: PR CI
+
+on:
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      illustration_base:
+        description: Optional Git base revision for the illustration typecheck. Defaults to HEAD^.
+        required: false
+        type: string
+
+permissions:
+  contents: read
+
+env:
+  UV_EXCLUDE_NEWER: "7 days"
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  videos:
+    name: Video checks (published Vizmatic)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    defaults:
+      run:
+        working-directory: leetllm/videos
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+        with:
+          path: leetllm
+      - name: Setup Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: leetllm/videos/package-lock.json
+      - name: Use npm with release-age support
+        run: |
+          npm install --global --prefix "$RUNNER_TEMP/npm-tools" npm@11.21.0 --ignore-scripts --no-audit --no-fund --before="$(node -e 'process.stdout.write(new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString())')"
+          echo "$RUNNER_TEMP/npm-tools/bin" >> "$GITHUB_PATH"
+      - name: Test release-age guard
+        run: node --test test/check-npm-release-age.test.mjs
+      - name: Validate locked package release ages
+        run: node check-npm-release-age.mjs package-lock.json
+      - name: Install video dependencies
+        run: npm ci --ignore-scripts
+      - name: Install video tools and rendering fonts
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends ffmpeg fonts-noto-cjk
+      - name: Setup uv
+        uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2 # v10.3.3
+        with:
+          version: "0.13.4"
+      - name: Audit video dependencies
+        run: npm audit --audit-level=low
+      - name: Check timeline and rendering contracts
+        run: npm test
+      - name: Verify concept catalog source coverage
+        run: node atlas.mjs --check
+      - name: Check editable package provenance
+        run: uv run test/package_test.py
+      - name: Check editorial score freshness and gallery publication
+        run: uv run test/quality_test.py
+      - name: Check portable media export
+        run: uv run test/export_media_test.py
+      - name: Validate every lesson beat
+        run: npm run validate
+      - name: Check stage films that use the published Vizmatic runtime
+        run: |
+          for script in stage-lessons/*.lesson.yaml; do
+            id=${script#stage-lessons/}
+            id=${id%.lesson.yaml}
+            if [[ ! -f "stage-lessons/$id/index.mjs" ]]; then
+              node render.mjs --stage --lesson "$id" --validate
+            fi
+          done
+      - name: Check collective text occlusion in every lesson
+        run: node audit-occlusion.mjs --all --validate
+      - name: Check unreachable text reveals in every lesson
+        run: node audit-reveals.mjs --all --validate --fail-on-warnings
+      - name: Check intersecting labels in every lesson
+        run: node audit-labels.mjs --all --validate --fail-on-warnings
+
+  videos-main:
+    name: ${{ matrix.label }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - runtime: main
+            label: Stage compatibility (Vizmatic main, development only)
+          - runtime: review
+            label: Film compatibility (pinned Vizmatic review build)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    defaults:
+      run:
+        working-directory: leetllm/videos
+    steps:
+      - name: Checkout LeetLLM
+        uses: actions/checkout@v7
+        with:
+          path: leetllm
+      - name: Select the upstream source
+        id: source
+        env:
+          RUNTIME: ${{ matrix.runtime }}
+        run: |
+          ref=main
+          if [[ "$RUNTIME" == review ]]; then
+            ref=$(cat vizmatic-review.commit)
+            [[ "$ref" =~ ^[0-9a-f]{40}$ ]]
+          fi
+          echo "ref=$ref" >> "$GITHUB_OUTPUT"
+      - name: Checkout upstream Vizmatic
+        uses: actions/checkout@v7
+        with:
+          repository: bvolpato/vizmatic
+          ref: ${{ steps.source.outputs.ref }}
+          path: vizmatic
+          persist-credentials: false
+      - name: Verify the pinned checkout before building
+        if: matrix.runtime == 'review'
+        env:
+          REVIEW_REF: ${{ steps.source.outputs.ref }}
+        run: test "$(git -C "$GITHUB_WORKSPACE/vizmatic" rev-parse HEAD)" = "$REVIEW_REF"
+      - name: Setup Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: leetllm/videos/package-lock.json
+      - name: Install upstream pnpm
+        uses: pnpm/action-setup@v6
+        with:
+          package_json_file: vizmatic/package.json
+      - name: Use npm with release-age support
+        run: |
+          npm install --global --prefix "$RUNNER_TEMP/npm-tools" npm@11.21.0 --ignore-scripts --no-audit --no-fund --before="$(node -e 'process.stdout.write(new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString())')"
+          echo "$RUNNER_TEMP/npm-tools/bin" >> "$GITHUB_PATH"
+      - name: Validate locked package release ages
+        run: node check-npm-release-age.mjs package-lock.json
+      - name: Install and audit locked video dependencies
+        run: |
+          npm ci --ignore-scripts
+          npm audit --audit-level=low
+      - name: Build and audit the selected Vizmatic source
+        working-directory: vizmatic
+        run: |
+          pnpm install --frozen-lockfile --ignore-scripts
+          pnpm build
+          pnpm audit --audit-level=low
+          git diff --exit-code
+      - name: Use development runtime without changing the production pin
+        run: |
+          mv node_modules/vizmatic node_modules/.vizmatic-published
+          ln -s "$GITHUB_WORKSPACE/vizmatic" node_modules/vizmatic
+          git diff --exit-code -- package.json package-lock.json .npmrc
+      - name: Record development runtime identity
+        env:
+          SOURCE_REF: ${{ steps.source.outputs.ref }}
+        run: |
+          VIZMATIC_SOURCE_COMMIT="$(git -C "$GITHUB_WORKSPACE/vizmatic" rev-parse HEAD)" \
+            node --input-type=module > "$RUNNER_TEMP/vizmatic-main-runtime.json" <<'JS'
+          import { renderEngineProvenance } from './lib/render-engine.mjs';
+          console.log(JSON.stringify({
+            purpose: 'development compatibility only',
+            sourceRepository: 'bvolpato/vizmatic',
+            sourceRef: process.env.SOURCE_REF,
+            sourceCommit: process.env.VIZMATIC_SOURCE_COMMIT,
+            renderEngine: renderEngineProvenance(),
+          }, null, 2));
+          JS
+          cat "$RUNNER_TEMP/vizmatic-main-runtime.json"
+          {
+            echo '### Vizmatic development runtime'
+            echo 'These checks do not establish publication or delivery readiness.'
+            echo '```json'
+            cat "$RUNNER_TEMP/vizmatic-main-runtime.json"
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+      - name: Check narrated and legacy stage runtime compatibility
+        run: node --test --test-concurrency=1 test/upstream/*.test.mjs test/vizmatic-compatibility.test.mjs test/stage-lesson.test.mjs test/render-engine.test.mjs
+      - name: Check directed lesson timing, pictures and opener reuse
+        run: node --test director-cuts/lesson-runtime/runtime.test.mjs full-directors/test/runtime.test.mjs
+      - name: Draw the review films through the canvas renderer
+        if: matrix.runtime == 'review'
+        run: |
+          for lesson in flash-attention diffusion voice-agents fairness-audits; do
+            node render.mjs --lesson "$lesson" --validate
+          done
+      - name: Keep development runtime identity
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: vizmatic-${{ matrix.runtime }}-runtime
+          path: ${{ runner.temp }}/vizmatic-main-runtime.json
+          if-no-files-found: ignore
+
+  web:
+    name: Lint, Test, Typecheck, Build
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    defaults:
+      run:
+        working-directory: web
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@v6
+        with:
+          version: 10.33.0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: pnpm
+          cache-dependency-path: web/pnpm-lock.yaml
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Check illustration source formatting
+        run: pnpm illustrations:format:check
+
+      - name: Strictly typecheck changed illustration sources
+        shell: bash
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          PR_BASE_SHA: ${{ github.event.pull_request.base.sha || '' }}
+          PUSH_BEFORE_SHA: ${{ github.event.before || '' }}
+          MANUAL_ILLUSTRATION_BASE: ${{ inputs.illustration_base || '' }}
+        run: |
+          set -euo pipefail
+          case "${EVENT_NAME}" in
+            pull_request)
+              if [[ -z "${PR_BASE_SHA}" ]]; then
+                echo "Pull request base SHA is missing" >&2
+                exit 1
+              fi
+              pnpm illustrations:typecheck -- --base "${PR_BASE_SHA}"
+              ;;
+            push)
+              if [[ -z "${PUSH_BEFORE_SHA}" || "${PUSH_BEFORE_SHA}" == "0000000000000000000000000000000000000000" ]]; then
+                echo "Push event has no usable before SHA; refusing to skip the changed-source typecheck." >&2
+                exit 1
+              fi
+              pnpm illustrations:typecheck -- --before "${PUSH_BEFORE_SHA}"
+              ;;
+            workflow_dispatch)
+              if [[ "${MANUAL_ILLUSTRATION_BASE}" == "--all" ]]; then
+                pnpm illustrations:typecheck -- --all
+              elif [[ -n "${MANUAL_ILLUSTRATION_BASE}" ]]; then
+                pnpm illustrations:typecheck -- --base "${MANUAL_ILLUSTRATION_BASE}"
+              elif git rev-parse --verify --quiet 'HEAD^' >/dev/null; then
+                echo "Manual run has no event base; comparing HEAD^ to HEAD. Use --all for an explicit full inventory check."
+                pnpm illustrations:typecheck -- --before 'HEAD^'
+              else
+                echo "Manual run has no parent commit for HEAD^ comparison; running full illustration inventory typecheck."
+                pnpm illustrations:typecheck -- --all
+              fi
+              ;;
+            *)
+              echo "Unsupported event for changed-source typecheck: ${EVENT_NAME}" >&2
+              exit 1
+              ;;
+          esac
+
+      - name: Audit dependencies
+        run: |
+          pnpm test:dependency-audit
+          pnpm audit:dependencies
+
+      - name: Restore generated visual cache
+        id: generated-visual-cache
+        uses: actions/cache/restore@v6
+        with:
+          path: |
+            web/src/content/**/_generated
+            web/tools/illustrations/.cache
+            web/tools/diagrams/.cache
+          key: generated-visuals-v1-${{ runner.os }}-${{ hashFiles('web/src/content/**/*.md', 'web/src/content/**/illustrations/*.tsx', 'web/tools/illustrations/**/*.ts', 'web/tools/diagrams/**/*.ts', 'web/scripts/hydrate-ios-images.ts', 'web/pnpm-lock.yaml') }}
+          restore-keys: |
+            generated-visuals-v1-${{ runner.os }}-
+
+      - name: Build changed visuals
+        shell: bash
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          BASE_SHA: ${{ github.event.pull_request.base.sha || '' }}
+        run: |
+          set -euo pipefail
+
+          if [[ "${EVENT_NAME}" != "pull_request" || -z "${BASE_SHA}" ]]; then
+            echo "Manual run: hydrate unchanged production visuals"
+            exit 0
+          fi
+
+          changed_files="$(git diff --name-only "${BASE_SHA}"...HEAD)"
+          full_illustrations=false
+          full_diagrams=false
+
+          if grep -q '^web/tools/illustrations/' <<< "${changed_files}"; then
+            full_illustrations=true
+            pnpm illustrations:build
+          fi
+          if grep -q '^web/tools/diagrams/' <<< "${changed_files}"; then
+            full_diagrams=true
+            pnpm diagrams:build
+          fi
+
+          mapfile -t bundles < <(
+            printf '%s\n' "${changed_files}" \
+              | awk -F/ '
+                  $1 == "web" && $2 == "src" && $3 == "content" && $4 == "glossary" && NF == 5 { print "glossary"; next }
+                  $1 == "web" && $2 == "src" && $3 == "content" && NF >= 6 { print $4 "/" $5 }
+                ' \
+              | sort -u
+          )
+
+          if (( ${#bundles[@]} > 24 )); then
+            if [[ "${full_illustrations}" == "false" ]]; then
+              pnpm illustrations:build
+            fi
+            if [[ "${full_diagrams}" == "false" ]]; then
+              pnpm diagrams:build
+            fi
+            exit 0
+          fi
+
+          for bundle in "${bundles[@]}"; do
+            if [[ "${bundle}" == "glossary" ]]; then
+              if [[ "${full_diagrams}" == "false" ]]; then
+                pnpm diagrams:build:article glossary
+              fi
+              continue
+            fi
+            if [[ ! -d "src/content/${bundle}" ]]; then
+              continue
+            fi
+            if [[ "${full_illustrations}" == "false" ]]; then
+              pnpm illustrations:build:article "${bundle}"
+            fi
+            if [[ "${full_diagrams}" == "false" ]]; then
+              pnpm diagrams:build:article "${bundle}"
+            fi
+          done
+
+      - name: Hydrate unchanged production visuals
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          missing_images="${RUNNER_TEMP}/missing-generated-images.txt"
+          if LEETLLM_IOS_MISSING_IMAGES_FILE="${missing_images}" pnpm ios:hydrate-images; then
+            exit 0
+          fi
+          if [[ ! -s "${missing_images}" ]]; then
+            echo "Hydration failed without a recoverable missing-image list" >&2
+            exit 1
+          fi
+
+          unsupported="$(grep -Ev '^[^/]+/[^/]+/(illustrations|diagrams)/_generated/' "${missing_images}" || true)"
+          if [[ -n "${unsupported}" ]]; then
+            echo "Missing images cannot be regenerated from article sources:" >&2
+            printf '%s\n' "${unsupported}" >&2
+            exit 1
+          fi
+
+          mapfile -t illustration_bundles < <(
+            awk -F/ '$3 == "illustrations" && $4 == "_generated" { print $1 "/" $2 }' "${missing_images}" | sort -u
+          )
+          mapfile -t diagram_bundles < <(
+            awk -F/ '$3 == "diagrams" && $4 == "_generated" { print $1 "/" $2 }' "${missing_images}" | sort -u
+          )
+          fallback_bundle_count="$({ printf '%s\n' "${illustration_bundles[@]}"; printf '%s\n' "${diagram_bundles[@]}"; } | sed '/^$/d' | sort -u | wc -l)"
+          if (( fallback_bundle_count > 24 )); then
+            echo "Refusing expensive fallback for ${fallback_bundle_count} bundles" >&2
+            exit 1
+          fi
+
+          for bundle in "${illustration_bundles[@]}"; do
+            pnpm illustrations:build:article "${bundle}"
+          done
+          for bundle in "${diagram_bundles[@]}"; do
+            if [[ "${bundle%%/*}" == "glossary" ]]; then
+              bundle="glossary"
+            fi
+            pnpm diagrams:build:article "${bundle}"
+          done
+
+          pnpm ios:hydrate-images
+
+      - name: Rebuild stale illustration sources
+        run: pnpm illustrations:build
+
+      - name: Setup uv
+        uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2 # v10.3.3
+        with:
+          version: "0.13.4"
+
+      - name: Validate generated illustration quality
+        run: uv run ../scripts/validate-illustration-quality.py --clean-stale --fail-layout-warnings
+
+      - name: Save generated visual cache
+        if: steps.generated-visual-cache.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v6
+        with:
+          path: |
+            web/src/content/**/_generated
+            web/tools/illustrations/.cache
+            web/tools/diagrams/.cache
+          key: generated-visuals-v1-${{ runner.os }}-${{ hashFiles('web/src/content/**/*.md', 'web/src/content/**/illustrations/*.tsx', 'web/tools/illustrations/**/*.ts', 'web/tools/diagrams/**/*.ts', 'web/scripts/hydrate-ios-images.ts', 'web/pnpm-lock.yaml') }}
+
+      - name: Generate glossary module
+        run: pnpm glossary:build
+
+      - name: Export iOS content
+        run: pnpm exec tsx scripts/export-ios-content.ts
+
+      - name: Lint
+        run: pnpm lint
+
+      - name: Validate video JavaScript escapes
+        working-directory: videos
+        run: ../web/node_modules/.bin/eslint . --no-config-lookup --rule 'no-useless-escape:error' --max-warnings 0
+
+      - name: Test
+        run: pnpm test --run --maxWorkers=2
+
+      - name: Typecheck
+        run: pnpm typecheck
+
+      - name: Build
+        run: pnpm build
+        env:
+          NEXT_PUBLIC_SUPABASE_URL: https://placeholder.supabase.co
+          NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: placeholder-key
+          NEXT_PUBLIC_SITE_URL: http://localhost:3000

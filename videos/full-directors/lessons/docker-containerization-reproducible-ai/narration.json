@@ -1,0 +1,709 @@
+[
+  {
+    "id": "c01",
+    "title": "Will the scorer run on this laptop?",
+    "sourceChapters": [
+      "c01"
+    ],
+    "beats": [
+      {
+        "id": "c01-b01",
+        "say": "Your teammate has the scorer and the three requests from Git. Watch the first word of the command. The shell can't find Python. Which part of this run did the clone leave up to the laptop?",
+        "hold": 1.8
+      },
+      {
+        "id": "c01-b02",
+        "say": "Docker builds an image, a stored filesystem with the program and the tools it needs. This base image comes with Python three twelve. Copy in the scoring script and its data file.",
+        "hold": 0.7
+      },
+      {
+        "id": "c01-b03",
+        "say": "Run the image. Docker starts a container, an isolated process environment with those files. This time Python opens the script and the scorer reads all three rows. Later we'll give that same path two different files. You'll trace which one supplied the score.",
+        "hold": 1.4
+      }
+    ]
+  },
+  {
+    "id": "c02",
+    "title": "What travels with the scorer?",
+    "sourceChapters": [
+      "c02"
+    ],
+    "beats": [
+      {
+        "id": "c02-b01",
+        "say": "What else comes along with Python? The image holds the operating system libraries, the installed packages, our script, and its three test rows. For a different day's requests, supply the file when the container starts. This scorer compares labels locally. It needs no credential.",
+        "hold": 0.6
+      },
+      {
+        "id": "c02-b02",
+        "say": "Run docker version in that same shell. The client sends the request. Look for the server in the response. That's the Engine that can start the process. Linux has a kernel that manages processes, memory and devices. Install the Engine directly on Linux and the container shares that host's kernel.",
+        "hold": 0.3
+      },
+      {
+        "id": "c02-b03",
+        "say": "With Docker Desktop on Linux or Mac, the Engine runs in a Linux virtual machine. The container shares the virtual machine's kernel.",
+        "hold": 0.6
+      }
+    ]
+  },
+  {
+    "id": "c03",
+    "title": "Which files may the builder read?",
+    "sourceChapters": [
+      "c03"
+    ],
+    "beats": [
+      {
+        "id": "c03-b01",
+        "say": "Here's the directory we've asked Docker to build from. Before we apply any ignore rules, even the local environment file is eligible for the builder to read. That set of eligible project files is the build context. BuildKit can skip sending a file that no instruction uses.",
+        "hold": 0.65
+      },
+      {
+        "id": "c03-b02",
+        "say": "Apply the rules in dot docker ignore. Three paths stop here. Your local credentials, your virtual environment, and your downloaded weights have no job in this build. Even a file you've kept out of Git needs its own Docker exclusion.",
+        "hold": 0.65
+      },
+      {
+        "id": "c03-b03",
+        "say": "Follow the three copy instructions that read from the project directory. Requirements go into the builder. The script and its test data go into the runtime. The Dockerfile supplies the recipe. There's a fourth copy. Where did its files come from? The installed Python environment comes from the builder stage itself.",
+        "hold": 0.65
+      }
+    ]
+  },
+  {
+    "id": "c04",
+    "title": "Build one Python environment",
+    "sourceChapters": [
+      "c04"
+    ],
+    "beats": [
+      {
+        "id": "c04-b01",
+        "say": "Start both stages from the same Python base. The builder makes a virtual environment. That gives us a Python entry point and a separate place to install packages. Our scorer uses the standard library, so pip finds an empty requirements file. A future install will put its packages here.",
+        "hold": 0.65
+      },
+      {
+        "id": "c04-b02",
+        "say": "The runtime stage starts fresh. It copies the environment into the same location so that its installed scripts can still find Python. Set the runtime's search path to use it. Now copy the scorer and evaluation rows. A compiler needed to build a future package can stay behind.",
+        "hold": 0.65
+      },
+      {
+        "id": "c04-b03",
+        "say": "The USER instruction selects an application account. The entrypoint records the command to run. A teammate can now launch the scorer by naming the image. For a release we'll also fix the platform and the base image digest in both stages.",
+        "hold": 0.65
+      }
+    ]
+  },
+  {
+    "id": "c05",
+    "title": "What gets into a second stage?",
+    "sourceChapters": [
+      "c05"
+    ],
+    "beats": [
+      {
+        "id": "c05-b01",
+        "say": "Give the builder a helper file beside the environment and a setting called tool mode. Start the runtime from the original Python base and copy just the virtual environment. Which of those extras will turn up there?",
+        "hold": 1.6
+      },
+      {
+        "id": "c05-b02",
+        "say": "The helper lives beside the copied directory, and the variable belongs to the builder's settings. Only the environment's files arrive. Now change the starting point to FROM builder. This time we inherit all three additions.",
+        "hold": 0.6
+      },
+      {
+        "id": "c05-b03",
+        "say": "Take a database driver built from source. Its Python extension travels in the copied environment. It also uses the Postgres client library from the operating system. Try importing the driver. The loader can't find that library. Add the matching library to the runtime image.",
+        "hold": 0.3
+      },
+      {
+        "id": "c05-b04",
+        "say": "Start a fresh Python process and repeat the import. This time the import succeeds. The compiler can stay in the builder.",
+        "hold": 0.6
+      },
+      {
+        "id": "c05-b05",
+        "say": "Where does the script name resolve? WORKDIR puts us in the app directory. COPY with chown sets the owner of the copied files. Without that option, root usually owns the copy, though its permissions may still let our account read it.",
+        "hold": 0.3
+      },
+      {
+        "id": "c05-b06",
+        "say": "USER selects the account that launches Python. The entrypoint array passes the script name as a separate argument.",
+        "hold": 0.6
+      }
+    ]
+  },
+  {
+    "id": "c06",
+    "title": "Which image did the two builders test?",
+    "sourceChapters": [
+      "c06"
+    ],
+    "beats": [
+      {
+        "id": "c06-b01",
+        "say": "Both builders use the Python tag at the top. It gives us Python three twelve on Debian thirteen. Tomorrow that name could point to an updated build. Even today this tag offers more than one image. By default the x86 worker selects A and the Arm laptop selects B.",
+        "hold": 0.6
+      },
+      {
+        "id": "c06-b02",
+        "say": "Record the index digest in both FROM lines and you fix the set of members. A platform manifest digest identifies one member. For these two test runs, ask both builders for Linux on Arm. Assume the worker can emulate it. Follow the two lines. Both machines test a scorer built from member B.",
+        "hold": 1.2
+      },
+      {
+        "id": "c06-b03",
+        "say": "Production needs the x86 member. Look at A. Did either run exercise a scorer built from that base?",
+        "hold": 2
+      },
+      {
+        "id": "c06-b04",
+        "say": "Both tests went to B. For Linux on x86, start the build from A. Add the scorer and fixture. Run that application image on the deployment platform. If it passes, promote the scorer image by its own verified registry digest. The Python base has a different digest.",
+        "hold": 0.3
+      },
+      {
+        "id": "c06-b05",
+        "say": "A fixed digest identifies the artifact. Testing it on the target hardware checks its behavior. Emulation can slow down compilation. Keep the test result with the artifact you promote. Pinning the inputs alone doesn't promise bit-for-bit identical rebuilds.",
+        "hold": 0.8
+      }
+    ]
+  },
+  {
+    "id": "c07",
+    "title": "Which package will pip accept?",
+    "sourceChapters": [
+      "c07"
+    ],
+    "beats": [
+      {
+        "id": "c07-b01",
+        "say": "Now suppose the scorer needs a package. One release offers two wheels and a source archive. A wheel is a prebuilt distribution. The version on both wheels matches. Compare their hashes. A hash lets pip check the actual download against the bytes you approved.",
+        "hold": 0.3
+      },
+      {
+        "id": "c07-b02",
+        "say": "With require hashes, pin and hash the dependencies of that package too. Our empty requirements file requests nothing.",
+        "hold": 0.6
+      },
+      {
+        "id": "c07-b03",
+        "say": "Follow the file pip opens. It opens requirements dot txt. Edit a lockfile lying beside it and pip still reads the same requirements. Export the reviewed lock to that file or use the lock manager's frozen install.",
+        "hold": 0.3
+      },
+      {
+        "id": "c07-b04",
+        "say": "On a clean download, wheel B has the right version and an unapproved hash. Pip rejects the download. An already installed package can satisfy a requirement without a fresh hash check.",
+        "hold": 0.6
+      },
+      {
+        "id": "c07-b05",
+        "say": "A hash on the source archive fixes the source bytes. The compiler can still differ between builders. Suppose pip needs to download the package for a clean environment. For a wheel-only install, ask pip for binary packages only. If no compatible wheel has an approved hash for that platform, the install stops.",
+        "hold": 0.6
+      }
+    ]
+  },
+  {
+    "id": "c08",
+    "title": "Which step has to run again?",
+    "sourceChapters": [
+      "c08"
+    ],
+    "beats": [
+      {
+        "id": "c08-b01",
+        "say": "This build is already in the cache. Read the three pairs of keys from the top. These short teaching keys stand for the inputs to each operation. At installation time the builder had the base, the install instruction and the requirements. Had it copied the scorer yet?",
+        "hold": 1.5
+      },
+      {
+        "id": "c08-b02",
+        "say": "Change only the scorer. Docker looks up a different key for the copy. The lookup misses, so Docker runs the copy again. Look one step earlier. The installer sees the same inputs, so Docker can reuse its result.",
+        "hold": 0.65
+      },
+      {
+        "id": "c08-b03",
+        "say": "Put the scorer back. This time edit the requirements. The cache has no entry for the new key. Installation now has a different input and must run again. If the installed files change, the runtime receives a different environment. Restoring a previously built set of inputs can bring its cached result back.",
+        "hold": 0.65
+      }
+    ]
+  },
+  {
+    "id": "c09",
+    "title": "Start the packaged Python",
+    "sourceChapters": [
+      "c09"
+    ],
+    "beats": [
+      {
+        "id": "c09-b01",
+        "say": "Docker run creates a container from the stored image. Now our packaged Python can open the scorer. When it needs to read a file, the Linux kernel comes from the Engine host, or from the Linux virtual machine on Docker Desktop.",
+        "hold": 0.65
+      },
+      {
+        "id": "c09-b02",
+        "say": "Run under the application account with a read-only root filesystem. Where can the report go? It goes to standard output. We've disabled Python's bytecode writes, and this scorer only reads its input. If a later workload writes a cache, give it a writable location.",
+        "hold": 0.65
+      }
+    ]
+  },
+  {
+    "id": "c10",
+    "title": "Whose permissions apply?",
+    "sourceChapters": [
+      "c10"
+    ],
+    "beats": [
+      {
+        "id": "c10-b01",
+        "say": "Inspect the image for its platform, its configured user, and its entrypoint. To see who actually runs, override the entrypoint with the id command. It reports the process user and its groups. Our application UID is ten thousand and one. Read the GID beside it.",
+        "hold": 0.3
+      },
+      {
+        "id": "c10-b02",
+        "say": "Here the numbers match. When useradd creates the user's group, it tries that same number. It can choose another if the number is taken or out of range. What would you run to find out whether Python can finish with a read-only root filesystem?",
+        "hold": 1.8
+      },
+      {
+        "id": "c10-b03",
+        "say": "Remove the entrypoint override. Keep the root filesystem read-only and run the normal entrypoint. Now we get a score and an exit status. This execution finished without writing to the root filesystem. The daemon launched Python as the application user.",
+        "hold": 0.3
+      },
+      {
+        "id": "c10-b04",
+        "say": "Permission to control that daemon is separate from the user's permissions inside the container. Access to a rootful daemon can carry host-level authority. Leave the Docker socket and unrelated host directories out of the scorer.",
+        "hold": 0.3
+      },
+      {
+        "id": "c10-b05",
+        "say": "A writable bind also lets the process change host files it has permission to write.",
+        "hold": 0.6
+      },
+      {
+        "id": "c10-b06",
+        "say": "Take a mount on a Linux Engine with ordinary numeric IDs and no user namespace remapping. Here the host directory belongs to root and only its owner can enter. Our user can't reach the file, even though the file itself is readable.",
+        "hold": 0.3
+      },
+      {
+        "id": "c10-b07",
+        "say": "For this private scratch directory, give ownership to the application user on the host. Now that user can traverse the directory and read the file through the bind. An output directory needs write access too. An image-layer ownership change can't reach it.",
+        "hold": 0.3
+      },
+      {
+        "id": "c10-b08",
+        "say": "Rootless engines and Docker Desktop can map IDs differently.",
+        "hold": 0.6
+      }
+    ]
+  },
+  {
+    "id": "c11",
+    "title": "Read the three requests",
+    "sourceChapters": [
+      "c11"
+    ],
+    "beats": [
+      {
+        "id": "c11-b01",
+        "say": "The scorer strips surrounding whitespace from both labels, lowercases them, and compares the results. Read the predictions with me. For request one oh one, the labels agree. Our count goes up. The middle pair differs. Blocked was expected, but the prediction was escalated.",
+        "hold": 0.3
+      },
+      {
+        "id": "c11-b02",
+        "say": "Keep that row in the denominator. The final pair agrees. All three rows have had a turn.",
+        "hold": 0.65
+      },
+      {
+        "id": "c11-b04",
+        "say": "Two matches out of three give the printed score. Rounded to three places, that's point six six seven. If you used that rounded decimal as the minimum, the exact fraction would fall just below it. Use the counts. Multiply the matches by three and the total number of rows by two. The first number must reach or exceed the second. Here both sides are six. Equality passes.",
+        "hold": 1.6
+      },
+      {
+        "id": "c11-b05",
+        "say": "The process exits successfully. The report is already on standard output. With the remove flag, Docker discards that container's writable layer. The image remains ready. Let's launch the same scorer again and change just the directory it reads.",
+        "hold": 0.65
+      }
+    ]
+  },
+  {
+    "id": "c12",
+    "title": "Where will the next read go?",
+    "sourceChapters": [
+      "c12"
+    ],
+    "beats": [
+      {
+        "id": "c12-b01",
+        "say": "The image has three rows in its eval directory. The host directory below is empty. Mount it read-only at the same path. Will the scorer still find the three rows?",
+        "hold": 2.1
+      },
+      {
+        "id": "c12-b02",
+        "say": "Start the run. Follow the line from open to the blue rows. The gold host strip rises and covers those rows. The same path now opens the empty host directory. Read-only keeps the container from writing there.",
+        "hold": 1.2
+      },
+      {
+        "id": "c12-b03",
+        "say": "Follow the lower line down to the assets directory. The scorer tries this second path. Our Dockerfile copied eval and left out assets, so this lookup fails too. The error names the last path it tried. The scorer exits with status one.",
+        "hold": 1.3
+      },
+      {
+        "id": "c12-b04",
+        "say": "Start a new container without the bind. Follow the same lookup back to the image. Two of three again. The file was in the image all along.",
+        "hold": 1
+      }
+    ]
+  },
+  {
+    "id": "c13",
+    "title": "Did Docker ever start Python?",
+    "sourceChapters": [
+      "c13"
+    ],
+    "beats": [
+      {
+        "id": "c13-b01",
+        "say": "Watch this one path on the machine running Docker Engine. The scratch directory is missing. Ask for it with the explicit mount flag. The Engine rejects the run before Python starts. For a remote Engine, check the path on that machine. Docker Desktop shares local files into its Linux virtual machine.",
+        "hold": 0.6
+      },
+      {
+        "id": "c13-b02",
+        "say": "Switch to dash vee. Docker creates the empty directory and mounts it. Python starts, then the scorer reports a missing file. When Python exits, Docker removes the container. The directory stays on the host. Try the original mount flag again. Who reports the error now?",
+        "hold": 2
+      },
+      {
+        "id": "c13-b03",
+        "say": "This time Docker finds the directory. Python starts and reports the missing file. Remove the bind for the next run and Python reads the copy in the image.",
+        "hold": 0.7
+      }
+    ]
+  },
+  {
+    "id": "c14",
+    "title": "Keep data past the end of a run",
+    "sourceChapters": [
+      "c14"
+    ],
+    "beats": [
+      {
+        "id": "c14-b01",
+        "say": "Use a bind when you want to edit a particular host file. For a cache, try a named volume. Docker manages where it lives. Give the application account write access and save a cache entry there. Remove the first container.",
+        "hold": 0.3
+      },
+      {
+        "id": "c14-b02",
+        "say": "Attach the same volume to a second container. It can read the entry the first one left behind.",
+        "hold": 0.65
+      },
+      {
+        "id": "c14-b03",
+        "say": "Write the run policy down in Compose. Notice the two read-only settings for the root and the separate input mount. Set create host path to false. Try a source name that doesn't exist. Compose stops before Python starts. Now point it at an existing archive instead.",
+        "hold": 0.3
+      },
+      {
+        "id": "c14-b04",
+        "say": "The mount succeeds. Python will read the archive's rows if it finds the fixture there. Check the source directory as well as its spelling. Put the intended source back. After changing the scorer, run this service with build enabled so the new code actually runs.",
+        "hold": 0.65
+      }
+    ]
+  },
+  {
+    "id": "c15",
+    "title": "What did Compose actually check?",
+    "sourceChapters": [
+      "c15"
+    ],
+    "beats": [
+      {
+        "id": "c15-b01",
+        "say": "Imagine removing read-only from the bind entry. The service setting still protects the root filesystem. Set the bind's own read-only flag to protect the mounted input. Set create host path to false if a missing source should stop the launch.",
+        "hold": 0.3
+      },
+      {
+        "id": "c15-b02",
+        "say": "Our service records the image name and build context, and it uses the scorer entrypoint from the image.",
+        "hold": 0.6
+      },
+      {
+        "id": "c15-b03",
+        "say": "Suppose Compose config with quiet succeeds. It parsed the configuration. It hasn't opened the fixture or rebuilt the edited script. Run the service with build and remove. That builds first and actually exercises the mount. When Python exits, Docker cleans up the container. The resulting image remains available for another run.",
+        "hold": 0.6
+      },
+      {
+        "id": "c15-b04",
+        "say": "The Engine can be running on a machine without the Compose plugin. The check script skips its optional Compose check there. If the plugin is installed, invalid configuration fails the check. For example, a missing required environment file stops configuration resolution.",
+        "hold": 0.3
+      },
+      {
+        "id": "c15-b05",
+        "say": "Use those files for ordinary settings like a log level. A credential needs different handling.",
+        "hold": 0.6
+      }
+    ]
+  },
+  {
+    "id": "c16",
+    "title": "When does the program get the secret?",
+    "sourceChapters": [
+      "c16"
+    ],
+    "beats": [
+      {
+        "id": "c16-b01",
+        "say": "Today's scorer reads labels from a file. Leave it credential-free. Suppose a future dependency lives in a private index. Which part of the build needs access? Give the selected credential to that build instruction. The Python process that runs later doesn't need it.",
+        "hold": 0.65
+      },
+      {
+        "id": "c16-b02",
+        "say": "BuildKit mounts the selected file while the instruction runs. The installer reads it to sign in and download the package. When the instruction ends, the mount disappears. The installed package stays in the image. Keep the credential out of installer logs and output files.",
+        "hold": 0.65
+      },
+      {
+        "id": "c16-b03",
+        "say": "An API client needs a separate runtime secret file. In local Compose, grant the service that file. Compose attaches it when the container starts. On Cloud Run, the service identity needs permission to access the secret. Cloud Run checks that permission at deployment. When the process reads the mounted file, Cloud Run fetches its value.",
+        "hold": 0.65
+      }
+    ]
+  },
+  {
+    "id": "c17",
+    "title": "Which layer still holds the file?",
+    "sourceChapters": [
+      "c17"
+    ],
+    "beats": [
+      {
+        "id": "c17-b01",
+        "say": "Suppose an installer copies a harmless placeholder into a debug file. One layer records the file. A later layer deletes the name. The final directory looks clean, but the earlier layer still holds the bytes. A real key in that position would be exposed.",
+        "hold": 0.3
+      },
+      {
+        "id": "c17-b02",
+        "say": "ENV can persist in image configuration. A build argument can appear in image history or detailed build provenance even when it never becomes a runtime variable.",
+        "hold": 0.6
+      },
+      {
+        "id": "c17-b03",
+        "say": "The temporary mount controls how a credential arrives. The command can still write it into an output file or a log. Keep only the package output. Mark the secret as required when the install needs it. An executing instruction fails if the secret is missing. A cache hit skips that instruction, including its check.",
+        "hold": 0.6
+      },
+      {
+        "id": "c17-b04",
+        "say": "For a future API client, local Compose can mount a host secret file. The host copy still needs restricted permissions. Mounting it doesn't encrypt it. Keep it out of Git and the Docker context. Make sure the intended user can read it. Our current CPU scorer can run with no secret at all.",
+        "hold": 0.6
+      }
+    ]
+  },
+  {
+    "id": "c18",
+    "title": "Can the container see a GPU?",
+    "sourceChapters": [
+      "c18"
+    ],
+    "beats": [
+      {
+        "id": "c18-b01",
+        "say": "Your next model needs an NVIDIA GPU. On this configured Linux Engine, ask the host driver to list its devices. The host sees one GPU. Can a container see it too? Start a plain Ubuntu container with the NVIDIA runtime. The GPUs flag requests all devices. Run the same listing inside it.",
+        "hold": 0.65
+      },
+      {
+        "id": "c18-b02",
+        "say": "The Ubuntu probe lists the GPU too. Now open Python in the CPU scorer's image and try importing torch. Python reports a missing module. That image has the scorer and its standard library. To run the model, add a compatible build of PyTorch to the application image.",
+        "hold": 0.65
+      }
+    ]
+  },
+  {
+    "id": "c19",
+    "title": "Follow the first failed GPU probe",
+    "sourceChapters": [
+      "c19"
+    ],
+    "beats": [
+      {
+        "id": "c19-b01",
+        "say": "The NVIDIA kernel driver belongs on the host. Our application image supplies the framework and its CUDA runtime libraries. When the container starts, the NVIDIA container runtime exposes the requested devices and the host driver libraries its capabilities allow. Finding the device is a first step.",
+        "hold": 0.3
+      },
+      {
+        "id": "c19-b02",
+        "say": "Now test a computation with the framework in that application image. Create a one-element tensor on the CUDA device and read back its sum. A result of one shows that this small computation reached the device and completed.",
+        "hold": 0.6
+      },
+      {
+        "id": "c19-b03",
+        "say": "If the host probe fails, inspect the driver first. If only the container probe fails, check the Container Toolkit, the runtime configuration, and the devices you requested.",
+        "hold": 0.3
+      },
+      {
+        "id": "c19-b04",
+        "say": "If the device probe works and the framework still reports unavailable, check the framework build, its visible devices, and compatibility with the driver. Installing another Python wheel would do nothing for a device the runtime never exposed.",
+        "hold": 0.6
+      },
+      {
+        "id": "c19-b05",
+        "say": "Use the setup for the machine that runs your engine. The Linux system service and a rootless user daemon have different configuration paths. Windows Desktop uses WSL two with a compatible Windows driver. Apple Silicon can run our Linux CPU image.",
+        "hold": 0.3
+      },
+      {
+        "id": "c19-b06",
+        "say": "For the Mac GPU, native PyTorch uses the Metal backend. CUDA requires suitable NVIDIA hardware.",
+        "hold": 0.6
+      }
+    ]
+  },
+  {
+    "id": "c20",
+    "title": "Can a better score fail the check?",
+    "sourceChapters": [
+      "c20"
+    ],
+    "beats": [
+      {
+        "id": "c20-b01",
+        "say": "Let's come back to the team's original three requests. Capture the image identity. Use it twice. Both runs open the same filename, but follow their read lines. One goes to the copy in the image. The other reaches the file on the host.",
+        "hold": 0.3
+      },
+      {
+        "id": "c20-b02",
+        "say": "With the original data, the baked and mounted reports both match the saved two out of three.",
+        "hold": 0.65
+      },
+      {
+        "id": "c20-b03",
+        "say": "Leave that image alone. In the host file, change the prediction for request one oh two to blocked. Which report would you expect to move?",
+        "hold": 2
+      },
+      {
+        "id": "c20-b04",
+        "say": "Run both again. The image still gives two out of three. The host now gives three out of three, so it clears the score threshold. Compare its report to the saved one. The regression check fails. The count tells us one more prediction matched.",
+        "hold": 0.3
+      },
+      {
+        "id": "c20-b05",
+        "say": "To find which one, compare the host file with the committed fixture. Look at request one oh two. The committed prediction is escalated. The host file says blocked.",
+        "hold": 0.9
+      },
+      {
+        "id": "c20-b06",
+        "say": "Restore the committed host row and rerun. The mounted report matches again. Save those reports with the local image ID. To send this image to production, verify the registry's repository digest and deployment platform. That lets a teammate pull the artifact you actually tested.",
+        "hold": 1.1
+      }
+    ]
+  },
+  {
+    "id": "c21",
+    "title": "What changes when CI rebuilds?",
+    "sourceChapters": [
+      "c21"
+    ],
+    "beats": [
+      {
+        "id": "c21-b01",
+        "say": "Now read the check script in execution order. Docker's static check inspects the recipe. The build tags its image. The script reads the tag's current image ID. For this run the tag has stayed put. The script uses that ID for both runs.",
+        "hold": 0.3
+      },
+      {
+        "id": "c21-b02",
+        "say": "Both reports start at two of three. Testing both matters. A host bind could hide a file we forgot to copy.",
+        "hold": 0.6
+      },
+      {
+        "id": "c21-b03",
+        "say": "Make that same edit to the host prediction. Rerun the old image and only the mounted result becomes three of three. Now run the full check script. Its build copies the edited row into a new image. Before the reports come back, where can the old prediction still be read by these two runs?",
+        "hold": 2.15
+      },
+      {
+        "id": "c21-b04",
+        "say": "Both paths now score three of three. Both clear two thirds. The script checks the baked report first against the saved two of three. That comparison stops the gate. Bash stops on mandatory failures. A later tag change cannot redirect either run once the ID is captured. What if another build moves the tag earlier?",
+        "hold": 1.8
+      },
+      {
+        "id": "c21-b05",
+        "say": "Watch that tag between the build and the lookup. Job A finishes its build. Job B moves the tag. Now A inspects it. Both of A's test commands would run B's image.",
+        "hold": 0.3
+      },
+      {
+        "id": "c21-b06",
+        "say": "Replay the builds with both test slots empty. Job A builds with an image ID file in its private directory. Docker writes A's local ID to the file and tags the image. Now B builds and moves the shared tag to B. The file still holds A. Which value should the test script read?",
+        "hold": 2
+      },
+      {
+        "id": "c21-b06-read",
+        "say": "Read the private file into the image ID variable. The variable now holds A. Pass it to the baked run. That starts A. Pass the same variable to the mounted run. That starts A too. Both commands used the image that A built, even while the tag pointed to B.",
+        "hold": 1
+      },
+      {
+        "id": "c21-b07",
+        "say": "Go back to the host file with three matching predictions. A different file could give the same score. Suppose we also need to identify the input this run scored. Read the file once into memory. Parse those bytes to score the rows.",
+        "hold": 0.3
+      },
+      {
+        "id": "c21-b08",
+        "say": "Hash those same bytes and record the hash with the report. If someone edits the host file a moment later, reopening its path could give us a different hash. The buffer we just used still identifies this run's input.",
+        "hold": 1
+      }
+    ]
+  },
+  {
+    "id": "c22",
+    "title": "What goes into the fresh clone?",
+    "sourceChapters": [
+      "c22"
+    ],
+    "beats": [
+      {
+        "id": "c22-b01",
+        "say": "Before handing this to a teammate, use the first error to choose a check. A missing Python module? Inspect the dependencies the install step read, then rebuild. Permission denied on a bind? Check the mounted owner and modes. Does every script edit rerun the install?",
+        "hold": 0.3
+      },
+      {
+        "id": "c22-b02",
+        "say": "Check whether the builder has a reusable cache. Then look at the Dockerfile. If it copies the scorer before the install, move that copy after the install. If config disappears only in production, look for a setting that used to come from your laptop.",
+        "hold": 0.6
+      },
+      {
+        "id": "c22-b03",
+        "say": "Restore the committed fixture and run the check script again. It rebuilds the image. Both comparisons pass at two matches in three rows. Read the print statement at the bottom. Which reports will your teammate get from the script's output?",
+        "hold": 2
+      },
+      {
+        "id": "c22-b04",
+        "say": "Look at the success summary. It prints the baked report and the image ID. The mounted report is still in a shell variable. That variable disappears when the script exits. Change the final print statement. Label each report with its read path and the tested image ID.",
+        "hold": 0.8
+      },
+      {
+        "id": "c22-b05",
+        "say": "Commit that check script alongside the Dockerfile, ignore rules, requirements, Compose file, scorer and fixture. Run the revised script in a fresh clone and save its output. Now a teammate can see which artifact ran and what each read path produced. Let's see how you'd diagnose a different set of requests.",
+        "hold": 0.8
+      }
+    ]
+  },
+  {
+    "id": "c23",
+    "title": "Which copy would you repair?",
+    "sourceChapters": [
+      "c23"
+    ],
+    "beats": [
+      {
+        "id": "c23-b01",
+        "say": "One image, two copies of the same seven requests. Our reference is five matches in seven rows. Look at the six rows across the top. They're identical in both files and four of them match. At request three oh five the expected label is approved. Which copy gives the scorer its fifth match?",
+        "hold": 3
+      },
+      {
+        "id": "c23-b02",
+        "say": "The image says approved. That's five matches out of seven. Three times five is fifteen, past the cutoff of fourteen. Five out of seven also matches our reference. Now look at the host file. It says escalated. That gives four matches out of seven. Three times four is twelve, short of fourteen. That count is one below the five-match reference. Where would you make the repair?",
+        "hold": 2.2
+      },
+      {
+        "id": "c23-b03",
+        "say": "Open the host file at request three oh five. Check the prediction in Git. It says approved. The bind is read-only inside the container. As the file's owner, restore approved on the host. The last run still says four. Run the same image again.",
+        "hold": 0.3
+      },
+      {
+        "id": "c23-b04",
+        "say": "Python reads the edited row. Five of seven again. Fifteen clears the cutoff of fourteen. The new count matches the reference. The image stayed fixed while you repaired the host input and tested it in a fresh container. In the next lesson you'll follow that row through the Python code that validates its fields and counts the match.",
+        "hold": 1.6
+      }
+    ]
+  }
+]

@@ -1,0 +1,75 @@
+steps:
+  - id: build-and-push
+    name: gcr.io/cloud-builders/docker
+    entrypoint: bash
+    args:
+      - -ceu
+      - |
+        readonly image="${_IMAGE_REPOSITORY}:${_IMAGE_TAG}"
+        readonly latest="${_IMAGE_REPOSITORY}:latest"
+        readonly cache="${_IMAGE_REPOSITORY}:buildcache"
+        readonly next_cache="${_IMAGE_REPOSITORY}:nextcache-${_NEXT_CACHE_KEY}"
+
+        docker buildx create --driver docker-container --name leetllm-builder --use
+        docker buildx inspect --bootstrap
+
+        cache_from=()
+        if docker buildx imagetools inspect "$$cache" >/dev/null 2>&1; then
+          cache_from=(--cache-from "type=registry,ref=$$cache")
+          echo "Using remote build cache: $$cache"
+        else
+          echo "No remote build cache found; this build will create it."
+        fi
+
+        next_cache_from=()
+        clean_build=()
+        # Pin the imported cache before building. Concurrent publishers update
+        # the tag atomically; this build keeps using the original digest.
+        if [ "${_REBUILD}" = "1" ]; then
+          clean_build=(--no-cache)
+          echo "Performing a clean image and compiler-cache rebuild."
+        elif next_digest=$$(docker buildx imagetools inspect "$$next_cache" --format '{{json .Manifest.Digest}}' 2>/dev/null); then
+          next_digest=$$(printf '%s' "$$next_digest" | tr -d '"')
+          [[ "$$next_digest" =~ ^sha256:[0-9a-f]{64}$$ ]] || exit 1
+          next_cache_from=(--build-context "next-cache=docker-image://${_IMAGE_REPOSITORY}@$$next_digest")
+          echo "Using Next.js compiler cache: $$next_cache@$$next_digest"
+        else
+          echo "No Next.js compiler cache found; starting with an empty cache."
+        fi
+
+        docker buildx build \
+          --platform linux/amd64 \
+          --pull \
+          --build-arg "NODE_IMAGE=${_NODE_IMAGE}" \
+          "$${clean_build[@]}" \
+          "$${cache_from[@]}" \
+          "$${next_cache_from[@]}" \
+          --cache-to "type=registry,ref=$$cache,mode=max,oci-mediatypes=true,image-manifest=true" \
+          --tag "$$image" \
+          --tag "$$latest" \
+          --push \
+          .
+
+        # Export from the same BuildKit builder, which reuses the just-built
+        # application stage. A cache publication failure does not discard an image.
+        if ! docker buildx build \
+          --platform linux/amd64 \
+          --build-arg "NODE_IMAGE=${_NODE_IMAGE}" \
+          "$${next_cache_from[@]}" \
+          --target next-cache-export \
+          --tag "$$next_cache" \
+          --push \
+          .; then
+          echo "WARNING: Next.js cache publication failed; the application image was built."
+        fi
+
+substitutions:
+  _NODE_IMAGE: node:22-alpine
+  _NEXT_CACHE_KEY: default
+  _REBUILD: '0'
+
+options:
+  machineType: E2_HIGHCPU_8
+  logging: CLOUD_LOGGING_ONLY
+
+timeout: 1800s

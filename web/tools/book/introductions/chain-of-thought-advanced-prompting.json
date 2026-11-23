@@ -1,0 +1,15 @@
+{
+  "framing": "Test-time reasoning and verification over structured state spaces",
+  "paragraphs": [
+    "Sampling one direct completion often fails multi-step arithmetic, symbolic deduction, and planning tasks because each forward pass allocates fixed computation per emitted token. Generating intermediate reasoning tokens gives an autoregressive transformer extra serial compute before committing to a final answer, turning hidden activation updates into an explicit scratchpad.",
+    "Longer scratchpads alone remain fragile without explicit verification and aggregation rules. Self-consistency aggregates multiple sampled traces over the complete sample budget, ensuring malformed generations reduce agreement rather than disappearing behind a filtered denominator. Tree-of-Thoughts generalizes that search over explicit intermediate states, retaining multiple partial paths with beam search so an attractive early branch cannot trap the solver in a dead end.",
+    "Because test-time search multiplies generated tokens and request latency, every accuracy gain must be weighed directly against p95 latency and token cost. Disciplined evaluation matches compute allocation to task structure: deterministic tools handle exact arithmetic and symbolic checks, majority voting stabilizes noisy multi-step derivations, and branching tree search stays scoped to compact, verifiable state spaces.",
+    "Modern reasoning models internalize backtracking and self-verification through reinforcement learning on verifiable outcomes. Yet the same engineering principles govern prompted pipelines and native thinking models alike: validate state transitions explicitly, include invalid generations in confidence denominators, and hand exact computation to deterministic verifiers whenever tools cost less than extra tokens."
+  ],
+  "outcomes": [
+    "Compute self-consistency agreement over all sampled traces so malformed outputs lower confidence instead of artificially inflating vote share.",
+    "Build breadth-first and beam search over explicit state spaces with transition verifiers that recover from misleading early heuristics.",
+    "Choose among direct decoding, single CoT, self-consistency voting, tree search, and deterministic tool calls against quantitative accuracy and latency gates."
+  ],
+  "question": "When do extra test-time reasoning tokens beat handing the computation directly to a deterministic tool or solver?"
+}

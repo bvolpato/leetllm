@@ -1,0 +1,27 @@
+steps:
+  - id: build-and-push-sandbox
+    name: gcr.io/cloud-builders/docker
+    entrypoint: bash
+    args:
+      - -ceu
+      - |
+        readonly image="${_IMAGE_REPOSITORY}:${_IMAGE_TAG}"
+        readonly latest="${_IMAGE_REPOSITORY}:latest"
+        docker build \
+          --platform linux/amd64 \
+          --build-arg "NODE_IMAGE=${_NODE_IMAGE}" \
+          -f Dockerfile.sandbox \
+          -t "$$image" \
+          -t "$$latest" \
+          .
+        docker push "$$image"
+        docker push "$$latest"
+
+substitutions:
+  _NODE_IMAGE: node:22-alpine
+
+options:
+  machineType: E2_HIGHCPU_8
+  logging: CLOUD_LOGGING_ONLY
+
+timeout: 900s

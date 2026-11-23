@@ -1,0 +1,896 @@
+{
+  "id": "beam-search",
+  "script": "436f5c9967932bcb",
+  "articleHash": "97fbf2962f897dd2ff375ec81edcd917cddf5fe4f1d0052c4768f4306c8a5bce",
+  "checked": "2026-11-10T02:54:48.853Z",
+  "closedBook": {
+    "taught": 10,
+    "partial": 0,
+    "absent": 0,
+    "answers": [
+      {
+        "n": 1,
+        "option": 3,
+        "coverage": "taught",
+        "quotes": [
+          {
+            "scene": "logit-shift",
+            "quote": "Subtract the largest score from every entry, then exponentiate."
+          },
+          {
+            "scene": "temperature-scale",
+            "quote": "For positive temperature T, divide every logit by T before stable softmax."
+          },
+          {
+            "scene": "temperature-scale",
+            "quote": "As positive temperature approaches zero, the two equal maxima each retain half the limiting mass. First-index greedy would pick only the first."
+          }
+        ],
+        "reason": "Subtracting 1400 gives [0,0,−2,−∞]. As T approaches zero from above, the tied maxima split probability equally: [0.5,0.5,0,0]. First-index greedy selects index 0.",
+        "exact": true,
+        "correct": true,
+        "grade": "taught"
+      },
+      {
+        "n": 2,
+        "option": 1,
+        "coverage": "taught",
+        "quotes": [
+          {
+            "scene": "greedy-loop",
+            "quote": "Greedy selects the largest score at the current position."
+          },
+          {
+            "scene": "probabilities",
+            "quote": "Multiply the edge probabilities along one path to obtain its joint probability. In log space, add each edge's log probability and keep the same ranking without tiny repeated products."
+          },
+          {
+            "scene": "search-lattice",
+            "quote": "The search adds each new log probability to its prefix score, ranks the resulting candidates, and keeps the leading active paths."
+          }
+        ],
+        "reason": "Greedy starts with A and finishes at .52/10=.052. Width 2 retains A and B initially; B's children score .31/4=.0775, exceeding A's .052. Width 3 also retains C, whose certain continuation scores .17 and wins.",
+        "exact": true,
+        "correct": true,
+        "grade": "taught"
+      },
+      {
+        "n": 3,
+        "option": 4,
+        "coverage": "taught",
+        "quotes": [
+          {
+            "scene": "length-score",
+            "quote": "Divide each completed log score by its generated-token count, including EOS. This changes the objective from total sequence probability to average log probability per token."
+          },
+          {
+            "scene": "length-score",
+            "quote": "The larger, less negative mean favors opened the door, reversing their raw order."
+          },
+          {
+            "scene": "length-conventions",
+            "quote": "GNMT instead divides by the quantity five plus length, over six, raised to alpha."
+          }
+        ],
+        "reason": "Raw scores favor short: −1.2>−2.0. Per-token scores favor long: −.4>−.6. With the supplied GNMT divisor, short scores −1.2/(7/6)≈−1.029 and long scores −2/(10/6)=−1.2, so short wins.",
+        "exact": true,
+        "correct": true,
+        "grade": "taught"
+      },
+      {
+        "n": 4,
+        "option": 2,
+        "coverage": "taught",
+        "quotes": [
+          {
+            "scene": "penalty-sign",
+            "quote": "Divide its positive score by theta one point two to obtain two point five; deploy now wins at two point eight. For a seen negative score, multiply by theta instead."
+          },
+          {
+            "scene": "penalty-sign",
+            "quote": "Zero stays zero. The lab applies this operation once to each distinct seen token, so repeating an entry in the prefix does not apply it again."
+          },
+          {
+            "scene": "greedy-loop",
+            "quote": "Greedy selects the largest score at the current position."
+          }
+        ],
+        "reason": "Apply the penalty once to A, B and Z: A=2.4/2=1.2, B=−.6×2=−1.2 and Z=0. Unseen C remains 1.8 and wins.",
+        "exact": true,
+        "correct": true,
+        "grade": "taught"
+      },
+      {
+        "n": 5,
+        "option": 3,
+        "coverage": "taught",
+        "quotes": [
+          {
+            "scene": "filter-k",
+            "quote": "Top-k with k two keeps create and revoke."
+          },
+          {
+            "scene": "filter-p",
+            "quote": "Nucleus, or top-p, takes the smallest ranked prefix whose cumulative mass reaches the chosen threshold."
+          },
+          {
+            "scene": "filter-min-p",
+            "quote": "Min-p compares each probability with a fraction of the largest one."
+          },
+          {
+            "scene": "filter-min-p",
+            "quote": "At a threshold equal to a candidate’s probability, our inclusive rule retains it."
+          }
+        ],
+        "reason": "Top-k retains AB. For top-p, AB sums to .72 and ABC to .90, so retain ABC. Min-p's cutoff is .50×.48=.24; A and B meet it, giving AB.",
+        "exact": true,
+        "correct": true,
+        "grade": "taught"
+      },
+      {
+        "n": 6,
+        "option": 1,
+        "coverage": "taught",
+        "quotes": [
+          {
+            "scene": "filter-order",
+            "quote": "The first filter removes C and leaves mass point eight five. Renormalizing makes A’s probability point six zero divided by point eight five, about point seven zero six."
+          },
+          {
+            "scene": "filter-order",
+            "quote": "A alone now exceeds point seven zero, so the final set is only A. Reverse the order on the unchanged original row. Its A mass is only point six zero, so top-p first needs A and B. Top-k two then keeps both."
+          }
+        ],
+        "reason": "Top-k first retains AB with mass .85. Renormalized A=.55/.85≈.6471 exceeds .64, so top-p retains only A. In reverse order, original A=.55 falls below .64, requiring AB; top-k retains both.",
+        "exact": true,
+        "correct": true,
+        "grade": "taught"
+      },
+      {
+        "n": 7,
+        "option": 4,
+        "coverage": "taught",
+        "quotes": [
+          {
+            "scene": "local-conditioning",
+            "quote": "A local first-token mask keeps A and B. At the next position, each prefix has only one grammar-valid continuation, which is forced by renormalization."
+          },
+          {
+            "scene": "local-conditioning",
+            "quote": "Conditioning the original model on a valid complete string divides those masses by their total point five eight."
+          }
+        ],
+        "reason": "Local masking preserves first-token probability .30 and then forces x, giving P(A x)=.300. Original valid masses are .30×.20=.06 and .70×.80=.56. Conditioning gives .06/(.06+.56)≈.097.",
+        "exact": true,
+        "correct": true,
+        "grade": "taught"
+      },
+      {
+        "n": 8,
+        "option": 2,
+        "coverage": "taught",
+        "quotes": [
+          {
+            "scene": "best-of-n",
+            "quote": "Best-of-N instead generates N candidate answers, scores each with an outcome evaluator, and selects the highest evaluator score."
+          },
+          {
+            "scene": "process-evidence",
+            "quote": "The outcome maximum and the minimum-step rule both select A; B’s minimum exposes its bad first step."
+          },
+          {
+            "scene": "process-evidence",
+            "quote": "No evaluator was run in this fixture; evaluate both the scorer and the complete selected answers on relevant held-out evidence."
+          }
+        ],
+        "reason": "ORM selects X because .94>.84. Minimum-step scores are .20 for X and .81 for Y, so min-PRM selects Y. Invented evaluator scores do not establish task validity; it remains untested.",
+        "exact": true,
+        "correct": true,
+        "grade": "taught"
+      },
+      {
+        "n": 9,
+        "option": 1,
+        "coverage": "taught",
+        "quotes": [
+          {
+            "scene": "speculative-balance",
+            "quote": "Accept a proposed token with the smaller of one and its target probability p divided by its draft probability q. Accepted proposal mass at that token is the smaller of p and q."
+          },
+          {
+            "scene": "speculative-balance",
+            "quote": "Take the positive part of target minus draft and normalize it: all the residual mass belongs to the second token, revoke."
+          }
+        ],
+        "reason": "Componentwise minima give accepted mass [.50,.20,.10], totaling .80, so rejection mass is .20. Positive residuals are [0,.10,.10]; normalizing gives correction [0,.50,.50].",
+        "exact": true,
+        "correct": true,
+        "grade": "taught"
+      },
+      {
+        "n": 10,
+        "option": 3,
+        "coverage": "taught",
+        "quotes": [
+          {
+            "scene": "audit-receipt",
+            "quote": "For a separate authored whole-answer audit, take one hundred requested answers. Ninety-two start with the guide’s first word, but only seventy are judged fully supported and complete. Ten hit a length limit. Those are different events."
+          },
+          {
+            "scene": "audit-receipt",
+            "quote": "The task rate improves from seventy to eighty percent while first-word agreement falls. Keep every requested identity in the denominator."
+          }
+        ],
+        "reason": "Using every requested answer, A's complete-answer rate is 120/200=60% and B's is 150/200=75%. First-token agreement and fully supported completion are different events.",
+        "exact": true,
+        "correct": true,
+        "grade": "taught"
+      }
+    ]
+  },
+  "factCheck": {
+    "scenes": [
+      {
+        "id": "policy-premise",
+        "evidence": "Verified. The authored guide explicitly orders create, deploy, revoke, so create answers its first-step question. Invented logits establish no trained-model accuracy. Greedy selection, sampling, beam retention, and appending a selected token agree with the documented mechanisms. Emitting text does not itself execute an infrastructure action or validate the complete answer. [Generation strategies](https://huggingface.co/docs/transformers/generation_strategies).",
+        "sourceUrls": [
+          "https://huggingface.co/docs/transformers/generation_strategies"
+        ]
+      },
+      {
+        "id": "search-space",
+        "evidence": "Verified the conditional-product factorization and equivalent log-sum ranking. Sequential conditional sampling reproduces that joint law. Independently calculated 3^3=27 and 32000^100=3.273390607896×10^450; these count fixed-length leaves. State merging is sound when histories have identical future continuation laws: every continuation multiplies their incoming probabilities by the same factor, preserving their order. Keeping distinct full transformer prefixes or caches does not establish such equivalence. Direct log-softmax can avoid losing a finite log probability through prior exponentiation. [CTRL §2](https://arxiv.org/html/1909.05858), [Transformer architecture](https://arxiv.org/html/1706.03762), [log-softmax documentation](https://docs.pytorch.org/docs/2.15/generated/torch.nn.functional.log_softmax.html).",
+        "sourceUrls": [
+          "https://arxiv.org/html/1909.05858",
+          "https://arxiv.org/html/1706.03762",
+          "https://docs.pytorch.org/docs/2.15/generated/torch.nn.functional.log_softmax.html"
+        ]
+      },
+      {
+        "id": "logit-shift",
+        "evidence": "Verified independently: subtracting 3 gives [0,-0.5,-2,-4], exponentials [1,0.6065306597,0.1353352832,0.0183156389], and probabilities [0.5681232041,0.3445841418,0.0768871147,0.0104055394]. The common exponential factor cancels. Create is the unique mode; revoke occupies cumulative interval [0.5681232041,0.9127073458), containing 0.75. These are next-token probabilities, with no complete-answer, execution, or failure model supplied. [Stable softmax analysis](https://arxiv.org/html/1909.03469).",
+        "sourceUrls": [
+          "https://arxiv.org/html/1909.03469"
+        ]
+      },
+      {
+        "id": "logit-boundaries",
+        "evidence": "Verified locally: Python binary64 math.exp(1000) raises OverflowError, while math.exp(-1000)=0. Shifting [1000,999,998] gives probabilities [0.6652409558,0.2447284711,0.0900305732]. For [0,-1000], the film's direct log calculation retains [0,-1000] despite probability rounding to [1,0]. The supplied softmax code rejects NaN, positive infinity, and all-masked rows; those are explicit lab rules. [Numerical analysis](https://arxiv.org/html/1909.03469), [direct log-softmax](https://docs.pytorch.org/docs/2.15/generated/torch.nn.functional.log_softmax.html).",
+        "sourceUrls": [
+          "https://arxiv.org/html/1909.03469",
+          "https://docs.pytorch.org/docs/2.15/generated/torch.nn.functional.log_softmax.html"
+        ]
+      },
+      {
+        "id": "greedy-loop",
+        "evidence": "Verified the supplied maxima: create at 3, then period at 4, producing the stated sentence. The second row is supplied rather than calculated by a trained model, which the narration acknowledges. No EOS is emitted in this two-step example. Fixed scores and tie resolution determine argmax; numerical changes can alter it. Cached attention keys and values support computation without selecting tokens or verifying answers. [Cache mechanics](https://huggingface.co/docs/transformers/en/cache_explanation), [numerical accuracy](https://docs.pytorch.org/docs/2.15/notes/numerical_accuracy.html).",
+        "sourceUrls": [
+          "https://huggingface.co/docs/transformers/en/cache_explanation",
+          "https://docs.pytorch.org/docs/2.15/notes/numerical_accuracy.html"
+        ]
+      },
+      {
+        "id": "opening",
+        "evidence": "Prior finding 3 closed. Read fixtures.mjs OPENING/NEXT and arithmetic.mjs beamSearch. The opening row is opened=.45, looked=.35, slept=.20. The declared word tokens, fixed Mia prompt, four-token horizon, EOS-inclusive lengths, separate completed set, unfinished-path ranking, and alphabetical tie rule match the implementation. Independently enumerated the full tree through the horizon: all 17 required conditional rows exist and sum to one; 16 completed leaves plus 9 unfinished horizon leaves have total mass one. No fallback row is required. A strongest first edge alone cannot establish the strongest completed path.",
+        "sourceUrls": []
+      },
+      {
+        "id": "probabilities",
+        "evidence": "Verified against OPENING and NEXT: .45>.35>.20. For example, opened the has probability .45×.50=.225; opened the door EOS has .45×.50×.80×.85=.153. Each edge uses its own prefix-conditioned row. The implementation adds edge logarithms and counts EOS in candidate.tokens.length while excluding fixed prompt Mia. Punctuation and EOS are distinct under the stated fixture convention. [Autoregressive factorization](https://arxiv.org/html/1909.05858).",
+        "sourceUrls": [
+          "https://arxiv.org/html/1909.05858"
+        ]
+      },
+      {
+        "id": "first-beam",
+        "evidence": "Verified independently: width two retains opened=.45 and looked=.35, pruning slept=.20. Later expansion visits only retained prefixes, so slept cannot reappear in this run. The implementation limits the unfinished frontier to B and ranks cumulative path scores, rather than new-edge probabilities alone. The beam is an approximate search budget, not a correctness guarantee. [Beam expansion and pruning](https://arxiv.org/html/2309.06180).",
+        "sourceUrls": [
+          "https://arxiv.org/html/2309.06180"
+        ]
+      },
+      {
+        "id": "search-lattice",
+        "evidence": "Prior finding 4 and the additional horizon issue closed. Independent width-two frontiers are: step 2, opened the=.225 and looked outside=.1925; step 3, opened the door=.18 and looked outside again=.13475; step 4, opened the door again=.027 and looked outside again quietly=.013475. At step 4, the new EOS completions are .153 and .121275. The .153 completion exceeds every completion discovered by this run. Quietly remains unfinished, and no fifth expansion occurs. These results match every corresponding film frontier and completed set.",
+        "sourceUrls": []
+      },
+      {
+        "id": "stopping",
+        "evidence": "Prior findings 2 and 5 closed. Width three initially retains slept, whose EOS completion is .20×.95=.19. Opened the door survives pruning and completes at .45×.50×.80×.85=.153. Both remain in the stored completed set. The repaired distinction is correct: EOS defines completion here, while the four-token horizon terminates expansion and leaves unfinished prefixes. Early stopping can change discovery without redefining EOS completion. [GenerationConfig length and early-stopping controls](https://huggingface.co/docs/transformers/main_classes/text_generation).",
+        "sourceUrls": [
+          "https://huggingface.co/docs/transformers/main_classes/text_generation"
+        ]
+      },
+      {
+        "id": "length-score",
+        "evidence": "Prior finding 6 closed. Independently calculated ln(.19)=-1.6607312068 and ln(.153)=-1.8773173576. EOS-inclusive lengths 2 and 4 give means -.8303656034 and -.4693293394, reversing the raw ranking. Opened the door also has the highest mean among all nine discovered width-three completions. Additional edges contribute nonpositive log terms to their own prefix, without ordering arbitrary branches by length. The visual source correctly labels geometric means, approximately .436 and .625, as having the same order as mean logs. GNMT uses a distinct denominator. [GNMT equation 14](https://arxiv.org/html/1609.08144).",
+        "sourceUrls": [
+          "https://arxiv.org/html/1609.08144"
+        ]
+      },
+      {
+        "id": "width",
+        "evidence": "Prior finding 7 closed. Identical conditional rows give width-two best completed probability .153 and width-three best .19 because only width three preserves slept until its .95 EOS edge. The statement is specific to this fixture, not a monotonicity guarantee. Straightforward expansion considers up to B×V extensions per step. Common-prefix KV blocks can be shared; divergent paths require their corresponding state. The narration does not promise exactly linear latency or total-memory growth. [PagedAttention §4.4](https://arxiv.org/html/2309.06180).",
+        "sourceUrls": [
+          "https://arxiv.org/html/2309.06180"
+        ]
+      },
+      {
+        "id": "wider-counterexample",
+        "evidence": "Verified arithmetic and widerBeamTrace. Width two initially retains A=.5/B=.3, then A1=.5×.8=.4 and A2=.5×.18=.09; every B child is .03. Width three also expands C, whose children each score .2×.5=.1, displacing A2. At the last step, A2's certain continuation preserves .09, while A1's children score .4×.1=.04 and C's children .1×.1=.01. Thus width two finishes at .09 and width three at .04 under identical normalized rows and horizon. Retained sets across runs need not be nested.",
+        "sourceUrls": []
+      },
+      {
+        "id": "length-conventions",
+        "evidence": "Verified: .99×.90=.891>.01, so a longer completion can beat immediate EOS. For the separate supplied log scores, -1/2=-.5 and -1.6/5=-.32 favor the longer candidate. GNMT at alpha=1 instead gives -1/(7/6)=-.8571428571 and -1.6/(10/6)=-.96, favoring the shorter candidate. Its length denominator is ((5+L)/6)^alpha; the full GNMT scoring function also has a separate coverage term. The narration compares its length component and does not claim to implement the full decoder. [GNMT §7](https://arxiv.org/html/1609.08144).",
+        "sourceUrls": [
+          "https://arxiv.org/html/1609.08144"
+        ]
+      },
+      {
+        "id": "penalty-sign",
+        "evidence": "Verified the qualified repetition observation against Holtzman figure 4. Independently calculated 3/1.2=2.5<2.8, (-1)×1.2=-1.2, and (-1)/1.2=-.833333, which moves upward. Zero is unchanged; set(sequence) applies the supplied operation once per distinct token. A treated token's probability can rise: treating logits [1,-1] with theta=2 gives [.5,-2], raising the first probability from .880797 to .924142. This processor tests identity, not evidential necessity. [Generation experiments](https://arxiv.org/html/1904.09751), [penalty conventions](https://huggingface.co/docs/transformers/internal/generation_utils).",
+        "sourceUrls": [
+          "https://arxiv.org/html/1904.09751",
+          "https://huggingface.co/docs/transformers/internal/generation_utils"
+        ]
+      },
+      {
+        "id": "temperature-scale",
+        "evidence": "Verified independently and against stablePolicy. At T=.5, create=.7212246461 and H=.6469026463 nats. At T=2, create=.4382091168, quota=.0593051549, and H=1.1901968827. For fixed finite logits, dH/dT=Var_p(z)/T^3, positive for this nonconstant row. For [2,2,0,-infinity], the low-temperature limit is [.5,.5,0,0], and the high-temperature limit is [1/3,1/3,1/3,0]. A fixed-index argmax selects one tie; substituting T=0 into z/T is undefined. These calculations measure sampling spread, not factual correctness.",
+        "sourceUrls": []
+      },
+      {
+        "id": "stream-replay",
+        "evidence": "Reproduced with Python 3.15.0: seed 7 twice yields create create revoke create create create create create. Seed 21 yields create revoke revoke create create revoke revoke create. The rounded weights and call order match the supplied static-row example. Python qualifies replay across versions; PyTorch documents numerical and reproducibility differences involving batching, kernels, precision, platforms, and releases. The narration appropriately limits its replay claim. [Python Random](https://docs.python.org/3/library/random.html), [numerical accuracy](https://docs.pytorch.org/docs/2.15/notes/numerical_accuracy.html), [reproducibility](https://docs.pytorch.org/docs/2.15/notes/randomness.html).",
+        "sourceUrls": [
+          "https://docs.python.org/3/library/random.html",
+          "https://docs.pytorch.org/docs/2.15/notes/numerical_accuracy.html",
+          "https://docs.pytorch.org/docs/2.15/notes/randomness.html"
+        ]
+      },
+      {
+        "id": "filter-k",
+        "evidence": "Verified using the declared exact worksheet inputs: .568+.345=.913; normalized values are .6221248631 and .3778751369. The flat row retains .28+.25=.53 under the same k=2. Rank contains no guide-support test. Under the stated conditional event assumption, successive no-event probabilities multiply to .998^500, giving complement .6324887451. No additional unconditional independence assumption is needed. This is not a hallucination-rate estimate. [Fan et al. §5.4](https://arxiv.org/html/1805.04833).",
+        "sourceUrls": [
+          "https://arxiv.org/html/1805.04833"
+        ]
+      },
+      {
+        "id": "filter-p",
+        "evidence": "Verified the ranked-prefix convention: .568<.90≤.913, so the peaked row needs two candidates. The flat first three total .77<.90, requiring the fourth. The crossing candidate is included and retained mass is renormalized. This tests cumulative mass, not each token against .90 or against factual evidence. The empirical unreliable-tail claim is explicitly restricted to particular experiments. [Holtzman et al. §3.1](https://arxiv.org/html/1904.09751).",
+        "sourceUrls": [
+          "https://arxiv.org/html/1904.09751"
+        ]
+      },
+      {
+        "id": "filter-min-p",
+        "evidence": "Verified: .10×.568=.0568 admits rename=.077 and removes quota=.010; .10×.28=.028 admits every flat-row candidate. The inclusive comparison matches the cited definition. For finite vocabulary and finite unmasked logits, p_i/p_max=exp((z_i-z_max)/T) approaches one. Therefore every candidate eventually exceeds any fixed base below one as T increases. No universal output-quality guarantee follows. [Min-p equations 1–3](https://arxiv.org/html/2407.01082).",
+        "sourceUrls": [
+          "https://arxiv.org/html/2407.01082"
+        ]
+      },
+      {
+        "id": "filter-boundaries",
+        "evidence": "Verified against the supplied lab functions and visual labels. For [.5,.25,.25,0], stable rank slicing at k=2 keeps create/revoke; a kth-score-inclusive threshold also admits the tied rename. Cumulative .75 stops after two; min-p=.5 uses cutoff .25 and keeps all three positive entries. Explicit p=1 retains all positive entries, min-p=1 keeps maxima, and the lab rejects k=0. Hugging Face documents zero disabling top-k. Unrounded first-three mass is .9895944606<.99, while printed labels sum to .990. [Runtime convention](https://huggingface.co/blog/how-to-generate).",
+        "sourceUrls": [
+          "https://huggingface.co/blog/how-to-generate"
+        ]
+      },
+      {
+        "id": "filter-order",
+        "evidence": "Verified directly: top-k first retains A+B=.85, making A=.60/.85=.7058823529≥.70, so top-p then needs only A. Top-p first on the original row requires A+B because .60<.70; subsequent k=2 keeps both. The differing intermediate denominator causes the membership difference. Film drawFilterOrder uses the same composition. Processor order, tie rules, and minimum-candidate conventions are policy configuration; the production discussion is a requirement, not a claim that a serving implementation was executed.",
+        "sourceUrls": []
+      },
+      {
+        "id": "grammar-bytes",
+        "evidence": "Verified the finite enum trace in enumByteTrace: create followed by quote and closing brace reaches an accepting object; quota is rejected at its initial q; a partial valid enum prefix does not allow EOS. Supplied logits select unconstrained quota=6, enum-allowed revoke=4, and guide-allowlisted create=3. A finite enum language permits finite-state matching; general recursive nesting requires richer state. Token boundaries can cross syntax boundaries or split Unicode bytes. Prefix compatibility alone does not establish completed JSON after interruption. [XGrammar §§2–3](https://arxiv.org/html/2411.15100).",
+        "sourceUrls": [
+          "https://arxiv.org/html/2411.15100"
+        ]
+      },
+      {
+        "id": "local-conditioning",
+        "evidence": "Verified: local masks preserve first probabilities [.4,.6], then force the sole valid continuation, yielding Ax=.4 and By=.6. Original valid joint masses are .4×.1=.04 and .6×.9=.54; dividing by .58 gives .0689655172 and .9310344828. Thus local validity and globally conditioned sampling differ. The conditioned next-token law accounts for valid future mass; an exact method can account for it implicitly rather than explicitly computing a look-ahead table. Ordinary local renormalization supplies no such correction. [Grammar-Aligned Decoding §2](https://papers.neurips.cc/paper_files/paper/2024/file/2bdc2267c3d7d01523e2e17ac0a754f3-Paper-Conference.pdf).",
+        "sourceUrls": [
+          "https://papers.neurips.cc/paper_files/paper/2024/file/2bdc2267c3d7d01523e2e17ac0a754f3-Paper-Conference.pdf"
+        ]
+      },
+      {
+        "id": "best-of-n",
+        "evidence": "Verified rank-and-select against Cobbe et al.; this differs from probabilistic acceptance under a rejection rule and generally changes the selected distribution. The qualified scorer-risk claim is supported both by their observed deterioration beyond some candidate budgets and by direct reasoning: an independently drawn misleading candidate with probability r appears among N draws with probability 1-(1-r)^N. Finite tests cover tested cases. Formal checking establishes the formal statement relative to trusted assumptions and implementation. [Verifier selection](https://arxiv.org/html/2110.14168), [Lean proof validation](https://lean-lang.org/doc/reference/latest/ValidatingProofs/).",
+        "sourceUrls": [
+          "https://arxiv.org/html/2110.14168",
+          "https://lean-lang.org/doc/reference/latest/ValidatingProofs/"
+        ]
+      },
+      {
+        "id": "process-evidence",
+        "evidence": "Verified outcome versus process supervision and minimum/product reductions against Lightman et al. Outcome supervision does not require ignoring reasoning. Independently checked .96>.72, A's minimum=.92, and B's minimum=.05. Replacing B's first score by .99 makes its minimum .90, still below .92. Both selectors therefore retain A despite the erroneous local judgment. The narration accurately identifies authored scores and makes no calibration or executed-evaluator claim. Film drawProcessEvidence matches these values. [Methods and appendix F](https://arxiv.org/html/2305.20050).",
+        "sourceUrls": [
+          "https://arxiv.org/html/2305.20050"
+        ]
+      },
+      {
+        "id": "thought-search",
+        "evidence": "Prior finding 8 and the additional failed-leaf issue closed. Original ToT uses self-evaluated BFS/DFS; RAP describes the four MCTS phases without requiring a separately trained PRM. Local traversal gives BFS [0,1,2,3,4,5,6] and DFS [0,1,3,4,2,5,6], with no failure evaluator. Independently calculated .4+sqrt(ln(10)/8)=.9364915066 and .6+sqrt(ln(10)/2)=1.6729830131, selecting B. Reward .2 updates B to (1.2+.2)/3=.4666666667 and parent to (4.4+.2)/11=.4181818182. These match mctsBackupFrame; arithmetic-mean backup is explicitly this fixture's choice. [ToT §3](https://arxiv.org/html/2305.10601), [RAP §3.3 and appendix A](https://arxiv.org/html/2305.14992).",
+        "sourceUrls": [
+          "https://arxiv.org/html/2305.10601",
+          "https://arxiv.org/html/2305.14992"
+        ]
+      },
+      {
+        "id": "speculative-balance",
+        "evidence": "Verified q_i×min(1,p_i/q_i)=min(p_i,q_i) for proposal-supported tokens. The supplied rows give accepted mass [.6,.1,.1], rejection mass .2, and normalized positive residual [0,1,0]. Adding rejection-weighted residual restores [.6,.3,.1]. Redrawing from unadjusted target instead gives [.72,.16,.12]. When p=q, rejection is zero. Applying the equality at every accepted prefix preserves the specified sequential target law in ideal arithmetic, without implying identical seeded text or factual correctness. [Speculative sampling §2.3 and appendix A](https://arxiv.org/html/2211.17192).",
+        "sourceUrls": [
+          "https://arxiv.org/html/2211.17192"
+        ]
+      },
+      {
+        "id": "speculative-block",
+        "evidence": "Verified create's threshold .6/.8=.75 accepts u=.2, while a's .4/.8=.5 rejects u=.8. Thus create is retained and a/key discarded. Prefix-specific target evaluation, residual replacement, an extra target draw after all proposals pass, and 1 through K+1 outputs before stopping agree with algorithm 1. Causal masking supports evaluating known prefixes together; discarded suffix state cannot represent the corrected history. Full rejection-position rows are absent, but the narration names no replacement token, so this does not invalidate its stated calculation. [Algorithm 1](https://arxiv.org/html/2211.17192), [causal Transformer masking](https://arxiv.org/html/1706.03762).",
+        "sourceUrls": [
+          "https://arxiv.org/html/2211.17192",
+          "https://arxiv.org/html/1706.03762"
+        ]
+      },
+      {
+        "id": "audit-receipt",
+        "evidence": "Reproduced Random(7) with 2000 draws per policy: create counts are 2000, 913, and 1242, giving 1.000, .4565→.457, and .621. Expected shares are 1, .4382091168, and .6224593312. These are fixed-row sampler frequencies. Authored cohort calculations are 70/100=70% versus 80/100=80%, while first-word matches fall 92%→85% and length limits 10%→5%. No overlap or causal improvement is inferred. Receipt recommendations are requirements, not implementation claims. The next lesson's actual source pins generator settings while comparing raw versus rewritten retrieval queries. [Python sampling conventions](https://docs.python.org/3/library/random.html).",
+        "sourceUrls": [
+          "https://docs.python.org/3/library/random.html"
+        ]
+      },
+      {
+        "id": "synthesis",
+        "evidence": "Verified by the preceding calculations: width changes discovered candidates, EOS defines completion in this fixture, and mean-log scoring changes completed-path ranking. The proposed edge intervention is a valid controlled fixture exercise provided conditional rows remain normalized. The actual visual helper changes opened→the from .5 to .2 while compensating opened→a from .3 to .6 and keeping EOS=.2; it therefore demonstrates a conditional-row intervention. The narration does not claim that its animation changes only one numerical probability. Real task quality and serving cost remain measurements to perform.",
+        "sourceUrls": []
+      },
+      {
+        "id": "fresh-policy",
+        "evidence": "Prior finding 1 closed: the narration now explicitly replaces the enum with backup/rotate/remove. Independently checked .46<.75≤.46+.32=.78; normalized probabilities are .5897435897 and .4102564103, so u=.65 selects rotate. Both are enum members, while the authored guide requires backup first. A singleton backup allowlist normalizes to probability one. freshPolicyFrame matches these results. The next-lesson claim is confirmed by videos/lessons/ab-testing.lesson.yaml: eligible incidents receive sticky raw-query/rewrite assignment, with model, index, decoder, and answer policy fixed, and incident outcomes measured.",
+        "sourceUrls": []
+      }
+    ],
+    "findings": [],
+    "limitations": [
+      "No substantive incorrect or unsupported spoken claim remains identified. All eight prior findings were independently closed; the repaired horizon and DFS-backtracking issues also check out.",
+      "Reviewed the supplied narration against the checkout's stage lesson, whose SHA-256 is a00ddeb49e9ebebb816d16c873e71720073e2fda250f41fee0ec52169e6e4c34. Existing validateModel passed, and an independent probability-product implementation matched every active frontier and completed set for both Mia runs.",
+      "Visual review was limited to source and computed states. No rendered frames, synthesized speech, captions, measured cue alignment, or continuous playback were inspected. Geometric-mean bars in length-score are correctly labeled and are mathematically consistent with the spoken mean-log ranking.",
+      "videos/stage-lessons/beam-search contains narration and repair metadata but no index.mjs. Stage integration and rendered consistency remain unverified. Completing those checks requires the stage implementation, regenerated speech/captions, and playback with measured cues.",
+      "The original Viterbi PDF was inaccessible, and a reprint timed out during detailed retrieval. The stated future-equivalent-state pruning property was independently verified mathematically; the original paper's wording was not certified.",
+      "The speculative-block example supplies enough information to check acceptance and rejection, but not the full residual distribution or a numerical replacement-token draw. No particular replacement token is asserted.",
+      "No trained model, production tokenizer, learned evaluator, JSON engine, infrastructure operation, serving benchmark, or live A/B experiment was run. Authored premises and production requirements were assessed as such.",
+      "This review covers the narration and relevant fixture/visual sources. It does not certify article-only claims, quiz answers, rendered delivery, or the complete next lesson. No edits, external writes, or subagents were used."
+    ]
+  },
+  "reviewedNarration": {
+    "source": "videos/stage-lessons/beam-search/lesson.yaml",
+    "script": "436f5c9967932bcb",
+    "scenes": [
+      {
+        "id": "policy-premise",
+        "beats": [
+          {
+            "say": "The retrieved guide says: create a replacement key, deploy it, then revoke the old key. Our prompt asks for the first rotation step. Keep that guide visible. A supplied model row can still score create, revoke, rename and quota. Those are invented scores for a teaching fixture, not a trained model’s measured accuracy."
+          },
+          {
+            "say": "A decoder turns a score row into a next token. Greedy chooses a local maximum, sampling draws from a distribution, and beam search carries several prefixes. The resulting token becomes part of the next input. Our experiment emits text; executing an infrastructure action would need its own authorization and checks. We will calculate the policy before judging the complete answer."
+          }
+        ]
+      },
+      {
+        "id": "search-space",
+        "beats": [
+          {
+            "say": "At each position, the model supplies a conditional distribution given the prompt and every generated token so far. Multiply those conditional probabilities along a path to obtain its joint probability. Adding log probabilities gives the same ranking while avoiding long products of tiny numbers. A direct stable log-softmax can retain a log probability even when its ordinary probability underflows."
+          },
+          {
+            "say": "A fixed horizon with vocabulary size V and T positions has V to power T possible paths. Three choices for three positions already give twenty-seven paths. The article’s hypothetical thirty-two-thousand-token vocabulary over one hundred positions gives about three point two seven times ten to power four hundred fifty. These are completed length-one-hundred paths, not every intermediate tree node. EOS and constraints change which sequences are eligible."
+          },
+          {
+            "say": "Viterbi can merge histories that have the same compact future-relevant state. General transformer prefixes usually retain different future distributions, so merely keeping a full prefix or KV cache does not merge that tree away. Ancestral sampling takes a different route: draw one conditional token at a time. In ideal arithmetic that samples the model’s joint law without enumerating paths or locating its highest-probability sequence."
+          }
+        ]
+      },
+      {
+        "id": "logit-shift",
+        "beats": [
+          {
+            "say": "Return to the rotation prompt. Its supplied logits are three for create, two point five for revoke, one for rename and negative one for quota. A logit is a score, not a probability. Negative scores are permitted, and the scores do not sum to one. Predict which token has the largest probability before we convert the row."
+          },
+          {
+            "say": "Subtract the largest score from every entry, then exponentiate. The shifted scores are zero, negative point five, negative two and negative four. Dividing each resulting weight by their sum gives probabilities about point five six eight, point three four five, point zero seven seven and point zero one zero. The common factor introduced by the shift cancels between numerator and denominator."
+          },
+          {
+            "say": "Create is the mode, but a weighted draw can choose revoke. On the cumulative probability strip, the supplied uniform draw point seven five lands in revoke’s interval. That is one next-token event. It is not a measured probability that a whole answer is wrong, an operation executes or a service fails. Later tokens and complete-answer grading still matter."
+          }
+        ]
+      },
+      {
+        "id": "logit-boundaries",
+        "beats": [
+          {
+            "say": "Now supply logits one thousand, nine hundred ninety-nine and nine hundred ninety-eight. Direct exponentiation overflows ordinary floating-point math. Subtracting the maximum leaves zero, negative one and negative two, whose exponentials fit and produce about point six six five, point two four five and point zero nine zero. This operation preserves the mathematical distribution; it changes the numerical route."
+          },
+          {
+            "say": "An extreme negative gap can still underflow its probability to zero. Taking a logarithm after that rounding cannot recover the original finite log probability; calculate log-softmax directly when you need that quantity. Negative infinity deliberately masks a token. If every token is masked, this lab rejects the row rather than dividing zero by zero. Its actual code also rejects NaN and positive infinity."
+          }
+        ]
+      },
+      {
+        "id": "greedy-loop",
+        "beats": [
+          {
+            "say": "Greedy selects the largest score at the current position. The article’s first row selects create. Append that token to the prompt before looking at the next row. In this supplied two-step fixture, the second scores are four for a period, one point five for then, and point five for after. Predict which token is appended next."
+          },
+          {
+            "say": "The period wins, yielding: the first rotation step is create. A period is written punctuation; an EOS token signals generation completion under a separate stop rule. Identical logits and a fixed tie rule make greedy selection deterministic. The runtime can still change logits through numerical differences. A KV cache reuses attention state; it does not choose a token or prove the complete answer correct."
+          }
+        ]
+      },
+      {
+        "id": "opening",
+        "beats": [
+          {
+            "say": "Start with Mia. The supplied model gives opened the strongest next-word score, but the sentence still has several steps to go. Can the first choice tell us which ending will score best?"
+          },
+          {
+            "say": "We will follow a small search tree by hand. Each edge carries a conditional probability. A path multiplies those probabilities, or adds their logarithms, so the model's local choices accumulate into a score for a complete sentence."
+          },
+          {
+            "say": "The fixture uses ordinary words and supplied probabilities, so every branch can be checked. Treat each word as one token and Mia as the fixed prompt. We will expand for four generated tokens, counting EOS, and keep completed answers separate from the active beam. We prune unfinished paths by cumulative log probability, breaking ties alphabetically, then compare the scoring rules used for completed answers."
+          }
+        ]
+      },
+      {
+        "id": "probabilities",
+        "beats": [
+          {
+            "say": "Given the same prefix, the model assigns mass across its next-token choices. Opened receives the largest share, looked receives a little less, and slept receives the smallest. These supplied toy probabilities let us trace each branch."
+          },
+          {
+            "say": "A complete path needs another conditional choice after every unfinished word. Multiply the edge probabilities along one path to obtain its joint probability. In log space, add each edge's log probability and keep the same ranking without tiny repeated products."
+          },
+          {
+            "say": "A period and an end-of-sentence token have different meanings in a tokenizer. We will use the explicit EOS marker for completion, so the search knows exactly when a candidate stops and how many generated tokens its score includes."
+          }
+        ]
+      },
+      {
+        "id": "first-beam",
+        "beats": [
+          {
+            "say": "Beam search keeps a small set of active prefixes. At the first step, width two retains opened and looked. The shorter route beginning with slept falls below the cutoff, so later steps cannot extend that route in this run."
+          },
+          {
+            "say": "Notice what the width controls. It is the number of partial sentences carried between steps. The model still scores possible next tokens, and the search still compares cumulative path scores before deciding which prefixes remain active."
+          },
+          {
+            "say": "A beam acts like a narrow moving frontier through the tree. Its surviving leaves are promising under scores seen so far. The frontier is a compute budget, and pruning makes the procedure an approximation to searching every sequence."
+          }
+        ]
+      },
+      {
+        "id": "search-lattice",
+        "beats": [
+          {
+            "say": "At this step, opened branches to the or a, while looked branches outside or up. Each edge belongs to its own prefix. One expansion later, opened the can propose door, and looked outside can continue to again."
+          },
+          {
+            "say": "The search adds each new log probability to its prefix score, ranks the resulting candidates, and keeps the leading active paths. Follow the inherited prefix into the new score. That identity is what turns local predictions into a sentence-level comparison."
+          },
+          {
+            "say": "After another expansion, opened the door reaches EOS with the strongest completed route in the width-two run. Looked outside again quietly remains unfinished at the four-token horizon. The best words at each position did not need to form one sentence."
+          }
+        ]
+      },
+      {
+        "id": "stopping",
+        "beats": [
+          {
+            "say": "Now run the same tree with width three. This separate run keeps slept alive, where it reaches EOS immediately. An EOS choice moves a candidate into the completed set, while unfinished prefixes stay active for another expansion."
+          },
+          {
+            "say": "In the width-three run, the completed paths include Mia slept and Mia opened the door. For slept then EOS, point two times point nine five gives point one nine. For opened, the, door, then EOS, point four five times point five times point eight times point eight five gives point one five three. The short path therefore earns the higher joint probability in this fixture."
+          },
+          {
+            "say": "Completion criteria and length constraints define eligible outputs. Early stopping determines how long search continues and can change which candidates are discovered. Reaching a length limit can leave an unfinished prefix. Here EOS alone marks completion, and the four-token horizon ends expansion. State these rules before comparing outputs, or the final ranking may mix different tasks."
+          }
+        ]
+      },
+      {
+        "id": "length-score",
+        "beats": [
+          {
+            "say": "Compare the completed candidates from the width-three run. Joint probability favors the short path. Every extra conditional probability is at most one, so extra edges add nonpositive log terms and can pressure a raw-sum objective toward brief completions."
+          },
+          {
+            "say": "Divide each completed log score by its generated-token count, including EOS. This changes the objective from total sequence probability to average log probability per token. Slept has log score about negative one point six six one across two generated tokens, giving mean about negative point eight three zero. Opened the door has log score about negative one point eight seven seven across four, giving mean about negative point four six nine. The larger, less negative mean favors opened the door, reversing their raw order."
+          },
+          {
+            "say": "GNMT used a different length penalty, and libraries expose their own conventions. The formula belongs to the decoding policy. Tune it on development examples and check the resulting answer lengths alongside task quality."
+          }
+        ]
+      },
+      {
+        "id": "width",
+        "beats": [
+          {
+            "say": "The width-two run pruned slept before its high EOS probability appeared. A width-three run keeps that prefix, later completing a path with a larger raw joint probability. The search budget changed which answers could reach the final comparison."
+          },
+          {
+            "say": "Width also multiplies work. Each step expands the retained prefixes, scores their continuations, and selects a new frontier. KV states may share common prefixes in an optimized runtime, while each distinct continuation still needs its own correct state."
+          },
+          {
+            "say": "A larger beam preserves more candidates at each pruning step, but final task quality depends on the model scores and scoring rule. Measure latency, memory, and answer quality on the same prompts and stopping contract."
+          }
+        ]
+      },
+      {
+        "id": "wider-counterexample",
+        "beats": [
+          {
+            "say": "A larger beam is not a general guarantee of a larger final score. Build a separate fixed-three-token tree with first probabilities A point five, B point three and C point two. A’s next choices have probabilities point eight, point one eight and point zero two. B splits equally over ten children, while C splits equally over two. Keep these conditional rows identical in both runs."
+          },
+          {
+            "say": "Width two first keeps A and B, then retains A-one at joint point four and A-two at point zero nine. Width three also keeps C, whose two children each reach point one. Its second frontier therefore becomes A-one, C-one and C-two, displacing A-two. The larger frontier contains two paths the narrower search never expanded, so its retained set is not simply the smaller frontier plus one."
+          },
+          {
+            "say": "For the last step, A-two has a certain continuation. A-one and each C child split equally over ten continuations. The width-two run finishes with probability point zero nine, while width three’s best result is point zero four. Both correctly followed their local pruning rule. This computed counterexample separates a search budget from a monotonic final-score or task-quality guarantee."
+          }
+        ]
+      },
+      {
+        "id": "length-conventions",
+        "beats": [
+          {
+            "say": "A raw path score cannot increase when that same prefix gains another conditional edge, because the added log probability is nonpositive. This does not rank arbitrary completed branches by length. In a separate supplied tree, immediate EOS has probability point zero one, while create followed by EOS has probability point nine nine times point nine zero, or point eight nine one. The longer completion wins."
+          },
+          {
+            "say": "The article compares completed log scores negative one at length two and negative one point six at length five, counting EOS. Division by length gives negative point five and negative point three two, favoring the long candidate. GNMT instead divides by the quantity five plus length, over six, raised to alpha. At alpha one, its scores are about negative point eight five seven and negative point nine six zero, favoring the short candidate. State the formula and stopping contract before tuning either objective."
+          }
+        ]
+      },
+      {
+        "id": "penalty-sign",
+        "beats": [
+          {
+            "say": "Likelihood-maximizing continuations can repeat a phrase when its probability rises in that context. That was an observed behavior in the cited generation experiments, not a requirement of self-attention. A repetition processor changes the scores of tokens already present in the prefix. Its definition and the runtime’s treatment of prompt tokens belong in the recorded decoding policy."
+          },
+          {
+            "say": "In the article’s separate penalty row, create has score three, deploy two point eight and revoke two point five. Create was already emitted. Divide its positive score by theta one point two to obtain two point five; deploy now wins at two point eight. For a seen negative score, multiply by theta instead. Negative one becomes negative one point two. Dividing that negative score would move it upward, the opposite effect."
+          },
+          {
+            "say": "Zero stays zero. The lab applies this operation once to each distinct seen token, so repeating an entry in the prefix does not apply it again. Lowering a logit does not ban its token, and another treated token can lose even more mass during renormalization. Necessary repeated identifiers can also be suppressed. A penalty knows token identity, not whether the word is required by the evidence."
+          }
+        ]
+      },
+      {
+        "id": "temperature-scale",
+        "beats": [
+          {
+            "say": "For positive temperature T, divide every logit by T before stable softmax. A lower temperature increases finite logit gaps; a higher temperature shrinks them. In our original row, temperature point five gives create about point seven two one probability and entropy point six four seven nats. At temperature two, create falls to about point four three eight and quota rises to about point zero five nine."
+          },
+          {
+            "say": "Entropy is negative the sum of probability times log probability, with zero terms contributing zero. Natural logs give nats. For this fixed finite score row and unchanged mask, entropy increases as temperature increases; its value at two is about one point one nine zero. This quantifies the spread of a next-token draw. It does not measure factual uncertainty or establish the usefulness of a completed response."
+          },
+          {
+            "say": "Inspect a different row: two, two, zero and a masked negative infinity. As positive temperature approaches zero, the two equal maxima each retain half the limiting mass. First-index greedy would pick only the first. As temperature grows without bound, the three finite candidates approach one third each while the masked token remains excluded. A runtime’s zero-temperature API convention is separate from substituting zero into this formula."
+          }
+        ]
+      },
+      {
+        "id": "stream-replay",
+        "beats": [
+          {
+            "say": "The article draws eight tokens from a fixed supplied probability row using a local Random object. Seed seven twice produces the same sequence: create, create, revoke, then five creates. Seed twenty-one produces a different recorded sequence. Keep the static distribution and call order fixed when checking this replay. These are repeated next-token draws, not autoregressive answers whose scores change with their prefix."
+          },
+          {
+            "say": "A seed initializes the sampler state. Model logits can also change with batching, accumulation precision, kernels or software versions; a near tie can then flip greedy selection without any random draw. Deterministic kernels and a fixed environment can support replay within their stated limits. Record the exact model, tokenizer when available, prompt, settings, versions and stop reason, and check which controls the selected API actually supports."
+          }
+        ]
+      },
+      {
+        "id": "filter-k",
+        "beats": [
+          {
+            "say": "For the filter worksheet, take the supplied probabilities point five six eight, point three four five, point zero seven seven and point zero one zero as the exact input numbers. Top-k with k two keeps create and revoke. Their retained mass is point nine one three. Divide each retained probability by that mass to get about point six two two and point three seven eight."
+          },
+          {
+            "say": "Now change only the worksheet distribution to point two eight, point two five, point two four and point two three. The same k two still keeps the first two tokens, but retains only point five three of the original mass. Fixed rank spends the same candidate count on sharply peaked and relatively flat rows. It can retain weak candidates or discard a useful lower-ranked token; rank alone does not judge the guide."
+          },
+          {
+            "say": "Small conditional tail probabilities can accumulate across many positions. In a constructed process where the tail-event probability stays point zero zero two after each history with no earlier event, the chance of no event over five hundred positions is point nine nine eight to power five hundred. Its complement is about sixty-three percent. This is a consequence of that supplied conditional model, not a measured hallucination rate or a claim that rare tokens are necessarily wrong."
+          }
+        ]
+      },
+      {
+        "id": "filter-p",
+        "beats": [
+          {
+            "say": "Nucleus, or top-p, takes the smallest ranked prefix whose cumulative mass reaches the chosen threshold. With p point nine zero, the peaked worksheet needs create and revoke: together they supply point nine one three. Include the token that crosses the threshold, then renormalize the selected candidates. An individual token’s own probability is not compared with point nine zero."
+          },
+          {
+            "say": "Apply the same threshold to the flat worksheet. The first three sum to point seven seven, so the fourth is needed. All four remain, including quota. The method adapts candidate count to concentration, not evidence support. Removing an unreliable tail is a tested generation strategy in particular experiments; a rare token can still be the needed identifier or fact."
+          }
+        ]
+      },
+      {
+        "id": "filter-min-p",
+        "beats": [
+          {
+            "say": "Min-p compares each probability with a fraction of the largest one. With base point one zero and peaked maximum point five six eight, the absolute cutoff is point zero five six eight. Rename at point zero seven seven survives; quota at point zero one zero does not. This rule uses relative individual probability, rather than a fixed count or a cumulative total."
+          },
+          {
+            "say": "The flat maximum point two eight instead sets cutoff point zero two eight, admitting every candidate. At a threshold equal to a candidate’s probability, our inclusive rule retains it. Higher temperature changes these probabilities, and at an arbitrarily high temperature a fixed base below one eventually admits every finite-logit candidate. Evaluate the resulting output policy; this cutoff supplies no universal quality guarantee."
+          }
+        ]
+      },
+      {
+        "id": "filter-boundaries",
+        "beats": [
+          {
+            "say": "Inspect the boundary worksheet: point five zero, point two five, point two five and zero. Our lab excludes zero-mass candidates. Top-k two uses insertion order to keep create and revoke; a tie-inclusive runtime cutoff could keep rename too. Top-p point seven five stops after create and revoke. Min-p base point five keeps all three positive tokens because the absolute cutoff is point two five."
+          },
+          {
+            "say": "At top-p one, retain every positive-mass candidate. At min-p one, retain every candidate tied with the maximum. The lab rejects top-k zero, while some runtime interfaces use zero to disable that processor. Unsupported parameters and an empty allowed set need explicit handling. Record the chosen boundary convention rather than assuming an identical name means an identical implementation."
+          },
+          {
+            "say": "Filter the actual unrounded softmax values, not their printed labels. In the original four-logit row, the first three probabilities sum to about point nine eight nine six, below a top-p threshold of point nine nine. Their three-decimal labels can appear to sum to point nine nine zero. Using that rounded worksheet as input would be a different policy. Keep full values through the comparison."
+          }
+        ]
+      },
+      {
+        "id": "filter-order",
+        "beats": [
+          {
+            "say": "Now use a separate three-token row: A point six zero, B point two five and C point one five. Keep top-k two, then apply top-p point seven zero. The first filter removes C and leaves mass point eight five. Renormalizing makes A’s probability point six zero divided by point eight five, about point seven zero six. Predict whether B is still needed for the nucleus."
+          },
+          {
+            "say": "A alone now exceeds point seven zero, so the final set is only A. Reverse the order on the unchanged original row. Its A mass is only point six zero, so top-p first needs A and B. Top-k two then keeps both. The inputs and numeric thresholds match, while the intermediate denominator and final membership differ."
+          },
+          {
+            "say": "Our demonstration used temperature, then one filter, then renormalization and a draw. A production policy can compose more processors, with its own order, tie rules and minimum-candidate behavior. A changed operator order is a changed policy. Preserve that configuration in an experiment receipt before attributing an output difference to retrieval or to a new model."
+          }
+        ]
+      },
+      {
+        "id": "grammar-bytes",
+        "beats": [
+          {
+            "say": "Suppose the output must be a JSON object whose first-step field is one of create, revoke or rename. A grammar matcher tracks the current prefix and tests the full decoded bytes of a candidate token. A token can cross several grammar boundaries: it might finish the enum string, close its quote and close the object. Trace those byte transitions before allowing EOS."
+          },
+          {
+            "say": "For the supplied row, quota has logit six, revoke four, create three and rename two. Without the constraint, quota wins. The enum grammar masks quota, leaving revoke as its largest allowed score. That is valid syntax and an allowed enum value, yet the retained guide says the first step is create. A separately supplied guide-derived allowlist selects create; the grammar did not infer it."
+          },
+          {
+            "say": "This small enum example can use finite-state matching. Recursive structures generally need stack-based state, and engines must integrate the actual tokenizer rather than assuming each enum value is one token. Correct prefix matching still permits an unfinished prefix when a length limit or interruption stops generation. Check the supported grammar or schema features, empty allowed sets, accepting-state EOS and completion status before consuming the result."
+          }
+        ]
+      },
+      {
+        "id": "local-conditioning",
+        "beats": [
+          {
+            "say": "A grammar mask also changes how probabilities are distributed across valid completions. In the article’s separate two-token tree, the first token is A with probability point four or B with point six. The only valid strings are A x and B y. The model gives x after A probability point one, and y after B point nine. Both first tokens have a possible valid future."
+          },
+          {
+            "say": "A local first-token mask keeps A and B. At the next position, each prefix has only one grammar-valid continuation, which is forced by renormalization. The final local probabilities are therefore point four for A x and point six for B y. Now compute the original joint valid masses instead: point four times point one is point zero four, and point six times point nine is point five four."
+          },
+          {
+            "say": "Conditioning the original model on a valid complete string divides those masses by their total point five eight. The probabilities become about point zero six nine and point nine three one. Both methods emit valid strings, with different frequencies. Exact conditioning requires information about valid future probability mass; ordinary local masking does not supply it. State which distribution the generation policy actually produces."
+          }
+        ]
+      },
+      {
+        "id": "best-of-n",
+        "beats": [
+          {
+            "say": "A sequence probability is the generator’s preference. Best-of-N instead generates N candidate answers, scores each with an outcome evaluator, and selects the highest evaluator score. Independent draws from a fixed generator are one design; declare the actual sampling arrangement. This rank-and-select operation is different from accepting a proposal under a rejection-sampling rule. The selected-answer distribution generally changes."
+          },
+          {
+            "say": "An automated checker can replace a learned scorer when the task provides one. A finite test suite establishes its tested cases, and a formal proof checker checks a formal statement under its trusted assumptions. More candidates cost generation and evaluation work. They can also offer more opportunities for a fallible scorer to prefer a mistake. Keep candidate identity, scoring source and complete task judgment together."
+          }
+        ]
+      },
+      {
+        "id": "process-evidence",
+        "beats": [
+          {
+            "say": "Outcome supervision supplies one label for a complete solution. An outcome model may still read its whole reasoning; the single final label makes error localization a credit-assignment problem. Process supervision adds labels for intermediate steps with their preceding context. A probability-style score is one output convention, and calibration needs its own evidence. Minimum, product and other step aggregations define different selection rules."
+          },
+          {
+            "say": "The article assigns plan A the steps create, deploy and revoke, with process scores point nine five, point nine two and point nine eight. Plan B begins by revoking, then creates and deploys, with scores point zero five, point nine zero and point nine two. Their outcome scores are point nine six and point seven two. The outcome maximum and the minimum-step rule both select A; B’s minimum exposes its bad first step."
+          },
+          {
+            "say": "Change only B’s supplied first-step score to point nine nine. Its new minimum is point nine zero, still below A’s point nine two, so this particular selected plan remains A. But the first-step score now treats the unsupported action favorably. The unchanged winner has not validated that local judgment. No evaluator was run in this fixture; evaluate both the scorer and the complete selected answers on relevant held-out evidence."
+          }
+        ]
+      },
+      {
+        "id": "thought-search",
+        "beats": [
+          {
+            "say": "A thought tree treats a partial reasoning step as a search state. Propose continuations, evaluate them, then choose which states to expand, prune or revisit. The original Tree of Thoughts experiments used breadth-first and depth-first search with model self-evaluation. Those are explicit search designs, not a description of every reasoning-model runtime, and neither requires a process reward model."
+          },
+          {
+            "say": "On our supplied small tree, breadth-first keeps both current branches on its frontier before going deeper. Depth-first follows one branch to a leaf, then backtracks to the remaining alternative. The evaluator and resource budget decide which states are available. A useful branch discarded under a mistaken score cannot be recovered merely by explaining the retained branch more fluently."
+          },
+          {
+            "say": "Monte Carlo Tree Search separately organizes selection, expansion, simulation and reward backup, as in the cited RAP approach. Our constructed example adds an exploration bonus to mean reward. The bonus is the square root of a fraction, with natural log of parent visits on top and child visits below. Its exploration weight is one. The parent has ten visits. A has eight visits and mean point four, while B has two and mean point six. Selection scores about point nine three six and one point six seven three choose B. For this fixture, back up the same supplied reward point two using arithmetic means. B’s reward total goes from one point two to one point four across three visits, giving mean about point four six seven. The parent total rises from four point four to four point six across eleven visits, giving mean about point four one eight. These are computed search bookkeeping values, not a trained evaluator or world-model measurement. More visits can amplify the wrong reward rule."
+          }
+        ]
+      },
+      {
+        "id": "speculative-balance",
+        "beats": [
+          {
+            "say": "Exact speculative sampling aims to accelerate a specified target policy while preserving its output distribution in ideal arithmetic. At one position, draw from the actual draft distribution q. Accept a proposed token with the smaller of one and its target probability p divided by its draft probability q. Accepted proposal mass at that token is the smaller of p and q. A draft cannot propose a token to which its own distribution gives zero mass."
+          },
+          {
+            "say": "The article supplies target probabilities point six, point three and point one, and draft probabilities point eight, point one and point one. Accepted mass is point six, point one and point one, totaling point eight. Rejection probability is point two. Take the positive part of target minus draft and normalize it: all the residual mass belongs to the second token, revoke. Adding that correction restores the target row exactly."
+          },
+          {
+            "say": "Redrawing from the unadjusted target on rejection instead produces point seven two, point one six and point one two, which is biased. If target and draft agree, rejection mass is zero and no residual draw is needed. The target row must include its intended temperature, filters and masks, and q must be the actual proposal law. Equal distributions do not imply identical seeded text or verified factuality."
+          }
+        ]
+      },
+      {
+        "id": "speculative-block",
+        "beats": [
+          {
+            "say": "A draft model can propose several tokens autoregressively, then a target evaluation scores those known prefix positions together. Causal attention provides target distributions for each proposal position and one additional position after the full block. These are parallel evaluations of known prefixes, not independently generated target tokens. Keep each distribution attached to the prefix that produced it."
+          },
+          {
+            "say": "In a separate supplied block, the draft proposes create, a, key. Create has target probability point six and draft probability point eight; uniform point two accepts its point seven five ratio. At the next position, a has target point four and draft point eight. Uniform point eight rejects its one-half ratio. Keep create, discard a and key, and use the normalized residual to choose replacement. The rejected suffix’s conditional results and tentative KV state cannot become the accepted future."
+          },
+          {
+            "say": "In another iteration where every proposal passes, append a further token from the target row after the full draft prefix. A block of K proposals can yield one through K plus one output tokens before stop rules intervene. A greedy target uses a matching deterministic verification rule. Actual speed depends on draft cost, acceptance, batching and verification kernels; measure it against the unchanged target policy rather than assigning a speedup from the block size."
+          }
+        ]
+      },
+      {
+        "id": "audit-receipt",
+        "beats": [
+          {
+            "say": "The executed article samples two thousand independent next tokens from fixed probability rows. Greedy selects create in every draw. Temperature two gives expected create share about point four three eight and observed point four five seven; top-p point nine gives expected point six two two and observed point six two one. These differences are finite-sample outcomes of the supplied distributions, not complete-answer accuracy measurements."
+          },
+          {
+            "say": "For a separate authored whole-answer audit, take one hundred requested answers. Ninety-two start with the guide’s first word, but only seventy are judged fully supported and complete. Ten hit a length limit. Those are different events. In another supplied cohort, eighty-five first-word matches accompany eighty supported complete answers and five length limits. The task rate improves from seventy to eighty percent while first-word agreement falls. Keep every requested identity in the denominator."
+          },
+          {
+            "say": "A generation receipt records model and runtime, prompt and retrieved evidence, policy settings and processor order, grammar version, seed and stop reason, plus the source of task judgments. A learned score remains a learned score. Hold the decoder fixed when testing a retrieval change, and preserve enough evidence to tell an incomplete response from a completed wrong one. The next experiment-design lesson will address what a controlled comparison can establish."
+          }
+        ]
+      },
+      {
+        "id": "synthesis",
+        "beats": [
+          {
+            "say": "We have seen three decisions working together. How many prefixes survive, when a path is complete, and how completed scores account for length all shape the output. Beam width is one part of that policy."
+          },
+          {
+            "say": "Try changing one conditional edge and predict when the active frontier changes. Then compare the final outputs under raw and normalized scores. Keeping the rest of the fixture fixed shows which decision caused the result to move."
+          },
+          {
+            "say": "For a real task, hold the model, prompts, tokenization, and stop rule steady while you compare search settings. Measure useful answers and serving cost. A high sequence score describes the model's preference under the chosen policy."
+          }
+        ]
+      },
+      {
+        "id": "fresh-policy",
+        "beats": [
+          {
+            "say": "Try a new guide: back up the current key, rotate it, then remove the old copy. For this exercise, replace the action enum with backup, rotate and remove. The supplied next-token probabilities are point four six for backup, point three two for rotate, point one four for remove and point zero eight for quota. Set top-p to point seven five and use uniform rank point six five. Before revealing the draw, predict the retained tokens and their normalized probabilities."
+          },
+          {
+            "say": "Backup alone has mass point four six, so the nucleus also keeps rotate, reaching point seven eight. Renormalization gives about point five nine for backup and point four one for rotate. Uniform point six five selects rotate. Both names are permitted by our action enum, yet the guide identifies backup as the first step. A lower-ranked valid action is still the wrong answer to this particular question."
+          },
+          {
+            "say": "Now change only the first-step eligibility rule to the guide-derived allowlist containing backup. The remaining mass renormalizes to one on backup, and the same uniform rank selects it. We supplied that evidence judgment explicitly; the grammar did not discover it. You can now trace a score row through a policy, retain the right path history, and distinguish distributional correctness from a supported complete answer. Next, an A/B experiment holds generation fixed and randomizes a retrieval-query change, measuring whether it improves the outcomes of the incidents it serves."
+          }
+        ]
+      }
+    ]
+  }
+}

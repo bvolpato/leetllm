@@ -1,0 +1,587 @@
+version: 1
+id: distillation
+title: "Knowledge Distillation for LLMs"
+source: training/knowledge-distillation-llms/content.md
+sources:
+  - title: Hinton et al. Distilling the Knowledge in a Neural Network
+    url: https://arxiv.org/abs/1503.02531
+  - title: Gu et al. MiniLLM
+    url: https://arxiv.org/abs/2306.08543
+  - title: Agarwal et al. On-Policy Distillation of Language Models
+    url: https://arxiv.org/abs/2306.13649
+  - title: GKD
+    url: https://arxiv.org/abs/2306.13649
+  - title: MiniLLM
+    url: https://arxiv.org/abs/2306.08543
+  - title: Gemma 2
+    url: https://arxiv.org/abs/2408.00118
+  - title: DeepSeek R1 original report
+    url: https://arxiv.org/html/2501.12948v1
+  - title: TRL Distillation Trainer
+    url: https://huggingface.co/docs/trl/main/en/distillation_trainer
+scenes:
+  - id: intro
+    title: "Would matching the teacher change the student’s score?"
+    visual: "Beside an expired key, the student’s ten probability squares slide under the teacher’s. Nine line up on seven days. The policy opens after the viewer chooses an update."
+    beats:
+      - say: "Can I restore this expired admin key? Line up the two predictions. The teacher gives “seven days” a ninety percent chance. The student puts the same nine squares on “seven days.”"
+        hold: 0.7
+        caption_starts: ["The teacher gives", "The student puts"]
+        visual_cues:
+          - id: intro-teacher
+            phrase: "The teacher gives “seven days” a ninety percent chance"
+            targets: [teacher-prediction]
+          - id: intro-student
+            phrase: "The student puts the same nine squares"
+            targets: [teacher-prediction, student-prediction]
+      - say: "The last square in each row goes to “not allowed.” Suppose the student learns only by matching the teacher. Should its score for seven days go up, go down, or stay put?"
+        hold: 2.4
+        caption_starts: ["Should its score for seven days"]
+      - say: "It stays put. Every square already matches. Now open the policy for this key. Restoration is forbidden. Both models favor the same wrong answer."
+        hold: 1.1
+        caption_starts: ["Now open the policy", "Restoration is forbidden"]
+        visual_cues:
+          - id: intro-match
+            phrase: "It stays put"
+            targets: [score-change]
+          - id: intro-rule
+            phrase: "Now open the policy"
+            targets: [policy-rule]
+          - id: intro-verdict
+            phrase: "Restoration is forbidden"
+            targets: [policy-rule]
+      - say: "In knowledge distillation, a teacher supplies the signal that trains a student. It can supply a written answer, next-token probabilities, or values from inside a layer. Let’s save just one word and see what survives."
+        hold: 0.65
+  - id: distribution
+    title: "What survives when we keep one word?"
+    visual: "A single saved answer opens into four teacher probabilities. Each word stays on its own row as the student’s probabilities appear beside it."
+    beats:
+      - say: "Finish the sentence “The child saw a.” For this example the model can choose among four words. We saved the teacher’s most likely word, bird. From that word alone, can you tell whether the teacher preferred dog or cat?"
+        hold: 2.35
+      - say: "Open the teacher distribution. Dog gets about twenty-seven percent, cat eighteen percent. Both were plausible after this particular prefix. If we turn bird into a hard target, every other word gets zero target mass. That erases the ordering you just saw."
+        hold: 1
+        caption_starts: ["Dog gets about twenty-seven percent"]
+        visual_cues:
+          - id: distribution-open
+            phrase: "Open the teacher distribution"
+            targets: [word-comparison]
+          - id: distribution-hard
+            phrase: "turn bird into a hard target"
+            targets: [word-comparison]
+      - say: "Put the student beside the teacher. Follow the cat row across. The student gives it almost sixty percent, while the teacher gives it eighteen. Bird has the opposite problem. Each model has one unit of probability to spend across these four words. We need a way to move the student’s scores while keeping that total fixed."
+        hold: 0.9
+        visual_cues:
+          - id: distribution-student
+            phrase: "Put the student beside the teacher"
+            targets: [word-comparison]
+  - id: temperature
+    title: "Keep the words fixed and turn up the temperature"
+    visual: "Teacher and student distributions soften on the same four words as the denominator on their scores increases."
+    beats:
+      - say: "Tree has the smallest share on the teacher’s chart. Before softmax, each word has a score called a logit. Divide each score by the same positive number, then exponentiate and normalize. That number is the temperature. Raise it from one to four. Watch how much of the teacher’s probability reaches tree."
+        hold: 0.8
+        visual_cues:
+          - id: temperature-b1-1
+            phrase: "Raise it from one to four"
+            targets: [soft-teacher, soft-student]
+      - say: "Keep the same temperature for both models. Their underlying scores and their ranking have stayed fixed. We have changed the distribution that the loss will compare. Now imagine turning the temperature up much further. In a four-word vocabulary, where would each probability approach?"
+        hold: 2.2
+        visual_cues:
+          - id: temperature-b2-1
+            phrase: "same temperature for both models"
+            targets: [soft-teacher, soft-student]
+      - say: "One quarter. As the temperature rises, the divided scores draw closer together. Their exponentials approach the same value. At any finite positive temperature the ordering is preserved before rounding. Individual probability gaps can change at different rates and some can widen along the way. Later we’ll see why the usual soft loss includes a factor of temperature squared."
+        hold: 0.8
+        visual_cues:
+          - id: temperature-b3-1
+            phrase: "As the temperature rises"
+            targets: [soft-teacher, soft-student]
+          - id: temperature-b3-2
+            phrase: "Their exponentials approach the same value"
+            targets: [temperature-rule]
+  - id: objective
+    title: "What does each word add to the loss?"
+    visual: "The same four words carry paired teacher and student probabilities into signed log-ratio terms and a running forward KL sum."
+    beats:
+      - say: "Start again at temperature one. Bird gets nearly half the teacher’s probability and only about a tenth of the student’s. For each token, divide the teacher’s probability by the student’s, take the natural log, and weight it by the teacher’s probability. Sum those contributions. That sum is forward Kullback-Leibler divergence, or forward K L, measured in nats."
+        hold: 0.8
+        visual_cues:
+          - id: objective-b1-1
+            phrase: "For each token"
+            targets: [token-contributions]
+          - id: objective-b1-2
+            phrase: "Sum those contributions"
+            targets: [kl-subtotal]
+      - say: "Look at cat. The student gives it more probability than the teacher does. That makes the ratio smaller than one, so this contribution is negative. The positive bird term and the negative cat term both count. The full divergence is always at least zero. It reaches zero when the distributions match, exactly what happened on the expired admin key."
+        hold: 0.8
+        visual_cues:
+          - id: objective-b2-1
+            phrase: "this contribution is negative"
+            targets: [negative-contributions]
+          - id: objective-b2-2
+            phrase: "full divergence"
+            targets: [kl-subtotal]
+      - say: "If the teacher is fixed, its entropy stays fixed too. Soft-target cross-entropy equals this forward K L plus that entropy. Adding a constant leaves every student gradient unchanged. We can use either loss to find which student score should move next."
+        hold: 0.75
+        visual_cues:
+          - id: objective-b3-1
+            phrase: "every student gradient unchanged"
+            targets: [kl-objective]
+  - id: learning
+    title: Move logits, then normalize again
+    visual: Student logits update by gradient descent; probability bars and a computed KL curve evolve together.
+    beats:
+      - say: For a fixed temperature of one, the gradient of soft-target cross-entropy with respect to each student logit is student probability minus teacher probability. The difference tells us which scores should rise and which should fall during gradient descent.
+        hold: 0.6
+        visual_cues:
+          - id: learning-b1-1
+            phrase: student probability minus teacher probability
+            targets:
+              - student-gradient
+            linger: 0.45
+      - say: Watch one update and then several more. We update logits and run softmax again, rather than moving each probability independently. The normalization couples the changes, keeps every probability positive, and preserves total mass while the divergence shrinks in this tiny example.
+        hold: 0.6
+        motion_check:
+          region:
+            - 1070
+            - 410
+            - 630
+            - 320
+          minimumChangedFraction: 0.002
+        visual_cues:
+          - id: learning-b2-1
+            phrase: divergence shrinks
+            targets:
+              - divergence-trajectory
+            linger: 0.45
+      - say: Pause before the next update and choose the direction of the highlighted score. If its student probability is already too large, its gradient is positive, so descent lowers the logit. The same reasoning works for every token in the vocabulary.
+        hold: 0.8
+        caption_starts: ["If its student probability", "its gradient is positive", "so descent lowers the logit"]
+        motion_check:
+          region:
+            - 1080
+            - 420
+            - 600
+            - 360
+          minimumChangedFraction: 0.002
+        visual_cues:
+          - id: learning-b3-1
+            phrase: next update
+            targets:
+              - divergence-trajectory
+            linger: 0.45
+          - id: distill-cat-positive
+            phrase: its gradient is positive
+            targets:
+              - divergence-trajectory
+            color: yellow
+            linger: 0.45
+          - id: distill-cat-lower
+            phrase: so descent lowers the logit
+            targets:
+              - divergence-trajectory
+            color: yellow
+            linger: 0.45
+  - id: temperature-gradient
+    title: "What changes when the temperature rises?"
+    visual: "For one token, fixed opposite logits feed a table of exact raw and scaled gradients. Past temperatures stay on screen for comparison."
+    beats:
+      - say: "Take a teacher that favors the first of two tokens, and a student that favors the second. Both sets of scores stay fixed. With a frozen teacher, the gradient on the divided student score is student probability minus teacher probability. We train the original score. Dividing that score by temperature introduces one more division in the gradient. Multiply the soft loss by temperature squared, and the gradient becomes temperature times the probability gap."
+        hold: 0.9
+        visual_cues:
+          - id: gradient-square
+            phrase: "Multiply the soft loss by temperature squared"
+            targets: [temperature-gradient-mechanism]
+      - say: "Watch the first token as we move from temperature one to four. Its unscaled gradient loses most of its magnitude. At four, scaling multiplies that row’s gradient by sixteen. Read the two rows in order. Multiplying by T squared gives about minus point seven six two and minus point nine eight zero. Try forty. At T forty the scaled gradient approaches minus one. When temperature is large relative to the score spread, the probability gap itself shrinks roughly as one over temperature. That supplies the other factor. To get the limit, center each model’s scores by its own mean. Take the centered student score minus the centered teacher score and divide by the vocabulary size. Here that gives minus one. Descent raises the first student score."
+        hold: 1
+        caption_starts: ["Multiplying by T squared", "At T forty"]
+        visual_cues:
+          - id: gradient-one
+            phrase: "Watch the first token"
+            targets: [temperature-gradient-mechanism]
+          - id: gradient-four
+            phrase: "to four"
+            targets: [temperature-gradient-mechanism]
+          - id: gradient-scaled-result
+            phrase: "Multiplying by T squared gives about minus point seven six two and minus point nine eight zero"
+            targets: [temperature-gradient-mechanism]
+          - id: gradient-forty
+            phrase: "Try forty"
+            targets: [temperature-gradient-mechanism]
+          - id: gradient-forty-result
+            phrase: "At T forty the scaled gradient approaches minus one"
+            targets: [temperature-gradient-mechanism]
+      - say: "Now suppose the first token is also the trusted answer. Ordinary cross-entropy at temperature one uses student probability minus the one-hot label. The other token gets a positive gradient even though its target is zero. With more than two choices, a hard label leaves the teacher’s ranking among the alternatives unknown. Turn up alpha to give the scaled teacher loss more weight and the trusted-label loss less. If the teacher is wrong, more weight gives that mistake more influence. Tune the mix on trusted development cases. Train the student and any chosen alignment weights with the teacher frozen in evaluation mode and its targets detached."
+        hold: 1
+        visual_cues:
+          - id: mixture-alpha
+            phrase: "Turn up alpha"
+            targets: [temperature-gradient-mechanism]
+  - id: alignment-mask
+    title: "Where does this target belong?"
+    visual: "The token IDs for bird and dog change places across two output heads. A second example aligns same-prefix outputs and points to the next answer label."
+    beats:
+      - say: "What if the two models have the same vocabulary size, but use different IDs? On this prefix the teacher assigns eight tenths to bird in column zero. In the student, column zero means dog. Follow bird to its student column. Move the probability with the word, then freeze the teacher and train the student. Check every ID, including special tokens, chat formatting and the actual input sequence. Different token splits can break position alignment too."
+        hold: 1.1
+        visual_cues:
+          - id: map-bird
+            phrase: "Follow bird to its student column"
+            targets: [alignment-example]
+      - say: "Now the models share token meanings. Find the prompt slot in this five-token input. Its next token is the first answer. For the hard label, go one slot to the right. For the soft target, stay at the prompt and compare both models there. Do the same one slot later for the second answer. Those two predictions count in this response-only loss. Keep prompt and padding targets out. A full-sequence recipe can choose a different set. PyTorch cross-entropy can ignore a class ID. For K L, select valid positions explicitly. The attention mask still has its own job controlling access to padding."
+        hold: 1.05
+        visual_cues:
+          - id: shift-hard
+            phrase: "go one slot to the right"
+            targets: [alignment-example]
+          - id: response-mask
+            phrase: "stay at the prompt"
+            targets: [alignment-example]
+          - id: second-answer
+            phrase: "Do the same one slot later"
+            targets: [alignment-example]
+      - say: "Count the valid targets before averaging. Flatten to valid tokens by vocabulary, so batchmean divides by the token count. On batch by sequence by vocabulary, it divides by the batch size. Here one microbatch contributes one token at point two. Another contributes three at point eight. Sum the four losses and divide by four. Compare the two answers. We get a global token mean, point six five, not their unweighted mean, point five. Averaging the two batches gives the single token too much weight. With accumulation or distributed training, use the global token count and account for how gradients are averaged."
+        hold: 0.9
+        caption_starts: ["We get a global token mean"]
+        visual_cues:
+          - id: token-mean
+            phrase: "global token mean point six five, not their unweighted mean point five"
+            targets: [alignment-example]
+      - say: "If every target is masked, there is nothing to average. Skip the optimizer step. Adam W can still apply weight decay to a parameter whose gradient tensor is zero. It skips a parameter with a missing gradient."
+        hold: 0.8
+  - id: feature-projection
+    title: "Which projection rows need to move?"
+    visual: "Each projection row has an output bar and a fixed teacher tick on the same scale. The rows change first, then the three outputs are recomputed. A second token tests the learned rows."
+    beats:
+      - say: "Take one aligned token position in the two models. The student layer has two features and the teacher layer has three. Their layer numbers can differ. Hold the student features at one and two. Each row of this matrix takes a weighted sum of those two numbers. The middle row takes just the second feature, so its output reaches two. Its teacher tick is at three. The bottom row overshoots its own tick by one. Which row can stay exactly as it is, and what do the three squared gaps cost together?"
+        hold: 2.5
+        visual_cues:
+          - id: projection-gaps
+            phrase: "middle row takes just the second feature"
+            targets: [projection-rulers]
+      - say: "The top row already hits its tick. The other two each contribute one, for a total of two. Freeze the student state and teacher targets. The gradient for each row is twice its signed gap times the held input. The middle row’s gradient is minus two, minus four. The bottom row gets the opposite change. A learning rate point one changes the last two rows to point two, one point four and point eight, point six. Multiply those rows by the same held features again. The new output is one, three, two."
+        hold: 0.8
+        caption_starts: ["The other two each contribute one", "for a total of two", "A learning rate point one", "The new output is"]
+        visual_cues:
+          - id: projection-error
+            phrase: "for a total of two"
+            targets: [projection-rulers]
+          - id: projection-gradient
+            phrase: "The middle row’s gradient is minus two, minus four"
+            targets: [projection-rulers]
+          - id: projection-update
+            phrase: "A learning rate point one changes the last two rows to point two, one point four and point eight, point six"
+            targets: [projection-rulers]
+          - id: projection-output
+            phrase: "The new output is one, three, two"
+            targets: [projection-rulers]
+      - say: "Both dots are on their ticks now. The middle output has reached three and the bottom output has reached two. All three gaps are closed on this token. During training you can learn the projection alongside the student. Keep the teacher detached, compare corresponding positions, and mask padding. Averaging the squared gaps over features, tokens, or layers changes the scale of the loss."
+        hold: 1
+      - say: "Keep those learned rows. At another token the student features are two and one. Read the middle row again. Where will its dot land this time? Will it reach the teacher tick at three?"
+        hold: 2.15
+        visual_cues:
+          - id: projection-fresh
+            phrase: "student features are two and one"
+            targets: [projection-rulers]
+      - say: "One point eight. Two tenths times two gives four tenths. Add one point four. The student falls short of the teacher by one point two on that coordinate alone. Before paying to collect hidden states, compare feature matching with output matching on fresh tasks. A teacher can even supply improved targets from the same architecture. That’s called self-distillation."
+        hold: 1
+        visual_cues:
+          - id: projection-check
+            phrase: "One point eight"
+            targets: [projection-rulers]
+  - id: sequences
+    title: "What can the student learn from a saved sentence?"
+    visual: "A reviewed teacher continuation becomes a strip of next-token targets. The cursor advances through the sentence as each earlier word joins the context."
+    beats:
+      - say: "Suppose the teacher gives us text only. After “The child saw a,” we saved “bird in the garden.” A reviewer accepts the continuation. The student can tokenize that text itself. For this simple tokenizer, each word in the answer is one token."
+        hold: 0.8
+        visual_cues:
+          - id: sequence-saved
+            phrase: "we saved"
+            targets: [response-path]
+      - say: "Start at the prompt. The first target is bird. Advance one word. With bird in the context, the next target is in. Keep going until the student has practiced each selected token. There is no record here of how likely dog was. This use of supervised fine-tuning on teacher text is response distillation."
+        hold: 0.85
+        visual_cues:
+          - id: sequence-first
+            phrase: "first target is bird"
+            targets: [response-path]
+          - id: sequence-next
+            phrase: "Advance one word"
+            targets: [response-path]
+          - id: sequence-rest
+            phrase: "Keep going"
+            targets: [response-path]
+      - say: "Several checked responses can give the student other paths to practice. Check each one before accepting it. A wrong answer becomes just as much a training target as a right one. And when the student starts writing for itself, it may take a path that none of those examples followed."
+        hold: 0.8
+  - id: prefixes
+    title: The path the student visits can drift
+    visual: A reference continuation and a different student continuation branch from the same sentence prefix.
+    beats:
+      - say: A language model chooses one token, extends the prefix, and predicts again. During training on reference responses, the student receives those reference prefixes. At generation time it receives its own earlier choices, which can lead to contexts absent from the training examples.
+        hold: 0.6
+        visual_cues:
+          - id: prefixes-b1-1
+            phrase: extends the prefix
+            targets:
+              - visited-prefix
+            linger: 0.45
+      - say: Here the student takes a different valid first word, and the rest of its continuation changes. A teacher queried on that new prefix can provide feedback where the student actually goes. This is the central motivation for on-policy distillation methods.
+        hold: 0.6
+        visual_cues:
+          - id: prefixes-b2-1
+            phrase: continuation changes
+            targets:
+              - continuation-tokens
+            linger: 0.45
+          - id: prefixes-b2-2
+            phrase: teacher queried on that new prefix
+            targets:
+              - student-prefix-feedback
+            linger: 0.45
+      - say: The training-prefix distribution and divergence direction are independent choices. Forward KL and reverse KL penalize mismatches differently, especially with several plausible continuations. State both choices, along with the sampling and data-collection procedure, when comparing distillation recipes.
+        hold: 0.8
+        visual_cues:
+          - id: prefixes-b3-1
+            phrase: independent choices
+            targets:
+              - conditional-teacher
+            linger: 0.45
+  - id: reverse-capacity
+    title: "What changes when we reverse KL?"
+    visual: "Teacher and student probabilities line up by token. Forward KL encounters the student's zero on B. Reverse KL counts only A. Teacher ticks then show where three candidate shapes fit or miss its two peaks."
+    beats:
+      - say: "The teacher draws B half the time. The student never draws it. Forward K L weights B by the teacher’s half. As the student’s probability for B approaches zero, that penalty grows without bound. At zero, forward K L is infinite. Now draw from the student. Every draw is A. The student gives A probability one. The teacher gives it a half. One divided by a half is two. Reverse K L is the natural log of two."
+        hold: 0.9
+        caption_starts: ["Forward K L weights B", "At zero, forward K L is infinite", "Now draw from the student", "Reverse K L is the natural log of two"]
+        visual_cues:
+          - id: forward-draw
+            phrase: "Forward K L weights B by the teacher’s half"
+            targets: [token-b]
+          - id: zero-forward
+            phrase: "At zero, forward K L is infinite"
+            targets: [token-b]
+          - id: reverse-draw
+            phrase: "Now draw from the student"
+            targets: [token-a]
+          - id: zero-mass-kl
+            phrase: "Reverse K L is the natural log of two"
+            targets: [token-a]
+      - say: "Now there are three tokens. The blue ticks mark the teacher’s probability for each one. See the two high ticks and the dip between them? The student can choose one of three shapes. The side shapes each cover one peak. The center covers both, but puts half its mass in the dip. Which shape would you choose for each direction of K L?"
+        hold: 2.4
+      - say: "Forward K L gives most of the weight to the two teacher peaks. It selects the center. Reverse K L weights each token by the student’s probability. The center puts half its mass where the teacher puts only two percent. Either side wins. Now let the student take the teacher’s exact shape. Both losses drop to zero."
+        hold: 0.95
+        caption_starts: ["It selects the center", "Reverse K L weights each token", "Either side wins", "Now let the student", "Both losses drop to zero"]
+        visual_cues:
+          - id: forward-family
+            phrase: "It selects the center"
+            targets: [reverse-capacity-mechanism]
+          - id: reverse-family
+            phrase: "Either side wins"
+            targets: [reverse-capacity-mechanism]
+          - id: exact-family
+            phrase: "both losses drop to zero"
+            targets: [reverse-capacity-mechanism]
+  - id: sequence-kl
+    title: "Whose paths reach the second token?"
+    visual: "Teacher and student probability strips split first by prefix, then by continuation. The same prefix widths supply the weights in the sequence KL sum."
+    beats:
+      - say: "Imagine both models write exactly two tokens. Each can be A or B. Each strip is one hundred percent of that model’s probability. Split it at the first token. Four fifths of the teacher strip starts with A. The student splits evenly."
+        hold: 0.9
+        visual_cues:
+          - id: joint-first
+            phrase: "Split it at the first token"
+            targets: [path-strips]
+      - say: "Split the A branch again. The teacher sends nine tenths of that branch to another A. Nine tenths of eighty percent gives seventy-two percent of the whole strip for A A. Do the same under B. The four pieces now give the probabilities of complete paths. Look at the second decision after B. For forward sequence K L, how much of the teacher’s probability ever reaches that decision?"
+        hold: 2.4
+        visual_cues:
+          - id: joint-after-a
+            phrase: "Split the A branch again"
+            targets: [path-strips]
+          - id: joint-after-b
+            phrase: "Do the same under B"
+            targets: [path-strips]
+      - say: "One fifth. Keep that width. First compare the models at the first token. Then add the mismatch after A, weighted by the four fifths that reached A, and the mismatch after B, weighted by one fifth. Add those three terms. You get the same half nat, to rounding, as comparing the four complete paths directly."
+        hold: 1
+        visual_cues:
+          - id: joint-forward
+            phrase: "Add those three terms"
+            targets: [path-strips]
+      - say: "Now put the student on the left. Reverse every comparison, and look at how often the student reaches each prefix. Both weights are one half. The reverse total is about point five three nats. If you kept the forward comparisons and just gave the two prefixes equal weight, you would get a third answer. These totals sum over two positions. A mean per position would divide by two."
+        hold: 1
+        visual_cues:
+          - id: joint-reverse
+            phrase: "Reverse every comparison"
+            targets: [path-strips]
+          - id: joint-uniform
+            phrase: "gave the two prefixes equal weight"
+            targets: [path-strips]
+      - say: "For on-policy distillation, ask the teacher to score the prefix the student actually visited. G K D can mix those samples with fixed outputs and treats each sampled sequence as fixed data during its update. The collection fraction and the choice of divergence are separate. Mini L L M optimizes reverse K L over sequences with policy gradients. Its teacher-to-student log probability ratio gives credit for later tokens. It also mixes in teacher sampling and normalizes for length. In its ablations, divergence could fall while the model repeated itself. Read the generations when you compare recipes."
+        hold: 1
+  - id: signal-and-trainer
+    title: "What did the teacher’s cache keep?"
+    visual: "Two strips show all probability mass. A bracket selects the same two teacher-chosen IDs in both models, then magnifies only the retained mass to test the cache."
+    beats:
+      - say: "A text-only teacher can write answers offline. The student tokenizes the checked text itself, so the two tokenizers can differ. A written explanation gives it more tokens to learn from. To recover probabilities at another temperature, we need the complete normalized log probabilities or the logits. Let’s see what happens if we save just the teacher’s two favorite token IDs."
+        hold: 0.7
+      - say: "Here are the full probabilities for three tokens. Keep A and B in both strips. Together they hold ninety percent of the teacher’s mass and just ten percent of the student’s. Inside each bracket, A and B divide their share equally. If you stretch each bracket to a whole distribution, what discrepancy will the loss see?"
+        hold: 2.3
+        visual_cues:
+          - id: tail-select
+            phrase: "Keep A and B in both strips"
+            targets: [cache-strips]
+      - say: "Stretch the retained pair. Each now reads half A, half B. Their conditional K L is zero. Restore the full strips. The student put nine tenths of its mass on C, where the teacher put one tenth. Full forward K L is about one point seven six nats. Keep track of what your cache omits when you interpret its loss."
+        hold: 0.9
+        caption_starts: ["Each now reads half A", "Their conditional K L is zero", "Restore the full strips", "Full forward K L"]
+        visual_cues:
+          - id: tail-stretch
+            phrase: "Stretch the retained pair"
+            targets: [cache-strips]
+          - id: tail-zero
+            phrase: "Their conditional K L is zero"
+            targets: [cache-strips]
+          - id: tail-restore
+            phrase: "Restore the full strips"
+            targets: [cache-strips]
+          - id: tail-full
+            phrase: "Full forward K L is about one point seven six nats"
+            targets: [cache-strips]
+      - say: "At ten thousand positions, fifty thousand vocabulary values per position, and two bytes per value, the dense payload alone is one decimal gigabyte. Online scoring can avoid that cache. Computing a full-vocabulary loss in chunks reduces peak memory. The teacher still has to score the tokens."
+        hold: 0.8
+      - say: "In the October twenty twenty-six T R L guide, Distillation Trainer samples student completions and computes a chunked full-vocabulary generalized Jensen-Shannon loss. In its agent recipe, the tool reply provides context. Only the assistant replies in this example supply targets. The trainer reads the output-head weights directly, so it rejects head adapters and prompt-learning methods it would bypass. To train that head, the guide lists it under modules to save. Pin the version and check which parameters receive gradients."
+        hold: 0.7
+      - say: "The experimental G K D guide gives collection fraction and divergence separate controls. The article also has a small CPU exercise. Its random networks process one position at a time. A falling loss there checks the training step. Transfer to a language task takes a separate evaluation."
+        hold: 0.8
+  - id: dataset-gates
+    title: "Which replies enter the training set?"
+    visual: "The two policy cases are compared with individual trusted answers. A normalized duplicate returns before generation. Related prompts then stay in one split."
+    beats:
+      - say: "Let’s assemble training targets for the policy assistant. Our stand-in teacher always returns seven days. First comes a disabled production key. Its trusted rule allows seven days. A second prompt differs only in spacing and case. The third is the expired admin key from the opening. Which teacher replies should enter the training set? Compare each reply with its own rule. Keep the first reply. Skip the duplicate before generation. The admin rule requires “not allowed,” so reject the invalid admin answer."
+        hold: 2.2
+        caption_starts: ["Keep the first reply", "Skip the duplicate", "The admin rule", "reject the invalid admin answer"]
+        visual_cues:
+          - id: dataset-keep
+            phrase: "Keep the first reply"
+            targets: [policy-ledger]
+          - id: dataset-skip
+            phrase: "Skip the duplicate before generation"
+            targets: [policy-ledger]
+          - id: dataset-reject
+            phrase: "reject the invalid admin answer"
+            targets: [policy-ledger]
+      - say: "One of the two generated replies becomes a training target. For these fixture strings we can lowercase and collapse spaces to find the duplicate. In code or a case-sensitive identifier, that could change the meaning."
+        hold: 0.95
+      - say: "Start from reviewed seed prompts. Split whole seed families before expanding them. This seed and its two paraphrases belong together. Generate varied requests within the training split, have the teacher answer, then filter its answers. A rewritten sibling in the test split would make the student look better on familiar material. Keep final test labels outside generation, filtering, and tuning. Use separate cases for refusals, new constraints, long contexts, and policy boundaries."
+        hold: 0.8
+        visual_cues:
+          - id: dataset-family
+            phrase: "This seed and its two paraphrases belong together"
+            targets: [family-split]
+      - say: "Before collecting a corpus, check the teacher-access terms, the base-model license, and the permitted uses of generated data. Check the verifier as well. Inspect answers it accepted that a trusted reviewer would reject. Filtering can help a student outperform its teacher on a narrow task, while other skills regress. Evaluate each model on its own outputs."
+        hold: 0.8
+  - id: recipe-evidence
+    title: What did the smaller model learn from?
+    visual: A matched Gemma training budget leads to two benchmark scores. A separate DeepSeek example follows selected responses into supervised fine-tuning.
+    beats:
+      - say: "Hold the student size and training budget fixed. In this Gemma two experiment, a two-billion-parameter student trains for five hundred billion tokens. In one run it learns from scratch. In the other, a seven-billion-parameter teacher supplies token probabilities. Compare the scores on the same three benchmarks. Their mean rises from sixty point three to sixty-seven point seven. Those sizes describe this controlled comparison. The released models used a different teacher setup."
+        hold: 1
+        visual_cues:
+          - id: gemma-evidence
+            phrase: Compare the scores on the same three benchmarks
+            targets:
+              - recipe-evidence-mechanism
+            color: yellow
+      - say: "In the January twenty twenty-five DeepSeek R one report, the smaller Qwen and Llama models train on selected responses. About six hundred thousand reasoning examples and two hundred thousand general examples make up the training set. Read the two results for the thirty-two-billion-parameter Qwen student. The AIME number estimates success on a single sampled answer. A majority vote over sixty-four answers measures something else. The sampling temperature, top p, and generation length shown here are part of that comparison."
+        hold: 1
+        visual_cues:
+          - id: r1-dataset
+            phrase: six hundred thousand reasoning examples and two hundred thousand general examples
+            targets:
+              - recipe-evidence-mechanism
+            color: yellow
+          - id: r1-evidence
+            phrase: Read the two results
+            targets:
+              - recipe-evidence-mechanism
+            color: yellow
+      - say: "Orca learns from written explanations. Phi one point five pretrains on a mixture that includes synthetic textbook-like material. Gemma two uses teacher probabilities. Even within GKD, the preferred loss can change with the task. Generalized Jensen-Shannon choices worked well in its smaller-student translation experiments. Its main on-policy arithmetic comparison used forward KL. When you borrow a result, take its training signal, model family, decoding settings, and evaluation budget with it."
+        hold: 1
+  - id: transfer
+    title: "How far does one fitted prefix take us?"
+    visual: "Forty logit updates bring the student toward the teacher at a single prefix. Its KL is paired with the still-open evaluation on other cases."
+    beats:
+      - say: "Return to “The child saw a.” We can replay the four-word example for forty updates. Keep an eye on cat. The student started out making it the favorite. Its share now moves toward the teacher’s on this prefix."
+        hold: 0.7
+        visual_cues:
+          - id: transfer-b1-1
+            phrase: "forty updates"
+            targets: [information-path]
+      - say: "The small K L below belongs to that one prefix. If you want to teach relative probabilities, check alignment. If the teacher supplies only text, verify the chosen answer. If the student goes somewhere new, get the teacher’s distribution there. Each decision changes the evidence available to the student."
+        hold: 0.7
+        visual_cues:
+          - id: transfer-b2-1
+            phrase: "small K L below"
+            targets: [student-gradient]
+      - say: "Choose the behavior you need on the device. Compare the model you started with, a student trained on trusted answers, your distilled student, and the teacher. A smaller checkpoint earns its place when the behavior and the cost measured on fresh requests meet the deployment requirements."
+        hold: 0.65
+        visual_cues:
+          - id: transfer-b3-1
+            phrase: "fresh requests"
+            targets: [student-gradient]
+  - id: capacity
+    title: "Where does the student lose ground?"
+    visual: "Held-out accuracy within three slices is drawn on common rulers. The teacher and student separate by different amounts even though the checkpoints stay fixed."
+    beats:
+      - say: "Give the distilled student and the teacher held-out requests from three slices. These are assigned accuracy rates. On familiar kinds of prefixes, the student finishes just one percentage point behind the teacher. Now change the wording. The gap grows to twenty points. Try a new subject. Which slice has the largest accuracy gap?"
+        hold: 2.1
+        visual_cues:
+          - id: capacity-fresh
+            phrase: "Now change the wording"
+            targets: [held-out-rates]
+          - id: capacity-subject
+            phrase: "Try a new subject"
+            targets: [held-out-rates]
+      - say: "The new subject has the widest gap, thirty-three points. Pull examples from that slice. Compare the starting checkpoint and a student trained on trusted answers with the same budget. Check the teacher targets and the student’s context window. These rates tell us where to look. A matched comparison can help tell us why."
+        hold: 0.8
+        visual_cues:
+          - id: capacity-gap
+            phrase: "thirty-three points"
+            targets: [held-out-rates]
+      - say: "Set the mixture of hard labels and teacher targets on development data. Keep a separate final evaluation and match the decoding budgets. Report response lengths, sample counts, and uncertainty. Count the cost of generating or scoring teacher data, training the student, storing a cache, or fitting a projection. Then measure serving cost and latency on the device you intend to use. Even two models of the same size can take different amounts of time to answer."
+        hold: 0.8
+  - id: fresh-distillation
+    title: "Which student can serve these requests?"
+    visual: "A fresh prefix gets a teacher marker per token. Two candidate reports then share three passing measurements and count errors on the same independent policy slice."
+    beats:
+      - say: "One more prefix. The student has written “beside.” Here we allow three next tokens. The student starts with zero scores and gives each word one third. Ask the teacher about this exact prefix. With temperature one and a learning rate of six tenths, which word’s score should rise most? Look for the teacher tick farthest above its student bar. That’s garden. Read the scores from left to right. After one update the new logits are minus point zero eight, point one zero and minus point zero two. The bars still show the old probabilities. Softmax gives about point three zero seven, point three six seven and point three two six."
+        hold: 2.4
+        caption_starts: ["That’s garden", "the new logits are", "Softmax gives about"]
+        visual_cues:
+          - id: fresh-target
+            phrase: "Ask the teacher about this exact prefix"
+            targets: [fresh-words]
+          - id: fresh-garden
+            phrase: "That’s garden"
+            targets: [fresh-words]
+          - id: fresh-logits
+            phrase: "the new logits are minus point zero eight, point one zero and minus point zero two"
+            targets: [fresh-words]
+          - id: fresh-probability
+            phrase: "Softmax gives about point three zero seven, point three six seven and point three two six"
+            targets: [fresh-words]
+      - say: "Why did garden gain the most? The teacher gave it half the mass and the student started at a third. Six tenths of that gap added one tenth to its score. The other two scores fell. After normalization, garden gets about thirty-seven percent. That was one update on one visited prefix."
+        hold: 0.85
+      - say: "Return to the policy assistant. Alder and Birch are two candidate students. These exercise reports give them the same checked accuracy, latency, and monthly serving cost. Look across the top. Each value sits beside its release requirement. The dots below stand for a separate set of one hundred held-out policy cases."
+        hold: 0.65
+      - say: "Both candidates clear checked accuracy, latency, and monthly cost. One separate rule allows at most one policy error in a hundred held-out policy cases. Here are the errors for each student. Which candidate clears all four requirements?"
+        hold: 2.8
+        visual_cues:
+          - id: fresh-errors
+            phrase: "Here are the errors for each student"
+            targets: [release-slice]
+      - say: "Only Birch. Its one error is right on the allowed boundary. Alder made three errors where the same limit allows one. Hold Alder. To investigate, compare the original student and the trusted training targets on a separate development set of policy exceptions. That helps distinguish a copied answer from an error the student already made. Keep the final holdout for the next release decision."
+        hold: 1.25
+        visual_cues:
+          - id: fresh-release
+            phrase: "Only Birch"
+            targets: [release-slice]
+      - say: "In the opening, the student matched the teacher exactly. The independent policy rule showed why seven days was still the wrong answer. The next lesson builds a model around a bounded decision like this one and checks its scores against labeled incidents."
+        hold: 1.1

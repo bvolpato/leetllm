@@ -1,0 +1,220 @@
+version: 1
+lesson: continuous-batching
+promise: Construct one per-request scheduling trace under seat, work and physical-state limits, preserve
+  accepted output through pause/resume, and choose an evidence-backed SLO operating point.
+framing:
+  - intro
+objectives:
+  - id: schedule
+    can: Count useful decode steps in a fixed or refilled batch and identify the first boundary when a waiting request can run.
+    scenes:
+      - iterations
+      - static
+      - refill
+      - scheduler
+  - id: budgets
+    can: Count all scheduled input positions, check seat and page limits, and order page reuse after prior reads, writes and transfers. Restore saved state before decode.
+    scenes:
+      - prefill
+      - memory
+      - physical-pages
+      - projected-growth
+      - speculative-work
+      - transfer
+      - fresh-admission
+  - id: fairness
+    can: Compare arrival order with a fit scan, identify who keeps waiting, and resume a paused stream without duplicating output.
+    scenes:
+      - queue-policies
+      - fitting-and-fairness
+      - recompute-history
+      - fresh-admission
+  - id: service
+    can: Check each stream against its latency limits, count all offered requests, and select the highest tested passing load on comparable traffic.
+    scenes:
+      - latency
+      - slo-completions
+      - load-operating-point
+      - state-handoff
+      - overload-and-health
+  - id: handoff
+    can: Identify the prompt state and sampled token the decoder needs, then compare first-token delay and the next gap on the client clock.
+    scenes:
+      - state-handoff
+sections:
+  - heading: Why LLM batches don't stay the same shape
+    status: taught
+    scenes:
+      - iterations
+      - static
+      - refill
+  - heading: "Continuous batching: schedule every iteration"
+    status: taught
+    scenes:
+      - scheduler
+      - projected-growth
+      - prefill
+      - speculative-work
+  - heading: Paged KV makes freed memory reusable
+    status: taught
+    scenes:
+      - memory
+      - physical-pages
+  - heading: Prefill and decode fight over the same step
+    status: taught
+    scenes:
+      - iterations
+      - prefill
+      - latency
+  - heading: Prefill (prompt processing)
+    status: taught
+    scenes:
+      - iterations
+      - prefill
+  - heading: Decode (token generation)
+    status: taught
+    scenes:
+      - iterations
+      - latency
+  - heading: Who gets the next seat
+    status: taught
+    scenes:
+      - queue-policies
+      - fitting-and-fairness
+  - heading: First-come-first-served (FCFS)
+    status: taught
+    scenes:
+      - queue-policies
+      - fitting-and-fairness
+  - heading: Shortest-job-first (SJF)
+    status: taught
+    scenes:
+      - queue-policies
+  - heading: Decode-first and priority
+    status: taught
+    scenes:
+      - queue-policies
+      - fitting-and-fairness
+  - heading: Preemption when KV is full
+    status: taught
+    scenes:
+      - projected-growth
+      - recompute-history
+      - fresh-admission
+  - heading: Continuous batching times speculative decoding
+    status: taught
+    scenes:
+      - speculative-work
+  - heading: Serving engines
+    status: article-only
+    reason: vendor-detail
+    note: The changing product/research feature matrix remains a reference. Its core iteration, prefix/page,
+      chunking and phase-splitting mechanisms are taught in full.
+  - heading: Throughput vs goodput
+    status: taught
+    scenes:
+      - slo-completions
+      - load-operating-point
+  - heading: Turn a mixed-load trace into an operating point
+    status: taught
+    scenes:
+      - load-operating-point
+      - overload-and-health
+  - heading: Chunked prefill keeps streams moving
+    status: taught
+    scenes:
+      - prefill
+      - latency
+  - heading: Disaggregated prefill and decode
+    status: taught
+    scenes:
+      - state-handoff
+  - heading: Read the failure signature
+    status: taught
+    scenes:
+      - overload-and-health
+      - load-operating-point
+      - state-handoff
+  - heading: What to carry into a serving design
+    status: taught
+    scenes:
+      - transfer
+      - fresh-admission
+  - heading: Run a mixed-load trace
+    status: taught
+    scenes:
+      - load-operating-point
+      - slo-completions
+  - heading: Follow-up questions
+    status: article-only
+    reason: exercise
+    note: Independent follow-up questions and rubric assess the complete mechanisms taught by the film.
+  - heading: Evaluation rubric
+    status: article-only
+    reason: exercise
+    note: Independent follow-up questions and rubric assess the complete mechanisms taught by the film.
+quiz:
+  - n: 1
+    status: taught
+    scenes:
+      - static
+      - refill
+  - n: 2
+    status: taught
+    scenes:
+      - scheduler
+      - memory
+      - projected-growth
+      - physical-pages
+  - n: 3
+    status: taught
+    scenes:
+      - projected-growth
+  - n: 4
+    status: taught
+    scenes:
+      - prefill
+  - n: 5
+    status: taught
+    scenes:
+      - queue-policies
+      - fitting-and-fairness
+      - latency
+  - n: 6
+    status: taught
+    scenes:
+      - recompute-history
+      - fresh-admission
+  - n: 7
+    status: taught
+    scenes:
+      - slo-completions
+      - load-operating-point
+  - n: 8
+    status: taught
+    scenes:
+      - speculative-work
+  - n: 9
+    status: taught
+    scenes:
+      - state-handoff
+  - n: 10
+    status: taught
+    scenes:
+      - load-operating-point
+removed:
+  - point: The Python simulator validates positive integer limits, rejects Boolean capacities, requires unique request IDs, and retains mutable request objects.
+    reason: The article demonstrates these API checks in code. The film uses the same two-page example to show the admission limit and the reservation that forces preemption.
+reviews:
+  closed_book:
+    script: 7905b7773b7caef5
+    taught: 10
+    partial: 0
+    absent: 0
+    reviewer: /root/upgrade_shard5
+    evidence: build/video-delivery-20261106/script-reviews/continuous-batching.json
+  fact_check:
+    script: 7905b7773b7caef5
+    open_findings: 0
+    reviewer: /root/upgrade_shard5
+    evidence: build/video-delivery-20261106/script-reviews/continuous-batching.json

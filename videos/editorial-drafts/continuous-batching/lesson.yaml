@@ -1,0 +1,1119 @@
+version: 1
+id: continuous-batching
+title: Keeping a Model Server Busy
+source: fundamentals/continuous-batching-request-scheduling/content.md
+voice: en-US-AndrewNeural
+rate: +0%
+sources:
+  - title: Yu et al. Orca
+    url: https://www.usenix.org/conference/osdi22/presentation/yu
+  - title: Kwon et al. Efficient Memory Management for Large Language Model Serving
+      with PagedAttention
+    url: https://arxiv.org/abs/2309.06180
+  - title: Zhong et al. DistServe
+    url: https://arxiv.org/abs/2401.09670
+  - title: Sarathi-Serve
+    url: https://arxiv.org/abs/2403.02310
+  - title: vLLM optimization
+    url: https://docs.vllm.ai/en/latest/configuration/optimization/
+  - title: vLLM disaggregated prefill
+    url: https://docs.vllm.ai/en/latest/features/disagg_prefill/
+  - title: Published Qwen3.6-27B geometry
+    url: https://huggingface.co/Qwen/Qwen3.6-27B
+scenes:
+  - id: intro
+    title: A short reply can leave an empty seat
+    visual: Three requests of different lengths share a model; one finishes and a
+      waiting request enters its freed slot.
+    beats:
+      - say: One person asks for a short definition. Another asks for a paragraph. A
+          third wants a long explanation. A language-model server handles these
+          requests together, but their answers finish at different times. What
+          should happen to the seat freed by the shortest reply?
+        visual_cues:
+          - id: mixed-requests
+            phrase: these requests together
+            targets:
+              - intro-readout
+            color: blue
+          - id: finished-seat
+            phrase: seat freed by the shortest reply
+            targets:
+              - intro-readout-2
+            color: yellow
+        hold: 0.6
+      - say: Continuous batching lets the server rebuild its active set at generation
+          boundaries. A waiting request can join while longer replies continue.
+          The useful idea is to schedule the next unit of work instead of
+          treating a whole batch of conversations as inseparable.
+        visual_cues:
+          - id: admit-replacement
+            phrase: A waiting request can join
+            targets:
+              - intro-readout
+            color: green
+          - id: generation-boundary
+            phrase: generation boundaries
+            targets:
+              - intro-next-boundary-retire-finished-admit-fitting-work
+            color: yellow
+        hold: 0.6
+      - say: "We will simulate a server with three seats, first holding them for a
+          static batch and then refilling them. After the arithmetic is clear,
+          we will add the two constraints the simple picture leaves out:
+          prompt-processing work and memory for each growing conversation."
+        visual_cues:
+          - id: three-seats
+            phrase: three seats
+            targets:
+              - intro-readout
+            color: blue
+          - id: work-state-budgets
+            phrase: prompt-processing work and memory
+            targets:
+              - intro-next-boundary-retire-finished-admit-fitting-work
+            color: yellow
+        hold: 0.8
+  - id: iterations
+    title: Generation creates repeated scheduling opportunities
+    visual: Prompt prefill establishes initial state; repeated decode steps extend
+      each visible request by one token.
+    beats:
+      - say: Before ordinary decoding begins, prefill processes a request’s prompt and
+          creates attention key and value state. Its final logits can supply the
+          first output token. Subsequent decode steps consume the growing
+          history and produce the next output one token at a time.
+        visual_cues:
+          - id: prompt-prefill
+            phrase: prefill processes a request’s prompt
+            targets:
+              - prompt-input
+            color: blue
+          - id: retained-state
+            phrase: creates attention key and value state
+            targets:
+              - resident-kv
+            color: cyan
+          - id: decode-step
+            phrase: Subsequent decode steps
+            targets:
+              - decode-step
+            color: yellow
+        hold: 0.6
+      - say: Each request maintains its own history and stops on an ending condition or
+          output limit. The server usually cannot know the final answer length
+          in advance. This makes mixed-length generation fundamentally different
+          from a fixed-shape inference task that finishes in one pass.
+        visual_cues:
+          - id: request-history
+            phrase: maintains its own history
+            targets:
+              - resident-kv
+            color: cyan
+          - id: output-boundary
+            phrase: stops on an ending condition
+            targets:
+              - decode-step
+            color: yellow
+        hold: 0.6
+      - say: Our first simulation starts after prefill, with replacement requests
+          already ready to decode. Each active request advances once per
+          iteration. These iterations count work opportunities rather than
+          milliseconds; a real iteration’s duration depends on the requests and
+          kernels sharing it.
+        visual_cues:
+          - id: ready-decode
+            phrase: starts after prefill
+            targets:
+              - prompt-prefill
+            color: blue
+          - id: iteration-advance
+            phrase: advances once per iteration
+            targets:
+              - decode-step
+            color: green
+        hold: 0.8
+  - id: static
+    title: Count useful work in a fixed batch
+    visual: Requests A,B,C require 2,4,6 iterations; three slot rows reveal 12
+      useful seat-steps out of18.
+    beats:
+      - say: The first three requests need two, four, and six remaining decode
+          iterations. A static batch reserves all three seats until the longest
+          finishes. Follow the short request as its final token arrives, then
+          notice the empty seat beside the continuing streams.
+        visual_cues:
+          - id: static-seats
+            phrase: reserves all three seats until the longest finishes
+            targets:
+              - decode-grid
+            color: blue
+          - id: empty-seat
+            phrase: notice the empty seat
+            targets:
+              - decode-grid
+            color: yellow
+        hold: 0.6
+      - say: Across six iterations, the group reserves eighteen seat-steps and produces
+          twelve useful output tokens. The occupancy fraction on screen counts
+          request-shaped seats doing useful work. It is a scheduling measure,
+          and it does not directly measure tensor-core occupancy or hardware
+          utilization.
+        visual_cues:
+          - id: seat-accounting
+            phrase: eighteen seat-steps and produces twelve useful output tokens
+            targets:
+              - static-readout
+            color: yellow
+          - id: useful-occupancy
+            phrase: seats doing useful work
+            targets:
+              - decode-grid
+            color: green
+        hold: 0.6
+      - say: Pause at the first empty seat. There is already another request waiting
+          with ready state. If the engine can change the batch at this boundary,
+          that seat could produce another useful token on the next iteration
+          while the long request continues.
+        visual_cues:
+          - id: first-empty
+            phrase: Pause at the first empty seat
+            targets:
+              - decode-grid
+            color: yellow
+          - id: next-opportunity
+            phrase: another useful token on the next iteration
+            targets:
+              - decode-grid
+            color: green
+        hold: 0.8
+  - id: refill
+    title: Replace finished requests at the next boundary
+    visual: A computed continuous schedule admits D at iteration3 and E at
+      iteration5, preserving unfinished B,C histories.
+    beats:
+      - say: Run the same first requests again. After the second iteration, retire the
+          completed request and admit the waiting one into its slot. At the next
+          completion boundary, another waiting request can join. Each continuing
+          request keeps its own state and output history.
+        visual_cues:
+          - id: refill-seat
+            phrase: retire the completed request and admit the waiting one
+            targets:
+              - decode-grid
+            color: green
+          - id: continuing-identity
+            phrase: Each continuing request keeps its own state
+            targets:
+              - decode-grid
+            color: blue
+        hold: 0.6
+        motion_check:
+          region:
+            - 350
+            - 420
+            - 1230
+            - 400
+          minimumChangedFraction: 0.002
+      - say: In our six-iteration window, D needs five decode iterations and E needs
+          four. The active sets are A B C twice, D B C twice, then D E C twice, so the
+          ready replacements fill every seat and produce eighteen useful tokens. More
+          useful tokens are produced within the same number of abstract iterations.
+          This isolates the refill opportunity while deliberately leaving prompt
+          processing and variable iteration cost outside the simplified comparison.
+        visual_cues:
+          - id: full-seats
+            phrase: replacements fill every seat
+            targets:
+              - decode-grid
+            color: green
+          - id: useful-token-count
+            phrase: More useful tokens are produced
+            targets:
+              - static-readout
+            color: yellow
+        hold: 0.6
+      - say: "The active set now changes over time. Trace an individual request through
+          the row changes: its generated count advances once each time it is
+          scheduled, and a finished request never returns. Those state
+          transitions are the scheduler’s basic correctness contract."
+        visual_cues:
+          - id: request-trace
+            phrase: Trace an individual request
+            targets:
+              - decode-grid
+            color: blue
+          - id: finished-once
+            phrase: a finished request never returns
+            targets:
+              - decode-grid
+            color: green
+        hold: 0.8
+  - id: scheduler
+    title: Retire, admit, reserve, then execute
+    visual: An arrival trace and three active slots show retire-and-admit decisions
+      under a fixed seat limit; this trace assumes ready compatible KV fits.
+    beats:
+      - say: At a safe iteration boundary, collect completed or canceled requests and
+          release state whose readers have finished. Then consider waiting
+          requests that fit the sequence, token, and memory budgets. Reserve the
+          state required by the next scheduled work before launching that work.
+        visual_cues:
+          - id: iteration-boundary
+            phrase: safe iteration boundary
+            targets:
+              - scheduler-readout
+            color: yellow
+          - id: fitting-request
+            phrase: waiting requests that fit
+            targets:
+              - scheduler-readout-2
+            color: blue
+        hold: 0.6
+      - say: E arrives after three completed iterations, waits while all three seats are
+          occupied in iteration four, and joins iteration five after B finishes. An
+          arrival does not interrupt an active forward pass; admission waits for a
+          decision boundary and available capacity. A real asynchronous engine also
+          needs to handle late results and cancellation without returning duplicate or
+          unwanted output.
+        visual_cues:
+          - id: later-arrival
+            phrase: E arrives after three completed iterations
+            targets:
+              - scheduler-readout-3
+            color: yellow
+          - id: admission-boundary
+            phrase: a decision boundary and available capacity
+            targets:
+              - scheduler-readout-4
+            color: green
+        hold: 0.6
+      - say: If no suitable request fits, an empty seat can be the correct decision. A
+          scheduler cannot create missing memory by changing a priority number.
+          It may wait, choose another fitting request, or apply a declared
+          preemption policy with its own recomputation or transfer cost.
+        visual_cues:
+          - id: empty-correct
+            phrase: an empty seat can be the correct decision
+            targets:
+              - scheduler-readout-4
+            color: yellow
+          - id: request-fits
+            phrase: another fitting request
+            targets:
+              - scheduler-readout-2
+            color: green
+        hold: 0.8
+  - id: queue-policies
+    title: A shorter average can conceal an older request waiting
+    visual: The same request identities, accepted tokens and resource ledger persist
+      while one scheduling choice changes the next legal operation.
+    beats:
+      - say: Compare three known-length jobs on one serial worker, all ready at time
+          zero, without preemption. In arrival order they take fifty, five and
+          twenty abstract steps. Completion times are fifty, fifty-five and
+          seventy-five, averaging sixty. An oracle shortest-first order gives
+          five, twenty-five and seventy-five, averaging thirty-five. This
+          isolates the ordering theorem; it is not a constant-cost model of
+          co-batched GPU iterations.
+        hold: 0.8
+        visual_cues:
+          - id: queue-policies-b1
+            phrase: Compare three known-length jobs on one serial worker, all ready at time
+              zero, without preemption
+            targets:
+              - queue-policies-mechanism
+            linger: 0.8
+          - id: queue-fcfs
+            phrase: In arrival order they take fifty, five and twenty abstract steps.
+              Completion times are fifty, fifty-five and seventy-five, averaging
+              sixty
+            targets:
+              - queue-policies-mechanism
+            linger: 0.8
+          - id: queue-sjf
+            phrase: An oracle shortest-first order gives five, twenty-five and seventy-five,
+              averaging thirty-five
+            targets:
+              - queue-policies-mechanism
+            linger: 0.8
+      - say: Real final output lengths are unknown. Estimated service cost also depends
+          on prompt work, context and batch composition; an output cap is not
+          the actual remaining length. First-come-first-served is predictable
+          but can block fitting work behind a large head. Shortest-first can
+          improve a mean while a stream of short jobs starves a long one. Retain
+          p ninety-nine and maximum wait by class, rather than measuring only
+          the winning class.
+        hold: 0.8
+        visual_cues:
+          - id: queue-policies-b2
+            phrase: Real final output lengths are unknown
+            targets:
+              - queue-policies-mechanism
+            linger: 0.8
+      - say: "Priority and decode-first express a service policy, not extra capacity.
+          Age waiting work, reserve admission opportunities or enforce tenant
+          shares while respecting token and memory budgets. State which priority
+          convention is used: this article fixture treats larger integers as
+          more urgent, whereas the cited v L L M priority queue uses smaller
+          values first with arrival-order ties. Translate the convention and
+          verify the installed engine."
+        hold: 0.8
+        visual_cues:
+          - id: queue-policies-b3
+            phrase: Priority and decode-first express a service policy, not extra capacity
+            targets:
+              - queue-policies-mechanism
+            linger: 0.8
+  - id: fitting-and-fairness
+    title: Use the free page without hiding the oldest request
+    visual: The same request identities, accepted tokens and resource ledger persist
+      while one scheduling choice changes the next legal operation.
+    beats:
+      - say: Two of three pages remain owned by a resident stream. The oldest waiting
+          request needs two pages; a later one needs one. Strict head order
+          admits neither. Scanning the queue can admit the one-page request into
+          the single free page. Four successive small arrivals can each finish
+          while the older request still waits. Count both four completions and
+          that unresolved wait.
+        hold: 0.8
+        visual_cues:
+          - id: fitting-and-fairness-b1
+            phrase: Two of three pages remain owned by a resident stream
+            targets:
+              - fitting-and-fairness-mechanism
+            linger: 0.8
+          - id: fairness-four
+            phrase: Four successive small arrivals can each finish
+            targets:
+              - fitting-and-fairness-mechanism
+            linger: 0.8
+      - say: Raising the older request priority cannot create its missing page. Either
+          wait for another page, preserve capacity as it becomes free, or
+          preempt resident work under a declared policy. Compare replay or
+          transfer cost with the class deadline. A rejected or expired request
+          remains in the offered-load denominator; an infeasible deadline does
+          not become feasible through priority.
+        hold: 0.8
+        visual_cues:
+          - id: fitting-and-fairness-b2
+            phrase: Raising the older request priority cannot create its missing page
+            targets:
+              - fitting-and-fairness-mechanism
+            linger: 0.8
+  - id: prefill
+    title: A prompt competes with live decode work
+    visual: Three live decode tokens reserve part of a 12-position budget; a
+      20-token prompt enters as chunks9,9,2.
+    beats:
+      - say: Now restore prefill to the picture. A new long prompt may require many
+          input positions, while each ordinary live decode stream needs one.
+          Mixing the entire prompt into a step can make every current stream
+          wait longer for its next output token.
+        visual_cues:
+          - id: long-prompt
+            phrase: many input positions
+            targets:
+              - prefill-prompt-chunk
+            color: yellow
+          - id: one-per-stream
+            phrase: live decode stream needs one
+            targets:
+              - prefill-live-decodes
+            color: cyan
+        hold: 0.6
+      - say: A per-step token budget can bound admitted work. Our authored budget is
+          twelve positions. Three live decodes leave nine positions for a chunk
+          of the waiting prompt. The remaining prompt positions continue in
+          later chunks, provided the engine supports the necessary attention
+          state.
+        visual_cues:
+          - id: input-budget
+            phrase: budget is twelve positions
+            targets:
+              - prefill-work-slots
+            color: blue
+          - id: chunk-prompt
+            phrase: nine positions for a chunk of the waiting prompt
+            targets:
+              - prefill-prompt-chunk
+            color: yellow
+          - id: later-chunks
+            phrase: remaining prompt positions continue in later chunks
+            targets:
+              - prefill-readout-6
+            color: green
+        hold: 0.6
+      - say: Token counts still do not specify wall-clock duration. The work differs
+          between prefill and decode, and batch shape affects execution. Measure
+          the next-token gaps seen by existing users together with the
+          first-token wait seen by newly arriving users.
+        visual_cues:
+          - id: input-work
+            phrase: work differs between prefill and decode
+            targets:
+              - prefill-work-slots
+            color: blue
+          - id: per-user-gaps
+            phrase: next-token gaps seen by existing users
+            targets:
+              - prefill-live-decodes
+            color: cyan
+        hold: 0.8
+  - id: memory
+    title: Every growing history needs state
+    visual: KV block counts grow; finishing A releases its exclusive blocks, which
+      are then labeled as newly admitted request D.
+    beats:
+      - say: Attention caches keys and values for the history so that decoding can reuse
+          earlier work. In full-attention layers, cached state grows with the number
+          of processed positions. Sliding-window and recurrent layers follow different
+          rules, and paged storage grows at allocation boundaries. Scheduling
+          therefore needs a memory budget alongside its seat and per-step work
+          budgets.
+        visual_cues:
+          - id: growing-state
+            phrase: cached state grows with the number of processed positions
+            targets:
+              - memory-readout-2
+            color: cyan
+          - id: state-budget
+            phrase: memory budget
+            targets:
+              - memory-readout
+            color: yellow
+        hold: 0.6
+      - say: Paging divides that state into fixed-size blocks and maps logical positions
+          to physical pages. A newly admitted request can use separated free
+          pages when the attention kernel supports that layout. Iteration-level
+          scheduling can also use other compatible allocation schemes.
+        visual_cues:
+          - id: physical-pages
+            phrase: fixed-size blocks
+            targets:
+              - memory-readout-2
+            color: blue
+          - id: independent-pages
+            phrase: separated free pages
+            targets:
+              - memory-readout-2
+            color: green
+        hold: 0.6
+      - say: When a request finishes, exclusively owned pages can return to the free
+          pool after in-flight readers are done. Shared prefix pages need
+          reference tracking. Preempting by recomputation preserves already
+          emitted output while later rebuilding its state; resumption must avoid
+          sampling or delivering those tokens again.
+        visual_cues:
+          - id: retire-pages
+            phrase: exclusively owned pages can return
+            targets:
+              - memory-readout-2
+            color: green
+          - id: shared-references
+            phrase: Shared prefix pages need reference tracking
+            targets:
+              - memory-readout-3
+            color: yellow
+        hold: 0.8
+  - id: physical-pages
+    title: Logical histories retain physical ownership and final-block slack
+    visual: The same request identities, accepted tokens and resource ledger persist
+      while one scheduling choice changes the next legal operation.
+    beats:
+      - say: Use an eight-page physical pool. C owns pages two, three and four; B owns
+          page five. Free pages zero, one, six and seven form two short holes. A
+          new three-page D cannot fit contiguously, but a block table can map
+          its logical pages zero, one and two to physical zero, one and six.
+          Page seven remains free. B and C keep their exact page identities.
+        hold: 0.8
+        visual_cues:
+          - id: physical-pages-b1
+            phrase: Use an eight-page physical pool
+            targets:
+              - physical-pages-mechanism
+            linger: 0.8
+          - id: physical-map
+            phrase: physical zero, one and six
+            targets:
+              - physical-pages-mechanism
+            linger: 0.8
+      - say: "Fixed pages still round each sequence separately. For lengths seventeen,
+          thirty-one, forty-eight and sixty-five with sixteen-token blocks,
+          reservations are thirty-two, thirty-two, forty-eight and eighty: one
+          hundred ninety-two slots. The one hundred sixty-one live tokens leave
+          thirty-one slots slack. Free only exclusive pages after readers
+          finish; shared-prefix reference counts and cache-retention policy
+          decide when a shared page can return."
+        hold: 0.8
+        visual_cues:
+          - id: physical-pages-b2
+            phrase: Fixed pages still round each sequence separately
+            targets:
+              - physical-pages-mechanism
+            linger: 0.8
+      - say: The supplied hybrid geometry has sixteen full-attention layers, four K V
+          heads, head dimension two hundred fifty-six and two-byte values. Two
+          times those factors gives sixty-four kibibytes per token; four
+          thousand ninety-six tokens need a quarter gibibyte of attention K V.
+          Separate recurrent layers, weights, workspace and block rounding add
+          memory. Replacing four K V heads with twenty-four would multiply this
+          attention payload by six; query heads do not create those extra K V
+          copies in grouped-query attention.
+        hold: 0.8
+        visual_cues:
+          - id: physical-pages-b3
+            phrase: The supplied hybrid geometry has sixteen full-attention layers, four K V
+              heads, head dimension two hundred fifty-six and two-byte values
+            targets:
+              - physical-pages-mechanism
+            linger: 0.8
+  - id: projected-growth
+    title: Reserve the next state before launching a pass
+    visual: The same request identities, accepted tokens and resource ledger persist
+      while one scheduling choice changes the next legal operation.
+    beats:
+      - say: The executable scheduler is CPU bookkeeping, not a model engine. It assumes
+          prompt processing and swap transfers complete at admission and stores
+          block counts rather than tensors. Capacities and token limits are
+          positive integers, Boolean capacities are rejected, and request IDs
+          are unique. It conservatively rejects a maximum history that cannot
+          fit even alone. Its mutable request objects must not be edited behind
+          the accounting.
+        hold: 0.8
+        visual_cues:
+          - id: projected-growth-b1
+            phrase: The executable scheduler is CPU bookkeeping, not a model engine
+            targets:
+              - projected-growth-mechanism
+            linger: 0.8
+      - say: In its supplied pressure fixture, urgent and background each start with a
+          sixteen-token prompt and one sixteen-position block. One more reserved
+          position needs two blocks per request, projecting four blocks against
+          a two-block pool. Preempt the lower-priority background, release its
+          exclusive block, reserve two for urgent and only then run. Urgent
+          completes; the paused background can resume. The final pool returns to
+          zero after one preemption.
+        hold: 0.8
+        visual_cues:
+          - id: projected-growth-b2
+            phrase: In its supplied pressure fixture, urgent and background each start with
+              a sixteen-token prompt and one sixteen-position block
+            targets:
+              - projected-growth-mechanism
+            linger: 0.8
+          - id: growth-preempt
+            phrase: Preempt the lower-priority background
+            targets:
+              - projected-growth-mechanism
+            linger: 0.8
+      - say: This fixture reserves capacity for the output ahead of the pass; an
+          ordinary decoder creates that output token K V when it consumes the
+          token in the following pass. Keep the convention explicit. Reject a
+          second schedule call while a pass is in flight. Cancellation marks
+          intent immediately, but state reuse waits for readers and the safe
+          boundary; suppress any late canceled output. Shared pages need
+          ownership tracking beyond these CPU counts.
+        hold: 0.8
+        visual_cues:
+          - id: projected-growth-b3
+            phrase: This fixture reserves capacity for the output ahead of the pass; an
+              ordinary decoder creates that output token K V when it consumes
+              the token in the following pass
+            targets:
+              - projected-growth-mechanism
+            linger: 0.8
+  - id: recompute-history
+    title: Replay accepted history without sampling or emitting it again
+    visual: The same request identities, accepted tokens and resource ledger persist
+      while one scheduling choice changes the next legal operation.
+    beats:
+      - say: A request has prompt I Ds one hundred one, one hundred two and one hundred
+          three. Accepted output I Ds two hundred one and two hundred two have
+          already reached the client. The cache contains the prompt and two
+          hundred one; the newest sampled two hundred two has not yet been
+          consumed as input. Accepted output and computed cache positions are
+          different ledgers.
+        hold: 0.8
+        visual_cues:
+          - id: recompute-history-b1
+            phrase: A request has prompt I Ds one hundred one, one hundred two and one
+              hundred three
+            targets:
+              - recompute-history-mechanism
+            linger: 0.8
+      - say: Preemption by recomputation discards those four cached positions but
+          preserves both accepted outputs. Replay one hundred one, one hundred
+          two, one hundred three and two hundred one to rebuild cache, without
+          sampling or emitting any replayed token. Then consume two hundred two
+          as the next decode input. Replaying a different model, position
+          mapping or adapter changes the computation; preserve the relevant
+          sampling state too.
+        hold: 0.8
+        visual_cues:
+          - id: recompute-history-b2
+            phrase: Preemption by recomputation discards those four cached positions but
+              preserves both accepted outputs
+            targets:
+              - recompute-history-mechanism
+            linger: 0.8
+          - id: history-drop
+            phrase: discards those four cached positions
+            targets:
+              - b-history-kv
+            linger: 0.8
+          - id: history-replay
+            phrase: Replay one hundred one, one hundred two, one hundred three and two
+              hundred one to rebuild cache, without sampling or emitting any
+              replayed token
+            targets:
+              - recompute-history-mechanism
+            linger: 0.8
+          - id: history-next
+            phrase: Then consume two hundred two as the next decode input
+            targets:
+              - b-history-pending
+            linger: 0.8
+      - say: Swap-out instead transfers compatible K V to host memory and back, spending
+          transfer time and host capacity. Recompute reruns the required history,
+          including generated tokens. In full attention, each replayed position
+          attends to its preceding history, so attention work grows quadratically with
+          replay length. Elapsed time also depends on the model, chunking, kernels and
+          hardware. Frequent preemption can consume useful throughput through replay
+          or transfer. Current engine implementations differ; optional state
+          offloading and a preemption strategy are related but distinct mechanisms.
+        hold: 0.8
+        visual_cues:
+          - id: recompute-history-b3
+            phrase: Swap-out instead transfers compatible K V to host memory and back,
+              spending transfer time and host capacity
+            targets:
+              - recompute-history-mechanism
+            linger: 0.8
+  - id: speculative-work
+    title: Accepted output count does not equal verification work
+    visual: The same request identities, accepted tokens and resource ledger persist
+      while one scheduling choice changes the next legal operation.
+    beats:
+      - say: An ordinary live decode usually schedules one input position per stream.
+          Speculative verification can schedule multiple positions for one
+          request, and a fully accepted draft of width k can emit k plus one
+          outputs with a bonus. Reserve the engine required lookahead and count
+          its scheduled positions, not only the eventually accepted output
+          tokens.
+        hold: 0.8
+        visual_cues:
+          - id: speculative-work-b1
+            phrase: An ordinary live decode usually schedules one input position per stream
+            targets:
+              - speculative-work-mechanism
+            linger: 0.8
+      - say: For a supplied mixed-work ledger, a token budget of twelve contains a
+          four-position verification, two ordinary decode positions and at most
+          six prefill positions. Whether the verification ultimately accepts one
+          output or several does not retroactively remove its scheduled work.
+          This illustrates accounting; engines differ in supported mixtures and
+          verification width conventions.
+        hold: 0.8
+        visual_cues:
+          - id: speculative-work-b2
+            phrase: For a supplied mixed-work ledger, a token budget of twelve contains a
+              four-position verification, two ordinary decode positions and at
+              most six prefill positions
+            targets:
+              - speculative-work-mechanism
+            linger: 0.8
+      - say: Acceptance variation can produce uneven delivery and wasted draft work
+          while a mean time per output token looks healthy. Measure each stream
+          token gaps and the effect on neighboring requests. Continuous batching
+          decides who shares the next pass; speculative acceptance separately
+          determines which proposals become target output.
+        hold: 0.8
+        visual_cues:
+          - id: speculative-work-b3
+            phrase: Acceptance variation can produce uneven delivery and wasted draft work
+              while a mean time per output token looks healthy
+            targets:
+              - speculative-work-mechanism
+            linger: 0.8
+  - id: latency
+    title: Measure the gaps the user experiences
+    visual: Arrival and received-token timestamps reveal TTFT and individual gaps,
+      then a fairness queue shows an older blocked request.
+    beats:
+      - say: Time to first token includes queueing, prompt processing, and delivery up
+          to the first received token. After that, inter-token latency measures
+          the gaps between received tokens. An average can look acceptable even
+          when one long gap interrupts the experience.
+        visual_cues:
+          - id: first-delay
+            phrase: Time to first token
+            targets:
+              - latency-ttft-1-0-s
+            color: blue
+          - id: token-gaps
+            phrase: gaps between received tokens
+            targets:
+              - delivered-token-times
+            color: cyan
+        hold: 0.6
+      - say: In our timestamp example, the request arrives at zero and receives tokens at
+          one, one point two, one point seven and one point nine seconds. The gaps are
+          point two, point five and point two seconds. Token two to token three is the
+          one visibly longer pause hidden inside the point three-second mean. The mean time per output token
+          averages the gaps after the first token, so single-token completions need
+          separate treatment. Report distributions by request class and load rather
+          than relying on one combined average.
+        visual_cues:
+          - id: long-gap
+            phrase: one visibly longer pause
+            targets:
+              - latency-longest-shown-gap-0-50-s
+            color: yellow
+          - id: mean-gap
+            phrase: averages the gaps after the first token
+            targets:
+              - latency-mean-gap-0-30-s
+            color: cyan
+        hold: 0.6
+      - say: A queue policy can also trade short-request latency against long-request
+          waiting. Aging, reserved opportunities, and admission control can help
+          express fairness goals. Under sustained overload, rejecting or
+          expiring work may be necessary to keep the remaining requests inside
+          their service objectives.
+        visual_cues:
+          - id: older-waiting
+            phrase: long-request waiting
+            targets:
+              - latency-older-request-needs-2-blocks
+            color: yellow
+          - id: admission-limit
+            phrase: admission control
+            targets:
+              - latency-free-capacity-1-block
+            color: blue
+        hold: 0.8
+  - id: slo-completions
+    title: Preserve every offered request while filtering successful service
+    visual: The same request identities, accepted tokens and resource ledger persist
+      while one scheduling choice changes the next legal operation.
+    beats:
+      - say: The supplied ten-second window has four completions. Their first-token and
+          average token-gap pairs are one hundred twenty and twenty-five, four
+          hundred fifty and twenty-two, one hundred eighty and forty-two, and
+          one hundred ninety and twenty-seven milliseconds. With limits three
+          hundred and thirty, only the first and fourth meet both. Raw
+          completion rate is point four requests per second; observed compliant
+          rate is point two.
+        hold: 0.8
+        visual_cues:
+          - id: slo-completions-b1
+            phrase: The supplied ten-second window has four completions
+            targets:
+              - slo-completions-mechanism
+            linger: 0.8
+          - id: slo-joint
+            phrase: only the first and fourth meet both
+            targets:
+              - slo-completions-mechanism
+            linger: 0.8
+          - id: slo-rates
+            phrase: Raw completion rate is point four requests per second; observed
+              compliant rate is point two
+            targets:
+              - slo-completions-mechanism
+            linger: 0.8
+      - say: For more than one received token, T P O T equals last-token time minus
+          first-token time, divided by token count minus one. It is the mean of
+          inter-token gaps and can hide a single stutter. Single-token
+          completions need a separate convention. Define a stream acceptance
+          rule such as per-request p ninety-nine gap or a fraction of tokens
+          within the gap limit; those are different predicates.
+        hold: 0.8
+        visual_cues:
+          - id: slo-completions-b2
+            phrase: For more than one received token, T P O T equals last-token time minus
+              first-token time, divided by token count minus one
+            targets:
+              - slo-completions-mechanism
+            linger: 0.8
+      - say: One window does not establish maximum goodput. A load-sweep operating point
+          is the highest offered rate whose required fraction of requests meets
+          the joint quality and latency rules. Count rejected, timed-out,
+          canceled and invalid responses as failed offered requests. Declare the
+          observation interval and drain policy; dropping unfinished work makes
+          the denominator misleading.
+        hold: 0.8
+        visual_cues:
+          - id: slo-completions-b3
+            phrase: One window does not establish maximum goodput
+            targets:
+              - slo-completions-mechanism
+            linger: 0.8
+  - id: load-operating-point
+    title: Choose the highest passing offered load on a frozen contract
+    visual: The same request identities, accepted tokens and resource ledger persist
+      while one scheduling choice changes the next legal operation.
+    beats:
+      - say: Freeze model, tokenizer, engine and hardware, request order, realized
+          prompt and output lengths, decoding settings, warmup and measurement
+          window. Use a replay or a fixed-seed mixed distribution, such as sixty
+          percent short, thirty percent medium and ten percent long requests.
+          Keep every scheduler on the same work. Validate output, token counts
+          and error/cancellation handling before interpreting performance.
+        hold: 0.8
+        visual_cues:
+          - id: load-operating-point-b1
+            phrase: Freeze model, tokenizer, engine and hardware, request order, realized
+              prompt and output lengths, decoding settings, warmup and
+              measurement window
+            targets:
+              - load-operating-point-mechanism
+            linger: 0.8
+      - say: An open-loop client sends at prescribed arrival times rather than waiting
+          for each answer. A closed-loop client can slow its own arrivals when
+          responses become slow, concealing offered overload. Preserve scheduled
+          and actual send times when the generator falls behind. A load test
+          must expose its own queueing delay rather than silently moving
+          arrivals forward.
+        hold: 0.8
+        visual_cues:
+          - id: load-operating-point-b2
+            phrase: An open-loop client sends at prescribed arrival times rather than
+              waiting for each answer
+            targets:
+              - load-operating-point-mechanism
+            linger: 0.8
+      - say: In a new supplied sweep on a fixed two-G P U deployment, rates two, three
+          and four requests per second yield joint attainments point nine five,
+          point nine two and point eight four. If the threshold is point nine,
+          three is the highest tested passing rate, or one point five per G P U.
+          Retain the neighboring pass and fail points; repeat and refine the
+          sweep before claiming a precise capacity boundary. Measure p fifty and
+          p ninety-nine by request class, memory pressure, preemptions and
+          correctness as well as raw throughput.
+        hold: 0.8
+        visual_cues:
+          - id: load-operating-point-b3
+            phrase: In a new supplied sweep on a fixed two-G P U deployment, rates two,
+              three and four requests per second yield joint attainments point
+              nine five, point nine two and point eight four
+            targets:
+              - load-operating-point-mechanism
+            linger: 0.8
+  - id: state-handoff
+    title: Moving prefill creates a new critical-path delay
+    visual: The same request identities, accepted tokens and resource ledger persist
+      while one scheduling choice changes the next legal operation.
+    beats:
+      - say: Disaggregation assigns prefill and decode to separate workers, which may be
+          on the same node or different nodes. Match model and tokenizer
+          revisions, exact positions, cache layout and dtype, plus recurrent
+          state, or explicitly convert or reconstruct them. A connector and
+          compatible state define the handoff; a particular network transport is
+          only one implementation choice.
+        hold: 0.8
+        visual_cues:
+          - id: state-handoff-b1
+            phrase: Disaggregation assigns prefill and decode to separate workers, which may
+              be on the same node or different nodes
+            targets:
+              - state-handoff-mechanism
+            linger: 0.8
+      - say: Our quarter-gibibyte attention payload takes an ideal five milliseconds at
+          fifty gibibytes per second. At theoretical line rates of ten and
+          twenty-five gigabits per second it instead takes about two hundred
+          fifteen and eighty-six milliseconds before overhead. Convert bits to
+          bytes and use the same units. Setup, queueing, layout conversion and
+          other model state remain additional. Overlap can hide part of a
+          transfer, so measure the exposed critical path.
+        hold: 0.8
+        visual_cues:
+          - id: state-handoff-b2
+            phrase: Our quarter-gibibyte attention payload takes an ideal five milliseconds
+              at fifty gibibytes per second
+            targets:
+              - state-handoff-mechanism
+            linger: 0.8
+      - say: "Use a separate supplied serial timeline: prefill queue twenty
+          milliseconds, prefill sixty, exposed handoff forty, decode queue
+          fifteen and next decode ten. The first token can arrive at eighty;
+          decode becomes ready at one hundred thirty-five and the second token
+          at one hundred forty-five. Early delivery gives T T F T eighty and
+          first gap sixty-five. Buffering the first token until decode readiness
+          gives T T F T one hundred thirty-five and gap ten. Neither meets both
+          the ninety first-token and thirty gap limits; buffering only relocates
+          the visible delay."
+        hold: 0.8
+        visual_cues:
+          - id: state-handoff-b3
+            phrase: "Use a separate supplied serial timeline: prefill queue twenty
+              milliseconds, prefill sixty, exposed handoff forty, decode queue
+              fifteen and next decode ten"
+            targets:
+              - state-handoff-mechanism
+            linger: 0.8
+  - id: overload-and-health
+    title: A full worker needs an admission decision
+    visual: The same request identities, accepted tokens and resource ledger persist
+      while one scheduling choice changes the next legal operation.
+    beats:
+      - say: A healthy worker at capacity should defer or reject additional work under
+          policy. An abrupt restart can interrupt live streams and discard
+          worker-local cache, adding cold-start work and, through retries or
+          rerouting, load elsewhere. Draining and cache recovery policies can change
+          those effects. Engine health, readiness and present load are separate
+          observations. A genuinely failed engine must stop receiving work even when
+          its queue is empty.
+        hold: 0.8
+        visual_cues:
+          - id: overload-and-health-b1
+            phrase: A healthy worker at capacity should defer or reject additional work
+              under policy
+            targets:
+              - overload-and-health-mechanism
+            linger: 0.8
+      - say: Bound queued work, waiting deadlines and retry budgets, and preserve the
+          original deadline through retries. Immediate retry storms amplify
+          overload. An interrupted stream cannot safely append a newly sampled
+          unrelated continuation to its earlier answer. Use a supported
+          continuation contract or report interruption. Diagnose queue/prefill
+          wait, mixed-step gap, projected-state growth and exposed handoff from
+          the actual trace; one latency signature has multiple possible causes.
+        hold: 0.8
+        visual_cues:
+          - id: overload-and-health-b2
+            phrase: Bound queued work, waiting deadlines and retry budgets, and preserve the
+              original deadline through retries
+            targets:
+              - overload-and-health-mechanism
+            linger: 0.8
+  - id: transfer
+    title: Optimize useful work under explicit constraints
+    visual: The scheduling loop connects active streams, token work, KV budget, and
+      client latency into a live system map.
+    beats:
+      - say: "You can now distinguish three resources: seats for active sequences, input
+          positions admitted to an iteration, and memory for resident histories.
+          Continuous batching exposes opportunities to reuse freed capacity
+          while each request keeps a coherent token sequence."
+        visual_cues:
+          - id: sequence-seats
+            phrase: seats for active sequences
+            targets:
+              - sequence-seats
+            color: blue
+          - id: token-work
+            phrase: input positions admitted to an iteration
+            targets:
+              - token-work
+            color: yellow
+          - id: resident-memory
+            phrase: memory for resident histories
+            targets:
+              - resident-kv
+            color: cyan
+        hold: 0.6
+      - say: To evaluate a scheduler, replay a representative arrival pattern with the
+          same model and hardware. Check output correctness, then measure
+          delivered throughput, first-token delay, token-gap tails, memory
+          pressure, and wait time across request classes. Compare the offered
+          load where latency objectives still hold.
+        visual_cues:
+          - id: delivered-throughput
+            phrase: delivered throughput
+            targets:
+              - sequence-seats
+            color: blue
+          - id: memory-pressure
+            phrase: memory pressure
+            targets:
+              - resident-kv
+            color: yellow
+        hold: 0.6
+      - say: The most useful server keeps meaningful work moving at the right times. Its
+          success appears in completed requests that meet the intended
+          experience, with enough state accounting to explain every admission,
+          pause, completion, and resumed conversation.
+        visual_cues:
+          - id: completed-requests
+            phrase: completed requests
+            targets:
+              - sequence-seats
+            color: green
+          - id: state-accounting
+            phrase: enough state accounting
+            targets:
+              - resident-kv
+            color: cyan
+        hold: 0.8
+  - id: fresh-admission
+    title: Earn a new admission without losing a paused answer
+    visual: The same request identities, accepted tokens and resource ledger persist
+      while one scheduling choice changes the next legal operation.
+    beats:
+      - say: Try a fresh decode-ready boundary with three seats, eight work positions
+          and five four-token physical pages. C has five cached positions in two
+          pages; B has three in one. Two pages are free. Older D has eleven
+          ready positions and needs three pages, while later E has three and
+          needs one. Each next ordinary decode input stays inside its listed
+          allocation. Predict whether a free seat is enough to admit D, or
+          whether a fit scan can admit E.
+        hold: 0.8
+        visual_cues:
+          - id: fresh-admission-b1
+            phrase: Try a fresh decode-ready boundary with three seats, eight work positions
+              and five four-token physical pages
+            targets:
+              - fresh-admission-mechanism
+            linger: 0.8
+      - say: D cannot fit its three pages into the two free pages. Strict head order
+          holds admission; a fit scan can run E alongside B and C, within all
+          three budgets, while D still waits. More completed small work does not
+          resolve that fairness debt. Compare this policy with another choice
+          from the identical starting boundary.
+        hold: 0.8
+        visual_cues:
+          - id: fresh-admission-b2
+            phrase: D cannot fit its three pages into the two free pages
+            targets:
+              - fresh-admission-mechanism
+            linger: 0.8
+      - say: "Now apply the declared aged-request policy from that starting state:
+          preempt B after its readers finish and release its exclusive page. C
+          keeps two pages, leaving three for D. C and D schedule two ordinary
+          input positions inside the eight-position work budget. D has one
+          remaining output and finishes this pass, so its three exclusive pages
+          become reusable at the next safe boundary."
+        hold: 0.8
+        visual_cues:
+          - id: fresh-admission-b3
+            phrase: "Now apply the declared aged-request policy from that starting state:
+              preempt B after its readers finish and release its exclusive page"
+            targets:
+              - fresh-admission-mechanism
+            linger: 0.8
+          - id: fresh-d-return
+            phrase: its three exclusive pages become reusable at the next safe boundary
+            targets:
+              - fresh-admission-mechanism
+            linger: 0.8
+      - say: "B had already emitted tokens seven hundred one and seven hundred two after a two-token prompt. Before preemption its cache held the prompt and seven hundred one, while seven hundred two was the next input. Preserve both accepted outputs. Rebuild those three processed positions without emission, then consume seven hundred two and deliver only the new next token. The policy admitted the older request by paying a measured-or-modeled pause cost; it did not create extra pages or restart B's answer. Scaling inference next asks what limits that admitted batch, combining growing cache residency with the weight and history bytes every decode step must move."
+        hold: 0.8
+        visual_cues:
+          - id: fresh-admission-b4
+            phrase: B had already emitted tokens seven hundred one and seven hundred two
+              after a two-token prompt
+            targets:
+              - fresh-admission-mechanism
+            linger: 0.8
+          - id: fresh-history-replay
+            phrase: Rebuild those three processed positions without emission
+            targets:
+              - fresh-admission-mechanism
+            linger: 0.8
+          - id: fresh-only-new
+            phrase: deliver only the new next token
+            targets:
+              - fresh-b-history-emitted
+            linger: 0.8

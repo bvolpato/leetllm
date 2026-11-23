@@ -1,0 +1,710 @@
+[
+  {
+    "id": "c01",
+    "title": "Which two notes would you send?",
+    "sourceChapters": [
+      "c01"
+    ],
+    "beats": [
+      {
+        "id": "c01-b01",
+        "say": "Why was my card charged twice?",
+        "hold": 0.2
+      },
+      {
+        "id": "c01-b02",
+        "say": "Here are the four support notes on file. The assistant needs evidence for the customer's question.",
+        "hold": 0.2
+      },
+      {
+        "id": "c01-b03",
+        "say": "Which two mention both words, charged and twice?",
+        "hold": 1.6
+      },
+      {
+        "id": "c01-b04",
+        "say": "M0 and M2 match both. Keep their IDs in view. We'll follow these notes from the indexing queue to a ranked reply, then decide when another caller can reuse it.",
+        "hold": 0.8
+      }
+    ]
+  },
+  {
+    "id": "c02",
+    "title": "Where is the plan-change note?",
+    "sourceChapters": [
+      "c02"
+    ],
+    "beats": [
+      {
+        "id": "c02-b01",
+        "say": "Start with the support notes in a list of numbered slots. Slot two reaches the plan-change note directly. Its message ID belongs to the note; the slot describes its current position.",
+        "hold": 0.55
+      },
+      {
+        "id": "c02-b02",
+        "say": "Here the illustrative backing array is full. Make a larger array, copy the three references, then append the new note. Spare slots make later appends cheap; occasional copying gives amortized constant work.",
+        "hold": 0.55
+      },
+      {
+        "id": "c02-b03",
+        "say": "Insert a new reference at the front. Watch the tab for M2 as every existing reference moves one slot right. M2 now sits at slot three. A front insertion takes linear work. An index can still find this note by its stable ID.",
+        "hold": 0.65
+      }
+    ]
+  },
+  {
+    "id": "c03",
+    "title": "What does a list slot hold?",
+    "sourceChapters": [
+      "c03"
+    ],
+    "beats": [
+      {
+        "id": "c03-b01",
+        "say": "Follow the reference from slot three to the plan-change note. In CPython a list keeps its references side by side. Moving one leaves the note itself where it was. A known slot takes constant time to read. If all you have is an ID, finding its slot can take a full scan.",
+        "hold": 0.65
+      },
+      {
+        "id": "c03-b02",
+        "say": "For measurements, a cell can hold the number itself. Python's array module packs values of one basic type. A numeric tensor adds a shape and a data type for doing math across the values.",
+        "hold": 0.3
+      },
+      {
+        "id": "c03-b03",
+        "say": "Try using a list of IDs as a dictionary key. Python lists can change and are unhashable. Python rejects the list. A tuple of integer IDs can serve as a key.",
+        "hold": 0.85
+      }
+    ]
+  },
+  {
+    "id": "c04",
+    "title": "How many references move?",
+    "sourceChapters": [
+      "c04"
+    ],
+    "beats": [
+      {
+        "id": "c04-b01",
+        "say": "Count writes as the notes arrive. This example doubles capacity whenever it fills. CPython chooses its own growth factor. Fill the first three slots. The fourth arrival copies all three references and adds one. The next two arrivals use those spare slots.",
+        "hold": 0.75
+      },
+      {
+        "id": "c04-b02",
+        "say": "The seventh arrival copies six references and writes one of its own. Across the whole run, nine copies plus seven new entries make sixteen writes. As a doubling array grows, the sizes it copies form a geometric sum.",
+        "hold": 0.3
+      },
+      {
+        "id": "c04-b03",
+        "say": "Total copying grows in proportion to the number of appends. That's what amortized constant time buys you. One append can still be expensive.",
+        "hold": 0.8
+      },
+      {
+        "id": "c04-b04",
+        "say": "Now drain those seven jobs from the front. Six references slide left on the first removal. Five slide on the next. Keep taking the oldest job. Four shift, then three, then two, then one. The last job comes out alone. That's twenty-one shifts in all.",
+        "hold": 0.3
+      },
+      {
+        "id": "c04-b05",
+        "say": "For n items the shifts add up to n times the quantity n minus one, divided by two. A deque can take the oldest from its end without paying for that slide. Reaching into the middle of a deque can still take linear time.",
+        "hold": 0.9
+      },
+      {
+        "id": "c04-b06",
+        "say": "Try the same drain with fifty thousand jobs. How many references move on the first removal? Forty-nine thousand, nine hundred and ninety-nine. Sum the shrinking rows. The full drain needs more than a billion shifts just to deliver the jobs in order.",
+        "hold": 0.8
+      }
+    ]
+  },
+  {
+    "id": "c05",
+    "title": "How many notes did the search open?",
+    "sourceChapters": [
+      "c05"
+    ],
+    "beats": [
+      {
+        "id": "c05-b01",
+        "say": "Test the billing question against the four notes. A retriever finds the notes the assistant could read. Our scan lowercases the words and strips punctuation. It opens every note and counts one point for each distinct query word present. Watch which read earns nothing.",
+        "hold": 0.55
+      },
+      {
+        "id": "c05-b02",
+        "say": "The sign-in note earned no score, but the scan still read it. Repeated questions repeat that work. We can prepare a different direction of lookup before the next request.",
+        "hold": 0.55
+      }
+    ]
+  },
+  {
+    "id": "c06",
+    "title": "Start with a word",
+    "sourceChapters": [
+      "c06"
+    ],
+    "beats": [
+      {
+        "id": "c06-b01",
+        "say": "A repeated scan reopens every note. An inverted index reverses that route. File each word under its own key in a dictionary. Read the first note. Charged receives its message ID, then twice receives the same ID. Watch just those two entries.",
+        "hold": 0.55
+      },
+      {
+        "id": "c06-b02",
+        "say": "The sign-in note contributes other words. The plan-change note contains both query words, so add its ID to both collections. Each word now leads back to the notes that supplied it.",
+        "hold": 0.6
+      },
+      {
+        "id": "c06-b03",
+        "say": "The once-charged note adds its ID only to charged. Each value is a set of message IDs. A lookup keeps the original word as its key; hash collisions are resolved by comparing keys.",
+        "hold": 0.55
+      }
+    ]
+  },
+  {
+    "id": "c07",
+    "title": "Two words land in one bucket",
+    "sourceChapters": [
+      "c07"
+    ],
+    "beats": [
+      {
+        "id": "c07-b01",
+        "say": "In this two-bucket index, add up the letter codes for each word and take the remainder after division by two. Follow each sum to its bucket. Both are even, so both land in zero. The bucket holds both words.",
+        "hold": 0.65
+      },
+      {
+        "id": "c07-b02",
+        "say": "Ask for twice. In drawer zero, compare twice with charged. The strings differ, so keep looking. Now compare twice with twice. The strings match. Return the IDs beside that word. A hashable key keeps a stable hash, and equal keys must have equal hashes. Two different keys can still collide.",
+        "hold": 0.9
+      },
+      {
+        "id": "c07-b03",
+        "say": "Try storing just the bucket number as the key. First save the three IDs for charged under zero. Then write the two for twice under zero. If you ask for charged again, which note will be missing?",
+        "hold": 2.0
+      },
+      {
+        "id": "c07-b04",
+        "say": "The overwrite lost M3. Restore the saved postings under their original word keys. Charged leads to M0, M2 and M3 again. Dictionary lookup takes constant time on average with suitable hashes and bounded key costs. Many collisions can force a linear search, and hashing a long new string takes work of its own.",
+        "hold": 0.8
+      }
+    ]
+  },
+  {
+    "id": "c08",
+    "title": "What did the second “twice” add?",
+    "sourceChapters": [
+      "c08"
+    ],
+    "beats": [
+      {
+        "id": "c08-b01",
+        "say": "M0 says, “My card was charged twice. I checked the statement twice.” Mark the first occurrence at M0 on the word strip. A posting records membership. The frequency dial counts occurrences. Predict what will move on the second stroke.",
+        "hold": 2.0
+      },
+      {
+        "id": "c08-b02",
+        "say": "Stamp M0 again. The punch goes through the existing hole. The frequency reaches two. M0 still takes one place in the set, so this word contributes one point to its score. A search that needs frequencies or positions must store that extra information.",
+        "hold": 0.7
+      }
+    ]
+  },
+  {
+    "id": "c09",
+    "title": "Which counters need to exist?",
+    "sourceChapters": [
+      "c09"
+    ],
+    "beats": [
+      {
+        "id": "c09-b01",
+        "say": "Look up charged and visit its posting IDs. Each visited ID adds one to its score counter. A hash lookup takes expected constant work; scoring still visits every ID in the posting.",
+        "hold": 0.55
+      },
+      {
+        "id": "c09-b02",
+        "say": "Look up twice. A second point lands at M0 and M2. M3 keeps its first point. We're ranking by distinct words matched, so even a partial match stays in the running. A score dictionary holds the totals. A heap will keep the top two.",
+        "hold": 0.55
+      }
+    ]
+  },
+  {
+    "id": "c10",
+    "title": "Which note gives up its place?",
+    "sourceChapters": [
+      "c10"
+    ],
+    "beats": [
+      {
+        "id": "c10-b01",
+        "say": "The posting counters now hold candidate scores. Keep the two strongest notes in a min-heap. Put the once-charged note into the root, the position we inspect when something stronger arrives.",
+        "hold": 0.55
+      },
+      {
+        "id": "c10-b02",
+        "say": "The plan-change note has two points and enters the child slot. The parent is weaker than its child. Only that partial order is required inside the heap.",
+        "hold": 0.55
+      },
+      {
+        "id": "c10-b03",
+        "say": "The earlier note also has two points. The heap is full. Predict which retained note should leave before we move anything.",
+        "hold": 2.0
+      },
+      {
+        "id": "c10-b04",
+        "say": "The weaker root leaves and the earlier note takes its place. Tied scores favor the lower message ID. Restore the heap by moving the plan-change note up and the earlier note down. The root is again the next result to evict.",
+        "hold": 0.65
+      },
+      {
+        "id": "c10-b05",
+        "say": "The posting counters skip M1. Bring back its score from the scan. Zero fails the positive-score check, so we discard M1 without comparing it with the root. M2 keeps its place. Sort the winners strongest first. A bounded heap uses space for two winners, while the score dictionary still holds its candidates.",
+        "hold": 0.55
+      }
+    ]
+  },
+  {
+    "id": "c11",
+    "title": "What can the root tell you?",
+    "sourceChapters": [
+      "c11"
+    ],
+    "beats": [
+      {
+        "id": "c11-b01",
+        "say": "Here are three numbers in a heap. Suppose smaller keys went left and larger keys went right. Which way would you look for five? Take a look at where five actually sits.",
+        "hold": 2.1
+      },
+      {
+        "id": "c11-b02",
+        "say": "Check one against each of its children. One is smaller than either child. That satisfies the min-heap rule. Now compare the left child with the root. Five is bigger than one. A binary search tree would put larger keys on the right. A heap can leave its two children in either order.",
+        "hold": 0.7
+      },
+      {
+        "id": "c11-b03",
+        "say": "Go back to the zero-point arrival. Call heap replace without checking the score. Watch which ID leaves.",
+        "hold": 1.5
+      },
+      {
+        "id": "c11-b04",
+        "say": "M2 was a winner. Rewind and compare before replacing the root. The incoming key is smaller, so keep M2. Python compares the score first, then the negative ID. That's how the lower ID wins a tie.",
+        "hold": 0.9
+      },
+      {
+        "id": "c11-b05",
+        "say": "Find the root in one lookup. This heap has seven slots. Follow a repair down one path. Two edges take us to a leaf. A push or pop compares a few keys per level. Doubling a binary heap adds one level.",
+        "hold": 0.3
+      },
+      {
+        "id": "c11-b06",
+        "say": "When Python resizes the backing list, it can also copy every reference. To keep k winners from m candidates, we repair at most one path per candidate. For k between two and m inclusive, that takes order m times log k work and k extra slots.",
+        "hold": 0.3
+      },
+      {
+        "id": "c11-b07",
+        "say": "For one winner, keep the best seen so far. For nearly all the candidates, sorting can be simpler. Python's n-largest can sort directly when the whole list fits the limit.",
+        "hold": 0.75
+      }
+    ]
+  },
+  {
+    "id": "c12",
+    "title": "Can you check the index against a scan?",
+    "sourceChapters": [
+      "c12"
+    ],
+    "beats": [
+      {
+        "id": "c12-b01",
+        "say": "Try the Python example with three different documents. Type red twice and then fox. Lowercase the query, split on whitespace, and keep each word once. Red gets one vote. A comma stays attached to its word in this tokenizer. The support-note search strips punctuation.",
+        "hold": 0.7
+      },
+      {
+        "id": "c12-b02",
+        "say": "Ask for red fox. Follow red to zero and two. Follow fox to two again. The scan reports pairs in corpus order, so zero's single point appears first. The indexed search returns ranked IDs, with the two-point fox first. Empty input or a result limit below one gives an empty list.",
+        "hold": 0.75
+      },
+      {
+        "id": "c12-b03",
+        "say": "What about otter? Call get with an empty set as the fallback. The lookup returns that set and leaves the dictionary alone. Try that word with brackets on the defaultdict we use to build the index. The dictionary grows by one key just from that access.",
+        "hold": 1
+      },
+      {
+        "id": "c12-b04",
+        "say": "Add red fox runs as document three. Rebuild the index. Its ID now appears under red, fox and runs. Which two IDs win for red fox?",
+        "hold": 2.0
+      },
+      {
+        "id": "c12-b05",
+        "say": "Documents two and three tie with two points. Put the lower ID first. The result is two, then three. The dictionary remembers when it received each key. The set keeps each ID once. Neither one ranks by relevance. We order the winners ourselves.",
+        "hold": 0.9
+      }
+    ]
+  },
+  {
+    "id": "c13",
+    "title": "Count one search",
+    "sourceChapters": [
+      "c13"
+    ],
+    "beats": [
+      {
+        "id": "c13-b01",
+        "say": "Read the three IDs under charged. Then read the two IDs under twice. Five visits. M0 and M2 each earn a second point, so three counters cover all five visits.",
+        "hold": 0.8
+      },
+      {
+        "id": "c13-b02",
+        "say": "We built the index by reading all four notes before the first search. Now set aside two more places for the heap. It holds the winners while the score map keeps a counter for every scored note.",
+        "hold": 0.8
+      },
+      {
+        "id": "c13-b03",
+        "say": "Search for once. One lookup reaches one ID. Search for charged. One lookup reaches three IDs. The longer list takes more visits. When you time a retriever, include the common words people search for.",
+        "hold": 0.9
+      }
+    ]
+  },
+  {
+    "id": "c14",
+    "title": "Which waiting jobs have to move?",
+    "sourceChapters": [
+      "c14"
+    ],
+    "beats": [
+      {
+        "id": "c14-b01",
+        "say": "The corpus keeps growing, so each new support note becomes an indexing job. Claim the oldest waiting job from the left. A deque advances its head while the other references keep their positions.",
+        "hold": 0.55
+      },
+      {
+        "id": "c14-b02",
+        "say": "Now claim M0 from a list. The same job leaves, but both surviving references slide one place left. A deque can remove or append at either end in constant time. FIFO promises which equal-priority job gets claimed next.",
+        "hold": 0.6
+      }
+    ]
+  },
+  {
+    "id": "c15",
+    "title": "Which worker owns the result?",
+    "sourceChapters": [
+      "c15"
+    ],
+    "beats": [
+      {
+        "id": "c15-b01",
+        "say": "Two workers claim jobs in arrival order. The second worker can finish first. Keep its result attached to its message ID; the first worker still owns the older job. Then the older job finishes under its own ID.",
+        "hold": 0.55
+      },
+      {
+        "id": "c15-b02",
+        "say": "A separate two-slot ring buffer holds waiting jobs. Its head marks the oldest slot. A new job must wait outside it. After a worker claims the oldest job, admit the pending job into the free slot. No unprocessed job is overwritten.",
+        "hold": 0.55
+      },
+      {
+        "id": "c15-b03",
+        "say": "A separate synchronized queue starts with just M3. Worker B calls get nowait and takes M3. Worker A tries the same call. The queue raises Empty, and A catches it. An earlier nonempty check reserves nothing. This in-memory ordering still needs durable completion and retry handling in a shared service.",
+        "hold": 0.55
+      }
+    ]
+  },
+  {
+    "id": "c16",
+    "title": "What happens to the third job?",
+    "sourceChapters": [
+      "c16"
+    ],
+    "beats": [
+      {
+        "id": "c16-b01",
+        "say": "Here are two places to keep the same jobs. Both are full. M0 arrived before M2. The producer has one more note to index. In each row, track who owns M3 after the attempt.",
+        "hold": 2.6
+      },
+      {
+        "id": "c16-b02",
+        "say": "Append M3 to the bounded deque. M0 drops out the opposite end. Now try a nonblocking put on the full queue. Where is M3 now?",
+        "hold": 2.0
+      },
+      {
+        "id": "c16-b03",
+        "say": "The producer still owns M3. The nonblocking put raised the Full exception, so the producer can retry or defer M3. The deque kept the latest two items. That's handy for recent token history. For indexing, dropping an unprocessed note would leave a hole in our search.",
+        "hold": 0.3
+      },
+      {
+        "id": "c16-b04",
+        "say": "A full ring also needs an explicit choice to wait, reject, or overwrite. Use the queue's waiting pair for the next two claims.",
+        "hold": 0.75
+      },
+      {
+        "id": "c16-b05",
+        "say": "Let two workers claim the waiting jobs. Now try one more nonblocking get. It raises Empty because both jobs have been claimed. First in, first out tells us which job leaves next. To tell whether a job finished, we need a separate record of completion.",
+        "hold": 0.85
+      }
+    ]
+  },
+  {
+    "id": "c17",
+    "title": "Which notes belong under Billing?",
+    "sourceChapters": [
+      "c17"
+    ],
+    "beats": [
+      {
+        "id": "c17-b01",
+        "say": "Start at the support catalogue. Each note has one parent topic. If you follow Billing, which notes can you reach? Visit its descendants. M0, M2 and M3 belong to Billing. M1 belongs to Access and stays outside that subtree. A topic tree organizes categories. A binary search tree instead orders keys on its two sides.",
+        "hold": 0.55
+      }
+    ]
+  },
+  {
+    "id": "c18",
+    "title": "What if two notes point to the same neighbor?",
+    "sourceChapters": [
+      "c18"
+    ],
+    "beats": [
+      {
+        "id": "c18-b01",
+        "say": "Related notes can have several cross-links. Start with the first note queued and discovered. Follow its neighbors, mark each newly discovered ID, and then enqueue it. The queue stores work; the set prevents duplicate discovery.",
+        "hold": 0.55
+      },
+      {
+        "id": "c18-b02",
+        "say": "Expand M2 next. Its link points to M3, which is already waiting. Leave the queue alone. Expand M3 and follow its link back to M0. That ID is already discovered too. Each reachable note was queued and expanded once.",
+        "hold": 0.55
+      }
+    ]
+  },
+  {
+    "id": "c19",
+    "title": "What did following the links cost?",
+    "sourceChapters": [
+      "c19"
+    ],
+    "beats": [
+      {
+        "id": "c19-b01",
+        "say": "Read the outgoing links for M0, M2 and M3. Three reachable notes, four links inspected. With a discovery set, breadth-first and depth-first traversal each expand every reachable vertex once and inspect each outgoing edge once.",
+        "hold": 0.3
+      },
+      {
+        "id": "c19-b02",
+        "say": "With constant-time queue or stack operations and expected constant-time discovery checks, traversing these lists in stored order takes expected V plus E time. Sorting neighbors costs extra. A four-by-four matrix has to represent all sixteen possible pairs, even here.",
+        "hold": 0.65
+      },
+      {
+        "id": "c19-b03",
+        "say": "Look for three in the search tree. Compare it with the root, then check the right child. A balanced search tree has logarithmic depth. A skewed tree can take a linear walk. Now follow the five letters on the right.",
+        "hold": 0.3
+      },
+      {
+        "id": "c19-b04",
+        "say": "With one edge per letter and constant-time child lookup, reaching the prefix takes five steps. Follow the branches to read the endings. Returning more completions takes more work. A compressed trie can store an unbranched run of letters together.",
+        "hold": 0.7
+      }
+    ]
+  },
+  {
+    "id": "c20",
+    "title": "What can follow these five letters?",
+    "sourceChapters": [
+      "c20"
+    ],
+    "beats": [
+      {
+        "id": "c20-b01",
+        "say": "Autocomplete asks a different question: which words begin with charg? A trie follows one symbol per edge. Walk the shared prefix once, keeping the suffix branches waiting.",
+        "hold": 0.55
+      },
+      {
+        "id": "c20-b02",
+        "say": "Now continue to the complete word charge and its endings. End markers identify charge, charged and charges. Only charged appears in these four notes. Its posting contains M0, M2 and M3. Reaching a prefix depends on its length. Listing the completions also takes time to visit the branches and return the words.",
+        "hold": 0.55
+      }
+    ]
+  },
+  {
+    "id": "c21",
+    "title": "What would catch a lost note?",
+    "sourceChapters": [
+      "c21"
+    ],
+    "beats": [
+      {
+        "id": "c21-b01",
+        "say": "Start a fresh run of the Python lab with just documents zero, one and two. Check the red posting, the empty query, and the ranked scan against the index at different result limits. Try the words Red FOX in mixed case. Lowercasing gives the same two ranked IDs.",
+        "hold": 0.3
+      },
+      {
+        "id": "c21-b02",
+        "say": "The last two checks take the oldest job and follow a link back to an already discovered note. These six tests can catch a wrong answer even when one favorite query still passes.",
+        "hold": 0.7
+      },
+      {
+        "id": "c21-b03",
+        "say": "Now imagine the indexing job produces an embedding, a numerical representation of M2. The worker writes that vector and crashes before it acknowledges the job. On restart, the in-memory queue and index are gone. A durable broker may send M2 again.",
+        "hold": 0.3
+      },
+      {
+        "id": "c21-b04",
+        "say": "Use a durable ID and make the downstream write idempotent so the retry can't create a second vector. A transaction and uniqueness constraint can preserve that promise across workers. A local ordering test can't exercise it.",
+        "hold": 0.85
+      }
+    ]
+  },
+  {
+    "id": "c22",
+    "title": "Whose list did the caller change?",
+    "sourceChapters": [
+      "c22"
+    ],
+    "beats": [
+      {
+        "id": "c22-b01",
+        "say": "The search has produced two ranked IDs. Store that result under a key containing the query, result limit and corpus version. A matching request can reuse it. A shared service also separates permission scopes and scoring rules.",
+        "hold": 0.55
+      },
+      {
+        "id": "c22-b02",
+        "say": "A caller borrowing a mutable list can remove its first item and change the next hit. Replay that mutation on a request-owned copy instead. The cached tuple and the next caller keep both original IDs.",
+        "hold": 0.55
+      }
+    ]
+  },
+  {
+    "id": "c23",
+    "title": "Who can read the cached pair?",
+    "sourceChapters": [
+      "c23"
+    ],
+    "beats": [
+      {
+        "id": "c23-b01",
+        "say": "Copying fixes ownership. Access needs its own rule. This caller may read M2 and M3. Take the two global winners, then remove the inaccessible note. Count the empty places in that reply.",
+        "hold": 0.55
+      },
+      {
+        "id": "c23-b02",
+        "say": "One slot is empty. Rewind to all the scored candidates. Filter by permission before choosing two winners. Now M3 can fill the second slot. Share a cache entry only across compatible permission scopes, or include the scope in the key.",
+        "hold": 0.55
+      }
+    ]
+  },
+  {
+    "id": "c24",
+    "title": "M2 changes its story",
+    "sourceChapters": [
+      "c24"
+    ],
+    "beats": [
+      {
+        "id": "c24-b01",
+        "say": "M2 now says, \"I can sign in after changing plans.\" Remove its ID from the postings for was, charged and twice. Add it to can, sign and in. Its other postings stay the same.",
+        "hold": 0.45
+      },
+      {
+        "id": "c24-b02",
+        "say": "Publish the edited notes, index and version together. A reader takes one matching snapshot for the entire query. Return to the original caller, who can read all four notes. Their saved pair, M0 and M2, stays with version seven. The version eight lookup misses.",
+        "hold": 0.45
+      },
+      {
+        "id": "c24-b03",
+        "say": "M0 scores two and M3 scores one. For this caller, store their IDs under the v8 query key. An eviction budget limits old versions.",
+        "hold": 0.45
+      }
+    ]
+  },
+  {
+    "id": "c25",
+    "title": "Which cache entry should leave?",
+    "sourceChapters": [
+      "c25"
+    ],
+    "beats": [
+      {
+        "id": "c25-b01",
+        "say": "Both places in the cache are full. We looked up charged, then twice. Read charged again. Move that hit to the most recent end. Now someone asks for sign. Which entry can leave?",
+        "hold": 2.6
+      },
+      {
+        "id": "c25-b02",
+        "say": "Take the entry that went longest without a read. Slide the charged entry up and put sign in the free place. M2 belongs in that result now because its text mentions signing in. This is least recently used eviction.",
+        "hold": 0.3
+      },
+      {
+        "id": "c25-b03",
+        "say": "Reading a key in a plain dictionary leaves it in place. With an ordered dictionary, move a hit to the end and pop the oldest entry when you need room.",
+        "hold": 0.85
+      },
+      {
+        "id": "c25-b04",
+        "say": "Return to the billing query, charged twice. We want the best two matches across all four notes. Suppose we publish the edited notes as version eight while the index still holds version seven. The lookup misses. Both old postings still include M2. Store the resulting pair under the version eight key. Now let the index catch up. A second lookup hits the saved pair. It still returns M0 and M2.",
+        "hold": 0.9
+      },
+      {
+        "id": "c25-b04-replay",
+        "say": "Rewind to before the version change. The version eight entry has never been written. This time publish the edited notes, index and version together. The same billing request misses. M0 matches both words. M3 matches charged. Store M0 and M3 under that same key. A change to permissions, scoring or normalization also needs its own key or an invalidation.",
+        "hold": 0.6
+      },
+      {
+        "id": "c25-b05",
+        "say": "One more detail about the saved value. A tuple of integer IDs fixes the sequence. If two tuples point to one mutable document instead, change the text through either reference. Both readers see the edit. Decide who owns the document as well as who owns the list of IDs.",
+        "hold": 0.75
+      }
+    ]
+  },
+  {
+    "id": "c26",
+    "title": "Ask the opening question again",
+    "sourceChapters": [
+      "c26"
+    ],
+    "beats": [
+      {
+        "id": "c26-b01",
+        "say": "Use the original caller's access to all four notes. Look up charged and twice in version eight. Charged gives M0 and M3 one point each. Twice gives M0 another point. Which notes belong in the reply now? Send M0 first, then M3.",
+        "hold": 1
+      }
+    ]
+  },
+  {
+    "id": "c27",
+    "title": "Which pair belongs in the reply?",
+    "sourceChapters": [
+      "c27"
+    ],
+    "beats": [
+      {
+        "id": "c27-b01",
+        "say": "Keep the four current notes. This caller searches for sign and charged. An open lock means they may read that note. Give each note one point for each distinct search word it contains. The lower ID wins a tie. Which two would you send?",
+        "hold": 2.0
+      },
+      {
+        "id": "c27-b02",
+        "say": "Look for a match on each line. Every note has one. Take the first two IDs in the tie. Now check their locks. Both slots are empty. Two notes on the desk still have open locks. Check access while all four are within reach.",
+        "hold": 0.3
+      },
+      {
+        "id": "c27-b03",
+        "say": "Of the two that pass, take the lower ID first. M2 goes in the first slot. M3 goes in the second.",
+        "hold": 1.2
+      },
+      {
+        "id": "c27-b04",
+        "say": "The caller can read the sign-in correction and the once-charged account. Save that pair under this permission scope. The version, search words, result limit and ranking rule go with it.",
+        "hold": 0.8
+      },
+      {
+        "id": "c27-b05",
+        "say": "A second caller types the same words. This caller can also read M1. Both saved notes are still allowed. Would you send the saved pair?",
+        "hold": 2.0
+      },
+      {
+        "id": "c27-b06",
+        "say": "Rank the three open notes together. M1, M2 and M3 each earn one point. The lower ID wins each tie. Send M1, then M2. M3 slips to third. The first pair is still readable, but this caller has a stronger eligible pair under our tie rule.",
+        "hold": 1.6
+      },
+      {
+        "id": "c27-b07",
+        "say": "You can now choose which notes to send and explain why a saved pair can change. In the next lesson, SQL tables and constraints keep those identities and permissions available across processes and restarts.",
+        "hold": 1.5
+      }
+    ]
+  }
+]

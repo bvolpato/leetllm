@@ -1,0 +1,792 @@
+{
+  "id": "deep-dive-transformers",
+  "script": "d9f9280cd8095431",
+  "articleHash": "52d25155f04cf2ac07b763f36f2708345bd332d445877c6c5bfd42c172ba1d73",
+  "checked": "2026-11-10T10:00:14.801Z",
+  "closedBook": {
+    "taught": 10,
+    "partial": 0,
+    "absent": 0,
+    "answers": [
+      {
+        "n": 1,
+        "option": 3,
+        "coverage": "taught",
+        "quotes": [
+          {
+            "scene": "drift-tests",
+            "quote": "Compare raw input and preprocessing first, then concrete class and parameter identity, fixed-input logits, each selected token, cache positions and stop decisions."
+          },
+          {
+            "scene": "chat",
+            "quote": "Compare rendered templates and IDs before comparing final answers across clients."
+          },
+          {
+            "scene": "decoding-policy",
+            "quote": "Greedy decoding needs both no sampling and one beam. Disabling sampling while inheriting several beams still requests beam search."
+          }
+        ],
+        "reason": "Chain A first differs at input IDs, so restore approved rendering and IDs. Chain B first differs at selection, so restore the approved selection configuration.",
+        "exact": true,
+        "correct": true,
+        "grade": "taught"
+      },
+      {
+        "n": 2,
+        "option": 1,
+        "coverage": "taught",
+        "quotes": [
+          {
+            "scene": "offload-execution",
+            "quote": "When a GPU-backed dispatch map offloads a layer to CPU or disk, hooks move that layer’s weights to the main execution device before use and clean up temporary device storage afterward."
+          },
+          {
+            "scene": "offload-execution",
+            "quote": "For a supplied memory worksheet, resident weights occupy six gibibytes, the current offloaded layer needs two, live cache needs three and workspace needs one. These separate allocations total twelve gibibytes at use time. A ten-gibibyte device cannot admit that live set even when its six resident weight gibibytes fit."
+          }
+        ],
+        "reason": "The layer executes on the main GPU. The simultaneous allocations total 0.8 + 1.0 + 0.6 + 0.2 = 2.6 GiB, exceeding 2.5 GiB.",
+        "exact": true,
+        "correct": true,
+        "grade": "taught"
+      },
+      {
+        "n": 3,
+        "option": 4,
+        "coverage": "taught",
+        "quotes": [
+          {
+            "scene": "chat",
+            "quote": "Another client adds a boundary token twice. That also changes the input. When a template already inserts special tokens, a later tokenization step must avoid adding them again."
+          },
+          {
+            "scene": "tokenizer-fields",
+            "quote": "Its template specifies system and user turns followed by an assistant prefix, and its assertion compares combined tokenization with separately tokenizing that rendering without extra special tokens."
+          }
+        ],
+        "reason": "Adding B before the declared sequence yields [B,B,user,Q,E,B,assistant]. Disable the extra special-token insertion to recover the fixture sequence.",
+        "exact": true,
+        "correct": true,
+        "grade": "taught"
+      },
+      {
+        "n": 4,
+        "option": 2,
+        "coverage": "taught",
+        "quotes": [
+          {
+            "scene": "output-contract",
+            "quote": "A dictionary-style model result is a ModelOutput subclass. Attribute access names logits, loss or cache directly. Its integer indexing considers only fields that are not None. With loss absent, index zero may select logits. Supply labels and a returned loss can take that position."
+          },
+          {
+            "scene": "output-contract",
+            "quote": "Use named attributes when the consumer needs a specific tensor, or explicitly convert to a tuple after checking the returned fields."
+          }
+        ],
+        "reason": "Removing None fields while preserving order gives A: (L,H) and B: (S,L,A). The named attribute output.logits returns L in both.",
+        "exact": true,
+        "correct": true,
+        "grade": "taught"
+      },
+      {
+        "n": 5,
+        "option": 3,
+        "coverage": "taught",
+        "quotes": [
+          {
+            "scene": "loss",
+            "quote": "A causal language model predicts the next token. Logits at the first position are compared with the second label, and so on. The caller supplies unshifted labels for this model contract."
+          },
+          {
+            "scene": "loss",
+            "quote": "Set the third label to the ignore value. The prediction from the second logit position drops out of the loss. The remaining terms keep their original alignment, and the mean divides by the number of active targets."
+          },
+          {
+            "scene": "loss",
+            "quote": "The ignored token is still present in the input sequence and can influence later predictions through attention."
+          },
+          {
+            "scene": "real-cpu",
+            "quote": "Each active target contributes the negative natural logarithm of its assigned probability. Average those active terms to obtain the loss."
+          }
+        ],
+        "reason": "Ignoring labels 2 and 4 removes probabilities 0.4 and 0.9. The mean is -(ln 0.8 + ln 0.2 + ln 0.5)/3 ≈ 0.8419. Both input tokens remain context.",
+        "exact": true,
+        "correct": true,
+        "grade": "taught"
+      },
+      {
+        "n": 6,
+        "option": 4,
+        "coverage": "taught",
+        "quotes": [
+          {
+            "scene": "hybrid-budget",
+            "quote": "For conventional full-attention cache payload, multiply two for keys and values by layer count, active sequence count, sequence length, stored key-value heads, head width and bytes per value. Query-head count determines a different quantity. A beam-expanded batch can increase active sequence count; maximum allocation length and current live length remain separate. Divide bytes by one million forty-eight thousand five hundred seventy-six to report mebibytes."
+          },
+          {
+            "scene": "cache",
+            "quote": "Switch to a static allocation for the maximum context. Only a short prefix is live, but every allocated slot still occupies storage."
+          }
+        ],
+        "reason": "Dynamic payload is 2×8×2×96×3×32×2 = 589824 bytes = 0.5625 MiB. Replacing 96 with static capacity 512 gives 3145728 bytes = 3 MiB.",
+        "exact": true,
+        "correct": true,
+        "grade": "taught"
+      },
+      {
+        "n": 7,
+        "option": 1,
+        "coverage": "taught",
+        "quotes": [
+          {
+            "scene": "decoding-policy",
+            "quote": "Greedy decoding needs both no sampling and one beam. Disabling sampling while inheriting several beams still requests beam search."
+          },
+          {
+            "scene": "decoding-policy",
+            "quote": "Decoder-only returned sequences include the input prefix, so slice by the actual prompt tensor width when the caller needs only completion IDs."
+          }
+        ],
+        "reason": "Three beams remain after sampling is disabled, producing beam search. Four prompt tokens plus five new tokens give nine returned positions.",
+        "exact": true,
+        "correct": true,
+        "grade": "taught"
+      },
+      {
+        "n": 8,
+        "option": 3,
+        "coverage": "taught",
+        "quotes": [
+          {
+            "scene": "fresh-resume",
+            "quote": "The fourth selected token is present in the sequence but still lacks its own key and value state. Preserve the first ten token identities and forward that pending token with the full compatible mask and correct position."
+          },
+          {
+            "scene": "fresh-resume",
+            "quote": "After that forward alone, cached positions become eleven while the sequence stays eleven: no twelfth token has been selected."
+          }
+        ],
+        "reason": "Forwarding the pending token adds its KV state without selecting another token. The sequence stays ten positions, and the cache grows from nine to ten.",
+        "exact": true,
+        "correct": true,
+        "grade": "taught"
+      },
+      {
+        "n": 9,
+        "option": 2,
+        "coverage": "taught",
+        "quotes": [
+          {
+            "scene": "cache-identity",
+            "quote": "Compare prefix IDs, weight identity, positional state and attention semantics before reuse. Rebuild when those change. Independent continuations must not accidentally mutate one shared cache object as though it belonged to a single conversation. Copy compatible prefix state before divergent updates, using the chosen cache implementation’s supported operation."
+          }
+        ],
+        "reason": "The separate copy preserves [A,B,C], so forwarding Y matches [A,B,C,Y]. The mutated shared cache retains X and therefore represents a different prefix.",
+        "exact": true,
+        "correct": true,
+        "grade": "taught"
+      },
+      {
+        "n": 10,
+        "option": 4,
+        "coverage": "taught",
+        "quotes": [
+          {
+            "scene": "release-receipt",
+            "quote": "Use separate gates for numerical behavior, application quality and workload performance. The supplied tiny CPU script implements several mechanical checks and a local serialization round trip. It supplies no learned answer quality or fleet capacity."
+          }
+        ],
+        "reason": "Numerical behavior passes its declared tolerance. Quality fails because 78% is below 80%. Performance remains pending because no target-workload latency run exists.",
+        "exact": true,
+        "correct": true,
+        "grade": "taught"
+      }
+    ]
+  },
+  "factCheck": {
+    "scenes": [
+      {
+        "id": "intro",
+        "evidence": "Supported as a hypothetical failure mechanism. Chat templates serialize roles and boundaries into tokens, so unchanged weights can receive changed inputs. The official v5 announcement describes Transformers as a model-definition toolkit shared with training and supported inference systems. The checkout contains the promised snapshot, mapping, serialization, loss, cache and generation fixtures. No particular upgrade incident is asserted or independently established.",
+        "sourceUrls": [
+          "https://huggingface.co/docs/transformers/chat_templating",
+          "https://huggingface.co/blog/transformers-v5"
+        ]
+      },
+      {
+        "id": "four-contracts",
+        "evidence": "The four agreements are an authored diagnostic taxonomy. Arrays shaped [32001,D] and [32000,D] cannot be directly restored into one another; skipping a mismatch would not restore the omitted values. Safetensors parsing does not establish architectural compatibility. Prior issue F1 is closed: detection now requires a fixture that exercises the changed rule. Independently, position×frequency=0 at position zero, giving cos=1 and sin=0 for ordinary RoPE; attention over one key also has probability one. Changing only rotary frequencies can therefore escape that test. Error categories are useful clues, not exclusive causal diagnoses.",
+        "sourceUrls": [
+          "https://huggingface.co/docs/safetensors/index",
+          "https://huggingface.co/docs/transformers/main_classes/model",
+          "https://raw.githubusercontent.com/huggingface/transformers/v5.16.1/src/transformers/models/llama/modeling_llama.py"
+        ]
+      },
+      {
+        "id": "identity",
+        "evidence": "Hub documentation distinguishes mutable refs, hashed content blobs and revision-specific snapshot links. The checkout's identity model explicitly keeps weight identity W7 and one physical weight copy while changing tokenizer T3 to T4 across R1 and R2. This is a declared illustration, consistent with cache deduplication. Separate model and preprocessing saves, recorded loaded precision, loading diagnostics and reviewed custom-code revisions are justified. A repository name alone cannot distinguish these artifact combinations.",
+        "sourceUrls": [
+          "https://huggingface.co/docs/huggingface_hub/guides/manage-cache",
+          "https://huggingface.co/docs/transformers/main_classes/model",
+          "https://raw.githubusercontent.com/huggingface/transformers/b3a36037d3feb22e3f0174b3dd4248fcc0f0f722/src/transformers/models/auto/configuration_auto.py"
+        ]
+      },
+      {
+        "id": "lifecycle",
+        "evidence": "The inspected lifecycle source collects model properties during post_init, initializes weights and applies configured tying. from_pretrained sets evaluation mode; save_pretrained writes configuration, weights, a shard index when needed and generation configuration when applicable. PyTorch explicitly separates eval from gradient recording. The supplied CPU script calls eval before backward and asserts parameter-object identity. Prior issue F7 is closed for this narration: it now describes those code operations without presenting an independently confirmed run.",
+        "sourceUrls": [
+          "https://raw.githubusercontent.com/huggingface/transformers/v5.16.1/src/transformers/modeling_utils.py",
+          "https://docs.pytorch.org/docs/2.12/notes/autograd.html"
+        ]
+      },
+      {
+        "id": "load-safety",
+        "evidence": "Prior issues F2 and F9 are closed in speech. Version 5.16.1 explicitly replaces omitted dtype with auto. Resolution includes config, sharded metadata, eligible tensor inference and format-specific handling; quantizers can update the result. Saved precision does not establish training precision. Safetensors avoids pickle-style tensor deserialization, while custom AutoConfig dispatch imports executable repository code. Repository asset licenses remain separately declared. Visual carryover: stages/load-safety.mjs still says 'First floating weight supplies fallback' and cites a November 7 inspection. Replace those labels with the qualified resolution branches and the 5.16.1 source reference before reuse.",
+        "sourceUrls": [
+          "https://raw.githubusercontent.com/huggingface/transformers/v5.16.1/src/transformers/modeling_utils.py",
+          "https://huggingface.co/docs/safetensors/index",
+          "https://raw.githubusercontent.com/huggingface/transformers/b3a36037d3feb22e3f0174b3dd4248fcc0f0f722/src/transformers/models/auto/configuration_auto.py",
+          "https://huggingface.co/docs/hub/repositories-licenses"
+        ]
+      },
+      {
+        "id": "offload-execution",
+        "evidence": "Accelerate documents meta parameters, protected unsplit blocks, mapped loading and execution hooks. Inspected dispatch code maps CPU/disk-stored modules to the main execution device in the described GPU-backed path; hooks load weights before forward and remove temporary device copies afterward. Disk weights pass through host memory. CPU-only execution remains on CPU. The actual film worksheet declares simultaneous separate allocations: 6+2+3+1=12 GiB, exceeding 10 GiB by 2 GiB. This inference placement does not itself shard training state or establish tensor parallelism.",
+        "sourceUrls": [
+          "https://huggingface.co/docs/accelerate/concept_guides/big_model_inference",
+          "https://raw.githubusercontent.com/huggingface/accelerate/main/src/accelerate/big_modeling.py",
+          "https://raw.githubusercontent.com/huggingface/accelerate/main/src/accelerate/hooks.py"
+        ]
+      },
+      {
+        "id": "auto",
+        "evidence": "The pinned configuration loader selects a configuration class from model_type; the causal-LM mapping contains llama→LlamaForCausalLM and gpt2→GPT2LMHeadModel. The actual film model declares Llama shards and marks only the llama selection compatible. Selecting GPT2 therefore demonstrates successful lookup without establishing weight compatibility. Unknown unregistered types fail the built-in path. The separate standard-library article fixture was independently executed and returned both stated class names, with its unknown-key assertion completing.",
+        "sourceUrls": [
+          "https://raw.githubusercontent.com/huggingface/transformers/b3a36037d3feb22e3f0174b3dd4248fcc0f0f722/src/transformers/models/auto/configuration_auto.py",
+          "https://raw.githubusercontent.com/huggingface/transformers/b3a36037d3feb22e3f0174b3dd4248fcc0f0f722/src/transformers/models/auto/modeling_auto.py"
+        ]
+      },
+      {
+        "id": "auto-extension",
+        "evidence": "Verified at the specified commit: auto_mappings.py defines CONFIG_MAPPING_NAMES, _LazyConfigMapping imports family modules on lookup, and modeling_auto.py supplies task mappings. The public configuration loader explicitly raises ValueError for unsupported or missing built-in model_type. The article illustration deliberately raises KeyError, so the distinction is correct. Official modular documentation confirms that contributor files can generate standalone modeling source. Registration, conversion checks and maintained tests are stated as support requirements, not as work already performed here.",
+        "sourceUrls": [
+          "https://raw.githubusercontent.com/huggingface/transformers/b3a36037d3feb22e3f0174b3dd4248fcc0f0f722/src/transformers/models/auto/auto_mappings.py",
+          "https://raw.githubusercontent.com/huggingface/transformers/b3a36037d3feb22e3f0174b3dd4248fcc0f0f722/src/transformers/models/auto/configuration_auto.py",
+          "https://raw.githubusercontent.com/huggingface/transformers/b3a36037d3feb22e3f0174b3dd4248fcc0f0f722/src/transformers/models/auto/modeling_auto.py",
+          "https://huggingface.co/docs/transformers/modular_transformers"
+        ]
+      },
+      {
+        "id": "chat",
+        "evidence": "The actual film serializer produces baseline IDs [0,1,2,3,4,5,6,0,7], removes the assistant prefix to produce [0,1,2,3,4,5,6], and duplicates the opening boundary to produce [0,0,1,2,3,4,5,6,0,7]. These differences were independently evaluated. Official guidance supports comparing rendered templates and avoiding additional special-token insertion after formatting. The assistant prefix belongs to this constructed fixture; the narration does not require the same prefix for every model. Its general training explanation does not claim that this toy vocabulary was trained.",
+        "sourceUrls": [
+          "https://huggingface.co/docs/transformers/chat_templating",
+          "https://huggingface.co/docs/transformers/main_classes/processors"
+        ]
+      },
+      {
+        "id": "tokenizer-fields",
+        "evidence": "Prior issues F3 and F6 are closed in speech. Official component documentation distinguishes BPE merges from WordLevel lookup. The article code actually constructs WordLevel with WhitespaceSplit, special boundary tokens and a Jinja template containing system/user turns and an optional assistant prefix. Its assertion compares combined tokenization against separate tokenization without added special tokens; the revised narration describes the assertion rather than its observed success. Backend changes are supported by the v5 announcement. Visual carryover: qualify 'merges' as BPE-specific and replace the legacy equality-result label with 'assertion compares both ID sequences.'",
+        "sourceUrls": [
+          "https://huggingface.co/docs/tokenizers/components",
+          "https://huggingface.co/docs/transformers/chat_templating",
+          "https://huggingface.co/blog/transformers-v5",
+          "https://raw.githubusercontent.com/huggingface/transformers/b3a36037d3feb22e3f0174b3dd4248fcc0f0f722/src/transformers/tokenization_utils_base.py"
+        ]
+      },
+      {
+        "id": "processors",
+        "evidence": "Processor documentation supports composition of modality preprocessors and model-specific named inputs. The inspected Llama has token embeddings and decoder layers without an image tower. The article image call is explicitly schematic. The scalar worksheet is correct: 1−0.5=0.5 and 1−0=1, establishing changed input numbers without claiming a measured quality effect. Versioned Whisper source raises ValueError when a supplied sampling rate differs from its configured rate. Processor save/load behavior is independently defined. Text-only fixtures cannot validate an unexercised image or audio path.",
+        "sourceUrls": [
+          "https://huggingface.co/docs/transformers/main_classes/processors",
+          "https://raw.githubusercontent.com/huggingface/transformers/v5.16.1/src/transformers/models/whisper/feature_extraction_whisper.py",
+          "https://raw.githubusercontent.com/huggingface/transformers/b3a36037d3feb22e3f0174b3dd4248fcc0f0f722/src/transformers/processing_utils.py"
+        ]
+      },
+      {
+        "id": "padding",
+        "evidence": "The conditional about last-position decoding is correct: the pinned loop reads outputs.logits[:,−1]. In the actual fixture, right padding produces [Birds,sing,PAD,PAD] with mask [1,1,0,0], so the read token is PAD. Left padding produces [PAD,PAD,Birds,sing] with mask [0,0,1,1], so it is sing. Attention masking does not change that index. The training fixture separately masks padding by position while preserving a real EOS label despite PAD and EOS sharing ID 2. Loss-label masking and attention visibility are distinct.",
+        "sourceUrls": [
+          "https://raw.githubusercontent.com/huggingface/transformers/b3a36037d3feb22e3f0174b3dd4248fcc0f0f722/src/transformers/generation/utils.py",
+          "https://raw.githubusercontent.com/huggingface/transformers/v5.16.1/src/transformers/loss/loss_utils.py"
+        ]
+      },
+      {
+        "id": "loss",
+        "evidence": "Prior issue F5 is closed by inspecting and evaluating model.mjs#lossTrace and stages/loss.mjs#drawLoss. Assigned next-target probabilities are [0.7,0.5,0.6]. Their negative natural logs are [0.3566749439,0.6931471806,0.5108256238]. Initially, 1.5606477483/3=0.5202159161, displayed as 0.5202. Ignoring label index 2 removes logit index 1's term: 0.8675005677/2=0.4337502839, displayed as 0.4338. Calculations use unrounded terms. Versioned ForCausalLMLoss confirms internal shifting and −100 exclusion. The ordinary active-target mean applies here because no external batch normalizer is supplied. Label masking leaves the input token present.",
+        "sourceUrls": [
+          "https://raw.githubusercontent.com/huggingface/transformers/v5.16.1/src/transformers/loss/loss_utils.py"
+        ]
+      },
+      {
+        "id": "output-contract",
+        "evidence": "ModelOutput documentation confirms named attributes, integer indexing over non-None fields and explicit to_tuple conversion. Optional loss can therefore change the meaning of index zero without changing logits. The versioned Llama head maps hidden states into vocabulary logits; with full positions retained, the axes are batch, sequence and vocabulary. Base-model and classification output classes differ. The full-logits qualification correctly avoids claiming that selected-position optimizations always retain the complete sequence axis.",
+        "sourceUrls": [
+          "https://huggingface.co/docs/transformers/main/en/main_classes/output",
+          "https://raw.githubusercontent.com/huggingface/transformers/v5.16.1/src/transformers/models/llama/modeling_llama.py"
+        ]
+      },
+      {
+        "id": "real-cpu",
+        "evidence": "Prior issue F7 is closed as a narration-provenance issue. The supplied script contains the stated dependency pins, two-layer width-32 Llama, four query heads, two KV heads, vocabulary 32, eager attention and configured tying. Head width is 32/4=8; full logits are [1,5,32]. IDs [1,7,9,4,2] become labels [1,7,9,−100,2], leaving loss terms −ln p0(7), −ln p1(9), −ln p3(2), divided by three. All described comparisons and assertions are present; their success is explicitly left pending a receipt. Visual-only defect: the legacy canvas labels targets [0,1,2,ignore,4]. Display the actual label IDs or explicitly identify those numbers as positional placeholders. Replace legacy success labels with descriptions of implemented checks.",
+        "sourceUrls": [
+          "https://pypi.org/project/transformers/5.16.1/",
+          "https://pypi.org/project/torch/2.12.0/",
+          "https://raw.githubusercontent.com/huggingface/transformers/v5.16.1/src/transformers/models/llama/modeling_llama.py",
+          "https://raw.githubusercontent.com/huggingface/transformers/v5.16.1/src/transformers/loss/loss_utils.py",
+          "https://docs.pytorch.org/docs/2.12/notes/autograd.html"
+        ]
+      },
+      {
+        "id": "cache",
+        "evidence": "The actual film model uses the stated hypothetical full-attention dimensions. Head width is 1024/16=64. Payload per token is 2×16×1×4×64×2=16,384 bytes. At 512 tokens this is 8,388,608 bytes=8 MiB; at 4096 it is 67,108,864 bytes=64 MiB. Static capacity 4096 retains that allocated K/V payload at shorter live lengths; dynamic and static payloads meet at full capacity. The standard-library article calculation was independently executed. Payload excludes allocator overhead, transient copies, weights and activations. Cache validity depends on prefix and execution semantics, not length alone.",
+        "sourceUrls": [
+          "https://huggingface.co/docs/transformers/kv_cache",
+          "https://raw.githubusercontent.com/huggingface/transformers/b3a36037d3feb22e3f0174b3dd4248fcc0f0f722/src/transformers/cache_utils.py"
+        ]
+      },
+      {
+        "id": "hybrid-budget",
+        "evidence": "Correct for the declared conventional equal-width K/V payload: 2×L×B×S×Hkv×D×bytes-per-value. One MiB is 1,048,576 bytes. The actual hybrid fixture retains 100+100+20+20=240 layer-positions. Its remaining factor is 2×1×2×8×2=64 bytes, so total payload is 240×64=15,360 bytes. This was independently evaluated. The current cache guide supports dynamic/static offloading and gives quantized caches a different support matrix. The narration correctly treats retained-window arithmetic as a worksheet rather than a universal sliding-cache allocation measurement.",
+        "sourceUrls": [
+          "https://huggingface.co/docs/transformers/kv_cache",
+          "https://raw.githubusercontent.com/huggingface/transformers/v5.16.1/src/transformers/cache_utils.py"
+        ]
+      },
+      {
+        "id": "cache-identity",
+        "evidence": "Prior issues F7 and F8 are closed in speech. The supplied script changes zero-based token position 1 from 7 to 6, reuses the original four-token cache and asserts disagreement with a new full-forward reference. That is an application comparison, not automatic library identity validation. Expected payloads are 2×2×1×5×2×8×4=1280 bytes and, at static capacity 16, 4096 bytes. Versioned cache code separates static capacity from cumulative length, supporting expected length five. Copying compatible prefixes before independent mutation follows documented practice. Replace legacy 'Actual CPU allocation payload' and observed-divergence labels with expected payload and implemented-test wording.",
+        "sourceUrls": [
+          "https://raw.githubusercontent.com/huggingface/transformers/v5.16.1/src/transformers/cache_utils.py",
+          "https://huggingface.co/docs/transformers/kv_cache"
+        ]
+      },
+      {
+        "id": "generation",
+        "evidence": "The pinned ordinary non-beam loop forwards inputs, retains cache state, selects and appends a token, then evaluates stopping. Independently evaluated film rows give sequence/cache counts (6,5), (7,6), (8,7) after the three selections. Only the five-token prompt, then near, then home have been forwarded; the final period remains pending. Forwarding it raises cache length to eight without selecting another token. Compatible masks and positions are necessary for resume. The explicit restriction to this ordinary path correctly avoids generalizing the bookkeeping to assisted or other decoding algorithms.",
+        "sourceUrls": [
+          "https://raw.githubusercontent.com/huggingface/transformers/b3a36037d3feb22e3f0174b3dd4248fcc0f0f722/src/transformers/generation/utils.py"
+        ]
+      },
+      {
+        "id": "decoding-policy",
+        "evidence": "Pinned configuration and generation source support the ordinary greedy/beam distinction, target-verified assisted decoding, logits transformations and stopping controls. Finite beam pruning cannot ensure a global optimum: with beam width two, first-token probabilities [0.4,0.35,0.25] discard the third prefix, although continuation probabilities [0.5,0.5,0.99] make its best two-token result 0.2475 versus 0.2 and 0.175. The actual sampling worksheet gives exp(2)/(exp(2)+exp(1))=0.7310585786 and 0.2689414214 after top-k filtering. Top-p is appropriately implementation-qualified. Completion slicing uses the decoder-only prompt tensor width, including padding.",
+        "sourceUrls": [
+          "https://raw.githubusercontent.com/huggingface/transformers/b3a36037d3feb22e3f0174b3dd4248fcc0f0f722/src/transformers/generation/configuration_utils.py",
+          "https://huggingface.co/docs/transformers/main_classes/text_generation",
+          "https://huggingface.co/docs/transformers/main/en/internal/generation_utils"
+        ]
+      },
+      {
+        "id": "serving-boundary",
+        "evidence": "Pinned Pipeline.run_single explicitly performs preprocessing, forward and postprocessing; iterator paths support batching. Official current documentation independently confirms native serving, continuous batching and paged attention/cache facilities. Fleet behavior and workload performance remain validation requirements, not asserted implementations or measurements. Prior issue F4 is closed: classification now uses task-dependent aggregation and decisions. Versioned classification postprocessing supports argmax without a universal threshold. The remaining task lists identify preprocessing/version/budget concerns; a Hub listing does not establish a particular downstream integration.",
+        "sourceUrls": [
+          "https://raw.githubusercontent.com/huggingface/transformers/b3a36037d3feb22e3f0174b3dd4248fcc0f0f722/src/transformers/pipelines/base.py",
+          "https://huggingface.co/docs/transformers/main/en/continuous_batching",
+          "https://huggingface.co/docs/transformers/main/serve-cli/serving",
+          "https://raw.githubusercontent.com/huggingface/transformers/v5.16.1/src/transformers/pipelines/text_classification.py",
+          "https://huggingface.co/blog/transformers-v5"
+        ]
+      },
+      {
+        "id": "drift-tests",
+        "evidence": "These are diagnostic recommendations rather than promises that one symptom identifies one cause. Loading source distinguishes unused checkpoint weights from model weights that require initialization. Comparing cached execution with a matching full forward isolates added state and incremental-input handling. First-weight inspection is a useful precision clue, subject to the mixed-dtype qualification already stated in load-safety; it is not a complete dtype inventory. Accelerate hooks substantiate repeated weight transfers on successive forwards. Weight fit alone supplies no latency measurement.",
+        "sourceUrls": [
+          "https://raw.githubusercontent.com/huggingface/transformers/v5.16.1/src/transformers/modeling_utils.py",
+          "https://raw.githubusercontent.com/huggingface/accelerate/main/src/accelerate/hooks.py",
+          "https://huggingface.co/docs/accelerate/concept_guides/big_model_inference"
+        ]
+      },
+      {
+        "id": "project-source",
+        "evidence": "Hugging Face's official history identifies its 2018 PyTorch BERT release; ACL records Wolf, Debut, Sanh and collaborators in the 2020 EMNLP demonstration paper. Independently retrieved commit metadata dates b3a36037d3feb22e3f0174b3dd4248fcc0f0f722 to 2026-08-01T16:46:16Z. The pinned files support the stated ownership map. Official v5 material supports modular generation, tokenizer backend changes and retirement of supported TensorFlow/Flax backends. Prior F7/F9 wording is corrected. Legacy project-source.mjs still claims actual CPU execution and November 7 inspection; replace these with dependency pins and the verified source revision.",
+        "sourceUrls": [
+          "https://huggingface.co/blog/series-c",
+          "https://aclanthology.org/2020.emnlp-demos.6/",
+          "https://github.com/huggingface/transformers/commit/b3a36037d3feb22e3f0174b3dd4248fcc0f0f722",
+          "https://huggingface.co/blog/transformers-v5",
+          "https://raw.githubusercontent.com/huggingface/transformers/b3a36037d3feb22e3f0174b3dd4248fcc0f0f722/src/transformers/modeling_utils.py",
+          "https://raw.githubusercontent.com/huggingface/transformers/b3a36037d3feb22e3f0174b3dd4248fcc0f0f722/src/transformers/utils/hub.py",
+          "https://raw.githubusercontent.com/huggingface/transformers/b3a36037d3feb22e3f0174b3dd4248fcc0f0f722/src/transformers/tokenization_utils_base.py",
+          "https://raw.githubusercontent.com/huggingface/transformers/b3a36037d3feb22e3f0174b3dd4248fcc0f0f722/src/transformers/processing_utils.py"
+        ]
+      },
+      {
+        "id": "release-receipt",
+        "evidence": "The receipt is a reproducibility recommendation, consistent with independently versioned artifacts, preprocessing, loading and generation policy. A source revision fixes repository content without fixing hardware execution or supplying request admission. Separating numerical behavior, learned quality and workload performance is sound. Prior issue F7 is closed here: the script implements mechanical checks and serialization without establishing trained quality or fleet capacity. Legacy release-receipt.mjs still displays 'Actual tiny CPU evidence' and 'Mechanical assertions pass'; replace these with 'Implemented CPU checks; execution receipt pending' unless an independent receipt is supplied.",
+        "sourceUrls": [
+          "https://huggingface.co/docs/huggingface_hub/guides/manage-cache",
+          "https://huggingface.co/docs/transformers/main_classes/text_generation",
+          "https://huggingface.co/docs/transformers/main/en/continuous_batching"
+        ]
+      },
+      {
+        "id": "fresh-resume",
+        "evidence": "Correct under the explicitly stated ordinary-path assumptions. Seven prompt positions plus four selections give eleven sequence positions. Prefill processes seven and the three subsequent forwards process three selected tokens, giving ten cached positions. The pending fourth token is at zero-based position ten. Forwarding it with matching prefix state, compatible attention inputs and the correct position raises cache length to eleven while sequence length stays eleven until selection occurs. The actual film model encodes these counters. SGLang's documentation supports the transition to a serving runtime with prefix caching, batching and structured generation.",
+        "sourceUrls": [
+          "https://raw.githubusercontent.com/huggingface/transformers/b3a36037d3feb22e3f0174b3dd4248fcc0f0f722/src/transformers/generation/utils.py",
+          "https://docs.sglang.io/"
+        ]
+      }
+    ],
+    "findings": [],
+    "limitations": [
+      "No substantive inaccurate spoken claim or unsupported spoken guarantee remains identified. All nine prior narration issues were independently closed through corrected wording, primary-source checks or the recovered loss worksheet.",
+      "Verified the actual stage script as d9f9280cd8095431, SHA-256 88f5941351c31c1d0ce931e6be38e50b138d7179ad2e51f7c318773cf8bcf888, with 25 scenes and 72 beats. Reversing the 26 recorded sentence replacements reconstructs prior script e8c2e40ac8869a9b.",
+      "The existing deterministic film model validator completed, and its arithmetic and serialization traces were independently evaluated. This does not establish a Transformers model run.",
+      "The available Python lacks torch, transformers, tokenizers and jinja2. Tokenizer execution, numerical model comparisons, gradients, tying, serialization, cache measurements and generated-token agreement were not independently reproduced. The repaired narration now explicitly describes implemented checks and expected payloads.",
+      "The rebuilt stage folder has no index.mjs. No current stage film, speech timing, layout or rendered voice-and-picture consistency could be validated. Visual remedies in scene evidence concern inspected legacy canvas source, which must be corrected before reuse.",
+      "No accelerator dispatch, quantized loading, multimodal inference, training convergence, learned answer quality, concurrency or production throughput was tested. Requirements to validate those properties were not treated as claims that they were implemented or measured.",
+      "Moving documentation supports its currently retrieved contents. The removed November 7 inspection claim remains historically unverified; the separately stated August 1 commit date was independently confirmed.",
+      "The article served as context and supplied code for inspection, not as proof of its embedded execution results. No files were edited, no external writes were made and no subagents were used."
+    ]
+  },
+  "reviewedNarration": {
+    "source": "videos/stage-lessons/deep-dive-transformers/lesson.yaml",
+    "script": "d9f9280cd8095431",
+    "scenes": [
+      {
+        "id": "intro",
+        "beats": [
+          {
+            "say": "A chatbot loads successfully after an upgrade, but its assistant turns begin incorrectly. The saved weights might be identical. A changed chat template can supply different control tokens before the first neural operation. To explain the result, follow every contract that turns a checkpoint into a model call.\n"
+          },
+          {
+            "say": "Hugging Face Transformers packages model-family definitions, configuration, weight loading, tokenizers, processors and generation conventions. PyTorch supplies the tensor substrate. A concrete model class supplies its architecture. Together, those pieces let training code and supported serving systems share a recognizable model definition.\n"
+          },
+          {
+            "say": "Our small fixtures make those boundaries inspectable. We will resolve a snapshot, select a class, serialize a conversation, align targets, and count cache bytes. Finally, we will trace exactly when a generated token enters the sequence and when its own key-value state becomes available.\n"
+          }
+        ]
+      },
+      {
+        "id": "four-contracts",
+        "beats": [
+          {
+            "say": "A checkpoint needs four agreements. Identity selects the actual snapshot. Configuration defines the architecture and dimensions. Parameters restore values into expected tensor names and shapes. Input and output rules give those tensors meaning. A valid safetensors file can pass parsing while one of the other agreements is broken."
+          },
+          {
+            "say": "For a declared shape example, configuration requests thirty-two thousand embedding rows, but the supplied shard contains thirty-two thousand and one. The vocabulary dimension cannot be restored into that expected tensor. Separately, a shape-compatible custom class might load the same arrays while applying a different positional rule. A known-input numerical test can detect that second problem after allocation succeeds, provided its tokens and positions exercise the changed rule. A single token at position zero can miss a changed rotary frequency because its rotation is the identity."
+          },
+          {
+            "say": "Classify the first failing boundary. An unknown model type points to config or installed support. Missing keys point to the index, class or conversion. A size mismatch points to dimensions or export. A parse error points to artifact integrity. Wrong roles point to preprocessing; a precision change points to dtype. Preserve the first error and its exact inputs before changing another layer."
+          }
+        ]
+      },
+      {
+        "id": "identity",
+        "beats": [
+          {
+            "say": "A repository name and branch identify where to look. The immutable snapshot identifies the files actually used. Our first snapshot points at a weight blob and one tokenizer blob. The Hub cache can share unchanged content between snapshots, so identical weights need no second physical copy.\n"
+          },
+          {
+            "say": "Move the main reference to a second snapshot. Its weight link stays the same, while its tokenizer link changes. An application that records only the repository name loses this distinction. Pin and record the model, tokenizer and processor revisions so the same inputs can be reproduced.\n"
+          },
+          {
+            "say": "Loading also restores tensor names, shapes and dtype into the chosen class. Record the loaded precision and missing or unexpected keys. Saving a model captures its model artifacts; save its tokenizer or processor as well. Custom repository Python needs its own reviewed code identity before remote execution is enabled.\n"
+          }
+        ]
+      },
+      {
+        "id": "lifecycle",
+        "beats": [
+          {
+            "say": "A configuration records hyperparameters and options without creating all model parameters. Construction builds the module hierarchy. Weight initialization supplies values for a new model, and post-initialization collects model properties and configured ties. Tying input embeddings to the output head means two uses share a parameter; each model family and configuration decides whether that tie applies."
+          },
+          {
+            "say": "Loading pretrained weights resolves files, builds the compatible architecture, restores tensor values and sets evaluation mode. That mode controls training-dependent module behavior; it does not disable gradient recording. The CPU lab calls backward after eval and asserts that its configured input and output weights are the same parameter object."
+          },
+          {
+            "say": "Saving pretrained model state writes configuration and weights, with sharding metadata when needed and generation configuration for a generative model. Save the tokenizer or processor separately. A directory containing model weights alone does not reproduce the conversation serialization that produced their inputs. Keep each saved artifact in the release receipt."
+          }
+        ]
+      },
+      {
+        "id": "load-safety",
+        "beats": [
+          {
+            "say": "In the lab’s Transformers five point sixteen point one source, an omitted dtype resolves to auto. Auto consults a saved config dtype, then checkpoint metadata or tensor dtypes as the format allows. Quantizers can modify the choice, and mixed-dtype checkpoints need more than one tensor inspection. That saved precision is not evidence of training precision. Pass the intended dtype explicitly and inspect loaded parameters when comparing releases. Older examples may call the option torch-dtype."
+          },
+          {
+            "say": "Safetensors avoids pickle-style arbitrary Python deserialization of the tensor file. It does not verify that a tensor belongs to the chosen model or make repository Python safe. A custom AutoClass path can import remote code. The trust-remote-code decision authorizes execution, not a sandbox supplied by the flag."
+          },
+          {
+            "say": "If a family requires custom code, inspect the exact source and dependencies, pin model and code revisions, constrain execution permissions and test the actual contract. An unknown-family error is not a reason to enable execution without that review. Library source, downloaded weights and datasets also have distinct licenses; an Apache library license does not license every asset on the Hub."
+          }
+        ]
+      },
+      {
+        "id": "offload-execution",
+        "beats": [
+          {
+            "say": "Accelerate’s big-model inference path can create a meta-device skeleton with parameter shapes and dtypes but no parameter data. Python objects and metadata still occupy memory. A map then plans submodule placement, respects protected unsplit blocks and loads checkpoint data into its destinations. This avoids requiring a full randomly initialized parameter copy first."
+          },
+          {
+            "say": "When a GPU-backed dispatch map offloads a layer to CPU or disk, hooks move that layer’s weights to the main execution device before use and clean up temporary device storage afterward. Disk data first crosses host memory. A CPU-only map executes on CPU. Read the actual device map and hooks: a storage label does not promise an additional concurrent worker."
+          },
+          {
+            "say": "For a supplied memory worksheet, resident weights occupy six gibibytes, the current offloaded layer needs two, live cache needs three and workspace needs one. These separate allocations total twelve gibibytes at use time. A ten-gibibyte device cannot admit that live set even when its six resident weight gibibytes fit. This sequential inference placement is distinct from training-state sharding and tensor-parallel execution."
+          }
+        ]
+      },
+      {
+        "id": "auto",
+        "beats": [
+          {
+            "say": "AutoConfig reads the model-type field and selects a configuration class. AutoModelForCausalLM then chooses the associated causal-language-model class. The first row of our lookup selects Llama. This selection follows metadata before the parameter bytes establish compatibility with the resulting modules.\n"
+          },
+          {
+            "say": "Change only the model-type key to GPT-2. The mapping still returns a valid class, but our supplied shards belong to Llama. Class lookup succeeded while the family contract failed. Validate dimensions, tensor names and a known forward result after selecting a class.\n"
+          },
+          {
+            "say": "An unknown family fails the built-in mapping. Supporting a new family requires compatible configuration and implementation code, with its loading and numerical checks. Safetensors parses tensor data; that storage format and the selected Python behavior remain separate parts of the loading contract.\n"
+          }
+        ]
+      },
+      {
+        "id": "auto-extension",
+        "beats": [
+          {
+            "say": "At the article’s August first source pin, auto-mappings defines configuration names. Configuration-auto wraps them in a lazy mapping that imports the family module on lookup. Modeling-auto holds the task map, including llama to LlamaForCausalLM. This selection follows metadata; it does not infer the architecture from checkpoint tensor bytes."
+          },
+          {
+            "say": "The article’s two-entry Python lookup is an executable standard-library illustration, not the public loader. It deliberately raises KeyError for an unknown key. The inspected public config loader raises ValueError for an unsupported or missing built-in model type. Adding support requires registered configuration and model behavior, conversion checks and maintained tests. Modern modular contributor files can generate the expanded model source that is imported."
+          }
+        ]
+      },
+      {
+        "id": "chat",
+        "beats": [
+          {
+            "say": "A user asks, Why do birds sing? Our constructed template places role and boundary markers around that ordinary question, then begins an assistant turn. The model consumes the resulting IDs. Those control tokens tell it which kind of continuation the checkpoint was trained to produce.\n"
+          },
+          {
+            "say": "Remove the assistant prefix. The visible question stays the same while the serialized token sequence changes. Compare rendered templates and IDs before comparing final answers across clients. A model's actual template comes from its checkpoint; this small vocabulary simply makes the boundary explicit.\n"
+          },
+          {
+            "say": "Another client adds a boundary token twice. That also changes the input. When a template already inserts special tokens, a later tokenization step must avoid adding them again. The combined chat-template tokenization API can keep those decisions together. Multimodal processors add corresponding image or audio preprocessing contracts.\n"
+          }
+        ]
+      },
+      {
+        "id": "tokenizer-fields",
+        "beats": [
+          {
+            "say": "A tokenizer defines vocabulary and tokenization rules, special tokens, padding, truncation and attention masks. BPE uses merge rules, while our word-level fixture maps pretokenized words directly to IDs. Optional offset mappings connect token spans to original text for extraction tasks. A truncation policy can remove the very instruction or evidence the model needs; the same visible user sentence does not establish the same complete input."
+          },
+          {
+            "say": "The article’s local tokenizer uses a small word-level vocabulary, the real fast-tokenizer API and a Jinja chat template. Its template specifies system and user turns followed by an assistant prefix, and its assertion compares combined tokenization with separately tokenizing that rendering without extra special tokens. This is a constructed ChatML-style fixture, not a production Llama chat template. The selected backend and supported alternatives vary by release."
+          }
+        ]
+      },
+      {
+        "id": "processors",
+        "beats": [
+          {
+            "say": "A multimodal processor composes a tokenizer with image or audio preprocessing. It returns named model inputs, such as pixel values, image sizes, input features and placeholder positions. The text-only tiny decoder has no image tower. A schematic image call in the article needs a real compatible model, input file and image dependencies; it is not an executed image-model experiment."
+          },
+          {
+            "say": "Retain the same image and words while checking resize, normalization, dtype, feature shape and placeholder count. Valid tensor dimensions alone can still encode the wrong image convention. For an illustrative scalar pixel, changing normalization from x minus one half to x minus zero changes an input value of one from one half to one. The model receives different numbers before any weight changes."
+          },
+          {
+            "say": "An audio feature extractor may require a specified sample rate and reject a mismatched rate instead of resampling it. Keep raw modality fixtures, processor revision and intermediate tensors beside text IDs. Text-only tests cannot certify a changed image or audio preprocessing path. The processor’s save and load contract is separate from saving model weights."
+          }
+        ]
+      },
+      {
+        "id": "padding",
+        "beats": [
+          {
+            "say": "Batch two prompts with different lengths. In a decoding loop that reads the last input position's logits, right padding puts a padding token at the end of the short row. Its attention mask can hide padding as context, but it does not move that read position.\n"
+          },
+          {
+            "say": "Left-pad the same prompts. Both final positions now contain real prompt tokens. The displayed masks still distinguish padding from content. Padding layout, attention visibility and the position selected for next-token prediction must agree with the generation path.\n"
+          },
+          {
+            "say": "Training adds a separate target mask. A token can remain visible to attention while its own prediction target is ignored. Keep those responsibilities explicit when a checkpoint reuses an end-of-sequence ID for padding, so real end-of-sequence targets survive the training mask.\n"
+          }
+        ]
+      },
+      {
+        "id": "loss",
+        "beats": [
+          {
+            "say": "A causal language model predicts the next token. Logits at the first position are compared with the second label, and so on. The caller supplies unshifted labels for this model contract. Our constructed probabilities let us calculate each next-token negative log likelihood directly.\n"
+          },
+          {
+            "say": "Set the third label to the ignore value. The prediction from the second logit position drops out of the loss. The remaining terms keep their original alignment, and the mean divides by the number of active targets. Every displayed value comes from those surviving probability terms.\n"
+          },
+          {
+            "say": "The ignored token is still present in the input sequence and can influence later predictions through attention. Shifting labels again in the caller would change the prediction task. Check loss alignment independently from attention masking, cache behavior and whether the model is in evaluation mode.\n"
+          }
+        ]
+      },
+      {
+        "id": "output-contract",
+        "beats": [
+          {
+            "say": "A dictionary-style model result is a ModelOutput subclass. Attribute access names logits, loss or cache directly. Its integer indexing considers only fields that are not None. With loss absent, index zero may select logits. Supply labels and a returned loss can take that position. This is a changed field contract, not corrupted logits."
+          },
+          {
+            "say": "Use named attributes when the consumer needs a specific tensor, or explicitly convert to a tuple after checking the returned fields. The causal head’s full logits have batch, sequence and vocabulary axes. A bare decoder or a classification head has different outputs and supervision. The common base class does not force next-token cross-entropy onto every task."
+          }
+        ]
+      },
+      {
+        "id": "real-cpu",
+        "beats": [
+          {
+            "say": "The supplied CPU lab specifies Transformers five point sixteen point one with PyTorch two point twelve. Its randomly initialized Llama has two layers, width thirty-two, four query heads, two key-value heads and a thirty-two-token vocabulary. No downloaded checkpoint or learned language quality is involved. Five input tokens produce logits shaped one by five by thirty-two."
+          },
+          {
+            "say": "Unshifted labels clone those input IDs, with label position three ignored. Each active target contributes the negative natural logarithm of its assigned probability. Average those active terms to obtain the loss. The script checks explicit shifted cross-entropy against model loss. It asserts nonzero embedding gradients after backward in evaluation mode. It asserts that configured weight tying shares the input and output parameter. It compares logits after a local safetensors save and reload with PyTorch’s numerical closeness check."
+          },
+          {
+            "say": "The script compares the fifth token’s cached logits after a four-token prefill with the final full-forward logits, for dynamic and static caches. Changing the final input token leaves earlier logits unchanged under causality. It also asserts that changing an earlier prefix token makes the old-cache tail disagree with the correct full forward. These implemented CPU checks cover loss, storage and state. Their results require a run receipt. Accelerator dispatch, convergence and production throughput remain outside this lab."
+          }
+        ]
+      },
+      {
+        "id": "cache",
+        "beats": [
+          {
+            "say": "Our hypothetical tiny decoder stores keys and values across sixteen layers. It has four stored key-value heads, while its sixteen query heads determine a different dimension of attention work. Multiply the displayed dimensions to get the cache payload per token, then scale by the current sequence length.\n"
+          },
+          {
+            "say": "Switch to a static allocation for the maximum context. Only a short prefix is live, but every allocated slot still occupies storage. The ledger separates useful live cache from unused reserved capacity. This estimate counts key-value tensor payload; weights, activations and temporary buffers require additional memory.\n"
+          },
+          {
+            "say": "At the maximum length, dynamic and static payloads meet. Cache identity also includes the actual prefix, model and positional semantics. A same-length conversation with different tokens needs different state. Serving runtimes add their own admission, paging and sharing policies around supported model definitions.\n"
+          }
+        ]
+      },
+      {
+        "id": "hybrid-budget",
+        "beats": [
+          {
+            "say": "For conventional full-attention cache payload, multiply two for keys and values by layer count, active sequence count, sequence length, stored key-value heads, head width and bytes per value. Query-head count determines a different quantity. A beam-expanded batch can increase active sequence count; maximum allocation length and current live length remain separate. Divide bytes by one million forty-eight thousand five hundred seventy-six to report mebibytes."
+          },
+          {
+            "say": "Hybrid attention needs a sum across layers. In a supplied four-layer example, two layers retain all one hundred tokens and two sliding layers retain twenty each. With one sequence, two stored heads, head width eight and two-byte values, retained lengths sum to two hundred forty. The remaining factor is sixty-four bytes, giving fifteen thousand three hundred sixty bytes. Treat this as a declared payload worksheet, not a general allocator measurement."
+          },
+          {
+            "say": "Quantized caches and offloading have their own support matrices. The inspected current guide supports offloading for dynamic and static cache, with version-specific sliding-layer options; quantized cache differs. An offloaded cache transfers states around attention. A cache object is also distinct from a serving runtime’s paged block pool, prefix-sharing references and request admission policy."
+          }
+        ]
+      },
+      {
+        "id": "cache-identity",
+        "beats": [
+          {
+            "say": "In the supplied five-token CPU test, both conversations have the same length. The script changes token one while reusing the earlier conversation’s four-token cache, and asserts that the tail logits disagree with the correct full forward. The cache stores values derived from tokens and parameters, not just an integer count. The script compares those logits. Application code must enforce the reuse identity."
+          },
+          {
+            "say": "Compare prefix IDs, weight identity, positional state and attention semantics before reuse. Rebuild when those change. Independent continuations must not accidentally mutate one shared cache object as though it belonged to a single conversation. Copy compatible prefix state before divergent updates, using the chosen cache implementation’s supported operation."
+          },
+          {
+            "say": "For the supplied CPU dimensions, expected key-value payload is one thousand two hundred eighty dynamic bytes at five live positions, while static capacity sixteen needs four thousand ninety-six bytes after allocation. Both caches should report five live positions. The script checks storage by multiplying each key and value tensor’s element count by element size. Cache internals are version-sensitive; agreement with the full forward is the durable contract."
+          }
+        ]
+      },
+      {
+        "id": "generation",
+        "beats": [
+          {
+            "say": "Forward computes model outputs for supplied inputs. Generate wraps repeated forwards with token selection, cache updates and stopping decisions. In our constructed greedy trace, prefill processes five prompt tokens, creates their cache state, and selects the first new token. Selection appends that token to the returned sequence.\n"
+          },
+          {
+            "say": "The next forward processes that newly selected token and creates its keys and values. It then selects another token. Repeat once more and stop after the third selection. Follow the sequence and cache counters: the final selected token has not yet received its own forward pass.\n"
+          },
+          {
+            "say": "Resuming this ordinary greedy path requires forwarding that final token with compatible masks and positions. Other decoding paths can keep different bookkeeping. A dependable release records the snapshot, class, preprocessing, dtype, cache and decoding policy, then compares fixed-input logits and generated tokens across the actual runtime change.\n"
+          }
+        ]
+      },
+      {
+        "id": "decoding-policy",
+        "beats": [
+          {
+            "say": "Generation wraps repeated forwards with configuration, logits transformations, selection and stopping. Greedy decoding needs both no sampling and one beam. Disabling sampling while inheriting several beams still requests beam search. Beam search prunes hypotheses and applies its configured ranking, so it does not guarantee the globally most probable sequence. Assisted decoding adds a draft or candidate generator verified by the target."
+          },
+          {
+            "say": "For sampling, divide logits by positive temperature, filter the permitted candidates and normalize exponential masses before drawing. In a supplied logit row two, one, zero with temperature one and top-k two, the last candidate is removed. The first two normalize to about point seven three one and point two six nine. This is an authored numerical selection worksheet, not a draw from the random CPU model."
+          },
+          {
+            "say": "Top-p instead keeps a high-probability set reaching its configured cumulative threshold under the selected implementation. Stop IDs, repetition controls and maximum new tokens also change the loop. Record the resolved GenerationConfig. Decoder-only returned sequences include the input prefix, so slice by the actual prompt tensor width when the caller needs only completion IDs. Then compare token IDs before decoding strings."
+          }
+        ]
+      },
+      {
+        "id": "serving-boundary",
+        "beats": [
+          {
+            "say": "A pipeline wraps task preprocessing, model invocation and postprocessing, and may batch local inputs. That makes it useful for a smoke test, offline job or small evaluation fixture. It does not by itself establish fleet admission, fault isolation, autoscaling or GPU topology behavior. Test concurrency at the component that actually schedules requests."
+          },
+          {
+            "say": "The inspected v5 materials expose native serving, paged caching and continuous batching, so serving is not absent from the library. Compare the selected native serving path or another compatible runtime on the actual workload. A plain pipeline call and a dedicated engine remain different entry paths with different defaults, allocation and compatibility boundaries."
+          },
+          {
+            "say": "Task contracts also differ. Classification needs its label map and task-specific aggregation and decision rule. Single-label classification can select the highest-scoring class, while multilabel decisions may use thresholds. Retrieval needs truncation, normalization and embedding version. Vision-language chat needs pixel and placeholder budgets. Training wrappers, adapter tools and quantizers specialize the model definition; exporters support selected families and formats. A Hub listing alone certifies none of those downstream integrations."
+          }
+        ]
+      },
+      {
+        "id": "drift-tests",
+        "beats": [
+          {
+            "say": "Compare raw input and preprocessing first, then concrete class and parameter identity, fixed-input logits, each selected token, cache positions and stop decisions. Agree on numerical tolerances for the backend. A final text mismatch alone cannot locate the failure. If full forward agrees but cached decoding diverges, replay the first divergent cache update with its masks and positions."
+          },
+          {
+            "say": "Keep a conversion failure visible. Missing or unexpected keys may indicate a renamed, tied, sharded or transposed tensor, or an uninitialized task head. Review that report against the intended model card and conversion rather than treating all warnings as harmless. Explicit dtype and first-floating-weight inspection diagnose precision drift separately from template drift."
+          },
+          {
+            "say": "Cache pressure requires actual live lengths, active batch count and a memory budget. Offloaded layer transfers can recur every decode step, so fitting the weights is not a latency measurement. Preserve model-card restrictions, custom-code review and processor fixtures. These checks convert one broad claim that the model changed into a specific reproducible boundary."
+          }
+        ]
+      },
+      {
+        "id": "project-source",
+        "beats": [
+          {
+            "say": "Hugging Face’s history traces the project to an open PyTorch BERT implementation in twenty eighteen. Wolf, Debut, Sanh and collaborators described the expanding unified library in the twenty twenty EMNLP demonstration paper. Hugging Face engineers and community contributors maintain integrations, conversions and tests. The company’s hosted products remain distinct from the open-source package and individually licensed model assets."
+          },
+          {
+            "say": "The source-reading pin is August first, twenty twenty-six. The supplied CPU lab specifies Transformers five point sixteen point one. The dtype behavior here follows that release’s source. The v5 announcement describes modular contributor generation, tokenizer backend changes and a focus on PyTorch instead of supported TensorFlow and Flax backends. Keep source inspection, implemented assertions and recorded execution results separate."
+          },
+          {
+            "say": "Follow one request through auto-mappings, configuration-auto and modeling-auto; then the family configuration and modeling files. Modeling-utils owns lifecycle, hub utilities resolve files, tokenization utilities and processing utilities construct inputs. Generation utilities and its configuration own selection and stopping, cache-utils owns stored state, and pipeline base wraps the task. Read the selected pinned owner when a receipt changes."
+          }
+        ]
+      },
+      {
+        "id": "release-receipt",
+        "beats": [
+          {
+            "say": "Record immutable model, tokenizer, processor and custom-code identities, configuration hash, selected class, shard index and expected parameter count. Add library, tensor backend and accelerator versions. Preserve raw inputs, rendered template, IDs, masks and modality preprocessing. These artifacts let another investigator replay the same computation rather than merely find the same repository name."
+          },
+          {
+            "say": "Record dtype, quantization, device map, parallelism, cache implementation, generation configuration, seed, stop IDs and token policy. Attach reference logits and outputs with the declared tolerance, plus license and remote-code decisions. A source revision fixes files; it does not by itself fix hardware kernels or admit concurrent requests."
+          },
+          {
+            "say": "Use separate gates for numerical behavior, application quality and workload performance. The supplied tiny CPU script implements several mechanical checks and a local serialization round trip. It supplies no learned answer quality or fleet capacity. A faster backend that changes the prompt or stopping policy is a different evaluated configuration until those differences are tested."
+          }
+        ]
+      },
+      {
+        "id": "fresh-resume",
+        "beats": [
+          {
+            "say": "Use a separate supplied ordinary greedy path with seven prompt tokens and four new selections. It stops immediately after the fourth selection. No prompt tokens were evicted, and each decode pass forwarded only the preceding selected token. How many sequence positions and cache positions remain, and what must a resume forward receive? Pause."
+          },
+          {
+            "say": "The returned sequence has eleven positions. Prefill caches seven; three later forwards add three, so the cache has ten. The fourth selected token is present in the sequence but still lacks its own key and value state. Preserve the first ten token identities and forward that pending token with the full compatible mask and correct position."
+          },
+          {
+            "say": "After that forward alone, cached positions become eleven while the sequence stays eleven: no twelfth token has been selected. Compare the resulting logits with a full eleven-token reference. If an earlier prefix changed, rebuilding is required instead. This supplied transfer uses the ordinary path we traced; other generation algorithms require their own bookkeeping check. SGLang next consumes that model-and-tokenizer contract inside a serving runtime, tracing prefix reuse, batching, constrained sampling and delivery through their separate state owners."
+          }
+        ]
+      }
+    ]
+  }
+}

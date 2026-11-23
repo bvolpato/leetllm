@@ -1,0 +1,585 @@
+[
+  {
+    "id": "c01",
+    "title": "Two readings of a password reset",
+    "sourceChapters": ["c01"],
+    "beats": [
+      {
+        "id": "c01-b01",
+        "say": "Type “Reset my password.” In this toy model, a pointer marks the first coordinate of the request. It reads one point five. Add one word, now. The pointer lands at two point three. The cover hides the second part of the plot. Did the credential arrow get longer?",
+        "hold": 2.6
+      },
+      {
+        "id": "c01-b02",
+        "say": "Lift the cover. The blue credential arrow still ends at one point five. Follow the pink arrow down to the ruler. Its horizontal span accounts for the extra eight tenths. We can identify those contributions because we built this mixture ourselves.",
+        "hold": 0.7
+      },
+      {
+        "id": "c01-b03",
+        "say": "Trace the blue arrow from zero to one point five. The pink arrow starts at its tip. Move eight tenths to the right and six tenths up. The black dot is the full activation. Its horizontal projection lands on two point three, exactly what the pointer read.",
+        "hold": 0.7
+      },
+      {
+        "id": "c01-b04",
+        "say": "Try two directions at right angles. Turn them together. Both now cast a shadow on the horizontal axis, even though there are still just two directions in two dimensions. Mixed readings alone leave open whether a model packs extra features into overlapping directions. That's the superposition hypothesis.",
+        "hold": 0.3
+      },
+      {
+        "id": "c01-b05",
+        "say": "A residual stream carries a vector from one part of a transformer block to the next. Our pointer reads one coordinate of that vector. An MLP neuron applies a nonlinear function. If it responds to several unrelated contexts, we call that neuron polysemantic.",
+        "hold": 0.7
+      },
+      {
+        "id": "c01-b06",
+        "say": "In a trained model we have to find candidate directions. A sparse autoencoder learns to rebuild each activation using a few of them. We'll test what one direction does by taking its contribution out and measuring the change in a score.",
+        "hold": 0.8
+      }
+    ]
+  },
+  {
+    "id": "c02",
+    "title": "Small pairwise overlap can accumulate",
+    "sourceChapters": ["c02"],
+    "beats": [
+      {
+        "id": "c02-b01",
+        "say": "Put two arrows at right angles. Where could a third arrow point to miss both axes? The blue and pink shadows show why there’s no such direction in this plane. In D dimensions, at most D unit directions can all be perpendicular.",
+        "hold": 0.3
+      },
+      {
+        "id": "c02-b02",
+        "say": "The Johnson-Lindenstrauss lemma asks a different question about a finite set of points. Use a suitable linear map to reduce the dimension. Each tick shows one pair’s squared distance afterward divided by its squared distance before.",
+        "hold": 0.3
+      },
+      {
+        "id": "c02-b03",
+        "say": "The required dimension grows with the log of the number of points and with the inverse square of the allowed error. All twenty-eight pairs here fit inside the band around one. That tells us about these distances.",
+        "hold": 0.3
+      },
+      {
+        "id": "c02-b04",
+        "say": "Recovering the ingredients of a mixture in a transformer takes further evidence.",
+        "hold": 1
+      },
+      {
+        "id": "c02-b05",
+        "say": "Now make twenty-four random directions. Choose each coordinate sign independently and fairly, then divide by the square root of the dimension to get unit length. At sixty-four dimensions the highlighted row shows the overlaps with one probe. Look across all pairs.",
+        "hold": 0.3
+      },
+      {
+        "id": "c02-b06",
+        "say": "The formula bounds the chance that even one absolute overlap exceeds one half. At two hundred and fifty-six dimensions the bound is below one in a thousand. Go back to sixteen and it exceeds one, so it gives no useful guarantee there.",
+        "hold": 0.3
+      },
+      {
+        "id": "c02-b07",
+        "say": "Higher dimensions can accommodate many nearly perpendicular directions under this sampling rule. We still need measurements to tell how a trained model uses its space.",
+        "hold": 1
+      },
+      {
+        "id": "c02-b08",
+        "say": "Point the probe at a direction we left out of the mixture. Its coefficient is zero. The largest absolute overlap between any two unit directions is called coherence. Multiply it by the sum of the active coefficient magnitudes to bound the leakage into this probe.",
+        "hold": 1.6
+      },
+      {
+        "id": "c02-b09",
+        "say": "Each active direction has coefficient one and writes a tenth along the absent probe. Set the detector to fire above one. First admit four directions. The probe reads four tenths. Add the remaining eight. At twelve, the probe reads one point two. The detector fires even though its own coefficient is zero.",
+        "hold": 0.3
+      },
+      {
+        "id": "c02-b10",
+        "say": "When choosing a cutoff we also have to leave room for weak real signals.",
+        "hold": 1
+      }
+    ]
+  },
+  {
+    "id": "c03",
+    "title": "Rebuild an activation from a few directions",
+    "sourceChapters": ["c03"],
+    "beats": [
+      {
+        "id": "c03-b01",
+        "say": "A dictionary is a collection of candidate directions in activation space. A sparse code assigns nonzero coefficients to only a few of them. Multiply each selected direction by its coefficient, then add. The result is a reconstruction with the same width as the original activation.",
+        "hold": 1.5
+      },
+      {
+        "id": "c03-b02",
+        "say": "Follow our two selected directions as their weighted arrows join. Three other available directions stay unused. This supplied dictionary has more entries than the two-dimensional activation space has axes, making it overcomplete. Its sparse code is known because we constructed the mixture ourselves.",
+        "hold": 0.65
+      },
+      {
+        "id": "c03-b03",
+        "say": "Run the machine in the other direction. From the observed point, the encoder estimates a coefficient for each slot. Here the blue detector subtracts four thirds of the second coordinate from the first. That cancels the contribution from urgency. The blue decoder column writes horizontally. Untied weights let the detector and writer do different jobs. Match checkpoint, layer, token position and normalization when using a trained dictionary.",
+        "hold": 0.3
+      },
+      {
+        "id": "c03-b04",
+        "say": "For width D and M latent slots, the encoder matrix is M by D and the decoder D by M. A common formulation subtracts decoder bias before encoding and adds it after decoding. For example, five hundred and twelve coordinates can feed four thousand and ninety-six candidate slots. The decoder still writes five hundred and twelve coordinates.",
+        "hold": 0.3
+      },
+      {
+        "id": "c03-b05",
+        "say": "That learned reference need not be the exact data mean; other recipes omit the subtraction. Tied weights force decoder to equal encoder transpose throughout training; tied initialization starts them aligned but permits independent later updates. These are different constraints.",
+        "hold": 0.7
+      }
+    ]
+  },
+  {
+    "id": "c04",
+    "title": "Fit the activation while limiting the code",
+    "sourceChapters": ["c04"],
+    "beats": [
+      {
+        "id": "c04-b01",
+        "say": "Look at the gap between the dot and its reconstruction. Training charges for that gap through mean squared error. It also charges for the magnitude of the coefficients. Restore the pink arrow. The gap closes. Drop it again. The missing arrow costs us reconstruction accuracy, and we save the price of one coefficient.",
+        "hold": 0.3
+      },
+      {
+        "id": "c04-b02",
+        "say": "Our two candidates use the same five decoder columns, so we can compare their bills. Average squared error over two coordinates and average magnitude over five coefficients. For each positive coefficient the penalty contributes a derivative of lambda divided by five.",
+        "hold": 0.3
+      },
+      {
+        "id": "c04-b03",
+        "say": "The optimizer follows that gradient back to the encoder parameters. Subtracting a fixed amount from each code entry would be a different update.",
+        "hold": 0.6
+      },
+      {
+        "id": "c04-b04",
+        "say": "With both arrows we hit the target exactly. With one arrow we miss by a whole unit along the pink direction. Its squared length is one, so the mean squared error over two coordinates is one half. Raise the price of each coefficient.",
+        "hold": 1.8
+      },
+      {
+        "id": "c04-b05",
+        "say": "Turn the weight to two and a half. Both codes cost one point two five. If we keep turning, which code will be cheaper? At four, the one-arrow code costs one point seven. The two-arrow code costs two.",
+        "hold": 0.3
+      },
+      {
+        "id": "c04-b06",
+        "say": "Training prefers the cheaper code under this objective.",
+        "hold": 0.65
+      },
+      {
+        "id": "c04-b07",
+        "say": "There’s another way to lower the bill. Halve both coefficients and double the lengths of the decoder columns. Each weighted arrow still reaches its old tip, so the reconstruction stays put. The magnitude penalty falls even though the same two entries are active.",
+        "hold": 0.3
+      },
+      {
+        "id": "c04-b08",
+        "say": "Unit-length decoder columns rule out this trade. A norm-aware penalty charges for the product of coefficient magnitude and column length, which stays fixed here.",
+        "hold": 0.7
+      }
+    ]
+  },
+  {
+    "id": "c05",
+    "title": "A magnitude penalty also shrinks real signals",
+    "sourceChapters": ["c05"],
+    "beats": [
+      {
+        "id": "c05-b01",
+        "say": "Hold the blue coefficient fixed. Pink needs a coefficient of one to reach the dot. Try a scalar loss with a squared gap and a price for each unit of pink. Where will the minimum go as we raise that price?",
+        "hold": 2.1
+      },
+      {
+        "id": "c05-b02",
+        "say": "With this scalar loss, the optimum is the target minus half the effective penalty weight, clipped at zero. Raise the weight to one point two. The pink coefficient settles at point four, leaving a gap even though we picked the correct direction.",
+        "hold": 0.65
+      },
+      {
+        "id": "c05-b03",
+        "say": "Count the active entries. Both arrows still contribute. Raise the weight again and the pink coefficient gets closer to zero, but the count is still two. Only when the coefficient reaches zero does the count fall to one. The L-one penalty charges for magnitude throughout. A support limit cares about how many entries are nonzero.",
+        "hold": 0.7
+      }
+    ]
+  },
+  {
+    "id": "c06",
+    "title": "Which candidates reach the decoder?",
+    "sourceChapters": ["c06"],
+    "beats": [
+      {
+        "id": "c06-b01",
+        "say": "These five bars are candidates for the decoder. Each number above a bar gives its proposed coefficient. Suppose we can keep at most two positive entries, and we want the largest ones. Which two slots will write to the reconstruction?",
+        "hold": 2.6
+      },
+      {
+        "id": "c06-b02",
+        "say": "Keep slots two and four. Their filled bars keep the original magnitudes, two point four and one point seven. The other slots write zero. That's nonnegative Top K. On a new input, leave slot two alone and push every other candidate below zero. Only one slot writes now, even with room for two.",
+        "hold": 0.7
+      },
+      {
+        "id": "c06-b03",
+        "say": "A fixed threshold makes a different decision. Raising it can remove weak candidates, and the number retained varies with the input. JumpReLU learns a positive threshold and keeps the pre-activation above it. Its discontinuous threshold needs a specialized gradient estimator during training.",
+        "hold": 0.65
+      },
+      {
+        "id": "c06-b04",
+        "say": "Watch slot five across three ordinary sentences. At a threshold of two, it stays silent. Extend the window to the windmill sentence. Slot five fires. State the observation window and inspect rare contexts before declaring a feature dead. For genuinely unused capacity, training can provide a separate learning signal.",
+        "hold": 0.3
+      },
+      {
+        "id": "c06-b05",
+        "say": "AuxK selects inactive latents to reconstruct the main residual error, with a separate auxiliary gradient while preserving main-path support selection. Gao’s paper uses ten million tokens as a typical inactive window and one over thirty-two as a typical auxiliary weight.",
+        "hold": 0.3
+      },
+      {
+        "id": "c06-b06",
+        "say": "These are recipe settings, not definitions for every SAE. Anthropic’s earlier resampling instead samples high-loss input vectors, resets selected directions, biases and modified optimizer state; it can cause a loss spike. A short silent window may simply miss rare contexts.",
+        "hold": 0.7
+      }
+    ]
+  },
+  {
+    "id": "c07",
+    "title": "Separate detection from estimated magnitude",
+    "sourceChapters": ["c07"],
+    "beats": [
+      {
+        "id": "c07-b01",
+        "say": "In a Gated SAE two readings share a projection direction. One decides whether to write at all. The other estimates how much to write. The rows may have different scales and biases. Reduce a positive gate reading while keeping its sign. The gate stays open. The L-one charge falls on the rectified gate reading, so the magnitude can pass through at full size.",
+        "hold": 0.3
+      },
+      {
+        "id": "c07-b02",
+        "say": "An auxiliary reconstruction through those gate pre-activations teaches detection while freezing the decoder output path. In the paper's pseudocode, the shared decoder bias also centers the encoder input, so it can still receive an auxiliary gradient through that input path unless this path is stopped too.",
+        "hold": 1
+      },
+      {
+        "id": "c07-b03",
+        "say": "The magnitude estimate has no direct L-one penalty, although shared parameters and reconstruction gradients can still change it. JumpReLU instead keeps the full pre-activation strictly above a learned positive threshold and uses an L-zero support penalty.",
+        "hold": 0.3
+      },
+      {
+        "id": "c07-b04",
+        "say": "A naive threshold derivative is zero almost everywhere, so its recipe uses a custom windowed straight-through estimator. Estimator bandwidth trades bias and variance. Compare architectures at matched data, width, sparsity and compute; their published results do not establish universal semantic recovery.",
+        "hold": 1
+      }
+    ]
+  },
+  {
+    "id": "c08",
+    "title": "Which edit changed the score?",
+    "sourceChapters": ["c08"],
+    "beats": [
+      {
+        "id": "c08-b01",
+        "say": "Look at the tip of this horizontal feature. The original point sits one tenth above it. Magnify that gap. The green segment is the reconstruction error, or residual. Our toy score reads height times a hundred. That tiny height gives a score of ten.",
+        "hold": 0.8
+      },
+      {
+        "id": "c08-b02",
+        "say": "Make an identical copy below. Substitute the reconstruction in the copy. The green segment disappears. Its height is now zero and the copy scores zero. The mean squared error over two coordinates is only five thousandths. Both copies still contain the full horizontal feature.",
+        "hold": 1.5
+      },
+      {
+        "id": "c08-b03",
+        "say": "Keep both rows in view. We will subtract the same blue horizontal feature from each starting point. Which score will move when blue slides out?",
+        "hold": 3
+      },
+      {
+        "id": "c08-b04",
+        "say": "Slide both points one unit left. Ten stays ten in the original row. Zero stays zero in the other. If we compared the original ten with that final zero, we'd blame the feature for a loss that happened before we touched it.",
+        "hold": 0.3
+      },
+      {
+        "id": "c08-b05",
+        "say": "Subtracting the feature from the original activation keeps its residual. That comparison measures the effect of this edit at this hook.",
+        "hold": 1
+      }
+    ]
+  },
+  {
+    "id": "c09",
+    "title": "An edit moves overlapping readouts too",
+    "sourceChapters": ["c09"],
+    "beats": [
+      {
+        "id": "c09-b01",
+        "say": "Steering adds a scaled decoder direction to the activation at its matching hook. The model then continues from the edited point. Here the candidate direction points up. Which readout stays fixed as the point climbs? Look for the readout perpendicular to the edit.",
+        "hold": 2.1
+      },
+      {
+        "id": "c09-b02",
+        "say": "Raise the edit by one unit, then another. The vertical reading gains one per step. The horizontal reading stays at point two. The sloping readout gains eight tenths per step. Its overlap with the edit predicts that collateral change. In a language model, test target behavior and collateral capabilities on held-out prompts. Look for counterexamples to the feature name.",
+        "hold": 0.65
+      },
+      {
+        "id": "c09-b03",
+        "say": "Clamping a coefficient in a cached decomposition also needn't make the re-encoded coefficient equal the requested value. Encoder and decoder directions may differ, and thresholds can switch. State exactly which activation changed and how the outcome was measured so the intervention has a reproducible meaning.",
+        "hold": 0.7
+      },
+      {
+        "id": "c09-b04",
+        "say": "Try a fresh activation with four coordinates. Its middle entries are minus point four and point two. The feature writes half a unit in each of those positions. Double that direction. What values will the model receive in the two middle positions?",
+        "hold": 2.6
+      },
+      {
+        "id": "c09-b05",
+        "say": "Add the two scaled entries. Minus point four plus one gives point six. Point two plus one gives one point two. The first and last stay at point three and point seven. This edited activation is what the rest of the model receives.",
+        "hold": 1.25
+      }
+    ]
+  },
+  {
+    "id": "c10",
+    "title": "What does the encoder read after the edit?",
+    "sourceChapters": ["c10"],
+    "beats": [
+      {
+        "id": "c10-b01",
+        "say": "Suppose we want to set one cached coefficient to three. Start with the original activation. Multiply the change in coefficient by its decoder direction, then add that vector. The original reconstruction error stays in place. The dashed lines belong to the encoder.",
+        "hold": 0.3
+      },
+      {
+        "id": "c10-b02",
+        "say": "They tell us what it would read if we fed the edited point back in.",
+        "hold": 0.6
+      },
+      {
+        "id": "c10-b03",
+        "say": "This encoder adds the first coordinate to twice the second and clips the result at zero. At the white dot it reads two. Our decoder column points straight up. We want three in the cached decomposition, so the edit moves the dot up one unit. What will the encoder read there?",
+        "hold": 2.8
+      },
+      {
+        "id": "c10-b04",
+        "say": "Move the dot. It crosses the line for three and lands on four. A unit step in the second coordinate counts twice for this encoder. The sum of the coordinates moves too, from one and a half to two and a half.",
+        "hold": 0.3
+      },
+      {
+        "id": "c10-b05",
+        "say": "We set the coefficient in the saved decomposition exactly. Its new encoder reading depends on the weights and on any thresholds the point crosses.",
+        "hold": 0.9
+      },
+      {
+        "id": "c10-b06",
+        "say": "Now try the same question with a gradient. Return to our horizontal feature and the green residual of one tenth. Give the horizontal coordinate a weight of three, and keep a weight of one hundred on the vertical. The starting score is thirteen. Nudge the blue coefficient.",
+        "hold": 0.3
+      },
+      {
+        "id": "c10-b07",
+        "say": "Nudge the blue coefficient by two tenths. First recompute the residual from the original activation. Its horizontal component cancels the nudge, so the score stays at thirteen. Reset. Now freeze the original residual and repeat the nudge. Its green segment travels with the blue tip. The score rises by six tenths.",
+        "hold": 0.3
+      },
+      {
+        "id": "c10-b08",
+        "say": "The feature derivative is three. Recomputing the residual after an edit would undo the edit itself. For multiple hooks, follow the method's specified pass-through paths so that gradients reach upstream features.",
+        "hold": 1
+      }
+    ]
+  },
+  {
+    "id": "c11",
+    "title": "What does an exact reconstruction tell us?",
+    "sourceChapters": ["c11"],
+    "beats": [
+      {
+        "id": "c11-b01",
+        "say": "Turn from the robin to the sparrow. In this toy dictionary, the first coordinate means bird and the second means sparrow. The sparrow has a one in each position. A single specialized direction can print both ones. Can the detector labeled bird stay silent even with that exact reconstruction?",
+        "hold": 2.4
+      },
+      {
+        "id": "c11-b02",
+        "say": "The bird detector subtracts the second coordinate from the first and clips at zero. On the sparrow it reads zero. The specialized slot writes a one to bird and a one to sparrow. This is absorption. An index of examples where the bird detector fires includes the robin and misses the sparrow.",
+        "hold": 0.8
+      },
+      {
+        "id": "c11-b03",
+        "say": "What if we measure downstream loss? The clean model scores two. Substituting its reconstruction costs four tenths more. Compare that damage with replacing the activation altogether. If the ablation baseline moves from six to ten, the fraction of loss recovered rises.",
+        "hold": 0.3
+      },
+      {
+        "id": "c11-b04",
+        "say": "The same four tenths of damage now count against a bigger denominator. Keep all three raw losses. To evaluate a dictionary you'll also want to know which slots fire, which examples the labels miss, and what happens when you edit a direction.",
+        "hold": 0.7
+      },
+      {
+        "id": "c11-b05",
+        "say": "Take the password request again. The arrows reach the dot. To go further, pick a quantity that should change and one that should stay put. Subtract the blue credential arrow. The horizontal reading falls from two point three to point eight.",
+        "hold": 0.3
+      },
+      {
+        "id": "c11-b06",
+        "say": "The vertical reading stays at point six. That tells us exactly which readout changed here. Next we need to know where this activation enters the model.",
+        "hold": 0.8
+      }
+    ]
+  },
+  {
+    "id": "c12",
+    "title": "A feature hook must preserve its computational meaning",
+    "sourceChapters": ["c12"],
+    "beats": [
+      {
+        "id": "c12-b01",
+        "say": "Follow one token along the residual stream. Attention routes context into the block. At the join, its output adds to the running state. The MLP writes a separate nonlinear update. A dictionary trained on that update sees different data from one trained after the join. Match checkpoint, layer, token position, normalization, projection, centering, rescaling and dtype.",
+        "hold": 0.3
+      },
+      {
+        "id": "c12-b02",
+        "say": "A joint dictionary requires explicit multi-site training. Layer number alone cannot establish compatibility.",
+        "hold": 1
+      },
+      {
+        "id": "c12-b03",
+        "say": "A feature circuit proposes a path from a feature through later computation to an output. Here we can test one with a score we wrote ourselves. Each row multiplies a feature activation by its weight.",
+        "hold": 0.3
+      },
+      {
+        "id": "c12-b04",
+        "say": "Credential contributes one point zero eight, and urgency supplies the remaining eight hundredths. Together they score one point one six. Remove the credential feature. The score drops to eight hundredths. Restore that run. Now remove formatting.",
+        "hold": 0.3
+      },
+      {
+        "id": "c12-b05",
+        "say": "Its activation started at point seven, but we gave it zero weight. Its removal leaves the score at one point one six. In a real model, measure the effect of the same edits on held-out prompts.",
+        "hold": 0.3
+      },
+      {
+        "id": "c12-b06",
+        "say": "If an edit has no effect, check its strength and whether another path compensates.",
+        "hold": 1
+      },
+      {
+        "id": "c12-b07",
+        "say": "A cross-layer transcoder reads features at several layers. Follow feature one in blue. It reads the residual stream at layer one. Each blue arrow carries that same activation through a different decoder vector. Each MLP output combines writers from its own layer and earlier layers. The attention branches still run.",
+        "hold": 0.3
+      },
+      {
+        "id": "c12-b08",
+        "say": "Model-specific induction, indirect-object and greater-than circuit studies motivate these investigations without certifying this dictionary.",
+        "hold": 1
+      },
+      {
+        "id": "c12-b09",
+        "say": "For one prompt, a local replacement model holds the original attention patterns fixed. Those are the weights that mix token values. If a value changes, the mixture can still change. Keep the original normalization denominators and add each green reconstruction error as a constant. The baseline activations and logits now match by construction. A graph can trace contributions from token embeddings, features and errors to selected logits.",
+        "hold": 0.3
+      },
+      {
+        "id": "c12-b10",
+        "say": "Trace feature one to feature three’s pre-activation on the same token. In this toy edge, the source writes two units at MLP one. Follow that coordinate along the residual stream. Attention also takes half its value. All other token values stay fixed, and the target reads this coordinate with weight one. Hold the intervening MLP two output fixed in the backward pass. How much does the source contribute through the two open routes?",
+        "hold": 2.8
+      },
+      {
+        "id": "c12-b11",
+        "say": "Three units. The residual carries two and the value path adds one. Add one unit to the source to check the derivative. The mixing weight stays at one half. The residual gains one, and attention adds another half. The target pre-activation rises by one and a half. Return to two. Multiply that derivative by the original source activation to get its three-unit contribution. The lower branch still runs forward. Its response through feature two is excluded from this direct derivative. The graph takes the attention patterns as given. How queries and keys formed them is a separate question. Pruned paths, inactive features and unexplained errors can hide a mechanism. Check the predicted edit in the original model.",
+        "hold": 1
+      }
+    ]
+  },
+  {
+    "id": "c13",
+    "title": "Measure recovery separately from reconstruction",
+    "sourceChapters": ["c13"],
+    "beats": [
+      {
+        "id": "c13-b01",
+        "say": "The article’s CPU lab draws mixtures of two to four of twenty-four known directions in eight dimensions. It trains an uncentered ReLU encoder, decoder bias and sixty-four unit-normalized decoder columns with full-batch gradient descent. L-one subgradients enter before the ReLU backward step. This lab omits activation streaming, auxiliary dead-feature loss and learned thresholds.",
+        "hold": 1
+      },
+      {
+        "id": "c13-b02",
+        "say": "Each hollow dot marks one of the twenty-four generating directions. Its height is the best absolute cosine with a decoder column at random initialization. After training, reconstruction error falls by over ninety percent. Does that establish that we recovered the directions? Check the active slots, then compare the dots.",
+        "hold": 0.3
+      },
+      {
+        "id": "c13-b03",
+        "say": "The encoder uses about nineteen of its sixty-four slots on average, including on fresh examples. The generator used only two to four. Held-out reconstruction leaves about seventeen percent of the variance unexplained, relative to predicting the training mean. How many of the twenty-four generating directions will finish at or above point nine after training?",
+        "hold": 2.2
+      },
+      {
+        "id": "c13-b04",
+        "say": "Reveal the trained dots. Count the filled dots at or above point nine. Two finish there. Direction sixteen just clears the line. Direction twenty-three was already above it at initialization and stays above it. Across all twenty-four directions, the median best match rises from point seven nine eight to point seven nine nine.",
+        "hold": 1
+      },
+      {
+        "id": "c13-b05",
+        "say": "Absolute cosine ignores sign. A learned column facing exactly backward earns a perfect absolute match, though a positive coefficient writes the wrong way. Keep signed alignments and a random-initialization control. Several true directions can also claim the same learned column as their best match. Compare contexts and intervention effects across seeds.",
+        "hold": 0.3
+      },
+      {
+        "id": "c13-b06",
+        "say": "Increasing width can split one human concept among several latents, so indices and one-latent edits need not transfer. Report width, data, compute, observation window and held-out rare contexts.",
+        "hold": 1
+      },
+      {
+        "id": "c13-b07",
+        "say": "Loss Recovered equals one minus reconstruction-substitution loss damage divided by the chosen ablation-baseline damage, using the same hooks and positions. Clean loss two, substitution two point four and ablation six give ninety percent.",
+        "hold": 0.3
+      },
+      {
+        "id": "c13-b08",
+        "say": "Change only the ablation loss to ten and it becomes ninety-five percent, although damage stays point four. A zero denominator is undefined; values can be negative or exceed one. Report raw losses, activation MSE, support, semantic counterexamples and targeted or collateral task effects together.",
+        "hold": 0.3
+      },
+      {
+        "id": "c13-b09",
+        "say": "For planning, two hundred thousand float32 vectors of width four thousand ninety-six alone occupy about three point zero five gibibytes at one hook, before model, optimizer or gradients.",
+        "hold": 1
+      }
+    ]
+  },
+  {
+    "id": "c14",
+    "title": "What explains the gap between these requests?",
+    "sourceChapters": ["c14"],
+    "beats": [
+      {
+        "id": "c14-b01",
+        "say": "Suppose someone names a learned direction credential. How much could we learn from the name alone? In a Pythia study, aggregate explanation and reconstruction scores often looked similar for trained and randomized models. A randomly initialized model gives us a baseline for interpreting those metrics.",
+        "hold": 0.75
+      },
+      {
+        "id": "c14-b02",
+        "say": "A natural language autoencoder puts text between the activation and its reconstruction. Its words can suggest a hypothesis, and the verbalizer can also invent details. A readable description still needs an independent test of what the model does.",
+        "hold": 0.75
+      },
+      {
+        "id": "c14-b03",
+        "say": "Use held-out requests to check the label. Try a translation, change the formatting, and inspect weak and silent examples. Sonnet studies found features that generalized across contexts, but the dictionary can miss cases.",
+        "hold": 0.3
+      },
+      {
+        "id": "c14-b04",
+        "say": "On matched prompts, measure whether a legitimate reset succeeds and whether the model still declines an unauthorized one. A different refusal phrase could leave both outcomes unchanged. Test at the original hook and token positions.",
+        "hold": 0.75
+      },
+      {
+        "id": "c14-b05",
+        "say": "Bring back the two requests. This toy refusal score reads the first coordinate plus twice the second. Start from the reconstructed arrows. In both originals the autoencoder missed one tenth of vertical height. Keep that green residual with each request through both edits.",
+        "hold": 0.3
+      },
+      {
+        "id": "c14-b06",
+        "say": "Add it back to both. The scores are now one point seven and three point seven. The urgent request scores two points higher.",
+        "hold": 0.8
+      },
+      {
+        "id": "c14-b07",
+        "say": "The claim is that the blue credential direction explains that increase. Take its contribution out of both originals. What will happen to the two-point gap?",
+        "hold": 2.6
+      },
+      {
+        "id": "c14-b08",
+        "say": "Remove blue. Both scores fall by one point five. The plain request still has its green residual. The urgent request also has the pink arrow. Their scores are point two and two point two. The gap stays at two. Credential contributes equally to both.",
+        "hold": 0.8
+      },
+      {
+        "id": "c14-b09",
+        "say": "Restore the original activations. Now test the other explanation. If we remove just the urgency contribution, what gap will remain?",
+        "hold": 3
+      },
+      {
+        "id": "c14-b10",
+        "say": "Take away pink. Only the urgent request moves. Its score lands on one point seven, exactly where the plain request started. In this toy model, urgency accounts for the two-point gap.",
+        "hold": 0.3
+      },
+      {
+        "id": "c14-b11",
+        "say": "In the toy model, subtracting urgency from the originals closes the gap and preserves the residual. For a real refusal, repeat the paired edit on held-out requests. Count successful legitimate resets and correct denials separately. A change in wording alone could leave both counts unchanged.",
+        "hold": 1.3
+      }
+    ]
+  }
+]

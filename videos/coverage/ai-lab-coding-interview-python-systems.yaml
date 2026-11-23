@@ -1,0 +1,217 @@
+version: 1
+lesson: ai-lab-coding-interview-python-systems
+promise: Preserve the explicit state transition as Python systems requirements add URL identity,
+  workers, time, graph dependencies, rate admission, idempotency, lock cleanup, parser framing and
+  runtime ownership.
+objectives:
+  - id: opening
+    can: Trace how adding a worker changes duplicate claims
+    scenes:
+      - opening
+  - id: contract-loop
+    can: Isolate a broken state transition and preserve its regression while extending the contract
+    scenes:
+      - contract-loop
+  - id: state-objects
+    can: Assign queue, priority, counts, recency, time and synchronization to appropriate objects
+    scenes:
+      - state-objects
+  - id: frontier
+    can: Compute normalized FIFO crawl order
+    scenes:
+      - frontier
+  - id: url-policy
+    can: Normalize URL identity and distinguish same origin from destination authorization
+    scenes:
+      - url-policy
+  - id: claim
+    can: Place one atomic claim before the slow fetch
+    scenes:
+      - claim
+  - id: claim-failure
+    can: Separate duplicate claims, retry state, ordering, quota and cooperative stop
+    scenes:
+      - claim-failure
+  - id: expiry
+    can: Evaluate exact TTL equality with injected time
+    scenes:
+      - expiry
+  - id: ttl-reads
+    can: Apply one read instant, reserved missing values and consistent deadline replacement
+    scenes:
+      - ttl-reads
+  - id: cas-boundary
+    can: Design expiry cleanup, comparison and replacement as one atomic transition
+    scenes:
+      - cas-boundary
+  - id: scheduler
+    can: Distinguish retrying, completed, failed and blocked tasks
+    scenes:
+      - scheduler
+  - id: graph-validation
+    can: Reject complete-graph failures before effects and apply actual priority tie-breaking
+    scenes:
+      - graph-validation
+  - id: scheduler-workers
+    can: Describe a synchronized work claim and completion-publication handoff
+    scenes:
+      - scheduler-workers
+  - id: limiter
+    can: Compute refill, admission and denial without spending twice
+    scenes:
+      - limiter
+  - id: bucket-contract
+    can: Calculate refill and wait while preserving per-key and idle-cleanup contracts
+    scenes:
+      - bucket-contract
+  - id: ledger
+    can: Return the original idempotent result while preserving later balance changes
+    scenes:
+      - ledger
+  - id: ledger-lifetime
+    can: Separate cached success, retryable rejection, transaction durability and global key ownership
+    scenes:
+      - ledger-lifetime
+  - id: lock-order
+    can: Combine global lock order, duplicate removal and partial-acquisition cleanup
+    scenes:
+      - lock-order
+  - id: parser-state
+    can: Trace header and continuation ownership and define a chunk-safe extension
+    scenes:
+      - parser-state
+  - id: concurrency
+    can: Choose an execution model from waiting, computation and state ownership
+    scenes:
+      - concurrency
+  - id: worker-runtime
+    can: Distinguish optional free threading, isolated serialization and event-loop yielding
+    scenes:
+      - worker-runtime
+  - id: fresh-worker-plan
+    can: Calculate a new mixed workload while preserving the single CPU lane
+    scenes:
+      - fresh-worker-plan
+sections:
+  - heading: Keep one invariant visible
+    status: taught
+    scenes:
+      - contract-loop
+      - fresh-worker-plan
+  - heading: Choose the object that owns the state
+    status: taught
+    scenes:
+      - state-objects
+  - heading: A crawler with an explicit URL policy
+    status: taught
+    scenes:
+      - opening
+      - frontier
+      - url-policy
+      - claim
+      - claim-failure
+  - heading: TTL key/value store
+    status: taught
+    scenes:
+      - expiry
+      - ttl-reads
+      - cas-boundary
+  - heading: Task scheduler with retries
+    status: taught
+    scenes:
+      - scheduler
+      - graph-validation
+      - scheduler-workers
+  - heading: Token bucket with deterministic time
+    status: taught
+    scenes:
+      - limiter
+      - bucket-contract
+  - heading: Credit ledger with idempotency
+    status: taught
+    scenes:
+      - ledger
+      - ledger-lifetime
+      - lock-order
+  - heading: Multiline log parser
+    status: taught
+    scenes:
+      - parser-state
+  - heading: When threads help
+    status: taught
+    scenes:
+      - concurrency
+      - worker-runtime
+      - fresh-worker-plan
+  - heading: Debugging when a test fails
+    status: taught
+    scenes:
+      - contract-loop
+  - heading: Extend one example without breaking it
+    status: taught
+    scenes:
+      - claim-failure
+      - cas-boundary
+      - scheduler-workers
+      - bucket-contract
+      - ledger-lifetime
+      - parser-state
+      - fresh-worker-plan
+quiz:
+  - n: 1
+    status: taught
+    scenes:
+      - url-policy
+      - frontier
+  - n: 2
+    status: taught
+    scenes:
+      - claim
+      - claim-failure
+  - n: 3
+    status: taught
+    scenes:
+      - ttl-reads
+      - cas-boundary
+  - n: 4
+    status: taught
+    scenes:
+      - graph-validation
+      - scheduler
+  - n: 5
+    status: taught
+    scenes:
+      - graph-validation
+  - n: 6
+    status: taught
+    scenes:
+      - bucket-contract
+      - limiter
+  - n: 7
+    status: taught
+    scenes:
+      - ledger
+      - ledger-lifetime
+  - n: 8
+    status: taught
+    scenes:
+      - parser-state
+  - n: 9
+    status: taught
+    scenes:
+      - lock-order
+  - n: 10
+    status: taught
+    scenes:
+      - worker-runtime
+      - fresh-worker-plan
+removed: []
+reviews:
+  closed_book:
+    taught: 10
+    partial: 0
+    absent: 0
+    script: e2eb6089c38c3ee0
+  fact_check:
+    open_findings: 0
+    script: e2eb6089c38c3ee0

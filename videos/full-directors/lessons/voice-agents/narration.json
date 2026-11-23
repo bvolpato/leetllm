@@ -1,0 +1,428 @@
+[
+  {
+    "id": "c01",
+    "title": "What did Alex hear?",
+    "sourceChapters": [
+      "c01"
+    ],
+    "beats": [
+      {
+        "id": "receipt-hotline",
+        "say": "Incident is open.",
+        "hold": 0
+      },
+      {
+        "id": "receipt-alex",
+        "say": "Wait, page the owner.",
+        "hold": 0.3
+      },
+      {
+        "id": "receipt-recall",
+        "say": "Which words did the phone actually play?",
+        "hold": 2.4
+      },
+      {
+        "id": "receipt-buffer",
+        "say": "The agent generated the whole reply. The phone buffered the reason, too.",
+        "hold": 0.25
+      },
+      {
+        "id": "receipt-history",
+        "say": "The playback receipt ends at open. Those three words go into the next turn.",
+        "hold": 1.05
+      },
+      {
+        "id": "c01-6",
+        "say": "Rewind to Alex asking for the status of incident four two one nine. We’ll follow that request from the microphone to the speaker. A second record follows what the paging service actually did. The hotline needs both records when Alex speaks again.",
+        "hold": 1
+      }
+    ]
+  },
+  {
+    "id": "c02",
+    "title": "A pause inside an incident number",
+    "sourceChapters": [
+      "c02"
+    ],
+    "beats": [
+      {
+        "id": "c02-b01",
+        "say": "Voice activity detection marks frames that sound like speech. It can start a fast mute or indicate that audio has arrived. Turn policy combines those frames with context to decide when Alex finished the request.",
+        "hold": 0.55
+      },
+      {
+        "id": "c02-2",
+        "say": "Alex says incident four, then pauses for eighty milliseconds. The last word looks stable. Would you send this identifier to the lookup?",
+        "hold": 2.5
+      },
+      {
+        "id": "c02-3",
+        "say": "There are three digits missing. Keep listening. The recognizer adds two, then one nine. The four digits are stable. After Alex stops speaking for sixty milliseconds, the server accepts the turn.",
+        "hold": 1
+      },
+      {
+        "id": "c02-4",
+        "say": "Try a different partial. “Page incident four two one nine” changes to “Track incident four two one nine.” While the committed flag is Boolean false, classify the intent or prefetch an authorized read you can discard. Speech, history and a page all wait. If the adapter sends the string false, reject the event before branching. A nonempty string is truthy in Python.",
+        "hold": 1
+      }
+    ]
+  },
+  {
+    "id": "c02-frames",
+    "title": "How much microphone audio survives?",
+    "sourceChapters": [
+      "c02"
+    ],
+    "beats": [
+      {
+        "id": "c02-frames-1",
+        "say": "Here are eight microphone frames, each twenty milliseconds long. The detector marks probabilities of one half or higher as speech. Two quiet frames precede three voiced frames. Keep forty milliseconds of pre-roll so the first consonant survives.",
+        "hold": 0.8
+      },
+      {
+        "id": "c02-frames-2",
+        "say": "This detector waits for sixty milliseconds of trailing quiet. Three quiet frames close the utterance at frame seven. Trim those trailing frames. With the pre-roll, how much audio goes to recognition?",
+        "hold": 2.4
+      },
+      {
+        "id": "c02-frames-3",
+        "say": "One hundred milliseconds. Count the five frames inside the bracket. Raise only the silence requirement to sixty-one milliseconds. Divide by twenty and round up. It now takes four quiet frames, or eighty milliseconds. Our eight-frame strip ends one frame short.",
+        "hold": 1
+      },
+      {
+        "id": "c02-frames-4",
+        "say": "During speakerphone playback, the microphone can hear the hotline’s own reply. If an echo triggers the local detector, the phone mutes itself. Request acoustic echo cancellation and compare speakerphone with headphones at different volumes. Count false mutes separately from endpoints that cut off a digit.",
+        "hold": 0.9
+      },
+      {
+        "id": "c02-frames-batch",
+        "say": "A batch recognizer would start work after the endpoint. In a separate recording, speech ends at twelve hundred milliseconds. A three hundred millisecond endpoint wait and four hundred fifty milliseconds of decoding put the transcript at nineteen fifty. That is already seven hundred fifty milliseconds after speech end, before the hotline generates a word.",
+        "hold": 0.9
+      }
+    ]
+  },
+  {
+    "id": "c03",
+    "title": "Two clocks stop at the same sample",
+    "sourceChapters": [
+      "c03"
+    ],
+    "beats": [
+      {
+        "id": "c03-b01",
+        "say": "In this synthetic trace, acoustic speech ends at zero. Turn commitment finishes at sixty milliseconds while recognition is already running. Recognition completes one hundred milliseconds after speech ends.",
+        "hold": 0.55
+      },
+      {
+        "id": "c03-b02",
+        "say": "The model starts before recognition finishes. Speech synthesis begins while generation continues, preparing the first chunk as later words arrive. The playback buffer then delivers that chunk to the caller.",
+        "hold": 0.7
+      },
+      {
+        "id": "c03-3",
+        "say": "Put the five stage durations end to end and they add to five hundred ten milliseconds. Now read the overlaps. The speaker first plays the acknowledgement at the mark on the right. Measure from speech end, then from commitment. How long is each wait?",
+        "hold": 2.4
+      },
+      {
+        "id": "c03-4",
+        "say": "Three hundred eighty milliseconds from speech end. That top bracket includes the endpoint decision. Three hundred twenty milliseconds from commitment. Both brackets touch the same first audible sample.",
+        "hold": 1.1
+      }
+    ]
+  },
+  {
+    "id": "c03-delay",
+    "title": "Which latency budget did the call miss?",
+    "sourceChapters": [
+      "c03"
+    ],
+    "beats": [
+      {
+        "id": "delay-replay",
+        "say": "Replay with the same response path. This time the endpoint waits three hundred milliseconds after speech ends before it commits the turn. The rest still takes three hundred twenty milliseconds. This call has a five hundred millisecond limit from speech end and a four hundred millisecond limit from commitment. Which limit does it miss?",
+        "hold": 2.4
+      },
+      {
+        "id": "delay-result",
+        "say": "Six hundred twenty milliseconds from speech end. The caller’s wait misses the five hundred millisecond limit. The post-commit path still takes three hundred twenty, inside four hundred. Investigate the endpoint wait first. A single trace can locate this delay. A percentile target takes a population of calls.",
+        "hold": 1.1
+      }
+    ]
+  },
+  {
+    "id": "c04",
+    "title": "The first sound and the first fact",
+    "sourceChapters": [
+      "c04"
+    ],
+    "beats": [
+      {
+        "id": "c04-1",
+        "say": "Alex’s turn has committed. The model starts a short acknowledgement while a read-only lookup runs. At two hundred ten milliseconds the synthesizer has a speakable fragment. At three hundred forty-five the first audio is ready. It still has to reach the speaker.",
+        "hold": 0.8
+      },
+      {
+        "id": "c04-2",
+        "say": "The phone starts playing at three hundred eighty. The lookup is still running. Which can the hotline say now, “I’ll check that” or “Incident is open”?",
+        "hold": 2.4
+      },
+      {
+        "id": "c04-3",
+        "say": "“I’ll check that.” The model can prepare a neutral continuation during playback. At six hundred forty the incident service returns open. Only now can factual generation begin. At nine hundred fifty-five milliseconds, its first audio plays. Track that useful answer separately from the first sound.",
+        "hold": 1
+      },
+      {
+        "id": "c04-4",
+        "say": "Send complete phrases as the model writes. A comma can release a speakable clause. If punctuation is late, split at a word boundary and test how incident numbers and abbreviations sound. If eight chunks have been synthesized and only two played, six are waiting. Pause at the queue limit so the producer cannot build an ever longer delay.",
+        "hold": 1
+      }
+    ]
+  },
+  {
+    "id": "c05",
+    "title": "Cut the reply at the phone’s receipt",
+    "sourceChapters": [
+      "c05"
+    ],
+    "beats": [
+      {
+        "id": "c05-1",
+        "say": "Here is the factual reply from the opening. Reset its clock to zero at the first factual sample. All four pieces have reached the phone. Follow the last word in each piece down to its audio boundary.",
+        "hold": 0.8
+      },
+      {
+        "id": "c05-2",
+        "say": "The first receipt covers “Incident is.” The next reaches the end of “open.” Alex cuts in at six hundred fifty milliseconds. Mute the local speaker and clear its queue. Cancel generation and synthesis for this response. The last playback receipt stays at five hundred twenty. Which complete pieces belong in history?",
+        "hold": 2.2
+      },
+      {
+        "id": "c05-3",
+        "say": "Keep “Incident is open.” Its last whole piece ends at character sixteen. The reason begins in the next piece, which ends at eight hundred sixty milliseconds. Even if part of that piece played, the phone has confirmed no complete words from it under this chunk alignment.",
+        "hold": 1
+      },
+      {
+        "id": "c05-4",
+        "say": "Replay with just one change. The latest receipt now says five hundred nineteen milliseconds. Which last word survives?",
+        "hold": 2.2
+      },
+      {
+        "id": "c05-5",
+        "say": "The word “is.” The first piece ends at two hundred forty milliseconds and character eleven. A receipt at zero retains no words. Accept each receipt only for this session and response, within received audio, at or ahead of its previous cursor. Freeze the accepted boundary on cancellation. It records what the player confirmed.",
+        "hold": 1.1
+      }
+    ]
+  },
+  {
+    "id": "c05-page",
+    "title": "Did the owner get the page?",
+    "sourceChapters": [
+      "c05"
+    ],
+    "beats": [
+      {
+        "id": "c05-page-1",
+        "say": "Now handle Alex’s interruption. Authenticate Alex and confirm the incident, the owner and the requested page. The executor checks permission at dispatch. A denial stops the page even after confirmation. Here permission passes, so the executor sends request P forty-seven.",
+        "hold": 0.8
+      },
+      {
+        "id": "c05-page-2",
+        "say": "The client times out waiting for the service. It still has the request ID. Should the hotline submit a second page?",
+        "hold": 2
+      },
+      {
+        "id": "c05-page-3",
+        "say": "Look up the original request ID. The service accepted P forty-seven. If a retry is needed, use the same ID under the service’s idempotency contract. Delivery is still unknown. A service receipt supports saying that the service accepted the page. It takes further evidence to say the owner received or read it.",
+        "hold": 0.9
+      },
+      {
+        "id": "c05-page-4",
+        "say": "Alex interrupts the spoken update before the phone confirms a word. The assistant’s spoken history stays empty for this update. The accepted page remains in the incident record. That is the record to consult if Alex asks again.",
+        "hold": 1
+      }
+    ]
+  },
+  {
+    "id": "c06",
+    "title": "A late packet and four playback slots",
+    "sourceChapters": [
+      "c06"
+    ],
+    "beats": [
+      {
+        "id": "c06-1",
+        "say": "Four packets carry twenty-millisecond slices of audio. Their timestamps set their places in the stream. Arrival times vary with network jitter. For each slot, add the fixed buffer depth to the timestamp to get the playback deadline.",
+        "hold": 0.65
+      },
+      {
+        "id": "c06-2",
+        "say": "Look at packet three. Its timestamp is forty milliseconds and it arrives at ninety-five. With thirty milliseconds of buffer, its deadline is seventy. Conceal that gap and play packet four on time. Keep every arrival fixed and increase the buffer to sixty milliseconds. Will packet three play?",
+        "hold": 2.2
+      },
+      {
+        "id": "c06-3",
+        "say": "Yes. Its new deadline is one hundred milliseconds. The packet arrives with five milliseconds to spare. Every slot gains thirty milliseconds of delay. Measure loss, concealment, buffer depth and actual playout together.",
+        "hold": 1
+      },
+      {
+        "id": "c06-4",
+        "say": "On a WebRTC media path over UDP, the receiver can conceal a missing frame and keep later audio on schedule. RTP feedback and congestion control help it adapt. On a TCP WebSocket, missing earlier bytes hold later bytes behind retransmission. The application owns framing and playout. Check the negotiated path, including relay and TCP fallbacks, on the networks you support.",
+        "hold": 0.9
+      }
+    ]
+  },
+  {
+    "id": "c06-pcm",
+    "title": "Same samples, different playback time",
+    "sourceChapters": [
+      "c06"
+    ],
+    "beats": [
+      {
+        "id": "c06-pcm-1",
+        "say": "Open one decoded audio chunk. It contains four hundred eighty mono sample frames of sixteen-bit PCM. That is two bytes per frame. Count each frame once for nine hundred sixty bytes before protocol overhead.",
+        "hold": 0.85
+      },
+      {
+        "id": "c06-pcm-2",
+        "say": "The producer sampled at twenty-four thousand frames per second. Divide four hundred eighty by that rate and the chunk lasts twenty milliseconds. Now set the sink to sixteen kilohertz without resampling. The same bytes go in. What duration will its clock record?",
+        "hold": 2.4
+      },
+      {
+        "id": "c06-pcm-3",
+        "say": "Thirty milliseconds. Each unchanged sample now takes longer to play. Ten extra milliseconds per chunk corrupt a cursor inferred from the wrong rate. Declare the actual encoding, channel count and rate. If the sink needs a different rate, resample the signal.",
+        "hold": 1
+      }
+    ]
+  },
+  {
+    "id": "c07",
+    "title": "Where can you inspect the words?",
+    "sourceChapters": [
+      "c07"
+    ],
+    "beats": [
+      {
+        "id": "c07-b01",
+        "say": "A cascaded design runs speech recognition, a language model, and speech synthesis as separate stages. It exposes transcripts and gives the application clear places to route tool calls or inspect failures.",
+        "hold": 0.55
+      },
+      {
+        "id": "c07-b02",
+        "say": "A native-audio model can reduce model handoffs and preserve prosody. It still needs capture, transport, interruption handling, tool policy, and conversation-state decisions around the model.",
+        "hold": 0.7
+      },
+      {
+        "id": "c07-3",
+        "say": "Listen for hesitation as well as words. A strict transcript can lose tone and pacing. A native system may encode speech into model representations and decode acoustic tokens into waveform chunks. A network packet can carry many samples. It has a different job from a model token. Compare both designs on the same devices for first audio, intelligibility, tool handling and recovery.",
+        "hold": 0.8
+      },
+      {
+        "id": "c07-4",
+        "say": "Inspect one native session. The phone receives one hundred sixty milliseconds of audio and acknowledges all of it. It then receives another two hundred twenty. The transcript side channel already says “Incident is still open.” How much audio is still unconfirmed? Can a proposed tool call authorize dispatch?",
+        "hold": 2.2
+      },
+      {
+        "id": "c07-5",
+        "say": "Two hundred twenty milliseconds remain unconfirmed. Subtract the sink’s one hundred sixty from the three hundred eighty that arrived. A tool proposal in the same event still needs executor authorization. Process every applicable event part, scope receipts to the item and reply, and reconcile or rebuild the remote session when its sent history exceeds local playout.",
+        "hold": 1
+      }
+    ]
+  },
+  {
+    "id": "c07-cache",
+    "title": "Will a repeated prefix save work?",
+    "sourceChapters": [
+      "c07"
+    ],
+    "beats": [
+      {
+        "id": "c07-cache-1",
+        "say": "As calls get longer, inspect the inference queue and retained context. Put stable policy and tools first, then committed history and current call state. Suppose this route stores only marked prefix endpoints. We saved the whole prompt ending in incident A. The next request has the same beginning but ends in incident B. Is there a reusable entry?",
+        "hold": 2.1
+      },
+      {
+        "id": "c07-cache-2",
+        "say": "The saved endpoint includes A. Mark and store the eligible stable prefix on the first request. Now the request ending in B can reuse that prefix. Check the route’s cache rules and its reported usage. Tool time, synthesis and the playback queue still count toward first sound.",
+        "hold": 1
+      },
+      {
+        "id": "c07-cache-3",
+        "say": "What did that reuse cost? This worksheet gives disjoint input buckets and invented prices per million tokens. Multiply a thousand reads by forty cents, five hundred writes by two dollars fifty, and two hundred ordinary tokens by two dollars. Add the three products, then divide by a million. What is the input subtotal?",
+        "hold": 2.2
+      },
+      {
+        "id": "c07-cache-4",
+        "say": "Point zero zero two zero five dollars. Each input token was charged once. Output and audio have their own units. Compare the complete call cost and both first-audio clocks under the same task and policy.",
+        "hold": 1
+      }
+    ]
+  },
+  {
+    "id": "c08-load",
+    "title": "A hundred calls reach the hotline",
+    "sourceChapters": [
+      "c08"
+    ],
+    "beats": [
+      {
+        "id": "c08-load-1",
+        "say": "One media worker owns Alex’s negotiated keys, packet timing and jitter buffer. Route each packet for that call to the same worker. If it fails, re-establish the media session and restore the trusted playback cursor where available. A transcript alone cannot restore a live connection. Scale recognition, generation and synthesis behind this boundary.",
+        "hold": 0.85
+      },
+      {
+        "id": "c08-load-2",
+        "say": "Load-test the expected call mix, including long pauses, tool use, bursty arrivals and reconnects. Here are a hundred attempted calls on one network slice. Eighty-six start within five hundred milliseconds, four play late, and ten time out in silence. The target is ninety-five percent of attempts on time. Can this slice pass?",
+        "hold": 2.6
+      },
+      {
+        "id": "c08-load-3",
+        "say": "Hold the release. Eighty-six out of a hundred attempts started on time. Dividing by just the ninety calls that produced sound would give nearly ninety-six percent. Report successful-playback latency percentiles alongside all-attempt attainment. Break both down by device and network.",
+        "hold": 1
+      },
+      {
+        "id": "c08-load-4",
+        "say": "Pair first audio with time to useful status. Count missing digits and incorrect pages, and test recovery after interruption. For local mute delay, the hotline has a hundred millisecond target at the ninety-fifth percentile. In this example Alex starts speaking at four hundred twenty milliseconds on the device clock. The last audible reply sample ends at four hundred ninety-two on that same clock. How long did the phone take to mute?",
+        "hold": 2.2
+      },
+      {
+        "id": "c08-load-mute-result",
+        "say": "Seventy-two milliseconds. This interruption falls inside the target. To check the ninety-fifth percentile, repeat the measurement across interruptions on each supported device.",
+        "hold": 0.9
+      }
+    ]
+  },
+  {
+    "id": "c08",
+    "title": "What can the next reply say?",
+    "sourceChapters": [
+      "c08"
+    ],
+    "beats": [
+      {
+        "id": "c08-1",
+        "say": "Return to the original call clock. First sound came at three hundred eighty milliseconds. The factual reply started at nine hundred fifty-five. The playback receipt covers the first five hundred twenty milliseconds of that reply, through the chunk ending in “open.” With continuous playout, when did that chunk finish playing on the call clock?",
+        "hold": 2.1
+      },
+      {
+        "id": "c08-2",
+        "say": "Fourteen hundred seventy-five milliseconds after speech end. That is when the chunk finished playing. Alex interrupted at sixteen hundred five milliseconds. That leaves a hundred thirty milliseconds between playout and interruption. Log the receipt’s arrival time separately, along with its reply ID, playback position and the two first-audio clocks.",
+        "hold": 1
+      },
+      {
+        "id": "c08-3",
+        "say": "Later the owner replies. The tool records that fact. Reply seven has two pieces, “Lookup is ready,” ending at three hundred milliseconds, and “Owner has replied,” ending at seven hundred. Alex interrupts at five sixty. The last receipt says four sixty. Which sentence is in history?",
+        "hold": 2.4
+      },
+      {
+        "id": "c08-4",
+        "say": "“Lookup is ready.” Only the first piece fits. Freeze reply seven. Alex asks, “Did the owner reply?” The hotline accepts the turn and opens reply eight. A late receipt for seven hundred milliseconds arrives bearing reply seven’s ID. What changes?",
+        "hold": 2.2
+      },
+      {
+        "id": "c08-5",
+        "say": "Neither cursor moves. Reply seven stays frozen and reply eight starts at zero. The incident record still contains the owner’s reply. The hotline can answer Alex from that record. “Yes, the owner replied.”",
+        "hold": 1.4
+      }
+    ]
+  }
+]

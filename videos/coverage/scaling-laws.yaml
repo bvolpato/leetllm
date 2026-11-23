@@ -1,0 +1,233 @@
+version: 1
+lesson: scaling-laws
+promise: Choose a parameter and token allocation at fixed training compute, check whether the data exists, and decide what evidence would justify the run.
+objectives:
+  - id: account
+    can: Calculate dense training, recomputation and inference work. Distinguish token presentations from distinct data, stored weights and hardware cost.
+    scenes:
+      - intro
+      - budget
+      - counting-contract
+      - controlled-runs
+  - id: allocate
+    can: Compare two allocations on the same compute curve, change one fitted coefficient, and use the proportional gain from each resource to predict which split wins.
+    scenes:
+      - loss
+      - tradeoff
+      - optimum
+      - general-allocation
+      - growth
+      - historical-frontiers
+      - fresh-allocation
+  - id: evidence
+    can: Use matched proxy runs to fit a surface. Apply a predeclared loss tolerance to an intermediate run and decide whether it advances to throughput and task checks.
+    scenes:
+      - study-discrepancy
+      - frontier-evidence
+      - fitting
+      - fitted-surface
+      - floor-ambiguity
+      - mid-scale-gate
+      - transfer
+  - id: constraints
+    can: Check width transfer and architecture-specific costs, then apply the data and model limits to decide how much training compute can be used.
+    scenes:
+      - width-transfer
+      - data-cap
+      - data-inventory
+      - architecture-aware
+      - fresh-allocation
+  - id: lifetime
+    can: Compare matched-quality candidates below and above their lifetime break-even demand. Count the per-query work for extra generated candidates.
+    scenes:
+      - lifetime
+      - lifetime-equation
+      - test-time-budget
+      - capability-metrics
+sections:
+  - heading: The first-principles derivation of 6ND
+    status: taught
+    scenes:
+      - intro
+      - budget
+      - counting-contract
+  - heading: Double parameters, double data, or both
+    status: taught
+    scenes:
+      - controlled-runs
+      - loss
+  - heading: Kaplan scaling laws (2020)
+    status: taught
+    scenes:
+      - historical-frontiers
+  - heading: The three power laws
+    status: taught
+    scenes:
+      - historical-frontiers
+  - heading: "Kaplan's compute allocation: why parameters grew faster than data"
+    status: taught
+    scenes:
+      - historical-frontiers
+  - heading: The Chinchilla reallocation (2022)
+    status: taught
+    scenes:
+      - growth
+      - study-discrepancy
+      - frontier-evidence
+  - heading: Why the allocation studies disagreed
+    status: taught
+    scenes:
+      - study-discrepancy
+  - heading: Chinchilla's three methodologies and the equal-scaling derivation
+    status: taught
+    scenes:
+      - study-discrepancy
+      - general-allocation
+      - optimum
+  - heading: "Chinchilla vs. Gopher: a frontier-scale test"
+    status: taught
+    scenes:
+      - frontier-evidence
+  - heading: "Beyond Chinchilla: inference-aware scaling"
+    status: taught
+    scenes:
+      - lifetime
+      - lifetime-equation
+  - heading: The lifetime economic break-even equation
+    status: taught
+    scenes:
+      - lifetime-equation
+  - heading: Concrete break-even example
+    status: taught
+    scenes:
+      - lifetime-equation
+  - heading: "Historical configurations: the Llama trajectory"
+    status: taught
+    scenes:
+      - frontier-evidence
+  - heading: Public-text supply as a planning constraint
+    status: taught
+    scenes:
+      - data-inventory
+      - data-cap
+  - heading: "A new scaling axis: test-time compute"
+    status: taught
+    scenes:
+      - test-time-budget
+  - heading: "From theory to practice: running a scaling study"
+    status: taught
+    scenes:
+      - fitting
+      - fitted-surface
+      - mid-scale-gate
+      - transfer
+  - heading: Zero-shot hyperparameter transfer with maximal update parametrization (µP)
+    status: taught
+    scenes:
+      - width-transfer
+  - heading: Fitting the parametric loss surface
+    status: taught
+    scenes:
+      - fitted-surface
+  - heading: Two measurements can hide very different forecasts
+    status: taught
+    scenes:
+      - floor-ambiguity
+  - heading: Turn a fitted surface into a budget allocation
+    status: taught
+    scenes:
+      - general-allocation
+      - data-cap
+      - fresh-allocation
+  - heading: Mid-scale validation gates
+    status: taught
+    scenes:
+      - mid-scale-gate
+      - transfer
+  - heading: Failure modes, breakdowns, and boundary conditions
+    status: taught
+    scenes:
+      - capability-metrics
+      - architecture-aware
+      - mid-scale-gate
+  - heading: The 20:1 ratio depends on the training setup
+    status: taught
+    scenes:
+      - general-allocation
+      - study-discrepancy
+      - data-inventory
+  - heading: Theoretical FLOPs are not actual hardware cluster bills
+    status: taught
+    scenes:
+      - counting-contract
+      - mid-scale-gate
+      - lifetime-equation
+  - heading: Low cross-entropy loss is not deployed capability
+    status: taught
+    scenes:
+      - capability-metrics
+  - heading: Emergent abilities as metric artifacts
+    status: taught
+    scenes:
+      - capability-metrics
+  - heading: "Architecture sensitivity: Mixture-of-Experts and state space models"
+    status: taught
+    scenes:
+      - architecture-aware
+quiz:
+  - n: 1
+    status: taught
+    scenes:
+      - counting-contract
+  - n: 2
+    status: taught
+    scenes:
+      - general-allocation
+      - fresh-allocation
+  - n: 3
+    status: taught
+    scenes:
+      - general-allocation
+  - n: 4
+    status: taught
+    scenes:
+      - floor-ambiguity
+  - n: 5
+    status: taught
+    scenes:
+      - lifetime-equation
+  - n: 6
+    status: taught
+    scenes:
+      - data-cap
+      - fresh-allocation
+  - n: 7
+    status: taught
+    scenes:
+      - test-time-budget
+  - n: 8
+    status: taught
+    scenes:
+      - width-transfer
+  - n: 9
+    status: taught
+    scenes:
+      - architecture-aware
+  - n: 10
+    status: taught
+    scenes:
+      - capability-metrics
+removed:
+  - point: The normalized example of two unnamed models and an arbitrary serving volume.
+    reason: The 70B and 30B candidates now stay on the same scale from their training bills through three hypothetical demand levels in trillions of processed tokens.
+  - point: The closing recap of the compute model, fitted loss and deployment objective.
+    reason: The viewer now applies a tolerance to two trial outcomes and computes a feasible allocation under both data and memory limits.
+reviews:
+  closed_book:
+    script: 498349541fb16538
+    taught: 10
+    partial: 0
+    absent: 0
+  fact_check:
+    script: 498349541fb16538
+    open_findings: 0

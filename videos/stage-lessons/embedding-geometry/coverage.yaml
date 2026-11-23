@@ -1,0 +1,271 @@
+version: 1
+lesson: embedding-geometry
+promise: Locate the step that changes the first eligible passage by comparing exact scores, compressed codes and the originals that survive the shortlist. Choose the scoring rule and search budget that fit the measured task.
+framing: []
+objectives:
+  - id: opening
+    can: Identify the closer direction before scoring two eligible guides
+    scenes:
+      - opening
+  - id: coordinates
+    can: Use the horizontal projection to compute raw dot with a unit query on the first axis
+    scenes:
+      - coordinates
+  - id: rulers
+    can: Calculate cosine and Euclidean gaps
+    scenes:
+      - rulers
+  - id: magnitude
+    can: Find the positive scale that ties two dot products and explain why cosine stays fixed
+    scenes:
+      - magnitude
+  - id: normalize
+    can: Use the chord between two unit tips to relate cosine, dot product and squared distance
+    scenes:
+      - normalize
+  - id: norm-contract
+    can: Diagnose invalid and extreme input directions
+    scenes:
+      - norm-contract
+  - id: prefix
+    can: Trace both judged queries through a prefix cut and count how many still return the relevant guide
+    scenes:
+      - prefix
+  - id: payload
+    can: Calculate coordinate payload and retained-storage costs
+    scenes:
+      - payload
+  - id: quantization
+    can: Predict a quantized tie from actual rounded endpoints
+    scenes:
+      - quantization
+  - id: scalar-codec
+    can: Encode and reconstruct signed and range-offset bytes
+    scenes:
+      - scalar-codec
+  - id: scalar-scales
+    can: Restore the units of each scalar code before comparing reconstructed dot products
+    scenes:
+      - scalar-scales
+  - id: calibration
+    can: Evaluate ordinary resolution and clipped-case cost
+    scenes:
+      - calibration
+  - id: wide-arithmetic
+    can: Diagnose narrow integer overflow
+    scenes:
+      - wide-arithmetic
+  - id: pq-codebooks
+    can: Assign subspace centroid identities
+    scenes:
+      - pq-codebooks
+  - id: pq-distance
+    can: Change one centroid ID, recompute its contribution and distinguish ADC from a query that is quantized too
+    scenes:
+      - pq-distance
+  - id: pq-transform
+    can: Preserve objective and origin across OPQ and residual encoding
+    scenes:
+      - pq-transform
+  - id: binary-pack
+    can: Pack sign bits and calculate Hamming distance
+    scenes:
+      - binary-pack
+  - id: sign-angle
+    can: Distinguish fixed signs from a random-hyperplane expectation
+    scenes:
+      - sign-angle
+  - id: graph
+    can: Trace how retained graph alternatives recover a missed neighbor
+    scenes:
+      - graph
+  - id: index-memory
+    can: Compute layer retention and choose the query effort that meets both measured recall and latency gates
+    scenes:
+      - index-memory
+  - id: authorized-funnel
+    can: Diagnose starvation at an authorization gate
+    scenes:
+      - authorized-funnel
+  - id: deployment
+    can: Design a versioned retrieval comparison and account for the authorized search, fetch and rescore stages
+    scenes:
+      - deployment
+  - id: synthesis
+    can: With a new query direction, locate the nearest raw endpoint and predict the common ranking on the unit circle
+    scenes:
+      - synthesis
+  - id: fresh-query
+    can: Use the tie order and shortlist depth to predict which original vectors can be rescored and how many fetches that takes
+    scenes:
+      - fresh-query
+sections:
+  - heading: Three ways to measure closeness
+    status: taught
+    note: The article supplies the key-rotation question. The two eligible guide vectors are hand-built. With q = [1, 0], the horizontal projections are 1 and 4, while the smaller angle belongs to rotation.
+    scenes:
+      - opening
+      - coordinates
+      - rulers
+  - heading: Cosine similarity
+    status: taught
+    scenes:
+      - rulers
+      - norm-contract
+  - heading: Dot product
+    status: taught
+    scenes:
+      - coordinates
+      - magnitude
+  - heading: Euclidean distance
+    status: taught
+    scenes:
+      - rulers
+      - synthesis
+  - heading: When the three rulers agree
+    status: taught
+    note: The dots use the same normalized endpoints as the chords. Turning the query to [0, 1] changes the exact unit-vector winner to B.
+    scenes:
+      - normalize
+      - norm-contract
+      - synthesis
+  - heading: Choosing how many dimensions you need
+    status: taught
+    scenes:
+      - prefix
+      - payload
+  - heading: Matryoshka prefixes still need a recall test
+    status: taught
+    note: The three four-coordinate rows and the first-row tie convention come from the article. At width two, only the lifecycle query retains its judged first result.
+    scenes:
+      - prefix
+  - heading: "The memory problem: a sizing example"
+    status: taught
+    scenes:
+      - payload
+  - heading: "Step 1: the FP32 baseline"
+    status: taught
+    scenes:
+      - payload
+  - heading: "Step 2: 8-bit scalar quantization"
+    status: taught
+    scenes:
+      - payload
+      - scalar-codec
+  - heading: "Step 3: product quantization"
+    status: taught
+    scenes:
+      - payload
+      - pq-codebooks
+  - heading: Shrinking vectors without losing the hit
+    status: taught
+    scenes:
+      - quantization
+      - authorized-funnel
+      - fresh-query
+  - heading: Scalar quantization (SQ)
+    status: taught
+    scenes:
+      - scalar-codec
+      - scalar-scales
+      - calibration
+      - wide-arithmetic
+  - heading: Product quantization (PQ)
+    status: taught
+    note: The four query pairs and supplied centers come from the article. The film changes just the second ID of [1, 1, 1, 1]. Reading 4.49 in place of 0.02 changes the squared-distance sum from 0.08 to 4.55.
+    scenes:
+      - pq-codebooks
+      - pq-distance
+      - pq-transform
+  - heading: Binary quantization (BQ)
+    status: taught
+    scenes:
+      - binary-pack
+      - sign-angle
+  - heading: Shortlist cheaply, then rescore
+    status: taught
+    note: The permission example uses the private note, rotation guide and lifecycle guide from the article. The final geometric case keeps both rows eligible and varies only the number of tied codes admitted.
+    scenes:
+      - authorized-funnel
+      - deployment
+      - fresh-query
+  - heading: Indexing the compressed codes
+    status: taught
+    note: The base-layer trace expands from B on the same graph in both runs. The three ef trials in index-memory are illustrative measurements for applying a recall gate and a latency gate.
+    scenes:
+      - graph
+      - index-memory
+  - heading: Bytes, RAM, and the shortlist bill
+    status: taught
+    scenes:
+      - payload
+      - index-memory
+  - heading: "Practice: choose a retrieval stack"
+    status: taught
+    scenes:
+      - payload
+      - authorized-funnel
+      - index-memory
+      - deployment
+      - fresh-query
+  - heading: Common pitfalls
+    status: taught
+    scenes:
+      - scalar-scales
+      - calibration
+      - wide-arithmetic
+      - pq-transform
+      - deployment
+quiz:
+  - n: 1
+    status: taught
+    scenes:
+      - rulers
+      - synthesis
+  - n: 2
+    status: taught
+    scenes:
+      - norm-contract
+  - n: 3
+    status: taught
+    scenes:
+      - prefix
+  - n: 4
+    status: taught
+    scenes:
+      - payload
+  - n: 5
+    status: taught
+    scenes:
+      - scalar-scales
+  - n: 6
+    status: taught
+    scenes:
+      - wide-arithmetic
+  - n: 7
+    status: taught
+    scenes:
+      - pq-distance
+  - n: 8
+    status: taught
+    scenes:
+      - binary-pack
+  - n: 9
+    status: taught
+    scenes:
+      - authorized-funnel
+  - n: 10
+    status: taught
+    scenes:
+      - graph
+      - index-memory
+removed: []
+reviews:
+  closed_book:
+    script: 0b8447a90e6fec62
+    taught: 10
+    partial: 0
+    absent: 0
+  fact_check:
+    script: 0b8447a90e6fec62
+    open_findings: 0

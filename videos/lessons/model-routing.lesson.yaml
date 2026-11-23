@@ -1,0 +1,553 @@
+version: 1
+id: model-routing
+title: Choosing a Backup for a Private Access Request
+source: llmops/model-gateways-routing-fallbacks/content.md
+voice: en-US-AndrewNeural
+rate: +0%
+sources:
+  - title: RouteLLM
+    url: https://arxiv.org/abs/2406.18665
+  - title: AWS Builders Library, timeouts retries and backoff with jitter
+    url: https://aws.amazon.com/builders-library/timeouts-retries-and-backoff-with-jitter/
+  - title: Making retries safe with idempotent APIs
+    url: https://aws.amazon.com/builders-library/making-retries-safe-with-idempotent-APIs/
+scenes:
+  - id: intro
+    title: Which backup can fill this form?
+    visual: >-
+      Slide F’s plain-text format beside the empty evidence field on an access form. Compare D’s structured output and review workflow with the same request. Trace the gateway and adapter path.
+    beats:
+      - say: >-
+          This access form needs an evidence ID. The primary timed out before it sent a word. Backup F is healthy, handles private notes, and fits the budget. Look at its output format. Would you send it this request?
+        caption_starts:
+          - The primary timed out
+          - Backup F is healthy
+          - Look at its output format
+        hold: 2.2
+        visual_cues:
+          - id: primary-timeout
+            phrase: The primary timed out before it sent a word
+            targets: [primary-attempt]
+            color: blue
+            linger: 0.35
+          - id: read-offer
+            phrase: >-
+              Look at its output format
+            targets: [request-form, lane-offer]
+            color: cyan
+            linger: 0.35
+      - say: >-
+          Skip F. It returns plain text. The desk needs a structured answer with evidence IDs and a way to send the case to a reviewer. Try backup D. It supports all three. Now check whether it can finish on time and within budget.
+        caption_starts:
+          - The desk needs a structured answer
+          - Now check whether
+        hold: 0.8
+        visual_cues:
+          - id: decline-f
+            phrase: >-
+              Skip F
+            targets: [request-form, lane-offer]
+            color: pink
+            linger: 0.35
+            caption_boundary: true
+          - id: compare-d
+            phrase: >-
+              Try backup D
+            targets: [request-form, lane-offer]
+            color: cyan
+            linger: 0.35
+            caption_boundary: true
+          - id: d-compatible
+            phrase: It supports all three
+            targets: [request-form, lane-offer]
+            color: green
+            linger: 0.35
+            caption_boundary: true
+      - say: >-
+          The desk sends the same request whichever model it uses. The gateway chooses an approved path. If it sends the request to D, the adapter translates it into the model's format and translates the reply back. The model, its adapter, and the controls around them make up a lane.
+        caption_starts:
+          - If it sends the request to D
+          - The model, its adapter
+        hold: 0.75
+        visual_cues:
+          - id: gateway-choice
+            phrase: >-
+              The gateway chooses an approved path
+            targets: [dispatch-path]
+            color: yellow
+            linger: 0.35
+          - id: adapter-call
+            phrase: >-
+              the adapter translates it into the model's format
+            targets: [dispatch-path]
+            color: cyan
+            linger: 0.35
+  - id: contract
+    title: What must travel with R900?
+    visual: >-
+      Connect trusted request facts to simultaneous requirements. Keep risk and privacy visible together as weaker client hints arrive.
+    beats:
+      - say: >-
+          Rewind to the record the desk sent. The private notes set the data boundary. An access decision needs a cited form. Nine hundred dollars of risk crosses the five-hundred-dollar review threshold. The input takes twenty-four thousand tokens, and the policy screens each lane's estimated cost against half a cent. Taken together, those requirements are the contract.
+        hold: 0.7
+        visual_cues:
+          - id: compile-fields
+            phrase: >-
+              The private notes set the data boundary. An access decision needs a cited form. Nine hundred dollars of risk crosses the five-hundred-dollar review threshold. The input takes twenty-four thousand tokens, and the policy screens each lane's estimated cost against half a cent
+            targets: [contract-fields]
+            color: cyan
+            linger: 0.35
+      - say: >-
+          Suppose the router returned a private lane the moment it saw the notes. It would never reach the risk check. The desk could get a private answer with nowhere to send it for review. Keep the risk requirement alongside privacy when you choose the lane.
+        hold: 0.65
+        visual_cues:
+          - id: accumulate-requirements
+            phrase: >-
+              It would never reach the risk check
+            targets: [contract-fields]
+            color: yellow
+            linger: 0.35
+      - say: >-
+          Now a client labels the request public and turns citations off. The trusted record still says access decision. That task requires private handling and citations. In a live service, authenticate the caller and authorize the task for this tenant before you compile the requirements from server-owned facts.
+        hold: 0.7
+        visual_cues:
+          - id: client-hint
+            phrase: >-
+              a client labels the request public and turns citations off
+            targets: [client-input, contract-fields]
+            color: yellow
+            linger: 0.35
+  - id: filter
+    title: Each lane must satisfy the complete contract
+    visual: Six registered lanes keep their field checks. A common input marker crosses their capacity bars as the context demand grows to 70,000 tokens.
+    beats:
+      - say: >
+          Compare the complete contract with each registered lane. The fast public lane lacks several
+          requirements. The public cited lane still fails the private-data boundary. Three private
+          cited-review lanes satisfy the supplied checks, so these three enter the feasible set.
+        hold: 0.65
+        visual_cues:
+          - id: compare-lanes
+            phrase: Compare the complete contract with each registered lane
+            targets:
+              - lane-records
+              - capability-checks
+            color: cyan
+            linger: 0.5
+          - id: feasible-survivors
+            phrase: these three enter the feasible set
+            targets:
+              - feasible-lanes
+            color: green
+            linger: 0.5
+      - say: >
+          Inspect the cheap text lane. Its data flag and price look acceptable, but schema, citations, and
+          review fail. Lower cost cannot repair those missing capabilities. The matrix keeps each failed
+          field visible so an operator can explain the rejected route rather than guessing from a single
+          Boolean.
+        hold: 0.65
+        visual_cues:
+          - id: cheap-lane
+            phrase: schema, citations, and review fail
+            targets:
+              - capability-checks
+            color: pink
+            linger: 0.5
+      - say: >
+          Increase the private input beyond every registered capacity. Now no lane survives. The gateway
+          returns an explicit escalation. Real dispatch must count each lane's actual serialized input and
+          output reservation, then recheck current region, retention, credentials, and registry revision
+          against the full application policy.
+        caption_starts:
+          - Now no lane survives
+          - Real dispatch must count
+        hold: 0.65
+        visual_cues:
+          - id: oversized-input
+            phrase: Increase the private input beyond every registered capacity
+            targets:
+              - context-demand
+              - capability-checks
+            color: yellow
+            linger: 0.5
+          - id: empty-set
+            phrase: no lane survives
+            targets:
+              - context-demand
+              - capability-checks
+              - filter-outcome
+              - lane-records
+            color: pink
+            linger: 0.5
+  - id: rank
+    title: Which approved lane goes first?
+    visual: >-
+      Keep C, D and E in fixed rows. Shorten D’s time estimate while prices stay fixed, then compare both preferences.
+    beats:
+      - say: >-
+          Bring back the original input. Three lanes can do this job. With cost as our preference, compare the prices in their rows. C is the cheapest of the three. It gets the first call. If prices tied, this router would use time and then the lane ID to break the tie.
+        hold: 0.75
+        visual_cues:
+          - id: choose-primary
+            phrase: >-
+              C is the cheapest of the three
+            targets: [choices, prices]
+            color: green
+            linger: 0.35
+            caption_boundary: true
+      - say: >-
+          Suppose a new measurement puts D at seven hundred milliseconds. Its price stays where it was. Now the desk cares most about how soon the complete reply will arrive. Which approved lane should go first for speed?
+        hold: 2.1
+        visual_cues:
+          - id: measure-local
+            phrase: >-
+              a new measurement puts D at seven hundred milliseconds
+            targets: [latencies]
+            color: yellow
+            linger: 0.35
+          - id: prefer-time
+            phrase: >-
+              how soon the complete reply will arrive
+            targets: [latencies, choices]
+            color: yellow
+            linger: 0.35
+      - say: >-
+          Send D first. Its time is shorter than C's, although C still costs less. A learned router can use evidence from your own cases to rank these three. To admit a lane, test the model and adapter together. The required schema, evidence IDs, and review workflow have to work in combination. Keep those results with the lane. Measure the quality of the answers those lanes actually return.
+        hold: 0.8
+        visual_cues:
+          - id: choose-local
+            phrase: >-
+              Send D first
+            targets: [choices, latencies]
+            color: green
+            linger: 0.35
+            caption_boundary: true
+  - id: deadline
+    title: Should R900 get a second attempt?
+    visual: >-
+      Draw the early and late primary on a common deadline ruler. Use an outline for D’s unstarted interval. Rewind the early run to compare a reservation with the available spend.
+    beats:
+      - say: >-
+          Return to the original registry. C comes first on cost, and D needs eleven hundred milliseconds. C times out at nine hundred forty, before any output. There is one attempt left. With funding available, D runs on the same clock. It finishes at two thousand forty milliseconds. That leaves four hundred sixty milliseconds before the deadline.
+        hold: 0.8
+        visual_cues:
+          - id: early-timeout
+            phrase: >-
+              C times out at nine hundred forty
+            targets: [early-run]
+            color: blue
+            linger: 0.35
+          - id: local-runs
+            phrase: >-
+              D runs on the same clock
+            targets: [early-run]
+            color: green
+            linger: 0.35
+          - id: early-finish
+            phrase: >-
+              It finishes at two thousand forty milliseconds
+            targets: [early-run]
+            color: green
+            linger: 0.35
+            caption_boundary: true
+      - say: >-
+          Keep that first run in place. Replay the same request with one change. This time C takes eighteen hundred milliseconds to time out. Look at the space left before the yellow line. We still have a generation attempt and funding for D. Would you start it?
+        hold: 2.15
+        visual_cues:
+          - id: late-timeout
+            phrase: >-
+              C takes eighteen hundred milliseconds to time out
+            targets: [late-run]
+            color: blue
+            linger: 0.35
+      - say: >-
+          Skip D. Lay its eleven hundred milliseconds after the timeout. It would finish at twenty-nine hundred, four hundred milliseconds past the deadline. The outline is work we considered. Only C ran. The regional backup needs even longer, so return the reason to the desk at eighteen hundred. In production, queues, retry delays, and adapter work also use this clock.
+        hold: 0.9
+        visual_cues:
+          - id: skip-local
+            phrase: >-
+              Skip D
+            targets: [late-run]
+            color: pink
+            linger: 0.35
+            caption_boundary: true
+          - id: project-d
+            phrase: >-
+              Lay its eleven hundred milliseconds after the timeout
+            targets: [late-run]
+            color: yellow
+            linger: 0.35
+      - say: >-
+          C timed out early enough for D to run. C has already spent point four two cents. Lower the request cap to point eight cents. D needs half a cent reserved before it can start. Does that fit?
+        caption_starts:
+          - C has already spent
+          - Lower the request cap
+          - D needs half a cent
+          - Does that fit
+        hold: 1.9
+        visual_cues:
+          - id: lower-cap
+            phrase: >-
+              Lower the request cap to point eight cents
+            targets: [funds]
+            color: yellow
+            linger: 0.35
+          - id: reserve-d
+            phrase: >-
+              D needs half a cent reserved before it can start
+            targets: [funds]
+            color: cyan
+            linger: 0.35
+      - say: >-
+          Only point three eight cents remain. Skip D. An estimated price helps rank the lanes. Before dispatch, reserve enough for the most the call can cost. Settle against actual usage when the bill arrives. A provider may keep working after a timeout, so hold its reservation until you know the charge.
+        caption_starts:
+          - Skip D
+          - An estimated price
+          - Settle against actual usage
+        hold: 0.8
+        visual_cues:
+          - id: show-remainder
+            phrase: >-
+              Only point three eight cents remain
+            targets: [funds]
+            color: yellow
+            linger: 0.35
+          - id: decline-spend
+            phrase: Skip D
+            targets: [funds]
+            color: pink
+            linger: 0.35
+  - id: publication
+    title: What has the user seen?
+    visual: >-
+      Keep a response window on screen across a pre-output timeout and a stream interruption. For a buffered reply, compare its citation with this request’s authorized evidence before release.
+    beats:
+      - say: >-
+          Look at the desk's response window. A timeout before the first word permits another generation attempt if the other checks pass. A temporary throttle can qualify too. An authentication failure, an exhausted quota, or a policy refusal stops this route. Changing providers can't authorize the request.
+        hold: 0.75
+        visual_cues:
+          - id: retry-classifier
+            phrase: >-
+              A timeout before the first word
+            targets: [visible-output, retry-permission]
+            color: cyan
+            linger: 0.35
+      - say: >-
+          Replay the call with streaming enabled. The user reads, “Your access request.” Now the connection drops. Those words are already on someone's screen. End the partial reply, explain the interruption, and offer an explicit retry or handoff. Quietly appending D's reply could contradict what the user just read.
+        hold: 1
+        visual_cues:
+          - id: publish-words
+            phrase: >-
+              Your access request
+            targets: [visible-output, retry-permission]
+            color: yellow
+            linger: 0.35
+          - id: latch-output
+            phrase: >-
+              Now the connection drops
+            targets: [visible-output, retry-permission]
+            color: pink
+            linger: 0.35
+            caption_boundary: true
+      - say: >-
+          D has filled in the form. Before releasing it, compare the citation with the evidence this user may read. E ninety-nine has no match. Withhold this reply. When an ID does match, check that the passage supports the answer. Then send the case to a reviewer who can authorize the grant.
+        hold: 0.85
+        visual_cues:
+          - id: check-id
+            phrase: >-
+              Compare the citation with the evidence this user may read
+            targets: [reply-fields, evidence-check]
+            color: yellow
+            linger: 0.35
+          - id: invalid-citation
+            phrase: >-
+              E ninety-nine has no match
+            targets: [evidence-check]
+            color: pink
+            linger: 0.35
+            caption_boundary: true
+  - id: breaker
+    title: When can C take another call?
+    visual: >-
+      Track two failures on C, its cooldown, and the owner of one recovery probe. Show separate jitter draws within a common retry window.
+    beats:
+      - say: >-
+          The desk has another request. How do we keep it from paying for the same sick primary? Count two timeouts against C, one second apart. On the second, its circuit breaker opens for ten seconds. Ordinary calls skip C during that cooldown. Follow the compatible lanes in order. If both C and D are open, a healthy, funded E can take the call if it fits the deadline.
+        hold: 0.85
+        visual_cues:
+          - id: health-failures
+            phrase: >-
+              Count two timeouts against C, one second apart
+            targets: [cooldown-interval]
+            color: pink
+            linger: 0.35
+          - id: two-open
+            phrase: If both C and D are open, a healthy, funded E can take the call
+            targets: [health-routes]
+            color: cyan
+            linger: 0.35
+      - say: >-
+          At eleven seconds the cooldown ends. The first arriving request, P one, takes the single probe permit. The circuit is half open while it tests C. P two arrives before that probe has returned. Can P two call C?
+        hold: 2
+        visual_cues:
+          - id: probe-lease
+            phrase: >-
+              P one, takes the single probe permit
+            targets: [probe-permits]
+            color: yellow
+            linger: 0.35
+      - say: >-
+          P two has to skip C. One probe is already in flight. When that probe succeeds, the circuit closes. A failed or expired probe would reopen it. Across workers, acquire that permit atomically and ignore stale results. Give the waiting clients a retry window. Each draws its own delay under a bounded exponential ceiling. Honor applicable retry delays, count the wait against the deadline, and limit how much traffic you admit.
+        hold: 0.8
+        visual_cues:
+          - id: deny-second
+            phrase: >-
+              P two has to skip C
+            targets: [probe-permits]
+            color: pink
+            linger: 0.35
+            caption_boundary: true
+          - id: close-breaker
+            phrase: >-
+              the circuit closes
+            targets: [probe-permits]
+            color: green
+            linger: 0.35
+          - id: retry-jitter
+            phrase: >-
+              each draws its own delay under a bounded exponential ceiling
+            targets: [retry-calendar]
+            color: green
+            linger: 0.35
+  - id: synthesis
+    title: What did R900 actually do?
+    visual: >-
+      Replay success, timeout and oversized input. Carry an existing grant receipt into the explanation and add the two generation charges to one request.
+    beats:
+      - say: >-
+          Replay three cases before promoting a policy. A healthy primary serves the first. An early timeout sends the second to D. The oversized request escalates without calling anyone. Both served routes pass the contract checks. For each one, check the reviewed answer, the passages that support it, and what the provider charged.
+        hold: 0.9
+        visual_cues:
+          - id: executed-cases
+            phrase: >-
+              A healthy primary serves the first. An early timeout sends the second to D. The oversized request escalates without calling anyone
+            targets: [replay-outcomes, field-violations]
+            color: cyan
+            linger: 0.35
+      - say: >-
+          Consider a separate case where a human already approved the grant. Operation G twenty-seven gave the user viewer access and stored a receipt. Only the explanation timed out. Pass the verified receipt into the next generation attempt. If the write service receives the same authorized operation and parameters again, it returns the stored receipt. The grant count stays at one. A changed target needs a new decision.
+        motion_check:
+          region: [160, 480, 1600, 480]
+          minimumChangedFraction: 0.002
+        hold: 0.8
+        visual_cues:
+          - id: committed-effect
+            phrase: >-
+              stored a receipt
+            targets: [grant-ledger, tool-operation]
+            color: blue
+            linger: 0.35
+          - id: consume-receipt
+            phrase: >-
+              Pass the verified receipt into the next generation attempt
+            targets: [retained-receipt]
+            color: green
+            linger: 0.35
+          - id: replay-write
+            phrase: >-
+              the same authorized operation and parameters again
+            targets: [grant-ledger, tool-operation]
+            color: yellow
+            linger: 0.35
+      - say: >-
+          On the run where D had time and funding, both calls incurred a charge. The primary timed out. The local backup returned the reply. C cost point four two cents. We reserved half a cent for D. Its final charge was point four five cents. Together they cost point eight seven cents. Price each provider's reported usage on its own rate card. Keep both attempts with the policy and registry revisions. Both charges belong to the explanation. The receipt records one grant.
+        caption_starts:
+          - C cost point four two cents
+          - We reserved half a cent for D
+          - Both charges belong
+        hold: 0.9
+        visual_cues:
+          - id: join-attempts
+            phrase: >-
+              The primary timed out. The local backup returned the reply
+            targets: [attempt-ledger]
+            color: cyan
+            linger: 0.35
+          - id: sum-charges
+            phrase: >-
+              Together they cost point eight seven cents
+            targets: [attempt-total]
+            color: yellow
+            linger: 0.35
+            caption_boundary: true
+  - id: transfer
+    title: The last millisecond
+    visual: >-
+      Magnify the last milliseconds on a fixed ruler. Reuse the 1,100 ms fallback and one prior grant. Move only C’s timeout, then distinguish an actual completion from a proposed endpoint.
+    beats:
+      - say: >-
+          Replay the explanation with a new timeout. The grant is already on file. The requirements and funding are the same, and the user has seen no words. C times out after thirteen hundred ninety-nine milliseconds. D still needs eleven hundred. Our policy admits a backup only when its expected finish is strictly before the deadline. Use the two numbers above the ruler. Would you send D?
+        hold: 2.25
+        visual_cues:
+          - id: first-timeout
+            phrase: C times out after thirteen hundred ninety-nine milliseconds
+            targets: [finish-test]
+            color: blue
+            linger: 0.35
+          - id: local-duration
+            phrase: D still needs eleven hundred
+            targets: [finish-test]
+            color: cyan
+            linger: 0.35
+      - say: >-
+          Add them. The finish is twenty-four hundred ninety-nine milliseconds. That's one tick inside the line. Send D. In this replay the reply arrives on that tick. The desk can now check it before release.
+        hold: 0.9
+        visual_cues:
+          - id: first-sum
+            phrase: >-
+              The finish is twenty-four hundred ninety-nine milliseconds
+            targets: [finish-test, finish-ruler]
+            color: cyan
+            linger: 0.35
+            caption_boundary: true
+          - id: first-dispatch
+            phrase: >-
+              Send D
+            targets: [finish-ruler, dispatch-result]
+            color: green
+            linger: 0.35
+            caption_boundary: true
+      - say: >-
+          Keep D and the deadline fixed. Move C's timeout one tick later, to fourteen hundred milliseconds. The green dot marks the first run. Make the dispatch decision again.
+        caption_starts:
+          - Move C's timeout one tick later
+          - The green dot marks the first run
+        hold: 2.15
+        visual_cues:
+          - id: transfer-change
+            phrase: >-
+              Move C's timeout one tick later, to fourteen hundred milliseconds
+            targets: [finish-test, finish-ruler]
+            color: yellow
+            linger: 0.35
+      - say: >-
+          This finish lands exactly at twenty-five hundred. D had to finish before that tick. Skip D. The regional backup is slower still, so the gateway stops at fourteen hundred milliseconds after one attempt. The support agent gets the timeout and the grant receipt. Viewer access was granted. Only the explanation timed out.
+        caption_starts:
+          - The support agent gets
+          - Viewer access was granted
+        hold: 1.3
+        visual_cues:
+          - id: second-sum
+            phrase: >-
+              This finish lands exactly at twenty-five hundred
+            targets: [finish-test, finish-ruler]
+            color: yellow
+            linger: 0.35
+            caption_boundary: true
+          - id: second-dispatch
+            phrase: >-
+              Skip D
+            targets: [finish-ruler, dispatch-result]
+            color: pink
+            linger: 0.35
+            caption_boundary: true

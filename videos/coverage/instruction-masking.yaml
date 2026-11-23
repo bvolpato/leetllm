@@ -1,0 +1,239 @@
+version: 1
+lesson: instruction-masking
+promise: Trace an assistant reply from the supplied evidence through its token IDs and loss labels to the decoder's stop decision. Check which history survives truncation or packing before evaluating a release.
+framing: []
+objectives:
+  - id: behavior-contract
+    can: The response is a target conditioned on supplied evidence
+    scenes:
+      - behavior-contract
+  - id: adaptation-evidence
+    can: A change in behavior still needs held-out evidence
+    scenes:
+      - adaptation-evidence
+  - id: template
+    can: The template turns messages into one stream
+    scenes:
+      - template
+  - id: three-tails
+    can: Change the tail while preserving the same context prefix
+    scenes:
+      - three-tails
+  - id: checkpoint-ids
+    can: Count the actual pinned tokenizer output
+    scenes:
+      - checkpoint-ids
+  - id: typed-control
+    can: Use message boundaries and token IDs to distinguish a quoted marker from a template boundary.
+    scenes:
+      - typed-control
+  - id: payload-scope
+    can: Distinguish what a tokenizer inspection establishes from a behavioral result on one model and request set.
+    scenes:
+      - payload-scope
+  - id: whitespace-parity
+    can: An internal space survives trimming the outside
+    scenes:
+      - whitespace-parity
+  - id: role-validation
+    can: Reject incomplete demonstrations before serialization
+    scenes:
+      - role-validation
+  - id: synthetic-methods
+    can: Generate variations and preserve the review boundary
+    scenes:
+      - synthetic-methods
+  - id: source-review
+    can: A negated answer can pass every required substring
+    scenes:
+      - source-review
+  - id: shift
+    can: Locate the logit that predicts the first reply word and follow the same one-position shift to the turn ending.
+    scenes:
+      - shift
+      - compiled-mask
+      - earned-contract
+  - id: role-mask
+    can: Mask the prediction of a question word, keep it available to later replies, and select the content and ending of each supervised reply.
+    scenes:
+      - role-mask
+      - intro
+  - id: objective-choice
+    can: Count eligible targets under assistant-only and full-transcript loss on the same input and reject an empty mean.
+    scenes:
+      - objective-choice
+  - id: compiled-mask
+    can: Read the first and final scored predictions from the actual 53-ID row and restrict supervision to a desired completion.
+    scenes:
+      - compiled-mask
+  - id: loss-construction
+    can: Pair each supplied probability with its observed token and compute the mean negative log probability per scored target.
+    scenes:
+      - loss-construction
+  - id: eos-padding
+    can: Use validity and reply membership to keep a genuine EOS when the two padding slots have the same ID.
+    scenes:
+      - eos-padding
+      - earned-contract
+  - id: truncation-contract
+    can: A row can keep answers while losing its ending
+    scenes:
+      - truncation-contract
+  - id: packing
+    can: Packing uses more of the token window
+    scenes:
+      - packing
+  - id: packing-strategies
+    can: A fuller block can still sever the required evidence
+    scenes:
+      - packing-strategies
+  - id: attention
+    can: The attention mask defines who can read whom
+    scenes:
+      - attention
+  - id: boundary
+    can: Mask the target at every packed boundary
+    scenes:
+      - boundary
+  - id: transfer
+    can: Test the exact template and training path
+    scenes:
+      - transfer
+  - id: serving-parity
+    can: An input repair precedes the quality comparison
+    scenes:
+      - serving-parity
+  - id: release-gate
+    can: Validate metric types before comparing the thresholds
+    scenes:
+      - release-gate
+  - id: earned-contract
+    can: Repair a missing first-answer label, locate the ending after a reply edit, and test whether the configured decoder stops on the emitted ID.
+    scenes:
+      - earned-contract
+sections:
+  - heading: One example defines a behavior contract
+    status: taught
+    scenes:
+      - behavior-contract
+      - adaptation-evidence
+  - heading: Chat messages eventually become one token stream
+    status: taught
+    scenes:
+      - template
+      - checkpoint-ids
+      - typed-control
+      - payload-scope
+  - heading: Render training, fresh generation, and prefill separately
+    status: taught
+    scenes:
+      - three-tails
+      - checkpoint-ids
+  - heading: Whitespace changes the token contract
+    status: taught
+    scenes:
+      - whitespace-parity
+      - role-validation
+  - heading: Fine-tuning data must teach supported answers
+    status: taught
+    scenes:
+      - synthetic-methods
+      - source-review
+  - heading: Which tokens should receive the loss?
+    status: taught
+    scenes:
+      - intro
+      - shift
+      - role-mask
+      - objective-choice
+      - compiled-mask
+      - loss-construction
+      - eos-padding
+      - truncation-contract
+      - earned-contract
+  - heading: Packing saves padding, but isolation is a separate setting
+    status: taught
+    scenes:
+      - packing
+      - packing-strategies
+      - attention
+      - boundary
+  - heading: Diagnose the input contract before changing weights
+    status: taught
+    scenes:
+      - transfer
+      - serving-parity
+      - release-gate
+      - earned-contract
+  - heading: Break one contract at a time
+    status: article-only
+    reason: exercise
+    note: Independent page practice; the underlying mechanisms are taught in the complete movie.
+quiz:
+  - n: 1
+    status: taught
+    scenes:
+      - source-review
+  - n: 2
+    status: taught
+    scenes:
+      - three-tails
+  - n: 3
+    status: taught
+    scenes:
+      - whitespace-parity
+  - n: 4
+    status: taught
+    scenes:
+      - shift
+      - compiled-mask
+      - earned-contract
+  - n: 5
+    status: taught
+    scenes:
+      - objective-choice
+      - loss-construction
+  - n: 6
+    status: taught
+    scenes:
+      - eos-padding
+      - earned-contract
+  - n: 7
+    status: taught
+    scenes:
+      - packing
+  - n: 8
+    status: taught
+    scenes:
+      - attention
+      - boundary
+  - n: 9
+    status: taught
+    scenes:
+      - truncation-contract
+      - earned-contract
+  - n: 10
+    status: taught
+    scenes:
+      - release-gate
+removed:
+  - point: The exact text and offsets of the behavior experiment's constructed input.
+    reason: The quoted-marker tokenizer case teaches the same ownership check. The separate model study retains its conditions, sample size, counts, and limits.
+  - point: A universal instruction to shift labels before applying the role mask.
+    reason: Replaced by explicit predictor/target coordinates and exactly-once shifting; common model loss paths
+      need unshifted labels. All original first-token/end-marker teaching remains.
+reviews:
+  closed_book:
+    script: 1387e1a343afaca7
+    reviewer: /root/upgrade_shard6
+    evidence: build/video-delivery-20261106/script-reviews/instruction-masking.json
+    evidence_sha256: fa9535be047b78d8dd5f04ba2138825a3c1b9874ce5dd6b5bffce3bfa9a6a03e
+    taught: 10
+    partial: 0
+    absent: 0
+  fact_check:
+    script: 1387e1a343afaca7
+    reviewer: /root/upgrade_shard6
+    evidence: build/video-delivery-20261106/script-reviews/instruction-masking.json
+    evidence_sha256: fa9535be047b78d8dd5f04ba2138825a3c1b9874ce5dd6b5bffce3bfa9a6a03e
+    open_findings: 0

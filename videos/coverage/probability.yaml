@@ -1,0 +1,185 @@
+version: 1
+lesson: probability
+promise: Decide whether a signup review team can handle a detector's flags, explain the risk on a flagged signup, and apply the same conditional reasoning to model scores and token probabilities.
+framing:
+  - intro
+objectives:
+  - id: conditional
+    can: Count both flag sources, reverse the condition, and explain how a changed prior or a copied flag affects queue risk.
+    scenes:
+      - population
+      - indicator
+      - filter
+      - conditional
+      - bayes
+      - prior-shift
+      - independence
+      - copied-evidence
+      - new-batch
+  - id: model
+    can: Choose a distribution for the outcome, compare candidate rates, check predicted risks against labels, and distinguish an empty event from a mass that rounded to zero.
+    scenes:
+      - likelihood
+      - posterior-contract
+      - calibration-check
+      - distribution-choice
+  - id: tokens
+    can: Normalize logits, distinguish decoding rules and calculate stable token likelihood, loss and perplexity.
+    scenes:
+      - token-chain
+      - softmax-sampling
+      - log-loss
+  - id: decision
+    can: Choose a threshold against a fixed number of review slots, count the misses, and recalculate the workload when the clean flag rate changes.
+    scenes:
+      - decisions
+      - payoff
+      - new-batch
+  - id: sampling
+    can: Use sample size and case pairing to judge whether an observed gap in pass rates is large enough to act on.
+    scenes:
+      - sampling-error
+      - rate-gap
+sections:
+  - heading: Start with the population
+    status: taught
+    scenes:
+      - population
+      - indicator
+  - heading: Evidence changes the question
+    status: taught
+    scenes:
+      - intro
+      - filter
+      - conditional
+  - heading: Count the flagged pile
+    status: taught
+    scenes:
+      - filter
+      - new-batch
+  - heading: Conditioning means narrowing the world
+    status: taught
+    scenes:
+      - conditional
+  - heading: Joint and marginal probability
+    status: taught
+    scenes:
+      - bayes
+  - heading: Bayes rule after the counts
+    status: taught
+    scenes:
+      - bayes
+  - heading: Likelihood compares explanations for observed labels
+    status: taught
+    scenes:
+      - likelihood
+  - heading: Independence means no update
+    status: taught
+    scenes:
+      - independence
+  - heading: Two flags aren't necessarily two pieces of evidence
+    status: taught
+    scenes:
+      - copied-evidence
+  - heading: Same detector, different world
+    status: taught
+    scenes:
+      - prior-shift
+  - heading: A posterior function that matches the table
+    status: taught
+    scenes:
+      - posterior-contract
+  - heading: A threshold changes two probabilities at once
+    status: taught
+    scenes:
+      - decisions
+      - payoff
+  - heading: A score isn't automatically a probability
+    status: taught
+    scenes:
+      - calibration-check
+  - heading: Other quantities need other distributions
+    status: taught
+    scenes:
+      - distribution-choice
+  - heading: A token model multiplies probabilities
+    status: taught
+    scenes:
+      - token-chain
+      - softmax-sampling
+      - log-loss
+  - heading: Common mistakes
+    status: taught
+    scenes:
+      - copied-evidence
+      - posterior-contract
+      - token-chain
+  - heading: Try it yourself
+    status: article-only
+    reason: exercise
+    note: Viewers can work the five article exercises separately. The film uses the detector policies and a new staffing problem to teach the method.
+  - heading: Solution checks
+    status: article-only
+    reason: exercise
+    note: The article gives the full answer key, including the risk on an unflagged signup.
+  - heading: A complete probability claim
+    status: taught
+    scenes:
+      - decisions
+      - payoff
+      - new-batch
+quiz:
+  - n: 1
+    status: taught
+    scenes:
+      - filter
+      - conditional
+      - new-batch
+  - n: 2
+    status: taught
+    scenes:
+      - independence
+  - n: 3
+    status: taught
+    scenes:
+      - decisions
+  - n: 4
+    status: taught
+    scenes:
+      - token-chain
+  - n: 5
+    status: taught
+    scenes:
+      - calibration-check
+  - n: 6
+    status: taught
+    scenes:
+      - likelihood
+  - n: 7
+    status: taught
+    scenes:
+      - indicator
+      - distribution-choice
+  - n: 8
+    status: taught
+    scenes:
+      - population
+      - sampling-error
+  - n: 9
+    status: taught
+    scenes:
+      - posterior-contract
+  - n: 10
+    status: taught
+    scenes:
+      - copied-evidence
+removed: []
+reviews:
+  closed_book:
+    script: 077c009554719cc9
+    taught: 10
+    partial: 0
+    absent: 0
+  fact_check:
+    script: 077c009554719cc9
+    open_findings: 0

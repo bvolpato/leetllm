@@ -1,0 +1,902 @@
+version: 1
+id: embedding-geometry
+title: What Distance Means in an Embedding Space
+source: fundamentals/embeddings-cosine-dot-product-quantization/content.md
+voice: en-US-AndrewNeural
+rate: +0%
+sources:
+  - title: "Faiss: MetricType and distances"
+    url: https://github.com/facebookresearch/faiss/wiki/MetricType-and-distances
+  - title: "Malkov and Yashunin: Efficient and Robust Approximate Nearest Neighbor Search Using HNSW"
+    url: https://arxiv.org/abs/1603.09320
+  - title: "Johnson, Douze, and Jégou: Billion-scale similarity search with GPUs"
+    url: https://arxiv.org/abs/1702.08734
+  - title: "Kusupati et al.: Matryoshka Representation Learning"
+    url: https://arxiv.org/abs/2205.13147
+  - title: Faiss ProductQuantizer implementation and lookup contracts
+    url: https://github.com/facebookresearch/faiss/blob/main/faiss/impl/ProductQuantizer.h
+  - title: "Ge et al.: Optimized Product Quantization"
+    url: https://www.cv-foundation.org/openaccess/content_cvpr_2013/papers/Ge_Optimized_Product_Quantization_2013_CVPR_paper.pdf
+  - title: hnswlib algorithm parameters
+    url: https://github.com/nmslib/hnswlib/blob/master/ALGO_PARAMS.md
+  - title: Sentence Transformers embedding quantization
+    url: https://www.sbert.net/examples/sentence_transformer/applications/embedding-quantization/README.html
+  - title: "Charikar: Similarity Estimation Techniques from Rounding Algorithms"
+    url: https://courses.compute.dtu.dk/02289/2022/approxds/charikar.pdf
+scenes:
+  - id: opening
+    title: A ruler can change the first result
+    visual: A query vector points toward two candidate passages. Three scoring rulers make different
+      comparisons, then the leading result changes.
+    beats:
+      - say: A search service receives the question, “Can I pick a ripe apple today?” It compares the question's
+          embedding with stored passage vectors and returns the nearest candidates. The first result
+          depends on what the scoring rule means by near.
+        hold: 0.55
+        visual_cues:
+          - id: opening-nearest-candidates-b1-1
+            phrase: nearest candidates
+            targets:
+              - nearest-candidates
+            color: green
+            linger: 0.6
+          - id: opening-stored-passages
+            phrase: stored passage vectors
+            targets:
+              - nearest-candidates
+            color: blue
+            linger: 0.4
+      - say: An embedding is a list of coordinates produced by an encoder. A similarity rule compares those lists.
+          We'll draw a tiny two-dimensional fixture to see exactly what dot product, cosine, distance,
+          normalization, and quantization do.
+        hold: 0.6
+        visual_cues:
+          - id: opening-encoder-coordinates-b2-1
+            phrase: list of coordinates
+            targets:
+              - encoder-coordinates
+            color: blue
+            linger: 0.6
+      - say: The phrases are ordinary English, with coordinates hand-built for this geometric experiment. We can
+          calculate every score and see what each ruler rewards. In a real system, judged queries tell us
+          whether a high score retrieves useful evidence.
+        hold: 0.65
+        visual_cues:
+          - id: opening-search-question-b3-1
+            phrase: ordinary English
+            targets:
+              - search-question
+            color: cyan
+            linger: 0.6
+  - id: coordinates
+    title: A vector is a point with a direction and length
+    visual: The origin sends query and passage vectors onto a coordinate plane. One candidate points close to
+      the query; another reaches farther while turning away.
+    beats:
+      - say: Put the query at one unit along the horizontal axis. Passage A is one unit right and zero point two
+          units up. Passage B reaches four units right and two units up. Each ordered pair names one point
+          and one arrow from the origin.
+        hold: 0.55
+        visual_cues:
+          - id: coordinates-passage-a-vector-b1-1
+            phrase: Passage A
+            targets:
+              - passage-a-vector
+            color: green
+            linger: 0.6
+          - id: coordinates-passage-b-vector-b1-2
+            phrase: Passage B
+            targets:
+              - passage-b-vector
+            color: pink
+            linger: 0.6
+      - say: "The arrow's direction captures its angle from the query. Its length captures magnitude. Dot product
+          combines both: multiply matching coordinates and add them. The query with A scores one; with B
+          it scores four."
+        hold: 0.6
+        visual_cues:
+          - id: coordinates-passage-a-vector-b2-1
+            phrase: angle from the query
+            targets:
+              - passage-a-vector
+            color: green
+            linger: 0.6
+      - say: A short vector can point almost exactly toward the query, while a longer vector points less closely.
+          That distinction matters whenever magnitude should play a role different from direction.
+        hold: 0.65
+        visual_cues:
+          - id: coordinates-passage-b-vector-b3-1
+            phrase: a longer vector
+            targets:
+              - passage-b-vector
+            color: pink
+            linger: 0.6
+  - id: rulers
+    title: Cosine measures angle and L2 measures a gap
+    visual: A rotating angle arc accompanies cosine scores while direct segments from the query show Euclidean
+      distance to each candidate.
+    beats:
+      - say: Cosine divides the dot product by both vector lengths, leaving a measure of the angle. For the query
+          and A, cosine is about zero point nine eight one. For the query and B, it is about zero point
+          eight nine four.
+        hold: 0.6
+        visual_cues:
+          - id: rulers-angle-arc-0-b1-1
+            phrase: measure of the angle
+            targets:
+              - angle-arc-0
+            color: green
+            linger: 0.6
+      - say: Euclidean distance asks for the straight-line gap. In this fixture, the query sits zero point two
+          units from A and about three point six one units from B. A's closer direction and shorter gap
+          agree, even though its raw dot score is lower.
+        hold: 0.7
+        visual_cues:
+          - id: rulers-distance-gap-0-b2-1
+            phrase: straight-line gap
+            targets:
+              - distance-gap-0
+            color: pink
+            linger: 0.6
+      - say: These rulers answer different questions. Cosine compares directions. Dot product also rewards length.
+          Euclidean distance measures a gap in the coordinate system. Choose the rule that matches the
+          encoder's intended scoring contract.
+        hold: 0.7
+        visual_cues:
+          - id: rulers-ruler-passage-b-b3-1
+            phrase: Dot product also rewards length
+            targets:
+              - ruler-passage-b
+            color: yellow
+            linger: 0.6
+  - id: magnitude
+    title: Scaling exposes what the score rewards
+    visual: Passage A stretches tenfold along its own ray. Its cosine and angle stay fixed while its dot score
+      and Euclidean gap change.
+    beats:
+      - say: Now stretch A from one times its original vector to ten times its original vector. The arrow grows
+          along the same ray, so its angle with the query stays fixed.
+        hold: 0.55
+        motion_check:
+          region:
+            - 250
+            - 350
+            - 1460
+            - 530
+          minimumChangedFraction: 0.002
+        visual_cues:
+          - id: magnitude-stretched-passage-a-b1-1
+            phrase: arrow grows along the same ray
+            targets:
+              - stretched-passage-a
+            color: green
+            linger: 0.6
+      - say: Its cosine remains about zero point nine eight one. Its raw dot product rises from one to ten because
+          every coordinate grows tenfold. The query itself has unit length, so that dot change comes
+          entirely from A's magnitude.
+        hold: 0.65
+        visual_cues:
+          - id: magnitude-magnitude-cosine-score-b2-1
+            phrase: cosine remains
+            targets:
+              - magnitude-cosine-score
+            color: green
+            linger: 0.6
+          - id: magnitude-magnitude-dot-score-b2-2
+            phrase: raw dot product rises
+            targets:
+              - magnitude-dot-score
+            color: yellow
+            linger: 0.6
+      - say: "Euclidean distance also changes, because the endpoint has moved farther from the query. Scaling is a
+          useful diagnostic: if length should not affect rank, use a normalized direction score and verify
+          both indexed passages and live queries follow that rule."
+        hold: 0.7
+        visual_cues:
+          - id: magnitude-magnitude-distance-score-b3-1
+            phrase: Euclidean distance also changes
+            targets:
+              - magnitude-distance-score
+            color: pink
+            linger: 0.6
+  - id: normalize
+    title: Unit vectors make three rankings agree
+    visual: Passage arrows shrink to unit length. Their cosine and dot rankings align, while squared-distance
+      bars reverse in direct proportion to the dot scores.
+    beats:
+      - say: L2 normalization divides each nonzero vector by its length. The query and every candidate now sit on
+          the unit circle. Their dot product equals cosine because the two length factors in the
+          denominator are both one.
+        hold: 0.6
+        visual_cues:
+          - id: normalize-normalized-passage-a-b1-1
+            phrase: sit on the unit circle
+            targets:
+              - normalized-passage-a
+            color: green
+            linger: 0.6
+      - say: For unit vectors, squared Euclidean distance equals two minus two times the dot product. A's cosine
+          near zero point nine eight one gives squared distance about zero point zero three nine. B's
+          cosine near zero point eight nine four gives about zero point two one one.
+        hold: 0.7
+        visual_cues:
+          - id: normalize-unit-metric-equivalence-b2-1
+            phrase: two minus two times the dot product
+            targets:
+              - unit-metric-equivalence
+            color: yellow
+            linger: 0.6
+          - id: normalize-reference-a
+            phrase: A's cosine near zero point nine eight one gives squared distance about zero point zero three nine
+            targets:
+              - normalized-reference-a
+            color: green
+            linger: 0.6
+          - id: normalize-reference-b
+            phrase: B's cosine near zero point eight nine four gives about zero point two one one
+            targets:
+              - normalized-reference-b
+            color: pink
+            linger: 0.6
+      - say: Maximizing cosine, maximizing dot product, and minimizing squared distance now produce the same exact
+          ranking. Use the same transform for query and stored vectors, and check the norm before
+          dividing.
+        hold: 0.7
+        visual_cues:
+          - id: normalize-normalized-dot-score-b3-1
+            phrase: same exact ranking
+            targets:
+              - normalized-dot-score
+            color: green
+            linger: 0.6
+  - id: norm-contract
+    title: Check the direction before dividing
+    visual: A finite nonzero vector is scaled by its largest absolute coordinate, then normalized. Zero and
+      nonfinite inputs stop at a visibly separate failure branch.
+    beats:
+      - say: Normalization has a domain. A zero vector has no cosine direction, and an empty or nonfinite vector
+          is not a valid retrieval embedding. Reject those inputs or take an explicit failure path. For
+          huge or tiny finite coordinates, first divide by their largest absolute coordinate, then take
+          the length of that scaled vector. This avoids squaring the original extreme magnitudes.
+        hold: 0.7
+      - say: For example, two equal coordinates of magnitude ten to the three hundredth power can overflow a naive
+          sum of squares. Two at ten to the minus three hundredth can underflow it. Both valid directions
+          normalize to approximately zero point seven zero seven in each coordinate. Scaling first
+          preserves their ratio; inserting an epsilon and silently returning zeros changes the direction
+          contract.
+        hold: 0.7
+      - say: For a fixed finite nonzero query and unit document vectors, leaving the query unnormalized multiplies
+          every dot score by the same positive query norm, so ranking stays the same in exact arithmetic.
+          Finite input coordinates can still overflow floating dot scores, so require a numerically valid
+          scoring path. Cosine values, shared thresholds and the unit-vector L2 identity still need the
+          query normalized. Normalization never grants permission to read a document.
+        hold: 0.7
+  - id: prefix
+    title: Cutting coordinates can merge distinct evidence
+    visual: The rotation, audit and lifecycle four-coordinate rows retain their identities as two trailing
+      cells are covered; the full-width and prefix score rankings are independently calculated.
+    beats:
+      - say: Width controls stored coordinates, scoring work and memory traffic. It has no universal quality
+          meaning across different encoders. Matryoshka training explicitly combines losses at selected
+          nested prefix widths, encouraging useful shorter representations. This differs from applying PCA
+          to frozen vectors. Verify supported widths, use the same operation on queries and documents, and
+          renormalize nonzero sliced prefixes for unit-vector scoring.
+        hold: 0.7
+      - say: Our next constructed API-document fixture starts after authorization. Audit is one, zero, one, zero;
+          rotation is one, zero, zero, one; lifecycle is zero, one, zero, one. The rotation and lifecycle
+          queries exactly match their intended guides. At four coordinates, each correct guide has cosine
+          one and wins. These are authored coordinates, not evidence that an encoder learned them.
+        hold: 0.7
+      - say: Keep only the first two coordinates and renormalize. Audit and rotation both become one, zero. The
+          rotation query also becomes one, zero, so our specified first-row tie rule returns audit.
+          Lifecycle still wins its own query. Top-one evidence recall drops from two of two to one of two.
+          Normalizing restored lengths, not the discarded distinction. Measure nearest-neighbor recall
+          against exact search separately from relevance recall against judged passages.
+        hold: 0.7
+        visual_cues:
+          - id: prefix-cut
+            phrase: Keep only the first two coordinates and renormalize
+            targets:
+              - prefix-matrix
+            linger: 0.5
+          - id: prefix-result
+            phrase: Top-one evidence recall drops
+            targets:
+              - prefix-score
+            linger: 0.5
+  - id: payload
+    title: Count the payload on one byte scale
+    visual: A 1536-coordinate row changes from FP32 to INT8, sign bits and PQ IDs on a common linear byte
+      ruler; a separate retained-originals shelf remains visible.
+    beats:
+      - say: Hold one million rows and fifteen hundred thirty-six coordinates fixed. Four bytes per FP32
+          coordinate gives six thousand one hundred forty-four bytes per row, or six point one four four
+          decimal gigabytes overall, about five point seven two gibibytes. One-byte scalar codes use
+          fifteen hundred thirty-six bytes per row, or one point five three six gigabytes. These are
+          coordinate payloads before index structures.
+        hold: 0.7
+      - say: One sign bit per coordinate needs one hundred ninety-two bytes per row at this width. Ninety-six PQ
+          subspaces with two hundred fifty-six centroids each need ninety-six one-byte IDs per row. Their
+          million-row payloads are about one hundred eighty-three point one and ninety-one point six
+          mebibytes. The PQ coordinate payload is sixty-four times smaller than the FP32 payload.
+        hold: 0.7
+      - say: "Those PQ subspaces each contain sixteen coordinates. Shared FP32 codebooks require ninety-six times
+          two hundred fifty-six times sixteen times four bytes: one point five mebibytes. Retaining full
+          vectors for rescoring still retains the original five point seven two gibibytes somewhere. Graph
+          links, labels, metadata, replicas, vector-fetch traffic and query lookup tables add separate
+          costs."
+        hold: 0.7
+      - say: For a fresh scale check, fifty million seven hundred sixty-eight-dimensional rows need one hundred
+          fifty-three point six decimal gigabytes in FP32, thirty-eight point four in one-byte scalar
+          codes, or four point eight in ninety-six-byte PQ codes. A sixty-millisecond latency budget is a
+          requirement to benchmark, not a result of this byte calculation. Change one approximation at a
+          time against a labeled full-precision baseline.
+        hold: 0.7
+  - id: quantization
+    title: Coarse coordinates can erase a close ranking
+    visual: Two nearby passage coordinates snap to a shared scalar grid point. Their distinct full-precision
+      scores become a tie in the compressed representation.
+    beats:
+      - say: Quantization stores a simpler code for each coordinate. Consider these two candidate arrows against
+          the same query direction. Their small difference appears in their angles and cosine scores. The
+          grid shows the limited set of coordinate values available to our compressed representation.
+        hold: 0.6
+        visual_cues:
+          - id: quantization-quantized-endpoint-0-b1-1
+            phrase: small difference appears in their angles
+            targets:
+              - quantized-endpoint-0
+              - quantized-endpoint-1
+            color: cyan
+            linger: 0.6
+      - say: Now round each coordinate to a grid step of zero point two. Watch the endpoints move while their
+          cosine scores recompute. Both arrows arrive at the same stored coordinates. The more precise
+          representation ranked one first; this compressed code gives them a tie.
+        hold: 0.7
+        motion_check:
+          region:
+            - 250
+            - 420
+            - 1280
+            - 350
+          minimumChangedFraction: 0.002
+        visual_cues:
+          - id: quantization-quantized-endpoint-0-b2-1
+            phrase: endpoints move
+            targets:
+              - quantized-endpoint-0
+              - quantized-endpoint-1
+            color: yellow
+            linger: 0.6
+      - say: The code saves precision by merging nearby values. A coarse first stage can still be useful if the
+          correct item remains in its shortlist. Measure Recall at K against exact search, then rescore
+          shortlisted items with the stored higher-precision vectors when the design permits.
+        hold: 0.75
+        visual_cues:
+          - id: quantization-merged-coordinate-tie-b3-1
+            phrase: merging nearby values
+            targets:
+              - merged-coordinate-tie
+            color: yellow
+            linger: 0.6
+  - id: scalar-codec
+    title: A byte code needs a reconstruction rule
+    visual: A single coordinate moves through division, rounding, clipping, stored byte and reconstruction; an
+      offset ruler independently maps a positive interval.
+    beats:
+      - say: Our symmetric signed scalar codec fits one scale per dimension from representative calibration
+          values. Scale equals the chosen absolute bound divided by one hundred twenty-seven. Encode by
+          dividing by scale, rounding, and clipping to minus one hundred twenty-seven through plus one
+          hundred twenty-seven. Decode by multiplying the integer by the same scale. This convention uses
+          two hundred fifty-five levels and leaves minus one hundred twenty-eight unused. A constant-zero
+          dimension needs an explicit scale rule.
+        hold: 0.7
+      - say: Fit calibration once, freeze it, and use it for later rows and queries as required by the scoring
+          kernel. A Python integer list does not itself establish one-byte storage; the stored array must
+          actually use the chosen byte dtype. Other engines use min-max ranges, offsets and signed or
+          unsigned formats. Their decoding and score formulas must match their own codec.
+        hold: 0.7
+      - say: A range-offset codec over two to three uses step one over two hundred fifty-five. Code zero
+          reconstructs two and code two hundred fifty-five reconstructs three. The real offset two is not
+          an unsigned-byte integer zero-point. Trying to use minus five hundred ten as that zero-point
+          violates the byte domain. Expanding the interval to include zero changes the step and sacrifices
+          resolution within two to three.
+        hold: 0.7
+      - say: With per-dimension offsets, a dot score includes query times offset plus query times scale times
+          code, summed over coordinates. A shared offset contributes the same query-specific constant to
+          every row, so it cancels only for a fixed-query ranking with shared calibration. Keep it for
+          score values or thresholds. Document-specific offsets do not generally cancel.
+        hold: 0.7
+  - id: scalar-scales
+    title: A raw integer score can reverse the winner
+    visual: The same two encoded rows retain dimension ownership while their scales are reattached before
+      summation.
+    beats:
+      - say: Consider a separate inner-product fixture. Query is one, one. Database A is eight, zero; B is zero,
+          one. Calibration bounds ten and one give dimension scales ten over one hundred twenty-seven and
+          one over one hundred twenty-seven. Their stored rows are one hundred two, zero and zero, one
+          hundred twenty-seven.
+        hold: 0.7
+      - say: If we dot the floating query with those integer codes and omit scales, B scores one hundred
+          twenty-seven and beats A at one hundred two. Restoring the per-dimension scales gives
+          approximately eight point zero three one for A and one for B, preserving the true scores eight
+          and one. Each coordinate has its own unit; raw code magnitudes are not interchangeable.
+        hold: 0.7
+        visual_cues:
+          - id: restore-scales
+            phrase: Restoring the per-dimension scales gives
+            targets:
+              - scale-aware-scores
+            linger: 0.5
+      - say: This repairs the stated inner-product computation, not every cosine approximation. Reconstructed
+          vectors can have different norms even if the originals were unit-normalized. Cosine requires
+          those reconstructed norms, or an explicitly measured approximation. Check calibration identity,
+          query transforms and reconstructed ranking before blaming the encoder.
+        hold: 0.7
+  - id: calibration
+    title: An outlier spends the available buckets
+    visual: Two staircases share equal-unit axes over the same 101 ordinary values; a separate outlier point
+      retains its clipping error.
+    beats:
+      - say: Take one hundred one equally spaced ordinary values from minus one to one, then include one
+          calibration value at twenty-five. A maximum-derived bound of twenty-five gives a step of
+          twenty-five over one hundred twenty-seven. Many ordinary values collapse into the same bucket. A
+          supplied clipped bound of one gives finer ordinary resolution but saturates the outlier.
+        hold: 0.7
+      - say: Calculated on these ordinary values, mean absolute reconstruction error is about zero point zero four
+          eight three with the wide bound and zero point zero zero one nine with bound one. Clipping
+          twenty-five to one also incurs an error of twenty-four. For a separate direction test, normalize
+          the rows one, zero point zero five and one, zero point zero four against query one, zero. The
+          second direction is closer. The coarse codec makes both candidates identical and changes the
+          tie-broken winner; finer calibration preserves the better direction. Select calibration on
+          development data and measure held-out shortlist recall, including clipped cases.
+        hold: 0.7
+        visual_cues:
+          - id: calibration-direction-start
+            phrase: For a separate direction test
+            targets:
+              - calibration-rank
+            color: yellow
+            linger: 0.4
+          - id: calibration-direction-original
+            phrase: The second direction is closer.
+            targets:
+              - calibration-rank
+            color: yellow
+            linger: 0.4
+          - id: calibration-direction-coarse
+            phrase: The coarse codec makes both candidates identical and changes the tie-broken winner;
+            targets:
+              - calibration-rank
+            color: yellow
+            linger: 0.4
+          - id: calibration-direction-fine
+            phrase: finer calibration preserves the better direction.
+            targets:
+              - calibration-rank
+            color: yellow
+            linger: 0.4
+  - id: wide-arithmetic
+    title: Widen before the product loses its high bits
+    visual: The same two signed byte rows feed narrow and wide multiplication lanes; discarded high bits
+      remain visibly unrecoverable after the narrow result is cast.
+    beats:
+      - say: Rounding error and arithmetic overflow are different failures. Multiply query one hundred
+          twenty-seven, one hundred twenty-seven by database rows one hundred twenty-seven, one hundred
+          twenty-seven and one hundred twenty-six, one hundred twenty-six. Correct integer sums are
+          thirty-two thousand two hundred fifty-eight and thirty-two thousand four, so the first row wins.
+        hold: 0.7
+      - say: An INT8 result can wrap those sums to two and four and select the wrong row. Casting that result
+          afterward keeps two and four. Widen operands before multiplication and use a wide enough
+          accumulator. For symmetric codes bounded by one hundred twenty-seven, an absolute sum bound is
+          dimension count times one hundred twenty-seven squared. At fifteen hundred thirty-six dimensions
+          this is twenty-four million seven hundred seventy-four thousand one hundred forty-four, which
+          fits signed INT32. Different ranges and offsets need their own bound.
+        hold: 0.7
+        visual_cues:
+          - id: widen-product
+            phrase: Widen operands before multiplication
+            targets:
+              - wide-score
+            linger: 0.5
+  - id: pq-codebooks
+    title: Store subspace identities instead of coordinates
+    visual: An eight-dimensional database row separates into four persistent two-coordinate panels; each
+      selects one centroid ID in its own supplied codebook.
+    beats:
+      - say: Product quantization changes the unit of storage. Split a vector into nonoverlapping subspaces. Fit a
+          separate k-means codebook on representative calibration subvectors in each subspace, then store
+          the ID of the nearest centroid rather than the original coordinates. Ordinary PQ minimizes
+          squared reconstruction distortion; that objective does not by itself guarantee the desired
+          evidence recall or inner-product ranking.
+        hold: 0.7
+      - say: Our eight-coordinate toy row contains pairs one point two and three point four, zero point eight and
+          two point one, five point three and one point seven, zero point four and three point two. Each
+          supplied two-centroid codebook contains zero, zero and that pair. The row selects IDs one, one,
+          one, one. These handwritten codebooks make the mechanism traceable; they are not a trained
+          production quantizer.
+        hold: 0.7
+      - say: Two centroids need only one bit per subspace in an ideally packed code. We store four byte-sized IDs
+          for clarity in this toy. The separate ninety-six-byte sizing example uses two hundred fifty-six
+          centroids per subspace, so each ID genuinely needs eight bits. Keep codebook version, subspace
+          order, dimension and codec identity with the index.
+        hold: 0.7
+  - id: pq-distance
+    title: Let the query build its own lookup table
+    visual: A full-precision query pair fills both entries of each subspace lookup row; stored guide IDs pull
+      four actual entries into a sum.
+    beats:
+      - say: Asymmetric distance computation keeps the query in full precision. For squared L2, compute a table
+          entry as the squared distance from a query subvector to one centroid. For inner product, use
+          their dot product instead. A stored row selects one table entry in each subspace, then sums
+          them. The scoring loop reads codes and lookup entries without explicitly reconstructing every
+          database vector.
+        hold: 0.7
+      - say: Use query pairs one point one and three point three; zero point seven and two; five point two and one
+          point eight; zero point three and three point one. The supplied all-one code selects four
+          squared distances of zero point zero two, totaling zero point zero eight. The all-zero code
+          selects twelve point one zero, four point four nine, thirty point two eight and nine point seven
+          zero, totaling fifty-six point five seven.
+        hold: 0.7
+        visual_cues:
+          - id: pq-add
+            phrase: The supplied all-one code selects
+            targets:
+              - pq-totals
+            linger: 0.5
+      - say: "A ninety-six by two hundred fifty-six table of FP32 distances occupies ninety-six kibibytes per
+          query table, and these entries are summed with floating-point additions. Specialized FastScan
+          implementations can quantize lookup entries and use different codebooks; that is another
+          approximation. Symmetric distance computation also quantizes the query. It avoids neither
+          database approximation nor all score error: with centroids zero and two, query one point four
+          and documents one point four and two, ADC gives zero point three six for both while SDC gives
+          zero for both. Their true squared distances are zero and zero point three six."
+        hold: 0.7
+  - id: pq-transform
+    title: Preserve the scoring objective across transformations
+    visual: The same points rotate before subspace boundaries are drawn, then reconstructed norms and a
+      residual coarse-centroid anchor enter the score calculation.
+    beats:
+      - say: Quantization can change reconstructed lengths. An inner-product lookup table measures query dot
+          reconstructed document, not necessarily their cosine. Reconstructed norm tables can supply the
+          missing norm. Even when original vectors were normalized, unequal reconstructed norms can make
+          L2 and inner-product code rankings differ. Choose and evaluate the actual serving objective.
+        hold: 0.7
+      - say: Optimized product quantization learns an orthonormal transform together with codebooks to reduce
+          distortion under the selected subspace decomposition. Apply the same transform to queries.
+          Before quantization, an orthonormal transform preserves exact dot products and L2 distances.
+          Afterward, the codebooks still introduce approximation, so reconstruction error and retrieval
+          quality remain separate measurements.
+        hold: 0.7
+      - say: An IVF residual path first chooses a coarse centroid and encodes document minus that centroid.
+          Scoring must account for that coarse anchor; interpreting residual codes as complete vectors
+          uses the wrong origin. Version transforms, coarse centroids and subspace codebooks together, and
+          test a separately built index before migrating serving traffic.
+        hold: 0.7
+  - id: binary-pack
+    title: Pack signs with an explicit bit order
+    visual: Four labeled coordinate signs fall into the low four positions of a byte; XOR keeps the changed
+      position and popcount counts it.
+    beats:
+      - say: A fixed-axis sign codec keeps one when a coordinate is positive and zero otherwise. It discards
+          magnitudes. Our four-coordinate vectors zero point three, minus zero point one, zero point
+          eight, minus zero point four and zero point five, minus zero point two, zero point seven, zero
+          point one have dimension-ordered signs one zero one zero and one zero one one.
+        hold: 0.7
+      - say: Put dimension zero in the least significant bit and store bytes little-endian. The first code is
+          binary zero one zero one, hexadecimal zero five; the second is one one zero one, hexadecimal
+          zero d. XOR leaves one differing bit, so popcount is one. Wider vectors sum counts across words.
+          Hardware vector-popcount can accelerate this path when supported; actual throughput still needs
+          measurement.
+        hold: 0.7
+        visual_cues:
+          - id: binary-popcount
+            phrase: XOR leaves one differing bit
+            targets:
+              - binary-xor
+            linger: 0.5
+      - say: Payload is the ceiling of dimensions divided by eight bytes, with unused high bits zero. Four
+          dimensions occupy one whole byte, and nine occupy two. Validate logical dimension, exact byte
+          length and padding before comparing codes. At widths divisible by eight, sign payload is
+          thirty-two times smaller than FP32 coordinate payload. That ratio excludes graph traffic and
+          retained originals.
+        hold: 0.7
+  - id: sign-angle
+    title: Identical signs can hide nearly orthogonal directions
+    visual: Two magnitude patterns preserve the same four sign cells while their geometric directions
+      separate; random rotating hyperplanes form a visibly different experiment.
+    beats:
+      - say: Predict what fixed coordinate signs retain for vectors one, zero point zero one, minus one, minus
+          zero point zero one and zero point zero one, one, minus zero point zero one, minus one. Both
+          have mean coordinate zero and two positive signs. Their sign codes are identical, so Hamming
+          distance is zero. Their cosine is only about zero point zero two.
+        hold: 0.7
+        visual_cues:
+          - id: sign-result
+            phrase: Their sign codes are identical
+            targets:
+              - sign-collision
+            linger: 0.5
+      - say: The angle divided by pi is about zero point four nine four. Independently sampled isotropic random
+          hyperplanes have expected differing-bit fraction equal to that angle fraction. This expectation
+          averages over random orientations; it is not a theorem about the four fixed coordinate signs we
+          stored. More independent random bits improve concentration, while centering and balanced
+          marginal signs alone do not establish the required distribution.
+        hold: 0.7
+      - say: At three hundred eighty-four bits there are only three hundred eighty-five possible distances to one
+          query, so many ties must exist among one hundred thousand rows. That fact alone does not tell us
+          whether ties cross the shortlist cutoff or which tied rows are relevant. Measure bit
+          frequencies, correlations, tie behavior and labeled recall. Multi-bit or rotated codecs have
+          their own packing and scoring contracts; a nominal bit ratio is not a total-memory guarantee.
+        hold: 0.7
+  - id: graph
+    title: Retaining another route can expose a missed neighbor
+    visual: A supplied five-node graph retains exact coordinates and neighbor edges while beam membership and
+      visited-node identity change between search budgets.
+    beats:
+      - say: An ANN graph reduces rows visited; quantization reduces bytes per visited row. HNSW has every node at
+          layer zero and nested sparser upper layers. A search walks greedily through upper express links
+          until no neighbor is closer, then drops to the same node below. At the base, a prioritized
+          candidate search retains alternatives instead of following only one greedy route.
+        hold: 0.7
+      - say: Isolate the base search on a supplied graph. Query is five, two. A is zero, zero and connects to B at
+          three, zero and C at one, two. B also connects to D at four, zero. C also connects to E at five,
+          two point one. All edges are bidirectional, and the base entry is B. With one retained
+          candidate, D improves squared distance from eight to five, and the search stops there.
+        hold: 0.7
+        visual_cues:
+          - id: graph-return-one
+            phrase: the search stops there
+            targets:
+              - graph-outcome
+            linger: 0.5
+      - say: With three retained candidates, the search can retain the farther route through A, then C, then E. E
+          is only zero point one away, with squared distance zero point zero one. This exact toy trace
+          explains why more exploration can recover a missed neighbor; it does not establish production
+          recall or latency. Search-list size is not a hard cap on visited nodes. In hnswlib, query ef
+          must be at least the requested neighbor count.
+        hold: 0.7
+        visual_cues:
+          - id: graph-return-three
+            phrase: E is only zero point one away
+            targets:
+              - graph-outcome
+            linger: 0.5
+  - id: index-memory
+    title: Graph capacity and search effort spend different budgets
+    visual: A layer population shrinks analytically under M while a separate row ledger adds neighbor slots to
+      its compressed code; build and query controls operate on distinct parts.
+    beats:
+      - say: A common maximum-level sampler takes the floor of minus log U times m L, where U is uniform between
+          zero and one and m L equals one over log M. The probability of reaching layer ell is M to the
+          minus ell. At M thirty-two, the scale is about zero point two eight nine, but the fraction
+          reaching layer one is one over thirty-two, or three point one two five percent. Layer two has
+          one over one thousand twenty-four.
+        hold: 0.7
+      - say: M controls graph connectivity capacity and memory at construction. Ef construction controls
+          insertion-time exploration, build work and graph quality. Query ef controls the retained search
+          list and its recall-latency trade-off. Try query effort first on a fixed graph; if required
+          recall cannot fit the latency budget, compare rebuilt graphs. No copied parameter triple proves
+          a new corpus meets its gates.
+        hold: 0.7
+      - say: For one implementation reserving twice M four-byte base neighbor IDs, M thirty-two allocates two
+          hundred fifty-six bytes of neighbor slots per row. That exceeds a ninety-six-byte PQ code.
+          Counts, upper links, labels and metadata add more. Hnswlib estimates roughly eight M to ten M
+          bytes of graph overhead per element. A smaller code can leave graph traversal or vector fetching
+          as the main cost; profile before changing another approximation.
+        hold: 0.7
+  - id: authorized-funnel
+    title: An omitted guide cannot be rescued by rescoring
+    visual: Three persistent passage IDs move through a stable Hamming shortlist, permission barrier and
+      retained-original rescore shelf; a top-one failure is repaired before evidence fetch.
+    beats:
+      - say: Use a separate four-dimensional permission fixture. Query is zero point eight, minus zero point four,
+          zero point six, minus zero point two. A denied private note and the allowed rotation guide share
+          its signs, giving both Hamming distance zero. An allowed lifecycle guide has distance two. Our
+          deterministic first-row tie puts the private note first.
+        hold: 0.7
+      - say: An unfiltered top-one shortlist therefore contains only the denied note. Enforcing permission removes
+          it and leaves no evidence. Full-precision rescoring cannot recover a guide that never entered
+          the shortlist. With top two, the rotation guide survives permission and can be rescored using
+          its retained original vector. Native authorization filtering before selection keeps the rotation
+          guide even at top one in this fixture.
+        hold: 0.7
+        visual_cues:
+          - id: widen-shortlist
+            phrase: With top two
+            targets:
+              - authorized-result
+            linger: 0.5
+          - id: native-filter
+            phrase: Native authorization filtering before selection
+            targets:
+              - authorized-result
+            linger: 0.5
+      - say: Keep unauthorized text behind the permission gate, including before reranking or generation, and
+          recheck current access before fetch. An optional cross-encoder can jointly score a bounded set
+          of allowed query-passage pairs when measured gains justify its cost. Nearest-neighbor recall,
+          judged relevance, filtered coverage, vector-fetch time, reranker time and total storage answer
+          different questions. Empty results need an explicit serving path.
+        hold: 0.7
+  - id: deployment
+    title: Separate candidate eligibility from similarity
+    visual: An authorization gate filters the candidate pool before three score columns rank the remaining
+      passages. Memory savings and retrieval quality enter separate ledgers.
+    beats:
+      - say: Similarity ranks eligible passages; it does not grant access. Apply the authorization filter before
+          searching or returning evidence. Then use cosine, dot product, or distance according to the
+          declared normalization and scoring contract.
+        hold: 0.6
+        visual_cues:
+          - id: deployment-retrieval-access-filter-b1-1
+            phrase: Apply the authorization filter before searching or returning evidence
+            targets:
+              - retrieval-access-filter
+            color: yellow
+            linger: 0.6
+          - id: deployment-rank-eligible
+            phrase: Then use cosine, dot product, or distance
+            targets:
+              - eligible-score-results
+            color: green
+            linger: 0.6
+      - say: Quantized and shortened vectors change memory and score fidelity in different ways. Report bytes per
+          vector beside Recall at K or nDCG at K on held-out queries. A smaller array establishes a
+          storage change; the query set measures which useful neighbors survived.
+        hold: 0.7
+        visual_cues:
+          - id: deployment-retrieval-byte-cost-b2-1
+            phrase: bytes per vector
+            targets:
+              - retrieval-byte-cost
+            color: cyan
+            linger: 0.6
+          - id: deployment-retrieval-quality-b2-2
+            phrase: Recall at K
+            targets:
+              - retrieval-quality
+            color: pink
+            linger: 0.6
+      - say: If compression finds candidates and full vectors rescore them, measure both stages, including vector
+          fetch time. Save the encoder version, normalization, metric, and quantizer with the index so
+          each request compares coordinates produced under the same contract.
+        hold: 0.75
+        visual_cues:
+          - id: deployment-retrieval-latency-b3-1
+            phrase: vector fetch time
+            targets:
+              - retrieval-latency
+            color: yellow
+            linger: 0.6
+  - id: synthesis
+    title: Ask what each coordinate operation preserves
+    visual: Direction, magnitude, unit normalization, and quantization move through a retrieval pipeline. A
+      final comparison reconnects the chosen metric with the original query.
+    beats:
+      - say: Begin with the vector pair and state what should matter. If direction is the target, cosine is
+          direct. If magnitude carries learned meaning, dot product can use it. If straight-line
+          separation is the task's measure, use Euclidean distance.
+        hold: 0.6
+        visual_cues:
+          - id: synthesis-retrieval-contract-3-b1-1
+            phrase: cosine is direct
+            targets:
+              - retrieval-contract-2
+            color: green
+            linger: 0.6
+      - say: Normalization removes vector magnitude from the ranking and, on unit vectors, makes dot product and
+          squared distance equivalent up to a decreasing linear transform. Quantization then approximates
+          coordinates, so check whether important neighbors remain retrievable.
+        hold: 0.7
+        visual_cues:
+          - id: synthesis-retrieval-contract-1-b2-1
+            phrase: Normalization removes vector magnitude
+            targets:
+              - retrieval-contract-1
+            color: blue
+            linger: 0.6
+      - say: "A reliable retrieval score connects four things: encoder output, stored-vector transform, query-time
+          transform, and the metric used by the index. Test that whole path against judged queries, then
+          report the quality and memory costs together."
+        hold: 0.75
+        visual_cues:
+          - id: synthesis-retrieval-contract-0-b3-1
+            phrase: encoder output
+            targets:
+              - retrieval-contract-0
+            color: blue
+            linger: 0.6
+          - id: synthesis-retrieval-contract-3-b3-2
+            phrase: metric used by the index
+            targets:
+              - retrieval-contract-2
+            color: green
+            linger: 0.6
+  - id: fresh-query
+    title: Rotate the query and predict which contracts still agree
+    visual: The original A/B arrows remain fixed while the query turns upward; a held prediction precedes
+      actual dot, cosine and raw-L2 calculations, then a new C/D shortlist exposes irreversible omission.
+    beats:
+      - say: Return to the original hand-built apple passages, A at one, zero point two and B at four, two. Turn
+          the query to zero, one while leaving documents fixed. Predict the raw-dot winner, cosine winner
+          and raw-Euclidean winner. Then predict whether the three unit-vector rankings will agree. Keep
+          each answer covered until its ruler is evaluated.
+        hold: 0.7
+      - say: Raw dot gives A zero point two and B two, so B wins. Cosine gives A about zero point one nine six and
+          B zero point four four seven, so B also wins. Raw Euclidean distances are about one point two
+          eight one for A and four point one two three for B, so A is closer. After normalizing, dot,
+          cosine and squared L2 all rank B first. The shared identity required unit vectors, not the
+          original endpoints.
+        hold: 0.7
+        visual_cues:
+          - id: fresh-dot
+            phrase: Raw dot gives A
+            targets:
+              - fresh-scores
+            linger: 0.5
+          - id: fresh-cosine
+            phrase: Cosine gives A
+            targets:
+              - fresh-scores
+            linger: 0.5
+          - id: fresh-l2
+            phrase: Raw Euclidean distances are
+            targets:
+              - fresh-scores
+            linger: 0.5
+          - id: fresh-unit
+            phrase: After normalizing
+            targets:
+              - fresh-scores
+            linger: 0.5
+          - id: fresh-dot-complete
+            phrase: Raw dot gives A zero point two and B two, so B wins.
+            targets:
+              - fresh-scores
+            color: yellow
+            linger: 0.4
+          - id: fresh-cosine-complete
+            phrase: Cosine gives A about zero point one nine six and B zero point four four seven, so B also wins.
+            targets:
+              - fresh-scores
+            color: yellow
+            linger: 0.4
+          - id: fresh-l2-complete
+            phrase: Raw Euclidean distances are about one point two eight one for A and four point one two three
+              for B, so A is closer.
+            targets:
+              - fresh-scores
+            color: yellow
+            linger: 0.4
+          - id: fresh-unit-complete
+            phrase: After normalizing, dot, cosine and squared L2 all rank B first.
+            targets:
+              - fresh-scores
+            color: yellow
+            linger: 0.4
+      - say: "Finally apply the upward query to our close C and D candidates, zero point nine nine, zero point one three and zero point nine six, zero point two eight. Full-precision cosine prefers D, but the zero point two grid still merges both into one, zero point two. A first-row tie at shortlist size one can omit D, and later exact rescoring cannot invent it. At size two both survive and retained originals recover D. Evaluate the complete authorized path before accepting its memory and latency savings. Attention next turns that scoring idea inward: token queries compare with keys, a mask limits the allowed positions and normalized shares mix their values."
+        hold: 0.7
+        visual_cues:
+          - id: fresh-original-score
+            phrase: Full-precision cosine prefers D
+            targets:
+              - fresh-originals
+            linger: 0.5
+          - id: fresh-shortlist
+            phrase: At size two both survive
+            targets:
+              - fresh-rescore
+            linger: 0.5
+          - id: fresh-original-complete
+            phrase: Full-precision cosine prefers D, but the zero point two grid still merges both into one,
+              zero point two.
+            targets:
+              - fresh-originals
+            color: yellow
+            linger: 0.4
+          - id: fresh-rescore-complete
+            phrase: At size two both survive and retained originals recover D.
+            targets:
+              - fresh-rescore
+            color: yellow
+            linger: 0.4

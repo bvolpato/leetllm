@@ -1,0 +1,183 @@
+version: 1
+lesson: mixed-precision
+promise: Locate where a training value changes during rounding, choose a precision policy for that operation, and select the fastest comparable run that meets both quality thresholds.
+objectives:
+  - id: stored-weight
+    can: Predict a rounded update from the two neighbors of a weight and decide where to keep optimizer state.
+    scenes:
+      - intro
+      - grid
+      - formats
+      - update
+  - id: scaled-step
+    can: Distinguish forward overflow from backward underflow, choose when to scale, and apply the finite check and clipping in the original gradient units.
+    scenes:
+      - range-check
+      - underflow
+      - controller
+      - ordering
+      - transfer
+  - id: precision-recipe
+    can: Count the bytes that change and trace how reduction precision, rollout logits, and FP8 scale selection affect results.
+    scenes:
+      - memory
+      - communication
+      - policy-mismatch
+      - fp8-contract
+  - id: controlled-comparison
+    can: Check a kernel's partial sums, hold the workload fixed, and rank only runs that meet both quality minimums.
+    scenes:
+      - earned-transfer
+sections:
+  - heading: A floating-point number has two limits
+    status: taught
+    scenes:
+      - grid
+      - formats
+  - heading: Inspect both neighbors before judging an update
+    status: taught
+    scenes:
+      - intro
+      - grid
+      - update
+  - heading: Range decides whether gradients exist at all
+    status: taught
+    scenes:
+      - range-check
+      - underflow
+      - transfer
+  - heading: FP16 uses loss scaling to rescue small gradients
+    status: taught
+    scenes:
+      - underflow
+      - controller
+  - heading: Dynamic loss scaling as a feedback controller
+    status: taught
+    scenes:
+      - controller
+  - heading: Compute low, update high
+    status: taught
+    scenes:
+      - intro
+      - formats
+      - update
+  - heading: GradScaler and gradient accumulation share one optimizer-step boundary
+    status: taught
+    scenes:
+      - ordering
+  - heading: Account for memory before claiming savings
+    status: taught
+    scenes:
+      - memory
+  - heading: Distributed jobs add a communication dtype
+    status: taught
+    scenes:
+      - communication
+  - heading: Choose precision from controlled runs
+    status: taught
+    scenes:
+      - earned-transfer
+  - heading: RL can expose a BF16 train-inference mismatch
+    status: taught
+    scenes:
+      - policy-mismatch
+  - heading: Apply both quality gates before comparing speed
+    status: taught
+    scenes:
+      - earned-transfer
+  - heading: Evaluate FP8 after measuring the lower-precision path
+    status: taught
+    scenes:
+      - fp8-contract
+  - heading: Common pitfalls
+    status: taught
+    scenes:
+      - formats
+      - ordering
+      - controller
+      - communication
+  - heading: Check your understanding
+    status: taught
+    scenes:
+      - transfer
+      - earned-transfer
+  - heading: Evaluation rubric
+    status: taught
+    scenes:
+      - transfer
+      - earned-transfer
+  - heading: Follow-up questions
+    status: taught
+    scenes:
+      - transfer
+      - earned-transfer
+quiz:
+  - n: 1
+    status: taught
+    scenes:
+      - formats
+  - n: 2
+    status: taught
+    scenes:
+      - underflow
+      - ordering
+  - n: 3
+    status: taught
+    scenes:
+      - range-check
+      - underflow
+  - n: 4
+    status: taught
+    scenes:
+      - controller
+  - n: 5
+    status: taught
+    scenes:
+      - ordering
+  - n: 6
+    status: taught
+    scenes:
+      - memory
+  - n: 7
+    status: taught
+    scenes:
+      - communication
+  - n: 8
+    status: taught
+    scenes:
+      - policy-mismatch
+  - n: 9
+    status: taught
+    scenes:
+      - earned-transfer
+  - n: 10
+    status: taught
+    scenes:
+      - grid
+removed: []
+reviews:
+  closed_book:
+    reviewer: /root
+    script: 6cddcf42d2f3a0f5
+    taught: 10
+    partial: 0
+    absent: 0
+    proof: build/video-delivery-20261106/mixed-precision-semantic-repair/root-full-current-peer.json
+  fact_check:
+    reviewer: /root
+    script: 6cddcf42d2f3a0f5
+    open_findings: 0
+    proof: build/video-delivery-20261106/mixed-precision-semantic-repair/root-full-current-peer.json
+  manuscript_delta:
+    reviewer: /root
+    script: 6cddcf42d2f3a0f5
+    proof: build/video-delivery-20261106/mixed-precision-semantic-repair/root-manuscript-review.json
+    timing_supplement: build/video-delivery-20261106/mixed-precision-semantic-repair/timing-cue-delta.json
+    scope: Initial manuscript and two nonspoken timing anchors. The complete current source, article,
+      narration and quiz acceptance is recorded in current_source.
+  current_source:
+    reviewer: /root
+    script: 6cddcf42d2f3a0f5
+    proof: build/video-delivery-20261106/mixed-precision-semantic-repair/root-full-current-peer.json
+    scope: Complete current source and primary 0.7.1 native gate accepted. Final 0.8 native renewal and
+      encoded movie remain separate.

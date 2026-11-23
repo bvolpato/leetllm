@@ -1,0 +1,312 @@
+version: 1
+lesson: forecasting
+promise: Use information available at issuance to forecast a cluster's workload, test the forecast and its interval on later days, and decide when a miss calls for a review or an urgent page.
+objectives:
+  - id: intro
+    can: Compare Friday's observed count with its previously issued forecast and frozen review band.
+    scenes:
+      - intro
+  - id: clock-contract
+    can: Identify the latest usable count at the forecast origin when a daily report arrives late.
+    scenes:
+      - clock-contract
+  - id: additive-decomposition
+    can: Use a level, weekday offset and supplied launch contribution to calculate Friday's predicted volume and remaining error.
+    scenes:
+      - additive-decomposition
+  - id: proportional-seasonality
+    can: A changing level changes the choice of seasonal model
+    scenes:
+      - proportional-seasonality
+  - id: seasonal-baseline
+    can: Compare tomorrow with the matching day last week
+    scenes:
+      - seasonal-baseline
+  - id: fixed-origin
+    can: Test which source rows a seven-row lookup may read at a fixed origin and extend the forecast by repeating the last observed week.
+    scenes:
+      - fixed-origin
+  - id: time-order
+    can: Evaluate only after the forecast origin
+    scenes:
+      - time-order
+  - id: sarimax-contract
+    can: Difference the regression error that the model defines
+    scenes:
+      - sarimax-contract
+  - id: origin-features
+    can: Build every feature from its availability time
+    scenes:
+      - origin-features
+  - id: multi-horizon
+    can: Advance a prediction without advancing knowledge
+    scenes:
+      - multi-horizon
+  - id: patch-count
+    can: Compute the Transformer sequence before claiming savings
+    scenes:
+      - patch-count
+  - id: foundation-generations
+    can: Name the architecture and the dated generation
+    scenes:
+      - foundation-generations
+  - id: errors-and-residuals
+    can: Measure the size and direction of misses
+    scenes:
+      - errors-and-residuals
+  - id: quantile-target
+    can: Score the same ten-job miss in either direction using the target quantile.
+    scenes:
+      - quantile-target
+  - id: discrete-quantile
+    can: Explain why shifting a forecast from ten to a hundred jobs transfers loss between outcomes and why the inverse-CDF P90 selects ten.
+    scenes:
+      - discrete-quantile
+  - id: interval-calibration
+    can: Set an error band using earlier forecasts
+    scenes:
+      - interval-calibration
+  - id: normal-error-scale
+    can: Estimate the error scale rather than the workload swing
+    scenes:
+      - normal-error-scale
+  - id: finite-conformal
+    can: Select the split-conformal rank and decide whether fourteen or nineteen calibration scores can supply a finite 95% half-width.
+    scenes:
+      - finite-conformal
+  - id: online-calibration
+    can: Wait for the outcome before changing the next interval
+    scenes:
+      - online-calibration
+  - id: alert-receipt
+    can: Reconstruct Friday's source, policy cutoff, origin and observation, then route the same planned launch with and without evidence of urgent capacity impact.
+    scenes:
+      - alert-receipt
+  - id: review-volume
+    can: A crossing, state transition and delivery are different events
+    scenes:
+      - review-volume
+  - id: alert-state
+    can: Run the two-breach and two-clean policy and carry the alert state across a missing observation.
+    scenes:
+      - alert-state
+  - id: state-trace
+    can: Identify the breach that interrupts a clean run and determine when the eight-check stream clears.
+    scenes:
+      - state-trace
+  - id: joint-detector
+    can: Project the same pair and expose the blind spot
+    scenes:
+      - joint-detector
+  - id: alert-usefulness
+    can: Measure alert usefulness after outcomes arrive
+    scenes:
+      - alert-usefulness
+  - id: telemetry-identity
+    can: Repair the input before relearning the spike
+    scenes:
+      - telemetry-identity
+  - id: fixture-gates
+    can: A complete record still has a limited claim
+    scenes:
+      - fixture-gates
+  - id: later-policy-check
+    can: Identify the additional review caused by a narrower inclusive band and decide what evidence would justify that review.
+    scenes:
+      - later-policy-check
+  - id: wrap
+    can: Recover the one-day forecast, later-week coverage, launch slice and pending action from Friday's record.
+    scenes:
+      - wrap
+  - id: fresh-state
+    can: Predict when a fresh five-minute stream opens and clears a review, and identify what would establish notification delivery.
+    scenes:
+      - fresh-state
+sections:
+  - heading: Start with an ordered batch-job series
+    status: taught
+    scenes:
+      - clock-contract
+      - seasonal-baseline
+  - heading: Decompose metrics into trend, seasonality, and exogenous events
+    status: taught
+    scenes:
+      - additive-decomposition
+      - proportional-seasonality
+  - heading: Keep future rows out of training
+    status: taught
+    scenes:
+      - time-order
+      - origin-features
+      - fixed-origin
+  - heading: Establish a same-weekday baseline
+    status: taught
+    scenes:
+      - intro
+      - seasonal-baseline
+      - fixed-origin
+  - heading: Compare classical SARIMAX, gradient-boosted trees, and foundation models
+    status: taught
+    scenes:
+      - sarimax-contract
+      - origin-features
+      - multi-horizon
+      - patch-count
+      - foundation-generations
+  - heading: Classical SARIMAX
+    status: taught
+    scenes:
+      - sarimax-contract
+  - heading: Gradient-boosted trees with rolling features
+    status: taught
+    scenes:
+      - origin-features
+      - multi-horizon
+  - heading: Time-series Transformers and foundation models
+    status: taught
+    scenes:
+      - patch-count
+      - foundation-generations
+  - heading: Measure forecast error in batch jobs
+    status: taught
+    scenes:
+      - errors-and-residuals
+      - fixture-gates
+  - heading: Backtest more than one future window
+    status: taught
+    scenes:
+      - time-order
+      - multi-horizon
+  - heading: Distinguish forecast errors from residuals
+    status: taught
+    scenes:
+      - errors-and-residuals
+  - heading: Quantify uncertainty with pinball loss and conformal intervals
+    status: taught
+    scenes:
+      - quantile-target
+      - discrete-quantile
+      - finite-conformal
+  - heading: Quantile regression with pinball loss
+    status: taught
+    scenes:
+      - quantile-target
+      - discrete-quantile
+  - heading: Conformalized prediction intervals
+    status: taught
+    scenes:
+      - finite-conformal
+  - heading: The non-exchangeability trap in time series
+    status: taught
+    scenes:
+      - finite-conformal
+      - online-calibration
+  - heading: Calibrate an error band from earlier days
+    status: taught
+    scenes:
+      - interval-calibration
+      - normal-error-scale
+      - finite-conformal
+      - review-volume
+      - later-policy-check
+  - heading: Turn an unusual error into a review artifact
+    status: taught
+    scenes:
+      - intro
+      - alert-receipt
+      - wrap
+  - heading: Mitigate alert fatigue with cooldown and multivariate detectors
+    status: taught
+    scenes:
+      - review-volume
+      - state-trace
+      - joint-detector
+  - heading: Alert storms, flapping, and throttling
+    status: taught
+    scenes:
+      - review-volume
+      - alert-state
+      - state-trace
+      - fresh-state
+  - heading: Multivariate anomaly detection
+    status: taught
+    scenes:
+      - joint-detector
+  - heading: Evaluate alert usefulness separately
+    status: taught
+    scenes:
+      - alert-usefulness
+  - heading: Reproduce a data-quality anomaly
+    status: taught
+    scenes:
+      - telemetry-identity
+  - heading: Package the evidence for shadow review
+    status: taught
+    scenes:
+      - fixture-gates
+      - later-policy-check
+  - heading: When the policy breaks
+    status: taught
+    scenes:
+      - later-policy-check
+      - fresh-state
+quiz:
+  - n: 1
+    status: taught
+    scenes:
+      - clock-contract
+      - fixed-origin
+  - n: 2
+    status: taught
+    scenes:
+      - additive-decomposition
+  - n: 3
+    status: taught
+    scenes:
+      - errors-and-residuals
+  - n: 4
+    status: taught
+    scenes:
+      - quantile-target
+  - n: 5
+    status: taught
+    scenes:
+      - finite-conformal
+  - n: 6
+    status: taught
+    scenes:
+      - patch-count
+  - n: 7
+    status: taught
+    scenes:
+      - online-calibration
+  - n: 8
+    status: taught
+    scenes:
+      - alert-state
+      - state-trace
+      - fresh-state
+  - n: 9
+    status: taught
+    scenes:
+      - joint-detector
+  - n: 10
+    status: taught
+    scenes:
+      - alert-usefulness
+removed: []
+reviews:
+  closed_book:
+    script: 5ed9c52b3d308beb
+    reviewer: /root/upgrade_shard4
+    evidence: build/video-delivery-20261106/script-reviews/forecasting.json
+    evidence_sha256: 23b8b0dc0ca4cab0ef8121459a1a00cf5265aec6cf2a3e2e829a859241a9b534
+    taught: 10
+    partial: 0
+    absent: 0
+  fact_check:
+    script: 5ed9c52b3d308beb
+    reviewer: /root/upgrade_shard4
+    evidence: build/video-delivery-20261106/script-reviews/forecasting.json
+    evidence_sha256: 23b8b0dc0ca4cab0ef8121459a1a00cf5265aec6cf2a3e2e829a859241a9b534
+    open_findings: 0

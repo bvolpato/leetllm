@@ -1,0 +1,373 @@
+[
+  {
+    "id": "c01",
+    "title": "Who sees the red hiker?",
+    "sourceChapters": [
+      "c01"
+    ],
+    "beats": [
+      {
+        "id": "shadow",
+        "say": "Watch the red hiker move into first place in Vega’s preview of a trail boot search. Look at the shopper’s screen beside it. The tan boot still comes first there. Reranker seventeen ran on a copy of the same search. That is a shadow test.",
+        "hold": 0.9
+      },
+      {
+        "id": "offer",
+        "say": "Now give each of twenty equal traffic groups its own spot on the shop wall. Each boot shows the first result for that search. Vega proposes trying the new ranking on five groups. That limited live rollout is a canary. If Casey approves this request, how many shoppers change ranking at the instant she clicks?",
+        "hold": 3
+      },
+      {
+        "id": "permission",
+        "say": "Zero groups switch. Casey can give a worker permission to change the route. The router still has to apply the change. Follow this request through a worker restart, a change to the store while Casey reads, and a reply that goes missing after the store has acted.",
+        "hold": 1.1
+      }
+    ]
+  },
+  {
+    "id": "c02",
+    "title": "Where must the reviewer stand?",
+    "sourceChapters": [
+      "c02"
+    ],
+    "beats": [
+      {
+        "id": "timing",
+        "say": "Suppose a tool called Preview sends a release note outside the store. A monitor sees the first delivery and can cancel later sends. That is human on the loop. If policy requires a decision before publication, where must the gate go?",
+        "hold": 2.5
+      },
+      {
+        "id": "gate",
+        "say": "Move the gate before the first send. That is human in the loop. For a read of this service’s permitted metrics, the policy allows human out of the loop. The read runs under a scoped grant. Reading another tenant’s data would require its own authority.",
+        "hold": 1
+      },
+      {
+        "id": "floor",
+        "say": "Start with the possible effect. Vega’s weekday policy sends a production promotion to a release manager. A target above twenty-five percent needs a senior reviewer. At exactly twenty-five, Casey can decide. Change only the target to fifty percent. Who reviews it now?",
+        "hold": 2.5
+      },
+      {
+        "id": "senior",
+        "say": "A senior reviewer. Arguments and current context can raise the minimum review level, or policy floor. A public announcement can need a stronger check than an internal draft. Disabling a required safety filter calls for escalation under Vega’s policy. A prohibited action stays blocked. Model confidence can help prioritize human attention. The host enforces the floor at the destination.",
+        "hold": 1
+      }
+    ]
+  },
+  {
+    "id": "c03",
+    "title": "Where does the request wait?",
+    "sourceChapters": [
+      "c03"
+    ],
+    "beats": [
+      {
+        "id": "save",
+        "say": "Return to Vega’s proposed canary. The host validates the typed action and commits a pending record. It stores the exact arguments, tenant and service, deployment revision, evidence, packet version and digest, reviewer rule, expiry, and the operation key. Only after that commit does it notify Casey.",
+        "hold": 0.8
+      },
+      {
+        "id": "restart",
+        "say": "While Casey reads, worker A stops. Its open request disappears. Where would you look to resume the wait for this particular change?",
+        "hold": 2.4
+      },
+      {
+        "id": "reload",
+        "say": "Worker B reloads operation seventeen from the durable store. The key, arguments and deadline all survive. Release the waiting worker and resume the recorded action when a decision arrives. A sleeping thread or an open connection can lose its state on restart. Regenerating the tool call from chat would create a new proposal. At the deadline, an unanswered request expires without a write.",
+        "hold": 1
+      }
+    ]
+  },
+  {
+    "id": "c03-graph",
+    "title": "What runs twice on resume?",
+    "sourceChapters": [
+      "c03"
+    ],
+    "beats": [
+      {
+        "id": "node",
+        "say": "In LangGraph a node is a step in the workflow. A checkpointer stores state under a thread ID. Here the review node sends Casey a notice, then calls interrupt with the review packet. The paused thread has one notice and zero writes. Predict the notice count when the decision resumes that same thread.",
+        "hold": 2.6
+      },
+      {
+        "id": "again",
+        "say": "Two notices. The resume command supplies a value to interrupt, but execution of the interrupted node starts at its first line again. The notice above interrupt runs twice. A thread ID locates the checkpoint. Authenticate the decision before resuming the matching interrupt.",
+        "hold": 1
+      },
+      {
+        "id": "fix",
+        "say": "Replay a repaired graph from the start. Send the notice in an earlier completed node, or deduplicate it with a durable key. On resume the review node starts a second time. The earlier node stays complete. One notice, two review starts, zero production writes. Keep the guarded write downstream of the returned decision. Route an edit back through policy and use rejection for a denied write.",
+        "hold": 1.2
+      }
+    ]
+  },
+  {
+    "id": "c03-temporal",
+    "title": "Which reply can Casey rely on?",
+    "sourceChapters": [
+      "c03"
+    ],
+    "beats": [
+      {
+        "id": "old-tab",
+        "say": "In a separate review, Casey’s tab still shows packet three while the workflow is waiting on packet four. A Temporal Signal acknowledges delivery to the server. Casey wants to know whether the workflow accepted her click. A Query reads the current state. Which message can validate her decision and return the answer?",
+        "hold": 2.5
+      },
+      {
+        "id": "update",
+        "say": "Use an Update. Its validator compares the action ID, packet version, digest and pending status before acceptance. Three differs from four, so it refuses this click. With the current tab and an authenticated decision, the handler checks again before it records approval. Keep that check and transition together without yielding.",
+        "hold": 1
+      },
+      {
+        "id": "history",
+        "say": "After a restart, Temporal replays workflow code against event history. Its durable timer keeps the original review deadline. Fetch live facts such as policy or metrics in Activities so replay can use recorded results.",
+        "hold": 2.5
+      },
+      {
+        "id": "activity",
+        "say": "The promotion itself runs in a separate Activity. Suppose it gets one attempt, thirty seconds to run and forty-five from scheduling to completion. It waits twenty seconds to start. How much time can it still use?",
+        "hold": 2.5
+      },
+      {
+        "id": "remaining",
+        "say": "Twenty-five seconds. Both limits apply. A timeout after dispatch can leave the effect unknown. Keep the operation key when moving to a new workflow history, finish active message handlers, and look up the destination’s receipt before deciding whether to retry.",
+        "hold": 1
+      }
+    ]
+  },
+  {
+    "id": "c04",
+    "title": "What exactly did Casey approve?",
+    "sourceChapters": [
+      "c04"
+    ],
+    "beats": [
+      {
+        "id": "packet",
+        "say": "The review packet names reranker seventeen, shadow to canary, a twenty-five percent target, deployment revision three, and the evaluation that supports the change. The host takes its own snapshot. Serialize the validated tool, arguments, scope and preconditions with an agreed schema and byte representation. Two services must encode field names and numbers the same way. Reject duplicate keys and nonfinite numbers. Hash those bytes to fingerprint this exact intent.",
+        "hold": 1
+      },
+      {
+        "id": "edit-copy",
+        "say": "Keep Casey’s copy on the left. Change just the working copy to ten percent. The fingerprints differ even though both copies name the same model. Protect the decision and its full digest in trusted storage or verify a signature. Compare the complete digests at execution. The short prefixes here help us read the example. Open the evaluation to judge the ranking itself.",
+        "hold": 1
+      },
+      {
+        "id": "identity",
+        "say": "The requester signs in for this tenant. Vega proposes the arguments. Casey signs in to review. A separate executor uses a narrow workload identity for this service. Suppose the requester also holds the release-manager role. Can they approve their own promotion under a rule requiring a second person?",
+        "hold": 2.6
+      },
+      {
+        "id": "distinct",
+        "say": "Require a different eligible reviewer. The decision service checks Casey’s current role and tenant, the pending version and digest, and the review deadline. Keep reusable credentials out of model context. At dispatch, recheck policy, executor scope and the separate execution deadline. A revocation may arrive after a write is already in flight.",
+        "hold": 1
+      }
+    ]
+  },
+  {
+    "id": "c04-outbox",
+    "title": "What survives two clicks and a crash?",
+    "sourceChapters": [
+      "c04"
+    ],
+    "beats": [
+      {
+        "id": "contend",
+        "say": "Two eligible reviewers have the same pending packet open. Each click reaches the database before the review deadline. The database update requires the same tenant, pending status, version and digest, with time still left. If both clicks qualify when sent, how many resume instructions should commit?",
+        "hold": 2.5
+      },
+      {
+        "id": "win",
+        "say": "One instruction commits. The first transaction changes one pending row to authorized and inserts a resume message in an outbox, a table of messages awaiting delivery. The second transaction finds no pending row. A crash after commit leaves both the winning decision and its message on disk.",
+        "hold": 1
+      },
+      {
+        "id": "rollback",
+        "say": "Try a crash before the outbox insert instead. The uncommitted decision rolls back to pending with zero messages. After a successful commit a dispatcher can deliver twice. Deduplicate by decision ID and reload the protected grant. A rejection may resume the workflow to close it. Neither dispatch nor the click proves that a remote write ran.",
+        "hold": 1.2
+      }
+    ]
+  },
+  {
+    "id": "c05",
+    "title": "Can the same approval move both shelves?",
+    "sourceChapters": [
+      "c05"
+    ],
+    "beats": [
+      {
+        "id": "race",
+        "say": "Casey opens a packet requiring deployment revision three. Keep her packet fixed. These are two possible histories of the same store. On the left nobody else acts. While Casey reads, another operator gives two groups the new ranking on the right. That moves the right router to revision four. Reranker seventeen is still the same model.",
+        "hold": 1
+      },
+      {
+        "id": "predict",
+        "say": "Casey approves the original packet. Each worker presents that same decision and asks its router to set five groups, provided the service is still on revision three. The router tests the revision inside the write. Which shelves will change?",
+        "hold": 3
+      },
+      {
+        "id": "compare",
+        "say": "On the left one row changes. Five groups get the red hiker and the revision advances to four. On the right zero rows change. Two groups still get the red hiker. Reloading the row tells us the reason for the failed condition. The old decision is stale. Its digest still matches every byte Casey reviewed.",
+        "hold": 1
+      },
+      {
+        "id": "replace",
+        "say": "Stay with the right-hand store. Build a fresh packet starting from ten percent at revision four, attach the new evaluation, and ask for a new decision. Keep the old packet in history. Checking revision separately and then writing leaves a race. Advance the revision on each relevant change, including a rollback.",
+        "hold": 1
+      }
+    ]
+  },
+  {
+    "id": "c06",
+    "title": "Where did the reply go?",
+    "sourceChapters": [
+      "c06"
+    ],
+    "beats": [
+      {
+        "id": "send",
+        "say": "Casey approves the fresh packet. The worker claims operation eighteen and sends its stable key. At the router the change takes effect. Five groups now get the red hiker. The router saves a receipt under that key, but the reply is lost. The worker’s timer runs out. From the worker’s side, what outcome can it record?",
+        "hold": 3
+      },
+      {
+        "id": "unknown",
+        "say": "Unknown. The timeout describes the reply. The router has already changed once. Query the destination with the original key. Its receipt names operation eighteen, twenty-five percent and revision five. The worker records the receipt and marks the operation executed. Watch the shelves during that lookup.",
+        "hold": 1.25
+      },
+      {
+        "id": "retry",
+        "say": "All five stay put. Authorized means permission exists. Executing means the worker has claimed the action. A trusted receipt establishes execution. A definite refusal can establish failure. For an unknown outcome, reconcile first. Retry only with identical parameters and the original key while the destination still honors it. If that guarantee has expired, keep investigating.",
+        "hold": 1
+      }
+    ]
+  },
+  {
+    "id": "c07",
+    "title": "Who owns an edited request?",
+    "sourceChapters": [
+      "c07"
+    ],
+    "beats": [
+      {
+        "id": "branches",
+        "say": "Return to a pending copy of the original request. Casey can approve the exact packet or reject it and give a reason. If nobody decides before the deadline, the host records expiry. Rejection and expiry both close the attempt with zero writes. The audit record distinguishes who declined from a window that closed unanswered.",
+        "hold": 1
+      },
+      {
+        "id": "edit-branch",
+        "say": "Instead, Casey edits twenty-five percent down to ten. Does making the rollout smaller let the worker reuse an approval for the larger rollout?",
+        "hold": 2.6
+      },
+      {
+        "id": "new-owner",
+        "say": "The edit creates a new packet version and digest. Preserve the superseded version, validate the new arguments and run policy again. Under this store’s rule Casey now owns the edit. A different eligible reviewer must decide. The release ticket says, looks ready, approve now. That is the ticket author’s opinion. Casey can inspect the linked evaluation. Escape and label the ticket as external evidence. A quoted claim can still be persuasive. Escape displayed arguments too. Keep scope, action and controls host-owned. The authenticated backend enforces the decision.",
+        "hold": 1.2
+      }
+    ]
+  },
+  {
+    "id": "c07-batch",
+    "title": "Which note can the worker investigate?",
+    "sourceChapters": [
+      "c07"
+    ],
+    "beats": [
+      {
+        "id": "ordered",
+        "say": "Vega also prepares fifty release notes. One review can cover them if policy allows. Bind the ordered item contents, destinations, scope, version and preconditions in the approved envelope. Swapping two notes changes the digest. Give each item its own durable claim, key and result.",
+        "hold": 1
+      },
+      {
+        "id": "partial",
+        "say": "Forty-one notes have verified receipts. The next note was sent but its reply timed out. Eight notes are still waiting. If you resume the batch, where do you start?",
+        "hold": 2.8
+      },
+      {
+        "id": "lookup-item",
+        "say": "Look up item forty-two using its original key. Preserve the forty-one receipts and the eight unsent items. Decide before dispatch which later items depend on an earlier result and when the batch must stop. One shared approval can lead to partial completion. Correcting a published note is a new effect that needs authority.",
+        "hold": 1.2
+      }
+    ]
+  },
+  {
+    "id": "c08",
+    "title": "What did the reviewers catch?",
+    "sourceChapters": [
+      "c08"
+    ],
+    "beats": [
+      {
+        "id": "times",
+        "say": "These six practice packets cannot reach a live writer. Packet one entered the queue at zero seconds, opened at four and received a decision at ten. Four seconds of waiting, then six seconds of review. Across five opened packets the wait totals twenty-six seconds. Five decisions take thirty-two seconds of reviewer time. Measure both, by tool and tier.",
+        "hold": 1
+      },
+      {
+        "id": "compare-seeds",
+        "say": "Three of the five decisions were approvals. Packet four expired unopened. Now uncover which packets contained seeded defects. Compare each seed with the decision on its own row. Did a defective packet get through?",
+        "hold": 2.8
+      },
+      {
+        "id": "miss",
+        "say": "Packet three was approved with a defect. Reviewers caught two of the three seeds. Neither clean decided packet drew a false alarm. Track expiry and the oldest pending work alongside the median. Triage may reorder requests. It can fast-track only work already cleared to run automatically. For a live investigation, join proposal, decision, dispatch and receipt by operation key and digest.",
+        "hold": 1.15
+      },
+      {
+        "id": "tail",
+        "say": "Look at the ages of seven pending requests. The middle one has waited five minutes. The oldest has waited an hour. If one tier keeps expiring unseen, inspect the queue for that tier and the time to dispatch and verify after approval. Keep only the evidence you need for that audit, with access and retention limits.",
+        "hold": 1
+      }
+    ]
+  },
+  {
+    "id": "c08-window",
+    "title": "Which increases count this weekend?",
+    "sourceChapters": [
+      "c08"
+    ],
+    "beats": [
+      {
+        "id": "rule",
+        "say": "For practice, apply Vega’s weekend policy. Every promotion needs review. More than ten percentage points of increases for this service within one hour needs senior review. A move from zero to nine adds nine points. Another move from nine to eighteen adds nine more. If the first happened half an hour ago, eighteen points count.",
+        "hold": 1
+      },
+      {
+        "id": "window",
+        "say": "Try this ledger at ten ten at night, UTC. Six points were added exactly an hour ago and six half an hour ago. A fresh promotion would add five. The window excludes the exact left endpoint and includes now. Does the new request cross ten points?",
+        "hold": 3
+      },
+      {
+        "id": "eleven",
+        "say": "Eleven points count. Drop the event at nine ten, keep the six at nine forty, and add five. Send this one to senior review. A decrease gives no credit. Ignore future events. Reserve increases atomically with admission, count active reservations, and release them on expiry or rejection. Otherwise two concurrent requests can each see the same unused budget.",
+        "hold": 1
+      },
+      {
+        "id": "night",
+        "say": "Now change the local conditions. At three in the morning this service has two failed rollouts in the past hour. The weekend policy blocks write-tier work from two until eight under those conditions. The scoped metrics read can still run. Load the history and time from trusted services and keep every action’s policy floor.",
+        "hold": 1
+      }
+    ]
+  },
+  {
+    "id": "c08-practice",
+    "title": "Whose change put the hiker first?",
+    "sourceChapters": [
+      "c08"
+    ],
+    "beats": [
+      {
+        "id": "new",
+        "say": "One last case. Two histories start with one of twenty groups on the new ranking. Both workers have an approved request for fifteen percent, conditional on revision fifty-eight. On the left a maintenance operation sets fifteen percent first. What happens when the approved worker tries the guarded write?",
+        "hold": 2.8
+      },
+      {
+        "id": "zero",
+        "say": "Zero rows change on the left. The router already advanced to fifty-nine. On the right the worker sends its request while the revision still matches and loses the reply. A later read shows three red hikers at revision fifty-nine in each history. Which worker still needs evidence that its own write happened?",
+        "hold": 3
+      },
+      {
+        "id": "receipt",
+        "say": "The worker on the right. Look up operation fifty-eight. The router returns its receipt for fifteen percent at revision fifty-nine. Both shelves stay still. The left worker knows its condition failed. The right worker can now attribute the effect to its own operation. Next, in Coding Agents, you’ll follow a bug from a failing test to a patch ready for review.",
+        "hold": 1.8
+      }
+    ]
+  }
+]

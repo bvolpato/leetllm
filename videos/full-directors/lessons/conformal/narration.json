@@ -1,0 +1,682 @@
+[
+  {
+    "id": "c01",
+    "title": "Does the edge of the arrival window count?",
+    "sourceChapters": [
+      "c01"
+    ],
+    "beats": [
+      {
+        "id": "c01-b01",
+        "say": "The station clock reads eight forty. That's the predicted arrival. The brass arc on its face runs from eight thirty-eight to eight forty-two. Watch the minute hand as the train stops. Does an arrival right on the last tick count?",
+        "hold": 3
+      },
+      {
+        "id": "c01-b02",
+        "say": "Yes. Both endpoints count. Replay the approach one minute later. The hand passes the brass arc. At eight forty-three, the arrival is outside. This window is for today's train. A confidence interval for the mean would estimate its average arrival time across days.",
+        "hold": 1
+      },
+      {
+        "id": "c01-b03",
+        "say": "Put a server request on the clock instead. In our example the forecast is forty milliseconds, and the caller gives up at fifty. How much room should we leave around the forecast? Nine held-out errors will set the radius.",
+        "hold": 2.6
+      }
+    ]
+  },
+  {
+    "id": "c02",
+    "title": "Which requests can calibrate the interval?",
+    "sourceChapters": [
+      "c02"
+    ],
+    "beats": [
+      {
+        "id": "c02-b01",
+        "say": "This is split conformal prediction. Fit the predictor on training requests. Choose the model using separate validation data. Then freeze the whole procedure, including preprocessing, the predictor and the scoring rule. Only now open the calibration outcomes and measure the misses. Test requests come later. These are synthetic latencies.",
+        "hold": 0.8
+      },
+      {
+        "id": "c02-b02",
+        "say": "Suppose set A was your calibration split. You send its errors back to training and keep the model that does best on A. Those requests just helped pick the winner. Its errors can look smaller there than on fresh traffic. Keeping only the easy rows after seeing their errors would bias the sample too.",
+        "hold": 1
+      },
+      {
+        "id": "c02-b03",
+        "say": "Keep the winning model frozen. Bring in set B, an untouched calibration split. B and the next request must come from a process that lets them trade places in the rank argument.",
+        "hold": 0.3
+      },
+      {
+        "id": "c02-b04",
+        "say": "Given the fitted procedure, the coverage probability averages over the calibration data and a new request together. For each held-out record, keep its forecast next to its outcome.",
+        "hold": 1
+      }
+    ]
+  },
+  {
+    "id": "c03",
+    "title": "How far did each forecast miss?",
+    "sourceChapters": [
+      "c03"
+    ],
+    "beats": [
+      {
+        "id": "c03-b01",
+        "say": "Look at request C two. The forecast was thirty-five milliseconds. It finished at thirty-two. Now look at C three. The forecast was forty and it finished at forty-three. Which forecast missed by more?",
+        "hold": 2.6
+      },
+      {
+        "id": "c03-b02",
+        "say": "They both missed by three milliseconds. One finished early and the other finished late. Measure the distance between each pair of dots and you get the absolute residual. That's our nonconformity score. A bigger score means the forecast missed by more.",
+        "hold": 1.1
+      },
+      {
+        "id": "c03-b03",
+        "say": "Here are all nine held-out requests. The two gaps of three still belong to different requests. Even if you mix up the records, each gap travels with its own forecast and outcome. We want a radius we can apply to the next forecast before we know its outcome.",
+        "hold": 1
+      }
+    ]
+  },
+  {
+    "id": "c04",
+    "title": "Which slot sets the radius?",
+    "sourceChapters": [
+      "c04"
+    ],
+    "beats": [
+      {
+        "id": "c04-b01",
+        "say": "We want the set to cover at least eighty percent of new outcomes across repeated draws. That leaves twenty percent for misses, the quantity called alpha. Count nine held-out errors and one future position. Multiply ten by point eight and round up. That gives rank eight.",
+        "hold": 0.9
+      },
+      {
+        "id": "c04-b02",
+        "say": "Sort the nine errors from smallest to largest. Count to the eighth slot. The error there measures eight milliseconds. Eight is doing two jobs here. The position is a count. The height of the brass column measures time.",
+        "hold": 1
+      },
+      {
+        "id": "c04-b03",
+        "say": "Raise the target to eighty-five percent. Ten times point eight five lands halfway between eight and nine. Which stick do we take?",
+        "hold": 2.6
+      },
+      {
+        "id": "c04-b04",
+        "say": "Round up to rank nine. That stick measures twelve milliseconds. The rule is the ceiling of the number of positions, including the future one, times the desired coverage. Take the value at that rank.",
+        "hold": 1
+      },
+      {
+        "id": "c04-b05",
+        "say": "Back at eighty percent, we need the eighth stick. Let's make sure the code picks it.",
+        "hold": 0.8
+      }
+    ]
+  },
+  {
+    "id": "c05",
+    "title": "Which value did the library return?",
+    "sourceChapters": [
+      "c05"
+    ],
+    "beats": [
+      {
+        "id": "c05-b01",
+        "say": "Python starts counting at zero. To select rank eight, ask partition for index seven and read that element. It returns eight milliseconds. Partition only needs to put the requested order statistic in the right place.",
+        "hold": 1
+      },
+      {
+        "id": "c05-b02",
+        "say": "Try NumPy's higher quantile with the level set to eight ninths. For nine scores its last index is eight. It multiplies that last index by the level and rounds up. That picks index eight, the ninth stick. The call returns twelve milliseconds. An interval this wide is conservative here, but it uses a different stick.",
+        "hold": 1.2
+      },
+      {
+        "id": "c05-b03",
+        "say": "Now try both calls for the ninety percent target. Rank nine uses index eight. The quantile level is nine ninths, or one. This time both calls return twelve. Agreement at the maximum could hide the earlier indexing mistake.",
+        "hold": 1
+      },
+      {
+        "id": "c05-b04",
+        "say": "At ninety-five percent the corrected rank is ten. Look at the empty slot. With only nine calibration errors the ordinary rule gives an infinite radius. Clipping to the largest stick would cover just nine of ten possible distinct ranks. How many held-out errors would make a finite threshold possible at ninety-five percent?",
+        "hold": 2.6
+      },
+      {
+        "id": "c05-b05",
+        "say": "The selected rank has to fit among the observed errors. With nineteen scores for twenty possible positions, rank nineteen exists. That's the first sample size where the required slot holds an observed error. The largest observed error sets the radius there. A stable threshold may need many more.",
+        "hold": 2.6
+      }
+    ]
+  },
+  {
+    "id": "c06",
+    "title": "Where do the endpoints land?",
+    "sourceChapters": [
+      "c06"
+    ],
+    "beats": [
+      {
+        "id": "c06-b01",
+        "say": "Back to our original request and the eighty percent target. The forecast is forty. The selected error is eight milliseconds. Where do the two endpoints land?",
+        "hold": 2.6
+      },
+      {
+        "id": "c06-b02",
+        "say": "Subtract eight on the left and add eight on the right. The interval runs from thirty-two to forty-eight. Its width is sixteen milliseconds. Try an arrival at forty-four. It fits. Keep the band in place and move the arrival to fifty-three. Now the arrival is outside.",
+        "hold": 0.9
+      },
+      {
+        "id": "c06-b03",
+        "say": "Bring the arrival back to exactly forty-eight. Its distance from forty equals the radius. An error at the boundary counts because the test allows any error less than or equal to eight.",
+        "hold": 1
+      },
+      {
+        "id": "c06-b04",
+        "say": "Switch to the ninety-five percent target with those same nine errors. Now the radius is infinite. Both ends run off the ruler. Every finite outcome fits, including ones long after the caller gives up. If you know a bound on possible outcomes you can use that information, but it didn't come from these nine errors.",
+        "hold": 0.9
+      }
+    ]
+  },
+  {
+    "id": "c07",
+    "title": "Which score gets to be the future one?",
+    "sourceChapters": [
+      "c07"
+    ],
+    "beats": [
+      {
+        "id": "c07-b01",
+        "say": "For the rank argument, imagine that any of these ten requests could have been the next one. Formally, their joint distribution must stay the same when you permute their positions, given the frozen procedure. That's exchangeability.",
+        "hold": 0.3
+      },
+      {
+        "id": "c07-b02",
+        "say": "Independent draws from the same distribution give you one way to satisfy it. Scrambling one observed log can't establish it.",
+        "hold": 0.9
+      },
+      {
+        "id": "c07-b03",
+        "say": "Use the distinct scores one through ten just for counting. Hold out the first seven one at a time. Each time, close the gap and count to the eighth remaining score. It's nine in every one of these trials. The held-out score fits each time.",
+        "hold": 0.9
+      },
+      {
+        "id": "c07-b04",
+        "say": "Now hold out eight. With that gap closed, which score sits in the highlighted eighth slot? Does it cover the score we've put aside?",
+        "hold": 2.6
+      },
+      {
+        "id": "c07-b05",
+        "say": "Nine sits in that slot. Eight is covered. Now hold out nine instead. Look at the eighth calibration slot again. What changed?",
+        "hold": 2.6
+      },
+      {
+        "id": "c07-b06",
+        "say": "Eight stayed in the rack. Nine exceeds eight, so this time we miss. Hold out ten and the threshold stays at eight. Ten misses too. Eight of the ten possible positions are covered. Exchangeability makes those distinct future ranks equally likely. That's where the eighty percent comes from.",
+        "hold": 1.2
+      }
+    ]
+  },
+  {
+    "id": "c08",
+    "title": "What happens when errors tie?",
+    "sourceChapters": [
+      "c08"
+    ],
+    "beats": [
+      {
+        "id": "c08-b01",
+        "say": "Back in the latency data, two requests had a three-millisecond error. Keep both in the ranking. We include the boundary, so a tie there can let extra outcomes into the set. Take the extreme case where every score is zero, including the future one. An inclusive threshold of zero covers one hundred percent.",
+        "hold": 1
+      },
+      {
+        "id": "c08-b02",
+        "say": "With distinct scores the counting argument gives exactly k divided by n plus one. In our ten positions that's eight out of ten. You may also see a looser upper bound that adds one rank's worth to the target. Here that range is eighty to ninety percent.",
+        "hold": 0.3
+      },
+      {
+        "id": "c08-b03",
+        "say": "For tied scores we can rely on the lower bound, while the zero example shows how far above it coverage can go.",
+        "hold": 1
+      },
+      {
+        "id": "c08-b04",
+        "say": "Think of repeating the whole experiment. Draw a fresh calibration sample, set its radius, and test one new outcome. Average those trials. If you keep the first sample fixed and only draw new outcomes, you're asking about that particular radius. Neither experiment assigns an individual tenant a probability.",
+        "hold": 1
+      }
+    ]
+  },
+  {
+    "id": "c09",
+    "title": "Which arrivals fall inside?",
+    "sourceChapters": [
+      "c09"
+    ],
+    "beats": [
+      {
+        "id": "c09-b01",
+        "say": "Take four new requests. Center an eight-millisecond radius on each forecast. All four intervals have width sixteen. Here come the first three arrivals. Each lands inside its own interval. Look at the fourth forecast, forty-four. Its upper endpoint is fifty-two.",
+        "hold": 0.8
+      },
+      {
+        "id": "c09-b02",
+        "say": "The fourth request finishes at fifty-five. What fraction of these four arrivals did we cover?",
+        "hold": 2.6
+      },
+      {
+        "id": "c09-b03",
+        "say": "Three of four, or seventy-five percent. The calibration sample gave us one particular radius. The test then gave us just four outcomes. Even a million test requests with this one radius would measure coverage for this calibration sample. The marginal guarantee averages over fresh calibration samples and fresh requests together.",
+        "hold": 0.9
+      },
+      {
+        "id": "c09-b04",
+        "say": "Keep the forecasts fixed. Replay only the fourth outcome at fifty-two. Where does the count go now?",
+        "hold": 2.6
+      },
+      {
+        "id": "c09-b05",
+        "say": "All four are covered. The endpoint belongs to the interval. Changing one outcome moved the observed fraction from three quarters to one. The target and the sixteen-millisecond width stayed the same.",
+        "hold": 1
+      }
+    ]
+  },
+  {
+    "id": "c10",
+    "title": "Which class probabilities are large enough?",
+    "sourceChapters": [
+      "c10"
+    ],
+    "beats": [
+      {
+        "id": "c10-b01",
+        "say": "What if the outcome is a class label? Here's a classifier that gives almost all its probability to class zero. Give each candidate a score of one minus its probability. A large score now means the model assigned that candidate very little probability.",
+        "hold": 2.6
+      },
+      {
+        "id": "c10-b02",
+        "say": "Use a separate calibration split for the classifier. On all nine held-out rows the true label is class zero. Read its probability, subtract it from one, and sort the resulting scores. For our eighty percent target, rank eight gives point four. Keep that score threshold.",
+        "hold": 0.3
+      },
+      {
+        "id": "c10-b03",
+        "say": "To score at most point four, a candidate needs probability at least point six.",
+        "hold": 1
+      },
+      {
+        "id": "c10-b04",
+        "say": "Back on the confident request, look for bars that reach the cutoff. Which labels go in the set?",
+        "hold": 2.6
+      },
+      {
+        "id": "c10-b05",
+        "say": "Only class zero makes it. Its probability is point nine eight. Now spread the probability equally over the four classes. Where does that leave the set?",
+        "hold": 2.6
+      },
+      {
+        "id": "c10-b06",
+        "say": "The set is empty. Each bar stops at a quarter and the cutoff is still point six. You can use these model outputs even if they aren't calibrated probabilities. Poor scores can still give awkward sets. A caller needs a policy for an empty answer as well as for a single label.",
+        "hold": 0.8
+      }
+    ]
+  },
+  {
+    "id": "c11",
+    "title": "Which labels end inside the cutoff?",
+    "sourceChapters": [
+      "c11"
+    ],
+    "beats": [
+      {
+        "id": "c11-b01",
+        "say": "Keep the four equal shares. Lay them end to end, largest first. When two shares tie, use the smaller class number first. Start with class zero. To score class two, add the next two pieces. Its right edge sits at three quarters. That distance from zero is the cumulative score for class two.",
+        "hold": 1.1
+      },
+      {
+        "id": "c11-b02",
+        "say": "This score needs its own calibration. In the nine held-out rows, class zero was the true label and had the largest share every time. Its right edge was just that first share. Here are those nine endpoints in order. For eighty percent coverage, which one sets the cutoff?",
+        "hold": 2.6
+      },
+      {
+        "id": "c11-b03",
+        "say": "Rank eight gives us point nine. That's the mark we'll use for every label on the next request.",
+        "hold": 1.3
+      },
+      {
+        "id": "c11-b04",
+        "say": "Return to the four equal pieces and add the last one. A label qualifies if its right edge is on or to the left of the yellow line. Which class numbers qualify?",
+        "hold": 2.6
+      },
+      {
+        "id": "c11-b05",
+        "say": "Classes zero, one and two qualify. Class three ends at one. This way of keeping the labels that pass the score test is called direct inversion. The individual probability test gave us an empty set on this very same input.",
+        "hold": 0.9
+      },
+      {
+        "id": "c11-b06",
+        "say": "Switch to the confident request. Class zero alone takes point nine eight. Where could a qualifying label end now?",
+        "hold": 2.6
+      },
+      {
+        "id": "c11-b07",
+        "say": "The direct set is empty. The first edge already passed the cutoff, and every following piece adds mass. A model can give one class almost all the probability and still produce this result.",
+        "hold": 1
+      }
+    ]
+  },
+  {
+    "id": "c12",
+    "title": "Where does the first crossing occur?",
+    "sourceChapters": [
+      "c12"
+    ],
+    "beats": [
+      {
+        "id": "c12-b01",
+        "say": "Follow the blue bar from zero to its tip. It passes the yellow cutoff and ends at point nine eight. Keep the first class that crosses the line. Here that gives us class zero. Every label the direct rule kept stays in the set, so adding the crossing label preserves the lower coverage bound.",
+        "hold": 1
+      },
+      {
+        "id": "c12-b02",
+        "say": "Go back to the equal shares. The first three end inside. The fourth piece carries us past the line, so the conservative rule keeps all four. If nothing crosses the cutoff, this rule keeps every class.",
+        "hold": 1
+      },
+      {
+        "id": "c12-b03",
+        "say": "Try this fresh row. Read the probabilities by class number across the top. Place the two largest shares first. The edge of class three lands exactly on point nine. Which class numbers qualify for the direct set? Which class will the conservative rule add?",
+        "hold": 3
+      },
+      {
+        "id": "c12-b04",
+        "say": "Equality counts. The direct set contains classes one and three. The two remaining shares tie. Class zero comes first and takes the total to point nine five. That makes zero the crossing class. Class two comes later and stays out of both sets.",
+        "hold": 1.2
+      },
+      {
+        "id": "c12-b05",
+        "say": "Keeping the crossing label makes this version of adaptive prediction sets nonempty. Randomized APS can drop that label. If it was the only one, the set becomes empty. Calibrate the randomized score when you use that version.",
+        "hold": 0.8
+      }
+    ]
+  },
+  {
+    "id": "c13",
+    "title": "Which requests account for the misses?",
+    "sourceChapters": [
+      "c13"
+    ],
+    "beats": [
+      {
+        "id": "c13-b01",
+        "say": "Each column is a group in a separate report of a thousand requests. Its width tells you how common that group is. Short requests take up three quarters of the space. Filled height is coverage. The short group covers ninety-six percent, the long group only fifty-four percent.",
+        "hold": 0.9
+      },
+      {
+        "id": "c13-b02",
+        "say": "Read the filled areas together. That's seven hundred twenty covered short requests and one hundred thirty-five covered long ones. Together they cover eighty-five point five percent of arrivals. The total clears the eighty percent target. Nearly half the long requests still miss.",
+        "hold": 1
+      },
+      {
+        "id": "c13-b03",
+        "say": "Give the two groups equal shares of traffic. Keep the heights fixed. Does the combined area still clear eighty percent?",
+        "hold": 2.6
+      },
+      {
+        "id": "c13-b04",
+        "say": "Now only seventy-five percent are covered. The short group contributed four hundred eighty hits and the long group two hundred seventy. Neither group's rate moved. Log group counts as well as rates. Two long requests could tell a very different story by chance.",
+        "hold": 1
+      },
+      {
+        "id": "c13-b05",
+        "say": "If you need a target within each request type, define the groups in advance and calibrate them separately when there's enough exchangeable data in each. Ordinary marginal coverage alone can leave a particular group far below target.",
+        "hold": 0.9
+      }
+    ]
+  },
+  {
+    "id": "c14",
+    "title": "How wide should T4's interval be?",
+    "sourceChapters": [
+      "c14"
+    ],
+    "beats": [
+      {
+        "id": "c14-b01",
+        "say": "Suppose a second model estimates how large an error to expect for each input. Freeze it along with the predictor before calibration. Its scale must be positive. It can be useful without being the exact conditional standard deviation. Look at request C eight.",
+        "hold": 0.3
+      },
+      {
+        "id": "c14-b02",
+        "say": "Its eight-millisecond error divided by its four-millisecond scale gives two. The units cancel.",
+        "hold": 1
+      },
+      {
+        "id": "c14-b03",
+        "say": "Divide each held-out error by its own scale. Only then sort the ratios. Read the value at rank eight. The eighth normalized score is two. This threshold has no units. Multiply it by the scale of a new request to get a radius in milliseconds.",
+        "hold": 2.6
+      },
+      {
+        "id": "c14-b04",
+        "say": "Return to the four original arrivals, including T four at fifty-five. Start with the fixed radius of eight. The last interval misses. Now apply scales predicted before seeing these outcomes. T one has a scale of three milliseconds. Twice three gives six. The two middle radii become seven and four. Leave T four for us to work out.",
+        "hold": 1
+      },
+      {
+        "id": "c14-b05",
+        "say": "T four has a six-millisecond scale and a forecast of forty-four. Where does its new upper endpoint land? Will it reach the observed fifty-five?",
+        "hold": 2.6
+      },
+      {
+        "id": "c14-b06",
+        "say": "Twice six gives a radius of twelve. The upper endpoint reaches fifty-six. Keep your eye on the arrival. It stays at fifty-five while the band reaches past it. All four outcomes are inside. That's a reason to test this fixed rule on more traffic.",
+        "hold": 0.3
+      },
+      {
+        "id": "c14-b07",
+        "say": "Choosing whichever score looks best on calibration would require fresh calibration or a separate selection analysis. The coverage promise is still marginal.",
+        "hold": 1.2
+      }
+    ]
+  },
+  {
+    "id": "c15",
+    "title": "Can the old calibration travel with the queue?",
+    "sourceChapters": [
+      "c15"
+    ],
+    "beats": [
+      {
+        "id": "c15-b01",
+        "say": "A few slow requests can occur even when requests are exchangeable. No Gaussian noise assumption is needed. Keep the fixed radius of eight. Now change the traffic mix. Give long requests half the traffic while each group's coverage stays the same. The weighted coverage falls to seventy-five percent.",
+        "hold": 1
+      },
+      {
+        "id": "c15-b02",
+        "say": "Look at the current outcomes and how you collected them. Were slow requests less likely to get a label? Did a new tenant change the mix? A burst of related requests, a time trend or a deployment can break exchangeability. Shuffling those records won't recover the old sampling process.",
+        "hold": 2.6
+      },
+      {
+        "id": "c15-b03",
+        "say": "Before you recalibrate, separate a biased forecast, input-dependent error size, a changed mix and records reused in fitting. Compare signed errors, widths and subgroup counts over time. New calibration data help when they and the following traffic meet the method's assumptions. Methods for shift or time dependence need their own assumptions.",
+        "hold": 0.9
+      }
+    ]
+  },
+  {
+    "id": "c16",
+    "title": "What counts as a costly answer?",
+    "sourceChapters": [
+      "c16"
+    ],
+    "beats": [
+      {
+        "id": "c16-b01",
+        "say": "Suppose a router can send an answer or hold it for review. Count an error when a wrong answer actually goes out. Divide by all incoming requests and you get joint error. Divide by just the answers you sent and you get error among accepted answers.",
+        "hold": 0.3
+      },
+      {
+        "id": "c16-b02",
+        "say": "Make the router stricter. When it withholds a correct answer, the number sent falls and the number of mistakes stays put. When it withholds a wrong answer, both counts fall. Watch the two denominators.",
+        "hold": 1
+      },
+      {
+        "id": "c16-b03",
+        "say": "Follow the loss for each wrong answer. While its verifier score beats the threshold, the answer goes out and its loss is one. Raise the threshold past more scores and those losses fall to zero. At the score itself we already withhold the answer. That's a right-continuous drop. A correct answer always contributes zero.",
+        "hold": 0.9
+      },
+      {
+        "id": "c16-b04",
+        "say": "Conformal risk control uses this shape. Given exchangeable loss curves that stay between zero and one, never increase with the threshold and are right-continuous, start with the total calibration loss. Add one and divide by n plus one. Choose the least conservative passing threshold.",
+        "hold": 0.3
+      },
+      {
+        "id": "c16-b05",
+        "say": "You also need a maximally conservative fallback whose loss meets the target.",
+        "hold": 1
+      },
+      {
+        "id": "c16-b06",
+        "say": "This bounds expected loss over the calibration sample and the next request together. Among the answers you send, the error rate can rise as the router gets stricter. The denominator shrinks too. Measure that rate with a fixed generator and verifier, and label the sent answers for correctness.",
+        "hold": 1
+      }
+    ]
+  },
+  {
+    "id": "c17",
+    "title": "Which threshold passes the joint-error test?",
+    "sourceChapters": [
+      "c17"
+    ],
+    "beats": [
+      {
+        "id": "c17-b01",
+        "say": "The red marks are the three wrong answers among nine. The router sends an answer when its verifier score is strictly above the threshold, lambda. The yellow mark is at point one. The red answer directly below it stays back. The wrong answers at point six and point nine still go out.",
+        "hold": 0.9
+      },
+      {
+        "id": "c17-b02",
+        "say": "Two mistakes in nine arrivals is about twenty-two percent, below our twenty-five percent target. Now use the correction. Count the two mistakes plus one, over nine arrivals plus one. Does this threshold pass?",
+        "hold": 2.6
+      },
+      {
+        "id": "c17-b03",
+        "say": "Three tenths is thirty percent, so point one fails. Keep raising the threshold until another wrong answer drops out. That happens at point six. Count the mistakes above the line again. What's their corrected rate?",
+        "hold": 2.6
+      },
+      {
+        "id": "c17-b04",
+        "say": "One mistake plus one, divided by ten, gives twenty percent. Point six passes. Now read the actual calibration counts. One wrong answer among nine arrivals is about eleven percent. The router sent three answers, so one wrong among the three it sent is about thirty-three percent. The twenty-five percent target was for joint risk.",
+        "hold": 1.2
+      },
+      {
+        "id": "c17-b05",
+        "say": "If no threshold meets the correction, use the fallback. At threshold one the router sends nothing, so its joint loss is zero. Error among sent answers has an empty denominator there. These are calibration counts. Measuring future errors requires new labeled requests.",
+        "hold": 1
+      }
+    ]
+  },
+  {
+    "id": "c18",
+    "title": "Which requests belong in the denominator?",
+    "sourceChapters": [
+      "c18"
+    ],
+    "beats": [
+      {
+        "id": "c18-b01",
+        "say": "Here are a hundred help requests. Ninety get the pair billing and technical. Ten get just billing. In this constructed population the true label is technical every time. Count the sets that contain it. Ninety of the hundred cover the truth.",
+        "hold": 1
+      },
+      {
+        "id": "c18-b02",
+        "say": "Send only the singletons. Look at the highlighted row. How many wrong answers went out per hundred incoming requests? And what fraction of the answers we actually sent were wrong?",
+        "hold": 2.6
+      },
+      {
+        "id": "c18-b03",
+        "say": "Ten wrong answers went out per hundred arrivals. That's ten percent joint error. Now use just the sent answers as the denominator. Ten wrong out of ten sent is one hundred percent. The population coverage figure was accurate, and every answer this policy sent was wrong.",
+        "hold": 1.2
+      },
+      {
+        "id": "c18-b04",
+        "say": "To measure error among automated answers, label the answers the policy actually sends. The set size can help route a request for review. A tool still checks the caller's identity, permissions and any required confirmation before it acts.",
+        "hold": 0.9
+      }
+    ]
+  },
+  {
+    "id": "c19",
+    "title": "What moved the upper endpoint?",
+    "sourceChapters": [
+      "c19"
+    ],
+    "beats": [
+      {
+        "id": "c19-b01",
+        "say": "Return to that caller who gives up at fifty. The original interval ends at forty-eight. You could choose to route requests whose whole interval fits under the deadline. But that rule selects a subgroup. The eighty percent marginal coverage target doesn't tell you how many of those routed requests will finish on time.",
+        "hold": 0.9
+      },
+      {
+        "id": "c19-b02",
+        "say": "Change just the forecast to forty-four. The interval slides to thirty-six through fifty-two. It still spans sixteen milliseconds, but now it straddles the deadline.",
+        "hold": 1.1
+      },
+      {
+        "id": "c19-b03",
+        "say": "Restore the forty-millisecond forecast. Leave the errors alone and raise the target to ninety percent. We now need the ninth stick. Its twelve-millisecond radius puts the interval at twenty-eight through fifty-two. This time the band got wider.",
+        "hold": 1
+      },
+      {
+        "id": "c19-b04",
+        "say": "Restore the eighty percent target. This time change just the eighth error from eight to nine. Does that move the rank or just the endpoints?",
+        "hold": 2.6
+      },
+      {
+        "id": "c19-b05",
+        "say": "We still use rank eight. The interval now runs from thirty-one to forty-nine, eighteen milliseconds wide. The same slot holds a larger error. To audit this decision, record the model and calibration versions, score rule, target, interval, group and observed latency.",
+        "hold": 0.3
+      },
+      {
+        "id": "c19-b06",
+        "say": "Keep the width and the group counts next to coverage, and measure the deadline failures on the requests your policy actually selects.",
+        "hold": 1
+      }
+    ]
+  },
+  {
+    "id": "c20",
+    "title": "What goes in the request log?",
+    "sourceChapters": [
+      "c20"
+    ],
+    "beats": [
+      {
+        "id": "c20-b01",
+        "say": "A different model predicts fifty-two milliseconds. Its caller gives up at fifty-five. This time we have nineteen ordered calibration errors. The first seventeen are at most six milliseconds. The last two are seven and twelve. For ninety percent coverage, which rank do you use, and where do the endpoints land?",
+        "hold": 3.5
+      },
+      {
+        "id": "c20-b02",
+        "say": "Nineteen plus the future request gives twenty positions. Ninety percent of twenty gives rank eighteen. Read seven milliseconds from that slot. Center seven on either side of fifty-two and the interval runs from forty-five to fifty-nine. Its width is fourteen milliseconds.",
+        "hold": 1.1
+      },
+      {
+        "id": "c20-b03",
+        "say": "The response arrives at fifty-nine. Look at the same arrival on both tracks. What goes in the log for coverage and for the deadline?",
+        "hold": 2.6
+      },
+      {
+        "id": "c20-b04",
+        "say": "The endpoint counts, so mark it covered. The caller stopped at fifty-five. Mark it four milliseconds late.",
+        "hold": 1.1
+      },
+      {
+        "id": "c20-b05",
+        "say": "Replay the request one millisecond slower. It arrives at sixty. The upper endpoint is still fifty-nine. This one is outside by one millisecond and five milliseconds late. Keep those two entries in view.",
+        "hold": 1.1
+      },
+      {
+        "id": "c20-b06",
+        "say": "Pin the arrival at sixty and the deadline at fifty-five. Change just the error in slot eighteen from seven to eight. The number of scores and the target stay fixed. Which entry in the log will change?",
+        "hold": 3
+      },
+      {
+        "id": "c20-b07",
+        "say": "We still take rank eighteen. Eight on either side of fifty-two gives forty-four through sixty. The width is now sixteen. The same arrival is covered. It's still five milliseconds late. You can record both events for one request. In the next lesson, clustering and principal component analysis look for structure in the inputs themselves.",
+        "hold": 2
+      }
+    ]
+  }
+]

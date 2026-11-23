@@ -1,0 +1,749 @@
+{
+  "id": "benchmark-audits",
+  "script": "4fe3d14adedbc9c4",
+  "articleHash": "7246355f586f69024b57c722f64df9a1f9558221a5a9b01a1de678a5344b3a75",
+  "checked": "2026-11-10T04:50:23.674Z",
+  "closedBook": {
+    "taught": 10,
+    "partial": 0,
+    "absent": 0,
+    "answers": [
+      {
+        "n": 1,
+        "option": 2,
+        "coverage": "taught",
+        "quotes": [
+          {
+            "scene": "gold-contract",
+            "quote": "Give each row a unique identity. Duplicating an identity can overwrite or ambiguously join the result. Then compare each gold requirement with its cited evidence before scoring an answer. A required claim absent from that source can punish a grounded answer or reward invented permission."
+          },
+          {
+            "scene": "gold-contract",
+            "quote": "That requirement has no support, so repair the gold row first."
+          }
+        ],
+        "reason": "The repeated L4 identity violates uniqueness, and “no approval” contradicts the cited approval requirement. Both defects need repair before scoring.",
+        "exact": true,
+        "correct": true,
+        "grade": "taught"
+      },
+      {
+        "n": 2,
+        "option": 4,
+        "coverage": "taught",
+        "quotes": [
+          {
+            "scene": "rag-metrics",
+            "quote": "For reference-based context recall, divide covered reference facts by required reference facts. Suppose the context contains two of three required facts. Recall is two thirds. If the response states only those two supported facts, its faithfulness is two supported claims divided by two claims, or one. The response is still incomplete."
+          }
+        ],
+        "reason": "Recall is 3/5. Faithfulness is 3/3 = 1. Two required facts remain omitted.",
+        "exact": true,
+        "correct": true,
+        "grade": "taught"
+      },
+      {
+        "n": 3,
+        "option": 1,
+        "coverage": "taught",
+        "quotes": [
+          {
+            "scene": "contract",
+            "quote": "Both candidates should receive the same questions, available evidence, response requirements, and scoring rules. Record the prompt, tools, sampling settings, and attempt budget as well."
+          },
+          {
+            "scene": "knowledge-contract",
+            "quote": "Common evaluations use five demonstrations and choice-token probabilities; generated-answer parsing is another protocol. Changing that path changes what a score measures, even when both results are percentages."
+          }
+        ],
+        "reason": "The protocol change confounds the model comparison. Evaluate both models on pinned cases using the same declared protocol to isolate their difference.",
+        "exact": true,
+        "correct": true,
+        "grade": "taught"
+      },
+      {
+        "n": 4,
+        "option": 3,
+        "coverage": "taught",
+        "quotes": [
+          {
+            "scene": "sample-estimator",
+            "quote": "Instead count distinct sample indices. The estimator is one minus choose n minus c comma k divided by choose n comma k, or the corresponding product of failure fractions without replacement."
+          },
+          {
+            "scene": "candidates",
+            "quote": "Now let a selector choose program one. That program fails, although successful programs exist in the pool. Candidate coverage and the selector's actual result answer separate questions."
+          }
+        ],
+        "reason": "Subset availability is 1 − C(4,3)/C(6,3) = 1 − 4/20 = 0.8. The deployed selector returns a failing member.",
+        "exact": true,
+        "correct": true,
+        "grade": "taught"
+      },
+      {
+        "n": 5,
+        "option": 2,
+        "coverage": "taught",
+        "quotes": [
+          {
+            "scene": "judge-controls",
+            "quote": "Map the slots back to names before comparing. Our conservative policy records an unresolved pair because named winners differ."
+          },
+          {
+            "scene": "judge-controls",
+            "quote": "The same named answer wins both orders, but consistency still does not establish semantic truth."
+          }
+        ],
+        "reason": "Slot B in elm–oak and slot A in oak–elm both identify oak. Oak wins consistently, but this does not establish correctness.",
+        "exact": true,
+        "correct": true,
+        "grade": "taught"
+      },
+      {
+        "n": 6,
+        "option": 1,
+        "coverage": "taught",
+        "quotes": [
+          {
+            "scene": "exposure-screen",
+            "quote": "Development exposure uses holdout results to choose prompts, examples or judges."
+          },
+          {
+            "scene": "exposure",
+            "quote": "Keep their questions and answer keys out of the application's retrieval index. The underlying library rules belong in retrieval; the private test fixtures belong in a separate evaluation store."
+          },
+          {
+            "scene": "rag-stage",
+            "quote": "First inspect the final context sent to the model, after permissions, ranking and token-budget selection."
+          }
+        ],
+        "reason": "A influenced judge-prompt selection, so it has development exposure. B’s private reference answer reached the evaluated assistant through its final context, exposing evaluation-answer material.",
+        "exact": true,
+        "correct": true,
+        "grade": "taught"
+      },
+      {
+        "n": 7,
+        "option": 4,
+        "coverage": "taught",
+        "quotes": [
+          {
+            "scene": "finite-report",
+            "quote": "The reference validator requires actual integer or float metric values, rejects Booleans, checks finiteness and valid rate ranges, and rejects negative latency or cost."
+          }
+        ],
+        "reason": "A contains valid nonnegative finite numbers. B fails because False is Boolean, C because NaN is nonfinite, and D because latency is negative.",
+        "exact": true,
+        "correct": true,
+        "grade": "taught"
+      },
+      {
+        "n": 8,
+        "option": 3,
+        "coverage": "taught",
+        "quotes": [
+          {
+            "scene": "wilson-construction",
+            "quote": "For all passes, the lower endpoint simplifies to n divided by n plus z squared. This is a two-sided nominal ninety-five-percent interval; a one-sided ninety-five-percent bound uses about one point six four five. Choose the procedure beforehand."
+          }
+        ],
+        "reason": "The lower endpoint is 40/(40 + 1.96²) ≈ 0.9124. It exceeds 0.90, so this uncertainty gate passes.",
+        "exact": true,
+        "correct": true,
+        "grade": "taught"
+      },
+      {
+        "n": 9,
+        "option": 2,
+        "coverage": "taught",
+        "quotes": [
+          {
+            "scene": "paired-diagnosis",
+            "quote": "For the exact two-sided calculation, sum binomial coefficients from zero through the smaller discordant count, divide by two raised to the total discordant count, double that lower-tail probability, and cap the result at one."
+          }
+        ],
+        "reason": "There are eight disagreements and the smaller count is one. Thus p = 2 × (C(8,0) + C(8,1))/2⁸ = 18/256 ≈ 0.0703. Do not reject at 0.05.",
+        "exact": true,
+        "correct": true,
+        "grade": "taught"
+      },
+      {
+        "n": 10,
+        "option": 4,
+        "coverage": "taught",
+        "quotes": [
+          {
+            "scene": "finite-report",
+            "quote": "A quality pass cannot compensate for a schema, latency, cost or critical-slice failure."
+          },
+          {
+            "scene": "gates",
+            "quote": "A different workflow could justify different limits and would need a fresh evaluation of its own."
+          },
+          {
+            "scene": "fresh-report",
+            "quote": "Hold this candidate. Keep both broken case identities and inspect the permission failure instead of letting the aggregate buy it back. Repair the gold, evidence path, generation or evaluator boundary actually implicated by the retained record."
+          }
+        ],
+        "reason": "The permission slice scores 9/12 = 0.75, below its 0.90 requirement. Hold the release; any repair or proposed route needs its own evaluation.",
+        "exact": true,
+        "correct": true,
+        "grade": "taught"
+      }
+    ]
+  },
+  "factCheck": {
+    "scenes": [
+      {
+        "id": "intro",
+        "evidence": "Read and executed the actual CASES fixture and scoreCases function. A passes 88 ordinary cases plus 2 renewals; B passes 81 ordinary cases plus 9 renewals. Both total 90/100, with different failed identities. This supports the aggregate-versus-category explanation. The benchmark definition is appropriate, and the narration explicitly identifies the examples as teaching fixtures.",
+        "sourceUrls": []
+      },
+      {
+        "id": "contract",
+        "evidence": "Executed the actual article comparator: A versus B is comparable; A versus C is not because retrieval changes from top-three to top-five. The film also draws three original passages and two additions for B. Changing retrieval prevents attribution solely to the model. Recording settings is a proposed methodological requirement. [Transformers documentation](https://huggingface.co/docs/transformers/chat_templating) confirms model-specific chat serialization, including different formats for models derived from the same base.",
+        "sourceUrls": [
+          "https://huggingface.co/docs/transformers/chat_templating"
+        ]
+      },
+      {
+        "id": "gold-contract",
+        "evidence": "Executed the actual three-row validator. The IDs are unique, and all six required phrases occur in their fictional evidence. Adding a duplicate ID raises the uniqueness assertion. Adding keep deploying to the rollback requirements raises the unsupported-gold assertion. The source instead instructs execution of the rollback runbook. The validator checks literal inclusion and uniqueness only, as narrated. Authority, semantic validity, reviewed answers, severity, abstentions and representative coverage are additional requirements.",
+        "sourceUrls": []
+      },
+      {
+        "id": "checker",
+        "evidence": "Executed the actual checkProbe function. Literal-check results are true, true and false; supplied semantic labels are true, false and true. After Friday changes the deadline while retaining both substrings. Fri abbreviates Friday while failing the friday substring check. These establish the illustrated false positive and false negative. The labels are supplied fixture judgments, not independently authenticated human-review records.",
+        "sourceUrls": []
+      },
+      {
+        "id": "rag-stage",
+        "evidence": "Executed the actual failure_stage function: the supplied rows produce pass, bad_retrieval and bad_generation. An answer stating that commander approval is not required still produces pass when the required phrases remain, confirming the narrated limitation. A document dropped before final context assembly is not supplied through that context. A contradictory answer after complete context identifies an observed failing boundary without establishing its internal cause. Citation identity and entailment are separate properties; the citation exercises and regression rerun are recommendations.",
+        "sourceUrls": []
+      },
+      {
+        "id": "rag-metrics",
+        "evidence": "Executed rankedPrecision([1,0,1]): (1 + 2/3)/2 = 5/6 = 0.8333333333. Reference coverage is 2/3; two supported response claims give faithfulness 2/2 = 1 while leaving one required fact unanswered. Neither calculation establishes source currency. Current Ragas documentation supports [rank-weighted precision](https://docs.ragas.io/en/stable/concepts/metrics/available_metrics/context_precision/), [reference-claim recall](https://docs.ragas.io/en/stable/concepts/metrics/available_metrics/context_recall/), [faithfulness](https://docs.ragas.io/en/stable/concepts/metrics/available_metrics/faithfulness/) and [generated-question cosine relevance](https://docs.ragas.io/en/stable/concepts/metrics/available_metrics/answer_relevance/). R2-F3/V2 is closed at source and draw-call level: the current footer describes illustrative vectors and direct calculations and says model-based Ragas evaluation is not demonstrated.",
+        "sourceUrls": [
+          "https://docs.ragas.io/en/stable/concepts/metrics/available_metrics/context_precision/",
+          "https://docs.ragas.io/en/stable/concepts/metrics/available_metrics/context_recall/",
+          "https://docs.ragas.io/en/stable/concepts/metrics/available_metrics/faithfulness/",
+          "https://docs.ragas.io/en/stable/concepts/metrics/available_metrics/answer_relevance/"
+        ]
+      },
+      {
+        "id": "knowledge-contract",
+        "evidence": "The [MMLU paper](https://arxiv.org/html/2009.03300) supports 57 subjects. Its [original evaluator](https://raw.githubusercontent.com/hendrycks/test/master/evaluate.py) uses four choices, defaults to five demonstrations and compares choice-token log probabilities; [simple-evals](https://raw.githubusercontent.com/openai/simple-evals/main/mmlu_eval.py) extracts generated answers. Uniform guessing expectations are 1/4 and, for exactly ten choices, 1/10; neither is a finite-sample floor. [MMLU-Pro](https://arxiv.org/html/2406.01574v1) documents expert review, reasoning-focused additions, variable option counts and protocol-specific chain-of-thought gains. [GPQA Table 2](https://arxiv.org/html/2311.12022v1) confirms Extended/main/Diamond sizes 546/448/198 and Extended non-expert accuracy 34.1%, with internet access and filtering-related selection effects. [HELM](https://arxiv.org/html/2211.09110) covers the named dimensions and [supports private custom scenarios](https://crfm-helm.readthedocs.io/en/latest/adding_new_scenarios/). Unrelated public results do not establish this application's private-policy compliance.",
+        "sourceUrls": [
+          "https://arxiv.org/html/2009.03300",
+          "https://raw.githubusercontent.com/hendrycks/test/master/evaluate.py",
+          "https://raw.githubusercontent.com/openai/simple-evals/main/mmlu_eval.py",
+          "https://arxiv.org/html/2406.01574v1",
+          "https://arxiv.org/html/2311.12022v1",
+          "https://arxiv.org/html/2211.09110",
+          "https://crfm-helm.readthedocs.io/en/latest/adding_new_scenarios/"
+        ]
+      },
+      {
+        "id": "math-frontier",
+        "evidence": "The [GSM8K release](https://raw.githubusercontent.com/openai/grade-school-math/master/README.md) confirms approximately 8.5K problems, two to eight steps and reference answers following ####. Output-delimiter requirements depend on the harness. The [MATH paper](https://arxiv.org/abs/2103.03874) confirms 12,500 competition problems with worked solutions. [HLE's official site](https://www.lastexam.ai/) confirms April 3, 2025 finalization with 2,500 public questions, a private holdout, October 8, 2025 Rolling and September 22, 2026 Diamond. [Epoch's page](https://epoch.ai/frontiermath/tiers-1-4) reports the June 12, 2026 v2 release addressing errors in 42% of problems and describes the difficulty tiers. [ARC-AGI-2](https://arcprize.org/arc-agi/2) supports the named reasoning mechanisms and exposure categories. The actual local toy preserves occupied cells [1,0,0,1] and [1,1,0,1] while recoloring blue to yellow. It is explicitly an illustration.",
+        "sourceUrls": [
+          "https://raw.githubusercontent.com/openai/grade-school-math/master/README.md",
+          "https://arxiv.org/abs/2103.03874",
+          "https://www.lastexam.ai/",
+          "https://epoch.ai/frontiermath/tiers-1-4",
+          "https://arcprize.org/arc-agi/2"
+        ]
+      },
+      {
+        "id": "code-contract",
+        "evidence": "The [HumanEval paper](https://arxiv.org/html/2107.03374) confirms 164 handwritten Python function-synthesis problems with unit tests. The [SWE-bench paper](https://arxiv.org/abs/2310.06770) confirms the original 2,294 tasks across 12 Python repositories. The actual upstream [runner](https://raw.githubusercontent.com/SWE-bench/SWE-bench/main/swebench/harness/run_evaluation.py) applies patches inside containers. Its [grader](https://raw.githubusercontent.com/SWE-bench/SWE-bench/main/swebench/harness/grading.py) uses named Fail-to-Pass and Pass-to-Pass outcomes, parser rules and resolution criteria. Selected tests cannot establish omitted behavior. Attempts, model calls and tool calls are different counting units. Including the scaffold, environment and budget in the evaluated-system contract is justified.",
+        "sourceUrls": [
+          "https://arxiv.org/html/2107.03374",
+          "https://arxiv.org/abs/2310.06770",
+          "https://raw.githubusercontent.com/SWE-bench/SWE-bench/main/swebench/harness/run_evaluation.py",
+          "https://raw.githubusercontent.com/SWE-bench/SWE-bench/main/swebench/harness/grading.py"
+        ]
+      },
+      {
+        "id": "benchmark-audit",
+        "evidence": "The [Verified announcement](https://openai.com/index/introducing-swe-bench-verified/) confirms the human-reviewed 500-task subset. OpenAI's [February 23, 2026 report](https://openai.com/index/why-we-no-longer-evaluate-swe-bench-verified/) identifies 138 selected tasks that o3 did not consistently solve across 64 runs, reports material issues in 59.4% of that subset, and reports reproduction of fixes or task details by tested frontier models. The narration preserves attribution and denominator. The [July 8, 2026 report](https://openai.com/index/separating-signal-from-noise-coding-evaluations/) identifies the 731-task public Pro split, estimates approximately 30% broken tasks and explicitly retracts the earlier recommendation. These sources establish what OpenAI reported; this review did not reproduce its audits. The private evaluation is a proposed product requirement.",
+        "sourceUrls": [
+          "https://openai.com/index/introducing-swe-bench-verified/",
+          "https://openai.com/index/why-we-no-longer-evaluate-swe-bench-verified/",
+          "https://openai.com/index/separating-signal-from-noise-coding-evaluations/"
+        ]
+      },
+      {
+        "id": "preference-ratings",
+        "evidence": "The [MT-Bench](https://arxiv.org/html/2306.05685) and [Arena](https://arxiv.org/html/2403.04132) papers support fixed multi-turn judging versus anonymous human comparisons and Bradley-Terry fitting. The [rename announcement](https://arena.ai/blog/lmarena-is-now-arena) is dated January 28, 2026. Current [ranking code](https://raw.githubusercontent.com/lmarena/arena-rank/main/arena_rank/models/bradley_terry.py) uses base 10 and scale 400: equal ratings give 1/2; a 400-point advantage gives 1/(1+0.1) = 10/11 = 0.9090909. The [outcome map](https://raw.githubusercontent.com/lmarena/arena-rank/main/arena_rank/preprocessing/common.py) assigns ties and both_bad 0.5, retained by the [constructors](https://raw.githubusercontent.com/lmarena/arena-rank/main/arena_rank/preprocessing/datasets.py). The effective-preference interpretation is accurate. The [2025 study](https://arxiv.org/html/2504.20879) supports the private-variant account. R2-F2/V1 is closed: captured current draw calls use Modeled preference score and display both half-credit outcomes. Article decision A1 is also resolved in both current editions.",
+        "sourceUrls": [
+          "https://arxiv.org/html/2306.05685",
+          "https://arxiv.org/html/2403.04132",
+          "https://arena.ai/blog/lmarena-is-now-arena",
+          "https://raw.githubusercontent.com/lmarena/arena-rank/main/arena_rank/models/bradley_terry.py",
+          "https://raw.githubusercontent.com/lmarena/arena-rank/main/arena_rank/preprocessing/common.py",
+          "https://raw.githubusercontent.com/lmarena/arena-rank/main/arena_rank/preprocessing/datasets.py",
+          "https://arxiv.org/html/2504.20879"
+        ]
+      },
+      {
+        "id": "slices",
+        "evidence": "Read and executed the actual CASES and scoreCases model. Q1–Q90 are ordinary cases; Q91–Q100 are renewals. A passes Q91–Q92, giving 2/10 = 20%; B passes Q91–Q99, giving 9/10 = 90%. Both still total 90/100. Only B clears the stipulated 80% renewal requirement. Inspected caseGrid and drawSlices: the tenth column and extracted renewal list use the same records and pass flags. The narration correctly limits this result to the supplied fixture.",
+        "sourceUrls": []
+      },
+      {
+        "id": "candidates",
+        "evidence": "Read and executed the actual PROGRAMS and PAIRS fixtures. Programs 2 and 6 have passing flags; program 1 fails. There are C(8,2) = 28 distinct index pairs and C(6,2) = 15 all-failing pairs, leaving 13 successful pairs. Coverage is 13/28 = 0.4642857143. Selecting program 1 fails despite successful candidates existing. This matches the [HumanEval complement estimator](https://raw.githubusercontent.com/openai/human-eval/master/human_eval/evaluation.py). The passing flags are authored fixture inputs, not results from executable program bodies.",
+        "sourceUrls": [
+          "https://raw.githubusercontent.com/openai/human-eval/master/human_eval/evaluation.py"
+        ]
+      },
+      {
+        "id": "sample-estimator",
+        "evidence": "Under independent common-p attempts, all-failure probability is (1−p)^k. For k>1, g(x)=(1−x)^k is convex, so Jensen's inequality gives E[1−g(p̂)] ≤ 1−g(p), establishing the plug-in bias direction. Counting index subsets gives 1−C(n−c,k)/C(n,k), equal to one when fewer than k failures exist. The [upstream implementation](https://raw.githubusercontent.com/openai/human-eval/master/human_eval/evaluation.py) counts samples without text deduplication and averages per-problem estimates, consistent with the [paper](https://arxiv.org/html/2107.03374). Executed the actual film and article functions and independently checked combinations: n=100,c=20,k=10 gives 0.8926258176 versus 0.9048837276. Separate all-pass and all-fail problems average to 0.5; incorrect pooling gives 1−C(4,2)/C(8,2) = 22/28 = 0.7857143. The dependence cautions are appropriate.",
+        "sourceUrls": [
+          "https://arxiv.org/html/2107.03374",
+          "https://raw.githubusercontent.com/openai/human-eval/master/human_eval/evaluation.py"
+        ]
+      },
+      {
+        "id": "judge-controls",
+        "evidence": "The [MT-Bench paper](https://arxiv.org/html/2306.05685) documents position effects, the repetitive-list attack and an explicitly inconclusive self-enhancement investigation. [JudgeLM](https://arxiv.org/html/2310.17631) studies knowledge and format biases. Executed the actual toy judge: equivalent fact counts produce raw A/A votes, selecting concise first and friendly after swapping; the policy returns unresolved. Against the approval-missing answer, raw A/B votes identify the same grounded answer and produce a stable result. Consistency does not establish truth, and two stochastic disagreements do not uniquely identify position bias. Grounding, calibration, repetition controls and instruction handling are proposed controls without effectiveness guarantees.",
+        "sourceUrls": [
+          "https://arxiv.org/html/2306.05685",
+          "https://arxiv.org/html/2310.17631"
+        ]
+      },
+      {
+        "id": "exposure",
+        "evidence": "Read the actual exposureCases model and executed the article split. February 10 and April 21 enter regression because their development-use flags are true. April 8 and May 3 follow March 31 and have false flags, so remain holdout candidates. Development exposure overrides recency. The narration requires provenance checks rather than treating a false flag as proof of no access. Separating private evaluation fixtures from legitimately retrievable policy documents follows the declared evaluation contract.",
+        "sourceUrls": []
+      },
+      {
+        "id": "exposure-screen",
+        "evidence": "The [GPT-3 paper](https://arxiv.org/html/2005.14165) describes an approximately 13-gram overlap criterion and special treatment of short examples. Contiguous matching can miss rewrites and match incidental text. [BIG-bench contributor instructions](https://raw.githubusercontent.com/google/BIG-bench/main/docs/doc.md) require the recognizable canary; exclusion depends on its retention and collector behavior. [LiveCodeBench](https://arxiv.org/html/2403.07974) documents publication dates and cutoff-based windows. [LiveBench](https://arxiv.org/html/2406.19314) documents refreshed tasks and objective scoring without an LLM judge. The narration correctly avoids treating these mechanisms as proof against training, development, post-training or retrieval exposure. Moving development-used cases into regression is an evaluation-policy recommendation.",
+        "sourceUrls": [
+          "https://arxiv.org/html/2005.14165",
+          "https://raw.githubusercontent.com/google/BIG-bench/main/docs/doc.md",
+          "https://arxiv.org/html/2403.07974",
+          "https://arxiv.org/html/2406.19314"
+        ]
+      },
+      {
+        "id": "uncertainty",
+        "evidence": "Executed the actual sampleModel at the two relevant beats and independently checked the powers. Under the stipulated independent fixed-p model, 0.8³ = 0.512, exceeding one half; 0.8³⁰ = 0.001237940039, approximately 0.124%. These are sampling probabilities for the hypothetical rate, not estimates of the actual system's unknown rate. The [NIST binomial definition](https://www.itl.nist.gov/div898/handbook/eda/section3/eda366i.htm) supports the common-probability premise. Selection, dependence and scorer errors require separate investigation.",
+        "sourceUrls": [
+          "https://www.itl.nist.gov/div898/handbook/eda/section3/eda366i.htm"
+        ]
+      },
+      {
+        "id": "wilson-construction",
+        "evidence": "Independently rearranged (p̂−p)² ≤ z²p(1−p)/n to obtain the narrated quadratic and center/radius formulas. Executed wilsonInterval and independently solved its quadratic: lower endpoints are 0.4384939196, 0.8950431353 and 0.9816903347 for 3/3, 49/50 and 990/1000. All-pass results simplify to n/(n+z²); Wald's plug-in variance vanishes. [NIST](https://www.itl.nist.gov/div898/handbook/prc/section2/prc241.htm) supports the two-sided versus one-sided quantiles, and its [confidence-interval explanation](https://www.itl.nist.gov/div898/handbook/eda/section3/eda352.htm) supports the coverage interpretation. R2-F4/V3 is closed at source and draw-call level: upper endpoints now use interval.high, producing pixels 1640, 1636.0715234 and 1633.9608282.",
+        "sourceUrls": [
+          "https://www.itl.nist.gov/div898/handbook/prc/section2/prc241.htm",
+          "https://www.itl.nist.gov/div898/handbook/eda/section3/eda352.htm"
+        ]
+      },
+      {
+        "id": "paired-diagnosis",
+        "evidence": "The common-population independent-sampling assumption is explicit. Equal binary marginals imply equal fix and break probabilities; conditional on discordance, each direction therefore has probability 1/2. Independent draws give the stated conditional binomial count. The [statsmodels implementation](https://www.statsmodels.org/stable/_modules/statsmodels/stats/contingency_tables.html#mcnemar) doubles the smaller binomial tail and caps it at one. Independently checked 9/1: 2(1+10)/1024 = 0.021484375; 3/1: 2(1+4)/16 = 0.625; 5/0: 2/32 = 0.0625. Concordant cells do not enter this statistic. Earlier sampling and historical-execution wording issues remain closed. V4 and article decision A2 are now resolved: the current caption and reader prose state the common-target-population assumption.",
+        "sourceUrls": [
+          "https://www.statsmodels.org/stable/_modules/statsmodels/stats/contingency_tables.html#mcnemar"
+        ]
+      },
+      {
+        "id": "gates",
+        "evidence": "Executed the actual RELEASES and releaseResult functions. Thresholds are quality≥0.98, schema=1, latency≤900 ms and cost≤$0.015. Fast fails quality at 0.91. Balanced passes with 0.99, 1, 680 ms and $0.008. Specialist passes quality and schema but fails latency and cost at 1800 ms and $0.031. Only balanced is eligible for these supplied measurements. The narration explicitly preserves critical-category, uncertainty and actual-request-path requirements.",
+        "sourceUrls": []
+      },
+      {
+        "id": "finite-report",
+        "evidence": "Executed the actual reference validator and malformed-report examples. Missing values, Booleans, strings, NaN, infinity, 10**1000 latency and negative cost all reject. Additional Boolean mutations reject in every metric field. Exact int/float type membership excludes bool; the OverflowError handler catches oversized integer telemetry. Independently checked NaN<0.98 and NaN>900: both are false, consistent with the [Python reference](https://docs.python.org/3/reference/expressions.html#value-comparisons) and [isfinite documentation](https://docs.python.org/3/library/math.html#math.isfinite). The actual reader helper rejects NaN but accepts Boolean policy telemetry, confirming its narrower scope. The prior missing-helper objection remains refuted. These pure functions do not authenticate measurements or perform deployment actions.",
+        "sourceUrls": [
+          "https://docs.python.org/3/reference/expressions.html#value-comparisons",
+          "https://docs.python.org/3/library/math.html#math.isfinite"
+        ]
+      },
+      {
+        "id": "reproducible-package",
+        "evidence": "The proposed records cover inputs, outputs, versions, failures and operational boundaries omitted by a scalar score. A matching manifest cannot supply missing output bytes or authenticate execution. The current [OpenAI API reference](https://developers.openai.com/api/reference/resources/chat/subresources/completions/methods/create) declines to guarantee determinism with matching seed and parameters; the [official example](https://developers.openai.com/cookbook/examples/reproducible_outputs_with_the_seed_parameter) also describes possible variation with a matching backend fingerprint. The supplied suspicious report changes retrieval alongside the model, tunes its judge using holdout cases and accepts a negation false positive. These undermine isolated-model attribution and untouched-holdout interpretation. Fixed repeat protocols and contemporaneous baseline reruns are recommendations.",
+        "sourceUrls": [
+          "https://developers.openai.com/api/reference/resources/chat/subresources/completions/methods/create",
+          "https://developers.openai.com/cookbook/examples/reproducible_outputs_with_the_seed_parameter"
+        ]
+      },
+      {
+        "id": "synthesis",
+        "evidence": "The recap follows the checked examples: contracts delimit comparisons; probes expose checker failures; categories reveal concentrated errors; candidate coverage differs from selection; exposure changes holdout eligibility; sample size changes uncertainty. Freezing relevant evaluations and preserving provenance, failures and operational tradeoffs are methodological recommendations. Reproducibility is stated as a goal, without claiming that benchmark suites or a production service were executed.",
+        "sourceUrls": []
+      },
+      {
+        "id": "fresh-report",
+        "evidence": "Read and executed freshAuditDecision. Its table contains both-pass 178, fixes 10, breaks 2 and both-fail 10, totaling 200. Baseline passes 178+2 = 180; candidate passes 178+10 = 188. For 12 discordances, 2[C(12,0)+C(12,1)+C(12,2)]/4096 = 2(1+12+66)/4096 = 0.03857421875, matching the [exact-test implementation](https://www.statsmodels.org/stable/_modules/statsmodels/stats/contingency_tables.html#mcnemar). Independently checked the [Wilson](https://www.itl.nist.gov/div898/handbook/prc/section2/prc241.htm) lower endpoint for 9/10: 0.5958436145<0.85, requiring HOLD. V5 is closed at source and draw-call level: the current packet caption states the sampling assumption. R2-F1 is closed: the transition now describes [serialization](https://huggingface.co/docs/transformers/chat_templating) and [target-token loss selection](https://huggingface.co/docs/trl/sft_trainer), and explicitly qualifies the behavior learned by model, data and optimization.",
+        "sourceUrls": [
+          "https://www.statsmodels.org/stable/_modules/statsmodels/stats/contingency_tables.html#mcnemar",
+          "https://www.itl.nist.gov/div898/handbook/prc/section2/prc241.htm",
+          "https://huggingface.co/docs/transformers/chat_templating",
+          "https://huggingface.co/docs/trl/sft_trainer"
+        ]
+      }
+    ],
+    "findings": [],
+    "limitations": [
+      "Reviewed all 25 scenes for narration hash 4fe3d14adedbc9c4. No substantive spoken error or unsupported guarantee was found. No edits, external writes or subagents were used.",
+      "The current article SHA-256 is 7246355f586f69024b57c722f64df9a1f9558221a5a9b01a1de678a5344b3a75, different from the repair handoff's article. Current source and fresh execution, rather than the old verification artifacts, support this review.",
+      "Visual closures concern inspected source and freshly captured draw calls. The stage lesson still lacks index.mjs and scene files. No rebuilt film, rendered frames, playback, speech synthesis or measured synchronization was checked.",
+      "Teaching fixtures supply pass flags, semantic labels, measurements and sampling assumptions. They do not authenticate executable candidate-program performance, independent human-review histories, real traffic sampling or model provenance.",
+      "External primary sources were consulted at the direct URLs listed. Mutable main/stable URLs were not pinned to immutable upstream commits. Audit findings were verified as attributed reports, not independently reproduced.",
+      "No hosted model, training job, Ragas evaluation, embedding service, public benchmark suite or production traffic was run. Production requirements were assessed as proposed controls, without treating them as implemented or proven effective."
+    ]
+  },
+  "reviewedNarration": {
+    "source": "videos/stage-lessons/benchmark-audits/lesson.yaml",
+    "script": "4fe3d14adedbc9c4",
+    "scenes": [
+      {
+        "id": "intro",
+        "beats": [
+          {
+            "say": "Two assistants pass ninety percent of the same test. Would you expect them to make the same mistakes? Open the score into its individual questions. One assistant struggles with a small, important group that the other usually handles. The average has compressed away the difference we need to see."
+          },
+          {
+            "say": "A benchmark combines tasks with a scoring procedure. Its result describes performance on those tasks under that procedure. We will build a small evaluation, test the checker, inspect hidden failure patterns, and follow the evidence needed to compare systems fairly."
+          },
+          {
+            "say": "All the examples here are small teaching fixtures. Keep the question identities in view as their scores are grouped, sampled, and moved between datasets. That lets us see exactly what each reported number measures."
+          }
+        ]
+      },
+      {
+        "id": "contract",
+        "beats": [
+          {
+            "say": "Imagine changing the model inside a library assistant. Both candidates should receive the same questions, available evidence, response requirements, and scoring rules. Record the prompt, tools, sampling settings, and attempt budget as well. Each model still needs its own correct chat formatting."
+          },
+          {
+            "say": "Now give the second system five retrieved passages where the first received three. Its answers may improve, and that is useful to measure. The experiment now compares two complete systems. Retrieval changed along with the model, so the report must describe both changes."
+          },
+          {
+            "say": "Public benchmarks also have distinct contracts. Multiple-choice knowledge, executable programs, and human preferences score different units. Use those results to choose promising candidates, then compare them on the task your application actually needs."
+          }
+        ]
+      },
+      {
+        "id": "gold-contract",
+        "beats": [
+          {
+            "say": "Before trusting those library scores, inspect what each test asks. The article’s executable companion uses three fictional platform policies: freeze deployment needs commander approval, a threshold breach calls the rollback runbook, and exposed tokens need revocation within fifteen minutes. Preserve the question, authoritative evidence, required facts and forbidden claims together. These are supplied teaching policies, not general deployment instructions."
+          },
+          {
+            "say": "Give each row a unique identity. Duplicating an identity can overwrite or ambiguously join the result. Then compare each gold requirement with its cited evidence before scoring an answer. A required claim absent from that source can punish a grounded answer or reward invented permission. The actual validator checks unique IDs and literal required phrases; it does not establish the source’s authority or semantic truth."
+          },
+          {
+            "say": "Now deliberately require keep deploying from the rollback source. That requirement has no support, so repair the gold row first. Preserve a reviewed expected answer and label the failure severity. A useful golden set mirrors the service’s requests, including critical slices and valid abstentions. Testing the model against an impossible answer key would measure the key’s defect."
+          }
+        ]
+      },
+      {
+        "id": "checker",
+        "beats": [
+          {
+            "say": "Our library rule says that borrowed books are due on Friday. A cheap checker looks for the words books and Friday. The first answer repeats the rule correctly. Both the phrase check and our reviewed semantic label agree that it preserves the deadline."
+          },
+          {
+            "say": "Replace the answer with books are due after Friday. The same two words remain, so the literal checker still passes it. Our reviewed label rejects the changed deadline. This probe exposes a specific false positive in the checker."
+          },
+          {
+            "say": "A familiar abbreviation can fail in the other direction. Return the books by Friday preserves this rule. The displayed answer shortens the weekday to Fri, so our exact word check misses it. Keep exact checks for exact fields, and validate meaning with reviewed examples that include these harder cases."
+          }
+        ]
+      },
+      {
+        "id": "rag-stage",
+        "beats": [
+          {
+            "say": "Follow the commander-approval fact through the actual request. First inspect the final context sent to the model, after permissions, ranking and token-budget selection. If that clause is absent there, the response never received the required evidence. A relevant document retrieved earlier but dropped during assembly does not count as evidence the model saw."
+          },
+          {
+            "say": "Keep the context complete and change only the answer: it mentions the freeze but substitutes an on-call engineer for commander approval. Now the first observed failure is generation or instruction following. The article’s literal classifier reports bad retrieval, bad generation or pass by checking required phrases in that order. It inherits the same negation and paraphrase limits as its checker."
+          },
+          {
+            "say": "An exact citation can identify a source while an attached claim contradicts it. Exercise correct answer with correct page, correct answer with wrong page, and a negated answer with correct page. Source identity and semantic entailment are separate checks. Preserve context, answer and source versions so a repair targets the observed boundary and then repeats the complete regression path."
+          }
+        ]
+      },
+      {
+        "id": "rag-metrics",
+        "beats": [
+          {
+            "say": "Retrieval precision and recall answer different questions. In a supplied ranked list with relevance flags one, zero, one, precision at the first relevant rank is one, and at the third is two thirds. Averaging those precisions gives five sixths, about point eight three three. This rank-weighted precision rewards useful context appearing early; it cannot discover a required fact missing from every returned chunk."
+          },
+          {
+            "say": "For reference-based context recall, divide covered reference facts by required reference facts. Suppose the context contains two of three required facts. Recall is two thirds. If the response states only those two supported facts, its faithfulness is two supported claims divided by two claims, or one. The response is still incomplete. A supported claim can also repeat an outdated source."
+          },
+          {
+            "say": "Current Ragas response relevancy generates questions from the response and compares their embeddings with the original question, averaging cosine similarities. It measures topical alignment, not truth. Keep retrieval coverage, supported claims, completeness and relevance separate, and check model-based scoring against reviewed labels. These examples calculate the metric formulas directly. They do not demonstrate a Ragas model or embedding evaluation."
+          }
+        ]
+      },
+      {
+        "id": "knowledge-contract",
+        "beats": [
+          {
+            "say": "Public benchmarks help shortlist capabilities. MMLU covers fifty-seven subjects with four choices per question. Uniform guessing has expected accuracy one fourth, not a minimum any finite run must achieve. Common evaluations use five demonstrations and choice-token probabilities; generated-answer parsing is another protocol. Changing that path changes what a score measures, even when both results are percentages."
+          },
+          {
+            "say": "MMLU-Pro adds reviewed, reasoning-focused questions with up to ten choices. Exactly ten choices give a one-tenth guessing expectation. Its reported chain-of-thought advantage belongs to the tested models and protocol. GPQA instead uses expert biology, physics and chemistry: Extended has five hundred forty-six questions, main four hundred forty-eight, and Diamond one hundred ninety-eight. Validator-based filtering changes the subsets, so name the actual split."
+          },
+          {
+            "say": "The original GPQA study’s non-expert validators scored about thirty-four percent on Extended despite internet access; that historical result is not a universal human ceiling. HELM evaluates several dimensions, including accuracy, calibration, robustness, fairness and bias. Its public scenarios do not measure private policy compliance, but its modular framework accepts custom scenarios. Run the relevant private evaluation instead of treating an unrelated leaderboard as release authority."
+          }
+        ]
+      },
+      {
+        "id": "math-frontier",
+        "beats": [
+          {
+            "say": "GSM8K contains about eight and a half thousand grade-school word problems, typically two to eight arithmetic steps. Its reference solutions mark the final number after four hash characters; a particular harness decides whether model outputs need that delimiter. MATH has twelve thousand five hundred competition problems with worked solutions. Extracted final-answer correctness and a valid derivation are different contracts; record parser and tool access."
+          },
+          {
+            "say": "Harder suites also need exact versions. Humanity’s Last Exam finalized its original twenty-five-hundred-question public set in April twenty-twenty-five and retains a private holdout. Its site lists Rolling in October twenty-twenty-five and Diamond in September twenty-twenty-six. FrontierMath spans advanced-undergraduate through research-level tiers. Its Tiers One through Four page reports a June twelfth twenty-twenty-six version-two release addressing errors in forty-two percent of problems. Older scores do not transfer automatically."
+          },
+          {
+            "say": "ARC-AGI-two asks a system to infer a rule from example input and output grids, then apply it to a new grid. Symbolic interpretation, composition and context-dependent rules go beyond geometric rotation. Public, semi-private and private sets have different exposure histories. A supplied toy grid can demonstrate rule application, but it is not a scored ARC task or evidence that a platform assistant preserves deployment permissions."
+          }
+        ]
+      },
+      {
+        "id": "code-contract",
+        "beats": [
+          {
+            "say": "HumanEval measures function synthesis with one hundred sixty-four handwritten Python problems and unit tests. SWE-bench’s original collection has two thousand two hundred ninety-four issue-based tasks across twelve Python repositories. The system must inspect a repository, edit code and submit a patch. Those are different task contracts, and neither percentage directly measures our library or policy answers."
+          },
+          {
+            "say": "The SWE-bench Docker harness applies the patch and grades named Fail-to-Pass repair tests and Pass-to-Pass regression tests under its parser rules. Inspect which assertions those selected tests exercise. A patch can pass selected checks while an omitted behavior remains wrong. A resolved label describes that harness result; it is not proof that every repository test or intended behavior was preserved."
+          },
+          {
+            "say": "The measured coding system includes model, prompt loop, tools, repository environment and attempt budget. Ten agent attempts can contain many model and tool calls. Preserve failures, timeouts, selected tests and the returned patch, then compare at a common budget or report the tradeoff. Changing the agent scaffold can change the result while model weights stay fixed."
+          }
+        ]
+      },
+      {
+        "id": "benchmark-audit",
+        "beats": [
+          {
+            "say": "Human review improves a suite without guaranteeing flawless tasks. SWE-bench Verified selected five hundred tasks. OpenAI stopped reporting it in February twenty-twenty-six after finding material test or description issues in fifty-nine point four percent of a selected one-hundred-thirty-eight-task subset that o three did not consistently solve. That denominator is the selected subset, not all five hundred tasks."
+          },
+          {
+            "say": "The same audit found signs that tested frontier models could reproduce human fixes or verbatim task details for some tasks. A public test may therefore mix engineering ability with exposure. OpenAI initially recommended SWE-bench Pro, then retracted that recommendation in July twenty-twenty-six after auditing its seven hundred thirty-one public tasks and estimating that about thirty percent were broken. Preserve dates and scope rather than repeating an obsolete recommendation."
+          },
+          {
+            "say": "Use these audits to ask what the actual verifier accepts, which environments execute and which examples the system may have seen. The cited papers and official reports describe their examined workloads; we did not rerun those benchmark suites. A private reviewed test with a matching request path and retained failures remains necessary for this product decision."
+          }
+        ]
+      },
+      {
+        "id": "preference-ratings",
+        "beats": [
+          {
+            "say": "MT-Bench uses an LLM judge on fixed multi-turn conversations. Chatbot Arena, renamed Arena in January twenty-twenty-six, collects blind pairwise human preferences. Its Bradley-Terry model fits a logistic relationship to sampled votes. On the published base-ten, four-hundred-point scale, the binary model’s implied win probability for A is one divided by one plus ten raised to this exponent: subtract rating A from rating B, then divide that whole difference by four hundred."
+          },
+          {
+            "say": "Equal ratings give one half. A four-hundred-point advantage gives ten elevenths, about ninety-one percent. The cited Arena implementation gives both tie and both-bad votes half credit. With those votes retained, read the fitted value as an effective preference score, not a separate estimate of strict-win frequency. That scale is a reporting convention, not factual accuracy. Prompt and voter selection, presentation, and private-variant selection affect interpretation. A twenty-twenty-five study documented providers testing many private variants and releasing selected winners. Preserve uncertainty and the sampling context before using preferences to shortlist a model."
+          }
+        ]
+      },
+      {
+        "id": "slices",
+        "beats": [
+          {
+            "say": "Return to our hundred questions. Ninety ask ordinary library questions, and ten concern renewals. The two assistants each pass ninety cases overall. In these grids, every square is one identified question, and a failed square stays with that question as we reorganize the results."
+          },
+          {
+            "say": "Pull out the renewal column. Assistant A passed only two of these ten questions; assistant B passed nine. Their equal overall scores concealed very different behavior on this category. The slice denominator matters as much as its percentage."
+          },
+          {
+            "say": "Suppose our declared renewal requirement is eighty percent on this fixture. Only B clears that particular check. A release still needs its other requirements and enough representative evidence. Reporting categories gives a team a concrete failure to investigate."
+          }
+        ]
+      },
+      {
+        "id": "candidates",
+        "beats": [
+          {
+            "say": "Some benchmarks allow several attempts per problem. Here eight generated programs include two that pass the tests. Choose two distinct sample indices. There are twenty-eight possible pairs, and we can inspect every one instead of guessing what a success percentage means."
+          },
+          {
+            "say": "A pair succeeds when either member passes. Thirteen of the twenty-eight pairs contain a passing program. The pass-at-two estimator uses this same complement: subtract the all-failing subsets from the full set of subsets. The formula scales to much larger sample pools."
+          },
+          {
+            "say": "Now let a selector choose program one. That program fails, although successful programs exist in the pool. Candidate coverage and the selector's actual result answer separate questions. Report selection accuracy, test coverage, and total attempt cost alongside the sampling metric."
+          }
+        ]
+      },
+      {
+        "id": "sample-estimator",
+        "beats": [
+          {
+            "say": "For independent attempts with one fixed true pass probability p, the chance of at least one pass in k attempts is one minus the quantity one minus p raised to k. The true p is unknown. Replacing it with the observed fraction c over n is biased downward for k greater than one under this common-probability model. Convexity of the all-failure power explains that direction."
+          },
+          {
+            "say": "Instead count distinct sample indices. The estimator is one minus choose n minus c comma k divided by choose n comma k, or the corresponding product of failure fractions without replacement. If fewer than k failures exist, the result is one. Identical program text can occupy multiple indices; this estimator does not deduplicate text. Correlated or adaptive attempts do not automatically justify the independent common-p guarantee."
+          },
+          {
+            "say": "The actual hundred-sample, twenty-pass fixture gives about point eight nine two six by the plug-in at k ten and point nine zero four nine by subset counting. Compute each problem’s score before averaging. A four-pass pool and a four-failure pool have mean pass-at-two one half; pooling all eight candidates incorrectly gives about point seven eight six. Preserve per-problem identity, selector success, test coverage and total request cost."
+          }
+        ]
+      },
+      {
+        "id": "judge-controls",
+        "beats": [
+          {
+            "say": "An LLM judge needs its own reviewed labels, rubric and disagreement policy. The MT-Bench study documented position effects and a repetitive-list verbosity attack in its tested judges. It investigated self-enhancement but could not establish that bias conclusively. JudgeLM also examines knowledge and format biases. Those findings motivate controls, not a claim that every judge always prefers its own family or the longest answer."
+          },
+          {
+            "say": "The actual toy judge deliberately picks slot A when required-fact counts tie. Show concise then friendly: concise wins. Swap them: friendly wins. Map the slots back to names before comparing. Our conservative policy records an unresolved pair because named winners differ. With a stochastic judge, two inconsistent votes alone do not isolate position bias; repeat controlled probes."
+          },
+          {
+            "say": "Now compare the grounded answer with one missing approval. The same named answer wins both orders, but consistency still does not establish semantic truth. Supply current source evidence, check supporting spans and calibrate on independent human labels with negations and paraphrases. Evaluate candidate instructions as data. Control needless repetition separately from completeness; silently truncating an answer can remove the condition being tested."
+          }
+        ]
+      },
+      {
+        "id": "exposure",
+        "beats": [
+          {
+            "say": "A holdout supplies useful evidence about examples kept outside development. Suppose a team froze its tuning run at the end of March. These four cases have creation dates and an exposure record. Two were used to choose prompts or adjust the evaluator."
+          },
+          {
+            "say": "Move those exposed cases into regression. They remain useful for catching old mistakes. Notice the April case following the same route as the February case. A recent creation date alone cannot establish that a question stayed outside development."
+          },
+          {
+            "say": "The remaining cases are candidates for a fresh holdout after provenance checks. Keep their questions and answer keys out of the application's retrieval index. The underlying library rules belong in retrieval; the private test fixtures belong in a separate evaluation store."
+          }
+        ]
+      },
+      {
+        "id": "exposure-screen",
+        "beats": [
+          {
+            "say": "Training exposure puts test material or solutions into model learning. Development exposure uses holdout results to choose prompts, examples or judges. Optimizing a proxy can improve the intended skill, exploit a shortcut, or both. A rising score alone does not distinguish those outcomes. Once a case guides a choice, preserve it as regression and find genuinely untouched evaluation evidence."
+          },
+          {
+            "say": "GPT three’s analysis used an approximately thirteen-gram overlap criterion with special handling for short examples. A match can be background text; inspect what overlaps. A non-match can miss paraphrases, renamed variables and translations. BIG-bench asks contributors to include a recognizable canary string so collectors can exclude the material. Collectors must honor it, and copies can lose it. Neither screen proves no exposure."
+          },
+          {
+            "say": "LiveCodeBench dates contest tasks so an evaluation can select items after a known model-checkpoint cutoff. LiveBench refreshes several capability tests and uses objective answers rather than an LLM judge. Record the release, task window, exact checkpoint and tool access. Unknown training cutoffs, later post-training or retrieval of published solutions can compromise a fresh-looking comparison. Creation date is evidence to investigate, not proof of independence."
+          }
+        ]
+      },
+      {
+        "id": "uncertainty",
+        "beats": [
+          {
+            "say": "Three successes feel reassuring. To understand their strength, consider a hypothetical system that succeeds on eighty percent of independent cases. Its chance of passing all three is the success probability multiplied by itself three times. That happens more than half the time."
+          },
+          {
+            "say": "Keep the hypothetical success rate fixed and expand to thirty cases. The chance of another perfect sample falls sharply. The two experiments show why sample size changes the evidence carried by a perfect observed score. The actual system's unknown rate still needs an estimation procedure."
+          },
+          {
+            "say": "The article develops Wilson intervals for that estimation step. Choose the interval and release rule before inspecting results, and check the assumptions behind them. Repeated paraphrases, biased case selection, and an incorrect checker each need their own investigation."
+          }
+        ]
+      },
+      {
+        "id": "wilson-construction",
+        "beats": [
+          {
+            "say": "The ordinary Wald interval plugs the observed pass fraction into its standard error. Three of three makes that variance zero and falsely produces a zero-width interval. Wilson instead tests each candidate population probability using that candidate’s p times one minus p divided by n. Keep probabilities whose score distance from the observed fraction is at most the chosen z. Squaring produces a quadratic inequality."
+          },
+          {
+            "say": "The quadratic has coefficient one plus z squared over n on p squared. Subtract the quantity two times the observed fraction plus z squared over n, multiplied by p; then add the observed fraction squared. Its two roots bound the accepted rates. For direct calculation, call one plus z squared over n the denominator. The center is observed fraction plus z squared over two n, divided by that denominator. The radius is z divided by the denominator, times the square root of observed fraction times one minus that fraction divided by n, plus z squared divided by four n squared."
+          },
+          {
+            "say": "At z one point nine six, the actual lower endpoints are about point four three eight for three of three, point eight nine five for forty-nine of fifty, and point nine eight two for nine hundred ninety of a thousand. For all passes, the lower endpoint simplifies to n divided by n plus z squared. This is a two-sided nominal ninety-five-percent interval; a one-sided ninety-five-percent bound uses about one point six four five. Choose the procedure beforehand. Coverage concerns repeated samples, not the posterior probability of this fixed interval, and biased or correlated cases need separate investigation."
+          }
+        ]
+      },
+      {
+        "id": "paired-diagnosis",
+        "beats": [
+          {
+            "say": "Compare replacements on the same cases. Build four cells: both pass, both fail, baseline-only pass and candidate-only pass. The latter two identify regressions and fixes. McNemar’s equal-marginal null uses only those discordant counts. Assume case pairs are independently sampled from the same target population. Under equal marginal pass probabilities, each discordant direction has probability one half, so the fix count conditional on the number of disagreements is binomial with that probability. For fixed heterogeneous strata or clustered cases, justify a suitable sampling model before using this test. Shared easy and hard cases remain paired instead of becoming unrelated samples."
+          },
+          {
+            "say": "For the exact two-sided calculation, sum binomial coefficients from zero through the smaller discordant count, divide by two raised to the total discordant count, double that lower-tail probability, and cap the result at one. For nine fixes and one break, the exact two-sided calculation gives about point zero two one five. Three fixes and one break gives point six two five; five fixes and no breaks still gives point zero six two five."
+          },
+          {
+            "say": "A small p-value is evidence against the specified equal-marginal null under its assumptions, not the probability that a useful improvement is real. Read broken cases and check critical gates separately. Near-duplicate cases undermine independence. For variable hosted outputs, predeclare how repeats become each case’s pass or fail, and preserve those repeated runs rather than choosing their best answer."
+          }
+        ]
+      },
+      {
+        "id": "gates",
+        "beats": [
+          {
+            "say": "Consider three separate release candidates with the supplied measurements shown here. Begin with the quality requirement. The fast candidate falls below it. Balanced and specialist clear this point-estimate check, so we continue with their operational measurements."
+          },
+          {
+            "say": "Add the interactive latency limit. Specialist lies above it, while balanced stays inside the permitted region. Every point keeps its identity as the boundaries appear. A different workflow could justify different limits and would need a fresh evaluation of its own."
+          },
+          {
+            "say": "Finally inspect schema validity and cost. Balanced clears all four supplied checks. This is an eligibility result for the displayed measurements. A release report must still include critical categories, sampling uncertainty, and evidence from the actual request path."
+          }
+        ]
+      },
+      {
+        "id": "finite-report",
+        "beats": [
+          {
+            "say": "A gate cannot interpret missing or invalid evidence as a good measurement. The reference validator requires actual integer or float metric values, rejects Booleans, checks finiteness and valid rate ranges, and rejects negative latency or cost. It also catches integer telemetry too large for its floating-point validation. Check the domain before reading a point estimate against a threshold."
+          },
+          {
+            "say": "Ordered comparisons such as NaN less than a quality floor and NaN greater than a latency ceiling are both false. A naive reject-if-bad rule can therefore admit a report with neither measurement. The reference validator rejects that invalid record. The simpler reader-edition finite-value helper demonstrates this NaN trap; it is not the full strict typed reference validator."
+          },
+          {
+            "say": "Valid metrics still face separate gates. A quality pass cannot compensate for a schema, latency, cost or critical-slice failure. The article’s supplied fast, balanced and specialist candidates illustrate eligibility for their stated point estimates. A slower route needs its own evaluation. These pure functions propose a decision; they do not authenticate telemetry, execute a model, route traffic or establish production safety."
+          }
+        ]
+      },
+      {
+        "id": "reproducible-package",
+        "beats": [
+          {
+            "say": "Preserve dataset version and case IDs, the final input context and policy versions, model identity, prompt and decoding settings, tools, output schema and scorer version. Keep actual outputs, failed cases, timing and cost boundaries. Record all attempt work, including timeouts. A scalar score or a matching manifest cannot recreate missing evidence or establish that a run really occurred."
+          },
+          {
+            "say": "For hosted models, pin a dated snapshot when available and record the run date. Outputs can still vary under deterministic-looking settings, so repeat under a fixed protocol and rerun the baseline contemporaneously. The article’s suspicious report changes model and top-three retrieval to top-five, tunes its judge on holdout cases and accepts negated approval. Freeze the full system and validated evaluator, move exposed cases to regression and repeat an untouched matched comparison."
+          }
+        ]
+      },
+      {
+        "id": "synthesis",
+        "beats": [
+          {
+            "say": "We began with a single score and recovered the experiment behind it. The contract tells us what was compared. Checker probes reveal scoring failures. Categories expose concentrated mistakes. Candidate-set metrics, exposure records, and sample sizes explain the remaining scope of the claim."
+          },
+          {
+            "say": "Before adopting the next model, freeze a relevant evaluation, preserve its provenance, inspect its failures, and record the operational tradeoffs. A useful benchmark gives another person enough evidence to rerun the experiment and understand why its result matters."
+          }
+        ]
+      },
+      {
+        "id": "fresh-report",
+        "beats": [
+          {
+            "say": "Predict a fresh archive-service decision. A separate supplied packet evaluates both systems on the same two hundred cases, assumed independently sampled from one target population, under one pinned system contract. Baseline passes one hundred eighty; candidate one hundred eighty-eight. Ten cases are fixed and two are broken. The critical permission slice passes nine of ten, and its predeclared gate requires the lower end of a two-sided ninety-five-percent Wilson interval to reach point eight five. Does the aggregate gain authorize release? Pause."
+          },
+          {
+            "say": "The paired test conditions on twelve disagreements. Zero, one or two changes in the less common direction have binomial counts one, twelve and sixty-six. Double their sum and divide by four thousand ninety-six: about point zero three eight six. That is evidence against equal marginal pass rates under the given assumptions. The permission slice’s Wilson lower endpoint is only about point five nine six, below point eight five."
+          },
+          {
+            "say": "Hold this candidate. Keep both broken case identities and inspect the permission failure instead of letting the aggregate buy it back. Repair the gold, evidence path, generation or evaluator boundary actually implicated by the retained record. Cases used to choose that repair become regression; a new frozen comparison needs untouched evidence. You can now recover a benchmark claim’s contract, calculation, failure and decision without treating one impressive score as permission. Instruction tuning next follows the input behind those answers: chat roles, serialized markers and scored targets determine how demonstrations are represented and which target tokens contribute to training loss. The behavior learned also depends on the starting model, training data and optimization."
+          }
+        ]
+      }
+    ]
+  }
+}

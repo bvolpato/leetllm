@@ -1,0 +1,710 @@
+[
+  {
+    "id": "c01",
+    "title": "At 09:00, which heartbeat can the scheduler read?",
+    "sourceChapters": [
+      "c01"
+    ],
+    "beats": [
+      {
+        "id": "c01-b01",
+        "say": "At eight thirty, the worker on report J two oh four sends a heartbeat. Follow the pulse along the cable. At nine, the scheduler opens the feature store to predict whether the report will finish on time.",
+        "hold": 0.35
+      },
+      {
+        "id": "c01-b02",
+        "say": "H one left at one o’clock and reached the store two minutes later. Which heartbeat goes in the nine o’clock training row? How old is it?",
+        "hold": 2.6
+      },
+      {
+        "id": "c01-b03",
+        "say": "H one, eight hours. The store can return H one while H two is still on the wire. Subtract the time the worker sent H one from the time the scheduler asked. Save that age with the prediction.",
+        "hold": 0.45
+      },
+      {
+        "id": "c01-b04",
+        "say": "At eleven the second heartbeat finally reaches the store. Tomorrow’s archive puts its send time half an hour before the request. Training on that half hour would give the model a heartbeat the scheduler was still waiting for. That discrepancy tells us about delivery. To decide whether the worker is stuck, we need other evidence.",
+        "hold": 0.75
+      }
+    ]
+  },
+  {
+    "id": "c02",
+    "title": "When could the service read H2?",
+    "sourceChapters": [
+      "c02"
+    ],
+    "beats": [
+      {
+        "id": "c02-b01",
+        "say": "Give that second heartbeat a faster trip to the broker. It still leaves at eight thirty. This time the broker receives it at eight fifty-eight and the store publishes it at nine oh two. Can the nine o’clock request use it now?",
+        "hold": 2.1
+      },
+      {
+        "id": "c02-b02",
+        "say": "It still reads H one. At nine, H two had reached the broker, but the store had nothing new to return. For a historical replay, use the time the feature became readable.",
+        "hold": 0.5
+      },
+      {
+        "id": "c02-b03",
+        "say": "Change just the publication time to eight fifty-nine. Now the request reads H two, thirty minutes old. Publication decides whether the heartbeat qualifies. Its worker timestamp tells you how old it is.",
+        "hold": 1.7
+      },
+      {
+        "id": "c02-b04",
+        "say": "Put those clocks in the same time zone before comparing them. The lab treats a timestamp with no offset as UTC and converts explicit offsets to UTC. It includes publication exactly at the cutoff. If two operations share one clock tick, a sequence number or a snapshot version can tell you which came first.",
+        "hold": 0.45
+      }
+    ]
+  },
+  {
+    "id": "c03",
+    "title": "Read the same job again",
+    "sourceChapters": [
+      "c03"
+    ],
+    "beats": [
+      {
+        "id": "c03-b01",
+        "say": "Back on the original feed, an accepted heartbeat becomes readable as soon as it arrives. H two still arrives at eleven. The next heartbeat is sent at noon and arrives one minute later.",
+        "hold": 0.45
+      },
+      {
+        "id": "c03-b02",
+        "say": "Move the request to noon. H three sits right on the worker-time boundary. Can the scheduler use it yet? Which age will it read?",
+        "hold": 2
+      },
+      {
+        "id": "c03-b03",
+        "say": "H two, three and a half hours old. At noon the store is still one minute away from receiving H three. The latest readable worker timestamp is eight thirty.",
+        "hold": 0.6
+      },
+      {
+        "id": "c03-b04",
+        "say": "Move the request to four in the afternoon. H three is now readable. Subtract noon from four and the age is four hours. Storing the worker timestamp lets the age keep changing between writes.",
+        "hold": 1.6
+      }
+    ]
+  },
+  {
+    "id": "c04",
+    "title": "Which backlog did each job see?",
+    "sourceChapters": [
+      "c04"
+    ],
+    "beats": [
+      {
+        "id": "c04-b01",
+        "say": "Now build training rows for two jobs. The numbers on each line are queue depths. These updates became readable as soon as they happened. J two oh one was scored at nine. J two oh two was scored half an hour later.",
+        "hold": 0.4
+      },
+      {
+        "id": "c04-b02",
+        "say": "Start at the first job’s request and search backward. At eight fifty its backlog was five. Do the same for the second job. At nine twenty its backlog was eight. Each row has its own starting point. That’s a point-in-time join.",
+        "hold": 0.6
+      },
+      {
+        "id": "c04-b03",
+        "say": "Try reading both jobs from the latest state at nine thirty. Which job picks up information from after its request?",
+        "hold": 2.15
+      },
+      {
+        "id": "c04-b04",
+        "say": "The first job gets twelve. Look at its nine-fifteen update. That change came fifteen minutes after the job was scored. A retained table snapshot can supply the history for a join. You still have to apply each row’s cutoff.",
+        "hold": 1.6
+      }
+    ]
+  },
+  {
+    "id": "c05",
+    "title": "What did the backward join match?",
+    "sourceChapters": [
+      "c05"
+    ],
+    "beats": [
+      {
+        "id": "c05-b01",
+        "say": "These rows are grouped by job. Read down the time column. Nine fifteen comes before eight fifty. In pandas, sort both tables by the join clock across all jobs. Then use a backward as-of join, grouped by job. Exact matches count by default.",
+        "hold": 0.3
+      },
+      {
+        "id": "c05-b02",
+        "say": "In the backlog example, each update was readable immediately, and each job had one update per timestamp. Now try the same join on the worker time of a heartbeat whose publication was delayed.",
+        "hold": 0.6
+      },
+      {
+        "id": "c05-b03",
+        "say": "At nine, the join can search back one day. A heartbeat stamped eight thirty is well inside that range. Follow it to publication at nine fifteen. The scheduler had already made its prediction.",
+        "hold": 0.3
+      },
+      {
+        "id": "c05-b04",
+        "say": "To replay that request, keep the publication history and select the last heartbeat that was readable by nine. Choose the lookback to suit the feature. A long silence can be the signal you need.",
+        "hold": 0.55
+      },
+      {
+        "id": "c05-b05",
+        "say": "In Feast, the default historical join filters by event time. At a shared event time it may select a later-created correction. On supported offline stores, filtering by creation time adds another cutoff and excludes missing creation times.",
+        "hold": 0.3
+      },
+      {
+        "id": "c05-b06",
+        "say": "For serving replay, first establish that creation actually records when a value was readable. A warehouse insert may precede publication. Feast’s online store keeps the latest value per entity.",
+        "hold": 0.5
+      }
+    ]
+  },
+  {
+    "id": "c06",
+    "title": "Two ways to read J-204",
+    "sourceChapters": [
+      "c06"
+    ],
+    "beats": [
+      {
+        "id": "c06-b01",
+        "say": "Here’s a day of archived heartbeats for J two oh four. Batch processing reads a bounded input like this to build many training rows. A streaming updater handles records as they arrive and keeps a value ready for a single job lookup.",
+        "hold": 0.3
+      },
+      {
+        "id": "c06-b02",
+        "say": "Input size, arrival rate, batching and capacity determine how quickly either path can deliver.",
+        "hold": 0.45
+      },
+      {
+        "id": "c06-b03",
+        "say": "At nine, the online key holds H one. If the writer had saved the age at one oh two, it would have saved about point oh three hours. By nine the heartbeat is eight hours old. Save the worker timestamp and subtract it from the request time on both paths.",
+        "hold": 0.6
+      },
+      {
+        "id": "c06-b04",
+        "say": "Capture the actual row with the request ID, cutoff, definition version and source progress. To reconstruct it later, keep the arrivals, routing decisions, published states and transformations. A shared event feed can supply both stores even when the stores publish at different times.",
+        "hold": 0.6
+      }
+    ]
+  },
+  {
+    "id": "c07",
+    "title": "A correction and a retry",
+    "sourceChapters": [
+      "c07"
+    ],
+    "beats": [
+      {
+        "id": "c07-b01",
+        "say": "The worker reports that it scaled up at ten thirty. Version one arrives a minute later. At ten thirty-four the producer sends version two with a corrected phase. Both messages refer to the same worker time.",
+        "hold": 0.55
+      },
+      {
+        "id": "c07-b02",
+        "say": "At ten thirty-six, version one arrives again. The service has to choose a phase for the next request. Which version stays online?",
+        "hold": 2.2
+      },
+      {
+        "id": "c07-b03",
+        "say": "Keep version two. Compare worker time first. When the times match, compare source versions. Arrival order would undo the correction. At ten forty, the heartbeat is ten minutes old. Only its phase changed. At eleven oh five, H one arrives again. The worker sent it at one in the morning, hours before the ten-thirty heartbeat. Version two stays online.",
+        "hold": 0.6
+      },
+      {
+        "id": "c07-b04",
+        "say": "Batch replay needs the same ordering. A random event ID can identify a delivery but cannot tell you which revision came later. In this example the source keeps the worker timestamp fixed. Deleting an event or correcting that timestamp needs a rule for retiring the old event.",
+        "hold": 0.3
+      },
+      {
+        "id": "c07-b05",
+        "say": "Validate clocks and payloads, then compare and update atomically and record when the winner was published.",
+        "hold": 0.5
+      }
+    ]
+  },
+  {
+    "id": "c08",
+    "title": "Two phases claim the same version",
+    "sourceChapters": [
+      "c08"
+    ],
+    "beats": [
+      {
+        "id": "c08-b01",
+        "say": "Try a different job, J two oh five. Both messages describe an event at ten thirty, and both claim version seven. A says the worker scaled up. B says that action failed. Read them in opposite orders in the two columns. Which phase can the store safely serve?",
+        "hold": 2.1
+      },
+      {
+        "id": "c08-b02",
+        "say": "Quarantine the state in both orders. The source gave you no way to choose between these payloads. Repeat either message and the same conflict remains. A higher validated revision can supply a replacement. The batch replay checks for these conflicting phases at the latest eligible time and version too.",
+        "hold": 0.6
+      },
+      {
+        "id": "c08-b03",
+        "say": "This example compares the phase field. In production, compare every relevant field or its canonical fingerprint. For a request older than the current event or its arrival, the online lookup raises a historical-read error. Retrieve the capture or replay the published history.",
+        "hold": 0.3
+      },
+      {
+        "id": "c08-b04",
+        "say": "Think back to J two oh four. Its nine o’clock receipt still says eight hours.",
+        "hold": 0.55
+      }
+    ]
+  },
+  {
+    "id": "c09",
+    "title": "A watermark estimates event-time progress",
+    "sourceChapters": [
+      "c09"
+    ],
+    "beats": [
+      {
+        "id": "c09-b01",
+        "say": "Stream windows group records by time. Tumbling windows divide time into fixed buckets. Sliding windows overlap when the time between starts is shorter than the window length. Session windows group activity until a gap separates one session from the next. Pick event time or processing time before deciding when a result is complete.",
+        "hold": 0.55
+      },
+      {
+        "id": "c09-b02",
+        "say": "A watermark estimates how far event time has progressed. In a simplified rule, take the greatest event timestamp seen and subtract a configured delay. With a 12:20 maximum and a fifteen-minute delay, the estimate is 12:05.",
+        "hold": 1.8
+      },
+      {
+        "id": "c09-b03",
+        "say": "Place an eleven oh five record in the eleven-to-noon window. At twelve oh five the watermark is five minutes past noon. This window retains its state for thirty minutes past its end. The router compares a different pair of times. How far behind the watermark is that heartbeat?",
+        "hold": 2.4
+      },
+      {
+        "id": "c09-b04",
+        "say": "Sixty minutes. The router sets this record aside for replay because its limit is forty-five minutes. The window can still take other updates until its cleanup boundary.",
+        "hold": 1.8
+      }
+    ]
+  },
+  {
+    "id": "c10",
+    "title": "Which heartbeats belong together?",
+    "sourceChapters": [
+      "c10"
+    ],
+    "beats": [
+      {
+        "id": "c10-b01",
+        "say": "Count heartbeats by worker time. Eleven o’clock starts a new hourly bucket, and noon starts the next one. Those buckets are called tumbling windows. Now start an hour-long window every five minutes. The line at eleven twenty crosses every sliding window shown.",
+        "hold": 0.3
+      },
+      {
+        "id": "c10-b02",
+        "say": "Counting the same heartbeat once in each of those windows is intentional. Using processing time would place it by the engine’s clock instead.",
+        "hold": 0.5
+      },
+      {
+        "id": "c10-b03",
+        "say": "For a session, measure the quiet gaps between the pulses. Use a fifteen-minute inactivity gap. Eleven ten to eleven thirty leaves two sessions with two heartbeats each. Now an eleven-twenty heartbeat arrives late. How many sessions are there?",
+        "hold": 2.5
+      },
+      {
+        "id": "c10-b04",
+        "say": "One session, five heartbeats. The gap on each side of the new dot is only ten minutes. A sink that already published both pairs must retract or replace their old counts when it publishes the merged session. Adding all three counts would count the first four heartbeats twice.",
+        "hold": 1.8
+      },
+      {
+        "id": "c10-b05",
+        "say": "Go back to the fixed hour. With Flink’s default event-time trigger, crossing the window end fires the main result. If we allow thirty minutes of lateness, the state stays available for a later update. Flink defaults to zero allowed lateness. To collect records that are too late in a side output, configure that output.",
+        "hold": 0.55
+      }
+    ]
+  },
+  {
+    "id": "c11",
+    "title": "Follow the watermark",
+    "sourceChapters": [
+      "c11"
+    ],
+    "beats": [
+      {
+        "id": "c11-b01",
+        "say": "Start at twelve twenty and subtract fifteen minutes. That takes us to twelve oh five. When Flink’s bounded out-of-orderness generator emits its periodic watermark, it subtracts one more millisecond. Watch the seconds roll back to fifty-nine.",
+        "hold": 0.5
+      },
+      {
+        "id": "c11-b02",
+        "say": "Suppose two active inputs now report these watermarks. A has reached twelve twenty. B has reached eleven fifty. The downstream clock waits at eleven fifty, the smaller of the two. If the configured timeout marks B idle, A can advance the clock. Older records from B may be late when it resumes.",
+        "hold": 0.55
+      },
+      {
+        "id": "c11-b03",
+        "say": "Freeze the watermark at twelve twenty. This window ended at noon and keeps its state for thirty more minutes. The router accepts heartbeats up to forty-five minutes behind the watermark. Here comes one stamped eleven oh five. Can the window still update? Where does this heartbeat go?",
+        "hold": 2.4
+      },
+      {
+        "id": "c11-b04",
+        "say": "Measure from noon to the watermark. Twenty minutes have passed, so the window still has its state. Now measure from the heartbeat to the same watermark. That gap is seventy-five minutes. Send the heartbeat to replay.",
+        "hold": 2
+      },
+      {
+        "id": "c11-b05",
+        "say": "Keep the watermark and window fixed. A different heartbeat was sent at eleven fifty. Where does this one go?",
+        "hold": 2.15
+      },
+      {
+        "id": "c11-b06",
+        "say": "Accept it. It is thirty minutes behind the watermark, inside the forty-five-minute limit. Here the window can update again. Log which records took each route so batch can reproduce the count that serving read.",
+        "hold": 0.65
+      }
+    ]
+  },
+  {
+    "id": "c12",
+    "title": "Count the eleven-to-noon hour",
+    "sourceChapters": [
+      "c12"
+    ],
+    "beats": [
+      {
+        "id": "c12-b01",
+        "say": "Let’s trace what the count store receives for that hour. The first message covers heartbeats A and B. It arrives at twelve twenty-two. A request one minute later records two. Keep that request at the bottom of the screen.",
+        "hold": 0.6
+      },
+      {
+        "id": "c12-b02",
+        "say": "At twelve twenty-four, a second message reaches the count store. It includes A and B again, along with the late heartbeat C. Trace their shapes straight down from the first strip. Both strips describe the whole hour for the same job. What count should the store serve next?",
+        "hold": 2.8
+      },
+      {
+        "id": "c12-b03",
+        "say": "A sits above A. B sits above B. Only C fills an empty position. If we added the two whole totals, A and B would each count twice. That would give five.",
+        "hold": 1.1
+      },
+      {
+        "id": "c12-b04",
+        "say": "Replace the earlier total with three. Revision two covers A, B and C once each. That third heartbeat changes the current count. The twelve twenty-three request already recorded the first publication.",
+        "hold": 1.8
+      },
+      {
+        "id": "c12-b05",
+        "say": "Now the first message comes back as a retry. Compare its revision with the one in the store. Keep revision two at three. Try a different message claiming revision two with a count of four. The store already has three for that same revision. Reject the conflict.",
+        "hold": 2
+      },
+      {
+        "id": "c12-b06",
+        "say": "A producer that sent just the change would report plus one. That increment needs its own event ID so a retry can be recognized. Here the producer supplies the fixed window key and revision. Flink leaves that contract to the application.",
+        "hold": 0.3
+      },
+      {
+        "id": "c12-b07",
+        "say": "Persist each replacement and its publication history. A session merge also needs to retire the old window identities.",
+        "hold": 0.55
+      }
+    ]
+  },
+  {
+    "id": "c13",
+    "title": "Apply retries once and preserve conflicts",
+    "sourceChapters": [
+      "c13"
+    ],
+    "beats": [
+      {
+        "id": "c13-b01",
+        "say": "A stream can deliver the same queue change again after a retry. Adding both copies turns one increase of three into six. Give each change an event ID. When Q one comes back, what should happen to the backlog?",
+        "hold": 2.2
+      },
+      {
+        "id": "c13-b02",
+        "say": "Apply Q1 once and the backlog becomes three. Its retry is skipped. Q2 subtracts one, leaving two. Q3 asks to subtract five, so the example records a rejection and keeps the nonnegative backlog at two.",
+        "hold": 0.6
+      },
+      {
+        "id": "c13-b03",
+        "say": "A production writer needs an atomic durable update of the identifier, payload, decision, and aggregate. An in-memory map cannot survive a crash or coordinate concurrent workers. Repair a rejected event through an explicit correction or replay.",
+        "hold": 0.7
+      }
+    ]
+  },
+  {
+    "id": "c14",
+    "title": "Which writes survive a restart?",
+    "sourceChapters": [
+      "c14"
+    ],
+    "beats": [
+      {
+        "id": "c14-b01",
+        "say": "What if the worker stops halfway through writing Q one? Start the SQLite file with backlog zero. Inside one transaction, write the ID and its applied outcome. Stop the process before it updates the backlog. Reopen the file. The ledger is empty and the backlog is zero.",
+        "hold": 0.65
+      },
+      {
+        "id": "c14-b02",
+        "say": "Try again. This time write both the ID and the backlog, but stop before commit. Reopen and we still have zero and an empty ledger. On the next attempt commit both writes. Stop before acknowledgment. Reopen and we have three with Q one recorded.",
+        "hold": 0.3
+      },
+      {
+        "id": "c14-b03",
+        "say": "When the source retries, the ledger recognizes the payload and the backlog stays three. Saving the ID alone could lose the addition. Saving only the addition could double it.",
+        "hold": 0.6
+      },
+      {
+        "id": "c14-b04",
+        "say": "Continue from three. Q two subtracts one. Q three tries to subtract five and the ledger records a rejection. A separate Q four adds ten, bringing the backlog to twelve. Now twelve could cover a subtraction of five.",
+        "hold": 0.3
+      },
+      {
+        "id": "c14-b05",
+        "say": "Retry the same Q three and its rejection still stands. Reusing Q one’s ID with a different delta raises a payload conflict. These restarts check the local database transaction. A broker and an external store need their own recovery test.",
+        "hold": 0.55
+      }
+    ]
+  },
+  {
+    "id": "c15",
+    "title": "What must the sink remember on a retry?",
+    "sourceChapters": [
+      "c15"
+    ],
+    "beats": [
+      {
+        "id": "c15-b01",
+        "say": "Keep the rejection alongside Q three’s payload. A deliberate correction can change state later. Simply delivering Q three again must return its original outcome. This queue processes distinct changes in source order. If a subtraction can overtake an earlier addition, buffer or reconcile them before treating a negative intermediate backlog as invalid.",
+        "hold": 0.45
+      },
+      {
+        "id": "c15-b02",
+        "say": "Suppose the source can replay fourteen days, but the store keeps event IDs for seven days. On day ten a retry arrives after the store has forgotten Q one. It can add three a second time.",
+        "hold": 0.3
+      },
+      {
+        "id": "c15-b03",
+        "say": "Keep the IDs for fourteen days. On day ten the store still recognizes Q one, so the backlog stays at three. Retain the ID and its payload or fingerprint across the replay horizon, and make the check and write atomic for concurrent consumers.",
+        "hold": 0.6
+      },
+      {
+        "id": "c15-b04",
+        "say": "Where does the transaction end? Kafka can commit output records and consumed offsets together inside Kafka. An external Redis write sits outside that transaction. The destination must commit or coordinate source progress with the durable update.",
+        "hold": 0.3
+      },
+      {
+        "id": "c15-b05",
+        "say": "Test a stop before commit, a stop after commit, and a lost acknowledgment. A shared feed alone cannot commit both your offline and online stores.",
+        "hold": 0.5
+      }
+    ]
+  },
+  {
+    "id": "c16",
+    "title": "How far have the inputs caught up?",
+    "sourceChapters": [
+      "c16"
+    ],
+    "beats": [
+      {
+        "id": "c16-b01",
+        "say": "A fast lookup can return an old result. At noon, ask how far the pipeline has processed all the inputs this feature needs. Coverage reaches eleven fifty-two. Subtract that from noon. Eight minutes of lag is inside this service’s fifteen-minute allowance. Score normally.",
+        "hold": 2
+      },
+      {
+        "id": "c16-b02",
+        "say": "Suppose instead that coverage stops at eleven thirty. The read can be just as fast. Thirty minutes of lag calls for a separately validated fallback. Record degraded mode with the prediction. A fallback must have usable inputs of its own.",
+        "hold": 0.55
+      },
+      {
+        "id": "c16-b03",
+        "say": "Now suppose the last covered time was ten thirty. Ninety minutes exceeds this service’s forty-five-minute limit. Withhold the narrow deadline estimate.",
+        "hold": 2
+      }
+    ]
+  },
+  {
+    "id": "c17",
+    "title": "One second at the policy boundary",
+    "sourceChapters": [
+      "c17"
+    ],
+    "beats": [
+      {
+        "id": "c17-b01",
+        "say": "Look back at nine o’clock. The last heartbeat is eight hours old. A writer touched the row at eight fifty-nine, but the pipeline covers all required inputs only through eight thirty. That gives thirty minutes of source lag. A healthy pipeline can advance coverage even during a long silence from one worker.",
+        "hold": 0.55
+      },
+      {
+        "id": "c17-b02",
+        "say": "Use the exact duration before rounding. Fifteen minutes is normal. Add one second and it is degraded. Forty-five minutes is still degraded. One second more and the service abstains. With missing progress it abstains because freshness is unknown. A future progress time raises a clock error.",
+        "hold": 1.8
+      },
+      {
+        "id": "c17-b03",
+        "say": "Rounding even to a whole minute first could hide any of those one-second differences.",
+        "hold": 0.65
+      },
+      {
+        "id": "c17-b04",
+        "say": "The policy returns a mode. To evaluate a fallback, run it on the inputs it will have during a delay and measure its outcomes. Log source progress and mode with the prediction. Measure lookup time separately so a fast response cannot hide an old feed.",
+        "hold": 0.5
+      }
+    ]
+  },
+  {
+    "id": "c18",
+    "title": "Compare paired rows for parity",
+    "sourceChapters": [
+      "c18"
+    ],
+    "beats": [
+      {
+        "id": "c18-b01",
+        "say": "Batch and serving can use different code, yet still implement one versioned definition. Compare captured and replayed feature vectors for the same prediction ID, cutoff, source routing, and transform version.",
+        "hold": 0.55
+      },
+      {
+        "id": "c18-b02",
+        "say": "Suppose the offline values are five for J-201 and eighteen for J-202. Serving swaps them. How many paired rows disagree?",
+        "hold": 2.2
+      },
+      {
+        "id": "c18-b03",
+        "say": "Two rows disagree. Both sides contain five and eighteen, so a histogram alone would pass. Keep those captures. Fix the lookup to use each request’s job key and run the same two requests again. The new run returns five for J two oh one and eighteen for J two oh two. Both pairs now agree.",
+        "hold": 1.8
+      },
+      {
+        "id": "c18-b04",
+        "say": "For these queue lengths, require an exact integer match. Declare tolerances for floating-point values, and compare types as well as numbers. For a hand check, pick one request and rebuild its backlog from the queue log.",
+        "hold": 0.7
+      }
+    ]
+  },
+  {
+    "id": "c19",
+    "title": "What counts as a field match?",
+    "sourceChapters": [
+      "c19"
+    ],
+    "beats": [
+      {
+        "id": "c19-b01",
+        "say": "Take the same request, cutoff, definition version, routing and publications on both sides. Check which fields exist. A missing field differs from a present field whose value is null. Now look at the flag. In Python, false compares equal to zero.",
+        "hold": 0.3
+      },
+      {
+        "id": "c19-b02",
+        "say": "The contract calls for an integer, so the Boolean fails the type check. The article’s small comparison checks field presence and equality. Add explicit type and tolerance checks for this contract.",
+        "hold": 0.55
+      },
+      {
+        "id": "c19-b03",
+        "say": "These two estimates are finite floats in the same units. The contract allows an absolute difference of one thousandth. Subtract them and take the magnitude. Four ten-thousandths is inside the tolerance. Other fields can specify a relative tolerance. Counts and categories still require exact matches here.",
+        "hold": 0.3
+      },
+      {
+        "id": "c19-b04",
+        "say": "Keep keys, units, null rules and cutoffs identical across implementations.",
+        "hold": 0.55
+      },
+      {
+        "id": "c19-b05",
+        "say": "The lab rebuilds the backlog from zero. For the correction followed by a stale retry, it compares heartbeat ages at ten forty. Both paths give ten minutes because both revisions have the same worker time. To check the revision or phase, compare that field too. The quarantine and four o’clock cases also agree. Then it swaps two job keys and substitutes a stale cached age. Both deliberate errors fail.",
+        "hold": 0.3
+      },
+      {
+        "id": "c19-b06",
+        "say": "The receipt records all five cases. A shared bug could make two implementations agree, so also test against expected values you can work out by hand.",
+        "hold": 0.55
+      }
+    ]
+  },
+  {
+    "id": "c20",
+    "title": "Where did the extra heartbeat come from?",
+    "sourceChapters": [
+      "c20"
+    ],
+    "beats": [
+      {
+        "id": "c20-b01",
+        "say": "At twelve twenty-three the scheduler counted two heartbeats. A training replay counts three for the same job and hour. Where did the extra heartbeat come from?",
+        "hold": 0.5
+      },
+      {
+        "id": "c20-b02",
+        "say": "Open the publication history. At twelve twenty-two the store held A and B. Put the request at twelve twenty-three. One minute later the store added C. Which publication did the training replay read?",
+        "hold": 2.4
+      },
+      {
+        "id": "c20-b03",
+        "say": "The replay read the twelve twenty-four count. Slide its cutoff back to the request. Now both rows count two. Keep the original capture to check the repair against what the scheduler actually read.",
+        "hold": 1.8
+      }
+    ]
+  },
+  {
+    "id": "c21",
+    "title": "Would you trust this model comparison?",
+    "sourceChapters": [
+      "c21"
+    ],
+    "beats": [
+      {
+        "id": "c21-b01",
+        "say": "Here is the failed row from the replay check. At four in the afternoon, the worker’s last readable heartbeat was sent at noon. Replay says four hours. The serving row for that same request says point oh three hours. Would you use this comparison to choose a model?",
+        "hold": 2.2
+      },
+      {
+        "id": "c21-b02",
+        "say": "Hold the comparison and trace the age field. One possibility is that the writer saved an age and serving kept returning it. First check the stored heartbeat ID, its timestamp, and the units on both paths.",
+        "hold": 0.45
+      },
+      {
+        "id": "c21-b03",
+        "say": "Try two reads with the worker timestamp fixed at noon. At three the expected age is three hours. At four it is four hours. If both live reads return that same cached age, inspect the write and read code to confirm where it was frozen.",
+        "hold": 0.3
+      },
+      {
+        "id": "c21-b04",
+        "say": "Fix the calculation and rerun paired replay before comparing models. Keep the original capture as evidence.",
+        "hold": 0.65
+      }
+    ]
+  },
+  {
+    "id": "c22",
+    "title": "Two requests, ten minutes apart",
+    "sourceChapters": [
+      "c22"
+    ],
+    "beats": [
+      {
+        "id": "c22-b01",
+        "say": "Try a fresh job, J two oh six, at two in the afternoon. H seven went out at eleven and was readable two minutes later. H eight went out at one fifty. The broker received it at one fifty-five. The store published it at two oh three. Which heartbeat and what age belong in the two o’clock row?",
+        "hold": 2.6
+      },
+      {
+        "id": "c22-b02",
+        "say": "H seven, three hours. The store had published H seven by two. H eight had reached the broker. Its publication at two oh three is three minutes past the cutoff. Seal that first row. Move the request ten minutes forward. Now the scheduler reads H eight and reports a heartbeat age of twenty minutes.",
+        "hold": 1.8
+      },
+      {
+        "id": "c22-b03",
+        "say": "Follow H eight from the worker to the store. Which timestamp did the scheduler subtract from two ten to get those twenty minutes?",
+        "hold": 1.9
+      },
+      {
+        "id": "c22-b04",
+        "say": "Start at one fifty, when the worker sent it. At two ten, H eight is twenty minutes old. A later correction to its phase can keep that same worker timestamp. Neither publication nor correction rewrites the first receipt.",
+        "hold": 0.5
+      },
+      {
+        "id": "c22-b05",
+        "say": "Now decide how to score the two-ten request. The row was written one minute ago. Across all required inputs the pipeline can vouch for events only through one forty. One heartbeat can arrive ahead of that frontier. Given that coverage, which scoring mode should this request record?",
+        "hold": 2.15
+      },
+      {
+        "id": "c22-b06",
+        "say": "Use source coverage. From one forty to two ten, the pipeline lag is thirty minutes. Use the validated fallback and log degraded mode. The worker’s twenty minutes of silence answers a different question.",
+        "hold": 0.75
+      },
+      {
+        "id": "c22-b07",
+        "say": "Replay that decision with one change. Suppose all inputs were covered through one fifty-five. H eight is still twenty minutes old. The row write and request stay fixed. Which mode does the scheduler record?",
+        "hold": 2.8
+      },
+      {
+        "id": "c22-b08",
+        "say": "Fifteen minutes of lag. Score normally. This service includes fifteen minutes in the normal range. The heartbeat is still twenty minutes old, and the two o’clock row still says three hours. Carry those decision-time rows into the boosted-tree experiment and compare its alerts with a cheap baseline at the same operating cost.",
+        "hold": 0.95
+      }
+    ]
+  }
+]

@@ -1,0 +1,1355 @@
+version: 1
+id: embedding-geometry
+title: What Distance Means in an Embedding Space
+source: fundamentals/embeddings-cosine-dot-product-quantization/content.md
+sources:
+  - title: "Faiss: MetricType and distances"
+    url: https://github.com/facebookresearch/faiss/wiki/MetricType-and-distances
+  - title: "Malkov and Yashunin: Efficient and Robust Approximate Nearest Neighbor Search Using HNSW"
+    url: https://arxiv.org/abs/1603.09320
+  - title: "Johnson, Douze, and Jégou: Billion-scale similarity search with GPUs"
+    url: https://arxiv.org/abs/1702.08734
+  - title: "Kusupati et al.: Matryoshka Representation Learning"
+    url: https://arxiv.org/abs/2205.13147
+  - title: Faiss ProductQuantizer implementation and lookup contracts
+    url: https://github.com/facebookresearch/faiss/blob/main/faiss/impl/ProductQuantizer.h
+  - title: "Ge et al.: Optimized Product Quantization"
+    url: https://www.cv-foundation.org/openaccess/content_cvpr_2013/papers/Ge_Optimized_Product_Quantization_2013_CVPR_paper.pdf
+  - title: hnswlib algorithm parameters
+    url: https://github.com/nmslib/hnswlib/blob/master/ALGO_PARAMS.md
+  - title: Sentence Transformers embedding quantization
+    url: https://www.sbert.net/examples/sentence_transformer/applications/embedding-quantization/README.html
+  - title: "Charikar: Similarity Estimation Techniques from Rounding Algorithms"
+    url: https://courses.compute.dtu.dk/02289/2022/approxds/charikar.pdf
+scenes:
+  - id: opening
+    title: Two guides for one query
+    visual: The search arrow draws underneath two guide pages. The viewer compares the directions before the angle marks appear, then reads the horizontal reach from the same tips.
+    beats:
+      - say: How do I rotate an API key? I can open either guide. Which guide makes the smaller angle
+          with my blue search arrow?
+        hold: 2.1
+        caption_starts:
+          - Which guide makes the smaller angle
+        visual_cues:
+          - id: ask
+            phrase: Which guide makes the smaller angle
+            targets:
+              - picture
+      - say: The rotation guide does. From blue to green, the turn is about eleven degrees. From blue
+          to pink, it's about twenty-seven. The longer audit arrow makes the wider angle.
+        hold: 0.6
+        visual_cues:
+          - id: winner
+            caption_boundary: true
+            phrase: The rotation guide does
+            targets:
+              - picture
+          - id: small-angle
+            phrase: about eleven degrees
+            targets:
+              - picture
+          - id: wider
+            phrase: From blue to pink
+            targets:
+              - picture
+          - id: large-angle
+            phrase: about twenty-seven
+            targets:
+              - picture
+      - say: An encoder turns each text into a list of numbers called an embedding. Here, two coordinates
+          locate each arrow's tip. Now follow the tips down to the horizontal axis. Let's score the same
+          guides by how far right they reach.
+        hold: 0.65
+        visual_cues:
+          - id: coordinates
+            phrase: two coordinates locate each arrow's tip
+            targets:
+              - picture
+          - id: reach
+            phrase: follow the tips down
+            targets:
+              - picture
+  - id: coordinates
+    title: Read the horizontal reach
+    visual: Each guide drops a perpendicular to the query axis. Two sums use those projections to rank the
+      original passages.
+    beats:
+      - say: Keep the arrows where they are. To take a dot product, multiply matching coordinates and add. Start
+          with rotation. One times its horizontal coordinate, plus zero times its height. The dashed line
+          drops straight to one on the axis.
+        hold: 0.55
+        visual_cues:
+          - id: first
+            phrase: Start with rotation
+            targets:
+              - picture
+      - say: Now follow audit down to the axis at four. Both heights get multiplied by zero because this query
+          points due right. Which guide has the larger dot product?
+        hold: 1.85
+        visual_cues:
+          - id: second
+            phrase: follow audit down to the axis
+            targets:
+              - picture
+          - id: ask
+            phrase: Which guide has the larger dot product
+            targets:
+              - picture
+      - say: Audit wins, four to one. Its arrow extends farther along the query even though it makes the wider
+          angle. If the encoder learned to use vector length as a signal, that difference can matter. Check
+          the model's scoring rule and test it on judged queries.
+        hold: 0.7
+        visual_cues:
+          - id: result
+            caption_boundary: true
+            phrase: Audit wins, four to one
+            targets:
+              - picture
+  - id: rulers
+    title: Two ways to compare the same arrows
+    visual: Angle arcs give way to dashed segments starting at the tip of q. The operands and score stay with
+      each guide.
+    beats:
+      - say: Trace the angle from the blue arrow to each guide. To compare directions, divide the dot product by
+          the lengths of both arrows. That score is cosine. The query has length one. For rotation, one
+          divided by just over one gives about point nine eight one.
+        hold: 0.55
+        visual_cues:
+          - id: angle
+            phrase: Trace the angle
+            targets:
+              - picture
+          - id: a
+            phrase: gives about point nine eight one
+            targets:
+              - picture
+      - say: For audit, four divided by about four and a half gives point eight nine four. A score of one means
+          the directions match. Zero means a right angle, and minus one means opposite directions.
+        hold: 0.65
+        visual_cues:
+          - id: b
+            phrase: gives point eight nine four
+            targets:
+              - picture
+      - say: Now start at the tip of the query. How far would you travel in a straight line to reach each guide?
+          Rotation is just above it, a gap of point two. To reach audit you go three across and two up. The
+          diagonal is the square root of thirteen, about three point six one. That's Euclidean distance.
+          Smaller gaps rank first.
+        hold: 0.75
+        visual_cues:
+          - id: gap
+            phrase: start at the tip of the query
+            targets:
+              - picture
+          - id: short
+            phrase: a gap of point two
+            targets:
+              - picture
+          - id: long
+            phrase: about three point six one
+            targets:
+              - picture
+  - id: magnitude
+    title: Stretch just the rotation arrow
+    visual: A fixed ruler tracks A's projection against B's stationary mark at four. Cosine and endpoint
+      distance refer to the same moving tip.
+    beats:
+      - say: Suppose we stretch just the green arrow along its own ray. The pink mark stays at four on the dot
+          product ruler. Green starts at one. At what scale will green tie pink?
+        hold: 2.1
+        visual_cues:
+          - id: ask
+            phrase: At what scale will green tie pink
+            targets:
+              - picture
+      - say: At four times its original length. The tips sit at different heights, but they project to the same
+          place on the horizontal axis. Carry green out to ten times its original length. Its dot score
+          passes pink and reaches ten.
+        hold: 0.8
+        visual_cues:
+          - id: four
+            caption_boundary: true
+            phrase: At four times its original length
+            targets:
+              - picture
+          - id: ten
+            phrase: Carry green out to ten times its original length
+            targets:
+              - picture
+      - say: Look back at the cosine. It's still point nine eight one because a positive stretch preserves the
+          angle. Measure the gap from the query now. The endpoint is nine units to the right and two above.
+          That's a distance of about nine point two two. One change in length moved two of our three
+          measurements.
+        hold: 0.7
+        visual_cues:
+          - id: gap
+            phrase: Measure the gap from the query now
+            targets:
+              - picture
+  - id: normalize
+    title: Put both tips on the unit circle
+    visual: The stretched rotation guide and unchanged audit guide slide in along their rays. Chords join the
+      query tip to their unit endpoints.
+    beats:
+      - say: Start with green still stretched to ten across and two up. For each guide, divide both coordinates by
+          its own length. Watch the two tips slide back along their rays. Each stops one unit from the
+          origin. The query was already there. This is L two normalization.
+        hold: 0.65
+        visual_cues:
+          - id: divide
+            phrase: divide both coordinates by its own length
+            targets:
+              - picture
+      - say: Look closer at the circle. Draw a chord from the blue tip to each guide. On this circle the dot
+          product equals cosine because both lengths are one. The squared chord length is one plus one minus
+          twice the dot product. A larger dot product has to give a shorter chord.
+        hold: 0.55
+        visual_cues:
+          - id: closer
+            phrase: Look closer at the circle
+            targets:
+              - picture
+          - id: chords
+            phrase: Draw a chord
+            targets:
+              - picture
+          - id: identity
+            phrase: one plus one minus twice the dot product
+            targets:
+              - picture
+      - say: Green has the larger dot product, about point nine eight one, and the smaller squared gap, about
+          point zero three nine. Pink has a dot product near point eight nine four and a squared gap near
+          point two one one. These are three ways to recover the same exact order on unit vectors. An
+          approximate search still has to find the candidates.
+        hold: 0.7
+        visual_cues:
+          - id: a
+            phrase: the smaller squared gap, about point zero three nine
+            targets:
+              - picture
+          - id: b
+            phrase: a squared gap near point two one one
+            targets:
+              - picture
+  - id: norm-contract
+    title: Check the direction before dividing
+    visual: Two extreme, finite vectors pass through the same safe scaling step. Truly zero and invalid inputs
+      stop before scoring. Doubling the query length scales both dot products.
+    beats:
+      - say: What should the service do with a zero vector? Look at the bottom two rows. Zero has no direction. An
+          empty vector or one with a nonfinite value is invalid too. Reject those
+          inputs and record the failure before scoring. The two rows above them have perfectly good
+          directions.
+        hold: 0.65
+        visual_cues:
+          - id: invalid
+            phrase: Reject those inputs and record the failure before scoring
+            targets:
+              - picture
+      - say: On the first row, squaring the coordinates can overflow. On the second, it can underflow to zero. For
+          each valid row, divide by its largest absolute coordinate first. Both rows become one, one. Now
+          take their length and divide. In each case the result is about point seven zero seven in both
+          coordinates. A fixed epsilon in the denominator could overwhelm the tiny row.
+        hold: 0.7
+        visual_cues:
+          - id: scale
+            phrase: divide by its largest absolute coordinate first
+            targets:
+              - picture
+          - id: result
+            phrase: the result is about point seven zero seven in both coordinates
+            targets:
+              - picture
+      - say: Here's a different question about length. Keep the guides at unit length and double the length of the
+          query. Both dot products double, so their order stays the same. The same holds for any fixed,
+          finite, nonzero query in exact arithmetic. Check that the computed scores are finite too. For
+          actual cosine values, a shared threshold, or the unit-vector distance identity, normalize the
+          query as well. Access to the passage still depends on permission.
+        hold: 0.75
+        visual_cues:
+          - id: factor
+            phrase: double the length of the query
+            targets:
+              - picture
+          - id: contract
+            phrase: normalize the query as well
+            targets:
+              - picture
+  - id: prefix
+    title: Keep the first two coordinates
+    visual: Three eligible rows stay in storage order. The last two coordinates dim on each row. Each query
+      keeps a separate full-width and prefix result.
+    beats:
+      - say: Suppose a model supports several widths. Matryoshka training applies a loss at each selected prefix
+          width so that an early slice can be useful on its own. PCA instead projects vectors after
+          training. Check which widths your model supports. Fewer coordinates mean fewer bytes and less
+          arithmetic per comparison.
+        hold: 0.6
+      - say: Try three eligible guides with four hand-built coordinates each. The rotation query is a copy of the
+          rotation row. The lifecycle query is a copy of lifecycle. Their last coordinates help distinguish
+          them from audit. At full width each query selects its own guide with cosine one.
+        hold: 0.65
+        visual_cues:
+          - id: full
+            phrase: each query selects its own guide with cosine one
+            targets:
+              - picture
+      - say: Keep just the first two coordinates of every query and guide. Normalize the surviving coordinates
+          again for cosine scoring. Ties go to the first row in storage. Which guide wins the rotation query
+          now?
+        hold: 2
+        visual_cues:
+          - id: cut
+            phrase: Keep just the first two coordinates
+            targets:
+              - picture
+          - id: ask
+            phrase: Which guide wins the rotation query now
+            targets:
+              - picture
+      - say: Audit takes it. Both rows start with one, zero, and audit came first. Lifecycle still retrieves
+          lifecycle. Across the two queries, top-one evidence recall falls from two out of two to one out of
+          two. Normalizing a slice fixes its length. The discarded distinction is gone. Test relevance
+          against labeled guides, and test approximate search separately against exact neighbors.
+        hold: 0.8
+        visual_cues:
+          - id: tie
+            caption_boundary: true
+            phrase: Audit takes it
+            targets:
+              - picture
+          - id: life
+            phrase: Lifecycle still retrieves lifecycle
+            targets:
+              - picture
+          - id: hits
+            phrase: from two out of two to one out of two
+            targets:
+              - picture
+  - id: payload
+    title: How many bytes does one row take?
+    visual: One linear byte ruler holds the row width fixed across four formats. A separate shelf counts
+      retained originals. A second store changes the row count and width together.
+    beats:
+      - say: Keep one million rows and a width of fifteen hundred thirty-six. Each coordinate takes four bytes as
+          a full-precision float. That makes six thousand one hundred forty-four bytes per row. Multiply by
+          a million and you get about five point seven two gibibytes of coordinates. One byte per coordinate
+          brings the row down to fifteen hundred thirty-six bytes, a quarter of the original payload.
+        hold: 0.55
+        visual_cues:
+          - id: fp32
+            phrase: six thousand one hundred forty-four bytes per row
+            targets:
+              - picture
+          - id: int8
+            phrase: down to fifteen hundred thirty-six bytes
+            targets:
+              - picture
+      - say: One bit for each coordinate packs the same row into one hundred ninety-two bytes. Suppose instead you
+          store one byte for each group of sixteen coordinates. That's ninety-six groups, or ninety-six
+          bytes per row. This is the product code we'll build later. A million such codes take about
+          ninety-two mebibytes, one sixty-fourth of the float payload.
+        hold: 0.6
+        visual_cues:
+          - id: sign
+            phrase: into one hundred ninety-two bytes
+            targets:
+              - picture
+          - id: codes
+            phrase: ninety-six bytes per row
+            targets:
+              - picture
+      - say: Every group needs a shared book of two hundred fifty-six centers. Each center holds sixteen floats.
+          Across ninety-six books, that's one and a half mebibytes. Now keep the original vectors for
+          rescoring. You still owe the full five point seven two gibibytes somewhere. Links, labels,
+          replicas and metadata go on top of that.
+        hold: 0.65
+        visual_cues:
+          - id: book
+            phrase: one and a half mebibytes
+            targets:
+              - picture
+          - id: originals
+            phrase: keep the original vectors for rescoring
+            targets:
+              - picture
+      - say: Change the size of the store. Give it fifty million rows but halve the width to seven hundred
+          sixty-eight. The choices are side by side. Full precision costs a hundred fifty-three point six
+          decimal gigabytes. One byte per coordinate takes thirty-eight point four. A ninety-six-byte row
+          takes four point eight. These sizes count the rows alone. To find out what still
+          retrieves the right passage, we need a query.
+        hold: 0.65
+        visual_cues:
+          - id: scale
+            phrase: Give it fifty million rows but halve the width to seven hundred sixty-eight
+            targets:
+              - picture
+  - id: quantization
+    title: Two passage tips on a 0.2 grid
+    visual: A magnified grid locates C and D inside one rounding cell. The originals stay marked as their
+      stored copies converge.
+    beats:
+      - say: Keep the query pointing right. Here are two other eligible passages, C and D. We've magnified the
+          tips so you can see the difference. C makes the smaller angle, and its original cosine is higher.
+          What happens if storage keeps only multiples of point two?
+        hold: 0.7
+      - say: The yellow square runs halfway to the neighboring grid lines in both directions. Round each
+          coordinate to the nearest grid value. Where will C and D land?
+        hold: 2.2
+        visual_cues:
+          - id: cell
+            phrase: The yellow square
+            targets:
+              - picture
+          - id: ask
+            phrase: Where will C and D land
+            targets:
+              - picture
+      - say: Move each tip to its nearest grid point. Both land at one, point two. They now tie on cosine. The
+          little marks they left behind are their originals. Quantization has erased a distinction we could
+          measure there.
+        hold: 0.8
+        visual_cues:
+          - id: round
+            phrase: Move each tip to its nearest grid point
+            targets:
+              - picture
+          - id: tie
+            caption_boundary: true
+            phrase: They now tie on cosine
+            targets:
+              - picture
+      - say: We can store those originals separately and use the cheap codes to choose a shortlist. The question
+          for a search system is whether that shortlist still contains the passage we need. We'll come back
+          to these two points with a different query.
+        hold: 0.65
+  - id: scalar-codec
+    title: A byte code needs a reconstruction rule
+    visual: A coordinate becomes a signed byte and decodes back to 0.42. Two aligned rulers show how the same byte positions map to an interval that starts at two.
+    beats:
+      - say: Let's pack one coordinate into a signed byte. The coordinate is point four two four.
+          The largest absolute value in this dimension's calibration sample is one point two seven.
+          Divide that bound by one hundred twenty-seven. Each step is one hundredth. Dividing the
+          coordinate by that step gives forty-two point four. Round to forty-two and clip to the
+          range from minus one hundred twenty-seven to plus one hundred twenty-seven. Forty-two fits.
+          Store that byte. Multiply by the step to recover point four two.
+        hold: 0.7
+        visual_cues:
+          - id: step
+            phrase: Each step is one hundredth
+            targets:
+              - picture
+          - id: divide
+            phrase: Dividing the coordinate by that step gives forty-two point four
+            targets:
+              - picture
+          - id: round
+            phrase: Round to forty-two
+            targets:
+              - picture
+          - id: clip
+            phrase: Forty-two fits
+            targets:
+              - picture
+          - id: byte
+            phrase: Store that byte
+            targets:
+              - picture
+          - id: decode
+            phrase: Multiply by the step to recover point four two
+            targets:
+              - picture
+      - say: This gives two hundred fifty-five levels and leaves minus one hundred twenty-eight unused.
+          Fit one scale per dimension and freeze it for later rows. For an all-zero calibration
+          dimension, a scale of one maps zero to zero. Pack the codes in a signed-byte array to get
+          one byte per coordinate. Use the same scales when you score the stored rows.
+        hold: 0.7
+        visual_cues:
+          - id: freeze
+            phrase: Fit one scale per dimension and freeze it
+            targets:
+              - picture
+      - say: Now spread an unsigned byte over the interval from two to three. Each step is one over
+          two hundred fifty-five. Code zero reconstructs two and code two hundred fifty-five
+          reconstructs three. Two is the real offset you add when you decode. Where would real zero
+          fall on that ruler?
+        hold: 1.7
+        caption_starts:
+          - Where would real zero fall
+        visual_cues:
+          - id: range
+            phrase: Code zero reconstructs two and code two hundred fifty-five reconstructs three
+            targets:
+              - picture
+          - id: offset
+            phrase: Two is the real offset you add
+            targets:
+              - picture
+          - id: range-codec
+            phrase: Now spread an unsigned byte over the interval from two to three
+            targets:
+              - picture
+          - id: zero
+            phrase: Code zero reconstructs two
+            targets:
+              - picture
+          - id: locate-zero
+            phrase: Where would real zero fall on that ruler
+            targets:
+              - picture
+      - say: Five hundred ten steps to the left of code zero, outside the byte. An interval from zero
+          to three can represent zero exactly with the same number of steps. Each step is now three
+          times as wide.
+        hold: 0.7
+        visual_cues:
+          - id: invalid
+            phrase: outside the byte
+            targets:
+              - picture
+          - id: widen-range
+            phrase: Each step is now three times as wide
+            targets:
+              - picture
+      - say: For a dot product, multiply the query coordinate by the whole decoded value, offset
+          plus scale times code. Then add up the terms. For a fixed query, an offset shared across
+          rows adds the same amount to every score. You can leave it out when ranking those rows.
+          Include it when reporting scores, applying a threshold, or comparing rows with different offsets.
+        hold: 0.7
+        visual_cues:
+          - id: dot
+            phrase: offset plus scale times code
+            targets:
+              - picture
+  - id: scalar-scales
+    title: What does one code step buy?
+    visual: Two 127-step rulers span different coordinate ranges. Restoring each step size reverses the
+      code-only ranking.
+    beats:
+      - say: Here's a shortcut that sends the wrong passage to the top. The query gives equal weight to both
+          coordinates. A contributes eight in the first coordinate. B contributes one in the second. The
+          first ruler covers zero to ten in a hundred and twenty-seven steps. The second covers just zero to
+          one in the same number of steps.
+        hold: 0.65
+      - say: Eight lands on code one hundred two. One on the shorter ruler uses every step, code one hundred
+          twenty-seven. Add up just the code values and B wins on counts. Which row has the larger dot
+          product once you restore the units?
+        hold: 2
+        visual_cues:
+          - id: codes
+            phrase: code one hundred twenty-seven
+            targets:
+              - picture
+          - id: wrong
+            phrase: B wins on counts
+            targets:
+              - picture
+          - id: ask
+            phrase: Which row has the larger dot product once you restore the units
+            targets:
+              - picture
+      - say: A does. Each of its steps is ten over one hundred twenty-seven, ten times as big as a step on the
+          second ruler. Multiply each code by its own scale. A scores about eight point zero three one. B
+          scores one. The slight rounding error leaves the original order intact.
+        hold: 0.75
+        visual_cues:
+          - id: restore
+            phrase: B scores one
+            targets:
+              - picture
+      - say: That's the repair for inner product. If your index promises cosine, check the lengths of the
+          reconstructed vectors too. Even if the originals were unit length, rounding can move their tips
+          off the unit circle. Compare against exact cosine before accepting that approximation.
+        hold: 0.7
+  - id: calibration
+    title: An outlier spends the available buckets
+    visual: Two staircases share equal-unit axes over the same 101 ordinary values; a separate outlier
+      point retains its clipping error.
+    beats:
+      - say: Take one hundred one equally spaced ordinary values from minus one to one, then include one
+          calibration value at twenty-five. A maximum-derived bound of twenty-five gives a step of
+          twenty-five over one hundred twenty-seven. Many ordinary values collapse into the same
+          bucket. A supplied clipped bound of one gives finer ordinary resolution but saturates the
+          outlier.
+        hold: 0.7
+        visual_cues:
+          - id: wide
+            phrase: Many ordinary values collapse into the same bucket
+            targets:
+              - picture
+          - id: fine
+            phrase: finer ordinary resolution
+            targets:
+              - picture
+      - say: Calculated on these ordinary values, mean absolute reconstruction error is about zero point
+          zero four eight three with the wide bound and zero point zero zero one nine with bound
+          one. Clipping twenty-five to one also incurs an error of twenty-four. For a separate
+          direction test, normalize the rows one, zero point zero five and one, zero point zero four
+          against query one, zero. The second direction is closer. The coarse codec makes both
+          candidates identical and changes the tie-broken winner; finer calibration preserves the
+          better direction. Select calibration on development data and measure held-out shortlist
+          recall, including clipped cases.
+        hold: 0.7
+        visual_cues:
+          - id: errors
+            phrase: zero point zero zero one nine with bound one
+            targets:
+              - picture
+          - id: clip
+            phrase: an error of twenty-four
+            targets:
+              - picture
+          - id: original
+            phrase: The second direction is closer.
+            targets:
+              - picture
+          - id: coarse
+            phrase: changes the tie-broken winner
+            targets:
+              - picture
+          - id: precise
+            phrase: finer calibration preserves the better direction.
+            targets:
+              - picture
+          - id: outlier
+            phrase: Clipping twenty-five to one
+            targets:
+              - picture
+          - id: directions
+            phrase: For a separate direction test
+            targets:
+              - picture
+  - id: wide-arithmetic
+    title: Run the dot product in two widths
+    visual: The two exact integer scores split into high and low bytes. Narrow output discards each high byte.
+      Widening the inputs preserves both bytes.
+    beats:
+      - say: Suppose both the query and the stored rows are integer codes. The query and A each contain two copies
+          of one hundred twenty-seven. B is smaller by one in both coordinates. Both products should be
+          larger for A. The exact sums are thirty-two thousand two hundred fifty-eight for A and thirty-two
+          thousand four for B.
+        hold: 0.8
+        visual_cues:
+          - id: correct
+            phrase: thirty-two thousand two hundred fifty-eight for A and thirty-two thousand four for B
+            targets:
+              - picture
+      - say: Write the result into a signed eight-bit integer. The high bytes disappear. The low bytes read two
+          for A and four for B. The smaller original score now wins. What happens if you cast those results
+          to a wider type?
+        hold: 1.8
+        visual_cues:
+          - id: wrap
+            phrase: The low bytes read two for A and four for B
+            targets:
+              - picture
+      - say: You still have two and four. Those high bytes are gone. Widen the operands before multiplication and
+          give the sum a wide enough accumulator. Now the full scores survive. With this symmetric codec, an
+          absolute bound is the dimension count times one hundred twenty-seven squared. For fifteen hundred
+          thirty-six coordinates that's about twenty-four point eight million, safely inside signed
+          thirty-two-bit range. Other code ranges and offsets need their own bound.
+        hold: 0.7
+        visual_cues:
+          - id: late
+            phrase: You still have two and four
+            targets:
+              - picture
+          - id: widen
+            phrase: Widen the operands before multiplication
+            targets:
+              - picture
+          - id: bound
+            phrase: safely inside signed thirty-two-bit range
+            targets:
+              - picture
+  - id: pq-codebooks
+    title: Store one ID for each pair
+    visual: Four pairs share a row. Open the book for one pair at a time and send the nearest center's ID to the matching storage slot.
+    beats:
+      - say: Split these eight coordinates into four pairs. Open the first book. It holds two representative
+          points called centers. We'll store the ID of the nearest one.
+        hold: 0.65
+        visual_cues:
+          - id: split
+            phrase: Split these eight coordinates into four pairs
+            targets:
+              - picture
+          - id: nearest
+            phrase: Open the first book
+            targets:
+              - picture
+      - say: The first pair is one point two, three point four. Compare it with the two centers on the page.
+          Which center is nearest?
+        hold: 1.7
+        caption_starts:
+          - Which center is nearest
+      - say: Center one matches exactly. Store its ID in the first slot. Repeat with the other three books.
+          All four slots hold a one, yet each one retrieves a different pair. Its position tells you
+          which book to open. That's product quantization. To train each book, k-means clusters samples
+          from its pair of coordinates to minimize squared reconstruction error. To test search quality,
+          rank passages for labeled queries.
+        hold: 0.6
+        visual_cues:
+          - id: ids
+            caption_boundary: true
+            phrase: Center one matches exactly
+            targets:
+              - picture
+          - id: repeat
+            phrase: Repeat with the other three books
+            targets:
+              - picture
+      - say: These four slots use one byte each. Two choices would fit in one bit with bit packing. A book
+          with two hundred fifty-six centers uses every value in a byte. To decode the row later, keep
+          the codebook version, pair order, width and codec with the index.
+        hold: 0.75
+        visual_cues:
+          - id: store
+            phrase: These four slots use one byte each
+            targets:
+              - picture
+  - id: pq-distance
+    title: Read a distance from the stored IDs
+    visual: Four pairs share one lookup table. A change to the second ID substitutes one term. A
+      one-dimensional replay isolates what happens when the query is quantized too.
+    beats:
+      - say: Keep the query in full precision. Look at its first pair and center one. Each coordinate differs by a
+          tenth. Square those two differences and add them. That entry is point zero two.
+        hold: 0.6
+        visual_cues:
+          - id: first
+            phrase: That entry is point zero two
+            targets:
+              - picture
+      - say: Fill the other entries the same way. Each row of this table belongs to one pair. Center zero is the
+          origin in every pair. These are squared distances. For an inner product index, you'd fill the
+          cells with dot products instead.
+        hold: 0.6
+        visual_cues:
+          - id: fill
+            phrase: Fill the other entries
+            targets:
+              - picture
+      - say: Read the stored IDs from the previous example. Each one selects the right-hand entry in its row. Four
+          copies of point zero two add up to point zero eight. We used the original query to score a
+          compressed document. That's asymmetric distance computation, or A D C.
+        hold: 0.65
+        visual_cues:
+          - id: read
+            phrase: Read the stored IDs
+            targets:
+              - picture
+          - id: near
+            phrase: add up to point zero eight
+            targets:
+              - picture
+      - say: Now change just the second ID to zero. Which term in the sum changes?
+        hold: 2
+        visual_cues:
+          - id: change
+            phrase: change just the second ID to zero
+            targets:
+              - picture
+      - say: The second lookup moves left to four point four nine. The three other terms stay at point zero two.
+          The new total is four point five five.
+        hold: 2.4
+        visual_cues:
+          - id: second
+            caption_boundary: true
+            phrase: The second lookup moves left to four point four nine
+            targets:
+              - picture
+          - id: mixed
+            caption_boundary: true
+            phrase: The new total is four point five five
+            targets:
+              - picture
+      - say: Try all four zero IDs. Each pair reads its left-hand entry and the total becomes fifty-six point five
+          seven. The same query table served all three documents. With ninety-six pairs and two hundred
+          fifty-six centers per pair, a four-byte float table takes ninety-six kibibytes per query. Some
+          FastScan implementations quantize the table entries too.
+        hold: 0.7
+        visual_cues:
+          - id: size
+            phrase: ninety-six kibibytes per query
+            targets:
+              - picture
+          - id: allzero
+            phrase: Try all four zero IDs
+            targets:
+              - picture
+          - id: far
+            caption_boundary: true
+            phrase: the total becomes fifty-six point five seven
+            targets:
+              - picture
+      - say: Shrink the example to one number line. The centers are zero and two. Query and document A both start
+          at one point four. Document B sits at two. The original squared gaps are zero and point three six.
+        hold: 0.55
+        visual_cues:
+          - id: line
+            phrase: one number line
+            targets:
+              - picture
+          - id: exact
+            caption_boundary: true
+            phrase: The original squared gaps are zero and point three six
+            targets:
+              - picture
+      - say: Move each document to its nearest center. Both are stored at two. The full query stays at one point
+          four, so A D C gives both a squared gap of point three six.
+        hold: 0.6
+        visual_cues:
+          - id: docs
+            phrase: Move each document to its nearest center
+            targets:
+              - picture
+          - id: adc
+            caption_boundary: true
+            phrase: a squared gap of point three six
+            targets:
+              - picture
+      - say: Move the query to its nearest center too. All three now sit at two. Both squared gaps become zero.
+          That's symmetric distance computation. Each method got one original distance right here, yet
+          neither code could separate the two passages.
+        hold: 0.75
+        visual_cues:
+          - id: query
+            phrase: Move the query to its nearest center too
+            targets:
+              - picture
+          - id: sdc
+            caption_boundary: true
+            phrase: Both squared gaps become zero
+            targets:
+              - picture
+  - id: pq-transform
+    title: Preserve the scoring objective across transformations
+    visual: The same points rotate before subspace boundaries are drawn, then reconstructed norms and a
+      residual coarse-centroid anchor enter the score calculation.
+    beats:
+      - say: Quantization can change reconstructed lengths. An inner-product lookup table measures query dot
+          reconstructed document, not necessarily their cosine. Reconstructed norm tables can supply
+          the missing norm. Even when original vectors were normalized, unequal reconstructed norms
+          can make L2 and inner-product code rankings differ. Choose and evaluate the actual serving
+          objective.
+        hold: 0.7
+        visual_cues:
+          - id: norm
+            phrase: Reconstructed norm tables can supply the missing norm
+            targets:
+              - picture
+          - id: lengths
+            phrase: Quantization can change reconstructed lengths.
+            targets:
+              - picture
+      - say: Optimized product quantization learns an orthonormal transform together with codebooks to
+          reduce distortion under the selected subspace decomposition. Apply the same transform to
+          queries. Before quantization, an orthonormal transform preserves exact dot products and L2
+          distances. Afterward, the codebooks still introduce approximation, so reconstruction error
+          and retrieval quality remain separate measurements.
+        hold: 0.7
+        visual_cues:
+          - id: rotate
+            phrase: Apply the same transform to queries
+            targets:
+              - picture
+          - id: quantize
+            phrase: the codebooks still introduce approximation
+            targets:
+              - picture
+      - say: An IVF residual path first chooses a coarse centroid and encodes document minus that centroid.
+          Scoring must account for that coarse anchor; interpreting residual codes as complete
+          vectors uses the wrong origin. Version transforms, coarse centroids and subspace codebooks
+          together, and test a separately built index before migrating serving traffic.
+        hold: 0.7
+        visual_cues:
+          - id: anchor
+            phrase: encodes document minus that centroid
+            targets:
+              - picture
+          - id: restore
+            phrase: Scoring must account for that coarse anchor
+            targets:
+              - picture
+  - id: binary-pack
+    title: Pack signs into a byte
+    visual: Two coordinate strips become sign bits. Bit three singles out the coordinate where A and B disagree.
+    beats:
+      - say: What if you keep only the sign? Put a one wherever the coordinate is positive, and a zero everywhere
+          else. Compare A and B from left to right. Only the last coordinate changes sign. In dimension
+          order, A ends in zero and B ends in one.
+        hold: 0.7
+        visual_cues:
+          - id: signs
+            phrase: A ends in zero and B ends in one
+            targets:
+              - picture
+      - say: Put dimension zero in the least significant bit. The first coordinate moves to the right-hand end of
+          the byte. The high bits are padding. In hexadecimal A is zero five and B is zero D. Exclusive OR
+          keeps a one at bit three, where their signs differ. Count the set bits. The Hamming distance is
+          one.
+        hold: 0.7
+        visual_cues:
+          - id: pack
+            phrase: Put dimension zero in the least significant bit
+            targets:
+              - picture
+          - id: packed
+            phrase: In hexadecimal A is zero five and B is zero D
+            targets:
+              - picture
+          - id: xor
+            phrase: Exclusive OR keeps a one at bit three
+            targets:
+              - picture
+          - id: count
+            phrase: The Hamming distance is one
+            targets:
+              - picture
+      - say: For wider vectors, store the low byte first and sum the bit counts across words. Some processors can
+          count many bits in parallel. Check the actual throughput. Four coordinates take a whole byte, and
+          nine need two. Round the byte count up and keep unused high bits zero. Check the logical width,
+          payload length and padding before comparing codes.
+        hold: 0.65
+        visual_cues:
+          - id: padding
+            phrase: keep unused high bits zero
+            targets:
+              - picture
+      - say: At widths divisible by eight, sign bits take one thirty-second of the original four-byte float
+          payload. Any graph links and originals you retain still take space. The next pair shows what those
+          missing magnitude bits could have told us.
+        hold: 0.65
+  - id: sign-angle
+    title: Change the magnitudes and keep the signs
+    visual: Two magnitude profiles start together. The tall bars move to different coordinates on the second
+      profile, and the fixed-axis codes stay identical.
+    beats:
+      - say: These two rows start out identical. On the pink row, exchange the tall and short bars within each
+          pair. Both rows still have mean zero, two positive coordinates and two negative ones. How many of
+          their sign bits now disagree?
+        hold: 1.9
+        visual_cues:
+          - id: shift
+            phrase: exchange the tall and short bars within each pair
+            targets:
+              - picture
+      - say: None. Their Hamming distance is zero. But where green has a big coordinate, pink has a small one.
+          Their cosine is only about point zero two. The directions are nearly at right angles.
+        hold: 0.65
+        visual_cues:
+          - id: same
+            phrase: Their Hamming distance is zero
+            targets:
+              - picture
+          - id: cos
+            phrase: Their cosine is only about point zero two
+            targets:
+              - picture
+      - say: The angle divided by pi is about point four nine four. There's a related way to make bits.
+          Independently sampled isotropic random hyperplanes cut the space at random orientations. The
+          expected fraction of bits that differ is the angle divided by pi. More independent bits
+          concentrate around that expectation. Our four signs came from fixed axes. Balancing their
+          frequencies doesn't give those axes random orientations.
+        hold: 0.65
+        visual_cues:
+          - id: angle
+            phrase: The angle divided by pi is about point four nine four
+            targets:
+              - picture
+          - id: random
+            phrase: Independently sampled isotropic random hyperplanes
+            targets:
+              - picture
+      - say: With three hundred eighty-four bits, one query has only three hundred eighty-five possible distances.
+          A hundred thousand rows must include ties. Check whether ties cross the shortlist boundary on
+          labeled queries. Inspect bit frequencies and correlations too. Rotations and extra bits change the
+          codec, so benchmark their own packing, scoring and total memory.
+        hold: 0.7
+        visual_cues:
+          - id: ties
+            phrase: three hundred eighty-five possible distances
+            targets:
+              - picture
+  - id: graph
+    title: When does a detour find a nearer point?
+    visual: Two searches enter at B on the same base graph. Only the wider search can explore the route
+      through A and C to E.
+    beats:
+      - say: Compression changes the bytes you read per row. A graph can change how many rows you visit. In H N S
+          W, every point belongs to the base layer. The upper layers hold progressively fewer points. Start
+          at the top, follow links toward the query, then drop to the same point in the layer below. At the
+          base, keep a list of promising alternatives.
+        hold: 0.65
+        visual_cues:
+          - id: layers
+            phrase: upper layers hold progressively fewer points
+            targets:
+              - picture
+      - say: Here are the base-layer links for one small graph. The blue query sits at five, two, just below E.
+          Enter at B with room for one candidate. A takes you farther from the query. D improves the squared
+          gap from eight to five. D links back only to B, so the search stops there.
+        hold: 0.8
+        visual_cues:
+          - id: base
+            phrase: Here are the base-layer links
+            targets:
+              - picture
+          - id: greedy
+            phrase: D improves the squared gap from eight to five
+            targets:
+              - picture
+          - id: stop
+            phrase: the search stops there
+            targets:
+              - picture
+      - say: Start from B again, this time with room for three candidates. The direct route through D is still
+          worth checking. Now we can also keep the detour through A. From A we can reach C, and from C we
+          can reach E. E's gap is a tenth, with squared distance point zero one. We changed the search
+          effort and found a different neighbor on exactly the same graph.
+        hold: 0.75
+        visual_cues:
+          - id: restart
+            phrase: this time with room for three candidates
+            targets:
+              - picture
+          - id: wider
+            phrase: keep the detour through A
+            targets:
+              - picture
+          - id: c
+            phrase: From A we can reach C
+            targets:
+              - picture
+          - id: e
+            phrase: from C we can reach E
+            targets:
+              - picture
+          - id: found
+            phrase: with squared distance point zero one
+            targets:
+              - picture
+      - say: This search-list size is called ef. It limits the candidates retained while exploring. A search may
+          visit many more nodes. In h n s w lib, ef must be at least the number of neighbors you request. To
+          choose a value, measure recall and time together.
+        hold: 0.65
+  - id: index-memory
+    title: Choose a search budget on a fixed graph
+    visual: Layer retention, a measured query-effort trade-off and base-layer storage each use their own units.
+    beats:
+      - say: In one common H N S W level sampler, the chance of reaching the next layer is one over M. At M
+          thirty-two, about one node in thirty-two reaches layer one, or three point one two five percent.
+          Layer two gets one in one thousand twenty-four. The sampler takes the floor of minus log U divided
+          by log M, with U uniform between zero and one. The scale, one over log M, is about point two eight
+          nine here.
+        hold: 0.65
+        visual_cues:
+          - id: layer1
+            phrase: three point one two five percent
+            targets:
+              - picture
+          - id: layer2
+            phrase: Layer two gets one in one thousand twenty-four
+            targets:
+              - picture
+      - say: M sets the link capacity at build time. Construction effort controls how far each insertion explores.
+          Changing either means building another graph. On one fixed graph, try three query effort settings.
+          These are example measurements. Recall at ten must reach point nine six, and the ninety-ninth
+          percentile latency must stay within sixty milliseconds. Which row meets both gates?
+        hold: 2.1
+        visual_cues:
+          - id: query
+            phrase: On one fixed graph, try three query effort settings
+            targets:
+              - picture
+      - say: Use forty-eight here. Sixteen misses recall. Ninety-six takes too long. This setting depends on the
+          measured workload. If every setting misses a gate, compare rebuilt graphs.
+        hold: 0.7
+        visual_cues:
+          - id: choose
+            caption_boundary: true
+            phrase: Use forty-eight here
+            targets:
+              - picture
+      - say: Now count the links in memory. Suppose the base layer reserves twice M neighbor IDs per row at four
+          bytes each. At M thirty-two, that's two hundred fifty-six bytes of neighbor slots per row. The
+          slots alone outweigh the ninety-six-byte product code. Counts, upper links and metadata need space
+          too. The h n s w lib estimate for graph overhead is roughly eight to ten times M bytes per row.
+          Profile traversal and vector fetches before shrinking the code again.
+        hold: 0.75
+        visual_cues:
+          - id: memory
+            phrase: count the links in memory
+            targets:
+              - picture
+          - id: slots
+            phrase: two hundred fifty-six bytes of neighbor slots per row
+            targets:
+              - picture
+  - id: authorized-funnel
+    title: Who gets the single shortlist slot?
+    visual: Three passage IDs carry their sign codes and permission status through a fixed tie. The gate moves
+      ahead of the one-slot cutoff for a second run.
+    beats:
+      - say: Now suppose some passages are private. The query has four signs, positive, negative, positive,
+          negative. Read those as one zero one zero. The private note and the rotation guide both match
+          every bit, so both have Hamming distance zero. Lifecycle differs in two places. Our search breaks
+          ties in storage order. Private comes first.
+        hold: 0.7
+        visual_cues:
+          - id: tie
+            phrase: both have Hamming distance zero
+            targets:
+              - picture
+      - say: Give the search one slot and check access after that cutoff. Who can we fetch from this shortlist?
+        hold: 2.05
+        visual_cues:
+          - id: ask
+            phrase: Who can we fetch from this shortlist
+            targets:
+              - picture
+      - say: Nobody. The private note takes the only slot. Enforcing permission removes it. That leaves no
+          evidence to fetch. Scoring the survivors more precisely can't help when the list is empty.
+        hold: 0.9
+        visual_cues:
+          - id: select
+            phrase: The private note takes the only slot
+            targets:
+              - picture
+          - id: denied
+            phrase: Enforcing permission removes it
+            targets:
+              - picture
+          - id: empty
+            caption_boundary: true
+            phrase: That leaves no evidence to fetch
+            targets:
+              - picture
+      - say: Widen the list to two. The denied note still drops out, but rotation now survives the permission
+          check. Fetch its retained vector and rescore it. That works here, at the cost of a larger
+          first-stage list.
+        hold: 0.75
+        visual_cues:
+          - id: widen
+            phrase: Widen the list to two
+            targets:
+              - picture
+          - id: survive
+            phrase: rotation now survives the permission check
+            targets:
+              - picture
+          - id: rescore
+            phrase: Fetch its retained vector
+            targets:
+              - picture
+      - say: Return to one slot and move permission ahead of selection. Now the denied note never spends the slot.
+          Rotation is the nearest eligible code and takes first place. This requires an index that can
+          filter during search. Recheck current access before fetching text, including text sent to a
+          reranker or a generator.
+        hold: 0.75
+        visual_cues:
+          - id: native
+            phrase: move permission ahead of selection
+            targets:
+              - picture
+          - id: kept
+            phrase: Rotation is the nearest eligible code and takes first place
+            targets:
+              - picture
+          - id: access
+            phrase: Recheck current access before fetching text
+            targets:
+              - picture
+      - say: If every match is denied, take the empty-result path. If enough authorized passages survive, you can
+          test a cross-encoder on just those query-passage pairs. Count the relevance gain and the added
+          reranking time.
+        hold: 0.7
+  - id: deployment
+    title: A budget for fifty million vectors
+    visual: Two runs share a model, permissions, normalized originals and judged queries. Adding scalar codes
+      fills a storage ledger while the latency measurement remains outstanding.
+    beats:
+      - say: You're sizing the fifty-million-row store. The service has sixty milliseconds at the ninety-ninth
+          percentile. Keep a full-precision reference. Scan eligible originals using the model's dot product
+          on unit vectors. Save the encoder version, width, normalization and metric with the index so you
+          can repeat the comparison.
+        hold: 0.65
+      - say: For the candidate run, search scalar codes with the same permissions. Fetch and rescore the survivors
+          using their original vectors. Keep the query transform and evaluation set fixed. Version the
+          calibration and search settings too. The codes add thirty-eight point four gigabytes. If you keep
+          all the originals as well, the two vector stores total a hundred ninety-two gigabytes. The
+          originals can live outside hot memory.
+        hold: 0.7
+        visual_cues:
+          - id: candidate
+            phrase: For the candidate run
+            targets:
+              - picture
+          - id: code
+            phrase: The codes add thirty-eight point four gigabytes
+            targets:
+              - picture
+          - id: retained
+            phrase: total a hundred ninety-two gigabytes
+            targets:
+              - picture
+      - say: The first-stage index got smaller. Does that establish that a request finishes within sixty
+          milliseconds?
+        hold: 1.9
+        visual_cues:
+          - id: ask
+            phrase: Does that establish that a request finishes within sixty milliseconds
+            targets:
+              - picture
+      - say: We still need the end-to-end latency measurement. Time the search, original-vector fetch and rescore
+          on the serving path. On those same queries, compare exact-neighbor recall, then judge the returned
+          passages for relevance. If rank matters, a measure such as N D C G gives more credit for useful
+          passages near the top.
+        hold: 0.75
+        visual_cues:
+          - id: time
+            caption_boundary: true
+            phrase: We still need the end-to-end latency measurement
+            targets:
+              - picture
+  - id: synthesis
+    title: Turn the query
+    visual: The query rotates in place between two fixed guides. Dots and cosines use the new direction.
+      Endpoint gaps and unit chords test the ranking separately.
+    beats:
+      - say: Bring back the rotation and audit guides at their original coordinates. Keep both guides still and
+          turn the query straight up. Its coordinates are now zero, one. A dot product with this query picks
+          out a guide's height. Audit reaches two and rotation reaches point two, so audit wins.
+        hold: 0.65
+        visual_cues:
+          - id: turn
+            phrase: turn the query straight up
+            targets:
+              - picture
+          - id: up
+            phrase: Its coordinates are now zero, one
+            targets:
+              - picture
+          - id: dot
+            phrase: so audit wins
+            targets:
+              - picture
+      - say: Audit also points closer to straight up. Its cosine is about point four four seven, compared with
+          point one nine six for rotation. Now look at the blue tip. Which original tip is nearest to the
+          new query?
+        hold: 2.15
+        visual_cues:
+          - id: cos
+            phrase: point one nine six for rotation
+            targets:
+              - picture
+          - id: ask
+            phrase: Which original tip is nearest to the new query
+            targets:
+              - picture
+      - say: Rotation is nearer. From blue to green it's one across and point eight down, a gap of about one point
+          two eight. The pink tip is four across and one up, more than four units away.
+        hold: 0.75
+        visual_cues:
+          - id: gap
+            caption_boundary: true
+            phrase: Rotation is nearer
+            targets:
+              - picture
+      - say: Slide the guides onto the unit circle and measure again. The shorter chord now goes to audit. Cosine,
+          dot product and squared distance all put audit first on the unit circle. Keep the query pointing
+          up for one last search.
+        hold: 0.7
+        visual_cues:
+          - id: unit
+            phrase: Slide the guides onto the unit circle
+            targets:
+              - picture
+          - id: order
+            phrase: all put audit first on the unit circle
+            targets:
+              - picture
+  - id: fresh-query
+    title: Rescoring the upward query
+    visual: A fixed pair of tied rows feeds a one-slot shortlist and then a two-slot shortlist. Only admitted
+      IDs can reach their original cosine scores.
+    beats:
+      - say: The query still points up. Look at the two passages we rounded earlier. Their original lengths are
+          nearly identical, but D reaches higher. With the full coordinates, D wins on cosine.
+        hold: 0.65
+        visual_cues:
+          - id: reference
+            caption_boundary: true
+            phrase: D wins on cosine
+            targets:
+              - picture
+      - say: Use the same point-two grid as before. C and D both store one, point two. They have the same
+          compressed score. Break ties in storage order, C before D. Suppose the first stage keeps one slot.
+          Can rescoring that shortlist return D?
+        hold: 2.35
+        visual_cues:
+          - id: codes
+            phrase: C and D both store one, point two
+            targets:
+              - picture
+          - id: tie
+            phrase: Break ties in storage order
+            targets:
+              - picture
+          - id: one
+            phrase: keeps one slot
+            targets:
+              - picture
+          - id: ask
+            phrase: Can rescoring that shortlist return D
+            targets:
+              - picture
+      - say: It can't. C takes the slot. Fetch C's original vector. Its cosine is about point one three. C is the
+          only possible result. A more accurate calculation on C still leaves D outside.
+        hold: 1
+        visual_cues:
+          - id: omit
+            phrase: C takes the slot
+            targets:
+              - picture
+          - id: fetchc
+            phrase: Fetch C's original vector
+            targets:
+              - picture
+          - id: scorec
+            phrase: Its cosine is about point one three
+            targets:
+              - picture
+          - id: only
+            caption_boundary: true
+            phrase: C is the only possible result
+            targets:
+              - picture
+      - say: Widen the shortlist to two. Leave the query, grid and tie rule alone. D now gets a slot. Fetch D's
+          original vector. Its cosine is point two eight, higher than C's. D comes back first.
+        hold: 0.85
+        visual_cues:
+          - id: widen
+            phrase: Widen the shortlist to two
+            targets:
+              - picture
+          - id: admit
+            phrase: D now gets a slot
+            targets:
+              - picture
+          - id: fetchd
+            phrase: Fetch D's original vector
+            targets:
+              - picture
+          - id: scored
+            phrase: Its cosine is point two eight
+            targets:
+              - picture
+          - id: win
+            caption_boundary: true
+            phrase: D comes back first
+            targets:
+              - picture
+      - say: One extra fetch recovered D. Time that read as well as the scoring. On held-out queries, count how often the exact neighbor survives, then check the passages against human relevance judgments. In attention, dot products like these will tell a token how much to read from each neighbor.
+        hold: 1

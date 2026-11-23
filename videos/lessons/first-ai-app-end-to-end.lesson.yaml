@@ -1,0 +1,673 @@
+version: 1
+id: first-ai-app-end-to-end
+title: First AI App End-to-End
+opening: lesson
+source: preparation/first-ai-app-end-to-end/content.md
+sources:
+  - title: FastAPI Testing
+    url: https://fastapi.tiangolo.com/tutorial/testing/
+  - title: Pydantic Models
+    url: https://docs.pydantic.dev/latest/concepts/models/
+  - title: SQLite Transaction Control
+    url: https://docs.python.org/3/library/sqlite3.html#transaction-control
+scenes:
+  - id: opening
+    title: "Is this key due for rotation?"
+    visual: >-
+      A cursor rests on Check policy beside a service key. The button dims while Luna waits. Reloading the local page replaces the waiting message with Ready and enables the button again.
+    beats:
+      - say: >-
+          Click Check policy. While Luna waits to see if this stale key is due for rotation, reload the page.
+        caption_starts: ["While Luna waits", "reload the page"]
+        hold: 0.8
+        motion_check:
+          region: [840, 525, 695, 287]
+          minimumChangedFraction: 0.002
+        visual_cues:
+          - id: send-report
+            phrase: "Click Check policy"
+            targets: [button]
+            color: blue
+          - id: reload-page
+            phrase: "reload the page"
+            targets: [reload, status]
+            color: yellow
+      - say: >-
+          Ready again. Did the server finish the check?
+        hold: 2.2
+        visual_cues:
+          - id: ask-ready
+            phrase: "Did the server finish the check"
+            targets: [status]
+            color: yellow
+      - say: >-
+          Ready tells Luna she can submit again. To see what happened to the first request, let's follow it into the server.
+        caption_starts: ["To see what happened"]
+        hold: 0.75
+        visual_cues:
+          - id: past-attempt
+            phrase: "she can submit again"
+            targets: [button]
+            color: cyan
+  - id: assemble-app
+    title: "Where the click goes"
+    visual: >-
+      The local form, FastAPI handler and policy checker connect to the provider, server facts and SQLite file. The launch command and loopback address stay together.
+    beats:
+      - say: >-
+          Put the two downloads in one folder and run the command on screen. Open the local address. The form sends an account and a report to a FastAPI route. The policy checker lives on that server.
+        hold: 0.75
+        visual_cues:
+          - id: app-checker-role-b1-1
+            phrase: "policy checker lives on that server"
+            targets: [app-checker-role]
+            color: green
+      - say: >-
+          The handler reads invented account facts, asks a fixture provider for a proposed answer, and saves the attempt in SQLite. The fixture applies a rule directly, so the same facts give the same answer. The trace's prompt version identifies that fixture configuration.
+        caption_starts: ["The fixture applies a rule directly", "The trace's prompt version"]
+        hold: 0.8
+        visual_cues:
+          - id: app-adapter-0-b2-1
+            phrase: "invented account facts"
+            targets: [app-adapter-0]
+            color: blue
+          - id: fixture-version
+            phrase: "The trace's prompt version"
+            targets: [fixture-version]
+            color: yellow
+      - say: >-
+          Start with the default account. Later, we can give this same route a provider that returns a wrong answer. That lets us test the wiring from a real HTTP request to a saved outcome. A hosted adapter would keep its credentials here on the server. Anyone using the browser can inspect what you send to it.
+        hold: 0.8
+        visual_cues:
+          - id: app-handler-role-b3-1
+            phrase: "here on the server"
+            targets: [app-handler-role]
+            color: yellow
+  - id: input-contract
+    title: "Whose key age is it?"
+    visual: >-
+      The validated account number locates a server record. An extra age field in the request fails validation. Twenty spaces strip down to an empty report.
+    beats:
+      - say: >-
+          Luna sends the account number and a short report. The route checks the account format and the report before it creates a trace or spends a provider call.
+        hold: 0.7
+        visual_cues:
+          - id: validated-app-request-b1-1
+            phrase: "account format and the report"
+            targets: [validated-app-request]
+            color: blue
+      - say: >-
+          Follow the account number across. The matching server record says forty-five days old and stale. Those are the facts the checker will use. The sentence Luna typed gives the provider context.
+        hold: 0.9
+        motion_check:
+          region: [220, 420, 1460, 390]
+          minimumChangedFraction: 0.002
+        visual_cues:
+          - id: lookup-account
+            phrase: "Follow the account number across"
+            targets: [account-join-key]
+            color: blue
+          - id: server-owned-facts-b2-1
+            phrase: "forty-five days old and stale"
+            targets: [server-owned-facts]
+            color: green
+      - say: >-
+          What if someone adds an age of nine hundred ninety-nine to the form? The route rejects the extra field. Looking up a well-formed account number also needs an authorization check before a public service can disclose its facts.
+        hold: 0.8
+        visual_cues:
+          - id: strict-app-input-verdict-b3-1
+            phrase: "rejects the extra field"
+            targets: [strict-app-input-verdict]
+            color: pink
+            caption_boundary: true
+      - say: >-
+          Try a report made of twenty spaces. Strip the surrounding whitespace. That leaves an empty report. The server requires ten through five hundred characters after stripping. It enforces strict types and returns four twenty-two for this empty report. Provider calls and new rows both stay at zero.
+        hold: 0.8
+        visual_cues:
+          - id: input-contract-core-contract
+            phrase: "Strip the surrounding whitespace"
+            targets: [input-contract-contract-extension]
+            color: blue
+          - id: firstapp-result-whitespace-empty
+            phrase: "returns four twenty-two"
+            targets: [input-contract-contract-extension]
+            color: pink
+            caption_boundary: true
+  - id: policy-check
+    title: "Try the same policy on another key"
+    visual: >-
+      An age marker and a stale flag determine the expected decision. The 30-day mark stays fixed. An extra citation is tested against the one permitted slot.
+    beats:
+      - say: >-
+          Here's our fictional policy, P-seven. A stale key becomes eligible for rotation at thirty days. Luna's key is forty-five days old. The provider proposes eligible. Check the dot against the threshold and read the stale flag. Both conditions hold.
+        hold: 0.8
+        visual_cues:
+          - id: p-first
+            phrase: "Both conditions hold"
+            targets: [decision]
+            color: green
+            caption_boundary: true
+      - say: >-
+          Keep the age at forty-five. Change only the stale flag to no. Should the checker accept the same eligible candidate?
+        hold: 2
+        motion_check:
+          region: [120, 731, 665, 120]
+          minimumChangedFraction: 0.002
+        visual_cues:
+          - id: p-current
+            phrase: "Change only the stale flag to no"
+            targets: [flag]
+            color: yellow
+      - say: >-
+          It rejects eligible. This key is current. Now move a stale key to twelve days. Here the age falls short. A provider that returns not eligible for either account has given a correct answer.
+        hold: 0.8
+        visual_cues:
+          - id: p-reject
+            phrase: "It rejects eligible"
+            targets: [decision]
+            color: pink
+            caption_boundary: true
+          - id: p-young
+            phrase: "move a stale key to twelve days"
+            targets: [age]
+            color: blue
+          - id: p-negative
+            phrase: "returns not eligible"
+            targets: [decision]
+            color: green
+            caption_boundary: true
+      - say: >-
+          Move the stale key to exactly thirty. The threshold includes that day, so eligible passes. Now take away the account record. Which decision can the checker accept with both facts missing?
+        hold: 1.9
+        visual_cues:
+          - id: p-edge
+            phrase: "move the stale key to exactly thirty"
+            targets: [age]
+            color: blue
+          - id: p-edge-pass
+            phrase: "eligible passes"
+            targets: [decision]
+            color: green
+            caption_boundary: true
+          - id: p-missing
+            phrase: "take away the account record"
+            targets: [age, flag]
+            color: yellow
+      - say: >-
+          Needs review. The twelve-day key gave us a reason to say no. Here we don't know the key's age or its stale flag.
+        hold: 0.8
+        visual_cues:
+          - id: p-review
+            phrase: "needs review"
+            targets: [decision]
+            color: yellow
+            caption_boundary: true
+      - say: >-
+          Go back to Luna's forty-five-day key. The decision fits. So does the integer thirty in the proposed policy window. But the provider sent two evidence IDs. P-seven fills the one allowed slot. The extra citation gets this whole candidate rejected. A hosted adapter must first turn its response into a dictionary the checker can validate.
+        hold: 0.9
+        visual_cues:
+          - id: p-add-source
+            phrase: "provider sent two evidence IDs"
+            targets: [evidence]
+            color: blue
+          - id: p-extra
+            phrase: "extra citation"
+            targets: [evidence]
+            color: pink
+          - id: p-bad-source
+            phrase: "whole candidate rejected"
+            targets: [decision]
+            color: pink
+            caption_boundary: true
+  - id: trace-lifecycle
+    title: "What survives the provider call?"
+    visual: >-
+      One request moves through the trace timeline. Its stored version changes only on commits. A time bracket isolates the provider and verification interval.
+    beats:
+      - say: >-
+          Replay Luna's original request with the correct candidate. First the handler commits a running trace. We'll call it T zero zero one. The app generates a random identifier of thirty-two hexadecimal characters. Its row identifies the account, the versions used and the trusted facts at submission. A keyed fingerprint lets us compare inputs without keeping her raw report.
+        hold: 0.9
+        visual_cues:
+          - id: saved-app-trace-b1-1
+            phrase: "running trace"
+            targets: [saved-app-trace]
+            color: blue
+      - say: >-
+          Now the provider gets its first call. It returns eligible. The checker verifies the dictionary against the evidence list, the policy window and the account facts. Look at the row while that happens. The only result another connection can read so far is running.
+        hold: 0.85
+        motion_check:
+          region: [200, 380, 1510, 470]
+          minimumChangedFraction: 0.002
+        visual_cues:
+          - id: trace-first-call
+            phrase: "provider gets its first call"
+            targets: [execution-journal-event]
+            color: yellow
+          - id: execution-journal-event-b2-1
+            phrase: "checker verifies the dictionary"
+            targets: [execution-journal-event]
+            color: yellow
+      - say: >-
+          The handler asks the store to update this trace if it is still running at version one. The commit saves completed at version two. Now the handler can send the answer. A second terminal write to the same row will find that its condition no longer matches.
+        hold: 0.9
+        visual_cues:
+          - id: saved-app-trace-b3-1
+            phrase: "commit saves completed at version two"
+            targets: [saved-app-trace]
+            color: green
+            caption_boundary: true
+          - id: firstapp-result-handler-return
+            phrase: "send the answer"
+            targets: [execution-journal-event]
+            color: cyan
+            caption_boundary: true
+      - say: >-
+          Luna says the check felt slow. Here's her wait from click to reply. Which part does the trace time?
+        caption_starts: ["Which part does the trace time"]
+        hold: 1.8
+      - say: >-
+          The timer starts at the provider call and stops after the checker finishes. Both database writes sit outside that interval. To measure Luna's whole wait, start at the click and stop when the page shows the answer.
+        hold: 0.8
+        caption_starts: ["and stops after the checker finishes", "Both database writes", "To measure Luna's whole wait"]
+        visual_cues:
+          - id: trace-lifecycle-core-contract
+            phrase: "The timer starts at the provider call"
+            targets: [trace-clock]
+            color: yellow
+          - id: timer-stop
+            phrase: "stops after the checker finishes"
+            targets: [trace-clock]
+            color: yellow
+          - id: browser-clock
+            phrase: "start at the click and stop when the page shows the answer"
+            targets: [whole-wait]
+            color: blue
+  - id: http-durability
+    title: "Open a second connection"
+    visual: >-
+      A provider reads the committed row from a different SQLite connection. A reopened store reads the outcome. The HTTP response and database readback provide separate evidence.
+    beats:
+      - say: >-
+          Send a valid report through the route. Have the test provider open its own database connection during the call. It reads running at version one. The first commit is already visible to a second reader.
+        caption_starts: ["Have the test provider", "It reads running at version one"]
+        hold: 0.9
+        visual_cues:
+          - id: http-durability-b1
+            phrase: "open its own database connection"
+            targets: [http-durability-mechanism]
+            color: blue
+          - id: firstapp-result-committed-running
+            phrase: "It reads running at version one"
+            targets: [http-durability-mechanism]
+            color: green
+            caption_boundary: true
+      - say: >-
+          Let the provider finish. After the route responds, reopen the SQLite file. This connection reads completed at version two. The file can survive an app restart when you keep it. In Python, the connection context manager handles the transaction. The store also closes each connection explicitly.
+        hold: 0.8
+        visual_cues:
+          - id: http-durability-b2
+            phrase: "reopen the SQLite file"
+            targets: [http-durability-mechanism]
+            color: blue
+          - id: firstapp-result-committed-completed
+            phrase: "reads completed at version two"
+            targets: [http-durability-mechanism]
+            color: green
+            caption_boundary: true
+      - say: >-
+          This route returns two hundred for either of these saved outcomes. The body tells us whether the check completed or failed. A completed check carries the decision. A failed check carries the error code. If a write fails, read the database to see what survived.
+        hold: 0.85
+        visual_cues:
+          - id: http-durability-b3
+            phrase: "body tells us whether the check completed or failed"
+            targets: [http-durability-mechanism]
+            color: cyan
+  - id: browser-outcome
+    title: "A receipt for Luna"
+    visual: >-
+      On a successful delivery, the completed record stays put while a response crosses into Luna's page. Reloading clears only the page.
+    beats:
+      - say: >-
+          Luna's page still says Checking policy. The server has already committed a result. Watch for the reply that carries it back to her browser.
+        hold: 0.8
+        visual_cues:
+          - id: out-row
+            phrase: "already committed a result"
+            targets: [server]
+            color: green
+      - say: >-
+          The response crosses back. The page reads completed, checks the evidence and the trace ID, then shows Eligible under P-seven. The trace number on the receipt matches the saved row. Luna has her answer, and the key stays as it was.
+        caption_starts: ["The trace number on the receipt"]
+        hold: 0.95
+        visual_cues:
+          - id: out-mail
+            phrase: "response crosses back"
+            targets: [wire]
+            color: cyan
+          - id: out-show
+            phrase: "Eligible under P-seven"
+            targets: [page]
+            color: green
+            caption_boundary: true
+      - say: >-
+          Reload the page. The form goes back to Ready. In SQLite, the saved row still says completed.
+        caption_starts: ["In SQLite"]
+        hold: 1
+        visual_cues:
+          - id: out-reload
+            phrase: "Reload the page"
+            targets: [page]
+            color: blue
+          - id: out-saved
+            phrase: "saved row"
+            targets: [server]
+            color: green
+  - id: failure-boundaries
+    title: "One storage error, two experiments"
+    visual: >-
+      Two copies of the same POST run against separate empty databases. A write stops at the insert or the update. A call counter and the same SQLite query expose the difference behind identical HTTP replies.
+    beats:
+      - say: >-
+          Take the same report and two empty databases. In the first test, make SQLite reject the insert. The very first write stops. The provider gets zero calls. Read the table from another connection. It's empty. The browser receives storage unavailable.
+        hold: 0.95
+        visual_cues:
+          - id: fault-insert
+            phrase: "reject the insert"
+            targets: [run-insert]
+            color: pink
+          - id: read-insert
+            phrase: "It's empty"
+            targets: [read-insert]
+            color: yellow
+            caption_boundary: true
+          - id: reply-insert
+            phrase: "receives storage unavailable"
+            targets: [http-insert]
+            color: pink
+            caption_boundary: true
+      - say: >-
+          In the second test, let the insert commit. The provider is called once and returns eligible. This time reject the update that would save the checked result. The browser receives the same five oh three.
+        hold: 0.9
+        motion_check:
+          region: [115, 611, 1675, 206]
+          minimumChangedFraction: 0.002
+        visual_cues:
+          - id: second-insert
+            phrase: "let the insert commit"
+            targets: [run-update]
+            color: blue
+          - id: second-provider
+            phrase: "provider is called once"
+            targets: [calls-update]
+            color: yellow
+          - id: fault-update
+            phrase: "reject the update"
+            targets: [run-update]
+            color: pink
+          - id: reply-update
+            phrase: "same five oh three"
+            targets: [http-update]
+            color: pink
+            caption_boundary: true
+      - say: >-
+          Run the same query against the second database. It returns running, version one. Compare the provider counts under those two stops. In which test could submitting again repeat provider work?
+        hold: 2.25
+        visual_cues:
+          - id: read-update
+            phrase: "returns running, version one"
+            targets: [read-update]
+            color: yellow
+            caption_boundary: true
+          - id: ask-repeat
+            phrase: "which test could submitting again repeat provider work"
+            targets: [calls-insert, calls-update]
+            color: yellow
+      - say: >-
+          The second one. That provider already returned. A running row tells the recovery worker where the durable record stops. The worker still needs to reconcile the attempt before deciding to repeat the call. With a paid provider, another call could mean another charge.
+        hold: 1.15
+        visual_cues:
+          - id: repeat-risk
+            phrase: "The second one"
+            targets: [calls-update, read-update]
+            color: yellow
+            caption_boundary: true
+  - id: failure-contract
+    title: "Which operation failed?"
+    visual: >-
+      An exception inside the adapter and a rejected return value take different paths to a recorded error. Two submissions then show matching fingerprints with distinct trace IDs.
+    beats:
+      - say: >-
+          Suppose the writes work, but the adapter raises a timeout. The route stores provider timeout. If the adapter returns a dictionary and the checker rejects it, the code is invalid decision. If the adapter itself raises a value error, the code is provider error. The operation that failed determines what the trace records.
+        hold: 0.8
+        visual_cues:
+          - id: failure-contract-b1
+            phrase: "adapter raises a timeout"
+            targets: [failure-contract-mechanism]
+            color: yellow
+          - id: firstapp-result-timeout-code
+            phrase: "stores provider timeout"
+            targets: [failure-contract-mechanism]
+            color: pink
+            caption_boundary: true
+          - id: firstapp-result-invalid-code
+            phrase: "code is invalid decision"
+            targets: [failure-contract-mechanism]
+            color: pink
+            caption_boundary: true
+          - id: firstapp-result-adapter-code
+            phrase: "code is provider error"
+            targets: [failure-contract-mechanism]
+            color: pink
+            caption_boundary: true
+      - say: >-
+          Test a timeout by injecting that provider into the real route. Read both the reply and its saved failed trace. Both carry the app's error code. An upstream exception might quote the private report, so the app keeps that text out of both places. Input validation also omits rejected values. The fingerprint is an HMAC, a digest made with a key. The demo key is public. A real service needs a secret key and retention limits for the fingerprints and account records.
+        hold: 0.85
+        visual_cues:
+          - id: failure-contract-b2
+            phrase: "app's error code"
+            targets: [failure-contract-mechanism]
+            color: green
+      - say: >-
+          The timeout stub raises immediately. Testing a network deadline takes a stalled connection and a real transport timeout. Now submit the same valid report twice with a working provider. Two traces, two calls. Their keyed fingerprints match because the inputs match. Reusing an outcome would need an explicit idempotency protocol.
+        hold: 0.9
+        visual_cues:
+          - id: failure-contract-b3
+            phrase: "submit the same valid report twice"
+            targets: [failure-contract-mechanism]
+            color: blue
+          - id: firstapp-result-repeat-attempts
+            phrase: "Two traces, two calls"
+            targets: [failure-contract-mechanism]
+            color: cyan
+            caption_boundary: true
+  - id: browser-authority
+    title: "What the page can show"
+    visual: >-
+      A delivered response fills the browser from allowed fields. A checked negative remains a completed attempt. Dropping a reply leaves the completed row in place and the page without a receipt.
+    beats:
+      - say: >-
+          While fetch is pending, the button is disabled. On a reply, the page checks the trace syntax, the evidence and the allowed outcome fields. It picks the matching label from its own list and writes it as text.
+        hold: 0.8
+        visual_cues:
+          - id: browser-authority-b1
+            phrase: "writes it as text"
+            targets: [browser-authority-mechanism]
+            color: blue
+      - say: >-
+          Say the report asks for an exception. The trusted record shows an older key that's current. A properly formed not eligible answer agrees with P-seven. Accept it, even with that request in the report. The page can show a checked negative. Missing facts would give needs review. Changing a key would require a separate authorized, idempotent operation.
+        hold: 0.9
+        visual_cues:
+          - id: authority-accept
+            phrase: "Accept it"
+            targets: [browser-authority-mechanism]
+            color: green
+          - id: browser-authority-b2
+            phrase: "checked negative"
+            targets: [browser-authority-mechanism]
+            color: green
+            caption_boundary: true
+      - say: >-
+          Drop a reply after the completed row commits. While fetch is pending, the page keeps waiting. Once it detects the network error, it says Request unavailable. This form has no elapsed-time abort or status lookup. Even if a client cancels its wait, the server may finish. Offer a deliberate new submission.
+        hold: 0.95
+        visual_cues:
+          - id: authority-drop
+            phrase: "Drop a reply"
+            targets: [browser-authority-mechanism]
+            color: blue
+          - id: browser-authority-b3
+            phrase: "detects the network error"
+            targets: [browser-authority-mechanism]
+            color: yellow
+            caption_boundary: true
+      - say: >-
+          This reply says failed and also says eligible. A recorded failure carries an error code and a null decision. With those fields in conflict, Luna gets the same message as before. The page says Request unavailable.
+        caption_starts: ["A recorded failure", "With those fields in conflict"]
+        hold: 0.9
+        visual_cues:
+          - id: authority-unusable
+            phrase: "The page says Request unavailable"
+            targets: [browser-authority-mechanism]
+            color: yellow
+            caption_boundary: true
+  - id: evaluation
+    title: "What did the fixture test?"
+    visual: >-
+      Five fixture accounts compare independent expected results with returned results and saved traces. Invalid requests and the health request exercise different boundaries.
+    beats:
+      - say: >-
+          Before changing providers, keep a regression test with known answers. Submit each account through the real route. Compare the response with the expected decision, then reopen its trace. The thirty-day case catches a strict greater-than sign where the policy says at least. The missing account catches a mistaken negative.
+        hold: 0.85
+        motion_check:
+          region: [210, 360, 1500, 540]
+          minimumChangedFraction: 0.002
+        visual_cues:
+          - id: run-cases
+            phrase: "Submit each account through the real route"
+            targets: [app-evaluation-result]
+            color: blue
+          - id: app-evaluation-result-b1-1
+            phrase: "expected decision"
+            targets: [app-evaluation-result]
+            color: blue
+      - say: >-
+          All five outcomes match. Now try four malformed reports. All four get rejected before any provider call or new row. A healthy response from the health route takes an even shorter path. It returns okay with zero provider calls. To test storage readiness, probe storage itself.
+        hold: 0.9
+        visual_cues:
+          - id: app-evaluation-result-b2-1
+            phrase: "All five outcomes match"
+            targets: [app-evaluation-result]
+            color: green
+            caption_boundary: true
+          - id: firstapp-result-evaluation-invalid
+            phrase: "All four get rejected"
+            targets: [firstapp-invalid-input-results]
+            color: cyan
+            caption_boundary: true
+          - id: health-read
+            phrase: "returns okay with zero provider calls"
+            targets: [health]
+            color: blue
+            caption_boundary: true
+      - say: >-
+          For a hosted model, run the labeled cases against that adapter and measure its errors, latency and cost. Give network retries one owner and a budget. Keep the fixture suite to check the route independently. Changing P-seven starts with the rule and its tests. The next lesson follows what changes when you train or release the model itself.
+        hold: 0.8
+        visual_cues:
+          - id: measure-hosted
+            phrase: "measure its errors, latency and cost"
+            targets: [hosted-eval]
+            color: blue
+      - say: >-
+          Before exposing this route, check account access and concurrent load, lock the versions, and test recovery from a backup. Suppose the database lives inside the container. Replace that container. The new copy opens an empty database. Keep the file on persistent storage if Luna needs yesterday's traces.
+        hold: 0.8
+        visual_cues:
+          - id: app-evaluation-result-b3-1
+            phrase: "recovery from a backup"
+            targets: [deploy-check]
+            color: yellow
+          - id: replace-container
+            phrase: "Replace that container"
+            targets: [deploy-check]
+            color: yellow
+  - id: earned-transfer
+    title: "Two replies on the way to Luna"
+    visual: >-
+      Two counterfactual runs straddle P-7 at 29 and 30 days. An identical eligible candidate yields two different terminal rows. Both return packets stop short of the page, leaving the same client evidence.
+    beats:
+      - say: >-
+          Try two versions of Luna's ticket. In both, the trusted record says stale. The provider returns eligible, integer thirty and just P-seven. One key is twenty-nine days old. The other is thirty. Which attempt can record eligible?
+        caption_starts: ["The provider returns eligible", "One key is twenty-nine days old", "The other is thirty", "Which attempt can record eligible"]
+        hold: 2.35
+        visual_cues:
+          - id: end-candidate
+            phrase: "provider returns eligible"
+            targets: [candidate]
+            color: blue
+          - id: end-ages
+            phrase: "twenty-nine days old"
+            targets: [ages]
+            color: blue
+          - id: end-second-age
+            phrase: "The other is thirty"
+            targets: [ages]
+            color: blue
+          - id: end-ask-rule
+            phrase: "Which attempt can record eligible"
+            targets: [ages]
+            color: yellow
+      - say: >-
+          The thirty-day key qualifies. Its candidate matches, and the final write saves completed. At twenty-nine, the same candidate contradicts the facts. This write saves failed with invalid decision. Both writes succeeded. Each reply carries the outcome for its own trace.
+        caption_starts: ["At twenty-nine", "Both writes succeeded"]
+        hold: 0.95
+        motion_check:
+          region: [1420, 398, 411, 420]
+          minimumChangedFraction: 0.002
+        visual_cues:
+          - id: end-thirty
+            phrase: "final write saves completed"
+            targets: [older]
+            color: green
+            caption_boundary: true
+          - id: end-young
+            phrase: "write saves failed"
+            targets: [younger]
+            color: pink
+            caption_boundary: true
+      - say: >-
+          Now lose both replies on the way back. Each browser detects a network error. Look at Luna's side of the gap. What outcome can either page report?
+        caption_starts: ["Each browser detects a network error", "What outcome can either page report"]
+        hold: 2.25
+        visual_cues:
+          - id: end-drop
+            phrase: "lose both replies on the way back"
+            targets: [wire]
+            color: yellow
+          - id: end-detect
+            phrase: "detects a network error"
+            targets: [page]
+            color: blue
+          - id: end-ask-page
+            phrase: "what outcome can either page report"
+            targets: [page]
+            color: yellow
+      - say: >-
+          Both pages say Request unavailable. SQLite still has both outcomes. Submitting again starts a new check. To recover the original result, Luna needs an authorized lookup for that attempt.
+        caption_starts: ["SQLite still has both outcomes", "Submitting again starts a new check", "To recover the original result"]
+        hold: 1.6
+        visual_cues:
+          - id: end-message
+            phrase: "Request unavailable"
+            targets: [page]
+            color: yellow
+            caption_boundary: true
+          - id: end-rows
+            phrase: "SQLite still has both outcomes"
+            targets: [older, younger]
+            color: blue
+          - id: end-resubmit
+            phrase: "Submitting again starts a new check"
+            targets: [retry-note]
+            color: blue
+          - id: end-lookup
+            phrase: "an authorized lookup for that attempt"
+            targets: [lookup-note]
+            color: yellow

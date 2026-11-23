@@ -1,0 +1,217 @@
+version: 1
+lesson: training-loop
+promise: Follow two tickets through backward and an SGD step. Use the stored gradient and the change in route scores to decide where to repair an update. Check the training objective, validation choice, and saved state before trusting a longer run.
+framing: []
+objectives:
+  - id: step
+    can: Check the input and target contract, derive one weight gradient, and use a held-out ticket to tell how clearing the buffer changes an SGD step.
+    scenes:
+      - intro
+      - tensors
+      - loss-contract
+      - scores
+      - phases
+      - none-and-momentum
+      - accumulation
+      - transfer
+      - fresh-stale-gradient
+  - id: measurement
+    can: Weight each microbatch by its effective denominator, judge a fit against the model's attainable loss, and choose a checkpoint on held-out data.
+    scenes:
+      - microbatch-denominators
+      - batching
+      - fit-batch
+      - layer-modes
+      - validation
+      - bigram-state
+      - bigram-floor
+      - bigram-selection
+  - id: state
+    can: Copy the chosen weights, verify a restored optimizer against the next uninterrupted update, and distinguish atomic checkpoint visibility from durability.
+    scenes:
+      - validation
+      - resumption-state
+      - atomic-checkpoint
+      - run-receipt
+  - id: execution
+    can: Find the first nonfinite value, check loss and gradient separately, and apply clipping in unscaled units. Identify which inference and compilation checks a run exercised.
+    scenes:
+      - numerical-triage
+      - global-clipping
+      - inference-feature-boundary
+      - amp-policy
+      - scale-and-step
+      - compile-contract
+  - id: reader-bigram
+    can: Derive the bigram update from its target, compute the uniform loss and attainable floor, and use mean validation loss per character pair to choose between saved tables.
+    scenes:
+      - bigram-state
+      - bigram-floor
+      - bigram-selection
+      - run-receipt
+sections:
+  - heading: Turn a ticket into tensors
+    status: taught
+    scenes:
+      - intro
+      - tensors
+      - loss-contract
+  - heading: Logits are scores, not probabilities
+    status: taught
+    scenes:
+      - scores
+      - loss-contract
+  - heading: The five execution phases in a training step
+    status: taught
+    scenes:
+      - intro
+      - phases
+      - none-and-momentum
+      - transfer
+  - heading: Clearing gradients and micro-batch accumulation
+    status: taught
+    scenes:
+      - accumulation
+      - fresh-stale-gradient
+  - heading: Gradient accumulation across micro-batches
+    status: taught
+    scenes:
+      - microbatch-denominators
+  - heading: Batching and row-weighted epoch loss
+    status: taught
+    scenes:
+      - batching
+      - run-receipt
+  - heading: Overfitting one batch as an isolation test
+    status: taught
+    scenes:
+      - fit-batch
+      - bigram-floor
+  - heading: Isolating validation from training updates
+    status: taught
+    scenes:
+      - validation
+      - layer-modes
+  - heading: The checkpoint snapshot aliasing trap
+    status: taught
+    scenes:
+      - validation
+  - heading: Operational modes and context managers
+    status: taught
+    scenes:
+      - layer-modes
+      - inference-feature-boundary
+  - heading: Resilient checkpointing and atomic state snapshots
+    status: taught
+    scenes:
+      - resumption-state
+      - atomic-checkpoint
+  - heading: The complete resumption bundle
+    status: taught
+    scenes:
+      - resumption-state
+  - heading: Preventing corruption with atomic file writes
+    status: taught
+    scenes:
+      - atomic-checkpoint
+  - heading: Diagnosing failures and bounding gradients
+    status: taught
+    scenes:
+      - numerical-triage
+      - global-clipping
+  - heading: Five-step numerical triage when loss becomes NaN
+    status: taught
+    scenes:
+      - numerical-triage
+  - heading: Bounding gradients with global norm clipping
+    status: taught
+    scenes:
+      - global-clipping
+  - heading: Inference mode versus no-grad contexts
+    status: taught
+    scenes:
+      - inference-feature-boundary
+  - heading: Automatic mixed precision and dynamic loss scaling
+    status: taught
+    scenes:
+      - amp-policy
+      - scale-and-step
+  - heading: The float16 underflow hazard and GradScaler
+    status: taught
+    scenes:
+      - amp-policy
+      - scale-and-step
+  - heading: Graph compilation after eager verification
+    status: taught
+    scenes:
+      - compile-contract
+  - heading: Artifacts and audit receipts for the training run
+    status: taught
+    scenes:
+      - run-receipt
+  - heading: "Practice: break and repair the loop"
+    status: article-only
+    reason: exercise
+    note: Independent hands-on exercise and written answer key remain on the article. All underlying loop
+      mechanisms are taught in the same full movie.
+  - heading: Expected observations
+    status: article-only
+    reason: exercise
+    note: Independent hands-on exercise and written answer key remain on the article. All underlying loop
+      mechanisms are taught in the same full movie.
+quiz:
+  - n: 1
+    status: taught
+    scenes:
+      - loss-contract
+  - n: 2
+    status: taught
+    scenes:
+      - phases
+      - fresh-stale-gradient
+  - n: 3
+    status: taught
+    scenes:
+      - microbatch-denominators
+  - n: 4
+    status: taught
+    scenes:
+      - layer-modes
+  - n: 5
+    status: taught
+    scenes:
+      - resumption-state
+  - n: 6
+    status: taught
+    scenes:
+      - atomic-checkpoint
+  - n: 7
+    status: taught
+    scenes:
+      - numerical-triage
+  - n: 8
+    status: taught
+    scenes:
+      - scale-and-step
+  - n: 9
+    status: taught
+    scenes:
+      - bigram-floor
+  - n: 10
+    status: taught
+    scenes:
+      - bigram-selection
+reviews:
+  closed_book:
+    script: 229df0c27b73fc78
+    taught: 10
+    partial: 0
+    absent: 0
+    reviewer: /root/upgrade_shard5
+    evidence: build/video-delivery-20261106/script-reviews/training-loop.json
+  fact_check:
+    script: 229df0c27b73fc78
+    open_findings: 0
+    reviewer: /root/upgrade_shard5
+    evidence: build/video-delivery-20261106/script-reviews/training-loop.json
+removed: []

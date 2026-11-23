@@ -1,0 +1,15 @@
+{
+  "framing": "Selection is part of the computation",
+  "paragraphs": [
+    "Redistributing expert work sounds like a scheduling change until a token reaches a different learned function. Moving the same expert to another device and selecting another expert are different operations. One changes placement. The other can change the answer. Understanding mixture of experts means keeping the model's routing rule in view while deciding how to store, group, and execute its work.",
+    "That connection reaches from training into serving. A hot expert can receive more learning signal and more traffic; check imbalance across batches and task quality before diagnosing collapse. Uniform assignment counts can still accompany weak experts or poor answers. The tempting shortcuts all omit something: active parameters omit stored capacity, a balance score omits coverage, and assignment counts omit communication and execution cost.",
+    "The chapter follows one token through scoring, selection, and weighted combination before expanding to a batch. Runnable examples expose renormalization choices, missing token coverage, overflow, and the difference between a balancing objective and a health check. Model comparisons then show why routing rules and shared experts must be read from the actual architecture. Finally, dispatch and grouping exercises restore the original token order and blend weights after expert execution, making a subtle serving correctness problem concrete.",
+    "The Transformer FFN and softmax provide the starting point. The previous chapter introduced expert ownership across devices. Here, the selected function itself becomes the focus, and worked examples make each mechanism inspectable. Use measured training and deployment studies to compare dense and sparse systems. Quantization comes next as another way to change the resource budget, with its own quality checks."
+  ],
+  "outcomes": [
+    "Trace selected-expert outputs while preserving the architecture's weighting rule.",
+    "Distinguish balance, coverage, overflow, numerical stability, and task quality.",
+    "Account separately for stored parameters, active arithmetic, expert placement, and communication."
+  ],
+  "question": "Does a proposed optimization preserve the selected computation, or quietly ask the model to perform a different one?"
+}

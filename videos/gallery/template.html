@@ -1,0 +1,72 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="theme-color" content="#11161f">
+    <title>LeetLLM | Video lessons</title>
+    <link rel="icon" href="leetllm-mark.svg" type="image/svg+xml">
+    <link rel="stylesheet" href="styles.css">
+    <script type="module" src="app.js"></script>
+  </head>
+  <body>
+    <header class="site-header">
+      <a class="brand" href="#kept" aria-label="LeetLLM video lessons home">
+        <img src="leetllm-mark.svg" width="32" height="32" alt="">
+        <span>Leet<span>LLM</span></span>
+      </a>
+      <nav class="header-nav" aria-label="Site links">{{THEME_LINK}}<a class="header-link" href="https://leetllm.com">Explore the curriculum <span aria-hidden="true">↗</span></a></nav>
+    </header>
+    <main>
+      <section class="hero" aria-labelledby="page-title">
+        <div class="hero-copy">
+          <p class="eyebrow">A visual learning collection</p>
+          <h1 id="page-title">Understand the mechanism.<br><span>Watch it unfold.</span></h1>
+          <p class="hero-intro">Lessons selected for the moments when a changing picture makes an idea click: gradients moving downhill, tokens dividing into pieces, or evidence accumulating over time.</p>
+          <div class="hero-statline" id="hero-stats" aria-live="polite"></div>
+        </div>
+        <div class="hero-art" aria-hidden="true">
+          <div class="orbit orbit-a"></div><div class="orbit orbit-b"></div>
+          <span class="node node-a">x</span><span class="node node-b">∇</span><span class="node node-c">θ</span>
+          <span class="vector vector-a"></span><span class="vector vector-b"></span>
+          <div class="hero-label">ideas in motion</div>
+        </div>
+      </section>
+
+      <section class="selection-note" aria-label="How lessons were selected">
+        <div class="note-mark" aria-hidden="true">✳</div>
+        <div>
+          <h2>What earns a place here</h2>
+          <p>Each video must explain its subject clearly, work as a standalone lesson, and use motion or spatial structure to teach something that is easier to see. A polished video can still be better as an article.</p>
+          <details class="rubric-details">
+            <summary>Read the selection rubric and review scope</summary>
+            <div id="rubric-content" class="rubric-content"></div>
+          </details>
+        </div>
+      </section>
+
+      <section class="library" aria-labelledby="library-title">
+        <div class="library-heading">
+          <div><p class="eyebrow">The library</p><h2 id="library-title">Choose a lesson</h2></div>
+          <div class="download-actions">
+            <button class="quiet-button" id="download-json" type="button">Download decisions JSON</button>
+            <button class="quiet-button" id="download-csv" type="button">Download decisions CSV</button>
+          </div>
+        </div>
+        <div class="tabs" role="tablist" aria-label="Video selection">
+          <button id="tab-kept" class="tab" role="tab" aria-controls="lesson-grid" aria-selected="true" tabindex="0" data-decision="keep">Selected <span data-count="keep">—</span></button>
+          <button id="tab-skipped" class="tab" role="tab" aria-controls="lesson-grid" aria-selected="false" tabindex="-1" data-decision="skip">Skipped for now <span data-count="skip">—</span></button>
+        </div>
+        <div class="filters">
+          <label class="search-box"><span class="sr-only">Search video lessons</span><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="7.5"></circle><path d="m17 17 4 4"></path></svg><input id="search" type="search" placeholder="Search topics or lesson titles" autocomplete="off"></label>
+          <label class="group-filter"><span class="sr-only">Filter by curriculum area</span><select id="group"><option value="">All curriculum areas</option></select></label>
+          <label class="sort-filter"><span class="sr-only">Sort lessons</span><select id="sort"><option value="order">Curriculum order</option><option value="title">Title</option><option value="score">Selection score</option><option value="duration">Shortest first</option></select></label>
+        </div>
+        <p class="results-line" id="results-line" role="status" aria-live="polite"></p>
+        <div id="lesson-grid" class="lesson-grid" role="tabpanel" aria-labelledby="tab-kept" tabindex="0"></div>
+        <p class="empty-state" id="empty-state" hidden>No lessons match these filters. Try another topic or curriculum area.</p>
+      </section>
+      <footer><span>LeetLLM · Learn AI by seeing how it works.</span><a href="https://leetllm.com">leetllm.com <span aria-hidden="true">↗</span></a></footer>
+    </main>
+  </body>
+</html>

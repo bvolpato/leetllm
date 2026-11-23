@@ -1,0 +1,668 @@
+{
+  "id": "ai-lab-coding-interview-python-systems",
+  "script": "b63d597bdd0f3216",
+  "articleHash": "442efd6c6480bf8d2a65cd12b288a862d05ecd94ff66c4bb1bfae8ad8002b390",
+  "checked": "2026-11-10T05:11:55.581Z",
+  "closedBook": {
+    "taught": 9,
+    "partial": 1,
+    "absent": 0,
+    "answers": [
+      {
+        "n": 1,
+        "option": 3,
+        "coverage": "taught",
+        "quotes": [
+          {
+            "scene": "url-policy",
+            "quote": "Scheme, lowercase host and effective port must agree. Remove fragments and default ports, map an empty path to slash, and retain query strings and nonempty paths. Relative links resolve against the current page. Two fragments of the same page share one claim; a changed query can name a different fetch."
+          },
+          {
+            "scene": "url-policy",
+            "quote": "The callback’s link order determines the deterministic single-worker breadth-first result."
+          }
+        ],
+        "reason": "Lowercasing the host and removing default port 443 preserves the start origin. Both fragments share /a; the query creates a separate fetch. HTTP and port 444 differ in origin. Fetch order is start, /a, /a?q=1.",
+        "exact": true,
+        "correct": true,
+        "grade": "taught"
+      },
+      {
+        "n": 2,
+        "option": 1,
+        "coverage": "taught",
+        "quotes": [
+          {
+            "scene": "claim",
+            "quote": "Put the check and insertion inside one short lock. That small transition assigns one owner to this URL."
+          },
+          {
+            "scene": "claim",
+            "quote": "The winner fetches outside the lock, so unrelated URLs can progress while the network waits. The second worker sees the claim and skips."
+          },
+          {
+            "scene": "claim-failure",
+            "quote": "Check a stop event before scheduling, before fetching and after fetching before publishing children. A cooperative stop does not prove an already running remote request was interrupted."
+          }
+        ],
+        "reason": "The atomic claim permits one fetch. Since stop becomes set during that fetch, the post-fetch check withholds its children.",
+        "exact": true,
+        "correct": true,
+        "grade": "taught"
+      },
+      {
+        "n": 3,
+        "option": 4,
+        "coverage": "taught",
+        "quotes": [
+          {
+            "scene": "cas-boundary",
+            "quote": "For the TTL extension, first remove an expired value, then compare and write while holding the same lock. At the exact deadline, expected None can match because the old value is missing. Releasing the lock between get and set allows another writer to invalidate that comparison."
+          },
+          {
+            "scene": "ttl-reads",
+            "quote": "Overwriting an expiring record with a permanent value replaces the old deadline."
+          }
+        ],
+        "reason": "The deadline is 20 + 2.5 = 22.5. At equality the entry is expired. One lock must cover removal, comparison against missing and writing the permanent replacement. This transition is taught as an extension design.",
+        "exact": true,
+        "correct": true,
+        "grade": "taught"
+      },
+      {
+        "n": 4,
+        "option": 2,
+        "coverage": "taught",
+        "quotes": [
+          {
+            "scene": "graph-validation",
+            "quote": "The actual ready heap stores priority and task name. Lower numeric priority runs first; equal priorities break ties by name, not input order."
+          },
+          {
+            "scene": "graph-validation",
+            "quote": "Retries are immediate and keep the original priority, so a retry can run before another lower-priority task. An actual Boolean false retries up to the positive integer attempt cap."
+          },
+          {
+            "scene": "scheduler-workers",
+            "quote": "A task that ran and exhausted attempts is failed. A dependent that never became eligible is blocked."
+          }
+        ],
+        "reason": "Alpha wins the name tie and succeeds. Zeta then runs twice and exhausts its budget. Join never becomes eligible because zeta did not succeed. The order is alpha, zeta, zeta; join is blocked.",
+        "exact": true,
+        "correct": true,
+        "grade": "taught"
+      },
+      {
+        "n": 5,
+        "option": 3,
+        "coverage": "taught",
+        "quotes": [
+          {
+            "scene": "graph-validation",
+            "quote": "Validate the entire graph before calling run, including independent ready tasks. Reject duplicate task names, duplicate dependencies and unknown dependency names. Three-state depth-first search marks unseen, active and completed nodes. An edge back to an active node exposes a cycle; a visit to a completed node does not."
+          }
+        ],
+        "reason": "The M-N-P-M cycle reaches an active node. Whole-graph validation rejects it before any run call, including R.",
+        "exact": true,
+        "correct": true,
+        "grade": "taught"
+      },
+      {
+        "n": 6,
+        "option": 1,
+        "coverage": "taught",
+        "quotes": [
+          {
+            "scene": "bucket-contract",
+            "quote": "For each key, refill tokens by elapsed seconds times the rate, add the old tokens and cap at capacity. If that amount reaches the positive cost, subtract the cost and admit. Otherwise leave tokens unspent and divide the missing amount by the refill rate for retry-after."
+          }
+        ],
+        "reason": "Elapsed refill is 0.25 × 2 = 0.5 tokens. Cost 2 is denied, leaving 0.5 tokens. The missing 1.5 tokens require 1.5 / 2 = 0.75 seconds.",
+        "exact": true,
+        "correct": true,
+        "grade": "taught"
+      },
+      {
+        "n": 7,
+        "option": 4,
+        "coverage": "taught",
+        "quotes": [
+          {
+            "scene": "ledger",
+            "quote": "When deposit-1 arrives again with the same account and amount, the ledger returns that request's original result. The balance stays seventy and the event count stays two."
+          },
+          {
+            "scene": "ledger-lifetime",
+            "quote": "A successful replay returns its original balance-after result, even after other requests changed the current account balance."
+          }
+        ],
+        "reason": "Seed's original balance-after result is 75. The later debit leaves the current balance at 55. Replaying seed adds no effect or event, so the tuple is 75; 55; 2.",
+        "exact": true,
+        "correct": true,
+        "grade": "taught"
+      },
+      {
+        "n": 8,
+        "option": 2,
+        "coverage": "partial",
+        "quotes": [
+          {
+            "scene": "parser-state",
+            "quote": "A line beginning with a space extends that record’s message after trimming the continuation; with no current record it is ignored. A nonindented header splits at only the first two vertical bars. Timestamp and level must be nonempty strings, while extra bars remain in the message."
+          },
+          {
+            "scene": "parser-state",
+            "quote": "A malformed nonindented line clears the current record, so a later continuation cannot attach across that rejected header. The final accepted line needs no flush because records are appended when headers arrive."
+          }
+        ],
+        "reason": "The orphan is ignored. The first message retains head|extra and receives tail. The malformed bad line clears the record, so excluded is ignored. The final message is last. Option 2 matches these rules, but the narration does not explicitly specify the space inserted between the header message and its continuation.",
+        "exact": true,
+        "correct": true,
+        "grade": "partial"
+      },
+      {
+        "n": 9,
+        "option": 3,
+        "coverage": "taught",
+        "quotes": [
+          {
+            "scene": "lock-order",
+            "quote": "For cooperating account operations, acquire shared account locks in one global sorted order to prevent circular lock-order waiting. Deduplicate IDs before acquiring them: taking the same non-reentrant lock twice can deadlock a single caller."
+          },
+          {
+            "scene": "lock-order",
+            "quote": "Enter an ExitStack before acquiring the first lock, and register each entered lock in that active context. The actual helper acquires the known account, then a later unknown lookup raises KeyError. Unwinding releases the earlier lock."
+          }
+        ],
+        "reason": "Sorted unique IDs are A, B, C. A is acquired once, then B. C's lookup failure unwinds the active ExitStack and releases both acquired locks.",
+        "exact": true,
+        "correct": true,
+        "grade": "taught"
+      },
+      {
+        "n": 10,
+        "option": 1,
+        "coverage": "taught",
+        "quotes": [
+          {
+            "scene": "fresh-worker-plan",
+            "quote": "Serial execution takes eight seconds: three plus one for each job. Start both waits together and they finish at three seconds. One CPU lane then computes A from three to four and B from four to five, so the ideal completion time is five seconds. Threads did not run the Python computation simultaneously; they overlapped waiting."
+          }
+        ],
+        "reason": "Apply the taught method to three jobs: serial time is 3 × (4 + 0.5) = 13.5 seconds. Overlapping waits finish at 4 seconds, followed by 3 × 0.5 = 1.5 seconds on the single CPU lane, totaling 5.5 seconds.",
+        "exact": true,
+        "correct": true,
+        "grade": "taught"
+      }
+    ]
+  },
+  "factCheck": {
+    "scenes": [
+      {
+        "id": "opening",
+        "evidence": "Supported as a possible failure scenario. Read construction.mjs: the unsafe trace places both membership checks before either insertion and produces two fetches. An independent barrier-controlled Python probe reproduced two fetches with unprotected checks and one with protected check-and-insert. Extra requests can consume quota and produce additional logs. The cache, scheduler and ledger are separate exercises connected by the ownership theme.",
+        "sourceUrls": []
+      },
+      {
+        "id": "contract-loop",
+        "evidence": "Verified script hash b63d597bdd0f3216 and lesson-file SHA-256 361cb9b62358109ee72192bc9eb32a97ed5cbd80b79931798a840b18682e14c9. Executed all eleven current article examples and their assertions on GIL-enabled CPython 3.14.8. Their callbacks use local data, without network requests. The narration's references explicitly target Python 3.14. [OpenAI's guide](https://openai.com/interview-guide/) confirms assessment and tool-permission variation. Contract definition, shrinking failures and focused regressions are recommendations. The symptom mappings are useful starting points rather than exhaustive diagnoses. The former historical-inspection assertion is absent.",
+        "sourceUrls": [
+          "https://openai.com/interview-guide/",
+          "https://docs.python.org/3.14/library/collections.html",
+          "https://docs.python.org/3.14/library/time.html"
+        ]
+      },
+      {
+        "id": "state-objects",
+        "evidence": "Verified the container roles against [collections](https://docs.python.org/3.14/library/collections.html) and [heapq](https://docs.python.org/3.14/library/heapq.html). append/popleft implements FIFO, heap tuples select minimum priority, Counter counts items, and OrderedDict supports recency reordering. Read the actual crawler and scheduler: each admitted vertex is queued once and each returned edge is inspected once, yielding expected O(V+E) set/queue work and O(V) traversal state under the stated exclusions. At most AV executions produce O(AV) heap operations on at most V entries, giving O(AV log V) heap work. Graph construction and DFS inspect O(V+E). These bounds assume ordinary hashing and comparison costs. The separate visual graph contains four vertices and five edges.",
+        "sourceUrls": [
+          "https://docs.python.org/3.14/library/collections.html",
+          "https://docs.python.org/3.14/library/heapq.html",
+          "https://docs.python.org/3.14/library/threading.html"
+        ]
+      },
+      {
+        "id": "frontier",
+        "evidence": "Read fixtures.mjs, arithmetic.mjs, construction.mjs and model.mjs, then executed validateModel(). Independently ran the actual Python crawler with the film's graph. Start admits guide and api, leaving queue [guide, api] and three claimed URLs including start. Guide skips api and appends faq, leaving [api, faq]. Api skips its link to start. Fetch order is start, guide, api, faq. The separate tests/ci article fixture also passed.",
+        "sourceUrls": []
+      },
+      {
+        "id": "url-policy",
+        "evidence": "Executed the actual Python normalizer. Uppercase hostname, default port and fragment normalize as stated. Empty paths become slash, nondefault ports and nonempty queries survive, and relative links resolve against the parent. Credentials, whitespace, backslashes, bad ports and unsupported schemes were rejected. U+0000/U+001F were rejected, U+007F/U+0080/U+009F passed, and whitespace U+0085 was rejected. Invalid starts returned [], foreign/invalid children were skipped, and callback exceptions propagated. This closes the former blanket control-character claim. [RFC 6454](https://datatracker.ietf.org/doc/html/rfc6454#section-4) supports the HTTP(S) origin terminology. [Python](https://docs.python.org/3.14/library/urllib.parse.html#url-parsing-security) and [OWASP](https://cheatsheetseries.owasp.org/cheatsheets/Server_Side_Request_Forgery_Prevention_Cheat_Sheet.html) support separating parsing from destination authorization. Fetcher safeguards are explicitly requirements, not implemented features.",
+        "sourceUrls": [
+          "https://docs.python.org/3.14/library/urllib.parse.html#url-parsing-security",
+          "https://datatracker.ietf.org/doc/html/rfc6454#section-4",
+          "https://www.unicode.org/reports/tr44/#General_Category_Values",
+          "https://cheatsheetseries.owasp.org/cheatsheets/Server_Side_Request_Forgery_Prevention_Cheat_Sheet.html"
+        ]
+      },
+      {
+        "id": "claim",
+        "evidence": "The actual claim function places membership and insertion under the same Lock. Its competing callers returned [False, True]. Independent forced schedules confirmed that protecting this transition permits one owner, while merely serializing fetch after unlocked checks permits two fetches. Fetching after release leaves unrelated claims able to proceed. A semaphore can bound active fetches when every fetch holds one permit for its lifetime and releases it reliably. Event signaling requires cooperative checks. These mechanisms agree with [threading's contracts](https://docs.python.org/3.14/library/threading.html).",
+        "sourceUrls": [
+          "https://docs.python.org/3.14/library/threading.html#lock-objects",
+          "https://docs.python.org/3.14/library/threading.html#semaphore-objects",
+          "https://docs.python.org/3.14/library/threading.html#event-objects"
+        ]
+      },
+      {
+        "id": "claim-failure",
+        "evidence": "The actual Barrier fixture produced exactly one successful claimant without selecting a winner. Independently tested the repaired ordering rule using the actual crawler, normalizer and claim function. Guide returns [shared#guide, g] and api returns [shared#api, a]. If api claims first, merging already-filtered lists in parent order yields [g, shared, a]. Collecting raw lists and admitting in parent/callback order yields [shared, g, a] under either completion order, matching sequential BFS. The current article also includes this repair. The fetch-lock condition now explicitly protects check-and-insert. Retry states, backoff and stop checks describe proposed policies. [Event's flag mechanism](https://docs.python.org/3.14/library/threading.html#event-objects) does not interrupt remote work. The legacy diagram correctly illustrates parent reordering but does not demonstrate overlapping child admission.",
+        "sourceUrls": [
+          "https://docs.python.org/3.14/library/threading.html#barrier-objects",
+          "https://docs.python.org/3.14/library/threading.html#lock-objects",
+          "https://docs.python.org/3.14/library/threading.html#event-objects"
+        ]
+      },
+      {
+        "id": "expiry",
+        "evidence": "Verified the actual Store and expiryState model. Deadline = 10+5 = 15. At 14.999, the comparison 15<=14.999 is false, so running remains readable. At 15, 15<=15 is true, so get returns None and removes the entry. Zero TTL makes the deadline equal to the write-time reading, so a subsequent nondecreasing reading expires it immediately. Existing assertions and fresh probes passed.",
+        "sourceUrls": []
+      },
+      {
+        "id": "ttl-reads",
+        "evidence": "Fresh probes verified string enforcement, rejection of negative/NaN/infinite TTLs, one clock sample per scan, removal of matching expired entries, sorted survivors and permanent overwrite. An unmatched expired entry remained allocated, confirming lazy cleanup. Copying and inspecting n keys costs O(n), then sorting k survivors costs O(k log k), excluding string costs. Finite nondecreasing clock readings are caller obligations. [Python's clock contract](https://docs.python.org/3.14/library/time.html#time.monotonic) specifies an undefined origin and a clock shared across processes. The previous visual finding is closed at source level: stages/ttl-reads.mjs:123 now says 'monotonic clock: unspecified origin'. The current article also has the corrected explanation. [Annotations do not enforce runtime types](https://docs.python.org/3.14/library/typing.html).",
+        "sourceUrls": [
+          "https://docs.python.org/3.14/library/time.html#time.monotonic",
+          "https://docs.python.org/3.14/library/typing.html"
+        ]
+      },
+      {
+        "id": "cas-boundary",
+        "evidence": "The actual no-TTL AtomicStore returned True, False, True: missing matches None, the repeated missing expectation fails, and running matches before replacement with ready. Its RLock encloses comparison and replacement. For the proposed TTL extension, expiration makes expected None eligible at deadline 15, provided expiration, comparison and replacement share a boundary respected by other writers. [RLock](https://docs.python.org/3.14/library/threading.html#rlock-objects) supports recursive acquisition. A fresh synchronized deep-copy probe retained running after live mutation to ready, while a shallow copy changed. This agrees with [copy's documented behavior](https://docs.python.org/3.14/library/copy.html) and closes the former exclusive snapshot-method claim. The article's narrower snapshot table still lists valid options, so broadening it remains optional.",
+        "sourceUrls": [
+          "https://docs.python.org/3.14/library/threading.html#rlock-objects",
+          "https://docs.python.org/3.14/library/copy.html"
+        ]
+      },
+      {
+        "id": "scheduler",
+        "evidence": "Verified the Python scheduler and actual film model. Docs(priority 1) precedes test(priority 2). Execution is docs, test, test, deploy. The first test failure increments its attempt count without releasing deploy. Success on attempt two decrements deploy's remaining count from one to zero and enqueues it. With one permitted attempt, test is failed and deploy remains blocked without execution. The film additionally runs independent docs in that failure illustration, which preserves the narrated distinction.",
+        "sourceUrls": []
+      },
+      {
+        "id": "graph-validation",
+        "evidence": "Fresh probes rejected duplicate task names, duplicate dependencies, unknown dependencies and a cycle alongside an independent ready task before any callback ran. DFS marks active before descent and returns immediately for completed nodes. Reverse-input equal-priority tasks executed a before z, consistent with [heap tuple ordering](https://docs.python.org/3.14/library/heapq.html). Immediate retry produced a, a, b. Invalid attempt caps and string False were rejected, and a callback exception propagated. A chain of 2,001 tasks raised RecursionError. Iterative traversal removes this call-stack restriction, without promising unlimited resources.",
+        "sourceUrls": [
+          "https://docs.python.org/3.14/library/heapq.html",
+          "https://docs.python.org/3.14/library/sys.html#sys.getrecursionlimit"
+        ]
+      },
+      {
+        "id": "scheduler-workers",
+        "evidence": "The proposed handoff places work claims and outcome publication under shared synchronization while executing tasks outside it. [Condition's documentation](https://docs.python.org/3.14/library/threading.html#condition-objects) requires rechecking the predicate after waking because notification does not reserve eligible work. Failed and blocked agree with the executed sequential cases. Shutdown and exceptions are explicitly additional lifecycle obligations. The narration accurately labels the article implementation as sequential rather than claiming an implemented concurrent scheduler.",
+        "sourceUrls": [
+          "https://docs.python.org/3.14/library/threading.html#condition-objects"
+        ]
+      },
+      {
+        "id": "limiter",
+        "evidence": "Verified the actual limiter and film trace. Three cost-one requests at t=0 reduce tokens 3→2→1→0. The fourth denies with wait (1-0)/1 = 1 second and no debit. At t=0.5, refill is 0.5×1 = 0.5 token, leaving wait (1-0.5)/1 = 0.5 second. At t=1, another 0.5 token reaches one, which admission spends. This agrees with the [strict token-bucket model](https://www.rfc-editor.org/rfc/rfc3290.html#section-A.2). Token accounting does not track requests still in flight.",
+        "sourceUrls": [
+          "https://www.rfc-editor.org/rfc/rfc3290.html#section-A.2"
+        ]
+      },
+      {
+        "id": "bucket-contract",
+        "evidence": "Verified refill=min(capacity, old_tokens+elapsed×rate), debit only on admission and retry_after=(cost-tokens)/rate. Fresh probes confirmed independent initially full buckets and rejection of nonfinite time/cost, backward per-key time, zero cost and cost four against capacity three. Denial can save refill without consuming tokens. Immediately recreating an emptied capacity-three bucket granted three extra tokens. After three idle seconds at rate one, retained and recreated buckets were both full, supporting the explicit eviction-equivalence condition. Dictionary work assumes ordinary key costs. Locking is a proposed extension. [AWS's jitter explanation](https://aws.amazon.com/builders-library/timeouts-retries-and-backoff-with-jitter/) supports spreading synchronized retries, without guaranteeing admission.",
+        "sourceUrls": [
+          "https://www.rfc-editor.org/rfc/rfc3290.html#section-A.2",
+          "https://aws.amazon.com/builders-library/timeouts-retries-and-backoff-with-jitter/"
+        ]
+      },
+      {
+        "id": "ledger",
+        "evidence": "Verified the actual Ledger and film state. Starting at zero, deposit 100 creates balance 100 and one event. Withdrawing 30 gives 100-30 = 70 and two events. Replaying deposit-1 returns its stored historical result 100, while current balance remains 70 and event count remains two. Reusing deposit-1 with delta 200 raises. The narration correctly distinguishes request result from current balance.",
+        "sourceUrls": []
+      },
+      {
+        "id": "ledger-lifetime",
+        "evidence": "Fresh probes confirmed success-only caching: debit 80 against balance 70 failed without recording its key, deposit 20 produced 90, and retrying the debit produced 90-80 = 10. The original deposit still replayed 100. Different accounts/deltas under its key, empty identifiers and Boolean deltas were rejected. {True: first, 1: second} contained one entry, agreeing with [dictionary equality rules](https://docs.python.org/3.14/library/stdtypes.html#mapping-types-dict). The implementation separately mutates balance, events and results in volatile memory. Disjoint account locks cannot exclude callers sharing only a global request key. Atomic persistence, uniqueness, retention, transfer handling and external-effect recovery are production requirements. [AWS's idempotency reference](https://aws.amazon.com/builders-library/making-retries-safe-with-idempotent-APIs/) supports coupling token recording with mutations atomically.",
+        "sourceUrls": [
+          "https://docs.python.org/3.14/library/stdtypes.html#mapping-types-dict",
+          "https://aws.amazon.com/builders-library/making-retries-safe-with-idempotent-APIs/"
+        ]
+      },
+      {
+        "id": "lock-order",
+        "evidence": "The ordering argument holds for cooperating acquisition paths using one shared registry: circular lock-order waiting would require a strictly increasing cycle, which is impossible. Deduplicating prevents reacquiring the same non-reentrant account lock. The actual helper sorts org-a before unknown, acquires org-a, then raises KeyError. Fresh probes confirmed org-a was released and duplicate org-a was acquired once. [ExitStack](https://docs.python.org/3.14/library/contextlib.html#contextlib.ExitStack) unwinds registered exits when its active context exits exceptionally. A function that fails before returning its stack cannot transfer cleanup responsibility to its caller. These mechanisms establish neither fairness nor crash or transaction semantics.",
+        "sourceUrls": [
+          "https://docs.python.org/3.14/library/contextlib.html#contextlib.ExitStack",
+          "https://docs.python.org/3.14/library/threading.html#lock-objects"
+        ]
+      },
+      {
+        "id": "parser-state",
+        "evidence": "Verified actual parse_events and parserTrace. An orphan space-prefixed line is ignored. t|L|a|b creates message a|b, and a space-prefixed tail extends it to a|b tail. Malformed headers clear current, preventing attachment across rejection. Empty timestamp/level rejects the header, and a tab alone is not the continuation marker. The final unterminated header is already appended and needs no flush. Timestamp syntax and level vocabulary remain unchecked. Repeated concatenation can copy growing strings with work proportional to 1+2+…+m = O(m²) for fixed-size continuations, consistent with [Python's sequence documentation](https://docs.python.org/3.14/library/stdtypes.html#common-sequence-operations). Streaming behavior is explicitly an extension.",
+        "sourceUrls": [
+          "https://docs.python.org/3.14/library/stdtypes.html#str.splitlines",
+          "https://docs.python.org/3.14/library/stdtypes.html#common-sequence-operations"
+        ]
+      },
+      {
+        "id": "concurrency",
+        "evidence": "Primary references support threads overlapping blocking I/O, cooperative async concurrency and synchronous blocking calls holding their event-loop thread. Within one GIL-enabled interpreter, Python bytecode is not executed simultaneously by multiple threads. [Executor documentation](https://docs.python.org/3.14/library/concurrent.futures.html) confirms serialization at the stated process/interpreter task boundaries. Parent merging is now an instruction for this example, closing the former universal claim. Read serializedWorkerTrace: 7×7 = 49 under identity t7, then records[t7]=49. The follow-up is framed as a possibility, closing the unsupported frequency and placement claim.",
+        "sourceUrls": [
+          "https://docs.python.org/3.14/library/threading.html#gil-and-performance-considerations",
+          "https://docs.python.org/3.14/library/asyncio-task.html#running-in-threads",
+          "https://docs.python.org/3.14/library/concurrent.futures.html#interpreterpoolexecutor",
+          "https://docs.python.org/3.14/library/concurrent.futures.html#processpoolexecutor"
+        ]
+      },
+      {
+        "id": "worker-runtime",
+        "evidence": "Verified free-threaded availability from 3.13, supported-but-optional status in 3.14, possible GIL re-enabling by incompatible extensions and runtime inspection against the [howto](https://docs.python.org/3.14/howto/free-threading-python.html) and [3.14 release notes](https://docs.python.org/3.14/whatsnew/3.14.html#free-threaded-python-is-officially-supported). InterpreterPoolExecutor was added in 3.14 with isolated interpreters and separate GILs. Executor task boundaries serialize callables, arguments and results. The executed pickle fixture rejected its lambda and isolated the reconstructed list. Importable functions and guarded process startup are valid portability guidance. [Fork ceased being a default in 3.14](https://docs.python.org/3.14/library/multiprocessing.html#contexts-and-start-methods), while macOS and Windows already used spawn. Fresh asyncio probes produced A start, B start, A resume, B resume with sleep(0), but A start, A resume, B start, B resume with blocking sleep or a completed Future.",
+        "sourceUrls": [
+          "https://docs.python.org/3.14/howto/free-threading-python.html",
+          "https://docs.python.org/3.14/whatsnew/3.14.html#free-threaded-python-is-officially-supported",
+          "https://docs.python.org/3.14/library/concurrent.futures.html",
+          "https://docs.python.org/3.14/library/pickle.html#what-can-be-pickled-and-unpickled",
+          "https://docs.python.org/3.14/library/multiprocessing.html#contexts-and-start-methods",
+          "https://docs.python.org/3.14/library/asyncio-task.html#sleeping",
+          "https://docs.python.org/3.14/library/asyncio-future.html"
+        ]
+      },
+      {
+        "id": "fresh-worker-plan",
+        "evidence": "Read mixedWorkSchedule and the actual stage intervals. Serial time is (3+1)+(3+1) = 8 seconds. Both waits occupy [0,3], then the single CPU lane computes A over [3,4] and B over [4,5], giving ideal completion at five seconds. Single-lane execution and zero overhead are explicit assumptions, so this is a worksheet rather than a measured speedup. Identity-based merging is a proposed design. The limits of local assertions are accurate. Independently read the next lesson's current article opening and narration: they connect a product promise with capacity, decision ownership, receipts and recovery, supporting the preview.",
+        "sourceUrls": []
+      }
+    ],
+    "findings": [],
+    "limitations": [
+      "No substantive inaccurate or unsupported spoken claim was established for script b63d597bdd0f3216. This is a factual-review result, not a rendered-film or deployment certification.",
+      "The current article SHA-256 is 442efd6c6480bf8d2a65cd12b288a862d05ecd94ff66c4bb1bfae8ad8002b390, different from the repair record. Its code and relevant changed passages were inspected directly. Historical verification reports were not treated as current proof.",
+      "The prior clock visual defect is repaired in current source, but no regenerated frames, speech, captions, measured cue timings or playback were inspected. The stage-lessons directory still lacks index.mjs and rebuilt scene implementations.",
+      "The legacy claim-failure diagram illustrates parent reordering but omits overlapping child admission. To demonstrate the repaired mechanism visually, show raw callback lists with a shared child, then normalize, filter and claim in parent/callback order. This omission does not make the repaired narration false.",
+      "Python execution used GIL-enabled CPython 3.14.8. Consulted Python documentation identified itself as 3.14.10. No process-pool, interpreter-pool or free-threaded workload was executed, and no executor speedup was measured.",
+      "Ordering probes imposed both parent completion orders on deterministic finite callback lists. Thread probes forced particular schedules. Neither constitutes a complete concurrent crawler or exhaustive schedule exploration.",
+      "No live network, DNS, redirects, SSRF deployment controls, remote cancellation, concurrent scheduler, TTL-CAS implementation, durable ledger, crash recovery or streaming parser was exercised. Those passages explicitly describe requirements or extensions.",
+      "Snapshot execution covered ordinary nested dictionaries and cooperating writers under one lock. Custom objects require their own copying and consistency contract.",
+      "The mastery quiz and historical article-only interview assertions were outside this narration review. No files were edited, no result files were written, and no subagents were used."
+    ]
+  },
+  "reviewedNarration": {
+    "source": "videos/stage-lessons/ai-lab-coding-interview-python-systems/lesson.yaml",
+    "script": "b63d597bdd0f3216",
+    "scenes": [
+      {
+        "id": "opening",
+        "beats": [
+          {
+            "say": "A crawler can pass its first test and still fetch the same page twice when a second worker arrives. That duplicate can waste a request, break a quota, or produce confusing logs. We will follow one documentation crawl from its first queue entry through duplicate claims, an expiring cache value, and a retrying task."
+          },
+          {
+            "say": "The example starts with a small contract: visit same-origin links once and return them in breadth-first order. Then each follow-up adds one piece of state. By the end, you can point to the queue, deadline, attempt count, and request key that owns each decision."
+          }
+        ]
+      },
+      {
+        "id": "contract-loop",
+        "beats": [
+          {
+            "say": "Start by stating inputs, outputs, malformed-input behavior, ordering and failure policy. Build the smallest state model that meets that contract. When a follow-up arrives, name its new state and the invariant that must survive. An assertion should isolate the transition, not merely report a large final result."
+          },
+          {
+            "say": "These are local standard-library exercises with no network requests. Interview formats and permission to consult documentation or A I tools vary; follow the instructions for the actual assessment. The runtime-specific examples and documentation here use Python three point fourteen."
+          },
+          {
+            "say": "When a test fails, compare expected and actual, then shrink the input until one broken transition remains. Duplicate output points to claim timing; missing output to admission or failure policy; wrong order to the queue or tie-break. Fix that state change and retain a focused regression before adding the next requirement."
+          }
+        ]
+      },
+      {
+        "id": "state-objects",
+        "beats": [
+          {
+            "say": "A deque owns first-in-first-out work. A heap owns priority, a Counter owns counts and an OrderedDict can own recency. An injected monotonic clock owns time decisions. A Lock protects a shared transition, a Condition can wake waiting workers when a predicate changes, and an Event carries a cooperative stop signal. Choose the object from the operation you need."
+          },
+          {
+            "say": "For a finite crawl graph, expected set and queue work is order V plus E, with order V retained state, excluding URL-string processing and callback costs. A priority scheduler also pays heap costs. If each of V tasks makes at most A attempts, heap work is order A V log V, plus graph work order V plus E. State the scope of each cost instead of treating a network call as constant-time local computation."
+          }
+        ]
+      },
+      {
+        "id": "frontier",
+        "beats": [
+          {
+            "say": "Begin with https://repo.example/start. Its links arrive in this order: /guide, /api with a fragment, then a page on another origin. We resolve the relative links and remove fragments. After the start page, the FIFO queue reads /guide, /api, while the claimed set already contains all three in-scope pages."
+          },
+          {
+            "say": "Now /guide points to /api again and then /faq. The first candidate is already claimed, so it adds no second queue entry. We visit /api next, then /faq. The final fetch order is start, guide, api, faq, exactly the order the queue produced."
+          }
+        ]
+      },
+      {
+        "id": "url-policy",
+        "beats": [
+          {
+            "say": "This crawler chooses same origin, not merely the same host name. Scheme, lowercase host and effective port must agree. Remove fragments and default ports, map an empty path to slash, and retain query strings and nonempty paths. Relative links resolve against the current page. Two fragments of the same page share one claim; a changed query can name a different fetch."
+          },
+          {
+            "say": "The actual normalizer rejects credentials, whitespace, C zero controls below code point thirty-two, backslashes, malformed ports and unsupported schemes. DEL and some C one controls can still pass. An invalid start returns an empty result; an invalid or foreign-origin discovered link is skipped. A callback exception propagates. The callback’s link order determines the deterministic single-worker breadth-first result."
+          },
+          {
+            "say": "URL parsing is not destination authorization. Percent-encoded aliases and D N S resolution are outside this normalizer. A real fetcher also needs redirect checks, network-address restrictions, timeouts and response-size bounds. A same-origin string comparison cannot establish protection from server-side request forgery by itself."
+          }
+        ]
+      },
+      {
+        "id": "claim",
+        "beats": [
+          {
+            "say": "A set works for one worker because membership and insertion happen in sequence. With two workers, both can observe a missing URL before either fetch completes. Put the check and insertion inside one short lock. That small transition assigns one owner to this URL."
+          },
+          {
+            "say": "The winner fetches outside the lock, so unrelated URLs can progress while the network waits. The second worker sees the claim and skips. The lock protects duplicate prevention. A separate semaphore can bound active fetches, and an event can carry cooperative cancellation."
+          }
+        ]
+      },
+      {
+        "id": "claim-failure",
+        "beats": [
+          {
+            "say": "The actual thread exercise releases two workers through a barrier at the same claim boundary. The lock covers membership and insertion together. Exactly one returns true; the test deliberately does not choose which worker wins. One successful schedule is evidence for that fixture, while the atomic transition is the contract to defend."
+          },
+          {
+            "say": "Claim safety does not preserve concurrent completion order as breadth-first order. To preserve exact single-worker breadth-first output, collect each frontier's raw child lists. In parent order and each callback's link order, normalize links, skip invalid or foreign-origin links, then deduplicate and claim before scheduling the next frontier. Alternatively, retain ordering metadata that enforces that same admission order. Sorting completed URLs changes the contract to lexical order. A global fetch lock prevents duplicates if every worker checks membership and inserts the claim while holding that same lock. Holding it through the fetch also serializes slow work."
+          },
+          {
+            "say": "Under an at-most-one-attempt policy a failed URL stays claimed. Retrying needs separate in-flight, success, retry-wait and terminal-failure states, with attempt counts and backoff. Host quota is another admission predicate. Check a stop event before scheduling, before fetching and after fetching before publishing children. A cooperative stop does not prove an already running remote request was interrupted."
+          }
+        ]
+      },
+      {
+        "id": "expiry",
+        "beats": [
+          {
+            "say": "A time-to-live value stores an expiration deadline with its value. Here task:1 is written at time ten with a five-second lifetime. An injected clock lets the test inspect the record at 14.999 seconds deterministically."
+          },
+          {
+            "say": "At the exact deadline, the read treats the key as expired and removes it. A zero-second lifetime follows the same boundary immediately. The important state is expires_at, and every public read path must apply the same comparison."
+          }
+        ]
+      },
+      {
+        "id": "ttl-reads",
+        "beats": [
+          {
+            "say": "A TTL entry stores a string value and either an expiration deadline or no deadline. Get, scan and an eventual compare-and-set must agree that equality with the deadline is expired. Zero TTL therefore expires immediately. Negative or nonfinite lifetimes are invalid. None is reserved for missing or no expiration, so stored values must be strings; annotations alone do not enforce that."
+          },
+          {
+            "say": "The actual scan samples the injected clock once and checks all matching keys at that same logical instant. It iterates a copy of the keys because expired entries can be deleted. Sorting k surviving matches after inspecting n stored keys costs order n plus k log k, excluding string comparisons. Overwriting an expiring record with a permanent value replaces the old deadline."
+          },
+          {
+            "say": "The clock must return finite nondecreasing seconds. A monotonic deadline uses a clock whose starting point is unspecified. It supports elapsed-time decisions but is not a portable persistent timestamp across machines or reboots. Lazy cleanup leaves unread expired entries in memory, and this store is single-threaded. Add an explicit cleanup or eviction policy and synchronize every public transition when the contract expands."
+          }
+        ]
+      },
+      {
+        "id": "cas-boundary",
+        "beats": [
+          {
+            "say": "Compare-and-set means compare the current value with an expected value and write the replacement only if they match, as one atomic transition. The actual compact AtomicStore demonstrates this without TTL: first comparing missing to None writes running, repeating that expectation fails, and comparing running writes ready."
+          },
+          {
+            "say": "For the TTL extension, first remove an expired value, then compare and write while holding the same lock. At the exact deadline, expected None can match because the old value is missing. Releasing the lock between get and set allows another writer to invalidate that comparison. Use one acquisition or an RLock if public methods acquire the same lock recursively."
+          },
+          {
+            "say": "This combined TTL compare-and-set is an extension to design, not an executed durable transaction in the article. State the serialization boundary and add the exact deadline-and-writer case before claiming the extension works. Snapshots must keep their promised view as live records change. Options include a synchronized eager copy that isolates mutable contents, versioned records, or copy-on-write."
+          }
+        ]
+      },
+      {
+        "id": "scheduler",
+        "beats": [
+          {
+            "say": "Put docs and test in the ready heap. Docs has higher priority, so it finishes first. Test fails once, keeps its attempt count, and returns to the heap. When its retry succeeds, its completion releases deploy. The dependency count reaches zero before deploy becomes eligible."
+          },
+          {
+            "say": "Change the policy to one attempt and let test fail. Test is now failed because it ran and exhausted its budget. Deploy remains blocked because test did not release its dependency. Keeping those outcomes separate helps callers choose whether to retry, repair, or skip downstream work."
+          }
+        ]
+      },
+      {
+        "id": "graph-validation",
+        "beats": [
+          {
+            "say": "Validate the entire graph before calling run, including independent ready tasks. Reject duplicate task names, duplicate dependencies and unknown dependency names. Three-state depth-first search marks unseen, active and completed nodes. An edge back to an active node exposes a cycle; a visit to a completed node does not."
+          },
+          {
+            "say": "The actual ready heap stores priority and task name. Lower numeric priority runs first; equal priorities break ties by name, not input order. A task enters only when its remaining dependency count is zero. On successful completion decrement each dependent once and enqueue it only when that count reaches zero."
+          },
+          {
+            "say": "Retries are immediate and keep the original priority, so a retry can run before another lower-priority task. An actual Boolean false retries up to the positive integer attempt cap. A string saying False is rejected rather than treated as truthy success, and an exception aborts this scheduler. A long chain can exceed recursive depth; an iterative traversal removes that implementation limit."
+          }
+        ]
+      },
+      {
+        "id": "scheduler-workers",
+        "beats": [
+          {
+            "say": "Adding workers changes ownership of the ready heap, attempt counts, completion sets and remaining dependency counts. Claim ready work under a shared lock or condition, execute the task outside it, then reacquire to publish its outcome. A successful publication can release dependents and notify waiting workers. Waking is not permission by itself; recheck the predicate."
+          },
+          {
+            "say": "A task that ran and exhausted attempts is failed. A dependent that never became eligible is blocked. Keep these outcomes separate when deciding whether to repair, retry or skip. Worker shutdown and exceptions need explicit lifecycle and result handling. This describes the required concurrent handoff; the article’s scheduler implementation is sequential."
+          }
+        ]
+      },
+      {
+        "id": "limiter",
+        "beats": [
+          {
+            "say": "A token bucket starts with three tokens and refills one token per second. Three requests at time zero spend the burst. The fourth request sees an empty bucket and receives an estimated wait of one second. The denial leaves the remaining amount unchanged."
+          },
+          {
+            "say": "At half a second, only half a token has returned, so a cost-one request still waits another half second. At one second, it can proceed. The same injected clock tests both boundaries quickly, and a separate concurrency limit can bound requests already in flight."
+          }
+        ]
+      },
+      {
+        "id": "bucket-contract",
+        "beats": [
+          {
+            "say": "For each key, refill tokens by elapsed seconds times the rate, add the old tokens and cap at capacity. If that amount reaches the positive cost, subtract the cost and admit. Otherwise leave tokens unspent and divide the missing amount by the refill rate for retry-after. That wait assumes no competing consumption; another caller can spend the refill first."
+          },
+          {
+            "say": "Reject a cost above capacity because no amount of waiting can make it fit. Reject nonfinite time or cost, and time moving backward for the same key. Keys have independent buckets. Thread safety requires locking lookup, refill and debit together. Rate admission and the number of requests already in flight need different limits."
+          },
+          {
+            "say": "Deleting an empty idle bucket and recreating it full grants an extra burst. Evict only when the recreated full state is equivalent to the state elapsed refill would produce. Retained state grows with keys; each dictionary transition is expected constant work. Randomized retry delays spread synchronized arrivals, but do not guarantee available quota or future admission."
+          }
+        ]
+      },
+      {
+        "id": "ledger",
+        "beats": [
+          {
+            "say": "Retries become more delicate when an operation changes a balance. The ledger records deposit-1 for one hundred, then withdraw-1 for thirty. Its current balance is seventy, and two events explain how that balance was reached."
+          },
+          {
+            "say": "When deposit-1 arrives again with the same account and amount, the ledger returns that request's original result. The balance stays seventy and the event count stays two. A different payload under the same key fails, because one key names one effect."
+          }
+        ]
+      },
+      {
+        "id": "ledger-lifetime",
+        "beats": [
+          {
+            "say": "The actual ledger stores only successful operations. An insufficient-credit rejection leaves no cached result for that key, so the same requested debit can succeed after a later deposit under this policy. A successful replay returns its original balance-after result, even after other requests changed the current account balance. Reusing the key for another account or delta fails."
+          },
+          {
+            "say": "Require nonempty string keys and accounts and an actual integer delta. In Python, Boolean true and integer one compare equal as dictionary keys; arbitrary truthy identifiers can merge distinct requests. The fixture’s string-only identity rule avoids that particular collision, and Boolean deltas are rejected."
+          },
+          {
+            "say": "Balance, event and cached result are updated sequentially in volatile memory. This is not crash-safe or thread-safe by itself. A durable service needs one atomic transaction, a uniqueness rule and a retention policy for keys. A transfer spans debit, credit and deduplication. Even disjoint account pairs can reuse one request key, so account locks alone do not synchronize the global key registry. External effects need their own recovery protocol."
+          }
+        ]
+      },
+      {
+        "id": "lock-order",
+        "beats": [
+          {
+            "say": "For cooperating account operations, acquire shared account locks in one global sorted order to prevent circular lock-order waiting. Deduplicate IDs before acquiring them: taking the same non-reentrant lock twice can deadlock a single caller. Use a fixed shared registry so the same account really means the same lock."
+          },
+          {
+            "say": "Enter an ExitStack before acquiring the first lock, and register each entered lock in that active context. The actual helper acquires the known account, then a later unknown lookup raises KeyError. Unwinding releases the earlier lock. Returning a stack only after all acquisitions would not reach the caller on that failure path."
+          },
+          {
+            "say": "Sorted order solves cooperating acquisition cycles; the active context solves partial-acquisition cleanup. Neither establishes fairness, crash recovery or transactional balance updates. Keep the request-key registry’s synchronization explicit alongside account locking rather than inferring it from the account order."
+          }
+        ]
+      },
+      {
+        "id": "parser-state",
+        "beats": [
+          {
+            "say": "The multiline parser keeps a current accepted record. A line beginning with a space extends that record’s message after trimming the continuation; with no current record it is ignored. A nonindented header splits at only the first two vertical bars. Timestamp and level must be nonempty strings, while extra bars remain in the message."
+          },
+          {
+            "say": "A malformed nonindented line clears the current record, so a later continuation cannot attach across that rejected header. The final accepted line needs no flush because records are appended when headers arrive. This grammar does not validate timestamp syntax or level vocabulary. Add those checks when they belong to the caller’s contract."
+          },
+          {
+            "say": "The actual parser holds the whole input and output in memory. Repeated message concatenation can become quadratic for many continuations. A streaming extension should retain partial lines, collect message fragments in a list, join once, bound record size and flush an unterminated final line once. Test every split in a short fixture; splitting an input string is not itself proof of chunk-safe parsing."
+          }
+        ]
+      },
+      {
+        "id": "concurrency",
+        "beats": [
+          {
+            "say": "A follow-up might ask, “Can you make it faster with threads?” First locate the time. Threads can overlap network waits. An async client can do the same on an event loop, while a blocking call holds that loop. Pure-Python CPU work needs a different parallelism plan on a GIL-enabled interpreter."
+          },
+          {
+            "say": "Choose the tool from the work and keep shared state explicit. With the process and interpreter executor pools discussed here, submitted tasks and returned records cross a serialization boundary. Have the parent merge this example's returned records by identity. You now have a way to extend a small correct baseline while preserving its ordering, expiry, retry, and ownership rules."
+          }
+        ]
+      },
+      {
+        "id": "worker-runtime",
+        "beats": [
+          {
+            "say": "On a GIL-enabled CPython interpreter, one thread executes Python bytecode at a time, while blocking I O generally allows waiting to overlap. Free-threaded builds arrived in three point thirteen and became officially supported but optional in three point fourteen. An incompatible extension can re-enable the GIL. Check the running process; free threading still requires synchronization of shared compound state transitions."
+          },
+          {
+            "say": "Python three point fourteen’s InterpreterPoolExecutor uses isolated interpreters, each with its own GIL. Mutable parent lists are not automatically shared. Interpreter and process pools serialize callables, inputs and results. The actual pickle round trip rejects a lambda and shows a worker copy changing while the parent list stays unchanged. Use importable module-level functions, return records and merge in the parent."
+          },
+          {
+            "say": "Portable process startup belongs under the main guard; Python three point fourteen moved its default process start method away from fork. Measure startup, serialization, computation and merge costs before claiming speedup. The actual asyncio exercise interleaves A start, B start, A resume, B resume through sleep zero. A blocking sleep does not yield that event loop. Awaiting an already completed awaitable need not yield either."
+          }
+        ]
+      },
+      {
+        "id": "fresh-worker-plan",
+        "beats": [
+          {
+            "say": "Choose a plan for a fresh supplied workload. Two independent jobs each wait three seconds for I O, then need one second of pure-Python computation. Assume one GIL-enabled CPU execution lane, both waits can overlap, and zero startup, transfer and merge cost for this ideal worksheet. Predict serial completion time and completion time when the waits overlap. Pause."
+          },
+          {
+            "say": "Serial execution takes eight seconds: three plus one for each job. Start both waits together and they finish at three seconds. One CPU lane then computes A from three to four and B from four to five, so the ideal completion time is five seconds. Threads did not run the Python computation simultaneously; they overlapped waiting. Real scheduling and transfer costs need measurement."
+          },
+          {
+            "say": "Return each job’s result with its identity and merge in the parent. Preserve one claim, one consistent deadline, an explicit retry policy and one key per successful effect as the requirements grow. Before claiming a new threaded, persistent or streaming version, test that added boundary. The local assertions establish these fixtures, not a deployed crawler, a durable ledger or executor performance. The system-design interview next puts that state ownership under a product promise, giving each service boundary a capacity, a decision owner, a receipt and a recovery path."
+          }
+        ]
+      }
+    ]
+  }
+}

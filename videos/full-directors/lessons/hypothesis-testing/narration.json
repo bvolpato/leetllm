@@ -1,0 +1,707 @@
+[
+  {
+    "id": "c01",
+    "title": "Would you switch coding assistants?",
+    "sourceChapters": [
+      "c01"
+    ],
+    "beats": [
+      {
+        "id": "c01-b01",
+        "say": "Three passes apiece. One test left to score. Each coding assistant gets one try. Both get the same request. The permission check says deny. A lets the request through anyway. If B keeps the gate closed, would you switch?",
+        "hold": 2.2
+      },
+      {
+        "id": "c01-b02",
+        "say": "B keeps the gate closed. That passes the test. B leads four to three. Five tasks ended in ties. If either assistant was equally likely to win the one disagreement, how surprising is that lead?",
+        "hold": 0.85
+      }
+    ]
+  },
+  {
+    "id": "c02",
+    "title": "Keep the task attached to both answers",
+    "sourceChapters": [
+      "c02"
+    ],
+    "beats": [
+      {
+        "id": "c02-b01",
+        "say": "Take the permission task. An explicit denial must stay denied. We give each model the same prompt and hidden tests, then record both outcomes on one ticket with the task ID. Related versions of this helper may fail together. We'll come back to how to count those.",
+        "hold": 0.6
+      },
+      {
+        "id": "c02-b02",
+        "say": "Read the six tickets. A passes three and B passes four. How much did B gain per task? Take one extra pass and divide by all six. That's a lift of about sixteen point seven percentage points. Keep the task population, checkpoints, decoder settings and attempt budget with that number.",
+        "hold": 0.6
+      },
+      {
+        "id": "c02-b03",
+        "say": "Subtract A from B within each row. A shared pass and a shared failure each contribute zero. Only a disagreement changes the signed difference. The permission row contributes plus one; the five ties stay in the denominator of the overall lift.",
+        "hold": 0.6
+      }
+    ]
+  },
+  {
+    "id": "c03",
+    "title": "Which answer belongs to which task?",
+    "sourceChapters": [
+      "c03"
+    ],
+    "beats": [
+      {
+        "id": "c03-b01",
+        "say": "Watch the completion times. Both assistants finish the timestamp and cache tasks. B's cache result comes back first. If we zip the lists in finish order, which assistant looks better on timestamp?",
+        "hold": 2.2
+      },
+      {
+        "id": "c03-b02",
+        "say": "A appears to win timestamp, and B appears to win cache. Now match the task IDs. Both timestamp answers pass and both cache answers fail. The apparent wins disappear. Checking the lengths alone would have missed the mistake. Suppose B's timestamp result times out.",
+        "hold": 0.3
+      },
+      {
+        "id": "c03-b03",
+        "say": "Keep that row. Our declared policy scores a timeout as a failure. A passed timestamp, so the paired difference on that row is minus one.",
+        "hold": 0.85
+      },
+      {
+        "id": "c03-b04",
+        "say": "Write down enough to repeat that pair. Save the checkpoint hashes, prompt and tests. Give both assistants the same decoder settings, seeds, token limit, execution timeout and attempt budget. Fix how you'll select an answer.",
+        "hold": 0.3
+      },
+      {
+        "id": "c03-b05",
+        "say": "If you give B more time, the result measures the longer timeout along with the checkpoint. Decide which direction to test, how many comparisons to make and when to stop before you see the scores. Write down what the switch has to buy.",
+        "hold": 0.3
+      },
+      {
+        "id": "c03-b06",
+        "say": "For this run, the lower end of the lift interval must exceed two percentage points to cover the extra cost. Reserve fresh tasks for the winner.",
+        "hold": 0.8
+      },
+      {
+        "id": "c03-b07",
+        "say": "Where did the tasks come from? Suppose one repository supplies twenty variations of the same helper. One bug could make all twenty fail together. Carry those related tasks together when you resample, and draw independent repository clusters. Counting every variation as independent can give a narrow interval for a population you barely sampled.",
+        "hold": 0.8
+      }
+    ]
+  },
+  {
+    "id": "c04",
+    "title": "Finish the planned forty-task experiment",
+    "sourceChapters": [
+      "c04"
+    ],
+    "beats": [
+      {
+        "id": "c04-b01",
+        "say": "Six tasks were our close-up. Finish the planned forty-task run before drawing a conclusion. These are illustrative outcomes, with the same one-attempt protocol throughout. Watch the original permission row join seven more B-only passes, while five tasks favor A.",
+        "hold": 0.7
+      },
+      {
+        "id": "c04-b02",
+        "say": "Twenty-seven pairs agree. Eight favor B and five favor A. Subtract five from eight, then divide by all forty. The lift is seven and a half percentage points. Before opening the results we chose a direction. Does B improve the pass rate?",
+        "hold": 0.6
+      }
+    ]
+  },
+  {
+    "id": "c05",
+    "title": "What would a fair contest produce?",
+    "sourceChapters": [
+      "c05"
+    ],
+    "beats": [
+      {
+        "id": "c05-b01",
+        "say": "For the directional test, start with the equal-win boundary. Imagine sliding the permission ticket into a fair draw. Either letter fits. Under this model, how often would that one disagreement give B a win? Half the time.",
+        "hold": 0.8
+      },
+      {
+        "id": "c05-b02",
+        "say": "Now keep all thirteen disagreement identities and assign each a fair direction under that model. The twenty-seven ties stay parked. Independent task pairs let us multiply the coin probabilities. One simulated row of signs produces one count of B wins.",
+        "hold": 0.7
+      },
+      {
+        "id": "c05-b03",
+        "say": "Enumerating every possible sign assignment gives this binomial distribution. Every assignment is equally likely, but the middle counts occur in many more assignments. The height of a bar is the fraction of assignments with that many B wins.",
+        "hold": 2
+      }
+    ]
+  },
+  {
+    "id": "c06",
+    "title": "Which results count as evidence for B?",
+    "sourceChapters": [
+      "c06"
+    ],
+    "beats": [
+      {
+        "id": "c06-b01",
+        "say": "We observed eight B wins. Which bars should count? Start at eight. Include nine and every larger count because each is at least as favorable to B. The highlighted bars contain two thousand three hundred eighty of the eight thousand one hundred ninety-two equally likely patterns. That's about twenty-nine percent. A result this favorable is fairly ordinary under the equal-win model.",
+        "hold": 0.8
+      },
+      {
+        "id": "c06-b02",
+        "say": "That p-value is a tail probability for outcomes generated by the null model. A two-sided question would also count equally extreme A wins, shown on the other side. We choose the direction before seeing results. Here we retain the original one-sided plan and its full right tail.",
+        "hold": 0.7
+      }
+    ]
+  },
+  {
+    "id": "c07",
+    "title": "What did we draw?",
+    "sourceChapters": [
+      "c07"
+    ],
+    "beats": [
+      {
+        "id": "c07-b01",
+        "say": "Our null hypothesis gives B at most half the wins on disagreements. At the gold mark the two assistants have equal chances. Farther left, B wins less often and a run this favorable to B gets even rarer.",
+        "hold": 0.3
+      },
+      {
+        "id": "c07-b02",
+        "say": "That's why we use the fair coin at the boundary and keep the thirteen disagreements fixed. For paired pass or fail results, the exact McNemar test uses this same calculation. Its usual two-sided version counts extremes in either direction.",
+        "hold": 0.8
+      },
+      {
+        "id": "c07-b03",
+        "say": "On the left, toss thirteen fair coins. The gold tail counts eight or more B wins. Its probability is our p-value. On the right, draw forty whole task pairs with replacement from the results we observed. Repeat that draw.",
+        "hold": 0.3
+      },
+      {
+        "id": "c07-b04",
+        "say": "The rust bars count resamples where B falls behind. Each chart tells you how often an outcome occurs under its own drawing rule. To assign a posterior probability to B being better, we'd also need a prior and a model of the data.",
+        "hold": 0.8
+      },
+      {
+        "id": "c07-b05",
+        "say": "Suppose B wins all four disagreements. Find the four B's. Only one of the sixteen equally likely strings looks like that. Even a sweep lands above five percent. Add a fifth B win and the chance falls to one in thirty-two.",
+        "hold": 0.3
+      },
+      {
+        "id": "c07-b06",
+        "say": "Each extra win halves the smallest possible one-sided p-value. With no disagreements the test returns one. To plan a study, we also need to know how often the assistants tie and what advantage we want to detect.",
+        "hold": 0.8
+      },
+      {
+        "id": "c07-b07",
+        "say": "Read the top row. If the null is true and we reject it, we've called a false win. That's a Type one error. On the bottom row B really is better. Missing that gain is a Type two error.",
+        "hold": 0.3
+      },
+      {
+        "id": "c07-b08",
+        "say": "Power is the chance of detecting that particular gain. When the test leaves the comparison unresolved, a smaller gain could still matter. To test for practical equivalence, choose a tolerance first and test whether the difference fits inside it.",
+        "hold": 0.8
+      }
+    ]
+  },
+  {
+    "id": "c08",
+    "title": "Watch the same decision rule repeat",
+    "sourceChapters": [
+      "c08"
+    ],
+    "beats": [
+      {
+        "id": "c08-b01",
+        "say": "Set the significance level at five percent. With thirteen disagreements, ten or more B wins trigger rejection. Each dot is one simulated study. A dot across the gate is a false positive when the two win chances are equal. The exact false-positive probability falls a little below five percent because the win count moves in whole steps.",
+        "hold": 0.7
+      },
+      {
+        "id": "c08-b02",
+        "say": "Now specify a real advantage: B wins sixty-five percent of disagreements. Keep the same rejection rule. Count the simulated studies across the gate and divide by all the studies. That fraction estimates how often we detect the gain. The other studies miss it. Power is the probability of detection under this specified alternative. A missed rejection leaves the comparison unresolved.",
+        "hold": 0.6
+      },
+      {
+        "id": "c08-b03",
+        "say": "Plan for sixty-four independent disagreements instead. The critical count changes to preserve the error limit, and more studies now detect the same advantage. The exact power rises to about seventy-one percent. These sample sizes count disagreements; a full task study must also allow for how often models tie.",
+        "hold": 0.85
+      }
+    ]
+  },
+  {
+    "id": "c09",
+    "title": "A winner can come from the search",
+    "sourceChapters": [
+      "c09"
+    ],
+    "beats": [
+      {
+        "id": "c09-b01",
+        "say": "Imagine repeating that thirteen-disagreement test for twenty prompt variants whose results are independent under this example. Even when every variant has equal win chances, a family gets twenty opportunities for a false positive. The exact per-test error compounds to about sixty-one percent for at least one.",
+        "hold": 0.6
+      },
+      {
+        "id": "c09-b02",
+        "say": "Bonferroni divides the family error budget by the number of comparisons. Five percent divided by twenty gives a quarter of one percent for each test. The smaller per-test threshold moves our rejection boundary from ten B wins to twelve. Only the farthest tail survives. The union bound keeps family error at most five percent even when comparisons depend on one another.",
+        "hold": 0.8
+      },
+      {
+        "id": "c09-b03",
+        "say": "Repeated looks at one accumulating experiment create another search. Follow this fixed null sequence. Its p-value drops below the nominal line and then rises above it. Stopping at the first crossing would select the favorable look. Fix the stopping rule in advance, use a valid sequential method, or keep a fresh set for the final comparison.",
+        "hold": 0.6
+      }
+    ]
+  },
+  {
+    "id": "c10",
+    "title": "What changes when the prompts match?",
+    "sourceChapters": [
+      "c10"
+    ],
+    "beats": [
+      {
+        "id": "c10-b01",
+        "say": "Imagine a different task population. Each square stands for one percent of it. Each assistant passes half the tasks, so each has variance one quarter. Look at the top group. Both assistants pass together on forty-five percent.",
+        "hold": 0.3
+      },
+      {
+        "id": "c10-b02",
+        "say": "Now multiply A's zero or one by B's zero or one in each square. Only joint passes count. The average product is point four five. Subtract the product of the two half-pass rates. The difference, point two, is the covariance.",
+        "hold": 0.3
+      },
+      {
+        "id": "c10-b03",
+        "say": "A pass by one model tends to come with a pass by the other.",
+        "hold": 0.85
+      },
+      {
+        "id": "c10-b04",
+        "say": "How much would the lift vary over studies of forty independent pairs? Add the two marginal variances, subtract twice their covariance, then divide by forty. Here the numerator falls from one half to one tenth. That gives the shorter teal bar.",
+        "hold": 0.3
+      },
+      {
+        "id": "c10-b05",
+        "say": "Now give A and B separate batches of forty independent tasks each. Both still pass half in the population. There's no shared-task covariance to subtract. The rust bar is five times as long. Both bars measure variance of the difference in mean pass rates.",
+        "hold": 0.85
+      },
+      {
+        "id": "c10-b06",
+        "say": "Take the square root and we're back in percentage points. These are the two standard errors. Multiplying each by one point nine six gives the reference margins on the ruler. Pairing cuts the margin from about twenty-two points to about ten in this population.",
+        "hold": 0.3
+      },
+      {
+        "id": "c10-b07",
+        "say": "These widths use the known zero effect. In forty pairs we'd expect only four disagreements, so a normal interval can miss its intended coverage.",
+        "hold": 0.85
+      },
+      {
+        "id": "c10-b08",
+        "say": "What if the models pass on different kinds of tasks? Keep both pass rates at one half and make them agree less often. At zero covariance the paired and independent variances meet. With negative covariance the paired variance goes above the independent one.",
+        "hold": 0.3
+      },
+      {
+        "id": "c10-b09",
+        "say": "Go back to the original positive covariance. Now enlarge the independent batches. Watch the rust bar shrink to the same length as the teal one. It takes two hundred tasks per model to match forty pairs in this example. That's a variance comparison.",
+        "hold": 0.3
+      },
+      {
+        "id": "c10-b10",
+        "say": "Power also depends on the effect, the test and its threshold.",
+        "hold": 0.85
+      }
+    ]
+  },
+  {
+    "id": "c11",
+    "title": "How large could the improvement be?",
+    "sourceChapters": [
+      "c11"
+    ],
+    "beats": [
+      {
+        "id": "c11-b01",
+        "say": "The tail answered a question about the null. To estimate the size of the lift, draw forty whole task rows with replacement from our observed forty. The permission row can appear again. Its A failure and B pass travel together, so every draw still has a paired difference.",
+        "hold": 0.75
+      },
+      {
+        "id": "c11-b02",
+        "say": "Compute the mean difference for that resample, then repeat with the same row rule. These bars accumulate eight thousand resampled means. The original rows remain the source of every draw. We resample clusters instead when a family of related tasks shares randomness.",
+        "hold": 0.7
+      },
+      {
+        "id": "c11-b03",
+        "say": "Find the two point five percentile and the ninety-seven point five percentile of the resampled means. The endpoints are about minus ten and plus twenty-five percentage points. Trace that span across the ruler. It crosses zero. All values tied at either endpoint stay inside, so the span can hold more than ninety-five percent of the means.",
+        "hold": 0.3
+      },
+      {
+        "id": "c11-b04",
+        "say": "With a small sample, a percentile bootstrap interval can have poor coverage. How could we measure how often an interval method captures the true lift?",
+        "hold": 1.1
+      }
+    ]
+  },
+  {
+    "id": "c12",
+    "title": "Which intervals can you trust?",
+    "sourceChapters": [
+      "c12"
+    ],
+    "beats": [
+      {
+        "id": "c12-b01",
+        "say": "We'll use a paired Wald interval. Start with the mean of the paired differences, then add and subtract one point nine six standard errors. Here both assistants have the same pass rate, so the gold line stays at zero. Take a fresh sample of forty pairs, draw its interval, and repeat across twenty simulated studies.",
+        "hold": 0.3
+      },
+      {
+        "id": "c12-b02",
+        "say": "Find an interval that stops short of the gold line. That study missed the true lift. A calibrated ninety-five-percent procedure covers the true lift in about ninety-five percent of repeated studies. Count a hit whenever an interval touches the line.",
+        "hold": 0.75
+      },
+      {
+        "id": "c12-b03",
+        "say": "Try the usual symmetric interval on just one assistant. Four tasks, four passes. The estimated standard error is zero because the sample has no variation. Four failures would do the same. Now change the last pass to a failure. Keep the same four tasks.",
+        "hold": 0.3
+      },
+      {
+        "id": "c12-b04",
+        "say": "The center moves to three quarters. Where will the right end land if we extend the interval by one point nine six standard errors on each side? Past a hundred percent. This is the Wald approximation. Wilson can give an interval for one pass rate.",
+        "hold": 0.3
+      },
+      {
+        "id": "c12-b05",
+        "say": "For our switch we need the difference within each pair.",
+        "hold": 1.05
+      },
+      {
+        "id": "c12-b06",
+        "say": "A different failure can happen with the paired bootstrap. Suppose six fresh tasks all tied. Pick six of those rows with replacement. The same task can turn up three times and it still contributes zero each time. Every resampled mean lands on zero.",
+        "hold": 0.3
+      },
+      {
+        "id": "c12-b07",
+        "say": "A thousand more draws would leave both ends there. To learn whether these assistants ever disagree, we need more independent tasks.",
+        "hold": 0.85
+      }
+    ]
+  },
+  {
+    "id": "c13",
+    "title": "Would the gain pay for the switch?",
+    "sourceChapters": [
+      "c13"
+    ],
+    "beats": [
+      {
+        "id": "c13-b01",
+        "say": "B costs more to run. Our gold line marks two extra passes per hundred tasks. The dot is the gain of seven and a half points on development tasks. Open the interval around it. Which end should you compare with the line?",
+        "hold": 2.2
+      },
+      {
+        "id": "c13-b02",
+        "say": "Read the lower end. It's minus ten points. We could lose passes even though B came out ahead on these forty tasks. Hold the switch. Freeze the chosen model and run both assistants on fresh tasks.",
+        "hold": 0.85
+      }
+    ]
+  },
+  {
+    "id": "c14",
+    "title": "A retry budget changes the question",
+    "sourceChapters": [
+      "c14"
+    ],
+    "beats": [
+      {
+        "id": "c14-b01",
+        "say": "Before the fresh comparison, set the attempt budget. Here is a separate illustrative pool for the permission task. We generated ten independent candidates from one fixed model and decoder. Two pass. Choose three distinct positions. Can you spot a pass in the highlighted triple?",
+        "hold": 2.2
+      },
+      {
+        "id": "c14-b02",
+        "say": "This subset contains a passing candidate. Move several other three-candidate subsets through the same test, keeping their identities. There are a hundred and twenty distinct subsets in total. Fifty-six contain only failures; sixty-four contain at least one pass. Each subset has the same selection probability.",
+        "hold": 0.8
+      },
+      {
+        "id": "c14-b03",
+        "say": "The estimated pass at three is the fraction of subsets with a pass. To count failures, choose three of the eight failing positions. Divide that count by all the ways to choose three of ten. Subtract the fraction from one. The same calculation works for any budget up to the pool size. This estimates the fixed model’s three-attempt success target under independent sampling. Keep the ten-candidate estimation pool and the three-attempt operating budget explicit. Our release comparison continues with one attempt for both models.",
+        "hold": 0.6
+      }
+    ]
+  },
+  {
+    "id": "c15",
+    "title": "Which attempt gets the credit?",
+    "sourceChapters": [
+      "c15"
+    ],
+    "beats": [
+      {
+        "id": "c15-b01",
+        "say": "Take three different tasks. Suppose your product always returns the first answer. Read just the first column. Only the timestamp task passes, so that's one task solved out of three. Hold that first score. Now allow all three attempts. Follow the retry task to its third answer.",
+        "hold": 0.3
+      },
+      {
+        "id": "c15-b02",
+        "say": "That pass brings the total to two tasks solved. Now set the order aside. If each of the three positions is equally likely to be the one answer you use, each task contributes its fraction of passes. Average those three fractions and you get two ninths.",
+        "hold": 0.3
+      },
+      {
+        "id": "c15-b03",
+        "say": "Same nine answers. Which number you report depends on how you intend to use them.",
+        "hold": 0.85
+      },
+      {
+        "id": "c15-b04",
+        "say": "Behind a task's score is a probability we don't know. Call the chance of one passing answer p. One try fails with probability one minus p. For k independent tries from the same decoder, raise that failure probability to the kth power.",
+        "hold": 0.3
+      },
+      {
+        "id": "c15-b05",
+        "say": "Subtract it from one to get the chance of at least one pass. We can generate a larger pool to estimate that chance. Pick any k distinct positions before seeing their answers.",
+        "hold": 0.3
+      },
+      {
+        "id": "c15-b06",
+        "say": "They're still k independent draws from the original decoder, so that subset has the right success probability.",
+        "hold": 0.8
+      },
+      {
+        "id": "c15-b07",
+        "say": "Average that pass indicator over every subset. You keep the same expected value. This is why counting one minus the fraction of all-failing subsets gives an unbiased estimate. Look at the two triples here. Both use candidates two and three.",
+        "hold": 0.3
+      },
+      {
+        "id": "c15-b08",
+        "say": "Making more triples from the same pool adds no new independent draws. HumanEval evaluated a hundred sixty-four Python problems. The authors used two hundred samples per problem to estimate performance at budgets up to one hundred.",
+        "hold": 0.3
+      },
+      {
+        "id": "c15-b09",
+        "say": "For your product, set the budget first and generate at least that many candidates per task.",
+        "hold": 0.8
+      }
+    ]
+  },
+  {
+    "id": "c16",
+    "title": "What changes after a failed draw?",
+    "sourceChapters": [
+      "c16"
+    ],
+    "beats": [
+      {
+        "id": "c16-b01",
+        "say": "Back to the permission task. Keep the same ten candidates and the same two passing answers. This time the budget is five. Take five distinct positions, then move on to the next possible five. Each mark records one subset.",
+        "hold": 0.3
+      },
+      {
+        "id": "c16-b02",
+        "say": "Of the two hundred fifty-two subsets, fifty-six miss both passing answers. The rest give us seven ninths with a pass. All we changed was the attempt budget.",
+        "hold": 0.8
+      },
+      {
+        "id": "c16-b03",
+        "say": "Make two copies of that pool. Follow what happens if the first pick fails. Put the failed candidate back in the top copy and set it aside in the bottom copy. Look at the next draw. Up top, eight of ten positions can still fail.",
+        "hold": 0.3
+      },
+      {
+        "id": "c16-b04",
+        "say": "Down below, only seven of nine can. Follow three more failing picks. For five attempts to fail, you have to multiply the five successive failure chances. Up top the same fraction appears five times. Subtract that product from one and the plug-in estimate is about sixty-seven percent.",
+        "hold": 0.3
+      },
+      {
+        "id": "c16-b05",
+        "say": "In the lower pool the fraction falls at every step. Multiply those fractions and subtract the product from one. There's the seven ninths we counted.",
+        "hold": 0.95
+      },
+      {
+        "id": "c16-b06",
+        "say": "So far we've had one pool in our hands. Now imagine repeatedly generating ten fresh candidates when the true chance of a pass is one in five. The dots show the success fractions those pools can give us. Larger dots are more likely.",
+        "hold": 0.3
+      },
+      {
+        "id": "c16-b07",
+        "say": "Trace them up the five-attempt curve. The slope gets gentler as the pass rate rises. That's a concave curve. A drop below the true fraction costs more than an equal rise buys. Averaged over pools, the plug-in estimate comes out low.",
+        "hold": 0.3
+      },
+      {
+        "id": "c16-b08",
+        "say": "That's the downward bias for budgets above one when the success chance is between zero and one. Counting distinct subsets has the correct average under independent draws from the same decoder.",
+        "hold": 0.8
+      },
+      {
+        "id": "c16-b09",
+        "say": "At the extremes you can count by eye. With no passing candidates the score is zero. Now put six passes in the pool of ten. Set aside four failures and reach for a fifth. Only passes remain.",
+        "hold": 0.3
+      },
+      {
+        "id": "c16-b10",
+        "say": "For a large pool we use a product to avoid listing every subset. Go back to our two passes in ten. Multiply one minus k over i for each i from n minus c plus one through n, then subtract the product from one.",
+        "hold": 0.3
+      },
+      {
+        "id": "c16-b11",
+        "say": "Here there are just two factors. Check the inputs first. The pool must be nonempty, the pass count must fit inside it, and the attempt budget must be between one and the pool size.",
+        "hold": 0.85
+      }
+    ]
+  },
+  {
+    "id": "c17",
+    "title": "Whose chances are you averaging?",
+    "sourceChapters": [
+      "c17"
+    ],
+    "beats": [
+      {
+        "id": "c17-b01",
+        "say": "Here are four tasks for B. Each has ten candidates, and we're estimating success in five tries. Look down each task's column. The first task has no passing answer to find. On the second, half the five-position subsets catch its one passing candidate.",
+        "hold": 0.3
+      },
+      {
+        "id": "c17-b02",
+        "say": "The third has the same two passes in ten as our permission example. The fourth has four passing positions, so nearly every subset catches one. Give those four task scores equal weight. Their average is about fifty-six percent. This is macro pass at five.",
+        "hold": 0.8
+      },
+      {
+        "id": "c17-b03",
+        "say": "Here's a quick way to see why the task matters. Suppose half the tasks always pass and the other half always fail. One try solves half the tasks. Give every task four more attempts. Watch the failures. Who did those extra tries help? Nobody.",
+        "hold": 0.3
+      },
+      {
+        "id": "c17-b04",
+        "say": "Five tries still solve half. If you pool everything first, you give each task a fresh fifty-fifty chance on every try. That would predict nearly ninety-seven percent solved. You've invented tasks that behave differently.",
+        "hold": 0.3
+      },
+      {
+        "id": "c17-b05",
+        "say": "An aggregate pass at five generally can't tell you the aggregate pass at one.",
+        "hold": 0.9
+      },
+      {
+        "id": "c17-b06",
+        "say": "Return to the four observed pools. To see how much their average depends on which tasks we drew, resample four whole task scores with replacement. There are four choices for each of four slots. Average the scores in each of those two hundred fifty-six ordered resamples.",
+        "hold": 0.3
+      },
+      {
+        "id": "c17-b07",
+        "say": "Read the two point five and ninety-seven point five percentiles of the ordered means. The approximate interval stretches from about nineteen to eighty-eight percent. A different mix of tasks can move that average a long way. This calculation holds the candidates on each task fixed. Regenerating them would add another source of variation.",
+        "hold": 0.85
+      },
+      {
+        "id": "c17-b08",
+        "say": "To measure a gain over A at five tries, we need A's five-attempt estimate beside B's on each task. Subtract within each task, then resample the paired differences. If related tasks share a repository or template, carry the whole independent cluster through a draw.",
+        "hold": 0.3
+      },
+      {
+        "id": "c17-b09",
+        "say": "Until we run A under that same protocol, these four numbers describe B alone.",
+        "hold": 0.8
+      }
+    ]
+  },
+  {
+    "id": "c18",
+    "title": "What counts as a draw?",
+    "sourceChapters": [
+      "c18"
+    ],
+    "beats": [
+      {
+        "id": "c18-b01",
+        "say": "Set the draw count first. Look at these four positions on one task. X appears twice, and Y is the only passing answer. Three of the six pairs contain Y. Predict the score if you delete the second X. There are now just three pairs, and two contain Y. The score jumps from one half to two thirds without generating a single better answer.",
+        "hold": 0.3
+      },
+      {
+        "id": "c18-b02",
+        "say": "Those repeated strings tell us how often the decoder returns X. Keep both draws. Stopping after a pass or feeding a failure back into the next prompt also changes the experiment. Evaluate a system that retries with feedback as a complete system.",
+        "hold": 0.85
+      },
+      {
+        "id": "c18-b03",
+        "say": "Two studies can use different pool sizes to estimate the same three-attempt success probability. Both pools must have at least three candidates. Report the pool size, since it affects precision. If a hard task is missing candidates, finish collecting them or report that its score is unavailable.",
+        "hold": 0.3
+      },
+      {
+        "id": "c18-b04",
+        "say": "Now imagine a decoder that genuinely returns the same passing answer every time. More attempts give exactly the same result as the first. A temperature of zero alone doesn't establish that the whole serving pipeline is deterministic.",
+        "hold": 0.8
+      },
+      {
+        "id": "c18-b05",
+        "say": "Look at these four candidates. The hidden tests can see the third answer passes. Your product has to hand back just one answer, and it can't use those hidden tests to choose. Suppose it picks candidate one.",
+        "hold": 0.3
+      },
+      {
+        "id": "c18-b06",
+        "say": "The pool contained a solution and the user still got a failure. Evaluate the actual selector or reranker. Even the passing answer has only met this test suite. Other inputs or side effects can still cause trouble.",
+        "hold": 0.8
+      },
+      {
+        "id": "c18-b07",
+        "say": "There is a separate question about running those tests safely. HumanEval's authors described using gVisor and restricting the network. The released test harness asks the evaluator to supply a robust sandbox. Before running untrusted candidates, verify that execution boundary. Report what the tests covered, what ran in isolation and what generation and verification cost.",
+        "hold": 0.8
+      }
+    ]
+  },
+  {
+    "id": "c19",
+    "title": "Can you subtract these scores?",
+    "sourceChapters": [
+      "c19"
+    ],
+    "beats": [
+      {
+        "id": "c19-b01",
+        "say": "A teammate sends you two scores. A solved fifty-eight percent with one try. B solved sixty-four percent with five tries. Would you sign off on a six-point model improvement? Count the attempts. B had four extra chances on every task.",
+        "hold": 0.3
+      },
+      {
+        "id": "c19-b02",
+        "say": "Ask for the same tasks, tests, decoder settings and attempt budget, then ask for the interval on the paired difference. Here's our matched report. On the left, forty paired tasks measure single-answer lift.",
+        "hold": 0.3
+      },
+      {
+        "id": "c19-b03",
+        "say": "On the right, four separate tasks measure how often five of B's candidates contain a pass. Only the left side measures a gain over A.",
+        "hold": 0.9
+      },
+      {
+        "id": "c19-b04",
+        "say": "Keep the settings attached to those numbers. Record the checkpoint and prompt hashes, tests, seeds, pool size, budget and cutoffs. Say which tasks share a cluster, how many comparisons you tried and how you built the interval. Try a new retry task with an explicit timeout rule.",
+        "hold": 0.3
+      },
+      {
+        "id": "c19-b05",
+        "say": "The plan counts a timeout as a failure. A passed. B has run out of time. Score it under that policy. Dropping this row would erase a win for A. For a five-attempt product, also measure what it costs to generate and check all five, and how long a user waits for the selected answer.",
+        "hold": 0.8
+      },
+      {
+        "id": "c19-b06",
+        "say": "Apply the same two-point minimum to a few possible intervals. First, the low end is plus one and the high end is plus fourteen. Every value is positive, yet a one-point gain could be too small to pay for B. Move just the low end to exactly two.",
+        "hold": 0.3
+      },
+      {
+        "id": "c19-b07",
+        "say": "Our rule says strictly above two, so we still hold. If the entire range sits below zero, we have evidence of a regression. If the range crosses zero, even the direction is unresolved. Keep that gold line where it is for the final comparison.",
+        "hold": 0.85
+      }
+    ]
+  },
+  {
+    "id": "c20",
+    "title": "Would you switch now?",
+    "sourceChapters": [
+      "c20"
+    ],
+    "beats": [
+      {
+        "id": "c20-b01",
+        "say": "Try the frozen rule on a new illustrative holdout. The team collected four hundred fresh matched tasks after freezing B. Both models get one attempt and the same hidden tests. Keep these tickets separate from development. Fifty-two favor B, twelve favor A, and the rest agree.",
+        "hold": 0.85
+      },
+      {
+        "id": "c20-b02",
+        "say": "Subtract the A-only wins and divide by four hundred. The lift is ten percentage points. Resample whole pairs as before. Look at the fresh interval on the same scale as the development interval. Which action does our two-point rule call for?",
+        "hold": 2.2
+      },
+      {
+        "id": "c20-b03",
+        "say": "The low end is plus six and a quarter points. Even that end clears the original cutoff. Switch to B for this one-attempt protocol. A five-attempt product would need its own matched evaluation. In the next lesson a small network predicts timeout risk. You can use this same paired comparison to check whether a new version improves those predictions.",
+        "hold": 1.65
+      }
+    ]
+  }
+]

@@ -1,0 +1,576 @@
+[
+  {
+    "id": "c01",
+    "title": "Can you find a word in common?",
+    "sourceChapters": [
+      "c01"
+    ],
+    "beats": [
+      {
+        "id": "c01-b01",
+        "say": "Refresh expired machine credential. Lay each word against the rule Luna needs. Can you find even one of those words on its label?",
+        "hold": 2.6
+      },
+      {
+        "id": "c01-b02",
+        "say": "None. Luna calls it a machine credential. The policy calls it a service-account key. The two phrases describe the same thing here, but an exact word lookup misses every term.",
+        "hold": 0.7
+      },
+      {
+        "id": "c01-b03",
+        "say": "Now paste the policy code. There it is on the tag. Word search finds this rule by its code. Vector search can find it by meaning. Follow the rule through both searches, then through the shortlist, to see what actually reaches Luna.",
+        "hold": 0.85
+      }
+    ]
+  },
+  {
+    "id": "c02",
+    "title": "Which edition may Luna read?",
+    "sourceChapters": [
+      "c02"
+    ],
+    "beats": [
+      {
+        "id": "c02-b01",
+        "say": "Two editions carry that same code. We're searching as Luna on May twenty-seventh. The older edition expired in March. A separate admin rule requires a grant Luna doesn't have. Which records can each search return?",
+        "hold": 2
+      },
+      {
+        "id": "c02-b02",
+        "say": "Send the same three passages to both rankers. Key, Session and Audit are current and permitted. If a hidden ID reached the search trace, removing its text from the final answer would come too late.",
+        "hold": 0.75
+      },
+      {
+        "id": "c02-b03",
+        "say": "A trusted index can visit other records internally. What matters here is what leaves the service, including IDs, cached results and logs. Check permission again when fetching a passage. Luna's grant can change after the search. With the grant revoked, the fetch must withhold Key even though it appeared in the earlier search.",
+        "hold": 0.8
+      }
+    ]
+  },
+  {
+    "id": "c03",
+    "title": "Look up a word in the index",
+    "sourceChapters": [
+      "c03"
+    ],
+    "beats": [
+      {
+        "id": "c03-b01",
+        "say": "Here's a piece of the index for those three passages. Read across from the lowercase code. Its posting list gives us Key. An inverted index stores these lists ahead of time, so we can go from a term straight to the passages that contain it.",
+        "hold": 0.75
+      },
+      {
+        "id": "c03-b02",
+        "say": "Switch to the four words in Luna's first search. Look for each one. None has a posting in this index, so the lexical lane returns zero passages. This analyzer lowercases words, keeps hyphenated codes together and drops common function words. Stemming, synonyms or learned expansion can change the result.",
+        "hold": 0.8
+      }
+    ]
+  },
+  {
+    "id": "c04",
+    "title": "What makes the code worth more?",
+    "sourceChapters": [
+      "c04"
+    ],
+    "beats": [
+      {
+        "id": "c04-b01",
+        "say": "Watch the same code go through the query analyzer. Lowercase the letters and keep the hyphen. The index has one entry for the whole code. Now split the query into two tokens while leaving that index alone. Neither token opens that code entry.",
+        "hold": 0.3
+      },
+      {
+        "id": "c04-b02",
+        "say": "Fourteen can still match the duration in fourteen days. A hit on the number alone won't tell you the code matched. Inspect the tokens on both sides. If you change how a field is indexed, rebuild that field.",
+        "hold": 0.85
+      },
+      {
+        "id": "c04-b03",
+        "say": "BM25 gives weight to a matching term in two steps. First, how rare is the code? It appears in one of three passages. Put those counts into the inverse document frequency formula. The rarity weight is about point nine eight one. That is the weight of a match before frequency and length enter the score.",
+        "hold": 1
+      },
+      {
+        "id": "c04-b04",
+        "say": "The curve shows what happens when the code repeats in a passage of average length. Here k one is one point two. One mention gives a factor of one. Use that first match as the reference. Two mentions give one point three seven five. The gain from the second match is smaller. Four give about one point six nine two. Even four matches earn less than twice the original weight.",
+        "hold": 0.3
+      },
+      {
+        "id": "c04-b05",
+        "say": "Each repetition adds a little less. The factor approaches two point two. To work a different case, substitute its k one and its frequency in the same fraction. At average length, only those two inputs affect the factor.",
+        "hold": 0.85
+      },
+      {
+        "id": "c04-b06",
+        "say": "Go back to one mention and hold the corpus average fixed. Set b to three quarters. The length ratio sits in the denominator. A passage half as long as average gets a factor of about one point two six. Less text surrounds the same code.",
+        "hold": 0.3
+      },
+      {
+        "id": "c04-b07",
+        "say": "A passage twice as long gets about point seven one. The denominator grew. Set b to zero and the length adjustment disappears. Multiply the factor by the rarity weight to get this term's contribution. Our example computes rarity on Luna's permitted passages.",
+        "hold": 0.3
+      },
+      {
+        "id": "c04-b08",
+        "say": "In our three passages, one contains the code. A production index may use statistics from a wider collection. Keep the scoring population with the numbers when you compare two runs.",
+        "hold": 0.8
+      }
+    ]
+  },
+  {
+    "id": "c05",
+    "title": "Can a missing word get a posting?",
+    "sourceChapters": [
+      "c05"
+    ],
+    "beats": [
+      {
+        "id": "c05-b01",
+        "say": "The input says refresh and key. How does the word credential get into the index? SPLADE uses a transformer's masked language model head to score that vocabulary word at each input position. Here the scores are minus two and three. Clip minus two to zero.",
+        "hold": 0.3
+      },
+      {
+        "id": "c05-b02",
+        "say": "Then take the natural log of one plus each value. Now each position has a nonnegative weight for credential.",
+        "hold": 0.75
+      },
+      {
+        "id": "c05-b03",
+        "say": "Here the only positive contribution is the log of four. Adding both contributions or keeping the larger one gives the same weight. Change the first logit to three as well. Which pooling rule will give the larger weight now?",
+        "hold": 2
+      },
+      {
+        "id": "c05-b04",
+        "say": "Adding gives twice the weight. The maximum stays at the log of four. Original SPLADE uses the sum. SPLADE two uses the maximum. Training encourages most vocabulary weights to stay small or zero. The index and scorer must support weighted postings. Compare recall, query work and index size on the permitted corpus.",
+        "hold": 0.85
+      }
+    ]
+  },
+  {
+    "id": "c06",
+    "title": "Which way does the query point?",
+    "sourceChapters": [
+      "c06"
+    ],
+    "beats": [
+      {
+        "id": "c06-b01",
+        "say": "Return to Luna's four words. A dense encoder gives a query a vector and compares it with passage vectors prepared in advance. For this example we supply the coordinates ourselves. The two axes on the page stand for Key and Session.",
+        "hold": 0.3
+      },
+      {
+        "id": "c06-b02",
+        "say": "The third axis, Audit, points out of the page. The query has zero in that direction.",
+        "hold": 0.65
+      },
+      {
+        "id": "c06-b03",
+        "say": "Divide by the length of the query. Draw the resulting unit arrow. Which rule points closer to the query, Key or Session?",
+        "hold": 2.1
+      },
+      {
+        "id": "c06-b04",
+        "say": "The key rule. Look at the shadow the arrow casts along the key axis. It covers almost the whole unit. Along the session axis it covers just five hundredths. Audit gets zero. Those projections are cosine similarities because the passage axes and query have unit length.",
+        "hold": 0.65
+      },
+      {
+        "id": "c06-b05",
+        "say": "In this example we keep positive scores. Key and Session both come back. Only Key describes the condition Luna needs. Now put the two searches side by side. For the bare code we supplied no query vector, and the word match found Key.",
+        "hold": 0.3
+      },
+      {
+        "id": "c06-b06",
+        "say": "For the paraphrase the vector found Key while the word search came back empty. Running both methods on the same request is hybrid search.",
+        "hold": 0.75
+      }
+    ]
+  },
+  {
+    "id": "c07",
+    "title": "Which vectors belong together?",
+    "sourceChapters": [
+      "c07"
+    ],
+    "beats": [
+      {
+        "id": "c07-b01",
+        "say": "Real encoders learn their coordinates. The original Dense Passage Retrieval model used two BERT encoders, one for the query and one for the passage. Each supplied a vector of seven hundred sixty-eight coordinates from its first token. Passage vectors could be stored ahead of time.",
+        "hold": 0.3
+      },
+      {
+        "id": "c07-b02",
+        "say": "At search time the system took an inner product with the query. On unit vectors that equals cosine. Without normalization, vector length can change the order. Use the scoring rule the model learned.",
+        "hold": 0.75
+      },
+      {
+        "id": "c07-b03",
+        "say": "Here are reported results from MiniLM on Luna's paraphrase. This model averages token representations into three hundred eighty-four coordinates, with a limit of two hundred fifty-six wordpieces. Key comes first among the original three. Add the related certificate and key policies. Two of those now beat Key.",
+        "hold": 0.3
+      },
+      {
+        "id": "c07-b04",
+        "say": "Switch to the bare code. This time KROT thirteen edges out KROT fourteen. Run both kinds of query against the checkpoint and corpus you plan to use.",
+        "hold": 0.8
+      },
+      {
+        "id": "c07-b05",
+        "say": "A token limit can cut off the risk condition at the end of a passage. The retained prefix then gets the same encoding with or without that clause. Check for finite, nonzero vectors before cosine. Check dimensions and normalization too.",
+        "hold": 0.3
+      },
+      {
+        "id": "c07-b06",
+        "say": "When you change the encoder, re-embed the passages and keep the matching tokenizer, pooling and index generation together. See what that means on two axes. Key points right, Session points up, and the query lies along Key. Rotate the query a quarter turn.",
+        "hold": 0.3
+      },
+      {
+        "id": "c07-b07",
+        "say": "Session wins, one to zero. Now rotate the two stored passages through the same angle. Key wins, one to zero. All of those vectors had two coordinates. Only the matched generations preserved the relationship.",
+        "hold": 1
+      }
+    ]
+  },
+  {
+    "id": "c08",
+    "title": "Which side of the boundary gets searched?",
+    "sourceChapters": [
+      "c08"
+    ],
+    "beats": [
+      {
+        "id": "c08-b01",
+        "say": "Once the vectors are compatible, we still have to find their neighbors. A million vectors with three hundred eighty-four four-byte coordinates occupy just over one and a half decimal gigabytes before IDs or index overhead. An exact scan compares the query with all of them.",
+        "hold": 0.3
+      },
+      {
+        "id": "c08-b02",
+        "say": "An inverted-file index, or IVF, groups vectors around trained centers. A query scores the centers and searches the lists it chooses.",
+        "hold": 0.8
+      },
+      {
+        "id": "c08-b03",
+        "say": "Look near the middle of this one-dimensional example. The centers sit at zero and ten. Our query, four point nine, is on the left. With one probe we get four, at distance point nine.",
+        "hold": 0.3
+      },
+      {
+        "id": "c08-b04",
+        "say": "The record at five point one is only point two away, on the right. What can you change to recover that record while keeping the index fixed?",
+        "hold": 2
+      },
+      {
+        "id": "c08-b05",
+        "say": "Probe both lists. Now the record across the border wins at distance point two. Scale up to a thousand equal lists of a thousand vectors each. Ten probes cost a thousand center comparisons plus ten thousand record comparisons. Twenty probes cost about twenty-one thousand comparisons altogether.",
+        "hold": 0.3
+      },
+      {
+        "id": "c08-b06",
+        "say": "Actual work depends on list sizes. Time the requests and compare the returned neighbors with exact search under the same metric, grants and tie rule. More probes search this index. Changing how many centers it has requires a rebuild.",
+        "hold": 0.9
+      }
+    ]
+  },
+  {
+    "id": "c09",
+    "title": "Can the search keep a bridge open?",
+    "sourceChapters": [
+      "c09"
+    ],
+    "beats": [
+      {
+        "id": "c09-b01",
+        "say": "HNSW puts long jumps on sparse upper layers. The bottom layer contains every vector. Here the query is at U. Start at P and follow the upper link to U. No neighbor can be closer. Descend at U and start the next layer at that same point.",
+        "hold": 0.3
+      },
+      {
+        "id": "c09-b02",
+        "say": "Now try a separate bottom-layer experiment. We'll supply S as the entry point for both runs and keep the query fixed at ten. How does the search width change which links we can reach?",
+        "hold": 0.75
+      },
+      {
+        "id": "c09-b03",
+        "say": "Start at S. Each number is a distance to the fixed query at ten. A is three units away. D is seven. With room for one best point, we keep A. Follow A to B. At distance two, B leads. Its only link goes back to A. Where would a wider search have to keep a route open?",
+        "hold": 2.2
+      },
+      {
+        "id": "c09-b04",
+        "say": "Replay from S with room for three. This time D stays pending. Visit A, then B. D is still waiting. Expand D. That exposes C at the query. Its distance is zero. The query and links stayed fixed. The wider search kept the bridge.",
+        "hold": 0.9
+      },
+      {
+        "id": "c09-b05",
+        "say": "The limit on how many best points we retain is called ef. Expand the nearest pending point. Stop when the list of pending points is empty or its nearest point is farther away than the worst one retained.",
+        "hold": 0.3
+      },
+      {
+        "id": "c09-b06",
+        "say": "In pgvector, ef search sets that width at query time. The connection limit, M, and the search width during construction shape the graph itself. An IVF probe opens a whole list. To choose an index, measure build time, inserts, memory and query latency.",
+        "hold": 0.3
+      },
+      {
+        "id": "c09-b07",
+        "say": "Compression and disk storage can save memory. In the article's measured example, forty for ef recovered about ninety-one percent of the exact top ten. Sixteen IVF probes recovered about ninety-four percent. Those settings cost different numbers of comparisons. Measure recall against exact search after filtering, then judge whether those passages answer the question.",
+        "hold": 0.85
+      }
+    ]
+  },
+  {
+    "id": "c10",
+    "title": "Give each passage its rank contributions",
+    "sourceChapters": [
+      "c10"
+    ],
+    "beats": [
+      {
+        "id": "c10-b01",
+        "say": "Now Luna uses some of the policy's own words. Both lanes put Key first and Session second. A BM25 score counts weighted term matches. Cosine measures direction. How can we combine this evidence when the scores have different units?",
+        "hold": 0.9
+      },
+      {
+        "id": "c10-b02",
+        "say": "Use the positions. Each passage gets one divided by the sum of sixty and its rank in that lane, starting at rank one. Lay down the lexical votes. First place earns one sixty-first. Second earns one sixty-second. An absent passage earns no vote from that lane.",
+        "hold": 0.65
+      },
+      {
+        "id": "c10-b03",
+        "say": "Add the dense votes to the same passage IDs. This is reciprocal rank fusion. Count an ID once in each list. Key has two first-place votes and leads. Session gets two smaller votes, one sixty-second from each list. Compare the sums.",
+        "hold": 1.8
+      }
+    ]
+  },
+  {
+    "id": "c11",
+    "title": "Which two reach the reranker?",
+    "sourceChapters": [
+      "c11"
+    ],
+    "beats": [
+      {
+        "id": "c11-b01",
+        "say": "Keep the same three permitted passages and the same constant. This time we'll supply two complete lists to stress the fusion rule. Lexical puts Key first and Session second. Dense puts Audit first and Session second. Read across each row to see whose votes meet.",
+        "hold": 0.65
+      },
+      {
+        "id": "c11-b02",
+        "say": "A reranker reads Luna's question alongside each passage we keep. It has room for three, but the first run sends only two. Ties go to the earlier passage ID. In alphabetical order, the IDs start with EU audit, EU key and EU session. Which two reach the reranker?",
+        "hold": 2.5
+      },
+      {
+        "id": "c11-b03",
+        "say": "Session takes first. Its two second-place votes outweigh either first-place vote alone. Audit and Key each have one sixty-first. Audit wins the tie and Key comes third. The two slots are full. The required passage is missing.",
+        "hold": 1.1
+      },
+      {
+        "id": "c11-b04",
+        "say": "Keep the lane returns fixed. Change the number of candidates passed forward from two to three. Now the reranker receives Key. It still has to choose what belongs in the answer. Searching deeper in either complete list would have supplied exactly the same candidates.",
+        "hold": 0.85
+      }
+    ]
+  },
+  {
+    "id": "c12",
+    "title": "What does a weight of 0.7 buy?",
+    "sourceChapters": [
+      "c12"
+    ],
+    "beats": [
+      {
+        "id": "c12-b01",
+        "say": "Could the scores themselves help us rank the passages? Take one passage with normalized scores of point eight for meaning and point two for words. Give the dense score a weight of point seven. Its contribution is point five six. The lexical contribution is point zero six.",
+        "hold": 0.3
+      },
+      {
+        "id": "c12-b02",
+        "say": "Together they give point six two. That's a ranking score. To see which lane can change the order of two passages, compare their weighted score differences.",
+        "hold": 0.75
+      },
+      {
+        "id": "c12-b03",
+        "say": "Look what happens when we scale scores using the smallest and largest in the pool. Five sits halfway from zero to ten. Keep five fixed and raise the maximum to a hundred. Five now gets just five hundredths. Searching deeper can change those endpoints.",
+        "hold": 0.3
+      },
+      {
+        "id": "c12-b04",
+        "say": "If all scores are five, the range is zero. Set every normalized score in that lane to zero under our chosen policy. A sigmoid bounds its transformed scores. A z score can fall outside zero to one.",
+        "hold": 0.3
+      },
+      {
+        "id": "c12-b05",
+        "say": "A ranking score can order passages. To call it a probability, test calibration against labeled outcomes. For example, among passages given a probability near point six, how often is the passage relevant?",
+        "hold": 0.85
+      },
+      {
+        "id": "c12-b06",
+        "say": "A missing rank also needs care. If you stopped a lane after two returns, you don't know the third passage's raw score. Rescore the union or evaluate the rule you use for missing scores. Fit weights and normalization on development data.",
+        "hold": 0.3
+      },
+      {
+        "id": "c12-b07",
+        "say": "Then freeze them and compare with reciprocal rank fusion on held-out query families. Tuned weights have won that comparison in published experiments. Your codes and paraphrases get their own test.",
+        "hold": 0.85
+      }
+    ]
+  },
+  {
+    "id": "c13",
+    "title": "Who gets the second slot?",
+    "sourceChapters": [
+      "c13"
+    ],
+    "beats": [
+      {
+        "id": "c13-b01",
+        "say": "One slot already holds the key rule. For the next slot we might want a passage that adds something. Maximal marginal relevance scores each remaining passage by its similarity to the query and subtracts a penalty for resembling a selected passage.",
+        "hold": 0.3
+      },
+      {
+        "id": "c13-b02",
+        "say": "Use the closest selected passage for that penalty. Lambda weights relevance, and one minus lambda weights redundancy. At one the penalty disappears. With an empty selection this example gives everyone zero redundancy, so lambda zero would start with an ID tie-break.",
+        "hold": 0.75
+      },
+      {
+        "id": "c13-b03",
+        "say": "Compare the two candidates. The near-copy looks better for the query, but almost repeats the key rule. Session looks much less like the selected source. Give both terms half the weight. Subtract the weighted redundancy from each candidate's relevance contribution. Which would MMR take?",
+        "hold": 2
+      },
+      {
+        "id": "c13-b04",
+        "say": "The copy falls below zero. Session keeps a positive score. Session takes the second slot. Read the passage it contributed. What does it tell Luna about rotating a key?",
+        "hold": 2
+      },
+      {
+        "id": "c13-b05",
+        "say": "It tells her about browser sessions. Leave this slot empty. A near-copy needs its source checked too. In the article's vector example an unofficial copy even beats the governing rule for the first slot. Deduplicate by trusted source or verified equal content.",
+        "hold": 0.3
+      },
+      {
+        "id": "c13-b06",
+        "say": "When a question really needs several sources, check each required condition. Diversity can help you choose from the supplied pool. It can't recover a missing passage or grant access to one.",
+        "hold": 0.8
+      }
+    ]
+  },
+  {
+    "id": "c14",
+    "title": "When does this request finish?",
+    "sourceChapters": [
+      "c14"
+    ],
+    "beats": [
+      {
+        "id": "c14-b01",
+        "say": "Give each limit in the trace a name. Lane depth counts returns from each search. The fused budget counts candidates retained after combining them. The reranker input counts passages read a second time. The context budget counts passages sent to the answer model.",
+        "hold": 0.3
+      },
+      {
+        "id": "c14-b02",
+        "say": "Now look at lexical status. Completed with zero hits is expected for Luna's paraphrase. A timeout leaves the answer unknown. Record that as a degraded request and evaluate the one-lane fallback separately.",
+        "hold": 0.85
+      },
+      {
+        "id": "c14-b03",
+        "say": "Start a new request with a fifty-millisecond deadline. Authorization takes ten milliseconds. Both lanes start together. Lexical finishes twelve milliseconds later. Dense takes forty. At that point all fifty milliseconds are gone. Fusion still needs eight. When would this request finish if we let it run?",
+        "hold": 2
+      },
+      {
+        "id": "c14-b04",
+        "say": "At fifty-eight milliseconds. Each stage can meet a local limit while the request misses its deadline. Enforce one wall-clock deadline with cancellation. Measure the full request distribution under load. Stage percentiles do not add up to its ninety-fifth percentile.",
+        "hold": 0.8
+      },
+      {
+        "id": "c14-b05",
+        "say": "Store the IDs and ranks, the lane and index versions, the effective date, the grant revision, the budgets and the timings in an access-controlled trace. Identifiers can be sensitive. Recheck access at fetch and when reusing cached results.",
+        "hold": 0.3
+      },
+      {
+        "id": "c14-b06",
+        "say": "Freeze the corpus and caller grants, then compare exact codes, paraphrases, near matches, denied requests and questions with no answer. With one required passage, hit rate and recall agree. Suppose an answer needs a governing rule and an exception. Retrieving just the rule gives a hit, but recall is one half. Check separately whether the answer follows from the retained evidence.",
+        "hold": 0.85
+      }
+    ]
+  },
+  {
+    "id": "c15",
+    "title": "How many books fit?",
+    "sourceChapters": [
+      "c15"
+    ],
+    "beats": [
+      {
+        "id": "c15-b01",
+        "say": "There’s the dough. You asked for bread that rises overnight. This is the only passage your assistant can read. Where should that bowl go?",
+        "hold": 1.45
+      },
+      {
+        "id": "c15-b02",
+        "say": "Come over to the cookbooks. A hybrid search ran that request two ways. Look where the yellow bookmarks land. For matching words, it’s Basics first and Soup second.",
+        "hold": 0.9
+      },
+      {
+        "id": "c15-b03",
+        "say": "Follow the blue bookmarks. The vector search compares the meaning of the request with each passage. Slow Bread comes first. Basics shows up here too.",
+        "hold": 1.1
+      },
+      {
+        "id": "c15-b04",
+        "say": "Look at Basics. Two bookmarks in the same book. With reciprocal rank fusion, each one contributes a share. Here we add sixty to its rank and take the reciprocal. First place earns one over sixty-one. Second earns almost as much.",
+        "hold": 1.1
+      },
+      {
+        "id": "c15-b05",
+        "say": "Those two contributions put Basics first. Slow Bread takes second place with just the blue bookmark. Follow its passage back to the fridge.",
+        "hold": 0.6
+      },
+      {
+        "id": "c15-b06",
+        "say": "Basics has the only space on the door. Slow Bread made it to the counter. How much room would get its passage into the answer?",
+        "hold": 1.75
+      },
+      {
+        "id": "c15-b07",
+        "say": "Keep the ranking as it is. Give the reader one more passage. Now read the blue page. Refrigerate the dough overnight.",
+        "hold": 1.5
+      },
+      {
+        "id": "c15-b08",
+        "say": "Now we know where the dough spends the night.",
+        "hold": 2.5
+      },
+      {
+        "id": "c15-b09",
+        "say": "We recovered one required source out of one. The searches and their fused order stayed fixed. Buying a second context passage let the reader use the instruction. If only one slot is affordable, evaluate putting Slow Bread first instead.",
+        "hold": 1.2
+      }
+    ]
+  },
+  {
+    "id": "c16",
+    "title": "Where did the key rule go?",
+    "sourceChapters": [
+      "c16"
+    ],
+    "beats": [
+      {
+        "id": "c16-b01",
+        "say": "Back to Luna. A new stress test has five permitted passages. The fusion constant is ten. For stale key rotation, a deeper reference search shows Key third in both lists. Production returns only the first two from each. Find the same rule below both cutoffs.",
+        "hold": 0.8
+      },
+      {
+        "id": "c16-b02",
+        "say": "There is just one space for an answer passage. Look at both third places. Which limit must change to give Key a vote? If those two results reach fusion, predict which passage will take the space.",
+        "hold": 3.3
+      },
+      {
+        "id": "c16-b03",
+        "say": "Raise the return depth in both lanes to three. Each third place earns one thirteenth. Both votes go to the same passage ID. The best single vote is one eleventh. Key wins the one context slot. A bigger fused pool alone would have had no Key to recover.",
+        "hold": 1.5
+      },
+      {
+        "id": "c16-b04",
+        "say": "Now replay Luna's original search on the three permitted passages. The word search comes back empty. The vector search returns Key and Session, and both make the shortlist. Read the two passages. Which one tells Luna when she can automate key rotation?",
+        "hold": 2.1
+      },
+      {
+        "id": "c16-b05",
+        "say": "The key rule. Luna can automate rotation within fourteen days after the key goes stale, if the risk signal is at most forty-eight hours old. The session rule gives a browser sign-out time. Both passages reached the shortlist. A reranker can read each one with Luna's question and put the governing rule first.",
+        "hold": 1.4
+      }
+    ]
+  }
+]

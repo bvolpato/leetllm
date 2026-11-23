@@ -1,0 +1,381 @@
+version: 1
+lesson: deep-dive-tinker
+promise: Decide whether a sampled clamp answer is usable for a hosted LoRA update by checking its behavior, its token evidence, and the policy that produced it.
+objectives:
+  - id: diagnose-clamp
+    can: Use an out-of-range input to expose a bad clamp body and compare trainer and sampler receipts to identify which policy was graded
+    scenes:
+      - opening
+      - group-credit
+      - snapshots
+  - id: capability-receipt
+    can: Admit hosted capabilities separately from local source availability
+    scenes:
+      - capability-receipt
+  - id: primitive-receipts
+    can: Associate each primitive receipt with its actual state transition
+    scenes:
+      - primitive-receipts
+  - id: async-contract
+    can: Await each async method at the correct completion layer
+    scenes:
+      - async-contract
+  - id: chunk-order
+    can: Compute chunk sizes and preserve sequence ownership
+    scenes:
+      - chunk-order
+  - id: sft
+    can: Derive shifted target-role weights including the first answer
+    scenes:
+      - sft
+  - id: datum-validation
+    can: Withhold a datum when its action pairs disagree with the sampler even if all field lengths match
+    scenes:
+      - trajectory-datum
+      - datum-validation
+  - id: group-credit
+    can: Compute within-prompt centered reward credit
+    scenes:
+      - group-credit
+  - id: uniform-groups
+    can: Separate uniform reward signal from filtering and auxiliary loss
+    scenes:
+      - uniform-groups
+  - id: trajectory-branch
+    can: Split trajectories at an actual nonprefix observation
+    scenes:
+      - trajectory-branch
+  - id: loss-boundary
+    can: Remove stray prompt credit before submitting the reward loss and derive backend weights from a pair of custom logprob slopes
+    scenes:
+      - loss-boundary
+  - id: lora-geometry
+    can: Trace a single output coordinate through the frozen and low-rank paths and calculate how rank changes trainable parameter count
+    scenes:
+      - lora-geometry
+  - id: lora-evidence
+    can: Compare rank and target-module evidence under controlled conditions
+    scenes:
+      - lora-evidence
+  - id: queue-recovery
+    can: Bound policy lag and reconcile outstanding requests and effects
+    scenes:
+      - queue-recovery
+  - id: artifact-contract
+    can: Choose continuation, sampling and export artifacts by contract
+    scenes:
+      - artifact-contract
+  - id: data-terms
+    can: Check hosted data and model terms separately from source licenses
+    scenes:
+      - data-terms
+  - id: source-responsibility
+    can: Trace a request through pinned client and recipe responsibilities
+    scenes:
+      - source-responsibility
+  - id: local-evidence
+    can: State exactly what local execution establishes
+    scenes:
+      - local-evidence
+  - id: transport-comparison
+    can: Distinguish hosted algorithm control from expert transport
+    scenes:
+      - transport-comparison
+  - id: fresh-run
+    can: Derive shifted response weights and apply the lag budget separately to an existing sample and one drawn from a newly selected path
+    scenes:
+      - fresh-run
+sections:
+  - heading: Start with the boundary
+    status: taught
+    scenes:
+      - capability-receipt
+      - boundary
+  - heading: Local control plane, remote data plane
+    status: taught
+    scenes:
+      - boundary
+      - primitive-receipts
+  - heading: The four primitives
+    status: taught
+    scenes:
+      - primitive-receipts
+      - async-contract
+      - snapshots
+  - heading: "`forward_backward` receives a Datum"
+    status: taught
+    scenes:
+      - chunk-order
+      - datum-validation
+      - loss-boundary
+  - heading: "`optim_step` advances adapter state"
+    status: taught
+    scenes:
+      - primitive-receipts
+      - clock
+  - heading: "`sample` returns evidence for learning"
+    status: taught
+    scenes:
+      - trajectory-datum
+      - datum-validation
+  - heading: "`save_state` creates a recovery point"
+    status: taught
+    scenes:
+      - artifact-contract
+      - snapshots
+  - heading: LoRA is the adaptation boundary
+    status: taught
+    scenes:
+      - lora-path
+      - lora-geometry
+      - lora-evidence
+  - heading: "SFT first: a token-level contract"
+    status: taught
+    scenes:
+      - sft
+      - fresh-run
+      - datum-validation
+  - heading: "RL: preserve tokens, logprobs, and credit"
+    status: taught
+    scenes:
+      - group-credit
+      - uniform-groups
+      - trajectory-datum
+      - loss-boundary
+  - heading: The RL datum shape
+    status: taught
+    scenes:
+      - trajectory-datum
+      - datum-validation
+      - trajectory-branch
+      - loss-boundary
+  - heading: Logprob alignment is the hidden invariant
+    status: taught
+    scenes:
+      - datum-validation
+      - trajectory-datum
+  - heading: The pipeline clock
+    status: taught
+    scenes:
+      - clock
+      - async-contract
+      - queue-recovery
+  - heading: Checkpoints and export paths
+    status: taught
+    scenes:
+      - snapshots
+      - artifact-contract
+  - heading: API, service, and data boundaries
+    status: taught
+    scenes:
+      - data-terms
+      - capability-receipt
+  - heading: Team, contributors, and governance
+    status: taught
+    scenes:
+      - source-responsibility
+      - data-terms
+  - heading: Strengths
+    status: taught
+    scenes:
+      - capability-receipt
+      - loss-boundary
+      - artifact-contract
+  - heading: The cluster is on the other side of the SDK
+    status: taught
+    scenes:
+      - boundary
+  - heading: Low-level enough for research
+    status: taught
+    scenes:
+      - loss-boundary
+  - heading: One path from SFT to RL
+    status: taught
+    scenes:
+      - sft
+      - trajectory-datum
+  - heading: Large-model access without local replicas
+    status: taught
+    scenes:
+      - lora-path
+      - capability-receipt
+  - heading: Export is a separate path
+    status: taught
+    scenes:
+      - artifact-contract
+  - heading: Weaknesses and limits
+    status: taught
+    scenes:
+      - queue-recovery
+      - data-terms
+      - lora-evidence
+  - heading: Not full-parameter training
+    status: taught
+    scenes:
+      - lora-evidence
+      - lora-path
+  - heading: Hosted capacity and catalog are external state
+    status: taught
+    scenes:
+      - capability-receipt
+  - heading: Network latency shapes algorithm design
+    status: taught
+    scenes:
+      - clock
+      - queue-recovery
+  - heading: Staleness can accumulate silently
+    status: taught
+    scenes:
+      - queue-recovery
+      - fresh-run
+  - heading: Service terms still apply
+    status: taught
+    scenes:
+      - data-terms
+  - heading: Failure recovery has a boundary
+    status: taught
+    scenes:
+      - queue-recovery
+  - heading: A runnable contract check
+    status: taught
+    scenes:
+      - local-evidence
+      - datum-validation
+  - heading: Check the actual SDK without a hosted job
+    status: taught
+    scenes:
+      - local-evidence
+      - chunk-order
+      - datum-validation
+  - heading: Production failure modes
+    status: taught
+    scenes:
+      - opening
+      - datum-validation
+      - queue-recovery
+      - artifact-contract
+      - capability-receipt
+  - heading: Retry and idempotency
+    status: taught
+    scenes:
+      - queue-recovery
+  - heading: Catalog and model terms
+    status: taught
+    scenes:
+      - capability-receipt
+      - data-terms
+  - heading: Source-reading map
+    status: taught
+    scenes:
+      - source-responsibility
+  - heading: SDK snapshot
+    status: taught
+    scenes:
+      - source-responsibility
+      - async-contract
+      - chunk-order
+  - heading: Cookbook snapshot
+    status: taught
+    scenes:
+      - source-responsibility
+      - trajectory-branch
+      - uniform-groups
+  - heading: Tinker versus DeepEP
+    status: taught
+    scenes:
+      - transport-comparison
+  - heading: A practical reading exercise
+    status: taught
+    scenes:
+      - local-evidence
+      - primitive-receipts
+      - fresh-run
+  - heading: Evaluation rubric
+    status: taught
+    scenes:
+      - datum-validation
+      - artifact-contract
+      - queue-recovery
+  - heading: Follow-up questions
+    status: taught
+    scenes:
+      - uniform-groups
+      - fresh-run
+  - heading: Can an identical-reward group still update the adapter?
+    status: taught
+    scenes:
+      - uniform-groups
+      - group-credit
+  - heading: Why can evaluation remain stale after a successful optimizer step?
+    status: taught
+    scenes:
+      - opening
+      - snapshots
+      - fresh-run
+  - heading: Mastery quiz
+    status: taught
+    scenes:
+      - capability-receipt
+      - lora-geometry
+      - sft
+      - group-credit
+      - loss-boundary
+      - chunk-order
+      - queue-recovery
+      - artifact-contract
+quiz:
+  - n: 1
+    status: taught
+    scenes:
+      - capability-receipt
+  - n: 2
+    status: taught
+    scenes:
+      - lora-geometry
+      - lora-path
+  - n: 3
+    status: taught
+    scenes:
+      - sft
+      - fresh-run
+  - n: 4
+    status: taught
+    scenes:
+      - group-credit
+      - uniform-groups
+  - n: 5
+    status: taught
+    scenes:
+      - loss-boundary
+  - n: 6
+    status: taught
+    scenes:
+      - loss-boundary
+  - n: 7
+    status: taught
+    scenes:
+      - chunk-order
+  - n: 8
+    status: taught
+    scenes:
+      - queue-recovery
+      - fresh-run
+  - n: 9
+    status: taught
+    scenes:
+      - queue-recovery
+  - n: 10
+    status: taught
+    scenes:
+      - artifact-contract
+      - snapshots
+removed: []
+reviews:
+  closed_book:
+    script: fb5fabc5a2b74fb1
+    taught: 10
+    partial: 0
+    absent: 0
+  fact_check:
+    script: fb5fabc5a2b74fb1
+    open_findings: 0

@@ -1,0 +1,581 @@
+[
+  {
+    "id": "c01",
+    "title": "Would you let this model warn customers?",
+    "sourceChapters": [
+      "c01"
+    ],
+    "beats": [
+      {
+        "id": "c01-b01",
+        "say": "These parcels went to different doorsteps. Both were critical. Both arrived late. On the first customer's phone, a warning came through. The second phone stayed dark.",
+        "hold": 0.45
+      },
+      {
+        "id": "c01-b02",
+        "say": "The test includes two more deliveries. Across all four, the trial cost ninety-six units against a baseline of one hundred. To earn a canary, a small share of live requests, it must keep cost at or below baseline and warn on at least ninety percent of late critical deliveries. Would you open the canary?",
+        "hold": 3.1
+      },
+      {
+        "id": "c01-b03",
+        "say": "Keep it offline. It warned one of the two customers who needed it. That's fifty percent recall. The four percent saving passes the cost check. Both checks have to pass before the model gets traffic.",
+        "hold": 0.65
+      },
+      {
+        "id": "c01-b04",
+        "say": "The customer waiting for delivery two got no warning. The parcel's scan showed eight minutes of delay. Keep that row from the failed evaluation. The costs on the sheet were entered by hand. We'll train a separate model and check its predictions after we reload it. When the receipts let us switch models in the lab, we'll replay that scan. Will the second phone light up?",
+        "hold": 0.65
+      }
+    ]
+  },
+  {
+    "id": "c02",
+    "title": "Delivery one at noon",
+    "sourceChapters": [
+      "c02"
+    ],
+    "beats": [
+      {
+        "id": "c02-b01",
+        "say": "Take delivery one from the evaluation sheet. Its prediction was due at noon. Each line starts when the carrier observed a scan and ends when the service could read it. Look at scan B. The carrier saw ninety-nine minutes of delay before noon.",
+        "hold": 0.3
+      },
+      {
+        "id": "c02-b02",
+        "say": "Its report arrived half an hour after the prediction. Which recorded delay could the service actually use?",
+        "hold": 2
+      },
+      {
+        "id": "c02-b03",
+        "say": "Use the nine minutes on scan A. It was observed at ten and available at eleven. B arrived too late. C was still in the future. For this delivery, keep only scans that pass both clocks, then take the most recent observation among them.",
+        "hold": 0.65
+      },
+      {
+        "id": "c02-b04",
+        "say": "A scan marked ten UTC and one marked six with a minus-four offset can be the same event. Normalize the clocks to UTC, then reject duplicate observations for the same parcel and instant. Match each request to exactly one outcome. A duplicate outcome would count a parcel twice. A missing outcome leaves us without a label.",
+        "hold": 0.3
+      },
+      {
+        "id": "c02-b05",
+        "say": "Move the prediction back to nine in the morning. Even scan A comes later. Keep the input missing. To reject an eligible scan for being too old, this builder would also need a maximum age.",
+        "hold": 0.6
+      },
+      {
+        "id": "c02-b06",
+        "say": "Labels have their own deadline. Only requests before May twenty-five with outcomes available by that cutoff can enter training. For the May twenty-eight evaluation requests, the May thirty-one snapshot can supply the answer key. Keep that answer on the evaluation side of the ledger.",
+        "hold": 0.3
+      },
+      {
+        "id": "c02-b07",
+        "say": "It never enters the prediction. These cutoffs let us reconstruct a historical request from a later snapshot.",
+        "hold": 0.7
+      }
+    ]
+  },
+  {
+    "id": "c03",
+    "title": "A warning model fitted on six deliveries",
+    "sourceChapters": [
+      "c03"
+    ],
+    "beats": [
+      {
+        "id": "c03-b01",
+        "say": "Each gray point is a training delivery. The three smallest delays belong to parcels that arrived on time. The other three arrived late. All six delays add to thirty minutes. Divide by six and we get five. Save that mean for missing inputs and for centering.",
+        "hold": 0.3
+      },
+      {
+        "id": "c03-b02",
+        "say": "The distance from the smallest to the largest delay is ten minutes. That’s our scale.",
+        "hold": 0.6
+      },
+      {
+        "id": "c03-b03",
+        "say": "Subtract five and divide by ten. The transformed delays now average zero. The late labels average one half. To fit the line, multiply each centered feature by its centered label and add the products. Their sum is one point two. The squared features sum to one.",
+        "hold": 0.3
+      },
+      {
+        "id": "c03-b04",
+        "say": "Dividing those sums gives a slope of one point two. With a mean feature of zero, the intercept is the mean label, one half.",
+        "hold": 0.65
+      },
+      {
+        "id": "c03-b05",
+        "say": "Now bring back delivery two. Its eight-minute delay is marked on the horizontal axis. The dotted line is our warning threshold of one half. Using the fit from training, would this model warn?",
+        "hold": 2.5
+      },
+      {
+        "id": "c03-b06",
+        "say": "Yes. Eight minus five, divided by ten, gives point three. Move up to the line. One half plus one point two times point three gives a score of point eight six. The other evaluation deliveries use the same transform. Look at the zero-minute input.",
+        "hold": 0.3
+      },
+      {
+        "id": "c03-b07",
+        "say": "Its score is negative point one. This fitted line gives a decision score and can go below zero. Keep the training mean and range for evaluation and serving. Recomputing either from a new batch could change the answer for the very same parcel.",
+        "hold": 0.8
+      }
+    ]
+  },
+  {
+    "id": "c04",
+    "title": "Save enough state to reproduce a decision",
+    "sourceChapters": [
+      "c04"
+    ],
+    "beats": [
+      {
+        "id": "c04-b01",
+        "say": "The fitted transformation, input schema and warning threshold all affect the answer. Put them in the same package as the model coefficients. Record the training identity and a digest of the builder source in the package. Keep the matching source file separately so you can repeat the build. Reload the package and compare its predictions with the ones you got before saving.",
+        "hold": 0.75
+      },
+      {
+        "id": "c04-b02",
+        "say": "Take a request with a missing delay. The model imputes the training mean. Five minutes gives a score of one half. Our rule sends a warning at threshold equality. Count those warnings when you evaluate the cost of missing scans.",
+        "hold": 0.3
+      },
+      {
+        "id": "c04-b03",
+        "say": "A schema mismatch or an invalid saved parameter should stop the inference path before a customer gets a warning.",
+        "hold": 0.85
+      },
+      {
+        "id": "c04-b04",
+        "say": "The release record ties the snapshot, feature version, model artifact and action policy to the previous release. It also names the promotion policy. That policy supplies the limits for errors, latency and cost. To trace which monitoring code ran in production, add a monitor version to the record.",
+        "hold": 0.3
+      },
+      {
+        "id": "c04-b05",
+        "say": "For a vision model, restore the cropper and review threshold with the weights. Register the package while the old release serves. Now price the four test deliveries. Each warning costs two units. Each missed late delivery costs twenty-five. The fitted model sends two warnings for four units.",
+        "hold": 0.3
+      },
+      {
+        "id": "c04-b06",
+        "say": "The silent baseline misses both late deliveries for fifty. This four-row synthetic test checks the calculation. To estimate how warnings affect real customers, we'll need outcomes from customers assigned to each version.",
+        "hold": 2.7
+      }
+    ]
+  },
+  {
+    "id": "c05",
+    "title": "Verify bytes and the computation that those bytes describe",
+    "sourceChapters": [
+      "c05"
+    ],
+    "beats": [
+      {
+        "id": "c05-b01",
+        "say": "The bundle stores the input feature name, fitted imputation, center and range, slope and intercept, warning threshold, training IDs and cutoff, training-row digest, builder-source digest and Python version. The training digest excludes later evaluation outcomes; the separate full-fixture digest includes them. Reload compares predictions from retained bytes with the pre-save computation.",
+        "hold": 0.8
+      },
+      {
+        "id": "c05-b02",
+        "say": "Compare the serialized bytes with the registered digest. Append one space. The text still parses, but the digest changes and reload stops. Restore the original bytes. Now try a separately registered file with a scale of zero. Its digest matches. Dividing by that scale would fail, so the loader rejects it. It also rejects duplicate JSON keys, nonfinite parameters, an unexpected schema and an unsupported threshold.",
+        "hold": 0.3
+      },
+      {
+        "id": "c05-b03",
+        "say": "Reject Boolean or unrepresentably huge numeric inputs. At a missing delay, reuse the saved imputation value from training.",
+        "hold": 0.8
+      },
+      {
+        "id": "c05-b04",
+        "say": "This loader reads numeric JSON. For a scikit-learn model, restore the training version and its dependencies. Load pickle files only from a trusted source because loading one can run code. The checksum identifies the saved bytes. Replaying a known request checks the prediction those bytes produce.",
+        "hold": 0.8
+      }
+    ]
+  },
+  {
+    "id": "c06",
+    "title": "Bind the gate to the actual rows",
+    "sourceChapters": [
+      "c06"
+    ],
+    "beats": [
+      {
+        "id": "c06-b01",
+        "say": "Now return to the cheaper candidate that missed a critical case. Derive recall from its row decisions and compare it with the declared floor. Its cost improvement cannot erase the failed requirement. Save the offline evidence with the identity of the artifact that contains those rows and the policy that evaluated them.",
+        "hold": 0.75
+      },
+      {
+        "id": "c06-b02",
+        "say": "The independently fitted package has its own evaluation outputs. Both late critical deliveries got warnings. The four rows cost four units against fifty. Bind these results to the release, artifact and promotion policy. The controller will check those bindings before it lets this model serve a canary.",
+        "hold": 0.85
+      },
+      {
+        "id": "c06-b03",
+        "say": "Now put delivery two's ID into training as well as evaluation. The overlap check fails even though critical recall still passes. Restore the split afterward. Different IDs can still hide related parcels. A split with distinct IDs can also contain a future scan. The builder checks both clocks separately.",
+        "hold": 0.3
+      },
+      {
+        "id": "c06-b04",
+        "say": "Try two separate boundary cases. With no late critical deliveries, recall has a zero denominator. Leave it blank. With a zero baseline cost, relative cost change is missing. Either missing measurement keeps the candidate offline.",
+        "hold": 0.8
+      }
+    ]
+  },
+  {
+    "id": "c07",
+    "title": "What lets the canary open?",
+    "sourceChapters": [
+      "c07"
+    ],
+    "beats": [
+      {
+        "id": "c07-b01",
+        "say": "The registry saves the fitted package and its release record. Production still runs version zero. The evaluator checks the row types, the expected delivery IDs and any overlap with training. These four rows belong to the registered artifact for version one.",
+        "hold": 0.3
+      },
+      {
+        "id": "c07-b02",
+        "say": "Add the costs in each column. Four divided by fifty, minus one, gives a cost change of minus ninety-two percent. For critical recall, count the late critical parcels that got warnings. Both did. The evaluator saves the results as offline evidence three.",
+        "hold": 0.8
+      },
+      {
+        "id": "c07-b03",
+        "say": "Offline evidence three identifies the artifact, the release and the promotion policy by fingerprint. The controller can encode those records the same way and check each fingerprint again. Pass the candidate and the evidence ID to open canary. The evidence passes the row gates. Which live pointer must the controller still check?",
+        "hold": 2.4
+      },
+      {
+        "id": "c07-b04",
+        "say": "Read the production pointer. The candidate names version zero as its base, and version zero still serves. With the bindings and row gates checked, the controller writes offline receipt two and opens the canary on version one. Production stays on version zero. Try a different base. The candidate names R four and production now serves R five. Hold the candidate offline. R five keeps serving.",
+        "hold": 0.8
+      },
+      {
+        "id": "c07-b05",
+        "say": "Replay the fitted candidate's admission with the original evidence. Its artifact prices delivery two at two units. Change just that row to three units. The total rises to five. The saved fingerprint still describes the two-unit row. The edited artifact has a different fingerprint, so the controller holds admission even though the total is still below fifty.",
+        "hold": 0.3
+      },
+      {
+        "id": "c07-b06",
+        "say": "This release still points to the original fingerprint. Keep the original artifact and register the corrected one under a new ID. Register a new candidate release bound to the corrected artifact's fingerprint. Evaluate that candidate. Pass its release ID and the new evidence ID to open canary. In a service, protect the artifacts and the saved evidence. Give a trusted evaluator control of the data and the model run.",
+        "hold": 0.8
+      }
+    ]
+  },
+  {
+    "id": "c08",
+    "title": "The canary’s observation history",
+    "sourceChapters": [
+      "c08"
+    ],
+    "beats": [
+      {
+        "id": "c08-b01",
+        "say": "Twenty requests arrive together. Sixteen go to version zero. These four go to version one. Watch all four finish. Response time and errors are available now. The carriers haven't reported which parcels arrived late. Would you give the candidate more traffic?",
+        "hold": 3
+      },
+      {
+        "id": "c08-b02",
+        "say": "Hold the canary at its current exposure. Zero labels have arrived for four requests. The cost change is still unknown. A measured cost change of zero would mean we broke even.",
+        "hold": 0.55
+      },
+      {
+        "id": "c08-b03",
+        "say": "Now the day-seven carrier reports arrive. Match each one to the request that version one served. The first two arrived late. The other two arrived on time. Each report supplies twenty-three cost units for the candidate and twenty-five for the baseline. Add all four pairs.",
+        "hold": 0.3
+      },
+      {
+        "id": "c08-b04",
+        "say": "Ninety-two divided by one hundred, minus one, gives minus eight percent.",
+        "hold": 0.65
+      },
+      {
+        "id": "c08-b05",
+        "say": "Keep both windows on file. Both have healthy service, the latest has labels, and every measured cost change is at or below zero. The controller can issue a ready receipt. Production still selects version zero until a separate promotion call.",
+        "hold": 0.6
+      },
+      {
+        "id": "c08-b06",
+        "say": "Try a different history. Each window follows its own four candidate requests. The first window is day seven, already labeled. Its cost was a hundred and fourteen against a hundred. Day eight comes in at ninety-two against a hundred. Both windows pass the service checks. Can this canary stay open?",
+        "hold": 3
+      },
+      {
+        "id": "c08-b07",
+        "say": "Abort this canary. The earlier window crossed the cost limit by fourteen percent. The later saving leaves that breach in the history. Remove the candidate’s canary pointer. Production still selects version zero.",
+        "hold": 0.85
+      }
+    ]
+  },
+  {
+    "id": "c09",
+    "title": "What if a window arrives without a usable measurement?",
+    "sourceChapters": [
+      "c09"
+    ],
+    "beats": [
+      {
+        "id": "c09-b01",
+        "say": "The four labeled deliveries let us reconstruct a cost change. The article’s controller takes a summary instead. Its day-seven record covers forty-two hundred requests and supplies a cost change of minus eight percent. That online summary is separate from the fitted model’s offline cost of four against fifty.",
+        "hold": 0.55
+      },
+      {
+        "id": "c09-b02",
+        "say": "Start each run with offline receipt two. It records the accepted admission for version one. Production still serves version zero. Pass the receipt ID and the candidate's first-hour and day-seven windows to the canary evaluator. It checks the bindings, unique window IDs and strictly increasing, nonnegative integer days.",
+        "hold": 0.3
+      },
+      {
+        "id": "c09-b03",
+        "say": "Each must count a positive whole number of requests. A Boolean count fails the contract.",
+        "hold": 0.55
+      },
+      {
+        "id": "c09-b04",
+        "say": "Try the limits exactly. Set the second window to one percent errors, two hundred fifty milliseconds at the ninety-fifth percentile, and zero measured cost change. The policy allows equality. Both windows pass, so the controller records ready. A separate promotion call would still have to move production.",
+        "hold": 0.55
+      },
+      {
+        "id": "c09-b05",
+        "say": "Leave health at those limits. Take away the latest labels and their cost. What should happen to this canary?",
+        "hold": 2.7
+      },
+      {
+        "id": "c09-b06",
+        "say": "Hold it open. The measurement is due. An empty history or a single healthy window also holds. Next, restore the complete pair and change only the latency to a nonfinite value. This time the record itself fails validation. Abort and remove this candidate’s canary.",
+        "hold": 0.3
+      },
+      {
+        "id": "c09-b07",
+        "say": "A measured breach or a binding mismatch also aborts. The controller removes the canary pointer only if this candidate owns it. If the pointer belongs to another candidate, that candidate stays in place.",
+        "hold": 0.65
+      },
+      {
+        "id": "c09-b08",
+        "say": "Reset the canary and send a dictionary in place of the window record. Python rejects the input before it writes a receipt. The existing canary stays open.",
+        "hold": 0.3
+      },
+      {
+        "id": "c09-b09",
+        "say": "In a valid record, latency must be finite and nonnegative, error rate must be between zero and one, and a supplied relative cost change must be finite and at least minus one.",
+        "hold": 0.6
+      },
+      {
+        "id": "c09-b10",
+        "say": "In a service, keep the request ID, served release, prediction time and time the outcome arrived. Check how many requests have labels, how old those labels are, and whether the sample can support the decision. A later passing summary alone tells you nothing about a window the caller left out.",
+        "hold": 0.65
+      }
+    ]
+  },
+  {
+    "id": "c10",
+    "title": "Follow receipt three to the production switch",
+    "sourceChapters": [
+      "c10"
+    ],
+    "beats": [
+      {
+        "id": "c10-b01",
+        "say": "Take history A. The two windows earned canary receipt three for version one, with version zero as the production base. Follow its link to offline receipt two, the accepted admission. That receipt names offline evidence three. The evidence identifies the registered artifact containing the four deliveries. Recheck the artifact, release and policy fingerprints before promotion.",
+        "hold": 0.5
+      },
+      {
+        "id": "c10-b02",
+        "say": "Read the live pointer just before the move. If another release is already selected, leave it there and hold promotion. Here the base still matches version zero. Call promote with receipt three. The controller reloads both packages, moves production to version one, clears the canary, and records the move with its receipt ID.",
+        "hold": 0.65
+      },
+      {
+        "id": "c10-b03",
+        "say": "Send a nine-minute delay through the selected package. Its score is point nine eight and the warning comes on. This replay checks the local selection. To confirm a deployed change, check which workers loaded the package and which revision received routed requests.",
+        "hold": 0.3
+      },
+      {
+        "id": "c10-b04",
+        "say": "The local check and assignment happen one after the other. What if two controllers write at once?",
+        "hold": 0.7
+      }
+    ]
+  },
+  {
+    "id": "c11",
+    "title": "Make the production transition atomic with its audit event",
+    "sourceChapters": [
+      "c11"
+    ],
+    "beats": [
+      {
+        "id": "c11-b01",
+        "say": "The Python controller checks production and then assigns it sequentially. A second controller can change the pointer between those actions. A transaction or compare-and-swap must check the expected release and alias generation while committing the pointer and audit event together.",
+        "hold": 0.8
+      },
+      {
+        "id": "c11-b02",
+        "say": "Production starts on version zero at generation forty-one. Another controller selects version two at generation forty-two, then returns to version zero at generation forty-three. The name on the receipt matches again. Would a writer holding generation forty-one be allowed to commit?",
+        "hold": 2.5
+      },
+      {
+        "id": "c11-b03",
+        "say": "Reject the stale write. The name matches, but forty-one differs from forty-three. Compare the expected generation as well as the release when committing the pointer and audit event. Record which rollout produced the evidence and when.",
+        "hold": 0.8
+      },
+      {
+        "id": "c11-b04",
+        "say": "After a successful move, follow a request. Check which workers loaded the package, became ready and received traffic. Time recovery through those steps, including any wait for compatible features. A warning sent before recovery stays in the customer's inbox.",
+        "hold": 0.8
+      }
+    ]
+  },
+  {
+    "id": "c12",
+    "title": "Two day-eight production reports",
+    "sourceChapters": [
+      "c12"
+    ],
+    "beats": [
+      {
+        "id": "c12-b01",
+        "say": "Return to the release that passed its checks and was promoted. Version one is selected. Send it a nine-minute delay. The fitted model scores point nine eight and warns. Now imagine two possible day-eight reports for this release. Both show nine hundred requests, healthy latency and few errors.",
+        "hold": 0.5
+      },
+      {
+        "id": "c12-b02",
+        "say": "Report A has no outcome labels yet. In report B the labels arrived, and warning cost is fourteen percent above baseline. The limit is zero regression. Which report gives you a reason to restore the previous model?",
+        "hold": 2.6
+      },
+      {
+        "id": "c12-b03",
+        "say": "Keep version one for the pending report. Set a deadline and fallback for missing measurements. The measured increase in the second report does justify recovery. Fetch its stored rollback receipt, recheck the live release and reload the previous package. Move the local pointer back to version zero.",
+        "hold": 0.55
+      },
+      {
+        "id": "c12-b04",
+        "say": "Replay the same nine-minute delay. The restored package scores zero. This request sends no new warning. Look in the inbox. The warning sent under version one is still there. The replay checks the local computation. A service must also verify worker readiness and routing.",
+        "hold": 0.75
+      }
+    ]
+  },
+  {
+    "id": "c13",
+    "title": "Two dates in the production monitor",
+    "sourceChapters": [
+      "c13"
+    ],
+    "beats": [
+      {
+        "id": "c13-b01",
+        "say": "Start a new history with version one serving. The service looks healthy and delivery labels are pending. Keep version one and set a deadline. Now the labels arrive, but the cost estimate is still missing. Keep monitoring. A measured increase above the cost limit, or a breach of the error or latency limit, can trigger rollback.",
+        "hold": 0.3
+      },
+      {
+        "id": "c13-b02",
+        "say": "If a window has invalid metrics, keep the release in place and investigate. The same bad metrics would close a canary. Handle a wrong record type at ingestion. It raises an error before either monitor can write a receipt.",
+        "hold": 0.8
+      },
+      {
+        "id": "c13-b03",
+        "say": "Watch the dates on these two calendars. On day nine, service is healthy and measured cost is one percent below baseline. Keep version one in production. Day ten brings an invalid measurement. The latest receipt says hold on day ten.",
+        "hold": 0.3
+      },
+      {
+        "id": "c13-b04",
+        "say": "The last good measurement is still day nine. Now a day-eight report arrives with a cost increase. Day eight is older than day nine. Hold rollback and keep the day-ten receipt. A report for a different release also leaves version one in place.",
+        "hold": 0.8
+      },
+      {
+        "id": "c13-b05",
+        "say": "A newer monitoring receipt supersedes an older rollback receipt. Before recovery, recheck the live release, policy and retained previous-target fingerprints, then reload that previous package. A changed target, changed policy or failed reload holds recovery. Integer days cannot order same-day updates or distinguish repeated rollout attempts; production windows need timestamps and attempt identity.",
+        "hold": 0.8
+      }
+    ]
+  },
+  {
+    "id": "c14",
+    "title": "Carry the same evidence contract across four products",
+    "sourceChapters": [
+      "c14"
+    ],
+    "beats": [
+      {
+        "id": "c14-b01",
+        "say": "Change the product while retaining the immediate-versus-delayed distinction. Delivery warnings need scan freshness now and labeled warning cost later. Ranking needs eligible candidate supply now and an assignment-aware purchase or return outcome later. Forecasting needs fresh counts now and residual or alert-decision cost later.",
+        "hold": 0.3
+      },
+      {
+        "id": "c14-b02",
+        "say": "Vision needs photo quality now and reviewer-confirmed damage later. If a bad crop hides the crushed corner of a box, restoring the old weights alone still supplies the wrong pixels. Restore its cropper, weights and review threshold together, then replay the photo.",
+        "hold": 0.8
+      },
+      {
+        "id": "c14-b03",
+        "say": "A canary bounds initial exposure while checking a release. To find out whether the warnings helped customers, run an A B test. Randomly assign customers to the two versions and compare their outcomes. The canary can be part of that experiment.",
+        "hold": 0.3
+      },
+      {
+        "id": "c14-b04",
+        "say": "A training schedule or drift trigger creates another candidate, which must pass the same data, model, monitoring and promotion evidence checks.",
+        "hold": 0.8
+      }
+    ]
+  },
+  {
+    "id": "c15",
+    "title": "Two models, one eight-minute delay",
+    "sourceChapters": [
+      "c15"
+    ],
+    "beats": [
+      {
+        "id": "c15-b01",
+        "say": "Here's delivery two again. It arrived late with an eight-minute delay on its scan. Read the first candidate’s evaluation row. That customer got no warning. The row still says twenty-four units because those costs were entered by hand. The missing warning still counts against recall.",
+        "hold": 0.65
+      },
+      {
+        "id": "c15-b02",
+        "say": "Replay the same input through the fitted package. Eight minutes puts its score at point eight six, above the warning threshold of one half. This package warns. Its cost rule charges two units for a warning.",
+        "hold": 0.3
+      },
+      {
+        "id": "c15-b03",
+        "say": "Across the four evaluation rows it catches both late critical deliveries for four units against fifty. Each candidate has its own evaluation rows and cost rule.",
+        "hold": 0.6
+      },
+      {
+        "id": "c15-b04",
+        "say": "The two offline evaluations give different answers for delivery two. Which answer would the customer get from our service now? That depends on the complete package selected by production. Keep the eight-minute scan for one last release decision.",
+        "hold": 2.2
+      }
+    ]
+  },
+  {
+    "id": "c16",
+    "title": "Which release answers delivery two?",
+    "sourceChapters": [
+      "c16"
+    ],
+    "beats": [
+      {
+        "id": "c16-b01",
+        "say": "Start a separate release attempt with version zero selected. Replay delivery two. Its eight-minute delay scores zero. No warning reaches this phone. The fitted package is waiting on the other side of the switch.",
+        "hold": 0.5
+      },
+      {
+        "id": "c16-b02",
+        "say": "Receipt three said ready. A one-window evaluation has since filed receipt four, which says hold. Someone also raised the latency limit from two hundred fifty to three hundred milliseconds under the same policy name. Try to promote with receipt three. Which evidence will the controller find?",
+        "hold": 2.8
+      },
+      {
+        "id": "c16-b03",
+        "say": "Hold promotion. The requested receipt is older than the current one, and its policy fingerprint no longer matches. Restore just the original latency limit. Try receipt three again. Which check still blocks it?",
+        "hold": 2.7
+      },
+      {
+        "id": "c16-b04",
+        "say": "The latest receipt is still four. Its hold keeps version zero selected. Delivery two still gets no warning. To try again, the evaluator needs the complete ordered history under the restored policy.",
+        "hold": 0.55
+      },
+      {
+        "id": "c16-b05",
+        "say": "Give the evaluator the accepted admission receipt and both passing windows. It checks the linked offline evidence and issues receipt five. That makes five current. The evaluator can reuse these observations in the lab. To require observations from this rollout, a service also needs an age limit and a rollout identifier.",
+        "hold": 0.5
+      },
+      {
+        "id": "c16-b06",
+        "say": "Call promote with receipt five. The controller rechecks the stored evidence and the production pointer, reloads both packages and selects version one. Replay the same eight-minute scan. The fitted package scores point eight six. That's above one half. This time the warning reaches the second customer's phone.",
+        "hold": 0.3
+      },
+      {
+        "id": "c16-b07",
+        "say": "The probe verifies the local switch. On a service, check which revision answered a routed request before declaring the rollout complete.",
+        "hold": 0.85
+      }
+    ]
+  }
+]

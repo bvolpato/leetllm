@@ -1,0 +1,1336 @@
+version: 1
+id: low-precision-kernels
+opening: lesson
+title: "Low-precision kernels: which value reaches the multiplier?"
+source: fundamentals/low-precision-gpu-programming/content.md
+voice: af_heart
+rate: +12%
+sources:
+  - title: OCP 8-bit Floating Point Specification
+    url: https://www.opencompute.org/documents/ocp-8-bit-floating-point-specification-ofp8-revision-1-0-2023-12-01-pdf-1
+  - title: NVIDIA Transformer Engine FP8 primer
+    url: https://docs.nvidia.com/deeplearning/transformer-engine/examples/fp8_primer.html
+  - title: PyTorch tensor attributes and floating-point formats
+    url: https://docs.pytorch.org/docs/stable/tensor_attributes.html
+  - title: OCP Microscaling Formats (MX) Specification, Version 1.0
+    url: https://www.opencompute.org/documents/ocp-microscaling-formats-mx-v1-0-spec-final-pdf
+  - title: Transformer Engine FP8 Current Scaling
+    url: https://docs.nvidia.com/deeplearning/transformer-engine/features/low_precision_training/fp8_current_scaling/fp8_current_scaling.html
+  - title: Transformer Engine FP8 Delayed Scaling
+    url: https://docs.nvidia.com/deeplearning/transformer-engine/features/low_precision_training/fp8_delayed_scaling/fp8_delayed_scaling.html
+  - title: MXFP8
+    url: https://docs.nvidia.com/deeplearning/transformer-engine/features/low_precision_training/mxfp8/mxfp8.html
+  - title: Transformer Engine NVFP4 Recipe
+    url: https://docs.nvidia.com/deeplearning/transformer-engine/features/low_precision_training/nvfp4/nvfp4.html
+  - title: DeepSeek-V3 Technical Report.
+    url: https://arxiv.org/abs/2412.19437
+  - title: DeepGEMM Source Snapshot, July 15 2026
+    url: https://github.com/deepseek-ai/DeepGEMM/tree/559d79fb6994a58b8a15b4b93bf13ccc16edf247
+  - title: Numerical Accuracy
+    url: https://docs.pytorch.org/docs/stable/notes/numerical_accuracy.html
+  - title: Data Types and Precision Support
+    url: https://rocm.docs.amd.com/en/docs-10.0.0/reference/precision-support.html
+scenes:
+  - id: intro
+    title: What reaches the multiplier?
+    visual: A blue strip shows an incoming activation of 500. A single division spans the previous
+      peak of 10. The encoder fills eight bit cells, then the multiplier reads the byte with its scale.
+    beats:
+      - say: Five hundred goes into the FP8 encoder. The last batch peaked at ten, just one blue division.
+          Keep that batch's scale.
+        hold: 0.6
+        visual_cues:
+          - id: intro-spike
+            phrase: The last batch peaked at ten
+            targets:
+              - peak-ruler
+            color: blue
+            linger: 0.15
+      - say: Ten already maps to the largest finite value, four hundred forty-eight. Five hundred clips
+          to that same value. Multiply by the scale on screen. What value reaches the multiplier?
+        hold: 2.7
+        caption_starts:
+          - Five hundred clips to that same value
+          - What value reaches the multiplier
+        visual_cues:
+          - id: intro-cap
+            phrase: Five hundred clips to that same value
+            targets:
+              - peak-code
+            color: yellow
+            linger: 0.15
+          - id: intro-question
+            phrase: What value reaches the multiplier
+            targets:
+              - peak-product
+              - peak-code
+            color: cyan
+            linger: 0.15
+      - say: Only ten comes back. Five hundred went in. That's a ninety-eight percent loss, and a check for
+          infinity or NaN would pass. Even a kernel that accumulates in FP32 starts with this ten.
+        hold: 1.1
+        caption_starts:
+          - That's a ninety-eight percent loss
+        visual_cues:
+          - id: intro-read
+            phrase: Only ten comes back
+            targets:
+              - peak-product
+            color: cyan
+            linger: 0.15
+            caption_boundary: true
+          - id: intro-loss
+            phrase: That's a ninety-eight percent loss
+            targets:
+              - peak-ruler
+            color: pink
+            linger: 0.15
+  - id: stale-scale
+    title: One stored value, two scales
+    visual: The ruler uses the same activation units. Two conversions of the same 500 keep their pre-cast inputs,
+      stored values and reconstructions aligned. Measuring the current maximum changes the upper end
+      of the encodable interval.
+    beats:
+      - say: Divide five hundred by the old scale. That's twenty-two thousand four hundred before the cast.
+          Saturation maps that whole overshoot to the same ceiling value, four hundred forty-eight.
+        hold: 0.7
+        visual_cues:
+          - id: stale-divide
+            phrase: twenty-two thousand four hundred before the cast
+            targets:
+              - previous-conversion
+            color: yellow
+            linger: 0.15
+      - say: This time measure today's maximum. Use five hundred over four hundred forty-eight as the scale.
+          The same input now lands exactly at the last slot. Both runs sent the same byte. What will
+          it mean with the new scale?
+        hold: 2.3
+        visual_cues:
+          - id: stale-measure
+            phrase: measure today's maximum
+            targets:
+              - scale-range
+            color: yellow
+            linger: 0.15
+      - say: It now means five hundred. The difference is in the scale that traveled with the byte. Keep the
+          scale and the value before the cast if you need to tell an exact fit from a clipped peak.
+        hold: 0.95
+        visual_cues:
+          - id: stale-restored
+            phrase: It now means five hundred
+            targets:
+              - current-conversion
+            color: cyan
+            linger: 0.15
+            caption_boundary: true
+  - id: format-budget
+    title: What fits in the byte?
+    visual: Aligned bit cells compare storage width and field widths. Two rulers show FP8 spacing near 1.
+      The same bytes are decoded under both E4M3 biases.
+    beats:
+      - say: The ceiling of four hundred forty-eight belongs to a particular format. Look at the two shorter
+          strips. Both store sixteen bits. BF16 keeps the eight exponent bits of FP32 and trims its
+          fraction from twenty-three bits to seven. FP16 spends ten bits on the fraction and just five
+          on the exponent. That buys closer neighbors, but its finite range ends at sixty-five
+          thousand five hundred four.
+        hold: 0.6
+        visual_cues:
+          - id: lp-format-budget-build-0
+            phrase: Both store sixteen bits. BF16 keeps the eight exponent bits of FP32 and trims its fraction
+              from twenty-three bits to seven. FP16 spends ten bits on the fraction and just five on
+              the exponent.
+            targets:
+              - lp-format-budget-trace
+            color: cyan
+            linger: 0.45
+      - say: TF32 keeps the whole FP32 value in memory. A supported matrix instruction uses ten fraction bits.
+          Now look at the eight-bit strips. Both keep one sign bit. E4M3 spends four bits on the
+          exponent and three on the fraction. E5M2 gives one more bit to the exponent. Their biases
+          are seven and fifteen. Their finite ceilings are four hundred forty-eight and fifty-seven
+          thousand three hundred forty-four. That extra range is one reason training recipes often use
+          E5M2 for gradients and E4M3 for forward operands.
+        hold: 0.6
+        visual_cues:
+          - id: lp-format-budget-build-1
+            phrase: look at the eight-bit strips
+            targets:
+              - lp-format-budget-trace
+            color: cyan
+            linger: 0.45
+          - id: lp-format-budget-limits
+            phrase: Their finite ceilings are four hundred forty-eight and fifty-seven thousand three hundred
+              forty-four
+            targets:
+              - lp-format-budget-trace
+            color: yellow
+            linger: 0.45
+      - say: Between one and two, E4M3 has eight spaces. E5M2 has four. The steps are one eighth and one
+          quarter. In any normal binary interval, divide the value at its lower end by two raised to
+          the fraction-bit count. The rounding error also depends on where your input lands. Even
+          normalized activations can span a wide range. Apply layer normalization to a row with one
+          nonzero entry among a thousand and twenty-four. With epsilon set to zero and before the
+          affine step, its magnitude is about thirty-two.
+        hold: 0.6
+        visual_cues:
+          - id: lp-format-budget-build-2
+            phrase: Between one and two, E4M3 has eight spaces. E5M2 has four
+            targets:
+              - lp-format-budget-trace
+            color: cyan
+            linger: 0.45
+          - id: lp-format-budget-spacing
+            phrase: The steps are one eighth and one quarter
+            targets:
+              - lp-format-budget-trace
+            color: yellow
+            linger: 0.45
+          - id: lp-format-budget-norm
+            phrase: its magnitude is about thirty-two
+            targets:
+              - lp-format-budget-trace
+            color: yellow
+            linger: 0.45
+      - say: Read the sign, subtract the bias from the stored exponent, and multiply the resulting power of
+          two by one plus the fraction integer over eight. Here the exponent field is seven and the
+          fraction is zero. OCP E4M3 reads one. FNUZ subtracts eight, so it reads a half. For the byte
+          hex eighty, the OCP reader sees negative zero. The FNUZ reader reserves that byte for NaN.
+        hold: 0.6
+        visual_cues:
+          - id: lp-format-budget-build-3
+            phrase: Here the exponent field is seven and the fraction is zero
+            targets:
+              - lp-format-budget-trace
+            color: cyan
+            linger: 0.45
+          - id: lp-format-budget-bias
+            phrase: The FNUZ reader reserves that byte for NaN
+            targets:
+              - lp-format-budget-trace
+            color: yellow
+            linger: 0.45
+  - id: number-grid
+    title: Which neighbor wins a tie?
+    visual: A probe moves between exact decoded E4M3 values. At consecutive midpoints the low bit selects
+      opposite neighbors. The ruler widens at the next exponent boundary.
+    beats:
+      - say: Look between one and one and an eighth. You can move the yellow input a little to the right, but
+          the nearest E4M3 tick is still one. Three fraction bits give us only eight steps over this
+          interval. The input can change while its stored byte stays put.
+        hold: 0.65
+        visual_cues:
+          - id: number-grid-beat-1-focus-1
+            phrase: move the yellow input a little to the right
+            targets:
+              - number-grid-representable-values
+              - number-grid-s-code-tostring-2-padstart-8-0-split
+            color: cyan
+            linger: 0.65
+      - say: At one point zero six two five, both neighbors are equally close. Read the last bit on each byte.
+          The lower neighbor ends in zero. Round-to-nearest-even picks that neighbor, so we store one.
+        hold: 0.7
+        visual_cues:
+          - id: number-grid-beat-2-focus-1
+            phrase: The lower neighbor ends in zero
+            targets:
+              - number-grid-current-rounding
+              - number-grid-s-code-tostring-2-padstart-8-0-split
+            color: cyan
+            linger: 0.65
+      - say: Move one gap to the right. At one point one eight seven five the upper neighbor ends in zero.
+          This tie goes up to one and a quarter. Cross two and the grid widens. Eight spaces across an
+          interval of width two gives a quarter per step. The same rule works at the next exponent
+          boundary.
+        hold: 0.65
+        visual_cues:
+          - id: number-grid-next-midpoint
+            phrase: Move one gap to the right
+            targets:
+              - number-grid-current-rounding
+              - number-grid-s-code-tostring-2-padstart-8-0-split
+            color: yellow
+            linger: 0.5
+          - id: number-grid-exponent-spacing
+            phrase: Cross two and the grid widens
+            targets:
+              - number-grid-representable-values
+              - number-grid-current-rounding
+            color: pink
+            linger: 0.5
+  - id: subnormal-grid
+    title: How close can a code get to zero?
+    visual: The leading bit changes at the smallest normal. Signed half-step ties and a three-quarter-step
+      input round on a magnified subnormal ruler. The CPU cast and MI200 matrix modes have separate
+      labels.
+    beats:
+      - say: At the smallest E4M3 normal, a leading one stands for one times two to the minus six. Set the
+          exponent bits to zero. The leading bit becomes zero, and the fraction bits give us smaller
+          values called subnormals. Call the smallest step d. It's two to the minus nine. In E5M2 the
+          smallest step is two to the minus sixteen.
+        hold: 0.6
+        visual_cues:
+          - id: lp-subnormal-grid-build-0
+            phrase: Set the exponent bits to zero
+            targets:
+              - lp-subnormal-grid-trace
+            color: cyan
+            linger: 0.45
+          - id: lp-subnormal-grid-floor
+            phrase: In E5M2 the smallest step is two to the minus sixteen
+            targets:
+              - lp-subnormal-grid-trace
+            color: yellow
+            linger: 0.45
+      - say: Three quarters of d is closer to d than to zero. It rounds up to d. Half of d is a tie. The even
+          code is zero. A negative half step keeps its sign and rounds to negative zero in OCP E4M3.
+          Even the wider E5M2 range can't save an unscaled ten to the minus seven. It sits below half
+          its first step.
+        hold: 0.6
+        visual_cues:
+          - id: lp-subnormal-grid-build-1
+            phrase: Three quarters of d is closer to d than to zero
+            targets:
+              - lp-subnormal-grid-trace
+            color: cyan
+            linger: 0.45
+          - id: lp-subnormal-grid-up
+            phrase: It rounds up to d
+            targets:
+              - lp-subnormal-grid-trace
+            color: yellow
+            linger: 0.45
+          - id: lp-subnormal-grid-zero
+            phrase: rounds to negative zero
+            targets:
+              - lp-subnormal-grid-trace
+            color: yellow
+            linger: 0.45
+      - say: That was a conversion on the number grid. A matrix instruction can also flush subnormals to zero.
+          PyTorch documents this for affected FP16 and BF16 matrix paths on AMD's MI two hundred, with
+          separate FP16 backward alternatives. To see whether a small value survives multiplication,
+          try it on the instruction and mode you plan to use.
+        hold: 0.6
+        visual_cues:
+          - id: lp-subnormal-grid-build-2
+            phrase: A matrix instruction can also flush subnormals to zero
+            targets:
+              - lp-subnormal-grid-trace
+            color: cyan
+            linger: 0.45
+  - id: overflow-mode
+    title: Did the cast overflow?
+    visual: Two nearby inputs round on one precision grid. Only 465 crosses the E4M3 finite boundary after
+      rounding. Separate format and CPU examples show what their own overflow contracts return.
+    beats:
+      - say: A ceiling code can have two explanations. OCP rounds to destination precision before testing for
+          overflow. Four hundred forty-nine rounds back to four hundred forty-eight. Four hundred
+          sixty-five is nearer four hundred eighty. That's a precision-rounded intermediate beyond the
+          finite E4M3 range.
+        hold: 0.6
+        visual_cues:
+          - id: lp-overflow-mode-build-0
+            phrase: OCP rounds to destination precision before testing for overflow
+            targets:
+              - lp-overflow-mode-trace
+            color: cyan
+            linger: 0.45
+          - id: lp-overflow-mode-449
+            phrase: Four hundred forty-nine rounds back to four hundred forty-eight
+            targets:
+              - lp-overflow-mode-trace
+            color: yellow
+            linger: 0.45
+          - id: lp-overflow-mode-465
+            phrase: Four hundred sixty-five is nearer four hundred eighty
+            targets:
+              - lp-overflow-mode-trace
+            color: yellow
+            linger: 0.45
+      - say: For that second input, saturating E4M3 stores four hundred forty-eight. Non-saturating E4M3
+          returns NaN. The format has two NaN patterns and no infinity. E5M2 has a larger ceiling. Try
+          sixty-five thousand five hundred thirty-six on E5M2. This input exceeds its own range after
+          rounding. Its non-saturating result is positive infinity. OCP requires nearest-even and both
+          overflow modes. A caller has to know which mode was used.
+        hold: 0.6
+        visual_cues:
+          - id: lp-overflow-mode-build-1
+            phrase: For that second input
+            targets:
+              - lp-overflow-mode-trace
+            color: cyan
+            linger: 0.45
+          - id: lp-overflow-mode-modes
+            phrase: Non-saturating E4M3 returns NaN
+            targets:
+              - lp-overflow-mode-trace
+            color: yellow
+            linger: 0.45
+          - id: lp-overflow-mode-e5
+            phrase: Its non-saturating result is positive infinity
+            targets:
+              - lp-overflow-mode-trace
+            color: pink
+            linger: 0.15
+            caption_boundary: true
+      - say: The article's PyTorch two point fifteen CPU run tried five hundred with a plain cast, then an
+          explicit finite clamp before casting. Both returned four hundred forty-eight. To diagnose
+          clipping, record the scaled input and check where it rounded. A ceiling code alone can't
+          distinguish our two cases.
+        hold: 0.6
+        visual_cues:
+          - id: lp-overflow-mode-build-2
+            phrase: a plain cast, then an explicit finite clamp before casting
+            targets:
+              - lp-overflow-mode-trace
+            color: cyan
+            linger: 0.45
+          - id: lp-overflow-mode-cpu
+            phrase: Both returned four hundred forty-eight
+            targets:
+              - lp-overflow-mode-trace
+            color: yellow
+            linger: 0.45
+  - id: rounding-probability
+    title: Where does one weight update land?
+    visual: Two aligned rulers magnify one eighth above 1. An exact increment of 1/32 lands between E4M3
+      ticks and directly on a BF16 tick. A second trial uses the same E4M3 gap to derive stochastic
+      rounding probabilities.
+    beats:
+      - say: Start both weights at one. Add one thirty-second to each. The blue dots mark the exact sum. Both
+          rulers cover the same distance. With round-to-nearest-even, which stored weight will move?
+        hold: 2.3
+        visual_cues:
+          - id: round-candidate
+            phrase: Add one thirty-second to each
+            targets:
+              - round-rulers
+            color: blue
+            linger: 0.15
+      - say: Store the two results. E4M3 falls back to one. Its next value is a whole eighth away. BF16 has a
+          tick every one hundred twenty-eighth here, so it keeps the full update. If you repeat that
+          addition on the E4M3 weight, you'll start from one again, unless you kept the remainder or a
+          wider master weight.
+        hold: 0.9
+        caption_starts:
+          - E4M3 falls back to one
+          - BF16 has a tick
+          - so it keeps the full update
+        visual_cues:
+          - id: round-store
+            phrase: E4M3 falls back to one
+            targets:
+              - round-rulers
+            color: cyan
+            linger: 0.15
+          - id: round-bf16
+            phrase: so it keeps the full update
+            targets:
+              - round-rulers
+            color: cyan
+            linger: 0.15
+      - say: Keep the E4M3 neighbors. Now add just one hundredth. Suppose we store either neighbor and want
+          the average stored value to equal one point zero one. How often should we pick the upper
+          tick?
+        hold: 2.4
+        visual_cues:
+          - id: round-trial
+            phrase: Now add just one hundredth
+            targets:
+              - round-rulers
+            color: blue
+            linger: 0.15
+      - say: The input is eight percent of the way across the gap. So put eight percent of the probability on
+          the upper tick and the rest on one. The weighted average is one point zero one. That's
+          stochastic rounding. An individual write still stores just one of the two neighbors.
+        hold: 0.9
+        visual_cues:
+          - id: round-mass
+            phrase: put eight percent of the probability on the upper tick and the rest on one
+            targets:
+              - round-outcomes
+            color: yellow
+            linger: 0.15
+          - id: round-expectation
+            phrase: The weighted average is one point zero one
+            targets:
+              - round-outcomes
+            color: cyan
+            linger: 0.15
+            caption_boundary: true
+      - say: Put the input exactly on the upper tick and every write can keep it. At five hundred there's no
+          finite E4M3 neighbor above the input. Clipping to four hundred forty-eight changes the
+          average too. Unbiased rounding inside a gap gives a local expectation. Training convergence
+          also depends on the optimizer. Transformer Engine's NVFP4 training recipe uses stochastic
+          rounding for gradients.
+        hold: 0.7
+        visual_cues:
+          - id: round-exact
+            phrase: Put the input exactly on the upper tick
+            targets:
+              - round-rulers
+            color: cyan
+            linger: 0.15
+          - id: round-limits
+            phrase: Clipping to four hundred forty-eight
+            targets:
+              - round-outcomes
+            color: cyan
+            linger: 0.15
+  - id: scale-conventions
+    title: Which way does the scale go?
+    visual: The same real activation travels through reciprocal encode and reconstruct formulas. A
+      zero-only group gets a declared positive scale. Two unequal scale products stay beside their own
+      contraction blocks.
+    beats:
+      - say: Return to the five hundred that came back as ten. We divided by a reconstruction scale, then
+          multiplied the decoded number by that scale. Some APIs store its reciprocal instead.
+          Multiply by that factor on the way in and divide by it on the way back. Either convention
+          gives ten here. Read both operations before assigning a meaning to a field named scale.
+        hold: 0.6
+        visual_cues:
+          - id: lp-scale-conventions-build-0
+            phrase: We divided by a reconstruction scale
+            targets:
+              - lp-scale-conventions-trace
+            color: cyan
+            linger: 0.45
+          - id: lp-scale-conventions-reciprocal
+            phrase: Multiply by that factor on the way in and divide by it on the way back
+            targets:
+              - lp-scale-conventions-trace
+            color: yellow
+            linger: 0.45
+      - say: For a positive finite maximum, divide the maximum by four hundred forty-eight to get the ideal
+          reconstruction scale. Invert that fraction for the other convention. If the whole group is
+          zero, taking the reciprocal of its maximum would divide by zero. Choose a positive scale,
+          such as one. Every zero still comes back as zero.
+        hold: 0.6
+        visual_cues:
+          - id: lp-scale-conventions-build-1
+            phrase: For a positive finite maximum
+            targets:
+              - lp-scale-conventions-trace
+            color: cyan
+            linger: 0.45
+          - id: lp-scale-conventions-zero
+            phrase: Choose a positive scale, such as one
+            targets:
+              - lp-scale-conventions-trace
+            color: yellow
+            linger: 0.45
+      - say: A scale also belongs to particular values. If a row scale and a weight-column scale stay fixed
+          throughout a dot product, their product can move outside the inner sum. If the scale changes
+          halfway through, keep each scale with its own partial sum. That's an identity for
+          reconstructed operands in real arithmetic. Reordering a finite-precision sum can change its
+          rounding.
+        hold: 0.6
+        visual_cues:
+          - id: lp-scale-conventions-build-2
+            phrase: keep each scale with its own partial sum
+            targets:
+              - lp-scale-conventions-trace
+            color: cyan
+            linger: 0.45
+  - id: scale-timeline
+    title: When is the maximum available?
+    visual: Two scans read the same eight values for current scaling. A history window supplies the
+      delayed scale while a single scan records a new peak for the next iteration. A separate retained
+      outlier coarsens the tiny probe.
+    beats:
+      - say: To choose today's scale from today's values, first scan the tensor for its largest absolute
+          value. Transformer Engine's current-scaling guide describes a second read to scale and cast
+          the same values. GEMM reads the encoded tensor later. These dependencies can stay on the
+          device. Copying the maximum back for a host decision also requires a transfer and
+          synchronization.
+        hold: 0.6
+        visual_cues:
+          - id: lp-scale-timeline-build-0
+            phrase: first scan the tensor for its largest absolute value. Transformer Engine's current-scaling
+              guide describes a second read to scale and cast the same values
+            targets:
+              - lp-scale-timeline-trace
+            color: cyan
+            linger: 0.45
+          - id: lp-scale-timeline-second
+            phrase: a second read to scale and cast the same values
+            targets:
+              - lp-scale-timeline-trace
+            color: yellow
+            linger: 0.45
+      - say: Try the same input with three earlier maxima. Ten is the largest, so today's scale is ten over
+          four hundred forty-eight. That's ready before the scan starts. Cast each value and keep
+          track of the largest one you see. Seven hundred enters the history for the next iteration.
+          This maximum-over-history rule uses no margin. Transformer Engine describes one tensor read
+          here. A distributed run may also combine maxima across ranks to update its scales.
+        hold: 0.6
+        visual_cues:
+          - id: lp-scale-timeline-build-1
+            phrase: Cast each value and keep track of the largest one you see
+            targets:
+              - lp-scale-timeline-trace
+            color: cyan
+            linger: 0.45
+          - id: lp-scale-timeline-history
+            phrase: Seven hundred enters the history for the next iteration
+            targets:
+              - lp-scale-timeline-trace
+            color: yellow
+            linger: 0.45
+      - say: Yesterday's small maximum let a new spike clip. The opposite shift is possible too. Suppose the
+          history still contains five hundred while today's input is one thousandth. That old maximum
+          spaces the ticks so far apart that the tiny input rounds to zero.
+        hold: 0.6
+        visual_cues:
+          - id: lp-scale-timeline-build-2
+            phrase: Suppose the history still contains five hundred
+            targets:
+              - lp-scale-timeline-trace
+            color: cyan
+            linger: 0.45
+  - id: online-quantization
+    title: Who writes the FP8 operand?
+    visual: The online activation strip and weight tile mark DeepSeek-V3's 128-element contraction
+      interval. The reported BF16 read, FP8 write and MMA read stay distinct from the proposed fused
+      transfer.
+    beats:
+      - say: DeepSeek V-three measured the maximum online. One activation group spans a hundred twenty-eight
+          values. A weight group spans a square of that width. On its H eight hundred runs, the
+          authors observed loss inside accumulation. Every hundred twenty-eight contraction elements,
+          they promoted the partial result to FP32 accumulation on CUDA cores.
+        hold: 0.6
+        visual_cues:
+          - id: lp-online-quantization-build-0
+            phrase: One activation group spans a hundred twenty-eight values
+            targets:
+              - lp-online-quantization-trace
+            color: cyan
+            linger: 0.45
+          - id: lp-online-quantization-promote
+            phrase: they promoted the partial result to FP32 accumulation on CUDA cores
+            targets:
+              - lp-online-quantization-trace
+            color: yellow
+            linger: 0.45
+      - say: Follow the reported data movement. Read BF16. Quantize. Write FP8. Then the matrix operation
+          reads the FP8 operand. Combining the cast with a Tensor Memory Accelerator transfer was a
+          proposed optimization. The cited DeepGEMM interface likewise leaves casting and transposing
+          to the caller or an earlier fused kernel. Measuring the range online tells you when the
+          scale is chosen. You still have to account for moving the operand.
+        hold: 0.6
+        visual_cues:
+          - id: lp-online-quantization-build-1
+            phrase: Read BF16. Quantize. Write FP8. Then the matrix operation reads the FP8 operand
+            targets:
+              - lp-online-quantization-trace
+            color: cyan
+            linger: 0.45
+          - id: lp-online-quantization-future
+            phrase: was a proposed optimization
+            targets:
+              - lp-online-quantization-trace
+            color: yellow
+            linger: 0.45
+  - id: local-scales
+    title: Which activations share a scale?
+    visual: One bracket covers both 32-entry rows, then splits into two brackets. Separate magnified
+      rulers compare the source and stored values at the same two indices in each run.
+    beats:
+      - say: Look at the blue cells. The first holds one thousandth. The second row contains five hundred. One
+          scale covers all sixty-four values. Its first positive step is about two thousandths, just
+          over twice our tiny input. The tiny value rounds to zero. The peak itself comes back
+          exactly.
+        hold: 0.8
+        visual_cues:
+          - id: local-shared
+            phrase: The tiny value rounds to zero
+            targets:
+              - local-tiny-ruler
+            color: cyan
+            linger: 0.15
+          - id: local-shared-spike
+            phrase: The peak itself comes back exactly
+            targets:
+              - local-spike-ruler
+            color: cyan
+            linger: 0.15
+      - say: Now give each row its own scale. We round each row's maximum divided by four hundred forty-eight
+          up to a power of two. Row zero gets two to the minus eight. Its smallest step is now two to
+          the minus seventeen. The thousandth survives as about point zero zero zero nine eight.
+        hold: 0.8
+        visual_cues:
+          - id: local-tiny
+            phrase: survives as about point zero zero zero nine eight
+            targets:
+              - local-tiny-ruler
+            color: cyan
+            linger: 0.15
+      - say: The other row uses a scale of two. Five hundred divided by two is two hundred fifty. The nearest
+          E4M3 value is two hundred fifty-six. Multiply back by two and the spike becomes five hundred
+          twelve. Giving the small row its own range helped it. The spike picked up a twelve-unit
+          error.
+        hold: 0.9
+        visual_cues:
+          - id: local-probe
+            phrase: Five hundred divided by two is two hundred fifty
+            targets:
+              - local-spike-ruler
+            color: blue
+            linger: 0.15
+          - id: local-spike
+            phrase: the spike becomes five hundred twelve
+            targets:
+              - local-spike-ruler
+            color: cyan
+            linger: 0.15
+  - id: cpu-contract
+    title: Which values changed before the multiply?
+    visual: In the repeating group of eight, two positions change. Follow each from its original
+      value through division, rounding and reconstruction. Both results stay visible for the CPU comparison.
+    beats:
+      - say: Two values change in each group of eight. At position three, divide five hundred by two.
+          The nearest E4M3 value to two hundred fifty is two hundred fifty-six. Double it and five
+          hundred comes back as five hundred twelve. At position seven, minus two hundred fifty comes
+          back as minus two hundred fifty-six. The other six values survive exactly.
+        hold: 0.8
+        caption_starts:
+          - The nearest E4M3 value
+          - Double it
+          - At position seven
+        visual_cues:
+          - id: cpu-divide
+            phrase: divide five hundred by two
+            targets:
+              - cpu-row
+            color: blue
+            linger: 0.15
+          - id: cpu-round
+            phrase: The nearest E4M3 value to two hundred fifty is two hundred fifty-six
+            targets:
+              - cpu-row
+            color: yellow
+            linger: 0.15
+          - id: cpu-reconstruct
+            phrase: comes back as five hundred twelve
+            targets:
+              - cpu-row
+            color: cyan
+            linger: 0.15
+          - id: cpu-negative
+            phrase: comes back as minus two hundred fifty-six
+            targets:
+              - cpu-row
+            color: cyan
+            linger: 0.15
+      - say: Here the encoder rounds each scale up to a power of two and stores it in FP32. OCP also
+          describes a different way to choose a scale for the same format. Now run the dot product
+          twice on the CPU. First use the original activations and weights. Then use the values
+          reconstructed from FP8. Follow those two positions as the weights arrive.
+        hold: 0.8
+        visual_cues:
+          - id: cpu-matmul
+            phrase: run the dot product twice on the CPU
+            targets:
+              - cpu-operation
+            color: cyan
+            linger: 0.15
+  - id: projection
+    title: Which products changed?
+    visual: A 32-position weight strip shows four repeats. Two aligned products expose opposing errors
+      within each repeat. The same row then meets a one-hot selector at index 3. Each reference total
+      stays covered until its calculation is complete.
+    beats:
+      - say: The original dot product is seven point seven five. It multiplies each of the thirty-two
+          activations by its own weight and sums the products. Look at positions three and seven in
+          the first repeat. Five hundred times minus one sixteenth and minus two hundred fifty times
+          minus one eighth give opposite products of the same size.
+        hold: 0.8
+        visual_cues:
+          - id: projection-original-pair
+            phrase: give opposite products of the same size
+            targets:
+              - projection-products
+            color: blue
+            linger: 0.15
+      - say: Use the reconstructed operands with the same weights. At index three the product falls by three
+          quarters. At index seven it rises by three quarters. The other six products keep their
+          values. The pink dot is back at zero change for this repeat. That pair occurs four times.
+          What will the reconstructed dot product be?
+        hold: 2.6
+        visual_cues:
+          - id: projection-first-error
+            phrase: the product falls by three quarters
+            targets:
+              - projection-products
+              - projection-output
+            color: cyan
+            linger: 0.15
+          - id: projection-second-error
+            phrase: it rises by three quarters
+            targets:
+              - projection-products
+              - projection-output
+            color: cyan
+            linger: 0.15
+        motion_check:
+          region:
+            - 240
+            - 420
+            - 1440
+            - 520
+          minimumChangedFraction: 0.002
+      - say: Both sums finish at seven point seven five. Keep the encoded activations. Put a one at index
+          three and zero everywhere else. What will each dot product read this time?
+        hold: 2.5
+        visual_cues:
+          - id: projection-equal
+            phrase: Both sums finish at seven point seven five
+            targets:
+              - projection-output
+            color: cyan
+            linger: 0.15
+          - id: projection-one-hot
+            phrase: Put a one at index three and zero everywhere else
+            targets:
+              - projection-weights
+            color: yellow
+            linger: 0.15
+            caption_boundary: true
+      - say: The original gives five hundred. The reconstructed row gives five hundred twelve. Changing the
+          weights exposed twelve units of error in a single activation. If one output matches, use a
+          weight of one to check the value your next operation depends on.
+        hold: 1.2
+        visual_cues:
+          - id: projection-selected
+            phrase: The reconstructed row gives five hundred twelve
+            targets:
+              - projection-output
+            color: cyan
+            linger: 0.15
+            caption_boundary: true
+  - id: block-scales
+    title: Which scale belongs to this partial sum?
+    visual: Each pair of encoded inputs produces a partial dot product. Changing the scale at the block
+      boundary changes the second contribution. A comparison keeps both partials visible.
+    beats:
+      - say: Now keep two scale factors with the products they belong to. In the first block, one times one
+          plus one times one gives two. The activation and weight scales have a product of five. This
+          block contributes ten to the reconstructed sum.
+        hold: 0.65
+        visual_cues:
+          - id: block-scales-beat-1-focus-1
+            phrase: In the first block
+            targets:
+              - block-scales-panel-block-scales
+            color: cyan
+            linger: 0.65
+          - id: block-scales-beat-1-focus-2
+            phrase: This block contributes ten to the reconstructed sum
+            targets:
+              - block-scales-panel-block-scales
+            color: yellow
+            linger: 0.65
+      - say: The second block has a different scale product. Its coded dot is three. Scale that partial by
+          eight and it contributes twenty-four. Add ten and twenty-four to get thirty-four.
+          The rule applies whenever scale products vary
+          along the contraction.
+        hold: 0.7
+        visual_cues:
+          - id: block-scales-beat-2-focus-1
+            phrase: The second block has a different scale product
+            targets:
+              - block-scales-panel-block-scales
+            color: cyan
+            linger: 0.65
+          - id: block-scales-beat-2-focus-2
+            phrase: Scale that partial by eight
+            targets:
+              - block-scales-panel-block-scales
+            color: yellow
+            linger: 0.65
+      - say: Suppose the consumer adds the coded partials first and puts the first scale outside. Five times
+          the sum of two and three is twenty-five. It used five on a contribution that needed eight.
+          Factoring out a scale works only where the scale is constant.
+        hold: 0.65
+        visual_cues:
+          - id: block-scales-beat-3-focus-1
+            phrase: puts the first scale outside
+            targets:
+              - block-scales-panel-block-scales
+            color: cyan
+            linger: 0.65
+  - id: accumulation
+    title: What does the running sum keep?
+    visual: Four copies of an exact quarter reach a running sum of 1,024. The FP16 and FP32 traces reuse
+      the same additions and round after each write.
+    beats:
+      - say: Both operands can be exact and the sum can still change in storage. Start at a thousand
+          twenty-four. Add a quarter, then store in FP16. The next higher tick is a whole unit away.
+          The quarter rounds away. Repeat from the stored result and all four additions leave it at a
+          thousand twenty-four.
+        hold: 0.7
+        visual_cues:
+          - id: accumulation-beat-1-focus-1
+            phrase: Add a quarter, then store in FP16
+            targets:
+              - accumulation-fp16-trace
+              - accumulation-update-count
+            color: cyan
+            linger: 0.65
+          - id: accumulation-beat-1-focus-2
+            phrase: all four additions leave it at a thousand twenty-four
+            targets:
+              - accumulation-fp16-trace
+              - accumulation-update-count
+            color: yellow
+            linger: 0.65
+      - say: Replay those four additions in FP32. Each quarter now survives. A thousand twenty-four and a
+          quarter, then a half, then three quarters, then a thousand twenty-five. This fixes a loss at
+          the running sum. A wider accumulator still receives whatever numbers survived input
+          conversion.
+        hold: 0.65
+        visual_cues:
+          - id: accumulation-replay-fp32
+            phrase: Replay those four additions in FP32
+            targets:
+              - accumulation-fp32-trace
+              - accumulation-update-count
+            color: cyan
+            linger: 0.5
+          - id: accumulation-finer-grid-retained
+            phrase: Each quarter now survives
+            targets:
+              - accumulation-fp16-trace
+              - accumulation-fp32-trace
+            color: green
+            linger: 0.5
+      - say: An FP32 accumulator tells you the storage type. The instruction may use different precision for
+          products or intermediate reductions. FP16 accumulation is also legal on some matrix paths.
+          Check the selected instruction and framework mode. Compare the original-input reference, the
+          reconstructed-input reference and the actual kernel result to separate those boundaries.
+        hold: 0.65
+        visual_cues:
+          - id: accumulation-beat-3-focus-1
+            phrase: Check the selected instruction and framework mode
+            targets:
+              - accumulation-fp16-trace
+              - accumulation-fp32-trace
+            color: cyan
+            linger: 0.65
+  - id: traffic
+    title: Which bytes cross memory?
+    visual: A packed activation operand contains 64 element bytes and two scale bytes. The standalone path
+      counts the write and reread of a wide intermediate. The fused-consumer path removes those two
+      transfers.
+    beats:
+      - say: Count just the activation operand. Each of our two rows has thirty-two FP8 bytes and one scale
+          byte. That's sixty-six packed bytes before padding.
+        hold: 0.65
+        visual_cues:
+          - id: traffic-beat-1-focus-1
+            phrase: sixty-six packed bytes before padding
+            targets:
+              - traffic-element-b-scale-b-b
+            color: cyan
+            linger: 0.65
+      - say: Suppose one kernel reconstructs the sixty-four activations into FP32 memory. It writes four bytes
+          per value, or two hundred fifty-six bytes. Then the matrix kernel reads all two hundred
+          fifty-six back. Both transfers are for the same intermediate tensor.
+        hold: 0.7
+        visual_cues:
+          - id: traffic-beat-2-focus-1
+            phrase: one kernel reconstructs the sixty-four activations into FP32 memory
+            targets:
+              - traffic-fp32-intermediate
+            color: cyan
+            linger: 0.65
+          - id: traffic-beat-2-focus-2
+            phrase: the matrix kernel reads all two hundred fifty-six back
+            targets:
+              - traffic-element-b-scale-b-b
+            color: yellow
+            linger: 0.65
+      - say: Give the packed codes and scales directly to a compatible matrix kernel. It can apply the scale
+          while doing the operation. That saves the intermediate write and reread, five hundred twelve
+          bytes in this example. The stored input still occupies sixty-six bytes either way. Time the
+          full workload to find out what those avoided transfers are worth.
+        hold: 0.65
+        visual_cues:
+          - id: traffic-beat-3-focus-1
+            phrase: Give the packed codes and scales directly to a compatible matrix kernel
+            targets:
+              - traffic-element-b-scale-b-b
+            color: cyan
+            linger: 0.65
+          - id: traffic-beat-3-focus-2
+            phrase: saves the intermediate write and reread
+            targets:
+              - traffic-gemm-consumes-codes-scales
+            color: yellow
+            linger: 0.65
+  - id: scale-bytes
+    title: How much space do the scales take?
+    visual: The scale bytes decode into powers of two. A byte count compares the two 32-value rows. Three
+      longer rows expose the difference between logical values and stored padded blocks.
+    beats:
+      - say: Look at the byte for the small row's scale. In E8M0, subtract one hundred twenty-seven from the
+          unsigned byte and raise two to that power. Hex seventy-seven gives two to the minus eight.
+          Hex eighty gives two. Even an all-zero byte means a positive scale. The all-ones byte means
+          NaN. There's no code for zero, a negative scale, or infinity.
+        hold: 0.6
+        visual_cues:
+          - id: lp-scale-bytes-build-0
+            phrase: subtract one hundred twenty-seven from the unsigned byte
+            targets:
+              - lp-scale-bytes-trace
+            color: cyan
+            linger: 0.45
+          - id: lp-scale-bytes-decode
+            phrase: Hex eighty gives two
+            targets:
+              - lp-scale-bytes-trace
+            color: yellow
+            linger: 0.45
+      - say: One full block uses two hundred fifty-six element bits and eight scale bits. Spread those bits
+          over thirty-two values and you get eight and a quarter bits per value. For the sixty-four
+          activations, a single FP32 tensor scale brings the total to sixty-eight bytes. Two E8M0
+          scales bring it to sixty-six. The scale overhead is six and a quarter percent or three and
+          an eighth percent of the code bytes, respectively.
+        hold: 0.6
+        visual_cues:
+          - id: lp-scale-bytes-build-1
+            phrase: One full block uses two hundred fifty-six element bits and eight scale bits
+            targets:
+              - lp-scale-bytes-trace
+            color: cyan
+            linger: 0.45
+          - id: lp-scale-bytes-bits
+            phrase: eight and a quarter bits per value
+            targets:
+              - lp-scale-bytes-trace
+            color: yellow
+            linger: 0.45
+          - id: lp-scale-bytes-count
+            phrase: Two E8M0 scales bring it to sixty-six
+            targets:
+              - lp-scale-bytes-trace
+            color: yellow
+            linger: 0.45
+      - say: Now give each of three rows seventy logical values. Each row needs three blocks. There are two
+          hundred ten logical code bytes and nine scale bytes. Together that's two hundred nineteen.
+          This layout stores every last block in full. Each row occupies ninety-six code bytes. Across
+          all three, add nine scale bytes to two hundred eighty-eight. The stored total is two hundred
+          ninety-seven bytes.
+        hold: 0.6
+        visual_cues:
+          - id: lp-scale-bytes-build-2
+            phrase: Each row needs three blocks
+            targets:
+              - lp-scale-bytes-trace
+            color: cyan
+            linger: 0.45
+          - id: lp-scale-bytes-logical
+            phrase: Together that's two hundred nineteen
+            targets:
+              - lp-scale-bytes-trace
+            color: yellow
+            linger: 0.45
+          - id: lp-scale-bytes-padding
+            phrase: The stored total is two hundred ninety-seven bytes
+            targets:
+              - lp-scale-bytes-trace
+            color: yellow
+            linger: 0.45
+  - id: subeight-formats
+    title: Two four-bit layouts
+    visual: Bit fields identify two FP6 formats and one FP4 format. A 32-value activation shows where
+      MXFP4 and NVFP4 put each scale byte.
+    beats:
+      - say: We can make the elements narrower and still keep a shared scale. The MX formats use one E8M0
+          scale for thirty-two elements. In six bits, E3M2 reaches twenty-eight and E2M3 reaches seven
+          and a half. In four bits, E2M1 reaches six. Each row on screen has its own grid, even when
+          the scale layout is the same.
+        hold: 0.6
+        visual_cues:
+          - id: lp-subeight-formats-build-0
+            phrase: The MX formats use one E8M0 scale for thirty-two elements
+            targets:
+              - lp-subeight-formats-trace
+            color: cyan
+            linger: 0.45
+      - say: Now pack the same E2M1 elements for NVFP4. For a one-dimensional activation, sixteen values share
+          an E4M3 scale. A separate FP32 scale covers the tensor. Transformer Engine's training recipe
+          can group weights in squares of sixteen by sixteen. Activations and gradients still use
+          one-dimensional groups. Count the KV cache separately if it uses a different format.
+        hold: 0.6
+        visual_cues:
+          - id: lp-subeight-formats-build-1
+            phrase: sixteen values share an E4M3 scale
+            targets:
+              - lp-subeight-formats-trace
+            color: cyan
+            linger: 0.45
+      - say: Take thirty-two activation values with no padding. Two per byte gives sixteen code bytes in
+          either case. MXFP4 adds one scale byte, for seventeen. NVFP4 adds two block-scale bytes and
+          four tensor-scale bytes, for twenty-two. A change in operand layout or alignment can change
+          the stored payload again.
+        hold: 0.6
+        visual_cues:
+          - id: lp-subeight-formats-build-2
+            phrase: Two per byte gives sixteen code bytes in either case
+            targets:
+              - lp-subeight-formats-trace
+            color: cyan
+            linger: 0.45
+          - id: lp-subeight-formats-mx
+            phrase: MXFP4 adds one scale byte, for seventeen
+            targets:
+              - lp-subeight-formats-trace
+            color: yellow
+            linger: 0.45
+          - id: lp-subeight-formats-nv
+            phrase: four tensor-scale bytes, for twenty-two
+            targets:
+              - lp-subeight-formats-trace
+            color: yellow
+            linger: 0.45
+  - id: orientation
+    title: Turn the grouping axis
+    visual: The same 32-by-32 matrix has one 700 and one 0.001 beside it. A horizontal scale group
+      includes both. A vertical scan of the tiny value's column excludes the spike and derives a new
+      scale from the wider source.
+    beats:
+      - say: Keep the matrix fixed. The yellow cell holds a thousandth. A spike of seven hundred sits to its
+          left, so they share a row scale of two. The thousandth rounds to zero. Now look down the
+          yellow cell's column. Its other thirty-one values are ones. Transposing the old bytes would
+          carry along a zero whose input has already been lost.
+        hold: 0.6
+        visual_cues:
+          - id: lp-orientation-build-0
+            phrase: look down the yellow cell's column
+            targets:
+              - lp-orientation-trace
+            color: cyan
+            linger: 0.45
+          - id: lp-orientation-transpose
+            phrase: Transposing the old bytes would carry along a zero
+            targets:
+              - lp-orientation-trace
+            color: yellow
+            linger: 0.45
+      - say: To build this orientation, read the original wider column. Its maximum is one. The new scale is
+          two to the minus eight, and the thousandth survives at about point zero zero zero nine
+          eight. Transformer Engine derives both orientations from the wider data. If the scales
+          happen to agree, the results can coincide. In general, a new contraction needs the codes and
+          scale layout for its own groups.
+        hold: 0.6
+        visual_cues:
+          - id: lp-orientation-build-1
+            phrase: read the original wider column
+            targets:
+              - lp-orientation-trace
+            color: cyan
+            linger: 0.45
+          - id: lp-orientation-fresh
+            phrase: the thousandth survives at about point zero zero zero nine eight
+            targets:
+              - lp-orientation-trace
+            color: yellow
+            linger: 0.45
+  - id: contract
+    title: Read one byte in two encodings
+    visual: The OCP and FNUZ readers initially receive the same eight bits. The second exponent field is
+      recoded from seven to eight. Each reader's decoded value and product appear beside its own byte.
+    beats:
+      - say: Send this byte to two E4M3 readers. Its exponent field says seven and its fraction is zero. The
+          OCP reader subtracts a bias of seven, so the byte means one. Its multiplier returns two. The
+          FNUZ reader subtracts eight. What does its multiplier return?
+        hold: 2.4
+        visual_cues:
+          - id: contract-field
+            phrase: Its exponent field says seven
+            targets:
+              - contract-bytes
+            color: yellow
+            linger: 0.15
+      - say: It returns one. Seven minus eight is minus one. Two to that power is a half, and twice a half is
+          one. Both readers received exactly the same bits.
+        hold: 1.1
+        visual_cues:
+          - id: contract-read
+            phrase: It returns one
+            targets:
+              - contract-decode
+            color: cyan
+            linger: 0.15
+      - say: Keep the producer's value of one. Encode it again for FNUZ. The exponent field must now hold
+          eight. The byte changes from hex thirty-eight to hex forty. The FNUZ reader now delivers
+          one, so the product is two. That check exercises the value the kernel actually multiplies.
+        hold: 0.9
+        visual_cues:
+          - id: contract-recode
+            phrase: The exponent field must now hold eight
+            targets:
+              - contract-bytes
+            color: yellow
+            linger: 0.15
+            caption_boundary: true
+          - id: contract-verify
+            phrase: the product is two
+            targets:
+              - contract-decode
+            color: cyan
+            linger: 0.15
+  - id: abi-dispatch
+    title: Can this kernel consume the operand?
+    visual: A 2-by-32 operand fails a training shape constraint. Platform rows identify the architecture
+      and encoding. The matmul and convolution controls apply to separate FP32 paths.
+    beats:
+      - say: That same byte can silently change a product. A shape can rule out the operation entirely. Our
+          two-by-thirty-two operand misses the multiple-of-thirty-two requirement for nonfinal
+          dimensions on this Transformer Engine training path. Before dispatch, match encoding, scale
+          type and axes, orientation, padding, alignment and scale layout. Then match product
+          precision, internal reduction, accumulator, epilogue and output to the instruction.
+        hold: 0.6
+        visual_cues:
+          - id: lp-abi-dispatch-build-0
+            phrase: Our two-by-thirty-two operand misses the multiple-of-thirty-two requirement
+            targets:
+              - lp-abi-dispatch-trace
+            color: cyan
+            linger: 0.45
+      - say: The article's hardware table is an October twenty twenty-six snapshot. Transformer Engine lists
+          MXFP8 and NVFP4 training on S M ten point zero and ten point three. Its NVFP4 inference
+          guide lists ten point zero and later. Conventional FP8 also has supported Ada and Hopper
+          paths. AMD's ROCm ten table gives CDNA three the FNUZ encoding, and lists OCP matrix paths
+          on CDNA four and supported RDNA four hardware. Check the operation for the actual device.
+        hold: 0.6
+        visual_cues:
+          - id: lp-abi-dispatch-build-1
+            phrase: AMD's ROCm ten table gives CDNA three the FNUZ encoding
+            targets:
+              - lp-abi-dispatch-trace
+            color: cyan
+            linger: 0.45
+      - say: With TF32 the operands still occupy thirty-two bits. PyTorch has separate FP32 precision controls
+          for matrix multiplication and convolution. Select the relevant operation and keep to one
+          family of settings. PyTorch advises against mixing the current controls with legacy flags.
+          Check the kernel symbol and reduction mode on the device where you measure performance.
+        hold: 0.6
+        visual_cues:
+          - id: lp-abi-dispatch-build-2
+            phrase: separate FP32 precision controls for matrix multiplication and convolution
+            targets:
+              - lp-abi-dispatch-trace
+            color: cyan
+            linger: 0.45
+  - id: reference-ladder
+    title: Where did the twelve-unit gap appear?
+    visual: Two references use the same spike selector. The GPU slot stays open until a device run
+      supplies an output. Two ceiling-code cases identify which pre-cast value would confirm overflow.
+    beats:
+      - say: Put the selector's two answers side by side. With the original inputs the reference gives five
+          hundred. With the reconstructed inputs it gives five hundred twelve. The whole twelve-unit
+          gap is visible before we launch a GPU kernel. Now compare a device result to the second
+          reference. Agreement would account for that gap on this input. A further difference calls
+          for inspection of the kernel's scale layout, multiplication and reductions.
+        hold: 0.6
+        visual_cues:
+          - id: lp-reference-ladder-build-0
+            phrase: The whole twelve-unit gap is visible before we launch a GPU kernel
+            targets:
+              - lp-reference-ladder-trace
+            color: cyan
+            linger: 0.45
+      - say: To investigate a ceiling code, keep the value before the cast. Four hundred forty-nine and four
+          hundred sixty-five both end at four hundred forty-eight in saturating E4M3. Only the second
+          rounded beyond the finite limit. Likewise, count which nonzero inputs became zero. Keep the
+          group maxima, scales, input distribution, rounding mode and kernel symbol with those counts.
+        hold: 0.6
+        visual_cues:
+          - id: lp-reference-ladder-build-1
+            phrase: Only the second rounded beyond the finite limit
+            targets:
+              - lp-reference-ladder-trace
+            color: cyan
+            linger: 0.45
+  - id: fresh-group
+    title: Move a spike across a block boundary
+    visual: Two rows hold one nonzero input each. The 700 moves into the block containing 0.001. An
+      index-zero selector and a magnified activation ruler test that input before and after restoring
+      separate scale ownership.
+    beats:
+      - say: A weight of one picks out the thousandth at index zero. Move the spike of seven hundred into the same
+          block. They now share a power-of-two scale. The weight still picks the first position.
+          What will this dot product return?
+        hold: 3
+        visual_cues:
+          - id: fresh-join
+            phrase: Move the spike of seven hundred into the same block
+            targets:
+              - fresh-blocks
+            color: yellow
+            linger: 0.15
+          - id: fresh-question
+            phrase: what will this dot product return
+            targets:
+              - fresh-probe
+              - fresh-blocks
+            color: blue
+            linger: 0.15
+      - say: Seven hundred divided by four hundred forty-eight is one point five six two five. The next power
+          of two is two. Multiply the first E4M3 step by that scale. Halfway to the first positive
+          value is just under two thousandths. Our one thousandth is closer to zero. The dot product
+          returns zero.
+        hold: 1.2
+        caption_starts:
+          - The next power of two is two
+          - Our one thousandth is closer to zero
+        visual_cues:
+          - id: lp-fresh-group-scale
+            phrase: The next power of two is two
+            targets:
+              - fresh-blocks
+            color: yellow
+            linger: 0.15
+          - id: lp-fresh-group-tiny
+            phrase: The dot product returns zero
+            targets:
+              - fresh-probe
+            color: cyan
+            linger: 0.15
+            caption_boundary: true
+      - say: Check the spike separately. Seven hundred divided by two gives three hundred fifty. The nearest
+          code value is three hundred fifty-two. Multiply back and the spike reads seven hundred four.
+          Every input in block B is zero, so our zero-only policy gives it a scale of one.
+        hold: 0.9
+        visual_cues:
+          - id: lp-fresh-group-spike
+            phrase: the spike reads seven hundred four
+            targets:
+              - fresh-probe
+            color: cyan
+            linger: 0.15
+          - id: lp-fresh-group-zero
+            phrase: our zero-only policy gives it a scale of one
+            targets:
+              - fresh-blocks
+            color: yellow
+            linger: 0.15
+      - say: Read the first position again. It's zero. Move the spike back to block B and recompute
+          the scales. Now the thousandth sets the scale for block A. Multiply its stored value,
+          two hundred fifty-six, by two to the minus eighteen. The dot product gets almost the whole
+          thousandth back. Moving the spike changed what the kernel could read at a different position.
+        hold: 1.6
+        visual_cues:
+          - id: fresh-split
+            phrase: Move the spike back to block B and recompute the scales
+            targets:
+              - fresh-blocks
+            color: yellow
+            linger: 0.15
+          - id: fresh-recheck
+            phrase: The dot product gets almost the whole thousandth back
+            targets:
+              - fresh-probe
+            color: cyan
+            linger: 0.15
+            caption_boundary: true

@@ -1,0 +1,273 @@
+{
+  "id": "rag-chunk-selector",
+  "slug": "rag-chunk-selector",
+  "title": "RAG Chunk Selector",
+  "difficulty": "Medium",
+  "category": "Retrieval",
+  "language": "python3",
+  "timeEstimateMinutes": 30,
+  "timeLimitMs": 2500,
+  "memoryLimitMb": 128,
+  "order": 150,
+  "tags": [
+    "rag",
+    "deduplication",
+    "ranking",
+    "retrieval"
+  ],
+  "source": "AI lab prep",
+  "summary": "Rank retrieval chunks while deduplicating repeated text and limiting per-document dominance.",
+  "starterCode": [
+    "def select_chunks(chunks: list[dict], k: int, max_per_doc: int = 2) -> list[str]:",
+    "    pass"
+  ],
+  "testCases": [
+    {
+      "name": "signed zero scores tie by id",
+      "visibility": "hidden",
+      "setup": [
+        "from solution import select_chunks",
+        "chunks = [{\"id\": \"a\", \"doc_id\": \"d1\", \"text\": \"alpha\", \"score\": -0.0}, {\"id\": \"b\", \"doc_id\": \"d2\", \"text\": \"beta\", \"score\": 0.0}]"
+      ],
+      "input": "select_chunks(chunks, 2)",
+      "expected": "[\"a\", \"b\"]"
+    },
+    {
+      "name": "deduplicates normalized text and limits by k",
+      "visibility": "sample",
+      "setup": [
+        "from solution import select_chunks",
+        "chunks = [",
+        "    {\"id\": \"a\", \"doc_id\": \"d1\", \"text\": \"Hello world\", \"score\": 0.9},",
+        "    {\"id\": \"b\", \"doc_id\": \"d2\", \"text\": \"hello   world\", \"score\": 0.8},",
+        "    {\"id\": \"c\", \"doc_id\": \"d2\", \"text\": \"new fact\", \"score\": 0.7},",
+        "]"
+      ],
+      "input": "chunks = [\n    {\"id\": \"a\", \"doc_id\": \"d1\", \"text\": \"Hello world\", \"score\": 0.9},\n    {\"id\": \"b\", \"doc_id\": \"d2\", \"text\": \"hello   world\", \"score\": 0.8},\n    {\"id\": \"c\", \"doc_id\": \"d2\", \"text\": \"new fact\", \"score\": 0.7},\n]\nselect_chunks(chunks, 2)",
+      "expected": "[\"a\", \"c\"]",
+      "expression": "select_chunks(chunks, 2)"
+    },
+    {
+      "name": "uses score, tie id, and max per doc",
+      "visibility": "hidden",
+      "setup": [
+        "from solution import select_chunks",
+        "chunks = [",
+        "    {\"id\": \"z\", \"doc_id\": \"d1\", \"text\": \"z\", \"score\": 0.7},",
+        "    {\"id\": \"a\", \"doc_id\": \"d1\", \"text\": \"a\", \"score\": 0.9},",
+        "    {\"id\": \"b\", \"doc_id\": \"d1\", \"text\": \"b\", \"score\": 0.9},",
+        "    {\"id\": \"c\", \"doc_id\": \"d1\", \"text\": \"c\", \"score\": 0.8},",
+        "    {\"id\": \"d\", \"doc_id\": \"d2\", \"text\": \"a\", \"score\": 0.95},",
+        "    {\"id\": \"e\", \"doc_id\": \"d3\", \"text\": \"e\", \"score\": 0.6},",
+        "]"
+      ],
+      "checks": [
+        {
+          "input": "chunks = [\n    {\"id\": \"z\", \"doc_id\": \"d1\", \"text\": \"z\", \"score\": 0.7},\n    {\"id\": \"a\", \"doc_id\": \"d1\", \"text\": \"a\", \"score\": 0.9},\n    {\"id\": \"b\", \"doc_id\": \"d1\", \"text\": \"b\", \"score\": 0.9},\n    {\"id\": \"c\", \"doc_id\": \"d1\", \"text\": \"c\", \"score\": 0.8},\n    {\"id\": \"d\", \"doc_id\": \"d2\", \"text\": \"a\", \"score\": 0.95},\n    {\"id\": \"e\", \"doc_id\": \"d3\", \"text\": \"e\", \"score\": 0.6},\n]\nselect_chunks(chunks, 5, max_per_doc=2)",
+          "expression": "select_chunks(chunks, 5, max_per_doc=2)",
+          "operator": "==",
+          "expected": "[\"d\", \"b\", \"c\", \"e\"]"
+        },
+        {
+          "input": "chunks = [\n    {\"id\": \"z\", \"doc_id\": \"d1\", \"text\": \"z\", \"score\": 0.7},\n    {\"id\": \"a\", \"doc_id\": \"d1\", \"text\": \"a\", \"score\": 0.9},\n    {\"id\": \"b\", \"doc_id\": \"d1\", \"text\": \"b\", \"score\": 0.9},\n    {\"id\": \"c\", \"doc_id\": \"d1\", \"text\": \"c\", \"score\": 0.8},\n    {\"id\": \"d\", \"doc_id\": \"d2\", \"text\": \"a\", \"score\": 0.95},\n    {\"id\": \"e\", \"doc_id\": \"d3\", \"text\": \"e\", \"score\": 0.6},\n]\nselect_chunks(chunks, 5, max_per_doc=2)\n[chunk[\"id\"] for chunk in chunks][:2]",
+          "expression": "[chunk[\"id\"] for chunk in chunks][:2]",
+          "operator": "==",
+          "expected": "[\"z\", \"a\"]"
+        }
+      ]
+    },
+    {
+      "name": "enforces per document limit",
+      "visibility": "sample",
+      "setup": [
+        "from solution import select_chunks",
+        "chunks = [",
+        "    {\"id\": \"a1\", \"doc_id\": \"a\", \"score\": 0.9, \"text\": \"alpha\"},",
+        "    {\"id\": \"a2\", \"doc_id\": \"a\", \"score\": 0.8, \"text\": \"beta\"},",
+        "    {\"id\": \"b1\", \"doc_id\": \"b\", \"score\": 0.7, \"text\": \"gamma\"},",
+        "]"
+      ],
+      "input": "chunks = [\n    {\"id\": \"a1\", \"doc_id\": \"a\", \"score\": 0.9, \"text\": \"alpha\"},\n    {\"id\": \"a2\", \"doc_id\": \"a\", \"score\": 0.8, \"text\": \"beta\"},\n    {\"id\": \"b1\", \"doc_id\": \"b\", \"score\": 0.7, \"text\": \"gamma\"},\n]\nselect_chunks(chunks, k=3, max_per_doc=1)",
+      "expected": "[\"a1\", \"b1\"]",
+      "expression": "select_chunks(chunks, k=3, max_per_doc=1)"
+    },
+    {
+      "name": "deduplicates text case and whitespace",
+      "visibility": "hidden",
+      "setup": [
+        "from solution import select_chunks",
+        "chunks = [",
+        "    {\"id\": \"first\", \"doc_id\": \"a\", \"score\": 0.9, \"text\": \"Hello   World\"},",
+        "    {\"id\": \"dupe\", \"doc_id\": \"b\", \"score\": 0.8, \"text\": \"hello world\"},",
+        "    {\"id\": \"other\", \"doc_id\": \"b\", \"score\": 0.7, \"text\": \"different\"},",
+        "]"
+      ],
+      "input": "chunks = [\n    {\"id\": \"first\", \"doc_id\": \"a\", \"score\": 0.9, \"text\": \"Hello   World\"},\n    {\"id\": \"dupe\", \"doc_id\": \"b\", \"score\": 0.8, \"text\": \"hello world\"},\n    {\"id\": \"other\", \"doc_id\": \"b\", \"score\": 0.7, \"text\": \"different\"},\n]\nselect_chunks(chunks, k=3)",
+      "expected": "[\"first\", \"other\"]",
+      "expression": "select_chunks(chunks, k=3)"
+    },
+    {
+      "name": "returns fewer than k when filters remove candidates",
+      "visibility": "hidden",
+      "setup": [
+        "from solution import select_chunks",
+        "chunks = [",
+        "    {\"id\": \"a1\", \"doc_id\": \"a\", \"score\": 0.9, \"text\": \"one\"},",
+        "    {\"id\": \"a2\", \"doc_id\": \"a\", \"score\": 0.8, \"text\": \"two\"},",
+        "    {\"id\": \"a3\", \"doc_id\": \"a\", \"score\": 0.7, \"text\": \"three\"},",
+        "]"
+      ],
+      "input": "chunks = [\n    {\"id\": \"a1\", \"doc_id\": \"a\", \"score\": 0.9, \"text\": \"one\"},\n    {\"id\": \"a2\", \"doc_id\": \"a\", \"score\": 0.8, \"text\": \"two\"},\n    {\"id\": \"a3\", \"doc_id\": \"a\", \"score\": 0.7, \"text\": \"three\"},\n]\nselect_chunks(chunks, k=5, max_per_doc=2)",
+      "expected": "[\"a1\", \"a2\"]",
+      "expression": "select_chunks(chunks, k=5, max_per_doc=2)"
+    },
+    {
+      "name": "empty chunk list returns no ids",
+      "visibility": "sample",
+      "description": "No candidates produces an empty selection.",
+      "setup": [
+        "from solution import select_chunks"
+      ],
+      "input": "select_chunks([], k=3)",
+      "expected": "[]",
+      "feedback": "Return the accumulated empty selection when no chunks are available."
+    },
+    {
+      "name": "zero k selects nothing",
+      "visibility": "hidden",
+      "description": "A zero result budget must not admit the first ranked chunk.",
+      "setup": [
+        "from solution import select_chunks",
+        "chunks = [{\"id\": \"a\", \"doc_id\": \"d\", \"text\": \"fact\", \"score\": 1.0}]"
+      ],
+      "input": "select_chunks(chunks, k=0)",
+      "expected": "[]",
+      "feedback": "Handle a non-positive k before entering the selection loop."
+    },
+    {
+      "name": "whitespace-only text is selected once",
+      "visibility": "hidden",
+      "description": "All whitespace-only strings normalize to one dedupe key.",
+      "setup": [
+        "from solution import select_chunks",
+        "chunks = [",
+        "    {\"id\": \"a\", \"doc_id\": \"d1\", \"text\": \"   \", \"score\": 0.9},",
+        "    {\"id\": \"b\", \"doc_id\": \"d2\", \"text\": \"\\n\\t\", \"score\": 0.8},",
+        "    {\"id\": \"c\", \"doc_id\": \"d2\", \"text\": \"fact\", \"score\": 0.7},",
+        "]"
+      ],
+      "input": "select_chunks(chunks, k=3)",
+      "expected": "[\"a\", \"c\"]",
+      "feedback": "Normalize whitespace-only content to the same empty dedupe key."
+    },
+    {
+      "name": "hidden pure equal-score tie by id",
+      "visibility": "hidden",
+      "description": "Equal scores with distinct text from different docs both select, ordered by id.",
+      "setup": [
+        "from solution import select_chunks",
+        "chunks = [",
+        "    {\"id\": \"b\", \"doc_id\": \"d2\", \"text\": \"beta\", \"score\": 0.9},",
+        "    {\"id\": \"a\", \"doc_id\": \"d1\", \"text\": \"alpha\", \"score\": 0.9},",
+        "    {\"id\": \"c\", \"doc_id\": \"d3\", \"text\": \"gamma\", \"score\": 0.5},",
+        "]"
+      ],
+      "input": "select_chunks(chunks, k=2)",
+      "expected": "[\"a\", \"b\"]",
+      "expression": "select_chunks(chunks, k=2)",
+      "feedback": "When scores match, lower id comes first; distinct normalized text keeps both."
+    },
+    {
+      "name": "hidden empty string text selected once",
+      "visibility": "hidden",
+      "description": "Empty string is allowed and dedupes separately from non-empty text.",
+      "setup": [
+        "from solution import select_chunks",
+        "chunks = [",
+        "    {\"id\": \"a\", \"doc_id\": \"d1\", \"text\": \"\", \"score\": 0.9},",
+        "    {\"id\": \"b\", \"doc_id\": \"d2\", \"text\": \"\", \"score\": 0.8},",
+        "    {\"id\": \"c\", \"doc_id\": \"d2\", \"text\": \"fact\", \"score\": 0.7},",
+        "]"
+      ],
+      "input": "select_chunks(chunks, k=3)",
+      "expected": "[\"a\", \"c\"]",
+      "expression": "select_chunks(chunks, k=3)",
+      "feedback": "Empty and whitespace-only both normalize to the empty dedupe key."
+    },
+    {
+      "name": "document capped text does not enter dedupe set",
+      "visibility": "hidden",
+      "setup": [
+        "from solution import select_chunks",
+        "chunks = [{\"id\": \"a\", \"doc_id\": \"d1\", \"text\": \"top\", \"score\": 3}, {\"id\": \"b\", \"doc_id\": \"d1\", \"text\": \"shared fact\", \"score\": 2}, {\"id\": \"c\", \"doc_id\": \"d2\", \"text\": \"shared fact\", \"score\": 1}]"
+      ],
+      "input": "select_chunks(chunks, 2, max_per_doc=1)",
+      "expected": "[\"a\", \"c\"]"
+    },
+    {
+      "name": "leading nonbreaking whitespace normalizes away",
+      "visibility": "hidden",
+      "setup": [
+        "from solution import select_chunks",
+        "chunks = [{\"id\": \"a\", \"doc_id\": \"d1\", \"text\": \"\\u00a0Fact\\u00a0\", \"score\": 2}, {\"id\": \"b\", \"doc_id\": \"d2\", \"text\": \"fact\", \"score\": 1}]"
+      ],
+      "input": "select_chunks(chunks, 2)",
+      "expected": "[\"a\"]"
+    }
+  ],
+  "clarifyingQuestions": [
+    "Should duplicate text be detected exactly, normalized, or semantically?",
+    "Should final output preserve rank order or original document order?",
+    "Should per-document limits be hard or only a diversity penalty?"
+  ],
+  "followUps": [
+    "Use maximal marginal relevance to balance relevance and similarity to already selected chunks.",
+    "Guarantee at least one chunk from each high-scoring document.",
+    "Group neighboring chunks after selection for better answer context."
+  ],
+  "followUpGuide": [
+    "For MMR, score each candidate by relevance minus similarity to already selected chunks. That trades a hard duplicate skip for a diversity-aware rank.",
+    "",
+    "For document coverage, reserve slots for top documents first, then fill remaining slots globally.",
+    "",
+    "For neighboring chunks, select anchor chunks first, then expand around anchors while keeping the total token budget under control."
+  ],
+  "complexityAnalysis": [
+    "- Base contract: sort all n candidates by (-score, id), then greedily filter. Let L be the total text length normalized during the scan and S the total length of retained normalized strings. Time: O(n log n + L) expected with hash sets, treating ID comparisons as constant time. Space: O(n + d + S) plus one temporary normalized string, where d is the number of encountered documents. A heap containing only the raw top k can underfill after filtering.",
+    "- Follow-up: heap of size k only when there is no text dedupe or per-doc cap. Time: O(n log k). Space: O(k).",
+    "- Follow-up: MMR or soft diversity penalties after ranking. Time depends on similarity work; reserve heap/MMR notes for those variants only."
+  ],
+  "solutionGuide": [
+    "Sort candidates by `(-score, id)`. Track normalized text and counts per doc as you select.",
+    "",
+    "Normalize text with `' '.join(text.lower().split())`. Python's [`str.split` without a separator](https://docs.python.org/3/library/stdtypes.html#str.split) collapses whitespace runs and removes leading/trailing whitespace. This exercise compares lowercase strings; semantic similarity and Unicode casefolding require separate handling.",
+    "",
+    "```python",
+    "from collections import defaultdict",
+    "",
+    "",
+    "def select_chunks(chunks: list[dict], k: int, max_per_doc: int = 2) -> list[str]:",
+    "    selected = []",
+    "    if k <= 0 or max_per_doc <= 0:",
+    "        return selected",
+    "    seen_text = set()",
+    "    doc_counts = defaultdict(int)",
+    "",
+    "    def norm(text):",
+    "        return \" \".join(text.lower().split())",
+    "",
+    "    for chunk in sorted(chunks, key=lambda item: (-item[\"score\"], item[\"id\"])):",
+    "        text_key = norm(chunk[\"text\"])",
+    "        doc_id = chunk[\"doc_id\"]",
+    "        if text_key in seen_text or doc_counts[doc_id] >= max_per_doc:",
+    "            continue",
+    "        selected.append(chunk[\"id\"])",
+    "        seen_text.add(text_key)",
+    "        doc_counts[doc_id] += 1",
+    "        if len(selected) == k:",
+    "            break",
+    "",
+    "    return selected",
+    "```"
+  ]
+}

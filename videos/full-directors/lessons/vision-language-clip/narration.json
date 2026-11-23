@@ -1,0 +1,458 @@
+[
+  {
+    "id": "c01",
+    "title": "Which caption would you pin here?",
+    "sourceChapters": ["c01"],
+    "beats": [
+      {
+        "id": "c01-b01",
+        "say": "Look through the spokes of the rear wheel. Which caption would you pin under this print?",
+        "hold": 3.4
+      },
+      {
+        "id": "c01-b02",
+        "say": "Brick shows through the rear spokes. The green shutter is farther right, behind part of the front wheel. How could a photo library match this print to a sentence?",
+        "hold": 1.1
+      },
+      {
+        "id": "c01-b03",
+        "say": "CLIP learns from pictures paired with descriptions. For this print, we'll use the shorter caption “A red bicycle.” The other two pairs show a dog in a park and a bowl of oranges. Their vectors are supplied teaching examples. We'll work out a match in both directions, then decide what evidence a technician needs to check a real inspection.",
+        "hold": 1
+      }
+    ]
+  },
+  {
+    "id": "c02",
+    "title": "Where do pixels meet words?",
+    "sourceChapters": ["c02"],
+    "beats": [
+      {
+        "id": "c02-b01",
+        "say": "Follow the bicycle print along the top path. The image encoder reads its pixels. A projection gives us a short list of numbers called a feature vector. Below it, a text encoder reads the caption as tokens and produces its own vector.",
+        "hold": 0.8
+      },
+      {
+        "id": "c02-b02",
+        "say": "The two outputs have the same width. Joint training gives their coordinates a shared meaning. Here are the three coordinates for the bicycle image and the three for its caption. The dog and the bowl each have their own image and text vectors.",
+        "hold": 1
+      },
+      {
+        "id": "c02-b03",
+        "say": "Put the image vector in the archive after scaling it to length one. The next sentence only needs the paired text tower. You can reuse the stored image work for many different searches. Let's see why we scale both sides.",
+        "hold": 0.9
+      }
+    ]
+  },
+  {
+    "id": "c03",
+    "title": "Which caption points closer?",
+    "sourceChapters": ["c03"],
+    "beats": [
+      {
+        "id": "c03-b01",
+        "say": "Our bicycle print starts with coordinates point nine five, point zero five, and zero. Check its length first. A zero or nonfinite length leaves the vector without a cosine score. Here the length is positive and finite. Divide each coordinate by that length. Do the same for the caption. The dot product of the two unit vectors gives their cosine.",
+        "hold": 0.8
+      },
+      {
+        "id": "c03-b02",
+        "say": "Try the rule on two arrows where you can see the angle. The image points one unit to the right. Its raw dot product with a caption is the caption's horizontal reach. A reaches point eight. B reaches nine. Which wins after both have unit length?",
+        "hold": 2.7
+      },
+      {
+        "id": "c03-b03",
+        "say": "A already has length one. B goes nine across and twelve up, so its length is fifteen. Divide B by fifteen. Its horizontal reach becomes point six. A wins at point eight because it points closer to the image.",
+        "hold": 1.2
+      },
+      {
+        "id": "c03-b04",
+        "say": "A cosine near one means similar directions. Zero means perpendicular. A negative cosine means the angle exceeds ninety degrees. This ranks learned compatibility. To interpret a score as the chance that a claim is true, you'd need calibration on examples from the intended use.",
+        "hold": 0.9
+      }
+    ]
+  },
+  {
+    "id": "c04",
+    "title": "Build a sheet of all nine matches",
+    "sourceChapters": ["c04"],
+    "beats": [
+      {
+        "id": "c04-b01",
+        "say": "Arrange the three prints down the side and their captions across the top. Start at the bicycle print. Take the dot product of its unit vector with each unit caption vector. That gives one row of cosines.",
+        "hold": 0.8
+      },
+      {
+        "id": "c04-b02",
+        "say": "Do the same for the dog and the bowl. Trace the three training pairs on the diagonal. The other six cells are the alternative pairings in this batch.",
+        "hold": 0.7
+      },
+      {
+        "id": "c04-b03",
+        "say": "Set the temperature to point two for this exercise. Divide every cosine by that temperature. These scaled scores are called logits. Each paired logit is close to five. Scaling preserves their order and amplifies the differences that softmax will use.",
+        "hold": 1
+      }
+    ]
+  },
+  {
+    "id": "c05",
+    "title": "Turn the query around",
+    "sourceChapters": ["c05"],
+    "beats": [
+      {
+        "id": "c05-b01",
+        "say": "Pin the bicycle match. First hold its photograph fixed. Read across its row. Softmax exponentiates each logit and divides by the sum for those three captions. The matching caption gets about ninety-eight percent of this row. Its negative log is the loss for this query.",
+        "hold": 1
+      },
+      {
+        "id": "c05-b02",
+        "say": "Leave the pin in place. Suppose the bicycle caption is the query now. Which three things should compete? Follow the cells that share that caption.",
+        "hold": 2.4
+      },
+      {
+        "id": "c05-b03",
+        "say": "Three photographs. Turn the sheet around the pin. The old column lies across the page. Read the bicycle, dog, and bowl photographs against the same words. The dog photograph has a different score here than the dog caption had in the first comparison.",
+        "hold": 1.2
+      },
+      {
+        "id": "c05-b04",
+        "say": "For each of the three rows and each of the three columns, take the negative log of the paired share. Average the row losses and the column losses, then average those two means. Here the symmetric loss rounds to point zero two two. That is the quantity we'll try to lower.",
+        "hold": 1
+      }
+    ]
+  },
+  {
+    "id": "c06",
+    "title": "Watch both ends of a training pair move",
+    "sourceChapters": ["c06"],
+    "beats": [
+      {
+        "id": "c06-b01",
+        "say": "The pairs already rank well. To see a small change, magnify the second and third coordinates of the bicycle's two unit vectors. The open marks show their starting positions. We'll take one gradient step directly on all six raw feature vectors, keeping the encoders and temperature fixed.",
+        "hold": 1
+      },
+      {
+        "id": "c06-b02",
+        "say": "Use the bicycle photograph as the query. All three captions compete for a share of its row. Move downhill on the symmetric loss. As the features move, normalize the updated vectors and recompute the shares. The bicycle caption gains share while the dog and bowl captions lose share. The two moving marks and the loss curve follow the same update.",
+        "hold": 1.2
+      },
+      {
+        "id": "c06-b03",
+        "say": "The loss falls below point zero zero nine. Every paired example already ranked first in its row and its column. Each gained softmax share, so each negative log got smaller. The average loss fell with the same winners. In real training those gradients pass through the projections and encoders. For the next search, take the original vectors back off the shelf.",
+        "hold": 1
+      }
+    ]
+  },
+  {
+    "id": "c07",
+    "title": "What changes when a prompt leaves?",
+    "sourceChapters": ["c07"],
+    "beats": [
+      {
+        "id": "c07-b01",
+        "say": "Back to the original bicycle print. At inference you can describe new classes in words. Encode each prompt and compare it with the same image, without training a new classifier. The bicycle has the largest cosine and takes almost all the share.",
+        "hold": 0.9
+      },
+      {
+        "id": "c07-b02",
+        "say": "Look at the bowl. Its cosine is point zero two seven. To get a share, divide each cosine by point two and exponentiate. Divide the bowl's weight by the sum of the weights still on the wall. What will happen if we take down the bicycle prompt?",
+        "hold": 2.1
+      },
+      {
+        "id": "c07-b03",
+        "say": "Remove the bicycle. Look at the two remaining terms. The bowl now gets about thirty-nine percent. Its weight and its photograph stayed the same. Now remove the dog. What share can the last prompt get?",
+        "hold": 2.8
+      },
+      {
+        "id": "c07-b04",
+        "say": "One hundred percent. The bowl's own weight is the whole denominator. Look through the spokes again. The image still shows brick. A candidate share tells you how the supplied prompts competed.",
+        "hold": 1.9
+      },
+      {
+        "id": "c07-b05",
+        "say": "Now build one class vector for a bowl of oranges. “Oranges in a bowl” and “A bowl filled with oranges” describe the same class. Each wording has its own unit arrow in this two-dimensional example. Average the two arrows coordinate by coordinate. Their vertical components cancel. The mean points right and has length point six. Check that the length is finite and greater than zero. Extend that arrow to unit length for the class. Opposite unit arrows would cancel completely, leaving no class direction to score. Test your templates and abstention rule on held-out images, including images outside your classes.",
+        "hold": 1
+      }
+    ]
+  },
+  {
+    "id": "c08",
+    "title": "Search the archive with one sentence",
+    "sourceChapters": ["c08"],
+    "beats": [
+      {
+        "id": "c08-b01",
+        "say": "Leave all three photographs in the index. Return to caption A, “A red bicycle.” Compare its text vector with each stored unit image vector. You can read those three cosines down column A. Which print would you open first?",
+        "hold": 2
+      },
+      {
+        "id": "c08-b02",
+        "say": "Open the bicycle. The dog and the bowl remain searchable. With ten million photos, an approximate nearest-neighbor index can skip much of an exact scan. Measure recall against exact search on the same authorized images. An image index can match visible details that an archived caption omitted.",
+        "hold": 0.95
+      },
+      {
+        "id": "c08-b03",
+        "say": "Size the vectors before the index. Ten million images times seven hundred sixty-eight coordinates times two bytes gives fifteen point three six gigabytes of raw vectors. Budget separately for the index, metadata, replicas and an overlapping generation during rollout.",
+        "hold": 1
+      }
+    ]
+  },
+  {
+    "id": "service",
+    "title": "Who can open a cached photograph?",
+    "sourceChapters": ["c08"],
+    "beats": [
+      {
+        "id": "service-b01",
+        "say": "Move into an inspection archive. An upload names an immutable photo version. Check the file, decoded size, tenant and site before indexing it. Bind a retry key to the tenant and request fingerprint. An identical retry returns the same receipt. Changed metadata on the same key is a conflict.",
+        "hold": 0.8
+      },
+      {
+        "id": "service-b02",
+        "say": "A technician requests East and West. Their current access covers East. Search the intersection with the active index generation. Bind image processing, normalization and both paired encoders to that generation. Two models can have equal width and assign different meanings to every coordinate.",
+        "hold": 1
+      },
+      {
+        "id": "service-b03",
+        "say": "An East photo is in the cache. Revoke East access. Can the technician still open photo seventeen?",
+        "hold": 2.2
+      },
+      {
+        "id": "service-b04",
+        "say": "Deny the read. Check current permissions again on cached hits and on analysis. Keep the previous complete model and index generation for rollback.",
+        "hold": 1
+      }
+    ]
+  },
+  {
+    "id": "capacity",
+    "title": "Can a search finish while analysis runs?",
+    "sourceChapters": ["c08"],
+    "beats": [
+      {
+        "id": "capacity-b01",
+        "say": "Both searches arrive at time zero. Each needs one hundred milliseconds. An inspection arrives with two independent one-second analysis jobs. Give both workers to analysis first. Each search waits a second, then finishes at eleven hundred milliseconds. Our search target is under three hundred milliseconds at the ninety-fifth percentile.",
+        "hold": 1
+      },
+      {
+        "id": "capacity-b02",
+        "say": "Replay those same arrivals with the same total work. Limit analysis to one worker at a time. Put the two searches on the other worker. Where will their finish marks land?",
+        "hold": 2.6
+      },
+      {
+        "id": "capacity-b03",
+        "say": "One hundred and two hundred milliseconds. The searches now finish inside the target line. The analysis jobs run in sequence and finish at two seconds. This is one schedule. Measure the actual tail under mixed traffic, including queued and rejected work.",
+        "hold": 1
+      }
+    ]
+  },
+  {
+    "id": "c09",
+    "title": "What counts as evidence for this vent?",
+    "sourceChapters": ["c09"],
+    "beats": [
+      {
+        "id": "c09-b01",
+        "say": "An authorized reviewer opens photo seventeen. A search for a blocked vent brought back the whole rack. Point to the cover across the grille. Which part of the similarity score told you the cover's four edges?",
+        "hold": 2.3
+      },
+      {
+        "id": "c09-b02",
+        "say": "The score belongs to the whole photo. To mark the obstruction, ask a grounding model for its region. To count covered vents, use detections and check misses and duplicates. For printed text, use optical character recognition and keep the crop with the reading.",
+        "hold": 1
+      },
+      {
+        "id": "c09-b03",
+        "say": "Read the tag in its strip. It says RACK seventeen. Attach the exact string and the region to this image version. A generative vision-language model can explain inspected details. A reviewer verifies the evidence before a hazard is closed. If the letters are unreadable, the inspection can abstain.",
+        "hold": 1
+      }
+    ]
+  },
+  {
+    "id": "pair-labels",
+    "title": "When a second view is a false negative",
+    "sourceChapters": ["c05"],
+    "beats": [
+      {
+        "id": "pair-labels-b01",
+        "say": "These two training views show the same covered grille. The second is a tighter crop. Each came with its own caption. Look at the close-up paired with the other photograph's words. What label does a diagonal-only training batch assign to that combination?",
+        "hold": 2.1
+      },
+      {
+        "id": "pair-labels-b02",
+        "say": "A negative label. Both captions describe the obstruction. A row loss and a column loss both penalize that pairing. Audit duplicate views, group related positives, and check noisy captions before treating all the off-diagonal pairs as negatives.",
+        "hold": 1
+      },
+      {
+        "id": "pair-labels-b03",
+        "say": "SigLIP uses a binary logistic loss for each labeled pair. It can evaluate the terms independently. Put zero in every logit of this two-by-two example. Each of the four terms costs the natural log of two. Sum them and divide by the batch size, two. The loss is about one point three eight six. A mean over four pairs would halve that loss and its gradient.",
+        "hold": 1.2
+      }
+    ]
+  },
+  {
+    "id": "patches",
+    "title": "From a tag stroke to an answer",
+    "sourceChapters": ["c09"],
+    "beats": [
+      {
+        "id": "patches-b01",
+        "say": "Zoom in on the printed tag. A vision transformer splits an image into patches and uses attention to mix their features across positions. At two hundred twenty-four pixels square with sixteen-pixel patches, there are fourteen rows of fourteen. Pooling summarizes the image. A spatial feature bank keeps a row for each patch.",
+        "hold": 0.9
+      },
+      {
+        "id": "patches-b02",
+        "say": "A convolutional backbone such as a ResNet builds spatial context by mixing neighborhoods through layers. EVA-CLIP can initialize a vision tower with masked image pretraining before image-text alignment. Changing the tower changes the features your connector must accept.",
+        "hold": 0.8
+      },
+      {
+        "id": "patches-b03",
+        "say": "In original LLaVA a learned projector maps each visual row to the language model's width. Each row keeps its place. Alignment training fits that connector with the backbones frozen. Multimodal instruction tuning then uses image questions and desired assistant responses to teach dialogue.",
+        "hold": 1
+      },
+      {
+        "id": "patches-b04",
+        "say": "Suppose the tag reached the decoder correctly, yet the answer ignores the requested format. Which training examples would target that failure?",
+        "hold": 2.3
+      },
+      {
+        "id": "patches-b05",
+        "say": "Show the image, the instruction and a correctly formatted response. Check the dialogue template and test transfer on new images. More contrastive matching alone gives the model no example of how this answer should be written.",
+        "hold": 1
+      }
+    ]
+  },
+  {
+    "id": "queries",
+    "title": "Which patches fill a learned slot?",
+    "sourceChapters": ["c09"],
+    "beats": [
+      {
+        "id": "queries-b01",
+        "say": "Suppose the language path has room for only two learned visual slots. Put a tag stroke, a vent edge and the frame in a tiny bank. Each has a key for matching and a value to pass onward. A slot's query scores the keys, scales by the square root of their width and applies softmax.",
+        "hold": 1
+      },
+      {
+        "id": "queries-b02",
+        "say": "Aim the first query right. The tag key gets the most weight. The slot sums the three weighted values. Aim the second query up. Now the vent contributes most to the second slot. The two slots can carry different mixtures of the same three patches.",
+        "hold": 1
+      },
+      {
+        "id": "queries-b03",
+        "say": "BLIP-2's Querying Transformer, or Q-Former, learns slots of this kind. Give it thirty-two queries and a compatible spatial bank. It supplies thirty-two visual vectors. Feed it more patches from a larger grid. The number of query slots stays fixed. A width-only projector would forward every row.",
+        "hold": 1
+      },
+      {
+        "id": "queries-b04",
+        "say": "Flamingo uses a resampler to produce a separate bank of sixty-four visual latents per image. Gated cross-attention lets language positions consult that bank. With two images there are two banks. Measure their attention cost separately from the cost of appending visual tokens to the language prefix.",
+        "hold": 1
+      }
+    ]
+  },
+  {
+    "id": "budget",
+    "title": "How long is the inspection prefix?",
+    "sourceChapters": ["c09"],
+    "beats": [
+      {
+        "id": "budget-b01",
+        "say": "A technician needs four square crops of the rack. Each enters the vision tower at three hundred thirty-six pixels a side. With fourteen-pixel patches and a width-only projector, every patch gets a prefix position. The question uses one hundred eighty tokens. Ignore separators. How long is the input?",
+        "hold": 2.7
+      },
+      {
+        "id": "budget-b02",
+        "say": "Each crop has twenty-four patches along each side. That's five hundred seventy-six per crop. Four crops give two thousand three hundred four visual tokens. Add the question. The prefix has two thousand four hundred eighty-four positions.",
+        "hold": 1.1
+      },
+      {
+        "id": "budget-b03",
+        "say": "More prefix positions cost prefill work. Their keys and values also stay resident during decoding with conventional full attention. In this example, eighty layers, eight key-value heads, width one hundred twenty-eight and two-byte values use three hundred twenty KiB per position for keys and values together. The visual portion alone uses seven hundred twenty MiB.",
+        "hold": 1
+      },
+      {
+        "id": "budget-b04",
+        "say": "Try one compressor over the entire crop set. If it emits sixty-four visual tokens total, the same question makes a prefix of two hundred forty-four. Check whether tiny print and vent boundaries survive. The vision encoder has still processed all four crops.",
+        "hold": 1
+      }
+    ]
+  },
+  {
+    "id": "reduction",
+    "title": "Can the tag survive a two-slot cap?",
+    "sourceChapters": ["c09"],
+    "beats": [
+      {
+        "id": "reduction-b01",
+        "say": "A reducer can prune a patch or merge similar patches into one representative. Look at the rack. We need a vent region, the strokes on its tag and a view of their positions on the door. In this exercise those three distinct needs each require a slot.",
+        "hold": 0.9
+      },
+      {
+        "id": "reduction-b02",
+        "say": "The fast path allows two slots. Reserve the vent and the tag. Is there room to satisfy the layout requirement?",
+        "hold": 2.2
+      },
+      {
+        "id": "reduction-b03",
+        "say": "There is no third slot. Send this case to review or to a slower path. Keep the same photograph and raise the cap to three. The layout can now travel with the vent and tag.",
+        "hold": 1.2
+      },
+      {
+        "id": "reduction-b04",
+        "say": "Use a hard maximum and protect task-critical regions and spatial coverage. Bucket requests by retained count to limit padding. Compare a shadow sample with full-token results, especially on dense panels. Track tail latency, memory and missed evidence together. Increasing resolution alone can cost more while a later reducer still drops the label.",
+        "hold": 1
+      }
+    ]
+  },
+  {
+    "id": "evaluation",
+    "title": "Would you release all three inspection routes?",
+    "sourceChapters": ["c09"],
+    "beats": [
+      {
+        "id": "evaluation-b01",
+        "say": "Check retrieval against the inspections a technician marked relevant. The top three results contain two of three relevant images. Recall at three is two thirds. For the printed tag, compare exact strings. A reader mistook a zero for the letter O in one of two tags. Only one string matches exactly.",
+        "hold": 1
+      },
+      {
+        "id": "evaluation-b02",
+        "say": "For grounding, compare a predicted box with a reviewed box. Each spans six tenths of the image on both axes. Shift the prediction two tenths right and down. The overlap is point one six and the union is point five six. Intersection over union is two sevenths. Also count missed regions and false detections.",
+        "hold": 1.1
+      },
+      {
+        "id": "evaluation-b03",
+        "say": "These are hypothetical scores for a larger held-out inspection set. Compare each score with the minimum for that inspection task. Can the full workflow ship?",
+        "hold": 2.5
+      },
+      {
+        "id": "evaluation-b04",
+        "say": "Hold the full workflow. The OCR result is below its required bar. Better retrieval cannot repair the wrong digit on an asset tag. Split evaluations by asset, site and time. On a limited rollout also track review rate, unsupported claims, memory and tail latency.",
+        "hold": 1
+      }
+    ]
+  },
+  {
+    "id": "transfer",
+    "title": "Should this label go to review?",
+    "sourceChapters": ["c09"],
+    "beats": [
+      {
+        "id": "transfer-b01",
+        "say": "Return to photo seventeen. A candidate label needs a cosine of at least point six and a lead of at least point zero eight. The blocked-vent prompt scores point six eight. The clear-door prompt gets point five three. The lead is point one five. Keep the first label as a candidate.",
+        "hold": 1
+      },
+      {
+        "id": "transfer-b02",
+        "say": "Change only the runner-up's wording. “Vent is clear beside the cover” scores point six four in this example. The leader stays at point six eight. Keep the candidate label, or send the image for review?",
+        "hold": 3
+      },
+      {
+        "id": "transfer-b03",
+        "say": "Subtract point six four from point six eight. The gap is point zero four. The leader clears the score floor. Its lead falls below the required point zero eight. Send it for review. Keep the ticket open for a technician to inspect.",
+        "hold": 1.1
+      },
+      {
+        "id": "transfer-b04",
+        "say": "Open the record for the reviewer. The vent box locates the obstruction. The tag strip identifies RACK seventeen on this version of the photo. Search found the candidate, and the reviewer can now check the claim against the pixels. In the next lesson, we'll connect several kinds of evidence to a multimodal language model.",
+        "hold": 2
+      }
+    ]
+  }
+]

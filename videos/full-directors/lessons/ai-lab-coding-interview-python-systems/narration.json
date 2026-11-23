@@ -1,0 +1,295 @@
+[
+  {
+    "id": "c01",
+    "title": "Two workers reach the same page",
+    "sourceChapters": [
+      "c01"
+    ],
+    "beats": [
+      {
+        "id": "c01-b01",
+        "say": "Worker A looks for the guide in this set. It is empty. Worker B checks the same spot. Still empty. Both workers are about to add the page. Which steps need one lock?",
+        "hold": 3.5
+      },
+      {
+        "id": "c01-b02",
+        "say": "Let them run. A moves first. A adds the guide. B tries the same spot. B adds the same string. The set still holds one entry. A sends a request for the guide. B sends another for the same page. To reproduce the failure, keep this order of steps and count the fetches. Two calls for one page.",
+        "hold": 1.2
+      },
+      {
+        "id": "c01-b03",
+        "say": "Start the interview with a contract you can test. Visit each same-origin page once, in breadth-first order, given links in a stable order. When a follow-up adds workers, a deadline, a retry, or a request key, name the state that owns the new decision. Keep the assertion that caught the last failure.",
+        "hold": 1
+      }
+    ]
+  },
+  {
+    "id": "c02",
+    "title": "Follow the queue through the documentation",
+    "sourceChapters": [
+      "c02"
+    ],
+    "beats": [
+      {
+        "id": "c02-b01",
+        "say": "Begin with the start page at repo dot example. Its links arrive in this order. The guide, the API with a fragment, then a page on another origin. Resolve each relative address against the current page. Which links belong in the queue?",
+        "hold": 2.3
+      },
+      {
+        "id": "c02-b02",
+        "say": "Claim the guide and the API on admission. Drop the fragment. Both addresses use the starting scheme, lowercase host and effective port. HTTPS on its default port has the same origin with or without the explicit port. The other host is out of scope. Keep a query string because it can change the page.",
+        "hold": 1
+      },
+      {
+        "id": "c02-b03",
+        "say": "Take the guide off the front. It points to the API again, and then to the FAQ. The API is already claimed. Append only the FAQ at the back. Which page gets the next fetch?",
+        "hold": 2
+      },
+      {
+        "id": "c02-b04",
+        "say": "The API comes first. Its link back to start is already claimed. Then fetch the FAQ. A deque owns the order and a set owns membership. On a finite graph this takes work proportional to pages plus links, apart from string processing and fetching. An invalid start gives an empty result. Skip invalid links and propagate callback errors. Same-origin filtering alone does not authorize a network destination.",
+        "hold": 1
+      }
+    ]
+  },
+  {
+    "id": "c03",
+    "title": "Hold the lock only for the claim",
+    "sourceChapters": [
+      "c03"
+    ],
+    "beats": [
+      {
+        "id": "c03-b01",
+        "say": "Replay the guide with an empty set. Both workers share this lock. A enters. B waits outside while A checks membership and inserts the guide. At which line can A release the lock?",
+        "hold": 2.2
+      },
+      {
+        "id": "c03-b02",
+        "say": "Leave the block before fetch. A starts loading the guide. B can now inspect the set. It finds the guide and skips that fetch. Give B a different page. It claims the API and sends its own request.",
+        "hold": 0.8
+      },
+      {
+        "id": "c03-b03",
+        "say": "The API finishes first. The guide is still loading. A lock over the network call would force B to wait through that entire fetch. The winning worker can vary. Start competitors with a barrier and assert exactly one successful claim per URL.",
+        "hold": 1
+      },
+      {
+        "id": "c03-b04",
+        "say": "Set the stop event while the guide is in flight. When the guide returns, withhold its children. Check stop before scheduling, before fetching and before publishing children. A semaphore can bound active fetches. A per-host bucket limits starts. For retries, keep an in-flight owner, an attempt count and a retry time. Under a one-attempt policy a failed URL stays claimed. If callers require breadth-first output with workers, merge results by frontier order.",
+        "hold": 1
+      }
+    ]
+  },
+  {
+    "id": "c04",
+    "title": "Read a record at its deadline",
+    "sourceChapters": [
+      "c04"
+    ],
+    "beats": [
+      {
+        "id": "c04-b01",
+        "say": "Write running under task one at time ten with a five-second lifetime. Store the deadline beside the value. Set the test clock to fourteen point nine nine nine. A read returns running. At exactly fifteen, what should a read return?",
+        "hold": 2.3
+      },
+      {
+        "id": "c04-b02",
+        "say": "At fifteen the read removes the record and returns missing. Zero lifetime expires at the write instant. Store strings so None can mean missing on a read. A permanent record has no deadline. A prefix scan samples one time and uses the same comparison for every key.",
+        "hold": 1
+      },
+      {
+        "id": "c04-b03",
+        "say": "Replay the write. This time a caller wants to replace a missing value at fifteen. Keep the lock through all three steps. Remove the expired entry. Compare against missing. Write ready with no deadline. An intervening writer cannot slip between those steps. Use the same lock for other public operations. The injected monotonic clock lets a test land on equality without sleeping.",
+        "hold": 1.2
+      }
+    ]
+  },
+  {
+    "id": "c05-graph",
+    "title": "Validate the whole graph before the first run",
+    "sourceChapters": [
+      "c05"
+    ],
+    "beats": [
+      {
+        "id": "c05-graph-b01",
+        "say": "A CI run has an independent docs task and two more tasks that require each other. Docs is ready. If the contract requires validating the whole graph first, may docs run yet?",
+        "hold": 2
+      },
+      {
+        "id": "c05-graph-b02",
+        "say": "Walk the dependencies before executing. Mark lint active, then mark test active. The edge back to lint reaches an active ancestor. Reject the graph. Even docs has zero calls. A node already finished on a different path is safe to revisit. Keep unseen, active and done distinct. Also reject unknown dependencies and duplicate task names.",
+        "hold": 1.1
+      }
+    ]
+  },
+  {
+    "id": "c05",
+    "title": "Release a dependent after a successful attempt",
+    "sourceChapters": [
+      "c05"
+    ],
+    "beats": [
+      {
+        "id": "c05-b01",
+        "say": "Now use a valid graph. Put docs and test in the ready heap. Deploy needs test. Lower priority numbers run first. For a tie, the heap compares task names. Docs completes. Test fails once. Keep its attempt count and put it back at its original priority. Does deploy get a turn yet?",
+        "hold": 2
+      },
+      {
+        "id": "c05-b02",
+        "say": "Test succeeds on its second attempt. Publish that success and decrement the unmet count. Zero makes deploy ready. Deploy runs once. With workers, claim from the heap under a condition lock, run outside the lock, then publish completion and wake waiting workers under the lock.",
+        "hold": 1
+      },
+      {
+        "id": "c05-b03",
+        "say": "Replay with a budget of one attempt. Docs still completes. Test fails and exhausts its budget. Deploy stays blocked with zero attempts. A failed task ran. A blocked task never became eligible. Require an actual boolean from the runner. A string spelling false is truthy in Python. Reject it before releasing a child, and propagate a runner exception under this contract.",
+        "hold": 1.2
+      }
+    ]
+  },
+  {
+    "id": "c06",
+    "title": "Measure what the next request can spend",
+    "sourceChapters": [
+      "c06"
+    ],
+    "beats": [
+      {
+        "id": "c06-b01",
+        "say": "Give this host a bucket with capacity three. Each start costs one token. At time zero the first request spends one, the second spends one, and the third spends one. Now try a fourth at the same instant. What can it spend?",
+        "hold": 2.2
+      },
+      {
+        "id": "c06-b02",
+        "say": "Deny the fourth. At one token per second it needs one second of refill. Move the clock forward half a second. Only half a token is available. Try again. Deny this request too. The deficit divided by the refill rate gives a half-second wait. Denial spends nothing.",
+        "hold": 1
+      },
+      {
+        "id": "c06-b03",
+        "say": "Advance to one second. The bucket reaches the cost line. Admit the request and subtract its cost. The wait estimate assumes nobody else spends the refill. It reserves no future slot. Each key owns its own balance and update time. Cap refill at capacity, and evict an idle key only when recreating it full would give the same balance. A separate semaphore limits work already in flight.",
+        "hold": 1.3
+      }
+    ]
+  },
+  {
+    "id": "c07",
+    "title": "Which balance goes back on a replay?",
+    "sourceChapters": [
+      "c07"
+    ],
+    "beats": [
+      {
+        "id": "c07-b01",
+        "say": "Credit one hundred to account A under deposit one. Keep the balance after that event on its receipt. Withdraw thirty with a new key. Two entries now explain a current balance of seventy.",
+        "hold": 1
+      },
+      {
+        "id": "c07-b02",
+        "say": "Here is deposit one again, with the same account and amount. Someone lost the first reply. What balance should go on the reply, and how many entries should stay in the ledger?",
+        "hold": 2.8
+      },
+      {
+        "id": "c07-b03",
+        "say": "Look up the first deposit. Its receipt says one hundred. Return the original receipt. The current balance stays seventy and the event count stays two. Use the key to find the saved operation and its result. The rows record what happened. The reply tells the client what its original request did.",
+        "hold": 1
+      }
+    ]
+  },
+  {
+    "id": "c07-keys",
+    "title": "Decide which request outcomes to remember",
+    "sourceChapters": [
+      "c07"
+    ],
+    "beats": [
+      {
+        "id": "c07-keys-b01",
+        "say": "Keep those two events. Someone changes the amount on deposit one to two hundred. The saved key names account A and a change of one hundred. Reject the mismatch before writing. Now try a fresh withdrawal of eighty against seventy. Reject it for insufficient credit. This ledger caches only successes. Has that withdrawal used up its key?",
+        "hold": 2.3
+      },
+      {
+        "id": "c07-keys-b02",
+        "say": "Credit twenty with a fresh deposit. The balance rises to ninety. Retry the withdrawal of eighty with its own unchanged key. It succeeds and leaves ten. To survive a crash, commit the balance, event and unique key in one durable transaction. The key space is shared across accounts. Coordinate it across accounts too.",
+        "hold": 1.3
+      }
+    ]
+  },
+  {
+    "id": "c07-lock",
+    "title": "Release locks after a partial acquisition",
+    "sourceChapters": [
+      "c07"
+    ],
+    "beats": [
+      {
+        "id": "c07-lock-b01",
+        "say": "A transfer asks for account locks B, A, A and C. Every caller shares the same lock registry. Sort the unique IDs. Enter an ExitStack. Acquire A once, then B, registering each context on the stack as you go. What happens if looking up C raises an exception?",
+        "hold": 2
+      },
+      {
+        "id": "c07-lock-b02",
+        "say": "The lookup fails. The stack releases B, then A as it unwinds. Sorting prevents opposite acquisition orders. Deduplication avoids trying to take one non-reentrant lock twice. The active stack supplies cleanup even though the transfer body never began.",
+        "hold": 1.1
+      }
+    ]
+  },
+  {
+    "id": "c08-parser",
+    "title": "Find the owner of the next log line",
+    "sourceChapters": [
+      "c08"
+    ],
+    "beats": [
+      {
+        "id": "c08-parser-b01",
+        "say": "Before dividing a log file among workers, find a whole record. Read the orphan continuation. It has no owner. Read the first header. A header needs a timestamp and a level, both nonempty. Split only at the first two bars. The extra bar belongs to the message. Attach the indented tail to that record.",
+        "hold": 1
+      },
+      {
+        "id": "c08-parser-b02",
+        "say": "Read the malformed header. It clears the current record. What happens to the indented line below it?",
+        "hold": 2.2
+      },
+      {
+        "id": "c08-parser-b03",
+        "say": "Skip the continuation. Read the last header even without a final newline. The output has two messages. For arbitrary input chunks, carry the partial line and current record across chunks. Join message fragments on emission, and finish the last unterminated line once. Split a small fixture at every character and compare with the whole-input result.",
+        "hold": 1
+      }
+    ]
+  },
+  {
+    "id": "c08",
+    "title": "Budget the waits and the Python lane",
+    "sourceChapters": [
+      "c08"
+    ],
+    "beats": [
+      {
+        "id": "c08-b01",
+        "say": "Can you make it faster with threads? First locate the time. Consider two independent jobs. Each waits three seconds for input and then parses for one second in pure Python. Use one GIL-enabled interpreter and assume zero overhead. Run them in series. Eight seconds. How long if both waits start together?",
+        "hold": 2.8
+      },
+      {
+        "id": "c08-b02",
+        "say": "Overlap both waits. After three seconds both inputs are ready. One Python lane takes A and then B. Five seconds in total. A thread can overlap a network wait. An async client can also yield the event loop during that wait. A blocking call stalls the loop. An already completed awaitable can return immediately.",
+        "hold": 1
+      },
+      {
+        "id": "c08-b03",
+        "say": "If parsing dominates, measure processes or isolated interpreters. Send a complete record to an importable worker function. It returns a count. Merge that result in the parent. These workers exchange serialized data. Their local mutations do not update the parent's dictionary. Check the running GIL mode on an optional free-threaded build and keep shared mutations synchronized.",
+        "hold": 1
+      },
+      {
+        "id": "c08-b04",
+        "say": "Try a fresh timing test. Three independent jobs each wait four seconds and need half a second on the same Python lane. Assume all waits can overlap and overhead is zero. Work out both finish times before you move the jobs.",
+        "hold": 3
+      },
+      {
+        "id": "c08-b05",
+        "say": "In series they need thirteen and a half seconds. With the waits overlapped, they need five and a half. Four seconds pass once, then the three half-second parses take turns. In an interview, write the expected result first. If a test fails, shrink it to one transition, fix the state that owns it, and keep that assertion when the next requirement arrives. Measure transfer and merge costs before promising a real speedup.",
+        "hold": 1.8
+      }
+    ]
+  }
+]

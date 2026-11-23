@@ -1,0 +1,1087 @@
+[
+  {
+    "id": "c01",
+    "title": "Can the adapter move this score across zero?",
+    "sourceChapters": [
+      "c01"
+    ],
+    "beats": [
+      {
+        "id": "c01-b01",
+        "say": "This ticket scores minus one with the frozen model. Below zero it stays in routine review. At zero or above it goes to the rotation owner. The adapter can add one and a half. Will that take the ticket across zero?",
+        "hold": 2.6
+      },
+      {
+        "id": "c01-b02",
+        "say": "Keep the blue pin at minus one. Lay out the gold strip. One unit gets us to zero. The last half unit takes the score to positive one half. Send the ticket to the owner. The blue pin marks exactly what the frozen model contributed.",
+        "hold": 0.9
+      },
+      {
+        "id": "c01-b03",
+        "say": "We have five thousand labeled tickets for training. To decide what counts as a correct reply, take two cases we will hold out. The assistant retrieves this team's current policy. A key needs the rotation owner at ninety days. Ticket seven is twelve days old. Ticket four is ninety-two days old. Which ticket should leave routine review?",
+        "hold": 2.1
+      },
+      {
+        "id": "c01-b04",
+        "say": "Send ticket four to the owner. Keep ticket seven in routine review. These examples show the behavior we want. The threshold itself lives in the versioned policy document.",
+        "hold": 0.5
+      },
+      {
+        "id": "c01-b05",
+        "say": "Before we fit anything, set aside twenty policy tickets and twenty routine reviews. We’ll require nineteen correct in each set. Keep the base revision, ticket format, and expected actions with those cases. When we turn the adapter on, we can check which replies it changed.",
+        "hold": 0.8
+      }
+    ]
+  },
+  {
+    "id": "c02",
+    "title": "One ticket, two paths through a layer",
+    "sourceChapters": [
+      "c02"
+    ],
+    "beats": [
+      {
+        "id": "c02-b01",
+        "say": "Bring that overdue ticket back to the assistant. The blue block is one of its trained layers. Its weights stay fixed while it computes its usual response to this input.",
+        "hold": 0.65
+      },
+      {
+        "id": "c02-b02",
+        "say": "Attach two small trainable matrices beside that layer. Together they contribute a correction. This is low-rank adaptation, or LoRA. A code reviewer and a science tutor can each have a pair of their own and share the same base. The optimizer updates just the selected factors.",
+        "hold": 0.65
+      },
+      {
+        "id": "c02-b03",
+        "say": "For ticket four, select the policy pair. Send the same input down this second path. Add its correction to the base output. To see how two little matrices can change that output, let's open the layer and follow one input by hand.",
+        "hold": 0.8
+      }
+    ]
+  },
+  {
+    "id": "c03",
+    "title": "A matrix mixes input directions",
+    "sourceChapters": [
+      "c03"
+    ],
+    "beats": [
+      {
+        "id": "c03-b01",
+        "say": "A linear layer takes an input vector and multiplies it by a matrix of learned weights. Each input coordinate controls how much of one matrix column enters the output.",
+        "hold": 0.6
+      },
+      {
+        "id": "c03-b02",
+        "say": "Here the first coordinate is one and a half. It stretches the blue column vector to one and a half, two and a quarter. Add the second column head to tail. The result is three, one and three quarters.",
+        "hold": 0.7
+      },
+      {
+        "id": "c03-b03",
+        "say": "Fine-tuning changes these weights using examples and their errors. If every entry can change independently, the update has the same large rectangular shape as the original matrix.",
+        "hold": 0.65
+      }
+    ]
+  },
+  {
+    "id": "c04",
+    "title": "Keep the base, learn a correction",
+    "sourceChapters": [
+      "c04"
+    ],
+    "beats": [
+      {
+        "id": "c04-b01",
+        "say": "We can describe any weight change as an additive correction. The adapted layer applies the original matrix and the correction to the very same input, then adds their outputs.",
+        "hold": 0.7
+      },
+      {
+        "id": "c04-b02",
+        "say": "LoRA freezes the original matrix and learns a structured correction beside it. The base still contributes its pretrained transformation on every pass. Only the added factors receive parameter updates.",
+        "hold": 0.6
+      },
+      {
+        "id": "c04-b03",
+        "say": "Here the added matrix has two columns. The second is the negative of the first. Every correction lies on one line, even though both output coordinates can change.",
+        "hold": 0.8
+      }
+    ]
+  },
+  {
+    "id": "c05",
+    "title": "One free scalar can still change every direction",
+    "sourceChapters": [
+      "c05"
+    ],
+    "beats": [
+      {
+        "id": "c05-b01",
+        "say": "One dial sets theta on the diagonal of a three by three identity matrix. At zero, all three basis inputs land at the origin. Turn the dial to one. Follow the three arrowheads. How many independent directions did that one adjustable number move?",
+        "hold": 1.9
+      },
+      {
+        "id": "c05-b02",
+        "say": "Three directions. Each basis input moves along its own axis. The update has rank three, even though we optimized just one coordinate. Aghajanyan and colleagues studied optimization in small projected parameter spaces. LoRA restricts a different quantity. Its factor width limits the number of independent output directions.",
+        "hold": 0.65
+      },
+      {
+        "id": "c05-b03",
+        "say": "Try a miniature fitting problem. One training input asks for a horizontal correction. A second asks for a vertical correction. A width-one adapter whose direction is horizontal can fit the first. Give it a second independent direction and it can fit the second too.",
+        "hold": 0.8
+      },
+      {
+        "id": "c05-b04",
+        "say": "Keep both fitted adapters. Test them on unseen inputs twice as large, one horizontal and one vertical. The rings mark the required outputs. Which width will hit both rings?",
+        "hold": 2.1
+      },
+      {
+        "id": "c05-b05",
+        "say": "Try width one. The horizontal arrow reaches its ring. The vertical input maps to zero. Try width two. Its second direction reaches the vertical ring as well. Choose width two for this task. In a real sweep, compare held-out behavior and cost before widening again or moving to full fine-tuning.",
+        "hold": 1.1
+      }
+    ]
+  },
+  {
+    "id": "c06",
+    "title": "One direction, many possible corrections",
+    "sourceChapters": [
+      "c06"
+    ],
+    "beats": [
+      {
+        "id": "c06-b01",
+        "say": "The first factor measures the input with a dot product. It compresses the input into one scalar. The second factor multiplies a fixed output direction by that scalar.",
+        "hold": 0.7
+      },
+      {
+        "id": "c06-b02",
+        "say": "As the input moves, the correction slides forward or backward on this line. Its length and sign change, while its available direction stays fixed. That is a rank-one transformation.",
+        "hold": 0.85
+      },
+      {
+        "id": "c06-b03",
+        "say": "Multiplying the column by the row gives an outer product. Every column of this update matrix is a scaled copy of the same vector, so all its outputs remain on that line.",
+        "hold": 0.75
+      }
+    ]
+  },
+  {
+    "id": "c07",
+    "title": "Two directions open a plane",
+    "sourceChapters": [
+      "c07"
+    ],
+    "beats": [
+      {
+        "id": "c07-b01",
+        "say": "Add a second independent direction. Now the input supplies two coefficients, and the correction combines two output vectors. Their possible sums fill a plane inside this three-dimensional output space.",
+        "hold": 0.8
+      },
+      {
+        "id": "c07-b02",
+        "say": "Watch the two contributions move head to tail. The tip can reach different places across the plane, but a target outside it requires another independent direction or a different learned plane.",
+        "hold": 0.85
+      },
+      {
+        "id": "c07-b03",
+        "say": "Rank counts independent directions in this linear correction. A rank-two adapter has room for at most two. Training can rotate its plane, and redundant factors can make its actual rank smaller.",
+        "hold": 0.75
+      }
+    ]
+  },
+  {
+    "id": "c08",
+    "title": "Build the update from thin factors",
+    "sourceChapters": [
+      "c08"
+    ],
+    "beats": [
+      {
+        "id": "c08-b01",
+        "say": "Collect the measuring rows into A and the output directions into B. Their product has the full update's shape. The shared inner dimension is the factor width. It sets an upper bound on the rank of the product.",
+        "hold": 0.7
+      },
+      {
+        "id": "c08-b02",
+        "say": "Follow row one of B and column three of A. Multiply one by minus one, then add minus a half times one. What goes in the top right cell?",
+        "hold": 1.5
+      },
+      {
+        "id": "c08-b03",
+        "say": "Minus one and a half. Repeat the row and column operation, and the entire correction appears. Equivalently, we are adding two rank-one outer products. Training can keep only the two thin factors.",
+        "hold": 0.75
+      }
+    ]
+  },
+  {
+    "id": "c09",
+    "title": "What does this input send through the adapter?",
+    "sourceChapters": [
+      "c09"
+    ],
+    "beats": [
+      {
+        "id": "c09-b01",
+        "say": "Take the input two, one. The frozen matrix has two rows. In the first row, twice one plus two gives four. In the second, twice three plus four gives ten. Put a blue mark at each base output.",
+        "hold": 0.65
+      },
+      {
+        "id": "c09-b02",
+        "say": "Now follow the same input through the narrow path. A subtracts the second coordinate from the first. Two minus one leaves one. B sends half that amount to the first output and the whole amount to the second. Our scale is two, so the correction is one and two.",
+        "hold": 0.55
+      },
+      {
+        "id": "c09-b03",
+        "say": "Start at each blue mark and add its yellow correction. Four becomes five. Ten becomes twelve. Those are the two coordinates we would get by merging the scaled product into the base. Here we used just the two thin multiplications.",
+        "hold": 0.85
+      },
+      {
+        "id": "c09-b04",
+        "say": "Keep every weight. Change the first input from two to one. The blue marks move because the base also reads the new input. With two equal input coordinates, how far will the adapter move either mark?",
+        "hold": 2.2
+      },
+      {
+        "id": "c09-b05",
+        "say": "One minus one is zero. B has nothing to expand. Both marks stay at their new base values. The adapted output stays at three, seven. These same factors can change both outputs on one request and leave them alone on another.",
+        "hold": 0.88
+      }
+    ]
+  },
+  {
+    "id": "c10",
+    "title": "A narrow passage changes the budget",
+    "sourceChapters": [
+      "c10"
+    ],
+    "beats": [
+      {
+        "id": "c10-b01",
+        "say": "Now enlarge the layer. A square projection with width four thousand ninety-six contains nearly seventeen million weights. Full fine-tuning can train every one, along with the training state they require.",
+        "hold": 0.7
+      },
+      {
+        "id": "c10-b02",
+        "say": "At rank sixteen, the two factors contain about one hundred thirty-one thousand trainable values altogether. That's less than one percent of the original matrix. The inset magnifies their narrow width.",
+        "hold": 0.8
+      },
+      {
+        "id": "c10-b03",
+        "say": "For any rectangular layer, count both thin rectangles. Take a layer with ten outputs, fifteen inputs and rank three. A stores forty-five numbers and B stores thirty. That makes seventy-five, half the one hundred fifty base weights. For fixed targets, doubling rank doubles the factor count.",
+        "hold": 0.7
+      }
+    ]
+  },
+  {
+    "id": "c11",
+    "title": "Which factor can learn on the first pass?",
+    "sourceChapters": [
+      "c11"
+    ],
+    "beats": [
+      {
+        "id": "c11-b01",
+        "say": "We want the first pass to reproduce the checkpoint's response. The usual recipe gives A small random values and sets B to zero. Take a scalar example where A is one. The input is one, and the target is one. The frozen base outputs zero.",
+        "hold": 0.3
+      },
+      {
+        "id": "c11-b02",
+        "say": "So does the adapter. Which factor can learn on this first pass? Trace the error back from the output.",
+        "hold": 2.1
+      },
+      {
+        "id": "c11-b03",
+        "say": "Follow the error back to B. The output is one below the target, and A sent a one forward. Multiply those together. B gets a gradient of minus one. To reach A, that error has to go through B. With B still at zero, A gets a gradient of zero.",
+        "hold": 0.75
+      },
+      {
+        "id": "c11-b04",
+        "say": "Take one gradient step. At a learning rate of one tenth, B moves to one tenth. Now follow the next error back through B. This time it reaches A too. If both factors start at zero, ordinary gradient descent gets stuck.",
+        "hold": 0.3
+      },
+      {
+        "id": "c11-b05",
+        "say": "And even a nonzero A can measure zero on a particular input, just as it did for those two equal coordinates. Check the gradients on your actual examples.",
+        "hold": 0.8
+      }
+    ]
+  },
+  {
+    "id": "c12",
+    "title": "Derive which factor moves first",
+    "sourceChapters": [
+      "c12"
+    ],
+    "beats": [
+      {
+        "id": "c12-b01",
+        "say": "Start at the output and trace its incoming loss gradient g backward. B saw z equals A x on the way forward. Its gradient is the scale times g times z transpose. To reach A, pass g through B transpose first, then take the outer product with x and apply the scale.",
+        "hold": 0.3
+      },
+      {
+        "id": "c12-b02",
+        "say": "We are following loss gradients. An optimizer can separately apply weight decay. The paper draws A from a Gaussian. The ordinary PEFT linear wrapper uses a Kaiming-uniform draw. Both start B at zero, so the checkpoint's output survives the first pass.",
+        "hold": 0.65
+      },
+      {
+        "id": "c12-b03",
+        "say": "Now trace one example through these same two factors. A, x, and the target are one. The base and B are zero. The output is zero. Can the error get to B? Can it get through B to A?",
+        "hold": 2.2
+      },
+      {
+        "id": "c12-b04",
+        "say": "Half squared error sends minus one back to B. Multiply by the one that A sent forward. B's gradient is minus one. At A, the backward path multiplies by zero. A stays at one. An SGD rate of one tenth moves B to one tenth.",
+        "hold": 0.65
+      },
+      {
+        "id": "c12-b05",
+        "say": "Run the next pass. The output is one tenth, so the error is minus nine tenths. B's gradient is minus nine tenths. This time B passes a tenth of that back to A. Its gradient is minus nine hundredths. Both can move. If A x measures zero, B waits for that example.",
+        "hold": 0.3
+      },
+      {
+        "id": "c12-b06",
+        "say": "Set both factors to zero and both loss gradients vanish. Reverse the initialization, with A zero and B nonzero, and A can move first. Batch contributions can also cancel. Starting both factors nonzero can change the initial output before training begins.",
+        "hold": 0.8
+      }
+    ]
+  },
+  {
+    "id": "c13",
+    "title": "Capacity and strength are separate choices",
+    "sourceChapters": [
+      "c13"
+    ],
+    "beats": [
+      {
+        "id": "c13-b01",
+        "say": "Ordinary LoRA multiplies the correction by alpha divided by rank. Alpha supplies an explicit strength control. Turning it changes the correction's length without creating new directions for this fixed pair of factors.",
+        "hold": 0.7
+      },
+      {
+        "id": "c13-b02",
+        "say": "Increasing rank changes capacity, but keeping alpha fixed also changes this multiplier. A rank comparison becomes easier to interpret when the explicit scale is held constant and recorded beside the result.",
+        "hold": 0.7
+      },
+      {
+        "id": "c13-b03",
+        "say": "The learned correction also depends on initialization, data, and optimization. Rank and scale are connected experimental choices. Compare actual update norms and held-out quality instead of inferring strength from rank alone.",
+        "hold": 0.75
+      }
+    ]
+  },
+  {
+    "id": "c14",
+    "title": "The multiplier changes with the chosen rank",
+    "sourceChapters": [
+      "c14"
+    ],
+    "beats": [
+      {
+        "id": "c14-b01",
+        "say": "Compute the multiplier before interpreting a rank sweep. Ordinary LoRA uses alpha divided by r. Alpha sixteen with rank eight gives two. Keep alpha sixteen and raise rank to thirty-two: the multiplier becomes zero point five. To retain an ordinary multiplier of two at rank thirty-two, alpha must become sixty-four.",
+        "hold": 0.65
+      },
+      {
+        "id": "c14-b02",
+        "say": "Rank-stabilized LoRA instead uses alpha divided by square root r. Those three configurations give about five point six five seven, two point eight two eight, and eleven point three one four. The rank-stabilization paper derives its rule under assumptions about initialization and input and gradient statistics; its evaluated improvements are not a universal task guarantee.",
+        "hold": 0.65
+      },
+      {
+        "id": "c14-b03",
+        "say": "A zero-initialized B still gives zero correction with either scale. After learning begins, the number of components, initialization, optimizer and data all affect the actual correction norm. Record rank, alpha, scaling convention, learning rate and targets.",
+        "hold": 0.3
+      },
+      {
+        "id": "c14-b04",
+        "say": "Compare measured gradient and update norms alongside held-out behavior, rather than treating a larger rank as a known stronger trained model.",
+        "hold": 0.8
+      }
+    ]
+  },
+  {
+    "id": "c15",
+    "title": "Choose where the new capacity enters",
+    "sourceChapters": [
+      "c15"
+    ],
+    "beats": [
+      {
+        "id": "c15-b01",
+        "say": "A transformer contains many candidate matrices. Query and value projections formed an important configuration in the original LoRA paper. Adapting them changes parts of attention routing and the information it carries.",
+        "hold": 0.7
+      },
+      {
+        "id": "c15-b02",
+        "say": "You can also adapt the other attention projections and the feed-forward layers. Broader coverage puts trainable corrections in more places. It costs more parameters and may help a task that narrower coverage misses.",
+        "hold": 0.7
+      },
+      {
+        "id": "c15-b03",
+        "say": "Inspect the actual matched modules and their shapes. Architectures use different names and widths. New vocabulary also needs its intended embedding or output rows trained, which attention adapters alone leave frozen.",
+        "hold": 0.75
+      }
+    ]
+  },
+  {
+    "id": "c16",
+    "title": "Spend capacity where the block transforms information",
+    "sourceChapters": [
+      "c16"
+    ],
+    "beats": [
+      {
+        "id": "c16-b01",
+        "say": "Count one supplied block with four attention projections of size four thousand ninety-six squared. Its gate and up matrices have widths four thousand ninety-six and eleven thousand eight, while down reverses those dimensions. At rank sixteen, query plus value uses two hundred sixty-two thousand one hundred forty-four adapter parameters.",
+        "hold": 0.65
+      },
+      {
+        "id": "c16-b02",
+        "say": "All four attention adapters plus all three MLP adapters use one million two hundred forty-nine thousand two hundred eighty parameters, about four point seven seven times the query-value budget. Attention changes information routing and content; the MLP transforms each token.",
+        "hold": 0.3
+      },
+      {
+        "id": "c16-b03",
+        "say": "The original LoRA work studied query-value and other attention choices. QLoRA needed broad linear coverage in its reported LLaMA-seven-billion Alpaca comparison; that result is scoped to that comparison.",
+        "hold": 0.65
+      },
+      {
+        "id": "c16-b04",
+        "say": "Inspect actual module shapes. Our executed tiny Qwen-two fixture has hidden width sixteen, MLP width thirty-two, two query heads and one key-value head.",
+        "hold": 0.3
+      },
+      {
+        "id": "c16-b05",
+        "say": "Query-value targeting at rank two costs one hundred twelve parameters, all attention costs two hundred twenty-four, and all seven linear projections cost five hundred twelve. Grouped-query keys and values are narrower here. The output head is excluded by the checked all-linear shortcut.",
+        "hold": 0.8
+      }
+    ]
+  },
+  {
+    "id": "c17",
+    "title": "Locate the learned state before naming the method",
+    "sourceChapters": [
+      "c17"
+    ],
+    "beats": [
+      {
+        "id": "c17-b01",
+        "say": "Parameter-efficient methods can insert learned state in different places. Soft prompt tuning trains continuous virtual input embeddings. They are vectors, not readable prompt words. The base projections remain frozen, and those learned vectors enter the model through its input context.",
+        "hold": 0.65
+      },
+      {
+        "id": "c17-b02",
+        "say": "Prefix tuning learns continuous prefix state supplied to transformer layers, including attention keys and values. That reaches layers directly rather than changing their projection matrices. LoRA places its factors inside selected weight transformations. Inspect the checkpoint and actual computation before calling a method LoRA.",
+        "hold": 0.65
+      },
+      {
+        "id": "c17-b03",
+        "say": "The placement changes what is trained and where the control signal enters. A prompt-vector checkpoint is not an A and B adapter merely because both use few parameters. Compare task quality, context and serving costs under the actual implementation instead of assuming these methods have interchangeable capacity.",
+        "hold": 0.8
+      }
+    ]
+  },
+  {
+    "id": "c18",
+    "title": "Verify dimensions and work before using the layer",
+    "sourceChapters": [
+      "c18"
+    ],
+    "beats": [
+      {
+        "id": "c18-b01",
+        "say": "The article also executes a standard-library rectangular layer without autograd. Its base has three outputs and four inputs; rank two requires A with two rows and four columns, and B with three rows and two columns. Validate rectangular shapes and a positive integer rank before multiplication.",
+        "hold": 0.3
+      },
+      {
+        "id": "c18-b02",
+        "say": "A maps the four inputs to two values. B maps those two to three, so its correction can be added to the three base outputs.",
+        "hold": 0.65
+      },
+      {
+        "id": "c18-b03",
+        "say": "For the supplied input one, minus zero point five, zero point two five, two, the base output is one point three seven five, minus zero point eight seven five, one. B initially gives no correction.",
+        "hold": 0.3
+      },
+      {
+        "id": "c18-b04",
+        "say": "After the two displayed B entries change, the same input produces one point two eight five, minus zero point eight seven five, one point one zero five. The explicit dense merge reproduces that result; this exercise does not perform training.",
+        "hold": 0.65
+      },
+      {
+        "id": "c18-b05",
+        "say": "Count arithmetic separately from parameters and latency. For one width-four-thousand-ninety-six projection at rank sixteen, first compute A x. Then multiply those sixteen values by B. Together the two products cost about two hundred sixty-two thousand floating-point operations per token, counting a multiply-add as two. The base costs about thirty-three point five million.",
+        "hold": 0.3
+      },
+      {
+        "id": "c18-b06",
+        "say": "That is roughly zero point seven eight percent additional projection arithmetic, excluding scale and addition, not a latency guarantee. Forming the full update separately would cost about two times width squared times rank.",
+        "hold": 0.8
+      }
+    ]
+  },
+  {
+    "id": "c19",
+    "title": "Turn the wrapper into an executed contract",
+    "sourceChapters": [
+      "c19"
+    ],
+    "beats": [
+      {
+        "id": "c19-b01",
+        "say": "The article executes a real PEFT wrapper on a tiny randomly initialized Qwen-two model, using PyTorch two point thirteen, Transformers five point sixteen point one and PEFT zero point twenty. It downloads no checkpoint.",
+        "hold": 0.3
+      },
+      {
+        "id": "c19-b02",
+        "say": "With all-linear rank two, it verifies seven matched projections and five hundred twelve adapter parameters, against three thousand four hundred eight original base parameters.",
+        "hold": 0.65
+      },
+      {
+        "id": "c19-b03",
+        "say": "The combined wrapped count is three thousand nine hundred twenty. The fixture checks that initialization preserves base output, base parameters stay frozen, and gradients reach the factors in the expected order across two steps. It saves the adapter, reloads the same seeded base with that adapter, and compares outputs before and after a supported merge.",
+        "hold": 0.65
+      },
+      {
+        "id": "c19-b04",
+        "say": "The tiny model matched seven projections and counted five hundred twelve trainable parameters. After the merge, its logits still agreed with the separate adapter path within tolerance. For the larger model, try rank sixteen and alpha thirty-two. Use all-linear targeting, set dropout to zero point zero five and choose causal language modeling. Before training, print the matched names and shapes and check the trainable count.",
+        "hold": 0.8
+      }
+    ]
+  },
+  {
+    "id": "c20",
+    "title": "New token IDs need learned rows",
+    "sourceChapters": [
+      "c20"
+    ],
+    "beats": [
+      {
+        "id": "c20-b01",
+        "say": "Adding tokenizer IDs does not itself resize the model tensors. Resize token embeddings before wrapping the model, then verify input and output dimensions. Newly allocated rows also need useful learned values. Attention-only adapters cannot directly train frozen input embeddings or a frozen output head.",
+        "hold": 0.65
+      },
+      {
+        "id": "c20-b02",
+        "say": "For untied input and output weights, configure and save the intended rows in both places. Training an input representation alone does not train its separate output readout. The checked all-linear selection excludes a pretrained model’s output layer. For tied weights, verify that the same tying survives wrapping and saving.",
+        "hold": 0.65
+      },
+      {
+        "id": "c20-b03",
+        "say": "Supported row-selective training can avoid saving a whole embedding matrix, but the relevant PEFT options are version-sensitive. Inspect trainable parameters, nonzero gradients and saved state for the new IDs, then reload and test generation. A lexical failure calls for this path check before another attention-rank increase.",
+        "hold": 0.8
+      }
+    ]
+  },
+  {
+    "id": "c21",
+    "title": "What has to fit on the GPU?",
+    "sourceChapters": [
+      "c21"
+    ],
+    "beats": [
+      {
+        "id": "c21-b01",
+        "say": "Take a separate example with a thirty-two gigabyte GPU. Sixteen gigabytes of frozen weights stay in memory. Freezing them lets us drop their parameter gradients and Adam moments. Add the buffers, the saved activations, and the adapter's own training state. With tickets a thousand twenty-four tokens long, those allocations total twenty-nine gigabytes in this example.",
+        "hold": 0.75
+      },
+      {
+        "id": "c21-b02",
+        "say": "Keep the same microbatch and adapter. Double each ticket to two thousand forty-eight tokens. In this example the saved activations grow from eight gigabytes to thirteen. The blue weights and the gray buffers stay put. The new peak is thirty-four gigabytes.",
+        "hold": 0.8
+      },
+      {
+        "id": "c21-b03",
+        "say": "Someone proposes a smaller rank. Suppose that halves the adapter state, from one gigabyte to half a gigabyte. All other allocations stay as shown. Would this version fit under the same limit?",
+        "hold": 2.2
+      },
+      {
+        "id": "c21-b04",
+        "say": "It still takes thirty-three and a half gigabytes. We're one and a half over. The longer tickets added five gigabytes of activations. That's where I'd measure the effect of checkpointing or a smaller microbatch. Include temporary buffers and any master weights when you profile the real job.",
+        "hold": 0.75
+      },
+      {
+        "id": "c21-b05",
+        "say": "What if the blue weights themselves take up too much room? QLoRA stores supported frozen weights in four-bit form and reconstructs them for computation. Scales, higher-precision tensors, trainable adapters and activations still need space. Let's count the base storage before we make another fit decision.",
+        "hold": 0.8
+      }
+    ]
+  },
+  {
+    "id": "c22",
+    "title": "A small adapter leaves the base and runtime bill",
+    "sourceChapters": [
+      "c22"
+    ],
+    "beats": [
+      {
+        "id": "c22-b01",
+        "say": "Use decimal gigabytes and fix the recipe. Seventy billion parameters with two-byte weights, two-byte gradients and two four-byte Adam moments require twelve bytes each: eight hundred forty gigabytes of model state. This excludes activations and temporaries. A separate four-byte master copy adds two hundred eighty, making one thousand one hundred twenty gigabytes.",
+        "hold": 0.65
+      },
+      {
+        "id": "c22-b02",
+        "say": "Freezing that base removes its parameter gradients and optimizer state, leaving a one hundred forty gigabyte sixteen-bit base floor plus adapter and runtime costs. Do not confuse this seventy-billion planning example with the QLoRA paper’s sixty-five-billion comparison.",
+        "hold": 0.3
+      },
+      {
+        "id": "c22-b03",
+        "say": "At sixty-five billion, the same full-training recipe gives seven hundred eighty gigabytes and its sixteen-bit frozen base is one hundred thirty.",
+        "hold": 0.65
+      },
+      {
+        "id": "c22-b04",
+        "say": "An ideal four-bit payload for sixty-five billion weights is thirty-two point five gigabytes. With the nested scale estimate we will derive, it is about thirty-three point five. Subtracting that floor from forty-eight leaves about fourteen point five gigabytes for every omitted allocation.",
+        "hold": 0.3
+      },
+      {
+        "id": "c22-b05",
+        "say": "Only a full measured run establishes fit; QLoRA reported one sixty-five-billion configuration on a forty-eight-gigabyte GPU. Its preservation of sixteen-bit fine-tuning performance was reported on the tasks it evaluated.",
+        "hold": 0.8
+      }
+    ]
+  },
+  {
+    "id": "c23",
+    "title": "Frozen weights still carry an upstream derivative",
+    "sourceChapters": [
+      "c23"
+    ],
+    "beats": [
+      {
+        "id": "c23-b01",
+        "say": "Freezing a parameter stops its parameter-gradient and optimizer-state updates. It does not remove that operation from the forward pass or every backward path. When an earlier adapter needs an input gradient through a frozen linear map, the gradient still multiplies by the base transpose. The graph retains or recomputes whatever the supported backward needs.",
+        "hold": 0.65
+      },
+      {
+        "id": "c23-b02",
+        "say": "At two thousand forty-eight tokens per ticket, activations can dominate the tiny adapter state. Many terms grow with batch, context and depth; a materialized attention-score matrix additionally grows quadratically with context length. Smaller rank will not repair every activation peak.",
+        "hold": 0.65
+      },
+      {
+        "id": "c23-b03",
+        "say": "Compare smaller microbatches, activation checkpointing and an attention implementation that avoids the full score matrix. Checkpointing trades saved activations for recomputation. Measure peak memory using the real context, microbatch and backward path, including temporary buffers. A small adapter file alone says little about the largest live allocation.",
+        "hold": 0.8
+      }
+    ]
+  },
+  {
+    "id": "c24",
+    "title": "Which four-bit code is nearest?",
+    "sourceChapters": [
+      "c24"
+    ],
+    "beats": [
+      {
+        "id": "c24-b01",
+        "say": "These sixteen marks are the numbers a four-bit code can select. Zero is one of the marks. Count outward and there are seven negatives and eight positives. This uneven spacing comes from a normal-distribution model. NF4 uses the bits as a lookup index.",
+        "hold": 0.3
+      },
+      {
+        "id": "c24-b02",
+        "say": "The normal distribution extends beyond any finite ruler. The sixteen stored levels have finite endpoints at minus one and one.",
+        "hold": 0.7
+      },
+      {
+        "id": "c24-b03",
+        "say": "Look at the four weights below. The largest absolute value is two. Divide each weight by two to put it on the ruler. The middle of the ruler is magnified now. The red pointer sits at positive one tenth. Which level, code eight or code nine, is closer?",
+        "hold": 2.2
+      },
+      {
+        "id": "c24-b04",
+        "say": "Positive one tenth is closer to code eight. Now look across zero. Negative one tenth lands closer to code six. The distances differ because the table is asymmetric. Zero takes code seven, and the largest weight lands exactly at code fifteen.",
+        "hold": 0.72
+      },
+      {
+        "id": "c24-b05",
+        "say": "Read code eight back out and multiply its level by two. That gives about zero point one five nine. On the negative side we get about minus zero point one eight two. Both started two tenths from zero. The positive weight moved farther, and zero survived exactly.",
+        "hold": 0.3
+      },
+      {
+        "id": "c24-b06",
+        "say": "This calculation checks the lookup. Packing the codes on a GPU and measuring training quality are separate tests.",
+        "hold": 0.85
+      }
+    ]
+  },
+  {
+    "id": "c25",
+    "title": "Account for scales and move the right memory pages",
+    "sourceChapters": [
+      "c25"
+    ],
+    "beats": [
+      {
+        "id": "c25-b01",
+        "say": "One FP32 scale for every sixty-four weights costs thirty-two divided by sixty-four, or zero point five bits per weight.",
+        "hold": 0.3
+      },
+      {
+        "id": "c25-b02",
+        "say": "Quantize each scale to eight bits and give each group of two hundred fifty-six scales one FP32 scale: eight divided by sixty-four plus thirty-two divided by the product of sixty-four and two hundred fifty-six is about zero point one two seven bits per weight.",
+        "hold": 0.65
+      },
+      {
+        "id": "c25-b03",
+        "say": "At sixty-five billion weights, that large-tensor scale estimate saves about three point zero three decimal gigabytes. It excludes incomplete blocks and small extra metadata. The paper describes eight-bit floating scales; the checked bitsandbytes implementation uses eight-bit codebook indices and retains a centering offset. Packed values, scale codes and parent scales all have to survive loading.",
+        "hold": 0.65
+      },
+      {
+        "id": "c25-b04",
+        "say": "Paged optimizers address another term. CUDA managed memory can migrate optimizer-state pages between host and GPU under memory pressure. These are not ordinary pinned host buffers or the serving engine’s adapter pages.",
+        "hold": 0.3
+      },
+      {
+        "id": "c25-b05",
+        "say": "Paging can relieve a peak but adds migration cost and cannot remove activation or base-weight allocations. It does not require backward and the optimizer step to run simultaneously. The paper’s reported equal speed at batch size sixteen belongs to its sixty-five-billion, forty-eight-gigabyte comparison.",
+        "hold": 0.8
+      }
+    ]
+  },
+  {
+    "id": "c26",
+    "title": "Inspect four precision choices and actual temporaries",
+    "sourceChapters": [
+      "c26"
+    ],
+    "beats": [
+      {
+        "id": "c26-b01",
+        "say": "Record four precision choices separately: packed base storage, dequantized computation, adapter parameter storage and optimizer state. Asking the base to compute in BF16 does not force the factors or moments to use BF16.",
+        "hold": 0.3
+      },
+      {
+        "id": "c26-b02",
+        "say": "The article’s pinned CPU wrapper keeps the base in BF16 but promotes both LoRA factors to FP32 by default; disabling adapter-dtype promotion retains BF16 factors.",
+        "hold": 0.65
+      },
+      {
+        "id": "c26-b03",
+        "say": "The checked PEFT troubleshooting guide documents this promotion. A later trainer can change it again. In TRL one point seventeen point one, the quantized-model path casts trainable LoRA parameters to BF16 while excluding the DoRA magnitude vector.",
+        "hold": 0.3
+      },
+      {
+        "id": "c26-b04",
+        "say": "Inspect the actual tensors after preparation, wrapping and trainer construction, rather than inferring their storage dtype from one load argument.",
+        "hold": 0.65
+      },
+      {
+        "id": "c26-b05",
+        "say": "Also inspect temporary allocations. In the checked bitsandbytes zero point fifty point two standard four-bit backward, computing input gradients materializes a dequantized weight matrix. Frozen packed weights therefore do not prove all dequantization stays in registers or shared memory.",
+        "hold": 0.3
+      },
+      {
+        "id": "c26-b06",
+        "say": "Run the supported k-bit preparation and adapter setup in the correct order, then profile the full target job; our CPU checks are not a full quantized GPU training run.",
+        "hold": 0.8
+      }
+    ]
+  },
+  {
+    "id": "c27",
+    "title": "The frozen base still has a gathering peak",
+    "sourceChapters": [
+      "c27"
+    ],
+    "beats": [
+      {
+        "id": "c27-b01",
+        "say": "Accelerate’s automatic device map is a Big Model Inference facility, not a distributed-training plan. Let the trainer or launcher use a supported training layout. A model that does not fit may need deliberate quantized training, FSDP or DeepSpeed with compatible adapter support.",
+        "hold": 0.65
+      },
+      {
+        "id": "c27-b02",
+        "say": "Build the optimizer from the intended trainable parameters. A sharded frozen base still obeys the wrapper’s materialization contract: an FSDP unit gathers its frozen weights before computing with that unit. Its peak includes gathered weights, activations, adapter state and temporary buffers.",
+        "hold": 0.3
+      },
+      {
+        "id": "c27-b03",
+        "say": "Block-level granularity can limit the gathered unit, but the exact wrapping and prefetch schedule matter.",
+        "hold": 0.65
+      },
+      {
+        "id": "c27-b04",
+        "say": "Compare the actual destination configuration, not just the adapter artifact size. Keep base revision, tokenizer, target matches, quantization, optimizer, schedule and data state with a resumable run. A saved adapter is an inference component; complete training continuation additionally needs its numerical and data history.",
+        "hold": 0.8
+      }
+    ]
+  },
+  {
+    "id": "c28",
+    "title": "Fold the correction into the base",
+    "sourceChapters": [
+      "c28"
+    ],
+    "beats": [
+      {
+        "id": "c28-b01",
+        "say": "After training, compute the scaled factor product and add it to the base matrix. Distributing multiplication over that sum proves the merged layer has the same mathematical response as the two paths.",
+        "hold": 0.8
+      },
+      {
+        "id": "c28-b02",
+        "say": "A merged artifact uses an ordinary dense layer. Compare its outputs in evaluation mode, with dropout disabled. Floating-point arithmetic can introduce small rounding differences, so use an appropriate numerical tolerance.",
+        "hold": 0.75
+      },
+      {
+        "id": "c28-b03",
+        "say": "For several tasks, keeping adapters separate preserves one shared base. Each request selects its own factors. Preserve the exact base revision alongside every adapter so loading, comparison, and rollback remain reproducible.",
+        "hold": 0.75
+      }
+    ]
+  },
+  {
+    "id": "c29",
+    "title": "Save the adapter before unloading its path",
+    "sourceChapters": [
+      "c29"
+    ],
+    "beats": [
+      {
+        "id": "c29-b01",
+        "say": "Save the separate adapter before merging. The checked merge-and-unload call modifies the wrapped base, removes adapter machinery and returns the dense underlying model. Assign and use that return value. Preserve a clean base revision and adapter for rollback; calling merge is not a way to retain an untouched wrapped base automatically.",
+        "hold": 0.65
+      },
+      {
+        "id": "c29-b02",
+        "say": "For the article’s exact two-by-two example, the scaled update changes the merged weights to rows two, one and five, two. Applied to input two, one, that produces five, twelve, matching both original paths. In actual floating-point evaluation use a justified tolerance and disable dropout. Bitwise equality is not the mathematical identity’s guarantee.",
+        "hold": 0.65
+      },
+      {
+        "id": "c29-b03",
+        "say": "If an adapter trained against a quantized base is reloaded onto BF16 weights for export, it now acts on a different numerical base. Re-evaluate the merged export, then separately re-evaluate any re-quantized version. Backend support differs.",
+        "hold": 0.3
+      },
+      {
+        "id": "c29-b04",
+        "say": "Keep trained adapter, source base, merged artifact and any quantized export distinguishable; resume requires original training state rather than merging an adapter twice.",
+        "hold": 0.8
+      }
+    ]
+  },
+  {
+    "id": "c30",
+    "title": "Give each output row its own magnitude",
+    "sourceChapters": [
+      "c30"
+    ],
+    "beats": [
+      {
+        "id": "c30-b01",
+        "say": "DoRA makes magnitude explicit. In our PyTorch output-by-input layout, form V equals W zero plus scaled B A. Divide each row of V by its own nonzero Euclidean norm, then multiply that row by its learned magnitude m. There is one magnitude scalar per output row, broadcast across that row’s input coordinates.",
+        "hold": 0.65
+      },
+      {
+        "id": "c30-b02",
+        "say": "Initialize B to zero and each magnitude to the corresponding base-row norm. The normalized direction times its original norm reconstructs the exact base row, so the adapter starts as a no-op. Later, directional factors and magnitude can both change. The nonzero-row assumption matters for the displayed division.",
+        "hold": 0.3
+      },
+      {
+        "id": "c30-b03",
+        "say": "For a supported merge, store the final normalized and rescaled rows in one dense matrix. Each row carries its own magnitude into the export.",
+        "hold": 0.65
+      },
+      {
+        "id": "c30-b04",
+        "say": "For four outputs, six inputs and rank two, LoRA has two times six plus four times two, or twenty parameters. DoRA adds four magnitudes, twenty percent extra.",
+        "hold": 0.3
+      },
+      {
+        "id": "c30-b05",
+        "say": "For a square width-four-thousand-ninety-six rank-sixteen layer, it adds four thousand ninety-six to one hundred thirty-one thousand seventy-two, or three point one two five percent. The output-row axis determines the count; a square matrix would hide an axis mistake.",
+        "hold": 0.8
+      }
+    ]
+  },
+  {
+    "id": "c31",
+    "title": "What does the row length contribute to the gradient?",
+    "sourceChapters": [
+      "c31"
+    ],
+    "beats": [
+      {
+        "id": "c31-b01",
+        "say": "Start with the row three, four. Its length is five and its learned magnitude is five. The input reads just the first coordinate, so the output is three. Now double both coordinates to six and eight. The row is ten units long. With the learned magnitude still five, what output will that input see?",
+        "hold": 2.2
+      },
+      {
+        "id": "c31-b02",
+        "say": "Three again. Doubling the row also doubled the number we divide by. Both implementations recompute that length on every forward pass. Now rewind to three, four. When we differentiate the output, do we also follow the path through the length?",
+        "hold": 0.85
+      },
+      {
+        "id": "c31-b03",
+        "say": "The paper's efficient backward pass and the PEFT version in the article hold the denominator fixed. That leaves the direct gradient, one, zero. For full differentiation, subtract its projection along the row. Divide three, four by five to get the unit direction, point six, point eight. Its dot product with the direct gradient is point six.",
+        "hold": 0.3
+      },
+      {
+        "id": "c31-b04",
+        "say": "That subtraction takes away point three six horizontally and point four eight vertically. The full gradient ends at point six four, minus point four eight. With A set to the identity and B to zero, the article checks the actual B gradient against the detached rule.",
+        "hold": 0.85
+      },
+      {
+        "id": "c31-b05",
+        "say": "Test those arrows against the stretch you just saw. For a small change along three, four, take the dot product with each gradient. The detached rule gives three. The full derivative gives zero. That zero explains why changing the length alone left the normalized output unmoved.",
+        "hold": 0.3
+      },
+      {
+        "id": "c31-b06",
+        "say": "The detached rule deliberately sends a different training signal. It still recomputes the length on the next forward pass.",
+        "hold": 0.82
+      },
+      {
+        "id": "c31-b07",
+        "say": "The numbers below compare changes in magnitude and direction in the paper's VL-BART study. Those correlations describe the layers and checkpoints in that study. An additive update can rotate a row too. Compare quality and training cost on your own task before choosing the variant.",
+        "hold": 0.8
+      }
+    ]
+  },
+  {
+    "id": "c32",
+    "title": "One shared base can serve different corrections",
+    "sourceChapters": [
+      "c32"
+    ],
+    "beats": [
+      {
+        "id": "c32-b01",
+        "say": "Choose the serving contract from traffic. A merged single-adapter model removes its low-rank branch. Dynamic adapters keep one shared base and select the corresponding factors per request. Several merged artifacts can coexist on disk without being simultaneously resident on GPUs; count disk, host memory, device weights, KV cache and runtime buffers separately.",
+        "hold": 0.65
+      },
+      {
+        "id": "c32-b02",
+        "say": "Suppose each merged checkpoint takes fourteen gigabytes. Fifty copies take seven hundred gigabytes on disk. Now keep one base and fifty adapters at a hundred twenty-eight megabytes each. How much disk space do they need? Count the base once and add the adapter files. Together they take twenty point four gigabytes. The merged copies use about thirty-four times as much disk space. Suppose four of the next five requests use the policy adapter. If that pattern holds, a dedicated merged model could handle the policy traffic. The other adapters can keep sharing a base.",
+        "hold": 0.65
+      },
+      {
+        "id": "c32-b03",
+        "say": "Punica’s Segmented Gather Matrix-Vector operation supports heterogeneous adapters sharing base computation. For row-stored requests, the base product is X W zero transpose, and adapter i adds its scale times X i A i transpose B i transpose.",
+        "hold": 0.3
+      },
+      {
+        "id": "c32-b04",
+        "say": "S-LoRA instead highlights a common engine-managed pool for adapter and KV tensors, with noncontiguous pages and prefetching. This serving paging is distinct from managed-memory optimizer paging. Actual admission and batching still depend on ranks, shapes, memory and runtime support.",
+        "hold": 0.8
+      }
+    ]
+  },
+  {
+    "id": "c33",
+    "title": "Let the task decide the useful rank",
+    "sourceChapters": [
+      "c33"
+    ],
+    "beats": [
+      {
+        "id": "c33-b01",
+        "say": "Compare two fictional policy runs on the same held-out tickets. Rank eight and rank sixteen use the same modules, training examples and explicit multiplier. Doubling the width doubles the trainable factor count. Each run needs nineteen correct on each set.",
+        "hold": 1.5
+      },
+      {
+        "id": "c33-b02",
+        "say": "Rank eight gets nineteen policy and nineteen routine tickets right. Rank sixteen gets twenty policy and eighteen routine. Its training loss fell further. Which run would you keep? Which row decides it?",
+        "hold": 2
+      },
+      {
+        "id": "c33-b03",
+        "say": "Keep rank eight in this comparison. The routine row puts rank sixteen below the release threshold. Inspect those missed replies before paying for more directions. If both runs miss the new skill, compare data, target coverage and rank under the same evaluation.",
+        "hold": 1.1
+      }
+    ]
+  },
+  {
+    "id": "c34",
+    "title": "Let the failure choose the next comparison",
+    "sourceChapters": [
+      "c34"
+    ],
+    "beats": [
+      {
+        "id": "c34-b01",
+        "say": "Build one reproducible baseline before sweeping. The article proposes ranks eight and sixteen, illustrative adapter learning rates one times ten to the minus four and two times ten to the minus four, dropout zero or zero point zero five, and query-value versus all-linear targeting.",
+        "hold": 0.3
+      },
+      {
+        "id": "c34-b02",
+        "say": "Start with rank eight. Copy that run and change the copy to rank sixteen. Keep the ordinary LoRA multiplier at two. That takes an alpha of sixteen in the first run and thirty-two in the second. Keep the learning rate, dropout and target layers fixed. Use the same training examples, supervised tokens per step and held-out tickets. Now compare the replies.",
+        "hold": 0.9
+      },
+      {
+        "id": "c34-b03",
+        "say": "If neither training loss nor policy behavior moves, inspect formatting, masks, actual target modules and gradients before buying rank. Compare broader MLP coverage when the narrower target path misses the needed transformation. If higher rank increases cost without held-out quality, check scale and data.",
+        "hold": 0.3
+      },
+      {
+        "id": "c34-b04",
+        "say": "If training improves while held-out behavior worsens, investigate data quality, regularization and regressions rather than treating the lower training loss as a deployment win.",
+        "hold": 0.65
+      },
+      {
+        "id": "c34-b05",
+        "say": "Compare the policy replies, routine replies and false refusals at each rank. Record validation loss, peak memory and latency alongside them. Try a format check. Both ranks reply with the word routine. The caller expects a JSON object. Which parts of the training reply count toward the loss? Here, only the value counts. Include the field name and braces in the loss and retest. For a missed fact, check the rule supplied with the example. For a missing new token, check its embedding and output rows. Both stay frozen with these query and value adapters. For a slow reply, trace where the adapter loads and runs.",
+        "hold": 0.85
+      },
+      {
+        "id": "c34-b06",
+        "say": "A merge can address a single-adapter serving path; a full fine-tuning comparison can test a genuinely broader adaptation need. Preserve the same cases so the next experiment answers one specific question.",
+        "hold": 0.8
+      }
+    ]
+  },
+  {
+    "id": "c35",
+    "title": "Which change earns a release?",
+    "sourceChapters": [
+      "c35"
+    ],
+    "beats": [
+      {
+        "id": "c35-b01",
+        "say": "Return to the ticket from the opening. Here are the weights behind that gold strip. A negative score keeps the ticket in routine review. Zero or above sends it to the rotation owner. The input is two, one. Use the frozen row for the blue score.",
+        "hold": 0.3
+      },
+      {
+        "id": "c35-b02",
+        "say": "Now calculate the gold strip from the thin factors. What number leaves A? What does B send on to the scale of two?",
+        "hold": 2.2
+      },
+      {
+        "id": "c35-b03",
+        "say": "The frozen row gives minus two plus one, or minus one. On the other path, two minus a half leaves one and a half. B halves that to three quarters. Scaling by two gives a correction of one and a half.",
+        "hold": 0.3
+      },
+      {
+        "id": "c35-b04",
+        "say": "Add the correction to the frozen score. Start at minus one, cross zero, and stop at positive one half. Send this ticket to the rotation owner.",
+        "hold": 0.9
+      },
+      {
+        "id": "c35-b05",
+        "say": "Now pull out the two sets we reserved. These are separate, fictional evaluation results. On the twenty policy tickets the candidate gets nineteen correct. On the routine reviews it gets eighteen correct. Look at ticket seven.",
+        "hold": 0.3
+      },
+      {
+        "id": "c35-b06",
+        "say": "Its key was only twelve days old, yet the assistant sent it to the owner. That second set falls below ninety-five percent. Hold this candidate. Keep the clean base and the separate adapter so you can inspect the missed replies.",
+        "hold": 0.9
+      },
+      {
+        "id": "c35-b07",
+        "say": "Two follow-up candidates each fix exactly one ticket. Candidate A fixes policy ticket twenty. Candidate B fixes routine ticket seven instead. Everything else matches the original run. Which candidate gets at least nineteen right in both sets?",
+        "hold": 2.2
+      },
+      {
+        "id": "c35-b08",
+        "say": "Try A first. Policy ticket twenty moves to the rotation owner. Its row is now perfect. The two missed routine reviews are still there. A gets thirty-eight correct overall, but routine reviews stay at eighteen. Hold A.",
+        "hold": 0.85
+      },
+      {
+        "id": "c35-b09",
+        "say": "Go back to the original answers and try B. Ticket seven returns to routine review. That brings routine reviews up to nineteen, alongside nineteen on policy. Both candidates got thirty-eight right. Only B passes the release rule.",
+        "hold": 0.3
+      },
+      {
+        "id": "c35-b10",
+        "say": "Keep that adapter with the exact base and ticket format you tested. To resume training after preemption, keep the optimizer state, schedule and data position too. Training Run Operations picks up there, with global batch size and learning-rate scaling.",
+        "hold": 1.05
+      }
+    ]
+  }
+]

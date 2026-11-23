@@ -1,0 +1,195 @@
+version: 1
+lesson: model-monitoring
+promise: Decide whether to score a job, repair its input path, wait for labels, keep a candidate or
+  propose rollback using the evidence available at the cutoff.
+objectives:
+  - id: validate-trace
+    can: Use snapshot time to admit or block a job, check its source trace and find a serving
+      transform that passes at one staffed capacity and fails at another.
+    scenes:
+      - intro
+      - two-clocks
+      - request-gate
+      - parity-probe
+  - id: diagnose-shift
+    can: Compute PSI and interpret KS, Wasserstein and population mixtures without turning input
+      movement into an accuracy verdict.
+    scenes:
+      - drift-diagnostic
+      - psi-derive
+      - drift-continuous
+      - drift-taxonomy
+  - id: evaluate-outcomes
+    can: Use due and ingestion times to reconstruct a mature cohort. Replay a threshold against
+      its joined labels to measure precision, recall and error cost, and assess calibration
+      within the observed intervention regime.
+    scenes:
+      - delayed-labels
+      - as-of-cohorts
+      - decision-quality
+      - calibration
+  - id: gate-release
+    can: Preserve the release artifacts, assign a stable canary and apply the release rule to
+      incomplete and fully labeled cohorts. Normalize cost to the same number of predictions
+      before choosing an alias, then identify what would verify recovery.
+    scenes:
+      - evidence-triage
+      - immutable-candidate
+      - staged-rollout
+      - release-gates
+      - rollback-conditions
+      - wrap
+      - fresh-monitoring
+sections:
+  - heading: Start with a served release and feature traces
+    status: taught
+    scenes:
+      - intro
+      - two-clocks
+      - immutable-candidate
+  - heading: Block invalid inputs before waiting for labels
+    status: taught
+    note: At noon, s-104 has a 180-minute-old snapshot. The five-minute-old s-105 snapshot records a 30-hour heartbeat age.
+    scenes:
+      - intro
+      - request-gate
+  - heading: Measure drift without calling it failure
+    status: taught
+    scenes:
+      - drift-diagnostic
+      - psi-derive
+  - heading: Deriving the Population Stability Index
+    status: taught
+    scenes:
+      - psi-derive
+  - heading: "Continuous Drift Metrics: KS-Test and Wasserstein Distance"
+    status: taught
+    scenes:
+      - drift-continuous
+  - heading: "The Drift Taxonomy: Covariate Shift, Concept Drift, and Label Drift"
+    status: taught
+    scenes:
+      - drift-taxonomy
+  - heading: Reproduce training-serving skew
+    status: taught
+    note: The two transforms agree at capacity 100. Capacities 50 and 200 expose the hard-coded serving divisor.
+    scenes:
+      - parity-probe
+  - heading: Join delayed labels back to stored predictions
+    status: taught
+    note: Moving only p-005's ingestion from 11:00 to 13:00 changes the noon join from five labels to four while five windows remain mature.
+    scenes:
+      - delayed-labels
+      - as-of-cohorts
+      - wrap
+  - heading: The Anatomy of the Delayed Label Problem
+    status: taught
+    scenes:
+      - as-of-cohorts
+  - heading: Proxy Metrics While Waiting for Labels
+    status: taught
+    scenes:
+      - as-of-cohorts
+  - heading: Evaluate decisions and calibration
+    status: taught
+    note: Replaying the five complete rows at 0.80 spares p-004's false alert and loses p-003's true alert. Calibration uses the original scores and outcome groups.
+    scenes:
+      - decision-quality
+      - calibration
+  - heading: Triage repair, inspection, and retraining separately
+    status: taught
+    scenes:
+      - evidence-triage
+  - heading: Freeze an immutable candidate bundle
+    status: taught
+    scenes:
+      - immutable-candidate
+  - heading: Deployment strategies and canary health gates
+    status: taught
+    note: Two admitted jobs carry 75 of 100 requests in the four-job log. Each fast canary measurement has its own budget.
+    scenes:
+      - staged-rollout
+      - release-gates
+  - heading: Simulate promotion and rehearse rollback
+    status: taught
+    note: With complete labels, 36 raw error units place an 800-job window below the 50-per-thousand limit and a 600-job window above it.
+    scenes:
+      - rollback-conditions
+      - fresh-monitoring
+  - heading: When monitoring breaks
+    status: taught
+    scenes:
+      - wrap
+      - fresh-monitoring
+quiz:
+  - n: 1
+    status: taught
+    scenes:
+      - intro
+      - two-clocks
+      - request-gate
+  - n: 2
+    status: taught
+    scenes:
+      - psi-derive
+      - drift-diagnostic
+  - n: 3
+    status: taught
+    scenes:
+      - drift-continuous
+  - n: 4
+    status: taught
+    scenes:
+      - drift-taxonomy
+  - n: 5
+    status: taught
+    scenes:
+      - parity-probe
+  - n: 6
+    status: taught
+    scenes:
+      - delayed-labels
+      - as-of-cohorts
+      - fresh-monitoring
+  - n: 7
+    status: taught
+    scenes:
+      - calibration
+      - decision-quality
+  - n: 8
+    status: taught
+    scenes:
+      - immutable-candidate
+  - n: 9
+    status: taught
+    scenes:
+      - staged-rollout
+  - n: 10
+    status: taught
+    scenes:
+      - rollback-conditions
+      - fresh-monitoring
+removed: []
+reviews:
+  closed_book:
+    script: c30a29c4a9deb6df
+    taught: 10
+    partial: 0
+    absent: 0
+  fact_check:
+    script: c30a29c4a9deb6df
+    open_findings: 0
+practice:
+  - source_question: 8
+    status: taught
+    scenes:
+      - calibration
+    note: Former independently accepted scored item retained as an unscored contextual checkpoint before
+      the mastery quiz.
+  - source_question: 11
+    status: taught
+    scenes:
+      - release-gates
+      - rollback-conditions
+    note: Former independently accepted scored item retained as an unscored contextual checkpoint before
+      the mastery quiz.

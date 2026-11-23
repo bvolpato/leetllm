@@ -1,0 +1,199 @@
+version: 1
+lesson: vectors
+promise: Trace scalar/vector coordinates through shared linear maps and owned batches;
+  compute and diagnose matrix shapes,broadcasts,pairwise scores,normalization and masked
+  summaries without mixing their axes.
+framing:
+  - intro
+objectives:
+  - id: coordinate-meaning
+    can: Distinguish feature,parameter and gradient positions and compute their update or
+      dot product.
+    scenes:
+      - coordinates
+      - latency-gradient
+      - latency-dot
+  - id: shared-map
+    can: Build a shared map from scaled input directions and preserve each request/token
+      owner.
+    scenes:
+      - directions
+      - mixture
+      - dot
+      - composition
+      - rows
+      - tensor
+      - local-edit
+      - request-batch
+      - many-outputs
+  - id: shape-and-index
+    can: Check feature agreement,rank and indexing,including when equal sizes conceal an
+      axis mistake.
+    scenes:
+      - tensor
+      - shape-guard
+      - input-guards
+      - batched-transpose
+  - id: broadcast-and-linear
+    can: Attach biases to features and recognize the transposed storage of a library layer.
+    scenes:
+      - broadcasting
+      - linear-api
+  - id: pairwise
+    can: Construct raw and cosine token-score grids with correct norms and batched
+      transpose.
+    scenes:
+      - pairwise-scores
+      - normalized-scores
+      - batched-transpose
+  - id: pool-and-transfer
+    can: Pool only real tokens,recognize lost order and predict an unfamiliar local edit.
+    scenes:
+      - pooling
+      - padding-mask
+      - fresh-case
+sections:
+  - heading: Start with the vector you already computed
+    status: taught
+    scenes:
+      - coordinates
+      - latency-gradient
+  - heading: Let aligned features make one prediction
+    status: taught
+    scenes:
+      - latency-dot
+      - dot
+  - heading: Stack requests into a matrix
+    status: taught
+    scenes:
+      - request-batch
+      - rows
+  - heading: Use a matrix to make several outputs
+    status: taught
+    scenes:
+      - many-outputs
+      - directions
+      - mixture
+  - heading: Match inner dimensions before multiplying
+    status: taught
+    scenes:
+      - shape-guard
+  - heading: Add token and batch axes with tensors
+    status: taught
+    scenes:
+      - tensor
+      - shape-guard
+  - heading: Project each token without mixing positions
+    status: taught
+    scenes:
+      - directions
+      - mixture
+      - composition
+      - rows
+      - tensor
+      - local-edit
+      - fresh-case
+  - heading: Treat broadcasting as an axis decision
+    status: taught
+    scenes:
+      - broadcasting
+  - heading: Read a score grid as repeated dot products
+    status: taught
+    scenes:
+      - pairwise-scores
+      - normalized-scores
+      - batched-transpose
+  - heading: "Build it: trace one tiny prompt projection"
+    status: taught
+    scenes:
+      - input-guards
+      - pooling
+  - heading: Exclude padding from the mean
+    status: taught
+    scenes:
+      - padding-mask
+      - fresh-case
+  - heading: Recognize the contract inside a neural-network layer
+    status: taught
+    scenes:
+      - linear-api
+  - heading: Test shapes before code
+    status: taught
+    scenes:
+      - tensor
+      - shape-guard
+      - broadcasting
+      - batched-transpose
+      - fresh-case
+  - heading: Solution sketches
+    status: taught
+    scenes:
+      - tensor
+      - shape-guard
+      - broadcasting
+      - batched-transpose
+      - fresh-case
+  - heading: Carry shape contracts forward
+    status: taught
+    scenes:
+      - fresh-case
+quiz:
+  - n: 1
+    status: taught
+    scenes:
+      - latency-dot
+  - n: 2
+    status: taught
+    scenes:
+      - latency-dot
+      - dot
+  - n: 3
+    status: taught
+    scenes:
+      - many-outputs
+      - request-batch
+  - n: 4
+    status: taught
+    scenes:
+      - shape-guard
+      - input-guards
+  - n: 5
+    status: taught
+    scenes:
+      - tensor
+      - linear-api
+  - n: 6
+    status: taught
+    scenes:
+      - broadcasting
+  - n: 7
+    status: taught
+    scenes:
+      - pairwise-scores
+      - normalized-scores
+  - n: 8
+    status: taught
+    scenes:
+      - padding-mask
+  - n: 9
+    status: taught
+    scenes:
+      - tensor
+  - n: 10
+    status: taught
+    scenes:
+      - batched-transpose
+removed: []
+reviews:
+  closed_book:
+    script: ada2b202fe98a89c
+    taught: 10
+    partial: 0
+    absent: 0
+    reviewer: /root/upgrade_shard2
+    evidence: build/video-delivery-20261106/script-reviews/vectors.json
+  fact_check:
+    script: ada2b202fe98a89c
+    open_findings: 0
+    reviewer: /root/upgrade_shard2
+    evidence: build/video-delivery-20261106/script-reviews/vectors.json

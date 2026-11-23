@@ -1,0 +1,1292 @@
+version: 1
+id: embedding-projection
+title: Looking at High Dimensions Through a Small Window
+source: fundamentals/dimensionality-reduction-embeddings/content.md
+voice: en-US-AndrewNeural
+rate: +0%
+sources:
+  - title: "van der Maaten and Hinton: Visualizing Data using t-SNE"
+    url: https://www.jmlr.org/papers/v9/vandermaaten08a.html
+  - title: "McInnes, Healy, and Melville: UMAP"
+    url: https://arxiv.org/abs/1802.03426
+  - title: "scikit-learn: Principal component analysis"
+    url: https://scikit-learn.org/stable/modules/generated/sklearn.decomposition.PCA.html
+  - title: Dasgupta and Gupta JL proof
+    url: https://cseweb.ucsd.edu/~dasgupta/papers/jl.pdf
+  - title: Achlioptas database-friendly projections
+    url: https://doi.org/10.1016/S0022-0000(03)00025-4
+  - title: UMAP effective loss
+    url: https://arxiv.org/abs/2103.14608
+  - title: Faiss vector indexes and byte accounting
+    url: https://github.com/facebookresearch/faiss/wiki/Faiss-indexes
+  - title: Product Quantization original paper
+    url: https://doi.org/10.1109/TPAMI.2010.57
+  - title: Qdrant quantization configuration
+    url: https://qdrant.tech/documentation/manage-data/quantization/
+  - title: Qdrant 1.18 release
+    url: https://qdrant.tech/blog/qdrant-1.18.x/
+  - title: Matryoshka representation learning
+    url: https://arxiv.org/abs/2205.13147
+  - title: Sentence Transformers prefix losses
+    url: https://sbert.net/docs/package_reference/sentence_transformer/losses.html#matryoshkaloss
+  - title: Official supported embedding dimensions
+    url: https://developers.openai.com/api/docs/guides/embeddings
+scenes:
+  - id: opening
+    title: A useful picture and a useful index solve different problems
+    visual: A high-dimensional policy vector divides into a two-dimensional inspection map and a smaller
+      candidate serving representation, each with a separate quality check.
+    beats:
+      - say: A policy assistant receives the right question but retrieves the wrong clause. An engineer opens a
+          two-dimensional map to see how the policy embeddings are arranged. The picture can help locate
+          confusing neighbors, while the serving index still needs its own test.
+        hold: 0.6
+        visual_cues:
+          - id: opening-beat-1-focus-1
+            phrase: An engineer opens a two-dimensional map to see
+            targets:
+              - opening-mechanism
+            color: blue
+            linger: 0.6
+          - id: opening-beat-1-focus-2
+            phrase: A policy assistant receives the right question but retrieves the wrong clause
+            targets:
+              - opening-mechanism
+            color: blue
+            linger: 0.6
+      - say: Dimensionality reduction maps a long vector into fewer coordinates. One goal is easier inspection on
+          a screen. Another is cheaper storage and search. The transformations may look similar in a
+          diagram, but they preserve different properties.
+        hold: 0.65
+        visual_cues:
+          - id: opening-beat-2-focus-1
+            phrase: Dimensionality reduction maps a long vector into fewer coordinates
+            targets:
+              - opening-mechanism
+            color: blue
+            linger: 0.6
+      - say: We will watch a projection collapse a real distance, compare linear and neighborhood maps, and
+          measure whether the nearest neighbors survive. Then we will separate a diagnostic picture from
+          a production retrieval candidate.
+        hold: 0.7
+        visual_cues:
+          - id: opening-beat-3-focus-1
+            phrase: We will watch a projection collapse a real distance
+            targets:
+              - opening-mechanism
+            color: blue
+            linger: 0.6
+  - id: budget
+    title: Count the memory before choosing a reduction
+    visual: A 1,536-coordinate vector folds into 256 coordinates. Repeated across ten million records, the
+      exact raw-array memory falls from 61.44 to 10.24 decimal gigabytes.
+    beats:
+      - say: A vector with one thousand five hundred thirty-six float32 coordinates uses four bytes per
+          coordinate. That is six thousand one hundred forty-four bytes for one raw vector, before its
+          index graph or metadata.
+        hold: 0.6
+        visual_cues:
+          - id: budget-beat-1-focus-1
+            phrase: A vector with one thousand five hundred thirty-six
+            targets:
+              - budget-mechanism
+            color: blue
+            linger: 0.6
+      - say: Across the same ten million records, shortening each vector cuts the raw array to one sixth of its
+          original size. The ledger keeps both byte counts visible. That saving can make room for a
+          larger index or reduce the machines needed to hold it.
+        hold: 0.7
+        motion_check:
+          region:
+            - 250
+            - 340
+            - 1450
+            - 530
+          minimumChangedFraction: 0.002
+        visual_cues:
+          - id: budget-beat-2-focus-1
+            phrase: Across the same ten million records
+            targets:
+              - budget-mechanism
+            color: blue
+            linger: 0.6
+      - say: The coordinate reduction saves six times on this raw vector array. The calculation makes a capacity
+          opportunity visible. Retrieval quality and index overhead remain separate measurements.
+        hold: 0.7
+        visual_cues:
+          - id: budget-beat-3-focus-1
+            phrase: The coordinate reduction saves six times on this raw vector array
+            targets:
+              - budget-mechanism
+            color: blue
+            linger: 0.6
+  - id: projection
+    title: A projection can fold distant points together
+    visual: Four exact three-dimensional points project onto the x-y plane. A point eight units away on the
+      dropped z-axis lands directly on the origin in the map.
+    beats:
+      - say: "Use four points in three dimensions: A at zero, B at one along x, C at two along y, and D at eight
+          along z. Their distances from A are zero, one, two, and eight units."
+        hold: 0.6
+        visual_cues:
+          - id: projection-beat-1-focus-1
+            phrase: "Use four points in three dimensions: A at zero"
+            targets:
+              - projection-mechanism
+            color: blue
+            linger: 0.6
+          - id: all-four
+            phrase: Use four points in three dimensions
+            targets:
+              - projection-mechanism
+            linger: 0.5
+      - say: Project onto the x-y plane by keeping the first two coordinates and dropping z. A and D both appear
+          at zero, even though their original distance was eight. B and C still sit one and two units
+          away in their directions.
+        hold: 0.7
+        visual_cues:
+          - id: projection-beat-2-focus-1
+            phrase: Project onto the x-y plane by keeping the
+            targets:
+              - projection-mechanism
+            color: blue
+            linger: 0.6
+          - id: drop-z
+            phrase: dropping z
+            targets:
+              - projection-mechanism
+            linger: 0.5
+          - id: drop-collision
+            phrase: A and D both appear at zero
+            targets:
+              - projection-mechanism
+            linger: 0.5
+      - say: "This tiny projection exposes the central tradeoff: a lower-dimensional map has fewer coordinates,
+          and the dropped coordinates can carry distinctions. The experiment must name which
+          relationships it intends to preserve."
+        hold: 0.7
+        visual_cues:
+          - id: projection-beat-3-focus-1
+            phrase: "This tiny projection exposes the central tradeoff: a"
+            targets:
+              - projection-mechanism
+            color: blue
+            linger: 0.6
+  - id: methods
+    title: Linear variance and local neighbors are different targets
+    visual: A centered point cloud rotates onto its leading variance direction beside a separate
+      local-neighbor graph whose edge list remains explicit.
+    beats:
+      - say: Principal component analysis, or PCA, is a linear projection. It finds directions with large
+          variation across the fitted data, then maps points onto the leading directions. Its objective
+          measures how much overall variance remains.
+        hold: 0.6
+        visual_cues:
+          - id: methods-beat-1-focus-1
+            phrase: It finds directions with large variation across the fitted data
+            targets:
+              - methods-mechanism
+            color: blue
+            linger: 0.6
+          - id: methods-beat-1-focus-2
+            phrase: Principal component analysis
+            targets:
+              - methods-mechanism
+            color: blue
+            linger: 0.6
+          - id: axis-sweep
+            phrase: directions with large variation
+            targets:
+              - methods-mechanism
+            linger: 0.5
+          - id: axis-project
+            phrase: then maps points onto the leading directions
+            targets:
+              - methods-mechanism
+            linger: 0.5
+      - say: "A nearest-neighbor map asks a different question: which points should remain local neighbors? t-SNE
+          and UMAP build low-dimensional layouts around neighborhood relationships, using different
+          probability or graph objectives."
+        hold: 0.65
+        visual_cues:
+          - id: methods-beat-2-focus-1
+            phrase: "A nearest-neighbor map asks a different question: which"
+            targets:
+              - methods-mechanism
+            color: blue
+            linger: 0.6
+          - id: methods-beat-2-focus-2
+            phrase: "different question: which points should remain local neighbors"
+            targets:
+              - methods-mechanism
+            color: blue
+            linger: 0.6
+      - say: A high-variance direction may reflect a broad topic. A low-variance direction can distinguish two
+          policy clauses that a user needs kept apart. Compare neighbor lists and judged retrieval
+          queries alongside explained variance.
+        hold: 0.7
+        visual_cues:
+          - id: methods-beat-3-focus-1
+            phrase: A high-variance direction may reflect a broad topic
+            targets:
+              - methods-mechanism
+            color: blue
+            linger: 0.6
+  - id: tsne
+    title: t-SNE pulls a pair whose neighbor probability is lost
+    visual: A local pair receives probability 0.10 in the original space and 0.01 in the map. Bringing it
+      closer raises its map probability and reduces its illustrative KL term.
+    beats:
+      - say: t-SNE turns high-dimensional distances into probabilities of neighboring pairs. It adjusts points in
+          the map to make its pair probabilities agree with those original neighborhoods.
+        hold: 0.6
+        visual_cues:
+          - id: tsne-beat-1-focus-1
+            phrase: make its pair probabilities agree with those original
+            targets:
+              - tsne-mechanism
+            color: blue
+            linger: 0.6
+          - id: tsne-beat-1-focus-2
+            phrase: It adjusts points in the map to make
+            targets:
+              - tsne-mechanism
+            color: blue
+            linger: 0.6
+      - say: For one illustrative pair, suppose the original probability is zero point one zero and the map
+          probability is zero point zero one. Its contribution, p times the natural log of p over q, is
+          about zero point two three zero.
+        hold: 0.65
+        visual_cues:
+          - id: tsne-beat-2-focus-1
+            phrase: suppose the original probability is zero point one
+            targets:
+              - tsne-mechanism
+            color: blue
+            linger: 0.6
+          - id: tsne-beat-2-focus-2
+            phrase: zero point one zero and the map probability
+            targets:
+              - tsne-mechanism
+            color: blue
+            linger: 0.6
+      - say: Move that pair closer until the map probability reaches zero point one zero. This pair's
+          contribution falls to zero. The full objective sums many pairs, so this single example shows
+          one force in the layout rather than the entire fitted optimization.
+        hold: 0.75
+        visual_cues:
+          - id: tsne-beat-3-focus-1
+            phrase: Move that pair closer until the map probability
+            targets:
+              - tsne-mechanism
+            color: blue
+            linger: 0.6
+  - id: umap
+    title: UMAP joins directed neighborhood strengths
+    visual: Two directed neighbor links carry weights 0.80 and 0.60. A fuzzy union combines them into a 0.92
+      undirected edge that attracts the map pair.
+    beats:
+      - say: UMAP begins from a nearest-neighbor graph. A point can assign one strength to another point, while
+          the reverse direction can have its own strength. In this example, the two directions carry zero
+          point eight zero and zero point six zero.
+        hold: 0.65
+        visual_cues:
+          - id: umap-beat-1-focus-1
+            phrase: UMAP begins from a nearest-neighbor graph
+            targets:
+              - umap-mechanism
+            color: blue
+            linger: 0.6
+          - id: umap-p
+            phrase: zero point eight zero
+            targets:
+              - umap-mechanism
+            linger: 0.5
+          - id: umap-q
+            phrase: zero point six zero
+            targets:
+              - umap-mechanism
+            linger: 0.5
+      - say: Its fuzzy union combines them as p plus q minus their product. Zero point eight zero plus zero point
+          six zero minus zero point four eight gives an edge weight of zero point nine two.
+        hold: 0.7
+        visual_cues:
+          - id: umap-beat-2-focus-1
+            phrase: p plus q minus their product
+            targets:
+              - umap-mechanism
+            color: blue
+            linger: 0.6
+          - id: umap-overlap
+            phrase: minus zero point four eight
+            targets:
+              - umap-mechanism
+            linger: 0.5
+          - id: umap-result
+            phrase: edge weight of zero point nine two
+            targets:
+              - umap-mechanism
+            linger: 0.5
+      - say: That edge attracts the pair in the map; non-neighbor relations also contribute repulsion. Parameters
+          such as neighbor count and minimum distance change the layout, so keep them with the map and
+          check important pairs back in the original space.
+        hold: 0.75
+        visual_cues:
+          - id: umap-attraction
+            phrase: That edge attracts the pair in the map
+            targets:
+              - umap-mechanism
+            color: cyan
+            linger: 0.6
+          - id: umap-repulsion
+            phrase: non-neighbor relations also contribute repulsion
+            targets:
+              - umap-mechanism
+            color: cyan
+            linger: 0.6
+  - id: verify
+    title: Compare the map's neighbors with the source vectors
+    visual: Six policy vectors show their source x-y view, leading two-component PCA projection, and a
+      hand-distorted map. Full 3D neighbors agree with PCA on all six points; the hand map preserves
+      three.
+    beats:
+      - say: A picture can make separated islands look persuasive. Check the nearest-neighbor list for each point
+          in the original vectors, then compute the same list in the map. Here are six policy vectors
+          with small third coordinates. The source plot shows their x-y view, while neighbor choices use
+          all three coordinates. The points are paired by topic in the source space.
+        hold: 0.65
+        visual_cues:
+          - id: verify-beat-1-focus-1
+            phrase: Check the nearest-neighbor list for each point in the original vectors
+            targets:
+              - verify-mechanism
+            color: blue
+            linger: 0.6
+          - id: verify-beat-1-focus-2
+            phrase: then compute the same list in the map
+            targets:
+              - verify-mechanism
+            color: blue
+            linger: 0.6
+      - say: The PCA map keeps all six one-neighbor choices on this small fixture. A hand-distorted layout keeps
+          three, giving neighbor overlap of zero point five zero. Overlap measures geometric agreement
+          with the source vectors.
+        hold: 0.7
+        visual_cues:
+          - id: verify-beat-2-focus-1
+            phrase: The PCA map keeps all six one-neighbor choices on this small fixture
+            targets:
+              - verify-mechanism
+            color: blue
+            linger: 0.6
+      - say: The original neighbor can still be irrelevant to a real question. Use overlap to audit a map, then
+          use judged queries to check whether the retrieved clause answers the task. A diagnostic and an
+          evaluation set give complementary evidence.
+        hold: 0.75
+        visual_cues:
+          - id: verify-beat-3-focus-1
+            phrase: The original neighbor can still be irrelevant to a real question
+            targets:
+              - verify-mechanism
+            color: blue
+            linger: 0.6
+          - id: verify-beat-3-focus-2
+            phrase: Use overlap to audit a map
+            targets:
+              - verify-mechanism
+            color: blue
+            linger: 0.6
+  - id: serving
+    title: Reuse one fitted transform for documents and queries
+    visual: The same saved PCA basis transforms indexed policy vectors and a live question. A separate
+      quality and resource gate decides whether the smaller serving index qualifies.
+    beats:
+      - say: PCA learns its mean and directions from a corpus. Save that fitted transform, apply it to every
+          stored document, and reuse the identical mean and basis for each incoming query. Then normalize
+          the projected vectors if the search uses cosine through a dot product.
+        hold: 0.7
+        visual_cues:
+          - id: serving-fit
+            phrase: PCA learns its mean and directions from a corpus
+            targets:
+              - serving-mechanism
+            color: cyan
+            linger: 0.6
+          - id: serving-save
+            phrase: Save that fitted transform
+            targets:
+              - serving-mechanism
+            color: cyan
+            linger: 0.6
+          - id: serving-apply
+            phrase: apply it to every stored document, and reuse the identical mean and basis for each incoming query
+            targets:
+              - serving-mechanism
+            color: cyan
+            linger: 0.6
+      - say: A two-dimensional t-SNE or UMAP map is designed for inspection. Use a serving method such as a
+          supported shorter prefix, PCA, or random projection when the goal is fewer searchable
+          coordinates, and measure Recall at K or nDCG at K.
+        hold: 0.75
+        visual_cues:
+          - id: serving-search-representation
+            phrase: when the goal is fewer searchable coordinates
+            targets:
+              - serving-mechanism
+            color: green
+            linger: 0.6
+          - id: serving-beat-2-focus-1
+            phrase: and measure Recall at K or nDCG at K
+            targets:
+              - serving-mechanism
+            color: blue
+            linger: 0.6
+          - id: serving-beat-2-focus-2
+            phrase: A two-dimensional t-SNE or UMAP map is designed for inspection
+            targets:
+              - serving-mechanism
+            color: blue
+            linger: 0.6
+      - say: Compare recall, index bytes, build time, and latency on held-out queries. Keep the encoder, fitted
+          transform, metric, and seed with the index. A plot can point an engineer toward a failure; the
+          original vectors and judged queries test the retrieval decision.
+        hold: 0.75
+        visual_cues:
+          - id: serving-beat-3-focus-1
+            phrase: index bytes
+            targets:
+              - serving-mechanism
+            color: blue
+            linger: 0.6
+          - id: serving-beat-3-focus-2
+            phrase: fitted transform
+            targets:
+              - serving-mechanism
+            color: blue
+            linger: 0.6
+  - id: policy-baseline
+    title: Keep the policy task beside its vectors
+    visual: A progressive numerical construction retains the policy vectors, fitted artifacts and measured
+      distinctions through this chapter.
+    beats:
+      - say: Our policy question asks when a secret must be rotated. The hand-authored baseline contains six
+          six-coordinate document vectors. Normalize each finite nonzero vector, then rank cosine
+          similarity, the dot product divided by both vector norms. The query retrieves two rotation
+          clauses at approximately point nine nine nine and point nine nine seven; a failed-security-scan
+          clause scores about point zero three six. These coordinates are a deterministic teaching
+          fixture, not outputs from a language model.
+        hold: 0.75
+        visual_cues:
+          - id: policy-normalize
+            phrase: Normalize each finite nonzero vector
+            targets:
+              - policy-baseline-mechanism
+            linger: 0.5
+          - id: policy-scores
+            phrase: query retrieves two rotation clauses
+            targets:
+              - policy-baseline-mechanism
+            linger: 0.5
+          - id: policy-control
+            phrase: failed-security-scan clause
+            targets:
+              - policy-baseline-mechanism
+            linger: 0.5
+      - say: The two judged relevant clauses both appear in the top two, so Recall at two is two divided by two,
+          or one. Preserve that task, its labels and its original vectors when testing a shorter
+          representation. Agreement with old neighbors measures geometric fidelity; judged relevance
+          measures whether the policy question was answered. Neither becomes representative production
+          quality from these two labels alone.
+        hold: 0.75
+        visual_cues:
+          - id: policy-recall
+            phrase: Recall at two is two divided by two
+            targets:
+              - policy-baseline-mechanism
+            linger: 0.5
+  - id: geometry-budget
+    title: Count vector bytes and state the geometry assumption
+    visual: A progressive numerical construction retains the policy vectors, fitted artifacts and measured
+      distinctions through this chapter.
+    beats:
+      - say: High dimension can make intuition unreliable. For two independent isotropic Gaussian vectors with
+          coordinate variance sigma squared, their squared distance has mean two d sigma squared and
+          variance eight d sigma to the fourth. Its standard deviation divided by its mean is the square
+          root of two divided by d. Relative squared-distance variation therefore shrinks as dimension
+          grows in this model. Learned embeddings need not satisfy its independence or isotropy
+          assumptions.
+        hold: 0.75
+        visual_cues:
+          - id: gaussian-mean
+            phrase: mean two d sigma squared
+            targets:
+              - geometry-budget-mechanism
+            linger: 0.5
+          - id: gaussian-var
+            phrase: variance eight d sigma to the fourth
+            targets:
+              - geometry-budget-mechanism
+            linger: 0.5
+          - id: gaussian-ratio
+            phrase: square root of two divided by d
+            targets:
+              - geometry-budget-mechanism
+            linger: 0.5
+      - say: The raw vector ledger excludes document text, identifiers, graph links, levels and allocator
+          overhead. HNSW connection and search parameters also affect recall, memory and work. Reducing
+          dimension lowers coordinate storage and arithmetic, but it does not determine end-to-end
+          latency or graph quality. Measure the full index and serving request after the exact
+          representation, metric and search settings are fixed.
+        hold: 0.75
+        visual_cues:
+          - id: index-overhead
+            phrase: raw vector ledger excludes
+            targets:
+              - geometry-budget-mechanism
+            linger: 0.5
+          - id: index-settings
+            phrase: HNSW connection and search parameters
+            targets:
+              - geometry-budget-mechanism
+            linger: 0.5
+  - id: pca-fit
+    title: Construct a fitted coordinate system
+    visual: A progressive numerical construction retains the policy vectors, fitted artifacts and measured
+      distinctions through this chapter.
+    beats:
+      - say: "Start with points one comma one, two comma two and three comma three. Their mean is two comma two.
+          Subtract that same mean from every row: the centered points are minus one comma minus one, zero
+          comma zero, and one comma one. Project onto the unit direction one comma one divided by the
+          square root of two. The coordinates become minus square root of two, zero and positive square
+          root of two."
+        hold: 0.75
+        visual_cues:
+          - id: pca-mean
+            phrase: Their mean is two comma two
+            targets:
+              - pca-fit-mechanism
+            linger: 0.5
+          - id: pca-center
+            phrase: Subtract that same mean
+            targets:
+              - pca-fit-mechanism
+            linger: 0.5
+          - id: pca-axis
+            phrase: Project onto the unit direction
+            targets:
+              - pca-fit-mechanism
+            linger: 0.5
+          - id: pca-scores
+            phrase: "The coordinates become minus square root of two, zero and positive square root of two"
+            targets:
+              - pca-fit-mechanism
+            linger: 0.5
+      - say: For an N by d centered data matrix, thin singular value decomposition writes X as U Sigma V
+          transpose. With r equal to the smaller of N and d, U is N by r and V is d by r. Centering
+          limits rank to at most the smaller of N minus one and d. The leading columns of V give the
+          retained directions. Covariance eigenvalues are the squared singular values divided by N minus
+          one when N exceeds one. Explained variance retained is the retained sum of squared singular
+          values divided by the total.
+        hold: 0.75
+        visual_cues:
+          - id: svd-shapes
+            phrase: thin singular value decomposition
+            targets:
+              - pca-fit-mechanism
+            linger: 0.5
+          - id: centered-rank
+            phrase: Centering limits rank
+            targets:
+              - pca-fit-mechanism
+            linger: 0.5
+          - id: pca-covariance
+            phrase: Covariance eigenvalues
+            targets:
+              - pca-fit-mechanism
+            linger: 0.5
+          - id: pca-energy
+            phrase: Explained variance retained
+            targets:
+              - pca-fit-mechanism
+            linger: 0.5
+      - say: Forming X transpose X squares the matrix condition number and can worsen numerical sensitivity;
+          direct SVD avoids that explicit product. Some PCA solvers use covariance, so record the actual
+          solver. PCA centers features without automatically standardizing them. Scaling and whitening
+          change the geometry and need their own validation. Fit supervised preprocessing inside each
+          training fold; select dimensions on development queries and reserve fresh test queries.
+        hold: 0.75
+        visual_cues:
+          - id: pca-condition
+            phrase: squares the matrix condition number
+            targets:
+              - pca-fit-mechanism
+            linger: 0.5
+          - id: pca-whiten
+            phrase: Scaling and whitening
+            targets:
+              - pca-fit-mechanism
+            linger: 0.5
+          - id: pca-fold
+            phrase: inside each training fold
+            targets:
+              - pca-fit-mechanism
+            linger: 0.5
+  - id: pca-query
+    title: Reuse the saved mean and basis
+    visual: A progressive numerical construction retains the policy vectors, fitted artifacts and measured
+      distinctions through this chapter.
+    beats:
+      - say: A fitted serving artifact contains one mean, one ordered basis, the encoder version and the
+          normalization policy. Apply the same artifact to indexed documents and later queries. Fitting a
+          new PCA separately for each query creates incomparable coordinates. Even a sign change in a
+          basis axis is harmless only if both sides use it consistently.
+        hold: 0.75
+        visual_cues:
+          - id: saved-artifact
+            phrase: one mean, one ordered basis
+            targets:
+              - pca-query-mechanism
+            linger: 0.5
+          - id: shared-transform
+            phrase: same artifact to indexed documents
+            targets:
+              - pca-query-mechanism
+            linger: 0.5
+          - id: query-sign
+            phrase: a sign change in a basis axis
+            targets:
+              - pca-query-mechanism
+            linger: 0.5
+      - say: Centering can change cosine similarity even when every principal component is kept. Renormalize
+          transformed vectors when cosine is implemented as a dot product. Reject zero or nonfinite
+          inputs and zero projected vectors; there is no defined cosine direction for them. Scale by the
+          largest absolute coordinate before computing a norm when necessary to avoid overflow. A strong
+          mean direction or large component is not automatically nuisance information; inspect its effect
+          on the policy task.
+        hold: 0.75
+        visual_cues:
+          - id: centering-cosine
+            phrase: Centering can change cosine similarity
+            targets:
+              - pca-query-mechanism
+            linger: 0.5
+          - id: renormalize
+            phrase: Renormalize transformed vectors
+            targets:
+              - pca-query-mechanism
+            linger: 0.5
+          - id: reject-zero
+            phrase: Reject zero or nonfinite inputs
+            targets:
+              - pca-query-mechanism
+            linger: 0.5
+          - id: safe-norm
+            phrase: Scale by the largest absolute coordinate
+            targets:
+              - pca-query-mechanism
+            linger: 0.5
+  - id: recall-sweep
+    title: Sweep dimensions against the judged task
+    visual: A progressive numerical construction retains the policy vectors, fitted artifacts and measured
+      distinctions through this chapter.
+    beats:
+      - say: The executed sixty-row, six-coordinate synthetic PCA example retains about ninety-nine point two
+          percent variance in two dimensions. That does not establish a retrieval guarantee. In a
+          separate seeded policy-intent fixture, two, four, eight and twelve dimensions retain
+          approximately twenty-nine, fifty, seventy-three and eighty-seven percent variance, while Recall
+          at three is point three eight three, point eight six seven, one and one. These are computed
+          worksheet results, not a benchmark of a deployed encoder.
+        hold: 0.75
+        visual_cues:
+          - id: sweep-energy
+            phrase: ninety-nine point two percent variance
+            targets:
+              - recall-sweep-mechanism
+            linger: 0.5
+          - id: sweep-dimensions
+            phrase: two, four, eight and twelve dimensions
+            targets:
+              - recall-sweep-mechanism
+            linger: 0.5
+          - id: sweep-recall
+            phrase: Recall at three is
+            targets:
+              - recall-sweep-mechanism
+            linger: 0.5
+      - say: Choose dimensions with the judged metric and resource gates together. Higher explained variance can
+          be useful without being sufficient, and the reference nearest neighbor can itself be
+          irrelevant. Keep query families separated and freeze the candidate before final evaluation.
+          Report transform fitting cost, index construction, complete bytes and latency, plus critical
+          policy slices and uncertainty appropriate to the sample.
+        hold: 0.75
+        visual_cues:
+          - id: sweep-gates
+            phrase: judged metric and resource gates together
+            targets:
+              - recall-sweep-mechanism
+            linger: 0.5
+          - id: sweep-freeze
+            phrase: freeze the candidate
+            targets:
+              - recall-sweep-mechanism
+            linger: 0.5
+  - id: tsne-contract
+    title: Normalize a complete neighborhood distribution
+    visual: A progressive numerical construction retains the policy vectors, fitted artifacts and measured
+      distinctions through this chapter.
+    beats:
+      - say: t-SNE first makes conditional neighbor probabilities from Gaussian distance weights, with a local
+          bandwidth. Perplexity is the exponential of entropy in matching log units, a smooth
+          effective-neighbor count rather than a cluster count. Symmetrize the two directed probabilities
+          and divide by two times the number of points. Set self-pairs to zero. In the map, each ordered
+          nonself pair receives weight one divided by one plus squared distance; divide by the sum of all
+          those weights.
+        hold: 0.75
+        visual_cues:
+          - id: tsne-gaussian
+            phrase: Gaussian distance weights
+            targets:
+              - tsne-contract-mechanism
+            linger: 0.5
+          - id: tsne-perplexity
+            phrase: Perplexity is the exponential of entropy
+            targets:
+              - tsne-contract-mechanism
+            linger: 0.5
+          - id: tsne-symmetry
+            phrase: Symmetrize the two directed probabilities
+            targets:
+              - tsne-contract-mechanism
+            linger: 0.5
+          - id: tsne-q-normalize
+            phrase: divide by the sum of all those weights
+            targets:
+              - tsne-contract-mechanism
+            linger: 0.5
+      - say: "That denominator couples the whole map: moving one pair changes other normalized probabilities.
+          Minimize the sum of p times log p over q over all pairs. An individual term can be negative
+          although the full KL divergence is nonnegative. The heavy tail helps address crowding without
+          preserving all global distances or cluster sizes. The original nonparametric method does not
+          supply an encoder for a future query. Our earlier single-pair motion illustrates a
+          contribution, not a complete fitted optimization."
+        hold: 0.75
+        visual_cues:
+          - id: tsne-coupled
+            phrase: denominator couples the whole map
+            targets:
+              - tsne-contract-mechanism
+            linger: 0.5
+          - id: tsne-kl
+            phrase: full KL divergence is nonnegative
+            targets:
+              - tsne-contract-mechanism
+            linger: 0.5
+          - id: tsne-future
+            phrase: does not supply an encoder for a future query
+            targets:
+              - tsne-contract-mechanism
+            linger: 0.5
+  - id: umap-contract
+    title: Separate graph memberships from map forces
+    visual: A progressive numerical construction retains the policy vectors, fitted artifacts and measured
+      distinctions through this chapter.
+    beats:
+      - say: UMAP builds local directed memberships using an offset rho and scale sigma. For a selected neighbor,
+          the weight is the exponential of minus the nonnegative distance beyond rho divided by sigma; an
+          absent direction has weight zero. These memberships are not a probability distribution summing
+          to one. Combine opposing weights p and q with p plus q minus p times q. Neighborhood size
+          changes graph construction, while minimum distance influences the layout.
+        hold: 0.75
+        visual_cues:
+          - id: umap-local
+            phrase: offset rho and scale sigma
+            targets:
+              - umap-contract-mechanism
+            linger: 0.5
+          - id: umap-memberships
+            phrase: not a probability distribution summing to one
+            targets:
+              - umap-contract-mechanism
+            linger: 0.5
+          - id: umap-combine
+            phrase: p plus q minus p times q
+            targets:
+              - umap-contract-mechanism
+            linger: 0.5
+      - say: The low-dimensional membership is one divided by one plus a times distance to the power two b. The
+          theoretical binary cross-entropy has attraction from graph edges and repulsion from nonedges;
+          practical negative sampling changes the effective weighting. A graph layout therefore cannot
+          promise calibrated global distances. UMAP can transform new points using its fitted machinery,
+          but that operation is not the saved linear PCA multiplication. Check actual neighbors and task
+          performance before using either map as a serving representation.
+        hold: 0.75
+        visual_cues:
+          - id: umap-map-rule
+            phrase: one divided by one plus a
+            targets:
+              - umap-contract-mechanism
+            linger: 0.5
+          - id: umap-ce
+            phrase: attraction from graph edges and repulsion
+            targets:
+              - umap-contract-mechanism
+            linger: 0.5
+          - id: umap-sampling
+            phrase: negative sampling changes the effective weighting
+            targets:
+              - umap-contract-mechanism
+            linger: 0.5
+          - id: umap-transform
+            phrase: UMAP can transform new points
+            targets:
+              - umap-contract-mechanism
+            linger: 0.5
+  - id: random-projection
+    title: Test a fixed no-fit transform
+    visual: A progressive numerical construction retains the policy vectors, fitted artifacts and measured
+      distinctions through this chapter.
+    beats:
+      - say: A random projection draws one matrix and reuses it for every document and query. A Gaussian
+          construction uses entries with mean zero and variance one over the output dimension. A sparse
+          Achlioptas construction uses positive and negative square root of three over k with probability
+          one sixth each, and zero with probability two thirds. Save the matrix or a reproducible
+          generation contract; do not draw a new space per request.
+        hold: 0.75
+        visual_cues:
+          - id: random-once
+            phrase: reuses it for every document and query
+            targets:
+              - random-projection-mechanism
+            linger: 0.5
+          - id: random-gaussian
+            phrase: variance one over the output dimension
+            targets:
+              - random-projection-mechanism
+            linger: 0.5
+          - id: random-sparse
+            phrase: sparse Achlioptas construction
+            targets:
+              - random-projection-mechanism
+            linger: 0.5
+      - say: "A Johnson-Lindenstrauss existence bound for a fixed set of N points uses k at least four natural
+          log N divided by the quantity epsilon squared over two minus epsilon cubed over three, for
+          epsilon between zero and one. It bounds squared Euclidean distortion between one minus epsilon
+          and one plus epsilon. This conservative sufficient bound can exceed the original dimension: ten
+          million points at epsilon point one five require about six thousand three hundred sixty-eight
+          dimensions. It is not a useful compression promise for fifteen thirty-six dimensions, nor a
+          statement that every arbitrary draw succeeds."
+        hold: 0.75
+        visual_cues:
+          - id: jl-bound
+            phrase: k at least four natural log N
+            targets:
+              - random-projection-mechanism
+            linger: 0.5
+          - id: jl-squared
+            phrase: bounds squared Euclidean distortion
+            targets:
+              - random-projection-mechanism
+            linger: 0.5
+          - id: jl-dimension
+            phrase: "ten million points at epsilon point one five require about six thousand three hundred sixty-eight dimensions"
+            targets:
+              - random-projection-mechanism
+            linger: 0.5
+      - say: The guarantee concerns a fixed point set, not automatically future queries or rankings. Two nearby
+          distances can have overlapping allowed intervals and exchange order. For epsilon point one
+          five, a squared-distance bound corresponds to ordinary-distance changes of about minus seven
+          point eight to plus seven point two percent. In the actual seeded forty-eight to sixteen
+          worksheet, raw float bytes fall from one hundred ninety-two to sixty-four, while
+          original-neighbor overlap at five is only point three one seven. Normalize and evaluate the
+          actual cosine pipeline if that is the serving metric.
+        hold: 0.75
+        visual_cues:
+          - id: jl-rank
+            phrase: exchange order
+            targets:
+              - random-projection-mechanism
+            linger: 0.5
+          - id: jl-distance
+            phrase: minus seven point eight to plus seven point two percent
+            targets:
+              - random-projection-mechanism
+            linger: 0.5
+          - id: random-result
+            phrase: overlap at five is only point three one seven
+            targets:
+              - random-projection-mechanism
+            linger: 0.5
+  - id: scalar-binary
+    title: Encode values and keep the calibration contract
+    visual: A progressive numerical construction retains the policy vectors, fitted artifacts and measured
+      distinctions through this chapter.
+    beats:
+      - say: Dimension reduction changes the coordinate count. Quantization changes the bits used for those
+          coordinates. Our symmetric scalar teaching codec uses integers from minus one hundred
+          twenty-seven through one hundred twenty-seven. Fit a scale of one hundred twenty-seven divided
+          by the document calibration maximum absolute value. Multiply, round and clip, then divide by
+          that scale to reconstruct. Reuse calibration for queries, and account for scale metadata and
+          clipping; this is not a claim about every vendor codec.
+        hold: 0.75
+        visual_cues:
+          - id: quantize-scale
+            phrase: Fit a scale of one hundred twenty-seven
+            targets:
+              - scalar-binary-mechanism
+            linger: 0.5
+          - id: quantize-code
+            phrase: Multiply, round and clip
+            targets:
+              - scalar-binary-mechanism
+            linger: 0.5
+          - id: quantize-reuse
+            phrase: Reuse calibration for queries
+            targets:
+              - scalar-binary-mechanism
+            linger: 0.5
+      - say: "Binary sign coding writes one for a positive coordinate and zero otherwise, then compares codes
+          with XOR and population count. It loses magnitudes: equal signs can hide quite different
+          cosines. Two hundred fifty-six float32 coordinates need one thousand twenty-four bytes, scalar
+          eight-bit codes need two hundred fifty-six, and packed sign bits need thirty-two, before
+          metadata. The executed small arrays demonstrate these byte counts and Hamming distances rather
+          than establishing semantic recall."
+        hold: 0.75
+        visual_cues:
+          - id: binary-sign
+            phrase: one for a positive coordinate
+            targets:
+              - scalar-binary-mechanism
+            linger: 0.5
+          - id: binary-xor
+            phrase: XOR and population count
+            targets:
+              - scalar-binary-mechanism
+            linger: 0.5
+          - id: codec-bytes
+            phrase: "Two hundred fifty-six float32 coordinates need one thousand twenty-four bytes, scalar eight-bit codes need two hundred fifty-six, and packed sign bits need thirty-two, before metadata"
+            targets:
+              - scalar-binary-mechanism
+            linger: 0.5
+      - say: Current Qdrant documentation separates codec choice, oversampling and full-vector rescoring. For an
+          explicitly requested limit of one hundred and oversampling two point four, select two hundred
+          forty candidates before rescoring. A candidate omitted from that shortlist cannot return.
+          Version one point eighteen introduced TurboQuant; its random rotation preserves distances
+          before lossy coding, not after arbitrary rounding. Pin the server version, bits and rescore
+          settings. Compression ratio alone does not establish a matching latency improvement.
+        hold: 0.75
+        visual_cues:
+          - id: oversample
+            phrase: "select two hundred forty candidates before rescoring"
+            targets:
+              - scalar-binary-mechanism
+            linger: 0.5
+          - id: turbo-rotation
+            phrase: rotation preserves distances before lossy coding
+            targets:
+              - scalar-binary-mechanism
+            linger: 0.5
+          - id: codec-pin
+            phrase: Pin the server version
+            targets:
+              - scalar-binary-mechanism
+            linger: 0.5
+  - id: product-quantization
+    title: Build subvector codes and query lookup tables
+    visual: A progressive numerical construction retains the policy vectors, fitted artifacts and measured
+      distinctions through this chapter.
+    beats:
+      - say: Product quantization splits a vector into m disjoint blocks, trains a centroid codebook per block
+          and stores a centroid identifier for each block. With two hundred fifty-six centroids, each
+          identifier fits one byte. A one hundred twenty-eight-coordinate float32 vector uses five
+          hundred twelve bytes; eight block identifiers use eight bytes, a sixty-four-fold raw-code
+          reduction. Shared codebooks and the index remain additional storage. Each centroid has its
+          block’s coordinate width. Across all m codebooks there are m times K times d over m
+          coordinates, which equals K times d; multiply by the bytes per float for shared codebook
+          storage.
+        hold: 0.75
+        visual_cues:
+          - id: pq-books
+            phrase: centroid codebook per block
+            targets:
+              - product-quantization-mechanism
+            linger: 0.5
+          - id: pq-ids
+            phrase: each identifier fits one byte
+            targets:
+              - product-quantization-mechanism
+            linger: 0.5
+          - id: pq-storage
+            phrase: "eight block identifiers use eight bytes, a sixty-four-fold raw-code reduction"
+            targets:
+              - product-quantization-mechanism
+            linger: 0.5
+          - id: pq-shared
+            phrase: equals K times d
+            targets:
+              - product-quantization-mechanism
+            linger: 0.5
+      - say: Asymmetric distance computation keeps the query unquantized. For every block and centroid, build a
+          table containing the squared Euclidean distance from that query block to the centroid. A stored
+          code selects one table entry per block; sum them. With ninety-six blocks and two hundred
+          fifty-six centroids, float32 tables use ninety-six kibibytes per query. Whether those tables
+          fit a relevant cache and whether table construction is worthwhile depend on the hardware and
+          workload.
+        hold: 0.75
+        visual_cues:
+          - id: pq-tables
+            phrase: table containing the squared Euclidean distance
+            targets:
+              - product-quantization-mechanism
+            linger: 0.5
+          - id: pq-lookup
+            phrase: "A stored code selects one table entry per block; sum them"
+            targets:
+              - product-quantization-mechanism
+            linger: 0.5
+          - id: pq-table-bytes
+            phrase: ninety-six kibibytes per query
+            targets:
+              - product-quantization-mechanism
+            linger: 0.5
+      - say: "Symmetric computation also quantizes the query, adding query approximation without a universal
+          factor-of-two error rule. Squared distance to reconstructed PQ vectors does not automatically
+          equal cosine distance between unit vectors. The executed forty-row toy uses two one-byte
+          identifiers with four centroids each: sixteen raw float bytes become two code bytes, plus a
+          sixty-four-byte shared codebook. Four centroids could be bit-packed further; this worksheet
+          deliberately stores byte identifiers. Train only on the allowed corpus and test the entire
+          metric pipeline."
+        hold: 0.75
+        visual_cues:
+          - id: pq-query-code
+            phrase: also quantizes the query
+            targets:
+              - product-quantization-mechanism
+            linger: 0.5
+          - id: pq-small
+            phrase: sixteen raw float bytes become two code bytes
+            targets:
+              - product-quantization-mechanism
+            linger: 0.5
+          - id: pq-metric
+            phrase: entire metric pipeline
+            targets:
+              - product-quantization-mechanism
+            linger: 0.5
+  - id: native-prefix
+    title: Train and verify a supported shorter prefix
+    visual: A progressive numerical construction retains the policy vectors, fitted artifacts and measured
+      distinctions through this chapter.
+    beats:
+      - say: Matryoshka training applies task losses to several nested prefixes of one embedding and sums their
+          weighted losses. An illustrative objective might use the first sixty-four, one hundred
+          twenty-eight, two hundred fifty-six and one thousand twenty-four coordinates. The earliest
+          coordinates receive gradient contributions from all losses that include them, when those
+          derivatives are nonzero. The objective encourages useful prefixes without forcing a literal
+          topic-per-coordinate hierarchy or guaranteeing every dimension works.
+        hold: 0.75
+        visual_cues:
+          - id: prefix-losses
+            phrase: several nested prefixes
+            targets:
+              - native-prefix-mechanism
+            linger: 0.5
+          - id: prefix-gradient
+            phrase: gradient contributions from all losses
+            targets:
+              - native-prefix-mechanism
+            linger: 0.5
+          - id: prefix-no-guarantee
+            phrase: without forcing a literal
+            targets:
+              - native-prefix-mechanism
+            linger: 0.5
+      - say: "The original classification formulation uses separate prefix heads; its efficient variant shares
+          classifier weights. Contrastive implementations can apply the losses to normalized prefixes
+          instead. Train-time support matters: slicing an arbitrary embedding is not equivalent to
+          training that objective. The article’s untrained-prefix negative control drops
+          original-neighbor overlap at three to about point one eight five with two of eight coordinates.
+          A larger prefix or shortlist can help without certifying semantic relevance."
+        hold: 0.75
+        visual_cues:
+          - id: prefix-heads
+            phrase: efficient variant shares classifier weights
+            targets:
+              - native-prefix-mechanism
+            linger: 0.5
+          - id: prefix-negative
+            phrase: untrained-prefix negative control
+            targets:
+              - native-prefix-mechanism
+            linger: 0.5
+      - say: At serving time, search a supported sixty-four-coordinate prefix, take a shortlist, fetch the full
+          vectors and rescore. The prefix float array is one sixteenth the size of a one thousand
+          twenty-four-coordinate array, but storing both adds full-vector bytes and fetch work. In the
+          toy, a shortlist retaining five of twenty-seven reference neighbors permits only those five to
+          be recovered by exact rescoring. Official embedding APIs may offer documented shortening
+          parameters; as checked for this lesson, OpenAI small and large defaults are fifteen thirty-six
+          and thirty seventy-two. Reuse the same supported dimensions and normalization for both sides,
+          and measure your current task rather than borrowing a historical leaderboard claim.
+        hold: 0.75
+        visual_cues:
+          - id: prefix-shortlist
+            phrase: take a shortlist
+            targets:
+              - native-prefix-mechanism
+            linger: 0.5
+          - id: prefix-miss
+            phrase: only those five to be recovered
+            targets:
+              - native-prefix-mechanism
+            linger: 0.5
+          - id: prefix-supported
+            phrase: documented shortening parameters
+            targets:
+              - native-prefix-mechanism
+            linger: 0.5
+  - id: release-experiment
+    title: Choose a complete deployment candidate
+    visual: A progressive numerical construction retains the policy vectors, fitted artifacts and measured
+      distinctions through this chapter.
+    beats:
+      - say: "Build candidates from the frozen policy baseline: supported native shortening, fitted PCA, a saved
+          random projection and calibrated quantization. Keep encoder identity, corpus and query
+          versions, transform, seed, metric, codec and search settings with each result. Compare judged
+          recall, critical slices, index bytes, build time, latency and cost on the same evaluation
+          protocol. Invalid or nonfinite metrics, missing fields and nonpositive or noninteger byte
+          counts must fail before threshold comparisons."
+        hold: 0.75
+        visual_cues:
+          - id: release-bind
+            phrase: encoder identity, corpus and query versions
+            targets:
+              - release-experiment-mechanism
+            linger: 0.5
+          - id: release-invalid
+            phrase: Invalid or nonfinite metrics
+            targets:
+              - release-experiment-mechanism
+            linger: 0.5
+      - say: The article’s authored deployment table requires Recall at ten at least point nine seven five and at
+          most twelve hundred bytes per vector. Full vectors use six thousand one hundred forty-four
+          bytes at recall one. Native shortening uses one thousand twenty-four bytes at point nine eight
+          four; PCA the same bytes at point nine seven one; PQ sixteen bytes at point nine three nine.
+          Only the native candidate meets both worksheet gates. These table values are supplied
+          scenarios, not fresh provider benchmarks.
+        hold: 0.75
+        visual_cues:
+          - id: release-premises
+            phrase: requires Recall at ten
+            targets:
+              - release-experiment-mechanism
+            linger: 0.5
+          - id: release-table
+            phrase: Native shortening uses
+            targets:
+              - release-experiment-mechanism
+            linger: 0.5
+          - id: release-pick
+            phrase: "Only the native candidate meets both worksheet gates"
+            targets:
+              - release-experiment-mechanism
+            linger: 0.5
+      - say: Supported shortening from fifteen thirty-six float coordinates to two hundred fifty-six, followed by
+          eight-bit coding, changes six thousand one hundred forty-four raw bytes to two hundred
+          fifty-six, a factor of twenty-four. It does not promise a twenty-four-fold total index or
+          latency reduction, nor a cheaper encoder forward pass. Keep any full-vector rescore store in
+          the total. Investigate a failed clause on the original representation before choosing a
+          visually attractive compression.
+        hold: 0.75
+        visual_cues:
+          - id: release-24
+            phrase: a factor of twenty-four
+            targets:
+              - release-experiment-mechanism
+            linger: 0.5
+          - id: release-full-store
+            phrase: full-vector rescore store
+            targets:
+              - release-experiment-mechanism
+            linger: 0.5
+  - id: fresh-projection
+    title: Predict the effect of an inconsistent basis
+    visual: A progressive numerical construction retains the policy vectors, fitted artifacts and measured
+      distinctions through this chapter.
+    beats:
+      - say: A new two-dimensional policy fixture saves mean two comma one and basis directions point six comma
+          point eight, and minus point eight comma point six. The document is four comma two; the
+          incoming query is three comma three. Subtract the mean from both, then take dot products with
+          each ordered basis direction. Predict their projected coordinates and cosine before revealing
+          them. Pause.
+        hold: 0.75
+        visual_cues:
+          - id: fresh-axes
+            phrase: basis directions point six comma point eight
+            targets:
+              - fresh-projection-mechanism
+            linger: 0.5
+          - id: fresh-inputs
+            phrase: document is four comma two
+            targets:
+              - fresh-projection-mechanism
+            linger: 0.5
+          - id: fresh-predict
+            phrase: Predict their projected coordinates
+            targets:
+              - fresh-projection-mechanism
+            linger: 0.5
+      - say: The document centers to two comma one and projects to two comma minus one. The query centers to one
+          comma two and projects to two point two comma point four. Their norms are both square root of
+          five, so their cosine is point eight. Now a separate query worker flips both saved directions
+          while the stored document remains unchanged. Its query becomes minus two point two comma minus
+          point four, and the cosine becomes minus point eight. A consistent basis sign is harmless; a
+          mixed artifact changes this ranking.
+        hold: 0.75
+        visual_cues:
+          - id: fresh-doc
+            phrase: "The document centers to two comma one and projects to two comma minus one"
+            targets:
+              - fresh-projection-mechanism
+            linger: 0.5
+          - id: fresh-query
+            phrase: "The query centers to one comma two and projects to two point two comma point four"
+            targets:
+              - fresh-projection-mechanism
+            linger: 0.5
+          - id: fresh-cosine
+            phrase: "Their norms are both square root of five, so their cosine is point eight"
+            targets:
+              - fresh-projection-mechanism
+            linger: 0.5
+          - id: fresh-flip
+            phrase: flips both saved directions
+            targets:
+              - fresh-projection-mechanism
+            linger: 0.5
+          - id: fresh-negative-query
+            phrase: "Its query becomes minus two point two comma minus point four"
+            targets:
+              - fresh-projection-mechanism
+            linger: 0.5
+          - id: fresh-negative
+            phrase: "the cosine becomes minus point eight"
+            targets:
+              - fresh-projection-mechanism
+            linger: 0.5
+      - say: "Repair the worker by loading the same versioned mean, ordered basis and normalization policy as the index, then replay the same query. Recovering point eight proves this controlled mismatch was repaired. The original uncentered cosine was about point nine four nine, so retaining both centered axes did not preserve the old cosine metric. Finish with untouched judged policy queries and complete resource measurements before accepting the shorter representation. Next, reasoning methods spend extra computation on intermediate steps, sampled alternatives or search, then check whether that work improves the final decision within its budget."
+        hold: 0.75
+        visual_cues:
+          - id: fresh-repair
+            phrase: "Repair the worker by loading the same versioned mean, ordered basis and normalization policy as the index, then replay the same query"
+            targets:
+              - fresh-projection-mechanism
+            linger: 0.5
+          - id: fresh-recover
+            phrase: "Recovering point eight proves this controlled mismatch was repaired"
+            targets:
+              - fresh-projection-mechanism
+            linger: 0.5
+          - id: fresh-old-cosine
+            phrase: "The original uncentered cosine was about point nine four nine"
+            targets:
+              - fresh-projection-mechanism
+            linger: 0.5

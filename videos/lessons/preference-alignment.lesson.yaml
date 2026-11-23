@@ -1,0 +1,1959 @@
+version: 1
+id: preference-alignment
+title: Learning from Preferred Answers
+source: training/rlhf-dpo-aligning-language-models/content.md
+voice: en-US-AndrewNeural
+rate: +0%
+sources:
+  - title: Rafailov et al. Direct Preference Optimization
+    url: https://arxiv.org/abs/2305.18290
+  - title: Ouyang et al. Training language models to follow instructions with human feedback
+    url: https://arxiv.org/abs/2203.02155
+  - title: PPO clipped surrogate
+    url: https://arxiv.org/abs/1707.06347
+  - title: Generalized Advantage Estimation
+    url: https://arxiv.org/abs/1506.02438
+  - title: IPO Equation17
+    url: https://arxiv.org/abs/2310.12036
+  - title: DeepSeekMath original GRPO
+    url: https://arxiv.org/abs/2402.03300
+  - title: TRL pinned1.17.1 DPO scoring/preparation
+    url: https://github.com/huggingface/trl/blob/v1.17.1/trl/trainer/dpo_trainer.py
+scenes:
+  - id: intro
+    title: Which directions would you keep?
+    visual: >-
+      Follow A around the café corner to the train. B starts at the same entrance and loops back. Keep both endpoints in view for the vote.
+    beats:
+      - say: >-
+          Turn left at the entrance. At the café, turn right. Reply A gets you to the train.
+        caption_starts: ["At the café", "Reply A gets you to the train"]
+        hold: 0.6
+        visual_cues:
+          - id: start-walk
+            phrase: "Turn left at the entrance"
+            targets: [route-map, walk-a]
+          - id: introduce-a
+            phrase: "At the café"
+            targets: [route-map, walk-a]
+          - id: route-a
+            phrase: "turn right"
+            targets: [walk-a]
+      - say: >-
+          Follow B from the same entrance. Past the park, past the river, and back where you started.
+          Which reply would you keep?
+        caption_starts: ["Past the park", "Which reply would you keep"]
+        hold: 2
+        visual_cues:
+          - id: route-b
+            phrase: "Past the park, past the river, and back where you started"
+            targets: [walk-b]
+      - say: >-
+          I'd keep A. It gets me to the station. My vote gives this pair a training label.
+        hold: 0.7
+        visual_cues:
+          - id: route-vote
+            phrase: "I'd keep A"
+            targets: [walk-a]
+            caption_boundary: true
+  - id: pair
+    title: What travels with the vote?
+    visual: >-
+      Exchange the complete replies on separate arcs. The vote travels with the same two turns while the prompt
+      stays fixed.
+    beats:
+      - say: >-
+          Save the question and both complete replies. One label records what this traveler preferred for this
+          trip.
+        hold: 0.55
+        visual_cues:
+          - id: pair-prompt
+            phrase: "the question and both complete replies"
+            targets: [fixed-prompt]
+      - say: >-
+          Now swap their positions. Watch the vote travel with the two turns. If we saved the winning
+          column, the label would now point to the walk that goes in a circle.
+        hold: 0.65
+        visual_cues:
+          - id: pair-swap
+            phrase: "Now swap their positions"
+            targets: [chosen-answer, rejected-answer]
+      - say: >-
+          The record still says A over B for the station request. That same distinction between an answer and
+          its position matters when you blind a reviewer to which model wrote it.
+        hold: 0.6
+  - id: policy-contract
+    title: What should the access assistant do?
+    visual: >-
+      Compare two actions under the same P-7 clause. Set aside a separate candidate's reward and human outcomes
+      for the later release decision.
+    beats:
+      - say: >-
+          A service account needs temporary admin access
+          for tonight's migration. The policy says to cite P seven and send privileged changes to a reviewer. A
+          offers to open the ticket. B tells the user to go ahead until tomorrow. Which reply follows the
+          policy?
+        hold: 1.65
+        visual_cues:
+          - id: read-policy
+            phrase: "cite P seven and send privileged changes to a reviewer"
+            targets: [policy-clause]
+      - say: >-
+          A follows the policy. A supervised example can teach the assistant to write that reply. A comparison
+          gives it another piece of information. This reviewer preferred opening a ticket to giving the user
+          permission.
+        hold: 0.65
+        visual_cues:
+          - id: ticket-wins
+            phrase: "A follows the policy"
+            targets: [access-pair]
+            caption_boundary: true
+      - say: >-
+          Now suppose a release candidate gains point three one on the reward model. In a separate blind
+          comparison it wins only one hundred eighty-four times out of four hundred, and its replies average
+          forty-eight extra tokens. We'll come back to whether you'd release it.
+        hold: 0.7
+        visual_cues:
+          - id: candidate-reward
+            phrase: "gains point three one on the reward model"
+            targets: [candidate-record]
+          - id: candidate-outcomes
+            phrase: "wins only one hundred eighty-four times out of four hundred, and its replies average forty-eight extra tokens"
+            targets: [candidate-record]
+  - id: bt-judge
+    title: What does the judge predict for the ticket?
+    visual: >-
+      Keep the observed vote on A, locate its reward gap on the sigmoid, and exchange the two reward scores to
+      see what happens to the loss.
+    beats:
+      - say: >-
+          The reviewer picked the ticket. Let's see how a learned judge scores that vote. It gives the ticket
+          one point eight and the direct grant point seven. Subtract the grant's score from the ticket's. The
+          gap is one point one. Which side of even odds should the ticket land on?
+        hold: 1.8
+        visual_cues:
+          - id: judge-scores
+            phrase: "the ticket one point eight and the direct grant point seven"
+            targets: [judge-scores]
+      - say: >-
+          Above even. The judge gives the ticket about a seventy-five percent chance of winning. This curve is a
+          sigmoid. It takes one divided by one plus the exponential of the negative gap. Using it for a reward
+          difference gives the Bradley-Terry comparison model. The negative log of the probability it gave the
+          observed vote is about point two eight seven.
+        hold: 0.65
+        visual_cues:
+          - id: judge-prediction
+            phrase: "about a seventy-five percent chance of winning"
+            targets: [judge-plot]
+            caption_boundary: true
+          - id: judge-first-loss
+            phrase: "about point two eight seven"
+            targets: [judge-result]
+      - say: >-
+          Keep the reviewer's vote for the ticket and swap only the two reward scores. The point crosses the
+          middle. The judge now puts roughly twenty-five percent on what the reviewer did. Its loss rises to
+          about one point three eight seven. To find out whether its predicted chances match how often people
+          agree, check fresh judgments.
+        hold: 0.7
+        visual_cues:
+          - id: judge-flip
+            phrase: "swap only the two reward scores"
+            targets: [judge-scores, judge-plot]
+          - id: judge-second-loss
+            phrase: "about one point three eight seven"
+            targets: [judge-result]
+  - id: methods
+    title: Where does the next training reply come from?
+    visual: >-
+      Keep the P-7 archive fixed through two DPO passes. Generate a new reply from the same request in the PPO
+      lane and hand the completed text to the reward model.
+    beats:
+      - say: >-
+          Suppose all you have today is a file of ticket-versus-grant comparisons. Direct preference
+          optimization, or DPO, can use those exact words. Score both replies with the policy and the frozen
+          reference, then update the policy to fit the vote. Run another pass. The policy has changed. The
+          replies in the file still say exactly what they said before.
+        hold: 0.6
+        visual_cues:
+          - id: methods-pair
+            phrase: "both replies with the policy and the frozen reference"
+            targets: [archive-lane]
+          - id: methods-reuse
+            phrase: "Run another pass"
+            targets: [archive-lane]
+      - say: >-
+          Now give that same migration request to an actor and let it write a fresh reply. It offers to send
+          tonight's change to a reviewer. Once the reply is complete, a learned reward model can score it. In
+          reinforcement learning from human feedback, proximal policy optimization, or PPO, uses scored rollouts
+          like this to update the actor, with a penalty for drift from the reference.
+        hold: 0.7
+        visual_cues:
+          - id: methods-write
+            phrase: "It offers to send tonight's change to a reviewer"
+            targets: [rollout-lane]
+          - id: methods-score
+            phrase: "a learned reward model can score it"
+            targets: [rollout-lane]
+      - say: >-
+          If good pairs are already on disk, DPO can train while generation is offline. If you need a score on
+          a failure the current actor just produced, the online loop can see it, provided the judge recognizes
+          it. You can also collect a fresh vote and add it to the file for the next DPO pass. Those choices
+          can lead to different policies.
+        hold: 0.65
+        visual_cues:
+          - id: methods-collect
+            phrase: "collect a fresh vote and add it to the file"
+            targets: [next-batch]
+  - id: role-ownership
+    title: The reference and rollout snapshot own different quantities
+    visual: Preserve one generated token trajectory and its old-policy snapshot. Route completed-response score,
+      frozen reference charge and trainable prefix values into the actor update while keeping all five
+      identities visible.
+    beats:
+      - say: >-
+          Start with a supervised model, fit a reward model from comparisons, then sample replies for PPO.
+          Follow one reply through four jobs. The actor writes it, the frozen reward model scores it, the
+          frozen reference supplies the baseline for drift, and the critic learns to predict the return.
+          The actor and critic can share weights.
+        hold: 0.7
+        visual_cues:
+          - id: role-ownership-b0
+            phrase: Follow one reply through four jobs
+            targets:
+              - role-ownership-construction
+            color: cyan
+            linger: 0.45
+      - say: The actor chooses each next token from its current prefix. The reward model scores the finished response.
+          The reference provides baseline log probabilities for drift charges. The critic predicts future
+          return from a prefix. Return is the reward collected from that decision onward; advantage measures
+          outcome above that baseline.
+        hold: 0.7
+        visual_cues:
+          - id: role-ownership-b1
+            phrase: The actor chooses each next token from its current prefix.
+            targets:
+              - role-ownership-construction
+            color: cyan
+            linger: 0.45
+      - say: Freeze a separate old-policy snapshot when collecting a rollout batch. Its stored token probabilities
+          belong to the PPO update ratio. The longer-lived SFT reference belongs to the drift penalty. Reusing
+          one batch keeps the old probabilities and detached advantage targets fixed even while actor
+          parameters change.
+        hold: 0.7
+        visual_cues:
+          - id: role-ownership-b2
+            phrase: Freeze a separate old-policy snapshot when collecting a rollout batch.
+            targets:
+              - role-ownership-construction
+            color: cyan
+            linger: 0.45
+          - id: pa-old-snapshot
+            phrase: Freeze a separate old-policy snapshot
+            targets:
+              - role-ownership-construction
+            color: yellow
+            linger: 0.35
+  - id: token-return
+    title: A single terminal score reaches earlier decisions
+    visual: Build a three-token trajectory, charge each sampled old/reference log ratio once, then sweep the GAE
+      recurrence backward over retained residuals. Change lambda on the same trajectory and distinguish a
+      terminal boundary from a truncated bootstrap.
+    beats:
+      - say: For the article’s sequence-score recipe, each generated token receives negative beta multiplied by the
+          quantity old-policy log probability minus reference log probability. Add the reward model’s sequence
+          score once, at the final token. Summing these token charges gives the complete response log-ratio
+          charge; adding the sequence score at every token would count it repeatedly.
+        hold: 0.7
+        visual_cues:
+          - id: token-return-b0
+            phrase: For the article’s sequence-score recipe, each generated token receives negative beta multiplied by the
+              quantity old-policy log probability minus reference log probability.
+            targets:
+              - token-return-construction
+            color: cyan
+            linger: 0.45
+          - id: pa-terminal-once
+            phrase: Add the reward model’s sequence score once, at the final token
+            targets:
+              - token-return-construction
+            color: yellow
+            linger: 0.35
+      - say: An individual sampled log ratio can be negative. The policy-weighted expectation over the complete
+          response distribution is forward KL and is nonnegative. With policy probabilities point eight and
+          point two against a half-half reference, the two log ratios are about point four seven and minus
+          point nine one six; expected KL is point one nine three.
+        hold: 0.7
+        visual_cues:
+          - id: token-return-b1
+            phrase: An individual sampled log ratio can be negative.
+            targets:
+              - token-return-construction
+            color: cyan
+            linger: 0.45
+          - id: pa-kl-expectation
+            phrase: expected KL is point one nine three
+            targets:
+              - token-return-construction
+            color: yellow
+            linger: 0.35
+      - say: "Compute a temporal residual as immediate reward plus gamma times the next prefix value, minus the
+          current prefix value. Work backward: advantage equals this residual plus gamma times lambda times
+          the next advantage. A true terminal boundary uses zero next value. A deliberately truncated
+          continuing episode needs an appropriate value bootstrap."
+        hold: 0.7
+        visual_cues:
+          - id: token-return-b2
+            phrase: Compute a temporal residual as immediate reward plus gamma times the next prefix value, minus the
+              current prefix value.
+            targets:
+              - token-return-construction
+            color: cyan
+            linger: 0.45
+          - id: pa-gae-backward
+            phrase: "Work backward: advantage equals this residual plus gamma times lambda times the next advantage"
+            targets:
+              - token-return-construction
+            color: yellow
+            linger: 0.35
+      - say: Use the supplied three immediate rewards zero, zero, one, with four zero values and gamma one. At lambda
+          one, advantages are one, one, one. At lambda one half, they are one quarter, one half, one. The
+          terminal score reaches early decisions without identifying which token caused it. Critic error and
+          lambda affect that estimate.
+        hold: 0.7
+        visual_cues:
+          - id: token-return-b3
+            phrase: Use the supplied three immediate rewards zero, zero, one, with four zero values and gamma one.
+            targets:
+              - token-return-construction
+            color: cyan
+            linger: 0.45
+          - id: pa-gae-full
+            phrase: At lambda one, advantages are one, one, one
+            targets:
+              - token-return-construction
+            color: yellow
+            linger: 0.35
+          - id: pa-gae-half
+            phrase: At lambda one half, they are one quarter, one half, one
+            targets:
+              - token-return-construction
+            color: yellow
+            linger: 0.35
+  - id: ppo-clipping
+    title: What does PPO pay for this token?
+    visual: >-
+      Use one old token probability and one moving current probability. Read the raw and clipped offers for
+      opposite advantages at the same ratio, then keep the smaller value in each row.
+    beats:
+      - say: >-
+          Suppose the policy that wrote a batch gave one sampled token a twenty percent chance. The actor has
+          changed since then. Divide its current probability by the saved twenty percent. At the starting point
+          the ratio is one. The frozen reference has a different job. It measures drift over the run.
+        hold: 0.65
+        visual_cues:
+          - id: clip-old
+            phrase: "saved twenty percent"
+            targets: [clip-inputs]
+      - say: >-
+          Raise the current probability to thirty percent. The token is one and a half times as likely. PPO
+          makes two calculations. Use the actual ratio, or clip it to the range from point eight to one point
+          two. Multiply each by the same advantage, then keep the smaller product. If the advantage is plus one,
+          which product counts?
+        hold: 1.8
+        visual_cues:
+          - id: clip-up
+            phrase: "Raise the current probability to thirty percent"
+            targets: [clip-inputs]
+          - id: clip-offers
+            phrase: "Multiply each by the same advantage"
+            targets: [clip-products]
+      - say: >-
+          One point two. Increasing the probability helped a good token, and the extra increase earns nothing.
+          Now read the row for an advantage of minus one. Increasing the probability hurt. Minus one point five
+          is smaller, so the entire cost counts.
+        hold: 0.7
+        visual_cues:
+          - id: clip-good
+            phrase: "One point two"
+            targets: [clip-products]
+            caption_boundary: true
+          - id: clip-bad
+            phrase: "Minus one point five is smaller"
+            targets: [clip-products]
+            caption_boundary: true
+      - say: >-
+          Take the current probability down to ten percent. Now the ratio is one half. For a positive advantage,
+          that harmful decrease counts in full. For a negative advantage, the favorable decrease stops earning
+          credit at point eight, so its surrogate is minus point eight. The actual probability went all the way
+          to ten percent. Clipping changes the incentive on this sample. Check the actor's ratios, critic error,
+          reference drift and fresh replies after an update.
+        hold: 0.7
+        visual_cues:
+          - id: clip-down
+            phrase: "Take the current probability down to ten percent"
+            targets: [clip-inputs]
+          - id: clip-low
+            phrase: "its surrogate is minus point eight"
+            targets: [clip-products]
+  - id: state-budget
+    title: Four logical roles have a stated aggregate state cost
+    visual: Construct per-parameter dtype segments, replicate them by supplied role size and compare four-role and
+      critic-free inventories on a common byte scale. Separate rollout time and placement from the retained
+      byte total.
+    beats:
+      - say: >-
+          Count the bytes for one trainable parameter. In this setup it has two bytes of weights, two of
+          gradients, two four-byte moments and a four-byte master copy. That adds up to sixteen bytes. Each
+          frozen parameter has two weight bytes.
+        hold: 0.7
+        visual_cues:
+          - id: state-budget-b0
+            phrase: Count the bytes for one trainable parameter
+            targets:
+              - state-budget-construction
+            color: cyan
+            linger: 0.45
+          - id: pa-state-bytes
+            phrase: sixteen bytes
+            targets:
+              - state-budget-construction
+            color: yellow
+            linger: 0.35
+          - id: pa-state-weight
+            phrase: two bytes of weights
+            targets:
+              - state-budget-construction
+            color: yellow
+            linger: 0.35
+          - id: pa-state-gradient
+            phrase: two of gradients
+            targets:
+              - state-budget-construction
+            color: yellow
+            linger: 0.35
+          - id: pa-state-moments
+            phrase: two four-byte moments
+            targets:
+              - state-budget-construction
+            color: yellow
+            linger: 0.35
+          - id: pa-state-master
+            phrase: a four-byte master copy
+            targets:
+              - state-budget-construction
+            color: yellow
+            linger: 0.35
+          - id: pa-state-frozen
+            phrase: Each frozen parameter has two weight bytes
+            targets:
+              - state-budget-construction
+            color: yellow
+            linger: 0.35
+      - say: For four separate seventy-billion-parameter backbones, actor and critic each use one thousand one hundred
+          twenty decimal gigabytes. Reference and reward each use one hundred forty. The aggregate is two
+          thousand five hundred twenty gigabytes before activations, generation caches, temporary storage,
+          replication and communication.
+        hold: 0.7
+        visual_cues:
+          - id: state-budget-b1
+            phrase: For four separate seventy-billion-parameter backbones, actor and critic each use one thousand one
+              hundred twenty decimal gigabytes.
+            targets:
+              - state-budget-construction
+            color: cyan
+            linger: 0.45
+          - id: pa-state-total
+            phrase: The aggregate is two thousand five hundred twenty gigabytes
+            targets:
+              - state-budget-construction
+            color: yellow
+            linger: 0.35
+      - say: Removing this critic leaves one thousand four hundred gigabytes, saving forty-four point four percent of
+          this assumed state budget. Smaller or shared critics, adapters, sharding and offload change
+          placement or quantities. InstructGPT used a six-billion reward and value model even with its
+          one-hundred-seventy-five-billion policy.
+        hold: 0.7
+        visual_cues:
+          - id: state-budget-b2
+            phrase: Removing this critic leaves one thousand four hundred gigabytes, saving forty-four point four percent
+              of this assumed state budget.
+            targets:
+              - state-budget-construction
+            color: cyan
+            linger: 0.45
+          - id: pa-state-remove
+            phrase: Removing this critic leaves one thousand four hundred gigabytes
+            targets:
+              - state-budget-construction
+            color: yellow
+            linger: 0.35
+      - say: Online rollouts add prompt prefill, decoding and scoring work. Colocated engines can alternate generation
+          and training. Asynchronous engines can overlap them, but must synchronize weights. OpenRLHF
+          supports both layouts. Measure GPU utilization and how far the rollout policy lags behind the actor.
+        hold: 0.7
+        visual_cues:
+          - id: state-budget-b3
+            phrase: Online rollouts add prompt prefill, decoding and scoring work.
+            targets:
+              - state-budget-construction
+            color: cyan
+            linger: 0.45
+          - id: pa-state-overlap
+            phrase: asynchronous engines can overlap them
+            targets:
+              - state-budget-construction
+            color: yellow
+            linger: 0.35
+  - id: optimal-policy
+    title: The reference distribution is tilted and renormalized
+    visual: Start with an equal two-response reference, multiply each mass by its reward exponential and visibly
+      renormalize. Re-express the objective as a negative KL plus a prompt constant, preserving its support
+      assumptions.
+    beats:
+      - say: For a fixed prompt and reward, the ideal reward-minus-KL objective has a closed-form optimal
+          distribution. Multiply each reference probability by the exponential of the quantity reward divided
+          by beta, then divide by their sum Z. Assume positive beta, finite Z and policies supported by the
+          reference.
+        hold: 0.7
+        visual_cues:
+          - id: optimal-policy-b0
+            phrase: For a fixed prompt and reward, the ideal reward-minus-KL objective has a closed-form optimal
+              distribution.
+            targets:
+              - optimal-policy-construction
+            color: cyan
+            linger: 0.45
+      - say: In a supplied two-answer example, the reference is half-half, beta is one, and rewards are natural log
+          three and zero. Unnormalized masses become one point five and point five. Z is two, so the optimal
+          probabilities are three quarters and one quarter.
+        hold: 0.7
+        visual_cues:
+          - id: optimal-policy-b1
+            phrase: In a supplied two-answer example, the reference is half-half, beta is one, and rewards are natural log
+              three and zero.
+            targets:
+              - optimal-policy-construction
+            color: cyan
+            linger: 0.45
+          - id: pa-tilt-masses
+            phrase: Unnormalized masses become one point five and point five
+            targets:
+              - optimal-policy-construction
+            color: yellow
+            linger: 0.35
+          - id: pa-tilt-normalize
+            phrase: the optimal probabilities are three quarters and one quarter
+            targets:
+              - optimal-policy-construction
+            color: yellow
+            linger: 0.35
+      - say: The objective can be written as negative beta times KL from the candidate to that optimal distribution,
+          plus beta times log Z. The constant does not depend on the candidate distribution. Nonnegative KL
+          makes that distribution optimal; a finite neural network and optimizer may neither represent nor
+          reach it.
+        hold: 0.7
+        visual_cues:
+          - id: optimal-policy-b2
+            phrase: The objective can be written as negative beta times KL from the candidate to that optimal
+              distribution, plus beta times log Z.
+            targets:
+              - optimal-policy-construction
+            color: cyan
+            linger: 0.45
+  - id: reward-cancellation
+    title: The same prompt constant cancels inside a pair
+    visual: Reverse the optimal-policy equation to expose a reference-relative log ratio and identical prompt
+      constant in both answer rewards. Subtract the rewards, cancel the two identical constants and build the
+      parameterized pair loss.
+    beats:
+      - say: Take natural logs of the optimal-policy equation and solve for reward. Reward equals beta times the log
+          of optimal probability divided by reference probability, plus beta times log Z. The partition
+          function depends on the prompt, not on which completion is selected.
+        hold: 0.7
+        visual_cues:
+          - id: reward-cancellation-b0
+            phrase: Take natural logs of the optimal-policy equation and solve for reward.
+            targets:
+              - reward-cancellation-construction
+            color: cyan
+            linger: 0.45
+      - say: Bradley-Terry needs a reward difference for two answers to that same prompt. Their identical beta log Z
+          terms cancel. Replace the optimal policy with the trainable policy. Its implicit reward is beta
+          times the policy-to-reference log probability ratio, and its comparison logit is the chosen implicit
+          reward minus the rejected one.
+        hold: 0.7
+        visual_cues:
+          - id: reward-cancellation-b1
+            phrase: Bradley-Terry needs a reward difference for two answers to that same prompt.
+            targets:
+              - reward-cancellation-construction
+            color: cyan
+            linger: 0.45
+          - id: pa-reward-cancel
+            phrase: Their identical beta log Z terms cancel
+            targets:
+              - reward-cancellation-construction
+            color: yellow
+            linger: 0.35
+      - say: DPO minimizes negative log sigmoid of that comparison logit on stored labels. It needs no standalone
+          reward model, critic or fresh rollout during this optimization stage. Sharing an ideal optimum with
+          reward fitting requires the preference-model assumptions, sufficient comparison coverage, suitable
+          capacity and successful optimization. Finite DPO and clipped PPO need not produce the same
+          checkpoint.
+        hold: 0.7
+        visual_cues:
+          - id: reward-cancellation-b2
+            phrase: DPO minimizes negative log sigmoid of that comparison logit on stored labels.
+            targets:
+              - reward-cancellation-construction
+            color: cyan
+            linger: 0.45
+  - id: reference
+    title: The two replies have the same policy score
+    visual: >-
+      Read two whole-response log probabilities on the same ruler, then measure each from the score its own
+      reference assigned. Combine the signed changes into the DPO margin.
+    beats:
+      - say: >-
+          Come back to the station. Under our current policy, both exact replies have the same log probability,
+          minus three point four. We get each score by adding the log probabilities of its response tokens. If
+          you saw only those two current scores, you'd call it a tie. What happens when we compare each reply to
+          its own starting point?
+        hold: 1.65
+        visual_cues:
+          - id: ref-tie
+            phrase: "both exact replies have the same log probability"
+            targets: [ref-ruler]
+      - say: >-
+          The frozen reference gave A minus four. A moved up six tenths. The reference gave B minus three. B
+          moved down four tenths. The endpoints match, but look where each arrow starts.
+        hold: 0.6
+        visual_cues:
+          - id: ref-ticket
+            phrase: "A moved up six tenths"
+            targets: [ref-ruler]
+          - id: ref-detour
+            phrase: "B moved down four tenths"
+            targets: [ref-ruler]
+      - say: >-
+          Subtract B's change from A's. Six tenths minus negative four tenths gives a margin of one. The vote
+          tells us which direction we wanted that gap to move.
+        hold: 0.65
+        visual_cues:
+          - id: ref-margin
+            phrase: "gives a margin of one"
+            targets: [ref-margin]
+            caption_boundary: true
+  - id: probability
+    title: What chance does the model give the vote?
+    visual: >-
+      Keep the route margin and beta beside a sigmoid. Move from the reference to the worked comparison, then
+      try a larger margin on the same axes.
+    beats:
+      - say: >-
+          Put a point at zero on the horizontal axis. Here the policy matches the reference, so neither reply
+          has gained ground. The curve gives an even chance to the reviewer picking A. The height is a
+          prediction about a vote between these two replies.
+        hold: 0.55
+        visual_cues:
+          - id: sig-even
+            phrase: "an even chance"
+            targets: [sig-plot]
+      - say: >-
+          Now use the route margin of one. Multiply by beta, one half, to get halfway along the axis from zero
+          to one. Follow the curve up. It puts about sixty-two percent on A winning the comparison. The model's
+          chance of writing that exact route is a different number. Its log probability was minus three point
+          four, so that chance is only about three percent.
+        hold: 0.75
+        visual_cues:
+          - id: sig-worked
+            phrase: "halfway along the axis from zero to one"
+            targets: [sig-plot]
+          - id: sig-generation
+            phrase: "only about three percent"
+            targets: [sig-two-probs]
+      - say: >-
+          Try a larger margin with the same beta. Let the margin rise from one to five. The point still moves
+          right, but near the top it barely climbs. The sigmoid squeezes every margin onto this zero-to-one
+          scale. Now let's score what happened when the reviewer actually picked A.
+        hold: 0.65
+        visual_cues:
+          - id: sig-grow
+            phrase: "Let the margin rise from one to five"
+            targets: [sig-plot]
+  - id: loss
+    title: What does one vote cost?
+    visual: >-
+      Hold the station vote fixed and send the probability assigned to that label into the negative log loss.
+      Compare a confident miss with a confident match.
+    beats:
+      - say: >-
+          Bring back the vote for route A. Suppose the policy still matches its reference. The comparison gives
+          A an even chance. Take the negative natural log of one half and you get a loss of about point six nine
+          three. That's the starting loss for this vote.
+        hold: 0.6
+        visual_cues:
+          - id: loss-b1-1
+            phrase: "negative natural log of one half"
+            targets: [pair-loss]
+      - say: >-
+          Now give this route pair its worked margin of one. With beta one half, the model puts about sixty-two
+          percent on the recorded choice. Follow A's probability into the loss. It drops to about point four
+          seven four.
+        hold: 0.65
+        visual_cues:
+          - id: loss-b2-1
+            phrase: "give this route pair its worked margin of one"
+            targets: [pair-probability]
+      - say: >-
+          Try two other predictions for that same vote. First, put only eight percent on A. A model that
+          confident in B pays a large loss when the reviewer picks A. Now put ninety-five percent on A. The loss
+          nearly disappears. So does most of the pull on the margin. The badly misranked pair gets the stronger
+          correction.
+        hold: 0.75
+        visual_cues:
+          - id: loss-wrong-order
+            phrase: "put only eight percent on A"
+            targets: [pair-probability]
+          - id: loss-b3-1
+            phrase: "pays a large loss"
+            targets: [pair-loss]
+          - id: loss-already-confident
+            phrase: "Now put ninety-five percent on A"
+            targets: [pair-probability, pair-loss]
+  - id: update
+    title: Push the pair in opposite directions
+    visual: A two-logit policy takes repeated DPO gradient steps; each new margin recomputes the
+      chosen-versus-rejected update and softmax distribution.
+    beats:
+      - say: The comparison gradient favors the chosen response and opposes the rejected response. This push and pull
+          is weighted by how surprising the preference remains under the current policy. A logit is a score
+          before softmax; softmax turns response scores into a distribution whose probabilities sum to one.
+        hold: 0.55
+        visual_cues:
+          - id: update-b1-1
+            phrase: probabilities sum to one
+            targets:
+              - policy-probabilities
+            linger: 0.45
+      - say: The two-response model starts at the reference, with equal logits. At zero margin, the DPO loss gradient
+          is minus point two five for the chosen logit and plus point two five for the rejected. Gradient
+          descent moves them in opposite directions and recalculates the margin after each step. As the chosen
+          response pulls ahead, the next correction becomes smaller.
+        hold: 0.55
+        motion_check:
+          region:
+            - 340
+            - 440
+            - 1240
+            - 230
+          minimumChangedFraction: 0.002
+        visual_cues:
+          - id: update-b2-1
+            phrase: opposite directions
+            targets:
+              - chosen-gradient
+              - rejected-gradient
+            linger: 0.45
+          - id: update-b2-2
+            phrase: recalculates the margin
+            targets:
+              - updated-margin
+            linger: 0.45
+      - say: Transformer parameters are shared across many responses, so a push on this pair can shift probabilities
+          for other sequences too. Evaluate whole-model behavior after training.
+        hold: 0.75
+        visual_cues:
+          - id: update-b3-1
+            phrase: shift probabilities
+            targets:
+              - policy-probabilities
+            linger: 0.45
+  - id: summed-token-scores
+    title: A response score gathers shifted targets and sums once
+    visual: Retain the actual chosen/rejected six-token arrays, predictor coordinates and validity masks. Gather
+      full-vocabulary log-softmax values at the three response targets, include EOS, and alter excluded
+      prompt/padding logits on the same state.
+    beats:
+      - say: "Our route table uses a separate illustrative DPO setting: chosen policy and reference log scores minus
+          three point four and minus four; rejected minus three point four and minus three; beta one half. Its
+          margin is one and loss about point four seven four. The article’s P7 worked scores instead yield
+          margin point seven, beta point one and loss point six five nine."
+        hold: 0.7
+        visual_cues:
+          - id: summed-token-scores-b0
+            phrase: "Our route table uses a separate illustrative DPO setting: chosen policy and reference log scores
+              minus three point four and minus four; rejected minus three point four and minus three; beta one
+              half."
+            targets:
+              - summed-token-scores-construction
+            color: cyan
+            linger: 0.45
+      - say: These are sums of observed response-token log probabilities under teacher forcing. For each target token
+          at index t, gather its log-softmax probability from logit row t minus one, using the whole
+          vocabulary in the normalizer. Sum only valid response targets, including the selected ending.
+          Exclude prompt targets and padding by their positions and masks.
+        hold: 0.7
+        visual_cues:
+          - id: summed-token-scores-b1
+            phrase: These are sums of observed response-token log probabilities under teacher forcing.
+            targets:
+              - summed-token-scores-construction
+            color: cyan
+            linger: 0.45
+          - id: pa-token-gather
+            phrase: gather its log-softmax probability from logit row t minus one
+            targets:
+              - summed-token-scores-construction
+            color: yellow
+            linger: 0.35
+      - say: The actual article toy has prompt IDs zero, two. Chosen response IDs one, two, four and rejected response
+          IDs three, zero, four follow; four is EOS. A final zero is padding, while the rejected response’s
+          internal zero is real content. Masking by ID alone would wrongly erase that real target.
+        hold: 0.7
+        visual_cues:
+          - id: summed-token-scores-b2
+            phrase: The actual article toy has prompt IDs zero, two.
+            targets:
+              - summed-token-scores-construction
+            color: cyan
+            linger: 0.45
+          - id: pa-token-eos
+            phrase: four is EOS
+            targets:
+              - summed-token-scores-construction
+            color: yellow
+            linger: 0.35
+      - say: The executed CPU toy produces chosen log probability minus point nine nine three, rejected minus one
+          point eight eight two and DPO loss point six six two. Increasing its two chosen observed logits
+          lowers loss to point six four six. Changing excluded prompt and padding predictors leaves the
+          selected sum unchanged.
+        hold: 0.7
+        visual_cues:
+          - id: summed-token-scores-b3
+            phrase: The executed CPU toy produces chosen log probability minus point nine nine three, rejected minus one
+              point eight eight two and DPO loss point six six two.
+            targets:
+              - summed-token-scores-construction
+            color: cyan
+            linger: 0.45
+          - id: pa-token-result
+            phrase: DPO loss point six six two
+            targets:
+              - summed-token-scores-construction
+            color: yellow
+            linger: 0.35
+          - id: pa-token-boost
+            phrase: lowers loss to point six four six
+            targets:
+              - summed-token-scores-construction
+            color: yellow
+            linger: 0.35
+          - id: pa-token-excluded
+            phrase: leaves the selected sum unchanged
+            targets:
+              - summed-token-scores-construction
+            color: yellow
+            linger: 0.35
+  - id: reduction-convention
+    title: A sequence sum and token average can reverse the pair
+    visual: Keep two completion owners and their actual token counts. Accumulate reference-relative scores, then
+      change the normalization operation while preserving each token contribution and compare the sign of the
+      pair margin.
+    beats:
+      - say: Standard sigmoid DPO uses whole-response log-probability sums. Averaging the final loss over dataset rows
+          is a different operation from averaging tokens inside each completion. Length differences can affect
+          sequence sums; dividing each sum by its length changes the objective.
+        hold: 0.7
+        visual_cues:
+          - id: reduction-convention-b0
+            phrase: Standard sigmoid DPO uses whole-response log-probability sums.
+            targets:
+              - reduction-convention-construction
+            color: cyan
+            linger: 0.45
+      - say: Use the article’s chosen four-token response with summed log ratio point four and rejected two-token
+          response with point three. The summed margin is positive point one. Per-token averages become point
+          one and point one five, giving negative point zero five. The same pair now has the opposite implicit
+          ordering.
+        hold: 0.7
+        visual_cues:
+          - id: reduction-convention-b1
+            phrase: Use the article’s chosen four-token response with summed log ratio point four and rejected two-token
+              response with point three.
+            targets:
+              - reduction-convention-construction
+            color: cyan
+            linger: 0.45
+          - id: pa-reduction-sum
+            phrase: The summed margin is positive point one
+            targets:
+              - reduction-convention-construction
+            color: yellow
+            linger: 0.35
+          - id: pa-reduction-mean
+            phrase: giving negative point zero five
+            targets:
+              - reduction-convention-construction
+            color: yellow
+            linger: 0.35
+          - id: pa-reduction-divide
+            phrase: Per-token averages become point one and point one five
+            targets:
+              - reduction-convention-construction
+            color: yellow
+            linger: 0.35
+      - say: State the actual loss and scoring convention when comparing methods. The inspected TRL IPO path uses
+          per-completion average reference-relative scores, unlike standard sigmoid DPO. Track lengths and
+          confirm that truncation preserves the behavior that justified the label; a cleaner metric cannot
+          recover erased evidence.
+        hold: 0.7
+        visual_cues:
+          - id: reduction-convention-b2
+            phrase: State the actual loss and scoring convention when comparing methods.
+            targets:
+              - reduction-convention-construction
+            color: cyan
+            linger: 0.45
+  - id: beta-double-role
+    title: Initial gradient scale differs from the ideal drift tradeoff
+    visual: Draw a fixed preference-logit curve beside the policy optimum. Hold the true preference probability
+      and reference fixed while beta changes the initial unscaled-margin derivative and the required ideal
+      policy odds.
+    beats:
+      - say: For unscaled margin m, comparison logit z equals beta times m. The loss derivative with respect to z is
+          sigmoid z minus one; with respect to m, multiply that quantity by beta. At zero margin the loss is
+          natural log two, the logit derivative is minus one half, and the margin derivative is minus beta
+          divided by two.
+        hold: 0.7
+        visual_cues:
+          - id: beta-double-role-b0
+            phrase: For unscaled margin m, comparison logit z equals beta times m.
+            targets:
+              - beta-double-role-construction
+            color: cyan
+            linger: 0.45
+          - id: pa-beta-initial
+            phrase: minus beta divided by two
+            targets:
+              - beta-double-role-construction
+            color: yellow
+            linger: 0.35
+      - say: Both replies start equally likely. Watch what one vote does. With beta one half, the chosen logit's
+          gradient is minus point two five. The rejected logit's gradient is plus point two five. Take one
+          gradient step and the logits move apart. In a model with shared weights, the
+          update also depends on how each weight affects the log probabilities of both replies.
+        hold: 0.7
+        visual_cues:
+          - id: beta-double-role-b1
+            phrase: Take one gradient step and the logits move apart
+            targets:
+              - beta-double-role-construction
+            color: cyan
+            linger: 0.45
+      - say: For a complete two-answer population with uniform reference and true preference probability three
+          quarters, the fitted comparison logit is natural log three. The ideal margin is natural log three
+          divided by beta, and policy A probability is sigmoid of that margin. Beta point one, point five and
+          one give about ninety-nine point nine nine eight, ninety and seventy-five percent.
+        hold: 0.7
+        visual_cues:
+          - id: beta-double-role-b2
+            phrase: For a complete two-answer population with uniform reference and true preference probability three
+              quarters, the fitted comparison logit is natural log three.
+            targets:
+              - beta-double-role-construction
+            color: cyan
+            linger: 0.45
+          - id: pa-beta-target
+            phrase: Beta point one, point five and one give about ninety-nine point nine nine eight, ninety and
+              seventy-five percent
+            targets:
+              - beta-double-role-construction
+            color: yellow
+            linger: 0.35
+      - say: Larger beta gives a larger initial margin gradient while keeping this ideal fixed-reward policy closer to
+          the reference. Actual drift also depends on learning rate, update count and saturation. No hard
+          global KL constraint follows from the empirical pair loss. If loss remains near point six nine three
+          after updates, first verify gradients and parameter changes, then inspect labels and coverage.
+        hold: 0.7
+        visual_cues:
+          - id: beta-double-role-b3
+            phrase: Larger beta gives a larger initial margin gradient while keeping this ideal fixed-reward policy closer
+              to the reference.
+            targets:
+              - beta-double-role-construction
+            color: cyan
+            linger: 0.45
+  - id: likelihood-displacement
+    title: Follow the ticket as the margin changes
+    visual: >-
+      Place both P-7 replies on one reference-relative log scale. Move them left, measure the gap between them,
+      then compare the ticket with its own frozen reference.
+    beats:
+      - say: >-
+          Find the ticket and the grant on this ruler. Zero means the policy gives that exact reply the same
+          probability as the frozen reference. Subtract the reference log score in each row. The ticket starts
+          three tenths to the right of zero. The grant starts four tenths to its left. The distance between them
+          is the margin.
+        hold: 0.6
+        visual_cues:
+          - id: displace-start
+            phrase: "Subtract the reference log score in each row"
+            targets: [score-inputs]
+      - say: >-
+          Look at a second policy on this same request. Its ticket log score is lower by nine tenths. Its grant
+          log score is lower by one point seven. Both marks slide left. The gap opens from point seven to one
+          point five. With beta point one, the loss falls from about point six five nine to point six two one.
+          Is this policy more or less likely to write the ticket than the reference?
+        hold: 2
+        visual_cues:
+          - id: displace-inputs
+            phrase: "Its ticket log score is lower by nine tenths. Its grant log score is lower by one point seven"
+            targets: [score-inputs]
+          - id: displace-move
+            phrase: "Both marks slide left"
+            targets: [score-ruler]
+          - id: displace-gap
+            phrase: "The gap opens from point seven to one point five"
+            targets: [score-ruler]
+      - say: >-
+          Less likely. The ticket sits six tenths below its own reference. The gap grew because the grant fell
+          farther. This is likelihood displacement. Some other replies gained probability, and we need to see
+          them to know whether that's good news. Track both log scores, the margin and on-policy drift.
+          DPO-Positive adds a penalty when the chosen reply falls below its reference.
+        hold: 0.7
+        visual_cues:
+          - id: displace-answer
+            phrase: "Less likely"
+            targets: [score-ruler]
+            caption_boundary: true
+  - id: unseen-probability
+    title: Where did the missing probability go?
+    visual: >-
+      Represent the whole response distribution with 100 equal tiles. Transfer columns containing four A tiles
+      and one B tile to the unjudged C response while the stored A to B odds stay fixed.
+    beats:
+      - say: >-
+          Suppose the assistant has just three possible replies. A opens the ticket. B grants access. C grants
+          access and invents a policy exception to justify it. Each square is one percentage point of the chance
+          of generating that reply. The reference gives each reply a third. The only vote in our file is A over
+          B.
+        hold: 0.55
+        visual_cues:
+          - id: mass-key
+            phrase: "Each square is one percentage point"
+            targets: [mass-grid]
+      - say: >-
+          Here A has forty squares and B has ten. Each of their columns holds four tickets for one grant. C has
+          the other fifty squares. At beta point one, the loss on the stored vote is about point six two six.
+          Keep the vote and the reference fixed.
+        hold: 0.65
+        visual_cues:
+          - id: mass-odds
+            phrase: "four tickets for one grant"
+            targets: [pair-odds]
+      - say: >-
+          Give eight of those columns to the invented exception. Count what's left. Eight tickets, two grants
+          and ninety exceptions. Would the loss on the stored vote rise, fall or stay the same?
+        caption_starts: ["Eight tickets, two grants", "Would the loss on the stored vote"]
+        hold: 2
+        visual_cues:
+          - id: mass-move
+            phrase: "Give eight of those columns to the invented exception"
+            targets: [mass-grid]
+      - say: >-
+          It stays the same. Eight divided by two is still four. The reference odds are still one to one, so the
+          margin is still the natural log of four. Both policies pay the same loss, although the second would
+          usually invent an exception. Sample replies from that policy. When you find C, ask a reviewer to
+          compare the ticket with the invented exception. An online scorer also needs to recognize that
+          difference.
+        hold: 0.7
+        visual_cues:
+          - id: mass-answer
+            phrase: "It stays the same"
+            targets: [pair-losses]
+            caption_boundary: true
+          - id: mass-new-pair
+            phrase: "compare the ticket with the invented exception"
+            targets: [pair-coverage]
+  - id: reference-cache
+    title: A cached score belongs to one complete scoring recipe
+    visual: Keep one fixed response token ribbon beside reference revision, template, target mask and reduction
+      owners. Cache its scalar, change only one mask owner and show that unchanged text cannot validate the
+      cached score.
+    beats:
+      - say: Vanilla DPO has policy and reference scoring roles; a frozen reference’s scores can be precomputed for
+          fixed token sequences. This can remove a resident reference model during updates. A cache belongs to
+          exact reference weights, tokenizer, template, token IDs, response masks, truncation and sum-or-mean
+          convention.
+        hold: 0.7
+        visual_cues:
+          - id: reference-cache-b0
+            phrase: Vanilla DPO has policy and reference scoring roles; a frozen reference’s scores can be precomputed for
+              fixed token sequences.
+            targets:
+              - reference-cache-construction
+            color: cyan
+            linger: 0.45
+      - say: Keep the text unchanged but alter which EOS target is scored. The old cached scalar now belongs to the
+          old mask, so recompute affected scores. Changing the reference weights also invalidates them. The
+          inspected TRL one point seventeen point one rejects combining precomputation with reference
+          synchronization because those two contracts conflict.
+        hold: 0.7
+        visual_cues:
+          - id: reference-cache-b1
+            phrase: Keep the text unchanged but alter which EOS target is scored.
+            targets:
+              - reference-cache-construction
+            color: cyan
+            linger: 0.45
+          - id: pa-cache-mask
+            phrase: alter which EOS target is scored
+            targets:
+              - reference-cache-construction
+            color: yellow
+            linger: 0.35
+      - say: For its shown full-model setup without a separately retained reference, provide planned pair-evaluation
+          datasets at initialization. After policy updates, the actor no longer supplies the original
+          reference scores for a newly passed uncached dataset; the inspected trainer raises an error. Keep an
+          explicit frozen reference or arrange valid initial caches. Adapter paths have different
+          implementation details.
+        hold: 0.7
+        visual_cues:
+          - id: reference-cache-b2
+            phrase: For its shown full-model setup without a separately retained reference, provide planned
+              pair-evaluation datasets at initialization.
+            targets:
+              - reference-cache-construction
+            color: cyan
+            linger: 0.45
+  - id: truncation-audit
+    title: Which words fit in eight tokens?
+    visual: Lay out prompt and two response suffixes against a fixed maximum-length cut. Count surviving shifted
+      targets, reveal erased label-defining words and distinguish the pinned default drop from custom-collator
+      behavior.
+    beats:
+      - say: >-
+          One reply says escalate. The other says grant. Both start with six prompt tokens.
+          If the trainer keeps the first eight tokens, which words from each reply will it score?
+        caption_starts: ["If the trainer keeps the first eight tokens"]
+        hold: 1.8
+        visual_cues:
+          - id: truncation-audit-b0
+            phrase: One reply says escalate. The other says grant.
+            targets: [truncation-audit-construction]
+      - say: >-
+          Cut at eight. Both replies now say cite P seven. The words that earned the vote are gone.
+          This is how keep-start truncation works in TRL one point seventeen.
+        caption_starts: ["Both replies now say cite P seven"]
+        hold: 0.7
+        visual_cues:
+          - id: pa-truncate-cut
+            phrase: Cut at eight
+            targets:
+              - truncation-audit-construction
+            color: yellow
+            linger: 0.35
+      - say: Now let the prompt fill all eight positions. The trainer drops the row because there is no reply
+          left to score. Count your pairs before and after preparation. If you build your own collator,
+          check that each reply has at least one scored target after the next-token shift.
+        hold: 0.7
+        visual_cues:
+          - id: truncation-audit-b1
+            phrase: Now let the prompt fill all eight positions
+            targets:
+              - truncation-audit-construction
+            color: cyan
+            linger: 0.45
+          - id: pa-truncate-drop
+            phrase: The trainer drops the row
+            targets:
+              - truncation-audit-construction
+            color: yellow
+            linger: 0.35
+      - say: Read the tokens that survive in both replies. Here each reply has two scored targets, and the texts
+          are identical. Confirm tokenizer, template, EOS and masks match across trainable
+          and frozen scoring paths. Dropout or mismatched preparation can otherwise create nonzero
+          reference-relative margins before learning.
+        hold: 0.7
+        visual_cues:
+          - id: truncation-audit-b2
+            phrase: Read the tokens that survive in both replies
+            targets:
+              - truncation-audit-construction
+            color: cyan
+            linger: 0.45
+  - id: training-contract
+    title: A pair-loss evaluation is a different measurement from new answers
+    visual: Follow the same prepared train/eval pairs through reference precomputation, actor steps and saved
+      artifacts. Separate pair-loss evaluation from an independent path that generates and judges new
+      responses.
+    beats:
+      - say: The library example supplies map-style prompt, chosen and rejected datasets, the SFT tokenizer and a
+          full-model checkpoint. It chooses beta point one, learning rate five times ten to the minus six,
+          maximum length two thousand forty-eight and ten steps.
+        hold: 0.7
+        visual_cues:
+          - id: training-contract-b0
+            phrase: The library example supplies map-style prompt, chosen and rejected datasets, the SFT tokenizer and a
+              full-model checkpoint.
+            targets:
+              - training-contract-construction
+            color: cyan
+            linger: 0.45
+      - say: Inspect collated pairs, row counts, reference freezing, optimizer state, precision and memory before
+          interpreting a run. Save both updated weights and tokenizer so you can generate replies from the
+          checkpoint you evaluated.
+        hold: 0.7
+        visual_cues:
+          - id: training-contract-b1
+            phrase: Inspect collated pairs, row counts, reference freezing, optimizer state, precision and memory before
+              interpreting a run.
+            targets:
+              - training-contract-construction
+            color: cyan
+            linger: 0.45
+      - say: On stored pairs, the trainer scores the two replies already in each row. To measure how often
+          people prefer the updated model, generate fresh replies and ask independent reviewers to choose.
+          Use the same prompts, rubric and decoding settings for both models.
+        hold: 0.7
+        visual_cues:
+          - id: training-contract-b2
+            phrase: the trainer scores the two replies already in each row
+            targets:
+              - training-contract-construction
+            color: cyan
+            linger: 0.45
+          - id: pa-training-generation
+            phrase: generate fresh replies and ask independent reviewers to choose
+            targets:
+              - training-contract-construction
+            color: yellow
+            linger: 0.35
+  - id: pair-data
+    title: The label owns the prompt and both response boundaries
+    visual: Keep complete prompt/response records as indivisible rows. Group prompt owners into a holdout, retain
+      generator provenance, and show opposite votes separately instead of silently overwriting a tie.
+    beats:
+      - say: Both loops inherit the comparison data contract. Keep the same rendered prompt, complete response
+          boundaries and generator provenance with each chosen and rejected answer. Standard DPO treats an
+          ordering as a binary observation. Repeated opposite votes can express genuine uncertainty rather
+          than an automatic labeling error.
+        hold: 0.7
+        visual_cues:
+          - id: pair-data-b0
+            phrase: Both loops inherit the comparison data contract.
+            targets:
+              - pair-data-construction
+            color: cyan
+            linger: 0.45
+      - say: For generalization to unseen prompts, split by prompt groups. A known-prompt, new-response evaluation is
+          another valid question, but evaluated responses and labels still stay out of training. An answer
+          from another generator is not automatically invalid; it may simply miss current-policy failures.
+        hold: 0.7
+        visual_cues:
+          - id: pair-data-b1
+            phrase: For generalization to unseen prompts, split by prompt groups.
+            targets:
+              - pair-data-construction
+            color: cyan
+            linger: 0.45
+          - id: pa-data-groups
+            phrase: split by prompt groups
+            targets:
+              - pair-data-construction
+            color: yellow
+            linger: 0.35
+      - say: "Cover the behaviors the product actually needs: refusals, tool use, reasoning, style and policy
+          compliance. More annotations can measure disagreement without repairing a vague rubric. Inspect
+          whether current generations introduce a failure absent from stored rows before treating high pair
+          accuracy as broad alignment."
+        hold: 0.7
+        visual_cues:
+          - id: pair-data-b2
+            phrase: "Cover the behaviors the product actually needs: refusals, tool use, reasoning, style and policy
+              compliance."
+            targets:
+              - pair-data-construction
+            color: cyan
+            linger: 0.45
+  - id: evaluation
+    title: Can a word count pick the better answer?
+    visual: >-
+      Fit a shorter-answer rule to three stored votes. Test the same rule on two length-matched pairs,
+      uncovering the changed turn or sum before scoring each against the task.
+    beats:
+      - say: >-
+          Here's a rule that can look like a good reviewer. Always pick the shorter reply. On our station pair
+          that picks eleven words over twelve. On the next two stored pairs it picks three over ten, then one
+          over nine. That's three matches to three votes. Did the rule even have to read a word?
+        hold: 1.3
+        visual_cues:
+          - id: length-rule
+            phrase: "pick the shorter reply"
+            targets: [audit-training]
+          - id: length-counts
+            phrase: "three over ten, then one over nine"
+            targets: [audit-training]
+      - say: >-
+          Try two fresh replies to the familiar station question. Both have eight words. When the lengths tie,
+          our rule always picks X. Read the first turn in each reply. Facing north at the entrance, which reply
+          takes you toward the café?
+        hold: 1.8
+        visual_cues:
+          - id: audit-route
+            phrase: "Read the first turn in each reply"
+            targets: [audit-answers]
+      - say: >-
+          Y goes left. X sends you right, toward the park. The rule misses this vote. On a different prompt, two
+          plus three, the replies again have eight words apiece. One ends in five and the other in six. Which
+          reply earns the vote this time?
+        hold: 1.8
+        visual_cues:
+          - id: audit-first
+            phrase: "Y goes left"
+            targets: [audit-answers]
+            caption_boundary: true
+          - id: audit-next
+            phrase: "On a different prompt, two plus three"
+            targets: [audit-answers]
+      - say: >-
+          X gives five. The tie rule gets one of these two new votes right, entirely by position. A reviewer
+          checking the actual turn and the sum can distinguish both pairs. For a model comparison, blind the
+          order and use the same prompts and rubric for both models. Record why reviewers disagree. Check task
+          quality, factual errors and refusals alongside length.
+        hold: 0.65
+        visual_cues:
+          - id: audit-second
+            phrase: "X gives five"
+            targets: [audit-answers]
+            caption_boundary: true
+          - id: audit-score
+            phrase: "one of these two new votes right"
+            targets: [audit-score]
+  - id: proxy-controls
+    title: A controlled rewrite can test the scorer shortcut
+    visual: Retain one supported P7 answer and its policy content while adding a preamble or padding. Compare its
+      scorer change with blinded length-matched judgments, and separately perturb false user claims and
+      formatting.
+    beats:
+      - say: >-
+          Score the reply that opens the reviewer ticket. Now put the words “Policy-safe answer” in front of it.
+          Score it again. The assistant offers exactly the same ticket. If the reward goes up, the scorer
+          paid for that preamble.
+        caption_starts: ["Now put the words", "Score it again"]
+        hold: 0.7
+        visual_cues:
+          - id: proxy-controls-b0
+            phrase: Score the reply that opens the reviewer ticket
+            targets:
+              - proxy-controls-construction
+            color: cyan
+            linger: 0.45
+          - id: pa-proxy-preamble
+            phrase: put the words “Policy-safe answer” in front of it
+            targets:
+              - proxy-controls-construction
+            color: yellow
+            linger: 0.35
+      - say: Length-matched comparisons can separate useful detail from padding. Also compare formatted and plain
+          answers, false user claims for sycophancy, and confidence on known-hard questions. A length penalty
+          can punish necessary detail, so test it against correctness and refusal quality.
+        hold: 0.7
+        visual_cues:
+          - id: proxy-controls-b1
+            phrase: Length-matched comparisons can separate useful detail from padding.
+            targets:
+              - proxy-controls-construction
+            color: cyan
+            linger: 0.45
+      - say: If real updates leave DPO loss near point six nine three, audit parameter changes, contradictory labels,
+          ties and missing coverage. If tone improves while access policy fails, inspect labels and the
+          deployed prompt or template. If online reward rises while outputs become repetitive, hold promotion,
+          inspect reward scale and drift, and refresh evaluation.
+        hold: 0.7
+        visual_cues:
+          - id: proxy-controls-b2
+            phrase: If real updates leave DPO loss near point six nine three, audit parameter changes, contradictory
+              labels, ties and missing coverage.
+            targets:
+              - proxy-controls-construction
+            color: cyan
+            linger: 0.45
+          - id: pa-proxy-triage
+            phrase: audit parameter changes, contradictory labels, ties and missing coverage
+            targets:
+              - proxy-controls-construction
+            color: yellow
+            linger: 0.35
+  - id: release-interval
+    title: Would you release this candidate?
+    visual: >-
+      Place blinded wins and mean length growth on two separate rulers with fixed cutoffs. Judge the lower
+      endpoint of the interval and compare the observed growth with its strict limit.
+    beats:
+      - say: >-
+          Back to the candidate whose reward rose by point three one. Before seeing any wins, we set two rules.
+          The lower end of a ninety-five percent interval for the human win rate must clear fifty percent. The
+          average reply must grow by fewer than twenty tokens. That's a product choice for this example.
+        hold: 0.6
+        visual_cues:
+          - id: release-win-rule
+            phrase: "lower end of a ninety-five percent interval"
+            targets: [win-rule]
+          - id: release-length-rule
+            phrase: "fewer than twenty tokens"
+            targets: [length-rule]
+      - say: >-
+          We judge one pair on each of four hundred independent prompts, in blind order, with no ties. The
+          candidate wins one hundred eighty-four. That's forty-six percent. The Wilson interval runs from about
+          forty-one point two to fifty point nine percent. Now add forty-eight tokens of mean length growth.
+          Does either measurement clear its rule?
+        hold: 2
+        visual_cues:
+          - id: release-count
+            phrase: "wins one hundred eighty-four"
+            targets: [win-rule]
+          - id: release-interval
+            phrase: "forty-one point two to fifty point nine percent"
+            targets: [win-rule]
+          - id: release-growth
+            phrase: "forty-eight tokens of mean length growth"
+            targets: [length-rule]
+      - say: >-
+          Neither clears. Fifty percent lies inside the interval, so we haven't established a gain or a decline.
+          And forty-eight is well beyond twenty. Hold this candidate. Inspect its longer replies for useful
+          detail, needless padding and refusal quality. Choose a checkpoint on validation data, then judge it on
+          a separate planned comparison. With shared users, ties or repeated looks, plan an analysis that
+          accounts for them.
+        hold: 0.75
+        visual_cues:
+          - id: release-hold
+            phrase: "Neither clears"
+            targets: [gate-verdict]
+            caption_boundary: true
+  - id: online-refresh
+    title: New comparisons can follow the policy without a critic
+    visual: Retain the old pair archive while generating new response IDs, label them with a stated judge and add
+      a new comparison edge. Keep sampling and reference rules visible rather than treating all online methods
+      as one algorithm.
+    beats:
+      - say: Basic DPO optimizes stored pairs without fresh rollout exploration. An iterative data-collection loop can
+          sample two or more candidates from the current policy, obtain human or model preferences, preserve a
+          new triple, then run a pairwise update. New comparisons can expose harder negatives absent from the
+          old archive.
+        hold: 0.7
+        visual_cues:
+          - id: online-refresh-b0
+            phrase: Basic DPO optimizes stored pairs without fresh rollout exploration.
+            targets:
+              - online-refresh-construction
+            color: cyan
+            linger: 0.45
+          - id: pa-refresh-edge
+            phrase: preserve a new triple
+            targets:
+              - online-refresh-construction
+            color: yellow
+            linger: 0.35
+      - say: Online DPO is a family of procedures with different sampling, update and reference rules. The cited
+          online IPO and IPO-MD work distinguishes current-policy samples from a mixture with the reference.
+          Sampling from a different policy also changes the distribution behind drift estimates.
+        hold: 0.7
+        visual_cues:
+          - id: online-refresh-b1
+            phrase: Online DPO is a family of procedures with different sampling, update and reference rules.
+            targets:
+              - online-refresh-construction
+            color: cyan
+            linger: 0.45
+          - id: pa-refresh-mixture
+            phrase: a mixture with the reference
+            targets:
+              - online-refresh-construction
+            color: yellow
+            linger: 0.35
+      - say: A critic is not required merely to refresh comparison data. A stale or biased judge can still mislabel
+          the new failures. Keep reference revisions, candidate provenance, old rows and new labels attached
+          to their actual owners, then evaluate generated behavior independently.
+        hold: 0.7
+        visual_cues:
+          - id: online-refresh-b2
+            phrase: A critic is not required merely to refresh comparison data.
+            targets:
+              - online-refresh-construction
+            color: cyan
+            linger: 0.45
+  - id: ipo-target
+    title: A finite margin target changes the gradient direction
+    visual: Plot DPO logistic and IPO squared losses on the same reference-relative-margin axis. Move the current
+      margin across the explicit target while separately drawing the bounded forward KL of a complete
+      two-response policy.
+    beats:
+      - say: Identity Preference Optimization uses the squared difference between its reference-relative margin and
+          one divided by the quantity two times tau. Tau is positive. At tau point one, the target is five.
+          Its derivative with respect to margin is two times the quantity margin minus five.
+        hold: 0.7
+        visual_cues:
+          - id: ipo-target-b0
+            phrase: Identity Preference Optimization uses the squared difference between its reference-relative margin and
+              one divided by the quantity two times tau.
+            targets:
+              - ipo-target-construction
+            color: cyan
+            linger: 0.45
+      - say: Margins below five are pushed upward; overshoots are pushed downward. Squared loss penalizes distance
+          from the target without clipping the actual margin or guaranteeing stable neural-network updates.
+          The inspected trainer’s IPO score averages completion tokens, so its normalization must also match
+          the claimed margin.
+        hold: 0.7
+        visual_cues:
+          - id: ipo-target-b1
+            phrase: Margins below five are pushed upward; overshoots are pushed downward.
+            targets:
+              - ipo-target-construction
+            color: cyan
+            linger: 0.45
+          - id: pa-ipo-return
+            phrase: overshoots are pushed downward
+            targets:
+              - ipo-target-construction
+            color: yellow
+            linger: 0.35
+      - say: For a complete two-response policy with uniform reference, increasing the log-odds margin toward infinity
+          concentrates probability on one answer. Forward KL remains bounded by natural log two. Mode
+          concentration does not require infinite forward KL. At margins zero, five and ten, IPO losses are
+          twenty-five, zero and twenty-five while sigmoid DPO keeps decreasing.
+        hold: 0.7
+        visual_cues:
+          - id: ipo-target-b2
+            phrase: For a complete two-response policy with uniform reference, increasing the log-odds margin toward
+              infinity concentrates probability on one answer.
+            targets:
+              - ipo-target-construction
+            color: cyan
+            linger: 0.45
+          - id: pa-ipo-kl
+            phrase: Forward KL remains bounded by natural log two
+            targets:
+              - ipo-target-construction
+            color: yellow
+            linger: 0.35
+  - id: kto-direction
+    title: A single label reverses the update direction
+    visual: Keep one response and a detached reference point fixed. Raise its log ratio on the same axis, compare
+      desirable versus undesirable sigmoid branches, and retain the telemetry-selection contract beside the
+      update.
+    beats:
+      - say: "Kahneman-Tversky Optimization can consume one response and a desirable or undesirable label without a
+          paired alternative. That feedback needs defined semantics: a click can reflect style or selection
+          bias rather than factual correctness. Its prospect-theory-inspired value is a modeling choice."
+        hold: 0.7
+        visual_cues:
+          - id: kto-direction-b0
+            phrase: Kahneman-Tversky Optimization can consume one response and a desirable or undesirable label without a
+              paired alternative.
+            targets:
+              - kto-direction-construction
+            color: cyan
+            linger: 0.45
+      - say: Let r be policy-to-reference log ratio and hold detached reference point z fixed. For a desirable row,
+          the unit-weight loss is one minus sigmoid of beta times the quantity r minus z. For an undesirable
+          row, reverse that difference. The label must reverse the update direction.
+        hold: 0.7
+        visual_cues:
+          - id: kto-direction-b1
+            phrase: Let r be policy-to-reference log ratio and hold detached reference point z fixed.
+            targets:
+              - kto-direction-construction
+            color: cyan
+            linger: 0.45
+      - say: In the article’s scalar example, beta one half and z point two stay fixed while r increases from one to
+          two. Desirable loss falls about point four zero one to point two eight nine; undesirable loss rises
+          point five nine nine to point seven one one. The paper estimates its reference point using
+          nonnegative clamped mismatched-row log ratios without backpropagating through that estimate. Class
+          weighting and sampling still need review.
+        hold: 0.7
+        visual_cues:
+          - id: kto-direction-b2
+            phrase: In the article’s scalar example, beta one half and z point two stay fixed while r increases from one
+              to two.
+            targets:
+              - kto-direction-construction
+            color: cyan
+            linger: 0.45
+          - id: pa-kto-move
+            phrase: r increases from one to two
+            targets:
+              - kto-direction-construction
+            color: yellow
+            linger: 0.35
+  - id: reference-free-losses
+    title: Dropping the reference changes the objective contract
+    visual: Keep the same chosen/rejected completion scores. Construct ORPO’s supervised and odds terms in
+      parallel, then switch explicitly to SimPO’s averaged log scores and target margin without reusing
+      reference-cache numbers.
+    beats:
+      - say: ORPO combines chosen-response SFT cross-entropy and a weighted odds-ratio preference penalty in one
+          training stage, without a reference model. It couples imitation and comparison losses. Its odds
+          transform is a different mathematical quantity from an ordinary probability ratio.
+        hold: 0.7
+        visual_cues:
+          - id: reference-free-losses-b0
+            phrase: ORPO combines chosen-response SFT cross-entropy and a weighted odds-ratio preference penalty in one
+              training stage, without a reference model.
+            targets:
+              - reference-free-losses-construction
+            color: cyan
+            linger: 0.45
+          - id: pa-orpo-odds
+            phrase: a weighted odds-ratio preference penalty
+            targets:
+              - reference-free-losses-construction
+            color: yellow
+            linger: 0.35
+      - say: SimPO also drops the reference, using scaled average token log probability as its implicit reward. Its
+          preference logit subtracts a chosen target margin from the reward difference. This changes length
+          dependence; it does not make ordinary DPO token averaging an equivalent implementation.
+        hold: 0.7
+        visual_cues:
+          - id: reference-free-losses-b1
+            phrase: SimPO also drops the reference, using scaled average token log probability as its implicit reward.
+            targets:
+              - reference-free-losses-construction
+            color: cyan
+            linger: 0.45
+          - id: pa-simpo-margin
+            phrase: subtracts a chosen target margin
+            targets:
+              - reference-free-losses-construction
+            color: yellow
+            linger: 0.35
+      - say: Choose the objective from the feedback contract and test held-out concision and correctness. A
+          reference-free method removes reference scoring and storage, but its policy forward and backward
+          work remains. Report its actual loss, normalization and quality evidence before making a systems
+          comparison.
+        hold: 0.7
+        visual_cues:
+          - id: reference-free-losses-b2
+            phrase: Choose the objective from the feedback contract and test held-out concision and correctness.
+            targets:
+              - reference-free-losses-construction
+            color: cyan
+            linger: 0.45
+  - id: group-advantage
+    title: A prompt group supplies its own outcome baseline
+    visual: Build four completion reward bars, subtract their prompt-group mean and divide by the declared
+      population standard deviation. On the same group, set all rewards equal and keep a separate KL term
+      visible.
+    beats:
+      - say: Group Relative Policy Optimization samples several completions for one prompt, scores them with a
+          verifier or reward model, and estimates outcome advantages from the group instead of a learned
+          critic. In the original outcome formulation, subtract the group mean and divide by its standard
+          deviation, with a stated zero-scale policy.
+        hold: 0.7
+        visual_cues:
+          - id: group-advantage-b0
+            phrase: Group Relative Policy Optimization samples several completions for one prompt, scores them with a
+              verifier or reward model, and estimates outcome advantages from the group instead of a learned
+              critic.
+            targets:
+              - group-advantage-construction
+            color: cyan
+            linger: 0.45
+      - say: The article’s transparent helper uses population standard deviation. For rewards one, zero, one half,
+          one, mean is point six two five and standard deviation about point four one five. Advantages are
+          approximately point nine zero five, minus one point five zero eight, minus point three zero two and
+          point nine zero five.
+        hold: 0.7
+        visual_cues:
+          - id: group-advantage-b1
+            phrase: The article’s transparent helper uses population standard deviation.
+            targets:
+              - group-advantage-construction
+            color: cyan
+            linger: 0.45
+          - id: pa-group-mean
+            phrase: mean is point six two five
+            targets:
+              - group-advantage-construction
+            color: yellow
+            linger: 0.35
+          - id: pa-group-advantages
+            phrase: Advantages are approximately point nine zero five, minus one point five zero eight, minus point three
+              zero two and point nine zero five
+            targets:
+              - group-advantage-construction
+            color: yellow
+            linger: 0.35
+      - say: Give every completion the same reward. Centering now leaves zero for every row, so this group has no
+          reward-driven update. An enabled KL or auxiliary loss can still contribute. All-pass, all-fail and
+          an uninformative scorer create the same zero-scale symptom for different reasons; inspect actual
+          outcomes.
+        hold: 0.7
+        visual_cues:
+          - id: group-advantage-b2
+            phrase: Give every completion the same reward.
+            targets:
+              - group-advantage-construction
+            color: cyan
+            linger: 0.45
+          - id: pa-group-uniform
+            phrase: Give every completion the same reward
+            targets:
+              - group-advantage-construction
+            color: yellow
+            linger: 0.35
+      - say: GRPO saves the work of fitting a critic and avoids errors from its value estimates. In our example
+          with four equal backbones, dropping the critic saves forty-four point four percent of parameter
+          state. The actor still generates every reply, and the scorer still has to tell them apart.
+        hold: 0.7
+        visual_cues:
+          - id: group-advantage-b3
+            phrase: dropping the critic saves forty-four point four percent of parameter state
+            targets:
+              - group-advantage-construction
+            color: cyan
+            linger: 0.45
+  - id: group-token-ratios
+    title: Token clipping and sequence clipping are different operations
+    visual: Retain two token ratios and compute the original per-token clipped average. Multiply the same ratios
+      into a sequence ratio and compare the changed clipping result, then construct the nonnegative sample KL
+      term separately.
+    beats:
+      - say: DeepSeekMath’s original outcome formulation gives the group outcome advantage to each generated token,
+          applies current-to-old token ratios, then averages token losses within each completion and
+          completions within the group. With positive advantage one and epsilon point two, two ratios of one
+          point one each give token-average surrogate one point one.
+        hold: 0.7
+        visual_cues:
+          - id: group-token-ratios-b0
+            phrase: DeepSeekMath’s original outcome formulation gives the group outcome advantage to each generated token,
+              applies current-to-old token ratios, then averages token losses within each completion and
+              completions within the group.
+            targets:
+              - group-token-ratios-construction
+            color: cyan
+            linger: 0.45
+          - id: pa-group-token
+            phrase: token-average surrogate one point one
+            targets:
+              - group-token-ratios-construction
+            color: yellow
+            linger: 0.35
+      - say: Multiply those ratios into one sequence ratio instead. One point two one is clipped to one point two for
+          this favorable sample. The result differs from token averaging. The R1 report and current trainers
+          also expose other importance-ratio or normalization conventions; identify the equation and
+          implementation rather than substituting silently.
+        hold: 0.7
+        visual_cues:
+          - id: group-token-ratios-b1
+            phrase: Multiply those ratios into one sequence ratio instead.
+            targets:
+              - group-token-ratios-construction
+            color: cyan
+            linger: 0.45
+          - id: pa-group-sequence
+            phrase: One point two one is clipped to one point two
+            targets:
+              - group-token-ratios-construction
+            color: yellow
+            linger: 0.35
+      - say: The original GRPO formulation adds its KL term separately from group reward normalization. For sampled
+          log ratio ell equal to the natural logarithm of the ratio of reference probability to current
+          probability, its nonnegative sample term is exponential of ell, minus ell, minus one. Its
+          expectation is conditional forward KL when sampling from the scored current policy; reused
+          old-policy samples need the corresponding correction.
+        hold: 0.7
+        visual_cues:
+          - id: group-token-ratios-b2
+            phrase: The original GRPO formulation adds its KL term separately from group reward normalization.
+            targets:
+              - group-token-ratios-construction
+            color: cyan
+            linger: 0.45
+          - id: pa-group-kl
+            phrase: exponential of ell, minus ell, minus one
+            targets:
+              - group-token-ratios-construction
+            color: yellow
+            linger: 0.35
+      - say: The inspected trainer edition has selectable normalization and reward-scaling choices, with beta zero by
+          default and no loaded reference for that disabled KL term. When you compare two runs, check
+          whether they scaled the same group of rewards and used the same ratio in the update.
+        hold: 0.7
+        visual_cues:
+          - id: group-token-ratios-b3
+            phrase: The inspected trainer edition has selectable normalization and reward-scaling choices, with beta zero
+              by default and no loaded reference for that disabled KL term.
+            targets:
+              - group-token-ratios-construction
+            color: cyan
+            linger: 0.45
+  - id: ai-feedback
+    title: How can a written principle supply a preference?
+    visual: Follow one constitutional principle through critique, revision, supervised learning and AI comparison
+      labels, then into the reward-model RL path. Retain a separate human evaluation lane for the same policy
+      behavior.
+    beats:
+      - say: Constitutional AI’s reported procedure uses written principles to generate critiques and revisions, then
+          supervised learning on the revised answers. Its later reinforcement-learning stage fits a preference
+          model from AI harmlessness comparisons alongside human helpfulness feedback and uses that model as
+          reward.
+        hold: 0.7
+        visual_cues:
+          - id: ai-feedback-b0
+            phrase: Constitutional AI’s reported procedure uses written principles to generate critiques and revisions,
+              then supervised learning on the revised answers.
+            targets:
+              - ai-feedback-construction
+            color: cyan
+            linger: 0.45
+          - id: pa-ai-revision
+            phrase: supervised learning on the revised answers
+            targets:
+              - ai-feedback-construction
+            color: yellow
+            linger: 0.35
+          - id: pa-ai-reward
+            phrase: uses that model as reward
+            targets:
+              - ai-feedback-construction
+            color: yellow
+            linger: 0.35
+      - say: This is one form of reinforcement learning from AI feedback. A model can also compare two replies
+          directly. Either way, the judge needs to recognize the difference between opening a ticket and
+          inventing an exception.
+        hold: 0.7
+        visual_cues:
+          - id: ai-feedback-b1
+            phrase: This is one form of reinforcement learning from AI feedback.
+            targets:
+              - ai-feedback-construction
+            color: cyan
+            linger: 0.45
+      - say: Have people review fresh access requests, including ones that claim an exception. Check whether
+          the assistant cites P seven and sends the request to a reviewer. Reserve those cases for evaluation.
+        hold: 0.7
+        visual_cues:
+          - id: ai-feedback-b2
+            phrase: Have people review fresh access requests
+            targets:
+              - ai-feedback-construction
+            color: cyan
+            linger: 0.45
+  - id: fresh-transfer
+    title: Add the missing comparison
+    visual: >-
+      Hold three response identities and their starting probabilities fixed. Apply one A-over-C update, then
+      normalize all three weights and inspect the answer outside the pair.
+    beats:
+      - say: >-
+          Try the new vote on a different three-answer policy. It opens a ticket thirty percent of the time and
+          grants access directly ten percent. The other sixty percent goes to the invented exception. Keep the
+          reference uniform. Start each logit at the natural log of its probability. The reviewer picks the
+          ticket over the exception. With beta one half and a step size of point four, which logits move, and in
+          which direction?
+        hold: 2
+        visual_cues:
+          - id: fresh-transfer-b0
+            phrase: "The reviewer picks the ticket over the exception"
+            targets: [fresh-transfer-construction]
+      - say: >-
+          The ticket starts half as likely as the exception. Scaling the log margin gives the vote about a
+          forty-one percent chance. The ticket's derivative is about minus point two nine three. The exception's
+          is positive by the same amount. The direct grant has zero derivative. Subtract the gradients times the
+          step size. The ticket goes up and the exception goes down by about point one one seven each.
+        hold: 0.7
+        visual_cues:
+          - id: fresh-transfer-b1
+            phrase: "half as likely as the exception"
+            targets: [fresh-transfer-construction]
+          - id: pa-fresh-gradient
+            phrase: "The direct grant has zero derivative"
+            targets: [fresh-transfer-construction]
+          - id: pa-fresh-step
+            phrase: "The ticket goes up and the exception goes down by about point one one seven each"
+            targets: [fresh-transfer-construction]
+      - say: >-
+          Exponentiate and divide all three weights by their new total. The ticket now gets about thirty-five
+          percent. The direct grant edges above ten percent. The exception still gets about fifty-five percent.
+          Even the untouched logit changed its share, because the total changed. The pair loss fell from about
+          point eight eight to point eight one. Would you count on getting a ticket yet? The assistant would
+          still invent an exception more than half the time.
+        caption_starts: ["Would you count on getting a ticket yet?", "The assistant would still invent an exception"]
+        hold: 0.75
+        visual_cues:
+          - id: fresh-transfer-b2
+            phrase: "divide all three weights by their new total"
+            targets: [fresh-transfer-construction]
+          - id: pa-fresh-prob-a
+            phrase: "The ticket now gets about thirty-five percent"
+            targets: [fresh-transfer-construction]
+          - id: pa-fresh-prob-b
+            phrase: "The direct grant edges above ten percent"
+            targets: [fresh-transfer-construction]
+          - id: pa-fresh-prob-c
+            phrase: "The exception still gets about fifty-five percent"
+            targets: [fresh-transfer-construction]
+          - id: pa-fresh-loss
+            phrase: "The pair loss fell from about point eight eight to point eight one"
+            targets: [fresh-transfer-construction]
+  - id: fresh-release
+    title: Would this candidate pass the same rules?
+    visual: >-
+      Apply the same fixed rulers to a fresh independent cohort. Hold the human judgments still while changing
+      only the assumed length growth from 20 to 19 tokens. Return to the measured growth for the release decision.
+    beats:
+      - say: >-
+          Try the release decision yourself on a different candidate. The same rules apply. In one planned,
+          blinded comparison, it wins two hundred twenty-two of four hundred independent prompts, with no ties.
+          The lower end of its ninety-five percent interval is about fifty point six percent. Its replies
+          average exactly twenty extra tokens. Which rule, if either, blocks release?
+        hold: 2.1
+        visual_cues:
+          - id: fresh-count
+            phrase: "wins two hundred twenty-two of four hundred"
+            targets: [win-rule]
+          - id: fresh-interval
+            phrase: "lower end of its ninety-five percent interval is about fifty point six percent"
+            targets: [win-rule]
+          - id: fresh-growth
+            phrase: "exactly twenty extra tokens"
+            targets: [length-rule]
+      - say: >-
+          Length blocks it. The human win interval clears fifty percent, but the rule says fewer than twenty
+          tokens. Landing on the mark is a miss. Hold this candidate.
+        hold: 1
+        visual_cues:
+          - id: fresh-hold
+            phrase: "Length blocks it"
+            targets: [gate-verdict]
+            caption_boundary: true
+      - say: >-
+          What if the same judgments came with nineteen extra tokens instead? Keep the interval where it is and
+          move only the length mark. Would both rules pass?
+        hold: 1.8
+        visual_cues:
+          - id: fresh-counter
+            phrase: "nineteen extra tokens instead"
+            targets: [length-rule]
+      - say: >-
+          Yes. Nineteen is below the limit, and the human evidence still clears its threshold. This version
+          would pass those two rules. The measured candidate stays on hold. For the next vote, pair these replies.
+          One offers to open a ticket under P seven. The other invents a migration exception. In the next lesson, a
+          model uses written principles to judge pairs like this, and people check its choices.
+        caption_starts: ["For the next vote", "One offers to open a ticket", "In the next lesson"]
+        hold: 0.85
+        visual_cues:
+          - id: fresh-pass
+            phrase: "Yes"
+            targets: [gate-verdict]
+            caption_boundary: true
+          - id: fresh-measured
+            phrase: "The measured candidate stays on hold"
+            targets: [length-rule, gate-verdict]
+            caption_boundary: true
+          - id: fresh-next-pair
+            phrase: "pair these replies"
+            targets: [gate-verdict]

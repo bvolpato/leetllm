@@ -1,0 +1,15 @@
+{
+  "framing": "A score means little until you know what it counted",
+  "paragraphs": [
+    "Perplexity is the standard score for how well a language model predicts text it has not seen. It rests on a simple idea: each time the real next token appears, ask how much probability the model gave it. Combine those surprises across a test file, and you get one number to track across checkpoints.",
+    "That number is easy to compute and easy to misread. The tokenizer decides what counts as one prediction, the context rules decide how much history each prediction gets, and the mask decides which predictions count. Change any of them, and the score moves while the weights stay the same.",
+    "We will start from three probabilities you can check on a calculator, then build up to scoring long documents. Along the way, you will see why losses have to be added before you exponentiate, why different tokenizers need a shared unit, and how overlapping windows can reuse context without counting any target twice.",
+    "Then we will mark the edge of what this score can tell you. It needs probabilities that many hosted APIs do not return, and a model can predict held-out prose fluently while still failing factual or reasoning checks. That gap is what the following chapter is about."
+  ],
+  "outcomes": [
+    "Compute token loss, average loss, and perplexity without numerical failures.",
+    "Compare models with different tokenizers using bits per byte.",
+    "Score long documents with overlapping windows, counting each target exactly once."
+  ],
+  "question": "Which changes to an evaluation could lower perplexity without touching the model's weights?"
+}

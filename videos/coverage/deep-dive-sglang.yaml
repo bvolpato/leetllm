@@ -1,0 +1,325 @@
+version: 1
+lesson: deep-dive-sglang
+promise: Decide when an SGLang request can advance by checking who produced its input, which prefix positions
+  have usable KV, and which transfer the decode worker can read. Use request-level evidence to diagnose lost
+  reuse, scheduling delays and invalid output.
+framing: []
+objectives:
+  - id: intro
+    can: Choose which ticket can start its explanation while the other ticket's label is pending
+    scenes:
+      - intro
+  - id: frontend-program
+    can: Put the selected value into the next prompt
+    scenes:
+      - frontend-program
+  - id: program-branches
+    can: Copy a shared prefix while preserving branch outputs
+    scenes:
+      - program-branches
+  - id: runtime-owners
+    can: Assign each handoff its actual state owner
+    scenes:
+      - runtime-owners
+  - id: token-clocks
+    can: Locate first-token and inter-token delay on one clock
+    scenes:
+      - token-clocks
+  - id: mixed-budget
+    can: Spend one scheduler budget on decode and unmatched prompt work
+    scenes:
+      - mixed-budget
+  - id: page-admission
+    can: Check capacity and page alignment beyond the arithmetic budget
+    scenes:
+      - page-admission
+  - id: radix
+    can: Trace an exact compressed-prefix split with retained token identities
+    scenes:
+      - radix
+  - id: cache-namespaces
+    can: Find the addresses returned for a full page and predict the result after changing only the adapter
+    scenes:
+      - cache-namespaces
+  - id: context-position
+    can: Determine which cached states survive an early template or adapter change
+    scenes:
+      - context-position
+  - id: locks
+    can: Determine when the final KV owner may release shared state
+    scenes:
+      - locks
+  - id: cache-reclamation
+    can: Release a live KV owner after its last reader
+    scenes:
+      - cache-reclamation
+  - id: replica-locality
+    can: Predict a local cache hit after rerouting a compatible prompt to a cold replica
+    scenes:
+      - replica-locality
+  - id: overlap
+    can: Compare the same host and GPU work on serial and overlapped schedules
+    scenes:
+      - overlap
+  - id: metadata-ready
+    can: Check request positions, KV locations and grammar progress before a prepared batch launches
+    scenes:
+      - metadata-ready
+  - id: grammar
+    can: Calculate a masked distribution and distinguish syntax from task correctness
+    scenes:
+      - grammar
+  - id: constraint-contract
+    can: Validate the whole output and the supported constraint API
+    scenes:
+      - constraint-contract
+  - id: compressed-grammar
+    can: Compress forced syntax without confusing strings and model tokens
+    scenes:
+      - compressed-grammar
+  - id: speculate
+    can: Put a greedy replacement in the committed output and identify the forward that makes its KV ready
+    scenes:
+      - speculate
+  - id: speculative-economics
+    can: Count saved target steps against the whole draft cycle
+    scenes:
+      - speculative-economics
+  - id: method-registry
+    can: Use the installed algorithm and its own compatibility rules
+    scenes:
+      - method-registry
+  - id: parallel-axes
+    can: Choose the communication pattern for the split
+    scenes:
+      - parallel-axes
+  - id: disaggregate
+    can: Distinguish destination reservation from ready transferred KV
+    scenes:
+      - disaggregate
+  - id: payload-build
+    can: Build the transferred KV bytes from one actual tensor slice
+    scenes:
+      - payload-build
+  - id: reservation-policy
+    can: Keep reserved, received and active decode bytes separate
+    scenes:
+      - reservation-policy
+  - id: transfer-failure
+    can: Trace a complete payload through a stale ready event and test a separate layout mismatch
+    scenes:
+      - transfer-failure
+  - id: service-replay
+    can: Run the article lookup for two namespaces and identify which worker trace would establish saved prefill
+    scenes:
+      - service-replay
+  - id: serving-receipt
+    can: Bind workload, cache state and timing to the same comparison
+    scenes:
+      - serving-receipt
+  - id: goodput-gate
+    can: Compute qualified throughput separately from offered-load capacity
+    scenes:
+      - goodput-gate
+  - id: failure-drill
+    can: Isolate a changed template from a cold replica and identify the timing evidence needed to explain idle GPU time
+    scenes:
+      - failure-drill
+  - id: project-source
+    can: Read paper, release guide and source as different evidence
+    scenes:
+      - project-source
+  - id: synthesis
+    can: Trace a structured reply to the desk and compare its category with the ticket after schema validation
+    scenes:
+      - synthesis
+  - id: fresh-handoff
+    can: Calculate missing bytes and cross-namespace reuse, then select the replay whose current ready event permits decode
+    scenes:
+      - fresh-handoff
+sections:
+  - heading: Frontend program or HTTP request
+    status: taught
+    scenes:
+      - intro
+      - frontend-program
+      - program-branches
+  - heading: "Frontend: a small intermediate representation for model calls"
+    status: taught
+    scenes:
+      - frontend-program
+      - program-branches
+  - heading: "Runtime path: from API to model runner"
+    status: taught
+    scenes:
+      - runtime-owners
+      - token-clocks
+  - heading: One step, one token budget
+    status: taught
+    scenes:
+      - mixed-budget
+      - page-admission
+      - metadata-ready
+  - heading: "RadixAttention: prefix reuse as a tree"
+    status: taught
+    scenes:
+      - radix
+      - cache-namespaces
+      - context-position
+      - replica-locality
+      - failure-drill
+  - heading: Insert, lock, evict
+    status: taught
+    scenes:
+      - locks
+      - cache-reclamation
+  - heading: "Structured generation: constrain the next token"
+    status: taught
+    scenes:
+      - grammar
+      - constraint-contract
+      - compressed-grammar
+  - heading: "Speculative decoding: verify a draft in parallel"
+    status: taught
+    note: The article’s eight-token greedy example first differs at position six. The film follows the target replacement into its own forward.
+    scenes:
+      - speculate
+      - speculative-economics
+      - method-registry
+  - heading: Parallelism and prefill-decode disaggregation
+    status: taught
+    scenes:
+      - parallel-axes
+      - disaggregate
+      - payload-build
+      - reservation-policy
+      - transfer-failure
+      - fresh-handoff
+  - heading: Applications and workload shape
+    status: taught
+    scenes:
+      - program-branches
+      - context-position
+      - method-registry
+      - parallel-axes
+      - serving-receipt
+  - heading: Strengths and common pitfalls
+    status: taught
+    scenes:
+      - failure-drill
+      - serving-receipt
+      - constraint-contract
+      - replica-locality
+  - heading: A production failure drill
+    status: taught
+    note: The article’s alert motivates two controlled replays. The second starts from the restored warm hit before changing replicas.
+    scenes:
+      - failure-drill
+      - token-clocks
+  - heading: Project identity
+    status: taught
+    scenes:
+      - project-source
+      - method-registry
+  - heading: Code-reading route in the pinned commit
+    status: taught
+    scenes:
+      - project-source
+      - service-replay
+      - page-admission
+      - cache-namespaces
+  - heading: Rerun and measure
+    status: taught
+    note: The two CPU calls use the article’s match_len helper. A model-backed replay still needs actual matched positions and fresh prefill work from the same worker.
+    scenes:
+      - service-replay
+      - serving-receipt
+      - goodput-gate
+  - heading: Architectural summary
+    status: taught
+    scenes:
+      - runtime-owners
+      - failure-drill
+      - synthesis
+      - fresh-handoff
+  - heading: Evaluation rubric
+    status: taught
+    scenes:
+      - fresh-handoff
+      - service-replay
+      - goodput-gate
+  - heading: Follow-up questions
+    status: taught
+    scenes:
+      - context-position
+      - page-admission
+quiz:
+  - n: 1
+    status: taught
+    scenes:
+      - cache-namespaces
+      - context-position
+      - fresh-handoff
+  - n: 2
+    status: taught
+    scenes:
+      - intro
+      - frontend-program
+      - program-branches
+  - n: 3
+    status: taught
+    scenes:
+      - mixed-budget
+      - page-admission
+  - n: 4
+    status: taught
+    scenes:
+      - constraint-contract
+      - grammar
+      - synthesis
+  - n: 5
+    status: taught
+    scenes:
+      - locks
+      - cache-reclamation
+  - n: 6
+    status: taught
+    scenes:
+      - speculate
+      - mixed-budget
+      - speculative-economics
+  - n: 7
+    status: taught
+    scenes:
+      - payload-build
+      - disaggregate
+  - n: 8
+    status: taught
+    scenes:
+      - goodput-gate
+  - n: 9
+    status: taught
+    scenes:
+      - method-registry
+      - serving-receipt
+  - n: 10
+    status: taught
+    note: The transfer-failure scene changes the layout with a current event. The final two replays hold the complete compatible payload fixed and change the event’s attempt.
+    scenes:
+      - transfer-failure
+      - reservation-policy
+      - fresh-handoff
+removed: []
+reviews:
+  closed_book:
+    script: c3065dc5d4e9b97b
+    taught: 10
+    partial: 0
+    absent: 0
+    reviewer: /root/upgrade_shard1
+    evidence: build/video-delivery-20261106/script-reviews/deep-dive-sglang.json
+  fact_check:
+    script: c3065dc5d4e9b97b
+    open_findings: 0
+    reviewer: /root/upgrade_shard1
+    evidence: build/video-delivery-20261106/script-reviews/deep-dive-sglang.json

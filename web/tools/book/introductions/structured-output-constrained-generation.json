@@ -1,0 +1,15 @@
+{
+  "framing": "A grammar shapes every token a model writes, without verifying a single fact.",
+  "paragraphs": [
+    "Constrained decoding gives a strong structural guarantee: before sampling the next token, the decoder zeroes the probability of every token that cannot extend a valid prefix under your schema. A token that breaks JSON syntax or leaves an allowed enum never enters the sampled stream.",
+    "That guarantee covers syntax, not truth. The same constrained decoder can write \"passed\" for an evaluation suite that actually failed, or exhaust a token budget halfway through a record and return a truncated string. A program consuming model output needs both syntactic structure and semantic checks afterward.",
+    "This chapter builds both layers from the mechanism up. You first see how a decoder compiles a JSON Schema or context-free grammar into a finite-state machine, projects each parser state onto a vocabulary bitmask, masks the raw logit vector before softmax, and advances whole candidate tokens across token boundaries.",
+    "You then separate completion, syntactic parsing, schema validation, and source verification in host code, before designing JSON Schemas and Pydantic models that leave explicit room for \"unknown\" instead of forcing a model to guess. Constrained generation works alongside the host validation from the previous chapter rather than replacing it."
+  ],
+  "outcomes": [
+    "Trace how a compiled grammar produces a per-step logit bitmask and advances a parser one whole token at a time.",
+    "Separate finish reasons, JSON parsing, strict schema validation, and source-grounded checks in host code.",
+    "Design JSON Schemas and Pydantic models with explicit unknown states and bounded output budgets."
+  ],
+  "question": "What remains unproven after a completed model response satisfies every rule of your grammar?"
+}

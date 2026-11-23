@@ -1,0 +1,305 @@
+version: 1
+lesson: model-parallelism
+promise: Reconstruct the correct distributed computation and owned per-rank state across tensor, pipeline,
+  prefill/context, decode-history and expert layouts, then filter valid serving candidates using measured fit,
+  latency and useful cost.
+framing: []
+objectives:
+  - id: intro
+    can: Locate the weight overrun on one GPU and place the other half of the same checkpoint on a second GPU.
+    scenes:
+      - intro
+  - id: weight-budget
+    can: Calculate the weight-only GPU lower bound and each GPU's remaining memory from total resident parameters.
+    scenes:
+      - weight-budget
+  - id: inference-contract
+    can: Optimize the serving clock and actual placement
+    scenes:
+      - inference-contract
+  - id: linear
+    can: Compute one output coordinate from its complete weight column
+    scenes:
+      - linear
+  - id: column
+    can: Identify each complete column-sharded output slice
+    scenes:
+      - column
+  - id: row
+    can: Sum row-shard contributions before a general nonlinear activation
+    scenes:
+      - row
+  - id: pair
+    can: Follow a signed weight through a local projection and sum contributions to the same output coordinate.
+    scenes:
+      - pair
+  - id: gelu-reference
+    can: Check both output coordinates of the sharded GeLU layer against the dense layer, including one bias.
+    scenes:
+      - gelu-reference
+  - id: attention-shards
+    can: Match independent heads to the output reduction
+    scenes:
+      - attention-shards
+  - id: collective
+    can: Choose a collective that produces the required output ownership
+    scenes:
+      - collective
+  - id: head-replication
+    can: Trace KV projection replication when query heads divide over more ranks
+    scenes:
+      - head-replication
+  - id: collective-count
+    can: Predict which changes when a batch grows, the number of reductions or the bytes each one carries.
+    scenes:
+      - collective-count
+  - id: startup-payload
+    can: Keep startup and ring-payload models distinct
+    scenes:
+      - startup-payload
+  - id: pipeline
+    can: Trace each microbatch through the pipeline stages
+    scenes:
+      - pipeline
+  - id: pipeline-formula
+    can: Count occupied stage slots and use the correct denominator for idle fraction and elapsed overhead.
+    scenes:
+      - pipeline-formula
+  - id: pipeline-latency
+    can: Read a token's finish time after inserting two transfers between unchanged compute stages.
+    scenes:
+      - pipeline-latency
+  - id: topology-placement
+    can: Choose a legal topology before predicting benefit
+    scenes:
+      - topology-placement
+  - id: context-budget
+    can: Shard a supported sequence without extending its learned limit
+    scenes:
+      - context-budget
+  - id: ring-prefill
+    can: Hold each query block while KV blocks circulate
+    scenes:
+      - ring-prefill
+  - id: ulysses-layout
+    can: Transpose sequence ownership to head ownership and back
+    scenes:
+      - ulysses-layout
+  - id: decode-history
+    can: Remove duplication inside existing TP groups
+    scenes:
+      - decode-history
+  - id: mass-merge
+    can: Recover a key's attention weight after a score changes by rescaling the local mass and weighted value.
+    scenes:
+      - mass-merge
+  - id: expert-dispatch
+    can: Send weighted assignments to expert owners and back
+    scenes:
+      - expert-dispatch
+  - id: capacity
+    can: Count the state that each device actually holds
+    scenes:
+      - capacity
+  - id: local-fit
+    can: Compute each rank’s deficit even when group totals fit
+    scenes:
+      - local-fit
+  - id: replica-layouts
+    can: Keep attention replicas distinct from coupled experts
+    scenes:
+      - replica-layouts
+  - id: phase-handoff
+    can: Account for both queues and the transferred history
+    scenes:
+      - phase-handoff
+  - id: fit-latency-cost
+    can: Filter physical and latency eligibility before comparing cost
+    scenes:
+      - fit-latency-cost
+  - id: failure-trace
+    can: Use the observed boundary to choose the next measurement
+    scenes:
+      - failure-trace
+  - id: transfer
+    can: Use the same dense reference to diagnose and correct a mean reduction of output contributions.
+    scenes:
+      - transfer
+  - id: fresh-layout
+    can: Check a new input against the dense output, identify the limiting GPU and evaluate a supported redistribution.
+    scenes:
+      - fresh-layout
+sections:
+  - heading: Why inference sharding differs from training
+    status: taught
+    scenes:
+      - intro
+      - weight-budget
+      - inference-contract
+  - heading: Tensor parallelism
+    status: taught
+    scenes:
+      - linear
+      - column
+      - row
+      - pair
+      - collective
+  - heading: "The Megatron pattern: column then row"
+    status: taught
+    scenes:
+      - pair
+      - gelu-reference
+      - attention-shards
+  - heading: Verify the split with actual tensors
+    status: taught
+    scenes:
+      - gelu-reference
+      - transfer
+      - fresh-layout
+  - heading: KV head counts and sharding constraints
+    status: taught
+    scenes:
+      - head-replication
+      - decode-history
+  - heading: Count communication, then measure its exposed cost
+    status: taught
+    scenes:
+      - collective-count
+      - startup-payload
+  - heading: Pipeline parallelism
+    status: taught
+    scenes:
+      - pipeline
+      - pipeline-latency
+  - heading: Microbatch scheduling and pipeline bubbles
+    status: taught
+    scenes:
+      - pipeline-formula
+  - heading: When pipeline parallelism is justified
+    status: taught
+    scenes:
+      - pipeline-latency
+      - topology-placement
+  - heading: Context parallelism for long-sequence serving
+    status: taught
+    scenes:
+      - context-budget
+  - heading: Ring Attention
+    status: taught
+    scenes:
+      - ring-prefill
+      - mass-merge
+  - heading: DeepSpeed Ulysses
+    status: taught
+    scenes:
+      - ulysses-layout
+  - heading: Decode context sharding addresses another axis
+    status: taught
+    scenes:
+      - decode-history
+      - mass-merge
+  - heading: Expert parallelism for MoE models
+    status: taught
+    scenes:
+      - expert-dispatch
+  - heading: Multi-GPU serving Pareto trade-offs
+    status: taught
+    scenes:
+      - replica-layouts
+      - phase-handoff
+  - heading: 1. Pure Tensor Parallelism (`TP=8`)
+    status: taught
+    scenes:
+      - replica-layouts
+  - heading: 2. Sharded Data-Parallel Replicas (`TP=2, DP=4`)
+    status: taught
+    scenes:
+      - replica-layouts
+  - heading: 3. Prefill-Decode Disaggregation
+    status: taught
+    scenes:
+      - phase-handoff
+  - heading: What to measure
+    status: taught
+    scenes:
+      - local-fit
+      - fit-latency-cost
+      - failure-trace
+      - fresh-layout
+  - heading: When multi-GPU serving breaks down
+    status: taught
+    scenes:
+      - failure-trace
+      - fresh-layout
+  - heading: Evaluation rubric
+    status: taught
+    scenes:
+      - transfer
+      - fresh-layout
+  - heading: Follow-up questions
+    status: taught
+    scenes:
+      - expert-dispatch
+      - local-fit
+quiz:
+  - n: 1
+    status: taught
+    scenes:
+      - intro
+      - weight-budget
+  - n: 2
+    status: taught
+    scenes:
+      - gelu-reference
+      - row
+      - transfer
+      - fresh-layout
+  - n: 3
+    status: taught
+    scenes:
+      - head-replication
+      - decode-history
+  - n: 4
+    status: taught
+    scenes:
+      - collective-count
+  - n: 5
+    status: taught
+    scenes:
+      - startup-payload
+  - n: 6
+    status: taught
+    scenes:
+      - pipeline-formula
+      - pipeline-latency
+  - n: 7
+    status: taught
+    scenes:
+      - mass-merge
+  - n: 8
+    status: taught
+    scenes:
+      - expert-dispatch
+  - n: 9
+    status: taught
+    scenes:
+      - local-fit
+      - fresh-layout
+  - n: 10
+    status: taught
+    scenes:
+      - fit-latency-cost
+removed: []
+reviews:
+  closed_book:
+    script: fbe36ca0f9063efc
+    taught: 10
+    partial: 0
+    absent: 0
+    reviewer: /root/upgrade_shard6
+    evidence: build/video-delivery-20261106/script-reviews/model-parallelism.json
+  fact_check:
+    script: fbe36ca0f9063efc
+    open_findings: 0
+    reviewer: /root/upgrade_shard6
+    evidence: build/video-delivery-20261106/script-reviews/model-parallelism.json

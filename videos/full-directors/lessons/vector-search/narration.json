@@ -1,0 +1,517 @@
+[
+  {
+    "id": "c01",
+    "title": "The rollback request",
+    "sourceChapters": [
+      "c01"
+    ],
+    "beats": [
+      {
+        "id": "c01-b01",
+        "say": "Follow the compass around the rollback query. Its point rests on the gold diamond. Its pencil reaches C, the farther of the two passages the search returned. The operator asked how to undo the checkout deployment. A and C are the passages the operator got.",
+        "hold": 0.6
+      },
+      {
+        "id": "c01-b02",
+        "say": "An embedding model turned the query and the passages into coordinates. We use two dimensions so you can see the distances. Look inside the circle. A lies there, as expected. Can you spot another passage inside the rim that the search left out?",
+        "hold": 3.2
+      },
+      {
+        "id": "c01-seam",
+        "say": "B is inside. Now lift the cover on the index. A seam cuts between the query and B. The search read passages from the left list. B had an address on the right, and its score was never computed. Let’s see what a search through every passage would return.",
+        "hold": 1.1
+      }
+    ]
+  },
+  {
+    "id": "c02",
+    "title": "What an exhaustive search would return",
+    "sourceChapters": [
+      "c02"
+    ],
+    "beats": [
+      {
+        "id": "c02-b01",
+        "say": "B is three tenths of a unit to the right, at the same height as the query. Square that step and you get zero point zero nine. C is over a full unit away horizontally. Its squared distance is one point two five. B wins that slot.",
+        "hold": 0.6
+      },
+      {
+        "id": "c02-b02",
+        "say": "What about A? Follow the two short legs. Two tenths left, two tenths up. Square each difference and add them. That gives eight hundredths, just ahead of B at nine hundredths. Taking square roots would leave the order alone.",
+        "hold": 0.7
+      },
+      {
+        "id": "c02-b03",
+        "say": "Score the other three passages too. Sort all six from smallest squared distance to largest, and use the ID to break any ties. Our exact pair is A and B. Those are the nearest vectors under this metric. Read the passages separately to judge whether they actually explain the rollback.",
+        "hold": 1
+      }
+    ]
+  },
+  {
+    "id": "c03",
+    "title": "Following stored links",
+    "sourceChapters": [
+      "c03"
+    ],
+    "beats": [
+      {
+        "id": "c03-b01",
+        "say": "Here are all six passages. A graph gives each one a short list of links that search can follow. Enter at E. Its squared distance to our question is twenty point five six. Search can use that number to decide whether a linked neighbor gets it closer.",
+        "hold": 0.5
+      },
+      {
+        "id": "c03-b02",
+        "say": "Follow E’s link to C. Its score is one point two five. From C, take the link to A. The score drops to eight hundredths. We scored three passages on this path. B never came up for comparison. A longer link could have taken us to a different neighborhood.",
+        "hold": 0.8
+      },
+      {
+        "id": "c03-b03",
+        "say": "Take a different little graph. E has score one. Its only neighbor, M, scores two. A greedy walk stops at E because the next step goes uphill. H sits beyond M. How could the search ever find out what H scores?",
+        "hold": 1.8
+      }
+    ]
+  },
+  {
+    "id": "c04",
+    "title": "Keeping a second route open",
+    "sourceChapters": [
+      "c04"
+    ],
+    "beats": [
+      {
+        "id": "c04-b01",
+        "say": "A large graph needs a way to reach the right neighborhood. HNSW builds a hierarchy. Randomly chosen vectors also appear on sparse upper layers. Here a long link takes us from E to A. Once no link on that layer improves the score, drop down at that same A. Its local neighbors come within reach.",
+        "hold": 0.7
+      },
+      {
+        "id": "c04-b02",
+        "say": "Back at the three-node bridge, ask for one result. With room for one, E fills the set. Score M. Two is worse than one. The narrow search discards M. Replay with room for three. Now it keeps M alongside E. Which link is available to try next?",
+        "hold": 2.2
+      },
+      {
+        "id": "c04-b03",
+        "say": "Expand M. Its next link reaches H, with a score of one tenth. H moves ahead of E. Here we kept three and scored three. The query setting called ef search limits how many results we keep. At width one we still scored two nodes.",
+        "hold": 0.3
+      },
+      {
+        "id": "c04-b04",
+        "say": "The visited set and the work can both exceed the result capacity.",
+        "hold": 0.7
+      },
+      {
+        "id": "c04-b05",
+        "say": "Replay the wider run one expansion at a time. The queue takes the nearest candidate still waiting to expand. The result heap exposes the worst score we kept. Pop E, then admit M. Pop M, then admit H. There is room here. In a full heap a better neighbor can displace the worst one.",
+        "hold": 0.3
+      },
+      {
+        "id": "c04-b06",
+        "say": "Once the results are full, a next candidate worse than the cutoff can end the search. In the narrow run, M already failed admission. Losing that bridge is how H stayed hidden.",
+        "hold": 0.8
+      }
+    ]
+  },
+  {
+    "id": "c05",
+    "title": "Where the links come from",
+    "sourceChapters": [
+      "c05"
+    ],
+    "beats": [
+      {
+        "id": "c05-b01",
+        "say": "Give a new passage, G, a place in the graph. The builder limits how many neighbors G can choose. Call that limit M. Use M equal to four in this sketch. Sample the highest layer G will occupy.",
+        "hold": 0.3
+      },
+      {
+        "id": "c05-b02",
+        "say": "With the usual sampling scale, one over the natural log of M, the chance of reaching layer one is one over M. Here that is one quarter. Divide by four again for layer two. Most passages stay at the base.",
+        "hold": 0.65
+      },
+      {
+        "id": "c05-b03",
+        "say": "G drew layer one. The graph already reaches layer two. Start at F, the global entry. Walk across layer two to E, which is closer to G. Wire G on layers one and zero, the layers it actually occupies. The construction beam controls how many candidates the builder keeps while searching each layer.",
+        "hold": 0.7
+      },
+      {
+        "id": "c05-b04",
+        "say": "On the base layer, start with the nearest candidate, B. A is also close, but it is closer to B than to G. Skip A on the first pass. E is farther out in a different direction. It is closer to G than to B, so keep E too. Select up to M neighbors, add reciprocal links, and prune lists that overflow.",
+        "hold": 0.3
+      },
+      {
+        "id": "c05-b05",
+        "say": "The base cap is commonly twice M. Pruning can leave a one-way link. The old entry stays. Only a new highest layer makes G the global entry.",
+        "hold": 0.8
+      },
+      {
+        "id": "c05-b06",
+        "say": "At query time we spend a separate budget. If a caller wants twelve results and gives the search room for six, this lab must raise ef search to at least twelve or reject the request. Once the setting is valid, measure recall and time on the graph you actually built.",
+        "hold": 0.55
+      }
+    ]
+  },
+  {
+    "id": "c06",
+    "title": "Filing the six passages",
+    "sourceChapters": [
+      "c06"
+    ],
+    "beats": [
+      {
+        "id": "c06-b01",
+        "say": "Start again with our six passages. This time give them two centers, one on each side. A real inverted file index learns centers from a representative sample. Here we supply them. File each passage with its nearest center.",
+        "hold": 0.3
+      },
+      {
+        "id": "c06-b02",
+        "say": "The row of IDs stored with a center is its posting list. An inverted file index uses these lists to choose where to look.",
+        "hold": 0.7
+      },
+      {
+        "id": "c06-b03",
+        "say": "Look between A and B. Our centers lie at the same height, at two and eight on the horizontal axis. Halfway between them is five. A sits to the left of that line. B sits to the right. Two passages that almost touch can have different filing addresses.",
+        "hold": 0.75
+      },
+      {
+        "id": "c06-b04",
+        "say": "The query has its own address. Score both centers. The left center is nearer, with a squared distance of seven point eight four. The right scores ten point two four. With one list to spend, search starts on the left.",
+        "hold": 0.3
+      },
+      {
+        "id": "c06-b05",
+        "say": "Inside an IVF Flat list, it can read each passage’s original coordinates. If new embeddings drift away from those centers, check held-out recall. Retraining the centers also means refiling the passages.",
+        "hold": 0.55
+      }
+    ]
+  },
+  {
+    "id": "c07",
+    "title": "Opening a posting list",
+    "sourceChapters": [
+      "c07"
+    ],
+    "beats": [
+      {
+        "id": "c07-b01",
+        "say": "Open just the left list. The three numbers under A, C and E are their squared distances to the query. Smaller wins. A takes first place. Which ID fills slot two?",
+        "hold": 2.15
+      },
+      {
+        "id": "c07-b02",
+        "say": "Slot two goes to C. We got A and C, exactly what the operator saw. Look at B across the border. Its ID is in the index, but there is no score under it. Reranking these three left-hand passages has no way to bring B back.",
+        "hold": 1.15
+      },
+      {
+        "id": "c07-b03",
+        "say": "Keep the query still and open the right list. Read its three passages. B now scores nine hundredths. Compare that with C at one point two five. Slot two goes to B. A stays put. Opening a list changed which passages could compete.",
+        "hold": 0.95
+      },
+      {
+        "id": "c07-b04",
+        "say": "Count the work. We scored two centers in both runs. Inside the lists we scored three passages, then six. The setting called n probe counts opened lists. If one list held a thousand passages and the other held three, one probe could still mean very different work.",
+        "hold": 0.7
+      }
+    ]
+  },
+  {
+    "id": "c08",
+    "title": "How much of the exact pair survived?",
+    "sourceChapters": [
+      "c08"
+    ],
+    "beats": [
+      {
+        "id": "c08-b01",
+        "say": "Draw a line for each recovered ID. With one list, A connects to its exact match. C has no match on the left. One of the two exact IDs survived, so recall at two is one half. Count identities at the same cutoff on both sides.",
+        "hold": 0.7
+      },
+      {
+        "id": "c08-b02",
+        "say": "Open both lists. B connects too. Two out of two for this request. We scored six passage vectors to get there. Probing every list makes IVF Flat exhaustive when the scorer uses original vectors and there is no further scan limit.",
+        "hold": 0.75
+      },
+      {
+        "id": "c08-b03",
+        "say": "Keep exact results for a slice of real queries. Use the same embeddings, metric, filter, corpus revision and tie rule in each run. Measure query latency at the intended concurrency. Even perfect neighbor recall leaves a separate question for the operator. Do those passages actually contain the rollback instructions?",
+        "hold": 0.8
+      }
+    ]
+  },
+  {
+    "id": "c09",
+    "title": "Budgeting a larger index",
+    "sourceChapters": [
+      "c09"
+    ],
+    "beats": [
+      {
+        "id": "c09-b01",
+        "say": "Each tile holds a million passages. Give each passage fifteen hundred thirty-six float coordinates. A flat search through all one hundred tiles scores one hundred fifty-three point six billion components per query. At four bytes each, storing those coordinates takes six hundred fourteen point four gigabytes, about five hundred seventy-two gibibytes, before index overhead.",
+        "hold": 0.75
+      },
+      {
+        "id": "c09-b02",
+        "say": "Now use a smaller collection. A million vectors spread evenly over one thousand twenty-four lists gives about nine hundred seventy-seven vectors per list. Five probes scan about four thousand eight hundred eighty-three vectors.",
+        "hold": 0.3
+      },
+      {
+        "id": "c09-b03",
+        "say": "Raise the budget to twenty probes and that grows to about nineteen thousand five hundred thirty-one. The flat coarse index still scores all one thousand twenty-four centers. Time the actual requests, including the cost of reading those lists.",
+        "hold": 0.75
+      },
+      {
+        "id": "c09-b04",
+        "say": "Could a spatial tree prune more work? It skips a branch when a lower bound on distance already exceeds the best distance. When distances cluster tightly, fewer bounds can rule out a branch. The distribution matters. Pad the points and the query with zeros and each distance stays the same.",
+        "hold": 0.3
+      },
+      {
+        "id": "c09-b05",
+        "say": "Compare these illustrative settings on recall and latency. Two take twelve milliseconds. At the same latency, the lower point loses. On the frontier, improving one measure costs you something on the other, among the settings you tested.",
+        "hold": 0.7
+      }
+    ]
+  },
+  {
+    "id": "c10",
+    "title": "What gets stored in place of a vector?",
+    "sourceChapters": [
+      "c10"
+    ],
+    "beats": [
+      {
+        "id": "c10-b01",
+        "say": "Opening fewer lists saves search work. IVF Flat and an uncompressed graph still store all the coordinates. Suppose those no longer fit in RAM. Take this vector of four numbers. Split it down the middle. Each pair becomes a point in its own codebook. The four crosses on each plate are centers learned during training. Which cross is closest to each point?",
+        "hold": 2.6
+      },
+      {
+        "id": "c10-b02",
+        "say": "In the first pair, the nearest center is number one. In the second pair, it is number two. Store just those two IDs for this record. The codebooks stay shared. To decode, look up the centers and put their coordinates back in order. Compare the reconstructed vector with the original. The two small gaps contribute squared errors of eight hundredths and one tenth. Together that makes eighteen hundredths. The error length is about forty-two hundredths. That is product quantization.",
+        "hold": 1
+      },
+      {
+        "id": "c10-b03",
+        "say": "Now budget a different embedding with seven hundred sixty-eight coordinates. Divide it into ninety-six chunks. Each holds eight coordinates. Give each chunk two hundred fifty-six centers, so its selected ID fits in one byte. Ninety-six bytes replace three thousand seventy-two bytes of floats.",
+        "hold": 0.3
+      },
+      {
+        "id": "c10-b04",
+        "say": "That is thirty-two times smaller for the code alone. The codebooks cost another seven hundred sixty-eight kibibytes, shared across records. Record IDs, coarse centers and any retained originals take additional space.",
+        "hold": 0.8
+      },
+      {
+        "id": "c10-b05",
+        "say": "Watch the two arrows rotate together. The line between their tips keeps its length. The horizontal and vertical components change, so the axis-aligned chunks see different inputs. Optimized product quantization learns the rotation and the codebooks together to reduce reconstruction error. A square orthogonal rotation preserves distances before coding.",
+        "hold": 0.3
+      },
+      {
+        "id": "c10-b06",
+        "say": "Projecting down to fewer dimensions can lose information. Transform the query and database consistently, then compare error and recall at the same code size.",
+        "hold": 0.65
+      }
+    ]
+  },
+  {
+    "id": "c11",
+    "title": "Scoring a stored code",
+    "sourceChapters": [
+      "c11"
+    ],
+    "beats": [
+      {
+        "id": "c11-b01",
+        "say": "Keep the code we just made, one and two. This time the query is four zeros. Leave it uncompressed. Build one row per chunk by measuring its squared distance to every center in that codebook. Read the first byte. Column one of the first row gives four.",
+        "hold": 0.3
+      },
+      {
+        "id": "c11-b02",
+        "say": "Read the second byte. Column two of its row also gives four. Add the entries. Eight is the squared distance to the reconstruction. This shortcut is called asymmetric distance computation.",
+        "hold": 0.8
+      },
+      {
+        "id": "c11-b03",
+        "say": "Keep the tables. A code of zero, zero picks two zeros. Change just the first byte to one and the sum becomes four. Put that one in the second byte instead. Still four. Break the tie by record ID.",
+        "hold": 0.3
+      },
+      {
+        "id": "c11-b04",
+        "say": "Put a one in both bytes and the sum reaches eight. The bytes pick columns. The table holds distances. With ninety-six rows of two hundred fifty-six float entries, this table costs ninety-six kibibytes per query.",
+        "hold": 0.75
+      },
+      {
+        "id": "c11-b05",
+        "say": "Here are two different originals, both encoded as zero, zero. The approximate scores tie. An ID tiebreak puts A first. If you kept only A, rescoring A cannot recover B. Keep both as candidates instead. Compare their original coordinates against the zero query. Which passage wins?",
+        "hold": 2.2
+      },
+      {
+        "id": "c11-b06",
+        "say": "B wins. Keeping both candidates made that correction possible. Inside a residual IVF list, first subtract the list center from the database vector and encode what remains. Subtract that same center from the query to score the code, or use equivalent precomputed terms.",
+        "hold": 0.8
+      }
+    ]
+  },
+  {
+    "id": "c12",
+    "title": "Which passages are eligible now?",
+    "sourceChapters": [
+      "c12"
+    ],
+    "beats": [
+      {
+        "id": "c12-b01",
+        "say": "Return to our rollback query. The graph path through E, C and A and the single IVF list both returned A and C. Both missed B, for different reasons. So far every passage was eligible.",
+        "hold": 0.65
+      },
+      {
+        "id": "c12-b02",
+        "say": "Now give the operator access to just A, C and E. Apply the same filter to the exact search. A and C are now both correct. Keep the filter, but delete A. Recompute the reference on what remains. The new exact pair is C and E. Crossing A off our saved answer leaves just C. We still ask for two.",
+        "hold": 0.3
+      },
+      {
+        "id": "c12-b03",
+        "say": "What changed is which two IDs count as correct.",
+        "hold": 1.1
+      },
+      {
+        "id": "c12-b04",
+        "say": "Run the eligible search again. It fills the empty slot with E. Check the deletion on replicas and old serving paths too. If a response still contains A, a wider search budget cannot fix its stale copy.",
+        "hold": 0.65
+      }
+    ]
+  },
+  {
+    "id": "c13",
+    "title": "Where can an eligible passage disappear?",
+    "sourceChapters": [
+      "c13"
+    ],
+    "beats": [
+      {
+        "id": "c13-b01",
+        "say": "Suppose the operator needs two EU runbooks. Retrieve the first three candidates and keep only EU records. One survives. Widen the window to all five. Now the second EU record can reach the operator. Enforce access rules inside the trusted retrieval service, before any passage leaves for the application.",
+        "hold": 0.8
+      },
+      {
+        "id": "c13-b02",
+        "say": "How often does a window come up empty? Give each of a hundred candidates a half-percent chance of matching. We expect half a match per window on average. If candidates match independently, all one hundred must fail for the window to be empty.",
+        "hold": 0.3
+      },
+      {
+        "id": "c13-b03",
+        "say": "That happens sixty point six percent of the time. If the whole window shares one region, just one draw decides all hundred matches. Now it is empty ninety-nine point five percent of the time. Same average, very different chance of getting nothing. Measure this near real queries.",
+        "hold": 0.8
+      },
+      {
+        "id": "c13-b04",
+        "say": "When the index outgrows memory, IVF with product codes can shrink the part that must stay resident. An SSD-backed graph such as DiskANN can trade RAM for storage reads. Or split the corpus into disjoint shards, each on its own machine.",
+        "hold": 0.3
+      },
+      {
+        "id": "c13-b05",
+        "say": "Each of ten disjoint shards returns its exact top five under the same scoring and tie rules. Any locally omitted passage already has five ahead of it. Merge the fifty candidates to get the exact global five. Lose one shard and only forty-five candidates reach the broker. The answer is partial.",
+        "hold": 0.3
+      },
+      {
+        "id": "c13-b06",
+        "say": "Approximate local search, grouping and deduplication can also remove that guarantee.",
+        "hold": 0.8
+      },
+      {
+        "id": "c13-b07",
+        "say": "A full response waits for the slowest required shard, plus the merge work still left when it replies. Streaming can finish some of that merge earlier.",
+        "hold": 0.3
+      },
+      {
+        "id": "c13-b08",
+        "say": "If each shard meets a time threshold ninety-nine percent of the time, and their delays are independent, all ten meet it about ninety point four percent of the time. Shared queues can tie those delays together. Measure the whole request at load.",
+        "hold": 0.7
+      },
+      {
+        "id": "c13-b09",
+        "say": "There is another way to reach eligible passages. A trusted graph search can cross this ineligible bridge to reach B while returning only eligible IDs. A bounded scan can also expand until it finds enough results or runs out of time or work.",
+        "hold": 0.3
+      },
+      {
+        "id": "c13-b10",
+        "say": "When the eligible set is small, compare both with an exact scan of just that set. Keep the filter on the reference as well.",
+        "hold": 0.7
+      }
+    ]
+  },
+  {
+    "id": "c14",
+    "title": "When the ranking rule changes",
+    "sourceChapters": [
+      "c14"
+    ],
+    "beats": [
+      {
+        "id": "c14-b01",
+        "say": "Here are two records from a separate index. Record one oh one points along the horizontal axis. The gold arrow is our query. Measure the squared distances under raw L two. Two oh two wins at zero point eight one. Now suppose our embedding model expects a comparison of directions.",
+        "hold": 0.65
+      },
+      {
+        "id": "c14-b02",
+        "say": "Suppose the embedding now calls for cosine similarity. Normalize both records and the query. Each tip moves to unit distance from the origin. Magnify those directions. Which record points more nearly along the yellow arrow?",
+        "hold": 2
+      },
+      {
+        "id": "c14-b03",
+        "say": "One oh one does. Its inner product with the unit query is about zero point nine nine five. That changes the winner. For an IVF migration, normalize training, database and query vectors, retrain the centers in that geometry, then reassign the lists. Scoring more old lists cannot make raw vectors into unit vectors.",
+        "hold": 0.75
+      },
+      {
+        "id": "c14-b04",
+        "say": "Now delete one oh one from the rebuilt index. Ask for two hits again. Only two oh two remains. In this flat Faiss example, minus one marks the empty second slot. Propagate the delete to every serving path, including any old index still taking traffic, and recompute the exact reference.",
+        "hold": 0.8
+      }
+    ]
+  },
+  {
+    "id": "c15",
+    "title": "Which search budget would you use?",
+    "sourceChapters": [
+      "c15"
+    ],
+    "beats": [
+      {
+        "id": "c15-b01",
+        "say": "Try one held-out request. Here are the exact five IDs and the five that came back. The run took twelve milliseconds. For this check we require ninety percent recall and a response within twenty milliseconds. Look at the two rows. Would you accept this run?",
+        "hold": 2.15
+      },
+      {
+        "id": "c15-b02",
+        "say": "Four divided by five is eighty percent. Hold this run. The time clears its limit, but replacing eighty-nine with three cost one of the five exact neighbors.",
+        "hold": 0.75
+      },
+      {
+        "id": "c15-b03",
+        "say": "Go back to the original six passages, with all six eligible and squared distance as before. Move the query towards D. Now the right center is closer. Score its three passages. An exact audit tells us that A is the closest passage on the left.",
+        "hold": 0.3
+      },
+      {
+        "id": "c15-b04",
+        "say": "Would opening the left list change the top two this time?",
+        "hold": 2.1
+      },
+      {
+        "id": "c15-b05",
+        "say": "Keep D and B. B scores six point four one. Even the closest passage on the left scores nine point zero four. One list recovered both exact neighbors here. At the border, that same budget missed B.",
+        "hold": 0.85
+      },
+      {
+        "id": "c15-b06",
+        "say": "Use both queries for a small release exercise. On the border request, one list returned A and C. Near D, it returned D and B. Average recall across the two queries and compare it with the ninety percent floor. The timing marks are supplied workload measurements for this exercise. The ninety-fifth percentile must stay within twenty milliseconds. Which trial clears both limits?",
+        "hold": 3.2
+      },
+      {
+        "id": "c15-b07",
+        "say": "Choose two lists for this trial. Replay the border request. Open the adjoining list and read B. Its squared distance is nine hundredths. B replaces C. Near D the pair stays D and B. That takes mean recall from seventy-five percent to a hundred. The two-list trial took eighteen milliseconds at the ninety-fifth percentile. That leaves two milliseconds of headroom. Repeat this comparison on representative queries at target concurrency.",
+        "hold": 0.3
+      },
+      {
+        "id": "c15-b08",
+        "say": "Check memory, builds, updates and deletes. Read the rollback passages as well. If even the exact hits are unhelpful, investigate the query and its embedding. In the next lesson, query rewriting changes what goes into the search.",
+        "hold": 1.25
+      }
+    ]
+  }
+]

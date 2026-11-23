@@ -1,0 +1,1776 @@
+version: 1
+id: sql-databases-data-modeling-ai
+title: Which Policy Can This Answer Trust?
+source: foundations/sql-databases-data-modeling-ai/content.md
+sources:
+  - title: SQLite foreign keys
+    url: https://www.sqlite.org/foreignkeys.html
+  - title: SQLite query plans
+    url: https://www.sqlite.org/eqp.html
+  - title: Python sqlite3 transaction control
+    url: https://docs.python.org/3/library/sqlite3.html#transaction-control
+  - title: PostgreSQL transaction isolation
+    url: https://www.postgresql.org/docs/current/transaction-iso.html
+  - title: pgvector filtered search
+    url: https://github.com/pgvector/pgvector
+  - title: SQLite CREATE TABLE constraints
+    url: https://www.sqlite.org/lang_createtable.html
+  - title: SQLite LIKE and NULL expressions
+    url: https://www.sqlite.org/lang_expr.html
+  - title: SQLite transactions and write coordination
+    url: https://www.sqlite.org/lang_transaction.html
+  - title: PostgreSQL row security policies
+    url: https://www.postgresql.org/docs/current/ddl-rowsecurity.html
+  - title: PostgreSQL date/time types
+    url: https://www.postgresql.org/docs/current/datatype-datetime.html
+  - title: PostgreSQL EXPLAIN and ANALYZE
+    url: https://www.postgresql.org/docs/current/using-explain.html
+scenes:
+  - id: opening
+    title: Can this coat go back?
+    visual: The return slip shows a purchase on July 25 and a return on August 12. The marker for day
+      eighteen stays put while Bob recovers one saved rule and finds a second with a different deadline.
+    beats:
+      - say: >-
+          This coat came back eighteen days after purchase. Bob has a fourteen-day rule open.
+          When the app restarts, the open paragraph disappears. Bob finds it again in the database.
+          Another saved rule allows thirty days. Which rule can he quote for this return on August twelfth?
+        hold: 3.2
+        visual_cues:
+          - id: place-purchase
+            phrase: eighteen days after purchase
+            targets: [purchase-age]
+            color: yellow
+          - id: restart-memory
+            phrase: the open paragraph disappears
+            targets: [process-area]
+            color: pink
+          - id: read-file-candidates
+            phrase: Another saved rule allows thirty days
+            targets: [durable-copy]
+            color: blue
+  - id: durability
+    title: Where did the paragraph survive?
+    visual: Follow c7a into the database file at commit and back into the support process on a fresh connection.
+    beats:
+      - say: Go back to the moment Bob saved the paragraph. The database puts it in a table called chunks. Read
+          across one row. The columns give us the paragraph’s identity, the document it came from, and the
+          words Bob saw. Commit saves that row in the database file.
+        hold: 1
+        visual_cues:
+          - id: store-row
+            phrase: Commit saves that row in the database file
+            targets:
+              - stored-row
+            color: green
+      - say: Now start with an empty screen. Open a new connection to the same file and read the row back. The
+          paragraph still points to the same document. That recovery depends on where the file lives. If a
+          container can disappear, the file needs storage that survives the container.
+        hold: 1
+        visual_cues:
+          - id: recover-row
+            phrase: read the row back
+            targets:
+              - recovered-row
+            color: cyan
+      - say: You can check this in the article’s SQLite lab. Its sample file holds Acme’s API policies.
+          Save the IDs from Bob’s search, commit, and close the connection. Reopen the same file and run
+          the same search. The two IDs come back without loading any seed data. Let’s follow the
+          document link on the paragraph at Harbor.
+        hold: 1
+        visual_cues:
+          - id: reopen-acme-file
+            phrase: Reopen the same file and run the same search
+            targets:
+              - acme-reread
+            color: cyan
+  - id: relations
+    title: Give each fact an identity and a relationship
+    visual: Matching paragraph, document and workspace fields connect directly. A permission row names Bob. A
+      duplicate identity and a missing foreign-key target are attempted.
+    beats:
+      - say: >
+          Store the source once, then let each paragraph carry its document identity. Follow the matching
+          fields to the document, and from there to Harbor's workspace. A separate permission row says Bob may
+          read this paragraph. These links are data the database can check.
+        hold: 0.7
+        motion_check:
+          region:
+            - 570
+            - 370
+            - 830
+            - 80
+          minimumChangedFraction: 0.002
+        visual_cues:
+          - id: follow-source-key
+            phrase: Follow the matching fields to the document
+            targets:
+              - source-reference
+            color: cyan
+          - id: follow-owner-key
+            phrase: from there to Harbor's workspace
+            targets:
+              - owner-reference
+            color: blue
+      - say: >-
+          A primary key gives a row its identity. Try inserting this identity a second time. The
+          database rejects the duplicate. A new chunk must name its source. The document field is
+          required, and SQLite checks its foreign key as soon as we insert the row. Point the chunk at
+          a missing document and that insertion fails too. Enable foreign keys on each SQLite
+          connection before starting the transaction.
+        hold: 0.8
+        visual_cues:
+          - id: duplicate-row
+            phrase: rejects the duplicate
+            targets:
+              - invalid-row
+            color: pink
+          - id: missing-parent
+            phrase: that insertion fails too
+            targets:
+              - invalid-row
+            color: pink
+  - id: schema-contract
+    title: Which rows will SQLite accept?
+    visual: Acme’s rows expose the same four relationships as Harbor’s file. Try three independent inserts.
+      In a separate score column, add a NOT NULL declaration and inspect the one outcome that changes.
+    beats:
+      - say: The SQLite lab uses Acme’s API policy. Follow one grant across its chunk, its document, and its
+          workspace. The document holds the title, source key, and validity dates. Each chunk holds its own
+          text. Bob can have a grant on one chunk and none on the next. The chunk and the reader together
+          identify a grant, so inserting that pair twice fails. CREATE TABLE sets up those rules. INSERT
+          asks the database to check a new row against them.
+        hold: 1
+        visual_cues:
+          - id: follow-schema-links
+            phrase: Follow one grant across its chunk, its document, and its workspace
+            targets:
+              - schema-links
+            color: cyan
+      - say: Try these three inserts separately. The first chunk lacks an ID. The second names a document that
+          never arrived. The third copies an existing paragraph into a different document. Check the ID,
+          then the parent, then the document and text together. Only the copy gets through. The same words
+          can occur in different editions. This database requires a text primary key to be non-null
+          explicitly. An ordinary SQLite rowid table otherwise allows a null text primary key. A required
+          parent also needs a non-null reference. Declaring that foreign key in a column lets SQLite check
+          it. Putting a document ID in optional JSON metadata buys you no such check.
+        hold: 1.2
+        caption_starts:
+          - Only the copy gets through
+        visual_cues:
+          - id: try-declarations
+            phrase: Check the ID, then the parent, then the document and text together
+            targets:
+              - schema-inserts
+            color: yellow
+      - say: Now look at a score column with a check that the score is positive. Which of these values could you
+          store?
+        hold: 2.6
+      - say: Read the check results. Zero makes the expression false, so its insert fails. For a
+          missing score the expression is unknown. SQLite lets that row through. Add a separate requirement
+          that a score must be present. Only the missing score changes outcome. In the policy tables,
+          passing the structural checks tells us the links exist. We still need to check the source and
+          Bob’s grant before he quotes it.
+        hold: 1.3
+        caption_starts:
+          - Zero makes the expression false
+        visual_cues:
+          - id: read-check-results
+            phrase: Read the check results
+            targets:
+              - score-constraint
+            color: cyan
+          - id: require-score
+            phrase: Add a separate requirement that a score must be present
+            targets:
+              - score-constraint
+            color: yellow
+  - id: query
+    title: What goes in the question-mark slot?
+    visual: The query returns document fields for Harbor. A search for children’s coats keeps its apostrophe
+      inside a bound value. The LIKE examples use the same exclamation-mark escape as the literal search.
+    beats:
+      - say: Bob wants the identities and titles of the policies on file at Harbor. SELECT names the fields to
+          return. WHERE tells the database which documents to keep. Bind the store identity into the
+          question-mark slot. Now test each document in order. All three Harbor versions come through,
+          including the retired one. Birch stays out.
+        hold: 0.9
+        visual_cues:
+          - id: project-fields
+            phrase: SELECT names the fields to return
+            targets:
+              - selected-columns
+            color: cyan
+          - id: bind-workspace
+            phrase: Bind the store identity into the question-mark slot
+            targets:
+              - bound-value
+            color: yellow
+          - id: filter-bound-rows
+            phrase: Now test each document in order. All three Harbor versions come through, including the retired
+              one. Birch stays out
+            targets:
+              - document-rows
+              - returned-fields
+            color: green
+      - say: Try searching for children's coats. The apostrophe travels with the words in the bound value. SQL
+          still sees the same statement, and none of our paragraphs contain that phrase. Now search for the
+          percent sign on a discount notice. Inside a LIKE pattern, you have to mark that percent as
+          literal. The same goes for the underscore in a field name.
+        hold: 1
+        visual_cues:
+          - id: bind-input
+            phrase: travels with the words in the bound value
+            targets:
+              - bound-value
+            color: yellow
+          - id: literal-percent
+            phrase: percent sign on a discount notice
+            targets:
+              - literal-result
+            color: green
+          - id: literal-underscore
+            phrase: underscore in a field name
+            targets:
+              - literal-underscore
+            color: cyan
+  - id: literal-substring
+    title: Which passages contain the printed policy code?
+    visual: >-
+      Build the escaped pattern one character at a time. Test it against the printed code, a wildcard
+      lookalike, and an uppercase copy inside a longer passage.
+    beats:
+      - say: >-
+          A customer copied this policy code from a notice. Look at the middle passage. Its X could
+          fit an underscore wildcard. The letters after ten could fit a percent wildcard. Here the
+          punctuation has to match the print, and the search ignores ASCII letter case. Double the
+          customer's own exclamation point first. That's our escape mark. Mark the underscore and
+          percent as literal. Then put a wildcard at each end to allow words around the code. Which
+          passages match?
+        hold: 3
+        visual_cues:
+          - id: escape-bang
+            phrase: Double the customer's own exclamation point first
+            targets:
+              - pattern-cells
+            color: yellow
+          - id: escape-wildcards
+            phrase: Mark the underscore and percent as literal
+            targets:
+              - pattern-cells
+            color: blue
+          - id: substring-pattern
+            phrase: put a wildcard at each end
+            targets:
+              - pattern-cells
+            color: yellow
+      - say: >-
+          Read down the three passages. The first has the code by itself. In the second, the X breaks
+          the match. In the last passage, even the capital letters match. The outer wildcards let the
+          extra words sit on either side.
+        hold: 1.1
+        caption_starts:
+          - The first has the code by itself
+          - In the last passage
+        visual_cues:
+          - id: test-stored-strings
+            phrase: The first has the code by itself
+            targets:
+              - passage-one
+            color: green
+          - id: reject-lookalike
+            phrase: In the second, the X breaks the match
+            targets:
+              - passage-two
+            color: pink
+            caption_boundary: true
+          - id: match-uppercase
+            phrase: In the last passage, even the capital letters match
+            targets:
+              - passage-three
+            color: green
+      - say: Clear the search box. The helper trims the input and returns an empty list for a blank search.
+          Otherwise the two outside wildcards could match every passage.
+        hold: 1
+        visual_cues:
+          - id: substring-empty
+            phrase: Clear the search box
+            targets:
+              - search-input
+              - pattern-cells
+            color: blue
+  - id: join
+    title: Build a citation from matching row fields
+    visual: A paragraph's document_id compares with two source IDs. The matching title joins its text; a receipt
+      paragraph follows the same parent without duplicating the source.
+    beats:
+      - say: >
+          The paragraph alone gives us text. A citation also needs its source title and version. A JOIN
+          combines rows whose named fields satisfy a condition. Compare the paragraph's document reference
+          with each document identity. Which source belongs beside this paragraph?
+        hold: 1.5
+        visual_cues:
+          - id: compare-join-fields
+            phrase: Compare the paragraph's document reference
+            targets:
+              - join-fields
+            color: yellow
+      - say: >
+          The matching identity selects the return-policy document. Move its title beside the text and we have
+          a citable result. The receipt paragraph follows the same source. Matching a key identifies the exact
+          version, even when an older document has the same title.
+        hold: 0.8
+        visual_cues:
+          - id: attach-source-title
+            phrase: Move its title beside the text
+            targets:
+              - joined-result
+            color: green
+          - id: join-second-paragraph
+            phrase: receipt paragraph follows the same source
+            targets:
+              - second-join
+            color: cyan
+  - id: query-null
+    title: Keep unknown and not-yet-active separate
+    visual: Same old and current source rows, plus a future edition with a NULL end. Evaluate equality, IS NULL
+      and the start predicate on each row. Unknown equality does not pass WHERE; a future open-ended edition
+      still fails its start. Use normalized time representations before comparing version intervals.
+    beats:
+      - say: NULL represents missing or unknown information. Comparing an end field to NULL with equals produces
+          unknown rather than true, so WHERE does not keep that row. Use IS NULL for the open-end branch,
+          joined with the earlier-than-end test by OR. Then combine that whole branch with start less than or
+          equal to the request time. A future version with an empty end still fails its start condition.
+        hold: 0.65
+        visual_cues:
+          - id: query-null-b1
+            phrase: NULL represents missing or unknown information.
+            targets:
+              - query-null-construction
+            color: blue
+            linger: 0.5
+          - id: query-null-voice-1
+            phrase: NULL represents missing or unknown information. Comparing an end field to NULL with equals produces
+              unknown rather than true, so WHERE does not keep that row. Use IS NULL for the open-end branch,
+              joined with the earlier-than-end test by OR. Then combine that whole branch with start less than
+              or equal to the request time. A future version with an empty end still fails its start
+              condition.
+            targets:
+              - query-null-construction
+            color: blue
+            linger: 0.5
+          - id: query-null-step-0-1
+            phrase: Comparing an end field to NULL with equals produces unknown rather than true, so WHERE does not keep
+              that row.
+            targets:
+              - query-null-construction
+            color: blue
+            linger: 0.5
+          - id: query-null-step-0-2
+            phrase: Use IS NULL for the open-end branch, joined with the earlier-than-end test by OR.
+            targets:
+              - query-null-construction
+            color: blue
+            linger: 0.5
+          - id: query-null-step-0-3
+            phrase: Then combine that whole branch with start less than or equal to the request time.
+            targets:
+              - query-null-construction
+            color: blue
+            linger: 0.5
+          - id: query-null-step-0-4
+            phrase: A future version with an empty end still fails its start condition.
+            targets:
+              - query-null-construction
+            color: blue
+            linger: 0.5
+      - say: Our SQLite program stores fixed-width UTC timestamps with the same precision and Z suffix. Their text
+          order matches chronological order under that convention. Arbitrary offsets and mixed formats need
+          normalization rather than raw string comparison. The PostgreSQL extension sketch uses timestamp with
+          time zone to compare instants. It does not retain the original written time-zone identity. Adopt the
+          server type, driver placeholders and transaction contract explicitly when moving this model to a
+          shared server.
+        hold: 0.65
+        visual_cues:
+          - id: query-null-b2
+            phrase: Our SQLite program stores fixed-width UTC timestamps with the same precision and Z suffix.
+            targets:
+              - query-null-construction
+            color: blue
+            linger: 0.5
+          - id: query-null-voice-2
+            phrase: Our SQLite program stores fixed-width UTC timestamps with the same precision and Z suffix. Their text
+              order matches chronological order under that convention. Arbitrary offsets and mixed formats
+              need normalization rather than raw string comparison. The PostgreSQL extension sketch uses
+              timestamp with time zone to compare instants. It does not retain the original written time-zone
+              identity. Adopt the server type, driver placeholders and transaction contract explicitly when
+              moving this model to a shared server.
+            targets:
+              - query-null-construction
+            color: blue
+            linger: 0.5
+          - id: query-null-step-1-1
+            phrase: Their text order matches chronological order under that convention.
+            targets:
+              - query-null-construction
+            color: blue
+            linger: 0.5
+          - id: query-null-step-1-2
+            phrase: Arbitrary offsets and mixed formats need normalization rather than raw string comparison.
+            targets:
+              - query-null-construction
+            color: blue
+            linger: 0.5
+          - id: query-null-step-1-3
+            phrase: The PostgreSQL extension sketch uses timestamp with time zone to compare instants.
+            targets:
+              - query-null-construction
+            color: blue
+            linger: 0.5
+          - id: query-null-step-1-4
+            phrase: It does not retain the original written time-zone identity.
+            targets:
+              - query-null-construction
+            color: blue
+            linger: 0.5
+          - id: query-null-step-1-5
+            phrase: Adopt the server type, driver placeholders and transaction contract explicitly when moving this model
+              to a shared server.
+            targets:
+              - query-null-construction
+            color: blue
+            linger: 0.5
+  - id: validity
+    title: Put the request inside the version's interval
+    visual: Two versions occupy equal-unit date intervals. The old version excludes the July endpoint, the new one
+      includes it, and a request marker moves from that boundary to August. The open interval arrow continues
+      beyond the visible October window.
+    beats:
+      - say: >
+          Our fictional store changed its return window in July. Both editions contain the word return. Place
+          the request time on their intervals. The earlier edition ends exactly where the next begins. At that
+          boundary, which edition should supply the answer?
+        hold: 1.5
+        visual_cues:
+          - id: move-request-time
+            phrase: Place the request time on their intervals
+            targets:
+              - request-time
+            color: yellow
+      - say: >
+          Include the start and exclude the end. The newer edition owns the boundary and this August request.
+          Its empty end field means the end is unknown, so SQL uses IS NULL. Also check that the version has
+          already started. Uniqueness of a start time alone allows overlapping intervals.
+        hold: 0.8
+        visual_cues:
+          - id: resolve-version
+            phrase: newer edition owns the boundary
+            targets:
+              - active-version
+            color: green
+          - id: open-ended-version
+            phrase: SQL uses IS NULL
+            targets:
+              - validity-predicate
+            color: cyan
+  - id: version-guard
+    title: Can two editions cover the same day?
+    visual: Add a short proposed edition across the July boundary. Mark each edition that covers
+      June 20, then July 10. Replace the open edition at one shared boundary on August 12.
+    beats:
+      - say: >-
+          These two Harbor editions meet on July first. For each store and policy, the database
+          requires a different start date for each edition. Try adding an edition that runs from
+          June fifteenth to July fifteenth. Its start date is new, and its end comes after its start.
+          Both checks pass. Look at June twentieth.
+          Two editions cover that day. Move to July tenth. The proposal overlaps the July edition
+          there. A unique start date still leaves Bob with two answers.
+        hold: 1
+        visual_cues:
+          - id: add-proposal
+            phrase: adding an edition that runs from June fifteenth to July fifteenth
+            targets: [proposed-interval]
+            color: pink
+          - id: check-start-key
+            phrase: Both checks pass
+            targets: [proposed-interval]
+            color: blue
+          - id: probe-june
+            phrase: Look at June twentieth
+            targets: [overlap-date]
+            color: yellow
+          - id: probe-july
+            phrase: Move to July tenth
+            targets: [overlap-date]
+            color: yellow
+      - say: >-
+          Watch how Harbor replaces an edition in August. The publisher runs BEGIN IMMEDIATE to take
+          SQLite’s writer slot before it checks the open edition. It closes that edition exactly
+          where the replacement starts. It saves the new document, paragraphs and grants in the same
+          transaction. At commit, the two intervals meet on August twelfth. Every publisher needs to
+          follow that sequence. A second writer can wait for the slot or retry.
+        hold: 1
+        visual_cues:
+          - id: take-writer-slot
+            phrase: take SQLite’s writer slot
+            targets: [replacement-steps]
+            color: yellow
+          - id: replace-edition
+            phrase: closes that edition exactly where the replacement starts
+            targets: [replacement-intervals]
+            color: cyan
+          - id: commit-edition
+            phrase: At commit, the two intervals meet on August twelfth
+            targets: [replacement-steps, replacement-intervals]
+            color: green
+  - id: authorization
+    title: Which paragraphs reach Bob’s desk?
+    visual: A table keeps each paragraph beside its actual readers, store and validity. Each predicate marks
+      its evidence in place before the two surviving paragraphs move into context.
+    beats:
+      - say: >-
+          Here we supply Bob and Harbor as test inputs. All five paragraphs match the word return.
+          Read the names beside the seven-day rule. Bob has a grant there. Now look across the rest of
+          its row. For his Harbor request on August twelfth, which paragraphs belong in the answer?
+        hold: 3.2
+        visual_cues:
+          - id: inspect-candidates
+            phrase: look across the rest of its row
+            targets:
+              - candidate-rows
+              - workspace-check
+            color: yellow
+      - say: Check Bob's grant first. Only Alice has the staff grant. Next require Harbor's workspace. That
+          takes Birch’s seven-day rule out of this request even though Bob can read it there. Finally check
+          the active version. Harbor once allowed thirty days, but that edition ended in July.
+        hold: 1
+        visual_cues:
+          - id: require-reader
+            phrase: Check Bob's grant first
+            targets:
+              - reader-check
+            color: cyan
+          - id: require-workspace
+            phrase: require Harbor's workspace
+            targets:
+              - workspace-check
+            color: blue
+          - id: require-time
+            phrase: check the active version
+            targets:
+              - time-check
+            color: yellow
+      - say: >-
+          Move the two admitted paragraphs into the answer context. Bob has a deadline and a receipt
+          instruction, both from the July edition. In production the server must identify Bob through
+          his session and verify that he may serve Harbor. The same checks belong on a search by
+          meaning.
+        hold: 1
+        visual_cues:
+          - id: admit-context
+            phrase: Move the two admitted paragraphs into the answer context
+            targets:
+              - answer-context
+            color: green
+  - id: role-boundary
+    title: Test the database role that runs the query
+    visual: Keep the same allowed and forbidden chunks while changing only the PostgreSQL execution role. Enable
+      row security, compare an ordinary role without a policy to owner and bypass roles. Default deny applies
+      to ordinary subject roles; bypass roles cross that boundary. The authenticated principal, verified
+      workspace and production role must agree.
+    beats:
+      - say: Application predicates are one boundary; PostgreSQL row-level security can add another. When row security
+          is enabled and no applicable policy permits rows, an ordinary subject role has a default-deny
+          result. A policy must derive the principal and workspace from trusted request context.
+          Client-supplied reader names or workspace fields cannot grant themselves access merely by entering a
+          query parameter.
+        hold: 0.65
+        visual_cues:
+          - id: role-boundary-b1
+            phrase: Application predicates are one boundary; PostgreSQL row-level security can add another.
+            targets:
+              - role-boundary-construction
+            color: blue
+            linger: 0.5
+          - id: role-boundary-voice-1
+            phrase: Application predicates are one boundary; PostgreSQL row-level security can add another. When row
+              security is enabled and no applicable policy permits rows, an ordinary subject role has a
+              default-deny result. A policy must derive the principal and workspace from trusted request
+              context. Client-supplied reader names or workspace fields cannot grant themselves access merely
+              by entering a query parameter.
+            targets:
+              - role-boundary-construction
+            color: blue
+            linger: 0.5
+          - id: role-boundary-step-0-1
+            phrase: When row security is enabled and no applicable policy permits rows, an ordinary subject role has a
+              default-deny result.
+            targets:
+              - role-boundary-construction
+            color: blue
+            linger: 0.5
+          - id: role-boundary-step-0-2
+            phrase: A policy must derive the principal and workspace from trusted request context.
+            targets:
+              - role-boundary-construction
+            color: blue
+            linger: 0.5
+          - id: role-boundary-step-0-3
+            phrase: Client-supplied reader names or workspace fields cannot grant themselves access merely by entering a
+              query parameter.
+            targets:
+              - role-boundary-construction
+            color: blue
+            linger: 0.5
+      - say: Test the role the server actually uses. Superusers and BYPASSRLS roles bypass row security. Table owners
+          normally bypass it too; FORCE ROW LEVEL SECURITY can subject the owner to the policies, while
+          superuser and BYPASSRLS exceptions remain. A successful test under an unrestricted owner is not a
+          test of the application’s restricted role. Keep the same forbidden row in the fixture and exercise
+          every retrieval route before adding it to answer context.
+        hold: 0.65
+        visual_cues:
+          - id: role-boundary-b2
+            phrase: Test the role the server actually uses.
+            targets:
+              - role-boundary-construction
+            color: blue
+            linger: 0.5
+          - id: role-boundary-voice-2
+            phrase: Test the role the server actually uses. Superusers and BYPASSRLS roles bypass row security. Table
+              owners normally bypass it too; FORCE ROW LEVEL SECURITY can subject the owner to the policies,
+              while superuser and BYPASSRLS exceptions remain. A successful test under an unrestricted owner
+              is not a test of the application’s restricted role. Keep the same forbidden row in the fixture
+              and exercise every retrieval route before adding it to answer context.
+            targets:
+              - role-boundary-construction
+            color: blue
+            linger: 0.5
+          - id: role-boundary-step-1-1
+            phrase: Superusers and BYPASSRLS roles bypass row security.
+            targets:
+              - role-boundary-construction
+            color: blue
+            linger: 0.5
+          - id: role-boundary-step-1-2
+            phrase: Table owners normally bypass it too; FORCE ROW LEVEL SECURITY can subject the owner to the policies,
+              while superuser and BYPASSRLS exceptions remain.
+            targets:
+              - role-boundary-construction
+            color: blue
+            linger: 0.5
+          - id: role-boundary-step-1-3
+            phrase: A successful test under an unrestricted owner is not a test of the application’s restricted role.
+            targets:
+              - role-boundary-construction
+            color: blue
+            linger: 0.5
+          - id: role-boundary-step-1-4
+            phrase: Keep the same forbidden row in the fixture and exercise every retrieval route before adding it to
+              answer context.
+            targets:
+              - role-boundary-construction
+            color: blue
+            linger: 0.5
+  - id: counts
+    title: Group the rows before counting them
+    visual: Current paragraph rows collect by their exact source identity. The two groups contain two and one
+      children. A left join retains an empty document and COUNT(child.id) yields zero.
+    beats:
+      - say: >
+          We can ask a different question of the same rows: how many current paragraphs does each source
+          contain? Filter by workspace and time, then collect matching document identities into groups. COUNT
+          reduces each group to one result. Harbor has two return-policy paragraphs, and its staff guide
+          contributes one. An ingestion audit has to account for drafts too.
+        hold: 0.9
+        visual_cues:
+          - id: form-source-groups
+            phrase: collect matching document identities into groups
+            targets:
+              - source-groups
+            color: cyan
+          - id: count-groups
+            phrase: COUNT reduces each group to one result
+            targets:
+              - group-counts
+            color: green
+      - say: >
+          Here’s a draft with no paragraphs yet. An inner join drops it from the audit. A left join keeps
+          that document with an empty child field. You can see one row. How many paragraphs should the
+          audit report for this draft?
+        hold: 3
+        visual_cues:
+          - id: preserve-empty-parent
+            phrase: left join keeps that document
+            targets:
+              - empty-source
+            color: yellow
+      - say: Count the child identity and the result is zero. The null field represents the missing
+          paragraph. Counting every joined row with count star gives one because the draft itself
+          survived the join.
+        hold: 1.3
+        visual_cues:
+          - id: count-child-identity
+            phrase: Count the child identity and the result is zero
+            targets:
+              - empty-count
+            color: green
+          - id: count-draft-row
+            phrase: Counting every joined row with count star gives one
+            targets:
+              - empty-count
+            color: blue
+            caption_boundary: true
+  - id: aggregate-order
+    title: Filter rows before counting groups
+    visual: Four Harbor paragraphs show their source IDs, titles and validity dates. WHERE removes the
+      row whose edition ended on July 1. The three current rows move into two source groups. HAVING
+      keeps the group with two paragraphs. A separate left join preserves an empty parent.
+    beats:
+      - say: Which Harbor sources have at least two current paragraphs on August twelfth? Two editions
+          share the title Return Policy. Look at their IDs and dates. The older edition ended on July first.
+          WHERE chooses input rows, so its paragraph drops out. GROUP BY gathers the remaining paragraphs
+          by document ID and title. Count the cards in each group. The July return policy has two. The
+          staff guide has one. HAVING tests those counts. Only the July return policy meets the cutoff of two.
+        hold: 0.65
+        caption_starts:
+          - The older edition ended on July first
+          - The July return policy has two
+          - Only the July return policy meets the cutoff of two
+        visual_cues:
+          - id: aggregate-order-voice-1
+            phrase: The older edition ended on July first
+            targets:
+              - retired-edition
+            color: yellow
+            linger: 0
+          - id: aggregate-order-b1
+            phrase: WHERE chooses input rows
+            targets:
+              - aggregate-order-construction
+            color: blue
+            linger: 0.5
+          - id: aggregate-order-step-0-1
+            phrase: GROUP BY gathers the remaining paragraphs by document ID and title
+            targets:
+              - aggregate-order-construction
+            color: blue
+            linger: 0.5
+          - id: aggregate-order-step-0-2
+            phrase: Count the cards in each group
+            targets:
+              - aggregate-order-construction
+            color: blue
+            linger: 0.5
+          - id: aggregate-order-step-0-3
+            phrase: HAVING tests those counts
+            targets:
+              - aggregate-order-construction
+            color: blue
+            linger: 0.5
+      - say: To include an empty source, begin with documents and LEFT JOIN matching children. Put a child-selection
+          condition in that join when empty parents must remain. COUNT of the child identity ignores the NULL
+          placeholder, so the empty source has zero children. COUNT star counts the retained joined row and
+          gives one. Moving the child condition into WHERE can remove that placeholder and lose the empty
+          source entirely.
+        hold: 0.65
+        visual_cues:
+          - id: aggregate-order-b2
+            phrase: To include an empty source, begin with documents and LEFT JOIN matching children.
+            targets:
+              - aggregate-order-construction
+            color: blue
+            linger: 0.5
+          - id: aggregate-order-voice-2
+            phrase: To include an empty source, begin with documents and LEFT JOIN matching children. Put a
+              child-selection condition in that join when empty parents must remain. COUNT of the child
+              identity ignores the NULL placeholder, so the empty source has zero children. COUNT star counts
+              the retained joined row and gives one. Moving the child condition into WHERE can remove that
+              placeholder and lose the empty source entirely.
+            targets:
+              - aggregate-order-construction
+            color: blue
+            linger: 0.5
+          - id: aggregate-order-step-1-1
+            phrase: Put a child-selection condition in that join when empty parents must remain.
+            targets:
+              - aggregate-order-construction
+            color: blue
+            linger: 0.5
+          - id: aggregate-order-step-1-2
+            phrase: COUNT of the child identity ignores the NULL placeholder, so the empty source has zero children.
+            targets:
+              - aggregate-order-construction
+            color: blue
+            linger: 0.5
+          - id: aggregate-order-step-1-3
+            phrase: COUNT star counts the retained joined row and gives one.
+            targets:
+              - aggregate-order-construction
+            color: blue
+            linger: 0.5
+          - id: aggregate-order-step-1-4
+            phrase: Moving the child condition into WHERE can remove that placeholder and lose the empty source entirely.
+            targets:
+              - aggregate-order-construction
+            color: blue
+            linger: 0.5
+  - id: delete-order
+    title: What still points to Acme’s policy?
+    visual: >-
+      Four grants reference two chunks from Acme’s document d7. Attempt deletion at both referenced
+      tables, remove the dependents in order, then restore the chain with rollback.
+    beats:
+      - say: >-
+          Look at Acme’s API Key Policy in the SQLite lab. Try deleting its document while two chunks
+          still point to it. SQLite rejects the deletion. Try deleting those chunks. Four permission
+          rows still point to them, so that fails too. Remove the grants, then the chunks, then the
+          document in one transaction. Roll back the rehearsal. The document, both chunks and all four
+          grants return. Harbor’s return policy has the same dependency.
+        hold: 0.65
+        visual_cues:
+          - id: delete-order-b1
+            phrase: Look at Acme’s API Key Policy in the SQLite lab.
+            targets:
+              - delete-order-construction
+            color: blue
+            linger: 0.5
+          - id: delete-order-voice-1
+            phrase: >-
+              Look at Acme’s API Key Policy in the SQLite lab. Try deleting its document while two
+              chunks still point to it. SQLite rejects the deletion. Try deleting those chunks. Four
+              permission rows still point to them, so that fails too. Remove the grants, then the
+              chunks, then the document in one transaction. Roll back the rehearsal. The document,
+              both chunks and all four grants return. Harbor’s return policy has the same dependency.
+            targets:
+              - delete-order-construction
+            color: blue
+            linger: 0.5
+          - id: delete-order-step-0-1
+            phrase: >-
+              Try deleting its document while two chunks still point to it. SQLite rejects the
+              deletion.
+            targets:
+              - delete-order-construction
+            color: blue
+            linger: 0.5
+          - id: delete-order-step-0-2
+            phrase: Try deleting those chunks. Four permission rows still point to them, so that fails too.
+            targets:
+              - delete-order-construction
+            color: blue
+            linger: 0.5
+          - id: delete-order-step-0-3
+            phrase: Remove the grants, then the chunks, then the document in one transaction.
+            targets:
+              - delete-order-construction
+            color: blue
+            linger: 0.5
+          - id: delete-order-step-0-4
+            phrase: Roll back the rehearsal
+            targets:
+              - delete-order-construction
+            color: blue
+            linger: 0.5
+      - say: ON DELETE CASCADE can automate a declared foreign-key action, but this schema did not declare it. Choose
+          deletion or historical retention deliberately. A database cascade also does not delete a remote
+          vector entry, object-store copy or application cache. Coordinate those stores with explicit
+          operations and observable completion. A retained historical edition may be valuable for an earlier
+          policy-time query even when it must be excluded from the current answer.
+        hold: 0.65
+        visual_cues:
+          - id: delete-order-b2
+            phrase: ON DELETE CASCADE can automate a declared foreign-key action, but this schema did not declare it.
+            targets:
+              - delete-order-construction
+            color: blue
+            linger: 0.5
+          - id: delete-order-voice-2
+            phrase: ON DELETE CASCADE can automate a declared foreign-key action, but this schema did not declare it.
+              Choose deletion or historical retention deliberately. A database cascade also does not delete a
+              remote vector entry, object-store copy or application cache. Coordinate those stores with
+              explicit operations and observable completion. A retained historical edition may be valuable for
+              an earlier policy-time query even when it must be excluded from the current answer.
+            targets:
+              - delete-order-construction
+            color: blue
+            linger: 0.5
+          - id: delete-order-step-1-1
+            phrase: Choose deletion or historical retention deliberately.
+            targets:
+              - delete-order-construction
+            color: blue
+            linger: 0.5
+          - id: delete-order-step-1-2
+            phrase: A database cascade also does not delete a remote vector entry, object-store copy or application cache.
+            targets:
+              - delete-order-construction
+            color: blue
+            linger: 0.5
+          - id: delete-order-step-1-3
+            phrase: Coordinate those stores with explicit operations and observable completion.
+            targets:
+              - delete-order-construction
+            color: blue
+            linger: 0.5
+          - id: delete-order-step-1-4
+            phrase: A retained historical edition may be valuable for an earlier policy-time query even when it must be
+              excluded from the current answer.
+            targets:
+              - delete-order-construction
+            color: blue
+            linger: 0.5
+  - id: transaction-context
+    title: What survives a duplicate insert?
+    visual: Two independent transactions stage the same key. Follow the duplicate error to a handler on
+      either side of the with boundary. The pending key reaches the committed shelf only on normal exit.
+    beats:
+      - say: Imagine two empty tables, each with a unique key. Put one K in each table. In the lab’s Python
+          legacy transaction mode, that first write opens a transaction. Try to insert the same K again.
+          Both tables reject the duplicate. On the left the handler catches the error inside the with
+          block. On the right the handler waits outside. When both blocks finish, where will the first K
+          still exist?
+        hold: 3.1
+        visual_cues:
+          - id: insert-first-k
+            phrase: Put one K in each table
+            targets:
+              - key-inserts
+            color: cyan
+          - id: attempt-second-k
+            phrase: Try to insert the same K again
+            targets:
+              - key-inserts
+            color: pink
+      - say: Follow the error out to each handler. On the left the block finishes normally, so the earlier insert
+          commits. On the right the error crosses the block boundary, and Python rolls back the open
+          transaction. Count the saved rows. One on the left. Zero on the right. To roll back a whole
+          failed ingestion, let the exception reach the transaction boundary and handle it outside.
+        hold: 1.3
+        caption_starts:
+          - On the left the block finishes normally
+          - One on the left
+        visual_cues:
+          - id: leave-with-blocks
+            phrase: Follow the error out to each handler
+            targets:
+              - error-path
+              - key-inserts
+            color: yellow
+          - id: compare-k-rows
+            phrase: Count the saved rows
+            targets:
+              - transaction-exit
+            color: cyan
+      - say: The connection’s with block handles the exit of an open transaction. The first write opened it here.
+          Python’s autocommit setting matters, and the program still has to close the connection itself.
+        hold: 0.9
+  - id: publication
+    title: Publish one complete policy edition
+    visual: >-
+      A SQLite writer stages the replacement and rolls back a failed attempt. On the retry, a reader
+      holding a WAL snapshot keeps July’s two rows through commit. A fresh read started afterward sees
+      all three August rows.
+    beats:
+      - say: >-
+          Harbor adds a clothing rule. Keep one reader on the July edition while the writer works.
+          Here SQLite uses write-ahead logging, so that read transaction can stay open through a
+          commit. Retire the old edition and stage the replacement in one transaction. Only the writer
+          sees these unfinished rows.
+        hold: 0.7
+        visual_cues:
+          - id: stage-new-edition
+            phrase: stage the replacement in one transaction
+            targets:
+              - writer-private
+            color: cyan
+      - say: >
+          Suppose a new paragraph names a missing document. The foreign key rejects that statement. Earlier
+          writes are still pending until we roll back the transaction. Watch the staged document disappear and
+          the old end time return. The other reader's complete policy has stayed available.
+        hold: 0.8
+        visual_cues:
+          - id: reject-broken-reference
+            phrase: foreign key rejects that statement
+            targets:
+              - pending-child
+            color: pink
+          - id: rollback-publication
+            phrase: staged document disappear
+            targets:
+              - writer-private
+            color: pink
+      - say: >-
+          Retry with the correct references. Finish the new paragraphs and their intended grants, then
+          commit the unit. Look at the reader who opened the July edition. It keeps those two paragraphs
+          until its read transaction ends. On another connection, start a fresh read after commit.
+          This reader gets all three August
+          paragraphs together. The deadline is still fourteen days. The clothing paragraph is new, and
+          the July IDs still identify the earlier evidence.
+        hold: 0.8
+        motion_check:
+          region:
+            - 180
+            - 390
+            - 1560
+            - 400
+          minimumChangedFraction: 0.002
+        visual_cues:
+          - id: finish-publication
+            phrase: Finish the new paragraphs and their intended grants
+            targets:
+              - writer-private
+            color: cyan
+          - id: commit-publication
+            phrase: commit the unit
+            targets:
+              - committed-reader
+            color: green
+          - id: read-after-commit
+            phrase: Start a fresh read after commit
+            targets:
+              - committed-reader
+            color: green
+      - say: >
+          A publisher also needs concurrency control around this version replacement. In our SQLite reference,
+          BEGIN IMMEDIATE claims the writer slot before checking the open edition. A competing writer waits or
+          retries. The transaction covers these local rows; remote embedding work needs its own publication
+          workflow.
+        hold: 0.7
+        visual_cues:
+          - id: serialize-publisher
+            phrase: claims the writer slot
+            targets:
+              - writer-slot
+            color: yellow
+  - id: publish-boundary
+    title: What can the second connection read?
+    visual: Two SQLite connections query Acme’s API policy at the same time. The writer privately closes its
+      old interval. A second read stays pending until the audience has made a prediction. Rollback restores
+      the old source on the writer.
+    beats:
+      - say: Harbor committed its new return policy. In the article’s SQLite exercise, Acme rehearses a change to
+          its API key policy using two connections to the same file. The writer closes the old edition at
+          the request time. Run its query before it inserts the replacement. It gets an empty result. At
+          that instant, what would the second connection read?
+        hold: 3
+        visual_cues:
+          - id: close-api-edition
+            phrase: The writer closes the old edition at the request time
+            targets:
+              - writer-edition
+            color: yellow
+      - say: Ask the second connection. It still gets the seven-day edition. The writer can now stage the
+          replacement, its paragraph and its reader grant. The writer sees five days. The other
+          connection’s earlier read can still be traced to the original seven-day row. End the rehearsal
+          with a rollback. The old edition is active again on the writer too.
+        hold: 1.2
+        visual_cues:
+          - id: reader-queries-gap
+            phrase: It still gets the seven-day edition
+            targets:
+              - reader-edition
+            color: green
+            caption_boundary: true
+          - id: stage-api-edition
+            phrase: stage the replacement, its paragraph and its reader grant
+            targets:
+              - writer-edition
+            color: cyan
+          - id: rollback-api-edition
+            phrase: End the rehearsal with a rollback
+            targets:
+              - writer-edition
+            color: blue
+      - say: How did Acme keep two publishers from checking the same open edition at once? The first one took
+          SQLite’s writer slot before it looked. Let a second publisher try for that slot with zero wait
+          time. SQLite reports busy. A real publisher can wait within a limit or retry the whole
+          publication. On PostgreSQL a serialization failure also calls for a whole-transaction retry. If
+          publishing starts a remote embedding job, stage that work separately or use an outbox with an
+          idempotent consumer.
+        hold: 1.1
+        visual_cues:
+          - id: attempt-writer-slot
+            phrase: Let a second publisher try for that slot with zero wait time
+            targets:
+              - writer-slot
+            color: yellow
+  - id: snapshots
+    title: Can the export use its first count?
+    visual: A fixed pair of committed row lists feeds a two-line export. Keep the first count on paper while
+      a writer publishes c7e. Compare which row IDs each isolation level puts beside the count.
+    beats:
+      - say: The evaluation team wants a list of every current Harbor paragraph, including the staff guide. This
+          is a corpus export. Start its count before the new edition commits. Keep that number on the page.
+          While the export is waiting to fetch its list, the publisher has time to finish. Will the list
+          fit the count?
+        hold: 3.1
+        visual_cues:
+          - id: capture-first-count
+            phrase: Start its count before the new edition commits
+            targets:
+              - snapshot-count
+            color: blue
+      - say: The publisher commits the new edition. Find the line for clothing tags. It had no paragraph before.
+          Now run the detail query. In PostgreSQL’s Read Committed mode that statement sees what was
+          committed when it began. Four rows go beside a count of three. Both reads saw complete editions.
+        hold: 1.4
+        caption_starts:
+          - Four rows go beside a count of three
+        visual_cues:
+          - id: snapshot-commit
+            phrase: The publisher commits the new edition
+            targets:
+              - snapshot-publication
+            color: green
+          - id: read-new-snapshot
+            phrase: Now run the detail query
+            targets:
+              - snapshot-details
+            color: green
+      - say: Replay the same publication with a read-only Repeatable Read transaction. Its first query fixed the
+          snapshot at the count. Send the detail query back to that same picture. The IDs beside the second
+          count are the ones that were there when it was taken. The writer still committed. This export can
+          finish describing the earlier edition.
+        hold: 1.8
+        visual_cues:
+          - id: retain-read-snapshot
+            phrase: Send the detail query back to that same picture
+            targets:
+              - pinned-details
+            color: blue
+  - id: retries
+    title: Can the worker reuse this request key?
+    visual: A durable publication marker carries request identity, a computed digest of every input field, and the
+      result. Equal input returns the retained result; a changed paragraph gives a different digest and
+      rejection with stored rows unchanged.
+    beats:
+      - say: >
+          The publication committed, but its reply was lost. A worker sends the request again. Save a unique
+          request identity and a fingerprint of every input field in the same transaction as the publication.
+          That durable marker tells the next worker which operation already completed.
+        hold: 0.7
+        visual_cues:
+          - id: lose-publication-reply
+            phrase: its reply was lost
+            targets:
+              - stored-request
+            color: yellow
+      - say: >
+          Compare the arriving input with the stored fingerprint. Identical input reuses the retained result.
+          Watch the reply return while the document and paragraph rows stay unchanged. A transaction made the
+          first attempt complete; the unique marker recognizes the repeat.
+        hold: 0.8
+        visual_cues:
+          - id: compare-same-retry
+            phrase: Identical input reuses the retained result
+            targets:
+              - retry-comparison
+            color: green
+      - say: >-
+          Now change the clothing paragraph while keeping the request identity. Its fingerprint
+          changes. Reject that reuse and preserve the committed publication. To publish the revision,
+          prepare a new request. Give it a fresh key and name the current edition as its predecessor.
+          Give the replacement a later start and a new document ID. Give each new chunk its own ID.
+          The fingerprint compares
+          content. The service must authenticate the caller and check permission to publish in the
+          requested workspace.
+        hold: 0.9
+        visual_cues:
+          - id: change-retry-payload
+            phrase: change the clothing paragraph
+            targets:
+              - retry-input
+            color: yellow
+          - id: reject-changed-retry
+            phrase: Reject that reuse
+            targets:
+              - retry-comparison
+            color: pink
+          - id: prepare-revision
+            phrase: name the current edition as its predecessor
+            targets:
+              - next-request
+            color: blue
+  - id: idempotency-boundary
+    title: What happens if the reply gets lost?
+    visual: Acme commits a request key with a new policy. Compare two retries. Then follow one remote
+      embedding job from the service’s saved receipt back to a worker that missed the reply.
+    beats:
+      - say: >-
+          Acme gets the same request twice. The importer fingerprints all seven fields of the policy
+          request. It saves the key and fingerprint with the document and paragraph in one transaction.
+          Try the same key and the same input. The importer skips the write. Change just the paragraph
+          text under that key. The fingerprint changes and the importer rejects the request. The
+          original paragraph stays private. Bob needs a grant to read it.
+        hold: 0.8
+        visual_cues:
+          - id: fingerprint-fields
+            phrase: fingerprints all seven fields
+            targets: [local-request]
+            color: blue
+          - id: commit-request
+            phrase: with the document and paragraph in one transaction
+            targets: [local-request]
+            color: cyan
+          - id: skip-local-retry
+            phrase: The importer skips the write
+            targets: [local-request]
+            color: green
+          - id: reject-local-reuse
+            phrase: the importer rejects the request
+            targets: [local-request]
+            color: pink
+          - id: check-private-grant
+            phrase: Bob needs a grant to read it
+            targets: [private-grant]
+            color: cyan
+      - say: >-
+          Now send the paragraph to an embedding service. The service starts job forty-two and
+          saves its number under the request key. Its reply gets lost. The worker’s job number is
+          still blank. How can the worker find the job it already started?
+        hold: 2
+        visual_cues:
+          - id: start-remote-job
+            phrase: saves its number under the request key
+            targets: [remote-receipt]
+            color: cyan
+          - id: lose-remote-reply
+            phrase: Its reply gets lost
+            targets: [reply-path]
+            color: pink
+      - say: >-
+          Send the same key again. The service looks up its receipt and sends back forty-two.
+          The worker records that number. One job serves both attempts. An outbox can keep the
+          request ready for retry. The receiving service needs to recognize the key each time.
+          Before accepting a publication, the server identifies the caller and checks write
+          permission for Acme’s workspace.
+        hold: 1.2
+        visual_cues:
+          - id: find-remote-receipt
+            phrase: The service looks up its receipt
+            targets: [remote-receipt]
+            color: cyan
+          - id: record-job-number
+            phrase: The worker records that number
+            targets: [worker-record]
+            color: green
+  - id: indexes
+    title: Change the path while keeping the answer fixed
+    visual: Seven real permission identities form a table scan, then a sorted principal index. A seek highlights
+      Bob's contiguous four-entry range; the next view checks those candidates one at a time and keeps the
+      same two answers. A real CPU SQLite plan is distinct from modeled candidate visits.
+    beats:
+      - say: >-
+          Go back to Harbor's seven permission rows before publication. We'll use this same copy for
+          both searches. A table scan can inspect every permission row. Build an additional index
+          ordered by reader and paragraph identity. Now seek the start of Bob's range. The rows are
+          still in the table. The index tells us where to look.
+        hold: 0.7
+        motion_check:
+          region:
+            - 150
+            - 380
+            - 1580
+            - 470
+          minimumChangedFraction: 0.002
+        visual_cues:
+          - id: scan-permissions
+            phrase: inspect every permission row
+            targets:
+              - permission-table
+            color: blue
+          - id: build-principal-index
+            phrase: Build an additional index ordered by reader and paragraph identity
+            targets:
+              - principal-index
+            color: cyan
+          - id: seek-reader-range
+            phrase: seek the start of Bob's range
+            targets:
+              - principal-index
+            color: yellow
+      - say: >-
+          Bob's range contains four candidates. One is a retired Harbor paragraph. Another belongs to
+          Birch. The same two paragraphs pass the workspace and time checks as before. You can read
+          both IDs beside the text. Those counts describe candidates and results. Reading the index
+          takes work too, and every change to a grant has to update it.
+        hold: 0.6
+        visual_cues:
+          - id: walk-reader-range
+            phrase: contains four candidates
+            targets:
+              - principal-index
+            color: yellow
+          - id: preserve-result-rule
+            phrase: same two paragraphs
+            targets:
+              - index-result
+            color: green
+      - say: >
+          SQLite's actual plan names the permission index it searches. A plan tells us the access strategy.
+          Benchmark representative data to learn the latency. An ordinary reader index also leaves substring
+          text matching as separate work. Correct results stay fixed while we test faster access.
+        hold: 0.8
+        visual_cues:
+          - id: inspect-real-plan
+            phrase: actual plan names the permission index
+            targets:
+              - query-plan
+            color: cyan
+  - id: plan-contract
+    title: What work does the database do?
+    visual: Follow one chunk ID down the four SQLite plan lines. Compare a search by reader with a
+      match inside a word. In a separate PostgreSQL example, roll back a title change after an email arrives.
+    beats:
+      - say: >-
+          Start with Bob’s name. The first line finds him in the permission index. His entry already
+          contains the chunk ID. That makes this a covering index for the permission lookup. Follow the
+          chunk ID to the paragraph. Its document ID leads to the title. The last line builds a
+          temporary B-tree to put the results in order.
+        hold: 0.65
+        visual_cues:
+          - id: find-grant
+            phrase: His entry already contains the chunk ID
+            targets: [principal-index]
+            color: yellow
+          - id: lookup-chunk
+            phrase: Follow the chunk ID to the paragraph
+            targets: [chunk-lookup]
+            color: cyan
+          - id: lookup-document
+            phrase: Its document ID leads to the title
+            targets: [document-lookup]
+            color: blue
+          - id: sort-results
+            phrase: The last line builds a temporary B-tree
+            targets: [ordered-rows]
+            color: green
+      - say: >-
+          SQLite calls a full walk through a table or index a scan. A search visits a subset.
+          Of seven grants, four name Bob. Two lead to current Harbor paragraphs. Now look for the
+          word turn. It even matches inside the word return. An index ordered by reader helps with
+          Bob’s name. For frequent matches inside words, use an index designed for substrings.
+          Each extra index takes space and work to maintain as the rows change.
+        hold: 0.65
+        visual_cues:
+          - id: scan-search
+            phrase: Of seven grants, four name Bob
+            targets: [reader-entries]
+            color: yellow
+          - id: filter-grants
+            phrase: Two lead to current Harbor paragraphs
+            targets: [current-paragraphs]
+            color: cyan
+          - id: inside-word
+            phrase: inside the word return
+            targets: [substring]
+            color: yellow
+      - say: >-
+          Suppose we rename a policy in a PostgreSQL transaction. EXPLAIN shows the plan and estimates
+          how many rows the update will touch. EXPLAIN ANALYZE runs the update and reports actual
+          row counts and timing.
+          The title changes to Coat Returns. Say a function also sends an email, and it arrives.
+          Now roll back. The old title comes back. The email stays in the inbox.
+          To compare two plans for Bob’s search, run his SELECT with representative filters.
+          Check that the paragraphs match, then compare page reads and execution times.
+        hold: 1.4
+        caption_starts:
+          - Now roll back
+          - The email stays in the inbox
+        visual_cues:
+          - id: compare-plans
+            phrase: EXPLAIN shows the plan
+            targets: [plan-mode]
+            color: blue
+          - id: execute-rename
+            phrase: The title changes to Coat Returns
+            targets: [stored-title]
+            color: cyan
+          - id: deliver-email
+            phrase: and it arrives
+            targets: [inbox]
+            color: yellow
+          - id: undo-title
+            phrase: The old title comes back
+            targets: [stored-title]
+            color: cyan
+          - id: keep-message
+            phrase: The email stays in the inbox
+            targets: [inbox]
+            color: yellow
+  - id: semantic
+    title: Which neighbor can answer the customer?
+    visual: Normalize Birch’s vector on the unit circle. Read its signed projection along the query
+      direction, then inspect ownership, time and grants down the ranking. Save the actual first admitted
+      embedding.
+    beats:
+      - say: >-
+          Return to the published August edition with its three Harbor return paragraphs. The customer
+          asks, can I take this coat back? None of our paragraphs contains that phrase. An embedding
+          model represents the question and each paragraph with a vector. We chose these coordinates
+          by hand so we can follow the comparison. The query points right. Look at Birch’s paragraph.
+          Its vector goes three steps right and one up. Divide both coordinates by the square root of
+          ten. The tip moves onto the unit circle without changing direction. Now drop the tip onto
+          the query axis. Its horizontal coordinate is the cosine similarity. To the left of zero,
+          that score would be negative. Place the other tips on the same circle and order them by that
+          coordinate. Can Bob cite the closest paragraph for this customer?
+        hold: 2
+        visual_cues:
+          - id: normalize-candidate-vectors
+            phrase: Divide both coordinates by the square root of ten. The tip moves onto the unit circle without
+              changing direction
+            targets:
+              - similarity-geometry
+              - similarity-projection
+            color: cyan
+          - id: project-cosine-score
+            phrase: Now drop the tip onto the query axis. Its horizontal coordinate is the cosine similarity
+            targets:
+              - similarity-geometry
+              - similarity-projection
+            color: yellow
+          - id: rank-by-cosine
+            phrase: Place the other tips on the same circle and order them by that coordinate
+            targets:
+              - normalized-candidate-overview
+              - cosine-ranking
+            color: blue
+      - say: Read the nearest row. It belongs to another store. The next is retired. The staff rule lacks Bob's
+          grant. The request needs two results. Keep going down the ranked list. The next two current
+          Harbor paragraphs pass all three checks. With an approximate index you may run out of candidates
+          before you fill both places. We can test that against an exact search.
+        hold: 1.2
+        visual_cues:
+          - id: inspect-filtered-prefix
+            phrase: Read the nearest row
+            targets:
+              - candidate-gates
+            color: blue
+          - id: explain-other-store-failure
+            phrase: It belongs to another store
+            targets:
+              - candidate-gates
+            color: pink
+            caption_boundary: true
+          - id: explain-retired-failure
+            phrase: The next is retired
+            targets:
+              - candidate-gates
+            color: pink
+            caption_boundary: true
+          - id: explain-reader-failure
+            phrase: The staff rule lacks Bob's grant
+            targets:
+              - candidate-gates
+            color: pink
+            caption_boundary: true
+          - id: request-two-results
+            phrase: The request needs two results
+            targets:
+              - candidate-gates
+            color: blue
+          - id: advance-ranked-search
+            phrase: Keep going down the ranked list
+            targets:
+              - candidate-gates
+            color: cyan
+          - id: continue-candidate-search
+            phrase: The next two current Harbor paragraphs pass all three checks
+            targets:
+              - semantic-result
+            color: green
+      - say: Save the identity of the embedding that came first for Bob. Follow it to this exact paragraph, then
+          to the Harbor edition it quotes. A later evaluation also needs the dataset, model, policy time,
+          corpus snapshot, and settings that produced this ranking. Change any one of those and the same
+          question may bring back different evidence.
+        hold: 1.1
+        visual_cues:
+          - id: follow-result-lineage
+            phrase: Follow it to this exact paragraph
+            targets:
+              - saved-lineage
+            color: cyan
+  - id: vector-contract
+    title: What if the query points up?
+    visual: Rotate the query against the fixed clothing-tags vector. Then replay the original search with a
+      supplied approximate scan and put its filtered result beside the exact allowed neighbors.
+    beats:
+      - say: Take the clothing-tags paragraph at the far end of that ranking. Its tip lies to the left of the old
+          query. Keep the paragraph and its grant fixed. Turn the query upward until it’s two units high.
+          The paragraph points mostly up, too. What will that do to its score?
+        hold: 2.8
+        visual_cues:
+          - id: turn-query
+            phrase: Turn the query upward until it’s two units high
+            targets:
+              - query-axes
+            color: yellow
+      - say: >-
+          Multiply corresponding coordinates and add. The horizontal pair contributes zero and the
+          vertical pair contributes six. Divide that dot product by both lengths. The query has length
+          two and the paragraph has length square root of ten. Its new cosine is about point nine four
+          nine. The distance operator in pgvector gives about point zero five one. Smaller distances
+          come first. Subtract that distance from one and the score column gives us the similarity
+          again.
+        hold: 1.2
+        visual_cues:
+          - id: new-vector-score
+            phrase: Its new cosine is about point nine four nine
+            targets:
+              - cosine-operands
+            color: yellow
+            caption_boundary: true
+          - id: recover-similarity
+            phrase: the score column gives us the similarity again
+            targets:
+              - cosine-operands
+            color: yellow
+          - id: read-distance
+            phrase: The distance operator in pgvector gives about point zero five one
+            targets:
+              - cosine-operands
+            color: blue
+            caption_boundary: true
+      - say: >-
+          We chose those coordinates to show the arithmetic. Cosine takes two nonzero vectors of equal
+          dimension. To interpret the score as a match in meaning, use the model’s prescribed query
+          and document encoders and prepare each input as the model expects. Their outputs must share
+          a comparable space. Store the model version, source chunk and creation time with the vector.
+          The article declares three dimensions in PostgreSQL. We drew two. Bind the query with your
+          driver’s placeholders and keep the workspace, time, model and reader checks.
+        hold: 1
+        visual_cues:
+          - id: match-encoder
+            phrase: use the model’s prescribed query and document encoders
+            targets:
+              - embedding-row
+              - query-model
+            color: cyan
+      - say: >-
+          Go back to the original query pointing right. Three paragraphs qualify for Bob. He wants the
+          nearest two. Pgvector’s default exact search gives us that reference pair. Now try one
+          possible HNSW scan through its graph of nearby vectors. Inspect these first three
+          candidates. Compare their store, edition and reader with Bob’s request. If the scan stops
+          here, which eligible paragraphs does he get?
+        hold: 2.8
+        visual_cues:
+          - id: scan-prefix
+            phrase: Inspect these first three candidates
+            targets:
+              - scan-visits
+            color: yellow
+      - say: >-
+          None of Bob’s three eligible paragraphs appears in this first group. Iterative scans let
+          pgvector keep looking after filtering. They’re available from version zero point eight, off
+          by default, and subject to scan limits. Continue the scan past that first group. Both places
+          fill, but the scan skipped the deadline paragraph. Strict distance order sorts the neighbors
+          it found. Compare the two pairs. Only the receipt appears in both. That’s one out of two for
+          filtered recall at two.
+        hold: 1.8
+        caption_starts:
+          - Only the receipt appears in both
+        visual_cues:
+          - id: continue-scan
+            phrase: Continue the scan past that first group
+            targets:
+              - scan-visits
+            color: cyan
+          - id: compare-neighbors
+            phrase: one out of two for filtered recall at two
+            targets:
+              - neighbor-lists
+            color: green
+            caption_boundary: true
+  - id: lineage-version
+    title: Can yesterday’s score be checked?
+    visual: >-
+      Follow R1’s first result through an overwrite and a versioned insert for the same chunk. Compare
+      its two original ranked rows with a later model’s embedding. Recompute one hit under two
+      versions of the relevance labels.
+    beats:
+      - say: >-
+          Open a separate saved run with a simple pair of arrows. The query and its first hit both
+          pointed right. Their cosine was one. A new encoder produces an arrow pointing up for that
+          same paragraph. What if we overwrite the stored vector so it points straight up? Follow the
+          old result. The lookup still works, but the arrows now give zero. If the old coordinates are
+          gone, mark the evidence as missing. Replay that write. Keep the original row. Give a changed
+          encoder or preprocessing recipe its own model identifier. Store the new encoder version and
+          its vector under a new embedding ID. The schema allows one embedding per chunk and model
+          version. To keep multiple revisions for that same pair, include a revision
+          in the unique key. If the source words change, give the edited chunk a new ID too.
+        hold: 1.5
+        caption_starts:
+          - The lookup still works
+        visual_cues:
+          - id: lineage-version-step-0-1
+            phrase: overwrite the stored vector so it points straight up
+            targets:
+              - overwritten-vector
+            color: yellow
+          - id: recompute-old-score
+            phrase: the arrows now give zero
+            targets:
+              - overwritten-vector
+            color: yellow
+            caption_boundary: true
+          - id: lineage-version-step-0-5
+            phrase: Store the new encoder version and its vector under a new embedding ID
+            targets:
+              - versioned-vectors
+            color: cyan
+      - say: >-
+          These two embeddings were already in the file when run one ranked the coat query. The later
+          embedding can appear in a later run. Each result keeps its rank, score and embedding ID. The
+          run records the dataset and query model. Give each rank one place in this query. A second
+          uniqueness rule keeps the same embedding from taking two places, and ranks must be positive.
+          To repeat the search, also save the query, settings, preprocessing version, policy time and
+          corpus snapshot. The article’s minimal schema needs those extra fields.
+        hold: 1
+        visual_cues:
+          - id: protect-rank
+            phrase: Give each rank one place in this query
+            targets:
+              - ranked-records
+            color: blue
+      - say: Here’s a report for one query. In the first dataset, the deadline paragraph was marked relevant,
+          so it earned a hit. In a second dataset the reviewer marks only the tags paragraph relevant.
+          Look at the chunk the search returned. What score belongs beside the new labels?
+        hold: 2.8
+        visual_cues:
+          - id: first-judgment
+            phrase: so it earned a hit
+            targets:
+              - judged-reports
+            color: blue
+          - id: change-judgment
+            phrase: the reviewer marks only the tags paragraph relevant
+            targets:
+              - judged-reports
+            color: blue
+      - say: This report gets zero. Bob’s first result is still the deadline paragraph. The second dataset
+          counts only the tags paragraph as a hit. Keep both reports with the labels used to score them.
+        hold: 1.6
+        visual_cues:
+          - id: recompute-hit
+            phrase: This report gets zero
+            targets:
+              - judged-reports
+            color: yellow
+            caption_boundary: true
+  - id: closing
+    title: The coat is back on the counter
+    visual: The August return slip reappears beneath five saved paragraphs. Two give the same deadline.
+      Compare their edition IDs and end dates, then mark the four days between the current deadline and the receipt.
+    beats:
+      - say: Back to the coat bought eighteen days ago. Bob reopens the file after publication. Two paragraphs
+          now give the same deadline. Check the edition in force at noon on August twelfth.
+          Follow the store on that same row and look for Bob among its readers. Which paragraph belongs on the slip?
+        hold: 3
+        visual_cues:
+          - id: reopen-final-file
+            phrase: Bob reopens the file
+            targets:
+              - final-candidates
+            color: blue
+          - id: check-final-version
+            phrase: Check the edition in force
+            targets:
+              - closing-version
+              - closing-time
+            color: yellow
+          - id: check-final-workspace
+            phrase: Follow the store
+            targets:
+              - closing-store
+            color: blue
+          - id: check-final-reader
+            phrase: look for Bob among its readers
+            targets:
+              - closing-grant
+            color: cyan
+      - say: >-
+          The current Harbor paragraph gives Bob fourteen days. At day eighteen, this coat is four
+          days outside the window. The citation on the slip identifies the exact edition and paragraph
+          Bob used.
+        hold: 1.5
+        visual_cues:
+          - id: reveal-final-citation
+            phrase: The current Harbor paragraph gives Bob fourteen days
+            targets:
+              - final-citation
+            color: green
+            caption_boundary: true
+          - id: measure-overdue
+            phrase: four days outside the window
+            targets:
+              - purchase-age
+            color: yellow
+            caption_boundary: true
+  - id: fresh-request
+    title: A new slip on September first
+    visual: >-
+      Track the same date across four chunk intervals and join each to its own permission rows. Bob
+      initially retrieves only the receipt. Append the pair (c80, Bob) while (c80, Cara) stays in
+      place. Rerun the unchanged request and print both citations.
+    beats:
+      - say: Here’s another return slip and a fresh set of policies. On August thirty-first Bob’s search returned
+          the fourteen-day paragraph. Move the request to the first instant of September. Follow the date line through the
+          Harbor rows, then check the reader for each paragraph. Which fields can Bob fill in now?
+        hold: 4
+        visual_cues:
+          - id: advance-slip-date
+            phrase: Move the request to the first instant of September
+            targets:
+              - effective-intervals
+            color: yellow
+      - say: >-
+          The old deadline ended where the new one began. Read the grant on the new deadline. It names
+          Cara. Bob’s other deadline belongs to Birch. Run the Harbor request with Bob’s grants. He
+          can ask for the receipt. The deadline field stays empty. Now the policy owner authorizes Bob
+          to retrieve the deadline too. Keep Cara’s row. Insert a new grant for Bob on that chunk.
+          Leave the words and the date alone. Run exactly the same request again. This time the
+          deadline field reads ten days.
+        hold: 1.7
+        caption_starts:
+          - He can ask for the receipt
+          - Now the policy owner
+        visual_cues:
+          - id: read-deadline-grant
+            phrase: Read the grant on the new deadline
+            targets:
+              - grants-c80
+            color: yellow
+          - id: inspect-birch
+            phrase: Bob’s other deadline belongs to Birch
+            targets:
+              - birch-store
+            color: blue
+          - id: fresh-request-step-1-4
+            phrase: He can ask for the receipt
+            targets:
+              - september-slip
+            color: cyan
+          - id: fresh-request-step-1-6
+            phrase: Insert a new grant for Bob on that chunk
+            targets:
+              - grant-ledger
+            color: green
+          - id: fresh-request-step-1-8
+            phrase: This time the deadline field reads ten days
+            targets:
+              - september-slip
+            color: green
+            caption_boundary: true
+      - say: >-
+          Follow the ten-day deadline back to its paragraph. Those words were already in the file.
+          Bob can quote them now because the new grant names him.
+        hold: 2.2
+        visual_cues:
+          - id: trace-deadline
+            phrase: Follow the ten-day deadline back to its paragraph
+            targets: [deadline-source, deadline-field]
+            color: cyan
+          - id: trace-new-grant
+            phrase: the new grant names him
+            targets: [bob-deadline-grant, deadline-field]
+            color: green

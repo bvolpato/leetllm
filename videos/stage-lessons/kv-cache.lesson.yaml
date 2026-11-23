@@ -1,0 +1,686 @@
+version: 1
+id: kv-cache
+title: The Memory Behind Every Token
+opening: lesson
+source: fundamentals/kv-cache-paged-attention-llm-serving/content.md
+sources:
+  - title: Efficient Memory Management for Large Language Model Serving with PagedAttention
+    url: https://arxiv.org/abs/2309.06180
+  - title: "vLLM: Easy, Fast, and Cheap LLM Serving with PagedAttention"
+    url: https://vllm.ai/blog/2023-06-20-vllm
+  - title: The Llama 3 Herd of Models
+    url: https://arxiv.org/abs/2407.21783
+  - title: "GQA: Training Generalized Multi-Query Transformer Models from Multi-Head Checkpoints"
+    url: https://arxiv.org/abs/2305.13245
+  - title: "Fast Transformer Decoding: One Write-Head is All You Need"
+    url: https://arxiv.org/abs/1911.02150
+  - title: "vAttention: Dynamic Memory Management for Serving LLMs without PagedAttention"
+    url: https://arxiv.org/abs/2405.04437
+  - title: "Orca: A Distributed Serving System for Transformer-Based Generative Models"
+    url: https://www.usenix.org/conference/osdi22/presentation/yu
+  - title: "SARATHI: Efficient LLM Inference by Piggybacking Decodes with Chunked Prefills"
+    url: https://arxiv.org/abs/2308.16369
+  - title: "DistServe: Disaggregating Prefill and Decoding for Goodput-optimized Large Language Model Serving"
+    url: https://arxiv.org/abs/2401.09670
+  - title: "FlashAttention: Fast and Memory-Efficient Exact Attention with IO-Awareness"
+    url: https://arxiv.org/abs/2205.14135
+scenes:
+  - id: hook
+    title: What does the next token need?
+    visual: The first frame shows The and fox above their saved keys and values, with a blank for the next token below. The model picks ran. That word moves into the input row, where its two slots stay empty through the question. Once its pair is filled, its query scores all three keys and mixes all three values.
+    beats:
+      - say: "After The fox, the model picks ran. Look under those first two tokens. This attention head has already saved a key and a value for each."
+        hold: 0.5
+        caption_starts: ["ran"]
+        visual_cues:
+          - { id: ran, phrase: "the model picks ran", targets: [hook] }
+      - say: "Feed ran back in. Which tokens need a fresh key and value on this step?"
+        hold: 2.8
+        visual_cues:
+          - { id: feed-back, phrase: "feed ran back in", targets: [hook] }
+          - { id: ask, phrase: "Which tokens need a fresh key and value on this step", targets: [hook] }
+      - say: "Only ran needs a new pair. The first two pairs stay where they are. Later words can't change what those earlier positions could see."
+        hold: 0.65
+        visual_cues:
+          - { id: new-pair, phrase: "Only ran needs a new pair", targets: [hook] }
+      - say: "Follow the query from ran. It scores all three keys, including its own. Those scores set the weights for mixing all three values. Each position can use its own pair and every earlier pair. That's full causal attention. The mix helps the model predict the token after ran."
+        hold: 0.6
+        visual_cues:
+          - { id: query, phrase: "Follow the query from ran", targets: [hook] }
+          - { id: keys, phrase: "scores all three keys", targets: [hook] }
+          - { id: mix, phrase: "mixing all three values", targets: [hook] }
+      - say: "These saved pairs are the key value cache. The next token can read all three."
+        hold: 0.85
+        visual_cues:
+          - { id: cache, phrase: "the key value cache", targets: [hook] }
+
+  - id: waste
+    title: Replay the same input
+    visual: Two runs process ran, first with an empty cache and then with the first two pairs saved. A six-step trace counts projected positions separately from positions attended.
+    beats:
+      - say: "Run that last step again. Same three tokens, same attention head. This time start with an empty cache. To process ran, rebuild the pairs for The and fox, then compute the pair for ran."
+        hold: 0.6
+        visual_cues:
+          - { id: cold, phrase: "start with an empty cache", targets: [waste] }
+          - { id: rebuild, phrase: "rebuild the pairs for The and fox", targets: [waste] }
+          - { id: third, phrase: "compute the pair for ran", targets: [waste] }
+      - say: "Now start with those first two pairs saved. Only ran needs projecting. Trace the read along each row. Both queries still score three keys and mix three values."
+        hold: 0.6
+        visual_cues:
+          - { id: warm, phrase: "first two pairs saved", targets: [waste] }
+          - { id: one, phrase: "Only ran needs projecting", targets: [waste] }
+          - { id: same-read, phrase: "Trace the read along each row", targets: [waste] }
+      - say: "A token can be a word, a piece of a word, or punctuation. Here we'll use one word at each of six successive steps, starting with The. Each filled square marks a position where we compute a key and value. On the left we discard the pairs after every step. On the right we keep them."
+        hold: 0.4
+        visual_cues:
+          - { id: six-steps, phrase: "six successive steps", targets: [waste] }
+      - say: "Feed in The, then fox, then ran. Look down the first column on the left. That's the same pair for The, calculated three times already. Causal attention lets us keep its first copy."
+        hold: 0.5
+        visual_cues:
+          - { id: r1, phrase: "Feed in The", targets: [waste] }
+          - { id: r2, phrase: "then fox", targets: [waste] }
+          - { id: r3, phrase: "then ran", targets: [waste] }
+          - { id: column, phrase: "first column on the left", targets: [waste] }
+      - say: "Finish with straight, past, us. Add up the rows. Replaying each prefix projects twenty one positions. Keeping each pair projects six. Each run attends to the same positions on every step. Those history reads can grow even when we write just one new pair."
+        hold: 0.9
+        visual_cues:
+          - { id: r4, phrase: "Finish with straight", targets: [waste] }
+          - { id: r5, phrase: "past", targets: [waste] }
+          - { id: r6, phrase: "us", targets: [waste] }
+          - { id: total, phrase: "Keeping each pair projects six", targets: [waste] }
+          - { id: read-row, phrase: "the same positions on every step", targets: [waste] }
+
+  - id: phases
+    title: Prefill builds. Decode extends.
+    visual: The whole prompt fills the cache in one wide pass, then answer tokens extend it one narrow step at a time.
+    beats:
+      - say: Generation has two phases, and they behave differently. The prompt is known in advance, so prefill processes all of its positions together, with a mask so that each one reads only itself and earlier positions. That fills the cache. The last prompt position then produces the scores for the first answer token.
+        hold: 0.7
+        visual_cues:
+          - { id: prefill, phrase: prefill processes all of its positions together, targets: [phases], color: yellow }
+          - { id: mask, phrase: with a mask, targets: [phases], color: yellow }
+          - { id: fills, phrase: fills the cache, targets: [phases], color: yellow }
+          - { id: first-scores, phrase: scores for the first answer token, targets: [phases], color: yellow }
+      - say: Then decode takes over. It feeds in that first answer token, appends its key and value, and produces the next one. Each choice becomes the next step's input, so one response is generated in order, one token at a time, even though the GPU does plenty of parallel work inside each step.
+        hold: 0.7
+        visual_cues:
+          - { id: decode, phrase: decode takes over, targets: [phases], color: yellow }
+          - { id: appends, phrase: appends its key and value, targets: [phases], color: yellow }
+          - { id: in-order, phrase: one token at a time, targets: [phases], color: yellow }
+          - { id: parallel, phrase: plenty of parallel work, targets: [phases], color: yellow }
+      - say: The two phases stress different things. With a large prompt, prefill is usually heavy on computation, and it runs well in parallel. At common batch sizes, decode is often limited by memory bandwidth, the speed at which data moves out of GPU memory, because every step reloads the weights and a growing cache.
+        hold: 0.3
+        visual_cues:
+          - { id: stress, phrase: stress different things, targets: [phases], color: yellow }
+          - { id: compute, phrase: heavy on computation, targets: [phases], color: yellow }
+          - { id: bandwidth, phrase: limited by memory bandwidth, targets: [phases], color: yellow }
+          - { id: reload, phrase: reloads the weights, targets: [phases], color: yellow }
+      - say: So the wait for the first token and the gap between later tokens are two separate numbers. Time to first token also includes queueing and transport. Inter token latency reflects decode and scheduling. Measure both.
+        hold: 1.3
+        visual_cues:
+          - { id: two-numbers, phrase: two separate numbers, targets: [phases], color: yellow }
+          - { id: ttft, phrase: Time to first token, targets: [phases], color: yellow }
+          - { id: itl, phrase: Inter token latency, targets: [phases], color: yellow }
+          - { id: both, phrase: Measure both, targets: [phases], color: yellow }
+
+  - id: size
+    title: So how big is it?
+    visual: A three dimensional block of memory grows along its length as tokens arrive, and the formula assembles from its axes.
+    beats:
+      - say: Here's the bill, using the shape of Llama 3's eight billion parameter model. For one token, you keep a key and a value. That's two. In every layer, thirty two of them here. For every key value head, eight. Attention splits into several heads, and in this model the query heads share eight sets of keys and values, called key value heads. Only those get stored. Each head holds one hundred twenty eight numbers, at two bytes each, the sixteen bit format called F P sixteen.
+        hold: 0.3
+        visual_cues:
+          - { id: key-and-value, phrase: a key and a value, targets: [size], color: yellow }
+          - { id: layers, phrase: In every layer, targets: [size], color: yellow }
+          - { id: heads, phrase: every key value head, targets: [size], color: yellow }
+          - { id: share-heads, phrase: query heads share eight sets, targets: [size], color: yellow }
+          - { id: stored, phrase: Only those get stored, targets: [size], color: yellow }
+          - { id: numbers, phrase: one hundred twenty eight numbers, targets: [size], color: yellow }
+          - { id: two-bytes, phrase: two bytes each, targets: [size], color: yellow }
+          - { id: shape, phrase: "eight billion parameter model", targets: [size], color: yellow }
+      - say: Multiply it out, and you get one hundred thirty one thousand and seventy two bytes. A kibibyte is one thousand twenty four bytes, and a mebibyte and a gibibyte each step up by another factor of one thousand twenty four. So that's exactly one hundred twenty eight kibibytes, for every single token. Those bytes hold the keys and values. Set aside memory for bookkeeping tables, buffers, and spare room when you size the cache.
+        hold: 0.9
+        visual_cues:
+          - { id: bytes, phrase: "Multiply it out and you get one hundred thirty one thousand and seventy two bytes", targets: [size], color: yellow }
+          - { id: kibi, phrase: A kibibyte is, targets: [size], color: yellow }
+          - { id: per-token, phrase: "So that's exactly one hundred twenty eight kibibytes for every single token", targets: [size], color: yellow }
+          - { id: extra, phrase: bookkeeping tables, targets: [size], color: yellow }
+      - say: And it grows with every token. A conversation of four thousand ninety six tokens holds five hundred twelve mebibytes, half a gibibyte, of GPU memory. Give the cache forty gibibytes, and at best you can hold eighty of those.
+        hold: 0.9
+        visual_cues:
+          - { id: grows, phrase: it grows with every token, targets: [size], color: yellow }
+          - { id: conversation-bytes, phrase: five hundred twelve mebibytes, targets: [size], color: yellow, caption_boundary: true }
+          - { id: half-gig, phrase: half a gibibyte, targets: [size], color: yellow }
+          - { id: budget, phrase: forty gibibytes, targets: [size], color: yellow }
+          - { id: eighty, phrase: eighty of those, targets: [size], color: yellow, caption_boundary: true }
+      - say: Now try one yourself. Llama 3's seventy billion parameter model has eighty layers, with the same eight key value heads, the same one hundred twenty eight numbers per head, and the same two bytes per number. Before I answer, what does one token cost?
+        hold: 5
+        visual_cues:
+          - { id: try, phrase: Now try one yourself, targets: [size], color: yellow }
+          - { id: eighty-layers, phrase: eighty layers, targets: [size], color: yellow }
+          - { id: ask, phrase: what does one token cost, targets: [size], color: yellow }
+      - say: Two, times eighty, times eight, times one hundred twenty eight, times two. That's three hundred twenty kibibytes a token, and one and a quarter gibibytes for those same four thousand ninety six tokens. One hundred twenty eight such conversations would need one hundred sixty gibibytes. So memory can cap how many people you serve before raw compute does.
+        hold: 0.9
+        visual_cues:
+          - { id: multiply, phrase: Two times eighty, targets: [size], color: yellow }
+          - { id: answer, phrase: "That's three hundred twenty kibibytes a token", targets: [size], color: yellow }
+          - { id: quarter, phrase: "and one and a quarter gibibytes for those same four thousand ninety six tokens", targets: [size], color: yellow }
+          - { id: fleet, phrase: "One hundred twenty eight such conversations would need one hundred sixty gibibytes", targets: [size], color: yellow }
+          - { id: cap, phrase: memory can cap, targets: [size], color: yellow }
+
+  - id: reserve
+    title: Empty space that belongs to somebody
+    visual: Two conversations reserve the whole memory pool in advance, a third is locked out despite all the blank space, and the three kinds of waste light up in turn.
+    beats:
+      - say: So where does all this memory go? The simplest way to manage it is to give each conversation its maximum length up front, in one continuous piece, because growing a continuous buffer later can mean allocating a bigger one and copying everything across. In this small example pool, these two requests only need two blocks each, but their reservations take the whole pool.
+        hold: 0.3
+        visual_cues:
+          - { id: reserve-max, phrase: its maximum length up front, targets: [reserve], color: yellow }
+          - { id: copy, phrase: copying everything across, targets: [reserve], color: yellow }
+          - { id: need-two, phrase: only need two blocks each, targets: [reserve], color: yellow }
+      - say: Now a third request arrives. The pool looks mostly empty, and it still has nowhere to go. Every blank block already belongs to somebody.
+        hold: 0.8
+        visual_cues:
+          - { id: third, phrase: a third request arrives, targets: [reserve], color: yellow }
+          - { id: blank, phrase: Every blank block, targets: [reserve], color: yellow }
+      - say: That waste comes in three kinds. Say a request reserves four thousand ninety six slots, one slot for each token, and stops at three hundred. The other three thousand seven hundred ninety six were trapped inside its reservation, and it never used them. That's internal fragmentation.
+        hold: 0.3
+        visual_cues:
+          - { id: kinds, phrase: three kinds, targets: [reserve], color: yellow }
+          - { id: reserves, phrase: reserves four thousand ninety six slots, targets: [reserve], color: yellow }
+          - { id: stops, phrase: stops at three hundred, targets: [reserve], color: yellow }
+          - { id: trapped, phrase: "The other three thousand seven hundred ninety six were trapped inside its reservation and it never used them", targets: [reserve], color: yellow }
+          - { id: internal, phrase: internal fragmentation, targets: [reserve], color: yellow }
+      - say: Slots it will use eventually still sit idle from the very first step, locked away from everyone else. That's reservation waste. And when requests of different sizes finish, they leave holes between the live buffers. Add up the holes and there may be plenty of space, yet no single hole fits a new reservation. That's external fragmentation.
+        hold: 1.3
+        visual_cues:
+          - { id: idle, phrase: sit idle from the very first step, targets: [reserve], color: yellow }
+          - { id: res-waste, phrase: reservation waste, targets: [reserve], color: yellow }
+          - { id: holes, phrase: leave holes, targets: [reserve], color: yellow }
+          - { id: add-up, phrase: Add up the holes, targets: [reserve], color: yellow }
+          - { id: no-hole, phrase: no single hole fits, targets: [reserve], color: yellow }
+          - { id: external, phrase: external fragmentation, targets: [reserve], color: yellow }
+      - say: How much reserved memory went unused? In twenty twenty three, the vLLM team reported sixty to eighty percent waste in the systems it studied. To measure your own pool, compare the bytes reserved with the bytes holding live pairs.
+        hold: 1.0
+        visual_cues:
+          - { id: how-bad, phrase: How much reserved memory went unused, targets: [reserve], color: yellow }
+          - { id: sixty, phrase: sixty to eighty percent, targets: [reserve], color: yellow }
+          - { id: historical, phrase: To measure your own pool, targets: [reserve], color: yellow }
+
+  - id: paged
+    title: Logical order, scattered storage
+    visual: Requests take small blocks wherever space exists, and a table maps each one back into order.
+    beats:
+      - say: So borrow an old trick from operating systems. Cut memory into small, fixed blocks, and hand one out only when a conversation actually needs it. A request's blocks can land anywhere.
+        hold: 0.3
+        visual_cues:
+          - { id: small-blocks, phrase: small fixed blocks, targets: [paged], color: yellow }
+          - { id: anywhere, phrase: can land anywhere, targets: [paged], color: yellow }
+          - { id: hand-one, phrase: "hand one out", targets: [paged], color: yellow }
+      - say: A small table keeps the order. Each request counts its positions from zero and groups them into logical blocks. Our example blocks hold four positions each. Want position five? Five divided by four is one, remainder one. So that's logical block one, slot one, and the table says logical block one lives in physical block two.
+        hold: 0.4
+        visual_cues:
+          - { id: table, phrase: A small table, targets: [paged], color: yellow }
+          - { id: logical, phrase: groups them into logical blocks, targets: [paged], color: yellow }
+          - { id: four-each, phrase: hold four positions each, targets: [paged], color: yellow }
+          - { id: divide, phrase: "Five divided by four is one remainder one", targets: [paged], color: yellow }
+          - { id: physical, phrase: "the table says logical block one lives in physical block two", targets: [paged], color: yellow }
+      - say: A request first takes only the blocks its prompt needs. In our small example, say that's one. Each new token takes the next slot, and a new block is taken only when the current one is full. So the first four tokens fill slots zero through three, and the fifth token claims a second block, at slot zero.
+        hold: 0.7
+        visual_cues:
+          - { id: first-takes, phrase: takes only the blocks its prompt needs, targets: [paged], color: yellow }
+          - { id: next-slot, phrase: takes the next slot, targets: [paged], color: yellow }
+          - { id: fifth, phrase: the fifth token claims a second block, targets: [paged], color: yellow }
+          - { id: say-one, phrase: "say that's one", targets: [paged], color: yellow }
+          - { id: first-four, phrase: "first four tokens fill", targets: [paged], color: yellow }
+      - say: The third request fits now, and it fits in the holes. This is called paged attention, introduced with the vLLM serving engine. Inside one pool of same sized blocks, any free block will do, so variable sized holes stop being a problem there.
+        hold: 0.7
+        visual_cues:
+          - { id: third-fits, phrase: third request fits, targets: [paged], color: yellow }
+          - { id: paged-name, phrase: paged attention, targets: [paged], color: yellow }
+          - { id: any-free, phrase: any free block will do, targets: [paged], color: yellow }
+      - say: Some waste remains. In this basic layout, a request's last block can be partly empty, by less than one block. With sixteen token blocks, a single token still takes a whole block, leaving fifteen slots unused. Smaller blocks waste less and share more finely, but they need bigger tables. Larger blocks do the reverse. Block size can also change how fast the attention code runs, in either direction, depending on how that code is written. So block size is a choice you measure on your own workload.
+        hold: 0.9
+        visual_cues:
+          - { id: waste-remains, phrase: Some waste remains, targets: [paged], color: yellow }
+          - { id: sixteen, phrase: sixteen token blocks, targets: [paged], color: yellow }
+          - { id: smaller, phrase: Smaller blocks waste less, targets: [paged], color: yellow }
+          - { id: larger, phrase: Larger blocks do the reverse, targets: [paged], color: yellow }
+          - { id: speed, phrase: how fast the attention code runs, targets: [paged], color: yellow }
+          - { id: measure, phrase: a choice you measure, targets: [paged], color: yellow }
+
+  - id: kernel
+    title: The kernel has to follow the table
+    visual: A query walks the block table and gathers exactly the valid positions, and reading one slot past the valid length visibly changes the answer.
+    beats:
+      - say: A's history continues in block two. Watch the address after block seven. An attention kernel that expects one continuous buffer reads straight ahead. You could copy the history back into one piece first. If you start at seven and just keep reading, you land in block eight.
+        hold: 0.4
+        visual_cues:
+          - { id: easy-miss, phrase: A's history continues, targets: [kernel], color: yellow }
+          - { id: must-change, phrase: expects one continuous buffer, targets: [kernel], color: yellow }
+          - { id: copy-back, phrase: copy the history back into one piece, targets: [kernel], color: yellow }
+          - { id: cant-point, phrase: start at seven and just keep reading, targets: [kernel], color: yellow }
+      - say: Follow A's table from left to right. Load four pairs from block seven, then two from block two. That's the same six pairs, in the same order, as our contiguous reference. For this query, both outputs round to one point nine one and one point five three.
+        hold: 0.7
+        caption_starts: ["For this query"]
+        visual_cues:
+          - { id: finds, phrase: "Follow A's table", targets: [kernel], color: yellow }
+          - { id: load, phrase: Load four pairs, targets: [kernel], color: yellow }
+          - { id: same, phrase: "both outputs round to one point nine one and one point five three", targets: [kernel], color: yellow }
+      - say: Keep the table fixed. The valid length is six. The two empty slots in block two still belong to A. We've planted a large test key in the first unused slot, with a value of nine hundred ninety nine in each coordinate. Read one position too far. That extra key takes almost all the weight. Both output coordinates round to nine hundred ninety nine. If a partial block fails this comparison, check the valid length passed to the kernel along with the table. Then rerun the six-position comparison.
+        hold: 0.8
+        caption_starts: ["Read one position too far", "Both output coordinates"]
+        visual_cues:
+          - { id: valid, phrase: The valid length is six, targets: [kernel], color: yellow }
+          - { id: empty, phrase: The two empty slots, targets: [kernel], color: yellow }
+          - { id: garbage, phrase: "Read one position too far. That extra key takes almost all the weight. Both output coordinates round to nine hundred ninety nine", targets: [kernel], color: yellow }
+          - { id: two-inputs, phrase: check the valid length passed to the kernel along with the table, targets: [kernel], color: yellow }
+      - say: Walking a table takes time. In the original twenty twenty three study, the paged attention kernel took about twenty to twenty six percent longer than a continuous one. In that paper's serving tests, overall throughput still rose about two to four times against its rebuilt version of an earlier system called Orca, because the recovered memory fit larger batches. That's why you measure the allocator and the kernel together.
+        hold: 0.9
+        visual_cues:
+          - { id: not-free, phrase: Walking a table, targets: [kernel], color: yellow }
+          - { id: slower, phrase: twenty to twenty six percent, targets: [kernel], color: yellow }
+          - { id: throughput, phrase: two to four times, targets: [kernel], color: yellow }
+          - { id: together, phrase: the allocator and the kernel together, targets: [kernel], color: yellow }
+      - say: Watch the upper row of addresses. In a design called vAttention, that row stays continuous. The system maps physical pages behind it on demand. Existing continuous kernels can read straight along the upper row. To compare the two designs, run the same mix of requests through each.
+        hold: 0.5
+        visual_cues:
+          - { id: only-answer, phrase: Watch the upper row, targets: [kernel], color: yellow }
+          - { id: v-attention, phrase: called vAttention, targets: [kernel], color: yellow }
+          - { id: on-demand, phrase: on demand, targets: [kernel], color: yellow }
+          - { id: existing, phrase: Existing continuous kernels, targets: [kernel], color: yellow }
+          - { id: compare, phrase: To compare the two designs, targets: [kernel], color: yellow }
+
+  - id: lifetime
+    title: A block has a lifetime
+    visual: A response fills slots and claims new blocks, then finishes, and its blocks return to the pool only after the last pending read clears.
+    beats:
+      - say: Blocks also come back. When a request finishes, those blocks can return to the pool, and a new request can use them while the others keep running, without moving anyone's data.
+        hold: 0.9
+        visual_cues:
+          - { id: come-back, phrase: Blocks also come back, targets: [lifetime], color: yellow }
+          - { id: finishes, phrase: When a request finishes, targets: [lifetime], color: yellow }
+          - { id: new-uses, phrase: a new request can use them, targets: [lifetime], color: yellow }
+          - { id: no-move, phrase: without moving, targets: [lifetime], color: yellow }
+      - say: There's a safety rule. The GPU may still have work in flight that reads those blocks, so they can be reused only after that work is done, and only once no other request still owns them. Some engines also keep finished blocks around on purpose, in case a later request can reuse them. We'll get to that.
+        hold: 1.3
+        visual_cues:
+          - { id: safety, phrase: safety rule, targets: [lifetime], color: yellow }
+          - { id: in-flight, phrase: work in flight, targets: [lifetime], color: yellow }
+          - { id: done, phrase: only after that work is done, targets: [lifetime], color: yellow }
+          - { id: owners, phrase: no other request still owns them, targets: [lifetime], color: yellow }
+          - { id: retained, phrase: keep finished blocks around, targets: [lifetime], color: yellow }
+
+  - id: batching
+    title: When can the next request start?
+    visual: Two six-iteration schedules share the same short and long requests. C takes A's lane at the next iteration and reuses a returned block. A second example fits a six-token prefill around a running decode.
+    beats:
+      - say: "A needs two more decode steps. B needs six. C is waiting. In this static batch, A finishes at step two. Its lane stays empty for the four steps B has left."
+        hold: 0.5
+        visual_cues:
+          - { id: waits, phrase: "C is waiting", targets: [batching] }
+          - { id: idle, phrase: "Its lane stays empty", targets: [batching] }
+      - say: "Run the same requests with continuous batching. The scheduler checks the batch after every iteration. A has just finished step two. When can C start?"
+        hold: 2.2
+        visual_cues:
+          - { id: continuous, phrase: "continuous batching", targets: [batching] }
+          - { id: boundary, phrase: "A has just finished step two", targets: [batching] }
+          - { id: ask, phrase: "When can C start", targets: [batching] }
+      - say: "Step three. C takes the open lane while B keeps going. Orca used this kind of iteration-level scheduling."
+        hold: 0.65
+        caption_starts: ["C takes the open lane"]
+        visual_cues:
+          - { id: join, phrase: "Step three", targets: [batching] }
+      - say: "Look at the cache at the end of step two. Each block holds four tokens. A has eight tokens in two blocks. B has five, so we round up to two blocks. That's four blocks in use."
+        hold: 0.55
+        visual_cues:
+          - { id: pool, phrase: "Look at the cache", targets: [batching] }
+          - { id: a, phrase: "A has eight tokens", targets: [batching] }
+          - { id: b, phrase: "B has five", targets: [batching] }
+          - { id: four, phrase: "four blocks in use", targets: [batching] }
+      - say: "A finishes and releases both blocks. At step three, C puts its three prompt tokens into one of them. B adds its sixth token inside a block it already owns. That's three blocks in use. Continuous batching chose when C ran. Paging let C use any free block."
+        hold: 0.7
+        visual_cues:
+          - { id: release, phrase: "releases both blocks", targets: [batching] }
+          - { id: c, phrase: "C puts its three prompt tokens", targets: [batching] }
+          - { id: six, phrase: "B adds its sixth token", targets: [batching] }
+          - { id: three, phrase: "three blocks in use", targets: [batching] }
+          - { id: scheduler, phrase: "Continuous batching chose", targets: [batching] }
+      - say: "Now a longer prompt arrives. It waits in the queue, then the GPU processes the prompt. If the first token arrives late, these are the two waits to look at first."
+        hold: 0.45
+        visual_cues:
+          - { id: prompt, phrase: "a longer prompt arrives", targets: [batching] }
+          - { id: queue, phrase: "waits in the queue", targets: [batching] }
+          - { id: prefill, phrase: "the GPU processes the prompt", targets: [batching] }
+          - { id: first-token, phrase: "the first token", targets: [batching] }
+      - say: "Try chunked prefill with a budget of four tokens per iteration. B uses one slot each time to decode. The first three prompt tokens fit alongside B. The other three fit in the next iteration. That last prompt token supplies the scores for the first answer. Compare the wait for that answer and the gap between B's tokens on the same traffic."
+        hold: 0.55
+        caption_starts: ["The other three", "That last prompt token"]
+        visual_cues:
+          - { id: chunk, phrase: "chunked prefill", targets: [batching] }
+          - { id: decode, phrase: "B uses one slot", targets: [batching] }
+          - { id: first-chunk, phrase: "The first three prompt tokens", targets: [batching] }
+          - { id: last-chunk, phrase: "The other three", targets: [batching] }
+          - { id: scores, phrase: "supplies the scores", targets: [batching] }
+          - { id: latency, phrase: "Compare the wait", targets: [batching] }
+      - say: "Some systems put prefill and decode on separate machines. To start decoding on the second machine, the prompt's keys and values have to cross the link."
+        hold: 0.8
+        visual_cues:
+          - { id: separate, phrase: "separate machines", targets: [batching] }
+          - { id: transfer, phrase: "the prompt's keys and values", targets: [batching] }
+
+  - id: share
+    title: Two continuations of the fox story
+    visual: Two branch tables point to one physical block. The fourth-slot readback follows each write. Replaying from the fork copies three valid pairs and moves A's reference before either branch writes.
+    beats:
+      - say: "Back to The fox ran. Two candidate continuations, A and B, start with that same history. Their tables both point to block zero. It holds four slots. The numbers stand in for stored key and value pairs."
+        hold: 0.5
+        visual_cues:
+          - { id: fork, phrase: "Two candidate continuations", targets: [share] }
+      - say: "Imagine beam search keeping four candidates alive. On our eight billion parameter model, a prompt of four thousand ninety six tokens takes five hundred twelve mebibytes. Four private copies would take two gibibytes. Four readers can share the one prompt, though they still use bandwidth to read it."
+        hold: 0.65
+        visual_cues:
+          - { id: beam, phrase: "Beam search", targets: [share] }
+          - { id: payload, phrase: "five hundred twelve mebibytes", targets: [share] }
+          - { id: private, phrase: "two gibibytes", targets: [share] }
+          - { id: shared, phrase: "share the one prompt", targets: [share] }
+      - say: "Come back to the fourth slot. A wants to append home, pair ninety. B wants away, pair eighty. Try writing both straight into block zero. A writes home first. Now B writes away. When A reads its fourth pair again, which word's pair will it get?"
+        hold: 2.8
+        visual_cues:
+          - { id: slot, phrase: "Come back to the fourth slot", targets: [share] }
+          - { id: want-a, phrase: "append home", targets: [share] }
+          - { id: want-b, phrase: "wants away", targets: [share] }
+          - { id: unsafe-a, phrase: "A writes home first", targets: [share] }
+          - { id: unsafe-b, phrase: "Now B writes away", targets: [share] }
+          - { id: ask-read, phrase: "which word's pair will it get", targets: [share] }
+      - say: "A gets away. Its table still points to the slot B just overwrote. That would give A the wrong history on its next step."
+        hold: 1
+        visual_cues:
+          - { id: bad-read, phrase: "A gets away", targets: [share] }
+      - say: "Rewind to the fork. Both tables point to zero again. Before A writes, copy the three valid pairs into a free block. Once the copy is ready, move A's reference to block one. Each block now has one owner."
+        hold: 0.6
+        visual_cues:
+          - { id: rewind, phrase: "Rewind to the fork", targets: [share] }
+          - { id: copy, phrase: "copy the three valid pairs into a free block", targets: [share] }
+          - { id: remap, phrase: "move A's reference to block one", targets: [share] }
+      - say: "Now write home into A's private slot. B can write away in place. Read both fourth slots again. A gets home. B gets away. That's copy on write. Only A had to copy, because the original block still had two owners when A needed its empty slot. Both histories fit in two physical blocks."
+        hold: 1.2
+        caption_starts: ["A gets home", "B gets away"]
+        visual_cues:
+          - { id: safe-a, phrase: "write home into A's private slot", targets: [share] }
+          - { id: safe-b, phrase: "B can write away in place", targets: [share] }
+          - { id: read-a, phrase: "A gets home", targets: [share] }
+          - { id: read-b, phrase: "B gets away", targets: [share] }
+          - { id: name, phrase: "copy on write", targets: [share] }
+          - { id: total-partial, phrase: "Both histories fit in two physical blocks", targets: [share], caption_boundary: true }
+
+  - id: prefix
+    title: Reusable state depends on the full prefix
+    visual: Many requests with the same prompt collapse onto one run of shared full blocks, each keeping one private partial tail.
+    beats:
+      - say: Those branches came from one request. Separate requests can share too, when they begin with the same text, such as a long system prompt. That's prefix caching. The engine keeps finished blocks, looks up each incoming prompt, and points the new request's table at the blocks that match.
+        hold: 0.4
+        visual_cues:
+          - { id: branches, phrase: Those branches came from one request, targets: [prefix], color: yellow }
+          - { id: separate, phrase: Separate requests can share, targets: [prefix], color: yellow }
+          - { id: keeps, phrase: keeps finished blocks, targets: [prefix], color: yellow }
+          - { id: looks-up, phrase: looks up each incoming prompt, targets: [prefix], color: yellow }
+          - { id: points, phrase: points the new request, targets: [prefix], color: yellow }
+          - { id: same-text, phrase: "begin with the same text", targets: [prefix], color: yellow }
+          - { id: prefix-name, phrase: "That's prefix caching", targets: [prefix], color: yellow }
+      - say: Matching one sentence on its own isn't enough. A token's key and value depend on everything before it, so the lookup has to include all the earlier context, along with anything else that changes the result, such as the model. Engines can also mix a value for each customer into that lookup, so that different customers can't match each other's blocks.
+        hold: 0.7
+        visual_cues:
+          - { id: sentence, phrase: Matching one sentence, targets: [prefix], color: yellow }
+          - { id: before, phrase: depend on everything before it, targets: [prefix], color: yellow }
+          - { id: lookup, phrase: include all the earlier context, targets: [prefix], color: yellow }
+          - { id: model, phrase: such as the model, targets: [prefix], color: yellow }
+          - { id: customer, phrase: a value for each customer, targets: [prefix], color: yellow }
+      - say: In our example, only complete blocks are shared. Take two hundred requests with the same five hundred token prompt, and sixteen token blocks. Thirty one full blocks hold four hundred ninety six tokens. The last four tokens need one private partial block per request. With no sharing, that's six thousand four hundred blocks. With a warm cache, thirty one shared plus two hundred private is two hundred thirty one, about ninety six percent fewer in this snapshot.
+        hold: 1.3
+        visual_cues:
+          - { id: complete, phrase: only complete blocks are shared, targets: [prefix], color: yellow }
+          - { id: two-hundred, phrase: two hundred requests, targets: [prefix], color: yellow }
+          - { id: full, phrase: "Thirty one full blocks hold four hundred ninety six tokens", targets: [prefix], color: yellow }
+          - { id: tail, phrase: "The last four tokens need one private partial block per request", targets: [prefix], color: yellow }
+          - { id: none, phrase: "With no sharing that's six thousand four hundred blocks", targets: [prefix], color: yellow }
+          - { id: warm, phrase: "With a warm cache thirty one shared plus two hundred private is two hundred thirty one", targets: [prefix], color: yellow }
+          - { id: fewer, phrase: "about ninety six percent fewer in this snapshot", targets: [prefix], color: yellow }
+      - say: A hit skips prefill for the matching part. The part that doesn't match still runs, and an engine typically still computes at least the last token, so that it has scores for the next one. Cached blocks can also be evicted when space runs short, so a cold cache changes the numbers.
+        hold: 0.5
+        visual_cues:
+          - { id: hit, phrase: A hit skips prefill, targets: [prefix], color: yellow }
+          - { id: rest, phrase: still runs, targets: [prefix], color: yellow }
+          - { id: last, phrase: at least the last token, targets: [prefix], color: yellow }
+          - { id: evict, phrase: Cached blocks can also be evicted, targets: [prefix], color: yellow }
+
+  - id: preempt
+    title: When the pool runs out anyway
+    visual: The free list empties, a running request cannot take its next block, and the scheduler evicts one request and later restores it two different ways.
+    beats:
+      - say: Every block in this pool is occupied. A running request needs a block, and the free list is empty. Now allocation becomes a scheduling decision. Delay this request, or evict another one and recover its work later. Either way, the failed allocation should leave every table exactly as it was, so that a retry starts clean.
+        hold: 0.4
+        visual_cues:
+          - { id: ceiling, phrase: Every block in this pool, targets: [preempt], color: yellow }
+          - { id: empty, phrase: the free list is empty, targets: [preempt], color: yellow }
+          - { id: decision, phrase: scheduling decision, targets: [preempt], color: yellow }
+          - { id: delay, phrase: Delay this request, targets: [preempt], color: yellow }
+          - { id: evict, phrase: evict another one, targets: [preempt], color: yellow }
+          - { id: unchanged, phrase: leave every table exactly as it was, targets: [preempt], color: yellow }
+          - { id: needs-block, phrase: "running request needs a block", targets: [preempt], color: yellow }
+          - { id: retry, phrase: "retry starts clean", targets: [preempt], color: yellow }
+      - say: One recovery is to recompute. The evicted request gives up its blocks, goes back to wait, and rebuilds the missing cache when it resumes. That spends extra compute. Blocks that are shared, or kept for prefixes, don't all have to disappear.
+        hold: 0.8
+        visual_cues:
+          - { id: recompute, phrase: to recompute, targets: [preempt], color: yellow }
+          - { id: gives-up, phrase: gives up its blocks, targets: [preempt], color: yellow }
+          - { id: rebuilds, phrase: rebuilds the missing cache, targets: [preempt], color: yellow }
+          - { id: compute, phrase: extra compute, targets: [preempt], color: yellow }
+          - { id: shared, phrase: Blocks that are shared, targets: [preempt], color: yellow }
+          - { id: to-wait, phrase: "goes back to wait", targets: [preempt], color: yellow }
+      - say: The other is to swap. Blocks move to CPU memory and come back later. That keeps the work, but it spends bandwidth on the link between the CPU and the GPU. Engines differ in which they use, and the choice changes between versions, so check yours. Either way, the evicted request pays before it can continue, so frequent eviction, which engines call preemption, belongs in your capacity plan.
+        hold: 0.9
+        visual_cues:
+          - { id: swap, phrase: to swap, targets: [preempt], color: yellow }
+          - { id: move, phrase: move to CPU memory, targets: [preempt], color: yellow }
+          - { id: link, phrase: link between the CPU and the GPU, targets: [preempt], color: yellow }
+          - { id: differ, phrase: Engines differ, targets: [preempt], color: yellow }
+          - { id: plan, phrase: capacity plan, targets: [preempt], color: yellow }
+          - { id: keeps-work, phrase: "keeps the work", targets: [preempt], color: yellow }
+          - { id: pays, phrase: "pays before it can continue", targets: [preempt], color: yellow }
+          - { id: either-way, phrase: "Either way", targets: [preempt], color: yellow }
+          - { id: continue, phrase: "continue", targets: [preempt], color: yellow }
+          - { id: call-preempt, phrase: "engines call preemption", targets: [preempt], color: yellow }
+
+  - id: recovery-cost
+    title: What does each recovery cost?
+    visual: Swap and replay share a time axis. The swap trace has an outbound and a return leg. Changing the link rate stretches both legs past the unchanged compute time.
+    beats:
+      - say: "A request has to give up its GPU blocks. All its state is private. It has sixty four hundred positions at three hundred twenty kibibytes each. That's two thousand mebibytes to recover. Compare two ways to get that same history back."
+        hold: 0.6
+        visual_cues:
+          - { id: size, phrase: "two thousand mebibytes to recover", targets: [recovery-cost] }
+      - say: "The GPU can replay eight thousand positions a second. Rebuilding sixty four hundred takes eight tenths of a second. Once those pairs are back, the request can continue decoding."
+        hold: 0.6
+        visual_cues:
+          - { id: compute-rate, phrase: "eight thousand positions a second", targets: [recovery-cost] }
+          - { id: replay, phrase: "takes eight tenths of a second", targets: [recovery-cost] }
+      - say: "Alternatively, save the state on the CPU and bring it back. At ten thousand mebibytes a second, the trip out takes two tenths of a second. Bring those same bytes back for another two tenths. That's four tenths of a second of transfer across both trips."
+        hold: 0.7
+        visual_cues:
+          - { id: link, phrase: "ten thousand mebibytes a second", targets: [recovery-cost] }
+          - { id: out, phrase: "trip out takes two tenths of a second", targets: [recovery-cost] }
+          - { id: back, phrase: "back for another two tenths", targets: [recovery-cost] }
+          - { id: round-trip, phrase: "four tenths of a second of transfer across both trips", targets: [recovery-cost] }
+      - say: "Keep the request and the GPU rate fixed. This time the link moves four thousand mebibytes a second in each direction. Which takes less recovery time now, transferring the cache or replaying the tokens?"
+        hold: 2.7
+        visual_cues:
+          - { id: slow, phrase: "four thousand mebibytes a second in each direction", targets: [recovery-cost] }
+          - { id: predict, phrase: "Which takes less recovery time now", targets: [recovery-cost] }
+      - say: "Half a second out. Half a second back. Replay wins here at eight tenths of a second against one second of transfer. If the request also waits in the queue, that wait adds to its recovery time before decoding can resume."
+        hold: 0.9
+        caption_starts: ["Half a second back", "Replay wins here"]
+        visual_cues:
+          - { id: slow-out, phrase: "Half a second out", targets: [recovery-cost] }
+          - { id: slow-back, phrase: "Half a second back", targets: [recovery-cost] }
+          - { id: choice, phrase: "Replay wins here", targets: [recovery-cost] }
+
+  - id: shrink
+    title: How much room can packing recover?
+    visual: Three live requests exceed one budget. Tail trimming and reordering leave the total too large. Head count, precision, retained positions, and sharding then change distinct parts of the memory bill.
+    beats:
+      - say: Three requests need their whole histories in memory at once. Together they occupy sixteen hundred units against a budget of nine hundred sixty. Scan for unused space. Each request has just twenty four empty units at its tail. Trim all three tails and you recover seventy two units. The live pairs alone still take fifteen hundred twenty eight. Reordering the requests leaves that number where it was. To keep the same histories in this pool, we have to store fewer bytes per position.
+        hold: 1.0
+        visual_cues:
+          - { id: full, phrase: Three requests need their whole histories, targets: [shrink], color: yellow }
+          - { id: no-slot, phrase: twenty four empty units at its tail, targets: [shrink], color: yellow }
+          - { id: smaller, phrase: Trim all three tails, targets: [shrink], color: yellow }
+          - { id: batching, phrase: Reordering the requests, targets: [shrink], color: yellow }
+          - { id: fewer, phrase: store fewer bytes, targets: [shrink], color: yellow }
+          - { id: too-small, phrase: "sixteen hundred units against a budget of nine hundred sixty", targets: [shrink], color: yellow }
+          - { id: paging-try, phrase: "Scan for unused space", targets: [shrink], color: yellow }
+      - say: Go back to the formula. The number to change is the key value heads. Llama 3's seventy billion model has sixty four query heads, but only eight key value heads. If each query head had its own, the bill would be two thousand five hundred sixty kibibytes a token. Grouped query attention, where query heads share key value heads, brings it down to three hundred twenty. Multi query attention, with a single key value head, gets to forty.
+        hold: 1.3
+        visual_cues:
+          - { id: formula, phrase: Go back to the formula, targets: [shrink], color: yellow }
+          - { id: sixty-four, phrase: sixty four query heads, targets: [shrink], color: yellow }
+          - { id: mha, phrase: "the bill would be two thousand five hundred sixty kibibytes a token", targets: [shrink], color: yellow }
+          - { id: gqa, phrase: Grouped query attention, targets: [shrink], color: yellow }
+          - { id: three-twenty, phrase: three hundred twenty, targets: [shrink], color: yellow, caption_boundary: true }
+          - { id: mqa, phrase: Multi query attention, targets: [shrink], color: yellow }
+          - { id: forty, phrase: "Multi query attention with a single key value head gets to forty", targets: [shrink], color: yellow }
+          - { id: number, phrase: "number to change", targets: [shrink], color: yellow }
+          - { id: eight-kv, phrase: "only eight key value heads", targets: [shrink], color: yellow }
+          - { id: own, phrase: "If each query head had its own", targets: [shrink], color: yellow }
+      - say: That isn't a switch you flip at serving time. The weights have to change. You train the model that way, or you convert an existing model and usually train it a little more, which is called uptraining. In the original tests, a converted grouped query model already did reasonably well, while a multi query model needed that extra training. Either way, check the quality on your task. Lower precision is another lever. Eight bit values store half the raw bytes of sixteen bit ones, if your kernels support them and your quality holds.
+        hold: 0.8
+        visual_cues:
+          - { id: switch, phrase: a switch you flip, targets: [shrink], color: yellow }
+          - { id: weights, phrase: weights have to change, targets: [shrink], color: yellow }
+          - { id: convert, phrase: convert an existing model, targets: [shrink], color: yellow }
+          - { id: tests, phrase: In the original tests, targets: [shrink], color: yellow }
+          - { id: quality, phrase: check the quality, targets: [shrink], color: yellow }
+          - { id: precision, phrase: Lower precision, targets: [shrink], color: yellow }
+          - { id: half, phrase: "Eight bit values store half the raw bytes of sixteen bit ones if your kernels support them and your quality holds", targets: [shrink], color: yellow }
+          - { id: train, phrase: "You train the model that way", targets: [shrink], color: yellow }
+          - { id: uptrain, phrase: "called uptraining", targets: [shrink], color: yellow }
+          - { id: multi-needs, phrase: "multi query model needed", targets: [shrink], color: yellow }
+      - say: Other methods keep fewer positions, evicting the tokens they judge least useful. That saves memory, but it's approximate, so a later token may need what was dropped. Long contexts make all of this urgent. At about one hundred thirty one thousand tokens, the limit of the later Llama 3.1 version, that seventy billion shape's cache reaches forty gibibytes.
+        hold: 0.9
+        visual_cues:
+          - { id: positions, phrase: keep fewer positions, targets: [shrink], color: yellow }
+          - { id: approx, phrase: approximate, targets: [shrink], color: yellow }
+          - { id: long, phrase: Long contexts, targets: [shrink], color: yellow }
+          - { id: reach, phrase: "that seventy billion shape's cache reaches forty gibibytes", targets: [shrink], color: yellow }
+          - { id: evicting, phrase: "evicting the tokens", targets: [shrink], color: yellow }
+          - { id: later, phrase: "a later token may need", targets: [shrink], color: yellow }
+          - { id: at-131, phrase: "about one hundred thirty one thousand", targets: [shrink], color: yellow }
+      - say: Several GPUs can split the load. Tensor parallelism may give each one a slice of the key value heads, so eight heads on two GPUs can become four each, if the model and the runtime allow it. Logical blocks have to stay aligned across GPUs. In the original vLLM design, every GPU even uses the same physical block numbers, and each one stores only its own share of the heads. Some layouts replicate the state instead, so check what each GPU really holds.
+        hold: 0.8
+        visual_cues:
+          - { id: split, phrase: Several GPUs, targets: [shrink], color: yellow }
+          - { id: four-each, phrase: "so eight heads on two GPUs can become four each if the model and the runtime allow it", targets: [shrink], color: yellow }
+          - { id: aligned, phrase: stay aligned, targets: [shrink], color: yellow }
+          - { id: same-numbers, phrase: same physical block numbers, targets: [shrink], color: yellow }
+          - { id: replicate, phrase: replicate the state, targets: [shrink], color: yellow }
+          - { id: own-share, phrase: "stores only its own share", targets: [shrink], color: yellow }
+      - say: And keep two names apart. Paged attention decides where the cache lives. Flash attention is a kernel that makes the calculation itself move less data. They solve different problems, and serving stacks often use both, or close variants.
+        hold: 0.5
+        visual_cues:
+          - { id: names, phrase: keep two names apart, targets: [shrink], color: yellow }
+          - { id: paged, phrase: Paged attention, targets: [shrink], color: yellow }
+          - { id: flash, phrase: Flash attention, targets: [shrink], color: yellow }
+          - { id: both, phrase: often use both, targets: [shrink], color: yellow }
+
+  - id: reads
+    title: Saved work, growing reads
+    visual: The cost per token rises with history, while the recomputation line stays flat beneath it.
+    beats:
+      - say: The green square is the one new key and value this head writes. Follow the yellow outline. With full attention, each query reads the whole row. The number of positions it reads grows linearly with the context. As the row gets longer, decoding tends to get slower. Memory bandwidth can limit how fast the next token arrives.
+        hold: 1.0
+        visual_cues:
+          - { id: still-reads, phrase: each query reads the whole row, targets: [reads], color: yellow }
+          - { id: linear, phrase: grows linearly, targets: [reads], color: yellow }
+          - { id: slower, phrase: tends to get slower, targets: [reads], color: yellow }
+          - { id: bandwidth, phrase: memory bandwidth, targets: [reads], color: yellow }
+          - { id: saves, phrase: "one new key and value", targets: [reads], color: yellow }
+
+  - id: your-turn
+    title: Your turn
+    visual: A pool with a new block size waits for the viewer's count, then blocks fill and free as each answer resolves, and a position walks through a new table.
+    beats:
+      - say: Your turn, with new numbers. The block size is thirty two. Request A holds one hundred tokens, and request B holds thirty two. How many blocks are in use?
+        hold: 5
+        visual_cues:
+          - { id: size-32, phrase: block size is thirty two, targets: [your-turn], color: yellow }
+          - { id: ask-one, phrase: How many blocks are in use, targets: [your-turn], color: yellow }
+      - say: A needs four, because one hundred over thirty two rounds up, and twenty eight of those slots are empty. B fits exactly one. That's five.
+        hold: 0.8
+        visual_cues:
+          - { id: a-four, phrase: "A needs four because one hundred over thirty two rounds up", targets: [your-turn], color: yellow }
+          - { id: empty, phrase: "and twenty eight of those slots are empty", targets: [your-turn], color: yellow }
+          - { id: b-one, phrase: B fits exactly one, targets: [your-turn], color: yellow }
+          - { id: five, phrase: "That's five", targets: [your-turn], color: yellow }
+      - say: A finishes, and request C joins with seventy tokens. How many blocks now?
+        hold: 5
+        visual_cues:
+          - { id: a-done, phrase: A finishes, targets: [your-turn], color: yellow }
+          - { id: c-joins, phrase: request C joins, targets: [your-turn], color: yellow }
+      - say: And if C's table lists physical blocks five, eleven, and two, where does position forty live?
+        hold: 6
+        visual_cues:
+          - { id: table, phrase: table lists physical blocks, targets: [your-turn], color: yellow }
+          - { id: ask-two, phrase: where does position forty live, targets: [your-turn], color: yellow }
+      - say: C needs three, plus B's one, so that's four. Forty divided by thirty two is one, remainder eight. That's logical block one, slot eight, and the table says physical block eleven.
+        hold: 0.9
+        visual_cues:
+          - { id: c-three, phrase: C needs three, targets: [your-turn], color: yellow }
+          - { id: four, phrase: "C needs three plus B's one so that's four", targets: [your-turn], color: yellow }
+          - { id: divide, phrase: "Forty divided by thirty two is one remainder eight", targets: [your-turn], color: yellow }
+          - { id: logical, phrase: logical block one, targets: [your-turn], color: yellow }
+          - { id: physical, phrase: "the table says physical block eleven", targets: [your-turn], color: yellow }
+      - say: Now let B and C grow. You need their whole context in memory at the same time, and even the filled slots exceed the budget. Would smaller blocks fix it? No. Would a different scheduler? No. On this memory, with these requests, you need fewer bytes, most directly from fewer key value heads or lower precision, and a quality check to go with them. Otherwise, you need more memory, or fewer requests at once.
+        hold: 1.0
+        caption_starts: ["No. Would a different scheduler", "No. On this memory"]
+        visual_cues:
+          - { id: full, phrase: whole context in memory, targets: [your-turn], color: yellow }
+          - { id: no-blocks, phrase: "Would smaller blocks fix it No", targets: [your-turn], color: yellow }
+          - { id: no-scheduler, phrase: "Would a different scheduler No", targets: [your-turn], color: yellow }
+          - { id: bytes, phrase: "On this memory with these requests you need fewer bytes most directly from fewer key value heads or lower precision and a quality check to go with them", targets: [your-turn], color: yellow, caption_boundary: true }
+          - { id: more, phrase: more memory, targets: [your-turn], color: yellow }
+
+  - id: close
+    title: Where do the two endings go?
+    visual: The same fork starts one token later, with block zero full. A and B append to fresh blocks. At retirement only A's private block becomes reusable.
+    beats:
+      - say: "Block zero has one slot left. Fill it with straight. Now two completions share all four tokens. A wants home. B wants away."
+        hold: 0.6
+        caption_starts: ["Fill it with straight", "A wants home", "B wants away"]
+        visual_cues:
+          - { id: straight, phrase: "Fill it with straight", targets: [close] }
+          - { id: fork, phrase: "two completions share", targets: [close] }
+          - { id: wants-a, phrase: "A wants home", targets: [close] }
+          - { id: wants-b, phrase: "B wants away", targets: [close] }
+      - say: "Each branch needs a fifth slot. After both appends, how many physical blocks will the two histories occupy?"
+        hold: 3.1
+        visual_cues:
+          - { id: ask, phrase: "After both appends", targets: [close] }
+      - say: "The fifth position starts a new block. A takes block one for home. B takes block two for away. Follow either table back to zero. Both still read the same four pairs there. That's three physical blocks, with no prefix copy."
+        hold: 0.95
+        caption_starts: ["A takes block one", "B takes block two", "That's three physical blocks"]
+        visual_cues:
+          - { id: tail-a, phrase: "A takes block one for home", targets: [close] }
+          - { id: tail-b, phrase: "B takes block two for away", targets: [close] }
+          - { id: back, phrase: "Follow either table back to zero", targets: [close] }
+          - { id: total, phrase: "three physical blocks with no prefix copy", targets: [close] }
+      - say: "A finishes. Its last GPU read is done, and we're keeping no finished prefixes. When we release A's table, which of its two blocks can the next request take?"
+        hold: 2.6
+        visual_cues:
+          - { id: finish, phrase: "A finishes", targets: [close] }
+          - { id: done, phrase: "last GPU read is done", targets: [close] }
+          - { id: ask-free, phrase: "When we release A's table", targets: [close] }
+      - say: "Only block one is free. B still reads The fox ran straight from zero and away from block two. Request C starts with Rain. It writes that first pair into block one while B keeps going."
+        hold: 1.45
+        visual_cues:
+          - { id: release, phrase: "Only block one is free", targets: [close] }
+          - { id: reuse, phrase: "Request C starts with Rain", targets: [close] }

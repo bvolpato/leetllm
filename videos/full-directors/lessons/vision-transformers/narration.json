@@ -1,0 +1,739 @@
+[
+  {
+    "id": "c01",
+    "title": "Which request failed?",
+    "sourceChapters": [
+      "c01"
+    ],
+    "beats": [
+      {
+        "id": "c01-b01",
+        "say": "The deployment failed. We need the request ID to look up the trace. Here are two possible readings. Look just left of the blue Retry button. One wrong character sends us looking for a different request.",
+        "hold": 0.45
+      },
+      {
+        "id": "c01-b02",
+        "say": "Enlarge those same pixels. After the seven, is that a letter F or the number eight? Check the last character too. Which reading matches the crop?",
+        "hold": 2.6
+      },
+      {
+        "id": "c01-b03",
+        "say": "The top reading matches. There's an F after the seven, and the last character is an A. The red banner gave us the status. To trust the identifier, we needed the little strokes beside Retry. Let's follow what happens to them on the way into a vision transformer.",
+        "hold": 0.75
+      }
+    ]
+  },
+  {
+    "id": "c02",
+    "title": "What reaches the encoder?",
+    "sourceChapters": [
+      "c02"
+    ],
+    "beats": [
+      {
+        "id": "c02-b01",
+        "say": "The original screenshot is six hundred seventy-two pixels wide. Its identifier spans nine pixel rows. Shrink the full screenshot to a width of two hundred twenty-four. In this example, we average each square of three by three pixels into one. The whole identifier is now just three pixels high.",
+        "hold": 1.15
+      },
+      {
+        "id": "c02-b02",
+        "say": "Take a native crop around Retry instead. It too is two hundred twenty-four pixels wide, but it keeps all nine rows. We've enlarged both strips by the same amount. Zooming in on the first one only makes its three rows bigger.",
+        "hold": 1.05
+      },
+      {
+        "id": "c02-b03",
+        "say": "Inspect the actual pixels the checkpoint receives. Its resize and center crop can cut off an edge label. Stretching the image can distort a character. Keep the expected color conversion and normalization.",
+        "hold": 0.3
+      },
+      {
+        "id": "c02-b04",
+        "say": "Compare readings from the full image and the native crop against the labeled ID, and allow an unreadable result. Now let's give four pixels numbers so we can trace a loss exactly.",
+        "hold": 0.65
+      }
+    ]
+  },
+  {
+    "id": "c03",
+    "title": "Follow four pixels into one row",
+    "sourceChapters": [
+      "c03"
+    ],
+    "beats": [
+      {
+        "id": "c03-b01",
+        "say": "Give each pixel in this little image its own number. The cyan square in the top left contains four of them. Unfold that square into one row. Read across the top, then across the bottom. That's how zero, one, four and five become neighbors in the sequence.",
+        "hold": 0.85
+      },
+      {
+        "id": "c03-b02",
+        "say": "Unfold the other three squares in the same order. Every original number has an address in a patch row. You could run the move backwards and rebuild the image exactly. So far, we've rearranged the pixels and kept every value.",
+        "hold": 0.85
+      },
+      {
+        "id": "c03-b03",
+        "say": "Now use a thirty-two by thirty-two color image and patches eight pixels wide. Four patches fit along each side. Each of the sixteen rows holds eight times eight locations, with three color values at each location. That's a hundred ninety-two inputs per row.",
+        "hold": 0.3
+      },
+      {
+        "id": "c03-b04",
+        "say": "If the model projects to a hidden width of two hundred fifty-six, there are still sixteen rows. For a rectangle made of complete patches, divide each side by the patch width and multiply the two counts. Try a forty-eight by thirty-two image with the same patch width. How many patch rows go into the projection?",
+        "hold": 2.6
+      },
+      {
+        "id": "c03-b05",
+        "say": "Six across and four down gives twenty-four rows. Each still holds a hundred ninety-two color values before projection. The projection keeps all twenty-four rows.",
+        "hold": 0.9
+      }
+    ]
+  },
+  {
+    "id": "c04",
+    "title": "Do these two patch readers agree?",
+    "sourceChapters": [
+      "c04"
+    ],
+    "beats": [
+      {
+        "id": "c04-b01",
+        "say": "Put two channels in the same two-by-two patch. One convolution filter spans both. Start with the first channel. Multiply its four pixels by their matching weights and sum the products. That's thirty. The second channel contributes seven hundred. Together they make one output, seven hundred thirty. We're using zero bias.",
+        "hold": 0.9
+      },
+      {
+        "id": "c04-b02",
+        "say": "Read all of channel one, then all of channel two. Flatten the filter the same way. The dot product gives seven hundred thirty again.",
+        "hold": 0.3
+      },
+      {
+        "id": "c04-b03",
+        "say": "A convolution with kernel and stride equal to the patch width, no padding, and one filter per hidden coordinate can implement a shared patch projection. Both implementations must include the same bias.",
+        "hold": 0.9
+      },
+      {
+        "id": "c04-b04",
+        "say": "Keep those eight weights still. Interleave the two channels in pixel order, as in a channels-last array. We still have eight input numbers. Will this row pass the same numerical check?",
+        "hold": 2.35
+      },
+      {
+        "id": "c04-b05",
+        "say": "This time the dot product is six hundred fifty. Ten now multiplies the second weight, where two used to sit. Match the order before you compare the two implementations.",
+        "hold": 0.3
+      },
+      {
+        "id": "c04-b06",
+        "say": "In the larger example, two RGB images, each four by six, produce six tokens of width five per image. Compare every output value. Both input orders give the expected shape, and only the correctly ordered one matches the convolution.",
+        "hold": 1
+      }
+    ]
+  },
+  {
+    "id": "c05",
+    "title": "What does the shared matrix measure?",
+    "sourceChapters": [
+      "c05"
+    ],
+    "beats": [
+      {
+        "id": "c05-b01",
+        "say": "On the glyph, zero, one, four and five marked pixel locations. Read their colors, using zero for dark and one for light. You get zero, one, one, one. Now switch to an invented grayscale image. We chose zero, one, four and five as the brightness values of its top-left patch. To get the mean, give each value a weight of one quarter. For contrast, give the left pixels minus one half and the right pixels plus one half.",
+        "hold": 0.3
+      },
+      {
+        "id": "c05-b02",
+        "say": "That coordinate measures half the difference between the two column sums. These are weights we chose so you can see what they measure. A trained projection learns its own.",
+        "hold": 0.8
+      },
+      {
+        "id": "c05-b03",
+        "say": "Zero adds nothing to either sum. One adds a quarter to the mean and a half to the contrast. Four is a left pixel. It adds one to the mean and subtracts two from the contrast. Five is a right pixel.",
+        "hold": 0.3
+      },
+      {
+        "id": "c05-b04",
+        "say": "It adds one and a quarter, and adds two and a half. Read the two totals at the bottom. Two point five for mean brightness. One for contrast.",
+        "hold": 1
+      },
+      {
+        "id": "c05-b05",
+        "say": "Use that same matrix on each of the other patches. Their averages differ, but a coordinate keeps the same meaning wherever the patch came from. We started with four pixel values and kept just two measurements. Let's change the pixels and see what that choice lets through.",
+        "hold": 0.85
+      }
+    ]
+  },
+  {
+    "id": "c06",
+    "title": "Which pixel changes can this token carry?",
+    "sourceChapters": [
+      "c06"
+    ],
+    "beats": [
+      {
+        "id": "c06-b01",
+        "say": "Start with two copies of the top-left patch. On the right, move one unit from the bottom left pixel to the top left. The first output is the mean of all four pixels. The second is the right column sum minus the left, divided by two. Does the mean change, the contrast, both, or neither?",
+        "hold": 2.6
+      },
+      {
+        "id": "c06-b02",
+        "say": "Neither one moves. Both columns kept their totals, so the token still reads two point five, one. Look at the four changes in raster order. Plus one, zero, minus one, zero. This is a null direction of the projection. Flattening kept the difference. Multiplying by this matrix erased it.",
+        "hold": 1.3
+      },
+      {
+        "id": "c06-b03",
+        "say": "Reset the right patch. This time, move one unit from the top right to the top left. The total brightness stays ten. Which output coordinate changes now?",
+        "hold": 2.25
+      },
+      {
+        "id": "c06-b04",
+        "say": "The contrast falls to zero. Each column now sums to five, and the mean is still two point five. To recover every possible input, the projection needs full input rank. Even a wide matrix can have a null direction.",
+        "hold": 0.3
+      },
+      {
+        "id": "c06-b05",
+        "say": "Once two images give the same tokens in the same slots, widening those tokens downstream cannot recover which image we had.",
+        "hold": 0.95
+      }
+    ]
+  },
+  {
+    "id": "c07",
+    "title": "Content needs a record of its location",
+    "sourceChapters": [
+      "c07"
+    ],
+    "beats": [
+      {
+        "id": "c07-b01",
+        "say": "Two patches trade places. Watch the fixed query pool them. Each patch carries its own key and value into the other slot. The same two weighted terms enter the sum, in reverse order. With no positions or order-dependent mask, deterministic self-attention follows the permutation. The pooled answer stays put.",
+        "hold": 0.6
+      },
+      {
+        "id": "c07-b02",
+        "say": "Add a distinct vector for each slot, then repeat the swap. Each content vector now meets the position vector of its new location. The computed summary changes in this fixture. Original ViT uses learned one-dimensional position vectors, with a separate slot for its classification token.",
+        "hold": 0.65
+      },
+      {
+        "id": "c07-b03",
+        "say": "The classification token is a learned vector prepended to the patch sequence. Its final state serves as an image-level readout. If resolution changes, a learned position table may need grid interpolation while preserving that separate class slot. Match the checkpoint's processor and interpolation settings.",
+        "hold": 0.7
+      }
+    ]
+  },
+  {
+    "id": "c08",
+    "title": "Resize the patch positions while preserving the class slot",
+    "sourceChapters": [
+      "c08"
+    ],
+    "beats": [
+      {
+        "id": "c08-b01",
+        "say": "Keep sixteen-pixel patches. A two-hundred-twenty-four square gives fourteen patches along each side. A separate class position brings the table to one hundred ninety-seven rows. A two-hundred-fifty-six square needs two hundred fifty-seven. The patch projection still expects sixteen times sixteen times three RGB values. Which part of the learned position table can we resize?",
+        "hold": 0.65
+      },
+      {
+        "id": "c08-b02",
+        "say": "Lift the class position out. Its three coordinates in this toy are zero, one and two. Unfold the remaining rows into their fourteen-by-fourteen grid. Each grid cell holds a learned position vector. Now fit a rectangle, sixteen patches high and twenty wide. Interpolate each feature channel on that grid. Flatten the resized grid in row order, then reattach the class position. We have three hundred twenty patch positions and the same class vector, three hundred twenty-one rows altogether.",
+        "hold": 0.65
+      },
+      {
+        "id": "c08-b03",
+        "say": "Our rectangular example uses bicubic interpolation with align corners false. Original ViT specifies two-dimensional interpolation. Google's reference uses linear interpolation. Match the checkpoint's method and coordinates, then test recognition on the larger inputs. A table that fits tells us we can run the model.",
+        "hold": 0.65
+      }
+    ]
+  },
+  {
+    "id": "c09",
+    "title": "Row and column offsets rotate different coordinate pairs",
+    "sourceChapters": [
+      "c09"
+    ],
+    "beats": [
+      {
+        "id": "c09-b01",
+        "say": "Two-dimensional rotary positions rotate queries and keys rather than adding an absolute vector to every token. In one simple construction, split the head width into row and column groups, each containing paired coordinates. This construction needs width divisible by four; actual implementations can allocate axes differently.",
+        "hold": 0.65
+      },
+      {
+        "id": "c09-b02",
+        "say": "For an explicitly toy four-coordinate head, let both content vectors be one, zero, one, zero and choose ninety degrees per coordinate unit. At the same location their dot product is two. Move only the key one row: its row pair rotates and the dot product becomes one.",
+        "hold": 0.3
+      },
+      {
+        "id": "c09-b03",
+        "say": "Translate both positions by the same row and column offsets; the score remains one because the relative offsets remain.",
+        "hold": 0.65
+      },
+      {
+        "id": "c09-b04",
+        "say": "The score still depends on the content vectors. Rotary positions avoid resizing a learned absolute table, but do not remove token limits or guarantee extrapolation quality. Qwen two point five VL uses its own spatial rotary construction, resizes dimensions to multiples of twenty-eight and merges neighboring patches before the language model.",
+        "hold": 0.65
+      }
+    ]
+  },
+  {
+    "id": "c10",
+    "title": "What can the banner read?",
+    "sourceChapters": [
+      "c10"
+    ],
+    "beats": [
+      {
+        "id": "c10-b01",
+        "say": "Put a query on the banner. For this small example, use the same two numbers as the key and the value at each marked patch. The banner's query is one, zero. Its dot product with the Retry key is one.",
+        "hold": 0.3
+      },
+      {
+        "id": "c10-b02",
+        "say": "Divide by the square root of two to get the score. Softmax turns the three scores into weights. The banner starts with a zero in its second coordinate. Can Retry contribute to that coordinate?",
+        "hold": 2.4
+      },
+      {
+        "id": "c10-b03",
+        "say": "Start with the banner itself. Its weight adds about point four to the first coordinate and nothing to the second. Add the panel's share. Its value points entirely along the second coordinate. Now add the Retry button.",
+        "hold": 0.3
+      },
+      {
+        "id": "c10-b04",
+        "say": "Its value is one, one, so its blue piece has the same length on both bars. Read the endpoints. The banner's new second coordinate is about point six, and most of it came from Retry.",
+        "hold": 1.1
+      },
+      {
+        "id": "c10-b05",
+        "say": "Keep those three values and apply a decoder's causal mask. The panel and Retry come later in raster order, so the first query can see only the banner. Its weight becomes one. The second coordinate is back at zero.",
+        "hold": 0.3
+      },
+      {
+        "id": "c10-b06",
+        "say": "Original ViT uses bidirectional attention because the whole picture is already present. Other encoders can limit attention to a window or mask padding.",
+        "hold": 1
+      }
+    ]
+  },
+  {
+    "id": "c11",
+    "title": "Each sublayer adds an update to the retained state",
+    "sourceChapters": [
+      "c11"
+    ],
+    "beats": [
+      {
+        "id": "c11-b01",
+        "say": "Build the original ViT block around the state we must retain. Normalize the incoming vector, run multi-head attention, then add that attention update to the original incoming vector. Normalize this new residual state, run the position-wise MLP, then add its update to that same residual. Normalization does not replace either skip path.",
+        "hold": 0.65
+      },
+      {
+        "id": "c11-b02",
+        "say": "In a supplied two-coordinate toy, input two, four receives attention update one half, minus one half, giving two point five, three point five. With unit normalization gain, zero bias and epsilon one hundred-thousandth, the next normalized coordinates are approximately minus one and one.",
+        "hold": 0.3
+      },
+      {
+        "id": "c11-b03",
+        "say": "The first linear map copies the normalized pair twice, expanding it to four coordinates. GELU acts on each one. The second map averages corresponding copies to return two updates. Add those updates to the retained two point five, three point five. The final state is approximately two point three four one, four point three four one.",
+        "hold": 0.65
+      },
+      {
+        "id": "c11-b04",
+        "say": "The MLP runs independently at each position while sharing weights across positions; attention routes information between positions. Real ViT-Base uses hidden width seven hundred sixty-eight, twelve blocks and twelve heads of width sixty-four.",
+        "hold": 0.3
+      },
+      {
+        "id": "c11-b05",
+        "say": "At two hundred twenty-four square with sixteen-pixel patches, count one hundred ninety-six patches and one class slot. Queries and keys have shape batch, twelve, one hundred ninety-seven, sixty-four. At each position the MLP expands width to three thousand seventy-two and projects back. Final LayerNorm precedes class readout or patch-feature handoff.",
+        "hold": 0.65
+      }
+    ]
+  },
+  {
+    "id": "c12",
+    "title": "Architecture and training recipe are both variables",
+    "sourceChapters": [
+      "c12"
+    ],
+    "beats": [
+      {
+        "id": "c12-b01",
+        "say": "Put a three-by-three convolution at the center of the image. It can read the neighboring cells. Stack a second layer with the same stride and the center can depend on a five-by-five region. On an ideal grid, shifting the input one cell shifts a stride-one convolution's output one cell. Boundaries, padding and strided sampling qualify that rule.",
+        "hold": 0.65
+      },
+      {
+        "id": "c12-b02",
+        "say": "Original ViT has weaker image-specific bias but still groups neighboring pixels into patches and uses the grid for position resizing. Full attention permits immediate distant connections. The original paper’s smaller-data training setup underperformed comparable ResNets, while larger-scale pretraining improved transfer.",
+        "hold": 0.3
+      },
+      {
+        "id": "c12-b03",
+        "say": "DeiT later showed competitive ImageNet-only ViTs with a stronger recipe and optional distillation token; ConvNeXt modernized convolutional backbones.",
+        "hold": 0.65
+      },
+      {
+        "id": "c12-b04",
+        "say": "On a small private screenshot set, keep two held-out tasks. One asks whether the deploy failed. The other compares every character of the ID. Compare pretrained encoders and a smaller baseline under the same evaluation. Track pretraining, regularization and data alongside architecture. A scene win can hide a transcription error.",
+        "hold": 0.65
+      }
+    ]
+  },
+  {
+    "id": "c13",
+    "title": "Finer patches change two budgets",
+    "sourceChapters": [
+      "c13"
+    ],
+    "beats": [
+      {
+        "id": "c13-b01",
+        "say": "For an image two hundred twenty-four pixels wide and high, sixteen-pixel patches produce a fourteen-by-fourteen grid. Halving patch width doubles the number along each axis. Predict the change in total patches before the smaller cells appear. Both axes contribute to the increase.",
+        "hold": 2.4
+      },
+      {
+        "id": "c13-b02",
+        "say": "The token count quadruples. Dense attention compares every query with every key, so its patch-to-patch pair count grows sixteenfold. That ratio describes pairwise work under these encoder choices. Other operations and implementation details still contribute to the model's actual runtime.",
+        "hold": 0.65
+      },
+      {
+        "id": "c13-b03",
+        "say": "At eight pixels per side, the RGB patch reader now expects one hundred ninety-two inputs instead of seven hundred sixty-eight. Changing an existing checkpoint's patch width can require adaptation and further training. Take a fresh sixty-four by sixty-four image and fix the patch width at sixteen. Double only the height. Sixteen patches become thirty-two. The dense patch-pair count goes from two hundred fifty-six to one thousand twenty-four. Count the axes that changed.",
+        "hold": 0.7
+      }
+    ]
+  },
+  {
+    "id": "c14",
+    "title": "Match images and language in a shared space",
+    "sourceChapters": [
+      "c14"
+    ],
+    "beats": [
+      {
+        "id": "c14-b01",
+        "say": "CLIP trains an image encoder and a text encoder to produce comparable global vectors. After normalization, their dot product is cosine similarity. A training batch supplies paired images and captions. Matching pairs sit on the diagonal of the similarity matrix, and the surrounding entries become competing candidates.",
+        "hold": 0.6
+      },
+      {
+        "id": "c14-b02",
+        "say": "Read one row across. Each image chooses among the captions. Read one column down. Each caption chooses among the images. Softmax runs along whichever set is competing. Take the negative log probability of the matching entry in each case. Average those losses across the rows and columns to get CLIP's symmetric contrastive loss.",
+        "hold": 0.65
+      },
+      {
+        "id": "c14-b03",
+        "say": "At inference, candidate captions give an image-text ranking. A sharp candidate-relative score still leaves exact transcription to be tested. Batch construction matters too: two captions can both fit the same image, making a cross-pair a false negative under a diagonal-only training convention.",
+        "hold": 0.7
+      }
+    ]
+  },
+  {
+    "id": "c15",
+    "title": "What does the failure score measure?",
+    "sourceChapters": [
+      "c15"
+    ],
+    "beats": [
+      {
+        "id": "c15-b01",
+        "say": "Keep the incident screenshot fixed. Original CLIP trained on four hundred million image and text pairs and evaluated both ResNet and vision transformer image encoders. Its ViT reads the class token. Its causal text transformer reads the end-of-text token.",
+        "hold": 0.3
+      },
+      {
+        "id": "c15-b02",
+        "say": "Each readout goes through a learned projection into the same space. Normalize both vectors and multiply their dot product by the learned positive scale.",
+        "hold": 0.75
+      },
+      {
+        "id": "c15-b03",
+        "say": "For this example, we chose a vector for the screenshot and a vector for each caption. The captions are deploy failed and deploy succeeded. We exponentiate their scores and divide both weights by the larger one. That leaves their shares unchanged. The first description gets about ninety-eight percent.",
+        "hold": 0.3
+      },
+      {
+        "id": "c15-b04",
+        "say": "To ensemble prompts for one class, normalize the variants, average them, and normalize that average. Try a different operation here. Copy the failure description into the list as a separate candidate. Its weight stays one. What share does the original description get now?",
+        "hold": 2.5
+      },
+      {
+        "id": "c15-b05",
+        "say": "A little under half. Each copy gets about forty-nine point four percent. The image stayed fixed. It's the sum underneath that grew. The score ranks these descriptions. To estimate a failure rate, check calibration against labeled incidents. To verify an ID, check the characters.",
+        "hold": 0.3
+      },
+      {
+        "id": "c15-b06",
+        "say": "A larger positive scale can sharpen the shares while preserving rank. During training, if two captions fit the image but only the diagonal is labeled positive, a compatible caption can be counted as a negative even in a large batch.",
+        "hold": 1
+      }
+    ]
+  },
+  {
+    "id": "c16",
+    "title": "Independent pair terms still share a training objective",
+    "sourceChapters": [
+      "c16"
+    ],
+    "beats": [
+      {
+        "id": "c16-b01",
+        "say": "Give each image and caption a square of its own. In SigLIP, a matching pair gets label plus one and a mismatch gets minus one. Multiply the normalized dot product by a learned positive scale and add a bias. Each square pays log of one plus the exponential of minus its label times its score.",
+        "hold": 0.65
+      },
+      {
+        "id": "c16-b02",
+        "say": "For supplied logits two and one point seven on the positive diagonal, the losses are about point one two seven and point one six eight. Negative logits minus one and minus point four give losses about point three one three and point five one three.",
+        "hold": 0.3
+      },
+      {
+        "id": "c16-b03",
+        "say": "Sum all four and divide by batch size two: the paper’s normalization gives about point five six. The mean over four pairs would be point two eight and would halve these gradients.",
+        "hold": 0.65
+      },
+      {
+        "id": "c16-b04",
+        "say": "Independent pair terms need no row or column softmax denominator, making chunked evaluation simpler. The paper still exchanges remote negative embeddings with collective permutes, and gradient synchronization remains. Dropping remote negatives changes the objective. Batch selection, positive-negative imbalance, learned bias, false negatives and normalization still affect learning; workers are not independent.",
+        "hold": 0.65
+      }
+    ]
+  },
+  {
+    "id": "c17",
+    "title": "Preserving aspect ratio still changes pixels and slots",
+    "sourceChapters": [
+      "c17"
+    ],
+    "beats": [
+      {
+        "id": "c17-b01",
+        "say": "The ViT architecture can process rectangles when its processor and position mechanism support them. SigLIP two adds captioning and localization representation learning, then self-distillation and masked teacher-feature prediction in its standard recipe. Its attention-pooling readout differs from assuming every encoder needs a class token.",
+        "hold": 0.3
+      },
+      {
+        "id": "c17-b02",
+        "say": "The auxiliary captioning decoder serves training and is absent from the released encoder pair.",
+        "hold": 0.65
+      },
+      {
+        "id": "c17-b03",
+        "say": "The NaFlex variant largely preserves aspect ratio while resizing to patch-compatible height and width under a token budget. In our batch the wide grid has eight rows of sixteen. The tall grid has twelve rows of eight. Interpolate the learned patch positions for each real grid. Flatten, then pad the shorter sequence to the batch length and mark its padding. NaFlex has its own adaptation recipe.",
+        "hold": 0.3
+      },
+      {
+        "id": "c17-b04",
+        "say": "The image stays tall, though resizing can blur fine detail. Ninety-six slots hold patches. Gray padding fills the last thirty-two.",
+        "hold": 0.65
+      },
+      {
+        "id": "c17-b05",
+        "say": "Preserve real patch coordinates and inspect masks through every layer and the attention-pooling head. Test the same processed image alone and beside a longer image with dropout disabled. Its valid readout should not change merely because more padding was added.",
+        "hold": 0.65
+      }
+    ]
+  },
+  {
+    "id": "c18",
+    "title": "A zero value still changes the attention denominator",
+    "sourceChapters": [
+      "c18"
+    ],
+    "beats": [
+      {
+        "id": "c18-b01",
+        "say": "Put two valid patches under a fixed query. A zero-valued padding key has a finite dot-product score. Before we mask it, its exponential is positive. Its zero value adds nothing to the numerator. Predict what adding four such keys does to the denominator and the pooled vector.",
+        "hold": 2.3
+      },
+      {
+        "id": "c18-b02",
+        "say": "In the actual fixed-query fixture, two valid patches yield about one point six zero six, point four zero six. Append four zero vectors without masking and the result changes to about point nine one three, point two three one.",
+        "hold": 1.6
+      },
+      {
+        "id": "c18-b03",
+        "say": "Mask those four keys before softmax and the original readout returns. Reject an all-masked image instead of normalizing an empty valid set.",
+        "hold": 0.65
+      },
+      {
+        "id": "c18-b04",
+        "say": "A masked key does not necessarily zero a padded query’s output. Remove padded outputs from pooling, losses or the language bridge as required. Padding tokens after patch extraction is also distinct from adding real border pixels before extraction. Keep the boundary explicit.",
+        "hold": 0.65
+      }
+    ]
+  },
+  {
+    "id": "c19",
+    "title": "Feature targets and feature relationships teach different things",
+    "sourceChapters": [
+      "c19"
+    ],
+    "beats": [
+      {
+        "id": "c19-b01",
+        "say": "In DINOv2, hide the button patch from the student. The teacher sees it and supplies a feature distribution, here seven tenths, two tenths, one tenth. The student predicts those same three coordinates at the hidden location. Training also matches image-level distributions. The teacher follows an exponential moving average of the student. This training uses images without paired text.",
+        "hold": 0.3
+      },
+      {
+        "id": "c19-b02",
+        "say": "The target is the teacher's feature distribution. Swapping its first and last probabilities changes it. To estimate depth or assign segmentation labels, train and evaluate a readout on the patch features. Text alignment needs its own evidence too.",
+        "hold": 0.65
+      },
+      {
+        "id": "c19-b03",
+        "say": "DINOv3 addresses dense-feature degradation during long training with Gram anchoring. Build the matrix of pairwise dot products of normalized student patch features and compare it with a teacher reference. Matching relationships can allow feature coordinates to move.",
+        "hold": 0.3
+      },
+      {
+        "id": "c19-b04",
+        "say": "These two arrows stand for patch features. Each has length one, and they meet at a right angle. Give the student arrows a shared ninety-degree rotation. Each still has a dot product of one with itself and zero with its neighbor. The coordinates change, but both Gram matrices stay the same. The DINOv3 family includes ViT and ConvNeXt backbones.",
+        "hold": 0.65
+      },
+      {
+        "id": "c19-b05",
+        "say": "Find the bright spot near the top right of this DINOv2 attention map. What's there in the photo? Just leaves. The researchers found that some background patches had unusually long feature vectors. Those patches carried information about the whole image. The researchers trained another encoder with four learned registers to give it room for those calculations. Look at the same leaves now. The spot is gone, and the dog's face stands out. For our request IDs, score exact matches separately on the shrunken screenshots and on the native crops.",
+        "hold": 0.65
+      },
+      {
+        "id": "c19-b06",
+        "say": "Now try the count on a different encoder. A square image, two hundred twenty-four pixels across, uses sixteen-pixel patches. That's fourteen rows of fourteen patches. Add one class token and four registers. The encoder has two hundred one slots. If the bridge selects only patch features, which states pass through? With a token-wise projector, each patch keeps its own slot. The language model receives one hundred ninety-six visual slots. Count actual selected states when you budget the language input.",
+        "hold": 0.65
+      }
+    ]
+  },
+  {
+    "id": "c20",
+    "title": "The encoder and language model have different slot boundaries",
+    "sourceChapters": [
+      "c20"
+    ],
+    "beats": [
+      {
+        "id": "c20-b01",
+        "say": "Original LLaVA selects patch-grid hidden states from CLIP ViT-L fourteen, rather than its final projected global vector. A two-hundred-twenty-four crop has two hundred fifty-six patches of width one thousand twenty-four.",
+        "hold": 0.3
+      },
+      {
+        "id": "c20-b02",
+        "say": "Its learned linear bridge changes width to the chosen language model’s width and preserves two hundred fifty-six visual slots; class is separate. LLaVA one point five uses a different three-hundred-thirty-six encoder crop, yielding five hundred seventy-six patches.",
+        "hold": 0.65
+      },
+      {
+        "id": "c20-b03",
+        "say": "Flamingo starts from its own NFNet convolutional feature grid. A Perceiver Resampler uses learned queries to produce sixty-four latents, which feed added gated cross-attention. They are visual memory, not sixty-four ordinary self-attention prefix slots. It is a different encoder and a different accounting boundary.",
+        "hold": 0.65
+      },
+      {
+        "id": "c20-b04",
+        "say": "Qwen two point five VL uses its own vision transformer with width one thousand two hundred eighty. At a two-hundred-twenty-four example, fourteen-pixel patches yield two hundred fifty-six states. Neighboring two-by-two groups are packed and passed through its MLP merger to yield sixty-four language inputs.",
+        "hold": 0.3
+      },
+      {
+        "id": "c20-b05",
+        "say": "Packing alone is a rearrangement; the projection can lose information. Its language output width depends on model size. Most of its thirty-two vision layers use local windows; four use full attention, so bidirectional need not mean globally unrestricted.",
+        "hold": 0.65
+      }
+    ]
+  },
+  {
+    "id": "c21",
+    "title": "How much cache does the larger image need?",
+    "sourceChapters": [
+      "c21"
+    ],
+    "beats": [
+      {
+        "id": "c21-b01",
+        "say": "Keep five hundred twelve text slots. At fourteen pixels per patch, the first square image supplies two hundred fifty-six visual slots. The bar counts all seven hundred sixty-eight retained positions. In this decoder, each one costs one hundred twenty-eight kibibytes.",
+        "hold": 0.3
+      },
+      {
+        "id": "c21-b02",
+        "say": "That's a key and a value in each of thirty-two layers, with eight heads, a hundred twenty-eight entries per head, and two bytes per entry. The first cache takes ninety-six mebibytes. Double the image side. With the same text, how much cache does the second bar cost?",
+        "hold": 2.65
+      },
+      {
+        "id": "c21-b03",
+        "say": "The second bar costs one hundred ninety-two mebibytes. The pink section quadrupled, but the blue section stayed put, so the total number of slots only doubled. Double the side once more.",
+        "hold": 0.3
+      },
+      {
+        "id": "c21-b04",
+        "say": "Now there are four thousand ninety-six visual slots plus the same text, for five hundred seventy-six mebibytes. Retained keys and values grow linearly with total slots, as does the lookback for one new token. Dense attention over the whole prefix compares pairs, so its work grows quadratically.",
+        "hold": 0.85
+      },
+      {
+        "id": "c21-b05",
+        "say": "Now send four images with sides of four hundred forty-eight. Together they contribute four thousand ninety-six visual slots. Merge each group of two by two before the decoder. The visual part drops to one thousand twenty-four slots.",
+        "hold": 0.3
+      },
+      {
+        "id": "c21-b06",
+        "say": "All five hundred twelve text slots still need keys and values. After merging, fifteen hundred thirty-six retained slots take one hundred ninety-two mebibytes. These bars count raw self-attention cache for one request. Weights, activations, allocator overhead, delimiters and quantization metadata need separate accounting. A window can also shorten retention.",
+        "hold": 0.3
+      },
+      {
+        "id": "c21-b07",
+        "say": "Flamingo keeps its visual memory in a separate cross-attention path.",
+        "hold": 0.85
+      },
+      {
+        "id": "c21-b08",
+        "say": "Keep the screenshot, crop, processor and encoder fixed. Change the system prompt. You can reuse the image features. The decoder can reuse only a matching prefix, so it must recompute from the first changed position. The picture stayed the same throughout.",
+        "hold": 0.85
+      }
+    ]
+  },
+  {
+    "id": "c22",
+    "title": "Where did the four patch states go?",
+    "sourceChapters": [
+      "c22"
+    ],
+    "beats": [
+      {
+        "id": "c22-b01",
+        "say": "Follow these four neighbors into a token-wise bridge. Widen each slot from two coordinates to four in this toy example. Count the rows. There are still four. The bridge applied the same linear map at each position. A class token or a register counts here only if the bridge actually selects it.",
+        "hold": 1
+      },
+      {
+        "id": "c22-b02",
+        "say": "Start again with the four neighboring states. Pack their coordinates side by side in raster order. You could still unpack that long vector and recover A, B, C and D exactly. This part is a rearrangement.",
+        "hold": 1
+      },
+      {
+        "id": "c22-b03",
+        "say": "Now project the packed vector into one language slot. Whether you can recover a particular difference depends on the weights. Counting one slot tells you how much prefix space the group takes. To find where two images became indistinguishable, compare their values on both sides of the projection.",
+        "hold": 0.85
+      }
+    ]
+  },
+  {
+    "id": "c23",
+    "title": "Where should you look for the missing detail?",
+    "sourceChapters": [
+      "c23"
+    ],
+    "beats": [
+      {
+        "id": "c23-b01",
+        "say": "Try the next patch in our invented grayscale image. In the edited copy, move one unit up the left column. Both copies go through the same mean and contrast projection at the same position. Could the same token-wise bridge tell these patches apart?",
+        "hold": 2.8
+      },
+      {
+        "id": "c23-b02",
+        "say": "Both tokens read four point five, one. Their two column sums are eight and ten. The bridge receives identical coordinates either way. Changing its output width would give the same answer for both. The distinction disappeared at the patch projection.",
+        "hold": 1.1
+      },
+      {
+        "id": "c23-b03",
+        "say": "Go back to the pixels. Keep the two old readings and add one more measurement. Subtract bottom left from top left. In the reference, two minus six is minus four. In the edited patch, three minus five is minus two. With that third coordinate, the bridge could receive a difference that used to be invisible.",
+        "hold": 1.35
+      },
+      {
+        "id": "c23-b04",
+        "say": "A second deployment fails. The status is the same, but the request ID has changed. Here is the new native crop and its reference label. The upper reading comes from our previous lookup. Which reading can you use for this one?",
+        "hold": 2.7
+      },
+      {
+        "id": "c23-b05",
+        "say": "Compare each reading with the label. The old reading has a three where this crop shows an eight. The lower reading matches every character. Use that one for the lookup. On new screenshots, compare full-image and cropped readings against known IDs. If cropping helps, investigate resizing.",
+        "hold": 0.3
+      },
+      {
+        "id": "c23-b06",
+        "say": "If the processed text is clear and errors persist, trace the encoder, bridge and decoder. Leave an unreadable ID unresolved.",
+        "hold": 1.7
+      }
+    ]
+  }
+]

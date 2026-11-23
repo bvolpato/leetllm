@@ -1,0 +1,440 @@
+[
+  {
+    "id": "c01",
+    "title": "When can the first word appear?",
+    "sourceChapters": [
+      "c01"
+    ],
+    "beats": [
+      {
+        "id": "c01-b01",
+        "say": "The paper under the print head is blank. One worker has already read the prompt. A different worker has to write the first word. Watch the two strips of prompt history leaving prefill.",
+        "hold": 0.7
+      },
+      {
+        "id": "c01-b02",
+        "say": "The copper strip lands first. It carries keys and values for half the attention heads, over the whole prompt. The blue strip carries the other heads over those same positions. Could the receiving worker start decoding here?",
+        "hold": 3
+      },
+      {
+        "id": "c01-b03",
+        "say": "The blue strip lands. The receiver checks both shards, makes them visible to the GPU and commits the handoff. With the first step assigned to this decoder and its other inputs ready, it can print Blue. That word is the first generated token in our example.",
+        "hold": 1
+      },
+      {
+        "id": "c01-b04",
+        "say": "Prefill builds the attention cache from the input. Decode reads that cache as it generates new tokens. Splitting the workers lets us schedule the two phases independently. Follow what has to fit, who can use it, and which clock records the wait.",
+        "hold": 0.7
+      }
+    ]
+  },
+  {
+    "id": "c02",
+    "title": "Which values belong to each rank?",
+    "sourceChapters": [
+      "c02"
+    ],
+    "beats": [
+      {
+        "id": "c02-b01",
+        "say": "Inside a worker group, two ranks compute pieces of the same layer. Across worker groups, the network carries the prompt cache. The control plane authorizes the request, chooses its workers, reserves capacity and assigns one owner. The data plane runs the model and carries tensors and output. A router can do work on both planes.",
+        "hold": 0.6
+      },
+      {
+        "id": "c02-b02",
+        "say": "Line up the two index columns. Rank zero has one and two. Rank one has ten and twenty. Add down each column. Which values should a sum all-reduce return to rank one?",
+        "hold": 2.5
+      },
+      {
+        "id": "c02-b03",
+        "say": "Eleven and twenty-two go to each rank. All-gather on the original inputs would concatenate one, two, ten, twenty in rank order. Reduce-scatter gives eleven to rank zero and twenty-two to rank one. Gather those reduced chunks and both ranks recover the complete sum.",
+        "hold": 1
+      },
+      {
+        "id": "c02-b04",
+        "say": "Now swap the two calls on rank one. The element counts and data types still match. Read the layer numbers across the first slot. Layer three would meet layer four. Restore the matching sequence before issuing the group. Ranks must agree on operation, count and dtype. If one rank cancels and skips a collective, its peer can wait indefinitely. Coordinate the change across the group and use backend recovery for a failed communicator.",
+        "hold": 0.7
+      },
+      {
+        "id": "c02-b05",
+        "say": "Follow the consumer waiting on that result. A grouped call can return before enqueue. Wait for group end. If a nonblocking issue is still in progress, check until issuing succeeds before related CUDA synchronization. The consumer needs its stream dependency or a completion event before it can read the result.",
+        "hold": 0.8
+      }
+    ]
+  },
+  {
+    "id": "c03",
+    "title": "How many bytes hold the prompt?",
+    "sourceChapters": [
+      "c03"
+    ],
+    "beats": [
+      {
+        "id": "c03-b01",
+        "say": "Look inside one layer. Each tensor has one row per token position. Each colored band in the drawing groups thirty-two of those rows. A single row holds two heads of width eight, with two bytes per value. We need a key sheet and a value sheet for each of four layers.",
+        "hold": 0.8
+      },
+      {
+        "id": "c03-b02",
+        "say": "With one hundred twenty-eight positions, multiply two tensors by four layers, by one hundred twenty-eight positions, by two heads, by width eight, by two bytes. That gives thirty-two kibibytes of prompt history. Start with an empty destination. If only the position count doubles, how much crosses?",
+        "hold": 2.6
+      },
+      {
+        "id": "c03-b03",
+        "say": "Double the positions to two hundred fifty-six. Both sheets grow in every layer. The transfer grows to sixty-four kibibytes. For production, measure the physical layout. Replicated heads, block padding, quantization and metadata can all change the buffer size.",
+        "hold": 1
+      }
+    ]
+  },
+  {
+    "id": "c04",
+    "title": "What limits an eight-thousand-token handoff?",
+    "sourceChapters": [
+      "c04"
+    ],
+    "beats": [
+      {
+        "id": "c04-b01",
+        "say": "Change to the article's model. Two tensors in each of eighty layers hold eight key-value heads of width one hundred twenty-eight. Each value takes two bytes. That is three hundred twenty kibibytes per token. Across eight thousand one hundred ninety-two positions, the prompt carries two and a half gibibytes.",
+        "hold": 0.7
+      },
+      {
+        "id": "c04-b02",
+        "say": "Under ideal two-way head sharding, each rank owns one and a quarter gibibytes. Both span the whole prompt. A block holds sixteen positions, or five mebibytes model-wide. The prompt fills five hundred twelve blocks.",
+        "hold": 0.6
+      },
+      {
+        "id": "c04-b03",
+        "say": "Reserve another one hundred twenty-eight positions for output. The eight empty blocks raise reserved capacity to two thousand six hundred mebibytes. Only the existing prompt has values to transfer. With the same output budget, what changes if one more prompt token arrives?",
+        "hold": 2.4
+      },
+      {
+        "id": "c04-b04",
+        "say": "One extra token adds three hundred twenty kibibytes of payload. The requested positions now spill into block five hundred twenty-one. Reserving that whole block adds five mebibytes. The final fifteen positions are slack.",
+        "hold": 1
+      },
+      {
+        "id": "c04-b05",
+        "say": "Replay the original prompt with two equal shards. Freeze the assumed links at fifty-three point seven milliseconds. Sharing one twenty-five gigabyte per second link fairly gives each shard half its bytes by then. On two independent links at that rate, both finish at that instant. With one shared bottleneck the entire transfer takes one hundred seven point four milliseconds before overhead. The link uses decimal gigabytes per second.",
+        "hold": 1
+      },
+      {
+        "id": "c04-b06",
+        "say": "At forty such requests per second, the incoming payload requires about one hundred seven point four gigabytes per second. The shared path can carry only nine point three one requests per second. A queue can absorb a burst. Sustained arrivals at forty need slower admission, fewer bytes or more independent bandwidth.",
+        "hold": 0.8
+      },
+      {
+        "id": "c04-b07",
+        "say": "Return to the original two-thousand-six-hundred-mebibyte reservation. Three fit in eight gibibytes and leave three hundred ninety-two mebibytes. The fourth waits. Reserve before expensive prefill when the engine supports this sequence. Also bound prefill work, transfer bytes and queue age, and decode execution capacity.",
+        "hold": 0.8
+      },
+      {
+        "id": "c04-b08",
+        "say": "Enforce the output cap or obtain more credit before passing it. Byte credit sets a memory bound. Future output length and token latency also depend on the workload and on decode load when the prompt arrives.",
+        "hold": 0.8
+      }
+    ]
+  },
+  {
+    "id": "c05",
+    "title": "Which destination should receive the cache?",
+    "sourceChapters": [
+      "c05"
+    ],
+    "beats": [
+      {
+        "id": "c05-b01",
+        "say": "Use the smaller forty-eight-block routing fixture. The source runs revision five of model M seventeen, with a two-rank partition, bfloat sixteen values and paged version two blocks. Compare its connector to each destination before comparing costs.",
+        "hold": 0.8
+      },
+      {
+        "id": "c05-b02",
+        "say": "Worker A matches and has sixty free blocks. B has seventy-two free, but its one-rank partition mismatches the source. Exclude B from a direct handoff. Apparent cache overlap there earns no credit.",
+        "hold": 0.8
+      },
+      {
+        "id": "c05-b03",
+        "say": "Worker C is compatible and has sixty-four free blocks on rack two. A required local domain would exclude C. Here the policy permits both racks. A preference may bias a cost; the remote worker can still win.",
+        "hold": 0.6
+      },
+      {
+        "id": "c05-b04",
+        "say": "The router checks layout and capacity. The request owner separately enforces the active attempt. To price these routes, count only compatible blocks for the same prefix and sharing scope.",
+        "hold": 0.7
+      },
+      {
+        "id": "c05-b05",
+        "say": "A has no reusable blocks. Move all forty-eight at twelve blocks per time unit and add point two for setup. A would take four point two units.",
+        "hold": 0.6
+      },
+      {
+        "id": "c05-b06",
+        "say": "C already has thirty-six matching blocks. How many cross its slower link, and which route should win?",
+        "hold": 2.6
+      },
+      {
+        "id": "c05-b07",
+        "say": "Twelve blocks cross at six per time unit. With point eight for setup, C takes two point eight units and wins. These are scheduling assumptions. Actual completion also depends on placement, staging and contention.",
+        "hold": 0.9
+      }
+    ]
+  },
+  {
+    "id": "c06",
+    "title": "Can this manifest use the reservation?",
+    "sourceChapters": [
+      "c06"
+    ],
+    "beats": [
+      {
+        "id": "c06-b01",
+        "say": "The receiver compares the incoming manifest with its own trusted reservation. Match the request and attempt, tenant, model, tokenizer and adapter. Check the digest of canonical token IDs and their positions, dtype, layout, block size, shard coverage and destination lease. One owner supplies the token IDs because independently rendered chat templates can differ.",
+        "hold": 0.6
+      },
+      {
+        "id": "c06-b02",
+        "say": "Look at the attempt field. A delayed manifest names attempt three. The receiver reserved attempt four. Reject the old manifest. With the matching manifest, trace logical block thirty-one from physical block nine hundred four at prefill to block one hundred eighteen at decode. Its physical address changes while its logical meaning stays fixed.",
+        "hold": 1
+      },
+      {
+        "id": "c06-b03",
+        "say": "A connector that can repartition or convert a layout needs a separate budget and validation. To start decode, the engine may also need the last token or hidden state, sampling state and an explicit first-token owner.",
+        "hold": 0.6
+      },
+      {
+        "id": "c06-b04",
+        "say": "The descriptor identifies a registered GPU or host region. The bulk keys and values move between those buffers. The service separately authorizes access, chooses placement, handles retry and owns the stream. Protect the metadata channel and isolate registered regions. RDMA transports bytes. Authenticated identity, encryption, tenant isolation and integrity need separate controls.",
+        "hold": 0.8
+      },
+      {
+        "id": "c06-b05",
+        "say": "Log the operation identity and outcome. Keep remote keys and descriptors out of application logs.",
+        "hold": 0.6
+      },
+      {
+        "id": "c06-b06",
+        "say": "Two separate transfers can be unordered. Overlapping destination writes can damage the same bytes. Give each live write its own range or enforce ordering. Cancellation requested, transport stopped and buffer reusable are separate events. Failure reporting varies by backend. Silence leaves the writer's state unknown.",
+        "hold": 0.8
+      }
+    ]
+  },
+  {
+    "id": "c07",
+    "title": "Who owns these empty blocks?",
+    "sourceChapters": [
+      "c07"
+    ],
+    "beats": [
+      {
+        "id": "c07-b01",
+        "say": "Run the same forty-eight-block prompt again, this time on D twelve. Worker C had thirty-six matching blocks. D twelve starts with zero, so all forty-eight blocks must cross. Its pool has sixty-four free blocks. Reserve forty-eight for request forty-two nineteen. How many can a second request claim before a byte has crossed?",
+        "hold": 2.8
+      },
+      {
+        "id": "c07-b02",
+        "say": "Sixteen remain. The second request needs twenty-four, so it waits or seeks another compatible worker. The empty reservation already counts against the pool.",
+        "hold": 1
+      },
+      {
+        "id": "c07-b03",
+        "say": "Now the copy begins. The transfer engine moves registered buffers over its configured GPU interconnect or network transport, such as RDMA. The cells fill within the first request's outline. The owner still has to verify this handoff before decode.",
+        "hold": 0.8
+      },
+      {
+        "id": "c07-b04",
+        "say": "Transfers for other requests can overlap. Compare useful bandwidth by model shape, payload size and shared path. Record the queue separately from time spent moving the bytes.",
+        "hold": 0.7
+      }
+    ]
+  },
+  {
+    "id": "c08",
+    "title": "Which event did the client observe?",
+    "sourceChapters": [
+      "c08"
+    ],
+    "beats": [
+      {
+        "id": "c08-b01",
+        "say": "Follow the successful handoff to D twelve. The request enters the queue and reserves the destination. Transfer starts. The engine reports completion against the operation handle. Which event can the client acknowledge at this point?",
+        "hold": 2.6
+      },
+      {
+        "id": "c08-b02",
+        "say": "The client still has an empty strip. The receiver matches the receipt to the expected request, operation and ranges. It verifies compatible layout, intact complete coverage and the connector's GPU visibility condition. Commit gives the decoder ownership of the first step.",
+        "hold": 0.8
+      },
+      {
+        "id": "c08-b03",
+        "say": "Decode generates Blue. The frontend streams it. The word appears on the client strip only at delivery. Copy completion, generation and delivery now have three distinct receipts.",
+        "hold": 1
+      },
+      {
+        "id": "c08-b04",
+        "say": "Bind each event to the request and model, the operation, layer or shard range, and the buffer it touched. The orchestrator tracks ownership across those events. The transfer engine accounts for the copy.",
+        "hold": 0.6
+      }
+    ]
+  },
+  {
+    "id": "c09",
+    "title": "Which ranges survived the timeout?",
+    "sourceChapters": [
+      "c09"
+    ],
+    "beats": [
+      {
+        "id": "c09-b01",
+        "say": "Rewind the transfer to D twelve. It starts with zero reusable blocks and needs the same forty-eight. Six labeled segments each carry eight blocks. Watch four arrive. The sender times out waiting for operation seventeen. Could the decoder use this reservation?",
+        "hold": 2.6
+      },
+      {
+        "id": "c09-b02",
+        "say": "Query the receiver with the original operation identity, op seventeen, generation four. Its receipt covers three ranges on rank zero and just the first range on rank one. The two open ranges on rank one are eight through fifteen and sixteen through twenty-three. The receiver refuses commit. The output strip stays blank.",
+        "hold": 1
+      },
+      {
+        "id": "c09-b03",
+        "say": "The destination lease now expires. Its own monotonic clock fences commit immediately. The sender cannot extend the lease with a timestamp. A new generation fences stale control events. The old writer can still touch these physical blocks. All forty-eight stay charged.",
+        "hold": 0.9
+      },
+      {
+        "id": "c09-b04",
+        "say": "A retry needs disjoint capacity while the old transfer drains. Another compatible pool has room for all forty-eight blocks. A cancellation request leaves the charge in place. After transport confirms it stopped, check every GPU reader as well. Only after the last access stops can the allocator return those forty-eight blocks.",
+        "hold": 1
+      },
+      {
+        "id": "c09-b05",
+        "say": "Our whole-prompt protocol checks compatible interpretation, integrity, unique rank-and-block coverage and connector-required visibility before committing. A duplicate notification cannot fill a gap. A connector that consumes regions earlier needs a dependency for each region it reads.",
+        "hold": 0.8
+      }
+    ]
+  },
+  {
+    "id": "c10",
+    "title": "Where can recovery resume?",
+    "sourceChapters": [
+      "c10"
+    ],
+    "beats": [
+      {
+        "id": "c10-b01",
+        "say": "A different run loses the commit acknowledgement. What did the decoder actually do? Query the authoritative owner. This time it reports committed. Starting the same request elsewhere would create two owners. Before visible output, a permitted retry still requires fencing, preserved request semantics and enough deadline and retry budget.",
+        "hold": 1
+      },
+      {
+        "id": "c10-b02",
+        "say": "Now the client has seen Blue. The decoder then fails. A restart from token one might repeat it or choose a different word. Exact continuation needs an agreed cursor, deduplication, sampling state and one stream owner. Here the cursor is unconfirmed. Report an interrupted stream. If a decode rank failed, recover its collective group before its peers resume. On client cancellation, stop new work, fence output, drain accesses and release resources idempotently.",
+        "hold": 1
+      },
+      {
+        "id": "c10-b03",
+        "say": "Consider a retry before visible output. Prefill finished and kept its copy of the prompt cache. A permitted retry can retransmit those keys and values. Its retention period expires while transport is still reading. Keep that copy charged to the prefill pool. The last read finishes. Now the pool can reclaim the source buffer.",
+        "hold": 0.7
+      },
+      {
+        "id": "c10-prefill-failure",
+        "say": "In another run, prefill fails before it produces the cache. The owner still has the original prompt. What can supply the missing keys and values?",
+        "hold": 2.6
+      },
+      {
+        "id": "c10-recompute",
+        "say": "Fence the failed attempt. A healthy prefill group reads the original prompt again. As it processes the tokens, it builds fresh keys and values. The healthy group now holds the complete cache for the retry.",
+        "hold": 0.8
+      },
+      {
+        "id": "c10-b04",
+        "say": "In the article's serialized CPU model, two arrivals, completion, commit, cancellation and reclamation can be ordered seven hundred twenty ways. The checks reject partial commits and early credit reuse in those orders. They also exercise eight manifest mismatches, duplicate and missing coverage, stale attempts and expiry.",
+        "hold": 0.8
+      },
+      {
+        "id": "c10-b05",
+        "say": "The model assumes trusted completion, abort and stopped-consumer callbacks. Establish distributed atomicity and authenticated ownership on the coordinator. Establish real cancellation and GPU visibility on the backend that supplies those callbacks.",
+        "hold": 0.8
+      }
+    ]
+  },
+  {
+    "id": "c11",
+    "title": "Which clock measures the first token?",
+    "sourceChapters": [
+      "c11"
+    ],
+    "beats": [
+      {
+        "id": "c11-b01",
+        "say": "Place admission and first token on one clock. In the serial run, prefill takes three hundred ten milliseconds. Transfer takes one hundred seven point four. Commit and the first decode step together take twenty-eight after both dependencies finish. The endpoint is four hundred forty-five point four milliseconds.",
+        "hold": 0.8
+      },
+      {
+        "id": "c11-b02",
+        "say": "Now a backend can transfer ready cache blocks while prefill finishes. Start the same transfer at two hundred forty. Keep prefill fixed. Which end moves when the final seventy milliseconds overlap?",
+        "hold": 2.2
+      },
+      {
+        "id": "c11-b03",
+        "say": "The first token moves to three hundred seventy-five point four milliseconds. This overlap needs a backend that can stream the ready blocks. Others wait for complete prefill.",
+        "hold": 0.7
+      },
+      {
+        "id": "c11-b04",
+        "say": "Insert a twenty-five-millisecond wait before active work. Slide the entire overlapped schedule right. The active spans still cover three hundred seventy-five point four milliseconds. From admission to first token, the same request now takes four hundred point four. A stopwatch started at the first kernel would miss that queue.",
+        "hold": 1
+      },
+      {
+        "id": "c11-link-queue",
+        "say": "Now put the wait inside a different request. Prefill ends at one hundred eighty milliseconds. Setup and the first blocks are ready at one hundred fifty. Transfer takes one hundred eighty, then first decode takes seventy. Without a handoff queue the endpoint is four hundred. Add a twenty-five-millisecond wait after setup. Transfer and decode move later, while prefill stays fixed. The endpoint is four hundred twenty-five milliseconds.",
+        "hold": 0.8
+      },
+      {
+        "id": "c11-b05",
+        "say": "Join the request through final delivery. Record queues, bytes, worker identities, transport completion, decode start and cancellation. Compute end-to-end percentiles from request endpoints. Use the same boundaries for the median and the ninety-fifth percentile. Phase p ninety-nines can come from different requests, so adding them does not give the end-to-end tail.",
+        "hold": 0.6
+      },
+      {
+        "id": "c11-b06",
+        "say": "Measure useful unique payload bytes per transfer duration. Wire bytes can rise on retries; staging can add memory traffic. Count quarantined bytes and wasted prefill tokens. Keep request identifiers in traces and use bounded dimensions for metrics.",
+        "hold": 0.7
+      },
+      {
+        "id": "c11-b07",
+        "say": "Compare mixed and split pools at the same offered workload, hardware budget, output lengths and objectives. In this ten-request sample, two finish on time and eight are rejected. A fast result for every accepted request still serves only two of ten offered requests on time. Track rejection and errors beside latency.",
+        "hold": 0.8
+      }
+    ]
+  },
+  {
+    "id": "c12",
+    "title": "Can six notifications authorize a word?",
+    "sourceChapters": [
+      "c12"
+    ],
+    "beats": [
+      {
+        "id": "c12-b01",
+        "say": "Try the receiver's job. Start with the successful run on D twelve. All forty-eight blocks crossed and the decoder owns the committed cache. Follow its first token to the client. If a response stalls, look for the first recorded wait or invalid transition from admission through delivery. Earlier work can be missing from a trace.",
+        "hold": 0.7
+      },
+      {
+        "id": "c12-b02",
+        "say": "Replay the same full copy to D twelve with a fresh receipt. Six segments of eight blocks are expected. Read the six notices across the top. Press each number into its matching range. Can the decoder commit this handoff?",
+        "hold": 3.2
+      },
+      {
+        "id": "c12-b03",
+        "say": "Five unique segments arrived. Two was stamped twice. Five is missing. That hole keeps the decoder from printing a word, even though the notification count matches.",
+        "hold": 1
+      },
+      {
+        "id": "c12-b04",
+        "say": "Its lease expires with the writer still active. A new attempt asks to reuse these cells. Which region can you give it?",
+        "hold": 2.6
+      },
+      {
+        "id": "c12-b05",
+        "say": "Give the retry separate capacity if policy allows. Keep the old region charged until transport and GPU readers have stopped. Then reclaim it. You can now trace a blank output strip to the missing range, the owner that fenced commit, and the event that freed the memory. Next, put these boundaries under serving load.",
+        "hold": 1
+      }
+    ]
+  }
+]

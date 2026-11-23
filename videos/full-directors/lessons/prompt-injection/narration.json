@@ -1,0 +1,824 @@
+[
+  {
+    "id": "c01",
+    "title": "Will C17 get live traffic?",
+    "sourceChapters": [
+      "c01"
+    ],
+    "beats": [
+      {
+        "id": "c01-b01",
+        "say": "Two lines for C seventeen. The assistant proposes twenty-five percent of live traffic. The release service measures zero. Follow the proposal back to its source. You asked for a test summary. The report says C seventeen passed. Its author recommends release, and the assistant took that recommendation as an instruction.",
+        "hold": 0.6
+      },
+      {
+        "id": "c01-b02",
+        "say": "The report tells us who recommended the release. The service can move traffic only if someone approved this exact change. Which record should it open before deciding?",
+        "hold": 2.6
+      },
+      {
+        "id": "c01-b03",
+        "say": "The service checks its approval record for this change. The lookup is empty. It denies the change, and C seventeen stays at zero. The reader gets the summary of the passing tests. That recommendation steered the assistant away from the user's task. That's prompt injection. The text can arrive in a message or in something the assistant retrieves.",
+        "hold": 1.1
+      }
+    ]
+  },
+  {
+    "id": "c02",
+    "title": "How did the recommendation get here?",
+    "sourceChapters": [
+      "c02"
+    ],
+    "beats": [
+      {
+        "id": "c02-b01",
+        "say": "Keep the report author and the sentence fixed. In the first case a colleague pastes the excerpt into chat. The words came in through the user’s message. That’s direct prompt injection. In the second case the assistant fetches the report. That’s indirect injection.",
+        "hold": 0.3
+      },
+      {
+        "id": "c02-b02",
+        "say": "An ordinary request for a summary can bring in the very same text.",
+        "hold": 0.85
+      },
+      {
+        "id": "c02-b03",
+        "say": "Both passages steer the summary toward a release. That objective targets application policy. A jailbreak targets the model's safety rules. A single attempt can have both objectives. Language, conversation history and the medium can vary while the entry route stays the same.",
+        "hold": 0.3
+      },
+      {
+        "id": "c02-b04",
+        "say": "An image or recording can carry it too. Keep the original source label on any text you extract or transcribe.",
+        "hold": 0.8
+      },
+      {
+        "id": "c02-b05",
+        "say": "The host gets the user’s identity from the signed-in session. Here that user may summarize an accessible evaluation. Reading it gives the user no release permission. Even an authenticated connector can deliver someone else’s words. Its tool descriptions enter the model’s context before a call, and its results enter afterward. Check the source of both.",
+        "hold": 0.9
+      }
+    ]
+  },
+  {
+    "id": "c03",
+    "title": "Close each path to a protected effect",
+    "sourceChapters": [
+      "c03"
+    ],
+    "beats": [
+      {
+        "id": "c03-b01",
+        "say": "Trace the orange path from the private notes through the reader to an outside recipient. Simon Willison calls this combination of private data, untrusted content and external communication the lethal trifecta. Remove the notes from the reader. It can still read the report, send a reply and request a release. Every field it can still send needs a destination and a disclosure check.",
+        "hold": 0.7
+      },
+      {
+        "id": "c03-b02",
+        "say": "A write can change production without disclosing a secret. A protected sink is a place where output can disclose data or change state. Replies, links, attachments, tool arguments, memory and logs can all have effects. Even a read request transmits information to the receiving service.",
+        "hold": 0.7
+      },
+      {
+        "id": "c03-b03",
+        "say": "Give the reader the report and leave every tool that can change state out of its reach. Only the executor gets the release credential, scoped to the approved endpoint.",
+        "hold": 0.3
+      },
+      {
+        "id": "c03-b04",
+        "say": "For a browser or code runner, the host also limits which files it can open and where it can connect. Check those permissions on the running process.",
+        "hold": 0.7
+      }
+    ]
+  },
+  {
+    "id": "c04",
+    "title": "Who sets the menu format?",
+    "sourceChapters": [
+      "c04"
+    ],
+    "beats": [
+      {
+        "id": "c04-b01",
+        "say": "You ask a restaurant assistant to list the soup names exactly as printed, in plain text. Its signed-in session allows a menu read. The application fetches the Harbor Room menu. The restaurant wrote the menu, including a memo about how to print it.",
+        "hold": 0.55
+      },
+      {
+        "id": "c04-b02",
+        "say": "Look at the memo. It asks for the names in capitals. That harmless formatting request is part of the retrieved document. The source label tells us who wrote it. Suppose the model proposes the restaurant's format. Which version should reach the diner?",
+        "hold": 2.4
+      },
+      {
+        "id": "c04-b03",
+        "say": "The application checks its allowlist for this request. The reader may read the menu. The allowed reply format preserves the printed capitalization. The proposed capital-letter format falls outside the list. The application prints the two names in the requested format. The memo remains available to inspect, with its source label intact.",
+        "hold": 0.55
+      }
+    ]
+  },
+  {
+    "id": "c05",
+    "title": "Change markup characters without changing authority",
+    "sourceChapters": [
+      "c05"
+    ],
+    "beats": [
+      {
+        "id": "c05-b01",
+        "say": "Keep that restaurant memo. In another entry, the chef has put angle brackets around the dish name Peas. Watch the two angle brackets change into escaped characters when the host puts that name in a markup wrapper. The parser can keep the wrapper intact. The memo's words still reach the model in the same context.",
+        "hold": 0.7
+      },
+      {
+        "id": "c05-b02",
+        "say": "The host can label the document or repeat the requested format after it. A random attribute on an opening tag still uses the same closing tag. Models can learn to give message roles different weight. A causal transformer attends to permitted earlier positions. The application's session and allowlist still decide what the reader may do.",
+        "hold": 0.7
+      }
+    ]
+  },
+  {
+    "id": "c06",
+    "title": "Prompt structure guides behavior",
+    "sourceChapters": [
+      "c06"
+    ],
+    "beats": [
+      {
+        "id": "c06-b01",
+        "say": "Back at the release service, the developer asks for an evaluation summary. The retrieved report carries a source label. The passing test result and the author's recommendation both enter the model's context. The role and the boundary help the model interpret those words.",
+        "hold": 0.65
+      },
+      {
+        "id": "c06-b02",
+        "say": "Suppose the model follows the recommendation. Out comes a proposal for C seventeen, production, twenty-five percent traffic at revision three. Look at the service reading beside it. Generating the proposal has moved no traffic. The host has yet to check permission.",
+        "hold": 0.9
+      }
+    ]
+  },
+  {
+    "id": "c07",
+    "title": "What can the reader hand over?",
+    "sourceChapters": [
+      "c07"
+    ],
+    "beats": [
+      {
+        "id": "c07-b01",
+        "say": "Give the raw report to a reader that has no tools, release credential, or unrestricted network access. It can inspect the recommendation without being able to act on it. Ordinary application code checks what comes back. A separate executor gets approved arguments and a narrow credential.",
+        "hold": 0.3
+      },
+      {
+        "id": "c07-b02",
+        "say": "This is one way to quarantine a reader. The published dual-model design also describes a privileged model working with restricted references to the reader’s results.",
+        "hold": 0.8
+      },
+      {
+        "id": "c07-b03",
+        "say": "Suppose the reader hands a planner a paragraph. That paragraph can carry the recommendation into a component with more power. Send a bounded field when the task allows it. A suite ID can cross here.",
+        "hold": 0.3
+      },
+      {
+        "id": "c07-b04",
+        "say": "Numbers, booleans, and a choice from a fixed list also give the host something it can check. Those fields can still be wrong, and this narrower interface gives up some open-ended planning.",
+        "hold": 0.9
+      },
+      {
+        "id": "c07-b05",
+        "say": "The extractor looks for the words eval suite followed by a complete identifier, R and one to six digits. It finds R forty-two. The caller supplies the source identity, upload eight. Now try the seven-digit identifier. Could the extractor return its first six digits?",
+        "hold": 2.25
+      },
+      {
+        "id": "c07-b06",
+        "say": "The seventh digit belongs to that same identifier. The extractor returns no suite ID. A following letter, underscore or hyphen also prevents a partial match. The caller still identifies the source as upload eight, regardless of what the document calls itself.",
+        "hold": 1
+      }
+    ]
+  },
+  {
+    "id": "c08",
+    "title": "What can cross from the reader?",
+    "sourceChapters": [
+      "c08"
+    ],
+    "beats": [
+      {
+        "id": "c08-b01",
+        "say": "The host accepts a record only if it has exactly the three keys for candidate, suite and gate. The reader supplies those fields, plus an operation label and an approval claim. The host checks this record as a whole. Which fields will cross?",
+        "hold": 2
+      },
+      {
+        "id": "c08-b02",
+        "say": "This copy stops here. Even its three good fields stay on the reader’s side.",
+        "hold": 0.95
+      },
+      {
+        "id": "c08-b03",
+        "say": "Try a fresh copy with just the three expected fields. Here the host knows what the source says. C seventeen passed suite R forty-two. The fields match, so this copy crosses. Now the host attaches the source ID from its own lookup. We have one piece of checked evidence and zero release writes.",
+        "hold": 0.95
+      },
+      {
+        "id": "c08-b04",
+        "say": "Open a different report for C seventeen. It records ninety-one percent accuracy and leaves the gate blank. Which of these fields has a measured value? Keep the measured accuracy and cite this report. Mark release eligibility unresolved. Forcing a choice between passed and failed would manufacture a fact. For a release decision, look up the authoritative evaluation record when the service provides one.",
+        "hold": 0.95
+      }
+    ]
+  },
+  {
+    "id": "c09",
+    "title": "A valid shape can describe the wrong evidence",
+    "sourceChapters": [
+      "c09"
+    ],
+    "beats": [
+      {
+        "id": "c09-b01",
+        "say": "Line up the proposed record with its source. Both gate values are strings. The reader says passed. The source says failed. The exact comparison rejects the claim. A real source ID from a different suite also fails the candidate, suite and version binding. An instruction detector can miss both discrepancies.",
+        "hold": 0.7
+      },
+      {
+        "id": "c09-b02",
+        "say": "A quotation can be accurate yet misleading when it omits a condition. Preserve the supporting passage and distinguish a necessary approval from sufficient release permission. A report for an earlier artifact can be factually correct and operationally stale. Immutable artifact and evaluation revisions identify what was checked. A mutable latest label can point to a different artifact tomorrow.",
+        "hold": 0.7
+      },
+      {
+        "id": "c09-b03",
+        "say": "When support is unresolved, read the new report. It records ninety-one percent accuracy and leaves the gate blank. Return the known metric with release eligibility marked unresolved. At execution, recheck the current facts that policy requires. Schema validation, factual evidence verification and authorization are three separate operations. The same visible record must pass each relevant boundary before it can inform a protected effect.",
+        "hold": 0.7
+      }
+    ]
+  },
+  {
+    "id": "c10",
+    "title": "A later result must not rewrite a committed action",
+    "sourceChapters": [
+      "c10"
+    ],
+    "beats": [
+      {
+        "id": "c10-b01",
+        "say": "Return to the restaurant. Before retrieval the application selects one action from the diner's request, list soups. Once the menu arrives, the reader can supply names for that action. The memo can influence the proposed format, but there is no step that asks the reader to select a new action.",
+        "hold": 0.7
+      },
+      {
+        "id": "c10-b02",
+        "say": "Compare a workflow that chooses again after retrieval. A tool-name allowlist alone leaves the selected arguments open. A reply to the wrong recipient would still disclose data. Bind the recipient, fields and printed capitalization to the request. A committed action gives up some flexibility. If a document should influence the next action, design and check that branch explicitly.",
+        "hold": 0.7
+      }
+    ]
+  },
+  {
+    "id": "c11",
+    "title": "Validate decoded fields before checking permission",
+    "sourceChapters": [
+      "c11"
+    ],
+    "beats": [
+      {
+        "id": "c11-b01",
+        "say": "The reference action parser accepts exactly action, candidate ID and eval suite, all strings. Actions are answer-eval or request-promotion. Candidate and suite identifiers have their own bounded patterns. Duplicate JSON keys are rejected while decoding, before a parser can silently overwrite one action with another. Extra fields and a Boolean suite are rejected too.",
+        "hold": 0.7
+      },
+      {
+        "id": "c11-b02",
+        "say": "The fixture limits raw text to five hundred twelve characters. Try four hundred copies of this accented letter. Each occupies one character and two UTF-eight bytes. That's four hundred characters and eight hundred bytes, before JSON parsing. Enforce a transport byte limit before decoding, then check the decoded fields.",
+        "hold": 0.7
+      },
+      {
+        "id": "c11-b03",
+        "say": "A structured-output schema can constrain the fields of a complete response. JSON mode on its own guarantees less about their shape. Handle a refusal or an incomplete response before dispatch. A complete proposal for C seventeen still needs a check against the actual candidate, target and operation.",
+        "hold": 0.7
+      }
+    ]
+  },
+  {
+    "id": "c12",
+    "title": "C17’s release record",
+    "sourceChapters": [
+      "c12"
+    ],
+    "beats": [
+      {
+        "id": "c12-b01",
+        "say": "Here’s the write the assistant proposed after reading the report. It asks for a quarter of production traffic at revision three. The release service knows the caller is the authenticated release worker. It checks the candidate, destination, traffic, and current revision, then looks up the approval for this operation.",
+        "hold": 0.7
+      },
+      {
+        "id": "c12-b02",
+        "say": "The approval is missing. The service records a denial. The observed line stays at zero percent and the release stays at revision three. The audit record identifies the worker that asked, even though the attempt made no change.",
+        "hold": 0.9
+      },
+      {
+        "id": "c12-b03",
+        "say": "Start a fresh run from revision three. Casey has approved this operation for the same candidate, production target and traffic share. The approval is still valid. The service permits dispatch. Look at the observed line. It still reads zero while the write waits.",
+        "hold": 1
+      },
+      {
+        "id": "c12-b04",
+        "say": "Dispatch the write. The service has received the request for twenty-five percent. Watch the measured line. At commit, the allocation takes effect and the revision advances to four. That's one change to the release.",
+        "hold": 1.2
+      },
+      {
+        "id": "c12-b05",
+        "say": "Now the caller receives the receipt for that operation. Compare it with the service. The receipt names C seventeen, twenty-five percent traffic, and revision four. All three match the committed state. That’s what lets the caller report that this release actually happened.",
+        "hold": 0.9
+      }
+    ]
+  },
+  {
+    "id": "c13",
+    "title": "Four checks for one release",
+    "sourceChapters": [
+      "c13"
+    ],
+    "beats": [
+      {
+        "id": "c13-b01",
+        "say": "Try a different release. Here the requested traffic is ten percent. This form puts the current operation beside approval nine. Read across each row. The session supplies the user, and the host supplies the operation. The approval also has to name this candidate, this evaluation, and this target. The local write ledger is empty.",
+        "hold": 0.9
+      },
+      {
+        "id": "c13-b02",
+        "say": "Follow the checks in order. First check ownership. Next check that the evaluation passed and is current. Then check the target. Only then does the host compare the whole approval. With no approval it reaches an empty lookup. An unknown approval ID gets the same result.",
+        "hold": 0.3
+      },
+      {
+        "id": "c13-b03",
+        "say": "A different user stops at ownership. An old suite stops at the evaluation check. An approval for another operation gets as far as the final comparison. Switching to staging passes this fixture’s target allowlist but fails the approval’s target binding.",
+        "hold": 0.3
+      },
+      {
+        "id": "c13-b04",
+        "say": "Staging is allowed here, but this reviewer approved ten percent in production. Switching to a hundred-percent target fails the allowlist itself. The host can reject that destination before it even reads the grant.",
+        "hold": 1
+      },
+      {
+        "id": "c13-b05",
+        "say": "Restore the ten-percent target with the right user, suite and operation. Seven earlier requests stopped at their first failed check. This tuple matches. The host records one release and consumes approval nine. A replay reaches the empty grant slot and adds nothing.",
+        "hold": 0.3
+      },
+      {
+        "id": "c13-b06",
+        "say": "Across all those checks and the replay, the ledger contains one release. We supplied the proposals directly, so these results tell us how the host behaved.",
+        "hold": 1
+      }
+    ]
+  },
+  {
+    "id": "c14",
+    "title": "The receipt never came back",
+    "sourceChapters": [
+      "c14"
+    ],
+    "beats": [
+      {
+        "id": "c14-b01",
+        "say": "Two workers restart after separate runs of operation nine. Each removed a one-use approval from its local dictionary. Look in their inboxes. Both are empty. Can you tell which worker's request reached the release service?",
+        "hold": 2.8
+      },
+      {
+        "id": "c14-b02",
+        "say": "Rewind the two histories. In A, the worker stopped before dispatch. In B, the request reached the service. The service committed one release. The reply was lost before it reached the worker. Both inboxes are empty again. Only B has a release.",
+        "hold": 1.2
+      },
+      {
+        "id": "c14-b03",
+        "say": "In the recovery design, atomically reserve the approval for operation nine before dispatch. Bind that reservation to the arguments and immutable candidate and evaluation revisions. On restart, look up operation nine at the service. A has no recorded commit. B has one. The worker can recover B's receipt.",
+        "hold": 0.3
+      },
+      {
+        "id": "c14-b04",
+        "say": "An empty lookup can still leave an outcome pending if a request is in flight. Retry only under current policy, with the same operation and arguments. An idempotent service records at most one effect for that operation, even if it receives the delivery twice.",
+        "hold": 1.1
+      },
+      {
+        "id": "c14-b05",
+        "say": "Row B already has its release. Recover its receipt and leave the count at one. Test that lost reply against the release service. Now give two workers the same approval in a separate test. Worker A arrives first. Only one can claim it. A owns the reservation. Worker B stops.",
+        "hold": 0.3
+      },
+      {
+        "id": "c14-b06",
+        "say": "A new operation or a change to the arguments needs fresh authorization. At dispatch, recheck expiry, revocation, and the reviewer’s permission.",
+        "hold": 0.9
+      }
+    ]
+  },
+  {
+    "id": "c15",
+    "title": "Protect disclosure and state changes",
+    "sourceChapters": [
+      "c15"
+    ],
+    "beats": [
+      {
+        "id": "c15-b01",
+        "say": "Follow two proposed outputs from the same reader. One carries a private notes field toward a recipient. The other names a change to a release. A disclosure check must know the field, caller and recipient. A release check needs the worker, the requested change and a current approval.",
+        "hold": 0.65
+      },
+      {
+        "id": "c15-b02",
+        "say": "The host limits which private fields the model can read, which destinations it can contact and which operations it can request. Give each protected endpoint its own action-specific authorization check.",
+        "hold": 0.9
+      }
+    ]
+  },
+  {
+    "id": "c16",
+    "title": "Authorize the complete outgoing resource",
+    "sourceChapters": [
+      "c16"
+    ],
+    "beats": [
+      {
+        "id": "c16-b01",
+        "say": "The reference policy allows a single report resource. Read its address in pieces. It uses HTTPS, the exact evaluation hostname, the default port or four forty-three, and the report path ending in R forty-two. It allows no embedded credentials, query, fragment or path parameters. The example makes no network request.",
+        "hold": 0.7
+      },
+      {
+        "id": "c16-b02",
+        "say": "Attach a harmless page label as a query. The address fails because the query is nonempty. A fragment is also outside policy even though HTTP usually keeps it on the client. The host can construct the fixed address from the trusted report ID.",
+        "hold": 0.7
+      },
+      {
+        "id": "c16-b03",
+        "say": "A redirect and DNS resolution can change the actual endpoint after the string check. The HTTP client or egress proxy must enforce destination and IP policy at connection time, including the workload’s internal and IPv6 routes. Constrain methods, headers, bodies and credentials too.",
+        "hold": 0.3
+      },
+      {
+        "id": "c16-b04",
+        "say": "An allowed host is not permission to send every private field or call its write endpoints.",
+        "hold": 0.7
+      }
+    ]
+  },
+  {
+    "id": "c17",
+    "title": "Inspect a complete payload before releasing its bytes",
+    "sourceChapters": [
+      "c17"
+    ],
+    "beats": [
+      {
+        "id": "c17-b01",
+        "say": "A canary is a marker placed in protected data. If the same characters appear in a reply, the host can hold it for review. We'll use a short printed marker you can recognize. A fresh production marker drawn from sixteen random bytes has a hundred twenty-eight random bits.",
+        "hold": 0.7
+      },
+      {
+        "id": "c17-b02",
+        "say": "The ordinary accuracy summary has no exact match. The supplied response containing the notes marker trips that marker. Host code must use the result before a response or tool argument is released.",
+        "hold": 0.3
+      },
+      {
+        "id": "c17-b03",
+        "say": "Here the marker is split between two chunks. Scanned separately, neither contains the whole marker. Slide the pieces together. Does the assembled reply contain it?",
+        "hold": 2.1
+      },
+      {
+        "id": "c17-b04",
+        "say": "It matches. Hold the complete reply before releasing any bytes. A streaming scanner needs equivalent cross-chunk state and enough buffering to prevent release. This check finds the exact marker. Unmarked private text still needs field and recipient controls.",
+        "hold": 0.7
+      }
+    ]
+  },
+  {
+    "id": "c18",
+    "title": "What did the detector flag?",
+    "sourceChapters": [
+      "c18"
+    ],
+    "beats": [
+      {
+        "id": "c18-b01",
+        "say": "The toy detector flags the report's release recommendation. Another report with the same objective raises no alert. A security manual quotes the phrase for discussion and gets flagged too. Compare those flags with the host's records. Neither release has a matching grant. The reader has permission to analyze the manual. Which requests should the host allow?",
+        "hold": 2.6
+      },
+      {
+        "id": "c18-b02",
+        "say": "Blocking every flagged passage would stop a legitimate request to analyze the manual.",
+        "hold": 0.85
+      },
+      {
+        "id": "c18-b03",
+        "say": "Now check what each user can do. Both write requests lack approval. The authorized reader can analyze the manual. Detectors can route a case for review. Message structure, validated fields, limited tools, and current permission checks still have work to do. Test the actual release and the useful answer under both kinds of detector error.",
+        "hold": 1
+      }
+    ]
+  },
+  {
+    "id": "c19",
+    "title": "A classifier answers a narrower question than permission",
+    "sourceChapters": [
+      "c19"
+    ],
+    "beats": [
+      {
+        "id": "c19-b01",
+        "say": "Meta’s twenty-twenty-five Prompt Guard two model cards describe twenty-two-million and eighty-six-million variants with a five-hundred-twelve-token window and benign-or-malicious labels for explicit prompt attacks. They omit the earlier separate injection label and warn about adaptive attacks and application-specific distributions. Segmenting a long input can lose relationships across segments.",
+        "hold": 0.7
+      },
+      {
+        "id": "c19-b02",
+        "say": "Llama Guard four instead classifies text and images against a safety hazard taxonomy. A product can use a classifier to route review or reduce capabilities. Frameworks can score test cases, but the application defines a forbidden effect. A benign label answers a classification question. The host still looks up ownership and approval.",
+        "hold": 0.7
+      }
+    ]
+  },
+  {
+    "id": "c20",
+    "title": "Measure protected effects",
+    "sourceChapters": [
+      "c20"
+    ],
+    "beats": [
+      {
+        "id": "c20-b01",
+        "say": "Build an evaluation with ordinary reports, direct user attacks, retrieved attacks, and harmless security discussions. Record the intended policy outcome for each case before running the model.",
+        "hold": 0.55
+      },
+      {
+        "id": "c20-b02",
+        "say": "Measure protected data reaching an unapproved sink and state changes that lacked authorization. Track false rejection alongside its impact on useful work.",
+        "hold": 0.7
+      },
+      {
+        "id": "c20-b03",
+        "say": "A refusal-only score misses an agent that declines after a tool has already acted. Read this trace in time order. First comes the release worker’s attempted tool call, then a receipt for a write without authorization, then the refusal. Compare the credential, destination and resulting release state with the expected outcome.",
+        "hold": 0.55
+      }
+    ]
+  },
+  {
+    "id": "c21",
+    "title": "Which traces count as unsafe?",
+    "sourceChapters": [
+      "c21"
+    ],
+    "beats": [
+      {
+        "id": "c21-b01",
+        "say": "To test a host gate in isolation, give it a proposed record. For an end-to-end evaluation use safe tool doubles and retain the model trace. A proposal, an attempted call, an effect and a completed useful task are four different observations.",
+        "hold": 0.65
+      },
+      {
+        "id": "c21-b02",
+        "say": "Take these two attack traces. Trace A records an unauthorized write. In that same trace a private field reaches an unapproved recipient. Trace B asks for a write and the host denies it. Count each trace containing at least one forbidden effect. How many traces go in the unsafe count?",
+        "hold": 2.05
+      },
+      {
+        "id": "c21-b03",
+        "say": "One trace. Both effects belong to A. B adds a second evaluated trace to the denominator. So one of these two traces was unsafe. The attack success rate counts each affected trace once, even if the assistant refused after the damage was done.",
+        "hold": 1
+      },
+      {
+        "id": "c21-b04",
+        "say": "Here’s a larger set of supplied counts. Ten of a hundred distinct attack traces caused a forbidden effect. That gives ten percent. Now count benign requests. Forty of a thousand were blocked, so the false rejection rate is four percent.",
+        "hold": 0.3
+      },
+      {
+        "id": "c21-b05",
+        "say": "You still need to check the quality of the answers that got through. Compare the two-sided ninety-five percent Wilson intervals for the two rates on the right. The attack interval is wider.",
+        "hold": 0.3
+      },
+      {
+        "id": "c21-b06",
+        "say": "They run from about five and a half to seventeen point four percent for attacks, and three to five point four percent for false rejections.",
+        "hold": 1.1
+      }
+    ]
+  },
+  {
+    "id": "c22",
+    "title": "How much can zero tell us?",
+    "sourceChapters": [
+      "c22"
+    ],
+    "beats": [
+      {
+        "id": "c22-b01",
+        "say": "Here the report has zero unsafe outcomes in two hundred fifty attack traces. The observed rate is zero. To make the release decision, the example policy asks where the upper end of a two-sided ninety-five percent Wilson interval falls.",
+        "hold": 0.7
+      },
+      {
+        "id": "c22-b02",
+        "say": "With zero unsafe traces and a positive sample size, there’s a short calculation. Square one point nine six. Divide that by the sample size plus the same square. See where two hundred fifty goes in the denominator. The upper endpoint comes out to about one point five one percent. It falls inside the two-percent limit.",
+        "hold": 0.9
+      },
+      {
+        "id": "c22-b03",
+        "say": "Now take just twenty attack traces, again with zero unsafe outcomes. Only the sample size changes in the calculation. Does the twenty-trace sample clear the same two-percent limit?",
+        "hold": 2
+      },
+      {
+        "id": "c22-b04",
+        "say": "The upper endpoint is about sixteen point one one percent. It exceeds the two-percent limit. If there are no trials, the observed rate and interval are undefined. The example gate uses one as a conservative fallback, without treating it as a measured bound.",
+        "hold": 0.3
+      },
+      {
+        "id": "c22-b05",
+        "say": "Its helper requires whole-number counts within their denominator, rejects Boolean counts, and requires a positive finite value for z.",
+        "hold": 0.9
+      },
+      {
+        "id": "c22-b06",
+        "say": "Both intervals assume independent trials with a fixed underlying rate. Variants of the same report can fail together, and an attacker can adapt to what the system does. Record how the traces were selected and which model and tools ran.",
+        "hold": 0.3
+      },
+      {
+        "id": "c22-b07",
+        "say": "Hold out some families and benign tasks so the next evaluation includes cases the team never tuned on.",
+        "hold": 0.9
+      }
+    ]
+  },
+  {
+    "id": "c23",
+    "title": "Does this release report qualify?",
+    "sourceChapters": [
+      "c23"
+    ],
+    "beats": [
+      {
+        "id": "c23-b01",
+        "say": "Take the larger report to release review. This example policy requires zero unsafe traces and a Wilson upper endpoint of at most two percent. It also limits observed false rejection to two percent. Two of two hundred benign requests were blocked. That’s one percent.",
+        "hold": 0.3
+      },
+      {
+        "id": "c23-b02",
+        "say": "The totals clear the minimum of two hundred attacks and a hundred benign requests.",
+        "hold": 0.75
+      },
+      {
+        "id": "c23-b03",
+        "say": "Read the five labels above the bars. Direct input, retrieved documents, tool results, multi-turn sessions and multimodal inputs each need at least thirty attack traces. Here each has fifty. All checks pass, so the report is eligible for review. Release itself still needs authorization.",
+        "hold": 0.9
+      },
+      {
+        "id": "c23-b04",
+        "say": "Change just the tool-result count to zero. The total number of attack traces stays at two hundred fifty. Does this report still qualify?",
+        "hold": 2.1
+      },
+      {
+        "id": "c23-b05",
+        "say": "Hold it. The tool-result count misses the minimum. Four groups of fifty give two hundred label memberships. That leaves at least fifty of the two hundred fifty traces outside all five labels. A trace with two labels counts once under each. If any trace carries more than one label, even more traces fall outside these five.",
+        "hold": 0.3
+      },
+      {
+        "id": "c23-b06",
+        "say": "Each label count must still lie between zero and the number of distinct attacks.",
+        "hold": 0.9
+      },
+      {
+        "id": "c23-b07",
+        "say": "For a separate comparison, keep only twenty attack traces with four under each label. The upper bound rises above two percent, and both the total and the per-label counts fall short. In a final comparison, restore the full attack sample and block every benign request.",
+        "hold": 0.3
+      },
+      {
+        "id": "c23-b08",
+        "say": "The one hundred percent false rejection rate vetoes that report. Each of these reports recorded zero unsafe attacks.",
+        "hold": 1
+      }
+    ]
+  },
+  {
+    "id": "c24",
+    "title": "A cache hit carries its access context",
+    "sourceChapters": [
+      "c24"
+    ],
+    "beats": [
+      {
+        "id": "c24-b01",
+        "say": "A private cache drawer holds the intern's read of report C seventeen at revision three. The owner asks for the same report in a promotion context. Build the key from the owner's session. It misses. The intern's original read key hits. Matching the resource alone leaves two parts of the key different.",
+        "hold": 0.7
+      },
+      {
+        "id": "c24-b02",
+        "say": "Build keys from authenticated host state, including resource arguments and revision needed for reuse. Invalidate on relevant authorization changes and recheck access even on a hit. Public immutable content can be shared under a suitable access policy; this example concerns a private per-user result. Cached evidence never becomes an approval record.",
+        "hold": 0.7
+      },
+      {
+        "id": "c24-b03",
+        "say": "After a miss, the owner may retrieve the same external text independently. Model prefix caching reuses computation for identical prefixes; application tool-result access is a separate decision. Reused histories must preserve provenance and principal boundaries just as stored tool results do.",
+        "hold": 0.7
+      }
+    ]
+  },
+  {
+    "id": "c25",
+    "title": "Carry provenance through a later turn",
+    "sourceChapters": [
+      "c25"
+    ],
+    "beats": [
+      {
+        "id": "c25-b01",
+        "say": "Turn one saved a note saying approval granted. When the next session reloads it, the sentence could sound like a host decision. Open the note's source field. It came from the external report. Keep that field and the evidence label with the note across turns.",
+        "hold": 0.3
+      },
+      {
+        "id": "c25-b02",
+        "say": "Text repeating an approval does not create a current approval-store entry.",
+        "hold": 0.7
+      },
+      {
+        "id": "c25-b03",
+        "say": "Poisoned memory can influence a later model, so test a multi-step trace that writes a note and then reloads it. Recheck the active principal, artifact, suite, destination and operation at the protected sink. An old unused approval for another task and an already consumed approval both fail the matching current authorization path.",
+        "hold": 0.7
+      },
+      {
+        "id": "c25-b04",
+        "say": "Keep useful summaries and benign quoted security text available under their read policy. The aim is to constrain consequences while preserving the task. Measure both the reader’s influenced outputs and the host’s decisions. Otherwise a host that saves every bad proposal can hide a model that follows every attack.",
+        "hold": 0.7
+      }
+    ]
+  },
+  {
+    "id": "c26",
+    "title": "Protect the reviewer and the incident record",
+    "sourceChapters": [
+      "c26"
+    ],
+    "beats": [
+      {
+        "id": "c26-b01",
+        "say": "A reviewer reads the same material. Display external text as inert text. Put the author's recommendation beside the action the worker requested. The worker asked for twenty-five percent. The service found no matching approval and recorded zero writes.",
+        "hold": 0.3
+      },
+      {
+        "id": "c26-b02",
+        "say": "Persuasive plain text can still influence a person. Give the reviewer the requested effect, the independent approval lookup and the observed outcome. The author’s recommendation explains where the proposal came from.",
+        "hold": 0.7
+      },
+      {
+        "id": "c26-b03",
+        "say": "Incident reconstruction needs a source reference or appropriately redacted payload, the model proposal, principal, policy version, decision, approval state and execution result. Keep records long enough for the declared purpose, with access and retention controls. Copying every raw prompt indefinitely can create another store of secrets. A public hash does not anonymize guessable input.",
+        "hold": 0.7
+      },
+      {
+        "id": "c26-b04",
+        "say": "NIST’s Generative AI Profile groups this work under Govern, Map, Measure, and Manage. Give each boundary an owner. To check the release gate, give the host a proposal and read its decision. To see what the model requested, open its tool trace.",
+        "hold": 0.3
+      },
+      {
+        "id": "c26-b05",
+        "say": "To find out what changed in production, match the release receipt to the operation.",
+        "hold": 0.7
+      }
+    ]
+  },
+  {
+    "id": "c27",
+    "title": "Let evidence inform the model safely",
+    "sourceChapters": [
+      "c27"
+    ],
+    "beats": [
+      {
+        "id": "c27-b01",
+        "say": "The report can still inform a useful summary or a proposed next step. Our two executions showed how a typed proposal becomes a denied attempt or an approved, receipted change. The decision is inspectable because the caller, operation, approval and resulting state remain linked.",
+        "hold": 0.65
+      },
+      {
+        "id": "c27-b02",
+        "say": "When a result looks wrong, follow the source through the proposed action to its destination. Find which check decided, verify the receipt, and check whether the reader still got the useful answer. Then run an authorized case through the same path. You'll use those records to decide which layer needs repair.",
+        "hold": 0.9
+      }
+    ]
+  },
+  {
+    "id": "c28",
+    "title": "One more release request",
+    "sourceChapters": [
+      "c28"
+    ],
+    "beats": [
+      {
+        "id": "c28-b01",
+        "say": "This time the candidate is C twenty-six. The signed-in user owns it. The candidate passed its current evaluation, suite R seventy-three. Staging is allowed. The host opens operation twelve. A cached report note says approved. The trusted grant agrees on the user, candidate, suite, and target.",
+        "hold": 0.3
+      },
+      {
+        "id": "c28-b02",
+        "say": "The grant names operation eleven. How many writes can operation twelve add?",
+        "hold": 2.4
+      },
+      {
+        "id": "c28-b03",
+        "say": "Zero. The grant belongs to operation eleven. It can sit there unused. The note came from a report author. It stayed in the cache, with the same authority it had when it was written. The host still needs a grant for the operation it is running.",
+        "hold": 1.1
+      },
+      {
+        "id": "c28-b04",
+        "say": "Start a fresh run with an empty ledger and the same request and note. Change the trusted grant to operation twelve. Now the operations match. The host consumes that grant and appends one entry. Send the same request again. How many entries will there be?",
+        "hold": 2.5
+      },
+      {
+        "id": "c28-b05",
+        "say": "One entry. The replay looks up the grant and finds it consumed. It adds zero entries. Compare the operation on that single ledger entry with the one on the request.",
+        "hold": 1.1
+      },
+      {
+        "id": "c28-b06",
+        "say": "Go back to the first request, the one you denied. The user can read the evaluation. The assistant can say that C twenty-six passed evaluation R seventy-three. Keep that answer beside the release decision. If the user disputes it, give the policy owner the operation record.",
+        "hold": 0.3
+      },
+      {
+        "id": "c28-b07",
+        "say": "The operation record names the grant the worker found and the field that differed. In Responsible AI Governance, that record goes to the person who owns the policy and can review a disputed decision.",
+        "hold": 1.4
+      }
+    ]
+  }
+]

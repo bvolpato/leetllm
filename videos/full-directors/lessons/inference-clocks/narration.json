@@ -1,0 +1,313 @@
+[
+  {
+    "id": "c01",
+    "title": "Which pause would you investigate?",
+    "sourceChapters": ["c01"],
+    "beats": [
+      {
+        "id": "c01-b01",
+        "say": "Watch these two cursors. Both requests arrived together. Both are finishing the line, “The birds sing softly.” B has already sent “at dawn.” A is still silent. If you had to pick a winner from this picture, which period would you expect first?",
+        "hold": 2.6
+      },
+      {
+        "id": "c01-b02",
+        "say": "Let the clocks run. A finally starts, then catches B. Their periods line up at four hundred twenty-eight milliseconds. Look back at where the waiting happened. Which trace would you open for a complaint about a blank screen? Which one for a complaint about a reply that keeps pausing?",
+        "hold": 2.5
+      },
+      {
+        "id": "c01-b03",
+        "say": "For the blank screen, open A. Its first token took three hundred twenty milliseconds. For the mid-reply pause, open B. It started in eighty, then spent two hundred seventy-seven milliseconds between “dawn” and “too.” Both replies have the same full-request rate. We will follow A from the prompt through the cache and out to the reader. These traces are teaching examples.",
+        "hold": 1
+      }
+    ]
+  },
+  {
+    "id": "c02",
+    "title": "Which words can “birds” see?",
+    "sourceChapters": ["c02"],
+    "beats": [
+      {
+        "id": "c02-b01",
+        "say": "A prompt already contains known tokens. Read our four across the top. Within one layer, the model can project all four rows together in a matrix multiplication. Now follow the row for “birds.” Which of the four positions can it attend to?",
+        "hold": 2.3
+      },
+      {
+        "id": "c02-b02",
+        "say": "The first two. A causal mask lets a position use its own word and the ones before it. Each layer receives the preceding layer’s results. At every full-attention layer, each consumed position leaves a key for matching future queries and a value those queries can retrieve. Saving these pairs builds the key-value cache.",
+        "hold": 1
+      },
+      {
+        "id": "c02-b03",
+        "say": "This initial prompt processing is called prefill. The last position supplies scores for the next token. Sample those scores and out comes “at.” Count the four pairs in this layer’s cache. The newest word is outside it, ready to go through the model on the next step.",
+        "hold": 1
+      }
+    ]
+  },
+  {
+    "id": "c03",
+    "title": "Which word earns a cache slot?",
+    "sourceChapters": ["c03"],
+    "beats": [
+      {
+        "id": "c03-b01",
+        "say": "Feed “at” back in. It produces a new key and value and its query reads the retained prefix, including its own position. The model predicts “dawn.” Five positions now have cached pairs. Look at the output line before the next step. Which word will take the sixth slot?",
+        "hold": 2.1
+      },
+      {
+        "id": "c03-b02",
+        "say": "Consume “dawn.” Its pair becomes the sixth entry. The next word is “too.” After three outputs, our cache holds six positions. The four prompt positions and two consumed outputs explain that count. Every step of ordinary autoregressive decode needs the preceding prediction. Several requests can share a batch while each preserves its own token order.",
+        "hold": 1
+      },
+      {
+        "id": "c03-b03",
+        "say": "Consume “too.” The model emits the period. For full attention with all history retained and at least one output, add prompt length and output count, then subtract one. Four plus four minus one gives seven. The period has never gone back through the network. Physical page padding takes a separate memory budget.",
+        "hold": 1
+      },
+      {
+        "id": "c03-b04",
+        "say": "Keep the same sentence and clear its saved pairs. The next step needs that history. It must rebuild the prefix keys and values to reproduce full-history attention. Keep the cache instead and the next query can read those pairs directly. That saves computation. A longer prefix still means more cached data to read on each step.",
+        "hold": 1
+      }
+    ]
+  },
+  {
+    "id": "c04",
+    "title": "What can move the first word?",
+    "sourceChapters": ["c04"],
+    "beats": [
+      {
+        "id": "c04-b01",
+        "say": "Open the time before “at.” From server arrival, A waited seventy milliseconds in a queue. Tokenization took ten, prefill two hundred thirty, and sampling ten. Adding these dependent spans gives the first-token endpoint. This is server time to first token, or T T F T. Now replay the same processing with an empty queue. Where will “at” land?",
+        "hold": 2.4
+      },
+      {
+        "id": "c04-b02",
+        "say": "Remove the queue. The first token now leaves at two hundred fifty milliseconds. Prefill still takes two hundred thirty. The other three words also move seventy milliseconds earlier. Their spacing survives. A long first wait can come from queueing even when the model processes the prompt at exactly the same speed.",
+        "hold": 1
+      },
+      {
+        "id": "c04-b03",
+        "say": "Restore the queue. This client sent thirty milliseconds before server arrival and sees the first token thirty milliseconds after emission. Its clock runs from minus thirty to three fifty, giving three hundred eighty milliseconds. Name those endpoints. Prefix reuse, batching and hidden generation can change the work before visible text. Network transit, proxy buffering and rendering can change when the reader sees it.",
+        "hold": 1
+      }
+    ]
+  },
+  {
+    "id": "c05",
+    "title": "How many gaps fit between four marks?",
+    "sourceChapters": ["c05"],
+    "beats": [
+      {
+        "id": "c05-b01",
+        "say": "Set a divider on the first two emissions. The left point touches “at,” at three twenty. The right point touches “dawn,” at three fifty-five. Walk a divider across each remaining pair. How many steps did you take from the first word to the period?",
+        "hold": 2
+      },
+      {
+        "id": "c05-b02",
+        "say": "Three steps. Subtract neighboring timestamps for the inter-token latencies. Read them from left to right. Thirty-five, thirty-seven and thirty-six milliseconds. Together they span a hundred eight milliseconds. Divide by three to get thirty-six milliseconds per later token. That mean gap is time per output token, or T P O T.",
+        "hold": 1
+      },
+      {
+        "id": "c05-b03",
+        "say": "Turn the dividers into a rate. Three later tokens in point one zero eight seconds give about twenty-seven point eight tokens per second. A single-token reply gives us its first wait and no later gap to measure. Slide the start back to arrival. Now all four tokens count. Four in point four two eight seconds give nine point three five tokens per second over the whole request.",
+        "hold": 1
+      },
+      {
+        "id": "c05-b04",
+        "say": "Across requests, specify how you average. Suppose one gap is ten milliseconds and another is a hundred. Their rates are a hundred and ten tokens per second, respectively. Averaging those rates gives fifty-five. Averaging the two gaps first gives fifty-five milliseconds. Its reciprocal is about eighteen tokens a second. Those calculations answer different questions.",
+        "hold": 1
+      }
+    ]
+  },
+  {
+    "id": "c06",
+    "title": "Where did the last two tokens wait?",
+    "sourceChapters": ["c06"],
+    "beats": [
+      {
+        "id": "c06-b01",
+        "say": "Keep the server marks fixed. Place the client on the same time axis. Give each token thirty milliseconds in transit. The four client marks shift to the right by the same distance. The reader sees a later start with exactly the same gaps. Watch the words themselves as we replay delivery from the second word.",
+        "hold": 1
+      },
+      {
+        "id": "c06-b02",
+        "say": "Hold the last two tokens. The server sends “too,” then the period. Follow both into the buffer. The client cursor still waits after “dawn.” When the gate opens, how many times will that cursor advance?",
+        "hold": 2.3
+      },
+      {
+        "id": "c06-b03",
+        "say": "One jump. The client gets both tokens together at four seventy. The preceding delivery event was at three eighty-five. That makes eighty-five milliseconds between events. Two new tokens share that interval. Dividing by two gives forty-two and a half milliseconds per delivered token. What can you recover about the generation time of “too” from that average?",
+        "hold": 2
+      },
+      {
+        "id": "c06-b04",
+        "say": "You need the server mark. In this run “too” left at three ninety-two. Compare another run with the same client events. This time “too” leaves at four thirty-eight. Now the server took eighty-three milliseconds after “dawn” instead of thirty-seven. Inspect the worker schedule for this run and the delivery path for the first. Join by token identity. A chunk or a speculative decode iteration can carry several tokens.",
+        "hold": 1
+      }
+    ]
+  },
+  {
+    "id": "c07",
+    "title": "How much work can one read buy?",
+    "sourceChapters": ["c07"],
+    "beats": [
+      {
+        "id": "c07-b01",
+        "say": "One projection weight can serve many known prompt rows. For a single decode stream, it serves one new row. Read this two-byte weight once. One row uses it for a multiply and an add. That is two floating-point operations for two bytes. Arithmetic intensity measures work per byte moved.",
+        "hold": 1
+      },
+      {
+        "id": "c07-b02",
+        "say": "Use eight rows for that same read. Sixteen operations divided by two bytes gives eight operations per weight byte. Batched decode can gain this reuse across requests. On this teaching chip the bandwidth ceiling is ten terabytes per second times intensity. The compute ceiling is two hundred teraflops per second. Which ceiling is lower at thirty-two rows?",
+        "hold": 2.3
+      },
+      {
+        "id": "c07-b03",
+        "say": "The compute ceiling. At twenty rows the two roofs meet. At thirty-two rows the arithmetic units cap the rate at two hundred. These are upper bounds for the assumed work and traffic. To place a real kernel, measure its operations, elapsed time and device bytes, including activations, cache reads and repeated loads. Batching can raise total throughput while a chat waits longer between words.",
+        "hold": 1
+      }
+    ]
+  },
+  {
+    "id": "hardware",
+    "title": "How fast could one stream run?",
+    "sourceChapters": ["c07"],
+    "beats": [
+      {
+        "id": "hardware-b01",
+        "say": "Take the H one hundred S X M worksheet. Its listed B F sixteen peak of nineteen hundred seventy-nine teraflops per second assumes structured sparsity. For dense arithmetic, halve that peak. The same memory still moves three point three five terabytes a second. Dividing the dense peak by that bandwidth puts the ridge near two hundred ninety-five operations per byte.",
+        "hold": 1
+      },
+      {
+        "id": "hardware-b02",
+        "say": "At one operation per byte, the roof allows three point three five teraflops per second, about a third of one percent of dense peak. That fraction compares arithmetic rates. Memory can stay busy delivering weights. Suppose one stream reads fifty-four gigabytes of weights for each new token. How many such reads fit in one second of peak bandwidth?",
+        "hold": 2.2
+      },
+      {
+        "id": "hardware-b03",
+        "say": "About sixty-two. Divide three thousand three hundred fifty gigabytes per second by fifty-four gigabytes per token. That ceiling spends the whole bandwidth budget on weights. Stretch a full-attention history from four thousand to thirty-two thousand positions. The next query must read eight times as many cached pairs. Those reads, kernel overhead and bandwidth below peak can lengthen gaps even with the same weights.",
+        "hold": 1
+      }
+    ]
+  },
+  {
+    "id": "payload",
+    "title": "What grows with each consumed word?",
+    "sourceChapters": ["c03", "c08"],
+    "beats": [
+      {
+        "id": "payload-b01",
+        "say": "Zoom in on one of the pairs in A’s cache. In this hybrid example, twenty-four query heads share four stored key-value heads. Six readers use each pair. Which head count belongs on the memory bill?",
+        "hold": 2.1
+      },
+      {
+        "id": "payload-b02",
+        "say": "Four stored heads. Each has a key and a value, each vector two hundred fifty-six entries wide. Each entry takes two bytes. Stack that arrangement in the sixteen layers that store full-attention history. Multiply those dimensions. One retained position adds sixty-four kibibytes.",
+        "hold": 1
+      },
+      {
+        "id": "payload-b03",
+        "say": "Grow the sequence to four thousand ninety-six positions. Its raw history now takes a quarter gibibyte. Eight such sequences take two gibibytes. For unequal lengths, sum their retained positions. For unequal layer layouts, sum each layer’s bytes. Count only the retained window in a sliding layer. This model’s other forty-eight layers keep recurrent state with a separate per-request cost.",
+        "hold": 1
+      }
+    ]
+  },
+  {
+    "id": "pages",
+    "title": "Can the worker promise another page?",
+    "sourceChapters": ["c08"],
+    "beats": [
+      {
+        "id": "pages-b01",
+        "say": "Put sixteen positions on one memory page. Fill it, then append one more position. Seventeen live positions now occupy thirty-two slots, leaving fifteen unused. A block table can point to pages in different parts of memory. This avoids reserving one contiguous maximum-length region per chat. Reserve enough pages for future output, or plan how to preempt under pressure.",
+        "hold": 1
+      },
+      {
+        "id": "pages-b02",
+        "say": "Set weights, workspace and other state aside. The pool left for growing history is twelve decimal gigabytes. Forty requests each reserve four thousand ninety-six positions at sixty-four kibibytes apiece. Try adding sixteen thousand three hundred eighty-four positions. Compare that stack with the pool line. Would you promise those pages?",
+        "hold": 2.1
+      },
+      {
+        "id": "pages-b03",
+        "say": "They fit. The total is about eleven point eight one gigabytes. Keep the forty live reservations and try sixty-five thousand five hundred thirty-six positions instead. The total rises to fifteen point zero three gigabytes. Queue this request under the reservation policy. Its length can be legal for the model and still exceed the worker’s remaining capacity.",
+        "hold": 1
+      },
+      {
+        "id": "pages-b04",
+        "say": "Turn the calculation around. A different worker has eighteen decimal gigabytes for growing history. Share it equally among fifty users. Divide the pool by fifty, then by one mebibyte per page, and round down. Each user gets three hundred forty-three whole pages, or five thousand four hundred eighty-eight positions. Double the users. Each now gets a hundred seventy-one pages, or two thousand seven hundred thirty-six positions. A product limit can be lower still.",
+        "hold": 1
+      }
+    ]
+  },
+  {
+    "id": "schedule",
+    "title": "Who waits for a long prompt?",
+    "sourceChapters": ["c06", "c08"],
+    "beats": [
+      {
+        "id": "schedule-b01",
+        "say": "A live chat needs thirty-five milliseconds for its next decode turn. An eight-thousand-one-hundred-ninety-two-token prompt arrives just ahead of it. Prefill occupies the shared worker for two hundred milliseconds. Look from the last token to the next. How long is the gap?",
+        "hold": 2
+      },
+      {
+        "id": "schedule-b02",
+        "say": "Two hundred thirty-five milliseconds. Cut prefill into four equal chunks. Give the chat a decode turn between chunks. In this example each chunk takes fifty milliseconds, so the first gap falls to eighty-five. The newcomer finishes prefill later. Chunking changes when the work runs. The same prompt positions still need cache space.",
+        "hold": 1
+      },
+      {
+        "id": "schedule-b03",
+        "say": "Now follow a different prompt with four thousand ninety-six tokens. Prefill and decode run on separate workers. Move its growing keys and values to the decode worker. At sixty-four kibibytes per position, they occupy a quarter gibibyte. The link carries two hundred gigabits per second at peak. That’s twenty-five gigabytes per second. At that speed, the growing keys and values alone take about ten point seven milliseconds. The decode worker also needs this hybrid’s recurrent state. Sending it adds bytes to the handoff. On the shared worker, existing chats waited for a decode turn. Here the shorter request waits for its state to arrive. Replay identical traffic to compare both layouts on first waits, tail gaps, correct on-time replies and total cost.",
+        "hold": 1
+      }
+    ]
+  },
+  {
+    "id": "precision",
+    "title": "Which bytes does a smaller format save?",
+    "sourceChapters": ["c08"],
+    "beats": [
+      {
+        "id": "precision-b01",
+        "say": "Start with an eighty-gigabyte device. Weights take fifty-four gigabytes and runtime reserves eight. That leaves eighteen gigabytes. Give each user five thousand one hundred twenty reserved positions. If the pool pays only for raw keys and values, how many users fit when each value takes two bytes?",
+        "hold": 2
+      },
+      {
+        "id": "precision-b02",
+        "say": "Fifty-three users. Change the cache to one byte per value. Each position now costs half as much and the same pool fits a hundred seven users. Weight compression changes the space left for the pool. Cache compression changes the bytes each position consumes inside it.",
+        "hold": 1
+      },
+      {
+        "id": "precision-b03",
+        "say": "Now charge a hundred forty-four mebibytes of recurrent state per user to that same pool, in both formats. The two capacities fall to thirty-six and fifty-six. That fixed allocation survives the format change. Scales, page slack and buffers can also use space. Check kernel support, calibrate the format, and measure answer quality and latency on the same requests before relying on the gain.",
+        "hold": 1
+      }
+    ]
+  },
+  {
+    "id": "c08",
+    "title": "Would you change speed or capacity?",
+    "sourceChapters": ["c08"],
+    "beats": [
+      {
+        "id": "c08-b01",
+        "say": "Try a fresh worker trace. Each first token must leave within four hundred fifty milliseconds, and every later gap must be fifty milliseconds or less. Read the four server marks. Does this request pass both limits? Which gap would you use to check the second one?",
+        "hold": 2.8
+      },
+      {
+        "id": "c08-b02",
+        "say": "It passes both. The first wait was four hundred ten milliseconds. The longest gap was forty-seven. The three gaps averaged forty-four milliseconds per later token. The admitted reply ran smoothly, yet another chat was rejected before prefill. Open its reservation. Seven one-mebibyte pages are spoken for in an eight-mebibyte pool. The newcomer needs two pages. Which change lets all three requests fit together?",
+        "hold": 2.7
+      },
+      {
+        "id": "c08-b03",
+        "say": "Halve the raw cache bytes per value. Keep the same sixteen positions on every page. Nine half-mebibyte pages now use four and a half mebibytes. Faster decode could free an old page sooner, but storing these three reservations together still requires smaller pages, fewer reserved positions, or more memory.",
+        "hold": 1
+      },
+      {
+        "id": "c08-b04",
+        "say": "Count every request offered in a fresh twenty-second trial. Twelve replies were correct and on time, five requests were rejected, and three failed. Goodput is twelve divided by twenty seconds, or point six requests per second. Sixty percent of offered requests succeeded on time. Keep cancellations in that population too. Match traffic, quality and resource cost across trials. You can now trace a pause to a clock and a rejected chat to its pages. Next we’ll look at how several query heads can share the same stored keys and values.",
+        "hold": 1.3
+      }
+    ]
+  }
+]

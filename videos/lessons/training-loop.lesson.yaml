@@ -1,0 +1,1742 @@
+version: 1
+id: training-loop
+title: How a PyTorch Training Loop Changes a Model
+source: foundations/pytorch-training-loops/content.md
+voice: en-US-AndrewNeural
+rate: +0%
+sources:
+  - title: PyTorch 2.14 autograd modes
+    url: https://docs.pytorch.org/docs/2.14/notes/autograd.html
+  - title: PyTorch 2.14 CrossEntropyLoss contracts
+    url: https://docs.pytorch.org/docs/2.14/generated/torch.nn.CrossEntropyLoss.html
+  - title: PyTorch 2.14 gradient clearing semantics
+    url: https://docs.pytorch.org/docs/2.14/generated/torch.optim.Optimizer.zero_grad.html
+  - title: PyTorch saving and loading state
+    url: https://docs.pytorch.org/tutorials/beginner/saving_loading_models.html
+  - title: PyTorch 2.14 AMP examples
+    url: https://docs.pytorch.org/docs/2.14/notes/amp_examples.html
+  - title: PyTorch 2.14 operation autocast and scaling
+    url: https://docs.pytorch.org/docs/2.14/amp.html
+  - title: PyTorch 2.14 inference tensor boundary
+    url: https://docs.pytorch.org/docs/2.14/generated/torch.autograd.grad_mode.inference_mode.html
+  - title: PyTorch 2.14 global norm clipping
+    url: https://docs.pytorch.org/docs/2.14/generated/torch.nn.utils.clip_grad_norm_.html
+  - title: Python 3.12 successful atomic replacement
+    url: https://docs.python.org/3.12/library/os.html#os.replace
+  - title: Linux fsync file versus directory durability
+    url: https://man7.org/linux/man-pages/man2/fsync.2.html
+  - title: PyTorch 2.14 compile capture behavior
+    url: https://docs.pytorch.org/docs/2.14/generated/torch.compile.html
+scenes:
+  - id: intro
+    title: Which call fixes this ticket’s route?
+    visual: Follow ticket A into the standard inbox on a tie. Run backward, take one SGD step, and score A
+      again. Move the same ticket to its new inbox and mark the score gap on the ruler.
+    beats:
+      - say: Checkout is down. This ticket belongs in escalation. Both scores are zero, and a tie sends it to
+          standard. Which call can fix the route, backward or optimizer step?
+        caption_starts:
+          - Which call can fix the route
+        hold: 2.1
+        visual_cues:
+          - id: intro-score-tie
+            phrase: Both scores are zero
+            targets:
+              - intro-scores
+            color: blue
+            linger: 0.35
+          - id: intro-choose
+            phrase: backward or optimizer step
+            targets:
+              - intro-scores
+              - intro-operation
+            color: yellow
+            linger: 0.35
+          - id: intro-pin
+            phrase: a tie sends it to standard
+            targets:
+              - intro-scores
+              - route-ruler
+            color: blue
+            linger: 0.3
+      - say: Train on A and one ticket labeled standard. Run backward. The gradient buffer fills. Score A
+          again with the same weights. It's still a tie.
+        caption_starts:
+          - Run backward
+        hold: 0.85
+        visual_cues:
+          - id: intro-gradient
+            phrase: The gradient buffer fills
+            targets:
+              - intro-operation
+            color: yellow
+            linger: 0.35
+          - id: intro-still
+            phrase: It's still a tie
+            targets:
+              - intro-scores
+              - route-ruler
+            color: cyan
+            linger: 0.35
+            caption_boundary: true
+      - say: Take one optimizer step and score A again. Escalation wins. It scores point two against minus
+          point two for standard. The marker moves four tenths to the right.
+        hold: 0.95
+        visual_cues:
+          - id: intro-result
+            phrase: Escalation wins
+            targets:
+              - intro-scores
+              - intro-operation
+              - route-ruler
+            color: green
+            linger: 0.35
+            caption_boundary: true
+          - id: intro-read-scores
+            phrase: It scores point two against minus point two for standard
+            targets:
+              - intro-scores
+            color: cyan
+            linger: 0.35
+            caption_boundary: true
+          - id: intro-gap
+            phrase: four tenths to the right
+            targets:
+              - route-ruler
+            color: green
+            linger: 0.3
+            caption_boundary: true
+  - id: tensors
+    title: A batch is a pair of aligned tensors
+    visual: Six ticket rows keep their IDs attached to two feature values and one
+      class label as a four-row batch separates from the final two.
+    beats:
+      - say: Each ticket is two floating point features and one integer target. The
+          target identifies the standard queue or specialist escalation. A batch
+          stacks feature rows into a matrix and targets into a matching vector,
+          so row identity must stay aligned through shuffling and loading.
+        hold: 0.6
+        visual_cues:
+          - id: tensors-beat-1-focus-1
+            phrase: stacks feature rows into a matrix and targets
+            targets:
+              - tensors-object-feature-rows-targets-12
+            color: blue
+            linger: 0.6
+          - id: tensors-beat-1-focus-2
+            phrase: Each ticket is two floating point features and one integer target
+            targets:
+              - tensors-object-sample-name-11
+            color: blue
+            linger: 0.6
+      - say: With six tickets and a batch size of four, the loader emits one group of
+          four and a final group of two. Follow the same ticket IDs across both
+          tensors as the split moves. Their shapes are six by two for features
+          and six for labels before batching.
+        hold: 0.8
+        visual_cues:
+          - id: tensors-beat-2-focus-1
+            phrase: With six tickets and a batch size of four
+            targets:
+              - tensors-object-sample-name-11
+            color: blue
+            linger: 0.6
+  - id: loss-contract
+    title: A shape match does not validate the objective
+    visual: Retain the actual ticket rows. Compare integer route indices with full
+      floating target distributions, then score raw logits and a deliberately
+      double-normalized input.
+    beats:
+      - say: For this hard-label router, features are floating rows, logits have one
+          score per class, and targets are a one-dimensional long-integer
+          vector. A target shaped batch by one or a floating class-index vector
+          violates that contract. A different soft-target contract uses floating
+          distributions with the same batch-by-class shape as the logits;
+          PyTorch does not validate those distributions for you.
+        hold: 0.65
+        visual_cues:
+          - id: loss-contract-beat-0
+            phrase: For this hard-label router, features are floating rows, logits have one
+              score per class, and targets are a one-dimensional long-integer
+              vector
+            targets:
+              - loss-contract-mechanism
+            color: cyan
+            linger: 0.65
+      - say: Pass raw logits to cross entropy. It computes negative target logit plus
+          log-sum-exp over class logits. Subtract the maximum score inside the
+          exponential calculation for stability. Taking log of a separately
+          rounded softmax can turn an underflowed probability into minus
+          infinity; feeding softmax probabilities to cross entropy makes them be
+          treated as logits and changes the objective.
+        hold: 0.65
+        visual_cues:
+          - id: loss-contract-beat-1
+            phrase: Pass raw logits to cross entropy
+            targets:
+              - loss-contract-mechanism
+            color: yellow
+            linger: 0.65
+      - say: The integer labels and feature rows must stay paired through one shared
+          shuffle. Before scaling up, print and decode a real batch, inspect
+          targets and shapes, and verify its loss. A falling number cannot
+          validate a different objective or a mismatched ticket identity.
+        hold: 0.65
+        visual_cues:
+          - id: loss-contract-beat-2
+            phrase: The integer labels and feature rows must stay paired through one shared
+              shuffle
+            targets:
+              - loss-contract-mechanism
+            color: cyan
+            linger: 0.65
+          - id: loop-shuffle
+            phrase: one shared shuffle
+            targets:
+              - loss-contract-mechanism
+            color: yellow
+            linger: 0.6
+  - id: scores
+    title: Raw scores become a classification loss
+    visual: Two supplied logit pairs become stable softmax probabilities,
+      correct-class likelihoods, and a row-weighted batch loss.
+    beats:
+      - say: A linear head produces one logit per destination. Logits are unrestricted
+          scores, so the pair two and minus one does not itself describe
+          percentages. Cross entropy applies log softmax internally and selects
+          the score associated with the target class.
+        hold: 0.6
+        visual_cues:
+          - id: scores-beat-1-focus-1
+            phrase: A linear head produces one logit per destination
+            targets:
+              - scores-simulation-16
+            color: blue
+            linger: 0.6
+          - id: scores-beat-1-focus-2
+            phrase: and selects the score associated with the target
+            targets:
+              - scores-object-ticket-a-target-standard-14
+            color: blue
+            linger: 0.6
+      - say: The first ticket already strongly favors its correct route. The second
+          ticket's scores are closer, so its correct route receives less
+          probability and contributes a larger loss. The bars show both rows and
+          their batch average.
+        hold: 0.8
+        visual_cues:
+          - id: scores-beat-2-focus-1
+            phrase: The first ticket already strongly favors its correct route
+            targets:
+              - scores-simulation-16
+            color: blue
+            linger: 0.6
+          - id: scores-beat-2-focus-2
+            phrase: The bars show both rows and their batch average
+            targets:
+              - scores-simulation-16
+              - scores-batch-average
+            color: yellow
+            linger: 0.6
+  - id: phases
+    title: Two tickets, one weight update
+    visual: Keep W and W.grad side by side. Follow both tickets into the same escalation-weight derivative
+      before applying SGD and re-scoring A.
+    beats:
+      - say: Go back to the first step. Clear the buffer. Ticket A has two positive features and belongs in
+          escalation. B has two negative features and belongs in standard. The forward pass reads the zero
+          weights. Both tickets give their target half the probability, so each costs about point six nine
+          three nats.
+        hold: 0.8
+        visual_cues:
+          - id: phases-inputs
+            phrase: Ticket A has two positive features
+            targets:
+              - phases-pair
+            color: blue
+            linger: 0.35
+          - id: phases-loss
+            phrase: each costs about point six nine three nats
+            targets:
+              - phases-readout
+            color: cyan
+            linger: 0.35
+      - say: Follow the urgency weight for escalation. On A, take the probability minus its target indicator.
+          Half minus one is minus a half. Multiply by A's urgency, plus one. B gives half minus zero,
+          times minus one. Both tickets contribute minus a half, so their mean is minus a half. Calling
+          backward writes that mean into the gradient buffer, in the escalation row under urgency. The
+          weights still read zero.
+        hold: 1.1
+        visual_cues:
+          - id: phases-contrib-a
+            phrase: Half minus one is minus a half
+            targets:
+              - phases-pair
+            color: yellow
+            linger: 0.35
+          - id: phases-contrib-b
+            phrase: B gives half minus zero, times minus one
+            targets:
+              - phases-pair
+            color: yellow
+            linger: 0.35
+          - id: phases-written
+            phrase: Calling backward writes that mean into the gradient buffer, in the escalation row under urgency
+            targets:
+              - phases-gradient-matrix
+            color: yellow
+            linger: 0.35
+          - id: phases-weights-still-zero
+            phrase: The weights still read zero
+            targets:
+              - phases-weight-matrix
+            color: green
+            linger: 0.35
+      - say: Plain SGD subtracts the stored gradient times point two. Subtracting a negative raises the
+          escalation weight to point one. Severity gets the same update. The standard weights move the
+          other way. Run A through those weights again. Its escalation score leads by four tenths, just as
+          it did on the opening ruler.
+        hold: 0.95
+        visual_cues:
+          - id: phases-beat-3-focus-1
+            phrase: Plain SGD subtracts the stored gradient times point two
+            targets:
+              - phases-weight-matrix
+              - phases-gradient-matrix
+            color: green
+            linger: 0.35
+          - id: phases-rescore
+            phrase: Its escalation score leads by four tenths
+            targets:
+              - phases-readout
+            color: cyan
+            linger: 0.35
+  - id: none-and-momentum
+    title: Will a weight move with a zero gradient?
+    visual: Retain one scalar weight and momentum buffer. Fork a missing gradient
+      and a zero tensor, compute their distinct next weights, and show that
+      clearing gradients leaves optimizer history.
+    beats:
+      - say: Clear the gradients before the next independent backward pass. You can do this on either side of
+          forward. Backward adds derivatives to the trainable leaves it reaches. An unused weight can
+          still have an empty gradient field. Forward has state of its own. In training mode, BatchNorm
+          can update its running statistics as it reads the batch.
+        hold: 0.65
+        visual_cues:
+          - id: none-and-momentum-beat-0
+            phrase: Clear the gradients before the next independent backward pass
+            targets:
+              - none-and-momentum-mechanism
+            color: cyan
+            linger: 0.65
+      - say: Setting a gradient to None releases the parameter's reference to that tensor. Other references
+          or the allocator can keep the storage. Now take one SGD step from weight one with gradient one
+          and learning rate one tenth. The weight reaches point nine, and its momentum buffer holds one.
+          Make two copies. Give one an empty gradient field and the other a zero. Which weight will move
+          on the next step?
+        hold: 2
+        visual_cues:
+          - id: none-and-momentum-beat-1
+            phrase: Make two copies
+            targets:
+              - none-and-momentum-mechanism
+            color: yellow
+            linger: 0.65
+          - id: momentum-saved
+            phrase: The weight reaches point nine, and its momentum buffer holds one
+            targets: [none-and-momentum-mechanism]
+            color: cyan
+            linger: 0.35
+          - id: momentum-first-step
+            phrase: Now take one SGD step
+            targets: [none-and-momentum-mechanism]
+            color: cyan
+            linger: 0.35
+      - say: SGD skips the weight with no gradient. It stays at point nine. With a zero gradient, SGD
+          multiplies the old momentum by nine tenths and adds zero. The buffer now holds point nine. At a
+          learning rate of one tenth, subtract nine hundredths. The weight moves to point eight one.
+          Clearing the gradient leaves the momentum history in place. Weight decay can also move a
+          parameter with a zero gradient.
+        caption_starts:
+          - It stays at point nine
+          - With a zero gradient, SGD multiplies
+          - The buffer now holds point nine
+          - The weight moves to point eight one
+        hold: 0.65
+        visual_cues:
+          - id: none-and-momentum-beat-2
+            phrase: SGD skips the weight with no gradient
+            targets:
+              - none-and-momentum-mechanism
+            color: cyan
+            linger: 0.65
+          - id: loop-missing-gradient
+            phrase: It stays at point nine
+            targets:
+              - none-and-momentum-mechanism
+            color: yellow
+            linger: 0.6
+          - id: loop-zero-gradient
+            phrase: The weight moves to point eight one
+            targets:
+              - none-and-momentum-mechanism
+            color: yellow
+            linger: 0.6
+          - id: momentum-decayed
+            phrase: The buffer now holds point nine
+            targets: [none-and-momentum-mechanism]
+            color: pink
+            linger: 0.35
+  - id: accumulation
+    title: What is still in w.grad?
+    visual: Hold w at one and rebuild the same square three times. Each backward call deposits two units in
+      the buffer. Clear the reference before the third call and compare the two readings.
+    beats:
+      - say: Hold the weight at one. Square it. The slope here is two. Run backward once and the buffer holds
+          two. Keep the weight fixed, build the same square again, and call backward a second time. It
+          adds another two. The buffer now holds four, even though the slope here is still two.
+        hold: 1
+        visual_cues:
+          - id: buffer-first
+            phrase: the buffer holds two
+            targets:
+              - accumulation-buffer
+            color: yellow
+            linger: 0.35
+            caption_boundary: true
+          - id: buffer-second
+            phrase: The buffer now holds four
+            targets:
+              - accumulation-buffer
+            color: yellow
+            linger: 0.35
+            caption_boundary: true
+      - say: Start a fresh update. Set the gradient to None. The buffer is empty. The weight is still one. If
+          you build that same square and run backward once more, what will you read in the buffer?
+        hold: 1.95
+        visual_cues:
+          - id: buffer-clear
+            phrase: Set the gradient to None
+            targets:
+              - accumulation-buffer
+            color: pink
+            linger: 0.35
+            caption_boundary: true
+          - id: buffer-ask
+            phrase: what will you read in the buffer
+            targets:
+              - accumulation-buffer
+            color: yellow
+            linger: 0.35
+            caption_boundary: true
+      - say: Two. Only this last backward pass contributed. Clear before a fresh update. When several
+          microbatches belong to one update, keep their contributions together. You still have to decide
+          how much each microbatch counts.
+        hold: 0.8
+        visual_cues:
+          - id: buffer-fresh
+            phrase: Two
+            targets:
+              - accumulation-buffer
+            color: yellow
+            linger: 0.35
+            caption_boundary: true
+  - id: microbatch-denominators
+    title: How much weight does ticket C get?
+    visual: Give each ticket a share of the same strip. Compare equal chunks and equal tickets, then trace
+      the effect on the urgency weight for the standard route.
+    beats:
+      - say: Reset the router to zero weights and keep them fixed. A and B fit in the first chunk. Ticket C runs
+          alone. It also needs escalation, but its urgency is two. Follow the standard route's urgency
+          weight. At these weights, either A or B on its own gives a gradient of a half. C gives one. If
+          we weight the two chunk means equally, what fraction multiplies C's loss?
+        hold: 2
+        visual_cues:
+          - id: micro-first-chunks
+            phrase: A and B fit in the first chunk
+            targets:
+              - micro-shares
+            color: blue
+            linger: 0.35
+          - id: micro-question
+            phrase: what fraction multiplies C's loss
+            targets:
+              - micro-shares
+              - micro-readout
+            color: yellow
+            linger: 0.35
+      - say: C gets half. A and B share the other half, one quarter each. That makes the gradient three
+          quarters. Now give each ticket the same width. The first chunk gets two thirds and C gets one
+          third. The gradient becomes two thirds, exactly the mean of the three contributions. Severity
+          stays at a half in both runs.
+        hold: 1
+        visual_cues:
+          - id: micro-equal
+            phrase: C gets half
+            targets:
+              - micro-shares
+              - micro-readout
+            color: pink
+            linger: 0.35
+            caption_boundary: true
+          - id: micro-count
+            phrase: Now give each ticket the same width
+            targets:
+              - micro-shares
+            color: cyan
+            linger: 0.35
+          - id: micro-row-result
+            phrase: The gradient becomes two thirds
+            targets:
+              - micro-readout
+            color: green
+            linger: 0.35
+            caption_boundary: true
+          - id: micro-chunk-result
+            phrase: That makes the gradient three quarters
+            targets:
+              - micro-readout
+            color: pink
+            linger: 0.3
+            caption_boundary: true
+      - say: Apply those fractions to the mean losses before backward. A fraction applied only to a logged
+          number leaves the buffer untouched. For equal chunks, dividing each mean loss by the number of
+          chunks works. Skipping the division multiplies the gradient by that count. For plain SGD alone
+          that scales the step. Clipping, momentum history and Adam can change the effect. For ignored
+          targets or class weights, use each chunk's share of the loss denominator.
+        hold: 0.75
+        visual_cues:
+          - id: micro-loss
+            phrase: Apply those fractions to the mean losses before backward
+            targets:
+              - micro-readout
+              - micro-shares
+            color: cyan
+            linger: 0.35
+      - say: Accumulate at the same weights, then step once. BatchNorm can use different statistics in smaller
+          chunks, and Dropout can draw different masks. With distributed data parallel, put both forward
+          and backward of the early chunks inside no sync. Let the final backward synchronize the
+          accumulated gradients. Ranks need the same schedule. Other communication can still occur. With
+          loss scaling, keep one scale for the window. Unscale once after the last backward, then clip,
+          step, and update the scale.
+        hold: 0.85
+        visual_cues:
+          - id: micro-window
+            phrase: Let the final backward synchronize the accumulated gradients
+            targets:
+              - micro-readout
+            color: green
+            linger: 0.35
+          - id: micro-scale
+            phrase: Unscale once after the last backward
+            targets:
+              - micro-readout
+            color: yellow
+            linger: 0.35
+  - id: batching
+    title: Weight an epoch loss by its rows
+    visual: Batch means 0.20 and 0.50 combine with sizes four and two. Two animated
+      aggregations distinguish the row mean 0.30 from equal-batch mean 0.35.
+    beats:
+      - say: An epoch ends with one batch of four rows at mean loss 0.20 and a final
+          batch of two at mean loss 0.50. Each row should contribute equally to
+          this example's reported epoch average, so the batch sizes must remain
+          part of the calculation.
+        hold: 0.6
+        visual_cues:
+          - id: batching-beat-1-focus-1
+            phrase: with one batch of four rows at mean
+            targets:
+              - batching-object-batch-a-4-rows-mean-0-20-32
+            color: blue
+            linger: 0.6
+          - id: batching-beat-1-focus-2
+            phrase: a final batch of two at mean loss 0.50
+            targets:
+              - batching-batch-b
+            color: blue
+            linger: 0.6
+      - say: Multiply each mean by its row count, add the loss totals, and divide by
+          six. The result is 0.30. Giving each batch mean equal weight produces
+          0.35 and overstates the influence of the smaller final batch.
+        hold: 0.8
+        visual_cues:
+          - id: batching-beat-2-focus-1
+            phrase: Multiply each mean by its row count
+            targets:
+              - batching-object-distribution-batching-34
+            color: blue
+            linger: 0.6
+          - id: batching-beat-2-focus-2
+            phrase: Giving each batch mean equal weight produces 0
+            targets:
+              - batching-object-equal-batch-weighting-36
+            color: blue
+            linger: 0.6
+  - id: fit-batch
+    title: Memorize a clean batch to test the wiring
+    visual: A seeded two-layer ticket classifier runs 120 measured SGD updates. The
+      current update count, cross-entropy loss, weight norm, predictions, and
+      loss-curve endpoint all come from the same model state.
+    beats:
+      - say: Before loading a large dataset, ask whether the model and loop can memorize
+          a small, clean batch. This seeded two-layer ticket classifier starts
+          with a measured loss of 0.6521. As SGD changes the weights, we
+          reevaluate all eight tickets and plot each measured loss from the same
+          current model state. Across 120 updates, the loss reaches 0.0056 and
+          all eight routes are correct.
+        hold: 0.6
+        motion_check:
+          region:
+            - 285
+            - 315
+            - 1350
+            - 665
+          minimumChangedFraction: 0.002
+        visual_cues:
+          - id: fit-batch-beat-1-focus-1
+            phrase: 0056 and all eight routes are correct
+            targets:
+              - fit-batch-simulation-37
+            color: blue
+            linger: 0.6
+          - id: fit-batch-beat-1-focus-2
+            phrase: This seeded two-layer ticket classifier starts with a measured loss of 0
+            targets:
+              - fit-batch-object-ticket-38
+            color: blue
+            linger: 0.6
+      - say: All eight tickets now go to the right queues. That's a quick check on the shapes, labels, loss
+          and update order. Freeze these weights and try tickets the model has never seen.
+        hold: 0.8
+        visual_cues:
+          - id: fit-batch-beat-2-focus-1
+            phrase: All eight tickets now go to the right queues
+            targets:
+              - fit-batch-simulation-37
+            color: blue
+            linger: 0.6
+          - id: fit-batch-beat-2-focus-2
+            phrase: Freeze these weights
+            targets:
+              - fit-batch-object-distribution-fit-batch-40
+            color: blue
+            linger: 0.6
+  - id: layer-modes
+    title: Layer behavior and graph recording are separate controls
+    visual: Keep the same activation identities through a supplied Dropout mask and
+      evaluation identity. Separately show BatchNorm running-buffer updates and
+      graph-recording controls.
+    beats:
+      - say: Training-mode Dropout zeroes sampled entries and scales survivors by one
+          divided by one minus its probability. At one half, surviving
+          activations double. In this layer, evaluation is identity. If two outputs
+          match, check the layer's training flag. Two training calls can draw
+          the same mask. Linear and ReLU layers by themselves have the same computation
+          in train and eval.
+        hold: 0.65
+        visual_cues:
+          - id: layer-modes-beat-0
+            phrase: Training-mode Dropout zeroes sampled entries and scales survivors by one
+              divided by one minus its probability
+            targets:
+              - layer-modes-mechanism
+            color: cyan
+            linger: 0.65
+          - id: loop-dropout-train
+            phrase: surviving activations double
+            targets:
+              - layer-modes-mechanism
+            color: yellow
+            linger: 0.6
+          - id: loop-dropout-eval
+            phrase: evaluation is identity
+            targets:
+              - layer-modes-mechanism
+            color: yellow
+            linger: 0.6
+      - say: With default running-statistics tracking, BatchNorm training uses the
+          current batch and updates persistent running buffers; evaluation reads
+          those buffers. Disabling that tracking uses batch statistics in both
+          modes. LayerNorm itself applies the same trailing-dimension
+          normalization in either mode. Even inside no-grad, a BatchNorm layer in
+          training mode can update its running statistics.
+        hold: 0.65
+        visual_cues:
+          - id: layer-modes-beat-1
+            phrase: With default running-statistics tracking, BatchNorm training uses the
+              current batch and updates persistent running buffers; evaluation
+              reads those buffers
+            targets:
+              - layer-modes-mechanism
+            color: yellow
+            linger: 0.65
+      - say: For ordinary held-out loss evaluation, choose eval and no-grad and omit backward and optimizer
+          step. To find which inputs influence a score, keep the layers in eval and turn gradient
+          recording on. We use four validation tickets to choose a checkpoint. Save a separate set of
+          tickets for its final test.
+        hold: 0.65
+        visual_cues:
+          - id: layer-modes-beat-2
+            phrase: For ordinary held-out loss evaluation, choose eval and no-grad and omit
+              backward and optimizer step
+            targets:
+              - layer-modes-mechanism
+            color: cyan
+            linger: 0.65
+  - id: validation
+    title: Validation reads weights without updating them
+    visual: Training and evaluation lanes separate. A best-validation checkpoint is
+      copied into a frozen snapshot that does not follow later weight changes.
+    beats:
+      - say: Training mode and evaluation mode configure layers such as Dropout and
+          BatchNorm. Separately, no-grad prevents validation from recording an
+          autograd graph. During evaluation, compute held-out loss and accuracy
+          without calling backward or optimizer step.
+        hold: 0.6
+        visual_cues:
+          - id: validation-beat-1-focus-1
+            phrase: compute held-out loss and accuracy without calling backward or optimizer
+              step
+            targets:
+              - validation-object-validation-model-eval-44
+              - validation-measure-only
+            color: blue
+            linger: 0.6
+          - id: validation-beat-1-focus-2
+            phrase: Training mode and evaluation mode configure layers such as Dropout and
+              BatchNorm
+            targets:
+              - validation-object-training-model-train-43
+              - validation-object-validation-model-eval-44
+            color: blue
+            linger: 0.6
+      - say: The seeded ticket fixture selects epoch 60 with validation loss 0.0118.
+          Copy the state dictionary when saving that best model. A plain
+          dictionary view still refers to live tensors, so later in-place
+          updates can alter the supposed checkpoint.
+        hold: 0.8
+        motion_check:
+          region:
+            - 200
+            - 610
+            - 1520
+            - 270
+          minimumChangedFraction: 0.002
+        visual_cues:
+          - id: validation-beat-2-focus-1
+            phrase: The seeded ticket fixture selects epoch 60 with validation loss 0.0118
+            targets:
+              - validation-selected-epoch
+            color: blue
+            linger: 0.6
+          - id: validation-beat-2-focus-2
+            phrase: Copy the state dictionary when saving that best model
+            targets:
+              - validation-copied-checkpoint
+            color: blue
+            linger: 0.6
+          - id: validation-live-view
+            phrase: A plain dictionary view still refers to live tensors
+            targets:
+              - validation-live-parameters
+              - validation-plain-view
+            color: yellow
+            linger: 0.6
+  - id: resumption-state
+    title: Can the optimizer pick up where it left off?
+    visual: Inspect an update-boundary checkpoint. Fork a scalar SGD update at the same weight and gradient,
+      then compare both reloads with the uninterrupted ticket router on its next batch.
+    beats:
+      - say: Open the model's state dictionary. It holds named parameters and persistent buffers. A module can
+          add extra state. To put the router back together, you also need the architecture, what the two
+          features mean, and which column means escalation. Ordinary Python attributes and parameter
+          gradients sit outside that dictionary. Saving the whole module still leaves a dependency on its
+          Python class and import path.
+        hold: 0.7
+        visual_cues:
+          - id: resume-model
+            phrase: named parameters and persistent buffers
+            targets:
+              - resume-state
+            color: cyan
+            linger: 0.35
+            caption_boundary: true
+      - say: To continue training, save the optimizer state, the scheduler's position and the loss scaler if you
+          use them. Save the current random generator states for Python, NumPy, PyTorch on CPU and
+          accelerator, and any loader generator. Keep the step and split identity. A seed restarts a
+          sequence. Resuming mid-epoch may also need the sampler position or buffered stream data. In the
+          middle of accumulation, save the pending gradients or replay the window.
+        hold: 0.8
+        visual_cues:
+          - id: resume-window
+            phrase: In the middle of accumulation
+            targets:
+              - resume-state
+            color: cyan
+            linger: 0.35
+            caption_boundary: true
+      - say: Try restoring one weight. Both copies start at point nine and see the same next gradient, minus
+          one. SGD uses a learning rate of a tenth and a momentum coefficient of nine tenths. The first
+          copy restores a momentum buffer of one. The other starts fresh. Which copy takes the larger
+          step?
+        hold: 1.9
+        visual_cues:
+          - id: resume-fork
+            phrase: The first copy restores a momentum buffer of one
+            targets:
+              - resume-fork
+            color: cyan
+            linger: 0.35
+            caption_boundary: true
+      - say: The fresh copy takes the larger step. In the restored copy, nine tenths of the old buffer cancels
+          most of the new gradient. Momentum becomes minus a tenth, so the weight rises by one hundredth
+          to point nine one. With fresh momentum, the whole minus one goes into the buffer. The weight
+          rises by a tenth to one.
+        hold: 0.85
+        visual_cues:
+          - id: resume-small
+            phrase: the weight rises by one hundredth to point nine one
+            targets:
+              - resume-fork
+            color: cyan
+            linger: 0.35
+            caption_boundary: true
+          - id: resume-large
+            phrase: The weight rises by a tenth to one
+            targets:
+              - resume-fork
+            color: cyan
+            linger: 0.35
+            caption_boundary: true
+      - say: Now try the article's ticket router after eighty updates. Reload its weights in both copies. Their
+          scores agree before training resumes. Take one more step on the same batch and compare every
+          parameter with uninterrupted training. Restoring the optimizer matches. Weights alone give a
+          different next update. This check covers that fixed batch. To test shuffled or stochastic
+          training, restore and check the actual data order and random state as well. Exact replay also
+          depends on compatible software, hardware and deterministic operations.
+        hold: 1
+        visual_cues:
+          - id: resume-logits
+            phrase: Their scores agree before training resumes
+            targets:
+              - resume-checks
+            color: cyan
+            linger: 0.35
+            caption_boundary: true
+          - id: resume-ref
+            phrase: Restoring the optimizer matches
+            targets:
+              - resume-checks
+            color: cyan
+            linger: 0.35
+            caption_boundary: true
+          - id: resume-other
+            phrase: Weights alone give a different next update
+            targets:
+              - resume-checks
+            color: cyan
+            linger: 0.35
+            caption_boundary: true
+  - id: atomic-checkpoint
+    title: Which checkpoint can a reader open?
+    visual: Keep previous live checkpoint bytes visible. Write and sync a staging
+      file, fail before replacement, then distinguish successful atomic
+      visibility from directory-sync durability.
+    beats:
+      - say: Write a checkpoint staging file in the destination directory, serialize the complete bundle,
+          flush Python buffers and sync the file. Only after success replace the live path. On POSIX, a
+          reader opening that path gets the complete old checkpoint or the complete new one. On the first
+          save, the final path appears only when replacement succeeds.
+        hold: 0.65
+        visual_cues:
+          - id: atomic-checkpoint-beat-0
+            phrase: Write a checkpoint staging file in the destination directory, serialize
+              the complete bundle, flush Python buffers and sync the file
+            targets:
+              - atomic-checkpoint-mechanism
+            color: cyan
+            linger: 0.65
+          - id: loop-file-replace
+            phrase: Only after success replace the live path
+            targets:
+              - atomic-checkpoint-mechanism
+            color: yellow
+            linger: 0.6
+      - say: On Linux, sync the parent directory for durability of the renamed entry.
+          Atomic visibility and power-loss durability are separate properties,
+          and storage or network-filesystem contracts still matter. Coordinate
+          writers and use unique staging names when saves can overlap; keep
+          older checkpoints to bound lost progress.
+        hold: 0.65
+        visual_cues:
+          - id: atomic-checkpoint-beat-1
+            phrase: On Linux, sync the parent directory for durability of the renamed entry
+            targets:
+              - atomic-checkpoint-mechanism
+            color: yellow
+            linger: 0.65
+          - id: loop-directory-sync
+            phrase: sync the parent directory
+            targets:
+              - atomic-checkpoint-mechanism
+            color: yellow
+            linger: 0.6
+      - say: Here the writer fails halfway through the staging file. Open the live checkpoint. Every byte
+          still matches the previous save. When loading, use a trusted checkpoint and keep weights-only
+          loading enabled. Store the optimizer and random generator state in types the restricted loader
+          accepts. If the bundle needs a custom type, review it before adding it to the trusted list.
+        hold: 0.65
+        visual_cues:
+          - id: atomic-checkpoint-beat-2
+            phrase: Every byte still matches the previous save
+            targets:
+              - atomic-checkpoint-mechanism
+            color: cyan
+            linger: 0.65
+          - id: loop-stage-failure
+            phrase: the writer fails halfway through the staging file
+            targets:
+              - atomic-checkpoint-mechanism
+            color: yellow
+            linger: 0.6
+  - id: numerical-triage
+    title: Would you take this step?
+    visual: Replay a scalar loss at w = 3 with two offsets. Pair its forward value with the derivative and
+      make the update decision at the first failed finite check.
+    beats:
+      - say: At a weight of three, squaring gives nine. Add a constant offset of zero. The loss is nine, and
+          backward gives six. Both finite checks pass. Now change just the offset to positive infinity. It
+          has no gradient of its own. The weight still starts at three. If backward gives six again, would
+          you take the step?
+        hold: 2.1
+        visual_cues:
+          - id: triage-control
+            phrase: Both finite checks pass
+            targets:
+              - triage-control
+            color: cyan
+            linger: 0.35
+          - id: triage-offset
+            phrase: change just the offset to positive infinity
+            targets:
+              - triage-trial
+            color: yellow
+            linger: 0.35
+          - id: triage-nine
+            phrase: The loss is nine
+            targets:
+              - triage-control
+            color: cyan
+            linger: 0.25
+            caption_boundary: true
+          - id: triage-six
+            phrase: and backward gives six
+            targets:
+              - triage-control
+            color: green
+            linger: 0.25
+            caption_boundary: true
+      - say: Hold the step. The loss is infinite. Backward still gives six. Adding a constant changes the
+          forward value and leaves the derivative of the square alone. A scaler that checks only the
+          gradient can miss this failure. Inspect the offset that entered the loss before tuning the
+          learning rate.
+        hold: 1.1
+        visual_cues:
+          - id: triage-loss
+            phrase: The loss is infinite
+            targets:
+              - triage-trial
+            color: red
+            linger: 0.35
+            caption_boundary: true
+          - id: triage-gradient
+            phrase: Backward still gives six
+            targets:
+              - triage-trial
+            color: yellow
+            linger: 0.35
+            caption_boundary: true
+          - id: triage-stop
+            phrase: Inspect the offset that entered the loss
+            targets:
+              - triage-decision
+            color: red
+            linger: 0.35
+      - say: On a real batch, check the inputs, then the logits. If both are finite, inspect the loss, including
+          targets, masks, class weights and the reduction. Ignoring every target can make a mean
+          undefined. Even finite extreme logits can overflow a difference. A hard target outside the class
+          range usually raises an indexing error. After backward and any unscaling, check each gradient
+          that exists. If the step proceeds, check the updated parameters too.
+        hold: 0.8
+        visual_cues:
+          - id: triage-input
+            phrase: check the inputs
+            targets:
+              - triage-path
+            color: blue
+            linger: 0.35
+          - id: triage-objective
+            phrase: inspect the loss
+            targets:
+              - triage-path
+            color: yellow
+            linger: 0.35
+          - id: triage-params
+            phrase: check the updated parameters too
+            targets:
+              - triage-path
+            color: green
+            linger: 0.35
+          - id: triage-logits
+            phrase: then the logits
+            targets:
+              - triage-path
+            color: cyan
+            linger: 0.35
+          - id: triage-gradcheck
+            phrase: check each gradient that exists
+            targets:
+              - triage-path
+            color: yellow
+            linger: 0.35
+      - say: For a scalar log, item gives you a Python number. On CUDA that read can wait for device work.
+          Detach drops the history and keeps the tensor on its device. Ordinary backward releases saved
+          tensors, but keeping the loss tensor can still keep graph references alive. Choose how often you
+          need the report.
+        hold: 0.7
+        visual_cues:
+          - id: triage-report
+            phrase: item gives you a Python number
+            targets:
+              - triage-report
+            color: cyan
+            linger: 0.35
+          - id: triage-detach
+            phrase: Detach drops the history
+            targets:
+              - triage-report
+            color: blue
+            linger: 0.35
+  - id: global-clipping
+    title: One norm rescales every gradient component together
+    visual: Concatenate gradient components 6 and 8, compute norm 10, and scale both
+      by one half. Contrast component clipping and distinguish the reported
+      original norm from the final norm.
+    beats:
+      - say: Global norm clipping views every selected parameter gradient as one
+          concatenated vector. Sum all squared components, take the square root,
+          and compare that total with the chosen bound. For a finite nonzero
+          vector above the bound, multiply every component by the same
+          bound-over-norm factor, up to the implementation’s small denominator
+          epsilon.
+        hold: 0.65
+        visual_cues:
+          - id: global-clipping-beat-0
+            phrase: Global norm clipping views every selected parameter gradient as one
+              concatenated vector
+            targets:
+              - global-clipping-mechanism
+            color: cyan
+            linger: 0.65
+      - say: For gradients six and eight, total norm is ten. A bound of five scales both
+          by one half, giving approximately three and four. The API returns the
+          original norm ten, while the stored norm after clipping is five.
+          Clamping each coordinate to five instead would give a different
+          direction.
+        hold: 0.65
+        visual_cues:
+          - id: global-clipping-beat-1
+            phrase: For gradients six and eight, total norm is ten
+            targets:
+              - global-clipping-mechanism
+            color: yellow
+            linger: 0.65
+          - id: loop-clip-rescale
+            phrase: scales both by one half
+            targets:
+              - global-clipping-mechanism
+            color: yellow
+            linger: 0.6
+      - say: "Error-if-nonfinite rejects a nonfinite total norm, including overflow
+          while combining otherwise finite components. Clipping bounds the
+          gradient, not every optimizer’s parameter displacement: momentum, Adam
+          and weight decay transform it. Inspect the actual update as well."
+        hold: 0.65
+        visual_cues:
+          - id: global-clipping-beat-2
+            phrase: Error-if-nonfinite rejects a nonfinite total norm, including overflow
+              while combining otherwise finite components
+            targets:
+              - global-clipping-mechanism
+            color: cyan
+            linger: 0.65
+  - id: inference-feature-boundary
+    title: An inference tensor may not cross into a trainable head
+    visual: Retain the actual frozen router logits as they leave inference mode.
+      Show a trainable-head backward failure, then clone outside the context and
+      compute head gradients.
+    beats:
+      - say: No-grad suppresses reverse-mode graph recording while producing ordinary
+          tensors that can later be constants in a recorded computation.
+          Inference mode removes additional view and version tracking and
+          disables forward-mode automatic differentiation too. Neither context
+          calls eval.
+        hold: 0.65
+        visual_cues:
+          - id: inference-feature-boundary-beat-0
+            phrase: No-grad suppresses reverse-mode graph recording while producing ordinary
+              tensors that can later be constants in a recorded computation
+            targets:
+              - inference-feature-boundary-mechanism
+            color: cyan
+            linger: 0.65
+      - say: The actual router’s frozen inference logits are minus point two seven and
+          point two seven. Feeding that inference tensor to a trainable head
+          whose backward needs to save it raises the inference-tensor
+          restriction. Clone the tensor outside inference mode, then the head
+          can backpropagate. That clone does not recreate a gradient path
+          through the frozen router.
+        hold: 0.65
+        visual_cues:
+          - id: inference-feature-boundary-beat-1
+            phrase: The actual router’s frozen inference logits are minus point two seven
+              and point two seven
+            targets:
+              - inference-feature-boundary-mechanism
+            color: yellow
+            linger: 0.65
+          - id: loop-inference-clone
+            phrase: Clone the tensor outside inference mode
+            targets:
+              - inference-feature-boundary-mechanism
+            color: yellow
+            linger: 0.6
+      - say: Use no-grad when extracted features feed training, or respect the inference
+          tensor boundary and repair it explicitly. Benchmark any speed benefit
+          on the actual workload instead of assuming the stricter mode is
+          faster.
+        hold: 0.65
+        visual_cues:
+          - id: inference-feature-boundary-beat-2
+            phrase: Use no-grad when extracted features feed training, or respect the
+              inference tensor boundary and repair it explicitly
+            targets:
+              - inference-feature-boundary-mechanism
+            color: cyan
+            linger: 0.65
+  - id: amp-policy
+    title: Which operations change precision?
+    visual: Keep stored float32 parameters separate from eligible lower-precision
+      operations and float32 loss. Mark the actual disabled CPU pass-through
+      execution separately.
+    beats:
+      - say: For this autocast recipe, keep stored parameters in float32. On CUDA, the matrix multiply can
+          run in float16 or BF16, then cross entropy can run in float32. Autocast picks a dtype for each
+          eligible operation. Explicit dtypes, unlisted operations and in-place calls follow their own
+          rules. Leave the autocast region before backward.
+        hold: 0.65
+        visual_cues:
+          - id: amp-policy-beat-0
+            phrase: For this autocast recipe, keep stored parameters in float32
+            targets:
+              - amp-policy-mechanism
+            color: cyan
+            linger: 0.65
+      - say: A float16 or BF16 activation uses two bytes per value, half the float32 payload. Count weights,
+          gradients and optimizer state separately. On the ruler, float16's smallest positive normal is
+          about six times ten to the minus five. Subnormals extend down to about six times ten to the
+          minus eight. Ten to the minus five lands between those marks. It can survive as a subnormal, or
+          go to zero on a path that flushes subnormals.
+        hold: 0.65
+        visual_cues:
+          - id: amp-policy-beat-1
+            phrase: A float16 or BF16 activation uses two bytes per value
+            targets:
+              - amp-policy-mechanism
+            color: yellow
+            linger: 0.65
+      - say: BF16 uses the same number of exponent bits as float32, with fewer bits for precision. Its wider
+          range than float16 usually lets us train without loss scaling. Follow the CPU branch in this
+          example. It switches AMP off. The optimizer takes an ordinary step on the unscaled gradients.
+        hold: 0.65
+        visual_cues:
+          - id: amp-policy-beat-2
+            phrase: Follow the CPU branch in this example
+            targets:
+              - amp-policy-mechanism
+            color: cyan
+            linger: 0.65
+  - id: scale-and-step
+    title: A norm limit of two, in which units?
+    visual: Apply the same limit in two orders. Show each result on a common ruler in unscaled units and
+      mark the intended bound.
+    beats:
+      - say: Start with gradient components three and four. Their norm is five. Multiply the loss by eight
+          before backward. The stored components become twenty-four and thirty-two, and their norm becomes
+          forty. Scaling can rescue small backward values. Keep the same scale until the accumulation
+          window is complete.
+        hold: 0.8
+        visual_cues:
+          - id: scale-input
+            phrase: The stored components become twenty-four and thirty-two
+            targets:
+              - scale-operation
+            color: cyan
+            linger: 0.35
+      - say: You want the final gradient norm to be two. In the upper run, clip while the numbers are still
+          scaled. The norm is now two in scaled units. What will the optimizer get when you divide by
+          eight?
+        hold: 1.9
+        visual_cues:
+          - id: scale-upper
+            phrase: clip while the numbers are still scaled
+            targets:
+              - scale-operation
+            color: pink
+            linger: 0.35
+          - id: scale-ask
+            phrase: What will the optimizer get
+            targets:
+              - scale-rulers
+            color: yellow
+            linger: 0.35
+      - say: One quarter. Mark that distance on the upper ruler. Replay the same gradient below. Divide first
+          and its norm returns to five. Now clip to two. The lower run lands at the intended limit. Both
+          rulers use the units seen by the optimizer. Clipping first effectively divided the bound by the
+          loss scale.
+        hold: 1.1
+        visual_cues:
+          - id: scale-wrong
+            phrase: One quarter
+            targets:
+              - scale-rulers
+            color: pink
+            linger: 0.35
+            caption_boundary: true
+          - id: scale-divide
+            phrase: its norm returns to five
+            targets:
+              - scale-rulers
+              - scale-operation
+            color: cyan
+            linger: 0.35
+          - id: scale-correct
+            phrase: Now clip to two
+            targets:
+              - scale-rulers
+              - scale-operation
+            color: green
+            linger: 0.35
+            caption_boundary: true
+      - say: After the last backward, unscale once per optimizer, then inspect or clip. Scaler step skips this
+          standard optimizer if gradients are nonfinite. A finite check lets it step, and its gradient
+          fields remain until you clear them. Then update the scale. By default it starts at sixty-five
+          thousand five hundred thirty-six, halves after a nonfinite event and doubles after two thousand
+          consecutive successful iterations. Otherwise it stays put. The settings can change, and repeated
+          overflows can bring the scale below one.
+        hold: 0.8
+        visual_cues:
+          - id: scale-step
+            phrase: Scaler step skips this standard optimizer
+            targets:
+              - scale-operation
+            color: yellow
+            linger: 0.35
+          - id: scale-growth
+            phrase: halves after a nonfinite event
+            targets:
+              - scale-operation
+            color: yellow
+            linger: 0.35
+  - id: compile-contract
+    title: What happens at a graph break?
+    visual: Wrap the actual eager module with eager-backend full-graph capture,
+      compare outputs, then edit the original shared parameter and recompute.
+      Separate this from Inductor performance.
+    beats:
+      - say: First run the loop in eager mode and check its outputs. Then torch compile uses TorchDynamo to
+          capture regions of tensor operations. The default Inductor backend can fuse those operations and
+          generate kernels, including CPU code. Time the compiled loop after warmup. Startup cost,
+          changing shapes and graph breaks all affect what you gain.
+        hold: 0.65
+        visual_cues:
+          - id: compile-contract-beat-0
+            phrase: TorchDynamo to capture regions of tensor operations
+            targets:
+              - compile-contract-mechanism
+            color: cyan
+            linger: 0.65
+      - say: Use the eager backend with full graph enabled to check capture. This forward pass fits in one
+          graph and runs ordinary PyTorch operations. Its logits match eager execution. Edit a weight on
+          the original module and run the wrapper again. Its logits change too. Both read the same
+          parameter.
+        hold: 0.65
+        visual_cues:
+          - id: compile-contract-beat-1
+            phrase: Use the eager backend with full graph enabled
+            targets:
+              - compile-contract-mechanism
+            color: yellow
+            linger: 0.65
+      - say: At a graph break, partial capture hands control back to Python. Full graph raises an error
+          there. If the logits differ, line up random draws, layer modes, dtypes and tolerances. Try the
+          eager backend first, then the code-generating backend to locate the difference. If you train
+          with AMP, check the compiled backward autocast policy for your installed version.
+        hold: 0.65
+        visual_cues:
+          - id: compile-contract-beat-2
+            phrase: partial capture hands control back to Python
+            targets:
+              - compile-contract-mechanism
+            color: cyan
+            linger: 0.65
+          - id: loop-fullgraph-break
+            phrase: Full graph raises an error there
+            targets:
+              - compile-contract-mechanism
+            color: yellow
+            linger: 0.6
+  - id: bigram-state
+    title: The same loop can learn one character’s next-token row
+    visual: Pair actual adjacent characters, select one current-character logit row,
+      compute probability-minus-target gradients and update it. Keep the two
+      declared vocabularies and optimizers separate.
+    beats:
+      - say: The reader example uses the same learning handoffs for a next-character
+          model. Pair each character with the next, so the string the gives t
+          predicting h and h predicting e. A vocabulary-sized table has one row
+          per current character and one logit per possible successor. Every
+          zero-initialized row starts uniform.
+        hold: 0.65
+        visual_cues:
+          - id: bigram-state-beat-0
+            phrase: The reader example uses the same learning handoffs for a next-character
+              model
+            targets:
+              - bigram-state-mechanism
+            color: cyan
+            linger: 0.65
+      - say: For one selected row, cross entropy has logit gradient predicted
+          probability minus the one-hot target, with the appropriate batch
+          reduction. Gradient descent raises the true successor’s logit and
+          lowers competitors. Other input-character rows receive no contribution
+          from that pair. This bigram model conditions on one character rather
+          than the whole earlier text.
+        hold: 0.65
+        visual_cues:
+          - id: bigram-state-beat-1
+            phrase: For one selected row, cross entropy has logit gradient predicted
+              probability minus the one-hot target, with the appropriate batch
+              reduction
+            targets:
+              - bigram-state-mechanism
+            color: yellow
+            linger: 0.65
+      - say: The plain-Python fixture uses twenty-one vocabulary characters from its declared train and
+          validation text, so uniform initial loss is natural log of twenty-one, about three point zero
+          four five. Its PyTorch variant defines sixteen training-only characters, so initial loss is
+          natural log of sixteen, about two point seven seven three, and the table has two hundred
+          fifty-six parameters. It also uses AdamW without weight decay instead of the first program’s
+          gradient descent. Adam keeps exponential moving averages of each gradient and its square. Form a
+          denominator by taking the square root of the bias-corrected second moment, then adding epsilon.
+          Divide the bias-corrected first moment by that denominator to scale each coordinate’s gradient
+          update. AdamW applies weight decay separately. Here decay is zero. Each coordinate gets its own
+          step size. Correlations between coordinates can still slow learning.
+        hold: 0.65
+        visual_cues:
+          - id: bigram-state-beat-2
+            phrase: The plain-Python fixture uses twenty-one vocabulary characters from its
+              declared train and validation text, so uniform initial loss is
+              natural log of twenty-one, about three point zero four five
+            targets:
+              - bigram-state-mechanism
+            color: cyan
+            linger: 0.65
+          - id: loop-adam-moments
+            phrase: Adam keeps exponential moving averages of each gradient and its square
+            targets:
+              - bigram-state-mechanism
+            color: yellow
+            linger: 0.6
+          - id: loop-adam-denominator
+            phrase: Form a denominator by taking the square root of the bias-corrected
+              second moment, then adding epsilon
+            targets:
+              - bigram-state-mechanism
+            color: yellow
+            linger: 0.6
+  - id: bigram-floor
+    title: How low can this row’s loss go?
+    visual: Count repeated successors of one input character and build its empirical
+      frequency distribution and positive entropy floor. Compare actual 108-pair
+      limits with measured losses.
+    beats:
+      - say: Read the four characters that followed the same input. A, A, A, B. At each occurrence the model
+          looks up the very same row. If A gets all the probability, the model gives B a probability of zero.
+          How should that row divide its probability between A and B?
+        caption_starts:
+          - How should that row divide
+        hold: 1.9
+        visual_cues:
+          - id: bigram-floor-beat-0
+            phrase: A, A, A, B
+            targets:
+              - bigram-floor-mechanism
+            color: cyan
+            linger: 0.65
+      - say: Three quarters for A and one quarter for B. Those are their observed frequencies. Take the
+          negative log of each probability and average over the four observations. The lowest mean loss is
+          about point five six two nats. If every input had just one successor, the model could give that
+          successor nearly all the probability and approach zero loss.
+        caption_starts:
+          - The lowest mean loss is about point five six two nats
+        hold: 0.65
+        visual_cues:
+          - id: bigram-floor-beat-1
+            phrase: Three quarters for A and one quarter for B
+            targets:
+              - bigram-floor-mechanism
+            color: yellow
+            linger: 0.65
+          - id: loop-entropy-floor
+            phrase: The lowest mean loss is about point five six two nats
+            targets:
+              - bigram-floor-mechanism
+            color: yellow
+            linger: 0.6
+      - say: Apply the same count to all one hundred eight training pairs. Their best possible mean loss is
+          about one point zero one five. The two training runs finish close to that floor, at one point
+          zero three three and one point zero one nine. Each mini-batch samples just a few pairs, so its
+          loss can bounce around. Score the whole set at fixed weights to compare it with the floor.
+        caption_starts:
+          - Their best possible mean loss
+          - The two training runs finish
+        hold: 0.65
+        visual_cues:
+          - id: bigram-floor-beat-2
+            phrase: Their best possible mean loss is about one point zero one five
+            targets:
+              - bigram-floor-mechanism
+            color: cyan
+            linger: 0.65
+          - id: bigram-training-losses
+            phrase: at one point zero three three and one point zero one nine
+            targets: [bigram-floor-mechanism]
+            color: cyan
+            linger: 0.35
+  - id: bigram-selection
+    title: Which character table would you keep?
+    visual: Grow the train and validation traces on fixed axes. Hold both candidate readings on the curves
+      before identifying the checkpoint. Separate the selection data from the final test.
+    beats:
+      - say: Each point scores the entire set of character pairs at one update. Cyan follows the training text.
+          Pink follows the same seventy-five validation pairs each time. Watch them fall together. Leave a
+          mark at update one hundred eleven. Keep training the same table to one thousand.
+        hold: 0.85
+        visual_cues:
+          - id: bigram-early
+            phrase: Watch them fall together
+            targets:
+              - bigram-chart
+            color: cyan
+            linger: 0.35
+          - id: bigram-late
+            phrase: Keep training the same table to one thousand
+            targets:
+              - bigram-chart
+            color: pink
+            linger: 0.35
+      - say: The cyan trace keeps falling. On the pink trace, compare the two dots. Each pink reading is the
+          average cost of predicting the next character in the held-out text. A smaller cost is better.
+          Which update do you copy?
+        hold: 2.1
+        visual_cues:
+          - id: bigram-compare
+            phrase: compare the two dots
+            targets:
+              - bigram-chart
+              - bigram-choice
+            color: pink
+            linger: 0.35
+      - say: Copy update one hundred eleven. Its mean validation loss is about two point one zero five nats per
+          pair. By one thousand that has climbed to two point three nine two. Twenty-four of those
+          seventy-five validation pairs never occurred in training. The model can pay dearly for putting
+          less and less probability on a successor that actually turns up.
+        hold: 1
+        visual_cues:
+          - id: bigram-pick
+            phrase: Copy update one hundred eleven
+            targets:
+              - bigram-choice
+              - bigram-chart
+            color: yellow
+            linger: 0.35
+            caption_boundary: true
+          - id: bigram-unseen
+            phrase: Twenty-four of those seventy-five validation pairs never occurred in training
+            targets:
+              - bigram-choice
+            color: pink
+            linger: 0.3
+      - say: The sample from that copy contains recognizable fragments, like the letters t, h, e. Read a little
+          farther and the words fall apart. Validation helped choose these weights. Use an untouched test
+          set for the final estimate, and measure the behavior you care about in deployment. If validation
+          keeps getting worse, more training data or regularization may help.
+        hold: 0.8
+        visual_cues:
+          - id: bigram-sample
+            phrase: The sample from that copy
+            targets:
+              - bigram-choice
+            color: blue
+            linger: 0.35
+  - id: run-receipt
+    title: Can you reproduce the saved router’s decision?
+    visual: Bind the selected weight state to feature and label schema, split
+      identity, optimizer recipe, metric population and layer mode. Keep the
+      untouched test population distinct.
+    beats:
+      - say: Save the architecture and optimizer settings with the checkpoint. Keep the feature order and
+          label map so the next reader knows which column means escalation. Record the source data, split
+          IDs, both loss curves and the metric you used to pick these weights.
+        hold: 0.65
+        visual_cues:
+          - id: run-receipt-beat-0
+            phrase: Keep the feature order and label map
+            targets:
+              - run-receipt-mechanism
+            color: cyan
+            linger: 0.65
+      - say: A training epoch averages losses from batches scored while the weights were changing. To score
+          the saved checkpoint, freeze its weights and run the evaluation rows through it again. Record
+          which rows you used. Check how you split the data so that a document and its copies stay on the
+          same side.
+        hold: 0.65
+        visual_cues:
+          - id: run-receipt-beat-1
+            phrase: freeze its weights and run the evaluation rows through it again
+            targets:
+              - run-receipt-mechanism
+            color: yellow
+            linger: 0.65
+      - say: Reload the checkpoint and give it the same ticket. Compare both route scores with the ones you
+          saved. To check that training resumes, give it the same next batch and compare the updated
+          weights with the uninterrupted run.
+        caption_starts:
+          - To check that training resumes
+        hold: 0.65
+        visual_cues:
+          - id: run-receipt-beat-2
+            phrase: Reload the checkpoint and give it the same ticket
+            targets:
+              - run-receipt-mechanism
+            color: cyan
+            linger: 0.65
+          - id: receipt-next
+            phrase: give it the same next batch
+            targets:
+              - run-receipt-mechanism
+            color: cyan
+            linger: 0.35
+  - id: transfer
+    title: Before the next backward call
+    visual: Take one column from the earlier two-ticket update and mark where to inspect the buffer when
+      another update goes the wrong way.
+    beats:
+      - say: Return to the ticket router. Read down the urgency column. On the clean step, the standard gradient
+          was positive and the escalation gradient was negative. Starting at zero, subtracting those
+          gradients pushed the weights in opposite directions. Severity had the same values.
+        hold: 0.9
+        visual_cues:
+          - id: transfer-read
+            phrase: Read down the urgency column
+            targets:
+              - transfer-column
+            color: cyan
+            linger: 0.35
+          - id: transfer-subtract
+            phrase: subtracting those gradients
+            targets:
+              - transfer-column
+            color: green
+            linger: 0.35
+      - say: Suppose the routes flip the wrong way even with the same two training tickets. Look one line
+          earlier. Read the buffer just before backward, then just after it. The difference tells you what
+          this batch contributed. Compare the weights across the optimizer step. Once a clean batch fits,
+          use a separate validation set to check how far that result carries.
+        hold: 0.9
+        visual_cues:
+          - id: transfer-inspect
+            phrase: Read the buffer just before backward
+            targets:
+              - transfer-column
+            color: yellow
+            linger: 0.35
+  - id: fresh-stale-gradient
+    title: Route a ticket that was held out
+    visual: Score one held-out ticket on the opening ruler. Leave its first mark in place during a
+      controlled replay that clears only the gradient buffer.
+    beats:
+      - say: This ticket was held out. Its urgency is one and a half, its severity is one, and its label says
+          escalate. Train on A and B again from zero weights. This time inspect the buffer before
+          backward. Both standard weights already have a gradient of minus one. Both escalation weights
+          have plus one. Add the fresh contributions in the next column. With a learning rate of point
+          two, which queue will get the held-out ticket?
+        hold: 2.2
+        visual_cues:
+          - id: fresh-input
+            phrase: Its urgency is one and a half
+            targets:
+              - fresh-ticket
+            color: blue
+            linger: 0.35
+          - id: fresh-old
+            phrase: inspect the buffer before backward
+            targets:
+              - fresh-calculation
+            color: pink
+            linger: 0.35
+          - id: fresh-ask
+            phrase: which queue will get the held-out ticket
+            targets:
+              - route-ruler
+              - fresh-calculation
+              - fresh-scores
+            color: yellow
+            linger: 0.35
+      - say: The old buffer reverses both signs. Standard stores minus a half and escalation stores plus a half.
+          Subtract those with plain SGD. Each standard weight becomes plus point one, and each escalation
+          weight becomes minus point one. Score the held-out ticket. Standard wins. Multiply each weight
+          by its feature and add. For standard, that's a tenth times one and a half, plus a tenth times
+          one. Standard scores a quarter and escalation scores minus a quarter. Their difference puts the
+          mark half a unit left of zero. Escalation gets about a thirty-eight percent share of the model's
+          probability.
+        hold: 1.35
+        visual_cues:
+          - id: loop-stale-sum
+            phrase: Standard stores minus a half and escalation stores plus a half
+            targets:
+              - fresh-calculation
+            color: pink
+            linger: 0.35
+            caption_boundary: true
+          - id: loop-stale-update
+            phrase: Each standard weight becomes plus point one, and each escalation weight becomes minus point one
+            targets:
+              - fresh-calculation
+            color: yellow
+            linger: 0.35
+            caption_boundary: true
+          - id: loop-bad-route
+            phrase: Standard wins
+            targets:
+              - route-ruler
+            color: blue
+            linger: 0.35
+            caption_boundary: true
+          - id: fresh-bad-prob
+            phrase: about a thirty-eight percent share
+            targets:
+              - fresh-scores
+            color: cyan
+            linger: 0.35
+            caption_boundary: true
+          - id: fresh-bad-logits
+            phrase: Standard scores a quarter and escalation scores minus a quarter
+            targets:
+              - fresh-scores
+            color: cyan
+            linger: 0.3
+            caption_boundary: true
+          - id: fresh-bad-gap
+            phrase: half a unit left of zero
+            targets:
+              - route-ruler
+            color: blue
+            linger: 0.3
+            caption_boundary: true
+      - say: Leave that mark there. Rewind to the same zero weights and the same old buffer. This time clear the
+          buffer before backward. A and B still supply exactly the same gradient as before. The held-out
+          ticket stays out of training. Where should its new mark land?
+        hold: 2.1
+        visual_cues:
+          - id: loop-clear-stale
+            phrase: clear the buffer before backward
+            targets:
+              - fresh-calculation
+            color: yellow
+            linger: 0.35
+          - id: fresh-replay
+            phrase: Where should its new mark land
+            targets:
+              - route-ruler
+              - fresh-calculation
+              - fresh-scores
+            color: yellow
+            linger: 0.35
+          - id: fresh-rewind
+            phrase: Rewind to the same zero weights and the same old buffer
+            targets:
+              - fresh-calculation
+              - route-ruler
+            color: blue
+            linger: 0.3
+      - say: Now the buffer holds only the fresh contributions. SGD gives the escalation weights plus point one
+          each. On the same held-out ticket, escalation wins. Its score is now a quarter and standard
+          scores minus a quarter. The gap is plus a half. Escalation probability rises to about sixty-two
+          percent. For two classes, take the negative score gap and exponentiate it. Add one, then take
+          the reciprocal. The same calculation gave thirty-eight percent on the left. Clearing the buffer
+          flipped this ticket to its labeled queue. To measure accuracy, divide the number routed
+          correctly by the total number of tickets in a separate labeled set.
+        caption_starts:
+          - Clearing the buffer flipped
+          - To measure accuracy
+        hold: 1.4
+        visual_cues:
+          - id: fresh-fixed-update
+            phrase: SGD gives the escalation weights plus point one each
+            targets:
+              - fresh-calculation
+            color: green
+            linger: 0.35
+          - id: loop-fixed-route
+            phrase: escalation wins
+            targets:
+              - route-ruler
+            color: green
+            linger: 0.35
+            caption_boundary: true
+          - id: fresh-good-prob
+            phrase: about sixty-two percent
+            targets:
+              - fresh-scores
+            color: cyan
+            linger: 0.35
+            caption_boundary: true
+          - id: fresh-good-logits
+            phrase: Its score is now a quarter and standard scores minus a quarter
+            targets:
+              - fresh-scores
+            color: cyan
+            linger: 0.3
+            caption_boundary: true
+          - id: fresh-good-gap
+            phrase: The gap is plus a half
+            targets:
+              - route-ruler
+            color: green
+            linger: 0.3
+            caption_boundary: true
+          - id: fresh-logistic
+            phrase: Add one, then take the reciprocal
+            targets:
+              - fresh-scores
+            color: cyan
+            linger: 0.3
+          - id: fresh-accuracy
+            phrase: To measure accuracy
+            targets:
+              - fresh-scores
+            color: cyan
+            linger: 0.35

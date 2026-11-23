@@ -1,0 +1,61 @@
+export const SCENES = [
+  'opening',
+  'contract',
+  'memory',
+  'demand',
+  'admission',
+  'permissions',
+  'agent-state',
+  'release-gate',
+];
+export const SYSTEM_EXTENSION_SCENES = [
+  'requirements-control',
+  'api-receipt',
+  'cache-bytes',
+  'memory-realization',
+  'demand-sensitivity',
+  'quota-reservation',
+  'phase-latency',
+  'batch-and-pages',
+  'phase-placement',
+  'cache-compatibility',
+  'parallel-placement',
+  'concurrent-claim',
+  'acl-freshness',
+  'task-claims',
+  'retry-and-cancel',
+  'typed-release',
+  'canary-controller',
+  'decision-rehearsal',
+  'fresh-boundary',
+];
+export const DOCS = Object.freeze([
+  {
+    id: 'public-access-policy',
+    groups: ['employees'],
+    deleted: false,
+    score: 0.82,
+  },
+  {
+    id: 'finance-plan',
+    groups: ['finance'],
+    deleted: false,
+    score: 0.99,
+  },
+  {
+    id: 'old-handbook',
+    groups: ['employees'],
+    deleted: true,
+    score: 0.95,
+  },
+]);
+export const TRANSITIONS = Object.freeze({
+  queued: ['provisioning', 'canceled'],
+  provisioning: ['running', 'failed', 'canceled'],
+  running: ['blocked', 'review', 'failed', 'canceled'],
+  blocked: ['running', 'review', 'failed', 'canceled'],
+  review: ['running', 'complete', 'canceled'],
+  failed: [],
+  canceled: [],
+  complete: [],
+});

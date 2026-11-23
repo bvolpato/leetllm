@@ -1,0 +1,659 @@
+{
+  "version": 1,
+  "partition": "visual-discoveries",
+  "sources": [],
+  "concepts": [
+    {
+      "id": "preference-vote",
+      "representation": "simulation",
+      "title": "Turn answer comparisons into a policy update",
+      "meaning": "DPO optimizes the chosen-versus-rejected policy/reference log-probability margin using a preference-classification loss.",
+      "family": "alignment",
+      "brief": "Keep the prompt fixed. Show chosen and rejected answers, compute each policy/reference log-probability ratio, subtract to obtain the DPO margin, then update the two response likelihoods with the reference anchor visible.",
+      "pitfalls": [
+        "Do not imply DPO is an online reward-model loop.",
+        "DPO and PPO can produce different checkpoints; compare the resulting policies on the same evaluation.",
+        "Shared parameters can lower both absolute sequence probabilities while improving the relative margin."
+      ],
+      "sourcePaths": [
+        "web/src/content/training/rlhf-dpo-aligning-language-models/content.md"
+      ]
+    },
+    {
+      "id": "verifiable-check",
+      "representation": "simulation",
+      "title": "A verifier turns an answer into a training signal",
+      "meaning": "A defined checker evaluates a testable property of a generated answer and supplies an outcome reward to reinforcement learning.",
+      "family": "alignment",
+      "brief": "Show a natural-language math or code task, the generated candidate, the executable or symbolic check, and its binary outcome. Sample a group of candidate answers and compute relative advantages from actual verifier scores.",
+      "pitfalls": [
+        "A verifier can only check the contract it implements.",
+        "Formatting success alone does not establish correctness.",
+        "Subjective qualities need a different evaluation signal."
+      ],
+      "sourcePaths": [
+        "web/src/content/training/rlvr-verifiable-rewards-training/content.md"
+      ]
+    },
+    {
+      "id": "continued-pretraining-stream",
+      "representation": "simulation",
+      "title": "Balance domain adaptation with replay",
+      "meaning": "Continued pretraining changes a language model through next-token prediction on new domain text, while replay assigns some scored targets to general data.",
+      "family": "training",
+      "brief": "Mix domain and replay targets in a fixed token budget. Show the resulting weighted gradient on a shared parameter, then compare domain and general evaluation lanes across candidate checkpoints.",
+      "pitfalls": [
+        "Choose replay ratios through domain and general-task evaluation under the intended token budget.",
+        "A token mixture matches the intended objective only when scored-token weighting is correct.",
+        "Lower domain perplexity alone does not establish a better downstream model."
+      ],
+      "sourcePaths": [
+        "web/src/content/training/continued-pretraining-domain-adaptation/content.md"
+      ]
+    },
+    {
+      "id": "fsdp-shards",
+      "representation": "simulation",
+      "title": "Shard training memory and gather each compute unit",
+      "meaning": "ZeRO and FSDP reduce replicated training state by partitioning optimizer state, gradients, and parameters across data-parallel ranks.",
+      "family": "training-systems",
+      "brief": "Start with replicated weight, gradient, and optimizer slots on four training ranks. Reveal ZeRO stages as successive shards; animate FSDP parameter all-gather before a wrapped unit and gradient reduce-scatter after backward.",
+      "pitfalls": [
+        "The ledger excludes activation memory and temporary communication buffers unless shown.",
+        "Full sharding trades memory for collectives and depends on unit wrapping and topology.",
+        "Training-state sharding differs from inference tensor parallelism."
+      ],
+      "sourcePaths": [
+        "web/src/content/training/distributed-training-fsdp-deepspeed-zero/content.md"
+      ]
+    },
+    {
+      "id": "model-merge-weights",
+      "representation": "simulation",
+      "title": "Interpolate compatible model weights and test the path",
+      "meaning": "Weight interpolation combines aligned parameter tensors; its quality depends on whether the checkpoints occupy compatible regions of parameter space.",
+      "family": "training",
+      "brief": "Display matching tensors from models fine-tuned from the same base, calculate a weighted midpoint, and trace held-out loss along the interpolation path. Contrast with a one-dimensional double-well example where averaging across separated minima raises loss.",
+      "pitfalls": [
+        "Parameter names and tensor shapes do not prove neuron alignment.",
+        "Averaging unrelated independently initialized checkpoints can fail.",
+        "Evaluate real merged checkpoints on held-out tasks after checking the toy interpolation."
+      ],
+      "sourcePaths": [
+        "web/src/content/training/model-merging-weight-interpolation/content.md"
+      ]
+    },
+    {
+      "id": "dp-clipped-gradient",
+      "representation": "simulation",
+      "title": "Bound each record before adding calibrated noise",
+      "meaning": "DP-SGD clips each protected-unit contribution, aggregates them, adds calibrated Gaussian noise, and composes privacy cost across training steps.",
+      "family": "privacy",
+      "brief": "Use two-dimensional record gradients with a visible L2 clip circle. Shorten outliers to the boundary, sum the clipped vectors, animate a Gaussian perturbation, then connect sampling rate, noise multiplier, step count, adjacency, and delta to an accountant.",
+      "pitfalls": [
+        "Per-batch-average clipping does not imply the same sensitivity bound as per-record clipping.",
+        "One realized noisy update does not establish a DP guarantee.",
+        "Epsilon depends on the protected unit, adjacency, sampler, noise, and all composed releases."
+      ],
+      "sourcePaths": [
+        "web/src/content/llmops/privacy-preserving-ml-differential-privacy/content.md"
+      ]
+    },
+    {
+      "id": "synthetic-data-filter",
+      "representation": "simulation",
+      "title": "Build a filtered dataset from generated examples",
+      "meaning": "Synthetic training data requires a declared source process, task coverage, independent checks, admission rules, and downstream evaluation.",
+      "family": "data",
+      "brief": "Seed a small natural-language task set, generate variants, execute arithmetic or code checks where possible, filter duplicates and invalid candidates, then visualize admitted coverage and a held-out downstream result.",
+      "pitfalls": [
+        "A fluent generation can still be false or underspecified.",
+        "A judge must be calibrated and independently audited for the task.",
+        "Recursive training can amplify generator errors and narrow the data distribution."
+      ],
+      "sourcePaths": [
+        "web/src/content/training/synthetic-data-generation-pipelines-llms/content.md"
+      ]
+    },
+    {
+      "id": "constitution-critique",
+      "representation": "simulation",
+      "title": "Turn written principles into critique, revision, and feedback",
+      "meaning": "Constitutional AI uses written principles to condition self-critique and revision, then can train from AI-generated preference comparisons.",
+      "family": "alignment",
+      "brief": "Keep one request and policy boundary fixed. Animate a draft, a principle-specific critique, and a revised supervised target; then show a separate AI preference comparison and reward-learning phase. End with a red-team case and independent human audit.",
+      "pitfalls": [
+        "The principle does not replace application authorization or access controls.",
+        "The critique is training scaffolding; the revised answer is the direct-answer supervised target.",
+        "AI feedback can share the model family’s blind spots and needs external evaluation."
+      ],
+      "sourcePaths": [
+        "web/src/content/training/constitutional-ai-automated-red-teaming/content.md"
+      ]
+    },
+    {
+      "id": "dataset-lineage-gates",
+      "representation": "simulation",
+      "title": "Dataset lineage gates",
+      "meaning": "A source record passes through schema, identity, and group checks before a versioned dataset is released.",
+      "family": "data quality",
+      "brief": "Animate support records through schema and label checks, exact normalized fingerprints, conflict quarantine, group-level splits, near-duplicate candidate review, benchmark checks, privacy decisions, and a manifest. Keep exact identity distinct from semantic similarity; make open reviews and digest trust boundaries visible.",
+      "pitfalls": [
+        "Do not treat exact hashes as semantic similarity or digest consistency as publisher authentication.",
+        "Do not split related conversation or incident records across held-out partitions.",
+        "LSH returns probabilistic candidates; keep its assumptions and review policy visible.",
+        "A scan result covers only its declared patterns and source snapshot."
+      ],
+      "sourcePaths": [
+        "web/src/content/foundations/dataset-pipelines-data-quality/content.md"
+      ]
+    },
+    {
+      "id": "feature-contract-vector",
+      "representation": "simulation",
+      "title": "Feature contract vector",
+      "meaning": "Named measurements pass through type and availability checks into fixed ordered model coordinates.",
+      "family": "production features",
+      "brief": "Build the 09:00 J-204 prediction row from event and availability clocks, then show fitted numeric transforms, missingness indicators, categorical encoding, a fixed feature order, a preprocessing edit, and offline/serving parity. Keep illustrative coefficients and thresholds labeled as authored examples.",
+      "pitfalls": [
+        "Exclude future events and labels even when present in today's backfill.",
+        "Robust scaling does not clip outliers.",
+        "Smoothing does not replace out-of-fold or time-aware target encoding.",
+        "Preprocessing changes affect only inputs they actually alter; measure the paired model behavior."
+      ],
+      "sourcePaths": [
+        "web/src/content/foundations/feature-engineering-production-ml/content.md"
+      ]
+    },
+    {
+      "id": "streaming-feature-watermark",
+      "representation": "simulation",
+      "title": "Streaming feature watermark",
+      "meaning": "A streaming feature advances through event time while late arrivals remain distinguishable from on-time state.",
+      "family": "streaming feature state",
+      "brief": "Replay the J-204 heartbeat fixture at successive cutoffs, compare state known to the live service with later batch history, show the watermark and late-arrival path, and reconcile online state to a versioned offline row. Keep event time, ingestion time, and feature availability separate.",
+      "pitfalls": [
+        "Event time before a cutoff does not imply the event was ingested or readable by that cutoff.",
+        "A heartbeat age alone does not establish a worker failure or deadline miss.",
+        "Late events require an explicit correction or replay policy; do not silently rewrite past decisions.",
+        "Batch and streaming paths need the same feature meaning and retained state history for faithful replay."
+      ],
+      "sourcePaths": [
+        "web/src/content/foundations/batch-streaming-feature-pipelines/content.md"
+      ]
+    },
+    {
+      "id": "recommendation-candidate-slate",
+      "representation": "simulation",
+      "title": "Recommendation candidate slate",
+      "meaning": "Eligible candidates are retrieved, scored, and assembled into an ordered recommendation slate.",
+      "family": "recommendation ranking",
+      "brief": "Filter stale or unauthorized documents, move a seven-item retrieval shortlist through a hand-authored scorer, compare ranked lists and graded gains, then apply slate constraints. Keep candidate recall separate from reranking quality, policy eligibility, and online causal measurement.",
+      "pitfalls": [
+        "A ranker cannot recover a relevant item omitted from candidate generation.",
+        "Learned relevance scores never grant access to private content.",
+        "Illustrative fixture scores and funnel counts are not benchmark measurements.",
+        "Position-biased clicks and offline ranking metrics do not by themselves establish online product impact."
+      ],
+      "sourcePaths": [
+        "web/src/content/foundations/ranking-recommendation-systems/content.md"
+      ]
+    },
+    {
+      "id": "forecasting-residual-band",
+      "representation": "simulation",
+      "title": "Forecast residual band",
+      "meaning": "A forecast center and uncertainty band are compared with observed values and their residuals.",
+      "family": "time-series forecasting",
+      "brief": "Animate a timestamped demand fixture across a rolling forecast origin, update the baseline and forecast interval, reveal residuals only after observations arrive, and compare anomaly thresholds with normal seasonal variation. Label authored values as illustrative and preserve future-data boundaries.",
+      "pitfalls": [
+        "Forecasts use information available at their origin; later observations belong to scoring the forecast.",
+        "Residual alarms require seasonality, horizon, and uncertainty context.",
+        "Prediction intervals express uncertainty under a model and data regime; they are not guaranteed bounds.",
+        "Keep illustrative fixtures distinct from measured forecast performance."
+      ],
+      "sourcePaths": [
+        "web/src/content/foundations/forecasting-anomaly-detection/content.md"
+      ]
+    },
+    {
+      "id": "model-monitoring-drift",
+      "representation": "simulation",
+      "title": "Model monitoring drift",
+      "meaning": "Reference and current feature distributions are compared as a monitored shift is surfaced for review.",
+      "family": "production model monitoring",
+      "brief": "Follow a deployed model from stable feature distributions through an input shift, delayed labels, outcome metrics, and a canary decision. Separate feature drift, prediction drift, data quality, and delayed outcome evidence; compare to a fixed reference and show uncertainty before rollback decisions.",
+      "pitfalls": [
+        "Feature drift is a review signal, not proof of model degradation.",
+        "Without labels, outcome quality may be delayed or unavailable.",
+        "A single aggregate metric can hide segment failures and changing traffic mix.",
+        "Rollback or retraining thresholds need explicit operational evidence and ownership."
+      ],
+      "sourcePaths": [
+        "web/src/content/foundations/monitoring-predictive-models/content.md"
+      ]
+    },
+    {
+      "id": "serving-benchmark-latency",
+      "representation": "simulation",
+      "title": "Serving benchmark latency",
+      "meaning": "A measured serving trace separates median latency from the slower tail over a defined load interval.",
+      "family": "inference performance",
+      "brief": "Grow concurrent requests against a model server, animate queue depth and token throughput, and update latency percentiles from the same authored request trace. Contrast steady-state and overload, include warmup and request length, and keep local fixture values explicitly illustrative.",
+      "pitfalls": [
+        "Throughput, time to first token, inter-token latency, and end-to-end latency answer different questions.",
+        "Averages can hide tail latency; report the percentile with its sample and workload definition.",
+        "Do not present authored example timings as hardware benchmark results.",
+        "Warmup, concurrency, prompt/output lengths, batching, and error rates affect comparisons."
+      ],
+      "sourcePaths": [
+        "web/src/content/llmops/serving-benchmark-engineering/content.md"
+      ]
+    },
+    {
+      "id": "token-economics-meter",
+      "representation": "simulation",
+      "title": "Token economics meter",
+      "meaning": "Input, cached context, and generated output have separate token usage and cost weights.",
+      "family": "LLM inference economics",
+      "brief": "Trace a request's prompt, reusable cached prefix, generated output, retries, and tool steps into token and dollar cost; compute cost per successful task from an explicitly authored workload. Show how routing, batching, context trimming, and cache reuse change both cost and quality constraints.",
+      "pitfalls": [
+        "Provider prices and cache discounts vary and change; cite a dated source or use clearly authored example rates.",
+        "Tokens are not words, and input, cached input, and generated output may be billed differently.",
+        "Cost per request omits retries, failures, and task success; state the denominator.",
+        "Savings must be evaluated with quality, latency, and provider-specific behavior held visible."
+      ],
+      "sourcePaths": [
+        "web/src/content/llmops/llm-cost-engineering-token-economics/content.md"
+      ]
+    },
+    {
+      "id": "estimation-interval",
+      "representation": "simulation",
+      "title": "From sample labels to an interval on a population rate",
+      "meaning": "A point estimate describes one sample. Repeated-sample variation, a score interval, and the sample design determine how it informs a population quantity.",
+      "family": "Sampling and uncertainty",
+      "brief": "Animate one hundred reviewed flags into sixteen positives, then replay independent batches at a fixed rate. Compare sample-size spread, invert a binomial score test to form the Wilson interval, and show why the Wald interval collapses at zero of ten. Add a stratified queue where weighting slice rates by population shares reconstructs the target. Keep labels, sample unit, target population, point estimate, interval, and calibration prediction distinct throughout.",
+      "pitfalls": [
+        "A sample fraction is not the exact population rate.",
+        "A confidence interval is not a posterior probability for fixed endpoints.",
+        "Bootstrap resampling cannot create outcomes absent from the observed sample.",
+        "A narrow interval does not fix an unrepresentative sample or compromised labels.",
+        "Wilson coverage is approximate and depends on the binomial sampling model."
+      ],
+      "sourcePaths": [
+        "web/src/content/foundations/statistics-estimation-uncertainty/content.md"
+      ]
+    },
+    {
+      "id": "paired-outcomes",
+      "representation": "simulation",
+      "title": "Testing a paired model comparison",
+      "meaning": "The paired task is the analysis unit. A null model over disagreement signs gives an exact tail probability, while intervals describe effect-size uncertainty.",
+      "family": "Statistical testing and evaluation",
+      "brief": "Keep each prompt, both model outcomes, and the shared hidden tests in one row. Show five ties and one B-only win, then condition on disagreement count and animate fair-coin outcomes under the null. Compare the exact one-sided tail for one of one and thirteen of sixteen wins. Continue to false-positive and missed-improvement decisions, the search cost of twenty comparisons, paired-row bootstrap lift, and a separate pass-at-k candidate budget.",
+      "pitfalls": [
+        "A p-value is a tail probability under the null, not the probability that the null is true.",
+        "Ties contribute to pass rates and lift but not the conditional sign-test win count.",
+        "The test direction and comparison family must be declared before looking at results.",
+        "Bootstrap resample frequency is not a null p-value.",
+        "Prompt variants and repeated tasks can violate independent-task assumptions."
+      ],
+      "sourcePaths": [
+        "web/src/content/foundations/hypothesis-tests-confidence-intervals-passk/content.md",
+        "web/src/content/interviewing/ai-lab-technical-presentation/content.md"
+      ],
+      "references": [
+        {
+          "path": "web/src/content/interviewing/ai-lab-technical-presentation/content.md",
+          "headings": [
+            "Inspect the cases behind the average"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "generalization-curve",
+      "representation": "simulation",
+      "title": "Why training accuracy can rise while generalization falls",
+      "meaning": "Empirical performance on a finite sample estimates performance on a target distribution only under assumptions about sampling and model selection.",
+      "family": "Learning theory and generalization",
+      "brief": "Start with forty independently sampled labeled examples and a fixed predictor, then show how a finite-sample Hoeffding bound follows from bounded zero-one loss. Let a search over one thousand candidate prompts select the smallest training error and animate the union-bound penalty. Compare training and held-out curves as capacity grows, then rotate a boundary through points to show shattering and connect it to VC dimension. Keep the worked finite-class bound separate from asymptotic, VC, and Rademacher guarantees.",
+      "pitfalls": [
+        "The held-out set must be independent of model and prompt selection for its usual evaluation role.",
+        "Hoeffding's inequality needs independent observations and bounded losses.",
+        "A union bound requires each candidate's valid bound and becomes looser as the candidate class grows.",
+        "A VC-dimension result is a capacity-based bound, not a forecast of a particular model's score.",
+        "Distribution shift and leakage can invalidate the sampling assumptions."
+      ],
+      "sourcePaths": [
+        "web/src/content/foundations/statistical-learning-theory-generalization/content.md"
+      ]
+    },
+    {
+      "id": "randomized-treatment",
+      "representation": "simulation",
+      "title": "Estimating the causal effect of a randomized change",
+      "meaning": "Random assignment supports a causal comparison when treatment is well-defined, assignment is preserved, outcomes are measured consistently, and interference is controlled.",
+      "family": "Causal experiments",
+      "brief": "Randomly assign users to control and treatment, show equal expected baselines and the observed click-through rates, then calculate risk difference, relative lift, standard error, and a confidence interval from the same counts. Reveal allocation ratio and guardrail metrics, then demonstrate how sample-ratio mismatch, repeated peeking, contamination, and noncompliance change the claim. Separate an intention-to-treat estimate from a per-protocol comparison.",
+      "pitfalls": [
+        "Randomization balances measured and unmeasured baseline causes only in expectation.",
+        "A treatment effect is tied to the assigned intervention and target population.",
+        "Repeated unplanned peeking can inflate error unless a sequential design is used.",
+        "Sample-ratio mismatch is a diagnostic signal that needs investigation, not a causal effect.",
+        "Statistical significance does not establish product value or rule out guardrail harm."
+      ],
+      "sourcePaths": [
+        "web/src/content/foundations/experiment-design-ab-testing/content.md"
+      ]
+    },
+    {
+      "id": "reward-feedback-loop",
+      "representation": "simulation",
+      "title": "Learning a policy from state, action, and reward",
+      "meaning": "A policy maps observed states to actions whose consequences produce rewards and later states under a specified decision process.",
+      "family": "Sequential decision making",
+      "brief": "Use a small stochastic navigation fixture with explicit states, actions, transition probabilities, rewards, terminal states, and discount factor. Compare a one-step bandit reward with a multi-step Markov decision process, animate a trajectory, then compute a Bellman backup and a Q-learning update from the realized transition. Show that exploration changes which evidence the agent collects and that a reward specification does not guarantee safe or useful behavior.",
+      "pitfalls": [
+        "The Markov property applies to the modeled state; omitted history may make the chosen state representation insufficient.",
+        "A bandit action has no action-dependent next state in the basic formulation.",
+        "Model-free Q-learning's convergence results require specific finite tabular and exploration assumptions.",
+        "Discounting changes the objective and finite-horizon problems need terminal handling.",
+        "An optimized reward can diverge from the real objective."
+      ],
+      "sourcePaths": [
+        "web/src/content/foundations/introduction-to-reinforcement-learning-fundamentals/content.md"
+      ]
+    },
+    {
+      "id": "principal-axis",
+      "representation": "simulation",
+      "title": "Grouping observations and rotating to principal directions",
+      "meaning": "Clustering assigns observations under a chosen distance and objective; PCA finds orthogonal directions of maximum centered variance.",
+      "family": "Unsupervised learning and representation",
+      "brief": "Generate a small anisotropic cloud with two visible groups, animate Lloyd assignment and centroid updates from fixed initial centers, and report inertia for the resulting partition. Then center the same points, compute covariance and a leading eigenvector, and rotate a unit-scaled coordinate frame to show projected variance and reconstruction error. Distinguish cluster labels from PCA coordinates, explain feature scaling and local optima, and note that PCA preserves variance rather than task relevance.",
+      "pitfalls": [
+        "K-means minimizes within-cluster squared Euclidean distance and favors compact roughly spherical groups.",
+        "Results depend on initialization and feature scaling.",
+        "PCA centers data before computing principal directions.",
+        "Equal pixels per unit are required when the drawing represents Euclidean distances or angles.",
+        "High-variance directions need not preserve downstream predictive information."
+      ],
+      "sourcePaths": [
+        "web/src/content/foundations/clustering-pca-representation-learning/content.md"
+      ]
+    },
+    {
+      "id": "latent-responsibilities",
+      "representation": "simulation",
+      "title": "Fitting a Gaussian mixture with hidden component labels",
+      "meaning": "Expectation-maximization alternates posterior responsibility calculations with weighted parameter updates to seek a local likelihood optimum.",
+      "family": "Latent-variable estimation",
+      "brief": "Place observations on a one-dimensional axis under a two-component Gaussian mixture with known fixed numeric initialization. In the E-step, calculate each component's weighted Gaussian density and normalize them into responsibilities for every point. In the M-step, recompute mixture weights, means, and variances from those same responsibilities, then plot the updated mixture and log likelihood. Repeat a second iteration and show that EM is a local optimization procedure; keep its component posteriors distinct from VAE encoder approximations.",
+      "pitfalls": [
+        "Responsibilities use both the component likelihood and the current mixture weight.",
+        "Each observation's component responsibilities sum to one.",
+        "The M-step uses responsibility-weighted sufficient statistics from the E-step.",
+        "Likelihood can have local optima and degenerate Gaussian solutions without constraints or regularization.",
+        "EM's responsibilities are not a variational autoencoder's approximate posterior family."
+      ],
+      "sourcePaths": [
+        "web/src/content/foundations/probabilistic-generative-models-em/content.md"
+      ]
+    },
+    {
+      "id": "broadcast-axis",
+      "representation": "simulation",
+      "title": "Reading tensor shapes through array operations",
+      "meaning": "Array axes encode which dimensions align, reduce, transpose, or broadcast during a computation.",
+      "family": "Array programming and neural-network dimensions",
+      "brief": "Build a tiny batch-by-token-by-feature tensor and track its shape through indexing, reduction, reshape, transpose, and broadcasting. Show each input's dimensions before an elementwise addition, align shapes from the trailing axes, and expand a size-one dimension across the compatible batch. Then reshape a toy attention tensor into batch, head, token, and head-width axes while preserving element counts. Use explicit axis labels and verify every displayed element from the numeric arrays.",
+      "pitfalls": [
+        "Broadcasting compares dimensions from the right and permits equal sizes or a size of one.",
+        "A reduction removes the selected axis unless keepdims is requested.",
+        "Reshape preserves element order while transpose permutes axes.",
+        "Equal element counts do not imply that a reshape preserves semantic axis meaning.",
+        "Batch, token, head, and feature axes must be labeled consistently with the source operation."
+      ],
+      "sourcePaths": [
+        "web/src/content/foundations/numpy-and-tensor-shapes/content.md"
+      ]
+    },
+    {
+      "id": "memory-retention-valve",
+      "representation": "simulation",
+      "title": "Memory retention valve",
+      "meaning": "Gates control how stored recurrent evidence survives and how a candidate enters the state.",
+      "family": "Sequence models",
+      "brief": "Follow an old-state amount through retention, addition, and exposure.",
+      "pitfalls": "Keep cell and hidden state distinct, identify gate convention, and isolate the direct gradient path.",
+      "sourcePaths": [
+        "web/src/content/preparation/rnns-lstms-grus-sequence-modeling/content.md"
+      ]
+    },
+    {
+      "id": "latent-posterior-cloud",
+      "representation": "simulation",
+      "title": "Latent posterior cloud",
+      "meaning": "An encoder describes a distribution of possible latent codes for an observed input.",
+      "family": "Latent models",
+      "brief": "Transform an independent noise point into a posterior sample and decode it.",
+      "pitfalls": "Distinguish posterior from prior, standard deviation from variance, and reconstruction from sampling quality.",
+      "sourcePaths": [
+        "web/src/content/preparation/autoencoders-vaes-generative-modeling-basics/content.md"
+      ]
+    },
+    {
+      "id": "selective-affine-scan",
+      "representation": "simulation",
+      "title": "Selective affine scan",
+      "meaning": "Input-dependent affine updates compose in order to recover every prefix state.",
+      "family": "Sequence models",
+      "brief": "Compute carry and write terms, regroup adjacent update pairs, and compare every state with the sequential reference.",
+      "pitfalls": "Preserve update order, distinguish Mamba discretization from exact zero-order hold, and account for every live buffer.",
+      "sourcePaths": [
+        "web/src/content/fundamentals/state-space-models-mamba-alternatives/content.md"
+      ]
+    },
+    {
+      "id": "patch-to-token",
+      "representation": "simulation",
+      "title": "Patch to token",
+      "meaning": "A spatial pixel patch becomes a projected vector while its location remains separately represented.",
+      "family": "Vision models",
+      "brief": "Follow raster-order patch values through a shared projection and position-aware attention, then count visual slots.",
+      "pitfalls": "Keep patch count, raw width, hidden width, and bridge output count separate. Evaluate exact detail after preprocessing.",
+      "sourcePaths": [
+        "web/src/content/fundamentals/vision-transformers-image-encoders/content.md"
+      ]
+    },
+    {
+      "id": "feature-centering",
+      "representation": "simulation",
+      "title": "Feature centering",
+      "meaning": "Per-token normalization centers and rescales feature coordinates before learned affine adjustments.",
+      "family": "Normalization",
+      "brief": "Animate mean subtraction and variance scaling, then compare residual and gradient paths around normalization.",
+      "pitfalls": "Keep reduction axes explicit, preserve epsilon, and avoid interpreting an identity path as a lower bound on the full gradient.",
+      "sourcePaths": [
+        "web/src/content/fundamentals/layer-normalization-pre-ln-post-ln/content.md"
+      ]
+    },
+    {
+      "id": "sparse-feature-dictionary",
+      "representation": "simulation",
+      "title": "Sparse feature dictionary",
+      "meaning": "A sparse code reconstructs a mixed model activation using a few learned dictionary directions.",
+      "family": "Interpretability",
+      "brief": "Build a known superposition, infer sparse coefficients, reconstruct it, and test a feature intervention.",
+      "pitfalls": "Separate learned feature associations, reconstruction fidelity, and demonstrated causal effects. Control decoder scaling.",
+      "sourcePaths": [
+        "web/src/content/fundamentals/mechanistic-interpretability-sparse-autoencoders/content.md"
+      ]
+    },
+    {
+      "id": "reasoning-budget-tree",
+      "representation": "simulation",
+      "title": "Reasoning budget tree",
+      "meaning": "Inference budget can fund longer reasoning, more candidates, and verification before selecting an answer.",
+      "family": "Inference decisions",
+      "brief": "Allocate a finite budget across candidate branches, show oracle availability versus selection accuracy, and stop under explicit cost.",
+      "pitfalls": "Candidate independence, verifier mistakes, correlation, and latency affect the value of additional sampling.",
+      "sourcePaths": [
+        "web/src/content/fundamentals/reasoning-models-test-time-compute/content.md"
+      ]
+    },
+    {
+      "id": "token-surprisal",
+      "representation": "simulation",
+      "title": "Token surprisal",
+      "meaning": "A model assigns log loss to observed tokens and perplexity exponentiates their average surprise.",
+      "family": "Language evaluation",
+      "brief": "Compare token probability products through accumulated log loss, weighted corpus aggregation, and context-window scoring.",
+      "pitfalls": "Match tokenization, target masking, context policy, and evaluation data before comparing perplexities.",
+      "sourcePaths": [
+        "web/src/content/fundamentals/perplexity-language-model-evaluation/content.md"
+      ]
+    },
+    {
+      "id": "document-page",
+      "representation": "simulation",
+      "title": "Turn a page into traceable evidence",
+      "meaning": "Format-specific extraction produces candidate text; page location, parser route, quality review, and checksum make an admitted record inspectable.",
+      "family": "evidence-ingestion",
+      "brief": "Carry the rollback rule from a PDF page through native extraction or OCR review into a locatable record. Show why 15 becoming 1S must pause for review, preserve table row and unit structure, and carry source identity through chunking.",
+      "pitfalls": [
+        "Treating a long OCR extract as proof that a critical value was recognized correctly",
+        "Detaching a number from its table row, unit, condition, or qualifier",
+        "Dropping source locators during chunking",
+        "Treating a checksum as proof of source authenticity or extraction fidelity"
+      ],
+      "sourcePaths": [
+        "web/src/content/fundamentals/file-ingestion-pdfs-html-ocr-markdown/content.md"
+      ]
+    },
+    {
+      "id": "acl-gate",
+      "representation": "simulation",
+      "title": "Authorize the searchable set before returning evidence",
+      "meaning": "The trusted retrieval boundary uses current principal, tenant, and document grants to constrain the candidate universe before ranking or returning text.",
+      "family": "secure-retrieval",
+      "brief": "For an operations analyst's signing-key query, resolve tenant and group membership from trusted state, apply ACL eligibility inside the retrieval boundary, rank only eligible candidates, and send only permitted records to prompt assembly. Keep the restricted passage within the store throughout.",
+      "pitfalls": [
+        "Filtering returned text after it has crossed into application memory",
+        "Trusting tenant or role fields supplied by the request body or model",
+        "Assuming semantic similarity implies authorization",
+        "Assuming permission to read a document authorizes the action it describes",
+        "Presenting approximate filtered search as a recall guarantee"
+      ],
+      "sourcePaths": [
+        "web/src/content/retrieval/enterprise-rag-security-rbac-access-control/content.md"
+      ]
+    },
+    {
+      "id": "instruction-boundary",
+      "representation": "simulation",
+      "title": "Let evidence inform the answer without granting authority",
+      "meaning": "Retrieved or user-supplied text can influence model output, while deterministic host policy controls credentials, disclosure, and side effects.",
+      "family": "agent-security",
+      "brief": "Follow an evaluation report that contains a factual result and an injected deployment command. Keep source labels visible, let the model propose text or a typed action, then show the application checking identity, capability, arguments, and approval before any protected sink.",
+      "pitfalls": [
+        "Treating XML tags, role labels, or repeated reminders as a security boundary",
+        "Describing prompt injection as a text pattern that a perfect classifier can remove",
+        "Assuming the injected command has authority because the application fetched its source",
+        "Confusing a helpful refusal with a blocked unauthorized side effect"
+      ],
+      "sourcePaths": [
+        "web/src/content/agents/prompt-injection-defense-strategies/content.md"
+      ]
+    },
+    {
+      "id": "approval-receipt",
+      "representation": "simulation",
+      "title": "Resume one reviewed action safely",
+      "meaning": "A durable approval binds an eligible reviewer and decision to the exact serialized action, evidence digest, version, expiry, and execution preconditions.",
+      "family": "agent-security",
+      "brief": "Move a model-promotion proposal through proposed, pending, authorized, executing, and receipt states. Animate the action digest and live revision check; a changed version becomes stale, an edit needs fresh review, and a lost reply requires reconciliation by the original operation identity.",
+      "pitfalls": [
+        "Using an unbound approved Boolean that can be reused for another action",
+        "Treating authorized as executed",
+        "Holding volatile process state open while a human reviews",
+        "Replaying an external write without an idempotency contract or reconciliation"
+      ],
+      "sourcePaths": [
+        "web/src/content/agents/human-in-the-loop-agent-architecture/content.md"
+      ]
+    },
+    {
+      "id": "warp-reduction",
+      "representation": "simulation",
+      "title": "Reduce and scan with real synchronization boundaries",
+      "meaning": "A reduction combines values into one result, while a prefix scan produces a result for each position; parallel groups need explicit communication and barriers.",
+      "family": "gpu-primitives",
+      "brief": "Compute a small vector sum first, then animate warp-level pairwise shuffle steps and block partials with barriers. Compare a prefix scan that exposes every cumulative total, show floating-point tree order, and update online softmax's running maximum and rescaled sum from computed state.",
+      "pitfalls": [
+        "Showing a reduction tree without calculating each intermediate value",
+        "Using warp shuffle as if it were a memory barrier",
+        "Implying blocks in an ordinary kernel can synchronize globally at an arbitrary point",
+        "Treating floating-point reassociation as exact real arithmetic",
+        "Describing Hillis-Steele and Blelloch scans without showing work and output contracts"
+      ],
+      "sourcePaths": [
+        "web/src/content/fundamentals/gpu-parallel-primitives-lab/content.md"
+      ]
+    },
+    {
+      "id": "kv-handoff",
+      "representation": "simulation",
+      "title": "Move request state from prefill to decode",
+      "meaning": "A disaggregated inference path schedules a request, computes prompt KV state, transfers compatible state, and then generates output tokens on a decode worker.",
+      "family": "inference-data-plane",
+      "brief": "Trace one request's ownership and KV blocks from prefill to decode. Compute payload bytes from token, layer, head, and dtype dimensions; reserve destination capacity before transfer, validate matching model/layout metadata, and separate transport completion from request execution and client delivery.",
+      "pitfalls": [
+        "Treating a transfer engine as the owner of a request or its retry policy",
+        "Assuming all state layouts or worker versions are interchangeable",
+        "Counting enqueue as transfer completion or transfer completion as a generated response",
+        "Retrying an uncertain transfer or downstream action without an operation identity and reconciliation"
+      ],
+      "sourcePaths": [
+        "web/src/content/fundamentals/distributed-inference-data-plane/content.md"
+      ]
+    },
+    {
+      "id": "judge-rubric",
+      "representation": "simulation",
+      "title": "Measure whether an automated judge tracks human review",
+      "meaning": "An LLM judge applies a defined rubric to controlled candidates, while randomized order swaps, human labels, agreement measures, uncertainty, and coverage checks evaluate the judge itself.",
+      "family": "llm-evaluation",
+      "brief": "Show an explicit pairwise rubric, swap A/B order while keeping candidate text fixed, compare blinded human judgments, and compute disagreement, coverage, and agreement on an illustrative labeled fixture. Separate bias probes from validity and report the reviewed denominator.",
+      "pitfalls": [
+        "Treating a judge score as independent proof of answer quality",
+        "Calling order sensitivity a universal fixed preference direction",
+        "Reporting agreement without the eligible reviewed denominator",
+        "Using accuracy alone when class imbalance or abstentions matter"
+      ],
+      "sourcePaths": [
+        "web/src/content/llmops/llm-as-judge-automated-evaluation/content.md"
+      ]
+    },
+    {
+      "id": "voice-turn",
+      "representation": "simulation",
+      "title": "Coordinate a live voice turn through interruption",
+      "meaning": "Streaming speech recognition, turn commitment, response generation, synthesis, transport, playback acknowledgement, and barge-in cancellation are distinct events on overlapping clocks.",
+      "family": "real-time-voice",
+      "brief": "Use an explicitly synthetic incident-hotline trace: stream STT while the caller speaks, commit only after a complete stable identifier, overlap LLM and TTS work, then cancel queued playback on barge-in. Track which audio the client acknowledged separately from generated text.",
+      "pitfalls": [
+        "Treating voice activity detection as proof that a semantic turn is complete",
+        "Adding overlapping latency spans as though they were serial",
+        "Speaking a factual tool result from an unstable partial transcript",
+        "Keeping unheard or cancelled audio in the conversation history",
+        "Presenting an illustrative timing trace as a production latency guarantee"
+      ],
+      "sourcePaths": [
+        "web/src/content/system-design/design-real-time-voice-ai-agent/content.md"
+      ]
+    }
+  ]
+}

@@ -1,0 +1,546 @@
+version: 1
+id: vector-search
+title: Vector Search for a Rollback Runbook
+source: retrieval/vector-database-internals-hnsw-ivf/content.md
+voice: af_heart
+rate: +12%
+sources:
+  - title: Hierarchical Navigable Small World graphs
+    url: https://arxiv.org/abs/1603.09320
+  - title: Faiss inverted-file index
+    url: https://faiss.ai/cpp_api/struct/structfaiss_1_1IndexIVF.html
+  - title: Faiss indexes
+    url: https://github.com/facebookresearch/faiss/wiki/Faiss-indexes
+scenes:
+  - id: subject-intro
+    title: "Which passage is closer, B or C?"
+    visual: "A copy of passage C travels from its point on the map into the second search result. The map stays still as two lengths grow from the rollback query."
+    beats:
+      - say: "C takes the second slot in a search for the checkout rollback. Each dot is a passage. The diamond is your question, embedded in the same space."
+        hold: 0.6
+        caption_starts: ["Each dot is a passage."]
+        visual_cues:
+          - id: returned-pair
+            phrase: "second slot"
+            targets: [search-receipt]
+          - id: rollback-request
+            phrase: "The diamond is your question"
+            targets: [passage-map]
+      - say: "Trace the line from the query to C. Now trace the line to B. Which one is shorter?"
+        hold: 2.2
+        caption_starts: ["Now trace the line to B.", "Which one is shorter?"]
+        visual_cues:
+          - id: compare-c
+            phrase: "the line from the query to C"
+            targets: [passage-map]
+          - id: compare-b
+            phrase: "trace the line to B"
+            targets: [passage-map]
+  - id: exact-baseline
+    title: "What an exhaustive search would return"
+    visual: "The map stays in place as every stored ID acquires a squared distance. A and B become the reference pair."
+    beats:
+      - say: "B is three tenths of a unit to the right, at the same height as the query. Square that step and you get zero point zero nine. C is over a full unit away horizontally. Its squared distance is one point two five. B wins that slot."
+        hold: 0.6
+        caption_starts: ["Square that step", "C is over a full unit away", "B wins that slot."]
+        visual_cues:
+          - id: measure-b
+            phrase: "Square that step"
+            targets: [distance-scores]
+          - id: measure-c
+            phrase: "C is over a full unit away"
+            targets: [distance-scores]
+      - say: "What about A? Follow the two short legs. Two tenths left, two tenths up. Square each difference and add them. That gives eight hundredths, just ahead of B at nine hundredths. Taking square roots would leave the order alone."
+        hold: 0.7
+        caption_starts: ["Two tenths left", "That gives eight hundredths"]
+        visual_cues:
+          - id: measure-a
+            phrase: "Follow the two short legs"
+            targets: [passage-map]
+          - id: score-a
+            phrase: "That gives eight hundredths"
+            targets: [distance-scores]
+      - say: "Score the other three passages too. Sort all six from smallest distance to largest, and use the ID to break any ties. Our exact pair is A and B. That settles which vectors are nearest. An operator still has to judge whether those passages explain how to roll back."
+        hold: 1
+        visual_cues:
+          - id: scan-rest
+            phrase: "Score the other three passages too"
+            targets: [distance-scores]
+          - id: exact-receipt
+            phrase: "Our exact pair is A and B"
+            targets: [exact-receipt]
+  - id: greedy-hops
+    title: "Following stored links"
+    visual: "The camera widens to all six vectors. Each completed hop adds a squared distance. A separate three-node graph isolates a local stopping point."
+    beats:
+      - say: "Here are all six passages. A graph gives each one a short list of links that search can follow. Enter at E. Its squared distance to our question is twenty point five six. Search can use that number to decide whether a linked neighbor gets it closer."
+        hold: 0.5
+        visual_cues:
+          - id: greedy-hops-b1-1
+            phrase: "Enter at E"
+            targets: [graph-hop]
+      - say: "Follow E’s link to C. The score drops to one point two five. Now follow C’s link to A. Eight hundredths. On this path we scored three passages, and B never came up for comparison. A longer link could have taken us to a different neighborhood."
+        hold: 0.8
+        visual_cues:
+          - id: hop-to-c
+            phrase: "Follow E’s link to C"
+            targets: [graph-hop]
+          - id: hop-to-a
+            phrase: "follow C’s link to A"
+            targets: [graph-hop]
+      - say: "Take a different little graph. E has score one. Its only neighbor, M, scores two. A greedy walk stops at E because the next step goes uphill. H sits beyond M. How could the search ever find out what H scores?"
+        hold: 1.8
+        visual_cues:
+          - id: greedy-hops-b3-1
+            phrase: "A greedy walk stops at E"
+            targets: [distance-ledger]
+  - id: hierarchy-beam
+    title: "Keeping a second route open"
+    visual: "A sparse upper layer descends at the same ID. A separate three-node base-layer trace compares a discarded bridge with a retained one."
+    beats:
+      - say: "A large graph needs a way to reach the right neighborhood. HNSW builds a hierarchy. Randomly chosen vectors also appear on sparse upper layers. Here a long link takes us from E to A. Once no link on that layer improves the score, drop down at that same A. Its local neighbors come within reach."
+        hold: 0.7
+        visual_cues:
+          - id: hierarchy-beam-b1-1
+            phrase: "sparse upper layers"
+            targets: [graph-search]
+          - id: upper-hop
+            phrase: "a long link takes us from E to A"
+            targets: [graph-search]
+          - id: descend-at-a
+            phrase: "drop down at that same A"
+            targets: [graph-search]
+      - say: "Back at the three-node bridge, ask for one result. With room for one, E fills the set. The narrow search discards M when it sees that two is worse than one. Replay with room for three. Now it keeps M alongside E. We can still try that link."
+        hold: 0.8
+        visual_cues:
+          - id: hierarchy-beam-b2-1
+            phrase: "E fills the set"
+            targets: [retained-set]
+          - id: narrow-discards-bridge
+            phrase: "narrow search discards M"
+            targets: [graph-search]
+          - id: wide-retained-bridge
+            phrase: "keeps M alongside E"
+            targets: [retained-set]
+      - say: "Expand M. Its next link reaches H, with a score of one tenth. H moves ahead of E. Here we kept three and scored three. The query setting called ef search limits how many results we keep. At width one we still scored two nodes. The visited set and the work can both exceed the result capacity."
+        hold: 0.7
+        visual_cues:
+          - id: reach-hidden
+            phrase: "next link reaches H"
+            targets: [graph-search]
+          - id: hierarchy-beam-b3-1
+            phrase: "we still scored two nodes"
+            targets: [search-work]
+      - say: "Look inside the wider search. The queue on the left gives us the nearest candidate still to expand. The heap on the right puts the worst retained result first. Admit a neighbor if there is space or if it beats that worst result, and evict the excess. Once the results are full, a next candidate worse than the cutoff can end the search. A farther bridge like M explains why that stopping rule can miss a neighbor."
+        hold: 0.8
+        visual_cues:
+          - id: hierarchy-beam-b3-extension
+            phrase: "queue on the left"
+            targets: [hierarchy-beam-extension]
+  - id: insert-graph
+    title: "Where the links come from"
+    visual: "A new node G appears on the two layers it occupies. Its selected edges and the existing upper entry are distinct."
+    beats:
+      - say: "Give a new passage, G, a place in the graph. The builder limits how many neighbors G can choose. Call that limit M. Sample its highest layer. With the usual sampling scale, one over the natural log of M, the chance of reaching layer one is one over M. Divide that chance by M for each layer above it. Most passages stay at the base."
+        hold: 0.65
+        visual_cues:
+          - id: insert-graph-b1
+            phrase: "Sample its highest layer"
+            targets: [insert-graph-mechanism]
+      - say: "G drew layer one. The graph already reaches layer two. Walk across layer two to find an entry. Wire G on layers one and zero, the layers it actually occupies. The construction beam controls how many candidates the builder keeps while searching each layer."
+        hold: 0.7
+        visual_cues:
+          - id: insert-graph-b2
+            phrase: "Wire G on layers one and zero"
+            targets: [insert-graph-mechanism]
+      - say: "Start with the nearest candidate. To keep another one on the first pass, it must be closer to G than to each neighbor already selected. That favors links in different directions. Select up to M, add reciprocal links, and prune lists that overflow. The base cap is commonly twice M. Pruning can leave a one-way link. The old entry stays. Only a new highest layer makes G the global entry."
+        hold: 0.8
+        visual_cues:
+          - id: insert-graph-b3
+            phrase: "closer to G than to each neighbor already selected"
+            targets: [insert-graph-mechanism]
+      - say: "Building the graph costs time and memory. Searching it has a separate budget. If a caller asks for twelve results with room for six, this lab must raise ef search to at least twelve or reject the request. Then measure recall and latency on the graph you built."
+        hold: 0.55
+        visual_cues:
+          - id: query-capacity
+            phrase: "room for six"
+            targets: [query-capacity]
+          - id: raise-query-capacity
+            phrase: "at least twelve"
+            targets: [query-capacity]
+  - id: centroid-partitions
+    title: "Filing the six passages"
+    visual: "The six fixed vectors file their IDs into two posting lists. A close view shows A and B on opposite sides of x = 5."
+    beats:
+      - say: "Start again with our six passages. This time give them two centers, one on each side. A real index learns centers from a representative sample. Here we supply them. File each passage with its nearest center. The row of IDs stored with a center is its posting list. An inverted file index uses these lists to choose where to look."
+        hold: 0.7
+        visual_cues:
+          - id: train-centers
+            phrase: "two centers"
+            targets: [partition-map]
+          - id: file-passages
+            phrase: "File each passage with its nearest center"
+            targets: [posting-lists]
+      - say: "Look between A and B. Our centers lie at the same height, at two and eight on the horizontal axis. Halfway between them is five. A sits to the left of that line. B sits to the right. Two passages that almost touch can have different filing addresses."
+        hold: 0.75
+        visual_cues:
+          - id: see-border
+            phrase: "Halfway between them is five"
+            targets: [partition-map]
+      - say: "The query has its own address. Score both centers. The left center is nearer, with a squared distance of seven point eight four. The right scores ten point two four. With one list to spend, search starts on the left. Inside an IVF Flat list, it can read each passage’s original coordinates. If new embeddings drift away from those centers, check held-out recall. Retraining the centers also means refiling the passages."
+        hold: 0.55
+        visual_cues:
+          - id: rank-centers
+            phrase: "Score both centers"
+            targets: [coarse-scores]
+  - id: probe-boundary
+    title: "Opening a posting list"
+    visual: "List membership stays visible while the scan scores first the left list, then the right. B displaces C in slot two."
+    beats:
+      - say: "Open just the left list. The three numbers under A, C and E are their squared distances to the query. Smaller wins. A takes first place. Which ID fills slot two?"
+        hold: 2.15
+        visual_cues:
+          - id: probe-left
+            phrase: "Open just the left list"
+            targets: [posting-lists]
+          - id: first-slot
+            phrase: "A takes first place"
+            targets: [result-slots]
+      - say: "Slot two goes to C. We got A and C, exactly what the operator saw. Look at B across the border. Its ID is in the index, but there is no score under it. Reranking these three left-hand passages has no way to bring B back."
+        hold: 1.15
+        visual_cues:
+          - id: show-left-pair
+            phrase: "Slot two goes to C"
+            targets: [result-slots]
+          - id: inspect-miss
+            phrase: "no score under it"
+            targets: [posting-lists]
+      - say: "Keep the query still and open the right list. B now has a score of nine hundredths. That beats C at one point two five. Move B into slot two. A stays put. Opening a list changed which passages could compete."
+        hold: 0.95
+        visual_cues:
+          - id: open-right
+            phrase: "open the right list"
+            targets: [posting-lists]
+          - id: replace-c
+            phrase: "Move B into slot two"
+            targets: [result-slots]
+      - say: "Count the work. We scored two centers in both runs. Inside the lists we scored three passages, then six. The setting called n probe counts opened lists. If one list held a thousand passages and the other held three, one probe could still mean very different work."
+        hold: 0.7
+        visual_cues:
+          - id: count-work
+            phrase: "three passages, then six"
+            targets: [posting-lists]
+  - id: recall-ledger
+    title: "How much of the exact pair survived?"
+    visual: "Matched ID lanes compare one list with two. The denominator stays attached to the original exact pair."
+    beats:
+      - say: "Draw a line for each recovered ID. With one list, A connects to its exact match. C has no match on the left. One of the two exact IDs survived, so recall at two is one half. Count identities at the same cutoff on both sides."
+        hold: 0.7
+        visual_cues:
+          - id: recall-ledger-b1-1
+            phrase: "A connects to its exact match"
+            targets: [approximate-result]
+          - id: recall-ledger-b1-2
+            phrase: "one half"
+            targets: [recall-calculation]
+      - say: "With both lists open, B connects too. Two out of two for this request. We scored six passage vectors to get there. Probing every list makes IVF Flat exhaustive when the scorer uses original vectors and there is no further scan limit."
+        hold: 0.75
+        visual_cues:
+          - id: recall-ledger-b2-1
+            phrase: "B connects too"
+            targets: [exact-reference]
+      - say: "Try that recall calculation on a sample of real queries. Use the same embeddings, metric, filter, corpus revision and tie rule for both searches. Measure latency at the expected concurrency. If exact search also brings back unhelpful passages, look at the query and its embedding."
+        hold: 0.8
+        visual_cues:
+          - id: recall-ledger-b3-1
+            phrase: "that recall calculation"
+            targets: [recall-calculation]
+  - id: scale-budget
+    title: "Budgeting a larger index"
+    visual: "Component and byte counts use a 100-million-vector corpus. A separate balanced IVF example changes the list count and holds coarse work fixed."
+    beats:
+      - say: "Each tile holds a million passages. Give each passage fifteen hundred thirty-six float coordinates. A flat search through all one hundred tiles scores one hundred fifty-three point six billion components per query. At four bytes each, storing those coordinates takes six hundred fourteen point four gigabytes, about five hundred seventy-two gibibytes, before index overhead."
+        hold: 0.75
+        visual_cues:
+          - id: scale-budget-b1
+            phrase: "through all one hundred tiles"
+            targets: [scale-budget-mechanism]
+      - say: "Now use a smaller collection. A million vectors spread evenly over one thousand twenty-four lists gives about nine hundred seventy-seven vectors per list. Five probes scan about four thousand eight hundred eighty-three vectors. Raise the budget to twenty probes and that grows to about nineteen thousand five hundred thirty-one. The flat coarse index still scores all one thousand twenty-four centers. Time the actual requests, including the cost of reading those lists."
+        hold: 0.75
+        visual_cues:
+          - id: scale-budget-b2
+            phrase: "Five probes"
+            targets: [scale-budget-mechanism]
+          - id: raise-probes
+            phrase: "twenty probes"
+            targets: [scale-budget-mechanism]
+      - say: "Could a spatial tree prune more work? When distances cluster tightly, its bounds can rule out fewer branches. The distribution matters. Padding every vector and the query with zeros leaves distances unchanged. Compare measured settings on recall and latency. At the same latency on this chart, the lower point loses. On the frontier, improving one measure costs you something on the other, among the settings you tested."
+        hold: 0.7
+        visual_cues:
+          - id: scale-budget-b3
+            phrase: "lower point loses"
+            targets: [scale-budget-mechanism]
+  - id: pq-encode
+    title: "What gets stored in place of a vector?"
+    visual: "Two actual subvectors choose centroids. Their IDs form a code. A separate 768-dimensional example counts bytes, then a rotation preserves a distance."
+    beats:
+      - say: "Split this vector into two pairs. Each pair becomes a yellow point. Add the centers learned for that pair during training. Each plot now has its own codebook. Follow the shortest line on the left. Center one is closest. On the right, center two is closest. Store just those two IDs with the passage. Join the centers they name and you get two, zero, zero, two. Those coordinates approximate the original vector. That’s product quantization."
+        hold: 0.8
+        caption_starts: ["Add the centers", "Follow the shortest line on the left.", "Center one is closest.", "On the right", "Store just those two IDs", "two, zero, zero, two.", "Those coordinates approximate the original vector."]
+        visual_cues:
+          - id: pq-split-chunks
+            phrase: "Split this vector into two pairs"
+            targets: [pq-encode-mechanism]
+          - id: pq-codebooks
+            phrase: "Add the centers"
+            targets: [pq-encode-mechanism]
+          - id: pq-left-link
+            phrase: "shortest line on the left"
+            targets: [pq-encode-mechanism]
+          - id: pq-left-id
+            phrase: "Center one"
+            targets: [pq-encode-mechanism]
+          - id: pq-selected-ids
+            phrase: "center two"
+            targets: [pq-encode-mechanism]
+          - id: pq-reconstruct
+            phrase: "two, zero, zero, two"
+            targets: [pq-encode-mechanism]
+      - say: "Now budget a different embedding with seven hundred sixty-eight coordinates. Divide it into ninety-six chunks. Each holds eight coordinates. Give each chunk two hundred fifty-six centers, so its selected ID fits in one byte. Ninety-six bytes replace three thousand seventy-two bytes of floats. That is thirty-two times smaller for the code alone. The codebooks cost another seven hundred sixty-eight kibibytes, shared across records. Record IDs, coarse centers and any retained originals take additional space."
+        hold: 0.8
+        visual_cues:
+          - id: pq-encode-b2
+            phrase: "a different embedding"
+            targets: [pq-encode-mechanism]
+          - id: pq-eight-coordinates
+            phrase: "Each holds eight coordinates"
+            targets: [pq-encode-mechanism]
+          - id: pq-byte-index
+            phrase: "fits in one byte"
+            targets: [pq-encode-mechanism]
+          - id: pq-code-budget
+            phrase: "Ninety-six bytes replace three thousand seventy-two bytes of floats"
+            targets: [pq-encode-mechanism]
+          - id: pq-shared-books
+            phrase: "seven hundred sixty-eight kibibytes"
+            targets: [pq-encode-mechanism]
+      - say: "Watch the two arrows rotate together. Their tips stay the same distance apart, but a cut along the coordinate axes now divides them differently. Optimized product quantization learns the rotation and the codebooks together to reduce reconstruction error. A square orthogonal rotation preserves distances before coding. Projecting down to fewer dimensions can lose information. Transform the query and database consistently, then compare error and recall at the same code size."
+        hold: 0.65
+        visual_cues:
+          - id: pq-encode-b3
+            phrase: "two arrows rotate together"
+            targets: [pq-encode-mechanism]
+  - id: adc-lookup
+    title: "Scoring a stored code"
+    visual: "The two bytes from the preceding example light up cells in separate query tables. Two originals then collide on the same code."
+    beats:
+      - say: "Keep the code we just made, one and two. This time the query is four zeros. Leave it uncompressed. Build one row per chunk by measuring its squared distance to every center in that codebook. Read the first byte. Column one of the first row gives four. Read the second byte. Column two of its row also gives four. Add the entries. Eight is the squared distance to the reconstruction. This shortcut is called asymmetric distance computation."
+        hold: 0.8
+        visual_cues:
+          - id: adc-lookup-b1
+            phrase: "Leave it uncompressed"
+            targets: [adc-lookup-mechanism]
+          - id: adc-first-byte
+            phrase: "Read the first byte"
+            targets: [adc-lookup-mechanism]
+          - id: adc-second-byte
+            phrase: "Read the second byte"
+            targets: [adc-lookup-mechanism]
+          - id: adc-sum
+            phrase: "Add the entries"
+            targets: [adc-lookup-mechanism]
+      - say: "Keep the tables. A code of zero, zero picks two zeros. Change just the first byte to one and the sum becomes four. Put that one in the second byte instead. Still four. Break the tie by record ID. Put a one in both bytes and the sum reaches eight. The bytes pick columns. The table holds distances. With ninety-six rows of two hundred fifty-six float entries, this table costs ninety-six kibibytes per query."
+        hold: 0.75
+        visual_cues:
+          - id: adc-lookup-b2
+            phrase: "Keep the tables"
+            targets: [adc-lookup-mechanism]
+          - id: lookup-one-zero
+            phrase: "first byte to one"
+            targets: [adc-lookup-mechanism]
+          - id: lookup-zero-one
+            phrase: "in the second byte instead"
+            targets: [adc-lookup-mechanism]
+          - id: lookup-scores
+            phrase: "a one in both bytes"
+            targets: [adc-lookup-mechanism]
+      - say: "Here are two different originals, both encoded as zero, zero. They tie. An ID tiebreak puts A first. Check the originals. B is much closer to the zero query. If you kept only A, rescoring A cannot recover B. Keep both originals and rerank them. Now B wins. Inside a residual IVF list, first subtract the list center from the database vector and encode what remains. Subtract that same center from the query to score the code, or use equivalent precomputed terms."
+        hold: 0.8
+        visual_cues:
+          - id: adc-lookup-b3
+            phrase: "both encoded as zero, zero"
+            targets: [adc-lookup-mechanism]
+          - id: adc-original-order
+            phrase: "Check the originals"
+            targets: [adc-lookup-mechanism]
+          - id: adc-overfetch-originals
+            phrase: "Keep both originals and rerank them"
+            targets: [adc-lookup-mechanism]
+          - id: adc-database-residual
+            phrase: "subtract the list center from the database vector"
+            targets: [adc-lookup-mechanism]
+          - id: adc-query-residual
+            phrase: "Subtract that same center from the query"
+            targets: [adc-lookup-mechanism]
+  - id: transfer
+    title: "Which passages are eligible now?"
+    visual: "The original six-passage receipt changes twice, first through eligibility and then deletion. An expanded search fills the vacant slot with E."
+    beats:
+      - say: "Return to our rollback query. The graph path through E, C and A and the single IVF list both returned A and C. Both missed B, for different reasons. So far every passage was eligible."
+        hold: 0.65
+        visual_cues:
+          - id: transfer-b1-1
+            phrase: "both returned A and C"
+            targets: [indexing-routes]
+      - say: "Now give the operator access to just A, C and E. Apply that filter to the exact search too. A and C are now both correct. Keep the filter, but delete A. The new reference is C and E. Crossing A off our saved answer leaves just C. We still ask for two. What changed is which two IDs count as correct."
+        hold: 1.1
+        visual_cues:
+          - id: transfer-b2-1
+            phrase: "give the operator access"
+            targets: [indexing-routes]
+          - id: transfer-filter-reference
+            phrase: "Apply that filter to the exact search too"
+            targets: [indexing-routes]
+          - id: transfer-delete-reference
+            phrase: "delete A"
+            targets: [indexing-routes]
+      - say: "Run the eligible search again. It fills the empty slot with E. Check the deletion on replicas and old serving paths too. If a response still contains A, a wider search budget cannot fix its stale copy."
+        hold: 0.65
+        visual_cues:
+          - id: transfer-b3-1
+            phrase: "fills the empty slot with E"
+            targets: [indexing-routes]
+  - id: filtered-distributed
+    title: "Where can an eligible passage disappear?"
+    visual: "A three-record buffer opens to five inside a retrieval service. Shards merge local winners, and one missing shard makes the response partial."
+    beats:
+      - say: "Suppose the operator needs two EU runbooks. Retrieve the first three candidates and keep only EU records. One survives. Widen the window to all five. Now the second EU record can reach the operator. Enforce access rules inside the trusted retrieval service, before any passage leaves for the application."
+        hold: 0.8
+        visual_cues:
+          - id: filtered-distributed-b1
+            phrase: "first three candidates"
+            targets: [filtered-distributed-mechanism]
+          - id: expand-filter-window
+            phrase: "Widen the window to all five"
+            targets: [filtered-distributed-mechanism]
+      - say: "How often does a window come up empty? Give each of a hundred candidates a half-percent chance of matching. We expect half a match per window on average. If candidates match independently, all one hundred must fail for the window to be empty. That happens sixty point six percent of the time. If the whole window shares one region, just one draw decides all hundred matches. Now it is empty ninety-nine point five percent of the time. Same average, very different chance of getting nothing. Measure this near real queries."
+        hold: 0.8
+        caption_starts: ["We expect half a match", "If candidates match independently", "sixty point six percent", "If the whole window shares one region", "ninety-nine point five percent"]
+        visual_cues:
+          - id: filtered-distributed-b2
+            phrase: "candidates match independently"
+            targets: [filtered-distributed-mechanism]
+          - id: independent-empty
+            phrase: "sixty point six percent"
+            targets: [filtered-distributed-mechanism]
+          - id: shared-region
+            phrase: "whole window shares one region"
+            targets: [filtered-distributed-mechanism]
+          - id: shared-empty
+            phrase: "ninety-nine point five percent"
+            targets: [filtered-distributed-mechanism]
+      - say: "When the index outgrows memory, IVF with product codes can shrink the part that must stay resident. An SSD-backed graph such as DiskANN can trade RAM for storage reads. Or split the corpus across machines. Each of ten disjoint shards returns its exact top five under the same scoring and tie rules. Any locally omitted passage already has five ahead of it. Merge the fifty candidates to get the exact global five. Lose one shard and the answer is partial. Approximate local search, grouping and deduplication can also remove that guarantee."
+        hold: 0.8
+        visual_cues:
+          - id: filtered-distributed-b3
+            phrase: "ten disjoint shards"
+            targets: [filtered-distributed-mechanism]
+          - id: lose-shard
+            phrase: "Lose one shard"
+            targets: [filtered-distributed-mechanism]
+      - say: "A full response waits for the slowest required shard, plus the merge work still left when it replies. Streaming can finish some of that merge earlier. If each shard meets a time threshold ninety-nine percent of the time, and their delays are independent, all ten meet it about ninety point four percent of the time. Shared queues can tie those delays together. Measure the whole request at load."
+        hold: 0.7
+        visual_cues:
+          - id: filtered-distributed-b3-extension
+            phrase: "slowest required shard"
+            targets: [filtered-distributed-extension]
+      - say: "There is another way to reach eligible passages. A trusted graph search can cross this ineligible bridge to reach B while returning only eligible IDs. A bounded scan can also expand until it finds enough results or runs out of time or work. When the eligible set is small, compare both with an exact scan of just that set. Keep the filter on the reference as well."
+        hold: 0.7
+        visual_cues:
+          - id: filter-aware-repair
+            phrase: "cross this ineligible bridge"
+            targets: [filtered-bridge-repair]
+  - id: metric-replay
+    title: "When the ranking rule changes"
+    visual: "An elongated vector contracts to unit length along its original ray. The normalized search changes winner, then deletion leaves one eligible ID."
+    beats:
+      - say: "Here are two records from a separate index. Record one oh one points along the horizontal axis. Record two oh two is much closer to the yellow query in ordinary coordinates. Measure the squared distances under raw L two. Two oh two wins at zero point eight one."
+        hold: 0.65
+        visual_cues:
+          - id: raw-distance
+            phrase: "Measure the squared distances"
+            targets: [metric-ranks]
+      - say: "Suppose the embedding now calls for cosine similarity. Normalize both records and the query. Each tip moves to unit distance from the origin. Magnify those directions. Which record points more nearly along the yellow arrow?"
+        hold: 2
+        visual_cues:
+          - id: unit-vectors
+            phrase: "Normalize both records and the query"
+            targets: [metric-geometry]
+          - id: unit-zoom
+            phrase: "Magnify those directions"
+            targets: [metric-geometry]
+      - say: "One oh one does. Its inner product with the unit query is about zero point nine nine five. For an IVF migration, normalize the training, database and query vectors. Retrain the centers in that geometry, then file each record with its new center."
+        hold: 0.75
+        visual_cues:
+          - id: cosine-rank
+            phrase: "One oh one does"
+            targets: [metric-ranks]
+      - say: "Now delete one oh one from the rebuilt index. Ask for two hits again. Only two oh two remains. In this flat Faiss example, minus one marks the empty second slot. Propagate the delete to every serving path, including any old index still taking traffic, and recompute the exact reference."
+        hold: 0.8
+        visual_cues:
+          - id: remove-record
+            phrase: "delete one oh one"
+            targets: [metric-ranks]
+  - id: earned-transfer
+    title: "Which search budget would you use?"
+    visual: "A held-out request tests two limits. The rollback query moves near D for a second trial. Both trials then line up beside a supplied workload p95."
+    beats:
+      - say: "Try one held-out request. Here are the exact five IDs and the five that came back. The run took twelve milliseconds. For this check we require ninety percent recall and a response within twenty milliseconds. Look at the two rows. Would you accept this run?"
+        hold: 2.15
+        visual_cues:
+          - id: earned-transfer-b1
+            phrase: "the exact five IDs"
+            targets: [earned-transfer-mechanism]
+      - say: "Four divided by five is eighty percent. Hold this run. The time clears its limit, but replacing eighty-nine with three cost one of the five exact neighbors."
+        hold: 0.75
+        caption_starts: ["eighty percent.", "Hold this run."]
+        visual_cues:
+          - id: earned-transfer-result
+            phrase: "Four divided by five is eighty percent"
+            targets: [earned-transfer-mechanism]
+      - say: "Go back to the original six passages, with all six eligible and squared distance as before. Move the query towards D. Now the right center is closer. Score its three passages. An exact audit tells us that A is the closest passage on the left. Would opening the left list change the top two this time?"
+        hold: 2.1
+        visual_cues:
+          - id: new-query
+            phrase: "Move the query towards D"
+            targets: [new-query-map]
+          - id: show-right-scores
+            phrase: "Score its three passages"
+            targets: [second-query-scores]
+      - say: "Keep D and B. B scores six point four one. Even the closest passage on the left scores nine point zero four. One list recovered both exact neighbors here. At the border, that same budget missed B."
+        hold: 0.85
+        caption_starts: ["B scores six point four one.", "One list recovered both exact neighbors here."]
+        visual_cues:
+          - id: new-pair
+            phrase: "Keep D and B"
+            targets: [new-query-map]
+      - say: "Average recall across the two queries. We need ninety percent. The last column gives the workload’s ninety-fifth percentile latency for each setting. Our limit is twenty milliseconds. Which setting clears both limits?"
+        hold: 2.1
+        caption_starts: ["The last column", "Which setting clears both limits?"]
+        visual_cues:
+          - id: compare-runs
+            phrase: "Average recall across the two"
+            targets: [release-comparison]
+      - say: "Choose two lists for this trial. The second list brings B back at the border. Both queries now recover both neighbors. The ninety-fifth percentile is eighteen milliseconds, two under budget."
+        hold: 1.25
+        caption_starts: ["The second list brings B back", "The ninety-fifth percentile", "two under budget."]
+        visual_cues:
+          - id: choose-budget
+            phrase: "Choose two lists"
+            targets: [release-comparison]
+          - id: recover-border
+            phrase: "brings B back at the border"
+            targets: [release-comparison]
+          - id: latency-margin
+            phrase: "two under budget"
+            targets: [release-comparison]

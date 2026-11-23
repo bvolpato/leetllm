@@ -1,0 +1,1222 @@
+version: 1
+id: softmax
+title: Teach a Model What Happened Next
+source: preparation/softmax-cross-entropy-optimization/content.md
+voice: en-US-AndrewNeural
+rate: +0%
+sources:
+  - title: "Goodfellow, Bengio and Courville: Maximum Likelihood Estimation"
+    url: https://www.deeplearningbook.org/contents/ml.html
+  - title: "PyTorch: CrossEntropyLoss"
+    url: https://docs.pytorch.org/docs/stable/generated/torch.nn.CrossEntropyLoss.html
+  - title: "Hinton, Vinyals and Dean: Distilling the Knowledge in a Neural Network"
+    url: https://arxiv.org/abs/1503.02531
+  - title: Label smoothing in Inception
+    url: https://arxiv.org/abs/1512.00567
+  - title: When Does Label Smoothing Help?
+    url: https://arxiv.org/abs/1906.02629
+  - title: Cut Your Losses in Large-Vocabulary Language Models
+    url: https://arxiv.org/abs/2411.09009
+  - title: Strictly Proper Scoring Rules,Prediction,and Estimation
+    url: https://sites.stat.washington.edu/raftery/Research/PDF/Gneiting2007jasa.pdf
+scenes:
+  - id: intro
+    title: The dog… what happened next?
+    visual: Three large candidate words surround an unresolved continuation. The model's favorite and the observed word arrive separately.
+    beats:
+      - say: The dog… Ran, slept, ate. Put a finger on the word you expect next. All three could complete this little sentence.
+        hold: 0.8
+      - say: This model favors ran. The sentence actually continues slept. That observed word is the target we will train on.
+        hold: 0.35
+        visual_cues:
+          - id: intro-favorite
+            phrase: This model favors ran
+            targets:
+              - model-favorite
+            color: blue
+            linger: 0.35
+          - id: intro-observed
+            phrase: The sentence actually continues slept
+            targets:
+              - observed-word
+            color: green
+            linger: 0.35
+      - say: How much should slept gain? Follow one shared probability budget, the cost of the missed word, and a correction that changes the next prediction.
+        hold: 0.35
+  - id: scores
+    title: Read the gaps between scores
+    visual: Three positions on a common score ruler show fixed gaps. A shared offset changes every tick value while the two gap lengths remain fixed.
+    beats:
+      - say: Our model gives ran three, slept one, and ate zero. These scores are logits. A larger score means a stronger preference. The two-point lead matters more than the name of the starting point.
+        hold: 0.35
+        visual_cues:
+          - id: score-gaps
+            phrase: The two-point lead
+            targets:
+              - score-gaps
+            color: yellow
+            linger: 0.35
+      - say: Add a thousand to every score. Watch the ruler labels change while those gaps hold their lengths. The relative preferences stay the same. Our probability rule should preserve that relationship.
+        hold: 0.35
+        visual_cues:
+          - id: score-offset
+            phrase: Add a thousand to every score
+            targets:
+              - shared-logit-offset
+            color: cyan
+            linger: 0.35
+      - say: Subtract that shared offset and the original scores return. Logits can be any real numbers. Next we will turn their gaps into positive weights, then divide one budget among them.
+        hold: 0.35
+        visual_cues:
+          - id: score-restore
+            phrase: Subtract that shared offset
+            targets:
+              - shared-logit-offset
+            color: cyan
+            linger: 0.35
+  - id: exponentials
+    title: Give each score a positive weight
+    visual: Each exponential is evaluated in turn. Subtracting the maximum shrinks all weights by a common factor; adding a large offset leaves the shifted values and ratio fixed.
+    beats:
+      - say: Exponentiation gives every finite score a positive weight. First ran, then slept, then ate. A two-point score lead becomes a weight ratio of about seven to one. We have weights; their total is still free to vary.
+        hold: 0.35
+        visual_cues:
+          - id: exp-ran
+            phrase: First ran
+            targets:
+              - positive-weight-0
+            color: blue
+            linger: 0.35
+          - id: exp-slept
+            phrase: then slept
+            targets:
+              - positive-weight-1
+            color: green
+            linger: 0.35
+          - id: exp-ate
+            phrase: then ate
+            targets:
+              - positive-weight-2
+            color: pink
+            linger: 0.35
+      - say: For safe arithmetic, subtract the largest score first. The largest exponent becomes zero, so its weight is one. Every weight receives the same scale factor. Their ratio survives, ready for normalization.
+        hold: 0.35
+        visual_cues:
+          - id: exp-shift
+            phrase: subtract the largest score first
+            targets:
+              - shifted-weights
+            color: yellow
+            linger: 0.35
+      - say: Now add a thousand to the input scores. Subtract the new maximum before taking exponentials. The same small weights remain. This order prevents overflowing exponentials while preserving the intended shares.
+        hold: 0.35
+        visual_cues:
+          - id: exp-offset
+            phrase: add a thousand to the input scores
+            targets:
+              - exponential-inputs
+            color: cyan
+            linger: 0.35
+  - id: mass
+    title: Three claims on one budget
+    visual: Each weight contributes to a running denominator. Fractions then fill one unit strip. Raising only slept's score recomputes every share, followed by an explicit restore.
+    beats:
+      - say: Put ran's weight into the total. Add slept's weight, then ate's. Every candidate divides by this same denominator. Fill ran's share, slept's share, and ate's share. Together they use exactly one unit of probability.
+        hold: 0.35
+        motion_check:
+          region:
+            - 280
+            - 440
+            - 1370
+            - 410
+          minimumChangedFraction: 0.002
+        visual_cues:
+          - id: mass-add-0
+            phrase: Put ran's weight into the total
+            targets:
+              - normalizing-denominator
+            color: blue
+            linger: 0.1
+          - id: mass-add-1
+            phrase: Add slept's weight
+            targets:
+              - normalizing-denominator
+            color: green
+            linger: 0.1
+          - id: mass-add-2
+            phrase: then ate's
+            targets:
+              - normalizing-denominator
+            color: pink
+            linger: 0.1
+          - id: mass-share-0
+            phrase: Fill ran's share
+            targets:
+              - probability-share-0
+            color: blue
+            linger: 0.1
+          - id: mass-share-1
+            phrase: slept's share
+            targets:
+              - probability-share-1
+            color: green
+            linger: 0.1
+          - id: mass-share-2
+            phrase: and ate's share
+            targets:
+              - probability-share-2
+            color: pink
+            linger: 0.35
+      - say: "Raise only slept's score by one. Its weight grows, the denominator grows, and every share changes. The strip makes the competition visible: slept gains space as both neighbors give some up."
+        hold: 0.35
+        visual_cues:
+          - id: mass-raise
+            phrase: Raise only slept's score by one
+            targets:
+              - mass-distribution
+            color: green
+            linger: 0.35
+      - say: "Restore the original scores. Slept received about eleven percent. Which observation should cost more: the favorite ran, or the surprising slept? Keep your answer while we put both on a loss curve."
+        hold: 0.8
+        visual_cues:
+          - id: mass-restore
+            phrase: Restore the original scores
+            targets:
+              - mass-distribution
+            color: yellow
+            linger: 0.35
+  - id: loss
+    title: Price the word that actually appeared
+    visual: A selected point moves from the favorite probability to the observed-word probability on a negative-log curve. Stable loss is then assembled from gap and log-total terms, including an underflow example.
+    beats:
+      - say: "Cross-entropy takes the negative natural log of the target's probability. Start at ran's large share: observing that favorite would cost very little. As target probability approaches one, the cost approaches zero."
+        hold: 0.35
+        visual_cues:
+          - id: loss-favorite
+            phrase: Start at ran's large share
+            targets:
+              - target-loss-point
+            color: blue
+            linger: 0.35
+      - say: "Move to the observed slept probability. The point climbs: a small share means a larger loss. That resolves our prediction. The missed word costs about two point one seven nats, using the unrounded probability."
+        hold: 0.35
+        visual_cues:
+          - id: loss-observed
+            phrase: Move to the observed slept probability
+            targets:
+              - target-loss-point
+              - target-loss-value
+            color: green
+            linger: 0.35
+      - say: Compute that loss safely from the logits. Take the maximum minus the target score. Add the log of our shifted weight total. Even when a target weight rounds to zero, this log-space calculation can retain its finite loss.
+        hold: 0.35
+        visual_cues:
+          - id: loss-gap
+            phrase: Take the maximum minus the target score
+            targets:
+              - loss-gap
+            color: yellow
+            linger: 0.35
+          - id: loss-log-total
+            phrase: Add the log of our shifted weight total
+            targets:
+              - loss-log-total
+              - target-loss-value
+            color: cyan
+            linger: 0.35
+          - id: loss-extreme
+            phrase: Even when a target weight rounds to zero
+            targets:
+              - stable-extreme
+            color: pink
+            linger: 0.35
+  - id: gradient-chain
+    title: Follow one changed score through every probability
+    visual: The same slept coordinate rises slightly while all probability shares change;self and cross derivatives enter the local loss slope.
+    beats:
+      - say: Before using probability minus target, earn it from the shared budget. Hold ran and ate fixed and nudge only the slept logit. Its own share grows, but the same denominator makes both competitors lose share. The softmax Jacobian has entry p i multiplied by the quantity delta i j minus p j. A diagonal entry is p i times one minus p i; an off-diagonal entry is minus p i p j. Each column sums to zero.
+        hold: 0.8
+        visual_cues:
+          - id: gradient-chain-0
+            phrase: Before using probability minus target, earn it from the shared budget
+            targets:
+              - gradient-chain-operation
+            linger: 0.4
+          - id: jacobian-nudge
+            phrase: nudge only the slept logit
+            targets:
+              - gradient-chain-operation
+            color: cyan
+            linger: 0.4
+          - id: jacobian-formula
+            phrase: The softmax Jacobian has entry
+            targets:
+              - gradient-chain-operation
+            color: cyan
+            linger: 0.4
+          - id: jacobian-column
+            phrase: Each column sums to zero
+            targets:
+              - gradient-chain-operation
+            color: cyan
+            linger: 0.4
+      - say: At the original slept probability about point one one four, the self derivative is about point one zero one. Raising ran changes slept with derivative about minus point zero nine six, and raising ate changes slept with derivative about minus point zero zero four eight. These are local slopes, not finite one-point changes. For the target loss minus log slept probability, the slope with respect to that probability is minus one divided by p slept.
+        hold: 0.8
+        visual_cues:
+          - id: gradient-chain-1
+            phrase: At the original slept probability about point one one four, the self derivative is about point one zero one
+            targets:
+              - gradient-chain-operation
+            linger: 0.4
+          - id: jacobian-self
+            phrase: the self derivative is about point one zero one
+            targets:
+              - gradient-chain-operation
+            color: cyan
+            linger: 0.4
+          - id: jacobian-ran
+            phrase: Raising ran changes slept with derivative about minus point zero nine six,
+            targets:
+              - gradient-chain-operation
+            color: cyan
+            linger: 0.4
+          - id: jacobian-ate
+            phrase: raising ate changes slept with derivative about minus point zero zero four eight.
+            targets:
+              - gradient-chain-operation
+            color: cyan
+            linger: 0.4
+          - id: jacobian-loss-slope
+            phrase: For the target loss minus log slept probability, the slope with respect to that probability is minus one divided by p slept.
+            targets:
+              - gradient-chain-operation
+            color: cyan
+            linger: 0.4
+      - say: "Follow each route into the loss. The slept factor p slept times one minus p slept cancels with minus one over p slept, leaving p slept minus one. A competitor route minus p slept p competitor cancels to positive p competitor. More generally, sum the target-weighted routes: normalized target weights sum to one, so the result is p minus y. The gradient of log-sum-exp is also p, and subtracting the target score gives the same result. A symmetric finite-difference test independently confirms the local derivative."
+        hold: 0.8
+        visual_cues:
+          - id: gradient-chain-2
+            phrase: Follow each route into the loss
+            targets:
+              - gradient-chain-operation
+            linger: 0.4
+          - id: chain-target
+            phrase: leaving p slept minus one
+            targets:
+              - gradient-chain-operation
+            color: cyan
+            linger: 0.4
+          - id: chain-competitor
+            phrase: cancels to positive p competitor
+            targets:
+              - gradient-chain-operation
+            color: cyan
+            linger: 0.4
+          - id: chain-normalized
+            phrase: normalized target weights sum to one
+            targets:
+              - gradient-chain-operation
+            color: cyan
+            linger: 0.4
+  - id: gradient
+    title: Subtract what happened from what was predicted
+    visual: The one-hot observed-word row is selected first. Each probability-minus-target subtraction constructs its own signed gradient bar. Three contributions then cancel in a running sum.
+    beats:
+      - say: "Back to the dog. The target row records what happened: one for slept, zero for each other word. The combined loss derivative is probability minus target. First subtract ran's zero. Its positive gradient says that raising the wrong favorite raises the loss."
+        hold: 0.35
+        visual_cues:
+          - id: gradient-target
+            phrase: one for slept, zero for each other word
+            targets:
+              - one-hot-target
+            color: green
+            linger: 0.35
+          - id: gradient-0
+            phrase: First subtract ran's zero.
+            targets:
+              - logit-gradient-0
+            color: blue
+            linger: 0.35
+      - say: "For slept, subtract one. Its gradient is negative, so raising that score lowers the loss. For ate, subtract zero: a small positive correction. Gradient descent subtracts these gradients, raising slept and lowering its competitors."
+        hold: 0.35
+        motion_check:
+          region:
+            - 1300
+            - 580
+            - 350
+            - 310
+          minimumChangedFraction: 0.002
+        visual_cues:
+          - id: gradient-1
+            phrase: For slept, subtract one. Its gradient is negative, so raising that score lowers the loss.
+            targets:
+              - logit-gradient-1
+            color: green
+            linger: 0.35
+          - id: gradient-2
+            phrase: "For ate, subtract zero: a small positive correction."
+            targets:
+              - logit-gradient-2
+            color: pink
+            linger: 0.35
+      - say: Add the three corrections. The competitors' positive parts exactly balance the target's negative part. The total is zero, matching our fixed score gaps under a common shift. Backpropagation carries this local signal into the network's shared weights.
+        hold: 0.35
+        visual_cues:
+          - id: gradient-balance
+            phrase: Add the three corrections
+            targets:
+              - gradient-balance
+            color: yellow
+            linger: 0.35
+  - id: update
+    title: Make the correction earn more target probability
+    visual: The existing cue-driven direct logit update recomputes all probability bars and the observed-word loss through intermediate states, then holds the completed result.
+    beats:
+      - say: Try one direct update to these logits. Subtract a positive step times each gradient. The corrected target score rises while the competitors fall. Follow the changed gaps into a new probability distribution.
+        hold: 0.35
+        motion_check:
+          region:
+            - 420
+            - 390
+            - 1120
+            - 430
+          minimumChangedFraction: 0.002
+        visual_cues:
+          - id: logit-update-rule-b1-1
+            phrase: The corrected target score rises
+            targets:
+              - logit-update-values
+              - updated-probabilities
+            color: cyan
+            linger: 0.35
+      - say: Watch slept gain probability. Its share passes the old favorite as cross-entropy decreases. We recompute every bar and the loss from the changing logits throughout the step.
+        hold: 0.35
+        visual_cues:
+          - id: updated-probabilities-b2-1
+            phrase: Watch slept gain probability
+            targets:
+              - updated-probabilities
+            color: green
+            linger: 0.35
+          - id: updated-target-loss-b2-2
+            phrase: as cross-entropy decreases
+            targets:
+              - updated-target-loss
+            color: green
+            linger: 0.35
+      - say: Slept now receives about sixty-one percent. The original eleven percent has become a much better prediction for this observation. Shared network parameters affect other examples too; held-out predictions measure how broadly that learning helps.
+        hold: 0.35
+  - id: temperature
+    title: Sharpness and learning turn different controls
+    visual: Temperature first sharpens then flattens the original mistaken ranking, with the observed target always marked. Restoring one and applying learned scores changes the leader.
+    beats:
+      - say: Keep the original scores. Lower positive temperature concentrates mass around ran. Higher temperature spreads it out. Slept remains the observed target in both views. Temperature divides the score gaps and preserves their order.
+        hold: 0.35
+        visual_cues:
+          - id: temperature-distribution-b1-1
+            phrase: Lower positive temperature concentrates mass around ran
+            targets:
+              - temperature-distribution
+            color: blue
+            linger: 0.35
+          - id: temperature-higher-b1-2
+            phrase: Higher temperature spreads it out
+            targets:
+              - temperature-distribution
+            color: cyan
+            linger: 0.35
+      - say: Predict the effect of sharpening this mistaken ranking again. Ran becomes even more confident. The label still says slept. Calibration chooses temperature using held-out outcomes; a sampling policy then decides how to select a word.
+        hold: 0.35
+        visual_cues:
+          - id: temperature-distribution-b2-1
+            phrase: Ran becomes even more confident
+            targets:
+              - temperature-distribution
+            color: blue
+            linger: 0.35
+      - say: "Bring temperature back to one. Now apply our learned scores: slept becomes the leader. Learning changed the score order. The softmax formula uses positive temperature; an interface's zero-temperature greedy choice needs its own selection branch."
+        hold: 0.35
+        visual_cues:
+          - id: temperature-restore
+            phrase: Bring temperature back to one
+            targets:
+              - temperature-distribution
+            color: cyan
+            linger: 0.35
+          - id: temperature-learned
+            phrase: Now apply our learned scores
+            targets:
+              - temperature-distribution
+            color: green
+            linger: 0.35
+  - id: transfer
+    title: "Your turn: a fresh prefix"
+    visual: A fresh cat prefix receives a new forward distribution and observed ate selector. Its gradient and update are withheld until their clauses. The two observed-word probabilities then become separate losses and a mean.
+    beats:
+      - say: "A fresh line: the cat. These new scores favor ate, and the observed word is ate. Which score gets the upward correction? Predict its sign before we reveal the subtraction."
+        hold: 0.8
+        visual_cues:
+          - id: transfer-forward
+            phrase: These new scores favor ate
+            targets:
+              - fresh-distribution
+            color: cyan
+            linger: 0.35
+          - id: transfer-target
+            phrase: the observed word is ate
+            targets:
+              - fresh-target
+            color: pink
+            linger: 0.35
+      - say: "Ate's probability minus one is negative. Subtract that gradient: its score rises and its probability grows. This already likely target needs a smaller correction than the earlier surprising slept."
+        hold: 0.35
+        visual_cues:
+          - id: transfer-gradient
+            phrase: Ate's probability minus one is negative.
+            targets:
+              - fresh-gradient
+            color: pink
+            linger: 0.35
+          - id: transfer-update
+            phrase: Subtract that gradient
+            targets:
+              - fresh-distribution
+            color: green
+            linger: 0.35
+      - say: Return to both initial predictions. For these two training examples, multiply the observed-word probabilities. Negative log turns that product into the sum of their two losses. Divide by two to report the mean. The surprising dog example contributes most of that cost.
+        hold: 0.35
+        visual_cues:
+          - id: transfer-product
+            phrase: For these two training examples, multiply the observed-word probabilities.
+            targets:
+              - joint-probability
+            color: cyan
+            linger: 0.35
+          - id: transfer-loss-sum
+            phrase: Negative log turns that product into the sum of their two losses.
+            targets:
+              - combined-loss
+            color: yellow
+            linger: 0.35
+          - id: transfer-mean
+            phrase: Divide by two to report the mean.
+            targets:
+              - mean-loss
+            color: green
+            linger: 0.35
+  - id: entropy-reference
+    title: Separate target uncertainty from mismatch
+    visual: Two soft-target shares form entropy;matching and mismatching predictions build cross-entropy and KL on the same target.
+    beats:
+      - say: "A hard observed word is a one-hot annotation with zero target entropy. Soft targets can express annotation disagreement, distillation or deliberate smoothing. Keep the supplied target P separate from the model prediction Q. Entropy H of P is minus the sum of P log P. Cross-entropy H of P, Q is minus the sum of P log Q. KL from P to Q is their difference: cross-entropy equals target entropy plus mismatch."
+        hold: 0.8
+        visual_cues:
+          - id: entropy-reference-0
+            phrase: A hard observed word is a one-hot annotation with zero target entropy
+            targets:
+              - entropy-reference-operation
+            linger: 0.4
+          - id: entropy-soft-target
+            phrase: Soft targets can express annotation disagreement
+            targets:
+              - entropy-reference-operation
+            color: cyan
+            linger: 0.4
+          - id: entropy-identities
+            phrase: cross-entropy equals target entropy plus mismatch
+            targets:
+              - entropy-reference-operation
+            color: cyan
+            linger: 0.4
+      - say: For target one half, one half, zero, a matching prediction has cross-entropy natural log two, about point six nine three nats, and KL zero. Matching the target does not remove its uncertainty. This target entropy is a property of the annotation or objective; it need not be irreducible uncertainty in the real world. Both distributions must refer to the same classes and be normalized and nonnegative.
+        hold: 0.8
+        visual_cues:
+          - id: entropy-reference-1
+            phrase: For target one half, one half, zero, a matching prediction has cross-entropy natural log two, about point six nine three nats, and KL zero
+            targets:
+              - entropy-reference-operation
+            linger: 0.4
+          - id: entropy-match
+            phrase: a matching prediction has cross-entropy natural log two, about point six nine three nats, and KL zero.
+            targets:
+              - entropy-reference-operation
+            color: cyan
+            linger: 0.4
+      - say: Use the convention zero log zero equals zero. If target mass is positive where predicted probability is zero, cross-entropy and KL are infinite. A malformed soft target with total mass a instead yields raw-logit derivative a times p minus y. PyTorch does not validate that float probability targets form distributions, so check them. A low printed number from invalid targets is not a valid learning objective.
+        hold: 0.8
+        visual_cues:
+          - id: entropy-reference-2
+            phrase: Use the convention zero log zero equals zero
+            targets:
+              - entropy-reference-operation
+            linger: 0.4
+          - id: entropy-zero-support
+            phrase: If target mass is positive where predicted probability is zero, cross-entropy and KL are infinite.
+            targets:
+              - entropy-reference-operation
+            color: cyan
+            linger: 0.4
+          - id: entropy-malformed
+            phrase: A malformed soft target with total mass a instead yields raw-logit derivative a times p minus y.
+            targets:
+              - entropy-reference-operation
+            color: cyan
+            linger: 0.4
+  - id: squared-vs-ce
+    title: Keep the same confident mistake through two losses
+    visual: A near-certain wrong prediction retains its actual Jacobian while two different probability-space loss slopes flow through it.
+    beats:
+      - say: Cross-entropy is not the only valid scoring rule. Half the sum of squared probability errors is a scaled Brier loss and is also proper for categorical predictions. Compare optimization on the same supplied logits eight, zero, zero with the middle class correct. The wrong favorite has probability about point nine nine nine three; the target about point zero zero zero three. The softmax Jacobian is nearly saturated.
+        hold: 0.8
+        visual_cues:
+          - id: squared-vs-ce-0
+            phrase: Cross-entropy is not the only valid scoring rule
+            targets:
+              - squared-vs-ce-operation
+            linger: 0.4
+          - id: brier-jacobian
+            phrase: The softmax Jacobian is nearly saturated
+            targets:
+              - squared-vs-ce-operation
+            color: cyan
+            linger: 0.4
+      - say: Cross-entropy has probability-space slope minus y divided by p, which cancels the small target softmax factor. Its target logit gradient is about minus point nine nine nine seven. Squared probability error instead has slope p minus y before the Jacobian. Its target logit gradient here is about minus point zero zero zero seven. The extra small Jacobian factors remain, so this confident error receives a much weaker local correction.
+        hold: 0.8
+        visual_cues:
+          - id: squared-vs-ce-1
+            phrase: Cross-entropy has probability-space slope minus y divided by p, which cancels the small target softmax factor
+            targets:
+              - squared-vs-ce-operation
+            linger: 0.4
+          - id: brier-ce-result
+            phrase: Its target logit gradient is about minus point nine nine nine seven
+            targets:
+              - squared-vs-ce-operation
+            color: cyan
+            linger: 0.4
+          - id: brier-squared-result
+            phrase: Its target logit gradient here is about minus point zero zero zero seven
+            targets:
+              - squared-vs-ce-operation
+            color: cyan
+            linger: 0.4
+      - say: These are nonzero computed gradients, not a claim that squared error cannot train a classifier. The exact comparison depends on the loss scaling and state. Farther back in a network, both objectives still pass through its Jacobians. Inspect actual gradients and unreduced losses alongside held-out performance; changing a sampling temperature does not repair a mislabeled or misaligned objective.
+        hold: 0.8
+        visual_cues:
+          - id: squared-vs-ce-2
+            phrase: These are nonzero computed gradients, not a claim that squared error cannot train a classifier
+            targets:
+              - squared-vs-ce-operation
+            linger: 0.4
+          - id: brier-network
+            phrase: both objectives still pass through its Jacobians
+            targets:
+              - squared-vs-ce-operation
+            color: cyan
+            linger: 0.4
+  - id: loss-input-contract
+    title: Repair a plausible loss with the wrong input
+    visual: The same logits pass directly to cross-entropy or through an extra softmax;loss and true upstream gradients reveal the objective change.
+    beats:
+      - say: Run the actual PyTorch fixture on scores three, one, zero with slept as target. Passing raw logits to cross-entropy gives loss about two point one seven zero and target gradient minus point eight eight six. For integer class targets without smoothing, this is stable log-softmax followed by negative log likelihood. It works on CPU and GPU; the API does not promise a universal kernel count or allocation pattern.
+        hold: 0.8
+        visual_cues:
+          - id: loss-input-contract-0
+            phrase: Run the actual PyTorch fixture on scores three, one, zero with slept as target
+            targets:
+              - loss-input-contract-operation
+            linger: 0.4
+          - id: api-direct-result
+            phrase: Passing raw logits to cross-entropy gives loss about two point one seven zero and target gradient minus point eight eight six.
+            targets:
+              - loss-input-contract-operation
+            color: cyan
+            linger: 0.4
+      - say: "Now change only the loss input by applying softmax first. Cross-entropy treats those probabilities as new logits and normalizes again. The shapes still pass, but the objective changes: loss is about one point three eight seven and the upstream slept gradient about minus point one two seven. That smaller number is not evidence the prediction improved. Remove the extra softmax from the loss path; compute probabilities separately when metrics or inference need them."
+        hold: 0.8
+        visual_cues:
+          - id: loss-input-contract-1
+            phrase: Now change only the loss input by applying softmax first
+            targets:
+              - loss-input-contract-operation
+            linger: 0.4
+          - id: api-extra-softmax
+            phrase: by applying softmax first
+            targets:
+              - loss-input-contract-operation
+            color: cyan
+            linger: 0.4
+          - id: api-remove-extra
+            phrase: Remove the extra softmax from the loss path; compute probabilities separately when metrics or inference need them.
+            targets:
+              - loss-input-contract-operation
+            color: cyan
+            linger: 0.4
+          - id: api-extra-result
+            phrase: loss is about one point three eight seven and the upstream slept gradient about minus point one two seven.
+            targets:
+              - loss-input-contract-operation
+            color: cyan
+            linger: 0.4
+      - say: Class-index targets use long integer tensors. Probability targets use floating-point tensors of the same shape as the loss input and need explicit distribution validation. A language-model output shaped batch, sequence, vocabulary must be transposed to batch, vocabulary, sequence or flattened to batch-times-sequence, vocabulary with matching flattened targets. A valid shape does not establish correct token alignment.
+        hold: 0.8
+        visual_cues:
+          - id: loss-input-contract-2
+            phrase: Class-index targets use long integer tensors
+            targets:
+              - loss-input-contract-operation
+            linger: 0.4
+          - id: api-probability-target
+            phrase: Probability targets use floating-point tensors
+            targets:
+              - loss-input-contract-operation
+            color: cyan
+            linger: 0.4
+          - id: api-class-axis
+            phrase: transposed to batch, vocabulary, sequence
+            targets:
+              - loss-input-contract-operation
+            color: cyan
+            linger: 0.4
+          - id: api-flatten
+            phrase: flattened to batch-times-sequence, vocabulary
+            targets:
+              - loss-input-contract-operation
+            color: cyan
+            linger: 0.4
+  - id: temperature-limits
+    title: Hold arithmetic and the selection rule separate
+    visual: Tied logits remain a three-way tie after a safe positive-temperature transform;invalid candidate sets and distillation gradients are bounded explicitly.
+    beats:
+      - say: Positive temperature preserves ranking. As it approaches zero, a unique maximum gets all limiting mass; equal maxima share that mass. As temperature grows without bound, the distribution approaches uniform. Softmax itself is undefined at zero; an API zero-temperature convention selects a separate greedy branch. Temperature fitting for calibration needs held-out outcomes, while sampling still uses its own selection rule.
+        hold: 0.8
+        visual_cues:
+          - id: temperature-limits-0
+            phrase: Positive temperature preserves ranking
+            targets:
+              - temperature-limits-operation
+            linger: 0.4
+          - id: temperature-zero-limit
+            phrase: As it approaches zero
+            targets:
+              - temperature-limits-operation
+            color: cyan
+            linger: 0.4
+          - id: temperature-uniform
+            phrase: As temperature grows without bound
+            targets:
+              - temperature-limits-operation
+            color: cyan
+            linger: 0.4
+          - id: temperature-greedy
+            phrase: an API zero-temperature convention selects a separate greedy branch
+            targets:
+              - temperature-limits-operation
+            color: cyan
+            linger: 0.4
+          - id: temperature-calibration
+            phrase: Temperature fitting for calibration needs held-out outcomes
+            targets:
+              - temperature-limits-operation
+            color: cyan
+            linger: 0.4
+      - say: Subtract the maximum before dividing by temperature. Three equal logits of ten to the three-hundred-eighth at temperature ten to the minus three-hundred-eighth still represent a three-way tie. Dividing first overflows before subtraction and can create infinity minus infinity. Finite max-shifted inputs avoid exponential overflow; validate NaN and positive infinity separately. A masked minus-infinity candidate is allowed beside finite candidates; an all-masked row has no valid distribution.
+        hold: 0.8
+        visual_cues:
+          - id: temperature-limits-1
+            phrase: Subtract the maximum before dividing by temperature
+            targets:
+              - temperature-limits-operation
+            linger: 0.4
+          - id: temperature-overflow
+            phrase: Dividing first overflows before subtraction
+            targets:
+              - temperature-limits-operation
+            color: cyan
+            linger: 0.4
+          - id: temperature-safe
+            phrase: Finite max-shifted inputs avoid exponential overflow
+            targets:
+              - temperature-limits-operation
+            color: cyan
+            linger: 0.4
+          - id: temperature-all-masked
+            phrase: an all-masked row has no valid distribution
+            targets:
+              - temperature-limits-operation
+            color: cyan
+            linger: 0.4
+      - say: Distillation uses softened teacher and student distributions to reveal relative alternatives. Through softmax of z divided by T, the raw-logit cross-entropy gradient is p of T minus target, divided by T. When both teacher and student soften at high T, their difference also scales down; Hinton and colleagues multiply the soft-target objective by T squared to balance its contribution. This does not change the need to evaluate the actual distillation task.
+        hold: 0.8
+        visual_cues:
+          - id: temperature-limits-2
+            phrase: Distillation uses softened teacher and student distributions to reveal relative alternatives
+            targets:
+              - temperature-limits-operation
+            linger: 0.4
+          - id: distill-both
+            phrase: When both teacher and student soften at high T
+            targets:
+              - temperature-limits-operation
+            color: cyan
+            linger: 0.4
+          - id: distill-gradient
+            phrase: the raw-logit cross-entropy gradient
+            targets:
+              - temperature-limits-operation
+            color: cyan
+            linger: 0.4
+          - id: distill-scale
+            phrase: multiply the soft-target objective by T squared
+            targets:
+              - temperature-limits-operation
+            color: cyan
+            linger: 0.4
+  - id: smoothing-equilibrium
+    title: Construct a finite relative-score optimum
+    visual: One-hot mass mixes with a uniform target;the same probabilities cross the new target equilibrium and the correction reverses.
+    beats:
+      - say: "One unrestricted hard-target example approaches zero cross-entropy only as its target logit leads every competitor by an unbounded gap. Shared weights, conflicting labels or regularization can change what a trained network actually does. Uniform label smoothing changes the target instead: one minus alpha times the one-hot vector, plus alpha divided by class count in every coordinate."
+        hold: 0.8
+        visual_cues:
+          - id: smoothing-equilibrium-0
+            phrase: One unrestricted hard-target example approaches zero cross-entropy only as its target logit leads every competitor by an unbounded gap
+            targets:
+              - smoothing-equilibrium-operation
+            linger: 0.4
+          - id: smooth-mixture
+            phrase: Uniform label smoothing changes the target instead
+            targets:
+              - smoothing-equilibrium-operation
+            color: cyan
+            linger: 0.4
+      - say: For our three words and alpha point one, the target is about point nine three three three on slept and point zero three three three on each competitor. Matching these strictly positive shares sets the direct logit gradient to zero. The target-to-competitor ratio is twenty-eight, so the required gap is natural log twenty-eight, about three point three three two. If slept exceeds its smoothed target, the local gradient turns positive and direct descent lowers it. Minimum loss is the target entropy, not zero.
+        hold: 0.8
+        visual_cues:
+          - id: smoothing-equilibrium-1
+            phrase: For our three words and alpha point one, the target is about point nine three three three on slept and point zero three three three on each competitor
+            targets:
+              - smoothing-equilibrium-operation
+            linger: 0.4
+          - id: smooth-gap
+            phrase: The target-to-competitor ratio is twenty-eight, so the required gap is natural log twenty-eight, about three point three three two.
+            targets:
+              - smoothing-equilibrium-operation
+            color: cyan
+            linger: 0.4
+          - id: smooth-overshoot
+            phrase: If slept exceeds its smoothed target
+            targets:
+              - smoothing-equilibrium-operation
+            color: cyan
+            linger: 0.4
+          - id: smooth-minimum
+            phrase: Minimum loss is the target entropy, not zero.
+            targets:
+              - smoothing-equilibrium-operation
+            color: cyan
+            linger: 0.4
+      - say: This constrains relative logits for the unrestricted example, not a common shift or all model weight norms. Calibration and generalization benefits need task evidence. Label smoothing a teacher can also harm later distillation, as Müller and colleagues observed. Combining positive target mass with an excluded vocabulary class makes the mathematical loss infinite; choose compatible targets and candidate support rather than hiding that conflict.
+        hold: 0.8
+        visual_cues:
+          - id: smoothing-equilibrium-2
+            phrase: This constrains relative logits for the unrestricted example, not a common shift or all model weight norms
+            targets:
+              - smoothing-equilibrium-operation
+            linger: 0.4
+          - id: smooth-shift
+            phrase: not a common shift
+            targets:
+              - smoothing-equilibrium-operation
+            color: cyan
+            linger: 0.4
+          - id: smooth-support
+            phrase: Combining positive target mass with an excluded vocabulary class makes the mathematical loss infinite
+            targets:
+              - smoothing-equilibrium-operation
+            color: cyan
+            linger: 0.4
+  - id: teacher-forcing
+    title: Align the prediction with the next observed token
+    visual: An explicit three-token toy is shifted once;the same two distributions are paired with their own next-token targets.
+    beats:
+      - say: For a separate teacher-forcing fixture, use vocabulary bug, docs, today and observed tokens bug docs today. There are two next-token prediction positions. Input bug predicts docs; input prefix bug docs predicts today. A final hidden state projects to one vocabulary logit per token; output weights may be tied to input embeddings, but tying is optional. The previous observed tokens supply context even when a model would have predicted something else.
+        hold: 0.8
+        visual_cues:
+          - id: teacher-forcing-0
+            phrase: For a separate teacher-forcing fixture, use vocabulary bug, docs, today and observed tokens bug docs today
+            targets:
+              - teacher-forcing-operation
+            linger: 0.4
+          - id: teacher-shift
+            phrase: There are two next-token prediction positions
+            targets:
+              - teacher-forcing-operation
+            color: cyan
+            linger: 0.4
+          - id: teacher-observed
+            phrase: Input bug predicts docs
+            targets:
+              - teacher-forcing-operation
+            color: cyan
+            linger: 0.4
+      - say: The supplied rows are three, one, zero targeting docs, and point five, zero, two targeting today. Their target probabilities are about point one one four and point seven three six; losses about two point one seven zero and point three zero six. Add the negative logs and divide by two for a mean about one point two three eight. The first position contributes about eighty-seven point six percent of this total. Keep unreduced token losses visible to avoid concealing a severe failure inside a mean.
+        hold: 0.8
+        visual_cues:
+          - id: teacher-forcing-1
+            phrase: The supplied rows are three, one, zero targeting docs, and point five, zero, two targeting today
+            targets:
+              - teacher-forcing-operation
+            linger: 0.4
+          - id: teacher-token-losses
+            phrase: Their target probabilities are about point one one four and point seven three six; losses about two point one seven zero and point three zero six.
+            targets:
+              - teacher-forcing-operation
+            color: cyan
+            linger: 0.4
+          - id: teacher-loss-mean
+            phrase: divide by two for a mean about one point two three eight
+            targets:
+              - teacher-forcing-operation
+            color: cyan
+            linger: 0.4
+          - id: teacher-first-contribution
+            phrase: The first position contributes about eighty-seven point six percent of this total.
+            targets:
+              - teacher-forcing-operation
+            color: cyan
+            linger: 0.4
+      - say: "These fixture rows are already aligned to their next-token targets. Some model APIs receive unshifted labels and shift internally. Inspect that contract before shifting: predicting the current token or shifting twice trains a different task. A causal attention mask blocks future input access; the loss mask decides which target positions contribute. Neither mask replaces the other."
+        hold: 0.8
+        visual_cues:
+          - id: teacher-forcing-2
+            phrase: These fixture rows are already aligned to their next-token targets
+            targets:
+              - teacher-forcing-operation
+            linger: 0.4
+          - id: teacher-double-shift
+            phrase: predicting the current token or shifting twice
+            targets:
+              - teacher-forcing-operation
+            color: cyan
+            linger: 0.4
+          - id: teacher-mask-roles
+            phrase: A causal attention mask blocks future input access
+            targets:
+              - teacher-forcing-operation
+            color: cyan
+            linger: 0.4
+  - id: token-reduction
+    title: Remove ignored positions from both sums
+    visual: A third extreme-logit row enters the same sequence,but its ignored target contributes no loss,gradient or count.
+    beats:
+      - say: Append a third supplied row with logits one hundred, minus one hundred, zero and an ignored integer target. With ignore index minus one hundred, that target position contributes zero loss and zero gradient. The first two losses still sum to about two point four seven six. Divide by the two supervised positions, not the three stored rows. Changing only the ignored row values leaves the intended objective unchanged.
+        hold: 0.8
+        visual_cues:
+          - id: token-reduction-0
+            phrase: Append a third supplied row with logits one hundred, minus one hundred, zero and an ignored integer target
+            targets:
+              - token-reduction-operation
+            linger: 0.4
+          - id: ignore-denominator
+            phrase: Divide by the two supervised positions, not the three stored rows.
+            targets:
+              - token-reduction-operation
+            color: cyan
+            linger: 0.4
+          - id: ignore-row-change
+            phrase: Changing only the ignored row values
+            targets:
+              - token-reduction-operation
+            color: cyan
+            linger: 0.4
+      - say: Without class weights, the default mean pools non-ignored targets across the batch. One sequence containing one loss of two and another containing three zero losses produce pooled mean point five. Averaging the two sequence means instead gives one. Neither denominator is universal; choose the objective deliberately. Combine chunk or microbatch numerators and their correct denominators rather than averaging means with unequal valid counts.
+        hold: 0.8
+        visual_cues:
+          - id: token-reduction-1
+            phrase: Without class weights, the default mean pools non-ignored targets across the batch
+            targets:
+              - token-reduction-operation
+            linger: 0.4
+          - id: ignore-pooled
+            phrase: produce pooled mean point five
+            targets:
+              - token-reduction-operation
+            color: cyan
+            linger: 0.4
+          - id: ignore-means
+            phrase: Averaging the two sequence means instead gives one
+            targets:
+              - token-reduction-operation
+            color: cyan
+            linger: 0.4
+      - say: An all-ignored batch has an empty denominator. PyTorch mean cross-entropy becomes NaN even with finite logits. Count supervised targets before the optimizer boundary and skip an empty update. An ignored loss position can still be input context for later supervised tokens, and loss masking does not provide attention isolation.
+        hold: 0.8
+        visual_cues:
+          - id: token-reduction-2
+            phrase: An all-ignored batch has an empty denominator
+            targets:
+              - token-reduction-operation
+            linger: 0.4
+          - id: ignore-empty
+            phrase: An all-ignored batch has an empty denominator
+            targets:
+              - token-reduction-operation
+            color: cyan
+            linger: 0.4
+          - id: ignore-input-context
+            phrase: An ignored loss position can still be input context
+            targets:
+              - token-reduction-operation
+            color: cyan
+            linger: 0.4
+          - id: ignore-empty-nan
+            phrase: PyTorch mean cross-entropy becomes NaN even with finite logits.
+            targets:
+              - token-reduction-operation
+            color: cyan
+            linger: 0.4
+          - id: ignore-empty-decision
+            phrase: Count supervised targets before the optimizer boundary and skip an empty update.
+            targets:
+              - token-reduction-operation
+            color: cyan
+            linger: 0.4
+  - id: class-not-position
+    title: A masked target row does not remove a vocabulary class
+    visual: A supervised docs target retains a high padding-class competitor until a separate candidate mask changes the denominator.
+    beats:
+      - say: "Ignore index removes target positions, not a vocabulary entry from every softmax. The actual article fixture has logits zero, one, ten, target docs at class one, and ignore index two for the padding token. This target is not ignored. The padding class still owns nearly all probability mass: the loss is about nine and its logit gradient about point nine nine nine eight three one."
+        hold: 0.8
+        visual_cues:
+          - id: class-not-position-0
+            phrase: Ignore index removes target positions, not a vocabulary entry from every softmax
+            targets:
+              - class-not-position-operation
+            linger: 0.4
+          - id: class-loss
+            phrase: the loss is about nine and its logit gradient about point nine nine nine eight three one.
+            targets:
+              - class-not-position-operation
+            color: cyan
+            linger: 0.4
+      - say: Now explicitly exclude class two by setting only that candidate logit to minus infinity. Docs loss falls to about point three one three because the denominator changed. This is a different permitted-candidate objective, not the effect of ignore index. Apply a vocabulary mask only when the task forbids a candidate, keep the target available and retain at least one finite candidate.
+        hold: 0.8
+        visual_cues:
+          - id: class-not-position-1
+            phrase: Now explicitly exclude class two by setting only that candidate logit to minus infinity
+            targets:
+              - class-not-position-operation
+            linger: 0.4
+          - id: class-exclude
+            phrase: by setting only that candidate logit to minus infinity
+            targets:
+              - class-not-position-operation
+            color: cyan
+            linger: 0.4
+          - id: class-excluded-result
+            phrase: Docs loss falls to about point three one three because the denominator changed.
+            targets:
+              - class-not-position-operation
+            color: cyan
+            linger: 0.4
+      - say: Check support when using soft targets or smoothing. Positive target mass assigned to an excluded class creates infinite mathematical cross-entropy. A target-position mask, an attention mask and a candidate-vocabulary mask each control a different object. Their equal-looking zeros or minus-infinity entries do not make their contracts interchangeable.
+        hold: 0.8
+        visual_cues:
+          - id: class-not-position-2
+            phrase: Check support when using soft targets or smoothing
+            targets:
+              - class-not-position-operation
+            linger: 0.4
+          - id: class-soft-support
+            phrase: Positive target mass assigned to an excluded class creates infinite mathematical cross-entropy.
+            targets:
+              - class-not-position-operation
+            color: cyan
+            linger: 0.4
+  - id: weighted-reduction
+    title: Carry the denominator with a weighted loss
+    visual: Identical one-hot labels use integer or float target representations;weighted numerators match while their PyTorch means differ.
+    beats:
+      - say: Class weights change the reduction contract. With integer targets, no smoothing and non-ignored positions, each target loss is multiplied by its class weight. PyTorch mean divides by the sum of those target-class weights. Floating-point probability targets instead divide by the number of positions. A float one-hot target can therefore produce a different weighted mean from its integer equivalent.
+        hold: 0.8
+        visual_cues:
+          - id: weighted-reduction-0
+            phrase: Class weights change the reduction contract
+            targets:
+              - weighted-reduction-operation
+            linger: 0.4
+          - id: weighted-contract
+            phrase: PyTorch mean divides by the sum of those target-class weights
+            targets:
+              - weighted-reduction-operation
+            color: cyan
+            linger: 0.4
+      - say: Use a supplied two-position binary toy. Both predictions are uniform, so each ordinary loss is natural log two. The targets belong to different classes whose weights are two and four. The weighted numerator is six times natural log two. Integer-target mean divides by six and returns natural log two. Float one-hot mean divides by two and returns three times natural log two. The target representation changes the API reduction, not the predicted probabilities.
+        hold: 0.8
+        visual_cues:
+          - id: weighted-reduction-1
+            phrase: Use a supplied two-position binary toy
+            targets:
+              - weighted-reduction-operation
+            linger: 0.4
+          - id: weighted-numerator
+            phrase: The weighted numerator is six times natural log two
+            targets:
+              - weighted-reduction-operation
+            color: cyan
+            linger: 0.4
+          - id: weighted-integer
+            phrase: Integer-target mean divides by six and returns natural log two.
+            targets:
+              - weighted-reduction-operation
+            color: cyan
+            linger: 0.4
+          - id: weighted-float
+            phrase: Float one-hot mean divides by two and returns three times natural log two.
+            targets:
+              - weighted-reduction-operation
+            color: cyan
+            linger: 0.4
+      - say: Keep an explicit unreduced weighted numerator and its defined denominator when combining shards, chunks or microbatches. Inspect smoothing and weight interactions under the exact API rather than assuming the hard-label formula covers every objective. Type, shape, alignment, candidate support and reduction all belong to the loss contract.
+        hold: 0.8
+        visual_cues:
+          - id: weighted-reduction-2
+            phrase: Keep an explicit unreduced weighted numerator and its defined denominator when combining shards, chunks or microbatches
+            targets:
+              - weighted-reduction-operation
+            linger: 0.4
+          - id: weighted-combine
+            phrase: when combining shards, chunks or microbatches
+            targets:
+              - weighted-reduction-operation
+            color: cyan
+            linger: 0.4
+  - id: vocabulary-tiles
+    title: Count the logit matrix before claiming memory savings
+    visual: Token positions and vocabulary columns grow a real byte rectangle;projection tiles reduce online log-sum-exp without storing the whole matrix.
+    beats:
+      - say: "The vocabulary matrix can dominate an intermediate. The article worksheet uses batch sixteen, sequence four thousand ninety-six and vocabulary one hundred twenty-eight thousand two hundred fifty-six. Their float32 logits alone require thirty-three billion, six hundred twenty-one million, five hundred forty thousand, eight hundred sixty-four bytes: about thirty-three point six two decimal gigabytes or thirty-one point three one gibibytes. Other activations, gradients and optimizer state add memory."
+        hold: 0.8
+        visual_cues:
+          - id: vocabulary-tiles-0
+            phrase: The vocabulary matrix can dominate an intermediate
+            targets:
+              - vocabulary-tiles-operation
+            linger: 0.4
+          - id: vocab-matrix
+            phrase: vocabulary one hundred twenty-eight thousand two hundred fifty-six
+            targets:
+              - vocabulary-tiles-operation
+            color: cyan
+            linger: 0.4
+          - id: vocab-positions
+            phrase: batch sixteen, sequence four thousand ninety-six
+            targets:
+              - vocabulary-tiles-operation
+            color: cyan
+            linger: 0.4
+          - id: vocab-bytes
+            phrase: Their float32 logits alone require thirty-three billion, six hundred twenty-one million, five hundred forty thousand, eight hundred sixty-four bytes
+            targets:
+              - vocabulary-tiles-operation
+            color: cyan
+            linger: 0.4
+          - id: vocab-gib
+            phrase: or thirty-one point three one gibibytes
+            targets:
+              - vocabulary-tiles-operation
+            color: cyan
+            linger: 0.4
+      - say: A normal cross-entropy call receives logits already allocated. Reducing only its later temporary buffers cannot undo that projection allocation. Projection-and-loss implementations can instead compute vocabulary tiles and update log-sum-exp on the fly. For each tile, merge its maximum with the running maximum and rescale prior and incoming exponential sums to that same baseline; read the target logit separately.
+        hold: 0.8
+        visual_cues:
+          - id: vocabulary-tiles-1
+            phrase: A normal cross-entropy call receives logits already allocated
+            targets:
+              - vocabulary-tiles-operation
+            linger: 0.4
+          - id: tile-incoming
+            phrase: merge its maximum with the running maximum
+            targets:
+              - vocabulary-tiles-operation
+            color: cyan
+            linger: 0.4
+          - id: tile-result
+            phrase: read the target logit separately
+            targets:
+              - vocabulary-tiles-operation
+            color: cyan
+            linger: 0.4
+      - say: Cut Cross-Entropy demonstrates this fused projection/reduction approach without a full token-by-vocabulary matrix in global GPU memory. The paper also uses gradient filtering for throughput, so approximation settings, objectives and supported hardware matter. These source mechanisms are not a fresh GPU benchmark. Measure the complete training step and numerical agreement under the chosen implementation.
+        hold: 0.8
+        visual_cues:
+          - id: vocabulary-tiles-2
+            phrase: Cut Cross-Entropy demonstrates this fused projection/reduction approach without a full token-by-vocabulary matrix in global GPU memory
+            targets:
+              - vocabulary-tiles-operation
+            linger: 0.4
+          - id: tile-full-contract
+            phrase: without a full token-by-vocabulary matrix
+            targets:
+              - vocabulary-tiles-operation
+            color: cyan
+            linger: 0.4
+  - id: earned-transfer
+    title: Find the denominator in a fresh masked batch
+    visual: New target probabilities and one ignored row remain visible while an incorrect denominator is repaired without changing predictions.
+    beats:
+      - say: Work a new three-row fixture. The first two supervised targets have probabilities one quarter and one half. The third target is ignored, although its finite logits are extreme. A dashboard divides the loss sum by three stored rows. Predict the correct mean and whether changing only that ignored row should change the loss. Use natural logarithms and no class weights.
+        hold: 0.8
+        visual_cues:
+          - id: earned-transfer-0
+            phrase: Work a new three-row fixture
+            targets:
+              - earned-transfer-operation
+            linger: 0.4
+      - say: The supervised losses are natural log four and natural log two, about one point three eight six and point six nine three. Their sum is about two point zero seven nine. Divide by two supervised targets to get about one point zero four zero nats. Dividing by three incorrectly reports about point six nine three. Repair the denominator on this same state; do not alter the predictions to make the smaller dashboard number look better.
+        hold: 0.8
+        visual_cues:
+          - id: earned-transfer-1
+            phrase: The supervised losses are natural log four and natural log two, about one point three eight six and point six nine three
+            targets:
+              - earned-transfer-operation
+            linger: 0.4
+          - id: fresh-two-losses
+            phrase: The supervised losses are natural log four and natural log two, about one point three eight six and point six nine three.
+            targets:
+              - earned-transfer-operation
+            color: cyan
+            linger: 0.4
+          - id: fresh-loss-sum
+            phrase: Their sum is about two point zero seven nine
+            targets:
+              - earned-transfer-operation
+            color: cyan
+            linger: 0.4
+          - id: fresh-mean-repair
+            phrase: Divide by two supervised targets to get about one point zero four zero nats.
+            targets:
+              - earned-transfer-operation
+            color: cyan
+            linger: 0.4
+          - id: fresh-wrong-mean
+            phrase: Dividing by three incorrectly reports about point six nine three.
+            targets:
+              - earned-transfer-operation
+            color: cyan
+            linger: 0.4
+      - say: "Changing only the ignored row keeps that objective and its zero row gradient unchanged. If every target becomes ignored, skip the empty update instead of dividing by zero. A passing diagnosis checks raw logits, stable arithmetic, the target and candidate supports, alignment, and the exact numerator and denominator. The original slept correction and this masked transfer are two uses of the same accountable probability budget. Next, recurrent networks process events in order through a changing hidden state, then feed that state into the classifier whose probability budget we just checked."
+        hold: 0.8
+        visual_cues:
+          - id: earned-transfer-2
+            phrase: Changing only the ignored row keeps that objective and its zero row gradient unchanged
+            targets:
+              - earned-transfer-operation
+            linger: 0.4
+          - id: fresh-empty
+            phrase: If every target becomes ignored, skip the empty update instead of dividing by zero.
+            targets:
+              - earned-transfer-operation
+            color: cyan
+            linger: 0.4

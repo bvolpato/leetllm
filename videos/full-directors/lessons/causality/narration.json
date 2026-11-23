@@ -1,0 +1,914 @@
+[
+  {
+    "id": "c01",
+    "title": "Send every ticket back to human support?",
+    "sourceChapters": [
+      "c01"
+    ],
+    "beats": [
+      {
+        "id": "c01-b01",
+        "say": "A service outage lands with the assistant. A password reset goes to a human. Open the full ticket log. Within a day, the assistant resolved fifty-four of its hundred tickets. The human team, our control, resolved seventy-six of its hundred. Would you send every ticket back to human support?",
+        "hold": 2.8
+      },
+      {
+        "id": "c01-b02",
+        "say": "Sort the tickets by their risk at intake. Look at the hard tickets. Forty-five of ninety resolved with the assistant. Four of ten resolved under control. Which workflow resolved a larger share?",
+        "hold": 2.6
+      },
+      {
+        "id": "c01-b03",
+        "say": "The assistant did. Half of its hard tickets resolved, compared with forty percent under control. The assistant got ninety hard tickets. The human team got ten. What would happen if both workflows handled the same queue?",
+        "hold": 2.6
+      }
+    ]
+  },
+  {
+    "id": "c02",
+    "title": "Define the unit, action and outcome",
+    "sourceChapters": [
+      "c02"
+    ],
+    "beats": [
+      {
+        "id": "c02-b01",
+        "say": "Follow one synthetic ticket from intake to its twenty-four-hour deadline. There are two hundred tickets in the log. The unit is one ticket at the moment of routing. Treatment sends it to a specified assistant workflow. Control sends it to the existing human workflow. Record risk at intake, and give both routes the same deadline for a resolution.",
+        "hold": 0.65
+      },
+      {
+        "id": "c02-b02",
+        "say": "Consistency says the observed outcome equals the potential outcome under the workflow actually received. Record model, prompt, tool and control versions. A defined stochastic assistant policy can produce different text on different runs without automatically violating consistency. A changed prompt that changes the workflow is a different action version for causal evaluation.",
+        "hold": 0.65
+      },
+      {
+        "id": "c02-b03",
+        "say": "If routing one ticket changes staff availability for others, its effect travels through the shared queue. Define whether the question concerns an individual assignment or a queue-level deployment policy. Randomizing an offer to use a feature and forcing its use are also different actions. The observed comparison cannot choose that intervention definition for us.",
+        "hold": 0.65
+      }
+    ]
+  },
+  {
+    "id": "c03",
+    "title": "What went into each total?",
+    "sourceChapters": [
+      "c03"
+    ],
+    "beats": [
+      {
+        "id": "c03-b01",
+        "say": "Read the easy columns first. Nine of ten assistant tickets resolved. Seventy-two of ninety control tickets resolved. Compare the green heights and you can see ninety percent against eighty. Now look at the hard columns. Half resolved with the assistant and forty percent with control. The assistant leads by ten percentage points on both comparisons.",
+        "hold": 0.55
+      },
+      {
+        "id": "c03-b02",
+        "say": "Count the green tiles in the original trays. The assistant gets nine resolutions from easy tickets and forty-five from hard ones. Control gets seventy-two from easy tickets alone. The wider column supplies more of the total. That gives control the higher overall rate, seventy-six percent against fifty-four.",
+        "hold": 0.7
+      },
+      {
+        "id": "c03-b03",
+        "say": "Set a target of half easy and half hard for both workflows. The yellow marks show where their dividers would go. Keep the height of each green stack. Which workflow will lead?",
+        "hold": 2.6
+      },
+      {
+        "id": "c03-b04",
+        "say": "Move the dividers to the middle. Each original ticket keeps its outcome, but its width now shows how much it counts. Average the two green heights in each tray. At the shared mix the assistant leads, seventy percent to sixty.",
+        "hold": 0.3
+      },
+      {
+        "id": "c03-b05",
+        "say": "This reversal between the pooled and within-group comparisons is Simpson’s paradox. To read the ten-point gap as an effect of routing, we still need to know how the tickets were assigned.",
+        "hold": 0.8
+      }
+    ]
+  },
+  {
+    "id": "c04",
+    "title": "Draw the assignment mechanism you assume",
+    "sourceChapters": [
+      "c04"
+    ],
+    "beats": [
+      {
+        "id": "c04-b01",
+        "say": "Suppose pre-routing risk influences both workflow assignment and resolution. Draw an arrow from risk to each of those variables. Also draw the possible effect of assignment on resolution. Risk is a common cause, creating a backdoor path between the action and the outcome.",
+        "hold": 0.6
+      },
+      {
+        "id": "c04-b02",
+        "say": "The graph records causal assumptions about how the system works. Its arrows do not emerge automatically from correlations in the table. Under the stated model, conditioning on risk blocks this particular noncausal path. We must also consider whether another common cause remains unmeasured.",
+        "hold": 0.6
+      },
+      {
+        "id": "c04-b03",
+        "say": "A variable’s role matters. Adjusting for a common cause differs from adjusting for a consequence of treatment, and conditioning on a common effect can introduce selection bias. Choose an adjustment set from the causal question and the assumed graph, then inspect the information needed to justify it.",
+        "hold": 0.75
+      }
+    ]
+  },
+  {
+    "id": "c05",
+    "title": "Trace an open path before adjusting",
+    "sourceChapters": [
+      "c05"
+    ],
+    "beats": [
+      {
+        "id": "c05-b01",
+        "say": "Path blocking has three basic junctions. In a chain, assignment changes a diagnostic summary, which affects resolution. Conditioning on that mediator blocks this directed route. A total effect includes that route, so adjusting it away changes the comparison. Such conditioning does not automatically identify a direct causal effect.",
+        "hold": 0.65
+      },
+      {
+        "id": "c05-b02",
+        "say": "Now turn the first arrow around. In this fork, intake risk influences both assignment and resolution. Conditioning on risk blocks that backdoor path. Bring the arrows together at an audit instead. This collider blocks the path while we leave the audit alone. Select audited tickets, or condition on a descendant of audit, and the path opens here. Another junction can still block a longer path.",
+        "hold": 0.65
+      },
+      {
+        "id": "c05-b03",
+        "say": "To establish d-separation, check that the conditioning set blocks every path between the two variables. Under the causal Markov assumption, d-separation implies conditional independence. An open path permits dependence but need not produce a nonzero association, because contributions can cancel. Reading causal structure backward from observed independence needs an additional faithfulness assumption. A graph’s arrows remain assumptions about the data-generating mechanism.",
+        "hold": 0.65
+      }
+    ]
+  },
+  {
+    "id": "c06",
+    "title": "Block the paths that enter assignment",
+    "sourceChapters": [
+      "c06"
+    ],
+    "beats": [
+      {
+        "id": "c06-b01",
+        "say": "The backdoor criterion is a sufficient graphical condition: the adjustment set contains no descendant of treatment and blocks every path from assignment to outcome that starts with an arrow into assignment. It is not a rule to control every available variable.",
+        "hold": 0.3
+      },
+      {
+        "id": "c06-b02",
+        "say": "A treatment-affected summary or selected audit can remove a real route or open a noncausal one.",
+        "hold": 0.65
+      },
+      {
+        "id": "c06-b03",
+        "say": "With the relevant causal assumptions, positivity and consistency, adjustment averages each treatment-specific outcome rate within an adjustment stratum using one population distribution. For discrete strata, multiply the outcome rate by that stratum’s target probability and sum. Both arms must use the same chosen target rather than their different observed assignment mixes.",
+        "hold": 0.65
+      },
+      {
+        "id": "c06-b04",
+        "say": "Risk-only adjustment is insufficient if a hidden customer tier still changes routing and outcome through an unblocked path. Measuring more rows does not close that path. Conversely, an unrecorded variable need not confound this comparison if the recorded set already blocks its relevant paths. Recording a baseline attribute later does not alone make it treatment-affected.",
+        "hold": 0.65
+      }
+    ]
+  },
+  {
+    "id": "c07",
+    "title": "Set the action and remove its incoming arrow",
+    "sourceChapters": [
+      "c07"
+    ],
+    "beats": [
+      {
+        "id": "c07-b01",
+        "say": "Start with the assistant tray. Its fifty-four resolutions describe the hundred tickets that actually went there. Now set the switch to assistant for every ticket in a specified population. In a structural model, this replaces the assignment mechanism. Which arrow should you disconnect to set routing while preserving the effect of risk on resolution?",
+        "hold": 2.6
+      },
+      {
+        "id": "c07-b02",
+        "say": "Disconnect the arrow from risk to routing. The other mechanisms remain in place. Risk still influences resolution, while it stops choosing the assigned workflow. This difference explains why conditioning on assistant use can yield a different number from intervening to route everyone to the assistant. The target population must be specified in both questions.",
+        "hold": 0.6
+      },
+      {
+        "id": "c07-b03",
+        "say": "The do notation names the comparison; the graph and evidence determine whether we can identify its value. If routing all tickets changes a shared queue, that interference belongs in the intervention model. A ticket-level estimate and a whole-queue policy effect can therefore answer different questions.",
+        "hold": 0.75
+      }
+    ]
+  },
+  {
+    "id": "c08",
+    "title": "How many resolutions should the release team expect?",
+    "sourceChapters": [
+      "c08"
+    ],
+    "beats": [
+      {
+        "id": "c08-b01",
+        "say": "The release team expects seventy easy tickets and thirty hard ones per hundred next week. Mark that mix on both trays. We have a resolution rate for each of those groups under each workflow.",
+        "hold": 0.55
+      },
+      {
+        "id": "c08-b02",
+        "say": "Line up the dividers. The assistant’s easy tickets resolved ninety percent of the time, so seventy easy tickets contribute sixty-three expected resolutions. Its hard tickets contribute fifteen. Control gets fifty-six from easy tickets and twelve from hard ones.",
+        "hold": 0.6
+      },
+      {
+        "id": "c08-b03",
+        "say": "Read the two sums. How many more resolutions per hundred does this comparison predict for the assistant?",
+        "hold": 2.6
+      },
+      {
+        "id": "c08-b04",
+        "say": "Seventy-eight under the assistant and sixty-eight under control give ten more per hundred. We’ve standardized both rates to next week’s case mix. A causal interpretation requires both routes to be possible in each group.",
+        "hold": 0.3
+      },
+      {
+        "id": "c08-b05",
+        "say": "Within each group, the cases sent down either route must be comparable on their potential outcomes. Hidden urgency that affects both routing and resolution would break that assumption.",
+        "hold": 0.7
+      },
+      {
+        "id": "c08-b06",
+        "say": "For that prediction to travel, the workflow versions, the resolution measure and the risk-specific rates must still apply next week. If routing changes the staff queue for other tickets, model that shared effect. Look at the easy assistant column again.",
+        "hold": 0.3
+      },
+      {
+        "id": "c08-b07",
+        "say": "Only ten actual tickets supplied the rate we just applied to seventy. How much could a single different outcome matter?",
+        "hold": 2.6
+      }
+    ]
+  },
+  {
+    "id": "c09",
+    "title": "Change one small cell and propagate the uncertainty",
+    "sourceChapters": [
+      "c09"
+    ],
+    "beats": [
+      {
+        "id": "c09-b01",
+        "say": "Nine of these ten easy assistant tickets resolved. Next week, seven in ten tickets will be easy. Imagine that just eight in this sample had resolved. How much would that move the deployment estimate?",
+        "hold": 2.7
+      },
+      {
+        "id": "c09-flip",
+        "say": "Turn one green ticket over. Eight out of ten is eighty percent. The ten-point drop applies to seventy percent of the target queue. The assistant estimate falls seven points, from seventy-eight to seventy-one. Control stays at sixty-eight. The lead shrinks from ten points to three.",
+        "hold": 1
+      },
+      {
+        "id": "c09-b02",
+        "say": "Return to the original counts. Under independent tickets, fixed target weights and conditional binomial sampling, estimate variance by summing squared stratum weights times the two cell variances. Each cell contributes its success rate times one minus that rate, divided by its sample size. Take the square root for the standard error.",
+        "hold": 0.65
+      },
+      {
+        "id": "c09-b03",
+        "say": "That gives about eight point seven seven percentage points of standard error. The ten-point estimate plus or minus one point nine six standard errors gives a rough interval from minus seven point two to twenty-seven point two points. The interval spans a loss and a gain.",
+        "hold": 0.3
+      },
+      {
+        "id": "c09-b04",
+        "say": "With just ten easy assistant tickets, the normal approximation can be rough. If tickets share staff or the target weights come from a sample, account for those sources of uncertainty too.",
+        "hold": 0.65
+      }
+    ]
+  },
+  {
+    "id": "c10",
+    "title": "One ticket reveals one of its alternatives",
+    "sourceChapters": [
+      "c10"
+    ],
+    "beats": [
+      {
+        "id": "c10-b01",
+        "say": "Follow one ticket at its routing decision. Imagine two windows, one for its outcome with the assistant and one with the human team. Their difference is its individual treatment effect. Send the ticket to the assistant. You can read its observed outcome there. What belongs in the human window for this very same ticket?",
+        "hold": 2.6
+      },
+      {
+        "id": "c10-b02",
+        "say": "That outcome is missing. Now imagine a population of a hundred tickets on the dial. Blue lights mark seventy-eight tickets that would resolve with the assistant. Gold lights mark sixty-eight that would resolve with a human. Each gold light currently has a blue neighbor. Ten tickets gain a resolution and none lose one. Can the same two totals fit a population in which switching harms someone?",
+        "hold": 2.8
+      },
+      {
+        "id": "c10-b03",
+        "say": "Turn the blue ring ten notches. Read the gold lights beside dark blue slots. Ten tickets would now lose a resolution. Twenty others would gain one. Both populations gain ten resolutions per hundred tickets, despite different consequences for individuals.",
+        "hold": 1.4
+      },
+      {
+        "id": "c10-b04",
+        "say": "Even an ideal randomized experiment can identify the two marginal success rates while leaving the pairing hidden. To answer what would have happened to one particular ticket, we need extra structure or assumptions. A simulated replay supplies one possible alternative inside its model. Check the model against the historical setting before using that answer.",
+        "hold": 1
+      }
+    ]
+  },
+  {
+    "id": "c11",
+    "title": "Keep the target population in the effect",
+    "sourceChapters": [
+      "c11"
+    ],
+    "beats": [
+      {
+        "id": "c11-b01",
+        "say": "The average treatment effect averages the difference between a ticket’s assistant and control potential outcomes over a specified population. The effect on the treated averages that same difference only among tickets assigned the assistant. Another control ticket does not reveal the missing original outcome for a treated ticket, and replaying later changes its history.",
+        "hold": 0.65
+      },
+      {
+        "id": "c11-b02",
+        "say": "Our original subgroup differences are both ten points, so changing their weights leaves that estimated difference unchanged. Now consider an explicitly different hypothetical effect vector: four points for low risk and sixteen for high risk. A fifty-fifty population averages ten points, while the treated ten-ninety mix averages fourteen point eight.",
+        "hold": 0.65
+      },
+      {
+        "id": "c11-b03",
+        "say": "The separate seventy-thirty deployment population would average seven point six points for that changed effect vector. This demonstrates why A T E and A T T can differ under selective routing and heterogeneous effects. A common-probability randomized assignment makes their population targets coincide under independence; finite realized treated subsets can still differ by chance.",
+        "hold": 0.65
+      }
+    ]
+  },
+  {
+    "id": "c12",
+    "title": "Move the pairing while preserving both margins",
+    "sourceChapters": [
+      "c12"
+    ],
+    "beats": [
+      {
+        "id": "c12-b01",
+        "say": "The two success margins constrain individual response types without fixing their pairing. Let h be the number harmed per hundred. With seventy-eight assistant successes and sixty-eight control successes, always-resolves equals sixty-eight minus h, helped equals ten plus h, and never-resolves equals twenty-two minus h.",
+        "hold": 0.65
+      },
+      {
+        "id": "c12-b02",
+        "say": "All four counts must be nonnegative. How far can the ring turn before it runs out of assistant failures to pair with human successes?",
+        "hold": 2.6
+      },
+      {
+        "id": "c12-limit",
+        "say": "Turn to the last dark slot. There are twenty-two assistant failures. Pair all twenty-two with human successes and the counts become forty-six always resolved, thirty-two helped, twenty-two harmed, and zero never resolved. Both success margins stay fixed. Between the two stops, any whole number from zero to twenty-two tickets can be harmed.",
+        "hold": 1
+      },
+      {
+        "id": "c12-b03",
+        "say": "In general, binary harm cannot exceed either control success or assistant failure, so its maximum is the smaller of those two rates.",
+        "hold": 0.65
+      },
+      {
+        "id": "c12-b04",
+        "say": "At this stop, thirty-two tickets gain a resolution and twenty-two lose one. Now add a no-harm assumption. The ring returns to zero harmed. Ten tickets gain a resolution. Both stops give seventy-eight assistant successes and sixty-eight human successes. Which ten tickets benefited? Take the outage from our log. The assistant resolved it. Would human support have resolved it too? The log records only the route it took. To assess harm on another outcome, such as tickets reopening, measure that outcome too.",
+        "hold": 0.65
+      }
+    ]
+  },
+  {
+    "id": "c13",
+    "title": "Weights cannot create an unobserved action",
+    "sourceChapters": [
+      "c13"
+    ],
+    "beats": [
+      {
+        "id": "c13-b01",
+        "say": "Pick one easy assistant ticket. The logger sent only one in ten easy tickets to the assistant. Give this ticket weight ten. It now represents ten units of weight, all attached to the same observed outcome. Inverse-probability weighting can balance measured groups for a specified population when the identification assumptions and routing probabilities hold.",
+        "hold": 0.6
+      },
+      {
+        "id": "c13-b02",
+        "say": "Large weights concentrate the estimate on a few observations. They do not create new independent tickets. If a workflow was impossible for a target group under the logging policy, its outcome for that group is unsupported. Reweighting cannot supply the missing comparison without extrapolation assumptions or new data.",
+        "hold": 0.6
+      },
+      {
+        "id": "c13-b03",
+        "say": "Inspect support, covariate balance, and weight concentration. Clipping can trade variance for bias, and fitting a propensity model cannot remove hidden common causes by itself. A randomized comparison with well-defined workflows can address assignment confounding, while missing outcomes and shared queues still require careful design.",
+        "hold": 0.75
+      }
+    ]
+  },
+  {
+    "id": "c14",
+    "title": "How much does each ticket count?",
+    "sourceChapters": [
+      "c14"
+    ],
+    "beats": [
+      {
+        "id": "c14-b01",
+        "say": "Return to the original log. Half the tickets were easy and half were hard. Look at the chance of getting the assistant. It was one in ten for easy tickets and nine in ten for hard tickets. Those are routing probabilities.",
+        "hold": 0.3
+      },
+      {
+        "id": "c14-b02",
+        "say": "To weight a ticket, divide one by the chance of the route it actually took. For a control ticket, that chance is one minus the assistant probability.",
+        "hold": 0.65
+      },
+      {
+        "id": "c14-b03",
+        "say": "Start with the ten easy tickets that got the assistant. Each counts ten times, for one hundred units of weight. The ninety hard tickets each count ten ninths, also one hundred units. For control, the rare assignment is a hard ticket.",
+        "hold": 0.3
+      },
+      {
+        "id": "c14-b04",
+        "say": "Its ten hard tickets carry as much weight as its ninety easy ones. That gives each arm two hundred units of weight from just a hundred actual tickets.",
+        "hold": 0.65
+      },
+      {
+        "id": "c14-b05",
+        "say": "Now count only the green part of each weight bar. The assistant has one hundred forty weighted successes and control has one hundred twenty. Divide by two hundred in each arm. At the log’s half-easy mix, you get seventy percent and sixty percent.",
+        "hold": 0.3
+      },
+      {
+        "id": "c14-b06",
+        "say": "At the deployment mix, seventy percent easy, you got seventy-eight and sixty-eight. The two gaps agree here because both risk groups have the same ten-point difference.",
+        "hold": 0.65
+      }
+    ]
+  },
+  {
+    "id": "c15",
+    "title": "What changes when a ticket’s weight changes?",
+    "sourceChapters": [
+      "c15"
+    ],
+    "beats": [
+      {
+        "id": "c15-b01",
+        "say": "Take the assistant’s weighted successes, one hundred forty, and divide by its total weight of two hundred. That green fraction is seventy percent. Control’s is sixty. Dividing by the weight within each arm is Hájek normalization. This ratio can have finite-sample bias. Both arms still contain just a hundred actual tickets.",
+        "hold": 0.55
+      },
+      {
+        "id": "c15-b02",
+        "say": "How concentrated are the weights? Ten tickets carry a weight of ten each. Ninety carry ten ninths each. Square each individual weight and add the squares. Divide the square of the total weight by that sum. It gives a weight-only effective sample size of thirty-six per arm.",
+        "hold": 0.3
+      },
+      {
+        "id": "c15-b03",
+        "say": "This measures concentration. An interval for outcomes needs a sampling model.",
+        "hold": 0.6
+      },
+      {
+        "id": "c15-b04",
+        "say": "Halve every ticket’s weight. Half of all logged tickets went to each workflow, so one half is the stabilizing numerator here. Watch each weight bar shrink. The assistant now has seventy weighted successes out of one hundred, and control has sixty out of one hundred.",
+        "hold": 0.3
+      },
+      {
+        "id": "c15-b05",
+        "say": "Both fractions stay the same. In the effective-size formula the top and bottom both scale by one quarter, so it stays at thirty-six.",
+        "hold": 0.65
+      },
+      {
+        "id": "c15-b06",
+        "say": "Restore the original weights first. Each arm is back to two hundred weight units. Easy and hard tickets carry equal total weight again. Now cap weights above five. The ten rare assignments will count five times each. The ninety common assignments keep their weight of ten ninths.",
+        "hold": 0.3
+      },
+      {
+        "id": "c15-b07",
+        "say": "After that cap, which workflow will have more of its weight on hard tickets?",
+        "hold": 2.6
+      },
+      {
+        "id": "c15-b08",
+        "say": "Apply the cap. The assistant carries more hard-ticket weight. Its hard tickets keep all one hundred units, while control’s hard tickets fall to fifty. Each arm now has one hundred fifty weight units. Look at the green part of each bar.",
+        "hold": 0.3
+      },
+      {
+        "id": "c15-b09",
+        "say": "They carry ninety-five units for the assistant and one hundred for control. Divide by the same total on each side. Their rates are about sixty-three point three and sixty-six point seven percent.",
+        "hold": 0.7
+      },
+      {
+        "id": "c15-b10",
+        "say": "Use the unrounded fractions. Assistant minus control is now minus three and a third percentage points. Capping reduced the influence of the largest weights, but it also gave the two workflows different risk mixes again. Declare the cap before comparing outcomes and report how the estimate changes with it.",
+        "hold": 0.8
+      }
+    ]
+  },
+  {
+    "id": "c16",
+    "title": "Separate an impossible action from an empty sample",
+    "sourceChapters": [
+      "c16"
+    ],
+    "beats": [
+      {
+        "id": "c16-b01",
+        "say": "If the true policy always routes a target group to the assistant, its control probability is zero. That is a structural positivity failure for a comparison requiring control there. Weighting cannot create its missing outcome. Restrict the target, collect supported exploration data or disclose the extra extrapolation assumptions.",
+        "hold": 0.65
+      },
+      {
+        "id": "c16-b02",
+        "say": "Now open the control route. Each ticket independently has a nine-in-ten chance of going to the assistant. Look at this new batch of ten: all ten went there. The probability of that draw is point nine to the tenth, about thirty-four point nine percent. The same empty control cell now has a different explanation.",
+        "hold": 0.65
+      },
+      {
+        "id": "c16-b03",
+        "say": "The article’s direct stratum arithmetic rejects either kind of zero cell instead of silently extrapolating. Near-zero probabilities can also produce extreme weights and unstable estimates. Check covariate balance after fitting the propensity model; a misspecified model need not balance the measured data. Neither clipping nor stabilization restores unmeasured outcomes or removes hidden confounding.",
+        "hold": 0.65
+      }
+    ]
+  },
+  {
+    "id": "c17",
+    "title": "Audit how an encouragement reaches the outcome",
+    "sourceChapters": [
+      "c17"
+    ],
+    "beats": [
+      {
+        "id": "c17-b01",
+        "say": "Hidden urgency can leave treatment and resolution confounded after measured-risk adjustment. An instrumental variable offers a different route under demanding assumptions. A randomized gateway encouragement must change workflow uptake, be independent of the relevant potential uptake and outcome variables, and affect resolution only through the workflow received.",
+        "hold": 0.65
+      },
+      {
+        "id": "c17-b02",
+        "say": "The uptake change is relevance. Now trace the route from the flag to resolution. For exclusion to hold, every effect of the flag on resolution has to pass through the chosen workflow.",
+        "hold": 0.65
+      },
+      {
+        "id": "c17-b03",
+        "say": "Suppose the flag also delays requests. Even two tickets on the same workflow can now have different wait times. Follow the red path from the flag through latency to resolution. That path breaks exclusion.",
+        "hold": 0.3
+      },
+      {
+        "id": "c17-b04",
+        "say": "To use an encouragement like this, check what else the flag changes, including model versions and the staff available to other tickets.",
+        "hold": 0.65
+      }
+    ]
+  },
+  {
+    "id": "c18",
+    "title": "Divide the outcome change by the uptake change",
+    "sourceChapters": [
+      "c18"
+    ],
+    "beats": [
+      {
+        "id": "c18-b01",
+        "say": "Compare the flag groups. Without encouragement, thirty percent use the assistant and sixty-eight percent resolve. With encouragement, those rates are seventy and seventy-two percent. Uptake rises forty points. Resolution rises four. What outcome change corresponds to one unit of uptake change?",
+        "hold": 2.6
+      },
+      {
+        "id": "c18-ratio",
+        "say": "Divide four points by forty points. The Wald ratio is point one, a ten-percentage-point resolution effect under the instrument assumptions. Whose effect is it?",
+        "hold": 2.6
+      },
+      {
+        "id": "c18-b02",
+        "say": "With the instrument assumptions and monotonicity, the population ratio identifies the average effect on compliers, whose workflow changes from control to assistant when encouraged. Monotonicity rules out defiers; it does not require everyone to follow the flag. The uptake rates imply thirty percent always-takers, forty percent compliers and thirty percent never-takers.",
+        "hold": 0.65
+      },
+      {
+        "id": "c18-b03",
+        "say": "Look at the ends of the strip. The always-takers use the assistant even with the flag off. The never-takers stay with human support even with the flag on. That is two-sided noncompliance. Under the instrument assumptions and monotonicity, our ten-point estimate belongs to the middle group. Only those tickets switch workflows. Another flag could move different tickets. Report the uncertainty in this sample estimate. Then check the flag itself. Could it delay resolution for a ticket that stays on the same workflow?",
+        "hold": 2.4
+      }
+    ]
+  },
+  {
+    "id": "c19",
+    "title": "Hold a bypass fixed while shrinking the first stage",
+    "sourceChapters": [
+      "c19"
+    ],
+    "beats": [
+      {
+        "id": "c19-b01",
+        "say": "A small first-stage denominator magnifies noise and exclusion errors. Take a separate hypothetical example with a true complier effect of ten percentage points and an added direct outcome effect of point zero one from the flag. This direct effect deliberately violates exclusion.",
+        "hold": 0.65
+      },
+      {
+        "id": "c19-b02",
+        "say": "With uptake change point four, the mediated outcome change is point zero four. Add the bypass point zero one to get point zero five; dividing by point four reports point one two five instead of point one.",
+        "hold": 0.3
+      },
+      {
+        "id": "c19-b03",
+        "say": "Keep the one-point bypass, but shrink the uptake change to point zero four. The mediated part shrinks to point zero zero four. Together they give point zero one four. Divide by the smaller uptake change and the reported effect jumps to point three five.",
+        "hold": 0.65
+      },
+      {
+        "id": "c19-b04",
+        "say": "The same one-point bypass now contributes twenty-five effect points to the ratio rather than two and a half. Weak-instrument inference needs methods suited to that strength. A narrow ordinary interval or a large sample cannot automatically repair invalid exclusion. Assess how the flag actually operates before interpreting its ratio as a causal effect.",
+        "hold": 0.65
+      }
+    ]
+  },
+  {
+    "id": "c20",
+    "title": "Use the target policy in the likelihood ratio",
+    "sourceChapters": [
+      "c20"
+    ],
+    "beats": [
+      {
+        "id": "c20-b01",
+        "say": "For one-step offline policy evaluation, retain context, observed action, reward and the probability that the logging policy assigned that action. The target policy can choose the same defined workflows at different rates. Divide the target probability of the observed action by its logging probability. That gives one importance ratio per record. Multiply each ratio by its logged reward, then average these products across all records.",
+        "hold": 0.65
+      },
+      {
+        "id": "c20-b02",
+        "say": "For a target that always selects assistant, control records receive ratio zero. Assistant records use one divided by their risk-dependent logging probability. The actual two-hundred-row fixture estimates seventy-percent resolution at the log’s fifty-fifty context mix, matching the earlier adjusted assistant rate for that population.",
+        "hold": 0.65
+      },
+      {
+        "id": "c20-b03",
+        "say": "Identification still needs sufficient pre-action context, supported target actions, consistent definitions and stable relevant mechanisms. A new prompt that changes assistant behavior defines a new action version; old-workflow logs do not automatically evaluate it. Log actual action probabilities, eligibility, policy versions, reward windows and missing outcomes at each decision when possible.",
+        "hold": 0.65
+      }
+    ]
+  },
+  {
+    "id": "c21",
+    "title": "One failed ticket in the policy estimate",
+    "sourceChapters": [
+      "c21"
+    ],
+    "beats": [
+      {
+        "id": "c21-b01",
+        "say": "We want the value of always routing to the assistant, averaged over the original two hundred tickets. Start with a model prediction for each ticket under that target policy. Move both assistant predictions up by five points.",
+        "hold": 0.3
+      },
+      {
+        "id": "c21-b02",
+        "say": "The easy and hard estimates rise from ninety and fifty to ninety-five and fifty-five percent. The logged population is half easy, so the model alone predicts seventy-five percent.",
+        "hold": 0.65
+      },
+      {
+        "id": "c21-b03",
+        "say": "Find the one easy assistant ticket that failed. Its observed reward was zero. Its predicted reward under the action it received was point nine five. The target chooses that action every time, while the logger chose it one time in ten. Multiply the prediction error by ten. What signed correction does this failed ticket add?",
+        "hold": 2.6
+      },
+      {
+        "id": "c21-b04",
+        "say": "The correction is minus nine and a half. That red segment belongs to a single ticket. To get its whole contribution, add that correction to the target policy’s prediction for this ticket. Point nine five minus nine and a half gives minus eight point five five.",
+        "hold": 0.3
+      },
+      {
+        "id": "c21-b05",
+        "say": "A single contribution can go outside the reward range. We’ll average over all two hundred tickets.",
+        "hold": 1
+      },
+      {
+        "id": "c21-b06",
+        "say": "Look at the nine easy tickets that resolved. Each beat its prediction by just point zero five. Weighted by ten, that is half a unit apiece. Together they add four and a half. With the failure, the easy tickets contribute minus five.",
+        "hold": 0.8
+      },
+      {
+        "id": "c21-b07",
+        "say": "Group the signed corrections by intake risk. Bring in the hard tickets. Apply the same rule using their own routing probability and reward prediction. The two groups contribute minus five units each. Control actions get zero correction because the target never chooses them.",
+        "hold": 0.3
+      },
+      {
+        "id": "c21-b08",
+        "say": "Average the corrections over all two hundred logged tickets and add them to the baseline. Seventy-five percent minus ten over two hundred gives seventy percent. This is the one-step doubly robust estimate.",
+        "hold": 0.7
+      },
+      {
+        "id": "c21-b09",
+        "say": "Try a logger estimate that ignores risk. Set both assistant assignment probabilities to point four. Every assistant ticket now gets weight two and a half. The baseline stays at seventy-five percent. The correction becomes minus twelve and a half over two hundred. That gives sixty-eight point seven five percent.",
+        "hold": 0.65
+      },
+      {
+        "id": "c21-b10",
+        "say": "Keep those wrong weights and restore the observed risk-specific reward predictions. Within each group the positive and negative errors now cancel. The restored model gives seventy percent. This grouped example lets you see which error the correction repairs and what happens when both models miss.",
+        "hold": 0.75
+      }
+    ]
+  },
+  {
+    "id": "c22",
+    "title": "Locate the two error factors before claiming robustness",
+    "sourceChapters": [
+      "c22"
+    ],
+    "beats": [
+      {
+        "id": "c22-b01",
+        "say": "Take just the easy assistant action. The true routing chance is one tenth. Our fitted logger says four tenths, and our reward prediction overshoots by five points. The rectangle shows the two factors in this action’s bias contribution. Its width is the size of the weighting error, one minus the true logging probability divided by its estimate. Its height is the size of the reward-model error.",
+        "hold": 0.3
+      },
+      {
+        "id": "c22-b02",
+        "say": "Multiply the signed factors, then average across actions using the target policy’s probabilities. If the logging probabilities are right, the width falls to zero. When both models miss, the rectangle has area again. Bias can remain, and the estimate can still be noisy.",
+        "hold": 0.65
+      },
+      {
+        "id": "c22-b03",
+        "say": "That bias calculation treats the two fitted models as fixed when they meet new outcomes. Fit on one sample and evaluate on another, or cross-fit so each ticket gets predictions from models trained on other tickets.",
+        "hold": 0.3
+      },
+      {
+        "id": "c22-b04",
+        "say": "If either model consistently estimates its target and the usual sampling and overlap conditions hold, the policy estimate converges as the sample grows. Evaluate a learned target policy on held-out data too.",
+        "hold": 0.65
+      },
+      {
+        "id": "c22-b05",
+        "say": "Now match the reward predictions to the observed group means. The height collapses. In our log, the positive and negative residuals cancel within each group. For a causal reading, check how tickets entered each route.",
+        "hold": 0.3
+      },
+      {
+        "id": "c22-b06",
+        "say": "If a group always went to the assistant, you have no human outcomes for that group. If hidden urgency drove both routing and resolution, the comparison is still confounded.",
+        "hold": 0.65
+      }
+    ]
+  },
+  {
+    "id": "c23",
+    "title": "Carry ratios through the changing trajectory",
+    "sourceChapters": [
+      "c23"
+    ],
+    "beats": [
+      {
+        "id": "c23-b01",
+        "say": "Follow a ticket through two decisions. Drafting a reply changes what the second decision sees. Suppose the target policy is twice as likely as the logger to draft that reply, and half as likely to escalate given the draft. How much weight does this complete history get?",
+        "hold": 2.6
+      },
+      {
+        "id": "c23-product",
+        "say": "Multiply the conditional ratios along the path. Two times one half gives one. Earlier choices can change which later histories appear. Retain those histories to evaluate a multi-step policy.",
+        "hold": 1
+      },
+      {
+        "id": "c23-b02",
+        "say": "Products can concentrate weights and can produce variance growing rapidly with horizon, but this is not inevitable. Identical target and logging policies give ratio one at every supported step. A sequential doubly robust estimator includes future value and per-step corrections; the one-step immediate-reward formula is not automatically an estimator for a whole agent return.",
+        "hold": 0.65
+      },
+      {
+        "id": "c23-b03",
+        "say": "Retain the relevant histories, action versions, probabilities and terminal outcomes. A lost outcome is not zero reward merely because it is absent. Decide whether a trajectory-wise or per-decision estimator matches the policy-value question, and use an uncertainty method that reflects dependent trajectories and the actual logging design.",
+        "hold": 0.65
+      }
+    ]
+  },
+  {
+    "id": "c24",
+    "title": "Follow examination before interpreting a click",
+    "sourceChapters": [
+      "c24"
+    ],
+    "beats": [
+      {
+        "id": "c24-b01",
+        "say": "A search result appears a hundred times. In this position-based model, a click takes two things. The reader has to look at the result and find it relevant. Assume those events are independent. We expect twenty readers to look. If six in ten find the result relevant, we expect twelve clicks.",
+        "hold": 0.65
+      },
+      {
+        "id": "c24-b02",
+        "say": "To undo the effect of position in this model, divide the click rate by the chance of examination. That’s inverse examination weighting. Twelve clicks out of twenty examinations give us sixty percent. Now suppose you assume forty examinations. The same twelve clicks are still green. What relevance would you infer?",
+        "hold": 2.6
+      },
+      {
+        "id": "c24-b03",
+        "say": "Thirty percent. Doubling the assumed examinations halved the estimate. Joachims and colleagues use observation probabilities to correct a ranking objective. Check that each result you want to compare has a chance of being seen. Then check what else drives clicks.",
+        "hold": 0.3
+      },
+      {
+        "id": "c24-b04",
+        "say": "If readers trust the first result because it ranks first, position can change clicks even after they look.",
+        "hold": 0.65
+      }
+    ]
+  },
+  {
+    "id": "c25",
+    "title": "Recompute the downstream state after replacing a return",
+    "sourceChapters": [
+      "c25"
+    ],
+    "beats": [
+      {
+        "id": "c25-b01",
+        "say": "For an agent replay, snapshot the environment before the tool result being changed and specify the alternative return. Keep or repeat randomness under a declared policy and prevent unrelated outside drift. Recompute downstream state that depends on the changed return; retaining the old downstream result would block the mechanism being tested.",
+        "hold": 0.65
+      },
+      {
+        "id": "c25-b02",
+        "say": "In the original run, tool two returns two. Step four doubles it to four. Step five requires at least six, so the run fails. Replace the returned two with four. What must happen to the stored result at step four?",
+        "hold": 2.6
+      },
+      {
+        "id": "c25-recompute",
+        "say": "Recompute the double. Four becomes eight. Eight crosses the threshold of six and the replay succeeds. Keeping the old four would suppress the very change we wanted to measure.",
+        "hold": 1
+      },
+      {
+        "id": "c25-b03",
+        "say": "This measures the return-value replacement inside the replay environment. Replacing a returned value differs from changing the tool implementation and its side effects. A trace’s order is not itself a causal graph, and one repaired replay does not uniquely identify the historical root cause or reinforcement-learning credit. State that narrower estimand alongside the result.",
+        "hold": 0.65
+      }
+    ]
+  },
+  {
+    "id": "c26",
+    "title": "Back at the release meeting",
+    "sourceChapters": [
+      "c26"
+    ],
+    "beats": [
+      {
+        "id": "c26-b01",
+        "say": "Go back to the release meeting. The team wants to decide who handles next week’s queue. Write down the target mix, the two workflow versions and the twenty-four-hour outcome. Trace the arrows into routing. Keep the assignment probabilities, adjustment set and overlap checks alongside the estimate.",
+        "hold": 0.3
+      },
+      {
+        "id": "c26-b02",
+        "say": "Record how you counted missing outcomes and whether tickets shared staff.",
+        "hold": 0.6
+      },
+      {
+        "id": "c26-b03",
+        "say": "You could randomize the routing. A common random draw makes assignment independent of potential outcomes by design. Or randomize within each risk group, with a different routing probability for each. Then the independence holds within the risk group.",
+        "hold": 0.3
+      },
+      {
+        "id": "c26-b04",
+        "say": "A finite trial can still get an uneven mix by chance. Track missing outcomes and check whether the results carry to the deployment queue.",
+        "hold": 0.65
+      },
+      {
+        "id": "c26-b05",
+        "say": "What do we have today? The raw report puts the assistant twenty-two points behind. It got the harder tickets. At next week’s case mix, the point estimate puts the assistant ten points ahead.",
+        "hold": 0.3
+      },
+      {
+        "id": "c26-b06",
+        "say": "Under our independent-ticket approximation, the interval runs from minus seven point two to plus twenty-seven point two points. Do these tickets justify changing the route for everyone?",
+        "hold": 2.6
+      },
+      {
+        "id": "c26-b07",
+        "say": "I’d test the change first. The interval covers both benefit and harm, and hidden urgency could still explain part of the difference. Even a precise average would leave the effect on one ticket unresolved. Choose the design for the decision.",
+        "hold": 0.3
+      },
+      {
+        "id": "c26-b08",
+        "say": "If both routes draw on the same staff, a trial across independent queues can measure the effect of deploying the policy on a whole queue. A trial that randomizes individual tickets in one queue answers a different question.",
+        "hold": 0.8
+      }
+    ]
+  },
+  {
+    "id": "c27",
+    "title": "Selecting an audit can manufacture an advantage",
+    "sourceChapters": [
+      "c27"
+    ],
+    "beats": [
+      {
+        "id": "c27-b01",
+        "say": "Consider a separate example where both workflows resolve half their tickets. Audit every assistant ticket and every failed control ticket. In the audit log, assistant cases retain successes and failures, while control cases contain only failures. Selection creates an apparent assistant advantage from equal underlying rates.",
+        "hold": 0.6
+      },
+      {
+        "id": "c27-b02",
+        "say": "The audit is a common effect of assignment and outcome. Conditioning on it opens a selection path in the assumed graph. The direction of the resulting bias depends on the audit rule, so recording the mechanism matters more than applying a general slogan about which variables to control.",
+        "hold": 0.6
+      },
+      {
+        "id": "c27-b03",
+        "say": "You can now separate an observed comparison, an adjusted target-population estimate, and a causal claim supported under explicit assumptions. Start with the action, population, outcome horizon, assignment process, and available alternatives. Those choices determine what evidence the comparison contains and what further experiment would be useful.",
+        "hold": 0.75
+      }
+    ]
+  },
+  {
+    "id": "c28",
+    "title": "Should this audit trigger a rollback?",
+    "sourceChapters": [
+      "c28"
+    ],
+    "beats": [
+      {
+        "id": "c28-b01",
+        "say": "Here is a new batch with no workflow effect. Each side of the screen contains a copy of the same forty tickets. Read the original outcomes on the left. Eight of twenty resolved in each workflow. Both full rates are forty percent.",
+        "hold": 0.6
+      },
+      {
+        "id": "c28-b02",
+        "say": "Set the first filter on the copy. It keeps every assistant ticket and every failure. Before you run it, which tickets will disappear?",
+        "hold": 2.8
+      },
+      {
+        "id": "c28-b03",
+        "say": "The eight control successes drop out. All twenty assistant tickets still count. The audit gives the assistant a forty-point lead.",
+        "hold": 2
+      },
+      {
+        "id": "c28-b04",
+        "say": "Put the missing tickets back before trying a different rule. This time keep every control ticket and every failure. With the original outcomes still in view, work out the audited difference, assistant minus control.",
+        "hold": 2.6
+      },
+      {
+        "id": "c28-b05",
+        "say": "Run that filter. All eight control successes still count, so control stays at forty percent. The assistant has zero successes among twelve admitted tickets. Its audited rate is zero. Assistant minus control is minus forty percentage points.",
+        "hold": 0.75
+      },
+      {
+        "id": "c28-b06",
+        "say": "A manager sees that drop and asks you to roll back. Which missing ticket IDs would you request to check the report?",
+        "hold": 2.6
+      },
+      {
+        "id": "c28-b07",
+        "say": "Recover assistant tickets A one through A eight. Each resolved within a day. Count them again and both workflows are eight for twenty. The full difference is zero. The filter created the whole forty-point gap.",
+        "hold": 0.3
+      },
+      {
+        "id": "c28-b08",
+        "say": "Before a rollback, reconcile every eligible ticket against its twenty-four-hour deadline. The same log produced a lead, a deficit, and a tie. If hidden urgency still drives both routing and resolution, test the workflows with randomized routing. The next lesson follows a model through its training loop.",
+        "hold": 1.1
+      }
+    ]
+  }
+]

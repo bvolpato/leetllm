@@ -1,0 +1,1040 @@
+[
+  {
+    "id": "c01",
+    "title": "Would ten seconds cover every reply?",
+    "sourceChapters": [
+      "c01"
+    ],
+    "beats": [
+      {
+        "id": "c01-b01",
+        "say": "This recorder puts a mark on the strip when a reply arrives. Read the upper strip from left to right. The third of five replies landed at six seconds, and even the last one beat the ten-second timer.",
+        "hold": 0.65
+      },
+      {
+        "id": "c01-b02",
+        "say": "The lower run starts with the same three replies. Its median is six seconds too. The last two marks are under the cover. How many of these five replies could still miss the timer?",
+        "hold": 2.4
+      },
+      {
+        "id": "c01-b03",
+        "say": "Lift the cover. The fourth reply took twelve seconds. The last took sixteen. Two people were still waiting at ten seconds. To choose a timer, we need to know how much of the distribution lies beyond it. We will draw requests, test what makes them costly or slow, and decide which deadline the log supports.",
+        "hold": 1.3
+      }
+    ]
+  },
+  {
+    "id": "c02",
+    "title": "Follow one rollback request",
+    "sourceChapters": [
+      "c02"
+    ],
+    "beats": [
+      {
+        "id": "c02-b01",
+        "say": "The launch team wants five thousand synthetic requests. Follow just this one. An engineer asks to roll back a deploy. We route it to rollback. The assistant calls three tools, then replies in eight point four seconds. It resolved the request without a human. Those events give us one row we can sample.",
+        "hold": 0.7
+      },
+      {
+        "id": "c02-b02",
+        "say": "A resolution is zero or one. A route is one of four labels. The others are CI failure, access request and log triage. Tool calls come in whole numbers, including zero. Elapsed time can fall between clock ticks. These are the allowed values, or support.",
+        "hold": 0.3
+      },
+      {
+        "id": "c02-b03",
+        "say": "To find out whether expensive rollbacks also run late, keep the count and duration on this same row.",
+        "hold": 0.6
+      }
+    ]
+  },
+  {
+    "id": "c03",
+    "title": "Build mass, density and cumulative probability separately",
+    "sourceChapters": [
+      "c03"
+    ],
+    "beats": [
+      {
+        "id": "c03-b01",
+        "say": "Give the assistant a seventy-two percent chance of resolving a request. One means resolved and zero means escalated. The masses at zero and one are the heights of these two bars, point two eight and point seven two. Together they add to one. A probability mass function assigns each possible outcome its share.",
+        "hold": 0.55
+      },
+      {
+        "id": "c03-b02",
+        "say": "A continuous density instead integrates over intervals. A uniform duration between zero and one half second has height two per second, yet total area one. Between point one and point three seconds, width point two times height two gives probability point four.",
+        "hold": 0.3
+      },
+      {
+        "id": "c03-b03",
+        "say": "An exact point has zero area. A rounded clock reading collects the times in a small interval around the displayed value.",
+        "hold": 0.55
+      },
+      {
+        "id": "c03-b04",
+        "say": "Now add the probabilities as you move from left to right. At zero, the running total jumps to point two eight. At one, it reaches one. This staircase is a cumulative distribution function, or CDF.",
+        "hold": 0.3
+      },
+      {
+        "id": "c03-b05",
+        "say": "Each height is the probability of an outcome at or below that value. For a duration, add up the area under the density as you go. In either case, the running total never falls and approaches one as you include the whole distribution.",
+        "hold": 0.55
+      }
+    ]
+  },
+  {
+    "id": "c04",
+    "title": "Build a positive duration",
+    "sourceChapters": [
+      "c04"
+    ],
+    "beats": [
+      {
+        "id": "c04-b01",
+        "say": "A random variable describes a quantity whose value will be drawn. Here that quantity is a duration in seconds, so choose positive outcomes. Our supplied lognormal model starts with standard normal noise: a bell-shaped variable centered at zero with standard deviation one.",
+        "hold": 0.55
+      },
+      {
+        "id": "c04-b02",
+        "say": "Multiply the noise by the log-space spread, then exponentiate and multiply by six. Try minus one, zero and plus one on the upper scale. Below them, the three times stay positive. Watch how far apart the upper two times land.",
+        "hold": 0.6
+      },
+      {
+        "id": "c04-b03",
+        "say": "This recipe fixes the median at six and uses a log-space spread of point five five. Its mean is about seven seconds because long waits pull the average upward. These are planning assumptions. We will challenge them against a separate constructed request cohort.",
+        "hold": 0.6
+      }
+    ]
+  },
+  {
+    "id": "c05",
+    "title": "Probability is the shaded area",
+    "sourceChapters": [
+      "c05"
+    ],
+    "beats": [
+      {
+        "id": "c05-b01",
+        "say": "This curve is a probability density. Its horizontal axis is seconds; its height is density per second. Shade the interval from five to seven seconds. The area gives the chance of a reply in that range. The height of the curve alone gives a different quantity.",
+        "hold": 0.6
+      },
+      {
+        "id": "c05-b02",
+        "say": "Bring the two boundaries together at six. The interval gets narrower, and its probability approaches zero, although the density stays positive. A continuous model assigns probability to ranges. A duration rounded to six seconds represents a small interval determined by the clock's precision.",
+        "hold": 0.6
+      },
+      {
+        "id": "c05-b03",
+        "say": "Now sweep from zero to our ten-second deadline. This cumulative area is about eighty-two percent. The remaining area is about eighteen percent: the model's chance that the timer wins. We have an answer under the model. Next, generate individual replies from it.",
+        "hold": 0.7
+      }
+    ]
+  },
+  {
+    "id": "c06",
+    "title": "Turn a random rank into a duration",
+    "sourceChapters": [
+      "c06"
+    ],
+    "beats": [
+      {
+        "id": "c06-b01",
+        "say": "The cumulative distribution function, or CDF, records the area up to each time. Its height already is a probability. A pseudo-random generator gives us a uniform rank between zero and one. Every equal-width rank interval has equal probability. Use one quarter for our first inspected draw.",
+        "hold": 0.6
+      },
+      {
+        "id": "c06-b02",
+        "say": "Move horizontally from that rank to the curve, then down to the time axis. The inverse CDF turns the quarter-rank into about four seconds. For this lognormal model, find a standard normal quantile, multiply by the log-space spread, exponentiate, and multiply by the six-second median.",
+        "hold": 0.6
+      },
+      {
+        "id": "c06-b03",
+        "say": "Try a rank of point nine five. Predict a longer or shorter wait. Follow the same route: it reaches about fifteen seconds. The upper five percent of ranks maps into the whole tail beyond this point. Finite-precision generators and quantile calculations approximate this ideal transformation.",
+        "hold": 0.75
+      }
+    ]
+  },
+  {
+    "id": "c07",
+    "title": "Use the generalized inverse and check the random endpoints",
+    "sourceChapters": [
+      "c07"
+    ],
+    "beats": [
+      {
+        "id": "c07-b01",
+        "say": "The general quantile is the smallest value whose cumulative probability reaches the selected rank. Try rank point three five. The staircase first reaches that height at outcome one. The flat stretch keeps the same height until the next jump. This generalized inverse works in both cases. In the ideal model, a uniform rank passed through the exact quantile has the target distribution.",
+        "hold": 0.3
+      },
+      {
+        "id": "c07-b02",
+        "say": "Going the other way, take a six-second reply from our continuous duration model. Go up from six seconds to its CDF, then read across to the rank axis. The rank is one half. Look at the colored intervals on either side of six seconds. They span different lengths of time, but each contains a quarter of the model's probability. Each maps to a quarter of the rank scale. Over repeated draws from this model, the ranks are uniform.",
+        "hold": 0.55
+      },
+      {
+        "id": "c07-b03",
+        "say": "For exponential service with rate mu, the quantile is negative log of one minus the rank, divided by mu. Negative log of the rank divided by mu gives the same distribution with a reflected uniform stream.",
+        "hold": 0.3
+      },
+      {
+        "id": "c07-b04",
+        "say": "For our lognormal duration, exponentiate the sum of log six and point five five times the standard normal quantile. Its median is six; its ninety-fifth percentile is about fourteen point eight three seconds.",
+        "hold": 0.55
+      },
+      {
+        "id": "c07-b05",
+        "say": "Python random returns finite-precision values from zero inclusive to one exclusive. A logarithm or inverse normal may require a rank strictly inside both endpoints, so the article redraws endpoints where necessary. Numerical quantiles and tail cutoffs approximate the ideal law.",
+        "hold": 0.3
+      },
+      {
+        "id": "c07-b06",
+        "say": "In its seeded five-thousand-draw example, the lognormal sample median is six point zero three and the sample ninety-fifth percentile fourteen point eight five; finite samples need not equal the model quantiles.",
+        "hold": 0.55
+      }
+    ]
+  },
+  {
+    "id": "c08",
+    "title": "How many did the assistant resolve?",
+    "sourceChapters": [
+      "c08"
+    ],
+    "beats": [
+      {
+        "id": "c08-b01",
+        "say": "Say each request has a seventy-two percent chance of resolving. Draw the first four. Three escalate. Only the fourth adds one to the resolved count. Each zero or one is a Bernoulli draw, with mean p and variance p times one minus p.",
+        "hold": 0.3
+      },
+      {
+        "id": "c08-b02",
+        "say": "Fill the rest of the batch. With independent requests and the same chance on every draw, the number resolved in n requests is binomial.",
+        "hold": 0.75
+      },
+      {
+        "id": "c08-b03",
+        "say": "We got seventy-one. Over repeated batches of a hundred, the expected count is seventy-two. Multiply n by p for the mean, and by one minus p again for the variance. Here the variance is twenty point one six. How likely is exactly seventy-two?",
+        "hold": 0.3
+      },
+      {
+        "id": "c08-b04",
+        "say": "Multiply seventy-two factors of p and twenty-eight factors of one minus p. That's the probability of one particular arrangement. The binomial coefficient counts all arrangements with that total. Together they give about a nine percent chance.",
+        "hold": 0.8
+      },
+      {
+        "id": "c08-b05",
+        "say": "Compare six more batches drawn with a separate recorded seed. Their counts range from sixty-nine to seventy-eight. The line stayed put when the dots moved. Seventy-two percent was supplied to the simulator. A batch measures what happened on that run.",
+        "hold": 0.3
+      },
+      {
+        "id": "c08-b06",
+        "say": "If requests arrive in related incident waves, or differ in their chance of resolution, reconsider the binomial model before interpreting the scatter.",
+        "hold": 0.7
+      }
+    ]
+  },
+  {
+    "id": "c09",
+    "title": "Which route takes the next request?",
+    "sourceChapters": [
+      "c09"
+    ],
+    "beats": [
+      {
+        "id": "c09-b01",
+        "say": "R seventeen's receipt already had a route. For the next request, R eighteen, we'll draw one. Cumulative widths partition the unit interval. CI failure takes the first forty-five percent. Rollback takes the next twenty, access another twenty, and log triage the rest.",
+        "hold": 0.3
+      },
+      {
+        "id": "c09-b02",
+        "say": "Put a uniform rank of point five seven on that strip. Which route will the sampler assign?",
+        "hold": 2.05
+      },
+      {
+        "id": "c09-b03",
+        "say": "Point five seven lies between point four five and point six five. R eighteen gets rollback. That's one categorical draw. Relative weights of forty-five, twenty, twenty and fifteen give the same widths once you divide by their sum. An unfamiliar route coming out of this sampler would be grounds to check its label set.",
+        "hold": 0.75
+      },
+      {
+        "id": "c09-b04",
+        "say": "Repeat the draw independently five hundred times with the same weights. Rollback should get about a hundred requests. The actual article run gives it a few more. Read across both rows. Each still totals five hundred, because moving a request into one route takes it out of another. Those counts together follow a multinomial distribution.",
+        "hold": 0.7
+      }
+    ]
+  },
+  {
+    "id": "c10",
+    "title": "How many tool calls go on one request?",
+    "sourceChapters": [
+      "c10"
+    ],
+    "beats": [
+      {
+        "id": "c10-b01",
+        "say": "Suppose a request takes two point two tool calls on average. Try a Poisson model with that mean. Each bar gives the chance of a whole number of calls. Two calls is the likeliest count, at about twenty-seven percent. Even zero calls gets a bar, at about eleven percent.",
+        "hold": 0.55
+      },
+      {
+        "id": "c10-b02",
+        "say": "A sixth call costs extra. Add up the bars from six onward. About two and a half percent of requests cross that threshold. A single Poisson rate also predicts a variance equal to the mean. Check both predictions against the tool counts in the log. Retries can send one request back for several more calls.",
+        "hold": 0.55
+      },
+      {
+        "id": "c10-b03",
+        "say": "Let's draw one count. Start at one and multiply by a fresh uniform draw each time. Count each product that stays above the cutoff. The cutoff is e to the minus two point two, about point one one one.",
+        "hold": 0.3
+      },
+      {
+        "id": "c10-b04",
+        "say": "Four draws leave the product at point one six eight. The next draw is point four. Will it add a fifth call?",
+        "hold": 2
+      },
+      {
+        "id": "c10-b05",
+        "say": "The product drops to about point zero six seven, below the cutoff. The sampler stops and returns four calls. At rate zero the cutoff is one, so the first draw stops the count at zero. The article uses this loop for rates up to twenty.",
+        "hold": 0.75
+      }
+    ]
+  },
+  {
+    "id": "c11",
+    "title": "Who crosses the five-call budget?",
+    "sourceChapters": [
+      "c11"
+    ],
+    "beats": [
+      {
+        "id": "c11-b01",
+        "say": "Finance pays extra when a request needs more than five tool calls. The upper run uses one Poisson rate of two point two. For the lower run, choose a rate of one point two for eighty-eight percent of requests and ten for the rest.",
+        "hold": 0.3
+      },
+      {
+        "id": "c11-b02",
+        "say": "Draw the count from the chosen rate each time. That puts the average at two point two five six before sampling. Looking at the two runs, would you give them the same budget?",
+        "hold": 2
+      },
+      {
+        "id": "c11-b03",
+        "say": "Start at six calls and collect every bar to its right as well. Each bar counts whole requests. Mean tool use barely changed. But the lower run sends more than four times as many requests over budget. If you priced these two runs from their means, you'd miss that charge.",
+        "hold": 0.85
+      },
+      {
+        "id": "c11-b04",
+        "say": "Compare the variances. A single Poisson rate ties the variance to the mean. The ratio here goes from about one to four point six five. The changing rate adds variation between request types. Excess variance does not identify a unique replacement.",
+        "hold": 0.3
+      },
+      {
+        "id": "c11-b05",
+        "say": "In this example we picked the type afresh on every request. To test a story about retries clustering in time, look for them in the ordered request history.",
+        "hold": 0.65
+      }
+    ]
+  },
+  {
+    "id": "c12",
+    "title": "Let the proposed normal duration reveal impossible values",
+    "sourceChapters": [
+      "c12"
+    ],
+    "beats": [
+      {
+        "id": "c12-b01",
+        "say": "A proposed normal duration with mean eight seconds and standard deviation six assigns some probability below zero. In the article’s five thousand draws, roughly nine point five percent are negative, and the smallest is about negative fifteen point seven seconds. A reasonable-looking sample mean of eight point zero nine has not rescued impossible completion times.",
+        "hold": 0.55
+      },
+      {
+        "id": "c12-b02",
+        "say": "Clipping negatives to zero puts an extra probability mass at zero and changes the distribution. A justified truncation, positive family or empirical duration model is a different proposal with its own consequences.",
+        "hold": 0.3
+      },
+      {
+        "id": "c12-b03",
+        "say": "Our lognormal median is exponential of its log-space center, and its mean is exponential of that center plus half the squared log-space spread. Passing six as the log-space center would give a median near four hundred three seconds, not six.",
+        "hold": 0.55
+      }
+    ]
+  },
+  {
+    "id": "c13",
+    "title": "How much longer will this worker be busy?",
+    "sourceChapters": [
+      "c13"
+    ],
+    "beats": [
+      {
+        "id": "c13-b01",
+        "say": "Start the clock when a worker picks up a request. Give service time an exponential distribution with a rate of twenty per second. Mean service time is the reciprocal, fifty milliseconds. The chance service lasts longer than a tenth of a second is e to the minus two, about thirteen and a half percent.",
+        "hold": 0.55
+      },
+      {
+        "id": "c13-b02",
+        "say": "Suppose the worker is still busy after fifty milliseconds. What chance does the request have of taking another tenth of a second?",
+        "hold": 1.8
+      },
+      {
+        "id": "c13-b03",
+        "say": "Still thirteen and a half percent. Among the requests still in service at fifty milliseconds, compare how many remain a hundred milliseconds later. The ratio is the same as it was over the first hundred milliseconds. An exponential service time is memoryless.",
+        "hold": 0.55
+      },
+      {
+        "id": "c13-b04",
+        "say": "Python expovariate takes a rate. NumPy exponential takes a scale equal to mean time. For this model pass twenty as the Python rate or point zero five as the NumPy scale. Passing twenty as the NumPy scale makes the mean four hundred times larger.",
+        "hold": 0.3
+      },
+      {
+        "id": "c13-b05",
+        "say": "The article’s seeded sample mean is point zero four nine and the measured share over point one second is point one three two, consistent with finite-sample variation.",
+        "hold": 0.55
+      }
+    ]
+  },
+  {
+    "id": "c14",
+    "title": "Keep the requests as the sample grows",
+    "sourceChapters": [
+      "c14"
+    ],
+    "beats": [
+      {
+        "id": "c14-b01",
+        "say": "Now use a recorded uniform stream. Each rank becomes a duration and keeps its request identity as it lands in the sample. Blue requests beat the timer; red requests cross ten seconds. Watch the first five arrive. Each completed arrival adds exactly one to the denominator.",
+        "hold": 0.6
+      },
+      {
+        "id": "c14-b02",
+        "say": "Continue the same stream to twenty requests. The first five stay. Divide the red count by all twenty to estimate the chance of a late reply. Each late flag is zero or one, a Bernoulli outcome. With independent requests sharing one probability, their total count has a binomial distribution.",
+        "hold": 0.65
+      },
+      {
+        "id": "c14-b03",
+        "say": "Twenty draws are one finite sample from the model, with a rate that can wander. A small sample is especially fragile in the tail. Even when the true p ninety-five is known, twenty independent draws have about a one-in-three chance of containing no value beyond it.",
+        "hold": 0.7
+      }
+    ]
+  },
+  {
+    "id": "c15",
+    "title": "Extend the experiment, keep its past",
+    "sourceChapters": [
+      "c15"
+    ],
+    "beats": [
+      {
+        "id": "c15-b01",
+        "say": "Monte Carlo uses repeated draws to approximate a model's consequences. Here each dot is a separate hundred-request experiment. Its height is the fraction that missed the timer. The dots differ even though every experiment uses the same duration model. The horizontal line is its exact late probability.",
+        "hold": 0.6
+      },
+      {
+        "id": "c15-b02",
+        "say": "Extend every experiment to ten thousand requests. Keep its original hundred and append new draws. Each dot moves to its own newly computed rate. The cloud usually tightens as more outcomes contribute. A particular dot can briefly move farther from the line.",
+        "hold": 0.65
+      },
+      {
+        "id": "c15-b03",
+        "say": "For independent, identically distributed observations with finite variance, the sample mean's standard error scales as one over the square root of the draw count. A hundred times as many draws gives a tenfold smaller scale. Our binary flags have finite variance.",
+        "hold": 0.3
+      },
+      {
+        "id": "c15-b04",
+        "say": "Record the seed, draw order, code, and sampler version so this experiment can be replayed.",
+        "hold": 0.7
+      }
+    ]
+  },
+  {
+    "id": "c16",
+    "title": "How many draws would expose a rare failure?",
+    "sourceChapters": [
+      "c16"
+    ],
+    "beats": [
+      {
+        "id": "c16-b01",
+        "say": "The launch team has one more question. Suppose a rare failure strikes independently once in ten thousand requests on average. For a sample rate, the standard error comes from multiplying p by one minus p, dividing by the draw count, then taking the square root.",
+        "hold": 0.3
+      },
+      {
+        "id": "c16-b02",
+        "say": "Start with five thousand draws. Would a run with no failures surprise you?",
+        "hold": 2
+      },
+      {
+        "id": "c16-b03",
+        "say": "For a run to stay empty, every request must avoid the failure. Multiply that chance by itself five thousand times. It comes to about point six zero seven. More than half the runs can be quiet even though the expected count is half a failure per run.",
+        "hold": 0.8
+      },
+      {
+        "id": "c16-b04",
+        "say": "Suppose we want a ninety-five percent chance of seeing at least one. The chance of an empty run must drop to five percent. Extend the run until the curve reaches that line.",
+        "hold": 0.3
+      },
+      {
+        "id": "c16-b05",
+        "say": "Divide the log of point zero five by the log of one minus the failure probability, then round up to a whole request. It takes twenty-nine thousand nine hundred fifty-six. Even there we expect only about three failures. That budget buys a good chance to detect one.",
+        "hold": 0.3
+      },
+      {
+        "id": "c16-b06",
+        "say": "That budget answers a detection question. To see what precision would cost, take the standard error and divide by the failure rate. Even at this budget, the relative standard error is about fifty-eight percent. Estimating a tiny rate precisely takes more draws.",
+        "hold": 0.8
+      }
+    ]
+  },
+  {
+    "id": "c17",
+    "title": "Which run belongs in the average?",
+    "sourceChapters": [
+      "c17"
+    ],
+    "beats": [
+      {
+        "id": "c17-b01",
+        "say": "Here's a run worth saving. Sample four batches of twenty requests from stream A. Each number is the count resolved in that batch. Suppose the code takes one extra batch before it starts writing. That consumes the first sixteen. Which count does the log start with? Fourteen, from the second batch.",
+        "hold": 0.7
+      },
+      {
+        "id": "c17-b02",
+        "say": "Rewind to A's original seed. Use the same generator, code, parameters and order of calls. Watch the first three counts print again. What goes in the empty fourth position?",
+        "hold": 2.3
+      },
+      {
+        "id": "c17-b03",
+        "say": "Read the fourth count from the original run. Twelve comes back too. This is a replay. It will help you debug the result. Counting it again when you calculate a standard error would give one experiment twice the weight.",
+        "hold": 0.75
+      },
+      {
+        "id": "c17-b04",
+        "say": "Start B with its own recorded stream. Look down the last column. Twelve of the twenty requests resolved on A, twelve on its replay, and seventeen on B. Count A once and B once when you average the runs.",
+        "hold": 0.3
+      },
+      {
+        "id": "c17-b05",
+        "say": "Keep both stream IDs, their seeds, generator and library versions, code and draw order. For parallel replicas, NumPy can spawn child streams designed to be independent with very high probability. A different seed or a different-looking row alone can't establish independence.",
+        "hold": 0.65
+      }
+    ]
+  },
+  {
+    "id": "c18",
+    "title": "What goes into the next chain slot?",
+    "sourceChapters": [
+      "c18"
+    ],
+    "beats": [
+      {
+        "id": "c18-b01",
+        "say": "The assistant resolved eight of ten requests. Which resolution rates fit that record? Start with a Beta two, two prior. Add eight resolutions to the first number and two escalations to the second. That gives a Beta ten, four posterior.",
+        "hold": 0.3
+      },
+      {
+        "id": "c18-b02",
+        "say": "The posterior height is proportional to p to the ninth power times the cube of one minus p. Here we know the target curve. In harder models we might know only relative heights, with no easy way to draw directly. Markov chain Monte Carlo builds dependent draws, each starting from the last state. With a valid transition rule and enough exploration, the long-run distribution is the target. We can check the sampler on this known posterior before using it on a harder one. Its mean is ten fourteenths, a reference value for the chain average. Start the chain at one half.",
+        "hold": 0.7
+      },
+      {
+        "id": "c18-b03",
+        "say": "Propose a step to point six. For now the proposal is equally likely in either direction. Divide the height at the new point by the old height. Any common normalizing constant cancels. The new point is about two point six four times as high, so acceptance is one. Move the dot and record point six.",
+        "hold": 0.7
+      },
+      {
+        "id": "c18-b04",
+        "say": "Try stepping back. The target ratio is now about point three seven nine. Keep the smaller of that ratio and one as the acceptance probability. A fresh uniform draw lands at point four. Which probability gets printed in the next chain slot?",
+        "hold": 2.3
+      },
+      {
+        "id": "c18-b05",
+        "say": "The uniform draw of point four rejects the step. Write point six again. If we dropped that slot, we'd lose how long the chain spent here. This move-or-stay rule is the Metropolis step. A sampler draws a fresh uniform value for each decision.",
+        "hold": 0.85
+      },
+      {
+        "id": "c18-b06",
+        "say": "Replay that downhill proposal with an asymmetric proposal rule. Suppose the density for the reverse move is half the density for the forward move. Multiply the target ratio by that factor before capping at one. The acceptance window shrinks by half. This time the draw is one quarter. Which state do you keep?",
+        "hold": 2
+      },
+      {
+        "id": "c18-b07",
+        "say": "Record point six once more. A quarter would have fitted inside the old stretch. It falls outside the corrected one. That direction correction gives the Metropolis-Hastings rule. Reject proposals outside the target's support.",
+        "hold": 0.3
+      },
+      {
+        "id": "c18-b08",
+        "say": "In code, subtract log weights before comparing them. A generator can supply one minus a uniform draw as the comparison value. That value can equal one. Use an inclusive comparison so a move with acceptance probability one always goes through.",
+        "hold": 0.75
+      }
+    ]
+  },
+  {
+    "id": "c19",
+    "title": "Why is there a flat step?",
+    "sourceChapters": [
+      "c19"
+    ],
+    "beats": [
+      {
+        "id": "c19-b01",
+        "say": "Follow one of those chains for real. This one starts at point one. Each proposal adds normal noise with standard deviation point one five. We discard two thousand warmup steps to reduce the effect of the starting point. The sampler then retains ten thousand states.",
+        "hold": 0.3
+      },
+      {
+        "id": "c19-b02",
+        "say": "Here are the first six it kept. What happened between the second and third dots?",
+        "hold": 1.9
+      },
+      {
+        "id": "c19-b03",
+        "say": "The flat step is a rejection. The chain spent both iterations at the same probability. The next proposal took it somewhere else. Leave both copies in when you average the kept states.",
+        "hold": 0.8
+      },
+      {
+        "id": "c19-b04",
+        "say": "Pull back to the first two hundred forty kept states from each of four starts. Each color has its own history. The numbers on the right average all ten thousand states per chain. They land close to ten fourteenths, the known posterior mean. That's a check you can run on this particular sampler.",
+        "hold": 0.8
+      },
+      {
+        "id": "c19-b05",
+        "say": "Look at neighboring iterations. Their correlations are around point seven two, even though each chain accepted about sixty-three or sixty-four percent of proposals. Small proposals can accept often and barely move. Large ones can keep bouncing off the target.",
+        "hold": 0.3
+      },
+      {
+        "id": "c19-b06",
+        "say": "To estimate a tail, mark visits above point eight five on these four excerpts. Compare which chains reached that region and how often consecutive steps stayed there. Four similar means can hide different tail coverage. Use the full chains for the diagnostic.",
+        "hold": 0.7
+      }
+    ]
+  },
+  {
+    "id": "c20",
+    "title": "Where did the chains spend their time?",
+    "sourceChapters": [
+      "c20"
+    ],
+    "beats": [
+      {
+        "id": "c20-b01",
+        "say": "Each color starts from a different resolution rate. Split each trace in half. If the early half stays low and the late half stays high, the chain has drifted. Rank-normalized split R-hat compares variation within and between those half chains.",
+        "hold": 0.3
+      },
+      {
+        "id": "c20-b02",
+        "say": "Nearby steps can carry similar information across many lags. Look at sixteen steps from our first chain. Three in a row are above point eight five. Compare another sixteen steps from the same chain. Three are high again, this time with lower states between them. The first three marks came from one stay in the tail. Treating them as independent draws could understate uncertainty. Dependence can persist across gaps, too. On the full chains, bulk effective sample size measures information about the center. For a high percentile, check tail effective sample size and the Monte Carlo error of that percentile.",
+        "hold": 0.55
+      },
+      {
+        "id": "c20-b03",
+        "say": "Gibbs sampling updates one coordinate at a time. Hold y fixed and draw x from its conditional distribution. Then use the new x to draw y. In this tilted normal cloud, each coordinate has mean zero and variance one. Their correlation is point eight.",
+        "hold": 0.3
+      },
+      {
+        "id": "c20-b04",
+        "say": "Each conditional mean is point eight times the coordinate you held fixed. The conditional standard deviation is point six.",
+        "hold": 0.55
+      },
+      {
+        "id": "c20-b05",
+        "say": "Start at two, negative two. Let's trace the centers by taking the conditional median on each move. Hold y still. Eight tenths of negative two puts x at negative one point six. Now hold that x still.",
+        "hold": 0.3
+      },
+      {
+        "id": "c20-b06",
+        "say": "Eight tenths of it puts y at negative one point two eight. When you sample, draw around each center. The first draw sets the center for the next.",
+        "hold": 0.55
+      }
+    ]
+  },
+  {
+    "id": "c21",
+    "title": "Three requests share one worker",
+    "sourceChapters": [
+      "c21"
+    ],
+    "beats": [
+      {
+        "id": "c21-b01",
+        "say": "Three requests arrive at zero, ten and twenty milliseconds. One worker takes them in order and spends fifty milliseconds on each. Put the first service block at zero. Where can the second and third blocks start?",
+        "hold": 2.1
+      },
+      {
+        "id": "c21-b02",
+        "say": "Slide the other two blocks into the free slots. Starts are zero, fifty and one hundred. Finishes are fifty, one hundred and one hundred fifty. Subtract each request's own arrival. The three total times are fifty, ninety and one hundred thirty milliseconds. The last request waited eighty milliseconds for fifty milliseconds of work.",
+        "hold": 0.55
+      }
+    ]
+  },
+  {
+    "id": "c22",
+    "title": "What happens as the worker fills up?",
+    "sourceChapters": [
+      "c22"
+    ],
+    "beats": [
+      {
+        "id": "c22-b01",
+        "say": "In a stable system, multiply the arrival rate by the average time spent inside. You get the average number of requests in the system. That's Little's Law. For this curve we also need a model of the queue.",
+        "hold": 0.3
+      },
+      {
+        "id": "c22-b02",
+        "say": "Requests arrive as a Poisson process and have independent exponential service times. One worker takes them in order. Everyone waits as long as it takes, with room for any queue length. That's the M M one model.",
+        "hold": 0.3
+      },
+      {
+        "id": "c22-b03",
+        "say": "The arrival rate must be smaller than the service rate for the queue to settle.",
+        "hold": 0.55
+      },
+      {
+        "id": "c22-b04",
+        "say": "Utilization is lambda divided by mu. Mean total time is one divided by the quantity mu minus lambda. Mean queue time is that total minus one divided by mu.",
+        "hold": 0.3
+      },
+      {
+        "id": "c22-b05",
+        "say": "With fifteen arrivals and twenty services per second, utilization is point seven five, total mean point two seconds and queue mean point one five. The service mean remains point zero five.",
+        "hold": 0.55
+      },
+      {
+        "id": "c22-b06",
+        "say": "Raise arrivals to nineteen per second while service stays at twenty. The worker is busy ninety-five percent of the time. Requests average a full second from arrival to finish. Nine hundred fifty milliseconds of that second are spent waiting. At or above twenty arrivals per second, this queue has no finite steady-state mean wait.",
+        "hold": 0.55
+      }
+    ]
+  },
+  {
+    "id": "c23",
+    "title": "Which request misses its own timer?",
+    "sourceChapters": [
+      "c23"
+    ],
+    "beats": [
+      {
+        "id": "c23-b01",
+        "say": "Here's a separate burst with a forty-millisecond timer. Four requests arrive five milliseconds apart, starting at zero. Each needs twenty milliseconds of work. One worker serves them in arrival order. The ruler starts at each request's own arrival. Which requests will miss their timer?",
+        "hold": 2.1
+      },
+      {
+        "id": "c23-b02",
+        "say": "Run the worker until the last reply leaves. Blue is service. The thin lead before each blue bar is time spent waiting. The third request arrives at ten but starts at forty, after the second finishes. Its clock reads fifty when the reply leaves. Follow the fourth request to its own deadline.",
+        "hold": 0.3
+      },
+      {
+        "id": "c23-b03",
+        "say": "Two of four meet the deadline. The work itself took the same time on all four.",
+        "hold": 0.8
+      },
+      {
+        "id": "c23-b04",
+        "say": "Change only the worker count to two. Keep the old service bars as outlines. The second worker can pick up the second request as soon as it arrives. Where will that put the last two finishes relative to their timers?",
+        "hold": 2
+      },
+      {
+        "id": "c23-b05",
+        "say": "Follow the blue bars back toward their arrivals. Each worker takes the next request as soon as it's free. Starts are zero, five, twenty and twenty-five on the shared clock. The last two now spend only ten milliseconds waiting and twenty in service.",
+        "hold": 0.3
+      },
+      {
+        "id": "c23-b06",
+        "say": "That's four of four on time. Two workers suffice for this burst. Before sizing a real pool, measure the arrival pattern, the admission policy and the time work actually occupies a worker.",
+        "hold": 0.8
+      }
+    ]
+  },
+  {
+    "id": "c24",
+    "title": "One more word",
+    "sourceChapters": [
+      "c24"
+    ],
+    "beats": [
+      {
+        "id": "c24-b01",
+        "say": "A route sampler picks one label. A language model can pick its next token the same way. Take the unfinished sentence, the sky is. Each candidate has a score called a logit. Subtract the largest logit from all four so exponentiation stays in range.",
+        "hold": 0.3
+      },
+      {
+        "id": "c24-b02",
+        "say": "Exponentiate the shifted scores and divide each weight by their sum. Softmax gives each word a share of one turn of the wheel. All four shares together fill the rim.",
+        "hold": 0.8
+      },
+      {
+        "id": "c24-b03",
+        "say": "A greedy decoder would choose blue. Its share ends a little past six tenths. Follow the recorded draw around the rim, then read the needle against the edge of blue. Which word goes in the sentence?",
+        "hold": 2
+      },
+      {
+        "id": "c24-b04",
+        "say": "The sky is clear. Our draw landed just beyond blue, inside the second sector. Blue is still the most probable word. Pin the needle here. If we change the size of blue, will this same draw still read clear?",
+        "hold": 0.7
+      }
+    ]
+  },
+  {
+    "id": "c25",
+    "title": "Move probability mass while preserving the logit order",
+    "sourceChapters": [
+      "c25"
+    ],
+    "beats": [
+      {
+        "id": "c25-b01",
+        "say": "For positive temperature, divide each logit by the temperature before softmax. Below one the gaps between scores grow, and above one they shrink. The order of the finite scores stays the same. With the needle pinned, predict the word when we cool the wheel.",
+        "hold": 2
+      },
+      {
+        "id": "c25-b02",
+        "say": "Cool the wheel to point three. The sky is blue. Blue now covers about ninety-one percent of a turn. A little under nine percent still belongs to clear. Another draw could land there.",
+        "hold": 0.55
+      },
+      {
+        "id": "c25-b03",
+        "say": "Warm the wheel to temperature two. Blue falls to about forty-five percent and green rises to seven percent. The pinned draw lands in clear again. At very high temperatures the four shares approach one quarter each. Near zero, mass concentrates on the highest score. A greedy decoder needs a tie rule if two scores tie for first.",
+        "hold": 0.55
+      },
+      {
+        "id": "c25-b04",
+        "say": "Keep the temperature at two. For nucleus sampling, start with the likeliest word and keep adding words until they cover at least ninety percent of the probability. Blue, clear and cloudy get us there. Green drops out. Divide the remaining shares by their sum and draw from those three words.",
+        "hold": 0.55
+      }
+    ]
+  },
+  {
+    "id": "c26",
+    "title": "Make one perturbed argmax implement a categorical sample",
+    "sourceChapters": [
+      "c26"
+    ],
+    "beats": [
+      {
+        "id": "c26-b01",
+        "say": "Draw one independent open-uniform value for each candidate and compute negative log of negative log of that value. These are standard Gumbel offsets. Add each offset to its logit divided by the decoding temperature, then take the largest perturbed score.",
+        "hold": 0.3
+      },
+      {
+        "id": "c26-b02",
+        "say": "In the ideal mathematical model this hard Gumbel-Max operation draws exactly from the softmax categorical probabilities.",
+        "hold": 0.55
+      },
+      {
+        "id": "c26-b03",
+        "say": "Blue starts ahead. Add point seven seven to blue and two point two five to clear. Their temperature-one scores become two point nine seven and three point seven five, so clear wins. Repeat with fresh noise and each word wins in proportion to its softmax probability.",
+        "hold": 0.3
+      },
+      {
+        "id": "c26-b04",
+        "say": "This hard choice returns one token. Gumbel-Softmax uses a smooth relaxation when we need derivatives.",
+        "hold": 0.55
+      },
+      {
+        "id": "c26-b05",
+        "say": "A parallel sampler can perturb many scores at once, then find the largest. Negate and exponentiate those perturbed scores and their order reverses. The smallest race time now selects clear. This is the exponential-noise form of the same draw. The pinned implementation in the article uses that form in one path and rejection sampling in some filtered draws.",
+        "hold": 0.3
+      },
+      {
+        "id": "c26-b06",
+        "say": "Both paths can give each word the same odds while drawing different words from a given seed. To compare speed, time the whole draw, including random numbers and the final selection.",
+        "hold": 0.55
+      }
+    ]
+  },
+  {
+    "id": "c27",
+    "title": "What came back from 5,000 simulated requests?",
+    "sourceChapters": [
+      "c27"
+    ],
+    "beats": [
+      {
+        "id": "c27-b01",
+        "say": "This run builds five thousand requests. For each one, draw a resolution, a route, a tool count and a duration independently. About seventy-two percent resolved. Read the two tool rows together. Requests averaged about two point two calls, and two point four percent went over five.",
+        "hold": 0.3
+      },
+      {
+        "id": "c27-b02",
+        "say": "That's close to the two and a half percent our Poisson model predicts.",
+        "hold": 0.55
+      },
+      {
+        "id": "c27-b03",
+        "say": "Every duration in this run was positive. The median was just over six seconds and the interpolated ninety-fifth percentile was about fifteen point seven. The model puts that percentile at fourteen point eight. The sample percentile moves from run to run.",
+        "hold": 0.3
+      },
+      {
+        "id": "c27-b04",
+        "say": "To estimate how many workers you'd need, give those requests arrival times and let them compete for workers.",
+        "hold": 0.55
+      },
+      {
+        "id": "c27-b05",
+        "say": "To replay the report, save the settings, seed, generator and draw order with the code. Then compare its rows with requests from a separate log. Did the slow ones also use more tools? If rollbacks behave differently from other routes, draw route first. Then sample counts and durations together using requests from that route.",
+        "hold": 0.55
+      },
+      {
+        "id": "c27-b06",
+        "say": "Now review a different plan. Its resolution rate is seventy-eight percent. It draws from only three of the four routes. It gives tool counts a Poisson mean of two, and times a normal mean of seven seconds with a standard deviation of eight. Which assumptions would you challenge before launch?",
+        "hold": 2.2
+      },
+      {
+        "id": "c27-b07",
+        "say": "Ask for representative reviewed resolutions to support that rate. Restore log triage to the route list. For cost, compare the count variance with its mean and measure the share above five tools. The normal model can produce negative durations. Try a positive model, then check its median and ninety-fifth percentile against observed times.",
+        "hold": 1.2
+      }
+    ]
+  },
+  {
+    "id": "c28",
+    "title": "Which replies are both costly and slow?",
+    "sourceChapters": [
+      "c28"
+    ],
+    "beats": [
+      {
+        "id": "c28-b01",
+        "say": "An incident can be expensive and slow on the very same request. Here are four receipts with their durations detached. Red marks either a count above five or a time above fifteen seconds. Pair the large counts with long durations. Trace each wire end to end. How many requests would trigger both alarms?",
+        "hold": 1.3
+      },
+      {
+        "id": "c28-b02",
+        "say": "Two requests trigger both alarms. Now reverse the duration pairing. Leave every count and every duration just where it is. Would the two separate histograms detect that edit? Follow a wire from either six.",
+        "hold": 1.8
+      },
+      {
+        "id": "c28-b03",
+        "say": "Each six now leads to two seconds. The joint share becomes zero. The count histogram would still pass, and so would the duration histogram. To test joint risk, keep the original request IDs when you examine real traces.",
+        "hold": 0.7
+      },
+      {
+        "id": "c28-b04",
+        "say": "Start again with the original pairing. This time exchange the durations of requests two and four. Which request crosses both thresholds now?",
+        "hold": 2
+      },
+      {
+        "id": "c28-b05",
+        "say": "Trace request three. Its six tools and twenty seconds belong to one request. One of four now triggers both alarms. Sampling more rows from any one of these pairings would stabilize its own answer. To decide which pairing belongs in the simulator, look at count and duration together within each route.",
+        "hold": 0.7
+      }
+    ]
+  },
+  {
+    "id": "c29",
+    "title": "Which side of the step counts?",
+    "sourceChapters": [
+      "c29"
+    ],
+    "beats": [
+      {
+        "id": "c29-b01",
+        "say": "Here are four fully observed finishes, at two, three, four and five seconds. Each finish lifts the observed fraction by a quarter. The yellow model spreads replies uniformly over the first five seconds. At two seconds it expects forty percent to have finished.",
+        "hold": 0.3
+      },
+      {
+        "id": "c29-b02",
+        "say": "On the step, check both the empirical height just before the first finish and the height just after. Which side gives the bigger gap?",
+        "hold": 2.1
+      },
+      {
+        "id": "c29-b03",
+        "say": "Just before two seconds, nobody has finished. That's a gap of forty percentage points. Just after the jump, the gap is only fifteen points. Repeat that comparison at every finish. The largest absolute vertical gap anywhere is the Kolmogorov-Smirnov distance, often called the K S distance.",
+        "hold": 0.8
+      },
+      {
+        "id": "c29-b04",
+        "say": "Now use two hundred fully observed durations drawn from our lognormal model. Both candidates were specified in advance. A normal curve with the same mean and variance has distance about point one three five. Compare the lognormal curve on those same rows. Its gap is smaller here.",
+        "hold": 0.3
+      },
+      {
+        "id": "c29-b05",
+        "say": "Another finite sample could give a different ordering. Check the high quantiles and the actual deadline as well. A rare, costly tail can barely move an overall distance.",
+        "hold": 0.8
+      },
+      {
+        "id": "c29-b06",
+        "say": "The ordinary one-sample K S p-value assumes independent, continuous observations and a candidate fixed before seeing them. If you fit the parameters on these rows, the distance still describes them. For a calibrated test, a parametric bootstrap can refit each replication.",
+        "hold": 0.3
+      },
+      {
+        "id": "c29-b07",
+        "say": "In a log that ends while people are still waiting, their finish times need censoring-aware analysis. A timeout records the end of the wait you observed.",
+        "hold": 0.8
+      }
+    ]
+  },
+  {
+    "id": "c30",
+    "title": "Same median, different slow experience",
+    "sourceChapters": [
+      "c30"
+    ],
+    "beats": [
+      {
+        "id": "c30-b01",
+        "say": "Keep the median at six seconds, but increase the log-space spread. Keep this inspected random rank fixed too. Watch the high-percentile duration move right as the curve spreads. The middle stays put while the slow experience changes. Predict what happens to the area beyond our ten-second timer.",
+        "hold": 0.65
+      },
+      {
+        "id": "c30-b02",
+        "say": "That late area grows. Compare the narrow curve with the wide one. The ten-second miss rate goes from about two percent to twenty-six percent. A repeatable simulation can estimate either answer precisely. To choose a shape, check the deadline fraction and slow tail in representative observations.",
+        "hold": 0.65
+      }
+    ]
+  },
+  {
+    "id": "c31",
+    "title": "Who belongs in the ten-second report?",
+    "sourceChapters": [
+      "c31"
+    ],
+    "beats": [
+      {
+        "id": "c31-b01",
+        "say": "Set the spread back to the original point five five. Now put that model aside and open a separate, constructed log. Everyone started together. One hundred sixty finish by ten seconds. Forty finish later, by fifteen. Fifty are still unfinished when recording stops. Their completion times are right-censored. We know they exceed fifteen seconds.",
+        "hold": 0.75
+      },
+      {
+        "id": "c31-b02",
+        "say": "The report counts only the two hundred recorded finishes. Divide one hundred sixty by that total and you get eighty percent. Which arrivals did that calculation leave out?",
+        "hold": 2
+      },
+      {
+        "id": "c31-b03",
+        "say": "Bring back the fifty unfinished requests. Each of those people was already waiting at ten. The numerator stays where it was. Now the bracket covers all two hundred fifty arrivals. Only sixty-four percent got a reply in time.",
+        "hold": 0.9
+      },
+      {
+        "id": "c31-b04",
+        "say": "This cohort gives sixty-four percent where the original model gives about eighty-two. Those extra simulation runs can pin down the model's answer as tightly as you like. To explain the gap, check the mixture of requests and the time they spent waiting in representative logs.",
+        "hold": 0.8
+      }
+    ]
+  },
+  {
+    "id": "c32",
+    "title": "Would fifteen seconds cover 95%?",
+    "sourceChapters": [
+      "c32"
+    ],
+    "beats": [
+      {
+        "id": "c32-b01",
+        "say": "The original model puts its ninety-fifth percentile just under fifteen seconds. Someone wants to set the timer there and promise that nineteen out of twenty people get a reply. Use the same log.",
+        "hold": 0.3
+      },
+      {
+        "id": "c32-b02",
+        "say": "For ninety-five percent of two hundred fifty arrivals, you'd need at least two hundred thirty-eight finishes. Would a fifteen-second timer have reached that mark?",
+        "hold": 2.2
+      },
+      {
+        "id": "c32-b03",
+        "say": "Move the deadline and include the forty later completions. Two hundred finished by fifteen seconds. The other fifty still have open clocks. The target is thirty-eight finishes out of reach.",
+        "hold": 1.35
+      },
+      {
+        "id": "c32-b04",
+        "say": "The two hundred thirty-eighth finish lies beyond fifteen seconds. The log stops before we can put a time on it. I would decline the fifteen-second promise on this evidence and follow those open requests to completion.",
+        "hold": 1.4
+      },
+      {
+        "id": "c32-b05",
+        "say": "Keep the open clocks in the launch decision. In the next lesson, we will give two systems the same tasks and ask how much of the difference between them could come from sampling.",
+        "hold": 1.2
+      }
+    ]
+  }
+]

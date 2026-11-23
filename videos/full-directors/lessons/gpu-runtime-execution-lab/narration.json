@@ -1,0 +1,291 @@
+[
+  {
+    "id": "c01",
+    "title": "When can the CPU take the sum?",
+    "sourceChapters": ["c01"],
+    "beats": [
+      {
+        "id": "track",
+        "say": "Follow the second input, two. The copy puts it in the second word of GPU working storage. Double it and add one. That gives five. Square it and you get twenty-five. The copper stripe marks that input's contribution. Now look at the three neighboring squares. What will all four squares add up to?",
+        "hold": 2.3
+      },
+      {
+        "id": "read",
+        "say": "One hundred sixty-four. That's the value we're looking for. Put the CPU read cursor at tick four, when the host returns from its last launch. The GPU is still doing the transform. Slide your finger along the schedule. When is the result ready to copy back?",
+        "hold": 2.4
+      },
+      {
+        "id": "take",
+        "say": "At tick ten the reduction finishes. Move the cursor there. The output now holds the four contributions, including twenty-five from our second word. A PyTorch item call on the ordered result waits for completion and copies the scalar back. Once that copy finishes, the CPU has its own one hundred sixty-four.",
+        "hold": 1.25
+      }
+    ]
+  },
+  {
+    "id": "c02",
+    "title": "How early can the reader start?",
+    "sourceChapters": ["c02"],
+    "beats": [
+      {
+        "id": "order",
+        "say": "Each CPU call takes one logical tick. A stream runs its commands in issue order. Here the copy lasts three ticks on its stream. The transform is issued at one, its compute stream is free at zero, and its producer finishes at three. Take the latest of those times. The transform runs from three to seven, then square and sum finish at ten. The four host ticks already sit inside those ten.",
+        "hold": 1
+      },
+      {
+        "id": "omit",
+        "say": "Keep the two streams and the same four submissions. Imagine unplugging the wait that connects the copy to the transform. Where could the first read land?",
+        "hold": 2.2
+      },
+      {
+        "id": "race",
+        "say": "Remove the wait. The transform can start at one. For two ticks it can read the same buffer the copy is writing. The shorter schedule exposes an ordering hazard. We can't infer a particular wrong sum. Restore the wait before using this result. Check for submission errors and check again after the required work finishes.",
+        "hold": 1.15
+      },
+      {
+        "id": "scope",
+        "say": "Record a stop event after our sum. Another stream in the same context has work through tick thirteen. Wait on the sum's event and our stream reaches its marker at ten. Synchronizing our stream covers its prior commands. Synchronizing the device also waits for the other stream. These ticks model dependencies on available hardware.",
+        "hold": 1.25
+      },
+      {
+        "id": "gap",
+        "say": "Compare two profiler traces. In both, a kernel ends at three microseconds and its successor starts at eight. In the first trace the CPU issues the successor at eight. In the second it issues the successor at two. A copy completes at eight. Which gap could a faster host submission fix?",
+        "hold": 2.2
+      },
+      {
+        "id": "reason",
+        "say": "The first one. The device ran out of submitted work. In the second trace the kernel was already queued. Its ready event waited for the copy. Follow that edge in Nsight Systems. If one long kernel fills the interval instead, inspect its arithmetic and memory traffic in a kernel profiler.",
+        "hold": 1.2
+      }
+    ]
+  },
+  {
+    "id": "c03",
+    "title": "Which recording did this wait see?",
+    "sourceChapters": ["c03"],
+    "beats": [
+      {
+        "id": "record",
+        "say": "Use a fresh event handle. On the copy stream, record ready after the copy. Then submit a wait on the compute stream. The wait picks up the producer work ending at three. The host can continue while the dependency constrains future device execution.",
+        "hold": 1
+      },
+      {
+        "id": "empty",
+        "say": "Reset the handle for another run. Submit a wait before the first recording. Now record the copy, then submit a second wait. The first recording ends at three. We're about to record later work ending at nine and submit a third wait. Will the earlier waits move to the new recording?",
+        "hold": 2.2
+      },
+      {
+        "id": "locked",
+        "say": "Record again and submit the third wait. The first wait still holds empty work. It can let its reader get ahead of the copy. The second holds the recording ending at three. Only the third picked up nine. Each wait keeps the state of the handle at the time of its call. Keep the input allocation alive until its consumers finish as well.",
+        "hold": 1.2
+      }
+    ]
+  },
+  {
+    "id": "c03-streams",
+    "title": "Which streams can overlap?",
+    "sourceChapters": ["c03"],
+    "beats": [
+      {
+        "id": "legacy",
+        "say": "Take one CUDA context with legacy default-stream semantics. Blocking stream A runs for five ticks. The host requests the legacy operation at tick one and a blocking operation on B at tick two. The legacy operation waits for A, then runs from five to seven. B waits from tick two until tick seven. Then B runs from seven to ten. Where could an independent, nonblocking operation requested at one fit?",
+        "hold": 2.15
+      },
+      {
+        "id": "independent",
+        "say": "It can run from one to three if resources permit. A nonblocking stream opts out of the legacy edges. A per-thread default stream is local to its thread and context and participates in synchronization with the legacy stream when both are used. Check the configured semantics and stream flags when a trace looks serialized.",
+        "hold": 1
+      },
+      {
+        "id": "slots",
+        "say": "Now try overlapping the next request's transfer with the current request's compute. The kernel still reads slot A. Copy into disjoint slot B using pinned host memory, an asynchronous transfer and a capable copy engine. Reuse A only after its last reader finishes. In PyTorch, wait_stream orders the work. Retaining A, or recording its side-stream use with record_stream, protects its storage. Look for the actual overlap in the trace.",
+        "hold": 1.2
+      }
+    ]
+  },
+  {
+    "id": "c04",
+    "title": "What runs again on replay?",
+    "sourceChapters": ["c04"],
+    "beats": [
+      {
+        "id": "capture",
+        "say": "A GPU can finish a short operation before the host supplies the next one. When the trace shows repeated submission gaps, capture the sequence. Capture records operations and their dependency edges. Instantiation prepares an executable. One launch can now submit the chain. Each node still waits for its inputs.",
+        "hold": 1
+      },
+      {
+        "id": "counter",
+        "say": "Try a capture with a Python counter at seven and a device scalar at two. Add four to the counter inside the capture block. Record a GPU multiply by three. What values will we find after two replays?",
+        "hold": 2.2
+      },
+      {
+        "id": "runs",
+        "say": "The Python addition ran once, during capture. Launch once and the GPU scalar becomes six. Launch again and it becomes eighteen. The counter stays at eleven. For a valid capture, use a supported stream, join any forked stream back to the origin before ending capture, and keep synchronization of captured work outside the recording. Measure capture, instantiation, first launch and steady replay separately.",
+        "hold": 1.3
+      }
+    ]
+  },
+  {
+    "id": "c04-reuse",
+    "title": "Which replay first saves total time?",
+    "sourceChapters": ["c04"],
+    "beats": [
+      {
+        "id": "costs",
+        "say": "Suppose each completed eager run takes eighteen microseconds. Replay takes twelve, after twelve milliseconds of setup. At zero runs the graph already has a bill. Each compatible run closes the gap by six microseconds. With twelve thousand microseconds to repay, how many runs get us level?",
+        "hold": 2.3
+      },
+      {
+        "id": "tie",
+        "say": "Two thousand runs bring both bills to thirty-six milliseconds. The lines meet here. We've recovered setup. Look closely at what the very next run adds.",
+        "hold": 0.8
+      },
+      {
+        "id": "win",
+        "say": "Run two thousand and one. Eager adds eighteen microseconds above the shared base. Replay adds twelve. Replay now saves six microseconds overall. With constant costs and a positive saving per run, divide setup by that saving, round down and add one to find the first strictly cheaper run. If each replay costs as much as eager, positive setup stays unpaid.",
+        "hold": 1.3
+      }
+    ]
+  },
+  {
+    "id": "c04-lab",
+    "title": "Did completed work get faster?",
+    "sourceChapters": ["c02", "c04"],
+    "beats": [
+      {
+        "id": "scope-lab",
+        "say": "The downloadable lab runs four thousand ninety-six single-precision values, evenly spaced from zero to one. Eager mode, an explicit stream and graph replay all use the same device-to-device chain. Fill the retained input with zeros. Each contributes one, so expect four thousand ninety-six. Fill it with ones. Each contributes nine, giving thirty-six thousand eight hundred sixty-four. Restore the original data and compare its completed sum with a double-precision reference.",
+        "hold": 0.8
+      },
+      {
+        "id": "divide",
+        "say": "Warm the path, preallocate buffers and prime the timing events. Here is a practice receipt over two hundred iterations. The host took two milliseconds to enqueue. Stream events spanned three. The wall clock through the final wait read four. Convert each interval to microseconds and divide by two hundred. The means are ten, fifteen and twenty. The event interval includes idle gaps between its markers.",
+        "hold": 1
+      },
+      {
+        "id": "measured",
+        "say": "Now look at the course lab's recorded run on an RTX fifty-seventy Ti. All three modes used twenty warmups and a thousand timed iterations. They passed the fresh-input and final checks. Host enqueue fell from about twelve microseconds per eager iteration to under two on replay. Which measurement tells us whether the work finished sooner?",
+        "hold": 2.2
+      },
+      {
+        "id": "wall",
+        "say": "Use the completed wall interval. Its mean fell from twelve point three to six point two microseconds. Stream events spanned about twelve point three and six point one. Graph setup cost another three point seven milliseconds. These are means on this machine. Keep the shape, strides, addresses, environment, tolerance and iteration counts with the receipt. For individual request percentiles, time individual requests.",
+        "hold": 1.2
+      }
+    ]
+  },
+  {
+    "id": "c05",
+    "title": "Which allocation will replay read?",
+    "sourceChapters": ["c05"],
+    "beats": [
+      {
+        "id": "bind",
+        "say": "The graph captured the address of allocation A. Its last completed run left one hundred sixty-four in O. Move the Python name x to B, a fresh row of four zeros. A stays alive. Which row will the next launch read?",
+        "hold": 2.2
+      },
+      {
+        "id": "stale",
+        "say": "Follow the fixed pin into A. Replay reads one, two, three and four again. Their squares after the transform still add up to one hundred sixty-four. The number looks perfectly good for the previous request. Where should the zeros go?",
+        "hold": 2.1
+      },
+      {
+        "id": "copy",
+        "say": "Copy B into A on the replay stream. See the zeros arrive under the pin. The previous output stays in O until another run writes it. Replay with the same pointer. Each zero now contributes one. The completed sum is four. Copy it back to the CPU. Once that read finishes, another replay can reuse O. A GPU clone of O also needs ordering.",
+        "hold": 1.25
+      }
+    ]
+  },
+  {
+    "id": "c05-update",
+    "title": "What will each launch return?",
+    "sourceChapters": ["c05"],
+    "beats": [
+      {
+        "id": "old",
+        "say": "A native graph update changes an executable's parameters for future launches. Here x is three. Launch the old affine kernel with bias plus one. While it is in flight, a permitted node update sets the bias to minus two. Predict the result for the in-flight launch and for the next launch.",
+        "hold": 2.2
+      },
+      {
+        "id": "new",
+        "say": "The old launch keeps its arguments. It finishes with seven. Launch again with the accepted update and the result is four. Keep the old allocation live while its launch can still use it. A separate whole-graph update tries to change the kernel's owning context. The update fails. Use a valid replacement or a supported fallback for that candidate. Check the update result before dispatch.",
+        "hold": 1.2
+      }
+    ]
+  },
+  {
+    "id": "c06",
+    "title": "Which slots belong in the sum?",
+    "sourceChapters": ["c06"],
+    "beats": [
+      {
+        "id": "fit",
+        "say": "Fit six real requests into the smallest compatible captured graph. Our pool has four, eight and sixteen slots for this mode, layout, data type and adapter. Eight fits. Put zeros in its two spare slots. Each lane doubles its input, adds one and squares the result. If we sum all eight lanes before masking, how much do the two padded lanes add?",
+        "hold": 2.1
+      },
+      {
+        "id": "extra",
+        "say": "Run the affine step. Both dummy zeros become ones. Square the row. The two ones survive. Sum all eight and we get four hundred fifty-six. Our six valid inputs account for four hundred fifty-four. How should the next reduction treat the last two lanes?",
+        "hold": 2
+      },
+      {
+        "id": "mask",
+        "say": "Close the two validity gates before the reduction. Replay the sum over the six open lanes. Four hundred fifty-four. The two padded squares still hold one apiece. Together they add zero to this masked sum. A dummy can still write to a cache cell belonging to another request. That cell holds forty-two. Let the first dummy store its square. The sum passes, but the other request now sees one.",
+        "hold": 1.05
+      },
+      {
+        "id": "guard",
+        "say": "Start that cache trial again at forty-two. Test validity before the store. The dummy skips the write. The cell still holds forty-two, and the valid sum stays four hundred fifty-four. Now change only the request's adapter. Our graph pool has no matching key. Use a supported fallback. Capacity alone cannot decide which executable can serve it.",
+        "hold": 1.25
+      }
+    ]
+  },
+  {
+    "id": "c07",
+    "title": "Who can release the slot?",
+    "sourceChapters": ["c07"],
+    "beats": [
+      {
+        "id": "occupy",
+        "say": "If a graph launch still leaves a measured gap, a persistent kernel can keep workers resident and let them claim more work. Watch four workers claim four published requests. Worker zero finishes the first request and leaves nine in slot zero. The CPU begins reading it. Five and six are waiting. Can we admit five now?",
+        "hold": 2.25
+      },
+      {
+        "id": "admit",
+        "say": "All four slots still have owners. Keep five waiting. The reader takes nine and releases slot zero. Publish five there with its new request identity. A worker claims it. Six waits for the reader of slot one. Only after that reader finishes can six enter. The queue pushes back when it runs out of reusable storage.",
+        "hold": 1
+      },
+      {
+        "id": "drain",
+        "say": "Stop admissions and drain the four remaining requests. Each worker publishes completion, and each last reader releases its slot. Six results are now delivered. A real CPU and GPU queue needs a supported shared mapping and appropriately scoped atomic release and acquire operations, so the payload is visible before a claim. Cancellation must account for every remaining reader.",
+        "hold": 1.05
+      },
+      {
+        "id": "progress",
+        "say": "Consider a different wait. Every resident worker is polling for another kernel, but the workers occupy every block slot it could use. That kernel cannot start. Break the dependency or reserve enough resources for required work and verify forward progress. Bound shutdown and measure full request latency, including polling and the delay to other kernels.",
+        "hold": 1.1
+      }
+    ]
+  },
+  {
+    "id": "practice",
+    "title": "Can this result go back to the new request?",
+    "sourceChapters": ["c05", "c06", "c07"],
+    "beats": [
+      {
+        "id": "puzzle",
+        "say": "One last request. The three real values are minus one, zero and two. A fourth zero fills the spare slot. The graph still points at old A. Its retained mask still includes four slots. Rebind x to the new request. What else has to change before we can send this caller a result?",
+        "hold": 2.5
+      },
+      {
+        "id": "repair-data",
+        "say": "First copy the new data into A. Replay with the old mask. The squares are one, one, twenty-five and one. The sum is twenty-eight. Both zeros contributed one. Which of them belongs to this caller?",
+        "hold": 2.2
+      },
+      {
+        "id": "repair-mask",
+        "say": "The second slot is a real zero. Clear just the fourth mask bit before replay. This time one plus one plus twenty-five gives twenty-seven. Wait for the result, then finish copying it to the CPU. The caller keeps twenty-seven, and the next replay can reuse O. Use this same check on a generated kernel: follow the request's data, mask and output all the way to its reader.",
+        "hold": 1.8
+      }
+    ]
+  }
+]

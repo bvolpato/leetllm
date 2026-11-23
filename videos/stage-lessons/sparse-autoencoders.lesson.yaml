@@ -1,0 +1,1200 @@
+version: 1
+id: sparse-autoencoders
+title: Separating Features Inside a Model
+source: fundamentals/mechanistic-interpretability-sparse-autoencoders/content.md
+voice: en-US-AndrewNeural
+rate: +0%
+sources:
+  - title: Sparse Autoencoders Find Highly Interpretable Features in Language Models
+    url: https://arxiv.org/abs/2309.08600
+  - title: Scaling and evaluating sparse autoencoders
+    url: https://arxiv.org/abs/2406.04093
+  - title: Sparse Feature Circuits
+    url: https://arxiv.org/abs/2403.19647
+  - title: Extensions of Lipschitz mappings into a Hilbert space.
+    url: https://web.stanford.edu/class/cs114/readings/JL-Johnson.pdf
+  - title: Improving Dictionary Learning with Gated Sparse Autoencoders
+    url: https://arxiv.org/abs/2404.16014
+  - title: "Jumping Ahead: Improving Reconstruction Fidelity with JumpReLU Sparse Autoencoders"
+    url: https://arxiv.org/abs/2407.14435
+  - title: "Circuit Tracing: Revealing Computational Graphs in Language Models"
+    url: https://transformer-circuits.pub/2025/attribution-graphs/methods.html
+  - title: Automated Interpretability Metrics Do Not Distinguish Trained and Random Transformers
+    url: https://proceedings.iclr.cc/paper_files/paper/2026/hash/7ab63a5314680e2f083cb288abeaeb8e-Abstract-Conference.html
+  - title: Natural Language Autoencoders Produce Unsupervised Explanations of LLM Activations
+    url: https://transformer-circuits.pub/2026/nla/index.html
+  - title: "A is for Absorption: Studying Feature Splitting and Absorption in Sparse Autoencoders"
+    url: https://arxiv.org/abs/2409.14507
+scenes:
+  - id: intro
+    title: "Did the password signal get stronger?"
+    visual: "The word “now” slides into a reset request. A marker keeps the old coordinate reading in view as the bar grows. Split the bar into its two contributions, then trace their arrows."
+    beats:
+      - say: "Add “now” to “Reset my password.” The first coordinate of our toy activation jumps from one point five to two point three. Did the password signal get stronger?"
+        hold: 2.3
+        caption_starts: ["The first coordinate", "Did the password signal"]
+        visual_cues:
+          - id: intro-now
+            phrase: "Add “now” to “Reset my password.”"
+            targets: [urgent-request]
+          - id: intro-meter
+            phrase: "The first coordinate"
+            targets: [raw-coordinate]
+      - say: "Split the bar at the old reading. The blue password component still contributes one point five. The extra eight tenths come from urgency. Both features move the same coordinate."
+        hold: 0.7
+        caption_starts: ["The blue password component", "The extra eight tenths"]
+        visual_cues:
+          - id: intro-unpack
+            phrase: "Split the bar"
+            targets: [coordinate-components]
+          - id: intro-same
+            phrase: "The blue password component"
+            targets: [credential-contribution]
+          - id: intro-urgency
+            phrase: "The extra eight tenths"
+            targets: [urgency-contribution]
+      - say: "Draw the credential contribution along the horizontal axis. Now add the slanted urgency arrow at its tip. It carries us eight tenths to the right and six tenths up. The dot is the whole activation. The meter at the start saw only its horizontal position."
+        hold: 0.7
+        visual_cues:
+          - id: intro-arrows
+            phrase: "Draw the credential contribution"
+            targets: [credential-arrow]
+          - id: intro-slant
+            phrase: "add the slanted urgency arrow"
+            targets: [urgency-arrow]
+      - say: "Try two directions at right angles. Turn them together. Both now cast a shadow on the horizontal axis. Two features can share a coordinate just because the axes are tilted. The superposition hypothesis goes further. A model could pack more features than it has dimensions by using overlapping directions. These axes describe the residual stream. An MLP neuron applies its own nonlinear activation."
+        hold: 0.7
+        visual_cues:
+          - id: intro-rotate
+            phrase: "two directions at right angles"
+            targets: [orthogonal-pair]
+          - id: intro-turn
+            phrase: "Turn them together"
+            targets: [rotated-pair]
+          - id: intro-shadows
+            phrase: "Both now cast a shadow"
+            targets: [axis-projections]
+      - say: "In a trained model we have to find candidate directions. A sparse autoencoder learns to rebuild each activation using a few of them. We'll test what one direction does by taking its contribution out and measuring the change in a score."
+        hold: 0.8
+        visual_cues:
+          - id: intro-find
+            phrase: "find candidate directions"
+            targets: [candidate-mixture]
+  - id: packing-bound
+    title: Small pairwise overlap can accumulate
+    visual: A fixed inactive probe receives twelve signed contribution slivers before a threshold rejects or admits their sum.
+    beats:
+      - say: "Put two arrows at right angles. Where could a third arrow point to miss both axes?"
+        hold: 1.8
+        visual_cues:
+          - id: packing-bound-b0
+            phrase: "a third arrow"
+            targets: [packing-bound-construction]
+      - say: "Point it straight up. Its blue shadow shrinks to zero, but the pink shadow reaches one. Turn it sideways and the shadows trade places. Every direction in this plane casts at least one shadow. In D dimensions, at most D unit directions can all be perpendicular. The Johnson-Lindenstrauss lemma asks a different question about a finite set of points. Use a suitable linear map to reduce the dimension. Each tick shows one pair’s squared distance afterward divided by its squared distance before. The required dimension grows with the log of the number of points and with the inverse square of the allowed error. All twenty-eight pairs here fit inside the band around one. To test feature recovery, we need to mix known directions and see which ones we get back."
+        hold: 1
+        caption_starts: ["Its blue shadow", "Turn it sideways", "Every direction in this plane", "The Johnson-Lindenstrauss lemma", "Each tick shows", "All twenty-eight pairs"]
+        visual_cues:
+          - id: packing-up
+            phrase: "Point it straight up"
+            targets: [vertical-projection]
+          - id: packing-side
+            phrase: "Turn it sideways"
+            targets: [horizontal-projection]
+          - id: packing-answer
+            phrase: "casts at least one shadow"
+            targets: [projection-verdict]
+          - id: jl-projection
+            phrase: "suitable linear map"
+            targets:
+              - packing-bound-construction
+            linger: 0.4
+          - id: jl-name
+            phrase: "Johnson-Lindenstrauss"
+            targets:
+              - picture
+          - id: jl-dimension
+            phrase: "required dimension grows"
+            targets:
+              - picture
+          - id: jl-within
+            phrase: "fit inside the band"
+            targets:
+              - picture
+          - id: jl-not
+            phrase: "To test feature recovery"
+            targets:
+              - picture
+      - say: "Now make twenty-four random directions. Choose each coordinate sign independently and fairly, then divide by the square root of the dimension to get unit length. At sixty-four dimensions the highlighted row shows the overlaps with one probe. Look across all pairs. The formula bounds the chance that even one absolute overlap exceeds one half. At two hundred and fifty-six dimensions the bound is below one in a thousand. Go back to sixteen and it exceeds one, so it gives no useful guarantee there. Higher dimensions can accommodate many nearly perpendicular directions under this sampling rule. What happens when several of those small overlaps add up?"
+        hold: 1
+        visual_cues:
+          - id: packing-bound-b1
+            phrase: "make twenty-four random directions"
+            targets:
+              - packing-bound-construction
+            linger: 0.4
+          - id: random-bound
+            phrase: "Go back to sixteen"
+            targets:
+              - packing-bound-construction
+            linger: 0.4
+          - id: bound-concentration
+            phrase: "At sixty-four dimensions"
+            targets:
+              - picture
+          - id: bound-formula
+            phrase: "Look across all pairs"
+            targets:
+              - picture
+          - id: bound-exp
+            phrase: "At two hundred and fifty-six dimensions"
+            targets:
+              - picture
+          - id: bound-many
+            phrase: "Higher dimensions can accommodate"
+            targets:
+              - picture
+      - say: "Point the probe at a direction we left out of the mixture. Its coefficient is zero. The largest absolute overlap between any two unit directions is called coherence. Multiply it by the sum of the active coefficient magnitudes to bound the leakage into this probe. Watch twelve active directions join. Each has coefficient one and each adds a positive tenth along the probe. Together they write one point two. The threshold is one. This detector fires on a feature we left out. With only four active directions the leakage is four tenths. When choosing a cutoff we also have to leave room for weak real signals."
+        hold: 1
+        visual_cues:
+          - id: packing-bound-b2
+            phrase: "Point the probe"
+            targets:
+              - packing-bound-construction
+            linger: 0.4
+          - id: coherence-accumulate
+            phrase: "twelve active directions join"
+            targets:
+              - packing-bound-construction
+            linger: 0.4
+          - id: coherence-threshold
+            phrase: "The threshold is one"
+            targets:
+              - packing-bound-construction
+            linger: 0.4
+          - id: coherence-readout
+            phrase: "Multiply it by the sum"
+            targets:
+              - picture
+          - id: coherence-leak
+            phrase: "one point two"
+            targets:
+              - picture
+          - id: coherence-sparsity
+            phrase: "With only four active directions"
+            targets:
+              - picture
+          - id: coherence-weak
+            phrase: "weak real signals"
+            targets:
+              - picture
+  - id: dictionary
+    title: Rebuild an activation from a few directions
+    visual: A known sparse code weights two columns of a wider unit-direction dictionary and adds their contributions to reproduce the mixed activation.
+    beats:
+      - say: A dictionary is a collection of candidate directions in activation space. A sparse code assigns nonzero coefficients to only a few of them. Multiply each selected direction by its coefficient, then add. The result is a reconstruction with the same width as the original activation.
+        hold: 0.6
+        visual_cues:
+          - id: dictionary-b1-1
+            phrase: selected direction
+            targets:
+              - first-direction
+            linger: 0.45
+          - id: dictionary-b1-2
+            phrase: reconstruction
+            targets:
+              - activation-point
+            linger: 0.45
+          - id: dict-code
+            phrase: nonzero coefficients
+            targets:
+              - picture
+          - id: dict-add
+            phrase: then add
+            targets:
+              - picture
+      - say: Follow our two selected directions as their weighted arrows join. Three other available directions stay unused. This supplied dictionary has more entries than the two-dimensional activation space has axes, making it overcomplete. Its sparse code is known because we constructed the mixture ourselves.
+        hold: 0.65
+        visual_cues:
+          - id: dictionary-b2-1
+            phrase: weighted arrows join
+            targets:
+              - activation-point
+            linger: 0.45
+          - id: dictionary-b2-2
+            phrase: sparse code
+            targets:
+              - sparse-code
+            linger: 0.45
+          - id: dict-unused
+            phrase: stay unused
+            targets:
+              - picture
+          - id: dict-more
+            phrase: more entries
+            targets:
+              - picture
+          - id: dict-overcomplete
+            phrase: overcomplete
+            targets:
+              - picture
+      - say: A trained sparse autoencoder adds an encoder that estimates the code from an observed activation and a decoder whose columns reconstruct it. Detection and reconstruction weights can be untied. Match the model checkpoint, layer, token positions, and normalization convention before applying an existing dictionary at a hook. For width D and M latent slots, the encoder matrix is M by D and the decoder D by M. A common formulation subtracts decoder bias before encoding and adds it after decoding. That learned reference need not be the exact data mean; other recipes omit the subtraction. Tied weights force decoder to equal encoder transpose throughout training; tied initialization starts them aligned but permits independent later updates. These are different constraints.
+        hold: 0.7
+        visual_cues:
+          - id: dictionary-b3-1
+            phrase: a decoder whose columns reconstruct it
+            targets:
+              - dictionary-construction
+            color: cyan
+            linger: 0.45
+          - id: dictionary-encode
+            phrase: an encoder that estimates the code from an observed activation
+            targets:
+              - dictionary-construction
+            color: cyan
+            linger: 0.65
+          - id: dictionary-hook-context
+            phrase: Match the model checkpoint, layer, token positions, and normalization convention
+            targets:
+              - dictionary-construction
+            color: yellow
+            linger: 0.65
+          - id: dictionary-dimensions
+            phrase: For width D and M latent slots
+            targets:
+              - dictionary-construction
+            linger: 0.4
+          - id: dictionary-tying
+            phrase: Tied weights force
+            targets:
+              - dictionary-construction
+            linger: 0.4
+          - id: dict-untied
+            phrase: can be untied
+            targets:
+              - picture
+          - id: dict-shapes
+            phrase: M by D
+            targets:
+              - picture
+          - id: dict-bias
+            phrase: subtracts decoder bias
+            targets:
+              - picture
+          - id: dict-bias-add
+            phrase: adds it after decoding
+            targets:
+              - picture
+          - id: dict-not-mean
+            phrase: need not be the exact data mean
+            targets:
+              - picture
+          - id: dict-tied-init
+            phrase: tied initialization
+            targets:
+              - picture
+  - id: objective
+    title: Fit the activation while limiting the code
+    visual: Two explicitly computed candidate reconstructions exchange objective preference as the sparsity coefficient changes.
+    beats:
+      - say: "Look at the gap between the dot and its reconstruction. Training charges for that gap through mean squared error. It also charges a penalty on code magnitude. Restoring the pink arrow closes the gap. Dropping it saves the price of one coefficient. Our two candidates use the same five decoder columns, so we can compare their bills. Average squared error over two coordinates and average magnitude over five coefficients. For each positive coefficient the penalty contributes a derivative of lambda divided by five. The optimizer follows that gradient back to the encoder parameters. Subtracting a fixed amount from each code entry would be a different update."
+        hold: 0.6
+        visual_cues:
+          - id: objective-b1-1
+            phrase: "mean squared error"
+            targets:
+              - objective-equation
+            linger: 0.45
+          - id: obj-penalty
+            phrase: "penalty on code magnitude"
+            targets:
+              - picture
+          - id: obj-first
+            phrase: "Restoring the pink arrow"
+            targets:
+              - picture
+          - id: obj-second
+            phrase: "Dropping it"
+            targets:
+              - picture
+          - id: obj-candidates
+            phrase: "Our two candidates"
+            targets:
+              - picture
+          - id: obj-div-d
+            phrase: "Average squared error"
+            targets:
+              - picture
+          - id: obj-div-m
+            phrase: "average magnitude"
+            targets:
+              - picture
+          - id: obj-derivative
+            phrase: "lambda divided by five"
+            targets:
+              - picture
+          - id: obj-not-decay
+            phrase: "Subtracting a fixed amount"
+            targets:
+              - picture
+      - say: "With both arrows we hit the target exactly. With one arrow we miss by a whole unit along the pink direction. Its squared length is one, so the mean squared error over two coordinates is one half. Raise the price of each coefficient. At a weight of two and a half, the price of the second arrow exactly equals the error it saves. Keep raising the price to four. Now the one-arrow code costs one point seven, and the exact reconstruction costs two. Training prefers the cheaper code under this objective."
+        hold: 0.65
+        visual_cues:
+          - id: objective-b2-1
+            phrase: "At a weight of two and a half"
+            targets:
+              - candidate-loss
+            linger: 0.45
+          - id: obj-dense
+            phrase: "With both arrows"
+            targets:
+              - picture
+          - id: obj-sparse
+            phrase: "With one arrow"
+            targets:
+              - picture
+          - id: obj-raise
+            phrase: "Raise the price"
+            targets:
+              - picture
+          - id: obj-preferred
+            phrase: "Keep raising the price"
+            targets:
+              - picture
+      - say: "There’s another way to lower the bill. Halve both coefficients and double the lengths of the decoder columns. Each weighted arrow still reaches its old tip, so the reconstruction stays put. The magnitude penalty falls even though the same two entries are active. Unit-length decoder columns rule out this trade. A norm-aware penalty charges for the product of coefficient magnitude and column length, which stays fixed here."
+        hold: 0.7
+        visual_cues:
+          - id: objective-b3-1
+            phrase: "Halve both coefficients"
+            targets:
+              - scale-degeneracy
+            linger: 0.45
+          - id: objective-b3-2
+            phrase: "the reconstruction stays put"
+            targets:
+              - scale-invariant
+            linger: 0.45
+          - id: obj-reduce
+            phrase: "The magnitude penalty falls"
+            targets:
+              - picture
+          - id: obj-unit
+            phrase: "Unit-length decoder columns"
+            targets:
+              - picture
+          - id: obj-norm-aware
+            phrase: "norm-aware penalty"
+            targets:
+              - picture
+  - id: shrinkage
+    title: A magnitude penalty also shrinks real signals
+    visual: The exact one-dimensional L1 optimum moves below a fixed target as the penalty increases, with reconstruction and penalty costs shown separately.
+    beats:
+      - say: "Hold the blue coefficient fixed. Pink needs a coefficient of one to reach the dot. Add a price for its magnitude and the lowest point on the cost curve slides left. With this scalar loss, the optimum is the target minus half the effective penalty weight, clipped at zero. Raise the weight to one point two. The pink coefficient settles at point four, leaving a gap even though we picked the correct direction."
+        hold: 0.65
+        visual_cues:
+          - id: shrinkage-b1-1
+            phrase: "target minus half the effective penalty weight"
+            targets:
+              - shrinkage-rule
+            linger: 0.45
+          - id: shrinkage-b1-2
+            phrase: "Raise the weight to one point two"
+            targets:
+              - coefficient-optimum
+            linger: 0.45
+          - id: shrink-favors
+            phrase: "Add a price"
+            targets:
+              - picture
+          - id: shrink-clip
+            phrase: "clipped at zero"
+            targets:
+              - picture
+      - say: "Count the active entries. Both arrows still contribute. Raise the weight again and the pink coefficient gets closer to zero, but the count is still two. Only when the coefficient reaches zero does the count fall to one. The L-one penalty charges for magnitude throughout. A support limit cares about how many entries are nonzero."
+        hold: 0.7
+        visual_cues:
+          - id: shrinkage-b2-1
+            phrase: "Raise the weight again"
+            targets:
+              - coefficient-curve
+            linger: 0.45
+          - id: shrink-support
+            phrase: "Count the active entries"
+            targets:
+              - picture
+          - id: shrink-count
+            phrase: "Only when the coefficient reaches zero"
+            targets:
+              - picture
+  - id: selection
+    title: "Which candidates reach the decoder?"
+    visual: "Five candidate values remain visible under a support cap. Apply the cap, change the input, and compare a fixed threshold and a window of firing counts."
+    beats:
+      - say: "These five bars are candidates for the decoder. Each number above a bar gives its proposed coefficient. Suppose we can keep at most two positive entries, and we want the largest ones. Which two slots will write to the reconstruction?"
+        hold: 2.1
+        visual_cues:
+          - id: sel-topk
+            phrase: "at most two positive entries"
+            targets: [topk-rule]
+          - id: sel-question
+            phrase: "Which two slots"
+            targets: [support-question]
+      - say: "Keep slots two and four. Their arrows still have the original magnitudes, two point four and one point seven. The other arrows disappear. That's nonnegative Top K. On a new input, leave slot two alone and push every other candidate below zero. Only one slot writes now, even with room for two."
+        caption_starts: ["On a new input", "Only one slot writes now"]
+        hold: 0.7
+        visual_cues:
+          - id: selection-b1-1
+            phrase: "Keep slots two and four"
+            targets: [selected-coefficients]
+          - id: sel-original
+            phrase: "original magnitudes"
+            targets: [retained-values]
+          - id: sel-fewer
+            phrase: "push every other candidate below zero"
+            targets: [new-candidates]
+          - id: sel-cap
+            phrase: "Only one slot writes"
+            targets: [positive-support]
+      - say: A fixed threshold makes a different decision. Raising it can remove weak candidates, and the number retained varies with the input. JumpReLU learns a positive threshold and keeps the pre-activation above it. Its discontinuous threshold needs a specialized gradient estimator during training.
+        hold: 0.65
+        visual_cues:
+          - id: selection-b2-1
+            phrase: Raising it
+            targets:
+              - selected-coefficients
+            linger: 0.45
+          - id: sel-threshold
+            phrase: fixed threshold
+            targets:
+              - picture
+          - id: sel-varies
+            phrase: varies with the input
+            targets:
+              - picture
+          - id: sel-jump
+            phrase: JumpReLU learns
+            targets:
+              - picture
+          - id: sel-estimator
+            phrase: specialized gradient estimator
+            targets:
+              - picture
+      - say: "Run three sentences past these slots. Each dot counts a firing. Slot two fires three times. Slot five stays quiet. Now try the windmill sentence. Slot five fires for the first time. A short observation window can miss rare contexts. What about slots that stay unused through training? AuxK gives them a separate task. It selects inactive latents to reconstruct the error left by the active ones. The main reconstruction still uses its usual support rule. Gao’s recipe typically checks for inactivity over ten million tokens and weights the auxiliary loss by one over thirty-two. Anthropic’s earlier recipe samples high-loss input vectors and resets selected directions, their biases and the corresponding optimizer state. That reset can cause a loss spike."
+        hold: 0.7
+        visual_cues:
+          - id: selection-b3-1
+            phrase: "Run three sentences"
+            targets:
+              - selection-context-history
+              - selection-window-counts
+            color: cyan
+            linger: 0.45
+          - id: selection-rare-context
+            phrase: "Now try the windmill sentence"
+            targets:
+              - selection-context-history
+              - selection-window-counts
+              - selection-rare-context
+            color: yellow
+            linger: 0.65
+          - id: selection-auxiliary-signal
+            phrase: "AuxK gives them a separate task"
+            targets:
+              - selection-auxiliary-signal
+              - selection-window-counts
+            color: pink
+            linger: 0.65
+          - id: sel-auxk
+            phrase: "selects inactive latents"
+            targets:
+              - picture
+          - id: sel-window
+            phrase: ten million tokens
+            targets:
+              - picture
+          - id: sel-weight
+            phrase: one over thirty-two
+            targets:
+              - picture
+          - id: sel-resample
+            phrase: resets selected directions
+            targets:
+              - picture
+          - id: sel-spike
+            phrase: loss spike
+            targets:
+              - picture
+  - id: gated-learning
+    title: Separate detection from estimated magnitude
+    visual: A gate lane and magnitude lane share direction ownership while only the gate lane receives direct sparsity pressure.
+    beats:
+      - say: A Gated SAE makes a binary detection decision and separately estimates a nonnegative magnitude. Its original recipe shares projection directions while permitting different row scales and biases. L-one pressure applies to rectified gate pre-activations. An auxiliary reconstruction through those gate pre-activations teaches detection while freezing the decoder output path. In the paper's pseudocode, the shared decoder bias also centers the encoder input, so it can still receive an auxiliary gradient through that input path unless this path is stopped too.
+        hold: 1
+        visual_cues:
+          - id: gated-learning-b0
+            phrase: A Gated SAE makes a binary detection decision
+            targets:
+              - gated-learning-construction
+            linger: 0.4
+          - id: gated-magnitude
+            phrase: separately estimates
+            targets:
+              - gated-learning-construction
+            linger: 0.4
+          - id: gated-aux-stop
+            phrase: freezing the decoder output path
+            targets:
+              - gated-learning-construction
+            linger: 0.4
+          - id: gated-shared
+            phrase: shares projection directions
+            targets:
+              - picture
+          - id: gated-l1
+            phrase: L-one pressure applies
+            targets:
+              - picture
+          - id: gated-aux
+            phrase: auxiliary reconstruction
+            targets:
+              - picture
+      - say: The magnitude estimate has no direct L-one penalty, although shared parameters and reconstruction gradients can still change it. JumpReLU instead keeps the full pre-activation strictly above a learned positive threshold and uses an L-zero support penalty. A naive threshold derivative is zero almost everywhere, so its recipe uses a custom windowed straight-through estimator. Estimator bandwidth trades bias and variance. To see which architecture reconstructs better, compare them at matched data, width, sparsity and compute.
+        hold: 1
+        visual_cues:
+          - id: gated-learning-b1
+            phrase: The magnitude estimate has no direct L-one penalty,
+            targets:
+              - gated-learning-construction
+            linger: 0.4
+          - id: jump-threshold
+            phrase: strictly above
+            targets:
+              - gated-learning-construction
+            linger: 0.4
+          - id: jump-window
+            phrase: windowed straight-through estimator
+            targets:
+              - gated-learning-construction
+            linger: 0.4
+          - id: jump-instead
+            phrase: JumpReLU instead
+            targets:
+              - picture
+          - id: jump-l0
+            phrase: L-zero support penalty
+            targets:
+              - picture
+          - id: jump-zero
+            phrase: zero almost everywhere
+            targets:
+              - picture
+          - id: jump-bandwidth
+            phrase: bandwidth trades bias and variance
+            targets:
+              - picture
+          - id: jump-matched
+            phrase: matched data, width, sparsity and compute
+            targets:
+              - picture
+  - id: ablation
+    title: "Which edit changed the score?"
+    visual: "Two copies share the horizontal feature. Substitution moves one point down before both move left, and each score follows only its own vertical coordinate."
+    beats:
+      - say: "Zoom in on an activation with a small second coordinate, one tenth. Our score multiplies that coordinate by a hundred. So the original scores ten. The blue feature writes one unit horizontally. The green sliver above its tip is the residual, the part the autoencoder missed."
+        hold: 0.8
+        visual_cues:
+          - id: abl-gain
+            phrase: "Our score multiplies"
+            targets: [score-readout]
+          - id: abl-residual
+            phrase: "The green sliver"
+            targets: [original-residual]
+      - say: "Start the second row from an identical copy. Substitute the reconstruction there. Its second coordinate falls to zero, and the whole score goes with it. The mean squared error is only five thousandths. Look at the blue feature in both rows. It's still there."
+        hold: 1.5
+        visual_cues:
+          - id: abl-copy
+            phrase: "an identical copy"
+            targets: [comparison-copy]
+          - id: abl-miss
+            phrase: "Substitute the reconstruction"
+            targets: [reconstruction-damage]
+          - id: abl-mse
+            phrase: "mean squared error"
+            targets: [reconstruction-mse]
+      - say: "Now subtract the same horizontal feature from each row. Before the arrows move, which score do you expect that subtraction to change?"
+        hold: 2.4
+        visual_cues:
+          - id: abl-predict
+            phrase: "subtract the same horizontal feature"
+            targets: [ablation-prediction]
+      - say: "Slide both points one unit left. Ten stays ten in the original row. Zero stays zero in the other. If we compared the original ten with that final zero, we'd blame the feature for a loss that happened before we touched it. Subtracting the feature from the original activation keeps its residual. That comparison measures the effect of this edit at this hook."
+        caption_starts: ["Ten stays ten", "Zero stays zero", "If we compared"]
+        hold: 1
+        visual_cues:
+          - id: abl-apply
+            phrase: "Slide both points"
+            targets: [shared-subtraction]
+          - id: abl-results
+            phrase: "Ten stays ten"
+            targets: [within-row-score-change]
+          - id: abl-copy-result
+            phrase: "Zero stays zero"
+            targets: [within-row-score-change]
+          - id: abl-verdict
+            phrase: "blame the feature"
+            targets: [ablation-verdict]
+  - id: steering
+    title: An edit moves overlapping readouts too
+    visual: An activation moves along one decoder direction while candidate, orthogonal, and overlapping readouts are computed across the steering sweep.
+    beats:
+      - say: "Watch the pink shadow as we lift the white dot straight up. It slides along the tilted ruler. The horizontal ruler still reads point two. This is activation steering. At the hook where we measured the activation, we add a scaled decoder direction and let the model continue from the new point."
+        hold: 0.6
+        visual_cues:
+          - id: steer-add
+            phrase: "lift the white dot"
+            targets: [steering-point, overlap-readout]
+      - say: "Return to the starting dot. Lift it one unit again. The pink reading goes from point two to one. Eight tenths of our upward step project onto that ruler. In a language model, a direction can affect several behaviors. On held-out prompts, measure both the behavior you meant to change and one you want to preserve."
+        hold: 0.65
+        visual_cues:
+          - id: steer-rewind
+            phrase: "Return to the starting dot"
+            targets: [steering-point]
+          - id: steer-grow
+            phrase: "Lift it one unit again"
+            targets:
+              - picture
+          - id: steer-collateral
+            phrase: "Eight tenths of our upward step"
+            targets:
+              - picture
+          - id: steer-heldout
+            phrase: held-out prompts
+            targets:
+              - picture
+      - say: "Return to the original activation. Its saved coefficient is point four. Add point seven along the decoder direction. That sets the coefficient in our saved decomposition to one point one. Now read the edited point with the encoder. This encoder counts each vertical step twice, so it reads one point eight. In an encoder with thresholds, an edit can also switch a slot on or off."
+        hold: 0.7
+        visual_cues:
+          - id: steer-clamp
+            phrase: "Return to the original activation"
+            targets:
+              - picture
+          - id: steer-smaller
+            phrase: "Add point seven"
+            targets: [steering-point]
+          - id: steer-differ
+            phrase: "read the edited point"
+            targets:
+              - picture
+          - id: steer-switch
+            phrase: "an edit can also switch"
+            targets:
+              - picture
+  - id: clamp-and-gradient
+    title: "What does the encoder read after the edit?"
+    visual: "One unit up in the decoder direction moves the dot across two encoder levels. In a second example, move a latent once with a live residual and once with the residual held fixed."
+    beats:
+      - say: "Suppose we want to set one cached coefficient to three. Start with the original activation. Multiply the change in coefficient by its decoder direction, then add that vector. The original reconstruction error stays in place. The dashed lines belong to the encoder. They tell us what it would read if we fed the edited point back in."
+        hold: 0.6
+        visual_cues:
+          - id: clamp-and-gradient-b0
+            phrase: "set one cached coefficient"
+            targets: [clamp-formula]
+          - id: clamp-add
+            phrase: "Multiply the change"
+            targets: [planned-edit]
+          - id: clamp-error
+            phrase: "original reconstruction error stays"
+            targets: [held-error]
+          - id: clamp-notdual
+            phrase: "dashed lines belong to the encoder"
+            targets: [encoder-levels]
+      - say: "This encoder adds the first coordinate to twice the second and clips the result at zero. At the white dot it reads two. Our decoder column points straight up. We want three in the cached decomposition, so the edit moves the dot up one unit. What will the encoder read there?"
+        hold: 2.2
+        visual_cues:
+          - id: clamp-and-gradient-b1
+            phrase: "This encoder adds"
+            targets: [encoder-rule]
+          - id: clamp-at
+            phrase: "it reads two"
+            targets: [cached-coefficient]
+          - id: clamp-decoder
+            phrase: "decoder column points straight up"
+            targets: [decoder-column]
+          - id: clamp-ask
+            phrase: "We want three"
+            targets: [clamp-target]
+          - id: clamp-question
+            phrase: "What will the encoder read there"
+            targets: [readback-question]
+      - say: "Move the dot. It crosses the line for three and lands on four. A unit step in the second coordinate counts twice for this encoder. The sum of the coordinates moves too, from one and a half to two and a half. We set the coefficient in the saved decomposition exactly. Its new encoder reading depends on the weights and on any thresholds the point crosses."
+        caption_starts: ["It crosses the line", "and lands on four", "The sum of the coordinates"]
+        hold: 0.9
+        visual_cues:
+          - id: clamp-move
+            phrase: "Move the dot"
+            targets: [edited-activation]
+          - id: clamp-cross
+            phrase: "the line for three"
+            targets: [encoder-levels]
+          - id: clamp-reencode
+            phrase: "and lands on four"
+            targets: [encoder-readback]
+          - id: clamp-sum-result
+            phrase: "to two and a half"
+            targets: [sum-readout]
+          - id: clamp-precise
+            phrase: "saved decomposition exactly"
+            targets: [clamp-conclusion]
+      - say: "Now try the same question with a gradient. Return to our horizontal feature and the green residual of one tenth. Give the horizontal coordinate a weight of three, and keep a weight of one hundred on the vertical. The starting score is thirteen. Nudge the blue coefficient. If we recompute the residual on every nudge, the green segment points back to the original dot. The score stands still. Those two derivatives cancel to zero. Freeze the original residual in the backward pass and repeat the nudge. The green segment travels with the dot. The feature derivative is three. Recomputing the residual after an edit would undo the edit itself. For multiple hooks, follow the method's specified pass-through paths so that gradients reach upstream features."
+        hold: 1
+        visual_cues:
+          - id: clamp-and-gradient-b2
+            phrase: "the same question with a gradient"
+            targets: [gradient-test]
+          - id: grad-setup
+            phrase: "horizontal feature and the green residual"
+            targets: [gradient-input]
+          - id: grad-thirteen
+            phrase: "starting score is thirteen"
+            targets: [forward-score]
+          - id: grad-live-wiggle
+            phrase: "recompute the residual on every nudge"
+            targets: [live-error]
+          - id: gradient-live
+            phrase: "derivatives cancel to zero"
+            targets: [live-slope]
+          - id: grad-stop
+            phrase: "Freeze the original residual"
+            targets: [fixed-error]
+          - id: gradient-stopped
+            phrase: "feature derivative is three"
+            targets: [fixed-slope]
+          - id: grad-undo
+            phrase: "Recomputing the residual after an edit"
+            targets: [edit-cancellation]
+          - id: grad-multi
+            phrase: "For multiple hooks"
+            targets: [upstream-paths]
+  - id: coverage
+    title: "What does an exact reconstruction tell us?"
+    visual: "A sparrow-specific direction writes both coordinates in a toy example. A loss ruler and a two-probe edit show what reconstruction alone leaves open."
+    beats:
+      - say: "Take a sparrow. In this little dictionary the first coordinate says bird and the second says sparrow. A combined direction can write both with one active entry. The dot stays put. Now inspect the bird detector. It subtracts the second coordinate from the first, so on this sparrow it reads zero. The specialized slot has absorbed part of the general feature. Looking only at examples where the bird detector fires would hide the birds it misses."
+        hold: 0.8
+        visual_cues:
+          - id: cov-absorb
+            phrase: "first coordinate says bird"
+            targets: [bird-direction]
+          - id: cov-combined
+            phrase: "combined direction"
+            targets: [sparrow-direction]
+          - id: coverage-b1-1
+            phrase: "The dot stays put"
+            targets: [equivalent-reconstruction]
+          - id: coverage-general-silent
+            phrase: "inspect the bird detector"
+            targets: [bird-detector]
+          - id: cov-recall
+            phrase: "birds it misses"
+            targets: [semantic-recall]
+      - say: "What if we measure downstream loss? The clean model scores two. Substituting its reconstruction costs four tenths more. Compare that damage with replacing the activation altogether. If the ablation baseline moves from six to ten, the fraction of loss recovered rises. The same four tenths of damage now count against a bigger denominator. Keep all three raw losses. To evaluate a dictionary you'll also want to know which slots fire, which examples the labels miss, and what happens when you edit a direction."
+        hold: 0.7
+        visual_cues:
+          - id: cov-loss
+            phrase: "measure downstream loss"
+            targets: [loss-ruler]
+          - id: coverage-b2-1
+            phrase: "baseline moves from six to ten"
+            targets: [ablation-baseline]
+          - id: cov-same
+            phrase: "same four tenths"
+            targets: [raw-damage]
+          - id: coverage-b2-2
+            phrase: "all three raw losses"
+            targets: [raw-losses]
+          - id: cov-combine
+            phrase: "which slots fire"
+            targets: [feature-checks]
+      - say: "Take the password request again. The arrows reach the dot. To go further, pick a quantity that should change and one that should stay put. Subtract the blue credential arrow. The horizontal reading falls from two point three to point eight. The vertical reading stays at point six. That tells us exactly which readout changed here. Next we need to know where this activation enters the model."
+        hold: 0.8
+        visual_cues:
+          - id: cov-separate
+            phrase: "password request again"
+            targets: [mixed-activation]
+          - id: cov-stage
+            phrase: "pick a quantity"
+            targets: [control-prediction]
+          - id: cov-edit
+            phrase: "Subtract the blue credential arrow"
+            targets: [controlled-edit]
+          - id: coverage-b3-1
+            phrase: "horizontal reading falls"
+            targets: [target-readout]
+          - id: cov-controls
+            phrase: "vertical reading stays"
+            targets: [control-readout]
+  - id: hook-and-circuit
+    title: A feature hook must preserve its computational meaning
+    visual: Compare hook sites across three layers. Remove a credential contribution and an active formatting control in the article’s synthetic readout, then trace the frozen paths of a local replacement model.
+    beats:
+      - say: A residual hook describes accumulated shared state; MLP output describes a nonlinear branch update, and attention output describes routed context before merging. The same width does not imply the same activation distribution. Match checkpoint, layer, token position, normalization, projection, centering, rescaling and dtype. A joint dictionary requires explicit multi-site training. Layer number alone cannot establish compatibility.
+        hold: 1
+        visual_cues:
+          - id: hook-and-circuit-b0
+            phrase: A residual hook describes accumulated shared state; MLP
+            targets:
+              - hook-and-circuit-construction
+            linger: 0.4
+          - id: hook-mlp
+            phrase: MLP output describes
+            targets:
+              - picture
+          - id: hook-attn
+            phrase: attention output describes
+            targets:
+              - picture
+          - id: hook-width
+            phrase: same width
+            targets:
+              - picture
+          - id: hook-match
+            phrase: Match checkpoint
+            targets:
+              - picture
+          - id: hook-joint
+            phrase: joint dictionary
+            targets:
+              - picture
+      - say: "A feature circuit proposes a path from a feature through later computation to an output. Here we can test one with a score we wrote ourselves. Each row multiplies a feature activation by its weight. Credential contributes one point zero eight, and urgency supplies the remaining eight hundredths. Together they score one point one six. Remove the credential feature. The score drops to eight hundredths. Restore that run. Now remove formatting. Its activation started at point seven, but we gave it zero weight. Its removal leaves the score at one point one six. In a real model, measure the effect of the same edits on held-out prompts. If an edit has no effect, check its strength and whether another path compensates."
+        hold: 1
+        visual_cues:
+          - id: hook-and-circuit-b1
+            phrase: "A feature circuit proposes a path"
+            targets: [candidate-circuit]
+          - id: circuit-terms
+            phrase: "Each row multiplies"
+            targets: [feature-contributions]
+          - id: circuit-score
+            phrase: "Together they score one point one six"
+            targets: [downstream-score]
+          - id: circuit-remove
+            phrase: "Remove the credential feature"
+            targets: [credential-contribution]
+          - id: circuit-reset
+            phrase: "Restore that run"
+            targets: [original-activations]
+          - id: circuit-control
+            phrase: "remove formatting"
+            targets: [formatting-control]
+          - id: circuit-real
+            phrase: "In a real model"
+            targets: [held-out-controls]
+          - id: circuit-null
+            phrase: "whether another path compensates"
+            targets: [null-result]
+      - say: "A feature in a cross-layer transcoder can write to several layers. It reads residual state at its own layer. Each arrow carries a separate decoder contribution to that layer’s or later MLP outputs. Each MLP output combines writers from its own layer and earlier ones. Attention remains in the model. Circuit studies have traced specific tasks such as copying a repeated pattern, picking an indirect object, or comparing two numbers."
+        hold: 1
+        visual_cues:
+          - id: hook-and-circuit-b2
+            phrase: "a cross-layer transcoder"
+            targets:
+              - hook-and-circuit-construction
+            linger: 0.4
+          - id: clt-writes
+            phrase: later MLP outputs
+            targets:
+              - hook-and-circuit-construction
+            linger: 0.4
+          - id: clt-reads
+            phrase: reads residual state
+            targets:
+              - picture
+          - id: clt-combines
+            phrase: combines writers
+            targets:
+              - picture
+          - id: clt-attention
+            phrase: attention remains
+            targets:
+              - picture
+          - id: clt-studies
+            phrase: circuit studies
+            targets:
+              - picture
+      - say: "For one prompt, a local replacement model freezes original attention patterns and normalization denominators and adds original reconstruction errors as constants. Baseline activations and logits match by construction. Its graph includes features, token embeddings, error nodes and selected output logits. Follow the highlighted edge. With intervening MLP outputs stopped, we multiply the source activation by the slope of the target pre-activation along the selected paths. That isolates the direct influence of the source on the target. Attention follows the pattern set by the original queries and keys. Pruned or inactive paths and error nodes can hide part of the computation. Compare edited responses in the original model to test the graph’s prediction."
+        hold: 1
+        visual_cues:
+          - id: hook-and-circuit-b3
+            phrase: For one prompt, a local replacement model freezes
+            targets:
+              - hook-and-circuit-construction
+            linger: 0.4
+          - id: replacement-frozen
+            phrase: freezes original attention patterns
+            targets:
+              - hook-and-circuit-construction
+            linger: 0.4
+          - id: replacement-direct
+            phrase: intervening MLP outputs stopped
+            targets:
+              - hook-and-circuit-construction
+            linger: 0.4
+          - id: repl-errors
+            phrase: reconstruction errors as constants
+            targets:
+              - picture
+          - id: repl-match
+            phrase: match by construction
+            targets:
+              - picture
+          - id: repl-graph
+            phrase: Its graph includes
+            targets:
+              - picture
+          - id: repl-not-total
+            phrase: "isolates the direct influence"
+            targets:
+              - picture
+          - id: repl-attention
+            phrase: "the original queries and keys"
+            targets:
+              - picture
+          - id: repl-hide
+            phrase: Pruned or inactive paths
+            targets:
+              - picture
+          - id: repl-compare
+            phrase: Compare edited responses
+            targets:
+              - picture
+  - id: training-evidence
+    title: Measure recovery separately from reconstruction
+    visual: Twenty-four paired marks compare each known direction’s best absolute cosine at initialization and after training. Reconstruction error, mean active support, and held-out FVU are measured separately.
+    beats:
+      - say: The article’s CPU lab draws mixtures of two to four of twenty-four known directions in eight dimensions. It trains an uncentered ReLU encoder, decoder bias and sixty-four unit-normalized decoder columns with full-batch gradient descent. L-one subgradients enter before the ReLU backward step. This lab omits activation streaming, auxiliary dead-feature loss and learned thresholds.
+        hold: 1
+        visual_cues:
+          - id: training-evidence-b0
+            phrase: The article’s CPU lab draws mixtures of two
+            targets:
+              - training-evidence-construction
+            linger: 0.4
+          - id: lab-encoder
+            phrase: uncentered ReLU encoder
+            targets:
+              - picture
+          - id: lab-columns
+            phrase: sixty-four unit-normalized decoder columns
+            targets:
+              - picture
+          - id: lab-gd
+            phrase: full-batch gradient descent
+            targets:
+              - picture
+          - id: lab-omits
+            phrase: This lab omits
+            targets:
+              - picture
+      - say: Each white dot is one of the twenty-four known directions. Its height shows how closely it matches its best decoder column at random initialization, ignoring sign. After training, reconstruction error falls by more than ninety percent. Count active slots per example and the picture changes. The encoder uses about nineteen of its sixty-four slots on average, even on fresh examples. The generator used only two to four. Held-out reconstruction leaves about seventeen percent of the variance unexplained, relative to predicting the training mean. Now compare the cyan dots with the white ones. The median best match improves by just one thousandth. Only two directions clear the point nine line after training, up from one.
+        hold: 1
+        visual_cues:
+          - id: training-evidence-b1
+            phrase: Each white dot
+            targets:
+              - training-evidence-construction
+            linger: 0.4
+          - id: training-endpoints
+            phrase: reconstruction error falls
+            targets:
+              - training-evidence-construction
+            linger: 0.4
+          - id: training-alignment
+            phrase: compare the cyan dots
+            targets:
+              - training-evidence-construction
+            linger: 0.4
+          - id: training-active-support
+            phrase: Count active slots per example
+            targets:
+              - training-evidence-construction
+            color: yellow
+            linger: 0.4
+          - id: training-fvu-result
+            phrase: Held-out reconstruction
+            targets:
+              - training-evidence-construction
+            color: cyan
+            linger: 0.4
+          - id: lab-denser
+            phrase: The generator used
+            targets:
+              - picture
+          - id: lab-without
+            phrase: Only two directions
+            targets:
+              - picture
+      - say: Keep signed alignments and random-initialization controls. Absolute cosine ignores a sign that a nonnegative code may not write; a maximum-match diagnostic can reuse one learned column for several true directions. Distinct low-error seeds need not identify the same dictionary. Increasing width can split one human concept among several latents, so indices and one-latent edits need not transfer. Report width, data, compute, observation window and held-out rare contexts.
+        hold: 1
+        visual_cues:
+          - id: training-evidence-b2
+            phrase: Keep signed alignments and random-initialization controls. Absolute cosine
+            targets:
+              - training-evidence-construction
+            linger: 0.4
+          - id: ev-sign
+            phrase: Absolute cosine ignores a sign
+            targets:
+              - picture
+          - id: ev-match
+            phrase: maximum-match diagnostic
+            targets:
+              - picture
+          - id: ev-seeds
+            phrase: Distinct low-error seeds
+            targets:
+              - picture
+          - id: ev-width
+            phrase: Increasing width
+            targets:
+              - picture
+          - id: ev-report
+            phrase: Report width
+            targets:
+              - picture
+      - say: Loss Recovered equals one minus reconstruction-substitution loss damage divided by the chosen ablation-baseline damage, using the same hooks and positions. Clean loss two, substitution two point four and ablation six give ninety percent. Change only the ablation loss to ten and it becomes ninety-five percent, although damage stays point four. A zero denominator is undefined; values can be negative or exceed one. Report raw losses, activation MSE, support, semantic counterexamples and targeted or collateral task effects together. For planning, two hundred thousand float32 vectors of width four thousand ninety-six alone occupy about three point zero five gibibytes at one hook, before model, optimizer or gradients.
+        hold: 1
+        visual_cues:
+          - id: training-evidence-b3
+            phrase: Loss Recovered equals one minus reconstruction-substitution loss damage
+            targets:
+              - training-evidence-construction
+            linger: 0.4
+          - id: loss-recovery-first
+            phrase: ninety percent
+            targets:
+              - training-evidence-construction
+            linger: 0.4
+          - id: loss-recovery-second
+            phrase: ninety-five percent
+            targets:
+              - training-evidence-construction
+            linger: 0.4
+          - id: activation-storage
+            phrase: three point zero five gibibytes
+            targets:
+              - training-evidence-construction
+            linger: 0.4
+          - id: lr-clean
+            phrase: Clean loss two
+            targets:
+              - picture
+          - id: lr-sub
+            phrase: substitution two point four
+            targets:
+              - picture
+          - id: lr-abl
+            phrase: ablation six
+            targets:
+              - picture
+          - id: lr-change
+            phrase: Change only the ablation loss
+            targets:
+              - picture
+          - id: lr-damage
+            phrase: damage stays point four
+            targets:
+              - picture
+          - id: lr-zero
+            phrase: A zero denominator
+            targets:
+              - picture
+          - id: lr-negative
+            phrase: negative or exceed one
+            targets:
+              - picture
+          - id: lr-report
+            phrase: Report raw losses
+            targets:
+              - picture
+          - id: storage-setup
+            phrase: two hundred thousand float32 vectors
+            targets:
+              - picture
+  - id: feature-audit
+    title: "What explains the gap between these requests?"
+    visual: "Return to the two reset prompts with a downstream score and a residual. Remove the credential contribution from both originals, restore them, then remove urgency and compare the gap."
+    beats:
+      - say: "Suppose someone names a learned direction credential. How much could we learn from the name alone? In a Pythia study, aggregate explanation and reconstruction scores often looked similar for trained and randomized models. A randomly initialized model gives us a baseline for interpreting those metrics."
+        hold: 0.75
+        visual_cues:
+          - id: audit-aggregate
+            phrase: "aggregate explanation and reconstruction scores"
+            targets: [null-model-check]
+      - say: "A natural language autoencoder puts text between the activation and its reconstruction. Its words can suggest a hypothesis, and the verbalizer can also invent details. A readable description still needs an independent test of what the model does."
+        hold: 0.75
+        visual_cues:
+          - id: audit-verbalize
+            phrase: "puts text between"
+            targets: [verbalized-activation]
+          - id: audit-roundtrip
+            phrase: "its reconstruction"
+            targets: [verbalized-round-trip]
+      - say: "Use held-out requests to check the label. Try a translation, change the formatting, and inspect weak and silent examples. Sonnet studies found features that generalized across contexts, but the dictionary can miss cases. On matched prompts, measure whether a legitimate reset succeeds and whether the model still declines an unauthorized one. A different refusal phrase could leave both outcomes unchanged. Test at the original hook and token positions."
+        hold: 0.75
+        visual_cues:
+          - id: audit-heldout
+            phrase: "Use held-out requests"
+            targets: [semantic-controls]
+          - id: audit-behavior
+            phrase: "a legitimate reset succeeds"
+            targets: [behavioral-controls]
+      - say: "Return to our two password requests. Give this toy model a refusal score that reads both coordinates. Take the first coordinate and add twice the second. This time the autoencoder misses the same green sliver in each request, one tenth on the vertical axis. Add it back to both. The scores are now one point seven and three point seven. The urgent request scores two points higher."
+        hold: 0.8
+        visual_cues:
+          - id: audit-pair
+            phrase: "our two password requests"
+            targets: [paired-requests]
+          - id: audit-residual
+            phrase: "Add it back to both"
+            targets: [retained-residual]
+          - id: audit-gap
+            phrase: "two points higher"
+            targets: [score-gap]
+      - say: "The claim is that the blue credential direction explains that increase. Take its contribution out of both originals. What will happen to the two-point gap?"
+        hold: 2.4
+        visual_cues:
+          - id: audit-predict
+            phrase: "Take its contribution out"
+            targets: [credential-prediction]
+      - say: "Remove blue. Both scores fall by one point five. The plain request still has its residual. The urgent one also has the pink arrow. The gap stays at two. The credential direction contributes to each score, but its contribution is equal across the pair."
+        caption_starts: ["Both scores fall", "The gap stays at two"]
+        hold: 0.8
+        visual_cues:
+          - id: audit-minus-blue
+            phrase: "Remove blue"
+            targets: [credential-edit]
+          - id: audit-fall
+            phrase: "Both scores fall by one point five"
+            targets: [common-score-change]
+      - say: "Restore the original activations. Now test the other explanation. If we remove just the urgency contribution, what gap will remain?"
+        hold: 2.2
+        visual_cues:
+          - id: audit-rewind
+            phrase: "Restore the original activations"
+            targets: [original-activations]
+          - id: audit-pink-question
+            phrase: "remove just the urgency contribution"
+            targets: [urgency-prediction]
+      - say: "Take away pink. The plain request stays at one point seven. The urgent request falls to meet it. The gap is zero. Removing the credential feature lowered both scores. Removing urgency closed the gap."
+        hold: 1.3
+        caption_starts: ["The plain request stays", "The urgent request falls", "The gap is zero", "Removing the credential feature"]
+        visual_cues:
+          - id: audit-minus-pink
+            phrase: "Take away pink"
+            targets: [urgency-edit]
+          - id: audit-verdict
+            phrase: "The gap is zero"
+            targets: [gap-verdict]
+          - id: audit-meet
+            phrase: "The urgent request falls"
+            targets: [urgency-edit]

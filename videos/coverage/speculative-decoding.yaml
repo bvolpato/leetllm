@@ -1,0 +1,287 @@
+version: 1
+lesson: speculative-decoding
+promise: Decide which draft tokens can reach the reader, where a correction must come from, and which
+  saved states can serve the next word. Compare the useful output with the work of verification.
+framing: []
+objectives:
+  - id: intro
+    can: Identify the preceding word that produced each score in a parallel verification pass
+    scenes:
+      - intro
+  - id: weight-roofline
+    can: Derive a weight-traffic floor before predicting speed
+    scenes:
+      - weight-roofline
+  - id: weight-reuse
+    can: Reuse one weight stream across several known inputs
+    scenes:
+      - weight-reuse
+  - id: draft
+    can: Locate a draft draw inside a word's probability interval and find the target share for that same word
+    scenes:
+      - draft
+  - id: serving-laws
+    can: Remove a word under a target top-two policy and calculate the new acceptance chances with the draft fixed
+    scenes:
+      - serving-laws
+  - id: event-mapping
+    can: Map common token events before comparing probabilities
+    scenes:
+      - event-mapping
+  - id: accept
+    can: Hold a proposal fixed and decide which acceptance draws keep it
+    scenes:
+      - accept
+  - id: residual
+    can: Derive and normalize the target mass missing after rejection
+    scenes:
+      - residual
+  - id: proof
+    can: Reconstruct the target from the accepted mass and assign corrections when two words have a shortfall
+    scenes:
+      - proof
+  - id: wrong-correction
+    can: Calculate how much an ordinary target redraw adds to a word already fully supplied by acceptance
+    scenes:
+      - wrong-correction
+  - id: chain
+    can: Identify a computed score that the sampler must skip because its conditioning prefix was rejected
+    scenes:
+      - chain
+  - id: row-alignment
+    can: Attach every distribution to its preceding input
+    scenes:
+      - row-alignment
+  - id: commit
+    can: Trace committed output and computed cache state separately
+    scenes:
+      - commit
+  - id: round-cpu
+    can: Follow the complete probability-level round
+    scenes:
+      - round-cpu
+  - id: sequence-check
+    can: Test the joint output after the corrected prefix
+    scenes:
+      - sequence-check
+  - id: cost
+    can: Calculate how longer verification changes speed at fixed yield and compare the cost of five and ten guesses
+    scenes:
+      - cost
+  - id: position-yield
+    can: Use first-position survivors as the second test's denominator and count the words emitted per round
+    scenes:
+      - position-yield
+  - id: load-cost
+    can: Keep arithmetic bounds separate from load measurements
+    scenes:
+      - load-cost
+  - id: verification-budget
+    can: Reserve evaluated positions before accepted output exists
+    scenes:
+      - verification-budget
+  - id: tree-mask
+    can: Construct tree visibility and equal-depth positions
+    scenes:
+      - tree-mask
+  - id: tree-leak
+    can: Change an off-branch value to test isolation
+    scenes:
+      - tree-leak
+  - id: medusa-contract
+    can: Separate extra prediction heads from target preservation
+    scenes:
+      - medusa-contract
+  - id: eagle-family
+    can: Follow the actual feature and training objectives
+    scenes:
+      - eagle-family
+  - id: lookup-methods
+    can: Construct a lookup proposal and its exact correction
+    scenes:
+      - lookup-methods
+  - id: block-contract
+    can: Keep token-wise and block verification algorithms distinct
+    scenes:
+      - block-contract
+  - id: paired-service
+    can: Select the highest tested load meeting the attainment requirement and report its qualified throughput
+    scenes:
+      - paired-service
+  - id: diagnose
+    can: Isolate the sampler before blaming model kernels
+    scenes:
+      - diagnose
+  - id: transfer
+    can: Use an acceptance draw and the paired probabilities to find the correction and its pending cache entry
+    scenes:
+      - transfer
+  - id: fresh-state
+    can: Predict the correction on a new distribution and choose between cache entries for the same token on different paths
+    scenes:
+      - fresh-state
+sections:
+  - heading: Why memory bandwidth throttles autoregressive decoding
+    status: taught
+    scenes:
+      - weight-roofline
+      - weight-reuse
+  - heading: The draft-verify protocol and cache state
+    status: taught
+    scenes:
+      - intro
+      - chain
+      - row-alignment
+      - commit
+      - transfer
+      - fresh-state
+  - heading: Exact correction sampling and distribution proof
+    status: taught
+    scenes:
+      - accept
+      - residual
+      - proof
+      - wrong-correction
+  - heading: Account for both branches
+    status: taught
+    scenes:
+      - proof
+      - wrong-correction
+  - heading: Serving transformations and tokenizer alignment
+    status: taught
+    scenes:
+      - draft
+      - serving-laws
+      - event-mapping
+      - lookup-methods
+  - heading: Implement a complete probability-level round
+    status: taught
+    scenes:
+      - round-cpu
+      - commit
+  - heading: Test sequences across multiple positions
+    status: taught
+    scenes:
+      - sequence-check
+      - diagnose
+  - heading: Speedup dynamics and serving load
+    status: taught
+    scenes:
+      - cost
+      - position-yield
+      - load-cost
+  - heading: Why larger batches can change the answer
+    status: taught
+    scenes:
+      - load-cost
+  - heading: Verification work isn't committed output
+    status: taught
+    scenes:
+      - verification-budget
+  - heading: Speculative tree architectures and heuristic drafting
+    status: taught
+    scenes:
+      - tree-mask
+      - tree-leak
+      - medusa-contract
+      - eagle-family
+      - lookup-methods
+      - block-contract
+  - heading: Tree attention masks for parallel verification
+    status: taught
+    scenes:
+      - tree-mask
+      - tree-leak
+  - heading: Measure serving speedup with paired benchmarks
+    status: taught
+    scenes:
+      - paired-service
+      - diagnose
+  - heading: Follow-up questions
+    status: taught
+    scenes:
+      - position-yield
+      - diagnose
+  - heading: What strong answers show
+    status: taught
+    scenes:
+      - weight-roofline
+      - row-alignment
+      - paired-service
+      - fresh-state
+  - heading: Check your understanding
+    status: taught
+    scenes:
+      - accept
+      - residual
+      - proof
+      - row-alignment
+      - position-yield
+      - verification-budget
+      - tree-mask
+      - medusa-contract
+      - paired-service
+      - lookup-methods
+quiz:
+  - n: 1
+    status: taught
+    scenes:
+      - accept
+      - transfer
+  - n: 2
+    status: taught
+    scenes:
+      - residual
+      - proof
+      - wrong-correction
+  - n: 3
+    status: taught
+    scenes:
+      - serving-laws
+  - n: 4
+    status: taught
+    scenes:
+      - row-alignment
+      - commit
+      - chain
+      - fresh-state
+  - n: 5
+    status: taught
+    scenes:
+      - position-yield
+  - n: 6
+    status: taught
+    scenes:
+      - verification-budget
+  - n: 7
+    status: taught
+    scenes:
+      - tree-mask
+  - n: 8
+    status: taught
+    scenes:
+      - medusa-contract
+  - n: 9
+    status: taught
+    scenes:
+      - paired-service
+  - n: 10
+    status: taught
+    scenes:
+      - lookup-methods
+removed: []
+reviews:
+  closed_book:
+    taught: 10
+    partial: 0
+    absent: 0
+    script: 27c6770b1dbc480d
+    reviewer: /root
+    evidence: build/video-delivery-20261106/script-reviews/speculative-decoding.json
+    evidence_sha256: 3ede9ad1964cb06103cbe98ce1b348b39db981997453df0e6391bd267553bf96
+  fact_check:
+    open_findings: 0
+    script: 27c6770b1dbc480d
+    reviewer: /root
+    evidence: build/video-delivery-20261106/script-reviews/speculative-decoding.json
+    evidence_sha256: 3ede9ad1964cb06103cbe98ce1b348b39db981997453df0e6391bd267553bf96

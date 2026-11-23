@@ -1,0 +1,560 @@
+[
+  {
+    "id": "c01",
+    "title": "Would you review Friday’s staffing?",
+    "sourceChapters": [
+      "c01"
+    ],
+    "beats": [
+      {
+        "id": "c01-b01",
+        "say": "Friday’s crew has room for a hundred fifty parcels. The edge of this loading dock marks that limit. Each full carton stands for ten parcels. Lay out Sunday’s forecast for Friday. About a hundred sixty-three. Would you open the staffing roster?",
+        "hold": 3
+      },
+      {
+        "id": "c01-b02",
+        "say": "Open the roster. The last full carton and the sliver beside it extend about thirteen parcels past the crew’s limit. A forecast strictly above the issued capacity gives the planner time to review staffing.",
+        "hold": 0.85
+      },
+      {
+        "id": "c01-b03",
+        "say": "Keep the blue forecast mark where Sunday put it. At six on Saturday morning, Friday’s count clears audit. One hundred seventy-six requests. Measure from the forecast to that count. The forecast was almost thirteen parcels low, outside our six-parcel tolerance.",
+        "hold": 0.3
+      },
+      {
+        "id": "c01-b04",
+        "say": "The planner had an early warning. Now the data or model owner has a forecast miss to investigate.",
+        "hold": 1
+      }
+    ]
+  },
+  {
+    "id": "c02",
+    "title": "What came through the dock?",
+    "sourceChapters": [
+      "c02"
+    ],
+    "beats": [
+      {
+        "id": "c02-b01",
+        "say": "On day A, a hundred fifty parcels reach the dock. The truck carries all fifteen bundles of ten. Day B fills exactly the same truck. Another twenty-six requests arrive. Watch the three stacks of loose parcels that stay behind when the truck pulls away.",
+        "hold": 0.3
+      },
+      {
+        "id": "c02-b02",
+        "say": "Which log would tell the planner that those days were different?",
+        "hold": 1.9
+      },
+      {
+        "id": "c02-b03",
+        "say": "Count requests for the center’s standard service. A shipping log loses the excess. A request log can have gaps too. If ordering closes when the dock fills, customers who leave before placing an order never appear in that count.",
+        "hold": 0.75
+      }
+    ]
+  },
+  {
+    "id": "c03",
+    "title": "How many places would you book?",
+    "sourceChapters": [
+      "c03"
+    ],
+    "beats": [
+      {
+        "id": "c03-b01",
+        "say": "Try a separate one-day booking. Each parcel over capacity costs three units. Each unused place costs one. Here are three possible demand levels and their chances. Read down the cumulative column. There’s a fifty-five percent chance that one hundred places cover demand, and an eighty percent chance that one hundred sixty do. One booking covers one day, with no booking fee or shared capacity.",
+        "hold": 0.6
+      },
+      {
+        "id": "c03-b02",
+        "say": "For constant unit costs, divide the shortage cost by the sum of the shortage and spare costs. Three over four gives a target quantile of seventy-five percent. Which demand level reaches it first?",
+        "hold": 2.3
+      },
+      {
+        "id": "c03-b03",
+        "say": "One hundred sixty. The median is only one hundred. Let’s price that smaller booking first. On the busiest day it leaves a hundred forty parcels short. At three units each, weighted by a one-in-five chance, that one outcome contributes eighty-four units. Add the other rows and the expected cost is a hundred twenty-nine.",
+        "hold": 0.7
+      },
+      {
+        "id": "c03-b04",
+        "say": "Move the booking to one hundred sixty. Now the quiet day leaves sixty places empty. Those places are cheap enough that expected cost falls to eighty-one, even as the mean absolute gap rises from forty-three parcels to forty-nine. Book all two hundred forty and the spare places bring expected cost back up to ninety-seven.",
+        "hold": 0.7
+      },
+      {
+        "id": "c03-b05",
+        "say": "Divide each booking’s loss by four, the sum of our two unit costs. That gives the quantile loss, also called pinball loss. The same booking still wins. If days share capacity, check what today’s booking leaves for tomorrow.",
+        "hold": 0.3
+      },
+      {
+        "id": "c03-b06",
+        "say": "To measure savings at a real dock, price the bookings the planner actually made, including any booking fees.",
+        "hold": 0.75
+      }
+    ]
+  },
+  {
+    "id": "c04",
+    "title": "Seven days from Sunday",
+    "sourceChapters": [
+      "c04"
+    ],
+    "beats": [
+      {
+        "id": "c04-b01",
+        "say": "Come back to our parcel center. On each of two Sundays it issues seven forecasts, one per future UTC day. Friday is five days out on the first strip. Wednesday has room for a hundred forty parcels. The other days have room for a hundred fifty.",
+        "hold": 0.3
+      },
+      {
+        "id": "c04-b02",
+        "say": "At a real dock, start with the lead time for changing a booking. Pin down the local business day, including clock changes.",
+        "hold": 0.65
+      },
+      {
+        "id": "c04-b03",
+        "say": "Suppose yesterday’s volume was a hundred parcels. Predict the next day by halving that count and adding ten. The first prediction is sixty. Feed that sixty into the same rule. Now we get forty. That’s a recursive forecast.",
+        "hold": 0.3
+      },
+      {
+        "id": "c04-b04",
+        "say": "An error in the first step can travel into the second before either actual arrives.",
+        "hold": 0.65
+      },
+      {
+        "id": "c04-b05",
+        "say": "Separate direct models fit a predictor for each horizon. A joint model predicts all seven outputs together. Either design needs evaluation on the horizons we care about. Here we use one calendar regression. Each future date supplies its own weekday, trend and announced campaign.",
+        "hold": 0.3
+      },
+      {
+        "id": "c04-b06",
+        "say": "All seven rows use the same fitted weights. None needs yesterday’s prediction. The synthetic demand has a weekday rhythm, a rising trend, campaigns, noise and two surges. It supplies no weather or monthly pattern.",
+        "hold": 0.8
+      }
+    ]
+  },
+  {
+    "id": "c05",
+    "title": "What was available on Sunday?",
+    "sourceChapters": [
+      "c05"
+    ],
+    "beats": [
+      {
+        "id": "c05-b01",
+        "say": "Rewind to February first. The first fit can read sixty-two final counts, through January thirty-first. It issues forecasts for Monday through the following Sunday. This calendar strip starts on issue day and ends the day before we fit again. Watch which counts clear audit in that time.",
+        "hold": 0.7
+      },
+      {
+        "id": "c05-b02",
+        "say": "Advance to eight on Sunday the eighth. The counts for Sunday the first through Friday the sixth have cleared audit. Saturday is over, but its verified count arrives at six on Monday the ninth. Which of those seven days can enter this fit?",
+        "hold": 2.7
+      },
+      {
+        "id": "c05-b03",
+        "say": "Leave Saturday pending. The six newly available days take us from sixty-two training rows to sixty-eight. That is the difference between the day a parcel was requested and the time its count became available.",
+        "hold": 0.3
+      },
+      {
+        "id": "c05-b04",
+        "say": "Rolling the forecast origin forward lets us reuse mature history as a planner could. Shuffling these rows would let later information travel back into the fit.",
+        "hold": 0.9
+      }
+    ]
+  },
+  {
+    "id": "c06",
+    "title": "Which weekday can supply the baseline?",
+    "sourceChapters": [
+      "c06"
+    ],
+    "beats": [
+      {
+        "id": "c06-b01",
+        "say": "Give the calendar model a simple competitor. These three Sundays are a week apart. We’re standing at eight on February first, forecasting Sunday the eighth. Which earlier Sunday has a final count we can copy?",
+        "hold": 2.15
+      },
+      {
+        "id": "c06-b02",
+        "say": "January twenty-fifth. Copy its eighty-six requests. February first is closer, but its business day has barely begun. Copying the latest available matching weekday is called a seasonal naive forecast.",
+        "hold": 0.75
+      },
+      {
+        "id": "c06-b03",
+        "say": "Try the second issue, on February eighth. The target is Saturday the fourteenth. The seventh is still in audit. Go back one more week. January thirty-first had eighty-eight requests. Copy eighty-eight and keep the source date so someone can check what the planner could have seen.",
+        "hold": 0.85
+      }
+    ]
+  },
+  {
+    "id": "c07",
+    "title": "Where did Friday’s forecast come from?",
+    "sourceChapters": [
+      "c07"
+    ],
+    "beats": [
+      {
+        "id": "c07-b01",
+        "say": "Use the sixty-two mature training days at the first issue. Give each row seven weekday columns, elapsed weeks and a flag for a known campaign. One weekday is on in each row, so the seven weekday columns already add to one.",
+        "hold": 0.3
+      },
+      {
+        "id": "c07-b02",
+        "say": "Least squares chooses weights that minimize the sum of squared errors against the final counts. In these training rows, none of the nine columns is a linear combination of the others. The matrix has rank nine. An extra column of ones would be redundant.",
+        "hold": 0.3
+      },
+      {
+        "id": "c07-b03",
+        "say": "This fit requires full rank and finite weights.",
+        "hold": 0.65
+      },
+      {
+        "id": "c07-b04",
+        "say": "Take Friday February sixth. Only the Friday indicator is on. Its fitted offset supplies about a hundred thirty-one parcels. The trend adds a little over eleven. That’s sixty-seven days since December first, divided by seven to get weeks, times the weekly weight.",
+        "hold": 0.3
+      },
+      {
+        "id": "c07-b05",
+        "say": "The announced campaign adds almost twenty-one more. If the flag were zero, that entire piece would disappear.",
+        "hold": 0.8
+      },
+      {
+        "id": "c07-b06",
+        "say": "Restore the announced plan. Using the unrounded weights gives one hundred sixty-three point two eight four parcels to three decimal places. A negative result would be clipped to zero. We have a point prediction. Its weights were fitted to squared error, separately from the booking calculation.",
+        "hold": 0.8
+      },
+      {
+        "id": "c07-b07",
+        "say": "For a future date, use announcements known when the forecast goes out. For a historical training day, the cutoff is the earlier of the fit time and the start of that day. Reconstructing every historical seven-day issue would also need the plan version available at that lead time.",
+        "hold": 0.75
+      }
+    ]
+  },
+  {
+    "id": "c08",
+    "title": "Wednesday’s campaign record",
+    "sourceChapters": [
+      "c08"
+    ],
+    "beats": [
+      {
+        "id": "c08-b01",
+        "say": "This is Wednesday’s forecast. On Sunday the planner could see the January twenty-eighth promotion announcement. Sunday’s weights and that flag give a hundred forty-five point zero one seven parcels. File the forecast. It sits above Wednesday’s capacity of a hundred forty.",
+        "hold": 0.8
+      },
+      {
+        "id": "c08-b02",
+        "say": "The promotion was later canceled. Open a separate replay. Keep Sunday’s weights and turn off the campaign flag. The replay gives about a hundred twenty-four. On Thursday morning Wednesday’s final count arrives. One hundred twenty-three requests. Which forecast belongs beside that count in the score?",
+        "hold": 3
+      },
+      {
+        "id": "c08-b03",
+        "say": "Score the filed forecast. Wednesday came in about twenty-two parcels below it. Scoring the replay would make the miss look like just one parcel. Give a revised forecast its own issue time and identity. Our fixture records announcements. Replaying exactly when a cancellation became known would require a dated cancellation record.",
+        "hold": 0.9
+      }
+    ]
+  },
+  {
+    "id": "c09",
+    "title": "Two ways to record Friday",
+    "sourceChapters": [
+      "c09"
+    ],
+    "beats": [
+      {
+        "id": "c09-b01",
+        "say": "Here’s the forecast the planner saw on Sunday. The key on the ledger names the center, service tier, issue time, target date and code version. Count five days from Sunday and you land on Friday. That’s one check we can make from the key.",
+        "hold": 0.8
+      },
+      {
+        "id": "c09-b02",
+        "say": "Append Friday’s verified count beside the issued forecast. Match the center, tier and target date so every forecast for that day keeps its own issue time and horizon. The dock counted a hundred seventy-six requests. We were about twelve point seven low. Now inspect a working copy.",
+        "hold": 0.3
+      },
+      {
+        "id": "c09-b03",
+        "say": "Someone copied the final count over the forecast. The error now reads zero. How could a reviewer detect that change?",
+        "hold": 2
+      },
+      {
+        "id": "c09-b04",
+        "say": "Look at the original row’s fingerprint. Now compare the edited row. Changing one number gave it a different hash. The lab checks the whole ledger this way. At issue time, save the issuer’s hash in a separately protected record.",
+        "hold": 0.3
+      },
+      {
+        "id": "c09-b05",
+        "say": "Later, hash the ledger again and compare it with the saved value. A mismatch flags changed bytes. Protect the issued file too. Keep the input snapshots, feature order, fitted weights, source hashes and runtime versions so you can replay the forecast.",
+        "hold": 0.8
+      }
+    ]
+  },
+  {
+    "id": "c10",
+    "title": "Which forecasts can we score?",
+    "sourceChapters": [
+      "c10"
+    ],
+    "beats": [
+      {
+        "id": "c10-b01",
+        "say": "It’s eight on February eighth. Both seven-day windows have been issued. Only five target dates have final counts. Pair each with its issued forecast. Add the five absolute differences and divide by five. Mean absolute error is about eight point one five parcels.",
+        "hold": 0.3
+      },
+      {
+        "id": "c10-b02",
+        "say": "The other nine rows stay pending. A missing count contributes neither an error nor a place in the denominator. If a window has no mature labels, its mean absolute error, peak penalty and fraction within tolerance are all undefined.",
+        "hold": 0.8
+      },
+      {
+        "id": "c10-b03",
+        "say": "Keep the issued rows and advance to February sixteenth. Now all fourteen have final labels. Score the seasonal baseline and the candidate on those same days. Mean absolute error drops from about seven point six four to six point two five parcels.",
+        "hold": 0.8
+      },
+      {
+        "id": "c10-b04",
+        "say": "Mark each miss greater than six parcels. The canceled Wednesday, the first campaign Friday and the surprise surge on Tuesday the tenth cross that limit. Eleven dates stay inside. Tuesday is only two days from issue.",
+        "hold": 0.3
+      },
+      {
+        "id": "c10-b05",
+        "say": "Each horizon appears twice here. Its mean absolute error tells us where to inspect a miss. We need more windows to estimate how an entire horizon usually performs.",
+        "hold": 0.85
+      }
+    ]
+  },
+  {
+    "id": "c11",
+    "title": "What counts toward the peak penalty?",
+    "sourceChapters": [
+      "c11"
+    ],
+    "beats": [
+      {
+        "id": "c11-b01",
+        "say": "Now take the days with at least a hundred fifty actual requests. For this diagnostic, each parcel the model underforecast on a qualifying day costs three fictional units. Take the first Friday. The baseline was thirty-three short. The candidate was about twelve point seven short.",
+        "hold": 0.3
+      },
+      {
+        "id": "c11-b02",
+        "say": "Multiply each gap by three. Friday contributes ninety-nine units on the left and about thirty-eight on the right.",
+        "hold": 0.8
+      },
+      {
+        "id": "c11-b03",
+        "say": "Tuesday’s surge costs the candidate a little more than it costs the baseline. The second Friday also qualifies by volume, but both forecasts were high enough. Its underforecast charge is zero. Sum the three rows at full precision. The total falls from two hundred one to about a hundred forty-three units.",
+        "hold": 0.75
+      },
+      {
+        "id": "c11-b04",
+        "say": "Suppose that first Friday forecast were six parcels lower, with all fourteen counts held fixed. The peak sum would gain eighteen units. Mean absolute error would rise by only six divided by fourteen parcels because it averages across all mature days. The peak charge measures a forecast shortfall on selected days.",
+        "hold": 0.3
+      },
+      {
+        "id": "c11-b05",
+        "say": "Actual operating cost would also depend on what was booked and what happened at the dock.",
+        "hold": 0.8
+      },
+      {
+        "id": "c11-b06",
+        "say": "The six-parcel tolerance serves another purpose. We chose its width as an error limit. To give an interval a probability, estimate uncertainty from earlier errors or a model, then check coverage and width on later untouched windows. An interval can stay the same width across several horizons.",
+        "hold": 0.3
+      },
+      {
+        "id": "c11-b07",
+        "say": "If it assumes a campaign will run, a cancellation introduces uncertainty outside that assumption.",
+        "hold": 0.8
+      }
+    ]
+  },
+  {
+    "id": "c12",
+    "title": "Which days enter each denominator?",
+    "sourceChapters": [
+      "c12"
+    ],
+    "beats": [
+      {
+        "id": "c12-b01",
+        "say": "Read across Wednesday the fourth. The forecast cleared capacity. To score the warning, check whether actual requests also strictly exceeded the issued capacity. They stayed below it after the campaign was canceled. That gives us a false warning. On Friday the sixth, both numbers cleared the schedule.",
+        "hold": 0.3
+      },
+      {
+        "id": "c12-b02",
+        "say": "That warning was correct, even though we also missed Friday’s count by more than six.",
+        "hold": 0.65
+      },
+      {
+        "id": "c12-b03",
+        "say": "Tuesday the tenth went the other way. The surge put actual demand above capacity without a warning. The next Friday did get a warning, and its actual count was within one parcel of the forecast. The other ten days were quiet on both checks.",
+        "hold": 0.75
+      },
+      {
+        "id": "c12-b04",
+        "say": "For precision, start with the three days we warned about. Two really exceeded the schedule. For recall, start with the three days that actually exceeded it. We caught both Fridays and missed Tuesday. Both fractions are two thirds, but look at the dates in their denominators.",
+        "hold": 0.3
+      },
+      {
+        "id": "c12-b05",
+        "say": "Wednesday belongs only to the first. Tuesday belongs only to the second. With no verified warning days, precision is undefined. With no verified overloads, recall is undefined. The ten quiet dates enter neither fraction.",
+        "hold": 0.85
+      }
+    ]
+  },
+  {
+    "id": "c13",
+    "title": "Would you accept these fourteen forecasts?",
+    "sourceChapters": [
+      "c13"
+    ],
+    "beats": [
+      {
+        "id": "c13-b01",
+        "say": "The candidate lowered mean absolute error. The peak penalty fell too. Here is every February date the planner asked us to forecast. Count the days within six parcels of their issued point. Eleven qualify. The rule set before evaluation requires at least eighty-five percent. Does this candidate pass the local comparison?",
+        "hold": 2.4
+      },
+      {
+        "id": "c13-b02",
+        "say": "With fourteen days we need at least twelve inside. Eleven out of fourteen is only seventy-eight point six percent. Hold the candidate and keep this result. If we widen the tolerance now to rescue the score, we’ve used these days to design the new rule. Test that rule on later untouched dates. Widening the band changes which errors count as breaches. The original errors and staffing warnings stay the same.",
+        "hold": 0.95
+      }
+    ]
+  },
+  {
+    "id": "c14",
+    "title": "What would a perfect replay establish?",
+    "sourceChapters": [
+      "c14"
+    ],
+    "beats": [
+      {
+        "id": "c14-b01",
+        "say": "The local receipt asks for both origins, all seven horizons, mature labels and a named previous model. It requires strictly lower mean absolute error and a strictly lower peak penalty. A tie on either fails. The issued candidate misses the tolerance gate.",
+        "hold": 0.3
+      },
+      {
+        "id": "c14-b02",
+        "say": "Equality at the eighty-five percent tolerance threshold passes that gate. Seventeen in twenty would qualify. An equal mean absolute error still fails the strict improvement gate. Five parcels against five is a tie. Precision and recall must each reach sixty percent.",
+        "hold": 0.85
+      },
+      {
+        "id": "c14-b03",
+        "say": "Give a hypothetical candidate the exact final counts. Its mean absolute error is zero. Its local comparison passes. Read the next two fields. The decision still says hold, and live ready is false. Both candidates were tested only on synthetic demand.",
+        "hold": 0.85
+      },
+      {
+        "id": "c14-b04",
+        "say": "Before a pilot, backtest representative real seasons and events. Run forecasts alongside the incumbent. If a warning prompts a planner to add a shift, record both the original schedule and the extra shift. That lets you score the warning and see what the planner did with it.",
+        "hold": 0.3
+      },
+      {
+        "id": "c14-b05",
+        "say": "Rehearse restoring the previous model with its data and features.",
+        "hold": 0.85
+      }
+    ]
+  },
+  {
+    "id": "c15",
+    "title": "A zero arrives in the feed",
+    "sourceChapters": [
+      "c15"
+    ],
+    "beats": [
+      {
+        "id": "c15-b01",
+        "say": "The feed reports zero requests. Did demand really stop? Check reconciliation. This batch is still pending. Keep it out of the next fit. Training on that zero could teach the model the shape of a tracking outage.",
+        "hold": 0.3
+      },
+      {
+        "id": "c15-b02",
+        "say": "Track how long labels take to arrive and how many are missing. Append each verified count with both its event day and its availability time.",
+        "hold": 0.8
+      },
+      {
+        "id": "c15-b03",
+        "say": "In our two-week window, three of fourteen forecasts breached tolerance. That clears an example review threshold of fifteen percent. Precision below sixty percent could also open a review. Look at the size of the window, delayed labels, changed plans and event mix before interpreting a crossing. Repeated weekly checks can produce alarms by chance.",
+        "hold": 0.65
+      },
+      {
+        "id": "c15-b04",
+        "say": "A weekly refit is one policy to evaluate. Keep every fitted version and compare it forward on newly mature labels. A residual alone can’t tell you whether demand changed, a predictor is missing, or the data pipeline failed. Check those explanations before retraining.",
+        "hold": 0.8
+      }
+    ]
+  },
+  {
+    "id": "c16",
+    "title": "Try changing the evidence",
+    "sourceChapters": [
+      "c16"
+    ],
+    "beats": [
+      {
+        "id": "c16-b01",
+        "say": "Try a deliberate edit in a copy of the raw data. Add ten thousand parcels to each of the fifteen counts unavailable at the first issue. Fit again at the same Sunday cutoff. Will rerunning the same fit change Friday’s forecast?",
+        "hold": 2.2
+      },
+      {
+        "id": "c16-b02",
+        "say": "Friday stays at one hundred sixty-three point two eight four. All seven differences are zero. The sixty-two eligible target values and their feature rows were identical across the runs. This checks the unavailable-count path. Other inputs need their own checks.",
+        "hold": 0.85
+      },
+      {
+        "id": "c16-b03",
+        "say": "Reset the copy. This time add ten thousand to just January thirtieth, a Friday that was already final. Repeat the same fit. Friday’s forecast jumps to about six hundred sixty-one parcels. Move the edit from a future count to a training count and the same fit responds.",
+        "hold": 0.8
+      },
+      {
+        "id": "c16-b04",
+        "say": "Try the cutoff on a different input. Add a campaign announcement on Monday. A plan announced after issue stays out of Sunday’s forecast. Now check the records themselves. A duplicate Friday row and a missing Thursday could still give you fourteen rows. Check every issue and horizon to catch both.",
+        "hold": 0.85
+      }
+    ]
+  },
+  {
+    "id": "c17",
+    "title": "Three days on the planner’s sheet",
+    "sourceChapters": [
+      "c17"
+    ],
+    "beats": [
+      {
+        "id": "c17-b01",
+        "say": "Here’s a different three-day worksheet. The bookings and forecasts are fixed. Compare them across each row. Only Tuesday’s forecast exceeds its schedule. Tuesday and Thursday have final counts. Wednesday is still in audit. Which rows belong in today’s mean absolute error?",
+        "hold": 2.3
+      },
+      {
+        "id": "c17-b02",
+        "say": "Use Tuesday and Thursday. Their errors are one parcel and zero. Divide their sum by two. That’s half a parcel, and both days are within six. The worksheet still needs its third outcome to be complete. Tuesday’s warning caught the only confirmed overload. So far, precision and recall are both one.",
+        "hold": 0.8
+      },
+      {
+        "id": "c17-b03",
+        "say": "Wednesday’s batch reaches the audit station. Watch the scanner count through the parcels. At the last parcel it stops. One hundred forty-five requests. File that final count. Compare that count with the crew line and the forecast’s blue band. Did we miss an overload? Did the error exceed six?",
+        "hold": 3
+      },
+      {
+        "id": "c17-b04",
+        "say": "At issue, a hundred thirty-eight was below capacity, so there was no warning. A hundred forty-five later exceeded capacity by five. Record a missed overload. The forecast was seven parcels low. That puts its error outside tolerance. Now the three absolute errors add to eight.",
+        "hold": 0.3
+      },
+      {
+        "id": "c17-b05",
+        "say": "Divide by three for a mean absolute error of two and two thirds parcels. Two of the three days stayed within tolerance.",
+        "hold": 0.8
+      },
+      {
+        "id": "c17-b06",
+        "say": "The worksheet still has one warning, and it was right. Now there are two overloads and we caught only one. Precision stays at one. Recall falls to one half.",
+        "hold": 0.8
+      },
+      {
+        "id": "c17-b07",
+        "say": "Bring Wednesday back to the parcel scale. Our final count sits just beyond the blue band. The peak penalty starts at a hundred fifty actual requests. How many peak penalty units does Wednesday add?",
+        "hold": 2.25
+      },
+      {
+        "id": "c17-b08",
+        "say": "Zero units. A hundred forty-five crossed Wednesday’s capacity line and stopped short of the peak cutoff. Record the missed overload. Give the data or model owner the seven-parcel error to investigate. Leave the issued forecast at a hundred thirty-eight.",
+        "hold": 1.3
+      }
+    ]
+  }
+]

@@ -1,0 +1,326 @@
+{
+  "id": "in-memory-filesystem",
+  "slug": "in-memory-filesystem",
+  "title": "In-memory Filesystem",
+  "difficulty": "Medium",
+  "category": "Stateful Design",
+  "language": "python3",
+  "timeEstimateMinutes": 35,
+  "timeLimitMs": 2500,
+  "memoryLimitMb": 128,
+  "order": 80,
+  "tags": [
+    "trie",
+    "paths",
+    "stateful API",
+    "normalization"
+  ],
+  "source": "LeetCode-style systems drill",
+  "summary": "Model directory and file state with predictable path normalization and listing behavior.",
+  "starterCode": [
+    "class FileSystem:",
+    "    def __init__(self):",
+    "        pass",
+    "",
+    "    def mkdir(self, path: str) -> None:",
+    "        pass",
+    "",
+    "    def write_file(self, path: str, content: str) -> None:",
+    "        pass",
+    "",
+    "    def read_file(self, path: str) -> str:",
+    "        pass",
+    "",
+    "    def ls(self, path: str) -> list[str]:",
+    "        pass"
+  ],
+  "testCases": [
+    {
+      "name": "creates directories and reads files",
+      "visibility": "sample",
+      "setup": [
+        "from solution import FileSystem",
+        "fs = FileSystem()",
+        "fs.mkdir(\"/docs/guides\")",
+        "fs.write_file(\"/docs/guides/readme.md\", \"hello\")"
+      ],
+      "checks": [
+        {
+          "input": "fs = FileSystem()\nfs.mkdir(\"/docs/guides\")\nfs.write_file(\"/docs/guides/readme.md\", \"hello\")\nfs.ls(\"/\")",
+          "expression": "fs.ls(\"/\")",
+          "operator": "==",
+          "expected": "[\"docs\"]"
+        },
+        {
+          "input": "fs = FileSystem()\nfs.mkdir(\"/docs/guides\")\nfs.write_file(\"/docs/guides/readme.md\", \"hello\")\nfs.ls(\"/\")\nfs.ls(\"/docs\")",
+          "expression": "fs.ls(\"/docs\")",
+          "operator": "==",
+          "expected": "[\"guides\"]"
+        },
+        {
+          "input": "fs = FileSystem()\nfs.mkdir(\"/docs/guides\")\nfs.write_file(\"/docs/guides/readme.md\", \"hello\")\nfs.ls(\"/\")\nfs.ls(\"/docs\")\nfs.ls(\"/docs/guides/readme.md\")",
+          "expression": "fs.ls(\"/docs/guides/readme.md\")",
+          "operator": "==",
+          "expected": "[\"readme.md\"]"
+        },
+        {
+          "input": "fs = FileSystem()\nfs.mkdir(\"/docs/guides\")\nfs.write_file(\"/docs/guides/readme.md\", \"hello\")\nfs.ls(\"/\")\nfs.ls(\"/docs\")\nfs.ls(\"/docs/guides/readme.md\")\nfs.read_file(\"/docs/guides/readme.md\")",
+          "expression": "fs.read_file(\"/docs/guides/readme.md\")",
+          "operator": "==",
+          "expected": "\"hello\""
+        }
+      ]
+    },
+    {
+      "name": "normalizes slashes and rejects missing parents",
+      "visibility": "hidden",
+      "code": [
+        "from solution import FileSystem",
+        "",
+        "fs = FileSystem()",
+        "fs.mkdir(\"//a/b//\")",
+        "fs.write_file(\"/a/b/file.txt\", \"v1\")",
+        "fs.write_file(\"/a/b/file.txt\", \"v2\")",
+        "assert fs.read_file(\"/a//b/file.txt\") == \"v2\"",
+        "assert fs.ls(\"/a/b/\") == [\"file.txt\"]",
+        "try:",
+        "    fs.write_file(\"/missing/file.txt\", \"x\")",
+        "except FileNotFoundError:",
+        "    pass",
+        "else:",
+        "    raise AssertionError(\"missing parent should fail\")"
+      ]
+    },
+    {
+      "name": "lists root directories and file paths",
+      "visibility": "sample",
+      "setup": [
+        "from solution import FileSystem",
+        "fs = FileSystem()",
+        "fs.mkdir(\"/docs\")",
+        "fs.write_file(\"/docs/readme.txt\", \"hi\")"
+      ],
+      "checks": [
+        {
+          "input": "fs = FileSystem()\nfs.mkdir(\"/docs\")\nfs.write_file(\"/docs/readme.txt\", \"hi\")\nfs.ls(\"/\")",
+          "expression": "fs.ls(\"/\")",
+          "operator": "==",
+          "expected": "[\"docs\"]"
+        },
+        {
+          "input": "fs = FileSystem()\nfs.mkdir(\"/docs\")\nfs.write_file(\"/docs/readme.txt\", \"hi\")\nfs.ls(\"/\")\nfs.ls(\"/docs/readme.txt\")",
+          "expression": "fs.ls(\"/docs/readme.txt\")",
+          "operator": "==",
+          "expected": "[\"readme.txt\"]"
+        }
+      ]
+    },
+    {
+      "name": "overwrites files and rejects reading directories",
+      "visibility": "hidden",
+      "code": [
+        "from solution import FileSystem",
+        "",
+        "fs = FileSystem()",
+        "fs.mkdir(\"/docs\")",
+        "fs.write_file(\"/docs/a.txt\", \"one\")",
+        "fs.write_file(\"/docs/a.txt\", \"two\")",
+        "assert fs.read_file(\"/docs/a.txt\") == \"two\"",
+        "try:",
+        "    fs.read_file(\"/docs\")",
+        "except IsADirectoryError:",
+        "    pass",
+        "else:",
+        "    raise AssertionError(\"directories are not readable files\")",
+        "try:",
+        "    fs.write_file(\"/docs\", \"not a directory\")",
+        "except IsADirectoryError:",
+        "    pass",
+        "else:",
+        "    raise AssertionError(\"writing a directory must not delete it\")",
+        "try:",
+        "    fs.write_file(\"/\", \"not a directory\")",
+        "except IsADirectoryError:",
+        "    pass",
+        "else:",
+        "    raise AssertionError(\"writing the root directory must fail as a directory write\")",
+        "assert fs.read_file(\"/docs/a.txt\") == \"two\"",
+        "assert fs.ls(\"/docs\") == [\"a.txt\"]",
+        "fs.mkdir(\"/docs\")",
+        "fs.mkdir(\"////\")",
+        "assert fs.ls(\"/\") == [\"docs\"]"
+      ]
+    },
+    {
+      "name": "rejects traversal through file nodes",
+      "visibility": "hidden",
+      "code": [
+        "from solution import FileSystem",
+        "",
+        "fs = FileSystem()",
+        "fs.write_file(\"/file\", \"content\")",
+        "for op in (lambda: fs.mkdir(\"/file\"), lambda: fs.mkdir(\"/file/child\"), lambda: fs.write_file(\"/file/child\", \"x\"), lambda: fs.write_file(\"/file/child/grandchild\", \"x\"), lambda: fs.read_file(\"/file/child\"), lambda: fs.ls(\"/file/child\")):",
+        "    try:",
+        "        op()",
+        "    except NotADirectoryError:",
+        "        pass",
+        "    else:",
+        "        raise AssertionError(\"file path segment should block traversal\")",
+        "assert fs.read_file(\"/file\") == \"content\"",
+        "assert fs.ls(\"/\") == [\"file\"]",
+        "fs.write_file(\"/empty\", \"\")",
+        "assert fs.read_file(\"/empty/\") == \"\"",
+        "assert fs.ls(\"/empty/\") == [\"empty\"]"
+      ]
+    },
+    {
+      "name": "empty filesystem lists an empty root",
+      "visibility": "sample",
+      "description": "A new filesystem has no root children.",
+      "feedback": "Represent root as an empty directory node.",
+      "setup": [
+        "from solution import FileSystem",
+        "fs = FileSystem()"
+      ],
+      "input": "fs.ls(\"/\")",
+      "expected": "[]"
+    },
+    {
+      "name": "directory listings are sorted",
+      "visibility": "hidden",
+      "description": "Child insertion order leaves ls output unchanged.",
+      "feedback": "Sort directory child names before returning them.",
+      "setup": [
+        "from solution import FileSystem",
+        "fs = FileSystem()",
+        "fs.mkdir(\"/zeta\")",
+        "fs.mkdir(\"/alpha\")",
+        "fs.write_file(\"/middle\", \"x\")"
+      ],
+      "input": "fs.ls(\"/\")",
+      "expected": "[\"alpha\", \"middle\", \"zeta\"]"
+    },
+    {
+      "name": "missing reads and listings raise not found",
+      "visibility": "hidden",
+      "code": [
+        "from solution import FileSystem",
+        "",
+        "fs = FileSystem()",
+        "for operation in (lambda: fs.read_file(\"/missing\"), lambda: fs.ls(\"/missing\")):",
+        "    try:",
+        "        operation()",
+        "    except FileNotFoundError:",
+        "        pass",
+        "    else:",
+        "        raise AssertionError(\"missing path should raise FileNotFoundError\")"
+      ]
+    },
+    {
+      "name": "hidden listing a file returns its name",
+      "visibility": "hidden",
+      "setup": [
+        "from solution import FileSystem",
+        "fs = FileSystem()",
+        "fs.write_file(\"/note.txt\", \"hello\")"
+      ],
+      "input": "fs.ls(\"/note.txt\")",
+      "expected": "[\"note.txt\"]"
+    }
+  ],
+  "clarifyingQuestions": [
+    "Should `mkdir` create intermediate directories recursively?",
+    "Can a path be both a file and a directory?",
+    "Should writes create parent directories or fail if parents don't exist?"
+  ],
+  "followUps": [
+    "Add append_file and file sizes.",
+    "Add delete with recursive directory behavior.",
+    "Add permissions or tenant isolation."
+  ],
+  "followUpGuide": [
+    "For append, reuse `write_file` traversal but concatenate to existing file content. If the file doesn't exist, clarify whether append should create it.",
+    "",
+    "For delete, decide whether deleting non-empty directories requires `recursive=True`. That choice affects safety much more than code complexity.",
+    "",
+    "For tenant isolation, namespace the root by tenant ID or store tenant on every node and check it during traversal. Don't rely on path prefixes alone."
+  ],
+  "complexityAnalysis": [
+    "- Let L be the input path length, d its component count, k the listed directory's child count, and B the total characters stored in names and file contents. Splitting and hashing path components costs O(L), even when dictionary lookup uses an average constant number of probes.",
+    "- Flat path map approach: normalized full-path lookup costs O(L) on average. Without a child index, listing scans n stored paths and sorts the k matching child names. Total storage includes all repeated full-path prefixes and file contents.",
+    "- Trie/tree approach: mkdir, write_file, and read_file traverse in O(L) average time. ls adds O(k log k) comparisons to sort names; comparing long names also costs character work. The tree stores O(n + B) space and path parsing uses O(L) temporary space. String assignment and return reuse immutable strings here.",
+    "- Recursive delete follow-up: visit s subtree nodes. A depth-first traversal can use O(d) call-stack space; an explicit stack of all pending children can grow to O(s). Recursive listing also pays for its output and any requested sorting."
+  ],
+  "solutionGuide": [
+    "A trie-like tree is the clearest model: directory nodes own child maps and file nodes own content.",
+    "",
+    "Normalize paths into components by splitting on `/` and dropping empty parts. This handles repeated slashes and trailing slashes.",
+    "",
+    "```python",
+    "class Node:",
+    "    def __init__(self):",
+    "        self.children = {}",
+    "        self.content = None",
+    "",
+    "    def is_file(self):",
+    "        return self.content is not None",
+    "",
+    "",
+    "class FileSystem:",
+    "    def __init__(self):",
+    "        self.root = Node()",
+    "",
+    "    def _parts(self, path: str) -> list[str]:",
+    "        return [part for part in path.split(\"/\") if part]",
+    "",
+    "    def _walk(self, parts: list[str]) -> Node:",
+    "        node = self.root",
+    "        for part in parts:",
+    "            if node.is_file():",
+    "                raise NotADirectoryError(\"/\" + \"/\".join(parts))",
+    "            if part not in node.children:",
+    "                raise FileNotFoundError(\"/\" + \"/\".join(parts))",
+    "            node = node.children[part]",
+    "        return node",
+    "",
+    "    def mkdir(self, path: str) -> None:",
+    "        node = self.root",
+    "        for part in self._parts(path):",
+    "            if node.is_file():",
+    "                raise NotADirectoryError(path)",
+    "            node = node.children.setdefault(part, Node())",
+    "        if node.is_file():",
+    "            raise NotADirectoryError(path)",
+    "",
+    "    def write_file(self, path: str, content: str) -> None:",
+    "        parts = self._parts(path)",
+    "        if not parts:",
+    "            raise IsADirectoryError(path)",
+    "        parent = self._walk(parts[:-1])",
+    "        if parent.is_file():",
+    "            raise NotADirectoryError(path)",
+    "        node = parent.children.get(parts[-1])",
+    "        if node is None:",
+    "            node = Node()",
+    "            parent.children[parts[-1]] = node",
+    "        elif not node.is_file():",
+    "            raise IsADirectoryError(path)",
+    "        node.content = content",
+    "",
+    "    def read_file(self, path: str) -> str:",
+    "        node = self._walk(self._parts(path))",
+    "        if not node.is_file():",
+    "            raise IsADirectoryError(path)",
+    "        return node.content",
+    "",
+    "    def ls(self, path: str) -> list[str]:",
+    "        parts = self._parts(path)",
+    "        node = self._walk(parts)",
+    "        if node.is_file():",
+    "            return [parts[-1]]",
+    "        return sorted(node.children)",
+    "```",
+    "",
+    "`ls` has two modes: directory paths return sorted child names, file paths return the file name. Make that branch explicit."
+  ]
+}

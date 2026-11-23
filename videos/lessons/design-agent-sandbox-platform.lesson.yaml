@@ -1,0 +1,1720 @@
+version: 1
+id: design-agent-sandbox-platform
+title: A Fast, Clean Room for Every Agent Job
+source: system-design/design-agent-sandbox-platform/content.md
+voice: en-US-AndrewNeural
+rate: +0%
+sources:
+  - title: Firecracker snapshot support
+    url: https://github.com/firecracker-microvm/firecracker/blob/main/docs/snapshotting/snapshot-support.md
+  - title: Firecracker design
+    url: https://github.com/firecracker-microvm/firecracker/blob/main/docs/design.md
+  - title: Firecracker vsock
+    url: https://github.com/firecracker-microvm/firecracker/blob/main/docs/vsock.md
+  - title: Linux cgroup v2
+    url: https://docs.kernel.org/admin-guide/cgroup-v2.html
+  - title: Firecracker clone uniqueness, pinned source
+    url: https://github.com/firecracker-microvm/firecracker/blob/ab198c7aa1f72cb30541165c20be27dbd1b88c2e/docs/snapshotting/random-for-clones.md
+  - title: Linux KVM API
+    url: https://docs.kernel.org/virt/kvm/api.html
+  - title: OverlayFS
+    url: https://docs.kernel.org/filesystems/overlayfs.html
+scenes:
+  - id: intro
+    title: A job receives explicit resources and authority
+    visual: An untrusted job attempts file, process and network operations while an authenticated generation owns
+      its separate resource budget.
+    beats:
+      - say: An agent writes a short script to analyze a file. That script can also spawn processes, read available
+          credentials, or leave files behind. A multi-tenant execution platform gives each job limited
+          resources and authority, then proves the next job receives a clean environment. Fast startup and
+          strong containment have to work together.
+        hold: 0.65
+        visual_cues:
+          - id: intro-beat-1-focus-1
+            phrase: That script can also spawn processes, read available credentials, or leave files behind
+            targets:
+              - intro-name
+            color: cyan
+            linger: 0.65
+      - say: We will follow a job through a microVM, shared snapshot pages, private writes, controlled networking, and
+          retirement. The article proposes an interactive warm-start target. Treat that target as a
+          requirement to measure on the chosen host, guest image, and load. Our numerical examples explain
+          mechanisms and capacity arithmetic rather than reporting platform benchmarks.
+        hold: 0.65
+        visual_cues:
+          - id: intro-beat-2-focus-1
+            phrase: Our numerical examples explain mechanisms and capacity arithmetic rather than reporting platform
+              benchmarks
+            targets:
+              - intro-name
+            color: cyan
+            linger: 0.65
+  - id: request-limits
+    title: Bind one generation to its resources
+    visual: A generation-stamped allocation record owns the same page mappings, scratch backing, command channel
+      and expiring capability throughout its lifetime.
+    beats:
+      - say: Authenticate the tenant before reserving a sandbox identifier and generation. Bind placement, the command
+          session, writable resources and capabilities to that identity. An existing identifier on a retried
+          request needs authoritative reconciliation; assigning a new number cannot stop an old owner.
+        hold: 0.7
+        visual_cues:
+          - id: sp-request-limits-0
+            phrase: Authenticate the tenant before reserving a sandbox identifier and generation
+            targets:
+              - sp-request-limits-mechanism
+            color: cyan
+            linger: 0.4
+          - id: sp-request-limits-identity
+            phrase: Bind placement, the command session, writable resources and capabilities to that identity
+            targets:
+              - sp-request-limits-mechanism
+            color: cyan
+            linger: 0.4
+      - say: The example product profiles offer one to four virtual CPUs, half a gibibyte to eight gibibytes of
+          configured guest memory, and five gibibytes of scratch. These are chosen limits. Bound input,
+          output, uploads, exports and session lifetime as well as computation.
+        hold: 0.7
+        visual_cues:
+          - id: sp-request-limits-1
+            phrase: The example product profiles offer one to four virtual CPUs, half a gibibyte to eight gibibytes of
+              configured guest memory, and five gibibytes of scratch
+            targets:
+              - sp-request-limits-mechanism
+            color: yellow
+            linger: 0.4
+          - id: sp-request-limits-limits
+            phrase: These are chosen limits
+            targets:
+              - sp-request-limits-mechanism
+            color: cyan
+            linger: 0.4
+      - say: A virtual CPU is scheduled work, and configured guest memory is an address-space allowance. Neither is a
+          measurement of present physical use. Keep host memory, page tables, VMM allocations and shared
+          residency in the host budget. MiB and GiB mean powers of two.
+        hold: 0.7
+        visual_cues:
+          - id: sp-request-limits-2
+            phrase: A virtual CPU is scheduled work, and configured guest memory is an address-space allowance
+            targets:
+              - sp-request-limits-mechanism
+            color: green
+            linger: 0.4
+          - id: sp-request-limits-allowance
+            phrase: Neither is a measurement of present physical use
+            targets:
+              - sp-request-limits-mechanism
+            color: cyan
+            linger: 0.4
+  - id: boundary
+    title: A guest kernel changes the trust boundary
+    visual: Two guest kernels remain inside separate VMM processes above the shared trusted KVM and host boundary.
+    beats:
+      - say: A container uses host-kernel isolation mechanisms. A hardware virtual machine gives the job a separate
+          guest kernel, with a virtual machine monitor coordinating its hardware interface. KVM supplies the
+          virtualization interface, and Firecracker uses a small device model suited to microVM workloads. The
+          host, VMM, and driver stack still need hardening.
+        hold: 0.65
+        visual_cues:
+          - id: boundary-beat-1-focus-1
+            phrase: A hardware virtual machine gives the job a separate guest kernel
+            targets:
+              - boundary-guest-kernel
+            color: cyan
+            linger: 0.65
+          - id: boundary-beat-1-focus-2
+            phrase: A container uses host-kernel isolation mechanisms
+            targets:
+              - boundary-host-kernel-kvm-resource-controls
+            color: yellow
+            linger: 0.65
+      - say: "Place the VMM inside its own restricted host context: narrow filesystem access, limited privileges,
+          namespace separation, syscall policy, and resource limits. Guest limits contain the user workload;
+          host limits contain the VMM and its resources. Test the actual deployed boundary, including
+          administrative APIs and host communication, against the declared threat model."
+        hold: 0.65
+        visual_cues:
+          - id: boundary-beat-2-focus-1
+            phrase: "Place the VMM inside its own restricted host context: narrow filesystem access"
+            targets:
+              - boundary-restricted-vmm-process
+            color: cyan
+            linger: 0.65
+          - id: boundary-beat-2-focus-2
+            phrase: "Place the VMM inside its own restricted host context: narrow filesystem access, limited privileges,
+              namespace separation, syscall policy, and resource limits"
+            targets:
+              - boundary-host-kernel-kvm-resource-controls
+            color: yellow
+            linger: 0.65
+  - id: kvm-descriptors
+    title: Follow the descriptor and return value
+    visual: A real descriptor tree routes each modeled KVM call, keeping failed returns separate from device exits.
+    beats:
+      - say: Open slash dev slash kvm to obtain the system descriptor. Creating a VM returns a VM descriptor. Register
+          host userspace memory as guest physical regions, then create a virtual CPU descriptor. KVM RUN
+          belongs to that virtual CPU; the VMM handles the exits that require userspace work.
+        hold: 0.7
+        visual_cues:
+          - id: sp-kvm-descriptors-0
+            phrase: Open slash dev slash kvm to obtain the system descriptor
+            targets:
+              - sp-kvm-descriptors-mechanism
+            color: cyan
+            linger: 0.4
+          - id: sp-kvm-descriptors-system
+            phrase: Open slash dev slash kvm to obtain the system descriptor
+            targets:
+              - sp-kvm-descriptors-mechanism
+            color: cyan
+            linger: 0.4
+          - id: sp-kvm-descriptors-vm
+            phrase: Creating a VM returns a VM descriptor
+            targets:
+              - sp-kvm-descriptors-mechanism
+            color: cyan
+            linger: 0.4
+          - id: sp-kvm-descriptors-cpu
+            phrase: then create a virtual CPU descriptor
+            targets:
+              - sp-kvm-descriptors-mechanism
+            color: cyan
+            linger: 0.4
+      - say: First inspect the return code. Zero permits consulting the current exit reason. Minus one with E INTR
+          means an unmasked signal interrupted the call. The article loop returns to its shutdown check before
+          retrying. Other run errors stop this sketch. Old exit data cannot describe a failed run.
+        hold: 0.7
+        visual_cues:
+          - id: sp-kvm-descriptors-1
+            phrase: First inspect the return code
+            targets:
+              - sp-kvm-descriptors-mechanism
+            color: yellow
+            linger: 0.4
+          - id: sp-kvm-descriptors-eintr
+            phrase: The article loop returns to its shutdown check before retrying
+            targets:
+              - sp-kvm-descriptors-mechanism
+            color: cyan
+            linger: 0.4
+          - id: sp-kvm-descriptors-return
+            phrase: Old exit data cannot describe a failed run
+            targets:
+              - sp-kvm-descriptors-mechanism
+            color: cyan
+            linger: 0.4
+      - say: The supplied exit paths send MMIO and port I O to their handlers. A halt follows lifecycle policy and can
+          wait for an interrupt. An unhandled exit stops the sketch. Some hardware exits stay inside KVM. This
+          C fragment omits VM setup, device implementation and shutdown coordination; no guest is executed
+          here.
+        hold: 0.7
+        visual_cues:
+          - id: sp-kvm-descriptors-2
+            phrase: The supplied exit paths send MMIO and port I O to their handlers
+            targets:
+              - sp-kvm-descriptors-mechanism
+            color: green
+            linger: 0.4
+          - id: sp-kvm-descriptors-exit
+            phrase: The supplied exit paths send MMIO and port I O to their handlers
+            targets:
+              - sp-kvm-descriptors-mechanism
+            color: cyan
+            linger: 0.4
+  - id: jailer-surfaces
+    title: Reduce host authority around the VMM
+    visual: Nested guest and jailed host boundaries expose their separate credentials, device interfaces and
+      output sinks.
+    beats:
+      - say: A guest kernel separates tenant execution from the host kernel, but the VMM, KVM, host and management
+          services remain trusted. Firecracker limits its device surface. Rust helps prevent classes of
+          memory-safety errors; unsafe code, device emulation and integration still need review and maintained
+          host and guest configurations.
+        hold: 0.7
+        visual_cues:
+          - id: sp-jailer-surfaces-0
+            phrase: A guest kernel separates tenant execution from the host kernel, but the VMM, KVM, host and management
+              services remain trusted
+            targets:
+              - sp-jailer-surfaces-mechanism
+            color: cyan
+            linger: 0.4
+      - say: Jailer constructs a restricted filesystem view, changes user and group identity, configures resource
+          controls and can create a process namespace. Its network-namespace option joins an existing
+          namespace. The integrator prepares that object and its routes. Protect the API socket and keep the
+          recommended syscall filters.
+        hold: 0.7
+        visual_cues:
+          - id: sp-jailer-surfaces-1
+            phrase: Jailer constructs a restricted filesystem view, changes user and group identity, configures resource
+              controls and can create a process namespace
+            targets:
+              - sp-jailer-surfaces-mechanism
+            color: yellow
+            linger: 0.4
+          - id: sp-jailer-surfaces-view
+            phrase: Jailer constructs a restricted filesystem view, changes user and group identity, configures resource
+              controls and can create a process namespace
+            targets:
+              - sp-jailer-surfaces-mechanism
+            color: cyan
+            linger: 0.4
+          - id: sp-jailer-surfaces-join
+            phrase: Its network-namespace option joins an existing namespace
+            targets:
+              - sp-jailer-surfaces-mechanism
+            color: cyan
+            linger: 0.4
+      - say: Bound serial output and VMM process output because the guest can drive host memory or storage consumption
+          there. The inspected source supports VirtIO over MMIO and optional PCI VirtIO transport. That
+          transport choice does not grant arbitrary device passthrough. Match the release, kernels and device
+          configuration rather than memorizing a device count.
+        hold: 0.7
+        visual_cues:
+          - id: sp-jailer-surfaces-2
+            phrase: Bound serial output and VMM process output because the guest can drive host memory or storage
+              consumption there
+            targets:
+              - sp-jailer-surfaces-mechanism
+            color: green
+            linger: 0.4
+          - id: sp-jailer-surfaces-output
+            phrase: Bound serial output and VMM process output
+            targets:
+              - sp-jailer-surfaces-mechanism
+            color: cyan
+            linger: 0.4
+          - id: sp-jailer-surfaces-transport
+            phrase: That transport choice does not grant arbitrary device passthrough
+            targets:
+              - sp-jailer-surfaces-mechanism
+            color: cyan
+            linger: 0.4
+  - id: clean-template
+    title: Seal memory, machine state and matching disks
+    visual: A clean supervisor is paused before user work, and three distinct sealed artifact owners feed a paused
+      restore.
+    beats:
+      - say: Build the template after the guest kernel, language runtime and supervisor are initialized, before tenant
+          inputs, customer keys or user jobs arrive. Pause it in a quiescent state. Save memory and versioned
+          virtual-machine state, and preserve the matching disk backing files separately.
+        hold: 0.7
+        visual_cues:
+          - id: sp-clean-template-0
+            phrase: Build the template after the guest kernel, language runtime and supervisor are initialized, before
+              tenant inputs, customer keys or user jobs arrive
+            targets:
+              - sp-clean-template-mechanism
+            color: cyan
+            linger: 0.4
+          - id: sp-clean-template-seal
+            phrase: Save memory and versioned virtual-machine state, and preserve the matching disk backing files
+              separately
+            targets:
+              - sp-clean-template-mechanism
+            color: cyan
+            linger: 0.4
+      - say: Authenticate the provenance and integrity of every required artifact before loading. A checksum for
+          accidental corruption does not authenticate a template. Keep the memory backing immutable and
+          available for the lifetime of its restored private mappings. Snapshot compatibility and disk
+          consistency belong to this contract.
+        hold: 0.7
+        visual_cues:
+          - id: sp-clean-template-1
+            phrase: Authenticate the provenance and integrity of every required artifact before loading
+            targets:
+              - sp-clean-template-mechanism
+            color: yellow
+            linger: 0.4
+          - id: sp-clean-template-auth
+            phrase: A checksum for accidental corruption does not authenticate a template
+            targets:
+              - sp-clean-template-mechanism
+            color: cyan
+            linger: 0.4
+      - say: A loaded snapshot and a ready service are different states. Resume the supervisor for readiness work
+          while user instructions remain withheld. Missing or failed checks retain ownership and keep
+          admission closed. A returned snapshot API call cannot establish the first executed user instruction.
+        hold: 0.7
+        visual_cues:
+          - id: sp-clean-template-2
+            phrase: A loaded snapshot and a ready service are different states
+            targets:
+              - sp-clean-template-mechanism
+            color: green
+            linger: 0.4
+          - id: sp-clean-template-held
+            phrase: Missing or failed checks retain ownership and keep admission closed
+            targets:
+              - sp-clean-template-mechanism
+            color: cyan
+            linger: 0.4
+  - id: cow
+    title: Reads share a page and writes create a private copy
+    visual: Six physical backing pages appear once. Clone A and B point to the same selected page. A write
+      allocates and copies a private page, changes its value, and redirects only A. Physical resident bytes
+      grow by exactly one page.
+    beats:
+      - say: "A warmed snapshot preserves guest memory and virtual machine state. A private file mapping can load
+          pages on demand. Clones can read a shared backing page, while a write creates private anonymous
+          storage for that clone. Follow the changed page: one tenant sees its new value while the other
+          retains the base value."
+        hold: 0.65
+        motion_check:
+          region:
+            - 170
+            - 300
+            - 1560
+            - 620
+          minimumChangedFraction: 0.002
+        visual_cues:
+          - id: cow-beat-1-focus-1
+            phrase: Clones can read a shared backing page, while a write creates private anonymous storage for that clone
+            targets:
+              - cow-clone-a-page-2
+            color: cyan
+            linger: 0.65
+          - id: cow-beat-1-focus-2
+            phrase: "Follow the changed page: one tenant sees its new value while the other retains the base value"
+            targets:
+              - cow-base
+            color: yellow
+            linger: 0.65
+      - say: "This saves copying unmodified memory at restore time. It also creates a lifetime contract: keep the
+          backing memory file available, protect the complete snapshot artifacts, and validate compatibility.
+          Private pages still consume real host memory. Writes, allocator activity, and runtime behavior can
+          reduce sharing, so measure dirty growth rather than assuming a fixed density."
+        hold: 0.65
+        visual_cues:
+          - id: cow-beat-2-focus-1
+            phrase: "It also creates a lifetime contract: keep the backing memory file available"
+            targets:
+              - cow-base
+            color: cyan
+            linger: 0.65
+          - id: cow-beat-2-focus-2
+            phrase: Private pages still consume real host memory
+            targets:
+              - cow-a-private-2
+            color: yellow
+            linger: 0.65
+  - id: article-page-run
+    title: Execute the three-page article model
+    visual: Three shared entries and exact per-clone private entries compute values and accounting without
+      asserting operating-system residency.
+    beats:
+      - say: Our earlier six-page schematic and the article program are separate labeled examples. The program has
+          three clean entries, ten, twenty and thirty, each assigned four kibibytes. A and B refer to the same
+          immutable tuple. Both initially read twenty at index one.
+        hold: 0.7
+        visual_cues:
+          - id: sp-article-page-run-0
+            phrase: Our earlier six-page schematic and the article program are separate labeled examples
+            targets:
+              - sp-article-page-run-mechanism
+            color: cyan
+            linger: 0.4
+          - id: sp-article-page-run-base
+            phrase: Both initially read twenty at index one
+            targets:
+              - sp-article-page-run-mechanism
+            color: cyan
+            linger: 0.4
+      - say: After A writes ninety-nine at index one, only A has that private entry. A reads ninety-nine; B and the
+          base read twenty. The modeled accounting counts the shared base once, then every private entry from
+          every clone. Three plus one pages times four kibibytes equals sixteen kibibytes.
+        hold: 0.7
+        visual_cues:
+          - id: sp-article-page-run-1
+            phrase: After A writes ninety-nine at index one, only A has that private entry
+            targets:
+              - sp-article-page-run-mechanism
+            color: yellow
+            linger: 0.4
+          - id: sp-article-page-run-write
+            phrase: After A writes ninety-nine at index one, only A has that private entry
+            targets:
+              - sp-article-page-run-mechanism
+            color: cyan
+            linger: 0.4
+          - id: sp-article-page-run-count
+            phrase: Three plus one pages times four kibibytes equals sixteen kibibytes
+            targets:
+              - sp-article-page-run-mechanism
+            color: green
+            linger: 0.4
+      - say: Another clone writing the same index owns another private entry. A later write to an already private
+          index replaces its value instead of adding an entry. These dictionary counts model ownership; they
+          do not measure physical residency, VMM overhead or page-cache behavior. Even a read can fault clean
+          data into RAM without making it private.
+        hold: 0.7
+        visual_cues:
+          - id: sp-article-page-run-2
+            phrase: Another clone writing the same index owns another private entry
+            targets:
+              - sp-article-page-run-mechanism
+            color: green
+            linger: 0.4
+          - id: sp-article-page-run-second
+            phrase: Another clone writing the same index owns another private entry
+            targets:
+              - sp-article-page-run-mechanism
+            color: cyan
+            linger: 0.4
+          - id: sp-article-page-run-replace
+            phrase: A later write to an already private index replaces its value instead of adding an entry
+            targets:
+              - sp-article-page-run-mechanism
+            color: cyan
+            linger: 0.4
+  - id: fault-handler
+    title: A missing page must be supplied before progress
+    visual: The selected guest address faults, a handler owns a pending page request, and only a completed load
+      resumes that access.
+    beats:
+      - say: The File backend relies on host faults to bring snapshot contents into RAM on demand. A private write
+          then allocates modified private state. Avoiding an eager full copy saves restore work, while cold
+          faults and the growing working set still affect latency.
+        hold: 0.7
+        visual_cues:
+          - id: sp-fault-handler-0
+            phrase: The File backend relies on host faults to bring snapshot contents into RAM on demand
+            targets:
+              - sp-fault-handler-mechanism
+            color: cyan
+            linger: 0.4
+          - id: sp-fault-handler-file
+            phrase: The File backend relies on host faults to bring snapshot contents into RAM on demand
+            targets:
+              - sp-fault-handler-mechanism
+            color: cyan
+            linger: 0.4
+      - say: The U F F D backend passes missing-page responsibility to a userspace handler through userfaultfd. That
+          handler needs permissions, validated backing data, storage access, failure handling and a deadline.
+          A remote chunk cache is an integrator design, not a distributed storage service supplied by this
+          interface.
+        hold: 0.7
+        visual_cues:
+          - id: sp-fault-handler-1
+            phrase: The U F F D backend passes missing-page responsibility to a userspace handler through userfaultfd
+            targets:
+              - sp-fault-handler-mechanism
+            color: yellow
+            linger: 0.4
+          - id: sp-fault-handler-delegate
+            phrase: The U F F D backend passes missing-page responsibility to a userspace handler through userfaultfd
+            targets:
+              - sp-fault-handler-mechanism
+            color: cyan
+            linger: 0.4
+      - say: When the handler stalls, the access needing its page cannot complete. Test cold pages and backend
+          failure, stop admission under policy, and reconcile retirement before reclaiming. Mapping without a
+          reservation changes virtual-memory accounting; it does not create physical RAM or make overcommit
+          safe.
+        hold: 0.7
+        visual_cues:
+          - id: sp-fault-handler-2
+            phrase: When the handler stalls, the access needing its page cannot complete
+            targets:
+              - sp-fault-handler-mechanism
+            color: green
+            linger: 0.4
+          - id: sp-fault-handler-stall
+            phrase: When the handler stalls, the access needing its page cannot complete
+            targets:
+              - sp-fault-handler-mechanism
+            color: cyan
+            linger: 0.4
+  - id: clock-refresh
+    title: Refresh wall time and application deadlines separately
+    visual: A restored wall-clock reading and a saved monotonic deadline travel through separate checks before
+      admission.
+    beats:
+      - say: The documented snapshot path can resume wall time from the saved moment. Synchronize through the guest
+          protocol, or use the supported restore-time clock option with its matching host and clock-source
+          prerequisites. A clock jump can affect application behavior.
+        hold: 0.7
+        visual_cues:
+          - id: sp-clock-refresh-0
+            phrase: The documented snapshot path can resume wall time from the saved moment
+            targets:
+              - sp-clock-refresh-mechanism
+            color: cyan
+            linger: 0.4
+          - id: sp-clock-refresh-sync
+            phrase: Synchronize through the guest protocol
+            targets:
+              - sp-clock-refresh-mechanism
+            color: cyan
+            linger: 0.4
+      - say: Certificate validity and token expiry depend on current time, while saved monotonic timers and
+          application deadlines need their own semantics. Do not infer that every timer expires or every TLS
+          request fails. Validate the actual guest protocol and keep user work held until its required checks
+          finish.
+        hold: 0.7
+        visual_cues:
+          - id: sp-clock-refresh-1
+            phrase: Certificate validity and token expiry depend on current time, while saved monotonic timers and
+              application deadlines need their own semantics
+            targets:
+              - sp-clock-refresh-mechanism
+            color: yellow
+            linger: 0.4
+          - id: sp-clock-refresh-separate
+            phrase: while saved monotonic timers and application deadlines need their own semantics
+            targets:
+              - sp-clock-refresh-mechanism
+            color: cyan
+            linger: 0.4
+      - say: With matching guest and application support, VMClock can expose a changed generation counter after
+          restore. Compatible userspace can detect that change and rebuild copied state. The device
+          notification is a signal for integrated software; it does not refresh every application by itself.
+        hold: 0.7
+        visual_cues:
+          - id: sp-clock-refresh-2
+            phrase: With matching guest and application support, VMClock can expose a changed generation counter after
+              restore
+            targets:
+              - sp-clock-refresh-mechanism
+            color: green
+            linger: 0.4
+          - id: sp-clock-refresh-generation
+            phrase: Compatible userspace can detect that change and rebuild copied state
+            targets:
+              - sp-clock-refresh-mechanism
+            color: cyan
+            linger: 0.4
+  - id: rng-window
+    title: Kernel reseeding leaves separate copied state
+    visual: The kernel notification crosses a handling window while the copied application seed, cached token and
+      boot identifier retain their own owners.
+    beats:
+      - say: On restore, Firecracker changes VMGenID and notifies the guest. A supporting guest kernel handles that
+          notification and reseeds its random generator. Between resumed virtual CPUs and completed handling,
+          a race window remains. A configured device without its guest driver does not complete this protocol.
+        hold: 0.7
+        visual_cues:
+          - id: sp-rng-window-0
+            phrase: On restore, Firecracker changes VMGenID and notifies the guest
+            targets:
+              - sp-rng-window-mechanism
+            color: cyan
+            linger: 0.4
+          - id: sp-rng-window-notify
+            phrase: On restore, Firecracker changes VMGenID and notifies the guest
+            targets:
+              - sp-rng-window-mechanism
+            color: cyan
+            linger: 0.4
+          - id: sp-rng-window-kernel
+            phrase: A supporting guest kernel handles that notification and reseeds its random generator
+            targets:
+              - sp-rng-window-mechanism
+            color: cyan
+            linger: 0.4
+      - say: The kernel pool is separate from an application pseudorandom generator, a previously generated token, an
+          application identifier and the saved boot identifier. Kernel reseeding does not replace those copied
+          values. Keep one-use credentials out of the shared template and reinitialize the application state
+          that requires uniqueness.
+        hold: 0.7
+        visual_cues:
+          - id: sp-rng-window-1
+            phrase: The kernel pool is separate from an application pseudorandom generator, a previously generated token,
+              an application identifier and the saved boot identifier
+            targets:
+              - sp-rng-window-mechanism
+            color: yellow
+            linger: 0.4
+          - id: sp-rng-window-app
+            phrase: Kernel reseeding does not replace those copied values
+            targets:
+              - sp-rng-window-mechanism
+            color: cyan
+            linger: 0.4
+      - say: "The overview grouped readiness into four headings. The actual Python contract checks five names: clock,
+          kernel randomness, application state, network and control. They are supplied controller observations
+          for the current clone. All five must be present before the model can become ready; sending fresh
+          bytes alone proves none of them."
+        hold: 0.7
+        visual_cues:
+          - id: sp-rng-window-2
+            phrase: The overview grouped readiness into four headings
+            targets:
+              - sp-rng-window-mechanism
+            color: green
+            linger: 0.4
+          - id: sp-rng-window-five
+            phrase: All five must be present before the model can become ready
+            targets:
+              - sp-rng-window-mechanism
+            color: green
+            linger: 0.4
+  - id: namespace-identity
+    title: Separate a local name from global routing
+    visual: Two independent network namespaces retain the same TAP name and guest address while their host routes
+      stay distinct.
+    beats:
+      - say: A TAP interface is a host network object. The guest address and MAC configuration are different objects.
+          A snapshot can retain both the original TAP name and the guest network settings, so restoring two
+          clones into one namespace can create a conflict.
+        hold: 0.7
+        visual_cues:
+          - id: sp-namespace-identity-0
+            phrase: A TAP interface is a host network object
+            targets:
+              - sp-namespace-identity-mechanism
+            color: cyan
+            linger: 0.4
+          - id: sp-namespace-identity-conflict
+            phrase: restoring two clones into one namespace can create a conflict
+            targets:
+              - sp-namespace-identity-mechanism
+            color: cyan
+            linger: 0.4
+      - say: The described integration creates a separate network namespace and its TAP for each clone, then has
+          Jailer join the selected namespace. The same TAP name and private guest address can repeat in
+          different namespaces. Host routing, address translation and filtering still need separate correct
+          configuration.
+        hold: 0.7
+        visual_cues:
+          - id: sp-namespace-identity-1
+            phrase: The described integration creates a separate network namespace and its TAP for each clone, then has
+              Jailer join the selected namespace
+            targets:
+              - sp-namespace-identity-mechanism
+            color: yellow
+            linger: 0.4
+          - id: sp-namespace-identity-separate
+            phrase: The same TAP name and private guest address can repeat in different namespaces
+            targets:
+              - sp-namespace-identity-mechanism
+            color: cyan
+            linger: 0.4
+      - say: A repeated private address is not globally unique. Nor does creating a namespace establish secure egress.
+          The upstream clone-network recipe is a starting example that requires security and performance
+          validation. Reconnect control for the current generation; restored open vsock connections close,
+          while guest listen sockets can accept new connections.
+        hold: 0.7
+        visual_cues:
+          - id: sp-namespace-identity-2
+            phrase: A repeated private address is not globally unique
+            targets:
+              - sp-namespace-identity-mechanism
+            color: green
+            linger: 0.4
+          - id: sp-namespace-identity-control
+            phrase: Reconnect control for the current generation
+            targets:
+              - sp-namespace-identity-mechanism
+            color: cyan
+            linger: 0.4
+  - id: freshness
+    title: Prove clone-specific state before releasing user code
+    visual: The same clone retains its actual copied clock, application state, network identity and control
+      reference while required observations determine admission.
+    beats:
+      - say: A restored machine resumes old state. Before releasing user code, verify timekeeping, fresh randomness
+          where the workload needs uniqueness, per-clone network identity, and usable control connections.
+          Kernel generation notifications and application reinitialization depend on the chosen guest and
+          runtime. An application random generator may need attention even when the kernel handles its own
+          reseeding.
+        hold: 0.65
+        visual_cues:
+          - id: freshness-beat-1-focus-1
+            phrase: Kernel generation notifications and application reinitialization depend on the chosen guest and
+              runtime
+            targets:
+              - freshness-name
+            color: cyan
+            linger: 0.65
+      - say: Our readiness gate remains closed while one required repair is missing. It opens only when every declared
+          check passes. Snapshotted network connections can break, and open vsock connections are reset on
+          restore. Establish a fresh authenticated control session and treat captured credentials, keys, and
+          identifiers according to the snapshot security policy.
+        hold: 0.65
+        visual_cues:
+          - id: freshness-beat-2-focus-1
+            phrase: Snapshotted network connections can break, and open vsock connections are reset on restore
+            targets:
+              - freshness-name
+            color: cyan
+            linger: 0.65
+  - id: filesystem
+    title: Discard private writes while preserving the base
+    visual: A base file and the private modifications resolve the visible view; the private layer retires before a
+      new generation reads the clean base.
+    beats:
+      - say: A read-only image supplies the common operating system and approved packages. Each job writes into its
+          own scratch layer. Reads resolve the private modification first, then fall back to the immutable
+          base. This separates reusable software from uploaded data, installed packages, and generated
+          artifacts that belong to one session.
+        hold: 0.65
+        visual_cues:
+          - id: filesystem-beat-1-focus-1
+            phrase: A read-only image supplies the common operating system and approved packages
+            targets:
+              - filesystem-k-v
+            color: cyan
+            linger: 0.65
+      - say: After exporting authorized artifacts, stop the job and its children, retire readers, unmount the private
+          layer, and reclaim its resources. The next job receives a fresh overlay. Verify cleanup and
+          retention across storage, logs, snapshots, sockets, and processes. A logical reset is one part of
+          the broader data-lifecycle and secure-erasure policy.
+        hold: 0.65
+        visual_cues:
+          - id: filesystem-beat-2-focus-1
+            phrase: Verify cleanup and retention across storage, logs, snapshots, sockets, and processes
+            targets:
+              - filesystem-k-v
+            color: cyan
+            linger: 0.65
+  - id: overlay-whiteout
+    title: Resolve reads and deletions through the guest overlay
+    visual: A named lower file is copied into upper, a new output is created, and a whiteout changes the merged
+      view without modifying lower.
+    beats:
+      - say: The guest mounts a merged view over an immutable lower image and private scratch. Upper and work are
+          separate directories on the same guest filesystem. Work supports overlay operations and stays
+          outside the merged user view. The host owns the scratch backing object; the guest owns its mounts.
+        hold: 0.7
+        visual_cues:
+          - id: sp-overlay-whiteout-0
+            phrase: The guest mounts a merged view over an immutable lower image and private scratch
+            targets:
+              - sp-overlay-whiteout-mechanism
+            color: cyan
+            linger: 0.4
+          - id: sp-overlay-whiteout-mount
+            phrase: Upper and work are separate directories on the same guest filesystem
+            targets:
+              - sp-overlay-whiteout-mechanism
+            color: cyan
+            linger: 0.4
+      - say: "Read config dot txt and the clean lower bytes are visible. Modify it and the file is copied into upper
+          with A bytes. A new output dot csv exists only in upper. Deleting the lower name creates a whiteout
+          in upper: the merged name disappears while lower still retains its original bytes."
+        hold: 0.7
+        visual_cues:
+          - id: sp-overlay-whiteout-1
+            phrase: Read config dot txt and the clean lower bytes are visible
+            targets:
+              - sp-overlay-whiteout-mechanism
+            color: yellow
+            linger: 0.4
+          - id: sp-overlay-whiteout-copy
+            phrase: Modify it and the file is copied into upper with A bytes
+            targets:
+              - sp-overlay-whiteout-mechanism
+            color: cyan
+            linger: 0.4
+          - id: sp-overlay-whiteout-whiteout
+            phrase: Deleting the lower name creates a whiteout in upper
+            targets:
+              - sp-overlay-whiteout-mechanism
+            color: cyan
+            linger: 0.4
+      - say: After authoritative execution retirement and reference closure, the host disposes of the old scratch
+          backing and creates a fresh upper and work pair. The next generation sees clean lower content and no
+          old output. A host cannot directly unmount an unrelated guest root as though it were a host mount.
+          Export, log and backup retention require their own rules.
+        hold: 0.7
+        visual_cues:
+          - id: sp-overlay-whiteout-2
+            phrase: After authoritative execution retirement and reference closure, the host disposes of the old scratch
+              backing and creates a fresh upper and work pair
+            targets:
+              - sp-overlay-whiteout-mechanism
+            color: green
+            linger: 0.4
+          - id: sp-overlay-whiteout-fresh
+            phrase: The next generation sees clean lower content and no old output
+            targets:
+              - sp-overlay-whiteout-mechanism
+            color: green
+            linger: 0.4
+  - id: network
+    title: Check the destination at the trusted egress boundary
+    visual: The same approved name changes its resolved destination; trusted egress blocks the second connection
+      and a separate authenticated broker owns credential release.
+    beats:
+      - say: "Host-guest control can use a vsock channel without consuming ordinary host TCP endpoints. Internet
+          access is a separate path. Enforce destination policy outside the untrusted guest: block metadata
+          and internal destinations, validate resolved addresses, and recheck redirects and connection
+          targets. A domain allowlist alone can miss a changed DNS answer."
+        hold: 0.65
+        visual_cues:
+          - id: network-beat-1-focus-1
+            phrase: Host-guest control can use a vsock channel without consuming ordinary host TCP endpoints
+            targets:
+              - network-guest-host-control-vsock
+            color: cyan
+            linger: 0.65
+          - id: network-beat-1-focus-2
+            phrase: Enforce destination policy outside the untrusted guest
+            targets:
+              - network-address-policy
+            color: yellow
+            linger: 0.65
+          - id: network-denied-addresses
+            phrase: block metadata and internal destinations
+            targets:
+              - network-denied-destinations
+              - network-address-policy
+            color: pink
+            linger: 0.6
+          - id: network-resolved-address
+            phrase: validate resolved addresses, and recheck redirects and connection targets
+            targets:
+              - network-dns-answer
+              - network-address-policy
+            color: yellow
+            linger: 0.6
+      - say: A credential broker can expose an opaque reference while keeping the real secret outside the guest. The
+          reference still grants scoped authority, so bind it to job, destination, method, and permitted
+          operation. Inject credentials only on an approved connection. Bound output, network volume, time,
+          and retries, and preserve a restricted audit record.
+        hold: 0.65
+        visual_cues:
+          - id: network-beat-2-focus-1
+            phrase: A credential broker can expose an opaque reference while keeping the real secret outside the guest
+            targets:
+              - network-credential-broker-secret-stays-outside-guest
+            color: cyan
+            linger: 0.65
+          - id: network-beat-2-focus-2
+            phrase: Inject credentials only on an approved connection
+            targets:
+              - network-n-injected-n-request-public-connection-injects-scoped-credential-tru
+            color: yellow
+            linger: 0.65
+  - id: egress-addresses
+    title: Authorize the operation and the actual connection
+    visual: A permitted name resolves first to public and then private addresses; the second connection is blocked
+      while the broker retains the credential.
+    beats:
+      - say: Validate every resolved address and connect to the validated destination while preserving TLS hostname
+          verification. For each new connection, resolve and validate again. Reject or revalidate redirects.
+          Cover IPv6 and mapped address forms as well as IPv4; an earlier public answer cannot authorize a
+          later private target.
+        hold: 0.7
+        visual_cues:
+          - id: sp-egress-addresses-0
+            phrase: Validate every resolved address and connect to the validated destination while preserving TLS hostname
+              verification
+            targets:
+              - sp-egress-addresses-mechanism
+            color: cyan
+            linger: 0.4
+          - id: sp-egress-addresses-pin
+            phrase: connect to the validated destination while preserving TLS hostname verification
+            targets:
+              - sp-egress-addresses-mechanism
+            color: cyan
+            linger: 0.4
+          - id: sp-egress-addresses-again
+            phrase: For each new connection, resolve and validate again
+            targets:
+              - sp-egress-addresses-mechanism
+            color: cyan
+            linger: 0.4
+      - say: AWS metadata includes the familiar IPv4 endpoint and an optional IPv6 endpoint on supported deployments.
+          Metadata credentials are for the instance role, whether the worker is a VM or bare metal. Deny host
+          management, other tenants and unauthorized private routes outside the guest. Approved packages can
+          use the artifact service.
+        hold: 0.7
+        visual_cues:
+          - id: sp-egress-addresses-1
+            phrase: AWS metadata includes the familiar IPv4 endpoint and an optional IPv6 endpoint on supported
+              deployments
+            targets:
+              - sp-egress-addresses-mechanism
+            color: yellow
+            linger: 0.4
+      - say: For a private API, the guest presents a short-lived capability to an explicit authenticated broker. Check
+          tenant, generation, resource, operation and expiry, then construct the approved upstream TLS request
+          inside the broker. Opaque encrypted HTTPS headers cannot be transparently rewritten. Revoke
+          capabilities at retirement and bound response size, time, volume and rate.
+        hold: 0.7
+        visual_cues:
+          - id: sp-egress-addresses-2
+            phrase: For a private API, the guest presents a short-lived capability to an explicit authenticated broker
+            targets:
+              - sp-egress-addresses-mechanism
+            color: green
+            linger: 0.4
+          - id: sp-egress-addresses-broker
+            phrase: then construct the approved upstream TLS request inside the broker
+            targets:
+              - sp-egress-addresses-mechanism
+            color: cyan
+            linger: 0.4
+  - id: vsock-wire
+    title: Establish the control stream before carrying commands
+    visual: Literal request and acknowledgement bytes move through an AF_UNIX to AF_VSOCK connection with a
+      retained payload boundary.
+    beats:
+      - say: Firecracker mediates a host Unix-domain socket and a guest virtio-vsock socket. This command route uses
+          no ordinary host TCP port, but it still consumes descriptors, buffers and VMM work. Compare
+          transport capacity and latency with measurements rather than assigning a universal transit time.
+        hold: 0.7
+        visual_cues:
+          - id: sp-vsock-wire-0
+            phrase: Firecracker mediates a host Unix-domain socket and a guest virtio-vsock socket
+            targets:
+              - sp-vsock-wire-mechanism
+            color: cyan
+            linger: 0.4
+          - id: sp-vsock-wire-pair
+            phrase: Firecracker mediates a host Unix-domain socket and a guest virtio-vsock socket
+            targets:
+              - sp-vsock-wire-mechanism
+            color: cyan
+            linger: 0.4
+      - say: The guest supervisor listens on port five thousand. The host connects to the configured Unix socket and
+          sends CONNECT, a space, five thousand, and newline. It then waits for the complete OK line
+          containing the assigned host-side port. Only after validating that acknowledgement does this stream
+          carry application commands.
+        hold: 0.7
+        visual_cues:
+          - id: sp-vsock-wire-1
+            phrase: The guest supervisor listens on port five thousand
+            targets:
+              - sp-vsock-wire-mechanism
+            color: yellow
+            linger: 0.4
+          - id: sp-vsock-wire-send
+            phrase: sends CONNECT, a space, five thousand, and newline
+            targets:
+              - sp-vsock-wire-mechanism
+            color: cyan
+            linger: 0.4
+          - id: sp-vsock-wire-ok
+            phrase: Only after validating that acknowledgement does this stream carry application commands
+            targets:
+              - sp-vsock-wire-mechanism
+            color: cyan
+            linger: 0.4
+      - say: The pinned implementation reserves host-side ports from two to the thirtieth power inclusive to two to
+          the thirty-first power exclusive. These are protocol-specific bounds, not a general TCP rule. Bind
+          the new application session to the authorized sandbox generation and separately frame and bound
+          every command and response.
+        hold: 0.7
+        visual_cues:
+          - id: sp-vsock-wire-2
+            phrase: The pinned implementation reserves host-side ports from two to the thirtieth power inclusive to two to
+              the thirty-first power exclusive
+            targets:
+              - sp-vsock-wire-mechanism
+            color: green
+            linger: 0.4
+          - id: sp-vsock-wire-range
+            phrase: These are protocol-specific bounds
+            targets:
+              - sp-vsock-wire-mechanism
+            color: cyan
+            linger: 0.4
+  - id: bounded-ack
+    title: Use one deadline for the whole acknowledgement
+    visual: A byte cursor appends fragments through newline, validates the full line and leaves the following
+      payload untouched.
+    beats:
+      - say: The article reader receives one byte at a time until newline, up to sixty-four bytes. It uses one
+          two-second monotonic deadline for the whole acknowledgement. Each read gets the remaining time,
+          rather than a fresh full deadline. EOF before newline, exhausted time and excess length fail before
+          user work.
+        hold: 0.7
+        visual_cues:
+          - id: sp-bounded-ack-0
+            phrase: The article reader receives one byte at a time until newline, up to sixty-four bytes
+            targets:
+              - sp-bounded-ack-mechanism
+            color: cyan
+            linger: 0.4
+          - id: sp-bounded-ack-read
+            phrase: Each read gets the remaining time, rather than a fresh full deadline
+            targets:
+              - sp-bounded-ack-mechanism
+            color: cyan
+            linger: 0.4
+      - say: After newline, require the entire line to be OK, a space, decimal digits and newline, then enforce the
+          reserved port range. An OK prefix alone is insufficient. A valid line followed by payload returns
+          the assigned port and leaves that payload unread because the reader stops exactly at the delimiter.
+        hold: 0.7
+        visual_cues:
+          - id: sp-bounded-ack-1
+            phrase: After newline, require the entire line to be OK, a space, decimal digits and newline, then enforce the
+              reserved port range
+            targets:
+              - sp-bounded-ack-mechanism
+            color: yellow
+            linger: 0.4
+          - id: sp-bounded-ack-parse
+            phrase: then enforce the reserved port range
+            targets:
+              - sp-bounded-ack-mechanism
+            color: cyan
+            linger: 0.4
+          - id: sp-bounded-ack-payload
+            phrase: leaves that payload unread because the reader stops exactly at the delimiter
+            targets:
+              - sp-bounded-ack-mechanism
+            color: cyan
+            linger: 0.4
+      - say: The socket fragment is an integration sketch requiring a running configured guest. We test its parser
+          separately with supplied fake stream inputs, without opening a VMM connection. The complete service
+          still needs authorization, backpressure, bounded messages, output limits and cancellation. A
+          different timeout applies to a later application operation.
+        hold: 0.7
+        visual_cues:
+          - id: sp-bounded-ack-2
+            phrase: The socket fragment is an integration sketch requiring a running configured guest
+            targets:
+              - sp-bounded-ack-mechanism
+            color: green
+            linger: 0.4
+  - id: capacity
+    title: Dirty memory and synchronized bursts bound the pool
+    visual: A fixed 224 GiB pool supports a current grid of memory-planning slots as dirty footprint grows. A
+      separate CPU burst fixture admits at most 128 active jobs and puts the exact remaining arrivals into a
+      visible queue, retaining the mean duty-cycle calculation as a labeled reference.
+    beats:
+      - say: Configured guest address space and physical private memory differ. This supplied budget reserves host and
+          shared-image capacity, then divides the remaining pool by an assumed per-job footprint. The estimate
+          falls as private memory grows. Include VMM overhead, page tables, caches, and measured headroom in
+          the actual host accounting.
+        hold: 0.65
+        motion_check:
+          region:
+            - 180
+            - 385
+            - 1030
+            - 410
+          minimumChangedFraction: 0.002
+        visual_cues:
+          - id: capacity-beat-1-focus-1
+            phrase: then divides the remaining pool by an assumed per-job footprint
+            targets:
+              - capacity-jobs-string-jobs
+            color: cyan
+            linger: 0.65
+          - id: capacity-beat-1-focus-2
+            phrase: This supplied budget reserves host and shared-image capacity
+            targets:
+              - capacity-jobs-string-jobs
+            color: yellow
+            linger: 0.65
+      - say: Average CPU duty cycle also leaves burst risk. Many mostly idle sessions can wake together. Enforce
+          per-job and host budgets, admission, queueing, and memory-pressure policy before density threatens
+          neighbors. Measure tail startup and execution latency at the intended load. Expected sharing and
+          mean utilization are inputs to planning, rather than guarantees of safe oversubscription.
+        hold: 0.65
+        motion_check:
+          region:
+            - 180
+            - 360
+            - 1540
+            - 435
+          minimumChangedFraction: 0.002
+        visual_cues:
+          - id: capacity-beat-2-focus-1
+            phrase: Many mostly idle sessions can wake together
+            targets:
+              - capacity-id-wake-label-wake-up-wave
+            color: cyan
+            linger: 0.65
+          - id: capacity-beat-2-focus-2
+            phrase: Enforce per-job and host budgets, admission, queueing, and memory-pressure policy before density
+              threatens neighbors
+            targets:
+              - capacity-jobs-string-jobs-2
+            color: yellow
+            linger: 0.65
+  - id: capacity-arithmetic
+    title: Compute memory slots and the synchronized queue
+    visual: The same224GiB pool converts to229376MiB and splits under full versus private footprints; a
+      separate3840-session wave occupies128cores and leaves3712 queued.
+    beats:
+      - say: Use the article’s supplied memory worksheet. Two hundred fifty-six gibibytes minus thirty-two reserved
+          leaves two hundred twenty-four. One gibibyte is one thousand twenty-four mebibytes, so the pool is
+          two hundred twenty-nine thousand three hundred seventy-six mebibytes. Two-gibibyte footprints give
+          one hundred twelve whole slots.
+        hold: 0.7
+        visual_cues:
+          - id: sp-capacity-arithmetic-0
+            phrase: Use the article’s supplied memory worksheet
+            targets:
+              - sp-capacity-arithmetic-mechanism
+            color: cyan
+            linger: 0.4
+          - id: sp-capacity-arithmetic-pool
+            phrase: so the pool is two hundred twenty-nine thousand three hundred seventy-six mebibytes
+            targets:
+              - sp-capacity-arithmetic-mechanism
+            color: yellow
+            linger: 0.4
+          - id: sp-capacity-arithmetic-full
+            phrase: Two-gibibyte footprints give one hundred twelve whole slots
+            targets:
+              - sp-capacity-arithmetic-mechanism
+            color: green
+            linger: 0.4
+      - say: "If each clone instead needs fifty mebibytes of private memory, divide that pool by fifty and round down:
+          four thousand five hundred eighty-seven memory-only slots. Shared residency, VMM overhead, page
+          tables and headroom still need the real host budget. This comparison does not authorize that many
+          simultaneous jobs."
+        hold: 0.7
+        visual_cues:
+          - id: sp-capacity-arithmetic-1
+            phrase: "If each clone instead needs fifty mebibytes of private memory, divide that pool by fifty and round
+              down: four thousand five hundred eighty-seven memory-only slots"
+            targets:
+              - sp-capacity-arithmetic-mechanism
+            color: yellow
+            linger: 0.4
+          - id: sp-capacity-arithmetic-private
+            phrase: "divide that pool by fifty and round down: four thousand five hundred eighty-seven memory-only slots"
+            targets:
+              - sp-capacity-arithmetic-mechanism
+            color: green
+            linger: 0.4
+      - say: "The separate toy has one hundred twenty-eight cores and thirty configured sessions per core. Multiply
+          cores by sessions per core: three thousand eight hundred forty sessions. Multiply that count by the
+          supplied mean duty of point zero three: expected active demand is one hundred fifteen point two
+          core-equivalents. If all sessions wake together under one active job per core, admit one hundred
+          twenty-eight. Subtract those admitted jobs from the session count: three thousand seven hundred
+          twelve wait in the queue. Average duty does not bound that burst."
+        hold: 0.7
+        visual_cues:
+          - id: sp-capacity-arithmetic-2
+            phrase: The separate toy has one hundred twenty-eight cores and thirty configured sessions per core
+            targets:
+              - sp-capacity-arithmetic-mechanism
+            color: green
+            linger: 0.4
+          - id: sp-capacity-arithmetic-sessions
+            phrase: "Multiply cores by sessions per core: three thousand eight hundred forty sessions"
+            targets:
+              - sp-capacity-arithmetic-mechanism
+            color: cyan
+            linger: 0.4
+          - id: sp-capacity-arithmetic-mean
+            phrase: expected active demand is one hundred fifteen point two core-equivalents
+            targets:
+              - sp-capacity-arithmetic-mechanism
+            color: green
+            linger: 0.4
+          - id: sp-capacity-arithmetic-queue
+            phrase: "Subtract those admitted jobs from the session count: three thousand seven hundred twelve wait in the
+              queue"
+            targets:
+              - sp-capacity-arithmetic-mechanism
+            color: pink
+            linger: 0.4
+  - id: group-budget
+    title: Spend one shared CPU allowance across threads
+    visual: Two VMM threads subtract their CPU time from one group-owned period budget while guest process limits
+      remain separate.
+    beats:
+      - say: The host must place the VMM and its applicable tasks in the intended cgroup. For fair-class scheduling,
+          CPU max specifies a total CPU-time quota and a period, both in microseconds. All applicable threads
+          spend that shared quota; each thread does not receive another copy of it.
+        hold: 0.7
+        visual_cues:
+          - id: sp-group-budget-0
+            phrase: The host must place the VMM and its applicable tasks in the intended cgroup
+            targets:
+              - sp-group-budget-mechanism
+            color: cyan
+            linger: 0.4
+          - id: sp-group-budget-shared
+            phrase: All applicable threads spend that shared quota
+            targets:
+              - sp-group-budget-mechanism
+            color: cyan
+            linger: 0.4
+      - say: At the article setting of one hundred thousand over one hundred thousand, one thread spending sixty
+          thousand leaves forty thousand for the group in that period. Quota divided by period gives the mean
+          core-equivalent allowance. Scheduling and the chosen period still affect bursts and latency.
+        hold: 0.7
+        visual_cues:
+          - id: sp-group-budget-1
+            phrase: At the article setting of one hundred thousand over one hundred thousand, one thread spending sixty
+              thousand leaves forty thousand for the group in that period
+            targets:
+              - sp-group-budget-mechanism
+            color: yellow
+            linger: 0.4
+          - id: sp-group-budget-spend
+            phrase: one thread spending sixty thousand leaves forty thousand for the group in that period
+            targets:
+              - sp-group-budget-mechanism
+            color: cyan
+            linger: 0.4
+      - say: Memory max includes the intended guest footprint and VMM overhead; monitor events and define OOM policy.
+          Host process-count limits constrain host tasks, while guest process limits constrain untrusted guest
+          processes. Keep disk, output and network limits too. CPU quota alone cannot establish the startup
+          percentile.
+        hold: 0.7
+        visual_cues:
+          - id: sp-group-budget-2
+            phrase: Memory max includes the intended guest footprint and VMM overhead; monitor events and define OOM
+              policy
+            targets:
+              - sp-group-budget-mechanism
+            color: green
+            linger: 0.4
+          - id: sp-group-budget-memory
+            phrase: Memory max includes the intended guest footprint and VMM overhead
+            targets:
+              - sp-group-budget-mechanism
+            color: cyan
+            linger: 0.4
+  - id: readonly-data
+    title: Read shared data while accounting for its working set
+    visual: A revision-bound read-only model image feeds clean pages to two guests; separate collector writes
+      allocate private pages.
+    beats:
+      - say: To read a fifty-gibibyte model without copying it into scratch, use an authorized read-only virtual block
+          device backed by a managed image. Bind its revision and access policy to the instance. A
+          filesystem-sharing feature needs explicit VMM and guest support.
+        hold: 0.7
+        visual_cues:
+          - id: sp-readonly-data-0
+            phrase: To read a fifty-gibibyte model without copying it into scratch, use an authorized read-only virtual
+              block device backed by a managed image
+            targets:
+              - sp-readonly-data-mechanism
+            color: cyan
+            linger: 0.4
+          - id: sp-readonly-data-image
+            phrase: Bind its revision and access policy to the instance
+            targets:
+              - sp-readonly-data-mechanism
+            color: cyan
+            linger: 0.4
+      - say: Sharing the file does not remove its I O or resident page-cache working set from the host budget.
+          Concurrent cold readers can fault together. Measure that pressure and recovery capacity before
+          admitting a large population.
+        hold: 0.7
+        visual_cues:
+          - id: sp-readonly-data-1
+            phrase: Sharing the file does not remove its I O or resident page-cache working set from the host budget
+            targets:
+              - sp-readonly-data-mechanism
+            color: yellow
+            linger: 0.4
+          - id: sp-readonly-data-fault
+            phrase: Concurrent cold readers can fault together
+            targets:
+              - sp-readonly-data-mechanism
+            color: cyan
+            linger: 0.4
+      - say: A garbage collector can write marks, reference counts or heap metadata. Those writes can break
+          copy-on-write sharing even when user data appears unchanged. Read faults and private dirty growth
+          are different accounting paths; measure both instead of deriving density from configured RAM.
+        hold: 0.7
+        visual_cues:
+          - id: sp-readonly-data-2
+            phrase: A garbage collector can write marks, reference counts or heap metadata
+            targets:
+              - sp-readonly-data-mechanism
+            color: green
+            linger: 0.4
+          - id: sp-readonly-data-dirty
+            phrase: Those writes can break copy-on-write sharing even when user data appears unchanged
+            targets:
+              - sp-readonly-data-mechanism
+            color: cyan
+            linger: 0.4
+  - id: state-machine
+    title: Run the actual ownership transitions
+    visual: The article Clone object changes only through validated methods while its page and scratch owners
+      remain persistent.
+    beats:
+      - say: The actual Python object starts restored. Admission needs the complete required observation set and the
+          restored state, then start requires ready. Read requires running and an integer page index within
+          the base. A negative index is rejected rather than using Python negative indexing.
+        hold: 0.7
+        visual_cues:
+          - id: sp-state-machine-0
+            phrase: The actual Python object starts restored
+            targets:
+              - sp-state-machine-mechanism
+            color: cyan
+            linger: 0.4
+          - id: sp-state-machine-admit
+            phrase: Admission needs the complete required observation set and the restored state, then start requires
+              ready
+            targets:
+              - sp-state-machine-mechanism
+            color: cyan
+            linger: 0.4
+          - id: sp-state-machine-index
+            phrase: A negative index is rejected
+            targets:
+              - sp-state-machine-mechanism
+            color: cyan
+            linger: 0.4
+      - say: Write first checks that same read contract and records a private value. In the published run A writes
+          ninety-nine at index one and creates an output file. Cancellation changes its state but retains both
+          resources. Disposing at that point raises execution retirement required.
+        hold: 0.7
+        visual_cues:
+          - id: sp-state-machine-1
+            phrase: Write first checks that same read contract and records a private value
+            targets:
+              - sp-state-machine-mechanism
+            color: yellow
+            linger: 0.4
+          - id: sp-state-machine-cancel
+            phrase: Cancellation changes its state but retains both resources
+            targets:
+              - sp-state-machine-mechanism
+            color: cyan
+            linger: 0.4
+          - id: sp-state-machine-dispose-fail
+            phrase: Disposing at that point raises execution retirement required
+            targets:
+              - sp-state-machine-mechanism
+            color: cyan
+            linger: 0.4
+      - say: The retirement assertion must match sandbox identifier and generation, and it is accepted only after
+          cancellation. A wrong generation fails. Matching confirmation changes the model to retired; disposal
+          then clears private and scratch dictionaries and marks disposed. B still reads twenty. These are
+          deterministic dictionary checks, not probes that a real process or mount has stopped.
+        hold: 0.7
+        visual_cues:
+          - id: sp-state-machine-2
+            phrase: The retirement assertion must match sandbox identifier and generation, and it is accepted only after
+              cancellation
+            targets:
+              - sp-state-machine-mechanism
+            color: green
+            linger: 0.4
+          - id: sp-state-machine-wrong
+            phrase: A wrong generation fails
+            targets:
+              - sp-state-machine-mechanism
+            color: cyan
+            linger: 0.4
+          - id: sp-state-machine-clear
+            phrase: disposal then clears private and scratch dictionaries and marks disposed
+            targets:
+              - sp-state-machine-mechanism
+            color: green
+            linger: 0.4
+          - id: sp-state-machine-retired
+            phrase: Matching confirmation changes the model to retired
+            targets:
+              - sp-state-machine-mechanism
+            color: green
+            linger: 0.4
+  - id: retirement
+    title: A lease ends only after its resources are retired
+    visual: The running generation retains pages, scratch, references and authority until execution retirement and
+      closure permit disposal.
+    beats:
+      - say: Cancellation is a request to stop, rather than proof that the guest and its resources have disappeared.
+          Maintain a durable job identity, owner lease, and terminal state. Reconcile orphaned runtimes after
+          host-agent failure, and verify that the process tree, network objects, scratch layer, and credential
+          references are retired before advertising free capacity.
+        hold: 0.65
+        visual_cues:
+          - id: retirement-beat-1-focus-1
+            phrase: Maintain a durable job identity, owner lease, and terminal state
+            targets:
+              - retirement-name
+            color: cyan
+            linger: 0.65
+      - say: You can now explain what a snapshot shares, what a private write allocates, what must become fresh after
+          restore, and which component enforces egress authority. Validate hostile workloads, worker loss,
+          cleanup, and load separately. A useful execution platform makes both its fast path and its
+          return-to-clean-state boundary inspectable.
+        hold: 0.65
+        visual_cues:
+          - id: retirement-beat-2-focus-1
+            phrase: A useful execution platform makes both its fast path and its return-to-clean-state boundary
+              inspectable
+            targets:
+              - retirement-name
+            color: cyan
+            linger: 0.65
+  - id: reference-retirement
+    title: Wait for the last resource reference
+    visual: A stopped VMM loses its execution edge, but a duplicate descriptor keeps the VM resource allocated
+      until that reference closes.
+    beats:
+      - say: A VM lifetime follows its file-descriptor references, not just the process that created it. A duplicate
+          or inherited reference can keep VM resources alive after that creator exits. Execution retirement
+          and final resource-reference closure are separate facts to verify before advertising free capacity.
+        hold: 0.7
+        visual_cues:
+          - id: sp-reference-retirement-0
+            phrase: A VM lifetime follows its file-descriptor references, not just the process that created it
+            targets:
+              - sp-reference-retirement-mechanism
+            color: cyan
+            linger: 0.4
+          - id: sp-reference-retirement-duplicate
+            phrase: A duplicate or inherited reference can keep VM resources alive after that creator exits
+            targets:
+              - sp-reference-retirement-mechanism
+            color: cyan
+            linger: 0.4
+      - say: For an owned non-root cgroup in a valid domain configuration, cgroup kill targets the process tree. In a
+          threaded cgroup it fails with E OPNOTSUPP because the operation is process directed. A kill request
+          still needs exit and remaining-reference verification. A reused PID number cannot establish
+          generation ownership.
+        hold: 0.7
+        visual_cues:
+          - id: sp-reference-retirement-1
+            phrase: For an owned non-root cgroup in a valid domain configuration, cgroup kill targets the process tree
+            targets:
+              - sp-reference-retirement-mechanism
+            color: yellow
+            linger: 0.4
+          - id: sp-reference-retirement-threaded
+            phrase: In a threaded cgroup it fails with E OPNOTSUPP
+            targets:
+              - sp-reference-retirement-mechanism
+            color: cyan
+            linger: 0.4
+      - say: Revoke the capability, close network and command references, retire writable-memory access, and dispose
+          of the scratch backing under the generation owner. Retention rules govern exported artifacts and
+          logs. Hold uncertain resources for reconciliation; a timed-out reply supplies no timeout-to-free
+          transition.
+        hold: 0.7
+        visual_cues:
+          - id: sp-reference-retirement-2
+            phrase: Revoke the capability, close network and command references, retire writable-memory access, and
+              dispose of the scratch backing under the generation owner
+            targets:
+              - sp-reference-retirement-mechanism
+            color: green
+            linger: 0.4
+          - id: sp-reference-retirement-close
+            phrase: Revoke the capability, close network and command references, retire writable-memory access, and
+              dispose of the scratch backing under the generation owner
+            targets:
+              - sp-reference-retirement-mechanism
+            color: cyan
+            linger: 0.4
+  - id: reconciliation-table
+    title: Choose recovery from the observed failure
+    visual: Each concrete failed resource retains ownership until its own observation and recovery complete.
+    beats:
+      - say: A missing controller heartbeat can coexist with a running VMM. Reconcile the durable tenant and
+          generation against host processes, cgroups, sockets, volumes and network objects, then adopt or stop
+          that same owner. A second controller must not merely declare its predecessor gone.
+        hold: 0.7
+        visual_cues:
+          - id: sp-reconciliation-table-0
+            phrase: A missing controller heartbeat can coexist with a running VMM
+            targets:
+              - sp-reconciliation-table-mechanism
+            color: cyan
+            linger: 0.4
+          - id: sp-reconciliation-table-inventory
+            phrase: Reconcile the durable tenant and generation against host processes, cgroups, sockets, volumes and
+              network objects
+            targets:
+              - sp-reconciliation-table-mechanism
+            color: cyan
+            linger: 0.4
+      - say: For runaway processes inspect guest limits, CPU and output growth. For private-memory growth inspect
+          resident pages, memory events and guest OOM state, stop admission and preserve host reserve. For a
+          stalled handler inspect fault progress and storage errors. Retire the affected execution before
+          reclaiming.
+        hold: 0.7
+        visual_cues:
+          - id: sp-reconciliation-table-1
+            phrase: For runaway processes inspect guest limits, CPU and output growth
+            targets:
+              - sp-reconciliation-table-mechanism
+            color: yellow
+            linger: 0.4
+          - id: sp-reconciliation-table-memory
+            phrase: For private-memory growth inspect resident pages, memory events and guest OOM state
+            targets:
+              - sp-reconciliation-table-mechanism
+            color: cyan
+            linger: 0.4
+      - say: For credential abuse inspect caller, capability, operation, resource and upstream result, deny
+          unauthorized work and revoke affected authority. Incomplete cleanup quarantines resources until
+          process, descriptor, mount and network checks establish disposal. Fault-inject crashes, delayed
+          cleanup, duplicate events, cold pages and cross-tenant probes in the deployed runtime.
+        hold: 0.7
+        visual_cues:
+          - id: sp-reconciliation-table-2
+            phrase: For credential abuse inspect caller, capability, operation, resource and upstream result, deny
+              unauthorized work and revoke affected authority
+            targets:
+              - sp-reconciliation-table-mechanism
+            color: green
+            linger: 0.4
+          - id: sp-reconciliation-table-quarantine
+            phrase: Incomplete cleanup quarantines resources
+            targets:
+              - sp-reconciliation-table-mechanism
+            color: cyan
+            linger: 0.4
+  - id: endpoint-clock
+    title: Measure through the first user instruction
+    visual: One accepted request crosses placement, queue, restore and readiness markers before its true endpoint
+      is counted.
+    beats:
+      - say: The design target is fifteen milliseconds at the ninety-ninth percentile, from gateway acceptance to the
+          supervisor beginning the first user instruction. It includes accepted queueing, placement, restore
+          and required readiness. Record rejection and timeout rates alongside it, and measure cold launch
+          separately for each image.
+        hold: 0.7
+        visual_cues:
+          - id: sp-endpoint-clock-0
+            phrase: The design target is fifteen milliseconds at the ninety-ninth percentile, from gateway acceptance to
+              the supervisor beginning the first user instruction
+            targets:
+              - sp-endpoint-clock-mechanism
+            color: cyan
+            linger: 0.4
+          - id: sp-endpoint-clock-target
+            phrase: from gateway acceptance to the supervisor beginning the first user instruction
+            targets:
+              - sp-endpoint-clock-mechanism
+            color: cyan
+            linger: 0.4
+      - say: "In a supplied timing worksheet, acceptance is zero, placement ends at three milliseconds, loading at
+          seven, readiness at sixteen and user entry at seventeen. Subtract acceptance from user entry:
+          seventeen milliseconds misses the target. Reporting seven from the load response would measure the
+          wrong endpoint. This one invented request does not determine a percentile."
+        hold: 0.7
+        visual_cues:
+          - id: sp-endpoint-clock-1
+            phrase: In a supplied timing worksheet, acceptance is zero, placement ends at three milliseconds, loading at
+              seven, readiness at sixteen and user entry at seventeen
+            targets:
+              - sp-endpoint-clock-mechanism
+            color: yellow
+            linger: 0.4
+          - id: sp-endpoint-clock-user
+            phrase: readiness at sixteen and user entry at seventeen
+            targets:
+              - sp-endpoint-clock-mechanism
+            color: cyan
+            linger: 0.4
+          - id: sp-endpoint-clock-miss
+            phrase: seventeen milliseconds misses the target
+            targets:
+              - sp-endpoint-clock-mechanism
+            color: pink
+            linger: 0.4
+      - say: To evaluate the service, retain host and guest kernels, Firecracker version, image, snapshot residency,
+          concurrent starts and actual user-entry instrumentation. Test hostile workloads, worker loss,
+          cleanup and load independently. A fast API response and the local arithmetic do not establish
+          readiness, isolation or a production benchmark.
+        hold: 0.7
+        visual_cues:
+          - id: sp-endpoint-clock-2
+            phrase: To evaluate the service, retain host and guest kernels, Firecracker version, image, snapshot
+              residency, concurrent starts and actual user-entry instrumentation
+            targets:
+              - sp-endpoint-clock-mechanism
+            color: green
+            linger: 0.4
+  - id: fresh-generation
+    title: Predict what can be reclaimed
+    visual: A new generation trace carries two private pages and one output through wrong-generation confirmation,
+      matching retirement and final reference closure.
+    beats:
+      - say: Work a new supplied case. The base has three four-kibibyte entries, four, eight and twelve. A generation
+          four writes ninety-nine to index zero and forty-one to index two; B remains unchanged. A requests
+          cancellation. A generation-five retirement notice arrives, then the correct generation-four notice
+          arrives while one reference remains. Can the platform return A resources, and what is the modeled
+          page total before disposal?
+        hold: 1.6
+        visual_cues:
+          - id: sp-fresh-generation-0
+            phrase: Work a new supplied case
+            targets:
+              - sp-fresh-generation-mechanism
+            color: cyan
+            linger: 0.4
+          - id: sp-fresh-generation-writes
+            phrase: A generation four writes ninety-nine to index zero and forty-one to index two
+            targets:
+              - sp-fresh-generation-mechanism
+            color: cyan
+            linger: 0.4
+          - id: sp-fresh-generation-cancel
+            phrase: A requests cancellation
+            targets:
+              - sp-fresh-generation-mechanism
+            color: cyan
+            linger: 0.4
+          - id: sp-fresh-generation-notices
+            phrase: then the correct generation-four notice arrives while one reference remains
+            targets:
+              - sp-fresh-generation-mechanism
+            color: cyan
+            linger: 0.4
+      - say: "The wrong generation cannot retire A. Matching retirement still leaves the outstanding reference to
+          close in the real integration. Keep capacity held. Before disposal the model has three shared base
+          entries plus two A private entries: five pages times four kibibytes equals twenty kibibytes. B still
+          reads four, eight and twelve."
+        hold: 0.7
+        visual_cues:
+          - id: sp-fresh-generation-1
+            phrase: The wrong generation cannot retire A
+            targets:
+              - sp-fresh-generation-mechanism
+            color: yellow
+            linger: 0.4
+          - id: sp-fresh-generation-wrong
+            phrase: The wrong generation cannot retire A
+            targets:
+              - sp-fresh-generation-mechanism
+            color: pink
+            linger: 0.4
+          - id: sp-fresh-generation-held
+            phrase: Keep capacity held
+            targets:
+              - sp-fresh-generation-mechanism
+            color: yellow
+            linger: 0.4
+          - id: sp-fresh-generation-count
+            phrase: five pages times four kibibytes equals twenty kibibytes
+            targets:
+              - sp-fresh-generation-mechanism
+            color: green
+            linger: 0.4
+      - say: After authoritative execution retirement and the final reference closure, revoke authority and dispose of
+          A writable resources. The model then accounts for the three base entries, twelve kibibytes, and a
+          fresh generation receives empty scratch. You can now trace the owner, readiness and disposal
+          boundary; the next search-system lesson follows current evidence and reader permissions.
+        hold: 0.7
+        visual_cues:
+          - id: sp-fresh-generation-2
+            phrase: After authoritative execution retirement and the final reference closure, revoke authority and dispose
+              of A writable resources
+            targets:
+              - sp-fresh-generation-mechanism
+            color: green
+            linger: 0.4
+          - id: sp-fresh-generation-close
+            phrase: After authoritative execution retirement and the final reference closure
+            targets:
+              - sp-fresh-generation-mechanism
+            color: cyan
+            linger: 0.4
+          - id: sp-fresh-generation-dispose
+            phrase: dispose of A writable resources
+            targets:
+              - sp-fresh-generation-mechanism
+            color: cyan
+            linger: 0.4
+          - id: sp-fresh-generation-base
+            phrase: The model then accounts for the three base entries, twelve kibibytes
+            targets:
+              - sp-fresh-generation-mechanism
+            color: green
+            linger: 0.4

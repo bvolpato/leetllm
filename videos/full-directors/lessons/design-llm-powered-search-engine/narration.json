@@ -1,0 +1,304 @@
+[
+  {
+    "id": "c01",
+    "title": "Can Alice start on day 45?",
+    "sourceChapters": ["c01"],
+    "beats": [
+      {
+        "id": "c01-calendar",
+        "say": "Circle day forty-five. Alice wants to start a parser migration for a service account that day. The ordinary window ends thirty days after the deprecation notice. Keep that boundary in sight as we open the exception.",
+        "hold": 0.65
+      },
+      {
+        "id": "c01-cut",
+        "say": "Follow the quote down to the notice. It says service accounts may start within sixty days. The selection stops here. What would you need to see before you told Alice she could keep her date?",
+        "hold": 3
+      },
+      {
+        "id": "c01-condition",
+        "say": "Read the next four words. Only with security approval. The guide gives us the rule. Alice's approval record tells us whether it applies to her. Her request is pending, so day forty-five falls outside her window.",
+        "hold": 1
+      },
+      {
+        "id": "c01-signed",
+        "say": "Security signs the request. The circle stays on the same date, and the sixty-day window now covers it. We'll follow those two passages from search to a checked answer, then work out what it takes to serve that answer.",
+        "hold": 1.1
+      }
+    ]
+  },
+  {
+    "id": "c02",
+    "title": "Which passages reach the two slots?",
+    "sourceChapters": ["c02"],
+    "beats": [
+      {
+        "id": "c02-identity",
+        "say": "A search engine retrieves passages and uses them to write a reply. This is retrieval-augmented generation. Give each passage a document and revision identity, original text, source span, content hash, publication state, and access metadata. Here, zero through eighty identifies characters in the saved normalized text, with the end excluded.",
+        "hold": 0.8
+      },
+      {
+        "id": "c02-cutoff",
+        "say": "Resolve the reader identity in trusted service code. Alice belongs to engineering in workspace A. Inside the trusted index, a global ranking puts another workspace's roadmap first and the old ninety-day policy second. Put the cutoff after two hits. How many usable passages will reach Alice?",
+        "hold": 2.7
+      },
+      {
+        "id": "c02-empty",
+        "say": "Neither hit survives. Discard the roadmap for tenant mismatch and the policy because revision one has been superseded. Both slots are empty. A better writer downstream cannot recover either passage that the cutoff discarded.",
+        "hold": 1
+      },
+      {
+        "id": "c02-eligible",
+        "say": "Filter the population first. The current policy and exception take the same two slots. Apply those permissions to every retrieval branch, content fetch, reranker, citation preview, and cache lookup. Missing access metadata denies access. If filtering must come later, scan further within a budget and measure authorized recall.",
+        "hold": 0.8
+      },
+      {
+        "id": "c02-advance",
+        "say": "Suppose the registry advances to policy three while the index still holds two. In that case, only the exception remains eligible. Fetch the authorized current policy or disclose the missing evidence. A new crawl date cannot restore an obsolete rule. The registry can only enforce updates it has learned, including deletions and revocations.",
+        "hold": 1
+      }
+    ]
+  },
+  {
+    "id": "routing",
+    "title": "Where does each part of the question go?",
+    "sourceChapters": ["c02"],
+    "beats": [
+      {
+        "id": "routing-live",
+        "say": "Rewind to the earlier snapshot. Policy two and exception one are both current again in this example. Is build ten forty-two running right now? That state can change between index refreshes. Read it from the authorized live API. For a migration policy, search the published document index and require the current revision.",
+        "hold": 0.7
+      },
+      {
+        "id": "routing-mixed",
+        "say": "Alice asks for build status and the current migration exception in one search. Which branch can we drop?",
+        "hold": 2.6
+      },
+      {
+        "id": "routing-fork",
+        "say": "Keep both. Route the build identifier to the live lookup and the exception to hybrid search. The current-revision flag travels with the policy branch. Recheck both results under Alice's authenticated scope. If two current policies conflict without a precedence rule, report the disagreement.",
+        "hold": 1
+      }
+    ]
+  },
+  {
+    "id": "c03",
+    "title": "How much does each rank contribute?",
+    "sourceChapters": ["c03"],
+    "beats": [
+      {
+        "id": "c03-branches",
+        "say": "Lexical retrieval can find an exact identifier, while vector retrieval can find related wording. BM twenty-five weighs term frequency, rarity and passage length. Here the lexical branch favors the policy with parser-v2 in its text. The two supplied passage vectors tie on cosine similarity to the query, so identity order puts the exception first in that list.",
+        "hold": 0.75
+      },
+      {
+        "id": "c03-duplicate",
+        "say": "Suppose a lexical hit repeats. Remove the duplicate before numbering the ranks, so the exception moves up to second. Raw similarity and lexical scores use different scales. For reciprocal rank fusion, add sixty to the rank and take the reciprocal. Add one such contribution per branch. Which passage leads?",
+        "hold": 2.7
+      },
+      {
+        "id": "c03-tie",
+        "say": "Their scores tie. Each has one first place and one second place. Identity order breaks this tie. A reranker can now compare each candidate and the question together. Use labeled questions to choose how many to keep.",
+        "hold": 1
+      },
+      {
+        "id": "c03-rewrite",
+        "say": "Search again with an authorized rewrite. This branch returns the exception first and the policy second. The exception gains the larger contribution and wins on score. A hypothetical answer can help find a passage through its embedding, a numerical representation of its content. Only retrieved source passages can support Alice's answer.",
+        "hold": 1
+      }
+    ]
+  },
+  {
+    "id": "c04",
+    "title": "What fits with the condition attached?",
+    "sourceChapters": ["c04"],
+    "beats": [
+      {
+        "id": "c04-budget",
+        "say": "Read the two source strips in retrieval order. The exception uses fifteen words, including its approval condition. Our demonstration counts hyphenated terms as one word. With eighteen spaces, three remain. Can the twelve-word policy join it? How many more spaces would you open?",
+        "hold": 3
+      },
+      {
+        "id": "c04-expand",
+        "say": "Open nine more spaces. Both complete passages fit in twenty-seven. In a real prompt, use the target tokenizer and reserve space for instructions, the question, wrappers and output. Repeated policy passages can crowd out the exception. Test order and distractors on your model.",
+        "hold": 1
+      },
+      {
+        "id": "c04-slice",
+        "say": "Suppose compression stops the exception at character seventy-two. Every selected character matches and the document hash still resolves. Compare the highlighted words with the original. Should the two-source publisher release this pack?",
+        "hold": 2.8
+      },
+      {
+        "id": "c04-restore",
+        "say": "Withhold it. Extend the span through the final period. Check that each quote starts at zero, ends at the source length, and matches the current permitted original. This fixture requires one entire passage from each source. Resolution finds the text, support checks its meaning, and coverage asks whether both parts of the question survived.",
+        "hold": 0.8
+      },
+      {
+        "id": "c04-meaning",
+        "say": "Try a paraphrase. The claim says security approval is required. Insert the word not into its source. All the claim's words still occur, yet the meaning reverses. Now read the paraphrase. Authorization from the security team is mandatory. It preserves the meaning while failing the same word test. Keep original spans through compression. Calibrate a semantic checker against human decisions, including contradictions, missing conditions and valid paraphrases. Give it a way to abstain.",
+        "hold": 1
+      }
+    ]
+  },
+  {
+    "id": "c05",
+    "title": "Which decision can release the draft?",
+    "sourceChapters": ["c05"],
+    "beats": [
+      {
+        "id": "c05-binding",
+        "say": "This policy product withholds factual claims until their checks pass. Progress and permitted source links can appear earlier. Bind a decision to the request, draft hash, and evidence revision. Treat retrieved text as data. Keep access checks and tool permissions in the service.",
+        "hold": 0.65
+      },
+      {
+        "id": "c05-stale",
+        "say": "An acceptance arrives for the earlier draft and revision. Compare its identifiers with the active request. The current draft stays pending. Next comes a matching event whose accepted field is the integer one. Should that open the gate?",
+        "hold": 2.6
+      },
+      {
+        "id": "c05-typed",
+        "say": "It stays closed. The reducer requires a literal Boolean, a check event, and a valid integer event ID and evidence revision. A matching true decision arrives. Recheck Alice's access to both passages before sending the text. This request publishes one claim. You normally have thirty days from the deprecation notice to start, but security approval gives your service account sixty days, so day forty-five fits. Replaying that same event adds no second publication. A valid rejection arriving first would block the claim instead.",
+        "hold": 1
+      },
+      {
+        "id": "c05-wire",
+        "say": "On the wire, a server-sent event sets its ID to twelve. The next event carries different data and omits its ID. Which ID will its browser callback see?",
+        "hold": 2.7
+      },
+      {
+        "id": "c05-inherit",
+        "say": "Twelve again. An omitted ID inherits the last one. An explicitly empty ID clears it, leaving no nonempty cursor for reconnect. Give each replayable application event a distinct ID, authenticate reconnects, and bind replay to the reader and request. Bound buffering and cancel the stream on revocation. These supplied verdicts test delivery logic. Their accuracy needs separate evidence.",
+        "hold": 1
+      }
+    ]
+  },
+  {
+    "id": "c06",
+    "title": "When can Alice read the first claim?",
+    "sourceChapters": ["c06"],
+    "beats": [
+      {
+        "id": "c06-overlap",
+        "say": "Start both clocks. Planning takes forty milliseconds. The raw search needs two hundred sixty and finds both passages without waiting for a rewrite. Rerank for ninety milliseconds and pack for twenty. The model starts at three hundred seventy. A progress signal can tell Alice the search is working.",
+        "hold": 0.8
+      },
+      {
+        "id": "c06-token",
+        "say": "The first draft token arrives at eight hundred milliseconds, after four hundred thirty in the model. Look at Alice's answer area. Can we put that token there?",
+        "hold": 2.7
+      },
+      {
+        "id": "c06-checked",
+        "say": "Keep it empty. The draft stays private while the service finishes and checks the claim. The sentence is complete at nine hundred milliseconds. Checking takes another eighty milliseconds. At nine hundred eighty, Alice can read the rule and its exception together, with a citation to each passage. A first-token latency would leave that last hundred eighty milliseconds out.",
+        "hold": 0.9
+      },
+      {
+        "id": "c06-dependent",
+        "say": "Now replay with retrieval dependent on the rewrite. Move the search start to forty milliseconds and keep every duration. The draft token moves to eight forty and the checked claim to ten twenty. Trace endpoints per request, including queues, cancellations and failures. Adding stage percentiles does not generally produce an end-to-end percentile.",
+        "hold": 1
+      }
+    ]
+  },
+  {
+    "id": "c07",
+    "title": "How many requests still hold model memory?",
+    "sourceChapters": ["c07"],
+    "beats": [
+      {
+        "id": "c07-lifetime",
+        "say": "Take a steady stream of six hundred synthesis requests per second. A request spends point three seven seconds before model admission, one point nine three with its key and value history resident, and point two in final checks after release. At that arrival rate, how many requests still hold their history?",
+        "hold": 2.6
+      },
+      {
+        "id": "c07-residence",
+        "say": "Only the middle interval. Apply arrival rate times mean residence time to the chosen boundary. Across two and a half seconds, fifteen hundred synthesis requests are in flight. Across the resident interval, eleven hundred fifty-eight hold model cache on average. If you retain history for retries, include that extra time.",
+        "hold": 0.75
+      },
+      {
+        "id": "c07-bytes",
+        "say": "Size one cached position. Store keys and values across thirty-two layers, eight stored heads, and one hundred twenty-eight elements per head, at two bytes per element. That is a hundred thirty-one thousand seventy-two bytes per position. Multiply by fifteen hundred sixty time-weighted positions per resident and by the resident count. Divide by two to the thirtieth to get about two hundred twenty point five gibibytes.",
+        "hold": 0.8
+      },
+      {
+        "id": "c07-workers",
+        "say": "Twelve usable gibibytes per worker gives a memory floor of nineteen workers. Each request also generates one hundred twenty output tokens. At six thousand tokens per second per worker, decode needs twelve for seventy-two thousand output tokens per second. Shared workers must satisfy both bounds. Measure prefill, batching, bursts, failures and headroom before sizing the fleet. Longer prompts can change both residence and throughput.",
+        "hold": 1
+      }
+    ]
+  },
+  {
+    "id": "c08",
+    "title": "What does a stale cache hit cost?",
+    "sourceChapters": ["c08"],
+    "beats": [
+      {
+        "id": "c08-cohort",
+        "say": "Follow one hundred searches. Sixty use full synthesis, thirty reuse a valid cached answer, and ten need a live lookup. A route that avoids synthesis still pays for identity checks, storage, networking, and formatting. Here the full route costs point nine seven cents, including the cache check. These prices are hypothetical.",
+        "hold": 0.8
+      },
+      {
+        "id": "c08-bill",
+        "say": "Weight each price by its share. The mean is point six zero one cents per search. At a thousand searches per second, multiply dollars per request by sixty thousand for a minute. That comes to three hundred sixty dollars and sixty cents. This worksheet uses four hundred output tokens. Capacity used one hundred twenty. Use a common measured workload for deployment.",
+        "hold": 0.8
+      },
+      {
+        "id": "c08-invalid",
+        "say": "A source update invalidates ten cached answers. Recheck scope, evidence revisions, freshness and model-prompt compatibility on each hit. Reject a stale answer before sending it. Follow those ten requests. With the same hundred searches, what will happen to the bill?",
+        "hold": 2.8
+      },
+      {
+        "id": "c08-reroute",
+        "say": "Move the ten to full synthesis. The live lookup count stays at ten. Each moved search costs point nine four cents more. Spread that increase across the hundred searches and the new mean is point six nine five cents each. Cache validity changes both the price and the load on the model.",
+        "hold": 1
+      }
+    ]
+  },
+  {
+    "id": "evaluation",
+    "title": "Where did the exception disappear?",
+    "sourceChapters": ["c08"],
+    "beats": [
+      {
+        "id": "evaluation-gold",
+        "say": "Label the current policy and its exception as the two required identities. The raw search returns the policy twice, followed by a frequently asked question. Deduplicate hits before taking the top two. The policy and the frequently asked question cover one required source between them. Recall is one half. For normalized discounted gain, each relevant hit earns one over log base two of rank plus one. Divide by the gain of an ideal ranking. Here, dividing one by the ideal gain of about one point six three gives a normalized score near point six one.",
+        "hold": 0.8
+      },
+      {
+        "id": "evaluation-both",
+        "say": "Replace the irrelevant hit with the exception. It's third in the raw list and second after deduplication. Cutting the raw list at two would lose it. With both distinct passages in the top two, recall and normalized gain both reach one. An empty gold set makes these metrics inapplicable. Now inspect the actual evidence path. Retrieval found both passages, but only the general policy reached the writer. Where would you repair this answer?",
+        "hold": 2.6
+      },
+      {
+        "id": "evaluation-layer",
+        "say": "Repair packing. If both passages arrived and the writer dropped the condition, inspect generation and claim checking. A private citation points to authorization. Evaluate held-out questions with source and claim labels, including revocation and abstention. Clicks, reformulations and model judges can flag cases to inspect. They cannot establish whether Alice received the right policy.",
+        "hold": 1
+      }
+    ]
+  },
+  {
+    "id": "practice",
+    "title": "A new exception for the same developer",
+    "sourceChapters": ["c08"],
+    "beats": [
+      {
+        "id": "practice-new",
+        "say": "The registry now names exception two. Its window is forty-five days and the approval must be recorded before Friday. The ordinary thirty-day policy stays at revision two. Pack A contains yesterday's complete exception. Pack B quotes today's text exactly, stopping just after approval. Which pack can the search engine publish for Alice?",
+        "hold": 3.3
+      },
+      {
+        "id": "practice-repair",
+        "say": "Withhold both. A is stale. B has the right document hash but misses the Friday cutoff. Extend B through the final period. Recheck both revisions, spans and permissions. The publisher can now release the complete pair.",
+        "hold": 0.85
+      },
+      {
+        "id": "practice-friday",
+        "say": "Try day forty. Security approved Alice's request on Friday morning, ahead of her migration. Keeping the new wording in view, does that record qualify her for the longer window?",
+        "hold": 3
+      },
+      {
+        "id": "practice-thursday",
+        "say": "Friday misses the cutoff, so day forty is too late. Move just the approval back to Thursday morning. Now day forty fits within forty-five days. A search result that dropped the last three words would give those two records the same answer.",
+        "hold": 1.5
+      }
+    ]
+  }
+]

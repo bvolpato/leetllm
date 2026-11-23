@@ -1,0 +1,6 @@
+Local Vizmatic artwork. Reproducible source: social_banner.tsx.
+From the repository's web/ directory, render the 1200x630 PNG at scale 1:
+
+pnpm exec tsx -e "import { renderBanner } from './src/content/preparation/language-modeling-next-token-prediction/social_banner.tsx'; renderBanner('./src/content/preparation/language-modeling-next-token-prediction/social_banner.png').then(console.log)"
+
+The article's worked next-token table gives result/value/index/other combined probabilities 0.60/0.25/0.10/0.05. Only the result branch is expanded: after appending result, period/and probabilities are 0.80/0.20. Conditional sequence probability for result followed by period is 0.60*0.80=0.48. Each distribution sums to one; no branch probabilities for other prefixes are invented. These values trace the sampling loop cleanly without relying on a specific checkpoint. No external image service or upload is required.

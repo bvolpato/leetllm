@@ -1,0 +1,264 @@
+version: 1
+id: trees
+title: How Trees Learn to Divide a Space
+source: foundations/decision-trees-random-forests-gradient-boosting/content.md
+voice: en-US-AndrewNeural
+rate: +0%
+sources:
+  - title: Scikit-learn decision trees
+    url: https://scikit-learn.org/stable/modules/tree.html
+  - title: "Breiman: Random Forests"
+    url: https://doi.org/10.1023/A:1010933404324
+  - title: "Friedman: Greedy Function Approximation"
+    url: https://projecteuclid.org/journals/annals-of-statistics/volume-29/issue-5/Greedy-function-approximation-A-gradient-boosting-machine/10.1214/aos/1013203451.full
+scenes:
+  - id: intro
+    title: Which review will this split miss?
+    visual: Three access badges drop into slots on either side of the ambiguity cut. Their labels show which requests needed review. The view widens to all eight requests before the divider sweeps left to catch R3.
+    beats:
+      - say: Watch these three access requests land. Every request gets the usual access checks. Those to the right of the yellow divider also go to a reviewer. Two badges say they needed review. Which one did the split miss?
+        caption_starts: [Two badges say they needed review]
+        hold: 2.5
+        visual_cues:
+          - {id: first-divider, phrase: to the right of the yellow divider, targets: [divider], color: yellow}
+      - say: R3. Its ambiguity score is only two. Look at all eight requests. Slide the divider left until it catches that request. Which routine requests crossed with it?
+        caption_starts: [Which routine requests crossed with it]
+        hold: 1.7
+        visual_cues:
+          - {id: name-exception, phrase: Its ambiguity score is only two, targets: [training-rthree], caption_boundary: true, color: yellow}
+          - {id: all-requests, phrase: Look at all eight requests, targets: [training-rthree], color: yellow}
+          - {id: catch-rthree, phrase: Slide the divider left until it catches that request, targets: [divider], color: yellow}
+      - say: R7 and R8. Catching one missed review added two unnecessary reviews. A deeper tree can split a branch again to give R3 its own leaf. Later we'll send a fresh request down that branch.
+        hold: 1.0
+        visual_cues:
+          - {id: joined-queue, phrase: R7 and R8, targets: [queue-result], color: yellow}
+  - id: geometry-limits
+    title: What happens between two training values?
+    visual: A staircase follows a diagonal target on the request plane. Two aligned rulers then keep the training endpoints visible as an unseen value switches sides after squaring.
+    beats:
+      - say: Open the row of requests into a map. Ambiguity runs across. Policy support runs up. A tree tests one feature at a time, so its cuts run straight up or straight across. Suppose the real rule followed this diagonal. A linear model can draw it with one line. The tree has to build a staircase. Each extra split divides the available training examples between smaller patches.
+        hold: 0.9
+      - say: A numeric split uses the order of the training values. There's usually no need to standardize them for distance. Look at a separate gap between one and four. Its midpoint is two and a half. An unseen request at two point eight goes right. Square the feature before fitting. The training endpoints are now one and sixteen. Their midpoint is eight and a half. Where does the same request go?
+        hold: 2.2
+        visual_cues:
+          - {id: square-endpoints, phrase: Square the feature before fitting, targets: [squared-scale], color: cyan}
+      - say: It goes left. Two point eight squared is seven point eight four, below the new midpoint. Both training rows kept their sides. A strictly increasing transform preserves their order in exact arithmetic, but choosing a midpoint inside a gap can change the route for a new row. Rounding and histogram bins can change the candidate gaps too.
+        hold: 1
+        visual_cues:
+          - {id: squared-route, phrase: It goes left, targets: [squared-scale], caption_boundary: true, color: yellow}
+  - id: impurity
+    title: How mixed is this leaf?
+    visual: Each grid cell compares two labeled requests drawn independently from the root. Disagreeing pairs light up. Curves relate the score to the fraction needing review.
+    beats:
+      - say: Before we cut, all eight requests share one leaf. Pick a request, put it back, and pick again. In this grid the first pick chooses the row and the second chooses the column. Light a square when the labels disagree. R1 with R3 counts. R3 with R1 counts too. Thirty-two of the sixty-four ordered pairs disagree.
+        hold: 0.8
+        visual_cues:
+          - {id: impurity-probe-b1-1, phrase: the first pick chooses the row, targets: [impurity-probe], color: yellow}
+      - say: That fraction, one half, is the Gini impurity. The chance of drawing two reviews is the review share squared. For two routine requests, square the routine share. Subtract both match probabilities from one. For two classes that's twice the product of the two shares. A pure leaf has zero disagreement. An even split has the most.
+        hold: 0.8
+        visual_cues:
+          - {id: gini-rule-b2-1, phrase: twice the product of the two shares, targets: [gini-rule], color: cyan}
+      - say: The pink curve measures entropy in bits. Weight each class by the negative base-two logarithm of its share. A class with zero share contributes zero. Entropy also falls to zero at either pure end. It reaches one bit in the middle. Those different curves can favor different cuts on the same labels.
+        hold: 0.8
+        visual_cues:
+          - {id: entropy-example-b3-1, phrase: pink curve measures entropy, targets: [entropy-example], color: pink}
+  - id: criteria-compare
+    title: Which cut wins on the same labels?
+    visual: Two candidate partitions show all 24 labels and their child sizes. The Gini and entropy gains appear beside their partitions. Residual stems then measure the loss for three continuous targets.
+    beats:
+      - say: Try two ways to split a separate group of twenty-four, half review and half routine. Cut A peels off four routine cases. Its other leaf still holds twenty rows. Cut B makes two leaves of twelve, with nine reviews in one and three in the other. When you score a cut, give each child its share of the twenty-four rows.
+        hold: 1.0
+      - say: Start with the parent score and subtract the weighted child scores. With Gini, cut B wins. It removes one eighth of a unit of disagreement. Cut A removes one tenth. Keep the groups exactly where they are and switch to entropy. Now cut A wins, by about two thousandths of a bit. The choice of impurity changed which split we would fit.
+        hold: 1.1
+        visual_cues:
+          - {id: criterion-gini, phrase: With Gini cut B wins, targets: [criterion-gains], caption_boundary: true, color: cyan}
+          - {id: criterion-entropy, phrase: Now cut A wins, targets: [criterion-gains], caption_boundary: true, color: pink}
+      - say: Now predict handling time for three requests. Ten, twenty and sixty minutes average to thirty. Square the three gaps from that mean and average them. The mean squared error is about four hundred sixty-seven square minutes. Split off the sixty-minute request. Its error goes to zero. The other two now share a prediction of fifteen, with squared errors of twenty-five each. Across all three requests, the average falls to sixteen and two thirds. The split saves four hundred fifty square minutes of mean squared error. Each leaf uses its row count as the divisor, even when it has just one row.
+        hold: 1.0
+        visual_cues:
+          - {id: regression-split, phrase: Split off the sixty-minute request, targets: [regression-values], color: yellow}
+  - id: search
+    title: Which gap buys the most agreement?
+    visual: The working divider sweeps the gaps between training values. Each cut produces two lists of row IDs, two review fractions, and a weighted gain.
+    beats:
+      - say: Back to our eight labeled requests. Let's fit a tree with a single split, a stump. Sort the distinct ambiguity values. Try one midpoint in each gap. Each move changes which rows land together. If two rows have the same value, a test on that feature has to send them to the same side.
+        motion_check: {region: [235, 340, 870, 450], minimumChangedFraction: 0.002}
+        hold: 0.8
+        visual_cues:
+          - {id: tree-partition-b1-1, phrase: Try one midpoint in each gap, targets: [tree-partition], color: yellow}
+      - say: Stop between R8 at three point two and R4 at three point five. We tried this gap at the start. On the right, all three requests needed review. On the left, R3 is the only review among five. It gives that leaf a review score of one fifth, and a Gini impurity of point three two. The right leaf's impurity is zero.
+        hold: 0.8
+        visual_cues:
+          - {id: split-gain-b2-1, phrase: the only review among five, targets: [split-gain], color: yellow}
+      - say: The mixed leaf holds five of the eight training rows. Multiply its impurity by five eighths. Add zero from the pure leaf. The children retain point two units of disagreement. Subtract that from the parent's one half and the gain is point three. Test the other feature too. The best policy-support cut gains only about one sixth. Keep the ambiguity cut at three point three five.
+        hold: 0.9
+        visual_cues:
+          - {id: tree-partition-b3-1, phrase: cut at three point three five, targets: [tree-partition], color: yellow}
+  - id: depth
+    title: Who else lands in R3’s leaf?
+    visual: Two cuts inside the low side bracket R3. Later requests arrive one at a time, meet the frozen branch, and reveal the price of each mistake.
+    beats:
+      - say: Keep the cut at three point three five. Work inside its left leaf. A cut at one point seven five removes R1 and R2. Another at two point four puts R7 and R8 on the far side. R3 has a leaf all to itself. All eight training predictions are now correct, but just one row supports that little review region.
+        hold: 1
+        visual_cues:
+          - {id: first-inner, phrase: A cut at one point seven five, targets: [first-branch], color: yellow}
+          - {id: second-inner, phrase: Another at two point four, targets: [second-branch], color: yellow}
+      - say: Freeze those branches. Here comes V2, a later request with ambiguity two point one. At a routing cutoff of one half, what does R3's branch do with V2?
+        hold: 2.1
+      - say: It sends V2 to review. Open the label. V2 was routine. That's an eighteen-dollar extra review. Now try V8 at two point eight. It falls outside the little review region and goes through automatically. V8 actually needed review, a hundred-and-twenty-dollar miss.
+        caption_starts: [Now try V8 at two point eight, It falls outside the little review region]
+        hold: 1
+        visual_cues:
+          - {id: vtwo-route, phrase: It sends V2 to review, targets: [later-cases], color: cyan}
+          - {id: vtwo-label, phrase: V2 was routine, targets: [later-cases], caption_boundary: true, color: blue}
+          - {id: veight-arrives, phrase: Now try V8 at two point eight, targets: [later-cases], color: yellow}
+          - {id: veight-route, phrase: It falls outside the little review region and goes through automatically, targets: [later-cases], color: cyan}
+          - {id: veight-label, phrase: V8 actually needed review, targets: [later-cases], caption_boundary: true, color: pink}
+      - say: On all eight later requests, those are the deep tree's only errors. A hundred thirty-eight dollars beats the stump's two hundred forty at the same cutoff. A perfect training score alone couldn't tell us that. Compare depth, minimum leaf size and pruning on representative validation requests. We'll try changing the cutoff too.
+        hold: 1.1
+  - id: forest
+    title: Which trees can score R3?
+    visual: Three eight-draw bootstrap samples feed three fitted rules. Each score travels into the full mean. The middle sample's three copies of R3 disqualify its score from a second mean.
+    beats:
+      - say: Give each tree eight draws from the original eight requests. Put a request back after every draw. Tree one can draw R7 again, while tree two can draw R3 three times. That's a bootstrap sample. The trees can fit independently. Each split also gets a random choice of features. Here it gets just one.
+        hold: 1.1
+        motion_check: {region: [160, 320, 1580, 170], minimumChangedFraction: 0.002}
+      - say: Send R3 through all three trees. Its ambiguity is two and its policy support is three. The outside trees test ambiguity. Both send it to an all-routine leaf. The middle tree tests support. R3 clears its cut and lands among reviews. Average the three leaf scores. What score goes to the routing policy?
+        hold: 2.3
+        visual_cues:
+          - {id: outer-leaves, phrase: Both send it to an all-routine leaf, targets: [outside-route], color: cyan}
+          - {id: middle-leaf, phrase: R3 clears its cut and lands among reviews, targets: [middle-route], color: cyan}
+      - say: One third. Only the middle tree contributed a one. A hard majority vote would call R3 routine. Averaging the leaf frequencies gives the routing policy a score between zero and one. That average can steady predictions when trees vary in different ways. An error they all share survives the average. Changing which features or rows the trees can use can also shift their average prediction.
+        hold: 0.9
+        visual_cues:
+          - {id: forest-mean, phrase: One third, targets: [forest-sum], caption_boundary: true, color: yellow}
+      - say: Now score R3 as if each contributing tree had never trained on it. Look for its ID in the samples. Which tree has to come out?
+        hold: 2.4
+      - say: Tree two. Take its one out of the sum, and take that tree out of the count. Two trees remain. Their mean is zero. That's R3's out-of-bag score. Both eligible trees missed a real review. To test future requests or new users, hold out a period or a group that matches that question.
+        hold: 1.2
+        visual_cues:
+          - {id: exclude-middle, phrase: Take its one out of the sum, targets: [middle-sample], color: yellow}
+          - {id: oob-score, phrase: Their mean is zero, targets: [forest-sum], caption_boundary: true, color: cyan}
+  - id: boosting
+    title: How far should the next tree move the prediction?
+    visual: Three observed handling times stay put. Stems mark the errors at thirty minutes. A fitted step averages the first two residuals, then a tenth of each leaf correction moves the predictions.
+    beats:
+      - say: These three requests took ten, twenty and sixty minutes. Start by predicting their average, thirty minutes for each. Look at the sixty-minute request. The pink line measures how much longer it actually took. The other two finished sooner than predicted.
+        hold: 0.9
+        visual_cues:
+          - {id: first-gaps, phrase: Look at the sixty-minute request, targets: [long-gap], color: pink}
+      - say: Fit the next tree to those gaps. For half squared error, target minus prediction is the negative gradient. The first two requests share a leaf. Their errors are minus twenty and minus ten, so the leaf proposes minus fifteen for both. The other leaf proposes plus thirty. Our learning rate is one tenth. Where will the sixty-minute request's prediction land?
+        hold: 2.2
+      - say: At thirty-three minutes. The tree proposed thirty more minutes and we kept three. The other two predictions fall by a minute and a half, to twenty-eight and a half. Now measure the gaps again. The last request still needs twenty-seven minutes. That becomes a target for the next tree.
+        caption_starts: [The other two predictions, Now measure the gaps again, The last request still needs twenty-seven minutes]
+        hold: 1
+        visual_cues:
+          - {id: add-correction, phrase: At thirty-three minutes, targets: [prediction-step, learning-rate], caption_boundary: true, color: cyan}
+          - {id: measure-again, phrase: Now measure the gaps again, targets: [residuals], color: pink}
+          - {id: remaining-gap, phrase: The last request still needs twenty-seven minutes, targets: [residuals], color: pink}
+      - say: Repeat the fit four times in all. Each round starts from the line the last one left behind. This is gradient boosting. Work within a round can run in parallel. The next round needs the updated predictions. Choose the learning rate, depth and stopping round together on held-out data.
+        hold: 1.1
+        visual_cues:
+          - {id: next-rounds, phrase: Each round starts from the line the last one left behind, targets: [prediction-step], color: cyan}
+  - id: classification
+    title: How much should R3’s leaf move?
+    visual: Each request contributes a signed residual and a curvature term. Five rows feed R3's update, three feed the other leaf. The scaled steps move two marks on one probability ruler.
+    beats:
+      - say: Return to the eight review labels. Half needed review, so start every score at one half. That's a logit of zero. For binary log loss, subtract each row's probability from its label. That's the negative gradient. R3 contributes plus a half, pulling the logit up. The four routine neighbors in its leaf each contribute minus a half, pulling it down.
+        hold: 0.8
+      - say: Add those five requests for change. The total is minus one and a half. The curvature tells us how quickly the gradient changes as the logit moves. Each row contributes its probability times one minus that probability, a quarter here. Five quarters go in the denominator. Divide the residual sum by that curvature sum. What's the full step for this leaf?
+        hold: 2.4
+      - say: Minus one point two. That's one approximate Newton step in logit units. On the right, three reviews all pull upward. Their residuals sum to one and a half. Divide by three quarters and the step is plus two.
+        hold: 0.9
+        visual_cues:
+          - {id: left-step, phrase: Minus one point two, targets: [left-quotient], caption_boundary: true, color: yellow}
+          - {id: right-step, phrase: the step is plus two, targets: [right-quotient], caption_boundary: true, color: yellow}
+      - say: Keep one tenth of each step. Add it to the old logit and convert back to probability with the sigmoid. R3's region slips just below one half. The other clears it. From round one through round four, the same split wins and validation log loss falls. At a review cutoff of one half, V3 and V8 still get missed. Check which requests actually change route when you compare boosters. Their split scores and regularizers can differ.
+        hold: 1.1
+        visual_cues:
+          - {id: scale-logits, phrase: Add it to the old logit and convert back to probability with the sigmoid, targets: [score-ruler], color: green}
+          - {id: compare-rounds, phrase: From round one through round four, targets: [validation-loss], color: yellow}
+  - id: evaluate
+    title: What did the review queue cost?
+    visual: The same eight validation requests occupy fixed columns. Two policy rows show who went to review and attach each error price to the request that earned it.
+    beats:
+      - say: Freeze the one-split tree and bring in eight later requests. Read down a column. The observed label is at the top, then the leaf score, then what the policy did. Send scores of one half or more to review. Find the two required reviews that went through automatically.
+        hold: 2.1
+      - say: V3 and V8. Each miss costs a fictional hundred and twenty dollars. The two misses cost two hundred and forty. Now lower just the routing threshold to one fifth. Equality counts. Follow those same two columns.
+        hold: 1.0
+        visual_cues:
+          - {id: validation-misses, phrase: V3 and V8, targets: [strict-bill], caption_boundary: true, color: pink}
+          - {id: strict-total, phrase: The two misses cost two hundred and forty, targets: [strict-bill], caption_boundary: true, color: yellow}
+          - {id: lower-threshold, phrase: lower just the routing threshold to one fifth, targets: [wide-bill], color: yellow}
+      - say: Both now go to review. So do all four routine requests. At eighteen dollars per extra review, the bill is seventy-two dollars. Both policies get the same F1 score. One sends two requests to the queue and the other sends eight. Price the mistakes and check that the reviewers can handle the load.
+        hold: 1.1
+        visual_cues:
+          - {id: extra-reviews, phrase: the bill is seventy-two dollars, targets: [wide-bill], caption_boundary: true, color: yellow}
+      - say: Compare the other models on those same eight labels and prices. The deep tree fixes a miss and adds an extra review. The forest at one fifth costs fifty-four dollars. The earlier logistic model costs thirty-six. Keep that simpler candidate in the comparison. These eight labels helped us choose, so test the frozen choice on a fresh batch.
+        hold: 1.0
+      - say: We can also ask what the stump uses. Return to its half cutoff. Leave the labels and policy support with their requests. Reverse the ambiguity column and score the rows again. V5 and V7 lose their high scores. V2 and V4 pick them up. The bill rises from two hundred forty dollars to five hundred sixteen. This one permutation tests the fitted stump's reliance on ambiguity on these rows.
+        hold: 1.1
+        visual_cues:
+          - {id: permute-ambiguity, phrase: Reverse the ambiguity column and score the rows again, targets: [permuted-feature], color: yellow}
+  - id: importance-explanation
+    title: What explains a score of one fifth?
+    visual: Two features keep their positions while training split gains are compared with held-out F1 drops. R3's baseline score then moves along a ruler as each feature is fixed.
+    beats:
+      - say: There's another way to rank features. Give each feature credit for the impurity its splits removed during fitting. Weight each split by the fraction of training rows that reached it. That's mean decrease in impurity. Watch what it rewards here. Forty training examples have a weak binary predictor and a continuous noise feature. Noise offers many possible cut points, just as a nearly unique numeric ID would.
+        hold: 0.9
+      - say: Noise gets ninety-two percent of the training credit. Now shuffle each feature separately on two thousand held-out rows, keeping the fitted forest fixed. Shuffling noise barely changes F1. Shuffling the binary predictor costs nearly a tenth of a point. The spread across shuffles describes this fixed batch. Refit on new samples to study variation across datasets. Correlated features can cover for one another, and shuffling can make unusual combinations.
+        hold: 1.0
+        visual_cues:
+          - {id: shuffle-features, phrase: shuffle each feature separately, targets: [held-out-drops], color: cyan}
+      - say: How did the stump give R3 one fifth? Fill both features from each training row and average the scores. That's our baseline of one half. Now fix ambiguity at R3's value of two. Every row goes to the left leaf. The score falls by three tenths. Fixing policy support contributes zero in either order because the stump only tests ambiguity. Those are the Shapley contributions for this interventional background. Ambiguity explains the low score. R3's label tells us the request needed review.
+        caption_starts: [Now fix ambiguity, The score falls by three tenths]
+        hold: 1.1
+        visual_cues:
+          - {id: shap-contribution, phrase: The score falls by three tenths, targets: [shap-values], color: yellow}
+  - id: missing-contract
+    title: What can change a tree’s prediction?
+    visual: Two requests face a toy missing-value rule. Densifying changes only the absent cell into a stored zero. Three fits at a single input then illustrate variation, bias and outcome noise.
+    beats:
+      - say: One request arrived with an empty support field. Another arrived with a stored zero. Suppose our routing rule sends missing support to review, but sends numeric values of one or less through automatically. Those two requests take different branches. An estimator might learn a default branch for missing values, or reject them. Our hand-built trainer expects complete numeric inputs.
+        hold: 1
+      - say: Densify the first record and fill its empty cell with zero. Follow that request again. It now takes the same branch as the stored zero. Before migrating libraries, decide how the pipeline represents absence. You might impute it, add an indicator, or use the estimator's documented missing route. Replay an absent value, a stored zero and an ordinary value through the pinned version.
+        hold: 1
+        visual_cues:
+          - {id: densify-missing, phrase: fill its empty cell with zero, targets: [missing-value], color: yellow}
+      - say: Representation can move a prediction even with a fixed tree. Now hold the input fixed and change the training sample instead. Suppose three fits are equally likely. Their predictions average to one half, while the true mean is point four. That gap squared is the squared bias. The spread of the predictions around their average gives the variance. With independent zero-mean outcome noise, expected squared error adds squared bias, variance and noise variance. Perfect training accuracy on our eight requests tells us none of those three quantities.
+        hold: 1.1
+  - id: transfer
+    title: Where does the next request go?
+    visual: A fresh request lands exactly on the frozen ambiguity cut. Its leaf score stays fixed as the price of a miss changes on the eight validation requests. The cheaper policy determines the fresh route before its label is opened.
+    beats:
+      - say: A fresh request has ambiguity exactly three point three five. The tree sends equality left. Look at the training requests on that side. What review score does the tree give this request?
+        hold: 2.6
+      - say: One fifth. One of those five needed review. Keep that score on the request. We'll choose a policy using the eight validation rows. Suppose we now price a missed review at forty dollars. An unnecessary review still costs eighteen. Assume the queue can take all eight.
+        hold: 0.9
+        visual_cues:
+          - {id: ticket-score, phrase: One fifth, targets: [ticket], caption_boundary: true, color: cyan}
+          - {id: forty-price, phrase: price a missed review at forty dollars, targets: [bills], color: yellow}
+      - say: Four extra reviews still cost seventy-two dollars. Two misses now cost eighty. The cheaper cutoff is one fifth. Our new request meets it exactly, so it goes to review. Keep the model, the eight labels and the queue capacity fixed.
+        hold: 1.1
+        visual_cues:
+          - {id: forty-extra, phrase: Four extra reviews still cost seventy-two dollars, targets: [bills], caption_boundary: true, color: yellow}
+          - {id: forty-misses, phrase: Two misses now cost eighty, targets: [bills], caption_boundary: true, color: yellow}
+          - {id: forty-choice, phrase: The cheaper cutoff is one fifth, targets: [bills], caption_boundary: true, color: yellow}
+          - {id: forty-route, phrase: so it goes to review, targets: [ticket], caption_boundary: true, color: cyan}
+      - say: Replay that request. Change only the price of a miss, from forty dollars to thirty. Between these same two cutoffs, which has the smaller validation bill now? Where does it send the request?
+        hold: 2.8
+        visual_cues:
+          - {id: reprice, phrase: from forty dollars to thirty, targets: [bills], color: yellow}
+      - say: The half cutoff wins. Two misses cost sixty dollars. Four extra reviews still cost seventy-two. The request scores one fifth, below a half, so it goes through automatically.
+        hold: 1.2
+        visual_cues:
+          - {id: thirty-choice, phrase: The half cutoff wins, targets: [bills], caption_boundary: true, color: yellow}
+          - {id: thirty-misses, phrase: Two misses cost sixty dollars, targets: [bills], caption_boundary: true, color: yellow}
+          - {id: thirty-route, phrase: so it goes through automatically, targets: [ticket], caption_boundary: true, color: cyan}
+      - say: Open the label. This one needed review. Record a thirty-dollar miss at the half cutoff. At the one-fifth cutoff, this request would have reached a reviewer. Keep both bills running as fresh labels come in.
+        caption_starts: [At the one-fifth cutoff]
+        hold: 1.5
+        visual_cues:
+          - {id: open-ticket, phrase: This one needed review, targets: [ticket], caption_boundary: true, color: pink}
+          - {id: book-miss, phrase: Record a thirty-dollar miss at the half cutoff, targets: [new-outcome], caption_boundary: true, color: pink}
+          - {id: caught-review, phrase: this request would have reached a reviewer, targets: [new-outcome], color: cyan}

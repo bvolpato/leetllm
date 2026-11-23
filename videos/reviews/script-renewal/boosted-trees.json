@@ -1,0 +1,717 @@
+{
+  "id": "boosted-trees",
+  "script": "bfd529b007df4598",
+  "articleHash": "90494903c5a8026fcdb839c67668bd4d9a6f3633ebe8ace1b9291c256b2c98fe",
+  "checked": "2026-11-10T10:54:56.854Z",
+  "closedBook": {
+    "taught": 9,
+    "partial": 1,
+    "absent": 0,
+    "answers": [
+      {
+        "n": 1,
+        "option": 3,
+        "coverage": "taught",
+        "quotes": [
+          {
+            "scene": "eligible-signals",
+            "quote": "At each historical decision, remove features that arrived afterward, and require a completed label before the fitting cutoff. A March job still running on April first cannot provide its final outcome to that retraining run."
+          },
+          {
+            "scene": "eligible-signals",
+            "quote": "The scikit-learn histogram gradient boosting classifier can learn a missing direction; when that feature had no missing training rows, its documented fallback is the child with more samples. Twelve training rows on the left and five on the right therefore send a new NaN left."
+          }
+        ],
+        "reason": "The label arrives after the March 31 fitting cutoff, so exclude it. With no missing training values, the NaN goes to the larger child: left, with 17 rows versus 9.",
+        "exact": true,
+        "correct": true,
+        "grade": "taught"
+      },
+      {
+        "n": 2,
+        "option": 1,
+        "coverage": "taught",
+        "quotes": [
+          {
+            "scene": "cost-policy",
+            "quote": "Correct actions cost zero. These are authored cost units, not measured dollars. Without a capacity constraint, alert cost is one minus the true breach probability, multiplied by false-alert cost. No-alert cost is breach probability multiplied by miss cost."
+          }
+        ],
+        "reason": "Alert cost is 0.94 × 9 = 8.46. Standard no-alert cost is 0.06 × 90 = 5.4, so do not alert. Priority no-alert cost is 0.06 × 180 = 10.8, so alert.",
+        "exact": true,
+        "correct": true,
+        "grade": "taught"
+      },
+      {
+        "n": 3,
+        "option": 4,
+        "coverage": "partial",
+        "quotes": [
+          {
+            "scene": "residual",
+            "quote": "Subtract the prediction from each outcome to reveal what the current model leaves behind."
+          },
+          {
+            "scene": "residual",
+            "quote": "The residuals are minus four, plus two, and plus fourteen. Suppose a shallow tree groups the first two jobs and gives the large-model job its own leaf. The average correction is minus one for the shared leaf and plus fourteen for the other."
+          },
+          {
+            "scene": "residual",
+            "quote": "With a learning rate of one quarter, each leaf contributes only a quarter of its proposed move. The new predictions become five point seven five, five point seven five, and nine point five. Mean squared error falls from seventy-two to about forty-three point one three hours squared."
+          }
+        ],
+        "reason": "Residuals are [-4,0,8], so leaf means are -2 and 8. Scaling by 0.5 gives predictions [4,4,9]. Their MSE is (9 + 1 + 16)/3 = 26/3. The residual and update method is taught, but the narration reports MSE without explicitly teaching its calculation.",
+        "exact": true,
+        "correct": true,
+        "grade": "partial"
+      },
+      {
+        "n": 4,
+        "option": 2,
+        "coverage": "taught",
+        "quotes": [
+          {
+            "scene": "curvature-split",
+            "quote": "Setting that to zero gives weight equal to negative G divided by the quantity H plus lambda."
+          },
+          {
+            "scene": "curvature-split",
+            "quote": "A proposed split replaces its parent's score with two child scores. Net gain is one half times the quantity left G squared divided by the quantity left H plus lambda, plus right G squared divided by the quantity right H plus lambda, minus parent G squared divided by the quantity parent H plus lambda; then subtract gamma once."
+          }
+        ],
+        "reason": "Net gain is 0.5 × (4/2 + 4/2 − 0/3) − 0.25 = 1.75. Left weight is −(−2)/(1+1) = 1; right weight is −2/(1+1) = −1.",
+        "exact": true,
+        "correct": true,
+        "grade": "taught"
+      },
+      {
+        "n": 5,
+        "option": 1,
+        "coverage": "taught",
+        "quotes": [
+          {
+            "scene": "engine-growth",
+            "quote": "Given one eligible leaf at depth two with gain point four and another at depth three with gain point nine, a closest-to-root depthwise policy expands depth two first. A highest-gain leafwise policy expands depth three first."
+          },
+          {
+            "scene": "engine-growth",
+            "quote": "CatBoost's symmetric policy applies the same predicate to every node at a given depth. The d predicate outcomes form a binary index into a full table of two to the d leaf values. At depth three, three comparisons identify one of eight leaves."
+          }
+        ],
+        "reason": "C is closest to the root at depth 1; B has the highest gain, 0.9. A full depth-5 symmetric tree uses five predicate outcomes to select among 2^5 = 32 leaves.",
+        "exact": true,
+        "correct": true,
+        "grade": "taught"
+      },
+      {
+        "n": 6,
+        "option": 3,
+        "coverage": "taught",
+        "quotes": [
+          {
+            "scene": "selection-contract",
+            "quote": "The selected fifty-stage candidate is refitted on January through March."
+          },
+          {
+            "scene": "selection-contract",
+            "quote": "This is retrospective stage selection, not a claim that training stopped at fifty or saved the work of later stages. The code uses the first minimum when stages tie. For a different validation sequence point six two, point five eight, point five nine, point five eight, that rule selects stage two although all four were trained."
+          },
+          {
+            "scene": "selection-contract",
+            "quote": "The threshold must be selected on scores from the resulting candidate."
+          }
+        ],
+        "reason": "The minimum validation loss, 0.60, first occurs at stage 3. All six stages were trained. After refitting three stages on the original fitting rows, select the cutoff using that resulting candidate's scores.",
+        "exact": true,
+        "correct": true,
+        "grade": "taught"
+      },
+      {
+        "n": 7,
+        "option": 4,
+        "coverage": "taught",
+        "quotes": [
+          {
+            "scene": "threshold-boundary",
+            "quote": "For scores between zero and one and the rule score greater than or equal to threshold, enumerate zero, every unique April score, and the next representable value above one. Zero includes the all-alert endpoint; above one includes no alerts. Tied scores move together. Compute total cost for each decision set, then choose the pair with lowest cost and, at an equal cost, the lower threshold."
+          },
+          {
+            "scene": "threshold-boundary",
+            "quote": "April then has fifty-eight true alerts, seventy-one false alerts, zero missed positives and eleven correctly quiet jobs. Seventy-one times eight gives five hundred sixty-eight."
+          }
+        ],
+        "reason": "Threshold 0.6 alerts both tied 0.6 rows and the 0.9 row, producing one false alert and no missed positives: cost 4. Thresholds 0 or 0.2 cost 8; threshold 0.9 costs 10; above 1 costs 20.",
+        "exact": true,
+        "correct": true,
+        "grade": "taught"
+      },
+      {
+        "n": 8,
+        "option": 2,
+        "coverage": "taught",
+        "quotes": [
+          {
+            "scene": "slice-boundaries",
+            "quote": "Recall is caught positive jobs divided by all actual positive jobs in the slice. Require ten positives and recall at least point nine for priority, and ten positives and recall at least point eight five for the large-input proxy. Zero positives gives undefined recall, which fails; nine caught out of nine still fails support."
+          }
+        ],
+        "reason": "A has recall 1.00 but only eight actual positives, so it fails support. B has 20 actual positives and recall 18/20 = 0.90, so it passes both requirements.",
+        "exact": true,
+        "correct": true,
+        "grade": "taught"
+      },
+      {
+        "n": 9,
+        "option": 3,
+        "coverage": "taught",
+        "quotes": [
+          {
+            "scene": "attribution-game",
+            "quote": "In a separate two-feature game, the empty value is zero, A alone is two, B alone is one, and both give five. In order A then B, the marginal increments are two and three. In order B then A, they are one and four. Average A's two and four to get three; average B's one and three to get two. Base zero plus those credits reconstructs output five."
+          },
+          {
+            "scene": "attribution-game",
+            "quote": "Also record the output units."
+          }
+        ],
+        "reason": "A's marginal contributions are 3−1 = 2 and 8−2 = 6, averaging 4. B's are 2−1 = 1 and 8−3 = 5, averaging 3. In the supplied raw-score game, base 1 plus 4 plus 3 reconstructs 8.",
+        "exact": true,
+        "correct": true,
+        "grade": "taught"
+      },
+      {
+        "n": 10,
+        "option": 1,
+        "coverage": "taught",
+        "quotes": [
+          {
+            "scene": "serving-work",
+            "quote": "Measure feature retrieval, schema validation, tree scoring and full-request latency under representative load, threads and concurrency. In a separate serial worksheet, eighteen milliseconds of feature work plus two of scoring totals twenty. Reducing scoring to one totals nineteen, a five percent latency reduction. Faster tree code cannot remove the unchanged eighteen milliseconds. Real overlapping work and tail distributions require their own measured trace."
+          },
+          {
+            "scene": "serving-work",
+            "quote": "Treat conversion, pruning and tree truncation as candidate changes. Check score and action parity around the full-precision threshold, missing routing and feature order, then recheck quality, slices and actual latency."
+          },
+          {
+            "scene": "receipt-state",
+            "quote": "Its printed checksum beginning f zero zero eight identifies that J S O N payload. It does not serialize or hash the fitted model, original data, source revision or dependency lock."
+          },
+          {
+            "scene": "receipt-state",
+            "quote": "Attach the actual model digest, immutable data and split identifiers, source revision and dependency versions."
+          }
+        ],
+        "reason": "The serial total falls from 22+3 = 25 ms to 22+1 = 23 ms, a 2/25 = 8% reduction. This worksheet does not establish measured request latency or parity. The JSON-only receipt does not bind model bytes, so parity checks, complete-request evidence and an actual model digest are required.",
+        "exact": true,
+        "correct": true,
+        "grade": "taught"
+      }
+    ]
+  },
+  "factCheck": {
+    "scenes": [
+      {
+        "id": "opening",
+        "evidence": "Reviewed the current spoken hash bfd529b007df4598 across all 22 scenes. No substantive inaccurate or unsupported spoken claim was found. The scheduler, decision time and delayed outcome are authored circumstances. Sequential additive corrections agree with the [gradient-boosting formulation](https://scikit-learn.org/1.7/modules/ensemble.html#gradient-boosting). The actual executable study separately fits scores and selects an alert policy, consistent with [threshold guidance](https://scikit-learn.org/stable/modules/classification_threshold.html).",
+        "sourceUrls": [
+          "https://scikit-learn.org/1.7/modules/ensemble.html#gradient-boosting",
+          "https://scikit-learn.org/stable/modules/classification_threshold.html"
+        ]
+      },
+      {
+        "id": "clock",
+        "evidence": "Fresh execution fits 360 January–March rows, compares stages on 140 April rows, refits the selected count on the original fitting rows, and selects the threshold using that candidate's April scores. May's 140 rows remain outside both choices. Month names do not establish feature or label availability; the narration separately imposes those requirements. Reserving May for evaluation follows [held-out-data guidance](https://scikit-learn.org/stable/common_pitfalls.html#data-leakage).",
+        "sourceUrls": [
+          "https://scikit-learn.org/stable/common_pitfalls.html#data-leakage"
+        ]
+      },
+      {
+        "id": "eligible-signals",
+        "evidence": "The [2022 benchmark](https://arxiv.org/abs/2207.08815) explicitly concerns medium-sized data around 10,000 samples; the [2025 TabPFN study](https://www.nature.com/articles/s41586-024-08328-6) reports a regime up to 10,000 samples and 500 features. Neither establishes a permanent universal winner. Actual fixture code defines large_model as input_gb >= 900 and implements no timestamp joins or incident grouping. Fresh scikit-learn 1.7.2 probes confirm classic-classifier NaN rejection and histogram-classifier acceptance. A separately fitted 12-left/5-right tree routes NaN left, producing exactly the left input's probability, matching the [documented fallback](https://scikit-learn.org/stable/modules/generated/sklearn.ensemble.HistGradientBoostingClassifier.html). Acceptance establishes neither outage quality nor unknown-category handling. Training-only imputation follows [leakage guidance](https://scikit-learn.org/stable/common_pitfalls.html#data-leakage).",
+        "sourceUrls": [
+          "https://arxiv.org/abs/2207.08815",
+          "https://www.nature.com/articles/s41586-024-08328-6",
+          "https://scikit-learn.org/stable/modules/generated/sklearn.ensemble.HistGradientBoostingClassifier.html",
+          "https://scikit-learn.org/stable/common_pitfalls.html#data-leakage"
+        ]
+      },
+      {
+        "id": "residual",
+        "evidence": "Read DELAY_FIXTURE and executed the actual model. Outcomes minus six are [-4, 2, 14]. The stipulated leaves have means (-4+2)/2 = -1 and 14. Quarter shrinkage gives [5.75, 5.75, 9.5]. Initial MSE is (16+4+196)/3 = 72; updated MSE is (14.0625+5.0625+110.25)/3 = 43.125 hours squared, approximately 43.13. The second row's squared error increases from 4 to 5.0625. The starting constant and partition are teaching assumptions, not claimed optimized choices.",
+        "sourceUrls": []
+      },
+      {
+        "id": "classification",
+        "evidence": "For this binary log-loss model, p = 1/(1+exp(-F)). Differentiating -y log(p)-(1-y)log(1-p) with respect to F gives p-y. At F=0, p=0.5: negative-gradient targets are positive for label one and negative for label zero. The narration correctly distinguishes these local directions from fitted leaf values. The actual illustrative model uses leaf values -2 and +2, then learning rate 0.5 produces logits -1 and +1. These mechanisms agree with the [classification formulation](https://scikit-learn.org/1.7/modules/ensemble.html#classification).",
+        "sourceUrls": [
+          "https://scikit-learn.org/1.7/modules/ensemble.html#classification"
+        ]
+      },
+      {
+        "id": "curvature-split",
+        "evidence": "Differentiating p-y gives h=p(1-p). Fresh fitting reproduces 119/360 positives and initial logit log(119/241)=-0.7056734404. The fixed-leaf derivative of Gw+(H+lambda)w²/2 is G+(H+lambda)w, yielding w=-G/(H+lambda). Replacing one leaf with two adds one gamma charge, matching the [XGBoost objective](https://xgboost.readthedocs.io/en/stable/tutorials/model.html). For y=1,p=0.01, g=-0.99 and h=0.0099: -g/h=100 and -g/(h+1)=0.980295. At p=0.99, h is again 0.0099 but g=-0.01. The surrogate, admission and optional update-limit qualifications agree with [parameter documentation](https://xgboost.readthedocs.io/en/stable/parameter.html).",
+        "sourceUrls": [
+          "https://xgboost.readthedocs.io/en/stable/tutorials/model.html",
+          "https://xgboost.readthedocs.io/en/stable/parameter.html"
+        ]
+      },
+      {
+        "id": "histogram-scan",
+        "evidence": "Executed splitConstruction and independently checked all cuts. Labels [1,1,0,0] at p=0.5 give gradients [-1/2,-1/2,1/2,1/2], curvatures 1/4, and parent G=0,H=1. Cut one gives gain (1/2)[(1/4)/(5/4)+(1/4)/(7/4)]=6/35 and weights 2/5,-2/7. Cut two gives (1/2)[1/(3/2)+1/(3/2)]=2/3 and weights 2/3,-2/3. Cut three gives 6/35, so the center wins. Dense accumulation processes row-feature entries; subsequent scans process bin boundaries. Parent-minus-child histogram subtraction and its remaining construction costs agree with [LightGBM's description](https://lightgbm.readthedocs.io/en/stable/Features.html).",
+        "sourceUrls": [
+          "https://lightgbm.readthedocs.io/en/stable/Features.html"
+        ]
+      },
+      {
+        "id": "engine-growth",
+        "evidence": "For the explicitly supplied eligible frontier, closest-to-root selects depth two before depth three; highest gain selects 0.9 before 0.4. Depth caps do not change that ordering rule. [XGBoost's method documentation](https://xgboost.readthedocs.io/en/stable/treemethod.html) confirms exact candidate scanning, per-tree Hessian-weighted approximate sketches and a global histogram sketch using supplied weights. Its [parameters](https://xgboost.readthedocs.io/en/stable/parameter.html) confirm hist/approx loss-guided support and method-dependent column sampling. [LightGBM](https://lightgbm.readthedocs.io/en/stable/Features.html) confirms leafwise growth and structural controls. [CatBoost](https://catboost.ai/docs/en/concepts/parameter-tuning) documents symmetric, Depthwise and Lossguide policies. Three shared binary predicates index 2³=8 stored leaves; this supplies no measured request-latency result.",
+        "sourceUrls": [
+          "https://xgboost.readthedocs.io/en/stable/treemethod.html",
+          "https://xgboost.readthedocs.io/en/stable/parameter.html",
+          "https://lightgbm.readthedocs.io/en/stable/Features.html",
+          "https://lightgbm.readthedocs.io/en/stable/Parameters.html",
+          "https://catboost.ai/docs/en/concepts/parameter-tuning"
+        ]
+      },
+      {
+        "id": "sampling-categorical",
+        "evidence": "The [LightGBM paper](https://papers.nips.cc/paper/6907-lightgbm-a-highly-efficient-gradient-boosting-decision-tree.pdf) supports retaining large-magnitude gradients, weighting sampled smaller gradients and bundling sparse features into separate bin ranges. For the explicitly independent toy sampler, E[2I_i g_i]=2(1/2)g_i=g_i; this establishes expected sums, not unbiased nonlinear gains. Codes 0,1,2 distinguish neither/A/B but cannot also distinguish simultaneous A and B. [LightGBM documentation](https://lightgbm.readthedocs.io/en/stable/Features.html) confirms gradient-to-curvature category ordering, with configurable one-versus-rest handling. Ordered-statistic arithmetic is 0.5/1=0.5, 1.5/2=0.75 and 1.5/3=0.5. The [CatBoost paper](https://proceedings.neurips.cc/paper/2018/file/14491b756b3a51daac41c24863285549-Paper.pdf) distinguishes ordered statistics from ordered gradient construction and supports ordered statistics in Plain mode. Artificial permutations provide no future-incident guarantee.",
+        "sourceUrls": [
+          "https://papers.nips.cc/paper/6907-lightgbm-a-highly-efficient-gradient-boosting-decision-tree.pdf",
+          "https://lightgbm.readthedocs.io/en/stable/Features.html",
+          "https://lightgbm.readthedocs.io/en/stable/Parameters.html",
+          "https://proceedings.neurips.cc/paper/2018/file/14491b756b3a51daac41c24863285549-Paper.pdf"
+        ]
+      },
+      {
+        "id": "baseline",
+        "evidence": "Read the actual baseline fixture and decision model: risk=0.08, false-alert cost=8, standard-miss cost=60 and priority-miss cost=150. Alert expected cost is 0.92×8=7.36. Standard no-alert cost is 0.08×60=4.8, so no alert wins. Priority no-alert cost is 0.08×150=12, so alert wins. These conclusions use the subsequently stated zero correct-action costs and absence of a capacity constraint. The narration identifies the units as authored costs.",
+        "sourceUrls": []
+      },
+      {
+        "id": "cost-policy",
+        "evidence": "Solving 8(1-p)≤C_FN p gives p≥8/(8+C_FN), including alert at equality. Boundaries are 8/68=0.117647 and 8/158=0.050633. Fresh April execution gives heartbeat TP=48,FP=30,FN=10, including eight priority misses: 8×150+2×60+30×8=1560. Always alert costs 82×8=656; never alert costs 33×150+25×60=6450. The global empirical threshold is correctly distinguished from tier-specific Bayes decisions. Reliability curves compare grouped predictions with observed frequencies; Brier loss also reflects resolution and uncertainty. Separate or out-of-fold calibration predictions are supported by [official calibration guidance](https://scikit-learn.org/stable/modules/calibration.html).",
+        "sourceUrls": [
+          "https://scikit-learn.org/stable/modules/calibration.html"
+        ]
+      },
+      {
+        "id": "rounds",
+        "evidence": "Both prior trajectory and retained-prefix issues are independently closed. Fresh fitting reproduces all 160 stored stage losses within 2.3×10^-16. Training loss strictly decreases. April's unique minimum is stage 50 at 0.5643376205338859, with earlier increases at stages 33,34,37,41 and 48. Every later April loss exceeds that minimum; stage 160 ends at 0.5922187827. Selection retains the first fifty trees together, including validation-worsening additions. drawRounds passes the full stored series to its curves and places the marker at STAGE_SERIES[49]. The repaired spoken wording accurately describes these results.",
+        "sourceUrls": []
+      },
+      {
+        "id": "selection-contract",
+        "evidence": "Fresh execution uses depth two, learning rate 0.05, seed eleven and all 160 stages. Training loss is 0.6163312716 at stage one and 0.2683879006 at stage 160. April's stage-50 minimum is 0.5643376205 versus 0.5922187827 at 160. Refitting fifty stages on the original fitting rows reproduces the search model's stage-50 April scores exactly in this execution. The first minimum of [0.62,0.58,0.59,0.58] is stage two. [Estimator documentation](https://scikit-learn.org/stable/modules/generated/sklearn.ensemble.GradientBoostingClassifier.html) confirms the internal stratified early-stopping split. Fitting on April would remove its independence for that resulting object's policy evidence.",
+        "sourceUrls": [
+          "https://scikit-learn.org/stable/modules/generated/sklearn.ensemble.GradientBoostingClassifier.html",
+          "https://scikit-learn.org/stable/common_pitfalls.html#data-leakage"
+        ]
+      },
+      {
+        "id": "threshold",
+        "evidence": "For finite scores, threshold predictions change at distinct score boundaries, with tied scores moving together. Together with the endpoints explicitly supplied in threshold-boundary, this covers all single-threshold decision sets. Fresh estimator predictions and the executable film model select April TP=58,FP=71,FN=0,TN=11, costing 71×8=568. Always alert costs 82×8=656, so eleven false alerts are removed without additional missed positives in April. Because April selects both stages and cutoff, this remains selected validation evidence, consistent with [threshold-selection guidance](https://scikit-learn.org/stable/modules/classification_threshold.html).",
+        "sourceUrls": [
+          "https://scikit-learn.org/stable/modules/classification_threshold.html"
+        ]
+      },
+      {
+        "id": "threshold-boundary",
+        "evidence": "For scores in [0,1] and score≥threshold, threshold zero alerts on every row, while nextafter(1,2) alerts on none. Unique scores cover the intermediate decision sets. Minimizing (cost,threshold) implements the declared tie rule. Fresh execution gives threshold 0.06266686815353625 and April confusion [58,71,0,11]. At 0.15, six priority misses, two standard misses and 37 false alarms cost 900+120+296=1316. Frozen May confusion is [55,73,0,12], costing 584. Always alert costs 85×8=680; heartbeat costs 4×150+3×60+33×8=1044. Savings are twelve false alerts or 96 units, with 128/140 jobs alerting. Sigmoid is increasing, so the +0.18 shift raises otherwise-identical rows' expected risk without forcing a larger realized positive count.",
+        "sourceUrls": []
+      },
+      {
+        "id": "holdout",
+        "evidence": "Fresh evaluation carries the unchanged fifty-tree candidate and full-precision April threshold into May. It catches 55/55 positives, raises 73 false alarms and costs 584, below 680 for always alert and 1044 for heartbeat. Recomputed May AUC is 0.8821390374. AUC summarizes score ordering across thresholds; the quoted cost belongs to the chosen threshold policy, consistent with the [ROC-AUC contract](https://scikit-learn.org/stable/modules/generated/sklearn.metrics.roc_auc_score.html). Alerting on 128/140=91.43% supports the workload qualification without establishing staffing feasibility.",
+        "sourceUrls": [
+          "https://scikit-learn.org/stable/modules/generated/sklearn.metrics.roc_auc_score.html"
+        ]
+      },
+      {
+        "id": "release",
+        "evidence": "Fresh fitting and scoring reproduce 36 positives among 74 priority rows and 31 positives among seventy large-input rows. The frozen policy catches every positive in both slices. The executable gate requires at least ten positives plus the stated recall threshold, so both pass. Ten is an illustrative evidence rule, not established statistical adequacy. Binding feature timing, selected rounds, threshold, costs, slices and schema, then testing capacity, telemetry outages, rollback and request latency, are explicitly proposed production requirements. The narration does not claim that these checks were implemented or completed.",
+        "sourceUrls": []
+      },
+      {
+        "id": "slice-boundaries",
+        "evidence": "Recall is TP/(TP+FN). Zero positives makes the denominator zero and the declared gate fails; nine caught positives give recall one but fail support ten. Fresh unchanged-model scoring at threshold 0.5 gives priority recall 26/36=0.722222 and large-input recall 20/31=0.645161, below 0.9 and 0.85. Twenty positive rows belong to both slices, confirming overlap. Always alert passes both recall gates. Restoring the exact original threshold restores the original decisions. Searching May for a replacement would consume its test role under [held-out-data guidance](https://scikit-learn.org/stable/common_pitfalls.html#data-leakage). A support floor alone cannot guarantee population recall.",
+        "sourceUrls": [
+          "https://scikit-learn.org/stable/common_pitfalls.html#data-leakage"
+        ]
+      },
+      {
+        "id": "attribution-game",
+        "evidence": "Global split summaries do not supply signed local contributions; split-opportunity bias and correlated-feature limitations are supported by [scikit-learn guidance](https://scikit-learn.org/stable/modules/permutation_importance.html). The actual authored game gives A=[2+(5-1)]/2=3 and B=[1+(5-2)]/2=2, reconstructing five from base zero. The [TreeSHAP paper](https://arxiv.org/html/1802.03888v3) confirms path extension/unwinding, coalition-size weights, branch-cover fractions and the original O(TLD²) bound. [TreeExplainer documentation](https://shap.readthedocs.io/en/latest/generated/shap.TreeExplainer.html) distinguishes dependence conventions and output units. Arithmetic gives -1+0.42+0.26=-0.32 and sigmoid(-0.32)=0.4206757479. This hypothetical explanation is separate from the fitted candidate; attribution establishes neither leakage nor intervention benefit.",
+        "sourceUrls": [
+          "https://scikit-learn.org/stable/modules/permutation_importance.html",
+          "https://arxiv.org/html/1802.03888v3",
+          "https://shap.readthedocs.io/en/latest/generated/shap.TreeExplainer.html"
+        ]
+      },
+      {
+        "id": "serving-work",
+        "evidence": "Fresh estimators reproduce search/selected counts of 160/50 trees, 1100/350 stored nodes and summed maximum depths 320/100. These bound tree split comparisons, not complete request work or latency. The loaded scoring module is compiled, consistent with the [Cython traversal source](https://raw.githubusercontent.com/scikit-learn/scikit-learn/1.7.2/sklearn/ensemble/_gradient_boosting.pyx). Worksheet arithmetic is 18+2=20 ms, then 18+1=19 ms, giving (20-19)/20=5%. [Treelite](https://treelite.readthedocs.io/en/latest/) and [TL2cgen](https://tl2cgen.readthedocs.io/en/latest/) confirm exchange/compiler separation; the [ONNX converter list](https://onnx.ai/sklearn-onnx/supported.html) includes GradientBoostingClassifier. Trusted pickle sources, skops type inspection and unsupported cross-version loading agree with [persistence guidance](https://scikit-learn.org/stable/model_persistence.html). Conversion parity and latency remain requirements, not claimed measurements.",
+        "sourceUrls": [
+          "https://raw.githubusercontent.com/scikit-learn/scikit-learn/1.7.2/sklearn/ensemble/_gradient_boosting.pyx",
+          "https://treelite.readthedocs.io/en/latest/",
+          "https://tl2cgen.readthedocs.io/en/latest/",
+          "https://onnx.ai/sklearn-onnx/supported.html",
+          "https://scikit-learn.org/stable/model_persistence.html"
+        ]
+      },
+      {
+        "id": "receipt-state",
+        "evidence": "Fresh execution passes the metric gate because 584<680, 584<1044 and both required slices pass. Regenerating the receipt yields SHA-256 f0088a0e1691053e59b00abc6b2ca2761ed29dcea1e1345a936d6ed61ddcdcaf. Inspection confirms omission of fitted-model bytes/digest, immutable data identifiers, source revision and dependency lock; hashing the JSON cannot bind those omitted artifacts. Actual status is operational_checks_pending. Recommended provenance agrees with [persistence guidance](https://scikit-learn.org/stable/model_persistence.html). Schema enforcement, latency, capacity, rollback and monitoring are stated requirements. Shadow scoring without candidate interventions cannot establish their causal benefit. Twelve fewer false alarms establish 96 authored units, not operating profit.",
+        "sourceUrls": [
+          "https://scikit-learn.org/stable/model_persistence.html"
+        ]
+      },
+      {
+        "id": "earned-split-transfer",
+        "evidence": "The prior action-contract issue is independently closed. Actual splitConstruction and freshSplitState agree with hand arithmetic: gradients [-1/2,1/2,-1/2,1/2], curvatures 1/4 and unpenalized gains [6/35,0,6/35]. At gamma=0.2, net gains are [-1/35,-1/5,-1/35], so no split wins. At gamma=0.1, gains are [1/14,-1/10,1/14]; earliest-cut selection chooses cut one. Weights 2/5,-2/7 with quarter shrinkage give logits 0.1,-1/14 and probabilities 0.5249791875,0.4821504456. Threshold 0.52 produces [alert,quiet,quiet,quiet], missing positive row three. The drawing uses those same decisions. The repaired transition accurately describes one binary decision per job; surrogate improvement guarantees neither recall nor promotion.",
+        "sourceUrls": []
+      }
+    ],
+    "findings": [],
+    "limitations": [
+      "Review identity was verified against the checkout: spoken hash bfd529b007df4598, lesson SHA-256 4fee76d8e88a99619656e65c5cd2e092de6d2b5890616245b0d1528196670b06, 22 scenes and 144 valid cue declarations.",
+      "Fresh reconstruction used Python 3.12.15, NumPy 2.2.6, scikit-learn 1.7.2 and SciPy 1.15.3. All seventeen current lab blocks executed. Stored film losses, April scores and the illustrated fitted-row trace matched within floating-point tolerance. Original historical estimator bytes and the original dependency lock were unavailable.",
+      "Drawing sources, executable models and existing targeted model/reveal checks were inspected or executed. No rendered playback, fresh speech, encoded frames, layout inspection or measured audiovisual timing was produced. The stage lesson still lacks index.mjs. In particular, the changed rounds cue placement and longer final transition require review after speech and rendering exist.",
+      "The article-only checkpoint still says validation loss 'rises through round 160', which can suggest uninterrupted increase. That ambiguity remains outside the supplied narration. Its precise remedy is 'fluctuates above the stage-50 minimum and ends higher at round 160'; it does not reopen the repaired spoken claim.",
+      "Synthetic month labels do not validate real timestamp joins, label arrival or incident grouping. These are expressly assumed fixture conditions. Calibration quality, real outage robustness, operational capacity, conversion parity, request latency, rollback, causal intervention benefit and operating profit were not established.",
+      "Live library documentation was consulted for current contracts; this does not establish the historical fixture environment or promise compatibility across versions. No edits, external writes or subagents were used."
+    ]
+  },
+  "reviewedNarration": {
+    "source": "videos/stage-lessons/boosted-trees/lesson.yaml",
+    "script": "bfd529b007df4598",
+    "scenes": [
+      {
+        "id": "opening",
+        "beats": [
+          {
+            "say": "At nine in the morning, a training job enters a busy cluster. The scheduler sees its heartbeat, input size, backlog, and priority. It must decide whether to step in before the deadline, while the final outcome will arrive hours later."
+          },
+          {
+            "say": "A gradient-boosted tree builds a score by adding small decision trees in sequence. Each new tree learns a correction from the current model's remaining loss. A separate policy turns the final score into an alert, so both learning and decision costs matter."
+          },
+          {
+            "say": "We will trace one tree correction by hand, then follow a small scheduler study from earlier months to a later holdout. The study shows why time, error costs, and a frozen threshold belong beside the model."
+          }
+        ]
+      },
+      {
+        "id": "clock",
+        "beats": [
+          {
+            "say": "First, give the calendar a job. January through March fit the trees. The learner can use those rows to discover splits and leaf corrections, because those are the historical examples available to model fitting."
+          },
+          {
+            "say": "April is the later validation month. It selects the number of trees and the alert threshold. Keeping both choices together matters because the threshold is evaluated on scores from the selected model."
+          },
+          {
+            "say": "May is held back for a final check of that frozen candidate. The earlier months supply training examples, April guides the choices, and May gives the candidate a later test. Features and labels also need to respect each job's decision time."
+          }
+        ]
+      },
+      {
+        "id": "eligible-signals",
+        "beats": [
+          {
+            "say": "Trees are a candidate for a measured tabular baseline. The twenty twenty-two benchmark discussed here studied medium-sized datasets around ten thousand rows. Later Tab P F N work studied a defined small-data regime. Neither establishes a permanent winner. In our synthetic fixture, large model means input size at least nine hundred gigabytes, not an independently measured model size."
+          },
+          {
+            "say": "A monthly split is only the outer clock. At each historical decision, remove features that arrived afterward, and require a completed label before the fitting cutoff. A March job still running on April first cannot provide its final outcome to that retraining run. Linked incident rows also need a grouping or purging rule at the boundary. The fixture assumes these conditions; it does not implement the timestamp joins."
+          },
+          {
+            "say": "Follow a missing heartbeat through an estimator contract. The classic classifier used here rejects a NaN. The scikit-learn histogram gradient boosting classifier can learn a missing direction; when that feature had no missing training rows, its documented fallback is the child with more samples. Twelve training rows on the left and five on the right therefore send a new NaN left. Accepted input is not evidence of quality during an outage. Fit any imputer on training rows, and validate unknown categories separately."
+          }
+        ]
+      },
+      {
+        "id": "residual",
+        "beats": [
+          {
+            "say": "For a transparent first step, predict delay hours for three jobs with a starting value of six. Their actual delays are two, eight, and twenty hours. Subtract the prediction from each outcome to reveal what the current model leaves behind."
+          },
+          {
+            "say": "The residuals are minus four, plus two, and plus fourteen. Suppose a shallow tree groups the first two jobs and gives the large-model job its own leaf. The average correction is minus one for the shared leaf and plus fourteen for the other."
+          },
+          {
+            "say": "With a learning rate of one quarter, each leaf contributes only a quarter of its proposed move. The new predictions become five point seven five, five point seven five, and nine point five. Mean squared error falls from seventy-two to about forty-three point one three hours squared. The second job gets worse because it shares a leaf with the first; average improvement does not improve every row."
+          }
+        ]
+      },
+      {
+        "id": "classification",
+        "beats": [
+          {
+            "say": "The scheduler predicts a label, so the classifier works with a different quantity from delay hours. Its trees add to a raw score called the logit. A sigmoid converts that score to a probability between zero and one. Compute the sigmoid as one divided by the quantity one plus the exponential of the negative logit."
+          },
+          {
+            "say": "At a logit of zero, the probability is one half. For binary log loss, the derivative with respect to the logit is probability minus the observed label. A missed job pushes the score upward; a job that finishes on time pushes it downward."
+          },
+          {
+            "say": "The signs describe a local correction direction. A fitted classification tree also chooses partitions and loss-aware leaf values, then adds a shrunken update to the ensemble. The regression residual example gives the intuition; this gradient supplies the classification-specific signal."
+          }
+        ]
+      },
+      {
+        "id": "curvature-split",
+        "beats": [
+          {
+            "say": "For binary log loss, a positive label contributes negative log probability; a negative label contributes negative log of the quantity one minus probability. Differentiate with respect to the raw logit: gradient g equals probability minus label, and curvature h equals probability multiplied by the quantity one minus probability. Our probability-one-half rows are a teaching probe. The actual fitted classifier initializes from the training class proportion, one hundred nineteen divided by three hundred sixty."
+          },
+          {
+            "say": "For a fixed leaf, sum its gradients into G and its curvatures into H. X G Boost's quadratic surrogate adds G times weight, plus one half multiplied by the quantity H plus lambda, multiplied by weight squared. Its derivative is G plus weight multiplied by the quantity H plus lambda. Setting that to zero gives weight equal to negative G divided by the quantity H plus lambda. Lambda penalizes leaf weights; gamma charges each leaf. This solves a local surrogate for a fixed partition."
+          },
+          {
+            "say": "A proposed split replaces its parent's score with two child scores. Net gain is one half times the quantity left G squared divided by the quantity left H plus lambda, plus right G squared divided by the quantity right H plus lambda, minus parent G squared divided by the quantity parent H plus lambda; then subtract gamma once. Positive net gain justifies the split in this simplified calculation. Minimum child curvature, support rules, shrinkage and other constraints can still prevent or limit an update."
+          },
+          {
+            "say": "Small curvature can amplify a confident error. For a positive label at probability point zero one, g is minus point nine nine and h is point zero zero nine nine. The isolated unregularized weight is one hundred. Adding lambda one reduces it to about point nine eight. A confident correct point nine nine has the same curvature but a gradient of only minus point zero one. Inspect gradient and curvature together; optional maximum-step limits provide a further control."
+          }
+        ]
+      },
+      {
+        "id": "histogram-scan",
+        "beats": [
+          {
+            "say": "Build an authored four-row split search. Each row occupies one ordered bin, the labels are one, one, zero, zero, and all current probabilities are one half. The gradients are minus one half, minus one half, plus one half, plus one half. Each curvature is one quarter. Set lambda to one and gamma to zero. The parent therefore has G zero and H one."
+          },
+          {
+            "say": "Move the cut after the first bin. Its left accumulator contains G minus one half and H one quarter. Subtract those from the parent to get right G plus one half and H three quarters. Insert both sides into the same gain equation: the gain is six thirty-fifths, about point one seven one. The two optimal leaf weights are point four and negative two sevenths."
+          },
+          {
+            "say": "Advance the same cut after bin two. Left G is minus one and H one half; right G is plus one and H one half. Gain becomes two thirds, and the leaf weights are plus and minus two thirds. After bin three, gain falls back to six thirty-fifths. The center cut wins this stated search. Apply the learning rate to the leaf weights before adding them to each row's logit."
+          },
+          {
+            "say": "Histogram construction still reads the data: roughly rows times features for dense input. Once bins hold G and H, a prefix scan considers bin boundaries, roughly bins times features. During tree growth, a parent's histogram minus one child's histogram gives the sibling's histogram. That subtraction saves repeated construction work; it does not erase the original row pass or make a coarse binning exact."
+          }
+        ]
+      },
+      {
+        "id": "engine-growth",
+        "beats": [
+          {
+            "say": "Separate growth policy from split method. Given one eligible leaf at depth two with gain point four and another at depth three with gain point nine, a closest-to-root depthwise policy expands depth two first. A highest-gain leafwise policy expands depth three first. Depthwise does not mean depth-first traversal, and a depth limit does not turn leafwise growth into depthwise growth. Capacity settings still need holdout evaluation."
+          },
+          {
+            "say": "X G Boost offers depthwise growth and, with supported approximate or histogram methods, loss-guided growth. Exact splitting scans sorted candidates. Approx uses Hessian-weighted sketches per tree; hist uses a global sketch with supplied sample weights. Feature subsampling has method-dependent support. Light G B M uses leafwise gain selection; its number of leaves, maximum depth, leaf support and configurable bin count constrain the fitted structure."
+          },
+          {
+            "say": "CatBoost's symmetric policy applies the same predicate to every node at a given depth. The d predicate outcomes form a binary index into a full table of two to the d leaf values. At depth three, three comparisons identify one of eight leaves. Other CatBoost growth policies exist, and Plain versus Ordered boosting is a separate choice. A compact lookup structure is a reason to benchmark inference, not a promised request-latency result."
+          }
+        ]
+      },
+      {
+        "id": "sampling-categorical",
+        "beats": [
+          {
+            "say": "Gradient-based one-side sampling is an optional Light G B M strategy. Keep the large-gradient group, then sample the small-gradient group with a declared inclusion probability. In a toy with four small-gradient rows sampled independently with probability one half, each retained small row receives inverse-probability weight two. A realized sample need not reproduce the full sum exactly; weighting preserves its expectation under this stated sampler."
+          },
+          {
+            "say": "Exclusive feature bundling packs sparse columns with little overlap into disjoint bin ranges. If A and B never activate on the same row, zero can represent neither, one can represent A, and two can represent B in a binary toy. A row with both active breaks that collision-free encoding. Real bundling needs its conflict policy and representation recorded; it is not permission to add two arbitrary dense columns."
+          },
+          {
+            "say": "Categorical splits can group categories rather than assume numeric distance between their IDs. Light G B M can order categories by gradient-to-curvature statistics for a partition search; small-cardinality settings may instead use one-versus-rest. CatBoost's ordered target statistic excludes the row's own label. For three rows sharing one category, with prior one half and smoothing weight one, preceding labels one then zero give the first three rows statistics one half, three quarters, and one half."
+          },
+          {
+            "say": "Ordered boosting addresses a different prediction-shift mechanism: form a row's residual using models that have not fitted that row's target, with preceding examples in an ordering supplying the relevant support. Ordered category statistics and Ordered boosting are distinct choices; Plain boosting can still use ordered statistics. An artificial permutation does not establish future-incident validity. Keep the real temporal validation boundary."
+          }
+        ]
+      },
+      {
+        "id": "baseline",
+        "beats": [
+          {
+            "say": "A score alone cannot tell a scheduler what to do. Write down the costs of a false alarm and a missed deadline first. The fixture gives priority misses the highest cost, so the same risk can justify a different action for a priority job."
+          },
+          {
+            "say": "For a standard job at this risk, the expected cost of a missed deadline stays below the cost of raising an alert. The policy leaves that job alone and reserves intervention for cases where the expected miss cost is larger."
+          },
+          {
+            "say": "A priority miss carries more weight, so the same risk now makes an alert worthwhile. These fixture units make the decision rule visible; the scheduler team would set them from its own operational costs before comparing policies."
+          }
+        ]
+      },
+      {
+        "id": "cost-policy",
+        "beats": [
+          {
+            "say": "Make the fixture's cost table explicit. A false alert costs eight units; a missed standard job costs sixty and a missed priority job costs one hundred fifty. Correct actions cost zero. These are authored cost units, not measured dollars. Without a capacity constraint, alert cost is one minus the true breach probability, multiplied by false-alert cost. No-alert cost is breach probability multiplied by miss cost."
+          },
+          {
+            "say": "Equate the two expressions. The alert boundary is false-alert cost divided by the quantity false-alert plus miss cost, with alert chosen at a tie. It is eight over sixty-eight for standard jobs and eight over one hundred fifty-eight for priority jobs. At probability point zero eight, alert costs seven point three six; no alert costs four point eight for standard jobs and twelve for priority jobs. The same probability therefore produces different actions."
+          },
+          {
+            "say": "The cheapest baseline sets a real hurdle. On April, the heartbeat rule catches forty-eight of fifty-eight misses, raises thirty false alarms and costs one thousand five hundred sixty. Alerting on all one hundred forty jobs catches all misses and costs only eighty-two false alarms times eight, or six hundred fifty-six. Never alerting costs six thousand four hundred fifty. Beating only the heartbeat rule would miss the stronger baseline."
+          },
+          {
+            "say": "The Bayes calculation assumes true or suitably calibrated probabilities and its stated costs. This lab instead chooses one global threshold empirically on uncalibrated scores. That is a different policy family. A reliability curve checks whether score groups match observed rates; Brier score measures overall probability error, including more than calibration. Fit and select any calibrator outside the base fitting rows and outside May."
+          }
+        ]
+      },
+      {
+        "id": "rounds",
+        "beats": [
+          {
+            "say": "A booster can keep adding trees while its training loss improves. The practical question is whether a later month improves too. This seeded fixture trains up to one hundred sixty rounds, then compares each stage on January through March and on April."
+          },
+          {
+            "say": "Early on, both measures improve as useful corrections accumulate. April loss generally improves, with fluctuations, and reaches its minimum at stage fifty."
+          },
+          {
+            "say": "Later trees keep reducing training loss while April loss turns upward. The best validation round selects the first fifty trees together because that prefix has the lowest April loss among all one hundred sixty stages. Some retained trees briefly increased April loss."
+          }
+        ]
+      },
+      {
+        "id": "selection-contract",
+        "beats": [
+          {
+            "say": "The search fixes depth two, learning rate point zero five and random seed eleven, then actually trains all one hundred sixty stages. Training loss falls from about point six one six at stage one to point two six eight at stage one hundred sixty. April loss reaches about point five six four at stage fifty, then worsens to about point five nine two. The selected fifty-stage candidate is refitted on January through March."
+          },
+          {
+            "say": "This is retrospective stage selection, not a claim that training stopped at fifty or saved the work of later stages. The code uses the first minimum when stages tie. For a different validation sequence point six two, point five eight, point five nine, point five eight, that rule selects stage two although all four were trained. Built-in classic early stopping reserves a stratified random part of its fitting matrix; that helper does not create April's later-month boundary."
+          },
+          {
+            "say": "The threshold must be selected on scores from the resulting candidate. Adding April to the fitting rows changes that candidate and invalidates the old April evidence for its cutoff. A deployment recipe can use a separate justified refit and policy-selection design, but cannot silently carry over evidence from another fitted object. Keep May outside every such choice."
+          }
+        ]
+      },
+      {
+        "id": "threshold",
+        "beats": [
+          {
+            "say": "The selected classifier ranks jobs, then one global threshold turns each score into an alert. A coarse threshold grid can miss a useful boundary. Searching every distinct April score evaluates every decision set available to this single-threshold policy."
+          },
+          {
+            "say": "At the selected April cutoff, every missed deadline is caught, alongside a set of false alarms. Under this fixture's cost table, those false alarms contribute five hundred sixty-eight units. The score distribution and cutoff stay visible while we compare that policy with the alternatives."
+          },
+          {
+            "say": "Alerting on every April job catches no additional missed deadline, and its total cost is higher. The threshold removes unnecessary alerts in this sample. April selected both the round count and cutoff, so May provides the later evidence."
+          }
+        ]
+      },
+      {
+        "id": "threshold-boundary",
+        "beats": [
+          {
+            "say": "For scores between zero and one and the rule score greater than or equal to threshold, enumerate zero, every unique April score, and the next representable value above one. Zero includes the all-alert endpoint; above one includes no alerts. Tied scores move together. Compute total cost for each decision set, then choose the pair with lowest cost and, at an equal cost, the lower threshold."
+          },
+          {
+            "say": "A displayed decimal is not the policy. The selected cutoff is approximately point zero six two six six seven, while the stored float is more precise. April then has fifty-eight true alerts, seventy-one false alerts, zero missed positives and eleven correctly quiet jobs. Seventy-one times eight gives five hundred sixty-eight. The coarse point one five grid already costs one thousand three hundred sixteen and would miss this useful boundary."
+          },
+          {
+            "say": "Carry that exact threshold with the fifty-tree model into May. It catches fifty-five misses and raises seventy-three false alerts, costing five hundred eighty-four. Always alert costs six hundred eighty; the heartbeat rule costs one thousand forty-four. The candidate saves twelve false alerts, or ninety-six units, while still flagging one hundred twenty-eight of one hundred forty jobs. The fixture's positive risk shift does not force May's random sampled miss count to exceed April's."
+          }
+        ]
+      },
+      {
+        "id": "holdout",
+        "beats": [
+          {
+            "say": "Carry the selected model and the full-precision April threshold into May without changing either choice. The later month contains missed deadlines in this seeded run, and the frozen policy catches every one."
+          },
+          {
+            "say": "The policy still raises false alarms, but its total cost is lower than alerting on every job. The heartbeat rule performs worse under the same table. The display keeps mistake cost and operator workload side by side."
+          },
+          {
+            "say": "AUC summarizes ranking across thresholds, while cost evaluates the chosen action rule. Here the candidate improves on the all-alert baseline, yet it still flags most jobs, so staffing capacity matters alongside the score."
+          }
+        ]
+      },
+      {
+        "id": "release",
+        "beats": [
+          {
+            "say": "An aggregate cost can hide a weak group. On May, the priority slice has thirty-six missed jobs and catches all thirty-six. The large-model slice has thirty-one missed jobs and also catches all thirty-one."
+          },
+          {
+            "say": "The fixture requires at least ten positive examples in each required slice before its recall check counts. Support gives the recall a useful denominator. A small slice needs more evidence before it can carry a high-stakes decision."
+          },
+          {
+            "say": "Before operating a booster, bind its feature timing, split, selected rounds, threshold, cost table, slice evidence, and serving schema to one candidate. Then test alert capacity, missing telemetry, rollback, and real request latency. A model is one part of the decision system."
+          }
+        ]
+      },
+      {
+        "id": "slice-boundaries",
+        "beats": [
+          {
+            "say": "Recall is caught positive jobs divided by all actual positive jobs in the slice. Require ten positives and recall at least point nine for priority, and ten positives and recall at least point eight five for the large-input proxy. Zero positives gives undefined recall, which fails; nine caught out of nine still fails support. The two required slices overlap, so their counts are not independent replications. Always alerting would also pass their recall tests."
+          },
+          {
+            "say": "Keep the trained trees fixed and change only the threshold to point five as a declared stress test. Priority now catches twenty-six of thirty-six positives, about point seven two two. The large-input slice catches twenty of thirty-one, about point six four five. Both fail. The failure came from the policy change even though the model artifact is identical."
+          },
+          {
+            "say": "Restoring the predeclared frozen threshold reproduces the original evaluation; searching May for a better threshold would consume its final-test role and require fresh evidence. A passed support floor is a chosen evidence rule, not a guarantee of population recall. Join the cost comparison, required-slice evidence and alert workload before deciding whether this candidate deserves operational review."
+          }
+        ]
+      },
+      {
+        "id": "attribution-game",
+        "beats": [
+          {
+            "say": "Global gain, split count and impurity decrease summarize different properties and can favor features with many split candidates or redistribute credit among correlated inputs. They do not give the signed contribution to this particular job. Define a local explanation game with a background population, a missing-feature convention and a chosen model output before computing Shapley credit."
+          },
+          {
+            "say": "In a separate two-feature game, the empty value is zero, A alone is two, B alone is one, and both give five. In order A then B, the marginal increments are two and three. In order B then A, they are one and four. Average A's two and four to get three; average B's one and three to get two. Base zero plus those credits reconstructs output five. With more features, Shapley averages across subset orders under the specified game."
+          },
+          {
+            "say": "Tree S H A P avoids explicit enumeration of all coalitions by propagating path information through each tree. Its path extension and unwinding steps track contributions and coalition-size weights, using branch-cover information for the tree-path-dependent game. The original bound is order trees times maximum leaves times maximum depth squared. Interventional handling with a background defines a different game; record that choice rather than treating all correlated-feature explanations as identical."
+          },
+          {
+            "say": "Also record the output units. In a hypothetical raw-logit explanation, base minus one plus point four two and point two six gives minus point three two; sigmoid gives probability about point four two one. The contributions are not probability percentage points, and this is not an explanation fitted to our candidate. A large escalation-flag contribution suggests checking lineage, availability and freshness. It proves neither postdecision leakage nor a causal intervention benefit."
+          }
+        ]
+      },
+      {
+        "id": "serving-work",
+        "beats": [
+          {
+            "say": "Count the actual fitted structures first. The search model has one hundred sixty trees, one thousand one hundred stored nodes and at most three hundred twenty split comparisons per row. The selected model has fifty trees, three hundred fifty nodes and at most one hundred comparisons. These depth-based bounds establish less tree work, not a measured latency ratio. A Python API can already call compiled traversal."
+          },
+          {
+            "say": "Measure feature retrieval, schema validation, tree scoring and full-request latency under representative load, threads and concurrency. In a separate serial worksheet, eighteen milliseconds of feature work plus two of scoring totals twenty. Reducing scoring to one totals nineteen, a five percent latency reduction. Faster tree code cannot remove the unchanged eighteen milliseconds. Real overlapping work and tail distributions require their own measured trace."
+          },
+          {
+            "say": "Treelite exchanges and serializes supported models; its compiler path is T L two c gen. O N N X is another supported-conversion option, with no universal speedup promise. Treat conversion, pruning and tree truncation as candidate changes. Check score and action parity around the full-precision threshold, missing routing and feature order, then recheck quality, slices and actual latency. Pickle-style Python loading requires trusted sources; inspect supported types with skops and pin the training and loading dependency versions together; loading estimators across different scikit-learn versions is unsupported."
+          }
+        ]
+      },
+      {
+        "id": "receipt-state",
+        "beats": [
+          {
+            "say": "The lab's final metric gate requires cost below both baselines and passing required slices. It passes, yet the actual release status is operational checks pending. The compact receipt records the fitted recipe, split labels, full threshold, cost table and evaluation. Its printed checksum beginning f zero zero eight identifies that J S O N payload. It does not serialize or hash the fitted model, original data, source revision or dependency lock."
+          },
+          {
+            "say": "Attach the actual model digest, immutable data and split identifiers, source revision and dependency versions. The feature contract needs meanings, units, availability and missing rules; the serving schema needs names, types, ranges and shape. Bind those to the threshold policy and slice evidence. Replacing model bytes while preserving a receipt checksum cannot preserve the candidate's identity."
+          },
+          {
+            "say": "Operational evidence must cover schema enforcement, realistic request latency, alert capacity, rollback and delayed-label monitoring. Shadow traffic can expose serving failures while candidate scores cannot trigger interventions, but still needs resources and access controls. Neither synthetic savings nor shadow scoring establishes that intervening improves real outcomes. Twelve fewer false alarms may or may not pay for operating this model."
+          }
+        ]
+      },
+      {
+        "id": "earned-split-transfer",
+        "beats": [
+          {
+            "say": "Now predict a new case, separate from the scheduler holdout. Four ordered bins have labels one, zero, one, zero, probabilities one half, lambda one and gamma point two. Keep all three candidate cuts visible. Do the alternating labels still justify a split? Work from their gradient and curvature sums before choosing a tree."
+          },
+          {
+            "say": "The two end cuts each have unpenalized gain six thirty-fifths, while the center cut has zero. After subtracting gamma point two, all net gains are negative. This toy rule therefore keeps the parent. A familiar gradient pattern is insufficient when its improvement cannot pay the leaf penalty."
+          },
+          {
+            "say": "Change only this toy recipe's gamma to point one. Each end cut now has positive net gain about point zero seven one; the center remains negative. With an explicit earliest-cut tie rule, select the first cut. Its left weight is point four and its right weight is negative two sevenths. At learning rate one quarter and starting logit zero, the new logits are point one and negative one fourteenth."
+          },
+          {
+            "say": "Their probabilities are about point five two five and point four eight two. Under a separately supplied threshold point five two, only the first row alerts, so the positive third row is still missed. A better surrogate split need not satisfy an action or recall gate. This was a controlled toy intervention, not a retuning of May or permission to promote the scheduler candidate. Ranking next changes the output from an alert-or-no-alert decision for each job to an ordered set of eligible items, where missing a useful candidate and putting it in the wrong position are separate failures."
+          }
+        ]
+      }
+    ]
+  }
+}

@@ -1,0 +1,333 @@
+version: 1
+lesson: edge-specialization
+promise: Decide whether an offline handheld can answer from its own manual and complete a crew's shift. Use the source check, training objective, export, device budgets and recovery procedure to decide what still needs a device trial.
+objectives:
+  - id: intro
+    can: Use the sensor and code together for a lookup, then identify the extra evidence a cited explanation needs
+    scenes:
+      - intro
+  - id: job-admission
+    can: Apply quality, privacy and strict latency predicates to different jobs
+    scenes:
+      - job-admission
+  - id: bandwidth
+    can: Calculate active-weight bytes, arithmetic intensity and the conditional rate bound
+    scenes:
+      - bandwidth
+  - id: resident-memory
+    can: Sum serving allocations and distinguish their measurement boundaries
+    scenes:
+      - resident-memory
+  - id: grounding
+    can: Compare the ticket with the cited record, reject the wrong sensor and send a missing code to local review
+    scenes:
+      - grounding
+  - id: alignment-data
+    can: Select aligned token or sequence supervision and preserve independent data splits
+    scenes:
+      - alignment-data
+  - id: training
+    can: Trace actual logit learning toward aligned teacher probabilities
+    scenes:
+      - training
+  - id: distill-objective
+    can: Compute hard-label, forward-KL and hidden-state contributions
+    scenes:
+      - distill-objective
+  - id: gradient-scaling
+    can: Predict one student-logit update from a signed probability gap and explain its high-temperature limit
+    scenes:
+      - gradient-scaling
+  - id: mode-objectives
+    can: Distinguish sequence supervision, reverse-KL optimization and compatible feature matching
+    scenes:
+      - mode-objectives
+  - id: export-quality
+    can: Intersect quality-drop and latency gates on fresh exported results
+    scenes:
+      - export-quality
+  - id: small-architecture
+    can: Explain the distinct weight, compute and cache effects of tying and immediate block reuse
+    scenes:
+      - small-architecture
+  - id: kv-geometry
+    can: Calculate homogeneous KV bytes and interpret a trained GQA design
+    scenes:
+      - kv-geometry
+  - id: dated-models
+    can: Distinguish effective, stored and active counts and budget generation modes
+    scenes:
+      - dated-models
+  - id: runtime-bundles
+    can: Match runtime formats, backend support and separate generation responsibilities
+    scenes:
+      - runtime-bundles
+  - id: export-runtime
+    can: Count the two device crossings in a split graph and compare its time and output with both unsplit runs
+    scenes:
+      - export-runtime
+  - id: cpu-export
+    can: Compute clamped logits and distinguish eager from exported shape domains
+    scenes:
+      - cpu-export
+  - id: thermal
+    can: Distinguish sampled throughput failure from a thermal-cause diagnosis
+    scenes:
+      - thermal
+  - id: thermal-telemetry
+    can: Separate DVFS/status/headroom observations from a causal thermal diagnosis
+    scenes:
+      - thermal-telemetry
+  - id: energy
+    can: Compute idle time after retrieval and decode, add the three energy contributions and compare the total with usable charge
+    scenes:
+      - energy
+  - id: privacy
+    can: Apply the data policy to the complete assembled payload
+    scenes:
+      - privacy
+  - id: hybrid-scores
+    can: Calculate entropy and margin while preserving their limited meaning
+    scenes:
+      - hybrid-scores
+  - id: trusted-route
+    can: Trace score validity, local support and complete hybrid authorization independently
+    scenes:
+      - trusted-route
+  - id: updates
+    can: Preserve approved serving state through incomplete activation and recovery
+    scenes:
+      - updates
+  - id: update-freshness
+    can: Apply signature, hash, freshness, compatibility and session-transition checks
+    scenes:
+      - update-freshness
+  - id: diagnostic-evidence
+    can: Select discriminating evidence for latency, quality, memory, slowdown and offline-launch failures
+    scenes:
+      - diagnostic-evidence
+  - id: fresh-device
+    can: Test a six-hour shift against its memory and battery limits, then isolate the saving from a change in idle power
+    scenes:
+      - fresh-device
+sections:
+  - heading: Start from the physical constraint, not the model size
+    status: taught
+    scenes:
+      - intro
+      - grounding
+      - job-admission
+    note: The technician can look up A/E2 in M7. A cited log entry also needs to match the equipment, and A/E9 needs local review.
+  - heading: A bandwidth worksheet, with its assumptions visible
+    status: taught
+    scenes:
+      - bandwidth
+      - resident-memory
+    note: Eighteen full reads of 3.8 billion weights compete for 50 GB in one second. Only the packed four-bit case fits that traffic budget.
+  - heading: "Distillation: transferring dark knowledge to compact silicon"
+    status: taught
+    scenes:
+      - training
+      - distill-objective
+    note: The full corresponding computation, contract and limits are spoken in these same-film chapters.
+  - heading: The distillation objective
+    status: taught
+    scenes:
+      - distill-objective
+      - gradient-scaling
+    note: The film sums the hard, soft and hidden terms, then isolates one soft-loss gradient at temperature three and checks the high-temperature limit on the same original logits.
+  - heading: Distillation with execution-based verifiers
+    status: taught
+    scenes:
+      - grounding
+      - alignment-data
+      - mode-objectives
+      - export-quality
+    note: The full corresponding computation, contract and limits are spoken in these same-film chapters.
+  - heading: Architecture choices that matter at small scale
+    status: taught
+    scenes:
+      - small-architecture
+      - kv-geometry
+      - dated-models
+    note: The full corresponding computation, contract and limits are spoken in these same-film chapters.
+  - heading: "On-device runtimes: mapping graphs to silicon"
+    status: taught
+    scenes:
+      - runtime-bundles
+    note: The full corresponding computation, contract and limits are spoken in these same-film chapters.
+  - heading: Mobile NPUs and the danger of CPU fallback
+    status: taught
+    scenes:
+      - export-runtime
+      - runtime-bundles
+    note: Two eight-millisecond crossings take the split path to 21 ms. The CPU and all-accelerator paths take 13 and 2.5 ms with the same output.
+  - heading: Testing graph export on CPU
+    status: taught
+    scenes:
+      - cpu-export
+    note: The full corresponding computation, contract and limits are spoken in these same-film chapters.
+  - heading: Heat, battery, and physical edge limits
+    status: taught
+    scenes:
+      - thermal
+      - thermal-telemetry
+    note: The full corresponding computation, contract and limits are spoken in these same-film chapters.
+  - heading: Dynamic voltage and frequency scaling (DVFS)
+    status: taught
+    scenes:
+      - thermal-telemetry
+    note: The full corresponding computation, contract and limits are spoken in these same-film chapters.
+  - heading: Battery energy accounting
+    status: taught
+    scenes:
+      - energy
+      - fresh-device
+    note: The eight-hour comparison preserves 30,000 tokens and 12 usable Wh. The six-hour transfer preserves every phase duration while reducing idle power by 0.1 W.
+  - heading: Hybrid edge-cloud routing with fail-closed privacy
+    status: taught
+    scenes:
+      - privacy
+      - trusted-route
+    note: The full corresponding computation, contract and limits are spoken in these same-film chapters.
+  - heading: Mathematical confidence routing
+    status: taught
+    scenes:
+      - hybrid-scores
+    note: The full corresponding computation, contract and limits are spoken in these same-film chapters.
+  - heading: A fail-closed transmission policy
+    status: taught
+    scenes:
+      - privacy
+      - trusted-route
+    note: The full corresponding computation, contract and limits are spoken in these same-film chapters.
+  - heading: Candidate selection and over-the-air deployment gates
+    status: taught
+    scenes:
+      - job-admission
+      - dated-models
+      - export-quality
+      - updates
+    note: The full corresponding computation, contract and limits are spoken in these same-film chapters.
+  - heading: Over-the-air (OTA) lifecycle and dual-slot rollback
+    status: taught
+    scenes:
+      - updates
+      - update-freshness
+    note: The full corresponding computation, contract and limits are spoken in these same-film chapters.
+  - heading: Diagnosing edge deployment breakdowns
+    status: taught
+    scenes:
+      - diagnostic-evidence
+    note: The full corresponding computation, contract and limits are spoken in these same-film chapters.
+  - heading: 1. The model draws 6W and runs at 5 tokens per second
+    status: taught
+    scenes:
+      - diagnostic-evidence
+      - export-runtime
+    note: The full corresponding computation, contract and limits are spoken in these same-film chapters.
+  - heading: 2. INT4 quantization destroys citation accuracy
+    status: taught
+    scenes:
+      - diagnostic-evidence
+      - export-quality
+    note: The full corresponding computation, contract and limits are spoken in these same-film chapters.
+  - heading: 3. Application crashes after fifteen minutes of continuous conversation
+    status: taught
+    scenes:
+      - diagnostic-evidence
+      - resident-memory
+      - kv-geometry
+    note: The full corresponding computation, contract and limits are spoken in these same-film chapters.
+  - heading: 4. Throughput collapses halfway through a work shift
+    status: taught
+    scenes:
+      - diagnostic-evidence
+      - thermal-telemetry
+    note: The full corresponding computation, contract and limits are spoken in these same-film chapters.
+  - heading: 5. Over-the-air update bricks offline functionality
+    status: taught
+    scenes:
+      - diagnostic-evidence
+      - update-freshness
+    note: The full corresponding computation, contract and limits are spoken in these same-film chapters.
+  - heading: Core takeaways for edge engineering
+    status: taught
+    scenes:
+      - grounding
+      - bandwidth
+      - export-runtime
+      - updates
+      - fresh-device
+    note: The final crew has a candidate for a measured offline trial after its memory and energy calculations pass. The crew still needs supported answers, sustained speed and a working recovery path.
+  - heading: Follow-up architectural questions
+    status: article-only
+    scenes: []
+    reason: exercise
+    note: Self-practice and assessment criteria remain on the article after the complete mechanisms are taught.
+  - heading: Evaluation rubric
+    status: article-only
+    scenes: []
+    reason: exercise
+    note: Self-practice and assessment criteria remain on the article after the complete mechanisms are taught.
+quiz:
+  - n: 1
+    status: taught
+    scenes:
+      - bandwidth
+    objective: bandwidth
+  - n: 2
+    status: taught
+    scenes:
+      - gradient-scaling
+    objective: gradient-scaling
+  - n: 3
+    status: taught
+    scenes:
+      - distill-objective
+    objective: distill-objective
+  - n: 4
+    status: taught
+    scenes:
+      - kv-geometry
+    objective: kv-geometry
+  - n: 5
+    status: taught
+    scenes:
+      - cpu-export
+    objective: cpu-export
+  - n: 6
+    status: taught
+    scenes:
+      - export-runtime
+    objective: export-runtime
+  - n: 7
+    status: taught
+    scenes:
+      - energy
+      - fresh-device
+    objective: energy
+  - n: 8
+    status: taught
+    scenes:
+      - export-quality
+    objective: export-quality
+  - n: 9
+    status: taught
+    scenes:
+      - trusted-route
+    objective: trusted-route
+  - n: 10
+    status: taught
+    scenes:
+      - update-freshness
+    objective: update-freshness
+reviews:
+  closed_book:
+    script: 4a7e178be4749a92
+    taught: 10
+    partial: 0
+    absent: 0
+  fact_check:
+    script: 4a7e178be4749a92
+    open_findings: 0

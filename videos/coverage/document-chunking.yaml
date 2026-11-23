@@ -1,0 +1,157 @@
+version: 1
+lesson: document-chunking
+promise: Choose which runbook passage to send for a question, show that it supports the answer after packing, and decide when to abstain.
+objectives:
+  - id: preserve-evidence
+    can: Find the condition, action, deadline and required identifier in the returned text and detect a reversed instruction even when all required phrases match.
+    scenes:
+      - subject-intro
+      - answerable-units
+      - evaluate-and-release
+      - earned-transfer
+  - id: count-budgets
+    can: Compute stride and repeated word occurrences, check which facts fit inside a window, repair a short tail under a hard cap, and measure the full indexed input with the embedding tokenizer.
+    scenes:
+      - fixed-windows
+      - overlap-limit
+      - tail-balancing
+      - token-offsets
+  - id: preserve-structure
+    can: Keep headings and table headers with their evidence and use the original source span for quotations.
+    scenes:
+      - structure-and-tables
+      - token-offsets
+  - id: evaluate-context
+    can: Trace whole hits through packing in rank order, check the returned spans against the labeled source version, and compare answer quality, duplicates, index size and latency at the same generator-token budget.
+    scenes:
+      - labeled-retrieval
+      - evaluation-limits
+      - earned-transfer
+  - id: checked-parent
+    can: Count a current, permitted parent once and abstain when its complete text exceeds the remaining allowance and no other sufficient evidence is available.
+    scenes:
+      - parent-child-context
+      - checked-parent
+      - earned-transfer
+  - id: semantic-late
+    can: Compute cosine at a proposed boundary, handle a zero vector, and distinguish pooling shared token states from averaging independent vectors or using late interaction.
+    scenes:
+      - semantic-and-late
+      - semantic-cosine
+      - late-boundaries
+  - id: manifest
+    can: Explain what the prior review decision and checksum establish, and check source version, trust and access before returning context.
+    scenes:
+      - manifest-release
+sections:
+  - heading: What a useful chunk must preserve
+    status: taught
+    scenes:
+      - subject-intro
+      - answerable-units
+      - earned-transfer
+      - token-offsets
+  - heading: Fixed windows show the boundary failure
+    status: taught
+    scenes:
+      - fixed-windows
+      - overlap-limit
+      - tail-balancing
+  - heading: Prefer policy structure when you have it
+    status: taught
+    scenes:
+      - structure-and-tables
+      - token-offsets
+      - tail-balancing
+  - heading: Evaluate boundaries with labeled questions
+    status: taught
+    scenes:
+      - labeled-retrieval
+      - evaluate-and-release
+      - earned-transfer
+  - heading: Search small, answer with enough context
+    status: taught
+    scenes:
+      - parent-child-context
+      - checked-parent
+      - earned-transfer
+  - heading: Semantic boundaries and late chunking
+    status: taught
+    scenes:
+      - semantic-and-late
+      - semantic-cosine
+      - late-boundaries
+      - evaluation-limits
+  - heading: A release manifest for the runbook
+    status: taught
+    scenes:
+      - manifest-release
+  - heading: "Practice: try to break the boundaries"
+    status: taught
+    scenes:
+      - tail-balancing
+      - checked-parent
+      - semantic-cosine
+      - earned-transfer
+quiz:
+  - n: 1
+    status: taught
+    scenes:
+      - answerable-units
+      - labeled-retrieval
+  - n: 2
+    status: taught
+    scenes:
+      - fixed-windows
+      - overlap-limit
+      - tail-balancing
+  - n: 3
+    status: taught
+    scenes:
+      - overlap-limit
+      - tail-balancing
+      - earned-transfer
+  - n: 4
+    status: taught
+    scenes:
+      - structure-and-tables
+  - n: 5
+    status: taught
+    scenes:
+      - structure-and-tables
+  - n: 6
+    status: taught
+    scenes:
+      - token-offsets
+  - n: 7
+    status: taught
+    scenes:
+      - labeled-retrieval
+      - earned-transfer
+  - n: 8
+    status: taught
+    scenes:
+      - checked-parent
+      - earned-transfer
+  - n: 9
+    status: taught
+    scenes:
+      - semantic-cosine
+  - n: 10
+    status: taught
+    scenes:
+      - late-boundaries
+removed: []
+reviews:
+  closed_book:
+    script: 24c5c51c832cc49e
+    taught: 10
+    partial: 0
+    absent: 0
+    reviewer: /root/upgrade_shard6
+    evidence: build/video-delivery-20261106/script-reviews/document-chunking.json
+  fact_check:
+    script: 24c5c51c832cc49e
+    open_findings: 0
+    reviewer: /root/upgrade_shard6
+    evidence: build/video-delivery-20261106/script-reviews/document-chunking.json

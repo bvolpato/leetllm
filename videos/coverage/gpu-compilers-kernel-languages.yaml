@@ -1,0 +1,228 @@
+version: 1
+lesson: gpu-compilers-kernel-languages
+promise: Use the last successful step of a vector addition to choose what to inspect when an image
+  fails to load, a first request is slow, or a kernel accesses the wrong output slot.
+objectives:
+  - id: trace-artifacts
+    can: Trace a value from source into a target cubin, distinguish a failed image selection from a
+      bad store, and choose the next artifact or test for each failure.
+    scenes:
+      - intro
+      - artifacts
+      - host-device-package
+      - captured-native
+      - actual-loader-cases
+      - triton-lowering
+      - first-failing-boundary
+  - id: derive-resources
+    can: Round register demand per warp, fit whole blocks into the SM, and distinguish that capacity
+      from spill requests and measured execution time.
+    scenes:
+      - register-lifetimes
+      - registers
+      - spill-workload
+  - id: separate-first-use
+    can: Identify which work a native image removes from a cold request and set a separate timer
+      around the warmed specialization.
+    scenes:
+      - loader
+      - actual-loader-cases
+      - request-clock
+  - id: preserve-contract
+    can: Predict cache reuse when an included header changes and check that published bytes and
+      metadata belong to the same build.
+    scenes:
+      - identity
+      - manifest-contract
+      - publication
+      - cache-cooperation
+  - id: check-output-addresses
+    can: Choose a kernel language that exposes the required ownership, enumerate the addresses its
+      guard admits, and test the rebuilt kernel on a partial block.
+    scenes:
+      - ownership
+      - triton-lowering
+      - ownership-boundaries
+      - control-surfaces
+      - first-failing-boundary
+sections:
+  - heading: One addition, several representations
+    status: taught
+    scenes:
+      - intro
+      - artifacts
+      - host-device-package
+      - captured-native
+  - heading: "`nvcc` packages host code with architecture-specific device images"
+    status: taught
+    scenes:
+      - host-device-package
+      - actual-loader-cases
+  - heading: Produce artifacts you can inspect
+    status: taught
+    scenes:
+      - captured-native
+      - actual-loader-cases
+  - heading: Register pressure, occupancy cliffs, and spilling
+    status: taught
+    scenes:
+      - register-lifetimes
+      - registers
+    note: In the stated model, 33 registers per thread open a fifth allocation unit. A seventh block
+      exceeds the register budget. At 40 registers per thread the same six blocks still fit.
+  - heading: Spills change the memory workload
+    status: taught
+    scenes:
+      - spill-workload
+  - heading: Parsing `ptxas -v` reports
+    status: taught
+    scenes:
+      - captured-native
+      - spill-workload
+  - heading: Keep an artifact manifest
+    status: taught
+    scenes:
+      - identity
+      - manifest-contract
+  - heading: JIT is part of request latency
+    status: taught
+    scenes:
+      - loader
+      - request-clock
+    note: The example holds application cache publication at 2 ms in both paths. Its two bars
+      isolate the 60 ms PTX compilation phase on a common clock.
+  - heading: Eight ranks, two different cache questions
+    status: taught
+    scenes:
+      - publication
+      - cache-cooperation
+    note: A reader compares the SHA-256 digest of the candidate kernel bytes with the digest in
+      its metadata. Replacing the kernel while keeping the previous metadata breaks the match.
+  - heading: Same kernel, different unit of thought
+    status: taught
+    scenes:
+      - ownership
+      - ownership-boundaries
+  - heading: "How Triton compiles: the MLIR lowering pipeline"
+    status: taught
+    scenes:
+      - triton-lowering
+  - heading: Check ownership without a GPU
+    status: taught
+    scenes:
+      - ownership-boundaries
+      - first-failing-boundary
+  - heading: Six authoring surfaces, six control contracts
+    status: taught
+    scenes:
+      - control-surfaces
+  - heading: CUDA C++
+    status: taught
+    scenes:
+      - control-surfaces
+      - captured-native
+  - heading: Triton block programs
+    status: taught
+    scenes:
+      - ownership
+      - triton-lowering
+  - heading: CUTLASS and CuTe
+    status: taught
+    scenes:
+      - control-surfaces
+  - heading: CUDA Tile
+    status: taught
+    scenes:
+      - control-surfaces
+  - heading: Pallas
+    status: taught
+    scenes:
+      - control-surfaces
+      - first-failing-boundary
+  - heading: NKI
+    status: taught
+    scenes:
+      - control-surfaces
+  - heading: Diagnose the first failing boundary
+    status: taught
+    scenes:
+      - actual-loader-cases
+      - first-failing-boundary
+  - heading: Choose by the decision you must own
+    status: taught
+    scenes:
+      - ownership
+      - control-surfaces
+      - first-failing-boundary
+  - heading: Mastery check
+    status: taught
+    scenes:
+      - first-failing-boundary
+    note: With blocks of 128, the inclusive guard passes at length 768 and admits an extra index
+      at length 769. The strict guard
+      admits exactly indices 0 through 768. The next step is a target run with numerical and
+      memory checks. The ten mastery questions are mapped below.
+quiz:
+  - n: 1
+    status: taught
+    scenes:
+      - artifacts
+      - captured-native
+  - n: 2
+    status: taught
+    scenes:
+      - intro
+      - host-device-package
+      - actual-loader-cases
+  - n: 3
+    status: taught
+    scenes:
+      - register-lifetimes
+      - registers
+  - n: 4
+    status: taught
+    scenes:
+      - spill-workload
+  - n: 5
+    status: taught
+    scenes:
+      - identity
+      - manifest-contract
+  - n: 6
+    status: taught
+    scenes:
+      - publication
+      - cache-cooperation
+  - n: 7
+    status: taught
+    scenes:
+      - request-clock
+  - n: 8
+    status: taught
+    scenes:
+      - triton-lowering
+  - n: 9
+    status: taught
+    scenes:
+      - ownership-boundaries
+      - first-failing-boundary
+  - n: 10
+    status: taught
+    scenes:
+      - control-surfaces
+removed:
+  - point: The original register chart cycled through two additional rows for 65 and 129 registers per thread.
+    reason: The article retains those rows. The film uses 40 and 41 to test when increasing demand preserves the current allocation and when it consumes another unit.
+reviews:
+  closed_book:
+    script: 9aaf40f7cfd4a665
+    taught: 10
+    partial: 0
+    absent: 0
+    reviewer: /root/upgrade_shard1
+    evidence: build/video-delivery-20261106/script-reviews/gpu-compilers-kernel-languages.json
+  fact_check:
+    script: 9aaf40f7cfd4a665
+    open_findings: 0
+    reviewer: /root/upgrade_shard1
+    evidence: build/video-delivery-20261106/script-reviews/gpu-compilers-kernel-languages.json

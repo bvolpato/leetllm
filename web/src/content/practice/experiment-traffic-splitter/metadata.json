@@ -1,0 +1,228 @@
+{
+  "id": "experiment-traffic-splitter",
+  "slug": "experiment-traffic-splitter",
+  "title": "Experiment Traffic Splitter",
+  "difficulty": "Medium",
+  "category": "Evaluation",
+  "language": "python3",
+  "timeEstimateMinutes": 30,
+  "timeLimitMs": 2500,
+  "memoryLimitMb": 128,
+  "order": 250,
+  "tags": [
+    "experiments",
+    "bucketing",
+    "deterministic hash",
+    "traffic split"
+  ],
+  "source": "AI lab prep",
+  "summary": "Assign stable experiment variants using weighted deterministic buckets.",
+  "starterCode": [
+    "def assign_variant(user_id: str, experiment_key: str, variants: list[tuple[str, int]]):",
+    "    pass"
+  ],
+  "testCases": [
+    {
+      "name": "public assigns deterministically",
+      "visibility": "sample",
+      "setup": [
+        "from solution import assign_variant",
+        "variants = [(\"control\", 50), (\"treatment\", 50)]",
+        "first = assign_variant(\"u1\", \"checkout\", variants)"
+      ],
+      "checks": [
+        {
+          "input": "variants = [(\"control\", 50), (\"treatment\", 50)]\nfirst = assign_variant(\"u1\", \"checkout\", variants)\nfirst",
+          "expression": "first",
+          "operator": "==",
+          "expected": "assign_variant(\"u1\", \"checkout\", variants)"
+        },
+        {
+          "input": "variants = [(\"control\", 50), (\"treatment\", 50)]\nfirst = assign_variant(\"u1\", \"checkout\", variants)\nfirst\nfirst",
+          "expression": "first",
+          "operator": "in",
+          "expected": "{\"control\", \"treatment\"}"
+        }
+      ]
+    },
+    {
+      "name": "public ignores zero weights",
+      "visibility": "sample",
+      "setup": [
+        "from solution import assign_variant"
+      ],
+      "input": "assign_variant(\"u1\", \"exp\", [(\"off\", 0), (\"on\", 10)])",
+      "expected": "\"on\""
+    },
+    {
+      "name": "private returns none for empty positive weight",
+      "visibility": "hidden",
+      "setup": [
+        "from solution import assign_variant"
+      ],
+      "checks": [
+        {
+          "input": "assign_variant(\"u\", \"exp\", [])",
+          "expression": "assign_variant(\"u\", \"exp\", [])",
+          "operator": "is",
+          "expected": "None"
+        },
+        {
+          "input": "assign_variant(\"u\", \"exp\", [])\nassign_variant(\"u\", \"exp\", [(\"a\", 0), (\"b\", 0)])",
+          "expression": "assign_variant(\"u\", \"exp\", [(\"a\", 0), (\"b\", 0)])",
+          "operator": "is",
+          "expected": "None"
+        }
+      ]
+    },
+    {
+      "name": "private respects weighted ranges",
+      "visibility": "hidden",
+      "setup": [
+        "from solution import assign_variant",
+        "variants = [(\"a\", 1), (\"b\", 3), (\"c\", 6)]"
+      ],
+      "checks": [
+        {
+          "input": "variants = [(\"a\", 1), (\"b\", 3), (\"c\", 6)]\nassign_variant(\"alice\", \"ranking\", variants)",
+          "expression": "assign_variant(\"alice\", \"ranking\", variants)",
+          "operator": "==",
+          "expected": "\"c\""
+        },
+        {
+          "input": "variants = [(\"a\", 1), (\"b\", 3), (\"c\", 6)]\nassign_variant(\"alice\", \"ranking\", variants)\nassign_variant(\"bob\", \"ranking\", variants)",
+          "expression": "assign_variant(\"bob\", \"ranking\", variants)",
+          "operator": "==",
+          "expected": "\"c\""
+        }
+      ]
+    },
+    {
+      "name": "private experiment key affects bucket",
+      "visibility": "hidden",
+      "setup": [
+        "from solution import assign_variant",
+        "variants = [(\"a\", 2), (\"b\", 2), (\"c\", 2)]"
+      ],
+      "checks": [
+        {
+          "input": "variants = [(\"a\", 2), (\"b\", 2), (\"c\", 2)]\nassign_variant(\"same-user\", \"exp-a\", variants)",
+          "expression": "assign_variant(\"same-user\", \"exp-a\", variants)",
+          "operator": "==",
+          "expected": "\"b\""
+        },
+        {
+          "input": "variants = [(\"a\", 2), (\"b\", 2), (\"c\", 2)]\nassign_variant(\"same-user\", \"exp-a\", variants)\nassign_variant(\"same-user\", \"exp-b\", variants)",
+          "expression": "assign_variant(\"same-user\", \"exp-b\", variants)",
+          "operator": "==",
+          "expected": "\"a\""
+        }
+      ]
+    },
+    {
+      "name": "public single positive variant always wins",
+      "visibility": "sample",
+      "description": "One eligible variant owns the full bucket range.",
+      "feedback": "Filter zero weights, then map every bucket to the remaining variant.",
+      "setup": [
+        "from solution import assign_variant"
+      ],
+      "input": "assign_variant(\"any-user\", \"exp\", [(\"only\", 7)])",
+      "expected": "\"only\""
+    },
+    {
+      "name": "private negative weights are not eligible",
+      "visibility": "hidden",
+      "description": "Only positive weight contributes to the total and ranges.",
+      "feedback": "Filter with weight > 0 before summing.",
+      "setup": [
+        "from solution import assign_variant"
+      ],
+      "input": "assign_variant(\"u\", \"exp\", [(\"bad\", -5), (\"good\", 1)])",
+      "expected": "\"good\""
+    },
+    {
+      "name": "private variant order defines bucket ranges",
+      "visibility": "hidden",
+      "description": "Reversing equal-weight variants reverses which name owns the same bucket.",
+      "feedback": "Walk weighted ranges in input order.",
+      "setup": [
+        "from solution import assign_variant"
+      ],
+      "input": "(assign_variant(\"u\", \"e\", [(\"left\", 1), (\"right\", 1)]), assign_variant(\"u\", \"e\", [(\"right\", 1), (\"left\", 1)]))",
+      "expected": "(\"left\", \"right\")"
+    },
+    {
+      "name": "private light arm and multi-user diversity",
+      "visibility": "hidden",
+      "description": "Documented bucket formula can land in low-weight arms; different users need not share one variant.",
+      "feedback": "Map the computed bucket onto cumulative ranges; choosing the heaviest arm unconditionally is incorrect.",
+      "setup": [
+        "from solution import assign_variant",
+        "variants = [(\"a\", 1), (\"b\", 3), (\"c\", 6)]"
+      ],
+      "checks": [
+        {
+          "input": "variants = [(\"a\", 1), (\"b\", 3), (\"c\", 6)]\nassign_variant(\"y\", \"e\", variants)",
+          "expression": "assign_variant(\"y\", \"e\", variants)",
+          "operator": "==",
+          "expected": "\"a\""
+        },
+        {
+          "input": "variants = [(\"a\", 1), (\"b\", 3), (\"c\", 6)]\nassign_variant(\"y\", \"e\", variants)\nassign_variant(\"v\", \"e\", variants)",
+          "expression": "assign_variant(\"v\", \"e\", variants)",
+          "operator": "==",
+          "expected": "\"b\""
+        },
+        {
+          "input": "variants = [(\"a\", 1), (\"b\", 3), (\"c\", 6)]\nassign_variant(\"y\", \"e\", variants)\nassign_variant(\"v\", \"e\", variants)\nassign_variant(\"alice\", \"ranking\", variants)",
+          "expression": "assign_variant(\"alice\", \"ranking\", variants)",
+          "operator": "==",
+          "expected": "\"c\""
+        }
+      ]
+    }
+  ],
+  "clarifyingQuestions": [
+    "Should weights be percentages or arbitrary positive units?",
+    "Should assignments persist in storage or be recomputed?",
+    "How should users be rebalanced when weights change?"
+  ],
+  "followUps": [
+    "Add namespaces so experiments don't interact.",
+    "Support sticky overrides for internal users.",
+    "Return bucket number for debugging."
+  ],
+  "followUpGuide": [
+    "Namespaces should be part of the stable bucket input, with an unambiguous encoding of namespace, experiment, and user fields. Adding a salt doesn't itself enforce mutually exclusive experiment exposure; that needs an eligibility policy.",
+    "",
+    "Overrides should be checked before bucketing and logged for analysis.",
+    "",
+    "Returning bucket can help debug rollout boundaries without exposing random behavior."
+  ],
+  "complexityAnalysis": [
+    "- Random weighted assignment approach: drawing again per request makes assignments unstable. Time: O(v) with a simple cumulative scan, or O(1) per draw after building an alias table in O(v) time and space.",
+    "- Required bucket approach: scan n key code points and v variants. Time: O(n + v). Space: O(n + v) for the constructed key and filtered variants, assuming bounded-size integer arithmetic.",
+    "- Precomputed ranges follow-up: constructing cumulative ranges costs O(v) time and space; each assignment still hashes the key. Time: O(n + log v). Space: O(n) temporary key storage plus O(v) retained ranges."
+  ],
+  "solutionGuide": [
+    "Use a simple deterministic hash, not Python's built-in `hash`. Weighted ranges then map the bucket to a variant.",
+    "",
+    "```python",
+    "def assign_variant(user_id: str, experiment_key: str, variants: list[tuple[str, int]]):",
+    "    positive = [(name, weight) for name, weight in variants if weight > 0]",
+    "    total = sum(weight for _, weight in positive)",
+    "    if total == 0:",
+    "        return None",
+    "",
+    "    key = f\"{experiment_key}:{user_id}\"",
+    "    bucket = sum((index + 1) * ord(char) for index, char in enumerate(key)) % total",
+    "    cursor = 0",
+    "    for name, weight in positive:",
+    "        cursor += weight",
+    "        if bucket < cursor:",
+    "            return name",
+    "    return positive[-1][0]",
+    "```"
+  ]
+}

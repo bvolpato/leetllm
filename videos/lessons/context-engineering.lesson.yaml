@@ -1,0 +1,1690 @@
+version: 1
+id: context-engineering
+title: Building the Context an Answer Needs
+source: fundamentals/long-context-engineering-beyond-management/content.md
+voice: en-US-AndrewNeural
+rate: +0%
+sources:
+  - title: Effective context engineering for AI agents
+    url: https://www.anthropic.com/engineering/effective-context-engineering-for-ai-agents
+  - title: A Survey of Context Engineering for Large Language Models.
+    url: https://arxiv.org/abs/2507.13334
+  - title: "Lost in the Middle: How Language Models Use Long Contexts"
+    url: https://aclanthology.org/2024.tacl-1.9/
+  - title: "Context Rot: How Increasing Input Tokens Impacts LLM Performance"
+    url: https://www.trychroma.com/research/context-rot
+  - title: "Needle In A Haystack: Pressure Testing LLMs"
+    url: https://github.com/gkamradt/needle-in-a-haystack
+  - title: How Long Contexts Fail
+    url: https://www.dbreunig.com/2025/06/22/how-contexts-fail-and-how-to-fix-them.html
+  - title: Context Engineering
+    url: https://www.langchain.com/blog/context-engineering-for-agents
+  - title: "Agent Memory: How to Build Agents that Learn and Remember"
+    url: https://www.letta.com/blog/agent-memory/
+  - title: Prompt caching (Claude API documentation)
+    url: https://platform.claude.com/docs/en/build-with-claude/prompt-caching
+  - title: Prompt caching
+    url: https://developers.openai.com/api/docs/guides/prompt-caching
+  - title: "LLMLingua: Compressing Prompts for Accelerated Inference of Large Language Models"
+    url: https://arxiv.org/abs/2310.05736
+  - title: Agent Skills Specification
+    url: https://agentskills.io/specification
+  - title: Agent Skills
+    url: https://platform.claude.com/docs/en/agents-and-tools/agent-skills/overview
+  - title: Effective harnesses for long-running agents
+    url: https://www.anthropic.com/engineering/effective-harnesses-for-long-running-agents
+  - title: Harness design for long-running application development
+    url: https://www.anthropic.com/engineering/harness-design-long-running-apps
+  - title: LangGraph Memory Overview
+    url: https://docs.langchain.com/oss/python/concepts/memory
+scenes:
+  - id: intro
+    title: "What should the next call remember?"
+    visual: >-
+      Slide the failed callback trace beside the draft note. Add the lock observation underneath the trace so the request and time line up. Replace the draft with the checked finding and carry its source into the next call.
+    beats:
+      - say: >-
+          This callback returned four oh three. The incident note blames a database lock. That’s the agent’s reason for proposing a rollback.
+        hold: 0.5
+        caption_starts:
+          - "The incident note blames a database lock"
+        visual_cues:
+          - id: intro-trace
+            phrase: "This callback"
+            targets: [incident-records]
+            linger: 0.15
+          - id: intro-status
+            phrase: "returned four oh three"
+            targets: [incident-records]
+            linger: 0.25
+      - say: >-
+          Slide the lock check under the trace. Same request, R seventeen. Same time, one hundred. Look at what the lock check found. Would you keep the lock explanation?
+        hold: 2.25
+        visual_cues:
+          - id: intro-lock
+            phrase: "Slide the lock check under the trace"
+            targets: [incident-records]
+            linger: 0.25
+          - id: intro-question
+            phrase: "Would you keep the lock explanation"
+            targets: [incident-question, incident-records, incident-note]
+            linger: 0.25
+      - say: >-
+          Erase the guess. No migration lock was present for this request at time one hundred. Keep the source ID beside that finding. Now we can investigate why the callback failed.
+        hold: 0.8
+        caption_starts:
+          - "No migration lock was present"
+        visual_cues:
+          - id: intro-erase
+            phrase: "Erase the guess"
+            targets: [incident-note]
+            linger: 0.15
+          - id: intro-keep
+            phrase: "No migration lock was present for this request at time one hundred"
+            targets: [incident-note]
+            linger: 0.25
+            caption_boundary: true
+      - say: >-
+          Assemble the next call around that question. Send the investigation instructions, the trace lookup tool, the trace, and the checked note. Leave the old guess and the recaps that repeat it in the archive. The pieces you send are the model’s working set.
+        hold: 0.8
+        visual_cues:
+          - id: intro-request
+            phrase: "Assemble the next call around that question"
+            targets: [incident-note]
+            linger: 0.25
+  - id: capacity-and-evidence
+    title: "Where did the evidence land?"
+    visual: >-
+      Slide one fixed trace through a controlled input. Switch to a two-source question that needs both a callback failure and a deployment change, then compare the supplied retrieval scores.
+    beats:
+      - say: >-
+          Suppose the input limit is a hundred and twenty-eight thousand tokens. This investigation fits. A trimmer that waits until the window is full has no reason to touch it. Yet a request can keep the old lock explanation or leave out the record that would correct it. Build for the question before the window fills.
+        hold: 0.65
+      - say: >-
+          Even a record that makes it into the request can be hard to use. In Lost in the Middle, models answering multi-document questions or looking up a value often did better with the evidence near either end. Chroma’s twenty twenty-five study tested eighteen models. Longer inputs and similar distractors often made retrieval harder. Those experiments give us a reason to move our own evidence and test again.
+        hold: 0.55
+      - say: >-
+          Ask for the status in trace seventeen. Move the same record from the beginning through the middle to the end. Keep the question, the text and the answer key fixed. Now ask a different question. Could a scope change explain the callback failure? One record shows where the request failed. The other shows what the deployment changed. We’d have to check which scope the callback needed before blaming that change. Score this two-source question separately. When reporting a needle benchmark, name the variant. Some require several facts.
+        hold: 0.7
+        visual_cues:
+          - id: ce-position-move
+            phrase: "Move the same record from the beginning through the middle to the end"
+            targets: [ce-capacity-and-evidence-mechanism]
+            linger: 0.25
+          - id: probe-combine
+            phrase: "Now ask a different question"
+            targets: [ce-capacity-and-evidence-mechanism]
+            linger: 0.25
+          - id: probe-next
+            phrase: "check which scope the callback needed"
+            targets: [ce-capacity-and-evidence-mechanism]
+            linger: 0.25
+            caption_boundary: true
+      - say: For a supplied twelve-case probe, ten successes at the beginning mean eighty-three and one third percent.
+          Seven in the middle mean fifty-eight and one third percent. Subtract the success fractions and
+          multiply by one hundred to obtain a twenty-five percentage-point change. Score the questions that
+          need both records separately, using the number of those questions as the denominator.
+        hold: 0.7
+        caption_starts:
+          - "Seven in the middle"
+          - "a twenty-five percentage-point change"
+        visual_cues:
+          - id: ce-capacity-and-evidence-4
+            phrase: Subtract the success fractions and multiply by one hundred to obtain a twenty-five percentage-point
+              change
+            targets:
+              - ce-capacity-and-evidence-mechanism
+            color: green
+            linger: 0.4
+          - id: ce-position-ten
+            phrase: ten successes at the beginning mean eighty-three and one third percent
+            targets:
+              - ce-capacity-and-evidence-mechanism
+            color: cyan
+            linger: 0.4
+          - id: ce-position-seven
+            phrase: Seven in the middle mean fifty-eight and one third percent
+            targets:
+              - ce-capacity-and-evidence-mechanism
+            color: cyan
+            linger: 0.4
+          - id: ce-position-difference
+            phrase: obtain a twenty-five percentage-point change
+            targets:
+              - ce-capacity-and-evidence-mechanism
+            color: cyan
+            linger: 0.4
+  - id: failure-interventions
+    title: Different symptoms require different edits to the same packet
+    visual: Fork one packet into four controlled interventions. Remove a disproven span and its derived summary,
+      replace a repeated search trace, filter overlapping tool schemas, and demote retrieved formatting
+      instructions to data.
+    beats:
+      - say: A wrong lock claim repeatedly cited as fact is poisoning. Re-running old failed searches instead of
+          checking a new trace is distraction. Selecting an inappropriate administrative tool from overlapping
+          descriptions is confusion. A retrieved instruction demanding XML while the application requires JSON
+          is a clash. Each pattern points to a different part of the next request you can change.
+        hold: 0.7
+        visual_cues:
+          - id: ce-failure-interventions-1
+            phrase: A wrong lock claim repeatedly cited as fact is poisoning
+            targets:
+              - ce-failure-interventions-mechanism
+            color: cyan
+            linger: 0.4
+      - say: For poisoning, remove the false claim and summaries derived from it before the next plan. Retain the
+          checked negative finding with its source and observation window. For distraction, select the new
+          evidence instead of replaying the same low-value search history. An added apology alone can leave
+          the original false span inside the next request.
+        hold: 0.7
+        visual_cues:
+          - id: ce-failure-interventions-2
+            phrase: For poisoning, remove the false claim and summaries derived from it before the next plan
+            targets:
+              - ce-failure-interventions-mechanism
+            color: cyan
+            linger: 0.4
+          - id: ce-remove-poison
+            phrase: remove the false claim and summaries derived from it before the next plan
+            targets:
+              - ce-failure-interventions-mechanism
+            color: cyan
+            linger: 0.4
+          - id: ce-keep-negative
+            phrase: Retain the checked negative finding with its source and observation window
+            targets:
+              - ce-failure-interventions-mechanism
+            color: cyan
+            linger: 0.4
+          - id: ce-new-evidence
+            phrase: select the new evidence instead of replaying the same low-value search history
+            targets:
+              - ce-failure-interventions-mechanism
+            color: cyan
+            linger: 0.4
+      - say: For confusion, narrow the tool schemas to the current phase. For clash, preserve the retrieved passage as
+          untrusted evidence without promoting its formatting instruction into policy. An XML example quoted
+          as data need not conflict with a JSON output contract. Change one assembly choice at a time, then
+          compare matched tasks and the full resulting traces.
+        hold: 0.7
+        visual_cues:
+          - id: ce-failure-interventions-3
+            phrase: For confusion, narrow the tool schemas to the current phase
+            targets:
+              - ce-failure-interventions-mechanism
+            color: green
+            linger: 0.4
+          - id: ce-demote-format
+            phrase: preserve the retrieved passage as untrusted evidence without promoting its formatting instruction into
+              policy
+            targets:
+              - ce-failure-interventions-mechanism
+            color: cyan
+            linger: 0.4
+  - id: write
+    title: Store a finding, then reload what is useful
+    visual: Predicates execute against trace and lock records. Supported findings serialize into a note store,
+      reload through JSON, and retain exact source IDs while bulky raw output remains archived outside the
+      next packet.
+    beats:
+      - say: >
+          Begin by checking the source records. The callback trace contains an authentication error. A lock
+          observation tied to that same trace records no migration lock. These fields support two narrow
+          findings. They also tell us to remove the old lock explanation from the next active packet.
+        hold: 0.7
+        visual_cues:
+          - id: write-beat-1-focus-1
+            phrase: Begin by checking the source records
+            targets:
+              - intro-object-b-0-scene-id-write-findings-checked-against-source-10
+            color: blue
+            linger: 0.6
+          - id: write-beat-1-focus-2
+            phrase: A lock observation tied to that same trace records no migration lock
+            targets:
+              - intro-object-lock-check-r17-locked-false-3
+            color: blue
+            linger: 0.6
+          - id: ce-core-source-fields
+            phrase: The callback trace contains an authentication error.
+            targets:
+              - ce-core-write
+            color: cyan
+            linger: 0.4
+          - id: ce-core-lock-negative
+            phrase: A lock observation tied to that same trace records no migration lock.
+            targets:
+              - ce-core-write
+            color: cyan
+            linger: 0.4
+          - id: ce-core-drop-lock
+            phrase: remove the old lock explanation from the next active packet.
+            targets:
+              - ce-core-write
+            color: cyan
+            linger: 0.4
+      - say: >
+          Write the checked findings with their source identities into a separate note store. Our simulation
+          serializes and reloads the records, so their values can be compared after the round trip. The
+          original trace stays in the archive for later questions that need more detail.
+        hold: 0.65
+        visual_cues:
+          - id: write-beat-2-focus-1
+            phrase: Write the checked findings with their source identities
+            targets:
+              - intro-object-b-0-scene-id-write-findings-checked-against-source-10
+            color: blue
+            linger: 0.6
+          - id: write-beat-2-focus-2
+            phrase: The original trace stays in the archive for
+            targets:
+              - intro-object-trace-17-callback-status-403-2
+            color: blue
+            linger: 0.6
+          - id: ce-core-write-store
+            phrase: Write the checked findings with their source identities into a separate note store.
+            targets:
+              - ce-core-write
+            color: cyan
+            linger: 0.4
+          - id: ce-core-archive
+            phrase: The original trace stays in the archive for later questions that need more detail.
+            targets:
+              - ce-core-write
+            color: cyan
+            linger: 0.4
+      - say: >
+          Reloading a note puts its tokens back into the model's input. External storage helps because the
+          application chooses what to read, while the complete archive can remain outside this call. Preserve
+          observation time, source revision, and uncertainty so a later session knows what must be rechecked.
+        hold: 0.65
+        visual_cues:
+          - id: write-beat-3-focus-1
+            phrase: Reloading a note puts its tokens back into the model's input
+            targets:
+              - intro-object-b-0-scene-id-write-findings-checked-against-source-10
+            color: blue
+            linger: 0.6
+          - id: ce-core-reload
+            phrase: Reloading a note puts its tokens back into the model's input.
+            targets:
+              - ce-core-write
+            color: cyan
+            linger: 0.4
+  - id: verified-note-state
+    title: A stored note carries scope and a verifier result
+    visual: Construct a note from source R17 and its observation time. Attempt to promote a tool-supplied string
+      flag, reject it, then retain a host-verified Boolean and reload only the requested finding.
+    beats:
+      - say: >-
+          Look at the three values for confirmed. The first is text, the second is a number, and the third is a Boolean. The function rejects the first two. The host sets the Boolean to true after it checks the finding against the source.
+        hold: 0.7
+        visual_cues:
+          - id: ce-verified-note-state-1
+            phrase: Look at the three values for confirmed
+            targets:
+              - ce-verified-note-state-mechanism
+            color: cyan
+            linger: 0.4
+          - id: ce-flag-rejected
+            phrase: The function rejects the first two
+            targets:
+              - ce-verified-note-state-mechanism
+            color: cyan
+            linger: 0.4
+      - say: Record the source revision, trace identity, observation time, status and uncertainty beside a finding. No
+          lock during the inspected transaction is narrower than no lock ever. A later source revision can
+          require a new check. Reload only the needed note, while keeping a path back to the complete archived
+          observation.
+        hold: 0.7
+        visual_cues:
+          - id: ce-verified-note-state-2
+            phrase: Record the source revision, trace identity, observation time, status and uncertainty beside a finding
+            targets:
+              - ce-verified-note-state-mechanism
+            color: cyan
+            linger: 0.4
+          - id: ce-note-revision
+            phrase: A later source revision can require a new check
+            targets:
+              - ce-verified-note-state-mechanism
+            color: cyan
+            linger: 0.4
+      - say: >-
+          Writing saves information outside the active call. A file, a database or a thread checkpoint can hold the note for the next shift. Before loading it, check that the caller may read it, the source is current and the finding answers this question. The reloaded words count toward the next call’s input.
+        hold: 0.7
+        visual_cues:
+          - id: ce-verified-note-state-3
+            phrase: Writing saves information outside the active call
+            targets:
+              - ce-verified-note-state-mechanism
+            color: green
+            linger: 0.4
+  - id: select
+    title: Expose the tools for the current phase
+    visual: An actual phase allowlist intersects with available tool IDs. Investigation selects deploy_lookup and
+      trace_lookup, while proposal mode changes the visible set and unknown phases select nothing.
+    beats:
+      - say: >
+          During investigation, the next useful actions read deployment records and trace spans. The phase
+          policy intersects those tool identities with the tools actually available. Their schemas enter the
+          prompt, while unrelated administrative choices remain outside this step's working set.
+        hold: 0.65
+        visual_cues:
+          - id: select-beat-1-focus-1
+            phrase: During investigation
+            targets:
+              - select-simulation-15
+            color: blue
+            linger: 0.6
+          - id: ce-core-read-tools
+            phrase: Their schemas enter the prompt
+            targets:
+              - ce-core-select
+            color: cyan
+            linger: 0.4
+      - say: >
+          A later proposal phase needs a different set. Watch the same tool identities change eligibility when
+          the phase changes. Progressive disclosure reduces irrelevant choices and schema tokens. It also
+          makes the intended workflow visible enough to test with concrete requests.
+        hold: 0.65
+        motion_check:
+          region:
+            - 130
+            - 300
+            - 1640
+            - 580
+          minimumChangedFraction: 0.002
+        visual_cues:
+          - id: select-proposal
+            phrase: A later proposal phase needs a different set
+            targets:
+              - select-eligible-tools
+            color: green
+            linger: 0.6
+          - id: select-beat-2-focus-1
+            phrase: A later proposal phase needs a different set
+            targets:
+              - select-eligible-tools
+            color: blue
+            linger: 0.6
+      - say: >
+          An unknown phase exposes no tools in this fixture. Execution authorization still belongs at the tool
+          boundary, where identity and permissions must be checked on every call. Hiding a schema organizes
+          model context. The backend must also reject actions that the caller is not allowed to perform.
+        hold: 0.65
+        visual_cues:
+          - id: select-beat-3-focus-1
+            phrase: An unknown phase exposes no tools in this fixture
+            targets:
+              - select-simulation-15
+            color: blue
+            linger: 0.6
+  - id: phase-intersection
+    title: Construct the complete article tool intersection
+    visual: Keep the five named tools in place while intersecting availability and the phase allowlist. Show the
+      original two-tool miniature separately from the full article’s three-tool investigation set.
+    beats:
+      - say: The earlier two-tool picture is a deliberately smaller investigation policy. The complete article program
+          allows deploy lookup, trace lookup and runbook search during investigation. It intersects that
+          allowlist with the actual available tool identities, then sorts the result. With all five catalog
+          tools available, those three investigation tools are exposed.
+        hold: 0.7
+        visual_cues:
+          - id: ce-phase-intersection-1
+            phrase: The earlier two-tool picture is a deliberately smaller investigation policy
+            targets:
+              - ce-phase-intersection-mechanism
+            color: cyan
+            linger: 0.4
+          - id: ce-three-tools
+            phrase: With all five catalog tools available, those three investigation tools are exposed
+            targets:
+              - ce-phase-intersection-mechanism
+            color: cyan
+            linger: 0.4
+      - say: Switch to proposal mode on the same catalog. Runbook search and rollback advisor are eligible; the other
+          schemas leave the prompt. An unknown phase maps to the empty set. If trace lookup is unavailable
+          during investigation, intersection removes it without granting a replacement tool. The result
+          follows identity membership, rather than a guessed tool count.
+        hold: 0.7
+        visual_cues:
+          - id: ce-phase-intersection-2
+            phrase: Switch to proposal mode on the same catalog
+            targets:
+              - ce-phase-intersection-mechanism
+            color: cyan
+            linger: 0.4
+          - id: ce-two-tools
+            phrase: Runbook search and rollback advisor are eligible
+            targets:
+              - ce-phase-intersection-mechanism
+            color: cyan
+            linger: 0.4
+          - id: ce-no-tools
+            phrase: An unknown phase maps to the empty set
+            targets:
+              - ce-phase-intersection-mechanism
+            color: cyan
+            linger: 0.4
+          - id: ce-unavailable
+            phrase: intersection removes it without granting a replacement tool
+            targets:
+              - ce-phase-intersection-mechanism
+            color: cyan
+            linger: 0.4
+      - say: Prompt visibility and execution permission are separate tests. Even a tool omitted from the prompt can be
+          named in a malformed or hostile attempted call. The backend checks caller identity, current scope
+          and action permissions on every attempt. Selecting fewer schemas can reduce irrelevant choices and
+          token use, but those effects still require task evaluation.
+        hold: 0.7
+        visual_cues:
+          - id: ce-phase-intersection-3
+            phrase: Prompt visibility and execution permission are separate tests
+            targets:
+              - ce-phase-intersection-mechanism
+            color: green
+            linger: 0.4
+  - id: prefix-order
+    title: Move the changing header behind the reusable prefix
+    visual: Build two toy token sequences from a 96-unit root, a 12-unit changing header and 256-unit document.
+      Preserve every token while moving the header; construct common-prefix length from aligned positions.
+    beats:
+      - say: Prefill processes input tokens into attention key and value states. A compatible cached prefix may reuse
+          that computation, after which the new suffix is processed and decoding generates output. Reuse
+          requires the same eligible rendered prefix and compatible serving state. A changed early timestamp
+          can block reuse of stable material after it without deleting an older cache entry.
+        hold: 0.7
+        visual_cues:
+          - id: ce-prefix-order-1
+            phrase: Prefill processes input tokens into attention key and value states
+            targets:
+              - ce-prefix-order-mechanism
+            color: cyan
+            linger: 0.4
+      - say: Use a supplied toy tokenizer with an eligible boundary at every token. The root contains ninety-six
+          tokens, the changing header twelve, and the fixed document two hundred fifty-six. The first header
+          token changes between requests while its length stays twelve. Root, header, document has only
+          ninety-six common tokens across header changes. Move the header after the document. The common
+          prefix becomes three hundred fifty-two tokens, while each complete input still contains three
+          hundred sixty-four.
+        hold: 0.7
+        visual_cues:
+          - id: ce-prefix-order-2
+            phrase: Use a supplied toy tokenizer with an eligible boundary at every token
+            targets:
+              - ce-prefix-order-mechanism
+            color: cyan
+            linger: 0.4
+          - id: ce-prefix-96
+            phrase: has only ninety-six common tokens across header changes
+            targets:
+              - ce-prefix-order-mechanism
+            color: cyan
+            linger: 0.4
+          - id: ce-prefix-move
+            phrase: Move the header after the document
+            targets:
+              - ce-prefix-order-mechanism
+            color: cyan
+            linger: 0.4
+          - id: ce-prefix-352
+            phrase: The common prefix becomes three hundred fifty-two tokens
+            targets:
+              - ce-prefix-order-mechanism
+            color: cyan
+            linger: 0.4
+          - id: ce-prefix-364
+            phrase: each complete input still contains three hundred sixty-four
+            targets:
+              - ce-prefix-order-mechanism
+            color: cyan
+            linger: 0.4
+      - say: >-
+          The two prefixes now match. You can check their bytes locally with a hash. To see how much work the provider actually reused, read the cached input count in the response and measure latency. Routing and expiry can turn a match into a miss. Keep this phase’s tools first, the fixed document next, and the changing notes last. When the phase changes, update the tools too.
+        hold: 0.7
+        visual_cues:
+          - id: ce-prefix-order-3
+            phrase: The two prefixes now match
+            targets:
+              - ce-prefix-order-mechanism
+            color: green
+            linger: 0.4
+  - id: cache-cost-scope
+    title: Caching changes repeated work while the same input still occupies capacity
+    visual: Reuse the stable segment in place and separately meter writes, reads, new suffix and output. Keep the
+      authorization gate before packet construction and distinguish it from a cache-group key.
+    beats:
+      - say: Cached tokens still occupy logical input capacity and remain available to attention. A perfectly cached
+          long history can still contain a misleading claim. Curation tests whether the retained evidence
+          supports the decision; cache measurements test reuse and serving cost. Neither measurement replaces
+          the other, and necessary evidence should not be discarded to improve a cache-hit percentage.
+        hold: 0.7
+        visual_cues:
+          - id: ce-cache-cost-scope-1
+            phrase: Cached tokens still occupy logical input capacity and remain available to attention
+            targets:
+              - ce-cache-cost-scope-mechanism
+            color: cyan
+            linger: 0.4
+      - say: Use the selected provider’s actual accounting for cache writes, cache reads, uncached input and output,
+          including applicable request modifiers. Some cache writes cost more than ordinary input. Separate
+          cache groups can organize routing or billing and reduce cross-user cache-hit probing where
+          supported. They do not authorize which user’s document enters the request.
+        hold: 0.7
+        visual_cues:
+          - id: ce-cache-cost-scope-2
+            phrase: Use the selected provider’s actual accounting for cache writes, cache reads, uncached input and
+              output, including applicable request modifiers
+            targets:
+              - ce-cache-cost-scope-mechanism
+            color: cyan
+            linger: 0.4
+      - say: Before constructing even a likely cache hit, check the caller’s identity and access scope. Pin the model,
+          tokenizer, request serialization and relevant tool definitions when measuring reuse. Keep cache
+          metrics beside task quality, input and output usage, end-to-end latency and total cost. A miss may
+          reflect changed tokens, expiry, eviction or routing, rather than evidence quality.
+        hold: 0.7
+        visual_cues:
+          - id: ce-cache-cost-scope-3
+            phrase: Before constructing even a likely cache hit, check the caller’s identity and access scope
+            targets:
+              - ce-cache-cost-scope-mechanism
+            color: green
+            linger: 0.4
+  - id: compress
+    title: Remove bulk while retaining checked state
+    visual: A source-bound allocation ledger begins at 12,436 units, removes the 8,200-unit raw trace export, then
+      excludes unused tools and the disproven claim to reach 3,346 units. Totals and bars derive from selected
+      entries.
+    beats:
+      - say: >
+          The current allocation contains useful evidence alongside a large old trace export, unused tool
+          schemas, and the old hypothesis. The sizes are assigned token units for this example. Inspect the
+          categories before deciding what to keep. Shortening every category equally would also shrink the
+          evidence we need.
+        hold: 0.65
+        visual_cues:
+          - id: compress-beat-1-focus-1
+            phrase: and the old hypothesis
+            targets:
+              - compress-simulation-18
+            color: blue
+            linger: 0.6
+      - say: >
+          Prune the bulky raw export after preserving its checked findings and source references. The active
+          packet becomes much smaller. Keep valid call and result identities when reconstructing a real
+          transcript, and retain recent output whose meaning has not yet been captured in a verified note.
+        hold: 0.65
+        visual_cues:
+          - id: compress-beat-2-focus-1
+            phrase: Keep valid call and result identities when reconstructing a real transcript
+            targets:
+              - compress-call-result-pair
+            color: blue
+            linger: 0.6
+          - id: compress-beat-2-focus-2
+            phrase: export after preserving its checked findings and source
+            targets:
+              - compress-object-auth-error-source-checked-source-24
+            color: blue
+            linger: 0.6
+      - say: >
+          Exclude tools outside the phase and remove the disproven claim. Reloaded findings still count in the
+          remaining input, which the ledger shows explicitly. The smaller result is a candidate working set.
+          Its usefulness depends on whether it preserves what the task requires, so quality evaluation follows
+          the accounting.
+        hold: 0.65
+        motion_check:
+          region:
+            - 140
+            - 325
+            - 1620
+            - 650
+          minimumChangedFraction: 0.002
+        visual_cues:
+          - id: compress-beat-3-focus-1
+            phrase: Exclude tools outside the phase and remove the disproven claim
+            targets:
+              - compress-simulation-18
+            color: blue
+            linger: 0.6
+  - id: prune-cutoff
+    title: Replace only old output whose finding is already preserved
+    visual: Index four result objects and mark the cutoff before the two most recent. Apply the verified-finding
+      predicate independently, replacing only the eligible old payload and retaining each call/result
+      identity.
+    beats:
+      - say: The pruning function computes a cutoff as the larger of zero and result count minus keep recent. A result
+          is replaced only when its index is before that cutoff and its finding-recorded flag is the exact
+          Boolean true. Recent results stay raw even if checked; older results without a recorded finding also
+          stay raw.
+        hold: 0.7
+        visual_cues:
+          - id: ce-prune-cutoff-1
+            phrase: The pruning function computes a cutoff as the larger of zero and result count minus keep recent
+            targets:
+              - ce-prune-cutoff-mechanism
+            color: cyan
+            linger: 0.4
+      - say: Take four ordered results and keep the most recent two. The cutoff is index two. If the flags are true,
+          false, true, true, only index zero is replaced. Index one remains because its finding is unrecorded.
+          Indices two and three remain because they are recent. This rule preserves unresolved detail rather
+          than compressing every old response automatically.
+        hold: 0.7
+        visual_cues:
+          - id: ce-prune-cutoff-2
+            phrase: Take four ordered results and keep the most recent two
+            targets:
+              - ce-prune-cutoff-mechanism
+            color: cyan
+            linger: 0.4
+          - id: ce-prune-cutoff
+            phrase: The cutoff is index two
+            targets:
+              - ce-prune-cutoff-mechanism
+            color: cyan
+            linger: 0.4
+          - id: ce-prune-first
+            phrase: only index zero is replaced
+            targets:
+              - ce-prune-cutoff-mechanism
+            color: cyan
+            linger: 0.4
+          - id: ce-prune-unrecorded
+            phrase: Index one remains because its finding is unrecorded
+            targets:
+              - ce-prune-cutoff-mechanism
+            color: cyan
+            linger: 0.4
+          - id: ce-prune-recent
+            phrase: Indices two and three remain because they are recent
+            targets:
+              - ce-prune-cutoff-mechanism
+            color: cyan
+            linger: 0.4
+      - say: The article returns replacement strings as a content illustration. A real provider transcript must
+          preserve valid tool-call and tool-result identifiers, order and message structure. Bound raw output
+          at ingress, archive it before pruning, and retain exact error text or identifiers needed by the next
+          check. Measure finalized requests instead of treating these strings as provider messages.
+        hold: 0.7
+        visual_cues:
+          - id: ce-prune-cutoff-3
+            phrase: The article returns replacement strings as a content illustration
+            targets:
+              - ce-prune-cutoff-mechanism
+            color: green
+            linger: 0.4
+  - id: summary-authority
+    title: Compression must preserve uncertainty and pending external state
+    visual: Retain a scoped negative finding while a source-derived malicious instruction remains tagged as data.
+      Move an uncertain external operation into a typed execution record rather than a summary sentence.
+    beats:
+      - say: A useful summary records observations, hypotheses, rejected possibilities, source identities, unresolved
+          questions and next checks. Authentication suspected is different from authentication confirmed as
+          the cause. Keep negative findings with their time window. LLMLingua uses a smaller model to
+          shorten the prompt to a token budget. Read the compressed note back. Can you still tell which
+          request the lock check covered?
+        hold: 0.7
+        visual_cues:
+          - id: ce-summary-authority-1
+            phrase: A useful summary records observations, hypotheses, rejected possibilities, source identities,
+              unresolved questions and next checks
+            targets:
+              - ce-summary-authority-mechanism
+            color: cyan
+            linger: 0.4
+      - say: Summarization can carry an injected instruction into later memory. Label the summary as source-derived
+          history, preserve its provenance, and keep policy authority separate. A generated field named
+          verified has meaning only through the host check that set it. Neither a summary nor a retrieved
+          procedure can grant new tool permissions.
+        hold: 0.7
+        visual_cues:
+          - id: ce-summary-authority-2
+            phrase: Summarization can carry an injected instruction into later memory
+            targets:
+              - ce-summary-authority-mechanism
+            color: cyan
+            linger: 0.4
+      - say: >-
+          Suppose the rollback request went out and the reply never arrived. Keep the exact payload, operation key, last confirmed result and remaining uncertainty in execution state. Use that key to check the operation with the service before deciding whether to retry. The summary can point the next shift to that record.
+        hold: 0.7
+        visual_cues:
+          - id: ce-summary-authority-3
+            phrase: "Suppose the rollback request went out and the reply never arrived"
+            targets:
+              - ce-summary-authority-mechanism
+            color: green
+            linger: 0.4
+          - id: ce-pending-key
+            phrase: exact payload, operation key, last confirmed result and remaining uncertainty
+            targets:
+              - ce-summary-authority-mechanism
+            color: cyan
+            linger: 0.4
+  - id: isolate
+    title: "What comes back from the search?"
+    visual: >-
+      Keep the fifty inspected commits in the worker window. Transfer one checked finding. Repeat with a missing source ID and then a claim contradicted by the same trace.
+    beats:
+      - say: >-
+          Suppose a worker inspects fifty commits for a change that might explain the callback failure. Each mark is a commit the worker inspected. The lead has its own conversation. All it needs from this search is a finding it can check. In this small example, the reply has just two fields, claim and source, and a two hundred byte limit.
+        hold: 0.45
+        visual_cues:
+          - id: worker-search
+            phrase: "a worker inspects fifty commits"
+            targets: [worker-search]
+            linger: 0.25
+      - say: >-
+          The worker reports an authentication error and cites trace seventeen. In the archive, that callback returned four oh three. The record supports the finding. Copy those two fields into the lead’s request. The search stays behind. Each worker still needs permission to read its inputs, and both windows count toward the cost.
+        hold: 0.75
+        caption_starts:
+          - "In the archive"
+          - "The record supports the finding"
+        visual_cues:
+          - id: worker-admit
+            phrase: "The record supports the finding"
+            targets: [worker-source]
+            linger: 0.25
+          - id: worker-copy
+            phrase: "Copy those two fields into the lead’s request"
+            targets: [worker-return]
+            linger: 0.25
+      - say: >-
+          Try the same claim with a missing source ID. The receiver checks the set of records this caller may read. There’s no record to open. The lead gets no finding from this attempt.
+        hold: 1.6
+        caption_starts:
+          - "There’s no record to open"
+        visual_cues:
+          - id: worker-missing
+            phrase: "There’s no record to open"
+            targets: [worker-source]
+            linger: 0.25
+      - say: >-
+          For the third try, the worker cites the real trace but says the request succeeded. Open trace seventeen again. Four oh three contradicts that success claim. Leave it out of the lead’s note. A separate window lets us leave search history behind. The application still controls file access and tool execution.
+        hold: 0.7
+        visual_cues:
+          - id: worker-mismatch
+            phrase: "Four oh three contradicts that success claim"
+            targets: [worker-source]
+            linger: 0.25
+            caption_boundary: true
+  - id: strict-handoff
+    title: "What can the lead accept from the worker?"
+    visual: >-
+      Magnify the last byte positions of a 1,599-byte worker envelope. Add two trailing spaces and test the 1,600-byte limit. Undo the change, open the authorized source, and test a wrong and a corrected status against its contents.
+    beats:
+      - say: >-
+          Let’s use the full handoff contract. The receiver allows sixteen hundred bytes. Here’s a JSON object with spaces after its closing brace. Every space counts on the wire. The last one is byte fifteen ninety-nine. Add two more spaces. Will the receiver open this copy?
+        hold: 2.25
+        caption_starts:
+          - "Add two more spaces"
+        visual_cues:
+          - id: handoff-add
+            phrase: "Add two more spaces"
+            targets: [handoff-bytes]
+            linger: 0.25
+          - id: handoff-question
+            phrase: "Will the receiver open this copy"
+            targets: [handoff-bytes, handoff-decision]
+            linger: 0.25
+      - say: >-
+          It stops at sixteen hundred and one bytes. The receiver checks length before it decodes UTF-eight or parses JSON. Bound the read at the transport too, so an oversized reply can’t consume unbounded memory before this check. A character can take several bytes.
+        hold: 0.65
+        visual_cues:
+          - id: handoff-stop
+            phrase: "It stops at sixteen hundred and one bytes"
+            targets: [handoff-decision]
+            linger: 0.25
+            caption_boundary: true
+      - say: >-
+          Take the two spaces back off. Now the receiver can open the original. It rejects malformed UTF-eight and duplicate JSON keys. These three fields are the whole contract. The claim and next check each need nonempty text. The source list needs at least one ID, and every ID must belong to the caller’s authorized set. An extra field or a wrong type fails the check.
+        hold: 0.65
+        visual_cues:
+          - id: handoff-undo
+            phrase: "Take the two spaces back off"
+            targets: [handoff-decision]
+            linger: 0.25
+      - say: >-
+          The worker says HTTP two hundred. Its source ID passed. Open the cited trace. Compare the two status codes. Can the lead record two hundred for this request?
+        hold: 2.25
+        visual_cues:
+          - id: handoff-open
+            phrase: "Open the cited trace"
+            targets: [handoff-record]
+            linger: 0.25
+          - id: handoff-compare
+            phrase: "Can the lead record two hundred for this request"
+            targets: [handoff-object, handoff-record, handoff-decision]
+            linger: 0.25
+      - say: >-
+          Withhold that claim. The trace says four oh three. Change just the worker’s status to four oh three. The envelope is still fifteen ninety-nine bytes. This time the values match. Keep the status and the trace ID together. The lead can now open that trace to investigate the failed callback.
+        hold: 1.05
+        caption_starts:
+          - "The trace says four oh three"
+          - "Change just the worker’s status"
+          - "This time the values match"
+        visual_cues:
+          - id: handoff-reject
+            phrase: "Withhold that claim"
+            targets: [handoff-object, handoff-record, handoff-decision]
+            linger: 0.25
+            caption_boundary: true
+          - id: handoff-correct
+            phrase: "Change just the worker’s status to four oh three"
+            targets: [handoff-object]
+            linger: 0.25
+          - id: handoff-promote
+            phrase: "This time the values match"
+            targets: [handoff-object, handoff-record, handoff-decision]
+            linger: 0.25
+      - say: >-
+          Count the worker’s input and output as well as the lead’s, and measure the time the lead waited. A smaller lead request can still mean more total work. Check which records each process or remote provider could see.
+        hold: 0.55
+  - id: assigned-ledger
+    title: Reconstruct all retained allocation terms
+    visual: Build the article’s six category segments from assigned token units, then remove the old export,
+      unused schemas and disproven claim while keeping reloaded notes in the total.
+    beats:
+      - say: Now expand the allocation behind the earlier compression picture. Task and evidence use twenty-four
+          hundred assigned units. Scratchpad and active tools use seven hundred sixty. Two reloaded findings
+          use ninety plus ninety-six, or one hundred eighty-six. Those retained groups total three thousand
+          three hundred forty-six.
+        hold: 0.7
+        visual_cues:
+          - id: ce-assigned-ledger-1
+            phrase: Now expand the allocation behind the earlier compression picture
+            targets:
+              - ce-assigned-ledger-mechanism
+            color: cyan
+            linger: 0.4
+          - id: ce-ledger-3346
+            phrase: Those retained groups total three thousand three hundred forty-six
+            targets:
+              - ce-assigned-ledger-mechanism
+            color: cyan
+            linger: 0.4
+      - say: The removed groups are an old trace export of eighty-two hundred, unused schemas of seven hundred seventy
+          and a disproven guess of one hundred twenty. They sum to nine thousand ninety. Divide omitted units
+          by the original raw total, then multiply by one hundred. Adding retained and removed groups
+          reconstructs twelve thousand four hundred thirty-six, with seventy-three point one percent omitted
+          after rounding.
+        hold: 0.7
+        visual_cues:
+          - id: ce-assigned-ledger-2
+            phrase: The removed groups are an old trace export of eighty-two hundred, unused schemas of seven hundred
+              seventy and a disproven guess of one hundred twenty
+            targets:
+              - ce-assigned-ledger-mechanism
+            color: cyan
+            linger: 0.4
+          - id: ce-ledger-9090
+            phrase: They sum to nine thousand ninety
+            targets:
+              - ce-assigned-ledger-mechanism
+            color: cyan
+            linger: 0.4
+          - id: ce-ledger-percent
+            phrase: seventy-three point one percent omitted after rounding
+            targets:
+              - ce-assigned-ledger-mechanism
+            color: cyan
+            linger: 0.4
+      - say: >-
+          We chose what to keep and assigned the sizes. Most of the saving comes from leaving the old trace export in the archive. For a real call, count the finished messages and tool schemas with the model’s tokenizer. Include reloaded notes and cached input. Then try answering the same question from the shorter request.
+        hold: 0.7
+        visual_cues:
+          - id: ce-assigned-ledger-3
+            phrase: leaving the old trace export in the archive
+            targets:
+              - ce-assigned-ledger-mechanism
+            color: green
+            linger: 0.4
+  - id: required-packer
+    title: Place protected evidence before optional material
+    visual: Construct the exact required-first order, admit the 180-unit alert and 420-unit trace, then the
+      1,800-unit runbook in a 3,000-unit allocation. Attempt a required 8,200-unit dump and stop visibly.
+    beats:
+      - say: The article packer validates a non-negative integer budget and item sizes, integer priorities, Boolean
+          required flags, nonempty unique names. Boolean sizes are rejected by the exact integer check. Sort
+          required items first, then by descending priority; tied items retain input order. Walk that order,
+          adding an item only when the new total fits.
+        hold: 0.7
+        visual_cues:
+          - id: ce-required-packer-1
+            phrase: The article packer validates a non-negative integer budget and item sizes, integer priorities, Boolean
+              required flags, nonempty unique names
+            targets:
+              - ce-required-packer-mechanism
+            color: cyan
+            linger: 0.4
+          - id: ce-pack-order
+            phrase: Sort required items first, then by descending priority
+            targets:
+              - ce-required-packer-mechanism
+            color: cyan
+            linger: 0.4
+      - say: With a three-thousand-unit allocation, required alert one hundred eighty and trace four hundred twenty
+          use six hundred. The optional eighteen-hundred-unit runbook brings use to twenty-four hundred. The
+          eighty-two-hundred-unit export does not fit. Make that full dump required instead, and the packer
+          raises an error rather than silently sending an incomplete required set.
+        hold: 0.7
+        visual_cues:
+          - id: ce-required-packer-2
+            phrase: With a three-thousand-unit allocation, required alert one hundred eighty and trace four hundred twenty
+              use six hundred
+            targets:
+              - ce-required-packer-mechanism
+            color: cyan
+            linger: 0.4
+          - id: ce-pack-600
+            phrase: use six hundred
+            targets:
+              - ce-required-packer-mechanism
+            color: cyan
+            linger: 0.4
+          - id: ce-pack-2400
+            phrase: brings use to twenty-four hundred
+            targets:
+              - ce-required-packer-mechanism
+            color: cyan
+            linger: 0.4
+          - id: ce-pack-error
+            phrase: the packer raises an error rather than silently sending an incomplete required set
+            targets:
+              - ce-required-packer-mechanism
+            color: cyan
+            linger: 0.4
+      - say: Reserve instructions, message and tool framing, and output or reasoning allowance before choosing this
+          allocation. For a supplied total of four thousand ninety-six, reserves of four hundred twenty, one
+          hundred eighty and one thousand twenty-four leave twenty-four hundred seventy-two. The same
+          twenty-four-hundred-unit selected set leaves seventy-two units unused.
+        hold: 0.7
+        visual_cues:
+          - id: ce-required-packer-3
+            phrase: Reserve instructions, message and tool framing, and output or reasoning allowance before choosing this
+              allocation
+            targets:
+              - ce-required-packer-mechanism
+            color: green
+            linger: 0.4
+          - id: ce-pack-reserve
+            phrase: leave twenty-four hundred seventy-two
+            targets:
+              - ce-required-packer-mechanism
+            color: cyan
+            linger: 0.4
+          - id: ce-pack-remaining
+            phrase: leaves seventy-two units unused
+            targets:
+              - ce-required-packer-mechanism
+            color: cyan
+            linger: 0.4
+  - id: packer-limits
+    title: "Who owns the failing callback?"
+    visual: Spend the same 600 units on an error log or on a route map and an owner directory. Follow the callback through both records to find the team to page. Stop if the required bundle cannot fit.
+    beats:
+      - say: >-
+          Who owns the failing callback? We have six hundred units left. The error log ranks first and fills the budget. It gives us the status code. Try the route map and the service directory instead. Each costs three hundred units. Follow the callback through those two records. Which team gets the page?
+        hold: 2.25
+        caption_starts:
+          - "Try the route map"
+          - "Which team gets the page"
+        visual_cues:
+          - id: ce-packer-limits-1
+            phrase: We have six hundred units left
+            targets:
+              - ce-packer-limits-mechanism
+            color: cyan
+            linger: 0.4
+          - id: ce-packer-single
+            phrase: The error log ranks first and fills the budget
+            targets:
+              - ce-packer-limits-mechanism
+            color: cyan
+            linger: 0.4
+          - id: ce-packer-pair
+            phrase: Try the route map and the service directory instead
+            targets:
+              - ce-packer-limits-mechanism
+            color: cyan
+            linger: 0.4
+      - say: >-
+          Page the Access team. The route map takes us from the callback to Identity. The directory tells us who owns Identity. Bundle the map and directory so the packer keeps both links. What counts as required depends on the question. A rollback runbook can be optional during diagnosis and required when proposing a rollback.
+        hold: 0.7
+        visual_cues:
+          - id: ce-packer-limits-2
+            phrase: Page the Access team
+            targets:
+              - ce-packer-limits-mechanism
+            color: cyan
+            linger: 0.4
+          - id: ce-packer-bundle
+            phrase: Bundle the map and directory
+            targets:
+              - ce-packer-limits-mechanism
+            color: cyan
+            linger: 0.4
+      - say: >-
+          Suppose the budget drops to five hundred units. Both records are required, so stop before sending the request. Extract the two entries you need, split the task into two lookups, or report which evidence is missing. Check access before selecting either record. Then count the finished request and see whether it answers the ownership question.
+        hold: 0.7
+        visual_cues:
+          - id: ce-packer-limits-3
+            phrase: stop before sending the request
+            targets:
+              - ce-packer-limits-mechanism
+            color: green
+            linger: 0.4
+  - id: thrash-budget
+    title: Count context work against completed task steps
+    visual: Follow retrieve, compact, missing-ID, retrieve, compact as a repeated state loop. Pin the required
+      identifier, count bounded recovery attempts and end with an explicit unresolved gap when the budget
+      expires.
+    beats:
+      - say: >-
+          Context bloat is the old material piling up. Watch what happens when the summary drops the request ID. Fetch the trace, summarize it, drop the original, fetch the same trace again, and summarize it again. Five context operations and zero completed task steps. That loop is thrashing. With zero steps completed, record both counts and mark the task stalled.
+        hold: 0.7
+        visual_cues:
+          - id: ce-thrash-budget-1
+            phrase: Context bloat is the old material piling up
+            targets:
+              - ce-thrash-budget-mechanism
+            color: cyan
+            linger: 0.4
+          - id: ce-thrash-five
+            phrase: Fetch the trace, summarize it, drop the original, fetch the same trace again, and summarize it again
+            targets:
+              - ce-thrash-budget-mechanism
+            color: cyan
+            linger: 0.4
+      - say: Track operations per completed step where defined, repeated-span reloads, evidence yield and decision
+          latency. A valid search can return no result, so do not require an invented confirmed fact after
+          every call. A ruled-out path or a precisely identified evidence gap can still advance the
+          investigation.
+        hold: 0.7
+        visual_cues:
+          - id: ce-thrash-budget-2
+            phrase: Track operations per completed step where defined, repeated-span reloads, evidence yield and decision
+              latency
+            targets:
+              - ce-thrash-budget-mechanism
+            color: cyan
+            linger: 0.4
+      - say: Pin a required request ID until its job is finished or freshness requires a new read. Cap retries and
+          preparation work. Once that budget is exhausted, preserve the state and report the missing evidence
+          or escalate. Reducing churn should not convert an unknown external outcome into a successful one or
+          repeat an unconfirmed write.
+        hold: 0.7
+        visual_cues:
+          - id: ce-thrash-budget-3
+            phrase: Pin a required request ID until its job is finished or freshness requires a new read
+            targets:
+              - ce-thrash-budget-mechanism
+            color: green
+            linger: 0.4
+          - id: ce-pin-id
+            phrase: Pin a required request ID until its job is finished or freshness requires a new read
+            targets:
+              - ce-thrash-budget-mechanism
+            color: cyan
+            linger: 0.4
+          - id: ce-stalled-exit
+            phrase: report the missing evidence or escalate
+            targets:
+              - ce-thrash-budget-mechanism
+            color: cyan
+            linger: 0.4
+  - id: skills-disclosure
+    title: Load metadata, one procedure and only the needed resource
+    visual: Construct a skill directory, expose names and trigger descriptions, then load one selected body, one
+      reference and one script output. Keep unselected bodies and script source outside the packet.
+    beats:
+      - say: An Agent Skill packages a required SKILL dot M D file with a name and description in its frontmatter,
+          plus optional references, scripts and assets. Discovery exposes the name and trigger description.
+          The specification’s roughly one hundred metadata tokens and below-five-thousand-body recommendation
+          are guidance, not actual tokenizer counts for every skill.
+        hold: 0.7
+        visual_cues:
+          - id: ce-skills-disclosure-1
+            phrase: An Agent Skill packages a required SKILL dot M D file with a name and description in its frontmatter,
+              plus optional references, scripts and assets
+            targets:
+              - ce-skills-disclosure-mechanism
+            color: cyan
+            linger: 0.4
+      - say: On activation, load the chosen procedure body. Read a reference only when its details are needed. In
+          Anthropic’s documented execution setup, a script can run without its source entering model context;
+          its returned output still enters. Other runtimes may expose different material, so count what this
+          runtime actually sends.
+        hold: 0.7
+        visual_cues:
+          - id: ce-skills-disclosure-2
+            phrase: On activation, load the chosen procedure body
+            targets:
+              - ce-skills-disclosure-mechanism
+            color: cyan
+            linger: 0.4
+          - id: ce-skill-script-output
+            phrase: its returned output still enters
+            targets:
+              - ce-skills-disclosure-mechanism
+            color: cyan
+            linger: 0.4
+          - id: ce-skill-body
+            phrase: On activation, load the chosen procedure body.
+            targets:
+              - ce-skills-disclosure-mechanism
+            color: cyan
+            linger: 0.4
+          - id: ce-skill-reference
+            phrase: Read a reference only when its details are needed.
+            targets:
+              - ce-skills-disclosure-mechanism
+            color: cyan
+            linger: 0.4
+      - say: Use assigned units for six skills with eighty metadata units each, one activated body of twenty-two
+          hundred, one four-hundred-unit reference and one one-hundred-twenty-unit script output. Metadata
+          totals four hundred eighty. The active total is three thousand two hundred. Installing procedures
+          does not require loading every body or treating script source as returned output.
+        hold: 0.7
+        visual_cues:
+          - id: ce-skills-disclosure-3
+            phrase: Use assigned units for six skills with eighty metadata units each, one activated body of twenty-two
+              hundred, one four-hundred-unit reference and one one-hundred-twenty-unit script output
+            targets:
+              - ce-skills-disclosure-mechanism
+            color: green
+            linger: 0.4
+          - id: ce-skill-metadata
+            phrase: Metadata totals four hundred eighty
+            targets:
+              - ce-skills-disclosure-mechanism
+            color: cyan
+            linger: 0.4
+          - id: ce-skill-total
+            phrase: The active total is three thousand two hundred
+            targets:
+              - ce-skills-disclosure-mechanism
+            color: cyan
+            linger: 0.4
+  - id: skill-routing-and-safety
+    title: Test activation, artifact production and authority separately
+    visual: "Apply three requests to the same incident skill: relevant investigation, unrelated vacation policy
+      and a rollback request. Preserve proposal-only authority while separately marking routing and execution
+      results."
+    beats:
+      - say: The incident skill’s routing description names failed deployments, traces and evidence handoffs. A canary
+          investigation should activate it; an unrelated vacation-policy summary should not. A request to roll
+          back can activate the relevant procedure while still yielding only a proposal under this fixture’s
+          no-write contract.
+        hold: 0.7
+        visual_cues:
+          - id: ce-skill-routing-and-safety-1
+            phrase: The incident skill’s routing description names failed deployments, traces and evidence handoffs
+            targets:
+              - ce-skill-routing-and-safety-mechanism
+            color: cyan
+            linger: 0.4
+          - id: ce-skill-investigation
+            phrase: A canary investigation should activate it
+            targets:
+              - ce-skill-routing-and-safety-mechanism
+            color: cyan
+            linger: 0.4
+          - id: ce-skill-vacation
+            phrase: an unrelated vacation-policy summary should not
+            targets:
+              - ce-skill-routing-and-safety-mechanism
+            color: cyan
+            linger: 0.4
+          - id: ce-skill-proposal
+            phrase: still yielding only a proposal under this fixture’s no-write contract
+            targets:
+              - ce-skill-routing-and-safety-mechanism
+            color: cyan
+            linger: 0.4
+      - say: Test routing, procedure execution and boundary safety as separate outcomes. Correct activation does not
+          prove the script produced a valid handoff. A successful validator does not authorize a rollback.
+          Review the publisher, instructions and executable resources, and enforce bounded permissions in the
+          runtime.
+        hold: 0.7
+        visual_cues:
+          - id: ce-skill-routing-and-safety-2
+            phrase: Test routing, procedure execution and boundary safety as separate outcomes
+            targets:
+              - ce-skill-routing-and-safety-mechanism
+            color: cyan
+            linger: 0.4
+      - say: Progressive disclosure helps when most procedures are irrelevant to most calls. A few short instructions
+          needed on every call may belong in the stable base instead. Measure activation errors, total
+          rendered tokens and end-to-end work. Loading less is useful only if the required procedure and
+          evidence still reach the decision that needs them.
+        hold: 0.7
+        visual_cues:
+          - id: ce-skill-routing-and-safety-3
+            phrase: Progressive disclosure helps when most procedures are irrelevant to most calls
+            targets:
+              - ce-skill-routing-and-safety-mechanism
+            color: green
+            linger: 0.4
+  - id: resume
+    title: Bind a resume receipt to its actual inputs
+    visual: SHA-256 receipts verify artifact bytes and the exact input set. An unchanged checkpoint allows the
+      next task, a changed input invalidates it, and altered artifact content also fails.
+    beats:
+      - say: >
+          A later session needs to know which work remains valid. The trusted receipt in this fixture binds a
+          checked artifact to its input revision. Recompute both hashes before resuming. An unchanged artifact
+          and matching input set let the harness select the next dependent task.
+        hold: 0.65
+        visual_cues:
+          - id: resume-beat-1-focus-1
+            phrase: binds a checked artifact to its input revision
+            targets:
+              - resume-simulation-30
+            color: blue
+            linger: 0.6
+          - id: resume-beat-1-focus-2
+            phrase: An unchanged artifact and matching input set let
+            targets:
+              - resume-next-task
+            color: blue
+            linger: 0.6
+      - say: >
+          Change the deployment input while leaving the report untouched. The artifact hash still matches, but
+          the input check fails. The old receipt certifies work against an earlier revision. Rechecking this
+          boundary prevents a plausible progress summary from silently carrying stale evidence into the
+          resumed investigation.
+        hold: 0.7
+        visual_cues:
+          - id: resume-beat-2-focus-1
+            phrase: The artifact hash still matches
+            targets:
+              - resume-simulation-30
+            color: blue
+            linger: 0.6
+      - say: >
+          Now restore the input and change the artifact itself. That hash fails instead. Hashes establish byte
+          consistency under a trusted receipt and manifest. Evidence quality, evaluator identity, freshness,
+          and permission to perform an external action each require the appropriate checks around that
+          receipt.
+        hold: 0.65
+        visual_cues:
+          - id: resume-beat-3-focus-1
+            phrase: Now restore the input and change the artifact itself
+            targets:
+              - resume-simulation-30
+            color: blue
+            linger: 0.6
+  - id: resume-artifacts
+    title: Reconstruct five durable objects before choosing work
+    visual: Lay out a task manifest, progress log, bootstrap check, exact work receipt and recovery rule around
+      the same incident graph. Connect receipt validity to next-ready selection rather than a completion
+      claim.
+    beats:
+      - say: This restart uses five artifacts. The task manifest lists unique IDs, dependencies
+          and acceptance criteria. The progress log records attempts, errors and findings. A bootstrap command
+          checks the environment. A work receipt binds results to artifact and input bytes, acceptance version
+          and evaluator. The recovery rule defines timeouts, retries and escalation.
+        hold: 0.7
+        visual_cues:
+          - id: ce-resume-artifacts-1
+            phrase: This restart uses five artifacts
+            targets:
+              - ce-resume-artifacts-mechanism
+            color: cyan
+            linger: 0.4
+      - say: >-
+          After a restart, the progress log can tell you where the last shift stopped. The work receipt tells you which result you can reuse. A framework such as LangGraph can save a thread in a checkpoint and share records across threads through a store. Your application chooses which records to reload and checks the receipt before continuing.
+        hold: 0.7
+        visual_cues:
+          - id: ce-resume-artifacts-2
+            phrase: The work receipt tells you which result you can reuse
+            targets:
+              - ce-resume-artifacts-mechanism
+            color: cyan
+            linger: 0.4
+      - say: Our graph collects traces, verifies cause, then writes a report. Only collect traces is initially done
+          with a valid trusted receipt. The next ready task is verify cause. A progress note saying all done
+          cannot advance the graph. Recompute acceptance evidence before choosing the next dependent task.
+        hold: 0.7
+        visual_cues:
+          - id: ce-resume-artifacts-3
+            phrase: Our graph collects traces, verifies cause, then writes a report
+            targets:
+              - ce-resume-artifacts-mechanism
+            color: green
+            linger: 0.4
+          - id: ce-next-ready
+            phrase: The next ready task is verify cause
+            targets:
+              - ce-resume-artifacts-mechanism
+            color: cyan
+            linger: 0.4
+  - id: receipt-validation
+    title: Validate the entire graph and exact receipt contract
+    visual: Construct graph edges before evaluating done receipts, then test a cycle, unfinished dependency,
+      changed input set, non-Boolean pass flag and outside-root path on the same durable graph.
+    beats:
+      - say: Validate the graph before trusting done labels. Reject empty or duplicate IDs, invalid status, missing or
+          repeated dependency IDs and cycles, including cycles among tasks labeled done. A done task must have
+          a receipt and every dependency must also be verified done. Among pending tasks, select the first
+          whose dependencies are all in that verified set.
+        hold: 0.7
+        visual_cues:
+          - id: ce-receipt-validation-1
+            phrase: Validate the graph before trusting done labels
+            targets:
+              - ce-receipt-validation-mechanism
+            color: cyan
+            linger: 0.4
+          - id: ce-graph-cycle
+            phrase: including cycles among tasks labeled done
+            targets:
+              - ce-receipt-validation-mechanism
+            color: cyan
+            linger: 0.4
+      - say: The receipt must name the same task, the expected evaluator and contract version, and passed must be the
+          actual Boolean true. Recompute the artifact digest and every declared input digest. Require exact
+          equality between the manifest input set and receipt input keys. Adding a required input without
+          adding its hash fails even if all previously checked files match.
+        hold: 0.7
+        visual_cues:
+          - id: ce-receipt-validation-2
+            phrase: The receipt must name the same task, the expected evaluator and contract version, and passed must be
+              the actual Boolean true
+            targets:
+              - ce-receipt-validation-mechanism
+            color: cyan
+            linger: 0.4
+          - id: ce-input-set-error
+            phrase: Adding a required input without adding its hash fails even if all previously checked files match
+            targets:
+              - ce-receipt-validation-mechanism
+            color: cyan
+            linger: 0.4
+      - say: >-
+          Use relative paths inside the checkpoint directory. Reject a path that resolves outside it. This check assumes the files stay in place while you read them. If other processes can change them, enforce that boundary when opening the file. With a trusted receipt, matching hashes tell you the files still hold the bytes the evaluator checked.
+        hold: 0.7
+        visual_cues:
+          - id: ce-receipt-validation-3
+            phrase: Reject a path that resolves outside it
+            targets:
+              - ce-receipt-validation-mechanism
+            color: green
+            linger: 0.4
+  - id: recovery-and-evaluator
+    title: A restart must preserve execution uncertainty and independent checks
+    visual: Keep the generator’s cause proposal separate from the evaluator’s criteria. Apply duplicate operation
+      keys and stale fencing tokens at the protected resource, then preserve an unresolved response state
+      instead of marking success.
+    beats:
+      - say: For a cause-analysis task, agree that claims cite checked evidence and address alternatives, the
+          disproven lock claim is absent, and rollback remains a proposal. A separate evaluator checks those
+          criteria. Deterministic validation can enforce structure and forbidden actions, while semantic
+          review examines support. An independent model can also be wrong; a citation alone does not establish
+          causality.
+        hold: 0.7
+        visual_cues:
+          - id: ce-recovery-and-evaluator-1
+            phrase: For a cause-analysis task, agree that claims cite checked evidence and address alternatives, the
+              disproven lock claim is absent, and rollback remains a proposal
+            targets:
+              - ce-recovery-and-evaluator-mechanism
+            color: cyan
+            linger: 0.4
+      - say: Prevent duplicate effects with an operation key enforced at the tool boundary. Prevent an expired worker
+          from continuing writes with a fencing token checked by the protected resource. A lease timestamp
+          written only in a prompt cannot stop another process. Keep unknown outcomes explicit until the
+          external system confirms their state.
+        hold: 0.7
+        visual_cues:
+          - id: ce-recovery-and-evaluator-2
+            phrase: Prevent duplicate effects with an operation key enforced at the tool boundary
+            targets:
+              - ce-recovery-and-evaluator-mechanism
+            color: cyan
+            linger: 0.4
+          - id: ce-fenced-resource
+            phrase: a fencing token checked by the protected resource
+            targets:
+              - ce-recovery-and-evaluator-mechanism
+            color: cyan
+            linger: 0.4
+      - say: Restrict who can issue receipts and change task status. Append-only storage can retain history but still
+          allow a forged new entry if writers are untrusted. Recheck live state when freshness matters. A
+          resumable summary is useful orientation; trustworthy continuation requires the actual state,
+          evidence and resource-bound execution rules.
+        hold: 0.7
+        visual_cues:
+          - id: ce-recovery-and-evaluator-3
+            phrase: Restrict who can issue receipts and change task status
+            targets:
+              - ce-recovery-and-evaluator-mechanism
+            color: green
+            linger: 0.4
+  - id: evaluate
+    title: Protect the cases that the average can hide
+    visual: An executed source-lookup reader answers six source-bound questions from baseline and candidate
+      packets. The candidate recovers more answers overall while omitting the critical authorization source,
+      so a computed critical-case gate rejects it.
+    beats:
+      - say: >
+          Test curation with paired tasks. Our deterministic reader can answer a question only when its
+          required source is present. The baseline packet supplies four of the six answers. This miniature
+          test makes evidence coverage inspectable while leaving language-model reasoning quality for a
+          separate evaluation.
+        hold: 0.65
+        visual_cues:
+          - id: evaluate-beat-1-focus-1
+            phrase: Our deterministic reader can answer a question only
+            targets:
+              - evaluate-object-row-pass-answer-found-unknown-37
+            color: blue
+            linger: 0.6
+          - id: evaluate-beat-1-focus-2
+            phrase: The baseline packet supplies four of the six answers
+            targets:
+              - evaluate-object-baseline-tally
+            color: blue
+            linger: 0.6
+      - say: >
+          The candidate packet supplies five answers, improving the aggregate. Look at which row changed,
+          though. It omitted the source that states who authorizes a rollback. A more successful average can
+          coexist with losing a fact that the workflow must always preserve.
+        hold: 0.7
+        visual_cues:
+          - id: evaluate-beat-2-focus-1
+            phrase: The candidate packet supplies five answers
+            targets:
+              - evaluate-object-candidate-pass-answer-found-unknown-38
+              - evaluate-object-candidate-tally
+            color: blue
+            linger: 0.6
+      - say: >
+          Apply the protected-case requirement and the candidate is rejected. The result follows from actual
+          source lookup and comparison with expected answers. A production suite should also inspect claim
+          support, malicious instructions, model variation, latency, and cost on the same cases before
+          promoting a new curation policy.
+        hold: 0.65
+        visual_cues:
+          - id: evaluate-beat-3-focus-1
+            phrase: Apply the protected-case requirement and the candidate is rejected
+            targets:
+              - evaluate-object-candidate-pass-answer-found-unknown-38
+            color: blue
+            linger: 0.6
+  - id: complete-release-gate
+    title: "Would you ship the shorter request?"
+    visual: >-
+      Track ten paired case outcomes and the protected C2 column. Evaluate the first candidate. Change just the curated outcome on C2 and run the same release rule again.
+    beats:
+      - say: >-
+          Now try ten paired incident cases. These are invented outcomes. Each column is the same case run with two inputs. The shorter input uses three thousand three hundred forty-six assigned units. Read the curated row. Two cases improve and one regresses. Correct answers rise from seven to eight. The yellow mark is a promise we made before testing. Case two has to pass. Would you ship this version?
+        hold: 2.2
+        caption_starts:
+          - "Read the curated row"
+          - "Two cases improve"
+          - "Correct answers rise"
+        visual_cues:
+          - id: gate-outcomes
+            phrase: "Read the curated row"
+            targets: [paired-cases]
+            linger: 0.25
+          - id: gate-score
+            phrase: "Correct answers rise from seven to eight"
+            targets: [suite-decision]
+            linger: 0.25
+      - say: >-
+          Hold it at case two. The gate requires fewer input units, at least as many successes overall, a pass on every protected case, and zero poisoning events. The other three conditions already hold. Suppose a retest changes just case two from fail to pass. Keep every other result and both input sizes fixed. Does the candidate pass this suite now?
+        hold: 2
+        caption_starts:
+          - "Suppose a retest"
+        visual_cues:
+          - id: gate-hold
+            phrase: "Hold it at case two"
+            targets: [suite-decision]
+            linger: 0.25
+            caption_boundary: true
+          - id: gate-repair
+            phrase: "changes just case two from fail to pass"
+            targets: [paired-cases]
+            linger: 0.25
+      - say: >-
+          Yes. Nine cases pass, including the protected case. The release rule now accepts the candidate for this suite. The rule needs at least one case and positive integer token counts. The outcomes and protected flags must be Booleans. Poisoning counts must be nonnegative integers.
+        hold: 0.75
+        visual_cues:
+          - id: gate-approve
+            phrase: "The release rule now accepts the candidate for this suite"
+            targets: [suite-decision]
+            linger: 0.25
+            caption_boundary: true
+      - say: >-
+          For a real policy change, repeat the comparison on matched tasks with recorded model and policy versions. Include buried clues, similar incident IDs, unsupported claims and unauthorized requests. Keep answer quality, worker usage, latency and total cost beside the input counts.
+        hold: 0.65
+  - id: synthesis
+    title: "Can you get back to the trace?"
+    visual: >-
+      Remove the source field from a compacted note but leave the finding. Look up its exact status with the shortened note, then with its source restored.
+    beats:
+      - say: >-
+          Here’s the note about the callback. Tomorrow’s investigator wants the exact HTTP status. Shorten the note by dropping its source ID. The sentence still reads perfectly well. Can you recover the status from what’s left?
+        hold: 2
+        visual_cues:
+          - id: note-shorten
+            phrase: "Shorten the note by dropping its source ID"
+            targets: [saved-note]
+            linger: 0.25
+      - say: >-
+          Try the lookup. The application has no key for the archive. Compacting that same sentence again won’t bring the key back. This is how an agent can spend several turns preparing its context without completing one investigation step. Cap those attempts and record the gap.
+        hold: 0.6
+        caption_starts:
+          - "The application has no key"
+        visual_cues:
+          - id: note-read
+            phrase: "Try the lookup"
+            targets: [lookup-slot]
+            linger: 0.25
+      - say: >-
+          Recover the original checked note and pin its source ID. Try the same lookup again. There’s the callback and its four oh three. The stored note bought us a way back to the evidence. We can leave the full export in the archive and use the next call to inspect the failing dependency.
+        hold: 0.8
+        caption_starts:
+          - "Try the same lookup again"
+          - "There’s the callback and its four oh three"
+        visual_cues:
+          - id: note-pin
+            phrase: "pin its source ID"
+            targets: [saved-note]
+            linger: 0.25
+          - id: note-reread
+            phrase: "Try the same lookup again"
+            targets: [lookup-slot]
+            linger: 0.25
+  - id: earned-context
+    title: "What survives the restart?"
+    visual: >-
+      Pack the required records against a fixed 2,600-unit limit, test the two optional records in priority order, and inspect a receipt before and after changing one input revision. Restore the approval policy and identify the next task.
+    beats:
+      - say: >-
+          One more shift takes over the investigation. After reserves, it has twenty-six hundred units for records. The task, trace and approval policy are all required. The old export ranks ahead of the current runbook. Use the sizes on screen. Which optional record fits alongside all three required records?
+        hold: 2.5
+      - say: >-
+          Pack the required records first. Together they use one thousand units. Try the old export. That would take twenty-eight hundred. Skip it and keep going. The runbook brings the total to twenty-two hundred, leaving four hundred free.
+        hold: 1
+        visual_cues:
+          - id: ce-earned-1000
+            phrase: "Together they use one thousand units"
+            targets: [packed-units]
+            linger: 0.25
+            caption_boundary: true
+          - id: ce-earned-attempt
+            phrase: "That would take twenty-eight hundred"
+            targets: [packed-units]
+            linger: 0.25
+            caption_boundary: true
+          - id: ce-earned-skip
+            phrase: "Skip it and keep going"
+            targets: [packed-units, packing-order]
+            linger: 0.25
+          - id: ce-earned-2200
+            phrase: "The runbook brings the total to twenty-two hundred, leaving four hundred free"
+            targets: [packed-units]
+            linger: 0.25
+            caption_boundary: true
+      - say: >-
+          Open the saved collection receipt. Under Saved are short prefixes of the hashes the evaluator checked. Under Current are the prefixes for the files on disk. The harness compares the full hashes. A new revision of the trace arrives. You can put that revision after the stable prefix to preserve cache reuse where the format allows. The report stays exactly as it was. Can the old receipt still certify collection?
+        hold: 2.1
+        visual_cues:
+          - id: ce-earned-saved
+            phrase: "Open the saved collection receipt"
+            targets: [receipt-bytes]
+            linger: 0.25
+          - id: ce-earned-mutation
+            phrase: "A new revision of the trace arrives"
+            targets: [receipt-bytes]
+            linger: 0.25
+      - say: >-
+          Stop. The trace fingerprint changed. Read the revised trace and check the report against it. Both still describe request R seventeen returning four oh three. The evaluator issues a fresh receipt for the report and both declared inputs. Now a summary leaves one required record out of the next call. The receipt still matches the files on disk. Which file would tell the model who can approve a rollback?
+        hold: 2.05
+        caption_starts:
+          - "Both still describe request R seventeen"
+          - "Now a summary leaves one required record out"
+        visual_cues:
+          - id: ce-earned-stale
+            phrase: "The trace fingerprint changed"
+            targets: [receipt-bytes]
+            linger: 0.25
+            caption_boundary: true
+          - id: ce-earned-inspect
+            phrase: "Read the revised trace and check the report against it"
+            targets: [restart-input, receipt-bytes]
+            linger: 0.25
+          - id: ce-earned-receipt
+            phrase: "The evaluator issues a fresh receipt for the report and both declared inputs"
+            targets: [receipt-bytes]
+            linger: 0.25
+          - id: ce-earned-omit
+            phrase: "a summary leaves one required record out of the next call"
+            targets: [restart-input]
+            linger: 0.25
+      - say: >-
+          Read the approval policy back into this call. It names the incident lead. Now we know who can approve a rollback. In the next lesson, we’ll decide what to do when a document gives the agent an instruction. The next ready task is to verify the cause. The revised trace and the checked report agree on the failure. Why did R seventeen return four oh three on the callback?
+        hold: 1.5
+        caption_starts:
+          - "Why did R seventeen"
+        visual_cues:
+          - id: ce-earned-authorizer
+            phrase: "Read the approval policy back into this call"
+            targets: [restart-input]
+            linger: 0.25
+            caption_boundary: true
+          - id: ce-earned-role
+            phrase: "It names the incident lead"
+            targets: [restart-input]
+            linger: 0.25
+            caption_boundary: true
+          - id: ce-earned-next
+            phrase: "The next ready task is to verify the cause"
+            targets: [restart-action]
+            linger: 0.25
+            caption_boundary: true

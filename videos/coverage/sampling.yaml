@@ -1,0 +1,226 @@
+version: 1
+lesson: sampling
+promise: Decide whether a simulated incident assistant supports a proposed deadline by checking what was drawn, who waited, and who was counted.
+framing: []
+objectives:
+  - id: deadline
+    can: Use the shape of the duration distribution to predict deadline misses for requests with the same median.
+    scenes: [intro, shape, area, tail]
+  - id: supported-draws
+    can: Generate a request with valid resolution, route, count and duration fields, then check its support and units.
+    scenes: [request-fields, mass-and-support, inverse, inverse-contract, resolution-count, route-count, poisson-count, normal-failure, service-rate]
+  - id: costly-tail
+    can: Test a one-rate count model against the fraction of requests that cross a tool budget.
+    scenes: [poisson-count, bursty-mixture, launch-report]
+  - id: simulation-budget
+    can: Choose a draw budget for detection or precision and decide which replica histories contribute new information.
+    scenes: [sample, monte-carlo, rare-budget, replay-streams]
+  - id: posterior-transitions
+    can: Apply a proposal correction, record a rejected state, and assess the information in a dependent chain.
+    scenes: [metropolis-decision, posterior-chain, chain-diagnostics]
+  - id: service-and-wait
+    can: Schedule a burst against each request's own timer and identify when stationary one-worker averages apply.
+    scenes: [service-rate, queue-burst, queue-stationary, fresh-plan]
+  - id: token-choice
+    can: Locate a token on a cumulative probability strip and predict how rescaling logits or adding Gumbel noise changes a draw.
+    scenes: [route-count, token-sample, temperature, gumbel-race]
+  - id: joint-risk
+    can: Trace a tool count to the duration on its own request and test whether the two thresholds were crossed together.
+    scenes: [request-fields, launch-report, joint-relationship]
+  - id: validate-deadline
+    can: Compare a fixed CDF on complete traces and determine which deadline fractions and percentile bounds a censored log supports.
+    scenes: [ks-geometry, tail, audit, takeaway]
+sections:
+  - heading: Four measurements from one request
+    status: taught
+    note: R17 is an illustrative rollback receipt. The 5,000-request report uses the article's seeded run.
+    scenes:
+      - request-fields
+      - launch-report
+  - heading: Discrete values versus continuous time
+    status: taught
+    scenes:
+      - request-fields
+      - mass-and-support
+      - normal-failure
+  - heading: PMF, PDF, and CDF
+    status: taught
+    scenes:
+      - mass-and-support
+      - area
+      - poisson-count
+  - heading: "Inverse CDF transform: how computers sample continuous variables"
+    status: taught
+    scenes:
+      - inverse
+      - inverse-contract
+  - heading: "Bernoulli: resolved or escalated"
+    status: taught
+    scenes:
+      - resolution-count
+      - sample
+  - heading: "Binomial: resolutions in a 100-request batch"
+    status: taught
+    scenes:
+      - resolution-count
+      - rare-budget
+  - heading: "Categorical: one route per request"
+    status: taught
+    scenes:
+      - route-count
+      - mass-and-support
+  - heading: Poisson counts, then a bursty counterexample
+    status: taught
+    note: Both histograms use the recorded 5,000-request draws. Counting bins above five yields 126 and 577 requests.
+    scenes:
+      - poisson-count
+      - bursty-mixture
+  - heading: Lognormal response time
+    status: taught
+    scenes:
+      - intro
+      - shape
+      - tail
+      - takeaway
+      - inverse-contract
+      - normal-failure
+  - heading: A normal model can go negative
+    status: taught
+    scenes:
+      - normal-failure
+  - heading: Exponential service time
+    status: taught
+    scenes:
+      - service-rate
+      - inverse-contract
+  - heading: More draws reduce simulation noise
+    status: taught
+    scenes:
+      - monte-carlo
+      - rare-budget
+  - heading: Recorded seeds replay a stream
+    status: taught
+    note: The article’s fourth batch of 20 requests has 12 resolutions on stream A and 17 on stream B. Restarting A repeats all four batch counts.
+    scenes:
+      - replay-streams
+  - heading: Sample a posterior when direct draws aren't available
+    status: taught
+    note: The symmetric moves use the article's Beta(10,4) target. The extra inspected proposal has a reverse-to-forward density ratio of one half.
+    scenes:
+      - metropolis-decision
+      - posterior-chain
+      - chain-diagnostics
+  - heading: Waiting time when the server fills up
+    status: taught
+    scenes:
+      - queue-burst
+      - queue-stationary
+      - fresh-plan
+  - heading: Score a candidate with the CDF
+    status: taught
+    note: Four complete times illustrate one KS jump. The 200 complete draws and the separate 250-request censored cohort come from the article. The fifty unfinished requests return to the ten-second denominator. At fifteen seconds the cohort has 200 finishes and needs 238 to reach 95%.
+    scenes:
+      - audit
+      - ks-geometry
+      - takeaway
+  - heading: Build a launch-simulation report
+    status: taught
+    scenes:
+      - launch-report
+      - joint-relationship
+  - heading: "Next tokens: categorical draws, temperature scaling, and the Gumbel-Max trick"
+    status: taught
+    scenes:
+      - token-sample
+      - temperature
+      - gumbel-race
+  - heading: Keep the simulation honest
+    status: taught
+    scenes:
+      - audit
+      - takeaway
+      - request-fields
+      - launch-report
+      - joint-relationship
+      - fresh-plan
+  - heading: "Practice: challenge a candidate launch model"
+    status: article-only
+    reason: exercise
+    note: Independent learner practice applying the fully taught mechanisms; its supplied solution
+      remains on the page.
+  - heading: Reshaping entropy with temperature scaling
+    status: taught
+    scenes:
+      - temperature
+  - heading: GPU-parallel sampling with the Gumbel-Max trick
+    status: taught
+    scenes:
+      - gumbel-race
+quiz:
+  - n: 1
+    status: taught
+    scenes:
+      - mass-and-support
+      - inverse-contract
+  - n: 2
+    status: taught
+    scenes:
+      - resolution-count
+      - rare-budget
+  - n: 3
+    status: taught
+    scenes:
+      - route-count
+      - joint-relationship
+  - n: 4
+    status: taught
+    scenes:
+      - poisson-count
+      - bursty-mixture
+  - n: 5
+    status: taught
+    scenes:
+      - normal-failure
+      - service-rate
+  - n: 6
+    status: taught
+    scenes:
+      - monte-carlo
+      - rare-budget
+      - replay-streams
+  - n: 7
+    status: taught
+    scenes:
+      - metropolis-decision
+      - posterior-chain
+      - chain-diagnostics
+  - n: 8
+    status: taught
+    scenes:
+      - queue-stationary
+  - n: 9
+    status: taught
+    scenes:
+      - audit
+      - ks-geometry
+      - takeaway
+  - n: 10
+    status: taught
+    scenes:
+      - token-sample
+      - temperature
+      - gumbel-race
+removed: []
+reviews:
+  closed_book:
+    script: aa0a7110cd2df56d
+    taught: 10
+    partial: 0
+    absent: 0
+    reviewer: /root
+    evidence: build/video-delivery-20261106/script-reviews/sampling.json
+  fact_check:
+    script: aa0a7110cd2df56d
+    open_findings: 0
+    reviewer: /root
+    evidence: build/video-delivery-20261106/script-reviews/sampling.json

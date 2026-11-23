@@ -1,0 +1,236 @@
+version: 1
+lesson: vae
+promise: Decide whether a reconstructed badge can establish which original pixels crossed a brightness
+  threshold. Test what a latent carries by changing its coordinates, tracing its gradients, and
+  comparing reconstruction with the prior and posterior terms in the loss.
+objectives:
+  - id: intro
+    can: Identify which original badge pixel exceeds a strict cutoff and what information reaches the decoder
+    scenes:
+      - intro
+  - id: bottleneck
+    can: Compute regional averages and predict an arrangement collision
+    scenes:
+      - bottleneck
+  - id: decoder-pixel
+    can: Compute decoder brightness from the regional averages and explain why reconstruction can introduce extra flags
+    scenes:
+      - decoder-pixel
+  - id: reconstruction
+    can: Calculate pixel squared errors, their sum and their mean
+    scenes:
+      - reconstruction
+  - id: code-test
+    can: Diagnose code influence by changing one coordinate
+    scenes:
+      - code-test
+  - id: training-baseline
+    can: Compare training reconstruction with a constant predictor and a code intervention
+    scenes:
+      - training-baseline
+  - id: posterior
+    can: Distinguish a crop posterior from a sampleable prior
+    scenes:
+      - posterior
+  - id: posterior-contract
+    can: Trace amortized inference and separate conditional from aggregate independence
+    scenes:
+      - posterior-contract
+  - id: kl-ledger
+    can: Calculate diagonal-Gaussian KL and its separate analytic gradients
+    scenes:
+      - kl-ledger
+  - id: sampling
+    can: Construct a reparameterized sample using fixed noise
+    scenes:
+      - sampling
+  - id: gradient-path
+    can: Trace reconstruction and analytic gradients through detached or pathwise draws
+    scenes:
+      - gradient-path
+  - id: objective
+    can: Account for reconstruction and weighted KL under the selected loss
+    scenes:
+      - objective
+  - id: evidence-gap
+    can: Explain why moving an approximation toward the true posterior can tighten the bound while increasing prior KL
+    scenes:
+      - evidence-gap
+  - id: likelihood-scale
+    can: Predict how duplicating pixel errors affects Gaussian likelihood and MSE, then rescale the KL coefficient
+    scenes:
+      - likelihood-scale
+  - id: trained-vae
+    can: Isolate which coordinate moves the bright patch by exchanging one posterior-mean coordinate at a time
+    scenes:
+      - trained-vae
+  - id: collapse
+    can: Track decoder sensitivity toward a mean-image shortcut
+    scenes:
+      - collapse
+  - id: information-ledger
+    can: Decompose average KL into input information and aggregate mismatch
+    scenes:
+      - information-ledger
+  - id: collapse-repairs
+    can: Separate history dependence from code dependence, then test a proposed collapse repair with context fixed
+    scenes:
+      - collapse-repairs
+  - id: free-bits
+    can: Compute group-floor and per-example-floor values and gradient routes
+    scenes:
+      - free-bits
+  - id: interpolation
+    can: Distinguish continuity, probability support and task-useful decoding
+    scenes:
+      - interpolation
+  - id: codes
+    can: Select the nearest codebook entry and assign gradient ownership
+    scenes:
+      - codes
+  - id: vq-gradients
+    can: Add reconstruction and commitment gradients at the encoder and send the codebook gradient to the selected entry
+    scenes:
+      - vq-gradients
+  - id: code-prior
+    can: Separate representation training, code usage and learned code-pattern generation
+    scenes:
+      - code-prior
+  - id: spatial-budget
+    can: Calculate position, scalar and raw-byte budgets and trace the latent generator
+    scenes:
+      - spatial-budget
+  - id: fresh-collision
+    can: Use two crops with equal codes, unequal errors, and opposite original flags to decide what to retain for an alert
+    scenes:
+      - fresh-collision
+sections:
+  - heading: Compress one screenshot crop
+    status: taught
+    scenes:
+      - intro
+      - bottleneck
+      - decoder-pixel
+      - reconstruction
+      - code-test
+      - fresh-collision
+  - heading: Learn the bottleneck
+    status: taught
+    scenes:
+      - training-baseline
+  - heading: A VAE learns distributions over codes
+    status: taught
+    scenes:
+      - posterior
+      - posterior-contract
+  - heading: Keep posteriors near a sampleable prior
+    status: taught
+    scenes:
+      - posterior
+      - kl-ledger
+      - sampling
+  - heading: Sample while gradients still flow
+    status: taught
+    scenes:
+      - sampling
+      - gradient-path
+  - heading: The VAE objective
+    status: taught
+    scenes:
+      - objective
+      - evidence-gap
+      - likelihood-scale
+      - kl-ledger
+  - heading: Train a tiny VAE
+    status: taught
+    scenes:
+      - trained-vae
+  - heading: Watch for posterior collapse
+    status: taught
+    scenes:
+      - collapse
+      - information-ledger
+      - collapse-repairs
+      - free-bits
+      - interpolation
+  - heading: "VQ-VAE: replace continuous samples with codes"
+    status: taught
+    scenes:
+      - codes
+      - vq-gradients
+      - code-prior
+  - heading: Latent models reduce the expensive space
+    status: taught
+    scenes:
+      - spatial-budget
+  - heading: Debug the latent interface
+    status: taught
+    scenes:
+      - kl-ledger
+      - gradient-path
+      - trained-vae
+      - collapse-repairs
+      - interpolation
+      - code-prior
+  - heading: Test what the code preserves
+    status: taught
+    scenes:
+      - fresh-collision
+      - training-baseline
+      - trained-vae
+quiz:
+  - n: 1
+    status: taught
+    scenes:
+      - bottleneck
+      - decoder-pixel
+      - fresh-collision
+  - n: 2
+    status: taught
+    scenes:
+      - likelihood-scale
+  - n: 3
+    status: taught
+    scenes:
+      - sampling
+      - gradient-path
+  - n: 4
+    status: taught
+    scenes:
+      - kl-ledger
+  - n: 5
+    status: taught
+    scenes:
+      - evidence-gap
+  - n: 6
+    status: taught
+    scenes:
+      - gradient-path
+      - kl-ledger
+  - n: 7
+    status: taught
+    scenes:
+      - free-bits
+  - n: 8
+    status: taught
+    scenes:
+      - trained-vae
+      - collapse-repairs
+  - n: 9
+    status: taught
+    scenes:
+      - vq-gradients
+  - n: 10
+    status: taught
+    scenes:
+      - spatial-budget
+removed: []
+reviews:
+  closed_book:
+    taught: 10
+    partial: 0
+    absent: 0
+    script: b431ecc6862be429
+  fact_check:
+    open_findings: 0
+    script: b431ecc6862be429

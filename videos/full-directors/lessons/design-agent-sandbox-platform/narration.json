@@ -1,0 +1,304 @@
+[
+  {
+    "id": "c01",
+    "title": "Who still holds the scratch file?",
+    "sourceChapters": [
+      "c01"
+    ],
+    "beats": [
+      {
+        "id": "stopped",
+        "say": "The guest for job A has stopped. A host exporter still has the moth picture open. Follow its handle back to generation nine. The next tenant is waiting. Would you give them this slot?",
+        "hold": 3
+      },
+      {
+        "id": "held",
+        "say": "Keep the slot with A. The exporter can still read A's private file through that handle. The host must account for the reader even after the last guest process exits. We will come back to this very file when the exporter finishes.",
+        "hold": 1
+      },
+      {
+        "id": "lease",
+        "say": "Earlier, the gateway authenticated the tenant and reserved a sandbox ID and a generation for this run. That generation owns the writable pages, scratch, command channel and permission to export this picture. Give the job limits on processes, memory, output and time. A script that draws a moth can still fill a disk or leave a child running.",
+        "hold": 1
+      },
+      {
+        "id": "template",
+        "say": "To start quickly, boot a clean guest kernel, language runtime and waiting supervisor once. Pause them before any tenant data or credentials arrive. Seal the memory file and versioned machine state with the matching disk image. Verify their integrity and compatibility on restore. Each job can build on this same clean starting point.",
+        "hold": 1.3
+      }
+    ]
+  },
+  {
+    "id": "c02",
+    "title": "Which return reaches the device handler?",
+    "sourceChapters": [
+      "c02"
+    ],
+    "beats": [
+      {
+        "id": "kernels",
+        "say": "Trace a drawing command down the stack. Two ordinary containers both make system calls to one host kernel. Inside two microVMs, each script calls its own guest kernel. On the host, Firecracker is the virtual machine monitor, or VMM. It uses Linux KVM to run guest instructions on the hardware.",
+        "hold": 1
+      },
+      {
+        "id": "jail",
+        "say": "The VMM is still a host process. Firecracker has a small device model. Its jailer can narrow the filesystem view, drop privileges, apply resource limits and join a prepared network namespace. Protect the management socket, keep the system call filters, and bound guest-driven output. Test both the guest boundary and the host interfaces the VMM retains.",
+        "hold": 1
+      },
+      {
+        "id": "descriptor",
+        "say": "Follow one virtual CPU. The VMM opens the KVM device, creates a VM descriptor, registers the guest's memory, and creates a virtual CPU descriptor. It calls KVM run on that last descriptor. Some exits stay inside KVM. For a return to userspace, check the return code before reading a device exit reason.",
+        "hold": 1
+      },
+      {
+        "id": "interrupt",
+        "say": "Here is a three-call trace. First, the run returns interrupted while the stop flag is clear. Next, a successful return reports a memory-mapped device access. Finally, another interruption arrives with the stop flag set. Count the device-handler calls. Will the VMM issue a fourth run?",
+        "hold": 3
+      },
+      {
+        "id": "dispatch",
+        "say": "One handler call. The first interruption goes back to the stop check, which permits the second run. Only that successful return dispatches the device access. The last interruption reaches a set stop flag, so the loop ends. Other errors need their own handling. A guest halt can mean waiting for an interrupt.",
+        "hold": 1.5
+      }
+    ]
+  },
+  {
+    "id": "c03",
+    "title": "Who owns the wing ink?",
+    "sourceChapters": [
+      "c03"
+    ],
+    "beats": [
+      {
+        "id": "shared",
+        "say": "These two drawing jobs restored the same snapshot. Zoom in on A's wing. At byte offset one hundred thirty-six on page two, thirty selects blue. B reads the same backing byte. We are counting six modeled pages, four kibibytes each. A private file mapping lets the host bring clean pages in on demand.",
+        "hold": 1.1
+      },
+      {
+        "id": "first-stroke",
+        "say": "A wants orange. One byte must change. Can B keep reading blue? Watch where each job's line ends as the host makes room for the write.",
+        "hold": 2.6
+      },
+      {
+        "id": "copy",
+        "say": "The host copies the whole page. For a moment both versions hold blue. The new page belongs to A. Now the stroke lands. Ninety-nine selects orange. B's line still ends on the original thirty. Six backing pages and one private page cost twenty-eight kibibytes in this model.",
+        "hold": 1.6
+      },
+      {
+        "id": "second-stroke",
+        "say": "A tries pink at that same offset. Will this second stroke cost another four kibibytes?",
+        "hold": 2.8
+      },
+      {
+        "id": "in-place",
+        "say": "A writes in place. Seventy-six selects pink. Count the pages again. Seven. The base and B keep their blue wing. Keep the backing file immutable and available for the life of these guests.",
+        "hold": 1.3
+      },
+      {
+        "id": "two-writers",
+        "say": "Try a smaller snapshot with four pages. On page two, A has already changed thirteen to eighty-one. Now B wants fifty-two at the same index. How many separate pages will you count?",
+        "hold": 2.8
+      },
+      {
+        "id": "both-private",
+        "say": "B gets its own copy. Now count four base pages and two private pages. That is twenty-four kibibytes, with reads of eighty-one, fifty-two and thirteen for A, B and the base.",
+        "hold": 1.3
+      },
+      {
+        "id": "file-read",
+        "say": "Now A reads page one. Neither job has written there. Suppose that page is cold. The guest waits while the host kernel brings four kibibytes in from the snapshot file. Once the page is resident, A reads eleven. Both private writes on page two are still there. This clean read adds no new write copy.",
+        "hold": 1.4
+      },
+      {
+        "id": "handler-wait",
+        "say": "Replay that cold read with the userfaultfd backend. This time a userspace handler on the host receives the fault. It asks the snapshot store for page one. The fetch is delayed. A's read stays blocked. Now the bytes arrive at the handler. What still has to happen before A can use them?",
+        "hold": 2.8
+      },
+      {
+        "id": "handler-fill",
+        "say": "The handler first checks the bytes. It computes a digest, a fingerprint of the received page, and compares it with the trusted digest for this snapshot page. The digests match. It supplies the validated page to the waiting mapping. Only then does A's read finish with eleven. The two private writes on page two are unchanged.",
+        "hold": 1.5
+      }
+    ]
+  },
+  {
+    "id": "c04",
+    "title": "Which generation passed?",
+    "sourceChapters": [
+      "c04"
+    ],
+    "beats": [
+      {
+        "id": "restore",
+        "say": "A restored supervisor can run while tenant work waits. It must check the wall clock and refresh application deadlines under the chosen clock protocol. A supporting kernel can reseed after it handles a generation-change notification. There is a window before that happens. Even afterward, a copied application generator or cached token needs its own repair.",
+        "hold": 1
+      },
+      {
+        "id": "receipt",
+        "say": "Check the owner on these five observations. A's current generation is nine. The clock, kernel randomness, network and control observations all match. A passing application check has come in from generation eight. Which check must the supervisor obtain before starting the script?",
+        "hold": 3
+      },
+      {
+        "id": "repair",
+        "say": "Keep user work held. Reinitialize the copied application state and verify it for generation nine. The new observation completes this set. Now the supervisor can admit the script. Establish the clone's routing and a fresh authenticated control session too. Separate network namespaces can reuse a private address when their external paths remain isolated.",
+        "hold": 1.5
+      },
+      {
+        "id": "latency",
+        "say": "When does a warm start finish? On this example clock the gateway accepts at zero. Placement ends at four milliseconds and the snapshot load returns at six. Readiness finishes at seventeen. The supervisor begins the first user instruction at eighteen. Which mark ends the measurement?",
+        "hold": 2.6
+      },
+      {
+        "id": "endpoint",
+        "say": "User entry ends it. Eighteen milliseconds elapsed, three beyond the fifteen millisecond design target. That target covers accepted queueing, placement, restore and readiness. To measure the ninety-ninth percentile, record many requests on the chosen host, image and load. Report rejections and timeouts alongside it, and time cold starts separately.",
+        "hold": 1.4
+      }
+    ]
+  },
+  {
+    "id": "c05",
+    "title": "Which files will the next job see?",
+    "sourceChapters": [
+      "c05"
+    ],
+    "beats": [
+      {
+        "id": "lower",
+        "say": "Look through the filesystem of a second job, B. Its immutable lower image holds policy dot text and the runtime. Its private upper layer starts empty. A read of the policy falls through to the lower image. The guest sees one merged directory.",
+        "hold": 1
+      },
+      {
+        "id": "copy-up",
+        "say": "B edits the policy. OverlayFS first copies the lower file up into the private layer. B writes revision two there. The private revision now wins the lookup, and the lower bytes stay intact. This is a filesystem operation on a name and its file. The wing example copied a memory page.",
+        "hold": 1.3
+      },
+      {
+        "id": "whiteout",
+        "say": "B deletes the policy. A whiteout in the private layer hides that lower name from B. Then B saves result dot json in the same private layer. Which of those two names will another tenant see after B retires and the host replaces the scratch layer?",
+        "hold": 2.8
+      },
+      {
+        "id": "new-upper",
+        "say": "Once execution and readers have retired, discard B's upper and work directories. Give the next tenant fresh directories. The policy comes back. The whiteout and the result file have left together. The new guest reads the original policy. Export only authorized artifacts and apply the retention policy to exports, logs, backups and snapshots separately.",
+        "hold": 1.4
+      }
+    ]
+  },
+  {
+    "id": "c06",
+    "title": "Which bytes and requests can pass?",
+    "sourceChapters": [
+      "c06"
+    ],
+    "beats": [
+      {
+        "id": "channel",
+        "say": "Restore resets established vsock connections. The guest can keep listening on port five thousand. The host opens Firecracker's Unix socket and sends a CONNECT line ending in a newline. Firecracker consumes that line and forwards the connection to guest port five thousand. The guest accepts. Firecracker then sends OK back to the host with the assigned host-side port. This stream carries commands and replies. Internet traffic has its own path and policy.",
+        "hold": 1
+      },
+      {
+        "id": "frame",
+        "say": "At the host, the stream arrives in pieces. Here the final piece includes both the newline and the first application bytes. Read a byte at a time under one two-second deadline and a sixty-four-byte limit. Where should the acknowledgement reader stop?",
+        "hold": 2.6
+      },
+      {
+        "id": "delimiter",
+        "say": "Stop at the newline. Payload stays unread for the next parser. Check the complete OK line and its decimal host-side port. Accept ports from two to the thirtieth up to, but excluding, two to the thirty-first. This assigned port fits. A second reply at the upper bound fails. Reject a malformed line, early close, overlong line or deadline expiry before allowing application work.",
+        "hold": 1
+      },
+      {
+        "id": "broker",
+        "say": "For a permitted image lookup, A presents a short-lived capability to a trusted broker. It checks the tenant, generation, method, resource and expiry. It validates the current resolved address, pins the connection and verifies the TLS hostname. The broker constructs the upstream request with the real secret. One authorized read reaches the image library.",
+        "hold": 1.2
+      },
+      {
+        "id": "retry",
+        "say": "Try the same read on a new connection. The name is still allowed, but the current address is private and unauthorized. In a separate retry the address is approved but the capability has expired. Which of these requests should reach the library?",
+        "hold": 2.8
+      },
+      {
+        "id": "deny",
+        "say": "Neither request passes. Check every new connection and redirect outside the guest. A broker can reach a private service when the destination policy approves it and the caller has a current grant for that operation. Here the new address failed its check. The other retry used an expired grant. Keep the first read in the audit record and log both denials. Bound retries, network volume, output size and time. Block metadata, host management and other tenants across the enabled address families.",
+        "hold": 1.3
+      }
+    ]
+  },
+  {
+    "id": "c07",
+    "title": "How much work fits on this host?",
+    "sourceChapters": [
+      "c07"
+    ],
+    "beats": [
+      {
+        "id": "pool",
+        "say": "Start with the article's hypothetical host. Of two hundred fifty-six gibibytes, reserve thirty-two for the host and shared data. That leaves two hundred twenty-four gibibytes. A full two-gibibyte budget fits one hundred twelve times. If we count only fifty mebibytes of private pages per guest, the quotient jumps to four thousand five hundred eighty-seven.",
+        "hold": 1.2
+      },
+      {
+        "id": "growth",
+        "say": "Now suppose the measured private footprint grows to two hundred mebibytes. Even a garbage collector writing marks can dirty shared pages. What happens to the private-page-only quotient if the available pool stays fixed?",
+        "hold": 2.5
+      },
+      {
+        "id": "quotient",
+        "say": "It falls to eleven hundred forty-six. Divide the same pool by the larger footprint and round down. These quotients omit per-job overhead and extra headroom. Count VMM memory, page tables and caches. A shared read-only model image can save scratch space while its working set still consumes memory and I/O.",
+        "hold": 1
+      },
+      {
+        "id": "burst",
+        "say": "CPU has a different limit. Take a separate worksheet with one hundred twenty-eight cores and thirty one-vCPU sessions per core. Three percent mean duty gives about one hundred fifteen busy cores on average. Suppose all the sessions wake together. If one runs per core, how many must wait?",
+        "hold": 2.6
+      },
+      {
+        "id": "queue",
+        "say": "Three thousand seven hundred twelve wait. The runnable total is three thousand eight hundred forty. Admit against burst demand, queue excess work, and measure tail latency under load. Track memory pressure as well. An average cannot reserve a core when the neighbors all wake up.",
+        "hold": 1.1
+      },
+      {
+        "id": "quota",
+        "say": "Within one fair-class VMM control group, a quota of one hundred twenty thousand microseconds renews each one hundred thousand microsecond period. That gives the group one point two core-equivalents. One thread spends seventy thousand. How much can the other threads still use this period?",
+        "hold": 2.6
+      },
+      {
+        "id": "remaining",
+        "say": "Fifty thousand microseconds remain for the whole group. Threads draw from one allowance. The quota-to-period ratio stays one point two. Bound guest processes inside the guest, host tasks in the host group, and disk, output and time at their respective boundaries.",
+        "hold": 1.1
+      }
+    ]
+  },
+  {
+    "id": "c08",
+    "title": "When can the slot return to the pool?",
+    "sourceChapters": [
+      "c08"
+    ],
+    "beats": [
+      {
+        "id": "replay",
+        "say": "Back to A's moth and its open scratch file. Rewind the release trace. A lost heartbeat leaves the lease uncertain. Reconcile the durable tenant, sandbox ID and generation against the host's processes, sockets, mounts and capabilities. Adopt or stop the matching instance. A timer by itself cannot settle ownership.",
+        "hold": 1
+      },
+      {
+        "id": "cancel",
+        "say": "At one second A requests cancellation. A retirement notice arrives for generation ten at two seconds. A's lease says nine. The controller verifies execution stopped for nine at five seconds. Both a duplicate VM descriptor and the exporter's scratch reader are still open.",
+        "hold": 1.1
+      },
+      {
+        "id": "practice",
+        "say": "Suppose the duplicate descriptor closes at seven seconds. The last scratch reader closes at nine. Revocation and export checks are complete, and the host can verify disposal as soon as both handles close. At which of those times can the next tenant take the slot?",
+        "hold": 3.5
+      },
+      {
+        "id": "unplug",
+        "say": "At seven the VM descriptor closes. The reader still holds the file. That is the picture we opened on. At nine the exporter closes its handle. The file has no readers left. Watch the private mount retire. The host verifies disposal. Now it can return the slot to the free pool.",
+        "hold": 2
+      },
+      {
+        "id": "clean",
+        "say": "Nine seconds is the earliest verified point in this trace. The next tenant gets clean backing and fresh scratch. A's picture survives only as the authorized export under its retention policy. Test controller loss, delayed cleanup, cold page faults and concurrent starts on the deployed system. In the next lesson, a search service has to preserve a different boundary around who may read each source behind an answer.",
+        "hold": 1.8
+      }
+    ]
+  }
+]

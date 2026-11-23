@@ -1,0 +1,181 @@
+{
+  "id": "file-patch-applier",
+  "slug": "file-patch-applier",
+  "title": "File Patch Applier",
+  "difficulty": "Easy",
+  "category": "Editing Systems",
+  "language": "python3",
+  "timeEstimateMinutes": 30,
+  "timeLimitMs": 2500,
+  "memoryLimitMb": 128,
+  "order": 85,
+  "tags": [
+    "patch",
+    "text editing",
+    "validation",
+    "atomic update"
+  ],
+  "source": "Frontier coding prep",
+  "summary": "Apply sorted or unsorted text edits atomically while rejecting invalid and overlapping ranges.",
+  "starterCode": [
+    "def apply_edits(text: str, edits: list[tuple[int, int, str]]) -> str:",
+    "    pass"
+  ],
+  "testCases": [
+    {
+      "name": "public replaces one range",
+      "visibility": "sample",
+      "setup": [
+        "from solution import apply_edits"
+      ],
+      "input": "apply_edits(\"hello world\", [(6, 11, \"Cursor\")])",
+      "expected": "\"hello Cursor\""
+    },
+    {
+      "name": "public accepts unsorted adjacent edits",
+      "visibility": "sample",
+      "setup": [
+        "from solution import apply_edits"
+      ],
+      "input": "apply_edits(\"abcdef\", [(5, 6, \"F\"), (0, 1, \"A\"), (2, 2, \"X\")])",
+      "expected": "\"AbXcdeF\""
+    },
+    {
+      "name": "hidden delete and insert",
+      "visibility": "hidden",
+      "setup": [
+        "from solution import apply_edits"
+      ],
+      "input": "apply_edits(\"012345\", [(1, 4, \"\"), (6, 6, \"!\")])",
+      "expected": "\"045!\""
+    },
+    {
+      "name": "hidden rejects overlaps before mutation",
+      "visibility": "hidden",
+      "code": [
+        "from solution import apply_edits",
+        "",
+        "try:",
+        "    apply_edits(\"abcdef\", [(1, 4, \"X\"), (3, 5, \"Y\")])",
+        "except ValueError as exc:",
+        "    assert \"overlap\" in str(exc)",
+        "else:",
+        "    raise AssertionError(\"expected overlap rejection\")",
+        "try:",
+        "    apply_edits(\"abcdef\", [(1, 3, \"R\"), (2, 2, \"inside\")])",
+        "except ValueError as exc:",
+        "    assert \"overlap\" in str(exc)",
+        "else:",
+        "    raise AssertionError(\"expected interior insertion rejection\")"
+      ]
+    },
+    {
+      "name": "hidden rejects invalid ranges",
+      "visibility": "hidden",
+      "code": [
+        "from solution import apply_edits",
+        "",
+        "bad_edits = [[(-1, 1, \"x\")], [(2, 1, \"x\")], [(0, 99, \"x\")]]",
+        "for edits in bad_edits:",
+        "    try:",
+        "        apply_edits(\"abc\", edits)",
+        "    except ValueError:",
+        "        pass",
+        "    else:",
+        "        raise AssertionError(\"expected invalid range\")"
+      ]
+    },
+    {
+      "name": "hidden empty edit list returns original",
+      "visibility": "hidden",
+      "setup": [
+        "from solution import apply_edits",
+        "text = \"unchanged\""
+      ],
+      "input": "text = \"unchanged\"\napply_edits(text, [])",
+      "expected": "text",
+      "expression": "apply_edits(text, [])"
+    },
+    {
+      "name": "public replaces the entire string",
+      "visibility": "sample",
+      "description": "A half-open range can span the complete input.",
+      "feedback": "Allow start zero and end equal to text length.",
+      "setup": [
+        "from solution import apply_edits"
+      ],
+      "input": "apply_edits(\"old\", [(0, 3, \"new\")])",
+      "expected": "\"new\""
+    },
+    {
+      "name": "hidden offsets count Unicode characters",
+      "visibility": "hidden",
+      "description": "Python string offsets address characters, including emoji as one index.",
+      "feedback": "Use Python string slicing, which counts Unicode code points, for every offset.",
+      "setup": [
+        "from solution import apply_edits"
+      ],
+      "input": "apply_edits(\"a🙂c\", [(1, 2, \"b\")])",
+      "expected": "\"abc\""
+    },
+    {
+      "name": "hidden preserves same-position insert order",
+      "visibility": "hidden",
+      "description": "Two empty-range inserts at one index keep their original list order.",
+      "feedback": "Use a stable ordering for equal start and end positions so earlier inserts remain left-to-right.",
+      "setup": [
+        "from solution import apply_edits"
+      ],
+      "input": "apply_edits(\"x\", [(0, 0, \"A\"), (0, 0, \"B\")])",
+      "expected": "\"ABx\""
+    }
+  ],
+  "clarifyingQuestions": [
+    "Are offsets byte indexes, code point indexes, or line and column pairs?",
+    "Are edit ranges half-open?",
+    "Should adjacent edits be allowed?",
+    "Should invalid input return the original text or raise?"
+  ],
+  "followUps": [
+    "Support line and column coordinates.",
+    "Require expected old text for optimistic patching.",
+    "Apply multi-file patches atomically."
+  ],
+  "followUpGuide": [
+    "For line and column coordinates, precompute line start offsets and convert each edit to a character range before validation.",
+    "",
+    "For expected old text, validate that `text[start:end]` matches the edit's expected value before applying any replacements.",
+    "",
+    "For multi-file patches, validate every file and every edit first, then build all new contents before writing any result. This prevents partial application of invalid edits, but filesystem writes can still fail halfway through. True multi-file atomicity needs a transaction or a staging/commit/rollback design, plus a check that source versions haven't changed."
+  ],
+  "complexityAnalysis": [
+    "- Sorting edits. Time: O(e log e), where e is edit count. Space: O(e) for sorted edits.",
+    "- Validation. Time: O(e). Space: O(1) beyond sorted edits.",
+    "- Python's left-to-right list/join builder. Time: O(n + total replacement size + e); extra space: O(n + total replacement size + e). Here n is original text length. Sorting adds O(e log e).",
+    "- A right-to-left mutable string builder preserves offsets but may shift its suffix on every replacement. The provided Java approach can take O(e · (n + total replacement size)) work in the worst case. Use a left-to-right append builder for a linear construction phase."
+  ],
+  "solutionGuide": [
+    "Sort and validate first. Build the result with a piece list so total work stays linear in text plus replacements.",
+    "",
+    "```python",
+    "def apply_edits(text: str, edits: list[tuple[int, int, str]]) -> str:",
+    "    ordered = sorted(edits, key=lambda edit: (edit[0], edit[1]))",
+    "    previous_end = 0",
+    "    for start, end, _ in ordered:",
+    "        if start < 0 or end < start or end > len(text):",
+    "            raise ValueError(\"invalid edit range\")",
+    "        if start < previous_end:",
+    "            raise ValueError(\"overlapping edits\")",
+    "        previous_end = end",
+    "",
+    "    pieces = []",
+    "    cursor = 0",
+    "    for start, end, replacement in ordered:",
+    "        pieces.append(text[cursor:start])",
+    "        pieces.append(replacement)",
+    "        cursor = end",
+    "    pieces.append(text[cursor:])",
+    "    return \"\".join(pieces)",
+    "```"
+  ]
+}

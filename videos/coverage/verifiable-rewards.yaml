@@ -1,0 +1,362 @@
+version: 1
+lesson: verifiable-rewards
+promise: Decide which rollout scores to train on, then trace how changing the checker changes the probability of sampling the same answer again.
+framing: []
+objectives:
+  - id: intro
+    can: Predict what a first-box checker pays when a response revises its answer.
+    scenes:
+      - intro
+  - id: alignment-space
+    can: Choose the signal separately from the learning loop
+    scenes:
+      - alignment-space
+  - id: contract
+    can: Define the verifier's contract
+    scenes:
+      - contract
+  - id: measurement-status
+    can: Keep a broken measurement out of the reward vector
+    scenes:
+      - measurement-status
+  - id: check
+    can: Verify the reference capacity and distinguish an exact final-field match from checked reasoning.
+    scenes:
+      - check
+  - id: outcome-process
+    can: A correct last value does not validate its argument
+    scenes:
+      - outcome-process
+  - id: numeric-parser
+    can: Extract one bounded field before comparing exact values
+    scenes:
+      - numeric-parser
+  - id: trusted-execution
+    can: Grade actual behavior outside the candidate process
+    scenes:
+      - trusted-execution
+  - id: hidden-cases
+    can: Expose the memorized lookup by changing the inputs
+    scenes:
+      - hidden-cases
+  - id: instruction-contract
+    can: Count the whole response under the declared constraint
+    scenes:
+      - instruction-contract
+  - id: formal-sql
+    can: Own the theorem and preserve query multiplicity
+    scenes:
+      - formal-sql
+  - id: group
+    can: Sample answers for the same prompt
+    scenes:
+      - group
+  - id: critic-return
+    can: An expectation can differ from one observed continuation
+    scenes:
+      - critic-return
+  - id: grpo
+    can: Read each response's signed distance from its group mean and handle zero spread.
+    scenes:
+      - grpo
+  - id: population-group
+    can: Construct the mean and population spread from all eight outcomes
+    scenes:
+      - population-group
+  - id: token-surrogate
+    can: Choose the smaller signed token product and carry it into the correct response mean.
+    scenes:
+      - token-surrogate
+  - id: kl-value-gradient
+    can: Change one logit and explain which derivative a fixed-token KL calculation omits.
+    scenes:
+      - kl-value-gradient
+  - id: sampling-budget
+    can: Calculate whether another group is likely to be informative
+    scenes:
+      - sampling-budget
+  - id: trainer-contract
+    can: Changing the denominator changes what a token contributes
+    scenes:
+      - trainer-contract
+  - id: update
+    can: Follow the probability of sampling either passing response through a normalized four-category update.
+    scenes:
+      - update
+  - id: categorical-step
+    can: A zero scalar loss can still move the eight logits
+    scenes:
+      - categorical-step
+  - id: r1-zero-and-metrics
+    can: Keep each reported aggregation and report edition attached
+    scenes:
+      - r1-zero-and-metrics
+  - id: r1-pipeline
+    can: Follow the actual base checkpoint and supervision through all four stages
+    scenes:
+      - r1-pipeline
+  - id: reported-patterns
+    can: An authored backtrack is observable text rather than a tree search
+    scenes:
+      - reported-patterns
+  - id: spurious-rewards
+    can: Keep a surprising ablation bounded to its models and setup
+    scenes:
+      - spurious-rewards
+  - id: failure
+    can: Find what the checker leaves unmeasured
+    scenes:
+      - failure
+  - id: parser-pressure
+    can: Replay both box rules on unchanged submissions and identify which stored scores need to be recomputed.
+    scenes:
+      - parser-pressure
+  - id: reward-priority
+    can: Score a wrong boxed answer, a correct plain answer, and a correct boxed answer under both format rules.
+    scenes:
+      - reward-priority
+  - id: evaluate
+    can: Test whether the same model answer survives removing one worker or one slot from each worker.
+    scenes:
+      - evaluate
+  - id: capability-gates
+    can: The same candidate can improve reasoning and fail release
+    scenes:
+      - capability-gates
+  - id: lab-exactness
+    can: Preserve a tiny decimal difference instead of rounding it away
+    scenes:
+      - lab-exactness
+  - id: teacher-transfer
+    can: Teacher traces and rewards enter different optimization steps
+    scenes:
+      - teacher-transfer
+  - id: fresh-batch-repair
+    can: Retain a measured timeout, quarantine a host loss, and recompute the three remaining advantages after a parser change.
+    scenes:
+      - fresh-batch-repair
+  - id: fresh-step-payoff
+    can: Compare two updates from the same uniform policy and explain why the two-box response moves in opposite directions.
+    scenes:
+      - fresh-step-payoff
+sections:
+  - heading: The alignment space
+    status: taught
+    scenes:
+      - alignment-space
+  - heading: Defining verifiable rewards
+    status: taught
+    scenes:
+      - intro
+      - contract
+      - measurement-status
+      - fresh-batch-repair
+  - heading: Outcome vs. process supervision
+    status: taught
+    scenes:
+      - check
+      - outcome-process
+  - heading: Concrete verifier implementations
+    status: taught
+    scenes:
+      - numeric-parser
+      - trusted-execution
+      - instruction-contract
+      - formal-sql
+  - heading: What can't be verified?
+    status: taught
+    scenes:
+      - instruction-contract
+      - failure
+  - heading: Group relative policy optimization (GRPO)
+    status: taught
+    scenes:
+      - group
+      - grpo
+      - population-group
+      - token-surrogate
+      - kl-value-gradient
+      - sampling-budget
+      - trainer-contract
+  - heading: What the PPO critic estimates
+    status: taught
+    scenes:
+      - critic-return
+  - heading: The GRPO critic-free mechanism
+    status: taught
+    scenes:
+      - grpo
+      - population-group
+      - token-surrogate
+      - kl-value-gradient
+      - sampling-budget
+      - categorical-step
+      - fresh-batch-repair
+      - fresh-step-payoff
+  - heading: A trainer name doesn't specify the objective
+    status: taught
+    scenes:
+      - trainer-contract
+  - heading: DeepSeek-R1 training pipeline
+    status: taught
+    scenes:
+      - r1-zero-and-metrics
+      - r1-pipeline
+  - heading: "Stage 1: add a cold start when the task benefits"
+    status: taught
+    scenes:
+      - r1-pipeline
+      - instruction-contract
+  - heading: "Stage 2: reasoning RL (GRPO)"
+    status: taught
+    scenes:
+      - r1-pipeline
+  - heading: "Stage 3: rejection sampling and SFT"
+    status: taught
+    scenes:
+      - r1-pipeline
+  - heading: "Stage 4: final RL"
+    status: taught
+    scenes:
+      - r1-pipeline
+  - heading: Observed reasoning patterns
+    status: taught
+    scenes:
+      - reported-patterns
+  - heading: Self-verification patterns
+    status: taught
+    scenes:
+      - reported-patterns
+      - check
+  - heading: Backtracking patterns
+    status: taught
+    scenes:
+      - reported-patterns
+  - heading: Extended thought and the reasoning tax
+    status: taught
+    scenes:
+      - reported-patterns
+      - spurious-rewards
+  - heading: Reward hacking and failure modes
+    status: taught
+    scenes:
+      - failure
+      - parser-pressure
+      - reward-priority
+  - heading: Format gaming
+    status: taught
+    scenes:
+      - reward-priority
+  - heading: Shortcut exploitation
+    status: taught
+    scenes:
+      - intro
+      - parser-pressure
+      - hidden-cases
+  - heading: Mitigation strategies
+    status: taught
+    scenes:
+      - measurement-status
+      - hidden-cases
+      - evaluate
+      - capability-gates
+  - heading: When RLVR breaks
+    status: taught
+    scenes:
+      - instruction-contract
+      - capability-gates
+  - heading: Forcing a checker onto a subjective task
+    status: taught
+    scenes:
+      - instruction-contract
+      - failure
+  - heading: Treating cold-start SFT as always required or never useful
+    status: taught
+    scenes:
+      - instruction-contract
+      - r1-zero-and-metrics
+  - heading: Celebrating format accuracy
+    status: taught
+    scenes:
+      - instruction-contract
+      - reward-priority
+  - heading: Ignoring general capability drift
+    status: taught
+    scenes:
+      - capability-gates
+  - heading: Treating RLVR and distillation as rivals
+    status: taught
+    scenes:
+      - teacher-transfer
+  - heading: A tiny verifier lab
+    status: taught
+    scenes:
+      - lab-exactness
+  - heading: RLVR and distillation
+    status: taught
+    scenes:
+      - teacher-transfer
+quiz:
+  - n: 1
+    status: taught
+    scenes:
+      - measurement-status
+      - lab-exactness
+      - fresh-batch-repair
+  - n: 2
+    status: taught
+    scenes:
+      - numeric-parser
+      - lab-exactness
+  - n: 3
+    status: taught
+    scenes:
+      - trusted-execution
+      - hidden-cases
+  - n: 4
+    status: taught
+    scenes:
+      - formal-sql
+  - n: 5
+    status: taught
+    scenes:
+      - population-group
+      - grpo
+      - fresh-batch-repair
+  - n: 6
+    status: taught
+    scenes:
+      - token-surrogate
+  - n: 7
+    status: taught
+    scenes:
+      - trainer-contract
+  - n: 8
+    status: taught
+    scenes:
+      - sampling-budget
+  - n: 9
+    status: taught
+    scenes:
+      - r1-zero-and-metrics
+      - teacher-transfer
+  - n: 10
+    status: taught
+    scenes:
+      - capability-gates
+removed: []
+reviews:
+  closed_book:
+    script: 31eefa17749ee576
+    reviewer: /root/upgrade_shard6
+    evidence: build/video-delivery-20261106/script-reviews/verifiable-rewards.json
+    evidence_sha256: b4361e0470fc1d32e69b11ac738015383c1d5b6c1762ed8457960965ea3c8790
+    taught: 10
+    partial: 0
+    absent: 0
+  fact_check:
+    script: 31eefa17749ee576
+    reviewer: /root/upgrade_shard6
+    evidence: build/video-delivery-20261106/script-reviews/verifiable-rewards.json
+    evidence_sha256: b4361e0470fc1d32e69b11ac738015383c1d5b6c1762ed8457960965ea3c8790
+    open_findings: 0

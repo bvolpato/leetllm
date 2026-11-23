@@ -1,0 +1,279 @@
+[
+  {
+    "id": "c01",
+    "title": "A small adapter still walks the full backbone",
+    "sourceChapters": [
+      "c01"
+    ],
+    "beats": [
+      {
+        "id": "c01-b01",
+        "say": "Follow the token cat into this query projection. Its eight features pass through eight frozen rows. That costs sixty-four multiply-add pairs. The same input goes through A and then B. Two rank directions cost thirty-two more pairs. Both paths meet at the sum.",
+        "hold": 1
+      },
+      {
+        "id": "c01-b02",
+        "say": "Take away one rank. Which multiplications will disappear when we send cat through again?",
+        "hold": 3
+      },
+      {
+        "id": "c01-b03",
+        "say": "Lift the second row of A and its matching column of B. Run cat again. The adapter now costs sixteen pairs. Eight belong to A and eight to B. All sixty-four frozen pairs still run. Freezing saves the base weight updates. Training an earlier adapter can still require an input gradient through these weights, with activations saved or recomputed.",
+        "hold": 1.2
+      },
+      {
+        "id": "c01-b04",
+        "say": "Light-PEFT spends a short prefix measuring which structures matter to the current task. It records those scores and turns them into selected coordinates. Suppose the record drops the second of four heads. Lift its two output rows from the query matrix and from B. Six frozen rows cost forty-eight pairs. The rank-one adapter reads eight features and writes six, for fourteen pairs. Now the second training run has physically smaller tensors on both paths.",
+        "hold": 1
+      }
+    ]
+  },
+  {
+    "id": "c02",
+    "title": "Count the frozen work before choosing what to cut",
+    "sourceChapters": [
+      "c02"
+    ],
+    "beats": [
+      {
+        "id": "c02-b01",
+        "say": "Return to the full layer before either cut. Every token passes through the query, key, value, and output projections. Each square is eight by eight. Put the four together. Their area counts two hundred fifty-six multiply-add pairs.",
+        "hold": 0.8
+      },
+      {
+        "id": "c02-b02",
+        "say": "The up projection expands eight features to thirty-two. The down projection brings them back to eight. What do those two rectangles add to the four squares? Count one multiplication and its accumulation as a pair.",
+        "hold": 2.4
+      },
+      {
+        "id": "c02-b03",
+        "say": "They add five hundred twelve pairs, for seven hundred sixty-eight per token. Send four tokens through. The base now accounts for three thousand seventy-two pairs. One rank-one target on the square query projection adds sixteen per token, or sixty-four across the four tokens. Attention scores, value mixing, nonlinearities and memory traffic fall outside this projection count.",
+        "hold": 1
+      },
+      {
+        "id": "c02-b04",
+        "say": "Suppose weight storage is the limit. Pack each weight into four bits instead of sixteen. The number of entries stays the same. Now physically remove two query rows. The kernel has fewer outputs to compute. QLoRA trains adapters through the packed base. Combining quantization with Light-PEFT needs a separate benchmark.",
+        "hold": 1
+      }
+    ]
+  },
+  {
+    "id": "c03",
+    "title": "Keep the evidence file between scoring and surgery",
+    "sourceChapters": [
+      "c03"
+    ],
+    "beats": [
+      {
+        "id": "c03-b01",
+        "say": "During the estimate phase, the model has all its heads and feed-forward coordinates. The estimate script learns masks and saves four records. The two arrays hold the gate histories. The other two files describe adapter modules and ranks. Save the adapter weights as well.",
+        "hold": 0.7
+      },
+      {
+        "id": "c03-b02",
+        "say": "Point the second command at that directory. Our estimate used revision seventeen. Someone has supplied revision eighteen with the same file names and shapes. Should the second trainer use them?",
+        "hold": 2.6
+      },
+      {
+        "id": "c03-b03",
+        "say": "Hold the load. The revisions disagree. Restore the matching record bundle from seventeen. Bind its hashes to the model, data revision, target modules, precision and commands. A missing array sends us back to the estimate directory. A missing adapter key sends us to the revision and target list.",
+        "hold": 1.2
+      },
+      {
+        "id": "c03-b04",
+        "say": "The second process reads the final backbone gates, chooses survivors and slices their base and adapter feature axes. It restores the filtered adapter weights before slicing paired ranks. Surviving gates return to one. A new trainer continues with a fresh optimizer on the smaller shapes. Keep the original base and adapter for rollback.",
+        "hold": 1
+      },
+      {
+        "id": "c03-b05",
+        "say": "Compare the complete stopwatch. The matched baseline takes ninety minutes. The candidate spends ten estimating, two writing, three slicing, forty training and five evaluating and exporting. What speed ratio can we report?",
+        "hold": 2.8
+      },
+      {
+        "id": "c03-b06",
+        "say": "The candidate takes sixty minutes. Divide ninety by sixty for one and a half times baseline speed. Timing just the forty-minute continuation omits the search that found the mask. Start both runs at the same boundary, with the same data, targets, hardware and training budget.",
+        "hold": 1
+      }
+    ]
+  },
+  {
+    "id": "c04",
+    "title": "A head score becomes a shared set of weight slices",
+    "sourceChapters": [
+      "c04"
+    ],
+    "beats": [
+      {
+        "id": "c04-b01",
+        "say": "Each attention head receives one scalar mask during the estimate phase. The masks begin at one. A gate scales its head's contribution before the values are mixed into the output. The task gradient and an L1 penalty move those gates. The separate pruning ratio sets the budget.",
+        "hold": 0.8
+      },
+      {
+        "id": "c04-b02",
+        "say": "Sort these four final scores within their layer. Each head owns two output features. For a quarter cut, travel three quarters of the first gap, from point zero eight toward point five four. The cutoff is point four two five. Which head fails the strict greater-than test?",
+        "hold": 2.4
+      },
+      {
+        "id": "c04-b03",
+        "say": "Head two leaves. Cut its two output rows from query, key and value, and its two input columns from the output projection. Six channels remain inside attention. The output still feeds an eight-wide residual stream. The correct axis depends on which side of the head each weight sits.",
+        "hold": 1
+      },
+      {
+        "id": "c04-b04",
+        "say": "Change only the first gate to negative point nine one. The pinned helper sorts signed scores, so the first head now leaves. Rank by magnitude instead, and head two leaves. A large negative gate reverses a contribution. Its sign matters when we interpret what the estimate measured.",
+        "hold": 1.1
+      },
+      {
+        "id": "c04-b05",
+        "say": "Try a tie. Two gates read point three. The others read point six and point eight. With a quarter cut the cutoff is point three. Only the last two gates survive. A request for zero pruning takes a different path. Does the caller still drop the tied gates? The caller skips the helper and all four survive. Count actual survivors before slicing.",
+        "hold": 1
+      }
+    ]
+  },
+  {
+    "id": "c05",
+    "title": "A global FFN cut keeps both sides of each coordinate",
+    "sourceChapters": [
+      "c05"
+    ],
+    "beats": [
+      {
+        "id": "c05-b01",
+        "say": "Pool these five learned feed-forward gates across both layers. For a forty-percent budget, the cutoff sits six tenths of the way from point one five to point three one. It is point two four six. Which original coordinates fall at or below it?",
+        "hold": 2.8
+      },
+      {
+        "id": "c05-b02",
+        "say": "Neuron one in each layer falls below the line. Look inside layer zero during estimation. The up projection and its activation function give neuron one a value of two for this token. Its learned gate multiplies that activation by point zero seven. Its down column receives point one four. The first weight in that column is one, so this path contributes point one four. Replay the same token with every gate set to one so we can isolate the effect of cutting a coordinate. The three products are two times one, three times two, and negative one times negative one. They sum to nine.",
+        "hold": 1
+      },
+      {
+        "id": "c05-b03",
+        "say": "Follow the first activation to the column that reads it. If we remove its up row, which down column must travel with it? What will the first output become?",
+        "hold": 3.1
+      },
+      {
+        "id": "c05-b04",
+        "say": "Lift both ends of neuron one together. The other two paths slide into place. Their products still give six and one. The first output is seven. The parked pair accounts for the missing two. Layer zero keeps two coordinates while layer one keeps one.",
+        "hold": 1.4
+      },
+      {
+        "id": "c05-b05",
+        "say": "Try the same budget in two fresh layers of equal width. A has scores point one and point two. B has point eight and point nine. With a global fifty-percent cut, both survivors come from B. With a separate median in each layer, one survives in each. The total stays two. Check for an empty layer and compare score scales before using a global cut.",
+        "hold": 1
+      }
+    ]
+  },
+  {
+    "id": "c06",
+    "title": "Adapter pruning chooses both modules and rank pairs",
+    "sourceChapters": [
+      "c06"
+    ],
+    "beats": [
+      {
+        "id": "c06-b01",
+        "say": "Should this whole adapter insertion stay? Divide the length of its change by the length of the baseline output. Here the baseline vector is three, four. The change is point nine, one point two. The lengths are five and one and a half. The ratio is three tenths. This measures the change on observed tokens.",
+        "hold": 1
+      },
+      {
+        "id": "c06-b02",
+        "say": "A zero baseline norm can make that ratio non-finite. The callback replaces invalid observations with zero and averages adapter scores over the later half of the history. Keep the invalid count. A failed division gives us no evidence that a module is quiet.",
+        "hold": 1
+      },
+      {
+        "id": "c06-b03",
+        "say": "Apply the module cutoff first. Of these three insertion scores, only point zero four falls below the cutoff. The first insertion goes. Inside a surviving module, try a local cut. The four ranks in module two have a median of point one. Keep the second and fourth directions. Each owns a row in stored A and a column in B. The paper pools ranks across surviving modules. Put module three into the same pool and keep the top half. Where is the cutoff now? Order all eight scores. Find the two on either side of the halfway mark. The pooled median is point one nine. Only the fourth direction in module two clears it. Module three keeps three directions.",
+        "hold": 1
+      },
+      {
+        "id": "c06-b04",
+        "say": "Why multiply a weight by its loss gradient to score a rank? Set one weight to zero and its change is minus that weight. At first order, the change in loss is that step times the loss gradient. For a weight of two and a gradient of three, the estimated loss change is minus six. Its magnitude is six. Now score the whole rank for this token. The paper adds individual magnitudes. Six, four, three and one sum to fourteen. The pinned trainer averages signed products within each factor before taking magnitudes. How much survives the cancellation? Add the two products in the A row. Then try the B column. Both signed sums are two. Scaling either factor scales this rank's output the same way, so the two sums agree for the same task gradient. Each mean is one because each factor here has two weights. The trainer score is two. Save the scoring rule and the group of ranks it covered with the result.",
+        "hold": 1.2
+      },
+      {
+        "id": "c06-b05",
+        "say": "Return to the local cut in module two. Test its two surviving directions with a token. The retained rows of A produce eight and nine. Multiply those activations by their own columns of B. The unscaled update is fifty-two, thirty-five. Compare it with the full product after zeroing the removed activations. Both components must match.",
+        "hold": 1
+      },
+      {
+        "id": "c06-b06",
+        "say": "Keep those columns and that token fixed. Alpha is sixteen and the original rank was four. Which scale belongs on the sliced adapter when we reload it?",
+        "hold": 2.6
+      },
+      {
+        "id": "c06-b07",
+        "say": "Keep the original scale of four. The update is two hundred eight, one hundred forty. Rebuilding the scale from the two surviving ranks would double both components. Save the actual shapes, original indices and scale together. A model can load successfully and still change its predictions.",
+        "hold": 1.4
+      }
+    ]
+  },
+  {
+    "id": "c07",
+    "title": "Read each speedup inside its benchmark protocol",
+    "sourceChapters": [
+      "c07"
+    ],
+    "beats": [
+      {
+        "id": "c07-b01",
+        "say": "Pick the fastest LoRA configuration that meets a four-task average of ninety-two. Each point shows the share of the original foundation-model parameters that remain. The horizontal axis is training speed relative to baseline LoRA. The vertical axis is the average for MNLI, QNLI, QQP and SST-two on RoBERTa-Large. Which configuration meets the floor and trains fastest?",
+        "hold": 2.8
+      },
+      {
+        "id": "c07-b02",
+        "say": "The configuration retaining seventy-two percent of the foundation parameters scores ninety-two point two at one point four times baseline speed. The faster row misses our floor by a tenth of a point. Inside the winning model, eleven of sixteen heads remain, along with about two thirds of the feed-forward intermediate dimensions. Table one includes estimation in training time on a TITAN RTX, with batch thirty-two and length one hundred twenty-eight. A download-to-export claim would need a wider stopwatch.",
+        "hold": 1.2
+      },
+      {
+        "id": "c07-b03",
+        "say": "Switch to Figure four. With sixty-seven percent of the foundation parameters retained, weight memory falls thirty-two percent, activation memory forty percent, and peak memory thirty-nine percent. The reported two point two times speed belongs to ten forward and backward batches on an RTX thirty ninety. Carry that measurement window with the number.",
+        "hold": 1
+      },
+      {
+        "id": "c07-b04",
+        "say": "Now hold the share of OPT foundation parameters at fifty-two percent in Table five. Reduce the surviving modules from one hundred ninety-two to forty-eight. Inference speed rises from one point two to one point six times the vanilla baseline. Batch ninety-six and maximum length one hundred make this a different comparison. Measure your own training or serving path.",
+        "hold": 1.2
+      }
+    ]
+  },
+  {
+    "id": "c08",
+    "title": "Smaller shapes need matching identities and fresh evidence",
+    "sourceChapters": [
+      "c08"
+    ],
+    "beats": [
+      {
+        "id": "c08-b01",
+        "say": "Slide the adapter made for base A over base B. Same base revision, same width, same three sockets. Where does the first original head identity disagree? Compare the marks on the teeth.",
+        "hold": 2.8
+      },
+      {
+        "id": "c08-b02",
+        "say": "Stop at the middle tooth. A expects head two and B offers head one, counting from zero. Each head here contributes to the same scalar output. For this token, the outer heads contribute one and eight in both bases. A adds two in the middle, while B adds four. A gives eleven and B gives thirteen. Reject A's cached state for B. Bind the revision and ordered original coordinates to the adapter and cache key.",
+        "hold": 1.4
+      },
+      {
+        "id": "c08-b03",
+        "say": "Try a new token. Its four head contributions are two, negative four, two and six. Keep the same two head lists. Which sum belongs to each base? Can you reuse A's cached state?",
+        "hold": 3.2
+      },
+      {
+        "id": "c08-b04",
+        "say": "A sums to ten. B sums to four. Rebuild the state for B. A shared service can route each adapter to its own pruned base, or keep a union of survivors at the cost of a wider base. Test the loader and kernels on the target layout, especially for fused projections or shared key and value heads.",
+        "hold": 1
+      },
+      {
+        "id": "c08-b05",
+        "say": "The estimate saw the old policy's data. After pruning, an online policy can reach different states. Test the rebuilt B on held-out inputs. Fifty familiar cases pass. Six of ten shifted cases pass. This experiment requires eighty percent on shifted cases. Would you continue?",
+        "hold": 3.2
+      },
+      {
+        "id": "c08-b06",
+        "say": "Hold the cut. The aggregate is about ninety-three percent, but the required slice scores sixty percent. Replay the failures on the original checkpoint and compare rewards on matched inputs. Check paired slices, scale, one post-pruning batch and the complete clock before a longer run. The pinned research loader supports RoBERTa. Its bundled adapter library carries an Apache license, while the project root has no repository-wide license file. Check reuse terms for your code and checkpoint.",
+        "hold": 1.8
+      }
+    ]
+  }
+]

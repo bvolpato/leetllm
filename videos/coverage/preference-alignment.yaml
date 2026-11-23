@@ -1,0 +1,346 @@
+version: 1
+lesson: preference-alignment
+promise: Trace one preference into a PPO or DPO update, find replies the training comparison misses, and decide whether a candidate meets its human win and length rules.
+framing: []
+objectives:
+  - id: intro
+    can: Choose a reply by following both sets of directions from the same starting point.
+    scenes:
+      - intro
+  - id: pair
+    can: Keep the vote attached to the complete reply when its presentation order changes.
+    scenes:
+      - pair
+  - id: policy-contract
+    can: Apply the P-7 escalation rule and distinguish a demonstration from a comparison.
+    scenes:
+      - policy-contract
+  - id: bt-judge
+    can: Score the same observed ticket vote before and after swapping the judge's two rewards.
+    scenes:
+      - bt-judge
+  - id: methods
+    can: Choose a fixed-pair DPO update or a scored PPO rollout based on where the next training reply must come from.
+    scenes:
+      - methods
+  - id: role-ownership
+    can: The reference and rollout snapshot own different quantities
+    scenes:
+      - role-ownership
+  - id: token-return
+    can: A single terminal score reaches earlier decisions
+    scenes:
+      - token-return
+  - id: ppo-clipping
+    can: Calculate both signed products and select the smaller at ratios above and below the clipping range.
+    scenes:
+      - ppo-clipping
+  - id: state-budget
+    can: Four logical roles have a stated aggregate state cost
+    scenes:
+      - state-budget
+  - id: optimal-policy
+    can: The reference distribution is tilted and renormalized
+    scenes:
+      - optimal-policy
+  - id: reward-cancellation
+    can: The same prompt constant cancels inside a pair
+    scenes:
+      - reward-cancellation
+  - id: reference
+    can: Recover a positive route margin from equal policy log scores and different frozen reference scores.
+    scenes:
+      - reference
+  - id: probability
+    can: Distinguish the chance of winning a comparison from the chance of generating the exact reply.
+    scenes:
+      - probability
+  - id: loss
+    can: Score the observed vote with its predicted probability and explain which prediction has the larger margin gradient.
+    scenes:
+      - loss
+  - id: update
+    can: Push the pair in opposite directions
+    scenes:
+      - update
+  - id: summed-token-scores
+    can: A response score gathers shifted targets and sums once
+    scenes:
+      - summed-token-scores
+  - id: reduction-convention
+    can: A sequence sum and token average can reverse the pair
+    scenes:
+      - reduction-convention
+  - id: beta-double-role
+    can: Initial gradient scale differs from the ideal drift tradeoff
+    scenes:
+      - beta-double-role
+  - id: likelihood-displacement
+    can: Use the two frozen reference scores to locate each reply and explain how loss can improve while the ticket becomes less likely.
+    scenes:
+      - likelihood-displacement
+  - id: unseen-probability
+    can: Move probability to a third answer at fixed A-to-B odds and choose a new comparison that exposes the failure.
+    scenes:
+      - unseen-probability
+  - id: reference-cache
+    can: A cached score belongs to one complete scoring recipe
+    scenes:
+      - reference-cache
+  - id: truncation-audit
+    can: A nonempty pair can contain no scored difference
+    scenes:
+      - truncation-audit
+  - id: training-contract
+    can: A pair-loss evaluation is a different measurement from new answers
+    scenes:
+      - training-contract
+  - id: pair-data
+    can: The label owns the prompt and both response boundaries
+    scenes:
+      - pair-data
+  - id: evaluation
+    can: Test a word-count rule on fresh length-matched comparisons and identify the word that changes each judgment.
+    scenes:
+      - evaluation
+  - id: proxy-controls
+    can: A controlled rewrite can test the scorer shortcut
+    scenes:
+      - proxy-controls
+  - id: release-interval
+    can: Decide whether the candidate with 184 of 400 wins clears the predeclared win and length rules.
+    scenes:
+      - release-interval
+  - id: online-refresh
+    can: New comparisons can follow the policy without a critic
+    scenes:
+      - online-refresh
+  - id: ipo-target
+    can: A finite margin target changes the gradient direction
+    scenes:
+      - ipo-target
+  - id: kto-direction
+    can: A single labeled answer changes the sign of the loss
+    scenes:
+      - kto-direction
+  - id: reference-free-losses
+    can: Dropping the reference changes the objective contract
+    scenes:
+      - reference-free-losses
+  - id: group-advantage
+    can: A prompt group supplies its own outcome baseline
+    scenes:
+      - group-advantage
+  - id: group-token-ratios
+    can: Token clipping and sequence clipping are different operations
+    scenes:
+      - group-token-ratios
+  - id: ai-feedback
+    can: A model judge changes label production rather than truth
+    scenes:
+      - ai-feedback
+  - id: fresh-transfer
+    can: Use a new A-over-C vote to update three logits and explain why a fixed logit changes its probability share.
+    scenes:
+      - fresh-transfer
+  - id: fresh-release
+    can: Apply the same two release rules at 20 and 19 extra tokens while holding the human judgments fixed.
+    scenes:
+      - fresh-release
+sections:
+  - heading: What preference pairs add to SFT
+    status: taught
+    scenes:
+      - intro
+      - policy-contract
+      - pair
+  - heading: "RLHF: a judge, then an actor"
+    status: taught
+    scenes:
+      - methods
+      - role-ownership
+  - heading: Three-phase pipeline
+    status: taught
+    scenes:
+      - role-ownership
+      - methods
+  - heading: Bradley-Terry, one number later
+    status: taught
+    scenes:
+      - bt-judge
+  - heading: PPO and the cost of leaving the reference
+    status: taught
+    scenes:
+      - optimal-policy
+      - token-return
+  - heading: Token-level reward shaping and the four model roles
+    status: taught
+    scenes:
+      - role-ownership
+      - token-return
+  - heading: What PPO actually clips
+    status: taught
+    scenes:
+      - ppo-clipping
+  - heading: The systems cost of online RL
+    status: taught
+    scenes:
+      - state-budget
+  - heading: "DPO: turn reward fitting into policy fitting"
+    status: taught
+    scenes:
+      - reward-cancellation
+      - methods
+  - heading: Why an offline loss can stand in for RL
+    status: taught
+    scenes:
+      - optimal-policy
+      - reward-cancellation
+  - heading: Gradient dynamics and implicit sample weighting
+    status: taught
+    scenes:
+      - beta-double-role
+      - update
+  - heading: Work the loss on the P-7 pair
+    status: taught
+    scenes:
+      - summed-token-scores
+      - reduction-convention
+  - heading: A larger DPO margin can coexist with lower chosen probability
+    status: taught
+    scenes:
+      - likelihood-displacement
+      - unseen-probability
+      - fresh-transfer
+      - reference-cache
+      - truncation-audit
+      - training-contract
+  - heading: Comparing RLHF and DPO
+    status: taught
+    scenes:
+      - methods
+      - state-budget
+      - reference-cache
+      - truncation-audit
+      - training-contract
+  - heading: The data both methods inherit
+    status: taught
+    scenes:
+      - pair-data
+      - unseen-probability
+  - heading: When the proxy lies
+    status: taught
+    scenes:
+      - evaluation
+      - proxy-controls
+      - release-interval
+  - heading: Verbosity
+    status: taught
+    scenes:
+      - evaluation
+      - proxy-controls
+  - heading: The `0.693` trap
+    status: taught
+    scenes:
+      - loss
+      - beta-double-role
+  - heading: A release gate that actually uses humans
+    status: taught
+    scenes:
+      - release-interval
+      - fresh-release
+  - heading: Online DPO and iterative alignment
+    status: taught
+    scenes:
+      - online-refresh
+  - heading: Compare related methods by training signal and system cost
+    status: taught
+    scenes:
+      - ipo-target
+      - kto-direction
+      - reference-free-losses
+      - group-advantage
+  - heading: IPO targets a finite margin
+    status: taught
+    scenes:
+      - ipo-target
+  - heading: "KTO: prospect theory on unpaired telemetry"
+    status: taught
+    scenes:
+      - kto-direction
+  - heading: "GRPO: group-relative advantage without a critic"
+    status: taught
+    scenes:
+      - group-advantage
+      - group-token-ratios
+  - heading: What comes after pairwise human labels
+    status: taught
+    scenes:
+      - ai-feedback
+quiz:
+  - n: 1
+    status: taught
+    scenes:
+      - role-ownership
+      - state-budget
+  - n: 2
+    status: taught
+    scenes:
+      - token-return
+  - n: 3
+    status: taught
+    scenes:
+      - ppo-clipping
+  - n: 4
+    status: taught
+    scenes:
+      - reference
+      - probability
+      - loss
+      - summed-token-scores
+  - n: 5
+    status: taught
+    scenes:
+      - summed-token-scores
+      - reduction-convention
+  - n: 6
+    status: taught
+    scenes:
+      - beta-double-role
+  - n: 7
+    status: taught
+    scenes:
+      - reference-cache
+      - truncation-audit
+  - n: 8
+    status: taught
+    scenes:
+      - unseen-probability
+      - fresh-transfer
+  - n: 9
+    status: taught
+    scenes:
+      - ipo-target
+      - kto-direction
+      - group-advantage
+  - n: 10
+    status: taught
+    scenes:
+      - release-interval
+      - fresh-release
+removed: []
+reviews:
+  closed_book:
+    script: e39cea49ce7d10b6
+    reviewer: /root/upgrade_shard6
+    evidence: build/video-delivery-20261106/script-reviews/preference-alignment.json
+    evidence_sha256: 3e4805f3c1442af45e450e94e31c716b23a19463ab58c2a49673636f9b582833
+    taught: 10
+    partial: 0
+    absent: 0
+  fact_check:
+    script: e39cea49ce7d10b6
+    reviewer: /root/upgrade_shard6
+    evidence: build/video-delivery-20261106/script-reviews/preference-alignment.json
+    evidence_sha256: 3e4805f3c1442af45e450e94e31c716b23a19463ab58c2a49673636f9b582833
+    open_findings: 0

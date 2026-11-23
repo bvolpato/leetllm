@@ -1,0 +1,332 @@
+version: 1
+lesson: contrastive-learning
+promise: Decide which passages should compete for a query, trace the effect of that choice through the loss, and check whether the resulting retriever finds the required evidence.
+objectives:
+  - id: derive-comparison
+    can: Compute masked means, normalized similarities, stable InfoNCE and triplet losses. Predict how adding a competitor changes the target share at fixed scores and how an angular gradient step changes those scores.
+    scenes:
+      - order-collision
+      - pooling-tensor
+      - scores
+      - objective
+      - loss-numerics
+      - triplet-margin
+      - temperature-gradient
+      - geometry
+  - id: audit-supervision
+    can: Count the comparisons in separate or shared pools, check what NLI and dropout pairs teach, and choose a mask or a multi-positive loss based on whether two entries are copies or distinct valid answers. Check mined labels and teacher margins against relevance.
+    scenes:
+      - intro
+      - alignment-uniformity
+      - pair-supervision
+      - dropout-views
+      - negatives
+      - batch-identity
+      - false-negatives
+      - multiple-positives
+      - mining-loop
+      - teacher-margin
+      - transfer
+      - fresh-embedding
+  - id: serve-and-evaluate
+    can: Compute late-interaction scores, raw storage and the affordable shortlist size. Check input formatting and supported widths, then decide whether a shortlist meets its recall floor even when its first relevant result moves up.
+    scenes:
+      - architectures
+      - maxsim-readout
+      - task-format
+      - prefix-failure
+      - nested-loss
+      - retrieval
+      - shortlist-budget
+      - evaluation-scope
+      - release-metrics
+      - fresh-embedding
+sections:
+  - heading: From word embeddings to sentence embeddings
+    status: taught
+    scenes:
+      - intro
+      - order-collision
+      - encode
+  - heading: Why pooling alone isn't enough
+    status: taught
+    scenes:
+      - order-collision
+      - pooling-tensor
+  - heading: Mean pooling of word embeddings
+    status: taught
+    scenes:
+      - order-collision
+      - pooling-tensor
+  - heading: "[CLS] token from BERT"
+    status: taught
+    scenes:
+      - order-collision
+      - encode
+  - heading: Contrastive learning for sentence embeddings
+    status: taught
+    scenes:
+      - scores
+      - objective
+      - geometry
+  - heading: The core idea
+    status: taught
+    note: The same three captions support two relevance rules. The archive first needs a running dog, then needs to find each clip with a dog in it.
+    scenes:
+      - intro
+      - scores
+      - objective
+      - transfer
+  - heading: InfoNCE loss
+    status: taught
+    scenes:
+      - objective
+      - loss-numerics
+      - pooling-tensor
+  - heading: Triplet loss
+    status: taught
+    scenes:
+      - triplet-margin
+  - heading: Temperature parameter τ and gradient dynamics
+    status: taught
+    scenes:
+      - temperature-gradient
+      - scores
+  - heading: Where the pairs come from
+    status: taught
+    scenes:
+      - pair-supervision
+      - dropout-views
+      - batch-identity
+  - heading: "Supervised: fine-tuning on NLI data"
+    status: taught
+    scenes:
+      - pair-supervision
+  - heading: "Self-supervised: SimCSE"
+    status: taught
+    scenes:
+      - dropout-views
+      - alignment-uniformity
+  - heading: Data augmentation
+    status: taught
+    scenes:
+      - dropout-views
+  - heading: In-batch negatives in practice
+    status: taught
+    note: Two separate three-pair pools form twelve off-diagonal scores. Gathering all six passages makes thirty. A repeated rotation guide then exposes a false negative in the row.
+    scenes:
+      - batch-identity
+      - false-negatives
+      - multiple-positives
+  - heading: Hard negative mining
+    status: taught
+    scenes:
+      - negatives
+      - mining-loop
+  - heading: Why hard negatives matter
+    status: taught
+    scenes:
+      - negatives
+      - temperature-gradient
+  - heading: Mining strategies and false negative contamination
+    status: taught
+    scenes:
+      - mining-loop
+      - teacher-margin
+      - false-negatives
+      - multiple-positives
+  - heading: Bi-encoder vs cross-encoder
+    status: taught
+    scenes:
+      - architectures
+      - shortlist-budget
+  - heading: Bi-encoder (dual encoder)
+    status: taught
+    scenes:
+      - encode
+      - architectures
+  - heading: Cross-encoder
+    status: taught
+    scenes:
+      - architectures
+      - shortlist-budget
+  - heading: "Late interaction: ColBERT and the MaxSim operator"
+    status: taught
+    scenes:
+      - maxsim-readout
+  - heading: A production reranking pattern
+    status: taught
+    note: The article’s scoring example returns both API guides from a shortlist of three and only the KMS guide from a shortlist of one.
+    scenes:
+      - retrieval
+      - shortlist-budget
+  - heading: Instruction-tuned embeddings and asymmetric prefixes
+    status: taught
+    scenes:
+      - task-format
+  - heading: The problem with asymmetric search and task ambiguity
+    status: taught
+    scenes:
+      - task-format
+  - heading: Task-specific prefixes and asymmetric instruction tuning
+    status: taught
+    scenes:
+      - task-format
+  - heading: Matryoshka representation learning (MRL)
+    status: taught
+    scenes:
+      - prefix-failure
+      - nested-loss
+  - heading: What arbitrary truncation can lose
+    status: taught
+    scenes:
+      - prefix-failure
+  - heading: The nested representation mechanism
+    status: taught
+    scenes:
+      - nested-loss
+  - heading: Why it matters
+    status: taught
+    scenes:
+      - nested-loss
+      - shortlist-budget
+  - heading: "Evaluation: STS and MTEB"
+    status: taught
+    scenes:
+      - evaluation-scope
+      - release-metrics
+  - heading: Semantic textual similarity (STS)
+    status: taught
+    scenes:
+      - evaluation-scope
+  - heading: MTEB (Massive text embedding benchmark)
+    status: taught
+    scenes:
+      - evaluation-scope
+  - heading: Choosing a model in practice
+    status: taught
+    scenes:
+      - evaluation-scope
+      - release-metrics
+      - task-format
+  - heading: Measure coverage and ordering separately
+    status: taught
+    note: Moving the jack-points passage to first place improves reciprocal rank. The lift diagram stays outside both top-two lists, so each retrieves one of two relevant passages.
+    scenes:
+      - release-metrics
+      - fresh-embedding
+  - heading: Key libraries and tools
+    status: taught
+    scenes:
+      - evaluation-scope
+  - heading: Mastery check
+    status: taught
+    scenes:
+      - release-metrics
+      - fresh-embedding
+  - heading: Key concepts
+    status: taught
+    scenes:
+      - alignment-uniformity
+      - objective
+      - mining-loop
+      - architectures
+      - nested-loss
+  - heading: Evaluation rubric
+    status: taught
+    scenes:
+      - pooling-tensor
+      - loss-numerics
+      - maxsim-readout
+      - nested-loss
+      - shortlist-budget
+  - heading: Follow-up questions
+    status: taught
+    scenes:
+      - shortlist-budget
+      - mining-loop
+      - prefix-failure
+      - maxsim-readout
+  - heading: Common pitfalls
+    status: taught
+    scenes:
+      - order-collision
+      - batch-identity
+      - task-format
+      - release-metrics
+  - heading: Try it yourself
+    status: article-only
+    reason: exercise
+    note: Supplementary independent practice. The complete underlying triplet,encoder-diagnosis and
+      sequential-budget mechanisms are taught in the same movie.
+  - heading: "Exercise 1: compute triplet loss by hand"
+    status: article-only
+    reason: exercise
+    note: Supplementary independent practice. The complete underlying triplet,encoder-diagnosis and
+      sequential-budget mechanisms are taught in the same movie.
+  - heading: "Exercise 2: spot the embedding mistake"
+    status: article-only
+    reason: exercise
+    note: Supplementary independent practice. The complete underlying triplet,encoder-diagnosis and
+      sequential-budget mechanisms are taught in the same movie.
+  - heading: "Exercise 3: design a two-stage retrieval pipeline"
+    status: article-only
+    reason: exercise
+    note: Supplementary independent practice. The complete underlying triplet,encoder-diagnosis and
+      sequential-budget mechanisms are taught in the same movie.
+quiz:
+  - n: 1
+    status: taught
+    scenes:
+      - order-collision
+      - pooling-tensor
+  - n: 2
+    status: taught
+    scenes:
+      - loss-numerics
+      - objective
+  - n: 3
+    status: taught
+    scenes:
+      - triplet-margin
+  - n: 4
+    status: taught
+    scenes:
+      - batch-identity
+  - n: 5
+    status: taught
+    scenes:
+      - multiple-positives
+      - transfer
+  - n: 6
+    status: taught
+    scenes:
+      - teacher-margin
+  - n: 7
+    status: taught
+    scenes:
+      - maxsim-readout
+  - n: 8
+    status: taught
+    scenes:
+      - nested-loss
+      - prefix-failure
+  - n: 9
+    status: taught
+    scenes:
+      - shortlist-budget
+  - n: 10
+    status: taught
+    scenes:
+      - release-metrics
+      - fresh-embedding
+removed: []
+reviews:
+  closed_book:
+    script: 3956d43fe826e546
+    taught: 10
+    partial: 0
+    absent: 0
+  fact_check:
+    script: 3956d43fe826e546
+    open_findings: 0

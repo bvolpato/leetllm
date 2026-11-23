@@ -1,0 +1,370 @@
+[
+  {
+    "id": "c01",
+    "title": "Who owns row three?",
+    "sourceChapters": [
+      "c01"
+    ],
+    "beats": [
+      {
+        "id": "c01-row",
+        "say": "Put a bracket around row three. The rows are numbered from zero. Three requests share this GPU step. The first brings three new queries, the middle brings one, and the last brings four. Which request owns the bracketed row?",
+        "hold": 2.5
+      },
+      {
+        "id": "c01-owner",
+        "say": "The middle request owns it. The first three rows end at row two. Row three is the middle request's entire decode step. The other two requests are reading chunks of their prompts. Packing the eight useful rows together saves the four empty slots a rectangular batch would carry.",
+        "hold": 1
+      },
+      {
+        "id": "c01-history",
+        "say": "Each query asks which earlier tokens matter to this token. A key determines a match, and its paired value supplies the information to mix. The new queries fit together compactly, while each request keeps its own history. The middle query has two keys available after its new key is appended.",
+        "hold": 1
+      },
+      {
+        "id": "c01-handoff",
+        "say": "The serving engine admits requests and owns their cache pages. It hands this mapping to FlashInfer, a library of inference operators. An engine such as SGLang selects which backend runs attention. Follow the middle row into memory, then follow a longer request through a split and a merge. We will change its history without moving its allocation.",
+        "hold": 1
+      }
+    ]
+  },
+  {
+    "id": "c02",
+    "title": "Two rulers for one request",
+    "sourceChapters": [
+      "c02"
+    ],
+    "beats": [
+      {
+        "id": "c02-sums",
+        "say": "Read the upper ruler in query rows. Start at zero and add each request's query length. Consecutive boundaries delimit a half-open interval. For the first request, start at zero and stop before three. On the lower ruler add page counts the same way. The first two entries name pages seven and two.",
+        "hold": 1
+      },
+      {
+        "id": "c02-middle",
+        "say": "Slide both brackets to the middle request. Above, the boundaries are three and four. Below, they are two and three. Each bracket spans one entry. One is a query row. The other is an address, page eleven. How many keys will that query actually read?",
+        "hold": 2.2
+      },
+      {
+        "id": "c02-open",
+        "say": "Open page eleven. Two slots hold key and value pairs. The other two slots are empty. One page identifier can name several tokens. Its last-page length says where valid data ends.",
+        "hold": 1.2
+      },
+      {
+        "id": "c02-last",
+        "say": "Slide to the final request. Its four query rows point into a history on three pages. Check both final offsets against their own buffer lengths, eight rows and six page entries. Then check the slices themselves. An in-bounds pointer in the wrong units can silently load another request's page.",
+        "hold": 1
+      }
+    ]
+  },
+  {
+    "id": "c03",
+    "title": "Find token five in physical memory",
+    "sourceChapters": [
+      "c03"
+    ],
+    "beats": [
+      {
+        "id": "c03-map",
+        "say": "Look inside the longest request. Its page size is four. The first two pages are full and the final page has one valid slot. The wires follow the scheduler's list through the physical pool. For logical position five, which wire and which slot will the kernel need?",
+        "hold": 2.3
+      },
+      {
+        "id": "c03-trace",
+        "say": "Five divided by four gives entry one with a remainder of one. Follow the second wire to page fourteen. Slot one holds token five. The tail has its own wire. Position eight lands on page six, slot zero. Two full pages plus the one used slot give nine keys.",
+        "hold": 1
+      },
+      {
+        "id": "c03-sort",
+        "say": "Go back to token five on page fourteen. Suppose someone sorts the list by physical address. Keep the payload still. Follow entry one again. Now it reaches the empty slot on page six. Every page number is in bounds. The read has changed because the list supplied the order.",
+        "hold": 1
+      },
+      {
+        "id": "c03-restore",
+        "say": "Restore the original order. This sparse block index lets a kernel gather pages without copying them together. Two requests can even name the same prefix page. The indirection costs lookups, so small contiguous histories can be cheaper to read directly. The serving engine owns these pages and their lifetime.",
+        "hold": 1
+      }
+    ]
+  },
+  {
+    "id": "c04",
+    "title": "Which appended keys can this query read?",
+    "sourceChapters": [
+      "c04"
+    ],
+    "beats": [
+      {
+        "id": "c04-prefix",
+        "say": "All four new keys are already in the cache. The four new queries occupy the end of this nine-token history. There are five older keys. If the first new query could read the whole cache, it would learn from the future. Where should its row stop?",
+        "hold": 2.2
+      },
+      {
+        "id": "c04-first",
+        "say": "Stop at position five. The query sees the prefix and its own key, six keys in all. For local query row i, the last allowed key is total keys minus new queries plus i. Number both axes from zero and include that last key.",
+        "hold": 1
+      },
+      {
+        "id": "c04-advance",
+        "say": "Advance one query. Seven keys are visible. Advance again. Eight keys are visible. The newest query can read all nine. Page numbers decide where the values come from. The mask uses logical positions, so permuting the page list can corrupt the values without changing the shape of this staircase.",
+        "hold": 1
+      },
+      {
+        "id": "c04-wrapper",
+        "say": "A paged prefill wrapper can take these different query counts together. A dedicated decode wrapper expects one query per request. To check a mixed batch, gather the pages in order, trim each tail, and compare each output row with dense attention under this same causal boundary.",
+        "hold": 1
+      }
+    ]
+  },
+  {
+    "id": "c05",
+    "title": "Where do two attention outputs meet?",
+    "sourceChapters": [
+      "c05"
+    ],
+    "beats": [
+      {
+        "id": "c05-split",
+        "say": "Take the first new query of request two, on one head. Split its six visible keys between two workers. Give each key a score of zero, so each contributes one unit of mass. Worker B reads the last two keys. Their values both point to the left endpoint. Worker A reads the first four, whose values point to the right endpoint. Each worker returns its normalized output and the log of its total mass.",
+        "hold": 1
+      },
+      {
+        "id": "c05-guess",
+        "say": "Try the midpoint. That guess gives each normalized output half the vote. Read their base-two log masses. A has two and B has one. These statistics are the logarithms of the sums of exponentiated attention scores. Which way should the point move, and how far?",
+        "hold": 2.5
+      },
+      {
+        "id": "c05-weights",
+        "say": "Subtract the larger statistic, two, from both. Raising two to those differences gives relative masses one and one half. A carries twice as much mass. Divide by their sum, one and a half. A gets two thirds, and B gets one third.",
+        "hold": 1
+      },
+      {
+        "id": "c05-settle",
+        "say": "Move the point toward A. Starting at B, travel two thirds of the distance to A. Read its two coordinates, two thirds and one third. Keep the parent statistic as well. Add the shift to the base-two log of the relative mass sum. That gives the base-two log of six, about two point five eight five.",
+        "hold": 1.2
+      },
+      {
+        "id": "c05-score",
+        "say": "Keep all six keys, their values and their workers. Change the last score from zero to the natural log of three. Its exponential goes from one to three. Worker B still has just two keys. Where should the merged point go now?",
+        "hold": 2.5
+      },
+      {
+        "id": "c05-equal",
+        "say": "Back to the midpoint. Worker B now has one plus three units of mass, matching A's four. Each worker supplies one half of the output. The parent keeps the base-two log of eight, which is three. A key count alone could not tell us this.",
+        "hold": 1.2
+      }
+    ]
+  },
+  {
+    "id": "c05-check",
+    "title": "When a finite merge is wrong",
+    "sourceChapters": [
+      "c05"
+    ],
+    "beats": [
+      {
+        "id": "c05-check-units",
+        "say": "Restore the original masses, four for A and two for B. Suppose the workers report natural logs. Feed those numbers directly into the base-two merge and A gets about sixty-two percent. Look at the producer's units. Divide each natural log by the natural log of two exactly once. The correct weight returns. A producer that already returns base-two statistics needs no conversion.",
+        "hold": 1
+      },
+      {
+        "id": "c05-check-repeat",
+        "say": "Try two keys with equal scores. One value points right, the other left. The direct result is halfway between them. Give one worker both keys and another worker the right key again. Predict which endpoint gains weight.",
+        "hold": 2
+      },
+      {
+        "id": "c05-check-overlap",
+        "say": "Count the right key twice. Its share rises from one half to two thirds. A finite output can hide this error. Compare with a direct softmax on the same query, head, mask and score scale. Check that every allowed logical position occurs exactly once across the partitions.",
+        "hold": 1
+      },
+      {
+        "id": "c05-check-large",
+        "say": "Use normalized shares before multiplying large output coordinates. In the CPU reference, both workers can return ten to the power of three hundred eight. Adding those two equal coordinates first overflows. Taking two half shares first leaves a finite result of the original size.",
+        "hold": 1
+      },
+      {
+        "id": "c05-check-empty",
+        "say": "A fully masked range has zero mass. The article's CPU reference represents it with a zero vector and negative infinity for its log mass. Skip that range and carry the other worker's state. Change the first coordinate of the empty vector from zero to one. Look at the log mass. What should the reference do with this pair?",
+        "hold": 2
+      },
+      {
+        "id": "c05-check-reject",
+        "say": "Reject this pair. The empty marker requires every output coordinate to be zero. Check the GPU producer's convention separately before using an empty state in a device merge.",
+        "hold": 1
+      }
+    ]
+  },
+  {
+    "id": "c06",
+    "title": "One more key at the same addresses",
+    "sourceChapters": [
+      "c06"
+    ],
+    "beats": [
+      {
+        "id": "c06-prepare",
+        "say": "Return to the nine keys of request two. Keep the last two page addresses in sight. Planning inspects the irregular metadata and prepares work assignments and temporary storage. Running consumes that plan with the query and cache payload. Compatible layers can reuse the prepared work for this batch.",
+        "hold": 1
+      },
+      {
+        "id": "c06-append",
+        "say": "Add one key and value inside page six. The current tail advances by one slot. Hold the old plan where it was. Follow its lower marker. Which token will the old plan miss on the next step?",
+        "hold": 2.3
+      },
+      {
+        "id": "c06-missing",
+        "say": "It misses token nine. Page six now contributes two keys. With the eight on the preceding pages, that makes ten, but the plan still ends after nine. Stable storage alone cannot establish that replay is valid.",
+        "hold": 1
+      },
+      {
+        "id": "c06-refresh",
+        "say": "Refresh the metadata and dependent plan through the selected wrapper's supported path. The lower marker catches up. The plan now includes token nine. For a wrapper that permits this refresh, update outside graph capture and stay within the reserved capacities and launch shape.",
+        "hold": 1
+      },
+      {
+        "id": "c06-graph",
+        "say": "Try the same append with a different graph wrapper. This wrapper holds one plan. Here the plan fixes the key count at nine, and replay cannot change that count. Prepare a new wrapper for the ten keys and capture its launches. The plan assigns work, and capture records the launches. Both wrappers can use the same compiled kernel. Some backends read an updated length during replay. Check which inputs the plan accepts.",
+        "hold": 1
+      }
+    ]
+  },
+  {
+    "id": "c06-stride",
+    "title": "Where does the next output start?",
+    "sourceChapters": [
+      "c06"
+    ],
+    "beats": [
+      {
+        "id": "c06-stride-layout",
+        "say": "The article's pinned paged prefill example uses FlashInfer zero point six eighteen with the FA two backend. Thirty-two query heads share eight key and value heads in groups of four. A page stores slots, heads and coordinates in that order. The wrapper takes thirty-two-bit integer row boundaries, page pointers, page IDs and tail lengths.",
+        "hold": 1
+      },
+      {
+        "id": "c06-stride-tokens",
+        "say": "Switch to an offset arithmetic example for the low-level cuDNN interface in zero point seven one. Choose element units explicitly. Both buffers start a new request at token row two. Eight heads carry one hundred ninety-two query coordinates per head, but only one hundred twenty-eight output coordinates. Could we copy the query offset into the output buffer?",
+        "hold": 2.2
+      },
+      {
+        "id": "c06-stride-stride",
+        "say": "Measure each row separately. Eight times one hundred ninety-two gives the query stride. Eight times one hundred twenty-eight gives the smaller output stride. The copied offset would start at output row three. The correct pointer lands at row two. Multiply every token boundary by its tensor's own stride. In explicit token units, both arrays can use the same row counts.",
+        "hold": 1
+      },
+      {
+        "id": "c06-stride-support",
+        "say": "A valid offset tells you where a row begins. Check the selected backend too. In version zero point seven one, the automatic choice for an MLA call can select X Q A, which accepts one query per request on this path. Our request has four. Select an implementation that accepts the chunk. If that implementation supports the shape but lacks a matching binary, it can compile and cache the specialization. Time cold compilation separately from warmed calls.",
+        "hold": 1
+      }
+    ]
+  },
+  {
+    "id": "c07",
+    "title": "How many waves fit?",
+    "sourceChapters": [
+      "c07"
+    ],
+    "beats": [
+      {
+        "id": "c07-cost",
+        "say": "Move to a longer history. Give one worker sixteen units of work. Four independent chunks cost four each. The merge costs one and waits for every chunk. With four worker lanes, when can the result be ready?",
+        "hold": 2
+      },
+      {
+        "id": "c07-four",
+        "say": "All four start together. At four units they finish, then the merge finishes at five. Splitting a long history can reduce a worker's critical path. Now keep the chunks and merge unchanged, but give the job only two lanes. Predict the new finish.",
+        "hold": 2.2
+      },
+      {
+        "id": "c07-two",
+        "say": "Two waves take eight units. The merge finishes at nine. Smaller chunks can improve balance, but they consume workspace and add merge traffic. Heads, page locality and available parallelism also matter. These are costs in a supplied model. Measure the actual backend on your own mix of short and long requests.",
+        "hold": 1
+      },
+      {
+        "id": "c07-queues",
+        "say": "Here is the scheduler in the FlashInfer paper. Find the two pink tiles of request two. Work five and work six go to different queues. Each queue belongs to a CUDA thread block. After both finish, the reduction map sends their partial states to output four. That map tells the merge which answers belong together.",
+        "hold": 1.2
+      }
+    ]
+  },
+  {
+    "id": "c07-lease",
+    "title": "Who owns the value a pending read will return?",
+    "sourceChapters": [
+      "c07"
+    ],
+    "beats": [
+      {
+        "id": "c07-lease-cancel",
+        "say": "Return to page fourteen, slot one. The host cancels request two while its device read is pending. Try two policies at tick nine. In the top run, request nine overwrites the slot immediately. Below, the allocator holds the page. Which pair will each read return?",
+        "hold": 2.5
+      },
+      {
+        "id": "c07-lease-load",
+        "say": "The reads land. Above, request two receives request nine's value, one, zero. Below, it receives its own zero, one. The address is identical. Reclaiming it early let another request replace the payload under an in-flight reader.",
+        "hold": 1
+      },
+      {
+        "id": "c07-lease-event",
+        "say": "Tick ten marks the last reader's completion. Now the allocator can hand the lower slot to request nine. Both slots end with the same new contents. Only the lower read returned the expected value. Keep events on the reader's clock. A scheduling estimate in cost units cannot tell the allocator when a GPU read has finished.",
+        "hold": 1
+      }
+    ]
+  },
+  {
+    "id": "c07-trace",
+    "title": "What did a faster kernel save?",
+    "sourceChapters": [
+      "c07"
+    ],
+    "beats": [
+      {
+        "id": "c07-trace-time",
+        "say": "Measure a warmed serial call. Planning, copying metadata and the launch gap occupy one point one milliseconds together. Attention takes one point six and the merge takes another point three. The whole call takes three milliseconds. If only attention takes half the time, where will the second bar end?",
+        "hold": 2.2
+      },
+      {
+        "id": "c07-trace-half",
+        "say": "Shrink the attention interval alone. The other costs stay fixed. The new total is two point two milliseconds. Divide the old total by the new one for a whole-call speedup of about one point three six. In a real trace use Nsight Systems to find plan or launch gaps, then Nsight Compute to investigate stalls inside a kernel.",
+        "hold": 1
+      },
+      {
+        "id": "c07-trace-dump",
+        "say": "Enable level ten graph tensor dumps and replay must also synchronize the stream and write snapshots. That comparison changes two things. Warm the selected specialization, disable diagnostic dumps for timing, and rerun the same request trace. Record the backend, split policy, workspace and graph mode. Check both outputs and normalization against dense attention at a stated tolerance for each mask, tail length, head layout and precision you serve.",
+        "hold": 1
+      },
+      {
+        "id": "c07-trace-paper",
+        "say": "The MLSys paper tested the eight-billion-parameter model on one H one hundred and the seventy-billion-parameter model on four. In SGLang, the authors compared FlashInfer version zero point two with the Triton backend. On the tested workloads, inter-token latency fell by twenty-nine to sixty-nine percent. They set the request rate to keep the ninety-ninth percentile time to first token below two hundred milliseconds. Measure those same metrics on your workload before promising a service gain.",
+        "hold": 1
+      },
+      {
+        "id": "c07-trace-source",
+        "say": "Suppose the dense reference and the device disagree. Follow the first wrong quantity. For a wrong token address, trace the page append into its slot mapping. For a wrong work assignment, follow the decode wrapper's plan into its CUDA parameters. For a wrong weight, follow the partial state into the cascade merge and check the producer's log units. Those checks cover inference. A training workload also needs a supported backward pass.",
+        "hold": 1.2
+      }
+    ]
+  },
+  {
+    "id": "c07-lab",
+    "title": "The last free slot",
+    "sourceChapters": [
+      "c07"
+    ],
+    "beats": [
+      {
+        "id": "c07-lab-exercise",
+        "say": "Try one fresh request. Its ordered pages are nine and two, with eight slots per page. The first page is full and the second holds seven keys. Its plan covers fifteen. This wrapper permits a tail refresh within those pages. Fill the last slot. At tick twelve a reader still needs page nine. How far should the next plan reach, and when can page nine change hands?",
+        "hold": 3
+      },
+      {
+        "id": "c07-lab-cover",
+        "say": "Sixteen keys are now valid. The extra key is position fifteen on page two, slot seven. The supported metadata refresh brings the plan up to that key. An earlier position, such as thirteen, stays on page two, slot five. Dividing by page size chooses the entry and the remainder chooses its slot.",
+        "hold": 1
+      },
+      {
+        "id": "c07-lab-handover",
+        "say": "The allocator waits. The request releases its claim, and at tick fourteen the last read completes. Only then does page nine pass to its next owner. You can now test a serving trace by following a query to the keys it may read, checking how split workers weighted them, and finding the event that makes a page reusable.",
+        "hold": 1.6
+      }
+    ]
+  }
+]

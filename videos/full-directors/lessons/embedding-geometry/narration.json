@@ -1,0 +1,828 @@
+[
+  {
+    "id": "c01",
+    "title": "Two guides for one query",
+    "sourceChapters": [
+      "c01"
+    ],
+    "beats": [
+      {
+        "id": "c01-b01",
+        "say": "How do I rotate an API key? An encoder has given our search and two guides some coordinates. These are hand-built pairs so we can see what the score measures. Follow the blue search arrow. Which guide makes the smaller angle with it?",
+        "hold": 2.8
+      },
+      {
+        "id": "c01-b02",
+        "say": "The rotation guide does. From blue to green, the turn is about eleven degrees. From blue to pink, it's about twenty-seven. The longer audit arrow makes the wider angle.",
+        "hold": 0.6
+      },
+      {
+        "id": "c01-b03",
+        "say": "An encoder represents a text with a list of numbers called an embedding. Here, each pair locates an arrow tip. Both guides are eligible to read. We'll choose a scoring rule, store cheaper copies, and see which guide can still reach the reader. First, lay a ruler along the query.",
+        "hold": 0.65
+      }
+    ]
+  },
+  {
+    "id": "c02",
+    "title": "Read the horizontal reach",
+    "sourceChapters": [
+      "c02"
+    ],
+    "beats": [
+      {
+        "id": "c02-b01",
+        "say": "Keep the arrows where they are. To take a dot product, multiply matching coordinates and add. Start with rotation. One times its horizontal coordinate, plus zero times its height. The dashed line drops straight to one on the axis.",
+        "hold": 0.55
+      },
+      {
+        "id": "c02-b02",
+        "say": "Now follow audit down to the axis at four. Both heights get multiplied by zero because this query points due right. Which guide has the larger dot product?",
+        "hold": 1.85
+      },
+      {
+        "id": "c02-b03",
+        "say": "Audit wins, four to one. Its arrow extends farther along the query even though it makes the wider angle. If the encoder learned to use vector length as a signal, that difference can matter. Check the model's scoring rule and test it on judged queries.",
+        "hold": 0.7
+      }
+    ]
+  },
+  {
+    "id": "c03",
+    "title": "Two ways to compare the same arrows",
+    "sourceChapters": [
+      "c03"
+    ],
+    "beats": [
+      {
+        "id": "c03-b01",
+        "say": "Keep the query pointing right. To compare directions, divide the dot product by both lengths. The result is the cosine of the angle. Rotation's length is the square root of one squared plus point two squared, just over one. Its cosine is about point nine eight one.",
+        "hold": 0.55
+      },
+      {
+        "id": "c03-b02",
+        "say": "For audit, four divided by about four and a half gives point eight nine four. A score of one means the directions match. Zero means a right angle, and minus one means opposite directions.",
+        "hold": 0.65
+      },
+      {
+        "id": "c03-b03",
+        "say": "Now start at the tip of the query. How far would you travel in a straight line to reach each guide? Rotation is just above it, a gap of point two. To reach audit you go three across and two up.",
+        "hold": 0.3
+      },
+      {
+        "id": "c03-b04",
+        "say": "The diagonal is the square root of thirteen, about three point six one. That's Euclidean distance. Smaller gaps rank first.",
+        "hold": 0.75
+      }
+    ]
+  },
+  {
+    "id": "c04",
+    "title": "Stretch just the rotation arrow",
+    "sourceChapters": [
+      "c04"
+    ],
+    "beats": [
+      {
+        "id": "c04-b01",
+        "say": "Suppose we stretch just the green arrow along its own ray. The pink mark stays at four on the dot product ruler. Green starts at one. At what scale will green tie pink?",
+        "hold": 2.1
+      },
+      {
+        "id": "c04-b02",
+        "say": "Stretch green to four times its original length. Its mark now meets pink at four. The tips sit at different heights. Carry green out to ten times its original length. Follow its mark past pink. Its dot score reaches ten.",
+        "hold": 1.1
+      },
+      {
+        "id": "c04-b03",
+        "say": "Look back at the cosine. It's still point nine eight one because a positive stretch preserves the angle. Measure the gap from the query now. The endpoint is nine units to the right and two above. That's a distance of about nine point two two. One change in length moved two of our three measurements.",
+        "hold": 0.7
+      }
+    ]
+  },
+  {
+    "id": "c05",
+    "title": "Put both tips on the unit circle",
+    "sourceChapters": [
+      "c05"
+    ],
+    "beats": [
+      {
+        "id": "c05-b01",
+        "say": "Start with green still stretched to ten across and two up. For each guide, divide both coordinates by its own length. Watch the two tips slide back along their rays. Each stops one unit from the origin. The query was already there. This is L two normalization.",
+        "hold": 0.65
+      },
+      {
+        "id": "c05-b02",
+        "say": "Look closer at the circle. Draw a chord from the blue tip to each guide. On this circle the dot product equals cosine because both lengths are one. The squared chord length is one plus one minus twice the dot product. A larger dot product has to give a shorter chord.",
+        "hold": 0.55
+      },
+      {
+        "id": "c05-b03",
+        "say": "Green has the larger dot product, about point nine eight one, and the smaller squared gap, about point zero three nine. Pink has a dot product near point eight nine four and a squared gap near point two one one.",
+        "hold": 0.3
+      },
+      {
+        "id": "c05-b04",
+        "say": "These are three ways to recover the same exact order on unit vectors. An approximate search still has to find the candidates.",
+        "hold": 0.7
+      }
+    ]
+  },
+  {
+    "id": "c06",
+    "title": "Check the direction before dividing",
+    "sourceChapters": [
+      "c06"
+    ],
+    "beats": [
+      {
+        "id": "c06-b01",
+        "say": "Which inputs have a direction? The zero pair has none. An empty vector or a nonfinite coordinate also fails the input check. Reject and log those rows before scoring. Look at the two finite pairs. One is enormous and the other is tiny. Both point diagonally up and right.",
+        "hold": 0.65
+      },
+      {
+        "id": "c06-b02",
+        "say": "On the first row, squaring the coordinates can overflow. On the second, it can underflow to zero. For each valid row, divide by its largest absolute coordinate first. Both rows become one, one. Now take their length and divide.",
+        "hold": 0.3
+      },
+      {
+        "id": "c06-b03",
+        "say": "In each case the result is about point seven zero seven in both coordinates. A fixed epsilon in the denominator could overwhelm the tiny row.",
+        "hold": 0.7
+      },
+      {
+        "id": "c06-b04",
+        "say": "Here's a different question about length. Keep the guides at unit length and double the length of the query. Both dot products double, so their order stays the same. The same holds for any fixed, finite, nonzero query in exact arithmetic.",
+        "hold": 0.3
+      },
+      {
+        "id": "c06-b05",
+        "say": "Check that the computed scores are finite too. For actual cosine values, a shared threshold, or the unit-vector distance identity, normalize the query as well. Access to the passage still depends on permission.",
+        "hold": 0.75
+      }
+    ]
+  },
+  {
+    "id": "c07",
+    "title": "Keep the first two coordinates",
+    "sourceChapters": [
+      "c07"
+    ],
+    "beats": [
+      {
+        "id": "c07-b01",
+        "say": "Suppose a model supports several widths. Matryoshka training applies a loss at each selected prefix width so that an early slice can be useful on its own. PCA instead projects vectors after training. Check which widths your model supports. Fewer coordinates mean fewer bytes and less arithmetic per comparison.",
+        "hold": 0.6
+      },
+      {
+        "id": "c07-b02",
+        "say": "Try three eligible guides with four hand-built coordinates each. The rotation query is a copy of the rotation row. The lifecycle query is a copy of lifecycle. Their last coordinates help distinguish them from audit. At full width each query selects its own guide with cosine one.",
+        "hold": 0.65
+      },
+      {
+        "id": "c07-b03",
+        "say": "Keep just the first two coordinates of every query and guide. Normalize the surviving coordinates again for cosine scoring. Ties go to the first row in storage. Which guide wins the rotation query now?",
+        "hold": 2
+      },
+      {
+        "id": "c07-b04",
+        "say": "Audit takes it. Both rows start with one, zero, and audit came first. Lifecycle still retrieves lifecycle. Across the two queries, top-one evidence recall falls from two out of two to one out of two. Normalizing a slice fixes its length. The discarded distinction is gone.",
+        "hold": 0.3
+      },
+      {
+        "id": "c07-b05",
+        "say": "Test relevance against labeled guides, and test approximate search separately against exact neighbors.",
+        "hold": 0.8
+      }
+    ]
+  },
+  {
+    "id": "c08",
+    "title": "Size one row and the whole store",
+    "sourceChapters": [
+      "c08"
+    ],
+    "beats": [
+      {
+        "id": "c08-b01",
+        "say": "Keep one million rows and a width of fifteen hundred thirty-six. Each coordinate takes four bytes as a full-precision float. That makes six thousand one hundred forty-four bytes per row. Multiply by a million and you get about five point seven two gibibytes of coordinates.",
+        "hold": 0.3
+      },
+      {
+        "id": "c08-b02",
+        "say": "One byte per coordinate brings the row down to fifteen hundred thirty-six bytes, a quarter of the original payload.",
+        "hold": 0.55
+      },
+      {
+        "id": "c08-b03",
+        "say": "One bit for each coordinate packs the same row into one hundred ninety-two bytes. Suppose instead you store one byte for each group of sixteen coordinates. That's ninety-six groups, or ninety-six bytes per row. This is the product code we'll build later.",
+        "hold": 0.3
+      },
+      {
+        "id": "c08-b04",
+        "say": "A million such codes take about ninety-two mebibytes, one sixty-fourth of the float payload.",
+        "hold": 0.6
+      },
+      {
+        "id": "c08-b05",
+        "say": "Every group needs a shared book of two hundred fifty-six centers. Each center holds sixteen floats. Across ninety-six books, that's one and a half mebibytes. Now keep the original vectors for rescoring. You still owe the full five point seven two gibibytes somewhere. Links, labels, replicas and metadata go on top of that.",
+        "hold": 0.65
+      },
+      {
+        "id": "c08-b06",
+        "say": "Change the size of the store. Give it fifty million rows but halve the width to seven hundred sixty-eight. The choices are side by side. Full precision costs a hundred fifty-three point six decimal gigabytes. One byte per coordinate takes thirty-eight point four.",
+        "hold": 0.3
+      },
+      {
+        "id": "c08-b07",
+        "say": "A ninety-six-byte product code takes four point eight gigabytes across this store. At this width, each of the ninety-six groups holds eight coordinates. Packed signs also take ninety-six bytes here, but they store different information. These sizes count the rows alone.",
+        "hold": 0.65
+      }
+    ]
+  },
+  {
+    "id": "c09",
+    "title": "Two passage tips on a 0.2 grid",
+    "sourceChapters": [
+      "c09"
+    ],
+    "beats": [
+      {
+        "id": "c09-b01",
+        "say": "Keep the query pointing right. Here are two other eligible passages, C and D. We've magnified the tips so you can see the difference. C makes the smaller angle, and its original cosine is higher. What happens if storage keeps only multiples of point two?",
+        "hold": 0.7
+      },
+      {
+        "id": "c09-b02",
+        "say": "The cell around one, point two extends halfway to the neighboring grid lines in both directions. Round each coordinate to the nearest grid value. Where will C and D land?",
+        "hold": 2.5
+      },
+      {
+        "id": "c09-b03",
+        "say": "Move each tip to its nearest grid point. Both land at one, point two. They now tie on cosine. The little marks they left behind are their originals. Quantization has erased a distinction we could measure there.",
+        "hold": 0.8
+      },
+      {
+        "id": "c09-b04",
+        "say": "We can store those originals separately and use the cheap codes to choose a shortlist. The question for a search system is whether that shortlist still contains the passage we need. We'll come back to these two points with a different query.",
+        "hold": 0.65
+      }
+    ]
+  },
+  {
+    "id": "c10",
+    "title": "A byte code needs a reconstruction rule",
+    "sourceChapters": [
+      "c10"
+    ],
+    "beats": [
+      {
+        "id": "c10-b01",
+        "say": "Let's pack one coordinate into a signed byte. The coordinate is point four two four. The largest absolute value in this dimension's calibration sample is one point two seven. Divide that bound by one hundred twenty-seven. Each step is one hundredth.",
+        "hold": 0.3
+      },
+      {
+        "id": "c10-b02",
+        "say": "Divide by the step. That gives forty-two point four. Round to forty-two and clip to the signed range from minus one hundred twenty-seven to plus one hundred twenty-seven. Store forty-two in the byte. Multiply by the step to recover point four two. How much of the original coordinate fell between steps?",
+        "hold": 0.7
+      },
+      {
+        "id": "c10-b03",
+        "say": "Four thousandths. The byte has no bits that distinguish point four two from point four two four under this rule. This codec uses two hundred fifty-five levels and leaves minus one hundred twenty-eight unused. Fit and freeze a scale for each dimension. For an all-zero calibration dimension, a scale of one maps zero to zero.",
+        "hold": 0.3
+      },
+      {
+        "id": "c10-b04",
+        "say": "Pack the codes in a signed-byte array to get one byte per coordinate. Use the same scales when you score the stored rows.",
+        "hold": 0.7
+      },
+      {
+        "id": "c10-b05",
+        "say": "Now spread an unsigned byte over the interval from two to three. Each step is one over two hundred fifty-five. Code zero reconstructs two and code two hundred fifty-five reconstructs three. Two is the real offset you add when you decode. Where would real zero fall on that ruler?",
+        "hold": 1.7
+      },
+      {
+        "id": "c10-b06",
+        "say": "Five hundred ten steps to the left of code zero, outside the byte. An interval from zero to three can represent zero exactly with the same number of steps. Each step is now three times as wide.",
+        "hold": 0.7
+      },
+      {
+        "id": "c10-b07",
+        "say": "For a dot product, multiply the query coordinate by the whole decoded value, offset plus scale times code. Then add up the terms. For a fixed query, an offset shared across rows adds the same amount to every score.",
+        "hold": 0.3
+      },
+      {
+        "id": "c10-b08",
+        "say": "You can leave it out when ranking those rows. Include it when reporting scores, applying a threshold, or comparing rows with different offsets.",
+        "hold": 0.7
+      }
+    ]
+  },
+  {
+    "id": "c11",
+    "title": "What does one code step buy?",
+    "sourceChapters": [
+      "c11"
+    ],
+    "beats": [
+      {
+        "id": "c11-b01",
+        "say": "Here's a shortcut that sends the wrong passage to the top. The query gives equal weight to both coordinates. A contributes eight in the first coordinate. B contributes one in the second. The first ruler covers zero to ten in a hundred and twenty-seven steps.",
+        "hold": 0.3
+      },
+      {
+        "id": "c11-b02",
+        "say": "The second covers just zero to one in the same number of steps.",
+        "hold": 0.65
+      },
+      {
+        "id": "c11-b03",
+        "say": "Eight lands on code one hundred two. One on the shorter ruler uses every step, code one hundred twenty-seven. Add up just the code values and B wins on counts. Which row has the larger dot product once you restore the units?",
+        "hold": 2
+      },
+      {
+        "id": "c11-b04",
+        "say": "Look at the first ruler. Each of its steps is ten over one hundred twenty-seven, ten times as big as a step on the second ruler. Multiply each code by its own scale. Now A leads. A scores about eight point zero three one. B scores one. The slight rounding error leaves the original order intact.",
+        "hold": 0.75
+      },
+      {
+        "id": "c11-b05",
+        "say": "That's the repair for inner product. If your index promises cosine, check the lengths of the reconstructed vectors too. Even if the originals were unit length, rounding can move their tips off the unit circle. Compare against exact cosine before accepting that approximation.",
+        "hold": 0.7
+      }
+    ]
+  },
+  {
+    "id": "c12",
+    "title": "An outlier spends the available buckets",
+    "sourceChapters": [
+      "c12"
+    ],
+    "beats": [
+      {
+        "id": "c12-b01",
+        "say": "Take one hundred one equally spaced ordinary values from minus one to one, then include one calibration value at twenty-five. A maximum-derived bound of twenty-five gives a step of twenty-five over one hundred twenty-seven. Many ordinary values collapse into the same bucket.",
+        "hold": 0.3
+      },
+      {
+        "id": "c12-b02",
+        "say": "A supplied clipped bound of one gives finer ordinary resolution but saturates the outlier.",
+        "hold": 0.7
+      },
+      {
+        "id": "c12-b03",
+        "say": "Calculated on these ordinary values, mean absolute reconstruction error is about zero point zero four eight three with the wide bound and zero point zero zero one nine with bound one. Clipping twenty-five to one also incurs an error of twenty-four.",
+        "hold": 0.3
+      },
+      {
+        "id": "c12-b04",
+        "say": "Try a separate ranking test. Normalize the rows one, point zero five and one, point zero four. The second points closer to our fixed horizontal query. Use the wide bound. The two reconstructed rows coincide and the first row wins the tie. Switch to the fine bound. Their heights separate again and the better direction wins.",
+        "hold": 0.3
+      },
+      {
+        "id": "c12-b05",
+        "say": "Select calibration on development data and measure held-out shortlist recall, including clipped cases.",
+        "hold": 0.7
+      }
+    ]
+  },
+  {
+    "id": "c13",
+    "title": "Run the dot product in two widths",
+    "sourceChapters": [
+      "c13"
+    ],
+    "beats": [
+      {
+        "id": "c13-b01",
+        "say": "Suppose both the query and the stored rows are integer codes. The query and A each contain two copies of one hundred twenty-seven. B is smaller by one in both coordinates. Both products should be larger for A. The exact sums are thirty-two thousand two hundred fifty-eight for A and thirty-two thousand four for B.",
+        "hold": 0.8
+      },
+      {
+        "id": "c13-b02",
+        "say": "Write the result into a signed eight-bit integer. The high bytes disappear. The low bytes read two for A and four for B. The smaller original score now wins. What happens if you cast those results to a wider type?",
+        "hold": 1.8
+      },
+      {
+        "id": "c13-b03",
+        "say": "You still have two and four. A wider register fills the new high bits with zeros here. The original high bytes are gone. Recompute from the operands. Widen them before multiplying, then add in a wide accumulator. A leads again. With this symmetric codec, an absolute bound is the dimension count times one hundred twenty-seven squared.",
+        "hold": 0.3
+      },
+      {
+        "id": "c13-b04",
+        "say": "For fifteen hundred thirty-six coordinates that's about twenty-four point eight million, safely inside signed thirty-two-bit range. Other code ranges and offsets need their own bound.",
+        "hold": 0.7
+      }
+    ]
+  },
+  {
+    "id": "c14",
+    "title": "Store one ID for each pair",
+    "sourceChapters": [
+      "c14"
+    ],
+    "beats": [
+      {
+        "id": "c14-b01",
+        "say": "Split these eight coordinates into four pairs. Open the first book. It holds two representative points called centers. We'll store the ID of the nearest one.",
+        "hold": 0.65
+      },
+      {
+        "id": "c14-b02",
+        "say": "The first pair is one point two, three point four. Compare it with the two centers on the page. Which center is nearest?",
+        "hold": 1.7
+      },
+      {
+        "id": "c14-b03",
+        "say": "Center one matches exactly. Store its ID in the first slot. Repeat with the other three books. All four slots hold a one, yet each one retrieves a different pair. Its position tells you which book to open. That's product quantization.",
+        "hold": 0.3
+      },
+      {
+        "id": "c14-b04",
+        "say": "To train each book, k-means clusters samples from its pair of coordinates to minimize squared reconstruction error. To test search quality, rank passages for labeled queries.",
+        "hold": 0.6
+      },
+      {
+        "id": "c14-b05",
+        "say": "These four slots use one byte each. Two choices would fit in one bit with bit packing. A book with two hundred fifty-six centers uses every value in a byte. To decode the row later, keep the codebook version, pair order, width and codec with the index.",
+        "hold": 0.75
+      }
+    ]
+  },
+  {
+    "id": "c15",
+    "title": "Read a distance from the stored IDs",
+    "sourceChapters": [
+      "c15"
+    ],
+    "beats": [
+      {
+        "id": "c15-b01",
+        "say": "Keep the query in full precision. Look at its first pair and center one. Each coordinate differs by a tenth. Square those two differences and add them. That entry is point zero two.",
+        "hold": 0.6
+      },
+      {
+        "id": "c15-b02",
+        "say": "Fill the other entries the same way. Each row of this table belongs to one pair. Center zero is the origin in every pair. These are squared distances. For an inner product index, you'd fill the cells with dot products instead.",
+        "hold": 0.6
+      },
+      {
+        "id": "c15-b03",
+        "say": "Read the stored IDs from the previous example. Each one selects the right-hand entry in its row. Four copies of point zero two add up to point zero eight. We used the original query to score a compressed document. That's asymmetric distance computation, or A D C.",
+        "hold": 0.65
+      },
+      {
+        "id": "c15-b04",
+        "say": "Consider a second document whose second ID is zero. Keep the query table fixed. Before selecting its entries, predict which term in the sum will change.",
+        "hold": 2.6
+      },
+      {
+        "id": "c15-b05",
+        "say": "The second lookup moves left to four point four nine. The three other terms stay at point zero two. The new total is four point five five.",
+        "hold": 2.4
+      },
+      {
+        "id": "c15-b06",
+        "say": "Try all four zero IDs. Each pair reads its left-hand entry and the total becomes fifty-six point five seven. The same query table served all three documents. With ninety-six subspaces and two hundred fifty-six centers per pair, a four-byte float table takes ninety-six kibibytes per query. Some FastScan implementations quantize the table entries too.",
+        "hold": 0.7
+      },
+      {
+        "id": "c15-b07",
+        "say": "Shrink the example to one number line. The centers are zero and two. Query and document A both start at one point four. Document B sits at two. The original squared gaps are zero and point three six.",
+        "hold": 0.55
+      },
+      {
+        "id": "c15-b08",
+        "say": "Move each document to its nearest center. Both are stored at two. The full query stays at one point four, so A D C gives both a squared gap of point three six.",
+        "hold": 0.6
+      },
+      {
+        "id": "c15-b09",
+        "say": "Move the query to its nearest center too. All three now sit at two. Both squared gaps become zero. That's symmetric distance computation. Each method got one original distance right here, yet neither code could separate the two passages.",
+        "hold": 0.75
+      }
+    ]
+  },
+  {
+    "id": "c16",
+    "title": "Preserve the scoring objective across transformations",
+    "sourceChapters": [
+      "c16"
+    ],
+    "beats": [
+      {
+        "id": "c16-b01",
+        "say": "Start with query one, zero and two unit documents. Snap each document to its supplied center. Now both reach point eight along the query, yet B reaches higher than A. Their inner products tie. Their distances and directions differ. To compute cosine from the lookup, divide by the query length and the reconstructed length. A table of center norms can supply that last factor.",
+        "hold": 0.7
+      },
+      {
+        "id": "c16-b02",
+        "say": "Turn a query and a document together by a right angle. The dot product and the gap stay fixed. Optimized product quantization learns an orthonormal transform and its codebooks together so subspaces represent the data with less distortion. Apply the same transform to the query. The subsequent choice of centers can change scores. Measure retrieval quality as well as reconstruction error.",
+        "hold": 0.7
+      },
+      {
+        "id": "c16-b03",
+        "say": "Now move the origin. An inverted-file index can choose a coarse centroid and encode the document's displacement from it. Our residual points eight tenths across and one tenth up. Place its tail at the coarse centroid to recover the document near the query. Place it at zero and the same code points somewhere else. Version the transform, centroids and books together. Test a separately built index before moving traffic.",
+        "hold": 0.7
+      }
+    ]
+  },
+  {
+    "id": "c17",
+    "title": "Pack signs into a byte",
+    "sourceChapters": [
+      "c17"
+    ],
+    "beats": [
+      {
+        "id": "c17-b01",
+        "say": "What if you keep only the sign? Put a one wherever the coordinate is positive, and a zero everywhere else. Compare A and B from left to right. Only the last coordinate changes sign. In dimension order, A ends in zero and B ends in one.",
+        "hold": 0.7
+      },
+      {
+        "id": "c17-b02",
+        "say": "Put dimension zero in the least significant bit. The first coordinate moves to the right-hand end of the byte. The high bits are padding. In hexadecimal A is zero five and B is zero D. Exclusive OR keeps a one at bit three, where their signs differ.",
+        "hold": 0.3
+      },
+      {
+        "id": "c17-b03",
+        "say": "Count the set bits. The Hamming distance is one.",
+        "hold": 0.7
+      },
+      {
+        "id": "c17-b04",
+        "say": "For wider vectors, store the low byte first and sum the bit counts across words. Some processors can count many bits in parallel. Check the actual throughput. Four coordinates take a whole byte, and nine need two.",
+        "hold": 0.3
+      },
+      {
+        "id": "c17-b05",
+        "say": "In nine dimensions, make a second byte for dimension eight. Put its sign in bit zero of that byte. The seven unused bits stay zero. Check the logical width, payload length and padding before comparing codes.",
+        "hold": 0.65
+      },
+      {
+        "id": "c17-b06",
+        "say": "At widths divisible by eight, sign bits take one thirty-second of the original four-byte float payload. Any graph links and originals you retain still take space. The next pair shows what those missing magnitude bits could have told us.",
+        "hold": 0.65
+      }
+    ]
+  },
+  {
+    "id": "c18",
+    "title": "Change the magnitudes and keep the signs",
+    "sourceChapters": [
+      "c18"
+    ],
+    "beats": [
+      {
+        "id": "c18-b01",
+        "say": "These two rows start out identical. On the pink row, exchange the large and small magnitudes in each pair of like signs. Both rows still have mean zero, two positive coordinates and two negative ones. How many of their sign bits now disagree?",
+        "hold": 2.6
+      },
+      {
+        "id": "c18-b02",
+        "say": "None. Their Hamming distance is zero. But where green has a big coordinate, pink has a small one. Their cosine is only about point zero two. The directions are nearly at right angles.",
+        "hold": 0.65
+      },
+      {
+        "id": "c18-b03",
+        "say": "The angle divided by pi is about point four nine four. There's a related way to make bits. Independently sampled isotropic random hyperplanes cut the space at random orientations. The expected fraction of bits that differ is the angle divided by pi.",
+        "hold": 0.3
+      },
+      {
+        "id": "c18-b04",
+        "say": "More independent bits concentrate around that expectation. Our four signs came from fixed axes. Balancing their frequencies doesn't give those axes random orientations.",
+        "hold": 0.65
+      },
+      {
+        "id": "c18-b05",
+        "say": "With three hundred eighty-four bits, one query has only three hundred eighty-five possible distances. A hundred thousand rows must include ties. Check whether ties cross the shortlist boundary on labeled queries. Inspect bit frequencies and correlations too. Rotations and extra bits change the codec, so benchmark their own packing, scoring and total memory.",
+        "hold": 0.7
+      }
+    ]
+  },
+  {
+    "id": "c19",
+    "title": "When does a detour find a nearer point?",
+    "sourceChapters": [
+      "c19"
+    ],
+    "beats": [
+      {
+        "id": "c19-b01",
+        "say": "Compression changes the bytes you read per row. A graph can change how many rows you visit. In H N S W, every point belongs to the base layer. The upper layers hold progressively fewer points.",
+        "hold": 0.3
+      },
+      {
+        "id": "c19-b02",
+        "say": "Start at the top, follow links toward the query, then drop to the same point in the layer below. At the base, keep a list of promising alternatives.",
+        "hold": 0.65
+      },
+      {
+        "id": "c19-b03",
+        "say": "Here are the base-layer links. The blue query sits at five, two, just below E. Enter at B with room for one retained candidate. A takes you farther away. Follow B to D. The squared gap falls from eight to five. D leads only back to B. Where could we go if we kept a second route?",
+        "hold": 2.2
+      },
+      {
+        "id": "c19-b04",
+        "say": "Restart at B with room for three. Keep A while you check D. Return to the saved alternative at A. Follow its link to C, then follow C to E. The final gap is a tenth, with squared distance point zero one. We found E by keeping a temporarily worse option.",
+        "hold": 0.3
+      },
+      {
+        "id": "c19-b05",
+        "say": "We changed the search effort and found a different neighbor on exactly the same graph.",
+        "hold": 0.75
+      },
+      {
+        "id": "c19-b06",
+        "say": "This search-list size is called ef. It limits the candidates retained while exploring. A search may visit many more nodes. In h n s w lib, ef must be at least the number of neighbors you request. To choose a value, measure recall and time together.",
+        "hold": 0.65
+      }
+    ]
+  },
+  {
+    "id": "c20",
+    "title": "Choose a search budget on a fixed graph",
+    "sourceChapters": [
+      "c20"
+    ],
+    "beats": [
+      {
+        "id": "c20-b01",
+        "say": "In one common H N S W level sampler, the chance of reaching the next layer is one over M. At M thirty-two, about one node in thirty-two reaches layer one, or three point one two five percent. Layer two gets one in one thousand twenty-four.",
+        "hold": 0.3
+      },
+      {
+        "id": "c20-b02",
+        "say": "The sampler takes the floor of minus log U divided by log M, with U uniform between zero and one. The scale, one over log M, is about point two eight nine here.",
+        "hold": 0.65
+      },
+      {
+        "id": "c20-b03",
+        "say": "M sets link capacity at build time. Construction effort controls how far each insertion explores. Changing either calls for a rebuilt comparison. Here are three measurements on a single fixed graph. The horizontal axis is latency. The vertical axis is recall at ten.",
+        "hold": 0.3
+      },
+      {
+        "id": "c20-b04",
+        "say": "Recall at ten must reach point nine six, and the ninety-ninth percentile latency must stay within sixty milliseconds. Which measurement clears both limits?",
+        "hold": 2.5
+      },
+      {
+        "id": "c20-b05",
+        "say": "Use forty-eight here. Sixteen misses recall. Ninety-six takes too long. This setting depends on the measured workload. If every setting misses a gate, compare rebuilt graphs.",
+        "hold": 0.7
+      },
+      {
+        "id": "c20-b06",
+        "say": "Now count the links in memory. Suppose the base layer reserves twice M neighbor IDs per row at four bytes each. At M thirty-two, that's two hundred fifty-six bytes of neighbor slots per row. The slots alone outweigh the ninety-six-byte product code.",
+        "hold": 0.3
+      },
+      {
+        "id": "c20-b07",
+        "say": "Counts, upper links and metadata need space too. The h n s w lib estimate for graph overhead is roughly eight to ten times M bytes per row. Profile traversal and vector fetches before shrinking the code again.",
+        "hold": 0.75
+      }
+    ]
+  },
+  {
+    "id": "c21",
+    "title": "Who gets the single shortlist slot?",
+    "sourceChapters": [
+      "c21"
+    ],
+    "beats": [
+      {
+        "id": "c21-b01",
+        "say": "Now suppose some passages are private. The query has four signs, positive, negative, positive, negative. Read those as one zero one zero. The private note and the rotation guide both match every bit, so both have Hamming distance zero. Lifecycle differs in two places. Our search breaks ties in storage order. Private comes first.",
+        "hold": 0.7
+      },
+      {
+        "id": "c21-b02",
+        "say": "Give the search one slot and check access after that cutoff. Who can we fetch from this shortlist?",
+        "hold": 2.05
+      },
+      {
+        "id": "c21-b03",
+        "say": "The private note takes the only slot. Now check permission. Remove the denied row. Nobody is left. No original vector or passage text can go forward from that list.",
+        "hold": 1.1
+      },
+      {
+        "id": "c21-b04",
+        "say": "Widen the list to two. Now it holds private and rotation. Apply the permission check. Only rotation survives. Fetch its retained vector and rescore it. We recovered one permitted passage at the cost of a larger first-stage list.",
+        "hold": 0.75
+      },
+      {
+        "id": "c21-b05",
+        "say": "Return to one slot. This time check eligibility during search. Rotation takes that slot. This requires an index that can filter during selection. Recheck current access before fetching passage text, including text sent to a reranker or a generator.",
+        "hold": 0.75
+      },
+      {
+        "id": "c21-b06",
+        "say": "If every match is denied, take the empty-result path. No passage text leaves the permission check.",
+        "hold": 0.7
+      },
+      {
+        "id": "c21-b07",
+        "say": "Try a different request. Both public guides survive a two-slot filtered search. Recheck access before reading the text. A cross encoder can read each allowed passage together with the query. Measure whether the extra reranking time buys better evidence.",
+        "hold": 0.75
+      }
+    ]
+  },
+  {
+    "id": "c22",
+    "title": "A budget for fifty million vectors",
+    "sourceChapters": [
+      "c22"
+    ],
+    "beats": [
+      {
+        "id": "c22-b01",
+        "say": "You're sizing the fifty-million-row store. The service has sixty milliseconds at the ninety-ninth percentile. Keep a full-precision reference. Scan eligible originals using the model's dot product on unit vectors. Save the encoder version, width, normalization and metric with the index so you can repeat the comparison.",
+        "hold": 0.65
+      },
+      {
+        "id": "c22-b02",
+        "say": "Benchmark a scalar-code first stage. Each coordinate keeps a byte, a smaller change in precision than replacing a whole group by one ID or keeping a sign. Search under the same permissions, then fetch and rescore surviving originals. Keep the query transform and evaluation set fixed. Version calibration and search settings. The codes add thirty-eight point four gigabytes.",
+        "hold": 0.3
+      },
+      {
+        "id": "c22-b03",
+        "say": "If you keep all the originals as well, the two vector stores total a hundred ninety-two gigabytes. The originals can live outside hot memory.",
+        "hold": 0.7
+      },
+      {
+        "id": "c22-b04",
+        "say": "The first-stage index got smaller. Does that establish that a request finishes within sixty milliseconds?",
+        "hold": 1.9
+      },
+      {
+        "id": "c22-b05",
+        "say": "We still need the end-to-end latency measurement. Time the search, original-vector fetch and rescore on the serving path. On those same queries, compare exact-neighbor recall, then judge the returned passages for relevance. If rank matters, a measure such as N D C G gives more credit for useful passages near the top.",
+        "hold": 0.75
+      }
+    ]
+  },
+  {
+    "id": "c23",
+    "title": "Turn the query and compare guide lengths",
+    "sourceChapters": [
+      "c23"
+    ],
+    "beats": [
+      {
+        "id": "c23-b01",
+        "say": "Bring back the two guides on the unit circle. The horizontal query favors rotation. Now imagine turning just the query and its ruler straight up. Both guide tips will stay pinned. Which mark will reach farther along the ruler?",
+        "hold": 2.6
+      },
+      {
+        "id": "c23-b02",
+        "say": "Turn the ruler. Follow the perpendiculars from the two tips as their marks cross. Upright, audit reaches point four four seven and rotation reaches point one nine six. These are cosines. Restore the original guide lengths and keep the query pointing up. The raw dot products are their heights, two and point two. Which original tip is nearer to the query tip?",
+        "hold": 2.8
+      },
+      {
+        "id": "c23-b03",
+        "say": "Rotation is nearer. From the blue tip to green it's one across and point eight down, a gap of about one point two eight. The pink tip is four across and one up, more than four units away.",
+        "hold": 0.75
+      },
+      {
+        "id": "c23-b04",
+        "say": "Slide the guides onto the unit circle and measure again. The shorter chord now goes to audit. Cosine, dot product and squared distance all put audit first on the unit circle. Keep the query pointing up for one last search.",
+        "hold": 0.7
+      }
+    ]
+  },
+  {
+    "id": "c24",
+    "title": "Rescoring the upward query",
+    "sourceChapters": [
+      "c24"
+    ],
+    "beats": [
+      {
+        "id": "c24-b01",
+        "say": "The query still points up. Look at the two passages we rounded earlier. Their original lengths are nearly identical, but D reaches higher. With the full coordinates, D wins on cosine.",
+        "hold": 0.65
+      },
+      {
+        "id": "c24-b02",
+        "say": "Use the same point-two grid as before. C and D both store one, point two. They have the same compressed score. Break ties in storage order, C before D. Suppose the first stage keeps one slot. Can rescoring that shortlist return D?",
+        "hold": 2.35
+      },
+      {
+        "id": "c24-b03",
+        "say": "Only C survives the cutoff. Fetch its original vector and score it against the same upward query. Its cosine is about point one three. D is outside the shortlist. A more accurate calculation on C still leaves it there.",
+        "hold": 1.15
+      },
+      {
+        "id": "c24-b04",
+        "say": "Widen the shortlist to two. Leave the query, grid and tie rule alone. D now gets a slot. Fetch D's original vector. Its cosine is point two eight, higher than C's. Put D first.",
+        "hold": 1.1
+      },
+      {
+        "id": "c24-b05",
+        "say": "One extra fetch recovered D. Time that read as well as the scoring. On held-out queries, count how often the exact neighbor survives, then check the passages against human relevance judgments. In attention, dot products like these will tell a token how much to read from each neighbor.",
+        "hold": 1
+      }
+    ]
+  }
+]

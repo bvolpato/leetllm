@@ -1,0 +1,513 @@
+[
+  {
+    "id": "c01",
+    "title": "Two messages, one search",
+    "sourceChapters": ["c01"],
+    "beats": [
+      {
+        "id": "c01-b01",
+        "say": "What do I do now? That is the whole message the search received. The earlier chat turn is outside the search window. Here are the only two pages in our little index. This retriever counts distinct words in common. Which page would you expect to win?",
+        "hold": 2.4
+      },
+      {
+        "id": "c01-b02",
+        "say": "The account overview wins. What, I, and do each count once. The recovery guide shares zero words with that follow-up. Open the earlier turn. The developer wrote, “My API key leaked.” Take just the subject, API key, and search again. Which page matches both words?",
+        "hold": 2.1
+      },
+      {
+        "id": "c01-replay",
+        "say": "The recovery guide matches both. The first run missed the subject because it lived one message back.",
+        "hold": 1.35
+      }
+    ]
+  },
+  {
+    "id": "c02",
+    "title": "Search the same two pages again",
+    "sourceChapters": ["c02"],
+    "beats": [
+      {
+        "id": "c02-b01",
+        "say": "We have the subject. What action does the developer need? The earlier message says the key leaked. We can describe the recovery task without copying a secret. Search for “How do I revoke and rotate a leaked API key?” Count the matches on the same two pages.",
+        "hold": 2
+      },
+      {
+        "id": "c02-b02",
+        "say": "The recovery guide wins. Six words match, including revoke, rotate, and key. Compare the three searches. The subject locates the guide. The full rewrite also describes the action the developer needs. Query rewriting changes the search text. Both pages and the caller’s access stay fixed. Keep the original conversation for the answer. Permissions still come from the caller’s grants.",
+        "hold": 0.9
+      }
+    ]
+  },
+  {
+    "id": "c03",
+    "title": "The words in the runbooks",
+    "sourceChapters": ["c03"],
+    "beats": [
+      {
+        "id": "c03-b01",
+        "say": "Now the developer asks how to handle peak demand. Their search text says “peak demand handling.” The runbooks talk about burst quota limits, queue backpressure and autoscaling capacity. Here the subject is clear. What we need are other ways to search for it.",
+        "hold": 0.8
+      },
+      {
+        "id": "c03-b02",
+        "say": "Keep the original query. We have room for three more. Take the burst quota phrase. The next proposal repeats it with different capitalization. Skip the duplicate. Admit the queue phrase and the capacity phrase. The traffic proposal comes after the third slot is full.",
+        "hold": 0.3
+      },
+      {
+        "id": "c03-b03",
+        "say": "These phrases are hypotheses to try against the same authorized pages.",
+        "hold": 0.9
+      }
+    ]
+  },
+  {
+    "id": "c04",
+    "title": "Three searches, one shortlist",
+    "sourceChapters": ["c04"],
+    "beats": [
+      {
+        "id": "c04-b01",
+        "say": "Look across each row. A number is the page’s position in that search. A dot means the page was absent. The queue guide came first for queue overload and second for backpressure. We can combine these positions even when the searches use different similarity scales.",
+        "hold": 0.7
+      },
+      {
+        "id": "c04-b02",
+        "say": "Give every first place one over sixty-one. Each page earns that contribution once in these lists. This is reciprocal rank fusion. Add sixty to the one-based position and take the reciprocal. Sum over the searches in which the page appeared. An absent page adds zero. Which page will lead when we count second place?",
+        "hold": 2
+      },
+      {
+        "id": "c04-b03",
+        "say": "The queue guide collects another one over sixty-two. That puts the queue guide first. With sixty in the denominator, a second place is worth nearly as much as a first. That also explains why repeated versions of one query can distort the ranking. They give a page several votes for essentially the same wording.",
+        "hold": 1
+      }
+    ]
+  },
+  {
+    "id": "c05",
+    "title": "Do we have both parts of the answer?",
+    "sourceChapters": ["c05"],
+    "beats": [
+      {
+        "id": "c05-b01",
+        "say": "The developer wants to know how much traffic can burst and what happens when the queue fills. Before we search, mark the two pages an answer needs. That’s the burst policy for the first part and the queue guide for the second. The original wording finds neither in this word-matching example.",
+        "hold": 0.65
+      },
+      {
+        "id": "c05-b02",
+        "say": "Add the burst quota search. The burst policy comes back. Any hit at three now scores one because at least one required page made the shortlist. Look at the empty queue slot. Can we answer the second half yet?",
+        "hold": 1.9
+      },
+      {
+        "id": "c05-b03",
+        "say": "We still need the queue guide. Add the queue and capacity searches. The fused list now contains both required pages. Recall at three goes from one half to two out of two. Open the queue guide. This service rejects the next arrival when the queue fills. The capacity guide also made the list, but it fills neither required slot.",
+        "hold": 0.3
+      },
+      {
+        "id": "c05-b04",
+        "say": "Use this comparison on labeled questions with your own retriever to see whether expansion helps there.",
+        "hold": 0.95
+      }
+    ]
+  },
+  {
+    "id": "c06",
+    "title": "When can the next search start?",
+    "sourceChapters": ["c06"],
+    "beats": [
+      {
+        "id": "c06-b01",
+        "say": "Suppose the developer wants to compare sync and batch endpoints. We know both names, and we need latency, limits and retries for each. Which lookups have enough information to start?",
+        "hold": 2.35
+      },
+      {
+        "id": "c06-dispatch",
+        "say": "All six can start together. Watch for a source beside each value.",
+        "hold": 1.3
+      },
+      {
+        "id": "c06-b02",
+        "say": "One search finished empty. We have no source for batch retries. Leave that cell open when you write the comparison. The sync retry rule belongs to a different endpoint.",
+        "hold": 1
+      },
+      {
+        "id": "c06-b03",
+        "say": "Try a different incident with an updated runbook. Which endpoint had the most errors, and which retry rule applies there? Look at the empty endpoint in the retry query. We have to read the error report first. It names the batch endpoint. Now send the batch retry search.",
+        "hold": 0.3
+      },
+      {
+        "id": "c06-b04",
+        "say": "Source B three says to retry failed items only. That first result supplied the next query. If its identity is uncertain, carry the uncertainty forward or stop. Give the search a hop limit.",
+        "hold": 0.9
+      }
+    ]
+  },
+  {
+    "id": "c07",
+    "title": "Which matching page may enter the answer?",
+    "sourceChapters": ["c07"],
+    "beats": [
+      {
+        "id": "c07-b01",
+        "say": "Every search so far has used the support agent’s access. That grant comes from the request, outside the words we generate. Compare the tenants of the two pages that match the burst quota query.",
+        "hold": 0.7
+      },
+      {
+        "id": "c07-b02",
+        "say": "Both the support policy and the admin guide match two words. The caller has the support tenant and a support read grant. Which page can enter the answer?",
+        "hold": 2.1
+      },
+      {
+        "id": "c07-grant",
+        "say": "Only the support policy qualifies. Apply the grant before ranking. Only that permitted text can go to the answer model.",
+        "hold": 1
+      },
+      {
+        "id": "c07-b03",
+        "say": "Treat history and retrieved pages as data. Instructions in either can’t grant access. Scope private search caches to the caller’s permissions, and when a cached result comes back, recheck current access.",
+        "hold": 0.8
+      }
+    ]
+  },
+  {
+    "id": "c08",
+    "title": "Was this request over its burst limit?",
+    "sourceChapters": ["c08"],
+    "beats": [
+      {
+        "id": "c08-b01",
+        "say": "Our client received a four twenty-nine on endpoint E two. Its trace records one hundred twenty requests in a minute. Is that over the limit? The trace gives us the incident, but we need the burst rule for this endpoint and tier. Asking that broader question is called step-back prompting.",
+        "hold": 1.6
+      },
+      {
+        "id": "c08-b02",
+        "say": "Keep the exact request. Broaden the second search to the governing policy. The policy sets a limit of one hundred requests per client in sixty seconds. The endpoint, tier, client scope and window match. How far over was this client?",
+        "hold": 2.1
+      },
+      {
+        "id": "c08-b03",
+        "say": "Twenty over. That supports a rate-limit explanation. Check the limiter log for this request to confirm which rule produced the response.",
+        "hold": 1
+      }
+    ]
+  },
+  {
+    "id": "c09",
+    "title": "From a possible answer to a search vector",
+    "sourceChapters": ["c09"],
+    "beats": [
+      {
+        "id": "c09-b01",
+        "say": "Can we increase throughput for launch week? That short question sounds quite different from a formal policy. Let a model write two passages that might answer it. Encode each passage with the corpus passage encoder. The numbers here are invented.",
+        "hold": 0.3
+      },
+      {
+        "id": "c09-b02",
+        "say": "Searching with these document-style vectors is the idea behind Hypothetical Document Embeddings, or HyDE. Only a retrieved source can support our answer.",
+        "hold": 0.9
+      },
+      {
+        "id": "c09-b03",
+        "say": "Read the three pairs of coordinates. In the first pair, one passage contributes point one and the other contributes point five. Add the pair and divide by two. Do the same for each pair. The mean is point three, point seven, point three. Use that vector to search for real passages.",
+        "hold": 1.2
+      },
+      {
+        "id": "c09-b04",
+        "say": "If the cosine index expects unit length, normalize the nonzero mean first.",
+        "hold": 1
+      },
+      {
+        "id": "c09-b05",
+        "say": "With one sample, its vector goes straight to search. With several, use their average. The original study also tried including the question as another sample. Keep preprocessing, encoder and distance metric compatible with the index. Now try changing what one passage says.",
+        "hold": 0.75
+      }
+    ]
+  },
+  {
+    "id": "c10",
+    "title": "Change one clause in the search text",
+    "sourceChapters": ["c10"],
+    "beats": [
+      {
+        "id": "c10-b01",
+        "say": "Here are three pages about launch traffic. Count matching words so you can check the ranking by eye. Keep the top two. The launch answer needs the quota policy and the batch policy. Try the proxy “For batch jobs, request a temporary quota increase.” Both policies make the cut.",
+        "hold": 1.05
+      },
+      {
+        "id": "c10-b02",
+        "say": "Keep “for batch jobs.” Change the proposal to “enable automatic replica scaling.” Search those same pages again. Which required policy falls out of the top two?",
+        "hold": 2
+      },
+      {
+        "id": "c10-b03",
+        "say": "The quota policy falls out. The batch words still match, but the invented scaling advice brings in the overview. This is how a proxy can drift. Check the source before citing any policy, and measure that drift separately with the real dense encoder.",
+        "hold": 0.3
+      },
+      {
+        "id": "c10-b04",
+        "say": "When a date, price, error code or incident ID matters, keep an exact lookup available.",
+        "hold": 1
+      }
+    ]
+  },
+  {
+    "id": "c11",
+    "title": "What supports the next sentence?",
+    "sourceChapters": ["c11"],
+    "beats": [
+      {
+        "id": "c11-b01",
+        "say": "We still owe the developer an answer. A Self-RAG generator learns to reflect on its own output. It decides whether to fetch a passage before writing its next segment, often a sentence. It can skip this search or reuse earlier evidence. For the launch question it requests a passage.",
+        "hold": 0.9
+      },
+      {
+        "id": "c11-b02",
+        "say": "Read the approval clause in E one. The model marks the passage relevant, then writes, “Request approval for a temporary increase.” It judges that sentence fully supported. It gives the response four out of five for utility. Those labels record what the model predicted.",
+        "hold": 0.3
+      },
+      {
+        "id": "c11-b03",
+        "say": "You can check its support judgment against the words in E one.",
+        "hold": 0.95
+      },
+      {
+        "id": "c11-b04",
+        "say": "These labels name families of reflection tokens. The checkpoint has its own registered tokens. A training critic labels examples offline. The trained generator predicts the tokens while it writes. Calling an ordinary model separately to route and grade a response gives you a prompted critique loop.",
+        "hold": 0.75
+      }
+    ]
+  },
+  {
+    "id": "c12",
+    "title": "Two candidate sentences about the same quota",
+    "sourceChapters": ["c12"],
+    "beats": [
+      {
+        "id": "c12-b01",
+        "say": "How much credit should the model give the approval sentence? During decoding, a model can propose a next sentence for each retrieved passage. Look at the three possible support judgments for this sentence. Full support gets full credit, partial gets half, and no support gets zero.",
+        "hold": 0.3
+      },
+      {
+        "id": "c12-b02",
+        "say": "Normalize within the support family. The gray column is probability assigned to other tokens, outside that family.",
+        "hold": 0.8
+      },
+      {
+        "id": "c12-b03",
+        "say": "The three probabilities under the bracket add to one half. Full support contributes point four seven. Half credit for partial support adds point zero one. Divide their sum by the family’s half. That gives point nine six. Relevance uses its own family total.",
+        "hold": 0.3
+      },
+      {
+        "id": "c12-b04",
+        "say": "Utility has five ratings, with credits from minus one to plus one in steps of one half. Weight the credits by their probabilities within that family. A low rating can contribute a negative value. The result is a score.",
+        "hold": 1
+      },
+      {
+        "id": "c12-b05",
+        "say": "Now compare two possible next sentences. One asks for approval. The other promises unlimited traffic. Suppose both have the same generation likelihood. In this example support gets three times the weight of relevance or utility. The unlimited claim leads in those other two columns. Which sentence survives?",
+        "hold": 2
+      },
+      {
+        "id": "c12-b06",
+        "say": "Multiply each score by the weight above it and add across. The approval sentence scores point nine two two. The unlimited claim scores point five three four. The approval sentence wins. Its lead in support more than covers its small losses in the other two columns.",
+        "hold": 0.3
+      },
+      {
+        "id": "c12-b07",
+        "say": "To verify the selected claim, go back to the words “require approval” in E one.",
+        "hold": 0.95
+      },
+      {
+        "id": "c12-b08",
+        "say": "At each segment, a decoder can retain several passage-conditioned branches and extend the high-scoring ones. Its configuration sets how generation likelihood enters alongside the linear critique score. Utility can be negative, so taking its logarithm would be invalid. Those extra continuations cost decoding work even if the number of retrieved pages stays fixed.",
+        "hold": 0.8
+      }
+    ]
+  },
+  {
+    "id": "c13",
+    "title": "Which passages should reach the generator?",
+    "sourceChapters": ["c13"],
+    "beats": [
+      {
+        "id": "c13-b01",
+        "say": "We can also correct a search before a generator writes anything. In Corrective RAG, or CRAG, a separate trained evaluator grades each question and document pair. Look at these two pages. Route on the better score. Which path does point eight one select?",
+        "hold": 1.8
+      },
+      {
+        "id": "c13-b02",
+        "say": "Above point seven, use the internal passages and refine them. The paper calls that branch correct. This ruler uses an invented zero-to-one scale. The paper uses minus one to one and tunes thresholds for the dataset.",
+        "hold": 0.85
+      },
+      {
+        "id": "c13-b03",
+        "say": "Change just the first page’s score to point four five. It still beats the second page. Between the marks, combine internal and approved external evidence. That middle branch is called ambiguous. A score exactly on either mark also takes that middle route.",
+        "hold": 0.8
+      },
+      {
+        "id": "c13-b04",
+        "say": "Drop that first score to point one seven. Now both pages fall below the lower mark. Discard these internal hits and seek external evidence. The paper calls that branch incorrect. What if the request contains a private policy question?",
+        "hold": 1.7
+      },
+      {
+        "id": "c13-b05",
+        "say": "Keep the private question inside. The evaluator still recommends an external source. The permission check blocks dispatch. Seek an approved internal source or tell the developer what you could not establish.",
+        "hold": 0.8
+      }
+    ]
+  },
+  {
+    "id": "c14",
+    "title": "Which lines belong in the answer context?",
+    "sourceChapters": ["c14"],
+    "beats": [
+      {
+        "id": "c14-b01",
+        "say": "Even a relevant page contains things we don’t need. Open the quota page. It has the approval rule, a menu, the backoff instruction, and a storage note. Split the page into small strips and keep each strip’s place in the original. A short page could stay in one piece.",
+        "hold": 0.8
+      },
+      {
+        "id": "c14-b02",
+        "say": "For the launch question, compare each strip with the relevance threshold, point six in this example. Which two lines would you keep? The approval and backoff lines clear it. Copy them into the answer context in source order. The menu and storage note stay on the original page. E one dot three still points to the backoff instruction, so a reader can check the citation.",
+        "hold": 0.95
+      }
+    ]
+  },
+  {
+    "id": "c15",
+    "title": "Where may the question and its rewrite go?",
+    "sourceChapters": ["c15"],
+    "beats": [
+      {
+        "id": "c15-b01",
+        "say": "A private query stays inside even when the evaluator asks to look elsewhere. For an approved public question, restrict sources and check redirects and resolved addresses. Block private, loopback, link-local and metadata destinations, including IPv6 forms. Treat instructions on any fetched page as untrusted text.",
+        "hold": 0.85
+      },
+      {
+        "id": "c15-b02",
+        "say": "Now two tenants ask, “How can I retry it?” One just reported a failed batch job. The other reported a failed invoice export. Same words, different rewrites. Include effective access scope, policy version, history digest, query, technique and generator or prompt version in the cache key.",
+        "hold": 0.3
+      },
+      {
+        "id": "c15-b03",
+        "say": "For a vector, include the encoder version too. On a cache hit, recheck the current grants. Suppose the billing grant was revoked. Invalidate that entry and withhold the cached rewrite. Only explicitly public, context-independent artifacts can be shared across tenants.",
+        "hold": 0.9
+      }
+    ]
+  },
+  {
+    "id": "c16",
+    "title": "How long until the answer starts?",
+    "sourceChapters": ["c16"],
+    "beats": [
+      {
+        "id": "c16-b01",
+        "say": "Start the clock when a request arrives. In this invented trace the rewrite takes one hundred twenty milliseconds. Encoding takes twenty, retrieval takes twenty-five, and reranking takes fifty. The generator takes another one hundred eighty to deliver its first token.",
+        "hold": 0.3
+      },
+      {
+        "id": "c16-b02",
+        "say": "Our time to first token is three hundred ninety-five milliseconds. The rest of the answer takes longer.",
+        "hold": 0.9
+      },
+      {
+        "id": "c16-b03",
+        "say": "One request can’t tell us the tail latency. Here are twenty requests with two serial stages apiece. Eighteen are quick at both stages. Look at the last two. One stalls early, the other late. Each stage on its own has a ninety-fifth percentile of ten milliseconds.",
+        "hold": 0.3
+      },
+      {
+        "id": "c16-b04",
+        "say": "Sort the whole requests by their totals. For nearest-rank p ninety-five, multiply twenty by point nine five and round up. That puts us at the nineteenth one. How long did it take?",
+        "hold": 2
+      },
+      {
+        "id": "c16-b05",
+        "say": "The nineteenth sorted total is one hundred ten milliseconds. Only one request was slow at each stage. Two different requests were slow overall. Adding the two stage percentiles would give twenty milliseconds and lose both stalls. This small sample shows how to calculate the percentile. Estimate a production tail from representative end-to-end traces.",
+        "hold": 0.9
+      },
+      {
+        "id": "c16-b06",
+        "say": "If three searches run together and we need all three, we wait for the slowest. Suppose each one meets a twenty-five millisecond deadline with probability point nine five, independently. Multiply those three probabilities. The chance they all finish on time is about point eight five seven.",
+        "hold": 0.3
+      },
+      {
+        "id": "c16-b07",
+        "say": "Shared load can make their times move together. Measure the actual fan-out, including planning and fusion.",
+        "hold": 0.85
+      }
+    ]
+  },
+  {
+    "id": "c17",
+    "title": "Which route clears both release thresholds?",
+    "sourceChapters": ["c17"],
+    "beats": [
+      {
+        "id": "c17-b01",
+        "say": "Keep the raw hybrid search as a control. Use a rewrite for a missing subject. When the right page is already in a noisy shortlist, try reranking. If short questions miss formal passages, test HyDE.",
+        "hold": 0.3
+      },
+      {
+        "id": "c17-b02",
+        "say": "When passages still leave a gap, correct the search or follow a dependency. You can feed HyDE candidates to a trained Self-RAG generator, but evaluate that combination on its own.",
+        "hold": 0.9
+      },
+      {
+        "id": "c17-b03",
+        "say": "Suppose three routes give these results on the same fifty answerable questions. Each green mark stands for a correct answer backed by its source. The bar on the right gives that route’s end-to-end ninety-fifth percentile in milliseconds.",
+        "hold": 0.3
+      },
+      {
+        "id": "c17-b04",
+        "say": "Require supported accuracy of at least point nine three and latency at most three hundred fifty milliseconds. Which route passes both?",
+        "hold": 2.1
+      },
+      {
+        "id": "c17-b05",
+        "say": "Rewrite clears both, with point nine four supported accuracy and three hundred forty milliseconds.",
+        "hold": 1.1
+      },
+      {
+        "id": "c17-b06",
+        "say": "Now tighten only the latency ceiling to three hundred milliseconds. No route passes both requirements. Keep the release blocked. The fastest row misses the quality threshold. An abstention counts as a miss on these answerable questions. Evaluate appropriate abstention on unanswerable cases separately, along with citation support and access violations.",
+        "hold": 0.9
+      },
+      {
+        "id": "c17-b07",
+        "say": "Before releasing a route, compare it with the baseline on held-out questions. Keep the corpus snapshot, model and retriever versions, candidate counts, costs and request traces. Report sample size, uncertainty and which kinds of questions improved. Our fifty examples illustrate the gate.",
+        "hold": 0.85
+      }
+    ]
+  },
+  {
+    "id": "c18",
+    "title": "What should the assistant search next?",
+    "sourceChapters": ["c18"],
+    "beats": [
+      {
+        "id": "c18-b01",
+        "say": "Go back to our launch search. Send the original wording. It returns nothing here. Send the quota query. Send the queue query. Then send the capacity query. We allowed three results per call. Four searches could return twelve entries. Only four entries came back, and the queue guide appears twice. That leaves three distinct pages.",
+        "hold": 0.85
+      },
+      {
+        "id": "c18-b02",
+        "say": "A fifth search would exceed our four-call budget. Stop it before dispatch. Count separate work, too. A dense route has query encodings, and generating a longer rewrite can cost more tokens even with the same number of searches. Log the route, cost, end-to-end time and source support together.",
+        "hold": 0.85
+      },
+      {
+        "id": "c18-b03",
+        "say": "One last follow-up. The developer wrote, “We logged the leaked key as incident four eight two nine one.” Now they ask, “When did it close?” A proposed rewrite swaps the last two digits. Both IDs exist in the support register. Which row would you cite for this developer?",
+        "hold": 2.6
+      },
+      {
+        "id": "c18-b04",
+        "say": "The proposed key returns nine eighteen UTC. Its last two digits are one nine. Look back at the conversation. Carry the exact ID from the earlier message into the lookup. This incident closed at fourteen thirty-two UTC. Cite that row.",
+        "hold": 1.9
+      },
+      {
+        "id": "c18-b05",
+        "say": "The original identifier and the cited row agree. One record settled this follow-up. GraphRAG, in the next lesson, indexes relationships across records and builds community reports for wider questions.",
+        "hold": 2
+      }
+    ]
+  }
+]

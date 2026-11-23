@@ -1,0 +1,364 @@
+[
+  {
+    "id": "c01",
+    "title": "Two readers at one replica",
+    "sourceChapters": [
+      "c01"
+    ],
+    "beats": [
+      {
+        "id": "c01-arrive",
+        "say": "Alice sends a long design review from workspace A. Bob sends a short incident summary from B. Both arrive at the same replica. Follow the colored connections. Which part of this machine can both requests use?",
+        "hold": 2
+      },
+      {
+        "id": "c01-align",
+        "say": "Align the two sets of weights. Every value matches. One frozen copy can serve both columns in the same step. At two bytes per weight, this dense model with seventy-two billion weights takes one hundred forty-four gigabytes. A hundred copies take fourteen point four terabytes before runtime state. The fleet still needs replicas for capacity and availability.",
+        "hold": 1
+      },
+      {
+        "id": "c01-trace",
+        "say": "Now follow the citations coming back. Alice received the design guide, which she can read in A. Bob received the private postmortem. Trace that line back to its source. Only Carol in A can read it. Which delivery route needs to stop?",
+        "hold": 2.8
+      },
+      {
+        "id": "c01-contain",
+        "say": "Pause Bob’s affected route. Preserve the recipient, source and permission decision in a protected audit record. Check how retrieval and cache lookup got their reader identity. Bob may receive his own incident notes on a verified route. Each request keeps its own history, adapter, budget and usage. Both requests also waited. A utilization percentage alone cannot explain that delay. Compare queue age, active sequences, free pages, preemptions and adapter misses by tenant. If placement needs five pages and only four are free, more compute on that same worker leaves the request waiting.",
+        "hold": 0.9
+      },
+      {
+        "id": "c01-events",
+        "say": "Measure a healthy stream from arrival at the gateway. The first usable token arrives at one hundred milliseconds. Four more arrive together at two hundred twenty. Completion comes at two hundred forty. The first wait includes the queue, adapter load and prompt processing. What gap did the gateway observe between output events?",
+        "hold": 2.2
+      },
+      {
+        "id": "c01-timings",
+        "say": "The gateway observed one gap of one hundred twenty milliseconds. For mean time per output token, take completion minus first output and divide by the four additional tokens. That gives thirty-five milliseconds, including twenty milliseconds of terminal overhead in the numerator. The bundle gives us one arrival time for four tokens. Their individual decoding gaps remain unknown. To measure the gap the reader experiences, timestamp the output at the client.",
+        "hold": 1
+      },
+      {
+        "id": "c01-offered",
+        "say": "These five requests arrive during a one-minute test. Each reaches the outcome shown within that minute. To qualify, a stream must finish, deliver its first output at the gateway within eight hundred milliseconds, and keep every observed output gap within one hundred twenty milliseconds. How many qualify? The boundary values count.",
+        "hold": 2.5
+      },
+      {
+        "id": "c01-gate",
+        "say": "Three qualify. Request three starts late. Four starts quickly but fails midstream. Keep both in the denominator. Three of five arrivals pass, or sixty percent. Goodput is three qualifying completions per minute. Compare tiers at the same offered load. A pooled gap percentile counts each observed gap between output events once. The five tokens on our gateway trace arrived in two events, giving one sample. Send those same five tokens in five separate events and they contribute four samples. Streams with more output events have more weight.",
+        "hold": 1.2
+      }
+    ]
+  },
+  {
+    "id": "c02",
+    "title": "Authorize the reader before state access",
+    "sourceChapters": [
+      "c02"
+    ],
+    "beats": [
+      {
+        "id": "c02-grant",
+        "say": "Authenticate the principal, then check whether that principal may use the selected workspace. Here Alice selects A. Her current grant opens A. That decision supplies the identity in the worker’s request envelope.",
+        "hold": 0.8
+      },
+      {
+        "id": "c02-select",
+        "say": "Keep the credential and grant. Change just the workspace selector to B. Its adapter is already hot on the worker. Should the gateway send this request there?",
+        "hold": 2.5
+      },
+      {
+        "id": "c02-deny",
+        "say": "Deny the selection before lookup. Nothing in B was read or dispatched. The control plane sets policy and worker membership. Protect worker administration as well as the public gateway. On each protected operation validate the service credential’s issuer, audience, expiry and permission. Carry the resolved reader, request and attempt, policy and artifact revisions, deadline and output cap through to usage.",
+        "hold": 1
+      },
+      {
+        "id": "c02-rank",
+        "say": "Return to Alice’s authorized A request. Three passages have scores. The highest belongs to Bob in B. The next belongs to Carol in A. Which source can the retrieval service actually send to Alice?",
+        "hold": 2.6
+      },
+      {
+        "id": "c02-filter",
+        "say": "Only the design guide passes both checks. Filter inside trusted retrieval, then take the best eligible passage. Taking the global top result first and discarding it later loses Alice’s guide. Test the actual service role and recheck sensitive grants before fetching content. The model should receive evidence it already has permission to use.",
+        "hold": 1.1
+      }
+    ]
+  },
+  {
+    "id": "c03",
+    "title": "One reservation through two deliveries",
+    "sourceChapters": [
+      "c03"
+    ],
+    "beats": [
+      {
+        "id": "c03-admission",
+        "say": "Before dispatch, reserve the fully assembled input and the maximum permitted output under the declared quota policy. Count templates and authorized evidence with the deployed tokenizer. Here the prompt costs three hundred units and the output cap is four hundred. Two gateways each want that much from the same thousand. Can both commit?",
+        "hold": 2.4
+      },
+      {
+        "id": "c03-book",
+        "say": "The first commit holds seven hundred. The other gateway now sees only three hundred and must wait or reject the request. A separate read and later write could promise fourteen hundred. In one process a lock protects check and update. Across gateways use a durable conditional write or transaction. Retry a serialization conflict under the same identity.",
+        "hold": 0.9
+      },
+      {
+        "id": "c03-bind",
+        "say": "Replay the first key with the same resolved request. It returns the existing reservation. Change the adapter revision while keeping that key. The fingerprint conflicts and the original revision stays pinned. Bind tenant, prompt, model, adapter and cap. A transport message ID cannot identify the logical operation.",
+        "hold": 1
+      },
+      {
+        "id": "c03-fit",
+        "say": "Now check worker placement. This separate example needs five pages and the worker has four. The request fits its period allowance. Can it run? Request rate limits arrivals, a token window limits tokens over time, and concurrency counts outstanding streams. None supplies the fifth page.",
+        "hold": 2
+      },
+      {
+        "id": "c03-place",
+        "say": "Wait for capacity or choose another eligible worker. Enforce context and output caps as well. If a tool adds context, reserve its new work first. Publish dispatch from committed intent with recoverable delivery and one execution owner. A rollback cannot undo a launched kernel. Release a staged hold on definite placement failure. A missing acknowledgement leaves ownership unresolved.",
+        "hold": 0.8
+      },
+      {
+        "id": "c03-receipt",
+        "say": "Back at the original reservation, the worker has retired its references and reports one hundred twenty output tokens. What should the ledger charge, and how much of the thousand can A spend next?",
+        "hold": 2.4
+      },
+      {
+        "id": "c03-settle",
+        "say": "Settle four hundred twenty. Return the unused two hundred eighty. A now has five hundred eighty available. A second message reports the same attempt and usage. Leave the balance unchanged. Reject conflicting usage and retain the first receipt. This ledger charges all input in one fixed period. A rolling window needs its own time and late-settlement rules.",
+        "hold": 1.3
+      }
+    ]
+  },
+  {
+    "id": "c04",
+    "title": "Follow position thirty-three through the page table",
+    "sourceChapters": [
+      "c04"
+    ],
+    "beats": [
+      {
+        "id": "c04-map",
+        "say": "Each square holds attention keys and values for one token. Follow the page table in logical order. A has forty-seven positions across pages zero, two and four. B has thirty-one across one and three. Sixteen slots make a page. Two corners are empty. Where does B write position thirty-two?",
+        "hold": 2.6
+      },
+      {
+        "id": "c04-write32",
+        "say": "The last slot of page three holds thirty-two. Both pages in B’s table are full. Put thirty-three beside the empty corner of page four. It is the nearest hole. Can B write there?",
+        "hold": 2.6
+      },
+      {
+        "id": "c04-wait",
+        "say": "Wait. The allocator grants whole pages. Page four still belongs to A, and a device read still holds A’s table even after its stream closes. Giving B that corner would mix private histories behind one handle. This worker queues growth when it cannot grant a page.",
+        "hold": 1
+      },
+      {
+        "id": "c04-grantpage",
+        "say": "The last read finishes. A retires its table and returns three pages. The allocator grants page four to B and appends it to B’s table. Follow the table to the new block. Which slot gets thirty-three?",
+        "hold": 2.6
+      },
+      {
+        "id": "c04-write33",
+        "say": "The first slot holds thirty-three. Page one, page three, then page four. The old empty corner is still empty. Only one position is in B’s third block.",
+        "hold": 1.2
+      },
+      {
+        "id": "c04-shape",
+        "say": "How much memory did that whole page cost? For this full-attention model multiply keys and values by eighty layers, eight stored key-value heads, width one hundred twenty-eight and two bytes per value. That gives three hundred twenty-seven thousand six hundred eighty bytes per token. Sixteen positions take five mebibytes. Use stored heads even when there are more query heads.",
+        "hold": 1
+      },
+      {
+        "id": "c04-capacity",
+        "say": "Four thousand tokens take about one point two two gibibytes of logical cache. Check where layers and heads are sharded or replicated, then budget weights, activations, adapters, graph buffers and headroom on each device. A full-cap policy rounds input plus allowed output up to whole pages using integer arithmetic. Sixteen input and one allowed output already require two pages.",
+        "hold": 1
+      },
+      {
+        "id": "c04-refs",
+        "say": "In a fresh pair of requests both readers may reuse the same immutable handbook prefix. Each also has a private suffix. Four table entries point to three physical pages. A retires both references. Which page can be overwritten now?",
+        "hold": 2.3
+      },
+      {
+        "id": "c04-retain",
+        "say": "Only A’s suffix is free. B still holds the handbook. Retire B’s last read before reclaiming the other two pages. Logical charges may count each reader while the allocator stores the shared prefix once.",
+        "hold": 1
+      },
+      {
+        "id": "c04-remote",
+        "say": "Suppose a compatible, authorized prefix sits on another worker. Fetching it costs eighteen milliseconds to locate and forty-two to move. Rebuilding here takes forty-five. With seventy milliseconds left, which path gives us more time?",
+        "hold": 2.1
+      },
+      {
+        "id": "c04-rebuild",
+        "say": "Rebuild here. Fetch takes sixty milliseconds and leaves ten. Rebuilding leaves twenty-five. Verify reader, model, adapter, tokens, positions and layout before reuse. If a transfer is already in flight when its caller times out, retain the remote page until its last reader retires.",
+        "hold": 1
+      }
+    ]
+  },
+  {
+    "id": "c05",
+    "title": "Spend credit on bounded work",
+    "sourceChapters": [
+      "c05"
+    ],
+    "beats": [
+      {
+        "id": "c05-batch",
+        "say": "Continuous batching revisits membership between model steps. Finished sequences leave and compatible requests with capacity can join. In this step three decode tokens take three of eight slots. Fit five tokens from A’s long prompt in the remaining space and leave the rest queued. Chunked prefill creates a place for B to run. Who gets that place under sustained load?",
+        "hold": 1.8
+      },
+      {
+        "id": "c05-round1",
+        "say": "Use backlogged tenant queues. Each round gives A four work credits and B two. A chunk costs three for A and one for B. In round one, A buys one chunk and carries one credit. B buys two and carries zero. The length of each piece is its charged work.",
+        "hold": 1
+      },
+      {
+        "id": "c05-round2",
+        "say": "In round two, A buys one more and carries two. B buys two more. On the third visit, add four credits to A’s two. How many whole chunks can A now serve?",
+        "hold": 2.7
+      },
+      {
+        "id": "c05-round3",
+        "say": "Two chunks for A. B buys another two. Read the lengths. A received twelve synthetic units and B six. Count the pieces and the ratio changes to four chunks against six. A two-to-one work share produced a two-to-three chunk count.",
+        "hold": 1.2
+      },
+      {
+        "id": "c05-bounds",
+        "say": "Three rounds give an average. To bound waiting, cap chunk size and batch-building time, then give lower tiers aging or reserved turns and reject excess load. Calibrate credit costs against measured tenant latency. Prefill, decode, context, cache hits and batch companions change the work.",
+        "hold": 1
+      },
+      {
+        "id": "c05-propose",
+        "say": "Reserve three temporary positions for this speculative decoding step. The draft model proposes three tokens for an incident summary. Read the draft aloud. Service is healthy. The target checks all three positions in one pass. It accepts the first token, service. It rejects the second token, is, so the third token drops out too. A device read is still in flight. Which slots can this request overwrite now?",
+        "hold": 2.6
+      },
+      {
+        "id": "c05-release",
+        "say": "All three stay held while the read is in flight. Now the last read retires. Keep the first slot with the accepted prefix and release the other two for this request’s next step. Look at the work record above those empty slots. All three draft proposals and all three target checks still count toward the scheduler’s budget. Only one proposed token extended the prefix.",
+        "hold": 1.4
+      },
+      {
+        "id": "c05-preempt",
+        "say": "Suppose the scheduler selects a victim to make room. Its page remains occupied while a device reads it. Save the prefix and resume state, retire or swap the page, then commit the new ownership. Repeated prefill costs time. Track recomputation and prevent the same request from losing every turn.",
+        "hold": 1
+      }
+    ]
+  },
+  {
+    "id": "c06",
+    "title": "Keep live adapters and prefixes scoped",
+    "sourceChapters": [
+      "c06"
+    ],
+    "beats": [
+      {
+        "id": "c06-pin",
+        "say": "A LoRA adapter changes selected frozen layers with small learned matrices. Resolve an authorized immutable revision compatible with the base model, then pin it for the request lifetime. Alice is using docs version two. The alias moves to version three. Which revision should her next token use?",
+        "hold": 2.2
+      },
+      {
+        "id": "c06-alias",
+        "say": "Keep version two for Alice, along with her compatible history. Version three is for newly resolved requests. Bob needs this occupied slot. Even the least recently used adapter stays while a batch holds its handle. He can wait or use another eligible worker.",
+        "hold": 1.1
+      },
+      {
+        "id": "c06-evict",
+        "say": "Alice’s last reference retires. Only now can Bob’s approved adapter take the slot. Before loading, validate ownership, integrity, format, rank, size and base compatibility. Restrict administrative loading to the trusted service.",
+        "hold": 1
+      },
+      {
+        "id": "c06-prefix",
+        "say": "Consider a cached prefix computed for Alice with the design guide. Carol shares her workspace and supplies the same cache salt. Who granted Carol access to the whole prefix? A salt partitions entries. The cache service still needs a trusted group grant, compatible computation and current document permissions.",
+        "hold": 2
+      },
+      {
+        "id": "c06-revoke",
+        "say": "Now Alice’s access changes. Advance the permission revision and deny new reads of the old entry. Match reader scope, exact token history and positions, model, adapter, tokenizer and layout. Set separate rules for existing streams and retained logs. Share a wider namespace only if everyone in it may read the entire prefix.",
+        "hold": 1.1
+      },
+      {
+        "id": "c06-isolate",
+        "say": "Where must the memory boundary sit? Two compute instances inside one GPU instance share its memory. For separate GPU memory partitions, use separate GPU instances and confirm the model fits. Separate processes protect address spaces while retaining host kernel and driver trust. A VM or dedicated node changes host exposure. Identity, network, storage and operational access still need controls.",
+        "hold": 1.2
+      }
+    ]
+  },
+  {
+    "id": "c07",
+    "title": "Price one shared step",
+    "sourceChapters": [
+      "c07"
+    ],
+    "beats": [
+      {
+        "id": "c07-meter",
+        "say": "Four GPUs start the same shared step and finish two tenths of a second later. All four lanes span the same interval. At two dollars per GPU-hour, how many GPU-seconds should enter the calculation?",
+        "hold": 2.4
+      },
+      {
+        "id": "c07-cost",
+        "say": "Eight tenths of a GPU-second. Multiply by two dollars and divide by thirty-six hundred seconds per hour. The step costs about four hundred forty-four millionths of a dollar. A whole-node rate of eight dollars per hour gives the same cost when multiplied by two tenths of a node-second. Pairing that node price with all four GPU lanes charges four times too much.",
+        "hold": 1
+      },
+      {
+        "id": "c07-allocate",
+        "say": "Split the one measured cost using the declared allocation policy. A gets one quarter and B three quarters. Their shares add back to the step before rounding. Queue wait uses deadline budget. Idle replicas, storage, transfers and repeated work belong in separate cost records.",
+        "hold": 0.8
+      },
+      {
+        "id": "c07-usage",
+        "say": "Now follow one usage receipt. The worker generated one hundred twenty output tokens. The client received eighty before the connection failed. Record both counts with the tenant, request, attempt, reservation, model and adapter revisions, cached input, terminal status and metering policy. A customer tariff can charge delivered output, generated output or another declared unit. A repeated receipt still describes one attempt.",
+        "hold": 1.3
+      }
+    ]
+  },
+  {
+    "id": "c08",
+    "title": "Recover a partial stream and settle a fresh request",
+    "sourceChapters": [
+      "c08"
+    ],
+    "beats": [
+      {
+        "id": "c08-stream",
+        "say": "Watch Alice’s reply reach the client. The connection breaks mid-sentence. Keep the same request and attempt while the owner checks completion. The client has a partial answer. What evidence would let us release the held quota and page references?",
+        "hold": 2.6
+      },
+      {
+        "id": "c08-unknown",
+        "say": "The old worker may still be generating. Keep seven hundred units held. Its pages stay pinned. Fence replacement execution while the owner reconciles durable attempt status. A timeout or a cancellation request alone gives us neither reliable usage nor safe retirement.",
+        "hold": 1
+      },
+      {
+        "id": "c08-usageonly",
+        "say": "The worker reports three hundred input and one hundred twenty generated output. Record that usage. Its final device read still holds the pages. Can a second worker start from this reservation now?",
+        "hold": 2.5
+      },
+      {
+        "id": "c08-retired",
+        "say": "The final read retires and the owner confirms execution has stopped. With trusted usage in hand, settle four hundred twenty once. Return the page references to the allocator and release the unused two hundred eighty units. A duplicate completion leaves five hundred eighty available.",
+        "hold": 1
+      },
+      {
+        "id": "c08-partial",
+        "say": "End this stream with a partial-result error. The client can keep the prefix it received. Continuing requires explicit sequence numbers and compatible resume state. Before any output a bounded retry can be transparent once ownership is safe.",
+        "hold": 1
+      },
+      {
+        "id": "c08-rollout",
+        "say": "Before the next release, try that same disconnect under load. Route new requests to an authorized pool with compatible new weights and a separate cache namespace. Keep the old revision available while its readers drain. Shadow traffic also needs an approved destination and a compute budget. Compare short summaries with long reviews at the same arrival rate and concurrency. Count successful completions, tenant tail latency and any unauthorized evidence separately.",
+        "hold": 1.3
+      },
+      {
+        "id": "c08-practice",
+        "say": "Your turn. Workspace C has fifteen hundred units. Request nine has two hundred forty input tokens and a three hundred sixty output cap. This worker reserves the full cap in pages of sixteen. How much allowance and how many pages must it hold?",
+        "hold": 3.2
+      },
+      {
+        "id": "c08-practicehold",
+        "say": "Hold six hundred units. Thirty-seven pages cover five hundred ninety-two positions. Reserve thirty-eight pages, with eight spare slots. Nine hundred units remain available. The acknowledgement goes missing for attempt two. A trusted receipt reports ninety output, but a read is pending. Which resources can C release?",
+        "hold": 3
+      },
+      {
+        "id": "c08-practicedone",
+        "say": "Keep both holds until the read retires and the worker confirms the attempt has stopped. Now settle three hundred thirty units. Return two hundred seventy, leaving eleven hundred seventy available. All thirty-eight pages return to the pool. A second delivery changes neither balance. That second message tells us what happened to request nine. It never authorizes another run.",
+        "hold": 1.7
+      }
+    ]
+  }
+]

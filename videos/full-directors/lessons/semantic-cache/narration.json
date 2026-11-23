@@ -1,0 +1,805 @@
+[
+  {
+    "id": "c01",
+    "title": "Would you send this reply?",
+    "sourceChapters": [
+      "c01"
+    ],
+    "beats": [
+      {
+        "id": "c01-b01",
+        "say": "A customer asks, “Can I restore a revoked API key?” Slide the saved reply up beside that verb. It says the key stays visible in the audit log for thirty days. Would you send it?",
+        "hold": 2.4
+      },
+      {
+        "id": "c01-b02",
+        "say": "Thirty days answers a question about duration. The customer asked whether the key can be restored. Leave that reply on file and fetch the current restoration policy.",
+        "hold": 1.1
+      },
+      {
+        "id": "c01-b03",
+        "say": "Another customer asks, “How long do revoked keys stay in audit logs?” The saved question was “How long are revoked API keys retained?” Different text gives different exact keys. After that miss, semantic search compares the meanings of the questions and finds the saved one. Which fact does this customer need?",
+        "hold": 1.7
+      },
+      {
+        "id": "c01-b04",
+        "say": "The customer needs the retention period. The caller has access, the reply is approved, and the policy is current. Send the saved reply.",
+        "hold": 1.1
+      },
+      {
+        "id": "c01-b05",
+        "say": "Now the reader asks for an incident’s current status. That can change from minute to minute. The caller has access, so the incident route reads the live record and skips the answer cache.",
+        "hold": 0.8
+      }
+    ]
+  },
+  {
+    "id": "c02",
+    "title": "What makes this answer reusable?",
+    "sourceChapters": [
+      "c02"
+    ],
+    "beats": [
+      {
+        "id": "c02-b01",
+        "say": "We would send the whole saved response, including the words about the audit log. That is what a response cache stores. Now imagine the next message just says, “What about mine?” We need the earlier conversation to know what “mine” means. That follow-up leaves the reusable class.",
+        "hold": 0.3
+      },
+      {
+        "id": "c02-b02",
+        "say": "So does a live incident read. And a request to revoke a key needs an authorized action, which a saved sentence cannot perform.",
+        "hold": 0.7
+      },
+      {
+        "id": "c02-b03",
+        "say": "Suppose the question stays the same but the policy changes. Give the model, prompt, policy and runtime a release identity. Bind the answer to its corpus, tenant, access scope, language and response format. If account state, tools or generation settings can change the answer, include that dependency in the key or route those requests separately. Yesterday’s policy kept revoked keys in the audit log for thirty days. If that policy changes, the same question needs a fresh answer.",
+        "hold": 0.7
+      }
+    ]
+  },
+  {
+    "id": "c03",
+    "title": "Build the response key from unchanged text and full scope",
+    "sourceChapters": [
+      "c03"
+    ],
+    "beats": [
+      {
+        "id": "c03-b01",
+        "say": "Hash the original text with the full scope and route ID. Repeat the same request and you get the same key. A paraphrase and a new release produce different keys. A request from the wrong tenant stops before hashing. For a matching key, check the record and the caller’s current access before serving it.",
+        "hold": 0.7
+      },
+      {
+        "id": "c03-b02",
+        "say": "Read the first pair as code. User I D has capital letters that the second identifier lacks. In the next pair, one literal contains an extra space. Lowercasing or collapsing spaces could merge requests that need different answers. Preserve the original bytes unless the application has tested that change.",
+        "hold": 0.3
+      },
+      {
+        "id": "c03-b03",
+        "say": "Trusted middleware supplies the tenant, route and permission. The request type checks required text, field names and Boolean flags.",
+        "hold": 0.7
+      }
+    ]
+  },
+  {
+    "id": "c04",
+    "title": "Check the current caller on both cache paths",
+    "sourceChapters": [
+      "c04"
+    ],
+    "beats": [
+      {
+        "id": "c04-b01",
+        "say": "Yesterday this caller could read the document. Today the role and tenant still match, but the document owner can revoke that permission. Authenticate the caller and check access to the resource on every request, including exact hits.",
+        "hold": 0.3
+      },
+      {
+        "id": "c04-b02",
+        "say": "For a private answer, serve it only when you can verify current access and the versions of its source documents.",
+        "hold": 0.7
+      },
+      {
+        "id": "c04-b03",
+        "say": "The permission service supplies a Boolean. A missing value, a string or the number one fails validation. Watch the flag turn false. This caller receives denial before lookup, and generation stops there too. If an authorized caller hits a cache timeout instead, the application can still fetch a fresh answer.",
+        "hold": 0.7
+      }
+    ]
+  },
+  {
+    "id": "c05",
+    "title": "Similarity measures direction in representation space",
+    "sourceChapters": [
+      "c05"
+    ],
+    "beats": [
+      {
+        "id": "c05-b01",
+        "say": "An encoder maps a question to a list of numbers, called a vector. Draw the stored question pointing right. Divide each vector by its length to get a unit vector. The dot product of those unit vectors is their cosine similarity. A paraphrase points almost the same way. Its score is close to one.",
+        "hold": 0.65
+      },
+      {
+        "id": "c05-b02",
+        "say": "Now rotate toward a question about restoring a revoked key. It shares vocabulary with the retention policy but asks for a different fact. The angle remains small. A representation can capture related subject matter while the stored answer fails to answer the actual question.",
+        "hold": 0.65
+      },
+      {
+        "id": "c05-b03",
+        "say": "Some indexes return cosine distance, which is one minus similarity. The same candidate therefore has a small distance and a large similarity. Check the metric and comparison direction in your implementation. An apparently reasonable threshold can reverse the selection if those definitions get mixed.",
+        "hold": 0.65
+      }
+    ]
+  },
+  {
+    "id": "c06",
+    "title": "How close are these two questions?",
+    "sourceChapters": [
+      "c06"
+    ],
+    "beats": [
+      {
+        "id": "c06-b01",
+        "say": "Use the blue direction, one across and zero up, for both comparisons. Its length is one, so the dot product picks out the first coordinate of each question. On the left, divide point nine nine by the length printed underneath.",
+        "hold": 0.3
+      },
+      {
+        "id": "c06-b02",
+        "say": "The paraphrase scores about point nine nine nine two. Try the same division on the right. Restoration scores about point nine nine four four. These two directions are close even though only the left question asks for a duration.",
+        "hold": 0.7
+      },
+      {
+        "id": "c06-b03",
+        "say": "Now look at the two huge vectors. Squaring a coordinate this large can overflow. Divide each vector by its largest absolute coordinate first. Their directions stay the same. After normalization the two products cancel, giving a cosine of zero.",
+        "hold": 0.3
+      },
+      {
+        "id": "c06-b04",
+        "say": "Reject zero vectors, empty or unequal dimensions, Boolean coordinates and nonfinite numbers. The final clamp to minus one through one handles small rounding errors. This calculation checks the supplied vectors. Their usefulness for matching answers still needs review.",
+        "hold": 0.7
+      }
+    ]
+  },
+  {
+    "id": "c07",
+    "title": "Restrict candidate retrieval before inspecting a result",
+    "sourceChapters": [
+      "c07"
+    ],
+    "beats": [
+      {
+        "id": "c07-b01",
+        "say": "The caller can read public documents from release seven. Only A and D belong in that search. B belongs to another tenant. C comes from another release. Apply the tenant and permission filters in the index query. Whether the search is exact or approximate, recheck current access, versions and approval on the record it returns.",
+        "hold": 0.7
+      },
+      {
+        "id": "c07-b02",
+        "say": "For example, RedisVL supports filter fields on a stored entry. Supply a filter on every lookup so the search stays within the permitted records. For a cosine distance defined as one minus similarity, the range is zero to two. Closer directions give smaller distances.",
+        "hold": 0.3
+      },
+      {
+        "id": "c07-b03",
+        "say": "Subtract the minimum similarity of point nine nine five from one. That gives a maximum distance of point zero zero five.",
+        "hold": 0.7
+      }
+    ]
+  },
+  {
+    "id": "c08",
+    "title": "Which check stops the request?",
+    "sourceChapters": [
+      "c08"
+    ],
+    "beats": [
+      {
+        "id": "c08-b01",
+        "say": "Start with two requests and a valid active scope. The first caller has lost permission and the route is unknown. Deny that caller at the permission check. The second caller has access but needs live incident state. Bypass answer lookup at the route check.",
+        "hold": 0.3
+      },
+      {
+        "id": "c08-b02",
+        "say": "Neither request receives a candidate score. With permission, an unknown route also bypasses. The trusted route handles writes separately. History-dependent requests bypass before we check request scope or derive a lookup key.",
+        "hold": 0.8
+      },
+      {
+        "id": "c08-b03",
+        "say": "Now take two eligible reads with the right encoder and index. Validate the record type, clock and scope. Both test inputs supply an invalid score. The first clock lands exactly at expiry. That read stops at expiry, before admission or score.",
+        "hold": 0.3
+      },
+      {
+        "id": "c08-b04",
+        "say": "The other clock is one second earlier. Its record is fresh and its approval matches. This read reaches the invalid score and rejects it. A usable score must be a finite number from minus one through one. A Boolean fails that check.",
+        "hold": 0.8
+      },
+      {
+        "id": "c08-b05",
+        "say": "Take the restoration question with a valid score. At the initial cutoff of point nine nine zero, a score equal to the minimum would pass. This one clears it. The cache proposes the retention answer. The reviewer spots the missing restoration rule.",
+        "hold": 0.3
+      },
+      {
+        "id": "c08-b06",
+        "say": "That label lets us diagnose the pair in shadow. A new question in production arrives without the reviewer’s label.",
+        "hold": 0.9
+      }
+    ]
+  },
+  {
+    "id": "c09",
+    "title": "Version retrieval geometry separately from answer content",
+    "sourceChapters": [
+      "c09"
+    ],
+    "beats": [
+      {
+        "id": "c09-b01",
+        "say": "A cutoff goes with the system that produced the scores. Record the encoder, preprocessing and search settings, how the index chooses a candidate, and which traffic you evaluated. The index version points to that manifest. At startup, check that the loaded components match it.",
+        "hold": 0.7
+      },
+      {
+        "id": "c09-b02",
+        "say": "Switch to a different encoder. The saved questions can move to new coordinates, so re-embed them and evaluate the new pairs. Now return to the first encoder and change only the search policy. The coordinates stay put. Here the approximate search returns the second candidate. Another index can react differently. Evaluate those pairs and their cutoff before serving.",
+        "hold": 0.3
+      },
+      {
+        "id": "c09-b03",
+        "say": "The approved reply still says thirty days. Its contents have their own review.",
+        "hold": 0.7
+      }
+    ]
+  },
+  {
+    "id": "c10",
+    "title": "Where would you put the cutoff?",
+    "sourceChapters": [
+      "c10"
+    ],
+    "beats": [
+      {
+        "id": "c10-b01",
+        "say": "Here are five public-policy questions that made it to search. Reviewers compared each one with the thirty-day answer. The four blue rows need a duration. The pink row asks whether a key can be restored. Start at point nine nine zero.",
+        "hold": 0.3
+      },
+      {
+        "id": "c10-b02",
+        "say": "Every dot meets the minimum, so the cache proposes all five in shadow. If we move the line to point nine nine five, which request drops out?",
+        "hold": 2.2
+      },
+      {
+        "id": "c10-b03",
+        "say": "Move the line to point nine nine five. It passes the restoration question and stops on the FAQ wording. A score equal to the minimum qualifies, so the FAQ stays. All four proposals now have the right answer. That gives us four out of four for precision. We also kept all four acceptable pairs.",
+        "hold": 0.75
+      },
+      {
+        "id": "c10-b04",
+        "say": "Move the line again, to point nine nine nine. Only the top paraphrase survives. One correct proposal out of one still gives perfect precision. Count back down the four blue rows. We found just one of the four acceptable pairs. That fraction is recall on these labeled pairs.",
+        "hold": 0.8
+      }
+    ]
+  },
+  {
+    "id": "c11",
+    "title": "Which requests belong in the denominator?",
+    "sourceChapters": [
+      "c11"
+    ],
+    "beats": [
+      {
+        "id": "c11-b01",
+        "say": "Put the two bypassed requests back beside our five candidates. One needs live state and one asks for a write. Follow those last two columns down. Both end before search. At the loose cutoff we proposed five answers, and four were acceptable. Precision uses those five proposals.",
+        "hold": 0.3
+      },
+      {
+        "id": "c11-b02",
+        "say": "For the fraction of all requests that received a proposal, count all seven at the top. Shadow mode still serves fresh answers.",
+        "hold": 0.7
+      },
+      {
+        "id": "c11-b03",
+        "say": "Return to point nine nine five. Restoration drops out of the proposed row. Read the two fractions below. Four of seven requests received a proposal. Among the five that were eligible, four received one. Every proposed pair was acceptable, and every acceptable pair was proposed.",
+        "hold": 0.7
+      },
+      {
+        "id": "c11-b04",
+        "say": "At point nine nine nine, only the first column reaches the bottom. We still got every proposal right, but found just one of the four acceptable pairs. On a fixed set, moving the line to the right can only remove proposals. Whether precision improves depends on which ones leave.",
+        "hold": 0.7
+      }
+    ]
+  },
+  {
+    "id": "c12",
+    "title": "Can one cutoff still separate these questions?",
+    "sourceChapters": [
+      "c12"
+    ],
+    "beats": [
+      {
+        "id": "c12-b01",
+        "say": "Put the cutoff back at point nine nine five. Keep the four retention questions and all the review labels. Change just the restoration vector to the three numbers below. Watch the pink dot pass even the closest paraphrase.",
+        "hold": 0.3
+      },
+      {
+        "id": "c12-b02",
+        "say": "The score is now about point nine nine nine nine five. Where could you put the cutoff to keep even one retention pair and exclude restoration?",
+        "hold": 2.3
+      },
+      {
+        "id": "c12-b03",
+        "say": "Slide the cutoff toward one. Watch which rows go quiet as the line overtakes their scores. The four acceptable pairs leave first. Restoration is the last one out. Any line far enough right to exclude it has already lost all four. The saved reply still gives the same duration.",
+        "hold": 1.1
+      },
+      {
+        "id": "c12-b04",
+        "say": "Change the question class instead. Suppose held-out review supports a trusted retention-only route. At the old cutoff, the four duration questions can reach search. Restoration goes straight to an authorized fresh policy read. Keep that failed pair in the evaluation set.",
+        "hold": 0.3
+      },
+      {
+        "id": "c12-b05",
+        "say": "Now suppose review cannot establish that narrower class or a reliable equivalence check. Switch off semantic reuse for this group. The same five requests now go to the authorized fresh path.",
+        "hold": 0.8
+      }
+    ]
+  },
+  {
+    "id": "c13",
+    "title": "Four successes leave a wide uncertainty interval",
+    "sourceChapters": [
+      "c13"
+    ],
+    "beats": [
+      {
+        "id": "c13-b01",
+        "say": "Four correct proposals out of four look perfect as a point estimate. Their uncertainty is much wider. The lower confidence bound on screen comes from those four observations. A tiny suite can reveal implementation mistakes while leaving substantial uncertainty about the next proposed hit.",
+        "hold": 0.65
+      },
+      {
+        "id": "c13-b02",
+        "say": "Compare a separate hypothetical report with several thousand independently reviewed proposals and no errors. The same calculation yields a tighter bound. Replaying four questions many times would preserve the same narrow coverage. Evidence grows through representative independent cases, including exceptions and important permission boundaries.",
+        "hold": 0.65
+      },
+      {
+        "id": "c13-b03",
+        "say": "Keep the evaluated encoder, index, threshold, corpus, and eligibility rules with that report. A configuration change can alter which requests become hits. Reevaluate the affected population before relying on the old estimate, and inspect critical failures individually even when aggregate precision remains high.",
+        "hold": 0.65
+      }
+    ]
+  },
+  {
+    "id": "c14",
+    "title": "Construct the precision bound from independent reviewed cases",
+    "sourceChapters": [
+      "c14"
+    ],
+    "beats": [
+      {
+        "id": "c14-b01",
+        "say": "Freeze the cutoff and try it on a separate set. In this example, ten thousand eligible requests missed exact lookup. The cache proposed five thousand seven hundred fourteen answers. Reviewers accepted every one.",
+        "hold": 0.3
+      },
+      {
+        "id": "c14-b02",
+        "say": "With z equal to one point nine six, the lower end of the two-sided ninety-five-percent Wilson interval is about ninety-nine point nine three percent.",
+        "hold": 0.7
+      },
+      {
+        "id": "c14-b03",
+        "say": "When every independent case succeeds, square z and add it to the number of cases. Divide the number of cases by that total to get the Wilson lower endpoint. Four successes give about fifty-one point zero one percent. Copy all four rows.",
+        "hold": 0.3
+      },
+      {
+        "id": "c14-b04",
+        "say": "You still have four independent cases. With a mix of successes and failures, use their actual counts. Coverage matters too. A sample that leaves out restoration questions can miss precisely this error.",
+        "hold": 0.7
+      },
+      {
+        "id": "c14-b05",
+        "say": "Use held-out request-and-answer pairs after threshold selection, across relevant topics, tenants, time and hard negatives. Validate fresh outputs against policy evidence before treating them as labels. No proposals means undefined precision and a zero lower bound in the helper, so the cohort has no positive quality estimate. Revalidate when retrieval or traffic changes.",
+        "hold": 0.7
+      }
+    ]
+  },
+  {
+    "id": "c15",
+    "title": "Where does the saved reply stop?",
+    "sourceChapters": [
+      "c15"
+    ],
+    "beats": [
+      {
+        "id": "c15-b01",
+        "say": "Follow the thirty-day answer from release seven. For this small clock example the stored record expires at two hundred seconds. The caller has permission. The tenant, access scope, release, language and response format match the stored record. The clock reads one hundred, before expiry at two hundred. The answer goes through.",
+        "hold": 0.65
+      },
+      {
+        "id": "c15-b02",
+        "say": "Switch the reader to release eight. The stored answer still says thirty days and carries release seven. Watch it stop at the scope check. This is logical invalidation. The reader skips the old record as soon as it switches releases. Eviction can free the space later.",
+        "hold": 0.65
+      },
+      {
+        "id": "c15-b03",
+        "say": "Switch back to release seven. This time the clock reaches two hundred, exactly the expiry time. The releases match again. The record expires at that instant, so this reader needs a fresh answer. What happens when two readers switch releases at different times?",
+        "hold": 0.65
+      }
+    ]
+  },
+  {
+    "id": "c16",
+    "title": "Change reader eligibility before deleting stored bytes",
+    "sourceChapters": [
+      "c16"
+    ],
+    "beats": [
+      {
+        "id": "c16-b01",
+        "say": "Two readers can read the same stored bytes. Both start on release seven. Send a lookup from the first reader. Its scope matches and it gets the thirty-day reply. Now switch the other reader to the approved corpus and release eight. Send its lookup to the same bytes. Which reply comes back?",
+        "hold": 2
+      },
+      {
+        "id": "c16-lookup",
+        "say": "The updated reader misses on scope and reads the current policy. Send another lookup from the older reader. It still hits. The storage did not move. The readers now ask for different versions.",
+        "hold": 1
+      },
+      {
+        "id": "c16-b02",
+        "say": "Roll out the approved corpus, loaded dependencies and cache scope together. A webhook can start the rebuild and evaluation. Decide how to handle a late event, a reader with old routing data, and a request already in flight. Expiry limits an entry’s age.",
+        "hold": 0.3
+      },
+      {
+        "id": "c16-b03",
+        "say": "The release identifies the dependencies each reader loaded. Now withdraw this record’s approval. Send the older reader back to the same bytes. Its scope still matches, but approval is gone. It must read fresh too.",
+        "hold": 0.7
+      }
+    ]
+  },
+  {
+    "id": "c17",
+    "title": "What did the reviewer approve?",
+    "sourceChapters": [
+      "c17"
+    ],
+    "beats": [
+      {
+        "id": "c17-b01",
+        "say": "On the left is the record a reviewer approved. On the right is the record we just read. Both include the source question, the answer and its identifier, the class, scope and expiry. The review registry keeps a fingerprint of those fields. Hash the record we read.",
+        "hold": 0.3
+      },
+      {
+        "id": "c17-b02",
+        "say": "The full digests match. The screen shows their first sixteen characters.",
+        "hold": 0.7
+      },
+      {
+        "id": "c17-b03",
+        "say": "Keep the same review ID. Edit thirty days to ninety in the record on the right. The source and expiry still match. If lookup follows that same ID, will the record pass its review check?",
+        "hold": 2
+      },
+      {
+        "id": "c17-b04",
+        "say": "Hash the edited record again. The digest differs, so bypass it. Now restore thirty days and extend only the expiry, from forty-six hundred seconds to eighty-two hundred. The answer reads exactly as the reviewer saw it. Does the old approval cover the extra hour?",
+        "hold": 2.1
+      },
+      {
+        "id": "c17-b05",
+        "say": "The expiry changed the digest too. Extending the lifetime requires a new review. Restore the original expiry. The fingerprints match again. Now withdraw the approval itself. Both exact and semantic reads stop at the same record check. The hash tells us whether the record changed. The trusted reviewer supplies the judgment about its contents.",
+        "hold": 0.9
+      }
+    ]
+  },
+  {
+    "id": "c18",
+    "title": "Keep new answers outside the servable index until approval",
+    "sourceChapters": [
+      "c18"
+    ],
+    "beats": [
+      {
+        "id": "c18-b01",
+        "say": "The actual admission function checks response class, current scope, trusted digest approval and expiration before writing a servable entry. A fresh answer with empty evidence stays quarantined. The separately reviewed rate-limit record is admitted. A live-incident response class and a modified answer carrying a copied evidence ID remain quarantined.",
+        "hold": 0.7
+      },
+      {
+        "id": "c18-b02",
+        "say": "The review covers the answer ID, source question, response bytes, class, scope and expiry. The approval ID selects the reviewer’s stored digest. A matching digest ties the bytes to that review. The trusted review process decides whether the answer is correct.",
+        "hold": 0.3
+      },
+      {
+        "id": "c18-b03",
+        "say": "Removing one approval blocks both exact and semantic reads, even while the record is fresh.",
+        "hold": 0.7
+      }
+    ]
+  },
+  {
+    "id": "c19",
+    "title": "Mix hit and miss latency before taking a percentile",
+    "sourceChapters": [
+      "c19"
+    ],
+    "beats": [
+      {
+        "id": "c19-b01",
+        "say": "In this ten-request example, generation takes one second. Each semantic lookup adds twenty milliseconds. Start with ten misses. Now allow six approved hits to reuse the response. Watch those six identities move to the short path. Four still need fresh answers.",
+        "hold": 0.65
+      },
+      {
+        "id": "c19-b02",
+        "say": "Six hits bring the mean down to four hundred twenty milliseconds. With ten misses or four, the tenth request in sorted order still takes one thousand twenty milliseconds. That is the nearest-rank ninety-fifth percentile in both windows. With fresh generation alone, every request takes one thousand milliseconds. Lookup accounts for the difference of twenty milliseconds. To find the tail, sort all ten times together.",
+        "hold": 0.65
+      },
+      {
+        "id": "c19-b03",
+        "say": "Our assigned lookup and generation prices also produce a concrete saving. Shadow evaluation still generates every fresh answer, so this is a forecast until serving is enabled. Track answer correctness, freshness, lookup overhead, generation calls, and the cost of reviewing eligible records alongside the hit fraction.",
+        "hold": 0.65
+      }
+    ]
+  },
+  {
+    "id": "c20",
+    "title": "How many lookups does one saved call pay for?",
+    "sourceChapters": [
+      "c20"
+    ],
+    "beats": [
+      {
+        "id": "c20-b01",
+        "say": "Price the ten thousand eligible requests that missed exact lookup. With no answer reuse, ten thousand calls cost forty dollars. Reusing five thousand seven hundred fourteen answers leaves four thousand two hundred eighty-six calls. The blue bar is the generation bill we avoid.",
+        "hold": 0.3
+      },
+      {
+        "id": "c20-b02",
+        "say": "The yellow bar is what it costs to look up every request, including the misses. Subtract eighty cents for lookup. Serving would save twenty-two dollars and six cents, rounded.",
+        "hold": 0.8
+      },
+      {
+        "id": "c20-b03",
+        "say": "One saved generation here pays for fifty lookups. We need one safe hit in fifty, or two percent, just to break even. You can get that fraction by dividing the price of a lookup by the price of the call it would avoid.",
+        "hold": 0.3
+      },
+      {
+        "id": "c20-b04",
+        "say": "During shadow review, all ten thousand generations still run and the lookups add eighty cents to the bill.",
+        "hold": 0.9
+      },
+      {
+        "id": "c20-b05",
+        "say": "Try a smaller window with different prices. Two thousand lookups cost twelve cents in total. Thirty safe hits avoid nine cents of generation. That is a one and a half percent safe-hit rate. Does turning on reuse save money in this window?",
+        "hold": 2.1
+      },
+      {
+        "id": "c20-b06",
+        "say": "We would spend three cents more. At these prices each saved call still pays for fifty lookups. We needed forty safe hits and got thirty. Quality has its own gate.",
+        "hold": 0.3
+      },
+      {
+        "id": "c20-b07",
+        "say": "For a real bill, add serving, writes, storage and review, and use the cost of the calls you actually avoid. A long reply or a discounted prompt prefix changes that price.",
+        "hold": 0.8
+      }
+    ]
+  },
+  {
+    "id": "c21",
+    "title": "Sort the complete latency mixture before choosing p95",
+    "sourceChapters": [
+      "c21"
+    ],
+    "beats": [
+      {
+        "id": "c21-b01",
+        "say": "Put ten thousand requests in order from fastest to slowest. The first five thousand seven hundred fourteen are hits at twenty milliseconds. The rest are misses at one thousand twenty. Multiply each duration by its count and divide by ten thousand. The mean is four hundred forty-eight point six milliseconds.",
+        "hold": 0.7
+      },
+      {
+        "id": "c21-b02",
+        "say": "For nearest-rank p ninety-five, multiply ten thousand by point nine five and round up to a whole rank. Rank nine thousand five hundred lands in the misses at one thousand twenty milliseconds. Fresh generation alone took one thousand. Count ranks starting at one.",
+        "hold": 0.3
+      },
+      {
+        "id": "c21-b03",
+        "say": "The average fell below half a second, but someone at the ninety-fifth percentile waits twenty milliseconds longer. Sorting the whole window keeps the slow requests in the calculation.",
+        "hold": 0.7
+      }
+    ]
+  },
+  {
+    "id": "c22",
+    "title": "Which report earns a rollout decision?",
+    "sourceChapters": [
+      "c22"
+    ],
+    "beats": [
+      {
+        "id": "c22-b01",
+        "say": "Suppose we have three reports on the same public-policy route. Each names the current release and the frozen retrieval policy. Each has a report ID and a thousand lookup requests. Counts must be nonnegative integers.",
+        "hold": 0.3
+      },
+      {
+        "id": "c22-b02",
+        "say": "There must be at least one proposal, at most one per lookup in this lab. Every proposal needs a review. Acceptable pairs cannot outnumber reviewed pairs. Compute the precision bound from those counts.",
+        "hold": 0.8
+      },
+      {
+        "id": "c22-b03",
+        "say": "Read across the columns. All the reviewed pairs succeeded. The gate requires a lower bound of at least ninety-nine percent, daily savings of at least five dollars, and a p ninety-five between zero and one thousand fifty milliseconds.",
+        "hold": 0.3
+      },
+      {
+        "id": "c22-b04",
+        "say": "Subtract the completion time from the current clock, ten thousand seconds. Both times must be integers. A report from the future fails. Exactly one hour old is allowed. Which columns clear every gate?",
+        "hold": 2.1
+      },
+      {
+        "id": "c22-b05",
+        "say": "Only A qualifies. Its five hundred successes put the lower bound above ninety-nine percent, and its age lands on the allowed boundary. B has fewer independent observations. Its lower bound slips below the line. C has as much review as A, but it is one second too old. Keep B and C in shadow.",
+        "hold": 0.8
+      },
+      {
+        "id": "c22-b06",
+        "say": "Return to our larger report. All five thousand seven hundred fourteen proposals were reviewed and acceptable, the scope matches, and the savings and tail meet budget. It qualifies for this public-policy route. Change the acceptable count, the savings, or the scope as shown.",
+        "hold": 0.3
+      },
+      {
+        "id": "c22-b07",
+        "say": "Each change keeps the policy in shadow. This check expects a validated report with finite measurements. A rollout still needs trustworthy review evidence, measured costs and durations, monitoring, and a working disable switch.",
+        "hold": 0.8
+      }
+    ]
+  },
+  {
+    "id": "c23",
+    "title": "Record which boundary the request actually reached",
+    "sourceChapters": [
+      "c23"
+    ],
+    "beats": [
+      {
+        "id": "c23-b01",
+        "say": "Follow the two request IDs. Both traces name the release, corpus, tenant, access scope, encoder, index policy and cutoff. The semantic hit records its score, answer ID and approval. The live request leaves before lookup. Its score and approval fields stay empty. That tells you exactly how far the request got.",
+        "hold": 0.7
+      },
+      {
+        "id": "c23-b02",
+        "say": "Use protected request IDs in logs and set access and retention limits. If people retry after a hit, review the accepted answers. Track bypasses, tail latency and how many generations you actually avoided. During an incident, disable the answer-cache route. Authorized requests can still reach the fresh policy release. Record the decision for the next request with reuse off.",
+        "hold": 0.7
+      }
+    ]
+  },
+  {
+    "id": "c24",
+    "title": "Which work does a cache hit save?",
+    "sourceChapters": [
+      "c24"
+    ],
+    "beats": [
+      {
+        "id": "c24-b01",
+        "say": "Try exact lookup first. An approved hit returns the whole reply and skips embedding search. After an eligible exact miss, semantic search can find a reviewed answer with different wording. Either answer hit saves a generation call. Count the network, permission and record checks on both paths.",
+        "hold": 0.7
+      },
+      {
+        "id": "c24-b02",
+        "say": "Follow a fresh request with a matching prompt prefix. The engine can reuse the stored attention state for the shared beginning. It processes the new input and generates a fresh reply. The two blocks here stand for that beginning. A provider may require a matching rendered prefix, a minimum length and compatible cache settings.",
+        "hold": 0.3
+      },
+      {
+        "id": "c24-b03",
+        "say": "Check the provider’s prices for cache reads and writes. In vLLM, a per-request salt can limit reuse to a trust group. The application still checks the caller’s access.",
+        "hold": 0.7
+      },
+      {
+        "id": "c24-b04",
+        "say": "On a prefix miss, the same call processes more input. Chunked prefill lets the engine schedule that input in pieces alongside decoding. Now count the generation calls on these two routes. Follow the saved answer on the first route and the current incident record on the second. A semantic answer hit needs zero calls. The cache sends the approved reply. Our live handler generates once. It reuses the two prefix blocks, processes the current record and writes a new reply.",
+        "hold": 0.3
+      },
+      {
+        "id": "c24-b05",
+        "say": "A caller whose permission was revoked gets a denial and zero calls.",
+        "hold": 0.7
+      }
+    ]
+  },
+  {
+    "id": "c25",
+    "title": "Why did the cache suggest “30 days”?",
+    "sourceChapters": [
+      "c25"
+    ],
+    "beats": [
+      {
+        "id": "c25-b01",
+        "say": "A reader asks if a revoked key can be restored. The proposed reply says thirty days. Check the approval and release first. Here both match. The approved answer covers retention, but this question asks about restoration. A different symptom calls for a different trace.",
+        "hold": 0.3
+      },
+      {
+        "id": "c25-b02",
+        "say": "For rising bypasses, inspect route and release changes. For lost savings, price the lookups and misses in the actual traffic mix. For a slow tail, sort all the request times.",
+        "hold": 0.7
+      },
+      {
+        "id": "c25-b03",
+        "say": "Keep this failed pair. Try a route evaluated for retention questions and replay the same held-out cases. The four duration questions can reach the cache. The restoration question goes to a fresh policy read. Save that case even if overall precision looks good.",
+        "hold": 0.3
+      },
+      {
+        "id": "c25-b04",
+        "say": "Suppose the retention answer itself is found to be wrong. Withdraw its approval. Replay a duration question. It still finds the same bytes, but they can no longer serve. The authorized reader gets a fresh policy answer. You can also disable the cache route while the bytes await eviction.",
+        "hold": 0.7
+      }
+    ]
+  },
+  {
+    "id": "c26",
+    "title": "Which requests reach generation?",
+    "sourceChapters": [
+      "c26"
+    ],
+    "beats": [
+      {
+        "id": "c26-b01",
+        "say": "Nine requests arrive. Four are authorized exact repeats with current, approved answers. Two callers have lost access. The last three are authorized live incident reads. For each live read, this handler fetches the current record and calls the model once. A matching prompt prefix is available. Across those nine requests, how many generation calls will we make, and how many semantic scores will we see?",
+        "hold": 2.2
+      },
+      {
+        "id": "c26-b02",
+        "say": "The four exact repeats return the approved answer. They skip embedding search and generation. The two callers who lost access stop at the permission check. That also gives zero calls, because those callers get no answer at all.",
+        "hold": 0.7
+      },
+      {
+        "id": "c26-b03",
+        "say": "Read the current incident state and generate once for each of the three live requests. The saved prefix covers the shared beginning of the prompt. The new evidence still needs processing, and each caller gets a new answer. Three generation calls in all.",
+        "hold": 0.3
+      },
+      {
+        "id": "c26-b04",
+        "say": "None of the nine requests reached semantic search, so none has a candidate score.",
+        "hold": 0.7
+      },
+      {
+        "id": "c26-b05",
+        "say": "Now change the shared beginning so the prefix misses. Those blue blocks become input the model has to process again. The counter stays at three. To price these calls, measure how much input work was reused as well as the output each call generated.",
+        "hold": 0.8
+      }
+    ]
+  },
+  {
+    "id": "c27",
+    "title": "What changes when the next request arrives?",
+    "sourceChapters": [
+      "c27"
+    ],
+    "beats": [
+      {
+        "id": "c27-b01",
+        "say": "Come back to the ten requests that reached semantic lookup. Six finished at twenty milliseconds. Four needed another second to generate, for a mean of four hundred twenty milliseconds. On request six, change only the active release to R eight. Its stored answer is still R seven.",
+        "hold": 0.3
+      },
+      {
+        "id": "c27-b02",
+        "say": "Permission, score, approval and expiry stay as before. Which duration belongs above request six?",
+        "hold": 2.3
+      },
+      {
+        "id": "c27-b03",
+        "say": "Request six needs a fresh answer under the new release. Its twenty milliseconds of lookup plus a second of generation make one thousand twenty milliseconds. Five requests now generate. One extra second spread over ten requests adds a hundred milliseconds to the mean, taking it to five hundred twenty.",
+        "hold": 0.3
+      },
+      {
+        "id": "c27-b04",
+        "say": "The tenth sorted request still takes one thousand twenty milliseconds, so the ninety-fifth percentile holds there. We pay for ten lookups and five generations. Against four cents for ten fresh calls, the forecast saving is just under two cents.",
+        "hold": 0.3
+      },
+      {
+        "id": "c27-b05",
+        "say": "In shadow we would still pay for all ten generations.",
+        "hold": 0.9
+      },
+      {
+        "id": "c27-b06",
+        "say": "One last reader has permission, and we are back on the approved release. “How long is a revoked key logged, and can it be restored?” The saved answer is right there. Can it cover the whole request?",
+        "hold": 2.2
+      },
+      {
+        "id": "c27-b07",
+        "say": "Thirty days fills the duration slot. The restoration rule is still missing. That second question takes this request outside the retention-only class. Fetch the current restoration policy before answering. Keep this two-part question in shadow review to test the boundary. Next, in token economics, we will price the input and output of the calls that still run.",
+        "hold": 1.2
+      }
+    ]
+  }
+]

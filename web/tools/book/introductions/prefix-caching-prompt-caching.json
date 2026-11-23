@@ -1,0 +1,15 @@
+{
+  "framing": "Stop paying for the same prompt twice",
+  "paragraphs": [
+    "Production prompts repeat themselves. The same instructions, tool schemas, and reference text lead request after request, and without a cache the GPU recomputes all of it every time.",
+    "Prefix caching keeps the results and reuses them. The idea fits in a sentence, and the details decide whether it pays. One changed token near the top invalidates everything after it, a cache helps only the worker that holds it, and a shared entry must never serve a tenant it wasn't written for.",
+    "We'll build the keys block by block, work out when a paid cache write breaks even, and look at a case where a hit makes the user wait longer.",
+    "You'll come away able to order a prompt so it caches, read hit-rate numbers without fooling yourself, and decide when to send a request to a warm worker and when to let it go cold."
+  ],
+  "outcomes": [
+    "Compute the input work a prefix saves across cold and warm requests.",
+    "Design prompts and cache keys that reuse work without crossing into another tenant's cache.",
+    "Tell a good cache hit from a bad routing decision, using token-level metrics."
+  ],
+  "question": "A cache hit removes more than a second of work, yet the user waits longer for the first token. How can both be true?"
+}

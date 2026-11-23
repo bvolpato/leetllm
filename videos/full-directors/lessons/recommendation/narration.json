@@ -1,0 +1,894 @@
+[
+  {
+    "id": "c01",
+    "title": "Search for “retry idempotency key”",
+    "sourceChapters": [
+      "c01"
+    ],
+    "beats": [
+      {
+        "id": "c01-b01",
+        "say": "A developer searches for payment retry instructions. Two current pages match. The retry runbook scores point eight four. A private incident draft scores point nine nine.",
+        "hold": 0.45
+      },
+      {
+        "id": "c01-b02",
+        "say": "Read the access marks on the covers. Which page may enter ranking for this developer?",
+        "hold": 2.8
+      },
+      {
+        "id": "c01-b03",
+        "say": "Open the runbook. The developer has access. Keep the draft closed. Its higher match score cannot grant permission. Our first decision is eligibility.",
+        "hold": 0.55
+      }
+    ]
+  },
+  {
+    "id": "c02",
+    "title": "Check permission before relevance",
+    "sourceChapters": [
+      "c02"
+    ],
+    "beats": [
+      {
+        "id": "c02-b01",
+        "say": "Pull the seven catalog records for this search. The private draft has a match of point nine nine. The stale guide has point nine five. Set both aside. Five pages meet this portal’s access and freshness rules.",
+        "hold": 0.55
+      },
+      {
+        "id": "c02-b02",
+        "say": "Permission, tenancy, deletion, and any product freshness rule define what a person may receive. Apply those rules before a learned relevance score can influence the displayed slate.",
+        "hold": 0.6
+      },
+      {
+        "id": "c02-b03",
+        "say": "The private draft may have the strongest wording match. Current permissions decide whether it can appear, so check access again at display time when rules may have changed since indexing.",
+        "hold": 0.7
+      }
+    ]
+  },
+  {
+    "id": "c03",
+    "title": "Keep labels outside the serving score",
+    "sourceChapters": [
+      "c03"
+    ],
+    "beats": [
+      {
+        "id": "c03-b01",
+        "say": "A judge reads each eligible page against the retry question. A direct answer earns a three, useful guidance a two, marginal help a one, and no answer a zero. Grade each page for this search. The API guide answers the question directly. The runbook and SDK example offer useful guidance.",
+        "hold": 0.6
+      },
+      {
+        "id": "c03-b02",
+        "say": "The scorer sees query fit and source reliability. We can train with judged grades from other searches. For this held-out search, keep the grades on the right until we evaluate the order. Giving the scorer the guide’s grade would hand it the answer.",
+        "hold": 0.6
+      },
+      {
+        "id": "c03-b03",
+        "say": "Imagine a portal with a million eligible pages. On this scale, each step up means ten times as many pages. Retrieval returns a thousand. Only one in a thousand eligible pages reaches the more expensive scorer. The scorer keeps a hundred. Ten reach the screen. That last cut sets the size of the displayed list.",
+        "hold": 0.8
+      }
+    ]
+  },
+  {
+    "id": "c04",
+    "title": "Retrieve useful candidates before ranking",
+    "sourceChapters": [
+      "c04"
+    ],
+    "beats": [
+      {
+        "id": "c04-b01",
+        "say": "At a million documents, running an expensive query-and-document model on every item for each keystroke costs too much. A first stage uses lexical or vector search to produce a shortlist for more careful scoring.",
+        "hold": 0.55
+      },
+      {
+        "id": "c04-b02",
+        "say": "Five documents are eligible. Three have useful answers. Look for the guide, the runbook and the SDK example. The first three retrieved pages include the guide, the blog and the changelog. Only the guide matches a useful answer, so candidate recall is one divided by three.",
+        "hold": 0.6
+      },
+      {
+        "id": "c04-b03",
+        "say": "Widen the shelf to five. The runbook and SDK example now enter the shortlist. All three useful pages can reach scoring. A ranker can only reorder the candidates it gets. Measure retrieval recall alongside the request cost.",
+        "hold": 0.7
+      }
+    ]
+  },
+  {
+    "id": "c05",
+    "title": "Use a richer score to reorder survivors",
+    "sourceChapters": [
+      "c05"
+    ],
+    "beats": [
+      {
+        "id": "c05-b01",
+        "say": "Retrieval ranks quickly but leaves two generic pages near the top. A slower reranker can compare query fit and source reliability across the five survivors. The fixture assigns hand-built scores to demonstrate this ranking step.",
+        "hold": 0.55
+      },
+      {
+        "id": "c05-b02",
+        "say": "Multiply query fit by two and reliability by point six. Add the two lengths for each page. Read the totals. The API guide scores 2.488, the runbook 2.428, the SDK example 2.296 and the general blog 1.282.",
+        "hold": 0.6
+      },
+      {
+        "id": "c05-b03",
+        "say": "The guide pulls ahead because it fits the question better. A learned scorer can fit these weights on training queries. Check the resulting order on held-out queries. If you need a probability of relevance, calibrate the scores against judged outcomes.",
+        "hold": 0.7
+      }
+    ]
+  },
+  {
+    "id": "c06",
+    "title": "Measure which useful answer comes first",
+    "sourceChapters": [
+      "c06"
+    ],
+    "beats": [
+      {
+        "id": "c06-b01",
+        "say": "Give each page a judged grade from zero to three. A direct answer earns three, useful guidance two, marginal help one, and no answer zero. Discounted cumulative gain gives more credit when the better answer appears earlier.",
+        "hold": 0.55
+      },
+      {
+        "id": "c06-b02",
+        "say": "The retrieval order has grades three, zero, zero, two, two. For each slot, take two to the power of its grade, subtract one, and divide by the base-two logarithm of rank plus one. Look at slot four. The runbook has grade two, so its gain is three. Divide three by the base-two logarithm of five. That gives about one point two nine two. Add the five slot contributions to get about nine point four five three. In the ideal order, the two useful pages move up. That raises the ideal total to about ten point three nine three.",
+        "hold": 1.2
+      },
+      {
+        "id": "c06-b03",
+        "say": "Divide the returned total by the ideal total. That gives an NDCG at five of about point nine one. Position accounts for the gap. Now cut retrieval to three pages and evaluate three slots. Among the survivors the guide already comes first, so the reranker gets one.",
+        "hold": 1.2
+      },
+      {
+        "id": "c06-b04",
+        "say": "Against all five eligible pages, system NDCG is about point six seven four. The missing runbook and SDK example still count in that ideal.",
+        "hold": 0.7
+      }
+    ]
+  },
+  {
+    "id": "c07",
+    "title": "Which pages belong in the denominator?",
+    "sourceChapters": [
+      "c07"
+    ],
+    "beats": [
+      {
+        "id": "c07-b01",
+        "say": "Take the three pages retrieval found first. The API guide has grade three, so its gain is two cubed minus one, or seven. It is in slot one. Divide by the base-two logarithm of rank plus one, then add the three slots. The two zero grades contribute nothing. That leaves seven units of discounted gain.",
+        "hold": 0.5
+      },
+      {
+        "id": "c07-b02",
+        "say": "How good is seven? Among those three candidates, the guide already leads. The best possible sum is seven. Across all five eligible pages, a judge could put the runbook and SDK example in slots two and three. Build that ideal before taking the first three slots.",
+        "hold": 0.3
+      },
+      {
+        "id": "c07-b03",
+        "say": "Now the same seven earns only about point six seven four. The discount expresses how we value position. Examination by a real person needs separate evidence.",
+        "hold": 0.6
+      },
+      {
+        "id": "c07-b04",
+        "say": "Keep the display at three slots. Give retrieval one more candidate. The fourth page is the runbook, with grade two. If the ranker makes the best order it can, which useful page will still be missing?",
+        "hold": 2
+      },
+      {
+        "id": "c07-b05",
+        "say": "The SDK example stays outside. The ranker moves the runbook into slot two. Two of the three useful pages now reach ranking. The reranker still gets full credit among its candidates.",
+        "hold": 0.3
+      },
+      {
+        "id": "c07-b06",
+        "say": "Against all eligible pages, the third slot still earns zero where the SDK example could earn one and a half. System NDCG rises to about point eight five six.",
+        "hold": 0.7
+      },
+      {
+        "id": "c07-b07",
+        "say": "Keep the eligibility and judgment versions with that report. Our helper requires a positive cutoff, unique IDs, nonnegative grades, and returned grades that match the eligible judgments. It reports zero if the ideal gain is zero. Record which pages were judged.",
+        "hold": 0.3
+      },
+      {
+        "id": "c07-b08",
+        "say": "A marginal grade of one counts for candidate recall here. For average precision, our lab counts grades two and above. State the threshold with the metric.",
+        "hold": 0.5
+      }
+    ]
+  },
+  {
+    "id": "c08",
+    "title": "Count the first target and every relevant prefix separately",
+    "sourceChapters": [
+      "c08"
+    ],
+    "beats": [
+      {
+        "id": "c08-b01",
+        "say": "Reciprocal rank gives one divided by the first target’s rank, or zero if that target never appears in the evaluated list. The lab calls grade three a target. MRR averages reciprocal rank over queries.",
+        "hold": 0.3
+      },
+      {
+        "id": "c08-b02",
+        "say": "Both original orders put the guide first, so their reciprocal rank is one even though useful guides remain separated by irrelevant pages.",
+        "hold": 0.6
+      },
+      {
+        "id": "c08-b03",
+        "say": "Average precision instead visits every result at or above the declared relevance threshold. At each relevant position, add the fraction of results seen so far that are relevant. In the retrieval order, those contributions are one, two fourths and three fifths.",
+        "hold": 0.3
+      },
+      {
+        "id": "c08-b04",
+        "say": "Their sum divided by three gives zero point seven. The ideal order gives one. MAP averages each query’s AP, with declared query weights.",
+        "hold": 0.6
+      },
+      {
+        "id": "c08-b05",
+        "say": "At a cutoff, declare the denominator. This lab divides by the smaller of relevant-count R and cutoff k. With two relevant documents and one perfect top result, that capped AP at one is one. Dividing by full R gives one half instead.",
+        "hold": 0.3
+      },
+      {
+        "id": "c08-b06",
+        "say": "A system denominator must count eligible judged relevant items, including missing ones; the existing supplied-list helper only knows its survivors. Neither convention turns missing evidence into a recovered document.",
+        "hold": 0.8
+      },
+      {
+        "id": "c08-b07",
+        "say": "Try two searches at depth three. In the first, the only relevant result in view is a direct answer in slot two. In the second, a useful page leads, but the direct answer falls below the cutoff. Each search has two relevant pages in its eligible universe, including any below the cutoff. What does each missing page contribute?",
+        "hold": 2.4
+      },
+      {
+        "id": "c08-b08",
+        "say": "At this cutoff, the first search has reciprocal rank one half and average precision one quarter. The second has reciprocal rank zero and average precision one half. Give the searches equal weight. Mean reciprocal rank is one quarter. Mean average precision is three eighths.",
+        "hold": 0.8
+      }
+    ]
+  },
+  {
+    "id": "c09",
+    "title": "Compare vectors to retrieve a shortlist",
+    "sourceChapters": [
+      "c09"
+    ],
+    "beats": [
+      {
+        "id": "c09-b01",
+        "say": "A two-tower model encodes a query and each catalog item separately. The item vectors can be computed ahead of a request. This fixture starts with those encoder outputs so we can follow the retrieval score itself.",
+        "hold": 0.55
+      },
+      {
+        "id": "c09-b02",
+        "say": "In this tiny illustration, the query vector is one, zero. Three item vectors are 0.9, 0.1; 0.8, 0.2; and 0.2, 0.9. Their dot products are 0.9, 0.8, and 0.2.",
+        "hold": 0.6
+      },
+      {
+        "id": "c09-b03",
+        "say": "This makes retrieval easy to visualize and cheap to reuse. Because both towers encode independently, a later ranker may add query-and-item interactions. Index recall and latency still need measurement on the target catalog.",
+        "hold": 0.7
+      }
+    ]
+  },
+  {
+    "id": "c10",
+    "title": "Freeze compatible vectors and score the actual query",
+    "sourceChapters": [
+      "c10"
+    ],
+    "beats": [
+      {
+        "id": "c10-b01",
+        "say": "A query tower and an item tower encode separately before their final similarity. We can precompute the item vectors. Normalize both for cosine retrieval. The two arrows here point the same way, but one is twice as long. Its raw dot product doubles. Their cosines match. Keep the tower weights, normalization, embeddings and index versions together.",
+        "hold": 0.6
+      },
+      {
+        "id": "c10-b02",
+        "say": "In the article’s larger example, each of a thousand items has sixteen coordinates. One query scores against every item by exact dot product. Keep the top five. Only these five go through the joint cross layer. That exact shortlist gives us a reference for testing approximate retrieval.",
+        "hold": 0.3
+      },
+      {
+        "id": "c10-b03",
+        "say": "Check which neighbors it finds, how quickly it picks up new pages, and how long requests take under load.",
+        "hold": 0.6
+      },
+      {
+        "id": "c10-b04",
+        "say": "Retrieval training commonly pushes observed positive query-item pairs above sampled alternatives. Those alternatives are not verified dislikes, and repeated known positives need care. An independent two-tower score can be the final score if it meets the task; a later joint scorer trades additional request work for richer early query-document interactions.",
+        "hold": 0.8
+      }
+    ]
+  },
+  {
+    "id": "c11",
+    "title": "A shared scalar projection couples every cross feature",
+    "sourceChapters": [
+      "c11"
+    ],
+    "beats": [
+      {
+        "id": "c11-b01",
+        "say": "The original DCN vector cross layer first takes the dot product of the current vector with a learned weight vector. Multiply that one scalar by each coordinate of the original input, then add the bias and current coordinate.",
+        "hold": 0.3
+      },
+      {
+        "id": "c11-b02",
+        "say": "This is x zero times the scalar x l transpose w, plus b, plus x l. Preserve which object supplies each factor.",
+        "hold": 0.6
+      },
+      {
+        "id": "c11-b03",
+        "say": "Use the article’s separate two-coordinate input x zero equal two, three and current x l equal five, seven. Weight one, zero gives projection five. Multiply the original input by five to obtain ten, fifteen. Add biases one half, one and the residual five, seven.",
+        "hold": 0.3
+      },
+      {
+        "id": "c11-b04",
+        "say": "The result is fifteen point five, twenty-three. A single projection fed both coordinates. The bias entered after the multiplication.",
+        "hold": 0.6
+      },
+      {
+        "id": "c11-b05",
+        "say": "The vector layer uses linear arithmetic in input dimension. L cross layers have polynomial degree at most L plus one, with tied coefficients rather than a free coefficient for every monomial. A nonlinear deep component can complement it.",
+        "hold": 0.3
+      },
+      {
+        "id": "c11-b06",
+        "say": "Cross and deep branches can be arranged in parallel or stacked; a separate head and loss define what their final score means.",
+        "hold": 0.8
+      }
+    ]
+  },
+  {
+    "id": "c12",
+    "title": "Moving the bias inside the product changes the layer",
+    "sourceChapters": [
+      "c12"
+    ],
+    "beats": [
+      {
+        "id": "c12-b01",
+        "say": "DCN version two uses an actual matrix times the current vector, adds its bias, multiplies element by element with the original input, then adds the current vector. Its bias is inside that coordinatewise multiplication. With the same two, three original input and five, seven current vector, use an identity matrix and biases one half, one.",
+        "hold": 0.6
+      },
+      {
+        "id": "c12-b02",
+        "say": "The inside vector is five point five, eight. Multiply by two, three to obtain eleven, twenty-four, then add five, seven. The result is sixteen, thirty-one, which differs from the original vector layer.",
+        "hold": 0.3
+      },
+      {
+        "id": "c12-b03",
+        "say": "The matrix layer costs quadratic arithmetic in dimension; a rank-r factorization can reduce the matrix work to order dimension times r, with expert and gating costs added for mixtures.",
+        "hold": 0.6
+      },
+      {
+        "id": "c12-b04",
+        "say": "A crossed item portion generally depends on the current query. The article holds an item fixed and changes query coordinates; its crossed item changes. Caching independent item embeddings does not make that complete joint representation query-independent.",
+        "hold": 0.3
+      },
+      {
+        "id": "c12-b05",
+        "say": "Choose the scoring architecture and objective separately; a sigmoid click head does not itself remove exposure bias or directly optimize NDCG.",
+        "hold": 0.8
+      }
+    ]
+  },
+  {
+    "id": "c13",
+    "title": "A valid permutation can still make the list worse",
+    "sourceChapters": [
+      "c13"
+    ],
+    "beats": [
+      {
+        "id": "c13-b01",
+        "say": "An LLM reranker can receive eligible snippets with stable IDs and propose an order. RankGPT studied identifier permutations and sliding windows, then distillation into smaller scorers. Keep snippet instructions untrusted, access checks outside the model, and external processing within its actual authorization. A prompt is not an enforcement boundary.",
+        "hold": 0.6
+      },
+      {
+        "id": "c13-b02",
+        "say": "Test the returned identifiers. A repeated page or an invented private page fails. Now exchange just the guide and the runbook. Every eligible candidate appears exactly once. The permutation passes. The runbook now precedes the stronger answer. NDCG at three falls to about point eight five eight, although recall stays one.",
+        "hold": 0.6
+      },
+      {
+        "id": "c13-b03",
+        "say": "Measure quality, cost, completed-request latency, input-order sensitivity and adversarial snippets against simpler baselines on held-out queries. Predeclare a safe timeout, invalid-output or underfilled-list fallback. Current permission must still hold at disclosure even if the candidate permutation was structurally valid against an earlier snapshot.",
+        "hold": 0.8
+      }
+    ]
+  },
+  {
+    "id": "c14",
+    "title": "Change the request evidence without leaking its future outcome",
+    "sourceChapters": [
+      "c14"
+    ],
+    "beats": [
+      {
+        "id": "c14-b01",
+        "say": "A recommendation feed can replace the typed query with developer history and session context while keeping the item tower. Content-based evidence follows topics or metadata similar to earlier choices. Collaborative evidence follows patterns across people who used overlapping items. New users lack preference history; new documents lack interaction history.",
+        "hold": 0.6
+      },
+      {
+        "id": "c14-b02",
+        "say": "An ID-only user-item embedding model is a matrix-factorization form of collaborative filtering. Text or metadata inputs can represent a newly indexed document before its first click. Evaluate new-user and new-item slices separately from familiar interactions. An unseen item may never have been exposed rather than disliked.",
+        "hold": 0.6
+      },
+      {
+        "id": "c14-b03",
+        "say": "Train from interactions available before the declared time boundary and evaluate later outcomes. A future click cannot enter a feature used to predict itself. Changing tower weights without compatible item vectors also changes the retrieval function, so preserve the encoder and index lineage when comparing runs.",
+        "hold": 0.8
+      }
+    ]
+  },
+  {
+    "id": "c15",
+    "title": "What can five judgments teach a ranker?",
+    "sourceChapters": [
+      "c15"
+    ],
+    "beats": [
+      {
+        "id": "c15-b01",
+        "say": "The API guide has a query-fit signal and a reliability signal. A judge gives it grade three for this search. Make that grade the target for one row and you have pointwise training. Squared error can fit a numeric grade. Binary cross-entropy can fit a click label.",
+        "hold": 0.3
+      },
+      {
+        "id": "c15-b02",
+        "say": "A click depends on what was shown. A plain, equally weighted row loss gives the same error the same cost at any rank. Context and weights can change that.",
+        "hold": 0.55
+      },
+      {
+        "id": "c15-b03",
+        "say": "Now take two pages from the same search. Each square on the board compares its row with its column. Look where the runbook meets the SDK example. Both have grade two. Which one do those judgments tell us to put first?",
+        "hold": 2
+      },
+      {
+        "id": "c15-b04",
+        "say": "Neither. Cross out that square. The blog and the changelog also tie at zero. The guide beats each of the other four pages. The runbook and SDK example each beat both grade-zero pages. Count the marked squares. Eight of the ten comparisons give us a strict preference.",
+        "hold": 0.55
+      },
+      {
+        "id": "c15-b05",
+        "say": "Keep the square where the guide beats the blog. That one preference is a pairwise training example. We can also keep all five pages together, with one target ordering or distribution for this query. That’s a listwise example. Specify which candidates and judgments belong to it.",
+        "hold": 0.5
+      },
+      {
+        "id": "c15-b06",
+        "say": "Take just the guide and the blog. Three beats zero, so the training target says to score the guide higher. A tree or a neural network can learn from a preference like this. Let’s use it to update two weights in a linear scorer.",
+        "hold": 0.5
+      }
+    ]
+  },
+  {
+    "id": "c16",
+    "title": "One preference moves two weights",
+    "sourceChapters": [
+      "c16"
+    ],
+    "beats": [
+      {
+        "id": "c16-b01",
+        "say": "The guide should beat the blog. Start a new linear scorer with both weights at zero. The scores tie. RankNet takes the preferred score minus the other score and applies a logistic function. At a tie it gives the guide a one-half chance of winning.",
+        "hold": 0.3
+      },
+      {
+        "id": "c16-b02",
+        "say": "The loss is minus the log of that probability. Its slope with respect to the gap is probability minus one, so the slope here is minus one half.",
+        "hold": 0.55
+      },
+      {
+        "id": "c16-b03",
+        "say": "To find which weights should move, subtract the blog’s features from the guide’s. The guide gains point six three on query fit and gives up point zero nine on reliability. Multiply that difference by the slope. The fit gradient is negative and the reliability gradient is positive.",
+        "hold": 0.5
+      },
+      {
+        "id": "c16-b04",
+        "say": "Take a downhill step of one half. Both weights move. Apply the new weights to the same feature differences and add. The guide leads the blog by just over a tenth of a score unit.",
+        "hold": 0.6
+      },
+      {
+        "id": "c16-b05",
+        "say": "Reset both weights to zero. Keep the pages and their features fixed. Reverse the training preference. This time the label says the blog should win. The ruler still reads guide score minus blog score. Which way should the mark move?",
+        "hold": 2
+      },
+      {
+        "id": "c16-b06",
+        "say": "Left, toward the blog. Reversing the preferred and other page reverses the gradient signs. Take the same half-size step. The blog now leads by just over a tenth on the fixed guide-minus-blog scale.",
+        "hold": 0.3
+      },
+      {
+        "id": "c16-b07",
+        "say": "At equal score gaps, plain RankNet gives a pair the same gap slope anywhere in a list. Its weight gradients still depend on the two pages’ features.",
+        "hold": 0.55
+      }
+    ]
+  },
+  {
+    "id": "c17",
+    "title": "How much is a swap worth?",
+    "sourceChapters": [
+      "c17"
+    ],
+    "beats": [
+      {
+        "id": "c17-b01",
+        "say": "Look at just the guide and blog. The blog leads. Nudge the guide closer and it still comes second, so its discounted gain stays the same. Now move the guide past the blog. Only when their order changes does NDCG jump.",
+        "hold": 0.3
+      },
+      {
+        "id": "c17-b02",
+        "say": "Between those crossings the metric is flat. To train with that information, LambdaRank weights a smooth pairwise update by what swapping the two positions would do to the metric.",
+        "hold": 0.55
+      },
+      {
+        "id": "c17-b03",
+        "say": "Put all five pages back. Start both lists in the order shown, with tied model scores. Compare two possible swaps. On the left, the guide in third trades with the blog in first. On the right, the SDK example in fifth trades with the changelog in fourth. Which change in NDCG is larger?",
+        "hold": 2.4
+      },
+      {
+        "id": "c17-b04",
+        "say": "The first swap is worth about twenty-seven times as much. Both the grade difference and the positions changed. At a tied score, multiply each swap’s value by minus one half to get the loss slope for the preferred score.",
+        "hold": 0.65
+      },
+      {
+        "id": "c17-b05",
+        "say": "Use the guide and blog again. Start at zero weights and keep the same half-size learning step. Last time, their gap grew to just over a tenth. Hold the guide-blog swap weight fixed for this one update.",
+        "hold": 0.3
+      },
+      {
+        "id": "c17-b06",
+        "say": "Multiplying the slope by about one third also scales both weight changes by that factor. Watch how far the guide gets this time. Its lead grows by about three hundredths of a score unit.",
+        "hold": 0.6
+      },
+      {
+        "id": "c17-b07",
+        "say": "For a general logistic steepness, sigma, the gap slope is negative sigma divided by one plus the exponential of sigma times the gap. Multiply by the absolute metric change. Give the other page the opposite sign and add up the contributions at each page.",
+        "hold": 0.3
+      },
+      {
+        "id": "c17-b08",
+        "say": "Add the signed pair contributions at each page. A negative loss slope pushes that page’s score up under descent. LambdaMART fits boosted trees to these totals across queries and uses curvature in its leaf updates. The resulting order still needs evaluation on held-out queries.",
+        "hold": 0.65
+      }
+    ]
+  },
+  {
+    "id": "c18",
+    "title": "A list distribution couples the candidate scores",
+    "sourceChapters": [
+      "c18"
+    ],
+    "beats": [
+      {
+        "id": "c18-b01",
+        "say": "Give the guide and the blog a target share each. A ListNet-style loss can get these shares by applying softmax to the judges’ grades. Apply softmax to the model’s scores over the same pages to get its predicted shares.",
+        "hold": 0.3
+      },
+      {
+        "id": "c18-b02",
+        "say": "Raising the guide’s score takes some share from the blog. Cross-entropy measures how well the shares match. Multiply each target share by the log of its predicted share, add the terms, and take the negative. After training, evaluate the resulting order with NDCG.",
+        "hold": 0.6
+      },
+      {
+        "id": "c18-b03",
+        "say": "For this example, set the target shares directly. Give the guide seven tenths and the blog three tenths. Start both scores at zero. Predicted masses are one half each, giving loss log two.",
+        "hold": 0.3
+      },
+      {
+        "id": "c18-b04",
+        "say": "Subtract each target share from its predicted share. The score gradients are minus point two and plus point two. Take a downhill half step. The scores become point one and minus point one. Recompute the shares. The guide now gets about fifty-five percent of the mass.",
+        "hold": 0.6
+      },
+      {
+        "id": "c18-b05",
+        "say": "ListNet’s top-one distribution and permutation-based alternatives such as ListMLE are different objectives. A sampled training list changes the compared universe; record that sampling rule and validate on the intended population. Pointwise, pairwise and listwise views expose different evidence, while held-out retrieval, slate quality and user outcomes still decide usefulness.",
+        "hold": 0.8
+      }
+    ]
+  },
+  {
+    "id": "c19",
+    "title": "A click mixes interest with exposure",
+    "sourceChapters": [
+      "c19"
+    ],
+    "beats": [
+      {
+        "id": "c19-b01",
+        "say": "Follow a click back to the position the browser displayed. Each row collects one hundred impressions at that position. Forty top-slot impressions produced a click. Twenty second-slot impressions did. The second slot is only half as likely to be examined. Under an examination-times-relevance model, which page looks more relevant now?",
+        "hold": 2.6
+      },
+      {
+        "id": "c19-b02",
+        "say": "Assume everyone examines slot one. In slot two, assume half the impressions get examined on average. Under this model, a click requires examination and relevance. For the first page, divide forty by a hundred and by one. The corrected estimate is point four.",
+        "hold": 0.6
+      },
+      {
+        "id": "c19-b03",
+        "say": "For the second page, divide twenty by a hundred. The raw click rate is point two. Divide by one half. The corrected estimate is also point four. The assumed examination rates explain this two-to-one click difference. Test those assumptions, for example with permitted randomized swaps.",
+        "hold": 0.7
+      }
+    ]
+  },
+  {
+    "id": "c20",
+    "title": "Relative exposure does not identify an absolute relevance level",
+    "sourceChapters": [
+      "c20"
+    ],
+    "beats": [
+      {
+        "id": "c20-b01",
+        "say": "The toy position model assumes a click requires both examination and relevance, with no accidental clicks, and position-only examination independent of relevance given context. With a correct positive absolute examination probability p, the click divided by p has expectation equal to relevance probability. Across impressions, divide the click count by both p and impression count.",
+        "hold": 0.6
+      },
+      {
+        "id": "c20-b02",
+        "say": "Randomized swaps can estimate relative propensities under that model. The same observed rates zero point four and zero point two can correspond to probabilities one and one half, giving corrected estimates zero point four each.",
+        "hold": 0.3
+      },
+      {
+        "id": "c20-b03",
+        "say": "If the first slot’s absolute examination anchor is zero point eight, the second is zero point four, and both corrected estimates become zero point five. Relative ratios alone cannot select the absolute relevance level.",
+        "hold": 0.6
+      },
+      {
+        "id": "c20-b04",
+        "say": "Suppose only two in a hundred impressions get examined. Each click would carry a weight of fifty. Cap that weight at ten and one rare click has less influence. Watch what happens to the average.",
+        "hold": 0.3
+      },
+      {
+        "id": "c20-b05",
+        "say": "With relevance one half, the expected contribution falls from one half to one tenth. The cap reduces the swing from rare clicks and biases the estimate downward.",
+        "hold": 0.8
+      }
+    ]
+  },
+  {
+    "id": "c21",
+    "title": "Examination correction cannot invent a never-shown item",
+    "sourceChapters": [
+      "c21"
+    ],
+    "beats": [
+      {
+        "id": "c21-b01",
+        "say": "An item absent from retrieval has no exposure observations for this request population. Correcting examination at an existing position does not repair that missing catalog coverage. A counterfactual policy estimate additionally needs logging-policy support of the target actions and their selection probabilities. Those are not the same probabilities as position examination.",
+        "hold": 0.6
+      },
+      {
+        "id": "c21-b02",
+        "say": "Keep randomized exploration inside current authorization and declared product rules. Compare the same population when estimating position effects, and test trust, presentation and click-noise assumptions rather than interpreting equal corrected finite-sample rates as equal intrinsic quality. A higher click rate can also reflect interface change or clickbait rather than successful task completion.",
+        "hold": 0.8
+      }
+    ]
+  },
+  {
+    "id": "c22",
+    "title": "Which search result did the click belong to?",
+    "sourceChapters": [
+      "c22"
+    ],
+    "beats": [
+      {
+        "id": "c22-b01",
+        "say": "The server proposes three pages for request R one. Later, a click and a resolution both name the guide on that request. To learn where the developer saw the guide, record its position when the browser displays it.",
+        "hold": 0.6
+      },
+      {
+        "id": "c22-b02",
+        "say": "Retain candidate IDs, feature and document versions, policy, ranker and allowed request context so the slate can be replayed. Join later events by request and document. The fixture separately checks required fields, joinable outcomes and unique event IDs.",
+        "hold": 0.3
+      },
+      {
+        "id": "c22-b03",
+        "say": "Try adding one outcome for a page the browser never displayed on this request. The join fails. Remove that orphan. Now log the same click ID twice. Both copies join to the guide, but the duplicate ID fails the uniqueness check.",
+        "hold": 0.6
+      },
+      {
+        "id": "c22-b04",
+        "say": "Keep impressions for pages that received no click, too. They tell us which pages had an opportunity to earn one. Check the event types and timestamps before using them for training. Limit access to search traces and expire them on schedule. Common query phrases can still be recognizable from their hashes.",
+        "hold": 0.8
+      }
+    ]
+  },
+  {
+    "id": "c23",
+    "title": "Who gets the third slot?",
+    "sourceChapters": [
+      "c23"
+    ],
+    "beats": [
+      {
+        "id": "c23-b01",
+        "say": "The scorer puts the API guide, the runbook and the SDK example on the first screen. Look at their source. All three come from platform. The portal wants a mix of sources and allows at most two from any one source in these three slots.",
+        "hold": 0.6
+      },
+      {
+        "id": "c23-b02",
+        "say": "Leave the two higher scores alone. Both platform places are taken. The SDK example is next by score. Just below it sits a community blog. Which one can fill the last slot under this rule?",
+        "hold": 2.1
+      },
+      {
+        "id": "c23-b03",
+        "say": "The blog takes slot three. The SDK example stays eligible and keeps its score. The cap changes which page can sit beside the first two. We traded a grade two for a zero at rank three, so we lost one and a half units of discounted gain.",
+        "hold": 1.2
+      },
+      {
+        "id": "c23-b04",
+        "say": "System NDCG falls from one to about point eight five six.",
+        "hold": 0.6
+      },
+      {
+        "id": "c23-b05",
+        "say": "Whether that trade serves developers is a product question. Measure it on the actual slate. Retrieval must also supply another source if the portal expects three results. Let’s take that alternative away.",
+        "hold": 0.55
+      }
+    ]
+  },
+  {
+    "id": "c24",
+    "title": "Suppose retrieval finds only platform pages",
+    "sourceChapters": [
+      "c24"
+    ],
+    "beats": [
+      {
+        "id": "c24-b01",
+        "say": "First replay the full reserve in score order. The source check keeps a count for each source. A page can enter while its source has fewer than two places.",
+        "hold": 0.5
+      },
+      {
+        "id": "c24-b02",
+        "say": "Take the guide. Take the runbook. Both platform places are occupied. Pass the SDK example and take the community blog. Now remove the community pages from retrieval and replay the first two picks. All three platform scores stay fixed. How many pages can this portal show?",
+        "hold": 2.6
+      },
+      {
+        "id": "c24-b03",
+        "say": "Two. The third slot stays empty. The SDK example still belongs to platform. To fill that slot, retrieval would need another eligible source. This greedy pass assumes unique pages, known sources and positive limits. Overlapping constraints may need a different algorithm.",
+        "hold": 0.5
+      },
+      {
+        "id": "c24-b04",
+        "say": "Test the source cap on the final result. This portal also requires current pages. An archive could choose to include older ones. Either product must still honor the developer’s current access at display time.",
+        "hold": 0.6
+      }
+    ]
+  },
+  {
+    "id": "c25",
+    "title": "The final slate must pass the gate it actually uses",
+    "sourceChapters": [
+      "c25"
+    ],
+    "beats": [
+      {
+        "id": "c25-b01",
+        "say": "Start with the unconstrained list on the left. Retrieval found every useful page at five. The reranker at five and the displayed list at three both clear the NDCG threshold of point nine five.",
+        "hold": 0.3
+      },
+      {
+        "id": "c25-b02",
+        "say": "Check that blocked pages stayed out and that the events have their required fields, matching requests and pages, and unique IDs. In ten example timings, the nearest-rank ninety-fifth percentile is eighteen milliseconds. That fits the twenty-millisecond limit.",
+        "hold": 0.6
+      },
+      {
+        "id": "c25-b03",
+        "say": "These checks evaluate the original unconstrained order. Substituting the source-constrained slate changes system NDCG to zero point eight five six and requires an explicit source-cap check. Reuse the same declared quality threshold and that candidate fails it. Do not keep a green receipt from the old slate after changing the function being evaluated.",
+        "hold": 0.6
+      },
+      {
+        "id": "c25-b04",
+        "say": "The passing receipt belongs to the original list. Its hash identifies the recorded JSON. To reproduce that result, save the data and judgments with the scorer, dependencies, tower and index versions. Before the online experiment, check representative held-out queries. Measure serving latency under load and specify which requests and time window count toward the guardrail.",
+        "hold": 0.8
+      }
+    ]
+  },
+  {
+    "id": "c26",
+    "title": "Two ways to average the same developer experiment",
+    "sourceChapters": [
+      "c26"
+    ],
+    "beats": [
+      {
+        "id": "c26-b01",
+        "say": "The proposed experiment assigns each developer once at the first eligible request and keeps that assignment stable. Repeated sessions from one developer are not independent experimental units. Its primary metric first computes each developer’s resolved sessions divided by all their sessions, then averages those developer ratios.",
+        "hold": 0.3
+      },
+      {
+        "id": "c26-b02",
+        "say": "Analyze at that unit or account for clustering in uncertainty.",
+        "hold": 0.6
+      },
+      {
+        "id": "c26-b03",
+        "say": "For a supplied aggregation example, one developer resolves one of one sessions and another resolves one of nine. The equal-developer mean is five ninths, while pooled sessions give two tenths. They answer different questions. Declare enrollment, attribution window, missing-event and timeout handling, metric, sample size, duration, uncertainty method and decision rule before exposure.",
+        "hold": 0.6
+      },
+      {
+        "id": "c26-b04",
+        "say": "This example waits for both fourteen days and five thousand developers per group before comparing resolution rates once. For your own experiment, use a power calculation to choose the sample size for the effect you need to detect.",
+        "hold": 0.3
+      },
+      {
+        "id": "c26-b05",
+        "say": "Monitor blocked impressions and harmful latency from day one so you can stop early. Read negative feedback alongside engagement.",
+        "hold": 0.8
+      }
+    ]
+  },
+  {
+    "id": "c27",
+    "title": "What would show the guide helped?",
+    "sourceChapters": [
+      "c27"
+    ],
+    "beats": [
+      {
+        "id": "c27-b01",
+        "say": "Suppose our portal proposes the guide first for this retry search. That tells us what the server sent. Which observation would tell us the developer actually had the guide on screen?",
+        "hold": 1.6
+      },
+      {
+        "id": "c27-b02",
+        "say": "A browser impression can record the request, the page and its displayed position. A later resolution event can join to that impression on request and page. Keep the versions and snapshots needed to replay the proposal. Protect query and user traces and limit how long you retain them.",
+        "hold": 0.55
+      },
+      {
+        "id": "c27-b03",
+        "say": "That join tells us which exposure preceded the resolution. To learn whether changing the ranker helps, compare developers randomly assigned to stable groups. Declare the outcome and guardrails in advance. Check task resolution, latency, bad-result reports and blocked impressions. Now take the same search back to the moment before display.",
+        "hold": 0.55
+      }
+    ]
+  },
+  {
+    "id": "c28",
+    "title": "Access changed before display",
+    "sourceChapters": [
+      "c28"
+    ],
+    "beats": [
+      {
+        "id": "c28-b01",
+        "say": "Just before display, the proposal holds the guide, the runbook and the community blog. The full reserve is still in score order. Now revoke access to the guide. Pull it out of the proposal.",
+        "hold": 0.3
+      },
+      {
+        "id": "c28-b02",
+        "say": "Keep the other scores fixed. One platform place is free. Which page in the reserve can take it?",
+        "hold": 2.8
+      },
+      {
+        "id": "c28-b03",
+        "say": "Replay the remaining reserve from the top. Take the runbook first. Follow the reserve down one row. The SDK example takes the second platform place. Keep the community blog in slot three. The SDK page reached the screen with the score it had all along.",
+        "hold": 0.65
+      },
+      {
+        "id": "c28-b04",
+        "say": "Which ideal belongs in the new report? The guide’s grade three belonged to the old set. The four pages still eligible have grades two, two, zero and zero. The best three are two, two and zero. Our displayed grades match. System NDCG is one for this version.",
+        "hold": 0.3
+      },
+      {
+        "id": "c28-b05",
+        "say": "Revoking access changed the ideal. The scorer used the same weights in both reports.",
+        "hold": 0.7
+      },
+      {
+        "id": "c28-b06",
+        "say": "Try a separate replay. Restore the original proposal and permissions. This time revoke only the blog. The guide and runbook still take both platform places. Which remaining page can fill slot three?",
+        "hold": 2.8
+      },
+      {
+        "id": "c28-b07",
+        "say": "Use the changelog. Both platform places are taken. The changelog is the next community page this developer can open. The blog and the changelog both have grade zero. In slot three they contribute the same gain. System NDCG stays at about point eight five six.",
+        "hold": 0.3
+      },
+      {
+        "id": "c28-b08",
+        "say": "The changelog entered through the community place. In the first replay the SDK example entered through a platform place. You can account for both changes from the access record, the score order and the source count.",
+        "hold": 1.4
+      }
+    ]
+  }
+]

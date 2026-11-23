@@ -1,0 +1,189 @@
+version: 1
+lesson: observability-monitoring-llm-systems
+promise: Decide which delivered answer should page the on-call engineer, trace it to the observed escape,
+  and test whether a candidate contains the failure while still answering a clean case.
+objectives:
+  - id: delivery
+    can: Compare the delivered claim with its evidence and select the request that triggers the page
+    scenes:
+      - opening
+      - event-contract
+      - join
+  - id: denominators
+    can: Compute reviewed risk, conditional answer risk, coverage and attainable unsafe-delivery bounds
+    scenes:
+      - review-asof
+      - denominators
+      - unknown-bounds
+  - id: latency
+    can: Compute valid later-token throughput and nearest-rank percentiles from a declared population
+    scenes:
+      - stream-contract
+      - percentile-contract
+  - id: tracing
+    can: Use a trace to locate the first defective draft and the later escape, and preserve the caller across services
+    scenes:
+      - trace
+      - wire-context
+  - id: attributes
+    can: Join required operation fields to approved versioned product decisions
+    scenes:
+      - attribute-contract
+  - id: cost
+    can: Compute disjoint usage cost while rejecting impossible accounting
+    scenes:
+      - cost
+      - usage-contract
+  - id: privacy
+    can: Identify the trusted-metadata boundary and minimize exported content
+    scenes:
+      - privacy
+      - metadata-boundary
+  - id: alerts
+    can: Keep a confirmed safety page while reporting broken measurements and missing request events
+    scenes:
+      - alert-validity
+  - id: sampling
+    can: Distinguish retained frequencies from weighted population estimates and their limits
+    scenes:
+      - sampling
+      - tail-timing
+      - sample-weights
+  - id: budgets
+    can: Compute repeated-history work and enforce independent repeat, time and spend admission
+    scenes:
+      - budget
+      - history-growth
+      - tool-contract
+      - fresh-window
+  - id: recovery
+    can: Use a violating request and an answerable control to reject a blanket withholding rule and decide when to run the holdout
+    scenes:
+      - incident-replay
+      - candidate-gate
+sections:
+  - heading: Emit containment and outcome fields at the serving gate
+    status: taught
+    scenes:
+      - opening
+      - event-contract
+      - join
+      - review-asof
+  - heading: Turn request evidence into quality metrics
+    status: taught
+    scenes:
+      - denominators
+      - unknown-bounds
+      - review-asof
+  - heading: Keep the golden signals and explain LLM latency
+    status: taught
+    scenes:
+      - latency
+      - stream-contract
+      - percentile-contract
+      - signals-runtime
+  - heading: Follow request execution with distinct spans
+    status: taught
+    scenes:
+      - trace
+      - wire-context
+  - heading: Keep standard telemetry and product decisions together
+    status: taught
+    scenes:
+      - attribute-contract
+      - usage-contract
+  - heading: Attribute cost with a versioned rate card
+    status: taught
+    scenes:
+      - cost
+      - usage-contract
+  - heading: Store durable debugging evidence without operator text
+    status: taught
+    scenes:
+      - privacy
+      - metadata-boundary
+  - heading: Alert on decisions engineers can act on
+    status: taught
+    scenes:
+      - opening
+      - alert-validity
+      - incident-replay
+  - heading: "Root-cause triage: from metric anomalies to span exemplars"
+    status: taught
+    scenes:
+      - trace
+      - incident-replay
+  - heading: Distributed tracing in multi-agent trajectories and tool loops
+    status: taught
+    scenes:
+      - budget
+      - history-growth
+      - tool-contract
+      - fresh-window
+  - heading: Preserve the evidence for experiment tracking
+    status: taught
+    scenes:
+      - incident-replay
+      - candidate-gate
+  - heading: Count before sampling traces
+    status: taught
+    scenes:
+      - sampling
+      - tail-timing
+      - sample-weights
+quiz:
+  - n: 1
+    status: taught
+    scenes:
+      - review-asof
+      - denominators
+  - n: 2
+    status: taught
+    scenes:
+      - unknown-bounds
+  - n: 3
+    status: taught
+    scenes:
+      - stream-contract
+  - n: 4
+    status: taught
+    scenes:
+      - wire-context
+  - n: 5
+    status: taught
+    scenes:
+      - usage-contract
+  - n: 6
+    status: taught
+    scenes:
+      - metadata-boundary
+      - privacy
+  - n: 7
+    status: taught
+    scenes:
+      - alert-validity
+  - n: 8
+    status: taught
+    scenes:
+      - sample-weights
+  - n: 9
+    status: taught
+    scenes:
+      - tool-contract
+      - fresh-window
+  - n: 10
+    status: taught
+    scenes:
+      - incident-replay
+      - candidate-gate
+cuts: []
+framing: []
+reviews:
+  closed_book:
+    script: 17bdfa62e524020d
+    taught: 10
+    partial: 0
+    absent: 0
+  fact_check:
+    script: 17bdfa62e524020d
+    open_findings: 0

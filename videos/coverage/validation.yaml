@@ -1,0 +1,214 @@
+version: 1
+lesson: validation
+promise: Decide whether a score supports a claim about new requests or sources by reconstructing what the system could read, fit, and choose before the test.
+framing: []
+objectives:
+  - id: intro
+    can: Reconstruct the router's opening snapshot from field availability times
+    scenes:
+      - intro
+  - id: target-leak
+    can: Identify the false alarm and missed review exposed by removing the audit label from the predictor
+    scenes:
+      - target-leak
+  - id: risk
+    can: Calculate empirical risk, population risk, and their gap
+    scenes:
+      - risk
+  - id: roles
+    can: Track a candidate through fitting, selection, and reporting
+    scenes:
+      - roles
+  - id: folds
+    can: Distinguish fresh fold fits and dependent score variation
+    scenes:
+      - folds
+  - id: fold-calculation
+    can: Predict a held-out row and distinguish mean fold F1 from F1 computed on pooled counts
+    scenes:
+      - fold-calculation
+  - id: users
+    can: Separate known-user recognition from new-user performance
+    scenes:
+      - users
+  - id: pipeline
+    can: Compute a learned centering origin and its information boundary
+    scenes:
+      - pipeline
+  - id: feature-selection
+    can: Recompute the selector's class means under two fit boundaries and identify which held-out predictions change
+    scenes:
+      - feature-selection
+  - id: time
+    can: Advance a development fit through time while preserving a separate selection month, a reporting month, and a cutoff for training labels
+    scenes:
+      - time
+  - id: as-of-history
+    can: Build a strict as-of count and classify prior-user activity
+    scenes:
+      - as-of-history
+  - id: nested-selection
+    can: Separate inner selection from outer procedure evaluation
+    scenes:
+      - nested-selection
+  - id: selection
+    can: Calculate and freeze a validation-selected threshold
+    scenes:
+      - selection
+  - id: selective-labels
+    can: Bound recall from the observed queue and update the count of known misses after auditing an automatic request
+    scenes:
+      - selective-labels
+  - id: documents
+    can: Count shared manuals before and after moving their passages together
+    scenes:
+      - documents
+  - id: benchmark-screen
+    can: Run a five-word overlap screen on a copy and a paraphrase and decide what provenance to inspect
+    scenes:
+      - benchmark-screen
+  - id: counterfactual
+    can: Diagnose unsupported action-policy outcomes
+    scenes:
+      - counterfactual
+  - id: source-transfer
+    can: Use each question's parent source and exposure history to choose which correct answer belongs in a new-source report
+    scenes:
+      - source-transfer
+sections:
+  - heading: Start at the decision moment
+    status: taught
+    scenes:
+      - intro
+      - target-leak
+      - as-of-history
+  - heading: Train, validation, and test have different jobs
+    status: taught
+    scenes:
+      - roles
+      - time
+      - selection
+      - nested-selection
+  - heading: Cross-validation rotates the validation job
+    status: taught
+    scenes:
+      - folds
+      - fold-calculation
+  - heading: "Target leakage: when a feature steals the answer key"
+    status: taught
+    scenes:
+      - target-leak
+  - heading: Clustered entities change the generalization claim
+    status: taught
+    scenes:
+      - users
+      - as-of-history
+  - heading: Preprocessing can learn from validation rows
+    status: taught
+    scenes:
+      - pipeline
+      - feature-selection
+  - heading: "Temporal validation: future requests, ready labels, and usable history"
+    status: taught
+    scenes:
+      - time
+      - as-of-history
+  - heading: Time and group boundaries combined
+    status: taught
+    scenes:
+      - as-of-history
+      - users
+  - heading: Nested selection and validation overuse
+    status: taught
+    scenes:
+      - nested-selection
+  - heading: "Threshold selection: validation chooses, test reports"
+    status: taught
+    scenes:
+      - selection
+      - selective-labels
+  - heading: "Modern relevance: benchmark contamination in large language models"
+    status: taught
+    scenes:
+      - documents
+      - benchmark-screen
+      - source-transfer
+  - heading: Historical logs don't reveal unchosen actions
+    status: taught
+    scenes:
+      - counterfactual
+  - heading: Write the production evaluation contract
+    status: taught
+    scenes:
+      - intro
+      - time
+      - roles
+      - selective-labels
+      - source-transfer
+  - heading: Stress-test the contract
+    status: article-only
+    reason: exercise
+    note: The article supplies additional feature, group, source, and counterfactual exercises.
+  - heading: What each mutation exposes
+    status: article-only
+    reason: exercise
+    note: The article gives solutions to its additional exercises.
+quiz:
+  - n: 1
+    status: taught
+    scenes:
+      - intro
+      - as-of-history
+  - n: 2
+    status: taught
+    scenes:
+      - time
+      - roles
+  - n: 3
+    status: taught
+    scenes:
+      - fold-calculation
+  - n: 4
+    status: taught
+    scenes:
+      - as-of-history
+  - n: 5
+    status: taught
+    scenes:
+      - feature-selection
+  - n: 6
+    status: taught
+    scenes:
+      - selection
+      - selective-labels
+      - fold-calculation
+  - n: 7
+    status: taught
+    scenes:
+      - source-transfer
+      - documents
+  - n: 8
+    status: taught
+    scenes:
+      - benchmark-screen
+  - n: 9
+    status: taught
+    scenes:
+      - counterfactual
+  - n: 10
+    status: taught
+    scenes:
+      - time
+      - as-of-history
+removed: []
+reviews:
+  closed_book:
+    taught: 10
+    partial: 0
+    absent: 0
+    script: 6ea6a610aa93ef9d
+    evidence: build/video-delivery-20261106/script-reviews/validation.json
+  fact_check:
+    open_findings: 0
+    script: 6ea6a610aa93ef9d
+    evidence: build/video-delivery-20261106/script-reviews/validation.json

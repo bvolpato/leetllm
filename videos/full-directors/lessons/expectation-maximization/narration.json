@@ -1,0 +1,664 @@
+[
+  {
+    "id": "c01",
+    "title": "How much credit does each source get?",
+    "sourceChapters": [
+      "c01"
+    ],
+    "beats": [
+      {
+        "id": "c01-b01",
+        "say": "One striped marble came down the covered chute. A fair coin chose a jar, and one of its four marbles came out at random. Here is what each jar held before the draw. Count the stripes. Which jar deserves more credit?",
+        "hold": 2.6
+      },
+      {
+        "id": "c01-b02",
+        "say": "There are four ways to get stripes. Three come from jar A and one from jar B. With equally likely jars and equally likely marbles, give A three quarters of this draw and B one quarter. Those fractions are called responsibilities.",
+        "hold": 0.8
+      },
+      {
+        "id": "c01-b03",
+        "say": "Here are six invented request times. Three cluster near thirty milliseconds and three near ninety. Their average is sixty. Look at the band from fifty to seventy. How many requests landed there?",
+        "hold": 2.2
+      },
+      {
+        "id": "c01-b04",
+        "say": "Zero. All six requests sit outside the band. Fit one bell curve and its peak lands right in the gap. Fit a mixture and the two peaks land over the two groups. To fit those curves, expectation-maximization, or EM, uses each request’s share in each group.",
+        "hold": 0.8
+      }
+    ]
+  },
+  {
+    "id": "c02",
+    "title": "What does a cache-hit score tell us?",
+    "sourceChapters": [
+      "c02"
+    ],
+    "beats": [
+      {
+        "id": "c02-b01",
+        "say": "Now open a log that records cache hits. Among requests with input x, sixty percent are hits in each of two populations. A classifier can give x the same score in both. Look at two populations of a hundred requests. In the first, twenty-five have that input.",
+        "hold": 0.3
+      },
+      {
+        "id": "c02-b02",
+        "say": "In the second, seventy-five do. Apply the same sixty percent within each group. That makes fifteen hits with input x in the first hundred and forty-five in the second. The classifier score alone leaves the frequency of that input open.",
+        "hold": 0.7
+      },
+      {
+        "id": "c02-b03",
+        "say": "We just built a joint probability from the input frequency and the chance of a hit given the input. A generative classifier can build that same joint in the other direction. Start with the frequency of hits and model the inputs among hits.",
+        "hold": 0.3
+      },
+      {
+        "id": "c02-b04",
+        "say": "Do the same for misses. Bayes’ rule recovers the class probability for a given input. For our unlabeled latencies, the sampling story has a hidden choice. Select a component, then draw a latency from its distribution.",
+        "hold": 0.75
+      },
+      {
+        "id": "c02-b05",
+        "say": "A Gaussian describes continuous latency with a density. This narrow curve has a peak close to two per millisecond. Shade an interval around thirty milliseconds. Its area gives the probability of a latency in that interval.",
+        "hold": 0.3
+      },
+      {
+        "id": "c02-b06",
+        "say": "For the mixture fit we treat the requests as independent draws from the same distribution. Bursts from one tenant or queue can violate that assumption. And a model conditioned on an input can still generate samples.",
+        "hold": 0.3
+      },
+      {
+        "id": "c02-b07",
+        "say": "A language model does that when it generates text from a prompt.",
+        "hold": 0.75
+      }
+    ]
+  },
+  {
+    "id": "c03",
+    "title": "Describe each observation as a mixture",
+    "sourceChapters": [
+      "c03"
+    ],
+    "beats": [
+      {
+        "id": "c03-b01",
+        "say": "Imagine first choosing one of two Gaussian components, then drawing a latency from that component. The component weights say how frequently the model selects each one. Each Gaussian has a mean and a variance that describe its location and spread.",
+        "hold": 0.55
+      },
+      {
+        "id": "c03-b02",
+        "say": "Because each request’s component is hidden, its density is the sum of the weighted component densities. Across independent observations, the log likelihood adds the log of each summed density. The logarithm sits outside the sum, coupling the component parameters.",
+        "hold": 0.6
+      },
+      {
+        "id": "c03-b03",
+        "say": "With fixed weights, means, and spreads, we can evaluate that sum exactly. Fitting means choosing parameters that maximize the score across all six requests. Slide the fast mean toward fifty. Watch the fast contribution at fifty change while the slow contribution stays still. Recompute the shares, then use those shares to refit the curves.",
+        "hold": 0.75
+      }
+    ]
+  },
+  {
+    "id": "c04",
+    "title": "How much does the 50 ms request count?",
+    "sourceChapters": [
+      "c04"
+    ],
+    "beats": [
+      {
+        "id": "c04-b01",
+        "say": "Keep the request pinned at fifty milliseconds. These are the two component curves before weighting, with means of thirty and ninety and the same twenty-millisecond standard deviation. Read both heights at the pin. Take one slow height as a unit.",
+        "hold": 0.3
+      },
+      {
+        "id": "c04-b02",
+        "say": "The fast height stretches across about four and a half of those units. For now the model draws each component equally often, so we get one strip of each. How much of this one request goes to the fast component?",
+        "hold": 2
+      },
+      {
+        "id": "c04-b03",
+        "say": "Divide the blue length by the lengths of both strips added together. The fast component gets about eighty-two percent. The slow component gets the rest. Each fraction is a responsibility, the probability of that hidden component given the latency and this model. You get the same fractions by dividing each prior-weighted density by their sum.",
+        "hold": 0.9
+      },
+      {
+        "id": "c04-b04",
+        "say": "Leave the pin and both curves where they are. Change the prior so we expect one fast draw for every nine slow draws. At fifty milliseconds the fast density is still four and a half times the slow density. Which component gets more of this request now?",
+        "hold": 2.2
+      },
+      {
+        "id": "c04-b05",
+        "say": "Count nine copies of the slow strip alongside the one fast strip. Their combined length takes the slow share to about sixty-seven percent. The fast share has fallen from about eighty-two percent to thirty-three. The timing of the request never changed. What changed was how often the model selects each component before seeing a latency.",
+        "hold": 0.85
+      }
+    ]
+  },
+  {
+    "id": "c05",
+    "title": "What happens when the curves narrow?",
+    "sourceChapters": [
+      "c05"
+    ],
+    "beats": [
+      {
+        "id": "c05-b01",
+        "say": "Reset the priors to one half each and keep the request at fifty. Bring both spreads down together, leaving both means still. The blue center has a twenty-millisecond lead in distance. As the shared variance approaches zero, that advantage sends its membership toward one.",
+        "hold": 0.3
+      },
+      {
+        "id": "c05-b02",
+        "say": "This also works for any fixed positive priors when one center is uniquely closest. With shared spherical variance and nonempty clusters, the weighted mean update then approaches the K-means update.",
+        "hold": 0.75
+      },
+      {
+        "id": "c05-b03",
+        "say": "Try a tie with these two Gaussians. Put the request halfway between the means, at sixty, and give the fast component one quarter of the prior weight. Shrink both spreads again. At equal distances, the two Gaussian densities are equal for every positive shared variance.",
+        "hold": 0.3
+      },
+      {
+        "id": "c05-b04",
+        "say": "The bar stays one quarter blue and three quarters pink. Independently shrinking a fitted component onto a point is a different operation. We will see what that does to likelihood.",
+        "hold": 0.75
+      }
+    ]
+  },
+  {
+    "id": "c06",
+    "title": "Split each request, then collect the shares",
+    "sourceChapters": [
+      "c06"
+    ],
+    "beats": [
+      {
+        "id": "c06-b01",
+        "say": "Return to the six requests. This time we are fitting a model. Start the two means at twenty-five and ninety-five milliseconds, with equal weights and standard deviations of thirty. Split each request using the same prior times density calculation. Look at the first request, at twenty-eight milliseconds.",
+        "hold": 0.3
+      },
+      {
+        "id": "c06-b02",
+        "say": "Read the first split. Even at twenty-eight milliseconds, the slow component gets about eight hundredths of a request.",
+        "hold": 0.7
+      },
+      {
+        "id": "c06-b03",
+        "say": "Each pair adds up to one request. Gather the blue pieces in one row and the pink pieces in the other. The blue pieces come to just over three requests. That total is called the fast component’s effective count. A request can contribute to both counts because we are adding fractions.",
+        "hold": 0.75
+      },
+      {
+        "id": "c06-b04",
+        "say": "This was the expectation step, or E-step. We held the model parameters still and found the exact posterior shares under that model. Keep the pieces you just collected. They tell us how much each latency should count when we update the means.",
+        "hold": 0.75
+      }
+    ]
+  },
+  {
+    "id": "c07",
+    "title": "Fit the curves with those same pieces",
+    "sourceChapters": [
+      "c07"
+    ],
+    "beats": [
+      {
+        "id": "c07-b01",
+        "say": "Freeze the six splits. Keep each request at its measured time. Start at twenty-eight milliseconds and multiply that time by each of its two shares. It puts about twenty-six milliseconds in the fast sum and two in the slow sum. Look along the rail. Which way will the fast and slow means move when all six times count?",
+        "hold": 2.4
+      },
+      {
+        "id": "c07-b02",
+        "say": "Add the weighted times for all six requests. Divide each sum by its own effective count. The fast mean moves from twenty-five to about thirty-five milliseconds. The slow mean moves from ninety-five to about eighty-five.",
+        "hold": 0.8
+      },
+      {
+        "id": "c07-b03",
+        "say": "The six observations stayed put. Their frozen shares pulled the markers to their weighted centers. Divide each effective count by six for its new component weight. For variance, take squared distances from the new mean and average them with those same shares. These weights and spreads complete the update.",
+        "hold": 0.3
+      },
+      {
+        "id": "c07-b04",
+        "say": "If almost no membership reaches a component, dividing by its count can fail. We will check that count before updating.",
+        "hold": 0.8
+      },
+      {
+        "id": "c07-b05",
+        "say": "That was the maximization step. The six original latencies are still here. With the new curves in place, the next E-step can divide each request differently. We can now ask what keeps this repeated refitting from making the data less likely.",
+        "hold": 0.7
+      }
+    ]
+  },
+  {
+    "id": "c08",
+    "title": "Two ways to average the same evidence",
+    "sourceChapters": [
+      "c08"
+    ],
+    "beats": [
+      {
+        "id": "c08-b01",
+        "say": "Bring back the fifty-millisecond request and restore equal priors. Each colored number is a component’s contribution to its density. Try giving each component half the credit. Call that trial split q. Divide each contribution by its trial share.",
+        "hold": 0.3
+      },
+      {
+        "id": "c08-b02",
+        "say": "If you average the two results using those same shares, the divisions cancel. You get back the original total density. Give every possible component a positive trial share so none of its contribution disappears.",
+        "hold": 0.7
+      },
+      {
+        "id": "c08-b03",
+        "say": "Now try taking logs in two different orders. Take the log of each endpoint first. Their weighted average lies on the straight line between them. That lower point is the evidence lower bound, or ELBO. Here it is about minus five point one six five.",
+        "hold": 0.3
+      },
+      {
+        "id": "c08-b04",
+        "say": "Now average those same two ratios first and take the log afterward. You land on the curve at about minus four point nine zero six. The curve bows above its chord because the logarithm is concave. This is Jensen’s inequality.",
+        "hold": 0.3
+      },
+      {
+        "id": "c08-b05",
+        "say": "The vertical gap is about point two five eight nats.",
+        "hold": 0.85
+      },
+      {
+        "id": "c08-b06",
+        "say": "Slide the trial split toward the posterior for this request. The two endpoints draw together. At the exact posterior each contribution divided by its share equals the same total density. The two orders now give the same answer.",
+        "hold": 0.3
+      },
+      {
+        "id": "c08-b07",
+        "say": "In general the gap equals the KL divergence from the trial distribution to the true posterior. It is nonnegative, and it vanishes at the posterior. Independence lets us do this calculation for each request separately and add the bounds.",
+        "hold": 0.85
+      }
+    ]
+  },
+  {
+    "id": "c09",
+    "title": "One mean and six sets of memberships",
+    "sourceChapters": [
+      "c09"
+    ],
+    "beats": [
+      {
+        "id": "c09-b01",
+        "say": "Give the fit just one knob to turn. Start the first mean at seventy milliseconds. Keep the second at ninety, the variances at four hundred milliseconds squared, and the two weights equal. At seventy, the six bars show the exact memberships.",
+        "hold": 0.3
+      },
+      {
+        "id": "c09-b02",
+        "say": "Here the gold bound touches the green log likelihood. Freeze the bars. The blue pieces add up to just under four requests. Weight each latency by its blue share and the sum is about a hundred and eighty-five milliseconds.",
+        "hold": 0.8
+      },
+      {
+        "id": "c09-b03",
+        "say": "Divide that weighted sum by the effective count. Slide the mean along the gold curve to forty-seven point three three milliseconds. Watch the bars while the mean moves. We used the same six shares throughout this M-step.",
+        "hold": 0.3
+      },
+      {
+        "id": "c09-b04",
+        "say": "At the new pin, the bound has climbed to about minus twenty-nine point five two. The log likelihood sits just over one nat above it.",
+        "hold": 0.8
+      },
+      {
+        "id": "c09-b05",
+        "say": "Leave the pin at that mean. An exact E-step comes next. Which can move here, the green log likelihood or the gold bound?",
+        "hold": 2.4
+      },
+      {
+        "id": "c09-b06",
+        "say": "Only the bound can move here. Recompute the six bars for the mean at the pin. Look at the eighty-six millisecond request. Its blue share drops from about forty-three percent to fourteen. The bound catches the log likelihood at minus twenty-eight point four six five.",
+        "hold": 0.3
+      },
+      {
+        "id": "c09-b07",
+        "say": "The gap closes at this mean. Elsewhere, the old and new bounds can cross.",
+        "hold": 0.85
+      },
+      {
+        "id": "c09-b08",
+        "say": "Read the three scores from left to right. We started in contact. The M-step raised that frozen bound, and the new log likelihood is at least as high as the bound. This also explains generalized EM.",
+        "hold": 0.3
+      },
+      {
+        "id": "c09-b09",
+        "say": "After an exact E-step, any parameter update that preserves or raises the expected complete-data log likelihood suffices. If likelihood is bounded above, its values converge. Convergence of the parameters needs more assumptions, and a different start can still fit better.",
+        "hold": 0.9
+      }
+    ]
+  },
+  {
+    "id": "c10",
+    "title": "What happens to log likelihood as EM repeats?",
+    "sourceChapters": [
+      "c10"
+    ],
+    "beats": [
+      {
+        "id": "c10-b01",
+        "say": "Start the fit with means at twenty-five and ninety-five milliseconds, equal weights, and variances of nine hundred. The log likelihood begins near minus twenty-nine point six two. One E-step and M-step raise it to about minus twenty-seven point zero six.",
+        "hold": 0.55
+      },
+      {
+        "id": "c10-b02",
+        "say": "With exact responsibilities and a true maximizing M-step over the allowed parameter space, each iteration leaves the observed-data log likelihood at least as high as before. The lower bound touches the log likelihood after the E-step, then parameter updates raise or preserve that bound.",
+        "hold": 0.6
+      },
+      {
+        "id": "c10-b03",
+        "say": "Follow the dots across eight updates. The first few climb. By the last dot, the means have settled at thirty and ninety milliseconds. The last few scores round to the same value, minus seventeen point six nine four. At this precision the last updates look identical. Rounding alone cannot tell us whether a smaller improvement occurred, or whether a different start could score higher.",
+        "hold": 0.75
+      }
+    ]
+  },
+  {
+    "id": "c11",
+    "title": "What survived the underflow?",
+    "sourceChapters": [
+      "c11"
+    ],
+    "beats": [
+      {
+        "id": "c11-b01",
+        "say": "Suppose one request falls far out in both tails. Add log prior weight to log Gaussian density for each component. Our two log scores are minus one thousand and minus one thousand two. They are two units apart on this ruler. Exponentiate them directly in double precision.",
+        "hold": 0.3
+      },
+      {
+        "id": "c11-b02",
+        "say": "Both results round to zero. Can we divide the first weight by their sum?",
+        "hold": 1.85
+      },
+      {
+        "id": "c11-b03",
+        "say": "That ratio is undefined. Go back to the finite scores. Put zero at the larger score by subtracting it from both. The marks stay two units apart. Now exponentiate zero and minus two. One weight is one, and the other is about point one three five.",
+        "hold": 0.3
+      },
+      {
+        "id": "c11-b04",
+        "say": "Moving the origin multiplied both exact weights by the same factor, so it preserved their ratio.",
+        "hold": 0.85
+      },
+      {
+        "id": "c11-b05",
+        "say": "Divide each weight by their sum. The first component gets about eighty-eight percent of the request and the second gets twelve percent. To recover the log of the original total density, take the log of this shifted sum and add the maximum back. That is log-sum-exp.",
+        "hold": 0.3
+      },
+      {
+        "id": "c11-b06",
+        "say": "For finite scores the largest shifted weight is one, even if a much smaller one still rounds to zero.",
+        "hold": 0.8
+      },
+      {
+        "id": "c11-b07",
+        "say": "What if both log scores are minus infinity? There is no finite maximum to subtract. Stop and inspect the input and the model. A nonfinite latency or a nonpositive variance also needs correction. There is a second check after adding memberships across requests.",
+        "hold": 0.3
+      },
+      {
+        "id": "c11-b08",
+        "say": "If a component has almost no total membership, another initialization gives it a fresh start. The example stops before dividing by that count.",
+        "hold": 0.8
+      },
+      {
+        "id": "c11-b09",
+        "say": "A small share on a single request is worth keeping. Look at the ninety-four millisecond request in our first full M-step. The fast component gets less than seven percent of it.",
+        "hold": 0.3
+      },
+      {
+        "id": "c11-b10",
+        "say": "Yet it lies far from the new fast mean, so even that small share adds appreciably to the weighted squared distance. Add the six contributions and divide by the fast effective count for its maximum-likelihood variance.",
+        "hold": 0.3
+      },
+      {
+        "id": "c11-b11",
+        "say": "Each request contributed one unit across the components, so their new mixture weights also sum to one.",
+        "hold": 0.85
+      }
+    ]
+  },
+  {
+    "id": "c12",
+    "title": "Keep the variance safeguard inside the objective",
+    "sourceChapters": [
+      "c12"
+    ],
+    "beats": [
+      {
+        "id": "c12-b01",
+        "say": "Without constraints, a positive-weight mixture component can sit on one observed point while its variance approaches zero. Its peak density diverges. Another component can keep finite density on the remaining observations, so training likelihood has no finite maximum.",
+        "hold": 0.3
+      },
+      {
+        "id": "c12-b02",
+        "say": "Read the broad component’s contribution at thirty milliseconds. It still supplies about nine ten-thousandths per millisecond there. Each of the five readings stays positive as the other component narrows. A single Gaussian narrowing around twenty-eight would lose density at all five.",
+        "hold": 0.8
+      },
+      {
+        "id": "c12-b03",
+        "say": "Freeze the responsibilities and new mean. If effective count is N and weighted squared deviation is S, the variance part of Q is negative one half times N times log variance, minus S divided by twice the variance. Its unconstrained optimum is S divided by N. Under a fixed positive minimum variance, the exact constrained optimum is the larger of that ratio and the floor. Try four effective observations with a weighted squared deviation of one and a minimum variance of one. Which feasible point gives the highest Q?",
+        "hold": 2.4
+      },
+      {
+        "id": "c12-b04",
+        "say": "The ratio is one quarter. The variance must be at least one. Clamping yields one. Adding a ridge of one would give one point two five and a lower Q.",
+        "hold": 1.2
+      },
+      {
+        "id": "c12-b05",
+        "say": "Start both variances at or above one and keep that floor at every update. Even with a mean placed exactly on a request, the ceiling on density is about point four per millisecond. That ceiling bounds the training likelihood. Clamping maximizes the same constrained objective at every M-step. Adding a ridge gives a different update.",
+        "hold": 0.8
+      }
+    ]
+  },
+  {
+    "id": "c13",
+    "title": "Initialization can choose the basin of attraction",
+    "sourceChapters": [
+      "c13"
+    ],
+    "beats": [
+      {
+        "id": "c13-b01",
+        "say": "Start both components at sixty with the same variance and weight. Each request gives half a vote to each. Follow the two sets of six votes. What will the two means become?",
+        "hold": 2.6
+      },
+      {
+        "id": "c13-b02",
+        "say": "Both return to sixty. Each component averages the same squared distances, so both variances equal the pooled variance. Each request still splits evenly on the next E-step. With the same weights on the same times, the M-step returns the same parameters. This is a symmetric fixed point. Compare the training scores. Starting the means apart, at twenty-five and ninety-five, reaches a higher-scoring fit.",
+        "hold": 0.6
+      },
+      {
+        "id": "c13-b03",
+        "say": "Watch the two curves over the same request. The pink peak keeps rising as its spread shrinks. The green peak stops at the spread allowed by our variance floor. That keeps this one request from driving the training score arbitrarily high.",
+        "hold": 0.75
+      }
+    ]
+  },
+  {
+    "id": "c14",
+    "title": "Which fit better predicts fresh requests?",
+    "sourceChapters": [
+      "c14"
+    ],
+    "beats": [
+      {
+        "id": "c14-b01",
+        "say": "Put four fresh request times on the axis. The first two sit near the narrow peak at thirty. The other two sit near ninety, where the training times spread twice as far from the mean. That gives the second component four times the variance.",
+        "hold": 0.3
+      },
+      {
+        "id": "c14-b02",
+        "say": "Look straight up from each gold mark. Which curve gives these four times higher density?",
+        "hold": 2
+      },
+      {
+        "id": "c14-b03",
+        "say": "The green curve is higher at all four marks. Average the four log densities to score each fit. The separated fit scores about minus two point six four per request. The symmetric fit scores about minus four point eight two. On these requests, the separated fit wins.",
+        "hold": 0.8
+      },
+      {
+        "id": "c14-b04",
+        "say": "Keep the variance floor fixed and give the narrow peak a twin. Split its weight between the two copies. Their heights still add up to the same curve. So a three-component model can match any two-component fit.",
+        "hold": 0.3
+      },
+      {
+        "id": "c14-b05",
+        "say": "EM can still settle on a worse fit from a particular start. Try several asymmetric starts for each size and keep its best training score. To choose the size, compare held-out scores or use AIC or BIC to account for the extra parameters.",
+        "hold": 0.8
+      },
+      {
+        "id": "c14-b06",
+        "say": "Swap the names of the components. The blue and pink curves trade places. Their green sum stays put. To simulate a latency, pick a component by its weight and draw from its Gaussian. Here a draw picks the peak at ninety and lands at ninety-two milliseconds. Compare simulated draws with fresh traffic, including the tails.",
+        "hold": 0.3
+      },
+      {
+        "id": "c14-b07",
+        "say": "If the model draws negative times, a distribution on positive values can enforce the physical limit. Here we held the fitted parameters fixed. A Bayesian posterior predictive check also draws parameters from their posterior.",
+        "hold": 0.8
+      }
+    ]
+  },
+  {
+    "id": "c15",
+    "title": "A VAE replaces exact responsibilities with an encoder",
+    "sourceChapters": [
+      "c15"
+    ],
+    "beats": [
+      {
+        "id": "c15-b01",
+        "say": "A Gaussian mixture has a small discrete hidden variable, so its posterior responsibilities can be calculated exactly. The E-step then feeds a weighted maximum-likelihood update in the M-step.",
+        "hold": 0.55
+      },
+      {
+        "id": "c15-b02",
+        "say": "A variational autoencoder uses a neural encoder to approximate a posterior over continuous latent values. The encoder and decoder usually train together with stochastic gradients that optimize a lower bound on log likelihood.",
+        "hold": 0.6
+      },
+      {
+        "id": "c15-b03",
+        "say": "Compare their updates. The mixture sums two possible sources and refits two Gaussians using exact responsibilities. The encoder replaces a separate inference problem for each input with one learned function. The decoder and encoder both take gradient steps on an estimated lower bound.",
+        "hold": 0.75
+      }
+    ]
+  },
+  {
+    "id": "c16",
+    "title": "Follow one draw through the encoder",
+    "sourceChapters": [
+      "c16"
+    ],
+    "beats": [
+      {
+        "id": "c16-b01",
+        "say": "Run three different inputs through the same encoder. Each gets its own distribution for z, but the parameters that produced them are shared. This is amortized inference.",
+        "hold": 0.3
+      },
+      {
+        "id": "c16-b02",
+        "say": "With a continuous latent vector and a nonlinear decoder, the evidence integral and the posterior are usually unavailable in closed form. Linear Gaussian models can still be integrated exactly. A restricted encoder family can leave a gap to the true posterior.",
+        "hold": 0.8
+      },
+      {
+        "id": "c16-b03",
+        "say": "Two KL terms play different roles. Suppose the expected decoder log likelihood for one observation is minus five point two. Subtract a prior penalty of point eight to get a bound of minus six. That penalty compares the encoder with the prior.",
+        "hold": 0.3
+      },
+      {
+        "id": "c16-b04",
+        "say": "If the gap to the true posterior is one point five, add that gap to the bound. The log evidence is minus four point five. The prior penalty shapes training. The posterior gap tells us how tight the bound is.",
+        "hold": 0.8
+      },
+      {
+        "id": "c16-b05",
+        "say": "Take one draw from a Gaussian encoder. Start with standard normal noise, multiply it by the encoder standard deviation, and add the encoder mean. With mean one, standard deviation two, and noise one half, the sample is two.",
+        "hold": 0.3
+      },
+      {
+        "id": "c16-b06",
+        "say": "Pass it through a Gaussian decoder with mean w times z and variance one. Set w to one. The prediction is two and the observation is three, so half the squared error is one half. This is the reconstruction loss up to a constant.",
+        "hold": 0.3
+      },
+      {
+        "id": "c16-b07",
+        "say": "At this draw the loss gradient is minus one for the encoder mean, minus one half for its standard deviation, and minus two for the decoder weight. Watch how the gradients get back to the encoder. Hold the noise fixed and nudge the mean.",
+        "hold": 0.3
+      },
+      {
+        "id": "c16-b08",
+        "say": "Watch the sample. Nudge the mean up by one tenth. The sample moves the full tenth. Reset the mean and nudge the standard deviation up by a tenth instead. Now the sample moves half as far. The fixed noise carries reconstruction gradients to both encoder outputs. The prior penalty also trains the encoder.",
+        "hold": 0.8
+      },
+      {
+        "id": "c16-b09",
+        "say": "Start at minus ten. Follow the gap three units to the right. The log evidence is minus seven. Now raise the bound by one and shrink the gap from three to one. Where will the green arrow end?",
+        "hold": 2
+      },
+      {
+        "id": "c16-b10",
+        "say": "At minus eight. The bound gained one unit, but the gap lost two. The log evidence fell by one nat. Even an increase in the full VAE bound can go with lower likelihood. A minibatch estimates that bound from a sample.",
+        "hold": 0.9
+      }
+    ]
+  },
+  {
+    "id": "c17",
+    "title": "What would the fit put in the empty band?",
+    "sourceChapters": [
+      "c17"
+    ],
+    "beats": [
+      {
+        "id": "c17-b01",
+        "say": "Come back to the empty band around sixty milliseconds. We observed zero of six requests there. Both fitted models average sixty. If you drew another request from each model, which one would be more likely to put it in this band?",
+        "hold": 2.2
+      },
+      {
+        "id": "c17-b02",
+        "say": "Trace the single bell curve and shade the area between fifty and seventy. Its fitted spread is about thirty milliseconds. About twenty-six percent of its draws land in the band. Now we have a prediction we can check against new requests.",
+        "hold": 0.8
+      },
+      {
+        "id": "c17-b03",
+        "say": "Trace the green curve over the very same interval. It hugs the axis. Fewer than one in a million draws from this fit land in the band. Count the fraction of fresh requests between fifty and seventy milliseconds. A busy middle would be easy to spot and hard for these two narrow peaks to explain.",
+        "hold": 0.9
+      }
+    ]
+  },
+  {
+    "id": "c18",
+    "title": "How should we split the 45 ms request?",
+    "sourceChapters": [
+      "c18"
+    ],
+    "beats": [
+      {
+        "id": "c18-b01",
+        "say": "Try a new request from a different model. The means are twenty and eighty milliseconds. Both standard deviations are fifteen milliseconds. Read the two curves at forty-five milliseconds. The fast density is about three point eight times the slow density.",
+        "hold": 0.3
+      },
+      {
+        "id": "c18-b02",
+        "say": "On average, the model draws three slow components for every fast one. Which component gets more of the request?",
+        "hold": 2.4
+      },
+      {
+        "id": "c18-b03",
+        "say": "Keep one fast strip and lay down three slow ones. The blue strip reaches almost to the fourth division. Divide its length by the combined length. The fast component gets about fifty-six percent.",
+        "hold": 1.15
+      },
+      {
+        "id": "c18-b04",
+        "say": "Keep the same request, centers, and spreads. Now the model draws nine slow components for each fast one. Which component gets more of this same request?",
+        "hold": 2.3
+      },
+      {
+        "id": "c18-b05",
+        "say": "Set the nine slow strips against that same blue length. Nine outweighs three point eight. The fast component now gets about thirty percent and the slow component gets seventy percent. At the same forty-five milliseconds, the fast share went from just over half to just under a third. All we changed was the prior.",
+        "hold": 1.1
+      },
+      {
+        "id": "c18-b06",
+        "say": "This request counts toward both fitted groups. The time and the mixture give us those shares. What evidence would tell us whether a cache actually served this request?",
+        "hold": 2.6
+      },
+      {
+        "id": "c18-b07",
+        "say": "Open its trace. Here the cache status reads hit. The cache served this request, even though the slow group got the larger share.",
+        "hold": 1
+      }
+    ]
+  }
+]

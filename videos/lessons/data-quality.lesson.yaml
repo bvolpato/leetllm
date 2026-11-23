@@ -1,0 +1,2110 @@
+version: 1
+id: data-quality
+title: Following Data from Source to Training
+source: foundations/dataset-pipelines-data-quality/content.md
+voice: en-US-AndrewNeural
+rate: +0%
+sources:
+  - title: Language Models are Few-Shot Learners
+    url: https://arxiv.org/abs/2005.14165
+  - title: "The FineWeb Datasets: Decanting the Web for the Finest Text Data at Scale"
+    url: https://arxiv.org/abs/2406.17557
+  - title: The FineWeb Datasets, Deduplication Parameters
+    url: https://papers.neurips.cc/paper_files/paper/2024/file/370df50ccfdf8bde18f8f9c2d9151bda-Supplemental-Datasets_and_Benchmarks_Track.pdf
+  - title: "Dolma: an Open Corpus of Three Trillion Tokens"
+    url: https://arxiv.org/abs/2402.00159
+  - title: Dolma Deduplication Toolkit
+    url: https://github.com/allenai/dolma/blob/main/docs/deduplication.md
+  - title: FineWeb published transitive clustering and ablations
+    url: https://arxiv.org/html/2406.17557v2
+  - title: "CCNet: Extracting High Quality Monolingual Datasets from Web Crawl Data"
+    url: https://aclanthology.org/2020.lrec-1.494/
+  - title: Deduplicating Training Data Makes Language Models Better
+    url: https://aclanthology.org/2022.acl-long.577/
+  - title: "Towards Data Contamination Detection for Modern Large Language Models: Limitations, Inconsistencies,
+      and Oracle Challenges"
+    url: https://aclanthology.org/2025.coling-main.338/
+  - title: "Presidio FAQ: governance and detection limits"
+    url: https://raw.githubusercontent.com/data-privacy-stack/presidio/main/docs/faq.md
+  - title: Python Unicode normalization
+    url: https://docs.python.org/3/library/unicodedata.html
+  - title: Python str.casefold
+    url: https://docs.python.org/3/library/stdtypes.html#str.casefold
+  - title: Pydantic strict mode
+    url: https://docs.pydantic.dev/latest/concepts/strict_mode/
+  - title: Pandera DataFrame schemas
+    url: https://pandera.readthedocs.io/en/stable/dataframe_schemas.html
+  - title: Great Expectations Checkpoints
+    url: https://docs.greatexpectations.io/docs/core/trigger_actions_based_on_results/create_a_checkpoint_with_actions/
+  - title: GroupKFold
+    url: https://scikit-learn.org/stable/modules/generated/sklearn.model_selection.GroupKFold.html
+  - title: OpenLineage object model
+    url: https://openlineage.io/docs/spec/object-model/
+  - title: DVC cache structure
+    url: https://doc.dvc.org/user-guide/project-structure/internal-files
+  - title: Delta data retention
+    url: https://docs.delta.io/delta-batch/#data-retention
+  - title: Iceberg snapshot expiration
+    url: https://iceberg.apache.org/docs/latest/maintenance/#expire-snapshots
+  - title: Hugging Face cache fingerprints
+    url: https://huggingface.co/docs/datasets/about_cache
+  - title: SciPy KS assumptions
+    url: https://docs.scipy.org/doc/scipy/reference/generated/scipy.stats.ks_2samp.html
+  - title: SciPy Wasserstein distance
+    url: https://docs.scipy.org/doc/scipy/reference/generated/scipy.stats.wasserstein_distance.html
+  - title: SciPy chi-square assumptions
+    url: https://docs.scipy.org/doc/scipy/reference/generated/scipy.stats.contingency.chi2_contingency.html
+  - title: Datasheets for Datasets
+    url: https://arxiv.org/abs/1803.09010
+scenes:
+  - id: intro
+    title: Which label will the router give the second ticket?
+    visual: Two turns from one support thread slide into training and evaluation. Their words line up. With the
+      training copy removed, ticket 102 changes predictions and the other evaluation tickets keep theirs.
+    beats:
+      - say: “Build is still failing.” One copy lands in training, the other in evaluation. Both came from the
+          same conversation. Fold case and trim the spaces. Now the words match. On a match, the router copies
+          the training label. Otherwise it predicts standard. What will it call the second ticket?
+        caption_starts:
+          - "One copy lands"
+          - "On a match"
+          - "What will it call the second ticket?"
+        hold: 2.7
+        visual_cues:
+          - id: lookup-normalize
+            phrase: Fold case and trim the spaces
+            targets:
+              - lookup-messages
+            color: blue
+            linger: 0.2
+            caption_boundary: true
+      - say: Escalate. The router copied the label from ticket one oh one. Across all three evaluation tickets,
+          that gives it two correct predictions.
+        caption_starts:
+          - "Across all three evaluation tickets"
+        hold: 1
+        visual_cues:
+          - id: lookup-score
+            phrase: Escalate
+            targets:
+              - lookup-answers
+            color: blue
+            linger: 0.2
+            caption_boundary: true
+          - id: lookup-tally
+            phrase: two correct predictions
+            targets:
+              - lookup-answers
+            color: blue
+            linger: 0.2
+            caption_boundary: true
+      - say: Slide the training copy out. The other training ticket is about the deploy policy. The three
+          evaluation tickets stay put. What will the router predict for the build message now?
+        caption_starts:
+          - "What will the router predict"
+        hold: 2.8
+        motion_check:
+          region:
+            - 120
+            - 285
+            - 1700
+            - 650
+          minimumChangedFraction: 0.002
+        visual_cues:
+          - id: lookup-remove
+            phrase: Slide the training copy out
+            targets:
+              - lookup-messages
+            color: blue
+            linger: 0.2
+            caption_boundary: true
+      - say: Standard. The matching entry is gone. Only one of the three predictions is now correct. That extra
+          point came from splitting a conversation. To test on new conversations, keep all the tickets from
+          each one in the same split.
+        caption_starts:
+          - "That extra point came from splitting a conversation"
+        hold: 1.4
+        visual_cues:
+          - id: lookup-default
+            phrase: Standard
+            targets:
+              - lookup-answers
+            color: blue
+            linger: 0.2
+            caption_boundary: true
+          - id: lookup-rescore
+            phrase: Only one of the three predictions is now correct
+            targets:
+              - lookup-answers
+            color: blue
+            linger: 0.2
+            caption_boundary: true
+  - id: intake
+    title: Give every row a clear contract
+    visual: Rows with typed identifiers and reviewed labels pass; one missing label diverts to a quarantine lane
+      as the intake count updates.
+    beats:
+      - say: Start with a small support-ticket table. Each row needs a unique identifier, a conversation key, text,
+          and a reviewed label from the declared vocabulary. Those fields make the later decisions traceable.
+        hold: 0.55
+        visual_cues:
+          - id: intake-beat-1-focus-1
+            phrase: Start with a small support-ticket table
+            targets:
+              - intake-object-ticket-16
+            color: blue
+            linger: 0.6
+      - say: Ticket one hundred four has a message and no label. A structural check can see the missing value; a
+          domain check can reject a label outside the approved set. Both decisions belong at the intake
+          boundary.
+        hold: 0.6
+        visual_cues:
+          - id: intake-beat-2-focus-1
+            phrase: Ticket one hundred four has a message and no label
+            targets:
+              - intake-object-ticket-16
+            color: blue
+            linger: 0.6
+      - say: Batch checks ask a broader question. A sudden rise in missing labels or a changed class mix may point to
+          a source or annotation change, even when each surviving row passes its local checks.
+        hold: 0.65
+        visual_cues:
+          - id: intake-beat-3-focus-1
+            phrase: Batch checks ask a broader question
+            targets:
+              - intake-object-ticket-16
+            color: blue
+            linger: 0.6
+  - id: contract-semantics
+    title: A valid row can still carry a changed meaning
+    visual: Four concrete rows cross strict-ID and extra-field branches; a new annotation policy changes an actual
+      class histogram with columns fixed.
+    beats:
+      - say: The article’s intake function accepts a dictionary containing four required fields. It requires a
+          positive integer ticket ID, a nonblank trimmed conversation key, nonblank text, and an allowed
+          string label. Python treats a Boolean as an integer subclass, so the exact type check deliberately
+          rejects true. The string nine is rejected too. An extra locale field is permitted by this particular
+          open schema.
+        hold: 0.65
+        visual_cues:
+          - id: contract-semantics-b1
+            phrase: The article’s intake function accepts a dictionary containing four required fields.
+            targets:
+              - contract-semantics-construction
+            color: blue
+            linger: 0.5
+          - id: contract-semantics-voice-1
+            phrase: The article’s intake function accepts a dictionary containing four required fields. It requires a
+              positive integer ticket ID, a nonblank trimmed conversation key, nonblank text, and an allowed
+              string label. Python treats a Boolean as an integer subclass, so the exact type check
+              deliberately rejects true. The string nine is rejected too. An extra locale field is permitted
+              by this particular open schema.
+            targets:
+              - contract-semantics-construction
+            color: blue
+            linger: 0.5
+          - id: contract-types
+            phrase: Python treats a Boolean as an integer subclass, so the exact type check deliberately rejects true.
+            targets:
+              - contract-semantics-construction
+            color: blue
+            linger: 0.5
+          - id: contract-string
+            phrase: The string nine is rejected too.
+            targets:
+              - contract-semantics-construction
+            color: blue
+            linger: 0.5
+          - id: contract-extra
+            phrase: An extra locale field is permitted by this particular open schema.
+            targets:
+              - contract-semantics-construction
+            color: blue
+            linger: 0.5
+      - say: Keep the columns and their types fixed, but change what annotators mean by escalate. Every local check
+          can pass while the target changes. In our supplied batch, three of four labels were standard before
+          the policy change and only one of four is standard afterward. Its share changes from three quarters
+          to one quarter. A batch alert opens a source and annotation review; it does not identify which
+          policy is correct.
+        hold: 0.65
+        visual_cues:
+          - id: contract-semantics-b2
+            phrase: Keep the columns and their types fixed, but change what annotators mean by escalate.
+            targets:
+              - contract-semantics-construction
+            color: blue
+            linger: 0.5
+          - id: contract-semantics-voice-2
+            phrase: Keep the columns and their types fixed, but change what annotators mean by escalate. Every local check
+              can pass while the target changes. In our supplied batch, three of four labels were standard
+              before the policy change and only one of four is standard afterward. Its share changes from
+              three quarters to one quarter. A batch alert opens a source and annotation review; it does not
+              identify which policy is correct.
+            targets:
+              - contract-semantics-construction
+            color: blue
+            linger: 0.5
+          - id: contract-class-change
+            phrase: In our supplied batch, three of four labels were standard before the policy change and only one of
+              four is standard afterward.
+            targets:
+              - contract-semantics-construction
+            color: blue
+            linger: 0.5
+      - say: Pydantic offers strict validation, Pandera offers table schemas and checks, and Great Expectations
+          records validation results and supports configured actions. Their exact contracts differ. Strict
+          typing and rejection of extra fields are separate settings. Connect a failed result to an explicit
+          stop or quarantine branch. An allowed word in the label field supplies no evidence that a human
+          reviewed its meaning.
+        hold: 0.65
+        visual_cues:
+          - id: contract-semantics-b3
+            phrase: Pydantic offers strict validation, Pandera offers table schemas and checks, and Great Expectations
+              records validation results and supports configured actions.
+            targets:
+              - contract-semantics-construction
+            color: green
+            linger: 0.5
+          - id: contract-semantics-voice-3
+            phrase: Pydantic offers strict validation, Pandera offers table schemas and checks, and Great Expectations
+              records validation results and supports configured actions. Their exact contracts differ. Strict
+              typing and rejection of extra fields are separate settings. Connect a failed result to an
+              explicit stop or quarantine branch. An allowed word in the label field supplies no evidence that
+              a human reviewed its meaning.
+            targets:
+              - contract-semantics-construction
+            color: blue
+            linger: 0.5
+          - id: contract-policy
+            phrase: Strict typing and rejection of extra fields are separate settings.
+            targets:
+              - contract-semantics-construction
+            color: blue
+            linger: 0.5
+  - id: normalization
+    title: Define which text differences matter
+    visual: Two whitespace and case variants flow through a visible normalization transform to one exact
+      fingerprint; a sentence containing negation stays separate.
+    beats:
+      - say: The strings “Build is still failing” and “  BUILD is still failing  ” represent the same message under a
+          rule that folds case and collapses whitespace. Follow each text field through the transformation.
+          Its ticket, conversation, and reviewed label stay attached, while the raw version remains available
+          for inspection.
+        hold: 0.55
+        visual_cues:
+          - id: normalization-beat-1-focus-1
+            phrase: Follow each text field through the transformation
+            targets:
+              - normalization-simulation-22
+            color: blue
+            linger: 0.6
+          - id: normalization-beat-1-focus-2
+            phrase: a rule that folds case and collapses whitespace
+            targets:
+              - normalization-simulation-22
+            color: blue
+            linger: 0.6
+      - say: Unicode compatibility normalization can combine forms such as the ligature in “ﬁ” with the letters “fi”.
+          That can be useful for matching. It can also alter code or identifiers, so test the rule against the
+          task.
+        hold: 0.6
+        visual_cues:
+          - id: normalization-beat-2-focus-1
+            phrase: Unicode compatibility normalization can combine forms such as
+            targets:
+              - normalization-simulation-22
+            color: blue
+            linger: 0.6
+      - say: The two records now share one normalized string and one SHA-256 lookup key. “Build is not failing”
+          remains different text. To find messages with similar meaning, compare text features or embeddings
+          after exact matching.
+        hold: 0.65
+        visual_cues:
+          - id: normalization-beat-3-focus-1
+            phrase: The two records now share one normalized string
+            targets:
+              - normalization-simulation-22
+            color: blue
+            linger: 0.6
+  - id: unicode-recipe
+    title: Construct the exact comparison key
+    visual: Pinned raw text undergoes NFKC, full casefold and whitespace collapse; transformed case-sensitive
+      identifiers expose a real collision.
+    beats:
+      - say: The reference Python recipe first applies Unicode NFKC, then full case folding, then whitespace collapse.
+          Compatibility decomposition and composition turn the fi ligature into two letters, superscript two
+          into two, and a full-width A into A. Case folding maps the German sharp s to two s letters. This is
+          more than simply converting capital letters to lowercase.
+        hold: 0.65
+        visual_cues:
+          - id: unicode-recipe-b1
+            phrase: The reference Python recipe first applies Unicode NFKC, then full case folding, then whitespace
+              collapse.
+            targets:
+              - unicode-recipe-construction
+            color: blue
+            linger: 0.5
+          - id: unicode-recipe-voice-1
+            phrase: The reference Python recipe first applies Unicode NFKC, then full case folding, then whitespace
+              collapse. Compatibility decomposition and composition turn the fi ligature into two letters,
+              superscript two into two, and a full-width A into A. Case folding maps the German sharp s to two
+              s letters. This is more than simply converting capital letters to lowercase.
+            targets:
+              - unicode-recipe-construction
+            color: blue
+            linger: 0.5
+          - id: unicode-compat
+            phrase: Compatibility decomposition and composition turn the fi ligature into two letters, superscript two
+              into two, and a full-width A into A.
+            targets:
+              - unicode-recipe-construction
+            color: blue
+            linger: 0.5
+          - id: unicode-case
+            phrase: Case folding maps the German sharp s to two s letters.
+            targets:
+              - unicode-recipe-construction
+            color: blue
+            linger: 0.5
+      - say: "Apply that recipe to Straße and STRASSE: both become strasse. That key is useful only if this
+          distinction is irrelevant to the task. Prod and prod also collapse, even when they name different
+          case-sensitive resources. Keep the raw source beside the transformed text and test meaningful
+          counterexamples. Negation and environment names must survive the intended comparison rule."
+        hold: 0.65
+        visual_cues:
+          - id: unicode-recipe-b2
+            phrase: "Apply that recipe to Straße and STRASSE: both become strasse."
+            targets:
+              - unicode-recipe-construction
+            color: blue
+            linger: 0.5
+          - id: unicode-recipe-voice-2
+            phrase: "Apply that recipe to Straße and STRASSE: both become strasse. That key is useful only if this
+              distinction is irrelevant to the task. Prod and prod also collapse, even when they name
+              different case-sensitive resources. Keep the raw source beside the transformed text and test
+              meaningful counterexamples. Negation and environment names must survive the intended comparison
+              rule."
+            targets:
+              - unicode-recipe-construction
+            color: blue
+            linger: 0.5
+          - id: unicode-collision
+            phrase: Prod and prod also collapse, even when they name different case-sensitive resources.
+            targets:
+              - unicode-recipe-construction
+            color: blue
+            linger: 0.5
+      - say: Hash the resulting UTF-8 bytes with SHA-256. Each pair of hex digits above the digest represents one
+          byte of the message. The digest below has sixty-four hex digits. Use the full digest to look up a
+          message, then compare the normalized strings to confirm a match. To reproduce the same bytes, save
+          the recipe with the Python and Unicode versions.
+        hold: 0.65
+        visual_cues:
+          - id: unicode-recipe-b3
+            phrase: Hash the resulting UTF-8 bytes with SHA-256.
+            targets:
+              - unicode-recipe-construction
+            color: green
+            linger: 0.5
+          - id: unicode-recipe-voice-3
+            phrase: Hash the resulting UTF-8 bytes with SHA-256. Each pair of hex digits above the digest represents one
+              byte of the message. The digest below has sixty-four hex digits. Use the full digest to look up a
+              message, then compare the normalized strings to confirm a match. To reproduce the same bytes, save
+              the recipe with the Python and Unicode versions.
+            targets:
+              - unicode-recipe-construction
+            color: blue
+            linger: 0.5
+          - id: unicode-hash
+            phrase: Hash the resulting UTF-8 bytes with SHA-256.
+            targets:
+              - unicode-recipe-construction
+            color: blue
+            linger: 0.5
+  - id: duplicates
+    title: Quarantine conflicting copies
+    visual: A cross-conversation group with two labels moves intact into quarantine, while tickets 101 and 102
+      from one conversation collapse to the artifact's actual representative.
+    beats:
+      - say: Tickets two hundred one, two hundred two, and two hundred three normalize to the same message across
+          conversations c-seventy-one and c-seventy-two. Two say “escalate” and one says “standard”, so the
+          whole group needs review before release.
+        hold: 0.55
+        visual_cues:
+          - id: duplicates-beat-1-focus-1
+            phrase: Tickets two hundred one
+            targets:
+              - duplicates-object-ticket-31
+            color: blue
+            linger: 0.6
+          - id: duplicates-beat-1-focus-2
+            phrase: three normalize to the same message across conversations
+            targets:
+              - duplicates-object-ticket-31
+            color: blue
+            linger: 0.6
+      - say: Keep all three IDs together in the review record. Identical text across conversations may come from a
+          copied template or from overlap across a split. Preserve both conversation keys and both labels so a
+          reviewer can determine which explanation fits.
+        hold: 0.6
+        visual_cues:
+          - id: duplicates-beat-2-focus-1
+            phrase: Keep all three IDs together in the review record
+            targets:
+              - duplicates-quarantine
+            color: blue
+            linger: 0.6
+      - say: Tickets one hundred one and one hundred two repeat inside conversation c-fifty-one, and both carry the
+          escalate label. The artifact keeps 101 as the representative and removes 102 as its duplicate. The
+          cross-conversation group remains quarantined.
+        hold: 0.65
+        visual_cues:
+          - id: duplicates-beat-3-focus-1
+            phrase: The artifact keeps 101 as the representative and
+            targets:
+              - duplicates-object-keep-remove-duplicate-37
+            color: blue
+            linger: 0.6
+          - id: duplicates-beat-3-focus-2
+            phrase: Tickets one hundred one and one hundred two repeat inside conversation c-fifty-one
+            targets:
+              - duplicates-same-conversation
+            color: blue
+            linger: 0.6
+  - id: split
+    title: Keep connected examples together
+    visual: Conversation cards move as intact groups into stable train, validation, or test bins; the same ticket
+      never appears in two partitions.
+    beats:
+      - say: Decide what a held-out prediction is meant to represent. For new conversations, assign the conversation
+          as a unit. A random ticket-level split can put neighboring turns on both sides and let shared
+          details carry across.
+        hold: 0.55
+        visual_cues:
+          - id: split-beat-1-focus-1
+            phrase: Decide what a held-out prediction is meant to represent
+            targets:
+              - split-simulation-45
+            color: blue
+            linger: 0.6
+          - id: split-beat-1-focus-2
+            phrase: assign the conversation as a unit
+            targets:
+              - split-object-row-conversation-row-id-46
+            color: blue
+            linger: 0.6
+      - say: Hash the versioned seed, a colon, and the conversation key. Read the first eight hexadecimal digits,
+          convert them to an integer, and take the remainder after division by a hundred. Our three retained
+          groups land one each in train, validation, and test.
+        hold: 0.6
+        visual_cues:
+          - id: split-beat-2-focus-1
+            phrase: Hash the versioned seed
+            targets:
+              - split-simulation-45
+            color: blue
+            linger: 0.6
+          - id: split-hash-operation
+            phrase: Hash the versioned seed, a colon, and the conversation key. Read the first eight hexadecimal digits,
+              convert them to an integer, and take the remainder after division by a hundred. Our three
+              retained groups land one each in train, validation, and test.
+            targets:
+              - split-simulation-45
+            color: blue
+            linger: 0.5
+      - say: If several conversations describe one incident, conversation IDs may still be too narrow. Group at the
+          level named by the evaluation claim, and add a time cutoff when the real question concerns future
+          traffic.
+        hold: 0.65
+        visual_cues:
+          - id: split-beat-3-focus-1
+            phrase: If several conversations describe one incident
+            targets:
+              - split-object-same-incident-group-54
+            color: blue
+            linger: 0.6
+          - id: split-beat-3-focus-2
+            phrase: conversation IDs may still be too narrow
+            targets:
+              - split-object-conversation-a-52
+            color: blue
+            linger: 0.6
+  - id: group-leakage
+    title: Stable assignment is a rule about groups
+    visual: Actual 301/315 group membership survives group hashing, then ticket hashing splits it; a decision
+      clock independently gates feature availability.
+    beats:
+      - say: The earlier eight-row film fixture hashes a versioned seed and conversation key. The article’s executable
+          reference uses the conversation key alone. These are different declared policies. In that reference,
+          tickets three hundred one and three hundred fifteen both belong to build-zero-zero-one and both
+          enter train. Build-zero-zero-five enters validation; build-zero-zero-six enters test. Repeating the
+          same policy preserves each group’s assignment when another group arrives.
+        hold: 0.65
+        visual_cues:
+          - id: group-leakage-b1
+            phrase: The earlier eight-row film fixture hashes a versioned seed and conversation key.
+            targets:
+              - group-leakage-construction
+            color: blue
+            linger: 0.5
+          - id: group-leakage-voice-1
+            phrase: The earlier eight-row film fixture hashes a versioned seed and conversation key. The article’s
+              executable reference uses the conversation key alone. These are different declared policies. In
+              that reference, tickets three hundred one and three hundred fifteen both belong to
+              build-zero-zero-one and both enter train. Build-zero-zero-five enters validation;
+              build-zero-zero-six enters test. Repeating the same policy preserves each group’s assignment
+              when another group arrives.
+            targets:
+              - group-leakage-construction
+            color: blue
+            linger: 0.5
+      - say: "Change only the hash input to the ticket ID. Three hundred one now enters train while three hundred
+          fifteen enters validation, although both turns describe the same conversation. The leakage is
+          visible before training a model. Group sizes and class mixtures still determine row proportions:
+          seventy, fifteen and fifteen percent thresholds on hash buckets do not guarantee those exact row
+          counts or balanced labels."
+        hold: 0.65
+        visual_cues:
+          - id: group-leakage-b2
+            phrase: Change only the hash input to the ticket ID.
+            targets:
+              - group-leakage-construction
+            color: blue
+            linger: 0.5
+          - id: group-leakage-voice-2
+            phrase: "Change only the hash input to the ticket ID. Three hundred one now enters train while three hundred
+              fifteen enters validation, although both turns describe the same conversation. The leakage is
+              visible before training a model. Group sizes and class mixtures still determine row proportions:
+              seventy, fifteen and fifteen percent thresholds on hash buckets do not guarantee those exact row
+              counts or balanced labels."
+            targets:
+              - group-leakage-construction
+            color: blue
+            linger: 0.5
+          - id: group-ticket-override
+            phrase: Three hundred one now enters train while three hundred fifteen enters validation, although both turns
+              describe the same conversation.
+            targets:
+              - group-leakage-construction
+            color: blue
+            linger: 0.5
+      - say: For future traffic, impose a declared prediction-time cutoff as well. A feature calculated from
+          tomorrow’s incident resolution is unavailable today, even in a chronologically partitioned table.
+          Reconstruct features as known at decision time, account for label delays, and fit learned
+          preprocessing on training data. Decide explicitly what happens to a conversation crossing the time
+          cutoff; neither grouping nor time order silently resolves that conflict.
+        hold: 0.65
+        visual_cues:
+          - id: group-leakage-b3
+            phrase: For future traffic, impose a declared prediction-time cutoff as well.
+            targets:
+              - group-leakage-construction
+            color: green
+            linger: 0.5
+          - id: group-leakage-voice-3
+            phrase: For future traffic, impose a declared prediction-time cutoff as well. A feature calculated from
+              tomorrow’s incident resolution is unavailable today, even in a chronologically partitioned
+              table. Reconstruct features as known at decision time, account for label delays, and fit learned
+              preprocessing on training data. Decide explicitly what happens to a conversation crossing the
+              time cutoff; neither grouping nor time order silently resolves that conflict.
+            targets:
+              - group-leakage-construction
+            color: blue
+            linger: 0.5
+          - id: group-time-cutoff
+            phrase: A feature calculated from tomorrow’s incident resolution is unavailable today, even in a
+              chronologically partitioned table.
+            targets:
+              - group-leakage-construction
+            color: blue
+            linger: 0.5
+  - id: similarity
+    title: Use near matches as review signals
+    visual: Shared word shingles are highlighted, Jaccard similarity updates to three quarters, and a MinHash
+      banding curve shows a probability rather than a hard boundary.
+    beats:
+      - say: Exact matching misses edited copies. Compare word pairs in “build has not passed” and “my build has not
+          passed”. Three of their four unique pairs overlap, giving Jaccard similarity three quarters.
+        hold: 0.55
+        visual_cues:
+          - id: similarity-beat-1-focus-1
+            phrase: giving Jaccard similarity three quarters
+            targets:
+              - similarity-simulation-55
+            color: blue
+            linger: 0.6
+          - id: similarity-beat-1-focus-2
+            phrase: Exact matching misses edited copies
+            targets:
+              - similarity-object-part-57
+            color: blue
+            linger: 0.6
+      - say: MinHash signatures estimate set similarity, while locality-sensitive hashing forms candidate pairs from
+          matching bands. FineWeb documents one configuration with one hundred twelve hashes in fourteen bands
+          of eight rows.
+        hold: 0.6
+        visual_cues:
+          - id: similarity-beat-2-focus-1
+            phrase: MinHash signatures estimate set similarity
+            targets:
+              - similarity-simulation-55
+            color: blue
+            linger: 0.6
+      - say: Under the ideal independent-hash model, similarity point seven five yields about a seventy-seven percent
+          candidate probability with that banding rule. Some such pairs are missed, and other pairs become
+          candidates. Inspect matched spans before choosing what to remove.
+        hold: 0.7
+        visual_cues:
+          - id: similarity-beat-3-focus-1
+            phrase: similarity point seven five yields about a seventy-seven
+            targets:
+              - similarity-simulation-55
+            color: blue
+            linger: 0.6
+          - id: similarity-beat-3-focus-2
+            phrase: Under the ideal independent-hash model
+            targets:
+              - similarity-object-ideal-independent-hash-model-62
+            color: blue
+            linger: 0.6
+          - id: similarity-probability-reveal
+            phrase: Under the ideal independent-hash model, similarity point seven five yields about a seventy-seven
+              percent candidate probability with that banding rule.
+            targets:
+              - similarity-simulation-55
+            color: blue
+            linger: 0.5
+  - id: minhash-rankings
+    title: Why a minimum can estimate overlap
+    visual: Named shingles a/b/c/d move through actual permutations; minima retain shingle identity while the
+      union-first argument constructs the probability.
+    beats:
+      - say: Let a, b and c name the three shared word pairs. The extra pair my build is d, present only in the longer
+          message. For one random ordering of the union, keep the earliest shingle in each set. If the
+          earliest union member is a, b or c, both sets choose it. If that earliest member is d, the longer
+          message chooses d and the shorter message cannot.
+        hold: 0.65
+        visual_cues:
+          - id: minhash-rankings-b1
+            phrase: Let a, b and c name the three shared word pairs.
+            targets:
+              - minhash-rankings-construction
+            color: blue
+            linger: 0.5
+          - id: minhash-rankings-voice-1
+            phrase: Let a, b and c name the three shared word pairs. The extra pair my build is d, present only in the
+              longer message. For one random ordering of the union, keep the earliest shingle in each set. If
+              the earliest union member is a, b or c, both sets choose it. If that earliest member is d, the
+              longer message chooses d and the shorter message cannot.
+            targets:
+              - minhash-rankings-construction
+            color: blue
+            linger: 0.5
+          - id: minhash-shared
+            phrase: If the earliest union member is a, b or c, both sets choose it.
+            targets:
+              - minhash-rankings-construction
+            color: blue
+            linger: 0.5
+          - id: minhash-different
+            phrase: If that earliest member is d, the longer message chooses d and the shorter message cannot.
+            targets:
+              - minhash-rankings-construction
+            color: blue
+            linger: 0.5
+      - say: "There are twenty-four equally likely permutations of these four distinct shingles. Eighteen put a shared
+          member first, so the minima agree in eighteen divided by twenty-four cases: three quarters, exactly
+          their Jaccard similarity. This is the ideal uniform-permutation argument. With several independent
+          orderings, the fraction of matching signature positions estimates that probability; a short
+          signature can fluctuate."
+        hold: 0.65
+        visual_cues:
+          - id: minhash-rankings-b2
+            phrase: There are twenty-four equally likely permutations of these four distinct shingles.
+            targets:
+              - minhash-rankings-construction
+            color: blue
+            linger: 0.5
+          - id: minhash-rankings-voice-2
+            phrase: "There are twenty-four equally likely permutations of these four distinct shingles. Eighteen put a
+              shared member first, so the minima agree in eighteen divided by twenty-four cases: three
+              quarters, exactly their Jaccard similarity. This is the ideal uniform-permutation argument. With
+              several independent orderings, the fraction of matching signature positions estimates that
+              probability; a short signature can fluctuate."
+            targets:
+              - minhash-rankings-construction
+            color: blue
+            linger: 0.5
+          - id: minhash-probability
+            phrase: "Eighteen put a shared member first, so the minima agree in eighteen divided by twenty-four cases:
+              three quarters, exactly their Jaccard similarity."
+            targets:
+              - minhash-rankings-construction
+            color: blue
+            linger: 0.5
+      - say: Practical systems approximate these rankings with hash functions. For each ranking, follow the
+          arrows and keep the first shingle you find in each message. Those two choices fill one position in
+          each signature. Correlated rankings or hash collisions can affect the estimated similarity. A
+          one-word message contributes that word. An empty message has no minimum. The shingler assigns two
+          empty inputs a similarity of zero, and the intake gate rejects blanks before this step.
+        hold: 0.65
+        visual_cues:
+          - id: minhash-rankings-b3
+            phrase: Practical systems approximate these rankings with hash functions.
+            targets:
+              - minhash-rankings-construction
+            color: green
+            linger: 0.5
+          - id: minhash-rankings-voice-3
+            phrase: Practical systems approximate these rankings with hash functions. For each ranking, follow the
+              arrows and keep the first shingle you find in each message. Those two choices fill one position in
+              each signature. Correlated rankings or hash collisions can affect the estimated similarity. A
+              one-word message contributes that word. An empty message has no minimum. The shingler assigns two
+              empty inputs a similarity of zero, and the intake gate rejects blanks before this step.
+            targets:
+              - minhash-rankings-construction
+            color: blue
+            linger: 0.5
+  - id: lsh-bands
+    title: Which pairs enter review?
+    visual: Two four-position comparisons have the same number of matches in different places. A sixteen-cell
+      outcome grid counts the complete bands, then three bandings share the same probability scale.
+    beats:
+      - say: Read the signatures in pairs, straight down each column. Two of the four positions match, so our
+          estimate of similarity is one half. The index looks for a whole band. In the first band, both the
+          one and the four agree. This pair enters review. Now change the lower signature. It still matches
+          twice. With the same two band boundaries, does this pair enter review?
+        hold: 2.8
+        visual_cues:
+          - id: band-count
+            phrase: Two of the four positions match
+            targets:
+              - lsh-bands-construction
+            color: blue
+            linger: 0.2
+            caption_boundary: true
+          - id: band-first-result
+            phrase: This pair enters review
+            targets:
+              - lsh-bands-construction
+            color: blue
+            linger: 0.2
+            caption_boundary: true
+          - id: band-scatter
+            phrase: Now change the lower signature
+            targets:
+              - lsh-bands-construction
+            color: blue
+            linger: 0.2
+            caption_boundary: true
+      - say: Neither band is complete. The matches are in columns one and three. The index skips this pair even
+          though the match count stayed at two. Now suppose the true similarity is one half and the four
+          rows are independent. Each square stands for one of sixteen equally likely outcomes. Read the two
+          symbols on an edge as the results of the two rows in that band. The right column gives the first
+          band two matches. That's one quarter of the square. The bottom row adds the outcomes where the
+          second band matches. Nine squares miss both bands. That leaves seven out of sixteen chances to
+          become a candidate. For any similarity, raise it to the rows per band for one band to match.
+          Subtract from one for a miss. Raise that miss probability to the number of independent bands,
+          then take its complement.
+        hold: 1.1
+        visual_cues:
+          - id: band-scatter-result
+            phrase: Neither band is complete
+            targets:
+              - lsh-bands-construction
+            color: blue
+            linger: 0.2
+            caption_boundary: true
+          - id: odds-grid
+            phrase: Now suppose the true similarity is one half
+            targets:
+              - lsh-bands-construction
+            color: blue
+            linger: 0.2
+            caption_boundary: true
+          - id: odds-first
+            phrase: The right column gives the first band two matches
+            targets:
+              - lsh-bands-construction
+            color: blue
+            linger: 0.2
+            caption_boundary: true
+          - id: odds-second
+            phrase: The bottom row adds the outcomes
+            targets:
+              - lsh-bands-construction
+            color: blue
+            linger: 0.2
+            caption_boundary: true
+          - id: band-probability
+            phrase: That leaves seven out of sixteen
+            targets:
+              - lsh-bands-construction
+            color: blue
+            linger: 0.2
+            caption_boundary: true
+      - say: Keep four signature positions and true similarity one half. With four bands of one, even a single
+          match gets the pair into review. With one band of four, all four must match. The bars show how
+          much more comparison work the permissive rule can admit. FineWeb used one hundred twelve
+          positions, in fourteen bands of eight. At similarity three quarters, that rule finds about
+          seventy-seven percent of pairs under the ideal model. It misses the other twenty-three percent. A
+          crowded bucket can still produce quadratically many pairs. The next decision is what to do with
+          the pairs you find.
+        hold: 1.1
+        visual_cues:
+          - id: lsh-bands-b3
+            phrase: Keep four signature positions
+            targets:
+              - lsh-bands-construction
+            color: blue
+            linger: 0.2
+            caption_boundary: true
+          - id: lsh-bands-voice-3
+            phrase: With four bands of one, even a single match gets the pair into review
+            targets:
+              - lsh-bands-construction
+            color: blue
+            linger: 0.2
+            caption_boundary: true
+          - id: band-fineweb
+            phrase: At similarity three quarters, that rule finds about seventy-seven percent of pairs under the
+              ideal model
+            targets:
+              - lsh-bands-construction
+            color: blue
+            linger: 0.2
+            caption_boundary: true
+  - id: cluster-chain
+    title: A connected cluster is not pairwise agreement
+    visual: Actual shingle overlaps build A/B and B/C edges; absent A/C remains visible inside the connected
+      cluster and during representative removal.
+    beats:
+      - say: Inspect build has failed, build has failed again, and has failed again. The first and middle messages
+          share two of three union shingles. The middle and last also share two of three. The first and last
+          share only one of three. At a point six threshold, A matches B and B matches C, while A does not
+          match C.
+        hold: 0.65
+        visual_cues:
+          - id: cluster-chain-b1
+            phrase: Inspect build has failed, build has failed again, and has failed again.
+            targets:
+              - cluster-chain-construction
+            color: blue
+            linger: 0.5
+          - id: cluster-chain-voice-1
+            phrase: Inspect build has failed, build has failed again, and has failed again. The first and middle messages
+              share two of three union shingles. The middle and last also share two of three. The first and
+              last share only one of three. At a point six threshold, A matches B and B matches C, while A
+              does not match C.
+            targets:
+              - cluster-chain-construction
+            color: blue
+            linger: 0.5
+          - id: cluster-links
+            phrase: At a point six threshold, A matches B and B matches C, while A does not match C.
+            targets:
+              - cluster-chain-construction
+            color: blue
+            linger: 0.5
+      - say: A connected-component policy nevertheless joins all three through B. Keeping A as the representative
+          would remove C even though A and C fail that pairwise threshold. FineWeb’s published
+          twenty-twenty-four description formed such transitive clusters and kept one randomly chosen
+          document. Our ticket policy instead queues candidates for review. Record both the matching rule and
+          the retention rule; they answer different questions.
+        hold: 0.65
+        visual_cues:
+          - id: cluster-chain-b2
+            phrase: A connected-component policy nevertheless joins all three through B.
+            targets:
+              - cluster-chain-construction
+            color: blue
+            linger: 0.5
+          - id: cluster-chain-voice-2
+            phrase: A connected-component policy nevertheless joins all three through B. Keeping A as the representative
+              would remove C even though A and C fail that pairwise threshold. FineWeb’s published
+              twenty-twenty-four description formed such transitive clusters and kept one randomly chosen
+              document. Our ticket policy instead queues candidates for review. Record both the matching rule
+              and the retention rule; they answer different questions.
+            targets:
+              - cluster-chain-construction
+            color: blue
+            linger: 0.5
+          - id: cluster-component
+            phrase: Keeping A as the representative would remove C even though A and C fail that pairwise threshold.
+            targets:
+              - cluster-chain-construction
+            color: blue
+            linger: 0.5
+      - say: Ten thousand documents have forty-nine million nine hundred ninety-five thousand unordered pairs before
+          comparing their sets. Candidate indexing can avoid most of that work in suitable workloads, but a
+          single huge bucket restores the expensive case. Lee and colleagues reported less memorized output
+          after deduplication in their experiments. FineWeb’s aggressive global deduplication underperformed
+          independent per-crawl deduplication in its controlled recipe. Dolma used Bloom filters for URL,
+          document and paragraph deduplication, with possible false-positive matches. Measure deletion effects
+          for the actual corpus and task.
+        hold: 0.65
+        visual_cues:
+          - id: cluster-chain-b3
+            phrase: Ten thousand documents have forty-nine million nine hundred ninety-five thousand unordered pairs
+              before comparing their sets.
+            targets:
+              - cluster-chain-construction
+            color: green
+            linger: 0.5
+          - id: cluster-chain-voice-3
+            phrase: Ten thousand documents have forty-nine million nine hundred ninety-five thousand unordered pairs
+              before comparing their sets. Candidate indexing can avoid most of that work in suitable
+              workloads, but a single huge bucket restores the expensive case. Lee and colleagues reported
+              less memorized output after deduplication in their experiments. FineWeb’s aggressive global
+              deduplication underperformed independent per-crawl deduplication in its controlled recipe. Dolma
+              used Bloom filters for URL, document and paragraph deduplication, with possible false-positive
+              matches. Measure deletion effects for the actual corpus and task.
+            targets:
+              - cluster-chain-construction
+            color: blue
+            linger: 0.5
+  - id: contamination
+    title: Checking the locked evaluation set
+    visual: Two locked evaluation messages face two training records. Full normalized fingerprints determine
+      which message to set aside. The display prints a prefix of each digest.
+    beats:
+      - say: Suppose every conversation stayed on its own side of the split. A crawler could still have picked up
+          part of a locked evaluation set. Here are two training messages and two messages reserved for
+          evaluation. Which locked message already occurs in training?
+        hold: 2.4
+      - say: Normalize the text and compare its fingerprints. The migration message shows up on both sides.
+          Capitalizing the first word didn't change its key. The incident review message has no exact match
+          in this snapshot. Set the matching item aside and record where the copy came from.
+        hold: 1.15
+        visual_cues:
+          - id: overlap-keys
+            phrase: Normalize the text
+            targets:
+              - overlap-register
+            color: blue
+            linger: 0.2
+            caption_boundary: true
+          - id: overlap-result
+            phrase: The migration message shows up on both sides
+            targets:
+              - overlap-register
+            color: blue
+            linger: 0.2
+            caption_boundary: true
+      - say: That overlap weakens a claim about performance on unseen material. A crawler might also collect an
+          answer inside a longer page. The next search keeps the actual words in view so we can see what
+          each check found.
+        hold: 0.7
+  - id: contamination-audit
+    title: How much of the answer did the search find?
+    visual: The full library answer stays in place. A document gains two end words. A 13-word frame advances
+      across it. Each document keeps its own whole-message and window results when a rewrite arrives.
+      A missing snapshot leaves both comparisons unrun.
+    beats:
+      - say: The library return box stays open on Sunday while the building is closed. Those thirteen words are
+          the locked answer. Put “notes” before the answer and “archive” after it in the training document.
+          Would a fingerprint of the whole message still match?
+        hold: 2.5
+        visual_cues:
+          - id: audit-wrap
+            phrase: Put notes before the answer and archive after it
+            targets:
+              - passage-comparison
+            color: blue
+            linger: 0.2
+            caption_boundary: true
+      - say: The whole message misses. Its bytes now include two extra words. Lay a window over the first
+          thirteen words. It starts at “notes” and stops at “is.” Slide it one word to the right. Now it
+          starts at “the” and ends at “closed.” All thirteen words match. Keep that span with the source
+          snapshot so a reviewer can see exactly what was copied.
+        caption_starts:
+          - "Now it starts at “the”"
+          - "All thirteen words match."
+        hold: 1.3
+        visual_cues:
+          - id: audit-whole
+            phrase: The whole message misses
+            targets:
+              - passage-comparison
+            color: blue
+            linger: 0.2
+            caption_boundary: true
+          - id: audit-window
+            phrase: Lay a window over the first thirteen words
+            targets:
+              - passage-comparison
+            color: blue
+            linger: 0.2
+            caption_boundary: true
+          - id: audit-shift
+            phrase: Slide it one word to the right
+            targets:
+              - passage-comparison
+            color: blue
+            linger: 0.2
+            caption_boundary: true
+          - id: audit-window-match
+            phrase: All thirteen words match
+            targets: [passage-comparison]
+            color: blue
+            linger: 0.2
+      - say: Try a second document. It says, “Use the outdoor returns slot when the library shuts.” You can still
+          work out where to leave the book. Which of the two searches will flag those words?
+        hold: 2.6
+        visual_cues:
+          - id: audit-paraphrase
+            phrase: Try a second document
+            targets:
+              - passage-comparison
+            color: blue
+            linger: 0.2
+            caption_boundary: true
+      - say: Both searches miss. The rewrite has nine words, so it cannot fill a thirteen-word window. Yet both
+          passages tell you where to return the book. Compare their meaning when you review a possible copy.
+          If the matching words are common boilerplate, read the surrounding passage before excluding it.
+        hold: 1.2
+        visual_cues:
+          - id: audit-retest
+            phrase: Both searches miss
+            targets:
+              - passage-comparison
+            color: blue
+            linger: 0.2
+            caption_boundary: true
+      - say: GPT-three's initial filter used thirteen-word matches on lowercased, whitespace-separated words with
+          punctuation removed. Its later audit generally used eight to thirteen words for non-synthetic
+          tasks. A filtering bug left overlap in long documents. The authors omitted several benchmarks
+          where almost every example overlapped. Record the rule, dated sources, matched passages and
+          decisions. Keep locked items out of pretraining, fine-tuning, retrieval, prompt examples and
+          judge construction.
+        hold: 1.1
+        visual_cues:
+          - id: audit-history
+            phrase: GPT-three's initial filter
+            targets:
+              - passage-comparison
+            color: blue
+            linger: 0.2
+            caption_boundary: true
+      - say: Now suppose another model's training snapshot is unavailable. Look at the new row.
+          Can you fill in either match result?
+        hold: 2.4
+        visual_cues:
+          - id: audit-unavailable
+            phrase: another model's training snapshot is unavailable
+            targets: [passage-comparison]
+            color: blue
+            linger: 0.2
+      - say: Neither search ran. Both need the training text. A membership score looks for signs of exposure in
+          the way the model predicts words. A common phrase can be easy to predict on a first reading, and a
+          rewrite can change the score. Samuel and colleagues found that detectors disagreed. To measure
+          performance on new material, give the model a fresh private task.
+        caption_starts:
+          - "A membership score"
+          - "A common phrase"
+          - "Samuel and colleagues"
+          - "To measure performance"
+        hold: 1.2
+        visual_cues:
+          - id: audit-untested
+            phrase: Neither search ran
+            targets: [passage-comparison]
+            color: blue
+            linger: 0.2
+            caption_boundary: true
+          - id: audit-behavior
+            phrase: A membership score
+            targets: [passage-comparison]
+            color: blue
+            linger: 0.2
+  - id: privacy
+    title: Review sensitive data by layer
+    visual: Pattern, entity, and policy gates reveal different candidate spans; an incident identifier remains
+      queued for contextual review.
+    beats:
+      - say: Support records can contain personal details, credentials, or internal incident context. These categories
+          overlap, and an identifier may need its surrounding circumstances before someone can judge the risk.
+        hold: 0.55
+        visual_cues:
+          - id: privacy-beat-1-focus-1
+            phrase: Support records can contain personal details
+            targets:
+              - privacy-node-records
+            color: cyan
+            linger: 0.6
+          - id: privacy-beat-1-focus-2
+            phrase: or internal incident context
+            targets:
+              - privacy-object-incident-id-67
+            color: blue
+            linger: 0.6
+      - say: A pattern scanner can flag email-like strings. An entity model can propose names and addresses. A release
+          policy then decides whether to mask a span, drop a record, or restrict access.
+        hold: 0.6
+        visual_cues:
+          - id: privacy-beat-2-focus-1
+            phrase: A pattern scanner can flag email-like strings
+            targets:
+              - privacy-scanner
+            color: cyan
+            linger: 0.6
+      - say: Each layer misses some cases and can flag harmless text. Preserve the source reference and reviewer
+          decision, minimize what the training job needs, and keep the open privacy review visible in the
+          artifact status.
+        hold: 0.65
+        visual_cues:
+          - id: privacy-beat-3-focus-1
+            phrase: and keep the open privacy review visible in the artifact status
+            targets:
+              - privacy-node-records
+            color: cyan
+            linger: 0.6
+          - id: privacy-beat-3-focus-2
+            phrase: Each layer misses some cases and can flag harmless text
+            targets:
+              - privacy-object-process-states-and-transitions-66
+            color: blue
+            linger: 0.6
+  - id: privacy-spans
+    title: What happens when a scanner finds private text?
+    visual: The actual regex highlights alex@example.com in invented row502; untouched row501 retains private
+      incident context. A separate declared masking operation changes the actual matched span.
+    beats:
+      - say: Scan these two tickets for an email address. One mentions a private incident timeline. The other asks
+          for updates at alex at example dot com. The scanner flags the address in ticket five oh two and
+          queues it for redaction review. The text stays intact. Ticket five oh one goes past the email check
+          with the private timeline still in it.
+        caption_starts:
+          - "The scanner flags the address"
+          - "Ticket five oh one goes past"
+        hold: 0.65
+        visual_cues:
+          - id: privacy-spans-b1
+            phrase: Scan these two tickets for an email address
+            targets:
+              - privacy-spans-construction
+            color: blue
+            linger: 0.5
+          - id: privacy-spans-voice-1
+            phrase: Scan these two tickets for an email address. One mentions a private incident timeline. The other asks
+              for updates at alex at example dot com. The scanner flags the address in ticket five oh two and
+              queues it for redaction review. The text stays intact. Ticket five oh one goes past the email check
+              with the private timeline still in it.
+            targets:
+              - privacy-spans-construction
+            color: blue
+            linger: 0.5
+          - id: spans-detected
+            phrase: The scanner flags the address in ticket five oh two
+            targets:
+              - privacy-spans-construction
+            color: blue
+            linger: 0.5
+      - say: Mask the address in ticket five oh two. The email marker takes its place, and the rest of the
+          sentence stays readable. To find names, add a name recognizer. To find credentials, use patterns for
+          those formats. Presidio lets you combine recognizers. Test them on reviewed examples from the
+          languages you serve to see which private spans they miss and which harmless words they flag.
+        hold: 0.65
+        visual_cues:
+          - id: privacy-spans-b2
+            phrase: Mask the address in ticket five oh two
+            targets:
+              - privacy-spans-construction
+            color: blue
+            linger: 0.5
+          - id: privacy-spans-voice-2
+            phrase: Mask the address in ticket five oh two. The email marker takes its place, and the rest of the
+              sentence stays readable. To find names, add a name recognizer. To find credentials, use patterns for
+              those formats. Presidio lets you combine recognizers. Test them on reviewed examples from the
+              languages you serve to see which private spans they miss and which harmless words they flag.
+            targets:
+              - privacy-spans-construction
+            color: blue
+            linger: 0.5
+          - id: spans-mask
+            phrase: The email marker takes its place
+            targets:
+              - privacy-spans-construction
+            color: blue
+            linger: 0.5
+      - say: Dolma’s original web filter counted the sensitive spans it detected on a page. With five, it masked
+          those spans. A sixth span changed the decision. At six or more, the filter dropped the whole page.
+          For support tickets, keep only the content you need and restrict access to the raw records, rejects
+          and manifest. Provenance records where the data came from and who could use it. Lineage connects the
+          source to each transformation and output. OpenLineage can record those connections when a pipeline
+          emits the events.
+        caption_starts:
+          - "With five"
+          - "A sixth span"
+          - "At six or more"
+          - "For support tickets"
+        hold: 0.65
+        visual_cues:
+          - id: privacy-spans-b3
+            phrase: Dolma’s original web filter
+            targets:
+              - privacy-spans-construction
+            color: green
+            linger: 0.5
+          - id: privacy-spans-voice-3
+            phrase: Dolma’s original web filter counted the sensitive spans it detected on a page. With five, it masked
+              those spans. A sixth span changed the decision. At six or more, the filter dropped the whole page.
+              For support tickets, keep only the content you need and restrict access to the raw records, rejects
+              and manifest. Provenance records where the data came from and who could use it. Lineage connects the
+              source to each transformation and output. OpenLineage can record those connections when a pipeline
+              emits the events.
+            targets:
+              - privacy-spans-construction
+            color: blue
+            linger: 0.5
+          - id: spans-dolma
+            phrase: A sixth span changed the decision
+            targets:
+              - privacy-spans-construction
+            color: blue
+            linger: 0.5
+          - id: spans-drop
+            phrase: the filter dropped the whole page
+            targets: [privacy-spans-construction]
+            color: blue
+            linger: 0.2
+          - id: spans-mask-five
+            phrase: With five, it masked those spans
+            targets: [privacy-spans-construction]
+            color: blue
+            linger: 0.2
+  - id: corpus-selection
+    title: A prose filter can remove useful technical data
+    visual: A concrete command log and repeated navigation extract cross the same rule; actual domain counts
+      reveal the changed retained mix before controlled ablation.
+    beats:
+      - say: Web-scale selection applies the same gates to many more records. A length rule, symbol ratio, common-word
+          count or repeated-line rule can remove broken extraction. Apply a prose symbol rule to an otherwise
+          useful command log and it can reject the very technical evidence the target model needs. A repeated
+          error line may be either scraper noise or the structure of an incident. The threshold alone cannot
+          tell those explanations apart.
+        hold: 0.65
+        visual_cues:
+          - id: corpus-selection-b1
+            phrase: Web-scale selection applies the same gates to many more records.
+            targets:
+              - corpus-selection-construction
+            color: blue
+            linger: 0.5
+          - id: corpus-selection-voice-1
+            phrase: Web-scale selection applies the same gates to many more records. A length rule, symbol ratio,
+              common-word count or repeated-line rule can remove broken extraction. Apply a prose symbol rule
+              to an otherwise useful command log and it can reject the very technical evidence the target
+              model needs. A repeated error line may be either scraper noise or the structure of an incident.
+              The threshold alone cannot tell those explanations apart.
+            targets:
+              - corpus-selection-construction
+            color: blue
+            linger: 0.5
+      - say: Keep a reviewed sample and count removals by source, language and domain. In our supplied selection
+          worksheet, a filter removes eight of ten logs but only one of ten prose pages. The retained mix
+          changes from one-half logs to two of eleven documents, about eighteen percent. That measurable
+          change opens a coverage question, even if every retained document passes the local rules.
+        hold: 0.65
+        visual_cues:
+          - id: corpus-selection-b2
+            phrase: Keep a reviewed sample and count removals by source, language and domain.
+            targets:
+              - corpus-selection-construction
+            color: blue
+            linger: 0.5
+          - id: corpus-selection-voice-2
+            phrase: Keep a reviewed sample and count removals by source, language and domain. In our supplied selection
+              worksheet, a filter removes eight of ten logs but only one of ten prose pages. The retained mix
+              changes from one-half logs to two of eleven documents, about eighteen percent. That measurable
+              change opens a coverage question, even if every retained document passes the local rules.
+            targets:
+              - corpus-selection-construction
+            color: blue
+            linger: 0.5
+          - id: corpus-removal
+            phrase: The retained mix changes from one-half logs to two of eleven documents, about eighteen percent.
+            targets:
+              - corpus-selection-construction
+            color: blue
+            linger: 0.5
+      - say: The filter leaves two logs beside nine prose pages. Would a model trained on that mix handle
+          incident logs better? Train one model on the original mix and another on the filtered mix. Match the
+          model settings, token budget and evaluation tasks. Record the sampling rule and seeds. Compare their
+          answers on the same held-out tasks. FineWeb used controlled comparisons like this to choose its data
+          recipe.
+        caption_starts:
+          - "Would a model"
+          - "Train one model"
+          - "Compare their answers"
+        hold: 0.65
+        visual_cues:
+          - id: corpus-selection-b3
+            phrase: The filter leaves two logs beside nine prose pages
+            targets:
+              - corpus-selection-construction
+            color: green
+            linger: 0.5
+          - id: corpus-selection-voice-3
+            phrase: The filter leaves two logs beside nine prose pages. Would a model trained on that mix handle
+              incident logs better? Train one model on the original mix and another on the filtered mix. Match the
+              model settings, token budget and evaluation tasks. Record the sampling rule and seeds. Compare their
+              answers on the same held-out tasks. FineWeb used controlled comparisons like this to choose its data
+              recipe.
+            targets:
+              - corpus-selection-construction
+            color: blue
+            linger: 0.5
+  - id: perplexity
+    title: What makes a log line hard to predict?
+    visual: Two supplied token probabilities construct likelihood, mean negative log and exponential; scorer
+      identity stays fixed while jargon and boilerplate expose interpretation limits.
+    beats:
+      - say: A reference language model assigns conditional probabilities to scored tokens. Add their natural logs,
+          negate the sum, divide by the number of scored tokens, then exponentiate. That is perplexity under
+          this model and tokenizer. For two tokens with probabilities one half and one quarter, their product
+          is one eighth. The inverse geometric mean is the square root of eight, about two point eight three.
+        hold: 0.65
+        visual_cues:
+          - id: perplexity-b1
+            phrase: A reference language model assigns conditional probabilities to scored tokens.
+            targets:
+              - perplexity-construction
+            color: blue
+            linger: 0.5
+          - id: perplexity-voice-1
+            phrase: A reference language model assigns conditional probabilities to scored tokens. Add their natural logs,
+              negate the sum, divide by the number of scored tokens, then exponentiate. That is perplexity
+              under this model and tokenizer. For two tokens with probabilities one half and one quarter,
+              their product is one eighth. The inverse geometric mean is the square root of eight, about two
+              point eight three.
+            targets:
+              - perplexity-construction
+            color: blue
+            linger: 0.5
+          - id: ppl-answer
+            phrase: The inverse geometric mean is the square root of eight, about two point eight three.
+            targets:
+              - perplexity-construction
+            color: blue
+            linger: 0.5
+      - say: Keep the scorer, tokenizer and scored positions fixed when comparing perplexity. Changing tokenizers
+          changes the unit. CCNet used a Wikipedia-based reference model to help select web text. A line about
+          losing quorum on shard seven can surprise a prose model. Four repetitions of “Welcome” can be easy
+          to predict. Which passage would help you diagnose an incident?
+        caption_starts:
+          - "A line about losing quorum"
+          - "Four repetitions"
+          - "Which passage"
+        hold: 2.4
+        visual_cues:
+          - id: perplexity-b2
+            phrase: Keep the scorer, tokenizer and scored positions fixed
+            targets:
+              - perplexity-construction
+            color: blue
+            linger: 0.5
+          - id: perplexity-voice-2
+            phrase: Keep the scorer, tokenizer and scored positions fixed when comparing perplexity. Changing tokenizers
+              changes the unit. CCNet used a Wikipedia-based reference model to help select web text. A line about
+              losing quorum on shard seven can surprise a prose model. Four repetitions of “Welcome” can be easy
+              to predict. Which passage would help you diagnose an incident?
+            targets:
+              - perplexity-construction
+            color: blue
+            linger: 0.5
+          - id: ppl-domain
+            phrase: A line about losing quorum on shard seven
+            targets:
+              - perplexity-construction
+            color: blue
+            linger: 0.5
+      - say: The log tells you which shard lost quorum and whether rollback has started. Now read the rewrite.
+          “The system had a problem.” The shard number is gone. So is the rollback status. Before adopting a
+          filter, review what it removes in each language and format. Test the resulting model on tasks that
+          need those details.
+        caption_starts:
+          - "Now read the rewrite"
+          - "The shard number is gone"
+          - "So is the rollback status"
+          - "Before adopting a filter"
+        hold: 0.65
+        visual_cues:
+          - id: perplexity-b3
+            phrase: Now read the rewrite
+            targets:
+              - perplexity-construction
+            color: green
+            linger: 0.5
+          - id: perplexity-voice-3
+            phrase: The shard number is gone. So is the rollback status.
+            targets:
+              - perplexity-construction
+            color: blue
+            linger: 0.5
+  - id: synthetic-gates
+    title: What does this generated function count?
+    visual: Run a generated function on an empty list and a mixed list. Keep the original outputs beside the
+      repaired function's results, then check zero at the boundary.
+    beats:
+      - say: A teacher model supplied a function to count nonnegative numbers. Its response has the required
+          fields. Keep the teacher and generation settings in the record, and keep locked evaluation
+          examples out of its prompt. Now read the return line. On an empty list, the length is zero. That
+          test passes. On minus three and two, what will the function return?
+        hold: 2.4
+        visual_cues:
+          - id: synthetic-empty
+            phrase: the length is zero
+            targets:
+              - count-workbench
+            color: blue
+            linger: 0.2
+            caption_boundary: true
+      - say: It returns two. It counted minus three as well. Only one value qualifies. A reviewer might like how
+          clearly this answer is written. The mixed list gives us a reason to send it back for repair.
+        hold: 1.2
+        visual_cues:
+          - id: synthetic-mixed
+            phrase: It returns two
+            targets:
+              - count-workbench
+            color: blue
+            linger: 0.2
+            caption_boundary: true
+      - say: Change the return line to count each value that is greater than or equal to zero. Run both lists
+          again. The empty list gives zero and the mixed list gives one. Try zero by itself. It counts once
+          because the comparison includes equality. Save the inputs, outputs and checker version. For a
+          math answer, check the stated mathematical result. For a model judge, compare its ratings with
+          human or verifiable labels. The teacher and judge can share a mistake. These three inputs tell us
+          exactly which behavior we checked.
+        caption_starts:
+          - "It counts once"
+        hold: 1.1
+        visual_cues:
+          - id: synthetic-edit
+            phrase: Change the return line
+            targets:
+              - count-workbench
+            color: blue
+            linger: 0.2
+            caption_boundary: true
+          - id: synthetic-rerun
+            phrase: Run both lists again
+            targets:
+              - count-workbench
+            color: blue
+            linger: 0.2
+            caption_boundary: true
+          - id: synthetic-zero
+            phrase: Try zero by itself
+            targets:
+              - count-workbench
+            color: blue
+            linger: 0.2
+            caption_boundary: true
+          - id: synthetic-zero-result
+            phrase: It counts once
+            targets: [count-workbench]
+            color: blue
+            linger: 0.2
+  - id: release
+    title: Make the dataset reproducible
+    visual: Eight raw rows become seven schema-valid rows, four after conflict quarantine, and three after exact
+      deduplication. Their split assignments and artifact digest are shown with the remaining class-coverage
+      review.
+    beats:
+      - say: Start with eight ticket rows. One lacks a reviewed label, three share conflicting normalized text and
+          stay quarantined, and two agreeing copies keep one representative. The candidate contains tickets
+          one hundred one, one hundred three, and one hundred seven.
+        hold: 0.55
+        motion_check:
+          region:
+            - 110
+            - 300
+            - 1680
+            - 620
+          minimumChangedFraction: 0.002
+        visual_cues:
+          - id: release-beat-1-focus-1
+            phrase: Start with eight ticket rows
+            targets:
+              - release-simulation-70
+            color: blue
+            linger: 0.6
+      - say: A versioned group hash assigns one row each to train, validation, and test. The training row has the
+          standard label; the escalation example sits in validation. That tiny split leaves class coverage
+          open for review.
+        hold: 0.6
+        visual_cues:
+          - id: release-beat-2-focus-1
+            phrase: A versioned group hash assigns one row each to train
+            targets:
+              - release-artifact-rows
+            color: blue
+            linger: 0.6
+      - say: The final rows retain their message, reviewed label, conversation, and split. The artifact digest covers
+          those records and assignments. A byte change produces a new digest; a trusted release record
+          identifies the supplier. Keep the exclusions and the open coverage review alongside this candidate.
+        hold: 0.7
+        visual_cues:
+          - id: release-beat-3-focus-1
+            phrase: The final rows retain their message
+            targets:
+              - release-artifact-rows
+            color: blue
+            linger: 0.6
+          - id: release-byte-digest
+            phrase: A byte change produces a new digest
+            targets:
+              - release-digest-change
+            color: pink
+            linger: 0.4
+          - id: release-trusted-supplier
+            phrase: a trusted release record identifies the supplier
+            targets:
+              - release-supplier-receipt
+            color: green
+            linger: 0.4
+          - id: release-review-evidence
+            phrase: Keep the exclusions and the open coverage review alongside this candidate
+            targets:
+              - release-coverage-review
+            color: yellow
+            linger: 0.5
+  - id: candidate-builder
+    title: Where does each rejected ticket go?
+    visual: Twelve ticket IDs stay in place. Each normalized group opens beside a growing rejection log. The
+      surviving IDs carry their conversation, label and split into the candidate file.
+    beats:
+      - say: Start a new candidate with twelve raw tickets. The last example had eight. First count repeated
+          integer IDs and check each row's fields. A repeated ID disqualifies every otherwise valid row
+          with that ID. Here all twelve IDs are distinct. Ticket four oh four has a message, but its label
+          is missing. Log that reason beside its ID. Now open these two matching messages. They belong to
+          the same conversation. Can you keep just one of them?
+        hold: 2.4
+        visual_cues:
+          - id: builder-invalid
+            phrase: Log that reason beside its ID
+            targets:
+              - builder-register
+          - id: builder-conflict-pair
+            phrase: open these two matching messages
+            targets:
+              - builder-register
+      - say: Both go to review. One label says standard and the other says escalate. Keeping the lower ID would
+          silently choose a label. The builder checks for that conflict first. Try the next pair. Here the
+          text matches and both labels say standard. Look at the conversation keys. Keep one copy or send
+          both to review?
+        hold: 2.5
+        visual_cues:
+          - id: builder-conflict
+            phrase: Both go to review
+            targets:
+              - builder-register
+            caption_boundary: true
+          - id: builder-other-pair
+            phrase: Try the next pair
+            targets:
+              - builder-register
+      - say: Send both to review. These are two different conversations. A shared template could explain the
+          repeated words. Now look at the build messages. Their normalized text, conversation and reviewed
+          label all agree. Which ticket represents this conversation?
+        hold: 2.4
+        visual_cues:
+          - id: builder-cross
+            phrase: Send both to review
+            targets:
+              - builder-register
+            caption_boundary: true
+          - id: builder-same-pair
+            phrase: look at the build messages
+            targets:
+              - builder-register
+      - say: Keep four oh one, the lower ID. Four oh two goes into the rejection log as its duplicate. The other
+          five distinct, valid tickets stay. Six kept plus six rejected accounts for all twelve inputs. A
+          reviewer can still find every excluded ticket and its reason.
+        hold: 1.1
+        visual_cues:
+          - id: builder-duplicate
+            phrase: Keep four oh one
+            targets:
+              - builder-register
+            caption_boundary: true
+          - id: builder-total
+            phrase: Six kept plus six rejected
+            targets:
+              - builder-register
+      - say: Assign the kept rows by conversation. The first seventy hash buckets go to train, the next fifteen
+          to validation, and the last fifteen to test. Read the split column. Three tickets went to train,
+          two to validation and one to test. Write sorted JSON fields as UTF-eight, with a line feed after
+          each record. Save the rejection log separately. The manifest records both file digests, the
+          source and pipeline versions, runtime and Unicode versions, split rule, counts and pending
+          reviews. Let's load the candidate and check those files against that record.
+        hold: 1.1
+        visual_cues:
+          - id: builder-split
+            phrase: Assign the kept rows by conversation
+            targets:
+              - builder-register
+          - id: builder-file
+            phrase: The manifest records both file digests
+            targets:
+              - builder-register
+  - id: candidate-contract
+    title: Which part of the artifact changed?
+    visual: The verifier compares the files and manifest. An in-memory copy crosses a split. An extra byte
+      changes the dataset digest. Editing a single rejection reason changes the rejection digest and two
+      category counts while the total stays fixed.
+    beats:
+      - say: "The downstream verifier checks six visible families of invariants: conversation isolation and exact
+          split adherence; artifact and rejection-log digests; row schema; recomputed normalized-text
+          fingerprints; unique IDs and normalized strings; and manifest accounting. Compare total rows,
+          split counts and the counts in each rejection-reason category with the manifest. All six pass on
+          the actual candidate. They establish these specific properties. None checks whether every
+          permitted label is semantically correct."
+        hold: 0.65
+        visual_cues:
+          - id: candidate-contract-b1
+            phrase: "The downstream verifier checks six visible families of invariants: conversation isolation and
+              exact split adherence; artifact and rejection-log digests; row schema; recomputed
+              normalized-text fingerprints; unique IDs and normalized strings; and manifest accounting."
+            targets:
+              - candidate-contract-construction
+            color: blue
+            linger: 0.5
+          - id: candidate-contract-voice-1
+            phrase: "The downstream verifier checks six visible families of invariants: conversation isolation and
+              exact split adherence; artifact and rejection-log digests; row schema; recomputed
+              normalized-text fingerprints; unique IDs and normalized strings; and manifest accounting.
+              Compare total rows, split counts and the counts in each rejection-reason category with the
+              manifest. All six pass on the actual candidate. They establish these specific properties.
+              None checks whether every permitted label is semantically correct."
+            targets:
+              - candidate-contract-construction
+            color: blue
+            linger: 0.5
+          - id: contract-counts
+            phrase: Compare total rows, split counts and the counts in each rejection-reason category with the
+              manifest.
+            targets:
+              - candidate-contract-construction
+            color: blue
+            linger: 0.5
+      - say: Copy the first retained row in memory, give it ID nine hundred ninety-nine and put it in test. Its
+          conversation now crosses train and test; normalized text is no longer unique; seven loaded rows
+          disagree with the manifest’s six. Multiple checks catch the same intervention. Restore the
+          original rows in memory. After loading them, append one newline byte to the dataset file. The
+          rows already in memory stay the same. The digest of the file on disk changes.
+        hold: 0.65
+        visual_cues:
+          - id: candidate-contract-b2
+            phrase: Copy the first retained row in memory, give it ID nine hundred ninety-nine and put it in test.
+            targets:
+              - candidate-contract-construction
+            color: blue
+            linger: 0.5
+          - id: candidate-contract-voice-2
+            phrase: Copy the first retained row in memory, give it ID nine hundred ninety-nine and put it in test.
+              Its conversation now crosses train and test; normalized text is no longer unique; seven
+              loaded rows disagree with the manifest’s six. Multiple checks catch the same intervention.
+              Restore the original rows in memory. After loading them, append one newline byte to the
+              dataset file. The rows already in memory stay the same. The digest of the file on disk
+              changes.
+            targets:
+              - candidate-contract-construction
+            color: blue
+            linger: 0.5
+          - id: contract-copy
+            phrase: Its conversation now crosses train and test; normalized text is no longer unique; seven loaded
+              rows disagree with the manifest’s six.
+            targets:
+              - candidate-contract-construction
+            color: blue
+            linger: 0.5
+          - id: contract-byte
+            phrase: The rows already in memory stay the same. The digest of the file on disk changes.
+            targets:
+              - candidate-contract-construction
+            color: blue
+            linger: 0.5
+          - id: contract-copy-operation
+            phrase: Copy the first retained row in memory, give it ID nine hundred ninety-nine and put it in test.
+            targets:
+              - candidate-contract-construction
+            color: blue
+            linger: 0.5
+          - id: contract-byte-operation
+            phrase: Restore the original rows in memory. After loading them, append one newline byte to the dataset
+              file.
+            targets:
+              - candidate-contract-construction
+            color: blue
+            linger: 0.5
+      - say: Restore the original dataset file. This time edit just ticket four oh four in the rejection log.
+          Change its reason from invalid label to label conflict and leave the manifest as it was. Six rows
+          are still rejected. Which digest should the loader flag? Will the reason counts still agree?
+        hold: 2.6
+        visual_cues:
+          - id: contract-reason-edit
+            phrase: Change its reason from invalid label to label conflict
+            targets:
+              - candidate-contract-construction
+            color: blue
+            linger: 0.2
+            caption_boundary: true
+      - say: The rejection log digest changes. The dataset digest still matches. Look at the reasons underneath.
+          Invalid label drops from one to zero. Label conflict goes from two to three. The total of six
+          conceals both changes. Stop the load and reconcile the log with the recorded source before
+          rebuilding the candidate.
+        hold: 1.1
+        visual_cues:
+          - id: contract-reason-check
+            phrase: The rejection log digest changes
+            targets:
+              - candidate-contract-construction
+            color: blue
+            linger: 0.2
+            caption_boundary: true
+      - say: Which rejection log belongs to this release? Get the expected digest from the signed release record
+          and verify the signature with the publisher’s trusted key. Compare the log on disk with that
+          recorded digest. The edited log differs, even though the total still says six. The signature tells
+          you who signed the record. Label review, privacy checks and benchmark checks still have their own
+          evidence.
+        caption_starts:
+          - "Compare the log on disk"
+          - "The edited log differs"
+          - "The signature tells you"
+        hold: 0.65
+        visual_cues:
+          - id: candidate-contract-b3
+            phrase: Which rejection log belongs to this release
+            targets:
+              - candidate-contract-construction
+            color: green
+            linger: 0.5
+          - id: candidate-contract-voice-3
+            phrase: Which rejection log belongs to this release? Get the expected digest from the signed release record
+              and verify the signature with the publisher’s trusted key. Compare the log on disk with that
+              recorded digest. The edited log differs, even though the total still says six. The signature tells
+              you who signed the record. Label review, privacy checks and benchmark checks still have their own
+              evidence.
+            targets:
+              - candidate-contract-construction
+            color: blue
+            linger: 0.5
+          - id: contract-trust
+            phrase: Compare the log on disk with that recorded digest
+            targets:
+              - candidate-contract-construction
+            color: blue
+            linger: 0.5
+  - id: coverage-audit
+    title: Passing the loader does not supply missing examples
+    visual: Six actual retained IDs populate a split-label matrix with named empty cells; distribution comparisons
+      retain their independent-sampling and sparse-count limits.
+    beats:
+      - say: Put the six retained rows into a split-by-label table. Train contains three escalate examples and no
+          standard examples. Validation contains two standard examples and no escalate examples. Test contains
+          one standard example and no escalate examples. The reference coverage audit fails in all three
+          splits, although every structural verifier just passed. Validation accuracy on these records cannot
+          evaluate escalation detection.
+        hold: 0.65
+        visual_cues:
+          - id: coverage-audit-b1
+            phrase: Put the six retained rows into a split-by-label table.
+            targets:
+              - coverage-audit-construction
+            color: blue
+            linger: 0.5
+          - id: coverage-audit-voice-1
+            phrase: Put the six retained rows into a split-by-label table. Train contains three escalate examples and no
+              standard examples. Validation contains two standard examples and no escalate examples. Test
+              contains one standard example and no escalate examples. The reference coverage audit fails in
+              all three splits, although every structural verifier just passed. Validation accuracy on these
+              records cannot evaluate escalation detection.
+            targets:
+              - coverage-audit-construction
+            color: blue
+            linger: 0.5
+          - id: coverage-train
+            phrase: Train contains three escalate examples and no standard examples.
+            targets:
+              - coverage-audit-construction
+            color: blue
+            linger: 0.5
+          - id: coverage-validation
+            phrase: Validation contains two standard examples and no escalate examples.
+            targets:
+              - coverage-audit-construction
+            color: blue
+            linger: 0.5
+          - id: coverage-test
+            phrase: Test contains one standard example and no escalate examples.
+            targets:
+              - coverage-audit-construction
+            color: blue
+            linger: 0.5
+      - say: Compare source shares, label counts, lengths, plots and quantiles before interpreting a significance
+          test. A Wasserstein distance measures how far probability mass must move; Population Stability Index
+          is another discrepancy measure. Neither supplies a calibrated hypothesis test automatically.
+          Ordinary chi-square approximations need adequate expected counts; this six-row table is too sparse.
+          A two-sample KS test assumes independent samples from continuous distributions, so repeated
+          conversation turns and tied token counts require appropriate handling.
+        hold: 0.65
+        visual_cues:
+          - id: coverage-audit-b2
+            phrase: Compare source shares, label counts, lengths, plots and quantiles before interpreting a significance
+              test.
+            targets:
+              - coverage-audit-construction
+            color: blue
+            linger: 0.5
+          - id: coverage-audit-voice-2
+            phrase: Compare source shares, label counts, lengths, plots and quantiles before interpreting a significance
+              test. A Wasserstein distance measures how far probability mass must move; Population Stability
+              Index is another discrepancy measure. Neither supplies a calibrated hypothesis test
+              automatically. Ordinary chi-square approximations need adequate expected counts; this six-row
+              table is too sparse. A two-sample KS test assumes independent samples from continuous
+              distributions, so repeated conversation turns and tied token counts require appropriate
+              handling.
+            targets:
+              - coverage-audit-construction
+            color: blue
+            linger: 0.5
+      - say: For a coverage failure, collect more reviewed groups or design a stratified grouped split before
+          comparing models. Unequal group sizes and mixed labels can prevent perfect balance. Future
+          deployment may legitimately differ from past training, and very large samples can make tiny effects
+          statistically significant. Keep the deployment target and group boundary explicit. Moving examples
+          after inspecting test performance converts that test into development data and requires a new
+          evaluation plan.
+        hold: 0.65
+        visual_cues:
+          - id: coverage-audit-b3
+            phrase: For a coverage failure, collect more reviewed groups or design a stratified grouped split before
+              comparing models.
+            targets:
+              - coverage-audit-construction
+            color: green
+            linger: 0.5
+          - id: coverage-audit-voice-3
+            phrase: For a coverage failure, collect more reviewed groups or design a stratified grouped split before
+              comparing models. Unequal group sizes and mixed labels can prevent perfect balance. Future
+              deployment may legitimately differ from past training, and very large samples can make tiny
+              effects statistically significant. Keep the deployment target and group boundary explicit.
+              Moving examples after inspecting test performance converts that test into development data and
+              requires a new evaluation plan.
+            targets:
+              - coverage-audit-construction
+            color: blue
+            linger: 0.5
+          - id: coverage-hold
+            phrase: For a coverage failure, collect more reviewed groups or design a stratified grouped split before
+              comparing models.
+            targets:
+              - coverage-audit-construction
+            color: blue
+            linger: 0.5
+  - id: version-trust
+    title: Retain the bytes a version promises
+    visual: Two actual version payloads construct distinct digests; an overwritable v1 path contrasts with
+      retained content-addressed bytes, and snapshot expiration removes its historical read path.
+    beats:
+      - say: The article’s one-row version has digest prefix six zero four five five nine. Adding the second row
+          creates a two-row version beginning five five one three six nine. A different digest identifies
+          changed bytes; it does not show that the data change caused any later accuracy difference. Hold
+          model settings, seeds and evaluation policy fixed to test that causal question.
+        hold: 0.65
+        visual_cues:
+          - id: version-trust-b1
+            phrase: The article’s one-row version has digest prefix six zero four five five nine.
+            targets:
+              - version-trust-construction
+            color: blue
+            linger: 0.5
+          - id: version-trust-voice-1
+            phrase: The article’s one-row version has digest prefix six zero four five five nine. Adding the second row
+              creates a two-row version beginning five five one three six nine. A different digest identifies
+              changed bytes; it does not show that the data change caused any later accuracy difference. Hold
+              model settings, seeds and evaluation policy fixed to test that causal question.
+            targets:
+              - version-trust-construction
+            color: blue
+            linger: 0.5
+          - id: version-change
+            phrase: Adding the second row creates a two-row version beginning five five one three six nine.
+            targets:
+              - version-trust-construction
+            color: blue
+            linger: 0.5
+      - say: The local builder overwrites its v1 filenames when rerun. A hash does not prevent that write. Retain
+          source snapshots, assign new release identifiers or content-addressed locations, and keep trusted
+          release records. DVC uses content-addressed cache entries and small tracking files; an optional S3
+          remote follows that layout rather than making S3 inherently content-addressed. Hugging Face dataset
+          cache fingerprints support reuse, and non-hashable transforms can receive random fingerprints with a
+          warning. Store the published artifact’s cryptographic digest explicitly.
+        hold: 0.65
+        visual_cues:
+          - id: version-trust-b2
+            phrase: The local builder overwrites its v1 filenames when rerun.
+            targets:
+              - version-trust-construction
+            color: blue
+            linger: 0.5
+          - id: version-trust-voice-2
+            phrase: The local builder overwrites its v1 filenames when rerun. A hash does not prevent that write. Retain
+              source snapshots, assign new release identifiers or content-addressed locations, and keep
+              trusted release records. DVC uses content-addressed cache entries and small tracking files; an
+              optional S3 remote follows that layout rather than making S3 inherently content-addressed.
+              Hugging Face dataset cache fingerprints support reuse, and non-hashable transforms can receive
+              random fingerprints with a warning. Store the published artifact’s cryptographic digest
+              explicitly.
+            targets:
+              - version-trust-construction
+            color: blue
+            linger: 0.5
+          - id: version-overwrite
+            phrase: The local builder overwrites its v1 filenames when rerun.
+            targets:
+              - version-trust-construction
+            color: blue
+            linger: 0.5
+      - say: Delta and Iceberg table history also depends on retention. Delta time travel needs both its log and
+          referenced data files; VACUUM can remove needed files. Expiring an Iceberg snapshot removes that
+          historical query target. Record which bytes remain accessible. A dataset datasheet adds motivation,
+          composition, collection, annotation policy, permissions, intended uses, limitations and maintenance
+          responsibilities to the operational manifest. This makes a candidate reviewable while keeping
+          unfinished release decisions visible.
+        hold: 0.65
+        visual_cues:
+          - id: version-trust-b3
+            phrase: Delta and Iceberg table history also depends on retention.
+            targets:
+              - version-trust-construction
+            color: green
+            linger: 0.5
+          - id: version-trust-voice-3
+            phrase: Delta and Iceberg table history also depends on retention. Delta time travel needs both its log and
+              referenced data files; VACUUM can remove needed files. Expiring an Iceberg snapshot removes that
+              historical query target. Record which bytes remain accessible. A dataset datasheet adds
+              motivation, composition, collection, annotation policy, permissions, intended uses, limitations
+              and maintenance responsibilities to the operational manifest. This makes a candidate reviewable
+              while keeping unfinished release decisions visible.
+            targets:
+              - version-trust-construction
+            color: blue
+            linger: 0.5
+          - id: version-expire
+            phrase: Expiring an Iceberg snapshot removes that historical query target.
+            targets:
+              - version-trust-construction
+            color: blue
+            linger: 0.5
+  - id: fresh-candidate
+    title: Can we measure escalation on new conversations?
+    visual: Four raw tickets pass through the reference builder. Their group buckets route both survivors to
+      train. Two new conversations fill validation and test in the next candidate. Ticket 705 earns a
+      correct prediction, leaving escalation unmeasured.
+    beats:
+      - say: Four tickets just arrived. The first two have the same conversation and the same reviewed label. The
+          third has different text. Look closely at the last ticket's ID. Apply the same builder we used
+          before. Which two tickets survive?
+        hold: 2.9
+      - say: The Boolean ID fails the positive integer rule. Fold case and trim the spaces in the first two
+          messages. They now share a key. Within their conversation the labels agree, so keep the lower ID,
+          seven oh one. Seven oh three keeps its own entry. Two kept and two rejected accounts for all four
+          inputs.
+        hold: 1.3
+        visual_cues:
+          - id: fresh-id
+            phrase: The Boolean ID fails
+            targets:
+              - release-desk
+            color: blue
+            linger: 0.2
+            caption_boundary: true
+          - id: fresh-key
+            phrase: Fold case and trim the spaces
+            targets:
+              - release-desk
+            color: blue
+            linger: 0.2
+            caption_boundary: true
+          - id: fresh-keep
+            phrase: keep the lower ID
+            targets:
+              - release-desk
+            color: blue
+            linger: 0.2
+            caption_boundary: true
+      - say: Hash the two conversation IDs. Their buckets are sixty-five and fifty-four. The ranges below are
+          fixed. Which splits receive the tickets?
+        hold: 2.6
+        visual_cues:
+          - id: fresh-buckets
+            phrase: Hash the two conversation IDs
+            targets:
+              - release-desk
+            color: blue
+            linger: 0.2
+            caption_boundary: true
+      - say: Both go to train. Both labels are present there, but validation and test are empty. Hold this
+          candidate. Suppose two more reviewed conversations arrive before any model comparison. Use the
+          same split rule for the next version. Bucket seventy-two goes to validation. Ninety-six goes to
+          test. Both new tickets carry the standard label.
+        hold: 1.1
+        visual_cues:
+          - id: fresh-route
+            phrase: Both go to train
+            targets:
+              - release-desk
+            color: blue
+            linger: 0.2
+            caption_boundary: true
+          - id: fresh-add
+            phrase: two more reviewed conversations arrive
+            targets:
+              - release-desk
+            color: blue
+            linger: 0.2
+            caption_boundary: true
+          - id: fresh-land
+            phrase: Bucket seventy-two goes to validation
+            targets:
+              - release-desk
+            color: blue
+            linger: 0.2
+            caption_boundary: true
+      - say: Try a router that always predicts standard. It gets the validation ticket right. One correct out of
+          one. Can that score tell you how often the router catches an escalation?
+        hold: 2.8
+        visual_cues:
+          - id: fresh-score
+            phrase: It gets the validation ticket right
+            targets:
+              - release-desk
+            color: blue
+            linger: 0.2
+            caption_boundary: true
+      - say: There are zero reviewed escalations in validation. That one green check belongs to a request for the
+          rollback guide. To measure how often the router catches an escalation, collect reviewed escalation
+          conversations for the next version. Keep each conversation together and check the split counts
+          before comparing routers. Privacy, license and benchmark reviews stay open. When you build the
+          router's features, use only the facts available when each ticket arrived.
+        caption_starts:
+          - "That one green check"
+          - "To measure how often"
+          - "When you build the router's features"
+        hold: 1.8
+        visual_cues:
+          - id: fresh-hold
+            phrase: There are zero reviewed escalations in validation
+            targets:
+              - release-desk
+            color: blue
+            linger: 0.2
+            caption_boundary: true
+          - id: fresh-arrival
+            phrase: When you build the router's features
+            targets: [release-desk]
+            color: blue
+            linger: 0.2

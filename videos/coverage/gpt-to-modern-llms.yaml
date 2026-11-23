@@ -1,0 +1,216 @@
+version: 1
+lesson: gpt-to-modern-llms
+promise: Follow two predictions into a complete label, verify that label, and choose a model that fits the measured workload.
+framing: []
+objectives:
+  - id: opening
+    can: Test the whole generated reply against the allowed labels, then compare it with the reference.
+    scenes:
+      - opening
+  - id: task-interfaces
+    can: Identify the visible prefix and shifted target in a causal mask.
+    scenes:
+      - task-interfaces
+  - id: context-transform
+    can: Compute a weighted value sum from supplied attention shares.
+    scenes:
+      - context-transform
+  - id: token-path
+    can: Compute logits and normalized probabilities and select the next token.
+    scenes:
+      - token-path
+  - id: prompting-and-training
+    can: Distinguish prompt demonstrations from gradient updates.
+    scenes:
+      - prompting-and-training
+  - id: prefill-decode
+    can: Identify the selected token still missing from the cache and predict the next token with the same output weights.
+    scenes:
+      - prefill-decode
+  - id: assistant-training
+    can: Distinguish pretraining, task adaptation, in-context examples and preference post-training.
+    scenes:
+      - assistant-training
+  - id: training-budget
+    can: Compare a fixed dense training budget with the cost of doubling both parameters and tokens.
+    scenes:
+      - training-budget
+  - id: kv-memory
+    can: Count distinct stored KV heads, calculate raw bytes, and explain why sharing leaves room for distinct query outputs.
+    scenes:
+      - kv-memory
+  - id: modern-norm
+    can: Compute RMSNorm and distinguish it from centered LayerNorm.
+    scenes:
+      - modern-norm
+  - id: modern-gate
+    can: Compute a scalar SiLU gate and match the bias-free feed-forward weight budget.
+    scenes:
+      - modern-gate
+  - id: modern-positions
+    can: Predict how the RoPE score changes when both positions shift together or only the key moves.
+    scenes:
+      - modern-positions
+  - id: sparse-experts
+    can: Choose two experts from router scores and size a fully resident checkpoint from its total weights.
+    scenes:
+      - sparse-experts
+  - id: reasoning-context
+    can: Distinguish missing evidence from a position effect and interpret supported-answer counts on matched prompts.
+    scenes:
+      - reasoning-context
+  - id: workload-choice
+    can: Apply the deadline and memory limit independently, then compare verified success among eligible runs.
+    scenes:
+      - workload-choice
+sections:
+  - heading: One generation loop, many tasks
+    status: taught
+    scenes: [opening, token-path, prefill-decode, workload-choice]
+  - heading: Why encoders read both ways and decoders write left to right
+    status: taught
+    scenes:
+      - task-interfaces
+  - heading: A decoder writes left to right
+    status: taught
+    scenes:
+      - task-interfaces
+  - heading: "The life of a token: prefill, KV cache, and decode"
+    status: taught
+    scenes:
+      - prefill-decode
+  - heading: How GPT grew from text completion into assistants
+    status: taught
+    scenes:
+      - assistant-training
+  - heading: "1. GPT-1: Generative pretraining + task fine-tuning (2018)"
+    status: taught
+    scenes:
+      - assistant-training
+  - heading: "2. GPT-2: Zero-shot transfer without task-specific weights (2019)"
+    status: taught
+    scenes:
+      - assistant-training
+  - heading: "3. GPT-3: In-context few-shot emergence (2020)"
+    status: taught
+    scenes:
+      - assistant-training
+  - heading: "4. InstructGPT: Preference training (2022)"
+    status: taught
+    scenes:
+      - assistant-training
+  - heading: What scaling laws say about a fixed training budget
+    status: taught
+    scenes:
+      - training-budget
+  - heading: Training compute versus lifetime serving costs
+    status: taught
+    scenes:
+      - training-budget
+  - heading: "Three newer building blocks: RMSNorm, SwiGLU, and RoPE"
+    status: taught
+    scenes: [modern-norm, modern-gate, modern-positions]
+  - heading: 1. Root Mean Square Normalization (RMSNorm)
+    status: taught
+    scenes:
+      - modern-norm
+  - heading: 2. SwiGLU activations
+    status: taught
+    scenes:
+      - modern-gate
+  - heading: 3. Rotary Position Embeddings (RoPE)
+    status: taught
+    scenes:
+      - modern-positions
+  - heading: How attention design changes KV cache costs
+    status: taught
+    scenes:
+      - kv-memory
+  - heading: "Sparse architectures: Mixture of Experts (MoE)"
+    status: taught
+    scenes:
+      - sparse-experts
+  - heading: "The fundamental MoE tradeoff: VRAM vs FLOPs"
+    status: taught
+    scenes:
+      - sparse-experts
+  - heading: Reasoning models and the cost of extra inference compute
+    status: taught
+    scenes:
+      - reasoning-context
+  - heading: Open weights, licensing, and local serving
+    status: taught
+    scenes:
+      - sparse-experts
+  - heading: Evaluating a released model on your workload
+    status: taught
+    scenes:
+      - workload-choice
+  - heading: Longer context and the evidence that gets missed
+    status: taught
+    scenes:
+      - reasoning-context
+  - heading: Practical prompt engineering mitigations
+    status: taught
+    scenes:
+      - reasoning-context
+  - heading: Match the architecture to the job
+    status: taught
+    scenes: [task-interfaces, assistant-training, workload-choice]
+  - heading: Common misconceptions
+    status: taught
+    scenes: [assistant-training, sparse-experts, reasoning-context, workload-choice]
+  - heading: "Practice: diagnose the failing assistant"
+    status: article-only
+    reason: exercise
+    note: The article combines three failures into an independent exercise. The film works through label validation, evidence placement, memory sizing, and a separate deployment choice.
+quiz:
+  - n: 1
+    status: taught
+    scenes: [opening, prefill-decode, workload-choice]
+  - n: 2
+    status: taught
+    scenes:
+      - prefill-decode
+  - n: 3
+    status: taught
+    scenes:
+      - training-budget
+  - n: 4
+    status: taught
+    scenes:
+      - modern-norm
+  - n: 5
+    status: taught
+    scenes:
+      - modern-gate
+  - n: 6
+    status: taught
+    scenes:
+      - modern-positions
+  - n: 7
+    status: taught
+    scenes:
+      - kv-memory
+  - n: 8
+    status: taught
+    scenes:
+      - sparse-experts
+  - n: 9
+    status: taught
+    scenes:
+      - reasoning-context
+  - n: 10
+    status: taught
+    scenes:
+      - reasoning-context
+removed: []
+reviews:
+  closed_book:
+    taught: 10
+    partial: 0
+    absent: 0
+    script: 01aa280c971f822d
+  fact_check:
+    open_findings: 0
+    script: 01aa280c971f822d

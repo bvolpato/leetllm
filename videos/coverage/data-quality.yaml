@@ -1,0 +1,207 @@
+version: 1
+lesson: data-quality
+promise: Trace a support ticket from its raw message to a held-out prediction and decide whether the candidate can measure escalation on new conversations.
+objectives:
+  - id: contract
+    can: Apply the row contract, identify a batch shift and check which labels still need review.
+    scenes:
+      - intake
+      - contract-semantics
+      - candidate-builder
+      - fresh-candidate
+  - id: identity
+    can: Trace a changed prediction back to a training copy, compute normalized keys and choose the group and time boundary for the evaluation.
+    scenes:
+      - intro
+      - normalization
+      - unicode-recipe
+      - duplicates
+      - candidate-builder
+      - split
+      - group-leakage
+  - id: approximation
+    can: Construct a MinHash signature, identify complete bands, calculate candidate probability and check which pairs match inside a cluster.
+    scenes:
+      - similarity
+      - minhash-rankings
+      - lsh-bands
+      - cluster-chain
+  - id: review
+    can: Identify the passage or test case a gate examined and decide which contamination, privacy or quality questions still need review.
+    scenes:
+      - contamination
+      - contamination-audit
+      - privacy
+      - privacy-spans
+      - corpus-selection
+      - perplexity
+      - synthetic-gates
+  - id: release
+    can: Reconcile kept and rejected rows, locate a changed file or reason count and check the held-out label counts before comparing models.
+    scenes:
+      - release
+      - candidate-builder
+      - candidate-contract
+      - coverage-audit
+      - version-trust
+      - fresh-candidate
+sections:
+  - heading: "Ingestion contracts: schema enforcement and type validation"
+    status: taught
+    scenes:
+      - intake
+      - contract-semantics
+  - heading: Deterministic normalization and exact fingerprinting
+    status: taught
+    scenes:
+      - normalization
+      - unicode-recipe
+  - heading: Duplicate labels and the quarantine boundary
+    status: taught
+    scenes:
+      - duplicates
+      - candidate-builder
+  - heading: Grouped splits and target leakage prevention
+    status: taught
+    scenes:
+      - intro
+      - split
+      - group-leakage
+      - fresh-candidate
+  - heading: Benchmark contamination and de-duplication audits
+    status: taught
+    scenes:
+      - contamination
+      - contamination-audit
+  - heading: "Near-duplicate detection: MinHash, shingling, and LSH"
+    status: taught
+    scenes:
+      - similarity
+      - minhash-rankings
+      - lsh-bands
+      - cluster-chain
+  - heading: Privacy, PII detection, and provenance
+    status: taught
+    scenes:
+      - privacy
+      - privacy-spans
+      - version-trust
+  - heading: "Modern foundation model data pipelines: web filtering and synthetic gates"
+    status: taught
+    scenes:
+      - corpus-selection
+      - perplexity
+      - synthetic-gates
+  - heading: 1. Heuristic text filtering
+    status: taught
+    scenes:
+      - corpus-selection
+  - heading: 2. Model-based perplexity filtering
+    status: taught
+    scenes:
+      - perplexity
+  - heading: 3. Synthetic data quality gating
+    status: taught
+    scenes:
+      - synthetic-gates
+  - heading: Building a reproducible candidate artifact
+    status: taught
+    scenes:
+      - release
+      - candidate-builder
+      - version-trust
+  - heading: Verifying the candidate contract like downstream code
+    status: taught
+    scenes:
+      - candidate-contract
+  - heading: Auditing distribution drift and split coverage
+    status: taught
+    scenes:
+      - coverage-audit
+      - fresh-candidate
+  - heading: Tracking dataset versions across pipeline evolutions
+    status: taught
+    scenes:
+      - version-trust
+  - heading: Mapping pipeline gates to enterprise AI systems
+    status: taught
+    scenes:
+      - candidate-builder
+      - coverage-audit
+      - version-trust
+  - heading: "Controlled failure labs: break the pipeline on purpose"
+    status: taught
+    scenes:
+      - candidate-contract
+      - group-leakage
+      - minhash-rankings
+  - heading: What each failure reveals
+    status: taught
+    scenes:
+      - candidate-contract
+      - group-leakage
+      - minhash-rankings
+  - heading: Carrying clean data into feature engineering
+    status: taught
+    scenes:
+      - fresh-candidate
+quiz:
+  - n: 1
+    status: taught
+    scenes:
+      - contract-semantics
+  - n: 2
+    status: taught
+    scenes:
+      - unicode-recipe
+  - n: 3
+    status: taught
+    scenes:
+      - duplicates
+      - candidate-builder
+  - n: 4
+    status: taught
+    scenes:
+      - split
+      - group-leakage
+  - n: 5
+    status: taught
+    scenes:
+      - minhash-rankings
+      - lsh-bands
+  - n: 6
+    status: taught
+    scenes:
+      - lsh-bands
+  - n: 7
+    status: taught
+    scenes:
+      - privacy-spans
+      - synthetic-gates
+  - n: 8
+    status: taught
+    scenes:
+      - perplexity
+  - n: 9
+    status: taught
+    scenes:
+      - candidate-contract
+      - version-trust
+  - n: 10
+    status: taught
+    scenes:
+      - coverage-audit
+      - fresh-candidate
+removed:
+  - point: The previous phrase thirteen-token matches
+    reason: Corrected to thirteen-word matches after checking GPT-3 Appendix C. All original teaching mechanisms
+      and other narration remain.
+reviews:
+  closed_book:
+    script: cea18427d4fd7ff4
+    taught: 10
+    partial: 0
+    absent: 0
+  fact_check:
+    script: cea18427d4fd7ff4
+    open_findings: 0

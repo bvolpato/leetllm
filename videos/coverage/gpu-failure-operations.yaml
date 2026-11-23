@@ -1,0 +1,197 @@
+version: 1
+lesson: gpu-failure-operations
+promise: Use a GPU incident receipt to choose the smallest repair that protects other work, then decide when
+  the router may send traffic back.
+framing: []
+objectives:
+  - id: memory
+    can: Reconcile live, reserved, outside and free memory. Compare a captured request with individual blocks and
+      with the live workload under the device capacity limit.
+    scenes:
+      - memory-contract
+      - fragments
+      - ownership
+      - analyzer-construction
+      - event-construction
+      - earned-gpu-transfer
+  - id: history
+    can: Bind evidence to a process and a time window, account for overwritten events, and finish bounded capture
+      before required containment.
+    scenes:
+      - receipt-contract
+      - history-construction
+  - id: fault
+    can: Use the earliest fault, exact CUDA result and independent device findings to choose a process or platform
+      investigation.
+    scenes:
+      - fault-construction
+      - async-construction
+      - analyzer-construction
+      - mixed-construction
+      - earned-gpu-transfer
+  - id: operations
+    can: Keep existing work with its owner, distinguish device health from eviction, and preserve a quarantine
+      record across new observations.
+    scenes:
+      - intro
+      - contain
+      - containment-contract
+      - automation-contract
+  - id: return-to-service
+    can: Test the failed allocation and peer path, interpret diagnostic coverage, and release a small traffic
+      share only after fresh gates and owner approval.
+    scenes:
+      - diagnostics
+      - diagnostic-plan
+      - soak
+      - canary-construction
+      - readmit
+sections:
+  - heading: Build an incident receipt before changing state
+    status: taught
+    scenes:
+      - intro
+      - receipt-contract
+      - history-construction
+  - heading: Keep memory layers separate
+    status: taught
+    scenes:
+      - memory-contract
+      - fragments
+      - ownership
+      - analyzer-construction
+  - heading: Record a finite allocator history
+    status: taught
+    scenes:
+      - history-construction
+  - heading: Classify beyond memory
+    status: taught
+    scenes:
+      - fault-construction
+  - heading: Respect asynchronous error reporting
+    status: taught
+    scenes:
+      - async-construction
+      - contain
+  - heading: Contain at smallest broken scope
+    status: taught
+    scenes:
+      - intro
+      - contain
+      - containment-contract
+  - heading: Run diagnostics with an explicit question
+    status: taught
+    scenes:
+      - diagnostic-plan
+      - diagnostics
+  - heading: Make ownership part of automation
+    status: taught
+    scenes:
+      - automation-contract
+      - containment-contract
+  - heading: Repair path for `gpu-a17`
+    status: taught
+    scenes:
+      - intro
+      - receipt-contract
+      - soak
+      - canary-construction
+  - heading: Re-admission gates
+    status: taught
+    scenes:
+      - soak
+      - canary-construction
+      - readmit
+  - heading: Downloadable receipt analyzer
+    status: taught
+    scenes:
+      - analyzer-construction
+      - event-construction
+      - mixed-construction
+  - heading: Hold the memory layout constant
+    status: taught
+    scenes:
+      - event-construction
+  - heading: When two signals arrive together
+    status: taught
+    scenes:
+      - mixed-construction
+      - earned-gpu-transfer
+      - readmit
+  - heading: Pitfalls that widen blast radius
+    status: taught
+    scenes:
+      - ownership
+      - async-construction
+      - diagnostic-plan
+      - automation-contract
+      - readmit
+  - heading: Check your understanding
+    status: article-only
+    reason: exercise
+    note: The article supplies the interactive practice. The scenes below teach all ten mastery outcomes.
+quiz:
+  - n: 1
+    status: taught
+    scenes:
+      - fragments
+      - event-construction
+  - n: 2
+    status: taught
+    scenes:
+      - ownership
+      - earned-gpu-transfer
+  - n: 3
+    status: taught
+    scenes:
+      - history-construction
+  - n: 4
+    status: taught
+    scenes:
+      - async-construction
+  - n: 5
+    status: taught
+    scenes:
+      - containment-contract
+  - n: 6
+    status: taught
+    scenes:
+      - diagnostic-plan
+  - n: 7
+    status: taught
+    scenes:
+      - soak
+      - canary-construction
+  - n: 8
+    status: taught
+    scenes:
+      - memory-contract
+      - ownership
+  - n: 9
+    status: taught
+    scenes:
+      - automation-contract
+  - n: 10
+    status: taught
+    scenes:
+      - readmit
+removed:
+  - point: The closing example repeated the node cordon and drain comparison.
+    reason: The containment scene teaches both node actions. The close now follows two arrivals through a GPU admission decision.
+  - point: The fresh 32 GiB exercise repeated the missing request-size variant.
+    reason: The 40 GiB comparison keeps the failed event visible when its size is removed. The fresh exercise tests the independent device and process decisions.
+reviews:
+  closed_book:
+    script: 52446b7676321ea4
+    taught: 10
+    partial: 0
+    absent: 0
+    reviewer: /root/upgrade_shard6
+    evidence: build/video-delivery-20261106/script-reviews/gpu-failure-operations.json
+    evidence_sha256: 379d36d7b00cd70077373edef1d3358ff9bbd4c916ec932323f62b8af7ebbd99
+  fact_check:
+    script: 52446b7676321ea4
+    open_findings: 0
+    reviewer: /root/upgrade_shard6
+    evidence: build/video-delivery-20261106/script-reviews/gpu-failure-operations.json
+    evidence_sha256: 379d36d7b00cd70077373edef1d3358ff9bbd4c916ec932323f62b8af7ebbd99

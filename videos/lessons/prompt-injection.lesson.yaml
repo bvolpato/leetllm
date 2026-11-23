@@ -1,0 +1,1592 @@
+version: 1
+id: prompt-injection
+title: Keeping Instructions and Evidence Apart
+source: agents/prompt-injection-defense-strategies/content.md
+sources:
+  - title: OWASP LLM01 prompt injection
+    url: https://genai.owasp.org/llmrisk/llm01-prompt-injection/
+  - title: Indirect prompt injection paper
+    url: https://arxiv.org/abs/2302.12173
+  - title: Instruction hierarchy training
+    url: https://arxiv.org/abs/2404.13208
+  - title: Design patterns for securing LLM agents, action-selector and dual-LLM scopes
+    url: https://arxiv.org/html/2506.08837v1
+  - title: Lethal trifecta, original June16,2025
+    url: https://simonwillison.net/2025/Jun/16/the-lethal-trifecta/
+  - title: Meta Prompt Guard2 official model card
+    url: https://huggingface.co/meta-llama/Llama-Prompt-Guard-2-86M
+  - title: Meta Llama Guard4 official model card
+    url: https://huggingface.co/meta-llama/Llama-Guard-4-12B
+  - title: AgentDojo original utility and security definitions
+    url: https://arxiv.org/html/2406.13352v1
+  - title: OWASP prompt injection prevention
+    url: https://cheatsheetseries.owasp.org/cheatsheets/LLM_Prompt_Injection_Prevention_Cheat_Sheet.html
+  - title: OpenAI Structured Outputs contracts
+    url: https://developers.openai.com/api/docs/guides/structured-outputs
+  - title: NIST Generative AI Profile
+    url: https://www.nist.gov/publications/artificial-intelligence-risk-management-framework-generative-artificial-intelligence
+  - title: PyRIT official documentation
+    url: https://microsoft.github.io/PyRIT/
+  - title: garak official documentation
+    url: https://docs.garak.ai/
+scenes:
+  - id: subject-intro
+    title: "Will C17 get live traffic?"
+    visual: "A yellow slip asking for 25% of live traffic slides out from an evaluation report. The author’s recommendation stays on the page. The release service shows C17’s current traffic and looks for approval before deciding."
+    beats:
+      - say: "The assistant is asking for a quarter of live traffic. You asked for a summary. Follow the slip back to the report. C seventeen passed its tests. The author recommends release. The assistant took that recommendation as an instruction."
+        hold: 0.6
+        caption_starts:
+          - "You asked for a summary"
+          - "Follow the slip back to the report"
+          - "The assistant took that recommendation as an instruction"
+        visual_cues:
+          - id: intro-source
+            phrase: "You asked for a summary"
+            targets: [intro-report]
+            color: blue
+            linger: 0.25
+          - id: intro-result
+            phrase: "C seventeen passed its tests"
+            targets: [intro-report]
+            color: blue
+            linger: 0.25
+          - id: intro-request
+            phrase: "The author recommends release"
+            targets: [intro-report]
+            color: yellow
+            linger: 0.25
+          - id: intro-proposal-moves
+            phrase: "The assistant is asking for a quarter of live traffic"
+            targets: [intro-proposal, intro-report]
+            color: yellow
+            linger: 0.25
+      - say: "C seventeen currently gets zero live traffic. To change that, the release service needs a matching approval. Its lookup comes back empty. Should the service apply the proposed twenty-five percent?"
+        hold: 2.1
+        visual_cues:
+          - id: intro-lookup
+            phrase: "Its lookup comes back empty"
+            targets: [intro-release]
+            color: cyan
+            linger: 0.25
+          - id: intro-question
+            phrase: "Should the service apply the proposed twenty-five percent"
+            targets: [intro-proposal, intro-release, intro-decision]
+            color: yellow
+            linger: 0.25
+            caption_boundary: true
+      - say: "C seventeen stays at zero. The service denies the release. The assistant can still summarize the test result. A sentence in a report steered the assistant away from your task. That’s prompt injection. Text in a user message or a tool result can do the same thing."
+        hold: 0.8
+        caption_starts:
+          - "The assistant can still summarize the test result"
+          - "That’s prompt injection"
+        visual_cues:
+          - id: intro-answer
+            phrase: "C seventeen stays at zero"
+            targets: [intro-release, intro-decision]
+            color: cyan
+            linger: 0.25
+            caption_boundary: true
+          - id: intro-summary
+            phrase: "The assistant can still summarize the test result"
+            targets: [intro-decision, intro-report]
+            color: blue
+            linger: 0.25
+  - id: entry-and-objective
+    title: "How did the recommendation get here?"
+    visual: "Two copies of the same external excerpt enter through different inputs. Each route retains its source. Both lead to the same requested change and the same authenticated read task."
+    beats:
+      - say: "Keep the report author and the sentence fixed. In the first case a colleague pastes the excerpt into chat. The words came in through the user’s message. That’s direct prompt injection. In the second case the assistant fetches the report. That’s indirect injection. An ordinary request for a summary can bring in the very same text."
+        hold: 0.85
+        visual_cues:
+          - id: entry-source
+            phrase: "Keep the report author and the sentence fixed"
+            targets: [entry-origin]
+            color: blue
+            linger: 0.25
+          - id: entry-paste
+            phrase: "a colleague pastes the excerpt into chat"
+            targets: [entry-paste]
+            color: blue
+            linger: 0.25
+          - id: entry-fetch
+            phrase: "the assistant fetches the report"
+            targets: [entry-fetch]
+            color: blue
+            linger: 0.25
+      - say: "Both passages try to turn the summary into a release. That targets the application’s policy. A jailbreak targets the model’s own safety training. An attempt can do both. Translation, a suffix, or a conversation spread across turns can change how a passage reaches the model. An image or recording can carry it too. Keep the original source label on any text you extract or transcribe."
+        hold: 0.8
+        visual_cues:
+          - id: entry-objective
+            phrase: "Both passages try to turn the summary into a release"
+            targets: [entry-effect, entry-paste, entry-fetch]
+            color: cyan
+            linger: 0.25
+          - id: entry-media
+            phrase: "An image or recording can carry it too"
+            targets: [entry-effect, entry-origin]
+            color: blue
+            linger: 0.25
+      - say: "The host gets the user’s identity from the signed-in session. Here that user may summarize an accessible evaluation. Reading it gives the user no release permission. Even an authenticated connector can deliver someone else’s words. Its tool descriptions enter the model’s context before a call, and its results enter afterward. Check the source of both."
+        hold: 0.9
+        visual_cues:
+          - id: entry-session
+            phrase: "the user’s identity from the signed-in session"
+            targets: [entry-effect]
+            color: cyan
+            linger: 0.25
+  - id: separate-harms
+    title: Close each path to a protected effect
+    visual: A private-note payload and a promotion proposal share the influenced model. Remove the private input
+      to close disclosure while leaving the independent write route visibly connected.
+    beats:
+      - say: "Simon Willison’s lethal trifecta describes an exfiltration path: private data, untrusted content and a
+          way to communicate externally. Our report can redirect an influenced model toward sending private
+          notes. Removing the notes from that reader closes this direct route to those notes. Enforce
+          destination and disclosure policy on remaining outputs too."
+        hold: 0.7
+        visual_cues:
+          - id: pi-separate-harms-0
+            phrase: "Simon Willison’s lethal trifecta describes an exfiltration path: private data, untrusted content and
+              a way to communicate externally. Our report can redirect an influenced model toward sending
+              private notes. Removing the notes from that reader closes this direct route to those notes.
+              Enforce destination and disclosure policy on remaining outputs too."
+            targets:
+              - pi-separate-harms-mechanism
+            color: cyan
+            linger: 0.4
+      - say: The production-write route survives that removal. It needs no secret to request a bad deployment. A
+          protected sink is any endpoint where generated output can disclose information or change state.
+          Final answers, URLs, attachments, tool arguments, memory and logs can all carry consequences. A
+          read-named HTTP tool still transmits its path, headers and body.
+        hold: 0.7
+        visual_cues:
+          - id: pi-separate-harms-1
+            phrase: The production-write route survives that removal. It needs no secret to request a bad deployment. A
+              protected sink is any endpoint where generated output can disclose information or change state.
+              Final answers, URLs, attachments, tool arguments, memory and logs can all carry consequences. A
+              read-named HTTP tool still transmits its path, headers and body.
+            targets:
+              - pi-separate-harms-mechanism
+            color: cyan
+            linger: 0.4
+      - say: "Give the reader the report and leave every tool that can change state out of its reach. Only the executor gets the release credential, scoped to the approved endpoint. For a browser or code runner, the host also limits which files it can open and where it can connect. Check those permissions on the running process."
+        hold: 0.7
+        visual_cues:
+          - id: pi-separate-harms-2
+            phrase: "Give the reader the report and leave every tool that can change state out of its reach. Only the executor gets the release credential, scoped to the approved endpoint. For a browser or code runner, the host also limits which files it can open and where it can connect. Check those permissions on the running process."
+            targets:
+              - pi-separate-harms-mechanism
+            color: cyan
+            linger: 0.4
+  - id: trust-labels
+    title: Mark where evidence came from
+    visual: The report keeps its source label as its factual and hostile sentences enter the context as untrusted
+      data.
+    beats:
+      - say: >
+          The host fetched this report from an evaluation service. That fetch tells us where the text came
+          from, but the report may contain material written by another person or produced by an external
+          system.
+        hold: 0.55
+        motion_check:
+          region:
+            - 150
+            - 350
+            - 1620
+            - 500
+          minimumChangedFraction: 0.002
+        visual_cues:
+          - id: trust-labels-beat-1-focus-1
+            phrase: The host fetched this report from an evaluation service
+            targets:
+              - trust-labels-object-report-source-7
+            color: blue
+            linger: 0.6
+      - say: >
+          A source label and clear delimiters help the model and reviewer distinguish application instructions
+          from retrieved evidence. Escaping a closing tag protects the wrapper's structure. The words inside
+          the wrapper can still influence the model.
+        hold: 0.7
+        motion_check:
+          region:
+            - 150
+            - 350
+            - 1620
+            - 500
+          minimumChangedFraction: 0.002
+        visual_cues:
+          - id: trust-labels-beat-2-focus-1
+            phrase: Escaping a closing tag protects the wrapper's structure
+            targets:
+              - trust-labels-object-escaped-for-wrapper-escapewrappertext-report-attac-10
+            color: blue
+            linger: 0.6
+          - id: trust-labels-beat-2-focus-2
+            phrase: A source label and clear delimiters help the
+            targets:
+              - trust-labels-object-report-source-7
+            color: blue
+            linger: 0.6
+      - say: >
+          Keep the full text available for factual review and preserve its source label. External content
+          remains evidence even when a detector raises no alert.
+        hold: 0.55
+        visual_cues:
+          - id: trust-labels-beat-3-focus-1
+            phrase: available for factual review and preserve its source
+            targets:
+              - trust-labels-object-report-source-7
+            color: blue
+            linger: 0.6
+          - id: trust-labels-beat-3-focus-2
+            phrase: Keep the full text available for factual review
+            targets:
+              - trust-labels-object-reported-result-report-result-8
+            color: blue
+            linger: 0.6
+  - id: wrapper-characters
+    title: Change markup characters without changing authority
+    visual: The literal closing delimiter becomes escaped characters in place; the attack words and external
+      source stripe remain fixed. The opening nonce attribute never enters the closing delimiter.
+    beats:
+      - say: The reference builder escapes a supplied closing retrieved-eval tag, turning its angle brackets into
+          literal encoded characters. Its instruction to promote the candidate remains present. The developer
+          message and source wrapper tell the model how the host intends that content to be used. They do not
+          create a separate execution channel for the enclosed words.
+        hold: 0.7
+        visual_cues:
+          - id: pi-wrapper-characters-0
+            phrase: The reference builder escapes a supplied closing retrieved-eval tag, turning its angle brackets into
+              literal encoded characters. Its instruction to promote the candidate remains present. The
+              developer message and source wrapper tell the model how the host intends that content to be
+              used. They do not create a separate execution channel for the enclosed words.
+            targets:
+              - pi-wrapper-characters-mechanism
+            color: cyan
+            linger: 0.4
+      - say: An XML attribute such as a random nonce does not change the matching closing tag. Adding a reminder after
+          the report can improve empirical behavior, while still sharing model context with the attack.
+          Role-aware training can prioritize instructions, and a causal transformer attends only to allowed
+          earlier positions. Neither property performs the host’s permission lookup.
+        hold: 0.7
+        visual_cues:
+          - id: pi-wrapper-characters-1
+            phrase: An XML attribute such as a random nonce does not change the matching closing tag. Adding a reminder
+              after the report can improve empirical behavior, while still sharing model context with the
+              attack. Role-aware training can prioritize instructions, and a causal transformer attends only
+              to allowed earlier positions. Neither property performs the host’s permission lookup.
+            targets:
+              - pi-wrapper-characters-mechanism
+            color: cyan
+            linger: 0.4
+  - id: prompt-vs-capability
+    title: Prompt structure guides behavior
+    visual: Trusted developer instructions and retrieved evidence remain visually distinct in one context window;
+      no credential moves with the text.
+    beats:
+      - say: Message roles and clear evidence boundaries help the model interpret what it reads. In this request, the
+          developer asks for an evaluation summary. The retrieved report carries its own source label,
+          including the sentence that asks for deployment.
+        hold: 0.65
+        visual_cues:
+          - id: prompt-vs-capability-beat-1-focus-1
+            phrase: the developer asks for an evaluation summary
+            targets:
+              - prompt-vs-capability-object-developer-summarize-evaluation-14
+            color: blue
+            linger: 0.6
+          - id: prompt-vs-capability-beat-1-focus-2
+            phrase: The retrieved report carries its own source label
+            targets:
+              - prompt-vs-capability-object-evidence-skip-review-deploy-c17-15
+            color: blue
+            linger: 0.6
+      - say: Suppose the model follows that sentence. Its output names C17, production, twenty-five percent traffic
+          and revision three. The host treats that object as a proposed action. The execution decision comes
+          next.
+        hold: 0.9
+        visual_cues:
+          - id: prompt-vs-capability-beat-2-focus-1
+            phrase: The host treats that object as a proposed action
+            targets:
+              - prompt-proposal
+            color: blue
+            linger: 0.6
+          - id: prompt-vs-capability-beat-2-focus-2
+            phrase: Suppose the model follows that sentence
+            targets:
+              - prompt-vs-capability-object-evidence-skip-review-deploy-c17-15
+            color: blue
+            linger: 0.6
+          - id: pi-proposal-fields
+            phrase: Its output names C17, production, twenty-five percent traffic and revision three.
+            targets:
+              - prompt-proposal
+            color: cyan
+            linger: 0.4
+  - id: reader-quarantine
+    title: "What can the reader hand over?"
+    visual: "Raw report text stays on the reader’s side. A bounded suite ID crosses to application code. In a separate extraction check the seven-digit input yields no suite ID, while the caller-supplied source stays fixed."
+    beats:
+      - say: "Give the raw report to a reader that has no tools, release credential, or unrestricted network access. It can inspect the recommendation without being able to act on it. Ordinary application code checks what comes back. A separate executor gets approved arguments and a narrow credential. This is one way to quarantine a reader. The published dual-model design also describes a privileged model working with restricted references to the reader’s results."
+        hold: 0.8
+        visual_cues:
+          - id: reader-text
+            phrase: "Give the raw report to a reader"
+            targets: [reader-page]
+            color: blue
+            linger: 0.25
+          - id: reader-executor
+            phrase: "A separate executor gets approved arguments and a narrow credential"
+            targets: [reader-rule, reader-host]
+            color: cyan
+            linger: 0.25
+      - say: "Suppose the reader hands a planner a paragraph. That paragraph can carry the recommendation into a component with more power. Send a bounded field when the task allows it. A suite ID can cross here. Numbers, booleans, and a choice from a fixed list also give the host something it can check. Those fields can still be wrong, and this narrower interface gives up some open-ended planning."
+        hold: 0.9
+        visual_cues:
+          - id: reader-fields
+            phrase: "A suite ID can cross here"
+            targets: [reader-crossing, reader-host]
+            color: blue
+            linger: 0.25
+      - say: "The extractor looks for the words eval suite, then R followed by one to six digits. It finds R forty-two. The caller attaches the source identity separately. Now change the report to the seven-digit ID on the left. Could the reader keep just the first six digits?"
+        hold: 1.8
+        caption_starts:
+          - "Now change the report"
+          - "Could the reader keep just the first six digits"
+        visual_cues:
+          - id: reader-id
+            phrase: "The extractor looks for the words eval suite"
+            targets: [reader-host, reader-rule]
+            color: cyan
+            linger: 0.25
+          - id: reader-source
+            phrase: "The caller attaches the source identity separately"
+            targets: [reader-host]
+            color: blue
+            linger: 0.25
+          - id: reader-long
+            phrase: "change the report to the seven-digit ID on the left"
+            targets: [reader-page, reader-rule]
+            color: yellow
+            linger: 0.25
+      - say: "That seventh digit belongs to the same ID. The extractor returns no suite ID. A letter, underscore, or hyphen right after the six digits would also rule out a partial match. The caller still knows which report this was."
+        hold: 1
+        visual_cues:
+          - id: reader-no-id
+            phrase: "the extractor returns no suite ID"
+            targets: [reader-page, reader-host]
+            color: cyan
+            linger: 0.25
+            caption_boundary: true
+  - id: typed-evidence
+    title: "What can cross from the reader?"
+    visual: "One sheet carries the reader’s entire record to the evidence check. Two extra fields stop the whole sheet. A separate three-field record matches the expected source, crosses, and receives the host’s source ID."
+    beats:
+      - say: "The reader has found the three fields the host expects. They identify the candidate, the suite, and the gate result. Now look at the extra two lines on this copy. One names a tool. One claims approval. The host checks the keys on the whole record. This copy stops here. Even its three good fields stay on the reader’s side."
+        hold: 0.95
+        visual_cues:
+          - id: evidence-keys
+            phrase: "three fields the host expects"
+            targets: [evidence-sheet, evidence-source]
+            color: blue
+            linger: 0.25
+          - id: evidence-extra
+            phrase: "the extra two lines on this copy"
+            targets: [evidence-sheet]
+            color: yellow
+            linger: 0.25
+          - id: evidence-stop
+            phrase: "The host checks the keys on the whole record"
+            targets: [evidence-sheet, evidence-boundary]
+            color: cyan
+            linger: 0.25
+      - say: "Try a fresh copy with just the three expected fields. Here the host knows what the source says. C seventeen passed suite R forty-two. The fields match, so this copy crosses. Now the host attaches the source ID from its own lookup. We have one piece of checked evidence and zero release writes."
+        hold: 0.95
+        visual_cues:
+          - id: evidence-clean
+            phrase: "a fresh copy with just the three expected fields"
+            targets: [evidence-sheet, evidence-source]
+            color: cyan
+            linger: 0.25
+          - id: evidence-through
+            phrase: "The fields match, so this copy crosses"
+            targets: [evidence-sheet, evidence-boundary]
+            color: cyan
+            linger: 0.25
+          - id: evidence-stamp
+            phrase: "the host attaches the source ID from its own lookup"
+            targets: [evidence-source, evidence-sheet]
+            color: blue
+            linger: 0.25
+      - say: "What if another report gives you metrics but leaves the gate result open? Keep the supported values and mark release eligibility unresolved. Forcing the reader to choose between passed and failed would manufacture a fact. For a release decision, look up the authoritative evaluation record when the service provides one."
+        hold: 0.95
+        caption_starts:
+          - "Keep the supported values"
+          - "and mark release eligibility unresolved"
+        visual_cues:
+          - id: evidence-gap
+            phrase: "another report gives you metrics but leaves the gate result open"
+            targets: [evidence-sheet, evidence-source]
+            color: yellow
+            linger: 0.25
+          - id: evidence-open
+            phrase: "mark release eligibility unresolved"
+            targets: [evidence-source, evidence-outcome]
+            color: cyan
+            linger: 0.25
+  - id: schema-falsehood
+    title: A valid shape can describe the wrong evidence
+    visual: The same schema-valid record changes passed to failed or switches suite identity while the host source
+      remains fixed. A clipped quotation visibly loses its condition before the host requests the full
+      passage.
+    beats:
+      - say: "Give the reader a schema-valid lie: the source says failed, while its gate field says passed. The
+          exact-source comparison rejects it even though every field has the expected type. A genuine source
+          ID from another suite also fails the expected candidate, suite and version binding. An instruction
+          detector need not flag either discrepancy."
+        hold: 0.7
+        visual_cues:
+          - id: pi-schema-falsehood-0
+            phrase: "Give the reader a schema-valid lie: the source says failed, while its gate field says passed. The
+              exact-source comparison rejects it even though every field has the expected type. A genuine
+              source ID from another suite also fails the expected candidate, suite and version binding. An
+              instruction detector need not flag either discrepancy."
+            targets:
+              - pi-schema-falsehood-mechanism
+            color: cyan
+            linger: 0.4
+          - id: pi-false-reject
+            phrase: The exact-source comparison rejects it even though every field has the expected type.
+            targets:
+              - pi-schema-falsehood-mechanism
+            color: cyan
+            linger: 0.4
+      - say: A quotation can be accurate yet misleading when it omits a condition. Preserve the supporting passage and
+          distinguish a necessary approval from sufficient release permission. A report for an earlier
+          artifact can be factually correct and operationally stale. Immutable artifact and evaluation
+          revisions identify what was checked; a mutable latest label cannot do that alone.
+        hold: 0.7
+        visual_cues:
+          - id: pi-schema-falsehood-1
+            phrase: A quotation can be accurate yet misleading when it omits a condition. Preserve the supporting passage
+              and distinguish a necessary approval from sufficient release permission. A report for an earlier
+              artifact can be factually correct and operationally stale. Immutable artifact and evaluation
+              revisions identify what was checked; a mutable latest label cannot do that alone.
+            targets:
+              - pi-schema-falsehood-mechanism
+            color: cyan
+            linger: 0.4
+      - say: When support is unresolved, return the known metrics and unresolved eligibility. At execution, recheck
+          the current facts that policy requires. Schema validation, factual evidence verification and
+          authorization are three separate operations. The same visible record must pass each relevant
+          boundary before it can inform a protected effect.
+        hold: 0.7
+        visual_cues:
+          - id: pi-schema-falsehood-2
+            phrase: When support is unresolved, return the known metrics and unresolved eligibility. At execution, recheck
+              the current facts that policy requires. Schema validation, factual evidence verification and
+              authorization are three separate operations. The same visible record must pass each relevant
+              boundary before it can inform a protected effect.
+            targets:
+              - pi-schema-falsehood-mechanism
+            color: cyan
+            linger: 0.4
+  - id: selector-feedback
+    title: A later result must not rewrite a committed action
+    visual: A summary-only action is selected before the report arrives. The return path ends at evidence output;
+      an alternate recurrent-selector path lets hostile text select an allowlisted promotion and is visibly
+      blocked by policy.
+    beats:
+      - say: The action-selector pattern translates the initial request into predefined actions without feeding later
+          tool-result text back into action selection. A report then cannot choose a different next action
+          through that feedback route. A summary-only request stays a summary task. Arguments and disclosures
+          still need the authorized task’s own checks.
+        hold: 0.7
+        visual_cues:
+          - id: pi-selector-feedback-0
+            phrase: The action-selector pattern translates the initial request into predefined actions without feeding
+              later tool-result text back into action selection. A report then cannot choose a different next
+              action through that feedback route. A summary-only request stays a summary task. Arguments and
+              disclosures still need the authorized task’s own checks.
+            targets:
+              - pi-selector-feedback-mechanism
+            color: cyan
+            linger: 0.4
+      - say: "A plain tool-name allowlist is weaker. If the model selects again after reading hostile results, it can
+          choose a harmful allowed action. Even a fixed send-email tool can leak through an attacker-chosen
+          recipient. The selector’s restriction costs flexibility: document-dependent action choices must be
+          encoded into the controlled workflow or handled by another checked design."
+        hold: 0.7
+        visual_cues:
+          - id: pi-selector-feedback-1
+            phrase: "A plain tool-name allowlist is weaker. If the model selects again after reading hostile results, it
+              can choose a harmful allowed action. Even a fixed send-email tool can leak through an
+              attacker-chosen recipient. The selector’s restriction costs flexibility: document-dependent
+              action choices must be encoded into the controlled workflow or handled by another checked
+              design."
+            targets:
+              - pi-selector-feedback-mechanism
+            color: cyan
+            linger: 0.4
+  - id: strict-proposal
+    title: Validate decoded fields before checking permission
+    visual: The actual three-key proposal parser admits a complete record, then separately rejects extra keys,
+      duplicated action, Boolean suite and oversized IDs. A UTF-8 byte ribbon grows differently from the
+      character counter.
+    beats:
+      - say: The reference action parser accepts exactly action, candidate ID and eval suite, all strings. Actions are
+          answer-eval or request-promotion. Candidate and suite identifiers have their own bounded patterns.
+          Duplicate JSON keys are rejected while decoding, before a parser can silently overwrite one action
+          with another. Extra fields and a Boolean suite are rejected too.
+        hold: 0.7
+        visual_cues:
+          - id: pi-strict-proposal-0
+            phrase: The reference action parser accepts exactly action, candidate ID and eval suite, all strings. Actions
+              are answer-eval or request-promotion. Candidate and suite identifiers have their own bounded
+              patterns. Duplicate JSON keys are rejected while decoding, before a parser can silently
+              overwrite one action with another. Extra fields and a Boolean suite are rejected too.
+            targets:
+              - pi-strict-proposal-mechanism
+            color: cyan
+            linger: 0.4
+      - say: The fixture limits input to five hundred twelve characters. Three hundred copies of an accented character
+          occupy three hundred Python characters but six hundred UTF-eight bytes. A real receiver needs a byte
+          limit before decoding as well. The character limit does not establish the same transport bound.
+        hold: 0.7
+        visual_cues:
+          - id: pi-strict-proposal-1
+            phrase: The fixture limits input to five hundred twelve characters. Three hundred copies of an accented
+              character occupy three hundred Python characters but six hundred UTF-eight bytes. A real
+              receiver needs a byte limit before decoding as well. The character limit does not establish the
+              same transport bound.
+            targets:
+              - pi-strict-proposal-mechanism
+            color: cyan
+            linger: 0.4
+      - say: OpenAI Structured Outputs constrains a complete non-refusal response to its supported schema subset;
+          ordinary JSON mode provides valid JSON without the same shape contract. Handle refusal and
+          incomplete response paths before dispatch. A schema-valid promotion can still request the wrong
+          candidate, target or operation. Keep parsing separate from permission.
+        hold: 0.7
+        visual_cues:
+          - id: pi-strict-proposal-2
+            phrase: OpenAI Structured Outputs constrains a complete non-refusal response to its supported schema subset;
+              ordinary JSON mode provides valid JSON without the same shape contract. Handle refusal and
+              incomplete response paths before dispatch. A schema-valid promotion can still request the wrong
+              candidate, target or operation. Keep parsing separate from permission.
+            targets:
+              - pi-strict-proposal-mechanism
+            color: cyan
+            linger: 0.4
+  - id: host-policy
+    title: "C17’s release record"
+    visual: "The same 100-square allocation from the opening sits beside the proposed write. A valid grant permits dispatch. The receipt replaces the proposal with the committed revision and traffic for comparison with release state."
+    beats:
+      - say: "Here’s the write the assistant proposed after reading the report. It asks for a quarter of production traffic at revision three. The release service knows the caller is the authenticated release worker. It checks the candidate, destination, traffic, and current revision, then looks up the approval for this operation."
+        hold: 0.7
+        visual_cues:
+          - id: host-proposal
+            phrase: "It asks for a quarter of production traffic at revision three"
+            targets: [host-policy-operation, host-policy-candidate-state]
+            color: yellow
+            linger: 0.25
+          - id: host-lookup
+            phrase: "looks up the approval for this operation"
+            targets: [host-approval]
+            color: cyan
+            linger: 0.25
+      - say: "The approval is missing. The service records a denial, and C17 stays in shadow at revision three. Every square is still empty. You can trace this attempt to the worker that asked, even though there was no write."
+        hold: 0.9
+        visual_cues:
+          - id: host-missing
+            phrase: "The approval is missing"
+            targets: [host-approval]
+            color: cyan
+            linger: 0.25
+          - id: host-policy-beat-2-focus-2
+            phrase: "and C17 stays in shadow at revision three"
+            targets: [host-policy-candidate-state, host-policy-service]
+            color: cyan
+            linger: 0.25
+      - say: "Now start a separate, authorized release from revision three. The proposal is identical. This time Casey has approved this operation for the same candidate, production target, and traffic share. The approval is still valid. The service permits the write. Look at the grid. It still shows zero. The write is waiting for dispatch."
+        hold: 1
+        visual_cues:
+          - id: pi-approval-arrives
+            phrase: "Casey has approved this operation"
+            targets: [host-approval]
+            color: green
+            linger: 0.25
+          - id: pi-permit
+            phrase: "The service permits the write"
+            targets: [host-policy-service, host-policy-candidate-state]
+            color: green
+            linger: 0.25
+      - say: "Dispatch the write. Each square represents one percentage point of traffic. The worker requests twenty-five. When the service commits, the allocation takes effect and the revision advances to four. That’s one change to the release."
+        hold: 1
+        visual_cues:
+          - id: pi-allocate
+            phrase: "The worker requests twenty-five"
+            targets: [host-policy-candidate-state]
+            color: yellow
+            linger: 0.25
+          - id: pi-commit
+            phrase: "the allocation takes effect and the revision advances to four"
+            targets: [host-policy-candidate-state]
+            color: green
+            linger: 0.25
+      - say: "Now the caller receives the receipt for that operation. Compare it with the service. The receipt names C seventeen, twenty-five percent traffic, and revision four. All three match the committed state. That’s what lets the caller report that this release actually happened."
+        hold: 0.9
+        visual_cues:
+          - id: pi-receipt
+            phrase: "the caller receives the receipt for that operation"
+            targets: [host-policy-operation]
+            color: green
+            linger: 0.25
+          - id: host-verify
+            phrase: "All three match the committed state"
+            targets: [host-policy-operation, host-policy-candidate-state]
+            color: green
+            linger: 0.25
+  - id: approval-bindings
+    title: "Four checks for one release"
+    visual: "The separate 10% example aligns five fields on one form. Each local request travels along the checks in execution order and stops at its first failure. A matching request consumes APR-9 and a replay leaves the ledger at one entry."
+    beats:
+      - say: "Try a different release. Here the requested traffic is ten percent. This form puts the current operation beside approval nine. Read across each row. The session supplies the user, and the host supplies the operation. The approval also has to name this candidate, this evaluation, and this target. The local write ledger is empty."
+        hold: 0.9
+        visual_cues:
+          - id: binding-record
+            phrase: "Read across each row"
+            targets: [binding-records]
+            color: cyan
+            linger: 0.25
+      - say: "Follow the checks in order. First check ownership. Next check that the evaluation passed and is current. Then check the target. Only then does the host compare the whole approval. With no approval it reaches an empty lookup. An unknown approval ID gets the same result. A different user stops at ownership. An old suite stops at the evaluation. An approval for another operation gets as far as the final comparison. Switching to staging passes this fixture’s target allowlist but fails the approval’s target binding. Staging is allowed here, but this reviewer approved ten percent in production. Switching to a hundred-percent target fails the allowlist itself. The host can reject that destination before it even reads the grant."
+        hold: 1
+        visual_cues:
+          - id: binding-order
+            phrase: "Follow the checks in order"
+            targets: [binding-gates]
+            color: cyan
+            linger: 0.25
+          - id: binding-none
+            phrase: "With no approval it reaches an empty lookup"
+            targets: [binding-records, binding-gates]
+            color: cyan
+            linger: 0.25
+          - id: binding-unknown
+            phrase: "An unknown approval ID gets the same result"
+            targets: [binding-records, binding-gates]
+            color: cyan
+            linger: 0.25
+          - id: binding-owner
+            phrase: "A different user stops at ownership"
+            targets: [binding-records, binding-gates]
+            color: cyan
+            linger: 0.25
+          - id: binding-suite
+            phrase: "An old suite stops at the evaluation"
+            targets: [binding-records, binding-gates]
+            color: cyan
+            linger: 0.25
+          - id: binding-operation
+            phrase: "An approval for another operation gets as far as the final comparison"
+            targets: [binding-records, binding-gates]
+            color: cyan
+            linger: 0.25
+          - id: pi-target-binding
+            phrase: "Switching to staging passes this fixture’s target allowlist but fails the approval’s target binding"
+            targets: [binding-records, binding-gates, binding-ledger]
+            color: cyan
+            linger: 0.25
+          - id: pi-forbidden-target
+            phrase: "Switching to a hundred-percent target fails the allowlist itself"
+            targets: [binding-records, binding-gates, binding-ledger]
+            color: cyan
+            linger: 0.25
+      - say: "Put the ten-percent target back and use the right user, suite, and operation. The matching tuple executes once into the local ledger and consumes its approval. A later replay finds no matching record and adds nothing. Seven different requests failed before the matching one. Across all those checks and the replay, the ledger contains one release. We supplied the proposals directly, so these results tell us how the host behaved."
+        hold: 1
+        visual_cues:
+          - id: pi-local-execute
+            phrase: "The matching tuple executes once into the local ledger and consumes its approval"
+            targets: [binding-records, binding-ledger]
+            color: green
+            linger: 0.25
+          - id: pi-local-replay
+            phrase: "A later replay finds no matching record and adds nothing"
+            targets: [binding-ledger]
+            color: cyan
+            linger: 0.25
+  - id: reserve-and-reconcile
+    title: "The receipt never came back"
+    visual: "Two workers see identical empty inboxes. Uncovering the release-service histories shows a crash before dispatch and a commit with a lost reply. The recovery lookup uses the original operation identity."
+    beats:
+      - say: "Move the release service to a separate process. Imagine two runs of operation nine. In each run the worker removes the one-use approval from its local dictionary. Later it restarts. Both inboxes are empty. Can either worker tell from its inbox whether the release happened?"
+        hold: 2.2
+        visual_cues:
+          - id: recovery-local
+            phrase: "removes the one-use approval from its local dictionary"
+            targets: [recovery-worker-a, recovery-worker-b]
+            color: cyan
+            linger: 0.25
+          - id: recovery-inbox
+            phrase: "Both inboxes are empty"
+            targets: [recovery-inbox-a, recovery-inbox-b]
+            color: yellow
+            linger: 0.25
+          - id: recovery-question
+            phrase: "Can either worker tell from its inbox whether the release happened"
+            targets: [recovery-question, recovery-inbox-a, recovery-inbox-b]
+            color: yellow
+            linger: 0.25
+            caption_boundary: true
+      - say: "Neither can. Look inside the two histories. In A the worker crashed before dispatch. In B the service received the request and recorded one release. The reply was lost on the way back. The local evidence looks identical, even though only one release happened."
+        hold: 1.2
+        caption_starts:
+          - "In A the worker crashed before dispatch"
+          - "In B the service received the request"
+          - "The reply was lost on the way back"
+        visual_cues:
+          - id: recovery-before
+            phrase: "In A the worker crashed before dispatch"
+            targets: [recovery-worker-a, recovery-service-a]
+            color: blue
+            linger: 0.25
+          - id: recovery-commit
+            phrase: "In B the service received the request and recorded one release"
+            targets: [recovery-worker-b, recovery-service-b]
+            color: cyan
+            linger: 0.25
+          - id: recovery-lost
+            phrase: "The reply was lost on the way back"
+            targets: [recovery-service-b, recovery-inbox-b]
+            color: yellow
+            linger: 0.25
+      - say: "Change what the worker saves. Atomically reserve the approval for operation nine before dispatch. Bind it to the same arguments and immutable candidate and evaluation revisions. On recovery, look up operation nine at the release service. If it committed, recover that result. If its outcome is still unknown, keep it pending. Retry only under current policy with the same idempotent operation, so another delivery cannot create a second release."
+        hold: 1.1
+        visual_cues:
+          - id: recovery-reserve
+            phrase: "Atomically reserve the approval for operation nine before dispatch"
+            targets: [recovery-worker-a, recovery-worker-b]
+            color: blue
+            linger: 0.25
+          - id: recovery-status
+            phrase: "look up operation nine at the release service"
+            targets: [recovery-service-a, recovery-service-b, recovery-question]
+            color: cyan
+            linger: 0.25
+      - say: "Row B already has its release. Recover its receipt and leave the count at one. Test that lost reply against the release service. Then give two workers the same approval and check that only one can claim it. A new operation or a change to the arguments needs fresh authorization. At dispatch, recheck expiry, revocation, and the reviewer’s permission."
+        hold: 0.9
+        visual_cues:
+          - id: recovery-proof
+            phrase: "Recover its receipt and leave the count at one"
+            targets: [recovery-worker-b, recovery-service-b, recovery-inbox-b]
+            color: blue
+            linger: 0.25
+  - id: protected-sinks
+    title: Protect disclosure and state changes
+    visual: Private notes and a deployment endpoint appear as separate sinks with their own authorization checks.
+    beats:
+      - say: A different injected request could ask for private red-team notes to be sent outside the service. Track
+          the information’s destination as carefully as the deployment target. Disclosure and state changes
+          have different protected endpoints.
+        hold: 0.65
+        visual_cues:
+          - id: protected-sinks-beat-1-focus-1
+            phrase: Disclosure and state changes have different protected endpoints
+            targets:
+              - protected-disclosure-gate
+              - protected-disclosure-endpoint
+              - protected-deployment-gate
+              - protected-deployment-endpoint
+            color: blue
+            linger: 0.6
+      - say: The host limits which private fields the model can read, which destinations it can contact and which
+          operations it can request. Give each protected endpoint its own action-specific authorization check.
+        hold: 0.9
+        visual_cues:
+          - id: protected-sinks-beat-2-focus-1
+            phrase: The host limits which private fields the model can read
+            targets:
+              - protected-disclosure-request
+              - protected-disclosure-gate
+              - protected-disclosure-result
+            color: blue
+            linger: 0.6
+          - id: protected-destination-check
+            phrase: which destinations it can contact
+            targets:
+              - protected-disclosure-gate
+              - protected-disclosure-endpoint
+              - protected-disclosure-result
+            color: pink
+            linger: 0.65
+          - id: protected-operation-check
+            phrase: which operations it can request
+            targets:
+              - protected-deployment-request
+              - protected-deployment-gate
+              - protected-deployment-endpoint
+              - protected-deployment-result
+            color: yellow
+            linger: 0.65
+  - id: outbound-contract
+    title: Authorize the complete outgoing resource
+    visual: The allowed R42 URL separates into scheme/host/port/path/credentials/query/fragment slots. A secret
+      query and a misleading host fail different slots; a redirect starts a new connection-time destination
+      check.
+    beats:
+      - say: The reference link policy allows only HTTPS, the exact evaluation hostname, report path slash runs slash
+          R forty-two, and the default port or four forty-three. It rejects embedded credentials, queries,
+          fragments and path parameters. An approved-looking hostname with dot evil dot test appended is a
+          different host. The example makes no network request.
+        hold: 0.7
+        visual_cues:
+          - id: pi-outbound-contract-0
+            phrase: The reference link policy allows only HTTPS, the exact evaluation hostname, report path slash runs
+              slash R forty-two, and the default port or four forty-three. It rejects embedded credentials,
+              queries, fragments and path parameters. An approved-looking hostname with dot evil dot test
+              appended is a different host. The example makes no network request.
+            targets:
+              - pi-outbound-contract-mechanism
+            color: cyan
+            linger: 0.4
+      - say: Adding secret equals PRIVATE to the allowed report URL is blocked because its query is nonempty. A
+          fragment is rejected too, even though HTTP normally does not transmit that fragment to the server.
+          Constructing a fixed resource URL from a trusted report ID avoids accepting arbitrary
+          model-generated destinations.
+        hold: 0.7
+        visual_cues:
+          - id: pi-outbound-contract-1
+            phrase: Adding secret equals PRIVATE to the allowed report URL is blocked because its query is nonempty. A
+              fragment is rejected too, even though HTTP normally does not transmit that fragment to the
+              server. Constructing a fixed resource URL from a trusted report ID avoids accepting arbitrary
+              model-generated destinations.
+            targets:
+              - pi-outbound-contract-mechanism
+            color: cyan
+            linger: 0.4
+          - id: pi-query-denied
+            phrase: blocked because its query is nonempty.
+            targets:
+              - pi-outbound-contract-mechanism
+            color: cyan
+            linger: 0.4
+      - say: A redirect and DNS resolution can change the actual endpoint after the string check. The HTTP client or
+          egress proxy must enforce destination and IP policy at connection time, including the workload’s
+          internal and IPv6 routes. Constrain methods, headers, bodies and credentials too. An allowed host is
+          not permission to send every private field or call its write endpoints.
+        hold: 0.7
+        visual_cues:
+          - id: pi-outbound-contract-2
+            phrase: A redirect and DNS resolution can change the actual endpoint after the string check. The HTTP client
+              or egress proxy must enforce destination and IP policy at connection time, including the
+              workload’s internal and IPv6 routes. Constrain methods, headers, bodies and credentials too. An
+              allowed host is not permission to send every private field or call its write endpoints.
+            targets:
+              - pi-outbound-contract-mechanism
+            color: cyan
+            linger: 0.4
+  - id: canary-buffer
+    title: Inspect a complete payload before releasing its bytes
+    visual: "Two chunks join to reveal the private notes marker. The host holds the complete reply before delivery. The investigation starts with the marked notes."
+    beats:
+      - say: "We planted this short marker in the private notes. If those characters turn up in a reply, the host can flag it for review. That marker is called a canary. For each fresh marker, the generator draws sixteen random bytes. At eight bits per byte, that gives a hundred twenty-eight random bits."
+        hold: 0.7
+        visual_cues:
+          - id: pi-canary-buffer-0
+            phrase: "the generator draws sixteen random bytes"
+            targets:
+              - pi-canary-buffer-mechanism
+            color: cyan
+            linger: 0.4
+          - id: canary-bits
+            phrase: "a hundred twenty-eight random bits"
+            targets: [pi-canary-buffer-mechanism]
+            color: cyan
+            linger: 0.4
+      - say: The ordinary accuracy summary has no exact match. The supplied response containing the notes marker trips
+          that marker. Host code must use the result before a response or tool argument is released. If the
+          marker spans two generated chunks, scan the assembled buffer or maintain equivalent cross-chunk
+          state; separate substring checks can miss the combined string.
+        hold: 0.7
+        visual_cues:
+          - id: pi-canary-buffer-1
+            phrase: The ordinary accuracy summary has no exact match. The supplied response containing the notes marker
+              trips that marker. Host code must use the result before a response or tool argument is released.
+              If the marker spans two generated chunks, scan the assembled buffer or maintain equivalent
+              cross-chunk state; separate substring checks can miss the combined string.
+            targets:
+              - pi-canary-buffer-mechanism
+            color: cyan
+            linger: 0.4
+          - id: pi-canary-hit
+            phrase: The supplied response containing the notes marker trips that marker.
+            targets:
+              - pi-canary-buffer-mechanism
+            color: cyan
+            linger: 0.4
+          - id: pi-canary-cross
+            phrase: scan the assembled buffer or maintain equivalent cross-chunk state
+            targets:
+              - pi-canary-buffer-mechanism
+            color: cyan
+            linger: 0.4
+      - say: "The host caught the marker from the private notes. Hold the reply before it reaches the recipient. Now a reviewer can find out why the marker appeared. The scanner looks for those exact characters. Other private text can pass through, so limit what the reader sees and check which fields this recipient may receive."
+        hold: 0.7
+        caption_starts:
+          - "Hold the reply before it reaches the recipient"
+          - "The scanner looks for those exact characters"
+        visual_cues:
+          - id: pi-canary-buffer-2
+            phrase: "Hold the reply before it reaches the recipient"
+            targets:
+              - pi-canary-buffer-mechanism
+            color: cyan
+            linger: 0.4
+  - id: layered-signals
+    title: "What did the detector flag?"
+    visual: "The screen flags a report recommendation, misses another influenced release request, and flags a benign manual. The release gate and read policy decide the effects separately."
+    beats:
+      - say: "Watch the detector on the original recommendation. In this small example it flags the phrase recommended for release. A second report also asks for a release and raises no alert. Then a manual quotes the first phrase to explain it. The manual gets flagged too. Blocking every flagged passage would stop a legitimate request to analyze the manual."
+        hold: 0.85
+        visual_cues:
+          - id: layered-signals-beat-1-focus-1
+            phrase: "it flags the phrase recommended for release"
+            targets: [signals-recommendation, signals-recommendation-detector]
+            color: blue
+            linger: 0.25
+          - id: signals-paraphrase
+            phrase: "A second report also asks for a release and raises no alert"
+            targets: [signals-paraphrase, signals-paraphrase-detector]
+            color: yellow
+            linger: 0.25
+          - id: signals-benign-manual
+            phrase: "a manual quotes the first phrase to explain it"
+            targets: [signals-manual, signals-manual-detector]
+            color: pink
+            linger: 0.25
+      - say: "Now check what each user can do. Both write requests lack approval. The authorized reader can analyze the manual. Detectors can route a case for review. Message structure, validated fields, limited tools, and current permission checks still have work to do. Test the actual release and the useful answer under both kinds of detector error."
+        hold: 1
+        visual_cues:
+          - id: signals-writes
+            phrase: "Both write requests lack approval"
+            targets: [signals-policy-gates]
+            color: cyan
+            linger: 0.25
+          - id: layered-signals-beat-2-focus-1
+            phrase: "The authorized reader can analyze the manual"
+            targets: [signals-policy-gates, signals-manual, signals-manual-detector]
+            color: blue
+            linger: 0.25
+  - id: detector-scope
+    title: A classifier answers a narrower question than permission
+    visual: Three persistent evidence rows produce true positive, missed paraphrase and false positive outcomes.
+      Separate512-token windows expose a boundary-spanning relationship without inventing detector scores.
+    beats:
+      - say: Meta’s twenty-twenty-five Prompt Guard two model cards describe twenty-two-million and eighty-six-million
+          variants with a five-hundred-twelve-token window and benign-or-malicious labels for explicit prompt
+          attacks. They omit the earlier separate injection label and warn about adaptive attacks and
+          application-specific distributions. Segmenting a long input can lose relationships across segments.
+        hold: 0.7
+        visual_cues:
+          - id: pi-detector-scope-0
+            phrase: Meta’s twenty-twenty-five Prompt Guard two model cards describe twenty-two-million and
+              eighty-six-million variants with a five-hundred-twelve-token window and benign-or-malicious
+              labels for explicit prompt attacks. They omit the earlier separate injection label and warn
+              about adaptive attacks and application-specific distributions. Segmenting a long input can lose
+              relationships across segments.
+            targets:
+              - pi-detector-scope-mechanism
+            color: cyan
+            linger: 0.4
+      - say: Llama Guard four instead classifies text and images against a safety hazard taxonomy. Neither card makes
+          the model an ownership or approval service. PyRIT and garak can help generate and score probes;
+          product fixtures still define forbidden outcomes. A detector can route review or reduce
+          capabilities, while a clean label never supplies permission.
+        hold: 0.7
+        visual_cues:
+          - id: pi-detector-scope-1
+            phrase: Llama Guard four instead classifies text and images against a safety hazard taxonomy. Neither card
+              makes the model an ownership or approval service. PyRIT and garak can help generate and score
+              probes; product fixtures still define forbidden outcomes. A detector can route review or reduce
+              capabilities, while a clean label never supplies permission.
+            targets:
+              - pi-detector-scope-mechanism
+            color: cyan
+            linger: 0.4
+  - id: attack-evaluation
+    title: Measure protected effects
+    visual: Benign and adversarial cases are grouped by whether private data escaped or an unauthorized action
+      occurred.
+    beats:
+      - say: >
+          Build an evaluation with ordinary reports, direct user attacks, retrieved attacks, and harmless
+          security discussions. Record the intended policy outcome for each case before running the model.
+        hold: 0.55
+        visual_cues:
+          - id: attack-evaluation-beat-1-focus-1
+            phrase: Build an evaluation with ordinary reports
+            targets:
+              - evaluation-case-0
+              - evaluation-case-1
+              - evaluation-case-2
+              - evaluation-case-3
+              - evaluation-case-4
+            color: blue
+            linger: 0.6
+          - id: evaluation-record-intended
+            phrase: Record the intended policy outcome for each case
+            targets:
+              - evaluation-intended-outcomes
+            color: cyan
+            linger: 0.65
+      - say: >
+          Measure protected data reaching an unapproved sink and state changes that lacked authorization.
+          Track false rejection alongside its impact on useful work.
+        hold: 0.7
+        visual_cues:
+          - id: attack-evaluation-beat-2-focus-1
+            phrase: Measure protected data reaching an unapproved sink and
+            targets:
+              - evaluation-observed-effects
+              - evaluation-false-rejection
+              - evaluation-counts
+            color: blue
+            linger: 0.6
+          - id: evaluation-false-rejection
+            phrase: Track false rejection alongside its impact on useful work
+            targets:
+              - evaluation-case-3
+              - evaluation-false-rejection
+              - evaluation-counts
+            color: pink
+            linger: 0.65
+      - say: >
+          A refusal-only score misses an agent that politely declines but already called a tool. Inspect the
+          event trace and side effects, including credentials used, destinations contacted, and the final
+          release state.
+        hold: 0.55
+        visual_cues:
+          - id: attack-evaluation-beat-3-focus-1
+            phrase: an agent that politely declines but already called a tool
+            targets:
+              - evaluation-tool-event
+              - evaluation-final-release
+            color: blue
+            linger: 0.6
+          - id: attack-evaluation-beat-3-focus-2
+            phrase: Inspect the event trace and side effects
+            targets:
+              - evaluation-tool-event
+              - evaluation-unsafe-receipt
+              - evaluation-late-refusal
+              - evaluation-final-release
+            color: blue
+            linger: 0.6
+          - id: evaluation-credentials
+            phrase: credentials used
+            targets:
+              - evaluation-credential
+            color: cyan
+            linger: 0.65
+          - id: evaluation-destinations
+            phrase: destinations contacted
+            targets:
+              - evaluation-destination
+            color: cyan
+            linger: 0.65
+          - id: evaluation-final-state
+            phrase: the final release state
+            targets:
+              - evaluation-final-release
+              - evaluation-unsafe-receipt
+            color: pink
+            linger: 0.65
+  - id: effect-denominators
+    title: "Which traces count as unsafe?"
+    visual: "The first trace contains two forbidden effects. A second trace records a denied attempt. Counting whole traces gives a different numerator from counting events. A separate supplied report pairs each rate with its denominator and Wilson interval."
+    beats:
+      - say: "To test the host, hand it the unwanted proposal directly. To test the model as well, run it with safe tool doubles and keep its trace. Record what the model proposed, what it tried to call, what actually happened, and whether it finished the useful task."
+        hold: 0.65
+        visual_cues:
+          - id: trace-intro
+            phrase: "keep its trace"
+            targets: [trace-a]
+            color: blue
+            linger: 0.25
+      - say: "Take these two attack traces. Trace A records an unauthorized write. In that same trace a private field reaches an unapproved recipient. Trace B asks for a write and the host denies it. Count each trace containing at least one forbidden effect. How many traces go in the unsafe count?"
+        hold: 2.05
+        visual_cues:
+          - id: trace-write
+            phrase: "Trace A records an unauthorized write"
+            targets: [trace-a]
+            color: pink
+            linger: 0.25
+          - id: trace-disclosure
+            phrase: "In that same trace a private field reaches an unapproved recipient"
+            targets: [trace-a]
+            color: pink
+            linger: 0.25
+          - id: trace-other
+            phrase: "Trace B asks for a write and the host denies it"
+            targets: [trace-b]
+            color: blue
+            linger: 0.25
+          - id: trace-question
+            phrase: "How many traces go in the unsafe count"
+            targets: [trace-a, trace-b, trace-score]
+            color: yellow
+            linger: 0.25
+            caption_boundary: true
+      - say: "One trace. Both effects belong to A. B adds a second evaluated trace to the denominator. So one of these two traces was unsafe. The attack success rate counts each affected trace once, even if the assistant refused after the damage was done."
+        hold: 1
+        visual_cues:
+          - id: trace-answer
+            phrase: "One trace"
+            targets: [trace-score, trace-a, trace-b]
+            color: cyan
+            linger: 0.25
+            caption_boundary: true
+      - say: "Here’s a larger set of supplied counts. Ten of a hundred distinct attack traces caused a forbidden effect. That gives ten percent. Now count benign requests. Forty of a thousand were blocked, so the false rejection rate is four percent. You still need to check the quality of the answers that got through. Compare the two-sided ninety-five percent Wilson intervals on the right. The attack interval is wider. They run from about five and a half to seventeen point four percent for attacks, and three to five point four percent for false rejections."
+        hold: 1.1
+        visual_cues:
+          - id: rates-report
+            phrase: "a larger set of supplied counts"
+            targets: [rate-asr]
+            color: pink
+            linger: 0.25
+          - id: rates-benign
+            phrase: "Now count benign requests"
+            targets: [rate-frr]
+            color: yellow
+            linger: 0.25
+          - id: rates-intervals
+            phrase: "two-sided ninety-five percent Wilson intervals"
+            targets: [rate-asr, rate-frr]
+            color: cyan
+            linger: 0.25
+  - id: uncertainty-gate
+    title: "How much can zero tell us?"
+    visual: "A fixed percentage ruler and a 2% policy line hold still as the sample size changes from 250 to 20. The viewer sees the denominator in the Wilson formula and predicts which upper endpoint crosses the line."
+    beats:
+      - say: "Here the report has zero unsafe outcomes in two hundred fifty attack traces. The observed rate is zero. To make the release decision, the example policy asks where the upper end of a two-sided ninety-five percent Wilson interval falls."
+        hold: 0.7
+        visual_cues:
+          - id: bound-start
+            phrase: "zero unsafe outcomes in two hundred fifty attack traces"
+            targets: [bound-250, bound-ruler]
+            color: blue
+            linger: 0.25
+      - say: "With zero unsafe traces and a positive sample size, there’s a short calculation. Square one point nine six. Divide that by the sample size plus the same square. See where two hundred fifty goes in the denominator. The upper endpoint comes out to about one point five one percent. It falls inside the two-percent limit."
+        hold: 0.9
+        visual_cues:
+          - id: bound-formula
+            phrase: "Square one point nine six"
+            targets: [bound-250]
+            color: blue
+            linger: 0.25
+          - id: bound-large
+            phrase: "one point five one percent"
+            targets: [bound-250, bound-ruler]
+            color: cyan
+            linger: 0.25
+      - say: "Now take just twenty attack traces, again with zero unsafe outcomes. Only the sample size changes in the calculation. Does the twenty-trace sample clear the same two-percent limit?"
+        hold: 2
+        visual_cues:
+          - id: bound-input
+            phrase: "just twenty attack traces"
+            targets: [bound-20, bound-250]
+            color: blue
+            linger: 0.25
+          - id: bound-guess
+            phrase: "Does the twenty-trace sample clear the same two-percent limit"
+            targets: [bound-20, bound-ruler, bound-footer]
+            color: yellow
+            linger: 0.25
+            caption_boundary: true
+      - say: "It misses by a wide margin. With twenty in the denominator, the upper endpoint is about sixteen point one one percent. Look where the blue mark lands beyond the policy line. With no trials there’s no rate to estimate. This gate uses one as a conservative fallback. Its helper requires whole-number counts within their denominator, rejects Boolean counts, and requires a positive finite value for z."
+        hold: 0.9
+        visual_cues:
+          - id: bound-small
+            phrase: "the upper endpoint is about sixteen point one one percent"
+            targets: [bound-20, bound-ruler]
+            color: cyan
+            linger: 0.25
+          - id: bound-empty
+            phrase: "With no trials there’s no rate to estimate"
+            targets: [bound-footer]
+            color: yellow
+            linger: 0.25
+      - say: "Both intervals assume independent trials with a fixed underlying rate. Variants of the same report can fail together, and an attacker can adapt to what the system does. Record how the traces were selected and which model and tools ran. Hold out some families and benign tasks so the next evaluation includes cases the team never tuned on."
+        hold: 0.9
+        visual_cues:
+          - id: bound-assumptions
+            phrase: "Both intervals assume independent trials with a fixed underlying rate"
+            targets: [bound-20, bound-250, bound-ruler]
+            color: blue
+            linger: 0.25
+  - id: support-and-utility
+    title: "Does this release report qualify?"
+    visual: "Each measured value sits beside its policy threshold. Five labeled bars share a minimum of 30 traces. Three alternate reports isolate missing route coverage, a small sample, and lost benign utility."
+    beats:
+      - say: "Take the larger report to release review. This example policy requires zero unsafe traces and a Wilson upper endpoint of at most two percent. It also limits observed false rejection to two percent. Two of two hundred benign requests were blocked. That’s one percent. The totals clear the minimum of two hundred attacks and a hundred benign requests."
+        hold: 0.75
+        visual_cues:
+          - id: report-counts
+            phrase: "This example policy requires zero unsafe traces"
+            targets: [release-counts]
+            color: blue
+            linger: 0.25
+      - say: "Read the five labels at the bottom. Direct input, retrieved documents, tool results, multi-turn sessions, and multimodal inputs each need at least thirty attack traces. Here they have fifty apiece. Every condition passes, so the report is eligible for review. The release itself still needs authorization."
+        hold: 0.9
+        visual_cues:
+          - id: report-labels
+            phrase: "Read the five labels at the bottom"
+            targets: [release-paths]
+            color: blue
+            linger: 0.25
+          - id: report-pass
+            phrase: "the report is eligible for review"
+            targets: [release-result, release-counts, release-paths]
+            color: cyan
+            linger: 0.25
+      - say: "Change just the tool-result count to zero. The total number of attack traces stays at two hundred fifty. Does this report still qualify?"
+        hold: 2.1
+        visual_cues:
+          - id: report-missing
+            phrase: "Change just the tool-result count to zero"
+            targets: [release-paths]
+            color: yellow
+            linger: 0.25
+          - id: report-question
+            phrase: "Does this report still qualify"
+            targets: [release-counts, release-paths, release-result]
+            color: yellow
+            linger: 0.25
+            caption_boundary: true
+      - say: "Hold it. The tool-result count misses the minimum. One multi-turn trace can also contain a tool result, so the labels can overlap. That’s why the five counts needn’t add up to the total, and why the overall total can’t supply the missing tool-result coverage. Each label count must still lie between zero and the number of distinct attacks."
+        hold: 0.9
+        visual_cues:
+          - id: report-path-result
+            phrase: "Hold it"
+            targets: [release-result, release-paths]
+            color: pink
+            linger: 0.25
+            caption_boundary: true
+      - say: "For a separate comparison, keep only twenty attack traces with four under each label. The upper bound rises above two percent, and both the total and the per-label counts fall short. In a final comparison, restore the full attack sample and block every benign request. The one hundred percent false rejection rate vetoes that report. Each of these reports recorded zero unsafe attacks."
+        hold: 1
+        visual_cues:
+          - id: report-small
+            phrase: "keep only twenty attack traces"
+            targets: [release-counts, release-paths]
+            color: blue
+            linger: 0.25
+          - id: report-small-result
+            phrase: "both the total and the per-label counts fall short"
+            targets: [release-counts, release-paths, release-result]
+            color: pink
+            linger: 0.25
+          - id: report-blocked
+            phrase: "restore the full attack sample and block every benign request"
+            targets: [release-counts]
+            color: blue
+            linger: 0.25
+          - id: report-utility-result
+            phrase: "false rejection rate vetoes that report"
+            targets: [release-result, release-counts]
+            color: pink
+            linger: 0.25
+  - id: cache-principal
+    title: A cache hit carries its access context
+    visual: One poisoned result occupies the intern/read/source key. An owner/promote lookup misses despite the
+      same source URI; a separate authorized hit still carries the untrusted stripe and current-access check.
+    beats:
+      - say: The reference cache stores the poisoned report under intern, read privilege and the source URI. The
+          owner’s promote-context lookup uses a different key and misses. The intern’s original key hits. Same
+          source does not mean the private cached entry belongs to every principal or privilege context.
+        hold: 0.7
+        visual_cues:
+          - id: pi-cache-principal-0
+            phrase: The reference cache stores the poisoned report under intern, read privilege and the source URI. The
+              owner’s promote-context lookup uses a different key and misses. The intern’s original key hits.
+              Same source does not mean the private cached entry belongs to every principal or privilege
+              context.
+            targets:
+              - pi-cache-principal-mechanism
+            color: cyan
+            linger: 0.4
+      - say: Build keys from authenticated host state, including resource arguments and revision needed for reuse.
+          Invalidate on relevant authorization changes and recheck access even on a hit. Public immutable
+          content can be shared under a suitable access policy; this example concerns a private per-user
+          result. Cached evidence never becomes an approval record.
+        hold: 0.7
+        visual_cues:
+          - id: pi-cache-principal-1
+            phrase: Build keys from authenticated host state, including resource arguments and revision needed for reuse.
+              Invalidate on relevant authorization changes and recheck access even on a hit. Public immutable
+              content can be shared under a suitable access policy; this example concerns a private per-user
+              result. Cached evidence never becomes an approval record.
+            targets:
+              - pi-cache-principal-mechanism
+            color: cyan
+            linger: 0.4
+      - say: "A miss does not make the next fetch safe: the owner may retrieve the same poisoned text independently.
+          Model prefix caching reuses computation for identical prefixes; application tool-result access is a
+          separate decision. Reused histories must preserve provenance and principal boundaries just as stored
+          tool results do."
+        hold: 0.7
+        visual_cues:
+          - id: pi-cache-principal-2
+            phrase: "A miss does not make the next fetch safe: the owner may retrieve the same poisoned text
+              independently. Model prefix caching reuses computation for identical prefixes; application
+              tool-result access is a separate decision. Reused histories must preserve provenance and
+              principal boundaries just as stored tool results do."
+            targets:
+              - pi-cache-principal-mechanism
+            color: cyan
+            linger: 0.4
+  - id: poisoned-memory
+    title: Carry provenance through a later turn
+    visual: The report’s approval claim is written to a memory note with the external source stripe. On a later
+      request it returns as evidence, while the host approval store remains independently empty or consumed.
+    beats:
+      - say: An early turn writes a note saying approval granted. In a later session that sentence may look like a
+          prior host decision, even when it originated in the report. Store origin and trust with memory, and
+          keep retrieved notes on the evidence side of the next request. Text repeating an approval does not
+          create a current approval-store entry.
+        hold: 0.7
+        visual_cues:
+          - id: pi-poisoned-memory-0
+            phrase: An early turn writes a note saying approval granted. In a later session that sentence may look like a
+              prior host decision, even when it originated in the report. Store origin and trust with memory,
+              and keep retrieved notes on the evidence side of the next request. Text repeating an approval
+              does not create a current approval-store entry.
+            targets:
+              - pi-poisoned-memory-mechanism
+            color: cyan
+            linger: 0.4
+      - say: Poisoned memory can influence a later model, so test a multi-step trace that writes a note and then
+          reloads it. Recheck the active principal, artifact, suite, destination and operation at the
+          protected sink. An old unused approval for another task and an already consumed approval both fail
+          the matching current authorization path.
+        hold: 0.7
+        visual_cues:
+          - id: pi-poisoned-memory-1
+            phrase: Poisoned memory can influence a later model, so test a multi-step trace that writes a note and then
+              reloads it. Recheck the active principal, artifact, suite, destination and operation at the
+              protected sink. An old unused approval for another task and an already consumed approval both
+              fail the matching current authorization path.
+            targets:
+              - pi-poisoned-memory-mechanism
+            color: cyan
+            linger: 0.4
+      - say: Keep useful summaries and benign quoted security text available under their read policy. The aim is to
+          constrain consequences while preserving the task. Measure both the reader’s influenced outputs and
+          the host’s decisions; otherwise a host that saves every bad proposal can hide a model that follows
+          every attack.
+        hold: 0.7
+        visual_cues:
+          - id: pi-poisoned-memory-2
+            phrase: Keep useful summaries and benign quoted security text available under their read policy. The aim is to
+              constrain consequences while preserving the task. Measure both the reader’s influenced outputs
+              and the host’s decisions; otherwise a host that saves every bad proposal can hide a model that
+              follows every attack.
+            targets:
+              - pi-poisoned-memory-mechanism
+            color: cyan
+            linger: 0.4
+  - id: review-and-retention
+    title: Protect the reviewer and the incident record
+    visual: External report text stays separate from host-derived fields in a review packet. An
+      approval-persuasion sentence remains untrusted; a minimized trace retains
+      source/proposal/decision/approval/result identities.
+    beats:
+      - say: A human reviewer is another downstream consumer. A report can tell that person to click Approve. Escape
+          active markup and visually separate external claims from host-derived action fields. Persuasive
+          plain text can still influence a person, so the review should show the exact effect and independent
+          policy evidence. Merely displaying an approval claim is not a trusted lookup.
+        hold: 0.7
+        visual_cues:
+          - id: pi-review-and-retention-0
+            phrase: A human reviewer is another downstream consumer. A report can tell that person to click Approve.
+              Escape active markup and visually separate external claims from host-derived action fields.
+              Persuasive plain text can still influence a person, so the review should show the exact effect
+              and independent policy evidence. Merely displaying an approval claim is not a trusted lookup.
+            targets:
+              - pi-review-and-retention-mechanism
+            color: cyan
+            linger: 0.4
+      - say: Incident reconstruction needs a source reference or appropriately redacted payload, the model proposal,
+          principal, policy version, decision, approval state and execution result. Keep records long enough
+          for the declared purpose, with access and retention controls. Copying every raw prompt indefinitely
+          can create another store of secrets. A public hash does not anonymize guessable input.
+        hold: 0.7
+        visual_cues:
+          - id: pi-review-and-retention-1
+            phrase: Incident reconstruction needs a source reference or appropriately redacted payload, the model
+              proposal, principal, policy version, decision, approval state and execution result. Keep records
+              long enough for the declared purpose, with access and retention controls. Copying every raw
+              prompt indefinitely can create another store of secrets. A public hash does not anonymize
+              guessable input.
+            targets:
+              - pi-review-and-retention-mechanism
+            color: cyan
+            linger: 0.4
+      - say: "NIST’s Generative AI Profile groups this work under Govern, Map, Measure, and Manage. Give each boundary an owner. To check the release gate, give the host a proposal and read its decision. To see what the model requested, open its tool trace. To find out what changed in production, match the release receipt to the operation."
+        hold: 0.7
+        visual_cues:
+          - id: pi-review-and-retention-2
+            phrase: "Govern, Map, Measure, and Manage"
+            targets:
+              - pi-review-and-retention-mechanism
+            color: cyan
+            linger: 0.4
+          - id: review-gate
+            phrase: "To check the release gate"
+            targets: [pi-review-and-retention-mechanism]
+            color: cyan
+          - id: review-trace
+            phrase: "To see what the model requested"
+            targets: [pi-review-and-retention-mechanism]
+            color: cyan
+          - id: review-receipt
+            phrase: "To find out what changed in production"
+            targets: [pi-review-and-retention-mechanism]
+            color: cyan
+  - id: transfer
+    title: Let evidence inform the model safely
+    visual: The retrieved report informs a response while independent policy, permissions, and approval constrain
+      every protected sink.
+    beats:
+      - say: The report can still inform a useful summary or a proposed next step. Our two executions showed how a
+          typed proposal becomes a denied attempt or an approved, receipted change. The decision is
+          inspectable because the caller, operation, approval and resulting state remain linked.
+        hold: 0.65
+        visual_cues:
+          - id: transfer-beat-1-focus-1
+            phrase: The report can still inform a useful summary
+            targets:
+              - transfer-report
+              - transfer-proposal
+            color: blue
+            linger: 0.6
+          - id: transfer-beat-1-focus-2
+            phrase: Our two executions showed how a typed proposal
+            targets:
+              - transfer-host-policy
+              - transfer-denied-execution
+              - transfer-approved-execution
+              - transfer-write-receipt
+            color: blue
+            linger: 0.6
+      - say: For your own workflow, trace one hostile input all the way to each protected endpoint. Run the approved
+          case too. Check the resulting records and useful work, then choose the specific layer that needs
+          repair.
+        hold: 0.9
+        visual_cues:
+          - id: transfer-beat-2-focus-1
+            phrase: Check the resulting records and useful work
+            targets:
+              - transfer-denied-execution
+              - transfer-write-receipt
+              - transfer-deployment-endpoint
+            color: blue
+            linger: 0.6
+          - id: transfer-protected-endpoints
+            phrase: one hostile input all the way to each protected endpoint
+            targets:
+              - transfer-disclosure-endpoint
+              - transfer-deployment-endpoint
+            color: cyan
+            linger: 0.65
+  - id: fresh-authority
+    title: "One more release request"
+    visual: "The request and a cached note stay in place while the trusted operation changes from OP11 to OP12 in a second run. The ledger receives the authorized operation once. The closing frame returns to the first run and pairs the useful answer with its denial record."
+    beats:
+      - say: "This time the candidate is C twenty-six. The signed-in user owns it. The candidate passed its current evaluation, suite R seventy-three. Staging is allowed. The host opens operation twelve. A cached report note says approved. The trusted grant agrees on the user, candidate, suite, and target. The grant names operation eleven. How many writes can operation twelve add?"
+        hold: 2.4
+        visual_cues:
+          - id: fresh-input
+            phrase: "The host opens operation twelve"
+            targets: [fresh-request]
+            color: cyan
+            linger: 0.25
+          - id: fresh-note
+            phrase: "A cached report note says approved"
+            targets: [fresh-request]
+            color: blue
+            linger: 0.25
+          - id: fresh-grant
+            phrase: "The trusted grant agrees on the user, candidate, suite, and target"
+            targets: [fresh-store]
+            color: cyan
+            linger: 0.25
+          - id: fresh-question
+            phrase: "How many writes can operation twelve add"
+            targets: [fresh-request, fresh-store, fresh-count]
+            color: yellow
+            linger: 0.25
+            caption_boundary: true
+      - say: "Zero. The grant belongs to operation eleven. It can sit there unused. The note came from a report author. It stayed in the cache, with the same authority it had when it was written. The host still needs a grant for the operation it is running."
+        hold: 1.1
+        visual_cues:
+          - id: pi-fresh-zero
+            phrase: "Zero"
+            targets: [fresh-store, fresh-ledger, fresh-count]
+            color: cyan
+            linger: 0.25
+            caption_boundary: true
+      - say: "Start a second run with the same request, the same note, and an empty ledger. Change only the trusted grant to operation twelve. Now the operations match. The host uses the grant and appends one entry. Send the same request again. The lookup comes back empty, so the replay adds zero. The single entry on the right is the whole release history for this run."
+        hold: 1.1
+        caption_starts:
+          - "Change only the trusted grant"
+          - "Now the operations match"
+          - "The host uses the grant and appends one entry"
+          - "Send the same request again"
+          - "The lookup comes back empty"
+        visual_cues:
+          - id: fresh-compare
+            phrase: "Start a second run with the same request"
+            targets: [fresh-request, fresh-store, fresh-ledger]
+            color: cyan
+            linger: 0.25
+          - id: pi-fresh-matching
+            phrase: "Change only the trusted grant to operation twelve"
+            targets: [fresh-store, fresh-request]
+            color: cyan
+            linger: 0.25
+          - id: pi-fresh-one
+            phrase: "uses the grant and appends one entry"
+            targets: [fresh-store, fresh-ledger]
+            color: cyan
+            linger: 0.25
+          - id: fresh-retry
+            phrase: "Send the same request again"
+            targets: [fresh-request, fresh-store, fresh-ledger]
+            color: yellow
+            linger: 0.25
+          - id: pi-fresh-replay
+            phrase: "the replay adds zero"
+            targets: [fresh-store, fresh-ledger, fresh-count]
+            color: cyan
+            linger: 0.25
+            caption_boundary: true
+      - say: "Go back to the first request, the one you denied. The user can read the evaluation. The assistant can say that C twenty-six passed evaluation R seventy-three. Keep that answer beside the release decision. If the user disputes it, give the policy owner the operation record. It shows exactly which approval the worker found and why the release stopped."
+        hold: 1.4
+        visual_cues:
+          - id: fresh-return
+            phrase: "Go back to the first request"
+            targets: [fresh-answer, fresh-denial]
+            color: blue
+            linger: 0.25
+          - id: fresh-summary
+            phrase: "C twenty-six passed evaluation R seventy-three"
+            targets: [fresh-answer]
+            color: blue
+            linger: 0.25
+          - id: fresh-review
+            phrase: "give the policy owner the operation record"
+            targets: [fresh-denial]
+            color: cyan
+            linger: 0.25

@@ -1,0 +1,224 @@
+{
+  "id": "longest-match-tokenizer",
+  "slug": "longest-match-tokenizer",
+  "title": "Longest-match Tokenizer",
+  "difficulty": "Medium",
+  "category": "Parsing",
+  "language": "python3",
+  "timeEstimateMinutes": 35,
+  "timeLimitMs": 2500,
+  "memoryLimitMb": 128,
+  "order": 90,
+  "tags": [
+    "trie",
+    "tokenizer",
+    "state machine",
+    "parsing"
+  ],
+  "source": "Company prep",
+  "summary": "Tokenize text by greedily choosing the longest vocabulary token at each position.",
+  "starterCode": [
+    "def tokenize(text: str, vocab: set[str]) -> list[str]:",
+    "    pass"
+  ],
+  "testCases": [
+    {
+      "name": "NUL tokens and Unicode code point error offsets",
+      "visibility": "hidden",
+      "code": [
+        "from solution import tokenize",
+        "assert tokenize(\"a\\0b\", {\"a\", \"\\0\", \"b\"}) == [\"a\", \"\\0\", \"b\"]",
+        "assert tokenize(\"a b\", {\"a b\", \"a\", \"b\"}) == [\"a b\"]",
+        "try:",
+        "    tokenize(\"😀x\", {\"😀\"})",
+        "except ValueError as exc:",
+        "    assert \"position 1\" in str(exc)",
+        "else:",
+        "    raise AssertionError(\"unknown x should fail at code point 1\")"
+      ]
+    },
+    {
+      "name": "uses longest match over shorter prefixes",
+      "visibility": "sample",
+      "setup": [
+        "from solution import tokenize",
+        "vocab = {\"the\", \"there\", \"for\", \"fore\"}"
+      ],
+      "input": "vocab = {\"the\", \"there\", \"for\", \"fore\"}\ntokenize(\"therefore\", vocab)",
+      "expected": "[\"there\", \"fore\"]",
+      "expression": "tokenize(\"therefore\", vocab)"
+    },
+    {
+      "name": "skips whitespace and handles repeated prefixes",
+      "visibility": "hidden",
+      "setup": [
+        "from solution import tokenize",
+        "vocab = {\"a\", \"aa\", \"aaa\", \"b\", \"ba\"}"
+      ],
+      "input": "vocab = {\"a\", \"aa\", \"aaa\", \"b\", \"ba\"}\ntokenize(\"aaab aa ba\", vocab)",
+      "expected": "[\"aaa\", \"b\", \"aa\", \"ba\"]",
+      "expression": "tokenize(\"aaab aa ba\", vocab)"
+    },
+    {
+      "name": "reports unknown token position",
+      "visibility": "hidden",
+      "code": [
+        "from solution import tokenize",
+        "",
+        "try:",
+        "    tokenize(\"abc\", {\"ab\"})",
+        "except ValueError as exc:",
+        "    assert \"position 2\" in str(exc)",
+        "else:",
+        "    raise AssertionError(\"expected ValueError\")"
+      ]
+    },
+    {
+      "name": "returns no tokens for whitespace only input",
+      "visibility": "sample",
+      "setup": [
+        "from solution import tokenize"
+      ],
+      "input": "tokenize(\"  \\n\\t \", {\"a\"})",
+      "expected": "[]"
+    },
+    {
+      "name": "rejects empty vocabulary tokens",
+      "visibility": "hidden",
+      "code": [
+        "from solution import tokenize",
+        "",
+        "try:",
+        "    tokenize(\"abc\", {\"\", \"abc\"})",
+        "except ValueError:",
+        "    pass",
+        "else:",
+        "    raise AssertionError(\"empty vocabulary token should fail\")"
+      ]
+    },
+    {
+      "name": "tokenizes one exact vocabulary item",
+      "visibility": "sample",
+      "description": "An exact whole-input match emits that token once.",
+      "setup": [
+        "from solution import tokenize"
+      ],
+      "input": "tokenize(\"cat\", {\"cat\"})",
+      "expected": "[\"cat\"]",
+      "feedback": "Record terminal trie nodes so an exact match can be emitted."
+    },
+    {
+      "name": "restarts longest matching after each token",
+      "visibility": "hidden",
+      "description": "After taking the longest prefix, matching resumes at its end.",
+      "setup": [
+        "from solution import tokenize"
+      ],
+      "input": "tokenize(\"aaaa\", {\"a\", \"aa\", \"aaa\"})",
+      "expected": "[\"aaa\", \"a\"]",
+      "feedback": "Advance to the end of the longest terminal match, then restart from the trie root."
+    },
+    {
+      "name": "greedy matching never backtracks to another segmentation",
+      "visibility": "hidden",
+      "description": "A valid shorter-first segmentation can't override the required longest prefix.",
+      "code": [
+        "from solution import tokenize",
+        "",
+        "try:",
+        "    tokenize(\"abcd\", {\"ab\", \"abc\", \"cd\"})",
+        "except ValueError as exc:",
+        "    assert \"position 3\" in str(exc)",
+        "else:",
+        "    raise AssertionError(\"greedy tokenizer must not backtrack to ab + cd\")"
+      ]
+    },
+    {
+      "name": "ignores surrounding ascii whitespace",
+      "visibility": "hidden",
+      "description": "Leading, tab, newline, and trailing whitespace stay outside tokens.",
+      "setup": [
+        "from solution import tokenize"
+      ],
+      "input": "tokenize(\" \\talpha\\n \" , {\"alpha\"})",
+      "expected": "[\"alpha\"]",
+      "feedback": "Advance past whitespace before attempting a vocabulary match."
+    }
+  ],
+  "clarifyingQuestions": [
+    "Should whitespace be skipped, returned as tokens, or rejected?",
+    "When two tokens match, is longest-match always required?",
+    "What error shape should include the failing position?"
+  ],
+  "followUps": [
+    "Return token objects with start/end offsets.",
+    "Add quoted strings and escape sequences.",
+    "Support streaming input where a token can span chunks."
+  ],
+  "followUpGuide": [
+    "For offsets, append small records like `{token, start, end}` with each emitted token. Keep the trie walk unchanged.",
+    "",
+    "For quoted strings, branch before trie lookup when the current character is a quote. Use an explicit state machine so escape handling stays local.",
+    "",
+    "For streaming, keep a suffix buffer for characters that might form a longer token in the next chunk. Clarify maximum token length so the buffer remains bounded."
+  ],
+  "complexityAnalysis": [
+    "- Naive prefix scan: try every vocabulary token at each position. Time: O(L * V * T), where L is input length, V vocab size, T token length. Space: O(1) besides output.",
+    "- Trie approach: build the trie from S total vocabulary characters, then walk candidates and keep the last terminal match. Time: O(S + L * max(1, m)), where m is max token length. Empty vocab still requires scanning whitespace or finding the first unknown character. Space: O(S) besides output.",
+    "- DP follow-up: define an objective for valid or globally optimal segmentation as a separate contract. With trie transitions, time: O(S + L * m). Space: O(S + L) besides output. The required greedy problem fails at its first unmatched position and never backtracks."
+  ],
+  "solutionGuide": [
+    "A trie gives clean longest-prefix lookup without scanning every vocabulary item at each position.",
+    "",
+    "Track the last terminal node seen while walking forward. If the walk stops, emit that last terminal token and advance to its end.",
+    "",
+    "```python",
+    "END = \"\"",
+    "",
+    "",
+    "def build_trie(vocab: set[str]) -> dict:",
+    "    root = {}",
+    "    for token in vocab:",
+    "        if not token:",
+    "            raise ValueError(\"vocab cannot contain empty tokens\")",
+    "        node = root",
+    "        for ch in token:",
+    "            node = node.setdefault(ch, {})",
+    "        node[END] = token",
+    "    return root",
+    "",
+    "",
+    "def tokenize(text: str, vocab: set[str]) -> list[str]:",
+    "    trie = build_trie(vocab)",
+    "    tokens = []",
+    "    i = 0",
+    "",
+    "    while i < len(text):",
+    "        if text[i].isspace():",
+    "            i += 1",
+    "            continue",
+    "",
+    "        node = trie",
+    "        best_token = None",
+    "        best_end = i",
+    "        j = i",
+    "",
+    "        while j < len(text) and text[j] in node:",
+    "            node = node[text[j]]",
+    "            j += 1",
+    "            if END in node:",
+    "                best_token = node[END]",
+    "                best_end = j",
+    "",
+    "        if best_token is None:",
+    "            raise ValueError(f\"unknown token at position {i}\")",
+    "",
+    "        tokens.append(best_token)",
+    "        i = best_end",
+    "",
+    "    return tokens",
+    "```",
+    "",
+    "Complexity is O(S + n * max(1, m)), including trie construction from S vocabulary characters and scanning n text code points. Memory is O(S) besides the returned token list."
+  ]
+}

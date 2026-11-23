@@ -1,0 +1,975 @@
+[
+  {
+    "id": "c01",
+    "title": "Which word carries the number?",
+    "sourceChapters": [
+      "c01"
+    ],
+    "beats": [
+      {
+        "id": "c01-b01",
+        "say": "Dogs chase cats. Under dogs, follow point eight zero two. That's the first coordinate of its attention output. Here every word sees all three, with fixed word vectors and no position signal. When the nouns trade places, where will that number land?",
+        "hold": 2.7
+      },
+      {
+        "id": "c01-b02",
+        "say": "Switch the nouns. Cats chase dogs. Look under dogs on the right. There's point eight zero two again. You and I know the chaser changed. The layer still makes the same three content comparisons for dogs.",
+        "hold": 0.7
+      },
+      {
+        "id": "c01-b03",
+        "say": "Keep cats first and dogs last. Slide the whole sentence eight places to the right. The words moved, but dogs is still two places after cats. Can attention use that gap? Rotary position embedding, or RoPE, turns the query and the key for these words. We'll check which turns a cache needs to keep.",
+        "hold": 0.7
+      }
+    ]
+  },
+  {
+    "id": "c02",
+    "title": "Content follows its token",
+    "sourceChapters": [
+      "c02"
+    ],
+    "beats": [
+      {
+        "id": "c02-b01",
+        "say": "Replay the swap with all three outputs in view. Begin with attention that has neither a position signal nor a mask. A query compares its content with each key. Those comparisons become weights, and the weights mix the corresponding values.",
+        "hold": 0.4
+      },
+      {
+        "id": "c02-b02",
+        "say": "Shuffle the token rows and carry their vectors along. Read the two numbers below each word. Both numbers move with the word. Change the input row order and the output follows the same reordering. That's permutation equivariance.",
+        "hold": 0.6
+      },
+      {
+        "id": "c02-b03",
+        "say": "Our test deliberately uses unmasked attention. A decoder's causal mask changes which earlier tokens are visible and therefore changes this symmetry. We'll keep that visibility rule separate from the position signal we are about to construct.",
+        "hold": 0.5
+      }
+    ]
+  },
+  {
+    "id": "c03",
+    "title": "Parallel work keeps causal visibility",
+    "sourceChapters": [
+      "c03"
+    ],
+    "beats": [
+      {
+        "id": "c03-b01",
+        "say": "Start with the unmasked weight matrix. Read a row across to see how one query distributes its attention. Swapping dogs and cats permutes the rows of Q, K and V. The score matrix permutes both axes. Row-wise softmax follows the swap. Multiplying by the reordered values puts each output back beside its word. For an exact comparison, disable dropout or move its sampled mask with the data.",
+        "hold": 0.5
+      },
+      {
+        "id": "c03-b02",
+        "say": "A causal decoder changes the permitted comparisons. Query position two must hide key position three even during parallel prefill. Computing rows at once changes scheduling, not visibility.",
+        "hold": 0.3
+      },
+      {
+        "id": "c03-b03",
+        "say": "Some trained causal models can infer approximate position without explicit encodings, but that is learned behavior under the mask, not an explicit counter inside softmax. Identical value rows still average to the same value however many are visible.",
+        "hold": 0.5
+      }
+    ]
+  },
+  {
+    "id": "c04",
+    "title": "Where can position enter?",
+    "sourceChapters": [
+      "c04"
+    ],
+    "beats": [
+      {
+        "id": "c04-b01",
+        "say": "An absolute encoding gives each slot a vector and adds it to the token embedding. Learned position tables and the original Transformer's sine and cosine waves take this early route.",
+        "hold": 0.4
+      },
+      {
+        "id": "c04-b02",
+        "say": "RoPE enters later. First the model projects content into queries and keys. Then position rotates those vectors, just before their dot products determine attention weights.",
+        "hold": 0.4
+      },
+      {
+        "id": "c04-b03",
+        "say": "Another method, ALiBi, adds a distance bias directly to the scores. These insertion points matter. We'll concentrate on RoPE's middle route, where a small rotation produces an exact relationship between two positions.",
+        "hold": 0.5
+      }
+    ]
+  },
+  {
+    "id": "c05",
+    "title": "One slot drives several wave pairs",
+    "sourceChapters": [
+      "c05"
+    ],
+    "beats": [
+      {
+        "id": "c05-b01",
+        "say": "Build the original Transformer's absolute signal before returning to rotary attention. An eight-coordinate position vector contains four sine-cosine pairs with frequencies one, one-tenth, one-hundredth and one-thousandth. Multiply the slot index by each frequency, then store its sine followed by its cosine. At position zero the row alternates zero and one.",
+        "hold": 0.5
+      },
+      {
+        "id": "c05-b02",
+        "say": "At position two, the first pair becomes sine two and cosine two: about zero point nine zero nine and minus zero point four one six. Slower pairs have turned less. Their combined fingerprint is added coordinate by coordinate to the token embedding, before all three projections.",
+        "hold": 0.3
+      },
+      {
+        "id": "c05-b03",
+        "say": "Read the addition down each column. Our token starts with one, zero. Add the first position pair and you get about one point nine zero nine, minus point four one six. Each projection reads the combined vector. Position can enter the values as well as the queries and keys.",
+        "hold": 0.5
+      },
+      {
+        "id": "c05-b04",
+        "say": "A wavelength is two pi divided by frequency. In the original five-hundred-twelve-wide schedule, dimension pairs beginning at zero, sixty-four and five hundred ten have wavelengths about six, twenty and sixty thousand six hundred eleven positions. Keep the first coordinate index distinct from the pair index.",
+        "hold": 0.3
+      },
+      {
+        "id": "c05-b05",
+        "say": "We stored sine first. Use sine as the horizontal coordinate and cosine as the vertical coordinate. Starting at two radians, add a shared offset of half a radian. The pair turns clockwise in this convention. Its two entries now read about point five nine eight and minus point eight zero one.",
+        "hold": 0.5
+      }
+    ]
+  },
+  {
+    "id": "c06",
+    "title": "Addition creates four score terms",
+    "sourceChapters": [
+      "c06"
+    ],
+    "beats": [
+      {
+        "id": "c06-b01",
+        "say": "Addition preserves hidden width, but mixes two sources before projection. Expand a query from content plus position against a key from content plus position. The dot product has content-content, content-position, position-content and position-position terms. The two cross terms do not vanish merely because the waves are paired.",
+        "hold": 0.5
+      },
+      {
+        "id": "c06-b02",
+        "say": "With the identity between query and key, the position-only cell is the cosine of their angle difference. Our slots are five and two. A general learned projection can weight the first coordinate more heavily. Try a diagonal matrix with entries two and one. The bottom-right cell changes.",
+        "hold": 0.3
+      },
+      {
+        "id": "c06-b03",
+        "say": "Shift both slots forward by four with that same diagonal matrix. The offset stays fixed. The position-only cell changes again. For invariance at every position, the shared shift S and the bilinear matrix A must satisfy S transpose times A times S equals A. Equal query and key projections alone do not ensure this.",
+        "hold": 0.5
+      },
+      {
+        "id": "c06-b04",
+        "say": "This differs from the fixed-content rotary identity we will derive. Adding two width-d vectors keeps width d. Concatenating them produces width two d unless another projection reduces it.",
+        "hold": 0.3
+      },
+      {
+        "id": "c06-b05",
+        "say": "If the whole transformer keeps that doubled width, square query, key and value matrices have four times as many entries.",
+        "hold": 0.3
+      },
+      {
+        "id": "c06-b06",
+        "say": "Each small square has two hundred fifty-six rows and columns. Count four squares at the doubled width: two hundred sixty-two thousand one hundred forty-four entries, up from sixty-five thousand five hundred thirty-six.",
+        "hold": 0.5
+      }
+    ]
+  },
+  {
+    "id": "c07",
+    "title": "A learned table has a real last row",
+    "sourceChapters": [
+      "c07"
+    ],
+    "beats": [
+      {
+        "id": "c07-b01",
+        "say": "A learned absolute table with four thousand ninety-six rows supplies indices zero through four thousand ninety-five. Index four thousand ninety-six is already missing. Extending or remapping it changes the design and needs adaptation. A sinusoidal formula can be evaluated beyond its training range, although a cached implementation may still need a larger buffer.",
+        "hold": 0.5
+      },
+      {
+        "id": "c07-b02",
+        "say": "Defined arithmetic is a separate question from learned quality. Bounded sine and cosine coordinates do not force exploding logits, and they do not guarantee extrapolation. The original Transformer compared fixed and learned positions with nearly identical translation results in that experiment.",
+        "hold": 0.3
+      },
+      {
+        "id": "c07-b03",
+        "say": "Reproduce the checkpoint's insertion point first, then test the lengths and tasks you intend to serve.",
+        "hold": 0.5
+      }
+    ]
+  },
+  {
+    "id": "c08",
+    "title": "A position becomes an angle",
+    "sourceChapters": [
+      "c08"
+    ],
+    "beats": [
+      {
+        "id": "c08-b01",
+        "say": "Take two coordinates from a query and draw them as an arrow. Moving around this circle changes its direction while preserving its length. That's the operation RoPE applies to the pair.",
+        "hold": 0.4
+      },
+      {
+        "id": "c08-b02",
+        "say": "Choose half a radian per position step. Multiply that frequency by the token's position. Advance the position slider from zero to four. Four half-radians carry the tip two radians around the circle.",
+        "hold": 0.5
+      },
+      {
+        "id": "c08-b03",
+        "say": "The horizontal and vertical coordinates change together. They still describe the same length, so this operation introduces position without amplifying the vector. We can write the entire motion as one small matrix.",
+        "hold": 0.5
+      }
+    ]
+  },
+  {
+    "id": "c09",
+    "title": "The matrix is the moving picture",
+    "sourceChapters": [
+      "c09"
+    ],
+    "beats": [
+      {
+        "id": "c09-b01",
+        "say": "Start with the horizontal unit arrow. After rotation, its coordinates are cosine and sine. The vertical unit arrow turns by the same angle, giving negative sine and cosine.",
+        "hold": 0.5
+      },
+      {
+        "id": "c09-b02",
+        "say": "Those two results are the columns of the rotation matrix. Every other arrow is a combination of the two basis directions, so multiplying by this matrix rotates that arrow too.",
+        "hold": 0.5
+      },
+      {
+        "id": "c09-b03",
+        "say": "For a query at position m, the angle is m times the frequency. A key at position n uses n times that same frequency. Their individual directions now carry absolute position. Watch what happens when we compare them.",
+        "hold": 0.5
+      }
+    ]
+  },
+  {
+    "id": "c10",
+    "title": "Measuring alignment",
+    "sourceChapters": [
+      "c10"
+    ],
+    "beats": [
+      {
+        "id": "c10-b01",
+        "say": "Start with two unit arrows pointing right. The green mark lies one unit out along the query. Turn the key a quarter turn. Its tip is directly above the origin, so its projection is zero. Turn it another quarter turn. The mark reaches minus one.",
+        "hold": 0.3
+      },
+      {
+        "id": "c10-b02",
+        "say": "That signed reading is the dot product for these two unit arrows.",
+        "hold": 0.8
+      },
+      {
+        "id": "c10-b03",
+        "say": "Bring the key back alongside the query. Use half a radian per position. Rotate the query for position five and the key for position three. From the yellow tip, drop a perpendicular onto the blue query. The green mark tells us how much of the key points along it.",
+        "hold": 0.6
+      },
+      {
+        "id": "c10-b04",
+        "say": "From query to key, that's three minus five, times one half. The key trails by one radian. The cosine of minus one is about point five four. We started these unit vectors in the same direction so we could isolate what position contributed.",
+        "hold": 0.6
+      }
+    ]
+  },
+  {
+    "id": "c11",
+    "title": "Move both positions",
+    "sourceChapters": [
+      "c11"
+    ],
+    "beats": [
+      {
+        "id": "c11-b01",
+        "say": "Here are cats and dogs again, at three and five. Use the same unit key for cats and the same unit query for dogs. Their dot product is point five four. What will it be if we move both positions eight places forward?",
+        "hold": 2.1
+      },
+      {
+        "id": "c11-b02",
+        "say": "Slide them together. Cats travels from three to eleven and dogs from five to thirteen. Both arrows turn through four radians. Follow the green segment as it turns with the blue query. It keeps its length. The dot product is still point five four.",
+        "hold": 0.8
+      },
+      {
+        "id": "c11-b03",
+        "say": "In the dot product, transposing the query rotation undoes its turn. Combine that with the key rotation and only the difference of the angles remains. This works for fixed query and key content when both use the same frequency schedule.",
+        "hold": 0.6
+      },
+      {
+        "id": "c11-b04",
+        "say": "Now keep the positions still and double the length of the query. The projection of the unit key stays where it was. Multiply that projection by the new query length, two, and the dot product rises to about one point zero eight.",
+        "hold": 0.3
+      },
+      {
+        "id": "c11-b05",
+        "say": "Earlier layers can change the content of these arrows when you change the surrounding text.",
+        "hold": 0.7
+      }
+    ]
+  },
+  {
+    "id": "c12",
+    "title": "Four pairs, one offset",
+    "sourceChapters": [
+      "c12"
+    ],
+    "beats": [
+      {
+        "id": "c12-b01",
+        "say": "Give one head eight coordinates. Pair neighboring coordinates, then face each dial along its blue query. The yellow key starts aligned with it. Read the four rates under the dials in radians per position. The first pair turns a thousand times faster than the last.",
+        "hold": 0.3
+      },
+      {
+        "id": "c12-b02",
+        "say": "Suppose the query stays at four and the key moves back to two. Which pair will contribute a negative dot product?",
+        "hold": 2.2
+      },
+      {
+        "id": "c12-b03",
+        "say": "Take those two steps back. The first key turns clockwise by two radians and crosses the vertical line. Look at its projection. It lands to the left of zero and contributes about minus point four two. Each successive pair turns a tenth as far. Those other three projections still point right.",
+        "hold": 0.8
+      },
+      {
+        "id": "c12-b04",
+        "say": "Add all four contributions. The dot product is about two point five six. Divide by the square root of eight, the head width, and the logit is about point nine one. These rates come from base ten thousand with rotary width eight.",
+        "hold": 0.3
+      },
+      {
+        "id": "c12-b05",
+        "say": "To reproduce a checkpoint, use its base, rotary width, scaling rule and coordinate pairing.",
+        "hold": 0.8
+      }
+    ]
+  },
+  {
+    "id": "c13",
+    "title": "Rotate the configured prefix and sum every part",
+    "sourceChapters": [
+      "c13"
+    ],
+    "beats": [
+      {
+        "id": "c13-b01",
+        "say": "The original angular schedule for pair i is base raised to minus two i divided by the rotary width, with i starting at zero. The rotary width is positive and even. It can be smaller than the full head width.",
+        "hold": 0.3
+      },
+      {
+        "id": "c13-b02",
+        "say": "Now rotate only the configured prefix. Watch the first four coordinates in each row change. The final four retain their values. To get the full score, add the two rotated pair contributions and the dot product of that untouched suffix.",
+        "hold": 0.5
+      },
+      {
+        "id": "c13-b03",
+        "say": "The full attention logit divides that dot product by the square root of the head dimension, not automatically the smaller rotary width. A pair can also be written as the complex number x plus i y, multiplied by cosine angle plus i sine angle.",
+        "hold": 0.3
+      },
+      {
+        "id": "c13-b04",
+        "say": "Elementwise sine and cosine operations implement that same rotation without constructing a large sparse matrix. A pure rotation preserves the vector norm in exact arithmetic; a later amplitude multiplier is a different operation.",
+        "hold": 0.5
+      }
+    ]
+  },
+  {
+    "id": "c14",
+    "title": "The head adds the pair scores",
+    "sourceChapters": [
+      "c14"
+    ],
+    "beats": [
+      {
+        "id": "c14-b01",
+        "say": "Each coordinate pair contributes a dot product. The head's full dot product adds those contributions, so its position response combines several frequencies with the query and key content.",
+        "hold": 0.4
+      },
+      {
+        "id": "c14-b02",
+        "say": "Here two pairs start with aligned unit vectors. As the distance changes, trace cosine at half a radian per step in blue and at five hundredths in ochre. At each distance, the green height adds the other two signed heights.",
+        "hold": 0.6
+      },
+      {
+        "id": "c14-b03",
+        "say": "General content vectors change each contribution's amplitude and phase. With the usual attention scaling and softmax, these scores become weights among all permitted keys. A single pair's cosine gives us a useful microscope on that larger calculation.",
+        "hold": 0.5
+      }
+    ]
+  },
+  {
+    "id": "c15",
+    "title": "Equal norms can hide different coordinate pairings",
+    "sourceChapters": [
+      "c15"
+    ],
+    "beats": [
+      {
+        "id": "c15-b01",
+        "say": "A checkpoint also specifies which coordinates belong together. Adjacent pairing reads x zero, y zero, x one, y one. Split-half pairing stores x zero, x one, y zero, y one, and its partner transform is minus y zero, minus y one, x zero, x one. Cosine and sine arrays must follow the same convention.",
+        "hold": 0.5
+      },
+      {
+        "id": "c15-b02",
+        "say": "The article's supplied four-coordinate example gives an adjacent score of about minus zero point seven six. Switching the helper to split halves without converting the coordinates gives about minus one point six one six, even though both rotations preserve norms. Reordering both vectors consistently restores the original score. A norm-only check would miss this defect.",
+        "hold": 0.5
+      },
+      {
+        "id": "c15-b03",
+        "say": "Now convert an eight-coordinate query. The first six entries form three rotary pairs. The last two, six and nine, stay in their slots. Read each x and y label in the top row. Which three numbers start the split-half layout?",
+        "hold": 2.8
+      },
+      {
+        "id": "c15-b04",
+        "say": "Gather the x entries in pair order. Four, seven and minus two come first. Follow them with the y entries for those same pairs. Six and nine stay at the end. Apply this permutation to the affected query and key projection outputs, including their biases. Rebuild incompatible cached keys, then compare attention scores and outputs with the reference.",
+        "hold": 0.7
+      }
+    ]
+  },
+  {
+    "id": "c16",
+    "title": "Position steers which values arrive",
+    "sourceChapters": [
+      "c16"
+    ],
+    "beats": [
+      {
+        "id": "c16-b01",
+        "say": "Let's reconnect the geometry to attention. The blue query appears on all three dials. Each yellow key keeps its own direction. Compute the three dot products, divide by the square root of two, then apply softmax across these visible keys. Here each value marks a different output coordinate.",
+        "hold": 0.4
+      },
+      {
+        "id": "c16-b02",
+        "say": "As our query moves, its weights change. The thicker streams carry more of the corresponding values into the output. Their widths follow the computed attention weights, keeping each contribution tied to the changing positions.",
+        "hold": 0.6
+      },
+      {
+        "id": "c16-b03",
+        "say": "Standard RoPE directly rotates queries and keys in this step. The values keep their orientation and supply the information being mixed. Position has changed the routing; earlier layers can already have made those values depend on context.",
+        "hold": 0.5
+      }
+    ]
+  },
+  {
+    "id": "c17",
+    "title": "A rotating score can rise again",
+    "sourceChapters": [
+      "c17"
+    ],
+    "beats": [
+      {
+        "id": "c17-b01",
+        "say": "Start with aligned unit vectors. The key turns half a radian per position unit. Sweep the distance continuously and follow the green point. As the key swings away, its score falls to minus one at a distance of two pi. It comes all the way around at four pi, about twelve point five seven position units. The score returns to one.",
+        "hold": 0.5
+      },
+      {
+        "id": "c17-b02",
+        "say": "At that same distance, the slower pair has turned only one tenth as far. Its score is about point eight one. Token positions have integer gaps. At gap twelve, the fast pair scores about point nine six zero. What happens to that score one token farther away?",
+        "hold": 2.5
+      },
+      {
+        "id": "c17-b03",
+        "say": "At gap thirteen, the fast score rises to about point nine seven seven. Twelve and thirteen sample opposite sides of the peak. A slower pair can distinguish gaps that look alike to the fast pair. The full head adds the pair scores, and training shapes how it uses them. At longer lengths, slower bands can enter less familiar phase ranges and the model faces more distractors. Test whether it can still retrieve a distant fact.",
+        "hold": 0.5
+      }
+    ]
+  },
+  {
+    "id": "c18",
+    "title": "Image patches have two independent offsets",
+    "sourceChapters": [
+      "c18"
+    ],
+    "beats": [
+      {
+        "id": "c18-b01",
+        "say": "An image patch has height and width coordinates, even if storage flattens it into a token row. A simple axial construction gives one set of rotary pairs to height and another to width. Its fixed-vector score then depends on both coordinate differences. A shared spatial shift cancels on each axis.",
+        "hold": 0.5
+      },
+      {
+        "id": "c18-b02",
+        "say": "On each axis, the query and key both start at one, zero, pointing right. Each pair turns half a radian per step. The key is one row above the query in the same column. Its height pair trails by half a radian, while its width pair stays aligned. Add the two pair scores. Cosine of minus one half plus one gives about one point eight seven eight. Shift both patches by four rows and seven columns. Their offsets and score stay the same.",
+        "hold": 0.3
+      },
+      {
+        "id": "c18-b03",
+        "say": "Discard height IDs by setting both encoded heights to zero. The physical patches are still one row apart. Both encoded offsets are now zero, so each aligned pair contributes one. The score rises to two.",
+        "hold": 0.5
+      },
+      {
+        "id": "c18-b04",
+        "say": "A vertical neighbor's raster-index gap equals grid width, so resizing a grid changes that one-dimensional gap. This two-axis toy is distinct from a complete multimodal checkpoint.",
+        "hold": 0.3
+      },
+      {
+        "id": "c18-b05",
+        "say": "Qwen two point five V L's report uses temporal, height and width axes: text repeats its position on all axes, while images keep a constant temporal ID and spatial patch IDs. Preserve processor axis allocation and continuation rules rather than advancing every axis by cache token count.",
+        "hold": 0.5
+      }
+    ]
+  },
+  {
+    "id": "c19",
+    "title": "Four positions back",
+    "sourceChapters": [
+      "c19"
+    ],
+    "beats": [
+      {
+        "id": "c19-b01",
+        "say": "Keep the query and its self-key at ten. The yellow key starts one position back. Both keys have a content logit of four after scaling. We'll move the yellow key to six. One head subtracts a half per position and the other subtracts a sixteenth. Which head will give that older key the larger share?",
+        "hold": 2
+      },
+      {
+        "id": "c19-b02",
+        "say": "Move the key back to six. In the first row the head subtracts four halves, leaving two. The gentler head subtracts only a quarter, leaving three point seven five. Compare each with the self-key's four.",
+        "hold": 0.3
+      },
+      {
+        "id": "c19-b03",
+        "say": "The steep head gives the old key about twelve percent. The gentler head gives it almost forty-four percent of this two-key softmax. ALiBi adds a linear recency bias to each permitted score. Stronger content can overcome a finite penalty.",
+        "hold": 0.7
+      },
+      {
+        "id": "c19-b04",
+        "say": "Now consider a key at eleven. It's in the future for query ten. The causal mask sets that logit to minus infinity and its weight to zero. The head applies the distance penalty to permitted keys after scaling. RoPE turned the vectors. ALiBi changes the number that enters softmax.",
+        "hold": 0.7
+      }
+    ]
+  },
+  {
+    "id": "c20",
+    "title": "A head slope gives an odds penalty",
+    "sourceChapters": [
+      "c20"
+    ],
+    "beats": [
+      {
+        "id": "c20-b01",
+        "say": "For a power-of-two head count H, the reference ALiBi slope for head h is two raised to minus eight h divided by H, counting h from one through H. Eight heads therefore range from one-half to one two-hundred-fifty-sixth. The largest slope changes with head count; the smallest in this schedule is one two-hundred-fifty-sixth.",
+        "hold": 0.5
+      },
+      {
+        "id": "c20-b02",
+        "say": "For non-power-of-two counts, first use the largest power of two below the head count. Append the needed entries from every other slope of the doubled schedule, starting with its first. Three heads produce one-sixteenth, one two-hundred-fifty-sixth and one-quarter. The ordering is the reference construction, not a fresh learned ordering by recency strength.",
+        "hold": 0.5
+      },
+      {
+        "id": "c20-b03",
+        "say": "With equal content, a distance difference of ten and slope one-half changes the older-to-newer softmax odds by e to the minus five, about zero point zero zero six seven. That is an odds ratio, not a universal multiplier on an already normalized probability.",
+        "hold": 0.3
+      },
+      {
+        "id": "c20-b04",
+        "say": "Other permitted keys still change the denominator. Finite penalties leave positive mass in exact arithmetic; floating-point underflow is a separate numerical issue.",
+        "hold": 0.5
+      }
+    ]
+  },
+  {
+    "id": "c21",
+    "title": "A finite penalty can be overcome",
+    "sourceChapters": [
+      "c21"
+    ],
+    "beats": [
+      {
+        "id": "c21-b01",
+        "say": "At distance sixteen thousand three hundred eighty-four, the gentlest of those eight heads subtracts sixty-four. With equal content, its far-to-self odds are e to the minus sixty-four. Give that far key a content advantage of sixty-five, however, and its net logit is one above self.",
+        "hold": 0.3
+      },
+      {
+        "id": "c21-b02",
+        "say": "In this supplied two-key comparison, it receives about seventy-three percent of the mass.",
+        "hold": 0.5
+      },
+      {
+        "id": "c21-b03",
+        "say": "The finite bias never becomes a hard future mask. A model's other heads and layers can also relay evidence, so one penalty is not a complete retrieval prediction. ALiBi's paper reports a particular one-point-three-billion-parameter training comparison from length one thousand twenty-four to two thousand forty-eight.",
+        "hold": 0.3
+      },
+      {
+        "id": "c21-b04",
+        "say": "In their one-point-three-billion-parameter comparison, the shorter-trained ALiBi model matched the longer-trained baseline's perplexity at length two thousand forty-eight. It used about eleven percent less memory and reached the target validation perplexity about eleven percent faster. Those measurements belong to that training setup.",
+        "hold": 0.5
+      }
+    ]
+  },
+  {
+    "id": "c22",
+    "title": "A longer ruler changes local spacing",
+    "sourceChapters": [
+      "c22"
+    ],
+    "beats": [
+      {
+        "id": "c22-b01",
+        "say": "Suppose we want a rotary checkpoint to handle a window four times longer. Position Interpolation divides each position by four before computing its angles. Follow the five marks from the target ruler down to the compressed ruler. Position eight thousand one hundred ninety-two lands at two thousand forty-eight.",
+        "hold": 0.5
+      },
+      {
+        "id": "c22-b02",
+        "say": "That also compresses the angular difference between adjacent tokens. They remain distinct, but their local spacing changes. The displayed mapping is a geometric calculation; adapting the checkpoint and testing its behavior are separate steps.",
+        "hold": 0.6
+      },
+      {
+        "id": "c22-b03",
+        "say": "Other approaches treat frequency bands differently. Their exact schedules belong to the checkpoint configuration. During cached generation, query positions and stored keys must use compatible logical positions, coordinate pairing, and frequencies so their relative geometry stays consistent.",
+        "hold": 0.5
+      }
+    ]
+  },
+  {
+    "id": "c23",
+    "title": "Keep distinct indices distinct before cosine",
+    "sourceChapters": [
+      "c23"
+    ],
+    "beats": [
+      {
+        "id": "c23-b01",
+        "say": "A correct formula can receive already damaged indices. The CPU example casts integers four thousand ninety-six and four thousand ninety-seven to bfloat sixteen. Both round to four thousand ninety-six. Their fastest-pair phases and cosines become identical. Computing the cosine in float thirty-two afterward cannot recover the missing distinction.",
+        "hold": 0.5
+      },
+      {
+        "id": "c23-b02",
+        "say": "Preserve integer IDs until deliberate phase computation, and inspect the phase tensor's dtype separately from activation and cache dtypes. In this example, computing phases directly in float thirty-two produces cosines about zero point eight zero four and zero point nine three five.",
+        "hold": 0.3
+      },
+      {
+        "id": "c23-b03",
+        "say": "Take the last two positions in our sixteen-K window. Run both through the same float thirty-two calculation on the CPU. Their phases stay one radian apart. Their cosines differ. Read down the last column. The first is about minus point one six and the second is about minus point nine two. Now try two to the twenty-fourth power and the next integer. Both round to the same phase. Their cosines now match. For latency, warm up the fused rotary kernel on your target GPU. Time repeated calls at the sequence length and dtype you plan to serve.",
+        "hold": 0.5
+      }
+    ]
+  },
+  {
+    "id": "c24",
+    "title": "Compare uniform and uneven frequency stretching",
+    "sourceChapters": [
+      "c24"
+    ],
+    "beats": [
+      {
+        "id": "c24-b01",
+        "say": "Position Interpolation divides every frequency by the same scale, equivalently dividing every position. Our four-times-longer example maps position sixteen thousand three hundred eighty-three to four thousand ninety-five point seven five. That is below four thousand ninety-six, but slightly beyond the last integer training index. Every adjacent phase step is divided by four without becoming identical.",
+        "hold": 0.5
+      },
+      {
+        "id": "c24-b02",
+        "say": "For an even rotary width greater than two, the common NTK-aware base transform raises the old base by a factor of scale to the power d over d minus two. Here d means rotary width. Compare each ochre bar with its blue Position Interpolation neighbor.",
+        "hold": 0.3
+      },
+      {
+        "id": "c24-b03",
+        "say": "Pair i's frequency ratio becomes scale raised to the power negative two times pair index, divided by the quantity rotary width minus two. The first pair stays unchanged; the final pair is divided by the scale; middle pairs lie between those endpoints.",
+        "hold": 0.5
+      },
+      {
+        "id": "c24-b04",
+        "say": "Keep our eight-coordinate four-clock example and scale four. The frequency ratios are one, about zero point six three, zero point three nine seven and one-quarter. Uniform interpolation instead uses one-quarter in every lane.",
+        "hold": 0.3
+      },
+      {
+        "id": "c24-b05",
+        "say": "For rotary width one hundred twenty-eight, start at base ten thousand. Raise the scale from one to four. Follow the dot as the base grows. At four, the new base is about forty thousand eight hundred ninety. Test that base on a trained model. Keep the question at position sixteen thousand. Put a passkey at fifteen thousand, then move it to one thousand in a second copy of the prompt. Across several passkeys, compare how often the model returns the exact key at each distance. Code Llama chose a base of one million for long-context fine-tuning.",
+        "hold": 0.5
+      }
+    ]
+  },
+  {
+    "id": "c25",
+    "title": "Which frequency needs a blend?",
+    "sourceChapters": [
+      "c25"
+    ],
+    "beats": [
+      {
+        "id": "c25-b01",
+        "say": "Return to the four pairs that turned at different speeds. YaRN's paper counts how many turns each would make across the original window. Multiply the rate by four thousand ninety-six, then divide by two pi, the radians in one turn.",
+        "hold": 0.3
+      },
+      {
+        "id": "c25-b02",
+        "say": "A pair that completes more than thirty-two turns keeps its rate. A pair that completes less than one turn uses a quarter of its rate. Which pair falls between those thresholds?",
+        "hold": 2.1
+      },
+      {
+        "id": "c25-b03",
+        "say": "The third pair makes about six and a half turns. To find the share of the original rate to keep, subtract one turn, divide by thirty-one, and clip the result between zero and one. Fill the bars with that share. The two fast pairs keep their rates.",
+        "hold": 0.3
+      },
+      {
+        "id": "c25-b04",
+        "say": "The slowest pair uses quarter speed throughout. One row above it, the third pair has the short ochre bar. The blend gives the original rate about eighteen percent of the weight and the quarter rate the rest. The result is about point zero zero three eight radians per position.",
+        "hold": 0.8
+      },
+      {
+        "id": "c25-b05",
+        "say": "Those thresholds count rotations across the original window. An implementation can use a different ramp. The article checks Transformers version five point seventeen. In this example its rounded correction bounds run from pair one to pair three. Pair two sits halfway between. Keeping half of each rate gives point zero zero six two five.",
+        "hold": 0.3
+      },
+      {
+        "id": "c25-b06",
+        "say": "Match the checkpoint's implementation, then test whether short tasks still work and distant facts can be retrieved.",
+        "hold": 0.7
+      }
+    ]
+  },
+  {
+    "id": "c26",
+    "title": "Amplitude changes logits as well as vector lengths",
+    "sourceChapters": [
+      "c26"
+    ],
+    "beats": [
+      {
+        "id": "c26-b01",
+        "say": "YaRN also applies an empirical attention adjustment. Its reported fit for tested LLaMA and Llama two models uses amplitude one plus zero point one times the natural logarithm of the extension scale.",
+        "hold": 0.3
+      },
+      {
+        "id": "c26-b02",
+        "say": "Here each permitted logit is just a scaled query-key dot product. Multiplying both rotated vectors by the same amplitude multiplies every logit by its square. Watch the shares for starting logits one and zero. A pure rotation would have kept the lengths fixed.",
+        "hold": 0.5
+      },
+      {
+        "id": "c26-b03",
+        "say": "For scale four, amplitude is about one point one three nine, the logit factor about one point two nine six, and equivalent temperature about zero point seven seven one. Divide logits by temperature before softmax; equivalently multiply them by its reciprocal. For nonuniform logits this sharpens the shares. Equal logits stay equal.",
+        "hold": 0.5
+      },
+      {
+        "id": "c26-b04",
+        "say": "More keys do not mathematically force higher entropy: one newly added dominant score can concentrate the distribution. The temperature fit is empirical evidence about those evaluated models, not a universal law. Measure short-context behavior and long-range retrieval after adaptation.",
+        "hold": 0.3
+      },
+      {
+        "id": "c26-b05",
+        "say": "The PI and YaRN papers' reported thirty-two-K and one-hundred-twenty-eight-K results belong to their tested models and training procedures.",
+        "hold": 0.5
+      }
+    ]
+  },
+  {
+    "id": "c27",
+    "title": "Testing a checkpoint's working window",
+    "sourceChapters": [
+      "c27"
+    ],
+    "beats": [
+      {
+        "id": "c27-b01",
+        "say": "Read the full configuration: head and rotary widths, pairing, base, frequency ramp, amplitude, position IDs and cache policy. Our article's pinned Llama three point one reference starts with base five hundred thousand and original length eight thousand one hundred ninety-two.",
+        "hold": 0.3
+      },
+      {
+        "id": "c27-b02",
+        "say": "For wavelengths below two thousand forty-eight positions, keep the original frequency. Above eight thousand one hundred ninety-two, divide the frequency by eight. Between those cutoffs, blend the two rates. At a wavelength of four thousand ninety-six, the new frequency is five twelfths of the original. To test a hundred twenty-eight K window on the trained model, keep the question near the end. Which distant positions would you choose for the passkey?",
+        "hold": 2.7
+      },
+      {
+        "id": "c27-b03",
+        "say": "Gemma three's report uses five local attention layers for every global layer, with local base ten thousand and global base one million. Its larger models combine global rescaling with a final long-context training stage.",
+        "hold": 0.3
+      },
+      {
+        "id": "c27-b04",
+        "say": "LongRoPE two searches per-dimension scaling using loss on synthetic needle-answer tokens, then mixes original short-context and rescaled long-context training. These published designs combine geometry and training evidence.",
+        "hold": 0.5
+      },
+      {
+        "id": "c27-b05",
+        "say": "The article checked the runtime schema in October twenty twenty-six. Rotary settings can differ by layer type. Match the installed schema to the checkpoint. Now use a thirty-two-thousand-seven-hundred-sixty-eight-token window for a retrieval check. Reserve two thousand forty-eight tokens for generation. That leaves thirty thousand seven hundred twenty for the prompt.",
+        "hold": 0.3
+      },
+      {
+        "id": "c27-b06",
+        "say": "Near its end is the passkey, lime seven. The example answer matches.",
+        "hold": 0.7
+      },
+      {
+        "id": "c27-b07",
+        "say": "Keep the question and the token budget in place. In a second prompt, move the passkey near the start. The expected answer is still lime seven. Suppose this time the answer is lime four. Would you count that second trial as successful retrieval?",
+        "hold": 2.1
+      },
+      {
+        "id": "c27-b08",
+        "say": "Compare the two answers with the passkey. Only the nearer trial matches. A model can predict most words well and still miss the fact you asked for. Before claiming the longer window, vary the distance, add distractors, and include prompts where the fact is missing.",
+        "hold": 0.3
+      },
+      {
+        "id": "c27-b09",
+        "say": "Repeat your short tasks and test generation and your target tasks at the deployed length. Those results also depend on serving the cache the same way you evaluated it.",
+        "hold": 0.8
+      }
+    ]
+  },
+  {
+    "id": "c28",
+    "title": "The cached key keeps its logical position",
+    "sourceChapters": [
+      "c28"
+    ],
+    "beats": [
+      {
+        "id": "c28-b01",
+        "say": "Read the first entry in this cache. Slot zero contains two coordinate pairs for token eight hundred. Slot one holds token eight hundred one. The physical address tells you where to read. The logical ID tells you which rotation built those numbers. Keep that identity through padding, eviction or a storage move. Rotate each new query at its own position.",
+        "hold": 0.3
+      },
+      {
+        "id": "c28-b02",
+        "say": "A key already stored after rotation must not receive the same rotation again.",
+        "hold": 0.5
+      },
+      {
+        "id": "c28-b03",
+        "say": "The article's fixed one-layer CPU fixture uses positions eight hundred, eight hundred one and eight hundred two, two rotary pairs and identity value rows. The full causal pass and three token-by-token cached steps agree numerically. Each single query reads exactly its own current prefix. Resetting the final query's position to zero breaks that agreement.",
+        "hold": 0.5
+      },
+      {
+        "id": "c28-b04",
+        "say": "This comparison checks fixed supplied query, key and value tensors. It neither executes a trained decoder nor establishes long-context quality. Keep cache position IDs, pairing, frequencies and permitted key sets together. A correct vector rotation cannot repair an incorrect set of visible keys.",
+        "hold": 0.5
+      }
+    ]
+  },
+  {
+    "id": "c29",
+    "title": "Three keys in physical memory",
+    "sourceChapters": [
+      "c29"
+    ],
+    "beats": [
+      {
+        "id": "c29-b01",
+        "say": "Keep the same three keys and values, but put key eight hundred two in the first physical slot. Compute queries eight hundred one and eight hundred two together. Look at the first query. Which slot must it hide? Use the position on each key.",
+        "hold": 2.1
+      },
+      {
+        "id": "c29-b02",
+        "say": "Compare each key position with the query position. A key at or before the query is allowed. In this PyTorch mask, true means allow. Query eight hundred one must hide slot zero. Query eight hundred two can use all three. Compare the outputs with the full pass.",
+        "hold": 0.3
+      },
+      {
+        "id": "c29-b03",
+        "say": "Our values are identity rows, so the last output coordinate tells us exactly how much weight went to key eight hundred two.",
+        "hold": 0.7
+      },
+      {
+        "id": "c29-b04",
+        "say": "Remove the mask and keep every rotation fixed. Look at the first query's output. More than half its weight now comes from a future token. The second query still agrees with the reference because that same key is legal for it.",
+        "hold": 1.2
+      },
+      {
+        "id": "c29-b05",
+        "say": "Restore the logical-position mask. The first query gives the future key zero again, and both full output rows match the causal reference. For a rectangular chunk, a generic causal flag can align the mask to the wrong end. Compare the actual query and key positions.",
+        "hold": 0.7
+      },
+      {
+        "id": "c29-b06",
+        "say": "Keep only the final query, eight hundred two. Every supplied key is now in its prefix, so this single-token call needs no extra future exclusion. Computing two queries together was fine. Each still needed its own visibility boundary.",
+        "hold": 0.7
+      }
+    ]
+  },
+  {
+    "id": "c30",
+    "title": "A new schedule changes cached computation",
+    "sourceChapters": [
+      "c30"
+    ],
+    "beats": [
+      {
+        "id": "c30-b01",
+        "say": "Change the second rate from point zero one to point zero zero five for the new query. The cached keys still use the old rate. Compare the output with a full pass using the new rate throughout. The rows disagree. For these fixed unrotated keys, undo each stored rotation and apply the new one at the same logical ID.",
+        "hold": 0.3
+      },
+      {
+        "id": "c30-b02",
+        "say": "In exact arithmetic this repairs that rotation. The supplied CPU layer then matches its new full pass.",
+        "hold": 0.5
+      },
+      {
+        "id": "c30-b03",
+        "say": "A multilayer decoder has a further dependency. Different earlier attention can change later key and value features themselves. Rerotating their stored coordinates alone need not reproduce a full pass. Use the supported cache policy or recompute the prefix when full-pass equivalence is required.",
+        "hold": 0.3
+      },
+      {
+        "id": "c30-b04",
+        "say": "YaRN discusses caching unrotated keys for changing schedules; neither that suggestion nor this CPU arithmetic proves trained-model cache quality.",
+        "hold": 0.5
+      },
+      {
+        "id": "c30-b05",
+        "say": "Compare two serving runs. Each gets twelve thousand two hundred eighty-eight tokens for prompt and generation together. The minimum accuracies are point nine zero on short tasks and point eight four on long tasks. Evaluation used the same two rates throughout the prefix and for new queries. Check the second rate in each column. Which run can you release under that contract?",
+        "hold": 3
+      },
+      {
+        "id": "c30-b06",
+        "say": "Elm qualifies. Its prompt and generation exactly fill the budget. Its long accuracy meets the floor, and both prefix and query use the evaluated second rate of point zero zero five. Cedar has higher accuracies and room to spare. But its prefix was built at point zero one. Pairing it with the new query rate changes the computation.",
+        "hold": 1
+      }
+    ]
+  },
+  {
+    "id": "c31",
+    "title": "Which version of the key belongs here?",
+    "sourceChapters": [
+      "c31"
+    ],
+    "beats": [
+      {
+        "id": "c31-b01",
+        "say": "Return to cats and dogs after the sentence moved eight places. Cats is at eleven, dogs is at thirteen, and we're back to two unit arrows at half a radian per position. The full pass on the left gives point five four.",
+        "hold": 0.3
+      },
+      {
+        "id": "c31-b02",
+        "say": "The cache builder still has the key it rotated for cats at three. Look at the reference score on the left. Can the old key match it against the query at thirteen?",
+        "hold": 2.1
+      },
+      {
+        "id": "c31-b03",
+        "say": "Try the old key. With the query at thirteen and the key rotated at three, the effective gap is ten places. Its relative phase is minus five radians. The green mark now sits at point two eight four. The word stayed the same, but the stored key carries its earlier turn.",
+        "hold": 1.3
+      },
+      {
+        "id": "c31-b04",
+        "say": "Go back to the unrotated key and rotate it at eleven. Now the gap is two places again. The mark lands on the reference. We can use the logical position to rebuild a key. What if the only thing that moves is its storage address?",
+        "hold": 1
+      }
+    ]
+  },
+  {
+    "id": "c32",
+    "title": "Moving a stored key",
+    "sourceChapters": [
+      "c32"
+    ],
+    "beats": [
+      {
+        "id": "c32-b01",
+        "say": "Try this one. Both arrows start as horizontal unit vectors. The query is at twenty-one. The key belongs to position eighteen and lives in slot two. Each position adds point four radians. To build the key from scratch, which number goes in the blank? What dot product do you expect?",
+        "hold": 2.5
+      },
+      {
+        "id": "c32-b02",
+        "say": "Use eighteen. From twenty-one back to eighteen is minus three steps. Multiply by point four and the relative phase is minus one point two radians. Its cosine is about point three six two. Keep that reference score. Now move both logical positions forty places forward. Fifty-eight minus sixty-one is still minus three. The score holds.",
+        "hold": 0.8
+      },
+      {
+        "id": "c32-b03",
+        "say": "Back at twenty-one and eighteen, try the slot number as the key's rotation index. Two minus twenty-one gives minus nineteen steps. At point four radians per step the phase becomes minus seven point six. Its cosine is about point two five one. That misses the reference. Rebuild the key at eighteen and you recover the reference score.",
+        "hold": 0.9
+      },
+      {
+        "id": "c32-b04",
+        "say": "This time the key is already rotated correctly. Its stored coordinates are about point six zero eight and point seven nine four. We need to move it from slot two to slot zero. Which operation will match the full pass when we read it back: copying these two numbers, or turning them at position eighteen again?",
+        "hold": 2.8
+      },
+      {
+        "id": "c32-b05",
+        "say": "Copy the stored vector. Read the two numbers as they move. Only the address changes. The dot product with query twenty-one is still point three six two. It matches the full pass. Rotating it again on a separate copy swings the key almost into line with the query. That gives point nine six zero.",
+        "hold": 1.2
+      },
+      {
+        "id": "c32-b06",
+        "say": "When cached attention disagrees with a full pass, check the logical IDs used for rotation, the frequency schedule, and which keys each query could see. The next lesson follows the residual stream through layer normalization.",
+        "hold": 0.9
+      }
+    ]
+  }
+]

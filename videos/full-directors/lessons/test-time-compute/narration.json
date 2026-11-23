@@ -1,0 +1,461 @@
+[
+  {
+    "id": "c01",
+    "title": "How many chairs can we promise?",
+    "sourceChapters": [
+      "c01"
+    ],
+    "beats": [
+      {
+        "id": "room",
+        "say": "The first draft counts the tables. Follow it round the room. Eight chairs at the first table, eight at the second, eight at the third, and eight at the fourth. Its answer is thirty-two. Before we ask for another draft, what could we check?",
+        "hold": 3
+      },
+      {
+        "id": "wall",
+        "say": "Run your finger along the wall. Those twelve chairs are available too. Thirty-two plus twelve gives forty-four. Now the organizer can use the whole room. We found the missing term by checking the first draft.",
+        "hold": 1.5
+      },
+      {
+        "id": "fixed",
+        "say": "Test-time compute means spending additional work during a request while the model’s weights stay fixed. That work can fund a longer attempt, several candidates, a revision, or a check. The useful question is what new evidence the added work provides and whether the system can recognize it.",
+        "hold": 1
+      },
+      {
+        "id": "training-cost",
+        "say": "Training changes the weights themselves. For a dense transformer, a rough training estimate is six times the non-embedding parameter count times the processed token count. Two passes over twenty billion tokens count as forty billion. With three billion dense parameters, that is about seven point two times ten to the twentieth floating-point operations. For a mixture of experts, count the experts a token actually uses when estimating its work.",
+        "hold": 1
+      }
+    ]
+  },
+  {
+    "id": "c02",
+    "title": "Which draft can we send?",
+    "sourceChapters": [
+      "c02"
+    ],
+    "beats": [
+      {
+        "id": "vote",
+        "say": "Here are four possible replies to the organizer. For a vote, extract the chair count from each reply. Which number appears most often?",
+        "hold": 2.4
+      },
+      {
+        "id": "count-votes",
+        "say": "Thirty-two wins with two votes. That is self-consistency by plurality. Now give a selector the same four drafts and the room calculation. Which draft can it verify?",
+        "hold": 2.2
+      },
+      {
+        "id": "confirm",
+        "say": "The third draft matches forty-four. A best-of-four policy generates four candidates and returns one using a scorer. An exact arithmetic check makes a good scorer for this particular question.",
+        "hold": 1
+      },
+      {
+        "id": "missing",
+        "say": "Change just the third draft to forty. The room stays the same. What should the checker return now?",
+        "hold": 2.4
+      },
+      {
+        "id": "abstain",
+        "say": "There is no matching draft. A selector can ask for a new candidate or report that none passed. Agreement counts copies of an answer. A check needs evidence specific to the task, such as a calculator for a sum, executable tests for a program, or a source for a quotation.",
+        "hold": 1
+      }
+    ]
+  },
+  {
+    "id": "c03",
+    "title": "What do four attempts buy?",
+    "sourceChapters": [
+      "c03"
+    ],
+    "beats": [
+      {
+        "id": "miss",
+        "say": "For one fixed prompt, suppose each independent attempt succeeds with probability one quarter. Every failure has probability three quarters. Start with all the possible pools of attempts. Keep only the pools that missed the first try. For every new try, three quarters of the remaining pools miss again.",
+        "hold": 1
+      },
+      {
+        "id": "four-tries",
+        "say": "Take four tries at eight hundred tokens apiece. The narrow end of the staircase is the share that missed every time. What share contains at least one correct answer?",
+        "hold": 2.3
+      },
+      {
+        "id": "coverage",
+        "say": "About sixty-eight percent. Subtract the all-miss share from one. Four attempts cost thirty-two hundred generated tokens, whichever answer you return. Every further try removes a quarter of a smaller remainder. The calculation assumes identical independent attempts for this prompt. Correlated drafts can repeat the same error.",
+        "hold": 1
+      },
+      {
+        "id": "selection",
+        "say": "Suppose the selector retrieves the right answer in four fifths of the pools where one exists. Multiply coverage by that conditional recall. About fifty-five percent of all pools now return a correct answer. The gap between these two marks is a failure of selection.",
+        "hold": 1
+      }
+    ]
+  },
+  {
+    "id": "distribution",
+    "title": "Can a better first try hurt three-try coverage?",
+    "sourceChapters": [
+      "c03"
+    ],
+    "beats": [
+      {
+        "id": "two-prompts",
+        "say": "A training change improves one prompt and harms another. Give the two prompts equal weight. Before training their one-try hit rates are seventy and thirty percent. What does three independent tries buy on each prompt?",
+        "hold": 1
+      },
+      {
+        "id": "before-train",
+        "say": "Compute one minus the miss probability cubed on each row. Average the two results and coverage is eighty-one point five percent. Keep that baseline. After training the hit rates are ninety-five and ten percent. The mean first try improved. Will the mean three-try result improve too?",
+        "hold": 2.5
+      },
+      {
+        "id": "after-train",
+        "say": "It falls to about sixty-three and a half percent. The easy prompt was already close to certain in three tries. The other prompt lost much more coverage than the first could gain. Token-level supervised training rewards a demonstrated sequence. If deployment samples several sequences, evaluate the chance that any succeeds and the accuracy of the one actually selected.",
+        "hold": 1
+      }
+    ]
+  },
+  {
+    "id": "c04",
+    "title": "What happens when a wrong draft scores highest?",
+    "sourceChapters": [
+      "c04"
+    ],
+    "beats": [
+      {
+        "id": "rank-two",
+        "say": "Start a new pool with forty-four. A learned scorer assigns point eight two. Add a second draft, thirty-two, at point seven. If we send the highest score, the organizer still gets forty-four. We can check it against the room.",
+        "hold": 1
+      },
+      {
+        "id": "rank-three",
+        "say": "Deal a third draft into the same pool. Forty-eight gets point nine five. Which number will the organizer receive?",
+        "hold": 2.5
+      },
+      {
+        "id": "wrong-winner",
+        "say": "Forty-eight. Put the last four seat numbers beside the room. There is nowhere to put those guests. Candidate coverage never decreased. Selected correctness did.",
+        "hold": 1
+      },
+      {
+        "id": "change-selector",
+        "say": "Keep all three drafts. Change just the selection rule to an exact room check. It returns forty-four. A bigger search can find a mistake the scorer particularly likes. At each budget, record both the winning score and an independent check of the answer actually sent.",
+        "hold": 1
+      }
+    ]
+  },
+  {
+    "id": "c05",
+    "title": "Which rewrite earns another round?",
+    "sourceChapters": [
+      "c05"
+    ],
+    "beats": [
+      {
+        "id": "draft-one",
+        "say": "Revision spends work sequentially. A draft is checked, then a later attempt uses that feedback to repair it. Our first draft says thirty-two, with an auxiliary score of point six one. The room check fails.",
+        "hold": 1
+      },
+      {
+        "id": "draft-two",
+        "say": "Pay for a critique. It points to the wall. Pay for a rewrite. Draft two says forty-four and passes the room check. Pin that answer. Its auxiliary score rose to point seven six. Continue while the gain is at least one hundredth.",
+        "hold": 1
+      },
+      {
+        "id": "draft-three",
+        "say": "Buy another critique and then another rewrite. The new draft says forty-eight. Its score rose by two hundredths but the room check fails. Keep the checked copy while the next critique and rewrite run.",
+        "hold": 1
+      },
+      {
+        "id": "draft-four",
+        "say": "The fourth draft still says forty-eight. Its score is point seven eight one, up from point seven eight zero. Has the loop earned another round? If we stop, do we get the last two calls back?",
+        "hold": 2.5
+      },
+      {
+        "id": "plateau",
+        "say": "Stop. The gain was one thousandth. That last round supplied the evidence to stop, so we pay for it. One draft plus three pairs of calls makes seven. Draft five stays unstarted. Return draft two. Charge any separate verifier calls as well.",
+        "hold": 1
+      }
+    ]
+  },
+  {
+    "id": "c06",
+    "title": "Where does each branch stop?",
+    "sourceChapters": [
+      "c06"
+    ],
+    "beats": [
+      {
+        "id": "four-paths",
+        "say": "Start four paths together. Each has room for eight generated steps. An outcome reward model scores a completed answer. If all four finish, we generate thirty-two steps and request four outcome scores. A process reward model can check the path after each step.",
+        "hold": 1
+      },
+      {
+        "id": "step-one",
+        "say": "Advance all four by one step. The check stops D here. Keep its paid step on the track.",
+        "hold": 1
+      },
+      {
+        "id": "step-two",
+        "say": "Advance the three survivors. B stops at its second check. C reaches its third check and stops there. Which path still needs work?",
+        "hold": 2
+      },
+      {
+        "id": "finish-run",
+        "say": "A runs to the end. Count the colored steps across all four paths. How much generation did we pay for?",
+        "hold": 2.5
+      },
+      {
+        "id": "charge-steps",
+        "say": "Fourteen generated steps. We also made fourteen process-scoring calls. The full-length alternative made only four outcome-scoring calls. These units cost different amounts. If the process checker cuts the only recoverable path, fewer steps can buy a worse answer. Measure total compute and selected correctness together.",
+        "hold": 1
+      }
+    ]
+  },
+  {
+    "id": "targets",
+    "title": "What did the step checker learn?",
+    "sourceChapters": [
+      "c06"
+    ],
+    "beats": [
+      {
+        "id": "bad-equation",
+        "say": "A step claims that six times seven equals forty-three. Keep that step on the left. From that exact prefix, a model finishes the problem five ways. Compare the five answers with the multiplication. Can a completion recover from a false step?",
+        "hold": 2
+      },
+      {
+        "id": "rollout-labels",
+        "say": "Three of the five finish at forty-two. An any-success label is one. A fraction-success label is three fifths. The original equation is still false. A process model trained on these completions estimates recoverability under this completion policy. A local validity label asks whether the step itself is sound.",
+        "hold": 1
+      }
+    ]
+  },
+  {
+    "id": "frontier",
+    "title": "Which path gets the next step, and when can search stop?",
+    "sourceChapters": [
+      "c06"
+    ],
+    "beats": [
+      {
+        "id": "propose-steps",
+        "say": "Start a search from the part of the draft we want to keep. Four tables times eight gives thirty-two. That prefix scores point nine. From those same words the model proposes two next steps: recount one table, or add the wall chairs. The process scorer gives the recount point six four and the addition point eight eight. Rank each path by its lowest step score. Our beam width is one, so we have room to extend just one unfinished path. Which gets the next generation call?",
+        "hold": 3
+      },
+      {
+        "id": "extend-prefix",
+        "say": "Keep the addition. Drop the recount. Feed the table count and the instruction to add the wall chairs back to the model. From that prefix it proposes two steps. One finishes with thirty-two plus twelve equals forty-four and scores point eight one. The other asks to verify the wall count and scores point seven nine. Save the finished answer. Only the unfinished path can be expanded again.",
+        "hold": 1.5
+      },
+      {
+        "id": "two-pools",
+        "say": "Our finished answer scores point eight one. The remaining unfinished path scores point seven nine. At budget exhaustion only the finished pool can supply a complete reply. If the finished pool is empty, report that search ran out of work. Can we stop even before we spend the budget?",
+        "hold": 1
+      },
+      {
+        "id": "weakest",
+        "say": "Keep the weakest-step rule. Imagine a next step scoring point nine five. The minimum stays at point seven nine. Even a perfect next step cannot beat our finished answer. We can skip that call. This bounds only the paths we retained.",
+        "hold": 1
+      },
+      {
+        "id": "latest",
+        "say": "Replay that very same extension. This time the path score is just its latest step. It rises to point nine five. The old score gives us no upper bound. A promising unfinished path still needs to produce a complete answer before it can enter the return pool.",
+        "hold": 1
+      }
+    ]
+  },
+  {
+    "id": "lineage",
+    "title": "Which weights learn from the checked runs?",
+    "sourceChapters": [
+      "c06"
+    ],
+    "beats": [
+      {
+        "id": "base",
+        "say": "A model can learn a reasoning policy during training. DeepSeek trained R1-Zero from a pretrained base with reinforcement learning, using rule-based accuracy and format rewards on suitable tasks. Longer solutions and self-checking emerged, along with readability problems. For R1, the team first fine-tuned on readable examples, then applied reasoning reinforcement learning.",
+        "hold": 1
+      },
+      {
+        "id": "trace-maker",
+        "say": "That intermediate checkpoint writes candidate solutions. Filter the traces and combine the accepted reasoning examples with general training data. Which weights receive that data in the second supervised stage?",
+        "hold": 2.3
+      },
+      {
+        "id": "restart",
+        "say": "The original base weights. Follow the separate paths for weights and data. The intermediate checkpoint produced examples, and a fresh copy of the base learns from them. A final reinforcement learning stage broadens the training.",
+        "hold": 1
+      },
+      {
+        "id": "student",
+        "say": "A smaller student can imitate the accepted text. The rejected branches, executable checker and teacher’s search policy stay on the teacher’s side. Test the student with a separate verifier. On AIME 2024 the R1 team estimated pass at one from sampled answers. The distilled seven-billion-parameter Qwen model reached fifty-five point five percent. That benchmark alone cannot price a deployment.",
+        "hold": 1
+      }
+    ]
+  },
+  {
+    "id": "c07",
+    "title": "Which token budget fits the deadline?",
+    "sourceChapters": [
+      "c07"
+    ],
+    "beats": [
+      {
+        "id": "deadlines",
+        "say": "These are four invented settings tested on the same workload. Each dot pairs its latency with its accuracy. Only points at or before one thousand milliseconds qualify. Which eligible setting has the best accuracy?",
+        "hold": 2.5
+      },
+      {
+        "id": "choose-budget",
+        "say": "Five hundred twelve tokens. It reached eighty-three percent at six hundred ten milliseconds. The largest budget took longer and returned fewer correct answers. Now the deadline moves to four hundred milliseconds. Keep all four measurements. Which setting would you use?",
+        "hold": 2.4
+      },
+      {
+        "id": "tight-limit",
+        "say": "One hundred twenty-eight tokens. Its seventy-eight percent is the best accuracy left inside the deadline. Real curves depend on task difficulty, model, policy, and verifier. A workload average cannot establish a tail-latency guarantee.",
+        "hold": 1
+      },
+      {
+        "id": "match-flops",
+        "say": "Snell and colleagues asked a different question on the MATH benchmark. They compared a smaller model doing extra work with a model about fourteen times its size answering once. They matched pretraining FLOPs plus expected lifetime inference FLOPs. The smaller model saves compute during pretraining. Suppose four equal requests share those savings. Each gets a quarter. If we expect eight such requests instead, what extra share can each use?",
+        "hold": 2.5
+      },
+      {
+        "id": "share-savings",
+        "say": "One eighth. Doubling traffic halves the pretraining savings available per request. The smaller model can spend the larger model’s single-answer FLOPs plus that share on each request, on average. With this trade, the smaller model outperformed the larger one on some math problems. A service still has to measure how long each answer takes.",
+        "hold": 1.5
+      }
+    ]
+  },
+  {
+    "id": "router",
+    "title": "Which tested route should take this traffic?",
+    "sourceChapters": [
+      "c07"
+    ],
+    "beats": [
+      {
+        "id": "policy-grid",
+        "say": "On this worksheet the service has two requirements. Quality must reach point eight eight and the ninety-fifth percentile of latency must stay at or below nine hundred milliseconds. Only then choose by cost. Which rows survive both tests?",
+        "hold": 2.3
+      },
+      {
+        "id": "eligible",
+        "say": "B and D survive. A is fast but falls short on quality. C has the best quality but misses the deadline. Compare the two eligible costs.",
+        "hold": 1
+      },
+      {
+        "id": "route-b",
+        "say": "B costs less per request. A router can reserve extra work for the prompts where its measured gains justify it. Count the difficulty estimate, discarded candidates, retries, and checks. Measure uncertainty and the effect on other requests sharing the engine.",
+        "hold": 1
+      }
+    ]
+  },
+  {
+    "id": "usage",
+    "title": "What counts as paid output?",
+    "sourceChapters": [
+      "c07"
+    ],
+    "beats": [
+      {
+        "id": "receipt",
+        "say": "A fictional endpoint reports nine hundred output tokens, including seven hundred sixty reasoning tokens. This response contains only reasoning and visible text. How many tokens could the reader see? Which count belongs on the bill?",
+        "hold": 2.3
+      },
+      {
+        "id": "bill",
+        "say": "One hundred forty were visible. At twelve dollars per million output tokens the charge is just over one cent. Bill the inclusive total once. If a different endpoint reports separate, disjoint counts, add those fields once. Inspect the contract.",
+        "hold": 1
+      },
+      {
+        "id": "cutoff",
+        "say": "An effort setting guides the work. A hard output limit can interrupt it. In this sixty-four-token response, hidden work exhausted the cap before any text appeared. Inspect completion status before selecting a reply. A completed answer still needs a correctness check. To continue, keep the structured state or reference the endpoint requires. A prose summary cannot reconstruct discarded state.",
+        "hold": 1
+      }
+    ]
+  },
+  {
+    "id": "latency",
+    "title": "When does the first visible token arrive?",
+    "sourceChapters": [
+      "c07"
+    ],
+    "beats": [
+      {
+        "id": "first-token",
+        "say": "Allow two seconds to the first visible token. Suppose other delay is one hundred fifty milliseconds and hidden decoding runs at one hundred tokens per second before any text appears. Generate two hundred hidden tokens. Does it fit?",
+        "hold": 1
+      },
+      {
+        "id": "over-time",
+        "say": "The first visible token arrives at two thousand one hundred fifty milliseconds. Keep the same rate and overhead. This time the request actually generates one hundred eighty hidden tokens. Where will it finish?",
+        "hold": 2.3
+      },
+      {
+        "id": "under-time",
+        "say": "At nineteen hundred fifty milliseconds, just inside the limit. A cap alone does not tell us how many tokens a request used. Once the answer starts streaming, the gaps between its tokens measure a different delay. Under contention, measure how many requests per second actually finish within the service limits.",
+        "hold": 1
+      }
+    ]
+  },
+  {
+    "id": "c08",
+    "title": "Which cache positions belong to whom?",
+    "sourceChapters": [
+      "c08"
+    ],
+    "beats": [
+      {
+        "id": "prefix",
+        "say": "Consider eight branches sharing a four-thousand-token prompt, each writing its own thousand-token continuation. Perfect prefix sharing stores the prompt once. The continuations diverge, so their retained positions remain separate. Count the shared and private parts before adding them.",
+        "hold": 2.3
+      },
+      {
+        "id": "share",
+        "say": "The total is twelve thousand retained positions. Four thousand belong to the common prompt and eight thousand to the eight separate continuations. Remove prefix sharing and each branch needs its own four-thousand-token copy. The total rises to forty thousand. The generated continuations are identical across these two accounting cases.",
+        "hold": 1
+      },
+      {
+        "id": "geometry",
+        "say": "A uniform full-attention decoder keeps both a key and a value for every retained position. Multiply by thirty-two layers, eight key-value heads, width one hundred twenty-eight, and two bytes per scalar. That gives one hundred twenty-eight kibibytes per position. Perfect sharing uses about one point four six gibibytes of raw payload. Without sharing, about four point eight eight. Allocator overhead and other live memory need separate measurements.",
+        "hold": 1
+      }
+    ]
+  },
+  {
+    "id": "release",
+    "title": "Which private caches can we release?",
+    "sourceChapters": [
+      "c08"
+    ],
+    "beats": [
+      {
+        "id": "fresh",
+        "say": "Try a fresh request. Six branches share three thousand prompt tokens. Each finished five hundred tokens of its own. The question was how many positions the original request retained. Compare the six written answers against the actual owners. Which answer should we keep?",
+        "hold": 2.5
+      },
+      {
+        "id": "keep-c",
+        "say": "Keep C. Six thousand fits the original request. With twenty-four layers, four key-value heads, width one hundred twenty-eight and two-byte scalars, each position costs forty-eight kibibytes. The raw pool holds two hundred fifty-six mebibytes. What is the fewest private caches we must release to fit?",
+        "hold": 3
+      },
+      {
+        "id": "drop-f",
+        "say": "Release F. It frees five hundred positions but five thousand five hundred still exceed the pool. The checked answer refers to the original six branches. Leave it pinned.",
+        "hold": 1
+      },
+      {
+        "id": "drop-e",
+        "say": "Release E as well. Five thousand retained positions now fit. Two releases were necessary. All three thousand generated tokens and six scoring calls are still spent.",
+        "hold": 1
+      },
+      {
+        "id": "close-room",
+        "say": "Back in the banquet room, we counted the twelve chairs the draft had missed. On the server, we kept the answer that counted every branch, even after two caches were released. Spend the next increment of inference work where it adds useful evidence, then measure whether that evidence improves the answer that actually returns. The next lesson follows those serving decisions into deployment.",
+        "hold": 1.6
+      }
+    ]
+  }
+]

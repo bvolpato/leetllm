@@ -1,0 +1,694 @@
+version: 1
+id: sparse-autoencoders
+title: Separating Features Inside a Model
+source: fundamentals/mechanistic-interpretability-sparse-autoencoders/content.md
+voice: en-US-AndrewNeural
+rate: +0%
+sources:
+  - title: Sparse Autoencoders Find Highly Interpretable Features in Language Models
+    url: https://arxiv.org/abs/2309.08600
+  - title: Scaling and evaluating sparse autoencoders
+    url: https://arxiv.org/abs/2406.04093
+  - title: Sparse Feature Circuits
+    url: https://arxiv.org/abs/2403.19647
+  - title: Extensions of Lipschitz mappings into a Hilbert space.
+    url: https://web.stanford.edu/class/cs114/readings/JL-Johnson.pdf
+  - title: Improving Dictionary Learning with Gated Sparse Autoencoders
+    url: https://arxiv.org/abs/2404.16014
+  - title: "Jumping Ahead: Improving Reconstruction Fidelity with JumpReLU Sparse Autoencoders"
+    url: https://arxiv.org/abs/2407.14435
+  - title: "Circuit Tracing: Revealing Computational Graphs in Language Models"
+    url: https://transformer-circuits.pub/2025/attribution-graphs/methods.html
+  - title: Automated Interpretability Metrics Do Not Distinguish Trained and Random Transformers
+    url: https://proceedings.iclr.cc/paper_files/paper/2026/hash/7ab63a5314680e2f083cb288abeaeb8e-Abstract-Conference.html
+  - title: Natural Language Autoencoders Produce Unsupervised Explanations of LLM Activations
+    url: https://transformer-circuits.pub/2026/nla/index.html
+  - title: "A is for Absorption: Studying Feature Splitting and Absorption in Sparse Autoencoders"
+    url: https://arxiv.org/abs/2409.14507
+scenes:
+  - id: intro
+    title: A coordinate can mix several signals
+    visual: Two overlapping directions contribute to one raw coordinate, making its growing value ambiguous as a description of one feature.
+    beats:
+      - say: Suppose a model's internal coordinate rises in several quite different contexts. Reading that number alone leaves us wondering what the model detected. Interpretability needs candidate units we can inspect and test. Sparse autoencoders search for directions that give a more useful description of the activation.
+        hold: 0.6
+        visual_cues:
+          - id: intro-b1-1
+            phrase: internal coordinate
+            targets:
+              - raw-coordinate
+            linger: 0.45
+      - say: Our small geometric experiment has two known directions. Both contribute to the first coordinate. Add the second feature and that coordinate increases, even though the first feature's contribution stays fixed. A large axis reading therefore mixes evidence that our construction deliberately keeps separate. Our first direction is one, zero with coefficient one point five. The second is point eight, point six with coefficient one. Their sum is two point three, point six. A rotated orthogonal dictionary can also mix raw coordinates, so polysemantic coordinates alone do not establish more features than dimensions. Residual coordinates and nonlinear MLP neurons are different sites.
+        hold: 0.65
+        visual_cues:
+          - id: intro-b2-1
+            phrase: first coordinate
+            targets:
+              - raw-coordinate
+            linger: 0.45
+          - id: intro-b2-2
+            phrase: second feature
+            targets:
+              - activation-point
+            linger: 0.45
+      - say: "We will build a sparse description, examine what its training objective rewards, and test a specific intervention. The central distinction will stay visible: reconstructing an activation and explaining its computational role require different evidence. Geometry gives us a place to begin the investigation."
+        hold: 0.7
+        visual_cues:
+          - id: intro-b3-1
+            phrase: Geometry
+            targets:
+              - activation-point
+            linger: 0.45
+  - id: packing-bound
+    title: Small pairwise overlap can accumulate
+    visual: A fixed inactive probe receives twelve signed contribution slivers before a threshold rejects or admits their sum.
+    beats:
+      - say: "An ambient D-dimensional space has at most D mutually orthogonal unit directions. Johnson-Lindenstrauss instead concerns a finite set of N points: a suitable linear map with dimension on the order of epsilon to minus two times log N approximately preserves all pairwise squared distances within one plus or minus epsilon. It does not certify every map, a transformer’s learned features, or recovery of arbitrary mixtures."
+        hold: 1
+        visual_cues:
+          - id: packing-bound-b0
+            phrase: An ambient D-dimensional space has at most D
+            targets:
+              - packing-bound-construction
+            linger: 0.4
+          - id: jl-projection
+            phrase: suitable linear map
+            targets:
+              - packing-bound-construction
+            linger: 0.4
+      - say: For independently sampled directions whose coordinates are plus or minus one over square root D, concentration and a union bound give failure probability at most M times M minus one times exp of minus D epsilon squared divided by two. This is a random construction and the bound may exceed one. Fixed small overlap can permit many packed directions; it is not an exact model capacity claim.
+        hold: 1
+        visual_cues:
+          - id: packing-bound-b1
+            phrase: For independently sampled directions whose coordinates are plus
+            targets:
+              - packing-bound-construction
+            linger: 0.4
+          - id: random-bound
+            phrase: bound may exceed one
+            targets:
+              - packing-bound-construction
+            linger: 0.4
+      - say: Let coherence mu be the largest absolute pairwise dot product. An inactive direction’s dot-product readout has magnitude at most mu times the sum of active coefficient magnitudes. Twelve active unit coefficients with overlap point one can leak one point two into an inactive probe. A threshold of one can therefore fail despite each pair’s small overlap. Sparsity limits accumulated interference, but a threshold must also retain weak real signals.
+        hold: 1
+        visual_cues:
+          - id: packing-bound-b2
+            phrase: Let coherence mu be the largest absolute pairwise
+            targets:
+              - packing-bound-construction
+            linger: 0.4
+          - id: coherence-accumulate
+            phrase: Twelve active unit coefficients
+            targets:
+              - packing-bound-construction
+            linger: 0.4
+          - id: coherence-threshold
+            phrase: threshold of one
+            targets:
+              - packing-bound-construction
+            linger: 0.4
+  - id: dictionary
+    title: Rebuild an activation from a few directions
+    visual: A known sparse code weights two columns of a wider unit-direction dictionary and adds their contributions to reproduce the mixed activation.
+    beats:
+      - say: A dictionary is a collection of candidate directions in activation space. A sparse code assigns nonzero coefficients to only a few of them. Multiply each selected direction by its coefficient, then add. The result is a reconstruction with the same width as the original activation.
+        hold: 0.6
+        visual_cues:
+          - id: dictionary-b1-1
+            phrase: selected direction
+            targets:
+              - first-direction
+            linger: 0.45
+          - id: dictionary-b1-2
+            phrase: reconstruction
+            targets:
+              - activation-point
+            linger: 0.45
+      - say: Follow our two selected directions as their weighted arrows join. Three other available directions stay unused. This supplied dictionary has more entries than the two-dimensional activation space has axes, making it overcomplete. Its sparse code is known because we constructed the mixture ourselves.
+        hold: 0.65
+        motion_check:
+          region:
+            - 245
+            - 350
+            - 1320
+            - 500
+          minimumChangedFraction: 0.002
+        visual_cues:
+          - id: dictionary-b2-1
+            phrase: weighted arrows join
+            targets:
+              - activation-point
+            linger: 0.45
+          - id: dictionary-b2-2
+            phrase: sparse code
+            targets:
+              - sparse-code
+            linger: 0.45
+      - say: A trained sparse autoencoder adds an encoder that estimates the code from an observed activation and a decoder whose columns reconstruct it. Detection and reconstruction weights can be untied. Match the model checkpoint, layer, token positions, and normalization convention before applying an existing dictionary at a hook. For width D and M latent slots, the encoder matrix is M by D and the decoder D by M. A common formulation subtracts decoder bias before encoding and adds it after decoding. That learned reference need not be the exact data mean; other recipes omit the subtraction. Tied weights force decoder to equal encoder transpose throughout training; tied initialization starts them aligned but permits independent later updates. These are different constraints.
+        hold: 0.7
+        visual_cues:
+          - id: dictionary-b3-1
+            phrase: a decoder whose columns reconstruct it
+            targets:
+              - dictionary-construction
+            color: cyan
+            linger: 0.45
+          - id: dictionary-encode
+            phrase: an encoder that estimates the code from an observed activation
+            targets:
+              - dictionary-construction
+            color: cyan
+            linger: 0.65
+          - id: dictionary-hook-context
+            phrase: Match the model checkpoint, layer, token positions, and normalization convention
+            targets:
+              - dictionary-construction
+            color: yellow
+            linger: 0.65
+          - id: dictionary-dimensions
+            phrase: For width D and M latent slots
+            targets:
+              - dictionary-construction
+            linger: 0.4
+          - id: dictionary-tying
+            phrase: Tied weights force
+            targets:
+              - dictionary-construction
+            linger: 0.4
+  - id: objective
+    title: Fit the activation while limiting the code
+    visual: Two explicitly computed candidate reconstructions exchange objective preference as the sparsity coefficient changes.
+    beats:
+      - say: A common objective combines reconstruction mean squared error with a penalty on code magnitude. The first term rewards matching the activation. The second encourages economical use of the latent coordinates. Our two candidates make that trade-off explicit under a fixed dictionary and stated averaging conventions. For the article’s convention, squared activation error is divided by D, and latent L-one magnitude by M. The positive-latent derivative of that latter term is lambda divided by M; encoder parameters receive it through the chain rule. This differs from subtracting learning rate times lambda from every latent after an update.
+        hold: 0.6
+        visual_cues:
+          - id: objective-b1-1
+            phrase: mean squared error
+            targets:
+              - objective-equation
+            linger: 0.45
+      - say: The denser candidate reconstructs the target exactly. The sparser candidate leaves a small error. Increase the sparsity coefficient and watch their objective values cross. The preferred candidate changes because we changed what training rewards. The displayed reconstructions and code values let us check both terms independently.
+        hold: 0.65
+        visual_cues:
+          - id: objective-b2-1
+            phrase: objective values cross
+            targets:
+              - candidate-loss
+            linger: 0.45
+      - say: Decoder scale needs a constraint as well. Shrinking a code and enlarging its decoder direction reciprocally can preserve the reconstruction while reducing an unweighted magnitude penalty. Unit-normalized decoder columns or a norm-aware penalty close that scaling route. Otherwise, apparent sparsity progress can conceal a reparameterization.
+        hold: 0.7
+        visual_cues:
+          - id: objective-b3-1
+            phrase: Shrinking a code
+            targets:
+              - scale-degeneracy
+            linger: 0.45
+          - id: objective-b3-2
+            phrase: preserve the reconstruction
+            targets:
+              - scale-invariant
+            linger: 0.45
+  - id: shrinkage
+    title: A magnitude penalty also shrinks real signals
+    visual: The exact one-dimensional L1 optimum moves below a fixed target as the penalty increases, with reconstruction and penalty costs shown separately.
+    beats:
+      - say: Even with the correct feature selected, an L-one penalty favors reducing its coefficient. For a fixed unit decoder and a positive target, minimizing squared reconstruction error plus the coefficient penalty gives the target minus half the penalty weight, clipped at zero. Watch that exact optimum move.
+        hold: 0.65
+        visual_cues:
+          - id: shrinkage-b1-1
+            phrase: target minus half the penalty weight
+            targets:
+              - shrinkage-rule
+            linger: 0.45
+          - id: shrinkage-b1-2
+            phrase: optimum move
+            targets:
+              - coefficient-optimum
+            linger: 0.45
+      - say: The support stays unchanged until the coefficient reaches zero, yet its magnitude shrinks throughout. This explains why controlling the number of active entries and penalizing their total magnitude are different choices. Their practical effect depends on the full training recipe and the loss reduction.
+        hold: 0.7
+        visual_cues:
+          - id: shrinkage-b2-1
+            phrase: magnitude shrinks
+            targets:
+              - coefficient-curve
+            linger: 0.45
+  - id: selection
+    title: Select a small support directly
+    visual: Nonnegative candidates are ranked and TopK retains their actual two largest values, then a threshold sweep illustrates a different support rule.
+    beats:
+      - say: A nonnegative TopK rule keeps the largest positive candidates and zeros the rest. Here the two strongest values survive with their original magnitudes. The rule allows at most two nonzero entries. If fewer candidates are positive, the resulting support can be smaller than that cap.
+        hold: 0.6
+        visual_cues:
+          - id: selection-b1-1
+            phrase: two strongest values
+            targets:
+              - selected-coefficients
+            linger: 0.45
+      - say: A fixed threshold makes a different decision. Raising it can remove weak candidates, and the number retained varies with the input. JumpReLU learns a positive threshold and keeps the pre-activation above it. Its discontinuous threshold needs a specialized gradient estimator during training.
+        hold: 0.65
+        visual_cues:
+          - id: selection-b2-1
+            phrase: Raising it
+            targets:
+              - selected-coefficients
+            linger: 0.45
+      - say: Different architectures improve different sparsity and reconstruction trade-offs in their studies. Track inactive slots over a stated observation window, and inspect rare contexts before declaring a feature dead. A training recipe can supply auxiliary learning signals to unused capacity while the main path keeps its support rule. AuxK selects inactive latents to reconstruct the main residual error, with a separate auxiliary gradient while preserving main-path support selection. Gao’s paper uses ten million tokens as a typical inactive window and one over thirty-two as a typical auxiliary weight. These are recipe settings, not definitions for every SAE. Anthropic’s earlier resampling instead samples high-loss input vectors, resets selected directions, biases and modified optimizer state; it can cause a loss spike. A short silent window may simply miss rare contexts.
+        hold: 0.7
+        visual_cues:
+          - id: selection-b3-1
+            phrase: inactive slots
+            targets:
+              - selection-context-history
+              - selection-window-counts
+            color: cyan
+            linger: 0.45
+          - id: selection-rare-context
+            phrase: inspect rare contexts before declaring a feature dead
+            targets:
+              - selection-context-history
+              - selection-window-counts
+              - selection-rare-context
+            color: yellow
+            linger: 0.65
+          - id: selection-auxiliary-signal
+            phrase: auxiliary learning signals to unused capacity
+            targets:
+              - selection-auxiliary-signal
+              - selection-window-counts
+            color: pink
+            linger: 0.65
+  - id: gated-learning
+    title: Separate detection from estimated magnitude
+    visual: A gate lane and magnitude lane share direction ownership while only the gate lane receives direct sparsity pressure.
+    beats:
+      - say: A Gated SAE makes a binary detection decision and separately estimates a nonnegative magnitude. Its original recipe shares projection directions while permitting different row scales and biases. L-one pressure applies to rectified gate pre-activations. An auxiliary reconstruction through those gate pre-activations teaches detection while stopping that auxiliary gradient into decoder parameters.
+        hold: 1
+        visual_cues:
+          - id: gated-learning-b0
+            phrase: A Gated SAE makes a binary detection decision
+            targets:
+              - gated-learning-construction
+            linger: 0.4
+          - id: gated-magnitude
+            phrase: separately estimates
+            targets:
+              - gated-learning-construction
+            linger: 0.4
+          - id: gated-aux-stop
+            phrase: stopping that auxiliary gradient
+            targets:
+              - gated-learning-construction
+            linger: 0.4
+      - say: The magnitude estimate has no direct L-one penalty, although shared parameters and reconstruction gradients can still change it. JumpReLU instead keeps the full pre-activation strictly above a learned positive threshold and uses an L-zero support penalty. A naive threshold derivative is zero almost everywhere, so its recipe uses a custom windowed straight-through estimator. Estimator bandwidth trades bias and variance. Compare architectures at matched data, width, sparsity and compute; their published results do not establish universal semantic recovery.
+        hold: 1
+        visual_cues:
+          - id: gated-learning-b1
+            phrase: The magnitude estimate has no direct L-one penalty,
+            targets:
+              - gated-learning-construction
+            linger: 0.4
+          - id: jump-threshold
+            phrase: strictly above
+            targets:
+              - gated-learning-construction
+            linger: 0.4
+          - id: jump-window
+            phrase: windowed straight-through estimator
+            targets:
+              - gated-learning-construction
+            linger: 0.4
+  - id: ablation
+    title: Remove a feature while preserving the unexplained part
+    visual: A small reconstruction residual carries an entire downstream score, exposing how naive reconstruction-based ablation confounds feature removal with residual removal.
+    beats:
+      - say: An autoencoder usually leaves reconstruction error. Split the original activation into reconstructed features plus that unexplained residual. To test a feature edit, subtract its contribution from the original activation. This preserves the residual and isolates the specified direction's removal at this hook.
+        hold: 0.6
+        visual_cues:
+          - id: ablation-b1-1
+            phrase: preserves the residual
+            targets:
+              - edited-activation
+            linger: 0.45
+      - say: Our downstream score reads only the second coordinate. The reconstruction misses that small coordinate entirely. Predict what happens when we remove the first feature while keeping the error. The score stays unchanged, because the feature being removed contributes nothing to the readout in this constructed system.
+        hold: 0.85
+        motion_check:
+          region:
+            - 370
+            - 280
+            - 1350
+            - 540
+          minimumChangedFraction: 0.002
+        visual_cues:
+          - id: ablation-b2-1
+            phrase: second coordinate
+            targets:
+              - score-readout
+            linger: 0.45
+          - id: ablation-b2-2
+            phrase: remove the first feature
+            targets:
+              - edited-activation
+            linger: 0.45
+          - id: ablation-result
+            phrase: The score stays unchanged
+            targets:
+              - score-readout
+            color: green
+            linger: 0.45
+      - say: Removing the feature from reconstruction alone also discards the unexplained coordinate, causing the score to fall. That would confound reconstruction damage with a feature effect. A tiny activation error can matter greatly when a downstream computation amplifies the direction in which that error lies.
+        hold: 0.7
+        motion_check:
+          region:
+            - 370
+            - 280
+            - 1350
+            - 540
+          minimumChangedFraction: 0.002
+        visual_cues:
+          - id: ablation-b3-1
+            phrase: unexplained coordinate
+            targets:
+              - edited-activation
+            linger: 0.45
+          - id: ablation-b3-2
+            phrase: score to fall
+            targets:
+              - score-readout
+            linger: 0.45
+  - id: steering
+    title: An edit moves overlapping readouts too
+    visual: An activation moves along one decoder direction while candidate, orthogonal, and overlapping readouts are computed across the steering sweep.
+    beats:
+      - say: Steering adds a scaled decoder direction to the activation at its matching hook, then continues the model's computation. Our geometric sweep moves along a vertical candidate direction. The strictly orthogonal horizontal readout stays fixed, while an overlapping readout changes alongside the candidate.
+        hold: 0.6
+        visual_cues:
+          - id: steering-b1-1
+            phrase: vertical candidate direction
+            targets:
+              - steering-point
+            linger: 0.45
+          - id: steering-b1-2
+            phrase: horizontal readout stays fixed
+            targets:
+              - orthogonal-readout
+            linger: 0.45
+      - say: Follow all three readouts as the edit grows. The collateral movement follows directly from the overlap. In a language model, measure targeted behavior and collateral capabilities on held-out prompts. An appealing feature name still needs counterexamples, because the chosen direction can participate in several computations.
+        hold: 0.65
+        visual_cues:
+          - id: steering-b2-1
+            phrase: three readouts
+            targets:
+              - candidate-readout
+              - orthogonal-readout
+              - overlap-readout
+            linger: 0.45
+      - say: Clamping a coefficient in a cached decomposition also needn't make the re-encoded coefficient equal the requested value. Encoder and decoder directions may differ, and thresholds can switch. State exactly which activation changed and how the outcome was measured so the intervention has a reproducible meaning.
+        hold: 0.7
+        visual_cues:
+          - id: steering-b3-1
+            phrase: which activation changed
+            targets:
+              - steering-construction
+            linger: 0.45
+  - id: clamp-and-gradient
+    title: Keep the original residual fixed through the edit
+    visual: Two equal forward scores split into canceling or preserved latent derivatives; an independent clamping trace re-encodes to a different value.
+    beats:
+      - say: "To clamp a coefficient in the original decomposition to c, add c minus its cached coefficient, times its decoder direction, to the original activation. This preserves the original reconstruction error. It need not make the newly encoded coefficient equal c: encoder and decoder need not be dual and thresholds can switch."
+        hold: 1
+        visual_cues:
+          - id: clamp-and-gradient-b0
+            phrase: To clamp a coefficient in the original decomposition
+            targets:
+              - clamp-and-gradient-construction
+            linger: 0.4
+      - say: Take encoder max of zero and x-one plus twice x-two. At one, point five its coefficient is two. The unit decoder is zero, one. Asking for three adds zero, one, giving one, one point five. Re-encoding gives four, not three; the overlapping sum readout moves from one point five to two point five. The cached decomposition edit is precise, but does not guarantee an encoder fixed point.
+        hold: 1
+        visual_cues:
+          - id: clamp-and-gradient-b1
+            phrase: Take encoder max of zero and x-one plus
+            targets:
+              - clamp-and-gradient-construction
+            linger: 0.4
+          - id: clamp-ask
+            phrase: Asking for three adds zero, one, giving one, one point five
+            targets:
+              - clamp-and-gradient-construction
+            linger: 0.4
+          - id: clamp-reencode
+            phrase: Re-encoding gives four, not three
+            targets:
+              - clamp-and-gradient-construction
+            linger: 0.4
+          - id: clamp-sum-result
+            phrase: the overlapping sum readout moves from one point five to two point five
+            targets:
+              - clamp-and-gradient-construction
+            color: yellow
+            linger: 0.4
+      - say: Gradient attribution also needs the original residual held constant. At latent one, direction one, zero, and original one, point one, a readout three, one hundred gives thirteen. Decoded plus live residual has the right forward value, but its latent derivatives cancel to zero. Stop the gradient through that original residual and the feature derivative is three. Recomputing residual after an edit would undo the intervention. Multiple hooks additionally need the method’s specified pass-through paths; blindly detaching every residual can change upstream derivatives.
+        hold: 1
+        visual_cues:
+          - id: clamp-and-gradient-b2
+            phrase: Gradient attribution also needs the original residual held
+            targets:
+              - clamp-and-gradient-construction
+            linger: 0.4
+          - id: gradient-live
+            phrase: derivatives cancel to zero
+            targets:
+              - clamp-and-gradient-construction
+            linger: 0.4
+          - id: gradient-stopped
+            phrase: feature derivative is three
+            targets:
+              - clamp-and-gradient-construction
+            linger: 0.4
+  - id: coverage
+    title: Better reconstruction leaves a feature hypothesis to test
+    visual: An absorbed feature writes two known coordinates using one active slot, then baseline-relative loss recovery changes while absolute loss damage stays fixed.
+    beats:
+      - say: A sparse representation can absorb a general feature into a more specific direction. Our combined direction reconstructs two coordinates with one active entry. Reconstruction stays exact while the detector for the general feature remains silent. Pure-looking top examples can therefore coexist with incomplete semantic recall.
+        hold: 0.6
+        visual_cues:
+          - id: coverage-b1-1
+            phrase: Reconstruction stays exact
+            targets:
+              - equivalent-reconstruction
+            linger: 0.45
+          - id: coverage-general-silent
+            phrase: the detector for the general feature remains silent
+            targets:
+              - coverage-general-code
+              - equivalent-reconstruction
+            color: green
+            linger: 0.65
+      - say: Downstream loss adds another check. Baseline-relative loss recovery changes if the ablation baseline changes, even when reconstruction causes the same absolute loss damage. Keep the raw losses visible. Combine them with support counts, semantic counterexamples, matched controls, and intervention results at the exact hook.
+        hold: 0.65
+        visual_cues:
+          - id: coverage-b2-1
+            phrase: ablation baseline changes
+            targets:
+              - raw-losses
+            linger: 0.45
+          - id: coverage-b2-2
+            phrase: raw losses
+            targets:
+              - raw-losses
+            linger: 0.45
+      - say: "We can now separate a mixed coordinate into candidate contributions and see why sparse reconstruction is only one stage of explanation. A useful feature claim survives its next experiment: a specified edit should change the predicted behavior while the controls reveal what else moved with it."
+        hold: 0.8
+        visual_cues:
+          - id: coverage-b3-1
+            phrase: predicted behavior
+            targets:
+              - relative-recovery
+            linger: 0.45
+  - id: hook-and-circuit
+    title: A feature hook must preserve its computational meaning
+    visual: Residual and branch-output hooks join a two-layer circuit whose attention and normalization paths freeze before a controlled original-model intervention.
+    beats:
+      - say: A residual hook describes accumulated shared state; MLP output describes a nonlinear branch update, and attention output describes routed context before merging. The same width does not imply the same activation distribution. Match checkpoint, layer, token position, normalization, projection, centering, rescaling and dtype. A joint dictionary requires explicit multi-site training. Layer number alone cannot establish compatibility.
+        hold: 1
+        visual_cues:
+          - id: hook-and-circuit-b0
+            phrase: A residual hook describes accumulated shared state; MLP
+            targets:
+              - hook-and-circuit-construction
+            linger: 0.4
+      - say: "A feature circuit proposes paths from earlier features through later computation to output. The article’s authored linear readout uses point nine times one point two, plus point eight times point one, plus point seven times zero: one point one six. Removing the first contribution leaves point zero eight; removing the formatting control leaves one point one six by construction. In a real model, test held-out prompts, matched controls, edit strength and redundant pathways. A null result can reflect compensation, not irrelevance."
+        hold: 1
+        visual_cues:
+          - id: hook-and-circuit-b1
+            phrase: A feature circuit proposes paths from earlier features
+            targets:
+              - hook-and-circuit-construction
+            linger: 0.4
+          - id: circuit-score
+            phrase: "zero: one point one six"
+            targets:
+              - hook-and-circuit-construction
+            linger: 0.4
+          - id: circuit-remove
+            phrase: Removing the first contribution
+            targets:
+              - hook-and-circuit-construction
+            linger: 0.4
+      - say: Cross-layer transcoders are a different architecture from one SAE. A feature reads residual state at its own layer and writes separate decoder contributions to that layer’s and later MLP outputs. Each MLP output combines writers from that layer and earlier layers; attention remains. Model-specific induction, indirect-object and greater-than circuit studies motivate these investigations without certifying this dictionary.
+        hold: 1
+        visual_cues:
+          - id: hook-and-circuit-b2
+            phrase: Cross-layer transcoders are a different architecture from one
+            targets:
+              - hook-and-circuit-construction
+            linger: 0.4
+          - id: clt-writes
+            phrase: later MLP outputs
+            targets:
+              - hook-and-circuit-construction
+            linger: 0.4
+      - say: For one prompt, a local replacement model freezes original attention patterns and normalization denominators and adds original reconstruction errors as constants. Baseline activations and logits match by construction. Its graph includes features, token embeddings, error nodes and selected output logits. Edge attribution uses source activation times the derivative of a target pre-activation along specified direct paths with intervening MLP outputs stopped. It is not the unrestricted total derivative. The graph assumes given attention and does not explain how query and key formed it. Pruned or inactive paths and error nodes can hide mechanisms. Compare edited responses in the original model.
+        hold: 1
+        visual_cues:
+          - id: hook-and-circuit-b3
+            phrase: For one prompt, a local replacement model freezes
+            targets:
+              - hook-and-circuit-construction
+            linger: 0.4
+          - id: replacement-frozen
+            phrase: freezes original attention patterns
+            targets:
+              - hook-and-circuit-construction
+            linger: 0.4
+          - id: replacement-direct
+            phrase: intervening MLP outputs stopped
+            targets:
+              - hook-and-circuit-construction
+            linger: 0.4
+  - id: training-evidence
+    title: Measure recovery separately from reconstruction
+    visual: The same toy run places MSE, active support and signed dictionary alignment on distinct measured axes with the random initialization retained.
+    beats:
+      - say: The article’s CPU lab draws mixtures of two to four of twenty-four known directions in eight dimensions. It trains an uncentered ReLU encoder, decoder bias and sixty-four unit-normalized decoder columns with full-batch gradient descent. L-one subgradients enter before the ReLU backward step. This lab omits activation streaming, auxiliary dead-feature loss and learned thresholds.
+        hold: 1
+        visual_cues:
+          - id: training-evidence-b0
+            phrase: The article’s CPU lab draws mixtures of two
+            targets:
+              - training-evidence-construction
+            linger: 0.4
+      - say: Its supplied completed run reduces reconstruction MSE from one point four two six to point one two eight. Average active support is eighteen point nine out of sixty-four on training samples and nineteen point five held out, much denser than the generator. Held-out fraction of variance unexplained is point one six nine, while median best absolute cosine changes only from point seven nine eight to point seven nine nine. Reconstruction improved without convincing dictionary recovery.
+        hold: 1
+        visual_cues:
+          - id: training-evidence-b1
+            phrase: Its supplied completed run reduces reconstruction MSE from
+            targets:
+              - training-evidence-construction
+            linger: 0.4
+          - id: training-endpoints
+            phrase: one point four two six to point one two eight
+            targets:
+              - training-evidence-construction
+            linger: 0.4
+          - id: training-alignment
+            phrase: point seven nine nine
+            targets:
+              - training-evidence-construction
+            linger: 0.4
+          - id: training-active-support
+            phrase: Average active support is eighteen point nine out of sixty-four on training samples and nineteen point five held out
+            targets:
+              - training-evidence-construction
+            color: yellow
+            linger: 0.4
+          - id: training-fvu-result
+            phrase: Held-out fraction of variance unexplained is point one six nine
+            targets:
+              - training-evidence-construction
+            color: cyan
+            linger: 0.4
+      - say: Keep signed alignments and random-initialization controls. Absolute cosine ignores a sign that a nonnegative code may not write; a maximum-match diagnostic can reuse one learned column for several true directions. Distinct low-error seeds need not identify the same dictionary. Increasing width can split one human concept among several latents, so indices and one-latent edits need not transfer. Report width, data, compute, observation window and held-out rare contexts.
+        hold: 1
+        visual_cues:
+          - id: training-evidence-b2
+            phrase: Keep signed alignments and random-initialization controls. Absolute cosine
+            targets:
+              - training-evidence-construction
+            linger: 0.4
+      - say: Loss Recovered equals one minus reconstruction-substitution loss damage divided by the chosen ablation-baseline damage, using the same hooks and positions. Clean loss two, substitution two point four and ablation six give ninety percent. Change only the ablation loss to ten and it becomes ninety-five percent, although damage stays point four. A zero denominator is undefined; values can be negative or exceed one. Report raw losses, activation MSE, support, semantic counterexamples and targeted or collateral task effects together. For planning, two hundred thousand float32 vectors of width four thousand ninety-six alone occupy about three point zero five gibibytes at one hook, before model, optimizer or gradients.
+        hold: 1
+        visual_cues:
+          - id: training-evidence-b3
+            phrase: Loss Recovered equals one minus reconstruction-substitution loss damage
+            targets:
+              - training-evidence-construction
+            linger: 0.4
+          - id: loss-recovery-first
+            phrase: ninety percent
+            targets:
+              - training-evidence-construction
+            linger: 0.4
+          - id: loss-recovery-second
+            phrase: ninety-five percent
+            targets:
+              - training-evidence-construction
+            linger: 0.4
+          - id: activation-storage
+            phrase: three point zero five gibibytes
+            targets:
+              - training-evidence-construction
+            linger: 0.4
+  - id: feature-audit
+    title: A readable label must survive the next experiment
+    visual: A fresh residual-preserving ablation and a matched negative control gate an imagined credential-reset explanation; null-model and text-bottleneck claims keep their distinct evidence scopes.
+    beats:
+      - say: Safety labels remain hypotheses. Compare benign and harmful credential-related prompts while varying urgency separately; test translations, encoded forms, lower activations and non-activating contexts. A changed refusal phrase alone does not prove improved security judgment or preserved legitimate completion. Sonnet dictionary studies demonstrate particular semantic and steering examples, not complete coverage; reconstruction substitution can damage downstream behavior.
+        hold: 1
+        visual_cues:
+          - id: feature-audit-b0
+            phrase: Safety labels remain hypotheses. Compare benign and harmful
+            targets:
+              - feature-audit-construction
+            linger: 0.4
+          - id: audit-counterexamples
+            phrase: varying urgency separately
+            targets:
+              - feature-audit-construction
+            linger: 0.4
+      - say: A 2026 Pythia study found that aggregate explanation and reconstruction scores often looked similar for trained and randomized or initialization models. Add suitable null models and targeted causal checks; the result does not establish that every feature is meaningless. Natural language autoencoders use activation to text to activation rather than a sparse dictionary. Their verbalizer can infer or confabulate. Readable text helps generate hypotheses but is neither a feature circuit nor a verified transcript of reasoning; corroborate with independent methods.
+        hold: 1
+        visual_cues:
+          - id: feature-audit-b1
+            phrase: A 2026 Pythia study found that aggregate explanation
+            targets:
+              - feature-audit-construction
+            linger: 0.4
+          - id: audit-null-models
+            phrase: null models
+            targets:
+              - feature-audit-construction
+            linger: 0.4
+          - id: audit-nla
+            phrase: activation to text to activation
+            targets:
+              - feature-audit-construction
+            linger: 0.4
+      - say: "Try a fresh two-dimensional check. The original activation is two, point zero four, reconstruction two, zero, and the removed feature contributes two, zero. A score fifty times coordinate two is two before the edit. Predict error-preserving removal: zero, point zero four still scores two. Reconstruction-only removal gives zero and falsely blames the feature for losing that score. Keep this protocol, then require a stated prediction to replicate on held-out prompts with matched controls and acceptable collateral effects before promoting a label. The decoding lesson next follows the model’s output scores into token choices, showing how selection rules and constraints change a continuation without changing the model."
+        hold: 1
+        visual_cues:
+          - id: feature-audit-b2
+            phrase: Try a fresh two-dimensional check. The original activation
+            targets:
+              - feature-audit-construction
+            linger: 0.4
+          - id: fresh-error-preserving
+            phrase: zero, point zero four still scores two
+            targets:
+              - feature-audit-construction
+            linger: 0.4
+          - id: fresh-reconstruction-only
+            phrase: Reconstruction-only removal gives zero
+            targets:
+              - feature-audit-construction
+            linger: 0.4

@@ -1,0 +1,388 @@
+version: 1
+lesson: lora
+promise: Trace a ticket through a frozen layer and its adapter. Use the gradients, parameter counts, peak memory and serving requirements to choose a configuration. Decide which candidate meets both the new policy and routine-review requirements.
+framing: []
+objectives:
+  - id: policy-task
+    can: Use a retrieved rotation rule to identify which reply should change and which reply the adapter must preserve.
+    scenes:
+      - policy-task
+      - fresh-policy
+  - id: shared-base
+    can: Show where a ticket's selected adapter contributes to the output of a frozen layer.
+    scenes:
+      - intro
+      - thin-forward
+  - id: linear-layer
+    can: A matrix mixes input directions
+    scenes:
+      - linear-layer
+  - id: dense-update
+    can: Keep the base, learn a correction
+    scenes:
+      - dense-update
+  - id: intrinsic-rank
+    can: One free scalar can still change every direction
+    scenes:
+      - intrinsic-rank
+  - id: rank-one
+    can: One direction, many possible corrections
+    scenes:
+      - rank-one
+  - id: rank-two
+    can: Two directions open a plane
+    scenes:
+      - rank-two
+  - id: factorization
+    can: Build the update from thin factors
+    scenes:
+      - factorization
+  - id: thin-forward
+    can: Calculate the scaled correction on two inputs and identify the input whose coordinates cancel in A.
+    scenes:
+      - thin-forward
+  - id: parameter-count
+    can: A narrow passage changes the budget
+    scenes:
+      - parameter-count
+  - id: initialization
+    can: Predict which factor receives the first nonzero loss gradient, then trace how a step on B opens the path back to A.
+    scenes:
+      - initialization
+  - id: gradient-contract
+    can: Derive which factor moves first
+    scenes:
+      - gradient-contract
+  - id: strength
+    can: Capacity and strength are separate choices
+    scenes:
+      - strength
+  - id: rank-scaling
+    can: The multiplier changes with the chosen rank
+    scenes:
+      - rank-scaling
+  - id: target-modules
+    can: Choose where the new capacity enters
+    scenes:
+      - target-modules
+  - id: target-budget
+    can: Spend capacity where the block transforms information
+    scenes:
+      - target-budget
+  - id: prompt-prefix
+    can: Locate the learned state before naming the method
+    scenes:
+      - prompt-prefix
+  - id: rectangular-contract
+    can: Verify dimensions and work before using the layer
+    scenes:
+      - rectangular-contract
+  - id: tiny-peft
+    can: Turn the wrapper into an executed contract
+    scenes:
+      - tiny-peft
+  - id: lexical-contract
+    can: New token IDs need learned rows
+    scenes:
+      - lexical-contract
+  - id: memory
+    can: Recalculate the peak at a longer sequence length and decide whether halving adapter state would bring it under the device limit.
+    scenes:
+      - memory
+  - id: state-budget
+    can: A small adapter leaves the base and runtime bill
+    scenes:
+      - state-budget
+  - id: frozen-backward
+    can: Frozen weights still carry an upstream derivative
+    scenes:
+      - frozen-backward
+  - id: nf4-codec
+    can: Choose the nearest NF4 code on either side of zero and recover the weight by restoring the block scale.
+    scenes:
+      - nf4-codec
+  - id: nested-paging
+    can: Account for scales and move the right memory pages
+    scenes:
+      - nested-paging
+  - id: precision-contract
+    can: Inspect four precision choices and actual temporaries
+    scenes:
+      - precision-contract
+  - id: sharded-training
+    can: The frozen base still has a gathering peak
+    scenes:
+      - sharded-training
+  - id: merge
+    can: Fold the correction into the base
+    scenes:
+      - merge
+  - id: export-contract
+    can: Save the adapter before unloading its path
+    scenes:
+      - export-contract
+  - id: dora-forward
+    can: Give each output row its own magnitude
+    scenes:
+      - dora-forward
+  - id: dora-backward
+    can: Predict the forward result of stretching a directional row and use that same stretch to distinguish the full and detached-norm derivatives.
+    scenes:
+      - dora-backward
+  - id: serving-contract
+    can: One shared base can serve different corrections
+    scenes:
+      - serving-contract
+  - id: evaluate
+    can: Let the task decide the useful rank
+    scenes:
+      - evaluate
+  - id: diagnose-policy
+    can: Let the failure choose the next comparison
+    scenes:
+      - diagnose-policy
+  - id: fresh-policy
+    can: Trace a supplied score across zero and choose between equally accurate candidates by locating the corrected ticket on the two held-out sets.
+    scenes:
+      - fresh-policy
+sections:
+  - heading: Why LoRA exists
+    status: taught
+    scenes:
+      - policy-task
+      - intro
+      - state-budget
+      - intrinsic-rank
+    note: The article supplies the stale-key task and 5,000 training tickets. The ages, day limit and case IDs are fictional examples.
+  - heading: What LoRA saves, and what it doesn't
+    status: taught
+    scenes:
+      - memory
+      - frozen-backward
+      - state-budget
+    note: The 32 GB example varies activation and adapter storage separately. The following scene covers the article's 65B and 70B storage estimates.
+  - heading: "The math: from a 4096×4096 layer"
+    status: taught
+    scenes:
+      - linear-layer
+      - dense-update
+      - factorization
+      - thin-forward
+      - parameter-count
+  - heading: A layer small enough to count
+    status: taught
+    scenes:
+      - linear-layer
+      - parameter-count
+      - rectangular-contract
+  - heading: Why the product is low rank
+    status: taught
+    scenes:
+      - rank-one
+      - rank-two
+      - factorization
+      - intrinsic-rank
+  - heading: Where to inject LoRA
+    status: taught
+    scenes:
+      - target-modules
+      - target-budget
+  - heading: Common injection strategies
+    status: taught
+    scenes:
+      - target-modules
+      - target-budget
+  - heading: Why adapt MLP layers?
+    status: taught
+    scenes:
+      - target-budget
+      - diagnose-policy
+  - heading: Methods that train learned state outside weight matrices
+    status: taught
+    scenes:
+      - prompt-prefix
+  - heading: Implementing LoRA with Hugging Face PEFT
+    status: taught
+    scenes:
+      - tiny-peft
+      - precision-contract
+  - heading: Verify the adapter on CPU first
+    status: taught
+    scenes:
+      - tiny-peft
+  - heading: Set up the larger training job
+    status: taught
+    scenes:
+      - tiny-peft
+      - sharded-training
+  - heading: Inspect stored adapter precision
+    status: taught
+    scenes:
+      - precision-contract
+  - heading: Merge when the serving contract is single-tenant
+    status: taught
+    scenes:
+      - merge
+      - export-contract
+      - serving-contract
+  - heading: See the two paths without a framework
+    status: taught
+    scenes:
+      - thin-forward
+      - rectangular-contract
+  - heading: Choose rank from evidence
+    status: taught
+    scenes:
+      - strength
+      - rank-scaling
+      - diagnose-policy
+  - heading: Decide after the first controlled comparison
+    status: taught
+    scenes:
+      - evaluate
+      - diagnose-policy
+      - fresh-policy
+  - heading: Diagnose from the failure shape
+    status: taught
+    scenes:
+      - diagnose-policy
+  - heading: When validation loss stays flat
+    status: taught
+    scenes:
+      - diagnose-policy
+      - target-budget
+  - heading: Adapter cost rises with rank but held-out quality doesn't
+    status: taught
+    scenes:
+      - rank-scaling
+      - diagnose-policy
+  - heading: Changing rank causes overfitting or underfitting
+    status: taught
+    scenes:
+      - rank-scaling
+      - diagnose-policy
+  - heading: Inference latency is higher than expected
+    status: taught
+    scenes:
+      - merge
+      - export-contract
+      - serving-contract
+  - heading: A multi-GPU job uses `device_map="auto"` as its sharding plan
+    status: taught
+    scenes:
+      - sharded-training
+  - heading: LoRA on a sharded base
+    status: taught
+    scenes:
+      - sharded-training
+  - heading: PEFT notes say "LoRA" but the method trains prompt vectors
+    status: taught
+    scenes:
+      - prompt-prefix
+  - heading: New special tokens never appear in generated output
+    status: taught
+    scenes:
+      - lexical-contract
+  - heading: Shape checks fail only at runtime
+    status: taught
+    scenes:
+      - rectangular-contract
+  - heading: Production sweep starting points
+    status: taught
+    scenes:
+      - diagnose-policy
+  - heading: "QLoRA: going further"
+    status: taught
+    scenes:
+      - nf4-codec
+      - nested-paging
+      - precision-contract
+      - state-budget
+  - heading: Keep the base shared when serving many adapters
+    status: taught
+    scenes:
+      - serving-contract
+  - heading: "Advanced: separate magnitude from direction"
+    status: taught
+    scenes:
+      - dora-forward
+      - dora-backward
+    note: The film takes the article's row [3, 4], magnitude 5 and input [1, 0], doubles the row for a forward comparison, then returns to the original row for both derivatives.
+  - heading: "Practice: change one constraint"
+    status: article-only
+    reason: exercise
+    note: Independent learner practice remains on the page; the film teaches its rank, forward, merge and
+      same-base checks in computed chapters.
+  - heading: What to check before moving on
+    status: taught
+    scenes:
+      - evaluate
+      - diagnose-policy
+      - fresh-policy
+quiz:
+  - n: 1
+    status: taught
+    scenes:
+      - parameter-count
+      - rectangular-contract
+  - n: 2
+    status: taught
+    scenes:
+      - initialization
+      - gradient-contract
+  - n: 3
+    status: taught
+    scenes:
+      - strength
+      - rank-scaling
+  - n: 4
+    status: taught
+    scenes:
+      - target-budget
+  - n: 5
+    status: taught
+    scenes:
+      - lexical-contract
+  - n: 6
+    status: taught
+    scenes:
+      - memory
+      - frozen-backward
+      - sharded-training
+  - n: 7
+    status: taught
+    scenes:
+      - nf4-codec
+  - n: 8
+    status: taught
+    scenes:
+      - dora-backward
+  - n: 9
+    status: taught
+    scenes:
+      - thin-forward
+      - merge
+      - export-contract
+  - n: 10
+    status: taught
+    scenes:
+      - policy-task
+      - evaluate
+      - fresh-policy
+    note: Two candidates correct different misses in the same fictional 40-ticket evaluation. Each reaches 38 correct overall. The per-set minimum distinguishes their outcomes.
+removed: []
+reviews:
+  closed_book:
+    script: acf1671690611a66
+    reviewer: /root
+    evidence: build/video-delivery-20261106/lora-semantic-repair/root-full-current-peer.json
+    evidence_sha256: e856674aad9f27e49a7994fc42a6cce137674e8a7b70e6539275507a84546704
+    taught: 10
+    partial: 0
+    absent: 0
+  fact_check:
+    script: acf1671690611a66
+    reviewer: /root
+    evidence: build/video-delivery-20261106/lora-semantic-repair/root-full-current-peer.json
+    evidence_sha256: e856674aad9f27e49a7994fc42a6cce137674e8a7b70e6539275507a84546704
+    open_findings: 0

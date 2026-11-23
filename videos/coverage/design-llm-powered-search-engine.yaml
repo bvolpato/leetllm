@@ -1,0 +1,280 @@
+version: 1
+lesson: design-llm-powered-search-engine
+promise: Trace Alice's migration window to the current passages she can read, decide whether their quotations
+  support publication, and size the search path that delivers the checked answer.
+framing: []
+objectives:
+  - id: intro
+    can: Decide whether a proposed migration date fits the general rule or the conditional exception
+    scenes:
+      - intro
+      - fresh-search
+  - id: answer-contract
+    can: Define the answer and its required evidence
+    scenes:
+      - answer-contract
+  - id: ingest-identity
+    can: Publish a source representation with defined offsets
+    scenes:
+      - ingest-identity
+  - id: authority-scope
+    can: Carry authenticated scope through every branch
+    scenes:
+      - authority-scope
+  - id: eligible
+    can: Predict how many usable hits survive when the eligibility check moves across a two-slot cutoff
+    scenes:
+      - eligible
+  - id: source-router
+    can: Keep freshness independent of route selection
+    scenes:
+      - source-router
+  - id: retrieval-arithmetic
+    can: Compute lexical and vector signals inside the permitted set
+    scenes:
+      - retrieval-arithmetic
+  - id: rrf-rule
+    can: Add one reciprocal contribution per branch identity
+    scenes:
+      - rrf-rule
+  - id: fusion
+    can: Fuse ranks without pretending their raw scores share a scale
+    scenes:
+      - fusion
+  - id: miniature-run
+    can: Execute the actual four-document path
+    scenes:
+      - miniature-run
+  - id: packing
+    can: Calculate the extra word budget needed to pack both complete passages in retrieval order
+    scenes:
+      - packing
+  - id: exact-span
+    can: Compare a quote's end offset with the original and decide whether the two-source publisher can release it
+    scenes:
+      - exact-span
+      - fresh-search
+  - id: context-compression
+    can: Preserve the original evidence through compression
+    scenes:
+      - context-compression
+  - id: citation-support
+    can: Separate resolution, support and coverage
+    scenes:
+      - citation-support
+  - id: untrusted-source
+    can: Keep source text from acquiring execution authority
+    scenes:
+      - untrusted-source
+  - id: publish
+    can: Bind a verdict to its draft and evidence revision
+    scenes:
+      - publish
+  - id: sse-identity
+    can: Give each replayable application event its own identity
+    scenes:
+      - sse-identity
+  - id: typed-reducer
+    can: Trace typed matching events to one terminal verdict
+    scenes:
+      - typed-reducer
+  - id: latency
+    can: Measure the first checked claim separately from the first token
+    scenes:
+      - latency
+  - id: clock-arithmetic
+    can: Calculate the complete checked-answer path
+    scenes:
+      - clock-arithmetic
+  - id: capacity
+    can: Count residence inside the memory boundary
+    scenes:
+      - capacity
+  - id: resident-tensor
+    can: Convert the resident interval into actual cache bytes
+    scenes:
+      - resident-tensor
+  - id: capacity-bounds
+    can: Compute separate resource lower bounds
+    scenes:
+      - capacity-bounds
+  - id: economics
+    can: Recalculate cost per request when stale cache entries send part of a fixed workload to full synthesis
+    scenes:
+      - economics
+  - id: route-costs
+    can: Weight every paid route in one consistent cohort
+    scenes:
+      - route-costs
+  - id: cache-authority
+    can: Revalidate the evidence dependencies on reuse
+    scenes:
+      - cache-authority
+  - id: labeled-metrics
+    can: Measure retrieval identity coverage against actual labels
+    scenes:
+      - labeled-metrics
+  - id: failure-attribution
+    can: Repair the layer that lost the evidence
+    scenes:
+      - failure-attribution
+  - id: fresh-search
+    can: Repair the cached quote pack after a revision and apply its new approval cutoff to two migration records
+    scenes:
+      - fresh-search
+sections:
+  - heading: Decide what counts as an answer
+    status: taught
+    scenes:
+      - answer-contract
+      - intro
+      - fresh-search
+  - heading: Make evidence identifiable before it becomes searchable
+    status: taught
+    scenes:
+      - ingest-identity
+      - exact-span
+  - heading: Authorization belongs to the service, not the query planner
+    status: taught
+    scenes:
+      - authority-scope
+      - eligible
+  - heading: Freshness isn't a timestamp boost
+    status: taught
+    scenes:
+      - ingest-identity
+      - source-router
+      - cache-authority
+  - heading: Route the question without weakening its constraints
+    status: taught
+    scenes:
+      - source-router
+  - heading: Retrieve broadly within the permitted corpus
+    status: taught
+    scenes:
+      - retrieval-arithmetic
+      - rrf-rule
+      - fusion
+  - heading: Run a miniature evidence pipeline
+    status: taught
+    scenes:
+      - miniature-run
+      - exact-span
+      - fresh-search
+  - heading: Pack evidence without changing its meaning
+    status: taught
+    scenes:
+      - packing
+      - context-compression
+  - heading: Verify that citations support their claims
+    status: taught
+    scenes:
+      - exact-span
+      - citation-support
+      - untrusted-source
+      - fresh-search
+  - heading: Stream progress before policy claims
+    status: taught
+    scenes:
+      - publish
+      - sse-identity
+      - typed-reducer
+  - heading: Measure the useful response from request to verification
+    status: taught
+    scenes:
+      - latency
+      - clock-arithmetic
+  - heading: Count KV-resident requests separately
+    status: taught
+    scenes:
+      - capacity
+      - resident-tensor
+      - capacity-bounds
+  - heading: Price the route mix, including the cheap routes
+    status: taught
+    scenes:
+      - economics
+      - route-costs
+      - cache-authority
+  - heading: Evaluate each kind of failure separately
+    status: taught
+    scenes:
+      - labeled-metrics
+      - failure-attribution
+  - heading: Mastery check
+    status: taught
+    scenes:
+      - fresh-search
+  - heading: Evaluation rubric
+    status: taught
+    scenes:
+      - failure-attribution
+      - fresh-search
+  - heading: Follow-up questions
+    status: taught
+    scenes:
+      - exact-span
+      - context-compression
+      - citation-support
+      - ingest-identity
+      - resident-tensor
+      - capacity-bounds
+quiz:
+  - n: 1
+    status: taught
+    scenes:
+      - eligible
+      - authority-scope
+  - n: 2
+    status: taught
+    scenes:
+      - source-router
+  - n: 3
+    status: taught
+    scenes:
+      - rrf-rule
+  - n: 4
+    status: taught
+    scenes:
+      - miniature-run
+      - exact-span
+      - fresh-search
+  - n: 5
+    status: taught
+    scenes:
+      - typed-reducer
+  - n: 6
+    status: taught
+    scenes:
+      - sse-identity
+  - n: 7
+    status: taught
+    scenes:
+      - clock-arithmetic
+  - n: 8
+    status: taught
+    scenes:
+      - resident-tensor
+  - n: 9
+    status: taught
+    scenes:
+      - route-costs
+      - economics
+  - n: 10
+    status: taught
+    scenes:
+      - labeled-metrics
+removed: []
+reviews:
+  closed_book:
+    script: 21232dc7318af447
+    taught: 10
+    partial: 0
+    absent: 0
+    reviewer: /root/upgrade_shard4
+    evidence: build/video-delivery-20261106/script-reviews/design-llm-powered-search-engine.json
+  fact_check:
+    script: 21232dc7318af447
+    open_findings: 0
+    reviewer: /root/upgrade_shard4
+    evidence: build/video-delivery-20261106/script-reviews/design-llm-powered-search-engine.json

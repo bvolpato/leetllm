@@ -1,0 +1,366 @@
+[
+  {
+    "id": "c01",
+    "title": "Would you give this agent more traffic?",
+    "sourceChapters": [
+      "c01"
+    ],
+    "beats": [
+      {
+        "id": "c01-b01",
+        "say": "Eight green checks and two red crosses. In this example our coding agent passed eighty percent of its test tasks. Would you open the valve and give it more traffic?",
+        "hold": 2
+      },
+      {
+        "id": "c01-b02",
+        "say": "We chose two marks before testing. On the chart, the gold line marks the pass rate we need on new tasks, seventy percent. The blue curve shows which rates are plausible after ten results. On the separate probability scale, the brass trip point is ninety-five percent. That much of the curve's area must lie beyond the gold line to open the valve.",
+        "hold": 0.6
+      },
+      {
+        "id": "c01-b03",
+        "say": "The observed rate clears seventy percent. How much of the blue curve do you think clears it? Make your call before we measure.",
+        "hold": 3
+      },
+      {
+        "id": "c01-b04",
+        "say": "Sweep from the gold line to the right edge. Read the level in the glass. About fifty-eight percent. Hold traffic. Let's build the curve that gave us that answer.",
+        "hold": 1.1
+      }
+    ]
+  },
+  {
+    "id": "c02",
+    "title": "Which rates would you start with?",
+    "sourceChapters": [
+      "c02"
+    ],
+    "beats": [
+      {
+        "id": "c02-b01",
+        "say": "Pick a task at random from the traffic this agent will get. Its chance of passing is somewhere between zero and one. Before the evaluation, we'll give middle rates a little more weight than either extreme. That blue curve is our prior. We've chosen a beta distribution with both parameters equal to two.",
+        "hold": 0.6
+      },
+      {
+        "id": "c02-b02",
+        "say": "Slide the blades apart to open a band under the curve. Its area tells us the probability we've assigned to rates in that band. The whole area is one. The height tells us how densely probability is packed. If we squeeze this band down to exactly point six, how much probability will it keep?",
+        "hold": 2.1
+      },
+      {
+        "id": "c02-b03",
+        "say": "Bring both edges in until they meet. The height at point six is still above one. But the band has run out of width, so its area is zero. When we ask how likely a continuous rate is, we need a range to measure.",
+        "hold": 0.7
+      }
+    ]
+  },
+  {
+    "id": "c03",
+    "title": "Which rate could have produced this run?",
+    "sourceChapters": [
+      "c03"
+    ],
+    "beats": [
+      {
+        "id": "c03-b01",
+        "say": "Keep the agent's model, prompt, tools, retry budget, and pass criterion fixed. Suppose the tasks are distinct draws from the same population. Given their shared success rate, we treat their results as independent. Here come the first eight passes.",
+        "hold": 0.3
+      },
+      {
+        "id": "c03-b02",
+        "say": "Each pass multiplies a candidate's weight by its chance of passing. The rate of one looks unbeatable. What happens to it when task nine fails?",
+        "hold": 2.1
+      },
+      {
+        "id": "c03-b03",
+        "say": "Put in the first failure, then the second. A rate of one gave a failure zero chance. Its weight drops to zero. Now the curve peaks at eight tenths. Our sequence is almost seven times as likely there as at one half. This score for the data, given a proposed rate, is called the likelihood. We're still on the data side of the calculation.",
+        "hold": 0.7
+      },
+      {
+        "id": "c03-b04",
+        "say": "We kept the order on the cards. If all we report is eight passes, there are forty-five places to put the pair of failures. Each arrangement has the same probability at a given rate. Multiplying by forty-five raises every candidate's score together. When we divide by the total, that shared factor cancels.",
+        "hold": 0.6
+      }
+    ]
+  },
+  {
+    "id": "c04",
+    "title": "What does one task change?",
+    "sourceChapters": [
+      "c04"
+    ],
+    "beats": [
+      {
+        "id": "c04-b01",
+        "say": "Pick a rate. Bayes' rule multiplies its prior density by the likelihood of the results at that same rate. Slide the probe from left to right. The third trace collects those products. Each window has its own height scale.",
+        "hold": 0.3
+      },
+      {
+        "id": "c04-b02",
+        "say": "Its total area is the chance our prior gave this particular sequence, also called the evidence. Divide every height by that one area. The shape keeps its proportions, and the area becomes one. We now have the posterior, our updated distribution over rates.",
+        "hold": 0.7
+      },
+      {
+        "id": "c04-b03",
+        "say": "There's a shortcut for this beta prior. Start it back at two and two. Each pass adds one to the first parameter. Each failure adds one to the second. Watch the cards go dim as they're counted. The updated curve is still a beta curve.",
+        "hold": 0.3
+      },
+      {
+        "id": "c04-b04",
+        "say": "That's what makes beta a conjugate prior for the binomial model. You can save those two updated parameters and start from them when the next task arrives.",
+        "hold": 0.7
+      },
+      {
+        "id": "c04-b05",
+        "say": "We end at beta ten, four. To find its mean, divide the first parameter by the sum of the two. That's ten over fourteen. Why is it lower than eight out of ten? The prior put a weight of four on one half.",
+        "hold": 0.3
+      },
+      {
+        "id": "c04-b06",
+        "say": "The ten observations put a weight of ten on eight tenths. The mean balances those two weights. It lands at about seventy-one percent. The four units of prior weight came from our assumption.",
+        "hold": 0.7
+      }
+    ]
+  },
+  {
+    "id": "c05",
+    "title": "What do we expect on the next task?",
+    "sourceChapters": [
+      "c05"
+    ],
+    "beats": [
+      {
+        "id": "c05-b01",
+        "say": "Suppose the next task comes from that same population. A rate of one half gives it an even chance of passing. A rate of eight tenths gives it a better chance. On the right, each rate is multiplied by its posterior density.",
+        "hold": 0.3
+      },
+      {
+        "id": "c05-b02",
+        "say": "Sweep across those contributions and add up their area. That average is our posterior predictive probability of a pass. For one task, it's the posterior mean.",
+        "hold": 0.7
+      },
+      {
+        "id": "c05-b03",
+        "say": "Suppose task eleven passes. Deliver that new result to the model once. Starting at ten, four, we end at eleven, four. There's more weight on higher rates now. The next comparable task gets a slightly better forecast, eleven over fifteen. If task eleven had failed instead, which parameter would change? Add one to the second parameter. The forecast would be ten over fifteen.",
+        "hold": 0.7
+      },
+      {
+        "id": "c05-b04",
+        "say": "Wind back to before either task runs. Follow the two-pass path. Multiply the first pass chance by the chance of a second pass given the first. That's about fifty-two percent. Both tasks share one unknown rate. Averaging its square gives the joint chance.",
+        "hold": 0.3
+      },
+      {
+        "id": "c05-b05",
+        "say": "If you square the average instead, you get about fifty-one percent. The gap is exactly the posterior variance. Given a fixed rate, the tasks are independent. Averaged over the possible shared rates, a pass on the first task makes a pass on the second more likely.",
+        "hold": 0.8
+      }
+    ]
+  },
+  {
+    "id": "c06",
+    "title": "What can these ten results tell us?",
+    "sourceChapters": [
+      "c06"
+    ],
+    "beats": [
+      {
+        "id": "c06-b01",
+        "say": "Back to traffic. Our next-task forecast is a little above seventy percent. We need the chance that the underlying rate clears seventy percent. Shade the area to the right of the cutoff. It accounts for about fifty-eight percent of the posterior. Our rule requires ninety-five percent. Keep traffic where it is.",
+        "hold": 1
+      },
+      {
+        "id": "c06-b02",
+        "say": "How wide a range holds the middle ninety percent? Move the endpoints until five percent of the posterior lies in each outside tail. Read the bracket. From about fifty percent to eighty-nine percent. That's our credible interval for the rate.",
+        "hold": 0.3
+      },
+      {
+        "id": "c06-b03",
+        "say": "The ends are the fifth and ninety-fifth percentiles. This interval describes an unknown rate. Each new task will either pass or fail. The variance measures the average squared distance of the rate from the posterior mean. Its square root, the standard deviation, is about twelve percentage points.",
+        "hold": 0.7
+      },
+      {
+        "id": "c06-b04",
+        "say": "Five new tasks. A bar's height gives the chance of that many passes. Look at the row on the right. The first task fails and the other four pass. Where else could that red square go and still leave four passes?",
+        "hold": 2.2
+      },
+      {
+        "id": "c06-b05",
+        "say": "Count the first row. It contributes about six point seven percent. Move the failure to slot two. Slot three. Slot four. Slot five. Each row adds another equal piece to the bar. Together they give four passes about a one in three chance.",
+        "hold": 0.3
+      },
+      {
+        "id": "c06-b06",
+        "say": "Now let all five tasks pass. There's just one way to fill that row.",
+        "hold": 1
+      },
+      {
+        "id": "c06-b07",
+        "say": "At any one rate, a binomial distribution gives the chance of each pass count. The filled bars average those chances over the posterior. That's the beta-binomial forecast. Now fix the rate at its mean. Both forecasts expect the same number of passes. Look at the five-pass bar.",
+        "hold": 0.3
+      },
+      {
+        "id": "c06-b08",
+        "say": "Its red outline falls short of the blue bar. When the shared rate is high, all five tasks benefit together. The beta-binomial gives the pass count more spread even though the average count stays the same.",
+        "hold": 0.8
+      }
+    ]
+  },
+  {
+    "id": "c07",
+    "title": "Eight in ten or eighty in a hundred?",
+    "sourceChapters": [
+      "c07"
+    ],
+    "beats": [
+      {
+        "id": "c07-b01",
+        "say": "Eight out of ten. Now compare that with eighty out of a hundred. Same agent, same prior, same population of tasks. Both runs scored eighty percent. Which gives us more evidence that the rate clears seventy percent?",
+        "hold": 2
+      },
+      {
+        "id": "c07-b02",
+        "say": "Keep the dashed outline from the ten-task evaluation. Build the hundred-task curve in groups of five, with four passes in each group. The pass fraction stays at eighty percent. Watch what happens to the probability above the cutoff as those groups go in.",
+        "hold": 0.7
+      },
+      {
+        "id": "c07-b03",
+        "say": "Finish the alternative evaluation with all one hundred tasks. Just over ninety-eight percent of the area now sits past seventy percent. The larger evaluation meets our evidence rule. Its middle ninety percent runs from about seventy-two to eighty-five percent. Individual tasks can still fail.",
+        "hold": 1
+      }
+    ]
+  },
+  {
+    "id": "c08",
+    "title": "How much weight did we give the prior?",
+    "sourceChapters": [
+      "c08"
+    ],
+    "beats": [
+      {
+        "id": "c08-b01",
+        "say": "Return to our first ten tasks. All three priors here start with the same mean. The strong symmetric prior starts tightly around one half. Its two parameters add to forty. Where did that weight come from?",
+        "hold": 0.3
+      },
+      {
+        "id": "c08-b02",
+        "say": "Starting from a uniform beta prior, it would take nineteen earlier passes and nineteen earlier failures to reach twenty, twenty. We'd want to know whose agent ran those tasks.",
+        "hold": 0.7
+      },
+      {
+        "id": "c08-b03",
+        "say": "Give each prior the same eight passes and two failures. Watch how far its mean travels. The strong prior lets ten new results pull it only a little. The means differ, but none of the three tails reaches ninety-five percent.",
+        "hold": 0.3
+      },
+      {
+        "id": "c08-b04",
+        "say": "Imagine that two defensible priors instead gave ninety-three and ninety-seven percent. Our rule would give opposite decisions. Report both priors and their results. Collect more representative tasks before increasing traffic.",
+        "hold": 0.8
+      }
+    ]
+  },
+  {
+    "id": "c09",
+    "title": "Which tasks will the agent get?",
+    "sourceChapters": [
+      "c09"
+    ],
+    "beats": [
+      {
+        "id": "c09-b01",
+        "say": "Take apart the hundred-task run. Seventy-two passes came from eighty easy tasks. Only eight came from twenty hard ones. Give each family its own rate and its own independent prior, beta two, two. The easy-task evidence goes into the left curve.",
+        "hold": 0.3
+      },
+      {
+        "id": "c09-b02",
+        "say": "The hard-task evidence goes into the right. Now we can ask about traffic with a different mix.",
+        "hold": 0.7
+      },
+      {
+        "id": "c09-b03",
+        "say": "A point here pairs a possible easy-task rate with a possible hard-task rate. The nested contours surround the more plausible pairs. The line separates pairs whose weighted average clears seventy percent from pairs that fall short. Keep the task results fixed.",
+        "hold": 0.3
+      },
+      {
+        "id": "c09-b04",
+        "say": "Change traffic from mostly easy to mostly hard. Watch the boundary rotate past the same cloud of rate pairs. Which side now contains most of the probability?",
+        "hold": 2
+      },
+      {
+        "id": "c09-b05",
+        "say": "Take the white point. Suppose the agent passes ninety percent of easy tasks and forty percent of hard ones. With one fifth easy traffic and four fifths hard, that pair gives a deployment rate of one half. Now sweep a band across the pairs.",
+        "hold": 0.3
+      },
+      {
+        "id": "c09-b06",
+        "say": "Put the probability caught by each band into the matching bar on the right. We get a distribution for the deployment rate. Its mean is near one half, and less than one percent of its probability clears the cutoff. Hold traffic here.",
+        "hold": 0.3
+      },
+      {
+        "id": "c09-b07",
+        "say": "This calculation needs known traffic shares and representative tasks within each family. A narrow curve learned from easy tasks alone tells us very little about the hard traffic.",
+        "hold": 1
+      }
+    ]
+  },
+  {
+    "id": "c10",
+    "title": "Does the forecast hold up on fresh tasks?",
+    "sourceChapters": [
+      "c10"
+    ],
+    "beats": [
+      {
+        "id": "c10-b01",
+        "say": "Here's a check we can run later. Save the seventy-one point four percent forecast from our original ten tasks before opening a hundred fresh comparable results. Now open those results in order and follow the running pass fraction.",
+        "hold": 0.3
+      },
+      {
+        "id": "c10-b02",
+        "say": "In this example, seventy-two of the hundred pass. One close batch is encouraging. Across many batches, group similar forecasts. Here each batch has a hundred tasks. In the first group the forecasts average seventy percent, and sixty-five percent pass. In the second, the forecasts average fifty percent, and fifty-five percent pass. Pool the groups and both numbers read sixty percent. Checking calibration within each group reveals the two misses.",
+        "hold": 0.8
+      },
+      {
+        "id": "c10-b03",
+        "say": "One batch can miss by chance. If forecasts repeatedly miss the same way, check which tasks you sampled. Here's a different log with twenty result rows. Group the rows by prompt. Five attempts at each of four prompts tell us about those four prompts.",
+        "hold": 0.3
+      },
+      {
+        "id": "c10-b04",
+        "say": "To make a claim about new prompts, sample distinct ones from the intended traffic. Also check for changes to the agent or the task mix. Record every evaluated agent and its stopping rule, including the runs that went badly.",
+        "hold": 0.7
+      }
+    ]
+  },
+  {
+    "id": "c11",
+    "title": "What changes on the last task?",
+    "sourceChapters": [
+      "c11"
+    ],
+    "beats": [
+      {
+        "id": "c11-b01",
+        "say": "Your turn to review a fresh evaluation. The team planned twenty-one distinct tasks from the intended traffic, with the same agent policy and the same prior. Eighteen of the first twenty passed. Read the magnified probability scale. The blue level comes close to the required mark. The last result is still sealed.",
+        "hold": 1.3
+      },
+      {
+        "id": "c11-b02",
+        "say": "Task twenty-one passes. Add this pass once to the first parameter. Measure the blue area again, keeping the cutoff where it was. Look at the mark on the ruler. Would you increase traffic?",
+        "hold": 2.3
+      },
+      {
+        "id": "c11-b03",
+        "say": "Increase traffic under this rule. That last pass takes the reading from ninety-four point six to ninety-five point eight percent. We crossed the mark. The size of the increase depends on exposure, safeguards and what a failed task costs.",
+        "hold": 1
+      },
+      {
+        "id": "c11-b04",
+        "say": "Rewind just the last task. Keep the first twenty results. Suppose task twenty-one fails. Add that failure to the second parameter instead. Measure the area above the same cutoff. Eighteen out of twenty-one still looks strong. What would you do this time?",
+        "hold": 2.3
+      },
+      {
+        "id": "c11-b05",
+        "say": "Hold traffic. With a pass, the chance of clearing the cutoff was ninety-five point eight percent. With a failure, it's eighty-eight point nine. Keep the sampling plan, prior and interval with that tail probability so the next reviewer can reconstruct the call. In the next lesson we'll use sampling variation to understand uncertainty in an estimate.",
+        "hold": 1.2
+      }
+    ]
+  }
+]

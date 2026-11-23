@@ -1,0 +1,190 @@
+version: 1
+lesson: embeddings
+promise: Diagnose why two support tickets retrieve the same guide by tracing the stored row,
+  the visible context and the query and document vectors used for ranking.
+objectives:
+  - id: lookup
+    can: Predict whether two messages can receive different rankings when both send only the
+      same token's lookup row to a fixed index
+    scenes:
+      - intro
+      - lookup
+      - table-contract
+      - article-context
+  - id: counts
+    can: Compute PPMI and interpret a fitted truncated SVD under explicit toy limitations
+    scenes:
+      - count-ppmi
+      - factorization
+      - neighbors
+  - id: objectives
+    can: Build predictive pairs, add the signed output-row contributions to a center gradient
+      and compute a weighted GloVe residual
+    scenes:
+      - predictive-window
+      - negative-step
+      - shifted-pmi
+      - glove-fit
+  - id: subword
+    can: Compose unknown spelling components with the exact occurrence and averaging contract
+    scenes:
+      - subword-components
+  - id: context
+    can: Calculate an occurrence or layer mix and choose a position that can read the clue needed
+      to distinguish two messages
+    scenes:
+      - context
+      - article-context
+      - elmo-layers
+      - visibility-test
+      - contrast
+      - transfer
+  - id: geometry
+    can: Distinguish dot product from cosine when a vector changes length, compute a masked mean
+      and diagnose zero-length or common-direction cosine failures
+    scenes:
+      - geometry
+      - pooling
+      - limits
+      - anisotropy-check
+  - id: compatibility
+    can: Compare two guide scores for each ticket before and after an index migration, identify
+      a correct result obtained with mismatched encoders and choose a compatible pair to test
+    scenes:
+      - space-contract
+      - fresh-representation
+sections:
+  - heading: A token ID selects one stored row
+    status: taught
+    scenes:
+      - intro
+      - lookup
+      - table-contract
+  - heading: Nearby words leave a fingerprint
+    status: taught
+    scenes:
+      - neighbors
+      - count-ppmi
+      - factorization
+  - heading: Predict the neighbors instead
+    status: taught
+    scenes:
+      - predictive-window
+      - negative-step
+      - shifted-pmi
+  - heading: Fit the global count table
+    status: taught
+    scenes:
+      - glove-fit
+  - heading: Build unknown spellings from pieces
+    status: taught
+    scenes:
+      - subword-components
+      - table-contract
+  - heading: One static row can't choose a sense
+    status: taught
+    scenes:
+      - intro
+      - lookup
+      - article-context
+  - heading: Mix in a neighbor from this sentence
+    status: taught
+    scenes:
+      - context
+      - contrast
+      - article-context
+      - elmo-layers
+      - transfer
+  - heading: Visibility follows the training objective
+    status: taught
+    scenes:
+      - visibility-test
+      - context
+  - heading: A shared direction can fake similarity
+    status: taught
+    scenes:
+      - limits
+      - anisotropy-check
+  - heading: Match the representation to the failure
+    status: taught
+    scenes:
+      - article-context
+      - visibility-test
+      - pooling
+      - limits
+      - space-contract
+      - fresh-representation
+  - heading: Keep query and document coordinates compatible
+    status: taught
+    scenes:
+      - space-contract
+      - fresh-representation
+  - heading: Evaluation rubric
+    status: taught
+    scenes:
+      - predictive-window
+      - negative-step
+      - article-context
+      - anisotropy-check
+      - space-contract
+  - heading: Follow-up questions
+    status: taught
+    scenes:
+      - table-contract
+      - factorization
+      - subword-components
+quiz:
+  - n: 1
+    status: taught
+    scenes:
+      - count-ppmi
+  - n: 2
+    status: taught
+    scenes:
+      - negative-step
+  - n: 3
+    status: taught
+    scenes:
+      - glove-fit
+  - n: 4
+    status: taught
+    scenes:
+      - subword-components
+  - n: 5
+    status: taught
+    scenes:
+      - article-context
+      - lookup
+      - transfer
+  - n: 6
+    status: taught
+    scenes:
+      - elmo-layers
+  - n: 7
+    status: taught
+    scenes:
+      - visibility-test
+  - n: 8
+    status: taught
+    scenes:
+      - pooling
+  - n: 9
+    status: taught
+    scenes:
+      - anisotropy-check
+      - geometry
+  - n: 10
+    status: taught
+    scenes:
+      - space-contract
+      - fresh-representation
+removed: []
+reviews:
+  closed_book:
+    script: 38f30134e1265b63
+    taught: 10
+    partial: 0
+    absent: 0
+  fact_check:
+    script: 38f30134e1265b63
+    open_findings: 0

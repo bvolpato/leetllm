@@ -1,0 +1,577 @@
+[
+  {
+    "id": "c01",
+    "title": "Which ticket gets the last review?",
+    "sourceChapters": [
+      "c01"
+    ],
+    "beats": [
+      {
+        "id": "c01-b01",
+        "say": "One review left. Two tickets slide into the queue. On a password reset, the model gives reply A a ninety-seven percent chance of winning the reviewer's vote. On a missing approver, it gives A fifty-three percent. Where would you spend the review to settle the closer call?",
+        "hold": 3
+      },
+      {
+        "id": "c01-b02",
+        "say": "Send the missing-approver ticket. Its two replies are just six percentage points apart. Choosing a question this way is called uncertainty sampling. The reviewer checks the rule and chooses B, the reply that asks for a delegate with approval authority. The other ticket still has only an estimate.",
+        "hold": 0.75
+      },
+      {
+        "id": "c01-b03",
+        "say": "Now look at a release request. The owner’s email is masked. The reviewer preferred the reply that asks for approval. Open the case registry. This request belongs to a private test. The action log also records an attempted change before approval. Where should this case go?",
+        "hold": 2.3
+      },
+      {
+        "id": "c01-b04",
+        "say": "Keep the frozen test case for evaluation. Send the attempted change to incident review. Training on this family would give the model part of its own test.",
+        "hold": 0.7
+      },
+      {
+        "id": "c01-b05",
+        "say": "For training, take a different source. Trace two oh four has permission for training and records proposed answers. Let's see what a reviewer can make from that pair.",
+        "hold": 0.75
+      }
+    ]
+  },
+  {
+    "id": "c02",
+    "title": "Each feedback record has a different job",
+    "sourceChapters": [
+      "c02"
+    ],
+    "beats": [
+      {
+        "id": "c02-b01",
+        "say": "This is the cleaned copy of trace two oh four. A demonstration pairs a prompt with an approved target answer. Keep the request and A to teach what to say. A pointwise assessment scores one completion. Here it records the reviewer’s safety and correctness checks for A. A preference pair records which answer better follows a rubric.",
+        "hold": 0.3
+      },
+      {
+        "id": "c02-b02",
+        "say": "For a preference record, keep both answers to the same prompt. Record A as chosen, B as rejected, and the rubric that governed the choice. Dropping B would leave us without the comparison.",
+        "hold": 0.6
+      },
+      {
+        "id": "c02-b03",
+        "say": "An evaluation fixture preserves expected behavior for a later test. An incident record preserves a failure and its investigation. Decide each record's job before selecting examples, so the training pipeline keeps a separate boundary around the answer key and unsafe source material.",
+        "hold": 0.7
+      }
+    ]
+  },
+  {
+    "id": "c03",
+    "title": "Derive what a comparison trains",
+    "sourceChapters": [
+      "c03"
+    ],
+    "beats": [
+      {
+        "id": "c03-b01",
+        "say": "A ranking of four answers supplies six unordered comparisons: each of the four answers pairs with the others, and dividing by two avoids double counting. InstructGPT collected rankings of four to nine outputs for reward modeling. Bradley–Terry predicts a comparison from scalar reward difference.",
+        "hold": 0.3
+      },
+      {
+        "id": "c03-b02",
+        "say": "Give the preferred answer reward two and the other reward zero. Their difference is two. The sigmoid turns that gap into a probability. One divided by one plus the exponential of negative two gives about point eight eight one. Add five to both rewards. The gap, and therefore the probability, stays the same.",
+        "hold": 0.7
+      },
+      {
+        "id": "c03-b03",
+        "say": "Direct preference optimization, or DPO, trains the policy on the same winner and loser. It avoids a separate reward model. Its derivation keeps the policy close to a reference policy. For each completion, the corresponding reward is beta times the natural log of its optimal policy probability divided by its reference probability, plus a term shared by answers to that prompt.",
+        "hold": 0.3
+      },
+      {
+        "id": "c03-b04",
+        "say": "The two answers share the same prompt, so subtracting their rewards cancels that final term. DPO then uses a trainable policy to parameterize that relative reward. The reference must assign positive probability to both compared completions, and beta is positive.",
+        "hold": 0.7
+      },
+      {
+        "id": "c03-b05",
+        "say": "Use supplied completion probabilities: policy gives the winner point four and loser point one, while the reference gives both point two. The log ratios are log two and log one half.",
+        "hold": 0.3
+      },
+      {
+        "id": "c03-b06",
+        "say": "With beta point five, their scaled difference is log two, sigmoid is two thirds, and the negative log loss is about point four zero five. Average this loss over the pairs. The loss rewards the winner relative to the loser.",
+        "hold": 0.3
+      },
+      {
+        "id": "c03-b07",
+        "say": "If both replies are unsafe, the reviewer sends the pair to incident review. Our training set requires an acceptable winner and keeps both replies so DPO can compare them.",
+        "hold": 0.7
+      }
+    ]
+  },
+  {
+    "id": "c04",
+    "title": "Clean the trace and retain its lineage",
+    "sourceChapters": [
+      "c04"
+    ],
+    "beats": [
+      {
+        "id": "c04-b01",
+        "say": "Begin with the raw trace and check its permitted use. The same address appears twice. Replace both mentions with one trace-local placeholder before a selector, an embedding service or a reviewer sees the text. A separately restricted store holds any reversible identity mapping.",
+        "hold": 0.6
+      },
+      {
+        "id": "c04-b02",
+        "say": "Preserve the trace, prompt and policy versions while adding the redactor and rubric versions. A reviewer needs to reconstruct which instructions and evidence produced the answers. Cleaning identity and retaining the decision's technical context work together in this record.",
+        "hold": 0.7
+      },
+      {
+        "id": "c04-b03",
+        "say": "Keep placeholders stable within one trace and reset their numbering in the next trace. Our article scrubber recognizes email, owner tokens and twelve-character commit IDs; it rejects preexisting reserved placeholders rather than confusing raw input with its own output. A pattern scrubber still misses identifying descriptions.",
+        "hold": 0.3
+      },
+      {
+        "id": "c04-b04",
+        "say": "The separate mapping, source permissions, consent and purpose review remain necessary. Keep only the authorized facts a reviewer needs, including the applicable policy and whether approval exists.",
+        "hold": 0.7
+      }
+    ]
+  },
+  {
+    "id": "c05",
+    "title": "Apply the rule to the answers actually shown",
+    "sourceChapters": [
+      "c05"
+    ],
+    "beats": [
+      {
+        "id": "c05-b01",
+        "say": "Write the rubric before collecting preferences. This one checks safety and authorization first, then correctness. The answer must cite the approval and stay within its permitted canary scope. Ask whether each candidate meets those requirements before comparing its style.",
+        "hold": 0.6
+      },
+      {
+        "id": "c05-b02",
+        "say": "The first pair has one acceptable answer. A follows the approval rule, while B invents a completed migration and proposes an unapproved write. The computed decision chooses A. The routing rule reads the supplied safety and correctness flags. The preference can be traced back to those judgments.",
+        "hold": 0.3
+      },
+      {
+        "id": "c05-b03",
+        "say": "Checking whether approval really exists takes a reviewer with access to the approval record.",
+        "hold": 0.65
+      },
+      {
+        "id": "c05-b04",
+        "say": "Now inspect a different pair. C exposes private notes and D executes an unapproved write. Both violate the safety rule, so the pair goes to incident review. Safe equivalent answers can tie. Missing evidence calls for adjudication. If one answer is safe but wrong and the other is unsafe, request a rewrite. None of these outcomes supplies a winner for this export.",
+        "hold": 0.7
+      },
+      {
+        "id": "c05-b05",
+        "say": "After safety and correctness, compare the useful next step, then clarity. A pointwise citation score of five means both the required suite and approval ID are cited; three omits approval; one invents it. Those are ordered anchors, with no assumed equal spacing.",
+        "hold": 0.3
+      },
+      {
+        "id": "c05-b06",
+        "say": "Missing approval evidence means review, rather than a style-based winner. Blind model identity and balance display order. Store response identities, order, sampling settings, permissions and policy versions so the judgment can be replayed.",
+        "hold": 0.7
+      }
+    ]
+  },
+  {
+    "id": "c06",
+    "title": "One cell per case",
+    "sourceChapters": [
+      "c06"
+    ],
+    "beats": [
+      {
+        "id": "c06-b01",
+        "say": "Two reviewers get the same pair and rubric. Each votes before they talk. Start with a hundred and eighteen cases. On the next case the first reviewer picks A, and the second picks A. Add one at the intersection of row A and column A.",
+        "hold": 0.7
+      },
+      {
+        "id": "c06-b02",
+        "say": "One pair left. The first reviewer picks A again. The second picks B. Which cell gets this case?",
+        "hold": 1.9
+      },
+      {
+        "id": "c06-b03",
+        "say": "Row A, column B. That cell now holds three cases. All hundred and twenty pairs are in the table. Follow the diagonal to count the matches. Forty-two plus thirty-eight plus twenty-seven gives a hundred and seven. Divide by the number of cases. That’s about eighty-nine percent observed agreement.",
+        "hold": 0.6
+      },
+      {
+        "id": "c06-b04",
+        "say": "How often would their choices match just from how frequently each person uses A, B and tie? For A, multiply the first reviewer’s forty-six out of a hundred and twenty by the second reviewer’s forty-eight out of a hundred and twenty.",
+        "hold": 0.3
+      },
+      {
+        "id": "c06-b05",
+        "say": "Do the same for B and tie, then add. That gives about thirty-four percent chance agreement.",
+        "hold": 0.7
+      },
+      {
+        "id": "c06-b06",
+        "say": "Cohen’s kappa asks how much of the possible improvement over that benchmark the reviewers achieved. Subtract chance from observed agreement, then divide by the distance from chance to one. Using the full counts gives about point eight three five. That clears this team’s point six five threshold.",
+        "hold": 0.6
+      },
+      {
+        "id": "c06-b07",
+        "say": "Open the thirteen disagreements. For a dispute about sign-off, inspect the approval record. If the rule was ambiguous, version the repair and check fresh cases. Preserve genuine differences in preference or record a tie. Sample the agreements too. Two people can agree on an answer that cites an approval nobody gave.",
+        "hold": 0.8
+      }
+    ]
+  },
+  {
+    "id": "c07",
+    "title": "Choose the chance model deliberately",
+    "sourceChapters": [
+      "c07"
+    ],
+    "beats": [
+      {
+        "id": "c07-b01",
+        "say": "One reviewer approves ninety-two percent of cases. The other approves eighty-eight percent. Even if their decisions were independent, they’d often agree. Multiply the two approval rates, then add the product of their rejection rates. That gives point eight one nine two.",
+        "hold": 0.3
+      },
+      {
+        "id": "c07-b02",
+        "say": "Their actual agreement is eighty-four percent, barely above that baseline. The resulting kappa is about point one one five. If both reviewers approve every case, observed and expected agreement both reach one. The denominator is zero. Report undefined, with the category counts.",
+        "hold": 0.7
+      },
+      {
+        "id": "c07-b03",
+        "say": "Cohen uses separate marginals for two named reviewers. Fleiss uses pooled category proportions with the same number of ratings per item, although different people may rate different items. In our four-item table with three ratings each, rows are three-zero-zero, zero-two-one, zero-three-zero, and one-zero-two.",
+        "hold": 0.3
+      },
+      {
+        "id": "c07-b04",
+        "say": "For each row, multiply each category count by the quantity that count minus one, sum those products, then divide by three times two. The four agreements are one, one third, one and one third. Their mean is two thirds.",
+        "hold": 0.3
+      },
+      {
+        "id": "c07-b05",
+        "say": "Pooled category counts four, five and three give chance fifty over one hundred and forty-four. Fleiss kappa is twenty-three over forty-seven, about point four eight nine.",
+        "hold": 0.7
+      },
+      {
+        "id": "c07-b06",
+        "say": "Even with two ratings per item, pooling can change the baseline. Suppose one reviewer uses A ninety percent of the time and the other uses it half the time. Cohen gives chance agreement of one half. Pool the ratings and seventy percent are A. Fleiss gives point five eight. Both formulas here count every mismatch equally. Weighted Cohen kappa can give a one-step ordinal disagreement less weight than a three-step disagreement.",
+        "hold": 0.3
+      },
+      {
+        "id": "c07-b07",
+        "say": "Krippendorff alpha accommodates missing ratings with an appropriate nominal or ordinal distance. Report the category mix, counts and uncertainty with the statistic. To check whether a shared label is correct, compare it with independent evidence.",
+        "hold": 0.7
+      }
+    ]
+  },
+  {
+    "id": "c08",
+    "title": "Queue uncertain cases while preserving their estimates",
+    "sourceChapters": [
+      "c08"
+    ],
+    "beats": [
+      {
+        "id": "c08-b01",
+        "say": "Now the reviewer has four eligible pairs and two places. Each dot marks the estimated chance that a reviewer prefers reply A. Near one half the alternatives are almost even. Look along the scale. Which two questions should we send?",
+        "hold": 2.5
+      },
+      {
+        "id": "c08-b02",
+        "say": "Queue the pairs at point four nine and point five three. Their estimates stay where they were while the reviewer gets the questions. A garbled request can look uncertain too, and a confident mistake may never reach this queue. Keep a representative random audit sample alongside it to estimate failure rates and see what the selector overlooked.",
+        "hold": 0.7
+      }
+    ]
+  },
+  {
+    "id": "c09",
+    "title": "Four places in the review queue",
+    "sourceChapters": [
+      "c09"
+    ],
+    "beats": [
+      {
+        "id": "c09-b01",
+        "say": "A reviewer has four places for six eligible cases. This is a new pool. Each dot is a record, and the three close together are variations on one canary request. Rank them just by uncertainty. Three canaries and one injection review use the whole budget.",
+        "hold": 0.8
+      },
+      {
+        "id": "c09-b02",
+        "say": "Keep the same six records and four places. Start again with canary one, the most uncertain case. For every other record, stretch a line to its nearest selected neighbor. Right now that is canary one. Divide the length of each line by the longest remaining line. The farthest case gets a distance value of one.",
+        "hold": 0.65
+      },
+      {
+        "id": "c09-b03",
+        "say": "Give uncertainty sixty percent of the score and normalized distance forty percent. Compare handoff and injection. Injection has the larger uncertainty contribution in blue. Handoff gets the full distance contribution in green. Add each pair of numbers. Which record gets the second place?",
+        "hold": 3
+      },
+      {
+        "id": "c09-b04",
+        "say": "Handoff takes it. Its two parts add to point seven nine six. Injection comes close at point seven nine one. That small lead changes which record the reviewer sees. Seat handoff and measure the remaining links again.",
+        "hold": 0.8
+      },
+      {
+        "id": "c09-b05",
+        "say": "The remaining cases are still nearest to canary one. Keyboard now sets the distance scale. Injection scores point seven nine eight and takes the third place. Recompute once more. Keyboard takes the fourth. The two canary variants left outside the batch are each less than one unit from the seed.",
+        "hold": 0.7
+      },
+      {
+        "id": "c09-b06",
+        "say": "Compare the two batches. Four reviews bought two kinds of case on the first pass and four on the second. The new batch includes handoff and keyboard access. To find out which batch teaches the model more, train and compare against random selection on separate development cases. Count reviewer time as well as accepted labels.",
+        "hold": 0.8
+      }
+    ]
+  },
+  {
+    "id": "c10",
+    "title": "What changes the next pick?",
+    "sourceChapters": [
+      "c10"
+    ],
+    "beats": [
+      {
+        "id": "c10-b01",
+        "say": "Back at the two-answer preference model, p is the chance that a reviewer picks A. At point four nine the two answers are almost even. Least confidence takes one minus the larger probability. Margin uncertainty takes one minus the gap between the two.",
+        "hold": 0.3
+      },
+      {
+        "id": "c10-b02",
+        "say": "Entropy weights each outcome’s surprise by its probability. In bits, those surprises use base two. An outcome with zero probability contributes zero.",
+        "hold": 0.6
+      },
+      {
+        "id": "c10-b03",
+        "say": "For this pair, least confidence is point four nine, margin uncertainty is point nine eight, and entropy is almost one bit. Change the predicted chance of A to point nine seven. Least confidence falls to point zero three. Margin uncertainty falls to point zero six.",
+        "hold": 0.3
+      },
+      {
+        "id": "c10-b04",
+        "say": "Entropy falls to about point one nine four bits. All three favor binary choices near one half. With more than two options, they can rank cases differently.",
+        "hold": 0.6
+      },
+      {
+        "id": "c10-b05",
+        "say": "Try a new review pool on a straight line. The seed is at zero. The appeal is one unit away, with uncertainty point nine five. The handoff is five units away, with uncertainty point two. You have one place. Use the same sixty percent uncertainty and forty percent distance rule. Which record gets the place?",
+        "hold": 2.4
+      },
+      {
+        "id": "c10-b06",
+        "say": "The appeal gets it. Its distance is one fifth of the longest link. Its score is point six five. Handoff gets the full distance bonus, but its score is only point five two. Mark the appeal as selected. Now the closest selected record to handoff is the appeal. Their gap is four units.",
+        "hold": 0.8
+      },
+      {
+        "id": "c10-b07",
+        "say": "Rewind to just the seed. Suppose the goal is to make the longest remaining gap as short as possible. Picking the farthest record puts a center at handoff. The appeal is one unit from the seed, so the covering radius is one. That is the k-center objective.",
+        "hold": 0.3
+      },
+      {
+        "id": "c10-b08",
+        "say": "The weighted rule spent the very same place on uncertainty and left a radius of four.",
+        "hold": 0.7
+      },
+      {
+        "id": "c10-b09",
+        "say": "Treat the three records as one cluster. Their mean falls at two, between records. Which real record best represents the cluster? A medoid minimizes the total distance to all cluster members. From the seed, the distances add to six. From the appeal, they add to five. From the handoff, they add to nine. Compare the totals. Which record would you send to the reviewer? The appeal has the smallest total, five. It is the medoid. A distant point can be noise, and a confident model can miss a whole category.",
+        "hold": 0.3
+      },
+      {
+        "id": "c10-b10",
+        "say": "Suppose four of ten cases in the targeted queue get failure labels. Forty percent describes those selected cases. To estimate a production failure rate from the sampling design, give each case a known positive chance of selection. Weight each sampled case by one divided by its own inclusion probability. Keep that probability with the case. Inferring a production rate from the targeted queue alone would require additional assumptions about selection and the population.",
+        "hold": 0.75
+      }
+    ]
+  },
+  {
+    "id": "c11",
+    "title": "Compare learning gains under a fixed budget",
+    "sourceChapters": [
+      "c11"
+    ],
+    "beats": [
+      {
+        "id": "c11-b01",
+        "say": "Reserve whole source families for training, validation and private testing before sampling. Give the random and hybrid selectors the same label budget, rubric and reviewers. Train both runs from the same checkpoint and training settings. Repeat with several seeds and report the paired differences and their spread.",
+        "hold": 0.3
+      },
+      {
+        "id": "c11-b02",
+        "say": "Each run now has the same starting score. Compare the validation gain after spending its four hundred labels. Use percentage points, so a move from sixty-one to sixty-four is a gain of three.",
+        "hold": 0.7
+      },
+      {
+        "id": "c11-b03",
+        "say": "In this example, four hundred accepted labels move validation from sixty-one percent to sixty-four for random selection and sixty-eight for hybrid. These are three and seven percentage points.",
+        "hold": 0.3
+      },
+      {
+        "id": "c11-b04",
+        "say": "Divide four hundred by those gains: about one hundred and thirty-three point three versus fifty-seven point one labels per percentage point. A harder queue can take longer to review. Add rejected attempts, triage, adjudication, reviewer time and compute when you compare costs.",
+        "hold": 0.7
+      },
+      {
+        "id": "c11-b05",
+        "say": "Tune selector weights and checkpoints on validation. If the team repeatedly checks the private test and adjusts the weight until it wins, it has adapted to that test without copying any test row into training. Use a fresh independent test for the resulting claim.",
+        "hold": 0.3
+      },
+      {
+        "id": "c11-b06",
+        "say": "Keep the sampling policy with each row. Suppose a separate random audit includes each eligible ticket with probability one fifth. It draws the password reset. What weight does that ticket carry? One divided by one fifth is five. Store that weight with the audit row. The missing approver entered the targeted queue because its replies were close. Its fifty-three percent predicted a vote for A. That number tells us nothing about its chance of entering a random audit.",
+        "hold": 0.7
+      }
+    ]
+  },
+  {
+    "id": "c12",
+    "title": "Check lineage and map swapped answer identities",
+    "sourceChapters": [
+      "c12"
+    ],
+    "beats": [
+      {
+        "id": "c12-b01",
+        "say": "Split related source families before selection. Training can supply examples and development can guide the selector. A private test stays untouched while those choices are tuned. A copy belongs with its source even if someone gives it a new name.",
+        "hold": 0.6
+      },
+      {
+        "id": "c12-b02",
+        "say": "Follow the training copy’s parent link. Its parent is the reserved test case. The lineage check catches the overlap. A normalized content hash also helps find copies. For a rewrite, trace how the record was produced.",
+        "hold": 0.7
+      },
+      {
+        "id": "c12-b03",
+        "say": "A model judge also needs checking. Read the first display. Answer X occupies position A and answer Y occupies B. The judge matches all three human labels. Swap the answers. Map each new display letter back to the answer in that position. It changes two choices. On the middle pair, the letter changes but the answer stays Y.",
+        "hold": 0.65
+      },
+      {
+        "id": "c12-b04",
+        "say": "If the judge samples its answers, repeat balanced trials to see whether it consistently favors a position. Keep its labels advisory while it fails this check. Constitutional AI used human-authored principles to guide critiques and revisions for supervised learning.",
+        "hold": 0.3
+      },
+      {
+        "id": "c12-b05",
+        "say": "AI preference feedback then guided reinforcement learning, allowing the original method to train without human harmfulness labels. Here the human labels let us check the judge against this task’s rubric.",
+        "hold": 0.7
+      }
+    ]
+  },
+  {
+    "id": "c13",
+    "title": "Audit copies and families at their actual scope",
+    "sourceChapters": [
+      "c13"
+    ],
+    "beats": [
+      {
+        "id": "c13-b01",
+        "say": "Look at the first two rows. One uses capitals and extra spaces. The article normalizes Unicode to NFC, case-folds the text, collapses whitespace, then hashes the result. The two normalized rows match. A third row asks the same question in different words.",
+        "hold": 0.3
+      },
+      {
+        "id": "c13-b02",
+        "say": "A paraphrase can still hash differently. Choose the normalization for the task. In code, a capital letter can change which name is used.",
+        "hold": 0.7
+      },
+      {
+        "id": "c13-b03",
+        "say": "Suppose the test asks about a new incident. Keep that incident and all derivatives in one split. For a new user or document, group by that source instead. The article compares family tags and overlapping three-word sequences, with a threshold of one half in its example.",
+        "hold": 0.3
+      },
+      {
+        "id": "c13-b04",
+        "say": "Our release check compares IDs, normalized hashes, family tags and direct parents. Follow the marker back from the rewrite. It stops at the copy. To find the original from there, you need a second parent link.",
+        "hold": 0.3
+      },
+      {
+        "id": "c13-b05",
+        "say": "Here the shared family tag ties all three records to the test incident. When a tag is missing, trace those links before admitting the row.",
+        "hold": 0.7
+      }
+    ]
+  },
+  {
+    "id": "c14",
+    "title": "Bind the audit to the rebuilt dataset",
+    "sourceChapters": [
+      "c14"
+    ],
+    "beats": [
+      {
+        "id": "c14-b01",
+        "say": "The release manifest names the source window, selector, redactor, rubric, row count and frozen evaluation set. Its digest identifies the exact dataset rows. Check the redaction, agreement, safety, decisions and provenance for those rows.",
+        "hold": 0.6
+      },
+      {
+        "id": "c14-b02",
+        "say": "The draft fails because the reserved case and its derived copy remain in training. A clean agreement score turns one check green. The overlap still holds the gate closed. Remove the two related rows and rebuild the snapshot.",
+        "hold": 0.7
+      },
+      {
+        "id": "c14-b03",
+        "say": "Both related rows are removed and the digest changes. The new audit is pending, so the gate stays closed. Check these rows for overlap and compare their digest with the one in the completed report. When the new report matches and all the checks pass, the gate opens. Train from these exact rows.",
+        "hold": 0.8
+      },
+      {
+        "id": "c14-b04",
+        "say": "Try the same rows in a new release check. Match the source permissions, intended use, model and rubric versions, label counts and unresolved decisions to the snapshot. Check who issued the reports and whether each check finished. This time the audit is missing.",
+        "hold": 0.3
+      },
+      {
+        "id": "c14-b05",
+        "say": "The earlier release stays admitted. The new one waits. The gate also rejects an unfinished audit, a non-finite or Boolean kappa, invalid counts and unresolved unsafe pairs. If a model already trained on a reserved row, its checkpoint still carries that exposure.",
+        "hold": 0.3
+      },
+      {
+        "id": "c14-b06",
+        "say": "Retrain from a clean checkpoint or use a fresh independent test.",
+        "hold": 0.7
+      }
+    ]
+  },
+  {
+    "id": "c15",
+    "title": "Can this batch go to training?",
+    "sourceChapters": [
+      "c15"
+    ],
+    "beats": [
+      {
+        "id": "c15-b01",
+        "say": "Two people independently reviewed eighty new pairs. Rows are the first person’s choices. Columns are the second’s. Their counts are on the left. This team requires kappa of at least point six five. On the right are the rows we plan to train on.",
+        "hold": 0.3
+      },
+      {
+        "id": "c15-b02",
+        "say": "Follow the parent links back to the frozen incident. The team has asked for two independent checks: reviewer agreement and family overlap. All the other checks passed. Which two findings would hold up this release?",
+        "hold": 3.4
+      },
+      {
+        "id": "c15-b03",
+        "say": "First, count the diagonal. Sixty-four of eighty choices match. Each reviewer chose A forty times and B forty times, so chance agreement is one half. That gives kappa of point six. It misses the threshold. Open the sixteen disagreements, repair the evidence or the rubric where warranted, and check fresh independent labels.",
+        "hold": 0.7
+      },
+      {
+        "id": "c15-b04",
+        "say": "Second, ticket nine is a renamed member of frozen incident seven. Its copy points to ticket nine. Trace both paths. Lift both rows out of the training snapshot. One permitted row remains. The snapshot now has a different digest. The completed report beside it still names the old digest.",
+        "hold": 0.3
+      },
+      {
+        "id": "c15-b05",
+        "say": "Run the audits on the rebuilt rows and check that agreement clears the threshold before training.",
+        "hold": 0.8
+      },
+      {
+        "id": "c15-b06",
+        "say": "Change just the timing. Suppose this model already trained on the original three rows. Now remove those same two rows from the dataset. Follow the checkpoint's link to the snapshot it consumed. Can incident seven measure performance on an unseen incident for this checkpoint?",
+        "hold": 3
+      },
+      {
+        "id": "c15-b07",
+        "say": "No. The checkpoint still comes from the three-row snapshot. To use that frozen test for an independent score, start from a clean checkpoint and retrain on a dataset that passes the new audits. To evaluate the existing checkpoint, give it a fresh independent test.",
+        "hold": 1.15
+      },
+      {
+        "id": "c15-b08",
+        "say": "Take that second path. Here is a simulated log from a new canary case. Traffic changed at ten oh one. Sign-off arrived at ten oh two. Did this run wait for approval?",
+        "hold": 2.1
+      },
+      {
+        "id": "c15-b09",
+        "say": "Traffic moved a minute early. Record a failed approval check for this run. You can use this case as independent evidence because its family stayed outside training and tuning. In the next lesson on agent evaluation, we check what changed in the environment when the agent acted.",
+        "hold": 1.25
+      }
+    ]
+  }
+]

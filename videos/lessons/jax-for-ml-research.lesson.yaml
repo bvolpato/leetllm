@@ -1,0 +1,1440 @@
+version: 1
+id: jax-for-ml-research
+title: JAX in a Research Training Loop
+source: training/jax-for-ml-research/content.md
+sources:
+  - title: Automatic differentiation
+    url: https://docs.jax.dev/en/latest/automatic-differentiation.html
+  - title: Benchmarking JAX code
+    url: https://docs.jax.dev/en/latest/benchmarking.html
+  - title: Just-in-time compilation
+    url: https://docs.jax.dev/en/latest/jit-compilation.html
+  - title: Pytrees
+    url: https://docs.jax.dev/en/latest/pytrees.html
+  - title: "Quickstart: How to think in JAX"
+    url: https://docs.jax.dev/en/latest/notebooks/thinking_in_jax.html
+  - title: Pseudorandom numbers
+    url: https://docs.jax.dev/en/latest/random-numbers.html
+  - title: "JAX: The Sharp Bits"
+    url: https://docs.jax.dev/en/latest/notebooks/Common_Gotchas_in_JAX.html
+  - title: Stateful computations
+    url: https://docs.jax.dev/en/latest/stateful-computations.html
+  - title: Automatic vectorization
+    url: https://docs.jax.dev/en/latest/automatic-vectorization.html
+  - title: jax.pmap
+    url: https://docs.jax.dev/en/latest/_autosummary/jax.pmap.html
+  - title: jax.lax.while_loop
+    url: https://docs.jax.dev/en/latest/_autosummary/jax.lax.while_loop.html
+  - title: jax.random module
+    url: https://docs.jax.dev/en/latest/jax.random.html
+  - title: jax.experimental.random.stateful_rng
+    url: https://docs.jax.dev/en/latest/_autosummary/jax.experimental.random.stateful_rng.html
+  - title: "Ref: mutable arrays for data plumbing and memory control"
+    url: https://docs.jax.dev/en/latest/array_refs.html
+  - title: jax.lax.cond
+    url: https://docs.jax.dev/en/latest/_autosummary/jax.lax.cond.html
+  - title: jax.numpy.ndarray.at
+    url: https://docs.jax.dev/en/latest/_autosummary/jax.numpy.ndarray.at.html
+  - title: jax.jit
+    url: https://docs.jax.dev/en/latest/_autosummary/jax.jit.html
+  - title: JAX frequently asked questions
+    url: https://docs.jax.dev/en/latest/faq.html
+  - title: Distributed arrays and automatic parallelization
+    url: https://docs.jax.dev/en/latest/201/sharding.html
+  - title: jax.shard_map
+    url: https://docs.jax.dev/en/latest/_autosummary/jax.shard_map.html
+scenes:
+  - id: intro
+    title: What will the training log print?
+    visual: Two zero-loss padding tokens drop beside two real errors. Five cyan squares stay in place as the divisor changes from two to four and back.
+    beats:
+      - say: Two zeros slide into the last batch. The real predictions miss by two and one. Squared, those errors are four and one. Their mean loss is two point five.
+        hold: 0.5
+        caption_starts:
+          - The real predictions
+          - Their mean loss
+        visual_cues:
+          - id: intro-pad
+            phrase: Two zeros slide into the last batch
+            targets: [padding-2, padding-3]
+          - id: intro-square
+            phrase: Squared, those errors are four and one
+            targets: [example-0, example-1]
+          - id: intro-mean
+            phrase: Their mean loss is two point five
+            targets: [real-mean]
+      - say: Padding gives the compiled JAX step the four rows it expects. The log averages all four slots. What loss will it print?
+        hold: 2.2
+        caption_starts:
+          - What loss will it print
+        visual_cues:
+          - id: intro-all
+            phrase: averages all four slots
+            targets: [counted-rows]
+      - say: One point two five. The two padding rows added zero to the sum, but the divisor doubled. Count just the two real examples and the loss returns to two point five. That divisor also scales the gradient sent to the optimizer.
+        hold: 1
+        caption_starts:
+          - The two padding rows
+          - Count just the two real examples
+          - and the loss returns
+          - That divisor also scales
+        visual_cues:
+          - id: intro-report
+            phrase: One point two five
+            targets: [logged-mean]
+          - id: intro-divisor
+            phrase: Count just the two real examples
+            targets: [counted-rows]
+          - id: intro-restore
+            phrase: the loss returns to two point five
+            targets: [logged-mean]
+  - id: program-contract
+    title: Follow one call through the training loop
+    visual: Follow the parameter, velocity and random-key arguments through one call. Keep its returned state for
+      the following step. The loss is recorded against the inputs.
+    beats:
+      - say: Find the step that consumes that batch in the research code. It might sit inside Flax, Equinox or Optax. If
+          you know a PyTorch training loop, look for the pieces the model and optimizer usually hold. Here the
+          caller supplies the weights, the optimizer's momentum and a key for drawing random numbers.
+        hold: 0.5
+        visual_cues:
+          - id: program-call
+            phrase: the weights, the optimizer's momentum and a key
+            targets:
+              - program-state
+            linger: 0.12
+      - say: Follow the return values into the next call. Those three inputs each get a successor. The loss goes to the
+          log. When changing state travels through arguments and returns, you can replay this step. Write the
+          array operations with JAX NumPy. JAX can take a derivative of that function, map it over examples or
+          compile it. The article's ordinary-array examples use one CPU. JAX also supports controlled mutation
+          through a separate interface called Ref.
+        hold: 0.8
+        visual_cues:
+          - id: program-return
+            phrase: Follow the return values into the next call
+            targets:
+              - program-state
+            linger: 0.12
+  - id: regression-oracle
+    title: Two checks on the same four examples
+    visual: The two remaining examples complete the batch. With zero parameters the table gives the reference loss.
+      The targets remain fixed as a known solution replaces the weights and eliminates each error.
+    beats:
+      - say: Here is a full batch. The first two columns of numbers pair each input with its target. Two more examples
+          join the ones from the opening. At zero weights and bias, all four predictions are zero. Their squared
+          errors add to fifteen. Divide by four, and the reference loss is three point seven five.
+        hold: 0.65
+        visual_cues:
+          - id: oracle-loss
+            phrase: the reference loss is three point seven five
+            targets:
+              - oracle-mean
+            linger: 0.12
+            caption_boundary: true
+      - say: Try weights two and minus one. Double the first feature and subtract the second. On the bottom row that
+          gives four minus one, exactly the target of three. Work up the other rows and each prediction lands on
+          its target. The loss is zero. A loss function has to pass both checks before its training curve tells us
+          much.
+        hold: 0.9
+        visual_cues:
+          - id: oracle-weights
+            phrase: Try weights two and minus one
+            targets:
+              - oracle-table
+            linger: 0.12
+          - id: oracle-predictions
+            phrase: Double the first feature and subtract the second
+            targets:
+              - oracle-table
+            linger: 0.12
+          - id: oracle-exact
+            phrase: The loss is zero
+            targets:
+              - oracle-mean
+            linger: 0.12
+            caption_boundary: true
+  - id: gradient
+    title: Which row pulls hardest on the first weight?
+    visual: Each first-weight derivative shares a signed scale. Build the longest contribution from the bottom row,
+      then average. Pair all three gradient leaves with the first SGD update.
+    beats:
+      - say: Reset the parameters to zero. Look at the bottom row. The prediction misses by minus three, and the first
+          feature is two. Squaring the error gives us a derivative of twice the residual times that feature. This
+          row contributes minus twelve. The second row has no first feature, so it contributes zero. Average all
+          four contributions and the first weight's gradient is minus four point five.
+        hold: 0.8
+        visual_cues:
+          - id: gradient-row
+            phrase: This row contributes minus twelve
+            targets:
+              - gradient-rows
+            linger: 0.12
+            caption_boundary: true
+          - id: gradient-mean
+            phrase: minus four point five
+            targets:
+              - gradient-result
+            linger: 0.12
+            caption_boundary: true
+      - say: The same calculation gives a gradient for the other weight and the bias. Each has its own line. Subtract
+          five hundredths of each gradient from its parameter. The first weight moves up to point two two five,
+          the second to point zero seven five, and the bias to point one two five. JAX's value and grad computes
+          the loss and the whole gradient tree in one call.
+        hold: 0.9
+        visual_cues:
+          - id: gradient-step
+            phrase: and the bias to point one two five
+            targets:
+              - gradient-update
+            linger: 0.12
+            caption_boundary: true
+  - id: transform-order
+    title: One gradient per batch or one per example?
+    visual: Compare a scalar loss with a length-one vector. Keep the example axis when mapping grad. Follow two equal and opposite scalar gradients to see what averaging discards.
+    beats:
+      - say: Both boxes contain three point seven five. On the left, the loss is a scalar. Grad accepts that empty shape. On the right, the loss is a vector with one entry. Grad rejects it because it expects a scalar output here. Value and grad gives you both the scalar loss and the gradient tree in one call.
+        hold: 0.75
+        visual_cues:
+          - id: jx-transform-order-b0
+            phrase: Both boxes contain three point seven five
+            targets: [jx-transform-order-mechanism]
+          - id: transform-scalar
+            phrase: Grad accepts that empty shape
+            targets: [jx-transform-order-mechanism]
+      - say: To get a gradient for each example, differentiate the loss for one row. Then use vmap to apply that function to all four rows. The parameters stay the same while the features and target change from row to row. That's what the three entries in the axes setting mean. The weight gradients have four rows and two columns. Each row also has its own bias gradient.
+        hold: 0.75
+        visual_cues:
+          - id: jx-transform-order-b1
+            phrase: Then use vmap
+            targets: [jx-transform-order-mechanism]
+          - id: transform-mapped-shape
+            phrase: four rows and two columns
+            targets: [jx-transform-order-mechanism]
+      - say: Differentiate the mean loss and you get two weight gradients and one bias gradient for the whole batch. Averaging those four rows gives the same update for these independent examples. Now look at two examples with just one weight. One gradient points left by two. The other points right by two. Their mean is zero. For one weight, the gradient norm is its absolute value. Each arrow has length two, so their mean norm is two. To clip gradients per example, keep the rows until you've measured each one.
+        hold: 1
+        caption_starts:
+          - Now look at two examples
+          - Their mean is zero
+          - Each arrow has length two
+          - so their mean norm is two
+        visual_cues:
+          - id: transform-aggregate
+            phrase: two weight gradients and one bias gradient
+            targets: [jx-transform-order-mechanism]
+          - id: transform-left
+            phrase: One gradient points left by two
+            targets: [jx-transform-order-mechanism]
+          - id: transform-right
+            phrase: The other points right by two
+            targets: [jx-transform-order-mechanism]
+          - id: transform-cancel
+            phrase: Their mean is zero
+            targets: [jx-transform-order-mechanism]
+          - id: transform-norm
+            phrase: their mean norm is two
+            targets: [jx-transform-order-mechanism]
+  - id: tree
+    title: Match named paths and leaf shapes
+    visual: A parameter tree and gradient tree align weight and bias paths. A renamed key, then a scalar broadcast
+      mismatch, are rejected on separate states.
+    beats:
+      - say: Model state usually lives in a nested collection of arrays. JAX calls that structure a pytree.
+          Differentiating with respect to the parameter tree returns corresponding gradient leaves. An update
+          must associate the weight gradient with the weight path and the bias gradient with the bias path.
+        hold: 0.8
+        visual_cues:
+          - id: tree-b1-1
+            phrase: weight gradient with the weight path
+            targets:
+              - weight-path
+            linger: 0.45
+          - id: tree-b1-2
+            phrase: bias gradient with the bias path
+            targets:
+              - bias-path
+            linger: 0.45
+      - say: Now change one gradient path, then change its shape. The first case breaks the tree schema. The second
+          can silently broadcast during array arithmetic even with matching keys. Check exact leaf shapes as
+          well as structure. Leaf count alone loses the identity that makes an update meaningful.
+        hold: 0.8
+        visual_cues:
+          - id: tree-b2-1
+            phrase: change one gradient path
+            targets:
+              - gradient-path
+            linger: 0.45
+          - id: tree-b2-2
+            phrase: exact leaf shapes
+            targets:
+              - schema-check
+            linger: 0.45
+  - id: dynamic-static
+    title: Preserve semantic paths and bounded metadata
+    visual: Keep the parameter paths fixed while values change. Transpose a square weight matrix and check how the predictions change even though the shape stays the same.
+    beats:
+      - say: Pytree structure includes container nesting and dictionary keys. Registered custom classes can be nodes;
+          an unsupported object may become one opaque leaf. Inspect the tree definition, named paths, leaf
+          shapes and dtypes at a checkpoint boundary. Equal leaf count or equal element count does not
+          establish semantic compatibility.
+        hold: 0.75
+        visual_cues:
+          - id: jx-dynamic-static-b0
+            phrase: Pytree structure includes container nesting and dictionary keys. Registered custom classes can be
+              nodes; an unsupported object may become one opaque leaf. Inspect the tree definition, named
+              paths, leaf shapes and dtypes at a checkpoint boundary. Equal leaf count or equal element count
+              does not establish semantic compatibility.
+            targets:
+              - jx-dynamic-static-mechanism
+            color: cyan
+            linger: 0.35
+      - say: Numerical array leaves can change value under one compiled contract. Small activation choices or
+          architecture settings can instead be static metadata. Changing those settings can require new
+          variants. Marking every changing value static creates a variant problem rather than solving it. A
+          checkpoint port must also preserve axis meaning; a square projection transpose can retain shape and
+          still alter predictions.
+        hold: 0.75
+        visual_cues:
+          - id: jx-dynamic-static-b1
+            phrase: Numerical array leaves can change value under one compiled contract. Small activation choices or
+              architecture settings can instead be static metadata. Changing those settings can require new
+              variants. Marking every changing value static creates a variant problem rather than solving it.
+              A checkpoint port must also preserve axis meaning; a square projection transpose can retain
+              shape and still alter predictions.
+            targets:
+              - jx-dynamic-static-mechanism
+            color: cyan
+            linger: 0.35
+          - id: static-transpose
+            phrase: a square projection transpose can retain shape and still alter predictions
+            targets:
+              - jx-dynamic-static-mechanism
+            color: cyan
+            linger: 0.35
+  - id: values
+    title: Keep the new value returned by an update
+    visual: The old array remains visible while an updated array changes its middle entry. A retained binding
+      points to the new value on the second beat.
+    beats:
+      - say: "Ordinary JAX arrays are immutable values. An indexed set expression returns an updated array while
+          preserving the original value. Watch the middle entry: the new row changes, and the old row stays
+          available. This makes aliasing at a function boundary easier to reason about."
+        hold: 0.8
+        visual_cues:
+          - id: values-b1-1
+            phrase: preserving the original value
+            targets:
+              - original-array
+            linger: 0.45
+          - id: values-b1-2
+            phrase: middle entry
+            targets:
+              - returned-array
+            linger: 0.45
+      - say: The caller must keep the returned array or tree. Computing an indexed update and discarding its result
+          leaves the old binding unchanged. Compiled execution can reuse buffers while preserving this value
+          contract. If you donate an input buffer explicitly, follow the separate rule that the donated input
+          must no longer be used.
+        hold: 0.8
+        visual_cues:
+          - id: values-b2-1
+            phrase: keep the returned array or tree
+            targets:
+              - returned-array
+            linger: 0.45
+  - id: indexing-bounds
+    title: What does index nine reach?
+    visual: Compare the middle entry in the original and returned arrays. Try an out-of-range set and get against the same original three entries.
+    beats:
+      - say: The middle entry is twenty in the original array and ninety-nine in the array returned by the indexed update. Direct assignment to the original raises a TypeError. Now try index nine on the original. It has just three entries. What happens if we write there? What if we read there?
+        hold: 1.8
+        caption_starts:
+          - Now try index nine
+        visual_cues:
+          - id: jx-indexing-bounds-b0
+            phrase: The middle entry is twenty
+            targets: [jx-indexing-bounds-mechanism]
+      - say: With the default indexing mode, JAX drops the out-of-range write. The returned array still reads ten, twenty, thirty. The read clips the index to the last entry and returns thirty. If an invalid index means your data is wrong, check it before either operation.
+        hold: 0.9
+        caption_starts:
+          - JAX drops the out-of-range write
+          - The read clips the index
+          - and returns thirty
+        visual_cues:
+          - id: jx-indexing-bounds-b1
+            phrase: With the default indexing mode
+            targets: [jx-indexing-bounds-mechanism]
+          - id: index-drop
+            phrase: JAX drops the out-of-range write
+            targets: [jx-indexing-bounds-mechanism]
+          - id: index-clip
+            phrase: and returns thirty
+            targets: [jx-indexing-bounds-mechanism]
+  - id: keys
+    title: Two matching dropout decisions
+    visual: Keep the two False outputs pinned. Expose their key identities, then rewire only the second draw to the
+      other child of the same seed-seven Threefry split. Its new one-bit output is also False.
+    beats:
+      - say: Two calls each draw a single dropout bit, with a fifty percent chance of keeping it. Both say false. From
+          those two bits alone, can you tell whether the programmer reused a key?
+        hold: 2.2
+        caption_starts:
+          - From those two bits alone
+        visual_cues:
+          - id: keys-question
+            phrase: From those two bits alone
+            targets:
+              - key-outputs
+            linger: 0.12
+      - say: Follow the two inputs back. Both calls received child zero from the same split. Sampling leaves the key
+          unchanged. The same key, operation and arguments reproduce the bit exactly.
+        hold: 0.9
+        caption_starts:
+          - Both calls received child zero
+        visual_cues:
+          - id: keys-open
+            phrase: Follow the two inputs back
+            targets:
+              - key-routes
+            linger: 0.12
+      - say: Keep the first call fixed. Give the second call child one. Its key words have changed. Does the bit have to
+          change too?
+        hold: 2
+        visual_cues:
+          - id: keys-fork
+            phrase: Give the second call child one
+            targets:
+              - key-routes
+            linger: 0.12
+      - say: False again. This time separate keys happened to give the same bit. Inspect which child each call received.
+          When the next training step also needs randomness, reserve a continuation child and return it with the
+          optimizer state.
+        hold: 0.9
+        visual_cues:
+          - id: keys-second-mask
+            phrase: False again
+            targets:
+              - key-outputs
+            linger: 0.12
+            caption_boundary: true
+  - id: key-replay
+    title: Preserve key derivation as well as the seed
+    visual: Follow seed 7 through a Threefry split and replay a normal draw with the same key. Compare three scalar draws with one vector draw, then count the ways two independent bits can agree.
+    beats:
+      - say: Typed keys carry their implementation in the dtype. Our pinned Threefry key is a scalar key-fry value
+          wrapping two unsigned thirty-two-bit words. Legacy keys do not carry that implementation tag.
+          Checkpoint conversion must retain the implementation together with raw key data; other
+          implementations can use another layout.
+        hold: 0.75
+        visual_cues:
+          - id: jx-key-replay-b0
+            phrase: Typed keys carry their implementation in the dtype. Our pinned Threefry key is a scalar key-fry value
+              wrapping two unsigned thirty-two-bit words. Legacy keys do not carry that implementation tag.
+              Checkpoint conversion must retain the implementation together with raw key data; other
+              implementations can use another layout.
+            targets:
+              - jx-key-replay-mechanism
+            color: cyan
+            linger: 0.35
+          - id: key-words
+            phrase: two unsigned thirty-two-bit words
+            targets:
+              - jx-key-replay-mechanism
+            color: cyan
+            linger: 0.35
+      - say: The seed-seven fixture splits three children, retains one and uses two for normal samples. Reusing A
+          repeats its four values. A separate comparison draws three scalars from split keys versus one vector
+          from the parent. Their shown sequences differ. JAX does not promise sequential equivalence across
+          those two derivations, so preserving only the seed cannot preserve an altered sampler.
+        hold: 0.75
+        visual_cues:
+          - id: jx-key-replay-b1
+            phrase: The seed-seven fixture splits three children, retains one and uses two for normal samples. Reusing A
+              repeats its four values. A separate comparison draws three scalars from split keys versus one
+              vector from the parent. Their shown sequences differ. JAX does not promise sequential
+              equivalence across those two derivations, so preserving only the seed cannot preserve an altered
+              sampler.
+            targets:
+              - jx-key-replay-mechanism
+            color: cyan
+            linger: 0.35
+          - id: key-repeat
+            phrase: Reusing A repeats its four values
+            targets:
+              - jx-key-replay-mechanism
+            color: cyan
+            linger: 0.35
+          - id: key-sequences
+            phrase: Their shown sequences differ
+            targets:
+              - jx-key-replay-mechanism
+            color: cyan
+            linger: 0.35
+      - say: Think back to those two False bits from different keys. Each column is one possible pair of independent fair draws. Count the matching columns. Both false is a match, and so is both true. Each of those pairs has probability one quarter. Together they give one half. For a keep probability p, add p squared for two keeps and the square of one minus p for two drops.
+        hold: 1.2
+        visual_cues:
+          - id: jx-key-replay-b2
+            phrase: Each column is one possible pair of independent fair draws
+            targets: [jx-key-replay-mechanism]
+          - id: key-equal
+            phrase: Both false is a match, and so is both true
+            targets: [jx-key-replay-mechanism]
+            caption_boundary: true
+          - id: key-agreement
+            phrase: Together they give one half
+            targets: [jx-key-replay-mechanism]
+            caption_boundary: true
+  - id: key-ownership
+    title: Give each random operation an owned input
+    visual: Give dropout and augmentation different children of one step key. Compare that assignment with two helpers splitting the same parent. Show how global replica identities distinguish two local device zeros.
+    beats:
+      - say: If dropout and augmentation need independent randomness, split at the boundary that owns both operations.
+          Passing the same parent to two helpers that each split it independently can duplicate their child
+          sequence. Retain a continuation child for the next step, and consume each operation child once
+          unless deliberate replay is the experiment.
+        hold: 0.75
+        visual_cues:
+          - id: jx-key-ownership-b0
+            phrase: If dropout and augmentation need independent randomness, split at the boundary that owns both
+              operations. Passing the same parent to two helpers that each split it independently can
+              duplicate their child sequence. Retain a continuation child for the next step, and consume each
+              operation child once unless deliberate replay is the experiment.
+            targets:
+              - jx-key-ownership-mechanism
+            color: cyan
+            linger: 0.35
+          - id: key-duplicate
+            phrase: can duplicate their child sequence
+            targets:
+              - jx-key-ownership-mechanism
+            color: cyan
+            linger: 0.35
+          - id: key-continue
+            phrase: Retain a continuation child for the next step
+            targets:
+              - jx-key-ownership-mechanism
+            color: cyan
+            linger: 0.35
+      - say: "Fold-in combines an integer identity with a key. Stable globally unique replica and step identities can
+          define a reproducible mapping; local device indices alone can repeat across processes. Alternative
+          random implementations also need validation: current experimental R B G batching can generate a
+          mapped batch from its first key. The experimental stateful Ref-backed wrapper has separate
+          transformation limits. We keep explicit keys throughout these executed fixtures."
+        hold: 0.75
+        visual_cues:
+          - id: jx-key-ownership-b1
+            phrase: "Fold-in combines an integer identity with a key. Stable globally unique replica and step identities
+              can define a reproducible mapping; local device indices alone can repeat across processes.
+              Alternative random implementations also need validation: current experimental R B G batching can
+              generate a mapped batch from its first key. The experimental stateful Ref-backed wrapper has
+              separate transformation limits. We keep explicit keys throughout these executed fixtures."
+            targets:
+              - jx-key-ownership-mechanism
+            color: cyan
+            linger: 0.35
+          - id: key-global
+            phrase: Stable globally unique replica and step identities
+            targets:
+              - jx-key-ownership-mechanism
+            color: cyan
+            linger: 0.35
+  - id: state
+    title: A training step returns the next state explicitly
+    visual: Parameter, momentum and key packets enter a central numerical transition and return as new packets. A
+      chronological computed SGD loss trace accompanies subsequent updates.
+    beats:
+      - say: A pure numerical boundary makes changing state visible in its arguments and returns. Parameters,
+          optimizer state, and a key enter the step with a read-only batch. Differentiation produces
+          gradients, the optimizer produces an update, and the caller keeps every returned piece needed for
+          the next call.
+        hold: 0.8
+        visual_cues:
+          - id: state-b1-1
+            phrase: Parameters, optimizer state, and a key enter the step
+            targets:
+              - initial-state
+            linger: 0.45
+          - id: state-b1-2
+            phrase: caller keeps every returned piece
+            targets:
+              - returned-state
+            linger: 0.45
+      - say: The regression trace now applies the actual gradient-descent recurrence to our four rows. Its loss is
+          recomputed after each displayed update. Adam would add moment arrays and a step counter. Stateful
+          layers may add statistics too. Preserve these named values when modifying or resuming an existing
+          research program.
+        hold: 0.8
+        motion_check:
+          region:
+            - 230
+            - 330
+            - 1150
+            - 500
+          minimumChangedFraction: 0.002
+        visual_cues:
+          - id: state-b2-1
+            phrase: actual gradient-descent recurrence
+            targets:
+              - current-state
+            linger: 0.45
+          - id: state-b2-2
+            phrase: loss is recomputed after each displayed update
+            targets:
+              - fresh-loss
+            linger: 0.45
+  - id: state-replay
+    title: Carry the actual momentum and key into the next call
+    visual: Apply the four-by-two dropout mask to the original features and divide the kept values by 0.75. Follow the first weight, its velocity, and the continuation key into the next call.
+    beats:
+      - say: Add the article’s actual momentum and input-dropout state to the same regression. Keep a feature with
+          probability point seven five and divide kept values by point seven five. The executed first mask
+          keeps both features in the middle two rows and none in the fourth. The first row keeps its first
+          feature. At zero parameters, pre-update loss is still three point seven five.
+        hold: 0.75
+        visual_cues:
+          - id: jx-state-replay-b0
+            phrase: Add the article’s actual momentum and input-dropout state to the same regression. Keep a feature with
+              probability point seven five and divide kept values by point seven five. The executed first mask
+              keeps both features in the middle two rows and none in the fourth. The first row keeps its first
+              feature. At zero parameters, pre-update loss is still three point seven five.
+            targets:
+              - jx-state-replay-mechanism
+            color: cyan
+            linger: 0.35
+          - id: state-mask
+            phrase: The executed first mask keeps both features in the middle two rows and none in the fourth
+            targets:
+              - jx-state-replay-mechanism
+            color: cyan
+            linger: 0.35
+          - id: state-pre-loss
+            phrase: pre-update loss is still three point seven five
+            targets:
+              - jx-state-replay-mechanism
+            color: cyan
+            linger: 0.35
+      - say: The masked gradients are weight minus two and zero, bias minus two point five. Velocity starts at zero;
+          new velocity equals point nine times old velocity plus gradient. Subtract point zero five times that
+          velocity, returning weight point one and zero, with bias point one two five. This stochastic fixture
+          differs from the earlier unmasked S G D update.
+        hold: 0.75
+        visual_cues:
+          - id: jx-state-replay-b1
+            phrase: The masked gradients are weight minus two and zero, bias minus two point five. Velocity starts at
+              zero; new velocity equals point nine times old velocity plus gradient. Subtract point zero five
+              times that velocity, returning weight point one and zero, with bias point one two five. This
+              stochastic fixture differs from the earlier unmasked S G D update.
+            targets:
+              - jx-state-replay-mechanism
+            color: cyan
+            linger: 0.35
+          - id: state-masked-gradient
+            phrase: weight minus two and zero, bias minus two point five
+            targets:
+              - jx-state-replay-mechanism
+            color: cyan
+            linger: 0.35
+          - id: state-momentum
+            phrase: new velocity equals point nine times old velocity plus gradient
+            targets:
+              - jx-state-replay-mechanism
+            color: cyan
+            linger: 0.35
+          - id: state-masked-update
+            phrase: returning weight point one and zero, with bias point one two five
+            targets:
+              - jx-state-replay-mechanism
+            color: cyan
+            linger: 0.35
+      - say: Replaying the identical old parameters, velocity and key reproduces the result. The real next step
+          instead consumes the returned parameters, velocity and continuation key. Its key identity advances
+          even if a small mask happens to coincide. Resume also needs the data position. A returned loss
+          belongs to the pre-update parameters; recompute loss at the final returned state before reporting
+          final fit.
+        hold: 0.75
+        visual_cues:
+          - id: jx-state-replay-b2
+            phrase: Replaying the identical old parameters, velocity and key reproduces the result. The real next step
+              instead consumes the returned parameters, velocity and continuation key. Its key identity
+              advances even if a small mask happens to coincide. Resume also needs the data position. A
+              returned loss belongs to the pre-update parameters; recompute loss at the final returned state
+              before reporting final fit.
+            targets:
+              - jx-state-replay-mechanism
+            color: cyan
+            linger: 0.35
+          - id: state-replayed
+            phrase: Replaying the identical old parameters, velocity and key reproduces the result
+            targets:
+              - jx-state-replay-mechanism
+            color: cyan
+            linger: 0.35
+          - id: state-next
+            phrase: real next step instead consumes the returned parameters, velocity and continuation key
+            targets:
+              - jx-state-replay-mechanism
+            color: cyan
+            linger: 0.35
+  - id: jit
+    title: The short batch reaches the compiler
+    visual: Hold the four slot locations fixed. A full input uses a four-row executable. The last two real examples
+      disappear, then finite padding returns in their slots with the validity bits off.
+    beats:
+      - say: JAX can reuse the compiled step as the numbers in this full batch change. The callable stays the same, and
+          its input has four rows of two features with the same type. We call this just-in-time compilation, or
+          JIT. Create the compiled callable once, outside the training loop.
+        hold: 0.7
+        visual_cues:
+          - id: jit-full
+            phrase: four rows of two features
+            targets:
+              - batch-rows
+            linger: 0.12
+      - say: At the end of the epoch, only the first two rows arrive. The shorter array needs a compatible executable.
+          Check the compilation log to see whether JAX actually built one or reused a cached version.
+        hold: 0.7
+        visual_cues:
+          - id: jit-short
+            phrase: only the first two rows arrive
+            targets:
+              - batch-rows
+            linger: 0.12
+      - say: Pad back to four rows. Keep the two valid bits beside the errors. The executable can accept the familiar
+          shape, and the bracket still counts the same two examples. Now check whether the padding repair also
+          preserves the update.
+        hold: 0.8
+        visual_cues:
+          - id: jit-pad
+            phrase: Pad back to four rows
+            targets:
+              - batch-rows
+            linger: 0.12
+  - id: masked-padding
+    title: Does the padded batch send the same update?
+    visual: Compare four real rows against the same rows plus two padding slots. The validity bracket changes the
+      mean and the first-weight derivative. With every bit off, a momentum update and a skipped step have
+      different outcomes.
+    beats:
+      - say: This time keep all four real examples and append two zeros. We already know their total squared error is
+          fifteen. The reference gradient for the first weight is minus four point five. A mean over the six slots
+          gives a loss of two point five. It also divides every real row's gradient by six.
+        hold: 0.6
+        visual_cues:
+          - id: padding-naive
+            phrase: a loss of two point five
+            targets:
+              - batch-calculation
+            linger: 0.12
+            caption_boundary: true
+      - say: Mask the padding in the sum and count the four valid rows. The loss comes back to three point seven five.
+          Now compare the first weight. Counting all six gave minus three. Masking restores minus four point five.
+          Both weight entries and the bias gradient agree with the unpadded run.
+        hold: 1
+        visual_cues:
+          - id: padding-mask
+            phrase: Mask the padding in the sum
+            targets:
+              - batch-rows
+            linger: 0.12
+          - id: padding-restored
+            phrase: comes back to three point seven five
+            targets:
+              - batch-calculation
+            linger: 0.12
+            caption_boundary: true
+          - id: padding-compare
+            phrase: Now compare the first weight
+            targets:
+              - batch-calculation
+            linger: 0.12
+          - id: padding-short-gradient
+            phrase: Counting all six gave minus three
+            targets:
+              - batch-calculation
+            linger: 0.12
+            caption_boundary: true
+          - id: padding-gradient
+            phrase: Masking restores minus four point five
+            targets:
+              - batch-calculation
+            linger: 0.12
+            caption_boundary: true
+      - say: Turn off every validity bit. With finite inputs, the masked sum is zero. Clamping the divisor to at least
+          one gives zero loss and zero new gradient. Bring back the first weight from the momentum step. It was
+          point one, with velocity minus two. If the optimizer takes an empty step, where does that weight go?
+        hold: 2
+        visual_cues:
+          - id: padding-zero
+            phrase: zero loss and zero new gradient
+            targets:
+              - empty-mask
+            linger: 0.12
+            caption_boundary: true
+      - say: The old velocity still contributes ninety percent. Subtracting the new velocity times the learning rate
+          moves the weight to point one nine. Skipping the step keeps it at point one. Choose the empty-batch
+          policy explicitly. Weight decay can move parameters too. Models that share statistics across rows also
+          need to mask those statistics.
+        hold: 0.9
+        visual_cues:
+          - id: padding-momentum
+            phrase: moves the weight to point one nine
+            targets:
+              - empty-step
+            linger: 0.12
+            caption_boundary: true
+  - id: compile-stages
+    title: Distinguish tracing, lowering and executable reuse
+    visual: Follow one numerical operation from Python through Jaxpr and lowering to a compiled executable. A compatible call can use the existing executable.
+    beats:
+      - say: Tracing executes the Python function with abstract array properties and records compatible numerical
+          primitives in a Jaxpr. Lowering converts the staged computation to a compiler representation such as
+          Stable H L O. Compilation then builds an executable for the selected backend. A cached compatible
+          call need not repeat the Python trace.
+        hold: 0.75
+        visual_cues:
+          - id: jx-compile-stages-b0
+            phrase: Tracing executes the Python function with abstract array properties and records compatible numerical
+              primitives in a Jaxpr. Lowering converts the staged computation to a compiler representation
+              such as Stable H L O. Compilation then builds an executable for the selected backend. A cached
+              compatible call need not repeat the Python trace.
+            targets:
+              - jx-compile-stages-mechanism
+            color: cyan
+            linger: 0.35
+          - id: compile-jaxpr
+            phrase: records compatible numerical primitives in a Jaxpr
+            targets:
+              - jx-compile-stages-mechanism
+            color: cyan
+            linger: 0.35
+          - id: compile-lowered
+            phrase: a compiler representation such as Stable H L O
+            targets:
+              - jx-compile-stages-mechanism
+            color: cyan
+            linger: 0.35
+          - id: compile-executable
+            phrase: builds an executable for the selected backend
+            targets:
+              - jx-compile-stages-mechanism
+            color: cyan
+            linger: 0.35
+      - say: Callable identity, tree structure, shapes, dtypes, scalar weak typing, static settings and placement can
+          affect variants. Keep the callable stable outside the hot loop and inspect compile logs when a short
+          batch pauses. A new contract may already have a cached executable. File reads, list growth and
+          arbitrary Python branches do not become repeatable device work simply by adding jit.
+        hold: 0.75
+        visual_cues:
+          - id: jx-compile-stages-b1
+            phrase: Callable identity, tree structure, shapes, dtypes, scalar weak typing, static settings and placement
+              can affect variants. Keep the callable stable outside the hot loop and inspect compile logs when
+              a short batch pauses. A new contract may already have a cached executable. File reads, list
+              growth and arbitrary Python branches do not become repeatable device work simply by adding jit.
+            targets:
+              - jx-compile-stages-mechanism
+            color: cyan
+            linger: 0.35
+  - id: captured-global
+    title: Make a changed coefficient part of the call
+    visual: Four ones at scale one give four. Editing the global keeps that result on a cached call. Two ones at the new scale give six. Compare the original shape with an explicit scale argument.
+    beats:
+      - say: The article’s same jitted callable sums four float-thirty-two ones and multiplies by Python global scale
+          one. The first trace captures that coefficient and returns four. Now change the global to three and
+          repeat the same-shaped call. It still returns four because the cached computation contains its
+          earlier coefficient.
+        hold: 0.75
+        visual_cues:
+          - id: jx-captured-global-b0
+            phrase: The article’s same jitted callable sums four float-thirty-two ones and multiplies by Python global
+              scale one. The first trace captures that coefficient and returns four. Now change the global to
+              three and repeat the same-shaped call. It still returns four because the cached computation
+              contains its earlier coefficient.
+            targets:
+              - jx-captured-global-mechanism
+            color: cyan
+            linger: 0.35
+          - id: global-four
+            phrase: first trace captures that coefficient and returns four
+            targets:
+              - jx-captured-global-mechanism
+            color: cyan
+            linger: 0.35
+          - id: global-stale
+            phrase: It still returns four
+            targets:
+              - jx-captured-global-mechanism
+            color: cyan
+            linger: 0.35
+      - say: Two ones introduce shape two, causing this controlled fixture to trace again and capture scale three.
+          That returns six. The diagnostic Python list records shapes four and two, not one event per device
+          execution. Python print has the same boundary; use returned metrics or a deliberate JAX debug
+          operation for runtime values.
+        hold: 0.75
+        visual_cues:
+          - id: jx-captured-global-b1
+            phrase: Two ones introduce shape two, causing this controlled fixture to trace again and capture scale three.
+              That returns six. The diagnostic Python list records shapes four and two, not one event per
+              device execution. Python print has the same boundary; use returned metrics or a deliberate JAX
+              debug operation for runtime values.
+            targets:
+              - jx-captured-global-mechanism
+            color: cyan
+            linger: 0.35
+          - id: global-six
+            phrase: That returns six
+            targets:
+              - jx-captured-global-mechanism
+            color: cyan
+            linger: 0.35
+      - say: Pass the changing scale as an explicit scalar-array input. Four ones and scale three now return twelve.
+          With compatible dtype, weak typing, shape and static settings, a later array value can flow through
+          the same executable. This fixes the numerical input contract rather than forcing a recompilation on
+          every call.
+        hold: 0.75
+        visual_cues:
+          - id: jx-captured-global-b2
+            phrase: Pass the changing scale as an explicit scalar-array input. Four ones and scale three now return
+              twelve. With compatible dtype, weak typing, shape and static settings, a later array value can
+              flow through the same executable. This fixes the numerical input contract rather than forcing a
+              recompilation on every call.
+            targets:
+              - jx-captured-global-mechanism
+            color: cyan
+            linger: 0.35
+          - id: global-twelve
+            phrase: Four ones and scale three now return twelve
+            targets:
+              - jx-captured-global-mechanism
+            color: cyan
+            linger: 0.35
+  - id: weak-typing
+    title: Which trace can JAX reuse?
+    visual: A compiled plus-one function receives a Python float and two explicit float32 scalars. Compare the weak-type flag on each call and match the third input to its trace.
+    beats:
+      - say: This function adds one. Pass a Python float, then pass the same number as an explicit float32 scalar. Both calls turn one into two. Look at the flag JAX recorded. The Python float is weakly typed. The explicit scalar has that flag switched off. Now pass an explicit float32 two. Which trace can JAX reuse?
+        hold: 2
+        caption_starts:
+          - Look at the flag
+          - Now pass an explicit
+        visual_cues:
+          - id: weak-first
+            phrase: Pass a Python float
+            targets: [weak-calls]
+          - id: weak-second
+            phrase: then pass the same number
+            targets: [weak-calls]
+          - id: weak-results
+            phrase: Both calls turn one into two
+            targets: [weak-calls]
+          - id: weak-third
+            phrase: Now pass an explicit float32 two
+            targets: [weak-calls]
+      - say: Trace B. Both explicit scalars have the same shape, dtype and weak-type flag. The new value travels through the same addition and comes out as three. If a hot loop keeps switching between a Python float and a typed array, pass the scalar the same way each time.
+        hold: 0.9
+        caption_starts:
+          - Both explicit scalars
+          - and comes out as three
+        visual_cues:
+          - id: weak-reuse
+            phrase: Trace B
+            targets: [weak-calls]
+          - id: weak-output
+            phrase: comes out as three
+            targets: [weak-calls]
+  - id: fresh-boundary
+    title: Two calls after editing a setting
+    visual: A warm length-three call and a fresh length-five call receive ones and share the new Python setting.
+      Keep the given first result while the two pending outputs wait, then supply the scale as a scalar argument.
+    beats:
+      - say: A fresh compiled function sums its input and multiplies by a Python global. Three ones at scale two give
+          six. Change the global to four. Call the same function on three ones again, then on five ones for the
+          first time. What will each call return?
+        hold: 2.6
+        visual_cues:
+          - id: jx-fresh-boundary-b0
+            phrase: A fresh compiled function sums its input
+            targets:
+              - jx-fresh-boundary-mechanism
+            linger: 0.12
+          - id: fresh-given
+            phrase: Three ones at scale two give six
+            targets:
+              - jx-fresh-boundary-mechanism
+            linger: 0.12
+            caption_boundary: true
+          - id: fresh-change
+            phrase: Change the global to four
+            targets:
+              - jx-fresh-boundary-mechanism
+            linger: 0.12
+      - say: The length-three executable already contains a two. Three times two still gives six. Five ones require a
+          new trace in this case. That trace sees four, so five times four gives twenty. Each executable used the
+          coefficient Python supplied when JAX traced that shape.
+        hold: 0.95
+        visual_cues:
+          - id: jx-fresh-boundary-b1
+            phrase: already contains a two
+            targets:
+              - jx-fresh-boundary-mechanism
+            linger: 0.12
+          - id: fresh-repeat
+            phrase: Three times two still gives six
+            targets:
+              - jx-fresh-boundary-mechanism
+            linger: 0.12
+            caption_boundary: true
+          - id: fresh-newshape
+            phrase: five times four gives twenty
+            targets:
+              - jx-fresh-boundary-mechanism
+            linger: 0.12
+            caption_boundary: true
+      - say: Pass the coefficient as a float scalar array. Go back to the original three ones and supply four at the
+          call site. The repaired call returns twelve. You can now vary that coefficient with the batch shape held
+          fixed.
+        hold: 0.95
+        visual_cues:
+          - id: jx-fresh-boundary-b2
+            phrase: Pass the coefficient as a float scalar array
+            targets:
+              - jx-fresh-boundary-mechanism
+            linger: 0.12
+          - id: fresh-explicit
+            phrase: The repaired call returns twelve
+            targets:
+              - jx-fresh-boundary-mechanism
+            linger: 0.12
+            caption_boundary: true
+  - id: tracer-branch
+    title: Choose control flow from the predicate’s meaning
+    visual: A Python conditional requires a concrete value during tracing. Run the repaired absolute-value calculation on both sides of zero, then distinguish a static mode from per-example data.
+    beats:
+      - say: A traced array is not generally a concrete Python Boolean or integer. The actual absolute-value helper
+          uses a Python if on value greater than zero; jit raises TracerBoolConversionError. Shape and dtype
+          may be known while that runtime value is not. Decide whether a predicate describes data or a genuine
+          configuration choice.
+        hold: 0.75
+        visual_cues:
+          - id: jx-tracer-branch-b0
+            phrase: A traced array is not generally a concrete Python Boolean or integer. The actual absolute-value helper
+              uses a Python if on value greater than zero; jit raises TracerBoolConversionError. Shape and
+              dtype may be known while that runtime value is not. Decide whether a predicate describes data or
+              a genuine configuration choice.
+            targets:
+              - jx-tracer-branch-mechanism
+            color: cyan
+            linger: 0.35
+          - id: tracer-error
+            phrase: jit raises TracerBoolConversionError
+            targets:
+              - jx-tracer-branch-mechanism
+            color: cyan
+            linger: 0.35
+      - say: Elementwise selection belongs to where. Choosing between two scalar-condition functions can use lax-cond.
+          Both cond branches are traced; execution selects one branch subject to compiler rewrites, and
+          mapping across predicates can turn it into selection. The repaired absolute-value fixture returns
+          two for minus two and three for plus three.
+        hold: 0.75
+        visual_cues:
+          - id: jx-tracer-branch-b1
+            phrase: Elementwise selection belongs to where. Choosing between two scalar-condition functions can use
+              lax-cond. Both cond branches are traced; execution selects one branch subject to compiler
+              rewrites, and mapping across predicates can turn it into selection. The repaired absolute-value
+              fixture returns two for minus two and three for plus three.
+            targets:
+              - jx-tracer-branch-mechanism
+            color: cyan
+            linger: 0.35
+          - id: tracer-fixed
+            phrase: returns two for minus two and three for plus three
+            targets:
+              - jx-tracer-branch-mechanism
+            color: cyan
+            linger: 0.35
+      - say: A small fixed activation mode may be static and create a bounded set of variants. Per-example masks
+          normally remain array data. Returning a metric and doing host I O outside jit preserves the
+          numerical boundary. Neither eager success nor compilability alone establishes a valid gradient
+          through every operation.
+        hold: 0.75
+        visual_cues:
+          - id: jx-tracer-branch-b2
+            phrase: A small fixed activation mode may be static and create a bounded set of variants. Per-example masks
+              normally remain array data. Returning a metric and doing host I O outside jit preserves the
+              numerical boundary. Neither eager success nor compilability alone establishes a valid gradient
+              through every operation.
+            targets:
+              - jx-tracer-branch-mechanism
+            color: cyan
+            linger: 0.35
+  - id: inactive-log
+    title: What reaches the logarithm?
+    visual: Two rows run through the same logarithm. At zero, the outer selection hides log zero on the forward
+      pass. Move the guard inside the logarithm and compare the derivative at both zero and two.
+    beats:
+      - say: A padding row can expose a different bug before the mean. This function takes a logarithm on positive
+          inputs and returns zero elsewhere. Put zero in the first row. The outer selection returns zero. But the
+          logarithm still saw zero. Differentiate that same call and the gradient comes back as not a number.
+        hold: 1
+        visual_cues:
+          - id: log-forward
+            phrase: The outer selection returns zero
+            targets:
+              - log-rows
+            linger: 0.12
+            caption_boundary: true
+          - id: log-nan
+            phrase: the gradient comes back as not a number
+            targets:
+              - log-rows
+            linger: 0.12
+            caption_boundary: true
+      - say: Move the guard to the argument of the logarithm. Feed it one when the row is inactive. The outer selection
+          still gives the intended zero output, and now the gradient there is zero. Check the positive row too. At
+          two we still get the natural log of two and a slope of one half. Both sides of the function matter when
+          you repair a mask.
+        hold: 0.9
+        visual_cues:
+          - id: log-safe-input
+            phrase: Feed it one when the row is inactive
+            targets:
+              - log-input
+            linger: 0.12
+          - id: log-safe-gradient
+            phrase: the gradient there is zero
+            targets:
+              - log-rows
+            linger: 0.12
+            caption_boundary: true
+  - id: loop-contract
+    title: When should the doubling stop?
+    visual: Run a threshold loop and a fixed three-step scan on aligned iteration columns. They reach the same eight
+      from one, then separate on a new starting value.
+    beats:
+      - say: Both rows double the number they receive. The upper loop checks whether its current value is below eight.
+          The lower loop takes exactly three steps. Start at one. We pass through two, then four, then eight. The
+          programs agree here. Keep the shape and dtype of the carried value fixed on each iteration.
+        hold: 0.7
+        visual_cues:
+          - id: loop-eight
+            phrase: two, then four, then eight
+            targets:
+              - loop-traces
+            linger: 0.12
+      - say: JAX can compile the upper while loop, but ordinary reverse-mode differentiation through that dynamic loop
+          is unsupported. The lower loop uses a fixed-length scan. Its derivative is two times two times two, or
+          eight. Now change the starting value to three. Where does each row stop?
+        hold: 2.3
+        visual_cues:
+          - id: scan-derivative
+            phrase: two times two times two, or eight
+            targets:
+              - loop-derivative
+            linger: 0.12
+            caption_boundary: true
+          - id: loop-input-three
+            phrase: change the starting value to three
+            targets:
+              - loop-traces
+            linger: 0.12
+      - say: The upper loop reaches six, doubles again to twelve, and stops. The fixed scan has one step left and
+          reaches twenty-four. Use a scan when the experiment requires that fixed number of steps. If the stopping
+          condition is part of the model, preserve it and choose a differentiation strategy that supports it.
+        hold: 0.95
+        visual_cues:
+          - id: loop-twelve
+            phrase: doubles again to twelve, and stops
+            targets:
+              - loop-traces
+            linger: 0.12
+            caption_boundary: true
+          - id: scan-twenty-four
+            phrase: reaches twenty-four
+            targets:
+              - loop-traces
+            linger: 0.12
+            caption_boundary: true
+  - id: device-layout
+    title: Where do the two halves of a dot product meet?
+    visual: Two devices each hold a pair of entries from both vectors. Each computes a partial dot product. Follow the two subtotals into a single sum.
+    beats:
+      - say: Suppose two devices share a pair of four-element vectors. Each device holds two entries from each vector. A mesh gives this group of devices an axis name. The partition specification ties the vector axis to that name. Vmap works on an array axis and can use arrays that are already split this way.
+        hold: 0.75
+        caption_starts:
+          - A mesh gives
+        visual_cues:
+          - id: shard-layout
+            phrase: Each device holds two entries from each vector
+            targets: [shard-left, shard-right]
+      - say: On the first device, multiply one by five and two by six. Add those products and you get seventeen. On the second device, three times seven plus four times eight gives fifty-three. Both devices have finished their local work. How do we get the dot product?
+        hold: 1.8
+        caption_starts:
+          - Add those products
+          - On the second device
+          - Both devices have finished
+        visual_cues:
+          - id: shard-first-pairs
+            phrase: multiply one by five and two by six
+            targets: [shard-left]
+          - id: shard-seventeen
+            phrase: you get seventeen
+            targets: [shard-left]
+          - id: shard-second-pairs
+            phrase: three times seven plus four times eight
+            targets: [shard-right]
+          - id: shard-fifty-three
+            phrase: gives fifty-three
+            targets: [shard-right]
+      - say: Add the two partial sums. Seventeen plus fifty-three gives seventy. Splitting the axis we sum over means the devices have to combine their results. If we only multiply matching entries and keep each product, the work can stay local. In new per-shard JAX code, shard map lets you write that local calculation and request the collective sum. When moving older pmap code, check each shard's shape, device and random key, then compare outputs and time the completed call.
+        hold: 0.9
+        caption_starts:
+          - Seventeen plus fifty-three
+          - gives seventy
+          - If we only multiply
+          - In new per-shard JAX code
+          - When moving older pmap code
+        visual_cues:
+          - id: shard-combine
+            phrase: Add the two partial sums
+            targets: [shard-total]
+          - id: shard-seventy
+            phrase: gives seventy
+            targets: [shard-total]
+          - id: shard-map
+            phrase: shard map lets you write that local calculation
+            targets: [shard-total]
+  - id: regularizer
+    title: Isolate the new term before measuring convergence
+    visual: Add a penalty only to the two weights. Evaluate it at the exact unregularized solution, then plot the plain and regularized training objectives over 80 updates.
+    beats:
+      - say: "Preserve the regression oracle while adding the article’s weight-only regularizer: point one times the
+          sum of squared weights. At zero weights its loss and gradient are zero. At weights two and minus
+          one, the penalty is point five and its weight gradient is point four and minus point two. The bias
+          gradient stays zero."
+        hold: 0.75
+        visual_cues:
+          - id: jx-regularizer-b0
+            phrase: "Preserve the regression oracle while adding the article’s weight-only regularizer: point one times
+              the sum of squared weights. At zero weights its loss and gradient are zero. At weights two and
+              minus one, the penalty is point five and its weight gradient is point four and minus point two.
+              The bias gradient stays zero."
+            targets:
+              - jx-regularizer-mechanism
+            color: cyan
+            linger: 0.35
+          - id: penalty-half
+            phrase: the penalty is point five
+            targets:
+              - jx-regularizer-mechanism
+            color: cyan
+            linger: 0.35
+          - id: penalty-gradient
+            phrase: weight gradient is point four and minus point two
+            targets:
+              - jx-regularizer-mechanism
+            color: cyan
+            linger: 0.35
+      - say: The actual eager and jitted penalty checks agree. Train the changed objective for eighty steps from zero
+          and it reaches about point three nine nine five nine five. The earlier plain S G D fixture reaches
+          unregularized mean squared error about point zero zero seven six zero five. Those numbers measure
+          different objectives; regularization need not improve the unregularized fit.
+        hold: 0.75
+        visual_cues:
+          - id: jx-regularizer-b1
+            phrase: The actual eager and jitted penalty checks agree. Train the changed objective for eighty steps from
+              zero and it reaches about point three nine nine five nine five. The earlier plain S G D fixture
+              reaches unregularized mean squared error about point zero zero seven six zero five. Those
+              numbers measure different objectives; regularization need not improve the unregularized fit.
+            targets:
+              - jx-regularizer-mechanism
+            color: cyan
+            linger: 0.35
+          - id: regularized-final
+            phrase: about point three nine nine five nine five
+            targets:
+              - jx-regularizer-mechanism
+            color: cyan
+            linger: 0.35
+          - id: unregularized-final
+            phrase: about point zero zero seven six zero five
+            targets:
+              - jx-regularizer-mechanism
+            color: cyan
+            linger: 0.35
+      - say: For a new coefficient lambda, the weight penalty is lambda times the squared-weight sum and its
+          derivative is twice lambda times each weight. Check the term’s known values and a finite-difference
+          approximation with a dtype-appropriate step. Then compare gradient paths, shapes and finiteness
+          before interpreting a changed learning curve.
+        hold: 0.75
+        visual_cues:
+          - id: jx-regularizer-b2
+            phrase: For a new coefficient lambda, the weight penalty is lambda times the squared-weight sum and its
+              derivative is twice lambda times each weight. Check the term’s known values and a
+              finite-difference approximation with a dtype-appropriate step. Then compare gradient paths,
+              shapes and finiteness before interpreting a changed learning curve.
+            targets:
+              - jx-regularizer-mechanism
+            color: cyan
+            linger: 0.35
+  - id: timing
+    title: When can we stop the warm-call timer?
+    visual: The host returns at one millisecond on a supplied warm trace. A second clock runs from the same start
+      until the result leaves are ready at twelve milliseconds.
+    beats:
+      - say: Suppose the inputs are already on the accelerator and the compiled call is warm. Both clocks start when
+          Python issues the call. In this example Python gets a result handle after one millisecond. The device
+          still has work to do. Which event should stop the timer for completed work?
+        hold: 2
+        visual_cues:
+          - id: timer-return
+            phrase: Python gets a result handle after one millisecond
+            targets:
+              - timer-lanes
+            linger: 0.12
+          - id: timer-question
+            phrase: Which event should stop the timer
+            targets:
+              - timer-readout
+            linger: 0.12
+      - say: Wait for all the result leaves. In this trace they finish twelve milliseconds after call start. Report
+          twelve for this warm call. That includes the first millisecond spent dispatching. On real hardware, time
+          a cold call separately and say whether you included the input transfer.
+        hold: 0.9
+        visual_cues:
+          - id: timer-wait
+            phrase: they finish twelve milliseconds after call start
+            targets:
+              - timer-lanes
+            linger: 0.12
+            caption_boundary: true
+          - id: timer-finish
+            phrase: Report twelve for this warm call
+            targets:
+              - timer-readout
+            linger: 0.12
+  - id: measurement-contract
+    title: What goes inside the timer?
+    visual: Trace a CPU benchmark from a preplaced float32 input of shape [512, 64] to a result of shape [64, 64]. Compare the start and stop points on cold and warm calls.
+    beats:
+      - say: Put the input on the CPU before starting the clock. This matrix has five hundred twelve rows and sixty-four columns. The calculation returns a square matrix with sixty-four rows. Wait for the result on both the cold and warm calls. Check that their entries are finite and agree.
+        hold: 0.75
+        visual_cues:
+          - id: jx-measurement-contract-b0
+            phrase: Wait for the result on both the cold and warm calls
+            targets: [jx-measurement-contract-mechanism]
+      - say: A cold call can include tracing and compilation. A persistent cache can shorten that part. For warm latency, start at dispatch and stop when every output is ready. JAX's top-level block until ready can wait on all the arrays in a tuple or dictionary. For throughput, queue several independent calls, then wait for all of them and count how many finished per second.
+        hold: 0.75
+        caption_starts:
+          - For warm latency
+          - For throughput
+        visual_cues:
+          - id: jx-measurement-contract-b1
+            phrase: start at dispatch and stop when every output is ready
+            targets: [jx-measurement-contract-mechanism]
+      - say: To compare this call across frameworks, give both the same shape and dtype on the same device. Check the dtype in particular. A default NumPy float array can use sixty-four bits where JAX uses thirty-two. To include input transfer, start both clocks before placement. Apply the same rule to loading data, running evaluation or writing checkpoints if those are part of the workload.
+        hold: 0.75
+        caption_starts:
+          - Check the dtype
+          - To include input transfer
+        visual_cues:
+          - id: jx-measurement-contract-b2
+            phrase: give both the same shape and dtype on the same device
+            targets: [jx-measurement-contract-mechanism]
+  - id: evidence-preservation
+    title: Keep the call that exposed the difference
+    visual: Compare the eager scalar loss, aggregate gradient, per-row gradients and compiled per-row gradients.
+      Carry the smallest reference that can detect a change through the research workflow.
+    beats:
+      - say: If the training curve changes, replay the smallest call that shows it. Start with the plain loss. Check the
+          gradient paths and shapes, then map the per-example function and compile it. Keep the first call that
+          disagrees with its reference. If the failure appears only under compilation, make jaxpr or inspect the
+          lowered program to see which operations JAX recorded.
+        hold: 0.8
+        visual_cues:
+          - id: jx-evidence-preservation-b0
+            phrase: Start with the plain loss. Check the gradient paths and shapes, then map the per-example function and
+              compile it
+            targets:
+              - jx-evidence-preservation-mechanism
+            linger: 0.12
+      - say: The checkpoint, data order, precision, optimizer and key schedule all help define a paper's experiment.
+          Change one loss or sampler and you can replay that edit on the original inputs. For a framework port,
+          compare the outputs and gradients at named paths. A square matrix can load successfully with its axes
+          swapped.
+        hold: 0.8
+        visual_cues:
+          - id: jx-evidence-preservation-b1
+            phrase: checkpoint, data order, precision, optimizer and key schedule
+            targets:
+              - jx-evidence-preservation-mechanism
+            linger: 0.12
+      - say: A deployment requirement can justify a port. Keep the original callable for comparison, run the held-out
+          evaluation, and check the outputs both paths produce. We can use that same comparison to test our
+          padded loss. This time, give the padding row an error of its own.
+        hold: 0.8
+        visual_cues:
+          - id: jx-evidence-preservation-b2
+            phrase: Keep the original callable for comparison
+            targets:
+              - jx-evidence-preservation-mechanism
+            linger: 0.12
+  - id: last-batch
+    title: One last batch
+    visual: With three real examples and one padding slot, change the bias to one. The third real example has no
+      error and the pad has error one. Select the rows, reduce their errors, and compare the loss and gradient
+      leaves with the unpadded call.
+    beats:
+      - say: Back at the end of the epoch, this batch has three real examples and one padding slot. Keep the weights at
+          zero. This time set the bias to one. Every slot predicts one. Compare those predictions to the targets
+          and square each error. Which errors belong in the sum, and how many examples go in the denominator?
+        hold: 3.1
+        caption_starts:
+          - This time set the bias to one
+          - Which errors belong in the sum
+        visual_cues:
+          - id: last-bias
+            phrase: set the bias to one
+            targets:
+              - batch-rows
+            linger: 0.12
+          - id: last-errors
+            phrase: Compare those predictions to the targets and square each error
+            targets:
+              - batch-rows
+            linger: 0.12
+      - say: Keep the first three examples. The third prediction is exactly right, so it adds zero error and still
+          counts as one example. The padding missed by one, but nobody supplied that target. Leave its error out.
+          Five divided by three gives a loss of five thirds.
+        hold: 1.1
+        caption_starts:
+          - The third prediction is exactly right
+          - The padding missed by one
+          - Five divided by three gives
+        visual_cues:
+          - id: last-select
+            phrase: Keep the first three examples
+            targets:
+              - batch-rows
+            linger: 0.12
+            caption_boundary: true
+          - id: last-loss
+            phrase: Five divided by three gives a loss of five thirds
+            targets:
+              - batch-calculation
+            linger: 0.12
+      - say: Run the same three examples without padding. Compare the loss and each gradient leaf at the same weights
+          and bias. All four numbers match. That is the check I would keep beside this change to the research
+          code. It catches a wrong divisor and a padding error that slips into the sum.
+        hold: 1.3
+        caption_starts:
+          - It catches a wrong divisor
+        visual_cues:
+          - id: last-check
+            phrase: Run the same three examples without padding
+            targets:
+              - last-checks
+            linger: 0.12
+          - id: last-match
+            phrase: All four numbers match
+            targets:
+              - last-checks
+            linger: 0.12
+            caption_boundary: true

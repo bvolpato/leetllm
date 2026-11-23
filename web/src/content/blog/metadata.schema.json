@@ -1,0 +1,132 @@
+{
+    "$schema": "http://json-schema.org/draft-07/schema#",
+    "title": "LeetLLM Blog Post Metadata",
+    "description": "Schema for canonical blog JSON frontmatter and supported legacy metadata.json bundles",
+    "type": "object",
+    "required": [
+        "id",
+        "title",
+        "slug",
+        "author",
+        "publishedAt",
+        "excerpt",
+        "tags"
+    ],
+    "properties": {
+        "visibility": {
+            "type": "object",
+            "additionalProperties": false,
+            "description": "Publication channels. Omitted channels default to visible; blog posts are not selected by the curriculum book builder.",
+            "properties": {
+                "website": { "type": "boolean" },
+                "book": { "type": "boolean" }
+            }
+        },
+        "id": {
+            "type": "string",
+            "pattern": "^blog-[a-z0-9-]+$",
+            "description": "Unique identifier for the blog post (e.g. blog-swe-bench-deep-dive)"
+        },
+        "title": {
+            "type": "string",
+            "minLength": 10,
+            "maxLength": 120,
+            "description": "Blog post title"
+        },
+        "slug": {
+            "type": "string",
+            "pattern": "^[a-z0-9-]+$",
+            "description": "URL-safe slug for the blog post"
+        },
+        "aliases": {
+            "type": "array",
+            "items": {
+                "type": "string",
+                "pattern": "^[a-z0-9-]+$"
+            },
+            "uniqueItems": true,
+            "description": "Previous URL slugs that permanently redirect to this canonical post. Keep aliases on the replacement post when its slug changes."
+        },
+        "author": {
+            "type": "object",
+            "required": [
+                "name"
+            ],
+            "properties": {
+                "name": {
+                    "type": "string",
+                    "description": "Author display name"
+                },
+                "avatar": {
+                    "type": "string",
+                    "description": "URL or path to author avatar image"
+                },
+                "url": {
+                    "type": "string",
+                    "format": "uri",
+                    "description": "Author profile URL"
+                }
+            }
+        },
+        "publishedAt": {
+            "type": "string",
+            "format": "date",
+            "description": "Publication date in YYYY-MM-DD format"
+        },
+        "updatedAt": {
+            "type": "string",
+            "format": "date",
+            "description": "Last update date in YYYY-MM-DD format (optional)"
+        },
+        "verifiedAt": {
+            "type": "string",
+            "format": "date",
+            "description": "Date volatile claims, prices, and product behavior were last verified against primary sources. Must be paired with refreshAfter."
+        },
+        "refreshAfter": {
+            "type": "string",
+            "format": "date",
+            "description": "Date after which a published post must be reverified. Must be later than verifiedAt and paired with it."
+        },
+        "excerpt": {
+            "type": "string",
+            "minLength": 50,
+            "maxLength": 300,
+            "description": "Short excerpt shown in blog listing and meta description"
+        },
+        "coverImage": {
+            "type": "string",
+            "description": "Path or URL for the blog post cover/hero image"
+        },
+        "tags": {
+            "type": "array",
+            "items": {
+                "type": "string"
+            },
+            "minItems": 1,
+            "maxItems": 8,
+            "description": "Tags for categorizing the blog post"
+        },
+        "featured": {
+            "type": "boolean",
+            "default": false,
+            "description": "Whether the post should be featured/pinned"
+        },
+        "draft": {
+            "type": "boolean",
+            "default": false,
+            "description": "Whether the post is a draft (hidden from listing)"
+        },
+        "private": {
+            "type": "boolean",
+            "default": false,
+            "description": "Whether the post is private (hidden from public listing and sitemap, but accessible via direct URL or /blog/all)"
+        },
+        "redirectTo": {
+            "type": "string",
+            "pattern": "^/blog/[a-z0-9-]+$",
+            "description": "Permanent replacement URL for a retired post that remains as its own content bundle. Prefer aliases on the canonical post for ordinary slug changes."
+        }
+    },
+    "additionalProperties": false
+}

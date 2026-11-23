@@ -1,0 +1,364 @@
+version: 1
+lesson: deep-dive-deepep
+promise: Decide when a saved DeepEP route can serve another dispatch. Check the weighted output in its
+  source row, establish readiness on its consumer stream, and use the deployed precision, topology and
+  full-layer timing to evaluate the exchange.
+objectives:
+  - id: intro
+    can: Identify which expert a cached dispatch would visit after one router choice changes.
+    scenes:
+      - intro
+  - id: version-boundary
+    can: Distinguish historical V2 routing from the V2.5 buffer and event contract.
+    scenes:
+      - version-boundary
+  - id: dispatch
+    can: Count destination-rank rows separately from valid expert assignments.
+    scenes:
+      - dispatch
+  - id: layout
+    can: Distinguish valid source rows from alignment capacity.
+    scenes:
+      - layout
+  - id: layout-boundaries
+    can: Calculate aligned starts, valid endpoints and capacity without creating padding identities.
+    scenes:
+      - layout-boundaries
+  - id: handle-lifetime
+    can: Use two equal-shaped outputs to diagnose stale route reuse and explain how long the indices must live.
+    scenes:
+      - handle-lifetime
+  - id: combine
+    can: Apply gates exactly once and restore outputs through saved identities.
+    scenes:
+      - combine
+  - id: backward-operators
+    can: Trace fixed-route transpose operations and the separate expert and gate gradients.
+    scenes:
+      - backward-operators
+  - id: rounding
+    can: Choose the neighboring BF16 value by its retained bit and predict what survives cancellation.
+    scenes:
+      - rounding
+  - id: deterministic-order
+    can: Explain what deterministic receive ordering changes in each layout and what it does not prove.
+    scenes:
+      - deterministic-order
+  - id: topology
+    can: Trace direct and hybrid paths while retaining global identities.
+    scenes:
+      - topology
+  - id: visibility-fence
+    can: Distinguish transport progress, memory visibility and consumer-stream readiness.
+    scenes:
+      - visibility-fence
+  - id: backend-ownership
+    can: Trace backend initialization and shutdown dependencies without treating a Python return as lifetime
+      completion.
+    scenes:
+      - backend-ownership
+  - id: logical-receipts
+    can: Calculate logical and remote byte rates from their separate denominators.
+    scenes:
+      - logical-receipts
+  - id: historical-benchmark
+    can: Qualify the historical benchmark table and reject an unsupported V2.5 performance extrapolation.
+    scenes:
+      - historical-benchmark
+  - id: precision
+    can: Count values and matching scale metadata separately.
+    scenes:
+      - precision
+  - id: scale-contract
+    can: Count scale bytes and use a coordinate's group to reconstruct the intended activation.
+    scenes:
+      - scale-contract
+  - id: events
+    can: Preserve returned results and consumer-stream readiness across waits.
+    scenes:
+      - events
+  - id: buffer-capacity
+    can: Distinguish a buffer-size hint, actual allocation and safe concurrent reuse.
+    scenes:
+      - buffer-capacity
+  - id: deferred-contract
+    can: Predict first-wait and later-wait results while preserving a dependency on each consumer stream.
+    scenes:
+      - deferred-contract
+  - id: redundant-experts
+    can: Explain the V2.5 redundant-expert primitives and the remaining caller responsibilities.
+    scenes:
+      - redundant-experts
+  - id: resources
+    can: Calculate a balanced destination estimate and a capped queue budget, then use per-expert counts
+      and source rows to check that two runs did comparable work.
+    scenes:
+      - resources
+  - id: balanced-assumptions
+    can: Derive the expected number of distinct destinations and identify when its assumptions fail.
+    scenes:
+      - balanced-assumptions
+  - id: resource-budget
+    can: Cap a queue request, then compare two serial schedules on one time axis to find where time
+      saved on communication went.
+    scenes:
+      - resource-budget
+  - id: jit-cold-start
+    can: Diagnose first-use JIT failures and separate cold-start timing from steady-state performance.
+    scenes:
+      - jit-cold-start
+  - id: runtime-identity
+    can: Diagnose incompatible runtime identity despite packages satisfying a minimum version.
+    scenes:
+      - runtime-identity
+  - id: legacy-experimental
+    can: Distinguish legacy low-latency assumptions and experimental PP, CP, bucket and Engram responsibilities.
+    scenes:
+      - legacy-experimental
+  - id: engram-doorbell
+    can: Explain the experimental Engram tail-submission failure independently of routing correctness.
+    scenes:
+      - engram-doorbell
+  - id: post-training-receipt
+    can: Design a controlled post-training communication comparison without attributing every reward change to
+      transport.
+    scenes:
+      - post-training-receipt
+  - id: ownership-license
+    can: Identify the pinned source’s license boundary without inferring terms for unrelated binaries or data.
+    scenes:
+      - ownership-license
+  - id: source-diagnosis
+    can: Distinguish a shuffled pair of valid returns from a values-only swap by checking one source
+      coordinate, then identify the metadata or device evidence to inspect.
+    scenes:
+      - source-diagnosis
+  - id: earned-return
+    can: Choose a handle when both routes touch the same GPUs, reconstruct a fresh token's row from
+      reversed arrivals, and place the consumer wait before its first activation read.
+    scenes:
+      - earned-return
+sections:
+  - heading: "Current boundary: V2.5 changes the integration contract"
+    status: taught
+    scenes:
+      - version-boundary
+      - deferred-contract
+      - redundant-experts
+      - runtime-identity
+  - heading: Why expert parallelism needs a communication layer
+    status: taught
+    scenes:
+      - intro
+      - post-training-receipt
+  - heading: A four-token routing ledger
+    status: taught
+    scenes:
+      - intro
+      - dispatch
+      - combine
+      - resources
+  - heading: "V2's single interface: ElasticBuffer"
+    status: taught
+    scenes:
+      - version-boundary
+      - buffer-capacity
+      - handle-lifetime
+  - heading: "Dispatch: layout, move, and epilogue"
+    status: taught
+    scenes:
+      - dispatch
+      - layout
+      - layout-boundaries
+  - heading: "Combine: reverse routing plus reduction"
+    status: taught
+    scenes:
+      - combine
+      - rounding
+      - backward-operators
+      - source-diagnosis
+  - heading: "Topology: scale-up and scale-out are different roads"
+    status: taught
+    scenes:
+      - topology
+      - visibility-fence
+  - heading: Logical bandwidth is not a NIC counter
+    status: taught
+    scenes:
+      - topology
+      - logical-receipts
+      - historical-benchmark
+  - heading: NCCL Gin V2 backend
+    status: taught
+    scenes:
+      - backend-ownership
+      - runtime-identity
+  - heading: "EPHandle: route metadata with a lifetime"
+    status: taught
+    scenes:
+      - intro
+      - handle-lifetime
+      - deterministic-order
+      - earned-return
+  - heading: "EventOverlap: a stream contract"
+    status: taught
+    scenes:
+      - events
+      - deferred-contract
+      - backend-ownership
+      - earned-return
+  - heading: "Precision: FP8 on the wire, BF16 for the reduction"
+    status: taught
+    scenes:
+      - precision
+      - scale-contract
+      - rounding
+  - heading: Analytical SM and QP sizing
+    status: taught
+    scenes:
+      - resources
+      - balanced-assumptions
+      - resource-budget
+  - heading: JIT compilation is part of the runtime
+    status: taught
+    scenes:
+      - jit-cold-start
+      - runtime-identity
+  - heading: V2 and V1 are different products
+    status: taught
+    scenes:
+      - version-boundary
+      - legacy-experimental
+  - heading: Experimental PP, CP, and Engram boundaries
+    status: taught
+    scenes:
+      - legacy-experimental
+      - engram-doorbell
+      - redundant-experts
+  - heading: Requirements and cluster checks
+    status: taught
+    scenes:
+      - runtime-identity
+      - backend-ownership
+      - source-diagnosis
+  - heading: Applications in giant-model post-training
+    status: taught
+    scenes:
+      - post-training-receipt
+      - backward-operators
+  - heading: A runnable routing ledger
+    status: taught
+    scenes:
+      - dispatch
+      - layout
+      - combine
+      - source-diagnosis
+      - earned-return
+  - heading: Strengths and weaknesses
+    status: taught
+    scenes:
+      - buffer-capacity
+      - resource-budget
+      - jit-cold-start
+      - source-diagnosis
+  - heading: Team, contributors, governance, and licenses
+    status: taught
+    scenes:
+      - ownership-license
+  - heading: Benchmark and failure-mode checklist
+    status: taught
+    scenes:
+      - historical-benchmark
+      - post-training-receipt
+      - source-diagnosis
+  - heading: Source-reading map
+    status: taught
+    scenes:
+      - source-diagnosis
+      - backend-ownership
+      - handle-lifetime
+  - heading: Reviewing an integration
+    status: taught
+    scenes:
+      - source-diagnosis
+      - earned-return
+  - heading: Evaluation rubric
+    status: taught
+    scenes:
+      - source-diagnosis
+      - earned-return
+  - heading: Follow-up questions
+    status: taught
+    scenes:
+      - handle-lifetime
+      - visibility-fence
+      - earned-return
+quiz:
+  - n: 1
+    status: taught
+    scenes:
+      - combine
+      - backward-operators
+      - earned-return
+  - n: 2
+    status: taught
+    scenes:
+      - dispatch
+      - layout-boundaries
+  - n: 3
+    status: taught
+    scenes:
+      - layout
+      - layout-boundaries
+  - n: 4
+    status: taught
+    scenes:
+      - handle-lifetime
+      - buffer-capacity
+      - earned-return
+  - n: 5
+    status: taught
+    scenes:
+      - events
+      - deferred-contract
+  - n: 6
+    status: taught
+    scenes:
+      - topology
+      - logical-receipts
+  - n: 7
+    status: taught
+    scenes:
+      - rounding
+  - n: 8
+    status: taught
+    scenes:
+      - precision
+      - scale-contract
+  - n: 9
+    status: taught
+    scenes:
+      - resources
+      - balanced-assumptions
+      - resource-budget
+  - n: 10
+    status: taught
+    scenes:
+      - resource-budget
+      - post-training-receipt
+removed: []
+reviews:
+  closed_book:
+    taught: 10
+    partial: 0
+    absent: 0
+    script: 104191327f16e0a9
+    reviewer: /root/upgrade_shard6
+    evidence: build/video-delivery-20261106/script-reviews/deep-dive-deepep.json
+    evidence_sha256: 5e864597c011fcdc8c4bcc242204113fe279d02efe1e913f68c21e269ba00816
+  fact_check:
+    open_findings: 0
+    script: 104191327f16e0a9
+    reviewer: /root/upgrade_shard6
+    evidence: build/video-delivery-20261106/script-reviews/deep-dive-deepep.json
+    evidence_sha256: 5e864597c011fcdc8c4bcc242204113fe279d02efe1e913f68c21e269ba00816

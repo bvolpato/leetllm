@@ -1,0 +1,1780 @@
+version: 1
+id: recommendation
+title: How a System Builds a Useful Ranked List
+source: foundations/ranking-recommendation-systems/content.md
+voice: en-US-AndrewNeural
+rate: +0%
+sources:
+  - title: "TensorFlow Recommenders: Retrieval"
+    url: https://www.tensorflow.org/recommenders/examples/basic_retrieval
+  - title: Learning to Rank with Nonsmooth Cost Functions
+    url: https://www.microsoft.com/en-us/research/publication/from-ranknet-to-lambdarank-to-lambdamart-an-overview/
+  - title: "Stanford Introduction to Information Retrieval: Evaluation in IR"
+    url: https://nlp.stanford.edu/IR-book/html/htmledition/evaluation-in-information-retrieval-1.html
+  - title: "Joachims et al.: Unbiased Learning-to-Rank with Biased Feedback"
+    url: https://dl.acm.org/doi/10.1145/3018661.3018699
+  - title: "Kohavi et al.: Online Controlled Experiments"
+    url: https://www.cambridge.org/core/books/trustworthy-online-controlled-experiments/online-controlled-experiments/6B2934B9A0D0F9E607675E8002229F6A
+  - title: Original DCN
+    url: https://arxiv.org/html/1708.05123
+  - title: DCN-v2
+    url: https://arxiv.org/html/2008.13535
+  - title: RankNet/LambdaRank/LambdaMART report
+    url: https://www.microsoft.com/en-us/research/wp-content/uploads/2016/02/MSR-TR-2010-82.pdf
+  - title: ListNet primary report
+    url: https://www.microsoft.com/en-us/research/wp-content/uploads/2016/02/tr-2007-40.pdf
+  - title: Unbiased learning to rank
+    url: https://arxiv.org/html/1608.04468
+  - title: RankGPT
+    url: https://arxiv.org/html/2304.09542
+  - title: Recommendation system stages
+    url: https://developers.google.com/machine-learning/recommendation/overview/types
+scenes:
+  - id: intro
+    title: Search for “retry idempotency key”
+    visual: Two scored pages slide up to an access check. The incident draft stops there. The retry runbook
+      carries its score through to the results.
+    beats:
+      - say: The incident draft scores point nine nine on this search for help retrying a payment.
+          The retry runbook scores point eight four.
+        hold: 0.45
+        visual_cues:
+          - id: intro-draft
+            phrase: The incident draft scores point nine nine
+            targets:
+              - intro-draft-page
+            color: red
+            linger: 0.25
+          - id: intro-runbook
+            phrase: The retry runbook scores point eight four
+            targets:
+              - intro-runbook-page
+            color: blue
+            linger: 0.25
+      - say: Both pages are current. Check the permissions beside them. Which page can go through?
+        hold: 2.2
+        visual_cues:
+          - id: intro-access
+            phrase: Check the permissions beside them
+            targets:
+              - intro-access-checks
+            color: yellow
+            linger: 0.25
+          - id: intro-question
+            phrase: Which page can go through
+            targets:
+              - intro-result
+              - intro-access-checks
+              - intro-draft-page
+              - intro-runbook-page
+            color: yellow
+            linger: 0.25
+      - say: The runbook goes through. The private draft stays at the gate with its higher score. Checking
+          which pages this developer may see is the eligibility step.
+        hold: 0.55
+        visual_cues:
+          - id: intro-admit
+            phrase: The runbook goes through
+            targets:
+              - intro-result
+              - intro-runbook-page
+            color: blue
+            linger: 0.25
+  - id: eligibility
+    title: Check permission before relevance
+    visual: The private incident draft and stale migration guide are removed by current eligibility checks before
+      candidate retrieval, despite their high retrieval scores.
+    beats:
+      - say: Start with seven documents. Five are current and permitted. A private draft scores 0.99 for retrieval,
+          and a stale guide scores 0.95, but neither belongs in this request’s eligible set.
+        hold: 0.55
+        visual_cues:
+          - id: eligibility-beat-1-focus-1
+            phrase: A private draft scores 0
+            targets:
+              - eligibility-simulation-6
+            color: blue
+            linger: 0.6
+          - id: eligibility-beat-1-focus-2
+            phrase: Five are current and permitted
+            targets:
+              - eligibility-object-allowed-eligible-item-permitted-stale-private-8
+            color: blue
+            linger: 0.6
+          - id: eligibility-filter-out
+            phrase: but neither belongs in this request’s eligible set
+            targets:
+              - eligibility-simulation-6
+            color: blue
+            linger: 0.6
+      - say: Permission, tenancy, deletion, and any product freshness rule define what a person may receive. Apply
+          those rules before a learned relevance score can influence the displayed slate.
+        hold: 0.6
+        visual_cues:
+          - id: eligibility-beat-2-focus-1
+            phrase: Permission
+            targets:
+              - eligibility-simulation-6
+            color: blue
+            linger: 0.6
+      - say: The private draft may have the strongest wording match. Current permissions decide whether it can appear,
+          so check access again at display time when rules may have changed since indexing.
+        hold: 0.7
+        visual_cues:
+          - id: eligibility-beat-3-focus-1
+            phrase: The private draft may have the strongest wording match
+            targets:
+              - eligibility-simulation-6
+            color: blue
+            linger: 0.6
+  - id: judgment-contract
+    title: Keep labels outside the serving score
+    visual: Keep labels outside the serving score.
+    beats:
+      - say: A judge reads each eligible page against the retry question. A direct answer earns a three,
+          useful guidance a two, marginal help a one, and no answer a zero. Keep the five eligible pages.
+          The API guide answers the question directly. The runbook and SDK example offer useful guidance.
+        hold: 0.6
+        visual_cues:
+          - id: judgment-contract-b1
+            phrase: A judge reads each eligible page against the retry question
+            targets:
+              - judgment-contract-construction
+            color: cyan
+            linger: 0.5
+          - id: judge-gate
+            phrase: Keep the five eligible pages
+            targets:
+              - judgment-contract-construction
+            color: cyan
+            linger: 0.4
+      - say: The scorer sees query fit and source reliability. We can train with judged grades from other
+          searches. For this held-out search, keep the grades on the right until we evaluate the order.
+          Giving the scorer the guide’s grade would hand it the answer.
+        hold: 0.6
+        visual_cues:
+          - id: judgment-contract-b2
+            phrase: The scorer sees query fit and source reliability
+            targets:
+              - judgment-contract-construction
+            color: cyan
+            linger: 0.5
+          - id: judge-label-leak
+            phrase: Giving the scorer the guide’s grade would hand it the answer
+            targets:
+              - judgment-contract-construction
+            color: cyan
+            linger: 0.4
+      - say: Imagine a portal with a million eligible pages. Retrieval narrows the pool to a thousand.
+          Scoring keeps a hundred. Ten reach the screen. Each cut gives the next stage fewer pages to examine.
+        hold: 0.8
+        visual_cues:
+          - id: judgment-contract-b3
+            phrase: Imagine a portal with a million eligible pages
+            targets:
+              - judgment-contract-construction
+            color: cyan
+            linger: 0.5
+          - id: judge-volumes
+            phrase: Imagine a portal with a million eligible pages. Retrieval narrows the pool to a thousand. Scoring keeps a hundred. Ten reach the screen.
+            targets:
+              - judgment-contract-construction
+            color: cyan
+            linger: 0.4
+  - id: retrieval-recall
+    title: Retrieve useful candidates before ranking
+    visual: A retrieval budget of three returns one of three relevant eligible documents; expanding to five
+      recovers all three so a later ranker can see them.
+    beats:
+      - say: At a million documents, running an expensive query-and-document model on every item for each keystroke
+          costs too much. A first stage uses lexical or vector search to produce a shortlist for more careful
+          scoring.
+        hold: 0.55
+        visual_cues:
+          - id: retrieval-recall-beat-1-focus-1
+            phrase: At a million documents
+            targets:
+              - retrieval-recall-object-distribution-retrieval-recall-10
+            color: blue
+            linger: 0.6
+      - say: Five documents are eligible. Three have useful answers. Look for the guide, the runbook and the SDK
+          example. The first three retrieved pages include the guide, the blog and the changelog. Only the guide
+          matches a useful answer, so candidate recall is one divided by three.
+        hold: 0.6
+        visual_cues:
+          - id: retrieval-recall-beat-2-focus-1
+            phrase: The first three retrieved pages include the guide
+            targets:
+              - retrieval-recall-object-distribution-retrieval-recall-10
+            color: blue
+            linger: 0.6
+          - id: retrieval-recall-beat-2-focus-2
+            phrase: so candidate recall is one divided by three
+            targets:
+              - retrieval-recall-object-candidate-recall-12
+            color: blue
+            linger: 0.6
+          - id: recall-one
+            phrase: so candidate recall is one divided by three.
+            targets:
+              - retrieval-recall-construction
+            color: cyan
+            linger: 0.4
+      - say: Raising the cutoff to five recovers all three useful documents. The second stage can only reorder its
+          shortlist, so measure retrieval recall and request cost before judging the full system.
+        hold: 0.7
+        visual_cues:
+          - id: retrieval-recall-beat-3-focus-1
+            phrase: so measure retrieval recall and request cost before judging the full system
+            targets:
+              - retrieval-recall-object-distribution-retrieval-recall-10
+            color: blue
+            linger: 0.6
+          - id: recall-five
+            phrase: Raising the cutoff to five recovers all three useful documents.
+            targets:
+              - retrieval-recall-construction
+            color: cyan
+            linger: 0.4
+  - id: reranking
+    title: Use a richer score to reorder survivors
+    visual: The retrieved list of five items rearranges as the authored score combines query fit and source
+      reliability; the API guide, runbook, and SDK example move ahead.
+    beats:
+      - say: Retrieval ranks quickly but leaves two generic pages near the top. A slower reranker can compare query
+          fit and source reliability across the five survivors. The fixture assigns hand-built scores to
+          demonstrate this ranking step.
+        hold: 0.55
+        visual_cues:
+          - id: reranking-beat-1-focus-1
+            phrase: Retrieval ranks quickly but leaves two generic pages near the top
+            targets:
+              - reranking-simulation-17
+            color: blue
+            linger: 0.6
+      - say: "Use the lesson’s hand-written score: twice query fit plus 0.6 times reliability. The API guide scores
+          2.488, the runbook 2.428, and the SDK example 2.296. The general blog falls to 1.282."
+        hold: 0.6
+        motion_check:
+          region:
+            - 130
+            - 310
+            - 1620
+            - 530
+          minimumChangedFraction: 0.002
+        visual_cues:
+          - id: reranking-beat-2-focus-1
+            phrase: "Use the lesson’s hand-written score: twice query fit plus 0"
+            targets:
+              - reranking-simulation-17
+            color: blue
+            linger: 0.6
+          - id: rank-weights
+            phrase: twice query fit plus 0.6 times reliability.
+            targets:
+              - reranking-construction
+            color: cyan
+            linger: 0.4
+          - id: rank-guide
+            phrase: The API guide scores 2.488, the runbook 2.428, and the SDK example 2.296.
+            targets:
+              - reranking-construction
+            color: cyan
+            linger: 0.4
+          - id: rank-blog
+            phrase: The general blog falls to 1.282.
+            targets:
+              - reranking-construction
+            color: cyan
+            linger: 0.4
+      - say: The guide pulls ahead because it fits the question better. A learned scorer can fit these
+          weights on training queries. Check the resulting order on held-out queries. If you need a
+          probability of relevance, calibrate the scores against judged outcomes.
+        hold: 0.7
+        visual_cues:
+          - id: reranking-beat-3-focus-1
+            phrase: The guide pulls ahead because it fits the question better
+            targets:
+              - reranking-simulation-17
+            color: blue
+            linger: 0.6
+          - id: reranking-beat-3-focus-2
+            phrase: calibrate the scores against judged outcomes
+            targets:
+              - reranking-object-label-x-item-cx-180-y-item-cy-43-width-360-height--18
+            color: blue
+            linger: 0.6
+  - id: ranking-metrics
+    title: Measure which useful answer comes first
+    visual: The five document identities stay in retrieval order as their judged grades become gains, position
+      discounts, and accumulated DCG contributions. Ideal DCG and normalized score stay separate from the
+      local-versus-system top-three comparison.
+    beats:
+      - say: "Give each result a judged grade: zero for no answer, two for useful guidance, and three for a direct
+          answer. Discounted cumulative gain gives more credit when the better answer appears earlier."
+        hold: 0.55
+        visual_cues:
+          - id: ranking-metrics-beat-1-focus-1
+            phrase: "Give each result a judged grade: zero for no answer"
+            targets:
+              - ranking-metrics-simulation-20
+            color: blue
+            linger: 0.6
+      - say: The retrieval order has grades three, zero, zero, two, two. With gain two-to-the-grade minus one and a
+          logarithmic position discount, its DCG@5 is 9.453. The ideal order scores 10.393.
+        hold: 0.6
+        visual_cues:
+          - id: ranking-metrics-beat-2-focus-1
+            phrase: The retrieval order has grades three
+            targets:
+              - ranking-metrics-simulation-20
+            color: blue
+            linger: 0.6
+          - id: ranking-metrics-beat-2-focus-2
+            phrase: The ideal order scores 10
+            targets:
+              - ranking-metrics-object-ideal-order-25
+            color: blue
+            linger: 0.6
+          - id: metric-dcg
+            phrase: its DCG@5 is 9.453.
+            targets:
+              - ranking-metrics-construction
+            color: cyan
+            linger: 0.4
+          - id: metric-idcg
+            phrase: The ideal order scores 10.393.
+            targets:
+              - ranking-metrics-construction
+            color: cyan
+            linger: 0.4
+      - say: Dividing gives NDCG at five of about point nine one. Now let retrieval return just three pages and evaluate
+          those three slots. Among the survivors the guide already comes first, so the reranker gets one. Against
+          all five eligible pages, system NDCG is about point six seven four. The missing runbook and SDK example
+          still count in that ideal.
+        hold: 0.7
+        visual_cues:
+          - id: ranking-metrics-beat-3-focus-1
+            phrase: Dividing gives NDCG at five
+            targets:
+              - ranking-metrics-simulation-20
+            color: blue
+            linger: 0.6
+          - id: ranking-metrics-beat-3-focus-2
+            phrase: Against all five eligible pages
+            targets:
+              - ranking-metrics-object-whole-system-ndcg-28
+            color: blue
+            linger: 0.6
+          - id: metric-ratio
+            phrase: Dividing gives NDCG at five of about point nine one.
+            targets:
+              - ranking-metrics-construction
+            color: cyan
+            linger: 0.4
+          - id: metric-cut-three
+            phrase: Now let retrieval return just three pages
+            targets:
+              - ranking-metrics-construction
+            color: yellow
+            linger: 0.25
+          - id: metric-perfect
+            phrase: the reranker gets one
+            targets:
+              - ranking-metrics-construction
+            color: cyan
+            linger: 0.25
+          - id: metric-local
+            phrase: system NDCG is about point six seven four.
+            targets:
+              - ranking-metrics-construction
+            color: cyan
+            linger: 0.4
+  - id: judgment-universe
+    title: Which pages belong in the denominator?
+    visual: A cutoff moves down the five frozen judgments. The best returned slate and both NDCG denominators
+      stay aligned as retrieval admits the fourth page.
+    beats:
+      - say: Take the three pages retrieval found first. The API guide has grade three, so its gain is two cubed
+          minus one, or seven. It’s in slot one. Divide by the base-two logarithm of rank plus one, then add
+          the three slots. The two zero grades contribute nothing. That leaves seven units of discounted
+          gain.
+        hold: 0.5
+        visual_cues:
+          - id: universe-gain
+            phrase: That leaves seven units of discounted gain
+            targets:
+              - universe-scores
+            color: cyan
+            linger: 0.25
+      - say: How good is seven? Among those three candidates, the guide already leads. The best possible sum is
+          seven. Across all five eligible pages, a judge could put the runbook and SDK example in slots two
+          and three. Build that ideal before taking the first three slots. Now the same seven earns only
+          about point six seven four. The discount expresses how we value position. Examination by a real
+          person needs separate evidence.
+        caption_starts:
+          - Among those three candidates
+          - The best possible sum is seven
+          - Across all five eligible pages
+          - Now the same seven earns
+        hold: 0.6
+        visual_cues:
+          - id: universe-local
+            phrase: The best possible sum is seven
+            targets:
+              - universe-scores
+            color: cyan
+            linger: 0.25
+          - id: universe-system
+            phrase: the same seven earns only about point six seven four
+            targets:
+              - universe-scores
+            color: yellow
+            linger: 0.25
+      - say: Keep the display at three slots. Give retrieval one more candidate. The fourth page is the runbook,
+          with grade two. If the ranker makes the best order it can, which useful page will still be
+          missing?
+        hold: 2
+        visual_cues:
+          - id: universe-four
+            phrase: Give retrieval one more candidate
+            targets:
+              - universe-budget
+            color: yellow
+            linger: 0.25
+      - say: The SDK example stays outside. The ranker moves the runbook into slot two. Two of the three useful
+          pages now reach ranking. The reranker still gets full credit among its candidates. Against all
+          eligible pages, the third slot still earns zero where the SDK example could earn one and a half.
+          System NDCG rises to about point eight five six.
+        hold: 0.7
+        visual_cues:
+          - id: universe-rerank
+            phrase: The ranker moves the runbook into slot two
+            targets:
+              - universe-returned
+            color: green
+            linger: 0.25
+          - id: universe-report
+            phrase: System NDCG rises to about point eight five six
+            targets:
+              - universe-scores
+            color: yellow
+            linger: 0.25
+      - say: Keep the eligibility and judgment versions with that report. Our helper requires a positive cutoff,
+          unique IDs, nonnegative grades, and returned grades that match the eligible judgments. It reports
+          zero if the ideal gain is zero. Record which pages were judged. A
+          marginal grade of one would count for candidate recall here, while average precision will count
+          grades two and above.
+        hold: 0.5
+  - id: reciprocal-precision
+    title: Count the first target and every relevant prefix separately
+    visual: Count the first target and every relevant prefix separately.
+    beats:
+      - say: Reciprocal rank gives one divided by the first target’s rank, or zero if that target never appears in the
+          evaluated list. The lab calls grade three a target. MRR averages reciprocal rank over queries. Both
+          original orders put the guide first, so their reciprocal rank is one even though useful guides
+          remain separated by irrelevant pages.
+        hold: 0.6
+        visual_cues:
+          - id: reciprocal-precision-b1
+            phrase: Reciprocal rank gives one divided by the first target’s rank, or zero if that target never appears in
+              the evaluated list.
+            targets:
+              - reciprocal-precision-construction
+            color: cyan
+            linger: 0.5
+          - id: rr-result
+            phrase: Both original orders put the guide first, so their reciprocal rank is one
+            targets:
+              - reciprocal-precision-construction
+            color: cyan
+            linger: 0.4
+      - say: Average precision instead visits every result at or above the declared relevance threshold. At each
+          relevant position, add the fraction of results seen so far that are relevant. In the retrieval
+          order, those contributions are one, two fourths and three fifths. Their sum divided by three gives
+          zero point seven. The ideal order gives one. MAP averages each query’s AP, with declared query
+          weights.
+        hold: 0.6
+        visual_cues:
+          - id: reciprocal-precision-b2
+            phrase: Average precision instead visits every result at or above the declared relevance threshold.
+            targets:
+              - reciprocal-precision-construction
+            color: cyan
+            linger: 0.5
+          - id: ap-terms
+            phrase: those contributions are one, two fourths and three fifths.
+            targets:
+              - reciprocal-precision-construction
+            color: cyan
+            linger: 0.4
+          - id: ap-result
+            phrase: Their sum divided by three gives zero point seven.
+            targets:
+              - reciprocal-precision-construction
+            color: cyan
+            linger: 0.4
+      - say: At a cutoff, declare the denominator. This lab divides by the smaller of relevant-count R and cutoff k.
+          With two relevant documents and one perfect top result, that capped AP at one is one. Dividing by
+          full R gives one half instead. A system denominator must count eligible judged relevant items,
+          including missing ones; the existing supplied-list helper only knows its survivors. Neither
+          convention turns missing evidence into a recovered document.
+        hold: 0.8
+        visual_cues:
+          - id: reciprocal-precision-b3
+            phrase: At a cutoff, declare the denominator.
+            targets:
+              - reciprocal-precision-construction
+            color: cyan
+            linger: 0.5
+          - id: ap-denominator
+            phrase: Dividing by full R gives one half instead.
+            targets:
+              - reciprocal-precision-construction
+            color: cyan
+            linger: 0.4
+  - id: two-tower-retrieval
+    title: Compare vectors to retrieve a shortlist
+    visual: A supplied query vector [1,0] is compared with three precomputed document vectors. Dot products update
+      beside the points and rank the candidates.
+    beats:
+      - say: A two-tower model encodes a query and each catalog item separately. The item vectors can be computed
+          ahead of a request. This fixture starts with those encoder outputs so we can follow the retrieval
+          score itself.
+        hold: 0.55
+        visual_cues:
+          - id: two-tower-retrieval-beat-1-focus-1
+            phrase: A two-tower model encodes a query and each catalog item separately
+            targets:
+              - two-tower-retrieval-simulation-31
+            color: blue
+            linger: 0.6
+      - say: In this tiny illustration, the query vector is one, zero. Three item vectors are 0.9, 0.1; 0.8, 0.2; and
+          0.2, 0.9. Their dot products are 0.9, 0.8, and 0.2.
+        hold: 0.6
+        motion_check:
+          region:
+            - 250
+            - 350
+            - 700
+            - 465
+          minimumChangedFraction: 0.002
+        visual_cues:
+          - id: two-tower-retrieval-beat-2-focus-1
+            phrase: In this tiny illustration
+            targets:
+              - two-tower-retrieval-simulation-31
+            color: blue
+            linger: 0.6
+          - id: tower-query-components
+            phrase: the query vector is one, zero.
+            targets:
+              - two-tower-retrieval-construction
+            color: cyan
+            linger: 0.4
+          - id: tower-guide-components
+            phrase: 0.9, 0.1
+            targets:
+              - two-tower-retrieval-construction
+            color: cyan
+            linger: 0.4
+          - id: tower-runbook-components
+            phrase: 0.8, 0.2
+            targets:
+              - two-tower-retrieval-construction
+            color: cyan
+            linger: 0.4
+          - id: tower-blog-components
+            phrase: and 0.2, 0.9.
+            targets:
+              - two-tower-retrieval-construction
+            color: cyan
+            linger: 0.4
+          - id: tower-projection
+            phrase: Their dot products are 0.9, 0.8, and 0.2.
+            targets:
+              - two-tower-retrieval-construction
+            color: cyan
+            linger: 0.4
+      - say: This makes retrieval easy to visualize and cheap to reuse. Because both towers encode independently, a
+          later ranker may add query-and-item interactions. Index recall and latency still need measurement on
+          the target catalog.
+        hold: 0.7
+        visual_cues:
+          - id: two-tower-retrieval-beat-3-focus-1
+            phrase: This makes retrieval easy to visualize and cheap to reuse
+            targets:
+              - two-tower-retrieval-simulation-31
+            color: blue
+            linger: 0.6
+  - id: tower-contract
+    title: Freeze compatible vectors and score the actual query
+    visual: Freeze compatible vectors and score the actual query.
+    beats:
+      - say: "A query or session tower and an item tower encode independently before their final similarity. Item
+          vectors can be precomputed. Normalize both if the intended score is cosine: normalized dot product
+          equals cosine, while an unnormalized dot product also reflects magnitude. Keep tower weights,
+          normalization, item embeddings and index version compatible."
+        hold: 0.6
+        visual_cues:
+          - id: tower-contract-b1
+            phrase: A query or session tower and an item tower encode independently before their final similarity.
+            targets:
+              - tower-contract-construction
+            color: cyan
+            linger: 0.5
+          - id: tower-normalization
+            phrase: normalized dot product equals cosine
+            targets:
+              - tower-contract-construction
+            color: cyan
+            linger: 0.4
+      - say: The article supplies a thousand random sixteen-dimensional item vectors, computes one query vector, and
+          evaluates a thousand exact dot products. Five candidates then receive a query-dependent cross layer.
+          Those exact scores give us a reference for testing an approximate index. Check which neighbors
+          it finds, how quickly it picks up new pages, and how long requests take under load.
+        hold: 0.6
+        visual_cues:
+          - id: tower-contract-b2
+            phrase: The article supplies a thousand random sixteen-dimensional item vectors, computes one query vector,
+              and evaluates a thousand exact dot products.
+            targets:
+              - tower-contract-construction
+            color: cyan
+            linger: 0.5
+          - id: tower-counts
+            phrase: Five candidates then receive a query-dependent cross layer.
+            targets:
+              - tower-contract-construction
+            color: cyan
+            linger: 0.4
+      - say: Retrieval training commonly pushes observed positive query-item pairs above sampled alternatives. Those
+          alternatives are not verified dislikes, and repeated known positives need care. An independent
+          two-tower score can be the final score if it meets the task; a later joint scorer trades additional
+          request work for richer early query-document interactions.
+        hold: 0.8
+        visual_cues:
+          - id: tower-contract-b3
+            phrase: Retrieval training commonly pushes observed positive query-item pairs above sampled alternatives.
+            targets:
+              - tower-contract-construction
+            color: cyan
+            linger: 0.5
+  - id: cross-vector
+    title: A shared scalar projection couples every cross feature
+    visual: A shared scalar projection couples every cross feature.
+    beats:
+      - say: The original DCN vector cross layer first takes the dot product of the current vector with a learned
+          weight vector. Multiply that one scalar by each coordinate of the original input, then add the bias
+          and current coordinate. This is x zero times the scalar x l transpose w, plus b, plus x l. Preserve
+          which object supplies each factor.
+        hold: 0.6
+        visual_cues:
+          - id: cross-vector-b1
+            phrase: The original DCN vector cross layer first takes the dot product of the current vector with a learned
+              weight vector.
+            targets:
+              - cross-vector-construction
+            color: cyan
+            linger: 0.5
+      - say: Use the article’s separate two-coordinate input x zero equal two, three and current x l equal five,
+          seven. Weight one, zero gives projection five. Multiply the original input by five to obtain ten,
+          fifteen. Add biases one half, one and the residual five, seven. The result is fifteen point five,
+          twenty-three. These two features carry the interaction into the next layer.
+        hold: 0.6
+        visual_cues:
+          - id: cross-vector-b2
+            phrase: Use the article’s separate two-coordinate input x zero equal two, three and current x l equal five,
+              seven.
+            targets:
+              - cross-vector-construction
+            color: cyan
+            linger: 0.5
+          - id: cross-scalar
+            phrase: Weight one, zero gives projection five.
+            targets:
+              - cross-vector-construction
+            color: cyan
+            linger: 0.4
+          - id: cross-products
+            phrase: Multiply the original input by five to obtain ten, fifteen.
+            targets:
+              - cross-vector-construction
+            color: cyan
+            linger: 0.4
+          - id: cross-vector-result
+            phrase: The result is fifteen point five, twenty-three.
+            targets:
+              - cross-vector-construction
+            color: cyan
+            linger: 0.4
+      - say: The vector layer uses linear arithmetic in input dimension. L cross layers have polynomial degree at most
+          L plus one, with tied coefficients rather than a free coefficient for every monomial. A nonlinear
+          deep component can complement it. Cross and deep branches can be arranged in parallel or stacked; a
+          separate head and loss define what their final score means.
+        hold: 0.8
+        visual_cues:
+          - id: cross-vector-b3
+            phrase: The vector layer uses linear arithmetic in input dimension.
+            targets:
+              - cross-vector-construction
+            color: cyan
+            linger: 0.5
+          - id: cross-degree
+            phrase: L cross layers have polynomial degree at most L plus one, with tied coefficients rather than a free
+              coefficient for every monomial.
+            targets:
+              - cross-vector-construction
+            color: cyan
+            linger: 0.4
+  - id: cross-matrix
+    title: Moving the bias inside the product changes the layer
+    visual: Moving the bias inside the product changes the layer.
+    beats:
+      - say: DCN version two uses an actual matrix times the current vector, adds its bias, multiplies element by
+          element with the original input, then adds the current vector. Its bias is inside that
+          coordinatewise multiplication. With the same two, three original input and five, seven current
+          vector, use an identity matrix and biases one half, one.
+        hold: 0.6
+        visual_cues:
+          - id: cross-matrix-b1
+            phrase: DCN version two uses an actual matrix times the current vector, adds its bias, multiplies element by
+              element with the original input, then adds the current vector.
+            targets:
+              - cross-matrix-construction
+            color: cyan
+            linger: 0.5
+      - say: The inside vector is five point five, eight. Multiply by two, three to obtain eleven, twenty-four, then
+          add five, seven. The result is sixteen, thirty-one, which differs from the original vector layer.
+          The matrix layer costs quadratic arithmetic in dimension; a rank-r factorization can reduce the
+          matrix work to order dimension times r, with expert and gating costs added for mixtures.
+        hold: 0.6
+        visual_cues:
+          - id: cross-matrix-b2
+            phrase: The inside vector is five point five, eight.
+            targets:
+              - cross-matrix-construction
+            color: cyan
+            linger: 0.5
+          - id: cross-inside
+            phrase: The inside vector is five point five, eight.
+            targets:
+              - cross-matrix-construction
+            color: cyan
+            linger: 0.4
+          - id: cross-matrix-result
+            phrase: The result is sixteen, thirty-one
+            targets:
+              - cross-matrix-construction
+            color: cyan
+            linger: 0.4
+      - say: A crossed item portion generally depends on the current query. The article holds an item fixed and
+          changes query coordinates; its crossed item changes. Caching independent item embeddings does not
+          make that complete joint representation query-independent. Choose the scoring architecture and
+          objective separately; a sigmoid click head does not itself remove exposure bias or directly optimize
+          NDCG.
+        hold: 0.8
+        visual_cues:
+          - id: cross-matrix-b3
+            phrase: A crossed item portion generally depends on the current query.
+            targets:
+              - cross-matrix-construction
+            color: cyan
+            linger: 0.5
+          - id: cross-query-change
+            phrase: The article holds an item fixed and changes query coordinates; its crossed item changes.
+            targets:
+              - cross-matrix-construction
+            color: cyan
+            linger: 0.4
+  - id: generated-order
+    title: A valid permutation can still make the list worse
+    visual: A valid permutation can still make the list worse.
+    beats:
+      - say: An LLM reranker can receive eligible snippets with stable IDs and propose an order. RankGPT studied
+          identifier permutations and sliding windows, then distillation into smaller scorers. Keep snippet
+          instructions untrusted, access checks outside the model, and external processing within its actual
+          authorization. A prompt is not an enforcement boundary.
+        hold: 0.6
+        visual_cues:
+          - id: generated-order-b1
+            phrase: An LLM reranker can receive eligible snippets with stable IDs and propose an order.
+            targets:
+              - generated-order-construction
+            color: cyan
+            linger: 0.5
+      - say: The article validator requires a list of strings containing each unique candidate ID exactly once. A
+          private invented ID or repeated candidate is rejected. Its accepted example swaps the runbook ahead
+          of the direct-answer guide, lowering system NDCG at three to about zero point eight five eight.
+          Structural validity and ranking quality are different checks.
+        hold: 0.6
+        visual_cues:
+          - id: generated-order-b2
+            phrase: The article validator requires a list of strings containing each unique candidate ID exactly once.
+            targets:
+              - generated-order-construction
+            color: cyan
+            linger: 0.5
+          - id: permutation-reject
+            phrase: A private invented ID or repeated candidate is rejected.
+            targets:
+              - generated-order-construction
+            color: cyan
+            linger: 0.4
+          - id: permutation-quality
+            phrase: lowering system NDCG at three to about zero point eight five eight.
+            targets:
+              - generated-order-construction
+            color: cyan
+            linger: 0.4
+      - say: Measure quality, cost, completed-request latency, input-order sensitivity and adversarial snippets
+          against simpler baselines on held-out queries. Predeclare a safe timeout, invalid-output or
+          underfilled-list fallback. Current permission must still hold at disclosure even if the candidate
+          permutation was structurally valid against an earlier snapshot.
+        hold: 0.8
+        visual_cues:
+          - id: generated-order-b3
+            phrase: Measure quality, cost, completed-request latency, input-order sensitivity and adversarial snippets
+              against simpler baselines on held-out queries.
+            targets:
+              - generated-order-construction
+            color: cyan
+            linger: 0.5
+  - id: feed-coldstart
+    title: Change the request evidence without leaking its future outcome
+    visual: Change the request evidence without leaking its future outcome.
+    beats:
+      - say: A recommendation feed can replace the typed query with developer history and session context while
+          keeping the item tower. Content-based evidence follows topics or metadata similar to earlier
+          choices. Collaborative evidence follows patterns across people who used overlapping items. New users
+          lack preference history; new documents lack interaction history.
+        hold: 0.6
+        visual_cues:
+          - id: feed-coldstart-b1
+            phrase: A recommendation feed can replace the typed query with developer history and session context while
+              keeping the item tower.
+            targets:
+              - feed-coldstart-construction
+            color: cyan
+            linger: 0.5
+      - say: An ID-only user-item embedding model is a matrix-factorization form of collaborative filtering. Text or
+          metadata inputs can represent a newly indexed document before its first click. Evaluate new-user and
+          new-item slices separately from familiar interactions. An unseen item may never have been exposed
+          rather than disliked.
+        hold: 0.6
+        visual_cues:
+          - id: feed-coldstart-b2
+            phrase: An ID-only user-item embedding model is a matrix-factorization form of collaborative filtering.
+            targets:
+              - feed-coldstart-construction
+            color: cyan
+            linger: 0.5
+          - id: cold-new-item
+            phrase: Text or metadata inputs can represent a newly indexed document before its first click.
+            targets:
+              - feed-coldstart-construction
+            color: cyan
+            linger: 0.4
+      - say: Train from interactions available before the declared time boundary and evaluate later outcomes. A future
+          click cannot enter a feature used to predict itself. Changing tower weights without compatible item
+          vectors also changes the retrieval function, so preserve the encoder and index lineage when
+          comparing runs.
+        hold: 0.8
+        visual_cues:
+          - id: feed-coldstart-b3
+            phrase: Train from interactions available before the declared time boundary and evaluate later outcomes.
+            targets:
+              - feed-coldstart-construction
+            color: cyan
+            linger: 0.5
+          - id: cold-future
+            phrase: A future click cannot enter a feature used to predict itself.
+            targets:
+              - feed-coldstart-construction
+            color: cyan
+            linger: 0.4
+  - id: pointwise-target
+    title: What can five judgments teach a ranker?
+    visual: The same grades label individual pages, cross ten possible pairs, and finally form one list. Equal
+      grades cancel two comparisons before the guide and blog go to RankNet.
+    beats:
+      - say: The API guide has a query-fit signal and a reliability signal. A judge gives it grade three for this
+          search. Make that grade the target for one row and you have pointwise training. Squared error can
+          fit a numeric grade. Binary cross-entropy can fit a click label. A click depends on what was
+          shown. A plain, equally weighted row loss gives the same error the same cost at any rank. Context
+          and weights can change that.
+        hold: 0.55
+        visual_cues:
+          - id: training-row
+            phrase: Make that grade the target for one row
+            targets:
+              - training-guide
+            color: yellow
+            linger: 0.25
+      - say: Now take two pages from the same search. Each square on the board compares its row with its column.
+          Look where the runbook meets the SDK example. Both have grade two. Which one do those judgments
+          tell us to put first?
+        hold: 2
+        visual_cues:
+          - id: training-question
+            phrase: Look where the runbook meets the SDK example
+            targets:
+              - training-tie
+              - training-rows
+            color: yellow
+            linger: 0.25
+      - say: Neither. Cross out that square. The blog and the changelog also tie at zero. The guide beats each of
+          the other four pages. The runbook and SDK example each beat both grade-zero pages. Count the
+          marked squares. Eight of the ten comparisons give us a strict preference.
+        caption_starts:
+          - Count the marked squares
+          - Eight of the ten comparisons
+        hold: 0.55
+        visual_cues:
+          - id: training-ties
+            phrase: Cross out that square. The blog and the changelog also tie at zero
+            targets:
+              - training-board
+            color: cyan
+            linger: 0.25
+          - id: training-guide-wins
+            phrase: The guide beats each of the other four pages
+            targets:
+              - training-board
+            color: cyan
+            linger: 0.25
+          - id: training-other-wins
+            phrase: The runbook and SDK example each beat both grade-zero pages
+            targets:
+              - training-board
+            color: cyan
+            linger: 0.25
+          - id: training-count
+            phrase: Eight of the ten comparisons
+            targets:
+              - training-count
+            color: cyan
+            linger: 0.25
+      - say: Keep the square where the guide beats the blog. That one preference is a pairwise training example.
+          We can also keep all five pages together, with one target ordering or distribution for this query.
+          That’s a listwise example. Specify which candidates and judgments belong to it.
+        hold: 0.5
+        visual_cues:
+          - id: training-pick
+            phrase: Keep the square where the guide beats the blog
+            targets:
+              - training-picked
+            color: yellow
+            linger: 0.25
+          - id: training-list
+            phrase: keep all five pages together
+            targets:
+              - training-rows
+            color: green
+            linger: 0.25
+      - say: Take just the guide and the blog. Three beats zero, so the training target says to score the
+          guide higher. A tree or a neural network can learn from a preference like this. Let’s use it
+          to update two weights in a linear scorer.
+        hold: 0.5
+        visual_cues:
+          - id: training-carry
+            phrase: Take just the guide and the blog
+            targets:
+              - training-pair
+            color: yellow
+            linger: 0.25
+  - id: pair-update
+    title: One preference moves two weights
+    visual: Feature columns stay fixed beside a signed ruler for guide score minus blog score. Two independent
+      steps begin at zero and move the mark to opposite sides when the preferred page changes.
+    beats:
+      - say: The guide should beat the blog. Start a new linear scorer with both weights at zero. The scores tie.
+          RankNet takes the preferred score minus the other score and applies a logistic function. At a tie
+          it gives the guide a one-half chance of winning. The loss is minus the log of that probability.
+          Its slope with respect to the gap is probability minus one, so the slope here is minus one half.
+        hold: 0.55
+        visual_cues:
+          - id: pair-half
+            phrase: the slope here is minus one half
+            targets:
+              - pair-calculation
+            color: yellow
+            linger: 0.25
+      - say: To find which weights should move, subtract the blog’s features from the guide’s. The guide gains
+          point six three on query fit and gives up point zero nine on reliability. Multiply that difference
+          by the slope. The fit gradient is negative and the reliability gradient is positive.
+        hold: 0.5
+        visual_cues:
+          - id: pair-difference
+            phrase: subtract the blog’s features from the guide’s
+            targets:
+              - pair-calculation
+            color: cyan
+            linger: 0.25
+          - id: pair-gradient
+            phrase: Multiply that difference by the slope
+            targets:
+              - pair-calculation
+            color: cyan
+            linger: 0.25
+      - say: Take a downhill step of one half. That adds weight to fit and takes weight off reliability. Use the
+          new weights on the same two pages. Multiply each weight by its feature difference and add. The
+          guide now leads the blog by just over a tenth of a score unit.
+        hold: 0.6
+        visual_cues:
+          - id: pair-step
+            phrase: Take a downhill step of one half
+            targets:
+              - pair-calculation
+            color: green
+            linger: 0.25
+          - id: pair-gap
+            phrase: The guide now leads the blog by just over a tenth of a score unit
+            targets:
+              - pair-ruler
+            color: green
+            linger: 0.25
+      - say: Reset both weights to zero. Keep the pages and their features fixed. This time the training label
+          says the blog should win. The ruler still reads guide score minus blog score. Which way should the
+          mark move?
+        hold: 2
+        visual_cues:
+          - id: pair-reset
+            phrase: Reset both weights to zero
+            targets:
+              - pair-ruler
+            color: cyan
+            linger: 0.25
+          - id: pair-reverse
+            phrase: the training label says the blog should win
+            targets:
+              - pair-calculation
+            color: pink
+            linger: 0.25
+      - say: Left, toward the blog. Subtracting the guide’s features from the blog’s reverses both gradient signs.
+          The same step now puts the blog ahead by the same amount. The update followed the label we gave
+          it. At equal score gaps, plain RankNet gives a pair the same gap slope anywhere in a list. Its
+          weight gradients still depend on the two pages’ features.
+        hold: 0.55
+        visual_cues:
+          - id: pair-backstep
+            phrase: reverses both gradient signs
+            targets:
+              - pair-calculation
+            color: pink
+            linger: 0.25
+          - id: pair-backgap
+            phrase: The same step now puts the blog ahead by the same amount
+            targets:
+              - pair-ruler
+            color: pink
+            linger: 0.25
+  - id: metric-pair
+    title: How much is a swap worth?
+    visual: A two-page order stays fixed until the guide passes the blog. Two independent swaps of the
+      five-page list have different NDCG gains, which scale the local pair updates.
+    beats:
+      - say: Look at just the guide and blog. The blog leads. Nudge the guide closer and it still comes second, so
+          its discounted gain stays the same. Now move the guide past the blog. Only when their order
+          changes does NDCG jump. Between those crossings the metric is flat. To train with that
+          information, LambdaRank weights a smooth pairwise update by what swapping the two positions would
+          do to the metric.
+        hold: 0.55
+        visual_cues:
+          - id: lambda-closer
+            phrase: Nudge the guide closer and it still comes second
+            targets:
+              - metric-pair-construction
+            color: cyan
+            linger: 0.25
+          - id: lambda-cross
+            phrase: Now move the guide past the blog
+            targets:
+              - metric-pair-construction
+            color: yellow
+            linger: 0.25
+      - say: Put all five pages back. Start both copies in the order shown, with tied scores. On the left, swap
+          the guide in third with the blog in first. On the right, swap the SDK example in fifth with the
+          changelog in fourth. Compare the changes in NDCG. The first swap is worth about twenty-seven times
+          as much. Both the grade difference and the positions changed. At a tied score, multiply each
+          swap’s value by minus one half to get the loss slope for the preferred score.
+        hold: 0.65
+        visual_cues:
+          - id: lambda-guide-swap
+            phrase: swap the guide in third with the blog in first
+            targets:
+              - metric-pair-construction
+            color: cyan
+            linger: 0.25
+          - id: lambda-swaps
+            phrase: swap the SDK example in fifth with the changelog in fourth
+            targets:
+              - metric-pair-construction
+            color: green
+            linger: 0.25
+          - id: lambda-derivatives
+            phrase: multiply each swap’s value by minus one half
+            targets:
+              - metric-pair-construction
+            color: pink
+            linger: 0.25
+      - say: Use the guide and blog again. Start at zero weights and keep the same half-size learning step. Last
+          time, their gap grew to just over a tenth. Hold the guide-blog swap weight fixed for this one
+          update. Multiplying the slope by about one third also scales both weight changes by that factor.
+          Watch how far the guide gets this time. Its lead grows by about three hundredths of a score unit.
+        caption_starts:
+          - Its lead grows
+        hold: 0.6
+        visual_cues:
+          - id: lambda-local-weight
+            phrase: Hold the guide-blog swap weight fixed for this one update
+            targets:
+              - metric-pair-construction
+            color: yellow
+            linger: 0.25
+          - id: lambda-weighted-gap
+            phrase: Its lead grows by about three hundredths of a score unit
+            targets:
+              - metric-pair-construction
+            color: green
+            linger: 0.25
+      - say: For a general logistic steepness, sigma, the gap slope is negative sigma divided by one plus the
+          exponential of sigma times the gap. Multiply by the absolute metric change. Give the other page
+          the opposite sign and add up the contributions at each page. Descent then pushes the preferred
+          score up. LambdaMART fits boosted trees to these totals across queries and uses curvature in its
+          leaf updates. The pair calculation supplies a training signal. Evaluate the resulting order on
+          held-out queries.
+        hold: 0.65
+        visual_cues:
+          - id: metric-pair-b3
+            phrase: Multiply by the absolute metric change
+            targets:
+              - metric-pair-construction
+            color: cyan
+            linger: 0.25
+          - id: lambda-aggregate
+            phrase: Give the other page the opposite sign and add up the contributions at each page
+            targets:
+              - metric-pair-construction
+            color: yellow
+            linger: 0.25
+  - id: listwise-contract
+    title: A list distribution couples the candidate scores
+    visual: A list distribution couples the candidate scores.
+    beats:
+      - say: Give the guide and the blog a target share each. A ListNet-style loss can get these shares by
+          applying softmax to the judges’ grades. Apply softmax to the model’s scores over the same pages to
+          get its predicted shares. Raising the guide’s score takes some share from the blog. Cross-entropy
+          measures how well the shares match. Multiply each target share by the log of its predicted share,
+          add the terms, and take the negative. After training, evaluate the resulting order with NDCG.
+        hold: 0.6
+        visual_cues:
+          - id: listwise-contract-b1
+            phrase: Give the guide and the blog a target share each
+            targets:
+              - listwise-contract-construction
+            color: cyan
+            linger: 0.5
+      - say: "For this example, set the target shares directly. Give the guide seven tenths and the blog three tenths. Start both scores at
+          zero. Predicted masses are one half each, giving loss log two. The score derivative is
+          predicted mass minus target mass: minus zero point two and plus zero point two. A score step of one
+          half raises the preferred score to zero point one and lowers the other to minus zero point one."
+        hold: 0.6
+        visual_cues:
+          - id: listwise-contract-b2
+            phrase: Give the guide seven tenths and the blog three tenths
+            targets:
+              - listwise-contract-construction
+            color: cyan
+            linger: 0.5
+          - id: list-masses
+            phrase: Predicted masses are one half each, giving loss log two.
+            targets:
+              - listwise-contract-construction
+            color: cyan
+            linger: 0.4
+          - id: list-gradient
+            phrase: minus zero point two and plus zero point two.
+            targets:
+              - listwise-contract-construction
+            color: cyan
+            linger: 0.4
+          - id: list-step
+            phrase: raises the preferred score to zero point one and lowers the other to minus zero point one.
+            targets:
+              - listwise-contract-construction
+            color: cyan
+            linger: 0.4
+      - say: ListNet’s top-one distribution and permutation-based alternatives such as ListMLE are different
+          objectives. A sampled training list changes the compared universe; record that sampling rule and
+          validate on the intended population. Pointwise, pairwise and listwise views expose different
+          evidence, while held-out retrieval, slate quality and user outcomes still decide usefulness.
+        hold: 0.8
+        visual_cues:
+          - id: listwise-contract-b3
+            phrase: ListNet’s top-one distribution and permutation-based alternatives such as ListMLE are different
+              objectives.
+            targets:
+              - listwise-contract-construction
+            color: cyan
+            linger: 0.5
+          - id: list-universe
+            phrase: A sampled training list changes the compared universe; record that sampling rule and validate on the
+              intended population.
+            targets:
+              - listwise-contract-construction
+            color: cyan
+            linger: 0.4
+  - id: position-bias
+    title: A click mixes interest with exposure
+    visual: Equal-quality items receive 40 clicks at position one and 20 at position two under an assumed
+      examination model; inverse propensity weighting reveals equal corrected rates.
+    beats:
+      - say: A click says that someone selected a displayed item. It says nothing about documents they never saw, and
+          a result near the top has more opportunity to be examined than one below it.
+        hold: 0.55
+        visual_cues:
+          - id: position-bias-beat-1-focus-1
+            phrase: A click says that someone selected a displayed item
+            targets:
+              - position-bias-simulation-36
+            color: blue
+            linger: 0.6
+      - say: Under a deliberately simple position model, assume examination rates of one at position one and one half
+          at position two. Forty clicks from one hundred top-slot impressions estimate 0.4 relevance after
+          correction.
+        hold: 0.6
+        visual_cues:
+          - id: position-bias-beat-2-focus-1
+            phrase: Forty clicks from one hundred top-slot impressions estimate 0
+            targets:
+              - position-bias-simulation-36
+            color: blue
+            linger: 0.6
+          - id: position-bias-beat-2-focus-2
+            phrase: at position one and one half at position
+            targets:
+              - position-bias-object-position-impressions-37
+            color: blue
+            linger: 0.6
+          - id: position-first
+            phrase: Forty clicks from one hundred top-slot impressions estimate 0.4 relevance after correction.
+            targets:
+              - position-bias-construction
+            color: cyan
+            linger: 0.4
+      - say: Twenty clicks from one hundred second-slot impressions give 0.2 raw clicks per impression. Divide by the
+          assumed one-half examination rate and the corrected estimate is also 0.4. The assumptions need
+          evidence, often from safe randomized swaps.
+        hold: 0.7
+        visual_cues:
+          - id: position-bias-beat-3-focus-1
+            phrase: assumed one-half examination rate and the corrected estimate
+            targets:
+              - position-bias-simulation-36
+            color: blue
+            linger: 0.6
+          - id: position-bias-beat-3-focus-2
+            phrase: Twenty clicks from one hundred second-slot impressions give 0
+            targets:
+              - position-bias-object-position-impressions-37
+            color: blue
+            linger: 0.6
+          - id: position-second
+            phrase: the corrected estimate is also 0.4.
+            targets:
+              - position-bias-construction
+            color: cyan
+            linger: 0.4
+  - id: anchor-clipping
+    title: Relative exposure does not identify an absolute relevance level
+    visual: Relative exposure does not identify an absolute relevance level.
+    beats:
+      - say: The toy position model assumes a click requires both examination and relevance, with no accidental
+          clicks, and position-only examination independent of relevance given context. With a correct
+          positive absolute examination probability p, the click divided by p has expectation equal to
+          relevance probability. Across impressions, divide the click count by both p and impression count.
+        hold: 0.6
+        visual_cues:
+          - id: anchor-clipping-b1
+            phrase: The toy position model assumes a click requires both examination and relevance, with no accidental
+              clicks, and position-only examination independent of relevance given context.
+            targets:
+              - anchor-clipping-construction
+            color: cyan
+            linger: 0.5
+      - say: Randomized swaps can estimate relative propensities under that model. The same observed rates zero point
+          four and zero point two can correspond to probabilities one and one half, giving corrected estimates
+          zero point four each. If the first slot’s absolute examination anchor is zero point eight, the
+          second is zero point four, and both corrected estimates become zero point five. Relative ratios
+          alone cannot select the absolute relevance level.
+        hold: 0.6
+        visual_cues:
+          - id: anchor-clipping-b2
+            phrase: Randomized swaps can estimate relative propensities under that model.
+            targets:
+              - anchor-clipping-construction
+            color: cyan
+            linger: 0.5
+          - id: anchor-change
+            phrase: both corrected estimates become zero point five.
+            targets:
+              - anchor-clipping-construction
+            color: cyan
+            linger: 0.4
+      - say: Suppose only two in a hundred impressions get examined. Each click would carry a weight of
+          fifty. Cap that weight at ten and one rare click has less influence. Watch what happens to the
+          average. With relevance one half, the expected contribution falls from one half to one tenth.
+          The cap reduces the swing from rare clicks and biases the estimate downward.
+        caption_starts:
+          - With relevance one half
+          - the expected contribution falls
+        hold: 0.8
+        visual_cues:
+          - id: anchor-clipping-b3
+            phrase: Suppose only two in a hundred impressions get examined
+            targets:
+              - anchor-clipping-construction
+            color: cyan
+            linger: 0.5
+          - id: clip-result
+            phrase: the expected contribution falls from one half to one tenth
+            targets:
+              - anchor-clipping-construction
+            color: cyan
+            linger: 0.4
+  - id: coverage-exploration
+    title: Examination correction cannot invent a never-shown item
+    visual: Examination correction cannot invent a never-shown item.
+    beats:
+      - say: An item absent from retrieval has no exposure observations for this request population. Correcting
+          examination at an existing position does not repair that missing catalog coverage. A counterfactual
+          policy estimate additionally needs logging-policy support of the target actions and their selection
+          probabilities. Those are not the same probabilities as position examination.
+        hold: 0.6
+        visual_cues:
+          - id: coverage-exploration-b1
+            phrase: An item absent from retrieval has no exposure observations for this request population.
+            targets:
+              - coverage-exploration-construction
+            color: cyan
+            linger: 0.5
+          - id: support-zero
+            phrase: An item absent from retrieval has no exposure observations for this request population.
+            targets:
+              - coverage-exploration-construction
+            color: cyan
+            linger: 0.4
+      - say: Keep randomized exploration inside current authorization and declared product rules. Compare the same
+          population when estimating position effects, and test trust, presentation and click-noise
+          assumptions rather than interpreting equal corrected finite-sample rates as equal intrinsic quality.
+          A higher click rate can also reflect interface change or clickbait rather than successful task
+          completion.
+        hold: 0.8
+        visual_cues:
+          - id: coverage-exploration-b2
+            phrase: Keep randomized exploration inside current authorization and declared product rules.
+            targets:
+              - coverage-exploration-construction
+            color: cyan
+            linger: 0.5
+  - id: exposure-join
+    title: Which search result did the click belong to?
+    visual: A request and page identify the proposed result. Two events reuse an ID, and another names a
+      request with no matching page.
+    beats:
+      - say: The server proposes three pages for request R one. Later, a click and a resolution both name the
+          guide on that request. To learn where the developer saw the guide, record its position when the
+          browser displays it.
+        hold: 0.6
+        visual_cues:
+          - id: exposure-join-b1
+            phrase: The server proposes three pages for request R one
+            targets:
+              - exposure-join-construction
+            color: cyan
+            linger: 0.5
+      - say: Retain candidate IDs, feature and document versions, policy, ranker and allowed request context so the
+          slate can be replayed. Join later events by request and document. The fixture separately checks
+          required fields, joinable outcomes and unique event IDs. An orphan event can fail the join while a
+          duplicate ID fails deduplication even when both copies join.
+        hold: 0.6
+        visual_cues:
+          - id: exposure-join-b2
+            phrase: Retain candidate IDs, feature and document versions, policy, ranker and allowed request context so the
+              slate can be replayed.
+            targets:
+              - exposure-join-construction
+            color: cyan
+            linger: 0.5
+          - id: event-orphan
+            phrase: An orphan event can fail the join while a duplicate ID fails deduplication even when both copies join.
+            targets:
+              - exposure-join-construction
+            color: cyan
+            linger: 0.4
+      - say: Keep impressions for pages that received no click, too. They tell us which pages had an
+          opportunity to earn one. Check the event types and timestamps before using them for training.
+          Limit access to search traces and expire them on schedule. Common query phrases can still be
+          recognizable from their hashes.
+        hold: 0.8
+        visual_cues:
+          - id: exposure-join-b3
+            phrase: Keep impressions for pages that received no click
+            targets:
+              - exposure-join-construction
+            color: cyan
+            linger: 0.5
+  - id: slate-policy
+    title: Who gets the third slot?
+    visual: Keep the top two platform results in place. Compare the third candidate's source to the used
+      platform places before exchanging its graded contribution for the blog's.
+    beats:
+      - say: The scorer puts the API guide, the runbook and the SDK example on the first screen. Look at their
+          source. All three come from platform. The portal wants a mix of sources and allows at most two
+          from any one source in these three slots.
+        hold: 0.6
+        visual_cues:
+          - id: slate-source
+            phrase: All three come from platform
+            targets:
+              - slate-policy-construction
+            color: yellow
+            linger: 0.25
+      - say: Leave the two higher scores alone. Both platform places are taken. The SDK example is next by score.
+          Just below it sits a community blog. Which one can fill the last slot under this rule?
+        hold: 2.1
+        visual_cues:
+          - id: slate-open
+            phrase: Both platform places are taken
+            targets:
+              - slate-third
+            color: yellow
+            linger: 0.25
+          - id: slate-choice
+            phrase: Which one can fill the last slot
+            targets:
+              - slate-third
+              - slate-reserve
+            color: yellow
+            linger: 0.25
+      - say: The blog takes slot three. The SDK example stays eligible and keeps its score. The cap changes which
+          page can sit beside the first two. We traded a grade two for a zero at rank three, so we lost one
+          and a half units of discounted gain. System NDCG falls from one to about point eight five six.
+        hold: 0.6
+        visual_cues:
+          - id: slate-exchange
+            phrase: The blog takes slot three
+            targets:
+              - slate-third
+            color: pink
+            linger: 0.25
+          - id: slate-cost
+            phrase: we lost one and a half units of discounted gain
+            targets:
+              - slate-metric
+            color: yellow
+            linger: 0.25
+      - say: Whether that trade serves developers is a product question. Measure it on the actual slate. Retrieval
+          must also supply another source if the portal expects three results. Let’s take that alternative
+          away.
+        hold: 0.55
+  - id: policy-underfill
+    title: Suppose retrieval finds only platform pages
+    visual: Replay the scored reserve under the same cap, then withdraw the community alternatives. The SDK
+      stays behind the full platform gate and the third slot empties.
+    beats:
+      - say: First replay the full reserve in score order. The source check keeps a count for each source. A page
+          can enter while its source has fewer than two places.
+        hold: 0.5
+        visual_cues:
+          - id: policy-underfill-b1
+            phrase: keeps a count for each source
+            targets:
+              - policy-underfill-construction
+            color: yellow
+            linger: 0.25
+      - say: Take the guide. Take the runbook. That uses both platform places. Pass over the SDK example and take
+          the community blog. Now suppose retrieval returned platform pages only. The guide, runbook and SDK
+          scores stay the same. How many pages can this portal show?
+        hold: 2
+        visual_cues:
+          - id: slate-capacity
+            phrase: Take the guide. Take the runbook. That uses both platform places. Pass over the SDK example and
+              take the community blog
+            targets:
+              - policy-underfill-construction
+            color: cyan
+            linger: 0.25
+          - id: slate-withdraw
+            phrase: Now suppose retrieval returned platform pages only
+            targets:
+              - policy-underfill-construction
+            color: yellow
+            linger: 0.25
+      - say: Two. The third slot stays empty. The SDK example still belongs to platform. To fill that slot under
+          this rule, retrieval would need another eligible source. Our greedy pass assumes unique pages,
+          known sources and positive limits. More complicated, overlapping constraints may need a different
+          algorithm.
+        hold: 0.5
+        visual_cues:
+          - id: slate-two
+            phrase: The third slot stays empty
+            targets:
+              - policy-underfill-construction
+            color: yellow
+            linger: 0.25
+      - say: Test the source cap on the final result. This portal also requires current pages. An archive could
+          choose to include older ones. Either product must still honor the developer’s current access at
+          display time.
+        hold: 0.6
+  - id: offline-fixture-gate
+    title: The final slate must pass the gate it actually uses
+    visual: The final slate must pass the gate it actually uses.
+    beats:
+      - say: Start with the unconstrained list on the left. Retrieval found every useful page at five.
+          The reranker at five and the displayed list at three both clear the NDCG threshold of point nine
+          five. Check that blocked pages stayed out and that the events have their required fields,
+          matching requests and pages, and unique IDs. In ten example timings, the nearest-rank
+          ninety-fifth percentile is eighteen milliseconds. That fits the twenty-millisecond limit.
+        hold: 0.6
+        visual_cues:
+          - id: offline-fixture-gate-b1
+            phrase: Start with the unconstrained list on the left
+            targets:
+              - offline-fixture-gate-construction
+            color: cyan
+            linger: 0.5
+          - id: offline-times
+            phrase: That fits the twenty-millisecond limit
+            targets:
+              - offline-fixture-gate-construction
+            color: cyan
+            linger: 0.4
+      - say: These checks evaluate the original unconstrained order. Substituting the source-constrained slate changes
+          system NDCG to zero point eight five six and requires an explicit source-cap check. Reuse the same
+          declared quality threshold and that candidate fails it. Do not keep a green receipt from the old
+          slate after changing the function being evaluated.
+        hold: 0.6
+        visual_cues:
+          - id: offline-fixture-gate-b2
+            phrase: These checks evaluate the original unconstrained order.
+            targets:
+              - offline-fixture-gate-construction
+            color: cyan
+            linger: 0.5
+          - id: offline-fail
+            phrase: Reuse the same declared quality threshold and that candidate fails it.
+            targets:
+              - offline-fixture-gate-construction
+            color: cyan
+            linger: 0.4
+      - say: The passing receipt belongs to the original list. Its hash identifies the recorded JSON.
+          To reproduce that result, save the data and judgments with the scorer, dependencies, tower and
+          index versions. Before the online experiment, check representative held-out queries. Measure
+          serving latency under load and specify which requests and time window count toward the guardrail.
+        hold: 0.8
+        visual_cues:
+          - id: offline-fixture-gate-b3
+            phrase: The passing receipt belongs to the original list
+            targets:
+              - offline-fixture-gate-construction
+            color: cyan
+            linger: 0.5
+          - id: offline-scope
+            phrase: Its hash identifies the recorded JSON
+            targets:
+              - offline-fixture-gate-construction
+            color: cyan
+            linger: 0.4
+  - id: developer-experiment
+    title: Assignment and aggregation define the experimental unit
+    visual: Assignment and aggregation define the experimental unit.
+    beats:
+      - say: The proposed experiment assigns each developer once at the first eligible request and keeps that
+          assignment stable. Repeated sessions from one developer are not independent experimental units. Its
+          primary metric first computes each developer’s resolved sessions divided by all their sessions, then
+          averages those developer ratios. Analyze at that unit or account for clustering in uncertainty.
+        hold: 0.6
+        visual_cues:
+          - id: developer-experiment-b1
+            phrase: The proposed experiment assigns each developer once at the first eligible request and keeps that
+              assignment stable.
+            targets:
+              - developer-experiment-construction
+            color: cyan
+            linger: 0.5
+      - say: For a supplied aggregation example, one developer resolves one of one sessions and another resolves one
+          of nine. The equal-developer mean is five ninths, while pooled sessions give two tenths. They answer
+          different questions. Declare enrollment, attribution window, missing-event and timeout handling,
+          metric, sample size, duration, uncertainty method and decision rule before exposure.
+        hold: 0.6
+        visual_cues:
+          - id: developer-experiment-b2
+            phrase: For a supplied aggregation example, one developer resolves one of one sessions and another resolves
+              one of nine.
+            targets:
+              - developer-experiment-construction
+            color: cyan
+            linger: 0.5
+          - id: developer-ratios
+            phrase: The equal-developer mean is five ninths, while pooled sessions give two tenths.
+            targets:
+              - developer-experiment-construction
+            color: cyan
+            linger: 0.4
+      - say: This example waits for both fourteen days and five thousand developers per group before comparing
+          resolution rates once. For your own experiment, use a power calculation to choose the sample size
+          for the effect you need to detect. Monitor blocked impressions and harmful latency from day one
+          so you can stop early. Read negative feedback alongside engagement.
+        hold: 0.8
+        visual_cues:
+          - id: developer-experiment-b3
+            phrase: This example waits for both fourteen days and five thousand developers per group
+            targets:
+              - developer-experiment-construction
+            color: cyan
+            linger: 0.5
+  - id: wrap
+    title: What would show the guide helped?
+    visual: Follow the guide from a proposed first slot to a matching browser impression and a later
+      resolution. Keep the request and page fixed across the records.
+    beats:
+      - say: Suppose our portal proposes the guide first for this retry search. That tells us what the server
+          sent. Which observation would tell us the developer actually had the guide on screen?
+        hold: 1.6
+        visual_cues:
+          - id: wrap-proposal
+            phrase: what the server sent
+            targets:
+              - wrap-proposal-row
+            color: cyan
+            linger: 0.25
+      - say: A browser impression can record the request, the page and its displayed position. A later resolution
+          event can join to that impression on request and page. Keep the versions and snapshots needed to
+          replay the proposal. Protect query and user traces and limit how long you retain them.
+        hold: 0.55
+        visual_cues:
+          - id: wrap-impression
+            phrase: A browser impression can record the request, the page and its displayed position
+            targets:
+              - wrap-impression-row
+            color: blue
+            linger: 0.25
+          - id: wrap-resolution
+            phrase: A later resolution event can join to that impression on request and page
+            targets:
+              - wrap-resolution-row
+            color: green
+            linger: 0.25
+      - say: That join tells us which exposure preceded the resolution. To learn whether changing the ranker
+          helps, compare developers randomly assigned to stable groups. Declare the outcome and guardrails
+          in advance. Check task resolution, latency, bad-result reports and blocked impressions. Now take
+          the same search back to the moment before display.
+        hold: 0.55
+  - id: fresh-permission
+    title: Access changed before display
+    visual: All five scored pages remain in order beside the three display slots. Replay the cap after
+      revoking the guide, keep both scored reports, then return to the original state and revoke only the
+      blog.
+    beats:
+      - say: Here’s the retry search just before display. On the left are all five pages in score order. On the
+          right is the original three-slot proposal. Two platform pages took the available places, so the
+          SDK example had to wait. Now the guide’s access is revoked. Scores stay fixed. Which page can take
+          the platform place the guide leaves behind?
+        hold: 2.3
+        visual_cues:
+          - id: permission-original
+            phrase: the original three-slot proposal
+            targets:
+              - permission-slots
+            color: cyan
+            linger: 0.25
+          - id: permission-revoked
+            phrase: the guide’s access is revoked
+            targets:
+              - permission-reserve-list
+            color: red
+            linger: 0.25
+      - say: Block the guide and start at the top of the remaining scores. Take the runbook, then the SDK example,
+          then the community blog. The SDK page got in because a platform place opened. Its score never
+          moved.
+        caption_starts:
+          - Take the runbook
+          - then the SDK example
+        hold: 0.65
+        visual_cues:
+          - id: permission-block
+            phrase: Block the guide and start at the top of the remaining scores
+            targets:
+              - permission-reserve-list
+            color: red
+            linger: 0.25
+          - id: permission-reserve
+            phrase: Take the runbook, then the SDK example, then the community blog
+            targets:
+              - permission-slots
+            color: green
+            linger: 0.25
+      - say: Which ideal belongs in the new report? The guide’s grade three belonged to the old set. The four
+          pages still eligible have grades two, two, zero and zero. The best three are two, two and zero.
+          Our displayed grades match. System NDCG is one for this version. Revoking access changed the
+          ideal. The scorer used the same weights in both reports.
+        caption_starts:
+          - The guide’s grade three
+          - The four pages still eligible
+          - The best three are
+          - System NDCG is one
+        hold: 0.7
+        visual_cues:
+          - id: permission-ideal
+            phrase: The best three are two, two and zero
+            targets:
+              - permission-metrics
+            color: yellow
+            linger: 0.25
+          - id: permission-result
+            phrase: System NDCG is one for this version
+            targets:
+              - permission-metrics
+            color: green
+            linger: 0.25
+      - say: Try a separate replay from the original five pages. Restore the guide. This time only the blog loses
+          access. The guide and runbook still take both platform places. Look down the remaining scores.
+          Which page can fill slot three?
+        hold: 2.3
+        visual_cues:
+          - id: permission-replay
+            phrase: Try a separate replay from the original five pages
+            targets:
+              - permission-slots
+            color: cyan
+            linger: 0.25
+          - id: permission-blog
+            phrase: only the blog loses access
+            targets:
+              - permission-reserve-list
+            color: red
+            linger: 0.25
+      - say: Use the changelog. Both platform places are taken. The changelog is the next community page
+          this developer can open. The blog and the changelog both have grade zero. In slot three they
+          contribute the same gain. System NDCG stays at about point eight five six. To explain why a
+          different page reached the screen, look at the access decision for this request.
+        caption_starts:
+          - The blog and the changelog both have grade zero
+          - System NDCG stays
+          - To explain why
+        hold: 1.4
+        visual_cues:
+          - id: permission-changelog
+            phrase: Use the changelog.
+            targets:
+              - permission-slots
+            color: green
+            linger: 0.25
+          - id: permission-final-score
+            phrase: System NDCG stays at about point eight five six
+            targets:
+              - permission-metrics
+            color: yellow
+            linger: 0.25

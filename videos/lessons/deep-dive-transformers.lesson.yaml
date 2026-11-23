@@ -1,0 +1,1877 @@
+version: 1
+id: deep-dive-transformers
+title: Transformers and the Contracts Around a Checkpoint
+source: projects/deep-dive-transformers/content.md
+voice: af_heart
+rate: +12%
+sources:
+  - title: Transformers model loading lifecycle
+    url: https://huggingface.co/docs/transformers/main_classes/model
+  - title: Transformers chat templates
+    url: https://huggingface.co/docs/transformers/chat_templating
+  - title: Transformers cache strategies
+    url: https://huggingface.co/docs/transformers/kv_cache
+  - title: Hugging Face Hub cache structure
+    url: https://huggingface.co/docs/huggingface_hub/guides/manage-cache
+  - title: Transformers pinned model and generation source
+    url: https://github.com/huggingface/transformers/tree/b3a36037d3feb22e3f0174b3dd4248fcc0f0f722
+  - title: Transformers model outputs
+    url: https://huggingface.co/docs/transformers/main/en/main_classes/output
+  - title: Accelerate inference dispatch and offload
+    url: https://huggingface.co/docs/accelerate/concept_guides/big_model_inference
+  - title: Transformers v5 model definitions and migration
+    url: https://huggingface.co/blog/transformers-v5
+  - title: Transformers 2020 demonstration paper
+    url: https://aclanthology.org/2020.emnlp-demos.6/
+scenes:
+  - id: intro
+    title: Where do the two chat inputs first differ?
+    visual: The word “sing?” travels from a chat bubble into the two clients’ token strips. Compare
+      their final positions, restore the missing assistant prefix and follow the IDs into the model.
+    beats:
+      - say: Follow the last word into both requests. Both clients send ID five. The weights match, too.
+          Read across the approved row. Now compare the candidate. Where do their inputs first differ?
+        hold: 2.4
+        caption_starts:
+          - Both clients send ID five
+        visual_cues:
+          - id: intro-reference
+            phrase: Read across the approved row
+            targets:
+              - intro-inputs
+            color: cyan
+            linger: 0.25
+          - id: intro-candidate
+            phrase: Now compare the candidate
+            targets:
+              - intro-inputs
+            color: cyan
+            linger: 0.25
+          - id: intro-question
+            phrase: Where do their inputs first differ
+            targets:
+              - intro-inputs
+            color: yellow
+            linger: 0.25
+            caption_boundary: true
+      - say: Position seven. Both clients close the user turn at six. The approved client then opens an assistant
+          turn. The candidate stops. Restore that opening marker and the assistant role. Now the inputs
+          match all the way to the end. Keep the weights fixed and compare the scores for the first reply
+          token.
+        hold: 0.8
+        visual_cues:
+          - id: intro-position
+            phrase: Position seven
+            targets:
+              - intro-inputs
+            color: yellow
+            linger: 0.25
+          - id: intro-restore
+            phrase: Restore that opening marker and the assistant role
+            targets:
+              - intro-inputs
+            color: cyan
+            linger: 0.25
+          - id: intro-check
+            phrase: compare the scores for the first reply token
+            targets:
+              - intro-inputs
+            color: cyan
+            linger: 0.25
+      - say: Those numbers are what reach the model. Hugging Face Transformers reads the configuration to choose
+          a model class, then loads the saved tensors into it. The class runs on PyTorch. One forward pass
+          gives scores for the next token. The generation loop uses those scores to choose what comes next.
+          A trainer and a compatible serving system can use that same model definition.
+        hold: 0.7
+        visual_cues:
+          - id: intro-class
+            phrase: choose a model class
+            targets:
+              - intro-forward
+            color: cyan
+            linger: 0.25
+          - id: intro-weights
+            phrase: loads the saved tensors into it
+            targets:
+              - intro-forward
+            color: cyan
+            linger: 0.25
+          - id: intro-logits
+            phrase: One forward pass gives scores for the next token
+            targets:
+              - intro-forward
+            color: cyan
+            linger: 0.25
+          - id: intro-selection
+            phrase: choose what comes next
+            targets:
+              - intro-forward
+            color: cyan
+            linger: 0.25
+  - id: four-contracts
+    title: A successful parse still leaves other contracts to check
+    visual: "One same checkpoint record keeps four independently checked fields: immutable identity,
+      architecture dimensions, parameter restoration and input/output semantics. An actual
+      vocabulary mismatch fails restoration; a same-shape positional-rule mismatch survives loading
+      but fails a known input."
+    beats:
+      - say: A checkpoint needs four agreements. Identity selects the actual snapshot. Configuration defines
+          the architecture and dimensions. Parameters restore values into expected tensor names and
+          shapes. Input and output rules give those tensors meaning. A valid safetensors file can
+          pass parsing while one of the other agreements is broken.
+        hold: 0.7
+        visual_cues:
+          - id: hf-four-contracts-0
+            phrase: A checkpoint needs four agreements. Identity selects the actual snapshot. Configuration
+              defines the architecture and dimensions. Parameters restore values into expected
+              tensor names and shapes. Input and output rules give those tensors meaning. A valid
+              safetensors file can pass parsing while one of the other agreements is broken.
+            targets:
+              - hf-four-contracts-mechanism
+            color: cyan
+            linger: 0.2
+      - say: For a declared shape example, configuration requests thirty-two thousand embedding rows, but
+          the supplied shard contains thirty-two thousand and one. The vocabulary dimension cannot
+          be restored into that expected tensor. Separately, a shape-compatible custom class might
+          load the same arrays while applying a different positional rule. A known-input numerical
+          test detects that second problem after allocation succeeds.
+        hold: 0.7
+        visual_cues:
+          - id: hf-four-contracts-1
+            phrase: For a declared shape example, configuration requests thirty-two thousand embedding rows, but
+              the supplied shard contains thirty-two thousand and one. The vocabulary dimension
+              cannot be restored into that expected tensor. Separately, a shape-compatible custom
+              class might load the same arrays while applying a different positional rule. A
+              known-input numerical test detects that second problem after allocation succeeds.
+            targets:
+              - hf-four-contracts-mechanism
+            color: cyan
+            linger: 0.2
+      - say: Classify the first failing boundary. An unknown model type points to config or installed
+          support. Missing keys point to the index, class or conversion. A size mismatch points to
+          dimensions or export. A parse error points to artifact integrity. Wrong roles point to
+          preprocessing; a precision change points to dtype. Preserve the first error and its exact
+          inputs before changing another layer.
+        hold: 0.7
+        visual_cues:
+          - id: hf-four-contracts-2
+            phrase: Classify the first failing boundary. An unknown model type points to config or installed
+              support. Missing keys point to the index, class or conversion. A size mismatch points
+              to dimensions or export. A parse error points to artifact integrity. Wrong roles point
+              to preprocessing; a precision change points to dtype. Preserve the first error and its
+              exact inputs before changing another layer.
+            targets:
+              - hf-four-contracts-mechanism
+            color: cyan
+            linger: 0.2
+  - id: identity
+    title: A snapshot fixes the files behind a moving name
+    visual: Two immutable illustrative snapshots point to the same weight blob and different tokenizer
+      blobs. Moving the main reference changes the resolved tokenizer without changing weight
+      identity.
+    beats:
+      - say: >
+          A repository name and branch identify where to look. The immutable snapshot identifies the
+          files actually used. Our first snapshot points at a weight blob and one tokenizer blob.
+          The Hub cache can share unchanged content between snapshots, so identical weights need no
+          second physical copy.
+        hold: 0.6
+        visual_cues:
+          - id: identity-beat-1-focus-1
+            phrase: Our first snapshot points at a weight blob and one tokenizer blob
+            targets:
+              - identity-snapshot-r1
+              - identity-weight-blob
+              - identity-tokenizer-t3
+              - identity-shared-weight-links
+            color: cyan
+            linger: 0.65
+          - id: identity-beat-1-focus-2
+            phrase: The Hub cache can share unchanged content between snapshots
+            targets:
+              - identity-snapshot-r1
+              - identity-weight-blob
+              - identity-weight-copy-count
+            color: yellow
+            linger: 0.65
+          - id: hf-identity-0
+            phrase: A repository name and branch identify where to look. The immutable snapshot identifies the
+              files actually used. Our first snapshot points at a weight blob and one tokenizer
+              blob. The Hub cache can share unchanged content between snapshots, so identical
+              weights need no second physical copy.
+            targets:
+              - hf-identity-mechanism
+            color: cyan
+            linger: 0.2
+      - say: >
+          Move the main reference to a second snapshot. Its weight link stays the same, while its
+          tokenizer link changes. An application that records only the repository name loses this
+          distinction. Pin and record the model, tokenizer and processor revisions so the same
+          inputs can be reproduced.
+        hold: 0.6
+        visual_cues:
+          - id: identity-beat-2-focus-1
+            phrase: Its weight link stays the same
+            targets:
+              - identity-snapshot-r1
+              - identity-snapshot-r2
+              - identity-shared-weight-links
+              - identity-weight-blob
+              - identity-weight-copy-count
+            color: cyan
+            linger: 0.65
+          - id: identity-tokenizer-change
+            phrase: while its tokenizer link changes
+            targets:
+              - identity-tokenizer-t3
+              - identity-tokenizer-t4
+              - identity-snapshot-r2
+            color: pink
+            linger: 0.65
+          - id: identity-beat-2-focus-2
+            phrase: Move the main reference to a second snapshot
+            targets:
+              - identity-main
+              - identity-snapshot-r2
+            color: yellow
+            linger: 0.65
+          - id: hf-identity-1
+            phrase: Move the main reference to a second snapshot. Its weight link stays the same, while its
+              tokenizer link changes. An application that records only the repository name loses
+              this distinction. Pin and record the model, tokenizer and processor revisions so the
+              same inputs can be reproduced.
+            targets:
+              - hf-identity-mechanism
+            color: cyan
+            linger: 0.2
+      - say: >
+          Loading also restores tensor names, shapes and dtype into the chosen class. Record the
+          loaded precision and missing or unexpected keys. Saving a model captures its model
+          artifacts; save its tokenizer or processor as well. Custom repository Python needs its own
+          reviewed code identity before remote execution is enabled.
+        hold: 0.6
+        visual_cues:
+          - id: identity-beat-3-focus-1
+            phrase: Saving a model captures its model artifacts; save its tokenizer or processor as well
+            targets:
+              - identity-snapshot-r2
+              - identity-weight-blob
+              - identity-tokenizer-t4
+            color: cyan
+            linger: 0.65
+          - id: identity-beat-3-focus-2
+            phrase: Custom repository Python needs its own reviewed code identity before remote execution is
+              enabled
+            targets:
+              - identity-snapshot-r2
+              - identity-tokenizer-t4
+            color: yellow
+            linger: 0.65
+          - id: hf-identity-2
+            phrase: Loading also restores tensor names, shapes and dtype into the chosen class. Record the
+              loaded precision and missing or unexpected keys. Saving a model captures its model
+              artifacts; save its tokenizer or processor as well. Custom repository Python needs its
+              own reviewed code identity before remote execution is enabled.
+            targets:
+              - hf-identity-mechanism
+            color: cyan
+            linger: 0.2
+  - id: lifecycle
+    title: Configuration, initialization and restoration are different operations
+    visual: A config-only object creates shapes, construction allocates and initializes actual tiny
+      tensors, weight tying joins two references, and restoration replaces their values before
+      model-only save leaves tokenizer state outside its bundle.
+    beats:
+      - say: A configuration records hyperparameters and options without creating all model parameters.
+          Construction builds the module hierarchy. Weight initialization supplies values for a new
+          model, and post-initialization collects model properties and configured ties. Tying input
+          embeddings to the output head means two uses share a parameter; each model family and
+          configuration decides whether that tie applies.
+        hold: 0.7
+        visual_cues:
+          - id: hf-lifecycle-0
+            phrase: A configuration records hyperparameters and options without creating all model parameters.
+              Construction builds the module hierarchy. Weight initialization supplies values for a
+              new model, and post-initialization collects model properties and configured ties.
+              Tying input embeddings to the output head means two uses share a parameter; each model
+              family and configuration decides whether that tie applies.
+            targets:
+              - hf-lifecycle-mechanism
+            color: cyan
+            linger: 0.2
+      - say: Loading pretrained weights resolves files, builds the compatible architecture, restores tensor
+          values and sets evaluation mode. That mode controls training-dependent module behavior; it
+          does not disable gradient recording. The actual CPU lab runs backward after calling eval,
+          and its tied input and output weights are the same parameter object.
+        hold: 0.7
+        visual_cues:
+          - id: hf-lifecycle-1
+            phrase: Loading pretrained weights resolves files, builds the compatible architecture, restores
+              tensor values and sets evaluation mode. That mode controls training-dependent module
+              behavior; it does not disable gradient recording. The actual CPU lab runs backward
+              after calling eval, and its tied input and output weights are the same parameter
+              object.
+            targets:
+              - hf-lifecycle-mechanism
+            color: cyan
+            linger: 0.2
+      - say: Saving pretrained model state writes configuration and weights, with sharding metadata when
+          needed and generation configuration for a generative model. Save the tokenizer or
+          processor separately. A directory containing model weights alone does not reproduce the
+          conversation serialization that produced their inputs. Keep each saved artifact in the
+          release receipt.
+        hold: 0.7
+        visual_cues:
+          - id: hf-lifecycle-2
+            phrase: Saving pretrained model state writes configuration and weights, with sharding metadata when
+              needed and generation configuration for a generative model. Save the tokenizer or
+              processor separately. A directory containing model weights alone does not reproduce
+              the conversation serialization that produced their inputs. Keep each saved artifact in
+              the release receipt.
+            targets:
+              - hf-lifecycle-mechanism
+            color: cyan
+            linger: 0.2
+  - id: load-safety
+    title: What does the loader read, and what can it run?
+    visual: A single snapshot enters separate dtype and deserialization gates. The first floating weight
+      determines the documented fallback dtype when configuration has no dtype; safetensors remains
+      distinct from the custom Python import.
+    beats:
+      - say: With the default auto setting shown here, the loader reads the dtype saved in the configuration. If
+          that field is missing, it checks the first floating-point weight. That tells you how the
+          weights were saved. A training run can use several precisions. When comparing two releases,
+          set the intended dtype and inspect a loaded parameter. Older examples call the option
+          torch-dtype.
+        hold: 0.7
+        visual_cues:
+          - id: hf-load-safety-0
+            phrase: the first floating-point weight
+            targets:
+              - hf-load-safety-mechanism
+            color: cyan
+            linger: 0.2
+      - say: The file on the left holds tensors. Safetensors reads their values without unpickling
+          Python objects. Check their names and shapes against the model class. On the right is a
+          Python file that defines a custom class. Allowing that import lets the code run with the
+          permissions of your process.
+        hold: 0.7
+        visual_cues:
+          - id: hf-load-safety-1
+            phrase: Allowing that import lets the code run with the permissions of your process
+            targets:
+              - hf-load-safety-mechanism
+            color: cyan
+            linger: 0.2
+      - say: If the loader reports an unknown family, check which families your installed version
+          supports. If you need custom code, pin the model and code revisions, review the source and
+          its dependencies, and test with limited permissions. Check the licenses on the weights and
+          datasets as well. The Apache license covers the Transformers library.
+        hold: 0.7
+        visual_cues:
+          - id: hf-load-safety-2
+            phrase: test with limited permissions
+            targets:
+              - hf-load-safety-mechanism
+            color: cyan
+            linger: 0.2
+  - id: offload-execution
+    title: Storage placement does not name the execution device
+    visual: Meta shapes acquire real shard bytes on two GPUs and CPU/disk storage. One CPU-stored layer
+      moves into the main GPU execution slot, receives its input, computes, and releases the
+      temporary copy; cache and workspace remain in that same live ledger.
+    beats:
+      - say: Accelerate’s big-model inference path can create a meta-device skeleton with parameter shapes
+          and dtypes but no parameter data. Python objects and metadata still occupy memory. A map
+          then plans submodule placement, respects protected unsplit blocks and loads checkpoint
+          data into its destinations. This avoids requiring a full randomly initialized parameter
+          copy first.
+        hold: 0.7
+        visual_cues:
+          - id: hf-offload-execution-0
+            phrase: Accelerate’s big-model inference path can create a meta-device skeleton with parameter
+              shapes and dtypes but no parameter data. Python objects and metadata still occupy
+              memory. A map then plans submodule placement, respects protected unsplit blocks and
+              loads checkpoint data into its destinations. This avoids requiring a full randomly
+              initialized parameter copy first.
+            targets:
+              - hf-offload-execution-mechanism
+            color: cyan
+            linger: 0.2
+      - say: "When a GPU-backed dispatch map offloads a layer to CPU or disk, hooks move that layer’s
+          weights to the main execution device before use and clean up temporary device storage
+          afterward. Disk data first crosses host memory. A CPU-only map executes on CPU. Read the
+          actual device map and hooks: a storage label does not promise an additional concurrent
+          worker."
+        hold: 0.7
+        visual_cues:
+          - id: hf-offload-execution-1
+            phrase: "When a GPU-backed dispatch map offloads a layer to CPU or disk, hooks move that layer’s
+              weights to the main execution device before use and clean up temporary device storage
+              afterward. Disk data first crosses host memory. A CPU-only map executes on CPU. Read
+              the actual device map and hooks: a storage label does not promise an additional
+              concurrent worker."
+            targets:
+              - hf-offload-execution-mechanism
+            color: cyan
+            linger: 0.2
+      - say: For a supplied memory worksheet, resident weights occupy six gibibytes, the current offloaded
+          layer needs two, live cache needs three and workspace needs one. These separate
+          allocations total twelve gibibytes at use time. A ten-gibibyte device cannot admit that
+          live set even when its six resident weight gibibytes fit. This sequential inference
+          placement is distinct from training-state sharding and tensor-parallel execution.
+        hold: 0.7
+        visual_cues:
+          - id: hf-offload-execution-2
+            phrase: For a supplied memory worksheet, resident weights occupy six gibibytes, the current
+              offloaded layer needs two, live cache needs three and workspace needs one. These
+              separate allocations total twelve gibibytes at use time. A ten-gibibyte device cannot
+              admit that live set even when its six resident weight gibibytes fit. This sequential
+              inference placement is distinct from training-state sharding and tensor-parallel
+              execution.
+            targets:
+              - hf-offload-execution-mechanism
+            color: cyan
+            linger: 0.2
+          - id: hf-offload-total
+            phrase: These separate allocations total twelve gibibytes at use time.
+            targets:
+              - hf-offload-execution-mechanism
+            color: green
+            linger: 0.35
+  - id: auto
+    title: AutoClass lookup follows configuration metadata
+    visual: An executable model-type mapping selects LlamaForCausalLM, then GPT2LMHeadModel after the
+      key changes, and raises for an unknown family. Tensor-family compatibility is checked
+      separately.
+    beats:
+      - say: >
+          AutoConfig reads the model-type field and selects a configuration class.
+          AutoModelForCausalLM then chooses the associated causal-language-model class. The first
+          row of our lookup selects Llama. This selection follows metadata before the parameter
+          bytes establish compatibility with the resulting modules.
+        hold: 0.6
+        visual_cues:
+          - id: auto-beat-1-focus-1
+            phrase: AutoConfig reads the model-type field and selects a configuration class
+            targets:
+              - auto-model-type
+            color: cyan
+            linger: 0.65
+          - id: auto-beat-1-focus-2
+            phrase: The first row of our lookup selects Llama
+            targets:
+              - auto-s-selected-unknown-family-lookup-fails
+            color: yellow
+            linger: 0.65
+          - id: hf-auto-0
+            phrase: AutoConfig reads the model-type field and selects a configuration class.
+              AutoModelForCausalLM then chooses the associated causal-language-model class. The
+              first row of our lookup selects Llama. This selection follows metadata before the
+              parameter bytes establish compatibility with the resulting modules.
+            targets:
+              - hf-auto-mechanism
+            color: cyan
+            linger: 0.2
+      - say: >
+          Change only the model-type key to GPT-2. The mapping still returns a valid class, but our
+          supplied shards belong to Llama. Class lookup succeeded while the family contract failed.
+          Validate dimensions, tensor names and a known forward result after selecting a class.
+        hold: 0.6
+        visual_cues:
+          - id: auto-beat-2-focus-1
+            phrase: Class lookup succeeded while the family contract failed
+            targets:
+              - auto-s-selected-unknown-family-lookup-fails
+            color: cyan
+            linger: 0.65
+          - id: auto-beat-2-focus-2
+            phrase: Change only the model-type key to GPT-2
+            targets:
+              - auto-model-type
+            color: yellow
+            linger: 0.65
+          - id: hf-auto-1
+            phrase: Change only the model-type key to GPT-2. The mapping still returns a valid class, but our
+              supplied shards belong to Llama. Class lookup succeeded while the family contract
+              failed. Validate dimensions, tensor names and a known forward result after selecting a
+              class.
+            targets:
+              - hf-auto-mechanism
+            color: cyan
+            linger: 0.2
+      - say: >
+          An unknown family fails the built-in mapping. Supporting a new family requires compatible
+          configuration and implementation code, with its loading and numerical checks. Safetensors
+          parses tensor data; that storage format and the selected Python behavior remain separate
+          parts of the loading contract.
+        hold: 0.6
+        visual_cues:
+          - id: auto-beat-3-focus-1
+            phrase: An unknown family fails the built-in mapping
+            targets:
+              - auto-s-selected-unknown-family-lookup-fails
+            color: cyan
+            linger: 0.65
+          - id: auto-beat-3-focus-2
+            phrase: Supporting a new family requires compatible configuration and implementation code
+            targets:
+              - auto-model-type
+            color: yellow
+            linger: 0.65
+          - id: hf-auto-2
+            phrase: An unknown family fails the built-in mapping. Supporting a new family requires compatible
+              configuration and implementation code, with its loading and numerical checks.
+              Safetensors parses tensor data; that storage format and the selected Python behavior
+              remain separate parts of the loading contract.
+            targets:
+              - hf-auto-mechanism
+            color: cyan
+            linger: 0.2
+  - id: auto-extension
+    title: Read the actual map before interpreting its result
+    visual: The supplied llama key enters the exact pinned config map and lazy import, then its causal
+      task map. A separate small dictionary fixture raises KeyError while the public unknown-family
+      loader raises ValueError. Modular source generation is shown before the imported expanded
+      file.
+    beats:
+      - say: At the August first source revision, auto-mappings lists configuration names.
+          Configuration-auto imports the family module when the loader looks up its key. Modeling-auto
+          holds the task map. Follow llama across that map to LlamaForCausalLM. The loader can choose
+          the class before it opens a weight shard.
+        hold: 0.7
+        visual_cues:
+          - id: hf-auto-extension-0
+            phrase: Follow llama across that map to LlamaForCausalLM
+            targets:
+              - hf-auto-extension-mechanism
+            color: cyan
+            linger: 0.2
+      - say: Give the two-entry Python dictionary an unknown key. It raises KeyError. Give the same
+          unknown model type to the pinned public AutoConfig loader. Its built-in lookup raises
+          ValueError, as it does for a missing type. To add a family, register its configuration and
+          model classes, then test the weight conversion and a forward pass. Contributors can write
+          modular source that generates the model file the loader imports.
+        hold: 0.7
+        visual_cues:
+          - id: hf-auto-extension-1
+            phrase: the same unknown model type
+            targets:
+              - hf-auto-extension-mechanism
+            color: cyan
+            linger: 0.2
+  - id: chat
+    title: Where did the extra marker enter?
+    visual: Keep the complete approved token strip over the candidate. A separate tokenization step prepends
+      BEGIN, shifts each candidate ID one slot, and leaves the assistant suffix intact. Remove only the
+      extra insertion and compare the arrays.
+    beats:
+      - say: Here is the whole bird question from the opening. This little vocabulary gives each piece a number.
+          The template opens the user turn, inserts the words, and closes the turn. Then it opens the
+          assistant turn. Look at the ends of the two strips. This client has the assistant prefix in
+          place.
+        hold: 0.7
+        visual_cues:
+          - id: chat-words
+            phrase: inserts the words
+            targets:
+              - chat-strips
+            color: cyan
+            linger: 0.25
+          - id: chat-end
+            phrase: opens the assistant turn
+            targets:
+              - chat-strips
+            color: cyan
+            linger: 0.25
+      - say: The client renders that template to text. Its tokenizer is also set to put a begin marker at the
+          front. Watch the lower strip move one place to the right as the extra marker goes in. Compare
+          from position zero. At which position do the two IDs first disagree?
+        hold: 2.6
+        visual_cues:
+          - id: chat-insert
+            phrase: move one place to the right
+            targets:
+              - chat-strips
+            color: cyan
+            linger: 0.25
+          - id: chat-compare
+            phrase: At which position do the two IDs first disagree
+            targets:
+              - chat-strips
+            color: yellow
+            linger: 0.25
+            caption_boundary: true
+      - say: Position one. The first IDs are both zero. At the next position the approved input says user, ID
+          one. The candidate says begin, ID zero. Keep the assistant marker at the far end. Turn off the
+          tokenizer’s extra insertion and run the same comparison again. The IDs now match. You can also
+          ask the chat template to return IDs in one call. Use the template saved for your checkpoint.
+        hold: 1.1
+        visual_cues:
+          - id: chat-first
+            phrase: Position one
+            targets:
+              - chat-strips
+            color: yellow
+            linger: 0.25
+          - id: chat-remove
+            phrase: Turn off the tokenizer’s extra insertion
+            targets:
+              - chat-strips
+            color: cyan
+            linger: 0.25
+          - id: chat-equality
+            phrase: The IDs now match
+            targets:
+              - chat-strips
+            color: green
+            linger: 0.25
+            caption_boundary: true
+  - id: tokenizer-fields
+    title: Token IDs retain truncation, span and role meaning
+    visual: The same message retains vocabulary pieces, special-token IDs, attention mask and source
+      span mapping. A declared left-truncation removes the oldest visible policy in one explicit
+      example while a retained offset points back to the original word.
+    beats:
+      - say: A tokenizer defines vocabulary pieces, merge rules, special tokens, padding, truncation and
+          attention masks. Optional offset mappings connect token spans to original text for
+          extraction tasks. A truncation policy can remove the very instruction or evidence the
+          model needs; the same visible user sentence does not establish the same complete input.
+        hold: 0.7
+        visual_cues:
+          - id: hf-tokenizer-fields-0
+            phrase: A tokenizer defines vocabulary pieces, merge rules, special tokens, padding, truncation and
+              attention masks. Optional offset mappings connect token spans to original text for
+              extraction tasks. A truncation policy can remove the very instruction or evidence the
+              model needs; the same visible user sentence does not establish the same complete
+              input.
+            targets:
+              - hf-tokenizer-fields-mechanism
+            color: cyan
+            linger: 0.2
+      - say: The local example pairs a small word vocabulary with a Jinja template in the fast
+          tokenizer. Its ChatML-style markers surround the system and user messages and open the
+          assistant turn. Tokenize in the template call, or render first and turn off extra special
+          tokens in the tokenizer. Both paths give the same IDs here. For another checkpoint, load its
+          own template and check which tokenizer backend its release supports.
+        hold: 0.7
+        visual_cues:
+          - id: hf-tokenizer-fields-1
+            phrase: Both paths give the same IDs here
+            targets:
+              - hf-tokenizer-fields-mechanism
+            color: cyan
+            linger: 0.2
+  - id: processors
+    title: Multimodal preprocessing must align features with placeholders
+    visual: One retained illustrative image is resized and normalized into a named pixel tensor and
+      paired with an exact placeholder count. A changed normalizer or extra placeholder fails before
+      model output. A separate audio sample-rate gate checks rather than silently resamples.
+    beats:
+      - say: Send a chart with the words “Describe this chart.” The processor puts an image
+          placeholder in the text and prepares the pixels for the vision model. The result includes
+          named inputs for the token IDs, pixel values and image size. The placeholder tells the model
+          where the image features belong. An audio processor pairs the text with sound features
+          instead.
+        hold: 0.7
+        visual_cues:
+          - id: hf-processors-0
+            phrase: where the image features belong
+            targets:
+              - hf-processors-mechanism
+            color: cyan
+            linger: 0.2
+      - say: Retain the same image and words while checking resize, normalization, dtype, feature shape and
+          placeholder count. Valid tensor dimensions alone can still encode the wrong image
+          convention. For an illustrative scalar pixel, changing normalization from x minus one half
+          to x minus zero changes an input value of one from one half to one. The model receives
+          different numbers before any weight changes.
+        hold: 0.7
+        visual_cues:
+          - id: hf-processors-1
+            phrase: Retain the same image and words while checking resize, normalization, dtype, feature shape
+              and placeholder count. Valid tensor dimensions alone can still encode the wrong image
+              convention. For an illustrative scalar pixel, changing normalization from x minus one
+              half to x minus zero changes an input value of one from one half to one. The model
+              receives different numbers before any weight changes.
+            targets:
+              - hf-processors-mechanism
+            color: cyan
+            linger: 0.2
+          - id: hf-pixel-result
+            phrase: changing normalization from x minus one half to x minus zero changes an input value of one
+              from one half to one.
+            targets:
+              - hf-processors-mechanism
+            color: green
+            linger: 0.35
+      - say: The recording on screen has eight thousand samples per second. This extractor expects
+          sixteen thousand. Resample the recording before the call, or reject it at the input. Save
+          the processor with the model release. Replay a raw recording or image and compare its
+          intermediate tensors after an upgrade.
+        hold: 0.7
+        visual_cues:
+          - id: hf-processors-2
+            phrase: Resample the recording before the call
+            targets:
+              - hf-processors-mechanism
+            color: cyan
+            linger: 0.2
+  - id: padding
+    title: Padding side determines the final position a decode loop reads
+    visual: Two natural prompts occupy a four-slot batch. Right padding leaves PAD at the short row's
+      final position; left padding places its real final word there while the attention mask marks
+      padding independently.
+    beats:
+      - say: >
+          Batch two prompts with different lengths. In a decoding loop that reads the last input
+          position's logits, right padding puts a padding token at the end of the short row. Its
+          attention mask can hide padding as context, but it does not move that read position.
+        hold: 0.6
+        visual_cues:
+          - id: padding-beat-1-focus-1
+            phrase: right padding puts a padding token at the end of the short row
+            targets:
+              - padding-final-positions
+              - padding-pad-cells
+              - padding-read-edge
+            color: cyan
+            linger: 0.65
+          - id: padding-beat-1-focus-2
+            phrase: Its attention mask can hide padding as context
+            targets:
+              - padding-hidden-mask
+              - padding-pad-cells
+              - padding-read-edge
+            color: yellow
+            linger: 0.65
+          - id: hf-padding-0
+            phrase: Batch two prompts with different lengths. In a decoding loop that reads the last input
+              position's logits, right padding puts a padding token at the end of the short row. Its
+              attention mask can hide padding as context, but it does not move that read position.
+            targets:
+              - hf-padding-mechanism
+            color: cyan
+            linger: 0.2
+      - say: >
+          Left-pad the same prompts. Both final positions now contain real prompt tokens. The
+          displayed masks still distinguish padding from content. Padding layout, attention
+          visibility and the position selected for next-token prediction must agree with the
+          generation path.
+        hold: 0.6
+        visual_cues:
+          - id: padding-beat-2-focus-1
+            phrase: The displayed masks still distinguish padding from content
+            targets:
+              - padding-hidden-mask
+              - padding-visible-mask
+            color: cyan
+            linger: 0.65
+          - id: padding-left-pad
+            phrase: Left-pad the same prompts
+            targets:
+              - padding-words
+              - padding-read-edge
+            color: blue
+            linger: 0.65
+          - id: padding-beat-2-focus-2
+            phrase: Both final positions now contain real prompt tokens
+            targets:
+              - padding-final-positions
+              - padding-read-edge
+            color: yellow
+            linger: 0.65
+          - id: hf-padding-1
+            phrase: Left-pad the same prompts. Both final positions now contain real prompt tokens. The
+              displayed masks still distinguish padding from content. Padding layout, attention
+              visibility and the position selected for next-token prediction must agree with the
+              generation path.
+            targets:
+              - hf-padding-mechanism
+            color: cyan
+            linger: 0.2
+      - say: >
+          Training adds a separate target mask. A token can remain visible to attention while its
+          own prediction target is ignored. Keep those responsibilities explicit when a checkpoint
+          reuses an end-of-sequence ID for padding, so real end-of-sequence targets survive the
+          training mask.
+        hold: 0.6
+        visual_cues:
+          - id: padding-beat-3-focus-1
+            phrase: so real end-of-sequence targets survive the training mask
+            targets:
+              - padding-kept-eos
+              - padding-ignored-training-pad
+            color: cyan
+            linger: 0.65
+          - id: padding-beat-3-focus-2
+            phrase: A token can remain visible to attention while its own prediction target is ignored
+            targets:
+              - padding-training-context
+              - padding-training-attention
+            color: yellow
+            linger: 0.65
+          - id: hf-padding-2
+            phrase: Training adds a separate target mask. A token can remain visible to attention while its own
+              prediction target is ignored. Keep those responsibilities explicit when a checkpoint
+              reuses an end-of-sequence ID for padding, so real end-of-sequence targets survive the
+              training mask.
+            targets:
+              - hf-padding-mechanism
+            color: cyan
+            linger: 0.2
+  - id: loss
+    title: Which predictions count toward the loss?
+    visual: Four words appear in matching input and label rows. Follow each prediction to the word one
+      place ahead, mask the label for “at,” and recompute the mean while “at” stays in the input.
+    beats:
+      - say: Read the four tokens across the top. Birds sing at dawn. Copy them straight into the
+          labels. The model does the shift inside its loss. After “Birds” it scores “sing,” after
+          “sing” it scores “at,” and after “at” it scores “dawn.” Take the negative log of each target
+          word’s probability and average the three terms.
+        hold: 0.6
+        visual_cues:
+          - id: loss-beat-1-focus-1
+            phrase: After “Birds” it scores “sing,” after “sing” it scores “at,” and after “at” it
+              scores “dawn.”
+            targets:
+              - loss-active-alignments
+              - loss-labels
+              - loss-label-two
+            color: cyan
+            linger: 0.65
+          - id: loss-beat-1-focus-2
+            phrase: Take the negative log of each target word’s probability
+            targets:
+              - loss-surviving-terms
+              - loss-active-count
+              - loss-mean
+            color: yellow
+            linger: 0.65
+          - id: hf-loss-0
+            phrase: Copy them straight into the labels
+            targets:
+              - hf-loss-mechanism
+            color: cyan
+            linger: 0.2
+      - say: Set the label for “at” to minus one hundred. Follow the middle arrow. The score for
+          predicting “at” drops out. The predictions for “sing” and “dawn” still count. Add their
+          losses and divide by two. The mean is about point four three.
+        hold: 0.6
+        visual_cues:
+          - id: loss-beat-2-focus-1
+            phrase: Add their losses and divide by two
+            targets:
+              - loss-active-alignments
+              - loss-surviving-terms
+              - loss-active-count
+              - loss-mean
+            color: cyan
+            linger: 0.65
+          - id: loss-ignore-third-label
+            phrase: Set the label for “at” to minus one hundred
+            targets:
+              - loss-label-two
+              - loss-input-two
+            color: pink
+            linger: 0.65
+          - id: loss-beat-2-focus-2
+            phrase: The score for predicting “at” drops out
+            targets:
+              - loss-removed-alignment
+              - loss-removed-term
+              - loss-active-count
+              - loss-mean
+            color: yellow
+            linger: 0.65
+          - id: hf-loss-1
+            phrase: The predictions for “sing” and “dawn” still count
+            targets:
+              - hf-loss-mechanism
+            color: cyan
+            linger: 0.2
+      - say: Look back at the input row. The model still reads “at” when it predicts “dawn.” The label
+          mask changes which predictions count toward loss. The attention mask controls what each
+          position can see. If the caller also shifted the labels, the first position would be scored
+          against a word two places ahead.
+        hold: 0.6
+        visual_cues:
+          - id: loss-beat-3-focus-1
+            phrase: The model still reads “at” when it predicts “dawn.”
+            targets:
+              - loss-input-two
+              - loss-active-alignments
+              - loss-surviving-terms
+            color: cyan
+            linger: 0.65
+          - id: loss-beat-3-focus-2
+            phrase: the first position would be scored against a word two places ahead
+            targets:
+              - loss-labels
+              - loss-label-two
+              - loss-active-alignments
+            color: yellow
+            linger: 0.65
+          - id: hf-loss-2
+            phrase: The attention mask controls what each position can see
+            targets:
+              - hf-loss-mechanism
+            color: cyan
+            linger: 0.2
+  - id: output-contract
+    title: Optional fields can change integer indexing
+    visual: One retained CausalLMOutput record has logits with loss absent; adding supervised labels
+      inserts loss before the same logits. Attribute access keeps the actual logits field stable
+      while positional access changes its meaning.
+    beats:
+      - say: Read index zero from this model output. With loss absent, the first value is the logits
+          tensor. Now supply labels. The model returns a loss, and that scalar takes index zero.
+          ModelOutput indexing skips fields whose value is None. The logits have moved one place. You
+          can still reach them by name.
+        hold: 0.7
+        visual_cues:
+          - id: hf-output-contract-0
+            phrase: Now supply labels
+            targets:
+              - hf-output-contract-mechanism
+            color: cyan
+            linger: 0.2
+      - say: Use output dot logits when you need token scores. If you need a tuple, check the returned
+          fields and call to-tuple. For a causal language model the full score tensor has a batch,
+          sequence and vocabulary axis. A bare decoder returns hidden states. A classification head
+          produces scores for its classes and uses the corresponding training targets.
+        hold: 0.7
+        visual_cues:
+          - id: hf-output-contract-1
+            phrase: Use output dot logits when you need token scores
+            targets:
+              - hf-output-contract-mechanism
+            color: cyan
+            linger: 0.2
+  - id: real-cpu
+    title: Five IDs through a real Llama
+    visual: Use the fixed IDs [1, 7, 9, 4, 2] from the article’s two-layer CPU fixture. Keep ID 4 in the
+      input when its label is ignored. Compare shifted loss, tied weights, a safetensors reload, cached
+      logits, causal masking and manual greedy selections with the library results.
+    beats:
+      - say: The article runs a randomly initialized Llama on CPU, with Transformers five point sixteen point one
+          and PyTorch two point twelve. It has two layers of width thirty-two, four query heads and two
+          key-value heads. Feed it the five IDs on screen. For each position it scores all thirty-two
+          vocabulary entries. The logits have shape one by five by thirty-two.
+        hold: 0.7
+        visual_cues:
+          - id: hf-real-cpu-0
+            phrase: Feed it the five IDs on screen
+            targets:
+              - hf-real-cpu-mechanism
+            color: cyan
+            linger: 0.25
+          - id: hf-cpu-shape
+            phrase: The logits have shape one by five by thirty-two
+            targets:
+              - hf-real-cpu-mechanism
+            color: green
+            linger: 0.25
+      - say: Copy the input IDs into the labels. At position three, keep input ID four but set its label to minus
+          one hundred. The logits at position two lose their target. Average the negative log probabilities
+          of the three remaining targets. This shifted loss matches the model loss. Backward gives the
+          embeddings a nonzero gradient even in evaluation mode. The input and output weights share one
+          parameter. Save to safetensors and reload locally. The logits agree with the original.
+        hold: 0.7
+        visual_cues:
+          - id: hf-real-cpu-1
+            phrase: Copy the input IDs into the labels
+            targets:
+              - hf-real-cpu-mechanism
+            color: cyan
+            linger: 0.25
+          - id: cpu-mask-four
+            phrase: set its label to minus one hundred
+            targets:
+              - hf-real-cpu-mechanism
+            color: yellow
+            linger: 0.25
+          - id: hf-cpu-loss
+            phrase: This shifted loss matches the model loss
+            targets:
+              - hf-real-cpu-mechanism
+            color: green
+            linger: 0.25
+          - id: hf-cpu-gradient
+            phrase: Backward gives the embeddings a nonzero gradient
+            targets:
+              - hf-real-cpu-mechanism
+            color: green
+            linger: 0.25
+          - id: hf-cpu-tie
+            phrase: The input and output weights share one parameter
+            targets:
+              - hf-real-cpu-mechanism
+            color: green
+            linger: 0.25
+          - id: hf-cpu-reload
+            phrase: The logits agree with the original
+            targets:
+              - hf-real-cpu-mechanism
+            color: green
+            linger: 0.25
+      - say: Prefill the first four IDs and forward the fifth. Its scores match the last position of the full
+          pass with both dynamic and static caches. Change just the last input ID. The earlier scores stay
+          fixed because those positions cannot see into the future. Finally, three manual greedy choices
+          match the three tokens selected by generate. These checks establish how this CPU model computes.
+          Language quality, accelerator performance and serving capacity need their own measurements.
+        hold: 0.8
+        visual_cues:
+          - id: hf-real-cpu-2
+            phrase: Prefill the first four IDs and forward the fifth
+            targets:
+              - hf-real-cpu-mechanism
+            color: cyan
+            linger: 0.25
+          - id: hf-cpu-cached
+            phrase: with both dynamic and static caches
+            targets:
+              - hf-real-cpu-mechanism
+            color: green
+            linger: 0.25
+          - id: cpu-causal
+            phrase: The earlier scores stay fixed
+            targets:
+              - hf-real-cpu-mechanism
+            color: green
+            linger: 0.25
+          - id: cpu-manual
+            phrase: match the three tokens selected by generate
+            targets:
+              - hf-real-cpu-mechanism
+            color: green
+            linger: 0.25
+  - id: cache
+    title: Live sequence length and allocated capacity have different costs
+    visual: The article's tiny-decoder dimensions calculate sixteen kibibytes per cached token. Dynamic
+      payload grows with current live length, while a static cache reserves the configured maximum
+      capacity.
+    beats:
+      - say: >
+          Our hypothetical tiny decoder stores keys and values across sixteen layers. It has four
+          stored key-value heads, while its sixteen query heads determine a different dimension of
+          attention work. Multiply the displayed dimensions to get the cache payload per token, then
+          scale by the current sequence length.
+        hold: 0.6
+        motion_check:
+          region:
+            - 240
+            - 510
+            - 1440
+            - 390
+          minimumChangedFraction: 0.002
+        visual_cues:
+          - id: cache-beat-1-focus-1
+            phrase: Multiply the displayed dimensions to get the cache payload per token
+            targets:
+              - cache-payload-formula
+            color: cyan
+            linger: 0.65
+          - id: cache-scale-length
+            phrase: then scale by the current sequence length
+            targets:
+              - cache-payload-formula
+              - cache-length-counter
+              - cache-id-live-label-live-kv-payload-value-s-live-2-20-color-c-blue-id-rese
+            color: blue
+            linger: 0.65
+          - id: hf-cache-0
+            phrase: Our hypothetical tiny decoder stores keys and values across sixteen layers. It has four
+              stored key-value heads, while its sixteen query heads determine a different dimension
+              of attention work. Multiply the displayed dimensions to get the cache payload per
+              token, then scale by the current sequence length.
+            targets:
+              - hf-cache-mechanism
+            color: cyan
+            linger: 0.2
+      - say: >
+          Switch to a static allocation for the maximum context. Only a short prefix is live, but
+          every allocated slot still occupies storage. The ledger separates useful live cache from
+          unused reserved capacity. This estimate counts key-value tensor payload; weights,
+          activations and temporary buffers require additional memory.
+        hold: 0.6
+        visual_cues:
+          - id: cache-beat-2-focus-1
+            phrase: Only a short prefix is live, but every allocated slot still occupies storage
+            targets:
+              - cache-id-live-label-live-kv-payload-value-s-live-2-20-color-c-blue-id-rese
+              - cache-length-counter
+            color: cyan
+            linger: 0.65
+          - id: cache-static-allocation
+            phrase: Switch to a static allocation for the maximum context
+            targets:
+              - cache-length-counter
+              - cache-id-live-label-live-kv-payload-value-s-live-2-20-color-c-blue-id-rese
+            color: pink
+            linger: 0.65
+          - id: hf-cache-1
+            phrase: Switch to a static allocation for the maximum context. Only a short prefix is live, but
+              every allocated slot still occupies storage. The ledger separates useful live cache
+              from unused reserved capacity. This estimate counts key-value tensor payload; weights,
+              activations and temporary buffers require additional memory.
+            targets:
+              - hf-cache-mechanism
+            color: cyan
+            linger: 0.2
+      - say: >
+          At the maximum length, dynamic and static payloads meet. Cache identity also includes the
+          actual prefix, model and positional semantics. A same-length conversation with different
+          tokens needs different state. Serving runtimes add their own admission, paging and sharing
+          policies around supported model definitions.
+        hold: 0.6
+        visual_cues:
+          - id: cache-beat-3-focus-1
+            phrase: At the maximum length, dynamic and static payloads meet
+            targets:
+              - cache-id-live-label-live-kv-payload-value-s-live-2-20-color-c-blue-id-rese
+              - cache-length-counter
+            color: cyan
+            linger: 0.65
+          - id: hf-cache-2
+            phrase: At the maximum length, dynamic and static payloads meet. Cache identity also includes the
+              actual prefix, model and positional semantics. A same-length conversation with
+              different tokens needs different state. Serving runtimes add their own admission,
+              paging and sharing policies around supported model definitions.
+            targets:
+              - hf-cache-mechanism
+            color: cyan
+            linger: 0.2
+  - id: hybrid-budget
+    title: Sum layer-specific retained lengths before multiplying bytes
+    visual: Two full-attention and two windowed layers retain different sequence spans for the same
+      request. K and V, stored heads, dtype and active batch factors attach to their actual
+      allocation; beam expansion adds a distinct batch copy instead of changing token length.
+    beats:
+      - say: For conventional full-attention cache payload, multiply two for keys and values by layer count,
+          active sequence count, sequence length, stored key-value heads, head width and bytes per
+          value. Query-head count determines a different quantity. A beam-expanded batch can
+          increase active sequence count; maximum allocation length and current live length remain
+          separate. Divide bytes by one million forty-eight thousand five hundred seventy-six to
+          report mebibytes.
+        hold: 0.7
+        visual_cues:
+          - id: hf-hybrid-budget-0
+            phrase: For conventional full-attention cache payload, multiply two for keys and values by layer
+              count, active sequence count, sequence length, stored key-value heads, head width and
+              bytes per value. Query-head count determines a different quantity. A beam-expanded
+              batch can increase active sequence count; maximum allocation length and current live
+              length remain separate. Divide bytes by one million forty-eight thousand five hundred
+              seventy-six to report mebibytes.
+            targets:
+              - hf-hybrid-budget-mechanism
+            color: cyan
+            linger: 0.2
+      - say: Follow one hundred tokens through four layers. Two full-attention layers keep all one
+          hundred each. The two sliding layers keep twenty each. Across the four layers, that gives
+          two hundred forty stored positions. In each one, keys and values each use two heads of width
+          eight, at two bytes per value. That makes sixty-four bytes per position and fifteen thousand
+          three hundred sixty bytes of cache payload for this request.
+        hold: 0.7
+        visual_cues:
+          - id: hf-hybrid-budget-1
+            phrase: Follow one hundred tokens through four layers
+            targets:
+              - hf-hybrid-budget-mechanism
+            color: cyan
+            linger: 0.2
+          - id: hf-hybrid-length
+            phrase: two hundred forty stored positions
+            targets:
+              - hf-hybrid-budget-mechanism
+            color: green
+            linger: 0.35
+          - id: hf-hybrid-bytes
+            phrase: fifteen thousand three hundred sixty bytes of cache payload
+            targets:
+              - hf-hybrid-budget-mechanism
+            color: green
+            linger: 0.35
+      - say: Quantized caches and offloading have their own support matrices. The inspected current guide
+          supports offloading for dynamic and static cache, with version-specific sliding-layer
+          options; quantized cache differs. An offloaded cache transfers states around attention. A
+          cache object is also distinct from a serving runtime’s paged block pool, prefix-sharing
+          references and request admission policy.
+        hold: 0.7
+        visual_cues:
+          - id: hf-hybrid-budget-2
+            phrase: Quantized caches and offloading have their own support matrices. The inspected current guide
+              supports offloading for dynamic and static cache, with version-specific sliding-layer
+              options; quantized cache differs. An offloaded cache transfers states around
+              attention. A cache object is also distinct from a serving runtime’s paged block pool,
+              prefix-sharing references and request admission policy.
+            targets:
+              - hf-hybrid-budget-mechanism
+            color: cyan
+            linger: 0.2
+  - id: cache-identity
+    title: Can this request use the saved cache?
+    visual: Repeat the article’s seed-seven CPU fixture. Two aligned input rows drive a fixed scale for the
+      logit of vocabulary ID 5. Compare all 32 logits using the article’s absolute and relative tolerances.
+      Follow independent cache copies and measure the CPU tensors.
+    beats:
+      - say: The CPU lab saves keys and values for four input IDs. The upper row shows the IDs that produced
+          those slots. Feed the last ID, two, through this cache. Compare its scores with a full pass over
+          all five IDs. For vocabulary ID five, both marks land near minus point one five one. All
+          thirty-two scores agree within tolerance. Now replace seven with six in the request. The last ID
+          is still two. Can we reuse those four saved positions?
+        hold: 2.4
+        visual_cues:
+          - id: prefix-tail
+            phrase: Feed the last ID, two, through this cache
+            targets:
+              - prefix-replay
+            color: cyan
+            linger: 0.25
+          - id: prefix-match
+            phrase: both marks land near minus point one five one
+            targets:
+              - prefix-replay
+            color: green
+            linger: 0.25
+          - id: prefix-checked
+            phrase: All thirty-two scores agree within tolerance
+            targets:
+              - prefix-replay
+            color: green
+            linger: 0.25
+          - id: prefix-edit
+            phrase: replace seven with six
+            targets:
+              - prefix-replay
+            color: pink
+            linger: 0.25
+            caption_boundary: true
+          - id: prefix-ask
+            phrase: Can we reuse those four saved positions
+            targets:
+              - prefix-replay
+            color: yellow
+            linger: 0.25
+            caption_boundary: true
+      - say: Look at position one. The cache was built with seven. The request has six. Later keys and values can
+          depend on that earlier input too. Look at the full pass. Its score for ID five moves to about minus
+          point two one eight. The old cache still gives about minus point one five one. Rebuild the prefix with
+          six and forward two again. The marks line up, and all thirty-two scores pass the same check. For
+          reuse, the weights, positions and attention rules must also match.
+        hold: 1
+        visual_cues:
+          - id: prefix-where
+            phrase: Look at position one
+            targets:
+              - prefix-replay
+            color: yellow
+            linger: 0.25
+          - id: prefix-fail
+            phrase: moves to about minus point two one eight
+            targets:
+              - prefix-replay
+            color: pink
+            linger: 0.25
+          - id: prefix-rebuild
+            phrase: Rebuild the prefix with six and forward two again
+            targets:
+              - prefix-replay
+            color: cyan
+            linger: 0.25
+          - id: prefix-rechecked
+            phrase: all thirty-two scores pass the same check
+            targets:
+              - prefix-replay
+            color: green
+            linger: 0.25
+      - say: Suppose two requests really do start from the same four IDs. Copy that cache before either request
+          adds a token. The first request appends two. The second needs three directly after four. Follow
+          the separate copy. Three lands in the fifth slot. Sharing the first request’s mutated cache would
+          put three after two, one position too late.
+        hold: 0.8
+        visual_cues:
+          - id: prefix-copy
+            phrase: Copy that cache
+            targets:
+              - prefix-fork
+            color: cyan
+            linger: 0.25
+          - id: prefix-a
+            phrase: first request appends two
+            targets:
+              - prefix-fork
+            color: cyan
+            linger: 0.25
+          - id: prefix-b
+            phrase: Three lands in the fifth slot
+            targets:
+              - prefix-fork
+            color: cyan
+            linger: 0.25
+          - id: prefix-wrong
+            phrase: put three after two
+            targets:
+              - prefix-fork
+            color: pink
+            linger: 0.25
+      - say: Back on the CPU model, five positions are live in either cache. Each position takes two hundred
+          fifty-six bytes across its two layers. Five slots in the dynamic cache hold twelve hundred eighty
+          bytes. The static cache allocates sixteen slots, so its key and value tensors occupy four
+          thousand ninety-six bytes. The lab counts the elements in each tensor and multiplies by the
+          element size.
+        hold: 0.8
+        visual_cues:
+          - id: prefix-dynamic
+            phrase: hold twelve hundred eighty bytes
+            targets:
+              - prefix-bytes
+            color: cyan
+            linger: 0.25
+          - id: prefix-static
+            phrase: occupy four thousand ninety-six bytes
+            targets:
+              - prefix-bytes
+            color: cyan
+            linger: 0.25
+  - id: generation
+    title: What goes into the next forward pass?
+    visual: A five-word prompt stays fixed. The upper strip records each greedy selection. A forward deposits
+      its key and value state directly below the selected word. Stop on the period, leave its slot open
+      during the question, and resume with that single input.
+    beats:
+      - say: The little birds sing softly. Give all five prompt tokens to the model together. This first forward
+          pass writes their keys and values. That is prefill. In this made-up greedy run, the highest score
+          at the last position belongs to “near.” Greedy selection adds “near” to the sequence. What
+          belongs in the cache slot under that word right now?
+        hold: 2.1
+        visual_cues:
+          - id: generation-beat-1-focus-2
+            phrase: This first forward pass writes their keys and values
+            targets:
+              - generation-tracks
+            color: cyan
+            linger: 0.25
+          - id: generation-first-selection
+            phrase: Greedy selection adds “near” to the sequence
+            targets:
+              - generation-tracks
+            color: cyan
+            linger: 0.25
+          - id: generation-first-question
+            phrase: What belongs in the cache slot under that word right now
+            targets:
+              - generation-tracks
+            color: yellow
+            linger: 0.25
+            caption_boundary: true
+      - say: Leave it empty. We have selected near. Now forward near to write its keys and values. The new scores
+          select home. Forward home and select the period. Stop there. The returned text has eight tokens.
+          The cache holds seven positions. Which token must the next forward receive to compute the scores
+          after the period?
+        hold: 2.4
+        visual_cues:
+          - id: generation-forward-near
+            phrase: forward near to write its keys and values
+            targets:
+              - generation-tracks
+            color: cyan
+            linger: 0.25
+          - id: generation-select-home
+            phrase: The new scores select home
+            targets:
+              - generation-tracks
+            color: cyan
+            linger: 0.25
+          - id: generation-forward-home
+            phrase: Forward home
+            targets:
+              - generation-tracks
+            color: cyan
+            linger: 0.25
+          - id: generation-third-selection
+            phrase: select the period
+            targets:
+              - generation-tracks
+            color: cyan
+            linger: 0.25
+          - id: generation-stop
+            phrase: Which token must the next forward receive
+            targets:
+              - generation-tracks
+            color: yellow
+            linger: 0.25
+            caption_boundary: true
+      - say: Send the period. Put it at position seven with a mask that includes the whole prefix. Forward the
+          period to fill its slot. Now both rows reach eight. The model returned fresh scores, and we can
+          stop without choosing a ninth token. This is ordinary one-beam greedy decoding. Check the
+          bookkeeping of the generation path you actually use.
+        hold: 1.1
+        visual_cues:
+          - id: generation-resume-final
+            phrase: Forward the period to fill its slot
+            targets:
+              - generation-tracks
+            color: cyan
+            linger: 0.25
+          - id: generation-stop-count
+            phrase: both rows reach eight
+            targets:
+              - generation-tracks
+            color: green
+            linger: 0.25
+  - id: decoding-policy
+    title: Resolve selection and stopping policy around the same logits
+    visual: A fixed logit row becomes a temperature-scaled distribution, an actual top-k keep-set and a
+      selected token. Separate greedy/beam/assisted branches retain the same model forward, and the
+      returned sequence explicitly contains its input prefix.
+    beats:
+      - say: With sampling off and one beam, the model picks the highest score at each step. Leave the
+          beam count at three and you get beam search. It ranks partial replies and keeps three. A
+          reply pruned at this step can never win later, even if it would have had the highest final
+          score. Assisted decoding uses a draft model or another candidate generator and asks the
+          target model to verify the proposed tokens.
+        hold: 0.7
+        visual_cues:
+          - id: hf-decoding-policy-0
+            phrase: Leave the beam count at three
+            targets:
+              - hf-decoding-policy-mechanism
+            color: cyan
+            linger: 0.2
+      - say: Try sampling from three logits, two, one and zero. Temperature one leaves them unchanged.
+          Top-k two keeps the first two. Subtract the largest logit and exponentiate. The two weights
+          are one and e to the minus one. Divide each by their sum. The first token gets about
+          seventy-three percent of the probability and the second gets twenty-seven percent. A draw
+          can pick either.
+        hold: 0.7
+        visual_cues:
+          - id: hf-decoding-policy-1
+            phrase: Top-k two keeps the first two
+            targets:
+              - hf-decoding-policy-mechanism
+            color: cyan
+            linger: 0.2
+          - id: hf-sampling-probs
+            phrase: The first token gets about seventy-three percent of the probability and the second
+              gets twenty-seven percent
+            targets:
+              - hf-decoding-policy-mechanism
+            color: green
+            linger: 0.35
+      - say: Top-p instead keeps a high-probability set reaching its configured cumulative threshold under
+          the selected implementation. Stop IDs, repetition controls and maximum new tokens also
+          change the loop. Record the resolved GenerationConfig. Decoder-only returned sequences
+          include the input prefix, so slice by the actual prompt tensor width when the caller needs
+          only completion IDs. Then compare token IDs before decoding strings.
+        hold: 0.7
+        visual_cues:
+          - id: hf-decoding-policy-2
+            phrase: Top-p instead keeps a high-probability set reaching its configured cumulative threshold
+              under the selected implementation. Stop IDs, repetition controls and maximum new
+              tokens also change the loop. Record the resolved GenerationConfig. Decoder-only
+              returned sequences include the input prefix, so slice by the actual prompt tensor
+              width when the caller needs only completion IDs. Then compare token IDs before
+              decoding strings.
+            targets:
+              - hf-decoding-policy-mechanism
+            color: cyan
+            linger: 0.2
+  - id: serving-boundary
+    title: Local batching and a serving scheduler own different state
+    visual: The same request traverses a pipeline preprocessing/model/postprocessing chain; a separate
+      multi-request timeline adds explicit admission, paged allocation and interleaving. Four task
+      rows retain their own head, pooling, label or pixel conventions.
+    beats:
+      - say: A pipeline wraps task preprocessing, model invocation and postprocessing, and may batch local
+          inputs. That makes it useful for a smoke test, offline job or small evaluation fixture. It
+          does not by itself establish fleet admission, fault isolation, autoscaling or GPU topology
+          behavior. Test concurrency at the component that actually schedules requests.
+        hold: 0.7
+        visual_cues:
+          - id: hf-serving-boundary-0
+            phrase: A pipeline wraps task preprocessing, model invocation and postprocessing, and may batch
+              local inputs. That makes it useful for a smoke test, offline job or small evaluation
+              fixture. It does not by itself establish fleet admission, fault isolation, autoscaling
+              or GPU topology behavior. Test concurrency at the component that actually schedules
+              requests.
+            targets:
+              - hf-serving-boundary-mechanism
+            color: cyan
+            linger: 0.2
+      - say: The inspected v5 materials expose native serving, paged caching and continuous batching, so
+          serving is not absent from the library. Compare the selected native serving path or
+          another compatible runtime on the actual workload. A plain pipeline call and a dedicated
+          engine remain different entry paths with different defaults, allocation and compatibility
+          boundaries.
+        hold: 0.7
+        visual_cues:
+          - id: hf-serving-boundary-1
+            phrase: The inspected v5 materials expose native serving, paged caching and continuous batching, so
+              serving is not absent from the library. Compare the selected native serving path or
+              another compatible runtime on the actual workload. A plain pipeline call and a
+              dedicated engine remain different entry paths with different defaults, allocation and
+              compatibility boundaries.
+            targets:
+              - hf-serving-boundary-mechanism
+            color: cyan
+            linger: 0.2
+      - say: Task contracts also differ. Classification needs its label map, pooling and threshold.
+          Retrieval needs truncation, normalization and embedding version. Vision-language chat
+          needs pixel and placeholder budgets. Training wrappers, adapter tools and quantizers
+          specialize the model definition; exporters support selected families and formats. A Hub
+          listing alone certifies none of those downstream integrations.
+        hold: 0.7
+        visual_cues:
+          - id: hf-serving-boundary-2
+            phrase: Task contracts also differ. Classification needs its label map, pooling and threshold.
+              Retrieval needs truncation, normalization and embedding version. Vision-language chat
+              needs pixel and placeholder budgets. Training wrappers, adapter tools and quantizers
+              specialize the model definition; exporters support selected families and formats. A
+              Hub listing alone certifies none of those downstream integrations.
+            targets:
+              - hf-serving-boundary-mechanism
+            color: cyan
+            linger: 0.2
+  - id: drift-tests
+    title: Which setting should you restore first?
+    visual: Compare two release replays against the same approved request. The first loses two input IDs. The
+      second matches IDs and logits but inherits three beams. Keep matching fields visible as each changed
+      setting is restored.
+    beats:
+      - say: Try two candidate releases against the same bird question. In client A the class, weights and
+          precision match. Look at the last three IDs. The approved input ends with six, zero, seven.
+          Client A stops at six. Which setting would you restore first?
+        hold: 2.3
+        visual_cues:
+          - id: drift-a
+            phrase: Look at the last three IDs
+            targets:
+              - drift-receipt
+            color: cyan
+            linger: 0.25
+          - id: drift-predict
+            phrase: Which setting would you restore first
+            targets:
+              - drift-receipt
+            color: yellow
+            linger: 0.25
+      - say: Restore the assistant prefix. Client A now sends the approved IDs. Check the full-forward scores at
+          that input using your agreed tolerance. Client B already matches those scores and the IDs, but
+          inherits three beams. The approved request uses one beam with sampling off. Restore that
+          selection policy and replay the chosen tokens and stopping point.
+        hold: 1
+        visual_cues:
+          - id: drift-repair-a
+            phrase: Restore the assistant prefix
+            targets:
+              - drift-receipt
+            color: cyan
+            linger: 0.25
+          - id: drift-b
+            phrase: Client B already matches those scores and the IDs
+            targets:
+              - drift-receipt
+            color: cyan
+            linger: 0.25
+          - id: drift-beams
+            phrase: inherits three beams
+            targets:
+              - drift-receipt
+            color: pink
+            linger: 0.25
+          - id: drift-repair-b
+            phrase: Restore that selection policy
+            targets:
+              - drift-receipt
+            color: cyan
+            linger: 0.25
+      - say: If the full forward agrees and a cached step diverges, save the first differing step. Replay its
+          prefix, mask and positions. A loader that reports missing keys calls for a different check. A
+          renamed, tied, sharded or transposed tensor can leave a task head uninitialized. Inspect the
+          conversion report and the loaded dtype. For a memory or latency failure, record live cache
+          lengths, batch size, and repeated weight transfers on the device map.
+        hold: 0.8
+        visual_cues:
+          - id: drift-step
+            phrase: save the first differing step
+            targets:
+              - drift-receipt
+            color: cyan
+            linger: 0.25
+          - id: drift-keys
+            phrase: reports missing keys
+            targets:
+              - drift-receipt
+            color: cyan
+            linger: 0.25
+          - id: drift-budget
+            phrase: record live cache lengths
+            targets:
+              - drift-receipt
+            color: cyan
+            linger: 0.25
+  - id: project-source
+    title: A dated source map complements an executed wheel
+    visual: A historical 2018 BERT implementation leads to the 2020 paper’s unified API, then distinct
+      August source pin, installed5.16.1 CPU wheel and November documentation cards. A request
+      visits eleven named source owners while each owner highlights its actual artifact.
+    beats:
+      - say: Hugging Face’s history traces the project to an open PyTorch BERT implementation in twenty
+          eighteen. Wolf, Debut, Sanh and collaborators described the expanding unified library in
+          the twenty twenty EMNLP demonstration paper. Hugging Face engineers and community
+          contributors maintain integrations, conversions and tests. The company’s hosted products
+          remain distinct from the open-source package and individually licensed model assets.
+        hold: 0.7
+        visual_cues:
+          - id: hf-project-source-0
+            phrase: Hugging Face’s history traces the project to an open PyTorch BERT implementation in twenty
+              eighteen. Wolf, Debut, Sanh and collaborators described the expanding unified library
+              in the twenty twenty EMNLP demonstration paper. Hugging Face engineers and community
+              contributors maintain integrations, conversions and tests. The company’s hosted
+              products remain distinct from the open-source package and individually licensed model
+              assets.
+            targets:
+              - hf-project-source-mechanism
+            color: cyan
+            linger: 0.2
+      - say: The source-reading pin is August first, twenty twenty-six; the executed CPU wheel is five point
+          sixteen point one. Moving documentation here was inspected November seventh, twenty
+          twenty-six. The v5 announcement describes modular contributor generation, tokenizer
+          backend changes and a focus on PyTorch instead of supported TensorFlow and Flax backends.
+          These versioned choices do not change the earlier local run’s evidence.
+        hold: 0.7
+        visual_cues:
+          - id: hf-project-source-1
+            phrase: The source-reading pin is August first, twenty twenty-six; the executed CPU wheel is five
+              point sixteen point one. Moving documentation here was inspected November seventh,
+              twenty twenty-six. The v5 announcement describes modular contributor generation,
+              tokenizer backend changes and a focus on PyTorch instead of supported TensorFlow and
+              Flax backends. These versioned choices do not change the earlier local run’s evidence.
+            targets:
+              - hf-project-source-mechanism
+            color: cyan
+            linger: 0.2
+      - say: Follow one request through auto-mappings, configuration-auto and modeling-auto; then the family
+          configuration and modeling files. Modeling-utils owns lifecycle, hub utilities resolve
+          files, tokenization utilities and processing utilities construct inputs. Generation
+          utilities and its configuration own selection and stopping, cache-utils owns stored state,
+          and pipeline base wraps the task. Read the selected pinned owner when a receipt changes.
+        hold: 0.7
+        visual_cues:
+          - id: hf-project-source-2
+            phrase: Follow one request through auto-mappings, configuration-auto and modeling-auto; then the
+              family configuration and modeling files. Modeling-utils owns lifecycle, hub utilities
+              resolve files, tokenization utilities and processing utilities construct inputs.
+              Generation utilities and its configuration own selection and stopping, cache-utils
+              owns stored state, and pipeline base wraps the task. Read the selected pinned owner
+              when a receipt changes.
+            targets:
+              - hf-project-source-mechanism
+            color: cyan
+            linger: 0.2
+  - id: release-receipt
+    title: What can you sign off on?
+    visual: Attach the files, input and execution settings to one release receipt. In a separate illustrative
+      application, fixed logits meet tolerance, 81 of 100 held-out answers meet the task criterion against
+      a floor of 85, and latency has yet to be measured.
+    beats:
+      - say: Someone opens your release receipt next month. Which files should they load? Give them the model,
+          tokenizer, processor and custom-code commits, the configuration hash and the class it selected.
+          Include the shard index and expected parameter count. To reproduce the first forward, they also
+          need the raw input, rendered chat, token IDs, masks, and any image or audio preprocessing.
+        hold: 0.7
+        caption_starts:
+          - Give them the model
+        visual_cues:
+          - id: hf-release-receipt-0
+            phrase: Give them the model, tokenizer, processor and custom-code commits
+            targets:
+              - hf-release-receipt-mechanism
+            color: cyan
+            linger: 0.25
+          - id: receipt-class
+            phrase: the configuration hash and the class it selected
+            targets:
+              - hf-release-receipt-mechanism
+            color: cyan
+            linger: 0.25
+          - id: receipt-input
+            phrase: the raw input, rendered chat
+            targets:
+              - hf-release-receipt-mechanism
+            color: cyan
+            linger: 0.25
+      - say: To reproduce a reply, record the library, PyTorch and accelerator versions, precision, quantization,
+          device map, parallelism and cache implementation. Keep the resolved generation settings, seed,
+          stop IDs and token limit. Attach the reference scores and tokens with their tolerance, the asset
+          licenses and the custom-code decision. The snapshot identifies the files. The rest explains how
+          you ran them.
+        hold: 0.7
+        visual_cues:
+          - id: hf-release-receipt-1
+            phrase: To reproduce a reply
+            targets:
+              - hf-release-receipt-mechanism
+            color: cyan
+            linger: 0.25
+          - id: receipt-policy
+            phrase: the resolved generation settings
+            targets:
+              - hf-release-receipt-mechanism
+            color: cyan
+            linger: 0.25
+          - id: receipt-evidence
+            phrase: Attach the reference scores and tokens
+            targets:
+              - hf-release-receipt-mechanism
+            color: cyan
+            linger: 0.25
+      - say: Our random CPU model checked the mechanics. Take a separate candidate application. Its fixed-input
+          scores pass the agreed tolerance. Its release floor is eighty-five acceptable answers in a
+          hundred held-out cases. The candidate gets eighty-one. The quality check fails. Nobody has timed
+          the target workload yet, so latency is still open. Keep all three results on the receipt. A
+          timing run with a different prompt or stopping rule belongs to a separate configuration.
+        hold: 1
+        visual_cues:
+          - id: hf-release-receipt-2
+            phrase: Take a separate candidate application
+            targets:
+              - hf-release-receipt-mechanism
+            color: cyan
+            linger: 0.25
+          - id: receipt-numeric
+            phrase: pass the agreed tolerance
+            targets:
+              - hf-release-receipt-mechanism
+            color: green
+            linger: 0.25
+          - id: receipt-quality
+            phrase: The candidate gets eighty-one
+            targets:
+              - hf-release-receipt-mechanism
+            color: pink
+            linger: 0.25
+          - id: receipt-latency
+            phrase: latency is still open
+            targets:
+              - hf-release-receipt-mechanism
+            color: yellow
+            linger: 0.25
+  - id: fresh-resume
+    title: Which token should the client send?
+    visual: Return to chat with the shorter question “Why sing?” and four selected reply tokens. Decide what
+      follows a ten-position saved cache, forward the pending word, then restore that same snapshot and
+      change a single earlier word at fixed length.
+    beats:
+      - say: Shorten the question to “Why sing?” With its role markers the prompt now has seven tokens. In this
+          example the model selects four more, “To find a mate,” and stops on mate. Each forward after
+          prefill processed the previous selection. Nothing was evicted. How many positions were returned,
+          how many were cached, and which word should the client send next?
+        hold: 2.8
+        visual_cues:
+          - id: fresh-deal
+            phrase: selects four more, “To find a mate,”
+            targets:
+              - fresh-tracks
+            color: cyan
+            linger: 0.25
+          - id: fresh-predict
+            phrase: How many positions were returned
+            targets:
+              - fresh-tracks
+            color: yellow
+            linger: 0.25
+            caption_boundary: true
+      - say: Add the four reply tokens to the seven prompt tokens. Eleven positions come back. Prefill wrote
+          the seven prompt positions. Three later forwards wrote To, find, and a. Ten positions are cached.
+          The word mate is already in the reply. Its slot underneath is empty. Save this ten-position cache
+          so we can try a second request.
+        hold: 0.8
+        caption_starts:
+          - Eleven positions come back
+          - Prefill wrote the seven prompt positions
+          - Ten positions are cached
+          - The word mate is already in the reply
+        visual_cues:
+          - id: hf-fresh-sequence
+            phrase: Eleven positions come back
+            targets:
+              - fresh-tracks
+            color: cyan
+            linger: 0.25
+          - id: hf-fresh-cache
+            phrase: Ten positions are cached
+            targets:
+              - fresh-tracks
+            color: cyan
+            linger: 0.25
+          - id: fresh-save
+            phrase: Save this ten-position cache
+            targets:
+              - fresh-tracks
+            color: cyan
+            linger: 0.25
+      - say: Send mate at position ten, with all eleven positions visible in the attention mask. Forward that one
+          token. Its keys and values fill the last slot. All eleven positions now have cache state. We have
+          the scores for another word, and the returned reply still ends at mate.
+        hold: 1
+        visual_cues:
+          - id: hf-fresh-forward
+            phrase: Forward that one token
+            targets:
+              - fresh-tracks
+            color: cyan
+            linger: 0.25
+          - id: fresh-filled
+            phrase: All eleven positions now have cache state
+            targets:
+              - fresh-tracks
+            color: green
+            linger: 0.25
+      - say: Go back to the saved ten-position cache. This time the client changes the question to “birds sing?”
+          and keeps the same four reply tokens for the replay. The weights, mask, positions and lengths
+          still match. Can the client forward just mate through this saved cache?
+        hold: 2.6
+        visual_cues:
+          - id: fresh-edit
+            phrase: changes the question to “birds sing?”
+            targets:
+              - fresh-tracks
+            color: pink
+            linger: 0.25
+          - id: fresh-again
+            phrase: Can the client forward just mate
+            targets:
+              - fresh-tracks
+            color: yellow
+            linger: 0.25
+            caption_boundary: true
+      - say: Look at the third token. The cache belongs to Why. The client now sends birds. Rebuild from the
+          edited input. For this replay, that means processing all eleven tokens in a fresh forward. Keep
+          its last-position scores as the reference when you replay this request in S G Lang, the serving
+          runtime in the next lesson. That single word changed which computation you could reuse.
+        hold: 1.4
+        caption_starts:
+          - The cache belongs to Why
+          - Rebuild from the edited input
+          - Keep its last-position scores
+        visual_cues:
+          - id: fresh-difference
+            phrase: Look at the third token
+            targets:
+              - fresh-tracks
+            color: pink
+            linger: 0.25
+          - id: fresh-rebuild
+            phrase: processing all eleven tokens in a fresh forward
+            targets:
+              - fresh-tracks
+            color: cyan
+            linger: 0.25
+          - id: fresh-reference
+            phrase: Keep its last-position scores as the reference
+            targets:
+              - fresh-tracks
+            color: green
+            linger: 0.25

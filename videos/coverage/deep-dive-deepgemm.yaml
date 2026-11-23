@@ -1,0 +1,289 @@
+version: 1
+lesson: deep-dive-deepgemm
+promise: Follow a token through DeepGEMM's layouts, scaled arithmetic, and expert pipeline, then use its returned output and complete-layer time to decide whether to keep a kernel change.
+objectives:
+  - id: computed-matrix-contract
+    can: Compute NT shapes, operation counts, scale-weighted partial sums, and the packed row offset and reserved capacity of each expert.
+    scenes:
+      - dot
+      - gemm-contract
+      - reuse-budget
+      - scales
+      - precision-contracts
+      - intro
+      - packing
+      - routed-denominators
+      - grouped-modes
+      - fresh-contract
+  - id: versioned-layout-and-indexer
+    can: Trace actual descriptor addresses, scale lifetimes, JIT signatures and compressed or sparse score
+      positions across the dated API migration.
+    scenes:
+      - movement
+      - stage-lifetime
+      - jit-contract
+      - deepjit-migration
+      - indexer
+      - indexer-contract
+      - sparse-position-map
+  - id: complete-expert-pipeline
+    can: Trace dispatch, both projections, SwiGLU and weighted combine under the selected slot, symmetric-memory, locality and epilogue contracts.
+    scenes:
+      - overlap
+      - moe-graph
+      - ring-ownership
+      - locality-epilogue
+  - id: choose-packed-run
+    can: Locate a routed row after alignment, verify the return by source token, and use complete-layer time to choose between correct paths.
+    scenes: [intro, packing, moe-graph, profile-the-layer, fresh-contract]
+  - id: bounded-performance-diagnosis
+    can: Separate project, model and serving ownership, interpret historical work-rate receipts, test
+      complete-layer timing and determinism, and diagnose the first failing contract.
+    scenes:
+      - project-boundary
+      - benchmark-receipt
+      - profile-the-layer
+      - determinism
+      - bringup-triage
+      - fresh-contract
+sections:
+  - heading: Project identity and system boundary
+    status: taught
+    scenes: &a1
+      - project-boundary
+      - gemm-contract
+      - moe-graph
+  - heading: What callers actually use it for
+    status: taught
+    scenes: *a1
+  - heading: Research foundations and source trail
+    status: taught
+    scenes: *a1
+  - heading: "GEMM first: the contract behind the speed"
+    status: taught
+    scenes: &a2
+      - dot
+      - gemm-contract
+      - reuse-budget
+      - profile-the-layer
+  - heading: Read the performance ladder before the kernel
+    status: taught
+    scenes: *a2
+  - heading: Precision and scaling
+    status: taught
+    scenes: &a3
+      - scales
+      - precision-contracts
+  - heading: Why a scale belongs inside the K reduction
+    status: taught
+    scenes: *a3
+  - heading: Two architectures, two execution contracts
+    status: taught
+    scenes: *a3
+  - heading: Inside an SM100 tile
+    status: taught
+    scenes: &a4
+      - movement
+      - stage-lifetime
+  - heading: TMA moves the right rectangle
+    status: taught
+    scenes: *a4
+  - heading: TMEM holds accumulators and block scales
+    status: taught
+    scenes: *a4
+  - heading: tcgen05 issues MMA work
+    status: taught
+    scenes: *a4
+  - heading: The runtime JIT and shape signature
+    status: taught
+    scenes: &a5
+      - jit-contract
+      - deepjit-migration
+  - heading: What belongs in a signature
+    status: taught
+    scenes: *a5
+  - heading: The September DeepJIT migration
+    status: taught
+    scenes: *a5
+  - heading: "Grouped GEMM: the MoE shape problem"
+    status: taught
+    scenes: &a6
+      - intro
+      - packing
+      - routed-denominators
+      - grouped-modes
+      - fresh-contract
+  - heading: Worked routing example
+    status: taught
+    scenes: *a6
+    note: The opening uses the article's four expert counts and 128-row alignment. Token seven marks the first assignment to expert two so its packed offset can be tracked.
+  - heading: MQA logits for the DeepSeek indexer
+    status: taught
+    scenes: &a7
+      - indexer
+      - indexer-contract
+      - sparse-position-map
+  - heading: "September 30 migration: compressed columns need source offsets"
+    status: taught
+    scenes: *a7
+  - heading: Sparse scoring isn't a drop-in dense result
+    status: taught
+    scenes: *a7
+  - heading: "Mega MoE: overlap communication and compute"
+    status: taught
+    scenes: &a8
+      - overlap
+      - moe-graph
+      - ring-ownership
+  - heading: Persistent scheduling and ring reuse
+    status: taught
+    scenes: *a8
+  - heading: Symmetric memory contract
+    status: taught
+    scenes: *a8
+  - heading: Current locality and epilogue choices
+    status: taught
+    scenes:
+      - locality-epilogue
+  - heading: Read the Mega MoE benchmark as a bounded experiment
+    status: taught
+    scenes: &a9
+      - routed-denominators
+      - benchmark-receipt
+  - heading: DeepSeek-V4-Flash shape
+    status: taught
+    scenes: *a9
+  - heading: DeepSeek-V4-Pro shape
+    status: taught
+    scenes: *a9
+  - heading: Turn timing into a diagnosis
+    status: taught
+    note: The layer timings and swapped scalar returns are illustrative. The historical EP8 measurements appear in benchmark-receipt.
+    scenes:
+      - profile-the-layer
+      - bringup-triage
+      - fresh-contract
+  - heading: Strengths and weaknesses
+    status: taught
+    scenes: &a10
+      - reuse-budget
+      - moe-graph
+      - project-boundary
+      - bringup-triage
+  - heading: Strengths
+    status: taught
+    scenes: *a10
+  - heading: Weaknesses
+    status: taught
+    scenes: *a10
+  - heading: Bring up the contract before timing
+    status: taught
+    scenes: &a11
+      - precision-contracts
+      - grouped-modes
+      - ring-ownership
+      - bringup-triage
+  - heading: Check determinism after an upgrade
+    status: taught
+    scenes:
+      - determinism
+      - locality-epilogue
+  - heading: Shape constraints to expose
+    status: taught
+    scenes: *a11
+  - heading: Diagnose failures from their first symptom
+    status: taught
+    scenes: &a12
+      - bringup-triage
+      - jit-contract
+      - ring-ownership
+      - profile-the-layer
+  - heading: Wrong output, no crash
+    status: taught
+    scenes: [movement, precision-contracts, bringup-triage, moe-graph, fresh-contract]
+  - heading: First request is slow
+    status: taught
+    scenes: *a12
+  - heading: Mega MoE hangs
+    status: taught
+    scenes: *a12
+  - heading: Speedup disappears
+    status: taught
+    scenes: *a12
+  - heading: Thermal or topology drift
+    status: taught
+    scenes: *a12
+  - heading: A code-reading route through the repository
+    status: taught
+    scenes: &a13
+      - bringup-triage
+      - gemm-contract
+      - indexer-contract
+      - moe-graph
+      - fresh-contract
+  - heading: What strong answers show
+    status: taught
+    scenes: *a13
+  - heading: Follow-up questions
+    status: taught
+    scenes: *a13
+  - heading: Architectural summary
+    status: taught
+    scenes: *a13
+quiz:
+  - n: 1
+    status: taught
+    scenes:
+      - gemm-contract
+  - n: 2
+    status: taught
+    scenes:
+      - scales
+      - precision-contracts
+  - n: 3
+    status: taught
+    scenes:
+      - packing
+      - grouped-modes
+      - fresh-contract
+  - n: 4
+    status: taught
+    scenes:
+      - indexer-contract
+  - n: 5
+    status: taught
+    scenes:
+      - stage-lifetime
+  - n: 6
+    status: taught
+    scenes:
+      - jit-contract
+      - deepjit-migration
+  - n: 7
+    status: taught
+    scenes:
+      - overlap
+      - ring-ownership
+  - n: 8
+    status: taught
+    scenes:
+      - profile-the-layer
+  - n: 9
+    status: taught
+    scenes:
+      - determinism
+  - n: 10
+    status: taught
+    scenes:
+      - moe-graph
+      - fresh-contract
+removed: []
+reviews:
+  closed_book:
+    script: fabcd92f544abf2a
+    taught: 10
+    partial: 0
+    absent: 0
+  fact_check:
+    script: fabcd92f544abf2a
+    open_findings: 0

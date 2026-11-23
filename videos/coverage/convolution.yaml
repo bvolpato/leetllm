@@ -1,0 +1,238 @@
+version: 1
+lesson: convolution
+promise: Given a change to a panel image, predict which filter windows can see it, whether it changes the pooled score, and where the gradient goes.
+framing: []
+objectives:
+  - id: intro
+    can: Pick the window whose left and right columns cancel.
+    scenes:
+      - intro
+      - kernel
+      - slide
+  - id: pixels
+    can: Brightness and arrangement tell different stories
+    scenes:
+      - pixels
+  - id: kernel
+    can: Build a comparison between the two sides
+    scenes:
+      - kernel
+  - id: patch
+    can: Match a window's sum to its position in the feature map.
+    scenes:
+      - patch
+  - id: slide
+    can: Reuse the same weights at every position
+    scenes:
+      - slide
+  - id: article-crop
+    can: Sum the three signed rows of a ridge filter and correct a window's response after changing one weight.
+    scenes:
+      - article-crop
+  - id: sharing-budget
+    can: Count shared and private filter parameters for the same output grid.
+    scenes:
+      - sharing-budget
+  - id: translation
+    can: Predict whether shifting an edge preserves the peak by inspecting the positions the stride samples.
+    scenes:
+      - translation
+  - id: stride-padding
+    can: Count complete starts after changing stride and recompute a window that reaches into padding.
+    scenes:
+      - stride-padding
+  - id: shape-dilation
+    can: Count starts using the complete kernel footprint
+    scenes:
+      - shape-dilation
+  - id: channels
+    can: Several input channels contribute to one output
+    scenes:
+      - channels
+  - id: grouped-connectivity
+    can: One output sums only its declared input-channel group
+    scenes:
+      - grouped-connectivity
+  - id: field-jump
+    can: Build a later footprint from its earlier owners
+    scenes:
+      - field-jump
+  - id: pool-winners
+    can: Save the winning coordinate beside each pooled value and use the specified rule to resolve a tie.
+    scenes:
+      - pool-winners
+  - id: pool-backward
+    can: Route a signed gradient to its saved maximum or divide it among the inputs to an average.
+    scenes:
+      - pool-backward
+  - id: overlap-repair
+    can: Use the four saved indices to explain why assignment loses three contributions and addition keeps all four.
+    scenes:
+      - overlap-repair
+  - id: global-average-head
+    can: Collapse spatial positions while preserving channels
+    scenes:
+      - global-average-head
+  - id: border-counts
+    can: A boundary pixel belongs to fewer valid windows
+    scenes:
+      - border-counts
+  - id: padding-artifact
+    can: A synthetic boundary can create an edge that was absent
+    scenes:
+      - padding-artifact
+  - id: forward-pass
+    can: Compute both logits from the same pooled feature and explain why they respond in opposite directions.
+    scenes:
+      - forward-pass
+  - id: residual-block
+    can: Add a learned change to an identity with matching shape
+    scenes:
+      - residual-block
+  - id: identity-gradient
+    can: The direct gradient path can still cancel or be gated
+    scenes:
+      - identity-gradient
+  - id: patch-projection
+    can: The same patch projection can be written as a convolution
+    scenes:
+      - patch-projection
+  - id: architecture-choice
+    can: Compare the training recipe and the actual failure slice
+    scenes:
+      - architecture-choice
+  - id: transfer
+    can: Predict what reversing the edge will do
+    scenes:
+      - transfer
+  - id: earned-cnn-transfer
+    can: Predict which responses a corner edit changes, recompute the logits, and send the pooled gradient to the winner saved on that pass.
+    scenes:
+      - earned-cnn-transfer
+sections:
+  - heading: Make reuse pay for itself
+    status: taught
+    scenes:
+      - sharing-budget
+      - translation
+  - heading: Let one detector find one pattern
+    status: taught
+    scenes:
+      - intro
+      - kernel
+      - patch
+      - slide
+      - article-crop
+    note: The four-by-four crop and the signed row contributions come from the article's ridge-filter example.
+  - heading: Shapes, channels, and padding contracts
+    status: taught
+    scenes:
+      - stride-padding
+      - shape-dilation
+      - channels
+      - grouped-connectivity
+  - heading: Receptive fields and channel expansion
+    status: taught
+    scenes:
+      - field-jump
+  - heading: Pooling mechanisms and gradient routing
+    status: taught
+    scenes:
+      - translation
+      - pool-winners
+      - pool-backward
+      - overlap-repair
+      - global-average-head
+      - earned-cnn-transfer
+    note: In the article's stride-one example, all four outputs are 9 and save flat index 4. The center gradient ends at 3 with assignment and 4.5 with addition.
+  - heading: "Failure modes: border evidence and padding artifacts"
+    status: taught
+    scenes:
+      - border-counts
+      - padding-artifact
+  - heading: "Build it: an inspectable forward pass"
+    status: taught
+    scenes:
+      - forward-pass
+      - earned-cnn-transfer
+    note: With the article's fixed ridge filter and linear head, corner values of 0.01 and 0.02 give upper-left responses of 0.876 and 0.870. Only the first exceeds the bottom-right response of 0.874.
+  - heading: "Modern vision architectures: ResNet and vision transformers"
+    status: taught
+    scenes:
+      - residual-block
+      - identity-gradient
+      - patch-projection
+      - architecture-choice
+  - heading: Change the crop, predict the response
+    status: taught
+    scenes:
+      - article-crop
+      - shape-dilation
+      - grouped-connectivity
+      - field-jump
+      - padding-artifact
+      - earned-cnn-transfer
+    note: The film works the upper-left coefficient change from the article and tests two new corner pixel values with the original filter. The RGB shape and receptive-field exercises remain available for practice on the page.
+quiz:
+  - n: 1
+    status: taught
+    scenes:
+      - article-crop
+  - n: 2
+    status: taught
+    scenes:
+      - shape-dilation
+      - grouped-connectivity
+  - n: 3
+    status: taught
+    scenes:
+      - field-jump
+  - n: 4
+    status: taught
+    scenes:
+      - translation
+      - stride-padding
+  - n: 5
+    status: taught
+    scenes:
+      - pool-backward
+      - overlap-repair
+  - n: 6
+    status: taught
+    scenes:
+      - padding-artifact
+  - n: 7
+    status: taught
+    scenes:
+      - global-average-head
+  - n: 8
+    status: taught
+    scenes:
+      - forward-pass
+      - pool-winners
+      - earned-cnn-transfer
+  - n: 9
+    status: taught
+    scenes:
+      - identity-gradient
+      - residual-block
+  - n: 10
+    status: taught
+    scenes:
+      - patch-projection
+removed: []
+reviews:
+  closed_book:
+    script: 11c2b5a6dca085f5
+    taught: 10
+    partial: 0
+    absent: 0
+    reviewer: /root/upgrade_shard6
+    evidence: build/video-delivery-20261106/script-reviews/convolution.json
+    evidence_sha256: d02747d3ac008855f1a9d85d9029fe88707e7575c195420c22e488b67dacf297
+  fact_check:
+    script: 11c2b5a6dca085f5
+    open_findings: 0
+    reviewer: /root/upgrade_shard6
+    evidence: build/video-delivery-20261106/script-reviews/convolution.json
+    evidence_sha256: d02747d3ac008855f1a9d85d9029fe88707e7575c195420c22e488b67dacf297

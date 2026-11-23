@@ -1,0 +1,721 @@
+{
+  "id": "ttl-key-value-store",
+  "slug": "ttl-key-value-store",
+  "title": "TTL Key/Value Store",
+  "difficulty": "Medium",
+  "category": "Stateful Design",
+  "language": "python3",
+  "timeEstimateMinutes": 35,
+  "timeLimitMs": 2500,
+  "memoryLimitMb": 128,
+  "order": 20,
+  "tags": [
+    "TTL",
+    "injected time",
+    "dictionary",
+    "scan"
+  ],
+  "source": "Frontier coding prep",
+  "summary": "Build a deterministic in-memory store where every read path treats expired keys as missing.",
+  "starterCode": [
+    "class Store:",
+    "    def __init__(self, now):",
+    "        self.now = now",
+    "",
+    "    def set(self, key: str, value: str, ttl: float | None = None) -> None:",
+    "        pass",
+    "",
+    "    def get(self, key: str):",
+    "        pass",
+    "",
+    "    def delete(self, key: str) -> bool:",
+    "        pass",
+    "",
+    "    def scan(self, prefix: str) -> list[tuple[str, str]]:",
+    "        pass"
+  ],
+  "testCases": [
+    {
+      "name": "expires keys at the boundary",
+      "visibility": "sample",
+      "setup": [
+        "from solution import Store",
+        "clock = {\"t\": 0.0}",
+        "store = Store(lambda: clock[\"t\"])",
+        "store.set(\"user:1\", \"Ada\", ttl=10)"
+      ],
+      "checks": [
+        {
+          "input": "clock = {\"t\": 0.0}\nstore = Store(lambda: clock[\"t\"])\nstore.set(\"user:1\", \"Ada\", ttl=10)\nstore.get(\"user:1\")",
+          "expression": "store.get(\"user:1\")",
+          "operator": "==",
+          "expected": "\"Ada\""
+        },
+        {
+          "input": "clock = {\"t\": 0.0}\nstore = Store(lambda: clock[\"t\"])\nstore.set(\"user:1\", \"Ada\", ttl=10)\nstore.get(\"user:1\")\nclock[\"t\"] = 9.999\nstore.get(\"user:1\")",
+          "expression": "store.get(\"user:1\")",
+          "operator": "==",
+          "expected": "\"Ada\"",
+          "before": "clock[\"t\"] = 9.999"
+        },
+        {
+          "input": "clock = {\"t\": 0.0}\nstore = Store(lambda: clock[\"t\"])\nstore.set(\"user:1\", \"Ada\", ttl=10)\nstore.get(\"user:1\")\nclock[\"t\"] = 9.999\nstore.get(\"user:1\")\nclock[\"t\"] = 10.0\nstore.get(\"user:1\")",
+          "expression": "store.get(\"user:1\")",
+          "operator": "is",
+          "expected": "None",
+          "before": "clock[\"t\"] = 10.0"
+        }
+      ]
+    },
+    {
+      "name": "scan omits expired keys and sorts results",
+      "visibility": "hidden",
+      "setup": [
+        "from solution import Store",
+        "clock = {\"t\": 5.0}",
+        "store = Store(lambda: clock[\"t\"])",
+        "store.set(\"user:2\", \"Grace\")",
+        "store.set(\"user:1\", \"Ada\", ttl=2)",
+        "store.set(\"admin:1\", \"Root\")",
+        "clock[\"t\"] = 7.0"
+      ],
+      "checks": [
+        {
+          "input": "clock = {\"t\": 5.0}\nstore = Store(lambda: clock[\"t\"])\nstore.set(\"user:2\", \"Grace\")\nstore.set(\"user:1\", \"Ada\", ttl=2)\nstore.set(\"admin:1\", \"Root\")\nclock[\"t\"] = 7.0\nstore.scan(\"user:\")",
+          "expression": "store.scan(\"user:\")",
+          "operator": "==",
+          "expected": "[(\"user:2\", \"Grace\")]"
+        },
+        {
+          "input": "clock = {\"t\": 5.0}\nstore = Store(lambda: clock[\"t\"])\nstore.set(\"user:2\", \"Grace\")\nstore.set(\"user:1\", \"Ada\", ttl=2)\nstore.set(\"admin:1\", \"Root\")\nclock[\"t\"] = 7.0\nstore.scan(\"user:\")\nstore.delete(\"user:1\")",
+          "expression": "store.delete(\"user:1\")",
+          "operator": "is",
+          "expected": "False"
+        },
+        {
+          "input": "clock = {\"t\": 5.0}\nstore = Store(lambda: clock[\"t\"])\nstore.set(\"user:2\", \"Grace\")\nstore.set(\"user:1\", \"Ada\", ttl=2)\nstore.set(\"admin:1\", \"Root\")\nclock[\"t\"] = 7.0\nstore.scan(\"user:\")\nstore.delete(\"user:1\")\nstore.delete(\"user:2\")",
+          "expression": "store.delete(\"user:2\")",
+          "operator": "is",
+          "expected": "True"
+        },
+        {
+          "input": "clock = {\"t\": 5.0}\nstore = Store(lambda: clock[\"t\"])\nstore.set(\"user:2\", \"Grace\")\nstore.set(\"user:1\", \"Ada\", ttl=2)\nstore.set(\"admin:1\", \"Root\")\nclock[\"t\"] = 7.0\nstore.scan(\"user:\")\nstore.delete(\"user:1\")\nstore.delete(\"user:2\")\nstore.get(\"user:2\")",
+          "expression": "store.get(\"user:2\")",
+          "operator": "is",
+          "expected": "None"
+        }
+      ]
+    },
+    {
+      "name": "persistent overwrite clears prior expiry",
+      "visibility": "sample",
+      "setup": [
+        "from solution import Store",
+        "clock = {\"t\": 0.0}",
+        "store = Store(lambda: clock[\"t\"] )",
+        "store.set(\"session\", \"old\", ttl=5)",
+        "clock[\"t\"] = 4.0",
+        "store.set(\"session\", \"new\")",
+        "clock[\"t\"] = 100.0"
+      ],
+      "input": "clock = {\"t\": 0.0}\nstore = Store(lambda: clock[\"t\"] )\nstore.set(\"session\", \"old\", ttl=5)\nclock[\"t\"] = 4.0\nstore.set(\"session\", \"new\")\nclock[\"t\"] = 100.0\nstore.get(\"session\")",
+      "expected": "\"new\"",
+      "expression": "store.get(\"session\")"
+    },
+    {
+      "name": "ttl zero expires immediately",
+      "visibility": "hidden",
+      "setup": [
+        "from solution import Store",
+        "store = Store(lambda: 10.0)",
+        "store.set(\"gone\", \"value\", ttl=0)"
+      ],
+      "checks": [
+        {
+          "input": "store = Store(lambda: 10.0)\nstore.set(\"gone\", \"value\", ttl=0)\nstore.get(\"gone\")",
+          "expression": "store.get(\"gone\")",
+          "operator": "is",
+          "expected": "None"
+        },
+        {
+          "input": "store = Store(lambda: 10.0)\nstore.set(\"gone\", \"value\", ttl=0)\nstore.get(\"gone\")\nstore.scan(\"\")",
+          "expression": "store.scan(\"\")",
+          "operator": "==",
+          "expected": "[]"
+        }
+      ]
+    },
+    {
+      "name": "delete treats missing and expired keys as absent",
+      "visibility": "hidden",
+      "setup": [
+        "from solution import Store",
+        "clock = {\"t\": 0.0}",
+        "store = Store(lambda: clock[\"t\"] )"
+      ],
+      "checks": [
+        {
+          "input": "clock = {\"t\": 0.0}\nstore = Store(lambda: clock[\"t\"] )\nstore.delete(\"missing\")",
+          "expression": "store.delete(\"missing\")",
+          "operator": "is",
+          "expected": "False"
+        },
+        {
+          "input": "clock = {\"t\": 0.0}\nstore = Store(lambda: clock[\"t\"] )\nstore.delete(\"missing\")\nstore.set(\"a\", \"1\")\nstore.set(\"b\", \"2\", ttl=1)\nclock[\"t\"] = 1.0\nstore.delete(\"b\")",
+          "expression": "store.delete(\"b\")",
+          "operator": "is",
+          "expected": "False",
+          "before": "store.set(\"a\", \"1\")\nstore.set(\"b\", \"2\", ttl=1)\nclock[\"t\"] = 1.0"
+        },
+        {
+          "input": "clock = {\"t\": 0.0}\nstore = Store(lambda: clock[\"t\"] )\nstore.delete(\"missing\")\nstore.set(\"a\", \"1\")\nstore.set(\"b\", \"2\", ttl=1)\nclock[\"t\"] = 1.0\nstore.delete(\"b\")\nstore.scan(\"\")",
+          "expression": "store.scan(\"\")",
+          "operator": "==",
+          "expected": "[(\"a\", \"1\")]"
+        }
+      ]
+    },
+    {
+      "name": "delete removes a live key",
+      "visibility": "sample",
+      "setup": [
+        "from solution import Store",
+        "store = Store(lambda: 0)",
+        "store.set(\"key\", \"value\")",
+        "deleted = store.delete(\"key\")"
+      ],
+      "input": "(deleted, store.get(\"key\"))",
+      "expected": "(True, None)"
+    },
+    {
+      "name": "overwrite with ttl resets the deadline",
+      "visibility": "hidden",
+      "setup": [
+        "from solution import Store",
+        "clock = {\"t\": 0.0}",
+        "store = Store(lambda: clock[\"t\"])",
+        "store.set(\"session\", \"old\", ttl=5)",
+        "clock[\"t\"] = 4.0",
+        "store.set(\"session\", \"new\", ttl=5)",
+        "clock[\"t\"] = 5.0",
+        "at_old_deadline = store.get(\"session\")",
+        "clock[\"t\"] = 9.0"
+      ],
+      "input": "(at_old_deadline, store.get(\"session\"))",
+      "expected": "(\"new\", None)"
+    },
+    {
+      "name": "empty prefix scans every live key",
+      "visibility": "hidden",
+      "setup": [
+        "from solution import Store",
+        "store = Store(lambda: 0)",
+        "store.set(\"b\", \"2\")",
+        "store.set(\"a\", \"1\")"
+      ],
+      "input": "store.scan(\"\")",
+      "expected": "[(\"a\", \"1\"), (\"b\", \"2\")]"
+    },
+    {
+      "name": "hidden scan with no matching prefix returns empty",
+      "visibility": "hidden",
+      "setup": [
+        "from solution import Store",
+        "store = Store(lambda: 0)",
+        "store.set(\"user:1\", \"Ada\")",
+        "store.set(\"user:2\", \"Grace\")"
+      ],
+      "input": "store.scan(\"admin:\")",
+      "expected": "[]"
+    },
+    {
+      "name": "hidden set after expiry replaces the key",
+      "visibility": "hidden",
+      "setup": [
+        "from solution import Store",
+        "clock = {\"t\": 0.0}",
+        "store = Store(lambda: clock[\"t\"])",
+        "store.set(\"user:1\", \"Ada\", ttl=5)",
+        "clock[\"t\"] = 5.0",
+        "assert store.get(\"user:1\") is None",
+        "store.set(\"user:1\", \"Grace\", ttl=10)",
+        "clock[\"t\"] = 6.0"
+      ],
+      "input": "store.get(\"user:1\")",
+      "expected": "\"Grace\""
+    },
+    {
+      "name": "scan uses one sampled expiry instant",
+      "visibility": "hidden",
+      "setup": [
+        "from solution import Store",
+        "clock = {\"t\": 0.0}",
+        "def now():",
+        "    current = clock[\"t\"]",
+        "    clock[\"t\"] += 1.0",
+        "    return current",
+        "store = Store(now)",
+        "store.set(\"a\", \"1\", ttl=3)",
+        "store.set(\"b\", \"2\", ttl=2)"
+      ],
+      "input": "store.scan(\"\")",
+      "expected": "[(\"a\", \"1\"), (\"b\", \"2\")]"
+    },
+    {
+      "name": "empty string is a live value and can be deleted",
+      "visibility": "hidden",
+      "setup": [
+        "from solution import Store",
+        "store = Store(lambda: 0.0)",
+        "store.set(\"\", \"\")"
+      ],
+      "checks": [
+        {
+          "input": "store.scan(\"\")",
+          "expression": "store.scan(\"\")",
+          "operator": "==",
+          "expected": "[(\"\", \"\")]"
+        },
+        {
+          "input": "store.delete(\"\")",
+          "expression": "store.delete(\"\")",
+          "operator": "is",
+          "expected": "True"
+        }
+      ]
+    },
+    {
+      "name": "nonpositive TTL overwrite removes the live value",
+      "visibility": "hidden",
+      "setup": [
+        "from solution import Store",
+        "store = Store(lambda: 10.0)",
+        "store.set(\"key\", \"live\")",
+        "store.set(\"key\", \"expired\", ttl=-1)"
+      ],
+      "input": "(store.get(\"key\"), store.delete(\"key\"), store.scan(\"\"))",
+      "expected": "(None, False, [])"
+    }
+  ],
+  "clarifyingQuestions": [
+    "Should scan return keys, values, or key/value pairs?",
+    "Is expiry inclusive at `expires_at == now`?",
+    "Should expired keys be eagerly deleted or lazily cleaned on access?"
+  ],
+  "followUps": [
+    "Add compare-and-set where expired keys behave as missing.",
+    "Add a snapshot method with deterministic ordering.",
+    "Add thread safety with one lock around the item map and expiry checks."
+  ],
+  "followUpGuide": [
+    "For compare-and-set, sample time once and call the same live-read helper with that sample. Expired keys count as missing; compare and replacement must be one atomic operation under concurrency.",
+    "",
+    "For a snapshot, scan(\"\") already returns a new sorted list of pairs. Since this exercise stores strings, later overwrites cannot mutate earlier returned values. Arbitrary mutable values would require a separate copying or immutability contract.",
+    "",
+    "For thread safety, wrap every method with one `threading.RLock`. Keep expiry cleanup and mutation inside the same critical section."
+  ],
+  "complexityAnalysis": [
+    "- Supplied lazy expiry: Time: O(1) average for set/get/delete and O(N + K log K) for scan, with N retained keys and K matching live keys, treating string operations as bounded-cost. Space: O(N) retained state and O(N + K) temporary scan/output space. Expired entries can remain until accessed or scanned.",
+    "- Heap expiry follow-up: processing E expired or stale heap records costs O(E log H), with H heap entries; inserting a deadline costs O(log H). Overwrites need version checks so stale deadlines cannot delete replacements. H can exceed live key count unless stale entries are compacted. Sorted scan results still cost O(N + K log K) plus cleanup.",
+    "- Ordered-key index follow-up: a balanced tree locates the prefix range in O(log N), then visits M matching candidates to test expiry, costing O(log N + M) plus output. M includes expired candidates. Python bisect searches a sorted list in O(log N), but inserting into that list is O(N)."
+  ],
+  "solutionGuide": [
+    "Store each value with an optional `expires_at`. Injecting `now` gives deterministic tests and avoids sleeps.",
+    "",
+    "Every operation samples now once and passes that sample into its live-read helper. This keeps one scan consistent even if the injected clock advances while checking keys.",
+    "",
+    "```python",
+    "class Store:",
+    "    def __init__(self, now):",
+    "        self.now = now",
+    "        self.items = {}",
+    "",
+    "    def _expires_at(self, ttl, current):",
+    "        return None if ttl is None else current + ttl",
+    "",
+    "    def _read_live(self, key, current):",
+    "        item = self.items.get(key)",
+    "        if item is None:",
+    "            return None",
+    "        value, expires_at = item",
+    "        if expires_at is not None and current >= expires_at:",
+    "            del self.items[key]",
+    "            return None",
+    "        return value",
+    "",
+    "    def set(self, key: str, value: str, ttl: float | None = None) -> None:",
+    "        self.items[key] = (value, self._expires_at(ttl, self.now()))",
+    "",
+    "    def get(self, key: str):",
+    "        return self._read_live(key, self.now())",
+    "",
+    "    def delete(self, key: str) -> bool:",
+    "        if self._read_live(key, self.now()) is None:",
+    "            return False",
+    "        del self.items[key]",
+    "        return True",
+    "",
+    "    def scan(self, prefix: str) -> list[tuple[str, str]]:",
+    "        current = self.now()",
+    "        result = []",
+    "        for key in list(self.items):",
+    "            value = self._read_live(key, current)",
+    "            if value is not None and key.startswith(prefix):",
+    "                result.append((key, value))",
+    "        return sorted(result)",
+    "```"
+  ],
+  "languages": {
+    "java": {
+      "starterCode": [
+        "import java.util.*;",
+        "import java.util.function.DoubleSupplier;",
+        "",
+        "class Solution {",
+        "    Solution(DoubleSupplier now) {",
+        "    }",
+        "",
+        "    void set(String key, String value, Double ttl) {",
+        "    }",
+        "",
+        "    void set(String key, String value) {",
+        "    }",
+        "",
+        "    String get(String key) {",
+        "        return null;",
+        "    }",
+        "",
+        "    boolean delete(String key) {",
+        "        return false;",
+        "    }",
+        "",
+        "    List<List<String>> scan(String prefix) {",
+        "        return new ArrayList<>();",
+        "    }",
+        "}"
+      ],
+      "testCases": [
+        {
+          "name": "expires keys at the boundary",
+          "visibility": "sample",
+          "setup": [
+            "double[] clock = {0.0};",
+            "Solution store = new Solution(() -> clock[0]);",
+            "store.set(\"user:1\", \"Ada\", 10.0);"
+          ],
+          "checks": [
+            {
+              "input": "double[] clock = {0.0};\nSolution store = new Solution(() -> clock[0]);\nstore.set(\"user:1\", \"Ada\", 10.0);\nstore.get(\"user:1\")",
+              "expression": "store.get(\"user:1\")",
+              "operator": "==",
+              "expected": "\"Ada\""
+            },
+            {
+              "input": "double[] clock = {0.0};\nSolution store = new Solution(() -> clock[0]);\nstore.set(\"user:1\", \"Ada\", 10.0);\nstore.get(\"user:1\")\nclock[0] = 9.999;\nstore.get(\"user:1\")",
+              "expression": "store.get(\"user:1\")",
+              "operator": "==",
+              "expected": "\"Ada\"",
+              "before": "clock[0] = 9.999;"
+            },
+            {
+              "input": "double[] clock = {0.0};\nSolution store = new Solution(() -> clock[0]);\nstore.set(\"user:1\", \"Ada\", 10.0);\nstore.get(\"user:1\")\nclock[0] = 9.999;\nstore.get(\"user:1\")\nclock[0] = 10.0;\nstore.get(\"user:1\")",
+              "expression": "store.get(\"user:1\")",
+              "operator": "==",
+              "expected": "null",
+              "before": "clock[0] = 10.0;"
+            }
+          ]
+        },
+        {
+          "name": "scan omits expired keys and sorts results",
+          "visibility": "hidden",
+          "setup": [
+            "double[] clock = {5.0};",
+            "Solution store = new Solution(() -> clock[0]);",
+            "store.set(\"user:2\", \"Grace\");",
+            "store.set(\"user:1\", \"Ada\", 2.0);",
+            "store.set(\"admin:1\", \"Root\");",
+            "clock[0] = 7.0;"
+          ],
+          "checks": [
+            {
+              "input": "double[] clock = {5.0};\nSolution store = new Solution(() -> clock[0]);\nstore.set(\"user:2\", \"Grace\");\nstore.set(\"user:1\", \"Ada\", 2.0);\nstore.set(\"admin:1\", \"Root\");\nclock[0] = 7.0;\nstore.scan(\"user:\")",
+              "expression": "store.scan(\"user:\")",
+              "operator": "==",
+              "expected": "list(list(\"user:2\", \"Grace\"))"
+            },
+            {
+              "input": "double[] clock = {5.0};\nSolution store = new Solution(() -> clock[0]);\nstore.set(\"user:2\", \"Grace\");\nstore.set(\"user:1\", \"Ada\", 2.0);\nstore.set(\"admin:1\", \"Root\");\nclock[0] = 7.0;\nstore.scan(\"user:\")\nstore.delete(\"user:1\")",
+              "expression": "store.delete(\"user:1\")",
+              "operator": "==",
+              "expected": "false"
+            },
+            {
+              "input": "double[] clock = {5.0};\nSolution store = new Solution(() -> clock[0]);\nstore.set(\"user:2\", \"Grace\");\nstore.set(\"user:1\", \"Ada\", 2.0);\nstore.set(\"admin:1\", \"Root\");\nclock[0] = 7.0;\nstore.scan(\"user:\")\nstore.delete(\"user:1\")\nstore.delete(\"user:2\")",
+              "expression": "store.delete(\"user:2\")",
+              "operator": "==",
+              "expected": "true"
+            },
+            {
+              "input": "double[] clock = {5.0};\nSolution store = new Solution(() -> clock[0]);\nstore.set(\"user:2\", \"Grace\");\nstore.set(\"user:1\", \"Ada\", 2.0);\nstore.set(\"admin:1\", \"Root\");\nclock[0] = 7.0;\nstore.scan(\"user:\")\nstore.delete(\"user:1\")\nstore.delete(\"user:2\")\nstore.get(\"user:2\")",
+              "expression": "store.get(\"user:2\")",
+              "operator": "==",
+              "expected": "null"
+            }
+          ]
+        },
+        {
+          "name": "persistent overwrite clears prior expiry",
+          "visibility": "sample",
+          "setup": [
+            "double[] clock = {0.0};",
+            "Solution store = new Solution(() -> clock[0]);",
+            "store.set(\"session\", \"old\", 5.0);",
+            "clock[0] = 4.0;",
+            "store.set(\"session\", \"new\");",
+            "clock[0] = 100.0;"
+          ],
+          "input": "double[] clock = {0.0};\nSolution store = new Solution(() -> clock[0]);\nstore.set(\"session\", \"old\", 5.0);\nclock[0] = 4.0;\nstore.set(\"session\", \"new\");\nclock[0] = 100.0;\nstore.get(\"session\")",
+          "expected": "\"new\"",
+          "expression": "store.get(\"session\")"
+        },
+        {
+          "name": "ttl zero expires immediately",
+          "visibility": "hidden",
+          "setup": [
+            "Solution store = new Solution(() -> 10.0);",
+            "store.set(\"gone\", \"value\", 0.0);"
+          ],
+          "checks": [
+            {
+              "input": "Solution store = new Solution(() -> 10.0);\nstore.set(\"gone\", \"value\", 0.0);\nstore.get(\"gone\")",
+              "expression": "store.get(\"gone\")",
+              "operator": "==",
+              "expected": "null"
+            },
+            {
+              "input": "Solution store = new Solution(() -> 10.0);\nstore.set(\"gone\", \"value\", 0.0);\nstore.get(\"gone\")\nstore.scan(\"\")",
+              "expression": "store.scan(\"\")",
+              "operator": "==",
+              "expected": "list()"
+            }
+          ]
+        },
+        {
+          "name": "delete treats missing and expired keys as absent",
+          "visibility": "hidden",
+          "setup": [
+            "double[] clock = {0.0};",
+            "Solution store = new Solution(() -> clock[0]);"
+          ],
+          "checks": [
+            {
+              "input": "double[] clock = {0.0};\nSolution store = new Solution(() -> clock[0]);\nstore.delete(\"missing\")",
+              "expression": "store.delete(\"missing\")",
+              "operator": "==",
+              "expected": "false"
+            },
+            {
+              "input": "double[] clock = {0.0};\nSolution store = new Solution(() -> clock[0]);\nstore.delete(\"missing\")\nstore.set(\"a\", \"1\");\nstore.set(\"b\", \"2\", 1.0);\nclock[0] = 1.0;\nstore.delete(\"b\")",
+              "expression": "store.delete(\"b\")",
+              "operator": "==",
+              "expected": "false",
+              "before": "store.set(\"a\", \"1\");\nstore.set(\"b\", \"2\", 1.0);\nclock[0] = 1.0;"
+            },
+            {
+              "input": "double[] clock = {0.0};\nSolution store = new Solution(() -> clock[0]);\nstore.delete(\"missing\")\nstore.set(\"a\", \"1\");\nstore.set(\"b\", \"2\", 1.0);\nclock[0] = 1.0;\nstore.delete(\"b\")\nstore.scan(\"\")",
+              "expression": "store.scan(\"\")",
+              "operator": "==",
+              "expected": "list(list(\"a\", \"1\"))"
+            }
+          ]
+        },
+        {
+          "name": "delete removes a live key",
+          "visibility": "sample",
+          "setup": [
+            "Solution store = new Solution(() -> 0.0);",
+            "store.set(\"key\", \"value\");",
+            "boolean deleted = store.delete(\"key\");"
+          ],
+          "input": "list(deleted, store.get(\"key\"))",
+          "expected": "list(true, null)"
+        },
+        {
+          "name": "overwrite with ttl resets the deadline",
+          "visibility": "hidden",
+          "setup": [
+            "double[] clock = {0.0};",
+            "Solution store = new Solution(() -> clock[0]);",
+            "store.set(\"session\", \"old\", 5.0);",
+            "clock[0] = 4.0;",
+            "store.set(\"session\", \"new\", 5.0);",
+            "clock[0] = 5.0;",
+            "String atOldDeadline = store.get(\"session\");",
+            "clock[0] = 9.0;"
+          ],
+          "input": "list(atOldDeadline, store.get(\"session\"))",
+          "expected": "list(\"new\", null)"
+        },
+        {
+          "name": "empty prefix scans every live key",
+          "visibility": "hidden",
+          "setup": [
+            "Solution store = new Solution(() -> 0.0);",
+            "store.set(\"b\", \"2\");",
+            "store.set(\"a\", \"1\");"
+          ],
+          "input": "store.scan(\"\")",
+          "expected": "list(list(\"a\", \"1\"), list(\"b\", \"2\"))"
+        },
+        {
+          "name": "hidden scan with no matching prefix returns empty",
+          "visibility": "hidden",
+          "setup": [
+            "Solution store = new Solution(() -> 0.0);",
+            "store.set(\"user:1\", \"Ada\");",
+            "store.set(\"user:2\", \"Grace\");"
+          ],
+          "input": "store.scan(\"admin:\")",
+          "expected": "list()"
+        },
+        {
+          "name": "hidden set after expiry replaces the key",
+          "visibility": "hidden",
+          "setup": [
+            "double[] clock = {0.0};",
+            "Solution store = new Solution(() -> clock[0]);",
+            "store.set(\"user:1\", \"Ada\", 5.0);",
+            "clock[0] = 5.0;"
+          ],
+          "checks": [
+            {
+              "input": "clock[0] = 5.0;\nstore.get(\"user:1\")",
+              "expression": "store.get(\"user:1\")",
+              "operator": "==",
+              "expected": "null"
+            },
+            {
+              "input": "store.set(\"user:1\", \"Grace\", 10.0);\nclock[0] = 6.0;\nstore.get(\"user:1\")",
+              "expression": "store.get(\"user:1\")",
+              "operator": "==",
+              "expected": "\"Grace\"",
+              "before": "store.set(\"user:1\", \"Grace\", 10.0);\nclock[0] = 6.0;"
+            }
+          ]
+        },
+        {
+          "name": "scan uses one sampled expiry instant",
+          "visibility": "hidden",
+          "setup": [
+            "double[] clock = {0.0};",
+            "Solution store = new Solution(() -> clock[0]++);",
+            "store.set(\"a\", \"1\", 3.0);",
+            "store.set(\"b\", \"2\", 2.0);"
+          ],
+          "input": "store.scan(\"\")",
+          "expected": "list(list(\"a\", \"1\"), list(\"b\", \"2\"))"
+        },
+        {
+          "name": "empty string is a live value and can be deleted",
+          "visibility": "hidden",
+          "setup": [
+            "Solution store = new Solution(() -> 0.0);",
+            "store.set(\"\", \"\");"
+          ],
+          "checks": [
+            {
+              "input": "store.scan(\"\")",
+              "expression": "store.scan(\"\")",
+              "operator": "==",
+              "expected": "list(list(\"\", \"\"))"
+            },
+            {
+              "input": "store.delete(\"\")",
+              "expression": "store.delete(\"\")",
+              "operator": "==",
+              "expected": "true"
+            }
+          ]
+        },
+        {
+          "name": "nonpositive TTL overwrite removes the live value",
+          "visibility": "hidden",
+          "setup": [
+            "Solution store = new Solution(() -> 10.0);",
+            "store.set(\"key\", \"live\");",
+            "store.set(\"key\", \"expired\", -1.0);"
+          ],
+          "input": "list(store.get(\"key\"), store.delete(\"key\"), store.scan(\"\"))",
+          "expected": "list(null, false, list())"
+        }
+      ],
+      "solutionGuide": [
+        "Store each value with an optional expiry timestamp. `DoubleSupplier` keeps tests deterministic without sleeps.",
+        "",
+        "Each operation samples the clock once and passes that sample to readLive so all keys in a scan use one expiry instant.",
+        "",
+        "```java",
+        "import java.util.*;",
+        "import java.util.function.DoubleSupplier;",
+        "",
+        "class Solution {",
+        "    private record Item(String value, Double expiresAt) {}",
+        "",
+        "    private final DoubleSupplier now;",
+        "    private final Map<String, Item> items = new HashMap<>();",
+        "",
+        "    Solution(DoubleSupplier now) {",
+        "        this.now = now;",
+        "    }",
+        "",
+        "    private Double expiresAt(Double ttl, double current) {",
+        "        return ttl == null ? null : current + ttl;",
+        "    }",
+        "",
+        "    private String readLive(String key, double current) {",
+        "        Item item = items.get(key);",
+        "        if (item == null) return null;",
+        "        if (item.expiresAt() != null && current >= item.expiresAt()) {",
+        "            items.remove(key);",
+        "            return null;",
+        "        }",
+        "        return item.value();",
+        "    }",
+        "",
+        "    void set(String key, String value, Double ttl) {",
+        "        items.put(key, new Item(value, expiresAt(ttl, now.getAsDouble())));",
+        "    }",
+        "",
+        "    void set(String key, String value) {",
+        "        set(key, value, null);",
+        "    }",
+        "",
+        "    String get(String key) {",
+        "        return readLive(key, now.getAsDouble());",
+        "    }",
+        "",
+        "    boolean delete(String key) {",
+        "        if (readLive(key, now.getAsDouble()) == null) return false;",
+        "        items.remove(key);",
+        "        return true;",
+        "    }",
+        "",
+        "    List<List<String>> scan(String prefix) {",
+        "        double current = now.getAsDouble();",
+        "        List<List<String>> result = new ArrayList<>();",
+        "        for (String key : new ArrayList<>(items.keySet())) {",
+        "            String value = readLive(key, current);",
+        "            if (value != null && key.startsWith(prefix)) {",
+        "                result.add(Arrays.asList(key, value));",
+        "            }",
+        "        }",
+        "        result.sort(Comparator.comparing(row -> row.get(0)));",
+        "        return result;",
+        "    }",
+        "}",
+        "```"
+      ]
+    }
+  }
+}

@@ -1,0 +1,249 @@
+{
+  "id": "agent-event-timeline",
+  "slug": "agent-event-timeline",
+  "title": "Agent Event Timeline",
+  "difficulty": "Medium",
+  "category": "Observability",
+  "language": "python3",
+  "timeEstimateMinutes": 35,
+  "timeLimitMs": 2500,
+  "memoryLimitMb": 128,
+  "order": 152,
+  "tags": [
+    "event log",
+    "agent runs",
+    "redaction",
+    "pagination"
+  ],
+  "source": "Cursor coding prep",
+  "summary": "Build a reviewable append-only timeline for cloud-agent run events.",
+  "starterCode": [
+    "class EventTimeline:",
+    "    def append(self, run_id: str, kind: str, timestamp: float, message: str) -> int:",
+    "        pass",
+    "",
+    "    def list_events(self, run_id: str, after_seq: int = 0, limit: int = 100) -> list[dict]:",
+    "        pass"
+  ],
+  "testCases": [
+    {
+      "name": "public appends and lists one run",
+      "visibility": "sample",
+      "description": "Only events for the requested run are returned.",
+      "input": "append r1, append r2, list r1",
+      "expected": "one r1 event",
+      "feedback": "Store run_id with every event and filter before returning.",
+      "setup": [
+        "from solution import EventTimeline",
+        "timeline = EventTimeline()"
+      ],
+      "checks": [
+        {
+          "input": "append r1, append r2, list r1",
+          "expression": "timeline.append(\"r1\", \"log\", 1.0, \"started\")",
+          "operator": "==",
+          "expected": "1",
+          "feedback": "Store run_id with every event and filter before returning."
+        },
+        {
+          "input": "append r1, append r2, list r1",
+          "expression": "timeline.append(\"r2\", \"log\", 2.0, \"other\")",
+          "operator": "==",
+          "expected": "2",
+          "feedback": "Store run_id with every event and filter before returning."
+        },
+        {
+          "input": "append r1, append r2, list r1",
+          "expression": "timeline.list_events(\"r1\")",
+          "operator": "==",
+          "expected": "[{\"seq\": 1, \"kind\": \"log\", \"timestamp\": 1.0, \"message\": \"started\"}]",
+          "feedback": "Store run_id with every event and filter before returning."
+        }
+      ]
+    },
+    {
+      "name": "public redacts secrets",
+      "visibility": "sample",
+      "description": "Secret-looking API keys should not appear in reviewable timelines.",
+      "input": "message='token sk-live_123 failed'",
+      "expected": "token [REDACTED] failed",
+      "feedback": "Redact before storing or before returning, but never return the raw token.",
+      "setup": [
+        "from solution import EventTimeline",
+        "timeline = EventTimeline()",
+        "timeline.append(\"r1\", \"stderr\", 1.0, \"token sk-live_123 failed\")"
+      ],
+      "expression": "timeline.list_events(\"r1\")[0][\"message\"]",
+      "expectedExpression": "\"token [REDACTED] failed\""
+    },
+    {
+      "name": "hidden after cursor",
+      "visibility": "hidden",
+      "setup": [
+        "from solution import EventTimeline",
+        "timeline = EventTimeline()",
+        "timeline.append(\"r1\", \"log\", 1.0, \"a\")",
+        "timeline.append(\"r1\", \"log\", 2.0, \"b\")"
+      ],
+      "input": "timeline = EventTimeline()\ntimeline.append(\"r1\", \"log\", 1.0, \"a\")\ntimeline.append(\"r1\", \"log\", 2.0, \"b\")\n[event[\"message\"] for event in timeline.list_events(\"r1\", after_seq=1)]",
+      "expected": "[\"b\"]",
+      "expression": "[event[\"message\"] for event in timeline.list_events(\"r1\", after_seq=1)]"
+    },
+    {
+      "name": "hidden limit",
+      "visibility": "hidden",
+      "setup": [
+        "from solution import EventTimeline",
+        "timeline = EventTimeline()",
+        "for i in range(5):",
+        "    timeline.append(\"r1\", \"log\", float(i), str(i))"
+      ],
+      "input": "timeline = EventTimeline()\nfor i in range(5):\n    timeline.append(\"r1\", \"log\", float(i), str(i))\n[event[\"seq\"] for event in timeline.list_events(\"r1\", limit=2)]",
+      "expected": "[1, 2]",
+      "expression": "[event[\"seq\"] for event in timeline.list_events(\"r1\", limit=2)]"
+    },
+    {
+      "name": "hidden global sequence",
+      "visibility": "hidden",
+      "setup": [
+        "from solution import EventTimeline",
+        "timeline = EventTimeline()"
+      ],
+      "checks": [
+        {
+          "input": "timeline = EventTimeline()\ntimeline.append(\"a\", \"log\", 1.0, \"a\")",
+          "expression": "timeline.append(\"a\", \"log\", 1.0, \"a\")",
+          "operator": "==",
+          "expected": "1"
+        },
+        {
+          "input": "timeline = EventTimeline()\ntimeline.append(\"a\", \"log\", 1.0, \"a\")\ntimeline.append(\"b\", \"log\", 1.0, \"b\")",
+          "expression": "timeline.append(\"b\", \"log\", 1.0, \"b\")",
+          "operator": "==",
+          "expected": "2"
+        },
+        {
+          "input": "timeline = EventTimeline()\ntimeline.append(\"a\", \"log\", 1.0, \"a\")\ntimeline.append(\"b\", \"log\", 1.0, \"b\")\ntimeline.append(\"a\", \"log\", 2.0, \"c\")",
+          "expression": "timeline.append(\"a\", \"log\", 2.0, \"c\")",
+          "operator": "==",
+          "expected": "3"
+        }
+      ]
+    },
+    {
+      "name": "hidden invalid limit",
+      "visibility": "hidden",
+      "setup": [
+        "from solution import EventTimeline",
+        "timeline = EventTimeline()",
+        "timeline.append(\"r\", \"log\", 1.0, \"x\")"
+      ],
+      "input": "timeline = EventTimeline()\ntimeline.append(\"r\", \"log\", 1.0, \"x\")\ntimeline.list_events(\"r\", limit=0)",
+      "expected": "[]",
+      "expression": "timeline.list_events(\"r\", limit=0)"
+    },
+    {
+      "name": "hidden multiple secret forms",
+      "visibility": "hidden",
+      "setup": [
+        "from solution import EventTimeline",
+        "timeline = EventTimeline()",
+        "timeline.append(\"r\", \"log\", 1.0, \"a sk-one b sk-two_2\")"
+      ],
+      "input": "timeline = EventTimeline()\ntimeline.append(\"r\", \"log\", 1.0, \"a sk-one b sk-two_2\")\ntimeline.list_events(\"r\")[0][\"message\"]",
+      "expected": "\"a [REDACTED] b [REDACTED]\"",
+      "expression": "timeline.list_events(\"r\")[0][\"message\"]"
+    },
+    {
+      "name": "public lists no events for an unknown run",
+      "visibility": "sample",
+      "description": "A run with no appended events has an empty timeline.",
+      "feedback": "Filter by run ID and return an empty list when nothing matches.",
+      "setup": [
+        "from solution import EventTimeline",
+        "timeline = EventTimeline()"
+      ],
+      "input": "timeline.list_events(\"missing\")",
+      "expected": "[]"
+    },
+    {
+      "name": "hidden interleaving uses sequence not timestamp",
+      "visibility": "hidden",
+      "setup": ["from solution import EventTimeline", "timeline = EventTimeline()", "timeline.append(\"a\", \"log\", 10.0, \"first\")", "timeline.append(\"b\", \"log\", 20.0, \"other\")", "timeline.append(\"a\", \"log\", 1.0, \"late arrival\")"],
+      "input": "timeline.list_events(\"a\", after_seq=1, limit=1)",
+      "expected": "[{\"seq\": 3, \"kind\": \"log\", \"timestamp\": 1.0, \"message\": \"late arrival\"}]"
+    },
+    {
+      "name": "hidden listing is detached and negative limit is empty",
+      "visibility": "hidden",
+      "setup": ["from solution import EventTimeline", "timeline = EventTimeline()", "timeline.append(\"r\", \"log\", 1.0, \"original\")", "listing = timeline.list_events(\"r\")", "listing[0][\"message\"] = \"changed\""],
+      "checks": [
+        {"input": "timeline.list_events(\"r\")[0][\"message\"]", "expression": "timeline.list_events(\"r\")[0][\"message\"]", "expected": "\"original\"", "operator": "=="},
+        {"input": "timeline.list_events(\"r\", limit=-1)", "expression": "timeline.list_events(\"r\", limit=-1)", "expected": "[]", "operator": "=="}
+      ]
+    },
+    {
+      "name": "hidden exact redaction boundary",
+      "visibility": "hidden",
+      "setup": ["from solution import EventTimeline", "timeline = EventTimeline()", "timeline.append(\"r\", \"log\", 1.0, \"sk- SK-live prefixsk-live! sk-é\")"],
+      "input": "timeline.list_events(\"r\")[0][\"message\"]",
+      "expected": "\"sk- SK-live prefix[REDACTED]! sk-é\""
+    }
+  ],
+  "clarifyingQuestions": [
+    "Are sequence numbers per run or global?",
+    "Should redaction happen at write time or read time?",
+    "Should pagination use sequence numbers or timestamps?",
+    "Should events be mutable?"
+  ],
+  "followUps": [
+    "Persist events in an append-only database table.",
+    "Add event type validation and artifact references.",
+    "Add per-tenant retention and redaction policies."
+  ],
+  "followUpGuide": [
+    "For persistence, use `(run_id, seq)` indexes and append-only writes.",
+    "",
+    "For artifacts, store lightweight references in events and keep blobs in object storage.",
+    "",
+    "For enterprise retention, redact sensitive values before cross-boundary replication."
+  ],
+  "complexityAnalysis": [
+    "- Append. Time: O(message length) for redaction. Space: O(1) plus stored event.",
+    "- Listing scans stored events in this simple version. Time: O(n). Space: O(limit).",
+    "- Indexed follow-up uses `(run_id, seq)` for O(log n + limit) reads."
+  ],
+  "solutionGuide": [
+    "Store each event with run ID and the instance-wide sequence. Redact the specified token pattern before storing, then filter by run and cursor. Build new output dictionaries so returned records can't mutate the log. The pattern doesn't detect every secret format.",
+    "",
+    "```python",
+    "import re",
+    "",
+    "",
+    "class EventTimeline:",
+    "    def __init__(self):",
+    "        self.events = []",
+    "        self.next_seq = 1",
+    "",
+    "    def _redact(self, message: str) -> str:",
+    "        return re.sub(r\"sk-[A-Za-z0-9_-]+\", \"[REDACTED]\", message)",
+    "",
+    "    def append(self, run_id: str, kind: str, timestamp: float, message: str) -> int:",
+    "        seq = self.next_seq",
+    "        self.next_seq += 1",
+    "        self.events.append({\"run_id\": run_id, \"seq\": seq, \"kind\": kind, \"timestamp\": timestamp, \"message\": self._redact(message)})",
+    "        return seq",
+    "",
+    "    def list_events(self, run_id: str, after_seq: int = 0, limit: int = 100) -> list[dict]:",
+    "        if limit <= 0:",
+    "            return []",
+    "        result = []",
+    "        for event in self.events:",
+    "            if event[\"run_id\"] == run_id and event[\"seq\"] > after_seq:",
+    "                result.append({key: event[key] for key in (\"seq\", \"kind\", \"timestamp\", \"message\")})",
+    "                if len(result) >= limit:",
+    "                    break",
+    "        return result",
+    "```"
+  ]
+}

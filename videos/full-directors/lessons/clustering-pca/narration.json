@@ -1,0 +1,709 @@
+[
+  {
+    "id": "c01",
+    "title": "Which past message will the circle reach first?",
+    "sourceChapters": [
+      "c01"
+    ],
+    "beats": [
+      {
+        "id": "c01-b01",
+        "say": "“Why was I charged twice?” Put a pin at that request. A circle centered on the pin reaches everything within its radius. Watch it grow toward two messages.",
+        "hold": 0.5
+      },
+      {
+        "id": "c01-b02",
+        "say": "Stop just short of contact. The ruler magnifies the last stretch. Look from the brass pin to the duplicate-payment message and the reset-link message. Which pin will the circle reach first?",
+        "hold": 2.8
+      },
+      {
+        "id": "c01-b03",
+        "say": "B, the duplicate payment. The reset link is about seven hundredths of a unit farther away. Here's the full map. Each message has two coordinates. Searching all six gives us B. We'll try two shortcuts on this request. PCA gives each message fewer coordinates. Clustering lets us search one group at a time.",
+        "hold": 0.7
+      }
+    ]
+  },
+  {
+    "id": "c02",
+    "title": "Build a distance from two coordinate changes",
+    "sourceChapters": [
+      "c02"
+    ],
+    "beats": [
+      {
+        "id": "c02-b01",
+        "say": "Start at A, the first billing message. Move two tenths to the right, then eight tenths up to B. Square those changes and add them. The square root of zero point six eight gives the diagonal, about zero point eight two.",
+        "hold": 0.65
+      },
+      {
+        "id": "c02-b02",
+        "say": "Compare that short diagonal with the distance to a login message. The billing partner is closer. Repeating this check pairs all six messages. People supplied the topic names by reading the text; the algorithm receives only coordinates and a distance rule.",
+        "hold": 0.65
+      }
+    ]
+  },
+  {
+    "id": "c03",
+    "title": "Check the matrix before assigning a group",
+    "sourceChapters": [
+      "c03"
+    ],
+    "beats": [
+      {
+        "id": "c03-b01",
+        "say": "The distance rule needs an input contract. Documents have n rows and d features, while centers have k rows and the same d features. Reject a center matrix with the wrong feature width and reject nonfinite coordinates.",
+        "hold": 0.3
+      },
+      {
+        "id": "c03-b02",
+        "say": "Suppose a center arrives as a single number, four. NumPy can repeat it across both features. The code would measure to four, four, even though nobody supplied the second coordinate.",
+        "hold": 0.5
+      },
+      {
+        "id": "c03-b03",
+        "say": "For fixed memberships, differentiate the sum of squared distances to a center. The gradient is minus two times the sum of each point minus the center. Setting it to zero makes the center the coordinate-wise arithmetic mean.",
+        "hold": 0.3
+      },
+      {
+        "id": "c03-b04",
+        "say": "That is the unique minimizer for a nonempty group under this objective. A change of metric needs its own update rule.",
+        "hold": 0.5
+      }
+    ]
+  },
+  {
+    "id": "c04",
+    "title": "Assign points, then move their centers",
+    "sourceChapters": [
+      "c04"
+    ],
+    "beats": [
+      {
+        "id": "c04-b01",
+        "say": "K-means asks for a number of groups. Choose three centers here, with one seed in each visible area. Hold them still. Compare each point with the centers and connect it to the nearest one. The colors now record assignments, rather than supplied topic labels.",
+        "hold": 0.65
+      },
+      {
+        "id": "c04-b02",
+        "say": "Keep those memberships fixed. Where should the left center move? Average one and one point two, then one and one point eight. Move all three centers to their pair means. The left center lands at one point one, one point four. Inertia drops from three point four eight to one point seven four.",
+        "hold": 0.65
+      },
+      {
+        "id": "c04-b03",
+        "say": "Assign again around the new centers. The same pairs remain, so this run has settled. Lloyd's algorithm alternates these two steps. Exact assignments and means preserve or reduce inertia. Different seeds can find different solutions; compare restarts, and repair an empty group before averaging it.",
+        "hold": 0.65
+      }
+    ]
+  },
+  {
+    "id": "c05",
+    "title": "An empty center cannot take a mean",
+    "sourceChapters": [
+      "c05"
+    ],
+    "beats": [
+      {
+        "id": "c05-b01",
+        "say": "Our successful seeds covered three visible areas. Put two seeds on the billing pair and the third at one hundred, one hundred instead. The same nearest-center rule assigns one point to the first seed, five to the second and none to the third.",
+        "hold": 0.3
+      },
+      {
+        "id": "c05-b02",
+        "say": "There is no arithmetic mean for an empty group. The article's teaching loop raises rather than propagating a not-a-number center.",
+        "hold": 0.5
+      },
+      {
+        "id": "c05-b03",
+        "say": "One repair uses the point farthest from its nearest center. That's F. Move the empty center onto F. Assign the six messages again. E and F now share the third shelf. The middle shelf still holds B, C and D.",
+        "hold": 0.3
+      },
+      {
+        "id": "c05-b04",
+        "say": "Our NumPy loop resolves distance ties to the first center, stops when assignments repeat and enforces a twenty-step cap. Exact assignments and means with consistent ties and nonempty groups reach a fixed assignment; a tolerance or iteration cap may stop a library run earlier.",
+        "hold": 0.5
+      },
+      {
+        "id": "c05-b05",
+        "say": "Keep every letter on its shelf. Average each shelf to update its center. B, C and D pull the middle center to about three point four, three point two seven. B is still at one point two, one point eight. Measure from B to each updated center. Which shelf should B join on the next assignment?",
+        "hold": 2.4
+      },
+      {
+        "id": "c05-b06",
+        "say": "B moves to C zero. It is about zero point eight two five from that center and two point six four four from C one. Only B changes shelves. Average the new pairs. Now A and B share a center at one point one, one point four. Assign all six once more. The assignments repeat, so we can stop. Across restarts, compare total squared error under the same metric and restart budget. Each group number belongs to its run.",
+        "hold": 0.8
+      }
+    ]
+  },
+  {
+    "id": "c06",
+    "title": "Where does the next seed land?",
+    "sourceChapters": [
+      "c06"
+    ],
+    "beats": [
+      {
+        "id": "c06-b01",
+        "say": "Start this run with A. In the original k-means-plus-plus rule, every message had the same chance to be the first seed. The next seed is a different draw. Look at the short link to B, then the long link to F. Square those distances. A long link buys more room on this strip.",
+        "hold": 0.5
+      },
+      {
+        "id": "c06-b02",
+        "say": "Add the squared distances for all six messages. Divide each one by that total to get its share. A gets zero. B gets less than half of one percent. E and F together take up more than seventy-two percent. Put a supplied draw of zero point eight on the strip. Which interval contains it?",
+        "hold": 2
+      },
+      {
+        "id": "c06-b03",
+        "say": "F gets the seed. Watch E now. Measure to the nearer of A and F. E is close to F, so its share shrinks on the next draw. F's share falls to zero. If every point sits on a selected seed, the total is zero. We've run out of distinct locations.",
+        "hold": 0.65
+      },
+      {
+        "id": "c06-b04",
+        "say": "For this single-candidate rule, the theorem bounds the expected starting inertia by eight times the quantity natural log k plus two, times the best possible inertia. That's an average over random starts. An individual run can still settle at a poor solution.",
+        "hold": 0.3
+      },
+      {
+        "id": "c06-b05",
+        "say": "The article's scikit-learn example uses greedy k-means-plus-plus. It tries several candidates per seeding step. Its automatic setting uses one run for that initialization. To compare restart strategies, set the same explicit budget for each, then record final inertia and iteration counts across the runs.",
+        "hold": 0.65
+      }
+    ]
+  },
+  {
+    "id": "c07",
+    "title": "Expose the groups behind the score",
+    "sourceChapters": [
+      "c07"
+    ],
+    "beats": [
+      {
+        "id": "c07-b01",
+        "say": "Try two groups on these same points. The best converged run among our tested data-point seeds merges two nearby pairs. Add a third center and they separate. Add a fourth and one reviewed pair splits. Each picture has its own computed inertia.",
+        "hold": 0.65
+      },
+      {
+        "id": "c07-b02",
+        "say": "Return to three groups and inspect point A. Its own-group distance is the distance to B. For each competing group, average the distances to its members; keep the smaller average. Silhouette compares those two quantities. A value near one means tight membership with substantial separation.",
+        "hold": 0.65
+      },
+      {
+        "id": "c07-b03",
+        "say": "Average over the points to compare the tested partitions. Three groups have the strongest silhouette here. Four still reduce inertia, but their singleton points receive silhouette zero. Use the scores to nominate a partition, then inspect its messages. Cluster numbers identify groups within a run.",
+        "hold": 0.65
+      }
+    ]
+  },
+  {
+    "id": "c08",
+    "title": "What does the fourth center buy?",
+    "sourceChapters": [
+      "c08"
+    ],
+    "beats": [
+      {
+        "id": "c08-b01",
+        "say": "Start at A. Average its distances to the other members of its own group to get a. Here, that's one link to B. For each other group, average the distances from A to its members. The smallest of those averages is b.",
+        "hold": 0.3
+      },
+      {
+        "id": "c08-b02",
+        "say": "Subtract a from b and divide by the larger of the two. With A's distances, that's four point six three minus zero point eight two, divided by four point six three. A's silhouette is about zero point eight two.",
+        "hold": 0.5
+      },
+      {
+        "id": "c08-b03",
+        "say": "A singleton gets silhouette zero by the convention used here, and the score is also zero when both distances vanish. Mean silhouette requires at least two and fewer than n nonempty groups. Collect all six point contributions before taking their arithmetic average.",
+        "hold": 0.3
+      },
+      {
+        "id": "c08-b04",
+        "say": "Our tested two-, three- and four-group partitions give about zero point five six, zero point seven six and zero point five one.",
+        "hold": 0.5
+      },
+      {
+        "id": "c08-b05",
+        "say": "Look at the inertia curve for the same runs. The third center cuts the error sharply. The fourth barely lowers it. That bend is the elbow. Adding a center can only improve or match the best possible fit, though individual restarts can land higher.",
+        "hold": 0.3
+      },
+      {
+        "id": "c08-b06",
+        "say": "A negative silhouette means a point is closer on average to another group's members. Equal average distances give zero. Read messages to decide what the groups mean.",
+        "hold": 0.5
+      },
+      {
+        "id": "c08-b07",
+        "say": "Look again at the four-group partition. D shares a group with C. The other groups are A with B, E alone, and F alone. For each singleton rival, the average distance from D is just the distance to its one member. Which of the three rival groups sets D's comparison distance?",
+        "hold": 2.2
+      },
+      {
+        "id": "c08-b08",
+        "say": "E is the nearest rival group. Its distance from D is about four point one. We include that distance when scoring D. Score E itself and its silhouette is zero because E has no partner in its own group.",
+        "hold": 0.7
+      }
+    ]
+  },
+  {
+    "id": "c09",
+    "title": "Equal inertia can support different stories",
+    "sourceChapters": [
+      "c09"
+    ],
+    "beats": [
+      {
+        "id": "c09-b01",
+        "say": "Put a message at each corner of this square. Splitting left from right gives inertia four. Now turn the split. Splitting bottom from top also gives four. Every message has a different partner, and the error stays the same.",
+        "hold": 0.5
+      },
+      {
+        "id": "c09-b02",
+        "say": "If one axis represented user tier and the other severity, the support workflow would need a reason to prefer one grouping. Geometry does not select that product meaning.",
+        "hold": 0.3
+      },
+      {
+        "id": "c09-b03",
+        "say": "Euclidean k-means creates convex nearest-center regions and favors compact squared-distance groups; it does not impose a statistical equal-size or spherical-distribution assumption. It can split an elongated semantic group or spend a center on an outlier.",
+        "hold": 0.5
+      }
+    ]
+  },
+  {
+    "id": "c10",
+    "title": "What changes when we stretch the square?",
+    "sourceChapters": [
+      "c10"
+    ],
+    "beats": [
+      {
+        "id": "c10-b01",
+        "say": "Here's that square again. Stretch it from two units wide to eight. Keep the height at two. We still want two groups. Put both seeds on the left edge. The bottom points pick the lower seed. The top points pick the upper seed.",
+        "hold": 0.3
+      },
+      {
+        "id": "c10-b02",
+        "say": "Where will the two means land, and how much squared error will remain?",
+        "hold": 2.1
+      },
+      {
+        "id": "c10-b03",
+        "say": "Both means land halfway across. Each of the four links is four units long. Four squared for each of four points gives sixty-four. Assign again and every point stays put.",
+        "hold": 0.7
+      },
+      {
+        "id": "c10-b04",
+        "say": "Keep that first total. Move just the seeds to the bottom corners. Now the pairs run up and down. Move each center halfway up its pair. Each link is one unit long. The four squared distances add to four. Both runs settled. Comparing their errors tells us which restart to keep for this objective.",
+        "hold": 0.8
+      }
+    ]
+  },
+  {
+    "id": "c11",
+    "title": "A change of units changes the neighbors",
+    "sourceChapters": [
+      "c11"
+    ],
+    "beats": [
+      {
+        "id": "c11-b01",
+        "say": "Now use a separate feature table: a topic coordinate and message length. Compare this short billing note with a longer billing note and a short release note. In raw units, the length difference dominates. The short release note is nearer, despite its different topic.",
+        "hold": 0.65
+      },
+      {
+        "id": "c11-b02",
+        "say": "Subtract each column mean and divide by its standard deviation. For the short billing note, the topic coordinate becomes about minus one point zero seven. Its hundred characters become about minus one point two four. Recompute the two distances. The longer billing note is now nearer. Cluster all six standardized rows and the reviewed topics separate.",
+        "hold": 0.65
+      },
+      {
+        "id": "c11-b03",
+        "say": "Scaling chooses how much each feature contributes. Follow the embedding model's metric and normalization contract when returning to vectors. Fit the transform on permitted corpus or development data, then apply that same transform to new queries. Record which representation each result used.",
+        "hold": 0.65
+      }
+    ]
+  },
+  {
+    "id": "c12",
+    "title": "Apply the same fitted transform to the query",
+    "sourceChapters": [
+      "c12"
+    ],
+    "beats": [
+      {
+        "id": "c12-b01",
+        "say": "We fitted each column's mean and population standard deviation on the six messages. To scale a value, subtract the column mean and divide by its standard deviation. Here comes a query with three hundred characters.",
+        "hold": 0.3
+      },
+      {
+        "id": "c12-b02",
+        "say": "It's shorter than the corpus average of five hundred and five. Subtract that mean and divide by about three hundred twenty-seven. The stored transform gives a length score near minus zero point six three. Replace the mean with the query's own length and the score jumps to zero. Restore the stored transform so every position uses the same origin.",
+        "hold": 0.5
+      },
+      {
+        "id": "c12-b03",
+        "say": "Scaling changes how much each feature counts toward distance. For embeddings, use the normalization the model specifies for search. You can fit a transform on documents available when you build the index. To test on new queries, save that version and apply it to each one.",
+        "hold": 0.3
+      },
+      {
+        "id": "c12-b04",
+        "say": "If you include the test queries when fitting, you're measuring performance on that known set. That's a transductive evaluation.",
+        "hold": 0.5
+      }
+    ]
+  },
+  {
+    "id": "c13",
+    "title": "Find a direction that keeps the cloud wide",
+    "sourceChapters": [
+      "c13"
+    ],
+    "beats": [
+      {
+        "id": "c13-b01",
+        "say": "Return to our six message vectors. Principal component analysis gives the cloud fewer continuous coordinates. First subtract the same coordinate-wise mean from every point. The cloud moves together around zero; distances between its points stay unchanged.",
+        "hold": 0.65
+      },
+      {
+        "id": "c13-b02",
+        "say": "Pass a line through this centered cloud. Project each point onto it at a right angle. Rotate the line and compare the sum of squared scores. The first principal component chooses a unit direction with the largest total. Our almost-horizontal direction keeps the widest spread.",
+        "hold": 0.65
+      },
+      {
+        "id": "c13-b03",
+        "say": "For point C, take the dot product with that unit direction. Its scalar score locates the foot on the line. A covariance eigendecomposition or a singular-value decomposition finds these directions. Reversing the direction flips every score while preserving the represented line.",
+        "hold": 0.65
+      }
+    ]
+  },
+  {
+    "id": "c14",
+    "title": "How much spread runs along each axis?",
+    "sourceChapters": [
+      "c14"
+    ],
+    "beats": [
+      {
+        "id": "c14-b01",
+        "say": "Look along the two perpendicular axes of our six centered messages. Along each axis, square the six scores and add them. The lengths of these strips show how much squared spread each axis carries.",
+        "hold": 0.6
+      },
+      {
+        "id": "c14-b02",
+        "say": "Direct singular value decomposition, or SVD, works on the centered rows. Its right singular vectors give the axes. Square each singular value and you get the sum of squared scores on its axis.",
+        "hold": 0.5
+      },
+      {
+        "id": "c14-b03",
+        "say": "For sample variance, the divisor is the number of rows minus one. We subtracted the mean, so the six deviations along each axis sum to zero. Once you know five, the sixth is fixed. How many equal pieces should we cut each strip into?",
+        "hold": 1.8
+      },
+      {
+        "id": "c14-b04",
+        "say": "Five pieces. Take one piece from each strip. Those are the two sample variances. You get the same pair by forming the sample covariance matrix and finding its eigenvalues. Its eigenvectors give the principal axes.",
+        "hold": 0.65
+      },
+      {
+        "id": "c14-b05",
+        "say": "Both strips used the same divisor. The first still accounts for about eighty-five percent of their combined length. That's its explained variance ratio. If every row is identical, both lengths are zero and the ratio is undefined.",
+        "hold": 0.65
+      },
+      {
+        "id": "c14-b06",
+        "say": "Now suppose we have a hundred documents with fifteen hundred thirty-six features each. The centered input is this thin rectangle. To form covariance, we need a square with one row and one column per feature. Its rank is at most ninety-nine. Its ordinary condition number is infinite.",
+        "hold": 0.6
+      },
+      {
+        "id": "c14-b07",
+        "say": "Even among the nonzero directions, forming that matrix squares the ratio of the largest to the smallest singular value. Rounding can bury a small direction. Direct SVD avoids forming the square. Covariance can be efficient when the data are tall and narrow. Randomized SVD approximates the leading directions. Oversampling and power iterations affect that approximation.",
+        "hold": 0.5
+      },
+      {
+        "id": "c14-b08",
+        "say": "Record which solver you used. You can flip the sign of an axis and its scores together. If two variances tie, their axes can even rotate together within that plane. Keeping just one then leaves a choice of lines, each with the same captured variance.",
+        "hold": 0.65
+      }
+    ]
+  },
+  {
+    "id": "c15",
+    "title": "Who is closest along the fitted line?",
+    "sourceChapters": [
+      "c15"
+    ],
+    "beats": [
+      {
+        "id": "c15-b01",
+        "say": "Follow C, the reset-link message. Its first score tells us how far to go along the fitted line from the mean. That's our reconstruction of C. The shortfall is perpendicular to the line. Square that length to count C's contribution to reconstruction error.",
+        "hold": 0.7
+      },
+      {
+        "id": "c15-b02",
+        "say": "Put C back. Here's the duplicate-charge request again. B was the closest of all six. Keep all six in the search. This time we'll give each message and the query just their position along the line. Watch the two distances as the points drop.",
+        "hold": 0.45
+      },
+      {
+        "id": "c15-b03",
+        "say": "The line keeps about eighty-five percent of the spread across the messages. The red gaps account for the rest. Look at B and C now. Which message will the one-coordinate search return?",
+        "hold": 2
+      },
+      {
+        "id": "c15-b04",
+        "say": "C, the reset link. It lost more of its separation from the query when we dropped the perpendicular coordinate. B is still in the search. Searching more messages couldn't fix this result because we already searched all six.",
+        "hold": 0.65
+      },
+      {
+        "id": "c15-b05",
+        "say": "Bring back the second scores from the original vectors. The red gaps close, the reconstruction error goes to zero, and B is nearest again. The first line minimizes squared reconstruction error across the corpus. This query needs some of the spread that line leaves out.",
+        "hold": 0.75
+      }
+    ]
+  },
+  {
+    "id": "c16",
+    "title": "Retained and discarded squares account for the same cloud",
+    "sourceChapters": [
+      "c16"
+    ],
+    "beats": [
+      {
+        "id": "c16-b01",
+        "say": "Take C, the reset-link message. Draw a segment from the fitted mean to C. Drop a perpendicular from C to the principal axis. Build a square on the leg along the axis. Its area is the squared score. Build a second square on the perpendicular leg. Its area is the squared residual. Which square do we lose when we store just the first score?",
+        "hold": 2.1
+      },
+      {
+        "id": "c16-b02",
+        "say": "The perpendicular square is discarded. The two legs meet at a right angle, so their squared lengths add to C's original squared distance from the mean. Sum over all six messages. Of about sixty-five point six three squared units, the first axis retains fifty-five point nine one and discards nine point seven two. Divide each by five for sample variance units.",
+        "hold": 0.3
+      },
+      {
+        "id": "c16-b03",
+        "say": "The total centered energy stays fixed as we rotate the axis. Maximizing the retained sum therefore minimizes squared reconstruction error. To reconstruct a point, multiply each saved score by its basis direction, sum those vectors and add the fitted mean. Both directions recover C. Keeping just the first leaves the perpendicular gap.",
+        "hold": 0.5
+      }
+    ]
+  },
+  {
+    "id": "c17",
+    "title": "Which arrow points closer to the query?",
+    "sourceChapters": [
+      "c17"
+    ],
+    "beats": [
+      {
+        "id": "c17-b01",
+        "say": "The yellow query points straight to the right. One document is about a duplicate charge. The other is a much longer arrow for a release page. The dot product multiplies matching coordinates and adds them. Here it reads off each arrow's horizontal reach. The release page wins eight to one.",
+        "hold": 0.6
+      },
+      {
+        "id": "c17-b02",
+        "say": "Now compare directions. Check for zero length or nonfinite coordinates before normalizing. Divide each document arrow by its length. Both tips now sit on the unit circle. The query already has unit length. Their horizontal reaches are now their cosines. Which document points closer to the query?",
+        "hold": 2.2
+      },
+      {
+        "id": "c17-b03",
+        "say": "The duplicate-charge document wins. For unit vectors, squared Euclidean distance is two minus twice the dot product. As cosine rises, distance falls, so the rankings agree. Use the same metric and normalization for index construction, query routing and evaluation. Mixing in raw metadata changes the vectors that comparison uses.",
+        "hold": 0.6
+      }
+    ]
+  },
+  {
+    "id": "c18",
+    "title": "Which center gets the query?",
+    "sourceChapters": [
+      "c18"
+    ],
+    "beats": [
+      {
+        "id": "c18-b01",
+        "say": "Both arrows have length one. One points right and the other points up. Their mean lands halfway between the tips, inside the unit circle. Its length is about zero point seven. Euclidean k-means uses that mean as the center. A query's distance to it depends on the center's length as well as its direction.",
+        "hold": 0.5
+      },
+      {
+        "id": "c18-b02",
+        "say": "Try two constructed group means and a unit query pointing right. Center zero sits at one tenth, zero. Center one sits at eight tenths, six tenths. Measure from the query tip. Squared distances are zero point eight one and zero point four. The shorter trip goes to center one. Now compare directions from the origin. Cosine picks center zero.",
+        "hold": 0.3
+      },
+      {
+        "id": "c18-b03",
+        "say": "If we file messages by distance and choose a list by direction, we can open a different list.",
+        "hold": 0.5
+      },
+      {
+        "id": "c18-b04",
+        "say": "Spherical k-means uses unit centers. Normalize each nonzero input and assign it to the center with the largest dot product. Add the arrows in the group. Divide their sum by its length and the new center lands on the unit circle.",
+        "hold": 0.3
+      },
+      {
+        "id": "c18-b05",
+        "say": "Now point the arrows in opposite directions. They cancel. A zero sum has no direction, and an empty group has no arrows to average. In either case we need a fallback, such as choosing a new seed.",
+        "hold": 0.5
+      }
+    ]
+  },
+  {
+    "id": "c19",
+    "title": "What changes when the origin moves?",
+    "sourceChapters": [
+      "c19"
+    ],
+    "beats": [
+      {
+        "id": "c19-b01",
+        "say": "Look from the origin along the yellow query. The first document points almost the same way. The second points farther to the right, but its cosine is positive too. Keep those two scores beside their documents.",
+        "hold": 0.5
+      },
+      {
+        "id": "c19-b02",
+        "say": "Subtract the fitted document mean from both documents and the query. Watch the second arrow swing past a right angle to the query. Its cosine has become negative. The first document still wins, even though both angles have changed.",
+        "hold": 0.65
+      },
+      {
+        "id": "c19-b03",
+        "say": "Join the query to each document. Their separations stayed the same because the mean cancels in each difference. A full orthonormal change of basis keeps distances and angles about the same origin. Truncating that basis can change both. Now imagine a document exactly at the fitted mean.",
+        "hold": 0.3
+      },
+      {
+        "id": "c19-b04",
+        "say": "It lands on the origin with zero length, so its cosine is undefined. Test zero-vector handling and retrieval rankings when you change the representation.",
+        "hold": 0.6
+      }
+    ]
+  },
+  {
+    "id": "c20",
+    "title": "Which list gets opened?",
+    "sourceChapters": [
+      "c20"
+    ],
+    "beats": [
+      {
+        "id": "c20-b01",
+        "say": "Let's try the other shortcut on our duplicate-charge request. Give every message back both coordinates. We've filed each message under its nearest cluster center. Those three lists make an inverted-file index. We can save document comparisons by opening just the list whose center is closest to the query.",
+        "hold": 0.65
+      },
+      {
+        "id": "c20-b02",
+        "say": "Compare all three centers. The upper center is just a little closer than the left one. The upper list holds C and D. Our full search picked B. If we open only the upper list, can it possibly return B?",
+        "hold": 2
+      },
+      {
+        "id": "c20-b03",
+        "say": "B is in the closed left list. Open the upper list and measure its two documents. C, the reset link, wins that search. Its distance hasn't changed. The list limited which messages we compared.",
+        "hold": 1
+      },
+      {
+        "id": "c20-b04",
+        "say": "Open the next closest list too. Now compare B's distance with C's. B is closer and the duplicate-payment message comes back. We made three center comparisons and four document comparisons. That's seven distances to recover a neighbor we found with six in the flat search.",
+        "hold": 0.8
+      },
+      {
+        "id": "c20-b05",
+        "say": "Move the query just below the boundary. Hold its first coordinate at two point eight. At a height of two point six nine the left list opens, and B is available. Slide up to two point seven. The two centers tie. Our first-center rule opens the left list. One hundredth higher, the upper list opens instead. Flat search still returns B on both sides. This small movement changes the routing decision.",
+        "hold": 0.9
+      }
+    ]
+  },
+  {
+    "id": "c21",
+    "title": "Count the centroids and the lists actually opened",
+    "sourceChapters": [
+      "c21"
+    ],
+    "beats": [
+      {
+        "id": "c21-b01",
+        "say": "An IVF cell stores assigned document IDs and their vector payloads. With full vectors and exact distances, probing all lists recovers exhaustive search under consistent tie handling. Compressed IVF codes can still change rankings after every list is opened. Candidate recovery and distance precision are separate properties.",
+        "hold": 0.5
+      },
+      {
+        "id": "c21-b02",
+        "say": "Divide ninety-six hundred documents among forty equal lists. Each holds two hundred forty documents. Open the two highlighted lists. How many document distances will the query need? Count just the documents first. Four hundred eighty. Add forty center comparisons for flat routing. That makes five hundred twenty distances in all.",
+        "hold": 0.3
+      },
+      {
+        "id": "c21-b03",
+        "say": "Now open sixteen of four thousand ninety-six equal lists. That scans about zero point three nine percent of the documents. At one hundred documents per list, we scan sixteen hundred. Double every list and we scan thirty-two hundred. With equal list sizes and the same probe fraction, candidate work grows linearly with corpus size. Flat routing still takes four thousand ninety-six center comparisons.",
+        "hold": 0.3
+      },
+      {
+        "id": "c21-b04",
+        "say": "Now try uneven lists. This query opens the first two. How many documents does it scan? Add their lengths. One plus four gives five. Add three documents to the closed list and keep the query and centers fixed. The index now holds nine documents. The same two lists still contribute just five candidates.",
+        "hold": 0.5
+      },
+      {
+        "id": "c21-b05",
+        "say": "Try another duplicate-charge query. Its supplied coordinates put it next to the reset-link page. The index returns exactly the same page as flat search. That's a geometric hit. A reviewer chose the duplicate-payment page, so the same result is a relevance miss. ANN recall uses the exact neighbors under the same representation and tie rule.",
+        "hold": 0.3
+      },
+      {
+        "id": "c21-b06",
+        "say": "Keep the flat baseline, measure latency as well as candidate work, and evaluate the queries your product must answer.",
+        "hold": 0.5
+      }
+    ]
+  },
+  {
+    "id": "c22",
+    "title": "A reviewed name belongs to evidence and a run",
+    "sourceChapters": [
+      "c22"
+    ],
+    "beats": [
+      {
+        "id": "c22-b01",
+        "say": "A plot should produce a testable representation audit. Read nearest-message pairs, examples near centers and boundaries, mixed intents and multilingual cases. Compare axes with formatting or length metadata. Verify the serving metric and evaluate retrieval before and after compression on reviewed query-document pairs.",
+        "hold": 0.3
+      },
+      {
+        "id": "c22-b02",
+        "say": "A group number identifies a group within one run. Imagine the next run numbers the very same pairs in reverse order. Keep the run ID with the group number, and attach the reviewed name after reading its members.",
+        "hold": 0.5
+      },
+      {
+        "id": "c22-b03",
+        "say": "Purity divides the dominant reviewed-topic count by cluster size. Our invented clean groups have purity one because every member was designed and read. Singleton groups also have purity one, so that number alone rewards fragmentation. Record sizes, topic coverage and boundary examples. Repeatedly tuned audit cases become development data; preserve a separate untouched final benchmark.",
+        "hold": 0.5
+      }
+    ]
+  },
+  {
+    "id": "c23",
+    "title": "Which message does the sign-in search return?",
+    "sourceChapters": [
+      "c23"
+    ],
+    "beats": [
+      {
+        "id": "c23-b01",
+        "say": "One last search. Someone asks why their sign-in code fails. Read the five page tabs in storage order. The policy pages stretch the map left and right. Billing help, sign-in help and the runbook share the middle horizontal position. So does the query.",
+        "hold": 0.65
+      },
+      {
+        "id": "c23-b02",
+        "say": "Look closely at their heights. Use the query as the fixed sight. Sign-in help lies two tenths below it. Billing help and the runbook are farther down. Searching all five in two dimensions returns L, the sign-in page.",
+        "hold": 0.65
+      },
+      {
+        "id": "c23-b03",
+        "say": "The horizontal axis alone keeps almost ninety-eight percent of the corpus variance. Sight along the missing height. As we flatten the search copy onto the horizontal line through the query, watch what happens to those three page pins.",
+        "hold": 0.9
+      },
+      {
+        "id": "c23-b04",
+        "say": "Three documents now tie at distance zero. We return the first tied document in storage order. Read the tabs. Which ID comes back?",
+        "hold": 2.8
+      },
+      {
+        "id": "c23-b05",
+        "say": "B, billing help. All five pages were searched. L had exactly the same score as B. Would you open another list or bring back the second coordinate?",
+        "hold": 2.5
+      },
+      {
+        "id": "c23-b06",
+        "say": "Bring back the second coordinate from the saved vectors. Keep your eye on the fixed query. The sign-in pin separates from billing and stops two tenths of a unit away. L wins. We needed that small vertical gap to answer this question.",
+        "hold": 0.3
+      },
+      {
+        "id": "c23-b07",
+        "say": "Before choosing a shortcut, compare the returned messages with full search and with answers people have reviewed on held-out queries. Next we'll let a point belong to several groups by different amounts.",
+        "hold": 1
+      }
+    ]
+  }
+]

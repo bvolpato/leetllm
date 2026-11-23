@@ -1,0 +1,620 @@
+version: 1
+id: agent-orchestration
+title: Coordinating Work with Typed State
+source: agents/multi-agent-dags-langgraph-orchestration/content.md
+voice: en-US-AndrewNeural
+rate: +0%
+sources:
+  - title: LangGraph graph API
+    url: https://docs.langchain.com/oss/javascript/langgraph/graph-api
+  - title: LangGraph persistence
+    url: https://docs.langchain.com/oss/javascript/langgraph/persistence
+  - title: LangGraph interrupts
+    url: https://docs.langchain.com/oss/javascript/langgraph/interrupts
+scenes:
+  - id: subject-intro
+    title: Three checks, one coherent decision
+    visual: A release request fans out to evaluation, health, and policy checks; their receipts reunite before a bounded proposal exists.
+    beats:
+      - say: A release assistant needs to inspect evaluation results, current health, and rollout policy before proposing a traffic change. These reads can run independently. The challenge is to bring them back together without mixing releases, accepting stale evidence, or letting a worker write on its own.
+        visual_cues:
+          - id: read-branches
+            phrase: These reads can run independently
+            targets:
+              - eval-read
+              - health-read
+              - policy-read
+            color: cyan
+          - id: receipts-reunite
+            phrase: bring them back together
+            targets:
+              - validated-merge
+            color: yellow
+        hold: 0.55
+      - say: Orchestration makes those dependencies and state updates explicit. Each branch contributes a bounded result. A join waits for the required work, validates the receipts, and creates one proposal. Execution belongs to a separate authorized boundary after the required review.
+        visual_cues:
+          - id: owned-results
+            phrase: Each branch contributes a bounded result
+            targets:
+              - eval-read
+              - health-read
+              - policy-read
+            color: cyan
+          - id: validated-join
+            phrase: validates the receipts
+            targets:
+              - validated-merge
+            color: green
+        hold: 0.75
+      - say: We will follow a constructed request for twenty-five percent traffic. The timing example will show how parallel reads reduce waiting. The state example will show why completing all branches is only useful when their results refer to the same intended action.
+        visual_cues:
+          - id: traffic-proposal
+            phrase: twenty-five percent traffic
+            targets:
+              - proposal-parameters
+            color: yellow
+          - id: same-action
+            phrase: same intended action
+            targets:
+              - validated-merge
+            color: green
+        hold: 0.55
+      - say: First decide whether extra agents earn their cost. Independent semantic research with bounded context and a typed merge can benefit from specialists. Independent deterministic ETL needs parallel code, not extra model agents. Coupled edits sharing an evolving trace often fit one scoped agent. Extra contexts add token cost, coordination and review; measure the benefit rather than assuming branch count justifies it.
+        hold: 1
+        visual_cues:
+          - id: subject-intro-construct-3
+            phrase: First decide whether extra agents earn their cost.
+            targets:
+              - subject-intro-construction
+            color: yellow
+            linger: 0.6
+  - id: dependency-graph
+    title: Edges describe readiness
+    visual: Directed edges connect triage to three independent reads and a merge; a re-review loop is drawn separately as a state-machine transition.
+    beats:
+      - say: A directed graph represents operations as nodes and prerequisites as arrows. In our read phase, triage comes first, three checks follow, and merge waits for all three. No path leads back to an earlier node, so this portion is a directed acyclic graph, or DAG.
+        visual_cues:
+          - id: read-branches
+            phrase: triage comes first, three checks follow
+            targets:
+              - release-request
+              - eval-read
+              - health-read
+              - policy-read
+            color: cyan
+          - id: merge-ready
+            phrase: merge waits for all three
+            targets:
+              - validated-merge
+            color: yellow
+        hold: 0.55
+      - say: A node can be ordinary code, a database read, or a model that interprets evidence. Its position in a graph does not turn it into an agent. Use model-based specialists where their interpretation helps, and deterministic validators for rules the application can specify directly.
+        visual_cues:
+          - id: operation-node
+            phrase: A node can be ordinary code, a database read, or a model
+            targets:
+              - health-read
+            color: blue
+          - id: deterministic-merge
+            phrase: deterministic validators
+            targets:
+              - validated-merge
+            color: green
+        hold: 0.75
+      - say: A pause does not create a cycle. A retry inside a node can also leave the outer graph acyclic. A transition from rejected review back to a revised proposal does create a cycle, making that larger control flow a state machine around the read DAG.
+        visual_cues:
+          - id: review-cycle
+            phrase: transition from rejected review back to a revised proposal
+            targets:
+              - review-cycle
+            color: yellow
+        hold: 0.55
+  - id: parallel-clock
+    title: Parallel waiting follows the longest branch
+    visual: Three supplied read durations animate on one clock and compare serial summation with parallel completion plus explicit merge overhead.
+    beats:
+      - say: Our supplied reads take two seconds for evaluation, three for health, and one for policy. Run them serially and their durations add. Run them together under ideal independent scheduling and the read phase waits for the slowest branch.
+        visual_cues:
+          - id: serial-reads
+            phrase: Run them serially and their durations add
+            targets:
+              - eval-read
+              - health-read
+              - policy-read
+            color: blue
+          - id: serial-comparison
+            phrase: the slowest branch
+            targets:
+              - health-read
+            color: yellow
+        hold: 0.55
+      - say: The bars share one clock. Policy finishes first, then evaluation, then health. Merge still waits for health even when the other receipts are ready. With a half-second merge step, this constructed parallel schedule finishes in three and a half seconds.
+        motion_check:
+          region:
+            - 490
+            - 330
+            - 1200
+            - 535
+          minimumChangedFraction: 0.002
+        visual_cues:
+          - id: parallel-reads
+            phrase: Policy finishes first, then evaluation, then health
+            targets:
+              - policy-read
+              - eval-read
+              - health-read
+            color: cyan
+          - id: merge-overhead
+            phrase: With a half-second merge step
+            targets:
+              - merge-step
+            color: yellow
+          - id: parallel-total
+            phrase: three and a half seconds
+            targets:
+              - read-time-comparison
+            color: green
+        hold: 0.75
+      - say: The same reads still perform the same total read work. Dispatch overhead, rate limits, contention, and model queueing can reduce the apparent saving. Treat these timings as arithmetic for a dependency example, then measure wall time and total cost in the actual environment.
+        visual_cues:
+          - id: same-total-work
+            phrase: same total read work
+            targets:
+              - eval-read
+              - health-read
+              - policy-read
+            color: blue
+          - id: overhead
+            phrase: Dispatch overhead
+            targets:
+              - merge-step
+            color: yellow
+        hold: 0.55
+  - id: typed-receipts
+    title: Give each worker a narrow update contract
+    visual: Branch receipts carry request, tenant, release, revision, timestamp, and owned result fields into distinct shared-state slots.
+    beats:
+      - say: All three workers receive the same trusted request identity, tenant, release, and expected revision. Each writes only its own receipt. The evaluation branch supplies evaluation evidence; it cannot replace the approval field or quietly change the requested traffic amount.
+        visual_cues:
+          - id: trusted-identity
+            phrase: same trusted request identity, tenant, release, and expected revision
+            targets:
+              - receipt-identity
+            color: blue
+          - id: owned-branch-results
+            phrase: Each writes only its own receipt
+            targets:
+              - owned-results
+            color: cyan
+        hold: 0.55
+      - say: Types make those shapes understandable, while runtime validation enforces the values and field ownership. A receipt also needs source identity and freshness appropriate to its use. A text claim that the release passed cannot stand in for the source result it describes.
+        visual_cues:
+          - id: field-ownership
+            phrase: values and field ownership
+            targets:
+              - owned-results
+            color: yellow
+          - id: source-identity
+            phrase: source identity and freshness
+            targets:
+              - source-digest
+            color: green
+        hold: 0.75
+      - say: Framework reducers specify how concurrent updates combine. Concatenating lists can retain duplicates and arrival-order differences. Two workers replacing a scalar can conflict. Choose an update rule deliberately, then validate the merged meaning instead of treating successful reduction as trustworthy agreement.
+        visual_cues:
+          - id: branch-ownership
+            phrase: concurrent updates combine
+            targets:
+              - branch-owners
+            color: cyan
+          - id: scalar-conflict
+            phrase: Two workers replacing a scalar can conflict
+            targets:
+              - scalar-write-collision
+            color: pink
+          - id: unique-owners
+            phrase: validate the merged meaning
+            targets:
+              - branch-ownership-rule
+              - unique-owner-resolution
+            color: yellow
+        hold: 0.55
+  - id: superstep-join
+    title: A scheduling barrier does not validate evidence
+    visual: Three receipt rails cross step boundaries; an unequal-depth health branch exposes two partial merges before a single waiting edge repairs the same graph.
+    beats:
+      - say: LangGraph’s runtime plans a superstep, executes selected nodes, then applies returned channel updates. Those updates become visible to nodes in the next step. This does not deeply freeze arbitrary Python objects or sandbox a hostile worker.
+        hold: 1
+        visual_cues:
+          - id: superstep-join-construct-0
+            phrase: LangGraph’s runtime plans a superstep, executes selected nodes,
+            targets:
+              - superstep-join-construction
+            color: yellow
+            linger: 0.6
+      - say: For a default scalar channel, one update replaces its value. Concurrent updates to that unreduced key raise an invalid-concurrent-graph-update error, even when the supplied values agree. A list-add reducer concatenates results; it is associative but not commutative, and it keeps duplicates. Start a new attempt with empty receipts or use an attempt-aware reducer.
+        hold: 1
+        visual_cues:
+          - id: superstep-join-construct-1
+            phrase: For a default scalar channel, one update replaces
+            targets:
+              - superstep-join-construction
+            color: yellow
+            linger: 0.6
+          - id: scalar-update-error
+            phrase: raise an invalid-concurrent-graph-update error
+            targets:
+              - superstep-join-construction
+            color: yellow
+            linger: 0.5
+          - id: reducer-lists
+            phrase: A list-add reducer concatenates results
+            targets:
+              - superstep-join-construction
+            color: yellow
+            linger: 0.5
+      - say: "When every required branch runs, one waiting edge from the list of evaluation, health and policy terminal nodes holds merge until all finish. Three separate edges are different: if health has an extra preparation step, evaluation and policy can trigger a partial merge, then health triggers another. A waiting edge naming an unselected branch never completes. For dynamic selected branches, deferred execution can wait for graph-wide pending work, and merge must still validate that selected set."
+        hold: 1
+        visual_cues:
+          - id: superstep-join-construct-2
+            phrase: When every required branch runs, one waiting edge
+            targets:
+              - superstep-join-construction
+            color: yellow
+            linger: 0.6
+      - say: "Runtime output ownership limits a read worker to its own receipt. Types describe the expected shape but do not authorize a write. A read-only mapping proxy is shallow: a nested list can still be mutated. A deep copy separates this fixture’s values, but neither is a hostile-code sandbox. Use trusted scope, credentials and isolation at the execution boundary."
+        hold: 1
+        visual_cues:
+          - id: superstep-join-construct-3
+            phrase: Runtime output ownership limits a read worker to
+            targets:
+              - superstep-join-construction
+            color: yellow
+            linger: 0.6
+  - id: validated-join
+    title: Wait for all results, then check what they mean
+    visual: A cross-tenant receipt reaches a scheduling barrier but fails validation; matching unique branch receipts produce one proposal.
+    beats:
+      - say: Pause before the merge. Evaluation and policy name the intended tenant, but health names another one. Every branch has finished and each receipt has the expected fields. Should the request proceed to an approval packet?
+        visual_cues:
+          - id: other-tenant
+            phrase: health names another one
+            targets:
+              - health-receipt
+            color: pink
+          - id: predict-join
+            phrase: Should the request proceed
+            targets:
+              - join-decision
+            color: yellow
+        hold: 0.55
+      - say: The scheduling barrier is satisfied, while the state contract fails. Reject the cross-tenant result. Also reject duplicate branches, missing required evidence, stale versions, or source mismatches. Sorting valid branch identities gives deterministic packet construction without assigning meaning to which network reply arrived first.
+        visual_cues:
+          - id: reject-scope
+            phrase: Reject the cross-tenant result
+            targets:
+              - health-receipt
+              - join-decision
+            color: pink
+          - id: valid-identities
+            phrase: valid branch identities
+            targets:
+              - matching-receipts
+            color: green
+        hold: 0.75
+      - say: "With matching reviewed receipts, the example's numerical rules pass: the supplied evaluation and health rates remain inside their local limits, and policy allows the requested traffic. These fictional thresholds exercise coordination. Release quality still requires the appropriate real evaluation and operational evidence."
+        visual_cues:
+          - id: reviewed-receipts
+            phrase: matching reviewed receipts
+            targets:
+              - matching-receipts
+              - health-receipt
+            color: green
+          - id: numerical-rules
+            phrase: numerical rules pass
+            targets:
+              - release-checks
+            color: yellow
+        hold: 0.55
+      - say: The trusted fixture records two regressions among one hundred cases, or two percent, below its fictional three-percent limit. Four errors among ten thousand canary requests give point zero four percent, or point four times a point one-percent allowance. Policy caps traffic at twenty-five percent. Also validate the requested percentage as an in-range integer; minus one passes a simple upper-bound-only comparison. Both old and new source content may pass thresholds yet require different proposal digests.
+        hold: 1
+        visual_cues:
+          - id: validated-join-construct-3
+            phrase: The trusted fixture records two regressions among one
+            targets:
+              - validated-join-construction
+            color: yellow
+            linger: 0.6
+          - id: join-eval-rate
+            phrase: or two percent
+            targets:
+              - validated-join-construction
+            color: yellow
+            linger: 0.5
+          - id: join-health-rate
+            phrase: point zero four percent
+            targets:
+              - validated-join-construction
+            color: yellow
+            linger: 0.5
+          - id: join-burn-rate
+            phrase: point four times
+            targets:
+              - validated-join-construction
+            color: yellow
+            linger: 0.5
+  - id: checkpoint-retry
+    title: Resume from a meaningful state
+    visual: A saved checkpoint preserves completed evaluation and policy receipts while a failed health read retries within its budget.
+    beats:
+      - say: A checkpoint stores enough workflow state to resume a particular thread after interruption. When health times out, completed evaluation and policy work may already be saved. A bounded retry can refresh the failed read without pretending the whole workflow never started.
+        visual_cues:
+          - id: saved-results
+            phrase: completed evaluation and policy work may already be saved
+            targets:
+              - saved-checkpoint
+            color: blue
+          - id: retry-health-read
+            phrase: A bounded retry can refresh the failed read
+            targets:
+              - health-retry
+              - receipt-freshness
+            color: yellow
+        hold: 0.55
+      - say: Persistence is a separate contract from external effects. Re-entering a node can execute code again, including work before an interrupt. Keep retryable operations explicit, and make side effects repeat safe using the destination's supported contract or reconciliation procedure.
+        visual_cues:
+          - id: persistent-checkpoint
+            phrase: Persistence is a separate contract
+            targets:
+              - saved-checkpoint
+            color: blue
+          - id: repeat-safe-retry
+            phrase: make side effects repeat safe
+            targets:
+              - health-retry
+            color: yellow
+        hold: 0.75
+      - say: Authorize access to the thread and its checkpoint data. A thread identifier selects stored state; possession of that identifier does not grant permission to inspect or resume it. Recheck freshness after a long pause because previously valid receipts may have aged out.
+        visual_cues:
+          - id: checkpoint-access
+            phrase: Authorize access to the thread and its checkpoint data
+            targets:
+              - saved-checkpoint
+            color: blue
+          - id: recheck-age
+            phrase: Recheck freshness after a long pause
+            targets:
+              - receipt-freshness
+            color: yellow
+        hold: 0.55
+      - say: A timeout on an idempotent metrics read permits bounded backoff with jitter and a deadline. A permanent wrong release identity needs alias resolution or review, not endless repetition. Reviewer rejection routes to cancel. A writer timeout is ambiguous and needs target-side reconciliation with the same key. These are different recovery semantics, not one generic retry policy.
+        hold: 1
+        visual_cues:
+          - id: checkpoint-retry-construct-3
+            phrase: A timeout on an idempotent metrics read permits
+            targets:
+              - checkpoint-retry-construction
+            color: yellow
+            linger: 0.6
+  - id: single-writer
+    title: Bind approval to one exact proposal
+    visual: An approval packet identifies release, revision, traffic, and evidence; one writer rechecks live revision and rejects a changed target.
+    beats:
+      - say: "The validated merge creates a concrete proposal: this release, this revision, this traffic amount, and these evidence references. A policy-required approval binds an authenticated reviewer to that exact packet. Changing the proposal creates a different decision to review."
+        visual_cues:
+          - id: concrete-proposal
+            phrase: this release, this revision, this traffic amount
+            targets:
+              - exact-proposal
+            color: blue
+          - id: exact-approval
+            phrase: that exact packet
+            targets:
+              - proposal-approval
+            color: yellow
+        hold: 0.55
+      - say: One writer now rechecks current permissions and live state before applying the approved effect. If the release revision changes during review, the old packet no longer names the current target. Stop and rebuild the evidence and proposal rather than carrying the approval across that change.
+        visual_cues:
+          - id: writer-rechecks
+            phrase: rechecks current permissions and live state
+            targets:
+              - guarded-writer
+            color: cyan
+          - id: live-revision-change
+            phrase: the release revision changes during review
+            targets:
+              - live-revision-check
+            color: pink
+        hold: 0.75
+      - say: After rebuilding, a fresh approval names the new revision. If this later write loses its reply, preserve its operation identity and reconcile the outcome. A durable target-side contract can return the earlier result without another traffic change. Checkpointing the caller alone cannot close that external crash gap.
+        visual_cues:
+          - id: fresh-approval
+            phrase: a fresh approval names the new revision
+            targets:
+              - proposal-approval
+            color: green
+          - id: write-reply-lost
+            phrase: this later write loses its reply
+            targets:
+              - operation-receipt
+            color: yellow
+          - id: reconcile-operation
+            phrase: return the earlier result without another traffic change
+            targets:
+              - effect-reconciliation
+            color: green
+        hold: 0.55
+      - say: Approval also binds evidence digests, applicable policy revision and expiry. Recheck permissions and independent live dependencies, not only release version. The effect boundary needs the atomic preconditions it supports. The article’s in-memory writer fixture demonstrates deduplication rules; volatile maps do not establish real atomicity or durability. Reusing a key with different arguments is rejected, while an exact replay can return the original result.
+        hold: 1
+        visual_cues:
+          - id: single-writer-construct-3
+            phrase: Approval also binds evidence digests, applicable policy revision
+            targets:
+              - single-writer-construction
+            color: yellow
+            linger: 0.6
+  - id: topology-ownership
+    title: Who keeps the conversation when work returns?
+    visual: A single conversation-control token remains with a manager for a tool call, then transfers to a specialist for a handoff; capability tools arrive from a separate trusted policy rail.
+    beats:
+      - say: A graph workflow makes dependencies, reducers and gates explicit. It can include loops or generated workers, so it is not inherently a DAG. A supervisor retains conversation ownership while specialists return bounded results. A handoff moves active control to the receiver, with application-configured history. A selected-speaker group chat is a different routing mechanism.
+        hold: 1
+        visual_cues:
+          - id: topology-ownership-construct-0
+            phrase: A graph workflow makes dependencies, reducers and gates
+            targets:
+              - topology-ownership-construction
+            color: yellow
+            linger: 0.6
+      - say: If Vega needs a bounded health verdict, call the health specialist as a tool and keep the manager’s conversation. If triage should give the conversation to a release specialist, use a handoff. Bound inputs, outputs, turns and spend in either case. A hierarchy adds coordinator layers and possible latency or intent loss; measure those costs.
+        hold: 1
+        visual_cues:
+          - id: topology-ownership-construct-1
+            phrase: If Vega needs a bounded health verdict, call
+            targets:
+              - topology-ownership-construction
+            color: yellow
+            linger: 0.6
+          - id: handoff-active-control
+            phrase: use a handoff
+            targets:
+              - topology-ownership-construction
+            color: yellow
+            linger: 0.5
+      - say: Transferred history remains untrusted evidence. Rebuild receiver tools from trusted application policy rather than inheriting sender capabilities from text. In a handoff SDK, validating generated arguments is distinct from filtering history. An enablement check before arguments exist cannot decide argument-specific access; validate that access at the actual transfer boundary and raise on denial. Tool guardrails do not automatically cover handoffs.
+        hold: 1
+        visual_cues:
+          - id: topology-ownership-construct-2
+            phrase: Transferred history remains untrusted evidence. Rebuild receiver tools
+            targets:
+              - topology-ownership-construction
+            color: yellow
+            linger: 0.6
+      - say: Framework names and interfaces evolve. A migration between graph or conversation systems can change routing and typed-message contracts rather than merely imports. Pin and test the framework you actually execute. Instructions saying a worker is read-only express intent; removing write credentials and tools enforces that boundary.
+        hold: 1
+        visual_cues:
+          - id: topology-ownership-construct-3
+            phrase: Framework names and interfaces evolve. A migration between
+            targets:
+              - topology-ownership-construction
+            color: yellow
+            linger: 0.6
+  - id: wire-protocols
+    title: A capability call and an independent agent task
+    visual: The same request ID follows a capability invocation or a remote specialist’s message/task and artifact lifecycle; both end at an unchanged authorization gate.
+    beats:
+      - say: A workflow framework owns scheduling and state. A wire protocol defines an interoperable boundary it can call. Either can cross processes. Model Context Protocol exposes tools, resources and prompts from a capability server to a model host. An agent-to-agent protocol exposes an independent agent with discovery, messages and task operations.
+        hold: 1
+        visual_cues:
+          - id: wire-protocols-construct-0
+            phrase: A workflow framework owns scheduling and state. A
+            targets:
+              - wire-protocols-construction
+            color: yellow
+            linger: 0.6
+      - say: Both can represent long-running work, so duration does not choose the protocol. A deployment lookup API fits a capability tool. An independent vendor investigator with its own task identity, progress and outputs fits an agent message or task. A direct message need not create an asynchronous task; streaming and push updates depend on supported capabilities.
+        hold: 1
+        visual_cues:
+          - id: wire-protocols-construct-1
+            phrase: Both can represent long-running work, so duration does
+            targets:
+              - wire-protocols-construction
+            color: yellow
+            linger: 0.6
+      - say: Task outputs can be attached as artifacts, but completed status alone proves neither their correctness nor durable storage. A tool schema, task identifier or transcript saying shift traffic does not grant production authority. Authenticated credentials and application policy govern the final effect. Vega’s human-review rule is this application’s chosen contract, not a universal requirement imposed by either protocol.
+        hold: 1
+        visual_cues:
+          - id: wire-protocols-construct-2
+            phrase: Task outputs can be attached as artifacts, but
+            targets:
+              - wire-protocols-construction
+            color: yellow
+            linger: 0.6
+  - id: transfer
+    title: Parallel intelligence, explicit ownership
+    visual: Independent reads converge through validated typed state while proposal, approval, execution, and verification remain separate owned stages.
+    beats:
+      - say: The useful parallelism came from stable independent inputs. The trustworthy decision came from ownership and validation when results reunited. Adding workers to tightly coupled steps would introduce more coordination without creating the same opportunity to overlap useful work.
+        visual_cues:
+          - id: stable-inputs
+            phrase: stable independent inputs
+            targets:
+              - independent-reads
+            color: blue
+          - id: validation-result
+            phrase: ownership and validation when results reunited
+            targets:
+              - validated-state
+            color: green
+          - id: transfer-construct-0
+            phrase: The useful parallelism came from stable independent inputs.
+            targets:
+              - transfer-construction
+            color: yellow
+            linger: 0.6
+        hold: 0.55
+      - say: For a new workflow, ask what each branch may read, what it may update, and which facts must agree at the join. Give the final effect one accountable boundary, with current policy, exact approval where required, repeat-safe execution, and verification of the resulting state.
+        visual_cues:
+          - id: branch-contract
+            phrase: which facts must agree at the join
+            targets:
+              - validated-state
+            color: cyan
+          - id: effect-boundary
+            phrase: one accountable boundary
+            targets:
+              - guarded-writer
+            color: yellow
+          - id: transfer-construct-1
+            phrase: For a new workflow, ask what each branch
+            targets:
+              - transfer-construction
+            color: yellow
+            linger: 0.6
+        hold: 0.75
+      - say: You can now read an orchestration diagram as a set of executable obligations. Every arrow has a readiness condition, every receipt has an identity, and every resume has a recovery meaning. Those contracts let parallel work remain understandable as the system grows.
+        visual_cues:
+          - id: receipt-identity
+            phrase: every receipt has an identity
+            targets:
+              - validated-state
+            color: blue
+          - id: recovery-meaning
+            phrase: every resume has a recovery meaning
+            targets:
+              - guarded-writer
+            color: green
+          - id: transfer-construct-2
+            phrase: You can now read an orchestration diagram as
+            targets:
+              - transfer-construction
+            color: yellow
+            linger: 0.6
+        hold: 0.55
+      - say: "A new batch returns evaluation revision three, health revision four and policy revision three. All three report success. Predict the owner of the repair. The join rejects the mixed release revision; refresh the mismatched branch and revalidate freshness before creating a packet. If health instead returns twice under one identity, reject the duplicate rather than counting it as more evidence. The final writer remains unchanged until a valid current packet and its required review exist. The production-agent capstone next makes that separation executable: draft from policy evidence, persist one exact review packet and test a separate writer’s recovery and replay behavior."
+        hold: 1
+        visual_cues:
+          - id: transfer-construct-3
+            phrase: A new batch returns evaluation revision three, health
+            targets:
+              - transfer-construction
+            color: yellow
+            linger: 0.6
+          - id: fresh-revision-rejection
+            phrase: The join rejects the mixed release revision
+            targets:
+              - transfer-construction
+            color: yellow
+            linger: 0.5
+          - id: fresh-duplicate-rejection
+            phrase: reject the duplicate
+            targets:
+              - transfer-construction
+            color: yellow
+            linger: 0.5
+          - id: fresh-duplicate-input
+            phrase: If health instead returns twice under one identity
+            targets:
+              - transfer-construction
+            color: cyan
+            linger: 0.4

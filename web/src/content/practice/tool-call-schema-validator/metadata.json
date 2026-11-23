@@ -1,0 +1,216 @@
+{
+  "id": "tool-call-schema-validator",
+  "slug": "tool-call-schema-validator",
+  "title": "Tool Call Schema Validator",
+  "difficulty": "Medium",
+  "category": "Agents",
+  "language": "python3",
+  "timeEstimateMinutes": 35,
+  "timeLimitMs": 2500,
+  "memoryLimitMb": 128,
+  "order": 190,
+  "tags": [
+    "tool calls",
+    "schema validation",
+    "agents",
+    "runtime safety"
+  ],
+  "source": "AI lab prep",
+  "summary": "Validate tool call names and arguments before runtime execution.",
+  "starterCode": [
+    "def validate_call(call: dict, schemas: dict) -> list[str]:",
+    "    pass"
+  ],
+  "testCases": [
+    {
+      "name": "public accepts valid required and optional args",
+      "visibility": "sample",
+      "setup": [
+        "from solution import validate_call",
+        "schemas = {\"search\": {\"required\": {\"query\": \"str\"}, \"optional\": {\"limit\": \"int\"}}}",
+        "call = {\"name\": \"search\", \"args\": {\"query\": \"vector db\", \"limit\": 3}}"
+      ],
+      "input": "schemas = {\"search\": {\"required\": {\"query\": \"str\"}, \"optional\": {\"limit\": \"int\"}}}\ncall = {\"name\": \"search\", \"args\": {\"query\": \"vector db\", \"limit\": 3}}\nvalidate_call(call, schemas)",
+      "expected": "[]",
+      "expression": "validate_call(call, schemas)"
+    },
+    {
+      "name": "public reports missing required field",
+      "visibility": "sample",
+      "setup": [
+        "from solution import validate_call",
+        "schemas = {\"fetch\": {\"required\": {\"url\": \"str\", \"timeout\": \"float\"}}}",
+        "errors = validate_call({\"name\": \"fetch\", \"args\": {\"url\": \"https://x\"}}, schemas)"
+      ],
+      "input": "schemas = {\"fetch\": {\"required\": {\"url\": \"str\", \"timeout\": \"float\"}}}\nerrors = validate_call({\"name\": \"fetch\", \"args\": {\"url\": \"https://x\"}}, schemas)\nerrors",
+      "expected": "[\"missing:timeout\"]",
+      "expression": "errors"
+    },
+    {
+      "name": "private rejects unknown tool",
+      "visibility": "hidden",
+      "setup": [
+        "from solution import validate_call"
+      ],
+      "input": "validate_call({\"name\": \"delete_all\", \"args\": {}}, {})",
+      "expected": "[\"unknown_tool:delete_all\"]"
+    },
+    {
+      "name": "private detects type errors and bool int pitfall",
+      "visibility": "hidden",
+      "setup": [
+        "from solution import validate_call",
+        "schemas = {\"rank\": {\"required\": {\"k\": \"int\", \"scores\": \"list\", \"debug\": \"bool\"}}}",
+        "call = {\"name\": \"rank\", \"args\": {\"k\": True, \"scores\": {}, \"debug\": \"yes\"}}"
+      ],
+      "input": "schemas = {\"rank\": {\"required\": {\"k\": \"int\", \"scores\": \"list\", \"debug\": \"bool\"}}}\ncall = {\"name\": \"rank\", \"args\": {\"k\": True, \"scores\": {}, \"debug\": \"yes\"}}\nvalidate_call(call, schemas)",
+      "expected": "[\"type:k:int\", \"type:scores:list\", \"type:debug:bool\"]",
+      "expression": "validate_call(call, schemas)"
+    },
+    {
+      "name": "private sorts extra fields deterministically",
+      "visibility": "hidden",
+      "setup": [
+        "from solution import validate_call",
+        "schemas = {\"send\": {\"required\": {\"to\": \"str\"}, \"optional\": {\"body\": \"str\"}}}",
+        "call = {\"name\": \"send\", \"args\": {\"to\": \"a\", \"z\": 1, \"a\": 2}}"
+      ],
+      "input": "schemas = {\"send\": {\"required\": {\"to\": \"str\"}, \"optional\": {\"body\": \"str\"}}}\ncall = {\"name\": \"send\", \"args\": {\"to\": \"a\", \"z\": 1, \"a\": 2}}\nvalidate_call(call, schemas)",
+      "expected": "[\"extra:a\", \"extra:z\"]",
+      "expression": "validate_call(call, schemas)"
+    },
+    {
+      "name": "public accepts omitted optional arguments",
+      "visibility": "sample",
+      "setup": [
+        "from solution import validate_call",
+        "schemas = {\"search\": {\"required\": {\"query\": \"str\"}, \"optional\": {\"limit\": \"int\"}}}"
+      ],
+      "input": "validate_call({\"name\": \"search\", \"args\": {\"query\": \"vector db\"}}, schemas)",
+      "expected": "[]"
+    },
+    {
+      "name": "private accepts integers for float fields",
+      "visibility": "hidden",
+      "setup": [
+        "from solution import validate_call",
+        "schemas = {\"scale\": {\"required\": {\"factor\": \"float\"}}}"
+      ],
+      "input": "validate_call({\"name\": \"scale\", \"args\": {\"factor\": 3}}, schemas)",
+      "expected": "[]"
+    },
+    {
+      "name": "private rejects bool for float fields",
+      "visibility": "hidden",
+      "setup": [
+        "from solution import validate_call",
+        "schemas = {\"scale\": {\"required\": {\"factor\": \"float\"}}}"
+      ],
+      "input": "validate_call({\"name\": \"scale\", \"args\": {\"factor\": True}}, schemas)",
+      "expected": "[\"type:factor:float\"]"
+    },
+    {
+      "name": "private treats missing args as empty",
+      "visibility": "hidden",
+      "setup": [
+        "from solution import validate_call",
+        "schemas = {\"search\": {\"required\": {\"query\": \"str\"}}}"
+      ],
+      "input": "validate_call({\"name\": \"search\"}, schemas)",
+      "expected": "[\"missing:query\"]"
+    },
+    {
+      "name": "private collects missing extra and type in category order",
+      "visibility": "hidden",
+      "setup": [
+        "from solution import validate_call",
+        "schemas = {\"run\": {\"required\": {\"cmd\": \"str\", \"timeout\": \"float\"}, \"optional\": {\"debug\": \"bool\"}}}",
+        "call = {\"name\": \"run\", \"args\": {\"timeout\": True, \"extra_z\": 1, \"extra_a\": 2}}"
+      ],
+      "input": "schemas = {\"run\": {\"required\": {\"cmd\": \"str\", \"timeout\": \"float\"}, \"optional\": {\"debug\": \"bool\"}}}\ncall = {\"name\": \"run\", \"args\": {\"timeout\": True, \"extra_z\": 1, \"extra_a\": 2}}\nvalidate_call(call, schemas)",
+      "expected": "[\"missing:cmd\", \"extra:extra_a\", \"extra:extra_z\", \"type:timeout:float\"]",
+      "expression": "validate_call(call, schemas)"
+    },
+    {
+      "name": "private preserves required then optional order despite argument order",
+      "visibility": "hidden",
+      "setup": [
+        "from solution import validate_call",
+        "schemas = {\"run\": {\"required\": {\"z\": \"str\", \"a\": \"int\"}, \"optional\": {\"flag\": \"bool\", \"weight\": \"float\"}}}"
+      ],
+      "input": "validate_call({\"name\": \"run\", \"args\": {\"weight\": True, \"flag\": 1, \"a\": 3.0, \"z\": None}}, schemas)",
+      "expected": "[\"type:z:str\", \"type:a:int\", \"type:flag:bool\", \"type:weight:float\"]"
+    },
+    {
+      "name": "private distinguishes absent optional from present null and validates containers shallowly",
+      "visibility": "hidden",
+      "setup": [
+        "from solution import validate_call",
+        "schemas = {\"batch\": {\"required\": {\"items\": \"list\", \"options\": \"dict\"}, \"optional\": {\"label\": \"str\"}}}"
+      ],
+      "input": "[validate_call({\"name\": \"batch\", \"args\": {\"items\": [None, {\"nested\": True}], \"options\": {\"anything\": [1]}}}, schemas), validate_call({\"name\": \"batch\", \"args\": {\"items\": [], \"options\": {}, \"label\": None}}, schemas)]",
+      "expected": "[[], [\"type:label:str\"]]"
+    }
+  ],
+  "clarifyingQuestions": [
+    "Should extra arguments be rejected or ignored?",
+    "Should nested object schemas be supported?",
+    "Should validation return the first error or all errors?"
+  ],
+  "followUps": [
+    "Add enum constraints for fields.",
+    "Add nested object validation.",
+    "Add authorization checks after shape validation."
+  ],
+  "followUpGuide": [
+    "Enums are field-level value checks after type validation.",
+    "",
+    "Nested schemas need recursive validation with path-aware error messages.",
+    "",
+    "Authorization belongs after schema validation; a well-shaped call can still be unsafe."
+  ],
+  "complexityAnalysis": [
+    "- Let f be the number of fields across args and schema maps, and e the number of extra arguments. With bounded-length names and average constant-time hash lookups, time is O(f + e log e): extra fields must be sorted. Auxiliary space is O(f), including allowed-field sets, merged schema fields, sorted extras, and returned errors. Unbounded field names also add string hashing, comparison, and error-construction costs.",
+    "- Nested validation is a follow-up. Its cost depends on visited values, constraints, path construction, and collected errors; recursive stack space alone is O(depth). The current validator checks only top-level fields."
+  ],
+  "solutionGuide": [
+    "Validate name first, then required fields, then extra fields, then types in schema order.",
+    "",
+    "```python",
+    "def validate_call(call: dict, schemas: dict) -> list[str]:",
+    "    name = call.get(\"name\")",
+    "    if name not in schemas:",
+    "        return [f\"unknown_tool:{name}\"]",
+    "",
+    "    args = call.get(\"args\", {})",
+    "    schema = schemas[name]",
+    "    required = schema.get(\"required\", {})",
+    "    optional = schema.get(\"optional\", {})",
+    "    allowed = set(required) | set(optional)",
+    "    errors = []",
+    "",
+    "    for field in required:",
+    "        if field not in args:",
+    "            errors.append(f\"missing:{field}\")",
+    "    for field in sorted(set(args) - allowed):",
+    "        errors.append(f\"extra:{field}\")",
+    "",
+    "    type_map = {\"str\": str, \"bool\": bool, \"list\": list, \"dict\": dict}",
+    "    for field, expected in {**required, **optional}.items():",
+    "        if field not in args:",
+    "            continue",
+    "        value = args[field]",
+    "        if expected == \"int\":",
+    "            ok = isinstance(value, int) and not isinstance(value, bool)",
+    "        elif expected == \"float\":",
+    "            ok = isinstance(value, float) or (",
+    "                isinstance(value, int) and not isinstance(value, bool)",
+    "            )",
+    "        else:",
+    "            ok = isinstance(value, type_map[expected])",
+    "        if not ok:",
+    "            errors.append(f\"type:{field}:{expected}\")",
+    "    return errors",
+    "```"
+  ]
+}

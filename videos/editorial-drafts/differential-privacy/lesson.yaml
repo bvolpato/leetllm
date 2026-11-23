@@ -1,0 +1,876 @@
+version: 1
+id: differential-privacy
+title: Learning While Limiting One Example's Influence
+source: llmops/privacy-preserving-ml-differential-privacy/content.md
+voice: en-US-AndrewNeural
+rate: +0%
+sources:
+  - title: Abadi et al. Deep Learning with Differential Privacy
+    url: https://arxiv.org/abs/1607.00133
+  - title: Dwork and Roth The Algorithmic Foundations of Differential Privacy
+    url: https://www.cis.upenn.edu/~aaroth/Papers/privacybook.pdf
+  - title: Opacus Privacy Engine documentation
+    url: https://opacus.ai/api/privacy_engine.html
+scenes:
+  - id: intro
+    title: Learn patterns without exposing a record
+    visual: A training set changes by one protected record; a randomized training procedure produces
+      overlapping output distributions.
+    beats:
+      - say: A model trained on private records can reveal patterns that help an observer infer whether a record
+          shaped its behavior. Differential privacy bounds how much one declared protected unit can shift
+          the model’s output distribution. The bound applies under its stated assumptions; access control
+          and release review remain part of the deployment.
+        hold: 0.55
+        visual_cues:
+          - id: output-distribution
+            phrase: shift the model’s output distribution
+            targets:
+              - output-distributions
+            color: cyan
+            linger: 0.5
+      - say: We will define the protected unit, clip each record's gradient, add calibrated noise, and account
+          for repeated steps. Each part supports a different piece of the privacy argument.
+        hold: 0.55
+        visual_cues:
+          - id: protect-record
+            phrase: define the protected unit
+            targets:
+              - private-records
+            color: yellow
+            linger: 0.5
+      - say: "Before choosing a noise setting, ask a concrete question: are we protecting one message, one
+          document, or every record that belongs to one person? That choice changes the guarantee."
+        hold: 0.75
+        visual_cues:
+          - id: declare-unit
+            phrase: one message, one document, or every record that belongs to one person
+            targets:
+              - private-records
+            color: blue
+            linger: 0.5
+  - id: adjacency
+    title: Define which two datasets count as neighbors
+    visual: A dataset and its neighboring dataset differ by one declared record or one complete user; the
+      protected unit is labeled before any noise is chosen.
+    beats:
+      - say: Differential privacy compares the randomized outputs from two neighboring datasets. The neighbor
+          rule states exactly what changed between them. A neighboring relation defines which one-unit
+          change the probability guarantee compares.
+        hold: 0.55
+        visual_cues:
+          - id: neighbor-rule
+            phrase: neighbor rule states exactly what changed between them
+            targets:
+              - record-contributions
+            color: cyan
+            linger: 0.5
+      - say: Record-level add-remove adjacency compares datasets that differ by one record. User-level privacy
+          groups a person's contributions and treats that complete group as the protected unit.
+        hold: 0.55
+        visual_cues:
+          - id: record-unit
+            phrase: differ by one record
+            targets:
+              - record-contributions
+            color: blue
+            linger: 0.5
+          - id: user-unit
+            phrase: groups a person's contributions
+            targets:
+              - protected-person
+            color: yellow
+            linger: 0.5
+      - say: Record-level clipping bounds one message's influence; user-level privacy must bound all of one
+          person's records together. Declare the unit before using a privacy accountant.
+        hold: 0.75
+        visual_cues:
+          - id: bound-user
+            phrase: all of one person's records together
+            targets:
+              - protected-person
+              - record-contributions
+            color: yellow
+            linger: 0.5
+  - id: definition
+    title: Read the probability bound
+    visual: Event probability curves for neighboring datasets stay within a multiplicative exp-epsilon band
+      plus visible delta slack.
+    beats:
+      - say: For every measurable output event, approximate differential privacy bounds its probability on one
+          dataset by e to the epsilon times the neighbor's probability, plus delta. The event can be any
+          set of outputs, such as a prediction range or a membership-test result.
+        hold: 0.55
+        visual_cues:
+          - id: event-bound
+            phrase: For every measurable output event
+            targets:
+              - privacy-event
+            color: cyan
+            linger: 0.5
+      - say: "Hold the blue neighbor probability fixed and increase epsilon. The teal interval widens: a larger
+          multiplicative factor permits more difference between the two probabilities. A smaller epsilon
+          tightens that allowance. Both directions matter, so the interval has a lower limit as well as
+          an upper limit."
+        hold: 0.55
+        visual_cues:
+          - id: vary-epsilon
+            phrase: Hold the blue neighbor probability fixed and increase epsilon
+            targets:
+              - epsilon
+              - probability-band
+            color: cyan
+            linger: 0.5
+          - id: lower-bound
+            phrase: lower limit as well as an upper limit
+            targets:
+              - event-limits
+            color: yellow
+            linger: 0.5
+          - id: tighten-epsilon
+            phrase: A smaller epsilon tightens that allowance
+            targets:
+              - epsilon
+              - probability-band
+            color: cyan
+            linger: 0.5
+      - say: Now add delta. The yellow extensions show its additive probability slack in the two comparisons.
+          This one event lets us inspect the requirement geometrically. Differential privacy requires the
+          comparisons to hold for every output event under the declared neighboring relation and
+          randomized mechanism.
+        hold: 0.75
+        visual_cues:
+          - id: add-delta
+            phrase: Now add delta
+            targets:
+              - delta
+              - probability-band
+            color: yellow
+            linger: 0.5
+          - id: all-events
+            phrase: every output event
+            targets:
+              - privacy-event
+            color: cyan
+            linger: 0.5
+  - id: clip
+    title: Bound every record's gradient
+    visual: Three record-level gradient vectors enter an L2 clip circle; an outlier is shortened to the
+      boundary while smaller vectors retain their direction.
+    beats:
+      - say: DP-SGD starts with one gradient contribution per protected record. Set a maximum L2 length C. Each
+          record’s vector passes through that bound before the contributions are combined. This gives us
+          a controlled amount of influence to work with.
+        hold: 0.55
+        visual_cues:
+          - id: set-bound
+            phrase: Set a maximum L2 length C
+            targets:
+              - clipping-bound
+            color: yellow
+            linger: 0.5
+      - say: The short vector already lies inside the unit circle, so it stays put. The longer vector has length
+          five. Scale both of its coordinates by one fifth, and its endpoint meets the circle. Watch how
+          clipping preserves direction while limiting length.
+        hold: 0.55
+        visual_cues:
+          - id: short-vector
+            phrase: short vector already lies inside the unit circle
+            targets:
+              - short-gradient
+            color: cyan
+            linger: 0.5
+          - id: clip-long
+            phrase: Scale both of its coordinates by one fifth
+            targets:
+              - long-gradient
+              - vector-norm
+            color: pink
+            linger: 0.5
+      - say: Clipping introduces a tradeoff. If many contributions hit the boundary, their rescaling can shift
+          the average update and affect learning quality. Track the clipping rate alongside validation
+          performance when choosing C. Next we perturb the aggregate formed from these bounded
+          contributions.
+        hold: 0.75
+        visual_cues:
+          - id: clipping-tradeoff
+            phrase: rescaling can shift the average update
+            targets:
+              - long-gradient
+              - clipped-endpoint
+            color: yellow
+            linger: 0.5
+  - id: noise
+    title: Aggregate clipped updates and add noise
+    visual: Clipped vectors sum to a concrete two-dimensional update; a calibrated Gaussian perturbation is
+      sampled around that aggregate before normalization.
+    beats:
+      - say: "For this worked mechanism, use add/remove adjacency: clipping bounds the sum's sensitivity by C, so
+          each Gaussian coordinate has standard deviation sigma C. The random perturbation limits how
+          much one record can affect the released update. The complete run still needs privacy accounting
+          across its mechanism and releases."
+        hold: 0.55
+        visual_cues:
+          - id: calibrate-noise
+            phrase: Gaussian coordinate has standard deviation sigma C
+            targets:
+              - noise-law
+              - noise-offset
+            color: pink
+            linger: 0.5
+          - id: perturb-update
+            phrase: The random perturbation limits how much one record can affect the released update
+            targets:
+              - noise-offset
+            color: pink
+            linger: 0.5
+      - say: This vector lets us inspect one pre-noise update. The privacy accountant combines the declared
+          adjacency, sampling, noise mechanism, and every release.
+        hold: 0.55
+        visual_cues:
+          - id: pre-noise-update
+            phrase: one pre-noise update
+            targets:
+              - clipped-sum
+              - sum-calculation
+            color: cyan
+            linger: 0.5
+      - say: Under replace-one adjacency, swapping one clipped record for another can change the sum by as much
+          as two C. A fixed public batch normalizer scales the bound too. Match the noise calibration to
+          the adjacency and mechanism you actually run.
+        hold: 0.75
+        visual_cues:
+          - id: replace-one
+            phrase: swapping one clipped record for another can change the sum by as much as two C
+            targets:
+              - replace-records
+              - replace-distance
+              - noise-law
+              - replace-calibration
+            color: yellow
+            linger: 0.5
+          - id: public-normalizer
+            phrase: A fixed public batch normalizer scales the bound too
+            targets:
+              - noise-law
+              - replace-calibration
+            color: pink
+            linger: 0.5
+  - id: compose
+    title: Account for every training step
+    visual: Repeated sampled training steps pass through a privacy ledger; each step's cost accumulates under
+      a declared accountant and delta target.
+    beats:
+      - say: One noisy update has a privacy cost. Repeated noisy training steps can pass their information into
+          the final model. A conservative analysis composes the sequence of mechanisms even when only
+          final weights are released. It accounts for accumulated influence rather than treating every
+          step as a fresh independent privacy promise.
+        hold: 0.55
+        visual_cues:
+          - id: compose-costs
+            phrase: One noisy update has a privacy cost. Repeated
+            targets:
+              - composed-budget
+            color: blue
+            linger: 0.5
+      - say: A privacy accountant needs the sampling scheme, noise multiplier, number of steps, adjacency,
+          protected unit, and target delta. Subsampling can amplify privacy only when the sampler and
+          accounting assumptions match.
+        hold: 0.55
+        visual_cues:
+          - id: accountant-inputs
+            phrase: sampling scheme, noise multiplier, number of steps, adjacency, protected unit, and target delta
+            targets:
+              - accountant-inputs
+              - privacy-accountant
+            color: cyan
+            linger: 0.5
+      - say: The noise multiplier alone leaves out sampling and repeated releases. Compute the total with a
+          vetted accountant, record the configuration, and include any additional private releases in the
+          budget.
+        hold: 0.75
+        visual_cues:
+          - id: total-budget
+            phrase: Compute the total with a vetted accountant
+            targets:
+              - privacy-accountant
+              - composed-budget
+            color: green
+            linger: 0.5
+  - id: utility
+    title: Measure the learning cost
+    visual: Clipped record gradients form an averaged toy update; a perpendicular noise direction grows with
+      sigma while a computed cosine-retention curve and clipped-record fraction update beside it.
+    beats:
+      - say: The cyan arrow is the mean of the clipped record gradients. The pink offset uses an authored
+          perpendicular noise direction so we can isolate how scale changes cosine alignment; calibrated
+          Gaussian draws vary from sample to sample. The curve updates this directional proxy as the
+          multiplier grows.
+        hold: 0.55
+        visual_cues:
+          - id: clipped-mean
+            phrase: mean of the clipped record gradients
+            targets:
+              - mean-gradient
+            color: cyan
+            linger: 0.5
+          - id: grow-noise
+            phrase: curve updates this directional proxy as the multiplier grows
+            targets:
+              - noise-direction
+              - cosine-curve
+            color: pink
+            linger: 0.5
+      - say: The diagnostic counts how many of these record gradients exceed the clipping bound. In a real run,
+          measure held-out accuracy, calibration, and clipping rate beside the accountant result. Tune
+          the norm and noise under a fixed, declared training plan.
+        hold: 0.55
+        visual_cues:
+          - id: clipping-diagnostic
+            phrase: how many of these record gradients exceed the clipping bound
+            targets:
+              - clipping-rate
+            color: cyan
+            linger: 0.5
+      - say: The cosine curve shows geometry for this authored toy update; task utility comes from held-out
+          evaluation. Choose the clipping norm and noise against that evidence, then report the complete
+          mechanism and account for every release.
+        hold: 0.75
+        visual_cues:
+          - id: proxy-limit
+            phrase: cosine curve shows geometry for this authored toy update
+            targets:
+              - cosine-curve
+            color: yellow
+            linger: 0.5
+  - id: audit
+    title: Trace clipping through a checkpoint release
+    visual: One record gradient shrinks to the clipping bound, joins two other clipped vectors, and moves
+      through an authored noise draw; a private checkpoint choice then adds a separate accountant entry.
+    beats:
+      - say: "R4's gradient is [3, 4], with norm five. Predict its contribution when the clip bound is one. Now
+          scale by one fifth: it contributes [0.6, 0.8]."
+        hold: 0.5
+        visual_cues:
+          - id: trace-clip
+            phrase: Now scale by one fifth
+            targets:
+              - clip-vector
+            color: yellow
+            linger: 0.45
+          - id: trace-clip-result
+            phrase: it contributes [0.6, 0.8]
+            targets:
+              - clip-outcome
+            color: green
+            linger: 0.4
+          - id: dp-result-audit-clip
+            phrase: it contributes [0.6, 0.8]
+            targets:
+              - clip-outcome
+            color: cyan
+            linger: 0.4
+      - say: R1 adds [0.4, 0.3], R2 adds [0.6, 0.8], and clipped R4 adds [0.6, 0.8]. Together they make [1.6,
+          1.9]. This authored noise draw, [0.2, -0.3], moves the aggregate to [1.8, 1.6].
+        hold: 0.55
+        visual_cues:
+          - id: trace-add
+            phrase: R1 adds [0.4, 0.3], R2 adds [0.6, 0.8], and clipped R4 adds [0.6, 0.8]
+            targets:
+              - record-sum
+            color: cyan
+            linger: 0.35
+          - id: trace-aggregate
+            phrase: Together they make [1.6, 1.9]
+            targets:
+              - aggregate-point
+            color: yellow
+            linger: 0.35
+          - id: trace-noise
+            phrase: moves the aggregate to [1.8, 1.6]
+            targets:
+              - noise-step
+              - noisy-release
+            color: pink
+            linger: 0.4
+          - id: dp-result-audit-aggregate
+            phrase: Together they make [1.6, 1.9]
+            targets:
+              - aggregate-point
+            color: cyan
+            linger: 0.4
+          - id: dp-result-audit-noise
+            phrase: moves the aggregate to [1.8, 1.6]
+            targets:
+              - noisy-release
+            color: cyan
+            linger: 0.4
+      - say: Suppose a separately accounted private validation mechanism selects C7. For one protected unit and adjacency, record training as epsilon one,
+          delta one and selection as epsilon two, delta two. If training satisfies its bound and selection satisfies its conditional bound for every fixed
+          training transcript, sequential basic composition gives epsilon one plus epsilon two, delta one
+          plus delta two. A
+          matching accountant uses actual sampling and mechanism details. This toy trace is not a
+          training budget. Prompts and retrieval need separate access controls.
+        hold: 0.65
+        visual_cues:
+          - id: select-checkpoint
+            phrase: selects C7
+            targets:
+              - candidate-selection
+            color: green
+            linger: 0.35
+          - id: account-selection
+            phrase: record training as epsilon one, delta one and selection as epsilon two, delta two
+            targets:
+              - training-ledger
+              - selection-ledger
+              - selection-to-ledger
+              - composition-assumptions
+            color: yellow
+            linger: 0.4
+          - id: compose-releases
+            phrase: sequential basic composition gives epsilon one plus epsilon two, delta one plus delta two
+            targets:
+              - composition-flow
+              - composed-budget
+            color: yellow
+            linger: 0.45
+          - id: matching-accountant
+            phrase: A matching accountant uses actual sampling and mechanism details
+            targets:
+              - matching-accountant
+            color: cyan
+            linger: 0.4
+          - id: other-data-paths
+            phrase: Prompts and retrieval need separate access controls
+            targets:
+              - other-data-controls
+            color: pink
+            linger: 0.4
+          - id: dp-result-audit-selection
+            phrase: selects C7
+            targets:
+              - candidate-selection
+            color: cyan
+            linger: 0.4
+          - id: dp-result-audit-composition
+            phrase: sequential basic composition gives epsilon one plus epsilon two, delta one plus delta two
+            targets:
+              - composed-budget
+            color: cyan
+            linger: 0.4
+  - id: attack-evidence
+    title: Compare attack evidence with a distribution guarantee
+    visual: Keep a candidate text fixed while model loss, reference difficulty and known membership vary.
+    beats:
+      - say: A membership-inference attack predicts whether a candidate appeared in training. Low target-model
+          loss can indicate familiarity, but easy public text can also have low loss. Comparing with a
+          reference model or compressed length helps account for text difficulty. Evaluate false
+          positives and missed members against known labels; a successful heuristic score is not a proof
+          of membership.
+        hold: 1.2
+        visual_cues:
+          - id: attack-evidence-b1
+            phrase: A membership-inference attack predicts whether a candidate appeared in training
+            targets:
+              - attack-evidence-mechanism
+            linger: 0.5
+      - say: Extraction instead tries to recover training text. A recovered private passage demonstrates a
+          failure on that tested setting. An attack finding no passage only establishes what that attack
+          found, not absence of memorization. Differential privacy is a bound on randomized output
+          distributions for all neighboring datasets and output events under its declared mechanism.
+        hold: 0.8
+        visual_cues:
+          - id: attack-evidence-b2
+            phrase: Extraction instead tries to recover training text
+            targets:
+              - attack-evidence-mechanism
+            linger: 0.5
+      - say: Approximate-DP delta supplies additive slack in that event bound. It is not an exact fraction of
+          exposed people or a universal per-person extraction chance. A mechanism that releases its whole
+          input with probability delta and otherwise returns a constant illustrates how serious that
+          slack can be. Name the unit, releases and assumptions before interpreting the numerical
+          guarantee.
+        hold: 0.8
+        visual_cues:
+          - id: attack-evidence-b3
+            phrase: Approximate-DP delta supplies additive slack in that event bound
+            targets:
+              - attack-evidence-mechanism
+            linger: 0.5
+      - say: Choose target delta against the size and meaning of the protected-unit population and the risk of
+          the releases. Ten to the minus five is a supplied worksheet choice, not a universal safe
+          setting. Differential privacy still permits learning population correlations and inferences
+          supported by other information. Its neighboring-dataset statement limits the incremental
+          influence of one protected unit, rather than suppressing every sensitive attribute inference.
+        hold: 0.8
+        visual_cues:
+          - id: attack-evidence-extension-4
+            phrase: Choose target delta against the size and meaning of the protected-unit population and the risk of
+              the releases
+            targets:
+              - attack-evidence-extension-4
+            linger: 0.5
+  - id: private-mechanisms
+    title: Calibrate noise from the changed answer
+    visual: A two-output randomized-response table yields its maximum ratio; a count sensitivity controls a
+      Laplace density width.
+    beats:
+      - say: Randomized response gives a small complete proof. Report a binary answer truthfully with probability
+          three quarters and flip it with probability one quarter. For either output under opposite
+          inputs, the largest probability ratio is three. Pure-DP epsilon is the natural logarithm of
+          three, about one point zero nine nine. For two possible outputs, the singleton checks also
+          bound every event.
+        hold: 1.2
+        visual_cues:
+          - id: private-mechanisms-b1
+            phrase: Randomized response gives a small complete proof
+            targets:
+              - private-mechanisms-mechanism
+            linger: 0.5
+          - id: dp-result-private-mechanisms-rr-ratio
+            phrase: the largest probability ratio is three
+            targets:
+              - private-mechanisms-mechanism
+            color: cyan
+            linger: 0.4
+          - id: dp-result-private-mechanisms-rr-epsilon
+            phrase: Pure-DP epsilon is the natural logarithm of three, about one point zero nine nine
+            targets:
+              - private-mechanisms-mechanism
+            color: cyan
+            linger: 0.4
+      - say: For a numerical query, global sensitivity is the largest neighboring change under the norm required
+          by its mechanism. Independent coordinate Laplace noise uses scale L-one sensitivity divided by
+          epsilon and gives pure DP. Gaussian noise uses L-two sensitivity. For a d-coordinate vector, an
+          L-two bound implies an L-one bound up to square root d, so using the wrong norm can
+          undercalibrate noise.
+        hold: 0.8
+        visual_cues:
+          - id: private-mechanisms-b2
+            phrase: For a numerical query, global sensitivity is the largest neighboring change under the norm
+              required by its mechanism
+            targets:
+              - private-mechanisms-mechanism
+            linger: 0.5
+      - say: "One classical sufficient Gaussian rule, for epsilon between zero and one and delta between zero and
+          one, takes standard deviation greater than L-two sensitivity times square root of twice log of
+          one point two five divided by delta, all divided by epsilon. Analytical Gaussian calibration
+          uses a different exact-distribution analysis. These conditions matter: a noisy-looking plot or
+          a large multiplier without valid sensitivity and accounting does not prove privacy."
+        hold: 0.8
+        visual_cues:
+          - id: private-mechanisms-b3
+            phrase: One classical sufficient Gaussian rule, for epsilon between zero and one and delta between zero
+              and one, takes standard deviation greater than L-two sensitivity times square root of twice
+              log of one point two five divided by delta, all divided by epsilon
+            targets:
+              - private-mechanisms-mechanism
+            linger: 0.5
+  - id: user-aggregate
+    title: Bound one person before combining people
+    visual: Two ticket updates from Alice join before a single user clip; a public divisor remains fixed after
+      removal.
+    beats:
+      - say: Protecting a person requires bounding the total contribution from that person. In a supplied scalar example,
+          Alice contributes two ticket updates of point seven five each. Their sum is one point five.
+          Clip the combined user value to C equal to one before adding the point two five from Bao. Clipping each
+          ticket separately at one would leave Alice contributing one point five and miss this user
+          bound.
+        hold: 1.2
+        visual_cues:
+          - id: user-aggregate-b1
+            phrase: Protecting a person requires bounding the total contribution from that person
+            targets:
+              - user-aggregate-mechanism
+            linger: 0.5
+          - id: dp-result-alice-sum
+            phrase: Their sum is one point five
+            targets:
+              - user-aggregate-mechanism
+            color: cyan
+            linger: 0.4
+          - id: dp-result-alice-clip-operation
+            phrase: Clip the combined user value to C equal to one before adding the point two five from Bao
+            targets:
+              - user-aggregate-mechanism
+            color: cyan
+            linger: 0.4
+      - say: "With both users present, divide the clipped sum one point two five by fixed public normalizer two
+          to get point six two five. Remove Alice and keep that same public divisor: the result is point
+          one two five. Their difference is point five, equal to C divided by two. Add calibrated sum
+          noise before the fixed division; a data-dependent denominator would change the mechanism."
+        hold: 0.8
+        visual_cues:
+          - id: user-aggregate-b2
+            phrase: With both users present, divide the clipped sum one point two five by fixed public normalizer two
+              to get point six two five
+            targets:
+              - user-aggregate-mechanism
+            linger: 0.5
+          - id: dp-result-user-aggregate-full-mean
+            phrase: With both users present, divide the clipped sum one point two five by fixed public normalizer two
+              to get point six two five
+            targets:
+              - user-aggregate-mechanism
+            color: cyan
+            linger: 0.4
+          - id: dp-result-user-aggregate-neighbor-mean
+            phrase: "Remove Alice and keep that same public divisor: the result is point one two five"
+            targets:
+              - user-aggregate-mechanism
+            color: cyan
+            linger: 0.4
+          - id: dp-result-user-aggregate-difference
+            phrase: Their difference is point five, equal to C divided by two
+            targets:
+              - user-aggregate-mechanism
+            color: cyan
+            linger: 0.4
+      - say: "Compute clipped coordinates at full working precision. Rounding a norm-one vector before
+          aggregation can push its represented norm above C. Production privacy needs numerical behavior
+          within the claimed bound. Check the actual sampler as carefully: a Poisson-sampling accountant
+          cannot be borrowed unchanged for deterministic shuffled batches just because their nominal
+          fractions agree."
+        hold: 0.8
+        visual_cues:
+          - id: user-aggregate-b3
+            phrase: Compute clipped coordinates at full working precision
+            targets:
+              - user-aggregate-mechanism
+            linger: 0.5
+      - say: For independent Poisson sampling, include each declared protected unit with probability q on each
+          step, so the sampled count varies. Sum the clipped contributions, add the Gaussian sum noise,
+          divide by fixed public L, and update theta by subtracting learning rate times that noisy
+          normalized gradient. A trusted central service sees private examples before adding noise.
+          Client randomized response instead randomizes before the collector sees each report; that
+          local-DP trust boundary is different.
+        hold: 0.8
+        visual_cues:
+          - id: user-aggregate-extension-4
+            phrase: For independent Poisson sampling, include each declared protected unit with probability q on each
+              step, so the sampled count varies
+            targets:
+              - user-aggregate-extension-4
+            linger: 0.5
+  - id: accountant-calculation
+    title: Compose a declared Gaussian mechanism and charge selection
+    visual: Two unsampled Gaussian releases fill an RDP table; one more private statistic raises the same
+      bound past a fixed cap.
+    beats:
+      - say: Work a small explicit accountant worksheet. Assume add-remove sensitivity C, unsampled Gaussian
+          releases with standard deviation four C, and target delta ten to the minus five. At Renyi order
+          alpha greater than one, each release has bound alpha divided by thirty-two. These valid
+          conditional bounds add across releases.
+        hold: 1.2
+        visual_cues:
+          - id: accountant-calculation-b1
+            phrase: Work a small explicit accountant worksheet
+            targets:
+              - accountant-calculation-mechanism
+            linger: 0.5
+      - say: After two releases, the total RDP bound is alpha divided by sixteen. Convert to approximate DP by
+          adding log of one over delta divided by alpha minus one. Check orders two, four, eight and
+          sixteen. Among those declared orders, sixteen gives the smallest bound, about one point seven
+          six eight. This is a valid upper bound for the supplied unsampled mechanism, not a
+          Poisson-sampled training budget or a claim that this finite grid is globally optimal.
+        hold: 0.8
+        visual_cues:
+          - id: accountant-calculation-b2
+            phrase: After two releases, the total RDP bound is alpha divided by sixteen
+            targets:
+              - accountant-calculation-mechanism
+            linger: 0.5
+          - id: dp-result-accountant-calculation-two-epsilon
+            phrase: Among those declared orders, sixteen gives the smallest bound, about one point seven six eight
+            targets:
+              - accountant-calculation-mechanism
+            color: cyan
+            linger: 0.4
+          - id: dp-result-declared-orders
+            phrase: Check orders two, four, eight and sixteen
+            targets:
+              - accountant-calculation-mechanism
+            color: cyan
+            linger: 0.4
+      - say: Now selection consults the same protected data through one additional Gaussian statistic with the
+          same sensitivity and noise ratio. Charge that release too. At order sixteen the bound becomes
+          about two point two six eight. A predeclared epsilon cap of two now blocks this plan. Selecting
+          with raw private scores instead has no arbitrary free epsilon charge; it needs a valid
+          mechanism or public validation. A real sampled DP-SGD run uses a vetted accountant matching its
+          sampling, steps, adjacency and all exposed artifacts.
+        hold: 0.8
+        visual_cues:
+          - id: accountant-calculation-b3
+            phrase: Now selection consults the same protected data through one additional Gaussian statistic with the
+              same sensitivity and noise ratio
+            targets:
+              - accountant-calculation-mechanism
+            linger: 0.5
+          - id: dp-result-accountant-calculation-three-epsilon
+            phrase: At order sixteen the bound becomes about two point two six eight
+            targets:
+              - accountant-calculation-mechanism
+            color: cyan
+            linger: 0.4
+          - id: dp-result-accountant-calculation-block
+            phrase: A predeclared epsilon cap of two now blocks this plan
+            targets:
+              - accountant-calculation-mechanism
+            color: cyan
+            linger: 0.4
+          - id: dp-result-third-charge
+            phrase: Charge that release too
+            targets:
+              - accountant-calculation-mechanism
+            color: cyan
+            linger: 0.4
+      - say: Count release dependence correctly. Checkpoints that are post-processing of a joint transcript
+          already covered by one valid DP analysis need no separate budget beyond that transcript
+          guarantee. Separate training runs on overlapping protected users generally compose. For fixed
+          disjoint protected-user groups, parallel composition can use the maximum group budget instead
+          of summing across groups, provided no protected user crosses groups. A checkpoint selected
+          using new raw private scores is an additional data path even when those scores are not
+          published.
+        hold: 0.8
+        visual_cues:
+          - id: accountant-calculation-extension-4
+            phrase: Count release dependence correctly
+            targets:
+              - accountant-calculation-extension-4
+            linger: 0.5
+  - id: coordinate-noise
+    title: Count the perturbed coordinates before judging utility
+    visual: The same per-coordinate scale fills two parameter spaces, with squared lengths accumulating by
+      dimension.
+    beats:
+      - say: Independent Gaussian coordinates with standard deviation sigma C have expected squared norm d times
+          sigma squared C squared. The root mean square norm is sigma C times square root d. After fixed
+          public normalizer L and learning rate eta, the parameter-step RMS becomes eta sigma C square
+          root d divided by L.
+        hold: 1.2
+        visual_cues:
+          - id: coordinate-noise-b1
+            phrase: Independent Gaussian coordinates with standard deviation sigma C have expected squared norm d
+              times sigma squared C squared
+            targets:
+              - coordinate-noise-mechanism
+            linger: 0.5
+      - say: For illustrative seven-billion full-model coordinates versus five-million adapter coordinates at the
+          same scale, the RMS ratio is square root fourteen hundred, about thirty-seven point four two.
+          The ratio of expected squared norms is fourteen hundred. Neither quantity is an accuracy ratio
+          or a privacy-budget ratio. Different parameterizations turn equal coordinate-space noise into
+          different functional changes.
+        hold: 0.8
+        visual_cues:
+          - id: coordinate-noise-b2
+            phrase: For illustrative seven-billion full-model coordinates versus five-million adapter coordinates at
+              the same scale, the RMS ratio is square root fourteen hundred, about thirty-seven point
+              four two
+            targets:
+              - coordinate-noise-mechanism
+            linger: 0.5
+          - id: dp-result-coordinate-noise-rms-ratio
+            phrase: the RMS ratio is square root fourteen hundred, about thirty-seven point four two
+            targets:
+              - coordinate-noise-mechanism
+            color: cyan
+            linger: 0.4
+          - id: dp-result-coordinate-noise-energy-ratio
+            phrase: The ratio of expected squared norms is fourteen hundred
+            targets:
+              - coordinate-noise-mechanism
+            color: cyan
+            linger: 0.4
+      - say: Private adapter training clips and perturbs its own protected-unit gradients while the base stays
+          fixed. That fine-tuning analysis does not retroactively protect a non-private base trained on
+          the same person. It protects incremental fine-tuning participation conditional on that fixed
+          base. Protecting the person across both stages requires an analysis of both stages data
+          dependence.
+        hold: 0.8
+        visual_cues:
+          - id: coordinate-noise-b3
+            phrase: Private adapter training clips and perturbs its own protected-unit gradients while the base stays
+              fixed
+            targets:
+              - coordinate-noise-mechanism
+            linger: 0.5
+      - say: A low-rank adapter computes frozen base W-zero plus alpha divided by rank, times B times A. For
+          input width d-in, output width d-out and rank r, those two factors contain r times the sum of
+          d-in and d-out trainable coordinates, compared with d-in times d-out full weights. DP adapter
+          training forms each protected-unit gradient over both factors, clips its joint contribution and
+          perturbs those trainable coordinates. The frozen base still executes; parameter counts alone
+          establish neither training speed nor task quality.
+        hold: 0.8
+        visual_cues:
+          - id: coordinate-noise-extension-4
+            phrase: A low-rank adapter computes frozen base W-zero plus alpha divided by rank, times B times A
+            targets:
+              - coordinate-noise-extension-4
+            linger: 0.5
+  - id: earned-transfer
+    title: Choose the release that keeps its promise
+    visual: A fresh clipped contribution changes the sum; a third accounted private release tests the
+      preserved budget cap.
+    beats:
+      - say: Try a new gradient with coordinates six and eight at clip bound two. Its norm is ten. Multiply both
+          coordinates by one fifth to get one point two and one point six. Under add-remove adjacency it
+          can change the sum by at most two; replacing one bounded vector with its opposite can change it
+          by four. The same public normalizer scales both the sensitivity and the noise.
+        hold: 1.2
+        visual_cues:
+          - id: earned-transfer-b1
+            phrase: Try a new gradient with coordinates six and eight at clip bound two
+            targets:
+              - earned-transfer-mechanism
+            linger: 0.5
+          - id: fresh-gradient-clip
+            phrase: Multiply both coordinates by one fifth to get one point two and one point six
+            targets:
+              - earned-transfer-mechanism
+            linger: 0.5
+          - id: dp-result-earned-transfer-norm
+            phrase: Its norm is ten
+            targets:
+              - earned-transfer-mechanism
+            color: cyan
+            linger: 0.4
+          - id: dp-result-earned-transfer-add-remove
+            phrase: Under add-remove adjacency it can change the sum by at most two
+            targets:
+              - earned-transfer-mechanism
+            color: cyan
+            linger: 0.4
+          - id: dp-result-earned-transfer-replacement
+            phrase: replacing one bounded vector with its opposite can change it by four
+            targets:
+              - earned-transfer-mechanism
+            color: cyan
+            linger: 0.4
+      - say: Return to our two-release accountant and epsilon cap two. Public prompts that use only the accounted
+          released model are post-processing and add no new training-data access. An authorized database
+          lookup of raw private tickets is a separate exposure; the training guarantee does not cover it.
+          New private prompts and logs need their own controls too.
+        hold: 0.8
+        visual_cues:
+          - id: earned-transfer-b2
+            phrase: Return to our two-release accountant and epsilon cap two
+            targets:
+              - earned-transfer-mechanism
+            linger: 0.5
+      - say: "If a private selection statistic becomes a third release, the computed bound rises above the cap and the plan stays blocked. Choose public selection or redesign and account for the complete pipeline. You can now connect protected units, sensitivity, clipping, noise, sampling and every release to one declared guarantee, then measure held-out utility and attack behavior without confusing either measurement with the proof. Next, active labeling governs the evidence before training: who may see a trace, which rubric defines its label and which records must remain reserved for evaluation."
+        hold: 0.8
+        visual_cues:
+          - id: earned-transfer-b3
+            phrase: If a private selection statistic becomes a third release, the computed bound rises above the cap
+              and the plan stays blocked
+            targets:
+              - earned-transfer-mechanism
+            linger: 0.5
+          - id: dp-result-earned-transfer-block
+            phrase: If a private selection statistic becomes a third release, the computed bound rises above the cap
+              and the plan stays blocked
+            targets:
+              - earned-transfer-mechanism
+            color: cyan
+            linger: 0.4

@@ -1,0 +1,1129 @@
+version: 1
+id: rag-evaluation
+title: Checking an Answer Against Its Evidence
+source: retrieval/rag-evaluation-faithfulness-relevance/content.md
+sources:
+  - title: "Ragas: Automated Evaluation of Retrieval Augmented Generation"
+    url: https://arxiv.org/abs/2309.15217
+  - title: FActScore atomic factual precision
+    url: https://arxiv.org/abs/2305.14251
+  - title: ARES automated RAG evaluation
+    url: https://arxiv.org/abs/2311.09476
+  - title: Ragas context precision definitions
+    url: https://docs.ragas.io/en/stable/concepts/metrics/available_metrics/context_precision/
+  - title: Lost in the Middle
+    url: https://arxiv.org/abs/2307.03172
+scenes:
+  - id: subject-intro
+    title: A Sunday book return
+    visual: A book drops into the Sunday return slot beside a reader’s question about their receipt.
+      Two envelopes then track the day promised by the assistant and the day supported by the notices.
+    beats:
+      - say: The book goes in on Sunday. The assistant promises, “A receipt arrives immediately.” Can it
+          back up that last word?
+        hold: 0.6
+        caption_starts:
+          - The assistant promises
+        visual_cues:
+          - id: invented-detail
+            phrase: A receipt arrives immediately
+            targets:
+              - reply
+      - say: Look at the two notices in the prompt. A says you can use the box on Sunday. B says receipts
+          are emailed the next day. Which day should you check your inbox?
+        hold: 2.25
+        caption_starts:
+          - B says receipts are emailed the next day
+          - Which day should you check your inbox
+        visual_cues:
+          - id: open-notice
+            phrase: Look at the two notices in the prompt
+            targets:
+              - notice
+          - id: receipt-notice
+            phrase: B says receipts are emailed the next day
+            targets:
+              - notice
+          - id: compare-days
+            phrase: Which day should you check your inbox
+            targets:
+              - notice
+              - calendar
+      - say: Monday. The instructions put your receipt a day later than the assistant promised. You can still use
+          the box today.
+        hold: 0.9
+        visual_cues:
+          - id: actual-receipt
+            phrase: Monday
+            targets:
+              - notice
+            caption_boundary: true
+      - say: Change “immediately” to “the next day.” Now the two envelopes line up. In retrieval-augmented
+          generation, the model uses retrieved passages to write an answer. Both notices reached this
+          model. Only the receipt claim needed fixing.
+        hold: 0.9
+        visual_cues:
+          - id: correct-date
+            phrase: Change immediately to the next day
+            targets:
+              - reply
+              - notice
+  - id: evidence-path
+    title: Check what reached the model
+    visual: Required source identities pass through candidate retrieval and selected context; distinct
+      denominators expose missing and distracting records.
+    beats:
+      - say: Where would you look if the assistant had never received notice B? Replay an earlier search for the
+          same question. Read across from the notices this reader can use, to the search results, to the
+          passages in the prompt. Keep the revision of each passage. Tomorrow’s edit could change the
+          answer.
+        hold: 0.55
+        caption_starts:
+          - Replay an earlier search
+        visual_cues:
+          - id: trace-sources
+            phrase: from the notices this reader can use, to the search results, to the passages in the prompt
+            targets:
+              - source-records
+              - packed-sources
+            color: blue
+            linger: 0.5
+      - say: This search found A and the Friday event notice, C. Only A answers part of our question. Of the two
+          notices we need, it found one. Required-source recall is one half. Run it again and bring B
+          through search and into the prompt. Both needed notices made it. C is still there, so two of the
+          three selected notices are useful. That is selected-set precision.
+        hold: 0.75
+        visual_cues:
+          - id: recall-half
+            phrase: required-source recall is one half
+            targets:
+              - source-recall
+            color: yellow
+            linger: 0.5
+          - id: both-sources
+            phrase: bring B through search and into the prompt
+            targets:
+              - packed-sources
+            color: green
+            linger: 0.5
+          - id: precision-denominator
+            phrase: two of the three selected notices are useful
+            targets:
+              - source-precision
+            color: cyan
+            linger: 0.5
+        motion_check:
+          region:
+            - 200
+            - 330
+            - 1500
+            - 570
+          minimumChangedFraction: 0.002
+      - say: C is a distraction that the reader is allowed to see. A private notice would be a different problem
+          even if it gave exactly the right answer. First check access and freshness for this reader. Then
+          ask how much of that permitted evidence actually helped.
+        hold: 0.55
+        visual_cues:
+          - id: permitted-collection
+            phrase: First check access and freshness for this reader
+            targets:
+              - source-records
+            color: yellow
+            linger: 0.5
+  - id: atomic-claims
+    title: Give each statement a checkable meaning
+    visual: A three-clause answer separates into stable claim cards; scopes and timing remain attached during
+      extraction.
+    beats:
+      - say: Read the corrected reply with the Sunday closure included. The library is closed, the return box is
+          available, and the receipt comes the next day. Separate those three statements. Each can be
+          checked on its own. We call a statement with one checkable meaning an atomic claim.
+        hold: 0.55
+        visual_cues:
+          - id: extract-claims
+            phrase: Separate those three statements
+            targets:
+              - answer-paragraph
+              - emitted-claims
+            color: cyan
+            linger: 0.5
+      - say: Go back to the original receipt sentence. Watch what happens when an extractor drops “immediately.”
+          What’s left just says that a receipt arrives. B supports those words. The extractor has changed
+          what the assistant promised. Compare the extracted words with the original, especially times,
+          quantities, conditions and exceptions.
+        hold: 0.75
+        visual_cues:
+          - id: drop-qualifier
+            phrase: when an extractor drops immediately
+            targets:
+              - original-qualifier
+              - extracted-assertion
+            color: pink
+            linger: 0.5
+          - id: changed-assertion
+            phrase: the extractor has changed what the assistant promised
+            targets:
+              - extracted-assertion
+            color: yellow
+            linger: 0.5
+      - say: Here a reviewer supplied the claim labels. A new paraphrase may say exactly the same thing in
+          different words. If the evaluator has no reviewed label for it, keep it in the report for review.
+          Discarding an awkward sentence can make the rest of an answer look better than it was.
+        hold: 0.55
+        visual_cues:
+          - id: reviewed-labels
+            phrase: a reviewer supplied the claim labels
+            targets:
+              - emitted-claims
+            color: green
+            linger: 0.5
+  - id: support-graph
+    title: What do the two notices establish?
+    visual: The answer’s timing words sit beside the recorded timing words. A third claim has no matching
+      passage. Only established claims enter the numerator.
+    beats:
+      - say: Go back to the original reply. Its first claim says the return box is available. Notice A says
+          exactly that. A passage that establishes the full claim is said to entail it. Now read
+          “immediately” in the second claim against the timing in B.
+        hold: 0.6
+        visual_cues:
+          - id: support-link
+            phrase: Notice A says exactly that
+            targets:
+              - box-match
+      - say: B says the next day. Those times conflict. That claim is contradicted. Count the claims the passages
+          support, then divide by all the claims in the reply. That fraction is faithfulness. Here it is
+          one half.
+        hold: 1.05
+        visual_cues:
+          - id: contradicted
+            phrase: That claim is contradicted
+            targets:
+              - timing-match
+            caption_boundary: true
+          - id: support-result
+            phrase: Here it is one half
+            targets:
+              - faithfulness
+            caption_boundary: true
+      - say: Suppose the assistant adds a third claim. “Delivery service is available.” The two notices still
+          cover only returns and receipts. Do they rule out a delivery service?
+        hold: 2
+        visual_cues:
+          - id: new-claim
+            phrase: Delivery service is available
+            targets:
+              - delivery-match
+      - say: They leave delivery open. That claim is unestablished. Reviewers also call that relation neutral.
+          You now have one supported claim out of three. Both a contradiction and missing evidence lower
+          faithfulness. Keep the distinction when you investigate. Some claims depend on two passages
+          together, or on a calculation. Check all the evidence the claim needs.
+        hold: 0.85
+        visual_cues:
+          - id: unestablished
+            phrase: That claim is unestablished
+            targets:
+              - delivery-match
+              - faithfulness
+            caption_boundary: true
+          - id: three-claim-score
+            phrase: one supported claim out of three
+            targets:
+              - faithfulness
+            caption_boundary: true
+  - id: citation-binding
+    title: Follow the footnote
+    visual: The closure sentence stays fixed above two quoted notices. Its footnote opens the receipts
+      notice, then moves to the Sunday returns notice. Only the cited-support count changes.
+    beats:
+      - say: Take a different sentence from the same assistant. “The library is closed on Sunday.” Both notices
+          are in the prompt. Follow the B in brackets to see what a reader would open. Would that passage
+          establish the closure?
+        hold: 2.1
+        visual_cues:
+          - id: inspect-reference
+            phrase: Follow the B in brackets
+            targets:
+              - claim
+              - attachment
+              - page-b
+      - say: It tells you when the receipt arrives. B cannot establish the closure. A does establish it, so the
+          claim is faithful. There is a citation on the page. Those checks both pass. The one that fails is
+          support from the cited passage.
+        hold: 0.9
+        visual_cues:
+          - id: wrong-reference
+            phrase: B cannot establish the closure
+            targets:
+              - page-b
+              - scores
+            caption_boundary: true
+      - say: Move the footnote to A. The sentence still says the same thing. Now a reader who follows its
+          citation lands on the Sunday closure notice. Store the cited span and its source revision so a
+          reviewer can open that same passage later.
+        hold: 0.9
+        visual_cues:
+          - id: rebind-citation
+            phrase: Move the footnote to A
+            targets:
+              - claim
+              - attachment
+              - page-a
+  - id: omitted-point
+    title: Supported text can leave the task unfinished
+    visual: Two supported emitted claims fill two required-point slots; a third receipt instruction remains
+      an empty slot.
+    beats:
+      - say: Let the answer end here. The library is closed on Sunday. The return box is available. Both
+          statements are supported. A reader can return the book, but our library rubric also asks the
+          assistant to tell them when to expect a receipt. Find the empty row.
+        hold: 0.55
+        visual_cues:
+          - id: emit-short-answer
+            phrase: The library is closed on Sunday. The return box is available
+            targets:
+              - emitted-answer
+              - required-points
+            color: green
+            linger: 0.5
+      - say: Start from the library’s side. Two of three required points have an answer. That gives two thirds
+          for completeness. Start from the assistant’s side and there are only two claims to check. Both
+          are supported. That gives two out of two for faithfulness. The empty row counts on just one side.
+        hold: 0.75
+        visual_cues:
+          - id: completeness-denominator
+            phrase: Two of three required points have an answer
+            targets:
+              - required-points
+              - completeness-ratio
+            color: yellow
+            linger: 0.5
+          - id: support-denominator
+            phrase: Both are supported
+            targets:
+              - emitted-answer
+              - faithfulness-ratio
+            color: green
+            linger: 0.5
+      - say: Try a reply that says only when the receipt arrives. The statement is true, and it covers one of the
+          three points. Look at the return-box row. Someone holding a book on Sunday still needs to know
+          where to put it.
+        hold: 0.55
+        visual_cues:
+          - id: receipt-answer
+            phrase: says only when the receipt arrives
+            targets:
+              - emitted-answer
+              - faithfulness-ratio
+            color: cyan
+            linger: 0.5
+          - id: missing-action
+            phrase: Look at the return-box row
+            targets:
+              - required-points
+              - emitted-answer
+            color: pink
+            linger: 0.5
+  - id: aggregation
+    title: Choose what an average gives weight to
+    visual: Nine supported claims in one answer and one unsupported claim in another yield different pooled and
+      per-answer averages.
+    beats:
+      - say: Aggregating results introduces another choice. Imagine one answer contains nine supported claims, while a
+          second contains one unsupported claim. Pool all claims together and the support fraction is ninety
+          percent. The longer answer receives most of the weight.
+        hold: 0.55
+        visual_cues:
+          - id: long-answer
+            phrase: one answer contains nine supported claims
+            targets:
+              - reviewed-claims
+            color: green
+            linger: 0.5
+          - id: short-answer
+            phrase: second contains one unsupported claim
+            targets:
+              - reviewed-claims
+            color: pink
+            linger: 0.5
+          - id: pool-claims
+            phrase: Pool all claims together
+            targets:
+              - pooled-score
+              - pooled-bar
+            color: cyan
+            linger: 0.5
+      - say: Give each answer one vote. First collect the long answer’s support rate, then the short answer’s. Both
+          outputs stay fixed while we change their weights. Now average the two rates, and the result is fifty
+          percent. Report the aggregation unit alongside question slices and the amount of reviewed evidence.
+        hold: 0.75
+        visual_cues:
+          - id: long-rate
+            phrase: long answer’s support rate
+            targets:
+              - answer-rate
+            color: green
+            linger: 0.5
+          - id: short-rate
+            phrase: short answer’s
+            targets:
+              - answer-rate
+            color: pink
+            linger: 0.5
+          - id: average-rates
+            phrase: Now average the two rates, and the result is fifty percent
+            targets:
+              - answer-mean
+            color: yellow
+            linger: 0.5
+      - say: Empty answers and justified abstentions need explicit labels because a ratio with no emitted claims has
+          no denominator. If the permitted corpus has the answer but retrieval misses it, a bounded refusal can
+          be appropriate generation behavior while retrieval still fails. Preserve both observations.
+        hold: 0.55
+        visual_cues:
+          - id: empty-denominator
+            phrase: ratio with no emitted claims has no denominator
+            targets:
+              - abstention-case
+            color: yellow
+            linger: 0.5
+  - id: transfer
+    title: Where did the receipt instruction go?
+    visual: A receipt notice can be followed across the collection, search results and prompt. Restoring the
+      notice to the prompt leaves the same bounded refusal to diagnose a second time.
+    beats:
+      - say: One last visit to the library. You ask when your receipt will come. The assistant says it can’t tell
+          from these instructions. The library has the next-day notice. Search returned it. Follow B across
+          the row. Where did the receipt instruction disappear?
+        hold: 2.2
+        visual_cues:
+          - id: trace-question
+            phrase: Follow B across the row. Where did the receipt instruction disappear
+            targets:
+              - receipt-path
+              - finding
+      - say: Between search and the prompt. Only A reached the assistant, so declining to guess was reasonable.
+          Inspect what the selector kept and what fit in the prompt. The gap tells you where to
+          investigate. Replay that step to find the cause.
+        hold: 0.85
+        visual_cues:
+          - id: trace-finding
+            phrase: Between search and the prompt
+            targets:
+              - receipt-path
+              - finding
+            caption_boundary: true
+      - say: Try the same reply with one change. Keep B in the prompt this time. Both notices reach the
+          assistant. It still says it can’t tell. Where would you look first now?
+        hold: 2.2
+        visual_cues:
+          - id: keep-receipt
+            phrase: Keep B in the prompt this time
+            targets:
+              - receipt-path
+          - id: answer-question
+            phrase: Where would you look first now
+            targets:
+              - reply
+              - finding
+      - say: At the answer. It leaves out the next-day instruction even with the evidence in front of it. Replay
+          generation on that recorded context. Changing search would give this reader the very notice the
+          assistant already had.
+        hold: 1
+        visual_cues:
+          - id: answer-finding
+            phrase: At the answer
+            targets:
+              - reply
+              - finding
+            caption_boundary: true
+  - id: policy-replay
+    title: Replay the actual policy sentence
+    visual: The complete DEPLOY-17 sentence owns three condition spans. Its persistent chunk moves from
+      candidate rank three to selected context, with its immutable revision and six component receipts
+      retained.
+    beats:
+      - say: Maya asks what the freeze rule requires for a payment-service production deploy. Read the
+          sentence the assistant received. It requires incident commander approval and a linked rollback
+          plan before rollout. A good answer gives Maya both conditions and tells her when they apply.
+          Maya still needs authorization to start the deploy.
+        hold: 0.7
+        caption_starts:
+          - It requires incident commander approval
+        visual_cues:
+          - id: policy-replay-1
+            phrase: Maya asks what the freeze rule requires
+            targets:
+              - policy-replay-mechanism
+          - id: policy-conditions
+            phrase: It requires incident commander approval and a linked rollback plan before rollout
+            targets:
+              - policy-replay-mechanism
+      - say: Find the rule at rank three, below a rollback-drill runbook and a rule for frontend documentation.
+          Reranking moves it to first place. Only the freeze rule enters the prompt. The trace pins it to
+          June first. The trace also records each retrieval component’s version, from the sparse and dense
+          searches through fusion and reranking, so you can reconstruct those choices.
+        hold: 0.7
+        visual_cues:
+          - id: policy-replay-2
+            phrase: Find the rule at rank three
+            targets:
+              - policy-replay-mechanism
+          - id: policy-rerank
+            phrase: Reranking moves it to first place
+            targets:
+              - policy-replay-mechanism
+          - id: policy-select
+            phrase: Only the freeze rule enters the prompt
+            targets:
+              - policy-replay-mechanism
+      - say: Replay the June revision to ask whether the answer followed the evidence it received. For a question
+          about today, open the current policy. A claim can faithfully repeat a mistaken passage. A true
+          claim can lack support in this prompt. Checking historical compliance also takes the rule in
+          force at the time. To reproduce the answer, save the assembled prompt, generator version,
+          decoding settings and original output. Even with those records, a hosted model may sample
+          different words.
+        hold: 0.9
+        visual_cues:
+          - id: policy-replay-3
+            phrase: Replay the June revision
+            targets:
+              - policy-replay-mechanism
+          - id: replay-artifacts
+            phrase: the assembled prompt, generator version, decoding settings and original output
+            targets:
+              - policy-replay-mechanism
+  - id: trace-integrity
+    title: Can this policy be replayed?
+    visual: The same source identity is tested against trusted text, version, parent and access receipts. A
+      forbidden candidate stops at the request boundary even when final selection would drop it.
+    beats:
+      - say: Who could see those search results? In this system a returned candidate has already crossed Maya’s
+          access boundary. A private note in that list fails the access check, even if reranking later
+          drops it. Internal index entries scanned during search are outside this particular contract. Read
+          access and freshness from trusted application records.
+        hold: 0.7
+        caption_starts:
+          - In this system a returned candidate
+        visual_cues:
+          - id: trace-integrity-1
+            phrase: Who could see those search results
+            targets:
+              - trace-integrity-mechanism
+          - id: restricted-return
+            phrase: A private note in that list fails the access check
+            targets:
+              - trace-integrity-mechanism
+      - say: Match the case and question. Check the IDs, the component versions and each selected revision. An
+          unknown or duplicate ID stops this replay. Here the reranker can only receive returned
+          candidates. Its output must contain the same IDs it received, and everything selected must come
+          from that output.
+        hold: 0.7
+        visual_cues:
+          - id: trace-integrity-2
+            phrase: Match the case and question
+            targets:
+              - trace-integrity-mechanism
+          - id: receipt-fields
+            phrase: Check the IDs, the component versions and each selected revision
+            targets:
+              - trace-integrity-mechanism
+      - say: Keep the source ID and the June revision. In the returned text, change “and” to “or.” Read the two
+          conditions side by side. May the evaluator use this record to grade Maya’s answer?
+        hold: 1.5
+        visual_cues:
+          - id: trace-integrity-3
+            phrase: Keep the source ID and the June revision
+            targets:
+              - trace-integrity-mechanism
+          - id: integrity-edit
+            phrase: change and to or
+            targets:
+              - trace-integrity-mechanism
+      - say: It fails. The change from “and” to “or” makes one condition enough where the recorded policy
+          required both. Compare the fingerprints under the two excerpts. The replay checks the full
+          record, including its parent document. Resolve the original bytes before grading the answer. A
+          real service also needs protected versioned storage, caller authentication and current access
+          checks.
+        hold: 0.9
+        visual_cues:
+          - id: integrity-answer
+            phrase: It fails
+            targets:
+              - trace-integrity-mechanism
+  - id: rank-admission
+    title: Did the freeze rule reach the prompt?
+    visual: The DEPLOY-17 card appears in candidates, then is either retained or dropped at admission.
+      Required and useful labels remain separate from rank and permission.
+    beats:
+      - say: Track the freeze rule itself. Both columns start with the one required rule. Suppose search returns
+          it, but selection drops it before the prompt. Search still found one out of one. The prompt kept
+          zero out of one. Those are candidate recall and context recall. Inspect the shortlist, reranking,
+          filters and prompt packing to locate the loss.
+        hold: 0.7
+        visual_cues:
+          - id: rank-admission-1
+            phrase: Track the freeze rule itself
+            targets:
+              - rank-admission-mechanism
+          - id: admission-drop
+            phrase: selection drops it before the prompt
+            targets:
+              - rank-admission-mechanism
+      - say: This time keep all three candidates in the prompt. Only the freeze rule is useful, so selected-set
+          precision is one third. Change their order. Move the freeze rule from first to third. The set
+          still has one useful passage out of three. A rank-weighted measure averages precision at the
+          useful ranks. There is just one such rank here. Its precision goes from one out of one to one out
+          of three.
+        hold: 0.7
+        visual_cues:
+          - id: rank-admission-2
+            phrase: This time keep all three candidates in the prompt
+            targets:
+              - rank-admission-mechanism
+          - id: rank-move
+            phrase: Move the freeze rule from first to third
+            targets:
+              - rank-admission-mechanism
+      - say: Mean reciprocal rank and discounted gain also reward finding useful passages early. In the
+          Lost in the Middle experiments, moving the evidence changed how well models answered. Try
+          moving just the rule, then vary the distracting passages separately. Now search returns an
+          approved copy of the rule. Compare the two source IDs. An exact ID check gives the copy zero
+          credit. Read both passages. Each requires commander approval and a linked rollback plan before
+          rollout. Accept either source for this rule, or grade the facts the passage establishes.
+        hold: 0.9
+        caption_starts:
+          - Now search returns an approved copy
+          - An exact ID check gives the copy zero credit
+          - Accept either source for this rule
+        visual_cues:
+          - id: rank-admission-3
+            phrase: Mean reciprocal rank and discounted gain also reward finding useful passages early
+            targets:
+              - rank-admission-mechanism
+          - id: alternative-source
+            phrase: Now search returns an approved copy of the rule
+            targets:
+              - rank-admission-mechanism
+          - id: id-miss
+            phrase: An exact ID check gives the copy zero credit
+            targets:
+              - rank-admission-mechanism
+          - id: accept-copy
+            phrase: Accept either source for this rule
+            targets:
+              - rank-admission-mechanism
+  - id: policy-ledger
+    title: Which requirement does each claim cover?
+    visual: Maya’s emitted claims connect to three distinct requirements. A duplicate points back to approval
+      and leaves rollback open. Replacing those words redirects the same claim to rollback.
+    beats:
+      - say: Maya gets two claims back. The freeze rule applies. The deploy can start without a linked rollback
+          plan. Look across at what the rule requires before rollout. Only the first claim follows from it.
+          Faithfulness is one of two. Both claims cite the policy, but cited support is one of two. Only
+          the scope is covered, so the answer covers one of three required points. The release check stops
+          at faithfulness. These other counts help explain the damage.
+        hold: 0.95
+        visual_cues:
+          - id: policy-ledger-1
+            phrase: The deploy can start without a linked rollback plan
+            targets:
+              - claims
+              - point-map
+          - id: policy-unsafe-score
+            phrase: Faithfulness is one of two
+            targets:
+              - counts
+            caption_boundary: true
+          - id: rageval-unsafe-citation
+            phrase: cited support is one of two
+            targets:
+              - counts
+            caption_boundary: true
+          - id: rageval-unsafe-completeness
+            phrase: one of three required points
+            targets:
+              - counts
+            caption_boundary: true
+      - say: Now read a partial answer. It states the scope and says approval is required before rollout. Both
+          claims are supported and correctly cited. Follow their lines. Two policy requirements are
+          covered. Rollback still has no line coming in.
+        hold: 0.75
+        visual_cues:
+          - id: policy-ledger-2
+            phrase: Follow their lines
+            targets:
+              - claims
+              - point-map
+      - say: Add a third claim. Give it the identifier rollback-plan, but repeat the approval sentence word for
+          word. Which requirement does claim three actually cover?
+        hold: 2.25
+        visual_cues:
+          - id: duplicate-point
+            phrase: Give it the identifier rollback-plan
+            targets:
+              - claims
+              - point-map
+      - say: Approval again. Three claims have support. Only two distinct requirements have a line coming in. The
+          evaluator looks up the reviewed meaning of the words. The name the answer gives a claim cannot
+          fill that empty slot.
+        hold: 0.9
+        visual_cues:
+          - id: same-point
+            phrase: Approval again
+            targets:
+              - point-map
+              - counts
+            caption_boundary: true
+          - id: distinct-counts
+            phrase: Only two distinct requirements have a line coming in
+            targets:
+              - counts
+            caption_boundary: true
+      - say: Keep that identifier. Replace the repeated sentence with “A linked rollback plan is required before
+          rollout.” The third line now reaches rollback. All three claims have support, all three citations
+          lead back to the rule, and Maya has all three required points.
+        hold: 1
+        visual_cues:
+          - id: policy-complete
+            phrase: A linked rollback plan is required before rollout
+            targets:
+              - claims
+              - point-map
+          - id: rollback-link
+            phrase: The third line now reaches rollback
+            targets:
+              - point-map
+          - id: complete-counts
+            phrase: Maya has all three required points
+            targets:
+              - counts
+            caption_boundary: true
+  - id: review-boundary
+    title: When the answer key can decide
+    visual: Unfamiliar texts enter review. The reader’s Python evaluator then stops at different checks as
+      the rollback sentence and its citation change.
+    beats:
+      - say: This evaluator has a small answer key. It recognizes the exact approval sentence. Someone else
+          writes that sign-off is mandatory. Another person writes that approval is unnecessary. Both
+          unfamiliar wordings need review. One may be faithful and the other contradicted. The claim ID
+          cannot decide that. Rename the recognized approval claim “rollback-plan” and its reviewed meaning
+          is still approval.
+        hold: 0.7
+        visual_cues:
+          - id: review-boundary-1
+            phrase: This evaluator has a small answer key
+            targets:
+              - review-boundary-mechanism
+          - id: unknown-review
+            phrase: Both unfamiliar wordings need review
+            targets:
+              - review-boundary-mechanism
+          - id: id-spoof
+            phrase: Rename the recognized approval claim rollback-plan
+            targets:
+              - review-boundary-mechanism
+      - say: Take three correct claims and attach the rollback-drill runbook to each. The freeze policy in the
+          prompt supports all three claims. Follow any citation. It opens drill instructions from a
+          runbook outside the prompt. Citation support becomes zero. Now erase one attachment. Citation
+          coverage drops to two of three. Cited support stays at zero.
+        hold: 0.7
+        caption_starts:
+          - Citation support becomes zero
+          - Now erase one attachment
+        visual_cues:
+          - id: review-boundary-2
+            phrase: attach the rollback-drill runbook to each
+            targets:
+              - review-boundary-mechanism
+          - id: miscited-score
+            phrase: Citation support becomes zero
+            targets:
+              - review-boundary-mechanism
+          - id: blank-citation
+            phrase: Now erase one attachment
+            targets:
+              - review-boundary-mechanism
+      - say: Count the statements the key could decide. In these three examples it recognized one wording and
+          referred two. Report that review rate beside the scores. Keep the claim extraction and duplicate
+          handling consistent across runs. Otherwise a change to the evaluator can look like an improvement
+          in the assistant.
+        hold: 0.9
+        visual_cues:
+          - id: review-boundary-3
+            phrase: Count the statements the key could decide
+            targets:
+              - review-boundary-mechanism
+          - id: unknown-coverage
+            phrase: it recognized one wording and referred two
+            targets:
+              - review-boundary-mechanism
+      - say: Try the article’s short Python evaluator on the partial answer. It reports full support and correct
+          citations. At completeness it prints zero point six seven and stops. Add the correctly cited
+          rollback sentence. Now the complete answer passes all three checks.
+        hold: 1
+        visual_cues:
+          - id: reader-partial
+            phrase: short Python evaluator on the partial answer
+            targets:
+              - reader-input
+              - reader-output
+          - id: reader-complete
+            phrase: Add the correctly cited rollback sentence
+            targets:
+              - reader-input
+              - reader-output
+          - id: reader-partial-stop
+            phrase: At completeness it prints zero point six seven and stops
+            targets:
+              - reader-output
+            caption_boundary: true
+          - id: reader-complete-pass
+            phrase: Now the complete answer passes all three checks
+            targets:
+              - reader-output
+            caption_boundary: true
+      - say: Keep all three sentences. Change their citations to the rollback runbook. Which check will stop this
+          call?
+        hold: 2.1
+        visual_cues:
+          - id: reader-miscite
+            phrase: Change their citations to the rollback runbook
+            targets:
+              - reader-input
+      - say: The citation check. The output ends at zero point zero zero for citations. There’s no completeness
+          score in that string. The checker stopped before it reached that question. You can still inspect
+          the complete answer separately on the recorded context.
+        hold: 0.95
+        visual_cues:
+          - id: reader-stop
+            phrase: The citation check
+            targets:
+              - reader-output
+            caption_boundary: true
+  - id: abstention-matrix
+    title: When is “I can’t tell” a good answer?
+    visual: The same bounded refusal appears with three different evidence states. Separate columns track
+      whether the response stayed within the evidence, whether the evidence reached the model, and whether
+      the task succeeded.
+    beats:
+      - say: Maya asks whether an executive can waive the requirement. The policies she is allowed to see give no
+          answer. “The available policy lists no waiver. Ask the policy owner.” That reply tells her where
+          the evidence ends. “No waiver exists anywhere” is a much larger claim. To grade a refusal, check
+          what this reader could find in the current collection, then check what actually made it into the
+          prompt.
+        hold: 0.7
+        visual_cues:
+          - id: abstention-matrix-1
+            phrase: Maya asks whether an executive can waive the requirement
+            targets:
+              - abstention-matrix-mechanism
+          - id: universal-claim
+            phrase: No waiver exists anywhere
+            targets:
+              - abstention-matrix-mechanism
+      - say: Compare the four cases on the page. With enough evidence, a complete, supported answer succeeds.
+          When the permitted collection has no answer, a bounded refusal can finish the task under our
+          rubric. Now suppose the collection has the rule and selection loses it. Refusing avoids a guess,
+          but the evidence path and the task both fail. Finally, give the assistant the rule and leave the
+          refusal unchanged. The evidence reached it. The task is still unfinished.
+        hold: 0.7
+        visual_cues:
+          - id: abstention-matrix-2
+            phrase: Compare the four cases on the page
+            targets:
+              - abstention-matrix-mechanism
+          - id: abstention-cases
+            phrase: With enough evidence, a complete, supported answer succeeds. When the permitted collection has no
+              answer, a bounded refusal can finish the task under our rubric. Now suppose the collection
+              has the rule and selection loses it. Refusing avoids a guess, but the evidence path and the
+              task both fail. Finally, give the assistant the rule and leave the refusal unchanged
+            targets:
+              - abstention-matrix-mechanism
+      - say: “Safe” in this table means the reply avoided unsupported policy claims. With no claims at all, the
+          support fraction is zero over zero. The reference harness records a conventional zero and checks
+          separately whether an answerable case produced a claim. The short Python evaluator asks you to
+          grade the abstention. Keep that state in the report, along with the actual reply and the passages
+          the reader could use.
+        hold: 0.9
+        visual_cues:
+          - id: abstention-matrix-3
+            phrase: the reply avoided unsupported policy claims
+            targets:
+              - abstention-matrix-mechanism
+          - id: empty-conventions
+            phrase: The reference harness records a conventional zero
+            targets:
+              - abstention-matrix-mechanism
+  - id: regression-diagnosis
+    title: Damage one concrete trace at a time
+    visual: Six fixed answer/trace combinations stop at different observed checks; original text and context
+      remain available while each local defect is repaired.
+    beats:
+      - say: Before trusting the evaluator, give it answers whose faults you know. Remove the rule from search,
+          then try a separate case where search found it but selection dropped it. The first failure moves
+          from retrieval to selection. Let the rule reach the prompt. Now reverse a condition, change the
+          citations, omit rollback, or return an empty answer. Each should stop at a different check.
+        hold: 0.7
+        visual_cues:
+          - id: regression-diagnosis-1
+            phrase: give it answers whose faults you know
+            targets:
+              - regression-diagnosis-mechanism
+          - id: regression-damage
+            phrase: Remove the rule from search, then try a separate case where search found it but selection dropped
+              it. The first failure moves from retrieval to selection. Let the rule reach the prompt. Now
+              reverse a condition, change the citations, omit rollback, or return an empty answer
+            targets:
+              - regression-diagnosis-mechanism
+      - say: Here are the six cases in the release suite. Only the complete answer should pass. The other five
+          should stop. If the harness makes those six decisions, it has recognized the defects you put
+          there. You still need different evidence to estimate how often those defects occur in production.
+        hold: 0.7
+        visual_cues:
+          - id: regression-diagnosis-2
+            phrase: Here are the six cases in the release suite
+            targets:
+              - regression-diagnosis-mechanism
+          - id: regression-results
+            phrase: Only the complete answer should pass. The other five should stop
+            targets:
+              - regression-diagnosis-mechanism
+      - say: Suppose search misses the rule and the assistant invents a way around it. Read down the checks in
+          order. After the source-access check comes candidate recall. That’s the first failure here. The
+          later release checks stay unscored. As a separate diagnostic, compare the two written claims with
+          what reached the model. Neither has support. Replay one change at a time to see which repair
+          helps.
+        hold: 0.9
+        visual_cues:
+          - id: regression-diagnosis-3
+            phrase: Suppose search misses the rule and the assistant invents a way around it
+            targets:
+              - regression-diagnosis-mechanism
+          - id: diagnostic-order
+            phrase: Read down the checks in order. After the source-access check comes candidate recall
+            targets:
+              - regression-diagnosis-mechanism
+  - id: slice-release
+    title: Keep the failing workflow visible in the report
+    visual: Five literal case outcomes group into freeze, hotfix and migration slices. A required-slice gate
+      uses exact counts and refuses missing or empty slices before release.
+    beats:
+      - say: Use the article’s five synthetic outcomes. Release-freeze has one correct release decision out of
+          two, incident-hotfix has two of two, and schema-migration has zero of one. The overall decision
+          accuracy is three of five, or sixty percent. Preserve these case identities when grouping; the
+          perfect hotfix slice does not repair the other workflows.
+        hold: 0.7
+        visual_cues:
+          - id: slice-release-1
+            phrase: Use the article’s five synthetic outcomes.
+            targets:
+              - slice-release-mechanism
+          - id: slice-counts
+            phrase: Release-freeze has one correct release decision out of two, incident-hotfix has two of two, and
+              schema-migration has zero of one
+            targets:
+              - slice-release-mechanism
+          - id: slice-overall
+            phrase: The overall decision accuracy is three of five, or sixty percent
+            targets:
+              - slice-release-mechanism
+          - id: rageval-freeze-count
+            phrase: Release-freeze has one correct release decision out of two
+            targets:
+              - slice-release-mechanism
+          - id: rageval-hotfix-count
+            phrase: incident-hotfix has two of two
+            targets:
+              - slice-release-mechanism
+          - id: rageval-migration-count
+            phrase: schema-migration has zero of one
+            targets:
+              - slice-release-mechanism
+      - say: The local release rule requires every named slice to be nonempty and at least ninety-five percent
+          correct. For k successes among n cases, compare one hundred times k with ninety-five times n. Two
+          of two passes that local count rule; one of two and zero of one fail. Missing or empty required
+          slices fail as well. This report therefore blocks release even though its supported-answer and
+          known-bad regression checks passed.
+        hold: 0.7
+        visual_cues:
+          - id: slice-release-2
+            phrase: The local release rule requires every named slice to be nonempty and at least ninety-five percent
+              correct.
+            targets:
+              - slice-release-mechanism
+          - id: slice-block
+            phrase: This report therefore blocks release
+            targets:
+              - slice-release-mechanism
+      - say: Two correct hotfix decisions can catch regressions in those cases. They tell you little about the
+          hotfix error rate in production. Decide which workflows and severe failures to track, how many
+          cases you need, and how to estimate uncertainty before you tune the system. Compare versions on
+          the same questions. Ten paraphrases of one rule can all fail for the same reason. Estimate
+          uncertainty across independent questions or policy families.
+        hold: 0.9
+        visual_cues:
+          - id: slice-release-3
+            phrase: Two correct hotfix decisions can catch regressions in those cases
+            targets:
+              - slice-release-mechanism
+          - id: paired-cases
+            phrase: Compare versions on the same questions
+            targets:
+              - slice-release-mechanism
+  - id: judge-calibration
+    title: Would you trust this support judge?
+    visual: A policy excerpt stays visible while three held-out human labels are paired with model verdicts.
+      Two disagreements show opposite judge errors. A missing verdict is counted separately.
+    beats:
+      - say: How could you check a new way of saying “approval is required”? The original RAGAS method breaks an
+          answer into statements and checks their support against the retrieved text. FActScore also
+          measures support one fact at a time. For answer relevance, RAGAS generates questions from the
+          answer and compares their embeddings with the original question. For context relevance, it
+          extracts sentences that help answer the question. These measurements can work without a gold
+          answer. A required-point list still matters when you check for omissions.
+        hold: 0.7
+        caption_starts:
+          - The original RAGAS method
+        visual_cues:
+          - id: judge-claims
+            phrase: breaks an answer into statements
+            targets:
+              - method
+          - id: judge-question
+            phrase: generates questions from the answer
+            targets:
+              - method
+          - id: judge-sentences
+            phrase: extracts sentences that help answer the question
+            targets:
+              - method
+      - say: Here are three hand-labeled examples for our freeze case. Give human reviewers and the judge the
+          same question, source revision, claims and citations. Keep these test examples separate from the
+          ones used to tune the judge. ARES trains judges on synthetic examples, then combines predictions
+          with human labels to estimate an aggregate score and its uncertainty through prediction-powered
+          inference.
+        hold: 0.7
+        visual_cues:
+          - id: human-labels
+            phrase: three hand-labeled examples
+            targets:
+              - human-labels
+      - say: Try these illustrative judge decisions. The judge accepts the first two claims and rejects the
+          third. Which acceptance could give Maya bad advice?
+        hold: 2.1
+        visual_cues:
+          - id: compare-verdicts
+            phrase: The judge accepts the first two claims and rejects the third
+            targets:
+              - verdicts
+              - human-labels
+      - say: It accepts “the plan can wait until later.” The policy requires the plan before rollout. That is a
+          false acceptance. It also rejects a supported rollback claim. That is a false rejection. Include
+          contradictions, missing evidence, valid paraphrases and bounded abstentions in a held-out set. A
+          set of supported answers alone can’t measure false acceptance. Count a missing verdict field
+          separately as a format failure. Record the model, prompt and rubric. Treat instructions inside a
+          quoted passage as evidence to evaluate. A readability score measures something else, and the
+          application still decides who may see a source.
+        hold: 0.95
+        visual_cues:
+          - id: judge-errors
+            phrase: That is a false rejection
+            targets:
+              - comparison
+            caption_boundary: true
+          - id: judge-format
+            phrase: Count a missing verdict field separately
+            targets:
+              - format
+          - id: judge-false-accept
+            phrase: That is a false acceptance
+            targets:
+              - comparison
+            caption_boundary: true
+  - id: release-transfer
+    title: Maya asks again in July
+    visual: July adds a fourth line to the June policy form. The three answer lines stay fixed. A fourth
+      supported claim repairs the trace, then three workflow counts determine the separate release
+      decision.
+    beats:
+      - say: Maya asks the same question again. The June answer covered all three points. This time the prompt
+          contains the July revision. It adds a maintenance-window identifier before rollout. The
+          application has checked that revision and Maya’s access. The answer repeats its three earlier
+          claims, each citing the July rule. Look down the two columns. Which answer check stops this
+          replay?
+        hold: 2.4
+        visual_cues:
+          - id: new-edition
+            phrase: It adds a maintenance-window identifier before rollout
+            targets:
+              - edition
+              - requirements
+          - id: revision-question
+            phrase: Which answer check stops this replay
+            targets:
+              - requirements
+              - answer-lines
+              - decision
+      - say: Every sentence still follows from the rule. Faithfulness stays three of three. Each cited passage
+          supports its claim, so cited support stays three of three. Count down the policy column.
+          Completeness is three of four. That is the first failed check. Add the maintenance-window claim
+          and cite the July rule. All four requirements now have supported, correctly cited claims. This
+          trace passes.
+        hold: 1
+        visual_cues:
+          - id: release-answer
+            phrase: Faithfulness stays three of three
+            targets:
+              - answer-scores
+            caption_boundary: true
+          - id: rageval-fresh-citations
+            phrase: cited support stays three of three
+            targets:
+              - answer-scores
+            caption_boundary: true
+          - id: rageval-fresh-completeness
+            phrase: Completeness is three of four
+            targets:
+              - answer-scores
+              - decision
+            caption_boundary: true
+          - id: release-repair
+            phrase: Add the maintenance-window claim and cite the July rule
+            targets:
+              - requirements
+              - answer-lines
+          - id: rageval-fresh-pass
+            phrase: This trace passes
+            targets:
+              - decision
+            caption_boundary: true
+      - say: Now open the five-case release report. Each workflow needs at least ninety-five percent correct
+          release decisions. The freeze cases split one and one. Both hotfix decisions were right. The
+          migration decision was wrong. Can this build ship? Which cases would you open?
+        hold: 2.15
+        visual_cues:
+          - id: suite-question
+            phrase: open the five-case release report
+            targets:
+              - decision
+      - say: Hold the release. Open the second freeze case and the migration case. Trace each answer back
+          to its sources and find the first failed check.
+        hold: 1.15
+        caption_starts:
+          - Trace each answer back to its sources
+        visual_cues:
+          - id: suite-decision
+            phrase: Hold the release
+            targets:
+              - decision
+            caption_boundary: true
+          - id: suite-cases
+            phrase: Open the second freeze case and the migration case
+            targets:
+              - decision
+            caption_boundary: true
+          - id: inspect-failures
+            phrase: find the first failed check
+            targets:
+              - decision

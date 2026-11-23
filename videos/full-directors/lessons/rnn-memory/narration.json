@@ -1,0 +1,747 @@
+[
+  {
+    "id": "c01",
+    "title": "Who chased whom?",
+    "sourceChapters": [
+      "c01"
+    ],
+    "beats": [
+      {
+        "id": "c01-b01",
+        "say": "The dog chased the cat. Watch the second chase. This time the cat chased the dog. Freeze the pictures. Imagine finding just this tally. Which chase do these counts belong to?",
+        "hold": 2.2
+      },
+      {
+        "id": "c01-b02",
+        "say": "They fit both sentences. Unfreeze the words in their original order. Dog comes before the verb in the first sentence. Cat comes before it in the second. We'll build a reader that carries that first clue, trace what the model can learn about it, and decide where each reading should stop.",
+        "hold": 0.65
+      }
+    ]
+  },
+  {
+    "id": "c02",
+    "title": "Follow the clue past the last noun",
+    "sourceChapters": [
+      "c02"
+    ],
+    "beats": [
+      {
+        "id": "c02-b01",
+        "say": "Give the reader one number to carry. We'll supply an actor feature by hand. It sends plus eight tenths for a dog in the actor position, minus eight tenths for a cat in that position, and zero everywhere else. A trained network would learn useful features from examples.",
+        "hold": 0.55
+      },
+      {
+        "id": "c02-b02",
+        "say": "Start at zero. At each word, add its input to nine tenths of the previous state and apply tanh. Tanh keeps the sign and limits the magnitude to less than one. Dog writes the first clue. At the verb, the input is zero, but there is still something to feed back. The next word takes another step toward zero.",
+        "hold": 0.3
+      },
+      {
+        "id": "c02-b03",
+        "say": "Now comes cat. Can the last noun turn the line negative?",
+        "hold": 2
+      },
+      {
+        "id": "c02-b04",
+        "say": "Follow the last step. Cat is the object here, so its actor input is zero too. The line ends above zero. A readout that uses the sign can still identify the dog.",
+        "hold": 0.65
+      },
+      {
+        "id": "c02-b05",
+        "say": "Swap the animals and start at zero again. This time the actor writes a negative value. The same updates carry it through the rest of the sentence. It ends below zero, so the readout picks the cat. That running number is one coordinate of what a recurrent neural network calls its hidden state.",
+        "hold": 0.75
+      }
+    ]
+  },
+  {
+    "id": "c03",
+    "title": "One reader with two memory coordinates",
+    "sourceChapters": [
+      "c03"
+    ],
+    "beats": [
+      {
+        "id": "c03-b01",
+        "say": "What if the reader also needs to know whether the chase has happened yet? Give it a second coordinate. The input matrix here sends each of our two supplied features straight to its own coordinate. The recurrent matrix feeds back nine tenths of each old value.",
+        "hold": 0.3
+      },
+      {
+        "id": "c03-b02",
+        "say": "An identity input matrix copies both features. The diagonal entries in the recurrent matrix multiply each old coordinate by nine tenths. Add the two contributions and apply tanh separately on each row. In a trained model the matrices can also mix coordinates.",
+        "hold": 0.65
+      },
+      {
+        "id": "c03-b03",
+        "say": "Cat writes to the actor coordinate. Chased writes to the verb coordinate, while the actor clue keeps moving through its own update. At the article, both inputs are zero. At the final noun, both are zero again. Each word still updates the state with the same two matrices.",
+        "hold": 0.7
+      },
+      {
+        "id": "c03-b04",
+        "say": "Those two numbers together are the hidden vector. Unroll the reader in time by drawing one copy under each word. All five copies use the same two matrices and bias. A longer sentence needs more updates. The memory it carries to the next word stays two numbers wide.",
+        "hold": 0.75
+      }
+    ]
+  },
+  {
+    "id": "c04",
+    "title": "When did the error arrive?",
+    "sourceChapters": [
+      "c04"
+    ],
+    "beats": [
+      {
+        "id": "c04-b01",
+        "say": "An incident log has three entries. An error comes in with a signal of one. Reproduction adds four tenths, but first we keep just six tenths of the old state. When rollback arrives, it adds nine tenths. The blue error signal has been discounted twice. The green rollback signal is fresh.",
+        "hold": 0.65
+      },
+      {
+        "id": "c04-b02",
+        "say": "Reverse the three entries. Look at the largest signal, the blue one. In which order will more of it reach the end? Which final state will be larger?",
+        "hold": 2.1
+      },
+      {
+        "id": "c04-b03",
+        "say": "Rollback goes first this time. Reproduction discounts it. The error goes in last, so the whole blue bar survives. Adding the raw signals gives two point three in either order. Discounting the older signals puts the second history ahead.",
+        "hold": 1.8
+      },
+      {
+        "id": "c04-b04",
+        "say": "Go back to the original order and change the rule. This cell adds eight tenths of the input to half the previous state, then applies tanh. At the error, the previous state is zero. At reproduction, the cell combines the new signal with what survived the error.",
+        "hold": 0.3
+      },
+      {
+        "id": "c04-b05",
+        "say": "Rollback finishes the trace. Tanh keeps each state between minus one and one.",
+        "hold": 0.8
+      }
+    ]
+  },
+  {
+    "id": "c05",
+    "title": "Which numbers enter the next state?",
+    "sourceChapters": [
+      "c05"
+    ],
+    "beats": [
+      {
+        "id": "c05-b01",
+        "say": "Now each event has its own input position. A one in the error position selects the error column. The other two positions are zero. That one describes the event at this step. The hidden state has two coordinates, so each weight matrix has two rows. For this incident trace, both biases are zero.",
+        "hold": 0.6
+      },
+      {
+        "id": "c05-b02",
+        "say": "Read the error column into the two input slots below. The old state is zero, so both recurrent contributions vanish. Apply tanh to each sum. Those two results become the memory for the next event.",
+        "hold": 0.7
+      },
+      {
+        "id": "c05-b03",
+        "say": "At reproduction, the one moves across. Only the selected input column changes. The recurrent weights are the same, but their inputs are the two numbers from the error. Follow the first recurrent row.",
+        "hold": 0.3
+      },
+      {
+        "id": "c05-b04",
+        "say": "Half of the first number plus a tenth of the second gives about point three four two. Add the reproduction input, point two, then apply tanh. The first coordinate becomes point four nine four. The second row gives point six four one.",
+        "hold": 0.75
+      },
+      {
+        "id": "c05-b05",
+        "say": "At rollback the last column comes into play. Carry both coordinates from reproduction through the recurrent matrix. Apply tanh once more. Now we have two numbers to pass to the classifier.",
+        "hold": 0.75
+      }
+    ]
+  },
+  {
+    "id": "c06",
+    "title": "Which action does the incident support?",
+    "sourceChapters": [
+      "c06"
+    ],
+    "beats": [
+      {
+        "id": "c06-b01",
+        "say": "Take the rounded final state and give that same pair of numbers to each action. For ignore, the positive first term is mostly canceled by the negative second term. For rollback, the larger hidden coordinate gets a positive weight. Escalate gives both coordinates modest positive weights. Which action will get the highest probability?",
+        "hold": 2.05
+      },
+      {
+        "id": "c06-b02",
+        "say": "Rollback leads with a score of point three six eight. Softmax preserves that order. Subtract the largest score before exponentiating, then divide each exponential by their sum. Rollback gets about thirty-nine percent with our hand-picked weights.",
+        "hold": 0.75
+      },
+      {
+        "id": "c06-b03",
+        "say": "Count the cell parameters in the three green groups. Then count the blue parameters for the action head. How many parameters does this whole reader share across events?",
+        "hold": 2.25
+      },
+      {
+        "id": "c06-b04",
+        "say": "Six input weights, four recurrent weights and two biases make twelve for the cell. The action head adds nine, including one bias for each action. Here all three action biases are zero. Give the reader three hundred events and it still shares those twenty-one parameters. A longer sequence runs more updates and saves more states for full backpropagation.",
+        "hold": 0.7
+      }
+    ]
+  },
+  {
+    "id": "c07",
+    "title": "What can the decoder read?",
+    "sourceChapters": [
+      "c07"
+    ],
+    "beats": [
+      {
+        "id": "c07-b01",
+        "say": "Our head reads just two numbers, however long the incident. An encoder can give a decoder a fixed-width summary the same way. Cho and colleagues supplied it at each decoder step. Sutskever and colleagues used the encoder state to initialize the decoder.",
+        "hold": 0.3
+      },
+      {
+        "id": "c07-b02",
+        "say": "In both cases the earlier source positions reach the decoder through that fixed-size interface.",
+        "hold": 0.6
+      },
+      {
+        "id": "c07-b03",
+        "say": "To see the limit, give each of two coordinates just two bits. Assign a different four-bit code to each of sixteen histories. Here comes history seventeen. Where could you put it so the decoder could tell all seventeen apart?",
+        "hold": 2
+      },
+      {
+        "id": "c07-b04",
+        "say": "Put seventeen in the slot already holding history one. A decoder reading that four-bit address gets the same input for both. Even if they need different translations, the decoder sees exactly the same code. The collision follows from our chosen bit limit.",
+        "hold": 0.75
+      },
+      {
+        "id": "c07-b05",
+        "say": "There is also a cost in time. Follow the first state along these eight positions. Count one handoff each time the state crosses an arrow. It takes seven handoffs to reach the last position. With four thousand ninety-six positions, the first state travels through four thousand ninety-five links. Input projections can run in parallel. Each recurrent update waits for the state from the previous one.",
+        "hold": 0.75
+      },
+      {
+        "id": "c07-b06",
+        "say": "Give those eight positions to one causal attention layer. Each row is a query. Each column is a key. Follow the rows down. The mask permits the diagonal and everything to its left. Query eight can read the value at position one directly.",
+        "hold": 0.3
+      },
+      {
+        "id": "c07-b07",
+        "say": "The layer builds queries, keys and values across supplied positions, divides each dot product by the square root of the key width, masks future positions, and uses softmax weights to mix the values. It still needs positional information to distinguish order.",
+        "hold": 0.75
+      },
+      {
+        "id": "c07-b08",
+        "say": "Count the allowed pairs. There is one key for the first query, two for the second, up to eight for the last. Add the row lengths. How many interactions does this one layer allow?",
+        "hold": 2.2
+      },
+      {
+        "id": "c07-b09",
+        "say": "The eight rows give thirty-six interactions. At width d, recurrence takes work proportional to length times d squared. Full attention adds pairwise work quadratic in length. FlashAttention tiles this computation to save GPU memory. Generation still waits for each new token, and full recurrent backpropagation needs intermediate activations even with fixed-width inference state.",
+        "hold": 0.7
+      },
+      {
+        "id": "c07-b10",
+        "say": "Mamba uses a different kind of recurrence. Its input-dependent coefficients can be prepared before a parallel scan combines segments during training. Take a scalar example. One segment doubles its incoming state and adds one. The next triples its input and adds four. Together they multiply the original state by six and add seven. Longer blocks can combine the same way. For a fixed model, its recurrent state and per-token update cost stay constant as the sequence grows. A standard nonlinear GRU still needs the preceding hidden state at every step.",
+        "hold": 0.75
+      }
+    ]
+  },
+  {
+    "id": "c08",
+    "title": "Trace a change backward through the incident",
+    "sourceChapters": [
+      "c08"
+    ],
+    "beats": [
+      {
+        "id": "c08-b01",
+        "say": "A loss function measures prediction error against a target. Its derivative with respect to the final state tells us how a small change in that state would change the loss. To carry that information back to an earlier event, return to the scalar incident. Imagine nudging the initial state. How much of that nudge would reach the final state? The slope of tanh at a step is one minus its output squared. Multiply that by the recurrent weight, one half here. Each saved state supplies a different local slope.",
+        "hold": 0.75
+      },
+      {
+        "id": "c08-b02",
+        "say": "Start on the right with a sensitivity of one. Cross the rollback link first. Only about a fifth gets back to reproduction. Multiply by the reproduction slope and about seven hundredths remain.",
+        "hold": 0.3
+      },
+      {
+        "id": "c08-b03",
+        "say": "Cross the error link and less than two percent makes it all the way to the initial state. For a final loss, multiply this fraction by the loss derivative at the final state.",
+        "hold": 0.65
+      },
+      {
+        "id": "c08-b04",
+        "say": "With vectors, each link has a Jacobian. Scale each row of the recurrent matrix by one minus that coordinate's new state squared. To send a gradient column backward, apply the transposed Jacobian of the last step first. Each matrix can change the direction as well as the size of the gradient.",
+        "hold": 0.65
+      },
+      {
+        "id": "c08-b05",
+        "say": "Now ask about the shared weight itself. All three steps used it. Take the contributions from each use, with the final scalar state as our objective. The first contributes zero because its incoming state was zero. Add the other two.",
+        "hold": 2.2
+      },
+      {
+        "id": "c08-b06",
+        "say": "Adding those three contributions gives about point three three one. Most of the shared weight's gradient comes from recent steps, even though the earliest state gets very little credit. If intermediate steps have losses of their own, their gradients also contribute.",
+        "hold": 0.75
+      }
+    ]
+  },
+  {
+    "id": "c09",
+    "title": "How much credit reaches the far end?",
+    "sourceChapters": [
+      "c09"
+    ],
+    "beats": [
+      {
+        "id": "c09-b01",
+        "say": "Backpropagation through time follows the links in reverse. Imagine starting with one unit of credit and crossing identical links. If the local derivative at each link is six tenths, four links leave you with six tenths multiplied by itself four times. Each horizontal grid line represents ten times the magnitude of the line below it.",
+        "hold": 0.65
+      },
+      {
+        "id": "c09-b02",
+        "say": "Follow that path through twelve links. Only about two thousandths of the starting credit make it through. The forward state can look perfectly ordinary while the early event receives almost no training signal.",
+        "hold": 0.65
+      },
+      {
+        "id": "c09-b03",
+        "say": "Change just the local factor to one point four. After twelve links, the same starting credit has grown more than fiftyfold. Gradient norm clipping can cap a large gradient before the optimizer uses it. A tiny one needs a path that preserves more of the signal.",
+        "hold": 0.3
+      },
+      {
+        "id": "c09-b04",
+        "say": "These two traces used the same starting credit. Real cells use matrices whose effect depends on direction. How much can we tell from the largest stretch of a single matrix?",
+        "hold": 0.75
+      }
+    ]
+  },
+  {
+    "id": "c10",
+    "title": "What happens to the arrow on the next step?",
+    "sourceChapters": [
+      "c10"
+    ],
+    "beats": [
+      {
+        "id": "c10-b01",
+        "say": "Start with an arrow pointing straight up. Its length is one. Apply the matrix once. The tip moves right by one unit. Its height drops to a half. The arrow is now about one point one two units long. Will the next step make it longer or shorter?",
+        "hold": 2
+      },
+      {
+        "id": "c10-b02",
+        "say": "Apply the matrix again. The tip stays one unit to the right. Its height drops from a half to a quarter. The arrow gets shorter. Keep multiplying. After nine steps its length is about point zero three five. Look at the powers of one half.",
+        "hold": 0.3
+      },
+      {
+        "id": "c10-b03",
+        "say": "The diagonal entries halve each time. Even the upper-right entry tends to zero as the power of one half shrinks faster than n grows.",
+        "hold": 0.65
+      },
+      {
+        "id": "c10-b04",
+        "say": "This matrix has a largest singular value of about one point two one. That's the maximum length after one multiplication, over all unit arrows. Our arrow turns, so the stretch on the next step depends on its new direction.",
+        "hold": 0.3
+      },
+      {
+        "id": "c10-b05",
+        "say": "For a tanh cell, multiply the recurrent matrix's largest singular value by the steepest tanh slope, which is at most one. That product bounds the Jacobian norm, the maximum stretch of a tiny change in state.",
+        "hold": 0.3
+      },
+      {
+        "id": "c10-b06",
+        "say": "Suppose every link passes at most three quarters of the incoming length. Five links leave less than a quarter. Recent events cross fewer links when they contribute to a weight's gradient.",
+        "hold": 0.65
+      },
+      {
+        "id": "c10-b07",
+        "say": "After fifty links at six tenths apiece, a unit gradient shrinks to about eight trillionths. Float thirty-two can store it. Set the weight and the learning rate to one. Subtract that tiny gradient. The weight rounds back to one. Measure the early gradients alongside the loss.",
+        "hold": 0.65
+      }
+    ]
+  },
+  {
+    "id": "c11",
+    "title": "Where should training credit stop?",
+    "sourceChapters": [
+      "c11"
+    ],
+    "beats": [
+      {
+        "id": "c11-b01",
+        "say": "Follow the two runs to the second event. They carry exactly the same value. Detach the lower state here. Keep the weights fixed and give both readers the rollback event. Predict the two final states before they advance.",
+        "hold": 2
+      },
+      {
+        "id": "c11-b02",
+        "say": "Advance both readers. The final values match at about point seven six four. Both carried the same number into rollback, about point five seven three. Detach preserved that number. In an LSTM you carry and detach both the hidden state and the cell state.",
+        "hold": 0.65
+      },
+      {
+        "id": "c11-b03",
+        "say": "Now trace the gradient backward from the final state. Follow the upper trace to all three inputs. Follow the lower trace to the seam. Both earlier inputs get zero from this objective. The shared weight still gets a gradient from its use at rollback.",
+        "hold": 0.3
+      },
+      {
+        "id": "c11-b04",
+        "say": "Add the contributions for the shared weight. The full run gets about point three three one. Keeping just the last use gives about point two three eight. Carrying the state forward and cutting the training graph at the seam is truncated backpropagation through time.",
+        "hold": 0.7
+      },
+      {
+        "id": "c11-b05",
+        "say": "Clipping changes the gradient itself. This arrow has a length of more than seventy, and our limit is five. Scale both components by five divided by the original length. The tip slides straight back until the length is five. The direction stays the same.",
+        "hold": 0.3
+      },
+      {
+        "id": "c11-b06",
+        "say": "Plain gradient descent now steps in the opposite direction by five times the learning rate.",
+        "hold": 0.75
+      }
+    ]
+  },
+  {
+    "id": "c12",
+    "title": "What should a routine check change?",
+    "sourceChapters": [
+      "c12"
+    ],
+    "beats": [
+      {
+        "id": "c12-b01",
+        "say": "An error has left a value of point eight five five in memory. The next event is a routine check. In this long short-term memory cell, or LSTM, we'll choose the controls by hand. The forget gate sets how much of the old cell survives.",
+        "hold": 0.3
+      },
+      {
+        "id": "c12-b02",
+        "say": "Keep ninety-eight percent and the green level drops from point eight five five to point eight three seven nine.",
+        "hold": 0.6
+      },
+      {
+        "id": "c12-b03",
+        "say": "The input gate controls the write. Our candidate is one tenth and we're writing just two percent of it. Look at that small write under magnification. Add that tiny piece to the retained value. That's the new stored cell.",
+        "hold": 0.3
+      },
+      {
+        "id": "c12-b04",
+        "say": "To expose it, apply tanh to the new stored cell and multiply by the output gate, here eight tenths. The classifier reads the blue value, about point five four nine. The green stored value can travel on to the next cell.",
+        "hold": 0.75
+      },
+      {
+        "id": "c12-b05",
+        "say": "Keep the event and the first two gates exactly as they are. Suppose we turn the output gate down to one tenth. Which level should move?",
+        "hold": 2.1
+      },
+      {
+        "id": "c12-b06",
+        "say": "Turn it down now. The blue level drops to about seven hundredths. The green bar holds at point eight three nine nine because the output gate enters only the readout at this step. On the next step, the changed hidden state can affect the gates again.",
+        "hold": 0.8
+      }
+    ]
+  },
+  {
+    "id": "c13",
+    "title": "Where do the gate settings come from?",
+    "sourceChapters": [
+      "c13"
+    ],
+    "beats": [
+      {
+        "id": "c13-b01",
+        "say": "Take a separate two-coordinate cell. It already carries the two stored values on the right. A reproduction event arrives. Join its three input features to the two numbers in the old hidden state. Each gate gets the same five numbers. Two weight rows will produce two settings.",
+        "hold": 0.3
+      },
+      {
+        "id": "c13-b02",
+        "say": "We chose the weights by hand. Each gate adds its bias to a weighted sum, then applies sigmoid. Sigmoid turns any finite sum into a fraction between zero and one. The candidate uses tanh, so it can write a negative or a positive value.",
+        "hold": 0.7
+      },
+      {
+        "id": "c13-b03",
+        "say": "Follow the nonzero terms in the forget rows. In the first row, the old hidden value contributes four tenths and reproduction contributes six tenths. The second row reads only reproduction, with a negative weight. Apply sigmoid to each sum.",
+        "hold": 0.3
+      },
+      {
+        "id": "c13-b04",
+        "say": "The first coordinate will keep about three quarters of its old cell, the second a little over a third. The biases for these rows are zero.",
+        "hold": 0.65
+      },
+      {
+        "id": "c13-b05",
+        "say": "For the write gate, the reproduction weights are minus one and zero. Sigmoid turns zero into one half. The candidate has its own weights, one half and zero on that same feature. Apply tanh this time.",
+        "hold": 0.3
+      },
+      {
+        "id": "c13-b06",
+        "say": "All the other weights and biases for the write gate and candidate are zero. Read down each column of results to match a coordinate’s candidate with its write fraction.",
+        "hold": 0.65
+      },
+      {
+        "id": "c13-b07",
+        "say": "The output gate reads biases alone here. The first bias is the natural log of four and the second is zero. After sigmoid, the first coordinate will expose four fifths of the tanh of its new cell and the second will expose half. Look at the write gate and candidate together. Which stored coordinate comes entirely from its old cell?",
+        "hold": 2.5
+      },
+      {
+        "id": "c13-b08",
+        "say": "Work one coordinate at a time. Multiply each old cell by its forget fraction. The retained amounts are about point six two five and point zero three eight. Now multiply each candidate by its write fraction. The first write adds about point one two four. In the second coordinate, half of zero is zero. Everything stored there came from its old cell.",
+        "hold": 1.0
+      },
+      {
+        "id": "c13-b09",
+        "say": "Add the two terms on each row to get the stored cells. Only now do we apply tanh and scale by the output fractions to get the hidden state. The additive route through storage is the part we'll follow backward.",
+        "hold": 0.8
+      }
+    ]
+  },
+  {
+    "id": "c14",
+    "title": "How much can the direct cell path carry?",
+    "sourceChapters": [
+      "c14"
+    ],
+    "beats": [
+      {
+        "id": "c14-b01",
+        "say": "Nudge the old cell while holding the old hidden state and current input fixed. The gates then stay fixed too. On the direct path, the forget gate is the slope from old cell to new cell. Across several steps those factors multiply.",
+        "hold": 0.3
+      },
+      {
+        "id": "c14-b02",
+        "say": "The original LSTM had a unit-weight connection called the constant error carousel. A modern forget gate lets the network learn how much passes through. Predict which path will still carry half a unit after thirty steps.",
+        "hold": 2
+      },
+      {
+        "id": "c14-b03",
+        "say": "Move the probe to thirty steps. Green keeps ninety-eight percent at every step, so more than half the starting signal survives. The rust path halves the signal thirty times and falls below one billionth. A trained cell can choose a different fraction for each feature and each new input.",
+        "hold": 0.7
+      },
+      {
+        "id": "c14-b04",
+        "say": "These curves follow one direct path. The full gradient also travels through the hidden state, the gates, the candidate and the output readout. To see whether training actually uses a long connection, measure the gradient back at the early event.",
+        "hold": 0.75
+      }
+    ]
+  },
+  {
+    "id": "c15",
+    "title": "How much of the previous state survives?",
+    "sourceChapters": [
+      "c15"
+    ],
+    "beats": [
+      {
+        "id": "c15-b01",
+        "say": "A gated recurrent unit, or GRU, uses one hidden vector. Take one coordinate. Its previous value is positive and the new candidate is negative. Here the update gate means the fraction of the previous value to keep. The rest of the weight goes to the candidate.",
+        "hold": 0.3
+      },
+      {
+        "id": "c15-b02",
+        "say": "Keep ninety-five percent and the new value lands close to the old one.",
+        "hold": 0.7
+      },
+      {
+        "id": "c15-b03",
+        "say": "What happens when you keep half? Where should the marker land?",
+        "hold": 1.85
+      },
+      {
+        "id": "c15-b04",
+        "say": "Move it to halfway. Equal weights take the average, which is still positive for these endpoints. Keep just five percent and the result crosses zero. Because the two nonnegative fractions add to one, the blend has to stay between the endpoints.",
+        "hold": 0.65
+      },
+      {
+        "id": "c15-b05",
+        "say": "The reset gate acts earlier. It controls how much of the previous hidden state enters the candidate calculation. When moving trained weights, you need to know exactly where an implementation applies that multiplication. Let's try two placements on the same input.",
+        "hold": 0.65
+      }
+    ]
+  },
+  {
+    "id": "c16",
+    "title": "Would the same GRU weights work in both implementations?",
+    "sourceChapters": [
+      "c16"
+    ],
+    "beats": [
+      {
+        "id": "c16-b01",
+        "say": "Replay the reproduction event in two GRUs with the same weights. Their keep fractions are point nine five and one half. Their reset fractions are one tenth and nine tenths. The original GRU applies reset before the candidate's recurrent matrix multiply. PyTorch applies it after that multiply and its recurrent bias.",
+        "hold": 0.65
+      },
+      {
+        "id": "c16-b02",
+        "say": "Start with the identity matrix. Set the candidate input contribution and both biases to zero. On the top route, reset scales the two numbers and the identity copies them. PyTorch copies them first, then applies reset. Both routes reach the same pair. What would happen if the matrix mixed the two coordinates?",
+        "hold": 2
+      },
+      {
+        "id": "c16-b03",
+        "say": "Follow the second row of the new matrix. It adds three times the first coordinate to four times the second. Reset first shrinks the positive input from point eight to point zero eight. Now the negative term wins. In PyTorch the matrix gets the full point eight.",
+        "hold": 0.3
+      },
+      {
+        "id": "c16-b04",
+        "say": "The sum is positive, and reset keeps nine tenths of it.",
+        "hold": 0.7
+      },
+      {
+        "id": "c16-b05",
+        "say": "Apply tanh to get both candidates. The second keep gate is one half, so each cell averages its candidate with the old value, minus point two. With reset first, the new hidden coordinate is negative. In PyTorch it is positive.",
+        "hold": 0.3
+      },
+      {
+        "id": "c16-b06",
+        "say": "With zero recurrent bias, a diagonal matrix or equal reset fractions make the two orders agree.",
+        "hold": 0.7
+      },
+      {
+        "id": "c16-b07",
+        "say": "Keep an eye on the first coordinate in PyTorch. Give it a candidate recurrent bias of one. On a reproduction event, reset scales that bias to one tenth. Try a rollback event with the same old state. In the first reset row, the rollback feature has zero weight and the bias is zero.",
+        "hold": 0.3
+      },
+      {
+        "id": "c16-b08",
+        "say": "Sigmoid of zero is one half, so the same bias now adds one half. A fixed input bias would add the same amount both times. When you move weights between GRUs, match the gate order, keep convention and placement of both biases.",
+        "hold": 0.8
+      }
+    ]
+  },
+  {
+    "id": "c17",
+    "title": "How many parameters does this GRU have?",
+    "sourceChapters": [
+      "c17"
+    ],
+    "beats": [
+      {
+        "id": "c17-b01",
+        "say": "With three input features and two hidden coordinates, one affine block learns two rows of five weights and one bias per row. That gives twelve parameters per block. Count the colored blocks in each cell. How many parameters do the GRU and LSTM have under this one-bias-per-row convention?",
+        "hold": 2.3
+      },
+      {
+        "id": "c17-b02",
+        "say": "The vanilla RNN uses one block. A GRU uses three for reset, keep and candidate. A modern LSTM uses four. At twelve parameters per block, that gives thirty-six for the GRU and forty-eight for the LSTM.",
+        "hold": 0.65
+      },
+      {
+        "id": "c17-b03",
+        "say": "Look at the tensors PyTorch stores for that GRU. Reset, update, and candidate are stacked in that order. Each block has two rows. The input weights have three columns and the recurrent weights have two. Count every entry in the four tensors, including both bias vectors. What total do you get?",
+        "hold": 2.25
+      },
+      {
+        "id": "c17-b04",
+        "say": "Eighteen input weights, twelve recurrent weights and two bias vectors of six each give forty-two parameters. Six of those are the extra recurrent biases. In the candidate, their contribution depends on reset. For each of the three blocks, count hidden width times input width, plus hidden width squared, plus two biases per hidden coordinate.",
+        "hold": 0.65
+      },
+      {
+        "id": "c17-b05",
+        "say": "Now follow four independent sequences of five events through one unidirectional layer. Each event has three features. The output keeps the batch and time axes and gives you two hidden coordinates at every step.",
+        "hold": 0.3
+      },
+      {
+        "id": "c17-b06",
+        "say": "The final hidden tensor has one entry per layer and direction, then one per sequence, then both hidden coordinates. Batch first leaves that final axis order alone. An LSTM returns a cell tensor too.",
+        "hold": 0.3
+      },
+      {
+        "id": "c17-b07",
+        "say": "Try valid lengths of five, four, three, and one. Mark the last real position in each row. With packed input, the output is packed and each final state comes from its own marked event.",
+        "hold": 0.7
+      }
+    ]
+  },
+  {
+    "id": "c18",
+    "title": "Did the actor survive the batch?",
+    "sourceChapters": [
+      "c18"
+    ],
+    "beats": [
+      {
+        "id": "c18-b01",
+        "say": "Go back to the sentence about the dog. After its fifth word the actor clue is still positive. A longer sentence in the same batch needs another slot. Give our sentence a filler row with zero input.",
+        "hold": 0.3
+      },
+      {
+        "id": "c18-b02",
+        "say": "If the cell runs again, it takes nine tenths of the old state and applies tanh once more. The rust branch is where that extra step takes it.",
+        "hold": 0.65
+      },
+      {
+        "id": "c18-b03",
+        "say": "Now skip the update at that slot. The green branch keeps the state at the real end of the sentence. Suppose a test only checked which animal the classifier chose. Would it catch the extra update?",
+        "hold": 1.85
+      },
+      {
+        "id": "c18-b04",
+        "say": "Both signs still say dog. A test of the predicted label would pass either way. Compare the hidden state itself with the state from the unpadded sentence. The skipped update matches it. The extra update takes the state from point three eight two to point three three one.",
+        "hold": 0.75
+      }
+    ]
+  },
+  {
+    "id": "c19",
+    "title": "Does changing the filler change the readout?",
+    "sourceChapters": [
+      "c19"
+    ],
+    "beats": [
+      {
+        "id": "c19-b01",
+        "say": "Use the two-coordinate tanh cell that fed our action head. Batch two incident histories. A has a rollback after reproduction. B ends at reproduction. Run B on its own and you get the two numbers at the bottom.",
+        "hold": 0.3
+      },
+      {
+        "id": "c19-b02",
+        "say": "If we give B a third row of zeros and run every slot, the recurrent matrix still acts on those two numbers. Read the result. It has moved, even with zero input and zero bias.",
+        "hold": 0.75
+      },
+      {
+        "id": "c19-b03",
+        "say": "Keep both real events fixed and change only the filler. Now its input projection contributes as well. Compare with B alone. Both batched readouts differ from the reference and they differ from each other. A state at a fixed point could survive a zero update, so try more than one filler when you test.",
+        "hold": 0.75
+      },
+      {
+        "id": "c19-b04",
+        "say": "Pack by valid length. B finishes at its second event. Compare both packed runs with B alone. They match the reference in both coordinates. In the third slot, A is the only active row.",
+        "hold": 0.3
+      },
+      {
+        "id": "c19-b05",
+        "say": "For PyTorch packing, give the positive lengths of the right-padded prefixes, at most the number of available slots. Put a lengths tensor on the CPU. Setting enforce sorted to false lets the library sort the batch internally.",
+        "hold": 0.75
+      },
+      {
+        "id": "c19-b06",
+        "say": "Now start an independent incident with one event, point four, using the scalar cell from earlier. Run it once from zero and once from the previous incident's final state. The same input gives two different answers. Detaching the old state still passes its value forward.",
+        "hold": 0.3
+      },
+      {
+        "id": "c19-b07",
+        "say": "Reset each independent stream to its initial state, and if you reorder the batch, keep each continuing state with its own incident.",
+        "hold": 0.8
+      }
+    ]
+  },
+  {
+    "id": "c20",
+    "title": "Which zero is an observation?",
+    "sourceChapters": [
+      "c20"
+    ],
+    "beats": [
+      {
+        "id": "c20-b01",
+        "say": "Each punched music roll is a sequence. A column on the paper is one measurement. Count the holes across five pitch lanes. One hole gives an input of point two. Four give point eight. For our classifier, flag a roll if its final state is at least one half. Start both readers at zero. Read the single note, then read the chord with the same scalar incident rule. Both states reach point six one six.",
+        "hold": 0.65
+      },
+      {
+        "id": "c20-b02",
+        "say": "Stop before slot three. The upper roll has a beat of paper with no holes. It records a real rest. The lower roll ended at the chord. Its third slot holds zero for batching. Do you flag A, B, both, or neither?",
+        "hold": 2.25
+      },
+      {
+        "id": "c20-b03",
+        "say": "Advance A over the rest. Half its previous state still enters tanh, so the result drops below one half. Park B at the chord, its last real observation. Its state stays above the line. Only B gets flagged.",
+        "hold": 0.75
+      },
+      {
+        "id": "c20-b04",
+        "say": "Try a faulty reader on B. Detach the state after the chord, then run the extra zero. The flag clears. Change just the filler to point nine and the same roll gets flagged. Which state should the classifier read in both batches?",
+        "hold": 2
+      },
+      {
+        "id": "c20-b05",
+        "say": "Replay B with zero filler. Read the note and chord, then park at the cut. B alone ends at point six one six. Change the filler beyond the cut. The reader stays at the chord and still gives point six one six. A took its real third step, so its final state is point two nine nine.",
+        "hold": 1.6
+      }
+    ]
+  }
+]

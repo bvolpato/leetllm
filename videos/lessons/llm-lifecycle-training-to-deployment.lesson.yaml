@@ -1,0 +1,1270 @@
+version: 1
+id: llm-lifecycle-training-to-deployment
+title: The LLM Lifecycle
+opening: lesson
+source: preparation/llm-lifecycle-training-to-deployment/content.md
+voice: en-US-AndrewNeural
+rate: +0%
+sources:
+  - title: Training Compute-Optimal Large Language Models
+    url: https://arxiv.org/abs/2203.15556
+  - title: Training Language Models to Follow Instructions with Human Feedback
+    url: https://arxiv.org/abs/2203.02155
+  - title: "AWQ: Activation-aware Weight Quantization for LLM Compression and
+      Acceleration"
+    url: https://arxiv.org/abs/2306.00978
+  - title: "GPTQ: Accurate Post-Training Quantization for Generative Pre-trained
+      Transformers"
+    url: https://arxiv.org/abs/2210.17323
+  - title: Efficient Memory Management for Large Language Model Serving with
+      PagedAttention
+    url: https://arxiv.org/abs/2309.06180
+  - title: "Orca: A Distributed Serving System for Transformer-Based Generative
+      Models"
+    url: https://www.usenix.org/conference/osdi22/presentation/yu
+  - title: CCNet
+    url: https://arxiv.org/abs/1911.00359
+  - title: Original C4/T5
+    url: https://arxiv.org/abs/1910.10683
+  - title: DPO
+    url: https://arxiv.org/abs/2305.18290
+  - title: DeepSeek R1
+    url: https://arxiv.org/abs/2501.12948
+  - title: MT-Bench and Arena
+    url: https://arxiv.org/abs/2306.05685
+  - title: TRL assistant-only SFT
+    url: https://huggingface.co/docs/trl/sft_trainer
+  - title: Exact speculative decoding
+    url: https://arxiv.org/abs/2211.17192
+scenes:
+  - id: opening
+    title: Does this key still qualify for rotation?
+    visual: >-
+      A service key marks 42 days on an age scale. The cutoff sweeps from the old minimum to the
+      new one as the shot opens. Both endpoints stay marked.
+      The policy verdict and the app reply appear separately.
+    beats:
+      - say: >-
+          The cutoff for rotating a stale key moves from thirty days to sixty.
+        hold: 0.9
+        visual_cues:
+          - id: open-move
+            phrase: "The cutoff for rotating a stale key moves from thirty days to sixty"
+            targets: [opening-mechanism]
+      - say: >-
+          This key is forty-two days old. It qualified under the old rule. Does it still qualify?
+        caption_starts:
+          - "Does it still qualify"
+        hold: 2.7
+        visual_cues:
+          - id: open-predict
+            phrase: "Does it still qualify"
+            targets: [opening-mechanism]
+      - say: >-
+          It falls short. The app still says eligible. Where did that answer come from?
+        hold: 1.1
+        visual_cues:
+          - id: open-expected
+            phrase: "It falls short"
+            targets: [opening-mechanism]
+            caption_boundary: true
+          - id: open-observed
+            phrase: "the app still says eligible"
+            targets: [opening-mechanism]
+            caption_boundary: true
+      - say: >-
+          Training produces a checkpoint, a saved set of model weights. The app can use the same
+          checkpoint under either rule. For this request, the app supplies the age of the key and
+          the current policy passage. Let's follow the weights back to the text the model learned from.
+        caption_starts:
+          - "For this request"
+        hold: 1
+        visual_cues:
+          - id: open-build
+            phrase: "a saved set of model weights"
+            targets: [opening-mechanism]
+          - id: open-serve
+            phrase: "For this request"
+            targets: [opening-mechanism]
+  - id: curated-data
+    title: Which text reaches training?
+    visual: Ten copies collapse onto a single retained paragraph. Two published filters then
+      show how the choice of language and repetition rules changes the training text.
+    beats:
+      - say: Ten pages contain the same paragraph. Keep them all and the model gets ten chances
+          to practice the same words. C C Net normalizes each paragraph and hashes it with a
+          truncated S H A one digest. These ten hashes match. Keep one copy. The model can still
+          memorize it, but that paragraph now occurs just once.
+        hold: 0.8
+        visual_cues:
+          - id: curated-data-b1
+            phrase: Keep one copy
+            targets:
+              - curated-data-mechanism
+            linger: 0.8
+      - say: Which writing survives the filters? C C Net uses fastText to identify languages
+          and a Wikipedia-trained language model to score text by perplexity. Original C four
+          selects English text and removes repeated three-sentence spans. For near-duplicates,
+          MinHash can find similar passages. Sample the discarded text to see which languages and
+          topics lost examples. The words that survive are the ones the tokenizer will count.
+        hold: 0.8
+        visual_cues:
+          - id: curated-data-b2
+            phrase: Original C four selects English text
+            targets:
+              - curated-data-mechanism
+            linger: 0.8
+  - id: pretraining
+    title: Which pieces become a token?
+    visual: >-
+      Each word carries its frequency. Count the same adjacent pair in two rows, merge the
+      winning pair in place, then follow one observed token into training loss.
+    beats:
+      - say: >-
+          A base model learns from text. First we need pieces it can predict. In this little corpus
+          the word key occurs four times, stale three times, and rotation twice. We'll skip
+          preprocessing and start with letters inside each word. A pair in a word we saw three
+          times gets counted three times.
+        hold: 0.8
+      - say: >-
+          Look at the letters t and a. Here they are in stale. Here they are again in rotation.
+          Compare their combined count with the k and e at the start of key. Which of these two pairs
+          occurs more often?
+        hold: 2.1
+        visual_cues:
+          - id: bpe-stale
+            phrase: "Here they are in stale"
+            targets: [pretraining-mechanism]
+          - id: bpe-rotation
+            phrase: "Here they are again in rotation"
+            targets: [pretraining-mechanism]
+          - id: bpe-key
+            phrase: "the k and e at the start of key"
+            targets: [pretraining-mechanism]
+      - say: >-
+          T followed by a occurs five times. Three plus two beats four. Join those letters wherever
+          they sit together. The two rows now share one token. Recount the neighbors of that new
+          piece before choosing another merge. That's one step of byte-pair encoding.
+        hold: 0.9
+        visual_cues:
+          - id: bpe-winner
+            phrase: "T followed by a occurs five times"
+            targets: [pretraining-mechanism]
+            caption_boundary: true
+          - id: bpe-join
+            phrase: "Join those letters wherever they sit together"
+            targets: [pretraining-mechanism]
+      - say: >-
+          Read the merged rotation row. After r and o, the observed next token is the piece we just
+          made. Suppose the model gave it probability point two. The training loss is minus the
+          natural log of that probability, about one point six one nats. On the same target, raise
+          the probability to point eight. The loss drops to about point two two nats. Training
+          adjusts weights to reduce losses like these across examples. That teaches the model to
+          predict text. The current rotation rule still comes from the policy.
+        hold: 1
+        visual_cues:
+          - id: bpe-target
+            phrase: "the observed next token is the piece we just made"
+            targets: [pretraining-mechanism]
+          - id: bpe-low
+            phrase: "about one point six one nats"
+            targets: [pretraining-mechanism]
+            caption_boundary: true
+          - id: bpe-high
+            phrase: "raise the probability to point eight"
+            targets: [pretraining-mechanism]
+          - id: bpe-high-loss
+            phrase: "about point two two nats"
+            targets: [pretraining-mechanism]
+            caption_boundary: true
+  - id: compute-budget
+    title: Training allocation depends on the compute objective
+    visual: Reported dense-model parameter and token counts produce approximate
+      six-N-D training FLOP estimates. Each row appears with its own computed
+      quantity.
+    beats:
+      - say: >
+          A useful first estimate for dense-model training is six times
+          parameter count times token count. Gopher’s reported two hundred
+          eighty billion parameters and three hundred billion tokens give about
+          five point zero four times ten to the twenty-third FLOPs.
+        hold: 0.8
+        visual_cues:
+          - id: dense-run-flops-0-b1-1
+            phrase: five point zero four
+            targets:
+              - dense-run-flops-0
+            color: cyan
+            linger: 0.6
+      - say: >
+          Chinchilla’s seventy-billion-parameter run used one point four
+          trillion tokens. The same approximation gives five point eight eight
+          times ten to the twenty-third FLOPs, near the Gopher estimate with a
+          different allocation.
+        hold: 0.8
+        visual_cues:
+          - id: dense-run-flops-1-b2-1
+            phrase: five point eight eight
+            targets:
+              - dense-run-flops-1
+            color: cyan
+            linger: 0.6
+      - say: >
+          Llama 3’s eight-billion-parameter model trained on about fifteen
+          trillion tokens reflects a different goal: useful capability from a
+          smaller model with recurring inference costs in view. Training and
+          serving optimize different budgets.
+        hold: 0.85
+        visual_cues:
+          - id: compute-allocation-2-b3-1
+            phrase: recurring inference costs
+            targets:
+              - compute-allocation-2
+            color: yellow
+            linger: 0.6
+      - say: Under the fitted Chinchilla rule, parameters and tokens each grow with the square
+          root of the training budget. Give training four times the compute. The square doubles
+          in width and height. That's roughly twice as many parameters and twice as many tokens.
+          Six N D estimates dense training arithmetic. Hardware utilization and the extra cost of
+          long-sequence attention also matter when you plan the run.
+        hold: 0.8
+        visual_cues:
+          - id: compute-budget-extension-4
+            phrase: Give training four times the compute
+            targets:
+              - compute-budget-mechanism
+            linger: 0.8
+      - say: Both models meet our quality target. The smaller one costs half a unit more to
+          train, but saves three tenths on each request. After one request it's still more
+          expensive overall. Send a second request. Now the smaller model costs one point four
+          units in total, against one point five. Run them out to twenty requests. The total
+          cost is five units for the smaller model and ten point five for the other.
+        caption_starts:
+          - "Now the smaller model costs"
+          - "The total cost is five units"
+        hold: 0.8
+        visual_cues:
+          - id: compute-budget-extension-5
+            phrase: Send a second request
+            targets:
+              - compute-budget-mechanism
+            linger: 0.8
+          - id: compute-twenty
+            phrase: Run them out to twenty requests
+            targets:
+              - compute-budget-mechanism
+            linger: 0.8
+  - id: post-training
+    title: Two ways to report the same decision
+    visual: >-
+      An assistant demonstration becomes a preference pair. A field-only verifier grades a
+      correct JSON record, a changed Boolean, and correct fields paired with a false sentence.
+    beats:
+      - say: >-
+          Give the model an example of the answer we want. The system asks for a structured decision.
+          The user supplies the stale key, its age and the thirty-day rule. The assistant's example
+          answer says eligible and cites the policy. Training on demonstrations like this is
+          supervised fine-tuning.
+        hold: 0.9
+        visual_cues:
+          - id: post-demo
+            phrase: "The assistant's example answer"
+            targets: [post-training-mechanism]
+      - say: >-
+          Give two candidates the same key facts and ask each to report the decision. Each calls
+          the key eligible. Only one says a rotation finished. There was no job.
+          We'd choose the answer that reports what happened
+          and reject the invented claim. A preference pair records that choice.
+        hold: 0.8
+        visual_cues:
+          - id: post-pair
+            phrase: "Only one says a rotation finished"
+            targets: [post-training-mechanism]
+          - id: post-choice
+            phrase: "reject the invented claim"
+            targets: [post-training-mechanism]
+            caption_boundary: true
+      - say: >-
+          Try a checker on the output. It reads three fields. The eligible verdict, P-seven and a
+          false action flag match the fixture, so the score is one. Flip the action flag to true. The
+          score drops to zero. Now restore the fields and add one sentence beneath them. It says the
+          rotation finished. What score will this checker give?
+        hold: 2.4
+        visual_cues:
+          - id: post-good
+            phrase: "the score is one"
+            targets: [post-training-mechanism]
+            caption_boundary: true
+          - id: post-flag
+            phrase: "Flip the action flag to true"
+            targets: [post-training-mechanism]
+          - id: post-zero
+            phrase: "The score drops to zero"
+            targets: [post-training-mechanism]
+            caption_boundary: true
+          - id: post-prose
+            phrase: "Now restore the fields and add one sentence beneath them"
+            targets: [post-training-mechanism]
+      - say: >-
+          One again. The three fields match, and the checker never reads that sentence. A user would
+          see a claim the checker missed. Build the displayed job status from verified execution
+          records, or check every channel that can make the claim.
+        hold: 1.2
+        visual_cues:
+          - id: post-blind
+            phrase: "One again"
+            targets: [post-training-mechanism]
+            caption_boundary: true
+  - id: assistant-loss-contract
+    title: Which parts of a chat supply targets?
+    visual: >-
+      System, user and assistant spans stay in the input. An independent target track keeps the
+      reply supervised. An arrow connects the age and rule to the reply they help predict.
+    beats:
+      - say: >-
+          Put the demonstration through the checkpoint's chat template. It arranges the system
+          instruction, user request and assistant reply in one sequence. To train on the reply, keep
+          the whole prompt in view. In this assistant-only recipe, mask the prompt targets. Only the
+          assistant span contributes direct next-token loss.
+        hold: 1
+        visual_cues:
+          - id: mask-prompt
+            phrase: "mask the prompt targets"
+            targets: [assistant-loss-contract-mechanism]
+          - id: mask-reply
+            phrase: "Only the assistant span contributes direct next-token loss"
+            targets: [assistant-loss-contract-mechanism]
+      - say: >-
+          Take the value true in the reply. To predict it, the model can use the age and the rule
+          earlier in the conversation. An error on that prediction can send a gradient back through those prompt
+          computations. Seeing a gradient there is consistent with masking their direct targets.
+        hold: 1
+        visual_cues:
+          - id: mask-condition
+            phrase: "the age and the rule earlier in the conversation"
+            targets: [assistant-loss-contract-mechanism]
+      - say: >-
+          The template must identify the assistant span and the recipe must select it. Another recipe
+          can train on the full sequence. Before training, inspect the answer itself. Remove the
+          policy ID and the example still parses as JSON, but it teaches the model to omit a required
+          field. Check types, extra fields, the evidence and the verdict too.
+        hold: 0.9
+        visual_cues:
+          - id: mask-audit
+            phrase: "Remove the policy ID"
+            targets: [assistant-loss-contract-mechanism]
+  - id: preference-and-reward
+    title: Different objectives change weights through different evidence
+    visual: Retained policy request and named artifacts construct a specific
+      prediction, operation and consequence; separate supplied teaching fixtures
+      expose the underlying arithmetic.
+    beats:
+      - say: Start with the same two answers. We prefer the one that reports the job record
+          accurately. Instruct G P T used rankings like these to train a reward model. It then
+          scored new responses with that model and updated the policy using P P O. D P O takes
+          the pair straight into training. It compares the probabilities of the chosen and
+          rejected answers relative to a reference policy. The gradient of that preference loss
+          updates the weights.
+        hold: 0.8
+        visual_cues:
+          - id: preference-and-reward-b1
+            phrase: Start with the same two answers
+            targets:
+              - preference-and-reward-mechanism
+            linger: 0.8
+      - say: Verifiable-reward training uses checkable outcomes such as an answer or
+          executed tests to shape parameter updates. DeepSeek R one Zero used
+          reinforcement learning without preliminary supervised fine-tuning; R
+          one combined supervised data and reinforcement learning. Look at the bottom row.
+          Its fields earned full credit even though its sentence contradicts the job record.
+          A training run that used this score would reward that answer. Build the status the
+          user sees from the execution receipt.
+        hold: 0.8
+        visual_cues:
+          - id: preference-and-reward-b2
+            phrase: Verifiable-reward training uses checkable outcomes such as an answer or
+              executed tests to shape parameter updates
+            targets:
+              - preference-and-reward-mechanism
+            linger: 0.8
+      - say: At request time, the same checkpoint can generate several candidates and score
+          them, or spend more tokens reasoning through one answer. That's test-time compute.
+          Try it on the same cases. How much quality did the extra time and cost buy?
+        hold: 0.8
+        visual_cues:
+          - id: preference-and-reward-b3
+            phrase: That's test-time compute
+            targets:
+              - preference-and-reward-mechanism
+            linger: 0.8
+  - id: benchmark-evidence
+    title: Did this question appear in training?
+    visual: Public benchmarks and application cases test different skills. A sample search
+      records the number of documents inspected, the match type and the result.
+    beats:
+      - say: M M L U samples fifty-seven academic subjects, while G S M eight K tests
+          grade-school multistep mathematics. For the key assistant, we also need cases that
+          exercise the live rotation rule. A public math problem can turn up in a web crawl,
+          answer and all. Remembering it would raise the model's score.
+        hold: 0.8
+        visual_cues:
+          - id: benchmark-evidence-b1
+            phrase: M M L U samples fifty-seven academic subjects, while G S M eight K tests
+              grade-school multistep mathematics
+            targets:
+              - benchmark-evidence-mechanism
+            linger: 0.8
+      - say: Search fifty thousand training documents for the exact question. Zero matches.
+          Record all three facts together. Another document could use different wording, or sit
+          outside the sample. If you find a match, read it. A common phrase carries less evidence
+          than a copied problem and its answer. Try new names or numbers, and check whether the
+          problem got harder. Fresh cases written after a known training cutoff give you another
+          comparison. A published canary string gives you one more thing to search for.
+        caption_starts:
+          - "Zero matches"
+        hold: 0.8
+        visual_cues:
+          - id: benchmark-evidence-b2
+            phrase: Zero matches
+            targets:
+              - benchmark-evidence-mechanism
+            linger: 0.8
+  - id: judge-calibration
+    title: Two ballots for one answer pair
+    visual: >-
+      The same two answer slips trade positions. Both ballots are kept and lined up by answer
+      identity so the viewer can see the disagreement.
+    beats:
+      - say: >-
+          These two answers are for the same request. Answer A says that the key qualifies and no job
+          ran. Answer B claims a rotation finished. In the first trial the judge picks A. Keep the
+          ballot. Now swap the positions and leave every word alone. The second ballot comes back for
+          B. What stayed the same about the judge's choices?
+        hold: 2.6
+        visual_cues:
+          - id: judge-first
+            phrase: "the judge picks A"
+            targets: [judge-calibration-mechanism]
+            caption_boundary: true
+          - id: judge-swap
+            phrase: "swap the positions"
+            targets: [judge-calibration-mechanism]
+          - id: judge-second
+            phrase: "The second ballot comes back for B"
+            targets: [judge-calibration-mechanism]
+            caption_boundary: true
+          - id: judge-question
+            phrase: "What stayed the same about the judge's choices"
+            targets: [judge-calibration-mechanism]
+      - say: >-
+          It picked the first position twice. The two ballots disagree on which answer is better.
+          Count both. Throwing out pairs like this changes the denominator. For this request, the job
+          record can settle the factual claim regardless of how the judge voted.
+        hold: 1
+        visual_cues:
+          - id: judge-position
+            phrase: "It picked the first position twice"
+            targets: [judge-calibration-mechanism]
+            caption_boundary: true
+      - say: >-
+          To check whether length influences the judge, vary length while holding the answer's
+          substance fixed. To investigate a possible preference for its own model family, blind the
+          names and control for differences in quality and style. The M T Bench study looked at these
+          effects. Chatbot Arena collects human preferences. Calibrate your scoring rubric against
+          blinded human judgments and the records for your task.
+        hold: 0.9
+  - id: evaluation
+    title: Grade five answers under the 30-day rule
+    visual: >-
+      Five saved replies share a grading sheet. The 50-day case opens beside its execution record
+      for the viewer to grade. The sheet then shows which field failed in each rejected reply.
+    beats:
+      - say: >-
+          We're back under the thirty-day rule. We saved five answers about stale keys and the job
+          records for each one. A passing answer gets three things right. Does the key qualify?
+          Which policy applies? Did a job actually start? We can grade each new version of the
+          app against the same cases.
+        hold: 0.75
+      - say: >-
+          Read the first two rows. At forty-two days the answer says eligible. At fifteen it says
+          ineligible. Both pass. Now look at the fifty-day key. Compare the assistant's answer
+          with the job record. Would you pass it?
+        caption_starts:
+          - "Now look at the fifty-day key"
+          - "Would you pass it"
+        hold: 2.5
+        visual_cues:
+          - id: grade-first-two
+            phrase: "Both pass"
+            targets: [evaluation-mechanism]
+            caption_boundary: true
+          - id: grade-detail
+            phrase: "Now look at the fifty-day key"
+            targets: [evaluation-mechanism]
+          - id: grade-question
+            phrase: "Would you pass it"
+            targets: [evaluation-mechanism]
+      - say: >-
+          It says a job started. The execution record shows none. That claim costs it a pass.
+          The next key is ten days old, yet the answer calls it eligible. The last one cites P-nine.
+          Two of the five answers pass.
+        caption_starts:
+          - "That claim costs it a pass"
+          - "The next key is ten days old"
+        hold: 1.1
+        visual_cues:
+          - id: grade-action
+            phrase: "It says a job started"
+            targets: [evaluation-mechanism]
+            caption_boundary: true
+          - id: grade-record
+            phrase: "The execution record shows none"
+            targets: [evaluation-mechanism]
+            caption_boundary: true
+          - id: grade-return
+            phrase: "The next key is ten days old"
+            targets: [evaluation-mechanism]
+          - id: grade-age
+            phrase: "yet the answer calls it eligible"
+            targets: [evaluation-mechanism]
+            caption_boundary: true
+          - id: grade-policy
+            phrase: "The last one cites P-nine"
+            targets: [evaluation-mechanism]
+            caption_boundary: true
+          - id: grade-total
+            phrase: "Two of the five answers pass"
+            targets: [evaluation-mechanism]
+            caption_boundary: true
+      - say: >-
+          Could we promote this candidate on that evidence? The fixture has one false action claim,
+          and we haven't measured the time to deliver a checked decision. The release stays blocked.
+          Let's look at why someone running these very same rows might see a five out of five.
+        caption_starts:
+          - "The fixture has one false action claim"
+        hold: 0.8
+        visual_cues:
+          - id: grade-block
+            phrase: "The release stays blocked"
+            targets: [evaluation-mechanism]
+            caption_boundary: true
+  - id: release-report-binding
+    title: What did the evaluator test?
+    visual: >-
+      Five computed grades line up with their expected labels. In a separate report, double-counting
+      one pass blocks release. The original 20-pass report is then compared with two manifests.
+    beats:
+      - say: >-
+          Keep those five grades. Before running the scorer, the author marked which answers ought to
+          pass. Compare the two columns, row by row. On the fifty-day key the scorer rejected the
+          false claim, exactly as the author expected. Even that rejection counts as agreement. The
+          scorer matched all five labels. Only two candidate answers passed. We tested the scorer on
+          supplied answers without calling a model.
+        hold: 1
+        visual_cues:
+          - id: report-compare
+            phrase: "Compare the two columns, row by row"
+            targets: [release-report-binding-mechanism]
+          - id: report-agreed
+            phrase: "The scorer matched all five labels"
+            targets: [release-report-binding-mechanism]
+            caption_boundary: true
+      - say: >-
+          Take a fresh report. All twenty cases passed. Zero answers claimed an action without a
+          receipt. The ninety-fifth percentile time to a checked decision was seven hundred eighty
+          milliseconds, inside our one-second budget. Those numbers clear the metric gate. Now
+          count one pass twice. Twenty-one passes from twenty cases. The gate blocks the release
+          until we can account for every pass.
+        caption_starts:
+          - "Now count one pass twice"
+          - "The gate blocks the release"
+        hold: 1
+        visual_cues:
+          - id: report-numbers
+            phrase: "All twenty cases passed"
+            targets: [release-report-binding-mechanism]
+          - id: report-gate
+            phrase: "Those numbers clear the metric gate"
+            targets: [release-report-binding-mechanism]
+            caption_boundary: true
+          - id: report-double
+            phrase: "Now count one pass twice"
+            targets: [release-report-binding-mechanism]
+          - id: report-block
+            phrase: "The gate blocks the release"
+            targets: [release-report-binding-mechanism]
+      - say: >-
+          Go back to the valid twenty-pass report. Compare its bundle with what we'd serve. Every
+          revision matches, so the report applies to this bundle. Now switch only the chat template
+          from four to five. The weights are the same. The timing on the old report still reads seven
+          hundred eighty milliseconds. Can we use it to approve this change?
+        hold: 2.8
+        visual_cues:
+          - id: bundle-match
+            phrase: "the report applies to this bundle"
+            targets: [release-report-binding-mechanism]
+            caption_boundary: true
+          - id: bundle-change
+            phrase: "switch only the chat template from four to five"
+            targets: [release-report-binding-mechanism]
+          - id: bundle-predict
+            phrase: "Can we use it to approve this change"
+            targets: [release-report-binding-mechanism]
+      - say: >-
+          Run the evaluation again. The report is pinned to template four. Template five can turn the
+          same conversation into different input tokens. Keep the two runs tied to their own
+          revisions. Replacing the weights with a compressed copy also changes the bundle. Measure
+          that copy on the workload you plan to serve.
+        hold: 1.3
+        visual_cues:
+          - id: bundle-repeat
+            phrase: "Run the evaluation again"
+            targets: [release-report-binding-mechanism]
+            caption_boundary: true
+  - id: compression
+    title: Weight savings share memory with the KV cache
+    visual: A 70-billion-parameter model’s ideal weight footprint shrinks across
+      BF16, INT8, and INT4 while a calculated KV cache consumes serving
+      capacity.
+    beats:
+      - say: >
+          Seventy billion parameters at two bytes each require about one hundred
+          thirty point four GiB for BF16 weights alone. Ideal INT4 storage uses
+          one quarter as many bytes, about thirty-two point six GiB before
+          scales and runtime overhead.
+        hold: 0.8
+        visual_cues:
+          - id: weight-storage-2-b1-1
+            phrase: one quarter as many bytes
+            targets:
+              - weight-storage-2
+            color: green
+            linger: 0.6
+      - say: >
+          Serving also stores keys and values for active tokens. With the stated
+          layers, heads, dimensions, context, and two-byte cache elements, one
+          request needs ten GiB, so two requests plus INT4 weights total
+          fifty-two point six GiB.
+        hold: 0.85
+        visual_cues:
+          - id: weights-plus-cache-b2-1
+            phrase: fifty-two point six
+            targets:
+              - weights-plus-cache
+            color: yellow
+            linger: 0.6
+      - say: >
+          That subtotal already exceeds a forty-eight-GiB device by four point
+          six GiB. A sixty-GiB teaching budget leaves seven point four GiB after
+          those parts. AWQ uses activation-aware scales; GPTQ compensates
+          layer-output error. Evaluate each resulting artifact on the target
+          workload.
+        hold: 0.9
+        visual_cues:
+          - id: weights-plus-cache-b3-1
+            phrase: exceeds a forty-eight-GiB device
+            targets:
+              - weights-plus-cache
+            color: pink
+            linger: 0.6
+      - say: >-
+          Follow one token into the cache. Each of eighty layers saves a key and a value for each
+          of its eight K V heads. Each vector has one hundred twenty-eight elements. Multiply by
+          the number of cached tokens and two bytes per element. Divide the byte count by two to
+          the thirtieth for ten gibibytes per request. Packing the weights leaves the cache size
+          alone. Now suppose every layer uses a sliding window that keeps just the newest half of
+          those tokens. The cache drops to five gibibytes. Sharing a prefix across requests,
+          compressing the cache or moving entries off the GPU can save GPU memory. Weight scales,
+          higher-precision weights and runtime buffers also need space.
+        caption_starts:
+          - "Divide the byte count"
+          - "ten gibibytes per request"
+          - "Packing the weights leaves the cache size alone"
+          - "Now suppose every layer uses a sliding window"
+          - "The cache drops to five gibibytes"
+          - "Sharing a prefix across requests"
+        hold: 0.8
+        visual_cues:
+          - id: compression-extension-4
+            phrase: "Follow one token into the cache"
+            targets:
+              - compression-mechanism
+            linger: 0.8
+          - id: kv-pair
+            phrase: a key and a value
+            targets:
+              - compression-mechanism
+            linger: 0.7
+          - id: kv-layers
+            phrase: eighty layers
+            targets:
+              - compression-mechanism
+            linger: 0.7
+          - id: kv-heads
+            phrase: eight K V heads
+            targets:
+              - compression-mechanism
+            linger: 0.7
+          - id: kv-dimension
+            phrase: one hundred twenty-eight elements
+            targets:
+              - compression-mechanism
+            linger: 0.7
+          - id: kv-tokens
+            phrase: the number of cached tokens
+            targets:
+              - compression-mechanism
+            linger: 0.7
+          - id: kv-bytes
+            phrase: two bytes per element
+            targets:
+              - compression-mechanism
+            linger: 0.7
+          - id: kv-result
+            phrase: ten gibibytes per request
+            targets:
+              - compression-mechanism
+            linger: 0.7
+          - id: kv-window
+            phrase: "Now suppose every layer uses a sliding window that keeps just the newest half of those tokens"
+            targets: [compression-mechanism]
+          - id: kv-window-result
+            phrase: "The cache drops to five gibibytes"
+            targets: [compression-mechanism]
+  - id: quantization-operation
+    title: Where does the rounding error go?
+    visual: >-
+      Integer reconstruction leads into a fixed output ruler. The exact dot product stays marked
+      as two ways of rounding the same operation land on opposite sides of it.
+    beats:
+      - say: >-
+          First give the weights a storage grid. For this symmetric eight-bit example, the largest
+          absolute weight gets code one hundred twenty-seven. Divide that weight magnitude by one
+          hundred twenty-seven to get the step size. An all-zero tensor can use any nonzero step.
+          Round each weight to the nearest grid point. Multiply its code by the step to read the
+          weight back. The largest difference here is about point zero zero two nine. Serving needs
+          those codes in a packed tensor.
+        hold: 0.9
+        visual_cues:
+          - id: quant-round
+            phrase: "Round each weight to the nearest grid point"
+            targets: [quantization-operation-mechanism]
+          - id: quant-read
+            phrase: "Multiply its code by the step"
+            targets: [quantization-operation-mechanism]
+          - id: quant-max
+            phrase: "about point zero zero two nine"
+            targets: [quantization-operation-mechanism]
+            caption_boundary: true
+      - say: >-
+          Which rounding error matters to the output? Look at these two channels. The first weight is
+          off by just one hundredth, but the input multiplies that by ten. Its contribution is a
+          tenth. The second weight is off by four hundredths, and its input is one. Its contribution
+          is four hundredths. This is why activation-aware quantization, or A W Q, uses calibration
+          inputs to choose channel scales. The method can keep weights at low precision throughout.
+        hold: 1
+        visual_cues:
+          - id: quant-error-one
+            phrase: "Its contribution is a tenth"
+            targets: [quantization-operation-mechanism]
+            caption_boundary: true
+          - id: quant-error-two
+            phrase: "Its contribution is four hundredths"
+            targets: [quantization-operation-mechanism]
+            caption_boundary: true
+      - say: >-
+          Try scaling one channel on this simpler grid, with a step of one tenth. The first weight is
+          point two four and its input is ten. Add the second channel and the exact output is two
+          point eight four. Leave a mark there. Rounding the weights directly gives two point four.
+          That's where the first attempt lands.
+        hold: 0.9
+        visual_cues:
+          - id: quant-exact
+            phrase: "the exact output is two point eight four"
+            targets: [quantization-operation-mechanism]
+            caption_boundary: true
+          - id: quant-plain
+            phrase: "Rounding the weights directly gives two point four"
+            targets: [quantization-operation-mechanism]
+            caption_boundary: true
+      - say: >-
+          Now double the first weight and halve its input. Before rounding, that product is
+          unchanged. On the same grid, point four eight rounds to point five. Multiply by five and
+          add the rounded second channel. Where does this attempt land relative to the mark?
+        hold: 2.6
+        visual_cues:
+          - id: quant-rescale
+            phrase: "double the first weight and halve its input"
+            targets: [quantization-operation-mechanism]
+          - id: quant-round-scaled
+            phrase: "point four eight rounds to point five"
+            targets: [quantization-operation-mechanism]
+          - id: quant-predict
+            phrase: "Where does this attempt land relative to the mark"
+            targets: [quantization-operation-mechanism]
+      - say: >-
+          Two point nine. Just six hundredths above the exact output, compared with forty-four
+          hundredths below it on the first attempt. Reciprocal scaling preserved the exact operation
+          and changed the error after rounding. This little decimal grid illustrates the idea. A W Q
+          searches for scales on calibration data.
+        hold: 1.1
+        visual_cues:
+          - id: quant-scaled
+            phrase: "Two point nine"
+            targets: [quantization-operation-mechanism]
+            caption_boundary: true
+          - id: quant-distance
+            phrase: "forty-four hundredths below it on the first attempt"
+            targets: [quantization-operation-mechanism]
+      - say: >-
+          G P T Q also starts from calibration inputs. It compensates for a rounded weight by
+          adjusting weights that remain. Suppose the first input is two. Rounding its weight down by
+          point zero five loses a tenth at the output. The second input is one. Raise its weight by a
+          tenth and the sum recovers before that weight is rounded. G P T Q chooses corrections using
+          damped inverse-Hessian information from the layer's squared reconstruction error. For a
+          linear layer its Hessian is twice X times X transpose. Calibration and the final grid
+          determine the error that remains. Other compression methods train a smaller student, prune
+          structure, or simulate quantization during training.
+        hold: 1
+        visual_cues:
+          - id: quant-deficit
+            phrase: "loses a tenth at the output"
+            targets: [quantization-operation-mechanism]
+            caption_boundary: true
+          - id: quant-compensate
+            phrase: "the sum recovers before that weight is rounded"
+            targets: [quantization-operation-mechanism]
+            caption_boundary: true
+  - id: serving
+    title: Iteration-level scheduling reuses a freed slot
+    visual: Two requests share a static batch. A short request ends at iteration 15
+      while the second continues to 600. A 45-iteration zoom shows labeled
+      replacement request C entering the same freed slot. A separate close-up
+      replays request B's positions 15 through 20 as its fifth logical cache
+      block maps to physical slot 7.
+    beats:
+      - say: >
+          Suppose one request needs fifteen decode iterations and another needs
+          six hundred. In a static batch, the short request finishes early and
+          its slot waits while the long request continues.
+        hold: 0.8
+        visual_cues:
+          - id: static-request-slot-b1-1
+            phrase: short request finishes early
+            targets:
+              - static-request-slot
+            color: blue
+            linger: 0.6
+      - say: >
+          The gap is five hundred eighty-five iterations. Iteration-level
+          scheduling can admit another request into that capacity as soon as
+          cache space, prefill work, and policy allow.
+        hold: 0.8
+        visual_cues:
+          - id: reused-request-slot-b2-1
+            phrase: admit another request
+            targets:
+              - reused-request-slot
+            color: green
+            linger: 0.6
+      - say: >
+          Each replacement request also needs KV-cache capacity, so the
+          scheduler must account for the memory budget we just computed. In the
+          lower strip, four-token logical blocks map to noncontiguous physical
+          slots as request B grows. PagedAttention uses block allocation to
+          reduce over-reservation and fragmentation, while the token states
+          still consume memory.
+        hold: 0.9
+        motion_check:
+          region:
+            - 370
+            - 850
+            - 1410
+            - 80
+          minimumChangedFraction: 0.002
+        visual_cues:
+          - id: physical-cache-slot-0-b3-1
+            phrase: noncontiguous physical slots
+            targets:
+              - physical-cache-slot-0
+            color: green
+            linger: 0.6
+  - id: serving-measurements
+    title: What does one request cost to serve?
+    visual: Token timestamps split the waiting time into three intervals. Two four-slot cache
+      blocks show the storage occupied by six live tokens.
+    beats:
+      - say: Start the clock when the model server receives the request. Mark the first token
+          at two hundred milliseconds. That's time to first token. It includes queueing, prefill
+          and the first generation step. A client can also wait for retrieval and the network.
+          Use the server's token timestamps for the gaps between outputs. One network chunk can
+          carry several tokens.
+        hold: 0.8
+        visual_cues:
+          - id: serving-measurements-b1
+            phrase: Mark the first token at two hundred milliseconds
+            targets:
+              - serving-measurements-mechanism
+            linger: 0.8
+      - say: The next two tokens appear at two hundred forty and three hundred milliseconds.
+          Read the gaps. Forty milliseconds between tokens one and two. Sixty between two and
+          three. For throughput, count output tokens from every active stream and divide by
+          elapsed time. Under the same load, measure the memory for weights, K V states,
+          activations and workspace separately.
+        caption_starts:
+          - "Forty milliseconds between tokens"
+          - "Sixty between two and three"
+        hold: 0.8
+        visual_cues:
+          - id: serving-measurements-b2
+            phrase: The next two tokens appear at two hundred forty and three hundred milliseconds
+            targets:
+              - serving-measurements-mechanism
+            linger: 0.8
+          - id: gap-forty
+            phrase: Forty milliseconds between tokens one and two
+            targets: [serving-measurements-mechanism]
+          - id: gap-sixty
+            phrase: Sixty between two and three
+            targets: [serving-measurements-mechanism]
+      - say: Give this request six live tokens. Its cache grows four slots at a time. The first
+          four tokens fill one block. The next two need a second block, leaving two slots free.
+          PagedAttention can place those blocks in separate parts of memory and allocate them
+          as the request grows. Requests with a common prefix can share its blocks. Reference
+          counts track the readers, and copy-on-write gives a writer its own block.
+        hold: 0.8
+        visual_cues:
+          - id: serving-measurements-b3
+            phrase: The next two need a second block
+            targets:
+              - serving-measurements-mechanism
+            linger: 0.8
+  - id: speculative-prefix
+    title: Only the accepted draft prefix becomes target output
+    visual: Retained policy request and named artifacts construct a specific
+      prediction, operation and consequence; separate supplied teaching fixtures
+      expose the underlying arithmetic.
+    beats:
+      - say: A proposal mechanism drafts five tokens while the target verifies them in a
+          parallel pass. Suppose the first four pass and the fifth fails. Emit
+          those four and a correction sampled by the target algorithm; a later
+          apparently good proposal cannot skip past the first rejection. If all
+          five pass, the verification pass can also emit one bonus token.
+        hold: 0.8
+        visual_cues:
+          - id: speculative-prefix-b1
+            phrase: A proposal mechanism drafts five tokens while the target verifies them
+              in a parallel pass
+            targets:
+              - speculative-prefix-mechanism
+            linger: 0.8
+          - id: speculative-accepted
+            phrase: Emit those four and a correction
+            targets:
+              - speculative-prefix-mechanism
+            linger: 0.8
+          - id: speculative-all
+            phrase: If all five pass
+            targets:
+              - speculative-prefix-mechanism
+            linger: 0.8
+      - say: With exact acceptance and correction sampling, the output follows the target
+          model's sampling distribution. If you approximate that step or change the sampling
+          settings, measure quality again. For speed, time the draft and verification pass
+          together. How many tokens did that work buy? Frequent rejections mean more discarded
+          work. Retrieval and prefill happen earlier in the request.
+        hold: 0.8
+        visual_cues:
+          - id: speculative-prefix-b2
+            phrase: With exact acceptance and correction sampling
+            targets:
+              - speculative-prefix-mechanism
+            linger: 0.8
+  - id: authorized-routing
+    title: Can the gateway use the backup?
+    visual: Three caller records show who may reach production. A 503 starts a cooldown on
+      the primary, while a 429 returns a rate limit to the caller.
+    beats:
+      - say: Look at the staging token. It hasn't expired, but its owner is asking for production.
+          The gateway denies the request. It looks up the caller's token with a parameterized
+          query and checks two things. Does the token grant access to this environment?
+          Is its expiry later than the current time? Only the first caller passes both checks.
+        caption_starts:
+          - "Only the first caller passes both checks"
+        hold: 0.8
+        visual_cues:
+          - id: authorized-routing-b1
+            phrase: Look at the staging token
+            targets:
+              - authorized-routing-mechanism
+            linger: 0.8
+          - id: routing-allow
+            phrase: Only the first caller passes both checks
+            targets: [authorized-routing-mechanism]
+      - say: Send the authorized production request. At time one hundred, the primary returns
+          five oh three. The gateway starts a ten-tick cooldown and picks the approved production
+          backup. At one hundred ten it can try the primary again. A four twenty-nine calls for
+          a different response. Return the rate limit to the caller. The quota may cover the
+          whole project or model.
+        caption_starts:
+          - "At one hundred ten"
+          - "Return the rate limit"
+        hold: 0.8
+        visual_cues:
+          - id: authorized-routing-b2
+            phrase: The gateway starts a ten-tick cooldown
+            targets:
+              - authorized-routing-mechanism
+            linger: 0.8
+          - id: routing-retry
+            phrase: At one hundred ten it can try the primary again
+            targets: [authorized-routing-mechanism]
+          - id: routing-quota
+            phrase: A four twenty-nine
+            targets: [authorized-routing-mechanism]
+          - id: routing-limited
+            phrase: Return the rate limit to the caller
+            targets: [authorized-routing-mechanism]
+      - say: Before sending traffic to a backup, check which data it may receive, how much load
+          it can carry and how its answers score on the release cases. Before reusing a request
+          trace for testing or training, check who received the key facts and what they kept.
+          Protect the credentials and enforce the caller's account permissions, including revocation.
+          When the cooldown ends, limit concurrent recovery probes and give each one a deadline.
+        hold: 0.8
+        visual_cues:
+          - id: authorized-routing-b3
+            phrase: Before sending traffic to a backup
+            targets:
+              - authorized-routing-mechanism
+            linger: 0.8
+  - id: failure-investigation
+    title: Which part of the request should we inspect?
+    visual: A raw reply ends at a colon. A second reply reaches the adapter intact.
+      Matched checkpoint outputs expose a loop. A server trace locates a wait, and
+      an allocation bar crosses the capacity of the GPU.
+    beats:
+      - say: >-
+          This reply stops at a colon. The parser needs a value for eligible. Read the completion
+          status. The provider hit its output limit. A refusal has its own status. Now look at a
+          completed reply. The raw field says true. The parsed object is empty. Follow that field
+          through the adapter. If the completed reply itself lacks the field, check the schema and
+          chat template.
+        caption_starts:
+          - "The provider hit its output limit"
+          - "Now look at a completed reply"
+          - "The parsed object is empty"
+        hold: 0.8
+        visual_cues:
+          - id: trace-limit
+            phrase: "The provider hit its output limit"
+            targets: [failure-investigation-mechanism]
+          - id: trace-complete
+            phrase: "Now look at a completed reply"
+            targets: [failure-investigation-mechanism]
+          - id: trace-object
+            phrase: "The parsed object is empty"
+            targets: [failure-investigation-mechanism]
+      - say: >-
+          Both models get the same prompt, chat template and decoding settings. The original
+          checkpoint says eligible and stops. The compressed copy keeps repeating the word.
+          Check its calibration, packed weights and kernel. If both versions repeat, investigate
+          the inputs and settings they share.
+        caption_starts:
+          - "The original checkpoint says eligible and stops"
+          - "The compressed copy keeps repeating the word"
+        hold: 0.8
+        visual_cues:
+          - id: trace-original
+            phrase: "says eligible and stops"
+            targets: [failure-investigation-mechanism]
+          - id: trace-repeat
+            phrase: "The compressed copy keeps repeating the word"
+            targets: [failure-investigation-mechanism]
+      - say: >-
+          This server took two hundred milliseconds to produce its first token.
+          A hundred and fifty went to queueing. That leaves fifty for prefill and the first generation
+          step together. Start with the queue. Client timing also includes the network. For a memory
+          error, compare demand with capacity. Our packed weights and two live caches need fifty-two
+          point six gibibytes. The card holds forty-eight.
+        caption_starts:
+          - "A hundred and fifty went to queueing"
+          - "For a memory error"
+          - "need fifty-two point six gibibytes"
+        hold: 0.8
+        visual_cues:
+          - id: trace-queue
+            phrase: "A hundred and fifty went to queueing"
+            targets: [failure-investigation-mechanism]
+          - id: trace-prefill
+            phrase: "That leaves fifty for prefill and the first generation step together"
+            targets: [failure-investigation-mechanism]
+          - id: trace-memory
+            phrase: "For a memory error"
+            targets: [failure-investigation-mechanism]
+          - id: trace-cache-size
+            phrase: "Our packed weights and two live caches"
+            targets: [failure-investigation-mechanism]
+          - id: trace-subtotal
+            phrase: "need fifty-two point six gibibytes"
+            targets: [failure-investigation-mechanism]
+  - id: diagnose
+    title: Replay the request with its trace
+    visual: >-
+      The opening ruler returns. Source and delivered thresholds coincide, the installed check
+      begins at 30, and only its lane moves during repair. Two neighboring stale ages test the
+      new cutoff.
+    beats:
+      - say: >-
+          Back to the forty-two-day key. The trace contains the exact policy passage the app
+          received. Put its minimum under the active policy. Both start at sixty. Now read the check
+          that actually produced the decision. It starts at thirty. Which part would you change
+          first?
+        hold: 2.6
+        visual_cues:
+          - id: diag-context
+            phrase: "Put its minimum under the active policy"
+            targets: [diagnose-mechanism]
+          - id: diag-check
+            phrase: "It starts at thirty"
+            targets: [diagnose-mechanism]
+          - id: diag-predict
+            phrase: "Which part would you change first"
+            targets: [diagnose-mechanism]
+      - say: >-
+          Update the checker. Install the sixty-day rule and record its new version. Replay the saved
+          request. This time the checker returns ineligible. We used the same passage and the same
+          checkpoint. Moving that one cutoff changed the result.
+        hold: 1.1
+        visual_cues:
+          - id: diag-install
+            phrase: "Install the sixty-day rule"
+            targets: [diagnose-mechanism]
+          - id: diag-replay
+            phrase: "the checker returns ineligible"
+            targets: [diagnose-mechanism]
+            caption_boundary: true
+      - say: >-
+          Now test the edge with stale keys. Fifty-nine days falls short. Sixty days qualifies. That
+          second case catches a checker that uses strictly greater than when the policy says at
+          least. Save the policy, checker, checkpoint and case revisions with the result.
+        hold: 1.1
+        visual_cues:
+          - id: diag-below
+            phrase: "Fifty-nine days falls short"
+            targets: [diagnose-mechanism]
+            caption_boundary: true
+          - id: diag-equal
+            phrase: "Sixty days qualifies"
+            targets: [diagnose-mechanism]
+            caption_boundary: true
+  - id: fresh-policy-cache
+    title: A second request for the same key
+    visual: >-
+      A short response-cache key matches across a policy change. A bypass exposes the live
+      verdict. A longer key and boundary replays check the repair, including a change to stale
+      status alone.
+    beats:
+      - say: >-
+          Here's the same key at seventy-five days, still marked stale. The minimum has risen
+          from sixty to ninety. The policy, the retrieved passage and the checker all say ninety.
+          But the app returns eligible. The lookup compares only the key ID and checkpoint.
+          Skip the cache. What will the checker return?
+        caption_starts:
+          - "Skip the cache"
+        hold: 3
+        visual_cues:
+          - id: cache-returned
+            phrase: "the app returns eligible"
+            targets: [fresh-policy-cache-mechanism]
+            caption_boundary: true
+          - id: cache-key
+            phrase: "The lookup compares only the key ID and checkpoint"
+            targets: [fresh-policy-cache-mechanism]
+          - id: cache-predict
+            phrase: "what will the checker return"
+            targets: [fresh-policy-cache-mechanism]
+      - say: >-
+          Ineligible. Seventy-five falls short of ninety. Look at the saved reply. It came from
+          version two, when this key qualified. The live checker already has the right rule.
+        hold: 1.2
+        visual_cues:
+          - id: cache-bypass
+            phrase: "Ineligible"
+            targets: [fresh-policy-cache-mechanism]
+            caption_boundary: true
+      - say: >-
+          Retire the old entry. Include the age and stale flag in the lookup, along with the policy
+          and checker revisions. Keep the ID and checkpoint. Replay the request. This time the lookup
+          misses. The checker returns ineligible, with no action executed. Store that reply under the
+          complete key. An identical request can now reuse it.
+        hold: 0.9
+        visual_cues:
+          - id: cache-retire
+            phrase: "Retire the old entry"
+            targets: [fresh-policy-cache-mechanism]
+          - id: cache-bind
+            phrase: "along with the policy and checker revisions"
+            targets: [fresh-policy-cache-mechanism]
+          - id: cache-miss
+            phrase: "the lookup misses"
+            targets: [fresh-policy-cache-mechanism]
+            caption_boundary: true
+          - id: cache-store
+            phrase: "Store that reply under the complete key"
+            targets: [fresh-policy-cache-mechanism]
+          - id: cache-live
+            phrase: "The checker returns ineligible, with no action executed"
+            targets: [fresh-policy-cache-mechanism]
+            caption_boundary: true
+          - id: cache-hit
+            phrase: "An identical request can now reuse it"
+            targets: [fresh-policy-cache-mechanism]
+            caption_boundary: true
+      - say: >-
+          Replay this stale key on each side of the cutoff. At eighty-nine days the checker returns
+          ineligible. At ninety it returns eligible. Save the ninety-day result. Now change just one
+          fact about that last request. The registry marks the key as current. Same age, same policy,
+          same checker. Can we reuse the eligible reply?
+        caption_starts:
+          - "Now change just one fact"
+          - "The registry marks the key as current"
+          - "Can we reuse the eligible reply"
+        hold: 2.8
+        visual_cues:
+          - id: cache-below
+            phrase: "At eighty-nine days the checker returns ineligible"
+            targets: [fresh-policy-cache-mechanism]
+            caption_boundary: true
+          - id: cache-equal
+            phrase: "At ninety it returns eligible"
+            targets: [fresh-policy-cache-mechanism]
+            caption_boundary: true
+          - id: cache-fact
+            phrase: "The registry marks the key as current"
+            targets: [fresh-policy-cache-mechanism]
+          - id: cache-last-question
+            phrase: "Can we reuse the eligible reply"
+            targets: [fresh-policy-cache-mechanism]
+      - say: >-
+          The stale flag differs, so the lookup misses. The checker returns ineligible, and no
+          rotation ran. Save both replays with their policy, checker and checkpoint versions.
+          At ninety days the stale key qualifies and the current key doesn't. Both decisions used
+          checkpoint four. We fixed which answer the app can reuse. Next you'll fit weights
+          yourself and test a latency prediction on a new request.
+        caption_starts:
+          - "Save both replays"
+          - "Both decisions used checkpoint four"
+          - "Next you'll fit weights yourself"
+        hold: 1.5
+        visual_cues:
+          - id: cache-last-miss
+            phrase: "The stale flag differs, so the lookup misses"
+            targets: [fresh-policy-cache-mechanism]
+            caption_boundary: true
+          - id: cache-last-result
+            phrase: "The checker returns ineligible"
+            targets: [fresh-policy-cache-mechanism]
+            caption_boundary: true
+          - id: cache-replays
+            phrase: "Save both replays"
+            targets: [fresh-policy-cache-mechanism]

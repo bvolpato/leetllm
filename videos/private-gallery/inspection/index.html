@@ -1,0 +1,140 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="robots" content="noindex,nofollow" />
+    <title>LeetLLM · Video inspection desk</title>
+    <link rel="stylesheet" href="inspection.css" />
+  </head>
+  <body>
+    <header>
+      <a class="brand" href="#">Leet<span>LLM</span></a
+      ><span class="private">PRIVATE INSPECTION DESK</span
+      ><a href="status-index.csv" download>Download CSV ↗</a>
+    </header>
+    <main>
+      <section class="intro">
+        <p class="eyebrow">199 LESSONS, EACH WITH ITS OWN EVIDENCE</p>
+        <h1>See what changed.<br />Judge what is ready.</h1>
+        <p>
+          Choose a lecture to inspect its exact candidate. Source revisions, file organization,
+          rendered movies and visual reviews are tracked separately.
+        </p>
+      </section>
+      <div id="summary" class="summary" aria-label="Collection status"></div>
+      <div id="snapshot" class="snapshot" role="status"></div>
+      <section class="workspace" aria-label="Selected lecture">
+        <div class="player-panel">
+          <div class="player-heading">
+            <span id="movie-kind" class="badge"></span><span id="movie-review"></span>
+          </div>
+          <video
+            crossorigin="anonymous"
+            id="player"
+            controls
+            playsinline
+            preload="none"
+            aria-label="Selected lecture video"
+          ></video>
+          <div class="player-body">
+            <p id="selected-group" class="eyebrow"></p>
+            <h2 id="selected-title"></h2>
+            <p id="selected-status"></p>
+            <div id="selected-facts" class="facts"></div>
+            <div id="downloads" class="downloads"></div>
+            <details>
+              <summary>Exact identity and review evidence</summary>
+              <div id="evidence"></div>
+            </details>
+          </div>
+        </div>
+        <aside>
+          <p class="eyebrow">LATEST COMPLETED EXPORTS</p>
+          <h2>Start with the new movies.</h2>
+          <p class="muted">
+            Completion establishes an available export. Its separate review may be POST, REWORK or
+            missing.
+          </p>
+          <div id="latest" class="latest"></div>
+          <div class="legend">
+            <h3>Read the status correctly</h3>
+            <p><strong>Script reviewed</strong> cites a recorded source/manuscript review.</p>
+            <p>
+              <strong>Visual inspection recorded</strong> cites an encoded review of a specific
+              movie, often an earlier export.
+            </p>
+            <p>
+              <strong>Mechanical only</strong> means file organization or parity is recorded, with
+              no encoded inspection located.
+            </p>
+            <p>
+              <strong>Historical fallback</strong> plays the published older movie while a
+              replacement is pending.
+            </p>
+            <p>Sound listening, device playback and publication remain separate gates.</p>
+          </div>
+        </aside>
+      </section>
+      <section class="library">
+        <div class="library-heading">
+          <h2>All lectures</h2>
+          <a href="status-index.json">Full evidence JSON ↗</a>
+        </div>
+        <div class="toolbar">
+          <label class="search-label"
+            >Search<input
+              id="search"
+              type="search"
+              placeholder="Topic, finding or lesson ID" /></label
+          ><label
+            >Render<select id="render-filter">
+              <option value="all">All 199 lessons</option>
+              <option value="available">Exact candidate available</option>
+              <option value="pending">Render pending</option>
+            </select></label
+          ><label
+            >Visual inspection<select id="inspection-filter">
+              <option value="all">All inspection states</option>
+              <option value="recorded">Recorded, including earlier exports</option>
+              <option value="missing">No encoded review located</option>
+              <option value="script-recorded">Original full script peer recorded</option>
+              <option value="script-missing">Original full script peer missing</option>
+              <option value="new-unrevisited">New run manually unrevisited</option>
+              <option value="new-revisited">New run manual revisit recorded</option>
+              <option value="candidate-post">Exact candidate POST</option>
+              <option value="candidate-rework">Exact candidate REWORK</option>
+              <option value="candidate-scoped">Scoped encoded acceptance</option>
+              <option value="candidate-missing">Candidate review missing</option>
+            </select></label
+          ><label
+            >Evidence<select id="evidence-filter">
+              <option value="all">All evidence</option>
+              <option value="findings">Known film findings</option>
+              <option value="drift">Source changed since snapshot</option>
+              <option value="paper">Prepared paper figure in source</option>
+              <option value="mechanical-only">Mechanical, no encoded review</option>
+            </select></label
+          ><button id="clear" type="button">Clear</button>
+        </div>
+        <p id="result-count" aria-live="polite"></p>
+        <div class="table-scroll">
+          <table>
+            <thead>
+              <tr>
+                <th>Lecture</th>
+                <th>Revisited?</th>
+                <th>Movie and exact review</th>
+                <th>Open scope / paper use</th>
+              </tr>
+            </thead>
+            <tbody id="lessons"></tbody>
+          </table>
+        </div>
+        <p id="empty" hidden>No lectures match these filters.</p>
+      </section>
+      <footer id="footer">Loading exact evidence snapshot…</footer>
+    </main>
+    <script src="inspection.js" defer></script>
+  </body>
+</html>

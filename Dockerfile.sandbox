@@ -1,0 +1,32 @@
+# Isolated zero-secret practice execution sandbox service.
+# Runs in a dedicated Cloud Run service (`leetllm-sandbox`) under a
+# zero-permission service account with ZERO secrets mounted.
+ARG NODE_IMAGE=node:22-alpine
+
+FROM ${NODE_IMAGE} AS runner
+WORKDIR /app
+
+ENV NODE_ENV=production
+ENV PORT=8080
+ENV PRACTICE_SANDBOX_BWRAP=auto
+
+# Install Python 3, OpenJDK 21, bubblewrap (Linux namespace isolation), and tsx.
+RUN apk add --no-cache python3 openjdk21-jdk bubblewrap && \
+    npm install --global tsx@4.23.15 && \
+    npm cache clean --force
+
+# Dedicated non-root runtime user
+RUN addgroup --system --gid 1001 sandbox && \
+    adduser --system --uid 1001 -G sandbox sandbox
+
+# Copy ONLY the minimal sandbox runner modules — zero web app code, zero secrets.
+COPY --chown=sandbox:sandbox web/src/lib/practice-languages.ts ./web/src/lib/practice-languages.ts
+COPY --chown=sandbox:sandbox web/src/lib/practice-java-sandbox.ts ./web/src/lib/practice-java-sandbox.ts
+COPY --chown=sandbox:sandbox web/src/lib/practice-sandbox-exec.ts ./web/src/lib/practice-sandbox-exec.ts
+COPY --chown=sandbox:sandbox web/src/lib/practice-runner.ts ./web/src/lib/practice-runner.ts
+COPY --chown=sandbox:sandbox services/practice-sandbox/server.ts ./services/practice-sandbox/server.ts
+
+USER sandbox
+
+EXPOSE 8080
+CMD ["tsx", "services/practice-sandbox/server.ts"]

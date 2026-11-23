@@ -1,0 +1,254 @@
+version: 1
+lesson: training-backpropagation-gradient-descent
+promise: Decide which weights should move after a latency miss, use the saved input and ReLU gates to
+  compute the update, and verify the result on a fresh forward pass. Diagnose training failures
+  and choose a checkpoint using held-out losses.
+framing: []
+objectives:
+  - id: opening
+    can: Use the gap between the predicted and measured decode time to choose the direction of correction.
+    scenes:
+      - opening
+  - id: forward
+    can: Compute prediction, residual and half-squared loss.
+    scenes:
+      - forward
+  - id: sensitivity
+    can: Multiply local sensitivities into parameter gradients.
+    scenes:
+      - sensitivity
+  - id: reverse-mode
+    can: Trace shared local rules in reverse topological order.
+    scenes:
+      - reverse-mode
+  - id: one-update
+    can: Separate the weight and bias contributions to the new prediction and check the resulting loss.
+    scenes:
+      - one-update
+  - id: gradient-check
+    can: Compare analytical derivatives with centered finite differences.
+    scenes:
+      - gradient-check
+  - id: autograd-buffer
+    can: Distinguish shared-path sums from accumulation across calls.
+    scenes:
+      - autograd-buffer
+  - id: local-rules
+    can: Route dense, ReLU and max-pool gradients through saved forward state.
+    scenes:
+      - local-rules
+  - id: nonlinear-request
+    can: Compute forward, backward and an atomic update through a ReLU network.
+    scenes:
+      - nonlinear-request
+  - id: training-loop
+    can: Predict how an unused parameter with momentum behaves when its gradient is None or zero, and
+      restore both training mode and graph recording after validation.
+    scenes:
+      - training-loop
+  - id: batches
+    can: Repair an equal average of unequal chunks and choose the denominator for a masked token mean.
+    scenes:
+      - batches
+  - id: learning-rate
+    can: Compute residual stability and separate parameter direction from input sign.
+    scenes:
+      - learning-rate
+  - id: deep-gradients
+    can: Trace repeated contraction and expansion and distinguish norm clipping from coordinate clipping
+      on the same finite gradient.
+    scenes:
+      - deep-gradients
+  - id: initialization
+    can: Derive fan-in scale and distinguish ReLU second moment from variance.
+    scenes:
+      - initialization
+  - id: diagnosis
+    can: Locate a failed training transition before changing model capacity.
+    scenes:
+      - diagnosis
+  - id: validation
+    can: Choose the saved minimum when a small improvement uses up patience and protect the final test set.
+    scenes:
+      - validation
+  - id: network-transfer
+    can: Predict a changed-input nonlinear update using saved path identities.
+    scenes:
+      - network-transfer
+  - id: next-loss
+    can: Use a cross-entropy gradient to choose which class logit to raise.
+    scenes:
+      - next-loss
+  - id: signed-request
+    can: Identify the active hidden unit after an input changes sign, choose its weight update and
+      verify that the new forward pass reduces the miss.
+    scenes:
+      - nonlinear-request
+      - network-transfer
+      - signed-request
+sections:
+  - heading: One update has four distinct jobs
+    status: taught
+    scenes:
+      - opening
+      - forward
+      - reverse-mode
+      - one-update
+      - signed-request
+  - heading: Step size can rescue or wreck learning
+    status: taught
+    scenes:
+      - learning-rate
+  - heading: Backpropagation assigns credit through a graph
+    status: taught
+    scenes:
+      - reverse-mode
+      - gradient-check
+  - heading: Build a scalar autograd engine
+    status: taught
+    scenes:
+      - autograd-buffer
+  - heading: Local backward rules for dense layers, activations, and pooling
+    status: taught
+    scenes:
+      - local-rules
+      - nonlinear-request
+  - heading: Dense layer backward
+    status: taught
+    scenes:
+      - local-rules
+  - heading: ReLU backward
+    status: taught
+    scenes:
+      - local-rules
+      - nonlinear-request
+      - network-transfer
+      - signed-request
+  - heading: Max-pooling backward
+    status: taught
+    scenes:
+      - local-rules
+  - heading: Put the update into a PyTorch loop
+    status: taught
+    scenes:
+      - training-loop
+  - heading: Evaluation mode and no_grad
+    status: taught
+    scenes:
+      - training-loop
+  - heading: "Batching dynamics: full batch, mini-batch, and online stochastic"
+    status: taught
+    scenes:
+      - batches
+  - heading: Full-batch gradient descent
+    status: taught
+    scenes:
+      - batches
+  - heading: Online stochastic gradient descent (pure SGD)
+    status: taught
+    scenes:
+      - batches
+  - heading: Mini-batch gradient descent
+    status: taught
+    scenes:
+      - batches
+  - heading: Vanishing and exploding gradients in deep networks
+    status: taught
+    scenes:
+      - deep-gradients
+  - heading: Gradient norm clipping
+    status: taught
+    scenes:
+      - deep-gradients
+  - heading: "Weight initialization: preserving variance across depth"
+    status: taught
+    scenes:
+      - initialization
+  - heading: Xavier / Glorot initialization
+    status: taught
+    scenes:
+      - initialization
+  - heading: He / Kaiming initialization
+    status: taught
+    scenes:
+      - initialization
+  - heading: Train, validation, and test splits with early stopping
+    status: taught
+    scenes:
+      - validation
+  - heading: Underfitting vs overfitting
+    status: taught
+    scenes:
+      - diagnosis
+  - heading: Early stopping with checkpointing
+    status: taught
+    scenes:
+      - validation
+  - heading: Why the next loss function matters
+    status: taught
+    scenes:
+      - next-loss
+  - heading: Diagnose a broken update
+    status: taught
+    scenes:
+      - diagnosis
+  - heading: Checkpoints & practice
+    status: article-only
+    reason: exercise
+    note: Independent practice revisits the mechanisms taught in the film.
+quiz:
+  - n: 1
+    status: taught
+    scenes:
+      - one-update
+      - learning-rate
+      - signed-request
+  - n: 2
+    status: taught
+    scenes:
+      - learning-rate
+  - n: 3
+    status: taught
+    scenes:
+      - initialization
+  - n: 4
+    status: taught
+    scenes:
+      - training-loop
+  - n: 5
+    status: taught
+    scenes:
+      - deep-gradients
+  - n: 6
+    status: taught
+    scenes:
+      - autograd-buffer
+  - n: 7
+    status: taught
+    scenes:
+      - training-loop
+  - n: 8
+    status: taught
+    scenes:
+      - validation
+  - n: 9
+    status: taught
+    scenes:
+      - local-rules
+      - nonlinear-request
+      - network-transfer
+      - signed-request
+  - n: 10
+    status: taught
+    scenes:
+      - batches
+removed: []
+reviews:
+  closed_book:
+    taught: 10
+    partial: 0
+    absent: 0
+    script: 8177b164fe089826
+  fact_check:
+    open_findings: 0
+    script: 8177b164fe089826

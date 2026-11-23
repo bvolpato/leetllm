@@ -1,0 +1,1211 @@
+version: 1
+id: rnn-memory
+title: How a Sequence Model Carries a Memory
+source: preparation/rnns-lstms-grus-sequence-modeling/content.md
+voice: en-US-AndrewNeural
+rate: +0%
+sources:
+  - title: On the difficulty of training Recurrent Neural Networks
+    url: https://arxiv.org/abs/1211.5063
+  - title: Learning Phrase Representations using RNN Encoder–Decoder
+    url: https://arxiv.org/abs/1406.1078
+  - title: PyTorch GRU equations and implementation notes
+    url: https://docs.pytorch.org/docs/stable/generated/torch.nn.GRU.html
+  - title: PyTorch LSTM equations and state geometry
+    url: https://docs.pytorch.org/docs/2.15/generated/torch.nn.LSTM.html
+  - title: PyTorch packed valid-length sequences
+    url: https://docs.pytorch.org/docs/2.15/generated/torch.nn.utils.rnn.pack_padded_sequence.html
+  - title: Attention Is All You Need
+    url: https://arxiv.org/abs/1706.03762
+  - title: Mamba selective scan
+    url: https://arxiv.org/abs/2312.00752
+  - title: FlashAttention
+    url: https://arxiv.org/abs/2205.14135
+scenes:
+  - id: intro
+    title: Who chased whom?
+    visual: Two ordinary sentences reverse their actors. One carried clue explains the changed answer.
+    beats:
+      - say: "In “The dog chased the cat,” the dog acted. Swap the animal names and the cat acted. Those few words make a real sequence problem: the clue arrives before the ending. What has to stay in memory until the model can answer?"
+        hold: 0.65
+        visual_cues:
+          - id: reversed-sentence
+            phrase: Swap the animal names
+            targets:
+              - reversed-sentence
+            color: pink
+            linger: 0.6
+          - id: actor-role-reverses
+            phrase: the cat acted
+            targets:
+              - reversed-roles
+            color: pink
+            linger: 0.6
+      - say: An RNN reads one word at a time. After each word, it updates a hidden state, a vector of clues from the sequence so far. The next update reuses the previous state, letting earlier words shape what the model can answer later.
+        hold: 0.6
+        visual_cues:
+          - id: hidden-state
+            phrase: updates a hidden state
+            targets:
+              - recurrent-memory
+            color: yellow
+            linger: 0.6
+          - id: previous-state
+            phrase: reuses the previous state
+            targets:
+              - recurrent-memory
+            color: cyan
+            linger: 0.6
+      - say: First we’ll build this memory by hand. Then we’ll follow its learning signal and see why LSTMs and GRUs add gates that control retention.
+        hold: 0.8
+        visual_cues:
+          - id: build-memory
+            phrase: build this memory by hand
+            targets:
+              - actor-question
+            color: yellow
+            linger: 0.6
+          - id: control-retention
+            phrase: control retention
+            targets:
+              - recurrent-memory
+            color: yellow
+            linger: 0.6
+  - id: recurrence
+    title: Carry the actor clue to the end
+    visual: A hand-coded actor feature enters once, then the same recurrent update carries it across the remaining sentence.
+    beats:
+      - say: "Let’s isolate one coordinate of the hidden vector: the actor clue. For this small example, we hand-code the input feature: dog is plus 0.8 and cat is minus 0.8 when it fills the actor role. The other words send zero on this coordinate. A trained model learns richer features from examples."
+        hold: 0.6
+        visual_cues:
+          - id: actor-feature
+            phrase: hand-code the input feature
+            targets:
+              - actor-feature
+            color: blue
+            linger: 0.6
+          - id: dog-input
+            phrase: dog is plus 0.8
+            targets:
+              - actor-input
+            color: blue
+            linger: 0.6
+          - id: neutral-words
+            phrase: other words send zero
+            targets:
+              - neutral-input
+            color: cyan
+            linger: 0.6
+      - say: Start with “The dog chased the cat.” The actor feature enters at “dog.” The cell adds the current input to 0.9 times the previous state, then applies tanh. After dog, the state becomes about 0.664. This visible toy value lets us track what survives.
+        hold: 0.6
+        visual_cues:
+          - id: actor-word
+            phrase: enters at “dog”
+            targets:
+              - sentence-actor-dog
+            color: blue
+            linger: 0.6
+          - id: previous-memory
+            phrase: previous state
+            targets:
+              - recurrence-old-state
+            color: pink
+            linger: 0.6
+          - id: apply-tanh
+            phrase: applies tanh
+            targets:
+              - recurrence-equation
+              - recurrence-new-state
+            color: yellow
+            linger: 0.6
+      - say: For the next words, this coordinate gets zero input. The same update carries its value through “chased,” “the,” and “cat,” shrinking it along the way. The final state remains positive, so this simple readout keeps dog as the actor.
+        hold: 0.8
+        motion_check:
+          region:
+            - 100
+            - 530
+            - 1700
+            - 200
+          minimumChangedFraction: 0.002
+        visual_cues:
+          - id: zero-input
+            phrase: gets zero input
+            targets:
+              - neutral-input
+            color: cyan
+            linger: 0.6
+          - id: carried-state
+            phrase: same update carries its value through
+            targets:
+              - sentence-memory-path
+              - sentence-current-state
+            color: yellow
+            linger: 0.6
+          - id: step-chased
+            phrase: “chased”
+            targets:
+              - sentence-state-3
+            color: cyan
+            linger: 0.5
+          - id: step-cat
+            phrase: “cat,”
+            targets:
+              - sentence-current-state
+            color: yellow
+            linger: 0.5
+          - id: actor-readout
+            phrase: final state remains positive
+            targets:
+              - dog-actor-readout
+            color: yellow
+            linger: 0.6
+      - say: Now reverse the actors and reset the state. Cat writes the negative clue, and the same recurrent cell carries it to the end. A sign-based readout returns cat as the actor. We have isolated one memory feature; a trained RNN learns the representation its task needs.
+        hold: 0.8
+        visual_cues:
+          - id: reverse-run
+            phrase: reverse the actors
+            targets:
+              - reversed-sentence
+              - cat-actor-input
+            color: pink
+            linger: 0.6
+          - id: cat-readout
+            phrase: returns cat as the actor
+            targets:
+              - cat-actor-readout
+              - reversed-roles
+            color: pink
+            linger: 0.6
+  - id: shared
+    title: One learned rule, reused at every word
+    visual: A vector state grows through an unrolled sentence while each time step reuses the same parameter set.
+    beats:
+      - say: "Our toy example tracked one clue. A real hidden state is a vector: each coordinate can carry a different feature. The input matrix maps a word representation into hidden space; the recurrent matrix maps the previous state back into that space."
+        hold: 0.6
+        visual_cues:
+          - id: vector-state
+            phrase: hidden state is a vector
+            targets:
+              - recurrent-weight-shapes
+            color: yellow
+            linger: 0.6
+          - id: input-matrix
+            phrase: input matrix maps
+            targets:
+              - input-weight-map
+            color: blue
+            linger: 0.6
+          - id: recurrent-matrix
+            phrase: recurrent matrix maps
+            targets:
+              - recurrent-weight-map
+            color: cyan
+            linger: 0.6
+      - say: "To inspect the computation across time, unroll the cell: draw one copy per word. Every copy uses the same matrices. The weights are learned once and reused at each position, while the state changes with the input."
+        hold: 0.6
+        visual_cues:
+          - id: unroll-cell
+            phrase: draw one copy per word
+            targets:
+              - unrolled-cell-0
+              - unrolled-cell-4
+            color: cyan
+            linger: 0.6
+          - id: shared-parameters
+            phrase: same matrices
+            targets:
+              - shared-parameter-set
+              - unrolled-cell-0
+              - unrolled-cell-4
+            color: yellow
+            linger: 0.6
+      - say: "Longer inputs add time steps, and each state keeps the same width. That makes recurrence useful for streaming: after every word, a compact state summarizes the prefix so far. The chosen features determine which details survive that compression."
+        hold: 0.7
+        visual_cues:
+          - id: fixed-width-state
+            phrase: same width
+            targets:
+              - state-width
+            color: yellow
+            linger: 0.6
+          - id: compressed-prefix
+            phrase: summarizes the prefix so far
+            targets:
+              - prefix-summary
+            color: yellow
+            linger: 0.6
+  - id: event-order
+    title: Carry one incident through an ordered update
+    visual: Named error, reproduction and rollback events retain identities across a discounted accumulator and a scalar tanh RNN.
+    beats:
+      - say: Our sentence isolated a hand-coded actor feature. Now keep one incident as the numerical case for matrix arithmetic, learning and batching. Error logged, reproduction confirmed and rollback requested carry scalar signals one, point four and point nine. In the first arithmetic fixture, update state as point six times old state plus the incoming signal. These supplied coefficients are a demonstration, not a trained incident policy.
+        hold: 1
+        visual_cues:
+          - id: event-order-0
+            phrase: Now keep one incident as the numerical case
+            targets:
+              - event-order-operation
+            linger: 0.5
+          - id: discount-construction
+            phrase: update state as point six times old state plus the incoming signal
+            targets:
+              - event-order-operation
+            linger: 0.35
+      - say: "Predict whether reversing those three events changes the final state. In the original order the states are one, one, then one point five. Reverse the same events: point nine, point nine four, then one point five six four. A sum gives two point three in either order. Recurrence can distinguish order because early signals pass through more discounts; compression can still produce collisions or learn to ignore irrelevant order."
+        hold: 0.8
+        visual_cues:
+          - id: event-order-1
+            phrase: Predict whether reversing those three events changes the final state
+            targets:
+              - event-order-operation
+            linger: 0.5
+          - id: event-order-reveal
+            phrase: one point five six four
+            targets:
+              - event-order-operation
+            color: yellow
+          - id: reverse-0
+            phrase: Reverse the same events
+            targets:
+              - event-order-operation
+            linger: 0.35
+          - id: reverse-1
+            phrase: point nine four
+            targets:
+              - event-order-operation
+            linger: 0.35
+          - id: reverse-2
+            phrase: then one point five six four
+            targets:
+              - event-order-operation
+            linger: 0.35
+          - id: order-sum
+            phrase: A sum gives two point three
+            targets:
+              - event-order-operation
+            linger: 0.35
+      - say: "Return to the original event order and change to the article scalar RNN: tanh of point eight times the event plus point five times the previous state, starting at zero. The three states are about point six six four, point five seven three and point seven six four. Tanh acts element by element in a vector, stays between minus one and one, and is odd around zero. It does not guarantee a zero batch mean. We will reuse this exact scalar trace when differentiating."
+        hold: 0.8
+        visual_cues:
+          - id: event-order-2
+            phrase: Return to the original event order
+            targets:
+              - event-order-operation
+            linger: 0.5
+          - id: event-scalar-reveal
+            phrase: point seven six four
+            targets:
+              - event-order-operation
+            color: yellow
+          - id: scalar-first
+            phrase: point six six four
+            targets:
+              - event-order-operation
+            linger: 0.35
+          - id: scalar-second
+            phrase: point five seven three
+            targets:
+              - event-order-operation
+            linger: 0.35
+          - id: scalar-third
+            phrase: point seven six four
+            targets:
+              - event-order-operation
+            linger: 0.35
+  - id: vector-build
+    title: Construct each coordinate from the same matrices
+    visual: Keep named one-hot events, input matrix and recurrent matrix visible while columns and dot products build a two-coordinate state.
+    beats:
+      - say: "Give each incident event its own one-hot input: error is one, zero, zero; reproduction zero, one, zero; rollback zero, zero, one. These encode the current event, not cumulative flags. Input width is three and hidden width two. The input matrix has rows point eight, point two, point one; and point one, point seven, point four. The recurrent matrix has rows point five, point one; and zero, point six. Biases are zero. Each row builds one hidden coordinate."
+        hold: 1
+        visual_cues:
+          - id: vector-build-0
+            phrase: Give each incident event its own one-hot input
+            targets:
+              - vector-build-operation
+            linger: 0.5
+          - id: vector-columns
+            phrase: Each row builds one hidden coordinate
+            targets:
+              - vector-build-operation
+            linger: 0.35
+      - say: "At the error event, one-hot multiplication selects the first input column, point eight and point one. The old state is zero, so the recurrent product contributes zero. Element-wise tanh gives point six six four and point one zero zero. At reproduction, select the second column, point two and point seven. Multiply the same recurrent matrix by the old state to obtain about point three four two and point zero six zero. Add and apply tanh: the next state is about point four nine four and point six four one."
+        hold: 0.8
+        visual_cues:
+          - id: vector-build-1
+            phrase: At the error event
+            targets:
+              - vector-build-operation
+            linger: 0.5
+          - id: vector-second-reveal
+            phrase: point four nine four and point six four one
+            targets:
+              - vector-build-operation
+            color: yellow
+          - id: vector-first-memory
+            phrase: The old state is zero
+            targets:
+              - vector-build-operation
+            linger: 0.35
+          - id: vector-first-reveal
+            phrase: point six six four and point one zero zero
+            targets:
+              - vector-build-operation
+            linger: 0.35
+          - id: vector-second-start
+            phrase: At reproduction
+            targets:
+              - vector-build-operation
+            linger: 0.35
+          - id: vector-second-memory
+            phrase: point three four two and point zero six zero
+            targets:
+              - vector-build-operation
+            linger: 0.35
+      - say: At rollback, the third input column is point one and point four. The recurrent contribution is about point three one one and point three eight five. Tanh of the sum gives about point three nine zero and point six five five. Keep full precision between steps; displayed rounding is for inspection. The two-by-three and two-by-two matrices, and the two-coordinate bias and state, stay the same sizes at every step. More events add applications, not learned matrix copies.
+        hold: 0.8
+        visual_cues:
+          - id: vector-build-2
+            phrase: At rollback
+            targets:
+              - vector-build-operation
+            linger: 0.5
+          - id: vector-third-reveal
+            phrase: point three nine zero and point six five five
+            targets:
+              - vector-build-operation
+            color: yellow
+          - id: vector-third-memory
+            phrase: point three one one and point three eight five
+            targets:
+              - vector-build-operation
+            linger: 0.35
+  - id: action-head
+    title: Read the two-coordinate incident summary
+    visual: The same final vector enters an explicit three-row action projection and stable softmax before parameter tiles are counted.
+    beats:
+      - say: Read the displayed rounded final state, point three nine zero and point six five five, through a three-by-two action matrix. Its rows are point seven, minus point three; minus point four, point eight; and point one, point two. These correspond to ignore, rollback and escalate. The first row yields point zero seven six five, the second point three six eight, the third point one seven zero. Which action has the largest logit?
+        hold: 1
+        visual_cues:
+          - id: action-head-0
+            phrase: Read the displayed rounded final state
+            targets:
+              - action-head-operation
+            linger: 0.5
+          - id: head-row-0
+            phrase: The first row yields point zero seven six five
+            targets:
+              - action-head-operation
+            linger: 0.35
+          - id: head-row-1
+            phrase: the second point three six eight
+            targets:
+              - action-head-operation
+            linger: 0.35
+          - id: head-row-2
+            phrase: the third point one seven zero
+            targets:
+              - action-head-operation
+            linger: 0.35
+      - say: Rollback has the largest logit before any exponential. Subtract the maximum, exponentiate and normalize to obtain approximately point two nine one, point three eight nine and point three two zero. This supplied trace gives rollback thirty-eight point nine percent probability. It supplies no held-out accuracy evidence. The classifier can only read information retained in the final state, although that vector can encode information about the prefix and its length.
+        hold: 0.8
+        visual_cues:
+          - id: action-head-1
+            phrase: Rollback has the largest logit
+            targets:
+              - action-head-operation
+            linger: 0.5
+          - id: head-softmax
+            phrase: Subtract the maximum, exponentiate and normalize
+            targets:
+              - action-head-operation
+            linger: 0.35
+      - say: "Count the trainable version with one bias per affine block: six input weights, four recurrent weights and two hidden biases make twelve. The head adds six weights and three biases, making twenty-one total. Three, thirty and three hundred events all reuse those twenty-one parameters. They still require different amounts of execution and, during full BPTT, saved intermediate activation memory."
+        hold: 0.8
+        visual_cues:
+          - id: action-head-2
+            phrase: Count the trainable version
+            targets:
+              - action-head-operation
+            linger: 0.5
+          - id: head-parameter-count
+            phrase: The head adds six weights and three biases
+            targets:
+              - action-head-operation
+            linger: 0.35
+  - id: actual-credit
+    title: Differentiate the incident that we actually ran
+    visual: Carry an end-state gradient backward through saved scalar states; local derivative factors and shared-weight contributions are computed from that same trace.
+    beats:
+      - say: Differentiate the scalar incident trace, not the two-coordinate vector model. For h equals tanh of point eight x plus point five old h, its state-to-state derivative is point five times one minus the new state squared. At the three saved states, these factors are point two seven nine five two eight, point three three five eight two zero and point two zero seven nine one zero. Start a unit sensitivity at the final state and multiply the last factor first, working backward.
+        hold: 1
+        visual_cues:
+          - id: actual-credit-0
+            phrase: Differentiate the scalar incident trace
+            targets:
+              - actual-credit-operation
+            linger: 0.5
+          - id: credit-factors
+            phrase: these factors are point two seven nine five two eight
+            targets:
+              - actual-credit-operation
+            linger: 0.35
+      - say: After the third factor the sensitivity is about point two zero seven nine one zero; after the second it is point zero six nine eight two zero; after all three it is point zero one nine five one seven. A final loss multiplies this temporal derivative by its own derivative with respect to the final state. For a vector RNN the Jacobian is diagonal one minus h squared, times the recurrent matrix. A gradient column travels through transposed Jacobians in backward chronological order. Directions and multiplication order matter.
+        hold: 0.8
+        visual_cues:
+          - id: actual-credit-1
+            phrase: After the third factor
+            targets:
+              - actual-credit-operation
+            linger: 0.5
+          - id: credit-last
+            phrase: point two zero seven nine one zero
+            targets:
+              - actual-credit-operation
+            linger: 0.35
+          - id: credit-second
+            phrase: point zero six nine eight two zero
+            targets:
+              - actual-credit-operation
+            linger: 0.35
+          - id: credit-all
+            phrase: point zero one nine five one seven
+            targets:
+              - actual-credit-operation
+            linger: 0.35
+      - say: The recurrent weight is shared, so its parameter gradient adds contributions from each local use, not just the final copy. With the final scalar state itself as the objective, the derivative with respect to the weight is about point three three one zero zero three. If there are losses at intermediate steps, add their backward contributions too. A small temporal path can coexist with a strong parameter gradient from recent steps. The next constant-factor curve isolates this repeated multiplication.
+        hold: 0.8
+        visual_cues:
+          - id: actual-credit-2
+            phrase: The recurrent weight is shared
+            targets:
+              - actual-credit-operation
+            linger: 0.5
+          - id: credit-weight-sum
+            phrase: adds contributions from each local use
+            targets:
+              - actual-credit-operation
+            linger: 0.35
+          - id: credit-weight-total
+            phrase: point three three one zero zero three
+            targets:
+              - actual-credit-operation
+            linger: 0.35
+  - id: gradients
+    title: Learning signals travel backward through the chain
+    visual: A backward probe loses magnitude across twelve recurrent links while a growing path is clipped without changing direction.
+    beats:
+      - say: Training asks which earlier choices caused an error at the end. The chain rule sends a learning signal backward through every intervening update. Each link multiplies that signal by a local derivative. Repeated factors smaller than one can make the early contribution extremely small.
+        hold: 0.6
+        motion_check:
+          region:
+            - 250
+            - 400
+            - 860
+            - 330
+          minimumChangedFraction: 0.002
+        visual_cues:
+          - id: gradient-chain-rule-b1-1
+            phrase: Each link multiplies
+            targets:
+              - gradient-chain-rule
+            color: pink
+            linger: 0.6
+      - say: Watch a path whose local factor stays at six tenths. After twelve links, only a small fraction survives. A real recurrent network uses matrices and changing activations, so direction matters as well as magnitude. This scalar path isolates the multiplication responsible for fading credit.
+        hold: 0.7
+        visual_cues:
+          - id: fading-gradient-b2-1
+            phrase: twelve links
+            targets:
+              - gradient-chain-rule
+            color: pink
+            linger: 0.6
+      - say: Other paths grow and destabilize updates. Gradient norm clipping rescales an oversized vector while preserving its direction. It helps control explosions. A faded learning signal needs a different remedy, such as a better memory path. That leads us to the separate cell state inside an LSTM.
+        hold: 0.7
+        visual_cues:
+          - id: clipped-recurrent-gradient-b3-1
+            phrase: rescales an oversized vector
+            targets:
+              - clipped-recurrent-gradient
+            color: yellow
+            linger: 0.6
+  - id: matrix-bound
+    title: Distinguish a sufficient bound from the actual path
+    visual: Build the product-norm bound, then apply the same non-normal two-by-two matrix repeatedly to a visible vector.
+    beats:
+      - say: Use the induced Euclidean norm. Each temporal Jacobian has norm at most gamma times the largest singular value of the recurrent matrix, where gamma bounds the diagonal tanh derivatives and is at most one. If one uniform bound stays below one across the whole span, its product contracts exponentially. That is a sufficient condition for a vanishing temporal path; it does not prove every full parameter gradient is small.
+        hold: 1
+        visual_cues:
+          - id: matrix-bound-0
+            phrase: Use the induced Euclidean norm
+            targets:
+              - matrix-bound-operation
+            linger: 0.5
+          - id: bound-product
+            phrase: its product contracts exponentially
+            targets:
+              - matrix-bound-operation
+            linger: 0.35
+      - say: A bound above one allows growth but does not prove it. In a linear counterexample, use matrix rows point five, one; and zero, point five. Its largest singular value is about one point two zero seven. Apply it repeatedly to the unit vector zero, one. The first vector is one, point five and initially grows in norm. The nth power has diagonal point five to n and upper-right n times point five to n minus one. Both terms eventually decay to zero.
+        hold: 0.8
+        visual_cues:
+          - id: matrix-bound-1
+            phrase: A bound above one allows growth but does not prove it
+            targets:
+              - matrix-bound-operation
+            linger: 0.5
+          - id: matrix-powers
+            phrase: Apply it repeatedly to the unit vector zero, one
+            targets:
+              - matrix-bound-operation
+            linger: 0.35
+      - say: Distinguish finite precision from mathematical decay. Point six to the fiftieth is about eight point zero eight times ten to the minus twelve, still representable in float32. A gradient can have little optimization effect before underflow, and update rounding also depends on learning rate and parameter scale. Inspect actual early gradients, norms and directions independently from a stable-looking forward loss.
+        hold: 0.8
+        visual_cues:
+          - id: matrix-bound-2
+            phrase: Distinguish finite precision from mathematical decay
+            targets:
+              - matrix-bound-operation
+            linger: 0.5
+          - id: finite-decay
+            phrase: Point six to the fiftieth
+            targets:
+              - matrix-bound-operation
+            linger: 0.35
+  - id: truncation
+    title: Preserve forward memory while cutting training credit
+    visual: A detach boundary crosses the same scalar trace; forward values stay fixed as backward routes stop, then a true norm-clipping vector is constructed.
+    beats:
+      - say: Predict what changes if we detach state after the second event, keeping weights fixed and taking no optimizer step between chunks. Detachment carries the same numerical state forward but cuts its earlier computational history. The final state stays point seven six four three one six. For an LSTM, detach both hidden and cell states. Resetting to an initial state is a different operation that changes the forward history.
+        hold: 1
+        visual_cues:
+          - id: truncation-0
+            phrase: Predict what changes if we detach state after the second event
+            targets:
+              - truncation-operation
+            linger: 0.5
+          - id: detach-cut
+            phrase: Detachment carries the same numerical state forward
+            targets:
+              - truncation-operation
+            linger: 0.35
+          - id: detach-forward
+            phrase: The final state stays point seven six four three one six
+            targets:
+              - truncation-operation
+            linger: 0.35
+      - say: Without the cut, derivatives of the final state with respect to the three inputs are about point zero three one two two seven, point one one one seven one three and point three three two six five seven. With the cut, the first two become zero and the last stays the same. The shared weight derivative changes from point three three one zero zero three to point two three eight two seven seven. The last local weight use still learns; the earlier uses receive no credit from this objective. A training update between chunks can also leave a carried state computed under older weights.
+        hold: 0.8
+        visual_cues:
+          - id: truncation-1
+            phrase: Without the cut
+            targets:
+              - truncation-operation
+            linger: 0.5
+          - id: detach-weight
+            phrase: The shared weight derivative changes
+            targets:
+              - truncation-operation
+            linger: 0.35
+      - say: "Clipping changes another object. Use the finite gradient vector with first component one point four to the twelfth and second component minus point eight times the first. Its norm is about seventy-two point six zero four. Rescale both components by five divided by that norm: the clipped vector is about three point nine zero four, minus three point one two three, with norm five and the same direction. Leave a zero gradient unchanged; diagnose nonfinite values first. For plain SGD without momentum or weight decay, step norm is at most learning rate times five. Momentum and adaptive optimizers change that relationship."
+        hold: 0.8
+        visual_cues:
+          - id: truncation-2
+            phrase: Clipping changes another object
+            targets:
+              - truncation-operation
+            linger: 0.5
+          - id: clip-rescale
+            phrase: Rescale both components by five divided by that norm
+            targets:
+              - truncation-operation
+            linger: 0.35
+          - id: clip-result
+            phrase: the clipped vector is about three point nine zero four
+            targets:
+              - truncation-operation
+            linger: 0.35
+  - id: lstm
+    title: Keep, write, and expose are separate choices
+    visual: Retained old memory and a gated candidate combine into cell state, then the output gate controls exposed state.
+    beats:
+      - say: LSTM means long short-term memory. It carries a cell state for storage and a hidden state for exposure. A forget gate scales the old cell value. An input gate scales a proposed new value. Add the two contributions and we have the next stored cell state.
+        hold: 0.6
+        visual_cues:
+          - id: forget-gate-b1-1
+            phrase: forget gate scales
+            targets:
+              - forget-gate
+            color: blue
+            linger: 0.6
+          - id: input-gate-b1-2
+            phrase: input gate scales
+            targets:
+              - input-gate
+            color: pink
+            linger: 0.6
+      - say: Our stored coordinate already holds useful evidence. The new observation contributes very little, so the chosen gates retain almost all the old value and write only a small candidate. Watch the two amounts join. This additive route lets memory pass forward without another tanh on the stored cell itself.
+        hold: 0.65
+        motion_check:
+          region:
+            - 600
+            - 430
+            - 1080
+            - 340
+          minimumChangedFraction: 0.002
+        visual_cues:
+          - id: lstm-retained-term
+            phrase: retain almost all the old value
+            targets:
+              - lstm-retained-term
+            color: blue
+            linger: 0.6
+          - id: lstm-written-term
+            phrase: write only a small candidate
+            targets:
+              - lstm-written-term
+            color: pink
+            linger: 0.6
+          - id: next-cell-b2-1
+            phrase: Watch the two amounts join
+            targets:
+              - next-cell
+              - lstm-retained-term
+              - lstm-written-term
+              - lstm-cell-arithmetic
+            color: green
+            linger: 0.6
+      - say: The exposed hidden state has another control. Apply tanh to the cell, then scale by the output gate. Closing that gate hides the stored value at this step while leaving the current cell update intact. Future gates can still respond to the changed hidden state.
+        hold: 0.7
+        visual_cues:
+          - id: exposed-hidden-state-b3-1
+            phrase: Closing that gate
+            targets:
+              - exposed-hidden-state
+            color: yellow
+            linger: 0.6
+  - id: learned-lstm
+    title: Construct the gates from input and prior hidden state
+    visual: A supplied two-coordinate LSTM fixture uses the incident vocabulary; one explicit two-by-five affine map feeds sigmoid, followed by all four projected vectors and the additive state update.
+    beats:
+      - say: The earlier gate values were chosen controls. Now construct a separate LSTM fixture from the same incident input vocabulary. Supply old hidden point four, minus point two; old cell point eight five five, point one; and the reproduction input zero, one, zero. Concatenating hidden and input gives width five. Every gate or candidate projection has two rows and five columns, plus two biases. The weights below are hand-chosen numerical parameters, not evidence of a learned policy.
+        hold: 1
+        visual_cues:
+          - id: learned-lstm-0
+            phrase: Now construct a separate LSTM fixture
+            targets:
+              - learned-lstm-operation
+            linger: 0.5
+          - id: lstm-concat
+            phrase: Concatenating hidden and input gives width five
+            targets:
+              - learned-lstm-operation
+            linger: 0.35
+      - say: "Construct forget logits using rows one, zero, zero, point six, zero; and zero, zero, zero, minus point five, zero, with zero biases. Dot them with the supplied concatenation: logits one and minus point five. Sigmoid gives about point seven three one and point three seven eight. For the input gate, all weights and biases are zero except reproduction-feature weights minus one and zero across the two rows. Its logits minus one and zero give point two six nine and point five. Candidate rows use only reproduction coefficients point five and zero, with zero biases; tanh gives point four six two and zero. Output weights are zero and biases natural log four and zero, giving point eight and point five after sigmoid. These are four distinct affine transformations."
+        hold: 0.8
+        visual_cues:
+          - id: learned-lstm-1
+            phrase: Construct forget logits
+            targets:
+              - learned-lstm-operation
+            linger: 0.5
+          - id: lstm-forget-result
+            phrase: Sigmoid gives about point seven three one
+            targets:
+              - learned-lstm-operation
+            linger: 0.35
+          - id: lstm-input-gate
+            phrase: For the input gate
+            targets:
+              - learned-lstm-operation
+            linger: 0.35
+          - id: lstm-input-result
+            phrase: give point two six nine and point five
+            targets:
+              - learned-lstm-operation
+            linger: 0.35
+          - id: lstm-candidate-gate
+            phrase: Candidate rows use only reproduction coefficients
+            targets:
+              - learned-lstm-operation
+            linger: 0.35
+          - id: lstm-candidate-result
+            phrase: tanh gives point four six two and zero
+            targets:
+              - learned-lstm-operation
+            linger: 0.35
+          - id: lstm-output-gate
+            phrase: Output weights are zero
+            targets:
+              - learned-lstm-operation
+            linger: 0.35
+          - id: lstm-output-result
+            phrase: giving point eight and point five after sigmoid
+            targets:
+              - learned-lstm-operation
+            linger: 0.35
+      - say: Keep those complete gate vectors visible. Element-wise retained old cell plus written candidate yields cell about point seven four nine three three eight and point zero three seven seven five four. Tanh of that cell, multiplied by the output gate, exposes hidden about point five zero seven eight zero three and point zero one eight eight six eight. The stored cell receives no tanh in its additive update. The full future gradient also follows hidden-state and gate dependencies. This is the modern forget-gated form; the original LSTM used a unit-weight cell self-connection called the constant error carousel.
+        hold: 0.8
+        visual_cues:
+          - id: learned-lstm-2
+            phrase: Keep those complete gate vectors visible
+            targets:
+              - learned-lstm-operation
+            linger: 0.5
+          - id: lstm-cell-join
+            phrase: Element-wise retained old cell plus written candidate
+            targets:
+              - learned-lstm-operation
+            linger: 0.35
+          - id: lstm-cell-result
+            phrase: cell about point seven four nine three three eight
+            targets:
+              - learned-lstm-operation
+            linger: 0.35
+          - id: lstm-hidden-expose
+            phrase: Tanh of that cell
+            targets:
+              - learned-lstm-operation
+            linger: 0.35
+          - id: lstm-hidden-result
+            phrase: hidden about point five zero seven eight zero three
+            targets:
+              - learned-lstm-operation
+            linger: 0.35
+  - id: retention
+    title: A gate sets the memory's lifetime
+    visual: Retention curves compare constant forget factors while a moving probe measures the surviving direct path.
+    beats:
+      - say: Along the direct cell path, hold the other state inputs fixed. The local derivative is the forget gate. Across many steps, these factors multiply. A gate near one therefore slows decay. The two curves let us compare a protective gate with a gate that repeatedly halves the memory.
+        hold: 0.65
+        visual_cues:
+          - id: forget-gate-product-b1-1
+            phrase: factors multiply
+            targets:
+              - forget-gate-product
+            color: yellow
+            linger: 0.6
+      - say: Move the probe farther into the sequence. One path still carries substantial signal while the other falls rapidly toward zero. These are chosen constant gates. A learned LSTM changes its gates with the input, potentially retaining one feature while replacing another on the very same step.
+        hold: 0.65
+        motion_check:
+          region:
+            - 1120
+            - 520
+            - 200
+            - 260
+          minimumChangedFraction: 0.002
+        visual_cues:
+          - id: protective-retention-b2-1
+            phrase: substantial signal
+            targets:
+              - protective-retention
+            color: green
+            linger: 0.6
+          - id: halving-retention-b2-2
+            phrase: falls rapidly toward zero
+            targets:
+              - halving-retention
+            color: pink
+            linger: 0.6
+      - say: The complete gradient also travels through hidden states, candidates, and gate dependencies. The direct path explains the architectural opportunity. Whether the model uses it effectively depends on its training and task. Inspect early gradients as well as final loss when diagnosing long-range learning.
+        hold: 0.7
+        visual_cues:
+          - id: forget-gate-product-b3-1
+            phrase: direct path
+            targets:
+              - forget-gate-product
+            color: yellow
+            linger: 0.6
+  - id: gru
+    title: Blend the past with a candidate
+    visual: A GRU keep gate moves a state continuously between the previous value and the candidate, with complementary weights.
+    beats:
+      - say: A gated recurrent unit, or GRU, keeps one state vector. In the convention shown here, the update gate gives the fraction kept from the past. Its complement weights the candidate. Those fractions sum to one, so the resulting coordinate lies between the two proposed values.
+        hold: 0.6
+        visual_cues:
+          - id: gru-interpolation-rule-b1-1
+            phrase: fractions sum to one
+            targets:
+              - gru-interpolation-rule
+            color: yellow
+            linger: 0.6
+      - say: Slide the gate from strong retention toward replacement. The result moves along the interval between the old state and the candidate. A reset gate separately controls how much history enters the candidate calculation. Together, these controls let the model decide when an earlier pattern should give way.
+        hold: 0.65
+        motion_check:
+          region:
+            - 250
+            - 500
+            - 1340
+            - 220
+          minimumChangedFraction: 0.002
+        visual_cues:
+          - id: gru-result-b2-1
+            phrase: result moves along the interval
+            targets:
+              - gru-result
+            color: yellow
+            linger: 0.6
+      - say: Implementation details matter when moving weights between frameworks. PyTorch applies reset after the recurrent linear transformation in its candidate. The original formulation applies it before. Mixing coordinates makes those operations generally differ, so compare the exact equations before expecting transferred weights to reproduce a state.
+        hold: 0.7
+        visual_cues:
+          - id: gru-reset-after
+            phrase: PyTorch applies reset after the recurrent linear transformation in its candidate
+            targets:
+              - gru-after-equation
+              - gru-after-calculation
+            color: cyan
+            linger: 0.6
+          - id: gru-reset-before
+            phrase: The original formulation applies it before
+            targets:
+              - gru-before-equation
+              - gru-before-calculation
+            color: pink
+            linger: 0.6
+          - id: gru-reset-difference
+            phrase: Mixing coordinates makes those operations generally differ
+            targets:
+              - gru-after-calculation
+              - gru-before-calculation
+            color: yellow
+            linger: 0.6
+          - id: gru-interpolation-rule-b3-1
+            phrase: exact equations
+            targets:
+              - gru-after-equation
+              - gru-before-equation
+            color: cyan
+            linger: 0.6
+  - id: learned-gru
+    title: Build reset and keep before blending
+    visual: The same two-coordinate reset-comparison fixture acquires explicit sigmoid gate construction, then each framework candidate enters its own complete hidden update.
+    beats:
+      - say: Construct a GRU with old hidden point eight, minus point two and the same reproduction input. For a supplied gate fixture, make the current reproduction-feature weights natural log nineteen and zero for z; all other z weights and biases are zero. The resulting keep fractions are point nine five and point five. For reset, use minus natural log nine and plus natural log nine on that feature, giving point one and point nine. Both gates are sigmoid affine projections of input and old hidden, even though this particular fixture uses zero hidden weights.
+        hold: 1
+        visual_cues:
+          - id: learned-gru-0
+            phrase: Construct a GRU with old hidden
+            targets:
+              - learned-gru-operation
+            linger: 0.5
+          - id: gru-keep-result
+            phrase: keep fractions are point nine five and point five
+            targets:
+              - learned-gru-operation
+            linger: 0.35
+          - id: gru-reset-result
+            phrase: giving point one and point nine
+            targets:
+              - learned-gru-operation
+            linger: 0.35
+      - say: "Reuse the mixing recurrent matrix from our reset comparison, with rows one, two and three, four; set the candidate input contribution and biases to zero. Original reset-before-matrix produces preactivations minus point two eight, minus point four eight and tanh candidates about minus point two seven three, minus point four four six. Reset-after-matrix produces point zero four, one point four four and candidates point zero four zero, point eight nine four. Apply the same z blend to each: the original hidden is about point seven four six, minus point three two three; the PyTorch-style hidden is point seven six two, point three four seven."
+        hold: 0.8
+        visual_cues:
+          - id: learned-gru-1
+            phrase: Reuse the mixing recurrent matrix
+            targets:
+              - learned-gru-operation
+            linger: 0.5
+          - id: gru-original-blend
+            phrase: the original hidden is about point seven four six
+            targets:
+              - learned-gru-operation
+            linger: 0.35
+          - id: gru-pytorch-blend
+            phrase: the PyTorch-style hidden is point seven six two
+            targets:
+              - learned-gru-operation
+            linger: 0.35
+      - say: Equal reset entries or a diagonal recurrent matrix with no relevant bias can make the two orders agree, so an identity-only portability test is weak. PyTorch also puts the candidate recurrent bias inside the reset multiplication. A recurrent bias of one contributes point one when reset is point one, and point nine when reset is point nine; one fixed input bias cannot match both. Match keep convention, reset placement, gate ordering and both bias sets before expecting transferred parameters to reproduce states.
+        hold: 0.8
+        visual_cues:
+          - id: learned-gru-2
+            phrase: Equal reset entries or a diagonal recurrent matrix
+            targets:
+              - learned-gru-operation
+            linger: 0.5
+          - id: gru-agreement
+            phrase: can make the two orders agree
+            targets:
+              - learned-gru-operation
+            linger: 0.35
+          - id: gru-bias
+            phrase: A recurrent bias of one contributes point one
+            targets:
+              - learned-gru-operation
+            linger: 0.35
+  - id: parameter-geometry
+    title: Audit learned storage and batch shapes
+    visual: Build cell parameter rectangles from actual input/hidden dimensions, add framework bias rows, and unfold input/output/final-state tensor axes.
+    beats:
+      - say: "With input width three and hidden width two, one textbook affine block has two times five weights and two biases: twelve parameters. A vanilla RNN has one block, a GRU three for reset, keep and candidate, and an LSTM four for input, forget, candidate and output. Their one-bias totals are twelve, thirty-six and forty-eight. Three quarters as many equal-width blocks reduce dense projection work; actual latency still depends on kernels, batching and other operations."
+        hold: 1
+        visual_cues:
+          - id: parameter-geometry-0
+            phrase: With input width three and hidden width two
+            targets:
+              - parameter-geometry-operation
+            linger: 0.5
+          - id: parameter-one-bias
+            phrase: Their one-bias totals are twelve, thirty-six and forty-eight
+            targets:
+              - parameter-geometry-operation
+            linger: 0.35
+      - say: PyTorch GRU stores a six-by-three input weight matrix, a six-by-two recurrent matrix and two six-value bias vectors. Eighteen plus twelve plus twelve gives forty-two parameters. Separate candidate recurrent bias participates inside reset, so the distinction affects dynamics as well as counting. Sequence length does not add parameters, while additional layers or directions change these shapes and counts.
+        hold: 0.8
+        visual_cues:
+          - id: parameter-geometry-1
+            phrase: PyTorch GRU stores
+            targets:
+              - parameter-geometry-operation
+            linger: 0.5
+          - id: parameter-pytorch
+            phrase: PyTorch GRU stores
+            targets:
+              - parameter-geometry-operation
+            linger: 0.35
+          - id: parameter-total
+            phrase: gives forty-two parameters
+            targets:
+              - parameter-geometry-operation
+            linger: 0.35
+      - say: "For one unidirectional layer with batch-first input four, five, three, the output is four, five, two. It keeps a hidden vector at every supplied step. The final hidden shape is one, four, two: layers times directions, batch, hidden. Batch-first changes the input and output axes, not final-state axes. An LSTM also returns a cell tensor. Packed input yields packed output, with each final hidden ending at its own valid prefix."
+        hold: 0.8
+        visual_cues:
+          - id: parameter-geometry-2
+            phrase: For one unidirectional layer
+            targets:
+              - parameter-geometry-operation
+            linger: 0.5
+          - id: parameter-output
+            phrase: the output is four, five, two
+            targets:
+              - parameter-geometry-operation
+            linger: 0.35
+          - id: parameter-final
+            phrase: The final hidden shape is one, four, two
+            targets:
+              - parameter-geometry-operation
+            linger: 0.35
+  - id: padding
+    title: Stop at the real sentence ending
+    visual: A padded zero shifts the actor state, while a mask preserves the sentence’s actual final memory.
+    beats:
+      - say: Batches often pad shorter sentences to a shared length. A zero row can still trigger a recurrent update. In our toy state, that extra step changes the value the final readout receives.
+        hold: 0.65
+        visual_cues:
+          - id: unmasked-ending
+            phrase: extra step changes the value
+            targets:
+              - unmasked-ending
+            color: pink
+            linger: 0.6
+      - say: A mask or packed sequence skips that padded update. The shorter sentence keeps the state from its real ending while the batch continues. Reset state between independent sequences so one sentence’s history does not leak into the next.
+        hold: 0.65
+        visual_cues:
+          - id: preserved-ending
+            phrase: keeps the state from its real ending
+            targets:
+              - preserved-ending
+            color: green
+            linger: 0.6
+      - say: "Return to our opening pair. The same update carries opposite actor clues to the final readout: dog for the first sentence, cat for the reversed one. A compact state makes streaming practical, and its learning path explains why preserving distant information takes care."
+        hold: 0.8
+        visual_cues:
+          - id: opening-payoff
+            phrase: dog for the first sentence
+            targets:
+              - dog-actor-readout
+            color: green
+            linger: 0.6
+          - id: reversed-payoff
+            phrase: cat for the reversed one
+            targets:
+              - cat-actor-readout
+              - reversed-roles
+            color: pink
+            linger: 0.6
+  - id: batch-boundaries
+    title: Repair padding on the same incident state
+    visual: The two-event vector state branches into real-end, zero-pad and junk-pad transitions, then valid prefixes are packed and sequence identity is preserved.
+    beats:
+      - say: "Return to the actual vector incident after error and reproduction: state about point four nine four, point six four one. A zero input row still applies the recurrent matrix and tanh, changing it to point three zero two, point three six seven. A junk pad row nine, minus nine, nine changes it to one point zero zero zero, minus point eight eight nine. Both start from the same full-precision two-event state. A fixed-point state can survive a zero update, but zero values alone do not mark padding."
+        hold: 1
+        visual_cues:
+          - id: batch-boundaries-0
+            phrase: Return to the actual vector incident
+            targets:
+              - batch-boundaries-operation
+            linger: 0.5
+          - id: padding-valid
+            phrase: state about point four nine four, point six four one
+            targets:
+              - batch-boundaries-operation
+            linger: 0.35
+          - id: padding-zero
+            phrase: changing it to point three zero two, point three six seven
+            targets:
+              - batch-boundaries-operation
+            linger: 0.35
+          - id: padding-junk
+            phrase: changes it to one point zero zero zero, minus point eight eight nine
+            targets:
+              - batch-boundaries-operation
+            linger: 0.35
+      - say: A valid-length mask skips the filler update and preserves the two-event state. In a batch with lengths three and two, packing collects only active prefixes, and the second history stops at two. Lengths must describe right padding, be positive and no greater than available timesteps. A lengths tensor is on CPU for pack-padded-sequence; enforce-sorted false lets the function sort internally. Verify padding invariance by changing only padded values and comparing each sequence final state.
+        hold: 0.8
+        visual_cues:
+          - id: batch-boundaries-1
+            phrase: A valid-length mask skips the filler update
+            targets:
+              - batch-boundaries-operation
+            linger: 0.5
+          - id: packing-prefixes
+            phrase: packing collects only active prefixes
+            targets:
+              - batch-boundaries-operation
+            linger: 0.35
+      - say: Detach and reset solve different boundaries. Starting a second independent scalar incident containing event point four, reset gives tanh point three two, about point three one zero. Reusing the old incident final state gives about point six zero six, even if it was detached. Keep state for the intended continuing stream; reset independent sequences, and carry request identity if a scheduler reorders a batch. Compare packed results with individual valid-prefix runs.
+        hold: 0.8
+        visual_cues:
+          - id: batch-boundaries-2
+            phrase: Detach and reset solve different boundaries
+            targets:
+              - batch-boundaries-operation
+            linger: 0.5
+          - id: boundary-reset
+            phrase: reset gives tanh point three two
+            targets:
+              - batch-boundaries-operation
+            linger: 0.35
+  - id: compression-attention
+    title: Trade fixed state and serial relays for explicit reads
+    visual: The same incident states feed a fixed-width encoder context; temporal relays are then replaced with masked direct attention edges and actual pair-work tiles.
+    beats:
+      - say: A final-state recurrent encoder sends the same two-number interface after two events or two hundred. Useful entities and causal links must be compressed into that width; the decoder sees only the supplied context. Cho and colleagues conditioned decoder steps on a fixed context throughout. Sutskever and colleagues used the encoder state to initialize their decoder. Those interfaces differ, while both communicate the source through fixed-size state. For an explicit quantized toy, two coordinates with two bits each allow sixteen distinct codes; seventeen histories must collide. Real float states have much larger but finite storage.
+        hold: 1
+        visual_cues:
+          - id: compression-attention-0
+            phrase: A final-state recurrent encoder
+            targets:
+              - compression-attention-operation
+            linger: 0.5
+          - id: compression-collision
+            phrase: seventeen histories must collide
+            targets:
+              - compression-attention-operation
+            linger: 0.35
+      - say: Standard nonlinear RNN, LSTM and GRU transitions depend on the preceding state. Four thousand ninety-six positions require four thousand ninety-six dependent transitions, not necessarily that many GPU launches. Input projections can run across supplied positions in advance, and independent batch items run in parallel. Fused or persistent kernels may reuse recurrent weights; small batches and widths can still expose little parallel work. Fixed inference state does not mean constant full-BPTT training memory.
+        hold: 0.8
+        visual_cues:
+          - id: compression-attention-1
+            phrase: Standard nonlinear RNN, LSTM and GRU transitions
+            targets:
+              - compression-attention-operation
+            linger: 0.5
+          - id: serial-relay
+            phrase: Four thousand ninety-six positions require four thousand ninety-six dependent transitions
+            targets:
+              - compression-attention-operation
+            linger: 0.35
+      - say: For positions already present, self-attention projects Q, K and V across the sequence and computes masked softmax of QK transpose divided by square root key width, times V. A causal row excludes future keys. Position four thousand ninety-six can read position one in one layer, replacing four thousand ninety-five recurrent relays. Positional information still matters beyond what the mask provides. This is a short dependency path, not a claim of one GPU instruction or constant arithmetic. In an eight-position causal toy, rows expose one through eight keys, thirty-six allowed interactions. That counts allowed pairs, not measured GPU FLOPs.
+        hold: 0.8
+        visual_cues:
+          - id: compression-attention-2
+            phrase: For positions already present
+            targets:
+              - compression-attention-operation
+            linger: 0.5
+          - id: attention-mask
+            phrase: A causal row excludes future keys
+            targets:
+              - compression-attention-operation
+            linger: 0.35
+          - id: attention-direct
+            phrase: can read position one in one layer
+            targets:
+              - compression-attention-operation
+            linger: 0.35
+          - id: attention-pairs
+            phrase: thirty-six allowed interactions
+            targets:
+              - compression-attention-operation
+            linger: 0.35
+      - say: At comparable width d, dense recurrence costs order T times d squared. Full attention includes T squared times d pair work and T times d squared projections. FlashAttention tiles the computation to avoid storing the full score matrix in HBM; pairwise arithmetic remains quadratic. Autoregressive generation still waits for newly generated tokens. Mamba selective scan is a different recurrence whose input-dependent coefficients can be prepared before an associative parallel scan. Its state and per-token cost stay constant with sequence length for a fixed model, but this does not parallelize a standard nonlinear GRU or remove scan scheduling costs.
+        hold: 0.8
+        visual_cues:
+          - id: compression-attention-3
+            phrase: At comparable width d
+            targets:
+              - compression-attention-operation
+            linger: 0.5
+          - id: complexity-curves
+            phrase: Full attention includes T squared times d pair work
+            targets:
+              - compression-attention-operation
+            linger: 0.35
+          - id: scan-recurrence
+            phrase: Mamba selective scan is a different recurrence
+            targets:
+              - compression-attention-operation
+            linger: 0.35
+  - id: earned-transfer
+    title: Choose the valid ending of a new incident
+    visual: A fresh two-event scalar history has one padded slot; computed states and a wrong detach repair are withheld until the learner prediction has been made.
+    beats:
+      - say: "Work a new scalar case with the same tanh cell: input weight point eight, recurrent weight point five, zero bias and zero initial state. The real events are point two then point eight. A third slot is padding with zero input. Which state should the classifier read, and does detaching the third update prevent padding contamination? Predict before we reveal the trace."
+        hold: 1
+        visual_cues:
+          - id: earned-transfer-0
+            phrase: Work a new scalar case
+            targets:
+              - earned-transfer-operation
+            linger: 0.5
+      - say: The first real state is about point one five eight six four nine; the second is point six one six four nine one. The classifier should read the second state. If the filler row runs, another tanh of point five times that state produces point two nine eight eight four zero. Detaching this wrong update changes its graph, not its value. Skip or mask the padding, or pack the valid length two, to preserve the true ending.
+        hold: 0.8
+        visual_cues:
+          - id: earned-transfer-1
+            phrase: The first real state is about
+            targets:
+              - earned-transfer-operation
+            linger: 0.5
+          - id: rnn-transfer-result
+            phrase: The classifier should read the second state
+            targets:
+              - earned-transfer-operation
+            color: yellow
+          - id: fresh-first-result
+            phrase: The first real state is about point one five eight six four nine
+            targets:
+              - earned-transfer-operation
+            linger: 0.35
+          - id: fresh-second-result
+            phrase: the second is point six one six four nine one
+            targets:
+              - earned-transfer-operation
+            linger: 0.35
+          - id: fresh-pad-result
+            phrase: produces point two nine eight eight four zero
+            targets:
+              - earned-transfer-operation
+            linger: 0.35
+          - id: fresh-detach-consequence
+            phrase: Detaching this wrong update changes its graph, not its value.
+            targets:
+              - earned-transfer-operation
+            color: yellow
+            linger: 0.4
+          - id: fresh-skip-preservation
+            phrase: Skip or mask the padding, or pack the valid length two, to preserve the true ending.
+            targets:
+              - earned-transfer-operation
+            color: yellow
+            linger: 0.4
+      - say: "A passing repair should preserve that real-end state when padded values change, agree with the individual two-event run, and reset the next independent incident. For a trained model also test reversed event order, long dependencies, early gradients and the actual gate convention. The sentence example isolated one clue; the incident construction showed how fixed-width state is computed, trained and protected at sequence boundaries. Autoencoders next test compression on a screenshot crop: what survives a narrow latent code, and what changes when a VAE makes that code sampleable?"
+        hold: 0.8
+        visual_cues:
+          - id: earned-transfer-2
+            phrase: A passing repair should preserve that real-end state
+            targets:
+              - earned-transfer-operation
+            linger: 0.5

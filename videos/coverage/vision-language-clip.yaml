@@ -1,0 +1,310 @@
+version: 1
+lesson: vision-language-clip
+promise: Use CLIP to find a rack photo, test its class label against a score and a margin, and choose the
+  evidence and serving path a reviewer needs to verify the inspection.
+objectives:
+  - id: clip
+    can: Explain a ranking reversal after normalization, compute both directional losses, and predict how
+      a gradient update or a change of prompts affects the comparison.
+    scenes:
+      - opening
+      - towers
+      - cosine
+      - matrix
+      - objective
+      - training-step
+      - zero-shot
+      - retrieval
+      - boundaries
+  - id: training
+    can: Compare pairwise sigmoid and softmax losses and diagnose data, preprocessing and multimodal training
+      contracts.
+    scenes:
+      - data-and-implementation
+      - siglip-pairs
+      - visual-features
+      - projector-training
+  - id: connectors
+    can: Trace a patch value through a learned query slot, compare visual connectors, and budget a prefix
+      that preserves the required text and regions.
+    scenes:
+      - query-bottleneck
+      - cross-attention-bank
+      - grounded-detail
+      - prefix-budget
+      - adaptive-reduction
+  - id: service
+    can: Apply the score and margin rule, request the printed tag or vent box from the selected photo, and
+      evaluate each route against its own release bar in a scoped, versioned service.
+    scenes:
+      - zero-shot
+      - boundaries
+      - inspection-brief
+      - index-service
+      - route-evaluation
+      - inspection-transfer
+sections:
+  - heading: "Product brief: data-center visual inspection"
+    status: taught
+    scenes:
+      - opening
+      - inspection-brief
+  - heading: Requirements and API
+    status: taught
+    scenes:
+      - inspection-brief
+  - heading: Data flow and sizing
+    status: taught
+    scenes:
+      - index-service
+      - route-evaluation
+  - heading: Recovery, rollout, and evaluation
+    status: taught
+    scenes:
+      - index-service
+      - route-evaluation
+  - heading: Score the rack photo with text first
+    status: taught
+    scenes:
+      - opening
+      - towers
+      - cosine
+      - inspection-brief
+  - heading: Embeddings are the first inspection index
+    status: taught
+    scenes:
+      - towers
+      - cosine
+      - inspection-brief
+  - heading: Why `rack_hazard` is a bad first index
+    status: taught
+    scenes:
+      - towers
+      - cosine
+      - inspection-brief
+  - heading: Shared image-text space
+    status: taught
+    scenes:
+      - towers
+      - cosine
+      - inspection-brief
+  - heading: Two encoders, one rack-photo score
+    status: taught
+    scenes:
+      - towers
+      - cosine
+      - inspection-brief
+  - heading: Architecture[^radford2021]
+    status: taught
+    scenes:
+      - towers
+      - cosine
+      - inspection-brief
+  - heading: Training objective
+    status: taught
+    scenes:
+      - matrix
+      - objective
+      - training-step
+      - siglip-pairs
+  - heading: Training data
+    status: taught
+    scenes:
+      - data-and-implementation
+  - heading: Zero-shot classification
+    status: taught
+    scenes:
+      - zero-shot
+      - inspection-transfer
+  - heading: Limitations of CLIP
+    status: taught
+    scenes:
+      - boundaries
+      - grounded-detail
+  - heading: Vision encoder architectures
+    status: taught
+    scenes:
+      - visual-features
+  - heading: Vision Transformer (ViT)[^dosovitskiy2020]
+    status: taught
+    scenes:
+      - visual-features
+  - heading: SigLIP[^zhai2023]
+    status: taught
+    scenes:
+      - siglip-pairs
+      - inspection-transfer
+  - heading: "EVA-CLIP: scaling vision backbones with masked pretraining[^sun2023evaclip]"
+    status: taught
+    scenes:
+      - visual-features
+  - heading: "Modern VLMs: from alignment to generation"
+    status: taught
+    scenes:
+      - projector-training
+  - heading: "LLaVA: the straightforward projector path[^liu2023a]"
+    status: taught
+    scenes:
+      - projector-training
+  - heading: Common multimodal training ladder
+    status: taught
+    scenes:
+      - projector-training
+  - heading: "BLIP-2 and the Q-Former: compress before the LLM[^li2023]"
+    status: taught
+    scenes:
+      - query-bottleneck
+  - heading: "Flamingo-style resampling: preserve more context without exploding token count[^alayrac2022]"
+    status: taught
+    scenes:
+      - cross-attention-bank
+  - heading: "Qwen-VL: grounding and text reading beyond caption matching[^bai2023a]"
+    status: taught
+    scenes:
+      - grounded-detail
+      - prefix-budget
+  - heading: Adaptive pruning and merging under a latency budget
+    status: taught
+    scenes:
+      - adaptive-reduction
+  - heading: Connector design controls a serving trade-off
+    status: taught
+    scenes:
+      - projector-training
+      - query-bottleneck
+      - cross-attention-bank
+  - heading: Designing around unpublished internals
+    status: taught
+    scenes:
+      - inspection-transfer
+  - heading: Evaluation
+    status: taught
+    scenes:
+      - route-evaluation
+  - heading: Production applications
+    status: taught
+    scenes:
+      - index-service
+      - inspection-brief
+  - heading: Document understanding
+    status: taught
+    scenes:
+      - grounded-detail
+      - prefix-budget
+  - heading: Image search and retrieval
+    status: taught
+    scenes:
+      - index-service
+      - inspection-brief
+  - heading: Visual agents
+    status: taught
+    scenes:
+      - grounded-detail
+      - prefix-budget
+  - heading: Common pitfalls
+    status: taught
+    scenes:
+      - inspection-transfer
+  - heading: '"One pooled CLIP embedding understands an image like a person does"'
+    status: taught
+    scenes:
+      - boundaries
+      - grounded-detail
+  - heading: '"CLIP or SigLIP can also serve my chat and captioning path"'
+    status: taught
+    scenes:
+      - siglip-pairs
+      - inspection-transfer
+  - heading: '"Higher resolution always means better OCR"'
+    status: taught
+    scenes:
+      - grounded-detail
+      - prefix-budget
+  - heading: '"Visual serving cost ends when the encoder finishes"'
+    status: taught
+    scenes:
+      - prefix-budget
+  - heading: '"Adaptive pruning makes the latency budget self-enforcing"'
+    status: taught
+    scenes:
+      - adaptive-reduction
+  - heading: '"Every in-batch non-match is a clean negative"'
+    status: taught
+    scenes:
+      - data-and-implementation
+      - siglip-pairs
+  - heading: '"Zero-shot prompts will hold in fine-grained domains"'
+    status: taught
+    scenes:
+      - zero-shot
+      - inspection-transfer
+  - heading: What the inspection system must prove
+    status: taught
+    scenes:
+      - route-evaluation
+      - inspection-transfer
+  - heading: Evaluation rubric
+    status: taught
+    scenes:
+      - route-evaluation
+  - heading: Follow-up questions
+    status: article-only
+    reason: exercise
+    note: Written follow-up questions remain independent practice; worked route and budget methods are taught
+      in the film.
+quiz:
+  - n: 1
+    status: taught
+    scenes:
+      - zero-shot
+      - inspection-transfer
+  - n: 2
+    status: taught
+    scenes:
+      - query-bottleneck
+  - n: 3
+    status: taught
+    scenes:
+      - boundaries
+      - grounded-detail
+  - n: 4
+    status: taught
+    scenes:
+      - retrieval
+      - index-service
+  - n: 5
+    status: taught
+    scenes:
+      - data-and-implementation
+      - siglip-pairs
+  - n: 6
+    status: taught
+    scenes:
+      - cosine
+      - data-and-implementation
+  - n: 7
+    status: taught
+    scenes:
+      - prefix-budget
+  - n: 8
+    status: taught
+    scenes:
+      - projector-training
+  - n: 9
+    status: taught
+    scenes:
+      - adaptive-reduction
+  - n: 10
+    status: taught
+    scenes:
+      - route-evaluation
+removed: []
+reviews:
+  closed_book:
+    script: 8c24e202e36326cf
+    taught: 10
+    partial: 0
+    absent: 0
+  fact_check:
+    script: 8c24e202e36326cf
+    open_findings: 0

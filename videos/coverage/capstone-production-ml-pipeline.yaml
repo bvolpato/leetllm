@@ -1,0 +1,171 @@
+version: 1
+lesson: capstone-production-ml-pipeline
+promise: Build a reloadable delivery model and use its retained rows, monitoring windows and current receipts to decide which release may answer a request.
+framing: []
+objectives:
+  - id: admission
+    can: Admit features and labels using identity, availability clocks and strict schemas, then fit preprocessing
+      only on training.
+    scenes:
+      - feature-clocks
+      - fit
+      - strict-model-loader
+  - id: offline
+    can: Count warnings on late critical deliveries, compare total cost with baseline and bind the results to the release, artifact and policy before opening a canary.
+    scenes:
+      - intro
+      - bundle
+      - offline
+      - bound-evidence
+      - synthesis
+  - id: online
+    can: Use request identity, label coverage and every supplied window to distinguish a pending measurement from a breach and decide whether to hold, abort or restore a release.
+    scenes:
+      - canary
+      - canary-window-contract
+      - recovery
+      - production-history
+  - id: transition
+    can: Check receipt identity, policy fingerprints and the live pointer before moving an alias, then replay the same input to verify which package answers.
+    scenes:
+      - promotion
+      - alias-generation
+      - product-monitoring
+      - synthesis
+      - fresh-stale-receipt
+sections:
+  - heading: Define the shared release tuple
+    status: taught
+    scenes:
+      - bundle
+      - bound-evidence
+      - product-monitoring
+  - heading: Compute the failing slice by hand
+    status: taught
+    note: The hand-entered candidate warns on eval-1 and misses eval-2. Its four supplied costs total 96 against 100. The separately fitted package uses the two-unit warning rule.
+    scenes:
+      - intro
+      - offline
+      - synthesis
+  - heading: Build the package before trusting its manifest
+    status: taught
+    scenes:
+      - feature-clocks
+      - fit
+      - bundle
+      - strict-model-loader
+  - heading: Register a candidate without moving production
+    status: taught
+    scenes:
+      - bound-evidence
+      - offline
+  - heading: Wait for canary evidence
+    status: taught
+    note: Four illustrated outcome costs of 23 against 25 reconstruct the supplied −8% delta. The window contract then uses the article's separate 500-request and 4,200-request summaries.
+    scenes:
+      - canary
+      - canary-window-contract
+  - heading: Promote last, then prove rollback
+    status: taught
+    note: In the closing exercise, a newer hold supersedes ready receipt 3. The article controller keeps v0 on that retry and promotes v1 on current receipt 5. The eight-minute replay checks which retained package answers.
+    scenes:
+      - promotion
+      - alias-generation
+      - recovery
+      - production-history
+      - fresh-stale-receipt
+  - heading: Test the failures that a happy path misses
+    status: taught
+    scenes:
+      - strict-model-loader
+      - bound-evidence
+      - canary-window-contract
+      - production-history
+      - fresh-stale-receipt
+  - heading: Join fast and delayed monitoring
+    status: taught
+    scenes:
+      - product-monitoring
+      - canary
+      - recovery
+  - heading: "Practice: break the release controller"
+    status: article-only
+    reason: exercise
+    note: Independent practice mutates already-taught contracts; the film teaches the full mechanism and staged
+      failure/repair.
+  - heading: Practice answer sketches
+    status: article-only
+    reason: exercise
+    note: Independent practice mutates already-taught contracts; the film teaches the full mechanism and staged
+      failure/repair.
+  - heading: "Submission: prove the handoffs"
+    status: taught
+    scenes:
+      - bound-evidence
+      - product-monitoring
+      - synthesis
+quiz:
+  - n: 1
+    status: taught
+    scenes:
+      - bundle
+      - product-monitoring
+  - n: 2
+    status: taught
+    scenes:
+      - bound-evidence
+  - n: 3
+    status: taught
+    scenes:
+      - intro
+      - offline
+      - synthesis
+  - n: 4
+    status: taught
+    scenes:
+      - canary
+      - canary-window-contract
+  - n: 5
+    status: taught
+    scenes:
+      - feature-clocks
+  - n: 6
+    status: taught
+    scenes:
+      - promotion
+      - alias-generation
+  - n: 7
+    status: taught
+    scenes:
+      - recovery
+      - production-history
+  - n: 8
+    status: taught
+    scenes:
+      - production-history
+  - n: 9
+    status: taught
+    scenes:
+      - strict-model-loader
+      - bound-evidence
+      - promotion
+      - fresh-stale-receipt
+  - n: 10
+    status: taught
+    scenes:
+      - fit
+      - strict-model-loader
+removed: []
+reviews:
+  closed_book:
+    script: 15b17be36593f0a7
+    taught: 10
+    partial: 0
+    absent: 0
+    reviewer: independent closed-book review
+    evidence: videos/reviews/script-renewal/capstone-production-ml-pipeline.json
+  fact_check:
+    script: 15b17be36593f0a7
+    open_findings: 0
+    reviewer: independent factual review
+    evidence: videos/reviews/script-renewal/capstone-production-ml-pipeline.json

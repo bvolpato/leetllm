@@ -1,0 +1,737 @@
+version: 1
+id: tokenization
+title: "How a Model Reads: BPE, WordPiece, and SentencePiece"
+source: fundamentals/tokenization-bpe-wordpiece-sentencepiece/content.md
+voice: en-US-AndrewNeural
+opening: lesson
+rate: +0%
+sources:
+  - title: Neural Machine Translation of Rare Words with Subword Units
+    url: https://arxiv.org/abs/1508.07909
+  - title: Language Models are Unsupervised Multitask Learners
+    url: https://cdn.openai.com/better-language-models/language_models_are_unsupervised_multitask_learners.pdf
+  - title: Japanese and Korean Voice Search
+    url: https://research.google/pubs/japanese-and-korean-voice-search/
+  - title: "BERT: Pre-training of Deep Bidirectional Transformers for Language Understanding"
+    url: https://arxiv.org/abs/1810.04805
+  - title: WordPiece tokenization, training reconstruction and greedy encoding
+    url: https://huggingface.co/learn/llm-course/en/chapter6/6
+  - title: "SentencePiece: A simple and language independent subword tokenizer and detokenizer"
+    url: https://arxiv.org/abs/1808.06226
+  - title: "Subword Regularization: Improving Neural Network Translation Models with Multiple Subword Candidates"
+    url: https://arxiv.org/abs/1804.10959
+  - title: Unicode Standard Annex 15, Unicode Normalization Forms
+    url: https://unicode.org/reports/tr15/
+  - title: The Llama 3 Herd of Models
+    url: https://arxiv.org/abs/2407.21783
+  - title: Language Model Tokenizers Introduce Unfairness Between Languages
+    url: https://arxiv.org/abs/2305.15425
+  - title: "Fishing for Magikarp: Automatically Detecting Under-trained Tokens in Large Language Models"
+    url: https://arxiv.org/abs/2405.05417
+scenes:
+  - id: hook
+    title: rain falls softly
+    visual: A strip reading softly pulls apart at the seam between soft and ly. The whole sentence appears in four pieces with both tokenizers' IDs aligned underneath. The first disagreement leads to the learned row.
+    beats:
+      - say: Watch softly split. Soft stays on the left. The ending, L Y, slides to the right. In rain falls softly, this tokenizer makes four tokens. Each dot marks a space at the start of a piece.
+        hold: 0.5
+        caption_starts: ["In rain falls softly", "Each dot marks a space"]
+        visual_cues:
+          - { id: split, phrase: Watch softly split, targets: [pieces], color: blue }
+          - { id: cuts, phrase: In rain falls softly, targets: [pieces], color: blue }
+          - { id: space, phrase: Each dot marks a space, targets: [pieces], color: blue }
+      - say: Each training ID tells the model which row of learned values to read for that piece. A replacement tokenizer makes the same four cuts. Read both lines of IDs from the left. Which piece first selects a different row?
+        hold: 2.6
+        caption_starts: ["A replacement tokenizer", "Which piece first selects a different row"]
+        visual_cues:
+          - { id: training, phrase: Each training ID, targets: [training-ids], color: cyan }
+          - { id: replacement, phrase: A replacement tokenizer, targets: [replacement-ids], color: cyan }
+          - { id: question, phrase: Which piece first selects a different row, targets: [pieces], color: yellow }
+      - say: Falls is the first mismatch. It used to select row five. Follow the replacement's one down to the table. Row one was trained for soft. Yet when the replacement decodes its own numbers, you get the sentence back, spaces and all.
+        hold: 1.1
+        visual_cues:
+          - { id: first, phrase: Falls is the first mismatch, targets: [pieces], color: yellow, caption_boundary: true }
+          - { id: follow, phrase: "Follow the replacement's one", targets: [replacement-ids], color: yellow }
+          - { id: learned, phrase: Row one was trained for soft, targets: [embedding], color: yellow, caption_boundary: true }
+          - { id: round-trip, phrase: when the replacement decodes its own numbers, targets: [decoded-text], color: cyan }
+      - say: Where did those four pieces come from? Let's try a different cut on the same sentence.
+        hold: 0.65
+
+  - id: cut
+    title: You have to cut somewhere
+    visual: The same sentence is cut three ways, and an attention grid grows and shrinks with each cut.
+    beats:
+      - say: Suppose the tokenizer keeps whole words. Rain, falls, softly. That gives you three pieces, one model position per word.
+        hold: 0.4
+        visual_cues:
+          - { id: whole-words, phrase: whole words, targets: [word-chips], color: blue }
+          - { id: three-pieces, phrase: "That gives you three pieces", targets: [word-chips], color: yellow, caption_boundary: true }
+      - say: Now drop the T from softly. This typo has no entry in the word list. Without a fallback, the model loses which word you typed. Every missing word gets the same unknown token. Adding a new word to the dictionary costs another row of model weights.
+        hold: 0.4
+        visual_cues:
+          - { id: typo, phrase: drop the T from softly, targets: [word-chips], color: red }
+          - { id: loses, phrase: the model loses which word, targets: [word-chips], color: red }
+      - say: So go the other way, and cut single characters. Now a new word is just familiar letters. A character outside your alphabet would still be a problem, and we'll come back to that. But the same sentence just grew to seventeen pieces, counting the spaces.
+        hold: 0.4
+        visual_cues:
+          - { id: characters, phrase: single characters, targets: [char-chips], color: cyan }
+          - { id: seventeen, phrase: "the same sentence just grew to seventeen pieces, counting the spaces", targets: [char-chips], color: yellow, caption_boundary: true }
+      - say: And length is expensive. Language models use a step called attention, which gets its own lesson. Over a whole prompt, you can picture it as a grid that compares every position with every position, so seventeen positions means two hundred eighty nine comparisons, and a real model repeats that work many times over. Language models usually hide later positions, which uses about half that grid, but it still grows with the square of the length.
+        hold: 0.9
+        visual_cues:
+          - { id: every-position, phrase: compares every position, targets: [grid], color: blue }
+          - { id: comparisons, phrase: "seventeen positions means two hundred eighty nine comparisons", targets: [grid], color: red, caption_boundary: true }
+          - { id: hide-later, phrase: hide later positions, targets: [picture], color: yellow }
+      - say: Cut in the middle, into pieces you see often, and in our example you get four pieces and sixteen comparisons. Nearly as short as words, and much more flexible, because a rare word can fall apart into reusable pieces. That's usually the practical balance, and it's where all three methods in this video land.
+        hold: 0.9
+        visual_cues:
+          - { id: middle, phrase: Cut in the middle, targets: [sub-chips], color: cyan }
+          - { id: sixteen, phrase: "four pieces and sixteen comparisons", targets: [grid], color: green, caption_boundary: true }
+
+  - id: merges
+    title: Let the text choose its pieces
+    visual: Letter tiles physically glue together as a real merge trainer runs on a tiny corpus, and a position counter falls.
+    beats:
+      - say: So how do you find good pieces? You let the text tell you. That's the idea behind byte pair encoding, or BPE. Take a tiny corpus, small enough to count by hand. Rain, three times. Rainy, twice. Rail, twice. Start with every letter on its own.
+        hold: 0.4
+        visual_cues:
+          - { id: corpus, phrase: a tiny corpus, targets: [rows], color: blue }
+          - { id: letters, phrase: every letter on its own, targets: [rows], color: blue }
+      - say: Thirty positions. Now count the neighboring pairs, weighted by how often each word appears. R A appears three plus two plus two, seven times, and so does A I. Our trainer breaks ties by taking the first pair it saw. We glue R and A together.
+        hold: 0.6
+        visual_cues:
+          - { id: thirty, phrase: "Thirty positions", targets: [counter], color: yellow, caption_boundary: true }
+          - { id: count-pairs, phrase: count the neighboring pairs, targets: [pairs], color: yellow }
+          - { id: glue-ra, phrase: glue R and A together, targets: [rows], color: yellow }
+          - { id: weights, phrase: "R A appears three plus two plus two", targets: [picture], color: yellow, caption_boundary: true }
+          - { id: pair-count, phrase: "R A appears three plus two plus two, seven times", targets: [pairs], color: yellow }
+          - { id: pair-value, phrase: "seven times", targets: [pairs], color: yellow, caption_boundary: true }
+          - { id: ai-count, phrase: "and so does A I", targets: [pairs], color: yellow, caption_boundary: true }
+          - { id: tie, phrase: Our trainer breaks ties, targets: [picture], color: yellow }
+      - say: That one merge removed seven positions. Twenty three. Now recount, because the pieces have changed. R A then I, seven times. Sixteen.
+        hold: 0.6
+        visual_cues:
+          - { id: twenty-three, phrase: "Twenty three", targets: [counter], color: yellow, caption_boundary: true }
+          - { id: recount, phrase: Now recount, targets: [picture], color: yellow }
+          - { id: glue-rai, phrase: "R A then I, seven times", targets: [rows], color: yellow, caption_boundary: true }
+          - { id: sixteen-positions, phrase: "Sixteen", targets: [counter], color: yellow, caption_boundary: true }
+      - say: Then R A I and N, five times. Eleven. We went from thirty positions to eleven, and nobody told it which pieces to keep. The counts decided.
+        hold: 0.8
+        visual_cues:
+          - { id: glue-rain, phrase: R A I and N, targets: [rows], color: yellow }
+          - { id: rain-count, phrase: "Then R A I and N, five times", targets: [pairs], color: yellow, caption_boundary: true }
+          - { id: eleven, phrase: "Then R A I and N, five times. Eleven", targets: [counter], color: green }
+          - { id: eleven-start, phrase: "Eleven. We went", targets: [counter], color: green, caption_boundary: true }
+      - say: That ordered list of merges is the heart of this tokenizer. A real trainer keeps going until it reaches a target size or another stopping rule, and we stopped at three so you can read it. Frequent strings collapse into single pieces, and rarer ones stay in fragments.
+        hold: 0.9
+        visual_cues:
+          - { id: merge-list, phrase: ordered list of merges, targets: [recipe], color: yellow }
+          - { id: stopped, phrase: stopped at three, targets: [recipe], color: yellow }
+          - { id: frequent, phrase: Frequent strings collapse, targets: [rows], color: yellow }
+          - { id: fragments, phrase: rarer ones stay in fragments, targets: [rows], color: red }
+
+  - id: unseen
+    title: Replay the saved merges
+    visual: Borders close around rain inside rainly as the trained rules replay. Two copies of rain then receive the same two competing rules in opposite orders.
+    beats:
+      - say: Try our invented word, rainly. All six letters belong to the starting alphabet. Follow the first rule and join R to A. The next rule attaches I to that piece. The last one attaches N. The L and the Y stay loose. That's three pieces for a word the trainer never saw.
+        hold: 0.8
+        visual_cues:
+          - { id: rainly, phrase: rainly, targets: [new-word], color: blue }
+          - { id: replay-1, phrase: join R to A, targets: [new-word], color: yellow }
+          - { id: replay-2, phrase: attaches I to that piece, targets: [new-word], color: yellow }
+          - { id: replay-3, phrase: attaches N, targets: [new-word], color: yellow }
+          - { id: leftovers, phrase: The L and the Y stay loose, targets: [new-word], color: cyan }
+      - say: Encoding replays the saved rules. There's nothing to count on this new word. Rainy becomes rain plus Y, and rail becomes R A I plus L.
+        hold: 0.7
+        visual_cues:
+          - { id: no-count, phrase: nothing to count on this new word, targets: [recipe], color: yellow }
+          - { id: rainy-result, phrase: Rainy becomes rain plus Y, targets: [pieces], color: cyan, caption_boundary: true }
+          - { id: rail-result, phrase: rail becomes R A I plus L, targets: [pieces], color: cyan, caption_boundary: true }
+      - say: Try just two competing rules on rain. Read the upper list in order. First join R to A. The next rule needs A beside I, but the A is already inside the new piece. Now reverse the two rules for the lower run. Which letters join in this run?
+        hold: 2.6
+        caption_starts: ["First join R to A", "Now reverse the two rules", "Which letters join in this run"]
+        visual_cues:
+          - { id: order, phrase: Try just two competing rules on rain, targets: [rules], color: cyan }
+          - { id: upper-merge, phrase: First join R to A, targets: [upper-run], color: yellow }
+          - { id: upper-skip, phrase: the A is already inside the new piece, targets: [upper-run], color: cyan }
+          - { id: reverse, phrase: reverse the two rules, targets: [lower-run], color: cyan }
+          - { id: ask-order, phrase: Which letters join in this run, targets: [lower-run], color: yellow }
+      - say: A and I join first. Now R is waiting for an A on its own. That A is inside the second piece. Both cuts spell rain. The order in the saved list decides which pieces reach the model. If the encoder invented a new piece for your prompt, it would have no trained row in the model.
+        hold: 0.75
+        visual_cues:
+          - { id: lower-merge, phrase: A and I join first, targets: [lower-run], color: yellow, caption_boundary: true }
+          - { id: lower-skip, phrase: That A is inside the second piece, targets: [lower-run], color: cyan }
+          - { id: no-row, phrase: no trained row in the model, targets: [rules], color: cyan }
+
+  - id: boundaries
+    title: Boundaries decide which merges can happen
+    visual: A regular expression cuts a line of text into colored spans, and a merge that tries to cross a cut is stopped.
+    beats:
+      - say: Left to run on raw text, BPE can learn pieces that glue letters to punctuation. Failed with a period and failed with an exclamation mark can end up as separate entries. The authors of GPT two reported that kind of vocabulary waste.
+        hold: 0.4
+        visual_cues:
+          - { id: glue, phrase: glue letters to punctuation, targets: [picture], color: red }
+          - { id: entries, phrase: separate entries, targets: [picture], color: red }
+          - { id: authors, phrase: authors of GPT two, targets: [picture], color: yellow }
+      - say: So many BPE tokenizers cut the text first, with a regular expression. It separates categories such as letters, digits, punctuation, and runs of whitespace, and merges stay inside those spans. Each tokenizer has its own exact pattern, so read the one you're using.
+        hold: 0.4
+        visual_cues:
+          - { id: regex, phrase: a regular expression, targets: [picture], color: blue }
+          - { id: separates, phrase: separates categories, targets: [picture], color: blue }
+          - { id: spans, phrase: merges stay inside those spans, targets: [picture], color: yellow }
+          - { id: own-pattern, phrase: its own exact pattern, targets: [picture], color: cyan }
+      - say: Any cut in the text has a practical consequence. Token counts don't simply add up across chunks, because cutting a string in two can block a merge that would otherwise happen. If you need an exact count, encode the exact text you're sending.
+        hold: 0.5
+        visual_cues:
+          - { id: chunks, phrase: add up across chunks, targets: [picture], color: yellow }
+          - { id: blocked, phrase: block a merge, targets: [picture], color: red }
+          - { id: exact, phrase: encode the exact text, targets: [picture], color: green }
+
+  - id: bytes
+    title: Bytes give every character somewhere to go
+    visual: Three characters open into nine bytes, each byte becomes a token, and decoding them one at a time produces garbage until they are gathered.
+    beats:
+      - say: Now back to that missing character. If the starting alphabet comes only from a corpus, a character that corpus never had has nowhere to go. Ours has only six letters, so even the letter B would be stuck. Byte level BPE, which GPT two uses, starts instead from all two hundred fifty six possible byte values. Unicode is the standard that numbers the world's characters, and UTF eight is its way of writing them as bytes. So valid Unicode text can be represented with no unknown token. Some other tokenizers fall back to bytes only for characters they don't know.
+        hold: 0.4
+        visual_cues:
+          - { id: bytes, phrase: two hundred fifty six possible byte values, targets: [bytes], color: blue }
+          - { id: six, phrase: only six letters, targets: [picture], color: blue }
+          - { id: stuck, phrase: the letter B would be stuck, targets: [picture], color: red }
+          - { id: utf8, phrase: UTF eight, targets: [picture], color: blue }
+          - { id: no-unknown, phrase: no unknown token, targets: [picture], color: green }
+      - say: Take two Japanese characters and this sparkle emoji. That's three characters, and nine bytes. Follow the lines from the sparkle to its three bytes. If the tokenizer has no merges for these bytes, each one takes a whole position, so that's nine tokens for three characters. Scripts that appeared rarely in training can use up a window this way.
+        hold: 0.8
+        visual_cues:
+          - { id: costs-more, phrase: "so that's nine tokens for three characters", targets: [new-word], color: yellow, caption_boundary: true }
+          - { id: three-chars, phrase: Take two Japanese characters, targets: [picture], color: blue }
+          - { id: three-count, phrase: "That's three characters", targets: [picture], color: yellow, caption_boundary: true }
+          - { id: nine-bytes, phrase: "and nine bytes", targets: [picture], color: yellow, caption_boundary: true }
+          - { id: four-byte, phrase: Follow the lines from the sparkle, targets: [picture], color: yellow }
+      - say: And a token boundary can land in the middle of a character. Decode those bytes one at a time, and you get garbage. Gather them first, then decode, and the original text comes back exactly. That's why a streaming decoder has to hold back an unfinished character.
+        hold: 0.5
+        visual_cues:
+          - { id: mid-char, phrase: middle of a character, targets: [picture], color: red }
+          - { id: garbage, phrase: you get garbage, targets: [picture], color: red }
+          - { id: gather, phrase: Gather them first, targets: [picture], color: green }
+          - { id: hold-back, phrase: hold back an unfinished character, targets: [picture], color: cyan }
+
+  - id: wordpiece-score
+    title: How often do these pieces appear together?
+    visual: Paired appearances and individual counts assemble two fractions. The same bars change from raw pair counts to normalized scores, reversing the winner.
+    beats:
+      - say: BPE picks the most frequent pair. Two very common pieces can win even if they usually appear apart. WordPiece started in Japanese and Korean speech recognition and was later used in BERT. Which pieces make the training text most likely under a separate statistical language model?
+        hold: 0.4
+        visual_cues:
+          - { id: common, phrase: two very common pieces, targets: [picture], color: yellow }
+          - { id: origin, phrase: Japanese and Korean speech recognition, targets: [picture], color: cyan }
+          - { id: question, phrase: Which pieces make, targets: [picture], color: cyan }
+      - say: The Hugging Face reconstruction uses three counts. Put the pair count on top. For the denominator, multiply the two individual piece counts. With the same pair count, a larger denominator gives a lower score.
+        hold: 0.4
+        visual_cues:
+          - { id: formula, phrase: Put the pair count on top, targets: [picture], color: yellow }
+          - { id: standin, phrase: With the same pair count, targets: [picture], color: cyan }
+      - say: Compare two pairs inside words. BERT's vocabulary uses two hash marks to label a continuation. Read the letters after those marks as part of the word. T and continuation H occur together ninety times. Rain and continuation bow, only forty two. By raw count, T H wins easily.
+        hold: 0.7
+        caption_starts: ["T and continuation H occur together", "Rain and continuation bow", "By raw count"]
+        visual_cues:
+          - { id: hash, phrase: two hash marks, targets: [picture], color: cyan }
+          - { id: th-raw, phrase: ninety times, targets: [picture], color: yellow }
+          - { id: bow-raw, phrase: only forty two, targets: [picture], color: yellow }
+          - { id: raw-wins, phrase: T H wins easily, targets: [picture], color: yellow }
+      - say: But T appears nine hundred times, and H three hundred, so most of their appearances are apart. Rain appears fifty times, and bow forty four, so they're nearly always together. The scores come out at about point zero zero zero three, and about point zero one nine. Rain and bow win by more than fifty times, with the lower count.
+        hold: 5.5
+        visual_cues:
+          - { id: th-counts, phrase: "But T appears nine hundred times, and H three hundred", targets: [picture], color: red }
+          - { id: th-apart, phrase: so most of their appearances are apart, targets: [picture], color: yellow }
+          - { id: bow-counts, phrase: "Rain appears fifty times, and bow forty four", targets: [picture], color: green }
+          - { id: bow-together, phrase: so they're nearly always together, targets: [picture], color: yellow }
+          - { id: scores, phrase: The scores come out, targets: [picture], color: yellow }
+          - { id: flip, phrase: "Rain and bow win by more than fifty times, with the lower count", targets: [picture], color: green }
+
+  - id: wordpiece-match
+    title: What does WordPiece return for rainbow?
+    visual: A cursor tries shorter and shorter prefixes of rainbow, commits to one, and in the second pass commits to a piece that leaves no way to finish.
+    beats:
+      - say: Encoding works differently too. BERT's pipeline first cleans the text, splits on whitespace and punctuation, and can lowercase it. Then, for each word, WordPiece takes the longest piece in its vocabulary, starting from the left.
+        hold: 0.4
+        visual_cues:
+          - { id: clean, phrase: cleans the text, targets: [picture], color: cyan }
+          - { id: longest, phrase: the longest piece, targets: [picture], color: yellow }
+      - say: Suppose the vocabulary holds rain and continuation bow. Is all of rainbow in there? No. Rainbo? No. R A I N B? No. Rain? Yes. Take it, and look for a continuation that matches the rest. Bow is there. Rainbow becomes rain, then continuation bow.
+        hold: 0.7
+        visual_cues:
+          - { id: vocab, phrase: holds rain and continuation bow, targets: [picture], color: blue }
+          - { id: try-all, phrase: "Is all of rainbow in there? No", targets: [picture], color: red, caption_boundary: true }
+          - { id: answer-all, phrase: "No. Rainbo", targets: [picture], color: yellow, caption_boundary: true }
+          - { id: try-rainbo, phrase: "Rainbo? No", targets: [picture], color: red, caption_boundary: true }
+          - { id: answer-rainbo, phrase: "No. R A I N B", targets: [picture], color: yellow, caption_boundary: true }
+          - { id: try-rainb, phrase: "R A I N B? No", targets: [picture], color: red, caption_boundary: true }
+          - { id: answer-rainb, phrase: "No. Rain? Yes", targets: [picture], color: yellow, caption_boundary: true }
+          - { id: try-rain, phrase: "Rain? Yes", targets: [picture], color: green, caption_boundary: true }
+          - { id: answer-rain, phrase: "Yes. Take it", targets: [picture], color: yellow, caption_boundary: true }
+          - { id: bow-there, phrase: "Bow is there", targets: [picture], color: green, caption_boundary: true }
+          - { id: result, phrase: "Rainbow becomes rain, then continuation bow", targets: [picture], color: green, caption_boundary: true }
+      - say: Add one piece, R A I N B, and keep the other two. Start again at the R. What does the matcher return for the whole word rainbow?
+        hold: 2.5
+        visual_cues:
+          - { id: add-piece, phrase: R A I N B, targets: [picture], color: yellow }
+          - { id: predict, phrase: What does the matcher return, targets: [picture], color: yellow }
+      - say: The longest match is now R A I N B, so it takes that and commits. Next it needs a continuation for O W, and there isn't one. Here's the trap. It doesn't go back and try rain, even though rain and bow would work. BERT's matcher doesn't backtrack, so the whole word becomes the unknown token.
+        hold: 0.9
+        visual_cues:
+          - { id: commit, phrase: takes that and commits, targets: [picture], color: yellow }
+          - { id: no-continuation, phrase: "Next it needs a continuation for O W, and there isn't one", targets: [picture], color: red, caption_boundary: true }
+          - { id: no-back, phrase: "doesn't go back", targets: [picture], color: red }
+          - { id: unk, phrase: "so the whole word becomes the unknown token", targets: [picture], color: red, caption_boundary: true }
+      - say: So adding a piece made this word worse. Compare that with our BPE tokenizer, where an unfamiliar word fell apart into smaller pieces. Here, one dead end loses the entire word.
+        hold: 0.5
+        visual_cues:
+          - { id: worse, phrase: made this word worse, targets: [picture], color: red }
+          - { id: compare, phrase: fell apart into smaller pieces, targets: [picture], color: cyan }
+          - { id: whole, phrase: loses the entire word, targets: [picture], color: red }
+
+  - id: sentencepiece
+    title: "SentencePiece: raw sentences, visible spaces"
+    visual: Spaces in a sentence turn into visible markers that attach to the next piece, then the markers turn back into spaces on decoding.
+    beats:
+      - say: The third name is SentencePiece, and it's a toolkit rather than a single algorithm. It can train BPE or Unigram, and it packages decoding and normalization, a text cleanup step we'll cover soon, with the model.
+        hold: 0.4
+        visual_cues:
+          - { id: toolkit, phrase: a toolkit rather than, targets: [picture], color: blue }
+          - { id: train, phrase: train BPE or Unigram, targets: [picture], color: blue }
+          - { id: packages, phrase: packages decoding and normalization, targets: [picture], color: blue }
+      - say: Many pipelines need text split by whitespace or by a language specific segmenter first. Whitespace is a poor fit for languages that don't put spaces between every word, such as Japanese, Chinese, and Thai, and a segmenter is one more language specific tool to run. SentencePiece trains from raw sentences instead, though its default trainer still keeps pieces from crossing whitespace, script, and number boundaries.
+        hold: 0.4
+        visual_cues:
+          - { id: split-first, phrase: split by whitespace, targets: [picture], color: blue }
+          - { id: no-spaces, phrase: "don't put spaces between every word", targets: [picture], color: red }
+          - { id: segmenter, phrase: a segmenter is one more, targets: [picture], color: yellow }
+          - { id: raw, phrase: trains from raw sentences, targets: [picture], color: green }
+          - { id: default, phrase: still keeps pieces from crossing, targets: [picture], color: yellow }
+      - say: It also makes spaces visible. Each space becomes a marker character, and by default one more goes at the start. So rain falls becomes marker rain, marker falls. To decode, join the pieces, drop the marker at the start, and turn the others back into spaces.
+        hold: 0.7
+        visual_cues:
+          - { id: visible, phrase: makes spaces visible, targets: [picture], color: yellow }
+          - { id: to-marker, phrase: Each space becomes, targets: [picture], color: yellow }
+          - { id: one-more, phrase: one more goes at the start, targets: [picture], color: yellow }
+          - { id: example, phrase: "marker rain, marker falls", targets: [picture], color: yellow }
+          - { id: decode-1, phrase: join the pieces, targets: [picture], color: cyan }
+          - { id: decode-2, phrase: drop the marker at the start, targets: [picture], color: cyan }
+          - { id: decode-3, phrase: back into spaces, targets: [picture], color: green }
+      - say: Does that marker always give you your exact text back? No. It restores the spaces that survived normalization, and the default settings remove leading, trailing, and repeated ones. And without byte fallback, an unseen character becomes an unknown ID, and its identity is gone.
+        hold: 0.5
+        caption_starts: ["No. It restores the spaces"]
+        visual_cues:
+          - { id: exact-q, phrase: exact text back, targets: [picture], color: yellow }
+          - { id: spaces-lost, phrase: "leading, trailing, and repeated", targets: [picture], color: red }
+          - { id: unseen, phrase: an unseen character, targets: [picture], color: red }
+          - { id: gone, phrase: its identity is gone, targets: [picture], color: red }
+
+  - id: unigram-path
+    title: Three paths through the same word
+    visual: A lattice of routes through the same text lights up route by route with its score, and the winner changes when one probability changes.
+    beats:
+      - say: Read the five symbols on the left, from the space marker to the N. Unigram can cover them in several ways. A path is one complete way across, from the first boundary to the last. Each piece on it has a probability. The path score is those probabilities multiplied together. Read one factor from each arc you follow.
+        hold: 0.4
+        visual_cues:
+          - { id: path, phrase: A path is one complete way, targets: [picture], color: yellow }
+          - { id: score, phrase: multiplied together, targets: [picture], color: yellow }
+          - { id: made-up, phrase: Read one factor from each arc, targets: [picture], color: cyan }
+      - say: The whole piece crosses in one step, at point three. Take the marker on its own and then rain. Multiply their two probabilities. The product is fifteen thousandths. Split rain again, between A and I. Now it takes three factors to reach the end. Their product is nine parts in a hundred thousand. Which path wins?
+        hold: 2
+        visual_cues:
+          - { id: p1, phrase: "The whole piece crosses in one step, at point three", targets: [picture], color: yellow, caption_boundary: true }
+          - { id: p2, phrase: "Take the marker on its own and then rain", targets: [picture], color: yellow, caption_boundary: true }
+          - { id: p2-result, phrase: "The product is fifteen thousandths", targets: [picture], color: yellow, caption_boundary: true }
+          - { id: p3, phrase: "Split rain again, between A and I", targets: [picture], color: yellow, caption_boundary: true }
+          - { id: p3-result, phrase: "Their product is nine parts in a hundred thousand", targets: [picture], color: yellow, caption_boundary: true }
+          - { id: which, phrase: "Which path wins", targets: [picture], color: yellow, caption_boundary: true }
+      - say: The whole piece wins at point three. Keep its length exactly the same. Lower its probability to point zero one. Give the spare probability to pieces that cannot spell this word. Now the marker followed by rain wins, at fifteen thousandths. Unigram compares complete paths. In practice it adds logarithms of the piece probabilities, which picks the same winner.
+        hold: 0.9
+        visual_cues:
+          - { id: win, phrase: The whole piece wins at point three, caption_boundary: true, targets: [picture], color: green }
+          - { id: not-longest, phrase: Keep its length exactly the same, targets: [picture], color: yellow }
+          - { id: lower, phrase: "Lower its probability to point zero one", targets: [picture], color: red, caption_boundary: true }
+          - { id: flip, phrase: "Now the marker followed by rain wins, at fifteen thousandths", targets: [picture], color: green, caption_boundary: true }
+          - { id: logs, phrase: adds logarithms, targets: [picture], color: cyan }
+      - say: A long string has an enormous number of possible paths, so nobody lists them. The Viterbi algorithm keeps only the best score reaching each boundary in the text, and reuses that work. It still finds the best complete path.
+        hold: 0.5
+        visual_cues:
+          - { id: many, phrase: enormous number of possible paths, targets: [picture], color: yellow }
+          - { id: viterbi, phrase: keeps only the best score, targets: [picture], color: yellow }
+          - { id: best, phrase: the best complete path, targets: [picture], color: green }
+
+  - id: unigram-prune
+    title: Which piece can we afford to lose?
+    visual: Three aligned cuts of the same word feed a single probability total. Each test removes one piece, then adds only the surviving paths. A separate shelf shows the vocabulary size after successive pruning rounds.
+    beats:
+      - say: Go back to our first set of probabilities for marker rain. The whole piece is back at point three. The other two cuts can produce exactly the same spelling. When we train a Unigram model, all three ways of producing this word count.
+        hold: 0.55
+        visual_cues:
+          - { id: restore-score, phrase: The whole piece is back at point three, targets: [whole-path], color: cyan }
+          - { id: other-cuts, phrase: The other two cuts, targets: [paths], color: cyan }
+      - say: Add the three path scores to get the word's probability. The total is just over point three one five. Keep the surviving piece scores fixed for this comparison. We can drop the piece spelled I N, or the whole piece, marker rain. Which removal leaves more probability on this word?
+        hold: 3.2
+        caption_starts: ["We can drop the piece", "Which removal leaves more probability on this word"]
+        visual_cues:
+          - { id: add, phrase: Add the three path scores, targets: [paths], color: cyan }
+          - { id: sum, phrase: The total is just over point three one five, targets: [total], color: cyan, caption_boundary: true }
+          - { id: consider-short, phrase: the piece spelled I N, targets: [short-path], color: yellow }
+          - { id: consider-whole, phrase: "or the whole piece, marker rain", targets: [whole-path], color: yellow }
+          - { id: which, phrase: Which removal leaves more probability, targets: [paths], color: yellow }
+      - say: Take away I N. Only the bottom path breaks. The best cut stays the same, but the total loses nine parts in a hundred thousand. The two surviving scores add to point three one five.
+        hold: 1.1
+        caption_starts: ["Only the bottom path breaks", "but the total loses nine parts in a hundred thousand"]
+        visual_cues:
+          - { id: remove-short, phrase: Take away I N, targets: [short-path], color: red }
+          - { id: short-total, phrase: The two surviving scores add to point three one five, targets: [total], color: cyan, caption_boundary: true }
+      - say: Put I N back so we start from the same three paths. Now take away marker rain. The best surviving cut uses the marker and rain separately. Its score is one twentieth of the old best, a drop of about three natural log units. Add up both surviving paths. Together they keep just under five percent of the original total.
+        hold: 1.25
+        visual_cues:
+          - { id: reset, phrase: Put I N back, targets: [short-path], color: cyan }
+          - { id: remove-whole, phrase: Now take away marker rain, targets: [whole-path], color: red }
+          - { id: best-left, phrase: The best surviving cut uses the marker and rain separately, targets: [best-path], color: yellow }
+          - { id: best-ratio, phrase: Its score is one twentieth of the old best, targets: [best-path], color: yellow, caption_boundary: true }
+          - { id: log-drop, phrase: a drop of about three natural log units, targets: [best-path], color: cyan, caption_boundary: true }
+          - { id: whole-total, phrase: Together they keep just under five percent of the original total, targets: [total], color: cyan, caption_boundary: true }
+      - say: Dropping I N costs less on this word. A piece that's dispensable here might matter in thousands of other words. That's why a trainer estimates the loss across its whole corpus.
+        hold: 0.7
+        visual_cues:
+          - { id: choice, phrase: Dropping I N costs less on this word, targets: [trials], color: yellow, caption_boundary: true }
+      - say: BPE builds pieces up. A Unigram trainer starts with an oversized vocabulary of single characters and frequent substrings. It fits their probabilities by expectation maximization, then removes the optional pieces it estimates would cost least. The paper illustrates keeping about four fifths each round. On this shelf, forty-one candidates become thirty-three. Fit again and prune to twenty-six. One more round leaves twenty-one. The required characters, in green, survive every round. That protects the chosen alphabet. A new character outside it may still need a fallback.
+        hold: 0.85
+        visual_cues:
+          - { id: vocabulary, phrase: an oversized vocabulary, targets: [vocabulary], color: cyan }
+          - { id: fit, phrase: fits their probabilities, targets: [vocabulary], color: cyan }
+          - { id: fraction, phrase: keeping about four fifths each round, targets: [vocabulary], color: cyan }
+          - { id: round-one, phrase: forty-one candidates become thirty-three, targets: [vocabulary], color: cyan, caption_boundary: true }
+          - { id: round-two, phrase: prune to twenty-six, targets: [vocabulary], color: cyan, caption_boundary: true }
+          - { id: round-three, phrase: One more round leaves twenty-one, targets: [vocabulary], color: cyan, caption_boundary: true }
+
+  - id: regularization
+    title: "Optional: training on sampled cuts"
+    visual: The same text is sampled along different valid paths in successive training passes.
+    beats:
+      - say: Having many valid paths opens up an optional training trick, called subword regularization. While training a model, you can sample among the valid paths, instead of always taking the best one. One pass, the model sees the whole piece. The next, it sees marker, then rain.
+        hold: 0.4
+        visual_cues:
+          - { id: sample, phrase: sample among the valid paths, targets: [picture], color: yellow }
+          - { id: pass-1, phrase: the model sees the whole piece, targets: [picture], color: cyan }
+          - { id: pass-2, phrase: "it sees marker, then rain", targets: [picture], color: cyan }
+      - say: That's data augmentation. The model gets practice reading the same word in different pieces. Turn down the exponent and watch the sampling chances. The less likely cuts get a bigger share. When you serve a model, use the encoding mode specified for its checkpoint.
+        hold: 0.5
+        visual_cues:
+          - { id: augment, phrase: data augmentation, targets: [picture], color: cyan }
+          - { id: setting, phrase: Turn down the exponent, targets: [picture], color: yellow }
+          - { id: option, phrase: The less likely cuts, targets: [picture], color: cyan }
+          - { id: serve, phrase: When you serve a model, targets: [picture], color: green }
+
+  - id: normalization
+    title: Normalization often runs before any cut
+    visual: Two strings that look identical open into different code points, unify under one form, and a ligature folds and cannot come back.
+    beats:
+      - say: Before any of these methods cuts anything, there's often one more step, normalization. Two strings can look identical and still be different. Unicode numbers each character with a code point. Cafe with an accent can be four code points, or five, where the accent is its own combining mark.
+        hold: 0.4
+        visual_cues:
+          - { id: identical, phrase: look identical, targets: [picture], color: yellow }
+          - { id: forms, phrase: "four code points, or five", targets: [picture], color: yellow }
+          - { id: codepoints-four, phrase: "Cafe with an accent can be four code points", targets: [picture], color: blue, caption_boundary: true }
+          - { id: codepoints-five, phrase: "or five, where the accent is its own combining mark", targets: [picture], color: cyan, caption_boundary: true }
+      - say: If the tokenizer doesn't unify those forms, two requests that look the same can get different IDs, and miss a prompt cache, which reuses earlier work only when the start of a request matches exactly. The form called NFC unifies them, and leaves this single F I ligature alone. The form called NFKC unifies them too, and also folds that ligature into a plain F and I, so two different identifiers can collapse into one.
+        hold: 0.4
+        visual_cues:
+          - { id: ids, phrase: different IDs, targets: [picture], color: red }
+          - { id: cache, phrase: miss a prompt cache, targets: [picture], color: red }
+          - { id: nfc, phrase: The form called NFC, targets: [picture], color: green }
+          - { id: lig, phrase: this single F I ligature, targets: [picture], color: yellow }
+          - { id: nfkc, phrase: The form called NFKC, targets: [picture], color: yellow }
+          - { id: collapse, phrase: collapse into one, targets: [picture], color: red }
+      - say: That folding only goes one way. Once the ligature is folded, decoding can't bring it back. SentencePiece's default, as of late twenty twenty six, is a variant of NFKC with extra whitespace handling, and that matters for exact identifiers and code. So use the normalizer bundled with the checkpoint, and use it consistently.
+        hold: 0.5
+        visual_cues:
+          - { id: one-way, phrase: only goes one way, targets: [picture], color: red }
+          - { id: variant, phrase: a variant of NFKC, targets: [picture], color: cyan }
+          - { id: bundled, phrase: the normalizer bundled, targets: [picture], color: green }
+
+  - id: lookup
+    title: Each number picks a row
+    visual: Token IDs select learned rows. Two tokenizers route the same piece to different rows of the unchanged table, while a special token keeps its ID.
+    beats:
+      - say: Bring back the IDs the model saw during training for rain falls softly. Once a tokenizer has chosen the pieces, their IDs select rows in a table of learned vectors. Follow rain to row two. Follow falls to row five.
+        hold: 0.4
+        visual_cues:
+          - { id: table, phrase: a table of learned vectors, targets: [table], color: blue }
+          - { id: pick-two, phrase: Follow rain to row two, targets: [table], color: blue }
+          - { id: pick-five, phrase: Follow falls to row five, targets: [table], color: cyan }
+      - say: So the number means nothing by itself. The meaning lives in the row, and training put it there. Your sentence is now four vectors, one per piece.
+        hold: 0.8
+        visual_cues:
+          - { id: lives-in-row, phrase: The meaning lives in the row, targets: [table], color: yellow }
+          - { id: four-vectors, phrase: four vectors, targets: [vectors], color: yellow }
+      - say: There's a second table at the other end. To choose the next token, the model scores its final vector against every row of an output table. Some models tie the two tables together, so they share one set of rows. Others keep them separate, and then each row number has to mean the same piece in both.
+        hold: 0.4
+        visual_cues:
+          - { id: second, phrase: a second table, targets: [picture], color: blue }
+          - { id: scores, phrase: scores its final vector, targets: [picture], color: yellow }
+          - { id: tied, phrase: tie the two tables, targets: [picture], color: cyan }
+          - { id: separate, phrase: keep them separate, targets: [picture], color: yellow }
+      - say: Falls took the vector for soft. Now follow the swap in the other direction. The replacement gives the number five to soft. Follow it to the row that was learned for falls. Both IDs fit in the table. The lookup succeeds and hands the model two different vectors.
+        hold: 0.8
+        visual_cues:
+          - { id: swap, phrase: gives the number five to soft, targets: [ids], color: red }
+          - { id: wrong-row, phrase: the row that was learned for falls, targets: [table], color: red }
+          - { id: nothing-crashes, phrase: Both IDs fit in the table, targets: [table], color: red }
+      - say: Both vocabularies have eight rows. Both spell softly the same way. Look at the IDs for soft. One tokenizer picks row one. The other picks row five. The ending, L Y, keeps its six in both. To catch a swap, encode fixed test strings, including special tokens such as the end of a message. Compare the IDs for each piece.
+        hold: 0.4
+        caption_starts: ["Look at the IDs for soft", "The other picks row five", "To catch a swap"]
+        visual_cues:
+          - { id: size, phrase: Both vocabularies have eight rows, targets: [picture], color: yellow }
+          - { id: same-text, phrase: Both spell softly the same way, targets: [picture], color: yellow }
+          - { id: different-ids, phrase: The other picks row five, targets: [picture], color: red }
+          - { id: special, phrase: including special tokens, targets: [picture], color: green }
+          - { id: compare, phrase: compare the IDs, targets: [picture], color: green }
+      - say: Renumbering can be safe, but only if everything moves together. Say a migration renumbers the IDs and remaps only the input table. The input now reads correctly. But on a model with a separate output table, those rows keep their old order, so the model's choices decode as the wrong pieces. Move the input rows, the output rows, any other indexed values, and the special IDs, all together.
+        hold: 0.4
+        visual_cues:
+          - { id: renumber, phrase: renumbers the IDs, targets: [picture], color: yellow }
+          - { id: input-ok, phrase: input now reads correctly, targets: [picture], color: green }
+          - { id: output-stale, phrase: keep their old order, targets: [picture], color: red }
+          - { id: decode-wrong, phrase: "the model's choices", targets: [picture], color: red }
+          - { id: together, phrase: Move the input rows, targets: [picture], color: green }
+      - say: A tokenizer that cuts text differently is a bigger change, because the model never trained on those inputs. That needs adapting and testing, and more than a renumbering. So ship a model and its tokenizer together, and pin both by hash.
+        hold: 0.6
+        visual_cues:
+          - { id: ship, phrase: its tokenizer together, targets: [ids], color: green }
+          - { id: differently, phrase: cuts text differently, targets: [picture], color: red }
+          - { id: hash, phrase: pin both by hash, targets: [picture], color: green }
+
+  - id: economics
+    title: Every row has a price
+    visual: A cost formula fills scaled bars as rows grow, strips at two rates show the sequence saving, and two panels compare a fixed cost with an unknown saving.
+    beats:
+      - say: So why not just learn a bigger vocabulary? Because every row costs memory. Multiply the rows by the width of each vector, called the hidden size, and by the bytes per number. Double it if the output table is separate.
+        hold: 0.4
+        visual_cues:
+          - { id: price, phrase: every row costs memory, targets: [picture], color: yellow }
+          - { id: hidden, phrase: called the hidden size, targets: [picture], color: blue }
+          - { id: double, phrase: Double it, targets: [picture], color: yellow }
+      - say: For illustration, take a hidden size of four thousand ninety six, two bytes per number, and separate tables. Thirty two thousand rows cost five hundred mebibytes. One hundred twenty eight thousand rows cost two thousand. And a whole word dictionary with a million rows would take over fifteen thousand mebibytes, about sixteen billion bytes, before the model has a single transformer layer.
+        hold: 1.0
+        visual_cues:
+          - { id: illustrate, phrase: For illustration, targets: [picture], color: cyan }
+          - { id: c32, phrase: Thirty two thousand rows, targets: [picture], color: blue }
+          - { id: c128, phrase: One hundred twenty eight thousand rows, targets: [picture], color: blue }
+          - { id: c1m, phrase: a million rows, targets: [picture], color: red }
+          - { id: cost32, phrase: "Thirty two thousand rows cost five hundred mebibytes", targets: [picture], color: blue, caption_boundary: true }
+          - { id: cost-value32, phrase: "cost five hundred mebibytes", targets: [picture], color: yellow, caption_boundary: true }
+          - { id: cost128, phrase: "One hundred twenty eight thousand rows cost two thousand", targets: [picture], color: blue, caption_boundary: true }
+          - { id: cost-value128, phrase: "cost two thousand", targets: [picture], color: yellow, caption_boundary: true }
+          - { id: cost1m, phrase: "And a whole word dictionary with a million rows would take over fifteen thousand mebibytes", targets: [picture], color: red, caption_boundary: true }
+          - { id: cost-value1m, phrase: "would take over fifteen thousand mebibytes", targets: [picture], color: yellow, caption_boundary: true }
+          - { id: billion, phrase: "about sixteen billion bytes", targets: [picture], color: yellow, caption_boundary: true }
+      - say: A larger vocabulary can fit the same text into fewer positions. For fixed text, positions are characters divided by characters per token, so the drop in positions is one minus the old rate over the new rate. Going from three characters per token to four is a twenty five percent drop, even though the rate rose by a third. The Llama three report measured about three point nine four characters per token, against three point one seven for Llama two, on a sample of English. If those rates held for your text, that's about twenty percent fewer positions, and because comparisons grow with the square of length, about thirty five percent fewer of those. Those rates compare two complete tokenizers. The report found that adding twenty eight thousand tokens for other languages left English tokenization unchanged.
+        hold: 0.9
+        visual_cues:
+          - { id: rate, phrase: characters divided by characters per token, targets: [picture], color: yellow }
+          - { id: rule, phrase: one minus the old rate, targets: [picture], color: yellow }
+          - { id: demo, phrase: three characters per token to four, targets: [picture], color: green }
+          - { id: drop, phrase: "Going from three characters per token to four is a twenty five percent drop", targets: [picture], color: green, caption_boundary: true }
+          - { id: drop-value, phrase: "is a twenty five percent drop", targets: [picture], color: yellow, caption_boundary: true }
+          - { id: gain, phrase: rose by a third, targets: [picture], color: cyan }
+          - { id: llama, phrase: The Llama three report, targets: [picture], color: blue }
+          - { id: twenty, phrase: "If those rates held for your text, that's about twenty percent fewer positions", targets: [picture], color: green, caption_boundary: true }
+          - { id: twenty-value, phrase: "that's about twenty percent fewer positions", targets: [picture], color: yellow, caption_boundary: true }
+          - { id: thirtyfive, phrase: "and because comparisons grow with the square of length, about thirty five percent fewer of those", targets: [picture], color: green, caption_boundary: true }
+          - { id: thirtyfive-value, phrase: "about thirty five percent fewer of those", targets: [picture], color: yellow, caption_boundary: true }
+          - { id: whole, phrase: "Those rates compare two complete tokenizers", targets: [picture], color: yellow, caption_boundary: true }
+      - say: The memory bill is fixed by arithmetic. The saving depends on the text you send. To price the trade, measure representative text from your own languages, code, and numbers.
+        hold: 0.9
+        visual_cues:
+          - { id: fixed, phrase: fixed by arithmetic, targets: [picture], color: blue }
+          - { id: depends, phrase: The saving depends, targets: [picture], color: yellow }
+          - { id: measure, phrase: measure representative text, targets: [picture], color: green }
+
+  - id: inflation
+    title: The same content can cost far more tokens
+    visual: Token bars for the same content in three languages grow to scale, then price, context window, and processing time each get a small picture.
+    beats:
+      - say: Now, how this goes wrong in production, starting with language. Fertility means how many tokens a tokenizer needs per word, or per some other unit of text. It can vary a lot. A twenty twenty three study compared translations of the same content, and found that a tokenizer used by ChatGPT at the time needed about fifteen times as many tokens for Shan as for English. That was the widest gap it found for that tokenizer. Italian needed about one point six times.
+        hold: 0.9
+        visual_cues:
+          - { id: fertility, phrase: Fertility means, targets: [picture], color: yellow }
+          - { id: study, phrase: compared translations, targets: [picture], color: blue }
+          - { id: shan, phrase: for Shan as for English, targets: [picture], color: red }
+          - { id: widest, phrase: the widest gap, targets: [picture], color: yellow }
+          - { id: italian, phrase: Italian needed, targets: [picture], color: cyan }
+      - say: That shows up in three places. Input priced per token can cost more. The same context window, the limit on how many tokens a model can take at once, holds less. And longer sequences take longer to process. So measure token counts on your own languages, using comparable content, before you promise anyone a budget.
+        hold: 0.5
+        visual_cues:
+          - { id: price, phrase: priced per token, targets: [picture], color: yellow }
+          - { id: window, phrase: context window, targets: [picture], color: yellow }
+          - { id: longer, phrase: longer sequences, targets: [picture], color: yellow }
+          - { id: measure, phrase: measure token counts, targets: [picture], color: green }
+
+  - id: numbers
+    title: A number can be cut many ways
+    visual: The same long number is cut three ways, by learned merges, into single digits, and into groups of up to three.
+    beats:
+      - say: Numbers are next. Tokenization is one of several reasons that multi digit arithmetic is hard, because it decides whether each digit position stays visible. In a byte level tokenizer like GPT two's, digits can merge according to the learned list, so similar looking numbers can get cut differently.
+        hold: 0.4
+        visual_cues:
+          - { id: visible, phrase: each digit position stays visible, targets: [picture], color: yellow }
+          - { id: learned, phrase: digits can merge, targets: [picture], color: yellow }
+          - { id: differ, phrase: cut differently, targets: [picture], color: red }
+      - say: One policy splits a number into single digits. That exposes every column. Another groups digits from the left, up to three at a time, before merging. Look at the last column. Seven and eight each stand alone. When you compare tokenizer versions, read the actual pattern to see which digits can share a piece.
+        hold: 0.8
+        caption_starts: ["Another groups digits", "Look at the last column"]
+        visual_cues:
+          - { id: single, phrase: splits a number into single digits, targets: [picture], color: cyan }
+          - { id: columns, phrase: exposes every column, targets: [picture], color: cyan }
+          - { id: groups, phrase: groups digits, targets: [picture], color: cyan }
+          - { id: neither, phrase: Look at the last column, targets: [picture], color: yellow }
+          - { id: read, phrase: read the actual pattern, targets: [picture], color: green }
+
+  - id: code-whitespace
+    title: Code spends tokens on layout and casing
+    visual: A deeply indented line is counted space by space, then in four-space pieces, and a camel case identifier breaks into fragments.
+    beats:
+      - say: Code has its own problems. In Python, indentation is structure. Four levels of four spaces is sixteen leading spaces. With only single space pieces, that's sixteen tokens. A tokenizer that learned a four space piece needs four. That's seventy five percent less, for that one run.
+        hold: 0.9
+        visual_cues:
+          - { id: indent, phrase: sixteen leading spaces, targets: [picture], color: yellow }
+          - { id: sixteen, phrase: "With only single space pieces, that's sixteen tokens", targets: [picture], color: red, caption_boundary: true }
+          - { id: four, phrase: "A tokenizer that learned a four space piece needs four", targets: [picture], color: green, caption_boundary: true }
+          - { id: save, phrase: "That's seventy five percent less", targets: [picture], color: green, caption_boundary: true }
+      - say: Write token count in camel case. The article's small tokenizer splits that name into five pieces. Token, capital C, O, U N, T. It never learned a piece for count with a capital C. A second tokenizer in the article encodes the same name in just two tokens. Count your code with the tokenizer you plan to use.
+        hold: 0.5
+        caption_starts: ["A second tokenizer in the article", "just two tokens"]
+        visual_cues:
+          - { id: camel, phrase: in camel case, targets: [picture], color: yellow }
+          - { id: pieces, phrase: "Token, capital C", targets: [picture], color: yellow }
+          - { id: yours, phrase: just two tokens, targets: [picture], color: cyan }
+
+  - id: glitch
+    title: "Glitch tokens: some rows may barely get trained"
+    visual: Frequency colors the vocabulary rows. A token selects its rare row and vector coordinates, beside explicitly invented strange output and the independent checks needed to assess a cause.
+    beats:
+      - say: And some vocabulary entries are strange. Researchers have documented glitch tokens, such as Solid Gold Magikarp, that can trigger anomalous behavior. Building a tokenizer and training a model have different goals, and can use different data. So a token can enter the vocabulary and then barely appear in model training, leaving its row under trained.
+        hold: 0.4
+        visual_cues:
+          - { id: strange, phrase: glitch tokens, targets: [picture], color: red }
+          - { id: anomalous, phrase: anomalous behavior, targets: [picture], color: yellow }
+          - { id: goals, phrase: different goals, targets: [picture], color: yellow }
+          - { id: barely, phrase: barely appear, targets: [picture], color: yellow }
+          - { id: under, phrase: leaving its row under trained, targets: [picture], color: red }
+      - say: Suppose the model replies with banana. How would you check whether this token was undertrained? Count its appearances in training, compare its vector with other rows, and check whether the behavior repeats across prompts.
+        hold: 0.5
+        caption_starts: ["Count its appearances in training"]
+        visual_cues:
+          - { id: odd, phrase: replies with banana, targets: [picture], color: yellow }
+          - { id: e1, phrase: Count its appearances in training, targets: [picture], color: cyan }
+          - { id: e2, phrase: compare its vector with other rows, targets: [picture], color: cyan }
+          - { id: e3, phrase: check whether the behavior repeats, targets: [picture], color: cyan }
+
+  - id: request
+    title: Special tokens, chat templates, and the whole request
+    visual: Special tokens take two walled paths, two chat formats give different IDs, then a short message fits a small window and added instructions and role markers push the request past the edge.
+    beats:
+      - say: A chat template uses special tokens to mark roles and message boundaries. Here the template ends a message with a dedicated control ID. The same spelling typed by a user goes through the ordinary text encoder. Keep those two paths apart so the template controls where messages begin and end.
+        hold: 0.4
+        visual_cues:
+          - { id: special, phrase: special tokens, targets: [picture], color: yellow }
+          - { id: control, phrase: a dedicated control ID, targets: [picture], color: green }
+          - { id: typed, phrase: typed by a user, targets: [picture], color: red }
+          - { id: apart, phrase: Keep those two paths apart, targets: [picture], color: yellow }
+      - say: The chat template formats the conversation before encoding. One format puts angle brackets around the roles. Change those to square brackets and the tokenizer sees different pieces. Ship the template the model trained with.
+        hold: 0.4
+        visual_cues:
+          - { id: template, phrase: the chat template, targets: [picture], color: blue }
+          - { id: differ, phrase: Change those to square brackets, targets: [picture], color: red }
+      - say: Count the whole request. Rainy is two positions, rain plus Y. This window holds seven, so the message fits. Add three positions for system instructions, two for role markers, and one to start the reply. That's six more positions. Add them to the two in rainy. Eight positions in all. The reply marker lands one past the edge. Count the formatted request before you send it.
+        hold: 1.0
+        visual_cues:
+          - { id: rainy, phrase: Rainy is two positions, targets: [picture], color: blue, caption_boundary: true }
+          - { id: window, phrase: This window holds seven, targets: [picture], color: yellow, caption_boundary: true }
+          - { id: fits, phrase: so the message fits, targets: [picture], color: green, caption_boundary: true }
+          - { id: add, phrase: Add three positions for system instructions, targets: [picture], color: yellow, caption_boundary: true }
+          - { id: add-role, phrase: two for role markers, targets: [picture], color: yellow, caption_boundary: true }
+          - { id: add-reply, phrase: and one to start the reply, targets: [picture], color: yellow, caption_boundary: true }
+          - { id: made-up, phrase: "That's six more positions", targets: [picture], color: cyan, caption_boundary: true }
+          - { id: total, phrase: Eight positions in all, targets: [picture], color: yellow, caption_boundary: true }
+          - { id: overflow, phrase: The reply marker lands one past the edge, targets: [picture], color: red, caption_boundary: true }
+          - { id: final, phrase: Count the formatted request, targets: [picture], color: yellow, caption_boundary: true }
+
+  - id: your-turn
+    title: Your turn
+    visual: A new corpus, a new vocabulary, and new path probabilities each pose a question, hold for an answer, and then resolve on screen.
+    beats:
+      - say: Try BPE on these three words. Snow, four times. Snowy, twice. Show, three times. How many positions do we start with, and which pair merges first?
+        hold: 5.0
+        caption_starts: ["How many positions do we start with"]
+        visual_cues:
+          - { id: corpus, phrase: on these three words, targets: [picture], color: blue }
+          - { id: question, phrase: How many positions, targets: [picture], color: yellow }
+      - say: Thirty eight positions. O W appears nine times, more than any other pair, so it merges first. Nine positions disappear, which leaves twenty nine.
+        hold: 0.9
+        visual_cues:
+          - { id: thirty-eight, phrase: "Thirty eight positions", targets: [picture], color: yellow, caption_boundary: true }
+          - { id: ow, phrase: "O W appears nine times", targets: [picture], color: yellow, caption_boundary: true }
+          - { id: twenty-nine, phrase: "Nine positions disappear, which leaves twenty nine", targets: [picture], color: green, caption_boundary: true }
+      - say: Now BERT style WordPiece, with a vocabulary of snow, continuation ball, and S N O W B. What happens to snowball?
+        hold: 4.0
+        visual_cues:
+          - { id: vocab, phrase: a vocabulary of snow, targets: [picture], color: blue }
+          - { id: question-wp, phrase: What happens to snowball, targets: [picture], color: yellow }
+      - say: The longest match takes S N O W B, and nothing can finish A L L. It doesn't go back, so the whole word becomes unknown.
+        hold: 0.9
+        visual_cues:
+          - { id: longest, phrase: "The longest match takes S N O W B", targets: [picture], color: yellow, caption_boundary: true }
+          - { id: no-finish, phrase: "and nothing can finish A L L", targets: [picture], color: red, caption_boundary: true }
+          - { id: unknown, phrase: "so the whole word becomes unknown", targets: [picture], color: red, caption_boundary: true }
+      - say: Last, Unigram. Marker snow has probability point zero five. The marker alone has point two five, and snow has point four. Which path wins?
+        hold: 4.0
+        visual_cues:
+          - { id: marker, phrase: Marker snow has probability, targets: [picture], color: blue }
+          - { id: alone, phrase: The marker alone, targets: [picture], color: blue }
+          - { id: question-u, phrase: Which path wins, targets: [picture], color: yellow }
+      - say: The two pieces, because point two five times point four is point one, and that beats point zero five. The path with fewer pieces lost, because only the complete path's score counts.
+        hold: 1.0
+        visual_cues:
+          - { id: product, phrase: point two five times point four is point one, targets: [picture], color: green }
+          - { id: product-result, phrase: "is point one", targets: [picture], color: green, caption_boundary: true }
+          - { id: comparison, phrase: "and that beats point zero five", targets: [picture], color: green, caption_boundary: true }
+          - { id: fewer, phrase: "The path with fewer pieces lost", targets: [picture], color: yellow, caption_boundary: true }
+
+  - id: close
+    title: What will the model write?
+    visual: Two output weight rows face their fixed IDs and decoded pieces. The viewer predicts the emitted piece, then watches the same winning score travel with its weights when the output rows change places.
+    beats:
+      - say: Here's the replacement tokenizer from the opening. Its dictionary gives one to falls and five to soft. This time we've moved the input rows to match. Each piece selects its original vector, so the model reads the sentence correctly.
+        hold: 0.6
+        visual_cues:
+          - { id: map, phrase: Its dictionary gives one to falls, targets: [decoder], color: blue }
+          - { id: input, phrase: moved the input rows to match, targets: [decoder], color: cyan }
+      - say: Now let it write one more piece. The output weights are in a separate table, still in training order. Suppose the hidden vector at this step is zero, zero, one. Take its dot product with each row. The first two coordinates drop out, so each score is the last number in its row. The best of the six other rows scores point five.
+        hold: 0.5
+        visual_cues:
+          - { id: output, phrase: The output weights are in a separate table, targets: [output-rows], color: cyan }
+          - { id: hidden, phrase: the hidden vector at this step, targets: [hidden-vector], color: cyan }
+          - { id: dot, phrase: each score is the last number in its row, targets: [scores], color: cyan }
+          - { id: other-rows, phrase: The best of the six other rows scores point five, targets: [scores], color: cyan, caption_boundary: true }
+      - say: For greedy decoding, take the highest score and follow its ID down to the dictionary. Which piece will the replacement print?
+        hold: 3.4
+        visual_cues:
+          - { id: predict, phrase: Which piece will the replacement print, targets: [decoder], color: yellow }
+      - say: Soft. Row five still wins, just as it did when five meant falls. The dictionary gives that ID a different meaning.
+        hold: 1.2
+        visual_cues:
+          - { id: printed, phrase: Soft, targets: [emitted-piece], color: yellow, caption_boundary: true }
+      - say: Leave the hidden vector and dictionary alone. Swap the two output weight rows. Watch where point seven lands. Row one now wins, and the model writes falls. That's the piece the original model would have written here.
+        hold: 1.2
+        caption_starts: ["Row one now wins"]
+        visual_cues:
+          - { id: swap, phrase: Swap the two output weight rows, targets: [output-rows], color: cyan }
+          - { id: restored, phrase: "Row one now wins, and the model writes falls", targets: [emitted-piece], color: yellow, caption_boundary: true }
+      - say: Before shipping a renumbering, check both what the model reads and what it writes. Pin the verified tokenizer to its checkpoint. Next we'll follow one of those learned vectors and see how its meaning changes in context.
+        hold: 0.9

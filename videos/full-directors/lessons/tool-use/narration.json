@@ -1,0 +1,864 @@
+[
+  {
+    "id": "c01",
+    "title": "Is River Walk available today?",
+    "sourceChapters": [
+      "c01"
+    ],
+    "beats": [
+      {
+        "id": "c01-b01",
+        "say": "Lena is looking for River Walk. Her assistant asks the library for book B seven. Watch where that number goes. How many copies can Lena say are available from the request alone?",
+        "hold": 2.1
+      },
+      {
+        "id": "c01-b02",
+        "say": "Her phone is still waiting. The model proposed a lookup. Her app checks the book number and her permission to read that catalog entry. Now it sends the request. The catalog counts three available copies. Watch the shelf while the reply goes back.",
+        "hold": 0.9
+      },
+      {
+        "id": "c01-b03",
+        "say": "The reply carries read seven, the same call number the app sent. With that match, the assistant can tell Lena there are three copies available.",
+        "hold": 0.8
+      },
+      {
+        "id": "c01-b04",
+        "say": "Lena would like one of them. Look at the books and at what the library actually returned. Can she tell a friend she has a reservation?",
+        "hold": 2.35
+      },
+      {
+        "id": "c01-b05",
+        "say": "All three books are still on the shelf. The reply gives an availability count. To reserve a copy, Lena needs a separate hold request. Her app checks permission to write. She can report a reservation once the library returns evidence that it recorded the hold.",
+        "hold": 1.25
+      }
+    ]
+  },
+  {
+    "id": "c02",
+    "title": "Why did the canary fail?",
+    "sourceChapters": [
+      "c02"
+    ],
+    "beats": [
+      {
+        "id": "c02-b01",
+        "say": "Why did the canary for reranker version sixteen fail? The assistant proposes a status lookup. The host checks the arguments and the engineer’s project, reads the release service, and files the reply under the call number, status one.",
+        "hold": 0.8
+      },
+      {
+        "id": "c02-b02",
+        "say": "Here’s what came back from our example service. The canary failed. The allowed error rate was two percent. Keep your eye on that mark. The observed error rate was eight point one percent. By how many percentage points did the canary exceed its budget?",
+        "hold": 2
+      },
+      {
+        "id": "c02-b03",
+        "say": "It exceeded its error budget by six point one percentage points. The second model turn can use those two fields to explain the failure. To find which change caused the errors, the engineer would need more evidence.",
+        "hold": 1.1
+      },
+      {
+        "id": "c02-b04",
+        "say": "Here, the application ran the tool with its own service credentials. A provider can run a hosted tool inside its service. Check where the call runs, what data crosses that boundary, and what those credentials can reach. The host also has to handle a direct answer, several proposed calls, an invalid request, or a refusal.",
+        "hold": 0.9
+      }
+    ]
+  },
+  {
+    "id": "c03",
+    "title": "Make the proposal explicit",
+    "sourceChapters": [
+      "c03"
+    ],
+    "beats": [
+      {
+        "id": "c03-b01",
+        "say": "The host starts by describing its available tools. Our lookup needs a tool name and one book identifier. A returned call also has an identifier linking it to its eventual result. Those fields form a proposal that the dispatcher can inspect.",
+        "hold": 0.55
+      },
+      {
+        "id": "c03-b02",
+        "say": "Now start a separate streamed call. First comes the field name, then the book number. One closing brace is still missing. The host caps the bytes it collects. Once the envelope is complete, it can parse the arguments and check their shape. A malformed call or a refusal takes its own path.",
+        "hold": 0.75
+      },
+      {
+        "id": "c03-b03",
+        "say": "Tool-call envelopes differ across APIs. Use the fields documented for the actual endpoint, then adapt them into the runtime's internal record. Our displayed envelope is a teaching contract. Guessing a universal text delimiter would make parsing and result linkage fragile.",
+        "hold": 0.55
+      }
+    ]
+  },
+  {
+    "id": "c04",
+    "title": "Attach each observation to its real provider call identity",
+    "sourceChapters": [
+      "c04"
+    ],
+    "beats": [
+      {
+        "id": "c04-b01",
+        "say": "In the article’s OpenAI Responses example, the call has a name, arguments encoded as a JSON string, and two identifiers. One labels the item itself, F C item one. The other labels the invocation, status one. Which one should travel back with the result?",
+        "hold": 2
+      },
+      {
+        "id": "c04-b02",
+        "say": "The output carries the call identifier, status one. The item identifier stays on the original item. Follow the matching ends of that link.",
+        "hold": 0.7
+      },
+      {
+        "id": "c04-b03",
+        "say": "Chat Completions instead returns an assistant tool-calls entry with its I D and function arguments. The application replies with a tool message whose tool-call I D matches. Claude Messages returns a tool-use block with object-valued input; a tool-result block names its tool-use I D inside the next user message, before any new text.",
+        "hold": 0.7
+      },
+      {
+        "id": "c04-b04",
+        "say": "Gemini Interactions returns a function-call step with object-valued arguments. Return a function-result step with its name, call I D equal to the call step I D, and result content blocks. Stateful continuation can use previous interaction I D; stateless continuation preserves the returned steps, including thoughts.",
+        "hold": 0.3
+      },
+      {
+        "id": "c04-b05",
+        "say": "Preserve each endpoint’s required history rather than flattening every API into one tool-message format.",
+        "hold": 0.7
+      }
+    ]
+  },
+  {
+    "id": "c05",
+    "title": "Collect and validate the whole batch before dispatch",
+    "sourceChapters": [
+      "c05"
+    ],
+    "beats": [
+      {
+        "id": "c05-b01",
+        "say": "The article adapter requires response status completed and each function-call status completed. It rejects missing, empty or duplicate call identifiers, a tool outside the allowlist, and arguments that are not a string within two thousand forty-eight UTF-8 bytes. It then validates arguments with the strict application model.",
+        "hold": 0.3
+      },
+      {
+        "id": "c05-b02",
+        "say": "Suppose the first call is complete. The second names the right tool, but its argument stream stops in the middle of a field. Can the adapter release the first call now?",
+        "hold": 2
+      },
+      {
+        "id": "c05-b03",
+        "say": "Watch the second call. Its tool name is complete. Its release ID field stops at the colon, before the value. The adapter rejects the whole batch. The first call never reaches the service. While fragments arrive, the host also caps the number of bytes it collects.",
+        "hold": 0.7
+      },
+      {
+        "id": "c05-b04",
+        "say": "A zero-call response needs ordinary answer or refusal handling. Preserve non-call output items in conversation history where the endpoint requires them. When several calls pass validation, keep their IDs distinct. The host checks permission for each call and schedules the ones it allows.",
+        "hold": 0.7
+      }
+    ]
+  },
+  {
+    "id": "c06",
+    "title": "Check shape before touching a resource",
+    "sourceChapters": [
+      "c06"
+    ],
+    "beats": [
+      {
+        "id": "c06-b01",
+        "say": "A JSON schema describes the shape of accepted arguments. Here book ID must be a nonempty string, and no extra fields are accepted. The runtime parses and validates the model's arguments before trying to resolve that resource.",
+        "hold": 0.55
+      },
+      {
+        "id": "c06-b02",
+        "say": "Watch a numeric identifier fail the type rule. Then watch a request with a surprise place-hold field fail the extra-field rule. Both rejections keep an availability lookup narrow. A model cannot add a new capability by inventing another argument.",
+        "hold": 0.75
+      },
+      {
+        "id": "c06-b03",
+        "say": "Shape validation still leaves meaning to check. A string can name a missing book or a resource outside this caller's account. Keep structured validation errors bounded, and distinguish a correctable argument problem from a policy denial that another spelling will not fix.",
+        "hold": 0.55
+      }
+    ]
+  },
+  {
+    "id": "c07",
+    "title": "Represent optional values without permitting surprise authority",
+    "sourceChapters": [
+      "c07"
+    ],
+    "beats": [
+      {
+        "id": "c07-b01",
+        "say": "The complete release contract accepts a release identifier of one to one hundred twenty-eight ASCII letters, digits, periods, underscores or hyphens, beginning with a letter or digit. Pydantic strict mode rejects coercion for these strings and Booleans, while extra forbid rejects unknown fields.",
+        "hold": 0.3
+      },
+      {
+        "id": "c07-b02",
+        "say": "Strict behavior is type-specific; JSON date strings can still be valid for date types.",
+        "hold": 0.7
+      },
+      {
+        "id": "c07-b03",
+        "say": "Try rank v nine with the optional include gates field omitted, then with null. Both pass the application model and request no details. Boolean true asks for details. Replace true with the number one. Strict validation rejects the number. Restore true. The request passes again. Put a hyphen at the start of the release name. The identifier now fails its own rule.",
+        "hold": 0.3
+      },
+      {
+        "id": "c07-b04",
+        "say": "In the documented OpenAI strict schema, every property is required, so represent the optional value as Boolean or null and set additional properties false on each object. Generation constraints still leave semantic value and permission checks to the host.",
+        "hold": 0.7
+      },
+      {
+        "id": "c07-b05",
+        "say": "The two article parsers have different duplicate-key behavior. The reader’s JSON dispatcher explicitly rejects duplicate argument fields using an object-pairs hook. Do not infer that a strict type schema alone supplies that policy. Default Python JSON keeps the last duplicate value; differing parser policies can make components validate and execute different apparent requests.",
+        "hold": 0.7
+      }
+    ]
+  },
+  {
+    "id": "c08",
+    "title": "Let a required call finish as an answer on a later turn",
+    "sourceChapters": [
+      "c08"
+    ],
+    "beats": [
+      {
+        "id": "c08-b01",
+        "say": "Tool choice controls generation for this turn. Auto permits an answer or one or more calls. Required demands one or more calls. None disables calls, and a forced-function setting names a specific function where supported.",
+        "hold": 0.3
+      },
+      {
+        "id": "c08-b02",
+        "say": "Set a required call only on the turn that needs it, then allow an answer; leaving calls required can prevent completion.",
+        "hold": 0.7
+      },
+      {
+        "id": "c08-b03",
+        "say": "OpenAI Responses and Chat Completions use different forced-function envelopes. Claude uses a type field with auto, any, tool or none, and some models or thinking settings reject the forcing modes. Check the selected endpoint and model. A generation setting does not dispatch the function or prove that its requested effect is allowed.",
+        "hold": 0.7
+      },
+      {
+        "id": "c08-b04",
+        "say": "For the OpenAI endpoints described in the article, disabling parallel tool calls limits generation to at most one call. With certain fine-tuned models, the documented multi-call behavior also changes strict-mode support. The host must validate every proposed call under the contract it actually enforces.",
+        "hold": 0.3
+      },
+      {
+        "id": "c08-b05",
+        "say": "Keep those provider details in adapters and compatibility checks, while the application independently enforces registration, parsing, scope, execution and budgets.",
+        "hold": 0.7
+      }
+    ]
+  },
+  {
+    "id": "c09",
+    "title": "Resolve permission in trusted runtime state",
+    "sourceChapters": [
+      "c09"
+    ],
+    "beats": [
+      {
+        "id": "c09-b01",
+        "say": "The runtime identifies the caller from trusted session state. It resolves the requested resource and checks whether that principal may perform that action. A model-supplied account name or a confident explanation cannot substitute for the authenticated principal.",
+        "hold": 0.55
+      },
+      {
+        "id": "c09-b02",
+        "say": "Reads need this check too. A book's public availability may be readable, while another reader's borrowing history is private. A valid resource identifier must not become a way to fetch whichever record the host's broad service credentials happen to reach.",
+        "hold": 0.75
+      },
+      {
+        "id": "c09-b03",
+        "say": "The request now passes for our authorized availability lookup. Notice where permission lives: in the runtime's policy inputs and checks. Tool definitions guide what the model may propose; enforcement controls what the application actually allows to happen.",
+        "hold": 0.55
+      }
+    ]
+  },
+  {
+    "id": "c10",
+    "title": "Deny a cross-project read without returning another project’s row",
+    "sourceChapters": [
+      "c10"
+    ],
+    "beats": [
+      {
+        "id": "c10-b01",
+        "say": "Keep the trusted session in search. Release R twenty-two belongs to search, so the first read returns its canary status. Before the next read, its owner changes to ads. The same reader asks for the same release. What can leave the host this time?",
+        "hold": 2.2
+      },
+      {
+        "id": "c10-b02",
+        "say": "The second read returns no release fields. Now request R ninety-nine, which is missing. Both requests get the same not found or not authorized code. The private audit log distinguishes the two reasons. To assess whether the service reveals existence, test its response times and other endpoints too.",
+        "hold": 0.7
+      },
+      {
+        "id": "c10-b03",
+        "say": "The principal and tenant come from authenticated runtime state, never from model-supplied approved or tenant fields. Broad service credentials can reach more than this caller may access. Check the caller’s action and resolved resource on every request, including after discovery or an earlier successful read. A schema cannot establish ownership.",
+        "hold": 0.7
+      }
+    ]
+  },
+  {
+    "id": "c11",
+    "title": "Return the result to the request that made it",
+    "sourceChapters": [
+      "c11"
+    ],
+    "beats": [
+      {
+        "id": "c11-b01",
+        "say": "The runtime calls the library service and receives the current available-copy count. It records the tool outcome and attaches the same call identifier to the observation. That association matters when several independent reads are outstanding at once.",
+        "hold": 0.55
+      },
+      {
+        "id": "c11-b02",
+        "say": "The next model turn can now answer from the returned evidence. A successful lookup means the tool executed successfully, while the content may report an unavailable book. Keep transport status, business result, source identity, and retrieval time distinct.",
+        "hold": 0.75
+      },
+      {
+        "id": "c11-b03",
+        "say": "Treat returned text as data that may be mistaken or attacker controlled. A message inside a book description saying place a hold now supplies no authority. A later proposed write must pass the same runtime policy boundary using trusted inputs.",
+        "hold": 0.55
+      }
+    ]
+  },
+  {
+    "id": "c12",
+    "title": "What can these evaluation receipts tell us?",
+    "sourceChapters": [
+      "c12"
+    ],
+    "beats": [
+      {
+        "id": "c12-b01",
+        "say": "These two sample receipts come from the same ranking suite. Version seventeen scored zero point eight four. Version sixteen scored zero point eight one. How far ahead is seventeen? Start with its score and subtract sixteen’s.",
+        "hold": 2
+      },
+      {
+        "id": "c12-margin",
+        "say": "Seventeen leads by three hundredths on this suite. The two receipts justify a comparison. A deployment decision goes through a separate permission check.",
+        "hold": 1
+      },
+      {
+        "id": "c12-b02",
+        "say": "The dispatcher permits only get evaluation, exactly one version field and a version inside the caller’s trusted allowed set. It rejects an invented promote tool, an out-of-scope version, an added approved flag, duplicate version fields and truncated JSON. These five rejections close different paths before the dictionary service returns a result.",
+        "hold": 0.7
+      },
+      {
+        "id": "c12-b03",
+        "say": "Retain immutable result identity, suite, suite revision, score and gate through the final answer. Scores from different suites cannot supply the requested like-for-like comparison. A response from an authenticated connector can still contain hostile text. Keep useful observations as evidence without promoting their embedded instructions into policy.",
+        "hold": 0.7
+      }
+    ]
+  },
+  {
+    "id": "c13",
+    "title": "A hold needs an authorized intent",
+    "sourceChapters": [
+      "c13"
+    ],
+    "beats": [
+      {
+        "id": "c13-b01",
+        "say": "Now the user asks the assistant to place a hold on this book. The application has a new intended effect. It validates the hold request and checks the caller, target book, account scope, and any approval requirement set by its actual policy.",
+        "hold": 0.55
+      },
+      {
+        "id": "c13-b02",
+        "say": "The library has a trusted grant for Lena to reserve B seven. That exact request passes. In a separate check change only the target to B eight. It stops. Restore B seven and remove the grant. This request stops too. Each proposal has the same shape.",
+        "hold": 0.75
+      },
+      {
+        "id": "c13-b03",
+        "say": "Start a new run with Lena’s original grant for B seven. A previous read may have gone stale, and permission can change. Recheck mutable conditions at the point of execution, then verify the saved hold in the service. Lena can now report the reservation number in its receipt.",
+        "hold": 0.55
+      }
+    ]
+  },
+  {
+    "id": "c14",
+    "title": "May this promotion go through?",
+    "sourceChapters": [
+      "c14"
+    ],
+    "beats": [
+      {
+        "id": "c14-b01",
+        "say": "The model supplies just the release identifier. Alice’s trusted session supplies the promotion role. The release must belong to her project and pass its current release policy. The host looks up the actual candidate.",
+        "hold": 0.3
+      },
+      {
+        "id": "c14-b02",
+        "say": "A human approval on file must bind Alice, the project, this action, this candidate, the policy version, and the operation key. The host checks all of that before it looks for a saved result.",
+        "hold": 0.8
+      },
+      {
+        "id": "c14-b03",
+        "say": "Suppose the model adds an approval field. The shape check rejects the extra field. The host obtains approval and the operation key from its own records. Someone else’s approval, or one for different weights, would also fail. This tool requires a human decision.",
+        "hold": 0.3
+      },
+      {
+        "id": "c14-b04",
+        "say": "Other tools have their own policies. The host still checks the caller even if a tool result contains a persuasive instruction. If the host spends its own promotion privilege on a caller who lacks it, it becomes a confused deputy.",
+        "hold": 0.8
+      },
+      {
+        "id": "c14-b05",
+        "say": "Alice’s first promotion went through. The service saved its receipt under operation A, but Alice lost the reply. Before her retry, the release gate flips to failed. The approval, the candidate, and the operation key still match. Can the host return that saved success now?",
+        "hold": 2.3
+      },
+      {
+        "id": "c14-b06",
+        "say": "The retry stops at the failed gate. The service still has the first promotion on file. Now the gate passes again. Alice retries with the same key and approval. This time the checks reach the ledger. She gets the saved receipt, with one promotion in all.",
+        "hold": 0.3
+      },
+      {
+        "id": "c14-b07",
+        "say": "The host must recheck any mutable condition at execution, including the caller’s current role. A real approval also binds the relevant parameters and an expiry. When a version can change between checking and writing, make the write conditional on its revision.",
+        "hold": 1.4
+      }
+    ]
+  },
+  {
+    "id": "c15",
+    "title": "What happened to Lena’s hold?",
+    "sourceChapters": [
+      "c15"
+    ],
+    "beats": [
+      {
+        "id": "c15-b01",
+        "say": "Return to the shelf. Lena authorizes one hold on River Walk. Her app sends operation seventeen for B seven. The library bands one copy for Lena and records hold one under that key. The receipt starts back. The connection drops. Her app times out. What does Lena know about the hold?",
+        "hold": 2.2
+      },
+      {
+        "id": "c15-b02",
+        "say": "The library has the record. Her phone has no receipt. Consider two possible retries from this exact moment. On the left, send B seven under the original key, seventeen. On the right, send the same book under a fresh key, eighteen. Each side began with the same single hold.",
+        "hold": 1
+      },
+      {
+        "id": "c15-b03",
+        "say": "This library checks the key and the book before creating a hold. How many copies will be reserved in each case?",
+        "hold": 2.4
+      },
+      {
+        "id": "c15-b04",
+        "say": "On the left the key and book match. The service returns hold one. On the right the new key has no entry. The service creates hold two. Both sides received two requests. Only the fresh key tied up a second copy.",
+        "hold": 1
+      },
+      {
+        "id": "c15-b05",
+        "say": "Repeating a write with the same intended effect is safe here because the service saves the key, the book, and the result together. Reusing that key for the same payload returns the original result.",
+        "hold": 0.8
+      },
+      {
+        "id": "c15-b06",
+        "say": "Reset to the single hold. Send seventeen again, this time for B eight. The key is already bound to B seven. The library rejects the mismatch and keeps the original hold.",
+        "hold": 0.8
+      },
+      {
+        "id": "c15-b07",
+        "say": "If two requests arrive together, the service must claim the key and save the effect atomically. A replay can recover this hold for as long as the service keeps its record.",
+        "hold": 0.8
+      },
+      {
+        "id": "c15-b08",
+        "say": "Back at the timeout, suppose the library supports status reads by submission reference but makes no promise about repeat writes. Lena reads the status of seventeen. The saved record comes back with B seven and hold one. Now she can report the reservation. The same band is still on the same copy. If status is inconclusive, leave the request pending.",
+        "hold": 1.3
+      }
+    ]
+  },
+  {
+    "id": "c16",
+    "title": "Separate a replayed operation from a newly approved intent",
+    "sourceChapters": [
+      "c16"
+    ],
+    "beats": [
+      {
+        "id": "c16-b01",
+        "say": "The article mock target keys operations by project, action and trusted operation I D. Its fingerprint binds principal, project, action, release, candidate and policy version. After one recorded promotion loses its reply, retrying the original approved intent returns the saved result. Two requests have still applied one logical effect.",
+        "hold": 0.7
+      },
+      {
+        "id": "c16-b02",
+        "say": "A separate approval for the same target gets a new operation identity and applies a second intended operation. Reusing the first identity for a different candidate is a collision and is rejected without another effect.",
+        "hold": 0.3
+      },
+      {
+        "id": "c16-b03",
+        "say": "A new transport call identifier does not make a retry a new approved intent, and a new approval is not a replay.",
+        "hold": 0.7
+      },
+      {
+        "id": "c16-b04",
+        "say": "Now consider a crash between two separate writes. First the release service promotes the candidate. Before the caller can save the receipt, its process stops. The caller’s empty ledger cannot answer whether the promotion happened. Keep the operation record and its effect together in one durable transaction at the destination, so concurrent retries recover the same result.",
+        "hold": 0.3
+      },
+      {
+        "id": "c16-b05",
+        "say": "Even a durable idempotency key can expire. If the service no longer promises replay, read the original operation’s status. A confirmed status settles the outcome. An inconclusive status leaves the operation pending.",
+        "hold": 0.7
+      }
+    ]
+  },
+  {
+    "id": "c17",
+    "title": "Keep validated strings in data positions",
+    "sourceChapters": [
+      "c17"
+    ],
+    "beats": [
+      {
+        "id": "c17-b01",
+        "say": "A valid string can still become executable syntax if interpolated into a query or shell command. Psycopg takes a fixed SQL statement with a percent s placeholder and a separate parameter tuple. Pass an allowed value through that binding. Do not turn the value into SQL source by formatting it into the query.",
+        "hold": 0.7
+      },
+      {
+        "id": "c17-b02",
+        "say": "For a fixed executable, use an argument list with shell false and an allowlist of flags. That avoids shell parsing but does not make arbitrary program options safe. URL tools need allowed schemes and hosts, checked resolved addresses, and disabled redirects or validation at each hop, backed by network restrictions on internal and metadata endpoints.",
+        "hold": 0.7
+      },
+      {
+        "id": "c17-b03",
+        "say": "Resolve file paths inside a reviewed root, including symlinks; a substring test for dot dot is insufficient. Cap payload size, calls and concurrent effects. Use short-lived tool-scoped credentials. The host enforces these limits each time it runs a tool.",
+        "hold": 0.7
+      }
+    ]
+  },
+  {
+    "id": "c18",
+    "title": "Choose recovery from the actual failure class",
+    "sourceChapters": [
+      "c18"
+    ],
+    "beats": [
+      {
+        "id": "c18-b01",
+        "say": "A missing field can return as a short structured observation. The model can propose a corrected call on a bounded later turn. Revalidate the corrected call from the beginning. A policy denial needs a change to trusted permissions. Trying another spelling leaves the decision in place.",
+        "hold": 0.7
+      },
+      {
+        "id": "c18-b02",
+        "say": "Transient failure on an idempotent read can retry inside the runtime with backoff under one end-to-end deadline. Do not ask the model to guess a new release I D. A timed-out write has an unknown outcome if the destination may have committed. Reconcile under the original operation identity instead of issuing a fresh write.",
+        "hold": 0.7
+      },
+      {
+        "id": "c18-b03",
+        "say": "Return bounded error codes and useful fields, not stack traces or secrets. HTTP success can carry a failed application result, and queued means accepted rather than completed. Preserve status, observation time and source identity. Cap bytes collected and tokens returned, and strip secrets before any model or remote service sees the content.",
+        "hold": 0.7
+      }
+    ]
+  },
+  {
+    "id": "c19",
+    "title": "A new call ID cannot repair the same rejected action",
+    "sourceChapters": [
+      "c19"
+    ],
+    "beats": [
+      {
+        "id": "c19-b01",
+        "say": "Here are two proposals for the same status tool. Both ask for gate details using the number one. The first fails the Boolean check. On the next turn the call has a new identifier and its fields arrive in reverse order. The runtime sorts the argument keys and compares the name and values. Has the proposed action changed?",
+        "hold": 2
+      },
+      {
+        "id": "c19-b02",
+        "say": "It is the same rejected action. Two proposals consumed two model generations. Zero calls reached the service. A tool log alone would miss that spend. Keep separate limits on proposal turns, dispatch attempts, elapsed time, and cost outside the prompt.",
+        "hold": 0.7
+      },
+      {
+        "id": "c19-b03",
+        "say": "A changed request earns at most another bounded validation attempt. It still cannot widen its own permissions. If the same unknown-tool error repeats, investigate whether the catalog can satisfy the task instead of adding a general shell. Stop with a clear unresolved limitation when the available authorized actions cannot finish the request.",
+        "hold": 0.7
+      }
+    ]
+  },
+  {
+    "id": "c20",
+    "title": "Which release can the engineer select?",
+    "sourceChapters": [
+      "c20"
+    ],
+    "beats": [
+      {
+        "id": "c20-b01",
+        "say": "The engineer asks for a comparison of versions sixteen and seventeen. The host marks those two reads as required before either runs. It can launch both authorized reads together. Seventeen comes back clean, with nine errors per thousand requests. The limit is twenty. Sixteen’s lookup times out.",
+        "hold": 0.3
+      },
+      {
+        "id": "c20-b02",
+        "say": "Can the engineer pick a candidate from this pair?",
+        "hold": 2.15
+      },
+      {
+        "id": "c20-b03",
+        "say": "The comparison has to wait. Seventeen’s low rate tells us nothing about sixteen’s missing result. File the timeout under its own call number. The host records a timeout or a dropped connection as a failed read and lets unexpected programming errors surface. While one read waits, the other can finish.",
+        "hold": 0.95
+      },
+      {
+        "id": "c20-b04",
+        "say": "Try the same two calls again in a separate run. This time sixteen returns its record. Its canary failed with eighty-one errors per thousand. Seventeen is still clean at nine. With both results in their slots, keep the clean releases within budget, then choose the one with the lowest error rate. Which version qualifies?",
+        "hold": 2.1
+      },
+      {
+        "id": "c20-b05",
+        "say": "Seventeen qualifies. That selects a candidate. Sending a promotion still requires current policy and trusted approval. Now change just the second receipt. Suppose another copy of the first reply arrives in its place. There are still two replies. Can they fill the two required slots?",
+        "hold": 2
+      },
+      {
+        "id": "c20-b06",
+        "say": "Both copies carry call one. The slot for call two is empty. The host checks for exactly one reply per required call, a matching release, and a success flag that is literally Boolean true.",
+        "hold": 0.3
+      },
+      {
+        "id": "c20-b07",
+        "say": "An extra exploratory lookup can fail without blocking a comparison that never needed it. Cap concurrency, keep one deadline for the task, and wait for every required read before acting on the result.",
+        "hold": 1.25
+      }
+    ]
+  },
+  {
+    "id": "c21",
+    "title": "Which tools reach this model turn?",
+    "sourceChapters": [
+      "c21"
+    ],
+    "beats": [
+      {
+        "id": "c21-b01",
+        "say": "Here are four tools in the host’s catalog. This caller has triage access. Filter by role and resource scope first. Even a tool description can disclose information. That leaves the status and policy reads. With two slots both reach the model.",
+        "hold": 0.3
+      },
+      {
+        "id": "c21-b02",
+        "say": "Check permission again when a call comes back. We’ll use hand-picked coordinates to see what happens when there’s just one slot.",
+        "hold": 0.9
+      },
+      {
+        "id": "c21-b03",
+        "say": "Represent a tool and a query as arrows. Cosine similarity compares their directions. Normalize each arrow, then multiply matching coordinates and add. That sum is their dot product. To normalize, divide by the vector’s length, the square root of the sum of its squared coordinates.",
+        "hold": 0.3
+      },
+      {
+        "id": "c21-b04",
+        "say": "Our helper takes three finite numbers. It first rescales by the largest absolute coordinate to prevent overflow, and clamps the final cosine to the range from minus one to one. A zero vector has no direction, so the helper rejects it.",
+        "hold": 1
+      },
+      {
+        "id": "c21-b05",
+        "say": "The query points straight to the right. Both permitted arrows already have length one. Drop a line from A to the horizontal axis. It lands at zero point six. Do the same for B. It lands at zero point eight.",
+        "hold": 0.3
+      },
+      {
+        "id": "c21-b06",
+        "say": "Those horizontal distances are the two cosine scores. The write tool points straight along the query, but it was removed before scoring. There’s one slot, and the job needs both reads. Which tool fills the slot, and can the job finish?",
+        "hold": 2.2
+      },
+      {
+        "id": "c21-b07",
+        "say": "B gets the slot. It can read the policy. The job also needs A to fetch the status. With one required tool missing, the job cannot finish. Check which required tools were retrieved and whether the task completed, alongside the relevance of each result.",
+        "hold": 1.15
+      }
+    ]
+  },
+  {
+    "id": "c22",
+    "title": "Distinguish request catalog bytes from model-visible definitions",
+    "sourceChapters": [
+      "c22"
+    ],
+    "beats": [
+      {
+        "id": "c22-b01",
+        "say": "Each tool description the model sees takes up tokens. In this catalog the model needs a status lookup and a policy lookup. Try loading their definitions on demand. Measure how often the model finds the tools it needs and finishes the task, along with total tokens and latency.",
+        "hold": 0.7
+      },
+      {
+        "id": "c22-b02",
+        "say": "In the article’s OpenAI Responses example, an individual deferred function still initially exposes its name and description while its parameter schema loads later. Namespaces and MCP servers can group deferred functions behind a shared description. Hosted discovery searches a declared inventory; client-executed discovery can consult the application’s current permitted catalog.",
+        "hold": 0.7
+      },
+      {
+        "id": "c22-b03",
+        "say": "Claude’s documented tool search offers regex and BM twenty-five variants. Deferred full definitions are still sent in the request catalog while staying out of the initial model context until discovery. A discovered client tool returns an ordinary tool-use proposal for application execution. Similar feature names do not imply identical visibility, schema or message formats.",
+        "hold": 0.7
+      }
+    ]
+  },
+  {
+    "id": "c23",
+    "title": "Score linkage, success and rendered text together",
+    "sourceChapters": [
+      "c23"
+    ],
+    "beats": [
+      {
+        "id": "c23-b01",
+        "say": "The scorer expects exactly call, observation and answer in that order. The call must use the allowed name and exact release arguments. Its nonempty string identifier must match the observation’s call I D. Observation success must be the actual Boolean true, with the required release and failed-canary status.",
+        "hold": 0.7
+      },
+      {
+        "id": "c23-b02",
+        "say": "The structured answer must agree with the observed release and status. Changing the text to succeeded while keeping the field canary failed creates a contradiction. Restore the correct sentence. Now change only the observation’s success flag from true to the number one. It fails even with the right call ID. A failed read with plausible leftover status fields also fails.",
+        "hold": 0.7
+      },
+      {
+        "id": "c23-b03",
+        "say": "This deterministic scorer assumes trusted runtime events and a fixed answer format. It does not authenticate a forged log or judge arbitrary prose. Independently inspect authorization, actual resulting state and free-form claim support.",
+        "hold": 0.3
+      },
+      {
+        "id": "c23-b04",
+        "say": "BFCL covers tool selection and argument categories; original tau-bench compares final database state with a goal under domain rules. Pin benchmark versions and test your own failure boundaries.",
+        "hold": 0.7
+      }
+    ]
+  },
+  {
+    "id": "c24",
+    "title": "Validate receipts before counting their passes and violations",
+    "sourceChapters": [
+      "c24"
+    ],
+    "beats": [
+      {
+        "id": "c24-b01",
+        "say": "The article gate begins with a nonempty receipt list. Passed must be an exact Boolean. Unauthorized reads and unsafe writes are non-negative integers, and rounds are integers at least one. Latency and cost are finite non-negative numeric values, excluding Booleans. Malformed evidence raises an error before aggregation.",
+        "hold": 0.7
+      },
+      {
+        "id": "c24-b02",
+        "say": "In the four supplied runs, three passed. That is seventy-five percent, with zero violations and at most three rounds. Find the slowest and most expensive run. It took six hundred eighty milliseconds and cost three point eight cents. Our caps are six hundred milliseconds and three cents. Can we release this candidate?",
+        "hold": 2
+      },
+      {
+        "id": "c24-b03",
+        "say": "The failed run counts toward both maxima, so this candidate exceeds both caps. Try a separate set of six runs that meet the performance targets. One row reports one unauthorized read. Another reports minus one. Reject the malformed row before summing. Correct only that row to zero. The valid total is one, which still fails the zero-read gate. Reject nonfinite measurements too. For release decisions, use held-out tasks, actual model calls, controlled tools and labeled policy outcomes. Report task completion and policy adherence separately.",
+        "hold": 0.7
+      }
+    ]
+  },
+  {
+    "id": "c25",
+    "title": "Reuse protocol plumbing while retaining each permission boundary",
+    "sourceChapters": [
+      "c25"
+    ],
+    "beats": [
+      {
+        "id": "c25-b01",
+        "say": "Connect each of three assistants to each of four services. Trace the lines. That takes twelve separate pair adapters. With the Model Context Protocol, each host reuses one client integration to create a dedicated client for each server it connects to. Each service supplies one server implementation. How many pieces of code do we maintain now?",
+        "hold": 2
+      },
+      {
+        "id": "c25-b02",
+        "say": "Three client integrations plus four server implementations. We maintain seven pieces of code. Trace the connections again. Each host still has four dedicated clients, one for each server. All twelve connections use the same protocol. Each caller still needs permission to use a tool.",
+        "hold": 0.7
+      },
+      {
+        "id": "c25-b03",
+        "say": "The host application runs clients that speak to local or remote servers. Tools list returns named definitions with input schema; tools call carries the tool name and argument object in a JSON-RPC request.",
+        "hold": 0.3
+      },
+      {
+        "id": "c25-b04",
+        "say": "For the pinned twenty twenty-six July revision in this article, each request includes protocol version and client capabilities metadata. Missing required metadata is invalid; client name and version are recommended.",
+        "hold": 0.7
+      },
+      {
+        "id": "c25-b05",
+        "say": "Protocol reuse does not change who decides whether to execute. A server’s read-only annotation is untrusted unless its issuer is trusted, and never replaces caller authorization. Definitions can change after review.",
+        "hold": 0.3
+      },
+      {
+        "id": "c25-b06",
+        "say": "Compare approved tool identities and schemas with the current catalog, restrict data shared with remote servers, and review the privileges of any local server program.",
+        "hold": 0.7
+      }
+    ]
+  },
+  {
+    "id": "c26",
+    "title": "Review what crosses the remote and local server boundaries",
+    "sourceChapters": [
+      "c26"
+    ],
+    "beats": [
+      {
+        "id": "c26-b01",
+        "say": "Suppose an assistant will send a release identifier to a remote catalog. The host reviews the outbound arguments. Send only the release identifier. Leave private session notes behind. Text returned by the remote service is still untrusted evidence. A provider-hosted MCP call executes in the provider’s service. Its approval settings govern data sharing, and the application still needs its own policy.",
+        "hold": 0.7
+      },
+      {
+        "id": "c26-b02",
+        "say": "For a local catalog server, show the exact command that would start it. The user approves that launch before the host starts the process. Restrict its file, network, and child-process privileges. Starting a program on the user’s machine is a separate permission decision from choosing a tool that is already available.",
+        "hold": 0.7
+      },
+      {
+        "id": "c26-b03",
+        "say": "Look at the token for this catalog. The intended recipient is the catalog server. Can a different server accept the same token? Check the audience. A reporting server must reject a token issued for the catalog. When the catalog needs a downstream service, it uses an appropriately scoped credential for that destination. A reviewed tool name supplies no authority to pass broad credentials along.",
+        "hold": 0.7
+      }
+    ]
+  },
+  {
+    "id": "c27",
+    "title": "Keep proposals, execution, and evidence distinct",
+    "sourceChapters": [
+      "c27"
+    ],
+    "beats": [
+      {
+        "id": "c27-b01",
+        "say": "Tool use joins a language model to software through a controlled request boundary. The model chooses a proposal. The runtime validates its structure and permission, performs a bounded operation, and records an observation with the identity needed to continue the conversation.",
+        "hold": 0.55
+      },
+      {
+        "id": "c27-b02",
+        "say": "Keep the limits in the host. Our example allows two attempts, one second, and two cents. Reserve the first attempt before dispatch. It fails after four hundred milliseconds and costs one cent. File that failure. A second attempt uses the remaining six hundred milliseconds and the last cent. Where can the host send a third request?",
+        "hold": 2
+      },
+      {
+        "id": "c27-b03",
+        "say": "The host stops at the budget. Each failed attempt consumed time and money. Independent authorized reads may overlap. Serialize writes when one depends on another or both change the same resource. Follow a proposal across the boundary, inspect the linked observation, then check the final claim against what the service actually recorded.",
+        "hold": 0.55
+      }
+    ]
+  },
+  {
+    "id": "c28",
+    "title": "Which release scored higher on Q1?",
+    "sourceChapters": [
+      "c28"
+    ],
+    "beats": [
+      {
+        "id": "c28-b01",
+        "say": "You’re on the release desk. Your session grants evaluation reads only, for A and B. Which release scored higher on suite Q one? File the first receipt under A. It scored zero point eight six on Q one. B scored zero point eight nine on Q two.",
+        "hold": 0.3
+      },
+      {
+        "id": "c28-b02",
+        "say": "There is one authorized evaluation read left. Keep B’s first receipt where it belongs. Which release and suite would fill the hole in this comparison?",
+        "hold": 2.5
+      },
+      {
+        "id": "c28-b03",
+        "say": "B’s score on Q two leaves a hole in the Q one row. Read B on Q one. Give the new call its own number, and leave the old receipt where it is. B returns zero point eight three and its gate passed.",
+        "hold": 0.3
+      },
+      {
+        "id": "c28-b04",
+        "say": "The Q one row now has both receipts. Subtract B’s score from A’s. Which release leads and by how much?",
+        "hold": 2.1
+      },
+      {
+        "id": "c28-margin",
+        "say": "A leads by three hundredths on Q one. The old receipt still says zero point eight nine on Q two. It answers a different question.",
+        "hold": 0.9
+      },
+      {
+        "id": "c28-b05",
+        "say": "Someone asks the assistant to promote A. Its proposal names the release and adds an argument, approved equals true. The host rejects the extra field. Take that field off. The request now has exactly the shape the promotion tool expects. With this session, can the host send the write?",
+        "hold": 2.2
+      },
+      {
+        "id": "c28-b06",
+        "say": "The host stops at the role check. The promotion count stays at zero. Follow the Q one row from receipt C thirty-one to C thirty-three. Those reads support the comparison. Another app can use MCP to discover the same evaluation tool and apply its own reader’s permissions.",
+        "hold": 1.55
+      }
+    ]
+  }
+]

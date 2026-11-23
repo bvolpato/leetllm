@@ -1,0 +1,774 @@
+version: 1
+id: supervised-finetuning
+title: Teaching a Model to Follow Instructions
+source: training/supervised-fine-tuning-pipeline/content.md
+voice: af_heart
+rate: +12%
+sources:
+  - title: Ouyang et al. Training Language Models to Follow Instructions with Human
+      Feedback
+    url: https://arxiv.org/abs/2203.02155
+  - title: Hugging Face TRL SFTTrainer
+    url: https://huggingface.co/docs/trl/sft_trainer
+  - title: Hugging Face Transformers Chat Templates
+    url: https://huggingface.co/docs/transformers/chat_templating
+  - title: "LoRA: Low-Rank Adaptation of Large Language Models."
+    url: https://arxiv.org/abs/2106.09685
+  - title: "QLoRA: Efficient Finetuning of Quantized LLMs"
+    url: https://arxiv.org/abs/2305.14314
+  - title: "Instruction Fine-Tuning: Does Prompt Loss Matter?"
+    url: https://arxiv.org/abs/2401.13586v4
+  - title: "TRL 1.17.1: SFT Trainer Implementation"
+    url: https://github.com/huggingface/trl/blob/v1.17.1/trl/trainer/sft_trainer.py
+  - title: "Transformers 5.22.1: Attention Mask Utilities (masking_utils.py)"
+    url: https://github.com/huggingface/transformers/blob/v5.22.1/src/transformers/masking_utils.py
+  - title: "PyTorch 2.14: AdamW"
+    url: https://docs.pytorch.org/docs/2.14/generated/torch.optim.AdamW.html
+  - title: "Transformers: Optimization and Learning-Rate Schedules"
+    url: https://huggingface.co/docs/transformers/main_classes/optimizer_schedules
+  - title: Saving and Loading Models
+    url: https://docs.pytorch.org/tutorials/beginner/saving_loading_models.html
+  - title: "ZeRO: Memory Optimizations Toward Training Trillion Parameter Models."
+    url: https://arxiv.org/abs/1910.02054
+  - title: FullyShardedDataParallel
+    url: https://docs.pytorch.org/docs/stable/fsdp.html
+scenes:
+  - id: policy-run-contract
+    title: "Would you train on this reply?"
+    visual: "A service key moves past the 14-day ticket threshold. Its age and the proposed reply stay in view as the approved answer replaces the draft."
+    beats:
+      - say: "Past fourteen days, this team requires a rotation ticket. The key reaches eighteen days. The assistant says, “Rotation can wait until next month.” Would you train on that reply?"
+        hold: 3.2
+        caption_starts: ["The key reaches eighteen days", "The assistant says", "Would you train on that reply"]
+        visual_cues:
+          - id: key-age
+            phrase: "The key reaches eighteen days"
+            targets: [age-scale]
+            linger: 0.45
+          - id: wait-proposal
+            phrase: "Rotation can wait until next month"
+            targets: [age-scale, policy-reply]
+            linger: 0.45
+      - say: "Replace the reply. “Open a rotation ticket for security review.” Now the example teaches the model to ask for review. Security decides whether the key can stay in use."
+        hold: 1.3
+        visual_cues:
+          - id: replace-reply
+            phrase: "Open a rotation ticket for security review"
+            targets: [age-scale, policy-reply]
+            caption_boundary: true
+            linger: 0.45
+      - say: "Try putting the rule in the prompt or retrieving it when someone asks. Compare the replies on new cases. If the assistant can read the rule and still says to wait, train it to predict the approved reply one token at a time. That’s supervised fine-tuning. If loss falls and the replies still miss the ticket, inspect the split, labels and checkpoint before changing the learning rate."
+        hold: 0.9
+        visual_cues:
+          - id: compare-interventions
+            phrase: "Compare the replies on new cases"
+            targets: [policy-reply]
+            linger: 0.45
+  - id: row-group-split
+    title: "Which incident belongs in validation?"
+    visual: "Incomplete rows leave the pool. Two turns from T102 stay together as a group while R550 goes to validation."
+    beats:
+      - say: "Give each demonstration a request, an approved answer and an incident ID. Keep T one oh two. The next row has an empty answer. The last has no incident ID. Set those two aside before tokenizing anything."
+        hold: 0.8
+        visual_cues:
+          - id: row-group-split-b1
+            phrase: "empty answer"
+            targets: [row-group-split-mechanism]
+            linger: 0.45
+      - say: "Here are two turns of the same incident. One asks about the key. The other asks who approves the rotation. Put both in training with P seven seven one. Hold out R five fifty. The lists of incident IDs now have no overlap."
+        hold: 0.8
+        visual_cues:
+          - id: row-group-split-b2
+            phrase: "Put both in training"
+            targets: [row-group-split-mechanism]
+            linger: 0.45
+      - say: "Two different incidents can cite the same policy document. Holding out one incident still leaves that document in training. To test new documents, group connected cases by document before splitting. Deduplicate across groups, check time windows at a chronological cutoff, and reserve a final test for after checkpoint selection."
+        hold: 1.1
+        caption_starts: ["To test new documents"]
+        visual_cues:
+          - id: row-group-split-b3
+            phrase: "same policy document"
+            targets: [row-group-split-mechanism]
+            linger: 0.45
+  - id: intro
+    title: "What belongs in the demonstration?"
+    visual: "The accepted policy reply becomes three symbolic targets. The explicit end marker completes the demonstration."
+    beats:
+      - say: "The approved reply says, “Open a rotation ticket for security review.” Let’s represent that whole sentence with two symbols, open and ticket. What should the model predict after ticket?"
+        hold: 2.5
+        caption_starts: ["What should the model predict after ticket"]
+        visual_cues:
+          - id: reply-pieces
+            phrase: "two symbols, open and ticket"
+            targets: [demo-pieces]
+            linger: 0.45
+      - say: "The turn-ending token. We’ll call it end. Include it as the last target so the model practices stopping after its reply."
+        hold: 1.1
+        visual_cues:
+          - id: demo-end
+            phrase: "We’ll call it end"
+            targets: [demo-pieces]
+            caption_boundary: true
+            linger: 0.45
+  - id: template
+    title: "Put the incident in the model’s format"
+    visual: "The system rule, user request and approved assistant reply serialize into the same eight indexed positions used for the shift."
+    beats:
+      - say: "Keep the roles attached. The system supplies the policy, the user supplies the age, and the assistant supplies the approved reply. The checkpoint’s chat template puts those messages into a single sequence. Follow the order along the bottom."
+        hold: 0.9
+        visual_cues:
+          - id: serialize
+            phrase: "puts those messages into a single sequence"
+            targets: [token-input]
+            linger: 0.45
+      - say: "Position four marks the beginning of the assistant’s turn. The reply starts at five. In a real checkpoint, spaces, newlines and special IDs can all mark boundaries. Render a complete training exchange once, tokenize it, and check the IDs against the text. Save the template and tokenizer revisions together."
+        hold: 0.9
+        visual_cues:
+          - id: template-boundary
+            phrase: "Position four marks the beginning"
+            targets: [token-input]
+            linger: 0.45
+      - say: "Switch to serving. To start a new reply, use the template’s generation header if it provides one. A complete training exchange already has the answer and its end marker. If you continue a partial assistant reply, keep the words it already contains. Adding another header would start the wrong turn. Check for duplicate special tokens when you tokenize formatted text."
+        hold: 0.95
+        visual_cues:
+          - id: new-turn
+            phrase: "start a new reply"
+            targets: [token-input]
+            linger: 0.45
+          - id: continue-partial
+            phrase: "continue a partial assistant reply"
+            targets: [token-input]
+            linger: 0.45
+  - id: shift
+    title: "Where does the first prediction come from?"
+    visual: "The eight positions remain fixed. A diagonal arrow runs from each predicting position to the label one column to its right."
+    beats:
+      - say: "We know the first word of the approved reply. Find open at position five. To predict it, the model can read the user’s age and the assistant marker. Which position gives us the scores for open?"
+        hold: 2.8
+        visual_cues:
+          - id: query-open
+            phrase: "Find open at position five"
+            targets: [token-input, shift-trace]
+            linger: 0.45
+      - say: "Use position four. Its scores predict open, one place to the right. Now give the model the approved word open. Its scores predict ticket. Give it ticket and the next target is end. Supplying the known prefix at every step is called teacher forcing."
+        hold: 1.1
+        visual_cues:
+          - id: first-link
+            phrase: "Use position four"
+            targets: [shift-trace]
+            caption_boundary: true
+            linger: 0.45
+          - id: ticket-link
+            phrase: "Its scores predict ticket"
+            targets: [shift-trace]
+            caption_boundary: true
+            linger: 0.45
+          - id: end-link
+            phrase: "the next target is end"
+            targets: [shift-trace]
+            caption_boundary: true
+            linger: 0.45
+      - say: "Print the input positions beside their targets. You should see four, five and six predicting five, six and seven. If your trainer shifts internally, give it the labels in their original positions. Shifting them yourself as well would move every prediction one place too far."
+        hold: 0.8
+        visual_cues:
+          - id: check-shift
+            phrase: "four, five and six"
+            targets: [shift-trace]
+            linger: 0.45
+  - id: mask
+    title: "Which labels contribute to the loss?"
+    visual: "A second track masks the five context labels while all eight inputs stay on screen. The prefix through open is bracketed for the prediction of ticket."
+    beats:
+      - say: "Send the whole conversation through the model. All eight positions stay on the input track. Now look at the labels below. For this run, we grade the assistant’s words and the end of its turn. Set the five context labels to minus one hundred, the value the loss function ignores."
+        hold: 1
+        visual_cues:
+          - id: forward-pass
+            phrase: "Send the whole conversation through the model"
+            targets: [context-trace]
+            linger: 0.45
+          - id: inspect-labels
+            phrase: "Now look at the labels below"
+            targets: [context-trace, token-labels]
+            linger: 0.45
+          - id: mask-context
+            phrase: "Set the five context labels to minus one hundred"
+            targets: [context-trace, token-labels]
+            linger: 0.45
+      - say: "Trace ticket back to its predictor. The model is at open. It can still read everything from the policy through open, including the user’s eighteen days. That is how a prompt with ignored labels can shape the reply. Gradients from the reply can flow through the weights that processed the prompt."
+        hold: 1.1
+        visual_cues:
+          - id: trace-ticket
+            phrase: "Trace ticket back to its predictor"
+            targets: [context-trace, token-labels]
+            linger: 0.45
+      - say: "Open, ticket and end each contribute one prediction. If the objective covers several assistant turns, repeat this check at each supervised span. Print the labels after batching and length limits have been applied. Those are the labels the loss function gets."
+        hold: 0.85
+        visual_cues:
+          - id: count-targets
+            phrase: "each contribute one prediction"
+            targets: [token-labels]
+            linger: 0.45
+  - id: loss
+    title: "What does this example contribute?"
+    visual: "Each reply target carries its supplied probability into a negative-log loss. The stop term can be removed while the input sequence and probabilities stay fixed."
+    beats:
+      - say: "Use these three supplied probabilities. The model gave open sixty percent, ticket seventy percent and end eighty percent, each after its own prefix. A less likely target costs more. Take the negative natural log of each probability to get its loss."
+        hold: 0.9
+        visual_cues:
+          - id: loss-terms
+            phrase: "Take the negative natural log of each probability"
+            targets: [loss-terms]
+            linger: 0.45
+      - say: "Include all three targets. Their losses add to about one point zero nine one. Divide by three. Each target gets an equal vote, and the mean is about point three six four."
+        hold: 1.25
+        visual_cues:
+          - id: loss-sum
+            phrase: "Their losses add to about one point zero nine one"
+            targets: [loss-total]
+            caption_boundary: true
+            linger: 0.45
+          - id: loss-mean
+            phrase: "the mean is about point three six four"
+            targets: [loss-total]
+            caption_boundary: true
+            linger: 0.45
+      - say: "Keep the same probabilities. Suppose a collator accidentally ignores the end label. Which term leaves the mean, and what changes in the divisor?"
+        hold: 2.7
+        visual_cues:
+          - id: loss-what-if
+            phrase: "ignores the end label"
+            targets: [loss-terms]
+            linger: 0.45
+      - say: "The stop term drops out. Now there are two targets. The mean rises to about point four three four because we removed the easiest prediction. The model read the same input both times. Only the second set of labels lost the direct signal for stopping."
+        hold: 1.25
+        visual_cues:
+          - id: loss-remove
+            phrase: "The stop term drops out"
+            targets: [loss-terms]
+            caption_boundary: true
+            linger: 0.45
+          - id: loss-two
+            phrase: "point four three four"
+            targets: [loss-total]
+            caption_boundary: true
+            linger: 0.45
+  - id: template-and-collation
+    title: "When the stop ID also means padding"
+    visual: "The real end and two padded positions share ID 2. Their positions decide which of those IDs survives in the label row."
+    beats:
+      - say: "Here’s one way to lose that stop term. In this toy batch the end token has ID two. To make the row as long as its neighbors, the collator also uses two for right padding. Look at the three identical IDs. Which one belongs in the loss?"
+        hold: 3
+        visual_cues:
+          - id: same-id
+            phrase: "three identical IDs"
+            targets: [pad-row]
+            linger: 0.45
+      - say: "Keep ID two at the end of the real reply. Ignore the two padded positions to its right. A rule that masks every occurrence of ID two would erase a real target. Use the padding positions when you build the labels."
+        hold: 1.2
+        visual_cues:
+          - id: keep-stop
+            phrase: "Keep ID two at the end of the real reply"
+            targets: [pad-labels]
+            caption_boundary: true
+            linger: 0.45
+      - say: "Also check the dataset format. In the article’s version of T R L, prompt and completion fields default to completion-only loss. Plain messages use full-sequence loss by default. To train only assistant turns there, enable assistant-only loss and use a template that identifies its generation spans. Inspect a collated row to see which labels survived."
+        hold: 0.85
+        visual_cues:
+          - id: check-format
+            phrase: "enable assistant-only loss"
+            targets: [pad-labels]
+            linger: 0.45
+  - id: active-target-guards
+    title: "Did a usable target survive?"
+    visual: "Direct gradients map to two predictor rows in a four-token vocabulary. A separate five-slot length limit clips the entire answer from T102."
+    beats:
+      - say: "A four-position check makes the shift easy to verify. The answer is ID two and the stop is ID three. Give all four vocabulary entries equal scores. Each target gets probability one quarter and loss equal to the natural log of four, about one point three eight six. On the score tensor, only rows one and two receive direct loss gradients."
+        hold: 0.95
+        visual_cues:
+          - id: active-target-guards-b1
+            phrase: "four-position check"
+            targets: [active-target-guards-mechanism]
+            linger: 0.45
+          - id: active-log-four
+            phrase: "about one point three eight six"
+            targets: [active-target-guards-mechanism]
+            caption_boundary: true
+            linger: 0.45
+      - say: "Return to our incident and set a length limit of five. The context fills the row. Truncation removes the entire reply. Count usable labels after the shift. Even a label in position zero of an isolated row has no predictor. Reject or reformat rows with zero usable labels and count how many you dropped. An empty row in a mixed batch costs work. An entire batch of ignored targets gives an undefined mean, reported as NaN by PyTorch."
+        hold: 1
+        visual_cues:
+          - id: active-target-guards-b2
+            phrase: "length limit of five"
+            targets: [active-target-guards-mechanism]
+            linger: 0.45
+          - id: active-truncated
+            phrase: "Truncation removes the entire reply"
+            targets: [active-target-guards-mechanism]
+            linger: 0.45
+  - id: prompt-metric
+    title: "Why did the reported mean fall?"
+    visual: "A fixed pair of answer losses is averaged first alone and then with five small prefix losses."
+    beats:
+      - say: "Here the answer losses are two point two and one point eight. Their mean is two. Switch on scoring for these five easy prompt positions as well. Together they add only point one seven to the sum, yet they add five to the count. The combined mean falls to about point five nine six. Look back at the answer bars. Neither moved."
+        hold: 1.1
+        visual_cues:
+          - id: prompt-metric-b1
+            phrase: "Their mean is two"
+            targets: [prompt-metric-mechanism]
+            linger: 0.45
+          - id: prompt-combined
+            phrase: "Switch on scoring for these five easy prompt positions"
+            targets: [prompt-metric-mechanism]
+            linger: 0.45
+      - say: "At eight hundred prompt positions and thirty reply positions, the prompt supplies about ninety-six percent of the terms in that mean. Each term can have a different gradient. A study on Llama models found that fractional prompt weights helped on some short-completion tasks. For this assistant, report response loss separately and compare the alternatives on the same held-out behavior."
+        hold: 1
+        visual_cues:
+          - id: prompt-metric-b2
+            phrase: "eight hundred prompt positions"
+            targets: [prompt-metric-mechanism]
+            linger: 0.45
+  - id: objective-surface
+    title: "Which weights should learn from the reply?"
+    visual: "One response loss feeds either all eligible base weights or the two trainable factors of a low-rank adapter."
+    beats:
+      - say: "We chose demonstrations because the assistant could read the policy and still missed the procedure. If the trouble were unfamiliar vocabulary, continued pretraining on domain text would be worth testing. If people were ranking several acceptable replies, preference training would use those comparisons. Those choices change the learning signal."
+        hold: 0.8
+        visual_cues:
+          - id: objective-surface-b1
+            phrase: "we chose demonstrations"
+            targets: [objective-surface-mechanism]
+            linger: 0.45
+      - say: "Keep our response loss fixed. Backpropagation computes gradients for that loss. In full tuning the optimizer can update every eligible model weight. With LoRA, freeze the base and train two small matrices whose product changes the layer’s output. Their rank and the layers you attach them to determine how many weights can move. With QLoRA the frozen base also takes less space because it’s stored in four bits."
+        hold: 0.9
+        visual_cues:
+          - id: base-frozen
+            phrase: "freeze the base"
+            targets: [objective-surface-mechanism]
+            linger: 0.45
+          - id: objective-surface-b2
+            phrase: "stored in four bits"
+            targets: [objective-surface-mechanism]
+            linger: 0.45
+      - say: "The original QLoRA recipe used NormalFloat four, quantized scaling constants and paged optimizers. The base is dequantized for computation. Check the compute and adapter precisions separately. Activations and adapter optimizer state still take memory. The original LoRA study on a one-hundred-seventy-five-billion-parameter model reported up to ten thousand times fewer trainable parameters and three times lower GPU memory than full tuning with Adam. Measure your recipe and compare its held-out replies."
+        hold: 0.8
+        visual_cues:
+          - id: objective-surface-b3
+            phrase: "The original LoRA study"
+            targets: [objective-surface-mechanism]
+            linger: 0.45
+  - id: packing
+    title: "Two incidents in one block"
+    visual: "Two short examples slide into adjacent slots. The second answer has two reachable positions. The loss boundary at the start of its segment stays separate."
+    beats:
+      - say: "Two short conversations leave empty slots at the ends of their rows. Slide the second one into the first row. We’ve packed the data into one block, but these are still independent demonstrations. Empty slots saved tell us about storage. Actual speed also depends on the padding and attention kernel."
+        hold: 0.9
+        visual_cues:
+          - id: packing-b1-1
+            phrase: "Slide the second one into the first row"
+            targets: [packed-conversations]
+            linger: 0.45
+      - say: "Find the answer in segment B. It can read its own prompt and its current position. The two bright cells show those reads. A block-causal attention mask enforces this. Position numbers restart at zero for B. The attention implementation has to use that boundary."
+        hold: 1
+        visual_cues:
+          - id: packing-b2-1
+            phrase: "Find the answer in segment B"
+            targets: [packed-mask]
+            linger: 0.45
+          - id: packing-b2-2
+            phrase: "two bright cells"
+            targets: [packed-mask]
+            linger: 0.45
+      - say: "Look at the join from the loss side. A global one-place shift pairs the last token of A with the first token of B. Ignore the label at the start of B. That removes the cross-incident prediction. We still need a separate test of what B can read."
+        hold: 1.15
+        visual_cues:
+          - id: packing-b3-1
+            phrase: "global one-place shift"
+            targets: [cross-boundary-label]
+            linger: 0.45
+          - id: packing-b3-2
+            phrase: "Ignore the label at the start of B"
+            targets: [cross-boundary-label]
+            linger: 0.45
+  - id: packing-implementation
+    title: "Can one packed example change the other?"
+    visual: "At position four in example B, each row shows the values it can average. Adding 100 to the three values in A changes only the global mean."
+    beats:
+      - say: "Follow position four in example B. In this CPU test, zero queries and keys give each permitted value equal weight. The isolated row averages ten and twenty, giving fifteen. The global row also reads the three values in A. It averages five numbers, giving seven point two."
+        hold: 1
+        visual_cues:
+          - id: packing-implementation-b1
+            phrase: "Follow position four"
+            targets: [packing-implementation-mechanism]
+            linger: 0.45
+          - id: isolated-before
+            phrase: "giving fifteen"
+            targets: [packing-implementation-mechanism]
+            caption_boundary: true
+            linger: 0.45
+          - id: global-before
+            phrase: "giving seven point two"
+            targets: [packing-implementation-mechanism]
+            caption_boundary: true
+            linger: 0.45
+      - say: "Add one hundred to each value in A. The values in B stay fixed. Which average changes?"
+        hold: 3
+        caption_starts: ["Which average changes"]
+        visual_cues:
+          - id: packing-actual-change
+            phrase: "Add one hundred to each value in A"
+            targets: [packing-implementation-mechanism]
+            linger: 0.45
+      - say: "The isolated output stays at fifteen. It still reads just ten and twenty. The global output rises to sixty-seven point two. Its sum grew by three hundred. Divide that increase by five and the average rises by sixty. Try the same change with your collator and attention kernel, with dropout off. If B changes when you edit A, the boundary failed this test."
+        hold: 1.2
+        caption_starts: ["Its sum grew by three hundred", "the average rises by sixty", "Try the same change"]
+        visual_cues:
+          - id: packing-implementation-b2
+            phrase: "The isolated output stays at fifteen"
+            targets: [packing-implementation-mechanism]
+            caption_boundary: true
+            linger: 0.45
+          - id: global-result
+            phrase: "The global output rises to sixty-seven point two"
+            targets: [packing-implementation-mechanism]
+            caption_boundary: true
+            linger: 0.45
+          - id: mean-increase
+            phrase: "the average rises by sixty"
+            targets: [packing-implementation-mechanism]
+            linger: 0.45
+      - say: "The Transformers helper inspected in the article can derive the segment mask from reset positions under eager or scaled dot-product attention, with no supplied attention mask and caching off. Other paths accept an explicit block mask or segment lengths. Check the join labels as well. Best-fit packing can truncate overflow, splitting can separate an answer from its prompt, and a wrapped stream can lose the independent boundaries entirely."
+        hold: 0.9
+        visual_cues:
+          - id: packing-implementation-b3
+            phrase: "Check the join labels"
+            targets: [packing-implementation-mechanism]
+            linger: 0.45
+  - id: batching
+    title: "How much weight does one token get?"
+    visual: "One high-loss token and nine lower-loss tokens stay on screen while the divisor changes from two batches to ten tokens."
+    beats:
+      - say: "Build one optimizer update from two microbatches. The first contains one scored token with loss four. The second contains nine scored tokens with loss one each. If every token should count equally, what should we divide their combined loss by?"
+        hold: 2.5
+        visual_cues:
+          - id: batching-b1-1
+            phrase: "one scored token"
+            targets: [microbatch-a]
+            linger: 0.45
+          - id: batching-b2-1
+            phrase: "nine scored tokens"
+            targets: [microbatch-b]
+            linger: 0.45
+      - say: "Divide by ten. The two loss sums are four and nine. Thirteen divided by ten gives one point three. Averaging the two batch means would give two point five instead. That would give the single difficult token as much weight as the other nine put together."
+        hold: 1
+        visual_cues:
+          - id: batching-b2-2
+            phrase: "Thirteen divided by ten gives one point three"
+            targets: [token-mean]
+            caption_boundary: true
+            linger: 0.45
+          - id: batching-b2-3
+            phrase: "two point five instead"
+            targets: [mean-of-means]
+            caption_boundary: true
+            linger: 0.45
+      - say: "Accumulate the loss sums and active shifted-target counts over the whole update window. A final partial window gets its actual count. If the count is zero, skip or reject that update before dividing. Equal weight per conversation is another possible objective. Choose which one your trainer should implement."
+        hold: 0.9
+        visual_cues:
+          - id: batching-b3-1
+            phrase: "whole update window"
+            targets: [token-mean]
+            linger: 0.45
+  - id: global-target-budget
+    title: "What reaches one optimizer update?"
+    visual: "Per-worker counts combine across accumulation windows. A two-worker reduction shows exactly where an extra divide enters."
+    beats:
+      - say: "Four items per worker, eight microbatches and four workers give one hundred twenty-eight loader items in a complete update. If each worker contributes fifteen hundred sixty scored tokens across that window, the update sees sixty-two hundred forty scored tokens. With packing, each item can contain several demonstrations. Count original examples and processed input positions too."
+        hold: 0.85
+        visual_cues:
+          - id: global-target-budget-b1
+            phrase: "Four items per worker"
+            targets: [global-target-budget-mechanism]
+            linger: 0.45
+      - say: "Now halve the local batch to two, double accumulation to sixteen and use eight workers. You get two hundred fifty-six items per update. The smaller local batch hides a doubling in total items. Longer prompts can also cost more work even when the number of scored tokens stays fixed."
+        hold: 0.9
+        visual_cues:
+          - id: global-target-budget-b2
+            phrase: "halve the local batch"
+            targets: [global-target-budget-mechanism]
+            linger: 0.45
+      - say: "Try a two-worker gradient check. Their loss-sum gradients are two and four. Across both workers there are four targets, so the intended gradient is six divided by four. If each worker divides by four and distributed training then averages their gradients, we get point seven five. Multiply by the worker count once to recover one point five. Check whether the trainer already does this, and test unequal counts and partial windows."
+        hold: 1
+        visual_cues:
+          - id: global-target-budget-b3
+            phrase: "two-worker gradient check"
+            targets: [global-target-budget-mechanism]
+            linger: 0.45
+          - id: ddp-fix
+            phrase: "recover one point five"
+            targets: [global-target-budget-mechanism]
+            caption_boundary: true
+            linger: 0.45
+  - id: recipe-controlled
+    title: "Compare recipes at the same exposure"
+    visual: "Matched candidates share data and target exposure. A historical cosine schedule traces its nonzero floor."
+    beats:
+      - say: "Before changing the learning rate, freeze the data, template, trainable modules and held-out grader. Give each candidate the same exposure to approved targets. One times ten to the minus four is one adapter rate you could test. Record the schedule, clipping, decay groups, precision and number of updates so you can interpret any difference."
+        hold: 0.8
+        visual_cues:
+          - id: recipe-controlled-b1
+            phrase: "same exposure to approved targets"
+            targets: [recipe-controlled-mechanism]
+            linger: 0.45
+      - say: "Here is an actual schedule from InstructGPT’s supervised baseline. The search selected learning rates and epoch counts. This run used sixteen epochs, with no warmup, and cosine decay to a tenth of its starting rate. A standard cosine schedule can instead end at zero. Warmup, when used, reduces early step sizes. Adam still needs its moment bias correction."
+        hold: 0.85
+        visual_cues:
+          - id: recipe-controlled-b2
+            phrase: "sixteen epochs, with no warmup"
+            targets: [recipe-controlled-mechanism]
+            linger: 0.45
+      - say: "With AdamW, weight decay acts separately from the gradient moments. Clipping a raw gradient still leaves an adaptive update to compute. Measure both the gradient norm and the resulting parameter change. Then compare the ticket behavior and regressions on unrelated requests."
+        hold: 0.9
+        visual_cues:
+          - id: recipe-controlled-b3
+            phrase: "Clipping a raw gradient"
+            targets: [recipe-controlled-mechanism]
+            linger: 0.45
+  - id: resume-update
+    title: "Which direction after a restart?"
+    visual: "Two weight markers start at 0.9 on identical rulers. The same next gradient moves the restored and reset optimizers in opposite directions."
+    beats:
+      - say: "Suppose the job stops just after a step. In this scalar AdamW example, a gradient of plus two took the weight from one to about point nine. The learning rate is point one and decay is zero. Save the weight, the step counter and the two moments. Both branches now get the same next gradient, minus one. Will they move the same way?"
+        hold: 2.8
+        visual_cues:
+          - id: resume-update-b1
+            phrase: "Both branches now get the same next gradient"
+            targets: [resume-update-mechanism]
+            linger: 0.45
+      - say: "With the moments restored, the weight moves down to about point eight seven three. The positive history outweighs the new negative gradient. A fresh optimizer moves it up to about one. Adam updates its moments and corrects their starting bias before dividing. For the fresh step, those corrected moments are the gradient and its square. That explains the move of about one learning rate."
+        hold: 1.1
+        visual_cues:
+          - id: resume-update-b2
+            phrase: "With the moments restored"
+            targets: [resume-update-mechanism]
+            linger: 0.45
+          - id: resume-branch-results
+            phrase: "the weight moves down to about point eight seven three"
+            targets: [resume-update-mechanism]
+            caption_boundary: true
+            linger: 0.45
+          - id: resume-reset
+            phrase: "moves it up to about one"
+            targets: [resume-update-mechanism]
+            caption_boundary: true
+            linger: 0.45
+      - say: "You can see the same effect with momentum S G D. Multiply old velocity by point nine, add the gradient, then subtract a tenth of the new velocity from the weight. From saved weight point eight and velocity two, the next gradient of one gives velocity two point eight and weight point five two. Reset the velocity first and the next weight is point seven. Only the history changed."
+        hold: 0.9
+        visual_cues:
+          - id: resume-update-b3
+            phrase: "momentum S G D"
+            targets: [resume-update-mechanism]
+            linger: 0.45
+  - id: resume-data-artifacts
+    title: "Can you reproduce the next update?"
+    visual: "Serving inputs and continuation state feed separate paths. An uninterrupted step is the comparison for a restored step."
+    beats:
+      - say: "For serving, save the weights, architecture, tokenizer and template. An adapter also needs its configuration and exact base revision. To resume training, add the optimizer moments and counters, schedule, global step, sampler position and random generator states. Keep the resolved recipe, data and evaluation manifests, best metric, and the loss scaler if the recipe uses one."
+        hold: 0.8
+        visual_cues:
+          - id: resume-data-artifacts-b1
+            phrase: "To resume training"
+            targets: [resume-data-artifacts-mechanism]
+            linger: 0.45
+      - say: "A seed can start a shuffle over. To continue halfway through, you need its current state and data position. Open the saved artifacts and verify their contents. A manifest with every key can still point to a missing file."
+        hold: 0.85
+        visual_cues:
+          - id: resume-data-artifacts-b2
+            phrase: "verify their contents"
+            targets: [resume-data-artifacts-mechanism]
+            linger: 0.45
+      - say: "Run a short restore drill alongside an uninterrupted run. Compare the next batch and rate, then the loss, gradients and updated weights within your numerical tolerance. The first loss can match even when the next update goes the wrong way. Save just after an optimizer step. To save midway through accumulation, keep partial gradients and microbatch progress as well."
+        hold: 0.95
+        visual_cues:
+          - id: resume-data-artifacts-b3
+            phrase: "Compare the next batch and rate"
+            targets: [resume-data-artifacts-mechanism]
+            linger: 0.45
+  - id: smallest-runtime
+    title: "What needs to fit on one device?"
+    visual: "Five training-memory categories separate persistent state from activations and temporary buffers. ZeRO stages shard successive categories."
+    beats:
+      - say: "Run the pilot on the smallest setup that fits. During training, add gradients, optimizer state, activations and temporary buffers to the weights you already held for inference. If the peak fits one device and the run fits your time budget, use that device to check the data path and a checkpoint restore."
+        hold: 0.85
+        visual_cues:
+          - id: smallest-runtime-b1
+            phrase: "add gradients"
+            targets: [smallest-runtime-mechanism]
+            linger: 0.45
+      - say: "If persistent state exceeds memory, ZeRO stage one shards optimizer state. Stage two also shards gradients. Stage three also shards the weights. Fully sharded data parallel training likewise gathers weights when a layer needs them. That communication costs time. Long contexts may still need smaller microbatches or activation checkpointing."
+        hold: 0.9
+        visual_cues:
+          - id: smallest-runtime-b2
+            phrase: "ZeRO stage one shards optimizer state"
+            targets: [smallest-runtime-mechanism]
+            linger: 0.45
+          - id: zero-two
+            phrase: "Stage two also shards gradients"
+            targets: [smallest-runtime-mechanism]
+            linger: 0.45
+          - id: zero-three
+            phrase: "Stage three also shards the weights"
+            targets: [smallest-runtime-mechanism]
+            linger: 0.45
+      - say: "Even when the model needs sharding, test its example boundaries on a small fixture first. The article’s trainer configuration is a blueprint. Its evaluation loop scores reference tokens. To find out whether the exported assistant follows the policy, we have to let it answer."
+        hold: 0.95
+        visual_cues:
+          - id: smallest-runtime-b3
+            phrase: "scores reference tokens"
+            targets: [smallest-runtime-mechanism]
+            linger: 0.45
+  - id: evaluate
+    title: "What did the checkpoint actually answer?"
+    visual: "A held-out request forks at the assistant marker. One lane supplies the approved prefix while the other feeds a generated first word back in."
+    beats:
+      - say: "Here is a new validation incident. A service key is twenty-one days old. On the top track we supply the approved prefix, open. We measure how likely ticket is after that word. Can we count that as a policy pass yet? What would we need to see?"
+        hold: 2.5
+        visual_cues:
+          - id: reference-prefix
+            phrase: "supply the approved prefix"
+            targets: [evaluation-tracks]
+            linger: 0.45
+      - say: "Generate from the request alone. In this example the first word is wait. Feed wait back in and the reply continues, “until next month.” The reference track can score well while that generated reply fails the policy. Grade the actual request and completion together."
+        hold: 1.2
+        visual_cues:
+          - id: free-first
+            phrase: "the first word is wait"
+            targets: [evaluation-tracks]
+            caption_boundary: true
+            linger: 0.45
+          - id: free-rest
+            phrase: "until next month"
+            targets: [evaluation-tracks]
+            caption_boundary: true
+            linger: 0.45
+      - say: "Score the required action and the output format separately. Include ordinary support requests to catch false refusals or an assistant that opens a ticket for everything. For open-ended replies, use a calibrated rubric or blinded, randomized human comparisons. Keep the final test apart from this validation set."
+        hold: 0.85
+        visual_cues:
+          - id: grade-reply
+            phrase: "Score the required action"
+            targets: [evaluation-tracks]
+            linger: 0.45
+  - id: checkpoint-selection
+    title: "Which checkpoint earns the next test?"
+    visual: "Aligned validation rows pass an inclusive format gate before comparison on generated policy behavior. A stricter gate changes the winner."
+    beats:
+      - say: "These are supplied validation results. Each row belongs to one checkpoint. First require at least ninety-eight percent valid format. Among the rows that pass, choose the highest policy pass rate. Use lower validation loss to break a policy tie, then the earlier step. Which row would you take?"
+        hold: 3
+        visual_cues:
+          - id: selection-gate
+            phrase: "at least ninety-eight percent valid format"
+            targets: [selection-rows]
+            linger: 0.45
+      - say: "Step six hundred wins. Its format rate lands exactly on the cutoff, and its generated replies follow policy most often. Step four hundred has the lowest reference loss, but a lower policy pass rate. Keep your eye on the format column for one more case."
+        hold: 0.95
+        visual_cues:
+          - id: selection-winner
+            phrase: "Step six hundred wins"
+            targets: [selection-rows]
+            caption_boundary: true
+            linger: 0.45
+      - say: "Suppose the format requirement rises to one hundred percent. The measurements stay fixed. Which checkpoint survives now?"
+        hold: 2.8
+        visual_cues:
+          - id: raise-floor
+            phrase: "rises to one hundred percent"
+            targets: [selection-rows]
+            linger: 0.45
+      - say: "Only step four hundred qualifies. If none qualify, take none. In a real report include the number of cases, uncertainty and failure slices. Freeze the choice before running the final test. Reload the exact export and repeat generation checks with its tokenizer, template and base."
+        hold: 1.15
+        visual_cues:
+          - id: selection-alternate
+            phrase: "Only step four hundred qualifies"
+            targets: [selection-rows]
+            caption_boundary: true
+            linger: 0.45
+  - id: transfer
+    title: "Inspect one batch before you scale"
+    visual: "A real stop and a padding slot share the same ID on a short row. Applying the two masking rules actually removes and restores the stop label."
+    beats:
+      - say: "Before the expensive run, inspect this collated row. The assistant’s reply ends here, and the padding begins. Watch what happens if we ignore every ID that matches the pad ID. The text looks fine. Which prediction just disappeared?"
+        hold: 2.5
+        visual_cues:
+          - id: id-mask
+            phrase: "ignore every ID that matches the pad ID"
+            targets: [pad-labels]
+            linger: 0.45
+      - say: "The last answer token lost its stop target. Mask only the padding positions. Now the end label is back. Overfit a small verified batch and generate from its prompts to check the response and stopping settings. Then turn packing on and inspect a join."
+        hold: 1.1
+        visual_cues:
+          - id: position-mask
+            phrase: "Mask only the padding positions"
+            targets: [pad-labels]
+            linger: 0.45
+  - id: fresh-boundary-repair
+    title: "From a packed row to a held-out reply"
+    visual: "Swapping two labels repairs a packed join without changing the active count. In a held-out grading example, the viewer checks the ticket, access decision and turn ending against the reply."
+    beats:
+      - say: "One last batch. This time the key is nineteen days old. The approved reply is open, ticket, end. A second, independent user request starts immediately afterward. The collator reports three active targets. Look at the label row and follow the arrows. Which two labels would you change before training?"
+        hold: 3.5
+        visual_cues:
+          - id: inspect-join
+            phrase: "Look at the label row"
+            targets: [join-trace]
+            linger: 0.45
+      - say: "Restore end under the stop token. Ignore the first user token of the next incident. Follow the last arrow now. Ticket predicts the end of its own reply. The old arrow asked end to predict a stranger’s request. Both versions count three targets."
+        hold: 1.2
+        visual_cues:
+          - id: repair-join
+            phrase: "Ignore the first user token of the next incident"
+            targets: [join-trace]
+            caption_boundary: true
+            linger: 0.45
+      - say: "Hold the model’s probabilities fixed. The first two terms stay put. In the old mean, the third loss was the negative log of one tenth, the probability of that stray user token. In the corrected mean, it’s the negative log of eight tenths, the probability of end. With the same divisor of three, the loss falls from about one point four six one to point seven six eight. We changed what was graded."
+        hold: 1.2
+        visual_cues:
+          - id: compare-terms
+            phrase: "The first two terms stay put"
+            targets: [join-trace]
+            linger: 0.45
+          - id: repair-mean
+            phrase: "one point four six one to point seven six eight"
+            targets: [join-trace]
+            caption_boundary: true
+            linger: 0.45
+      - say: "Give the reloaded model a new request with no reference answer. “My service key is twenty-two days old. Can I still use it?” Suppose it replies, “Open a rotation ticket. You can keep using the key.” Then it stops. Would you pass that reply?"
+        hold: 2.8
+        caption_starts: ["My service key is twenty-two days old", "Suppose it replies", "You can keep using the key", "Then it stops", "Would you pass that reply"]
+        visual_cues:
+          - id: held-out-probe
+            phrase: "Give the reloaded model a new request"
+            targets: [serving-probe]
+            linger: 0.45
+          - id: sample-ticket
+            phrase: "Open a rotation ticket"
+            targets: [serving-probe]
+            linger: 0.45
+          - id: sample-permission
+            phrase: "You can keep using the key"
+            targets: [serving-probe]
+            linger: 0.45
+          - id: sample-stop
+            phrase: "Then it stops"
+            targets: [serving-probe]
+            linger: 0.45
+      - say: "The second sentence grants access. That decision belongs to security. The assistant asked for a ticket and ended its turn, but the reply fails the policy. Apply those three checks to the replies your exported model generates. In the next lesson we’ll follow a weight update through mixed precision."
+        hold: 1.8
+        caption_starts: ["The assistant asked for a ticket", "but the reply fails the policy", "In the next lesson"]
+        visual_cues:
+          - id: grade-access
+            phrase: "The second sentence grants access"
+            targets: [serving-probe]
+            linger: 0.45
+          - id: grade-reply-result
+            phrase: "the reply fails the policy"
+            targets: [serving-probe]
+            linger: 0.45

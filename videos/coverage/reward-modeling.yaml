@@ -1,0 +1,331 @@
+version: 1
+lesson: reward-modeling
+promise: Fit a scalar scorer from preference pairs and decide whether to use its rankings by testing what it learned about approval, length and reviewer choices on fresh examples.
+framing:
+  - introduction
+objectives:
+  - id: likelihood-isnt-preference
+    can: Compute complete supplied sequence probabilities and distinguish likelihood from a preferred answer.
+    scenes:
+      - likelihood-isnt-preference
+  - id: human-comparisons
+    can: Compare two independent ballots, preserve the split vote and apply the approval rubric to a strict label.
+    scenes:
+      - introduction
+      - human-comparisons
+  - id: policy-and-judge
+    can: Trace a completed answer into the same scalar scorer.
+    scenes:
+      - policy-and-judge
+  - id: pair-contract
+    can: Inspect shared context and exact scored token identities.
+    scenes:
+      - pair-contract
+  - id: format-length-boundary
+    can: Diagnose input identity, tokenization and pair length filtering before fitting.
+    scenes:
+      - format-length-boundary
+  - id: prompt-groups
+    can: Construct all pair edges and repair prompt leakage across splits.
+    scenes:
+      - prompt-groups
+  - id: group-weight-soft-target
+    can: Compute prompt-group weighting, a full-ranking probability and soft-vote optimum.
+    scenes:
+      - group-weight-soft-target
+  - id: transformer-score-head
+    can: Construct a scalar score from final causal hidden coordinates.
+    scenes:
+      - transformer-score-head
+  - id: padding-and-artifact
+    can: Select the final unmasked vector and identify the saved trainable head.
+    scenes:
+      - padding-and-artifact
+  - id: margin-to-probability
+    can: Compute a Bradley-Terry forecast from positive strengths and score difference.
+    scenes:
+      - margin-to-probability
+  - id: pairwise-likelihood
+    can: Compute stable loss for correct and confidently wrong margins.
+    scenes:
+      - pairwise-likelihood
+  - id: stable-loss-and-margins
+    can: Evaluate an extreme stable loss and solve a margin-shifted target probability.
+    scenes:
+      - stable-loss-and-margins
+  - id: score-gradients
+    can: Differentiate score loss and trace an actual shared-parameter update.
+    scenes:
+      - score-gradients
+  - id: fit-the-head
+    can: Change one training pair, trace the two fitted weights and predict which head will reward a longer violation on the same three held-out pairs.
+    scenes:
+      - fit-the-head
+  - id: offset-and-scale
+    can: Predict offset invariance and scale sensitivity on one number line.
+    scenes:
+      - offset-and-scale
+  - id: centering-and-kl
+    can: Compute pair-midpoint centering and the equivalent reward/KL scaling.
+    scenes:
+      - centering-and-kl
+  - id: shortcuts-and-calibration
+    can: Account for the cost of a confident miss by comparing per-vote squared errors and their means at the same ranking accuracy.
+    scenes:
+      - shortcuts-and-calibration
+  - id: length-margin-counterexample
+    can: Derive a failed length correction and design controlled presentation tests.
+    scenes:
+      - length-margin-counterexample
+  - id: fresh-policy-evaluation
+    can: Compare stored and fresh-output evaluation and identify overoptimization.
+    scenes:
+      - fresh-policy-evaluation
+  - id: ensemble-disagreement
+    can: Compute a sample-deviation aggregate and expose shared semantic error.
+    scenes:
+      - ensemble-disagreement
+  - id: benchmarks-and-fresh-gates
+    can: Interpret the benchmark outcome space and apply a declared fresh-output screen.
+    scenes:
+      - benchmarks-and-fresh-gates
+  - id: signal-spectrum
+    can: Select and bound terminal, process, generative and executable supervision.
+    scenes:
+      - signal-spectrum
+  - id: trainer-artifact-and-diagnosis
+    can: Replay a saved scorer and diagnose drift with the correct metric.
+    scenes:
+      - trainer-artifact-and-diagnosis
+  - id: fresh-scorer-screen
+    can: Decide whether a trial meets its agreement floor and verify a citation against the complete contents of its stated edition.
+    scenes:
+      - fresh-scorer-screen
+  - id: rlhf-and-dpo
+    can: Choose between a reusable scorer and offline DPO. Rescale equal feature weights to explain why the longer violation still wins, then decide whether to continue the trial by checking approval at each grant.
+    scenes:
+      - rlhf-and-dpo
+sections:
+  - heading: How a scalar judge scores a completed answer
+    status: taught
+    scenes:
+      - policy-and-judge
+      - signal-spectrum
+      - rlhf-and-dpo
+  - heading: Preference data anatomy and validation pipeline
+    status: taught
+    scenes:
+      - pair-contract
+      - format-length-boundary
+  - heading: Standard format
+    status: taught
+    scenes:
+      - format-length-boundary
+  - heading: Conversational format
+    status: taught
+    scenes:
+      - format-length-boundary
+  - heading: A pair contract before training
+    status: taught
+    scenes:
+      - pair-contract
+      - format-length-boundary
+  - heading: Decide what the evaluation split should measure
+    status: taught
+    scenes:
+      - prompt-groups
+      - group-weight-soft-target
+  - heading: Give the head a representation of the whole answer
+    status: taught
+    scenes:
+      - transformer-score-head
+      - padding-and-artifact
+  - heading: Choose a backbone and replace the vocabulary head
+    status: taught
+    scenes:
+      - padding-and-artifact
+      - trainer-artifact-and-diagnosis
+  - heading: Why the final real token is a useful readout
+    status: taught
+    scenes:
+      - transformer-score-head
+      - padding-and-artifact
+  - heading: Sequence length filtering vs truncation hazards
+    status: taught
+    scenes:
+      - format-length-boundary
+  - heading: Bradley-Terry formulation, BCE loss, and gradient dynamics
+    status: taught
+    scenes:
+      - margin-to-probability
+      - pairwise-likelihood
+      - score-gradients
+  - heading: Bradley-Terry pairwise preference formulation
+    status: taught
+    scenes:
+      - margin-to-probability
+  - heading: Direct equivalence to binary cross-entropy with logits
+    status: taught
+    scenes:
+      - pairwise-likelihood
+      - stable-loss-and-margins
+  - heading: Gradient dynamics and the symmetric push
+    status: taught
+    scenes:
+      - score-gradients
+  - heading: Pairwise loss depends on score differences. Its origin is arbitrary
+    status: taught
+    scenes:
+      - offset-and-scale
+      - centering-and-kl
+  - heading: Training a small reward head and isolating shortcut features
+    status: taught
+    scenes:
+      - fit-the-head
+      - rlhf-and-dpo
+  - heading: Fitting a linear head on CPU
+    status: taught
+    scenes:
+      - fit-the-head
+  - heading: Ranking expansions and margin-augmented losses
+    status: taught
+    scenes:
+      - group-weight-soft-target
+      - stable-loss-and-margins
+  - heading: Metrics, centering invariance, and calibration
+    status: taught
+    scenes:
+      - shortcuts-and-calibration
+      - centering-and-kl
+      - benchmarks-and-fresh-gates
+  - heading: Why pair accuracy alone is insufficient
+    status: taught
+    scenes:
+      - fit-the-head
+      - shortcuts-and-calibration
+      - benchmarks-and-fresh-gates
+  - heading: Centering invariance and PPO scale sensitivity
+    status: taught
+    scenes:
+      - centering-and-kl
+  - heading: Probabilistic calibration and Brier scores
+    status: taught
+    scenes:
+      - shortcuts-and-calibration
+      - group-weight-soft-target
+  - heading: Reward hacking, Goodhart's Law, and policy overoptimization
+    status: taught
+    scenes:
+      - fresh-policy-evaluation
+      - rlhf-and-dpo
+  - heading: The Goodhart mechanism and Gao et al. scaling laws
+    status: taught
+    scenes:
+      - fresh-policy-evaluation
+  - heading: "Exploitation vectors: verbosity, sycophancy, and format bias"
+    status: taught
+    scenes:
+      - length-margin-counterexample
+      - fit-the-head
+  - heading: Test a mitigation before trusting it
+    status: taught
+    scenes:
+      - length-margin-counterexample
+      - ensemble-disagreement
+  - heading: Auditing fresh policy rollouts before optimization
+    status: taught
+    scenes:
+      - fresh-policy-evaluation
+      - fresh-scorer-screen
+  - heading: "Standardized evaluation: RewardBench and RewardBench 2"
+    status: taught
+    scenes:
+      - benchmarks-and-fresh-gates
+  - heading: "Architectural spectrum: ORMs, PRMs, verifiers, and generative judges"
+    status: taught
+    scenes:
+      - signal-spectrum
+      - rlhf-and-dpo
+  - heading: Put the pieces together with TRL
+    status: taught
+    scenes:
+      - trainer-artifact-and-diagnosis
+  - heading: Production diagnostic reference
+    status: taught
+    scenes:
+      - trainer-artifact-and-diagnosis
+quiz:
+  - status: taught
+    scenes:
+      - rlhf-and-dpo
+      - signal-spectrum
+    note: Fresh calculation or decision independently accepted against exact spoken operations in
+      build/video-delivery-20261106/script-reviews/reward-modeling.json.
+    n: 1
+  - status: taught
+    scenes:
+      - padding-and-artifact
+    note: Fresh calculation or decision independently accepted against exact spoken operations in
+      build/video-delivery-20261106/script-reviews/reward-modeling.json.
+    n: 2
+  - status: taught
+    scenes:
+      - margin-to-probability
+      - pairwise-likelihood
+    note: Fresh calculation or decision independently accepted against exact spoken operations in
+      build/video-delivery-20261106/script-reviews/reward-modeling.json.
+    n: 3
+  - status: taught
+    scenes:
+      - format-length-boundary
+    note: Fresh calculation or decision independently accepted against exact spoken operations in
+      build/video-delivery-20261106/script-reviews/reward-modeling.json.
+    n: 4
+  - status: taught
+    scenes:
+      - group-weight-soft-target
+    note: Fresh calculation or decision independently accepted against exact spoken operations in
+      build/video-delivery-20261106/script-reviews/reward-modeling.json.
+    n: 5
+  - status: taught
+    scenes:
+      - length-margin-counterexample
+    note: Fresh calculation or decision independently accepted against exact spoken operations in
+      build/video-delivery-20261106/script-reviews/reward-modeling.json.
+    n: 6
+  - status: taught
+    scenes:
+      - shortcuts-and-calibration
+      - group-weight-soft-target
+    note: Fresh calculation or decision independently accepted against exact spoken operations in
+      build/video-delivery-20261106/script-reviews/reward-modeling.json.
+    n: 7
+  - status: taught
+    scenes:
+      - centering-and-kl
+    note: Fresh calculation or decision independently accepted against exact spoken operations in
+      build/video-delivery-20261106/script-reviews/reward-modeling.json.
+    n: 8
+  - status: taught
+    scenes:
+      - trainer-artifact-and-diagnosis
+    note: Fresh calculation or decision independently accepted against exact spoken operations in
+      build/video-delivery-20261106/script-reviews/reward-modeling.json.
+    n: 9
+  - status: taught
+    scenes:
+      - fresh-scorer-screen
+      - ensemble-disagreement
+    note: Fresh calculation or decision independently accepted against exact spoken operations in
+      build/video-delivery-20261106/script-reviews/reward-modeling.json.
+    n: 10
+removed: []
+reviews:
+  closed_book:
+    script: afdc7da3134f3f35
+    taught: 10
+    partial: 0
+    absent: 0
+  fact_check:
+    script: afdc7da3134f3f35
+    open_findings: 0

@@ -1,0 +1,1044 @@
+[
+  {
+    "id": "c01",
+    "title": "Two walks from the north entrance",
+    "sourceChapters": ["c01"],
+    "beats": [
+      {
+        "id": "c01-b01",
+        "say": "You're at the north entrance, facing north. You want to catch a train. Put your finger at the entrance and take the first reply's left turn. Stop at the café. Facing west, which turn takes you to the station?",
+        "hold": 2.5
+      },
+      {
+        "id": "c01-corner",
+        "say": "Turn right at the café. Follow that street to the train.",
+        "hold": 0.8
+      },
+      {
+        "id": "c01-b02",
+        "say": "Start again at the same entrance. The second reply takes you past the park and the river, then back to where you started. Which reply would you keep for someone trying to catch a train?",
+        "hold": 2
+      },
+      {
+        "id": "c01-b03",
+        "say": "I'd keep A. Its second turn puts you at the station. B gives perfectly clear directions back to the entrance. A reviewer can record that choice without having to write a third set of directions.",
+        "hold": 0.7
+      }
+    ]
+  },
+  {
+    "id": "c02",
+    "title": "What travels with the vote?",
+    "sourceChapters": ["c02"],
+    "beats": [
+      {
+        "id": "c02-b01",
+        "say": "Save the question and both complete replies. One label records what this traveler preferred for this trip.",
+        "hold": 0.55
+      },
+      {
+        "id": "c02-b02",
+        "say": "Now swap their positions. Watch the vote travel with the two turns. If we stored only the word left for the winning column, the swap would turn the walk back to the entrance into our training target.",
+        "hold": 0.65
+      },
+      {
+        "id": "c02-b03",
+        "say": "The record still says A over B for the station request. That same distinction between an answer and its position matters when you blind a reviewer to which model wrote it.",
+        "hold": 0.6
+      }
+    ]
+  },
+  {
+    "id": "c03",
+    "title": "What should the access assistant do?",
+    "sourceChapters": ["c03"],
+    "beats": [
+      {
+        "id": "c03-b01",
+        "say": "Here's a request where taking the wrong turn matters. A service account needs temporary admin access for tonight's migration. The policy says to cite P seven and send privileged changes to a reviewer. A offers to open the ticket. B tells the user to go ahead until tomorrow. Which reply follows the policy?",
+        "hold": 1.65
+      },
+      {
+        "id": "c03-b02",
+        "say": "A follows the policy. A supervised example can teach the assistant to write that reply. A comparison gives it another piece of information. This reviewer preferred opening a ticket to giving the user permission.",
+        "hold": 0.65
+      },
+      {
+        "id": "c03-b03",
+        "say": "Now suppose a release candidate gains point three one on the reward model. In a separate blind comparison it wins only one hundred eighty-four times out of four hundred, and its replies average forty-eight extra tokens. We'll come back to whether you'd release it.",
+        "hold": 0.7
+      }
+    ]
+  },
+  {
+    "id": "c04",
+    "title": "What does the judge predict for the ticket?",
+    "sourceChapters": ["c04"],
+    "beats": [
+      {
+        "id": "c04-b01",
+        "say": "The reviewer picked the ticket. Let's see how a learned judge scores that vote. It gives the ticket one point eight and the direct grant point seven. Subtract the grant's score from the ticket's. The gap is one point one. Which side of even odds should the ticket land on?",
+        "hold": 1.8
+      },
+      {
+        "id": "c04-b02",
+        "say": "Above even. The judge gives the ticket about a seventy-five percent chance of winning. This curve is a sigmoid. It takes one divided by one plus the exponential of the negative gap. Using it for a reward difference gives the Bradley-Terry comparison model.",
+        "hold": 0.3
+      },
+      {
+        "id": "c04-b03",
+        "say": "The negative log of the probability it gave the observed vote is about point two eight seven.",
+        "hold": 0.65
+      },
+      {
+        "id": "c04-b04",
+        "say": "Keep the reviewer's vote for the ticket and swap only the two reward scores. The point crosses the middle. The judge now puts roughly twenty-five percent on what the reviewer did. Its loss rises to about one point three eight seven.",
+        "hold": 0.3
+      },
+      {
+        "id": "c04-b05",
+        "say": "To find out whether its predicted chances match how often people agree, check fresh judgments.",
+        "hold": 0.7
+      }
+    ]
+  },
+  {
+    "id": "c05",
+    "title": "Where does the next training reply come from?",
+    "sourceChapters": ["c05"],
+    "beats": [
+      {
+        "id": "c05-b01",
+        "say": "Suppose all you have today is a file of ticket-versus-grant comparisons. Direct preference optimization, or DPO, can use those exact words. The policy is the model whose answers we want to change. Score both replies with the policy and a frozen copy of the starting model, the reference. Update the policy to fit the vote. Run another pass. The policy has changed.",
+        "hold": 0.3
+      },
+      {
+        "id": "c05-b02",
+        "say": "The replies in the file still say exactly what they said before.",
+        "hold": 0.6
+      },
+      {
+        "id": "c05-b03",
+        "say": "Now give that same migration request to an actor and let it write a fresh reply. It offers to send tonight's change to a reviewer. Once the reply is complete, a learned reward model can score it.",
+        "hold": 0.3
+      },
+      {
+        "id": "c05-b04",
+        "say": "In reinforcement learning from human feedback, proximal policy optimization, or PPO, uses scored rollouts like this to update the actor, with a penalty for drift from the reference.",
+        "hold": 0.7
+      },
+      {
+        "id": "c05-b05",
+        "say": "If good pairs are already on disk, DPO can train while generation is offline. If you need a score on a failure the current actor just produced, the online loop can see it, provided the judge recognizes it.",
+        "hold": 0.3
+      },
+      {
+        "id": "c05-b06",
+        "say": "You can also collect a fresh vote and add it to the file for the next DPO pass. Those choices can lead to different policies.",
+        "hold": 0.65
+      }
+    ]
+  },
+  {
+    "id": "c06",
+    "title": "The reference and rollout snapshot own different quantities",
+    "sourceChapters": ["c06"],
+    "beats": [
+      {
+        "id": "c06-b01",
+        "say": "Start with supervised fine-tuning, or SFT, on demonstrations. Fit a reward model from comparisons. Now sample fresh responses for PPO. Four computations take part. The actor writes and the critic learns to predict return. During this update the reference and the reward scorer stay frozen. You can share or offload weights when you arrange those roles on hardware.",
+        "hold": 0.7
+      },
+      {
+        "id": "c06-b02",
+        "say": "The actor chooses each next token from its current prefix. The reward model scores the finished response. The reference provides baseline log probabilities for drift charges. The critic predicts future return from a prefix. Return is the reward collected from that decision onward; advantage measures outcome above that baseline.",
+        "hold": 0.7
+      },
+      {
+        "id": "c06-b03",
+        "say": "Freeze a separate old-policy snapshot when collecting a rollout batch. Its stored token probabilities belong to the PPO update ratio. The longer-lived SFT reference belongs to the drift penalty. Reusing one batch keeps the old probabilities and detached advantage targets fixed even while actor parameters change.",
+        "hold": 0.7
+      }
+    ]
+  },
+  {
+    "id": "c07",
+    "title": "A single terminal score reaches earlier decisions",
+    "sourceChapters": ["c07"],
+    "beats": [
+      {
+        "id": "c07-b01",
+        "say": "Follow the three generated tokens. Each incurs a drift charge. Subtract its reference log probability from its old-policy log probability and multiply by negative beta. The three charges add up to the drift charge for the whole response. Put the sequence reward on the last token. Putting it on all three would pay three times for the same judgment.",
+        "hold": 0.7
+      },
+      {
+        "id": "c07-b02",
+        "say": "An individual sampled log ratio can be negative. Average those log ratios over every complete response, weighting each by its policy probability. That expectation is the forward Kullback-Leibler divergence, or KL. It is nonnegative.",
+        "hold": 0.3
+      },
+      {
+        "id": "c07-b03",
+        "say": "With policy probabilities point eight and point two against a half-half reference, the two log ratios are about point four seven and minus point nine one six; expected KL is point one nine three.",
+        "hold": 0.7
+      },
+      {
+        "id": "c07-b04",
+        "say": "Compute a temporal residual as immediate reward plus gamma times the next prefix value, minus the current prefix value. Work backward: advantage equals this residual plus gamma times lambda times the next advantage. A true terminal boundary uses zero next value. A deliberately truncated continuing episode needs an appropriate value bootstrap. Gamma discounts future reward. Lambda controls how much of the following advantage estimate you carry back.",
+        "hold": 0.7
+      },
+      {
+        "id": "c07-b05",
+        "say": "Give these three tokens immediate rewards zero, zero, one. All four value estimates are zero and gamma is one. At lambda one, carry the final one back to both earlier tokens. At lambda one half, carry half back at each step. Reading forward, the advantages are one quarter, one half, one. This assigns credit to earlier decisions. Which token caused the reward is still an open question. Critic error and lambda affect the estimate.",
+        "hold": 0.7
+      },
+      {
+        "id": "c07-charge",
+        "say": "Now use both pieces of the recipe. Our three old-minus-reference log ratios are point four, minus point two and point six. Use beta one half. The middle token earns a positive drift term on this sample. Add a sequence score of two at the end. With the same zero values and lambda one half, what advantage reaches the first token?",
+        "hold": 2.3
+      },
+      {
+        "id": "c07-carry",
+        "say": "Work backward. The last advantage is one point seven. The middle advantage is point nine five, its own point one plus half of one point seven. The first advantage is point two seven five, half of point nine five minus its own charge of point two.",
+        "hold": 1.1
+      }
+    ]
+  },
+  {
+    "id": "c08",
+    "title": "What does PPO pay for this token?",
+    "sourceChapters": ["c08"],
+    "beats": [
+      {
+        "id": "c08-b01",
+        "say": "Suppose the policy that wrote a batch gave one sampled token a twenty percent chance. The actor has changed since then. Divide its current probability by the saved twenty percent. At the starting point the ratio is one. The frozen reference has a different job. It measures drift over the run.",
+        "hold": 0.65
+      },
+      {
+        "id": "c08-b02",
+        "say": "Raise the current probability to thirty percent. The token is one and a half times as likely. PPO makes two calculations. Use the actual ratio, or clip it to the range from point eight to one point two.",
+        "hold": 0.3
+      },
+      {
+        "id": "c08-b03",
+        "say": "Multiply each by the same advantage, then keep the smaller product. If the advantage is plus one, which product counts?",
+        "hold": 1.8
+      },
+      {
+        "id": "c08-b04",
+        "say": "One point two. Increasing the probability helped a good token, and the extra increase earns nothing. Now read the row for an advantage of minus one. Increasing the probability hurt. Minus one point five is smaller, so the entire cost counts.",
+        "hold": 0.7
+      },
+      {
+        "id": "c08-b05",
+        "say": "Take the current probability down to ten percent. Now the ratio is one half. For a positive advantage, that harmful decrease counts in full. For a negative advantage, the favorable decrease stops earning credit at point eight, so its surrogate is minus point eight.",
+        "hold": 0.3
+      },
+      {
+        "id": "c08-b06",
+        "say": "The actual probability went all the way to ten percent. Clipping changes the incentive on this sample. Check the actor's ratios, critic error, reference drift and fresh replies after an update.",
+        "hold": 0.7
+      }
+    ]
+  },
+  {
+    "id": "c09",
+    "title": "Four logical roles have a stated aggregate state cost",
+    "sourceChapters": ["c09"],
+    "beats": [
+      {
+        "id": "c09-b01",
+        "say": "Let's price four separate backbones on paper. A trainable parameter uses two bytes for its weight and two for its gradient. Two optimizer moments take four bytes each. Add four bytes for a master copy. That's sixteen bytes. A frozen parameter needs just the two weight bytes in this worksheet. Other precision and optimizer choices give different budgets.",
+        "hold": 0.7
+      },
+      {
+        "id": "c09-b02",
+        "say": "For four separate seventy-billion-parameter backbones, actor and critic each use one thousand one hundred twenty decimal gigabytes. Reference and reward each use one hundred forty. The aggregate is two thousand five hundred twenty gigabytes before activations, generation caches, temporary storage, replication and communication.",
+        "hold": 0.7
+      },
+      {
+        "id": "c09-b03",
+        "say": "Removing this critic leaves one thousand four hundred gigabytes, saving forty-four point four percent of this assumed state budget. Smaller or shared critics, adapters, sharding and offload change placement or quantities. InstructGPT used a six-billion reward and value model even with its one-hundred-seventy-five-billion policy.",
+        "hold": 0.7
+      },
+      {
+        "id": "c09-b04",
+        "say": "Online rollouts add prompt prefill, decoding and scoring work. Colocated engines can alternate generation and training; asynchronous engines can overlap them while introducing synchronization, resource and policy-lag costs. OpenRLHF documents both layouts. Compare measured utilization and policy lag before selecting a layout; this worksheet establishes no GPU throughput.",
+        "hold": 0.7
+      }
+    ]
+  },
+  {
+    "id": "c10",
+    "title": "The reference distribution is tilted and renormalized",
+    "sourceChapters": ["c10"],
+    "beats": [
+      {
+        "id": "c10-b01",
+        "say": "Hold the prompt and reward fixed. How would you divide probability between the answers if you could choose any distribution? Start with each reference probability. Multiply it by the exponential of reward divided by beta. Divide the resulting masses by their sum, called Z. This optimum assumes positive beta, a finite sum and answers supported by the reference.",
+        "hold": 0.7
+      },
+      {
+        "id": "c10-b02",
+        "say": "In a supplied two-answer example, the reference is half-half, beta is one, and rewards are natural log three and zero. Unnormalized masses become one point five and point five. Z is two, so the optimal probabilities are three quarters and one quarter.",
+        "hold": 0.7
+      },
+      {
+        "id": "c10-b03",
+        "say": "The objective can be written as negative beta times KL from the candidate to that optimal distribution, plus beta times log Z. The constant does not depend on the candidate distribution. Nonnegative KL makes that distribution optimal; a finite neural network and optimizer may neither represent nor reach it.",
+        "hold": 0.7
+      }
+    ]
+  },
+  {
+    "id": "c11",
+    "title": "The same prompt constant cancels inside a pair",
+    "sourceChapters": ["c11"],
+    "beats": [
+      {
+        "id": "c11-b01",
+        "say": "Take natural logs of the optimal-policy equation and solve for reward. Reward equals beta times the log of optimal probability divided by reference probability, plus beta times log Z. The partition function depends on the prompt, not on which completion is selected.",
+        "hold": 0.7
+      },
+      {
+        "id": "c11-b02",
+        "say": "Take two answers to the same prompt. Subtract their rewards for the Bradley-Terry comparison. The identical beta log Z terms cancel. Now put the trainable policy in place of the optimal one. Each reply contributes beta times its policy-to-reference log ratio. Subtract the rejected contribution from the chosen one to get the comparison logit.",
+        "hold": 0.7
+      },
+      {
+        "id": "c11-b03",
+        "say": "DPO minimizes negative log sigmoid of that comparison logit on stored labels. It needs no standalone reward model, critic or fresh rollout during this optimization stage. Sharing an ideal optimum with reward fitting requires the preference-model assumptions, sufficient comparison coverage, suitable capacity and successful optimization.",
+        "hold": 0.3
+      },
+      {
+        "id": "c11-b04",
+        "say": "Finite DPO and clipped PPO need not produce the same checkpoint.",
+        "hold": 0.7
+      }
+    ]
+  },
+  {
+    "id": "c12",
+    "title": "The two replies have the same policy score",
+    "sourceChapters": ["c12"],
+    "beats": [
+      {
+        "id": "c12-b01",
+        "say": "Come back to the station. Under our current policy, both exact replies have the same log probability, minus three point four. We get each score by adding the log probabilities of its response tokens. If you saw only those two current scores, you'd call it a tie.",
+        "hold": 0.3
+      },
+      {
+        "id": "c12-b02",
+        "say": "Here are the frozen reference scores. From its own starting point, which reply gained log probability, and which lost it?",
+        "hold": 2
+      },
+      {
+        "id": "c12-b03",
+        "say": "The frozen reference gave A minus four. A moved up six tenths. The reference gave B minus three. B moved down four tenths. The endpoints match, but look where each arrow starts.",
+        "hold": 0.6
+      },
+      {
+        "id": "c12-b04",
+        "say": "Subtract B's change from A's. Six tenths minus negative four tenths gives a margin of one. The vote tells us which direction we wanted that gap to move.",
+        "hold": 0.65
+      }
+    ]
+  },
+  {
+    "id": "c13",
+    "title": "What chance does the model give the vote?",
+    "sourceChapters": ["c13"],
+    "beats": [
+      {
+        "id": "c13-b01",
+        "say": "Put a point at zero on the horizontal axis. Here the policy matches the reference, so neither reply has gained ground. The curve gives an even chance to the reviewer picking A. The height is a prediction about a vote between these two replies.",
+        "hold": 0.55
+      },
+      {
+        "id": "c13-b02",
+        "say": "Now use the route margin of one. Multiply by beta, one half, to get halfway along the axis from zero to one. Follow the curve up. It puts about sixty-two percent on A winning the comparison.",
+        "hold": 0.3
+      },
+      {
+        "id": "c13-b03",
+        "say": "The model's chance of writing that exact route is a different number. Its log probability was minus three point four, so that chance is only about three percent.",
+        "hold": 0.75
+      },
+      {
+        "id": "c13-b04",
+        "say": "Try a larger margin with the same beta. Let the margin rise from one to five. The point still moves right, but near the top it barely climbs. The sigmoid squeezes every margin onto this zero-to-one scale. Now let's score what happened when the reviewer actually picked A.",
+        "hold": 0.65
+      }
+    ]
+  },
+  {
+    "id": "c14",
+    "title": "What does one vote cost?",
+    "sourceChapters": ["c14"],
+    "beats": [
+      {
+        "id": "c14-b01",
+        "say": "Bring back the vote for route A. Suppose the policy still matches its reference. The comparison gives A an even chance. Take the negative natural log of one half and you get a loss of about point six nine three. That's the starting loss for this vote.",
+        "hold": 0.6
+      },
+      {
+        "id": "c14-b02",
+        "say": "Now give this route pair its worked margin of one. With beta one half, the model puts about sixty-two percent on the recorded choice. Follow A's probability into the loss. It drops to about point four seven four.",
+        "hold": 0.65
+      },
+      {
+        "id": "c14-b03",
+        "say": "Try two other predictions for that same vote. First, put only eight percent on A. A model that confident in B pays a large loss when the reviewer picks A. Now put ninety-five percent on A. The loss nearly disappears.",
+        "hold": 0.3
+      },
+      {
+        "id": "c14-b04",
+        "say": "So does most of the pull on the margin. The badly misranked pair gets the stronger correction.",
+        "hold": 0.75
+      }
+    ]
+  },
+  {
+    "id": "c15",
+    "title": "Push the pair in opposite directions",
+    "sourceChapters": ["c15"],
+    "beats": [
+      {
+        "id": "c15-b01",
+        "say": "The comparison gradient favors the chosen response and opposes the rejected response. This push and pull is weighted by how surprising the preference remains under the current policy. A logit is a score before softmax; softmax turns response scores into a distribution whose probabilities sum to one.",
+        "hold": 0.55
+      },
+      {
+        "id": "c15-b02",
+        "say": "The two-response model starts at the reference, with equal logits. At zero margin, the DPO loss gradient is minus point two five for the chosen logit and plus point two five for the rejected.",
+        "hold": 0.3
+      },
+      {
+        "id": "c15-b03",
+        "say": "Gradient descent moves them in opposite directions and recalculates the margin after each step. As the chosen response pulls ahead, the next correction becomes smaller.",
+        "hold": 0.55
+      },
+      {
+        "id": "c15-b04",
+        "say": "Transformer parameters are shared across many responses, so a push on this pair can shift probabilities for other sequences too. Evaluate whole-model behavior after training.",
+        "hold": 0.75
+      }
+    ]
+  },
+  {
+    "id": "c16",
+    "title": "A response score gathers shifted targets and sums once",
+    "sourceChapters": ["c16"],
+    "beats": [
+      {
+        "id": "c16-b01",
+        "say": "Our route table uses a separate illustrative DPO setting: chosen policy and reference log scores minus three point four and minus four; rejected minus three point four and minus three; beta one half. Its margin is one and loss about point four seven four.",
+        "hold": 0.3
+      },
+      {
+        "id": "c16-b02",
+        "say": "The article’s P7 worked scores instead yield margin point seven, beta point one and loss point six five nine.",
+        "hold": 0.7
+      },
+      {
+        "id": "c16-b03",
+        "say": "These are sums of observed response-token log probabilities under teacher forcing. For each target token at index t, gather its log-softmax probability from logit row t minus one, using the whole vocabulary in the normalizer. Sum only valid response targets, including the selected ending. Exclude prompt targets and padding by their positions and masks.",
+        "hold": 0.7
+      },
+      {
+        "id": "c16-b04",
+        "say": "The actual article toy has prompt IDs zero, two. Chosen response IDs one, two, four and rejected response IDs three, zero, four follow; four is EOS. A final zero is padding, while the rejected response’s internal zero is real content. Masking by ID alone would wrongly erase that real target.",
+        "hold": 0.7
+      },
+      {
+        "id": "c16-b05",
+        "say": "The executed CPU toy produces chosen log probability minus point nine nine three, rejected minus one point eight eight two and DPO loss point six six two. Increasing its two chosen observed logits lowers loss to point six four six.",
+        "hold": 0.3
+      },
+      {
+        "id": "c16-b06",
+        "say": "Raise A's prompt and padding logits. The highlighted scores still sum to minus point six five eight.",
+        "hold": 0.7
+      }
+    ]
+  },
+  {
+    "id": "c17",
+    "title": "A sequence sum and token average can reverse the pair",
+    "sourceChapters": ["c17"],
+    "beats": [
+      {
+        "id": "c17-b01",
+        "say": "Standard sigmoid DPO uses whole-response log-probability sums. Averaging the final loss over dataset rows is a different operation from averaging tokens inside each completion. Length differences can affect sequence sums; dividing each sum by its length changes the objective.",
+        "hold": 0.7
+      },
+      {
+        "id": "c17-b02",
+        "say": "Use the article’s chosen four-token response with summed log ratio point four and rejected two-token response with point three. The summed margin is positive point one. Per-token averages become point one and point one five, giving negative point zero five. The same pair now has the opposite implicit ordering.",
+        "hold": 0.7
+      },
+      {
+        "id": "c17-b03",
+        "say": "State the actual loss and scoring convention when comparing methods. The inspected TRL IPO path uses per-completion average reference-relative scores, unlike standard sigmoid DPO. Track lengths and confirm that truncation preserves the behavior that justified the label; a cleaner metric cannot recover erased evidence.",
+        "hold": 0.7
+      }
+    ]
+  },
+  {
+    "id": "c18",
+    "title": "Initial gradient scale differs from the ideal drift tradeoff",
+    "sourceChapters": ["c18"],
+    "beats": [
+      {
+        "id": "c18-b01",
+        "say": "For unscaled margin m, comparison logit z equals beta times m. The loss derivative with respect to z is sigmoid z minus one; with respect to m, multiply that quantity by beta.",
+        "hold": 0.3
+      },
+      {
+        "id": "c18-b02",
+        "say": "At zero margin the loss is natural log two, the logit derivative is minus one half, and the margin derivative is minus beta divided by two.",
+        "hold": 0.7
+      },
+      {
+        "id": "c18-b03",
+        "say": "A loss of log two can still give a learning signal. In the two-logit route model, beta is one half. At equality the chosen logit's gradient is minus point two five and the rejected one's is plus point two five. In a shared network, the parameter gradient also depends on how both reply scores change with the weights.",
+        "hold": 0.7
+      },
+      {
+        "id": "c18-b04",
+        "say": "For a complete two-answer population with uniform reference and true preference probability three quarters, the fitted comparison logit is natural log three. The ideal margin is natural log three divided by beta, and policy A probability is sigmoid of that margin.",
+        "hold": 0.3
+      },
+      {
+        "id": "c18-b05",
+        "say": "Beta point one, point five and one give about ninety-nine point nine nine eight, ninety and seventy-five percent. The initial slopes alongside them are for a single recorded A-over-B vote. Average over the population instead. At a tie the model predicts one half, while three quarters of the labels favor A. The expected initial slope is beta times that difference, or minus beta over four.",
+        "hold": 0.7
+      },
+      {
+        "id": "c18-b06",
+        "say": "Larger beta gives a larger initial margin gradient while keeping this ideal fixed-reward policy closer to the reference. Actual drift also depends on learning rate, update count and saturation. No hard global KL constraint follows from the empirical pair loss.",
+        "hold": 0.3
+      },
+      {
+        "id": "c18-b07",
+        "say": "If loss remains near point six nine three after updates, first verify gradients and parameter changes, then inspect labels and coverage.",
+        "hold": 0.7
+      }
+    ]
+  },
+  {
+    "id": "c19",
+    "title": "Follow the ticket as the margin changes",
+    "sourceChapters": ["c19"],
+    "beats": [
+      {
+        "id": "c19-b01",
+        "say": "Find the ticket and the grant on this ruler. Zero means the policy gives that exact reply the same probability as the frozen reference. Subtract the reference log score in each row. The ticket starts three tenths to the right of zero.",
+        "hold": 0.3
+      },
+      {
+        "id": "c19-b02",
+        "say": "The grant starts four tenths to its left. The distance between them is the margin.",
+        "hold": 0.6
+      },
+      {
+        "id": "c19-b03",
+        "say": "Look at a second policy on this same request. Its ticket log score is lower by nine tenths. Its grant log score is lower by one point seven. Both marks slide left. The gap opens from point seven to one point five.",
+        "hold": 0.3
+      },
+      {
+        "id": "c19-b04",
+        "say": "With beta point one, the loss falls from about point six five nine to point six two one. Is this policy more or less likely to write the ticket than the reference?",
+        "hold": 2
+      },
+      {
+        "id": "c19-b05",
+        "say": "Less likely. The ticket sits six tenths below its own reference. The gap grew because the grant fell farther. This is likelihood displacement. Some other replies gained probability, and we need to see them to know whether that's good news.",
+        "hold": 0.3
+      },
+      {
+        "id": "c19-b06",
+        "say": "Track both log scores, the margin and on-policy drift. DPO-Positive adds a penalty when the chosen reply falls below its reference.",
+        "hold": 0.7
+      }
+    ]
+  },
+  {
+    "id": "c20",
+    "title": "Where did the missing probability go?",
+    "sourceChapters": ["c20"],
+    "beats": [
+      {
+        "id": "c20-b01",
+        "say": "Suppose the assistant has just three possible replies to the migration request. A opens the ticket. B grants access. C grants access and invents a policy exception. Give the flow of possible replies a hundred equal lanes. A lane carries one percentage point of generation probability. The reference gives each answer a third.",
+        "hold": 0.3
+      },
+      {
+        "id": "c20-b02",
+        "say": "The only vote in our file is A over B.",
+        "hold": 0.55
+      },
+      {
+        "id": "c20-b03",
+        "say": "In the first policy, forty lanes lead to the ticket, ten to the direct grant, and fifty to the invented exception. For every grant there are four tickets. At beta point one, the loss on the stored vote is about point six two six. Keep that measurement, the vote and the reference in view.",
+        "hold": 0.65
+      },
+      {
+        "id": "c20-b04",
+        "say": "Now narrow the ticket and grant exits together. For each four lanes that leave the ticket and one that leaves the grant, five go to the exception. Count what's left. Eight tickets, two grants and ninety exceptions. Would the loss on the saved vote rise, fall or stay the same?",
+        "hold": 2.5
+      },
+      {
+        "id": "c20-b05",
+        "say": "It stays the same. Eight divided by two is still four. The reference odds are still one to one, so the margin is still the natural log of four. Both policies pay the same loss, although the second would usually invent an exception.",
+        "hold": 0.3
+      },
+      {
+        "id": "c20-b06",
+        "say": "Sample replies from that policy. When you find C, ask a reviewer to compare the ticket with the invented exception. An online scorer also needs to recognize that difference.",
+        "hold": 0.7
+      }
+    ]
+  },
+  {
+    "id": "c21",
+    "title": "A cached score belongs to one complete scoring recipe",
+    "sourceChapters": ["c21"],
+    "beats": [
+      {
+        "id": "c21-b01",
+        "say": "Vanilla DPO has policy and reference scoring roles; a frozen reference’s scores can be precomputed for fixed token sequences. This can remove a resident reference model during updates. A cache belongs to exact reference weights, tokenizer, template, token IDs, response masks, truncation and sum-or-mean convention.",
+        "hold": 0.7
+      },
+      {
+        "id": "c21-b02",
+        "say": "Keep the text unchanged but alter which EOS target is scored. The old cached scalar now belongs to the old mask, so recompute affected scores. Changing the reference weights also invalidates them. The inspected TRL one point seventeen point one rejects combining precomputation with reference synchronization because those two contracts conflict.",
+        "hold": 0.7
+      },
+      {
+        "id": "c21-b03",
+        "say": "For its shown full-model setup without a separately retained reference, provide planned pair-evaluation datasets at initialization. After policy updates, the actor no longer supplies the original reference scores for a newly passed uncached dataset; the inspected trainer raises an error.",
+        "hold": 0.3
+      },
+      {
+        "id": "c21-b04",
+        "say": "Keep an explicit frozen reference or arrange valid initial caches. Adapter paths have different implementation details.",
+        "hold": 0.7
+      },
+      {
+        "id": "c21-b05",
+        "say": "Now the reference is offline. A saved pair has a chosen sum of minus nine over four targets and a rejected sum of minus four point two over three. The tokens and masks match. Can you recover the mean for each reply?",
+        "hold": 2
+      },
+      {
+        "id": "c21-means",
+        "say": "Divide each sum by its own count. The chosen mean is minus two point two five. The rejected mean is minus one point four. If the mask changes, those totals alone cannot tell us which terms to keep. We need the corresponding token scores or a fresh reference pass.",
+        "hold": 0.8
+      }
+    ]
+  },
+  {
+    "id": "c22",
+    "title": "A nonempty pair can contain no scored difference",
+    "sourceChapters": ["c22"],
+    "beats": [
+      {
+        "id": "c22-b01",
+        "say": "The shown trainer fragment is a source-checked configuration, not a transformer training run. In the inspected TRL one point seventeen implementation, keep-start truncation cuts each sequence at maximum length. If chosen and rejected differ only beyond that boundary, their distinguishing behavior disappears.",
+        "hold": 0.7
+      },
+      {
+        "id": "c22-b02",
+        "say": "Its preparation drops a row whose prompt alone fills the maximum length under keep-start. Count rows before and after preparation rather than inferring success from a nonempty dataset. On a custom path that bypasses this filter, require at least one scored next-token response target on each branch after the causal shift.",
+        "hold": 0.7
+      },
+      {
+        "id": "c22-b03",
+        "say": "Also inspect the actual retained target coordinates, not only target count. Two nonempty responses can lose their decisive policy clause. Confirm tokenizer, template, EOS and masks match across trainable and frozen scoring paths. Dropout or mismatched preparation can otherwise create nonzero reference-relative margins before learning.",
+        "hold": 0.7
+      }
+    ]
+  },
+  {
+    "id": "c23",
+    "title": "A pair-loss evaluation is a different measurement from new answers",
+    "sourceChapters": ["c23"],
+    "beats": [
+      {
+        "id": "c23-b01",
+        "say": "Imagine wiring up a short full-model run. Give the trainer the supervised checkpoint, its tokenizer and rows with a prompt, a chosen reply and a rejected reply. The article uses beta point one, a learning rate of five millionths, a maximum length of two thousand forty-eight and ten steps. These settings illustrate how the parts fit together.",
+        "hold": 0.7
+      },
+      {
+        "id": "c23-b02",
+        "say": "Inspect collated pairs, row counts, reference freezing, optimizer state, precision and memory before interpreting a run. Save both updated weights and tokenizer. The article’s twenty-one executed standard-library programs establish local mathematics and helper contracts; they do not establish transformer training, GPU throughput or PPO rollout stability.",
+        "hold": 0.7
+      },
+      {
+        "id": "c23-b03",
+        "say": "Trainer evaluation on stored pairs measures its declared losses and pair metrics. It is not a human win rate on fresh answers. Use new generations and independent judgments for behavioral claims, while retaining the same prompt IDs, rubric and decoding controls for comparisons.",
+        "hold": 0.7
+      }
+    ]
+  },
+  {
+    "id": "c24",
+    "title": "The label owns the prompt and both response boundaries",
+    "sourceChapters": ["c24"],
+    "beats": [
+      {
+        "id": "c24-b01",
+        "say": "Both loops inherit the comparison data contract. Keep the same rendered prompt, complete response boundaries and generator provenance with each chosen and rejected answer. Standard DPO treats an ordering as a binary observation. Repeated opposite votes can express genuine uncertainty rather than an automatic labeling error.",
+        "hold": 0.7
+      },
+      {
+        "id": "c24-b02",
+        "say": "For generalization to unseen prompts, split by prompt groups. A known-prompt, new-response evaluation is another valid question, but evaluated responses and labels still stay out of training. An answer from another generator is not automatically invalid; it may simply miss current-policy failures.",
+        "hold": 0.7
+      },
+      {
+        "id": "c24-b03",
+        "say": "Cover the behaviors the product actually needs: refusals, tool use, reasoning, style and policy compliance. More annotations can measure disagreement without repairing a vague rubric. Inspect whether current generations introduce a failure absent from stored rows before treating high pair accuracy as broad alignment.",
+        "hold": 0.7
+      }
+    ]
+  },
+  {
+    "id": "c25",
+    "title": "Can a word count pick the better answer?",
+    "sourceChapters": ["c25"],
+    "beats": [
+      {
+        "id": "c25-b01",
+        "say": "Here's a rule that can look like a good reviewer. Always pick the shorter reply. On our station pair that picks eleven words over twelve. On the next two stored pairs it picks three over ten, then one over nine. That's three matches to three votes. Did the rule even have to read a word?",
+        "hold": 1.3
+      },
+      {
+        "id": "c25-b02",
+        "say": "Try two fresh replies to the familiar station question. Both have eight words. When the lengths tie, our rule always picks X. Read the first turn in each reply. Facing north at the entrance, which reply takes you toward the café?",
+        "hold": 1.8
+      },
+      {
+        "id": "c25-b03",
+        "say": "Y goes left. X sends you right, toward the park. The rule misses this vote. On a different prompt, two plus three, the replies again have eight words apiece. One ends in five and the other in six. Which reply earns the vote this time?",
+        "hold": 1.8
+      },
+      {
+        "id": "c25-b04",
+        "say": "X gives five. The tie rule gets one of these two new votes right, entirely by position. A reviewer checking the actual turn and the sum can distinguish both pairs. For a model comparison, blind the order and use the same prompts and rubric for both models.",
+        "hold": 0.3
+      },
+      {
+        "id": "c25-b05",
+        "say": "Record why reviewers disagree. Check task quality, factual errors and refusals alongside length.",
+        "hold": 0.65
+      }
+    ]
+  },
+  {
+    "id": "c26",
+    "title": "A controlled rewrite can test the scorer shortcut",
+    "sourceChapters": ["c26"],
+    "beats": [
+      {
+        "id": "c26-b01",
+        "say": "The candidate's reward rose as its replies got longer. Was the scorer paying for the phrase Policy-safe answer? Make two copies of a correct P seven reply. Add those words to one copy. The action stays exactly the same. Score both. If the second score rises, you've found a preference for this edit in this example.",
+        "hold": 0.7
+      },
+      {
+        "id": "c26-b02",
+        "say": "Length-matched comparisons can separate useful detail from padding. Also compare formatted and plain answers, false user claims for sycophancy, and confidence on known-hard questions. A length penalty can punish necessary detail, so test it against correctness and refusal quality.",
+        "hold": 0.7
+      },
+      {
+        "id": "c26-b03",
+        "say": "If real updates leave DPO loss near point six nine three, audit parameter changes, contradictory labels, ties and missing coverage. If tone improves while access policy fails, inspect labels and the deployed prompt or template. If online reward rises while outputs become repetitive, hold promotion, inspect reward scale and drift, and refresh evaluation.",
+        "hold": 0.7
+      }
+    ]
+  },
+  {
+    "id": "c27",
+    "title": "Would you release this candidate?",
+    "sourceChapters": ["c27"],
+    "beats": [
+      {
+        "id": "c27-b01",
+        "say": "Back to the candidate whose reward rose by point three one. Before seeing any wins, we set two rules. The lower end of a ninety-five percent interval for the human win rate must clear fifty percent. The average reply must grow by fewer than twenty tokens. That's a product choice for this example.",
+        "hold": 0.6
+      },
+      {
+        "id": "c27-b02",
+        "say": "We judge one pair on each of four hundred independent prompts, in blind order, with no ties. The candidate wins one hundred eighty-four. That's forty-six percent. The Wilson interval runs from about forty-one point two to fifty point nine percent. Now add forty-eight tokens of mean length growth. Does either measurement clear its rule?",
+        "hold": 2
+      },
+      {
+        "id": "c27-b03",
+        "say": "Neither clears. Fifty percent lies inside the interval, so we haven't established a gain or a decline. And forty-eight is well beyond twenty. Hold this candidate. Inspect its longer replies for useful detail, needless padding and refusal quality.",
+        "hold": 0.3
+      },
+      {
+        "id": "c27-b04",
+        "say": "Choose a checkpoint on validation data, then judge it on a separate planned comparison. With shared users, ties or repeated looks, plan an analysis that accounts for them.",
+        "hold": 0.75
+      }
+    ]
+  },
+  {
+    "id": "c28",
+    "title": "New comparisons can follow the policy without a critic",
+    "sourceChapters": ["c28"],
+    "beats": [
+      {
+        "id": "c28-b01",
+        "say": "Basic DPO optimizes stored pairs without fresh rollout exploration. An iterative data-collection loop can sample two or more candidates from the current policy, obtain human or model preferences, save the prompt together with the chosen and rejected replies, then run a pairwise update. New comparisons can expose harder negatives absent from the old archive.",
+        "hold": 0.7
+      },
+      {
+        "id": "c28-b02",
+        "say": "Online IPO draws both replies from the current policy. Suppose the first token can be Open or Claim. The current policy gives Open nine to one odds. The reference gives even odds. In the IPO-MD experiment, one sampler blends the two models’ next-token logits before softmax at every step. With equal logit weights, what odds does Open get?",
+        "hold": 2.4
+      },
+      {
+        "id": "c28-blend",
+        "say": "Three to one. Half of log nine plus half of log one gives log three. Open now has a seventy-five percent chance. Draw both fresh replies with this sampler. Save both model revisions and their logit weights with the pair. A sample average now describes draws from the blended sampler.",
+        "hold": 0.7
+      },
+      {
+        "id": "c28-b03",
+        "say": "You can refresh these comparisons without fitting a critic. A biased judge could prefer the claimed exception. Ask an independent reviewer to check it against P-7. Keep each vote with its own prompt, both replies and the sampler that produced them.",
+        "hold": 0.7
+      }
+    ]
+  },
+  {
+    "id": "c29",
+    "title": "A finite margin target changes the gradient direction",
+    "sourceChapters": ["c29"],
+    "beats": [
+      {
+        "id": "c29-b01",
+        "say": "Identity Preference Optimization uses the squared difference between its reference-relative margin and one divided by the quantity two times tau. Tau is positive. At tau point one, the target is five. Its derivative with respect to margin is two times the quantity margin minus five.",
+        "hold": 0.7
+      },
+      {
+        "id": "c29-b02",
+        "say": "Start at zero. The negative derivative pushes the margin up toward five. Start a second trial at seven. The positive derivative pushes that overshoot back toward five. Squared loss penalizes distance from the target. The margin can cross it, and neural network updates can still be unstable. The inspected trainer averages completion tokens for IPO, so use that convention when you measure its margin.",
+        "hold": 0.7
+      },
+      {
+        "id": "c29-b03",
+        "say": "Suppose A and B are the only possible replies, one token each. The reference gives each half. At zero log odds, the policy matches the reference and forward KL is zero. Raise the margin to five. A now takes more than ninety-nine percent of draws, and forward KL is about point six five three nats. If we double the margin, how rare will B become? At five, B still gets about seven draws in a thousand. Raise it to ten. B now gets fewer than five draws per hundred thousand on average. Forward KL is about point six nine two six five nats. As A’s share approaches one, forward KL approaches natural log two. Compare the losses. IPO falls to zero at five, then rises again. At beta point one, DPO loss keeps falling.",
+        "hold": 0.7
+      }
+    ]
+  },
+  {
+    "id": "c30",
+    "title": "A single label reverses the update direction",
+    "sourceChapters": ["c30"],
+    "beats": [
+      {
+        "id": "c30-b01",
+        "say": "Kahneman-Tversky Optimization can consume one response and a desirable or undesirable label without a paired alternative. That feedback needs defined semantics: a click can reflect style or selection bias rather than factual correctness. Its prospect-theory-inspired value is a modeling choice.",
+        "hold": 0.7
+      },
+      {
+        "id": "c30-b02",
+        "say": "Let r be policy-to-reference log ratio and hold detached reference point z fixed. For a desirable row, the unit-weight loss is one minus sigmoid of beta times the quantity r minus z. For an undesirable row, reverse that difference. The label must reverse the update direction.",
+        "hold": 0.7
+      },
+      {
+        "id": "c30-b03",
+        "say": "In the article’s scalar example, beta one half and z point two stay fixed while r increases from one to two. Desirable loss falls about point four zero one to point two eight nine; undesirable loss rises point five nine nine to point seven one one.",
+        "hold": 0.3
+      },
+      {
+        "id": "c30-b04",
+        "say": "To estimate the reference point, pair each prompt with another prompt’s reply from the same batch. Here the signed policy-to-reference log ratios are minus zero point six and plus one. Their batch mean is zero point two. KTO clamps that mean at zero and detaches the result. Both losses treat it as fixed during backpropagation. Check class weights and sampling separately.",
+        "hold": 0.7
+      }
+    ]
+  },
+  {
+    "id": "c31",
+    "title": "Dropping the reference changes the objective contract",
+    "sourceChapters": ["c31"],
+    "beats": [
+      {
+        "id": "c31-b01",
+        "say": "ORPO uses one policy to do two jobs. Imitate the chosen response with cross-entropy, and add a weighted penalty that compares the answers' odds. For example, turn a probability of point two into odds by dividing point two by point eight. Do the same for a probability of point one. Dividing those odds gives two point two five, while dividing the probabilities gives two.",
+        "hold": 0.7
+      },
+      {
+        "id": "c31-b02",
+        "say": "SimPO also drops reference scoring. Average each answer's token log probabilities and scale the result. Subtract the rejected score and the target margin from the chosen score. If the scaled scores differ by one tenth and the target is two tenths, the preference logit is negative one tenth. Switching ordinary DPO to token averages would change its objective too.",
+        "hold": 0.7
+      },
+      {
+        "id": "c31-b03",
+        "say": "Choose the objective from the feedback contract and test held-out concision and correctness. A reference-free method removes reference scoring and storage, but its policy forward and backward work remains. Report its actual loss, normalization and quality evidence before making a systems comparison.",
+        "hold": 0.7
+      }
+    ]
+  },
+  {
+    "id": "c32",
+    "title": "A prompt group supplies its own outcome baseline",
+    "sourceChapters": ["c32"],
+    "beats": [
+      {
+        "id": "c32-b01",
+        "say": "Group Relative Policy Optimization samples several completions for one prompt, scores them with a verifier or reward model, and estimates outcome advantages from the group instead of a learned critic. In the original outcome formulation, subtract the group mean and divide by its standard deviation, with a stated zero-scale policy.",
+        "hold": 0.7
+      },
+      {
+        "id": "c32-b02",
+        "say": "The article’s transparent helper uses population standard deviation. For rewards one, zero, one half, one, mean is point six two five and standard deviation about point four one five. Advantages are approximately point nine zero five, minus one point five zero eight, minus point three zero two and point nine zero five.",
+        "hold": 0.7
+      },
+      {
+        "id": "c32-b03",
+        "say": "Give every completion the same reward. Centering now leaves zero for every row, so this group has no reward-driven update. An enabled KL or auxiliary loss can still contribute. All-pass, all-fail and an uninformative scorer create the same zero-scale symptom for different reasons; inspect actual outcomes.",
+        "hold": 0.7
+      },
+      {
+        "id": "c32-b04",
+        "say": "Removing the critic removes its state, computation and value-fitting error, but not rollouts or the need for a useful scoring signal. The forty-four point four percent saving belonged to the earlier equal-backbone state worksheet; it was not measured peak memory for GRPO.",
+        "hold": 0.7
+      }
+    ]
+  },
+  {
+    "id": "c33",
+    "title": "Token clipping and sequence clipping are different operations",
+    "sourceChapters": ["c33"],
+    "beats": [
+      {
+        "id": "c33-b01",
+        "say": "DeepSeekMath’s original outcome formulation gives the group outcome advantage to each generated token, applies current-to-old token ratios, then averages token losses within each completion and completions within the group. With positive advantage one and epsilon point two, two ratios of one point one each give token-average surrogate one point one.",
+        "hold": 0.7
+      },
+      {
+        "id": "c33-b02",
+        "say": "Multiply those ratios into one sequence ratio instead. One point two one is clipped to one point two for this favorable sample. The result differs from token averaging. The R1 report and current trainers also expose other importance-ratio or normalization conventions; identify the equation and implementation rather than substituting silently.",
+        "hold": 0.7
+      },
+      {
+        "id": "c33-b03",
+        "say": "The original GRPO formulation adds its KL term separately from group reward normalization. For sampled log ratio ell equal to the natural logarithm of the ratio of reference probability to current probability, its nonnegative sample term is exponential of ell, minus ell, minus one.",
+        "hold": 0.3
+      },
+      {
+        "id": "c33-b04",
+        "say": "Its expectation is conditional forward KL when sampling from the scored current policy; reused old-policy samples need the corresponding correction.",
+        "hold": 0.7
+      },
+      {
+        "id": "c33-b05",
+        "say": "The inspected trainer edition has selectable normalization and reward-scaling choices, with beta zero by default and no loaded reference for that disabled KL term. Those are versioned implementation facts, not the definition of every GRPO algorithm. CPU scalar examples establish neither online convergence nor GPU speed.",
+        "hold": 0.7
+      }
+    ]
+  },
+  {
+    "id": "c34",
+    "title": "A model judge changes label production rather than truth",
+    "sourceChapters": ["c34"],
+    "beats": [
+      {
+        "id": "c34-b01",
+        "say": "Constitutional AI’s reported procedure uses written principles to generate critiques and revisions, then supervised learning on the revised answers. Its later reinforcement-learning stage fits a preference model from AI harmlessness comparisons alongside human helpfulness feedback and uses that model as reward.",
+        "hold": 0.7
+      },
+      {
+        "id": "c34-b02",
+        "say": "This is one form of reinforcement learning from AI feedback. The broader label includes other AI-feedback procedures and does not require constitutional critique and revision. A written principle still depends on a judge recognizing whether an answer follows it.",
+        "hold": 0.7
+      },
+      {
+        "id": "c34-b03",
+        "say": "An independent reviewer gets a new request. Can I have admin access until noon for Saturday's backup? Both replies cite P seven. One sends the request to the backup owner for approval. The other activates access until noon. Which reply follows the principle?",
+        "hold": 2
+      },
+      {
+        "id": "c34-verdict",
+        "say": "X leaves the decision with the backup owner. Y has already granted access. Citing the rule was only half the job. Keep these human judgments and challenging requests outside the data used to produce the training labels.",
+        "hold": 0.7
+      }
+    ]
+  },
+  {
+    "id": "c35",
+    "title": "Add the missing comparison",
+    "sourceChapters": ["c35"],
+    "beats": [
+      {
+        "id": "c35-b01",
+        "say": "Try the new vote on a different three-answer policy. It opens a ticket thirty percent of the time and grants access directly ten percent. The other sixty percent goes to the invented exception. Keep the reference uniform. Start each logit at the natural log of its probability.",
+        "hold": 0.3
+      },
+      {
+        "id": "c35-b02",
+        "say": "The reviewer picks the ticket over the exception. With beta one half and a step size of point four, which logits move, and in which direction?",
+        "hold": 2
+      },
+      {
+        "id": "c35-b03",
+        "say": "The ticket starts half as likely as the exception. Scaling the log margin gives the vote about a forty-one percent chance. The ticket's derivative is about minus point two nine three. The exception's is positive by the same amount. The direct grant has zero derivative. Those three gradients belong to this independent-logit example.",
+        "hold": 0.3
+      },
+      {
+        "id": "c35-b04",
+        "say": "Subtract the gradients times the step size. The ticket goes up and the exception goes down by about point one one seven each.",
+        "hold": 0.7
+      },
+      {
+        "id": "c35-b05",
+        "say": "Exponentiate and divide all three weights by their new total. The ticket now gets about thirty-five percent. The direct grant edges above ten percent. The exception still gets about fifty-five percent. Even the untouched logit changed its share, because the total changed.",
+        "hold": 0.3
+      },
+      {
+        "id": "c35-b06",
+        "say": "The pair loss fell from about point eight eight to point eight one. Would you count on getting a ticket yet? The assistant would still invent an exception more than half the time.",
+        "hold": 0.75
+      }
+    ]
+  },
+  {
+    "id": "c36",
+    "title": "Would this candidate pass the same rules?",
+    "sourceChapters": ["c36"],
+    "beats": [
+      {
+        "id": "c36-b01",
+        "say": "Try the release decision yourself on a different candidate. The same rules apply. In one planned, blinded comparison, it wins two hundred twenty-two of four hundred independent prompts, with no ties. The lower end of its ninety-five percent interval is about fifty point six percent.",
+        "hold": 0.3
+      },
+      {
+        "id": "c36-b02",
+        "say": "Its replies average exactly twenty extra tokens. Which rule, if either, blocks release?",
+        "hold": 2.1
+      },
+      {
+        "id": "c36-b03",
+        "say": "Length blocks it. The human win interval clears fifty percent, but the rule says fewer than twenty tokens. Landing on the mark is a miss. Hold this candidate.",
+        "hold": 1
+      },
+      {
+        "id": "c36-b04",
+        "say": "What if the same judgments came with nineteen extra tokens instead? Keep the interval where it is and move only the length mark. Would both rules pass?",
+        "hold": 1.8
+      },
+      {
+        "id": "c36-b05",
+        "say": "Yes. Nineteen is below the limit, and the human evidence still clears its threshold. This version would pass those two rules. The measured candidate stays on hold. If the assistant still invents an exception, open its reply and compare it with the ticket you wanted.",
+        "hold": 0.3
+      },
+      {
+        "id": "c36-b06",
+        "say": "Next we'll look at how a model uses written principles to judge those two replies, and how people check the judgment.",
+        "hold": 0.85
+      }
+    ]
+  }
+]

@@ -1,0 +1,15 @@
+{
+  "framing": "Keep your promises when a model goes down",
+  "paragraphs": [
+    "In the last chapter you put a one-cent ceiling and a 300-token output cap on every generation. That single-call budget breaks the moment a primary model stalls. Sending a slow request twice spends twice, and falling back to an unrestricted public endpoint would violate data privacy and output schema rules in a single retry.",
+    "A model gateway enforces all of those constraints in one place. Rather than swapping models blindly by price, it checks tenant privacy scope, structured JSON support, citation conventions, human-review flags, and remaining deadline before dialing any backup endpoint.",
+    "Along the way you'll separate transport failures from semantic errors with an EWMA circuit breaker, propagate a shared request clock and spend cap across retries, and isolate idempotent tool writes from generation retries.",
+    "Every routing table entry here uses illustrative latencies and charges from our local test catalog rather than live vendor quotes."
+  ],
+  "outcomes": [
+    "Filter model lanes by privacy scope, context size, and evaluated schema support before scoring latency or price",
+    "Track provider EWMA health, half-open recovery probes, and per-request deadline and budget ceilings",
+    "Keep post-generation validation and idempotent side effects separate from transport retries"
+  ],
+  "question": "If the healthy backup is cheaper and twice as fast, why might a gateway still reject it?"
+}

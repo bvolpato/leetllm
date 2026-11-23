@@ -1,0 +1,746 @@
+[
+  {
+    "id": "c01",
+    "title": "When does this bulb light up?",
+    "sourceChapters": [
+      "c01"
+    ],
+    "beats": [
+      {
+        "id": "c01-b01",
+        "say": "One bulb, two switches. Switch A is on. The bulb is lit. Turn A off. Now turn B on. The bulb lights again. Keep B there. What will happen if we turn A back on too?",
+        "hold": 1.9
+      },
+      {
+        "id": "c01-b02",
+        "say": "Flip A. The bulb goes dark. Either switch alone lights it. Each dot records one setting. Can one straight line separate the lit dots from the dark ones? Make the shaded side the on side. Both yellow dots are in it. What does the line predict when both switches are on?",
+        "hold": 2.3
+      },
+      {
+        "id": "c01-b03",
+        "say": "The cut predicts light. The bulb is dark. Could turning the line solve that?",
+        "hold": 1.4
+      },
+      {
+        "id": "c01-b04",
+        "say": "Join the two lit settings. Any straight cut that puts both on one side leaves the whole segment there. Now join the dark settings. Their segment has to stay on the other side. The segments share a midpoint.",
+        "hold": 0.3
+      },
+      {
+        "id": "c01-b05",
+        "say": "A straight cut would have to put that point on both sides. Let's build a circuit that can bend.",
+        "hold": 0.9
+      }
+    ]
+  },
+  {
+    "id": "c02",
+    "title": "More affine layers still make one affine map",
+    "sourceChapters": [
+      "c02"
+    ],
+    "beats": [
+      {
+        "id": "c02-b01",
+        "say": "A neuron multiplies its inputs by weights and adds a bias. That operation is called an affine map. Feed four into a layer that doubles its input and adds one. Nine comes out. A second layer triples nine and subtracts two. The final reading is twenty-five. Could one scale do the same job?",
+        "hold": 0.6
+      },
+      {
+        "id": "c02-b02",
+        "say": "Substitute the first expression into the second. The whole chain becomes six times the input plus one. Matrix layers collapse in the same way. To make a richer function, we need an activation that changes this affine structure.",
+        "hold": 0.8
+      }
+    ]
+  },
+  {
+    "id": "c03",
+    "title": "Where should the lamp response bend?",
+    "sourceChapters": [
+      "c03"
+    ],
+    "beats": [
+      {
+        "id": "c03-b01",
+        "say": "Let a hidden unit add the two switch settings. It keeps a positive sum and returns zero for anything below zero. That bend gives the unit its name, a rectified linear unit, or ReLU. With both switches off, start at zero. Turn one on to reach one. Turn on both to reach two.",
+        "hold": 0.65
+      },
+      {
+        "id": "c03-b02",
+        "say": "Give a second unit the same count. Subtract one before applying ReLU. Look where this second hinge starts to rise. If we subtract twice its height from the first hinge, what happens to the right end of the line?",
+        "hold": 2.1
+      },
+      {
+        "id": "c03-b03",
+        "say": "Turn up the subtraction until the second hinge counts twice. The left arm stays put. The right arm tips down. At two, the second hinge takes away exactly what the first one added. Either switch alone still lights the lamp.",
+        "hold": 1.1
+      },
+      {
+        "id": "c03-b04",
+        "say": "Suppose we replace both switches with dimmers. Each one is set halfway. What brightness does this circuit predict?",
+        "hold": 2.1
+      },
+      {
+        "id": "c03-b05",
+        "say": "Together they reach one. The second hinge is still at zero, so the lamp reaches full brightness. That's a prediction for a setting we never measured on the bench.",
+        "hold": 0.9
+      }
+    ]
+  },
+  {
+    "id": "c04",
+    "title": "The same building block scores a request",
+    "sourceChapters": [
+      "c04"
+    ],
+    "beats": [
+      {
+        "id": "c04-b01",
+        "say": "Now the inputs describe a completion request. We'll use hand-chosen weights and two scores on a zero-to-ten scale. Prompt size is six and queue wait is eight. Give prompt size a weight of point seven and queue wait a weight of point three. Which contributes more? Six times point seven gives four point two. Eight times point three adds two point four. Together they reach six point six.",
+        "hold": 0.6
+      },
+      {
+        "id": "c04-b02",
+        "say": "Add the bias of minus four. Watch the total move back along the same scale. Even when both features are zero, the neuron starts at minus four. The two weights set the contributions, and the bias sets the baseline.",
+        "hold": 0.6
+      },
+      {
+        "id": "c04-b03",
+        "say": "The result, two point six, is our logit. Sigmoid takes one divided by one plus the exponential of the negative logit. The score is about point nine three one. The quiet request, two and three, scores only point one five four with the same weights. We can use a threshold to route requests. To read the scores as probabilities, we also need observed timeouts.",
+        "hold": 0.7
+      }
+    ]
+  },
+  {
+    "id": "c05",
+    "title": "Follow one request through two layers",
+    "sourceChapters": [
+      "c05"
+    ],
+    "beats": [
+      {
+        "id": "c05-b01",
+        "say": "Build a scorer with two inputs, two hidden units and one output. Follow request one oh four. Its features are two and five. As in PyTorch, each neuron owns a row of weights. Pair both features with the first row. Six tenths minus five tenths leaves one tenth.",
+        "hold": 0.7
+      },
+      {
+        "id": "c05-b02",
+        "say": "Apply the second row to that same request. This neuron gives queue wait a much stronger coefficient. Two times one tenth gives two tenths. Five times six tenths adds three. Their sum is three point two. Both hidden values are positive, so ReLU keeps them. Each row measures a different aspect of the same input.",
+        "hold": 0.6
+      },
+      {
+        "id": "c05-b03",
+        "say": "The output weights scale the two hidden values. Add four hundredths and thirty-two hundredths, then add the bias of minus one half. The logit is minus point one four. Sigmoid gives about point four six five. Keep that trace. Backward needs the values that made this prediction.",
+        "hold": 0.8
+      }
+    ]
+  },
+  {
+    "id": "c06",
+    "title": "Could one affine layer replace this network?",
+    "sourceChapters": [
+      "c06"
+    ],
+    "beats": [
+      {
+        "id": "c06-b01",
+        "say": "Imagine removing both ReLU gates from our scorer. The first weight matrix would feed straight into the second. The second matrix would also multiply the first bias. We could store the result as one matrix and one bias.",
+        "hold": 0.3
+      },
+      {
+        "id": "c06-b02",
+        "say": "A narrow hidden layer can limit the rank of that matrix. What changes when the gates go back in?",
+        "hold": 1
+      },
+      {
+        "id": "c06-b03",
+        "say": "Use the output just before sigmoid. An affine function has a symmetry. Give it opposite inputs and their weighted parts cancel when you add the two outputs. The sum has to equal twice the output at zero. Test our scorer on one and four.",
+        "hold": 0.3
+      },
+      {
+        "id": "c06-b04",
+        "say": "Now reverse both signs. Finally, set both features to zero. Add the readings for the opposite inputs. Double the reading for the zero input. Where should the two marks land if the map is affine?",
+        "hold": 1.9
+      },
+      {
+        "id": "c06-b05",
+        "say": "The two outputs sum to minus point seven one. Twice the output at zero is minus one. That gap rules out every affine replacement for this particular network. Different ReLU weights could still give an affine function. Here we have three measurements that settle the question.",
+        "hold": 1
+      }
+    ]
+  },
+  {
+    "id": "c07",
+    "title": "A curve also controls a learning signal",
+    "sourceChapters": [
+      "c07"
+    ],
+    "beats": [
+      {
+        "id": "c07-b01",
+        "say": "Compare sigmoid with tanh at the same input. Sigmoid stays between zero and one. Tanh also produces negative values. Move the input through the middle and into the tails, and watch each curve's local slope.",
+        "hold": 0.7
+      },
+      {
+        "id": "c07-b02",
+        "say": "In the tails, both slopes become small. If a tanh unit outputs h, its local slope is one minus h squared. Near either end of its output range, that subtraction leaves very little. Backpropagation multiplies the arriving learning signal by this local slope. Repeating small factors through many hidden layers can weaken that signal. Sigmoid's largest slope is only one quarter, even at its center.",
+        "hold": 0.7
+      }
+    ]
+  },
+  {
+    "id": "c08",
+    "title": "Hard and smooth gates",
+    "sourceChapters": [
+      "c08"
+    ],
+    "beats": [
+      {
+        "id": "c08-b01",
+        "say": "Start on the flat part of ReLU. Below zero, the output stays at zero and this path blocks the learning signal. Slide the probe up to the corner. At exactly zero the two sides have different slopes. Here we choose zero as the backward multiplier. Now move onto the positive branch. The output follows the input, and a slope of one passes the signal through.",
+        "hold": 0.7
+      },
+      {
+        "id": "c08-b02",
+        "say": "Now compare the negative branch with GELU and SiLU. These smooth gates dip below zero instead of clipping the entire branch. Their slopes can be small, zero, or negative. Smoothness changes the local calculation; evaluate the resulting network on its task.",
+        "hold": 0.7
+      }
+    ]
+  },
+  {
+    "id": "c09",
+    "title": "What passes through a gate?",
+    "sourceChapters": [
+      "c09"
+    ],
+    "beats": [
+      {
+        "id": "c09-b01",
+        "say": "A curve's height tells us what a unit passes forward. Its slope tells us how a change travels backward. Sigmoid's slope is its output times one minus that output. Even at its steepest, that's one quarter. Tanh peaks at a slope of one.",
+        "hold": 0.3
+      },
+      {
+        "id": "c09-b02",
+        "say": "Pass a unit signal through six of each of those peak slopes. Repeated quarters shrink it fast. The weights along a real path also affect the result.",
+        "hold": 0.8
+      },
+      {
+        "id": "c09-b03",
+        "say": "Keep the input at minus one. Send a sensitivity of plus three back through each gate. Multiply by the local slope. ReLU has slope zero, so its signal stops. The GELU slope here is negative, so its signal reverses sign. The SiLU slope here is positive, so its signal stays positive.",
+        "hold": 0.3
+      },
+      {
+        "id": "c09-b04",
+        "say": "A smooth gate can also have zero slope at its minimum. A ReLU unit can become active again if its inputs move. To reach an individual weight, multiply by that weight's input feature. A negative feature can flip the sign again.",
+        "hold": 1
+      },
+      {
+        "id": "c09-b05",
+        "say": "GELU multiplies its input by the standard Gaussian cumulative probability there. SiLU multiplies its input by its sigmoid. Swish allows an extra scale factor inside that sigmoid. A SwiGLU block uses SiLU on one projection of the input.",
+        "hold": 0.3
+      },
+      {
+        "id": "c09-b06",
+        "say": "A second projection of the same input supplies the multiplier for each coordinate. An output projection mixes the products.",
+        "hold": 0.8
+      },
+      {
+        "id": "c09-b07",
+        "say": "Try these two coordinates. The first projection gives one and minus two. Pass them through SiLU. The first stays positive and the second stays negative. Pair each with its multiplier from the other projection. Notice the two minus signs in the second pair.",
+        "hold": 0.3
+      },
+      {
+        "id": "c09-b08",
+        "say": "Both products come out positive. Now give the first product half weight and subtract the second product. The readout is about point eight six. That one number mixes both gated coordinates.",
+        "hold": 1
+      }
+    ]
+  },
+  {
+    "id": "c10",
+    "title": "Nine adjustable values",
+    "sourceChapters": [
+      "c10"
+    ],
+    "beats": [
+      {
+        "id": "c10-b01",
+        "say": "How many values can training adjust? Count one weight for each connection. The first layer has four, and the output layer has two. Input features supply data; the connection weights belong to the model.",
+        "hold": 0.7
+      },
+      {
+        "id": "c10-b02",
+        "say": "Add one bias for each computed unit. Two hidden biases and one output bias bring the total to nine. For any dense layer, multiply inputs by outputs, then add the number of outputs for its biases.",
+        "hold": 0.7
+      }
+    ]
+  },
+  {
+    "id": "c11",
+    "title": "Where are the parameters in an image classifier?",
+    "sourceChapters": [
+      "c11"
+    ],
+    "beats": [
+      {
+        "id": "c11-b01",
+        "say": "Keep those six weights and three biases in view. A second request uses those same nine values. It adds work and hidden activations, while the parameter count stays fixed.",
+        "hold": 0.75
+      },
+      {
+        "id": "c11-b02",
+        "say": "Flatten a square image with twenty-eight pixels on a side. Each first-layer unit gets all seven hundred eighty-four pixels and a bias. Now make two hundred fifty-six such units. Draw that layer's share. The next layer connects those units to a hundred twenty-eight new ones.",
+        "hold": 0.3
+      },
+      {
+        "id": "c11-b03",
+        "say": "The last layer feeds just ten outputs. Together the layers use about two hundred thirty-five thousand parameters. See how much of that first bar comes from connecting every pixel to every unit.",
+        "hold": 1
+      },
+      {
+        "id": "c11-b04",
+        "say": "Look at one dense unit. Move an edge across the image and a different set of weights sees it. A convolution slides the same local weights over the pixels. The choice matters when a useful pattern can move. The count tells us how many parameters we can fit. Accuracy and runtime need their own measurements.",
+        "hold": 0.8
+      }
+    ]
+  },
+  {
+    "id": "c12",
+    "title": "One parameter set serves a batch",
+    "sourceChapters": [
+      "c12"
+    ],
+    "beats": [
+      {
+        "id": "c12-b01",
+        "say": "Stack four requests as rows. Multiplying by the transposed weight matrix evaluates each neuron on each row. Broadcasting reuses the bias vector. All eight pre-activations are positive, so ReLU keeps every value. The hidden tensor still has four rows and two columns.",
+        "hold": 0.7
+      },
+      {
+        "id": "c12-b02",
+        "say": "Run the output layer down the four hidden rows. The two hidden features contract to one logit, and sigmoid gives one score per request. Follow one oh four across the row. Its score still rounds to point four six five. All four rows used the same nine parameters.",
+        "hold": 0.7
+      }
+    ]
+  },
+  {
+    "id": "c13",
+    "title": "A valid shape can hide the wrong multiply",
+    "sourceChapters": [
+      "c13"
+    ],
+    "beats": [
+      {
+        "id": "c13-b01",
+        "say": "Our weight matrix is square. Both of these products have a legal shape. Study which weights each product pairs with the request. Will they produce the same hidden values?",
+        "hold": 1.4
+      },
+      {
+        "id": "c13-b02",
+        "say": "Compare the results. Pairing two and five with the rows gives point one and three point two. Pairing with the columns gives one point one and two point eight. Only the first pair matches our hand trace. Keep one known request as a check when both matrix shapes pass.",
+        "hold": 0.8
+      }
+    ]
+  },
+  {
+    "id": "c14",
+    "title": "Which way should the score move?",
+    "sourceChapters": [
+      "c14"
+    ],
+    "beats": [
+      {
+        "id": "c14-b01",
+        "say": "Take a different request. Its prompt score is one, its queue score is four, and it actually timed out. The first hidden value is clipped to zero. The second passes through. The scorer puts this request below the halfway mark.",
+        "hold": 0.3
+      },
+      {
+        "id": "c14-b02",
+        "say": "Binary cross-entropy uses the score for the outcome we observed. For a completed request we'd use one minus the timeout score. For this timeout the loss is minus the log of its score. The copper dot marks the loss for this request.",
+        "hold": 0.3
+      },
+      {
+        "id": "c14-b03",
+        "say": "Which way should the logit move to bring the loss down?",
+        "hold": 2.2
+      },
+      {
+        "id": "c14-b04",
+        "say": "Try sliding the logit to the right, up to zero. At zero, sigmoid gives the timeout half a chance. That puts more probability on the outcome we observed. You can see the loss fall. This little probe changed the logit directly. How would we get that direction from the original calculation?",
+        "hold": 1
+      },
+      {
+        "id": "c14-b05",
+        "say": "Go back to the starting dot. Differentiate the loss through sigmoid. Here p is the score. A change in the logit changes p, which changes the loss. Multiply the two slopes. The sigmoid slope appears once on the bottom and once on top.",
+        "hold": 0.3
+      },
+      {
+        "id": "c14-b06",
+        "say": "Cancel the pair, leaving prediction minus target. The slope here is negative. That tells us why a small move to the right helped. Now follow that slope back to the weights.",
+        "hold": 1
+      }
+    ]
+  },
+  {
+    "id": "c15",
+    "title": "Which path carries the correction?",
+    "sourceChapters": [
+      "c15"
+    ],
+    "beats": [
+      {
+        "id": "c15-b01",
+        "say": "Stay with that timeout. Multiply the output residual by each output weight. Each hidden unit gets a scaled copy of the loss slope. To change an output weight itself, multiply the residual by the hidden value that went through it. The output bias gets the residual directly.",
+        "hold": 0.3
+      },
+      {
+        "id": "c15-b02",
+        "say": "Now look at the inputs saved at the two gates. Which path will carry a correction back?",
+        "hold": 2
+      },
+      {
+        "id": "c15-b03",
+        "say": "Pass the signals through the ReLU gates. The first gate saw minus one tenth. A small change there leaves its output at zero. Its correction stops. The other gate saw two point five. Its slope is one, so its correction passes through intact.",
+        "hold": 1.1
+      },
+      {
+        "id": "c15-b04",
+        "say": "Multiply each surviving signal by the original input features. The prompt contributes once and the queue contributes four times. Those two products belong to different weights of the second unit. The first unit gets zero for both. Each hidden bias takes its gated signal directly, as if its input were one.",
+        "hold": 1
+      }
+    ]
+  },
+  {
+    "id": "c16",
+    "title": "What do we divide by?",
+    "sourceChapters": [
+      "c16"
+    ],
+    "beats": [
+      {
+        "id": "c16-b01",
+        "say": "So far each request has one label. Did it time out? Add two more questions. Did it hit the cache? Did it need a retry? A request can have several yes answers. Each box gets its own sigmoid score and contributes one binary cross-entropy loss.",
+        "hold": 0.75
+      },
+      {
+        "id": "c16-b02",
+        "say": "Both requests get the same starting predictions. Every logit is zero, so every prediction is one half. Subtract the observed label. The first box gives minus one half. The next gives plus one half. To take the mean, how many boxes do we divide by?",
+        "hold": 2
+      },
+      {
+        "id": "c16-b03",
+        "say": "Six. Two requests times three labels. Divide each residual by six and the logit gradients are minus or plus one twelfth. Dividing by two would give one quarter in magnitude, three times too large for this mean.",
+        "hold": 0.3
+      },
+      {
+        "id": "c16-b04",
+        "say": "With B requests and C binary labels, the divisor is B times C. With one label per request, that reduces to the batch size.",
+        "hold": 0.75
+      },
+      {
+        "id": "c16-b05",
+        "say": "Dividing by two averages the row totals. We can also give a missed positive more weight. Look at the timeout in the first box. Its residual is minus one half. Give positive labels weight three and that becomes minus one point five before averaging.",
+        "hold": 0.3
+      },
+      {
+        "id": "c16-b06",
+        "say": "For a target of one, multiply prediction minus one by the positive weight. For a target of zero, the derivative is still the prediction. Any weight on the whole box scales either result.",
+        "hold": 0.75
+      }
+    ]
+  },
+  {
+    "id": "c17",
+    "title": "Backward needs values whose identities still match",
+    "sourceChapters": [
+      "c17"
+    ],
+    "beats": [
+      {
+        "id": "c17-b01",
+        "say": "Return to the four labeled requests, with one binary output per request. The output-weight gradient sums each request’s output sensitivity times its saved hidden activations. The hidden gradient multiplies by output weights. The first-layer weight gradient sums each gated hidden sensitivity times its original input features, and each bias gradient sums those sensitivities.",
+        "hold": 0.75
+      },
+      {
+        "id": "c17-b02",
+        "say": "The backward calculation needs access to hidden values, original features and the ReLU active mask. Save them, or recompute the omitted values from matching inputs and parameter state. Activation checkpointing retains selected boundaries and reruns omitted forward work during backward. Recomputing with changed weights or different stochastic behavior can change the gradients.",
+        "hold": 0.75
+      },
+      {
+        "id": "c17-b03",
+        "say": "This trades extra computation for less saved activation storage. A larger batch gives us more hidden values to store or recompute. The weights, gradient buffers and optimizer state still take up memory.",
+        "hold": 0.75
+      }
+    ]
+  },
+  {
+    "id": "c18",
+    "title": "Use all the gradients for one step",
+    "sourceChapters": [
+      "c18"
+    ],
+    "beats": [
+      {
+        "id": "c18-b01",
+        "say": "Return to our four requests and their observed labels. Average their loss gradients, dividing by the batch size. These gradients and this loss come from the original weights.",
+        "hold": 0.7
+      },
+      {
+        "id": "c18-b02",
+        "say": "Subtract a tenth of each gradient from the parameter that produced it. Both layers and their biases change. Run the same four requests again. The mean loss falls from about point five two five to point four nine eight. That is one step on this batch. Held-out requests test whether it helped elsewhere.",
+        "hold": 0.9
+      }
+    ]
+  },
+  {
+    "id": "c19",
+    "title": "A finite difference can cross the gate it is checking",
+    "sourceChapters": [
+      "c19"
+    ],
+    "beats": [
+      {
+        "id": "c19-b01",
+        "say": "Our four-request example checks all nine gradients with two-sided finite differences. These hidden pre-activations stay positive under small perturbations, so the active branches stay the same. The linked article uses a separate example to compare manual gradients with PyTorch autograd.",
+        "hold": 0.75
+      },
+      {
+        "id": "c19-b02",
+        "say": "At the ReLU corner zero, a symmetric finite difference samples one negative and one positive side. It gives one half, while PyTorch’s chosen backward value at zero is zero. The two sides have different slopes, so there is no single derivative at the corner.",
+        "hold": 0.75
+      },
+      {
+        "id": "c19-b03",
+        "say": "Check away from corners, keep perturbations within the same active branches and compare several step sizes. Here the left sample crosses zero. Bring it back onto the positive branch and the secant follows the same straight line as the tangent.",
+        "hold": 0.3
+      },
+      {
+        "id": "c19-b04",
+        "say": "A still smaller step can lose numerical precision. Agreement checks the derivatives at the inputs and weights you tested.",
+        "hold": 0.75
+      }
+    ]
+  },
+  {
+    "id": "c20",
+    "title": "Which way should these weights move?",
+    "sourceChapters": [
+      "c20"
+    ],
+    "beats": [
+      {
+        "id": "c20-b01",
+        "say": "Reset the nine parameters. This time the prompt feature is minus one and the queue feature is two. Treat these as signed features in a toy example. The request timed out. The hidden inputs are minus one half and one point one.",
+        "hold": 0.3
+      },
+      {
+        "id": "c20-b02",
+        "say": "Only the second gate is open. The logit is minus point three nine. Its score is below the target of one. The open path has output weight one tenth. To reduce this loss, which of its two input weights should go up, and which should go down?",
+        "hold": 3
+      },
+      {
+        "id": "c20-b03",
+        "say": "Start with prediction minus target. Multiply that residual by the active output weight, one tenth. The hidden sensitivity is about minus point zero five nine six. Multiply it by the prompt feature, minus one. The prompt gradient is positive. Multiply the same sensitivity by the queue feature, plus two. The queue gradient is negative, with twice the magnitude.",
+        "hold": 0.3
+      },
+      {
+        "id": "c20-b04",
+        "say": "Check the first hidden unit. Its saved input was minus one half, on the flat branch of ReLU. Its backward multiplier is zero. Multiply that zero sensitivity by each feature. Both gradients are zero.",
+        "hold": 1
+      },
+      {
+        "id": "c20-b05",
+        "say": "Return to the second unit. Use a learning rate of one tenth. Subtract a tenth of every gradient from its weight or bias. With this negative hidden sensitivity, the negative prompt feature gave a positive gradient, and the positive queue feature gave a negative gradient. Watch the two marks leave their starting positions. Subtracting those gradients lowers the prompt weight and raises the queue weight.",
+        "hold": 0.3
+      },
+      {
+        "id": "c20-b06",
+        "say": "Score that same request again with all the updates in place. Its score rises to about point four three seven. To test whether training helped elsewhere, use held-out requests.",
+        "hold": 1.25
+      }
+    ]
+  },
+  {
+    "id": "c21",
+    "title": "Changing the units changes the optimization",
+    "sourceChapters": [
+      "c21"
+    ],
+    "beats": [
+      {
+        "id": "c21-b01",
+        "say": "Even correct gradients can struggle with the units. Queue wait uses a small score, but prompt length now uses raw tokens. Equal coefficients give the token count a much larger contribution. The bar lengths share one scale, so the imbalance is visible.",
+        "hold": 0.7
+      },
+      {
+        "id": "c21-b02",
+        "say": "Standardize each feature with its training mean and standard deviation. We change the horizontal axis to standardized contributions. Use the queue's raw value of eight, training mean of five, and training standard deviation of two. Where will its bar end if the coefficient stays at point three?",
+        "hold": 3
+      },
+      {
+        "id": "c21-b03",
+        "say": "Subtract five from eight and divide by two. The standardized queue value is one and a half. Multiply by point three. Its contribution is point four five. For tokens, subtract five hundred from nine hundred and divide by two hundred. That gives two. The token contribution is point six. The features now have comparable scales. We kept the coefficients fixed for this comparison. In practice, train or transform the model for the chosen units.",
+        "hold": 0.8
+      },
+      {
+        "id": "c21-b04",
+        "say": "Keep those training statistics for validation and inference. Fitting a new scaler on the test split would leak information into the evaluation. Constant features also need a defined scale policy. Our example assumes positive, fixed training standard deviations.",
+        "hold": 0.7
+      }
+    ]
+  },
+  {
+    "id": "c22",
+    "title": "Keep the computation finite",
+    "sourceChapters": [
+      "c22"
+    ],
+    "beats": [
+      {
+        "id": "c22-b01",
+        "say": "Try a logit of minus one thousand. The naive sigmoid asks for an exponential far beyond floating-point range. Python raises an overflow error before it can return a score. The mathematical sigmoid is defined; this evaluation path fails.",
+        "hold": 0.7
+      },
+      {
+        "id": "c22-b02",
+        "say": "For a negative logit, compute the exponential of the logit itself. Divide it by one plus that same exponential. Here the exponential of minus one thousand underflows to zero. The score rounds to zero, so taking its logarithm would lose the finite training loss.",
+        "hold": 0.8
+      },
+      {
+        "id": "c22-b03",
+        "say": "Compute cross-entropy directly from the logit instead. This stable expression keeps a finite loss of one thousand for our wrong prediction. The large penalty comes from the target times the logit. The exponential only sees a nonpositive number. Pass logits directly to a binary cross-entropy-with-logits function so the loss still has that information.",
+        "hold": 0.8
+      }
+    ]
+  },
+  {
+    "id": "c23",
+    "title": "Which requests take the slow path?",
+    "sourceChapters": [
+      "c23"
+    ],
+    "beats": [
+      {
+        "id": "c23-b01",
+        "say": "Bring back the four requests and their original scores. Each dot belongs to one request. Set the routing threshold at point six. Read the two dots just past the line. The second and fourth go to the slow path. If we raise the threshold to point six two, which request changes route?",
+        "hold": 2.5
+      },
+      {
+        "id": "c23-b02",
+        "say": "Slide the line past the second request. It crosses back to the fast path. All four scores stayed put.",
+        "hold": 1
+      },
+      {
+        "id": "c23-b03",
+        "say": "A routing decision gives us a policy label. To check a probability, we need to know what actually happened. Take a separate group of one hundred requests, each scored point nine three. Check their outcomes one request at a time. Ninety-three of them timed out. In this group the observed frequency matches the score.",
+        "hold": 1
+      },
+      {
+        "id": "c23-b04",
+        "say": "A hundred observations still leave sampling uncertainty. Compare other score ranges on representative held-out requests, keeping the feature order, training scaler, model and policy versions fixed. Use separate data if you fit a calibrator. That's how you decide whether these scores work as probabilities.",
+        "hold": 0.9
+      }
+    ]
+  },
+  {
+    "id": "c24",
+    "title": "More hinges can build a curve",
+    "sourceChapters": [
+      "c24"
+    ],
+    "beats": [
+      {
+        "id": "c24-b01",
+        "say": "Our lamp's two hinges make a peak over the switch range. Add a third shifted ReLU to bring the response back to zero beyond that range. Three simple units now make one triangle that we can shift and scale.",
+        "hold": 0.8
+      },
+      {
+        "id": "c24-b02",
+        "say": "Place shifted triangles along this bounded interval and add their weighted responses. Their sum follows the gray target curve with straight segments. These visible pieces give a constructive way to understand approximation.",
+        "hold": 0.8
+      },
+      {
+        "id": "c24-b03",
+        "say": "Make the spacing finer. Each straight segment now covers a shorter stretch of the bend. The largest error on our sample grid shrinks. Could a single hidden layer get as close as we like everywhere on this interval?",
+        "hold": 0.9
+      }
+    ]
+  },
+  {
+    "id": "c25",
+    "title": "What can a wider layer guarantee?",
+    "sourceChapters": [
+      "c25"
+    ],
+    "beats": [
+      {
+        "id": "c25-b01",
+        "say": "Our straight segments follow a curve on a closed, bounded interval. The general result says we can make the error uniformly small for a continuous target on a compact domain. We need biases, a continuous non-polynomial hidden activation, a linear output, and enough hidden units.",
+        "hold": 0.3
+      },
+      {
+        "id": "c25-b02",
+        "say": "How many depends on the target, its input dimension, the activation and the error we can tolerate.",
+        "hold": 0.8
+      },
+      {
+        "id": "c25-b03",
+        "say": "Try squaring each hidden unit's weighted sum plus bias. That's a nonlinear activation. Add another squared unit, then another. Collect their terms. We still have a constant, a term in x, and a term in x squared. Width changes their coefficients. The highest power stays at two.",
+        "hold": 0.3
+      },
+      {
+        "id": "c25-b04",
+        "say": "For a polynomial activation of degree d, each unit applies that polynomial to an affine input. A linear combination of those units has degree at most d, however wide this single hidden layer is. The squared units here are the case where d equals two.",
+        "hold": 1
+      },
+      {
+        "id": "c25-b05",
+        "say": "Suppose those two yellow dots are our only observations. Draw a straight line through them. Now bow the line up in the middle while keeping its ends pinned. Both curves fit. Read them halfway across. The straight line gives one half. The bowed curve gives one and a half.",
+        "hold": 0.3
+      },
+      {
+        "id": "c25-b06",
+        "say": "Even perfect training on the endpoints leaves that choice open. Extra depth can represent some targets more efficiently, and the optimizer can still get stuck in a poor minimum or a flat region. Let's see what our lamp measurements actually tell us.",
+        "hold": 1.1
+      }
+    ]
+  },
+  {
+    "id": "c26",
+    "title": "Which lamp reading would settle it?",
+    "sourceChapters": [
+      "c26"
+    ],
+    "beats": [
+      {
+        "id": "c26-b01",
+        "say": "Return to the lamp. Set the first dimmer to point eight and the second to point five. Our first hinge counts their sum. The second counts how much that sum exceeds one. What brightness would those two hidden values give?",
+        "hold": 2.5
+      },
+      {
+        "id": "c26-b02",
+        "say": "The hinges give one point three and point three. Subtract twice the second from the first. That puts the lamp at point seven. We can now make a prediction between the four corners.",
+        "hold": 1.1
+      },
+      {
+        "id": "c26-b03",
+        "say": "Someone else wired a second circuit. One hidden unit keeps any excess of the first dimmer over the second. The other keeps any excess in the opposite direction. Add them and you get the gap between the settings. Try the four corners on both circuits.",
+        "hold": 0.3
+      },
+      {
+        "id": "c26-b04",
+        "say": "Every reading agrees with the lamp we measured. Now put the dimmers back at point eight and point five. How bright does the second circuit say the lamp will be?",
+        "hold": 2.75
+      },
+      {
+        "id": "c26-b05",
+        "say": "Their gap is point three. Put the two predictions beside the same probe. The sum circuit gives point seven and the gap circuit gives point three. Which reading would you take on the real lamp to tell these explanations apart?",
+        "hold": 2
+      },
+      {
+        "id": "c26-b06",
+        "say": "Measure here, between the corners. We know each circuit's prediction. The actual brightness still needs a measurement. Both circuits fit the four switch readings, so testing another corner would tell us nothing new. You've traced a network, adjusted its weights and chosen an input that can test its assumptions. Next we'll look at a network that shares one set of weights across an image.",
+        "hold": 1.8
+      }
+    ]
+  }
+]

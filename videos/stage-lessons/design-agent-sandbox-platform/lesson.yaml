@@ -1,0 +1,895 @@
+version: 1
+id: design-agent-sandbox-platform
+title: A Fast, Clean Room for Every Agent Job
+source: system-design/design-agent-sandbox-platform/content.md
+voice: en-US-AndrewNeural
+rate: +0%
+sources:
+  - title: Firecracker snapshot support
+    url: https://github.com/firecracker-microvm/firecracker/blob/main/docs/snapshotting/snapshot-support.md
+  - title: Firecracker design
+    url: https://github.com/firecracker-microvm/firecracker/blob/main/docs/design.md
+  - title: Firecracker vsock
+    url: https://github.com/firecracker-microvm/firecracker/blob/main/docs/vsock.md
+  - title: Linux cgroup v2
+    url: https://docs.kernel.org/admin-guide/cgroup-v2.html
+  - title: Firecracker clone uniqueness, pinned source
+    url: https://github.com/firecracker-microvm/firecracker/blob/ab198c7aa1f72cb30541165c20be27dbd1b88c2e/docs/snapshotting/random-for-clones.md
+  - title: Linux KVM API
+    url: https://docs.kernel.org/virt/kvm/api.html
+  - title: OverlayFS
+    url: https://docs.kernel.org/filesystems/overlayfs.html
+scenes:
+  - id: intro
+    title: "Can the next tenant use this disk?"
+    visual: "A copy of the last CSV row travels from the stopped guest’s scratch disk to the host exporter. The file and the reader’s open connection stay in view."
+    beats:
+      - say: "The guest has stopped. The exporter is reading one last row from its scratch disk."
+        hold: 0.45
+        visual_cues:
+          - {id: read, phrase: "reading one last row", targets: [picture]}
+      - say: "Another tenant needs scratch space. Can the host reuse this disk yet?"
+        hold: 2.1
+        visual_cues:
+          - {id: wait, phrase: "Another tenant needs scratch space", targets: [picture]}
+      - say: "Keep the disk with A. The exporter still has the file open. Both jobs can share the read-only Python image. Each gets its own scratch disk."
+        hold: 0.8
+        visual_cues:
+          - {id: hold, phrase: "Keep the disk with A", targets: [picture], caption_boundary: true}
+          - {id: handle, phrase: "still has the file open", targets: [picture]}
+          - {id: base, phrase: "the read-only Python image", targets: [picture]}
+  - id: request-limits
+    title: Bind one generation to its resources
+    visual: A generation-stamped allocation record owns the same page mappings, scratch backing, command channel
+      and expiring capability throughout its lifetime.
+    beats:
+      - say: "Authenticate the tenant and reserve a sandbox ID and generation. Bind placement, the command session, writable resources and capabilities to that identity. If a retry names the same sandbox, check what the old generation still owns before assigning the slot again."
+        hold: 0.7
+        visual_cues:
+          - id: bind
+            phrase: Bind placement, the command session, writable resources and capabilities to that identity
+            targets:
+              - picture
+      - say: "The example profiles range from one to four virtual CPUs and half a gibibyte to eight gibibytes of configured memory. Each gets five gibibytes of scratch. Also limit input, output, uploads, exports and session lifetime."
+        hold: 0.7
+        visual_cues:
+          - id: profiles
+            phrase: "one to four virtual CPUs"
+            targets:
+              - picture
+      - say: "The host schedules each virtual CPU. The memory setting tells the guest how much address space it can use. To size the host, count resident pages, page tables, the virtual machine monitor and the host’s own memory. These memory units use powers of two."
+        hold: 0.7
+        visual_cues:
+          - id: allowance
+            phrase: "count resident pages"
+            targets:
+              - picture
+  - id: boundary
+    title: A guest kernel changes the trust boundary
+    visual: Two guest kernels remain inside separate VMM processes above the shared trusted KVM and host boundary.
+    beats:
+      - say: A container uses host-kernel isolation mechanisms. A hardware virtual machine gives the job a separate
+          guest kernel, with a virtual machine monitor coordinating its hardware interface. KVM supplies the
+          virtualization interface, and Firecracker uses a small device model suited to microVM workloads. The
+          host, VMM, and driver stack still need hardening.
+        hold: 0.65
+        visual_cues:
+          - id: guest
+            phrase: A hardware virtual machine gives the job a separate guest kernel
+            targets:
+              - picture
+      - say: "Place the VMM inside its own restricted host context: narrow filesystem access, limited privileges,
+          namespace separation, syscall policy, and resource limits. Guest limits contain the user workload;
+          host limits contain the VMM and its resources. Test the actual deployed boundary, including
+          administrative APIs and host communication, against the declared threat model."
+        hold: 0.65
+        visual_cues:
+          - id: host
+            phrase: Guest limits contain the user workload; host limits contain the VMM and its resources
+            targets:
+              - picture
+  - id: kvm-descriptors
+    title: Follow the descriptor and return value
+    visual: A real descriptor tree routes each modeled KVM call, keeping failed returns separate from device exits.
+    beats:
+      - say: Open slash dev slash kvm to obtain the system descriptor. Creating a VM returns a VM descriptor. Register
+          host userspace memory as guest physical regions, then create a virtual CPU descriptor. KVM RUN
+          belongs to that virtual CPU; the VMM handles the exits that require userspace work.
+        hold: 0.7
+        visual_cues:
+          - id: open
+            phrase: Open slash dev slash kvm to obtain the system descriptor
+            targets:
+              - picture
+          - id: vm
+            phrase: Creating a VM returns a VM descriptor
+            targets:
+              - picture
+          - id: cpu
+            phrase: then create a virtual CPU descriptor
+            targets:
+              - picture
+      - say: "First inspect the return code. On zero, the exit reason belongs to this run. Minus one with E INTR means a signal interrupted the call. Check for shutdown before retrying. On any other error this loop stops."
+        hold: 0.7
+        visual_cues:
+          - id: return
+            phrase: First inspect the return code
+            targets:
+              - picture
+          - id: retry
+            phrase: "Check for shutdown before retrying"
+            targets:
+              - picture
+      - say: "Follow the successful return. The monitor sends MMIO and port I O to their device handlers. A halted guest can wait for an interrupt if its lifecycle policy allows it. An unhandled exit stops this loop. KVM handles some exits inside the kernel."
+        hold: 0.7
+        visual_cues:
+          - id: exits
+            phrase: "The monitor sends MMIO and port I O to their device handlers"
+            targets:
+              - picture
+  - id: jailer-surfaces
+    title: Reduce host authority around the VMM
+    visual: Nested guest and jailed host boundaries expose their separate credentials, device interfaces and
+      output sinks.
+    beats:
+      - say: "Each guest runs its own kernel. The platform still trusts the VMM, KVM, the host and its management services. Firecracker exposes a small set of virtual devices. Rust helps prevent memory errors. Keep the host and guest patched, and review unsafe code, the device model and how it connects to the host."
+        hold: 0.7
+        visual_cues: []
+      - say: Jailer constructs a restricted filesystem view, changes user and group identity, configures resource
+          controls and can create a process namespace. Its network-namespace option joins an existing
+          namespace. The integrator prepares that object and its routes. Protect the API socket and keep the
+          recommended syscall filters.
+        hold: 0.7
+        visual_cues:
+          - id: narrow
+            phrase: Jailer constructs a restricted filesystem view, changes user and group identity, configures resource
+              controls and can create a process namespace
+            targets:
+              - picture
+      - say: "Bound serial output and VMM process output. Both can fill host buffers or storage. In the Firecracker version used here, a guest reaches virtual devices through MMIO or optional PCI VirtIO transport. Firecracker implements those virtual interfaces. The physical devices stay with the host."
+        hold: 0.7
+        visual_cues:
+          - id: output
+            phrase: Bound serial output and VMM process output
+            targets:
+              - picture
+          - id: transport
+            phrase: "a guest reaches virtual devices through MMIO or optional PCI VirtIO transport"
+            targets:
+              - picture
+  - id: clean-template
+    title: Seal memory, machine state and matching disks
+    visual: A clean supervisor is paused before user work, and three distinct sealed artifact owners feed a paused
+      restore.
+    beats:
+      - say: Build the template after the guest kernel, language runtime and supervisor are initialized, before tenant
+          inputs, customer keys or user jobs arrive. Pause it in a quiescent state. Save memory and versioned
+          virtual-machine state, and preserve the matching disk backing files separately.
+        hold: 0.7
+        visual_cues:
+          - id: seal
+            phrase: Save memory and versioned virtual-machine state, and preserve the matching disk backing files
+              separately
+            targets:
+              - picture
+      - say: "Verify who produced each artifact and check its integrity before loading it. Keep the memory backing file immutable and available while any restored guest maps it. The saved machine state and disk image must match."
+        hold: 0.7
+        visual_cues:
+          - id: auth
+            phrase: "Verify who produced each artifact and check its integrity"
+            targets:
+              - picture
+      - say: "Once the snapshot loads, resume the supervisor to run its readiness checks. Hold the user’s script until the checks pass. If one fails or never reports back, the same generation keeps the resources."
+        hold: 0.7
+        visual_cues:
+          - id: held
+            phrase: "Hold the user’s script until the checks pass"
+            targets:
+              - picture
+  - id: cow
+    title: "Two readers of page 2"
+    visual: "In a six-page sketch, A and B both read 30. A copies the page, writes 99 and changes only its own mapping."
+    beats:
+      - say: "Follow page two, the third square in this snapshot. Both guests read thirty there. A is about to write ninety-nine. Where will B’s next read go?"
+        hold: 1.9
+        visual_cues:
+          - {id: look, phrase: "the third square", targets: [picture]}
+          - {id: predict, phrase: "Where will B’s next read go", targets: [picture]}
+      - say: "Watch A get a private copy of the thirty. A writes ninety-nine into its copy. Its pointer moves with the write. B’s pointer still ends at thirty. That is copy-on-write."
+        hold: 0.75
+        visual_cues:
+          - {id: copy, phrase: "get a private copy of the thirty", targets: [picture]}
+          - {id: write, phrase: "A writes ninety-nine into its copy", targets: [picture]}
+          - {id: redirect, phrase: "B’s pointer still ends at thirty", targets: [picture], caption_boundary: true}
+      - say: "The host can bring clean pages into memory when a guest first reads them. Keep the backing memory file available and immutable while these mappings exist. Each page a clone changes takes private memory. Even bookkeeping inside the language runtime can dirty pages, so measure how much memory each job makes private."
+        hold: 0.65
+        visual_cues:
+          - {id: backing, phrase: "Keep the backing memory file available and immutable", targets: [picture]}
+          - {id: physical, phrase: "takes private memory", targets: [picture]}
+  - id: article-page-run
+    title: "Two writers at index one"
+    visual: "Three immutable entries stay on one shelf. Each clone has its own private slot at index one. Change the writer, then repeat a write in the same slot."
+    beats:
+      - say: "Shrink the example to three pages. Each square stands for four kibibytes in the article’s Python model. Follow the middle column, index one. Both readers get twenty from the same base."
+        hold: 0.5
+        visual_cues:
+          - {id: middle, phrase: "index one", targets: [picture]}
+      - say: "A writes ninety-nine at index one. B still gets twenty. Count the three base pages once and add A’s one private page. Four pages make sixteen kibibytes."
+        hold: 0.7
+        visual_cues:
+          - {id: first, phrase: "A writes ninety-nine at index one", targets: [picture]}
+          - {id: sixteen, phrase: "Four pages make sixteen kibibytes", targets: [picture], caption_boundary: true}
+      - say: "Suppose B is about to write fifty-two at that same index. After the write, how many private pages will A and B own between them?"
+        hold: 2
+        visual_cues:
+          - {id: b-input, phrase: "B is about to write fifty-two", targets: [picture]}
+          - {id: ask, phrase: "How many private pages", targets: [picture]}
+      - say: "Two private pages. Each writer owns one. A gets ninety-nine, B gets fifty-two, and the base stays twenty. That gives us twenty kibibytes."
+        hold: 0.6
+        visual_cues:
+          - {id: second, phrase: "Two private pages", targets: [picture], caption_boundary: true}
+          - {id: twenty, phrase: "That gives us twenty kibibytes", targets: [picture], caption_boundary: true}
+      - say: "Let A change its value to one hundred and one. Watch the same slot. Its contents change, and the count stays at five pages. This counts entries in the model. A host can also spend RAM bringing a clean page into memory on a read."
+        hold: 0.65
+        visual_cues:
+          - {id: again, phrase: "change its value to one hundred and one", targets: [picture]}
+  - id: fault-handler
+    title: A missing page must be supplied before progress
+    visual: The selected guest address faults, a handler owns a pending page request, and only a completed load
+      resumes that access.
+    beats:
+      - say: The File backend relies on host faults to bring snapshot contents into RAM on demand. A private write
+          then allocates modified private state. Avoiding an eager full copy saves restore work, while cold
+          faults and the growing working set still affect latency.
+        hold: 0.7
+        visual_cues:
+          - id: file
+            phrase: The File backend relies on host faults to bring snapshot contents into RAM on demand
+            targets:
+              - picture
+      - say: "With the U F F D backend, a userspace handler supplies the missing page through userfaultfd. The platform gives the handler permission to fetch and validate the snapshot data. It chooses the storage, sets a deadline and handles read failures. A remote chunk cache would be part of that platform."
+        hold: 0.7
+        visual_cues:
+          - id: delegate
+            phrase: "a userspace handler supplies the missing page through userfaultfd"
+            targets:
+              - picture
+      - say: "When the handler stalls, the guest waits on that page. Test a cold read and a failed read. On failure, stop admission under policy and verify retirement before reclaiming the slot. Even if the host allows mappings without a reservation, each page brought into memory still needs physical RAM."
+        hold: 0.7
+        visual_cues:
+          - id: stall
+            phrase: "the guest waits on that page"
+            targets:
+              - picture
+          - id: hold
+            phrase: stop admission under policy
+            targets:
+              - picture
+  - id: clock-refresh
+    title: Refresh wall time and application deadlines separately
+    visual: A restored wall-clock reading and a saved monotonic deadline travel through separate checks before
+      admission.
+    beats:
+      - say: "A restored guest can wake up showing the time when its snapshot was taken. Synchronize through the guest protocol, or use the restore-time clock option if the host and clock source support it."
+        hold: 0.7
+        visual_cues:
+          - id: sync
+            phrase: Synchronize through the guest protocol
+            targets:
+              - picture
+      - say: "The guest can now check a certificate or a token against the current time. The application still has a saved deadline on its monotonic clock. Its restore policy determines whether to keep or rebuild that deadline. Check both before starting user work."
+        hold: 0.7
+        visual_cues:
+          - id: separate
+            phrase: "The application still has a saved deadline"
+            targets:
+              - picture
+      - say: "With matching guest and application support, VMClock can signal a restore through a changed generation counter. The application sees the change and rebuilds its deadline record."
+        hold: 1.8
+        visual_cues:
+          - id: generation
+            phrase: "The application sees the change and rebuilds its deadline record"
+            targets:
+              - picture
+  - id: rng-window
+    title: Kernel reseeding leaves separate copied state
+    visual: The kernel notification crosses a handling window while the copied application seed, cached token and
+      boot identifier retain their own owners.
+    beats:
+      - say: "On restore, Firecracker changes VMGenID and notifies the guest. A supporting guest kernel handles that notification and reseeds its random generator. Between resumed virtual CPUs and completed handling, a race window remains. Wait for the guest driver to handle the change."
+        hold: 0.7
+        visual_cues:
+          - id: notify
+            phrase: On restore, Firecracker changes VMGenID and notifies the guest
+            targets:
+              - picture
+          - id: reseed
+            phrase: A supporting guest kernel handles that notification and reseeds its random generator
+            targets:
+              - picture
+          - id: window
+            phrase: Between resumed virtual CPUs and completed handling, a race window remains
+            targets:
+              - picture
+      - say: "After the kernel reseeds, the application still has the random generator state and cached tokens it inherited from the snapshot. The clone can also inherit application IDs and the saved boot identifier. Keep one-use credentials out of the template and refresh values that need to be unique."
+        hold: 0.7
+        visual_cues:
+          - id: app
+            phrase: "the application still has the random generator state and cached tokens"
+            targets:
+              - picture
+      - say: "The controller needs two observations here. Did this kernel reseed? Did this application rebuild its copied state? Add the clock, network and control checks. Each result must belong to the clone you are about to start."
+        hold: 0.7
+        visual_cues:
+          - id: checks
+            phrase: Add the clock, network and control checks
+            targets:
+              - picture
+  - id: namespace-identity
+    title: Separate a local name from global routing
+    visual: Two independent network namespaces retain the same TAP name and guest address while their host routes
+      stay distinct.
+    beats:
+      - say: A TAP interface is a host network object. The guest address and MAC configuration are different objects.
+          A snapshot can retain both the original TAP name and the guest network settings, so restoring two
+          clones into one namespace can create a conflict.
+        hold: 0.7
+        visual_cues:
+          - id: conflict
+            phrase: restoring two clones into one namespace can create a conflict
+            targets:
+              - picture
+      - say: The described integration creates a separate network namespace and its TAP for each clone, then has
+          Jailer join the selected namespace. The same TAP name and private guest address can repeat in
+          different namespaces. Host routing, address translation and filtering still need separate correct
+          configuration.
+        hold: 0.7
+        visual_cues:
+          - id: separate
+            phrase: The described integration creates a separate network namespace and its TAP for each clone
+            targets:
+              - picture
+          - id: route
+            phrase: Host routing, address translation and filtering still need separate correct configuration
+            targets:
+              - picture
+      - say: "The host uses each namespace’s routes and filters to control where its packets go. Check routing and isolation under load. Reconnect control for the current generation. Restore closes the old vsock connections, and the guest’s listening socket can accept a new one."
+        hold: 0.7
+        visual_cues:
+          - id: control
+            phrase: Reconnect control for the current generation
+            targets:
+              - picture
+  - id: freshness
+    title: "Five receipts for one restore"
+    visual: "Four generation-4 observations occupy matching sockets. An application receipt from generation 3 stays outside the fifth socket until a current result arrives."
+    beats:
+      - say: "Here is the supervisor about to start A’s script. Its clock is current, its kernel has reseeded, and its network and new authenticated control session have passed their checks. All four observations belong to generation four."
+        hold: 0.6
+        visual_cues:
+          - {id: clock, phrase: "Its clock is current", targets: [picture]}
+          - {id: kernel, phrase: "its kernel has reseeded", targets: [picture]}
+          - {id: net, phrase: "its network", targets: [picture]}
+          - {id: control, phrase: "new authenticated control session", targets: [picture]}
+      - say: "The application reports that it rebuilt its copied state. Read the generation on that receipt. Can this supervisor start the script with the five receipts on screen?"
+        hold: 2.1
+        visual_cues:
+          - {id: old, phrase: "The application reports", targets: [picture]}
+          - {id: ask, phrase: "Can this supervisor start the script", targets: [picture]}
+      - say: "Hold the script. The application receipt belongs to generation three. A kernel can reseed while an application still holds its old sequence of random numbers. Check that application in generation four."
+        hold: 0.65
+        visual_cues:
+          - {id: hold, phrase: "Hold the script", targets: [picture], caption_boundary: true}
+          - {id: stale, phrase: "belongs to generation three", targets: [picture]}
+      - say: "This time the current application confirms the repair. All five observations now belong to this restore. The supervisor can start the script."
+        hold: 1.8
+        visual_cues:
+          - {id: current, phrase: "the current application confirms the repair", targets: [picture]}
+          - {id: open, phrase: "The supervisor can start the script", targets: [picture], caption_boundary: true}
+  - id: filesystem
+    title: "Where did the file come from?"
+    visual: "One file lookup visits the job’s empty upper layer and falls back to the image, then changes source after A edits the file and creates output.csv."
+    beats:
+      - say: "A opens config dot T X T. The guest presents one directory, even though the file could live in either of two places. Look in A’s writable layer first. It is empty. The read reaches the clean image and returns the base text."
+        hold: 0.8
+        caption_starts: ["The read reaches the clean image","returns the base text"]
+        visual_cues:
+          - {id: lookup, phrase: "Look in A’s writable layer first", targets: [picture]}
+          - {id: fall, phrase: "The read reaches the clean image", targets: [picture]}
+          - {id: read, phrase: "returns the base text", targets: [picture]}
+      - say: "A edits the file. The guest copies the file into A’s layer and applies the edit there. Open the same name again. This time the lookup stops at A’s copy. Another tenant can still read the base text."
+        hold: 0.6
+        caption_starts: ["This time the lookup stops at A’s copy"]
+        visual_cues:
+          - {id: copy, phrase: "copies the file into A’s layer", targets: [picture]}
+          - {id: edit, phrase: "applies the edit there", targets: [picture]}
+          - {id: again, phrase: "Open the same name again", targets: [picture]}
+      - say: "Now A creates output dot C S V with the row one, ninety-nine. Only A’s writable layer supplies that file. The guest combines both layers into the view on the right. This is its overlay filesystem."
+        hold: 0.8
+        visual_cues:
+          - {id: output, phrase: "the row one, ninety-nine", targets: [picture]}
+  - id: overlay-whiteout
+    title: "Reading two files across a reset"
+    visual: "The same directory persists across the cut. A deletion leaves a whiteout in the private upper. A fresh guest traces both filenames back to the read-only image."
+    beats:
+      - say: "A deletes config dot T X T. Look at the private layer. It records a whiteout. A lookup stops at that marker and reports the name missing. The image still holds the original file."
+        hold: 0.8
+        visual_cues:
+          - {id: remove, phrase: "A deletes config dot T X T", targets: [picture]}
+          - {id: whiteout, phrase: "records a whiteout", targets: [picture]}
+          - {id: lookup, phrase: "A lookup stops at that marker", targets: [picture]}
+      - say: "The export is complete. The host verifies that A has stopped and all references are closed, then discards its scratch disk. The next guest gets an empty writable layer and work directory. Which files will it see?"
+        hold: 2.05
+        visual_cues:
+          - {id: dispose, phrase: "discards its scratch disk", targets: [picture]}
+          - {id: new, phrase: "gets an empty writable layer and work directory", targets: [picture]}
+          - {id: ask, phrase: "Which files will it see", targets: [picture]}
+      - say: "Config dot T X T comes back. The whiteout disappeared with the old layer, so the lookup reaches the original file. Output dot C S V is missing. The old writable layer was the only place the guest could find that row. The guest mounts the overlay with its upper and work directories on the same filesystem. The work directory sits outside the merged view. The exported copy and logs have their own retention rules."
+        hold: 0.8
+        caption_starts: ["Output dot C S V is missing"]
+        visual_cues:
+          - {id: back, phrase: "Config dot T X T comes back", targets: [picture], caption_boundary: true}
+          - {id: absent, phrase: "Output dot C S V is missing", targets: [picture]}
+          - {id: dirs, phrase: "its upper and work directories on the same filesystem", targets: [picture]}
+  - id: network
+    title: Check the destination at the trusted egress boundary
+    visual: The same approved name changes its resolved destination; trusted egress blocks the second connection
+      and a separate authenticated broker owns credential release.
+    beats:
+      - say: "Host-guest control can use a vsock channel without consuming ordinary host TCP endpoints. Internet
+          access is a separate path. Enforce destination policy outside the untrusted guest: block metadata
+          and internal destinations, validate resolved addresses, and recheck redirects and connection
+          targets. A domain allowlist alone can miss a changed DNS answer."
+        hold: 0.65
+        visual_cues:
+          - id: public
+            phrase: validate resolved addresses, and recheck redirects and connection targets
+            targets:
+              - picture
+          - id: rebind
+            phrase: A domain allowlist alone can miss a changed DNS answer
+            targets:
+              - picture
+      - say: A credential broker can expose an opaque reference while keeping the real secret outside the guest. The
+          reference still grants scoped authority, so bind it to job, destination, method, and permitted
+          operation. Inject credentials only on an approved connection. Bound output, network volume, time,
+          and retries, and preserve a restricted audit record.
+        hold: 0.65
+        visual_cues:
+          - id: opaque
+            phrase: A credential broker can expose an opaque reference while keeping the real secret outside the guest
+            targets:
+              - picture
+          - id: scope
+            phrase: bind it to job, destination, method, and permitted operation
+            targets:
+              - picture
+          - id: inject
+            phrase: Inject credentials only on an approved connection
+            targets:
+              - picture
+  - id: egress-addresses
+    title: Authorize the operation and the actual connection
+    visual: A permitted name resolves first to public and then private addresses; the second connection is blocked
+      while the broker retains the credential.
+    beats:
+      - say: Validate every resolved address and connect to the validated destination while preserving TLS hostname
+          verification. For each new connection, resolve and validate again. Reject or revalidate redirects.
+          Cover IPv6 and mapped address forms as well as IPv4; an earlier public answer cannot authorize a
+          later private target.
+        hold: 0.7
+        visual_cues:
+          - id: connect
+            phrase: connect to the validated destination while preserving TLS hostname verification
+            targets:
+              - picture
+          - id: again
+            phrase: For each new connection, resolve and validate again
+            targets:
+              - picture
+      - say: AWS metadata includes the familiar IPv4 endpoint and an optional IPv6 endpoint on supported deployments.
+          Metadata credentials are for the instance role, whether the worker is a VM or bare metal. Deny host
+          management, other tenants and unauthorized private routes outside the guest. Approved packages can
+          use the artifact service.
+        hold: 0.7
+        visual_cues:
+          - id: metadata
+            phrase: Deny host management, other tenants and unauthorized private routes outside the guest
+            targets:
+              - picture
+      - say: For a private API, the guest presents a short-lived capability to an explicit authenticated broker. Check
+          tenant, generation, resource, operation and expiry, then construct the approved upstream TLS request
+          inside the broker. Opaque encrypted HTTPS headers cannot be transparently rewritten. Revoke
+          capabilities at retirement and bound response size, time, volume and rate.
+        hold: 0.7
+        visual_cues:
+          - id: broker
+            phrase: the guest presents a short-lived capability to an explicit authenticated broker
+            targets:
+              - picture
+          - id: scope
+            phrase: Check tenant, generation, resource, operation and expiry
+            targets:
+              - picture
+          - id: upstream
+            phrase: then construct the approved upstream TLS request inside the broker
+            targets:
+              - picture
+  - id: vsock-wire
+    title: Establish the control stream before carrying commands
+    visual: Literal request and acknowledgement bytes move through an AF_UNIX to AF_VSOCK connection with a
+      retained payload boundary.
+    beats:
+      - say: "Follow a command from the host’s Unix socket through Firecracker to the guest’s virtio-vsock socket. This leaves ordinary host TCP ports free. Each stream uses descriptors, buffers and VMM time, so measure latency and capacity at the intended load."
+        hold: 0.7
+        visual_cues: []
+      - say: The guest supervisor listens on port five thousand. The host connects to the configured Unix socket and
+          sends CONNECT, a space, five thousand, and newline. It then waits for the complete OK line
+          containing the assigned host-side port. Only after validating that acknowledgement does this stream
+          carry application commands.
+        hold: 0.7
+        visual_cues:
+          - id: send
+            phrase: sends CONNECT, a space, five thousand, and newline
+            targets:
+              - picture
+          - id: wait
+            phrase: It then waits for the complete OK line containing the assigned host-side port
+            targets:
+              - picture
+          - id: validated
+            phrase: Only after validating that acknowledgement
+            targets:
+              - picture
+      - say: "For this Firecracker handshake, the assigned port must be at least two to the thirtieth power and below two to the thirty-first. Bind the application session to the authorized sandbox generation. Frame each command and response, and limit their sizes."
+        hold: 0.7
+        visual_cues:
+          - id: range
+            phrase: "the assigned port must be at least two to the thirtieth power and below two to the thirty-first"
+            targets:
+              - picture
+  - id: bounded-ack
+    title: "Where does the acknowledgement end?"
+    visual: "The cursor stops on the newline in two local streams. The same unread payload follows each. Only the port changes, from the included lower bound to the excluded upper bound."
+    beats:
+      - say: "The host is waiting for one line. These bytes could arrive together. The reader asks for one byte at a time. Watch it stop at the newline after the port. The bytes spelling payload still belong to the application."
+        hold: 0.75
+        visual_cues:
+          - {id: read, phrase: "one byte at a time", targets: [picture]}
+          - {id: stop, phrase: "stop at the newline", targets: [picture]}
+      - say: "Replay that read with a slow first fragment. The reader allows sixty-four bytes and two seconds for the whole line. Suppose the O and K arrive one and a half seconds in. The next read gets half a second. An early end of stream, too many bytes or an expired deadline fails the handshake."
+        hold: 0.7
+        visual_cues:
+          - {id: replay, phrase: "Replay that read", targets: [picture]}
+          - {id: limits, phrase: "two seconds for the whole line", targets: [picture]}
+          - {id: elapsed, phrase: "one and a half seconds in", targets: [picture]}
+          - {id: left, phrase: "The next read gets half a second", targets: [picture], caption_boundary: true}
+      - say: "The complete line must say OK, a space and decimal digits before the newline. Our first port is exactly the lower bound. The reader returns that port and leaves the payload unread."
+        hold: 0.7
+        visual_cues:
+          - {id: first, phrase: "The reader returns that port", targets: [picture], caption_boundary: true}
+          - {id: complete, phrase: "The complete line", targets: [picture]}
+      - say: "Change just the port to the upper bound. The delimiter and payload are in the same places. Can this stream carry the next command?"
+        hold: 1.9
+        visual_cues:
+          - {id: upper, phrase: "Change just the port to the upper bound", targets: [picture]}
+          - {id: ask, phrase: "Can this stream carry the next command", targets: [picture]}
+      - say: "Reject the acknowledgement. The upper bound is excluded. The reader stopped at the newline in both cases. Only the first handshake passed. A passing handshake still needs a generation-bound session, bounded commands and responses, backpressure, cancellation and a separate application timeout."
+        hold: 0.75
+        visual_cues:
+          - {id: reject, phrase: "Reject the acknowledgement", targets: [picture], caption_boundary: true}
+  - id: capacity
+    title: Dirty memory and synchronized bursts bound the pool
+    visual: A fixed 224 GiB pool supports a current grid of memory-planning slots as dirty footprint grows. A
+      separate CPU burst fixture admits at most 128 active jobs and puts the exact remaining arrivals into a
+      visible queue, retaining the mean duty-cycle calculation as a labeled reference.
+    beats:
+      - say: "Watch the two bars. The host sets memory aside for itself and the shared image. As each job writes more private pages, fewer jobs fit in the remaining memory. Include page tables, VMM overhead, caches and headroom when you size that pool."
+        hold: 0.65
+        visual_cues:
+          - id: dirty
+            phrase: "As each job writes more private pages"
+            targets:
+              - picture
+      - say: "Now look at the cores and the queue below. Many mostly idle sessions can wake together. Once the cores fill, the rest wait. Protect the host reserve with admission and per-job limits. Measure tail startup and execution latency at that burst load."
+        hold: 0.65
+        visual_cues:
+          - id: wake
+            phrase: Many mostly idle sessions can wake together
+            targets:
+              - picture
+          - id: admission
+            phrase: "Protect the host reserve"
+            targets:
+              - picture
+  - id: capacity-arithmetic
+    title: Compute memory slots and the synchronized queue
+    visual: A fixed scale compares 112 full footprints with 4,587 private footprints in the same 224 GiB pool.
+      A separate example shows 128 running sessions and 3,712 waiting sessions.
+    beats:
+      - say: "Start with two hundred fifty-six gibibytes. Set aside thirty-two for the host and shared data. That leaves two hundred twenty-four. If each guest takes two gibibytes, how many fit?"
+        hold: 1.9
+        caption_starts: ["That leaves two hundred twenty-four", "If each guest takes two gibibytes"]
+        visual_cues:
+          - id: pool
+            phrase: "That leaves two hundred twenty-four"
+            targets:
+              - picture
+          - {id: footprint, phrase: "each guest takes two gibibytes", targets: [picture]}
+      - say: "One hundred twelve."
+        hold: 0.7
+        visual_cues:
+          - id: full
+            phrase: "One hundred twelve"
+            targets:
+              - picture
+      - say: "Now count just the private pages. Suppose each guest adds fifty mebibytes. Convert the same pool to mebibytes, divide by fifty and round down. Four thousand five hundred eighty-seven private footprints fit. Per-guest overhead and extra headroom reduce the number the host can admit."
+        hold: 0.7
+        caption_starts: ["Four thousand five hundred eighty-seven"]
+        visual_cues:
+          - {id: fifty, phrase: "each guest adds fifty mebibytes", targets: [picture]}
+          - id: private
+            phrase: "Four thousand five hundred eighty-seven private footprints fit"
+            targets:
+              - picture
+      - say: "Now count runnable jobs on a host with one hundred twenty-eight cores. Thirty sessions per core gives three thousand eight hundred forty sessions. At three percent average duty, they need one hundred fifteen point two cores on average. If all sessions wake together, run one per core. One hundred twenty-eight run. Three thousand seven hundred twelve wait in the queue."
+        hold: 2.2
+        caption_starts: ["three thousand eight hundred forty sessions", "one hundred fifteen point two cores on average", "One hundred twenty-eight run", "Three thousand seven hundred twelve wait in the queue"]
+        visual_cues:
+          - id: sessions
+            phrase: "three thousand eight hundred forty sessions"
+            targets:
+              - picture
+          - id: mean
+            phrase: "one hundred fifteen point two cores on average"
+            targets:
+              - picture
+          - id: wake
+            phrase: "If all sessions wake together"
+            targets:
+              - picture
+          - id: admit
+            phrase: "One hundred twenty-eight run"
+            targets:
+              - picture
+          - id: queue
+            phrase: "Three thousand seven hundred twelve wait in the queue"
+            targets:
+              - picture
+  - id: group-budget
+    title: Spend one shared CPU allowance across threads
+    visual: Two VMM threads subtract their CPU time from one group-owned period budget while guest process limits
+      remain separate.
+    beats:
+      - say: "Put the VMM and its tasks in the same host cgroup. For fair-class scheduling, CPU max sets a CPU-time quota and a period, both in microseconds. All the threads in that group spend the same allowance."
+        hold: 0.7
+        visual_cues:
+          - id: shared
+            phrase: "All the threads in that group spend the same allowance"
+            targets:
+              - picture
+      - say: At the article setting of one hundred thousand over one hundred thousand, one thread spending sixty
+          thousand leaves forty thousand for the group in that period. Quota divided by period gives the mean
+          core-equivalent allowance. Scheduling and the chosen period still affect bursts and latency.
+        hold: 0.7
+        visual_cues:
+          - id: setting
+            phrase: At the article setting of one hundred thousand over one hundred thousand
+            targets:
+              - picture
+          - id: spend
+            phrase: one thread spending sixty thousand leaves forty thousand for the group in that period
+            targets:
+              - picture
+      - say: "Set memory max to cover the guest footprint and VMM overhead. Monitor memory events and decide how to handle an out-of-memory condition. The host limits the number of host tasks. The guest limits its own processes. Set budgets for disk, output and network use as well."
+        hold: 0.7
+        visual_cues:
+          - id: memory
+            phrase: "Set memory max to cover the guest footprint and VMM overhead"
+            targets:
+              - picture
+  - id: readonly-data
+    title: Read shared data while accounting for its working set
+    visual: A revision-bound read-only model image feeds clean pages to two guests; separate collector writes
+      allocate private pages.
+    beats:
+      - say: To read a fifty-gibibyte model without copying it into scratch, use an authorized read-only virtual block
+          device backed by a managed image. Bind its revision and access policy to the instance. A
+          filesystem-sharing feature needs explicit VMM and guest support.
+        hold: 0.7
+        visual_cues:
+          - id: read
+            phrase: use an authorized read-only virtual block device backed by a managed image
+            targets:
+              - picture
+      - say: "Concurrent cold readers can fault together. The host has to fetch those pages and keep the active ones in its page cache. Measure that working set and the I O burst when deciding how many guests to admit."
+        hold: 0.7
+        visual_cues:
+          - id: fault
+            phrase: Concurrent cold readers can fault together
+            targets:
+              - picture
+      - say: "A garbage collector writes marks, reference counts and other heap metadata. Those writes can give the guest private pages even when the user’s model weights stay the same. Track the clean pages that reads bring in and the private pages that writes create."
+        hold: 0.7
+        visual_cues:
+          - id: dirty
+            phrase: "Those writes can give the guest private pages"
+            targets:
+              - picture
+          - id: measure
+            phrase: "Track the clean pages that reads bring in and the private pages that writes create"
+            targets:
+              - picture
+  - id: state-machine
+    title: "Try to dispose of A’s scratch"
+    visual: "The article’s Python calls run against A/generation 1. The cancellation, mismatched notice and matching notice leave different evidence beside the same page and file."
+    beats:
+      - say: "Run the article’s small Python model. A and B each start restored. Supply all five observations and each clone becomes ready. Now we can start them. A can read or write only while running and only at an integer index inside the base. The model rejects negative indices."
+        hold: 0.6
+        visual_cues:
+          - {id: admit, phrase: "each clone becomes ready", targets: [picture]}
+          - {id: start, phrase: "Now we can start them", targets: [picture]}
+      - say: "A writes ninety-nine at index one and saves a row in output dot C S V. B still reads twenty. Now A requests cancellation. Try to dispose of A’s resources at this point."
+        hold: 1.75
+        visual_cues:
+          - {id: write, phrase: "saves a row in output dot C S V", targets: [picture]}
+          - {id: cancel, phrase: "A requests cancellation", targets: [picture]}
+          - {id: try, phrase: "Try to dispose of A’s resources", targets: [picture]}
+      - say: "Python raises execution retirement required. The page and file are still there. Send a retirement notice for A, generation two. The owner beside those resources is A, generation one. The model rejects the mismatch."
+        hold: 0.75
+        visual_cues:
+          - {id: fail, phrase: "Python raises execution retirement required", targets: [picture], caption_boundary: true}
+          - {id: wrong, phrase: "Send a retirement notice for A, generation two", targets: [picture]}
+          - {id: reject, phrase: "The model rejects the mismatch", targets: [picture], caption_boundary: true}
+      - say: "Change only the notice to generation one. A has requested cancellation, and both parts of its identity now match. The model accepts the confirmation. Dispose now, and A’s private page and scratch file clear. B still reads twenty. In Python we supplied the retirement fact ourselves. Who establishes it on a real host?"
+        hold: 0.7
+        visual_cues:
+          - {id: right, phrase: "Change only the notice to generation one", targets: [picture]}
+          - {id: retired, phrase: "The model accepts the confirmation", targets: [picture], caption_boundary: true}
+          - {id: dispose, phrase: "A’s private page and scratch file clear", targets: [picture]}
+  - id: retirement
+    title: "Who still has A’s disk open?"
+    visual: "A replay of the opening separates cancellation, execution retirement and the exporter’s last access to A’s scratch backing."
+    beats:
+      - say: "Return to the exporter from the opening. The controller has asked generation four to stop. A cancellation reply records the request. Its owner record still covers the process tree, private memory, scratch, network and credentials."
+        hold: 0.65
+        visual_cues:
+          - {id: request, phrase: "asked generation four to stop", targets: [picture]}
+      - say: "The host verifies that this generation’s execution has stopped. Look at the line to the scratch disk. The exporter still holds it open. If the controller loses its heartbeat now, its replacement must reconcile these resources under the same owner."
+        hold: 0.7
+        visual_cues:
+          - {id: stop, phrase: "this generation’s execution has stopped", targets: [picture]}
+          - {id: reader, phrase: "The exporter still holds it open", targets: [picture]}
+      - say: "The exporter finishes and closes its reader. Once the other references are closed, the network is detached and the capabilities are revoked, the host can dispose of the private backing. The next tenant gets fresh scratch. An authorized export can have a different lifetime from its source."
+        hold: 0.8
+        visual_cues:
+          - {id: close, phrase: "closes its reader", targets: [picture]}
+          - {id: dispose, phrase: "dispose of the private backing", targets: [picture]}
+          - {id: fresh, phrase: "The next tenant gets fresh scratch", targets: [picture]}
+  - id: reference-retirement
+    title: Who holds the virtual machine?
+    visual: Two host processes hold descriptors for one VM. The creator exits and its edge disappears. Its helper still holds a duplicate descriptor.
+    beats:
+      - say: "A host can finish the export and still have another resource to track. Two processes have handles to one virtual machine. On the left is the process that created it. On the right, a host helper holds a duplicate file descriptor. The creator exits. Follow the remaining line. The helper’s handle keeps the VM allocated."
+        hold: 0.8
+        visual_cues:
+          - {id: duplicate, phrase: "a host helper holds a duplicate file descriptor", targets: [picture]}
+          - {id: creator, phrase: "The creator exits", targets: [picture]}
+      - say: "On Linux, the host can use cgroup kill to stop a process tree in a non-root cgroup it owns, provided that group has a valid domain configuration. In a threaded cgroup, the kernel reports that the operation is unsupported. Verify which processes actually exited. A process number can already belong to somebody else."
+        hold: 0.7
+        visual_cues:
+          - {id: threaded, phrase: "the kernel reports that the operation is unsupported", targets: [picture]}
+      - say: "If the controller loses the reply, the slot stays with A while its replacement checks the open references. In this case execution has stopped, access is revoked and the other resources have been retired. The host verifies that the helper closed the last VM descriptor. Now the host can reclaim this VM’s resources."
+        hold: 0.8
+        visual_cues:
+          - {id: uncertain, phrase: "If the controller loses the reply", targets: [picture]}
+          - {id: close, phrase: "the helper closed the last VM descriptor", targets: [picture]}
+  - id: reconciliation-table
+    title: Choose recovery from the observed failure
+    visual: Each concrete failed resource retains ownership until its own observation and recovery complete.
+    beats:
+      - say: A missing controller heartbeat can coexist with a running VMM. Reconcile the durable tenant and
+          generation against host processes, cgroups, sockets, volumes and network objects, then adopt or stop
+          that same owner. A second controller must not merely declare its predecessor gone.
+        hold: 0.7
+        visual_cues:
+          - id: inventory
+            phrase: Reconcile the durable tenant and generation against host processes, cgroups, sockets, volumes and
+              network objects
+            targets:
+              - picture
+      - say: For runaway processes inspect guest limits, CPU and output growth. For private-memory growth inspect
+          resident pages, memory events and guest OOM state, stop admission and preserve host reserve. For a
+          stalled handler inspect fault progress and storage errors. Retire the affected execution before
+          reclaiming.
+        hold: 0.7
+        visual_cues:
+          - id: process
+            phrase: For runaway processes inspect guest limits, CPU and output growth
+            targets:
+              - picture
+          - id: memory
+            phrase: For private-memory growth inspect resident pages, memory events and guest OOM state
+            targets:
+              - picture
+          - id: handler
+            phrase: For a stalled handler inspect fault progress and storage errors
+            targets:
+              - picture
+      - say: For credential abuse inspect caller, capability, operation, resource and upstream result, deny
+          unauthorized work and revoke affected authority. Incomplete cleanup quarantines resources until
+          process, descriptor, mount and network checks establish disposal. Fault-inject crashes, delayed
+          cleanup, duplicate events, cold pages and cross-tenant probes in the deployed runtime.
+        hold: 0.7
+        visual_cues:
+          - id: credential
+            phrase: For credential abuse inspect caller, capability, operation, resource and upstream result
+            targets:
+              - picture
+          - id: quarantine
+            phrase: Incomplete cleanup quarantines resources
+            targets:
+              - picture
+  - id: endpoint-clock
+    title: "Time one sandbox start"
+    visual: "A single cursor follows an accepted request. The load mark stays at 7 ms while the clock passes the 15 ms target and reaches the first user instruction at 17 ms."
+    beats:
+      - say: "Start the clock at zero when the gateway accepts the request. Placement ends at three milliseconds. At seven milliseconds the snapshot has loaded. The script is still waiting."
+        hold: 0.7
+        caption_starts: ["Placement ends at three milliseconds", "At seven milliseconds"]
+        visual_cues:
+          - {id: start, phrase: "Start the clock at zero", targets: [picture]}
+          - {id: placement, phrase: "Placement ends at three milliseconds", targets: [picture]}
+          - {id: load, phrase: "At seven milliseconds the snapshot has loaded", targets: [picture]}
+      - say: "The supervisor finishes its readiness checks at sixteen milliseconds. The first user instruction starts at seventeen. Compare that with the fifteen-millisecond target. This request took two milliseconds longer. If we had stopped at snapshot load, we would have missed ten milliseconds of startup."
+        hold: 0.7
+        caption_starts: ["The first user instruction starts at seventeen", "This request took two milliseconds longer", "we would have missed ten milliseconds"]
+        visual_cues:
+          - {id: ready, phrase: "finishes its readiness checks at sixteen milliseconds", targets: [picture]}
+          - {id: user, phrase: "The first user instruction starts at seventeen", targets: [picture]}
+          - {id: miss, phrase: "two milliseconds longer", targets: [picture]}
+          - {id: gap, phrase: "ten milliseconds of startup", targets: [picture]}
+      - say: "Use those same endpoints across accepted requests to measure the ninety-ninth percentile. That includes time in the queue. Report rejections and timeouts alongside it, and measure cold starts separately for each image. Record the kernel versions, Firecracker version, image, snapshot residency and number of concurrent starts. Exercise isolation, worker loss and cleanup under load."
+        hold: 0.7
+        visual_cues:
+          - {id: percentile, phrase: "across accepted requests", targets: [picture]}
+  - id: fresh-generation
+    title: "Retiring generation four"
+    visual: "A generation-4 cleanup has two independent host references with different closure times. The learner must keep the whole slot held through the first closure and identify the first safe handoff."
+    beats:
+      - say: "B reads three shared pages, four, eight and twelve. Each page counts for four kibibytes. A writes ninety-nine into the first page and forty-one into the last, then saves its output row. How much page memory does the model count now?"
+        hold: 1.8
+        visual_cues:
+          - {id: first, phrase: "A writes ninety-nine into the first page", targets: [picture]}
+          - {id: last-page, phrase: "forty-one into the last", targets: [picture]}
+          - {id: file, phrase: "saves its output row", targets: [picture]}
+          - {id: size, phrase: "How much page memory does the model count now", targets: [picture]}
+      - say: "Twenty kibibytes. Count the three shared entries once and add A’s two private entries. Keep B’s base in view as we retire A."
+        hold: 0.65
+        visual_cues:
+          - {id: count, phrase: "Twenty kibibytes", targets: [picture], caption_boundary: true}
+      - say: "A requests cancellation. At two seconds a retirement notice arrives for generation five. A owns generation four. At four seconds the host verifies that generation four has stopped. Its network and capabilities are retired. Two references remain."
+        hold: 0.8
+        visual_cues:
+          - {id: cancel, phrase: "A requests cancellation", targets: [picture]}
+          - {id: wrong, phrase: "a retirement notice arrives for generation five", targets: [picture]}
+          - {id: match, phrase: "the host verifies that generation four has stopped", targets: [picture]}
+          - {id: links, phrase: "Two references remain", targets: [picture]}
+      - say: "The exporter closes its scratch reader at six seconds. A helper will close its duplicate handle to the virtual machine at nine. Every other check has passed. When can the host begin reclaiming the whole slot?"
+        hold: 2.25
+        visual_cues:
+          - {id: six, phrase: "closes its scratch reader at six seconds", targets: [picture]}
+          - {id: nine-plan, phrase: "will close its duplicate handle to the virtual machine at nine", targets: [picture]}
+          - {id: ask, phrase: "When can the host begin reclaiming the whole slot", targets: [picture]}
+      - say: "At nine seconds, when the helper actually closes its handle. The last connection is gone. The host can release A’s private pages and discard its scratch disk."
+        hold: 0.6
+        visual_cues:
+          - {id: last, phrase: "At nine seconds, when the helper actually closes its handle", targets: [picture], caption_boundary: true}
+          - {id: dispose, phrase: "discard its scratch disk", targets: [picture]}
+      - say: "B still reads four, eight and twelve. Three shared pages at four kibibytes each leave twelve kibibytes. The next tenant opens a fresh scratch disk. The directory is empty."
+        hold: 1.5
+        caption_starts: ["The next tenant opens a fresh scratch disk", "The directory is empty"]
+        visual_cues:
+          - {id: fresh, phrase: "opens a fresh scratch disk", targets: [picture]}
+          - {id: empty, phrase: "The directory is empty", targets: [picture]}
+          - {id: base, phrase: "leave twelve kibibytes", targets: [picture], caption_boundary: true}

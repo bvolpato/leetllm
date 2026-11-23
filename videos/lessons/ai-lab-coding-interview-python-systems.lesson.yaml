@@ -1,0 +1,1257 @@
+version: 1
+id: ai-lab-coding-interview-python-systems
+title: "Python systems: preserve the transition as requirements grow"
+source: interviewing/ai-lab-coding-interview-python-systems/content.md
+voice: en-US-AndrewNeural
+rate: +0%
+sources:
+  - title: Python collections documentation
+    url: https://docs.python.org/3/library/collections.html
+  - title: Python time documentation
+    url: https://docs.python.org/3/library/time.html
+  - title: Python3.14 URL parsing security
+    url: https://docs.python.org/3.14/library/urllib.parse.html#url-parsing-security
+  - title: Python3.14 concurrent executors
+    url: https://docs.python.org/3.14/library/concurrent.futures.html
+  - title: Python3.14 contextlib ExitStack
+    url: https://docs.python.org/3.14/library/contextlib.html#contextlib.ExitStack
+  - title: Python3.14 free-threading support
+    url: https://docs.python.org/3.14/howto/free-threading-python.html
+  - title: Python3.14 asyncio tasks
+    url: https://docs.python.org/3.14/library/asyncio-task.html
+scenes:
+  - id: opening
+    title: One crawler, four new requirements
+    visual: A one-worker test retains one fetch. Two workers then both read the same page as unclaimed
+      before either writes ownership, producing two fetch receipts. A protected replay admits one
+      claim and skips the second worker before the deadline, attempt and request-key state is
+      introduced.
+    beats:
+      - say: A crawler can pass its first test and still fetch the same page twice when a second worker
+          arrives. That duplicate can waste a request, break a quota, or produce confusing logs. We
+          will follow one documentation crawl from its first queue entry through duplicate claims,
+          an expiring cache value, and a retrying task.
+        hold: 0.7
+        visual_cues:
+          - id: opening-first-test
+            phrase: A crawler can pass its first test
+            targets:
+              - opening-first-queue
+              - opening-baseline
+            color: green
+            linger: 0.6
+          - id: opening-beat-1-focus-1
+            phrase: still fetch the same page twice when a second worker arrives
+            targets:
+              - opening-worker-race
+            color: cyan
+            linger: 0.65
+          - id: opening-beat-1-focus-2
+            phrase: We will follow one documentation crawl from its first queue entry through duplicate claims
+            targets:
+              - opening-first-queue
+            color: yellow
+            linger: 0.65
+      - say: "The example starts with a small contract: visit same-origin links once and return them in
+          breadth-first order. Then each follow-up adds one piece of state. By the end, you can
+          point to the queue, deadline, attempt count, and request key that owns each decision."
+        hold: 0.7
+        visual_cues:
+          - id: opening-claim-once
+            phrase: visit same-origin links once and return them in breadth-first order
+            targets:
+              - opening-worker-race
+            color: green
+            linger: 0.6
+          - id: opening-beat-2-focus-1
+            phrase: you can point to the queue
+            targets:
+              - opening-first-queue
+            color: cyan
+            linger: 0.65
+          - id: opening-expiration-deadline
+            phrase: deadline
+            targets:
+              - opening-deadline
+            color: cyan
+            linger: 0.6
+          - id: opening-attempt-budget
+            phrase: attempt count
+            targets:
+              - opening-attempt-count
+            color: yellow
+            linger: 0.6
+          - id: opening-beat-2-focus-2
+            phrase: and request key that owns each decision
+            targets:
+              - opening-request-key
+            color: yellow
+            linger: 0.65
+  - id: contract-loop
+    title: Extend the contract while preserving its invariant
+    visual: Keep one /ci work item on a clock with queue owner,claim owner,deadline,retryattempt
+      andeffectkey. Each follow-up adds only its required field. Trace expected-versus-actual
+      duplicate2→1 through the actual claim transition, with no generic checklist replacing the
+      execution.
+    beats:
+      - say: Start by stating inputs, outputs, malformed-input behavior, ordering and failure policy. Build
+          the smallest state model that meets that contract. When a follow-up arrives, name its new
+          state and the invariant that must survive. An assertion should isolate the transition, not
+          merely report a large final result.
+        hold: 0.6
+        visual_cues:
+          - id: ci-contract-loop-0-build
+            phrase: Start by stating inputs, outputs, malformed-input behavior, ordering and failure policy.
+              Build the smallest state model that meets that contract. When a follow-up arrives,
+              name its new state and the invariant that must survive. An assertion should isolate
+              the transition, not merely report a large final result.
+            targets:
+              - ci-contract-loop-trace
+            color: cyan
+            linger: 0.3
+      - say: These are local standard-library exercises with no network requests. Interview formats and
+          permission to consult documentation or A I tools vary; follow the instructions for the
+          actual assessment. The runtime documentation discussed here was inspected on November
+          sixth, twenty twenty-six. The executed fixtures use Python three point fourteen.
+        hold: 0.6
+        visual_cues:
+          - id: ci-contract-loop-1-build
+            phrase: These are local standard-library exercises with no network requests. Interview formats and
+              permission to consult documentation or A I tools vary; follow the instructions for the
+              actual assessment. The runtime documentation discussed here was inspected on November
+              sixth, twenty twenty-six. The executed fixtures use Python three point fourteen.
+            targets:
+              - ci-contract-loop-trace
+            color: cyan
+            linger: 0.3
+      - say: When a test fails, compare expected and actual, then shrink the input until one broken
+          transition remains. Duplicate output points to claim timing; missing output to admission
+          or failure policy; wrong order to the queue or tie-break. Fix that state change and retain
+          a focused regression before adding the next requirement.
+        hold: 0.6
+        visual_cues:
+          - id: ci-contract-loop-2-build
+            phrase: When a test fails, compare expected and actual, then shrink the input until one broken
+              transition remains. Duplicate output points to claim timing; missing output to
+              admission or failure policy; wrong order to the queue or tie-break. Fix that state
+              change and retain a focused regression before adding the next requirement.
+            targets:
+              - ci-contract-loop-trace
+            color: cyan
+            linger: 0.3
+  - id: state-objects
+    title: Give each question a matching state owner
+    visual: Physically retain URL queue,claimset,deadline record,priorityheap,counter andrecencylist.
+      SameURLmoves throughqueuewhileclaimsetmembershipstaysquiet. A second state diagram explicitly
+      usesa condition waiter and event stopbit ratherthanoverloading thelock.
+    beats:
+      - say: A deque owns first-in-first-out work. A heap owns priority, a Counter owns counts and an
+          OrderedDict can own recency. An injected monotonic clock owns time decisions. A Lock
+          protects a shared transition, a Condition can wake waiting workers when a predicate
+          changes, and an Event carries a cooperative stop signal. Choose the object from the
+          operation you need.
+        hold: 0.6
+        visual_cues:
+          - id: ci-state-objects-0-build
+            phrase: A deque owns first-in-first-out work. A heap owns priority, a Counter owns counts and an
+              OrderedDict can own recency. An injected monotonic clock owns time decisions. A Lock
+              protects a shared transition, a Condition can wake waiting workers when a predicate
+              changes, and an Event carries a cooperative stop signal. Choose the object from the
+              operation you need.
+            targets:
+              - ci-state-objects-trace
+            color: cyan
+            linger: 0.3
+      - say: For a finite crawl graph, expected set and queue work is order V plus E, with order V retained
+          state, excluding URL-string processing and callback costs. A priority scheduler also pays
+          heap costs. If each of V tasks makes at most A attempts, heap work is order A V log V,
+          plus graph work order V plus E. State the scope of each cost instead of treating a network
+          call as constant-time local computation.
+        hold: 0.6
+        visual_cues:
+          - id: ci-state-objects-1-build
+            phrase: For a finite crawl graph, expected set and queue work is order V plus E, with order V
+              retained state, excluding URL-string processing and callback costs. A priority
+              scheduler also pays heap costs. If each of V tasks makes at most A attempts, heap work
+              is order A V log V, plus graph work order V plus E. State the scope of each cost
+              instead of treating a network call as constant-time local computation.
+            targets:
+              - ci-state-objects-trace
+            color: cyan
+            linger: 0.3
+  - id: frontier
+    title: The queue preserves breadth-first order
+    visual: A real crawl trace pops /start, queues /guide before /api, skips a fragment duplicate and an
+      off-origin link, then adds /faq while preserving the pending order.
+    beats:
+      - say: "Begin with https://repo.example/start. Its links arrive in this order: /guide, /api with a
+          fragment, then a page on another origin. We resolve the relative links and remove
+          fragments. After the start page, the FIFO queue reads /guide, /api, while the claimed set
+          already contains all three in-scope pages."
+        hold: 0.8
+        visual_cues:
+          - id: frontier-beat-1-focus-1
+            phrase: the FIFO queue reads /guide
+            targets:
+              - frontier-array-from-length-4-i-s-queue-i-new-url-s-queue-i-pathname-empty
+            color: cyan
+            linger: 0.65
+          - id: frontier-beat-1-focus-2
+            phrase: while the claimed set already contains all three in-scope pages
+            targets:
+              - frontier-array-from-length-4-i-s-seen-i-new-url-s-seen-i-pathname-empty
+            color: yellow
+            linger: 0.65
+      - say: Now /guide points to /api again and then /faq. The first candidate is already claimed, so it
+          adds no second queue entry. We visit /api next, then /faq. The final fetch order is start,
+          guide, api, faq, exactly the order the queue produced.
+        hold: 0.8
+        visual_cues:
+          - id: frontier-beat-2-focus-1
+            phrase: The first candidate is already claimed, so it adds no second queue entry
+            targets:
+              - frontier-array-from-length-4-i-s-queue-i-new-url-s-queue-i-pathname-empty
+            color: cyan
+            linger: 0.65
+  - id: url-policy
+    title: Normalize the identity before claiming it
+    visual: Separate scheme/host/effectiveport/path/query/fragment fields fromactualURL.
+      Lowercasehost/remove443andfragment,retainquery;feed
+      resultingidentityintoexistingpersistentqueue.
+      Rejectuserinfo/invalidport/backslashandschememismatchbeforeclaim;network/DNS/redirectboxremainsoutsidethislocalvalidator.
+    beats:
+      - say: This crawler chooses same origin, not merely the same host name. Scheme, lowercase host and
+          effective port must agree. Remove fragments and default ports, map an empty path to slash,
+          and retain query strings and nonempty paths. Relative links resolve against the current
+          page. Two fragments of the same page share one claim; a changed query can name a different
+          fetch.
+        hold: 0.6
+        visual_cues:
+          - id: ci-url-policy-0-build
+            phrase: This crawler chooses same origin, not merely the same host name. Scheme, lowercase host and
+              effective port must agree. Remove fragments and default ports, map an empty path to
+              slash, and retain query strings and nonempty paths. Relative links resolve against the
+              current page. Two fragments of the same page share one claim; a changed query can name
+              a different fetch.
+            targets:
+              - ci-url-policy-trace
+            color: cyan
+            linger: 0.3
+      - say: The actual normalizer rejects credentials, whitespace, control characters, backslashes,
+          malformed ports and unsupported schemes. An invalid start returns an empty result; an
+          invalid or foreign-origin discovered link is skipped. A callback exception propagates. The
+          callback’s link order determines the deterministic single-worker breadth-first result.
+        hold: 0.6
+        visual_cues:
+          - id: ci-url-policy-1-build
+            phrase: The actual normalizer rejects credentials, whitespace, control characters, backslashes,
+              malformed ports and unsupported schemes. An invalid start returns an empty result; an
+              invalid or foreign-origin discovered link is skipped. A callback exception propagates.
+              The callback’s link order determines the deterministic single-worker breadth-first
+              result.
+            targets:
+              - ci-url-policy-trace
+            color: cyan
+            linger: 0.3
+      - say: URL parsing is not destination authorization. Percent-encoded aliases and D N S resolution are
+          outside this normalizer. A real fetcher also needs redirect checks, network-address
+          restrictions, timeouts and response-size bounds. A same-origin string comparison cannot
+          establish protection from server-side request forgery by itself.
+        hold: 0.6
+        visual_cues:
+          - id: ci-url-policy-2-build
+            phrase: URL parsing is not destination authorization. Percent-encoded aliases and D N S resolution
+              are outside this normalizer. A real fetcher also needs redirect checks,
+              network-address restrictions, timeouts and response-size bounds. A same-origin string
+              comparison cannot establish protection from server-side request forgery by itself.
+            targets:
+              - ci-url-policy-trace
+            color: cyan
+            linger: 0.3
+  - id: claim
+    title: Claim shared work before the slow fetch
+    visual: Two workers reach one URL. A short locked membership-and-insert transition gives one claim
+      and one skip; the winner fetches after releasing the lock.
+    beats:
+      - say: A set works for one worker because membership and insertion happen in sequence. With two
+          workers, both can observe a missing URL before either fetch completes. Put the check and
+          insertion inside one short lock. That small transition assigns one owner to this URL.
+        hold: 0.7
+        visual_cues:
+          - id: claim-beat-1-focus-1
+            phrase: A set works for one worker because membership and insertion happen in sequence
+            targets:
+              - claim-worker-a-docs
+            color: cyan
+            linger: 0.65
+          - id: claim-beat-1-focus-2
+            phrase: With two workers, both can observe a missing URL before either fetch completes
+            targets:
+              - claim-s-fetches-a-fetches-lock-released-s-owners-a-owns-claim-fetch-pendin
+            color: yellow
+            linger: 0.65
+      - say: The winner fetches outside the lock, so unrelated URLs can progress while the network waits.
+          The second worker sees the claim and skips. The lock protects duplicate prevention. A
+          separate semaphore can bound active fetches, and an event can carry cooperative
+          cancellation.
+        hold: 0.8
+        visual_cues:
+          - id: claim-beat-2-focus-1
+            phrase: The second worker sees the claim and skips
+            targets:
+              - claim-skipped-b-sees-existing-claim-skip-b-waits-to-claim
+            color: cyan
+            linger: 0.65
+          - id: claim-beat-2-focus-2
+            phrase: The winner fetches outside the lock, so unrelated URLs can progress while the network waits
+            targets:
+              - claim-s-fetches-a-fetches-lock-released-s-owners-a-owns-claim-fetch-pendin
+            color: yellow
+            linger: 0.65
+  - id: claim-failure
+    title: A claim, a quota and a stop signal answer different questions
+    visual: Replay actual two-thread barrier claimonewinnerwithoutnamingwinnerinadvance.
+      ThenretainURLinflightafterfetchfailureandbranchat-most-oneattemptversusretrywaitstates.
+      SetstopEventduringfetchandblockchildrenpublicationafterreceiptwhileotherURLfetchesoutsidecriticalsection.
+    beats:
+      - say: The actual thread exercise releases two workers through a barrier at the same claim boundary.
+          The lock covers membership and insertion together. Exactly one returns true; the test
+          deliberately does not choose which worker wins. One successful schedule is evidence for
+          that fixture, while the atomic transition is the contract to defend.
+        hold: 0.6
+        visual_cues:
+          - id: ci-claim-failure-0-build
+            phrase: The actual thread exercise releases two workers through a barrier at the same claim
+              boundary. The lock covers membership and insertion together. Exactly one returns true;
+              the test deliberately does not choose which worker wins. One successful schedule is
+              evidence for that fixture, while the atomic transition is the contract to defend.
+            targets:
+              - ci-claim-failure-trace
+            color: cyan
+            linger: 0.3
+          - id: ci-claim-failure-winner
+            phrase: Exactly one returns true; the test deliberately does not choose which worker wins.
+            targets:
+              - ci-claim-failure-trace
+            color: cyan
+            linger: 0.3
+      - say: Claim safety does not preserve concurrent completion order as breadth-first order. To promise
+          exact breadth-first output, process one frontier at a time and merge child lists in parent
+          order, or retain explicit ordering metadata. Sorting completed URLs changes the contract
+          to lexical order. Holding a global fetch lock prevents duplicate work by serializing slow
+          work, at a different concurrency cost.
+        hold: 0.6
+        visual_cues:
+          - id: ci-claim-failure-1-build
+            phrase: Claim safety does not preserve concurrent completion order as breadth-first order. To
+              promise exact breadth-first output, process one frontier at a time and merge child
+              lists in parent order, or retain explicit ordering metadata. Sorting completed URLs
+              changes the contract to lexical order. Holding a global fetch lock prevents duplicate
+              work by serializing slow work, at a different concurrency cost.
+            targets:
+              - ci-claim-failure-trace
+            color: cyan
+            linger: 0.3
+      - say: Under an at-most-one-attempt policy a failed URL stays claimed. Retrying needs separate
+          in-flight, success, retry-wait and terminal-failure states, with attempt counts and
+          backoff. Host quota is another admission predicate. Check a stop event before scheduling,
+          before fetching and after fetching before publishing children. A cooperative stop does not
+          prove an already running remote request was interrupted.
+        hold: 0.6
+        visual_cues:
+          - id: ci-claim-failure-2-build
+            phrase: Under an at-most-one-attempt policy a failed URL stays claimed. Retrying needs separate
+              in-flight, success, retry-wait and terminal-failure states, with attempt counts and
+              backoff. Host quota is another admission predicate. Check a stop event before
+              scheduling, before fetching and after fetching before publishing children. A
+              cooperative stop does not prove an already running remote request was interrupted.
+            targets:
+              - ci-claim-failure-trace
+            color: cyan
+            linger: 0.3
+          - id: ci-claim-failure-stop
+            phrase: after fetching before publishing children.
+            targets:
+              - ci-claim-failure-trace
+            color: cyan
+            linger: 0.3
+  - id: expiry
+    title: A TTL store changes state at its deadline
+    visual: The task:1 record is live at 14.999 seconds and expires exactly at expires_at = 15.000 when
+      a read checks the entry.
+    beats:
+      - say: A time-to-live value stores an expiration deadline with its value. Here task:1 is written at
+          time ten with a five-second lifetime. An injected clock lets the test inspect the record
+          at 14.999 seconds deterministically.
+        hold: 0.75
+        visual_cues:
+          - id: expiry-beat-1-focus-1
+            phrase: Here task:1 is written at time ten with a five-second lifetime
+            targets:
+              - expiry-stored-record
+            color: cyan
+            linger: 0.6
+          - id: expiry-inspect-before
+            phrase: inspect the record at 14.999 seconds deterministically
+            targets:
+              - expiry-clock
+              - expiry-s-expired-get-task-1-missing-entry-removed-get-task-1-running-still
+            color: green
+            linger: 0.6
+      - say: At the exact deadline, the read treats the key as expired and removes it. A zero-second
+          lifetime follows the same boundary immediately. The important state is expires_at, and
+          every public read path must apply the same comparison.
+        hold: 0.8
+        visual_cues:
+          - id: expiry-beat-2-focus-1
+            phrase: At the exact deadline, the read treats the key as expired and removes it
+            targets:
+              - expiry-clock
+              - expiry-stored-record
+              - expiry-s-expired-get-task-1-missing-entry-removed-get-task-1-running-still
+            color: pink
+            linger: 0.6
+  - id: ttl-reads
+    title: Every read uses the same logical instant
+    visual: Retainactualtask1expires15/task2permanent.
+      Onscan,freezeoneclockvalueandwalkcopiedkeyIDsasexpiredrowisphysicallyremoved;nextoverwriteclearsolddeadline.
+      Separateunreadexpiredstoragefromreadablevaluesandprocessrelativeclockfromdurablewalltimestamp.
+    beats:
+      - say: A TTL entry stores a string value and either an expiration deadline or no deadline. Get, scan
+          and an eventual compare-and-set must agree that equality with the deadline is expired.
+          Zero TTL therefore expires immediately. Negative or nonfinite lifetimes are invalid. None
+          is reserved for missing or no expiration, so stored values must be strings; annotations
+          alone do not enforce that.
+        hold: 0.6
+        visual_cues:
+          - id: ci-ttl-reads-0-build
+            phrase: A TTL entry stores a string value and either an expiration deadline or no deadline. Get,
+              scan and an eventual compare-and-set must agree that equality with the deadline is
+              expired. Zero TTL therefore expires immediately. Negative or nonfinite lifetimes are
+              invalid. None is reserved for missing or no expiration, so stored values must be
+              strings; annotations alone do not enforce that.
+            targets:
+              - ci-ttl-reads-trace
+            color: cyan
+            linger: 0.3
+          - id: ci-ttl-reads-zero
+            phrase: Zero TTL therefore expires immediately.
+            targets:
+              - ci-ttl-reads-trace
+            color: yellow
+            linger: 0.3
+      - say: The actual scan samples the injected clock once and checks all matching keys at that same
+          logical instant. It iterates a copy of the keys because expired entries can be deleted.
+          Sorting k surviving matches after inspecting n stored keys costs order n plus k log k,
+          excluding string comparisons. Overwriting an expiring record with a permanent value
+          replaces the old deadline.
+        hold: 0.6
+        visual_cues:
+          - id: ci-ttl-reads-1-build
+            phrase: The actual scan samples the injected clock once and checks all matching keys at that same
+              logical instant. It iterates a copy of the keys because expired entries can be
+              deleted. Sorting k surviving matches after inspecting n stored keys costs order n plus
+              k log k, excluding string comparisons. Overwriting an expiring record with a permanent
+              value replaces the old deadline.
+            targets:
+              - ci-ttl-reads-trace
+            color: cyan
+            linger: 0.3
+          - id: ci-ttl-reads-scan
+            phrase: It iterates a copy of the keys because expired entries can be deleted.
+            targets:
+              - ci-ttl-reads-trace
+            color: cyan
+            linger: 0.3
+          - id: ci-ttl-reads-overwrite
+            phrase: Overwriting an expiring record with a permanent value replaces the old deadline.
+            targets:
+              - ci-ttl-reads-trace
+            color: cyan
+            linger: 0.3
+      - say: The clock must return finite nondecreasing seconds. A monotonic process-relative deadline is
+          useful for elapsed time but cannot be copied unchanged into portable persistent
+          timestamps. Lazy cleanup leaves unread expired entries in memory, and this store is
+          single-threaded. Add an explicit cleanup or eviction policy and synchronize every public
+          transition when the contract expands.
+        hold: 0.6
+        visual_cues:
+          - id: ci-ttl-reads-2-build
+            phrase: The clock must return finite nondecreasing seconds. A monotonic process-relative deadline is
+              useful for elapsed time but cannot be copied unchanged into portable persistent
+              timestamps. Lazy cleanup leaves unread expired entries in memory, and this store is
+              single-threaded. Add an explicit cleanup or eviction policy and synchronize every
+              public transition when the contract expands.
+            targets:
+              - ci-ttl-reads-trace
+            color: cyan
+            linger: 0.3
+  - id: cas-boundary
+    title: Expire, compare and write under one ownership boundary
+    visual: Oldvalueexpiresatsupplieddeadline,readremovesitinsideoneclosedlockboundary;expectedNonematchesandnewvalueiswrittenbeforeunlock.
+      Counterexampleunlocksbetweencompareandsetletssecondwriterintervene,thenrepairretainsonecriticalsection.
+      DistinguishactualnoTTLAtomicStorefromproposedcombinedextension.
+    beats:
+      - say: "Compare-and-set means compare the current value with an expected value and write the
+          replacement only if they match, as one atomic transition. The actual compact AtomicStore
+          demonstrates this without TTL: first comparing missing to None writes running, repeating
+          that expectation fails, and comparing running writes ready."
+        hold: 0.6
+        visual_cues:
+          - id: ci-cas-boundary-0-build
+            phrase: "Compare-and-set means compare the current value with an expected value and write the
+              replacement only if they match, as one atomic transition. The actual compact
+              AtomicStore demonstrates this without TTL: first comparing missing to None writes
+              running, repeating that expectation fails, and comparing running writes ready."
+            targets:
+              - ci-cas-boundary-trace
+            color: cyan
+            linger: 0.3
+          - id: ci-cas-boundary-write
+            phrase: first comparing missing to None writes running, repeating that expectation fails, and
+              comparing running writes ready.
+            targets:
+              - ci-cas-boundary-trace
+            color: cyan
+            linger: 0.3
+      - say: For the TTL extension, first remove an expired value, then compare and write while holding the
+          same lock. At the exact deadline, expected None can match because the old value is
+          missing. Releasing the lock between get and set allows another writer to invalidate that
+          comparison. Use one acquisition or an RLock if public methods acquire the same lock
+          recursively.
+        hold: 0.6
+        visual_cues:
+          - id: ci-cas-boundary-1-build
+            phrase: For the TTL extension, first remove an expired value, then compare and write while holding
+              the same lock. At the exact deadline, expected None can match because the old value is
+              missing. Releasing the lock between get and set allows another writer to invalidate
+              that comparison. Use one acquisition or an RLock if public methods acquire the same
+              lock recursively.
+            targets:
+              - ci-cas-boundary-trace
+            color: cyan
+            linger: 0.3
+          - id: ci-cas-boundary-expired
+            phrase: At the exact deadline, expected None can match because the old value is missing.
+            targets:
+              - ci-cas-boundary-trace
+            color: cyan
+            linger: 0.3
+      - say: This combined TTL compare-and-set is an extension to design, not an executed durable
+          transaction in the article. State the serialization boundary and add the exact
+          deadline-and-writer case before claiming the extension works. Snapshot follow-ups
+          similarly need versioned records or copy-on-write rather than mutation through a
+          supposedly frozen view.
+        hold: 0.6
+        visual_cues:
+          - id: ci-cas-boundary-2-build
+            phrase: This combined TTL compare-and-set is an extension to design, not an executed durable
+              transaction in the article. State the serialization boundary and add the exact
+              deadline-and-writer case before claiming the extension works. Snapshot follow-ups
+              similarly need versioned records or copy-on-write rather than mutation through a
+              supposedly frozen view.
+            targets:
+              - ci-cas-boundary-trace
+            color: cyan
+            linger: 0.3
+  - id: scheduler
+    title: Dependencies decide when work enters the heap
+    visual: A priority heap runs docs, retries test once, and only then releases deploy. A second branch
+      exhausts test and leaves deploy blocked.
+    beats:
+      - say: Put docs and test in the ready heap. Docs has higher priority, so it finishes first. Test fails
+          once, keeps its attempt count, and returns to the heap. When its retry succeeds, its
+          completion releases deploy. The dependency count reaches zero before deploy becomes
+          eligible.
+        hold: 0.8
+        motion_check:
+          region:
+            - 240
+            - 365
+            - 1370
+            - 412
+          minimumChangedFraction: 0.002
+        visual_cues:
+          - id: scheduler-docs-complete
+            phrase: Docs has higher priority, so it finishes first
+            targets:
+              - scheduler-node-docs
+            color: green
+            linger: 0.6
+          - id: scheduler-beat-1-focus-1
+            phrase: Test fails once, keeps its attempt count, and returns to the heap
+            targets:
+              - scheduler-node-test
+            color: yellow
+            linger: 0.6
+          - id: scheduler-retry-success
+            phrase: When its retry succeeds, its completion releases deploy
+            targets:
+              - scheduler-node-test
+              - scheduler-node-deploy
+            color: green
+            linger: 0.6
+          - id: scheduler-beat-1-focus-2
+            phrase: The dependency count reaches zero before deploy becomes eligible
+            targets:
+              - scheduler-dependency
+              - scheduler-node-deploy
+            color: cyan
+            linger: 0.6
+      - say: Change the policy to one attempt and let test fail. Test is now failed because it ran and
+          exhausted its budget. Deploy remains blocked because test did not release its dependency.
+          Keeping those outcomes separate helps callers choose whether to retry, repair, or skip
+          downstream work.
+        hold: 0.8
+        visual_cues:
+          - id: scheduler-test-exhausted
+            phrase: Change the policy to one attempt and let test fail
+            targets:
+              - scheduler-node-test
+            color: pink
+            linger: 0.6
+          - id: scheduler-beat-2-focus-1
+            phrase: Deploy remains blocked because test did not release its dependency
+            targets:
+              - scheduler-node-deploy
+              - scheduler-dependency
+            color: yellow
+            linger: 0.6
+  - id: graph-validation
+    title: Reject the cycle before any task creates an effect
+    visual: Retainalltasknodesincludingindependentreadytask.
+      ThreecolorDFSstackmarksactivea→b→aandblocksrunbeforeheapinitialization;separatelyrejectunknown/duplicateddeps/names.
+      Thenpushactualprioritytupleandcomparelexicaltiewithoutmovingunreadydependent.
+    beats:
+      - say: Validate the entire graph before calling run, including independent ready tasks. Reject
+          duplicate task names, duplicate dependencies and unknown dependency names. Three-state
+          depth-first search marks unseen, active and completed nodes. An edge back to an active
+          node exposes a cycle; a visit to a completed node does not.
+        hold: 0.6
+        visual_cues:
+          - id: ci-graph-validation-0-build
+            phrase: Validate the entire graph before calling run, including independent ready tasks. Reject
+              duplicate task names, duplicate dependencies and unknown dependency names. Three-state
+              depth-first search marks unseen, active and completed nodes. An edge back to an active
+              node exposes a cycle; a visit to a completed node does not.
+            targets:
+              - ci-graph-validation-trace
+            color: cyan
+            linger: 0.3
+          - id: ci-graph-validation-cycle
+            phrase: An edge back to an active node exposes a cycle; a visit to a completed node does not.
+            targets:
+              - ci-graph-validation-trace
+            color: cyan
+            linger: 0.3
+      - say: The actual ready heap stores priority and task name. Lower numeric priority runs first; equal
+          priorities break ties by name, not input order. A task enters only when its remaining
+          dependency count is zero. On successful completion decrement each dependent once and
+          enqueue it only when that count reaches zero.
+        hold: 0.6
+        visual_cues:
+          - id: ci-graph-validation-1-build
+            phrase: The actual ready heap stores priority and task name. Lower numeric priority runs first;
+              equal priorities break ties by name, not input order. A task enters only when its
+              remaining dependency count is zero. On successful completion decrement each dependent
+              once and enqueue it only when that count reaches zero.
+            targets:
+              - ci-graph-validation-trace
+            color: cyan
+            linger: 0.3
+          - id: ci-graph-validation-ready
+            phrase: enqueue it only when that count reaches zero.
+            targets:
+              - ci-graph-validation-trace
+            color: cyan
+            linger: 0.3
+      - say: Retries are immediate and keep the original priority, so a retry can run before another
+          lower-priority task. An actual Boolean false retries up to the positive integer attempt
+          cap. A string saying False is rejected rather than treated as truthy success, and an
+          exception aborts this scheduler. A long chain can exceed recursive depth; an iterative
+          traversal removes that implementation limit.
+        hold: 0.6
+        visual_cues:
+          - id: ci-graph-validation-2-build
+            phrase: Retries are immediate and keep the original priority, so a retry can run before another
+              lower-priority task. An actual Boolean false retries up to the positive integer
+              attempt cap. A string saying False is rejected rather than treated as truthy success,
+              and an exception aborts this scheduler. A long chain can exceed recursive depth; an
+              iterative traversal removes that implementation limit.
+            targets:
+              - ci-graph-validation-trace
+            color: cyan
+            linger: 0.3
+  - id: scheduler-workers
+    title: Publish completion before releasing the dependent
+    visual: Onecondition-protectedreadyheaphandstaskIDtooneworker,workoccursoutsidelock,receiptreturnsinsideconditionboundarytoincrementattempts/updatecompleteandremaining.
+      Waitingworkerawakensonlywhenpredicatepermits;allfailed→blockedclassificationbasedonactualrunhistory.
+    beats:
+      - say: Adding workers changes ownership of the ready heap, attempt counts, completion sets and
+          remaining dependency counts. Claim ready work under a shared lock or condition, execute
+          the task outside it, then reacquire to publish its outcome. A successful publication can
+          release dependents and notify waiting workers. Waking is not permission by itself; recheck
+          the predicate.
+        hold: 0.6
+        visual_cues:
+          - id: ci-scheduler-workers-0-build
+            phrase: Adding workers changes ownership of the ready heap, attempt counts, completion sets and
+              remaining dependency counts. Claim ready work under a shared lock or condition,
+              execute the task outside it, then reacquire to publish its outcome. A successful
+              publication can release dependents and notify waiting workers. Waking is not
+              permission by itself; recheck the predicate.
+            targets:
+              - ci-scheduler-workers-trace
+            color: cyan
+            linger: 0.3
+          - id: ci-scheduler-workers-publish
+            phrase: A successful publication can release dependents and notify waiting workers.
+            targets:
+              - ci-scheduler-workers-trace
+            color: cyan
+            linger: 0.3
+      - say: A task that ran and exhausted attempts is failed. A dependent that never became eligible is
+          blocked. Keep these outcomes separate when deciding whether to repair, retry or skip.
+          Worker shutdown and exceptions need explicit lifecycle and result handling. This describes
+          the required concurrent handoff; the article’s scheduler implementation is sequential.
+        hold: 0.6
+        visual_cues:
+          - id: ci-scheduler-workers-1-build
+            phrase: A task that ran and exhausted attempts is failed. A dependent that never became eligible is
+              blocked. Keep these outcomes separate when deciding whether to repair, retry or skip.
+              Worker shutdown and exceptions need explicit lifecycle and result handling. This
+              describes the required concurrent handoff; the article’s scheduler implementation is
+              sequential.
+            targets:
+              - ci-scheduler-workers-trace
+            color: cyan
+            linger: 0.3
+  - id: limiter
+    title: Injected time makes quota boundaries testable
+    visual: A capacity-three token bucket spends three tokens at time zero, denies the fourth request,
+      then refills to one token by time one.
+    beats:
+      - say: A token bucket starts with three tokens and refills one token per second. Three requests at
+          time zero spend the burst. The fourth request sees an empty bucket and receives an
+          estimated wait of one second. The denial leaves the remaining amount unchanged.
+        hold: 0.75
+        visual_cues:
+          - id: limiter-beat-1-focus-1
+            phrase: A token bucket starts with three tokens and refills one token per second
+            targets:
+              - limiter-capacity
+              - limiter-token-meter
+            color: cyan
+            linger: 0.6
+          - id: limiter-spend-burst
+            phrase: Three requests at time zero spend the burst
+            targets:
+              - limiter-token-meter
+            color: green
+            linger: 0.6
+          - id: limiter-denied-fourth
+            phrase: The fourth request sees an empty bucket and receives an estimated wait of one second
+            targets:
+              - limiter-label
+              - limiter-token-meter
+            color: pink
+            linger: 0.6
+      - say: At half a second, only half a token has returned, so a cost-one request still waits another
+          half second. At one second, it can proceed. The same injected clock tests both boundaries
+          quickly, and a separate concurrency limit can bound requests already in flight.
+        hold: 0.8
+        visual_cues:
+          - id: limiter-half-token
+            phrase: At half a second, only half a token has returned, so a cost-one request still waits another
+              half second
+            targets:
+              - limiter-clock
+              - limiter-token-meter
+              - limiter-label
+            color: yellow
+            linger: 0.6
+          - id: limiter-one-second
+            phrase: At one second, it can proceed
+            targets:
+              - limiter-clock
+              - limiter-label
+            color: green
+            linger: 0.6
+  - id: bucket-contract
+    title: Refill and denial share one conserved token count
+    visual: Actualcostmarkerremains1throughoriginalbucket.
+      Constructrefill=min(capacity,old+elapsed×rate),showdenialupdatesclockbutdoesnotdebit,thencontrastunsafeidledeleteempty→recreatefullwithlegalfull-equivalentcleanup.
+      Addseparateinflightcounteroutsidebucket.
+    beats:
+      - say: For each key, refill tokens by elapsed seconds times the rate, add the old tokens and cap at
+          capacity. If that amount reaches the positive cost, subtract the cost and admit. Otherwise
+          leave tokens unspent and divide the missing amount by the refill rate for retry-after.
+          That wait assumes no competing consumption; another caller can spend the refill first.
+        hold: 0.6
+        visual_cues:
+          - id: ci-bucket-contract-0-build
+            phrase: For each key, refill tokens by elapsed seconds times the rate, add the old tokens and cap at
+              capacity. If that amount reaches the positive cost, subtract the cost and admit.
+              Otherwise leave tokens unspent and divide the missing amount by the refill rate for
+              retry-after. That wait assumes no competing consumption; another caller can spend the
+              refill first.
+            targets:
+              - ci-bucket-contract-trace
+            color: cyan
+            linger: 0.3
+          - id: ci-bucket-contract-wait
+            phrase: divide the missing amount by the refill rate for retry-after.
+            targets:
+              - ci-bucket-contract-trace
+            color: cyan
+            linger: 0.3
+      - say: Reject a cost above capacity because no amount of waiting can make it fit. Reject nonfinite
+          time or cost, and time moving backward for the same key. Keys have independent buckets.
+          Thread safety requires locking lookup, refill and debit together. Rate admission and the
+          number of requests already in flight need different limits.
+        hold: 0.6
+        visual_cues:
+          - id: ci-bucket-contract-1-build
+            phrase: Reject a cost above capacity because no amount of waiting can make it fit. Reject nonfinite
+              time or cost, and time moving backward for the same key. Keys have independent
+              buckets. Thread safety requires locking lookup, refill and debit together. Rate
+              admission and the number of requests already in flight need different limits.
+            targets:
+              - ci-bucket-contract-trace
+            color: cyan
+            linger: 0.3
+      - say: Deleting an empty idle bucket and recreating it full grants an extra burst. Evict only when the
+          recreated full state is equivalent to the state elapsed refill would produce. Retained
+          state grows with keys; each dictionary transition is expected constant work. Randomized
+          retry delays spread synchronized arrivals, but do not guarantee available quota or future
+          admission.
+        hold: 0.6
+        visual_cues:
+          - id: ci-bucket-contract-2-build
+            phrase: Deleting an empty idle bucket and recreating it full grants an extra burst. Evict only when
+              the recreated full state is equivalent to the state elapsed refill would produce.
+              Retained state grows with keys; each dictionary transition is expected constant work.
+              Randomized retry delays spread synchronized arrivals, but do not guarantee available
+              quota or future admission.
+            targets:
+              - ci-bucket-contract-trace
+            color: cyan
+            linger: 0.3
+          - id: ci-bucket-contract-eviction
+            phrase: Evict only when the recreated full state is equivalent to the state elapsed refill would
+              produce.
+            targets:
+              - ci-bucket-contract-trace
+            color: cyan
+            linger: 0.3
+  - id: ledger
+    title: An idempotency key names one stored effect
+    visual: A ledger applies deposit-1, withdraw-1, then replays deposit-1. The replay returns its
+      original result while the current balance remains 70 and the event count stays two.
+    beats:
+      - say: Retries become more delicate when an operation changes a balance. The ledger records deposit-1
+          for one hundred, then withdraw-1 for thirty. Its current balance is seventy, and two
+          events explain how that balance was reached.
+        hold: 0.75
+        visual_cues:
+          - id: ledger-deposit
+            phrase: The ledger records deposit-1 for one hundred
+            targets:
+              - ledger-rows-length-rows-map-event-event-key-event-delta-0-event-delta-balan
+            color: cyan
+            linger: 0.6
+          - id: ledger-withdraw
+            phrase: then withdraw-1 for thirty
+            targets:
+              - ledger-rows-length-rows-map-event-event-key-event-delta-0-event-delta-balan
+            color: yellow
+            linger: 0.6
+          - id: ledger-beat-1-focus-1
+            phrase: Its current balance is seventy, and two events explain how that balance was reached
+            targets:
+              - ledger-current-balance
+            color: green
+            linger: 0.6
+      - say: When deposit-1 arrives again with the same account and amount, the ledger returns that
+          request's original result. The balance stays seventy and the event count stays two. A
+          different payload under the same key fails, because one key names one effect.
+        hold: 0.8
+        visual_cues:
+          - id: ledger-beat-2-focus-2
+            phrase: the ledger returns that request's original result
+            targets:
+              - ledger-this-call-returns
+            color: yellow
+            linger: 0.6
+          - id: ledger-preserved-balance
+            phrase: The balance stays seventy and the event count stays two
+            targets:
+              - ledger-current-balance
+              - ledger-rows-length-rows-map-event-event-key-event-delta-0-event-delta-balan
+            color: green
+            linger: 0.6
+          - id: ledger-beat-2-focus-1
+            phrase: A different payload under the same key fails, because one key names one effect
+            targets:
+              - ledger-conflict-comparison
+              - ledger-this-call-returns
+            color: pink
+            linger: 0.6
+  - id: ledger-lifetime
+    title: Preserve the original result through later balance changes
+    visual: Retainoriginaldeposit100receiptandcurrent70sidebyside.
+      Separatesuppliedrejecteddebitkeyshowsnoresultrecord,depositpermitslaterreuseunderthissuccess-onlypolicy.
+      Crashbetweenbalance/event/resulthighlightsactualvolatilethree-stepgap;globalkeyregistryseparatefromaccountlocks.
+    beats:
+      - say: The actual ledger stores only successful operations. An insufficient-credit rejection leaves no
+          cached result for that key, so the same requested debit can succeed after a later deposit
+          under this policy. A successful replay returns its original balance-after result, even
+          after other requests changed the current account balance. Reusing the key for another
+          account or delta fails.
+        hold: 0.6
+        visual_cues:
+          - id: ci-ledger-lifetime-0-build
+            phrase: The actual ledger stores only successful operations. An insufficient-credit rejection leaves
+              no cached result for that key, so the same requested debit can succeed after a later
+              deposit under this policy. A successful replay returns its original balance-after
+              result, even after other requests changed the current account balance. Reusing the key
+              for another account or delta fails.
+            targets:
+              - ci-ledger-lifetime-trace
+            color: cyan
+            linger: 0.3
+          - id: ci-ledger-lifetime-replay
+            phrase: A successful replay returns its original balance-after result, even after other requests
+              changed the current account balance.
+            targets:
+              - ci-ledger-lifetime-trace
+            color: cyan
+            linger: 0.3
+      - say: Require nonempty string keys and accounts and an actual integer delta. In Python, Boolean true
+          and integer one compare equal as dictionary keys; arbitrary truthy identifiers can merge
+          distinct requests. The fixture’s string-only identity rule avoids that particular
+          collision, and Boolean deltas are rejected.
+        hold: 0.6
+        visual_cues:
+          - id: ci-ledger-lifetime-1-build
+            phrase: Require nonempty string keys and accounts and an actual integer delta. In Python, Boolean
+              true and integer one compare equal as dictionary keys; arbitrary truthy identifiers
+              can merge distinct requests. The fixture’s string-only identity rule avoids that
+              particular collision, and Boolean deltas are rejected.
+            targets:
+              - ci-ledger-lifetime-trace
+            color: cyan
+            linger: 0.3
+      - say: Balance, event and cached result are updated sequentially in volatile memory. This is not
+          crash-safe or thread-safe by itself. A durable service needs one atomic transaction, a
+          uniqueness rule and a retention policy for keys. A transfer spans debit, credit and
+          deduplication. Even disjoint account pairs can reuse one request key, so account locks
+          alone do not synchronize the global key registry. External effects need their own recovery
+          protocol.
+        hold: 0.6
+        visual_cues:
+          - id: ci-ledger-lifetime-2-build
+            phrase: Balance, event and cached result are updated sequentially in volatile memory. This is not
+              crash-safe or thread-safe by itself. A durable service needs one atomic transaction, a
+              uniqueness rule and a retention policy for keys. A transfer spans debit, credit and
+              deduplication. Even disjoint account pairs can reuse one request key, so account locks
+              alone do not synchronize the global key registry. External effects need their own
+              recovery protocol.
+            targets:
+              - ci-ledger-lifetime-trace
+            color: cyan
+            linger: 0.3
+  - id: lock-order
+    title: Unwind each acquired lock when a later lookup fails
+    visual: SorteduniqueaccountIDsfromB,A,AbecomeA,B.
+      EnteractiveExitStackbeforeA,recordAthenattemptunknownlater;unwindAonKeyErrorandshowunlockedactualstate.
+      Separatelydrawtwooppositecallersusingonesharedglobalorder;no fairness/crashguarantee.
+    beats:
+      - say: "For cooperating account operations, acquire shared account locks in one global sorted order to
+          prevent circular lock-order waiting. Deduplicate IDs before acquiring them: taking the
+          same non-reentrant lock twice can deadlock a single caller. Use a fixed shared registry so
+          the same account really means the same lock."
+        hold: 0.6
+        visual_cues:
+          - id: ci-lock-order-0-build
+            phrase: "For cooperating account operations, acquire shared account locks in one global sorted order
+              to prevent circular lock-order waiting. Deduplicate IDs before acquiring them: taking
+              the same non-reentrant lock twice can deadlock a single caller. Use a fixed shared
+              registry so the same account really means the same lock."
+            targets:
+              - ci-lock-order-trace
+            color: cyan
+            linger: 0.3
+      - say: Enter an ExitStack before acquiring the first lock, and register each entered lock in that
+          active context. The actual helper acquires the known account, then a later unknown lookup
+          raises KeyError. Unwinding releases the earlier lock. Returning a stack only after all
+          acquisitions would not reach the caller on that failure path.
+        hold: 0.6
+        visual_cues:
+          - id: ci-lock-order-1-build
+            phrase: Enter an ExitStack before acquiring the first lock, and register each entered lock in that
+              active context. The actual helper acquires the known account, then a later unknown
+              lookup raises KeyError. Unwinding releases the earlier lock. Returning a stack only
+              after all acquisitions would not reach the caller on that failure path.
+            targets:
+              - ci-lock-order-trace
+            color: cyan
+            linger: 0.3
+          - id: ci-lock-order-unwind
+            phrase: Unwinding releases the earlier lock.
+            targets:
+              - ci-lock-order-trace
+            color: cyan
+            linger: 0.3
+      - say: Sorted order solves cooperating acquisition cycles; the active context solves
+          partial-acquisition cleanup. Neither establishes fairness, crash recovery or transactional
+          balance updates. Keep the request-key registry’s synchronization explicit alongside
+          account locking rather than inferring it from the account order.
+        hold: 0.6
+        visual_cues:
+          - id: ci-lock-order-2-build
+            phrase: Sorted order solves cooperating acquisition cycles; the active context solves
+              partial-acquisition cleanup. Neither establishes fairness, crash recovery or
+              transactional balance updates. Keep the request-key registry’s synchronization
+              explicit alongside account locking rather than inferring it from the account order.
+            targets:
+              - ci-lock-order-trace
+            color: cyan
+            linger: 0.3
+  - id: parser-state
+    title: A malformed header closes the current attachment target
+    visual: ReadactualLOGSlinebylinewithpersistentcurrentrecordpointer.
+      Spaceprefixappendstail,firsttwo|splitheaderremaining|staysmessage;malformedlineclearsarrowandlaterindentedlinehasnoowner.
+      Splitoneheaderatmanybytepositionsinseparateproposedbufferdiagramwithoutclaimingimplementedstreamparser.
+    beats:
+      - say: The multiline parser keeps a current accepted record. A line beginning with a space extends
+          that record’s message after trimming the continuation; with no current record it is
+          ignored. A nonindented header splits at only the first two vertical bars. Timestamp and
+          level must be nonempty strings, while extra bars remain in the message.
+        hold: 0.6
+        visual_cues:
+          - id: ci-parser-state-0-build
+            phrase: The multiline parser keeps a current accepted record. A line beginning with a space extends
+              that record’s message after trimming the continuation; with no current record it is
+              ignored. A nonindented header splits at only the first two vertical bars. Timestamp
+              and level must be nonempty strings, while extra bars remain in the message.
+            targets:
+              - ci-parser-state-trace
+            color: cyan
+            linger: 0.3
+      - say: A malformed nonindented line clears the current record, so a later continuation cannot attach
+          across that rejected header. The final accepted line needs no flush because records are
+          appended when headers arrive. This grammar does not validate timestamp syntax or level
+          vocabulary. Add those checks when they belong to the caller’s contract.
+        hold: 0.6
+        visual_cues:
+          - id: ci-parser-state-1-build
+            phrase: A malformed nonindented line clears the current record, so a later continuation cannot
+              attach across that rejected header. The final accepted line needs no flush because
+              records are appended when headers arrive. This grammar does not validate timestamp
+              syntax or level vocabulary. Add those checks when they belong to the caller’s
+              contract.
+            targets:
+              - ci-parser-state-trace
+            color: cyan
+            linger: 0.3
+          - id: ci-parser-state-clear
+            phrase: A malformed nonindented line clears the current record, so a later continuation cannot
+              attach across that rejected header.
+            targets:
+              - ci-parser-state-trace
+            color: cyan
+            linger: 0.3
+      - say: The actual parser holds the whole input and output in memory. Repeated message concatenation
+          can become quadratic for many continuations. A streaming extension should retain partial
+          lines, collect message fragments in a list, join once, bound record size and flush an
+          unterminated final line once. Test every split in a short fixture; splitting an input
+          string is not itself proof of chunk-safe parsing.
+        hold: 0.6
+        visual_cues:
+          - id: ci-parser-state-2-build
+            phrase: The actual parser holds the whole input and output in memory. Repeated message concatenation
+              can become quadratic for many continuations. A streaming extension should retain
+              partial lines, collect message fragments in a list, join once, bound record size and
+              flush an unterminated final line once. Test every split in a short fixture; splitting
+              an input string is not itself proof of chunk-safe parsing.
+            targets:
+              - ci-parser-state-trace
+            color: cyan
+            linger: 0.3
+  - id: concurrency
+    title: Choose workers for the work they own
+    visual: Network waits flow to threads or async tasks; pure-Python CPU work flows to processes or
+      isolated interpreters, with results returned to the parent.
+    beats:
+      - say: The final question is often, “Can you make it faster with threads?” First locate the time.
+          Threads can overlap network waits. An async client can do the same on an event loop, while
+          a blocking call holds that loop. Pure-Python CPU work needs a different parallelism plan
+          on a GIL-enabled interpreter.
+        hold: 0.8
+        visual_cues:
+          - id: concurrency-network-waits
+            phrase: Threads can overlap network waits
+            targets:
+              - concurrency-tools-network-wait
+            color: cyan
+            linger: 0.6
+          - id: concurrency-beat-1-focus-1
+            phrase: Pure-Python CPU work needs a different parallelism plan on a GIL-enabled interpreter
+            targets:
+              - concurrency-tools-python-compute
+            color: green
+            linger: 0.6
+      - say: Choose the tool from the work and keep shared state explicit. Processes and isolated
+          interpreters exchange serialized inputs and results, so the parent must merge returned
+          records. You now have a way to extend a small correct baseline while preserving its
+          ordering, expiry, retry, and ownership rules.
+        hold: 0.8
+        visual_cues:
+          - id: concurrency-beat-2-focus-1
+            phrase: Processes and isolated interpreters exchange serialized inputs and results
+            targets:
+              - concurrency-tools-python-compute
+              - concurrency-serialized-input
+              - concurrency-worker-result
+              - concurrency-serialized-result
+            color: cyan
+            linger: 0.6
+          - id: concurrency-parent-merge
+            phrase: so the parent must merge returned records
+            targets:
+              - concurrency-parent-record
+            color: green
+            linger: 0.6
+  - id: worker-runtime
+    title: Match the runtime to waiting and computation
+    visual: Actualpicklelambda rejectionandparent/workerlistcopypreserveidentities. Replay
+      actualasyncstartA/startB/resumeA/resumeBversusblockingAstart/resume beforeB.
+      RuntimebadgeGILenabled/free-threadedactualprocessdistinguishesoptionalparallelismfromlockcontract.
+    beats:
+      - say: On a GIL-enabled CPython interpreter, one thread executes Python bytecode at a time, while
+          blocking I O generally allows waiting to overlap. Free-threaded builds arrived in three
+          point thirteen and became officially supported but optional in three point fourteen. An
+          incompatible extension can re-enable the GIL. Check the running process; free threading
+          still requires synchronization of shared compound state transitions.
+        hold: 0.6
+        visual_cues:
+          - id: ci-worker-runtime-0-build
+            phrase: On a GIL-enabled CPython interpreter, one thread executes Python bytecode at a time, while
+              blocking I O generally allows waiting to overlap. Free-threaded builds arrived in
+              three point thirteen and became officially supported but optional in three point
+              fourteen. An incompatible extension can re-enable the GIL. Check the running process;
+              free threading still requires synchronization of shared compound state transitions.
+            targets:
+              - ci-worker-runtime-trace
+            color: cyan
+            linger: 0.3
+      - say: Python three point fourteen’s InterpreterPoolExecutor uses isolated interpreters, each with its
+          own GIL. Mutable parent lists are not automatically shared. Interpreter and process pools
+          serialize callables, inputs and results. The actual pickle round trip rejects a lambda and
+          shows a worker copy changing while the parent list stays unchanged. Use importable
+          module-level functions, return records and merge in the parent.
+        hold: 0.6
+        visual_cues:
+          - id: ci-worker-runtime-1-build
+            phrase: Python three point fourteen’s InterpreterPoolExecutor uses isolated interpreters, each with
+              its own GIL. Mutable parent lists are not automatically shared. Interpreter and
+              process pools serialize callables, inputs and results. The actual pickle round trip
+              rejects a lambda and shows a worker copy changing while the parent list stays
+              unchanged. Use importable module-level functions, return records and merge in the
+              parent.
+            targets:
+              - ci-worker-runtime-trace
+            color: cyan
+            linger: 0.3
+      - say: Portable process startup belongs under the main guard; Python three point fourteen moved its
+          default process start method away from fork. Measure startup, serialization, computation
+          and merge costs before claiming speedup. The actual asyncio exercise interleaves A start,
+          B start, A resume, B resume through sleep zero. A blocking sleep does not yield that event
+          loop. Awaiting an already completed awaitable need not yield either.
+        hold: 0.6
+        visual_cues:
+          - id: ci-worker-runtime-2-build
+            phrase: Portable process startup belongs under the main guard; Python three point fourteen moved its
+              default process start method away from fork. Measure startup, serialization,
+              computation and merge costs before claiming speedup. The actual asyncio exercise
+              interleaves A start, B start, A resume, B resume through sleep zero. A blocking sleep
+              does not yield that event loop. Awaiting an already completed awaitable need not yield
+              either.
+            targets:
+              - ci-worker-runtime-trace
+            color: cyan
+            linger: 0.3
+          - id: ci-worker-runtime-blocking
+            phrase: A blocking sleep does not yield that event loop.
+            targets:
+              - ci-worker-runtime-trace
+            color: yellow
+            linger: 0.3
+  - id: fresh-worker-plan
+    title: Predict the mixed workload on one shared clock
+    visual: TwoexplicitjobsA/B eachwait3thenCPU1;separate serialruler8andtwoI/Olane/singleCPU5
+      holdunknownendbeforeanswer.
+      Buildwaits0–3thenCPU3–4/4–5,retainserializedresultIDs+parentmergeasstipulatedzerotime.
+      EndexplicitunspecifiedrealoverheadsandcounterexamplethreadCPUonly.
+    beats:
+      - say: Choose a plan for a fresh supplied workload. Two independent jobs each wait three seconds for I
+          O, then need one second of pure-Python computation. Assume one GIL-enabled CPU execution
+          lane, both waits can overlap, and zero startup, transfer and merge cost for this ideal
+          worksheet. Predict serial completion time and completion time when the waits overlap.
+          Pause.
+        hold: 1.5
+        visual_cues:
+          - id: ci-fresh-worker-plan-0-build
+            phrase: Choose a plan for a fresh supplied workload. Two independent jobs each wait three seconds
+              for I O, then need one second of pure-Python computation. Assume one GIL-enabled CPU
+              execution lane, both waits can overlap, and zero startup, transfer and merge cost for
+              this ideal worksheet. Predict serial completion time and completion time when the
+              waits overlap. Pause.
+            targets:
+              - ci-fresh-worker-plan-trace
+            color: cyan
+            linger: 0.3
+      - say: "Serial execution takes eight seconds: three plus one for each job. Start both waits together
+          and they finish at three seconds. One CPU lane then computes A from three to four and B
+          from four to five, so the ideal completion time is five seconds. Threads did not run the
+          Python computation simultaneously; they overlapped waiting. Real scheduling and transfer
+          costs need measurement."
+        hold: 0.6
+        visual_cues:
+          - id: ci-fresh-worker-plan-1-build
+            phrase: "Serial execution takes eight seconds: three plus one for each job. Start both waits
+              together and they finish at three seconds. One CPU lane then computes A from three to
+              four and B from four to five, so the ideal completion time is five seconds. Threads
+              did not run the Python computation simultaneously; they overlapped waiting. Real
+              scheduling and transfer costs need measurement."
+            targets:
+              - ci-fresh-worker-plan-trace
+            color: cyan
+            linger: 0.3
+          - id: ci-fresh-worker-plan-serial
+            phrase: "Serial execution takes eight seconds: three plus one for each job."
+            targets:
+              - ci-fresh-worker-plan-trace
+            color: cyan
+            linger: 0.3
+          - id: ci-fresh-worker-plan-overlap
+            phrase: One CPU lane then computes A from three to four and B from four to five, so the ideal
+              completion time is five seconds.
+            targets:
+              - ci-fresh-worker-plan-trace
+            color: cyan
+            linger: 0.3
+      - say: "Return each job’s result with its identity and merge in the parent. Preserve one claim, one consistent deadline, an explicit retry policy and one key per successful effect as the requirements grow. Before claiming a new threaded, persistent or streaming version, test that added boundary. The local assertions establish these fixtures, not a deployed crawler, a durable ledger or executor performance. The system-design interview next puts that state ownership under a product promise, giving each service boundary a capacity, a decision owner, a receipt and a recovery path."
+        hold: 0.6
+        visual_cues:
+          - id: ci-fresh-worker-plan-2-build
+            phrase: Return each job’s result with its identity and merge in the parent. Preserve one claim, one
+              consistent deadline, an explicit retry policy and one key per successful effect as the
+              requirements grow. Before claiming a new threaded, persistent or streaming version,
+              test that added boundary. The local assertions establish these fixtures, not a
+              deployed crawler, a durable ledger or executor performance.
+            targets:
+              - ci-fresh-worker-plan-trace
+            color: cyan
+            linger: 0.3

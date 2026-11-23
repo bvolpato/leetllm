@@ -1,0 +1,449 @@
+[
+  {
+    "id": "c01",
+    "title": "Two routes to the beacon",
+    "sourceChapters": [
+      "c01"
+    ],
+    "beats": [
+      {
+        "id": "c01-b01",
+        "say": "A rover needs to reach the beacon across this canyon. The gold route takes four moves. The blue route takes six. Both reach the same destination, but the gold route runs right along the cliff. Which route is better depends on what can happen along the way.",
+        "hold": 0.8
+      },
+      {
+        "id": "c01-b02",
+        "say": "Let us make the world small enough to understand completely. There are three rows and four columns. The rover starts at row one, column zero. The beacon is at row two, column three. The other three bottom cells are cliff. Up, Right, Down, and Left are the four available actions.",
+        "hold": 0.8
+      },
+      {
+        "id": "c01-b03",
+        "say": "Every ordinary move costs one point. Reaching the beacon earns twenty and ends the trip. Falling into the cliff costs fifty and also ends the trip. A move into an outer wall leaves the rover in place and still costs one. These rules are the environment we will use throughout the lesson.",
+        "hold": 0.8
+      },
+      {
+        "id": "c01-b04",
+        "say": "On firm ground the rover moves exactly where it chooses. Follow the gold route: right, right, right, down. It pays three one-point costs and receives the beacon reward on its fourth move. The blue route pays five costs before receiving the same reward. For now, the shorter route wins.",
+        "hold": 0.8
+      },
+      {
+        "id": "c01-b05",
+        "say": "Reinforcement learning is about learning choices from their consequences. The rover receives no label saying which move is correct. It tries actions, observes rewards and new states, and improves its policy: its rule for choosing an action in each state. We will first solve this tiny world with a map, then learn to navigate it from experience.",
+        "hold": 0.8
+      }
+    ]
+  },
+  {
+    "id": "c02",
+    "title": "Rewards become a return",
+    "sourceChapters": [
+      "c02"
+    ],
+    "beats": [
+      {
+        "id": "c02-b01",
+        "say": "A reward describes one transition. A return combines rewards across a trip. The shortcut gives minus one, minus one, minus one, then twenty. If we simply add those rewards, its return is seventeen. But we often give later rewards less weight, using a discount factor called gamma.",
+        "hold": 0.8
+      },
+      {
+        "id": "c02-b02",
+        "say": "Set gamma to point nine. The first reward counts in full. The next counts at point nine, then point eight one, then point seven two nine. The beacon reward is multiplied by point seven two nine because three earlier rewards separate it from the first move. Add the four contributions and we get eleven point eight seven.",
+        "hold": 0.8
+      },
+      {
+        "id": "c02-b03",
+        "say": "The ridge route has five ordinary moves before the beacon. Its discounted return is seven point seven one. That is about four point one six below the shortcut. These are values of two particular trips on firm ground. They are not yet a way to choose actions when the environment is unpredictable.",
+        "hold": 0.8
+      },
+      {
+        "id": "c02-b04",
+        "say": "Discounting lets us compare a reward now with one later. It also makes a distant reward matter less than an equally large nearby reward. Gamma is part of the problem we are asking the rover to solve. A lower gamma changes its priorities, even when the physical map and reward amounts stay the same.",
+        "hold": 0.8
+      },
+      {
+        "id": "c02-b05",
+        "say": "An episode is a complete trip, from the starting state until the beacon or cliff ends it. At each step we can calculate a new reward-to-go, starting with the very next reward. Working backward is convenient: start with the final reward, then repeatedly add the current reward to point nine times the return already computed.",
+        "hold": 0.8
+      }
+    ]
+  },
+  {
+    "id": "c03",
+    "title": "The state, the action, and the wind",
+    "sourceChapters": [
+      "c03"
+    ],
+    "beats": [
+      {
+        "id": "c03-b01",
+        "say": "Now introduce wind. When the rover chooses Right, the intended move happens eighty percent of the time. Ten percent of the time it moves in one perpendicular direction, and ten percent in the other. At this cliff-edge cell, those alternatives are Up and Down. Choosing Right no longer determines the landing.",
+        "hold": 0.8
+      },
+      {
+        "id": "c03-b02",
+        "say": "Trace the three branches. Right lands one cell east and costs one. Up lands on the ridge and costs one. Down falls into the cliff and costs fifty. The expected immediate reward is point eight times minus one, plus point one times minus one, plus point one times minus fifty: minus five point nine.",
+        "hold": 0.8
+      },
+      {
+        "id": "c03-b03",
+        "say": "The rover chooses the action. The environment supplies the next state and reward. A Markov decision process collects these ingredients: states, actions, transition probabilities, rewards, and a discount factor. Our state is the grid coordinate. Our transition model is the rule for intended moves, slips, walls, and terminal cells.",
+        "hold": 0.8
+      },
+      {
+        "id": "c03-b04",
+        "say": "The Markov part means the current state contains what we need to predict what happens next after an action. If wind has a persistent direction, coordinates alone are no longer enough. Two visits to the same square can behave differently. Adding the current wind direction to the state lets the policy distinguish them.",
+        "hold": 0.8
+      },
+      {
+        "id": "c03-b05",
+        "say": "A policy can choose a fixed action in each state or assign probabilities to the actions. The policy and the environment have separate sources of randomness. The rover might deliberately explore a different action; wind can then change where that chosen action lands. Keeping those two mechanisms separate will explain the difference between Q-learning and SARSA.",
+        "hold": 0.8
+      }
+    ]
+  },
+  {
+    "id": "c04",
+    "title": "The future fits in one number",
+    "sourceChapters": [
+      "c04"
+    ],
+    "beats": [
+      {
+        "id": "c04-b01",
+        "say": "Return to firm ground for a moment. The square above the beacon is one move from success. Choosing Down earns twenty immediately. Nothing follows the terminal landing, so there is no continuation reward to add. That action is worth twenty.",
+        "hold": 0.8
+      },
+      {
+        "id": "c04-b02",
+        "say": "Move one square left. Right costs one and reaches the square we just valued at twenty. Its value is minus one plus point nine times twenty: seventeen. Move left again, and the same calculation gives fourteen point three. One more move left gives eleven point eight seven at the start.",
+        "hold": 0.8
+      },
+      {
+        "id": "c04-b03",
+        "say": "This is the Bellman idea. We can summarize the remaining trip with the value of the next state. An action value, Q, is the expected immediate reward plus discounted continuation. A state value, V, is the expected return from that state when we keep following a particular policy.",
+        "hold": 0.8
+      },
+      {
+        "id": "c04-b04",
+        "say": "For a fixed stochastic policy, average the action values using the probabilities with which that policy chooses each action. To seek an optimal policy, take the largest action value instead. The equation looks recursive because every state borrows information from its successors. The beacon and cliff anchor the calculation with their immediate terminal rewards.",
+        "hold": 0.8
+      },
+      {
+        "id": "c04-b05",
+        "say": "In wind, an action has several possible successors. Compute reward plus discounted continuation on each branch, then take the probability-weighted average. Averaging rewards alone misses what happens after the landing. Averaging continuation alone misses the cliff penalty. A Bellman backup combines both, once for each possible outcome.",
+        "hold": 0.8
+      }
+    ]
+  },
+  {
+    "id": "c05",
+    "title": "Watch value move backward",
+    "sourceChapters": [
+      "c05"
+    ],
+    "beats": [
+      {
+        "id": "c05-b01",
+        "say": "Where do the neighboring values come from? Start every value at zero. On the first sweep, each action looks only one move ahead. The square above the beacon discovers twenty. Most other squares see only the one-point cost. We write these new values into a fresh table.",
+        "hold": 0.8
+      },
+      {
+        "id": "c05-b02",
+        "say": "On the second sweep, read the first table. The value twenty now reaches the square to its left as seventeen. On the third sweep, seventeen becomes fourteen point three one square farther left. On the fourth sweep, the start discovers eleven point eight seven. Each sweep extends the planning horizon by one move.",
+        "hold": 0.8
+      },
+      {
+        "id": "c05-b03",
+        "say": "Watch the information travel backward while the rover would travel forward. The goal does not send a physical signal across the canyon. We are repeatedly applying the same arithmetic to a table. Reading the previous sweep throughout makes it easy to see exactly how far the reward has propagated.",
+        "hold": 0.8
+      },
+      {
+        "id": "c05-b04",
+        "say": "Value iteration repeats these optimality backups until the values settle. Then each square chooses the action with the greatest expected reward plus continuation. On this deterministic map, the start points Right. In the windy map, the three cells above the cliff point Up. The same algorithm changes its route when the transition model changes. With gamma below one, an optimality backup shrinks the largest difference between two value tables by a factor no greater than gamma. Repeating the backups brings the estimates toward a unique fixed point.",
+        "hold": 0.8
+      },
+      {
+        "id": "c05-b05",
+        "say": "Policy iteration separates two jobs. First evaluate a fixed policy: compute its expected returns while keeping its choices fixed. Then improve the policy by choosing the best action using those values. Repeat evaluation and improvement. Value iteration blends the jobs into repeated maximizing backups; both can solve this small known model.",
+        "hold": 0.8
+      }
+    ]
+  },
+  {
+    "id": "c06",
+    "title": "Why the ridge wins in wind",
+    "sourceChapters": [
+      "c06"
+    ],
+    "beats": [
+      {
+        "id": "c06-b01",
+        "say": "Compare the action Right at the same cliff-edge cell in the two worlds. On firm ground it is worth fourteen point three. With wind, it can land right, up, or in the cliff. We must use the windy world’s continuation values, because future moves will be windy too.",
+        "hold": 0.8
+      },
+      {
+        "id": "c06-b02",
+        "say": "The right-hand square is now worth about nine point three four. The square above is worth about eight point four six. The cliff has zero continuation after its minus-fifty entry reward. Weight the three complete branches by eighty, ten, and ten percent. Right is worth about one point five nine.",
+        "hold": 0.8
+      },
+      {
+        "id": "c06-b03",
+        "say": "Up is worth about six point three one, so Up wins. Its perpendicular slips move left or right along the cliff edge; they do not move Down into the cliff. Once the rover reaches the top row, it heads across the ridge and descends at the far end. The extra distance buys protection from the dangerous landing.",
+        "hold": 0.8
+      },
+      {
+        "id": "c06-b04",
+        "say": "We can also estimate a policy’s value by running complete trips and averaging their returns. In the article’s seeded simulation of five thousand windy trips, the cliff-edge policy falls about twenty-six percent of the time and averages minus four point nine nine. The ridge policy averages four point three one, close to its model-based value of four point two eight.",
+        "hold": 0.8
+      },
+      {
+        "id": "c06-b05",
+        "say": "The ridge policy has no cliff falls in this simulation for a structural reason. Every action it chooses beside the cliff is Up, whose slips are horizontal. At the far right, moving Down can slip onto the edge, but the policy there turns Up again. Under these particular wind rules, none of its chosen actions can enter a cliff cell. This is something we can explain from the model, not just infer from a lucky run.",
+        "hold": 0.8
+      }
+    ]
+  },
+  {
+    "id": "c07",
+    "title": "Learn from a single transition",
+    "sourceChapters": [
+      "c07"
+    ],
+    "beats": [
+      {
+        "id": "c07-b01",
+        "say": "Suppose we hide the transition probabilities. The rover can still observe a transition: it was at this cell, chose Right, paid one point, and landed one cell east. That experience gives us one sample of what the action can do. Q-learning turns that sample into an update to its action-value table.",
+        "hold": 0.8
+      },
+      {
+        "id": "c07-b02",
+        "say": "Let the best current action value at the next cell be seventeen. The sample target is minus one plus point nine times seventeen, or fourteen point three. The current estimate for our original action is ten. The difference between target and estimate is four point three, the temporal-difference error.",
+        "hold": 0.8
+      },
+      {
+        "id": "c07-b03",
+        "say": "With a learning rate of one half, move halfway toward the target. Ten plus half of four point three is twelve point one five. We changed one table entry using one observed reward and an estimate of the future. A later transition may move that estimate again.",
+        "hold": 0.8
+      },
+      {
+        "id": "c07-b04",
+        "say": "Q-learning uses the greatest next-state action value in its target, even if the rover will actually explore a different next action. It learns about greedy continuation while collecting experience with an exploratory policy. That distinction makes it an off-policy method.",
+        "hold": 0.8
+      },
+      {
+        "id": "c07-b05",
+        "say": "A sample backup and a model-based Bellman backup share the same structure. Both connect a present action to reward plus continuation. The model-based version averages over all outcomes using their probabilities. Q-learning uses the particular outcome it observed. With repeated visits and appropriate learning rates, those samples can teach the same action values.",
+        "hold": 0.8
+      }
+    ]
+  },
+  {
+    "id": "c08",
+    "title": "Which continuation are we learning?",
+    "sourceChapters": [
+      "c08"
+    ],
+    "beats": [
+      {
+        "id": "c08-b01",
+        "say": "SARSA changes one ingredient. After arriving at the next state, sample the next action from the behavior policy and use that action’s value in the target. The name records the sequence: state, action, reward, next state, next action. The selected next action must also be the one the rover actually executes.",
+        "hold": 0.8
+      },
+      {
+        "id": "c08-b02",
+        "say": "Suppose the best next action is Right, with value seventeen, but exploration selects Up, with value nine. Q-learning uses fourteen point three as its target. SARSA uses minus one plus point nine times nine: seven point one. The two methods are learning different continuations from the same first transition.",
+        "hold": 0.8
+      },
+      {
+        "id": "c08-b03",
+        "say": "This difference matters even on firm ground. If the greedy action is Right, twenty-percent epsilon-greedy exploration over four actions chooses Down on five percent of all decisions. Within the exploratory decisions alone, each of the four actions has a one-in-four chance. SARSA’s target incorporates that exploratory behavior. Taking a longer route away from the cliff can improve the return of the policy it actually follows during training.",
+        "hold": 0.8
+      },
+      {
+        "id": "c08-b04",
+        "say": "Monte Carlo evaluation waits for a complete trip and uses its observed return. Temporal-difference learning can update after one transition by bootstrapping from an estimate. Neither name tells us whether the next action is greedy or sampled. That is the separate distinction between the Q-learning and SARSA targets we just compared.",
+        "hold": 0.8
+      },
+      {
+        "id": "c08-b05",
+        "say": "At a true terminal landing, continuation is zero. A collector stopping after a fixed number of steps is different: the underlying task may still continue. If the last reward is minus one and the next-state estimate is seventeen, the truncated target remains fourteen point three. Dropping it to minus one teaches the wrong value. If a deadline really is part of the task, include remaining time in the state and end the task at that deadline.",
+        "hold": 0.8
+      }
+    ]
+  },
+  {
+    "id": "c09",
+    "title": "Exploration and the bonus trap",
+    "sourceChapters": [
+      "c09"
+    ],
+    "beats": [
+      {
+        "id": "c09-b01",
+        "say": "How does the rover discover a route it has never tried? Epsilon-greedy exploration usually chooses the best estimated action, but sometimes samples from all four actions. With epsilon point two and a unique greedy action, that action is chosen eighty-five percent of the time. Each other action is chosen five percent of the time.",
+        "hold": 0.8
+      },
+      {
+        "id": "c09-b02",
+        "say": "Exploration changes what the rover gets to learn. A table full of confident numbers is unhelpful if the rover never visited the ridge. We can gradually reduce exploration as estimates improve, while still giving useful state-action pairs repeated opportunities. Evaluating with exploration switched off measures a different policy from the one used during training.",
+        "hold": 0.8
+      },
+      {
+        "id": "c09-b03",
+        "say": "Reward design changes what counts as success. Put an eight-point entry bonus on this ridge square. Entering it now earns seven after the ordinary move cost. Starting one cell left, a three-move trip to the beacon earns seven, minus one, twenty: a discounted return of twenty-two point three.",
+        "hold": 0.8
+      },
+      {
+        "id": "c09-b04",
+        "say": "But the rover can shuttle left and right, collecting seven, minus one, seven, minus one forever. Its discounted return is about thirty-two point one one, greater than finishing the task. The rover is optimizing exactly the score we gave it. The bonus accidentally made repeated collection more valuable than reaching the beacon.",
+        "hold": 0.8
+      },
+      {
+        "id": "c09-b05",
+        "say": "Potential-based shaping avoids this trap by paying for a discounted change in a state score. Add gamma times the next potential minus the current potential. Follow two moves. The first bonus contains gamma times the middle potential. The discounted second bonus contains minus gamma times that same middle potential. They cancel, leaving minus the starting potential plus gamma squared times the terminal potential. Longer trips cancel in the same way. With zero potential at every terminal state, the total adjustment is just minus the starting potential. All policies from the same start get the same adjustment, so their ranking is preserved.",
+        "hold": 0.8
+      }
+    ]
+  },
+  {
+    "id": "c10",
+    "title": "Change the odds of an action",
+    "sourceChapters": [
+      "c10"
+    ],
+    "beats": [
+      {
+        "id": "c10-b01",
+        "say": "This section builds on gradients: derivatives that tell us how changing a parameter changes a result. Instead of storing action values, we can directly parameterize action probabilities. Give Up, Right, Down, and Left four logits, meaning unnormalized scores. Softmax turns them into probabilities that sum to one. Increasing one logit increases that action’s probability relative to the others. This is the policy we will train.",
+        "hold": 0.8
+      },
+      {
+        "id": "c10-b02",
+        "say": "At this cell, begin with four equal probabilities. Suppose we sample Up. The gradient of its log probability is three quarters for Up and minus one quarter for each other action. A positive return multiplier raises the Up logit and lowers the others. A negative multiplier reverses the change.",
+        "hold": 0.8
+      },
+      {
+        "id": "c10-b03",
+        "say": "REINFORCE multiplies this direction by the return following the action. The reason is that the derivative of a trajectory’s probability equals its probability times the derivative of its log probability. This turns a derivative of expected return into an average we can estimate with sampled trips. Rewards received before an action cannot be affected by that action, so we can use reward-to-go.",
+        "hold": 0.8
+      },
+      {
+        "id": "c10-b04",
+        "say": "A baseline gives the return a useful reference point. If the return is twelve and the baseline is eight, the multiplier is four. The action did better than expected. When the baseline predicts the state value, this difference estimates the action’s advantage: its return relative to what the policy usually earns from that state. A good baseline removes a common level shared by the returns, reducing variation in the gradient samples. Subtracting a baseline that depends on the state but not the current sampled action leaves the expected gradient unchanged. The extra terms cancel because the action probabilities sum to one.",
+        "hold": 0.8
+      },
+      {
+        "id": "c10-b05",
+        "say": "The article checks this gradient numerically. For estimated action returns six, two, minus forty, and minus two, the equal-probability policy has expected return minus eight point five. Its exact softmax gradient is three point six two five, two point six two five, minus seven point eight seven five, and one point six two five. Finite differences agree: increasing Up helps most, while increasing Down hurts.",
+        "hold": 0.8
+      },
+      {
+        "id": "c10-b06",
+        "say": "For a full episode, keep the policy fixed while collecting the trip. Save the action probabilities, calculate reward-to-go backward, accumulate the gradient, and then update the parameters once. Use the baseline from earlier experience and update it afterward. For a discounted start-state objective, each contribution also carries gamma to the power of its step index. These details keep the sampled update aligned with the objective we derived.",
+        "hold": 0.8
+      }
+    ]
+  },
+  {
+    "id": "c11",
+    "title": "The same idea generates tokens",
+    "sourceChapters": [
+      "c11"
+    ],
+    "beats": [
+      {
+        "id": "c11-b01",
+        "say": "A language model also acts one step at a time. Its state is the prompt plus the text generated so far. Its action is the next token. Appending that token creates the next state. A verifier or reward model can score the completed response. We again need to connect a final result to many earlier choices.",
+        "hold": 0.8
+      },
+      {
+        "id": "c11-b02",
+        "say": "Consider the prompt, what is two plus three? A completion contains several token decisions before an answer verifier reports success or failure. The policy produces those token probabilities. A value model can estimate expected future return from each prefix, giving the policy a baseline for deciding which choices did better than expected.",
+        "hold": 0.8
+      },
+      {
+        "id": "c11-b03",
+        "say": "PPO compares each sampled token’s new probability with its old probability. If a positively advantaged token moves from probability point two to point two eight, the ratio is one point four. With an upper clip threshold of one point two, the clipped objective gets no extra credit for that further increase. Clipping limits the incentive; it does not impose a hard bound on the probability itself.",
+        "hold": 0.8
+      },
+      {
+        "id": "c11-b04",
+        "say": "In the InstructGPT setup, a separate penalty measures departure from a reference policy. This reference is different from the old policy used in the PPO ratio. One comparison helps control an optimization update; the other discourages drifting too far from a reference language model.",
+        "hold": 0.8
+      },
+      {
+        "id": "c11-b05",
+        "say": "GRPO compares completions sampled for the same prompt instead of training a separate value model. Scores zero, one, and two have mean one. Centering them gives minus one, zero, one. Dividing by the group’s standard deviation gives about minus one point two two five, zero, one point two two five. The original outcome-supervised version uses each completion’s weight in its token terms, together with a clipped ratio and a reference-policy penalty. The gridworld’s lesson survives: change action probabilities according to the consequences of sampled actions.",
+        "hold": 0.8
+      }
+    ]
+  },
+  {
+    "id": "c12",
+    "title": "What can old experience tell us?",
+    "sourceChapters": [
+      "c12"
+    ],
+    "beats": [
+      {
+        "id": "c12-b01",
+        "say": "Imagine we have saved many rover trips from an older behavior policy. We want to evaluate a new policy without sending the rover out again. Directly averaging the saved returns estimates the old policy. Importance sampling instead reweights each recorded trip by how likely the new policy would have been to take its actions.",
+        "hold": 0.8
+      },
+      {
+        "id": "c12-b02",
+        "say": "For one action, divide the new policy’s probability by the old policy’s probability. Multiply these ratios along the trip. The environment probabilities cancel because both policies operate in the same environment. Multiply the recorded return by that trajectory weight, then average over behavior-policy trips.",
+        "hold": 0.8
+      },
+      {
+        "id": "c12-b03",
+        "say": "Suppose the old policy chose each action with probability point two five, and the new policy gives each recorded action point eight five. The ratio is three point four per step. Over six steps, the product is about one thousand five hundred forty-four point eight. A rare trip can receive enormous weight and dominate the estimate.",
+        "hold": 0.8
+      },
+      {
+        "id": "c12-b04",
+        "say": "Normalizing weights can reduce some instability, at the cost of finite-sample bias. But no normalization can recover an action that was never tried. If the old policy assigns zero probability to Up while the new policy chooses Up, the data do not cover that part of the new policy. Collecting more trips from the same never-Up policy will still provide no samples of choosing Up.",
+        "hold": 0.8
+      },
+      {
+        "id": "c12-b05",
+        "say": "This is why action coverage belongs beside the return estimate. Ask which states and actions generated the evidence, not just how many episodes were logged. In our tiny world we can inspect the missing branch directly. In a larger task, collecting new experience or supplying a justified model is what can fill that gap.",
+        "hold": 0.8
+      }
+    ]
+  },
+  {
+    "id": "c13",
+    "title": "Change the world and predict the route",
+    "sourceChapters": [
+      "c13"
+    ],
+    "beats": [
+      {
+        "id": "c13-b01",
+        "say": "Return to the same map. On firm ground, the shortcut earns eleven point eight seven. In wind, the optimal policy first climbs to the ridge. The route changed because action values account for both likely landings and what happens afterward. We can now explain that choice, compute it from a model, or learn it from samples.",
+        "hold": 0.8
+      },
+      {
+        "id": "c13-b02",
+        "say": "Try changing just the cliff penalty from minus fifty to minus five, with wind and discount unchanged. Falling becomes less costly. Before looking at the table, consider whether the extra ridge distance is still worth paying. This is a change to the objective, so we must recompute the continuation values too.",
+        "hold": 3
+      },
+      {
+        "id": "c13-b03",
+        "say": "At the cliff-edge cell, Right is now worth about eight point eight seven and Up about seven point three three. Right wins. The environment is still windy, but the price of failure is different. A route is good relative to the transitions, rewards, and discount we specified, rather than being permanently good because of its shape.",
+        "hold": 0.8
+      },
+      {
+        "id": "c13-b04",
+        "say": "Three learning mechanisms now fit together. Dynamic programming uses a known model to average Bellman backups. Q-learning and SARSA update action values from sampled transitions, using different continuations. Policy gradients change the action probabilities themselves using sampled returns and baselines. Each connects a local choice to consequences beyond the next move.",
+        "hold": 0.8
+      },
+      {
+        "id": "c13-b05",
+        "say": "To test your understanding, keep the original minus-fifty cliff and change only gamma from point nine to point five. Recompute the values and explain which terms changed. Up still beats Right at this edge cell: about minus one point two three versus minus five point five eight. The immediate cliff penalty still matters, while the distant beacon matters less. Understanding the mechanism lets us predict how a new task changes the policy. The next lesson, Validation and Leakage, turns to testing what a model has learned. We will separate training choices from evaluation data so that a good score reflects useful generalization.",
+        "hold": 0.8
+      }
+    ]
+  }
+]

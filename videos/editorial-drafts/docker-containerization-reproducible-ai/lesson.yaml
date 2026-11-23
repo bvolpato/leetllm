@@ -1,0 +1,1362 @@
+version: 1
+id: docker-containerization-reproducible-ai
+title: Package and Prove a Reproducible Runtime
+source: foundations/docker-containerization-reproducible-ai/content.md
+voice: en-US-AndrewNeural
+rate: +0%
+sources:
+  - title: Docker build context
+    url: https://docs.docker.com/build/concepts/context/
+  - title: Docker build cache
+    url: https://docs.docker.com/build/cache/
+  - title: Docker bind mounts
+    url: https://docs.docker.com/engine/storage/bind-mounts/
+  - title: Docker multi-stage builds
+    url: https://docs.docker.com/build/building/multi-stage/
+  - title: Docker build secrets
+    url: https://docs.docker.com/build/building/secrets/
+  - title: Docker Compose services reference
+    url: https://docs.docker.com/reference/compose-file/services/
+  - title: NVIDIA Container Toolkit sample workload
+    url: https://docs.nvidia.com/datacenter/cloud-native/container-toolkit/latest/sample-workload.html
+  - title: pip secure installs
+    url: https://pip.pypa.io/en/stable/topics/secure-installs/
+  - title: Docker multi-platform builds
+    url: https://docs.docker.com/build/building/multi-platform/
+  - title: Docker build checks
+    url: https://docs.docker.com/build/checks/
+scenes:
+  - id: opening
+    title: Will the same command run here?
+    visual: The copied project paths stay beside a waiting shell. The failure appears inside the terminal, then the Python runtime appears beneath the project.
+    beats:
+      - say: The files arrived. Will this scorer run on a second machine? The command still asks that
+          machine to supply something. Make a prediction before we press Enter.
+        hold: 1.15
+        visual_cues:
+          - id: opening-predict
+            phrase: before we press Enter
+            targets:
+              - opening-command
+            color: yellow
+            linger: 0.65
+      - say: Assume this command cannot find a usable Python interpreter on the second machine. Let’s give the scorer its own runtime. Then we’ll run an experiment with the
+          same image and an empty host folder.
+        hold: 0.65
+        visual_cues:
+          - id: opening-submit
+            phrase: Assume this command cannot find a usable Python interpreter on the second machine
+            targets:
+              - opening-error
+            color: pink
+            linger: 0.65
+          - id: opening-runtime
+            phrase: its own runtime
+            targets:
+              - opening-runtime
+            color: cyan
+            linger: 0.65
+  - id: runtime-contract
+    title: Name every input that reaches the process
+    visual: The same scorer read pointer visits a placement board:base Python/OS and code in the
+      image,fixture on an optional mount,credential absent. A client-only Docker installation stops
+      before the engine creates any container.
+    beats:
+      - say: The same command depends on more than source files. Place Python, operating-system libraries,
+          application code and installed packages in the image. Place run-specific data on a
+          declared input path. Give a credential only to a process that actually consumes it. A host
+          virtual environment is another host dependency, not a portable image contract.
+        visual_cues:
+          - id: dk-runtime-contract-beat0
+            phrase: The same command depends on more than source
+            targets:
+              - runtime-contract-construction
+            color: blue
+            linger: 0.5
+          - id: dk-runtime-contract-data
+            phrase: Place run-specific data on a declared input path.
+            targets:
+              - runtime-contract-construction
+            color: cyan
+            linger: 0.45
+          - id: dk-runtime-contract-secret
+            phrase: Give a credential only to a process that actually consumes it.
+            targets:
+              - runtime-contract-construction
+            color: cyan
+            linger: 0.45
+      - say: Docker’s command-line client asks a running engine to build or launch the image. Check that
+          Docker version reports both client and server. Docker Desktop’s Linux containers use a
+          Linux virtual machine; a Linux Engine uses its host kernel. Our scorer needs Linux
+          user-space files and a readable fixture, not a GPU or an API key.
+        visual_cues:
+          - id: dk-runtime-contract-beat1
+            phrase: Docker’s command-line client asks a running engine to
+            targets:
+              - runtime-contract-construction
+            color: blue
+            linger: 0.5
+          - id: dk-runtime-contract-server
+            phrase: Check that Docker version reports both client and server.
+            targets:
+              - runtime-contract-construction
+            color: cyan
+            linger: 0.45
+  - id: context
+    title: Choose which files cross the build boundary
+    visual: A concrete project tree feeds a build-context boundary. The three ignore patterns stop
+      synthetic local files; allowed source, fixture and requirements retain their identities. COPY
+      selects only the application inputs.
+    beats:
+      - say: "A Docker image stores runtime files and a default command. Docker builds it from a recipe, the
+          Dockerfile. The build context defines the project files the builder may read. BuildKit requests needed files as the build proceeds."
+        hold: 0.65
+        visual_cues:
+          - id: context-files
+            phrase: project files the builder may read
+            targets:
+              - project-files
+            color: blue
+            linger: 0.65
+      - say: Here are a local environment file, a virtual environment, and model weights. Docker ignore
+          rules keep those paths outside the context. Git ignore rules control a separate trip into
+          version history.
+        hold: 0.65
+        visual_cues:
+          - id: context-ignore
+            phrase: Docker ignore rules keep those paths outside the context
+            targets:
+              - ignored-paths
+              - dockerignore-rules
+            color: pink
+            linger: 0.65
+      - say: COPY selects the scorer, its small fixture, and the dependency contract from the remaining
+          files. The builder can read a file without putting that file into the final image.
+        hold: 0.65
+        motion_check:
+          region:
+            - 150
+            - 340
+            - 1600
+            - 560
+          minimumChangedFraction: 0.002
+        visual_cues:
+          - id: context-copy
+            phrase: COPY selects the scorer, its small fixture, and the dependency contract
+            targets:
+              - copy-inputs
+            color: green
+            linger: 0.65
+  - id: stages
+    title: Construct the runtime from explicit instructions
+    visual: Selected Dockerfile instructions build a Python environment in the builder. The environment
+      moves into an independently based runtime filesystem. The source, data, non-root user and
+      entrypoint become visible only as their instructions execute.
+    beats:
+      - say: The builder starts with Python and creates an isolated environment at this path. It installs
+          the requirements there. Our scorer uses Python’s standard library, so the requirements
+          file is empty today.
+        hold: 0.65
+        visual_cues:
+          - id: stages-install
+            phrase: installs the requirements there
+            targets:
+              - builder-install
+            color: blue
+            linger: 0.65
+      - say: The runtime stage starts from the same base and copies the environment into the same location.
+          We declare its search path again, then copy the scorer and evaluation rows. Future build
+          tools can stay in the builder.
+        hold: 0.65
+        motion_check:
+          region:
+            - 1260
+            - 330
+            - 500
+            - 590
+          minimumChangedFraction: 0.002
+        visual_cues:
+          - id: stages-environment
+            phrase: copies the environment into the same location
+            targets:
+              - runtime-environment
+            color: cyan
+            linger: 0.65
+          - id: stages-files
+            phrase: copy the scorer and evaluation rows
+            targets:
+              - runtime-files
+            color: green
+            linger: 0.65
+      - say: The user instruction selects an application account. The entrypoint records the command to run.
+          For a release, choose the target architecture and pin the base image by digest; a tag
+          names a version line that can receive updates.
+        hold: 0.65
+        visual_cues:
+          - id: stages-user
+            phrase: selects an application account
+            targets:
+              - runtime-user
+            color: yellow
+            linger: 0.65
+          - id: stages-command
+            phrase: records the command to run
+            targets:
+              - runtime-command
+            color: green
+            linger: 0.65
+  - id: stage-inheritance
+    title: A new FROM starts a new filesystem
+    visual: Builder and independently based runtime keep separate PATH variables,OS-library shelves and
+      file inventories. Only /opt/venv crosses COPY;the missing runtime library remains visibly
+      absent until explicitly supplied.
+    beats:
+      - say: Each FROM starts a separate stage. Our runtime starts from the Python base again, rather than
+          FROM builder. It therefore needs its own environment settings. Copying slash opt slash
+          venv moves those files; it does not copy the builder’s PATH variable, compiler or every
+          operating-system library. A runtime declared FROM builder inherits that stage’s filesystem
+          and environment settings. Restarting from the original base does not inherit those builder
+          additions.
+        visual_cues:
+          - id: dk-stage-inheritance-beat0
+            phrase: Each FROM starts a separate stage. Our runtime
+            targets:
+              - stage-inheritance-construction
+            color: blue
+            linger: 0.5
+          - id: dk-stage-inheritance-copy
+            phrase: it does not copy the builder’s PATH variable, compiler or every operating-system library.
+            targets:
+              - stage-inheritance-construction
+            color: cyan
+            linger: 0.45
+          - id: dk-stage-inheritance-inherit
+            phrase: A runtime declared FROM builder inherits that stage’s filesystem and environment settings.
+            targets:
+              - stage-inheritance-construction
+            color: cyan
+            linger: 0.45
+      - say: Imagine a future native package whose extension needs a shared library. Its Python files can
+          exist inside the copied environment while import still fails because the runtime lacks
+          that library. Use a compatible runtime base and install the required runtime libraries
+          there. Keep both stages’ Python and environment paths compatible. Two stages are not
+          inherently smaller for our empty dependency list.
+        visual_cues:
+          - id: dk-stage-inheritance-beat1
+            phrase: Imagine a future native package whose extension needs
+            targets:
+              - stage-inheritance-construction
+            color: blue
+            linger: 0.5
+          - id: dk-stage-inheritance-missing
+            phrase: the runtime lacks that library.
+            targets:
+              - stage-inheritance-construction
+            color: pink
+            linger: 0.45
+          - id: dk-stage-inheritance-repair
+            phrase: install the required runtime libraries there.
+            targets:
+              - stage-inheritance-construction
+            color: cyan
+            linger: 0.45
+      - say: WORKDIR sets the base for later relative paths. COPY normally gives files root ownership;
+          readable root-owned files may still be readable by appuser. COPY with chown makes the
+          intended ownership explicit. USER selects the process identity. The JSON-array ENTRYPOINT
+          records Python and the scorer filename as separate arguments.
+        visual_cues:
+          - id: dk-stage-inheritance-beat2
+            phrase: WORKDIR sets the base for later relative paths.
+            targets:
+              - stage-inheritance-construction
+            color: blue
+            linger: 0.5
+          - id: dk-stage-inheritance-workdir
+            phrase: WORKDIR sets the base for later relative paths.
+            targets:
+              - stage-inheritance-construction
+            color: cyan
+            linger: 0.45
+          - id: dk-stage-inheritance-owner
+            phrase: COPY with chown makes the intended ownership explicit.
+            targets:
+              - stage-inheritance-construction
+            color: cyan
+            linger: 0.45
+          - id: dk-stage-inheritance-entry
+            phrase: The JSON-array ENTRYPOINT records Python and the scorer filename as separate arguments.
+            targets:
+              - stage-inheritance-construction
+            color: cyan
+            linger: 0.45
+  - id: platform-identity
+    title: An index names a family; a platform selects one member
+    visual: An authored index I maps to distinct amd64 manifest A and arm64 manifest B. Host selection
+      diverges,explicit linux/amd64 selects A on both builders,and tag movement leaves the recorded
+      digest unchanged.
+    beats:
+      - say: The Python tag constrains a Python minor line and Debian release, but tags can move to new
+          patch builds. It is also multi-platform. An Arm laptop and an x86 worker can select
+          different platform variants from the same tag. Matching recipes do not imply matching
+          image bytes.
+        visual_cues:
+          - id: dk-platform-identity-beat0
+            phrase: The Python tag constrains a Python minor line
+            targets:
+              - platform-identity-construction
+            color: blue
+            linger: 0.5
+          - id: dk-platform-identity-variants
+            phrase: Matching recipes do not imply matching image bytes.
+            targets:
+              - platform-identity-construction
+            color: cyan
+            linger: 0.45
+      - say: In this authored identity sketch, index I contains an amd64 manifest A and an arm64 manifest B.
+          The index digest fixes that set; a platform-manifest digest fixes one member. Declare the
+          deployment platform, such as Linux amd64, and verify the appropriate digest in both FROM
+          lines. A tag can later move while the recorded content digest stays fixed.
+        visual_cues:
+          - id: dk-platform-identity-beat1
+            phrase: In this authored identity sketch, index I contains
+            targets:
+              - platform-identity-construction
+            color: blue
+            linger: 0.5
+          - id: dk-platform-identity-index
+            phrase: The index digest fixes that set; a platform-manifest digest fixes one member.
+            targets:
+              - platform-identity-construction
+            color: cyan
+            linger: 0.45
+          - id: dk-platform-identity-target
+            phrase: verify the appropriate digest in both FROM lines.
+            targets:
+              - platform-identity-construction
+            color: cyan
+            linger: 0.45
+      - say: An Arm machine may need emulation to build or run an amd64 image. Compilation under emulation
+          can be slower, so test the target platform explicitly. These controls constrain inputs;
+          they do not promise identical rebuild bytes or identical numerical output on every GPU.
+          Promoting one tested image by registry digest preserves its artifact identity more
+          directly than rebuilding the recipe elsewhere.
+        visual_cues:
+          - id: dk-platform-identity-beat2
+            phrase: An Arm machine may need emulation to build
+            targets:
+              - platform-identity-construction
+            color: blue
+            linger: 0.5
+          - id: dk-platform-identity-promote
+            phrase: Promoting one tested image by registry digest preserves its artifact identity more directly
+              than rebuilding the recipe elsewhere.
+            targets:
+              - platform-identity-construction
+            color: cyan
+            linger: 0.45
+  - id: dependency-artifacts
+    title: A version is not the whole downloaded artifact
+    visual: A fictional package release points to two wheels and a source archive. The actual install
+      command consumes requirements.txt while an unused lock stays outside that dependency edge. An
+      allowed-hash set gates downloads.
+    beats:
+      - say: A version pin chooses a release, but that release may offer several wheels and a source
+          archive. A wheel is a prebuilt distribution. The allowed artifact hash checks downloaded
+          bytes. With require hashes, list and pin every dependency, including dependencies of
+          dependencies. An empty requirements file passes because it asks for no packages.
+        visual_cues:
+          - id: dk-dependency-artifacts-beat0
+            phrase: A version pin chooses a release, but that
+            targets:
+              - dependency-artifacts-construction
+            color: blue
+            linger: 0.5
+          - id: dk-dependency-artifacts-hash
+            phrase: The allowed artifact hash checks downloaded bytes.
+            targets:
+              - dependency-artifacts-construction
+            color: cyan
+            linger: 0.45
+          - id: dk-dependency-artifacts-closure
+            phrase: including dependencies of dependencies.
+            targets:
+              - dependency-artifacts-construction
+            color: cyan
+            linger: 0.45
+      - say: The install command must consume the dependency contract. Our pip command reads requirements
+          dot txt. Merely adding a lockfile beside it does not change that command’s resolution.
+          Export the reviewed lock into the hashed requirements, or use that lock manager’s frozen
+          install command. When pip must fetch and install a package, a missing required hash causes failure. An already installed package can satisfy a requirement without an artifact hash check. Start with a clean environment and account for its preinstalled packages.
+        visual_cues:
+          - id: dk-dependency-artifacts-beat1
+            phrase: The install command must consume the dependency contract.
+            targets:
+              - dependency-artifacts-construction
+            color: blue
+            linger: 0.5
+          - id: dk-dependency-artifacts-unused
+            phrase: Merely adding a lockfile beside it does not change that command’s resolution.
+            targets:
+              - dependency-artifacts-construction
+            color: cyan
+            linger: 0.45
+          - id: dk-dependency-artifacts-reject
+            phrase: When pip must fetch and install a package, a missing required hash causes failure.
+            targets:
+              - dependency-artifacts-construction
+            color: pink
+            linger: 0.45
+      - say: A hashed source archive still leaves compilation tools and system dependencies to constrain. A
+          wheel-only policy can reject source builds, but it fails when the target platform has no
+          allowed compatible wheel. Choose that failure deliberately instead of quietly replacing it
+          with an unreviewed source build.
+        visual_cues:
+          - id: dk-dependency-artifacts-beat2
+            phrase: A hashed source archive still leaves compilation tools
+            targets:
+              - dependency-artifacts-construction
+            color: blue
+            linger: 0.5
+          - id: dk-dependency-artifacts-wheel
+            phrase: it fails when the target platform has no allowed compatible wheel.
+            targets:
+              - dependency-artifacts-construction
+            color: cyan
+            linger: 0.45
+  - id: cache
+    title: An unchanged input can reuse completed work
+    visual: A simplified cache-key model hashes instruction and input identities. A source edit travels
+      only to application work while the install key holds. A dependency-contract edit changes the
+      install key and invalidates dependent work.
+    beats:
+      - say: Each build step has inputs. This simplified key sketch ties installation to the base, the
+          instruction, and the requirements file. Keeping that contract before application code
+          gives stable work a reusable place.
+        hold: 0.65
+        visual_cues:
+          - id: cache-contract
+            phrase: base, the instruction, and the requirements file
+            targets:
+              - installer-key
+            color: blue
+            linger: 0.65
+      - say: Change only the scorer. Its file identity changes, so Docker looks for a matching cached result for the application copy and runs the step if none exists. The
+          earlier dependency installation still has the same inputs, so Docker can reuse its result.
+        hold: 0.65
+        motion_check:
+          region:
+            - 160
+            - 330
+            - 1600
+            - 570
+          minimumChangedFraction: 0.002
+        visual_cues:
+          - id: cache-source-edit
+            phrase: Its file identity changes, so Docker looks for a matching cached result for the application copy and runs the step if none exists
+            targets:
+              - source-input
+              - application-key
+            color: yellow
+            linger: 0.65
+          - id: cache-reuse
+            phrase: same inputs, so Docker can reuse its result.
+            targets:
+              - installer-key
+            color: green
+            linger: 0.65
+      - say: Restore the script, then change requirements. Changing requirements changes the installation cache key. Docker reruns installation unless a matching cached result is available. When the installed environment changes, the runtime receives new files too.
+          Follow the dependency arrows to see which work needs revisiting.
+        hold: 0.65
+        visual_cues:
+          - id: cache-dependency-edit
+            phrase: Changing requirements changes the installation cache key. Docker reruns installation unless a matching cached result is available
+            targets:
+              - dependency-input
+              - installer-key
+            color: yellow
+            linger: 0.65
+  - id: runtime
+    title: A stored image becomes a running process
+    visual: One retained image creates a container running the recorded command. The shared kernel is
+      drawn outside both user-space filesystems. The appuser and read-only root are shown as
+      concrete launch constraints.
+    beats:
+      - say: Docker run creates a container from the stored image. Python and the application files come
+          from that image. The Linux kernel comes from the Engine host, or the Linux virtual machine
+          used by Docker Desktop.
+        hold: 0.65
+        visual_cues:
+          - id: runtime-start
+            phrase: creates a container from the stored image
+            targets:
+              - runtime-image
+              - runtime-process
+            color: cyan
+            linger: 0.65
+          - id: runtime-kernel
+            phrase: Linux kernel comes from the Engine host
+            targets:
+              - host-kernel
+            color: blue
+            linger: 0.65
+      - say: Run as the application account with a read-only root filesystem. This scorer reads its fixture
+          and writes to standard output. Its Python configuration also disables bytecode writes, so
+          this small job can finish without a writable root.
+        hold: 0.65
+        visual_cues:
+          - id: runtime-user
+            phrase: application account
+            targets:
+              - process-user
+            color: green
+            linger: 0.65
+          - id: runtime-readonly
+            phrase: read-only root filesystem
+            targets:
+              - readonly-root
+            color: yellow
+            linger: 0.65
+  - id: permission-boundary
+    title: The application user and daemon have different authority
+    visual: The observed appuser UID10001 belongs to the process. A separate rootful-daemon capability
+      remains outside the container. A mount brings its own numeric owner/mode and does not inherit
+      ownership from the hidden image directory.
+    beats:
+      - say: Inspect the configured platform, user and entrypoint, then inspect the running identity
+          separately. Our application UID is ten thousand and one. The group ID comes from user
+          creation; do not assume it equals that UID. A successful read-only run proves this
+          execution finished without writing to its root filesystem. It does not prove every future
+          workload can do so.
+        visual_cues:
+          - id: dk-permission-boundary-beat0
+            phrase: Inspect the configured platform, user and entrypoint, then
+            targets:
+              - permission-boundary-construction
+            color: blue
+            linger: 0.5
+          - id: dk-permission-boundary-uid
+            phrase: Our application UID is ten thousand and one.
+            targets:
+              - permission-boundary-construction
+            color: cyan
+            linger: 0.45
+          - id: dk-permission-boundary-group
+            phrase: do not assume it equals that UID.
+            targets:
+              - permission-boundary-construction
+            color: cyan
+            linger: 0.45
+      - say: The application account does not limit whoever controls a normal rootful Docker daemon. Daemon
+          access can carry host-level authority. A writable bind mount can also change permitted
+          host files. Keep the Docker socket and unrelated host paths out of this scorer. A non-root
+          label is not a complete isolation argument.
+        visual_cues:
+          - id: dk-permission-boundary-beat1
+            phrase: The application account does not limit whoever controls
+            targets:
+              - permission-boundary-construction
+            color: blue
+            linger: 0.5
+          - id: dk-permission-boundary-daemon
+            phrase: Daemon access can carry host-level authority.
+            targets:
+              - permission-boundary-construction
+            color: cyan
+            linger: 0.45
+      - say: On a normal Linux Engine without user-namespace remapping, numeric ownership and modes govern
+          mounted-path access. The process needs directory traversal and file-read permission; a
+          writable destination needs write permission too. Rootless engines and Desktop can map
+          identities differently. Prepare storage for the intended account rather than hiding the
+          setup defect by running everything as root.
+        visual_cues:
+          - id: dk-permission-boundary-beat2
+            phrase: On a normal Linux Engine without user-namespace remapping,
+            targets:
+              - permission-boundary-construction
+            color: blue
+            linger: 0.5
+          - id: dk-permission-boundary-mode
+            phrase: The process needs directory traversal and file-read permission; a writable destination needs
+              write permission too.
+            targets:
+              - permission-boundary-construction
+            color: cyan
+            linger: 0.45
+  - id: evaluation
+    title: Follow the actual rows into the report
+    visual: The three retained request rows reveal their comparisons in narrated order. A derived match
+      count feeds the exact integer gate and stdout receipt. The completed report survives container
+      removal along with the original image.
+    beats:
+      - say: "Follow the first pair: the labels agree. The middle pair differs. The final pair agrees. Each
+          comparison contributes a Boolean result, and the scorer adds the successful matches."
+        hold: 0.65
+        visual_cues:
+          - id: eval-first
+            phrase: the labels agree
+            targets:
+              - eval-row-101
+            color: green
+            linger: 0.65
+          - id: eval-second
+            phrase: middle pair differs
+            targets:
+              - eval-row-102
+            color: pink
+            linger: 0.65
+          - id: eval-third
+            phrase: final pair agrees
+            targets:
+              - eval-row-103
+            color: green
+            linger: 0.65
+      - say: Two matches out of three give the printed score. The gate compares integer counts against the
+          two-thirds threshold. The decimal is a readable report; the exact count comparison decides
+          the exit status.
+        hold: 0.65
+        visual_cues:
+          - id: eval-score
+            phrase: Two matches out of three give the printed score.
+            targets:
+              - score-counts
+            color: green
+            linger: 0.65
+          - id: eval-count-gate
+            phrase: The gate compares integer counts against the two-thirds threshold.
+            targets:
+              - gate-receipt
+            color: yellow
+            linger: 0.65
+      - say: The process exits successfully. With remove enabled, Docker discards that container’s writable
+          layer. The report has already reached standard output, and the image remains ready to
+          create another container.
+        hold: 0.65
+        visual_cues:
+          - id: eval-exit
+            phrase: process exits successfully
+            targets:
+              - container-exit
+            color: green
+            linger: 0.65
+          - id: eval-remove
+            phrase: discards that container’s writable layer
+            targets:
+              - container-exit
+            color: yellow
+            linger: 0.65
+          - id: eval-retain
+            phrase: image remains ready
+            targets:
+              - retained-image
+            color: blue
+            linger: 0.65
+  - id: mounts
+    title: Which directory will the process see?
+    visual: The image fixture stays visible in a separate stored-files view. A synthetic empty host
+      directory moves onto the running container path; the visible read target changes, the exact
+      fallback error appears, and removing the mount restores the original report without a rebuild.
+    beats:
+      - say: The copied fixture is a build-time snapshot. Now place an empty host directory at the same
+          container path. Before we run it, predict whether the scorer can still read the rows
+          stored in the image.
+        hold: 1.1
+        visual_cues:
+          - id: mount-prediction
+            phrase: predict whether the scorer can still read the rows
+            targets:
+              - mount-path
+            color: yellow
+            linger: 0.65
+      - say: The mount attaches the empty directory at app slash eval. That host directory becomes the
+          visible read target. The image’s copied rows remain stored underneath the mounted path.
+        hold: 0.7
+        motion_check:
+          region:
+            - 180
+            - 325
+            - 1580
+            - 560
+          minimumChangedFraction: 0.002
+        visual_cues:
+          - id: mount-overlay
+            phrase: mount attaches the empty directory
+            targets:
+              - host-directory
+              - mount-path
+            color: pink
+            linger: 0.65
+      - say: The scorer finds no evaluation file and tries its assets fallback. We never copied that
+          fallback into this image. The error therefore names the assets path, and the process exits
+          with status one.
+        hold: 0.65
+        visual_cues:
+          - id: mount-failure
+            phrase: error therefore names the assets path
+            targets:
+              - mount-result
+            color: pink
+            linger: 0.65
+      - say: Remove the mount and rerun the original image. The copied rows become visible again, and the
+          successful report returns. The runtime artifact stayed the same throughout this
+          experiment.
+        hold: 0.65
+        visual_cues:
+          - id: mount-restore
+            phrase: The copied rows become visible again, and the successful report returns.
+            targets:
+              - restored-result
+            color: green
+            linger: 0.65
+  - id: mount-diagnostics
+    title: Find the failure boundary before rebuilding
+    visual: Two separate traces stop at different places:missing source is rejected before
+      launch;existing empty source launches and fails inside the scorer. Daemon-host ownership and
+      read-only flags remain separate from image-file ownership.
+    beats:
+      - say: Two missing-path failures happen at different boundaries. With the default explicit bind mount,
+          an absent host source is rejected before the scorer starts. If that directory exists but
+          is empty, the mount succeeds and the scorer reports its missing fixture or fallback. A
+          read-only mount still obscures the image directory; it does not merge or fall back to
+          hidden image files.
+        visual_cues:
+          - id: dk-mount-diagnostics-beat0
+            phrase: Two missing-path failures happen at different boundaries. With
+            targets:
+              - mount-diagnostics-construction
+            color: blue
+            linger: 0.5
+          - id: dk-mount-diagnostics-absent
+            phrase: an absent host source is rejected before the scorer starts.
+            targets:
+              - mount-diagnostics-construction
+            color: cyan
+            linger: 0.45
+          - id: dk-mount-diagnostics-empty
+            phrase: the scorer reports its missing fixture or fallback.
+            targets:
+              - mount-diagnostics-construction
+            color: cyan
+            linger: 0.45
+      - say: The shorter volume syntax can create a missing host source as a directory. Prefer the explicit
+          mount form when absence should be an error. Resolve the source on the daemon’s host.
+          Desktop shares client files into its Linux virtual machine; a remote daemon cannot mount
+          an arbitrary path that exists only on your laptop. Removing the stopped container does not
+          remove the bind source directory on the host.
+        visual_cues:
+          - id: dk-mount-diagnostics-beat1
+            phrase: The shorter volume syntax can create a missing
+            targets:
+              - mount-diagnostics-construction
+            color: blue
+            linger: 0.5
+          - id: dk-mount-diagnostics-created
+            phrase: The shorter volume syntax can create a missing host source as a directory.
+            targets:
+              - mount-diagnostics-construction
+            color: cyan
+            linger: 0.45
+          - id: dk-mount-diagnostics-retained
+            phrase: Removing the stopped container does not remove the bind source directory on the host.
+            targets:
+              - mount-diagnostics-construction
+            color: cyan
+            linger: 0.45
+      - say: Recreate the container without the mount to reveal the retained image fixture. Changing
+          ownership in an image layer does not change the owner of a host directory later mounted
+          over that path. A named volume removes dependence on a particular host pathname, but its
+          permissions still need initialization. Read-only input and writable output are separate
+          decisions.
+        visual_cues:
+          - id: dk-mount-diagnostics-beat2
+            phrase: Recreate the container without the mount to reveal
+            targets:
+              - mount-diagnostics-construction
+            color: blue
+            linger: 0.5
+          - id: dk-mount-diagnostics-restore
+            phrase: Recreate the container without the mount to reveal the retained image fixture.
+            targets:
+              - mount-diagnostics-construction
+            color: cyan
+            linger: 0.45
+  - id: storage
+    title: Give changing inputs an explicit runtime home
+    visual: A named volume retains data across a removed container, while ownership remains an explicit
+      access condition. A compact Compose excerpt records the separate root and input-mount
+      read-only policies and the missing-path rule.
+    beats:
+      - say: Changing data can arrive through a bind mount. A named volume gives Docker-managed state a
+          lifetime beyond one container. Writable storage also needs ownership that permits the
+          application account to use it.
+        hold: 0.65
+        visual_cues:
+          - id: storage-volume
+            phrase: lifetime beyond one container
+            targets:
+              - persistent-volume
+            color: blue
+            linger: 0.65
+      - say: Compose records the run policy in one file. These settings protect the root and the separate
+          input mount. Disabling automatic host-path creation preserves the missing-directory error.
+          Run with build enabled after a source edit.
+        hold: 0.65
+        visual_cues:
+          - id: storage-policy
+            phrase: root and the separate input mount
+            targets:
+              - compose-mount-policy
+            color: cyan
+            linger: 0.65
+          - id: storage-command
+            phrase: build enabled
+            targets:
+              - compose-command
+            color: green
+            linger: 0.65
+  - id: compose-gates
+    title: Configuration validity and execution answer different questions
+    visual: The same root and /app/eval paths receive distinct read_only toggles. Config validation ends
+      before any process starts;the actual run separately rebuilds,creates a container and reads the
+      mounted fixture. A missing plugin takes a clearly labeled skipped branch.
+    beats:
+      - say: Compose’s service read-only setting protects the root filesystem. The bind entry’s read-only
+          setting protects that separate mount. Neither automatically supplies the other. Disable
+          host-path creation on this bind when a missing directory must fail. This example declares a build context and image tag, and inherits the scorer entrypoint from the image.
+        visual_cues:
+          - id: dk-compose-gates-beat0
+            phrase: Compose’s service read-only setting protects the root filesystem.
+            targets:
+              - compose-gates-construction
+            color: blue
+            linger: 0.5
+          - id: dk-compose-gates-mount
+            phrase: The bind entry’s read-only setting protects that separate mount.
+            targets:
+              - compose-gates-construction
+            color: cyan
+            linger: 0.45
+          - id: dk-compose-gates-missing
+            phrase: Disable host-path creation on this bind when a missing directory must fail.
+            targets:
+              - compose-gates-construction
+            color: pink
+            linger: 0.45
+      - say: Compose config with quiet validates and resolves configuration; it does not build the image,
+          run the scorer or prove the mount is readable. Compose run with build first builds before
+          the one-off run. Remove cleans the container after exit, not the retained image. A source
+          edit can otherwise keep using an older tagged image.
+        visual_cues:
+          - id: dk-compose-gates-beat1
+            phrase: Compose config with quiet validates and resolves configuration;
+            targets:
+              - compose-gates-construction
+            color: blue
+            linger: 0.5
+          - id: dk-compose-gates-config
+            phrase: it does not build the image, run the scorer or prove the mount is readable.
+            targets:
+              - compose-gates-construction
+            color: cyan
+            linger: 0.45
+          - id: dk-compose-gates-build
+            phrase: Compose run with build first builds before the one-off run.
+            targets:
+              - compose-gates-construction
+            color: cyan
+            linger: 0.45
+      - say: The Compose plugin may be missing even when Engine works. This article’s gate explicitly
+          reports and skips that optional Compose check; it does not claim Compose execution passed.
+          If the plugin is installed, invalid configuration fails. A required environment file that
+          does not exist is a configuration error; use ordinary environment files for non-sensitive
+          settings rather than credentials.
+        visual_cues:
+          - id: dk-compose-gates-beat2
+            phrase: The Compose plugin may be missing even when
+            targets:
+              - compose-gates-construction
+            color: blue
+            linger: 0.5
+          - id: dk-compose-gates-skipped
+            phrase: it does not claim Compose execution passed.
+            targets:
+              - compose-gates-construction
+            color: cyan
+            linger: 0.45
+  - id: secrets
+    title: A credential follows the lifetime of its consumer
+    visual: The CPU scorer has zero attached credentials. A future private install mounts a fake
+      credential only during one RUN instruction; selected build output reaches the layer after that
+      mount vanishes. A future API process uses a distinct runtime secret file.
+    beats:
+      - say: Our scorer uses no credential. If a later dependency install needs private-package access,
+          attach the credential to that build instruction. The install output and the credential
+          have different destinations.
+        hold: 0.65
+        visual_cues:
+          - id: secret-consumer
+            phrase: that build instruction
+            targets:
+              - build-instruction
+            color: blue
+            linger: 0.65
+      - say: BuildKit mounts the selected file while the instruction runs. When that step ends, the mount
+          disappears. The package output can remain in the layer. The command must also keep the
+          credential out of its output and copied files.
+        hold: 0.65
+        visual_cues:
+          - id: secret-mount
+            phrase: mounts the selected file while the instruction runs
+            targets:
+              - build-secret
+            color: yellow
+            linger: 0.65
+          - id: secret-unmount
+            phrase: mount disappears
+            targets:
+              - build-secret
+            color: yellow
+            linger: 0.65
+          - id: secret-output
+            phrase: package output can remain
+            targets:
+              - layer-output
+            color: green
+            linger: 0.65
+      - say: A future API process receives a separate runtime secret file or a platform secret manager. That
+          file joins when the container starts. Keep local credentials excluded from both Git
+          tracking and the Docker build context.
+        hold: 0.65
+        visual_cues:
+          - id: secret-runtime
+            phrase: separate runtime secret file
+            targets:
+              - runtime-secret
+            color: cyan
+            linger: 0.65
+  - id: credential-exposure
+    title: Deleting a later file does not erase an earlier layer
+    visual: A fake credential copied into an early layer remains behind a later deletion. ARG history or provenance and ENV configuration persist outside the live file view. A secret mount leaves only reviewed package output when the command avoids leaks. Required secret delivery is checked when RUN executes, while cached output can bypass that check.
+    beats:
+      - say: A later deletion changes the visible filesystem but can leave secret bytes in an earlier layer.
+          ENV can persist configuration. A build argument is not automatically a runtime environment
+          variable, yet its value may appear in image history or maximum-mode provenance. Do not put
+          an actual credential into those channels to test this warning.
+        visual_cues:
+          - id: dk-credential-exposure-beat0
+            phrase: A later deletion changes the visible filesystem but
+            targets:
+              - credential-exposure-construction
+            color: blue
+            linger: 0.5
+          - id: dk-credential-exposure-layer
+            phrase: A later deletion changes the visible filesystem but can leave secret bytes in an earlier
+              layer.
+            targets:
+              - credential-exposure-construction
+            color: cyan
+            linger: 0.45
+          - id: dk-credential-exposure-arg
+            phrase: its value may appear in image history or maximum-mode provenance.
+            targets:
+              - credential-exposure-construction
+            color: cyan
+            linger: 0.45
+      - say: The secret mount only changes delivery. A command can still print the credential or copy it
+          into its output. Keep those bytes out of logs and artifacts. When this instruction executes, required true fails if the selected secret is unavailable. A cached result can bypass execution, so force this step to execute when testing secret delivery. The package output may remain after the
+          temporary mount ends; the credential must not follow it.
+        visual_cues:
+          - id: dk-credential-exposure-beat1
+            phrase: The secret mount only changes delivery. A command
+            targets:
+              - credential-exposure-construction
+            color: blue
+            linger: 0.5
+          - id: dk-credential-exposure-leak
+            phrase: A command can still print the credential or copy it into its output.
+            targets:
+              - credential-exposure-construction
+            color: pink
+            linger: 0.45
+          - id: dk-credential-exposure-required
+            phrase: When this instruction executes, required true fails if the selected secret is unavailable.
+            targets:
+              - credential-exposure-construction
+            color: cyan
+            linger: 0.45
+      - say: A future runtime secret is a separate input under the running process’s lifetime. Local Compose
+          can mount a host secret file, but does not thereby encrypt it or remove host-access risk.
+          Exclude secrets from both Git tracking and Docker context, restrict host permissions, and
+          check that the intended user can read the selected file. Our current CPU scorer receives
+          zero credentials.
+        visual_cues:
+          - id: dk-credential-exposure-beat2
+            phrase: A future runtime secret is a separate input
+            targets:
+              - credential-exposure-construction
+            color: blue
+            linger: 0.5
+          - id: dk-credential-exposure-host
+            phrase: does not thereby encrypt it or remove host-access risk.
+            targets:
+              - credential-exposure-construction
+            color: cyan
+            linger: 0.45
+  - id: gpu
+    title: Check the device path before changing the framework
+    visual: A conditional NVIDIA diagnostic worksheet shows expected host and container probes on a configured host. Successful device exposure leads to the recipe-based expectation that importing torch fails because this recipe does not install PyTorch. Label these as expected outcomes, not measured local results.
+    beats:
+      - say: "A future CUDA workload adds three boundaries: the host driver, container device exposure, and
+          the framework inside the image. Check them in that order. A device smoke test answers the
+          middle question."
+        hold: 0.65
+        visual_cues:
+          - id: gpu-host
+            phrase: host driver
+            targets:
+              - host-probe
+            color: blue
+            linger: 0.65
+          - id: gpu-device
+            phrase: device smoke test
+            targets:
+              - device-probe
+            color: cyan
+            linger: 0.65
+      - say: On a configured NVIDIA host, run the host and container probes. If both report a GPU, device exposure works. This recipe does not install PyTorch, so importing torch in that image is expected to fail. A CUDA workload needs a compatible
+          framework build as well as device access.
+        hold: 0.65
+        visual_cues:
+          - id: gpu-visible
+            phrase: If both report a GPU
+            targets:
+              - host-probe
+              - device-probe
+            color: cyan
+          - id: gpu-framework
+            phrase: This recipe does not install PyTorch, so importing torch in that image is expected to fail.
+            targets:
+              - framework-probe
+            color: yellow
+            linger: 0.65
+  - id: gpu-contracts
+    title: Device exposure does not establish a framework result
+    visual: The same probe crosses host-driver, device-exposure and framework boundaries. Stop markers retain earlier checks. The kernel driver stays on the host. The image supplies the framework and application CUDA runtime libraries, while the configured container runtime supplies host driver libraries and utilities.
+    beats:
+      - say: The NVIDIA kernel driver belongs on the host. Package the framework and its required CUDA runtime libraries in the image. The container runtime also supplies host driver libraries and utilities according to the requested capabilities. The device smoke test establishes exposure
+          through the runtime; it does not run a particular PyTorch computation or establish that
+          framework’s compatibility.
+        visual_cues:
+          - id: dk-gpu-contracts-beat0
+            phrase: The NVIDIA kernel driver belongs on the host.
+            targets:
+              - gpu-contracts-construction
+            color: blue
+            linger: 0.5
+          - id: dk-gpu-contracts-userspace
+            phrase: The container runtime also supplies host driver libraries and utilities according to the requested capabilities.
+            targets:
+              - gpu-contracts-construction
+            color: cyan
+            linger: 0.45
+      - say: If host nvidia-smi fails, inspect the driver first. If the host works but the container test
+          fails, inspect Container Toolkit, runtime configuration and requested devices. If exposure
+          works but the framework reports unavailable, inspect the installed framework build,
+          visible-device settings, and driver/runtime compatibility. Adding a CUDA image alone
+          cannot provide missing device exposure.
+        visual_cues:
+          - id: dk-gpu-contracts-beat1
+            phrase: If host nvidia-smi fails, inspect the driver first.
+            targets:
+              - gpu-contracts-construction
+            color: blue
+            linger: 0.5
+          - id: dk-gpu-contracts-host
+            phrase: inspect the driver first.
+            targets:
+              - gpu-contracts-construction
+            color: cyan
+            linger: 0.45
+          - id: dk-gpu-contracts-device
+            phrase: inspect Container Toolkit, runtime configuration and requested devices.
+            targets:
+              - gpu-contracts-construction
+            color: cyan
+            linger: 0.45
+          - id: dk-gpu-contracts-framework
+            phrase: inspect the installed framework build, visible-device settings, and driver/runtime
+              compatibility.
+            targets:
+              - gpu-contracts-construction
+            color: cyan
+            linger: 0.45
+      - say: The article’s systemd configuration commands target a Linux Engine host. Rootless Docker has a
+          user-scoped configuration path. Windows Desktop has its own supported NVIDIA path through
+          WSL2 and a compatible Windows driver. A Linux CPU image can run on Apple Silicon, but that
+          does not turn the Mac GPU into an NVIDIA CUDA device. Native Mac MPS is a different path.
+        visual_cues:
+          - id: dk-gpu-contracts-beat2
+            phrase: The article’s systemd configuration commands target a Linux
+            targets:
+              - gpu-contracts-construction
+            color: blue
+            linger: 0.5
+          - id: dk-gpu-contracts-windows
+            phrase: Windows Desktop has its own supported NVIDIA path through WSL2 and a compatible Windows
+              driver.
+            targets:
+              - gpu-contracts-construction
+            color: cyan
+            linger: 0.45
+  - id: identity
+    title: Keep the result attached to the tested artifact
+    visual: Baked and mounted reports share one illustrative local image ID. Editing the host prediction changes the modeled mounted result to three matches while the baked fixture stays unchanged. The captured-report gate detects the input change. Restoring the fixture restores the reference result. Registry identity remains a distinct release check.
+    beats:
+      - say: Capture the image identity and run both fixture paths against it. The baked and mounted reports
+          now belong to one artifact. Checking both paths also catches an image whose copied fixture
+          is missing.
+        hold: 0.65
+        visual_cues:
+          - id: identity-image
+            phrase: Capture the image identity
+            targets:
+              - tested-image
+            color: blue
+            linger: 0.65
+          - id: identity-reports
+            phrase: baked and mounted reports
+            targets:
+              - baked-report
+              - mounted-report
+            color: green
+            linger: 0.65
+      - say: Change the middle host prediction so every label matches. The mounted score improves and its
+          threshold passes. The exact report comparison still catches the changed fixture. This is
+          an input change that a broad score floor would accept.
+        hold: 0.65
+        visual_cues:
+          - id: identity-edit
+            phrase: Change the middle host prediction so every label matches.
+            targets:
+              - changed-fixture
+            color: yellow
+            linger: 0.65
+          - id: identity-exact
+            phrase: The exact report comparison still catches the changed fixture.
+            targets:
+              - exact-check
+            color: pink
+            linger: 0.65
+      - say: Keep the successful report with its image identity. For release, verify the repository digest
+          and deployment platform. A teammate can then pull the tested artifact. Restore our
+          original fixture, and the same local image produces its expected report again.
+        hold: 1.1
+        visual_cues:
+          - id: identity-promotion
+            phrase: repository digest and deployment platform
+            targets:
+              - promotion-reference
+            color: cyan
+            linger: 0.65
+          - id: identity-restore
+            phrase: expected report again
+            targets:
+              - mounted-report
+            color: green
+            linger: 0.65
+  - id: ci-rebuild
+    title: Capture one artifact; check both input paths
+    visual: The article Bash gate captures a local image ID through a separate tag lookup. Hold the tag fixed until capture. Both read paths then use that ID. A host-only edit changes only the mounted report, while a rebuild copies that edit and changes both reports. Report comparisons ignore trailing newlines removed by Bash.
+    beats:
+      - say: The gate first checks the Dockerfile, builds, and looks up the tag to capture a local image ID. Keep that tag unchanged until capture. It
+          runs both the baked fixture and a read-only host fixture against that captured artifact. After capture, later tag reassignment cannot redirect either test. To bind capture directly to the build, have Docker write its image ID with the iidfile option. Static build checks report
+          configuration findings; they do not replace either execution.
+        visual_cues:
+          - id: dk-ci-rebuild-beat0
+            phrase: The gate first checks the Dockerfile, builds, and
+            targets:
+              - ci-rebuild-construction
+            color: blue
+            linger: 0.5
+          - id: dk-ci-rebuild-capture
+            phrase: capture a local image ID.
+            targets:
+              - ci-rebuild-construction
+            color: cyan
+            linger: 0.45
+          - id: dk-ci-rebuild-both
+            phrase: It runs both the baked fixture and a read-only host fixture against that captured artifact.
+            targets:
+              - ci-rebuild-construction
+            color: cyan
+            linger: 0.45
+      - say: Keep two experiments distinct. Editing the host’s middle prediction without rebuilding leaves
+          the baked result at two of three while the mounted result becomes three of three. The
+          article’s full gate rebuilds first. After that same host edit, both paths contain three
+          matching rows. The threshold still passes, but the exact expected report rejects the
+          changed starter fixture.
+        visual_cues:
+          - id: dk-ci-rebuild-beat1
+            phrase: Keep two experiments distinct. Editing the host’s middle
+            targets:
+              - ci-rebuild-construction
+            color: blue
+            linger: 0.5
+          - id: dk-ci-rebuild-mounted
+            phrase: the mounted result becomes three of three.
+            targets:
+              - ci-rebuild-construction
+            color: cyan
+            linger: 0.45
+          - id: dk-ci-rebuild-rebuild
+            phrase: both paths contain three matching rows.
+            targets:
+              - ci-rebuild-construction
+            color: cyan
+            linger: 0.45
+          - id: dk-ci-rebuild-reject
+            phrase: the exact expected report rejects the changed starter fixture.
+            targets:
+              - ci-rebuild-construction
+            color: pink
+            linger: 0.45
+      - say: "Bash strict mode stops the shown mandatory failures. The comparison checks captured report text after Bash removes trailing newlines.
+          It is not a cryptographic fixture-identity proof: another dataset could print the same
+          counts. Retain actual input bytes or their hashes and the full test contract for stronger
+          evidence. A local image ID is also different from a registry repository digest; verify the
+          pushed or pulled repository reference and platform before promotion."
+        visual_cues:
+          - id: dk-ci-rebuild-beat2
+            phrase: Bash strict mode stops the shown mandatory failures.
+            targets:
+              - ci-rebuild-construction
+            color: blue
+            linger: 0.5
+          - id: dk-ci-rebuild-hash
+            phrase: Retain actual input bytes or their hashes and the full test contract for stronger evidence.
+            targets:
+              - ci-rebuild-construction
+            color: cyan
+            linger: 0.45
+  - id: failure-map
+    title: Follow the observed failure to its owning input
+    visual: A trace preserves the actual stopped stage,scorer exit and missing item. The same manifest
+      adds only the owning dependency,mount permission or declared configuration before rerunning
+      its focused check.
+    beats:
+      - say: An import failure points toward the installed dependency contract and a rebuild. A permission
+          failure points toward the mounted owner and modes. Reinstalling packages after every
+          source edit points toward Dockerfile input order. A production-only missing configuration
+          points toward an undeclared runtime input. Keep the diagnosis, command and prevention
+          beside the project’s actual workflow.
+        visual_cues:
+          - id: dk-failure-map-beat0
+            phrase: An import failure points toward the installed dependency
+            targets:
+              - failure-map-construction
+            color: blue
+            linger: 0.5
+          - id: dk-failure-map-import
+            phrase: An import failure points toward the installed dependency contract and a rebuild.
+            targets:
+              - failure-map-construction
+            color: cyan
+            linger: 0.45
+          - id: dk-failure-map-permissions
+            phrase: A permission failure points toward the mounted owner and modes.
+            targets:
+              - failure-map-construction
+            color: cyan
+            linger: 0.45
+          - id: dk-failure-map-cache
+            phrase: Reinstalling packages after every source edit points toward Dockerfile input order.
+            targets:
+              - failure-map-construction
+            color: cyan
+            linger: 0.45
+      - say: Commit the Dockerfile, ignore rules, dependency contract, Compose file and container-check
+          script with the scorer and fixture. A fresh clone should supply the builder’s project
+          inputs without borrowing a developer’s virtual environment or credentials. Pin release
+          inputs and promote the tested artifact; still measure application quality and platform
+          behavior separately.
+        visual_cues:
+          - id: dk-failure-map-beat1
+            phrase: Commit the Dockerfile, ignore rules, dependency contract, Compose
+            targets:
+              - failure-map-construction
+            color: blue
+            linger: 0.5
+  - id: fresh-container
+    title: Predict two read paths on a new seven-row fixture
+    visual: A separately labeled fresh worksheet keeps one image identity,seven row identities,and a
+      host-mounted copy. Five versus four actual matches feed integer gates. A single reviewed
+      host-row repair restores the reference without rebuilding the image.
+    beats:
+      - say: Try a new authored fixture using the same scorer rule. One image bakes seven rows with five
+          exact matches. A host-mounted copy has seven rows but only four matches. The fixed
+          reference is five of seven. Both runs use the same captured image ID. Predict the
+          threshold and exact-reference result for each read path. Pause.
+        hold: 1.5
+        visual_cues:
+          - id: dk-fresh-container-beat0
+            phrase: Try a new authored fixture using the same
+            targets:
+              - fresh-container-construction
+            color: blue
+            linger: 0.5
+          - id: dk-fresh-container-predict
+            phrase: Predict the threshold and exact-reference result for each read path.
+            targets:
+              - fresh-container-construction
+            color: cyan
+            linger: 0.45
+      - say: For the baked path, five times three is fifteen, which exceeds seven times two, fourteen. Five
+          of seven is about point seven one four, so the threshold and reference both pass. For the
+          mounted path, four times three is twelve, below fourteen. Its roughly point five seven one
+          score fails the threshold and differs from the reference. The mount changed the data view,
+          not the image.
+        visual_cues:
+          - id: dk-fresh-container-beat1
+            phrase: For the baked path, five times three is
+            targets:
+              - fresh-container-construction
+            color: blue
+            linger: 0.5
+          - id: dk-fresh-container-bakedmath
+            phrase: five times three is fifteen, which exceeds seven times two, fourteen.
+            targets:
+              - fresh-container-construction
+            color: cyan
+            linger: 0.45
+          - id: dk-fresh-container-baked
+            phrase: the threshold and reference both pass.
+            targets:
+              - fresh-container-construction
+            color: cyan
+            linger: 0.45
+          - id: dk-fresh-container-mountmath
+            phrase: four times three is twelve, below fourteen.
+            targets:
+              - fresh-container-construction
+            color: cyan
+            linger: 0.45
+          - id: dk-fresh-container-mounted
+            phrase: Its roughly point five seven one score fails the threshold and differs from the reference.
+            targets:
+              - fresh-container-construction
+            color: cyan
+            linger: 0.45
+      - say: "Review and repair one wrong host prediction to match its expected label. The mounted path returns to five of seven while the baked fixture and captured image stay unchanged. Read-only inside the container does not prevent an authorized host owner from editing the source file. You can now locate the runtime, file, permission or identity boundary before changing it, and rerun both paths under the retained contract. Next, the Python lesson follows a JSONL row through parsing, label comparison and the counts that produce its evaluation score."
+        visual_cues:
+          - id: dk-fresh-container-beat2
+            phrase: Review and repair one wrong host prediction to
+            targets:
+              - fresh-container-construction
+            color: blue
+            linger: 0.5
+          - id: dk-fresh-container-repair
+            phrase: The mounted path returns to five of seven while the baked fixture and captured image stay
+              unchanged.
+            targets:
+              - fresh-container-construction
+            color: cyan
+            linger: 0.45

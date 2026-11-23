@@ -1,0 +1,209 @@
+version: 1
+lesson: supervised-finetuning
+promise: Decide whether a packed demonstration teaches the approved response and where to stop, then test that behavior on a new incident.
+framing: []
+objectives:
+  - id: target
+    can: Follow the incident from the chat template to individual loss terms and repair a wrong target even when the active count is correct.
+    scenes: [intro, template, shift, mask, loss, template-and-collation, active-target-guards, transfer, fresh-boundary-repair]
+  - id: packing
+    can: Distinguish a cross-incident attention read from a cross-incident shifted label and test each at a packed join.
+    scenes: [packing, packing-implementation, fresh-boundary-repair]
+  - id: experiment
+    can: Choose demonstrations and independent groups, control which weights move, and compare recipes at matched target exposure.
+    scenes: [policy-run-contract, row-group-split, prompt-metric, objective-surface, batching, global-target-budget, recipe-controlled]
+  - id: continuation
+    can: Predict the next update with saved or reset optimizer state and verify a restore against uninterrupted execution.
+    scenes: [resume-update, resume-data-artifacts]
+  - id: selection
+    can: Check training memory, choose a checkpoint under a declared format floor, and grade a freely generated held-out reply.
+    scenes: [smallest-runtime, evaluate, checkpoint-selection, fresh-boundary-repair]
+sections:
+  - heading: Turn behavior into a run contract
+    status: taught
+    scenes:
+      - policy-run-contract
+      - smallest-runtime
+  - heading: Separate objective from parameterization
+    status: taught
+    scenes:
+      - objective-surface
+      - loss
+  - heading: Full weights or adapters
+    status: taught
+    scenes:
+      - objective-surface
+  - heading: Full fine-tuning
+    status: taught
+    scenes:
+      - objective-surface
+      - smallest-runtime
+  - heading: LoRA
+    status: taught
+    scenes:
+      - objective-surface
+  - heading: QLoRA
+    status: taught
+    scenes:
+      - objective-surface
+  - heading: Reject broken demonstrations before training
+    status: taught
+    scenes:
+      - row-group-split
+      - active-target-guards
+  - heading: Split by the unit that could leak
+    status: taught
+    scenes:
+      - row-group-split
+      - evaluate
+  - heading: "Data path: template, tokenize, label, pack"
+    status: taught
+    note: The T102 figure supplies the symbolic positions. The film uses its own stated probabilities to compare the same row with and without the stop label.
+    scenes:
+      - intro
+      - template
+      - template-and-collation
+      - shift
+      - mask
+      - active-target-guards
+      - loss
+      - prompt-metric
+  - heading: Pack short examples while preserving their boundaries
+    status: taught
+    note: The CPU attention fixture supplies the six values, query position and perturbation. The 19-day example applies the separate segment-start label rule.
+    scenes:
+      - packing
+      - packing-implementation
+      - fresh-boundary-repair
+  - heading: Evaluate hyperparameters through controlled experiments
+    status: taught
+    scenes:
+      - recipe-controlled
+      - checkpoint-selection
+  - heading: Effective batch size is also a token budget
+    status: taught
+    scenes:
+      - batching
+      - global-target-budget
+  - heading: What a resumable run must save
+    status: taught
+    scenes:
+      - resume-update
+      - resume-data-artifacts
+  - heading: Choosing the best checkpoint
+    status: taught
+    note: The film reuses the three validation rows and changes only the format floor for the second decision.
+    scenes:
+      - evaluate
+      - checkpoint-selection
+  - heading: Single GPU first, then scale out
+    status: taught
+    scenes:
+      - smallest-runtime
+  - heading: Signs that one GPU is still fine
+    status: taught
+    scenes:
+      - smallest-runtime
+  - heading: Signs that you need FSDP or ZeRO
+    status: taught
+    scenes:
+      - smallest-runtime
+  - heading: Minimal operational skeleton
+    status: taught
+    scenes:
+      - smallest-runtime
+      - template-and-collation
+  - heading: Common pitfalls
+    status: taught
+    scenes:
+      - policy-run-contract
+      - transfer
+      - fresh-boundary-repair
+  - heading: Confusing the objective with the update surface
+    status: taught
+    scenes:
+      - objective-surface
+  - heading: Evaluating examples that share a case with training
+    status: taught
+    scenes:
+      - row-group-split
+  - heading: Reporting micro-batch as if it were the real batch
+    status: taught
+    scenes:
+      - global-target-budget
+  - heading: Saving weights without resume state
+    status: taught
+    scenes:
+      - resume-update
+      - resume-data-artifacts
+  - heading: Using a packing path that crosses example boundaries
+    status: taught
+    scenes:
+      - packing
+      - packing-implementation
+      - fresh-boundary-repair
+  - heading: Selecting the best checkpoint by train loss
+    status: taught
+    scenes:
+      - checkpoint-selection
+quiz:
+  - n: 1
+    status: taught
+    scenes:
+      - objective-surface
+  - n: 2
+    status: taught
+    scenes:
+      - row-group-split
+  - n: 3
+    status: taught
+    scenes:
+      - shift
+  - n: 4
+    status: taught
+    scenes:
+      - template-and-collation
+      - transfer
+  - n: 5
+    status: taught
+    scenes:
+      - packing-implementation
+  - n: 6
+    status: taught
+    scenes:
+      - batching
+  - n: 7
+    status: taught
+    scenes:
+      - global-target-budget
+  - n: 8
+    status: taught
+    scenes:
+      - resume-update
+  - n: 9
+    status: taught
+    scenes:
+      - checkpoint-selection
+  - n: 10
+    status: taught
+    scenes:
+      - evaluate
+      - checkpoint-selection
+removed:
+  - point: The cat-to-cats example and the held-out plural of dog.
+    reason: The incident now supplies the input, reply, stop token and held-out behavior. It preserves the one-position shift and makes the final decision depend on the same policy.
+  - point: The count of runnable cells across article editions.
+    reason: The worked examples now show what each calculation establishes.
+reviews:
+  closed_book:
+    script: d27edecd3e23bc1c
+    taught: 10
+    partial: 0
+    absent: 0
+    reviewer: /root
+    evidence: build/video-delivery-20261106/script-reviews/supervised-finetuning.json
+  fact_check:
+    script: d27edecd3e23bc1c
+    open_findings: 0
+    reviewer: /root
+    evidence: build/video-delivery-20261106/script-reviews/supervised-finetuning.json

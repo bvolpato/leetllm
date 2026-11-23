@@ -1,0 +1,250 @@
+version: 1
+lesson: low-precision-kernels
+promise: Decide whether a low-precision conversion preserved the activation a consumer needs by tracing its code and scale, checking the reconstructed operand with a selector, and comparing the result with the appropriate kernel reference.
+objectives:
+  - id: intro
+    can: Calculate which finite operand reaches the multiplier when a new peak exceeds the old scale's range
+    scenes:
+      - intro
+      - stale-scale
+  - id: format-budget
+    can: Compare exponent range, fraction spacing and stored payload among supported formats
+    scenes:
+      - format-budget
+  - id: number-grid
+    can: Construct neighboring values and resolve nearest-even midpoint choices
+    scenes:
+      - number-grid
+  - id: subnormal-grid
+    can: Calculate subnormal rounding and distinguish an instruction’s flushing mode
+    scenes:
+      - subnormal-grid
+  - id: overflow-mode
+    can: Separate raw magnitude, rounded overflow and declared saturation behavior
+    scenes:
+      - overflow-mode
+  - id: rounding-probability
+    can: Locate one update on two precision grids and calculate the probability that a stochastic write selects its upper neighbor
+    scenes:
+      - rounding-probability
+  - id: stale-scale
+    can: Compute stale and current reconstruction scales in both directions
+    scenes:
+      - stale-scale
+  - id: scale-conventions
+    can: Identify reciprocal scale formulas and handle a zero-only group
+    scenes:
+      - scale-conventions
+  - id: scale-timeline
+    can: Trace current and delayed maximum dependencies without inventing durations
+    scenes:
+      - scale-timeline
+  - id: online-quantization
+    can: Separate a reported online recipe from proposed cast-transfer fusion
+    scenes:
+      - online-quantization
+  - id: local-scales
+    can: Compare actual tiny and spike values under tensor and local scales
+    scenes:
+      - local-scales
+  - id: cpu-contract
+    can: Identify the actual cast and reconstructed-CPU-matmul evidence limits
+    scenes:
+      - cpu-contract
+  - id: projection
+    can: Find the two opposite product errors in a repeating row and select one position to measure its reconstruction error
+    scenes:
+      - projection
+  - id: block-scales
+    can: Apply each contraction block’s scale before summing
+    scenes:
+      - block-scales
+  - id: accumulation
+    can: Distinguish input rounding from running-sum and internal arithmetic loss
+    scenes:
+      - accumulation
+  - id: traffic
+    can: Count the packed operand and avoided wide-buffer transfers
+    scenes:
+      - traffic
+  - id: scale-bytes
+    can: Calculate E8M0 values, metadata overhead and padded-block payloads
+    scenes:
+      - scale-bytes
+  - id: subeight-formats
+    can: Distinguish MX and NVFP4 element and scale contracts
+    scenes:
+      - subeight-formats
+  - id: orientation
+    can: Derive a changed contraction orientation from the wider source matrix
+    scenes:
+      - orientation
+  - id: contract
+    can: Transcode the same value across OCP and FNUZ byte conventions
+    scenes:
+      - contract
+  - id: abi-dispatch
+    can: State the encoding, shape, layout, device and arithmetic contract before dispatch
+    scenes:
+      - abi-dispatch
+  - id: reference-ladder
+    can: Locate input versus kernel discrepancies using both references
+    scenes:
+      - reference-ladder
+  - id: fresh-group
+    can: Predict a one-position dot product when a spike joins its block and repeat the same check after separating the groups
+    scenes:
+      - fresh-group
+sections:
+  - heading: "Format taxonomy: range, spacing, and bitfields"
+    status: taught
+    scenes:
+      - format-budget
+      - number-grid
+      - subeight-formats
+  - heading: Scale ownership and the GEMM dataflow
+    status: taught
+    scenes:
+      - block-scales
+      - traffic
+      - scale-conventions
+  - heading: "Numerical hazards: subnormals, saturation, and rounding"
+    status: taught
+    scenes:
+      - subnormal-grid
+      - overflow-mode
+      - rounding-probability
+      - accumulation
+  - heading: Subnormals and flush-to-zero (FTZ)
+    status: taught
+    scenes:
+      - subnormal-grid
+  - heading: Saturation cliffs
+    status: taught
+    scenes:
+      - intro
+      - stale-scale
+      - overflow-mode
+  - heading: "Rounding: RNE versus stochastic rounding"
+    status: taught
+    scenes:
+      - number-grid
+      - rounding-probability
+  - heading: Accumulator type isn't the whole arithmetic contract
+    status: taught
+    scenes:
+      - accumulation
+      - reference-ladder
+      - abi-dispatch
+  - heading: "Hands-on: auditing FP8 conversion boundaries"
+    status: taught
+    scenes:
+      - cpu-contract
+      - overflow-mode
+      - contract
+  - heading: "Worked failure: stale delayed scale"
+    status: taught
+    scenes:
+      - intro
+      - stale-scale
+  - heading: "Scaling architectures: granularity and delayed scaling"
+    status: taught
+    scenes:
+      - scale-conventions
+      - scale-timeline
+      - local-scales
+  - heading: One letter, two reciprocal conventions
+    status: taught
+    scenes:
+      - scale-conventions
+  - heading: "Current scaling: where the reduction happens"
+    status: taught
+    scenes:
+      - scale-timeline
+  - heading: Delayed scaling in Transformer Engine
+    status: taught
+    scenes:
+      - scale-timeline
+  - heading: Online scaling isn't automatically fused into TMA
+    status: taught
+    scenes:
+      - online-quantization
+  - heading: "Microscaling: the two-row experiment"
+    status: taught
+    scenes:
+      - local-scales
+      - cpu-contract
+      - projection
+      - scale-bytes
+      - orientation
+      - fresh-group
+  - heading: Hardware support and kernel ABI contracts
+    status: taught
+    scenes:
+      - contract
+      - abi-dispatch
+      - orientation
+  - heading: Troubleshooting numerical failures
+    status: taught
+    scenes:
+      - projection
+      - reference-ladder
+      - fresh-group
+quiz:
+  - n: 1
+    status: taught
+    scenes:
+      - intro
+      - stale-scale
+      - scale-conventions
+  - n: 2
+    status: taught
+    scenes:
+      - subnormal-grid
+      - number-grid
+  - n: 3
+    status: taught
+    scenes:
+      - rounding-probability
+  - n: 4
+    status: taught
+    scenes:
+      - format-budget
+      - number-grid
+  - n: 5
+    status: taught
+    scenes:
+      - block-scales
+  - n: 6
+    status: taught
+    scenes:
+      - scale-bytes
+  - n: 7
+    status: taught
+    scenes:
+      - projection
+      - reference-ladder
+      - accumulation
+  - n: 8
+    status: taught
+    scenes:
+      - orientation
+  - n: 9
+    status: taught
+    scenes:
+      - contract
+      - format-budget
+  - n: 10
+    status: taught
+    scenes:
+      - subeight-formats
+removed: []
+reviews:
+  closed_book:
+    taught: 10
+    partial: 0
+    absent: 0
+    script: e2d3cbddfc217ef7
+  fact_check:
+    open_findings: 0
+    script: e2d3cbddfc217ef7

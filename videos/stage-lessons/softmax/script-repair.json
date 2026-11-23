@@ -1,0 +1,20 @@
+[
+  {
+    "scene": "update",
+    "before": "Subtract a positive step times each gradient",
+    "after": "Subtract one point five times each gradient",
+    "reason": "The film model uses a direct logit step of 1.5 in films/softmax/fixtures.mjs."
+  },
+  {
+    "scene": "entropy-reference",
+    "before": "A low printed number from invalid targets is not a valid learning objective.",
+    "after": "A low loss alone does not tell you that the targets represent the distribution you intended.",
+    "reason": "An unnormalized nonnegative target can intentionally weight an example."
+  },
+  {
+    "scene": "token-reduction",
+    "before": "PyTorch mean cross-entropy becomes NaN even with finite logits.",
+    "after": "In this batched example, mean cross-entropy returns NaN even with finite logits.",
+    "reason": "Scope the implementation result to the fixture. The undefined denominator is the general rule."
+  }
+]

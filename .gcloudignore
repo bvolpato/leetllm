@@ -1,0 +1,90 @@
+# Start from .gitignore, then override specific rules below
+#!include:.gitignore
+
+# Cloud Build only needs production container inputs. Generated visual assets
+# are re-included below because deploy.sh renders them before source upload.
+/*
+!/.dockerignore
+!/.gcloudignore
+!/Dockerfile
+!/cloudbuild.yaml
+!/web/
+!/web/**
+
+# ── Override: include pre-rendered illustrations & diagrams ──
+# deploy.sh renders these locally before upload; they must be in
+# the Docker build context so the content media routes can serve them.
+!**/illustrations/_generated/
+!**/illustrations/_generated/*.png
+!**/illustrations/_generated/*.gif
+!**/illustrations/_generated/*.mp4
+!**/illustrations/_generated/*.vtt
+!**/illustrations/_generated/*.json
+!**/diagrams/_generated/
+!**/diagrams/_generated/*.png
+
+# ── Never upload local env files or service-account material ──
+.env*
+**/.env*
+secrets/
+**/secrets/
+**/secrets/**
+private/
+**/private/
+*.pem
+*.p12
+*.p8
+*.mobileprovision
+*.keystore
+*.jks
+service-account*.json
+**/service-account*.json
+web/src/generated/glossary.ts
+
+# Dependencies
+node_modules/
+.pnp
+.pnp.js
+
+# Next.js build output
+.next/
+out/
+
+# IDE & Editor
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS Generated Files
+.DS_Store
+Thumbs.db
+
+# Testing & Coverage
+coverage/
+
+# Debug Logs
+npm-debug.log*
+pnpm-debug.log*
+
+# TypeScript
+*.tsbuildinfo
+
+# Git
+.git/
+
+# Misc
+*.log
+
+# Review & Script Output
+reviews/
+.review-logs/
+review-logs/
+logs/
+*_output.txt
+*_progress.log
+*_summary.md
+scripts/
+!web/scripts/
+!web/scripts/**

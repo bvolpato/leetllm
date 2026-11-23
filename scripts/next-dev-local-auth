@@ -1,0 +1,13 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+ROOT="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)"
+AUTH_FILE="$ROOT/secrets/codex/auth.json"
+
+if [[ -f "$AUTH_FILE" ]]; then
+    CODEX_AUTH_JSON_B64="$(base64 -w 0 < "$AUTH_FILE")"
+    export CODEX_AUTH_JSON_B64
+fi
+
+cd "$ROOT/web"
+exec pnpm exec next dev "$@"

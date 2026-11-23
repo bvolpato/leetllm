@@ -1,0 +1,299 @@
+[
+  {
+    "id": "c01",
+    "title": "Which copy did the policy choose?",
+    "sourceChapters": [
+      "c01"
+    ],
+    "beats": [
+      {
+        "id": "c01-twins",
+        "say": "The sampler tried unresolved count in this SQL query. SQLite sent the name back in an error. Look at the ending, underscore count. Which copy was a choice the policy made?",
+        "hold": 2.4
+      },
+      {
+        "id": "c01-author",
+        "say": "The first copy came from the policy. Even a bad guess is an action. The second came from the database. A generator keeps both in order, so the model can read the error on its next turn. Follow this interaction, query forty-two, from the database to a training update.",
+        "hold": 1
+      },
+      {
+        "id": "c01-customers",
+        "say": "We're looking for active customers with more than three open incidents. The rest of the query is fixed. Read the column names and the three customers. Which field would you try, and whose name should come back?",
+        "hold": 2.1
+      },
+      {
+        "id": "c01-repair",
+        "say": "Use open incidents. Exactly three leaves Ben out. Cy is inactive. Ada is the match. The environment gives the failed turn minus point two and the repair one. That adds to point eight. The inference engine sampled both actions. The generator packages their IDs with the observations, mask, rewards, stop reason and trajectory ID for the trainer.",
+        "hold": 1.4
+      },
+      {
+        "id": "c01-order",
+        "say": "Try returning two trajectories together. Row nine finished first, but the trainer asked for eight, then nine. What has to move with the IDs?",
+        "hold": 1.8
+      },
+      {
+        "id": "c01-reorder",
+        "say": "Move each whole row into input order, including its tokens, mask and reward. In the pinned generator interface, an optional value can be None. Its declared key still travels with the batch. Validate the return at runtime. Type annotations alone can't catch a custom generator that swaps two rewards.",
+        "hold": 1.2
+      }
+    ]
+  },
+  {
+    "id": "c02",
+    "title": "Read the mask across the database reply",
+    "sourceChapters": [
+      "c02"
+    ],
+    "beats": [
+      {
+        "id": "c02-positions",
+        "say": "Here are our two spellings again. This toy vocabulary splits each field into two tokens, and gives the error prefix a token of its own. The two copies of count even have the same token ID. Slide a loss mask over this record. Where should the ones go?",
+        "hold": 2
+      },
+      {
+        "id": "c02-mask",
+        "say": "Select the four sampled tokens. The three database tokens stay in place with zeros. A turn reward lands at the last action token of its turn. Notice the gap between the failed guess and its repair. Rebuilding the transcript from strings could change those sampled token boundaries.",
+        "hold": 1.1
+      },
+      {
+        "id": "c02-baseline",
+        "say": "For an alignment check, suppose we have a negative log probability for each token. Use it as the cost. The mask selects four costs for the sum, one for each bar. Two divided by four gives point five. A missing or infinite score in a skipped position would never enter that sum. What if we change only the cost on the echoed count?",
+        "hold": 1.9
+      },
+      {
+        "id": "c02-echo",
+        "say": "Raise the echo to nine. The mean stays at point five because the database supplied that token. The model still reads the error when it samples the repair. Now add four tenths to the cost of the sampled count. Predict the new average.",
+        "hold": 1.8
+      },
+      {
+        "id": "c02-sample",
+        "say": "The sampled cost rises to point eight. Two point four divided by four is point six. We've tested which scores enter the direct objective. A policy-gradient update also needs an advantage, a measure of how well an action did relative to a baseline.",
+        "hold": 1.2
+      }
+    ]
+  },
+  {
+    "id": "c03",
+    "title": "How much better was this answer?",
+    "sourceChapters": [
+      "c03"
+    ],
+    "beats": [
+      {
+        "id": "c03-group",
+        "say": "Switch to a binary reward for a fresh group. Four answers to the same SQL prompt face the same frozen checker. It compares the returned names with Ada. Two answers earn one and two earn zero. Where would you draw the group's mean?",
+        "hold": 1.8
+      },
+      {
+        "id": "c03-center",
+        "say": "Draw the mean at one half. Subtract it from each reward. The exact matches sit half a point above their peers' average. The answers with extra or missing rows sit half a point below. The update encourages the sampled actions in higher-scoring answers and discourages those in lower-scoring ones. This mean-centered version of group relative policy optimization uses peers as its baseline. Some recipes also divide by reward spread.",
+        "hold": 1.1
+      },
+      {
+        "id": "c03-flat",
+        "say": "Suppose the checker starts awarding one for any query that executes. Both wrong answers now pass. Watch the mean rise to one. Every centered reward is zero, even though one answer still includes Ben and another is empty. A penalty for moving away from a reference policy can still supply a gradient. An easy prompt can also give everyone the same reward. Replay the checker before changing the optimizer.",
+        "hold": 1.3
+      },
+      {
+        "id": "c03-clip",
+        "say": "Return to the checker that compared names. One action had advantage plus one half. How does proximal policy optimization, or PPO, use it? Here the trainer and sampler agree on the old action probability. Dividing the current probability by that saved score gives one point four. With a clip width of point two, the clipped ratio is one point two. Multiply each ratio by the advantage. Which product is smaller?",
+        "hold": 1.9
+      },
+      {
+        "id": "c03-positive",
+        "say": "Take point six, the smaller product. Now consider an action with advantage minus one half whose ratio fell to point six. Clipping its ratio up to point eight makes the product more negative. Which value enters the surrogate this time?",
+        "hold": 1.7
+      },
+      {
+        "id": "c03-negative",
+        "say": "Take minus point four. PPO minimizes the negative of that smaller product in each case. Clipping limits the incentive from this term. Shared parameters and other terms can still move the final ratio outside the interval.",
+        "hold": 1.1
+      }
+    ]
+  },
+  {
+    "id": "c04",
+    "title": "When can the trainer start?",
+    "sourceChapters": [
+      "c04"
+    ],
+    "beats": [
+      {
+        "id": "c04-sync",
+        "say": "Start with a synchronous run and two groups per update. In this illustrative schedule the short group finishes in four seconds. The long group waits for its database until second forty. Both belong to the first batch. When can the trainer use it?",
+        "hold": 1.8
+      },
+      {
+        "id": "c04-barrier",
+        "say": "At forty seconds both groups are complete. Now train, then sync the updated weights before the next batch starts. That clear boundary makes a new environment easier to debug. With one-step pipelining you can generate a following batch during an update, but a batch still waits for its slowest group.",
+        "hold": 1
+      },
+      {
+        "id": "c04-async",
+        "say": "Replay with an extra generation worker. It starts B while A and the long group are running. A and B finish at second four. A fully asynchronous trainer can take those two completed groups while the long database call continues. Follow the long line past the update.",
+        "hold": 1.3
+      },
+      {
+        "id": "c04-compare",
+        "say": "What would you measure on a real system? Join scheduled and consumed steps by group. Keep the behavior log probabilities for its sampled actions. Compare wall time and a frozen held-out score at equal evaluated work and GPU budget. Our schedule shows a possible overlap. It doesn't measure a speedup or a learning gain.",
+        "hold": 1.3
+      }
+    ]
+  },
+  {
+    "id": "c05",
+    "title": "Can the oldest group still fit?",
+    "sourceChapters": [
+      "c05"
+    ],
+    "beats": [
+      {
+        "id": "c05-budget",
+        "say": "Count groups just before each update in this example. One group trains per step. The staleness setting is two. Add one to the setting, then multiply by the batch size to get the outstanding budget. Three groups fit. At step one, A and B are accepted and L is still running. Keep your eye on L in the rightmost place.",
+        "hold": 1.1
+      },
+      {
+        "id": "c05-short",
+        "say": "Consume A. At step two, C has arrived. Accepted includes A even though it trained. Subtract the one consumed group and count the running one. Three places are occupied again. Consume B. At step three, C and L occupy only two places. Which group has been here since step one and still hasn't trained?",
+        "hold": 1.8
+      },
+      {
+        "id": "c05-long",
+        "say": "L finally arrives for step four. Four accepted plus zero running minus three consumed leaves one outstanding. Its scheduling lag is four minus one, or three. It exceeds the setting of two and fits the aggregate budget. A long interaction can cross multiple weight transfers. Its start step alone can't identify the policy behind each action.",
+        "hold": 1.2
+      },
+      {
+        "id": "c05-workers",
+        "say": "For a new admission, also count idle workers. Here at step four, with two groups per update and a setting of two, ten are accepted and one is running. The cumulative limit is twelve. Six workers give five idle workers. Which limit binds?",
+        "hold": 1.8
+      },
+      {
+        "id": "c05-margin",
+        "say": "One more group fits. Take the smaller of the spare accounting capacity and the idle worker count. Six groups have already trained, so five of the six outstanding places are occupied. Once that place fills, the remaining idle workers still have to wait.",
+        "hold": 1.1
+      }
+    ]
+  },
+  {
+    "id": "c06",
+    "title": "Whose place did the filter free?",
+    "sourceChapters": [
+      "c06"
+    ],
+    "beats": [
+      {
+        "id": "c06-blocked",
+        "say": "Here is a different step-three snapshot, with one group per update. Five submitted groups fill the cumulative limit of five. Two accepted groups have trained, a third is waiting for selection, and two groups are running. Query fifty-two waits outside. Its worker is available. What keeps it out?",
+        "hold": 1.7
+      },
+      {
+        "id": "c06-spread",
+        "say": "Read the waiting group's live rewards. Both are one and their spread is zero. In full-batch sampling the filter can drop such a group. It compares only trajectories with trainable tokens, using a tolerance. The pinned helper keeps a group with at most one live trajectory. Dropping a payload alone would leave all five places charged.",
+        "hold": 1.4
+      },
+      {
+        "id": "c06-filter",
+        "say": "Move F to filtered. Now two are accepted, one is filtered and two are running. The five submissions are still accounted for, but only four count toward admission. Watch the empty place. Can query fifty-two use it before the trainer advances?",
+        "hold": 1.8
+      },
+      {
+        "id": "c06-admit",
+        "say": "Admit query fifty-two. It takes the free place and a worker. Six submissions now equal two accepted, one filtered and three running. Training hasn't advanced. Keep the filtered prompt ID so that a restart can skip it. These extra draws change the population the trainer sees.",
+        "hold": 1.3
+      },
+      {
+        "id": "c06-epoch",
+        "say": "At the end of an epoch, suppose a separate run needs two useful groups and has just one left. The input is exhausted. The partial batch is discarded. Record its prompt as consumed for resume, separately from groups used in updates. The nominal epoch length was only an upper bound.",
+        "hold": 1.2
+      }
+    ]
+  },
+  {
+    "id": "c07",
+    "title": "Which replica may take the next turn?",
+    "sourceChapters": [
+      "c07"
+    ],
+    "beats": [
+      {
+        "id": "c07-pause",
+        "say": "Query fifty-two has a worker, but its first token hasn't been sampled. Pause generation for a weight transfer. In this example three serving replicas have revision eleven and the trainer has produced twelve. Ordinary requests go through a router. Pause and transfer commands must reach each replica.",
+        "hold": 1.4
+      },
+      {
+        "id": "c07-two",
+        "say": "The first two replicas load twelve. Read the third one. Could the router safely send query fifty-two there now? A client-side success tells you that a call returned. What would you need to see at the sampler?",
+        "hold": 2.2
+      },
+      {
+        "id": "c07-third",
+        "say": "Replica C still has eleven. Keep the request paused. Check C's health and transfer log, then retry its missing transfer. C now reports twelve. All three versions agree. The finish-update call is still pending. Does agreement alone release the prompt?",
+        "hold": 1.8
+      },
+      {
+        "id": "c07-finish",
+        "say": "The transfer finishes. Probe each replica across the sync boundary. A and B pass. C is still checking. Now C passes too. The router can reopen. Resume query fifty-two. C samples its first token, open, at revision twelve. The token record now identifies its sampler and weights. A session-aware router can keep later turns on C to reuse the prefix. Control traffic still has to reach the whole fleet.",
+        "hold": 1.4
+      },
+      {
+        "id": "c07-history",
+        "say": "For a fresh example, take two actions from query seventy-three. The sampler drew both at revision eleven. It recorded point two for underscore count and point four for underscore incidents. After the transfer, the trainer at twelve assigns them point three and point one. Clear the key and value cache and rebuild the context. Which parts of the sampling record survive?",
+        "hold": 1.9
+      },
+      {
+        "id": "c07-replay",
+        "say": "Both tokens keep their original scores. Follow underscore count. Give the trainer the same prefix, the same token and the original revision eleven weights. Its replay gives point two five. Different numerical kernels or different choices of experts can change the score even at identical weights. Keep today's point three on top. To compare today's policy with the sampler that drew this token, which score goes underneath?",
+        "hold": 3.0
+      },
+      {
+        "id": "c07-ratios",
+        "say": "Use the sampler's point two. Point three divided by point two gives one point five. Using the replay's point two five would give one point two. That compares two trainer scores. For underscore incidents, point one divided by the saved point four gives one quarter. If a sampler score is missing, flag that action. A revision number alone cannot recover its behavior probability.",
+        "hold": 1.8
+      }
+    ]
+  },
+  {
+    "id": "c08",
+    "title": "Will the next update match?",
+    "sourceChapters": [
+      "c08"
+    ],
+    "beats": [
+      {
+        "id": "c08-convert",
+        "say": "Move the same handoff to a terminal task. The policy asks to run a test. The environment runs it and reports one pass. The trainer still consumes aligned actions, observations, masks and rewards. A slow test and a slow sampler need different fixes, so time tool calls, inference and synchronization separately. At the Tinker training interface, try a PPO critic batch with three token weights and three predicted values. The critic uses those values to estimate future return. This batch has only two return targets. Where does the conversion fail?",
+        "hold": 1.8
+      },
+      {
+        "id": "c08-align",
+        "say": "The third prediction has no target. Supply its matching return and the lengths agree. Passing that shape check still leaves the numerical update to test on the selected backend. Wait for each training or save operation to finish before its result is used.",
+        "hold": 1.1
+      },
+      {
+        "id": "c08-save",
+        "say": "A sampling export can start an inference client. Can it continue training from the same weight? Try a momentum optimizer with weight two, saved velocity point four and next gradient point five. Multiply the previous velocity by three quarters and add the gradient. Subtract one tenth of that new velocity from the weight. Which restore will reproduce the uninterrupted update?",
+        "hold": 2
+      },
+      {
+        "id": "c08-full",
+        "say": "Restore the velocity and the data cursor. The new velocity is point eight, and the weight lands at one point nine two, just like the reference. Reset velocity to zero and you land at one point nine five. Keep velocity but read the wrong batch, with gradient minus one quarter, and you land at one point nine nine five. A fresh restore and a matching next update test more than loading the weights.",
+        "hold": 1.4
+      },
+      {
+        "id": "c08-fresh",
+        "say": "One last decision. At step seven, two groups train per step and the setting is one. Thirteen groups have been accepted, two are running and four workers exist. One waiting group started at step three. The sampler target is nineteen. Can a new group fit, and can it sample yet?",
+        "hold": 2.6
+      },
+      {
+        "id": "c08-decide",
+        "say": "Before step seven, six updates have finished. At two groups per update, twelve have trained. Subtract twelve from the fifteen accepted or running. Three are outstanding, the budget is four, and two workers are idle. One new group fits. The older group's lag of four costs no extra place. Replica A still has eighteen. Hold sampling until every replica agrees, the transfer finishes and the probes pass.",
+        "hold": 1.5
+      },
+      {
+        "id": "c08-close",
+        "say": "A reports nineteen. The update finishes. All three probes pass. Start the new group. The last place fills. To repeat the learning experiment, save the optimizer, scheduler, randomness and data progress with the weights. Start small and synchronous, then compare bounded overlap on the same evaluation. With the right tokens on the right sampler, the next lesson follows their memory traffic inside FlashAttention.",
+        "hold": 1.3
+      }
+    ]
+  }
+]

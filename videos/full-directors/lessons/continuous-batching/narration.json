@@ -1,0 +1,342 @@
+[
+  {
+    "id": "c01",
+    "title": "When can the next letter appear?",
+    "sourceChapters": ["c01"],
+    "beats": [
+      {
+        "id": "c01-b01",
+        "say": "One more letter finishes Rio. Watch the second pass. Rio finishes here. The two longer replies keep going. Each letter on this departure board is one token in our replay.",
+        "hold": 1.2
+      },
+      {
+        "id": "c01-b02",
+        "say": "London has its first letter from prompt processing. Its state is ready and fits in memory. The three writes from pass two have landed. Which pass can put the O beside that L?",
+        "hold": 2.1
+      },
+      {
+        "id": "c01-b03",
+        "say": "Pass three writes the O. Paris gets an I and Chicago gets a C in that very same pass. The server rebuilt the group between passes. That's continuous batching. Let's count what those extra turns buy, then put prompt work and memory back into the decision.",
+        "hold": 1.2
+      }
+    ]
+  },
+  {
+    "id": "c02",
+    "title": "What does a decode turn consume?",
+    "sourceChapters": ["c02"],
+    "beats": [
+      {
+        "id": "c02-b01",
+        "say": "Back up to Chicago's first letter. The request asks for the Windy City. Before ordinary decoding begins, prefill processes the prompt and creates attention key and value state. Its final scores let the server sample C. Which part of that history is already in the cache?",
+        "hold": 1.6
+      },
+      {
+        "id": "c02-b02",
+        "say": "The prompt is cached. C is the newest sampled token. Decode reads the saved history and consumes C to predict H. H becomes the input to the following pass. A sampled letter reaches the cache when the model processes it as input.",
+        "hold": 1.1
+      },
+      {
+        "id": "c02-b03",
+        "say": "Each request maintains its own history and stops on an ending condition or output limit. The server usually cannot know the final answer length in advance. An image classifier might finish a whole group in one pass. Here, generation gives the scheduler a decision after every pass. Our trace starts after prefill and counts one turn per active request. The duration of a turn depends on the requests and kernels sharing it.",
+        "hold": 1
+      }
+    ]
+  },
+  {
+    "id": "c03",
+    "title": "Where does a fixed group lose turns?",
+    "sourceChapters": ["c03"],
+    "beats": [
+      {
+        "id": "c03-b01",
+        "say": "The first three requests need two, four, and six remaining decode iterations. A static batch reserves all three seats until the longest finishes. Here are the first two columns. Rio is complete. Look down the third column. Who gets to write?",
+        "hold": 1.8
+      },
+      {
+        "id": "c03-b02",
+        "say": "Only Paris and Chicago write in column three. London waits. Paris finishes on four. Chicago writes alone on five and six. You can still read every letter that each person received. Count the empty places in the schedule.",
+        "hold": 1.8
+      },
+      {
+        "id": "c03-b03",
+        "say": "Six places went unused. Across six iterations, the group reserves eighteen seat-steps and produces twelve useful output tokens. Two thirds of the seats did useful work. Measuring GPU utilization takes device counters. Even a full row of requests can leave compute units waiting for memory.",
+        "hold": 1.1
+      }
+    ]
+  },
+  {
+    "id": "c04",
+    "title": "Which letters fill the same six columns?",
+    "sourceChapters": ["c04"],
+    "beats": [
+      {
+        "id": "c04-b01",
+        "say": "Run the same first requests again. Keep the first two columns and change only the refill rule. London has five more letters to write. Which mark belongs in Rio's first empty place?",
+        "hold": 1.6
+      },
+      {
+        "id": "c04-b02",
+        "say": "The O goes on three. Paris and Chicago keep their own histories. Seoul arrives after three passes, when all seats for pass four are taken. Paris finishes on four. Seoul gets its E on five. Count through six with both replacements.",
+        "hold": 1.3
+      },
+      {
+        "id": "c04-b03",
+        "say": "London contributed four letters and Seoul two. That's eighteen useful letters in the same six passes. Carry the trace to the end. London finishes on seven and Seoul on eight. With fixed groups, both wait until seven to start. London's five steps take that group through eleven. Refill saved three iterations for these five replies. To measure time saved, you would also need the duration of each pass.",
+        "hold": 1.2
+      }
+    ]
+  },
+  {
+    "id": "c05",
+    "title": "Who can reuse a canceled request’s page?",
+    "sourceChapters": ["c05"],
+    "beats": [
+      {
+        "id": "c05-b01",
+        "say": "Consider a pass still running. U has reached its end token. V's client just canceled. W still needs the prefix it shares with V. A new request is waiting. Which physical pages could the server safely give it right now?",
+        "hold": 1.8
+      },
+      {
+        "id": "c05-b02",
+        "say": "Wait for the last access. A reader, writer, or transfer may still touch the old contents. Suppress V's late output. At the safe boundary retire U and V. Release their private pages. Remove V's reference to the prefix. W still owns a reference, so that page stays exactly where it was.",
+        "hold": 1.4
+      },
+      {
+        "id": "c05-b03",
+        "say": "Now consider a waiting request that needs two private pages for its next step. A seat and a work position are available. Reserve the two freed pages before launch. Change the group only at a safe boundary, and recheck projected growth before executing the next pass.",
+        "hold": 1.2
+      }
+    ]
+  },
+  {
+    "id": "policy",
+    "title": "Which job waits when short work goes first?",
+    "sourceChapters": ["c05"],
+    "beats": [
+      {
+        "id": "policy-b01",
+        "say": "Try one decode seat with three ready jobs, all arriving at time zero. They have fifty, five and twenty turns left. In arrival order, the jobs finish at fifty, fifty-five and seventy-five. How would sorting by length change the time the first person waits?",
+        "hold": 1.6
+      },
+      {
+        "id": "policy-b02",
+        "say": "Shortest first moves the five-turn job to the front. The mean completion time falls from sixty to thirty-five turns. The fifty-turn job now waits twenty-five turns just to start. A real scheduler must estimate output lengths. A steady supply of short jobs can keep an older one waiting.",
+        "hold": 1.1
+      },
+      {
+        "id": "policy-b03",
+        "say": "Priority and a scan for work that fits can have that same cost. Aging can give an older request a turn, subject to the work and memory budgets. We'll use a fresh queue at the end to decide when leaving a seat empty makes sense.",
+        "hold": 1
+      }
+    ]
+  },
+  {
+    "id": "c06",
+    "title": "How much prompt fits beside three cursors?",
+    "sourceChapters": ["c06"],
+    "beats": [
+      {
+        "id": "c06-b01",
+        "say": "Now restore prefill to the picture. This prompt has twenty input positions. Our step has room for twelve, and three live replies each need one ordinary decode position. If the state fits, how far into the prompt can this step go?",
+        "hold": 2
+      },
+      {
+        "id": "c06-b02",
+        "say": "Nine prompt positions fit. The step spends three on decode and nine on prefill. Eleven prompt positions remain. Keep the first chunk's attention state. Nine more go into the second pass. The last two go into the third. Each time, all three live streams get another turn.",
+        "hold": 1.2
+      },
+      {
+        "id": "c06-b03",
+        "say": "Try the same twenty-position prompt with room for just four prompt positions beside the three decodes. Five passes now finish prefill. A smaller chunk gives a reader an earlier chance at another token, but the new arrival may wait through more launches. Attention over earlier chunks also costs work. Position counts alone cannot tell us how long either person waits.",
+        "hold": 1
+      }
+    ]
+  },
+  {
+    "id": "verify",
+    "title": "What work survives a rejected proposal?",
+    "sourceChapters": ["c06"],
+    "beats": [
+      {
+        "id": "verify-b01",
+        "say": "Try a different twelve-position pass. A draft model proposes three tokens for one stream. The target processes the pending input and the three proposals together. Four positions go to verification and two to ordinary decode. How much room is there for prefill?",
+        "hold": 1.8
+      },
+      {
+        "id": "verify-b02",
+        "say": "Six prompt positions fill the step. Now the target rejects the first proposed token. This stream gets one correction and accepts zero draft tokens. All four verification positions still count. The scheduler must reserve the verification work and any lookahead state before learning which tokens the target will accept.",
+        "hold": 1.1
+      },
+      {
+        "id": "verify-b03",
+        "say": "Consider another outcome. A verifier that accepts a whole three-token draft can emit the three proposals plus a bonus token. That stream delivers a burst. On rejection it may deliver just a correction. Check which mixtures your engine supports, and count verification inputs separately from accepted output.",
+        "hold": 1
+      }
+    ]
+  },
+  {
+    "id": "c07",
+    "title": "Can two histories grow at once?",
+    "sourceChapters": ["c07"],
+    "beats": [
+      {
+        "id": "c07-b01",
+        "say": "Attention caches keys and values for the history so that decoding can reuse earlier work. Paging maps logical blocks to physical pages. Here one reply uses three pages. Follow its block table across the gap. Its third block lives on page six, even though other streams occupy the pages in between. The kernel must support that layout. Other compatible allocators can support continuous batching too.",
+        "hold": 1.1
+      },
+      {
+        "id": "c07-b02",
+        "say": "Take a smaller pool. Urgent and Background each own a full, private sixteen-position page. Each needs a private tail for position seventeen on the next pass. There are just two pages in this pool. How many would running both require?",
+        "hold": 2
+      },
+      {
+        "id": "c07-b03",
+        "say": "Four pages would be needed. Each private tail needs a new page even for a single position. Pause Background and save its history. After its last access, release its page. Reserve that page for Urgent. Now Urgent can run. Fifteen unused places inside its tail still belong to Urgent.",
+        "hold": 1.2
+      },
+      {
+        "id": "c07-b04",
+        "say": "After Urgent finishes and its pages are safe to reuse, restore Background and run its next input. It fits alone. If a request can never fit alone, set an enforceable output cap, offload compatible state, or reject it. Allow headroom for weights and workspace as well as the cache. This growth rule describes full attention. A sliding window can bound the cache, and a recurrent layer can update state in place.",
+        "hold": 1.1
+      }
+    ]
+  },
+  {
+    "id": "resume",
+    "title": "Which token should the server consume next?",
+    "sourceChapters": ["c07"],
+    "beats": [
+      {
+        "id": "resume-b01",
+        "say": "Recomputing a paused stream takes two records. The client already has tokens two hundred one and two hundred two. The server cached three prompt positions and the first of those outputs. The newest token has been sampled but has not yet been processed as input. If the cache is discarded, what must survive?",
+        "hold": 1.9
+      },
+      {
+        "id": "resume-b02",
+        "say": "Keep both accepted outputs and the prompt IDs. Replay the three prompt positions and two hundred one to rebuild the missing cache. During replay, emit nothing and sample nothing. Preserve the model, adapter, positions and sampling state that define the continuation.",
+        "hold": 1.1
+      },
+      {
+        "id": "resume-b03",
+        "say": "Consume two hundred two as the next input. Only the new token goes out. Swapping instead saves compatible state and restores it before decoding. That costs host memory and transfer time. Frequent pauses show up as replayed work or repeated transfers, even if every seat looks occupied.",
+        "hold": 1
+      }
+    ]
+  },
+  {
+    "id": "c08",
+    "title": "Which word did the reader wait for?",
+    "sourceChapters": ["c08"],
+    "beats": [
+      {
+        "id": "c08-b01",
+        "say": "Watch the reply arrive.",
+        "hold": 2.9
+      },
+      {
+        "id": "c08-b02",
+        "say": "The first token arrived one second after the request. Time to first token includes queueing, prompt processing and delivery. Read the next three gaps on the client clock. Which word interrupted the rhythm?",
+        "hold": 1.8
+      },
+      {
+        "id": "c08-b03",
+        "say": "Just came half a second after seat. The other gaps were two tenths of a second each. The mean gap was three tenths. Time per output token averages the gaps after the first token. A single-token reply has no gap to average. If each gap must stay under four tenths, this reply misses even though its mean passes.",
+        "hold": 1
+      },
+      {
+        "id": "c08-b04",
+        "say": "Someone else arrived at zero and still has no token at two seconds. Their wait contributed no gaps to that mean. If live gaps stay steady while decode takes every work position, inspect prefill queue age and first-token deadlines. Try reserving work for aged prompts within the token and memory limits. Measure both classes again.",
+        "hold": 1.1
+      }
+    ]
+  },
+  {
+    "id": "handoff",
+    "title": "Does buffering make token two arrive sooner?",
+    "sourceChapters": ["c08"],
+    "beats": [
+      {
+        "id": "handoff-b01",
+        "say": "A separate prefill worker can free the decode worker from prompt processing. It must hand over compatible prompt state, exact positions and the first sampled token. The decoder consumes that token to predict the second. Measure the part of the transfer still on the critical path after overlap.",
+        "hold": 1
+      },
+      {
+        "id": "handoff-b02",
+        "say": "Here's a serial example with negligible client transit. Twenty milliseconds in the prefill queue and sixty in prefill produce token one. Handoff takes forty, the decode queue fifteen and decode ten. Compare sending the first token immediately with holding it until the decoder is ready. Can either choice meet both limits?",
+        "hold": 2
+      },
+      {
+        "id": "handoff-b03",
+        "say": "Early delivery gives a first token at eighty and a gap of sixty-five milliseconds. Buffering gives a first token at one hundred thirty-five and a gap of ten. The second token arrives at one hundred forty-five either way. Early misses the thirty-millisecond gap limit. Buffered misses the ninety-millisecond first-token limit. Compare both queues and exposed transfer with colocated service.",
+        "hold": 1.1
+      }
+    ]
+  },
+  {
+    "id": "c09",
+    "title": "Which replies met both promises?",
+    "sourceChapters": ["c09"],
+    "beats": [
+      {
+        "id": "c09-b01",
+        "say": "A ten-second arrival window contains five requests. Four completed correctly and one expired. For this window, use ten seconds as the rate denominator and include all outcomes after drain. The contract allows three hundred milliseconds to first token and thirty for the mean gap. Which replies meet both?",
+        "hold": 2
+      },
+      {
+        "id": "c09-b02",
+        "say": "Replies one and four pass. The second took four hundred fifty milliseconds to start. The third arrived on time, but its forty-two-millisecond mean gap broke the other limit. Four completions in ten seconds give four tenths of a request per second. Two compliant replies give two tenths per second. The expired request stays in the offered count, so attainment is two out of five, or forty percent.",
+        "hold": 1.1
+      },
+      {
+        "id": "c09-b03",
+        "say": "Choose a separate gap rule if smooth streaming is a requirement. Here a five-token stream has four gaps. Three of the four are within a hundred milliseconds. Its mean is below a hundred, but its nearest-rank ninety-ninth percentile is two hundred. A per-stream percentile and a fraction of gaps under a limit are different contracts. Choose the rule before testing.",
+        "hold": 1
+      }
+    ]
+  },
+  {
+    "id": "load",
+    "title": "What is the highest tested rate that meets the target?",
+    "sourceChapters": ["c09"],
+    "beats": [
+      {
+        "id": "load-b01",
+        "say": "To evaluate a scheduler, replay a representative arrival pattern with the same model and hardware. Keep prompt mix, decoding policy, cache conditions and correctness checks fixed. Warm up first. Send on the open-loop schedule even when a reply takes longer. A client that waits for the reply before sending again reduces its own offered load.",
+        "hold": 1.1
+      },
+      {
+        "id": "load-b02",
+        "say": "Drain the run and count rejections, timeouts and invalid replies against attainment. Record actual send times, per-class waits, first tokens, token-gap tails and preemptions. Here two GPUs faced two, three and four offered requests per second. At least ninety percent must meet both latency limits. What is the highest tested rate that meets the target?",
+        "hold": 2
+      },
+      {
+        "id": "load-b03",
+        "say": "Three requests per second is the highest tested rate that passes. Ninety-two percent met both limits at three. At four, only eighty-four percent did. For this contract, goodput is the highest supported offered rate. Our measured point gives one and a half requests per second per GPU. Repeat around that boundary on the same mix. Under sustained overload, bound the queue and expire or reject work that cannot meet its deadline. A full worker can still be healthy. Restarting it discards resident state and adds replay to the load.",
+        "hold": 1.1
+      }
+    ]
+  },
+  {
+    "id": "practice",
+    "title": "Which waiting request, if any, runs next?",
+    "sourceChapters": ["c09"],
+    "beats": [
+      {
+        "id": "practice-b01",
+        "say": "Take the next boundary yourself. Two live streams need one input each. Three seats, eight input positions and five physical pages are available in total. Each page holds four positions. Two pages are free. D has eleven saved positions and E has three. Both need one more position to decode. D arrived first. Under strict arrival order, does either waiting request get the empty seat?",
+        "hold": 2.2
+      },
+      {
+        "id": "practice-b02",
+        "say": "Leave it open. D needs three pages, and only two are free. Under a fit scan, E can use one page. Restore its three positions before running the next input. That fills the third seat and schedules three inputs. D is still waiting. Repeating this decision could leave D waiting indefinitely.",
+        "hold": 1.2
+      },
+      {
+        "id": "practice-b03",
+        "say": "Replay that boundary with an aging policy. Pause B and safely release its private page. Now three pages are free. Restore D's eleven positions and reserve its twelfth. Run C and D. Aging gave D a turn, but B now waits and will pay to restore its own state. To choose a policy, trace that cost back to the people waiting for a first token or reading the next one.",
+        "hold": 1.3
+      }
+    ]
+  }
+]

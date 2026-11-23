@@ -1,0 +1,1620 @@
+version: 1
+id: hypothesis-testing
+opening: lesson
+title: Would You Switch the Coding Assistant?
+source: foundations/hypothesis-tests-confidence-intervals-passk/content.md
+sources:
+  - title: "SciPy: Exact binomial test"
+    url: https://docs.scipy.org/doc/scipy/reference/generated/scipy.stats.binomtest.html
+  - title: "ASA: Statement on p-values"
+    url: https://www.amstat.org/asa/files/pdfs/P-ValueStatement.pdf
+  - title: Chen2021 HumanEval fixed-draw estimator and protocol
+    url: https://arxiv.org/abs/2107.03374
+  - title: NIST confidence-interval procedure and coverage
+    url: https://www.itl.nist.gov/div898/handbook/eda/section3/eda352.htm
+  - title: NIST Bonferroni general inequality
+    url: https://www.itl.nist.gov/div898/handbook/prc/section4/prc473.htm
+  - title: SciPy paired bootstrap and percentile construction
+    url: https://docs.scipy.org/doc/scipy/reference/generated/scipy.stats.bootstrap.html
+  - title: HumanEval released harness execution-isolation requirement
+    url: https://github.com/openai/human-eval
+scenes:
+  - id: intro
+    title: Would you switch coding assistants?
+    visual: The coding assistants have three passes apiece. Five task pairs match. B's permission test
+      is the last open cell on the scoreboard.
+    beats:
+      - say: Three passes apiece. One test left to score. Each coding assistant gets one try.
+          The permission test checks that a denied request stays blocked. A failed it.
+          If B passes, would you switch?
+        hold: 2.2
+        caption_starts:
+          - The permission test checks
+          - If B passes
+        visual_cues:
+          - id: opening-current
+            phrase: Three passes apiece
+            targets:
+              - opening-scores
+            color: blue
+            linger: 0.25
+          - id: opening-pairs
+            phrase: The permission test checks that a denied request stays blocked
+            targets:
+              - paired-task-permission
+            color: blue
+            linger: 0.25
+          - id: opening-predict
+            phrase: If B passes
+            targets:
+              - opening-question
+              - opening-scores
+              - paired-task-permission
+              - model-a-only-fail-permission
+              - model-b-only-pass-permission
+            color: yellow
+            linger: 0.25
+      - say: One task passes for Model B. Its answer keeps the request blocked. B wins four to three.
+          Five tasks ended in ties. If either assistant was equally likely to win that last task, how surprising is B's lead?
+        hold: 0.85
+        visual_cues:
+          - id: intro-permission
+            phrase: One task passes for Model B
+            targets:
+              - model-a-only-fail-permission
+              - model-b-only-pass-permission
+            color: green
+            linger: 0.25
+          - id: intro-pass
+            phrase: passes
+            targets:
+              - paired-task-permission
+              - model-a-only-fail-permission
+              - model-b-only-pass-permission
+            color: green
+            linger: 0.9
+          - id: intro-denial
+            phrase: Its answer keeps the request blocked
+            targets:
+              - paired-task-permission
+              - model-a-only-fail-permission
+              - model-b-only-pass-permission
+            color: green
+            linger: 0.25
+          - id: intro-receipt
+            phrase: B wins four to three
+            targets:
+              - intro-lift
+            color: green
+            linger: 0.25
+            caption_boundary: true
+  - id: paired-design
+    title: Keep the task attached to both answers
+    visual: A permission prompt feeds the same tests, followed by a large paired table and signed
+      differences.
+    beats:
+      - say: Take the permission task. An explicit denial must stay denied. We give each model the same
+          prompt and hidden tests, then keep both outcomes on one row. Pairing by task preserves
+          this shared difficulty. Related versions of one task would need a cluster-level analysis.
+        hold: 0.6
+        visual_cues:
+          - id: pair-prompt
+            phrase: same prompt
+            targets:
+              - paired-task-source
+            color: blue
+            linger: 0.45
+          - id: pair-results
+            phrase: both outcomes on one row
+            targets:
+              - permission-pair
+            color: green
+            linger: 0.45
+      - say: Here are all six rows. Model A passes three; Model B passes four. The observed lift is one
+          extra pass divided by all six tasks. We keep the task population, checkpoint, decoding and
+          attempt budget attached to that description.
+        hold: 0.6
+        visual_cues:
+          - id: pair-table
+            phrase: all six rows
+            targets:
+              - paired-table
+            color: blue
+            linger: 0.45
+          - id: pair-lift
+            phrase: The observed lift is one extra pass divided by all six tasks.
+            targets:
+              - paired-observed-lift
+              - paired-task-permission
+              - model-a-only-fail-permission
+              - model-b-only-pass-permission
+            color: green
+            linger: 0.45
+      - say: Subtract A from B within each row. A shared pass and a shared failure each contribute zero.
+          Only a disagreement changes the signed difference. The permission row contributes plus
+          one; the five ties stay in the denominator of the overall lift.
+        hold: 0.6
+        visual_cues:
+          - id: pair-differences
+            phrase: Subtract A from B
+            targets:
+              - paired-differences
+            color: blue
+            linger: 0.45
+          - id: pair-ties
+            phrase: each contribute zero
+            targets:
+              - paired-differences
+            color: blue
+            linger: 0.25
+          - id: pair-permission
+            phrase: only a disagreement
+            targets:
+              - paired-positive-difference-permission
+              - paired-task-permission
+              - model-a-only-fail-permission
+              - model-b-only-pass-permission
+            color: green
+            linger: 0.45
+  - id: protocol-identity
+    title: Which answer belongs to which task?
+    visual: Two out-of-order results create opposing apparent wins. The challenger results move beside
+      their matching task IDs. A replay leaves a timeout attached to its task.
+    beats:
+      - say: Let's see how easy it is to invent a win. Here are two tasks from the first six. The
+          challenger's cache test finishes before its timestamp test. Line up the results by finish
+          time. It looks as though each assistant won a different task. Look at the names in those
+          pairs. Now match each result to its own task ID. Both apparent wins disappear. A strict
+          length check on the lists would have let the first pairing through. Suppose the timestamp
+          result times out instead. Keep that row and apply the timeout policy you declared.
+        hold: 0.85
+        visual_cues:
+          - id: protocol-identity-0
+            phrase: Here are two tasks from the first six
+            targets:
+              - protocol-identity-construction
+            color: cyan
+            linger: 0.25
+          - id: identity-order
+            phrase: Line up the results by finish time
+            targets:
+              - protocol-identity-construction
+            color: cyan
+            linger: 0.25
+          - id: hyp-identity-join
+            phrase: Now match each result to its own task ID
+            targets:
+              - protocol-identity-construction
+            color: cyan
+            linger: 0.25
+            caption_boundary: true
+          - id: hyp-identity-missing
+            phrase: Suppose the timestamp result times out instead
+            targets:
+              - protocol-identity-construction
+            color: cyan
+            linger: 0.25
+            caption_boundary: true
+      - say: Write down enough to repeat that pair. Save the checkpoint hashes, prompt and tests. Give both
+          assistants the same decoder settings, seeds, token limit, execution timeout and attempt
+          budget. Fix how you'll select an answer. If you give B more time, the result measures the
+          longer timeout along with the checkpoint. Decide which direction to test, how many
+          comparisons to make and when to stop before you see the scores. Write down what the switch
+          has to buy. For this run, the lower end of the lift interval must exceed two percentage points
+          to cover the extra cost. Reserve fresh tasks for the winner.
+        hold: 0.8
+        visual_cues:
+          - id: protocol-identity-1
+            phrase: Write down enough to repeat that pair
+            targets:
+              - protocol-identity-construction
+            color: cyan
+            linger: 0.25
+          - id: identity-cost-rule
+            phrase: the lower end of the lift interval must exceed two percentage points
+            targets:
+              - protocol-identity-construction
+            color: yellow
+            linger: 0.25
+      - say: Where did the tasks come from? Suppose one repository supplies twenty variations of the same
+          helper. One bug could make all twenty fail together. Carry those related tasks together when
+          you resample, and draw independent repository clusters. Counting every variation as
+          independent can give a narrow interval for a population you barely sampled.
+        hold: 0.8
+        visual_cues:
+          - id: protocol-identity-2
+            phrase: Where did the tasks come from
+            targets:
+              - protocol-identity-construction
+            color: cyan
+            linger: 0.25
+          - id: hyp-identity-cluster
+            phrase: one repository supplies twenty variations of the same helper
+            targets:
+              - protocol-identity-construction
+            color: cyan
+            linger: 0.25
+  - id: forty-tasks
+    title: Finish the planned forty-task experiment
+    visual: The same six rows extend to forty retained identities and sort into agreements, B wins and A
+      wins.
+    beats:
+      - say: Six tasks were our close-up. Finish the planned forty-task run before drawing a conclusion.
+          These are illustrative outcomes, with the same one-attempt protocol throughout. Watch the
+          original permission row join seven more B-only passes, while five tasks favor A.
+        hold: 0.7
+        visual_cues:
+          - id: forty-arrive
+            phrase: Finish the planned forty-task run
+            targets:
+              - forty-rows
+            color: blue
+            linger: 0.45
+          - id: forty-sort
+            phrase: permission row join seven more B-only passes, while five tasks favor A
+            targets:
+              - forty-groups
+              - forty-rows
+            color: green
+            linger: 0.45
+        motion_check:
+          region:
+            - 180
+            - 370
+            - 1530
+            - 400
+      - say: "Twenty-seven pairs agree. Eight favor B and five favor A. The net gain is three passes across
+          forty tasks, or seven and a half percentage points. Before looking at these results, we
+          chose a one-sided question: does B improve the pass rate?"
+        hold: 0.6
+        visual_cues:
+          - id: forty-lift
+            phrase: The net gain is three passes across forty tasks, or seven and a half percentage points.
+            targets:
+              - forty-lift
+            color: green
+            linger: 0.45
+          - id: direction-plan
+            phrase: one-sided question
+            targets:
+              - direction-plan
+            color: yellow
+            linger: 0.45
+  - id: null-model
+    title: What would a fair contest produce?
+    visual: One observed disagreement splits into two fair alternatives. Thirteen fixed task IDs receive
+      new signs, and all 8,192 assignments accumulate in bins by B-win count.
+    beats:
+      - say: For that directional test, the equal-win boundary gives A and B the same chance on a
+          disagreement. Start with our permission row alone. Its two possible directions are equally
+          likely. A single B win has a one-sided tail probability of one half.
+        hold: 0.8
+        visual_cues:
+          - id: null-single
+            phrase: Its two possible directions are equally likely
+            targets:
+              - single-branches
+            color: blue
+            linger: 0.25
+          - id: null-half
+            phrase: A single B win has a one-sided tail probability of one half
+            targets:
+              - single-tail
+            color: green
+            linger: 0.25
+            caption_boundary: true
+      - say: Now keep all thirteen disagreement identities and assign each a fair direction under that
+          model. The twenty-seven ties stay parked. Independent task pairs let us multiply the coin
+          probabilities. One simulated row of signs produces one count of B wins.
+        hold: 0.7
+        visual_cues:
+          - id: null-signs
+            phrase: keep all thirteen disagreement identities and assign each a fair direction under that model
+            targets:
+              - null-signs
+            color: blue
+            linger: 0.25
+          - id: null-count
+            phrase: one count of B wins
+            targets:
+              - null-count
+            color: green
+            linger: 0.25
+        motion_check:
+          region:
+            - 190
+            - 360
+            - 1500
+            - 350
+      - say: Enumerating every possible sign assignment gives this binomial distribution. Every assignment
+          is equally likely, but the middle counts occur in many more assignments. The height of a
+          bar is the fraction of assignments with that many B wins.
+        hold: 2
+        visual_cues:
+          - id: null-enumerate
+            phrase: Enumerating every possible sign assignment gives this binomial distribution
+            targets:
+              - null-histogram
+            color: blue
+            linger: 0.25
+          - id: null-bar-share
+            phrase: the fraction of assignments with that many B wins
+            targets:
+              - null-histogram
+            color: blue
+            linger: 0
+  - id: p-value
+    title: Which results count as evidence for B?
+    visual: The observed eight stays pinned to its bin. The rightward sweep counts assignments before the
+      one-sided probability appears. A mirror tail shows the other planned question.
+    beats:
+      - say: "Our observed count is eight B wins. Include eight, nine, and every larger count: each is at
+          least as favorable to B. Add those bar probabilities. Under the equal-win model, this
+          happens about twenty-nine percent of the time. This sample gives fairly ordinary results
+          under that model."
+        hold: 0.8
+        visual_cues:
+          - id: tail-observed
+            phrase: Our observed count is eight B wins
+            targets:
+              - observed-boundary
+            color: yellow
+            linger: 0.25
+          - id: tail-sum
+            phrase: Include eight, nine, and every larger count
+            targets:
+              - tail-bars
+            color: yellow
+            linger: 0.25
+          - id: tail-result
+            phrase: about twenty-nine percent
+            targets:
+              - tail-result
+            color: yellow
+            linger: 0.25
+            caption_boundary: true
+        motion_check:
+          region:
+            - 200
+            - 380
+            - 1460
+            - 380
+      - say: That p-value is a tail probability for outcomes generated by the null model. A two-sided
+          question would also count equally extreme A wins, shown on the other side. We choose the
+          direction before seeing results. Here we retain the original one-sided plan and its full
+          right tail.
+        hold: 0.7
+        visual_cues:
+          - id: tail-mirror
+            phrase: equally extreme A wins, shown on the other side
+            targets:
+              - mirror-tail
+            color: pink
+            linger: 0.25
+          - id: tail-return
+            phrase: original one-sided plan
+            targets:
+              - tail-plan
+            color: blue
+            linger: 0.25
+  - id: null-contract
+    title: What did we draw?
+    visual: Compare fair assignments of thirteen wins with new samples of forty observed pairs.
+      Enumerate a sweep and use a decision table to identify the two possible errors.
+    beats:
+      - say: Our null hypothesis gives B at most half the wins on disagreements. At the gold line,
+          each assistant wins half in the long run. Farther left, a run of B wins gets even rarer. That's why we
+          use the fair coin at the boundary and keep the thirteen disagreements fixed. For paired
+          pass or fail results, the exact McNemar test uses this same calculation. Its usual
+          two-sided version counts extremes in either direction.
+        hold: 0.8
+        visual_cues:
+          - id: null-contract-0
+            phrase: At the gold line
+            targets:
+              - null-contract-construction
+            color: cyan
+            linger: 0.5
+      - say: On the left, toss thirteen fair coins. The yellow tail counts eight or more B wins.
+          Its probability is our p-value. On the right, draw forty whole task pairs with replacement
+          from the results we observed. Repeat that draw. The pink bars count samples where B falls behind.
+          Each chart tells you how often an outcome occurs under its own drawing rule.
+          To assign a posterior probability to B being better, we'd also need a prior and a model of the data.
+        hold: 0.8
+        caption_starts:
+          - On the right
+        visual_cues:
+          - id: null-contract-1
+            phrase: toss thirteen fair coins
+            targets:
+              - fair-draws
+            color: blue
+            linger: 0.5
+          - id: empirical-draws
+            phrase: On the right, draw forty whole task pairs with replacement
+            targets:
+              - row-draws
+            color: cyan
+            linger: 0.25
+      - say: Suppose B wins all four disagreements. Find the four B's. Only one of the sixteen
+          equally likely strings looks like that. Even a sweep lands above five percent.
+          Add a fifth B win and the chance falls to one in thirty-two. Each extra win halves
+          the smallest possible one-sided p-value. With no disagreements the test returns one.
+          To plan a study, we also need to know how often the assistants tie and what advantage we want to detect.
+        hold: 0.8
+        visual_cues:
+          - id: null-contract-2
+            phrase: Suppose B wins all four disagreements
+            targets:
+              - null-contract-construction
+            color: cyan
+            linger: 0.5
+          - id: hyp-null-five
+            phrase: Add a fifth B win
+            targets:
+              - null-contract-construction
+            color: cyan
+            linger: 0.15
+          - id: hyp-null-empty
+            phrase: With no disagreements
+            targets:
+              - null-contract-construction
+            color: cyan
+            linger: 0.15
+      - say: Read the top row. If the null is true and we reject it, we've called a false win.
+          That's a Type one error. On the bottom row B really is better. Missing that gain is a
+          Type two error. Power is the chance of detecting that particular gain.
+          When the test leaves the comparison unresolved, a smaller gain could still matter.
+          To test for practical equivalence, choose a tolerance first and test whether the difference fits inside it.
+        hold: 0.8
+        visual_cues:
+          - id: null-contract-3
+            phrase: Read the top row
+            targets:
+              - null-contract-construction
+            color: cyan
+            linger: 0.5
+  - id: errors-and-power
+    title: Watch the same decision rule repeat
+    visual: Fixed-seed repeated studies are classified by the exact rejection cutoff under null and
+      alternative win probabilities.
+    beats:
+      - say: A five-percent significance threshold defines a repeated-use rule. With thirteen disagreements,
+          ten or more B wins trigger rejection. The colored studies are false positives when equal
+          win chances really hold. Their exact long-run probability is a little below five percent
+          because the counts are discrete.
+        hold: 0.7
+        visual_cues:
+          - id: size-cutoff
+            phrase: ten or more B wins
+            targets:
+              - decision-cutoff
+            color: yellow
+            linger: 0.45
+          - id: size-studies
+            phrase: colored studies are false positives
+            targets:
+              - study-grid
+            color: pink
+            linger: 0.45
+          - id: size-receipt
+            phrase: a little below five percent
+            targets:
+              - size-receipt
+            color: pink
+            linger: 0.45
+        motion_check:
+          region:
+            - 180
+            - 390
+            - 1080
+            - 400
+      - say: "Now specify a real advantage: B wins sixty-five percent of disagreements. Keep the same
+          rejection rule. Some simulated studies detect the advantage; others miss it. Power is the
+          probability of detection under this specified alternative. A missed rejection leaves the
+          comparison unresolved."
+        hold: 0.6
+        visual_cues:
+          - id: power-alternative
+            phrase: sixty-five percent
+            targets:
+              - study-alternative
+            color: green
+            linger: 0.45
+          - id: power-studies
+            phrase: Some simulated studies detect the advantage; others miss it
+            targets:
+              - study-grid
+            color: green
+            linger: 0.45
+          - id: power-receipt
+            phrase: probability of detection
+            targets:
+              - power-receipt
+            color: green
+            linger: 0.45
+      - say: Plan for sixty-four independent disagreements instead. The critical count changes to preserve
+          the error limit, and more studies now detect the same advantage. The exact power rises to
+          about seventy-one percent. These sample sizes count disagreements; a full task study must
+          also allow for how often models tie.
+        hold: 0.85
+        visual_cues:
+          - id: power-grow
+            phrase: sixty-four independent disagreements
+            targets:
+              - study-grid
+            color: green
+            linger: 0.45
+          - id: power-large
+            phrase: seventy-one percent
+            targets:
+              - power-receipt
+            color: green
+            linger: 0.45
+  - id: search
+    title: A winner can come from the search
+    visual: Twenty independent null comparisons build a family-risk calculation, then the Bonferroni
+      cutoff physically removes the weaker rejection bars.
+    beats:
+      - say: Imagine repeating that thirteen-disagreement test for twenty prompt variants whose results are
+          independent under this example. Even when every variant has equal win chances, a family
+          gets twenty opportunities for a false positive. The exact per-test error compounds to
+          about sixty-one percent for at least one.
+        hold: 0.6
+        visual_cues:
+          - id: search-variants
+            phrase: twenty prompt variants
+            targets:
+              - variant-grid
+            color: blue
+            linger: 0.45
+          - id: search-risk
+            phrase: sixty-one percent
+            targets:
+              - family-risk
+            color: pink
+            linger: 0.45
+      - say: Bonferroni spends the family error budget across all twenty comparisons. The smaller per-test
+          threshold moves our rejection boundary from ten B wins to twelve. Only the farthest tail
+          survives. The union bound keeps family error at most five percent even when comparisons
+          depend on one another.
+        hold: 0.8
+        visual_cues:
+          - id: search-budget
+            phrase: across all twenty comparisons
+            targets:
+              - family-budget
+            color: yellow
+            linger: 0.45
+          - id: search-tighten
+            phrase: ten B wins to twelve
+            targets:
+              - search-tail
+            color: yellow
+            linger: 0.45
+        motion_check:
+          region:
+            - 270
+            - 400
+            - 1320
+            - 370
+      - say: Repeated looks at one accumulating experiment create another search. This fixed null sequence
+          crosses the nominal line once, then moves back above it. Stopping at the first crossing
+          would select the favorable look. Fix the stopping rule in advance, use a valid sequential
+          method, or keep a fresh set for the final comparison.
+        hold: 0.6
+        visual_cues:
+          - id: peeking-path
+            phrase: crosses the nominal line once
+            targets:
+              - peek-path
+            color: pink
+            linger: 0.45
+          - id: peeking-return
+            phrase: moves back above it
+            targets:
+              - peek-path
+            color: blue
+            linger: 0.45
+  - id: variance-construction
+    title: What changes when the prompts match?
+    visual: Equal pass rates hide agreements within tasks. The 100-square population isolates joint
+      passes before the paired and independent variances and reference widths are compared.
+    beats:
+      - say: Imagine a different task population. Each square stands for one percent of it. Each assistant
+          passes half the tasks, so each has variance one quarter. Look at the top group. Both
+          assistants pass together on forty-five percent. Now multiply A's zero or one by B's zero or
+          one in each square. Only joint passes count. The average product is point four five. Subtract
+          the product of the two half-pass rates. The difference, point two, is the covariance. A pass
+          by one model tends to come with a pass by the other.
+        hold: 0.85
+        visual_cues:
+          - id: variance-construction-0
+            phrase: Each square stands for one percent of it
+            targets:
+              - variance-construction-construction
+            color: cyan
+            linger: 0.25
+          - id: variance-product
+            phrase: Now multiply A's zero or one by B's zero or one in each square
+            targets:
+              - variance-construction-construction
+            color: cyan
+            linger: 0.25
+          - id: hyp-variance-covariance
+            phrase: The difference, point two, is the covariance
+            targets:
+              - variance-construction-construction
+            color: cyan
+            linger: 0.25
+            caption_boundary: true
+      - say: How much would the lift vary over studies of forty independent pairs? Add the two marginal
+          variances, subtract twice their covariance, then divide by forty. Here the numerator falls
+          from one half to one tenth. That gives the smaller cyan bar. Now give A and B separate
+          batches of forty independent tasks each. Both still pass half in the population. There's no
+          shared-task covariance to subtract. The pink bar is five times as tall. Both bars measure
+          variance of the difference in mean pass rates.
+        hold: 0.85
+        caption_starts:
+          - Here the numerator falls
+        visual_cues:
+          - id: variance-construction-1
+            phrase: Add the two marginal variances, subtract twice their covariance, then divide by forty
+            targets:
+              - variance-construction-construction
+            color: cyan
+            linger: 0.25
+          - id: hyp-variance-paired-result
+            phrase: That gives the smaller cyan bar
+            targets:
+              - variance-construction-construction
+            color: cyan
+            linger: 0.25
+          - id: hyp-variance-independent-result
+            phrase: The pink bar is five times as tall
+            targets:
+              - variance-construction-construction
+            color: cyan
+            linger: 0.25
+            caption_boundary: true
+      - say: Take the square root and we're back in percentage points. These are the two standard errors.
+          Multiplying each by one point nine six gives the reference margins on the ruler. Pairing cuts
+          the margin from about twenty-two points to about ten in this population. These widths use the
+          known zero effect. In forty pairs we'd expect only four disagreements, so a normal interval
+          can miss its intended coverage.
+        hold: 0.85
+        visual_cues:
+          - id: variance-construction-2
+            phrase: Take the square root
+            targets:
+              - variance-construction-construction
+            color: cyan
+            linger: 0.25
+          - id: hyp-variance-standard-errors
+            phrase: These are the two standard errors
+            targets:
+              - variance-construction-construction
+            color: cyan
+            linger: 0.25
+          - id: hyp-variance-margins
+            phrase: the reference margins on the ruler
+            targets:
+              - variance-construction-construction
+            color: cyan
+            linger: 0.25
+            caption_boundary: true
+      - say: What if the models pass on different kinds of tasks? Keep both pass rates at one half and make
+          them agree less often. At zero covariance the paired and independent variances meet. With
+          negative covariance the paired variance goes above the independent one. Go back to the
+          original positive covariance. Now enlarge the independent batches until the pink line reaches
+          the dot. It takes two hundred tasks per model to match forty pairs in this example. That's a
+          variance comparison. Power also depends on the effect, the test and its threshold.
+        hold: 0.85
+        caption_starts:
+          - At zero covariance
+        visual_cues:
+          - id: variance-construction-3
+            phrase: What if the models pass on different kinds of tasks
+            targets:
+              - variance-construction-construction
+            color: cyan
+            linger: 0.25
+          - id: hyp-variance-sign
+            phrase: Keep both pass rates at one half and make them agree less often
+            targets:
+              - variance-construction-construction
+            color: cyan
+            linger: 0.25
+          - id: hyp-variance-match
+            phrase: Now enlarge the independent batches until the pink line reaches the dot
+            targets:
+              - variance-construction-construction
+            color: cyan
+            linger: 0.25
+            caption_boundary: true
+          - id: variance-negative
+            phrase: With negative covariance the paired variance goes above the independent one
+            targets:
+              - variance-construction-construction
+            color: cyan
+            linger: 0.2
+            caption_boundary: true
+          - id: variance-reset
+            phrase: Go back to the original positive covariance
+            targets:
+              - variance-construction-construction
+            color: cyan
+            linger: 0.2
+            caption_boundary: true
+  - id: paired-uncertainty
+    title: How large could the improvement be?
+    visual: Whole paired rows are resampled with replacement, keeping each source identity and both
+      outcomes, before accumulating a lift histogram.
+    beats:
+      - say: The tail answered a question about the null. To estimate the size of the lift, draw forty whole
+          task rows with replacement from our observed forty. The permission row can appear again.
+          Its A failure and B pass travel together, so every draw still has a paired difference.
+        hold: 0.75
+        visual_cues:
+          - id: bootstrap-draw
+            phrase: draw forty whole task rows with replacement from our observed forty. The permission row can
+              appear again
+            targets:
+              - bootstrap-draw
+            color: blue
+            linger: 0.45
+          - id: bootstrap-repeat
+            phrase: permission row can appear again
+            targets:
+              - bootstrap-repeat
+            color: yellow
+            linger: 0.45
+        motion_check:
+          region:
+            - 190
+            - 805
+            - 1510
+            - 105
+      - say: Compute the mean difference for that resample, then repeat with the same row rule. These bars
+          accumulate eight thousand resampled means. The original rows remain the source of every
+          draw. We resample clusters instead when a family of related tasks shares randomness.
+        hold: 0.7
+        visual_cues:
+          - id: bootstrap-mean
+            phrase: mean difference for that resample
+            targets:
+              - bootstrap-mean
+            color: green
+            linger: 0.45
+          - id: bootstrap-many
+            phrase: then repeat with the same row rule. These bars accumulate eight thousand resampled means
+            targets:
+              - bootstrap-histogram
+            color: blue
+            linger: 0.45
+      - say: Leave the lowest and highest two and a half percent of these means outside. The remaining
+          interval runs from about minus ten to plus twenty-five percentage points. It crosses zero.
+          With a small sample of passes and failures, this percentile interval can miss the
+          true lift more often than we'd like. How could we check how often it works?
+        hold: 1.1
+        visual_cues:
+          - id: bootstrap-interval
+            phrase: lowest and highest two and a half percent
+            targets:
+              - bootstrap-interval
+            color: yellow
+            linger: 0.45
+          - id: bootstrap-zero
+            phrase: crosses zero
+            targets:
+              - bootstrap-zero
+            color: pink
+            linger: 0.45
+  - id: interval-contract
+    title: Which intervals can you trust?
+    visual: Repeated intervals meet or miss a fixed zero. One outcome changes on a four-task probability
+      ruler. A separate six-tie resample shows why more draws cannot supply a missing disagreement.
+    beats:
+      - say: We can check an interval method in a population where we know the truth. Here the two assistants
+          have the same pass rate. The gold line stays at zero. Take a fresh sample of forty pairs and
+          draw a new interval, then repeat. See the short gap beside each pink interval? Those samples
+          missed. A calibrated ninety-five-percent procedure covers the true lift in about ninety-five
+          percent of repeated studies. Here you can check each interval by seeing whether it
+          touches gold.
+        hold: 0.75
+        visual_cues:
+          - id: interval-contract-0
+            phrase: The gold line stays at zero
+            targets:
+              - interval-contract-construction
+            color: cyan
+            linger: 0.25
+          - id: hyp-interval-studies
+            phrase: Take a fresh sample of forty pairs and draw a new interval, then repeat
+            targets:
+              - interval-contract-construction
+            color: cyan
+            linger: 0.25
+      - say: Try the usual symmetric interval on just one assistant. Four tasks, four passes. The estimated
+          standard error is zero because the sample has no variation. Four failures would do the same.
+          Now change the last pass to a failure. Keep the same four tasks. The center moves to three
+          quarters. Where will the right end land if we extend the interval by one point nine six
+          standard errors on each side? Past a hundred percent. This is the Wald approximation. Wilson can give
+          an interval for one pass rate. For our switch we need the difference within each pair.
+        hold: 1.05
+        caption_starts:
+          - Where will the right end land
+          - Past a hundred percent
+        visual_cues:
+          - id: interval-contract-1
+            phrase: Four tasks, four passes
+            targets:
+              - interval-contract-construction
+            color: cyan
+            linger: 0.25
+          - id: wald-flip
+            phrase: change the last pass to a failure
+            targets:
+              - interval-contract-construction
+            color: cyan
+            linger: 0.25
+            caption_boundary: true
+          - id: hyp-interval-boundary
+            phrase: Past a hundred percent
+            targets:
+              - interval-contract-construction
+            color: cyan
+            linger: 0.25
+      - say: A different failure can happen with the paired bootstrap. Suppose six fresh tasks all tied. Pick
+          six of those rows with replacement. The same task can turn up three times and it still
+          contributes zero each time. Every resampled mean lands on zero. A thousand more draws would
+          leave both ends there. To learn whether these assistants ever disagree, we need more
+          independent tasks.
+        hold: 0.85
+        visual_cues:
+          - id: interval-contract-2
+            phrase: Suppose six fresh tasks all tied
+            targets:
+              - interval-contract-construction
+            color: cyan
+            linger: 0.25
+          - id: hyp-interval-ties
+            phrase: Pick six of those rows with replacement
+            targets:
+              - interval-contract-construction
+            color: cyan
+            linger: 0.25
+  - id: useful-lift
+    title: Would the gain pay for the switch?
+    visual: The observed lift sits beside the cost threshold. The paired development interval grows from
+      the estimate and reaches across zero.
+    beats:
+      - say: B costs more to run. We set the gold line at two extra passes per hundred tasks.
+          The dot is our gain of seven and a half points. Open the interval around it.
+          Does its lower end clear the gold line?
+        hold: 2.3
+        visual_cues:
+          - id: useful-threshold
+            phrase: two extra passes per hundred tasks
+            targets:
+              - useful-threshold
+            color: yellow
+            linger: 0.25
+          - id: development-range
+            phrase: Open the interval around it
+            targets:
+              - development-range
+            color: blue
+            linger: 0.25
+          - id: useful-question
+            phrase: Does its lower end clear the gold line
+            targets:
+              - decision-question
+              - development-range
+              - useful-threshold
+            color: yellow
+            linger: 0.25
+            caption_boundary: true
+      - say: Hold the switch. The low end is minus ten points. We could lose passes even though
+          B came out ahead on these forty tasks. Freeze the chosen model and run both assistants on fresh tasks.
+        hold: 0.85
+        visual_cues:
+          - id: useful-hold
+            phrase: Hold the switch
+            targets:
+              - development-range
+            color: blue
+            linger: 0.25
+          - id: freeze-protocol
+            phrase: Freeze the chosen model
+            targets:
+              - frozen-protocol
+            color: cyan
+            linger: 0.25
+            caption_boundary: true
+  - id: pass-at-k
+    title: A retry budget changes the question
+    visual: Three actual candidates are selected, classified, and counted among all120 distinct subsets
+      from the same ten-candidate pool.
+    beats:
+      - say: "Before the fresh comparison, settle one more protocol choice: how many attempts does each task
+          receive? For the permission task, here is a separate illustrative pool of ten independent
+          candidates from one fixed model and decoding setup. Two pass. Choose three candidates
+          without replacement. Will this highlighted subset contain a pass?"
+        hold: 1.8
+        visual_cues:
+          - id: pool-show
+            phrase: pool of ten independent candidates
+            targets:
+              - candidate-pool
+            color: blue
+            linger: 0.45
+          - id: subset-predict
+            phrase: Will this highlighted subset
+            targets:
+              - candidate-selection
+            color: yellow
+            linger: 0.45
+      - say: This subset contains a passing candidate. Move several other three-candidate subsets through
+          the same test, keeping their identities. There are a hundred and twenty distinct subsets
+          in total. Fifty-six contain only failures; sixty-four contain at least one pass. Each
+          subset has the same selection probability.
+        hold: 0.8
+        visual_cues:
+          - id: subset-run
+            phrase: contains a passing candidate
+            targets:
+              - candidate-selection
+            color: green
+            linger: 0.45
+          - id: subset-enumerate
+            phrase: Move several other three-candidate subsets through the same test, keeping their identities.
+              There are a hundred and twenty distinct subsets in total
+            targets:
+              - subset-grid
+            color: blue
+            linger: 0.45
+          - id: subset-count
+            phrase: Fifty-six contain only failures; sixty-four contain at least one pass.
+            targets:
+              - subset-counts
+            color: pink
+            linger: 0.45
+        motion_check:
+          region:
+            - 210
+            - 370
+            - 1490
+            - 390
+      - say: The estimated pass at three is the fraction of subsets with a pass. The complement formula
+          counts the all-failing subsets efficiently. This estimates the fixed model’s three-attempt
+          success target under independent sampling. Keep the ten-candidate estimation pool and the
+          three-attempt operating budget explicit. Our release comparison continues with one attempt
+          for both models.
+        hold: 0.6
+        visual_cues:
+          - id: pass-three
+            phrase: complement formula
+            targets:
+              - pass-three-result
+            color: green
+            linger: 0.45
+          - id: return-one
+            phrase: one attempt for both models
+            targets:
+              - one-attempt-protocol
+            color: blue
+            linger: 0.45
+  - id: passk-target
+    title: Which attempt gets the credit?
+    visual: The first column of a three-task run opens to three attempts, then the same nine positions
+      become unordered pools for a one-attempt estimate.
+    beats:
+      - say: Take three different tasks. Suppose your product always returns the first answer. Read just the
+          first column. Only the timestamp task passes, so that's one task solved out of three. Now
+          allow all three attempts. Follow the retry task to its third answer. That pass brings the
+          total to two tasks solved. Now set the order aside. If each of the three positions is equally
+          likely to be the one answer you use, each task contributes its fraction of passes. Average
+          those three fractions and you get two ninths. Same nine answers. Which number you report
+          depends on how you intend to use them.
+        hold: 0.85
+        visual_cues:
+          - id: passk-target-0
+            phrase: Read just the first column
+            targets:
+              - passk-target-construction
+            color: cyan
+            linger: 0.25
+          - id: hyp-target-first
+            phrase: one task solved out of three
+            targets:
+              - passk-target-construction
+            color: cyan
+            linger: 0.25
+          - id: target-open-three
+            phrase: Now allow all three attempts
+            targets:
+              - passk-target-construction
+            color: cyan
+            linger: 0.25
+          - id: hyp-target-any
+            phrase: two tasks solved
+            targets:
+              - passk-target-construction
+            color: cyan
+            linger: 0.25
+            caption_boundary: true
+          - id: target-unordered-view
+            phrase: Now set the order aside
+            targets:
+              - passk-target-construction
+            color: cyan
+            linger: 0.25
+            caption_boundary: true
+          - id: hyp-target-unordered
+            phrase: you get two ninths
+            targets:
+              - passk-target-construction
+            color: cyan
+            linger: 0.25
+            caption_boundary: true
+      - say: Behind a task's score is a probability we don't know. Call the chance of one passing answer p.
+          One try fails with probability one minus p. For k independent tries from the same decoder,
+          raise that failure probability to the kth power. Subtract it from one to get the chance of at least one pass. We
+          can generate a larger pool to estimate that chance. Pick any k distinct positions before
+          seeing their answers. They're still k independent draws from the original decoder, so that
+          subset has the right success probability.
+        hold: 0.8
+        visual_cues:
+          - id: passk-target-1
+            phrase: Call the chance of one passing answer p
+            targets:
+              - passk-target-construction
+            color: cyan
+            linger: 0.25
+          - id: hyp-target-curve
+            phrase: raise that failure probability to the kth power
+            targets:
+              - passk-target-construction
+            color: cyan
+            linger: 0.25
+      - say: Average that pass indicator over every subset. You keep the same expected value. This is why
+          counting one minus the fraction of all-failing subsets gives an unbiased estimate. Look at
+          the two triples here. Both use candidates two and three. Making more triples from those same
+          answers adds no new independent draws. HumanEval used a pool of two hundred per problem and
+          reported budgets up to one hundred across a hundred sixty-four Python problems. For your
+          product, set the budget first and generate at least that many candidates per task.
+        hold: 0.8
+        visual_cues:
+          - id: passk-target-2
+            phrase: Both use candidates two and three
+            targets:
+              - passk-target-construction
+            color: cyan
+            linger: 0.25
+  - id: estimator-bias
+    title: What changes after a failed draw?
+    visual: Two copies of the ten-position pool receive the same failed picks. One returns each pick. The
+      other parks it below its slot, changing the next conditional failure fraction.
+    beats:
+      - say: Back to the permission task. Keep the same ten candidates and the same two passing answers. This
+          time the budget is five. Take five distinct positions, then move on to the next possible
+          five. Each mark records one subset. Of the two hundred fifty-two subsets, fifty-six miss both
+          passing answers. The rest give us seven ninths with a pass. All we changed was the attempt
+          budget.
+        hold: 0.8
+        visual_cues:
+          - id: estimator-bias-0
+            phrase: This time the budget is five
+            targets:
+              - estimator-bias-construction
+            color: cyan
+            linger: 0.25
+          - id: hyp-estimator-subsets
+            phrase: Take five distinct positions, then move on to the next possible five
+            targets:
+              - estimator-bias-construction
+            color: cyan
+            linger: 0.25
+          - id: hyp-estimator-result
+            phrase: seven ninths with a pass
+            targets:
+              - estimator-bias-construction
+            color: cyan
+            linger: 0.25
+            caption_boundary: true
+      - say: Make two copies of that pool. Follow what happens if the first pick fails. Put the failed
+          candidate back in the top copy and set it aside in the bottom copy. Look at the next draw. Up
+          top, eight of ten positions can still fail. Down below, only seven of nine can. Follow three
+          more failing picks. For five attempts to fail, you have to multiply the five successive
+          failure chances. Up top the same fraction appears five times. Subtract that product from one
+          and the plug-in estimate is about sixty-seven percent. In the lower pool the fraction falls
+          at every step. Multiply those fractions and subtract the product from one. There's the seven ninths we counted.
+        hold: 0.95
+        visual_cues:
+          - id: estimator-bias-1
+            phrase: Make two copies of that pool
+            targets:
+              - estimator-bias-construction
+            color: cyan
+            linger: 0.25
+          - id: hyp-replacement-first
+            phrase: Put the failed candidate back in the top copy and set it aside in the bottom copy
+            targets:
+              - estimator-bias-construction
+            color: cyan
+            linger: 0.25
+          - id: hyp-replacement-draws
+            phrase: Follow three more failing picks
+            targets:
+              - estimator-bias-construction
+            color: cyan
+            linger: 0.25
+          - id: hyp-replacement-plugin-result
+            phrase: the plug-in estimate is about sixty-seven percent
+            targets:
+              - estimator-bias-construction
+            color: cyan
+            linger: 0.25
+            caption_boundary: true
+          - id: hyp-replacement-without-result
+            phrase: There's the seven ninths we counted
+            targets:
+              - estimator-bias-construction
+            color: cyan
+            linger: 0.25
+            caption_boundary: true
+      - say: So far we've had one pool in our hands. Now imagine repeatedly generating ten fresh candidates
+          when the true chance of a pass is one in five. The dots show the success fractions those
+          pools can give us. Larger dots are more likely. Trace them up the five-attempt curve. The
+          slope gets gentler as the pass rate rises. That's a concave curve. A drop below the true
+          fraction costs more than an equal rise buys. Averaged over pools, the plug-in estimate comes
+          out low. That's the downward bias for budgets above one when the success chance is between
+          zero and one. Counting distinct subsets has the correct average under independent draws from
+          the same decoder.
+        hold: 0.8
+        visual_cues:
+          - id: estimator-bias-2
+            phrase: ten fresh candidates
+            targets:
+              - estimator-bias-construction
+            color: cyan
+            linger: 0.25
+          - id: hyp-estimator-jensen
+            phrase: The dots show the success fractions those pools can give us
+            targets:
+              - estimator-bias-construction
+            color: cyan
+            linger: 0.25
+          - id: hyp-estimator-expectation
+            phrase: Averaged over pools, the plug-in estimate comes out low
+            targets:
+              - estimator-bias-construction
+            color: cyan
+            linger: 0.25
+            caption_boundary: true
+      - say: At the extremes you can count by eye. With no passing candidates the score is zero. Now put six
+          passes in the pool of ten. Set aside four failures and reach for a fifth. Only passes remain.
+          For a large pool we use a product to avoid listing every subset. Go back to our two passes in
+          ten. Multiply one minus k over i for each i from n minus c plus one through n, then subtract
+          the product from one. Here there are just two factors. Check the inputs first. The pool must
+          be nonempty, the pass count must fit inside it, and the attempt budget must be between one
+          and the pool size.
+        hold: 0.85
+        visual_cues:
+          - id: estimator-bias-3
+            phrase: With no passing candidates the score is zero
+            targets:
+              - estimator-bias-construction
+            color: cyan
+            linger: 0.25
+          - id: hyp-estimator-forced
+            phrase: Now put six passes in the pool of ten. Set aside four failures and reach for a fifth
+            targets:
+              - estimator-bias-construction
+            color: cyan
+            linger: 0.25
+            caption_boundary: true
+          - id: hyp-estimator-product-start
+            phrase: Go back to our two passes in ten
+            targets:
+              - estimator-bias-construction
+            color: cyan
+            linger: 0.25
+            caption_boundary: true
+          - id: hyp-estimator-product
+            phrase: Multiply one minus k over i for each i from n minus c plus one through n, then subtract the
+              product from one
+            targets:
+              - estimator-bias-construction
+            color: cyan
+            linger: 0.25
+  - id: macro-construction
+    title: Whose chances are you averaging?
+    visual: Four candidate pools keep their task identities beside their pass-at-five scores. Extra
+      attempts appear in two contrasting task families before the task bootstrap.
+    beats:
+      - say: Here are four tasks for B. Each has ten candidates, and we're estimating success in five tries.
+          Look down each task's column. The first task has no passing answer to find. On the second,
+          half the five-position subsets catch its one passing candidate. The third has the same two
+          passes in ten as our permission example. The fourth has four passing positions, so nearly
+          every subset catches one. Give those four task scores equal weight. Their average is about
+          fifty-six percent. This is macro pass at five.
+        hold: 0.8
+        visual_cues:
+          - id: macro-construction-0
+            phrase: Look down each task's column
+            targets:
+              - macro-construction-construction
+            color: cyan
+            linger: 0.25
+          - id: hyp-macro-score-zero
+            phrase: no passing answer to find
+            targets:
+              - macro-construction-construction
+            color: cyan
+            linger: 0.25
+          - id: hyp-macro-score-half
+            phrase: half the five-position subsets catch its one passing candidate
+            targets:
+              - macro-construction-construction
+            color: cyan
+            linger: 0.25
+          - id: hyp-macro-score-seven-ninths
+            phrase: the same two passes in ten as our permission example
+            targets:
+              - macro-construction-construction
+            color: cyan
+            linger: 0.25
+          - id: hyp-macro-score-forty-one
+            phrase: nearly every subset catches one
+            targets:
+              - macro-construction-construction
+            color: cyan
+            linger: 0.25
+          - id: hyp-macro-mean
+            phrase: Their average is about fifty-six percent
+            targets:
+              - macro-construction-construction
+            color: cyan
+            linger: 0.25
+            caption_boundary: true
+      - say: Here's a quick way to see why the task matters. Suppose half the tasks always pass and the other
+          half always fail. One try solves half the tasks. Give every task four more attempts. Watch
+          the failures. Who did those extra tries help? Nobody. Five tries still solve half. If you
+          pool everything first, you give each task a fresh fifty-fifty chance on every try. That would
+          predict nearly ninety-seven percent solved. You've invented tasks that behave differently. An
+          aggregate pass at five generally can't tell you the aggregate pass at one.
+        hold: 0.9
+        caption_starts:
+          - Who did those extra tries help
+          - Nobody
+        visual_cues:
+          - id: macro-construction-1
+            phrase: half the tasks always pass
+            targets:
+              - macro-construction-construction
+            color: cyan
+            linger: 0.25
+          - id: macro-more-attempts
+            phrase: Give every task four more attempts
+            targets:
+              - macro-construction-construction
+            color: cyan
+            linger: 0.25
+          - id: macro-extra-result
+            phrase: Nobody
+            targets:
+              - macro-construction-construction
+            color: cyan
+            linger: 0.25
+          - id: hyp-macro-pooling
+            phrase: That would predict nearly ninety-seven percent solved
+            targets:
+              - macro-construction-construction
+            color: cyan
+            linger: 0.25
+            caption_boundary: true
+      - say: Return to the four observed pools. To see how much their average depends on which tasks we drew,
+          resample four whole task scores with replacement. There are four choices for each of four
+          slots. Average the scores in each of those two hundred fifty-six ordered resamples. Take the
+          middle ninety-five percent. The approximate interval stretches from about nineteen to
+          eighty-eight percent. A different mix of tasks can move that average a long way. This
+          calculation holds the candidates on each task fixed. Regenerating them would add another
+          source of variation.
+        hold: 0.85
+        visual_cues:
+          - id: macro-construction-2
+            phrase: Return to the four observed pools
+            targets:
+              - macro-construction-construction
+            color: cyan
+            linger: 0.25
+          - id: hyp-macro-resample
+            phrase: resample four whole task scores with replacement. There are four choices for each of four
+              slots. Average the scores in each of those two hundred fifty-six ordered resamples
+            targets:
+              - macro-construction-construction
+            color: cyan
+            linger: 0.25
+          - id: hyp-macro-interval
+            phrase: The approximate interval stretches from about nineteen to eighty-eight percent
+            targets:
+              - macro-construction-construction
+            color: cyan
+            linger: 0.25
+            caption_boundary: true
+      - say: To measure a gain over A at five tries, we need A's five-attempt estimate beside B's on each
+          task. Subtract within each task, then resample the paired differences. If related tasks share
+          a repository or template, carry the whole independent cluster through a draw. Until we run A
+          under that same protocol, these four numbers describe B alone.
+        hold: 0.8
+        visual_cues:
+          - id: macro-construction-3
+            phrase: we need A's five-attempt estimate beside B's on each task
+            targets:
+              - macro-construction-construction
+            color: cyan
+            linger: 0.25
+  - id: protocol-repair
+    title: What counts as a draw?
+    visual: Two identical failures occupy separate draw slots. Removing one changes the weight of the
+      same passing candidate. A second example follows a passing hidden test and the answer a product
+      actually returns.
+    beats:
+      - say: Set the number of draws before you generate anything. Here are four positions for the same task.
+          X showed up twice, and Y is the only passing answer. For two attempts, three of the six pairs
+          contain Y. Suppose you delete the second copy of X. There are now just three pairs to choose
+          from, and two contain Y. The score jumps from one half to two thirds without generating a
+          single better answer. Those repeated strings tell us how often the decoder returns X. Keep
+          both draws. Stopping after a pass or feeding a failure back into the next prompt also changes
+          the experiment. Evaluate a system that retries with feedback as a complete system.
+        hold: 0.85
+        visual_cues:
+          - id: protocol-repair-0
+            phrase: Here are four positions for the same task
+            targets:
+              - protocol-repair-construction
+            color: cyan
+            linger: 0.25
+          - id: protocol-remove
+            phrase: Suppose you delete the second copy of X
+            targets:
+              - protocol-repair-construction
+            color: cyan
+            linger: 0.25
+            caption_boundary: true
+          - id: hyp-protocol-dedup
+            phrase: The score jumps from one half to two thirds
+            targets:
+              - protocol-repair-construction
+            color: cyan
+            linger: 0.25
+            caption_boundary: true
+      - say: Two studies can use different pool sizes to estimate the same three-attempt success probability.
+          Both pools must have at least three candidates. Report the pool size, since it affects
+          precision. If a hard task is missing candidates, finish collecting them or report that its
+          score is unavailable. Now imagine a decoder that genuinely returns the same passing answer
+          every time. More attempts give exactly the same result as the first. A temperature of zero
+          alone doesn't establish that the whole serving pipeline is deterministic.
+        hold: 0.8
+        visual_cues:
+          - id: protocol-repair-1
+            phrase: different pool sizes
+            targets:
+              - protocol-repair-construction
+            color: cyan
+            linger: 0.25
+          - id: hyp-protocol-deterministic
+            phrase: a decoder that genuinely returns the same passing answer every time
+            targets:
+              - protocol-repair-construction
+            color: cyan
+            linger: 0.25
+            caption_boundary: true
+      - say: Look at these four candidates. The hidden tests can see the third answer passes. Your product
+          has to hand back just one answer, and it can't use those hidden tests to choose. Suppose it
+          picks candidate one. The pool contained a solution and the user still got a failure. Evaluate
+          the actual selector or reranker. Even the passing answer has only met this test suite. Other
+          inputs or side effects can still cause trouble.
+        hold: 0.8
+        visual_cues:
+          - id: protocol-repair-2
+            phrase: The hidden tests can see the third answer passes
+            targets:
+              - protocol-repair-construction
+            color: cyan
+            linger: 0.25
+          - id: hyp-protocol-selector
+            phrase: Suppose it picks candidate one
+            targets:
+              - protocol-repair-construction
+            color: cyan
+            linger: 0.25
+            caption_boundary: true
+      - say: There is a separate question about running those tests safely. HumanEval's authors described
+          using gVisor and restricting the network. The released test harness asks the evaluator to
+          supply a robust sandbox. Before running untrusted candidates, verify that execution boundary.
+          Report what the tests covered, what ran in isolation and what generation and verification
+          cost.
+        hold: 0.8
+        visual_cues:
+          - id: protocol-repair-3
+            phrase: running those tests safely
+            targets:
+              - protocol-repair-construction
+            color: cyan
+            linger: 0.25
+  - id: report-contract
+    title: Can you subtract these scores?
+    visual: A five-attempt claim meets a one-attempt baseline. A matched report replaces the claim, a
+      timed-out task stays in its paired row, and four intervals meet the same fixed cutoff.
+    beats:
+      - say: A teammate sends you two scores. A solved fifty-eight percent with one try. B solved sixty-four
+          percent with five tries. Can you call that a six-point model improvement? Count the attempts.
+          B had four extra chances on every task. Ask for the same tasks, tests, decoder settings and
+          attempt budget, then ask for the interval on the paired difference. Here's our matched
+          report. On the left, forty paired tasks measure single-answer lift. On the right, four
+          separate tasks measure how often five of B's candidates contain a pass. Only the left side
+          measures a gain over A.
+        hold: 0.9
+        caption_starts:
+          - Can you call that a six-point model improvement
+          - Count the attempts
+        visual_cues:
+          - id: report-contract-0
+            phrase: Count the attempts
+            targets:
+              - report-contract-construction
+            color: cyan
+            linger: 0.25
+          - id: report-matched
+            phrase: Here's our matched report
+            targets:
+              - report-contract-construction
+            color: cyan
+            linger: 0.25
+            caption_boundary: true
+      - say: Keep the settings attached to those numbers. Record the checkpoint and prompt hashes, tests,
+          seeds, pool size, budget and cutoffs. Say which tasks share a cluster, how many comparisons
+          you tried and how you built the interval. Try a new retry task with an explicit timeout rule.
+          The plan counts a timeout as a failure. A passed. B has run out of time. Score it under that
+          policy. Dropping this row would erase a win for A. For a five-attempt product, also measure
+          what it costs to generate and check all five, and how long a user waits for the selected
+          answer.
+        hold: 0.8
+        visual_cues:
+          - id: report-contract-1
+            phrase: Keep the settings attached to those numbers
+            targets:
+              - report-contract-construction
+            color: cyan
+            linger: 0.25
+          - id: hyp-report-missing
+            phrase: B has run out of time
+            targets:
+              - report-contract-construction
+            color: cyan
+            linger: 0.25
+            caption_boundary: true
+          - id: report-timeout-score
+            phrase: Score it under that policy
+            targets:
+              - report-contract-construction
+            color: cyan
+            linger: 0.25
+            caption_boundary: true
+      - say: Apply the same two-point minimum to a few possible intervals. First, the low end is plus one and
+          the high end is plus fourteen. Every value is positive, yet a one-point gain could be too
+          small to pay for B. Move just the low end to exactly two. Our rule says strictly above two,
+          so we still hold. If the entire range sits below zero, we have evidence of a regression. If
+          the range crosses zero, even the direction is unresolved. Keep that gold line where it is for
+          the final comparison.
+        hold: 0.85
+        visual_cues:
+          - id: report-contract-2
+            phrase: the low end is plus one and the high end is plus fourteen
+            targets:
+              - report-contract-construction
+            color: cyan
+            linger: 0.25
+          - id: hyp-report-equality
+            phrase: Move just the low end to exactly two
+            targets:
+              - report-contract-construction
+            color: cyan
+            linger: 0.25
+            caption_boundary: true
+          - id: hyp-report-regression
+            phrase: the entire range sits below zero
+            targets:
+              - report-contract-construction
+            color: cyan
+            linger: 0.25
+            caption_boundary: true
+          - id: hyp-report-zero
+            phrase: the range crosses zero
+            targets:
+              - report-contract-construction
+            color: cyan
+            linger: 0.25
+            caption_boundary: true
+  - id: holdout
+    title: Would you switch now?
+    visual: Four hundred fresh pairs give a second interval below the development interval on one fixed
+      ruler. The viewer compares their lower endpoints before the decision appears.
+    beats:
+      - say: Try the decision rule on a new illustrative holdout, collected once after freezing B. It has
+          four hundred fresh matched tasks, with the same hidden-test policy and one attempt per
+          model. Keep these rows separate from the development set. Fifty-two favor B, twelve favor
+          A, and the rest agree.
+        hold: 0.85
+        visual_cues:
+          - id: holdout-rows
+            phrase: four hundred fresh matched tasks, with the same hidden-test policy and one attempt per model
+            targets:
+              - holdout-rows
+            color: blue
+            linger: 0.25
+          - id: holdout-count
+            phrase: Fifty-two favor B, twelve favor A, and the rest agree
+            targets:
+              - holdout-counts
+            color: cyan
+            linger: 0.25
+            caption_boundary: true
+      - say: Subtract the A-only wins and divide by all four hundred tasks. The lift is ten percentage
+          points. Resampling these whole paired rows gives this new approximate interval. Compare
+          its lower endpoint with our original useful-lift threshold. Which action does the frozen
+          rule call for?
+        hold: 2.4
+        visual_cues:
+          - id: holdout-lift
+            phrase: The lift is ten percentage points
+            targets:
+              - holdout-lift
+            color: cyan
+            linger: 0.25
+            caption_boundary: true
+          - id: holdout-interval
+            phrase: Resampling these whole paired rows gives this new approximate interval
+            targets:
+              - holdout-interval
+            color: cyan
+            linger: 0.25
+          - id: holdout-lower
+            phrase: Compare its lower endpoint with our original useful-lift threshold
+            targets:
+              - holdout-interval
+              - holdout-ruler
+            color: cyan
+            linger: 0.25
+          - id: holdout-predict
+            phrase: Which action does the frozen rule call for
+            targets:
+              - holdout-question
+              - holdout-interval
+              - holdout-ruler
+            color: yellow
+            linger: 0.25
+            caption_boundary: true
+      - say: The low end is plus six and a quarter points. With one try per task, even that end
+          clears our two-point cutoff. Switch to B.
+        hold: 1.65
+        caption_starts:
+          - Switch to B
+        visual_cues:
+          - id: holdout-clearance
+            phrase: even that end clears our two-point cutoff
+            targets:
+              - holdout-interval
+              - holdout-ruler
+            color: yellow
+            linger: 0.25
+          - id: release-receipt
+            phrase: Switch to B
+            targets:
+              - holdout-interval
+              - holdout-ruler
+            color: cyan
+            linger: 0.25

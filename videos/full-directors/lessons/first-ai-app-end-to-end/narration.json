@@ -1,0 +1,365 @@
+[
+  {
+    "id": "c01",
+    "title": "Is this key due for rotation?",
+    "sourceChapters": [
+      "c01"
+    ],
+    "beats": [
+      {
+        "id": "c01-b01",
+        "say": "Luna has a report about a stale service-account key. She clicks Check policy. The button dims while the browser waits for an answer.",
+        "hold": 0.8
+      },
+      {
+        "id": "c01-b02",
+        "say": "She hits reload. Ready again. The key and the report look the same. Did the server finish the first check?",
+        "hold": 2.6
+      },
+      {
+        "id": "c01-b03",
+        "say": "Ready tells Luna she can submit again. To find out what happened to that first attempt, we'll follow the report through the server and read the record it saved.",
+        "hold": 0.75
+      }
+    ]
+  },
+  {
+    "id": "c02",
+    "title": "Where the click goes",
+    "sourceChapters": [
+      "c02"
+    ],
+    "beats": [
+      {
+        "id": "c02-b01",
+        "say": "Save the Python file and the HTML form in one folder. Run the command on screen, then open the loopback address on this machine. Check policy sends an account and a report to a FastAPI route.",
+        "hold": 0.75
+      },
+      {
+        "id": "c02-b02",
+        "say": "The handler looks up invented account facts. It commits an attempt in SQLite, asks the fixture provider for a candidate, then checks and saves the outcome. The fixture applies a rule directly. The prompt version in its trace identifies the configuration. This fixture sends no prompt.",
+        "hold": 0.8
+      },
+      {
+        "id": "c02-b03",
+        "say": "Start with the default account. Later we'll plug a provider that gives a wrong answer into this same route. That lets us test the route, checker and store together. A hosted adapter would keep its provider credential on the server.",
+        "hold": 0.3
+      },
+      {
+        "id": "c02-b04",
+        "say": "Anyone using the browser can inspect what you send to it.",
+        "hold": 0.8
+      }
+    ]
+  },
+  {
+    "id": "c03",
+    "title": "Whose key age is it?",
+    "sourceChapters": [
+      "c03"
+    ],
+    "beats": [
+      {
+        "id": "c03-b01",
+        "say": "Luna sends an account number and a short report. The route expects the prefix on screen followed by five digits. It checks the report too, before it creates a trace or spends a provider call.",
+        "hold": 0.7
+      },
+      {
+        "id": "c03-b02",
+        "say": "Follow the account number across. The matching server record says forty-five days old and stale. Those are the facts the checker will use. The sentence Luna typed gives the provider context.",
+        "hold": 0.9
+      },
+      {
+        "id": "c03-b03",
+        "say": "What if someone adds an age of nine hundred ninety-nine to the form? The route rejects the extra field. Looking up a well-formed account number also needs an authorization check before a public service can disclose its facts.",
+        "hold": 0.8
+      },
+      {
+        "id": "c03-b04",
+        "say": "Try a report made of twenty spaces. Strip the surrounding whitespace. How many characters remain? Zero. The server requires ten through five hundred characters after stripping and enforces strict types. This request gets four twenty-two. The provider call count and the row count stay at zero.",
+        "hold": 0.8
+      }
+    ]
+  },
+  {
+    "id": "c04",
+    "title": "Try the same policy on another key",
+    "sourceChapters": [
+      "c04"
+    ],
+    "beats": [
+      {
+        "id": "c04-b01",
+        "say": "Here's our fictional policy, P-seven. A stale key becomes eligible for rotation at thirty days. Luna's key is forty-five days old. The provider proposes eligible. Compare the age pointer with the threshold and read the stale flag. Both conditions hold.",
+        "hold": 0.8
+      },
+      {
+        "id": "c04-b02",
+        "say": "Keep the age at forty-five. Change only the stale flag to no. Should the checker accept the same eligible candidate?",
+        "hold": 2
+      },
+      {
+        "id": "c04-b03",
+        "say": "It rejects eligible. This key is current. Now move a stale key to twelve days. Here the age falls short. A provider that returns not eligible for either account has given a correct answer.",
+        "hold": 0.8
+      },
+      {
+        "id": "c04-b04",
+        "say": "Move the stale key to exactly thirty. The threshold includes that day, so eligible passes. Now take away the account record. Which decision can the checker accept with both facts missing?",
+        "hold": 1.9
+      },
+      {
+        "id": "c04-b05",
+        "say": "Needs review. The twelve-day key gave us a reason to say no. Here we don't know the key's age or its stale flag.",
+        "hold": 0.8
+      },
+      {
+        "id": "c04-b06",
+        "say": "Go back to Luna's forty-five-day key. Eligible fits, and the proposed minimum is the integer thirty. Look at the evidence list. P-seven fills its one allowed slot. The provider adds P-eight. That extra citation rejects the whole candidate. A hosted adapter must first parse a complete response into a dictionary the checker can validate.",
+        "hold": 0.9
+      }
+    ]
+  },
+  {
+    "id": "c05",
+    "title": "What survives the provider call?",
+    "sourceChapters": [
+      "c05"
+    ],
+    "beats": [
+      {
+        "id": "c05-b01",
+        "say": "Replay Luna's request. The insert commits a running trace before the provider starts. The app generates a random identifier of thirty-two hexadecimal characters. We'll show its first six here. Its row identifies the account, the versions used and the trusted facts at submission.",
+        "hold": 0.3
+      },
+      {
+        "id": "c05-b02",
+        "say": "A keyed fingerprint lets us compare inputs without keeping her raw report.",
+        "hold": 0.9
+      },
+      {
+        "id": "c05-b03",
+        "say": "Now the provider gets its first call. It returns eligible. The checker verifies the dictionary against the evidence list, the policy window and the account facts. Look at the row while that happens. The only result another connection can read so far is running.",
+        "hold": 0.85
+      },
+      {
+        "id": "c05-b04",
+        "say": "The handler can update this trace if it is still running at version one. The commit saves completed at version two. Now the handler can send the answer. Try the same update again. It matches zero rows. That first terminal record survives.",
+        "hold": 0.9
+      },
+      {
+        "id": "c05-b05",
+        "say": "Luna says the check felt slow. Here's her wait from click to reply. Which part does the trace time?",
+        "hold": 1.8
+      },
+      {
+        "id": "c05-b06",
+        "say": "The timer starts at the provider call and stops after the checker finishes. Both database writes sit outside that interval. To measure Luna's whole wait, start at the click and stop when the page shows the answer.",
+        "hold": 0.8
+      }
+    ]
+  },
+  {
+    "id": "c06",
+    "title": "Open a second connection",
+    "sourceChapters": [
+      "c06"
+    ],
+    "beats": [
+      {
+        "id": "c06-b01",
+        "say": "Send the report through the real route and pause inside the test provider. Open a second connection to the same SQLite file. Read the trace. It says running at version one. The writer's first commit is visible while the provider is still at work.",
+        "hold": 0.9
+      },
+      {
+        "id": "c06-b02",
+        "say": "Let the provider return. The checker accepts its candidate and the final write commits. After the HTTP response, reopen the file. Match the trace prefix. The same row now says completed at version two. Keeping this file preserves the row across an app restart. In Python the connection context manager handles the transaction. The store closes the connection explicitly.",
+        "hold": 0.8
+      },
+      {
+        "id": "c06-b03",
+        "say": "This route returns two hundred for either of these saved outcomes. The body tells us whether the check completed or failed. A completed check carries the decision. A failed check carries the error code. If a write fails, read the database to see what survived.",
+        "hold": 0.85
+      }
+    ]
+  },
+  {
+    "id": "c07",
+    "title": "A receipt for Luna",
+    "sourceChapters": [
+      "c07"
+    ],
+    "beats": [
+      {
+        "id": "c07-b01",
+        "say": "Luna's page still says Checking policy. Across the connection, the server has already committed a result. Can her browser show eligible yet?",
+        "hold": 1.75
+      },
+      {
+        "id": "c07-b02",
+        "say": "The response crosses back. The page checks the completed outcome, its evidence and the trace ID. It shows Eligible under P-seven. Match the trace prefix on the receipt to the saved row. Luna has her answer. Her service key stays as it was.",
+        "hold": 0.95
+      },
+      {
+        "id": "c07-b03",
+        "say": "Reload the page. The form goes back to Ready. In SQLite, the saved row still says completed.",
+        "hold": 1
+      }
+    ]
+  },
+  {
+    "id": "c08",
+    "title": "One storage error, two experiments",
+    "sourceChapters": [
+      "c08"
+    ],
+    "beats": [
+      {
+        "id": "c08-b01",
+        "say": "Take the same report and two empty databases. In the first test, make SQLite reject the insert. The very first write stops. The provider gets zero calls. Read the table from another connection. It's empty. The browser receives storage unavailable.",
+        "hold": 0.95
+      },
+      {
+        "id": "c08-b02",
+        "say": "In the second test, let the insert commit. The provider is called once and returns eligible. This time reject the update that would save the checked result. The browser receives the same five oh three.",
+        "hold": 0.9
+      },
+      {
+        "id": "c08-b03",
+        "say": "Run the same query against the second database. It returns running, version one. Compare the two provider call counts. In which test could submitting again repeat provider work?",
+        "hold": 2.4
+      },
+      {
+        "id": "c08-b04",
+        "say": "The second one. That provider already returned. A running row tells the recovery worker where the durable record stops. The worker still needs to reconcile the attempt before deciding to repeat the call. With a paid provider, another call could mean another charge.",
+        "hold": 1.15
+      }
+    ]
+  },
+  {
+    "id": "c09",
+    "title": "Which operation failed?",
+    "sourceChapters": [
+      "c09"
+    ],
+    "beats": [
+      {
+        "id": "c09-b01",
+        "say": "Both database writes can succeed even when a check fails. Follow a timeout raised by the adapter. The code is provider timeout. If a returned dictionary fails the checker, the code is invalid decision. If the adapter itself raises a value error, the code is provider error. Where the failure happens matters.",
+        "hold": 0.8
+      },
+      {
+        "id": "c09-b02",
+        "say": "Test a timeout by injecting that provider into the real route. Read both the reply and its saved failed trace. Both carry the app's error code. An upstream exception might quote the private report, so the app keeps that text out of both places.",
+        "hold": 0.3
+      },
+      {
+        "id": "c09-b03",
+        "say": "Input validation also omits rejected values. For an accepted request, the server takes the account, item and report after validation. It serializes those three fields and stores their HMAC, a digest made with a key. The demo key is public. A real service needs a secret key and retention limits for the fingerprints, trusted facts and account records.",
+        "hold": 0.85
+      },
+      {
+        "id": "c09-b04",
+        "say": "The timeout stub raises immediately. Testing a network deadline takes a stalled connection and a real transport timeout. Now submit the same valid report twice with a working provider. Two traces, two calls. Their keyed fingerprints match because the inputs match. Reusing an outcome would need an explicit idempotency protocol.",
+        "hold": 0.9
+      }
+    ]
+  },
+  {
+    "id": "c10",
+    "title": "What the page can show",
+    "sourceChapters": [
+      "c10"
+    ],
+    "beats": [
+      {
+        "id": "c10-b01",
+        "say": "While fetch is pending, the button is disabled. When a reply arrives, the page checks its trace syntax and evidence, then matches the outcome fields to a local label. It writes that label with textContent. The report and provider prose stay out of the result.",
+        "hold": 0.8
+      },
+      {
+        "id": "c10-b02",
+        "say": "Say the report asks for an exception. The trusted record shows an older key that's current. A properly formed not eligible answer agrees with P-seven. Accept it, even with that request in the report. The page can show a checked negative. Missing facts would give needs review.",
+        "hold": 0.3
+      },
+      {
+        "id": "c10-b03",
+        "say": "Changing a key would require a separate authorized, idempotent operation.",
+        "hold": 0.9
+      },
+      {
+        "id": "c10-b04",
+        "say": "Drop a reply after the completed row commits. While fetch is pending, the page keeps waiting. Once it detects the network error, it says Request unavailable. This form has no elapsed-time abort or status lookup. Even if a client cancels its wait, the server may finish. Offer a deliberate new submission.",
+        "hold": 0.95
+      },
+      {
+        "id": "c10-b05",
+        "say": "This reply says failed and also says eligible. A recorded failure carries an error code and a null decision. With those fields in conflict, Luna gets the same message as before. The page says Request unavailable.",
+        "hold": 0.9
+      }
+    ]
+  },
+  {
+    "id": "c11",
+    "title": "What did the fixture test?",
+    "sourceChapters": [
+      "c11"
+    ],
+    "beats": [
+      {
+        "id": "c11-b01",
+        "say": "Before changing providers, keep a regression test with known answers. Submit each account through the real route. Compare the response with the expected decision, then reopen its trace. The thirty-day case catches a strict greater-than sign where the policy says at least. The missing account catches a mistaken negative.",
+        "hold": 0.85
+      },
+      {
+        "id": "c11-b02",
+        "say": "All five outcomes match. Now try four malformed reports. All four stop before a provider call or a new row. Send a request to the health route with a provider that counts every call. The route returns okay. The provider recorded zero calls. To test storage readiness, probe storage itself. With these results from the real route and the health probe, what still needs a separate test?",
+        "hold": 2.1
+      },
+      {
+        "id": "c11-b03",
+        "say": "For a hosted model, run the labeled cases against that adapter and measure its errors, latency and cost. Stall the transport to check its deadline. Before a public launch, test who can access each account and how the service handles load. Give network retries one owner and a budget. Keep the fixture suite to check the route independently.",
+        "hold": 0.3
+      },
+      {
+        "id": "c11-b04",
+        "say": "If the minimum age changes, edit the policy and its boundary test. Training or releasing a different model is a separate decision. The next lesson follows that lifecycle.",
+        "hold": 0.8
+      },
+      {
+        "id": "c11-b05",
+        "say": "Before exposing this route, authenticate the caller, authorize account access, test concurrent load, and lock the versions. Suppose the database lives inside the container. Replace that container. Its replacement opens an empty database. Try the deployment again with the file on persistent storage from the start. Both containers can open the same file. Test recovery from a backup, too.",
+        "hold": 0.8
+      }
+    ]
+  },
+  {
+    "id": "c12",
+    "title": "Two replies on the way to Luna",
+    "sourceChapters": [
+      "c12"
+    ],
+    "beats": [
+      {
+        "id": "c12-b01",
+        "say": "Try two versions of Luna's check. Both trusted records say stale. Both candidates say eligible, cite just P-seven, and give the integer thirty. One key is twenty-nine days old. The other is thirty. Which attempt can save a checked eligible decision?",
+        "hold": 2.65
+      },
+      {
+        "id": "c12-b02",
+        "say": "The thirty-day key qualifies. Its final write saves completed with eligible. At twenty-nine, the same candidate contradicts the facts. The final write saves failed with invalid decision. Each reply now carries the outcome for its own trace.",
+        "hold": 0.95
+      },
+      {
+        "id": "c12-b03",
+        "say": "Now lose both replies on the way back. Both rows have committed. The browsers are still waiting. When each one detects the network error, what message can it show?",
+        "hold": 2.5
+      },
+      {
+        "id": "c12-b04",
+        "say": "Both pages say Request unavailable. Read across each gap. SQLite still has two different outcomes. Submitting again starts a new check. To recover the original result, Luna needs an authorized lookup for that attempt.",
+        "hold": 3.1
+      }
+    ]
+  }
+]

@@ -1,0 +1,203 @@
+version: 1
+lesson: softmax
+promise: Teach the full competing-score to stable-loss andgradient construction,then apply
+  complete target,sequence,mask,reduction andlarge-vocabulary contracts in one movie.
+objectives:
+  - id: competing-shares
+    can: Construct normalized shares from score gaps and preserve them through common shifts
+      using bounded exponentials.
+    scenes:
+      - intro
+      - scores
+      - exponentials
+      - mass
+  - id: loss-stability
+    can: Compute stable target losses without taking log of an underflowed probability,and
+      diagnose nonfinite or empty candidate rows.
+    scenes:
+      - loss
+      - temperature-limits
+  - id: derive-gradient
+    can: Construct self/cross softmax derivatives and carry the negative-log slope into the
+      exact zero-sum p-minus-target correction.
+    scenes:
+      - gradient-chain
+      - gradient
+      - update
+  - id: target-uncertainty
+    can: Distinguish entropy,cross-entropy andKL including zero support,and construct the
+      finite-gap smoothed-target optimum.
+    scenes:
+      - entropy-reference
+      - smoothing-equilibrium
+  - id: loss-choice
+    can: Compare computed CE/Brier local gradients and repair an extra softmax in the PyTorch
+      loss input.
+    scenes:
+      - squared-vs-ce
+      - loss-input-contract
+  - id: temperature
+    can: Separate temperature,calibration,sampling andlearning,including ties,stable order
+      anddistillation gradient scale.
+    scenes:
+      - temperature
+      - temperature-limits
+  - id: sequence-contract
+    can: Align next-token targets once,choose class axes,mask positions rather than
+      classes,andretain the exact reduction denominator.
+    scenes:
+      - transfer
+      - teacher-forcing
+      - token-reduction
+      - class-not-position
+      - weighted-reduction
+      - earned-transfer
+  - id: vocabulary-memory
+    can: Calculate logit-intermediate bytes andexplain projection-tiled log-sum-exp without
+      inventing aGPU benchmark.
+    scenes:
+      - vocabulary-tiles
+sections:
+  - heading: A decision begins as three raw scores
+    status: taught
+    scenes:
+      - intro
+      - scores
+  - heading: Softmax turns score gaps into probability mass
+    status: taught
+    scenes:
+      - exponentials
+      - mass
+  - heading: Stable arithmetic prevents floating-point overflow
+    status: taught
+    scenes:
+      - exponentials
+      - temperature-limits
+  - heading: Cross-entropy prices missed predictions through surprise
+    status: taught
+    scenes:
+      - loss
+      - entropy-reference
+  - heading: The log-sum-exp formulation prevents underflow crashes
+    status: taught
+    scenes:
+      - loss
+      - vocabulary-tiles
+  - heading: Entropy is reference uncertainty and KL divergence is prediction error
+    status: taught
+    scenes:
+      - entropy-reference
+  - heading: The combined gradient reveals a clean error signal
+    status: taught
+    scenes:
+      - gradient-chain
+      - gradient
+  - heading: The zero-sum conservation property
+    status: taught
+    scenes:
+      - gradient-chain
+      - gradient
+  - heading: Why squared probability error can learn slowly from confident mistakes
+    status: taught
+    scenes:
+      - squared-vs-ce
+  - heading: PyTorch expects unnormalized logits directly
+    status: taught
+    scenes:
+      - loss-input-contract
+      - weighted-reduction
+  - heading: Temperature scaling shapes inference entropy
+    status: taught
+    scenes:
+      - temperature
+      - temperature-limits
+  - heading: Label smoothing curbs overconfident logits
+    status: taught
+    scenes:
+      - smoothing-equilibrium
+  - heading: Next-token prediction extends the loss across sequences
+    status: taught
+    scenes:
+      - transfer
+      - teacher-forcing
+      - token-reduction
+  - heading: Tensor contracts and vocabulary memory scaling
+    status: taught
+    scenes:
+      - loss-input-contract
+      - teacher-forcing
+      - vocabulary-tiles
+  - heading: Diagnostic failure modes in production pipelines
+    status: taught
+    scenes:
+      - loss-input-contract
+      - token-reduction
+      - class-not-position
+      - weighted-reduction
+      - earned-transfer
+  - heading: Try a second target
+    status: taught
+    scenes:
+      - transfer
+      - earned-transfer
+quiz:
+  - n: 1
+    status: taught
+    scenes:
+      - gradient-chain
+      - gradient
+      - update
+  - n: 2
+    status: taught
+    scenes:
+      - loss-input-contract
+  - n: 3
+    status: taught
+    scenes:
+      - token-reduction
+      - teacher-forcing
+      - earned-transfer
+  - n: 4
+    status: taught
+    scenes:
+      - temperature
+      - temperature-limits
+  - n: 5
+    status: taught
+    scenes:
+      - entropy-reference
+  - n: 6
+    status: taught
+    scenes:
+      - loss
+      - temperature-limits
+  - n: 7
+    status: taught
+    scenes:
+      - squared-vs-ce
+  - n: 8
+    status: taught
+    scenes:
+      - smoothing-equilibrium
+  - n: 9
+    status: taught
+    scenes:
+      - class-not-position
+  - n: 10
+    status: taught
+    scenes:
+      - weighted-reduction
+removed: []
+reviews:
+  closed_book:
+    script: 2c73b39f6e5bf9ca
+    taught: 10
+    partial: 0
+    absent: 0
+    reviewer: /root/upgrade_shard6
+    evidence: build/video-delivery-20261106/script-reviews/softmax.json
+  fact_check:
+    script: 2c73b39f6e5bf9ca
+    open_findings: 0
+    reviewer: /root/upgrade_shard6
+    evidence: build/video-delivery-20261106/script-reviews/softmax.json

@@ -1,0 +1,290 @@
+{
+  "id": "inference-data-plane",
+  "script": "243419cf1a6f7273",
+  "articleHash": "22f30e9feb579fa3d767b3aada9bea5d6f238d682977ed3913ca6722ac3912f5",
+  "checked": "2026-11-10T02:35:33.375Z",
+  "closedBook": {
+    "taught": 10,
+    "partial": 0,
+    "absent": 0,
+    "answers": [
+      {
+        "n": 1,
+        "option": 1,
+        "coverage": "taught",
+        "quotes": [
+          {
+            "scene": "collective-contracts",
+            "quote": "For rank inputs one and two, and ten and twenty, sum all-reduce gives eleven and twenty-two to both ranks."
+          }
+        ],
+        "reason": "Sum corresponding elements: 3 + 20 = 23 and 7 + 40 = 47. Both ranks receive [23,47].",
+        "exact": true,
+        "correct": true,
+        "grade": "taught"
+      },
+      {
+        "n": 2,
+        "option": 2,
+        "coverage": "taught",
+        "quotes": [
+          {
+            "scene": "collective-contracts",
+            "quote": "Ranks must agree on operation, count, dtype and collective sequence. Swap two same-shaped layer reductions and matching shapes can still combine the wrong layer values."
+          }
+        ],
+        "reason": "The ranks must execute matching collective sequences so that each reduction combines values from the same layer.",
+        "exact": true,
+        "correct": true,
+        "grade": "taught"
+      },
+      {
+        "n": 3,
+        "option": 1,
+        "coverage": "taught",
+        "quotes": [
+          {
+            "scene": "kv-state",
+            "quote": "A compact estimate multiplies two tensors, layer count, cached tokens, KV heads, head width, and bytes per element."
+          },
+          {
+            "scene": "real-payload",
+            "quote": "Two times eighty times eight times one hundred twenty-eight times two gives three hundred twenty kibibytes per token. Eight thousand one hundred ninety-two prompt tokens hold two point five gibibytes."
+          },
+          {
+            "scene": "real-payload",
+            "quote": "Ideal two-rank KV-head sharding gives one point two five gibibytes per rank. The two shards together still contain two point five gibibytes."
+          }
+        ],
+        "reason": "4096 × 256 KiB = 1 GiB total. Ideal four-rank sharding divides that total into 256 MiB per rank.",
+        "exact": true,
+        "correct": true,
+        "grade": "taught"
+      },
+      {
+        "n": 4,
+        "option": 2,
+        "coverage": "taught",
+        "quotes": [
+          {
+            "scene": "real-payload",
+            "quote": "At an assumed aggregate twenty-five decimal gigabytes per second, two point five gibibytes takes about one hundred seven point four milliseconds before overhead. Two independent links each at that rate can finish the two shards in fifty-three point seven milliseconds. Two streams sharing one bottleneck cannot each claim its full capacity."
+          }
+        ],
+        "reason": "The shared bottleneck carries 1000 MiB total. Scaling the narrated example gives 107.4 ms × (1000/2560) × (25/10) ≈ 105 ms.",
+        "exact": true,
+        "correct": true,
+        "grade": "taught"
+      },
+      {
+        "n": 5,
+        "option": 1,
+        "coverage": "taught",
+        "quotes": [
+          {
+            "scene": "real-payload",
+            "quote": "Reserving one hundred twenty-eight future output positions adds eight blocks, or forty mebibytes, for two thousand six hundred mebibytes. Future reserved positions are not already transferred KV."
+          },
+          {
+            "scene": "reserve-and-transfer",
+            "quote": "The destination reserves enough blocks for the incoming state before transfer begins. The first request fits. A second reservation would exceed available memory, so that request waits for capacity or another compatible worker."
+          }
+        ],
+        "reason": "The full reservation requires 90 + 16 = 106 blocks, exceeding the 100 free blocks. The request cannot be admitted there.",
+        "exact": true,
+        "correct": true,
+        "grade": "taught"
+      },
+      {
+        "n": 6,
+        "option": 3,
+        "coverage": "taught",
+        "quotes": [
+          {
+            "scene": "uncertain-transfer",
+            "quote": "Keep old blocks charged until transport cancellation or completion and GPU readers confirm quiescence; then release the reservation."
+          },
+          {
+            "scene": "uncertain-transfer",
+            "quote": "Expiry immediately blocks commit, while late writes can still land in the old charged reservation. A fresh retry uses disjoint capacity until old transport and GPU readers are quiescent."
+          }
+        ],
+        "reason": "Lease expiry does not stop physical accesses. Reuse requires confirmation that transport writes and GPU readers have stopped.",
+        "exact": true,
+        "correct": true,
+        "grade": "taught"
+      },
+      {
+        "n": 7,
+        "option": 3,
+        "coverage": "taught",
+        "quotes": [
+          {
+            "scene": "uncertain-transfer",
+            "quote": "Complete unique rank-and-block coverage, compatible interpretation, integrity and connector-required visibility all precede commit. Repeated notifications do not fill missing regions."
+          }
+        ],
+        "reason": "384 notifications do not establish 384 unique rank-block pairs. A repeated pair leaves required coverage unestablished.",
+        "exact": true,
+        "correct": true,
+        "grade": "taught"
+      },
+      {
+        "n": 8,
+        "option": 3,
+        "coverage": "taught",
+        "quotes": [
+          {
+            "scene": "retry-boundaries",
+            "quote": "A lost commit acknowledgement means unknown outcome, not failed commit. Query the authoritative owner before starting elsewhere."
+          }
+        ],
+        "reason": "The missing acknowledgement leaves commit status uncertain. The router must resolve it through the authoritative owner.",
+        "exact": true,
+        "correct": true,
+        "grade": "taught"
+      },
+      {
+        "n": 9,
+        "option": 1,
+        "coverage": "taught",
+        "quotes": [
+          {
+            "scene": "retry-boundaries",
+            "quote": "The article’s local serialized model checks eight manifest mismatch cases, duplicate or missing coverage, stale attempts, expiry, and seven hundred twenty event orders. It assumes trusted callbacks for completion, abort and stopped consumers. The assertions pass for those cases and event orders. Distributed atomicity, authentication, real cancellation and CUDA visibility need separate backend and coordinator evidence."
+          }
+        ],
+        "reason": "Passing checks establishes the checked invariants within the modeled cases and assumptions. Physical cancellation, GPU visibility, and distributed failover require separate evidence.",
+        "exact": true,
+        "correct": true,
+        "grade": "taught"
+      },
+      {
+        "n": 10,
+        "option": 1,
+        "coverage": "taught",
+        "quotes": [
+          {
+            "scene": "critical-path",
+            "quote": "Trace one request from admission through first token and final delivery. Record queue spans, bytes, worker identities, transport completion, decode start, and cancellation."
+          },
+          {
+            "scene": "critical-path",
+            "quote": "A preceding twenty-five-millisecond queue makes end-to-end time four hundred point four, while the active-span union remains three hundred seventy-five point four. Measure request endpoints and explain their dependencies."
+          }
+        ],
+        "reason": "End-to-end TTFT is 95 − 0 = 95 ms. Preserve the admission and first-token endpoints and the initial 20 ms wait.",
+        "exact": true,
+        "correct": true,
+        "grade": "taught"
+      }
+    ]
+  },
+  "factCheck": {
+    "scenes": [
+      {
+        "id": "subject-intro",
+        "evidence": "Pass. Prefill creates per-layer keys and values that subsequent decode attention reuses. Separate pools permit independent allocation and scheduling while adding transfer and coordination boundaries. These mechanisms agree with [Dynamo disaggregated serving](https://docs.dynamo.nvidia.com/dynamo/knowledge-base/concepts/system-architecture/disaggregated-serving) and [Transformers caching](https://huggingface.co/docs/transformers/main/cache_explanation). Generating the first output token on the second worker is this lesson’s scenario, not a universal engine contract. The current subject-intro.mjs reserves destination slots, transfers state, marks it valid, and then produces a token. Its schematic 48-block board is distinct from the later byte-sizing examples.",
+        "sourceUrls": [
+          "https://docs.dynamo.nvidia.com/dynamo/knowledge-base/concepts/system-architecture/disaggregated-serving",
+          "https://huggingface.co/docs/transformers/main/cache_explanation"
+        ]
+      },
+      {
+        "id": "collective-contracts",
+        "evidence": "Pass. Independently checked [1,2] + [10,20] = [11,22]. Sum all-reduce returns that vector to both ranks. All-gather of the original contributions produces [1,2,10,20]. Sum reduce-scatter leaves [11] and [22], whose all-gather reconstructs [11,22] everywhere. Swapping rank 1’s same-shaped layer contributions instead gives [21,12]. These contracts match [NCCL collectives](https://docs.nvidia.com/deeplearning/nccl/user-guide/docs/usage/collectives.html). The current scene correctly labels reconstruction all-gather, closing repair issue 5. Matching collective order and coordinated scheduling follow [NCCL group semantics](https://docs.nvidia.com/deeplearning/nccl/user-guide/docs/usage/groups.html). Individual grouped calls can return before enqueue, and ncclInProgress requires checking issuing success. GPU completion and consumer ordering remain separate under [NCCL stream semantics](https://docs.nvidia.com/deeplearning/nccl/user-guide/docs/usage/streams.html). Backend-specific communicator recovery is accurately qualified. The control/data-plane distinction explicitly describes responsibilities.",
+        "sourceUrls": [
+          "https://docs.nvidia.com/deeplearning/nccl/user-guide/docs/usage/collectives.html",
+          "https://docs.nvidia.com/deeplearning/nccl/user-guide/docs/usage/groups.html",
+          "https://docs.nvidia.com/deeplearning/nccl/user-guide/docs/usage/streams.html",
+          "https://docs.nvidia.com/deeplearning/nccl/user-guide/docs/usage/communicators.html"
+        ]
+      },
+      {
+        "id": "kv-state",
+        "evidence": "Pass. Read fixtures.mjs:3, construction.mjs:1, and the actual kv-state scene. The factors are 2 tensors × 4 layers × 128 positions × 2 KV heads × 8 elements × 2 bytes = 32,768 bytes = 32 KiB. Running products are 2, 8, 1,024, 2,048, 16,384, and 32,768. Changing only positions to 256 gives 65,536 bytes = 64 KiB. The revised narration explicitly fixes retention, format, and an empty destination, closing the prior proportional-growth issue. It no longer asserts a general prompt-length transfer law. [Transformers cache strategies](https://huggingface.co/docs/transformers/en/kv_cache) confirms that sliding-window and chunked-attention caches can stop growing. Sharding, padding, quantization, and metadata appropriately require actual-layout accounting.",
+        "sourceUrls": [
+          "https://huggingface.co/docs/transformers/main/cache_explanation",
+          "https://huggingface.co/docs/transformers/en/kv_cache"
+        ]
+      },
+      {
+        "id": "real-payload",
+        "evidence": "Pass. Executed the actual fixture and independently recomputed every number. Per token: 2 × 80 × 8 × 128 × 2 = 327,680 bytes = 320 KiB. Prompt: 8,192 × 327,680 = 2,684,354,560 bytes = 2.5 GiB. Ideal equal shards are 1.25 GiB each and still total 2.5 GiB, closing repair issue 3. A 16-position model-wide block is 5,242,880 bytes = 5 MiB. The prompt occupies 512 blocks. Another 128 positions reserve 8 blocks = 40 MiB, totaling 520 blocks = 2,600 MiB = 2,726,297,600 bytes. With one extra prompt token, ceil(8,321/16) = 521 blocks = 2,605 MiB, although real payload increases only 320 KiB. Current source and the inspected sample place token index 8,192 in block 512, offset 0. Future slots are 15 + 7×16 + 1 = 128, followed by 15 slack slots, closing visual issue 6. At 25×10^9 bytes/s, transfer takes 107.3741824 ms. Equal concurrent shards on independent links take 53.6870912 ms. Forty requests/s require 107.3741824 decimal GB/s, while the shared path supports 9.313225746 requests/s before overhead. Pool arithmetic is 8,192 − 3×2,600 = 392 MiB. Rates, ideal sharding, and available capacity are explicit assumptions. Additional admission bounds and output-credit enforcement are production requirements, not claimed fixture implementations.",
+        "sourceUrls": []
+      },
+      {
+        "id": "route-compatible",
+        "evidence": "Pass. Read and executed localityRouteSnapshot(), sameLayout(), and eligibleWorker(). A matches M17 revision 5, TP2, BF16, and paged-v2, with 60 free blocks for 48 required. B has 72 free blocks but TP1 and is excluded before costing. C matches and has 64 free blocks. With matching prefix identity, C reuses 36 blocks and needs 12. A costs 0.2 + 48/12 = 4.2. C costs 0.8 + 12/6 = 2.8 and wins. Changing prefix identity removes reuse, making C cost 8.8 and A win. The current narration correctly separates router compatibility/capacity checks from required orchestrator ownership enforcement, closing the prior attribution issue. Required-domain exclusion and preferred-domain cost bias match [Dynamo’s topology contract](https://docs.nvidia.com/dynamo/latest/knowledge-base/modular-components/router/topology-aware-kv-transfer). The scene explicitly labels its cost example as having no required-domain filter, closing repair issue 4. Supported conversion is separately qualified later.",
+        "sourceUrls": [
+          "https://docs.nvidia.com/dynamo/latest/knowledge-base/modular-components/router/topology-aware-kv-transfer",
+          "https://docs.vllm.ai/en/stable/features/nixl_connector_usage/"
+        ]
+      },
+      {
+        "id": "trusted-manifest",
+        "evidence": "Pass. The identity comparisons describe a conservative application protocol. The scene explicitly maps logical block 31 from source physical block 904 to destination block 118. Different addresses preserve logical identity through the mapping. Canonical-token reuse is supported by [vLLM’s disaggregated-prefill documentation](https://docs.vllm.ai/en/stable/features/disagg_prefill/), and explicitly supported layout permutation by its [NIXL guide](https://docs.vllm.ai/en/stable/features/nixl_connector_usage/). KV projections alone need not supply initial logits, sampling state, or stream ownership, so the engine-specific resumption caveat is sound. Registration, descriptors, asynchronous transfers, and surrounding orchestration match [NIXL architecture](https://docs.nvidia.com/nixl/getting-started/architecture/). Security statements are requirements to configure application guarantees. Current source and the inspected sample preserve protection domains and scoped keys, consistent with [RFC 5042](https://www.rfc-editor.org/rfc/rfc5042.html), closing visual issue 7. Unordered requests, overlapping-region hazards, asynchronous or unsuccessful aborts, and configuration-dependent failure reporting match the [NIXL backend guide](https://raw.githubusercontent.com/ai-dynamo/nixl/main/docs/BackendGuide.md). In current source, writer and reader indicators clear before capacity release. The inspected reusable sample shows neither active access. The alternative unconfirmed-stop case restores the reservation and writer, closing visual issue 1.",
+        "sourceUrls": [
+          "https://docs.vllm.ai/en/stable/features/disagg_prefill/",
+          "https://docs.vllm.ai/en/stable/features/nixl_connector_usage/",
+          "https://docs.nvidia.com/nixl/getting-started/architecture/",
+          "https://www.rfc-editor.org/rfc/rfc5042.html",
+          "https://raw.githubusercontent.com/ai-dynamo/nixl/main/docs/BackendGuide.md"
+        ]
+      },
+      {
+        "id": "reserve-and-transfer",
+        "evidence": "Pass. The actual board has 64 slots. Reserving 48 leaves 16, so the second 24-block request would require 72 total slots and cannot fit. Executing allocate(64,[48,24]) returned [true,false]. Waiting or selecting another compatible worker follows directly. Available memory types, backends, hardware, and configuration determine the transport, consistent with [NIXL architecture](https://docs.nvidia.com/nixl/getting-started/architecture/). Asynchronous movement permits overlap with other requests, without guaranteeing independent bandwidth. Request readiness remains an application responsibility. Comparing shape, payload, path, queue time, and transfer duration is a measurement prescription.",
+        "sourceUrls": [
+          "https://docs.nvidia.com/nixl/getting-started/architecture/"
+        ]
+      },
+      {
+        "id": "lifecycle-events",
+        "evidence": "Pass. [ibv_poll_cq](https://raw.githubusercontent.com/linux-rdma/rdma-core/master/libibverbs/man/ibv_poll_cq.3) distinguishes completion status from successful delivery. [ibv_post_send](https://raw.githubusercontent.com/linux-rdma/rdma-core/master/libibverbs/man/ibv_post_send.3) supplies work identifiers and address bookkeeping for correlation. The narration now requires success, matching transfer/ranges, coverage, interpretation, and connector-required visibility, closing repair issue 2. It does not require every remote write to generate a receiver-side CQ entry. [GPUDirect ordering](https://docs.nvidia.com/cuda/gpudirect-rdma/index.html) supports the separate GPU-consumer visibility boundary. Current scene code and the inspected pre-ready sample keep all 48 arrived blocks blue before the separate green validity transition. Generation and client delivery advance separately. Receipts carrying application identities and orchestrator ownership are design requirements, not automatically supplied transport fields.",
+        "sourceUrls": [
+          "https://raw.githubusercontent.com/linux-rdma/rdma-core/master/libibverbs/man/ibv_poll_cq.3",
+          "https://raw.githubusercontent.com/linux-rdma/rdma-core/master/libibverbs/man/ibv_post_send.3",
+          "https://docs.nvidia.com/cuda/gpudirect-rdma/index.html"
+        ]
+      },
+      {
+        "id": "uncertain-transfer",
+        "evidence": "Pass. Read the actual JavaScript gates and Python Receiver. Six segments × eight allocated rank-block entries = 48 blocks. Four received segments cover 32, leaving 16 missing. Executed coverage, commit, and reclaim checks all reject the partial retired attempt. Timeout uncertainty follows from two possible histories: unfinished transfer, or finished transfer with a lost acknowledgement. The JavaScript integrity check hashes authored segment buffers, not measured GPU data. Generation checks fence control events when enforced, while physical writes require separate lifetime control. This agrees with [NIXL cancellation semantics](https://raw.githubusercontent.com/ai-dynamo/nixl/main/docs/BackendGuide.md) and [GPUDirect ordering](https://docs.nvidia.com/cuda/gpudirect-rdma/index.html). Independently executed the expiry example: commit at destination tick 10 with deadline 10 retires the attempt, late arrival remains possible, reclaim rejects, and free credit stays zero. After trusted abort acknowledgement, reclaim returns 2,726,297,600 bytes and repeated reclaim is harmless. Destination-clock authority and disjoint retry capacity are teaching-protocol requirements. The simulator supplies trusted ticks and quiescence callbacks rather than measuring them.",
+        "sourceUrls": [
+          "https://raw.githubusercontent.com/ai-dynamo/nixl/main/docs/BackendGuide.md",
+          "https://docs.nvidia.com/cuda/gpudirect-rdma/index.html"
+        ]
+      },
+      {
+        "id": "retry-boundaries",
+        "evidence": "Pass. Lost commit acknowledgement permits committed-with-lost-ack and uncommitted histories, so authoritative reconciliation is necessary before another owner starts. Restarting after possibly delivered output can duplicate tokens or produce a different continuation. Cursor agreement, deduplication, sampling state, and authoritative ownership are protocol requirements, without a claim of complete recovery implementation. Retained source KV avoids recomputation only while usable and must remain allocated during possible transport reads. Failed-rank recovery agrees with [NCCL communicator documentation](https://docs.nvidia.com/deeplearning/nccl/user-guide/docs/usage/communicators.html). Read and executed handoff_model.py. Its eight mismatch cases change tenant, layout, prompt, attempt, block count, rank count, reservation size, and request. Separate assertions exercise duplicate/missing arrivals, stale attempts, expiry, repeated commit/reclaim, and reader-stop gating. The permutation loop uses r0, r1, finish, commit, cancel, and reclaim once each: 6! = 720 orders. All assertions passed. Narration and the inspected visual limit this to tested serialized cases with trusted callbacks, closing repair issue 8. They correctly exclude demonstrated distributed atomicity, authentication, real cancellation, and CUDA visibility.",
+        "sourceUrls": [
+          "https://docs.nvidia.com/deeplearning/nccl/user-guide/docs/usage/communicators.html"
+        ]
+      },
+      {
+        "id": "critical-path",
+        "evidence": "Pass. Executed traceWithQueue(). Initially, prefill is 0–180 ms, setup 0–150, transfer 150–330, and first-token work 330–400. A 25 ms transfer queue changes transfer to 175–355 and the endpoint to 425, without changing active operation durations. Transfer is critical in this fixture, so the entire delay reaches the endpoint. For the second schedule, transfer is 107.3741824 ms. Serial endpoint: 310 + 107.3741824 + 28 = 445.3741824 ms. Overlapped endpoint: max(310,240 + 107.3741824) + 28 = 375.3741824 ms. Shifting the work behind a 25 ms queue gives 400.3741824 ms while active union remains 375.3741824 ms. Early block readiness and backend overlap are explicit assumptions. Independently checked the percentile warning using 100 requests: separate requests have a 100 ms outlier in phase A and phase B, while all other phase values are 1 ms. Nearest-rank phase p99 values are each 1 ms, but total p99 is 101 ms. Useful payload and wire counters measure different quantities, and staging need not add network bytes. Three successes among 20 offered requests mean 15% attainment despite potentially good accepted-request latency. Equal workloads and budgets are appropriate comparison controls. Unbounded request-ID labels conflict with [Prometheus guidance](https://prometheus.io/docs/practices/naming/).",
+        "sourceUrls": [
+          "https://prometheus.io/docs/practices/naming/"
+        ]
+      },
+      {
+        "id": "transfer",
+        "evidence": "Pass. The successful recap is an authored handoff, with separate transfer, validity, and output transitions in transfer.mjs. Capacity, interpretation, receipts, cancellation, and reconciliation are proposed contracts. The trace conclusion is explicitly limited to recorded evidence across both planes. [Dynamo observability](https://docs.dynamo.nvidia.com/dynamo/knowledge-base/concepts/observability-architecture) confirms that available child spans depend on backend and deployment. Current source and the inspected sample identify the selected transfer delay as illustrated, closing repair issue 9. The prediction arithmetic is correct: six notifications with segment 2 duplicated and segment 5 absent contain only five unique segments, covering 5×8 = 40 of 48 blocks. Complete coverage is missing, so commit fails. Lease expiry does not establish writer quiescence. The model requires retirement and stopped transport/consumers before reclamation. Current scene retains the old reservation, allocates separate retry cells, stops the writer, and then releases the old capacity. The benchmark sentence is a course transition, not a claimed benchmark result.",
+        "sourceUrls": [
+          "https://docs.dynamo.nvidia.com/dynamo/knowledge-base/concepts/observability-architecture"
+        ]
+      }
+    ],
+    "findings": [],
+    "limitations": [
+      "This review binds script hash 243419cf1a6f7273, lesson YAML SHA256 14c8d63101cb4e3f2125b40ffc949a12b1b50efffce9c70c5801bd4a7d498867, and article SHA256 22f30e9feb579fa3d767b3aada9bea5d6f238d682977ed3913ca6722ac3912f5. Reversing exactly the two follow-up narration edits independently restored prior script hash f99fff3daaaf0d82.",
+      "Visual review used current scene source and nine existing post-repair PNGs. The six repaired scene-file hashes checked matched the supplied repair record. No fresh render, regenerated audio, provider word timings, or final encoded MP4 was inspected. Source-level closure does not establish final audiovisual timing or frame-by-frame correctness.",
+      "No live NCCL, RDMA, CUDA, NIXL, vLLM, or Dynamo deployment was exercised. Executed local models validate their tested cases and arithmetic. They do not establish real cancellation, GPU visibility, authentication, distributed ownership, or measured performance.",
+      "Primary references were fetched during this review. Rolling latest, stable, and main documentation can change. The supplied Dynamo disagg-communication URL returned HTTP 404. Its underlying transport claims were checked against accessible Dynamo serving and NIXL documentation.",
+      "The article was used for context and locating the executable model, not as independent proof. Article-only claims were outside this narration review. No edits, external writes, or subagents were used."
+    ]
+  }
+}

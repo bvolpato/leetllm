@@ -1,0 +1,268 @@
+[
+  {
+    "id": "c01",
+    "title": "Which allocation stops the assistant?",
+    "sourceChapters": ["c01"],
+    "beats": [
+      {
+        "id": "c01-b01",
+        "say": "The local runbook assistant has its weights on the GPU. Four incident logs arrive. Watch each log leave a strip of keys and values on that same device. The assistant will use those saved numbers when it reads the next token.",
+        "hold": 1
+      },
+      {
+        "id": "c01-b02",
+        "say": "Freeze the worker as it reads the prompts. This phase is called prefill. Our illustrated trace has seven point six gigabytes of weights and just over two point four gigabytes of history. The rest of the twenty-four gigabyte card is free. Can it grant this fifteen-gigabyte request for temporary workspace?",
+        "hold": 3
+      },
+      {
+        "id": "c01-b03",
+        "say": "Follow the outline to the end of the card. The allocation fails. The request would need just over twenty-five gigabytes in all. Only the weights and histories are live. The host has twenty-four gigabytes free, but this allocator asked for ordinary device memory.",
+        "hold": 1.6
+      },
+      {
+        "id": "c01-b04",
+        "say": "Try a smaller prefill chunk on the same logs. This time the temporary request is six gigabytes. It fits beside the very same weights and cache. Record the allocation type, pool, phase and peak on the worker. A kernel that avoids the full attention matrix can still need scratch space.",
+        "hold": 1.2
+      }
+    ]
+  },
+  {
+    "id": "c02",
+    "title": "Which pool supplies the bytes?",
+    "sourceChapters": ["c02"],
+    "beats": [
+      {
+        "id": "c02-b01",
+        "say": "On a discrete machine, keep two budgets. Here the device request is twenty-eight gigabytes on a twenty-four gigabyte card. Place eight gigabytes on the host. That buffer fits there, while the device request still fails. Moving work to the host requires a placement the backend supports.",
+        "hold": 0.9
+      },
+      {
+        "id": "c02-b02",
+        "say": "Now use one shared physical pool, as on Apple Silicon. The system and other applications occupy ten of its thirty-two gigabytes. The model requests twenty-four gigabytes. Will that allocation fit?",
+        "hold": 3
+      },
+      {
+        "id": "c02-b02-check",
+        "say": "Subtract ten from thirty-two. That leaves twenty-two gigabytes. Place the request beside the occupied bytes. Its last two gigabytes cross the limit. The allocation fails. CPU and GPU share this storage. Scheduling dependencies, memory pressure and the working-set limit still matter.",
+        "hold": 1
+      },
+      {
+        "id": "c02-b03",
+        "say": "What goes into that weight allocation? In this small worksheet six billion weights use six bits each. Divide the bits by eight. The packed codes take four and a half decimal gigabytes. Add the loaded scales and metadata, the projector and the draft weights. Together they need six gigabytes before cache or workspace. Zeroing a dense code still leaves its slot allocated.",
+        "hold": 1
+      },
+      {
+        "id": "c02-b04",
+        "say": "Capacity tells us what fits. Bandwidth tells us how quickly bytes can arrive. Consider four populated CPU memory channels. At six billion transfers per second and eight bytes per transfer, their combined theoretical peak is one hundred ninety-two gigabytes per second. A dense step reading six point four gigabytes could run thirty times a second under this weight-only assumption.",
+        "hold": 0.9
+      },
+      {
+        "id": "c02-b05",
+        "say": "Share each weight read across four sequences. One batched step can produce four tokens, or up to a hundred twenty tokens per second in aggregate. Each individual sequence still advances by one token per step. Check sustained bandwidth, local versus remote NUMA memory, thread count and the actual kernel. Four-bit storage can feed a kernel that unpacks into floating point.",
+        "hold": 1.2
+      }
+    ]
+  },
+  {
+    "id": "c03",
+    "title": "What does the cache actually keep?",
+    "sourceChapters": ["c03"],
+    "beats": [
+      {
+        "id": "c03-b01",
+        "say": "Take one retained token. Each layer keeps a key and a value, each with the configured number of key-value heads and entries per head. In this toy architecture sixteen layers use two heads of width sixty-four, at two bytes per entry. Count both arrays. Each token leaves eight thousand one hundred ninety-two bytes across the layers.",
+        "hold": 0.8
+      },
+      {
+        "id": "c03-b02",
+        "say": "Now keep four thousand ninety-six tokens in each of two sessions. Multiply by both histories. That's sixty-four mebibytes of raw cache. A mebibyte is two to the twentieth bytes. Read head width from the configuration. Allocator pages, metadata and unused reservations can raise the physical footprint.",
+        "hold": 1
+      },
+      {
+        "id": "c03-b03",
+        "say": "Return to our four incident logs, each sixteen thousand three hundred eighty-four tokens long. Forty sliding layers have eight heads of width two hundred fifty-six. Eight full layers have one head of width five hundred twelve. Each entry takes two bytes. The sliding window covers only the last tile. With capped storage the sliding layers keep that tile, and the full layers keep every tile. The two groups sum to about two point four gigabytes.",
+        "hold": 0.9
+      },
+      {
+        "id": "c03-b04",
+        "say": "Double the history length with the same four sessions. Which row grows? The full layers keep the extra history. The capped sliding rows keep just their window. Our budget counts seven point six gigabytes of shared weights and two of workspace once. Its planning line is nineteen point two gigabytes, leaving a fifth of the card in reserve.",
+        "hold": 1
+      },
+      {
+        "id": "c03-b05",
+        "say": "Return to the shorter logs and double concurrency instead. Now both cache terms double because each new log needs both kinds of history. The shared weights stay put. Changing one input at a time tells you what caused the difference.",
+        "hold": 1
+      },
+      {
+        "id": "c03-b06",
+        "say": "Restore the four shorter logs. Keep the very same attention window, but reserve full-length sliding buffers. Fill the earlier slots. Those positions take physical space even though the last query can read only its final window in a sliding layer. Demand passes thirty-two gigabytes, beyond both the planning line and the card. Inspect the backend's retention and reservation before setting an admission limit.",
+        "hold": 1.4
+      }
+    ]
+  },
+  {
+    "id": "c04",
+    "title": "What crosses between blocks 16 and 17?",
+    "sourceChapters": ["c04"],
+    "beats": [
+      {
+        "id": "c04-b01",
+        "say": "Suppose thirty-two equal blocks each require three tenths of a gigabyte. Other tensors and workspace take three point two. With sixteen gigabytes available, all thirty-two blocks fit on the GPU. Subtract fixed use first, divide by the block size, round down and cap at the number of blocks.",
+        "hold": 1
+      },
+      {
+        "id": "c04-b02",
+        "say": "Lower the allowance to eight gigabytes. Four point eight remain for block weights. The last sixteen fit on the GPU. The CPU executes the first sixteen using weights in host RAM. Look at the pair that block sixteen produced. What must reach block seventeen before it can start?",
+        "hold": 2.8
+      },
+      {
+        "id": "c04-b03",
+        "say": "Send the pair across the link. These two numbers are the activation for this toy token. Block seventeen receives exactly what sixteen produced. Now apply block seventeen. Its own weights change the pair. Both banks of weights stay where they were.",
+        "hold": 1.3
+      },
+      {
+        "id": "c04-b04",
+        "say": "Continue through the suffix. Each block takes the previous output in order. Compare the final pair with our all-GPU control. They match because this numerical graph applies the same operations. Splitting it adds one activation crossing here. Timing the real backend is a separate experiment.",
+        "hold": 1.2
+      },
+      {
+        "id": "c04-b05",
+        "say": "Translate a block count into a runner flag carefully. In the inspected llama dot cpp rule, count backward from the output slot. The thirty-two hidden blocks are numbered zero through thirty-one. With a GPU-layer count of twenty-four, which hidden block starts the suffix?",
+        "hold": 3
+      },
+      {
+        "id": "c04-b05-count",
+        "say": "Count the output first. It uses one slot. That leaves twenty-three slots for hidden blocks. Count backward from block thirty-one, including thirty-one itself. You reach block nine. Blocks nine through thirty-one and the output fill all twenty-four slots. The input stays on the CPU before overrides. Check the installed help and placement logs, especially when tensors differ in size.",
+        "hold": 1.2
+      }
+    ]
+  },
+  {
+    "id": "c05",
+    "title": "How long is the transfer path?",
+    "sourceChapters": ["c05"],
+    "beats": [
+      {
+        "id": "c05-b01",
+        "say": "Isolate transport with a separate experiment. Read seven point six gigabytes of weights on each step. At an assumed five hundred gigabytes per second on the device, divide bytes by bandwidth. That gives fifteen point two milliseconds for the read. This serial worksheet leaves out overlap, compute, unpacking, launches and attention.",
+        "hold": 1
+      },
+      {
+        "id": "c05-b02",
+        "say": "Keep the payload fixed. This time read five point six gigabytes locally and send two over a host link at twenty-five gigabytes per second. Which leg takes longer? Look at the same time ruler for both runs.",
+        "hold": 2.2
+      },
+      {
+        "id": "c05-b03",
+        "say": "Append the host leg. Eleven point two milliseconds for the device, then eighty more for the link. The mixed step spends ninety-one point two milliseconds on transport. Here the trace records weight bytes on every step. Our split-block graph sent the intermediate activation after CPU execution.",
+        "hold": 1.2
+      },
+      {
+        "id": "c05-b04",
+        "say": "Read the entire payload from storage instead at five gigabytes per second. That takes one point five two seconds before additional processing. On a real worker, match major faults to model-file reads for clean file-backed pages. Look for swap activity for anonymous pages. Managed migration requires a supported allocation type and migration events. High VRAM usage alone identifies none of these paths.",
+        "hold": 1.3
+      },
+      {
+        "id": "c05-b05",
+        "say": "Return to the device and host runs. The article also calculates a floor at the card’s advertised peak of a thousand and eight gigabytes per second. If we change only the device rate, which part of the mixed run keeps its width? Substitute the peak. The blue device read gets shorter. The gold host leg still takes eighty milliseconds. Even at that device peak the mixed path takes about eighty-five and a half milliseconds. Time a real step to find out how close the worker gets.",
+        "hold": 1.3
+      }
+    ]
+  },
+  {
+    "id": "c06",
+    "title": "Which work did the clock measure?",
+    "sourceChapters": ["c06"],
+    "beats": [
+      {
+        "id": "c06-b01",
+        "say": "Inspect a completed timing receipt. Of a thousand prompt tokens, six hundred came from cache. The prompt-evaluation clock ran for two tenths of a second. Which part of that prompt belongs above the duration?",
+        "hold": 2.2
+      },
+      {
+        "id": "c06-b02",
+        "say": "Time the uncached suffix. Four hundred tokens divided by point two seconds gives two thousand prompt tokens per second. Using all one thousand would credit a cache hit as new work. Output has its own clock. Eighty generated tokens over two seconds gives forty per second. The final server receipt reports durations in nanoseconds. Divide by a billion to get seconds.",
+        "hold": 1
+      },
+      {
+        "id": "c06-b03",
+        "say": "Remove the output duration. The count survives and the output rate becomes unavailable. In a separate copy, omit the cached count. Now the uncached input rate is unknown while the complete output fields still yield forty. Require a completed receipt, valid nonnegative integer fields and a positive duration for each rate. Reject a cached count greater than the total.",
+        "hold": 1.1
+      },
+      {
+        "id": "c06-b04",
+        "say": "At the client, mark submission, first chunk, first visible token and completion. A buffered chunk can carry several tokens. State which event ends the first-token wait. Measure queueing, cold loads, gaps, failures and peaks at the intended arrival rate. Compare these two-GPU replays on the same workload and quality. Which arrangement meets both the latency cap and the throughput floor?",
+        "hold": 2.3
+      },
+      {
+        "id": "c06-b05",
+        "say": "Choose the replicas. Both arrangements meet the aggregate rate floor, but the tensor-parallel worker misses the first-token deadline. Two replicas can each load a model that fits on one device. A split model pays for communication. Run the comparison on the actual hardware, scheduler and cache settings.",
+        "hold": 1.1
+      },
+      {
+        "id": "c06-b06",
+        "say": "Choose a runner that can serve the workload. A GGUF file carries tensors and metadata for a compatible loader such as llama dot cpp. An Ollama Modelfile points to supported weights and sets options such as a template. Check the API fields your client needs. On Apple hardware MLX supplies array operations and MLX-LM supplies language-model tools. A paged scheduler such as vLLM can map logical token blocks into scattered cache slots. Their size and the sharing policy affect waste. Other servers can also handle concurrent requests.",
+        "hold": 1.1
+      }
+    ]
+  },
+  {
+    "id": "c07",
+    "title": "Would you release the smaller artifact?",
+    "sourceChapters": ["c07"],
+    "beats": [
+      {
+        "id": "c07-b01",
+        "say": "Put two drafts for the same incident side by side in the evaluation. Both artifacts pass three of four invented cases. A reviewer protects one case, the rollback command. With the totals tied, what would you ask to see?",
+        "hold": 2.6
+      },
+      {
+        "id": "c07-b02",
+        "say": "Open the paired outputs. Read both commands from the same column. The smaller model stops after the target version. The baseline continues with the confirmation flag. In this harness a valid rollback draft requires that exact suffix. Both artifacts ask for the missing node and parse the alert severity correctly.",
+        "hold": 1.2
+      },
+      {
+        "id": "c07-b03",
+        "say": "Look at the unknown runbook. The smaller model asks for human review where the baseline invented a runbook. That gain explains how the scores tied. Apply the protected-case rule. Hold the smaller artifact. The baseline's failure to abstain still needs repair. Save the prompts, retrieved evidence, tokenizer, template, decoding options and outputs. Repeat the paired trials to investigate a change.",
+        "hold": 1.5
+      }
+    ]
+  },
+  {
+    "id": "c08",
+    "title": "How many logs can the worker take?",
+    "sourceChapters": ["c08"],
+    "beats": [
+      {
+        "id": "c08-b01",
+        "say": "First check the worker that will take the logs. The tags endpoint lists available artifacts. The running-model record gives the model digest, context length and reported bytes in GPU memory. For a placement summary, read the processor column in Ollama’s command-line tool. Send a controlled inference request to test readiness. Request forty-one fails during prefill. Its request ID links the error to this worker. Save the verified model manifest, container digest, backend, options and versions. A later pull of a mutable tag can change the bytes.",
+        "hold": 1
+      },
+      {
+        "id": "c08-b02",
+        "say": "Trace the incident inside the approved network. A local caller can still request another team's restricted document. Check the caller's permission at retrieval. An approved internal relay might also forward incident text outside. Enforce the complete route, including tools, logs, backups and monitoring. A loopback listener or a no-cloud model setting covers only part of that journey. Credentials stay in their store.",
+        "hold": 1.2
+      },
+      {
+        "id": "c08-b03",
+        "say": "Now eight logs arrive at the approved worker, each thirty-two thousand seven hundred sixty-eight tokens long. It keeps capped histories. Count seven point six gigabytes of weights and two of workspace once. Each log needs about point eight seven two four gigabytes of raw cache. The planning limit is sixteen gigabytes. How many whole logs can enter?",
+        "hold": 3
+      },
+      {
+        "id": "c08-b04",
+        "say": "Try all eight. The eighth cache strip crosses the planning line. Subtract the shared allocations first. Six point four gigabytes are available for cache. Divide by the cache per log and round down. Admit seven, queue the eighth. Seven use about fifteen point seven gigabytes. Measure the real peak with those arrivals before changing admission on the worker.",
+        "hold": 1.4
+      },
+      {
+        "id": "c08-b05",
+        "say": "In this fresh five-case replay the smaller model passes four, meeting the score floor. The protected rollback draft must include the confirmation flag. Inspect that draft. Read the last argument and compare it with the requirement. Would you let this candidate take the seven admitted logs?",
+        "hold": 3
+      },
+      {
+        "id": "c08-b05-review",
+        "say": "The draft ends at the target version. It omits the required confirmation flag. Mark the rollback case as failed. The baseline passed that case. Hold the candidate. Keep the seven logs on the approved worker. When the approved model is unavailable, hand the incident to an approved local runbook or a human. Exercise that path with the worker down and check its outbound trace. On a field laptop, repeat on battery as it warms up and open the runbook offline.",
+        "hold": 1.5
+      }
+    ]
+  }
+]

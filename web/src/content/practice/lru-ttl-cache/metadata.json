@@ -1,0 +1,331 @@
+{
+  "id": "lru-ttl-cache",
+  "slug": "lru-ttl-cache",
+  "title": "LRU TTL Cache",
+  "difficulty": "Medium",
+  "category": "Caching",
+  "language": "python3",
+  "timeEstimateMinutes": 35,
+  "timeLimitMs": 2500,
+  "memoryLimitMb": 128,
+  "order": 60,
+  "tags": [
+    "OrderedDict",
+    "LRU",
+    "TTL",
+    "eviction"
+  ],
+  "source": "Company prep",
+  "summary": "Combine recency ordering and TTL cleanup without corrupting cache invariants.",
+  "starterCode": [
+    "class LRUTTLCache:",
+    "    def __init__(self, capacity: int, now):",
+    "        pass",
+    "",
+    "    def put(self, key: str, value, ttl: float | None = None) -> None:",
+    "        pass",
+    "",
+    "    def get(self, key: str):",
+    "        pass"
+  ],
+  "testCases": [
+    {
+      "name": "evicts least recently used entry",
+      "visibility": "sample",
+      "setup": [
+        "from solution import LRUTTLCache",
+        "cache = LRUTTLCache(capacity=2, now=lambda: 0.0)",
+        "cache.put(\"a\", 1)",
+        "cache.put(\"b\", 2)"
+      ],
+      "checks": [
+        {
+          "input": "cache = LRUTTLCache(capacity=2, now=lambda: 0.0)\ncache.put(\"a\", 1)\ncache.put(\"b\", 2)\ncache.get(\"a\")",
+          "expression": "cache.get(\"a\")",
+          "operator": "==",
+          "expected": "1"
+        },
+        {
+          "input": "cache = LRUTTLCache(capacity=2, now=lambda: 0.0)\ncache.put(\"a\", 1)\ncache.put(\"b\", 2)\ncache.get(\"a\")\ncache.put(\"c\", 3)\ncache.get(\"b\")",
+          "expression": "cache.get(\"b\")",
+          "operator": "is",
+          "expected": "None",
+          "before": "cache.put(\"c\", 3)"
+        },
+        {
+          "input": "cache = LRUTTLCache(capacity=2, now=lambda: 0.0)\ncache.put(\"a\", 1)\ncache.put(\"b\", 2)\ncache.get(\"a\")\ncache.put(\"c\", 3)\ncache.get(\"b\")\ncache.get(\"a\")",
+          "expression": "cache.get(\"a\")",
+          "operator": "==",
+          "expected": "1"
+        },
+        {
+          "input": "cache = LRUTTLCache(capacity=2, now=lambda: 0.0)\ncache.put(\"a\", 1)\ncache.put(\"b\", 2)\ncache.get(\"a\")\ncache.put(\"c\", 3)\ncache.get(\"b\")\ncache.get(\"a\")\ncache.get(\"c\")",
+          "expression": "cache.get(\"c\")",
+          "operator": "==",
+          "expected": "3"
+        }
+      ]
+    },
+    {
+      "name": "removes expired entries before LRU eviction",
+      "visibility": "hidden",
+      "description": "put must drop an expired MRU before the live LRU victim; pure LRU without expired-first cleanup fails.",
+      "setup": [
+        "from solution import LRUTTLCache",
+        "clock = {\"t\": 0.0}",
+        "cache = LRUTTLCache(capacity=2, now=lambda: clock[\"t\"])",
+        "cache.put(\"expired_mru\", 1, ttl=5)",
+        "cache.put(\"live_lru\", 2)",
+        "cache.get(\"expired_mru\")",
+        "clock[\"t\"] = 5.0"
+      ],
+      "checks": [
+        {
+          "input": "clock = {\"t\": 0.0}\ncache = LRUTTLCache(capacity=2, now=lambda: clock[\"t\"])\ncache.put(\"expired_mru\", 1, ttl=5)\ncache.put(\"live_lru\", 2)\ncache.get(\"expired_mru\")\nclock[\"t\"] = 5.0\ncache.put(\"new\", 3)\ncache.get(\"live_lru\")",
+          "expression": "cache.get(\"live_lru\")",
+          "operator": "==",
+          "expected": "2",
+          "before": "cache.put(\"new\", 3)",
+          "feedback": "Evict expired entries on put before LRU capacity eviction so live_lru survives."
+        },
+        {
+          "input": "clock = {\"t\": 0.0}\ncache = LRUTTLCache(capacity=2, now=lambda: clock[\"t\"])\ncache.put(\"expired_mru\", 1, ttl=5)\ncache.put(\"live_lru\", 2)\ncache.get(\"expired_mru\")\nclock[\"t\"] = 5.0\ncache.put(\"new\", 3)\ncache.get(\"live_lru\")\ncache.get(\"new\")",
+          "expression": "cache.get(\"new\")",
+          "operator": "==",
+          "expected": "3"
+        },
+        {
+          "input": "clock = {\"t\": 0.0}\ncache = LRUTTLCache(capacity=2, now=lambda: clock[\"t\"])\ncache.put(\"expired_mru\", 1, ttl=5)\ncache.put(\"live_lru\", 2)\ncache.get(\"expired_mru\")\nclock[\"t\"] = 5.0\ncache.put(\"new\", 3)\ncache.get(\"live_lru\")\ncache.get(\"new\")\ncache.get(\"expired_mru\")",
+          "expression": "cache.get(\"expired_mru\")",
+          "operator": "is",
+          "expected": "None"
+        }
+      ]
+    },
+    {
+      "name": "updates existing keys and recency",
+      "visibility": "sample",
+      "setup": [
+        "from solution import LRUTTLCache",
+        "cache = LRUTTLCache(capacity=2, now=lambda: 0.0)",
+        "cache.put(\"a\", 1)",
+        "cache.put(\"b\", 2)",
+        "cache.put(\"a\", 10)",
+        "cache.put(\"c\", 3)"
+      ],
+      "checks": [
+        {
+          "input": "cache = LRUTTLCache(capacity=2, now=lambda: 0.0)\ncache.put(\"a\", 1)\ncache.put(\"b\", 2)\ncache.put(\"a\", 10)\ncache.put(\"c\", 3)\ncache.get(\"a\")",
+          "expression": "cache.get(\"a\")",
+          "operator": "==",
+          "expected": "10"
+        },
+        {
+          "input": "cache = LRUTTLCache(capacity=2, now=lambda: 0.0)\ncache.put(\"a\", 1)\ncache.put(\"b\", 2)\ncache.put(\"a\", 10)\ncache.put(\"c\", 3)\ncache.get(\"a\")\ncache.get(\"b\")",
+          "expression": "cache.get(\"b\")",
+          "operator": "is",
+          "expected": "None"
+        },
+        {
+          "input": "cache = LRUTTLCache(capacity=2, now=lambda: 0.0)\ncache.put(\"a\", 1)\ncache.put(\"b\", 2)\ncache.put(\"a\", 10)\ncache.put(\"c\", 3)\ncache.get(\"a\")\ncache.get(\"b\")\ncache.get(\"c\")",
+          "expression": "cache.get(\"c\")",
+          "operator": "==",
+          "expected": "3"
+        }
+      ]
+    },
+    {
+      "name": "ttl zero expires immediately",
+      "visibility": "hidden",
+      "setup": [
+        "from solution import LRUTTLCache",
+        "cache = LRUTTLCache(capacity=2, now=lambda: 10.0)",
+        "cache.put(\"a\", 1, ttl=0)"
+      ],
+      "checks": [
+        {
+          "input": "cache = LRUTTLCache(capacity=2, now=lambda: 10.0)\ncache.put(\"a\", 1, ttl=0)\ncache.get(\"a\")",
+          "expression": "cache.get(\"a\")",
+          "operator": "is",
+          "expected": "None"
+        },
+        {
+          "input": "cache = LRUTTLCache(capacity=2, now=lambda: 10.0)\ncache.put(\"a\", 1, ttl=0)\ncache.get(\"a\")\ncache.put(\"b\", 2)\ncache.get(\"b\")",
+          "expression": "cache.get(\"b\")",
+          "operator": "==",
+          "expected": "2",
+          "before": "cache.put(\"b\", 2)"
+        }
+      ]
+    },
+    {
+      "name": "zero capacity stores no entries",
+      "visibility": "hidden",
+      "setup": [
+        "from solution import LRUTTLCache",
+        "cache = LRUTTLCache(capacity=0, now=lambda: 0.0)",
+        "cache.put(\"a\", 1)"
+      ],
+      "input": "cache = LRUTTLCache(capacity=0, now=lambda: 0.0)\ncache.put(\"a\", 1)\ncache.get(\"a\")",
+      "expected": "None",
+      "expression": "cache.get(\"a\")",
+      "operator": "is"
+    },
+    {
+      "name": "returns none for missing keys",
+      "visibility": "sample",
+      "description": "Reading an absent key is a cache miss.",
+      "setup": [
+        "from solution import LRUTTLCache",
+        "cache = LRUTTLCache(capacity=2, now=lambda: 0.0)"
+      ],
+      "input": "cache.get(\"missing\")",
+      "expected": "None",
+      "feedback": "Return None without changing recency when the key is absent."
+    },
+    {
+      "name": "updating a key replaces its ttl",
+      "visibility": "hidden",
+      "description": "A live update starts a fresh TTL from the update time.",
+      "setup": [
+        "from solution import LRUTTLCache",
+        "clock = {\"t\": 0.0}",
+        "cache = LRUTTLCache(capacity=2, now=lambda: clock[\"t\"])",
+        "cache.put(\"a\", 1, ttl=2)",
+        "clock[\"t\"] = 1.0",
+        "cache.put(\"a\", 2, ttl=5)",
+        "clock[\"t\"] = 2.0"
+      ],
+      "input": "cache.get(\"a\")",
+      "expected": "2",
+      "feedback": "Replace both value and expires_at when updating a live key."
+    },
+    {
+      "name": "updating without a ttl removes the previous deadline",
+      "visibility": "hidden",
+      "description": "A live update with ttl=None changes an expiring entry into a non-expiring entry.",
+      "setup": [
+        "from solution import LRUTTLCache",
+        "clock = {\"t\": 0.0}",
+        "cache = LRUTTLCache(capacity=1, now=lambda: clock[\"t\"])",
+        "cache.put(\"a\", 1, ttl=2)",
+        "cache.put(\"a\", 2)",
+        "clock[\"t\"] = 20.0"
+      ],
+      "input": "cache.get(\"a\")",
+      "expected": "2",
+      "feedback": "Replace expires_at with None when an existing key is updated without a TTL."
+    },
+    {
+      "name": "negative capacity stores no entries",
+      "visibility": "hidden",
+      "description": "A non-positive capacity can't retain an entry or evict from an empty cache.",
+      "setup": [
+        "from solution import LRUTTLCache",
+        "cache = LRUTTLCache(capacity=-1, now=lambda: 0.0)",
+        "cache.put(\"a\", 1)"
+      ],
+      "input": "cache.get(\"a\")",
+      "expected": "None",
+      "operator": "is",
+      "feedback": "Clamp negative capacity to zero before applying the eviction loop."
+    },
+    {
+      "name": "capacity one evicts the previous key",
+      "visibility": "hidden",
+      "description": "In a one-entry cache, inserting a second live key removes the first.",
+      "setup": [
+        "from solution import LRUTTLCache",
+        "cache = LRUTTLCache(capacity=1, now=lambda: 0.0)",
+        "cache.put(\"a\", 1)",
+        "cache.put(\"b\", 2)"
+      ],
+      "input": "(cache.get(\"a\"), cache.get(\"b\"))",
+      "expected": "(None, 2)",
+      "feedback": "Evict the least-recent live entry before storing beyond capacity."
+    },
+    {
+      "name": "negative ttl replacement invalidates only its own key",
+      "visibility": "hidden",
+      "setup": [
+        "from solution import LRUTTLCache",
+        "cache = LRUTTLCache(2, now=lambda: 0)",
+        "cache.put(\"a\", 1)",
+        "cache.put(\"b\", 2)",
+        "cache.put(\"b\", 20, ttl=-1)",
+        "cache.put(\"c\", 3)"
+      ],
+      "input": "(cache.get(\"a\"), cache.get(\"b\"), cache.get(\"c\"))",
+      "expected": "(1, None, 3)"
+    }
+  ],
+  "clarifyingQuestions": [
+    "Are expired entries removed lazily or by background cleanup?",
+    "What should capacity zero do?",
+    "Should metrics distinguish TTL eviction from capacity eviction?"
+  ],
+  "followUps": [
+    "Add hit/miss/eviction metrics.",
+    "Add thread safety with an RLock around map and recency order.",
+    "Add stale-while-revalidate behavior."
+  ],
+  "followUpGuide": [
+    "For metrics, increment hits only after the expiry check succeeds. Expired entries should count as misses and optionally as TTL evictions.",
+    "",
+    "For thread safety, wrap `get`, `put`, cleanup, and eviction in one `threading.RLock`. OrderedDict recency mutation is shared state.",
+    "",
+    "For stale-while-revalidate, store both `expires_at` and `stale_until`. Return stale values inside the stale window while one background refresh owns the reload."
+  ],
+  "complexityAnalysis": [
+    "- List scan approach: store entries in an array and move keys by scanning. Time: O(n) per get/set. Space: O(n).",
+    "- OrderedDict solution: expected hash lookup plus recency ordering. Time: O(1) expected per get or write that does not exceed capacity; O(n) for a capacity-reclaiming write that scans expired entries. Space: O(n), including the temporary snapshot used for safe cleanup iteration. n is the number of retained entries (at most capacity + 1 during a write).",
+    "- Expiry-heap follow-up: with h heap records, Time: O(log h) per expiring write or cleanup pop; a call removing k records costs O(k log h). Space: O(n + h). Lazy invalidation leaves stale records after updates, so h need not be bounded by cache capacity; add compaction or indexed deletion to keep space O(n)."
+  ],
+  "solutionGuide": [
+    "Use `collections.OrderedDict` to keep keys in recency order. Move a key to the end on every successful `get` and every `put`.",
+    "",
+    "[`OrderedDict.move_to_end`](https://docs.python.org/3/library/collections.html#collections.OrderedDict.move_to_end) changes order explicitly; `popitem(last=False)` removes the oldest entry. Ordinary insertion-ordered dictionaries do not move an existing key on assignment.",
+    "",
+    "Store each value with `expires_at`. Before capacity eviction, scan and remove expired keys so stale entries don't evict live entries.",
+    "",
+    "```python",
+    "from collections import OrderedDict",
+    "",
+    "",
+    "class LRUTTLCache:",
+    "    def __init__(self, capacity: int, now):",
+    "        self.capacity = max(0, capacity)",
+    "        self.now = now",
+    "        self.items = OrderedDict()",
+    "",
+    "    def _expired(self, expires_at):",
+    "        return expires_at is not None and self.now() >= expires_at",
+    "",
+    "    def _cleanup_expired(self):",
+    "        for key, (_, expires_at) in list(self.items.items()):",
+    "            if self._expired(expires_at):",
+    "                del self.items[key]",
+    "",
+    "    def put(self, key: str, value, ttl: float | None = None) -> None:",
+    "        expires_at = None if ttl is None else self.now() + ttl",
+    "        self.items[key] = (value, expires_at)",
+    "        self.items.move_to_end(key)",
+    "        if len(self.items) > self.capacity:",
+    "            self._cleanup_expired()",
+    "            while len(self.items) > self.capacity:",
+    "                self.items.popitem(last=False)",
+    "",
+    "    def get(self, key: str):",
+    "        if key not in self.items:",
+    "            return None",
+    "        value, expires_at = self.items[key]",
+    "        if self._expired(expires_at):",
+    "            del self.items[key]",
+    "            return None",
+    "        self.items.move_to_end(key)",
+    "        return value",
+    "```",
+    "",
+    "For a threaded follow-up, one lock must protect both the dictionary and order mutations. Recency is shared mutable state."
+  ]
+}

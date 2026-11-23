@@ -1,0 +1,319 @@
+version: 1
+id: local-agent-sandboxing-seatbelt-landlock
+title: Local Agent Sandboxing with Landlock and Seatbelt
+source: agents/local-agent-sandboxing-seatbelt-landlock/content.md
+sources:
+  - title: Linux Landlock user API
+    url: https://docs.kernel.org/userspace-api/landlock.html
+  - title: Linux Seccomp filter
+    url: https://docs.kernel.org/userspace-api/seccomp_filter.html
+  - title: Git hook execution
+    url: https://git-scm.com/docs/githooks
+  - title: Apple App Sandbox
+    url: https://support.apple.com/guide/security/app-sandbox-sec15b098a5/web
+  - title: Bubblewrap sandbox configuration and limits
+    url: https://github.com/containers/bubblewrap/blob/main/README.md
+  - title: VS Code automatic tasks and workspace trust
+    url: https://code.visualstudio.com/docs/debugtest/tasks
+  - title: Chromium Seatbelt custom profile loader
+    url: https://chromium.googlesource.com/chromium/src/+/main/sandbox/mac/seatbelt.cc
+scenes:
+  - id: intro
+    title: Where did the byte go?
+    visual: Two report files sit side by side. A byte marked x lands on the left page and stops at the edge of the right page. Their byte counts stay visible until the cut to the two directory trees, with each checkout on the same side.
+    beats:
+      - say: Watch the x land in the first report. On the right, the same write leaves the report empty. Both runs used the same command on the same Mac. The test could change files only under source. Why did just one report grow?
+        hold: 1.2
+        visual_cues:
+          - { id: intro-append, phrase: Watch the x land in the first report, targets: [first-append] }
+          - { id: intro-stop, phrase: the same write leaves the report empty, targets: [second-append] }
+          - { id: intro-grant, phrase: change files only under source, targets: [write-grant] }
+      - say: Look at cache. On the left it's a directory under source. On the right it's a link to daily in the archive. The next part of the name is two dots. Which directory is one step up on each side?
+        hold: 1.8
+        visual_cues:
+          - { id: intro-link, phrase: a link to daily in the archive, targets: [cache-entry] }
+          - { id: intro-predict, phrase: one step up on each side, targets: [report-command, cache-entry] }
+
+  - id: paths
+    title: Follow the directory entries
+    visual: Two yellow cursors consume the same path. Only the linked cursor crosses to daily. Each climbs to its own parent, then descends to a different report. The requested command stays in place.
+    beats:
+      - say: The yellow markers enter cache. The left marker stays under source. On the right, follow the link across to daily.
+        hold: 0.8
+        motion_check: { region: [1050, 405, 485, 200], minimumChangedFraction: 0.002 }
+        visual_cues:
+          - { id: walk-cache, phrase: The yellow markers enter cache, targets: [path-cursor] }
+          - { id: walk-link, phrase: follow the link across to daily, targets: [path-cursor] }
+      - say: Now go up one directory on each side. A lands in source. B lands in archive, the parent of daily. From each parent, take the last step into report. Removing cache and the two dots from the text would lose that turn on the right.
+        hold: 0.9
+        visual_cues:
+          - { id: walk-parent, phrase: go up one directory on each side, targets: [path-cursor] }
+          - { id: walk-report, phrase: take the last step into report, targets: [path-cursor] }
+      - say: Only A can append. Its report is inside the write grant. The link took B to the archive report, outside the blue boundary. That's why its report stayed empty.
+        hold: 1
+        visual_cues:
+          - { id: walk-verdict, phrase: Only A can append, targets: [path-cursor], caption_boundary: true }
+
+  - id: path-helper-boundary
+    title: What does a path check establish?
+    visual: The Python helper evaluates paths against its small denied set. Compare its answers for two neighboring filenames with the source-only policy.
+    beats:
+      - say: A Python helper can predict a decision in a fixed tree. The one in the article resolves the path, checks that it's inside the workspace, and excludes the hooks directory, the editor settings directory, Git config, and the environment file. It checks five cases and prints four results. The check for Git config is the one you don't see in the output.
+        hold: 0.6
+        visual_cues:
+          - { id: helper-resolve, phrase: resolves the path, targets: [helper-execution] }
+          - { id: path-helper-boundary-step-1, phrase: five cases, targets: [helper-execution] }
+      - say: Look at dot env dot local. That's a different filename from dot env, so it passes this helper. The Git directory itself passes too. Both sit outside our blue source directory. There's also a timing problem. A link can change between the check and the open. Use race-resistant file operations and have the kernel enforce the policy when the worker uses the resource. Include links and renames in the runner's checks.
+        hold: 0.7
+        visual_cues:
+          - { id: path-helper-boundary-step-2, phrase: dot env dot local, targets: [helper-policy-gap] }
+          - { id: helper-scope, phrase: Both sit outside our blue source directory, targets: [helper-policy-gap] }
+          - { id: helper-use, phrase: A link can change between the check and the open, targets: [helper-clock] }
+
+  - id: landlock
+    title: Build the Linux worker
+    visual: A launcher probes the running kernel, constructs a ruleset for the required operations, adds grants and enforces the restriction before work starts. The alternate host lacks required coverage.
+    beats:
+      - say: How would you put the blue boundary around a Linux worker? Landlock lets a thread give up access without root privileges. First the launcher asks the running kernel which features it supports. The ABI version tells it which restrictions this kernel supports. The launcher builds a ruleset for the operations the job needs and grants access to the particular source and output directories.
+        hold: 0.6
+        visual_cues:
+          - { id: landlock-b1-1, phrase: the ABI, targets: [kernel-features] }
+          - { id: landlock-b1-2, phrase: builds a ruleset, targets: [landlock-stages] }
+      - say: On the manual setup path, the launcher sets no new privileges and applies the ruleset before it starts the test. Its children inherit the restriction. They can give up more access later. They cannot take back a right their parent gave up. If the kernel lacks a required feature, hold the launch until a verified alternative covers that operation.
+        hold: 0.7
+        visual_cues:
+          - { id: landlock-b2-1, phrase: applies the ruleset, targets: [landlock-stages] }
+          - { id: landlock-b2-2, phrase: give up more access, targets: [restriction-relation] }
+
+  - id: rights-contract
+    title: What must be true before a child starts?
+    visual: A missing truncation right stops launch. A ruleset descriptor becomes an enforced restriction on thread A and its future child. An inherited open file handle gets a separate check.
+    beats:
+      - say: Suppose the test may append to an existing report, and the launcher must also govern who can shorten a file. Writing bytes and truncating the file are separate rights. If the probe can't cover truncation and you have no verified alternative, leave the worker stopped. Read, execute, directory listing, creation, and cross-directory moves also need their own operation checks. Later ABI versions add controls for TCP ports, device operations, and communication across process domains.
+        hold: 0.7
+        visual_cues:
+          - { id: rights-contract-step-1, phrase: cover truncation, targets: [rights-operations] }
+      - say: The C fragment in the article creates a ruleset descriptor. The thread still has its original access. An O path descriptor identifies the directory for a subtree grant. Add the grants, set no new privileges, then enforce the ruleset. Some newer kernels can set no new privileges as part of successful enforcement. Thread A and its future child now share the boundary. An existing sibling thread needs supported synchronization or its own verified setup.
+        hold: 0.7
+        visual_cues:
+          - { id: rights-contract-step-2, phrase: creates a ruleset descriptor, targets: [rights-enforcement] }
+          - { id: rights-enforce, phrase: then enforce the ruleset, targets: [rights-enforcement] }
+          - { id: rights-threads, phrase: Thread A and its future child, targets: [rights-enforcement] }
+      - say: There's another route to a file. Suppose the supervisor already has it open for reading. Landlock checks file permissions at open time. A worker given that open descriptor can retain read access even if a fresh open would fail. Close unnecessary descriptors before starting untrusted threads or children. Keep credentials and their handles with the supervisor.
+        hold: 0.8
+        visual_cues:
+          - { id: rights-contract-step-3, phrase: that open descriptor, targets: [rights-descriptors] }
+          - { id: rights-fd-close, phrase: Close unnecessary descriptors, targets: [rights-descriptors] }
+
+  - id: layer-grants
+    title: How far does one grant reach?
+    visual: One blue write band spans src, out and .git. A shorter read band stacks under .git. The width of the write band changes only when the launcher builds a different grant or composes a separate mount boundary.
+    beats:
+      - say: Suppose you grant writes to the whole workspace. Follow that blue band over source, output, and Git's own directory. In the same Landlock layer, add a read grant on the Git directory. Look at the band above it. Can the worker still write Git config?
+        hold: 2.2
+        visual_cues:
+          - { id: grant-project, phrase: grant writes to the whole workspace, targets: [grant-footprint] }
+          - { id: grant-add-read, phrase: add a read grant on the Git directory, targets: [child-grant] }
+          - { id: grant-predict, phrase: Can the worker still write Git config, targets: [write-result, grant-footprint, child-grant] }
+      - say: Yes. The parent still grants the write. Matching rules in one layer add their rights together. For a fresh worker, replace that parent grant with writes under source and output. Look at where the blue band ends now. The report stays writable and Git config falls outside the grant.
+        hold: 0.8
+        visual_cues:
+          - { id: grant-stays, phrase: The parent still grants the write, targets: [grant-footprint], caption_boundary: true }
+          - { id: grant-narrow, phrase: replace that parent grant with writes under source and output, targets: [grant-footprint] }
+      - say: Here's another arrangement. Keep the broad grant and put Git metadata on a read-only mount. A write has to pass both controls. A separately restrictive Landlock layer can also narrow effective access. Pointing an environment variable somewhere else leaves the original file permissions in place. Inspect the starting metadata, too. A restriction on future writes leaves existing files on disk.
+        hold: 0.8
+        visual_cues:
+          - { id: grant-mount, phrase: read-only mount, targets: [child-grant] }
+
+  - id: hooks
+    title: Which process owns the later action?
+    visual: Worker, saved file, checkout and child have distinct lifetimes. The protected replay retains thin traces from the first run behind the corresponding lanes.
+    beats:
+      - say: Start with trusted Git metadata and no checkout hook. In this model a worker has a project-wide write grant. It saves an executable hook. Follow the yellow file as the worker exits. The blue line ends. The file stays on disk. The host checkout hasn't started.
+        hold: 1.4
+        motion_check: { region: [465, 415, 560, 188], minimumChangedFraction: 0.002 }
+        visual_cues:
+          - { id: hooks-write, phrase: It saves an executable hook, targets: [hook-history] }
+          - { id: hooks-exit, phrase: the worker exits, targets: [hook-history] }
+      - say: Later the developer starts a checkout in a host terminal. With the default hook location in this example, Git finds that saved file and starts a child. Whose account is running it? The child runs under the developer's account. The process that wrote the file ended well before this child started.
+        hold: 1
+        caption_starts: [The child runs under]
+        visual_cues:
+          - { id: hooks-checkout, phrase: starts a checkout in a host terminal, targets: [hook-history] }
+          - { id: hooks-child, phrase: starts a child, targets: [hook-history] }
+          - { id: hooks-owner, phrase: The child runs under the developer's account, targets: [hook-lifetime] }
+      - say: Reset to the same clean repository. This time Git metadata is read-only. The worker tries the same write. The cross marks the refusal. The worker exits again. The developer repeats the checkout. Compare the two child tracks. This checkout finds no new hook. The thin gray trace shows where the first checkout started one.
+        hold: 1.1
+        visual_cues:
+          - { id: hooks-attempt, phrase: tries the same write, targets: [hook-history] }
+          - { id: hooks-replay-exit, phrase: The worker exits again, targets: [hook-history] }
+          - { id: hooks-replay-checkout, phrase: repeats the checkout, targets: [hook-history] }
+          - { id: hooks-empty, phrase: This checkout finds no new hook, targets: [hook-history] }
+
+  - id: delayed-config
+    title: What will read the saved file?
+    visual: Each Git setting pairs with the host operation that consumes it. An editor task remains on disk between worker exit and a separately approved folder open.
+    beats:
+      - say: Apply that same timeline to configuration. A repository can name a filesystem monitor. A host operation that uses the monitor can start its command. An enabled external diff has a different trigger. Pair each setting with the operation that reads it. Review those inputs and the candidate source changes before trusting a checkout. A normal tracked diff can omit repository metadata.
+        hold: 0.7
+        visual_cues:
+          - { id: delayed-config-step-1, phrase: Pair each setting, targets: [delayed-git] }
+      - say: An editor can also read a saved task when it opens a folder. The worker saves the task and exits. The file stays in the workspace. If the host editor trusts the workspace and approves automatic tasks, it can start a new process with its own authority. Development containers, pre-commit configuration, and approved directory environment files each have a consumer to check.
+        hold: 0.8
+        visual_cues:
+          - { id: delayed-save, phrase: The worker saves the task, targets: [delayed-editor] }
+          - { id: delayed-exit, phrase: and exits, targets: [delayed-editor] }
+          - { id: delayed-approve, phrase: approves automatic tasks, targets: [delayed-editor] }
+          - { id: delayed-config-step-2, phrase: start a new process with its own authority, targets: [delayed-editor] }
+
+  - id: syscalls
+    title: An open request passes through two checks
+    visual: Two openat reads advance together through a syscall-number filter. They request different files. One stops at the resource check while the other reaches its source file.
+    beats:
+      - say: This test wants to read a source report and a private note. Both requests use the same Linux system call. Seccomp can block calls for process tracing or opening a raw packet socket. Here it checks the call number and argument values. The filename argument holds a memory address. The filter allows both open calls. Which file can the worker read?
+        hold: 1.8
+        visual_cues:
+          - { id: calls-filter, phrase: call number and argument values, targets: [call-gate] }
+          - { id: calls-open, phrase: The filter allows both open calls, targets: [call-gate, read-requests] }
+          - { id: calls-predict, phrase: Which file can the worker read, targets: [read-requests, file-gate] }
+      - say: Now each call reaches the filesystem check. The source report sits inside the read grant. The private note sits outside. The report opens and the private read is denied. Run the normal test and its children through both checks too. Blocking a call the runtime needs can stop the test at startup.
+        hold: 1.1
+        visual_cues:
+          - { id: calls-file, phrase: reaches the filesystem check, targets: [file-gate] }
+          - { id: calls-deny, phrase: The report opens and the private read is denied, targets: [file-gate], caption_boundary: true }
+
+  - id: mount-view
+    title: Build the filesystem the test will see
+    visual: Separate mounts connect source, metadata, tools and scratch to the worker. The second panel inspects the missing filter descriptor.
+    beats:
+      - say: Bubblewrap can give the test its own view of the filesystem. In this Linux example, source appears under app and stays writable. Git metadata gets a separate read-only mount. The test also sees read-only tools and temporary scratch space. The launcher asks for separate namespaces, including network and process views. Check that the host can create the required ones before starting work.
+        hold: 0.7
+        visual_cues:
+          - { id: mount-view-step-1, phrase: Git metadata gets a separate read-only mount, targets: [mount-view] }
+      - say: Try to write to the mounted Git directory. The read-only mount blocks the write. The slot for a seccomp filter is empty. To filter system calls too, the launcher must supply the filter descriptor. The die-with-parent option ends the command when Bubblewrap's parent exits. Set resource limits for the job and check what remains after exit.
+        hold: 0.7
+        visual_cues:
+          - { id: mount-view-step-2, phrase: The slot for a seccomp filter is empty, targets: [mount-seccomp] }
+
+  - id: seatbelt
+    title: Check the Mac launcher
+    visual: A target policy lists expected operations. A separate startup example follows a required profile load error to the number of workers started.
+    beats:
+      - say: The Linux launcher uses Linux kernel features. A Mac command-line runner can use a Seatbelt profile. Start with the access the test needs, including its source files and runtime libraries. Check sensitive files, network connections, and access to Mach services separately. A service lookup can matter even when the file tree looks right.
+        hold: 0.6
+        visual_cues:
+          - { id: seatbelt-b1-1, phrase: sensitive files, targets: [platform-operations] }
+      - say: Suppose the required profile fails to load. The launcher stops before starting a worker. Check this failure path as well as a successful launch on the macOS release and with the tools you intend to use.
+        hold: 0.7
+        visual_cues:
+          - { id: seatbelt-b2-1, phrase: required profile fails to load, targets: [required-profile, profile-setup-error] }
+          - { id: seatbelt-launch-block, phrase: stops before starting a worker, targets: [profile-setup-error, blocked-worker-launch] }
+
+  - id: platform-profile
+    title: Trace the Mac profile's write grant
+    visual: The supplied profile covers the whole project including Git metadata. The wrapper binds the four actual profile parameters, then checks whether initialization succeeded.
+    beats:
+      - say: This Mac profile starts with a default deny. It allows selected programs and runtime reads, and blocks access to sensitive home directories. Then it grants writes to the entire project. That reaches Git metadata. A later host checkout can use those settings. Narrow the writable region and test both the metadata write and the later checkout with harmless files.
+        hold: 0.7
+        visual_cues:
+          - { id: platform-whole-project, phrase: grants writes to the entire project, targets: [platform-grant] }
+          - { id: platform-profile-step-1, phrase: reaches Git metadata, targets: [platform-grant] }
+          - { id: platform-delayed, phrase: a later host checkout, targets: [platform-grant] }
+      - say: The wrapper binds four paths. One identifies the project. The others identify the SSH, AWS, and Keychains directories. The wrapper starts the child once this custom command-line profile loads. Apple's App Sandbox configures app access through entitlements.
+        hold: 0.7
+        visual_cues:
+          - { id: platform-profile-step-2, phrase: binds four paths, targets: [platform-wrapper] }
+
+  - id: broker
+    title: Who needs the credential?
+    visual: The worker hands one pull-request read to a Unix socket. The credential stays beside the host broker while the request travels to a fixed service.
+    beats:
+      - say: Suppose the test needs to know whether pull request forty-two is open. The worker can ask that question over a local Unix socket. A trusted program on the other end holds the credential. This program, the broker, checks the caller, method, repository, pull request number, and arguments against the task.
+        hold: 0.6
+        visual_cues:
+          - { id: broker-socket, phrase: over a local Unix socket, targets: [broker-socket] }
+          - { id: broker-check, phrase: checks the caller, targets: [broker-check] }
+      - say: Once the request passes, the broker sends it to an origin the host chose and attaches the credential there. It returns just the data the worker needs. Limit who can use the socket. Keep the credential out of the worker's environment and logs, and check what the response itself contains.
+        hold: 0.7
+        visual_cues:
+          - { id: broker-dispatch, phrase: the broker sends it to an origin the host chose, targets: [broker-upstream] }
+          - { id: broker-return, phrase: returns just the data the worker needs, targets: [broker-reply] }
+
+  - id: broker-reply
+    title: Change one field in the request
+    visual: A GET and a POST compete for the same one allowed read. The admitted reply crosses back through a field selector.
+    beats:
+      - say: Keep the repository and pull request fixed. The broker allows this GET. Change only the method to POST. That request stops at the broker, before any remote effect. DELETE or a different repository would stop there too. Even a permitted read uses the host's fixed origin.
+        hold: 0.7
+        visual_cues:
+          - { id: broker-get, phrase: allows this GET, targets: [broker-exact-target] }
+          - { id: broker-post, phrase: Change only the method to POST, targets: [broker-exact-target] }
+          - { id: broker-reply-step-1, phrase: stops at the broker, targets: [broker-exact-target] }
+      - say: The reply has three fields. Copy the number and state back. The worker learns that pull request forty-two is open. The debug field stays with the broker.
+        hold: 0.8
+        visual_cues:
+          - { id: broker-reply-step-2, phrase: Copy the number and state back, targets: [broker-filtered-reply] }
+
+  - id: dependency-setup
+    title: Who prepares the packages, and who runs them?
+    visual: A trusted lockfile digest travels with the approved bytes to a read-only store. Package execution remains inside the worker. An unsupported kernel takes a separate launch path.
+    beats:
+      - say: The same division works for dependencies. The supervisor fetches approved wheels or provides a constrained cache. It checks each wheel's hash against a trusted lockfile and mounts the store read-only. The hash identifies those bytes. When the test imports the package, its code can use whatever access the test has. Keep that process and its children under the worker's file, credential, and network restrictions.
+        hold: 0.7
+        visual_cues:
+          - { id: dependency-setup-step-1, phrase: The hash identifies those bytes, targets: [dependency-trust] }
+      - say: If an older Linux host can't supply Landlock, keep the probe's exact error. One code can mean the syscall is missing. The other can mean support is disabled. Seccomp alone leaves filesystem requirements to another control. Launch on an alternative only after you've verified its required boundaries. Record the kernel, selected profile, grants, and operation results together.
+        hold: 0.7
+        visual_cues:
+          - { id: dependency-setup-step-2, phrase: required boundaries, targets: [dependency-probe] }
+
+  - id: fresh-boundary
+    title: Two decisions before handoff
+    visual: Resolve a different source link into Git config. A second, broader checkout holds an editor task on disk between worker exit and host approval.
+    beats:
+      - say: Try another checkout. Only source is writable. This time the entry called build-cache points straight to the Git directory. The requested file is config under build-cache. Which file does the name reach, and would you allow it?
+        hold: 2.7
+        visual_cues:
+          - { id: fresh-boundary-step-1, phrase: Which file does the name reach, targets: [fresh-path] }
+      - say: Follow the link into the Git directory, then take config. The resolved file is Git config. The write is denied. Source was just where the worker found the link.
+        hold: 0.9
+        visual_cues:
+          - { id: fresh-path-follow, phrase: Follow the link into the Git directory, targets: [fresh-path] }
+          - { id: fresh-path-resolve, phrase: The resolved file is Git config, targets: [fresh-path], caption_boundary: true }
+          - { id: fresh-path-deny, phrase: The write is denied, targets: [fresh-path-outcome], caption_boundary: true }
+      - say: Now switch to a checkout with a project-wide write grant. The worker saves a folder-open formatting task. The worker exits. Later the editor opens the folder and the developer approves the task. Whose authority will the formatter have?
+        hold: 2.5
+        visual_cues:
+          - { id: fresh-task-write, phrase: saves a folder-open formatting task, targets: [fresh-task] }
+          - { id: fresh-worker-exit, phrase: The worker exits, targets: [fresh-task] }
+          - { id: fresh-host-open, phrase: the developer approves the task, targets: [fresh-task] }
+          - { id: fresh-boundary-step-2, phrase: Whose authority will the formatter have, targets: [fresh-host-outcome, fresh-task] }
+      - say: The formatter runs with the host editor's authority. The saved file crossed from one process lifetime into another. Before letting the editor open a real candidate, check both who could write the task and who can approve it.
+        hold: 0.9
+        visual_cues:
+          - { id: fresh-host-reveal, phrase: The formatter runs with the host editor's authority, targets: [fresh-host-outcome], caption_boundary: true }
+
+  - id: verify
+    title: What changed on disk?
+    visual: The two recorded appends return beside their resolved files. A separate exercise shows the starting bytes of a disposable metadata file, then reveals the expected worker result and the bytes the host should find.
+    beats:
+      - say: Both checkouts started with empty reports. On this Mac we ran the append once in each temporary checkout. We used a separate Seatbelt profile for this test. It denied file writes by default and allowed data writes under source.
+        hold: 0.7
+        visual_cues:
+          - { id: verify-platform, phrase: once in each temporary checkout, targets: [report-command] }
+      - say: In A the shell exited successfully. The source report grew by one byte. In B the shell reported operation not permitted. Both files stayed empty.
+        hold: 1.1
+        visual_cues:
+          - { id: verify-a, phrase: The source report grew by one byte, targets: [report-result], caption_boundary: true }
+          - { id: verify-b, phrase: Both files stayed empty, targets: [report-result], caption_boundary: true }
+      - say: Now try a different check. Git metadata should stay read-only. The host puts the word clean in a disposable marker file. The worker tries to change it. What should the host find after the worker exits?
+        hold: 2.3
+        visual_cues:
+          - { id: verify-before, phrase: the word clean, targets: [marker-before] }
+          - { id: verify-worker, phrase: The worker tries to change it, targets: [marker-write] }
+          - { id: verify-question, phrase: What should the host find, targets: [marker-after] }
+      - say: The worker should get a write error. The host should read back the same five bytes. Compare them with the starting copy. If either check fails, keep the runner stopped. Pair this check with a passing normal test. The report should grow, and the settings should stay put.
+        hold: 1.2
+        visual_cues:
+          - { id: verify-denied, phrase: The worker should get a write error, targets: [marker-write], caption_boundary: true }
+          - { id: verify-after, phrase: The host should read back the same five bytes, targets: [marker-after], caption_boundary: true }

@@ -1,0 +1,923 @@
+{
+  "id": "diffusion",
+  "script": "3769e91dbcfeaaba",
+  "articleHash": "e35583d3d9f80cb2fbf69923965074ce79707841f9e98282b7159af41045b03b",
+  "checked": "2026-11-10T10:36:51.808Z",
+  "closedBook": {
+    "taught": 10,
+    "partial": 0,
+    "absent": 0,
+    "answers": [
+      {
+        "n": 1,
+        "option": 1,
+        "coverage": "taught",
+        "quotes": [
+          {
+            "scene": "forward-schedule",
+            "quote": "The closed-form marginal uses square root alpha bar times the clean value, plus square root one minus alpha bar times a unit Gaussian draw."
+          },
+          {
+            "scene": "forward-schedule",
+            "quote": "Signal-to-noise ratio is alpha bar divided by one minus alpha bar under the stated unit-variance convention."
+          }
+        ],
+        "reason": "The noisy value is √0.64 × 2 + √0.36 × (−1) = 1.0. SNR is 0.64/0.36 ≈ 1.778.",
+        "exact": true,
+        "correct": true,
+        "grade": "taught"
+      },
+      {
+        "n": 2,
+        "option": 4,
+        "coverage": "taught",
+        "quotes": [
+          {
+            "scene": "training-targets",
+            "quote": "With noisy state x, recover the clean estimate as a times x minus b times v; recover epsilon as b times x plus a times v."
+          },
+          {
+            "scene": "ddim-contract",
+            "quote": "To recover a clean estimate from an epsilon prediction, subtract square root one minus current alpha bar times predicted epsilon from the current state. Divide that difference by square root current alpha bar."
+          }
+        ],
+        "reason": "The correct estimate is 0.6 × 1 − 0.8 × (−0.5) = 1.000. Treating v as epsilon gives (1 − 0.8 × (−0.5))/0.6 ≈ 2.333.",
+        "exact": true,
+        "correct": true,
+        "grade": "taught"
+      },
+      {
+        "n": 3,
+        "option": 2,
+        "coverage": "taught",
+        "quotes": [
+          {
+            "scene": "reverse-posterior",
+            "quote": "The mixture mean is zero. Total variance is the average within-component variance plus the variance of the component means."
+          }
+        ],
+        "reason": "Equal weights and symmetric means give mean zero. Total variance is 0.36 + 0.8² = 1.00.",
+        "exact": true,
+        "correct": true,
+        "grade": "taught"
+      },
+      {
+        "n": 4,
+        "option": 2,
+        "coverage": "taught",
+        "quotes": [
+          {
+            "scene": "cross-read",
+            "quote": "Compute each query-key dot product, divide by square root key width, exponentiate centered scores, and divide each mass by their sum. Multiply each value vector by its normalized share, then add those scaled values coordinate by coordinate."
+          }
+        ],
+        "reason": "Equal scores produce equal shares of 1/3. The output is [(2 + 0 + 1)/3, (0 + 4 + 2)/3] = [1,2].",
+        "exact": true,
+        "correct": true,
+        "grade": "taught"
+      },
+      {
+        "n": 5,
+        "option": 3,
+        "coverage": "taught",
+        "quotes": [
+          {
+            "scene": "cfg-training",
+            "quote": "The common guidance formula starts from the unconditional prediction and adds scale times the conditional-minus-unconditional difference. Subtract vectors coordinate by coordinate, multiply the difference by scale, then add the base."
+          }
+        ],
+        "reason": "The difference is [0.2,−0.3]. Adding four times that difference to [0.1,0.2] gives [0.9,−1.0].",
+        "exact": true,
+        "correct": true,
+        "grade": "taught"
+      },
+      {
+        "n": 6,
+        "option": 1,
+        "coverage": "taught",
+        "quotes": [
+          {
+            "scene": "ddim-contract",
+            "quote": "To recover a clean estimate from an epsilon prediction, subtract square root one minus current alpha bar times predicted epsilon from the current state. Divide that difference by square root current alpha bar."
+          },
+          {
+            "scene": "ddim-contract",
+            "quote": "For a selected reverse jump, combine square root destination alpha bar times the clean estimate, plus square root one minus destination alpha bar minus sigma squared times predicted epsilon, plus sigma times a fresh Gaussian draw. Sigma equals eta times the square root of the ratio of destination remaining variance to current remaining variance, times the square root of the quantity one minus the ratio of current alpha bar to destination alpha bar."
+          }
+        ],
+        "reason": "The clean estimate is (0.2 − 0.8 × (−0.5))/0.6 = 1. Eta zero makes sigma zero, giving next state 0.9 × 1 + √0.19 × (−0.5) ≈ 0.6821.",
+        "exact": true,
+        "correct": true,
+        "grade": "taught"
+      },
+      {
+        "n": 7,
+        "option": 3,
+        "coverage": "taught",
+        "quotes": [
+          {
+            "scene": "product-lanes",
+            "quote": "Count per-image denoiser predictions by multiplying jobs per second, variants, steps and predictions per step."
+          },
+          {
+            "scene": "product-lanes",
+            "quote": "For a capacity estimate, divide offered work by matched worker capacity times the planning utilization ceiling, then round up."
+          },
+          {
+            "scene": "product-lanes",
+            "quote": "That arithmetic does not verify the two-second tail. Bound queues, reserve actual preview capacity and batch compatible configurations."
+          }
+        ],
+        "reason": "Preview requires 3 × 5 × 4 = 60 predictions/s; quality requires 1 × 2 × 30 × 2 = 120. Each worker has planning capacity 80 × 0.75 = 60, so the estimates are 1 preview worker and 2 quality workers. The p95 gate still needs measurement.",
+        "exact": true,
+        "correct": true,
+        "grade": "taught"
+      },
+      {
+        "n": 8,
+        "option": 2,
+        "coverage": "taught",
+        "quotes": [
+          {
+            "scene": "gemma-system",
+            "quote": "Adaptive stopping requires both average canvas entropy below the configured threshold and identical predictions in two consecutive rounds."
+          },
+          {
+            "scene": "text-canvas",
+            "quote": "Confidence and repeated predictions are stopping signals, not factual validation."
+          }
+        ],
+        "reason": "Round 2 differs from round 1, so sampling continues despite low entropy. Round 3 repeats round 2 and meets the entropy threshold, so it stops. Facts remain pending in both cases.",
+        "exact": true,
+        "correct": true,
+        "grade": "taught"
+      },
+      {
+        "n": 9,
+        "option": 4,
+        "coverage": "taught",
+        "quotes": [
+          {
+            "scene": "release-evidence",
+            "quote": "The executed release function requires a positive integer current attempt and an exactly typed integer record attempt that equals it. A mismatched or float attempt is stale. Policy must pass and human-review must be exactly false; otherwise review is required. Watermark must be detected and manifest-committed exactly true; otherwise hold. The asset digest must be a nonempty string equal to the checked digest before the fixture returns publish-checked-bytes."
+          },
+          {
+            "scene": "release-evidence",
+            "quote": "A nonempty string saying false is not an exact true verdict."
+          }
+        ],
+        "reason": "A has a stale attempt. B has mismatched digests and must be held. C has a string instead of the required exact true manifest verdict and must also be held.",
+        "exact": true,
+        "correct": true,
+        "grade": "taught"
+      },
+      {
+        "n": 10,
+        "option": 1,
+        "coverage": "taught",
+        "quotes": [
+          {
+            "scene": "latent-contract",
+            "quote": "Five hundred twelve by five hundred twelve by three versus sixty-four by sixty-four by four is forty-eight times fewer scalar values, while spatial sites fall by sixty-four. Neither ratio is a measured speedup."
+          },
+          {
+            "scene": "latent-contract",
+            "quote": "Compression can discard small text or texture. First test reconstruction by encoding and decoding the same real image without any denoising. If its text is already corrupted, adding sampler steps cannot establish that the autoencoder preserved that information. Separate VAE reconstruction, denoiser prediction, solver error and final output checks."
+          }
+        ],
+        "reason": "The scalar ratio is (768 × 512 × 3)/(96 × 64 × 8) = 24. Because the label changes during encode/decode alone, isolate autoencoder reconstruction in the next controlled comparison.",
+        "exact": true,
+        "correct": true,
+        "grade": "taught"
+      }
+    ]
+  },
+  "factCheck": {
+    "scenes": [
+      {
+        "id": "intro",
+        "evidence": "Pass; prior finding closed. Iterative generation from noise is consistent with DDPM sampling. Independently inspected arithmetic.mjs and model.mjs: the particle illustration uses an analytic Gaussian-mixture score and numerical RK4 integration of a probability-flow equation. The revised narration correctly distinguishes the analytic field from approximate trajectories. The table image is a fixed-noise illustration, not generated by a trained image model. [Probability-flow reference](https://arxiv.org/html/2011.13456v2).",
+        "sourceUrls": [
+          "https://arxiv.org/html/2006.11239v2",
+          "https://arxiv.org/html/2011.13456v2"
+        ]
+      },
+      {
+        "id": "product-lanes",
+        "evidence": "Pass; prior finding closed. API fields, authorization and deadlines are explicitly proposed requirements. Independent arithmetic: 20×4×6×1=480 predictions/s; 2×4×50×2=800; ceil(480/(120×0.75))=6 workers. Six workers provide 540 predictions/s at the planning ceiling, which establishes no latency percentile. Counting per-image predictions survives batching; matched configurations are necessary for meaningful throughput comparisons. Shared devices can remain contended despite separate queues. Queue bounds, reservations and deadline admission are design requirements, not demonstrated implementation. [Guidance distillation](https://arxiv.org/abs/2210.03142) supports replacing two branches with a trained single prediction.",
+        "sourceUrls": [
+          "https://arxiv.org/abs/2210.03142"
+        ]
+      },
+      {
+        "id": "forward",
+        "evidence": "Pass; prior pixel terminology finding closed. The model contains a 16×16 grayscale silhouette and one fixed Gaussian-noise array. forwardValue evaluates √A·x0+√(1−A)·epsilon separately at each level. Reusing epsilon couples marginal samples rather than simulating consecutive Markov transitions. Direct construction permits different timesteps within a batch. The revised channel wording accommodates RGB. [DDPM Equation 4](https://arxiv.org/html/2006.11239v2) supplies the marginal; [LDM](https://arxiv.org/html/2112.10752v2) explicitly represents RGB input as H×W×3.",
+        "sourceUrls": [
+          "https://arxiv.org/html/2006.11239v2",
+          "https://arxiv.org/html/2112.10752v2"
+        ]
+      },
+      {
+        "id": "coefficients",
+        "evidence": "Pass. Independently calculated a=√A and b=√(1−A), hence a²+b²=1. At A=0.5, both amplitudes are 0.707106781; contributions for x0=1 and epsilon=−0.4 are 0.707106781 and −0.282842712, summing to 0.424264069. For independent unit-variance signal and noise, their variances are A and 1−A, giving SNR=A/(1−A). Alpha bar is a variance multiplier, not an arbitrary dataset's measured retained-variance fraction. The scene's explicit unit-variance convention makes its interpretation sound. Lower SNR reduces information about the clean cause.",
+        "sourceUrls": [
+          "https://arxiv.org/html/2006.11239v2"
+        ]
+      },
+      {
+        "id": "forward-schedule",
+        "evidence": "Pass. Independently recomputed 0.98×0.97×0.96=0.912576. The inclusive 1,000-step linear beta schedule from 0.0001 to 0.02 gives alpha-bar=0.000040358297654. [DDPM Appendix B](https://arxiv.org/html/2006.11239v2) confirms those original schedule parameters. The three scalar states are 0.822192192, 0.424264069 and −0.368177173, with SNRs 9, 1 and 0.001001001. All spoken rounding is correct. The short schedule retains substantial signal and does not justify a standard-normal prior. Schedule, timestep sampling and loss weights affect learning allocation; an individual high-noise row need not have greater loss.",
+        "sourceUrls": [
+          "https://arxiv.org/html/2006.11239v2"
+        ]
+      },
+      {
+        "id": "training",
+        "evidence": "Pass; prior finding closed. Sampling clean data, a timestep and Gaussian epsilon, then regressing against that known epsilon, matches [DDPM Algorithm 1](https://arxiv.org/html/2006.11239v2). The target is the unscaled noise draw. Inspected stages/training.mjs: the displayed predictor errors interpolate between invented residuals [0.7,−0.55,0.4] and [0.02,−0.02,−0.03]. The revised narration explicitly identifies their invented nature and permits fluctuating update losses. No recorded optimization trace is claimed.",
+        "sourceUrls": [
+          "https://arxiv.org/html/2006.11239v2"
+        ]
+      },
+      {
+        "id": "reverse-posterior",
+        "evidence": "Pass. Independently applied Gaussian conditioning: current alpha-bar=0.5×0.5=0.25; clean-value coefficient=√0.5×0.5/0.75=√2/3; conditional variance=0.5×0.5/0.75=1/3. At observed zero, symmetry preserves equal weights. The mixture has mean zero and variance 1/3+(√2/3)²=5/9=0.555555556. It is not either component or a single Gaussian. The distinction between conditioning on known clean data and marginalizing over unknown clean causes is correct. [DDPM Equations 6–7](https://arxiv.org/html/2006.11239v2).",
+        "sourceUrls": [
+          "https://arxiv.org/html/2006.11239v2"
+        ]
+      },
+      {
+        "id": "training-targets",
+        "evidence": "Pass. Independently computed losses (0.02²+0.02²+0.03²)/3=0.000566667 and (0.18²+0.05²+0.20²)/3=0.024966667. With a=b=√0.5, x=0.424264069 and v=−0.989949494, ax−bv=1 and bx+av=−0.4. Misusing v as epsilon gives (x−bv)/a=1.589949494. The inverse is an orthogonal rotation, distinct from straight-pair velocity. The simple objective is reweighted regression without an original-DDPM discriminator. [DDPM](https://arxiv.org/html/2006.11239v2), [angular velocity derivation](https://arxiv.org/html/2202.00512v2).",
+        "sourceUrls": [
+          "https://arxiv.org/html/2006.11239v2",
+          "https://arxiv.org/html/2202.00512v2"
+        ]
+      },
+      {
+        "id": "reverse",
+        "evidence": "Pass for the ordinary full-backbone sampler being taught. [DDPM Algorithm 2](https://arxiv.org/html/2006.11239v2) supports repeated state updates, intermediate Gaussian draws and omission of the final draw. Sampling depth and network depth are different axes. 'All network layers run' describes this conventional evaluation, rather than every possible cached, sparse or conditional-execution architecture. Sampling the learned distribution does not claim exact recovery of the true data distribution.",
+        "sourceUrls": [
+          "https://arxiv.org/html/2006.11239v2"
+        ]
+      },
+      {
+        "id": "reverse-trace",
+        "evidence": "Pass. Executed the actual Python worksheet and inspected scalarReverseTrace in model.mjs. Independently reproduced prediction/mean/draw/state rows: (0.6025,1.192586872,−0.255880288,1.141410814), (0.533634867,1.085793635,0.511431513,1.174376171), and (0.528469277,1.110803467,0,1.110803467). The worksheet's checkpoint assertions pass: restoring RNG state reproduces the uninterrupted result; reseeding does not. The predictor is fixed arithmetic, not trained. Removing random draws preserves DDPM mean coefficients, which differ from [DDIM Equation 12](https://arxiv.org/html/2010.02502v3).",
+        "sourceUrls": [
+          "https://arxiv.org/html/2010.02502v3",
+          "https://huggingface.co/docs/diffusers/using-diffusers/reusing_seeds"
+        ]
+      },
+      {
+        "id": "score",
+        "evidence": "Pass; prior missing-implementation finding refuted. Inspected fixtures, mixture and arrow rendering. Centers are (−1.45,−0.65), (1.45,−0.65), (0,1.25), with equal weights and covariance (0.07+u)I. Independently checked score=Σrk(μk−x)/(0.07+u). At x=(0.2,−0.4), u=3, responsibilities are [0.311369178,0.376118539,0.312512282] and score=(−0.034564634,0.111978285). Across sampled points and variances, independent analytic calculations differed by at most 3.6×10⁻¹⁵; log-density finite differences differed by at most 2.5×10⁻⁹. Rendered arrows use this field with capped lengths. For Gaussian corruption, score=−E[epsilon|x]/b, b>0. [Score framework](https://arxiv.org/html/2011.13456v2).",
+        "sourceUrls": [
+          "https://arxiv.org/html/2011.13456v2"
+        ]
+      },
+      {
+        "id": "transport",
+        "evidence": "Pass; prior issue closed. model.mjs samples 72 initial particles from the equal mixture with covariance 3.07I and integrates u=3 to zero using 720 RK4 steps. For additive Gaussian variance u, the heat equation and continuity equation give dx/du=−score/2; negative du therefore gives local score ascent. Initialization matches the stated noisy marginal. Reintegrating every initial particle with 1,440 steps changed endpoints by at most 2.23×10⁻⁷. This supports a numerical illustration, not exact finite-particle marginals. The displayed table remains explicitly a fixed-noise analogy. [Probability-flow Equation 13](https://arxiv.org/html/2011.13456v2).",
+        "sourceUrls": [
+          "https://arxiv.org/html/2011.13456v2"
+        ]
+      },
+      {
+        "id": "samplers",
+        "evidence": "Pass. [DDIM Sections 4.1–4.2](https://arxiv.org/html/2010.02502v3) support zero additional sampling noise at eta=0 and sparse selected schedules. Fixed initialization and execution are correctly required for repeatability. Substituting true epsilon into (x−b·epsilon)/a recovers x0 exactly; recombining at the destination reproduces its coupled marginal sample. Coarser sampling may reduce detail, but the narration makes no inevitable quality claim.",
+        "sourceUrls": [
+          "https://arxiv.org/html/2010.02502v3"
+        ]
+      },
+      {
+        "id": "ddim-contract",
+        "evidence": "Pass. The spoken clean estimate, three-term update and sigma match [DDIM Equation 12 and Appendix D.3](https://arxiv.org/html/2010.02502v3). Independently checked sigma²=eta²(1−As)(1−At/As)/(1−At). For 0<At<As≤1 and eta∈[0,1], sigma²≤1−As, so the direction coefficient is real. At At=0.5, As=0.9 and eta=1, sigma²=0.088888889 and remaining direction variance=0.011111111. At eta=0, the known-noise jump gives 0.822192192. Shared marginals permit the reused denoising objective; deterministic finite-step sampling does not guarantee exact inversion.",
+        "sourceUrls": [
+          "https://arxiv.org/html/2010.02502v3"
+        ]
+      },
+      {
+        "id": "architectures",
+        "evidence": "Pass. U-Net spatial paths and matching-resolution skips are documented in [ControlNet's backbone description](https://arxiv.org/html/2302.05543v3). [Original DiT](https://arxiv.org/html/2212.09748v2) patchifies latent states and evaluates class-conditioned ImageNet generation. Its token count is (I/p)²; halving patch width quadruples tokens and increases transformer work. [SD3](https://arxiv.org/html/2403.03206v1) uses rectified flow, separate modality weights with joint attention, and selects 16 latent channels. None of these architecture facts establishes the proposed product's quality, safety or latency, as the narration acknowledges.",
+        "sourceUrls": [
+          "https://arxiv.org/html/2302.05543v3",
+          "https://arxiv.org/html/2212.09748v2",
+          "https://arxiv.org/html/2403.03206v1"
+        ]
+      },
+      {
+        "id": "time-conditioning",
+        "evidence": "Pass. [DiT Section 3.2](https://arxiv.org/html/2212.09748v2) documents timestep-conditioned scale, shift and residual gating. Independently evaluated h′=(1+s)h+shift: [0.2,−0.1,0.5] becomes [0.25,−0.2,0.7] with s=0.5 and shift=−0.05, or [0.23,−0.085,0.545] with s=0.05 and shift=0.02. The worksheet omits normalization and correctly claims only the affine operation. Invented controls do not establish any monotonic relationship between noise and learned scale.",
+        "sourceUrls": [
+          "https://arxiv.org/html/2212.09748v2"
+        ]
+      },
+      {
+        "id": "flow-paths",
+        "evidence": "Pass. Differentiating xτ=(1−τ)xdata+τxnoise gives xnoise−xdata. For endpoints 1 and −1, velocity=−2; Δτ=−0.25 yields Δx=+0.5 and state −0.5 from −1. Squared-error minimization gives E[xnoise−xdata|xτ,τ], so the marginal field need not trace individual straight pairs. [Flow Matching](https://arxiv.org/html/2210.02747v2) establishes conditional-field averaging; [Rectified Flow](https://arxiv.org/html/2209.03003v1) explains reflow and straightening. The displayed curved path is explicitly illustrative. A scheduler substitution alone does not retrain a model for a new target.",
+        "sourceUrls": [
+          "https://arxiv.org/html/2210.02747v2",
+          "https://arxiv.org/html/2209.03003v1"
+        ]
+      },
+      {
+        "id": "conditioning",
+        "evidence": "Pass within the cross-attention route explicitly introduced here. Image features supply queries; encoded text supplies keys and values. Fixed prompt embeddings and evolving image features explain changing attention across updates. The narration explicitly calls the displayed weights schematic and does not claim pixel attribution or guaranteed adherence. This fixed-text account should not be generalized to evolving text representations inside joint multimodal blocks. [LDM Section 3.3](https://arxiv.org/html/2112.10752v2).",
+        "sourceUrls": [
+          "https://arxiv.org/html/2112.10752v2"
+        ]
+      },
+      {
+        "id": "cross-read",
+        "evidence": "Pass. Inspected crossReadFixture and executed the actual worksheet. Independent dot products divided by √3 give [0.308882394,0.101036297,0.278571505]; centered softmax gives [0.359392148,0.291945759,0.348662093]. Weighted values are [0.588893330,0.311106670]. All spoken rounding agrees. Subtracting a common maximum preserves softmax ratios. Changing the query can change shares while keys and values remain fixed. The code loads no encoder or image model, and the narration accurately identifies the omitted full-block machinery. [Scaled dot-product attention](https://arxiv.org/html/1706.03762v7).",
+        "sourceUrls": [
+          "https://arxiv.org/html/1706.03762v7"
+        ]
+      },
+      {
+        "id": "guidance",
+        "evidence": "Pass. Conditional dropout and combining conditional/unconditional predictions match [Classifier-Free Guidance](https://arxiv.org/html/2207.12598v1). Algebraically u+w(c−u)=c at w=1 and extrapolates for w>1. Empty conditioning is shorthand for the supported null representation clarified later. Fidelity/diversity tradeoffs are documented; improved adherence and oversaturation are possible effects rather than universal outcomes. [Diffusers documentation](https://huggingface.co/docs/diffusers/api/pipelines/stable_diffusion/text2img) also cautions about guidance and image quality.",
+        "sourceUrls": [
+          "https://arxiv.org/html/2207.12598v1",
+          "https://huggingface.co/docs/diffusers/api/pipelines/stable_diffusion/text2img"
+        ]
+      },
+      {
+        "id": "cfg-training",
+        "evidence": "Pass. Executed seeded dropout at 0.35: rows are dropped, dropped, retained, dropped. Independently computed c−u=[−0.15,−0.25,0.15]; adding 7.5 times this to [0.2,−0.1,0.05] gives [−0.925,−1.975,1.175], and scale 15 gives [−2.05,−3.85,2.3]. Scale is an extrapolation coefficient, not a probability. [The paper](https://arxiv.org/html/2207.12598v1) evaluates unconditional-training probabilities 0.1, 0.2 and 0.5. The fixture establishes vector arithmetic and dropout behavior, not better alignment, diversity or safety.",
+        "sourceUrls": [
+          "https://arxiv.org/html/2207.12598v1"
+        ]
+      },
+      {
+        "id": "cfg-api",
+        "evidence": "Pass; prior spoken historical-date issue closed by a fresh November 10 check. Algebraically c+w′(c−u)=u+(1+w′)(c−u). The currently accessed [StableDiffusionPipeline documentation](https://huggingface.co/docs/diffusers/api/pipelines/stable_diffusion/text2img) enables guidance above one and documents negative-prompt conditioning. Disabling the extra branch is distinct from mathematical interpolation; batching preserves two per-image predictions. Visual-only issue: stages/cfg-api.mjs still displays 'Moving Stable Diffusion pipeline guide inspected November 7, 2026'. If reused, replace it with 'StableDiffusionPipeline documentation checked November 10, 2026'. The narration needs no correction.",
+        "sourceUrls": [
+          "https://arxiv.org/html/2207.12598v1",
+          "https://huggingface.co/docs/diffusers/api/pipelines/stable_diffusion/text2img"
+        ]
+      },
+      {
+        "id": "latent",
+        "evidence": "Pass. [LDM](https://arxiv.org/html/2112.10752v2) separates image encoding during training from latent generation and final decoding during inference. The decoder receives the resulting state, rather than raw predicted epsilon. Independently calculated 512×512×3=786432 and 64×64×4=16384; their ratio is 48. The narration correctly distinguishes state size from measured speed and recommends separate reconstruction evaluation.",
+        "sourceUrls": [
+          "https://arxiv.org/html/2112.10752v2"
+        ]
+      },
+      {
+        "id": "latent-contract",
+        "evidence": "Pass. [Original LDM Sections 3.1 and G](https://arxiv.org/html/2112.10752v2) document KL regularization and continuous pre-quantization VQ latents, with quantization absorbed into the decoder. Independently calculated spatial-site ratio 512²/64²=64, distinct from scalar ratio 48. Reconstruction isolates autoencoder errors. Extra denoising cannot establish that an autoencoder preserved information already damaged in reconstruction; plausible resynthesis would be a different claim. Decoder or release costs can become bottlenecks after denoiser acceleration, but no measured bottleneck is asserted.",
+        "sourceUrls": [
+          "https://arxiv.org/html/2112.10752v2"
+        ]
+      },
+      {
+        "id": "text-canvas",
+        "evidence": "Pass. [D3PM](https://arxiv.org/html/2107.03006v3) supports discrete categorical and mask corruption; [Diffusion-LM](https://arxiv.org/html/2205.14217v1) provides the continuous-vector alternative. Executed the actual fixed plan: 'write <mask> <mask> later', 'write unit <mask> first', then 'write unit tests first', with 2, 1 and 0 masks. The code implements no model, confidence selection or renoising. An immutable-final-output promise logically requires withholding these provisional states or exposing explicit replaceable drafts. Stable predictions alone establish no factual correctness or publication latency.",
+        "sourceUrls": [
+          "https://arxiv.org/html/2107.03006v3",
+          "https://arxiv.org/html/2205.14217v1"
+        ]
+      },
+      {
+        "id": "gemma-system",
+        "evidence": "Pass; prior spoken date issue closed by fresh November 10 access. [Google's guide](https://ai.google.dev/gemma/docs/diffusiongemma) and [model card](https://ai.google.dev/gemma/docs/diffusiongemma/model_card) support the Gemma 4 derivative, 25.2B total/3.8B active parameters, 8/128 routed experts plus one shared, multimodal input and text output. They document cached encoder context, bidirectional 256-token canvases, completed-block cache extension, maximum 48 steps, typical 12–16, entropy-plus-stability stopping and renoising unselected tokens. The low-to-medium-batch, single-accelerator performance qualification is accurate. These are attributed documentation claims, not independent benchmarks. Visual-only issue: stages/gemma-system.mjs retains a November 7 footer; change it to November 10 if reused.",
+        "sourceUrls": [
+          "https://ai.google.dev/gemma/docs/diffusiongemma",
+          "https://ai.google.dev/gemma/docs/diffusiongemma/model_card"
+        ]
+      },
+      {
+        "id": "controls-fast",
+        "evidence": "Pass. Primary references support LoRA's low-rank effective-weight updates, ControlNet's frozen backbone and zero-initialized connectors, training-free DPM-Solver, progressive two-teacher-steps-to-one-student-step distillation, trajectory-consistent mappings, trained LCM/LCM-LoRA acceleration, ADD's teacher-plus-adversarial losses and reported 1–4 steps, and single-prediction guidance distillation. Inpainting conditions edits on masks/context without an exact-preservation guarantee. Compatibility and product-quality qualifications are appropriate. LoRA changes effective weights while its base weights can remain frozen; the spoken wording does not require otherwise.",
+        "sourceUrls": [
+          "https://arxiv.org/abs/2106.09685",
+          "https://arxiv.org/html/2302.05543v3",
+          "https://arxiv.org/html/2112.10752v2",
+          "https://arxiv.org/abs/2206.00927",
+          "https://arxiv.org/html/2202.00512v2",
+          "https://arxiv.org/html/2303.01469v1",
+          "https://arxiv.org/abs/2310.04378",
+          "https://arxiv.org/abs/2311.05556",
+          "https://arxiv.org/abs/2311.17042",
+          "https://arxiv.org/abs/2210.03142"
+        ]
+      },
+      {
+        "id": "compute",
+        "evidence": "Pass. Inspected stages/compute.mjs: final bars use counts [50,100,6] with a common 13-pixels-per-prediction scale. Independently checked 50×1=50, 50×2=100 and 6×1=6. These apply to the specified single-evaluation update routes; solver order can otherwise change evaluations per nominal step. [Guidance distillation](https://arxiv.org/abs/2210.03142) supports absorbing the two-branch combination into a trained prediction. 'Main recurring cost' describes the denoising loop, not a guarantee that it dominates every accelerated deployment. End-to-end measurement explicitly includes other work.",
+        "sourceUrls": [
+          "https://arxiv.org/abs/2210.03142",
+          "https://arxiv.org/abs/2206.00927"
+        ]
+      },
+      {
+        "id": "reproducibility",
+        "evidence": "Pass. The executed scalar checkpoint demonstrates the seed versus consumed-state distinction. [Diffusers](https://huggingface.co/docs/diffusers/using-diffusers/reusing_seeds) documents mutable generator state; [PyTorch](https://docs.pytorch.org/docs/2.15/notes/randomness.html) disclaims identical results across releases, platforms and CPU/GPU execution. A consistent restart requires state and applicable solver history as well as matching configuration. Retaining final bytes avoids relying on regeneration identity. Labels, provenance and output checks are release requirements, not claims of implemented detection.",
+        "sourceUrls": [
+          "https://huggingface.co/docs/diffusers/using-diffusers/reusing_seeds",
+          "https://docs.pytorch.org/docs/2.15/notes/randomness.html"
+        ]
+      },
+      {
+        "id": "publication",
+        "evidence": "Pass; prior admission-concurrency finding closed. Unique tenant/key binding, atomic create-or-retrieve and request-hash comparison supply the previously missing contract. [AWS's primary explanation](https://aws.amazon.com/builders-library/making-retries-safe-with-idempotent-APIs/) requires atomic token recording and related mutations. Fencing is logically sound when current-attempt comparison and publication commit occur in one transaction, as explicitly required later in this scene. [SynthID](https://deepmind.google/models/synthid/) documents robustness targets including cropping, filters and lossy compression. The narration avoids universal provenance and arbitrary-model availability guarantees. Exact-byte evidence, private failed objects and reuse of committed immutable bytes are coherent proposed release rules, not implemented-backend claims.",
+        "sourceUrls": [
+          "https://aws.amazon.com/builders-library/making-retries-safe-with-idempotent-APIs/",
+          "https://deepmind.google/models/synthid/"
+        ]
+      },
+      {
+        "id": "release-evidence",
+        "evidence": "Pass. Inspected and executed the actual release_decision function. Fixtures return publish_checked_bytes, review, hold, stale_attempt, hold, hold, stale_attempt and hold. Exact int checks reject float record attempts; identity comparisons reject string or numeric boolean substitutes. Equal lists fail the nonempty-string digest condition. Invalid current attempts raise ValueError. Branch order gives stale-attempt precedence, then review, then hold. The stated missing detectors, trusted lookup, hashing, tenant isolation and transactions accurately describe the code. Evaluation dimensions and 1%/10% rollout are proposed policy choices. Approval cannot convert generated chart values into observed measurements.",
+        "sourceUrls": []
+      },
+      {
+        "id": "recap",
+        "evidence": "Pass. The mechanism summary follows the independently checked corruption, prediction, conversion, guidance and sampling relationships. The actual particle model supports the qualitative claim that an evolving field reshapes a sampled distribution; it does not establish exact empirical marginals. Doubling guidance while halving steps has no universal quality outcome, and the narration correctly asks for a controlled prompt-matched experiment. [DDIM](https://arxiv.org/html/2010.02502v3), [CFG](https://arxiv.org/html/2207.12598v1).",
+        "sourceUrls": [
+          "https://arxiv.org/html/2010.02502v3",
+          "https://arxiv.org/html/2207.12598v1"
+        ]
+      },
+      {
+        "id": "fresh-release",
+        "evidence": "Pass. Independently calculated 3 variants×8 steps×2 predictions=48 total per-image predictions across the job, or 16 per variant. Attempt four fails current-attempt-five equality regardless of its own checks. A derivative whose digest differs from its checked source lacks evidence for those distributed bytes. More denoising cannot satisfy either failed release predicate. Authorized checks followed by an atomic current-attempt-conditioned manifest commit implement the stated design contract; reusing committed bytes preserves retry identity. The final voice sentence previews another lesson and asserts no voice-system implementation or performance result.",
+        "sourceUrls": []
+      }
+    ],
+    "findings": [],
+    "limitations": [
+      "No material spoken factual error or unsupported guarantee remained in this review. All nine prior findings were independently closed through changed wording, actual model inspection, fresh primary-source access or explicit production requirements.",
+      "Verified the checkout's stage narration as spoken hash 3769e91dbcfeaaba, with 33 scenes and 97 beats; its SHA-256 matches the supplied repaired script. Executed all supplied Python worksheets and independently recomputed the substantive numerical examples.",
+      "Visual inspection was source-level. No rebuilt stage index.mjs or scenes implementation exists under videos/stage-lessons/diffusion. No speech, encoded movie, frame-by-frame rendering, readability or measured cue synchronization was checked.",
+      "Two older film footers still assert November 7 inspections. Their exact November 10 replacements are identified in cfg-api and gemma-system evidence. These are visual corrections, not remaining spoken errors. If reused, product-lanes should also label its service figures as proposed targets and its worker capacity as hypothetical.",
+      "Analytic-score and solver-refinement checks cover sampled inputs and the supplied trajectories. They do not prove exact finite-particle marginals, exact rendered contours or behavior of a learned image model.",
+      "No image denoiser, DiffusionGemma model, GPU benchmark, load test, detector, tenant-isolation mechanism, admission transaction or publication backend was run. The narration appropriately treats these as documented mechanisms or requirements.",
+      "Vendor documentation was accessed afresh on November 10, 2026. Mutable pages establish the currently checked statements, not a pinned installed library or a retained historical snapshot.",
+      "The article was used to locate and execute fixtures, not as independent proof of external claims. Its separate historical-date and admission wording were not edited or certified by this narration review. No files, external records or Git state were changed; no subagents were used."
+    ]
+  },
+  "reviewedNarration": {
+    "source": "videos/stage-lessons/diffusion/lesson.yaml",
+    "script": "3769e91dbcfeaaba",
+    "scenes": [
+      {
+        "id": "intro",
+        "beats": [
+          {
+            "say": "Ask a computer for a wooden table in soft light. Its first canvas looks like static. A diffusion model turns that randomness into structure through repeated learned predictions. How can it know which way to move?"
+          },
+          {
+            "say": "We'll start from one brightness value, then watch a probability distribution take shape. Our particle simulation numerically integrates a probability-flow equation with an analytic toy score, making the movement behind image generation visible."
+          },
+          {
+            "say": "You'll learn what the model predicts, how a prompt steers it, and how repeated computation affects the details an image preserves."
+          }
+        ]
+      },
+      {
+        "id": "product-lanes",
+        "beats": [
+          {
+            "say": "Our proposed product creates synthetic design backgrounds and previews. A job request supplies prompt, negative prompt, dimensions, variant count, route, seed and an idempotency key. It returns a job identity and accepted versions. Status and asset reads require tenant authorization. Our proposed preview target is a first released asset below two seconds at the ninety-fifth percentile, including queue and checks. The quality-job target is complete, review, or failed within thirty seconds, with a separate human-review deadline. Both targets require end-to-end validation."
+          },
+          {
+            "say": "Count per-image denoiser predictions by multiplying jobs per second, variants, steps and predictions per step. Twenty preview jobs, four variants and six single-branch steps require four hundred eighty predictions per second. Two quality jobs, four variants, fifty steps and ordinary two-branch guidance require eight hundred. Batching changes network-call count, not these prediction counts. Capacities must use the same model, shape, precision and batch policy."
+          },
+          {
+            "say": "For a capacity estimate, divide offered work by matched worker capacity times the planning utilization ceiling, then round up. A hypothetical capacity of one hundred twenty predictions per second at seventy-five percent gives six preview workers. That arithmetic does not verify the two-second tail. Bound queues, reserve actual preview capacity and batch compatible configurations. Separate queue names cannot prevent shared-device starvation. Reject work whose deadline is already impossible."
+          }
+        ]
+      },
+      {
+        "id": "forward",
+        "beats": [
+          {
+            "say": "Each image channel contains numbers. We will begin with one grayscale brightness value. Add a random number to every coordinate while shrinking the clean signal. As the noise grows, the table's edges fade into the surrounding variation."
+          },
+          {
+            "say": "The schedule controls how much signal remains at each noise level. Here we keep one noise draw fixed while changing its strength, so you can follow individual pixels. This sweep compares marginal samples at different levels."
+          },
+          {
+            "say": "Training can reach any level directly. One batch can contain lightly corrupted images and almost pure static, creating a family of related reconstruction tasks."
+          }
+        ]
+      },
+      {
+        "id": "coefficients",
+        "beats": [
+          {
+            "say": "The formula combines a scaled clean value and scaled Gaussian noise. Alpha bar measures retained signal variance. Its square root gives the signal amplitude. The remaining variance determines the noise amplitude."
+          },
+          {
+            "say": "At the halfway setting, both amplitudes are about seven tenths. Our clean pixel is one; its sampled noise is negative. Their contributions partially cancel on the number line."
+          },
+          {
+            "say": "The squared coefficients add to one. Their ratio describes the schedule's signal-to-noise ratio under unit-variance assumptions. Lower signal-to-noise means that many different clean images could plausibly explain the observed noisy input."
+          }
+        ]
+      },
+      {
+        "id": "forward-schedule",
+        "beats": [
+          {
+            "say": "At one discrete step, beta is the added noise variance and alpha is one minus beta. Alpha bar is the product of all retained alpha factors through that step. The closed-form marginal uses square root alpha bar times the clean value, plus square root one minus alpha bar times a unit Gaussian draw. That gives direct training samples at any chosen level without simulating every earlier corruption."
+          },
+          {
+            "say": "The article’s three supplied betas, point zero two, point zero three and point zero four, leave alpha bar point nine one two five seven six. They barely corrupt the signal compared with the original thousand-step linear schedule, whose final retained fraction is about four times ten to the negative five. Starting the short worksheet from an arbitrary scalar tests arithmetic, not image generation from a well-matched Gaussian prior."
+          },
+          {
+            "say": "For our clean value one and fixed noise negative point four, retained fractions point nine, point five and point zero zero one give about point eight two two, point four two four and negative point three six eight. Signal-to-noise ratio is alpha bar divided by one minus alpha bar under the stated unit-variance convention. Schedule and loss weighting decide which levels receive learning effort; a high-noise row is not automatically harder on every individual example."
+          }
+        ]
+      },
+      {
+        "id": "training",
+        "beats": [
+          {
+            "say": "Choose a clean image, a noise level, and fresh Gaussian noise. Construct the noisy input with our equation. We know the target because we generated that noise ourselves."
+          },
+          {
+            "say": "The network receives the noisy input and timestep, then estimates the added noise. Compare its prediction with the target, square the errors, and average them. Gradient descent adjusts the parameters."
+          },
+          {
+            "say": "These invented shrinking errors illustrate the objective. Real training loss can fluctuate between updates. Real training repeats this calculation over many images and noise levels. A single denoiser learns shared patterns that remain useful even when individual images are heavily corrupted."
+          }
+        ]
+      },
+      {
+        "id": "reverse-posterior",
+        "beats": [
+          {
+            "say": "Knowing a noisy observation alone leaves many possible clean causes. DDPM can calculate a Gaussian posterior when both the noisy observation and clean training value are supplied. At generation time the clean value is unknown, so the reverse distribution averages over those possibilities. A learned Gaussian transition approximates that generally more complicated marginal."
+          },
+          {
+            "say": "Use two equally likely clean values, negative one and positive one. Supply previous alpha bar one half, current beta one half and observed value zero. Current alpha bar is one quarter. The two conditional posterior means are negative and positive square root two divided by three; each conditional variance is one third. Symmetry gives both possibilities equal weight."
+          },
+          {
+            "say": "The mixture mean is zero. Total variance is the average within-component variance plus the variance of the component means. Here one third plus two ninths gives five ninths, about point five five six. Choosing either component would erase uncertainty about which clean value occurred. Real image distributions make that averaging difficult; the two-component calculation makes the missing information visible."
+          }
+        ]
+      },
+      {
+        "id": "training-targets",
+        "beats": [
+          {
+            "say": "Training samples a clean row, a noise level and Gaussian noise, forms the noisy input, and predicts the injected noise. Subtract prediction from target coordinate by coordinate, square each residual and average them for mean squared error. The two fixed article rows have losses about point zero zero zero six and point zero two five. These are supplied predictions, not evidence that a network learned or that one timestep is always harder."
+          },
+          {
+            "say": "The simple noise objective reweights a variational-bound derivation into supervised regression. Original DDPM training has no discriminator. Other targets include the clean sample and a velocity parameterization. Let a be square root alpha bar and b be square root one minus alpha bar. Define v as a times epsilon minus b times the clean sample. With noisy state x, recover the clean estimate as a times x minus b times v; recover epsilon as b times x plus a times v."
+          },
+          {
+            "say": "For the same one-pixel fixture, v is about negative point nine nine zero. Its proper inverse recovers one. Feeding v unchanged into an epsilon scheduler instead yields a clean estimate about one point five nine zero. Conversion rules belong to the model-scheduler contract. This rotational diffusion velocity is different from the straight-pair flow target we will construct later."
+          }
+        ]
+      },
+      {
+        "id": "reverse",
+        "beats": [
+          {
+            "say": "Generation starts with random noise. The network predicts, and a numerical sampler updates the current state. That state becomes the next input. Repetition produces a sample from the learned image distribution."
+          },
+          {
+            "say": "A standard stochastic DDPM step combines a learned reverse mean with fresh Gaussian noise on intermediate steps. The sampler chooses the appropriate coefficients and variance. The final step omits that additional random draw."
+          },
+          {
+            "say": "The timestep identifies the noise regime. All network layers run during each evaluation. Network depth and sampling time are separate: a complete network prediction supports one update of the evolving state."
+          }
+        ]
+      },
+      {
+        "id": "reverse-trace",
+        "beats": [
+          {
+            "say": "The actual scalar program uses three betas and the supplied predictor point four five times x plus point zero two times the step index. Start at one point two five. Compute the mean by subtracting beta times predicted epsilon divided by the square root of the quantity one minus alpha bar from x, then dividing by square root alpha. This worksheet adds square root beta times the draw. The first reverse prediction is about point six zero three; the DDPM mean is one point one nine three. A supplied seeded Gaussian draw, negative point two five six, changes the next state to one point one four one. That resulting state is the next predictor’s input."
+          },
+          {
+            "say": "The next row uses predicted noise point five three four, mean one point zero eight six and draw point five one one, giving state one point one seven four. The final row adds no fresh noise and reaches about one point one one one. This program actually executes on CPU; it contains no trained image denoiser. Setting every draw to zero retains the DDPM mean formula and does not turn it into DDIM."
+          },
+          {
+            "say": "A checkpoint after the first reverse row must resume with the next Gaussian draw, point five one one. Reseeding while keeping the saved state instead repeats negative point two five six and changes the future. Save the latent, next timestep and consumed generator state, plus any multistep solver history. A seed can restart a full sample; it cannot replace the generator position halfway through that sample."
+          }
+        ]
+      },
+      {
+        "id": "score",
+        "beats": [
+          {
+            "say": "Replace an image's many coordinates with two. Our clean distribution has three clusters. Gaussian noise broadens them into an overlapping cloud whose density we can calculate exactly."
+          },
+          {
+            "say": "The arrows show the score: the gradient of log density at this noise level. They point locally toward increasing density, combining contributions from all three clusters according to their plausibility at each location."
+          },
+          {
+            "say": "This is a toy distribution with an exact score. Image models learn a related field from data. For Gaussian corruption, a noise prediction can be converted into a score estimate using the noise scale, connecting the training target to these directions."
+          }
+        ]
+      },
+      {
+        "id": "transport",
+        "beats": [
+          {
+            "say": "We sample starting particles from that same broad noisy mixture. We numerically integrate a deterministic probability-flow equation while reducing the added variance. Here the derivative of position with respect to added variance equals negative one half times the score. A negative variance step therefore moves locally along the score. Every particle follows the same rule, evaluated at its own current position. Watch the cloud separate as the density sharpens."
+          },
+          {
+            "say": "A particle's destination depends on its starting position and the entire changing field. The paths bend as different clusters become more plausible. Together, their paths show probability mass gathering across several plausible clusters."
+          },
+          {
+            "say": "This known noisy mixture and analytic field demonstrate a numerical deterministic sampler in two dimensions. The finite solver steps approximate the trajectories. Actual image generation needs a trained model, a compatible solver, and image-quality evaluation."
+          }
+        ]
+      },
+      {
+        "id": "samplers",
+        "beats": [
+          {
+            "say": "The stochastic reverse process and a deterministic sampler use different update rules. DDIM provides a deterministic setting that introduces no fresh noise after initialization. Given a fixed initial state and execution, that setting follows a repeatable trajectory."
+          },
+          {
+            "say": "Check the algebra with known noise. Recover a clean estimate, then combine it with the same noise direction at the next selected level. The result matches the forward mixture there."
+          },
+          {
+            "say": "Selected timesteps can be far apart. That reduces network evaluations, although a coarser numerical path may lose detail. Match the sampler to the model's prediction target and schedule, then compare the resulting images on the same prompts."
+          }
+        ]
+      },
+      {
+        "id": "ddim-contract",
+        "beats": [
+          {
+            "say": "DDIM builds a non-Markovian forward family with the same per-level marginals and shared training objective. Its sampler can choose a sparse subset of trained noise levels. To recover a clean estimate from an epsilon prediction, subtract square root one minus current alpha bar times predicted epsilon from the current state. Divide that difference by square root current alpha bar. At inference, predicted epsilon replaces the unknown true noise used in our algebra check."
+          },
+          {
+            "say": "For a selected reverse jump, combine square root destination alpha bar times the clean estimate, plus square root one minus destination alpha bar minus sigma squared times predicted epsilon, plus sigma times a fresh Gaussian draw. Sigma equals eta times the square root of the ratio of destination remaining variance to current remaining variance, times the square root of the quantity one minus the ratio of current alpha bar to destination alpha bar."
+          },
+          {
+            "say": "For a valid reverse schedule, eta from zero to one keeps that direction coefficient real. Zero eta removes newly injected noise while the initial state can still be random. Our known-noise jump returns point eight two two, but a finite-step learned deterministic solver is not guaranteed exactly invertible. Check reconstruction and editing error. Fewer selected steps change compute and numerical error; they do not by themselves certify acceptable images."
+          }
+        ]
+      },
+      {
+        "id": "architectures",
+        "beats": [
+          {
+            "say": "A diffusion U-Net downsamples spatial features, processes a bottleneck, then upsamples while using skip features from matching resolutions. Convolutions and attention combine local detail with wider context. Timestep and text conditions enter that network. Repeated denoising reuses the backbone at different noise levels; fifty sampler steps do not mean fifty different network layers."
+          },
+          {
+            "say": "A diffusion transformer instead patchifies the noisy image or latent into tokens, applies transformer blocks and projects predictions back to the state layout. Peebles and Xie’s original DiT results concern class-conditioned ImageNet generation. They do not measure this product’s prompt adherence, safety or service latency. Smaller patches increase token count and can increase attention and projection work."
+          },
+          {
+            "say": "Stable Diffusion Three’s paper combines rectified-flow training with a multimodal diffusion transformer. Text and image have distinct weights while participating in joint attention, allowing information to flow between modalities. Its selected autoencoder uses sixteen latent channels. These are architecture and training choices; a DiT label alone does not make a route faster than a U-Net. Measure the complete matched workload."
+          }
+        ]
+      },
+      {
+        "id": "time-conditioning",
+        "beats": [
+          {
+            "say": "Timestep conditioning tells shared weights which corruption task they are solving. A timestep embedding can add a bias or modulate normalized block features with scale and shift. Transformer denoisers may use adaptive normalization and residual gates. The network must interpret the same observed coordinate differently at different noise levels."
+          },
+          {
+            "say": "Use the supplied modulation rule: multiply each feature by one plus scale, then add shift. Features point two, negative point one and point five with scale point five and shift negative point zero five become point two five, negative point two and point seven. A separate scale point zero five and shift point zero two give point two three, negative point zero eight five and point five four five. These invented controls show the operation; higher noise does not require a larger learned scale in every trained block."
+          }
+        ]
+      },
+      {
+        "id": "flow-paths",
+        "beats": [
+          {
+            "say": "Flow matching trains a vector field along a specified probability path. In our convention, tau zero is clean data and tau one is noise. A supplied straight pair follows the quantity one minus tau, multiplied by the data endpoint, plus tau times the noise endpoint. Its training target is noise endpoint minus data endpoint. This is a different target and path from the rotational diffusion v parameterization."
+          },
+          {
+            "say": "For data one and noise negative one, that pair velocity is negative two. Sampling toward data decreases tau. An Euler step of negative one quarter multiplies the velocity by negative one quarter and adds positive one half to the current value negative one, reaching negative one half. The sign follows the declared time direction."
+          },
+          {
+            "say": "A trained field estimates a conditional average across pairs that can meet near the same point. Its generated trajectories need not be straight even when individual training pairs are. Rectified-flow methods aim to straighten transport and improve integration. Changing an image scheduler without a compatible trained target does not create that model. Match model prediction type, time convention and numerical solver."
+          }
+        ]
+      },
+      {
+        "id": "conditioning",
+        "beats": [
+          {
+            "say": "A prompt supplies a second source of information. A text encoder turns its words into vectors. In a cross-attention denoiser, image features form queries that retrieve useful information from those text representations."
+          },
+          {
+            "say": "Different spatial features can draw on different parts of the prompt. The model learns how concepts such as material, object, and lighting influence its denoising prediction. The weights here illustrate that mechanism; they are schematic attention values."
+          },
+          {
+            "say": "The prompt conditions repeated predictions. Its embeddings stay fixed while spatial queries evolve. Together with the timestep, they guide corrections that fit the current state and requested scene."
+          }
+        ]
+      },
+      {
+        "id": "cross-read",
+        "beats": [
+          {
+            "say": "Text cross-attention gives the current spatial feature a projected query. Projected text features supply keys and values. Compute each query-key dot product, divide by square root key width, exponentiate centered scores, and divide each mass by their sum. Multiply each value vector by its normalized share, then add those scaled values coordinate by coordinate."
+          },
+          {
+            "say": "The article’s supplied three-dimensional query reads the words oak, dining and table. Its normalized shares are about point three five nine, point two nine two and point three four nine. The weighted two-coordinate value result is about point five eight nine, point three one one. The program actually calculates this small head; it does not load a text encoder or image model."
+          },
+          {
+            "say": "Later spatial features can change their query and therefore the shares while the same prompt keys and values remain fixed. This mixture conditions a feature, not a direct selection of one word or a measured pixel explanation. A full block also has learned projections, multiple heads, residual paths and normalization. Preserve that scope when using the small head to reason about the mechanism."
+          }
+        ]
+      },
+      {
+        "id": "guidance",
+        "beats": [
+          {
+            "say": "Classifier-free guidance compares two predictions: one with the prompt, and one with an empty condition. During training, dropping the condition on some examples teaches the same denoiser to handle both cases."
+          },
+          {
+            "say": "Subtract the unconditional prediction from the conditional prediction. That difference supplies a direction in noise-prediction space. Add a scaled copy back to the unconditional baseline. At scale one, we reach the conditional prediction; larger scales extrapolate beyond it."
+          },
+          {
+            "say": "Stronger guidance can improve adherence while reducing variety or introducing oversaturated textures. Compare alignment, diversity, and defects across a prompt set. The vector scale describes this calculation; image quality needs separate measurement."
+          }
+        ]
+      },
+      {
+        "id": "cfg-training",
+        "beats": [
+          {
+            "say": "Classifier-free guidance learns conditional and unconditional behavior by sometimes dropping the condition during training. The same denoising target remains. The paper evaluates several dropout probabilities; the article’s seeded dropout fixture uses point three five purely to expose which rows lose conditioning. Use the model’s supported null or empty conditioning, which is not necessarily an all-zero embedding."
+          },
+          {
+            "say": "The common guidance formula starts from the unconditional prediction and adds scale times the conditional-minus-unconditional difference. Subtract vectors coordinate by coordinate, multiply the difference by scale, then add the base. Scale one returns the conditional prediction; values above one extrapolate. For the supplied three-coordinate vectors, scale seven point five gives negative point nine two five, negative one point nine seven five and one point one seven five."
+          },
+          {
+            "say": "Doubling that scale to fifteen gives negative two point zero five, negative three point eight five and two point three. Scale is not a probability and does not ensure better alignment on every prompt. Larger extrapolations can lose diversity or amplify artifacts. Compare alignment, diversity, safety and accepted quality on a fixed prompt suite instead of judging one dramatic sample."
+          }
+        ]
+      },
+      {
+        "id": "cfg-api",
+        "beats": [
+          {
+            "say": "The original guidance paper writes the conditional prediction plus a paper scale times its difference from the unconditional prediction. In our base-plus-scale convention, the common scale equals one plus that paper scale. Compare the equations before copying a number between implementations."
+          },
+          {
+            "say": "The Diffusers StableDiffusionPipeline documentation, checked November tenth, twenty twenty-six, enables ordinary classifier-free guidance above scale one. A scale at or below one can disable the extra branch instead of implementing mathematical interpolation down to unconditional output. With a negative prompt, the comparison branch is negatively conditioned rather than unconditional. A single batched call can still calculate two per-image predictions. Read branch semantics and count predictions, not just calls."
+          }
+        ]
+      },
+      {
+        "id": "latent",
+        "beats": [
+          {
+            "say": "Repeatedly processing a full-resolution image is expensive. Latent diffusion moves the iterative work into a compressed continuous representation. During training, an image encoder supplies clean latents, and the diffusion model learns to denoise their corrupted versions."
+          },
+          {
+            "say": "Text-to-image generation starts directly from random latent noise. The loop updates that latent, then the decoder receives the final state. The sampler first converts each noise prediction into the appropriate state update."
+          },
+          {
+            "say": "These example shapes contain forty-eight times fewer scalar values in latent space. Speed depends on the network and hardware too. Compression can lose detail, so evaluate autoencoder reconstruction separately when text or edges blur."
+          }
+        ]
+      },
+      {
+        "id": "latent-contract",
+        "beats": [
+          {
+            "say": "Latent diffusion trains the denoiser on compressed continuous encoder output, then decodes the final denoised latent with the matching autoencoder convention and scale. Text-to-image generation starts from a random latent; it does not need to encode a requested clean image first. Predicted epsilon is an update ingredient, not a final latent for the image decoder."
+          },
+          {
+            "say": "Original latent diffusion studies both KL and vector-quantized regularization. In its VQ variant, quantization belongs inside the decoder while the diffusion state is continuous pre-quantization encoder output. This differs from diffusing discrete code identifiers. Five hundred twelve by five hundred twelve by three versus sixty-four by sixty-four by four is forty-eight times fewer scalar values, while spatial sites fall by sixty-four. Neither ratio is a measured speedup."
+          },
+          {
+            "say": "Compression can discard small text or texture. First test reconstruction by encoding and decoding the same real image without any denoising. If its text is already corrupted, adding sampler steps cannot establish that the autoencoder preserved that information. Separate VAE reconstruction, denoiser prediction, solver error and final output checks. Reducing denoiser work can expose decoder and release costs as the next bottleneck."
+          }
+        ]
+      },
+      {
+        "id": "text-canvas",
+        "beats": [
+          {
+            "say": "A masked text diffuser corrupts discrete token positions and repeatedly refines a canvas using context from both sides. It still needs multiple passes, a length policy and rules for which positions remain uncertain. Discrete diffusion also includes categorical transitions. Continuous approaches such as Diffusion-LM instead denoise Gaussian vectors into word vectors. Choose corruption and sampling rules for the actual state representation."
+          },
+          {
+            "say": "The executed text worksheet is a fixed plan, not a language model. Its first round fills write and later with two middle masks. Its second fills unit and changes later to first. Its third fills tests, leaving write unit tests first. No confidence selection, renoising or learning is implemented in that fixture. The earlier last token really changes while the canvas is provisional."
+          },
+          {
+            "say": "A user interface promising immutable final text must hold the fixture until its final state, or explicitly show drafts with replacement behavior. Confidence and repeated predictions are stopping signals, not factual validation. Measure time to first committed text as well as completion time and aggregate token rate. A fast block cannot promise useful text before its commit policy permits publication."
+          }
+        ]
+      },
+      {
+        "id": "gemma-system",
+        "beats": [
+          {
+            "say": "Google’s experimental DiffusionGemma documentation, checked November tenth, twenty twenty-six, describes a Gemma Four mixture-of-experts derivative. Its card lists twenty-five point two billion total and three point eight billion active parameters, eight of one hundred twenty-eight routed experts and one shared expert. It accepts text, image and video input and produces text. We have not run that model."
+          },
+          {
+            "say": "An autoregressive encoder prefills context into a key-value cache. A decoder uses bidirectional attention over a two-hundred-fifty-six-token canvas and reads cached context. Once the canvas finishes, the encoder appends that completed block to context before the next canvas. The documented sampler can take up to forty-eight refinement steps, with reported typical counts twelve to sixteen."
+          },
+          {
+            "say": "Adaptive stopping requires both average canvas entropy below the configured threshold and identical predictions in two consecutive rounds. A low-entropy selection is retained while unselected positions are renoised. Those internal selections are not an external immutable-text commitment. The documented advantage is strongest at low-to-medium batch sizes on one accelerator; it does not establish higher saturated cloud throughput, correctness or this product’s latency."
+          }
+        ]
+      },
+      {
+        "id": "controls-fast",
+        "beats": [
+          {
+            "say": "Use the conditioning mechanism that matches the requested control. An adapter such as LoRA changes selected learned weights for style or specialization. ControlNet adds trainable spatial-control branches while preserving a pretrained backbone; its original architecture uses zero-initialized connectors. An inpainting route uses a supplied mask and preserved context to decide where edits occur. These mechanisms do not guarantee exact pose, readable text or a permitted brand mark."
+          },
+          {
+            "say": "Faster numerical solvers and trained acceleration have different contracts. DPM-Solver exploits the diffusion differential equation’s structure without retraining the denoiser. Progressive distillation trains one student step to match two deterministic teacher steps, then repeats the halving. Consistency models learn mappings along trajectories; latent consistency models report few-step results for their trained configurations. LCM-LoRA packages a compatible acceleration adaptation, not a promise for every arbitrary checkpoint."
+          },
+          {
+            "say": "Adversarial diffusion distillation combines a diffusion-teacher signal with adversarial training and reports one-to-four-step generation in its experiments. That does not add a discriminator to the original DDPM noise-regression loop. Guidance distillation can also reduce two branches to a trained single prediction. Verify model, adapter, scheduler, prediction type and supported guidance together, then measure quality, controls, total latency and cost on the intended route."
+          }
+        ]
+      },
+      {
+        "id": "compute",
+        "beats": [
+          {
+            "say": "The main recurring cost is a network prediction. Ordinary classifier-free guidance needs two predictions per image per step, even when batching computes both inside one call. Count the work before deciding whether a preview can be interactive."
+          },
+          {
+            "say": "A sparse sampler reduces the number of selected levels. Distillation trains a model to take larger effective steps, sometimes absorbing guidance into a single prediction. Those routes use specific training and sampling recipes, which need matching controls and quality checks."
+          },
+          {
+            "say": "The bars compare prediction counts. The user's waiting time also includes queueing, decoding, and output checks. Measure accepted image quality and end-to-end latency together, so an impressive isolated sampler speedup translates into a useful product."
+          }
+        ]
+      },
+      {
+        "id": "reproducibility",
+        "beats": [
+          {
+            "say": "A seed selects random draws. Also record the model, encoders, sampler, steps, guidance, and execution environment. Hardware or kernel changes can alter the result. Store final bytes when exact identity matters."
+          },
+          {
+            "say": "A mid-sample restart needs the current latent, timestep, random-generator state, and any solver history. Reusing the original seed while keeping a partially evolved state repeats the wrong random draws. The whole sampling state has to remain consistent."
+          },
+          {
+            "say": "Check outputs for unwanted content, misleading text, and brand or safety problems. Keep a synthetic-content label and provenance tied to the distributed bytes. Choose an appropriate use and review path."
+          }
+        ]
+      },
+      {
+        "id": "publication",
+        "beats": [
+          {
+            "say": "Enforce a unique binding for each authenticated tenant and idempotency key in durable storage. Atomically create or retrieve that binding together with its job identity and normalized request hash, so concurrent requests cannot create separate jobs. Compare the stored request hash before returning the existing job to an identical retry. Reusing the key for another prompt, shape or route conflicts. Worker attempts have expiring leases and increasing attempt numbers. Completion conditionally checks the current attempt, so an expired worker cannot publish after its replacement. Authorize status and asset reads separately."
+          },
+          {
+            "say": "Prepare permitted final sizes and encodings privately. Embed the selected route’s supported watermark and check the exact bytes that will be distributed. SynthID is one documented example designed to survive common edits; it is not an infallible provenance proof or automatically available to any self-hosted model. An uncertain or missing detector result leaves origin unresolved. Disable unchecked transformations after verification."
+          },
+          {
+            "say": "Bind the final digest to job, versions, seed, sampler, policy and detector evidence. Commit the matching manifest before exposing an immutable object URL, with the current-attempt check in the real publication transaction. Failed-transaction objects stay private. A repeated successful release reuses committed bytes. Storing a visually convincing image is not the same as authorizing its publication."
+          }
+        ]
+      },
+      {
+        "id": "release-evidence",
+        "beats": [
+          {
+            "say": "The executed release function requires a positive integer current attempt and an exactly typed integer record attempt that equals it. A mismatched or float attempt is stale. Policy must pass and human-review must be exactly false; otherwise review is required. Watermark must be detected and manifest-committed exactly true; otherwise hold. The asset digest must be a nonempty string equal to the checked digest before the fixture returns publish-checked-bytes."
+          },
+          {
+            "say": "A nonempty string saying false is not an exact true verdict. Numeric equality between float two and integer two does not satisfy the type contract. Equal lists are not digest strings. These real CPU branches validate supplied record representation. They do not implement detectors, trusted attempt lookup, actual digest computation, tenant isolation or an atomic storage transaction. Test those separately against the real backend."
+          },
+          {
+            "say": "Pin model, VAE, scheduler, seed, prompt, negative prompt, steps and guidance for a matched release comparison. Track alignment, human preference, diversity, text and layout, unsafe outputs, memorization, failure rate, tail latency and cost per accepted asset. Shadow first, canary one percent then ten percent of eligible jobs, and ramp by route only after its gates pass. A reviewer can approve a labeled illustration, but cannot make generated charts into observed incident evidence."
+          }
+        ]
+      },
+      {
+        "id": "recap",
+        "beats": [
+          {
+            "say": "Known corruption creates training tasks. A network learns predictions across noise levels. A compatible sampler turns them into updates, optionally steered by a prompt."
+          },
+          {
+            "say": "The particles showed a changing field reshaping a distribution. Image models operate in a larger space, where learned regularities express the structure of their training data."
+          },
+          {
+            "say": "Now imagine doubling the guidance while halving the sampling steps. Which images become more faithful, which lose variety, and which details disappear? You have the mechanism to form a prediction. A controlled experiment on the same prompts will tell you what actually happens."
+          }
+        ]
+      },
+      {
+        "id": "fresh-release",
+        "beats": [
+          {
+            "say": "Use a separate supplied design job with three variants, eight steps and ordinary two-branch guidance. Its current worker attempt is five. Old attempt four returns a checked image. Attempt five returns a resized derivative whose digest differs from its checked source. How much denoiser work is offered, and may either image be published yet? Pause."
+          },
+          {
+            "say": "Three times eight times two gives forty-eight per-image predictions. The old attempt is fenced even if its own checks passed. The current resized derivative is also held because the evidence names different bytes. Completing the denoiser cannot repair either release defect. Retain the old object privately and inspect the actual current derivative."
+          },
+          {
+            "say": "When authorized checks pass on that exact derivative, commit its matching digest and manifest with the current-attempt condition, then return its immutable URL. Reusing those committed bytes preserves identity on retry. You can now trace corruption, learned prediction, sampler updates and guidance, count the route’s work, recover state and identify the final release boundary. Evaluate the real image model and backend before promoting this constructed plan. Real-time voice next follows a continuous conversation through listening, generation and actual device playback, including the interruption that determines what belongs in shared history."
+          }
+        ]
+      }
+    ]
+  }
+}

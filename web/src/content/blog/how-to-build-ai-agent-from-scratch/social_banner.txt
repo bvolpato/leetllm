@@ -1,0 +1,6 @@
+Local Vizmatic artwork. Reproducible source: social_banner.tsx.
+From the repository's web/ directory, render the 1200x630 PNG at scale 1:
+
+pnpm exec tsx -e "import { renderBanner } from './src/content/blog/how-to-build-ai-agent-from-scratch/social_banner.tsx'; renderBanner('./src/content/blog/how-to-build-ai-agent-from-scratch/social_banner.png').then(console.log)"
+
+The reviewed tutorial's tool-call path. Model-proposed calls pass runtime checks before snapshot search/read. Invalid requests become structured errors; both errors and tool results are appended to history with the original call_id and feed the next model turn. Repeated successful requests or exhausted limits stop the run. The defaults are eight model turns, six tool requests (invalid requests count), and a cooperative sixty-second deadline, not preemptive cancellation. Final-text exits are outside this tool-call-path diagram. No external service or upload is required.

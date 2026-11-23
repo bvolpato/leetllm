@@ -1,0 +1,202 @@
+version: 1
+lesson: softmax
+promise: Trace a reported change in cross-entropy to the model's probabilities, the word being scored, or the divisor, and decide whether training improved the prediction.
+objectives:
+  - id: competing-shares
+    can: Construct normalized shares from score gaps and preserve them through a common shift using bounded exponentials.
+    scenes:
+      - intro
+      - scores
+      - exponentials
+      - mass
+  - id: loss-stability
+    can: Compute a target loss from logits when its probability underflows, and identify rows with invalid scores or no permitted candidates.
+    scenes:
+      - loss
+      - temperature-limits
+  - id: derive-gradient
+    can: Use the softmax derivatives and the negative-log slope to predict the sign and size of every logit correction when the observed word changes.
+    scenes:
+      - gradient-chain
+      - gradient
+      - update
+      - transfer
+  - id: target-uncertainty
+    can: Distinguish target entropy from the cost of a mismatch, identify a support conflict, and calculate the finite optimum gap for a smoothed target.
+    scenes:
+      - entropy-reference
+      - smoothing-equilibrium
+  - id: loss-choice
+    can: Compare the logit gradients from cross-entropy and Brier loss. Diagnose and remove a second softmax by comparing the model prediction with the distribution scored by the loss.
+    scenes:
+      - squared-vs-ce
+      - loss-input-contract
+  - id: temperature
+    can: Predict what temperature changes in sampling, calibration, and distillation, including ties and the scale of the gradient.
+    scenes:
+      - temperature
+      - temperature-limits
+  - id: sequence-contract
+    can: Follow each score to its next-token target through either tensor layout. Use the individual losses and the divisor to detect a wrong pairing or an ignored target counted in the mean.
+    scenes:
+      - loss-input-contract
+      - transfer
+      - teacher-forcing
+      - token-reduction
+      - class-not-position
+      - weighted-reduction
+      - earned-transfer
+  - id: vocabulary-memory
+    can: Calculate the size of a logit matrix and merge the exponential sums of two vocabulary tiles when the second tile has a higher maximum.
+    scenes:
+      - vocabulary-tiles
+sections:
+  - heading: A decision begins as three raw scores
+    status: taught
+    scenes:
+      - intro
+      - scores
+  - heading: Softmax turns score gaps into probability mass
+    status: taught
+    note: The opening traces the 84.4% share for ran before the page reveals slept, which received 11.4%. Both shares come from the article’s scores of 3, 1, and 0.
+    scenes:
+      - intro
+      - exponentials
+      - mass
+  - heading: Stable arithmetic prevents floating-point overflow
+    status: taught
+    scenes:
+      - exponentials
+      - temperature-limits
+  - heading: Cross-entropy prices missed predictions through surprise
+    status: taught
+    scenes:
+      - loss
+      - entropy-reference
+  - heading: The log-sum-exp formulation prevents underflow crashes
+    status: taught
+    scenes:
+      - loss
+      - vocabulary-tiles
+  - heading: Entropy is reference uncertainty and KL divergence is prediction error
+    status: taught
+    scenes:
+      - entropy-reference
+  - heading: The combined gradient reveals a clean error signal
+    status: taught
+    scenes:
+      - gradient-chain
+      - gradient
+  - heading: The zero-sum conservation property
+    status: taught
+    scenes:
+      - gradient-chain
+      - gradient
+  - heading: Why squared probability error can learn slowly from confident mistakes
+    status: taught
+    scenes:
+      - squared-vs-ce
+  - heading: PyTorch expects unnormalized logits directly
+    status: taught
+    note: The article's [3, 1, 0] example gives losses of 2.170 on raw logits and 1.387 after an extra softmax. The two strips show exactly which distribution changes.
+    scenes:
+      - loss-input-contract
+      - weighted-reduction
+  - heading: Temperature scaling shapes inference entropy
+    status: taught
+    scenes:
+      - temperature
+      - temperature-limits
+  - heading: Label smoothing curbs overconfident logits
+    status: taught
+    scenes:
+      - smoothing-equilibrium
+  - heading: Next-token prediction extends the loss across sequences
+    status: taught
+    scenes:
+      - transfer
+      - teacher-forcing
+      - token-reduction
+  - heading: Tensor contracts and vocabulary memory scaling
+    status: taught
+    note: The [1, 2, 3] sequence tensor becomes [1, 3, 2] or [2, 3] with the same target cells selected. The storage example uses 16 sequences, 4,096 positions, and 128,256 classes.
+    scenes:
+      - loss-input-contract
+      - teacher-forcing
+      - vocabulary-tiles
+  - heading: Diagnostic failure modes in production pipelines
+    status: taught
+    note: Scoring the current words in the article's two sequence rows moves two nats between the rows without changing their mean. The final batch distinguishes a changed target probability from a changed divisor.
+    scenes:
+      - loss-input-contract
+      - teacher-forcing
+      - token-reduction
+      - class-not-position
+      - weighted-reduction
+      - earned-transfer
+  - heading: Try a second target
+    status: taught
+    note: Keeping scores [3, 1, 0] fixed and selecting class two changes the loss from 2.170 to 3.170 nats. The film uses ate for the article's security class.
+    scenes:
+      - transfer
+quiz:
+  - n: 1
+    status: taught
+    scenes:
+      - gradient-chain
+      - gradient
+      - update
+  - n: 2
+    status: taught
+    scenes:
+      - loss-input-contract
+  - n: 3
+    status: taught
+    scenes:
+      - token-reduction
+      - teacher-forcing
+      - earned-transfer
+  - n: 4
+    status: taught
+    scenes:
+      - temperature
+      - temperature-limits
+  - n: 5
+    status: taught
+    scenes:
+      - entropy-reference
+  - n: 6
+    status: taught
+    scenes:
+      - loss
+      - temperature-limits
+  - n: 7
+    status: taught
+    scenes:
+      - squared-vs-ce
+  - n: 8
+    status: taught
+    scenes:
+      - smoothing-equilibrium
+  - n: 9
+    status: taught
+    scenes:
+      - class-not-position
+  - n: 10
+    status: taught
+    scenes:
+      - weighted-reduction
+removed: []
+reviews:
+  closed_book:
+    script: 4453689c0d9f0240
+    taught: 10
+    partial: 0
+    absent: 0
+    reviewer: independent closed-book review
+    evidence: videos/reviews/script-renewal/softmax.json
+  fact_check:
+    script: 4453689c0d9f0240
+    open_findings: 0
+    reviewer: independent factual review
+    evidence: videos/reviews/script-renewal/softmax.json

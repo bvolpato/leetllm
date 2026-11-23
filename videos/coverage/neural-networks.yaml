@@ -1,0 +1,218 @@
+version: 1
+lesson: neural-networks
+promise: Build a two-unit lamp circuit, trace a timeout loss back to individual weights,
+  and choose a measurement that distinguishes two networks that fit the same examples.
+framing: []
+objectives:
+  - id: compose
+    can: Show why one affine cut fails on the four switch settings, construct a working
+      pair of ReLU hinges, and choose an interior measurement that separates two fits.
+    scenes:
+      - puzzle
+      - collapse
+      - affine-identity
+      - hinges
+      - approximation
+      - approximation-conditions
+      - payoff
+  - id: trace
+    can: Calculate signed neuron contributions, test a weight layout against one request,
+      and count the parameters shared by a batch.
+    scenes:
+      - scorer
+      - forward
+      - parameters
+      - parameter-scale
+      - batch
+      - transpose
+  - id: differentiate
+    can: Use the loss slope, saved gate inputs, feature signs, and loss reduction to
+      predict an SGD update and check the resulting loss.
+    scenes:
+      - bounded
+      - smooth
+      - activation-products
+      - residual
+      - output-denominator
+      - backward
+      - saved-values
+      - corner-check
+      - update
+      - earned-gradient-transfer
+  - id: evaluate
+    can: Repair scaling and overflow failures, predict which routes change at a new
+      threshold, and compare scores with observed timeout frequencies.
+    scenes:
+      - units
+      - stable
+      - checked-risk-report
+sections:
+  - heading: One neuron scores a single request
+    status: taught
+    scenes:
+      - scorer
+      - checked-risk-report
+  - heading: Linear maps collapse without non-linearities
+    status: taught
+    scenes:
+      - collapse
+      - affine-identity
+      - puzzle
+      - hinges
+  - heading: Comparing modern activation functions
+    status: taught
+    scenes:
+      - bounded
+      - smooth
+      - activation-products
+  - heading: Multi-layer dense networks and tensor shape contracts
+    status: taught
+    scenes:
+      - forward
+      - batch
+      - transpose
+  - heading: Batched matrix multiplication and tensor shapes
+    status: taught
+    scenes:
+      - batch
+      - transpose
+  - heading: Counting trainable parameters
+    status: taught
+    scenes:
+      - parameters
+      - parameter-scale
+  - heading: Deriving backpropagation for a two-layer network
+    status: taught
+    scenes:
+      - residual
+      - backward
+      - saved-values
+      - earned-gradient-transfer
+  - heading: "Step 1: The loss function"
+    status: taught
+    scenes:
+      - residual
+      - output-denominator
+  - heading: "Step 2: Output logit gradient"
+    status: taught
+    scenes:
+      - residual
+      - output-denominator
+      - earned-gradient-transfer
+  - heading: "Step 3: Layer 2 parameter gradients"
+    status: taught
+    scenes:
+      - backward
+      - saved-values
+  - heading: "Step 4: Propagating gradients to the hidden layer"
+    status: taught
+    scenes:
+      - backward
+      - earned-gradient-transfer
+  - heading: "Step 5: Passing through the ReLU gate"
+    status: taught
+    scenes:
+      - backward
+      - corner-check
+      - earned-gradient-transfer
+  - heading: "Step 6: Layer 1 parameter gradients"
+    status: taught
+    scenes:
+      - backward
+      - saved-values
+      - earned-gradient-transfer
+  - heading: Verifying NumPy gradients against PyTorch autograd
+    status: taught
+    scenes:
+      - update
+      - corner-check
+  - heading: Diagnosing feature scale and numerical overflow
+    status: taught
+    scenes:
+      - units
+      - stable
+  - heading: Feature scale mismatch
+    status: taught
+    scenes:
+      - units
+  - heading: Exponential overflow in activations
+    status: taught
+    scenes:
+      - stable
+      - checked-risk-report
+  - heading: Universal approximation and its practical limits
+    status: taught
+    scenes:
+      - approximation
+      - approximation-conditions
+      - payoff
+  - heading: Practice problems
+    status: article-only
+    reason: exercise
+    note: Independent hands-on practice remains on the page; every underlying core mechanism
+      is taught in the same movie.
+  - heading: Mastery check
+    status: taught
+    scenes:
+      - earned-gradient-transfer
+      - checked-risk-report
+      - payoff
+quiz:
+  - n: 1
+    status: taught
+    scenes:
+      - affine-identity
+  - n: 2
+    status: taught
+    scenes:
+      - activation-products
+  - n: 3
+    status: taught
+    scenes:
+      - activation-products
+      - earned-gradient-transfer
+  - n: 4
+    status: taught
+    scenes:
+      - batch
+      - parameter-scale
+  - n: 5
+    status: taught
+    scenes:
+      - transpose
+  - n: 6
+    status: taught
+    scenes:
+      - output-denominator
+  - n: 7
+    status: taught
+    scenes:
+      - backward
+      - earned-gradient-transfer
+  - n: 8
+    status: taught
+    scenes:
+      - units
+  - n: 9
+    status: taught
+    scenes:
+      - checked-risk-report
+  - n: 10
+    status: taught
+    scenes:
+      - approximation-conditions
+      - payoff
+reviews:
+  closed_book:
+    script: d9299b27bc1fa388
+    taught: 10
+    partial: 0
+    absent: 0
+    reviewer: /root/upgrade_shard6
+    evidence: build/video-delivery-20261106/script-reviews/neural-networks.json
+  fact_check:
+    script: d9299b27bc1fa388
+    open_findings: 0
+    reviewer: /root/upgrade_shard6
+    evidence: build/video-delivery-20261106/script-reviews/neural-networks.json
+removed: []

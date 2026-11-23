@@ -1,0 +1,165 @@
+{
+    "$schema": "http://json-schema.org/draft-07/schema#",
+    "$id": "leetllm-metadata",
+    "title": "LeetLLM Article Metadata",
+    "description": "Schema for canonical article JSON frontmatter and supported legacy metadata.json bundles.",
+    "type": "object",
+    "required": [
+        "id",
+        "title",
+        "slug",
+        "section",
+        "category",
+        "difficulty",
+        "order",
+        "companies",
+        "shortDescription",
+        "keyConceptsTested"
+    ],
+    "additionalProperties": false,
+    "properties": {
+        "id": {
+            "type": "string",
+            "pattern": "^[a-z0-9-]+$",
+            "description": "Unique article identifier, must match the directory name."
+        },
+        "title": {
+            "type": "string",
+            "minLength": 5,
+            "maxLength": 120,
+            "description": "Human-readable article title."
+        },
+        "slug": {
+            "type": "string",
+            "pattern": "^[a-z0-9-]+$",
+            "description": "URL-safe slug, must match the directory name and id."
+        },
+        "aliases": {
+            "type": "array",
+            "items": {
+                "type": "string",
+                "pattern": "^[a-z0-9-]+$"
+            },
+            "description": "Legacy URL slugs that permanently redirect to this canonical slug."
+        },
+        "section": {
+            "type": "string",
+            "enum": [
+                "Computing Foundations",
+                "Math & Statistics",
+                "Preparation & Prerequisites",
+                "Core LLM Foundations",
+                "ML Algorithms & Evaluation",
+                "Production ML Systems",
+                "Applied LLM Engineering",
+                "Portfolio Capstones",
+                "Transformer Deep Dives",
+                "Advanced Training & Adaptation",
+                "Advanced Agents & Retrieval",
+                "Inference & Production Scale",
+                "System Design Capstones",
+                "AI Lab Interviewing",
+                "Project Deep Dives"
+            ],
+            "description": "Top-level roadmap phase."
+        },
+        "category": {
+            "type": "string",
+            "enum": [
+                "Transformer Architecture",
+                "Model Architecture",
+                "Fine-Tuning & Training",
+                "Reasoning & Scaling",
+                "System Design",
+                "NLP Fundamentals",
+                "RAG & Retrieval",
+                "Alignment & Safety",
+                "Inference Optimization",
+                "Embeddings & Vector Search",
+                "Multimodal Models",
+                "LLM Agents & Tool Use",
+                "Evaluation & Benchmarks",
+                "Prompt Engineering",
+                "MLOps & Deployment"
+            ],
+            "description": "Sub-category within the section."
+        },
+        "difficulty": {
+            "type": "string",
+            "enum": [
+                "Easy",
+                "Medium",
+                "Hard"
+            ],
+            "description": "Article difficulty level."
+        },
+        "order": {
+            "type": "integer",
+            "minimum": 1,
+            "description": "Sort position within the section (lower = earlier)."
+        },
+        "hidden": {
+            "type": "boolean",
+            "description": "Hide the article from public learn routes and canonical roadmap ordering while keeping the content bundle in the repository."
+        },
+        "visibility": {
+            "type": "object",
+            "additionalProperties": false,
+            "description": "Publication channels. Omitted channels default to visible. Hidden articles remain excluded from both channels.",
+            "properties": {
+                "website": { "type": "boolean" },
+                "book": { "type": "boolean" }
+            }
+        },
+        "companies": {
+            "type": "array",
+            "items": {
+                "type": "string",
+                "minLength": 1
+            },
+            "minItems": 1,
+            "description": "Companies that commonly ask about this topic."
+        },
+        "shortDescription": {
+            "type": "string",
+            "minLength": 20,
+            "maxLength": 500,
+            "description": "One-line description shown in article cards and meta tags."
+        },
+        "keyConceptsTested": {
+            "type": "array",
+            "items": {
+                "type": "string",
+                "minLength": 3,
+                "maxLength": 90
+            },
+            "minItems": 1,
+            "description": "List of key concepts covered in the article."
+        },
+        "prerequisites": {
+            "type": "array",
+            "items": {
+                "type": "string"
+            },
+            "description": "Optional list of prerequisite article slugs."
+        },
+        "relatedQuestions": {
+            "type": "array",
+            "items": {
+                "type": "string"
+            },
+            "description": "Optional list of related article slugs."
+        },
+        "keyConcepts": {
+            "type": "array",
+            "items": {
+                "type": "string"
+            },
+            "description": "Deprecated, use keyConceptsTested instead."
+        },
+        "coverImage": {
+            "type": "string",
+            "description": "Relative path from the article directory to the dark-variant OG image (must end in _dark.png). Takes precedence over auto-detected social_banner.png for OG/social sharing images."
+        }
+    }
+}

@@ -1,0 +1,1259 @@
+version: 1
+id: conformal
+title: Prediction Sets with Measured Coverage
+source: foundations/conformal-prediction-uncertainty-sets/content.md
+voice: en-US-AndrewNeural
+rate: +0%
+sources:
+  - title: "Angelopoulos and Bates: A Gentle Introduction to Conformal Prediction"
+    url: https://arxiv.org/abs/2107.07511
+  - title: "Shafer and Vovk: A Tutorial on Conformal Prediction"
+    url: https://jmlr.org/papers/v9/shafer08a.html
+  - title: "Romano, Sesia and Candes: Classification with Valid and Adaptive Coverage"
+    url: https://arxiv.org/abs/2006.02544
+  - title: "Angelopoulos et al.: Conformal Risk Control, version 4"
+    url: https://arxiv.org/abs/2208.02814v4
+  - title: "Barber et al.: Conformal Prediction Beyond Exchangeability"
+    url: https://arxiv.org/abs/2202.13415
+  - title: NumPy quantile method conventions
+    url: https://numpy.org/doc/stable/reference/generated/numpy.quantile.html
+scenes:
+  - id: intro
+    title: Does a 40 ms prediction support a 50 ms deadline?
+    visual: Retain a 40 ms point, a 50 ms deadline and later the calibrated interval; distinguish a new outcome
+      from a population mean.
+    beats:
+      - say: A latency model predicts forty milliseconds. The caller needs fifty. A point prediction alone does not
+          show how large the next miss might be. We will construct an interval from held-out errors, then ask
+          what its coverage statement actually permits us to conclude about that deadline.
+        hold: 0.8
+        visual_cues:
+          - id: intro-b1
+            phrase: A latency model predicts forty milliseconds
+            targets:
+              - intro-mechanism
+            linger: 0.65
+      - say: A prediction interval covers a new outcome. A confidence interval instead estimates a population
+          quantity, such as mean latency. Split conformal prediction wraps a frozen predictor with a held-out
+          score threshold. It does not need Gaussian errors, but it does need an appropriate relationship
+          between calibration and future examples.
+        hold: 0.8
+        visual_cues:
+          - id: intro-b2
+            phrase: A prediction interval covers a new outcome
+            targets:
+              - intro-mechanism
+            linger: 0.65
+      - say: Every latency, probability and router count in this film is supplied teaching data. The article’s nine
+          runnable programs check arithmetic and set construction, not a fitted production latency model. We
+          will keep the same nine request identities through residuals, sorting and a new interval, then
+          extend the score idea to classification and expected risk.
+        hold: 0.8
+        visual_cues:
+          - id: intro-b3
+            phrase: Every latency, probability and router count in this film is supplied teaching data
+            targets:
+              - intro-mechanism
+            linger: 0.65
+  - id: split
+    title: Freeze the procedure before calibration
+    visual: Three disjoint data roles retain incident IDs; a feedback arrow from calibration to fitting is rejected.
+    beats:
+      - say: Fit the predictor using training data, and use separate validation evidence for model selection. Freeze
+          preprocessing, predictor and score rule before reading calibration outcomes. Calibration measures
+          that procedure’s errors; a separate test set then measures its sets on new examples.
+        hold: 0.8
+        visual_cues:
+          - id: split-b1
+            phrase: Fit the predictor using training data, and use separate validation evidence for model selection
+            targets:
+              - split-mechanism
+            linger: 0.65
+      - say: Repeatedly tuning the model against the calibration errors makes those outcomes part of fitting. Choosing
+          only the easiest calibration requests after seeing their errors also changes the intended sampling
+          law. A filename called calibration does not establish either independence from fitting or
+          exchangeability with deployment.
+        hold: 0.8
+        visual_cues:
+          - id: split-b2
+            phrase: Repeatedly tuning the model against the calibration errors makes those outcomes part of fitting
+            targets:
+              - split-mechanism
+            linger: 0.65
+      - say: Condition on the independently fitted procedure. The usual coverage probability averages over the
+          calibration sample and the new outcome together. It does not condition on one particular realized
+          calibration sample. Keep the actual predictions and observations so the score threshold remains
+          auditable.
+        hold: 0.8
+        visual_cues:
+          - id: split-b3
+            phrase: Condition on the independently fitted procedure
+            targets:
+              - split-mechanism
+            linger: 0.65
+  - id: scores
+    title: The same request becomes one absolute residual
+    visual: Connect each actual frozen prediction and outcome to its absolute difference, preserving C1 through C9.
+    beats:
+      - say: Our nine frozen predictions are thirty through seventy milliseconds in steps of five. Their supplied
+          outcomes are thirty-two, thirty-two, forty-three, forty-one, fifty-five, forty-nine, sixty-seven,
+          fifty-seven and eighty-two. For each request, subtract its prediction from its outcome and take the
+          absolute value.
+        hold: 0.8
+        visual_cues:
+          - id: scores-b1
+            phrase: Our nine frozen predictions are thirty through seventy milliseconds in steps of five
+            targets:
+              - scores-mechanism
+            linger: 0.65
+      - say: The absolute residuals are two, three, three, four, five, six, seven, eight and twelve milliseconds. Each
+          measures distance from its predicted center, not whether the model overestimated or underestimated.
+          We can display the records in a different order while keeping each value attached to its request
+          identity.
+        hold: 0.8
+        visual_cues:
+          - id: scores-b2
+            phrase: The absolute residuals are two, three, three, four, five, six, seven, eight and twelve milliseconds
+            targets:
+              - scores-mechanism
+            linger: 0.65
+      - say: This absolute-error score gives the same radius around every new prediction. A different fixed score can
+          produce different set shapes. If a separate frozen scale model predicts larger error sizes for some
+          inputs, normalized scores can adapt the width; we will calibrate that rule separately.
+        hold: 0.8
+        visual_cues:
+          - id: scores-b3
+            phrase: This absolute-error score gives the same radius around every new prediction
+            targets:
+              - scores-mechanism
+            linger: 0.65
+  - id: quantile
+    title: Choose the corrected rank before its value
+    visual: Identified residual records travel into stable sorted slots; a separate future slot earns the extra
+      one in n+1.
+    beats:
+      - say: For a desired eighty-percent marginal coverage, alpha is twenty percent. With n calibration scores,
+          multiply n plus one by one minus alpha, then take the ceiling of that entire product to obtain k.
+          Round upward. Nine calibration scores plus the future position give ten times point eight, so k is
+          eight.
+        hold: 0.8
+        visual_cues:
+          - id: quantile-b1
+            phrase: For a desired eighty-percent marginal coverage, alpha is twenty percent
+            targets:
+              - quantile-mechanism
+            linger: 0.65
+          - id: rank-eight
+            phrase: so k is eight
+            targets:
+              - quantile-mechanism
+            color: yellow
+            linger: 0.6
+          - id: cf-rank-eight
+            phrase: so k is eight
+            targets:
+              - quantile-mechanism
+            color: cyan
+            linger: 0.35
+      - say: Sort the nine residuals and select the eighth observed value. The rank is eight and its value is eight
+          milliseconds; those are different quantities. At an eighty-five-percent target, ten times point
+          eight five rounds upward to rank nine instead.
+        hold: 0.8
+        visual_cues:
+          - id: quantile-b2
+            phrase: Sort the nine residuals and select the eighth observed value
+            targets:
+              - quantile-mechanism
+            linger: 0.65
+          - id: rank-sort
+            phrase: Sort the nine residuals and select the eighth observed value
+            targets:
+              - quantile-mechanism
+            color: yellow
+            linger: 0.6
+          - id: rank-value
+            phrase: its value is eight milliseconds
+            targets:
+              - quantile-mechanism
+            color: yellow
+            linger: 0.6
+          - id: cf-rank-value
+            phrase: its value is eight milliseconds
+            targets:
+              - quantile-mechanism
+            color: cyan
+            linger: 0.35
+      - say: The future position is why multiplying the calibration count alone by coverage gives the wrong rule.
+          Pause and predict the interval around forty milliseconds using the selected eight-millisecond
+          radius. Keep that center and radius visible; the next construction will place both endpoints.
+        hold: 0.8
+        visual_cues:
+          - id: quantile-b3
+            phrase: The future position is why multiplying the calibration count alone by coverage gives the wrong rule
+            targets:
+              - quantile-mechanism
+            linger: 0.65
+  - id: index-contract
+    title: A library percentile need not select the desired order statistic
+    visual: Separate the one-based rank, zero-based index and NumPy higher-position calculation on the same sorted
+      scores.
+    beats:
+      - say: A numbered order statistic must be translated into the library’s actual convention. Rank eight uses
+          zero-based index seven in the sorted list. The article selects that observed value directly, or uses
+          partition at that index, rather than interpolating between residuals.
+        hold: 0.8
+        visual_cues:
+          - id: index-contract-b1
+            phrase: A numbered order statistic must be translated into the library’s actual convention
+            targets:
+              - index-contract-mechanism
+            linger: 0.65
+          - id: cf-zero-index
+            phrase: Rank eight uses zero-based index seven in the sorted list
+            targets:
+              - index-contract-mechanism
+            color: cyan
+            linger: 0.35
+      - say: NumPy’s higher quantile method uses a different position formula. On these same nine scores, asking for
+          level eight ninths returns the ninth score, twelve, rather than the desired eighth score, eight.
+          That answer is conservative in this example but is a different threshold. The executed NumPy check
+          makes the mismatch visible.
+        hold: 0.8
+        visual_cues:
+          - id: index-contract-b2
+            phrase: NumPy’s higher quantile method uses a different position formula
+            targets:
+              - index-contract-mechanism
+            linger: 0.65
+          - id: cf-numpy-higher
+            phrase: returns the ninth score, twelve, rather than the desired eighth score, eight
+            targets:
+              - index-contract-mechanism
+            color: cyan
+            linger: 0.35
+      - say: For ninety-percent coverage the corrected rank is nine and the radius is twelve. At ninety-five percent
+          it is ten, beyond the nine observations, so this ordinary residual rule uses positive infinity. Do
+          not clip the rank or invent another error. Nineteen calibration scores first allow a finite observed
+          ninety-five-percent threshold, though that mathematical minimum may be statistically unstable.
+        hold: 0.8
+        visual_cues:
+          - id: index-contract-b3
+            phrase: For ninety-percent coverage the corrected rank is nine and the radius is twelve
+            targets:
+              - index-contract-mechanism
+            linger: 0.65
+          - id: rank-infinite
+            phrase: uses positive infinity
+            targets:
+              - index-contract-mechanism
+            color: pink
+            linger: 0.6
+          - id: cf-ninety-percent
+            phrase: For ninety-percent coverage the corrected rank is nine and the radius is twelve
+            targets:
+              - index-contract-mechanism
+            color: cyan
+            linger: 0.35
+          - id: cf-infinity
+            phrase: so this ordinary residual rule uses positive infinity
+            targets:
+              - index-contract-mechanism
+            color: cyan
+            linger: 0.35
+          - id: cf-minimum-n
+            phrase: Nineteen calibration scores first allow a finite observed ninety-five-percent threshold
+            targets:
+              - index-contract-mechanism
+            color: cyan
+            linger: 0.35
+  - id: interval
+    title: Invert the score inequality into endpoints
+    visual: The same center expands by the computed radius; an outcome moves to the inclusive boundary and beyond it.
+    beats:
+      - say: Subtract eight from forty and add eight on the other side. The interval is thirty-two to forty-eight
+          milliseconds, with width sixteen. It contains a forty-four-millisecond outcome. A
+          fifty-three-millisecond outcome is a miss.
+        hold: 0.8
+        visual_cues:
+          - id: interval-b1
+            phrase: Subtract eight from forty and add eight on the other side
+            targets:
+              - interval-mechanism
+            linger: 0.65
+          - id: interval-endpoints
+            phrase: Subtract eight from forty and add eight on the other side
+            targets:
+              - interval-mechanism
+            color: yellow
+            linger: 0.6
+          - id: interval-hit
+            phrase: It contains a forty-four-millisecond outcome
+            targets:
+              - interval-mechanism
+            color: green
+            linger: 0.6
+          - id: interval-miss
+            phrase: A fifty-three-millisecond outcome is a miss
+            targets:
+              - interval-mechanism
+            color: pink
+            linger: 0.6
+          - id: cf-endpoints
+            phrase: The interval is thirty-two to forty-eight milliseconds, with width sixteen
+            targets:
+              - interval-mechanism
+            color: cyan
+            linger: 0.35
+          - id: cf-outcome-hit
+            phrase: It contains a forty-four-millisecond outcome
+            targets:
+              - interval-mechanism
+            color: cyan
+            linger: 0.35
+          - id: cf-outcome-miss
+            phrase: A fifty-three-millisecond outcome is a miss
+            targets:
+              - interval-mechanism
+            color: cyan
+            linger: 0.35
+      - say: The set contains outcomes whose absolute residual is at most q. An outcome exactly at forty-eight is
+          included, because the boundary is less than or equal, not strictly less. The interval is the score
+          inequality expressed back in the units of the response.
+        hold: 0.8
+        visual_cues:
+          - id: interval-b2
+            phrase: The set contains outcomes whose absolute residual is at most q
+            targets:
+              - interval-mechanism
+            linger: 0.65
+          - id: cf-inclusive-boundary
+            phrase: An outcome exactly at forty-eight is included
+            targets:
+              - interval-mechanism
+            color: cyan
+            linger: 0.35
+      - say: An infinite radius gives the entire real line in this construction. It never misses a finite outcome, but
+          does not help meet a fifty-millisecond deadline. A known bounded outcome space could support other
+          finite sets; the unavailable observed quantile here does not by itself justify one.
+        hold: 0.8
+        visual_cues:
+          - id: interval-b3
+            phrase: An infinite radius gives the entire real line in this construction
+            targets:
+              - interval-mechanism
+            linger: 0.65
+  - id: exchangeability
+    title: Let every score take its turn as the future one
+    visual: Enumerate ten distinct score identities and actually remove each held-out identity before calibrating
+      the remaining nine.
+    beats:
+      - say: "The rank argument needs exchangeability: the joint distribution of calibration examples and the future
+          example is unchanged by permuting their positions. Independent draws from one distribution are
+          sufficient, but exchangeability is broader. A permutation of one observed list does not establish
+          that distributional property."
+        hold: 0.8
+        visual_cues:
+          - id: exchangeability-b1
+            phrase: "The rank argument needs exchangeability: the joint distribution of calibration examples and the
+              future example is unchanged by permuting their positions"
+            targets:
+              - exchangeability-mechanism
+            linger: 0.65
+      - say: To see the counting argument, use a separate rank-only fixture with ten distinct scores, one through ten.
+          Hold out each score in turn as the future one and calibrate on the remaining nine. The eighth
+          calibration score is nine when the held-out score is among one through eight. Each of those eight is
+          covered.
+        hold: 0.8
+        visual_cues:
+          - id: exchangeability-b2
+            phrase: To see the counting argument, use a separate rank-only fixture with ten distinct scores, one through
+              ten
+            targets:
+              - exchangeability-mechanism
+            linger: 0.65
+          - id: rank-enumerate
+            phrase: Hold out each score in turn as the future one and calibrate on the remaining nine. The eighth
+              calibration score is nine when the held-out score is among one through eight. Each of those
+              eight is covered
+            targets:
+              - exchangeability-mechanism
+            color: cyan
+            linger: 0.6
+          - id: cf-enumerate-eight
+            phrase: Each of those eight is covered
+            targets:
+              - exchangeability-mechanism
+            color: cyan
+            linger: 0.35
+      - say: When nine is held out, the eighth remaining score is eight, so nine misses. Holding out ten also gives
+          threshold eight and a miss. Eight of ten possible future ranks are covered. Under exchangeability
+          these distinct ranks are equally likely, so the corrected construction earns eighty percent; this is
+          enumeration, not new latency data.
+        hold: 0.8
+        visual_cues:
+          - id: exchangeability-b3
+            phrase: When nine is held out, the eighth remaining score is eight, so nine misses
+            targets:
+              - exchangeability-mechanism
+            linger: 0.65
+          - id: rank-last-two
+            phrase: When nine is held out, the eighth remaining score is eight, so nine misses. Holding out ten also gives
+              threshold eight and a miss
+            targets:
+              - exchangeability-mechanism
+            color: pink
+            linger: 0.6
+          - id: rank-count-answer
+            phrase: Eight of ten possible future ranks are covered
+            targets:
+              - exchangeability-mechanism
+            color: green
+            linger: 0.6
+          - id: cf-future-nine
+            phrase: so nine misses
+            targets:
+              - exchangeability-mechanism
+            color: cyan
+            linger: 0.35
+          - id: cf-future-ten
+            phrase: Holding out ten also gives threshold eight and a miss
+            targets:
+              - exchangeability-mechanism
+            color: cyan
+            linger: 0.35
+          - id: cf-enumerated-coverage
+            phrase: Eight of ten possible future ranks are covered
+            targets:
+              - exchangeability-mechanism
+            color: cyan
+            linger: 0.35
+  - id: ties-bound
+    title: A repeated boundary can make coverage conservative
+    visual: Retain duplicate scores at the same threshold, then compare distinct ranks with an all-zero
+      counterexample.
+    beats:
+      - say: Our latency fixture has two errors of three milliseconds. Keep both rows and include outcomes at the
+          threshold. Ties can make the basic rule conservative, but do not invalidate its lower coverage
+          bound. If every score is zero, the inclusive set can cover one hundred percent rather than exactly
+          eighty.
+        hold: 0.8
+        visual_cues:
+          - id: ties-bound-b1
+            phrase: Our latency fixture has two errors of three milliseconds
+            targets:
+              - ties-bound-mechanism
+            linger: 0.65
+          - id: ties-all-zero
+            phrase: the inclusive set can cover one hundred percent rather than exactly eighty
+            targets:
+              - ties-bound-mechanism
+            color: green
+            linger: 0.6
+          - id: cf-zero-ties
+            phrase: the inclusive set can cover one hundred percent rather than exactly eighty
+            targets:
+              - ties-bound-mechanism
+            color: cyan
+            linger: 0.35
+      - say: With almost surely distinct scores, the unmodified corrected-rank rule has coverage exactly k divided by
+          n plus one. A common looser bound is one minus alpha through one minus alpha plus one over n plus
+          one. Here that bound is eighty through ninety percent while the exact distinct-rank coverage is
+          eighty.
+        hold: 0.8
+        visual_cues:
+          - id: ties-bound-b2
+            phrase: With almost surely distinct scores, the unmodified corrected-rank rule has coverage exactly k divided
+              by n plus one
+            targets:
+              - ties-bound-mechanism
+            linger: 0.65
+          - id: cf-distinct-ranks
+            phrase: the unmodified corrected-rank rule has coverage exactly k divided by n plus one
+            targets:
+              - ties-bound-mechanism
+            color: cyan
+            linger: 0.35
+          - id: cf-looser-bound
+            phrase: Here that bound is eighty through ninety percent while the exact distinct-rank coverage is eighty
+            targets:
+              - ties-bound-mechanism
+            color: cyan
+            linger: 0.35
+      - say: These statements average over calibration and the next outcome. For a single fixed calibration sample,
+          even a very large test set can have a different coverage rate. That does not turn the marginal
+          theorem into an individual-request probability or a guarantee for every tenant.
+        hold: 0.8
+        visual_cues:
+          - id: ties-bound-b3
+            phrase: These statements average over calibration and the next outcome
+            targets:
+              - ties-bound-mechanism
+            linger: 0.65
+  - id: coverage
+    title: Four new outcomes measure a different quantity
+    visual: Four actual prediction intervals retain their centers and observed outcomes, accumulating three hits
+      and one miss.
+    beats:
+      - say: Now freeze the radius at eight. Our four new predictions are forty, forty-two, thirty-eight and
+          forty-four. Their outcomes are forty-four, forty-eight, thirty-five and fifty-five. The first three
+          lie inside their respective intervals; the last misses its upper endpoint of fifty-two.
+        hold: 0.8
+        visual_cues:
+          - id: coverage-b1
+            phrase: Now freeze the radius at eight
+            targets:
+              - coverage-mechanism
+            linger: 0.65
+      - say: "Three of four is seventy-five percent observed coverage. It does not contradict an eighty-percent
+          marginal guarantee: the calibration sample selected one radius and the four test outcomes add
+          another source of variation. This tiny synthetic evaluation is neither a population estimate with
+          precision nor a comparison of deployed models."
+        hold: 0.8
+        visual_cues:
+          - id: coverage-b2
+            phrase: Three of four is seventy-five percent observed coverage
+            targets:
+              - coverage-mechanism
+            linger: 0.65
+          - id: cf-observed-coverage
+            phrase: Three of four is seventy-five percent observed coverage
+            targets:
+              - coverage-mechanism
+            color: cyan
+            linger: 0.35
+      - say: Report interval width alongside coverage. An unbounded set can maximize coverage while providing little
+          decision value. Keep counts, model and calibration versions, group identity, prediction set and
+          observed outcome. Small subgroup counts need uncertainty, and no finite monitoring log proves future
+          exchangeability.
+        hold: 0.8
+        visual_cues:
+          - id: coverage-b3
+            phrase: Report interval width alongside coverage
+            targets:
+              - coverage-mechanism
+            linger: 0.65
+  - id: classifier-score
+    title: A candidate label needs its own nonconformity score
+    visual: Convert label probabilities into individual one-minus-probability scores, then invert the calibrated
+      cutoff.
+    beats:
+      - say: A classifier returns labels rather than milliseconds. One possible nonconformity score for a candidate
+          label is one minus that label’s model probability. Calibrate the true labels’ scores, then include
+          each candidate whose score is at most q. Equivalently its probability must be at least one minus q.
+        hold: 0.8
+        visual_cues:
+          - id: classifier-score-b1
+            phrase: A classifier returns labels rather than milliseconds
+            targets:
+              - classifier-score-mechanism
+            linger: 0.65
+      - say: The article supplies nine calibration rows whose true class is zero, with class-zero probabilities point
+          five five through point nine five. Their separately calibrated softmax-score threshold is point
+          four, so the probability cutoff is point six. A new confident row point nine eight, point zero one,
+          point zero zero five, point zero zero five keeps class zero.
+        hold: 0.8
+        visual_cues:
+          - id: classifier-score-b2
+            phrase: The article supplies nine calibration rows whose true class is zero, with class-zero probabilities
+              point five five through point nine five
+            targets:
+              - classifier-score-mechanism
+            linger: 0.65
+          - id: softmax-set
+            phrase: keeps class zero
+            targets:
+              - classifier-score-mechanism
+            color: green
+            linger: 0.6
+          - id: cf-softmax-threshold
+            phrase: Their separately calibrated softmax-score threshold is point four, so the probability cutoff is point
+              six
+            targets:
+              - classifier-score-mechanism
+            color: cyan
+            linger: 0.35
+          - id: cf-softmax-set
+            phrase: keeps class zero
+            targets:
+              - classifier-score-mechanism
+            color: cyan
+            linger: 0.35
+      - say: For four equal class probabilities of point two five, no label reaches point six, so this rule returns an
+          empty set. Model probabilities need not be calibrated for conformal validity under the data
+          assumptions, but poor scores can produce inefficient sets. Empty, singleton and large sets each need
+          an explicit downstream policy.
+        hold: 0.8
+        visual_cues:
+          - id: classifier-score-b3
+            phrase: For four equal class probabilities of point two five, no label reaches point six, so this rule returns
+              an empty set
+            targets:
+              - classifier-score-mechanism
+            linger: 0.65
+          - id: cf-softmax-empty
+            phrase: so this rule returns an empty set
+            targets:
+              - classifier-score-mechanism
+            color: cyan
+            linger: 0.35
+  - id: aps-inversion
+    title: Cumulative probability belongs to a label identity
+    visual: Sort class IDs with their probabilities and build cumulative-through-label scores, preserving the
+      fixed tie rule.
+    beats:
+      - say: Another score sums probabilities through the candidate’s position after sorting labels by decreasing
+          probability. Keep a fixed tie rule. The sorted objects are class labels, not probability values. For
+          label at rank r, its deterministic score is the cumulative probability through r.
+        hold: 0.8
+        visual_cues:
+          - id: aps-inversion-b1
+            phrase: Another score sums probabilities through the candidate’s position after sorting labels by decreasing
+              probability
+            targets:
+              - aps-inversion-mechanism
+            linger: 0.65
+          - id: cf-aps-build
+            phrase: Another score sums probabilities through the candidate’s position after sorting labels by decreasing
+              probability
+            targets:
+              - aps-inversion-mechanism
+            color: cyan
+            linger: 0.35
+      - say: Calibrate this cumulative score using its own held-out true labels. The same supplied nine rows yield
+          threshold point nine. Direct inversion includes labels whose cumulative score is at most point nine.
+          For the confident row, even the first cumulative score is point nine eight, so the direct set is
+          empty.
+        hold: 0.8
+        visual_cues:
+          - id: aps-inversion-b2
+            phrase: Calibrate this cumulative score using its own held-out true labels
+            targets:
+              - aps-inversion-mechanism
+            linger: 0.65
+          - id: cf-aps-threshold
+            phrase: The same supplied nine rows yield threshold point nine
+            targets:
+              - aps-inversion-mechanism
+            color: cyan
+            linger: 0.35
+          - id: cf-aps-empty
+            phrase: so the direct set is empty
+            targets:
+              - aps-inversion-mechanism
+            color: cyan
+            linger: 0.35
+      - say: On the four-way uniform row, cumulative scores are point two five, point five, point seven five and one.
+          Direct inversion keeps class IDs zero, one and two. The result differs from the empty set produced
+          by the individual softmax score, even though both procedures target the same marginal coverage.
+        hold: 0.8
+        visual_cues:
+          - id: aps-inversion-b3
+            phrase: On the four-way uniform row, cumulative scores are point two five, point five, point seven five and
+              one
+            targets:
+              - aps-inversion-mechanism
+            linger: 0.65
+          - id: cf-aps-uniform
+            phrase: Direct inversion keeps class IDs zero, one and two
+            targets:
+              - aps-inversion-mechanism
+            color: cyan
+            linger: 0.35
+          - id: cf-aps-uniform-build
+            phrase: On the four-way uniform row, cumulative scores are point two five, point five, point seven five and
+              one
+            targets:
+              - aps-inversion-mechanism
+            color: cyan
+            linger: 0.35
+  - id: aps-crossing
+    title: Including the first crossing label enlarges the set
+    visual: Carry the same cumulative staircase past the threshold and distinguish direct inversion from its
+      conservative superset.
+    beats:
+      - say: A simple conservative variant includes labels through the first cumulative sum strictly greater than q.
+          If no crossing exists, keep all labels. Since it contains the direct-inversion set, it preserves the
+          lower marginal coverage guarantee, potentially at a larger set size.
+        hold: 0.8
+        visual_cues:
+          - id: aps-crossing-b1
+            phrase: A simple conservative variant includes labels through the first cumulative sum strictly greater than q
+            targets:
+              - aps-crossing-mechanism
+            linger: 0.65
+          - id: cf-cross-build
+            phrase: A simple conservative variant includes labels through the first cumulative sum strictly greater than q
+            targets:
+              - aps-crossing-mechanism
+            color: cyan
+            linger: 0.35
+      - say: For the confident row, the first label already crosses point nine, so this variant keeps class zero. For
+          the uniform row, the fourth label crosses and all four remain. If a cumulative sum equals the
+          threshold exactly, direct inversion includes that label and the conservative construction continues
+          to the first strictly larger sum.
+        hold: 0.8
+        visual_cues:
+          - id: aps-crossing-b2
+            phrase: For the confident row, the first label already crosses point nine, so this variant keeps class zero
+            targets:
+              - aps-crossing-mechanism
+            linger: 0.65
+          - id: cross-uniform
+            phrase: For the uniform row
+            targets:
+              - aps-crossing-mechanism
+            color: cyan
+            linger: 0.6
+          - id: cf-cross-confident
+            phrase: so this variant keeps class zero
+            targets:
+              - aps-crossing-mechanism
+            color: cyan
+            linger: 0.35
+          - id: cf-cross-uniform
+            phrase: For the uniform row, the fourth label crosses and all four remain
+            targets:
+              - aps-crossing-mechanism
+            color: cyan
+            linger: 0.35
+          - id: cf-cross-confident-build
+            phrase: For the confident row, the first label already crosses point nine
+            targets:
+              - aps-crossing-mechanism
+            color: cyan
+            linger: 0.35
+          - id: cf-cross-uniform-build
+            phrase: For the uniform row, the fourth label crosses and all four remain
+            targets:
+              - aps-crossing-mechanism
+            color: cyan
+            linger: 0.35
+      - say: Randomized adaptive prediction sets can remove the crossing label and can be empty; their calibration
+          must match their randomized score. The nonempty conservative construction here is one specific
+          convention. Neither its name, its nonempty output nor a singleton certifies the selected label on
+          this request.
+        hold: 0.8
+        visual_cues:
+          - id: aps-crossing-b3
+            phrase: Randomized adaptive prediction sets can remove the crossing label and can be empty; their calibration
+              must match their randomized score
+            targets:
+              - aps-crossing-mechanism
+            linger: 0.65
+  - id: subgroup-mix
+    title: A population average can hide the long requests
+    visual: Two request groups retain their individual covered/missed counts while only their mixture weights change.
+    beats:
+      - say: "Use a separate constructed report: seven hundred fifty short requests at ninety-six-percent coverage and
+          two hundred fifty long requests at fifty-four percent. That gives seven hundred twenty covered short
+          requests and one hundred thirty-five covered long requests. Together eight hundred fifty-five of one
+          thousand are covered, or eighty-five point five percent."
+        hold: 0.8
+        visual_cues:
+          - id: subgroup-mix-b1
+            phrase: "Use a separate constructed report: seven hundred fifty short requests at ninety-six-percent coverage
+              and two hundred fifty long requests at fifty-four percent"
+            targets:
+              - subgroup-mix-mechanism
+            linger: 0.65
+          - id: mixture-total
+            phrase: or eighty-five point five percent
+            targets:
+              - subgroup-mix-mechanism
+            color: green
+            linger: 0.6
+          - id: cf-mixture855
+            phrase: or eighty-five point five percent
+            targets:
+              - subgroup-mix-mechanism
+            color: cyan
+            linger: 0.35
+      - say: The overall eighty-percent target passes while the long-request group performs poorly. Now change only
+          the group mixture to half short and half long, holding those subgroup rates fixed. The aggregate
+          becomes half times point nine six plus half times point five four, or seventy-five percent. The
+          population changed even though neither subgroup rate changed.
+        hold: 0.8
+        visual_cues:
+          - id: subgroup-mix-b2
+            phrase: The overall eighty-percent target passes while the long-request group performs poorly
+            targets:
+              - subgroup-mix-mechanism
+            linger: 0.65
+          - id: mixture-change
+            phrase: Now change only the group mixture to half short and half long
+            targets:
+              - subgroup-mix-mechanism
+            color: yellow
+            linger: 0.6
+          - id: cf-mixture750
+            phrase: or seventy-five percent
+            targets:
+              - subgroup-mix-mechanism
+            color: cyan
+            linger: 0.35
+      - say: Inspect predefined groups and consider separately calibrated groups when their assumptions and sample
+          sizes support it. Group calibration is a different promise from arbitrary conditional coverage at
+          every input. Bursts, dependence and changing prompt mixtures need an appropriate method and
+          evaluation over time; shuffling old logs does not repair a shifted law.
+        hold: 0.8
+        visual_cues:
+          - id: subgroup-mix-b3
+            phrase: Inspect predefined groups and consider separately calibrated groups when their assumptions and sample
+              sizes support it
+            targets:
+              - subgroup-mix-mechanism
+            linger: 0.65
+  - id: normalized-score
+    title: A fixed scale changes width without changing the target
+    visual: The same nine errors divide by prespecified positive scales, then the new threshold expands each test
+      interval in its own units.
+    beats:
+      - say: Freeze a positive scale predictor independently of calibration. It need not equal the true conditional
+          standard deviation. Divide each absolute residual by its scale to form a dimensionless score.
+          Calibrate those scores, then multiply q by the new input’s scale to recover a radius in
+          milliseconds.
+        hold: 0.8
+        visual_cues:
+          - id: normalized-score-b1
+            phrase: Freeze a positive scale predictor independently of calibration
+            targets:
+              - normalized-score-mechanism
+            linger: 0.65
+          - id: cf-normalized-divide
+            phrase: Divide each absolute residual by its scale to form a dimensionless score
+            targets:
+              - normalized-score-mechanism
+            color: cyan
+            linger: 0.35
+      - say: The supplied calibration scales are two, two, two, two, three, three, four, four and four. The separately
+          calibrated normalized threshold is two. On the four earlier test predictions, supplied scales three,
+          three point five, two and six yield intervals thirty-four to forty-six, thirty-five to forty-nine,
+          thirty-four to forty-two, and thirty-two to fifty-six.
+        hold: 0.8
+        visual_cues:
+          - id: normalized-score-b2
+            phrase: The supplied calibration scales are two, two, two, two, three, three, four, four and four
+            targets:
+              - normalized-score-mechanism
+            linger: 0.65
+          - id: cf-normalized-q
+            phrase: The separately calibrated normalized threshold is two
+            targets:
+              - normalized-score-mechanism
+            color: cyan
+            linger: 0.35
+          - id: cf-normalized-intervals
+            phrase: yield intervals thirty-four to forty-six, thirty-five to forty-nine, thirty-four to forty-two, and
+              thirty-two to fifty-six
+            targets:
+              - normalized-score-mechanism
+            color: cyan
+            linger: 0.35
+          - id: cf-normalized-scales
+            phrase: The supplied calibration scales are two, two, two, two, three, three, four, four and four
+            targets:
+              - normalized-score-mechanism
+            color: cyan
+            linger: 0.35
+          - id: cf-normalized-first
+            phrase: thirty-four to forty-six
+            targets:
+              - normalized-score-mechanism
+            color: cyan
+            linger: 0.35
+          - id: cf-normalized-second
+            phrase: thirty-five to forty-nine
+            targets:
+              - normalized-score-mechanism
+            color: cyan
+            linger: 0.35
+          - id: cf-normalized-third
+            phrase: thirty-four to forty-two
+            targets:
+              - normalized-score-mechanism
+            color: cyan
+            linger: 0.35
+          - id: cf-normalized-fourth
+            phrase: thirty-two to fifty-six
+            targets:
+              - normalized-score-mechanism
+            color: cyan
+            linger: 0.35
+      - say: All four supplied outcomes are now covered, but this tiny example does not establish superior population
+          performance. The scale values were prespecified, not chosen to repair these misses. Selecting a
+          favorite score rule after inspecting calibration outcomes needs its own selection analysis or fresh
+          calibration. The ordinary guarantee remains marginal.
+        hold: 0.8
+        visual_cues:
+          - id: normalized-score-b3
+            phrase: All four supplied outcomes are now covered, but this tiny example does not establish superior
+              population performance
+            targets:
+              - normalized-score-mechanism
+            linger: 0.65
+          - id: cf-normalized-four
+            phrase: All four supplied outcomes are now covered
+            targets:
+              - normalized-score-mechanism
+            color: cyan
+            linger: 0.35
+  - id: shift
+    title: A changed stream needs a new statistical argument
+    visual: Hold the original radius fixed while long-request weight and observed misses change, preserving the
+      subgroup counters.
+    beats:
+      - say: A heavy-tailed but exchangeable outcome distribution can still support split conformal. A changing queue,
+          time trend or dependent traffic stream can instead break the needed relation. A frozen model alone
+          does not keep new residuals exchangeable with an old calibration sample.
+        hold: 0.8
+        visual_cues:
+          - id: shift-b1
+            phrase: A heavy-tailed but exchangeable outcome distribution can still support split conformal
+            targets:
+              - shift-mechanism
+            linger: 0.65
+      - say: Monitor current labeled outcomes and the process that obtains them. Fresh calibration after a model or
+          process change helps only if its collection and the subsequent stream satisfy the chosen method’s
+          assumptions. Shift-aware and time-aware methods add their own weighting, assumptions and guarantees;
+          a shuffle is not a substitute.
+        hold: 0.8
+        visual_cues:
+          - id: shift-b2
+            phrase: Monitor current labeled outcomes and the process that obtains them
+            targets:
+              - shift-mechanism
+            linger: 0.65
+      - say: "Keep the question precise: is the model biased, is error size input-dependent, did a group mixture
+          change, or did fitting contaminate calibration? These failures call for different repairs. Preserve
+          both counts and interval widths before attributing a lower coverage rate to the quantile algebra."
+        hold: 0.8
+        visual_cues:
+          - id: shift-b3
+            phrase: "Keep the question precise: is the model biased, is error size input-dependent, did a group mixture
+              change, or did fitting contaminate calibration"
+            targets:
+              - shift-mechanism
+            linger: 0.65
+  - id: crc-loss
+    title: Define the costly event before choosing a threshold
+    visual: Retain accepted and wrong indicators on each request, separating joint error over arrivals from error
+      among selected answers.
+    beats:
+      - say: For an automated-answer router, latency coverage is not the costly event. One target is an incorrect
+          answer that was accepted, measured per incoming request. Another is the error rate among accepted
+          answers. The second divides by acceptance probability and can behave differently as the router
+          becomes stricter.
+        hold: 0.8
+        visual_cues:
+          - id: crc-loss-b1
+            phrase: For an automated-answer router, latency coverage is not the costly event
+            targets:
+              - crc-loss-mechanism
+            linger: 0.65
+      - say: Conformal risk control can bound expected future loss for exchangeable loss curves that are bounded,
+          non-increasing as a conservativeness parameter increases, and right-continuous, with a maximally
+          conservative fallback whose loss meets the target. For losses in zero through one, multiply the
+          empirical mean loss by n, add one, then divide that entire sum by n plus one.
+        hold: 0.8
+        visual_cues:
+          - id: crc-loss-b2
+            phrase: Conformal risk control can bound expected future loss for exchangeable loss curves that are bounded,
+              non-increasing as a conservativeness parameter increases, and right-continuous, with a maximally
+              conservative fallback whose loss meets the target
+            targets:
+              - crc-loss-mechanism
+            linger: 0.65
+      - say: The theorem controls expected loss over calibration and a new example, not a high-probability certificate
+          conditional on this realized calibration sample. An arbitrary non-monotone loss or changing
+          selective-error ratio does not receive the same basic guarantee. Reliable labels and a fixed
+          generation and verifier procedure remain necessary.
+        hold: 0.8
+        visual_cues:
+          - id: crc-loss-b3
+            phrase: The theorem controls expected loss over calibration and a new example, not a high-probability
+              certificate conditional on this realized calibration sample
+            targets:
+              - crc-loss-mechanism
+            linger: 0.65
+  - id: crc-threshold
+    title: One extra mistake changes the admitted threshold
+    visual: Nine score/wrong records move through a strict threshold; corrected risk counts determine the first
+      passing threshold.
+    beats:
+      - say: Our separate nine-row router accepts only scores strictly greater than lambda. Wrong answers have scores
+          point one, point six and point nine; the six correct answers occupy point two through point eight
+          excluding point six. These verifier scores are arbitrary outputs, not truth probabilities. When
+          lambda reaches a score, that request stops being accepted, giving the required right-continuous
+          drop.
+        hold: 0.8
+        visual_cues:
+          - id: crc-threshold-b1
+            phrase: Our separate nine-row router accepts only scores strictly greater than lambda
+            targets:
+              - crc-threshold-mechanism
+            linger: 0.65
+      - say: At lambda point one, two mistakes remain accepted. Their empirical joint rate is two ninths, about
+          twenty-two point two percent, which looks below the twenty-five-percent target. For the corrected
+          criterion, add one to those two mistakes, then divide by ten, giving thirty percent, so this
+          threshold fails. For a binary joint-error loss the general criterion is accepted mistakes plus one,
+          all divided by n plus one.
+        hold: 0.8
+        visual_cues:
+          - id: crc-threshold-b2
+            phrase: At lambda point one, two mistakes remain accepted
+            targets:
+              - crc-threshold-mechanism
+            linger: 0.65
+          - id: cf-crc-fail
+            phrase: giving thirty percent, so this threshold fails
+            targets:
+              - crc-threshold-mechanism
+            color: cyan
+            linger: 0.35
+      - say: Lambda point six leaves one mistake among three accepted answers. The corrected criterion is two tenths,
+          twenty percent, so it passes. The observed calibration joint error is one ninth, about eleven point
+          one percent; selective error is one third, thirty-three point three percent. If no candidate passes,
+          threshold one accepts none and provides the zero-loss fallback. These calibration counts are not
+          future error measurements.
+        hold: 0.8
+        visual_cues:
+          - id: crc-threshold-b3
+            phrase: Lambda point six leaves one mistake among three accepted answers
+            targets:
+              - crc-threshold-mechanism
+            linger: 0.65
+          - id: cf-crc-pass
+            phrase: The corrected criterion is two tenths, twenty percent, so it passes
+            targets:
+              - crc-threshold-mechanism
+            color: cyan
+            linger: 0.35
+          - id: cf-crc-denominators
+            phrase: selective error is one third, thirty-three point three percent
+            targets:
+              - crc-threshold-mechanism
+            color: cyan
+            linger: 0.35
+          - id: cf-crc-fallback
+            phrase: threshold one accepts none and provides the zero-loss fallback
+            targets:
+              - crc-threshold-mechanism
+            color: cyan
+            linger: 0.35
+  - id: selected-error
+    title: A covered population can have completely wrong singletons
+    visual: A 100-request population keeps 90 covered two-label sets and 10 wrong singletons; selecting only
+      singletons exposes a different denominator.
+    beats:
+      - say: Take a constructed population of one hundred requests. Ninety two-label sets contain the true label. Ten
+          singleton sets contain the wrong label. Marginal coverage is ninety percent. If the router accepts
+          only singletons, it accepts ten percent of requests and all of its accepted answers are wrong.
+        hold: 0.8
+        visual_cues:
+          - id: selected-error-b1
+            phrase: Take a constructed population of one hundred requests
+            targets:
+              - selected-error-mechanism
+            linger: 0.65
+          - id: cf-population90
+            phrase: Marginal coverage is ninety percent
+            targets:
+              - selected-error-mechanism
+            color: cyan
+            linger: 0.35
+      - say: The joint wrong-and-accepted rate is ten over one hundred, ten percent. Error among accepted answers is
+          ten over ten, one hundred percent. These are different denominators. The example is not a fitted
+          conformal or risk-control experiment; it shows why a coverage guarantee cannot be silently converted
+          into a selected-answer guarantee.
+        hold: 0.8
+        visual_cues:
+          - id: selected-error-b2
+            phrase: The joint wrong-and-accepted rate is ten over one hundred, ten percent
+            targets:
+              - selected-error-mechanism
+            linger: 0.65
+          - id: cf-selected100
+            phrase: Error among accepted answers is ten over ten, one hundred percent
+            targets:
+              - selected-error-mechanism
+            color: cyan
+            linger: 0.35
+          - id: cf-joint-error
+            phrase: The joint wrong-and-accepted rate is ten over one hundred, ten percent
+            targets:
+              - selected-error-mechanism
+            color: cyan
+            linger: 0.35
+      - say: Set size can trigger clarification, human review or fallback under a defined policy. It does not
+          authorize a tool call. Authentication, permission checks and required action controls remain
+          separate. A critic’s score or low entropy is not a replacement for reliable correctness labels.
+        hold: 0.8
+        visual_cues:
+          - id: selected-error-b3
+            phrase: Set size can trigger clarification, human review or fallback under a defined policy
+            targets:
+              - selected-error-mechanism
+            linger: 0.65
+  - id: transfer
+    title: Keep usefulness and coverage in the same record
+    visual: Return to the same latency axis, showing center, corrected rank, radius, deadline and
+      model/calibration identities together.
+    beats:
+      - say: An interval below fifty milliseconds can inform a routing policy, but the eighty-percent marginal
+          guarantee does not give this request an eighty-percent conditional chance of meeting its deadline.
+          Selecting only intervals whose upper endpoints are below fifty creates another subgroup, whose
+          failure rate is not certified by ordinary marginal validity alone.
+        hold: 0.8
+        visual_cues:
+          - id: transfer-b1
+            phrase: An interval below fifty milliseconds can inform a routing policy, but the eighty-percent marginal
+              guarantee does not give this request an eighty-percent conditional chance of meeting its
+              deadline
+            targets:
+              - transfer-mechanism
+            linger: 0.65
+      - say: Moving the predicted center with calibration fixed shifts both endpoints and preserves width. Changing
+          desired coverage recomputes the rank and can change radius or force infinity. Changing one residual
+          value can change q without changing the selected rank. Keep those controls separate so every altered
+          set has a visible cause.
+        hold: 0.8
+        visual_cues:
+          - id: transfer-b2
+            phrase: Moving the predicted center with calibration fixed shifts both endpoints and preserves width
+            targets:
+              - transfer-mechanism
+            linger: 0.65
+          - id: transfer-center
+            phrase: Moving the predicted center with calibration fixed shifts both endpoints and preserves width
+            targets:
+              - transfer-mechanism
+            color: yellow
+            linger: 0.6
+          - id: transfer-coverage
+            phrase: Changing desired coverage recomputes the rank and can change radius or force infinity
+            targets:
+              - transfer-mechanism
+            color: yellow
+            linger: 0.6
+          - id: transfer-residual
+            phrase: Changing one residual value can change q without changing the selected rank
+            targets:
+              - transfer-mechanism
+            color: yellow
+            linger: 0.6
+      - say: Record the fitted procedure, score rule, calibration identities and versions, requested coverage and data
+          assumptions. Measure current inclusion, width, subgroup counts and decision outcomes. You can now
+          distinguish a point estimate, a new-outcome set, an aggregate guarantee and the separate loss a
+          router actually cares about.
+        hold: 0.8
+        visual_cues:
+          - id: transfer-b3
+            phrase: Record the fitted procedure, score rule, calibration identities and versions, requested coverage and
+              data assumptions
+            targets:
+              - transfer-mechanism
+            linger: 0.65
+  - id: fresh-deadline
+    title: A covered new outcome can still miss its deadline
+    visual: A new 52 ms point uses 19 supplied ordered scores; rank 18 selects 7, then an endpoint outcome and
+      one-score intervention test the full contract.
+    beats:
+      - say: Try a fresh supplied calibration set of nineteen scores. The first seventeen are at most six, the
+          eighteenth is seven and the last is twelve. Desired coverage is ninety percent. A new prediction is
+          fifty-two milliseconds and the deadline is fifty-five. Compute the corrected rank and interval
+          before seeing the outcome. Pause.
+        hold: 1.3
+        visual_cues:
+          - id: fresh-deadline-b1
+            phrase: Try a fresh supplied calibration set of nineteen scores
+            targets:
+              - fresh-deadline-mechanism
+            linger: 0.65
+      - say: Ceiling of twenty times point nine gives rank eighteen. Its value is seven, so the interval is forty-five
+          to fifty-nine milliseconds. An observed fifty-nine is covered at the inclusive endpoint, but it
+          misses the fifty-five deadline. Coverage and meeting a service deadline are different events.
+        hold: 0.8
+        visual_cues:
+          - id: fresh-deadline-b2
+            phrase: Ceiling of twenty times point nine gives rank eighteen
+            targets:
+              - fresh-deadline-mechanism
+            linger: 0.65
+          - id: fresh-rank
+            phrase: Ceiling of twenty times point nine gives rank eighteen
+            targets:
+              - fresh-deadline-mechanism
+            color: yellow
+            linger: 0.6
+          - id: fresh-interval
+            phrase: the interval is forty-five to fifty-nine milliseconds
+            targets:
+              - fresh-deadline-mechanism
+            color: green
+            linger: 0.6
+          - id: fresh-outcome
+            phrase: An observed fifty-nine is covered at the inclusive endpoint
+            targets:
+              - fresh-deadline-mechanism
+            color: green
+            linger: 0.6
+          - id: cf-fresh-rank
+            phrase: Ceiling of twenty times point nine gives rank eighteen
+            targets:
+              - fresh-deadline-mechanism
+            color: cyan
+            linger: 0.35
+          - id: cf-fresh-interval
+            phrase: so the interval is forty-five to fifty-nine milliseconds
+            targets:
+              - fresh-deadline-mechanism
+            color: cyan
+            linger: 0.35
+          - id: cf-fresh-covered
+            phrase: An observed fifty-nine is covered at the inclusive endpoint
+            targets:
+              - fresh-deadline-mechanism
+            color: cyan
+            linger: 0.35
+          - id: cf-fresh-deadline
+            phrase: but it misses the fifty-five deadline
+            targets:
+              - fresh-deadline-mechanism
+            color: cyan
+            linger: 0.35
+          - id: cf-fresh-value
+            phrase: Its value is seven
+            targets:
+              - fresh-deadline-mechanism
+            color: cyan
+            linger: 0.35
+      - say: Now change only the eighteenth calibration score from seven to eight, leaving the last at twelve. Rank
+          eighteen stays fixed, the radius becomes eight, and the interval becomes forty-four to sixty with
+          width sixteen. The earlier outcome remains covered. Neither result certifies a selected request’s
+          deadline. Next, clustering and principal components look for structure in inputs when outcome labels
+          are set aside.
+        hold: 0.8
+        visual_cues:
+          - id: fresh-deadline-b3
+            phrase: Now change only the eighteenth calibration score from seven to eight, leaving the last at twelve
+            targets:
+              - fresh-deadline-mechanism
+            linger: 0.65
+          - id: fresh-change-score
+            phrase: from seven to eight
+            targets:
+              - fresh-deadline-mechanism
+            color: yellow
+            linger: 0.6
+          - id: cf-fresh-change
+            phrase: from seven to eight
+            targets:
+              - fresh-deadline-mechanism
+            color: cyan
+            linger: 0.35
+          - id: cf-fresh-wider
+            phrase: the interval becomes forty-four to sixty with width sixteen
+            targets:
+              - fresh-deadline-mechanism
+            color: cyan
+            linger: 0.35

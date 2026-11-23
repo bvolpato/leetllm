@@ -1,0 +1,61 @@
+const phraseStarts = {
+  'c01-b01': ['Watch the first', "The shell can't", 'Which part'],
+  'c01-b02': ['a stored filesystem', 'This base image', 'Copy in the'],
+  'c02-b01': ['The image holds', 'the installed packages', "For a different", 'supply the file'],
+  'c02-b02': ['The client sends', 'Look for the server', "That's the Engine", 'Linux has a kernel', 'Install the Engine', 'and the container shares'],
+  'c02-b03': ['the Engine runs', 'The container shares'],
+  'c03-b03': ['Requirements go', 'The script and its', 'The Dockerfile supplies', "There's a fourth", 'Where did its', 'The installed Python'],
+  'c04-b01': ['The builder makes', 'That gives us', 'and a separate place', 'Our scorer uses', 'so pip finds', 'A future install'],
+  'c04-b02': ['It copies the environment', 'so that its installed scripts', "Set the runtime's", 'Now copy the scorer', 'A compiler needed', 'can stay behind'],
+  'c04-b03': ['The entrypoint records', 'A teammate can now', 'For a release', 'the platform and the base image'],
+  'c05-b01': ['and a setting called', 'Start the runtime', 'and copy just', 'Which of those'],
+  'c05-b02': ['and the variable belongs', "Only the environment's", 'Now change the starting point', 'This time we inherit'],
+  'c05-b05': ['WORKDIR puts', 'COPY with chown', 'Without that option', 'though its permissions'],
+  'c06-b01': ['It gives us', 'Tomorrow that name', 'Even today this tag', 'By default the x86', 'and the Arm laptop'],
+  'c06-b04': ['For Linux on x86', 'Add the scorer', 'Run that application image', 'If it passes', 'by its own verified registry digest', 'The Python base'],
+  'c07-b03': ['It opens requirements', 'Edit a lockfile', 'and pip still reads', 'Export the reviewed lock', "or use the lock manager's"],
+  'c07-b04': ['wheel B has', 'Pip rejects', 'An already installed package', 'without a fresh hash check'],
+  'c07-b05': ['fixes the source bytes', 'The compiler can', 'Suppose pip needs', 'for a clean environment', 'For a wheel-only install', 'If no compatible wheel', 'the install stops'],
+  'c08-b01': ['Read the three', 'These short teaching keys', 'At installation time', 'the base, the install instruction', 'Had it copied'],
+  'c09-b01': ['Now our packaged Python', 'When it needs to read a file', 'or from the Linux virtual machine'],
+  'c09-b02': ['with a read-only root filesystem', 'Where can the report', 'It goes to standard output', "We've disabled Python's", 'and this scorer only reads', 'If a later workload'],
+  'c10-b02': ['When useradd creates', 'it tries that', 'It can choose another', 'if the number is taken', 'What would you run', 'whether Python can finish'],
+  'c10-b05': ['lets the process change host files'],
+  'c10-b06': ['with ordinary numeric IDs', 'Here the host directory', 'and only its owner', "Our user can't reach", 'even though the file'],
+  'c11-b01': ['lowercases them', 'Read the predictions', 'For request one oh one', 'Our count goes up', 'The middle pair', 'Blocked was expected'],
+  'c11-b04': ['Rounded to three', 'If you used that rounded', 'the exact fraction would', 'Use the counts', 'Multiply the matches', 'and the total number', 'The first number must', 'Here both sides', 'Equality passes'],
+  'c12-b04': ['Follow the same lookup', 'Two of three again', 'The file was'],
+  'c13-b02': ['Docker creates the empty directory', 'Python starts, then', 'When Python exits', 'The directory stays', 'Try the original', 'Who reports the error'],
+  'c13-b03': ['Python starts and reports', 'Remove the bind', 'and Python reads the copy'],
+  'c14-b01': ['For a cache', 'Docker manages', 'Give the application account', 'and save a cache entry', 'Remove the first'],
+  'c14-b02': ['It can read the entry'],
+  'c14-b03': ['Notice the two', 'for the root and', 'Set create host path', 'Try a source', 'Compose stops', 'Now point it'],
+  'c14-b04': ["Python will read the archive's", 'if it finds the fixture', 'Check the source', 'Put the intended', 'After changing the scorer', 'run this service', 'so the new code'],
+  'c15-b02': ['and it uses the scorer'],
+  'c15-b04': ['without the Compose plugin', 'The check script skips', 'If the plugin is installed', 'invalid configuration fails', 'For example', 'stops configuration resolution'],
+  'c16-b02': ['while the instruction runs', 'The installer reads', 'and download the package', 'When the instruction ends', 'the mount disappears', 'The installed package', 'Keep the credential out'],
+  'c16-b03': ['In local Compose', 'Compose attaches it', 'On Cloud Run', 'needs permission to access', 'Cloud Run checks', 'When the process reads', 'Cloud Run fetches its value'],
+  'c17-b01': ['into a debug file', 'One layer records', 'A later layer deletes', 'The final directory', 'but the earlier layer', 'A real key in'],
+  'c17-b04': ['local Compose can mount', 'The host copy still', "Mounting it doesn't", 'Keep it out of Git', 'Make sure the intended', 'Our current CPU scorer'],
+  'c19-b01': ['Our application image', 'When the container starts', 'the NVIDIA container runtime', 'and the host driver', 'Finding the device'],
+  'c19-b02': ['Create a one-element tensor', 'and read back', 'A result of one shows', 'that this small computation reached'],
+  'c19-b03': ['If only the container probe', 'check the Container Toolkit', 'and the devices you requested'],
+  'c19-b04': ['and the framework still', 'check the framework build', 'and compatibility with', 'Installing another Python wheel', 'for a device the runtime'],
+  'c19-b05': ['The Linux system service', 'have different configuration paths', 'Windows Desktop uses WSL', 'with a compatible Windows driver', 'Apple Silicon can run'],
+  'c20-b02': ['the baked and mounted reports', 'match the saved two out of three'],
+  'c20-b06': ['The mounted report matches', 'Save those reports', 'To send this image', "verify the registry's repository digest", 'That lets a teammate'],
+  'c21-b03': ['Rerun the old image', 'and only the mounted result', 'Now run the full', 'Its build copies', 'Before the reports come back', 'where can the old prediction'],
+  'c21-b07': ['A different file', 'Suppose we also', 'Read the file', 'Parse those bytes'],
+  'c22-b02': ['Then look at the', 'If it copies', 'move that copy', 'If config disappears only in production', 'look for a setting'],
+  'c23-b01': ['Our reference is', 'Look at the six', "They're identical in both", 'and four of them', 'At request three oh five', 'Which copy gives'],
+  'c23-b04': ['Five of seven', 'Fifteen clears', 'The new count', 'The image stayed fixed', 'while you repaired', 'and tested it in a fresh container', "In the next lesson you'll follow", 'through the Python code'],
+};
+
+export function prepareCaptions(schedule) {
+  for (const entry of schedule) {
+    const phrases = phraseStarts[entry.beat.id];
+    if (!phrases) continue;
+    for (const phrase of phrases) entry.markCaption(phrase);
+    entry.cueWordIndices = new Set(entry.cueWordIndices);
+  }
+}

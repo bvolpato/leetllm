@@ -1,0 +1,764 @@
+[
+  {
+    "id": "c01",
+    "title": "What does “charge” mean here?",
+    "sourceChapters": [
+      "c01"
+    ],
+    "beats": [
+      {
+        "id": "c01-b01",
+        "say": "A customer points to a twelve dollar charge on a receipt. Beside it, someone plugs in a phone to charge. Which guide would you give each person?",
+        "hold": 0.5
+      },
+      {
+        "id": "c01-b02",
+        "say": "Crop each message to the word charge. In our small embedding table, charge is row zero. A row gives the search two numbers, which we can draw as an arrow. Lay one query arrow over the other. Can the two searches now choose different guides?",
+        "hold": 2.8
+      },
+      {
+        "id": "c01-b03",
+        "say": "Both searches open the phone guide. Follow the two outlines. They end at the same point, facing closer to phone than invoice. The receipt and the cable gave you clues that the search lost.",
+        "hold": 0.9
+      }
+    ]
+  },
+  {
+    "id": "c02",
+    "title": "What does a token ID select?",
+    "sourceChapters": [
+      "c02"
+    ],
+    "beats": [
+      {
+        "id": "c02-b01",
+        "say": "Open a different table. What row do river bank and bank deposit share? A token ID selects one row in the embedding table. Each column holds one learned feature. Bank is ID zero here. Both sentences read the two numbers in row zero.",
+        "hold": 0.7
+      },
+      {
+        "id": "c02-b02",
+        "say": "On this teaching map, up points toward river and right toward money. Bank begins halfway between those directions. Read it in river bank, then in deposit money at the bank. Both lookups land at the same point. In a learned table, a meaning can span many coordinates.",
+        "hold": 0.7
+      },
+      {
+        "id": "c02-b03",
+        "say": "During training, the stored coordinates can move. Freeze the table for both searches. The address alone now determines the result. That is what static means here. A model may also add position information. To use a word like deposit, another operation has to read it.",
+        "hold": 0.65
+      }
+    ]
+  },
+  {
+    "id": "c03",
+    "title": "A row lookup is an exact selection",
+    "sourceChapters": [
+      "c03"
+    ],
+    "beats": [
+      {
+        "id": "c03-b01",
+        "say": "There is one row per vocabulary ID and one column per feature. With vocabulary size V and width d, the shape is V by d. Put a one at the ID for bank and zeros at the other IDs. Multiply this one-hot row by the table.",
+        "hold": 0.3
+      },
+      {
+        "id": "c03-b02",
+        "say": "The zeros discard the other rows and the one selects bank. Slide that row out. In practice the program gathers it directly. A vocabulary of fifty thousand IDs at width seven hundred sixty-eight would store thirty-eight million four hundred thousand numbers. A lookup reads one row.",
+        "hold": 0.7
+      },
+      {
+        "id": "c03-b03",
+        "say": "An ID is an address. Two consecutive addresses can hold unrelated words. Back in the support vocabulary, zero selects charge. That row belongs to a different table, so its two coordinates are different from the bank row we just read.",
+        "hold": 0.65
+      },
+      {
+        "id": "c03-b04",
+        "say": "In a larger vocabulary, a tokenizer might split chargeable into charge and able. That changes which rows you fetch. Each piece still has a fixed row in this table. To get a different reading of charge on the second ticket, something has to read the rest of that message.",
+        "hold": 0.7
+      }
+    ]
+  },
+  {
+    "id": "c04",
+    "title": "Count the words around bank",
+    "sourceChapters": [
+      "c04"
+    ],
+    "beats": [
+      {
+        "id": "c04-b01",
+        "say": "Where might a table learn that bank has several uses? Look four words on either side of bank. We are tracking the four neighbors named on the right. In the first sentence, river falls inside the window. Put that pair in the river bin.",
+        "hold": 0.8
+      },
+      {
+        "id": "c04-b02",
+        "say": "Now take the second sentence. Count water, then river. In the third sentence, count money. In the last, count deposit, then money again. Each mark records a word we actually found within four places of bank.",
+        "hold": 0.8
+      },
+      {
+        "id": "c04-b03",
+        "say": "Six pairs came from those four sentences. Both uses of bank left a trace in one count row. We can compress rows like this, train a model to predict the neighbors, or fit the counts themselves. Each method gives these observations a different job.",
+        "hold": 0.8
+      }
+    ]
+  },
+  {
+    "id": "c05",
+    "title": "Compare an observed pair with its chance baseline",
+    "sourceChapters": [
+      "c05"
+    ],
+    "beats": [
+      {
+        "id": "c05-b01",
+        "say": "We counted bank in a window of four. A two-position window can also pick up shared neighbors. Apple and pear both appear with tastes and sweet. Now use a larger, constructed table so we can compare counts with chance. Fruit and sweet occur with apple and pear. Water and shore occur with river and lake.",
+        "hold": 0.7
+      },
+      {
+        "id": "c05-b02",
+        "say": "Look at apple with fruit. We saw eight pairs. Is that a lot? Start with the margins. Fourteen of the fifty-three pairs start with apple. Fifteen of the fifty-three end in fruit. If those choices were independent, apple would get fourteen times fifteen over fifty-three fruit pairs.",
+        "hold": 0.3
+      },
+      {
+        "id": "c05-b03",
+        "say": "The independent baseline is about three point nine six. Stack the eight observed pairs against it. Eight divided by that baseline is just over two. Take the natural log of the ratio. The result is about point seven zero three.",
+        "hold": 0.85
+      },
+      {
+        "id": "c05-b04",
+        "say": "Positive pointwise mutual information keeps a positive log ratio and floors a negative one at zero. For an empty cell, write zero directly. That also handles an empty row or a completely empty table without taking the log of zero.",
+        "hold": 0.3
+      },
+      {
+        "id": "c05-b05",
+        "say": "Rare pairs can earn a large score on scant evidence. And hot and cold can both appear near room. Similar usage alone cannot tell us whether two words mean the same thing.",
+        "hold": 0.7
+      }
+    ]
+  },
+  {
+    "id": "c06",
+    "title": "Compress context patterns into shared directions",
+    "sourceChapters": [
+      "c06"
+    ],
+    "beats": [
+      {
+        "id": "c06-b01",
+        "say": "Our PPMI table needs one column for each context word. A singular value decomposition rewrites it as U times a diagonal matrix of strengths times V transpose. Keep the two strongest directions. Scale each of those columns of U by the square root of its strength.",
+        "hold": 0.3
+      },
+      {
+        "id": "c06-b02",
+        "say": "Those are our two coordinates per word. The corresponding columns of V take the other square roots on the context side.",
+        "hold": 0.85
+      },
+      {
+        "id": "c06-b03",
+        "say": "The two leading strengths are about one point four two and one point three five. Follow apple and pear. They point the same way and have cosine one. Now compare apple and river. They point at right angles and have cosine zero. Those neat angles come from how we built this particular count table.",
+        "hold": 0.75
+      },
+      {
+        "id": "c06-b04",
+        "say": "Flip one axis for every word. Apple stays beside pear. Reversing an axis consistently preserves angles even though the coordinates change. Another corpus or another choice of rank can change the neighbors. A successful analogy tests one relationship. Check the distinctions your application needs.",
+        "hold": 0.75
+      }
+    ]
+  },
+  {
+    "id": "c07",
+    "title": "One sentence, two Word2Vec training tasks",
+    "sourceChapters": [
+      "c07"
+    ],
+    "beats": [
+      {
+        "id": "c07-b01",
+        "say": "Children, blank, stories, each night. The bracket marks our two-position window. In this Word2Vec example, continuous bag of words uses children, stories and each to predict the missing word. Which word would you put in the gap?",
+        "hold": 2.5
+      },
+      {
+        "id": "c07-b02",
+        "say": "Read fills the gap. Reverse the arrows. Skip-gram starts with read and predicts a neighbor. Reach at most two positions in either direction. Children is one to the left. Stories and each are one and two to the right. Write those three positive pairs.",
+        "hold": 0.3
+      },
+      {
+        "id": "c07-b03",
+        "say": "Night is three positions away, so it stays outside the window.",
+        "hold": 0.75
+      },
+      {
+        "id": "c07-b04",
+        "say": "Take read and stories. Skip-gram takes the input row for read and the output row for stories. Their dot product scores this training pair. Later, to compare read with write, take both rows from the input table. Cosine compares their directions.",
+        "hold": 0.75
+      }
+    ]
+  },
+  {
+    "id": "c08",
+    "title": "Move the center word by one training step",
+    "sourceChapters": [
+      "c08"
+    ],
+    "beats": [
+      {
+        "id": "c08-b01",
+        "say": "Let read start at one, zero. Give its observed neighbor a separate output row. Their dot product is one point two. Now draw two noise rows. These negatives can be real neighbors elsewhere. The label belongs to this draw.",
+        "hold": 0.3
+      },
+      {
+        "id": "c08-b02",
+        "say": "If a row is drawn twice, count it twice. The original sampler raises word frequencies to the three-quarter power and normalizes them.",
+        "hold": 0.8
+      },
+      {
+        "id": "c08-b03",
+        "say": "The loss rewards a high score for the observed pair and low scores on the noise draws. The sigmoid turns a score into a number between zero and one. At zero it gives one half. For the observed pair, take minus the log of its sigmoid.",
+        "hold": 0.3
+      },
+      {
+        "id": "c08-b04",
+        "say": "For each noise pair, negate the score first, then take minus the log of the sigmoid. Add those losses.",
+        "hold": 0.8
+      },
+      {
+        "id": "c08-b05",
+        "say": "How should the center move? For the observed row, the slope of the loss is the sigmoid of its score minus one. Multiply that negative slope by the output row. For each noise row, use the sigmoid of its score, with no subtraction.",
+        "hold": 0.3
+      },
+      {
+        "id": "c08-b06",
+        "say": "Multiply each slope by its own output row. Add those signed contributions coordinate by coordinate. The center gradient is about minus point eight one three, minus point zero eight one. Both coordinates will grow when we subtract a fraction of this gradient.",
+        "hold": 1.1
+      },
+      {
+        "id": "c08-b07",
+        "say": "Our step subtracts one tenth of that gradient from the center. The first coordinate will grow. Look at the observed row. Will its score rise or fall?",
+        "hold": 2.5
+      },
+      {
+        "id": "c08-b08",
+        "say": "Take the step. The new center scores about one point three against the same observed row, up from one point two. The total loss falls from about point eight nine to point eight three. We held the outputs fixed so you could follow the center.",
+        "hold": 0.3
+      },
+      {
+        "id": "c08-b09",
+        "say": "Training normally updates the participating output rows too. This check tells us the local objective improved. We still need to measure which words make good neighbors.",
+        "hold": 0.8
+      }
+    ]
+  },
+  {
+    "id": "c09",
+    "title": "How many noise draws compete with an observed pair?",
+    "sourceChapters": [
+      "c09"
+    ],
+    "beats": [
+      {
+        "id": "c09-b01",
+        "say": "Return to our eight apple and fruit pairs. Suppose the sampler draws noise in proportion to context frequency. With one draw per positive pair, apple is expected to meet fruit about four times as noise.",
+        "hold": 0.3
+      },
+      {
+        "id": "c09-b02",
+        "say": "If we could choose this one dot product freely, its best score would be the log of observed pairs divided by expected noise draws. Here that is the same point seven zero three we saw in the count table.",
+        "hold": 0.85
+      },
+      {
+        "id": "c09-b03",
+        "say": "Make four draws per positive pair. Keep the eight observations on the ruler. The expected noise now reaches almost sixteen. Eight divided by that expectation is less than one, so the logarithm turns negative. Levy and Goldberg wrote the optimum as PMI minus the natural log of k, the number of noise draws per positive pair.",
+        "hold": 0.85
+      },
+      {
+        "id": "c09-b04",
+        "say": "Now take apple with water. Water has the same column total as fruit, so the expected noise stays put. We observed zero such pairs. With only negative pressure, the unrestricted optimum goes to minus infinity. A real model shares finite-width vectors across pairs.",
+        "hold": 0.3
+      },
+      {
+        "id": "c09-b05",
+        "say": "That limits the rank of its score matrix. Regularization and a different noise distribution, such as the original three-quarter-power rule, can also change the fit.",
+        "hold": 0.8
+      }
+    ]
+  },
+  {
+    "id": "c10",
+    "title": "Fit log counts with a weighted residual",
+    "sourceChapters": [
+      "c10"
+    ],
+    "beats": [
+      {
+        "id": "c10-b01",
+        "say": "GloVe pools observations from local windows into a corpus-wide table. In the original collection a neighbor two places away contributes one half, so counts can be fractional. The three rulers here use the same log scale.",
+        "hold": 0.3
+      },
+      {
+        "id": "c10-b02",
+        "say": "A word-context dot product plus two biases gives the model score. Set every yellow mark to the log of thirty. Which observed count will meet it?",
+        "hold": 1.7
+      },
+      {
+        "id": "c10-b03",
+        "say": "The blue dot is the log of the observed count. Its distance from the yellow mark is the size of the miss. On the middle ruler the marks meet. Count thirty has zero residual. On the top ruler the count is three.",
+        "hold": 0.3
+      },
+      {
+        "id": "c10-b04",
+        "say": "Subtract log three from log thirty and you get log ten. Square that difference and the error is about five point three zero two. GloVe adds up weighted squared errors across observed pairs.",
+        "hold": 0.9
+      },
+      {
+        "id": "c10-b05",
+        "say": "The weight depends on the count. Divide the count by one hundred, raise that ratio to the three-quarter power and cap the result at one. Compare the three bars. Count three gets about seven hundredths of the full weight. Thirty gets about four tenths.",
+        "hold": 0.3
+      },
+      {
+        "id": "c10-b06",
+        "say": "At one hundred the weight reaches one, so three hundred still gets one. Skip empty cells before taking any logs. The result is a static vector trained from many windows.",
+        "hold": 0.8
+      }
+    ]
+  },
+  {
+    "id": "c11",
+    "title": "Compose an unfamiliar spelling from retained pieces",
+    "sourceChapters": [
+      "c11"
+    ],
+    "beats": [
+      {
+        "id": "c11-b01",
+        "say": "What could you use for a spelling your table has never seen? Add boundary marks to play and played. Slide a three-character window across both spellings, one position at a time. They share the first three pieces, including the one that starts at the left boundary. After the y, one window ends with a boundary and the other with an e. One more step on played brings in d. The final step brings in its right boundary.",
+        "hold": 0.3
+      },
+      {
+        "id": "c11-b02",
+        "say": "FastText uses character n-grams like these. The original setup uses lengths three through six.",
+        "hold": 0.8
+      },
+      {
+        "id": "c11-b03",
+        "say": "The printed trigrams show which spellings overlap. FastText hashes each piece to a bucket and fetches its row. Switch to a small arithmetic example. Three occurrences return bucket IDs zero, zero, one. Deal one row for each occurrence. The first bucket gets used twice.",
+        "hold": 0.3
+      },
+      {
+        "id": "c11-b04",
+        "say": "Repeated pieces and hash collisions can both repeat a bucket. A known word also has a whole-word row. An unseen spelling uses only its subword rows.",
+        "hold": 0.85
+      },
+      {
+        "id": "c11-b05",
+        "say": "The three rows sum to two, two. The paper uses a sum for scoring. The word-vector API divides by three because three rows were returned. Both coordinates become two thirds.",
+        "hold": 0.3
+      },
+      {
+        "id": "c11-b06",
+        "say": "For a nonzero vector a positive rescaling keeps the cosine direction and changes the norm and raw dot products. To do this for new words, load the full binary model with its subword rows. A text export of known word vectors lacks those rows.",
+        "hold": 0.3
+      },
+      {
+        "id": "c11-b07",
+        "say": "Measure recall on unseen spellings to find out whether the pieces help.",
+        "hold": 0.8
+      }
+    ]
+  },
+  {
+    "id": "c12",
+    "title": "What changes when an arrow gets longer?",
+    "sourceChapters": [
+      "c12"
+    ],
+    "beats": [
+      {
+        "id": "c12-b01",
+        "say": "To compare a ticket with a guide, we need a score. Take the blue arrow as our reference. Its coordinates are one, zero. The other arrow goes one across and one up. Multiply matching coordinates and add. The dot product is one.",
+        "hold": 0.7
+      },
+      {
+        "id": "c12-b02",
+        "say": "Divide that dot product by both lengths and you get cosine similarity. Blue has length one. The diagonal has length square root of two. Their cosine is about point seven zero seven. Suppose we double the diagonal and keep its direction. Which score will change?",
+        "hold": 3
+      },
+      {
+        "id": "c12-b03",
+        "say": "Stretch the diagonal. Its dot product doubles. Its length doubles too, so the cosine stays put. Now shorten it to unit length. Both arrows have length one, and the dot product itself is the cosine.",
+        "hold": 0.3
+      },
+      {
+        "id": "c12-b04",
+        "say": "Parallel unit arrows score one, perpendicular arrows zero, and opposite arrows minus one. A zero vector has no direction to compare.",
+        "hold": 0.75
+      },
+      {
+        "id": "c12-b05",
+        "say": "That angle has a meaning because both arrows use the same axes. Later we will change the axes of a search index and see what happens to its first result.",
+        "hold": 0.7
+      }
+    ]
+  },
+  {
+    "id": "c13",
+    "title": "What can bank borrow from this sentence?",
+    "sourceChapters": [
+      "c13"
+    ],
+    "beats": [
+      {
+        "id": "c13-b01",
+        "say": "Bank starts at the blue point in both sentences. Lay down half the bank arrow. For the river sentence, add four tenths of river at its tip, then one tenth of water. For the deposit sentence, start again from half of bank and add half of money. We chose these weights so you can reconstruct each tip.",
+        "hold": 0.85
+      },
+      {
+        "id": "c13-b02",
+        "say": "Follow each copy of bank from the blue dot to its sum. The river sentence pulls bank up. The deposit sentence pulls it right. The blue dot stays put. We now have two contextual states from one stored row.",
+        "hold": 0.85
+      },
+      {
+        "id": "c13-b03",
+        "say": "Here we chose the weights. A Transformer learns how to weight information from the positions it can read. Attention mixes that evidence. Feed-forward layers then rewrite features within a position. A causal model can use the prefix through the current position. A bidirectional encoder can also use a clue that comes later.",
+        "hold": 0.75
+      }
+    ]
+  },
+  {
+    "id": "c14",
+    "title": "Try the two support tickets again",
+    "sourceChapters": [
+      "c14"
+    ],
+    "beats": [
+      {
+        "id": "c14-b01",
+        "say": "Return to the two customers. The guide directions are fixed. The open circle marks the stored charge row. From that row, cosine puts the phone guide first for both tickets.",
+        "hold": 0.85
+      },
+      {
+        "id": "c14-b02",
+        "say": "Stretch a strip from the stored point to each clue. A crease at half the distance averages each pair of coordinates. In each search the query will move to its own crease. Which ticket will change guide?",
+        "hold": 2.4
+      },
+      {
+        "id": "c14-b03",
+        "say": "Move the invoice copy. Halfway to its clue, it lands at point five, point six. Now invoice wins. Its cosine rose from about point four three to point eight eight.",
+        "hold": 1
+      },
+      {
+        "id": "c14-b04",
+        "say": "Move the phone copy. The midpoint here is point nine, point one five. The phone guide stays first. The query was already pointing toward phone. Now the two directions nearly coincide.",
+        "hold": 0.85
+      },
+      {
+        "id": "c14-b05",
+        "say": "The blue dot stayed put. Each message gave charge a different direction. We gave the clue half the weight. A trained attention head learns how much to take from each allowed position and mixes their value projections. The output projection, residual connection and later layers carry that information forward.",
+        "hold": 0.8
+      }
+    ]
+  },
+  {
+    "id": "c15",
+    "title": "What changes when the layer weights stay fixed?",
+    "sourceChapters": [
+      "c15"
+    ],
+    "beats": [
+      {
+        "id": "c15-b01",
+        "say": "ELMo reads the sentence in both directions with recurrent language models. They share input and output softmax parameters and have separate LSTM weights. The character CNN first projects the spelling to five hundred twelve coordinates.",
+        "hold": 0.3
+      },
+      {
+        "id": "c15-b02",
+        "say": "The implementation duplicates that vector to give the input layer one thousand twenty-four. Each of the two contextual layers joins a forward state and a backward state, each five hundred twelve wide. Now all three layers fit the same sum.",
+        "hold": 0.85
+      },
+      {
+        "id": "c15-b03",
+        "say": "Try that sum with just two coordinates. Weight each layer by its share, then add the three contributions. The first token gives point seven, point eight. Now multiply by gamma. With gamma equal to two, both coordinates double.",
+        "hold": 0.3
+      },
+      {
+        "id": "c15-b04",
+        "say": "The task learns one set of layer weights for all its token positions. A softmax makes those weights nonnegative and sums them to one. Training the task mix ordinarily leaves the pretrained language model frozen.",
+        "hold": 0.85
+      },
+      {
+        "id": "c15-b05",
+        "say": "Keep those same three weights and the same scale of two. Switch to the second token's layer states. Work out its mix, then apply the scale.",
+        "hold": 4
+      },
+      {
+        "id": "c15-transfer-answer",
+        "say": "Multiply each row by its task weight. The first product is zero, point two. The second product is point three, zero. The third product adds a quarter to each coordinate. Sum the products. Together they give point five five, point four five. Double both coordinates. The output is one point one, point nine. The task weights choose among layers at one position. Token attention chooses among positions.",
+        "hold": 0.3
+      },
+      {
+        "id": "c15-b06",
+        "say": "BERT trains bidirectional attention by corrupting selected inputs and predicting the originals using words on both sides.",
+        "hold": 0.8
+      }
+    ]
+  },
+  {
+    "id": "c16",
+    "title": "Which position can read the edited word?",
+    "sourceChapters": [
+      "c16"
+    ],
+    "beats": [
+      {
+        "id": "c16-b01",
+        "say": "Look at charge the phone. We want to keep a state that can use the object of that instruction. The encoder at charge can read all three words. The causal decoder at charge can read only the prefix ending there. That is just charge.",
+        "hold": 0.3
+      },
+      {
+        "id": "c16-b02",
+        "say": "At the last word, the causal decoder can use all three words. Imagine holding a strip of text behind three windows. The openings show which positions a state may use. Learned attention weights decide how strongly each visible word contributes.",
+        "hold": 0.85
+      },
+      {
+        "id": "c16-b03",
+        "say": "Replace phone with invoice, to the right of charge. Keep the model weights, positions and earlier token IDs fixed. Run both versions deterministically. Look through each window again. Which state must stay the same?",
+        "hold": 2.5
+      },
+      {
+        "id": "c16-b04",
+        "say": "The causal state at charge stays pinned. Its window still shows exactly one word. The encoder at charge and the final causal state both see the edit. They may change. Particular weights could ignore even a visible word. Processing all positions in parallel keeps the same mask.",
+        "hold": 0.8
+      },
+      {
+        "id": "c16-b05",
+        "say": "For a causal model, choose a later state if the decision needs a later word. Then test whether that representation distinguishes the messages. The next-token head learns to predict what follows a prefix. Searching support guides gives that state a different job.",
+        "hold": 0.85
+      }
+    ]
+  },
+  {
+    "id": "c17",
+    "title": "The lookup stays shared as the outputs separate",
+    "sourceChapters": [
+      "c17"
+    ],
+    "beats": [
+      {
+        "id": "c17-b01",
+        "say": "Bring back the two bank states. In the river sentence, compare bank with river and money by cosine. River has the higher score. Now compare the deposit occurrence with those same two clues. Money comes first. Each score belongs to a particular occurrence.",
+        "hold": 0.8
+      },
+      {
+        "id": "c17-b02",
+        "say": "The blue row in the middle still starts both lookups. The model can reuse that one vocabulary entry because each forward pass can read different evidence. To test whether this helps, check the messages where choosing the sense changes the answer.",
+        "hold": 0.65
+      },
+      {
+        "id": "c17-b03",
+        "say": "If a tokenizer splits a word, choose the unit you need to compare. For a word sense, you might keep a specified piece or combine that word's pieces. For guide search, the message can contain the clue several positions away. We need a rule that produces one vector for the whole message.",
+        "hold": 0.75
+      }
+    ]
+  },
+  {
+    "id": "c18",
+    "title": "A sentence needs a representation rule",
+    "sourceChapters": [
+      "c18"
+    ],
+    "beats": [
+      {
+        "id": "c18-b01",
+        "say": "A search index needs one vector for a whole message. Try a masked mean of these three token rows. Add their coordinates. The sum is point eight, two point four. Divide both coordinates by the three valid positions. That gives about point two six seven, point eight.",
+        "hold": 0.3
+      },
+      {
+        "id": "c18-b02",
+        "say": "Another model might train a special token to summarize the message.",
+        "hold": 0.8
+      },
+      {
+        "id": "c18-b03",
+        "say": "Append a fourth row for padding. Its stored numbers are one, one, but its mask is zero. Select only the valid rows. The sum stays at point eight, two point four. The divisor stays at three.",
+        "hold": 0.3
+      },
+      {
+        "id": "c18-b04",
+        "say": "Try four as the divisor. The sum is the same, but both coordinates shrink by a quarter. A raw dot product would now depend on how much padding we added. Use the count of admitted positions.",
+        "hold": 0.9
+      },
+      {
+        "id": "c18-b05",
+        "say": "For a small fixed-vocabulary classifier, a lookup gives you a baseline to test for quality and latency. For whole-ticket search, compare the pooled baseline with a model trained to bring matching tickets and guides together. Use held-out tickets, the intended prefixes and the same indexing recipe.",
+        "hold": 0.3
+      },
+      {
+        "id": "c18-b06",
+        "say": "Measure how often the right guide appears among the results. Try three labeled tickets with one relevant guide each. For the first two, that guide appears at ranks one and two. For the last ticket it appears at rank five. If the screen shows only two guides, how many customers see the right one? Two out of three. That is mean recall at two on this small set.",
+        "hold": 0.85
+      }
+    ]
+  },
+  {
+    "id": "c19",
+    "title": "A familiar neighborhood still needs evaluation",
+    "sourceChapters": [
+      "c19"
+    ],
+    "beats": [
+      {
+        "id": "c19-b01",
+        "say": "Watch the gap between river and money. Add the same offset to every vector. The endpoints move together, so the distance between them holds steady. From the origin their arrows now point in nearly the same direction. Cosine rises even though the gap between the tips is unchanged.",
+        "hold": 0.75
+      },
+      {
+        "id": "c19-b02",
+        "say": "Subtract the population mean from every vector. The directions open up again. Centering, whitening or choosing a different layer changes the representation you score. A two-dimensional projection can also distort the angles in the original space. Check the actual vectors for the layer you plan to use.",
+        "hold": 0.75
+      },
+      {
+        "id": "c19-b03",
+        "say": "Two guides can share most of their wording and recommend opposite actions. Compare keep charging with stop charging. Label which guide answers each real ticket. Measure recall and ranking on those tickets, especially when sending the wrong guide matters.",
+        "hold": 0.75
+      }
+    ]
+  },
+  {
+    "id": "c20",
+    "title": "A centering trick needs a population diagnosis",
+    "sourceChapters": [
+      "c20"
+    ],
+    "beats": [
+      {
+        "id": "c20-b01",
+        "say": "Here the invoice state is ten, one. The phone state is ten, minus one. Their dot product is ninety-nine. Each squared length is one hundred one. Their cosine is about point nine eight zero two. That shared ten dominates the angle.",
+        "hold": 0.3
+      },
+      {
+        "id": "c20-b02",
+        "say": "Measurements of BERT, ELMo and GPT-two found vectors crowded into narrow cones in many layers. Such a distribution favors some directions over others. That is anisotropy.",
+        "hold": 0.8
+      },
+      {
+        "id": "c20-b03",
+        "say": "Subtract the mean of these two points. Removing ten, zero leaves one arrow straight up and the other straight down. Their cosine is minus one. Center any two distinct points on their own midpoint and that will happen. Now use three points.",
+        "hold": 0.3
+      },
+      {
+        "id": "c20-b04",
+        "say": "Start again with three points. All three share the horizontal coordinate ten. Their vertical coordinates are one, zero and minus one. The middle point equals the mean. Subtract that mean. The middle arrow has length zero. Ordinary cosine with that state is undefined.",
+        "hold": 0.85
+      },
+      {
+        "id": "c20-b05",
+        "say": "Fit a proposed mean on a representative training sample. Use that fixed mean on held-out queries and documents. Decide how to handle a zero vector before scoring it. Then compare the retrieved guides on labeled tickets, including the ones that failed before. That tells you whether changing the geometry helped the task.",
+        "hold": 0.8
+      }
+    ]
+  },
+  {
+    "id": "c21",
+    "title": "An invoice query meets a new index",
+    "sourceChapters": [
+      "c21"
+    ],
+    "beats": [
+      {
+        "id": "c21-b01",
+        "say": "Suppose our whole-ticket encoder already distinguishes the two requests. We can still send someone to the wrong guide. In this small index, an invoice query and the invoice guide both point right. The phone guide points down. All three have unit length. In version A, invoice scores one and phone scores zero.",
+        "hold": 0.8
+      },
+      {
+        "id": "c21-b02",
+        "say": "Replace just the index. Version B turns every guide ninety degrees counterclockwise. Invoice now points up. Phone points right. The service still sends the old query. Which guide will it open?",
+        "hold": 2.8
+      },
+      {
+        "id": "c21-b03",
+        "say": "The phone guide opens. It now points along the old invoice query. Width and unit length both survived the change. Turn the query through the same angle. Invoice comes first again. A common rotation preserves the angles that set these rankings.",
+        "hold": 0.9
+      },
+      {
+        "id": "c21-b04",
+        "say": "Use a verified encoder pair. The query and document encoders can have separate weights trained together, as in Dense Passage Retrieval. They can require different prefixes or different encoding calls. Pin both revisions, preprocessing, pooling, normalization and metric.",
+        "hold": 0.3
+      },
+      {
+        "id": "c21-b05",
+        "say": "When the space changes, rebuild the index and switch the matching query path with it, unless a tested migration preserves compatibility.",
+        "hold": 0.85
+      }
+    ]
+  },
+  {
+    "id": "c22",
+    "title": "Change one clue for bank",
+    "sourceChapters": [
+      "c22"
+    ],
+    "beats": [
+      {
+        "id": "c22-b01",
+        "say": "Before we test the new index, try changing the input to a single occurrence. This is our earlier river bank calculation. Half the state comes from bank, four tenths from river and one tenth from water. The yellow tip is at point three one, point seven four.",
+        "hold": 0.3
+      },
+      {
+        "id": "c22-b02",
+        "say": "Keep the weights. Replace only river with money. Will the tip move up or down?",
+        "hold": 3
+      },
+      {
+        "id": "c22-b03",
+        "say": "Make the replacement. River points mostly up and money points mostly right. Four tenths of their difference adds point three six across and takes point three six off the height. The new tip is at point six seven, point three eight. The blue lookup row stays put.",
+        "hold": 0.9
+      },
+      {
+        "id": "c22-b04",
+        "say": "Normalize the new arrow. Its length becomes one and its direction stays fixed. Now average three unnormalized rows: bank, the updated occurrence, and water. That pink tip summarizes three rows. The yellow unit arrow describes one occurrence. Choose which question you want your retrieval scores to answer.",
+        "hold": 0.8
+      }
+    ]
+  },
+  {
+    "id": "c23",
+    "title": "Two tickets, one index change",
+    "sourceChapters": [
+      "c23"
+    ],
+    "beats": [
+      {
+        "id": "c23-b01",
+        "say": "Each square represents a whole ticket now. The dots are guides. In this index each square sits on its matching dot. Score them by raw dot product. Each ticket gives its own guide two and the other guide zero.",
+        "hold": 0.9
+      },
+      {
+        "id": "c23-b02",
+        "say": "Rotate only the indexed guides clockwise. Each guide goes from x, y to y, minus x. The old query squares stay put. Pick one test ticket before opening either guide. Multiply matching coordinates, add, and choose the larger score. Would your test catch the mismatch?",
+        "hold": 3.1
+      },
+      {
+        "id": "c23-b03",
+        "say": "Try the phone ticket first. It scores minus two against invoice and zero against phone. The phone guide opens. If you tested just this ticket, would you ship the new index?",
+        "hold": 1.7
+      },
+      {
+        "id": "c23-invoice-trial",
+        "say": "Keep the index and query encoder exactly as they are. Now try the invoice ticket. Against invoice, one minus one gives zero. Against phone, one plus one gives two. The invoice ticket opens the wrong guide. One passing ticket hid the migration error.",
+        "hold": 1.4
+      },
+      {
+        "id": "c23-b04",
+        "say": "Switch the query encoder to version B. Watch the ticket squares turn to join the guide dots. The two diagonal scores return to two. Each ticket opens its own guide. Before rollout, test the pair on held-out tickets with known destinations.",
+        "hold": 1
+      },
+      {
+        "id": "c23-b05",
+        "say": "The same wrong phone guide had two causes. In the first search we cropped each message to charge. In this test we kept the full ticket but changed just the index. Keep the repaired pair together. Now take the phone instruction and cover its last word.",
+        "hold": 0.3
+      },
+      {
+        "id": "c23-b06",
+        "say": "A language model reads the prefix and scores possible next tokens. Phone is the token we score here. Next, we'll use the probabilities assigned to the actual tokens in held-out text to calculate perplexity.",
+        "hold": 0.9
+      }
+    ]
+  }
+]

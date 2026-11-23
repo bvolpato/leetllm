@@ -1,0 +1,315 @@
+[
+  {
+    "id": "c01",
+    "title": "Where does fresh prefill start?",
+    "sourceChapters": ["c01"],
+    "beats": [
+      {
+        "id": "c01-b01",
+        "say": "Three developers open the same repository guide. One asks about tests, one about lint, and one about builds. Follow the finger down the last few token IDs in the shared prefix. Their questions change. Where would you put a pencil mark to show where request two must start fresh?",
+        "hold": 2.2
+      },
+      {
+        "id": "c01-b02",
+        "say": "Each line starts with the same six thousand tokens of instructions, guide text, tool descriptions and examples. Processing the input is called prefill. The first request processes the whole guide and its own question. Each attention layer saves keys and values for these positions. Assume the worker has finished writing that state and the model settings and tenant match.",
+        "hold": 0.65
+      },
+      {
+        "id": "c01-b03",
+        "say": "Fresh work starts at the question. Request two reuses the saved guide and processes thirty-seven new input tokens. Those tokens can still attend to the guide. Then the model generates its own answer, one token at a time. Keeping keys and values during generation helps one request. Publishing compatible prefix state lets another request use it.",
+        "hold": 1.2
+      }
+    ]
+  },
+  {
+    "id": "c02",
+    "title": "What changes under the same tools?",
+    "sourceChapters": ["c02"],
+    "beats": [
+      {
+        "id": "c02-b01",
+        "say": "Consider three blocks: instructions, a guide, and a tool description. In causal attention, later positions can depend on everything before them. A useful cache identity therefore includes both the current block and a key representing its preceding history. Follow the chain from left to right.",
+        "hold": 0.75
+      },
+      {
+        "id": "c02-b02",
+        "say": "Keep the instructions and the tool description. Change the guide version. Trace the lower branch past that edit. The tools text is identical in both requests. Should the key stamped under it still match?",
+        "hold": 2
+      },
+      {
+        "id": "c02-b03",
+        "say": "Read the tools keys. They differ because the guide supplied a different parent to the same hash calculation. An edit can change deeper-layer keys and values at later positions. Appending a question preserves the earlier history. The worker also needs compatible weights, adapter, positions, attention settings and other conditioning before it can use a matching entry.",
+        "hold": 1
+      }
+    ]
+  },
+  {
+    "id": "c03",
+    "title": "Where does token nine go?",
+    "sourceChapters": ["c03"],
+    "beats": [
+      {
+        "id": "c03-b01",
+        "say": "Our small block cache stores four tokens per block. Compare the stored and incoming token IDs. The first nine match. The next pair is ten and thirteen. Given a completed, compatible entry, point to the first incoming token the worker must process again.",
+        "hold": 2.4
+      },
+      {
+        "id": "c03-b02",
+        "say": "Two complete blocks cover eight positions. Lower the incoming tail into the fresh-work lane. Nine goes with thirteen, fourteen and fifteen into fresh prefill. All four can still attend to the eight saved positions. A compressed token trie can split an edge at the first divergence and expose nine shared IDs. The storage backend determines which boundaries it can actually reuse.",
+        "hold": 0.85
+      },
+      {
+        "id": "c03-b03",
+        "say": "Try one earlier edit. Replace three with twenty. Only the first two IDs still match. The first block breaks, so all twelve inputs need fresh work. Five through eight look the same in the middle block, but look at the key and value columns under five. In this tiny example, they change because five now follows twenty. A later run of equal IDs cannot restart the old chain.",
+        "hold": 1.1
+      }
+    ]
+  },
+  {
+    "id": "c04",
+    "title": "How many starting sections match?",
+    "sourceChapters": ["c04"],
+    "beats": [
+      {
+        "id": "c04-b01",
+        "say": "A changing request identifier at the beginning makes every guide follow a different history. Compare the two serialized layouts. The first entries read A and B. How many complete sections can match from the start? Count these named sections as units. Actual token counts depend on the tokenizer.",
+        "hold": 1.65
+      },
+      {
+        "id": "c04-b02",
+        "say": "Zero sections match. Move the identifier to the end in both requests. Now the instructions, guide and tools arrive in the same order with the same history. Keep the message roles your application requires. Check that moving a field preserves the intended meaning.",
+        "hold": 0.7
+      },
+      {
+        "id": "c04-b03",
+        "say": "Look inside the guide. Two copies of the same template reached the model with different line endings. A carriage return can change the token IDs, as can a timestamp, a reordered JSON field or a template separator. Compare the final serialized input. Keep meaningful whitespace and ordered arrays intact when you make the renderer deterministic.",
+        "hold": 1
+      }
+    ]
+  },
+  {
+    "id": "c05",
+    "title": "When is the guide ready to read?",
+    "sourceChapters": ["c05"],
+    "beats": [
+      {
+        "id": "c05-b01",
+        "say": "Request one is still writing the guide when request two arrives. Both start with exactly the same tokens. This worker shares completed entries and has no mechanism for joining unfinished work. Which path does request two take?",
+        "hold": 1.8
+      },
+      {
+        "id": "c05-b02",
+        "say": "Request two starts cold. Now the write completes at the guide boundary. Request three arrives after publication and reads the six thousand saved positions. Its own question still needs prefill. A simultaneous burst and three requests sent in sequence can have very different warmup costs.",
+        "hold": 0.9
+      },
+      {
+        "id": "c05-b03",
+        "say": "Replay with an endpoint-only cache. The first write now ends at six thousand forty-eight, after the first question. The second request looks at its own end, six thousand thirty-seven, and at the guide end, six thousand. Neither endpoint was written. Mark the guide on the warmup and the read. A completed guide write now serves the second request.",
+        "hold": 1
+      }
+    ]
+  },
+  {
+    "id": "c05-window",
+    "title": "Which marked endpoints qualify?",
+    "sourceChapters": ["c05"],
+    "beats": [
+      {
+        "id": "c05-window-b01",
+        "say": "Consider an explicit-only cache with a minimum of fifteen hundred thirty-six tokens. The marked guide ends at fourteen hundred. A changing unmarked question takes the request past the minimum. Which length decides whether a guide write qualifies?",
+        "hold": 1.9
+      },
+      {
+        "id": "c05-window-b02",
+        "say": "The marked endpoint sets the length. A fourteen-hundred-token guide falls short. Extend it with useful stable material to sixteen hundred and mark that end on the warmup and the read. Once its write completes, that endpoint qualifies. Check the model minimum, lifetime, placement and region for the service you deploy.",
+        "hold": 0.85
+      },
+      {
+        "id": "c05-window-b03",
+        "say": "Now use a different contract. This ruler measures eligible content positions, not tokens. A marker searches twenty positions including itself. Compatible entries have been written at fifteen and forty. Markers at thirty-four and sixty cover fifteen through thirty-four and forty-one through sixty. Which stored entry can you reach?",
+        "hold": 2
+      },
+      {
+        "id": "c05-window-b04",
+        "say": "Only fifteen is in reach. Add a marker at forty. Its window reaches the longer stored entry, so the worker can reuse through forty. Every endpoint in this example meets the minimum. Several markers can select candidates, but the longest reachable, compatible, available entry determines the read.",
+        "hold": 1
+      }
+    ]
+  },
+  {
+    "id": "c06",
+    "title": "Who owns the state that a request reads?",
+    "sourceChapters": ["c06"],
+    "beats": [
+      {
+        "id": "c06-b01",
+        "say": "Suppose two tenants submit the same private guide. Reuse can reveal information through content handling or timing, so the service needs an explicit sharing policy. Our gateway derives the scope from a verified session and combines it with model revision, guide version, and token identity.",
+        "hold": 0.7
+      },
+      {
+        "id": "c06-b02",
+        "say": "The request label says A. The verified session belongs to B. Which value should the worker use to look up this guide? Follow the session seal into the lookup key.",
+        "hold": 1.8
+      },
+      {
+        "id": "c06-b03",
+        "say": "B selects its own namespace. A owns the only stored entry, so B starts cold. Now run a verified A request with a new timestamp after the guide. A can read its own entry. Switch only its adapter. The guide now needs fresh computation because the weights used for this request have changed.",
+        "hold": 0.9
+      },
+      {
+        "id": "c06-b04",
+        "say": "A cryptographic hash helps compare identities. The gateway authenticates the owner and chooses the scope before lookup. Record the owner of each entry read, and check that an unknown session fails before lookup. A hosted service defines its own isolation boundary. A label in your logs cannot enlarge the protection it supplies.",
+        "hold": 0.9
+      }
+    ]
+  },
+  {
+    "id": "c07",
+    "title": "Which physical blocks can change hands?",
+    "sourceChapters": ["c07"],
+    "beats": [
+      {
+        "id": "c07-b01",
+        "say": "This worker has twenty physical blocks. Nine have live references. Eight still contain cached state with no owner, and three are empty. Guide G lives in slot nine. A new request needs five distinct blocks. Which five can it claim if the allocator uses empty blocks first?",
+        "hold": 2.2
+      },
+      {
+        "id": "c07-b02",
+        "say": "Take the three empty slots first. Then overwrite two unreferenced entries, in slots nine and ten. Watch the slot numbers stay still as their contents change. The nine original live blocks stay protected. Fourteen blocks now have owners and six cached blocks remain available. Count each physical slot once.",
+        "hold": 0.9
+      },
+      {
+        "id": "c07-b03",
+        "say": "Bring back the question about tests. In this small pool example, its four-token guide G used to be in slot nine. The lookup misses. Watch a fresh pass rebuild the missing guide state before the question can use it. Eviction adds prefill time even when device allocation stays flat. Track references, available blocks, eviction churn and reused tokens together.",
+        "hold": 1
+      }
+    ]
+  },
+  {
+    "id": "c08",
+    "title": "How many input positions need fresh prefill?",
+    "sourceChapters": ["c08"],
+    "beats": [
+      {
+        "id": "c08-b01",
+        "say": "Return to the six-thousand-token prefix. Three requests arrive in sequence. Their questions add forty-eight, thirty-seven and fifty-one tokens. The first writes a compatible guide that the next two can read. How many positions must the worker process from scratch across the three inputs?",
+        "hold": 2
+      },
+      {
+        "id": "c08-b02",
+        "say": "The first row costs six thousand forty-eight fresh positions. Add thirty-seven and fifty-one. That makes six thousand one hundred thirty-six fresh, down from eighteen thousand one hundred thirty-six with three cold runs. Two warm reads avoid twelve thousand repeated prefix-token computations. The three answers still generate two hundred forty output tokens in this fixture.",
+        "hold": 1
+      },
+      {
+        "id": "c08-b03",
+        "say": "Evict the guide before request three and replay with the same output lengths. Six thousand positions on its row move from reused to fresh. The output column stays fixed. Two requests can both count as hits while reusing very different numbers of tokens. Divide summed read tokens by summed input tokens, and compare the same traffic by worker, model, tenant and prompt version.",
+        "hold": 1
+      }
+    ]
+  },
+  {
+    "id": "usage",
+    "title": "How can we compare these two usage receipts?",
+    "sourceChapters": ["c08"],
+    "beats": [
+      {
+        "id": "usage-b01",
+        "say": "Two usage receipts describe the same prompt. In this Responses usage example, the input total is twenty-six hundred tokens. Its details list two thousand read and four hundred written. In the Claude usage example, input tokens means only the ordinary part. How can we put these receipts on the same basis?",
+        "hold": 1.8
+      },
+      {
+        "id": "usage-b02",
+        "say": "Subtract the reads and writes from the inclusive total. That leaves two hundred ordinary tokens. Add ordinary, read and write on the separate receipt to reconstruct twenty-six hundred. Both receipts read two thousand out of twenty-six hundred, about seventy-seven percent. Writes buy storage coverage. Only reads count towards the reuse fraction. Record generated output separately.",
+        "hold": 1
+      }
+    ]
+  },
+  {
+    "id": "bill",
+    "title": "Do the three reads pay back the write premiums?",
+    "sourceChapters": ["c08"],
+    "beats": [
+      {
+        "id": "bill-b01",
+        "say": "Use example prices in units per token. Ordinary input costs one, a write costs one and a quarter, and a read costs one tenth. A full six-thousand-token write costs seventy-five hundred. One full read costs six hundred. Together that is eighty-one hundred against twelve thousand cold. A later read must earn back the write premium before caching saves money.",
+        "hold": 0.9
+      },
+      {
+        "id": "bill-b02",
+        "say": "Try four requests with six thousand input tokens each. Only the first one thousand twenty-four repeat. The first request writes everything. Each later request reads the shared front and writes its unique tail. Will the three hits cover all those writes?",
+        "hold": 2.1
+      },
+      {
+        "id": "bill-b03",
+        "say": "Add the charges. The first row costs seventy-five hundred units. Each later row costs six thousand three hundred twenty-two point four. Together they cost more than the twenty-four thousand cold baseline. Mark just the stable prefix and process each tail as ordinary input. The same three hits now bring the input bill below baseline. Price the returned buckets at the chosen rates and lifetime. Output and other charges sit outside this comparison.",
+        "hold": 1.15
+      }
+    ]
+  },
+  {
+    "id": "route",
+    "title": "Which worker delivers the first token sooner?",
+    "sourceChapters": ["c08"],
+    "beats": [
+      {
+        "id": "route-b01",
+        "say": "With separate worker caches, sending one guide to three workers in turn needs three warmups if they all start cold. Sending it back to the first healthy, authorized worker can reuse its local copy. Now compare two workers with the same prompt and answer length. A warm worker computes the first token in one hundred seventy milliseconds. A cold worker takes twelve hundred twenty. Each queue initially adds twenty.",
+        "hold": 1
+      },
+      {
+        "id": "route-b02",
+        "say": "Give the warm worker a twelve-hundred-millisecond queue. The cold queue stays at twenty. Which worker reaches the first token sooner now? Follow the waiting time and computation on the same clock. In this example, transfer adds no time.",
+        "hold": 2.2
+      },
+      {
+        "id": "route-b03",
+        "say": "Cold arrives first at twelve hundred forty milliseconds. Warm arrives at thirteen hundred seventy. Add eight hundred eighty milliseconds of remaining generation to either route. Cold finishes at twenty-one hundred twenty. Compare queue, transfer, remaining prefill and decode under the actual workload. A newly added worker starts cold, and a popular warm worker can collect a long queue.",
+        "hold": 1
+      }
+    ]
+  },
+  {
+    "id": "replay",
+    "title": "What would you change first in each replay?",
+    "sourceChapters": ["c08"],
+    "beats": [
+      {
+        "id": "replay-b01",
+        "say": "Two requests return the old ninety-day policy. The repository now says thirty days. In trace A, capture the text that actually reached the model. It still says ninety. In trace B the rendered text says thirty and a verified cold run read zero prefix tokens. What would you change first in each replay?",
+        "hold": 2.1
+      },
+      {
+        "id": "replay-b02",
+        "say": "Repair the renderer in A so the new guide reaches the model. The changed token breaks the old prefix chain there. In B, keep the rendered guide and model fixed. Bypass the separate answer cache and inspect a newly generated answer. A prefix hit supplies attention state. An answer cache can return an earlier response, and fresh generation can also get a policy wrong.",
+        "hold": 1.3
+      }
+    ]
+  },
+  {
+    "id": "budget",
+    "title": "Does the remaining prefill fit?",
+    "sourceChapters": ["c03"],
+    "beats": [
+      {
+        "id": "budget-b01",
+        "say": "One last request. A compatible guide is available on this worker for the verified tenant. It contains forty-eight hundred tokens, followed by a new sixty-four-token question. The worker shares full blocks of sixteen. The first changed guide position is four thousand one hundred seventy-six, counting from one. The allowance is seven hundred fresh input tokens. Does the request fit?",
+        "hold": 2.6
+      },
+      {
+        "id": "budget-b02",
+        "say": "The first four thousand one hundred seventy-five positions match. Round down to two hundred sixty full blocks, or four thousand one hundred sixty reusable tokens. That leaves six hundred forty guide tokens plus the sixty-four-token question. Seven hundred four exceeds the allowance. Defer this request unless its budget changes.",
+        "hold": 1.1
+      },
+      {
+        "id": "budget-b03",
+        "say": "Move only the edit one position later, to four thousand one hundred seventy-seven. Can you grant the request now? Keep the same question and allowance.",
+        "hold": 2
+      },
+      {
+        "id": "budget-b04",
+        "say": "One more whole block survives. Four thousand one hundred seventy-six positions are reusable. Six hundred twenty-four guide tokens plus sixty-four question tokens need fresh work. Six hundred eighty-eight fits under seven hundred. You can now point to the last usable block and account for every input position beyond it. Those new positions still need attention over the prefix. FlashAttention tackles the cost of that remaining attention work.",
+        "hold": 1.5
+      }
+    ]
+  }
+]

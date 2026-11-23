@@ -1,0 +1,345 @@
+version: 1
+lesson: agent-architectures
+promise: Choose who decides the next lookup, identify which results a plan can reuse after a change, and check whether the evidence supports an answer. Compare routing, reflection and sandboxed search under the same permissions and budget.
+objectives:
+  - id: subject-intro
+    can: Trace a route to its actual destination before using it for a different museum
+    scenes:
+      - subject-intro
+  - id: control-contract
+    can: Identify who chose the hours lookup and who had permission to send it
+    scenes:
+      - control-contract
+  - id: state-record
+    can: Distinguish the requested finish time from the closing time on the returned hours receipt
+    scenes:
+      - state-record
+  - id: react-loop
+    can: Predict the next lookup when the same hours request returns a different observation
+    scenes:
+      - react-loop
+  - id: react-research
+    can: Keep historical comparisons attached to their controls
+    scenes:
+      - react-research
+  - id: ci-policy
+    can: Distinguish a successful tool read from the failed build it reports
+    scenes:
+      - ci-policy
+  - id: completion-evidence
+    can: Check each release claim against the reads the host completed and count its decision turns
+    scenes:
+      - completion-evidence
+  - id: workflow-choice
+    can: Compare a coded fallback with a model-chosen follow-up on the same closure notice
+    scenes:
+      - workflow-choice
+  - id: context-triangle
+    can: Sum the repeated copies of each observation across later requests
+    scenes:
+      - context-triangle
+  - id: cache-and-context
+    can: Separate submitted input counts from reusable prefix work and charges
+    scenes:
+      - cache-and-context
+  - id: tainted-interface
+    can: Apply host authorization after validating a proposed tool request
+    scenes:
+      - tainted-interface
+  - id: self-consistency
+    can: Vote on proposals before any real effect
+    scenes:
+      - self-consistency
+  - id: reflexion-feedback
+    can: Repair feedback before adding another reflection
+    scenes:
+      - reflexion-feedback
+  - id: reflexion-evidence
+    can: Compare generated self-tests with the experiment’s held-out correctness result
+    scenes:
+      - reflexion-evidence
+  - id: explicit-plan
+    can: Reject a completed journey to the wrong museum and identify the missing result
+    scenes:
+      - explicit-plan
+  - id: plan-runtime
+    can: Compute ready steps from a validated graph and actual result states
+    scenes:
+      - plan-runtime
+  - id: critical-path
+    can: Locate the read that holds up a join and compute the elapsed time with one or three workers
+    scenes:
+      - critical-path
+  - id: replan
+    can: Keep a museum’s current hours, replace a cancelled journey and recompute the visit
+    scenes:
+      - replan
+  - id: receipt-expiry
+    can: Identify the read ready to rerun at its exclusive expiry and the decision that must wait for it
+    scenes:
+      - receipt-expiry
+  - id: consumed-versions
+    can: Invalidate descendants when a consumed input version is replaced
+    scenes:
+      - consumed-versions
+  - id: router-dispatch
+    can: Classify once when the categories are already known
+    scenes:
+      - router-dispatch
+  - id: search-tree
+    can: Keep alternatives within a real branch-state contract
+    scenes:
+      - search-tree
+  - id: uct-construction
+    can: Use each branch’s visit count and return sum to predict how the exploration bonus changes the choice of simulation
+    scenes:
+      - uct-construction
+  - id: return-backup
+    can: Back up a simulated return to the selected child and root, then compute the child’s new mean
+    scenes:
+      - return-backup
+  - id: strict-tool-contract
+    can: Validate request shape and access before accepting the returned observation
+    scenes:
+      - strict-tool-contract
+  - id: lost-reply
+    can: Reconcile a lost reply using the service’s stable operation identity
+    scenes:
+      - lost-reply
+  - id: bounded-context
+    can: Stop loops and select the evidence each call needs
+    scenes:
+      - bounded-context
+  - id: budget-reservation
+    can: Reserve capacity before another dispatch
+    scenes:
+      - budget-reservation
+  - id: cycle-and-progress
+    can: Compare the five cursor readings around four repeated calls and distinguish a stalled pair from one that made progress
+    scenes:
+      - cycle-and-progress
+  - id: incident-recovery
+    can: Match the recovered state to the affected incident
+    scenes:
+      - incident-recovery
+  - id: durable-session
+    can: Select stored state into the next policy’s context without inventing authority
+    scenes:
+      - durable-session
+  - id: architecture-evaluation
+    can: Compare two policies on the same allowed reads and turn budget, separating completed reads, rejected requests and supported answers
+    scenes:
+      - architecture-evaluation
+  - id: transfer
+    can: Use the hours and transit receipts to compute the finish and the time left before the deadline
+    scenes:
+      - transfer
+  - id: fresh-itinerary
+    can: Decide whether to recommend a later bus under the original visit length and under a visitor-approved shorter stay
+    scenes:
+      - fresh-itinerary
+sections:
+  - heading: "ReAct: choose the next move"
+    status: taught
+    scenes:
+      - control-contract
+      - react-loop
+      - ci-policy
+  - heading: Let evidence choose the next action
+    status: taught
+    scenes:
+      - subject-intro
+      - state-record
+      - react-research
+      - react-loop
+  - heading: A concrete trace
+    status: taught
+    scenes:
+      - ci-policy
+      - completion-evidence
+  - heading: Count repeated context before estimating cost
+    status: taught
+    scenes:
+      - context-triangle
+      - cache-and-context
+  - heading: Building the loop in code
+    status: taught
+    scenes:
+      - ci-policy
+      - completion-evidence
+  - heading: Where the loop needs guardrails
+    status: taught
+    scenes:
+      - tainted-interface
+      - budget-reservation
+      - cycle-and-progress
+  - heading: Keep self-consistency read-only
+    status: taught
+    scenes:
+      - self-consistency
+  - heading: "Reflexion: learning from a failed attempt"
+    status: taught
+    scenes:
+      - reflexion-feedback
+      - reflexion-evidence
+  - heading: Plan-and-Execute
+    status: taught
+    scenes:
+      - explicit-plan
+      - plan-runtime
+      - critical-path
+  - heading: Make the remaining work explicit
+    status: taught
+    scenes:
+      - explicit-plan
+      - plan-runtime
+      - critical-path
+  - heading: The same release, planned
+    status: taught
+    scenes:
+      - plan-runtime
+  - heading: Compare the control loops
+    status: taught
+    scenes:
+      - workflow-choice
+      - control-contract
+      - architecture-evaluation
+  - heading: Match the pattern to the task
+    status: taught
+    scenes:
+      - architecture-evaluation
+  - heading: Dynamic replanning on step failure
+    status: taught
+    scenes:
+      - replan
+      - receipt-expiry
+      - consumed-versions
+  - heading: Other topologies for other uncertainty
+    status: taught
+    scenes:
+      - router-dispatch
+      - search-tree
+  - heading: "Router-Delegator: single-turn intent dispatch"
+    status: taught
+    scenes:
+      - router-dispatch
+  - heading: "Language Agent Tree Search (LATS): keep alternatives alive"
+    status: taught
+    scenes:
+      - search-tree
+      - uct-construction
+      - return-backup
+  - heading: Architectural comparison across control topologies
+    status: taught
+    scenes:
+      - architecture-evaluation
+  - heading: From a decision to a tool call
+    status: taught
+    scenes:
+      - strict-tool-contract
+      - tainted-interface
+  - heading: Tool definition
+    status: taught
+    scenes:
+      - strict-tool-contract
+  - heading: Idempotency keys on side-effect actions
+    status: taught
+    scenes:
+      - lost-reply
+  - heading: Runtime-owned stopping rules
+    status: taught
+    scenes:
+      - bounded-context
+      - budget-reservation
+  - heading: Detect cycles, then look for progress
+    status: taught
+    scenes:
+      - cycle-and-progress
+  - heading: Test the invariant on a new release
+    status: taught
+    scenes:
+      - incident-recovery
+  - heading: Human escalation gates and risk tiers
+    status: taught
+    scenes:
+      - incident-recovery
+      - budget-reservation
+      - tainted-interface
+  - heading: A practical choice rule
+    status: taught
+    scenes:
+      - workflow-choice
+      - architecture-evaluation
+      - durable-session
+      - fresh-itinerary
+  - heading: Evaluation rubric
+    status: taught
+    scenes:
+      - architecture-evaluation
+  - heading: Follow-up questions
+    status: taught
+    scenes:
+      - critical-path
+      - lost-reply
+quiz:
+  - n: 1
+    status: taught
+    scenes:
+      - control-contract
+      - workflow-choice
+  - n: 2
+    status: taught
+    scenes:
+      - completion-evidence
+      - explicit-plan
+  - n: 3
+    status: taught
+    scenes:
+      - context-triangle
+      - cache-and-context
+  - n: 4
+    status: taught
+    scenes:
+      - receipt-expiry
+      - consumed-versions
+  - n: 5
+    status: taught
+    scenes:
+      - critical-path
+  - n: 6
+    status: taught
+    scenes:
+      - reflexion-feedback
+  - n: 7
+    status: taught
+    scenes:
+      - uct-construction
+      - return-backup
+  - n: 8
+    status: taught
+    scenes:
+      - lost-reply
+  - n: 9
+    status: taught
+    scenes:
+      - cycle-and-progress
+  - n: 10
+    status: taught
+    scenes:
+      - incident-recovery
+removed: []
+reviews:
+  closed_book:
+    script: 2ae638777e9a3d0b
+    reviewer: /root/upgrade_shard4
+    evidence: build/video-delivery-20261106/script-reviews/agent-architectures.json
+    evidence_sha256: 1aed910290acfb1a058c123d54c2c2962c6bfae0c7c98ac246168dc86f164e7b
+    taught: 10
+    partial: 0
+    absent: 0
+  fact_check:
+    script: 2ae638777e9a3d0b
+    reviewer: /root/upgrade_shard4
+    evidence: build/video-delivery-20261106/script-reviews/agent-architectures.json
+    evidence_sha256: 1aed910290acfb1a058c123d54c2c2962c6bfae0c7c98ac246168dc86f164e7b
+    open_findings: 0

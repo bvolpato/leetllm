@@ -1,0 +1,206 @@
+version: 1
+lesson: gradients-backprop
+promise: Decide whether to keep a latency predictor’s update by tracing the gradient, checking its size,
+  and measuring the new prediction on the request that supplied it.
+objectives:
+  - id: local-slope
+    can: Derive the local loss slope, check it using the stored losses and weight spacing, and measure the loss after a finite step.
+    scenes:
+      - subject-intro
+      - why-train
+      - probe-neighbor
+      - derivative-limit
+      - update-step
+      - step-size-limits
+      - stable-scale
+      - gradient-check
+      - check-backward-rule
+  - id: reverse-trace
+    can: Trace the loss signal through a linear branch or a ReLU, multiply the local derivatives, and add the contributions that reach a shared weight.
+    scenes:
+      - forward-graph
+      - chain-rule
+      - path-accumulation
+      - relu-gate
+      - relu-corner
+      - reverse-mode
+      - nonlinear-forward
+      - nonlinear-update
+      - deep-products
+      - fresh-nonlinear
+  - id: check-cost
+    can: Count the extra forward runs for a one-sided check and explain how one reverse pass supplies all six derivatives in the worked example.
+    scenes:
+      - reverse-mode
+  - id: objective-storage
+    can: Compute a batch gradient from the chosen reduction or seed, and track which forward values and leaf gradients a backward call uses.
+    scenes:
+      - path-accumulation
+      - batch-conditioning
+      - vector-seed
+      - pytorch-loop
+      - saved-output
+      - expanded-storage
+  - id: transfer
+    can: Use the new input and saved activation to decide which gradient entries change, then compare the fresh and copied steps on the same request.
+    scenes:
+      - subject-intro
+      - why-train
+      - parameters-shape-loss
+      - gradient-vector
+      - gradient-geometry
+      - nonlinear-forward
+      - nonlinear-update
+      - keep-the-model-honest
+      - fresh-nonlinear
+sections:
+  - heading: A model with one adjustable number
+    status: taught
+    scenes:
+      - subject-intro
+      - why-train
+      - parameters-shape-loss
+  - heading: Read a slope by nudging one weight
+    status: taught
+    scenes:
+      - probe-neighbor
+      - reverse-mode
+  - heading: The derivative gives the exact local slope
+    status: taught
+    scenes:
+      - derivative-limit
+  - heading: Gradient descent takes a downhill step
+    status: taught
+    scenes:
+      - update-step
+  - heading: A correct gradient can still take a bad step
+    status: taught
+    scenes:
+      - update-step
+      - step-size-limits
+      - stable-scale
+      - nonlinear-update
+  - heading: Two weights, two slopes
+    status: taught
+    scenes:
+      - gradient-vector
+      - gradient-geometry
+  - heading: Backpropagation is chain-rule bookkeeping
+    status: taught
+    scenes:
+      - forward-graph
+      - chain-rule
+      - relu-gate
+      - relu-corner
+      - nonlinear-forward
+  - heading: When paths meet, add their signals
+    status: taught
+    scenes:
+      - path-accumulation
+  - heading: Four completed requests
+    status: taught
+    scenes:
+      - path-accumulation
+      - batch-conditioning
+  - heading: Gradient checking catches backward bugs
+    status: taught
+    scenes:
+      - gradient-check
+      - check-backward-rule
+      - relu-corner
+  - heading: Catastrophic cancellation in single precision
+    status: taught
+    scenes:
+      - gradient-check
+      - check-backward-rule
+  - heading: Let PyTorch repeat the backward pass
+    status: taught
+    scenes:
+      - pytorch-loop
+      - reverse-mode
+  - heading: What if the output isn't one number?
+    status: taught
+    scenes:
+      - vector-seed
+  - heading: In-place writes can break the backward pass
+    status: taught
+    scenes:
+      - saved-output
+      - expanded-storage
+  - heading: Test the loop on another request
+    status: taught
+    scenes:
+      - keep-the-model-honest
+      - gradient-check
+      - stable-scale
+  - heading: Solution sketches
+    status: article-only
+    reason: exercise
+    note: Independent learner practice and its answer sketches; the full mechanism and separate earned transfers
+      are taught in the film.
+  - heading: Keep evidence from each update
+    status: taught
+    scenes:
+      - keep-the-model-honest
+      - fresh-nonlinear
+      - deep-products
+quiz:
+  - n: 1
+    status: taught
+    scenes:
+      - update-step
+      - chain-rule
+  - n: 2
+    status: taught
+    scenes:
+      - stable-scale
+  - n: 3
+    status: taught
+    scenes:
+      - vector-seed
+  - n: 4
+    status: taught
+    scenes:
+      - path-accumulation
+  - n: 5
+    status: taught
+    scenes:
+      - batch-conditioning
+  - n: 6
+    status: taught
+    scenes:
+      - relu-corner
+  - n: 7
+    status: taught
+    scenes:
+      - pytorch-loop
+  - n: 8
+    status: taught
+    scenes:
+      - saved-output
+      - expanded-storage
+  - n: 9
+    status: taught
+    scenes:
+      - nonlinear-forward
+      - fresh-nonlinear
+  - n: 10
+    status: taught
+    scenes:
+      - parameters-shape-loss
+      - batch-conditioning
+removed: []
+framing: []
+reviews:
+  closed_book:
+    script: 02affe2534340e81
+    taught: 10
+    partial: 0
+    absent: 0
+    reviewer: /root/upgrade_shard5
+    evidence: build/video-delivery-20261106/script-reviews/gradients-backprop.json
+  fact_check:
+    script: 02affe2534340e81
+    open_findings: 0
+    reviewer: /root/upgrade_shard5
+    evidence: build/video-delivery-20261106/script-reviews/gradients-backprop.json

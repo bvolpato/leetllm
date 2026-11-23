@@ -1,0 +1,145 @@
+version: 1
+lesson: inference-data-plane
+promise: Use the size, identity and lifetime of a request's cache to choose a route, decide when decode may start and determine when its memory can serve another request.
+objectives:
+  - id: collective-completion
+    can: Distinguish a same-layer collective inside a replica from a cache transfer between replicas, and identify the completion each consumer needs.
+    scenes: [subject-intro, collective-contracts, lifecycle-events]
+  - id: size-and-place
+    can: Calculate unique payload, rounded capacity and shared-link time, then compare eligible routes using the blocks each still needs.
+    scenes: [kv-state, real-payload, route-compatible, reserve-and-transfer]
+  - id: authorize-decode
+    can: Compare the received manifest with the trusted reservation and locate a missing rank and block even when the receipt count looks complete.
+    scenes: [subject-intro, trusted-manifest, lifecycle-events, transfer]
+  - id: recover-and-reclaim
+    can: Determine whether a retry has separate capacity and when transport and GPU access permit reuse of the retired buffer.
+    scenes: [uncertain-transfer, retry-boundaries, transfer]
+  - id: trace-the-request
+    can: Trace the first token, client-visible output and failed handoff to the request owner and measure latency and attainment against offered work.
+    scenes: [retry-boundaries, critical-path, transfer]
+sections:
+  - heading: Decisions, tensor traffic, and token streams
+    status: taught
+    scenes:
+      - subject-intro
+      - collective-contracts
+      - lifecycle-events
+  - heading: Collectives inside a replica must agree
+    status: taught
+    scenes:
+      - collective-contracts
+  - heading: How much state crosses the handoff?
+    status: taught
+    scenes:
+      - kv-state
+      - real-payload
+  - heading: Reserve capacity before creating expensive state
+    status: taught
+    scenes:
+      - real-payload
+      - reserve-and-transfer
+      - uncertain-transfer
+  - heading: Agree on the interpretation before moving bytes
+    status: taught
+    note: The article's req-8k-017 reservation supplies the values in both columns. The delayed message changes only attempt 4 to attempt 3.
+    scenes:
+      - trusted-manifest
+  - heading: A transfer engine doesn't own the request
+    status: taught
+    scenes:
+      - route-compatible
+      - trusted-manifest
+      - lifecycle-events
+  - heading: Timeout revokes ownership, not physical access
+    status: taught
+    note: The small example retains the full 48-slot charge at destination tick 10. A late block changes the received count from 32 to 33 while the free count stays at 16.
+    scenes:
+      - uncertain-transfer
+      - transfer
+  - heading: Execute the ownership rules locally
+    status: taught
+    note: The closing example uses the article's Receiver with two ranks and three blocks per rank. Only the rank on the sixth arrival changes between the two commit calls.
+    scenes:
+      - retry-boundaries
+      - transfer
+  - heading: Failure modes and retry boundaries
+    status: taught
+    scenes:
+      - retry-boundaries
+  - heading: Measure the critical path, not a sum of unrelated percentiles
+    status: taught
+    scenes:
+      - critical-path
+  - heading: Try a changed workload
+    status: taught
+    scenes:
+      - real-payload
+      - transfer
+  - heading: Follow-up questions
+    status: taught
+    scenes:
+      - real-payload
+  - heading: Evaluation rubric
+    status: taught
+    scenes:
+      - real-payload
+      - uncertain-transfer
+      - retry-boundaries
+      - transfer
+quiz:
+  - n: 1
+    status: taught
+    scenes:
+      - collective-contracts
+  - n: 2
+    status: taught
+    scenes:
+      - collective-contracts
+  - n: 3
+    status: taught
+    scenes:
+      - real-payload
+  - n: 4
+    status: taught
+    scenes:
+      - real-payload
+  - n: 5
+    status: taught
+    scenes:
+      - real-payload
+  - n: 6
+    status: taught
+    scenes:
+      - uncertain-transfer
+      - transfer
+  - n: 7
+    status: taught
+    scenes:
+      - subject-intro
+      - transfer
+  - n: 8
+    status: taught
+    scenes:
+      - retry-boundaries
+  - n: 9
+    status: taught
+    scenes:
+      - retry-boundaries
+  - n: 10
+    status: taught
+    scenes:
+      - critical-path
+removed: []
+reviews:
+  closed_book:
+    script: 243419cf1a6f7273
+    taught: 10
+    partial: 0
+    absent: 0
+    reviewer: independent closed-book review
+    evidence: videos/reviews/script-renewal/inference-data-plane.json
+  fact_check:
+    script: 243419cf1a6f7273
+    open_findings: 0
+    reviewer: independent factual review
+    evidence: videos/reviews/script-renewal/inference-data-plane.json

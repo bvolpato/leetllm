@@ -1,0 +1,665 @@
+version: 1
+id: query-expansion
+title: Repairing Retrieval with Rewrites, HyDE, Self-RAG, and CRAG
+source: retrieval/advanced-rag-query-rewriting-self-rag/content.md
+sources:
+  - title: Query Rewriting for Retrieval-Augmented Large Language Models
+    url: https://arxiv.org/abs/2305.14283
+  - title: Retrieval-Augmented Generation for Knowledge-Intensive NLP Tasks
+    url: https://arxiv.org/abs/2005.11401
+  - title: Reciprocal Rank Fusion outperforms Condorcet and individual Rank Learning Methods
+    url: https://doi.org/10.1145/1571941.1572114
+  - title: "RAG-Fusion: a New Take on Retrieval-Augmented Generation"
+    url: https://arxiv.org/abs/2402.03367
+  - title: Precise Zero-Shot Dense Retrieval without Relevance Labels (HyDE)
+    url: https://arxiv.org/abs/2212.10496
+  - title: Self-RAG
+    url: https://arxiv.org/abs/2310.11511
+  - title: Corrective Retrieval Augmented Generation
+    url: https://arxiv.org/abs/2401.15884
+scenes:
+  - id: subject-intro
+    title: "Which page will this search find?"
+    visual: "A follow-up slides out of the support chat and into the search box. The leak report stays behind. Both page excerpts stay in view while the viewer counts shared words."
+    beats:
+      - say: "“What do I do now?” That’s all the search box gets. The message about the leaked API key stays in the chat. Count each shared word once. Which page wins?"
+        hold: 2.1
+        caption_starts: ["The message about the leaked API key", "Count each shared word once"]
+        visual_cues:
+          - id: intro-follow-up
+            phrase: "What do I do now"
+            targets: [latest-turn]
+            linger: 0.45
+          - id: intro-search
+            phrase: "all the search box gets"
+            targets: [search-input]
+            linger: 0.45
+      - say: "The account overview wins. It matches “what,” “I,” and “do.” The recovery guide gets zero. The words “API key” stayed in the chat."
+        hold: 1.1
+        caption_starts: ["The recovery guide gets zero"]
+        visual_cues:
+          - id: intro-result
+            phrase: "The account overview wins"
+            targets: [match-count]
+            linger: 0.45
+            caption_boundary: true
+  - id: rewrite-for-context
+    title: "Search the same two pages again"
+    visual: "The query changes in place. The same two page excerpts receive new underlines and match counts while the conversation stays visible."
+    beats:
+      - say: "The first message tells us what leaked. We can send the task to search without copying the secret itself. Try asking, “How do I revoke and rotate a leaked API key?” Which page comes first now?"
+        hold: 1.85
+        caption_starts: ["Try asking", "Which page comes first now"]
+        visual_cues:
+          - id: rewrite-history
+            phrase: "first message"
+            targets: [prior-turn]
+            linger: 0.45
+          - id: rewrite-carry
+            phrase: "send the task to search without copying the secret itself"
+            targets: [search-input]
+          - id: rewrite-input
+            phrase: "How do I revoke and rotate a leaked API key"
+            targets: [search-input]
+            linger: 0.45
+      - say: "The recovery guide wins. Six words match, including “revoke,” “rotate,” and “key.” That’s query rewriting. We gave search the missing subject and kept the same pages and permissions. The answer model still has the original conversation."
+        hold: 0.9
+        visual_cues:
+          - id: rewrite-result
+            phrase: "The recovery guide wins"
+            targets: [match-count]
+            linger: 0.45
+            caption_boundary: true
+  - id: vocabulary-expansion
+    title: "The words in the runbooks"
+    visual: "The original query stays on screen. Three distinct proposals fill three search slots. A change in capitalization adds no search, and a fourth distinct phrase arrives after the slots are full."
+    beats:
+      - say: "Now the developer asks how to handle peak demand. Their search text says “peak demand handling.” The runbooks talk about burst quota limits, queue backpressure and autoscaling capacity. Here the subject is clear. What we need are other ways to search for it."
+        hold: 0.8
+        visual_cues:
+          - id: variant-burst
+            phrase: "burst quota limits"
+            targets: [runbook-vocabulary]
+            linger: 0.45
+          - id: variant-queue
+            phrase: "queue backpressure"
+            targets: [runbook-vocabulary]
+            linger: 0.45
+          - id: variant-capacity
+            phrase: "autoscaling capacity"
+            targets: [runbook-vocabulary]
+            linger: 0.45
+      - say: "Keep the original query. We have room for three more. Take the burst quota phrase. The next proposal repeats it with different capitalization, so skip the duplicate. Admit the queue phrase and the capacity phrase. The traffic proposal comes after the third slot is full. These phrases are hypotheses to try against the same authorized pages."
+        hold: 0.9
+        visual_cues:
+          - id: variant-first
+            phrase: "Take the burst quota phrase"
+            targets: [variant-slots]
+            linger: 0.45
+          - id: variant-repeat
+            phrase: "skip the duplicate"
+            targets: [variant-proposals]
+            linger: 0.45
+          - id: variant-next
+            phrase: "Admit the queue phrase"
+            targets: [variant-slots]
+            linger: 0.45
+          - id: variant-last
+            phrase: "and the capacity phrase"
+            targets: [variant-slots]
+            linger: 0.45
+          - id: variant-extra
+            phrase: "third slot is full"
+            targets: [variant-proposals]
+            linger: 0.45
+  - id: merge-ranked-lists
+    title: "Three searches, one shortlist"
+    visual: "Rows keep each source in place. The columns show its rank in each search. One first-place contribution per row builds a tie before the queue guide collects a second vote."
+    beats:
+      - say: "Look across each row. A number is the page’s position in that search. A dot means the page was absent. The queue guide came first for queue overload and second for backpressure. We can combine these positions even when the searches use different similarity scales."
+        hold: 0.7
+        visual_cues:
+          - id: fusion-ranks
+            phrase: "position in that search"
+            targets: [source-ranks]
+            linger: 0.45
+      - say: "Give every first place one over sixty-one. Each row gets one. This is reciprocal rank fusion. Add sixty to the page’s position, take the reciprocal, and add that contribution to the page’s score. An absent page adds zero. Which page will lead when we include second place?"
+        hold: 2
+        motion_check:
+          region: [1425, 440, 360, 403]
+          minimumChangedFraction: 0.002
+        visual_cues:
+          - id: fusion-first
+            phrase: "Give every first place one over sixty-one"
+            targets: [fusion-equation]
+            linger: 0.45
+      - say: "The queue guide collects another one over sixty-two. That puts the queue guide first. With sixty in the denominator, a second place is worth nearly as much as a first. That also explains why repeated versions of one query can distort the ranking. They give a page several votes for essentially the same wording."
+        hold: 1
+        visual_cues:
+          - id: fusion-second
+            phrase: "collects another one over sixty-two"
+            targets: [source-ranks]
+            linger: 0.45
+          - id: fusion-result
+            phrase: "That puts the queue guide first"
+            targets: [fusion-equation]
+            linger: 0.45
+            caption_boundary: true
+  - id: inspect-recall
+    title: "Do we have both parts of the answer?"
+    visual: "Two required sources and the top three results stay side by side. The first variant changes any-hit to one while queue evidence remains missing. The other variants fill that gap."
+    beats:
+      - say: "The developer wants to know how much traffic can burst and what happens when the queue fills. Before we search, mark the two pages an answer needs. That’s the burst policy for the first part and the queue guide for the second. The original wording finds neither in this word-matching example."
+        hold: 0.65
+        visual_cues:
+          - id: recall-gold
+            phrase: "mark the two pages"
+            targets: [required-pages]
+            linger: 0.45
+          - id: recall-raw
+            phrase: "original wording"
+            targets: [recall-search]
+            linger: 0.45
+      - say: "Add the burst quota search. The burst policy comes back. Any hit at three now scores one because at least one required page made the shortlist. Look at the empty queue slot. Can we answer the second half yet?"
+        hold: 1.9
+        visual_cues:
+          - id: recall-one
+            phrase: "The burst policy comes back"
+            targets: [recall-search]
+            linger: 0.45
+            caption_boundary: true
+          - id: recall-metric
+            phrase: "Any hit at three"
+            targets: [recall-metrics]
+            linger: 0.45
+      - say: "We still need the queue guide. With the other two searches, the fused list contains both required pages. Recall at three goes from one half to two out of two. The capacity guide also made the list, but it fills neither required slot. Use this comparison on labeled questions with your own retriever to see whether expansion helps there."
+        hold: 0.95
+        visual_cues:
+          - id: recall-gap
+            phrase: "We still need the queue guide"
+            targets: [recall-metrics]
+            caption_boundary: true
+          - id: recall-both
+            phrase: "the fused list contains both required pages"
+            targets: [required-pages]
+            linger: 0.45
+            caption_boundary: true
+  - id: decomposition-topology
+    title: "When can the next search start?"
+    visual: "Six independent fact lookups fill a comparison except for one unsourced cell. A different incident makes the second query wait for the endpoint named in an error report."
+    beats:
+      - say: "Suppose the developer wants to compare sync and batch endpoints. We know both names, and we need latency, limits and retries for each. Split that comparison into six lookups. They can all start together. Watch the source IDs come in under the values in this example."
+        hold: 0.85
+        visual_cues:
+          - id: fact-search
+            phrase: "Watch the source IDs come in under the values"
+            targets: [fact-receipts]
+            linger: 0.45
+      - say: "One search finished empty. We have no source for batch retries. Leave that cell open when you write the comparison. The sync retry rule belongs to a different endpoint."
+        hold: 1
+        visual_cues:
+          - id: fact-gap
+            phrase: "We have no source for batch retries"
+            targets: [fact-receipts]
+            linger: 0.45
+      - say: "Try a different incident with an updated runbook. Which endpoint had the most errors, and which retry rule applies there? We have to read the error report first. It names the batch endpoint. Now we can search its retry policy. Source B three says to retry failed items only. That first result supplied the next query. If its identity is uncertain, carry the uncertainty forward or stop. Give the search a hop limit."
+        hold: 0.9
+        caption_starts: ["We have to read the error report first", "It names the batch endpoint", "Source B three says to retry failed items only"]
+        visual_cues:
+          - id: fact-endpoint
+            phrase: "It names the batch endpoint"
+            targets: [endpoint-receipt]
+            linger: 0.45
+          - id: fact-retry
+            phrase: "Source B three says to retry failed items only"
+            targets: [retry-receipt]
+            linger: 0.45
+  - id: preserve-trust-boundaries
+    title: "Which matching page may enter the answer?"
+    visual: "The same quota query matches two pages. Tenant eligibility filters out the admin page before any retrieved text enters the answer context."
+    beats:
+      - say: "Every search so far has used the support agent’s access. That grant comes from the request, outside the words we generate. Compare the tenants of the two pages that match the burst quota query."
+        hold: 0.7
+        visual_cues:
+          - id: access-scope
+            phrase: "support agent’s access"
+            targets: [caller-scope]
+            linger: 0.45
+      - say: "Both the support policy and the admin guide match two words. Which one may we use? Apply the caller’s tenant and grant. Only the support policy qualifies. Rank that permitted result and pass its text on to the answer model."
+        hold: 0.9
+        visual_cues:
+          - id: access-match
+            phrase: "match two words"
+            targets: [matching-terms]
+            linger: 0.45
+          - id: access-filter
+            phrase: "Only the support policy qualifies"
+            targets: [source-eligibility]
+            linger: 0.45
+            caption_boundary: true
+          - id: access-rank
+            phrase: "Rank that permitted result"
+            targets: [source-identities]
+            linger: 0.45
+      - say: "Treat history and retrieved pages as data. Instructions in either can’t grant access. Scope private search caches to the caller’s permissions, and when a cached result comes back, recheck current access."
+        hold: 0.8
+        visual_cues:
+          - id: access-recheck
+            phrase: "recheck current access"
+            targets: [caller-scope]
+            linger: 0.45
+  - id: step-back
+    title: "Was this request over its burst limit?"
+    visual: "A request trace and a broader policy lookup meet on a single ruler for one client, endpoint, tier and sixty-second window."
+    beats:
+      - say: "Our client received a four twenty-nine on endpoint E two. Its trace records one hundred twenty requests in a minute. Is that over the limit? The trace gives us the incident, but we need the burst rule for this endpoint and tier. Asking that broader question is called step-back prompting."
+        hold: 1.6
+        visual_cues:
+          - id: stepback-question
+            phrase: "burst rule for this endpoint and tier"
+            targets: [stepback-evidence]
+            linger: 0.45
+      - say: "Keep the exact request and search for the governing policy alongside it. The policy sets the limit at one hundred per client in sixty seconds. The two sources agree on the endpoint, tier and window. This client was twenty over the limit. That supports a rate-limit explanation. Check the limiter log for this request to confirm which rule produced the response."
+        hold: 1
+        visual_cues:
+          - id: stepback-policy
+            phrase: "the limit at one hundred per client in sixty seconds"
+            targets: [stepback-evidence]
+            linger: 0.45
+          - id: stepback-join
+            phrase: "This client was twenty over the limit"
+            targets: [stepback-join]
+            linger: 0.45
+            caption_boundary: true
+  - id: hyde-vectors
+    title: "From a possible answer to a search vector"
+    visual: "Two hypothetical passages sit beside their encoder outputs. Each coordinate of the corpus search vector is calculated directly beneath its two inputs."
+    beats:
+      - say: "Can we increase throughput for launch week? One possible answer talks about a quota increase. Another talks about batch jobs. Have a model draft both passages. Encode each passage with the corpus passage encoder. Here each passage becomes three numbers. HyDE, short for Hypothetical Document Embeddings, uses those vectors to find real passages to cite."
+        hold: 0.9
+        visual_cues:
+          - id: hyde-encode
+            phrase: "Encode each passage with the corpus passage encoder"
+            targets: [hyde-operands]
+            linger: 0.45
+      - say: "Read down the first column. One passage contributes point one and the other contributes point five. Add the pair and divide by two. Do that once in each column. The mean is point three, point seven, point three. Use that vector to search for real passages. If the cosine index expects unit length, normalize the nonzero mean first."
+        hold: 1
+        visual_cues:
+          - id: hyde-average
+            phrase: "Add the pair and divide by two"
+            targets: [hyde-mean]
+            linger: 0.45
+          - id: qx-mean-result
+            phrase: "The mean is point three, point seven, point three"
+            targets: [hyde-mean]
+            linger: 0.45
+            caption_boundary: true
+      - say: "With one sample, its vector goes straight to search. With several, use their average. The original study also tried including the question as another sample. Keep preprocessing, encoder and distance metric compatible with the index. Now try changing what one passage says."
+        hold: 0.75
+        visual_cues:
+          - id: hyde-compatible
+            phrase: "distance metric compatible with the index"
+            targets: [hyde-mean]
+            linger: 0.45
+  - id: hyde-drift
+    title: "Change one clause in the search text"
+    visual: "The prefix and the three corpus excerpts stay fixed. Replacing a quota clause with a scaling clause moves the overview into the top two and displaces a required source."
+    beats:
+      - say: "Here are three pages about launch traffic. Count matching words so you can check the ranking by eye. Keep the top two. The launch answer needs the quota policy and the batch policy. With “request a temporary quota increase,” both policies make the cut."
+        hold: 1.05
+        visual_cues:
+          - id: hyde-find-policies
+            phrase: "both policies make the cut"
+            targets: [hyde-recovered]
+            linger: 0.45
+            caption_boundary: true
+      - say: "Keep “for batch jobs.” Change the proposal to “enable automatic replica scaling.” Search those same pages again. Which required policy falls out of the top two?"
+        hold: 2
+        visual_cues:
+          - id: hyde-edit-proxy
+            phrase: "enable automatic replica scaling"
+            targets: [proxy-clause]
+            linger: 0.45
+      - say: "The quota policy falls out. The batch words still match, but the invented scaling advice brings in the overview. This is how a proxy can drift. Check the source before citing any policy, and measure that drift separately with the real dense encoder. When a date, price, error code or incident ID matters, keep an exact lookup available."
+        hold: 1
+        visual_cues:
+          - id: hyde-change-cause
+            phrase: "The quota policy falls out"
+            targets: [hyde-required-slots]
+            linger: 0.45
+            caption_boundary: true
+  - id: self-rag-tokens
+    title: "What supports the next sentence?"
+    visual: "The launch question triggers a retrieval decision. A retrieved policy appears first, then a candidate sentence and the model’s judgments of its relevance, support and utility."
+    beats:
+      - say: "We still owe the developer an answer. A Self-RAG generator learns to reflect on its own output. It decides whether to fetch a passage before writing its next segment, often a sentence. It can skip this search or reuse earlier evidence. For the launch question it requests a passage."
+        hold: 0.9
+        visual_cues:
+          - id: reflection-retrieve
+            phrase: "it requests a passage"
+            targets: [reflection-retrieval]
+            linger: 0.45
+            caption_boundary: true
+      - say: "Read the approval clause in E one. The model marks the passage relevant, then writes, “Request approval for a temporary increase.” It judges that sentence fully supported. It gives the response four out of five for utility. Those labels record what the model predicted. You can check its support judgment against the words in E one."
+        hold: 0.95
+        visual_cues:
+          - id: reflection-relevance
+            phrase: "marks the passage relevant"
+            targets: [reflection-evidence]
+            linger: 0.45
+          - id: reflection-write
+            phrase: "Request approval for a temporary increase"
+            targets: [reflection-segment]
+            linger: 0.45
+          - id: reflection-families
+            phrase: "judges that sentence fully supported"
+            targets: [reflection-judgments]
+            linger: 0.45
+          - id: reflection-utility
+            phrase: "four out of five for utility"
+            targets: [reflection-judgments]
+            linger: 0.45
+      - say: "These labels name families of reflection tokens. The checkpoint has its own registered tokens. A training critic labels examples offline. The trained generator predicts the tokens while it writes. Calling an ordinary model separately to route and grade a response gives you a prompted critique loop."
+        hold: 0.75
+        visual_cues:
+          - id: reflection-trained
+            phrase: "trained generator predicts the tokens"
+            targets: [reflection-segment]
+            linger: 0.45
+  - id: self-rag-branches
+    title: "How much support does each sentence get?"
+    visual: "A hundred equal pieces show the model’s next-token probabilities. Fifty belong to support judgments. Two half-credit pieces earn one full piece of credit. The source clause stays in view as the two candidates compete."
+    beats:
+      - say: "The passage says approval is required. Here’s how the model scores that support. Picture its next-token probability as a hundred equal pieces. Forty-seven go to full support, two to partial support, and one to no support. The gray half goes to other tokens. Which pieces belong in the denominator?"
+        hold: 1.65
+        caption_starts: ["Picture its next-token probability", "The gray half goes to other tokens"]
+        visual_cues:
+          - id: reflection-normalization
+            phrase: "Forty-seven go to full support"
+            targets: [reflection-family-model]
+            linger: 0.45
+      - say: "All fifty support pieces count in the denominator. For the numerator, keep all forty-seven full pieces. Give half credit to each partial piece. Together they add one. The no-support piece earns zero. Divide forty-eight by fifty. That gives point nine six. Relevance uses its own family total. For utility, the five ratings run from minus one to plus one in equal steps. A low rating can pull a sentence’s total down."
+        hold: 1
+        caption_starts: ["For the numerator", "Together they add one", "Divide forty-eight by fifty", "Relevance uses its own family total"]
+        visual_cues:
+          - id: support-denominator
+            phrase: "All fifty support pieces count in the denominator"
+            targets: [reflection-family-model]
+          - id: support-half-credit
+            phrase: "Give half credit to each partial piece"
+            targets: [reflection-family-model]
+          - id: support-zero
+            phrase: "The no-support piece earns zero"
+            targets: [reflection-family-model]
+          - id: reflection-normalize
+            phrase: "That gives point nine six"
+            targets: [reflection-normalized-score]
+            linger: 0.45
+            caption_boundary: true
+      - say: "Now compare two possible next sentences. One asks for approval. The other promises unlimited traffic. Suppose both have the same generation likelihood. In this example support gets three times the weight of relevance or utility. The unlimited claim leads in those other two columns. Which sentence survives?"
+        hold: 2
+        visual_cues:
+          - id: reflection-weighted
+            phrase: "support gets three times the weight"
+            targets: [reflection-contributions]
+            linger: 0.45
+      - say: "Multiply each score by the weight above it and add across. The approval sentence scores point nine two two. The unlimited claim scores point five three four. The approval sentence wins. Its lead in support more than covers its small losses in the other two columns. To verify the selected claim, go back to the words “requires approval” in E one."
+        hold: 0.95
+        visual_cues:
+          - id: branch-multiply
+            phrase: "Multiply each score by the weight above it and add across"
+            targets: [reflection-contributions]
+          - id: qx-weighted-a
+            phrase: "The approval sentence scores point nine two two"
+            targets: [reflection-branch-total]
+            linger: 0.45
+            caption_boundary: true
+          - id: qx-weighted-b
+            phrase: "The unlimited claim scores point five three four"
+            targets: [reflection-branch-total]
+            linger: 0.45
+            caption_boundary: true
+          - id: qx-branch-winner
+            phrase: "The approval sentence wins"
+            targets: [branch-decision]
+            linger: 0.45
+            caption_boundary: true
+      - say: "At each segment, a decoder can retain several passage-conditioned branches and extend the high-scoring ones. Its configuration sets how generation likelihood enters alongside the linear critique score. Utility can be negative, so taking its logarithm would be invalid. Those extra continuations cost decoding work even if the number of retrieved pages stays fixed."
+        hold: 0.8
+        visual_cues:
+          - id: reflection-limits
+            phrase: "extra continuations cost decoding work"
+            targets: [reflection-branch-total]
+            linger: 0.45
+  - id: crag-routing
+    title: "Which passages should reach the generator?"
+    visual: "Two document scores feed a ruler with explicit thresholds. The best score moves through three routes. A separate permission check stops the private request before any web call."
+    beats:
+      - say: "We can also correct a search before a generator writes anything. In Corrective RAG, or CRAG, a separate trained evaluator grades each question and document pair. Look at these two pages. The better score is point eight one. Above point seven, use the internal passages and refine them. The paper calls that branch correct. This ruler uses an invented zero-to-one scale. The paper uses minus one to one and tunes thresholds for the dataset."
+        hold: 0.85
+        visual_cues:
+          - id: crag-grade
+            phrase: "The better score is point eight one"
+            targets: [crag-score]
+            linger: 0.45
+          - id: crag-internal
+            phrase: "use the internal passages and refine them"
+            targets: [crag-consequence]
+            linger: 0.45
+      - say: "Change just the first page’s score to point four five. It still beats the second page. Between the marks, combine internal and approved external evidence. That middle branch is called ambiguous. A score exactly on either mark also takes that middle route."
+        hold: 0.8
+        visual_cues:
+          - id: crag-mid
+            phrase: "to point four five"
+            targets: [crag-score]
+            linger: 0.45
+          - id: crag-combined
+            phrase: "combine internal and approved external evidence"
+            targets: [crag-consequence]
+            linger: 0.45
+      - say: "Drop that first score to point one seven. Now both pages fall below the lower mark. Discard these internal hits and seek external evidence. The paper calls that branch incorrect. What if the request contains a private policy question?"
+        hold: 1.7
+        visual_cues:
+          - id: crag-low
+            phrase: "to point one seven"
+            targets: [crag-score]
+            linger: 0.45
+          - id: crag-external
+            phrase: "Discard these internal hits and seek external evidence"
+            targets: [crag-consequence]
+            linger: 0.45
+      - say: "Keep the private question inside. The evaluator estimates retrieval quality. Authorization decides where a query can go. Seek an approved internal source or tell the developer what you could not establish."
+        hold: 0.8
+        visual_cues:
+          - id: crag-permission
+            phrase: "Keep the private question inside"
+            targets: [crag-consequence]
+            linger: 0.45
+            caption_boundary: true
+  - id: knowledge-refinement
+    title: "Which lines belong in the answer context?"
+    visual: "A quota document splits into four source-labeled strips. Keeping the approval and backoff lines closes the gaps while their original IDs and order survive."
+    beats:
+      - say: "Even a relevant page contains things we don’t need. Open the quota page. It has the approval rule, a menu, the backoff instruction, and a storage note. Split the page into small strips and keep each strip’s place in the original. A short page could stay in one piece."
+        hold: 0.8
+        visual_cues:
+          - id: refinement-split
+            phrase: "Split the page into small strips"
+            targets: [refinement-strips]
+            linger: 0.45
+      - say: "For the launch question, the approval and backoff lines clear the relevance threshold. Keep those two lines together. The menu and storage note drop away. E one dot three still points to the original backoff instruction. This gives the writer focused context and the reader a way to check each claim against its source."
+        hold: 0.95
+        visual_cues:
+          - id: refinement-keep
+            phrase: "Keep those two lines together"
+            targets: [refinement-provenance]
+            linger: 0.45
+  - id: correction-boundaries
+    title: "Where may the question and its rewrite go?"
+    visual: "A gate stops a private query. Two tenants then ask the same follow-up about different failures and receive separately scoped, history-specific rewrites."
+    beats:
+      - say: "A private query stays inside even when the evaluator asks to look elsewhere. For an approved public question, restrict sources and check redirects and resolved addresses. Block private, loopback, link-local and metadata destinations, including IPv6 forms. Treat instructions on any fetched page as untrusted text."
+        hold: 0.85
+        visual_cues:
+          - id: egress-gate
+            phrase: "A private query stays inside"
+            targets: [private-egress]
+            linger: 0.45
+      - say: "Now two tenants ask, “How can I retry it?” One just reported a failed batch job. The other reported a failed invoice export. Same words, different rewrites. Include effective access scope, policy version, history digest, query, technique and generator or prompt version in the cache key. For a vector, include the encoder version too. Recheck current grants and invalidate revoked scope. Only explicitly public, context-independent artifacts can be shared."
+        hold: 0.9
+        visual_cues:
+          - id: cache-separate
+            phrase: "Same words, different rewrites"
+            targets: [scoped-cache]
+            linger: 0.45
+  - id: latency-waterfall
+    title: "How long until the answer starts?"
+    visual: "A serial clock follows one request to its first delivered token. Paired stage durations then identify the nineteenth sorted request, before a separate example measures a parallel deadline."
+    beats:
+      - say: "Start the clock when a request arrives. In this invented trace the rewrite takes one hundred twenty milliseconds. Encoding takes twenty, retrieval takes twenty-five, and reranking takes fifty. The generator takes another one hundred eighty to deliver its first token. Our time to first token is three hundred ninety-five milliseconds. The rest of the answer takes longer."
+        hold: 0.9
+        visual_cues:
+          - id: time-0
+            phrase: "one hundred twenty milliseconds"
+            targets: [latency-intervals]
+            linger: 0.45
+          - id: time-1
+            phrase: "Encoding takes twenty"
+            targets: [latency-intervals]
+            linger: 0.45
+          - id: time-2
+            phrase: "retrieval takes twenty-five"
+            targets: [latency-intervals]
+            linger: 0.45
+          - id: time-3
+            phrase: "reranking takes fifty"
+            targets: [latency-intervals]
+            linger: 0.45
+          - id: time-4
+            phrase: "another one hundred eighty"
+            targets: [latency-intervals]
+            linger: 0.45
+          - id: qx-ttft-result
+            phrase: "Our time to first token is three hundred ninety-five milliseconds"
+            targets: [latency-total]
+            linger: 0.45
+            caption_boundary: true
+      - say: "One request can’t tell us the tail latency. Here are twenty requests with two serial stages apiece. Eighteen are quick at both stages. Look at the last two. One stalls early, the other late. Each stage on its own has a ninety-fifth percentile of ten milliseconds. Sort the whole requests by their totals. For nearest-rank p ninety-five, multiply twenty by point nine five and round up. That puts us at the nineteenth one. How long did it take?"
+        hold: 2
+        visual_cues:
+          - id: latency-sort
+            phrase: "the nineteenth one"
+            targets: [latency-percentile]
+            linger: 0.45
+      - say: "The nineteenth sorted total is one hundred ten milliseconds. Only one request was slow at each stage. Two different requests were slow overall. Adding the two stage percentiles would give twenty milliseconds and lose both stalls. This small sample shows how to calculate the percentile. Estimate a production tail from representative end-to-end traces."
+        hold: 0.9
+        visual_cues:
+          - id: qx-percentile-result
+            phrase: "The nineteenth sorted total is one hundred ten milliseconds"
+            targets: [latency-percentile]
+            linger: 0.45
+            caption_boundary: true
+      - say: "If three searches run together and we need all three, we wait for the slowest. Suppose each one meets a twenty-five millisecond deadline with probability point nine five, independently. Multiply those three probabilities. The chance they all finish on time is about point eight five seven. Shared load can make their times move together. Measure the actual fan-out, including planning and fusion."
+        hold: 0.85
+        visual_cues:
+          - id: qx-fanout-result
+            phrase: "The chance they all finish on time is about point eight five seven"
+            targets: [fanout-probability]
+            linger: 0.45
+            caption_boundary: true
+  - id: route-release
+    title: "Which route clears both release thresholds?"
+    visual: "Each row pairs supported answers with latency on the same fifty questions. Moving only the latency ceiling from 350 to 300 milliseconds changes the release decision."
+    beats:
+      - say: "Keep the raw hybrid search as a control. Use a rewrite for a missing subject. When the right page is already in a noisy shortlist, try reranking. If short questions miss formal passages, test HyDE. When passages still leave a gap, correct the search or follow a dependency. You can feed HyDE candidates to a trained Self-RAG generator, but evaluate that combination on its own."
+        hold: 0.9
+        visual_cues:
+          - id: route-repairs
+            phrase: "Use a rewrite for a missing subject"
+            targets: [route-repair]
+            linger: 0.45
+      - say: "Suppose three routes give these results on the same fifty answerable questions. Each green mark stands for a correct answer backed by its source. The bar on the right gives that route’s end-to-end ninety-fifth percentile in milliseconds. Require supported accuracy of at least point nine three and latency at most three hundred fifty milliseconds. Which route passes both?"
+        hold: 2.1
+      - say: "Rewrite does: point nine four and three hundred forty."
+        hold: 1.1
+        visual_cues:
+          - id: route-gate
+            phrase: "Rewrite does: point nine four and three hundred forty"
+            targets: [route-verdict]
+            linger: 0.45
+            caption_boundary: true
+      - say: "Now tighten only the latency ceiling to three hundred milliseconds. No route passes both requirements. Keep the release blocked. The fastest row misses the quality threshold. An abstention counts as a miss on these answerable questions. Evaluate appropriate abstention on unanswerable cases separately, along with citation support and access violations."
+        hold: 0.9
+        visual_cues:
+          - id: route-tighten
+            phrase: "tighten only the latency ceiling to three hundred milliseconds"
+            targets: [route-latency]
+            linger: 0.45
+          - id: qx-tight-result
+            phrase: "No route passes both requirements"
+            targets: [route-verdict]
+            linger: 0.45
+            caption_boundary: true
+      - say: "Before releasing a route, compare it with the baseline on held-out questions. Keep the corpus snapshot, model and retriever versions, candidate counts, costs and request traces. Report sample size, uncertainty and which kinds of questions improved. Our fifty examples illustrate the gate."
+        hold: 0.85
+        visual_cues:
+          - id: route-evidence
+            phrase: "which kinds of questions improved"
+            targets: [route-counts]
+            linger: 0.45
+  - id: exactness-and-budget
+    title: "What should the assistant search next?"
+    visual: "Four bounded searches produce four returned entries but only three distinct pages. A fresh follow-up then tests whether a proposed exact lookup actually names the incident in the conversation."
+    beats:
+      - say: "Go back to our launch search. Send the original wording. It returns nothing here. Send the quota query, then the queue query, then the capacity query. We allowed three results per call. Four searches could return twelve entries. Only four entries came back, and the queue guide appears twice."
+        hold: 0.85
+        visual_cues:
+          - id: budget-raw
+            phrase: "Send the original wording"
+            targets: [budget-query]
+            linger: 0.45
+          - id: budget-quota
+            phrase: "the quota query"
+            targets: [budget-query]
+            linger: 0.45
+          - id: budget-queue
+            phrase: "the queue query"
+            targets: [budget-query]
+            linger: 0.45
+          - id: budget-capacity
+            phrase: "the capacity query"
+            targets: [budget-query]
+            linger: 0.45
+      - say: "A fifth search would exceed our four-call budget. Stop it before dispatch. Count separate work, too. A dense route has query encodings, and generating a longer rewrite can cost more tokens even with the same number of searches. Log the route, cost, end-to-end time and source support together."
+        hold: 0.85
+        visual_cues:
+          - id: budget-stop
+            phrase: "Stop it before dispatch"
+            targets: [request-budget]
+            linger: 0.45
+      - say: "One last follow-up. The developer gives us the incident number for that leaked key, then asks when it closed. A proposed rewrite has swapped the last two digits. Both incident numbers exist in the support register. Which closing time can you cite for this developer?"
+        hold: 2.25
+        caption_starts: ["A proposed rewrite has swapped the last two digits", "Which closing time can you cite for this developer"]
+        visual_cues:
+          - id: incident-proposal
+            phrase: "proposed rewrite"
+            targets: [incident-key]
+            linger: 0.45
+      - say: "The proposed key returns nine eighteen UTC. That record belongs to the other incident. Carry the exact ID from the earlier message into the lookup. This incident closed at fourteen thirty-two UTC. Cite that row. A real result can still answer the wrong question."
+        hold: 1.4
+        visual_cues:
+          - id: incident-other
+            phrase: "The proposed key returns nine eighteen UTC"
+            targets: [incident-record]
+            linger: 0.45
+            caption_boundary: true
+          - id: incident-restore
+            phrase: "Carry the exact ID from the earlier message into the lookup"
+            targets: [incident-key]
+          - id: incident-cite
+            phrase: "This incident closed at fourteen thirty-two UTC"
+            targets: [incident-answer]
+            linger: 0.45
+            caption_boundary: true
+      - say: "One record settled this follow-up. In the next lesson, the answer depends on relationships spread across many records. GraphRAG indexes those connections and builds community reports for questions that need a wider view."
+        hold: 0.85

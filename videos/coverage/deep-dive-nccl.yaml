@@ -1,0 +1,274 @@
+version: 1
+lesson: deep-dive-nccl
+promise: Follow one gradient slot to decide who needs its sum, when its owner can read it, and which evidence explains a slow or stalled step.
+objectives:
+  - id: objective-1
+    can: Choose a gradient collective from the slots each rank needs and apply averaging once
+    scenes:
+      - intro
+      - ownership-contract
+      - ring
+      - gather
+  - id: objective-2
+    can: Map a communicator root to its physical CUDA device
+    scenes:
+      - rank-bootstrap
+  - id: objective-3
+    can: Transpose equal-chunk dispatch and identify an unequal-count mismatch
+    scenes:
+      - alltoall-layout
+  - id: objective-4
+    can: Count ring send volume and startup rounds
+    scenes:
+      - traffic-bound
+  - id: objective-5
+    can: Compare startup and byte costs for two schedules and explain complementary-tree forwarding and protocol choice
+    scenes:
+      - double-tree
+      - cost
+  - id: objective-6
+    can: Separate grouped enqueue, launch notification and completed writes
+    scenes:
+      - group-enqueue
+      - launch-event
+  - id: objective-7
+    can: Protect input/output lifetimes and weight readers
+    scenes:
+      - streams
+      - buffer-lifetime
+      - fresh-first-event
+  - id: objective-8
+    can: Interpret topology classes without inventing achieved rates
+    scenes:
+      - topology-matrix
+  - id: objective-9
+    can: Trace GPU/NIC routes and scope transport claims
+    scenes:
+      - network-path
+  - id: objective-10
+    can: Find source responsibilities for a concrete operation
+    scenes:
+      - source-tour
+  - id: objective-11
+    can: Choose a measurement from the system traffic shape
+    scenes:
+      - system-shapes
+      - receipt
+  - id: objective-12
+    can: Convert benchmark units and separate correctness from tail timing
+    scenes:
+      - receipt
+      - benchmark-contract
+  - id: objective-13
+    can: Compute the actual in-place shard offset
+    scenes:
+      - inplace-offset
+  - id: objective-14
+    can: Find the first differing rank receipt or readiness failure
+    scenes:
+      - agreement
+      - diagnostic-evidence
+      - synthesis
+  - id: objective-15
+    can: Apply versioned MIG and encryption boundaries
+    scenes:
+      - platform-scope
+  - id: objective-16
+    can: Bind source/license/contribution claims to their exact evidence
+    scenes:
+      - project-evidence
+  - id: objective-17
+    can: Identify the first premature input read and place the shard reader at the recorded write completion in a repaired replay
+    scenes:
+      - fresh-first-event
+sections:
+  - heading: The collective contract
+    status: taught
+    scenes:
+      - intro
+      - ownership-contract
+      - rank-bootstrap
+      - agreement
+  - heading: Choose the operation from desired ownership
+    status: taught
+    scenes:
+      - intro
+      - ownership-contract
+      - alltoall-layout
+      - gather
+  - heading: Work one all-reduce by hand
+    status: taught
+    scenes:
+      - intro
+      - ring
+      - gather
+  - heading: Why rings work well for large messages
+    status: taught
+    scenes:
+      - traffic-bound
+      - ring
+  - heading: Why trees help small and medium messages
+    status: taught
+    scenes:
+      - double-tree
+      - cost
+  - heading: A communicator is an ordered program
+    status: taught
+    scenes:
+      - rank-bootstrap
+      - agreement
+      - group-enqueue
+      - launch-event
+      - streams
+      - buffer-lifetime
+  - heading: Topology turns one API into different routes
+    status: taught
+    scenes:
+      - topology-matrix
+      - network-path
+  - heading: Read the matrix before changing a setting
+    status: taught
+    scenes:
+      - topology-matrix
+      - network-path
+  - heading: Read one call through the source tree
+    status: taught
+    scenes:
+      - source-tour
+  - heading: How higher-level systems use NCCL
+    status: taught
+    scenes:
+      - system-shapes
+      - alltoall-layout
+  - heading: Measure bytes, rounds, and exposed time
+    status: taught
+    scenes:
+      - cost
+      - traffic-bound
+      - receipt
+      - streams
+  - heading: Turn one `all_reduce_perf` row into evidence
+    status: taught
+    scenes:
+      - receipt
+      - benchmark-contract
+      - inplace-offset
+  - heading: Diagnose a hang without guessing
+    status: taught
+    scenes:
+      - diagnostic-evidence
+      - synthesis
+      - fresh-first-event
+  - heading: Strengths and limits
+    status: taught
+    scenes:
+      - platform-scope
+      - system-shapes
+      - double-tree
+  - heading: NVIDIA project, public source
+    status: taught
+    scenes:
+      - project-evidence
+  - heading: Research roots rather than one NCCL paper
+    status: taught
+    scenes:
+      - project-evidence
+      - double-tree
+      - traffic-bound
+  - heading: Source-reading exercise
+    status: taught
+    scenes:
+      - source-tour
+      - diagnostic-evidence
+      - inplace-offset
+  - heading: Takeaways
+    status: taught
+    scenes:
+      - synthesis
+      - fresh-first-event
+  - heading: Mastery quiz
+    status: taught
+    scenes:
+      - ownership-contract
+      - rank-bootstrap
+      - alltoall-layout
+      - traffic-bound
+      - group-enqueue
+      - inplace-offset
+      - receipt
+      - buffer-lifetime
+      - topology-matrix
+      - network-path
+      - fresh-first-event
+quiz:
+  - n: 1
+    skill: Compute collective output ownership and avoid averaging twice
+    status: taught
+    scenes:
+      - ownership-contract
+  - n: 2
+    skill: Map a communicator root to its physical CUDA device
+    status: taught
+    scenes:
+      - rank-bootstrap
+  - n: 3
+    skill: Transpose equal-chunk dispatch and identify an unequal-count mismatch
+    status: taught
+    scenes:
+      - alltoall-layout
+  - n: 4
+    skill: Count ring send volume and startup rounds
+    status: taught
+    scenes:
+      - traffic-bound
+  - n: 5
+    skill: Separate grouped enqueue, launch notification and completed writes
+    status: taught
+    scenes:
+      - group-enqueue
+      - streams
+      - launch-event
+  - n: 6
+    skill: Compute the actual in-place shard offset
+    status: taught
+    scenes:
+      - inplace-offset
+  - n: 7
+    skill: Convert benchmark units and separate correctness from tail timing
+    status: taught
+    scenes:
+      - receipt
+      - benchmark-contract
+      - traffic-bound
+  - n: 8
+    skill: Find the first differing rank receipt or readiness failure
+    status: taught
+    scenes:
+      - agreement
+      - buffer-lifetime
+      - diagnostic-evidence
+      - fresh-first-event
+  - n: 9
+    skill: Trace GPU/NIC routes and scope transport claims
+    status: taught
+    scenes:
+      - topology-matrix
+      - network-path
+  - n: 10
+    skill: Choose a measurement from the system traffic shape
+    status: taught
+    scenes:
+      - receipt
+      - streams
+removed: []
+reviews:
+  closed_book:
+    script: afec6c8fc6a39ffa
+    taught: 10
+    partial: 0
+    absent: 0
+    evidence: build/video-delivery-20261106/script-reviews/deep-dive-nccl.json
+  fact_check:
+    script: afec6c8fc6a39ffa
+    open_findings: 0
+    evidence: build/video-delivery-20261106/script-reviews/deep-dive-nccl.json

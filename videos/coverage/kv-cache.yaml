@@ -1,0 +1,201 @@
+version: 1
+lesson: kv-cache
+promise: Use the stored pairs, valid length, and owners of a block to decide where the next token can write, then size and schedule the cache when many requests share a GPU.
+framing: [ hook, close ]
+objectives:
+  - id: why-cache
+    can: Distinguish a sampled token from a cached position. Count positions that need new K/V projections separately from positions the current query attends to.
+    scenes: [ hook, waste, reads ]
+  - id: two-phases
+    can: Tell prefill from decode, say what each phase usually stresses, and read time to first token and inter token latency separately.
+    scenes: [ phases, batching ]
+  - id: size-it
+    can: Calculate the cache bytes per token and the total for a conversation from layers, key value heads, head width, and precision.
+    scenes: [ size ]
+  - id: name-the-waste
+    can: Identify internal fragmentation, reservation waste, and external fragmentation in a reservation scheme.
+    scenes: [ reserve ]
+  - id: follow-the-table
+    can: Follow a token position through a block table to its physical block and slot, and say when a new block is taken.
+    scenes: [ paged, your-turn ]
+  - id: kernel-reads
+    can: Compare a paged read with a contiguous reference, use the valid length to diagnose an overread, and explain when a contiguous virtual address range can serve an existing kernel.
+    scenes: [ kernel ]
+  - id: count-blocks
+    can: Count occupied blocks as requests finish and join, and say when a freed block is safe to reuse.
+    scenes: [ lifetime, batching, your-turn, close ]
+  - id: share-safely
+    can: Use a block's owners and valid slots to choose an in-place append, a private copy, or a fresh block. Count the physical blocks saved by sharing a compatible prefix.
+    scenes: [ share, prefix, close ]
+  - id: run-out
+    can: Compare both legs of a swap with the time to rebuild the evicted positions at a given replay rate.
+    scenes: [ preempt, recovery-cost ]
+  - id: pick-the-lever
+    can: Choose between packing, scheduling, and storing fewer bytes per token for a given memory or latency problem.
+    scenes: [ batching, shrink, your-turn ]
+sections:
+  - heading: Why the KV cache exists
+    status: taught
+    scenes: [ hook, waste ]
+  - heading: Autoregressive generation
+    status: taught
+    scenes: [ hook, waste, phases ]
+  - heading: "KV cache: cache K, V from previous steps"
+    status: taught
+    scenes: [ hook, waste, reads ]
+  - heading: KV cache memory analysis
+    status: taught
+    scenes: [ size ]
+  - heading: Memory footprint examples (FP16)
+    status: taught
+    scenes: [ size, shrink ]
+  - heading: The memory fragmentation problem
+    status: taught
+    scenes: [ reserve ]
+  - heading: Types of memory waste
+    status: taught
+    scenes: [ reserve ]
+  - heading: PagedAttention (vLLM)
+    status: taught
+    scenes: [ paged ]
+  - heading: Virtual memory for KV cache
+    status: taught
+    scenes: [ paged ]
+  - heading: What paging saves, and what it doesn't
+    status: taught
+    scenes: [ paged, shrink ]
+  - heading: Reading attention through a block table
+    status: taught
+    scenes: [ kernel ]
+  - heading: Paging changes the kernel contract
+    status: taught
+    scenes: [ kernel ]
+  - heading: Implementation sketch
+    status: article-only
+    reason: code-detail
+    note: The film teaches the allocation rule, and the page has the Python class to read and run.
+  - heading: Tracing a small example
+    status: taught
+    scenes: [ paged, your-turn ]
+  - heading: Read actual values through the table
+    status: taught
+    scenes: [ kernel ]
+  - heading: Preemption when the pool is empty
+    status: taught
+    scenes: [ preempt, recovery-cost ]
+  - heading: Continuous batching (iteration-level batching)
+    status: taught
+    scenes: [ batching ]
+  - heading: Static batching limitations
+    status: taught
+    scenes: [ batching ]
+  - heading: The continuous batching approach
+    status: taught
+    scenes: [ batching ]
+  - heading: How serving engines build on PagedAttention
+    status: taught
+    scenes: [ share, prefix ]
+  - heading: "Memory sharing: parallel sampling, beam search, and copy-on-write"
+    status: taught
+    scenes: [ share, close ]
+  - heading: Prefix caching across independent requests
+    status: taught
+    scenes: [ prefix ]
+  - heading: RadixAttention (SGLang)
+    status: article-only
+    reason: vendor-detail
+    note: The film teaches prefix reuse and eviction in general. The page covers how one engine organizes them in a radix tree.
+  - heading: FlashInfer and kernel optimization
+    status: article-only
+    reason: vendor-detail
+    note: One kernel library. The film teaches why a paged kernel is needed, and the page names this implementation.
+  - heading: PagedAttention vs. FlashAttention
+    status: taught
+    scenes: [ shrink ]
+  - heading: Reducing KV cache at the architecture level
+    status: taught
+    scenes: [ shrink ]
+  - heading: Practical considerations
+    status: taught
+    scenes: [ phases, batching, size ]
+  - heading: 1. The prefill vs. decode bottleneck
+    status: taught
+    scenes: [ phases, batching ]
+  - heading: 2. Context window limits
+    status: taught
+    scenes: [ shrink ]
+  - heading: 3. Distributed inference
+    status: taught
+    scenes: [ shrink ]
+  - heading: Make the pool run out
+    status: taught
+    scenes: [ preempt ]
+quiz:
+  - n: 1
+    status: taught
+    scenes:
+      - hook
+      - waste
+      - reads
+  - n: 2
+    status: taught
+    scenes:
+      - size
+  - n: 3
+    status: taught
+    scenes:
+      - reserve
+      - paged
+  - n: 4
+    status: taught
+    scenes:
+      - paged
+  - n: 5
+    status: taught
+    scenes:
+      - kernel
+  - n: 6
+    status: taught
+    scenes:
+      - share
+      - close
+  - n: 7
+    status: taught
+    scenes:
+      - prefix
+  - n: 8
+    status: taught
+    scenes:
+      - preempt
+      - recovery-cost
+  - n: 9
+    status: taught
+    scenes:
+      - batching
+      - phases
+  - n: 10
+    status: taught
+    scenes:
+      - shrink
+removed:
+  - point: Definitions of query, key, and value, and how softmax weights blend the values.
+    reason: The attention lesson derives queries, keys, values, and softmax. The opening follows one query through its three key scores and the resulting weighted mix.
+  - point: The analogy of the query as a question and the keys as addresses.
+    reason: It belongs to the attention lesson, and this lesson does not build on it.
+  - point: The narrated preview that a small mapping table will support more flexible requests.
+    reason: The paged scene teaches the table itself. The fork shows why changing one entry protects a branch.
+  - point: The note that the drawing shows one attention layer while the model repeats through its stack.
+    reason: The opening identifies the pairs as one head's data. The size scene scales that payload across heads and layers.
+  - point: The conclusion's trace of A and B sharing block seven, with A appending today and then releasing block two.
+    reason: The close follows a fresh fork through blocks zero, one, and two. The viewer identifies the private block a new request can reuse.
+  - point: The statement that vLLM caches full blocks and may recompute a final prompt region, as a claim about that engine.
+    reason: It depends on the version, so the page keeps it. The prefix scene teaches full block sharing and that the last token is still computed.
+reviews:
+  closed_book:
+    taught: 10
+    partial: 0
+    absent: 0
+    script: c691ea5a00db5955
+  fact_check:
+    open_findings: 0
+    script: c691ea5a00db5955

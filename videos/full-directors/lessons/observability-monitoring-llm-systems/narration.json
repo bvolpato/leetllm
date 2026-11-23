@@ -1,0 +1,900 @@
+[
+  {
+    "id": "c01",
+    "title": "Which request should wake the on-call engineer?",
+    "sourceChapters": [
+      "c01"
+    ],
+    "beats": [
+      {
+        "id": "c01-b01",
+        "say": "Two engineers ask, “Can I deploy?” Both requests return HTTP two hundred. Out of each model comes the same word. Approved. Look at the release record they used. The sign-off line is empty.",
+        "hold": 0.9
+      },
+      {
+        "id": "c01-b02",
+        "say": "Follow both drafts to the engineers’ screens. Freeze the replay on the two replies. This team pages when someone receives a deployment approval without a sign-off. Which request should set off the pager?",
+        "hold": 3
+      },
+      {
+        "id": "c01-b03",
+        "say": "Ring! Request two oh five. Its approval reached the engineer. Look at two oh two. Its draft says the same thing, but that gate kept it inside the service.",
+        "hold": 0.7
+      },
+      {
+        "id": "c01-b04",
+        "say": "A reviewer checks each delivered reply against the release record and attaches the verdict to its request. Count the unsupported deliveries across all six requests.",
+        "hold": 1.5
+      },
+      {
+        "id": "c01-b05",
+        "say": "Two of six. The alert carries a link to request two oh five. An engineer opening that trace can compare the source, the draft and the delivered reply.",
+        "hold": 1
+      }
+    ]
+  },
+  {
+    "id": "c02",
+    "title": "Record the output that crossed the boundary",
+    "sourceChapters": [
+      "c02"
+    ],
+    "beats": [
+      {
+        "id": "c02-b01",
+        "say": "Suppose the gate selects abstain from four routes: serve, shorten, review and abstain. Check the operator’s actual reply. It says “Deployment approved.” Record the chosen route beside the observed delivery. Can you see the mismatch?",
+        "hold": 0.65
+      },
+      {
+        "id": "c02-b02",
+        "say": "Store two facts separately. Did an answer reach the engineer, and has anyone reviewed it? While review is pending, leave the unsafe verdict empty. After a reviewer checks a safe answer, record false. Validate those fields as they arrive. An unsafe delivery needs an actual delivery.",
+        "hold": 0.3
+      },
+      {
+        "id": "c02-b03",
+        "say": "Reject unknown routes, empty IDs and strings where the record expects a Boolean.",
+        "hold": 0.65
+      },
+      {
+        "id": "c02-b04",
+        "say": "Record one final event per request identity and reconcile it with an independent ingress count for the same window. Final delivery events, duplicate messages, and review receipts are different objects. If eight requests entered but only seven final events arrived, preserve the missing-event count.",
+        "hold": 0.3
+      },
+      {
+        "id": "c02-b05",
+        "say": "Read down from R eight. We saw the request arrive. Where’s its final event? The collector slot is empty. Leave latency and cost unknown. Did a reply reach the engineer? Look for a delivery record. To count a safe reply, we also need an independent review of what the engineer received.",
+        "hold": 1.2
+      }
+    ]
+  },
+  {
+    "id": "c03",
+    "title": "Join reviewed outcomes by request identity",
+    "sourceChapters": [
+      "c03"
+    ],
+    "beats": [
+      {
+        "id": "c03-b01",
+        "say": "Begin with the serving events. Each row records its request identity, chosen route, and whether a substantive answer actually reached the operator. Separate supplied reviews join to the matching request before we count reviewed safety.",
+        "hold": 0.65
+      },
+      {
+        "id": "c03-b02",
+        "say": "The first four supplied reviews identify one supported answer and three safe withholdings. Now the remaining receipts expose two unsupported approvals. Replaying a receipt updates its existing row; it cannot create another request in the denominator. A missing review stays unknown, and a receipt for an unrecognized request needs investigation.",
+        "hold": 0.65
+      }
+    ]
+  },
+  {
+    "id": "c04",
+    "title": "Update a review without adding a request",
+    "sourceChapters": [
+      "c04"
+    ],
+    "beats": [
+      {
+        "id": "c04-b01",
+        "say": "Freeze the request cohort, window cutoff, and evaluator version before taking a quality snapshot. A request can finish now and receive its independent review later. Store when the review became available so an earlier dashboard does not silently inherit future evidence.",
+        "hold": 0.3
+      },
+      {
+        "id": "c04-b02",
+        "say": "At the thirty-second cutoff, the review is still on its way. Leave its unsafe verdict empty. A reviewer can supply a verdict in the sixty-second snapshot.",
+        "hold": 0.65
+      },
+      {
+        "id": "c04-b03",
+        "say": "Review two oh five. Its verdict goes in the row for request two oh five. Replaying the same receipt leaves the request count unchanged. Key each update by request ID and record which evaluator supplied it. If the evaluator changes later, decide which version belongs in the report. Each request still contributes one row.",
+        "hold": 0.65
+      },
+      {
+        "id": "c04-b04",
+        "say": "Review coverage is reviewed requests divided by the complete ingress cohort. Reviewed unsafe rate divides confirmed unsafe requests by reviewed requests. Conditional answer risk instead divides unsafe substantive deliveries by reviewed substantive deliveries.",
+        "hold": 0.3
+      },
+      {
+        "id": "c04-b05",
+        "say": "Ten requests came in. Eight have reviews, five of those delivered answers, and one answer was unsafe. Review coverage is eight of ten. Among reviewed requests the risk is one of eight. Among reviewed answers it is one of five.",
+        "hold": 1.7
+      }
+    ]
+  },
+  {
+    "id": "c05",
+    "title": "Which requests belong in the denominator?",
+    "sourceChapters": [
+      "c05"
+    ],
+    "beats": [
+      {
+        "id": "c05-b01",
+        "say": "Here are all six delivery receipts with their reviews. The pink marks are the two unsupported approvals. To count risk per reviewed request, take both pink marks over the whole row of six. Now suppose an engineer tells you they received a substantive answer.",
+        "hold": 0.3
+      },
+      {
+        "id": "c05-b02",
+        "say": "Look only at the requests where an answer went out. What fraction of the delivered answers were unsafe?",
+        "hold": 2.2
+      },
+      {
+        "id": "c05-b03",
+        "say": "Two out of three. Requests two oh five and two oh six still form the numerator. Two oh one is the only other request where someone received an answer. That’s why the same two failures give different rates. The three abstentions describe what the gate did.",
+        "hold": 0.3
+      },
+      {
+        "id": "c05-b04",
+        "say": "Four drafts had generation defects. Two made it through the gate.",
+        "hold": 0.85
+      },
+      {
+        "id": "c05-b05",
+        "say": "Now remove only the reviews for two oh two, two oh three and two oh four. The reviewed-request rate rises to two out of three. Review coverage falls to three out of six. Look one row above the missing reviews.",
+        "hold": 0.3
+      },
+      {
+        "id": "c05-b06",
+        "say": "The delivery records still say “withheld” in all three places. We know the unsafe delivery count for this entire window is still two. Whether those withholdings helped the engineers is a separate question.",
+        "hold": 1
+      }
+    ]
+  },
+  {
+    "id": "c06",
+    "title": "How much can a missing review hide?",
+    "sourceChapters": [
+      "c06"
+    ],
+    "beats": [
+      {
+        "id": "c06-b01",
+        "say": "Try a new window. Seven requests came in. Read across the first three columns. One unsafe answer, one answer with no unsafe claim, and one withholding. All three have reviews. For the other four, we still have the delivery records.",
+        "hold": 0.3
+      },
+      {
+        "id": "c06-b02",
+        "say": "Two answers went out, and two were withheld. With those reviews pending, what’s the smallest number of unsafe deliveries across all seven? What’s the largest?",
+        "hold": 2.2
+      },
+      {
+        "id": "c06-b03",
+        "say": "One is certain. Look at the two unchecked deliveries in the middle. Each could add one. That brings the upper count to three. The last two columns can add nothing because an operator never received a substantive answer on either request.",
+        "hold": 0.3
+      },
+      {
+        "id": "c06-b04",
+        "say": "We can bound unsafe delivery even while the usefulness of those withholdings is still open. The rate for the whole window lies between one seventh and three sevenths.",
+        "hold": 1.1
+      },
+      {
+        "id": "c06-b05",
+        "say": "Now take away the final event for request seven. Its place in the ingress count stays. We can no longer tell whether the operator received an answer. What’s the highest possible count now?",
+        "hold": 2.2
+      },
+      {
+        "id": "c06-b06",
+        "say": "Four. Request seven can now hide one more unsafe delivery. The lower count stays at one, and the denominator stays at seven. Keep that missing event visible when you report the range. To report a rate among reviewed requests, you need at least one review. With none, that rate is undefined.",
+        "hold": 1.2
+      }
+    ]
+  },
+  {
+    "id": "c07",
+    "title": "Separate first output from the remaining stream",
+    "sourceChapters": [
+      "c07"
+    ],
+    "beats": [
+      {
+        "id": "c07-b01",
+        "say": "Latency has boundaries too. In our supplied stream, the same request clock starts at dispatch. The first visible token arrives at two hundred forty milliseconds. That delay can include retrieval, queueing, model prefill, and output handling. A model-server timer or a client chunk timer can cover a different interval.",
+        "hold": 0.65
+      },
+      {
+        "id": "c07-b02",
+        "say": "Continue the clock to the last visible token, at four hundred fifty-five milliseconds. Thirty visible tokens leave twenty-nine after the first. Divide those twenty-nine by point two one five seconds. That gives about a hundred thirty-five tokens per second. Keep billed tokens, visible tokens and chunks distinct. Return to the six-request window. Its ninety-fifth percentile for first output is two hundred forty milliseconds. The two unsafe replies still need a page.",
+        "hold": 0.65
+      }
+    ]
+  },
+  {
+    "id": "c08",
+    "title": "Match tokens and timestamps before dividing",
+    "sourceChapters": [
+      "c08"
+    ],
+    "beats": [
+      {
+        "id": "c08-b01",
+        "say": "Each notch on this clock marks a visible token. Start the clock at dispatch. The first token lands at one hundred fifty milliseconds. Watch the rest arrive. The seventh lands at four hundred fifty.",
+        "hold": 1
+      },
+      {
+        "id": "c08-b02",
+        "say": "Measure from the first arrival to the last. Count the gaps between the marks. What rate did the engineer see after the first token?",
+        "hold": 2.4
+      },
+      {
+        "id": "c08-b03",
+        "say": "Six later tokens over three hundred milliseconds. Divide by a thousand to put that interval in seconds. Six over point three gives twenty tokens per second. That is the rate these marks support.",
+        "hold": 1.2
+      },
+      {
+        "id": "c08-b04",
+        "say": "Try a stream with one visible token. There is no later-token interval. Put all seven at the same timestamp instead. The clock cannot resolve a positive interval. Report the missing measurement and check timer resolution.",
+        "hold": 1
+      },
+      {
+        "id": "c08-b05",
+        "say": "Reject a missing timestamp, a malformed counter, negative time, or a last arrival before the first. A bad timer leaves an independent safety finding intact.",
+        "hold": 0.7
+      },
+      {
+        "id": "c08-b06",
+        "say": "Now read a client’s chunk receipts. The empty chunk arrives at one hundred milliseconds. The next chunk carries the first three tokens together at three hundred milliseconds. The last four arrive together at five hundred. The stream closes at six hundred. We saw two text arrivals. Each receipt gives one time for its whole group. We cannot recover the spacing between tokens inside a chunk. Billed output can also include hidden reasoning.",
+        "hold": 0.8
+      },
+      {
+        "id": "c08-b07",
+        "say": "Return to the stream where tokens arrive individually. Start with the client and server marks aligned. Now delay the client by three hundred milliseconds. The server still sends from one hundred fifty to four hundred fifty. The engineer sees the first token at four hundred fifty and the last at seven hundred fifty. The first token takes longer to arrive. The six gaps still span three hundred milliseconds.",
+        "hold": 1
+      }
+    ]
+  },
+  {
+    "id": "c09",
+    "title": "Construct the percentile from its population",
+    "sourceChapters": [
+      "c09"
+    ],
+    "beats": [
+      {
+        "id": "c09-b01",
+        "say": "Sort these eight first-output times from fastest to slowest. For nearest-rank p ninety-five, multiply eight by point nine five. The rank is seven point six, so round up to position eight. That last tile reads two hundred sixty milliseconds. With only eight observations, the slowest request sets this percentile.",
+        "hold": 0.65
+      },
+      {
+        "id": "c09-b02",
+        "say": "Report the time window, sample size, route and completion population with the percentile. A completed-response histogram can look excellent while failures and cancellations produce no output. Count and time those outcomes separately instead of silently discarding them. Compare like-for-like workloads and timer boundaries before attributing a percentile change to a model or infrastructure repair.",
+        "hold": 0.65
+      }
+    ]
+  },
+  {
+    "id": "c10",
+    "title": "Keep workload and runtime evidence beside quality",
+    "sourceChapters": [
+      "c10"
+    ],
+    "beats": [
+      {
+        "id": "c10-b01",
+        "say": "Keep latency, traffic, errors and saturation. Traffic includes arrivals per second and active streams. Saturation includes queue pressure and whichever resource actually constrains the service. For self-hosted inference, inspect batch shape, model memory, key-value cache occupancy and accelerator utilization together.",
+        "hold": 0.3
+      },
+      {
+        "id": "c10-b02",
+        "say": "A rising queue with occupied cache slots suggests a different investigation from slow client delivery with an empty queue.",
+        "hold": 0.65
+      },
+      {
+        "id": "c10-b03",
+        "say": "Prefill can process multiple prompt positions together. Autoregressive decoding produces successive tokens with sequential dependencies. At small batches, reading weights and cached attention state can dominate compute; long context and batching change that balance. Researchers measured this trade-off on PaLM models running on TPUs.",
+        "hold": 0.3
+      },
+      {
+        "id": "c10-b04",
+        "say": "To find what limits your service, measure prefill and decoding at the batch sizes you serve.",
+        "hold": 0.65
+      },
+      {
+        "id": "c10-b05",
+        "say": "Use the OpenTelemetry convention revision pinned with this lesson. Its client first-chunk and per-chunk metrics measure delivery, while its server first-token and per-token metrics describe successful server output. Their units are seconds. Our application field uses milliseconds and starts at dispatch.",
+        "hold": 0.3
+      },
+      {
+        "id": "c10-b06",
+        "say": "Two hundred forty milliseconds is point two four seconds. Compare two readings only when their clocks start and stop at the same events.",
+        "hold": 0.65
+      }
+    ]
+  },
+  {
+    "id": "c11",
+    "title": "Inside request 205",
+    "sourceChapters": [
+      "c11"
+    ],
+    "beats": [
+      {
+        "id": "c11-b01",
+        "say": "Open request two oh five. The request is span zero, the parent of the three operations underneath it. Each has its own span ID. Even two calls with the same name need distinct IDs. Here’s the clock for this example. Retrieval finishes at ninety milliseconds.",
+        "hold": 0.3
+      },
+      {
+        "id": "c11-b02",
+        "say": "Its copy of policy version seventeen contains no approval. The chat operation finishes at three hundred eighty milliseconds. Its draft says “Approved.” The gate finishes at four hundred thirty milliseconds. The approval is in the reply the engineer received.",
+        "hold": 0.3
+      },
+      {
+        "id": "c11-b03",
+        "say": "Which operation first produced the unsupported claim, and which let it reach the engineer?",
+        "hold": 2.2
+      },
+      {
+        "id": "c11-b04",
+        "say": "The chat span contains the first defect. Compare its draft with the retrieved policy. The gate span records the escape. Compare the draft with what the engineer received. That tells us where to look.",
+        "hold": 0.3
+      },
+      {
+        "id": "c11-b05",
+        "say": "To find out why the gate passed the claim, we need its configuration, the prompt and a controlled replay. If those operations run in different services, pass the trace context along with the request so these links survive.",
+        "hold": 1
+      }
+    ]
+  },
+  {
+    "id": "c12",
+    "title": "Carry the actual parent across a service boundary",
+    "sourceChapters": [
+      "c12"
+    ],
+    "beats": [
+      {
+        "id": "c12-b01",
+        "say": "Follow a lookup from the caller to its worker. The caller sends its trace and span IDs with the request. The worker reads them before it opens its own span. Both calls are named lookup. Their span IDs tell them apart.",
+        "hold": 0.3
+      },
+      {
+        "id": "c12-b02",
+        "say": "Drop that context and the worker can start a new trace, leaving its caller behind.",
+        "hold": 0.65
+      },
+      {
+        "id": "c12-b03",
+        "say": "The W three C traceparent format carries a sixteen-byte trace identifier, an eight-byte parent identifier, version and flags. All-zero identifiers are invalid. The receiving operation keeps the trace identity and gets its own span identity; the caller span becomes its parent.",
+        "hold": 0.3
+      },
+      {
+        "id": "c12-b04",
+        "say": "The sampled flag tells the receiver about trace recording. Tool permissions come from the service’s own access checks.",
+        "hold": 0.65
+      },
+      {
+        "id": "c12-b05",
+        "say": "Follow the current parent in this local tracer. Span one opens span two. When the inner operation throws, span one becomes the current parent again. That restoration gives the next local operation the right parent.",
+        "hold": 0.3
+      },
+      {
+        "id": "c12-b06",
+        "say": "Across a queue or a service boundary, test that the context arrives and the exporter delivers the spans. Use those links to locate the operation, then inspect its inputs to learn why it failed.",
+        "hold": 0.65
+      }
+    ]
+  },
+  {
+    "id": "c13",
+    "title": "Join standard operation fields to product decisions",
+    "sourceChapters": [
+      "c13"
+    ],
+    "beats": [
+      {
+        "id": "c13-b01",
+        "say": "The inspected GenAI inference-span contract requires operation name and provider name. Request model is required when available. This synthetic service has no actual vendor call, so its custom provider value describes the local platform. A deployed integration should use the applicable recognized provider and actual model identifiers rather than copying the fictional values.",
+        "hold": 0.65
+      },
+      {
+        "id": "c13-b02",
+        "say": "Keep product decisions beside these fields: route, actual substantive delivery, reviewed status, evidence version, first failure stage and escape stage. A named versioned prompt can carry prompt name and version from a host-owned registry. An unknown prompt identifier fails that registry lookup.",
+        "hold": 0.3
+      },
+      {
+        "id": "c13-b03",
+        "say": "These fields let us join the model operation to the product contract without copying its full messages.",
+        "hold": 0.65
+      },
+      {
+        "id": "c13-b04",
+        "say": "System instructions, input messages, output messages, and tool arguments or results can contain sensitive material and are opt-in under the inspected convention. A stable-looking identifier can also contain private text. Omit a pending unsafe verdict rather than writing false.",
+        "hold": 0.3
+      },
+      {
+        "id": "c13-b05",
+        "say": "Use bounded dimensions such as route and deployed version for metrics; keep individual request identities in traces or exemplars to avoid unbounded metric cardinality.",
+        "hold": 0.65
+      }
+    ]
+  },
+  {
+    "id": "c14",
+    "title": "Price disjoint usage against a named rate card",
+    "sourceChapters": [
+      "c14"
+    ],
+    "beats": [
+      {
+        "id": "c14-b01",
+        "say": "Request two oh six reports two hundred one input tokens. Eighty of those came from cache. Split the input at that boundary. The remaining one hundred twenty-one are uncached. Each charge on this worksheet is in millionths of a dollar. Now price the two subsets and the thirty output tokens on the dated rate card. How much did this request cost at those rates?",
+        "hold": 1.8
+      },
+      {
+        "id": "c14-b02",
+        "say": "Two hundred seventy-nine millionths of a dollar. Keep the rate-card version with the estimate. Now change the cached count to two hundred two. That exceeds total input. Reject the estimate and preserve the observed counts. Other providers can price cache writes, reasoning usage, tools and discounts differently. Normalize their categories first.",
+        "hold": 1
+      }
+    ]
+  },
+  {
+    "id": "c15",
+    "title": "Which tokens are you counting?",
+    "sourceChapters": [
+      "c15"
+    ],
+    "beats": [
+      {
+        "id": "c15-b01",
+        "say": "Look at the uncached line on this cost estimate. It charges for all two hundred one input tokens. The eighty cache reads already have their own line. Take those eighty off the uncached line. That leaves one hundred twenty-one uncached tokens.",
+        "hold": 0.3
+      },
+      {
+        "id": "c15-b02",
+        "say": "At a dollar per million, that single correction cuts eighty millionths of a dollar from the estimate. Keep the usage counts and the dated rate card together so you can explain the difference.",
+        "hold": 0.65
+      },
+      {
+        "id": "c15-b03",
+        "say": "Provider breakdowns can overlap. Reasoning output can already be included in total output; cache reads and cache writes require the actual provider’s accounting and prices. Normalize those semantics before summing charges. Reject Boolean or negative token counters, nonfinite rates and cached input exceeding total input.",
+        "hold": 0.3
+      },
+      {
+        "id": "c15-b04",
+        "say": "Clamping the last case silently replaces the observed event with an invented one.",
+        "hold": 0.65
+      },
+      {
+        "id": "c15-b05",
+        "say": "Look at the long request. Its nine hundred cache reads account for nearly eighty-seven percent of all input tokens on this screen. To report that fraction, you need at least one input token. Now count requests with any cache read. Only one of five qualifies.",
+        "hold": 0.3
+      },
+      {
+        "id": "c15-b06",
+        "say": "The four short requests each missed, even though most tokens came from cache. To find out what those hits saved, compare the prices and timings for the same workload.",
+        "hold": 0.65
+      }
+    ]
+  },
+  {
+    "id": "c16",
+    "title": "Export only inventoried metadata fields",
+    "sourceChapters": [
+      "c16"
+    ],
+    "beats": [
+      {
+        "id": "c16-b01",
+        "say": "A useful trace can preserve request identity, prompt and evidence versions, decisions, timings, and usage without storing the operator message. Our exporter selects fields from a positive allowlist and checks identifiers against its supplied host registry. Watch raw message and generated-answer fields remain outside the exported record.",
+        "hold": 0.65
+      },
+      {
+        "id": "c16-b02",
+        "say": "An allowed field still needs a trusted value. Put private text in the prompt ID. The registry rejects it before export. An unregistered evidence revision also fails, even with valid request and prompt IDs. A trusted record with an extra operator note can go through with the note omitted. Control access and retention for approved IDs. Set the scope, expiry and storage before capturing content. Scrubbing a later copy cannot recall an earlier one.",
+        "hold": 0.65
+      }
+    ]
+  },
+  {
+    "id": "c17",
+    "title": "An identifier field needs a trusted source",
+    "sourceChapters": [
+      "c17"
+    ],
+    "beats": [
+      {
+        "id": "c17-b01",
+        "say": "This record has no link to the raw message. Look at what went into its request ID. Someone used an email address, and the record copied it exactly. Give this copier an approved ID from the service registry.",
+        "hold": 0.3
+      },
+      {
+        "id": "c17-b02",
+        "say": "Our exporter checks the allowed fields and looks up their IDs before sending anything. This address fails that check.",
+        "hold": 0.65
+      },
+      {
+        "id": "c17-b03",
+        "say": "Follow the three copies of that record. Remove the email address from one copy. Other sensitive details can remain in the text. The debug log and the other exporter still have the original address. Check your instrumentation defaults and select the fields you need before the first export.",
+        "hold": 0.65
+      },
+      {
+        "id": "c17-b04",
+        "say": "Give approved identifiers access controls and a retention period. If a case needs its original messages, set the scope, expiry, storage permissions and deletion policy before collecting them. Apply those permissions to sampled requests too.",
+        "hold": 0.3
+      },
+      {
+        "id": "c17-b05",
+        "say": "An engineer can open a retained artifact with its ID and the right access. Once that artifact expires, the ID alone cannot bring the replay input back.",
+        "hold": 0.65
+      }
+    ]
+  },
+  {
+    "id": "c18",
+    "title": "Three checks on one window",
+    "sourceChapters": [
+      "c18"
+    ],
+    "beats": [
+      {
+        "id": "c18-b01",
+        "say": "Read the three checks on this window. Two unsupported approvals reached engineers. First output stayed below the service’s five-hundred-millisecond warning threshold at the ninety-fifth percentile. The estimated token cost for all six requests stayed below two thousandths of a dollar. So far, only the unsafe deliveries trigger a finding.",
+        "hold": 0.6
+      },
+      {
+        "id": "c18-b02",
+        "say": "Keep the same six requests and reviews. Change two measurements on two oh six. Its first-output time is missing, and the cached count is two hundred two out of two hundred one input tokens. Which findings can we report now?",
+        "hold": 2
+      },
+      {
+        "id": "c18-b03",
+        "say": "Keep the safety page and report two unknowns. We can still point to both unsafe replies. We can’t calculate the window’s latency percentile or its cost from those readings. Contain the unsafe delivery, then repair timing and usage collection. The lab prints these findings.",
+        "hold": 0.3
+      },
+      {
+        "id": "c18-b04",
+        "say": "A live system needs to group them, route the incident to its owner, and attach a runbook.",
+        "hold": 1.1
+      },
+      {
+        "id": "c18-b05",
+        "say": "The six final events here match six requests at ingress. In another window, if eight requests arrived and seven final events reached the collector, report that gap even if every received event passed review. With no observations, report an unknown window. Track review delays and dropped events.",
+        "hold": 0.3
+      },
+      {
+        "id": "c18-b06",
+        "say": "A working counter can count only violations that the evaluator detected.",
+        "hold": 0.9
+      }
+    ]
+  },
+  {
+    "id": "c19",
+    "title": "Which requests did the trace store keep?",
+    "sourceChapters": [
+      "c19"
+    ],
+    "beats": [
+      {
+        "id": "c19-b01",
+        "say": "Every request in this original window has a review. Count them before sampling. Two unsafe deliveries out of six requests. Suppose we keep both violating traces and just one of the four other traces. Look at the requests that arrived in storage. Which fraction belongs on the all-request dashboard?",
+        "hold": 2.2
+      },
+      {
+        "id": "c19-b02",
+        "say": "Two out of six. Two out of three tells you how common a violation is among the traces we kept. That store is a good place to open request two oh five.",
+        "hold": 0.3
+      },
+      {
+        "id": "c19-b03",
+        "say": "To report risk for the service, keep the count taken before sampling, reconcile it with ingress, and publish the retention policy and review coverage. A later quality review can reach a collector after it has already discarded the trace.",
+        "hold": 1
+      }
+    ]
+  },
+  {
+    "id": "c20",
+    "title": "A later label cannot change an earlier sampling decision",
+    "sourceChapters": [
+      "c20"
+    ],
+    "beats": [
+      {
+        "id": "c20-b01",
+        "say": "Follow one request through the collector. A head sampler decides near the start. A tail sampler can wait for later spans. Here the trace reaches the tail collector. Its policy gives it ten seconds to decide.",
+        "hold": 1
+      },
+      {
+        "id": "c20-b02",
+        "say": "Watch the buffer. At ten seconds the collector discards this trace. Its slot is empty. An independent review is still on its way. Can that review get the trace back?",
+        "hold": 2.1
+      },
+      {
+        "id": "c20-b03",
+        "say": "Follow the review to sixty seconds. Now the receipt arrives. Its request ID matches, but the spans are gone. That empty slot is what the investigator has to work with.",
+        "hold": 1
+      },
+      {
+        "id": "c20-b04",
+        "say": "Send spans for the same trace to the same Collector instance. A longer wait can catch late spans but ties up buffer space. Check the configured wait, memory and trace limits, and what happens to buffered spans at shutdown.",
+        "hold": 0.9
+      },
+      {
+        "id": "c20-b05",
+        "say": "A downstream collector can only sample what reaches it. Count ingress requests and detected violations before trace sampling. Reconcile the counters against final events for the same window.",
+        "hold": 0.8
+      },
+      {
+        "id": "c20-b06",
+        "say": "Keep the retention policy, inclusion probabilities, review coverage, evaluator version and label delay beside an estimated quality rate. A retained trace lets you inspect one request. The full ledger tells you how often the service failed.",
+        "hold": 1
+      }
+    ]
+  },
+  {
+    "id": "c21",
+    "title": "Weight traces by their chance of being kept",
+    "sourceChapters": [
+      "c21"
+    ],
+    "beats": [
+      {
+        "id": "c21-b01",
+        "say": "For known positive inclusion probabilities, give each retained trace weight one divided by its probability of retention. Sum the weights of detected unsafe traces for an estimated unsafe total. Sum all retained weights for an estimated request total.",
+        "hold": 0.3
+      },
+      {
+        "id": "c21-b02",
+        "say": "Dividing these two estimated totals gives a weighted rate estimate. Even with the right weights, the denominator varies across samples. That can bias the ratio in a small sample.",
+        "hold": 0.65
+      },
+      {
+        "id": "c21-b03",
+        "say": "Take these three retained traces. Both unsafe traces had retention probability one. The other trace had a one-in-four chance. How much should that one trace contribute to our estimated total?",
+        "hold": 2
+      },
+      {
+        "id": "c21-weight-answer",
+        "say": "Four requests. Each unsafe trace represents one. That gives two unsafe over an estimated six requests. Here the estimate matches the complete ledger.",
+        "hold": 0.9
+      },
+      {
+        "id": "c21-b04",
+        "say": "If none of the four safe traces happened to be retained, the same ratio calculation would give one, despite the unchanged population.",
+        "hold": 0.65
+      },
+      {
+        "id": "c21-b05",
+        "say": "Interpret the estimate with uncertainty and validate the design: actual inclusion probabilities, independently valid labels, the sampler running as configured, and no unaccounted drops. A group with zero chance of retention cannot be reconstructed from that sample. Prefer functioning pre-sampling counters for detected outcomes.",
+        "hold": 0.3
+      },
+      {
+        "id": "c21-b06",
+        "say": "Weighting cannot find defects the evaluator never detected or recreate a missing population ledger.",
+        "hold": 0.65
+      }
+    ]
+  },
+  {
+    "id": "c22",
+    "title": "May the poller call again?",
+    "sourceChapters": [
+      "c22"
+    ],
+    "beats": [
+      {
+        "id": "c22-b01",
+        "say": "This poller checks the same deployment three times. Watch the progress marker. Seventeen, seventeen, seventeen. The repeat budget now stops another call. The runtime enforces that limit even if the trace is discarded. Replay just the third observation with a new marker.",
+        "hold": 0.3
+      },
+      {
+        "id": "c22-b02",
+        "say": "The latest run now has one observation. The elapsed-time and spending limits still apply.",
+        "hold": 0.8
+      },
+      {
+        "id": "c22-b03",
+        "say": "Keep that changed marker. After three seconds, the next poll fits both the time and spending budgets. Replay the decision at five seconds instead. The clock has reached its deadline. The guard sends zero calls, even though the repeat count is still one. Count the model’s input separately when another model call actually runs.",
+        "hold": 0.8
+      }
+    ]
+  },
+  {
+    "id": "c23",
+    "title": "Count repeated model input from the actual history",
+    "sourceChapters": [
+      "c23"
+    ],
+    "beats": [
+      {
+        "id": "c23-b01",
+        "say": "A repeated tool call and another model invocation are separate events. To count model input, suppose each of N calls resends its complete history. The first history contains L zero tokens, and each call adds a fixed positive g tokens.",
+        "hold": 0.3
+      },
+      {
+        "id": "c23-b02",
+        "say": "The input lengths are L zero, L zero plus g, through L zero plus the quantity N minus one times g. Add those actual lengths.",
+        "hold": 0.65
+      },
+      {
+        "id": "c23-b03",
+        "say": "Start with N times L zero. Add g times N times the quantity N minus one, divided by two.",
+        "hold": 0.3
+      },
+      {
+        "id": "c23-b04",
+        "say": "With starting length one hundred and growth twenty, four calls send one hundred plus one hundred twenty plus one hundred forty plus one hundred sixty, totaling five hundred twenty. Eight calls total one thousand three hundred sixty.",
+        "hold": 0.3
+      },
+      {
+        "id": "c23-b05",
+        "say": "Fixed positive growth makes the cumulative term quadratic in call count.",
+        "hold": 0.65
+      },
+      {
+        "id": "c23-b06",
+        "say": "Cap each history at one hundred twenty tokens. Read the bars again. The first has one hundred, and each later call sends one hundred twenty. Four calls total four hundred sixty. Eight total nine hundred forty. Compaction and truncation change the logical inputs. Prefix caching can change the work and the price even when the logical lengths stay the same.",
+        "hold": 0.3
+      },
+      {
+        "id": "c23-b07",
+        "say": "A tool poll that does not invoke the model adds no row to this model-input sum.",
+        "hold": 0.65
+      }
+    ]
+  },
+  {
+    "id": "c24",
+    "title": "Record progress and enforce admission before dispatch",
+    "sourceChapters": [
+      "c24"
+    ],
+    "beats": [
+      {
+        "id": "c24-b01",
+        "say": "An agent can select an action, execute a tool, observe its result, then evaluate whether work is complete or another action is needed. Instrument the chosen operations without depending on hidden reasoning text. The inspected convention identifies execute-tool operations and recommends a tool call identity when available.",
+        "hold": 0.3
+      },
+      {
+        "id": "c24-b02",
+        "say": "Distinct calls remain distinct when a provider omits that identifier.",
+        "hold": 0.65
+      },
+      {
+        "id": "c24-b03",
+        "say": "Store approved tool names, opaque operation keys, result status, progress markers, repeat counts and stop reasons. Arguments and results may contain secrets. A shared redaction placeholder cannot distinguish two operations, and hashing a guessable sensitive value does not make it private. Use a suitable trusted identity contract rather than treating arbitrary text as safe metadata.",
+        "hold": 0.65
+      },
+      {
+        "id": "c24-b04",
+        "say": "Read the last three progress markers for this lookup. All three say seventeen. Change the last marker to eighteen. It’s the first observation in a new run, so the count is one. Switching to a different tool or operation also starts a fresh count.",
+        "hold": 0.3
+      },
+      {
+        "id": "c24-b05",
+        "say": "Before the next call, the runtime checks that count, the deadline and the spending limit, even if the trace was discarded. Back off between polls to give the operation time to advance.",
+        "hold": 0.65
+      }
+    ]
+  },
+  {
+    "id": "c25",
+    "title": "Decide whether the next poll may run",
+    "sourceChapters": [
+      "c25"
+    ],
+    "beats": [
+      {
+        "id": "c25-b01",
+        "say": "One more poll is waiting. This operation returned the markers L, L, M, M. The repeat cap is three. The clock reads twelve seconds, right at the deadline. We’ve spent six cents out of ten, and the next poll needs a five-cent reservation. Can it run? Which limits decide?",
+        "hold": 2.2
+      },
+      {
+        "id": "c25-b02",
+        "say": "Only the last two markers match, so the repeat count is two, below the cap. The clock has reached the deadline. Six cents spent plus five reserved would bring the total to eleven cents, above ten. A new progress marker alone leaves both limits in place.",
+        "hold": 0.65
+      },
+      {
+        "id": "c25-b03",
+        "say": "Change only the deadline to sixteen seconds. That leaves four seconds, but the same five-cent reservation would still take the total to eleven. Now lower only the next reservation to three cents. Six plus three is nine cents, within ten. All three checks now allow one dispatch.",
+        "hold": 1.2
+      },
+      {
+        "id": "c25-b04",
+        "say": "Record the decision and its stop reason with the operation. The runtime makes the check before dispatch, even when nobody keeps the trace. An admitted poll can still time out. The next poll needs a fresh check of its marker, clock and reservation.",
+        "hold": 1
+      }
+    ]
+  },
+  {
+    "id": "c26",
+    "title": "What would confirm the cause?",
+    "sourceChapters": [
+      "c26"
+    ],
+    "beats": [
+      {
+        "id": "c26-b01",
+        "say": "Return to the page on request two oh five. Attach its request ID, failing template and source version. The first defect appears in the chat draft. The gate then delivers that unsupported approval. Give the engineer a first check.",
+        "hold": 0.3
+      },
+      {
+        "id": "c26-b02",
+        "say": "Compare this template and gate configuration with the strict path that withheld the same kind of claim.",
+        "hold": 0.65
+      },
+      {
+        "id": "c26-b03",
+        "say": "Both escaping requests use the regressed template, while two bad drafts under the strict template were withheld. The observed containment outcome differs. Prompt, gate configuration, model image or policy could have changed together.",
+        "hold": 0.3
+      },
+      {
+        "id": "c26-b04",
+        "say": "Compare the retained artifacts and reproduce the case while holding relevant inputs, model, evaluator and configuration fixed. Otherwise a before-and-after association cannot attribute the repair to one component.",
+        "hold": 0.65
+      },
+      {
+        "id": "c26-b05",
+        "say": "Contain the unsafe path using the runbook. In this example the rollback asks workers to load version one, but the worker still reports version one point one. Check the version it actually loaded and inspect fresh deliveries.",
+        "hold": 0.3
+      },
+      {
+        "id": "c26-b06",
+        "say": "To test the cause, replay the same authorized inputs and change one artifact at a time. If an input has expired, record the gap. Pass the failing release, exemplar, policy version, candidate and evaluator to the engineer running the comparison.",
+        "hold": 0.65
+      }
+    ]
+  },
+  {
+    "id": "c27",
+    "title": "Would you release this candidate?",
+    "sourceChapters": [
+      "c27"
+    ],
+    "beats": [
+      {
+        "id": "c27-b01",
+        "say": "Try two replays before you recommend a release. Start with two oh five, the request that got an invented approval. Beside it, keep two oh one, where the policy does support an answer. Here’s the contract for this little test.",
+        "hold": 0.3
+      },
+      {
+        "id": "c27-b02",
+        "say": "Review both cases, allow zero unsafe deliveries, and require a useful answer on the clean case. Fix those rules, the inputs, the source version and the evaluator before trying candidates.",
+        "hold": 0.8
+      },
+      {
+        "id": "c27-b03",
+        "say": "Our first trial withholds both drafts. The reviewer checks both receipts. No unsupported approval went out. Would you promote this candidate? Which request settles it?",
+        "hold": 2.2
+      },
+      {
+        "id": "c27-b04",
+        "say": "Hold it. Look at request two oh one. The policy had the answer and the operator got nothing. That’s zero useful answers on one answerable case. We could withhold everything in production and make the safety count look just as good.",
+        "hold": 0.9
+      },
+      {
+        "id": "c27-b05",
+        "say": "Try another candidate with those same case files. Two oh five stays withheld. This time the supported answer passes the gate on two oh one. Both replay outcomes have now been reviewed. What should happen next?",
+        "hold": 2.2
+      },
+      {
+        "id": "c27-b06",
+        "say": "Run the untouched holdout. Zero unsafe deliveries out of two reviewed replays. Keep that count on the replay row. The holdout is waiting for its own reviews. Its unsafe rate is still unknown. Apply the same safety, coverage and usefulness thresholds there.",
+        "hold": 0.3
+      },
+      {
+        "id": "c27-b07",
+        "say": "Compare latency and cost on the same cases. Report the number reviewed and the size of the answerable set. Even a clean small holdout can miss a rare failure. File the case IDs, candidate version, evaluator and results together. That gives the next engineer a test they can repeat.",
+        "hold": 1.4
+      }
+    ]
+  }
+]

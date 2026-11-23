@@ -1,0 +1,2177 @@
+version: 1
+id: agent-architectures
+title: Building an Agent Around Observations
+source: agents/agentic-architectures-react-plan-execute/content.md
+voice: en-US-AndrewNeural
+rate: +0%
+sources:
+  - title: "ReAct: Synergizing Reasoning and Acting"
+    url: https://arxiv.org/abs/2210.03629
+  - title: Building effective agents
+    url: https://www.anthropic.com/engineering/building-effective-agents
+  - title: Plan-and-Solve Prompting
+    url: https://arxiv.org/abs/2305.04091
+  - title: ReAct original controlled experiments
+    url: https://arxiv.org/html/2210.03629v3
+  - title: Reflexion original protocol and Tables1–2
+    url: https://arxiv.org/html/2303.11366v4
+  - title: LATS original algorithm and UCT scope
+    url: https://arxiv.org/html/2310.04406v3
+  - title: Self-consistency original
+    url: https://arxiv.org/html/2203.11171v4
+  - title: Plan-and-Solve prompt scope
+    url: https://arxiv.org/html/2305.04091v3
+  - title: HuggingGPT task/resource decomposition
+    url: https://arxiv.org/html/2303.17580v4
+  - title: Anthropic workflow/agent definitions,Dec19,2024
+    url: https://www.anthropic.com/research/building-effective-agents
+  - title: Managed Agents session/harness/sandbox,Apr8,2026
+    url: https://www.anthropic.com/research/managed-agents
+  - title: AWS idempotent API retry contracts
+    url: https://aws.amazon.com/builders-library/making-retries-safe-with-idempotent-APIs/
+  - title: OpenAI strict-schema contract
+    url: https://developers.openai.com/api/docs/guides/structured-outputs
+scenes:
+  - id: subject-intro
+    title: Let a new fact change the route
+    visual: An afternoon museum plan meets a closed-gallery observation and branches toward another venue before
+      forming a recommendation.
+    beats:
+      - say: You ask for a museum visit that finishes by five this afternoon. The Art Museum’s gallery is closed
+          for repairs. Other galleries may still be open. In this example, the assistant chooses another
+          venue, checks its hours and finds a journey that leaves enough time inside.
+        hold: 0.65
+        visual_cues:
+          - id: subject-intro-b1-1
+            phrase: closed for repairs
+            targets:
+              - closure-notice
+            linger: 0.45
+          - id: intro-deadline
+            phrase: finishes by five this afternoon
+            targets:
+              - visit-task
+            color: cyan
+            linger: 0.4
+      - say: We will follow that visit from the first lookup to a concrete recommendation. One-step feedback changes
+          the next action as results arrive. An explicit plan keeps the dependencies visible, so a cancelled
+          train refreshes the journey while valid museum hours stay useful.
+        hold: 0.9
+        visual_cues:
+          - id: subject-intro-b2-1
+            phrase: next action
+            targets:
+              - alternative-venue
+            linger: 0.45
+  - id: control-contract
+    title: Separate the policy, state and executor
+    visual: The persistent museum task and receipts remain on a state board. One next-move token belongs either to
+      coded branching or a model, while a host-owned dispatch boundary stays separate.
+    beats:
+      - say: An agent architecture allocates decisions. State records what is known; a policy proposes a next move;
+          the runtime validates and dispatches it; the returned observation updates state. A written plan and
+          long-term memory are optional. A model produces tokens, while application code performs any
+          requested external effect.
+        hold: 0.7
+        visual_cues:
+          - id: aa-control-contract-0
+            phrase: An agent architecture allocates decisions. State records what is known; a policy proposes a next move;
+              the runtime validates and dispatches it; the returned observation updates state. A written plan
+              and long-term memory are optional. A model produces tokens, while application code performs any
+              requested external effect.
+            targets:
+              - aa-control-contract-mechanism
+            color: cyan
+            linger: 0.4
+          - id: control-propose
+            phrase: a policy proposes a next move
+            targets:
+              - aa-control-contract-mechanism
+            color: cyan
+            linger: 0.4
+          - id: control-dispatch
+            phrase: runtime validates and dispatches it
+            targets:
+              - aa-control-contract-mechanism
+            color: cyan
+            linger: 0.4
+          - id: control-update
+            phrase: returned observation updates state
+            targets:
+              - aa-control-contract-mechanism
+            color: cyan
+            linger: 0.4
+      - say: A workflow can branch, retry and loop under rules written in code. Anthropic’s December
+          twenty-twenty-four definitions call a system an agent when a model dynamically directs its process
+          and tool use. Keep the simplest control rules that solve the task. Extra model calls can add cost
+          and latency; compare complete systems on the same tasks.
+        hold: 0.7
+        visual_cues:
+          - id: aa-control-contract-1
+            phrase: A workflow can branch, retry and loop under rules written in code. Anthropic’s December
+              twenty-twenty-four definitions call a system an agent when a model dynamically directs its
+              process and tool use. Keep the simplest control rules that solve the task. Extra model calls can
+              add cost and latency; compare complete systems on the same tasks.
+            targets:
+              - aa-control-contract-mechanism
+            color: cyan
+            linger: 0.4
+      - say: The museum visit is our running illustrated task. The article also executes local release-investigation
+          fixtures for R eighteen forty-two. We will label those separate fixtures as we open their control
+          mechanisms. Their policies and tools are scripted; none of these runs measures a real model’s
+          planning quality or performs a deployment.
+        hold: 0.7
+        visual_cues:
+          - id: aa-control-contract-2
+            phrase: The museum visit is our running illustrated task. The article also executes local
+              release-investigation fixtures for R eighteen forty-two. We will label those separate fixtures
+              as we open their control mechanisms. Their policies and tools are scripted; none of these runs
+              measures a real model’s planning quality or performs a deployment.
+            targets:
+              - aa-control-contract-mechanism
+            color: cyan
+            linger: 0.4
+  - id: state-record
+    title: Separate a task from evidence about the world
+    visual: A task card remains stable while venue-bound hours and transit observations enter a growing state
+      ledger.
+    beats:
+      - say: "The task is stable: recommend an afternoon visit and finish it by five. Finishing exactly at five
+          meets that deadline. Our observations are changing. Each returned record names the venue and visit
+          date, so the assistant can connect a statement about opening hours to the place it is considering."
+        hold: 0.65
+        visual_cues:
+          - id: state-record-b1-1
+            phrase: task is stable
+            targets:
+              - stable-task
+            linger: 0.45
+      - say: A request to inspect the hours has yet to establish anything about the museum. The completed
+          response enters the ledger with its call identity, venue and visit day. That distinction gives the
+          next decision something checkable to use. The visit day identifies when the visit applies. A
+          retrieval timestamp would record when the lookup ran. Production freshness checks need a defined
+          validity policy, using appropriate retrieval times, source observation times, expiry information
+          or version checks.
+        hold: 0.65
+        visual_cues:
+          - id: state-record-b2-1
+            phrase: completed response
+            targets:
+              - observation-ledger
+            linger: 0.45
+          - id: receipt-call
+            phrase: call identity, venue and visit day
+            targets:
+              - observation-ledger
+            color: cyan
+            linger: 0.4
+      - say: For this fixture, the source observations describe today’s visit. A later decision can keep an hours
+          receipt that still applies and replace a travel receipt whose train has been cancelled.
+        hold: 0.9
+        visual_cues:
+          - id: state-record-b3-1
+            phrase: hours receipt
+            targets:
+              - observation-ledger
+            linger: 0.45
+  - id: react-loop
+    title: Choose, act, observe, then choose again
+    visual: A four-node feedback loop moves a request through a runtime gate, an external lookup, and a linked
+      observation.
+    beats:
+      - say: Follow request hours seventeen for the Art Museum. The host admits the lookup, and the hours service
+          returns a closure notice. Watch that labeled observation travel back into the agent’s state. It
+          changes the useful next action.
+        hold: 0.65
+        motion_check:
+          region:
+            - 130
+            - 300
+            - 1660
+            - 620
+          minimumChangedFraction: 0.002
+        visual_cues:
+          - id: react-loop-b1-1
+            phrase: request hours seventeen
+            targets:
+              - hours-request
+            linger: 0.45
+          - id: react-loop-b1-2
+            phrase: observation travel back
+            targets:
+              - identified-packet
+            linger: 0.45
+      - say: "The agent now chooses to inspect the History Museum. This is the feedback idea used by ReAct: an action
+          produces an observation, and that observation informs the next choice. We can inspect those requests
+          and completed results through the observable interface."
+        hold: 0.9
+        visual_cues:
+          - id: react-loop-b2-1
+            phrase: observation, and
+            targets:
+              - observation-ledger
+            linger: 0.45
+  - id: react-research
+    title: Keep historical comparisons attached to their controls
+    visual: The actual ALFWorld best/average prompt categories build separate bars; an Act control keeps
+      observation receipts while its explicit thought slots are absent.
+    beats:
+      - say: The ReAct paper interleaves Thought, Action and Observation. Its reasoning text can be sparse. The host
+          can expose validated requests, results and bounded decision notes without requiring a private
+          reasoning trace. A fluent rationale is not evidence that a tool actually ran or that the rationale
+          faithfully reports internal computation.
+        hold: 0.7
+        visual_cues:
+          - id: aa-react-research-0
+            phrase: The ReAct paper interleaves Thought, Action and Observation. Its reasoning text can be sparse. The
+              host can expose validated requests, results and bounded decision notes without requiring a
+              private reasoning trace. A fluent rationale is not evidence that a tool actually ran or that the
+              rationale faithfully reports internal computation.
+            targets:
+              - aa-react-research-mechanism
+            color: cyan
+            linger: 0.4
+      - say: In the paper’s ALFWorld experiments, the best of six ReAct prompts reached seventy-one percent success
+          and their average was fifty-seven. The Act control, with reasoning steps removed but observations
+          retained, reached forty-five at best; BUTLER reported thirty-seven. On WebShop, ReAct reached forty
+          percent versus twenty-nine point one for imitation learning and twenty-eight point seven for
+          imitation plus reinforcement learning. These are historical task-specific comparisons, not current
+          coding-agent measurements.
+        hold: 0.7
+        visual_cues:
+          - id: aa-react-research-1
+            phrase: In the paper’s ALFWorld experiments, the best of six ReAct prompts reached seventy-one percent success
+              and their average was fifty-seven. The Act control, with reasoning steps removed but
+              observations retained, reached forty-five at best; BUTLER reported thirty-seven. On WebShop,
+              ReAct reached forty percent versus twenty-nine point one for imitation learning and twenty-eight
+              point seven for imitation plus reinforcement learning. These are historical task-specific
+              comparisons, not current coding-agent measurements.
+            targets:
+              - aa-react-research-mechanism
+            color: cyan
+            linger: 0.4
+          - id: research-act-control
+            phrase: Act control, with reasoning steps removed but observations retained
+            targets:
+              - aa-react-research-mechanism
+            color: cyan
+            linger: 0.4
+          - id: research-best
+            phrase: seventy-one percent success
+            targets:
+              - aa-react-research-mechanism
+            color: cyan
+            linger: 0.4
+          - id: research-average
+            phrase: average was fifty-seven
+            targets:
+              - aa-react-research-mechanism
+            color: cyan
+            linger: 0.4
+          - id: research-act
+            phrase: forty-five at best
+            targets:
+              - aa-react-research-mechanism
+            color: cyan
+            linger: 0.4
+          - id: research-butler
+            phrase: BUTLER reported thirty-seven
+            targets:
+              - aa-react-research-mechanism
+            color: cyan
+            linger: 0.4
+          - id: research-webshop
+            phrase: ReAct reached forty percent
+            targets:
+              - aa-react-research-mechanism
+            color: cyan
+            linger: 0.4
+          - id: research-imitation
+            phrase: twenty-nine point one for imitation learning
+            targets:
+              - aa-react-research-mechanism
+            color: cyan
+            linger: 0.4
+          - id: research-rl
+            phrase: twenty-eight point seven for imitation plus reinforcement learning
+            targets:
+              - aa-react-research-mechanism
+            color: cyan
+            linger: 0.4
+  - id: ci-policy
+    title: A successful lookup can report a failed build
+    visual: A separateR1842 local ledger receives typed call1 and call2 receipts. Changing only the first tool
+      fact to runner_unavailable stops the migration branch, while a timeout consumes an attempt and remains
+      an error receipt.
+    beats:
+      - say: "Run the reference fixture’s typed next-move loop. The first scripted choice requests the scoped CI
+          result. A successful lookup reports migration failed. The next choice reads the authorized migration
+          path and obtains the unguarded-add fact. Two successful receipt facts permit the narrow conclusion:
+          review migration semantics; no write performed."
+        hold: 0.7
+        visual_cues:
+          - id: aa-ci-policy-0
+            phrase: "Run the reference fixture’s typed next-move loop. The first scripted choice requests the scoped CI
+              result. A successful lookup reports migration failed. The next choice reads the authorized
+              migration path and obtains the unguarded-add fact. Two successful receipt facts permit the
+              narrow conclusion: review migration semantics; no write performed."
+            targets:
+              - aa-ci-policy-mechanism
+            color: cyan
+            linger: 0.4
+          - id: ci-request
+            phrase: first scripted choice requests the scoped CI result
+            targets:
+              - aa-ci-policy-mechanism
+            color: cyan
+            linger: 0.4
+          - id: ci-first-result
+            phrase: successful lookup reports migration failed
+            targets:
+              - aa-ci-policy-mechanism
+            color: cyan
+            linger: 0.4
+          - id: ci-second-read
+            phrase: next choice reads the authorized migration path
+            targets:
+              - aa-ci-policy-mechanism
+            color: cyan
+            linger: 0.4
+          - id: ci-conclusion
+            phrase: "Two successful receipt facts permit the narrow conclusion: review migration semantics; no write performed"
+            targets:
+              - aa-ci-policy-mechanism
+            color: cyan
+            linger: 0.4
+      - say: Change only the CI fact to runner unavailable. The policy returns insufficient evidence after one call
+          and does not read the migration. A timeout also consumes one attempt and stores an error receipt
+          before deferral. The distinction is lookup success versus the build state described by the lookup.
+          Neither result proves that the code is otherwise correct.
+        hold: 0.7
+        visual_cues:
+          - id: aa-ci-policy-1
+            phrase: Change only the CI fact to runner unavailable. The policy returns insufficient evidence after one call
+              and does not read the migration. A timeout also consumes one attempt and stores an error receipt
+              before deferral. The distinction is lookup success versus the build state described by the
+              lookup. Neither result proves that the code is otherwise correct.
+            targets:
+              - aa-ci-policy-mechanism
+            color: cyan
+            linger: 0.4
+          - id: ci-runner
+            phrase: runner unavailable
+            targets:
+              - aa-ci-policy-mechanism
+            color: cyan
+            linger: 0.4
+          - id: ci-defer
+            phrase: insufficient evidence after one call
+            targets:
+              - aa-ci-policy-mechanism
+            color: cyan
+            linger: 0.4
+          - id: ci-timeout
+            phrase: stores an error receipt before deferral
+            targets:
+              - aa-ci-policy-mechanism
+            color: cyan
+            linger: 0.4
+      - say: The reference loop permits a final decision after its last allowed tool attempt. A policy that repeats
+          the read with max steps two receives two receipts, then stops before a third dispatch. Tool results
+          are bounded to one hundred twenty characters in this fixture. Production adapters also need request,
+          repository, revision and retrieval-time bindings.
+        hold: 0.7
+        visual_cues:
+          - id: aa-ci-policy-2
+            phrase: The reference loop permits a final decision after its last allowed tool attempt. A policy that repeats
+              the read with max steps two receives two receipts, then stops before a third dispatch. Tool
+              results are bounded to one hundred twenty characters in this fixture. Production adapters also
+              need request, repository, revision and retrieval-time bindings.
+            targets:
+              - aa-ci-policy-mechanism
+            color: cyan
+            linger: 0.4
+          - id: ci-two-attempts
+            phrase: receives two receipts
+            targets:
+              - aa-ci-policy-mechanism
+            color: cyan
+            linger: 0.4
+          - id: ci-third-held
+            phrase: before a third dispatch
+            targets:
+              - aa-ci-policy-mechanism
+            color: cyan
+            linger: 0.4
+  - id: completion-evidence
+    title: A citation cannot invent a completed call
+    visual: The reader-lab claim card cites3required tools while the host observation ledger is empty. Matching
+      slots remain empty and the answer is rejected; actual calls later fill exactly those slots.
+    beats:
+      - say: "The reader edition runs a different local loop. For release R eighteen forty-two, three read results
+          support its schema-bug claim: CI, migration and replay. For R eighteen forty-three, the
+          runner-outage claim needs only the CI result. The actual executions take three reads and one read
+          respectively."
+        hold: 0.7
+        visual_cues:
+          - id: aa-completion-evidence-0
+            phrase: "The reader edition runs a different local loop. For release R eighteen forty-two, three read results
+              support its schema-bug claim: CI, migration and replay. For R eighteen forty-three, the
+              runner-outage claim needs only the CI result. The actual executions take three reads and one
+              read respectively."
+            targets:
+              - aa-completion-evidence-mechanism
+            color: cyan
+            linger: 0.4
+          - id: completion-three
+            phrase: actual executions take three reads and one read respectively
+            targets:
+              - aa-completion-evidence-mechanism
+            color: cyan
+            linger: 0.4
+      - say: A forged first-turn answer names all required citations before any tool runs. The host’s observed-result
+          set is empty, so the answer is rejected. Cited tool names are not completed receipts. This verifier
+          checks that required results exist; it does not prove that arbitrary prose logically follows from
+          them. Give each permitted claim a completion test suited to its meaning.
+        hold: 0.7
+        visual_cues:
+          - id: aa-completion-evidence-1
+            phrase: A forged first-turn answer names all required citations before any tool runs. The host’s
+              observed-result set is empty, so the answer is rejected. Cited tool names are not completed
+              receipts. This verifier checks that required results exist; it does not prove that arbitrary
+              prose logically follows from them. Give each permitted claim a completion test suited to its
+              meaning.
+            targets:
+              - aa-completion-evidence-mechanism
+            color: cyan
+            linger: 0.4
+          - id: completion-empty
+            phrase: observed-result set is empty
+            targets:
+              - aa-completion-evidence-mechanism
+            color: cyan
+            linger: 0.4
+          - id: completion-reject
+            phrase: answer is rejected
+            targets:
+              - aa-completion-evidence-mechanism
+            color: cyan
+            linger: 0.4
+      - say: "The reader loop’s max-steps counter includes decision iterations: three tool reads need a fourth
+          iteration to return their answer. With two iterations it stops before completion. Keep that contract
+          separate from the reference loop’s tool-attempt budget. Neither budget value is a claim about how
+          many neural-network forward passes a model call performs."
+        hold: 0.7
+        visual_cues:
+          - id: aa-completion-evidence-2
+            phrase: "The reader loop’s max-steps counter includes decision iterations: three tool reads need a fourth
+              iteration to return their answer. With two iterations it stops before completion. Keep that
+              contract separate from the reference loop’s tool-attempt budget. Neither budget value is a claim
+              about how many neural-network forward passes a model call performs."
+            targets:
+              - aa-completion-evidence-mechanism
+            color: cyan
+            linger: 0.4
+          - id: completion-iteration
+            phrase: fourth iteration to return their answer
+            targets:
+              - aa-completion-evidence-mechanism
+            color: cyan
+            linger: 0.4
+          - id: completion-two-budget
+            phrase: With two iterations it stops before completion
+            targets:
+              - aa-completion-evidence-mechanism
+            color: cyan
+            linger: 0.4
+  - id: workflow-choice
+    title: Who decides the branch?
+    visual: A coded closed-or-open branch and a model-selected next action solve the same initial observation with
+      different control ownership.
+    beats:
+      - say: Code can also react to a closed venue by trying a predefined alternative. Here the left branch belongs to
+          a fixed workflow. The right branch lets a model interpret the closure notice and choose a follow-up
+          question.
+        hold: 0.65
+        visual_cues:
+          - id: workflow-choice-b1-1
+            phrase: fixed workflow
+            targets:
+              - workflow-branches
+            linger: 0.45
+      - say: A notice might mention an open wing or a temporary entrance. Interpreting that detail could justify
+          another check at the same venue. Compare that flexibility against the simpler coded route on the
+          tasks your assistant actually receives.
+        hold: 0.9
+        visual_cues:
+          - id: workflow-choice-b2-1
+            phrase: simpler coded route
+            targets:
+              - workflow-branches
+            linger: 0.45
+  - id: context-triangle
+    title: One old observation occupies several later requests
+    visual: A token triangle keeps each observation color and call number. Repeated copies fill later call
+      columns, then sum into the actual87500 total; the first observation owns9copies rather than10.
+    beats:
+      - say: Open the article’s constructed context calculation. Base prompt P is two thousand tokens, each completed
+          cycle adds delta fifteen hundred, and there are ten model requests. Call k receives P plus the
+          quantity k minus one times delta. The final request therefore contains fifteen thousand five hundred
+          input tokens.
+        hold: 0.7
+        visual_cues:
+          - id: aa-context-triangle-0
+            phrase: Open the article’s constructed context calculation. Base prompt P is two thousand tokens, each
+              completed cycle adds delta fifteen hundred, and there are ten model requests. Call k receives P
+              plus the quantity k minus one times delta. The final request therefore contains fifteen thousand
+              five hundred input tokens.
+            targets:
+              - aa-context-triangle-mechanism
+            color: cyan
+            linger: 0.4
+          - id: context-final
+            phrase: fifteen thousand five hundred input tokens
+            targets:
+              - aa-context-triangle-mechanism
+            color: cyan
+            linger: 0.4
+      - say: Total submitted input is K times P plus delta times K times the quantity K minus one divided by two. Add
+          two thousand, three thousand five hundred, and each later request through fifteen thousand five
+          hundred. The total is eighty-seven thousand five hundred. The first new observation appears in calls
+          two through ten, nine times; observation ten has no later request here.
+        hold: 0.7
+        visual_cues:
+          - id: aa-context-triangle-1
+            phrase: Total submitted input is K times P plus delta times K times the quantity K minus one divided by two.
+              Add two thousand, three thousand five hundred, and each later request through fifteen thousand
+              five hundred. The total is eighty-seven thousand five hundred. The first new observation appears
+              in calls two through ten, nine times; observation ten has no later request here.
+            targets:
+              - aa-context-triangle-mechanism
+            color: cyan
+            linger: 0.4
+          - id: context-total
+            phrase: eighty-seven thousand five hundred
+            targets:
+              - aa-context-triangle-mechanism
+            color: cyan
+            linger: 0.4
+          - id: context-nine
+            phrase: nine times
+            targets:
+              - aa-context-triangle-mechanism
+            color: cyan
+            linger: 0.4
+      - say: For variable increments, each added delta j appears K minus j times. A synthesis call would add another
+          request. Quadratic submitted volume assumes positive fixed increments and full replay; ReAct does
+          not require that history policy. Select needed records for each call and retain full receipts
+          externally, with provenance and a way to reread them.
+        hold: 0.7
+        visual_cues:
+          - id: aa-context-triangle-2
+            phrase: For variable increments, each added delta j appears K minus j times. A synthesis call would add
+              another request. Quadratic submitted volume assumes positive fixed increments and full replay;
+              ReAct does not require that history policy. Select needed records for each call and retain full
+              receipts externally, with provenance and a way to reread them.
+            targets:
+              - aa-context-triangle-mechanism
+            color: cyan
+            linger: 0.4
+  - id: cache-and-context
+    title: Submitted tokens, reused work and charges differ
+    visual: The same ten request columns separate cached prefix from newly added segments. A two-increment context
+      policy caps future columns while a spent-total ledger remains fixed.
+    beats:
+      - say: Keeping at most two prior increments gives the article’s ten-call total forty-five thousand five hundred.
+          That policy can remove necessary evidence, so test the answer quality too. Under a separate ideal
+          full-prefix reuse assumption, the eighty-seven-thousand-five-hundred total splits into seventy-two
+          thousand cached-read tokens and fifteen thousand five hundred new cache-write tokens.
+        hold: 0.7
+        visual_cues:
+          - id: aa-cache-and-context-0
+            phrase: Keeping at most two prior increments gives the article’s ten-call total forty-five thousand five
+              hundred. That policy can remove necessary evidence, so test the answer quality too. Under a
+              separate ideal full-prefix reuse assumption, the eighty-seven-thousand-five-hundred total splits
+              into seventy-two thousand cached-read tokens and fifteen thousand five hundred new cache-write
+              tokens.
+            targets:
+              - aa-cache-and-context-mechanism
+            color: cyan
+            linger: 0.4
+          - id: context-bounded
+            phrase: forty-five thousand five hundred
+            targets:
+              - aa-cache-and-context-mechanism
+            color: cyan
+            linger: 0.4
+          - id: context-cached
+            phrase: seventy-two thousand cached-read tokens
+            targets:
+              - aa-cache-and-context-mechanism
+            color: cyan
+            linger: 0.4
+          - id: context-written
+            phrase: fifteen thousand five hundred new cache-write tokens
+            targets:
+              - aa-cache-and-context-mechanism
+            color: cyan
+            linger: 0.4
+      - say: This is accounting geometry, not a provider simulation or price quote. Prefix retention, exact
+          matching and the deployed cache contract determine reuse. Price actual cache and output categories,
+          tools and retries separately. Measure each model request from arrival at the model server to its
+          first output token. Queueing, prefill work and cache behavior affect that interval, so longer
+          prompts need not increase it on every request. Tool waits and output generated after the first token
+          also contribute to total task time. Removing future input does not refund input already submitted.
+        hold: 0.7
+        visual_cues:
+          - id: aa-cache-and-context-1
+            phrase: This is accounting geometry, not a provider simulation or price quote. Prefix retention, exact
+              matching and the deployed cache contract determine reuse. Price actual cache and output categories,
+              tools and retries separately. Measure each model request from arrival at the model server to its
+              first output token. Queueing, prefill work and cache behavior affect that interval, so longer
+              prompts need not increase it on every request. Tool waits and output generated after the first token
+              also contribute to total task time. Removing future input does not refund input already submitted.
+            targets:
+              - aa-cache-and-context-mechanism
+            color: cyan
+            linger: 0.4
+  - id: tainted-interface
+    title: A schema-valid request still meets host policy
+    visual: A hostile CI sentence retains the evidence stripe. Host-owned tool-kind and grant records route a read
+      or hold an exact patch change; a model-supplied high_risk field is rejected as extra metadata.
+    beats:
+      - say: CI logs and file contents are untrusted evidence. Preserve their origin and trust on derived summaries.
+          An unflagged result does not become authority. Classify reads and writes in a host-owned tool
+          registry, not a high-risk flag supplied by the model. A plan item saying open patch still needs
+          independent authorization.
+        hold: 0.7
+        visual_cues:
+          - id: aa-tainted-interface-0
+            phrase: CI logs and file contents are untrusted evidence. Preserve their origin and trust on derived
+              summaries. An unflagged result does not become authority. Classify reads and writes in a
+              host-owned tool registry, not a high-risk flag supplied by the model. A plan item saying open
+              patch still needs independent authorization.
+            targets:
+              - aa-tainted-interface-mechanism
+            color: cyan
+            linger: 0.4
+      - say: The local patch gate accepts exactly tool, target and change. The fixed actor has a grant for that
+          migration path. Without approval for the exact change, it blocks with zero drafts. A separate
+          trusted event records that exact approval, and the same request creates draft one. It does not
+          deploy a migration or prove that the proposed fix is correct.
+        hold: 0.7
+        visual_cues:
+          - id: aa-tainted-interface-1
+            phrase: The local patch gate accepts exactly tool, target and change. The fixed actor has a grant for that
+              migration path. Without approval for the exact change, it blocks with zero drafts. A separate
+              trusted event records that exact approval, and the same request creates draft one. It does not
+              deploy a migration or prove that the proposed fix is correct.
+            targets:
+              - aa-tainted-interface-mechanism
+            color: cyan
+            linger: 0.4
+          - id: patch-block
+            phrase: blocks with zero drafts
+            targets:
+              - aa-tainted-interface-mechanism
+            color: cyan
+            linger: 0.4
+          - id: patch-approval
+            phrase: trusted event records that exact approval
+            targets:
+              - aa-tainted-interface-mechanism
+            color: cyan
+            linger: 0.4
+          - id: patch-one
+            phrase: creates draft one
+            targets:
+              - aa-tainted-interface-mechanism
+            color: cyan
+            linger: 0.4
+      - say: Adding a high-risk false field breaks the exact request shape. A read requires no change payload; a write
+          requires a nonempty change and its matching approval. This mock does not deduplicate retries,
+          survive races or check all production approval properties. A parse failure, a denied effect and a
+          bad interpretation of valid evidence are different outcomes.
+        hold: 0.7
+        visual_cues:
+          - id: aa-tainted-interface-2
+            phrase: Adding a high-risk false field breaks the exact request shape. A read requires no change payload; a
+              write requires a nonempty change and its matching approval. This mock does not deduplicate
+              retries, survive races or check all production approval properties. A parse failure, a denied
+              effect and a bad interpretation of valid evidence are different outcomes.
+            targets:
+              - aa-tainted-interface-mechanism
+            color: cyan
+            linger: 0.4
+          - id: patch-extra
+            phrase: breaks the exact request shape
+            targets:
+              - aa-tainted-interface-mechanism
+            color: cyan
+            linger: 0.4
+  - id: self-consistency
+    title: Vote on proposals before any real effect
+    visual: Three read-only proposal cards vote2patch/1rollback, then a2-way tie enters needs_review. A separate
+      host gate receives a selected proposal without inheriting votes as permission.
+    beats:
+      - say: Self-consistency samples reasoning paths and selects a common answer. The local recommendation fixture
+          obtains patch, rollback and patch, so patch has a strict majority of two out of three. With one of
+          each among two samples there is no majority, and the result is needs review. The candidate list is
+          scripted rather than sampled from a model.
+        hold: 0.7
+        visual_cues:
+          - id: aa-self-consistency-0
+            phrase: Self-consistency samples reasoning paths and selects a common answer. The local recommendation fixture
+              obtains patch, rollback and patch, so patch has a strict majority of two out of three. With one
+              of each among two samples there is no majority, and the result is needs review. The candidate
+              list is scripted rather than sampled from a model.
+            targets:
+              - aa-self-consistency-mechanism
+            color: cyan
+            linger: 0.4
+          - id: vote-majority
+            phrase: strict majority of two out of three
+            targets:
+              - aa-self-consistency-mechanism
+            color: cyan
+            linger: 0.4
+          - id: vote-review
+            phrase: result is needs review
+            targets:
+              - aa-self-consistency-mechanism
+            color: cyan
+            linger: 0.4
+      - say: Keep exploratory trajectories read-only or in resettable sandboxes. If every candidate creates a real
+          rollback proposal, voting afterward cannot undo those effects. Select a proposal first, then apply
+          current authorization and the service’s deduplication contract for any permitted write. Agreement
+          supplies neither ground truth nor permission.
+        hold: 0.7
+        visual_cues:
+          - id: aa-self-consistency-1
+            phrase: Keep exploratory trajectories read-only or in resettable sandboxes. If every candidate creates a real
+              rollback proposal, voting afterward cannot undo those effects. Select a proposal first, then
+              apply current authorization and the service’s deduplication contract for any permitted write.
+              Agreement supplies neither ground truth nor permission.
+            targets:
+              - aa-self-consistency-mechanism
+            color: cyan
+            linger: 0.4
+      - say: Sampling multiplies the actual model and permitted tool work it performs. Correlated samples can repeat
+          one mistake. Compare a vote with a single trajectory under a declared total budget, and check task
+          quality and unsafe effects separately. A larger candidate pool is an input to evaluation, not proof
+          of improvement.
+        hold: 0.7
+        visual_cues:
+          - id: aa-self-consistency-2
+            phrase: Sampling multiplies the actual model and permitted tool work it performs. Correlated samples can
+              repeat one mistake. Compare a vote with a single trajectory under a declared total budget, and
+              check task quality and unsafe effects separately. A larger candidate pool is an input to
+              evaluation, not proof of improvement.
+            targets:
+              - aa-self-consistency-mechanism
+            color: cyan
+            linger: 0.4
+  - id: reflexion-feedback
+    title: Repair feedback before adding another reflection
+    visual: A selected old-run receipt exists but carriesc1841 rather thanc1842. The naive evaluator lights
+      success; the revision-aware evaluator changes it to failure, appending exactly1scoped lesson before the
+      next current-run selection.
+    beats:
+      - say: Reflexion carries evaluated failure feedback into another trial as a written memory. An actor generates a
+          trajectory, an evaluator scores it, and a reflection component writes advice for later context. This
+          is textual adaptation rather than a neural-weight update. A critique can be wrong and never outranks
+          task policy.
+        hold: 0.7
+        visual_cues:
+          - id: aa-reflexion-feedback-0
+            phrase: Reflexion carries evaluated failure feedback into another trial as a written memory. An actor
+              generates a trajectory, an evaluator scores it, and a reflection component writes advice for
+              later context. This is textual adaptation rather than a neural-weight update. A critique can be
+              wrong and never outranks task policy.
+            targets:
+              - aa-reflexion-feedback-mechanism
+            color: cyan
+            linger: 0.4
+      - say: "The article’s old-run exists but belongs to revision c eighteen forty-one; the task requests c eighteen
+          forty-two. An existence-only evaluator falsely passes it and would stop before reflection. The
+          revision-aware evaluator fails that same selection and stores one lesson: select a run bound to the
+          requested revision. Selecting the current run passes and adds no second failure note."
+        hold: 0.7
+        visual_cues:
+          - id: aa-reflexion-feedback-1
+            phrase: "The article’s old-run exists but belongs to revision c eighteen forty-one; the task requests c
+              eighteen forty-two. An existence-only evaluator falsely passes it and would stop before
+              reflection. The revision-aware evaluator fails that same selection and stores one lesson: select
+              a run bound to the requested revision. Selecting the current run passes and adds no second
+              failure note."
+            targets:
+              - aa-reflexion-feedback-mechanism
+            color: cyan
+            linger: 0.4
+          - id: reflect-false-pass
+            phrase: existence-only evaluator falsely passes it
+            targets:
+              - aa-reflexion-feedback-mechanism
+            color: cyan
+            linger: 0.4
+          - id: reflect-reject
+            phrase: revision-aware evaluator fails that same selection
+            targets:
+              - aa-reflexion-feedback-mechanism
+            color: cyan
+            linger: 0.4
+          - id: reflect-store
+            phrase: stores one lesson
+            targets:
+              - aa-reflexion-feedback-mechanism
+            color: cyan
+            linger: 0.4
+          - id: reflect-current
+            phrase: Selecting the current run passes
+            targets:
+              - aa-reflexion-feedback-mechanism
+            color: cyan
+            linger: 0.4
+      - say: The note helps only if relevant advice is retrieved into the next actor context. The original work bounds
+          remembered experiences, usually to one through three. A trial that uses earlier feedback waits for
+          it; independent chains may still overlap. Account for actor, evaluator, reflection and tool work
+          rather than assuming every retry has identical cost.
+        hold: 0.7
+        visual_cues:
+          - id: aa-reflexion-feedback-2
+            phrase: The note helps only if relevant advice is retrieved into the next actor context. The original work
+              bounds remembered experiences, usually to one through three. A trial that uses earlier feedback
+              waits for it; independent chains may still overlap. Account for actor, evaluator, reflection and
+              tool work rather than assuming every retry has identical cost.
+            targets:
+              - aa-reflexion-feedback-mechanism
+            color: cyan
+            linger: 0.4
+  - id: reflexion-evidence
+    title: A successful self-test can still endorse wrong code
+    visual: HistoricalHumanEval andMBPP result pairs sit beside separate false-positive test rates. A
+      wrong-solution token passes generated self-tests but fails a held-out evaluator, preserving the
+      difference between the two observations.
+    beats:
+      - say: The Reflexion paper reports ninety-one percent pass-at-one on HumanEval Python under an iterative
+          refinement protocol, versus a single-generation GPT-four baseline of eighty point one. Its final
+          solution may have benefited from earlier attempts and generated tests. That result is not one
+          unaided call or an equal-compute comparison with every baseline.
+        hold: 0.7
+        visual_cues:
+          - id: aa-reflexion-evidence-0
+            phrase: The Reflexion paper reports ninety-one percent pass-at-one on HumanEval Python under an iterative
+              refinement protocol, versus a single-generation GPT-four baseline of eighty point one. Its final
+              solution may have benefited from earlier attempts and generated tests. That result is not one
+              unaided call or an equal-compute comparison with every baseline.
+            targets:
+              - aa-reflexion-evidence-mechanism
+            color: cyan
+            linger: 0.4
+      - say: For MBPP Python the reported result instead falls from eighty point one to seventy-seven point one. Among
+          solutions passing its generated tests, the paper reports sixteen point three percent still wrong on
+          MBPP, versus one point four on HumanEval. Those are conditional error rates for that experiment.
+          Validate the evaluator before treating a stored critique or passing self-test as useful feedback.
+        hold: 0.7
+        visual_cues:
+          - id: aa-reflexion-evidence-1
+            phrase: For MBPP Python the reported result instead falls from eighty point one to seventy-seven point one.
+              Among solutions passing its generated tests, the paper reports sixteen point three percent still
+              wrong on MBPP, versus one point four on HumanEval. Those are conditional error rates for that
+              experiment. Validate the evaluator before treating a stored critique or passing self-test as
+              useful feedback.
+            targets:
+              - aa-reflexion-evidence-mechanism
+            color: cyan
+            linger: 0.4
+  - id: explicit-plan
+    title: Make dependencies visible before execution
+    visual: A venue check and travel-time check feed a recommendation node; readiness follows completed evidence
+      rather than checklist wording.
+    beats:
+      - say: An explicit plan records what the recommendation depends on. First establish that the chosen venue is
+          open. Then check a journey to that same venue. The final step becomes ready only when both completed
+          observations support the visit.
+        hold: 0.65
+        visual_cues:
+          - id: explicit-plan-b1-1
+            phrase: recommendation depends on
+            targets:
+              - prerequisite-graph
+            linger: 0.45
+      - say: Here the History Museum hours enter the plan. Its source identity stays with that completed step. The
+          travel step can now ask about the History Museum rather than accidentally reuse a journey to the Art
+          Museum.
+        hold: 0.65
+        visual_cues:
+          - id: explicit-plan-b2-1
+            phrase: hours enter the plan
+            targets:
+              - hours-receipt
+            linger: 0.45
+      - say: The train journey also returns a feasible result. The two matching records unlock the recommendation. A
+          small feedback loop can handle uncertainty inside either step, while the plan keeps their shared
+          dependencies visible.
+        hold: 0.9
+        visual_cues:
+          - id: explicit-plan-b3-1
+            phrase: two matching records
+            targets:
+              - hours-receipt
+              - journey-receipt
+            linger: 0.45
+          - id: plan-unlock
+            phrase: two matching records unlock the recommendation
+            targets:
+              - prerequisite-graph
+            color: cyan
+            linger: 0.4
+  - id: plan-runtime
+    title: A valid graph exposes readiness without executing it
+    visual: The actual ci/diff/health nodes have no mutual edges and feed decision, then effect. Completed
+      receipts physically fill prerequisite ports; one failed diff port blocks the join.
+    beats:
+      - say: A planner proposes steps, dependencies and completion criteria. Runtime code validates them before
+          scheduling. Plan-and-Solve is a related reasoning prompt, not a concurrent tool scheduler.
+          HuggingGPT separates planning, model selection, execution and response generation. These roles need
+          not be three different models.
+        hold: 0.7
+        visual_cues:
+          - id: aa-plan-runtime-0
+            phrase: A planner proposes steps, dependencies and completion criteria. Runtime code validates them before
+              scheduling. Plan-and-Solve is a related reasoning prompt, not a concurrent tool scheduler.
+              HuggingGPT separates planning, model selection, execution and response generation. These roles
+              need not be three different models.
+            targets:
+              - aa-plan-runtime-mechanism
+            color: cyan
+            linger: 0.4
+      - say: The local graph has independent CI, diff and health reads. Decision needs all three; effect needs
+          decision. Initially all three reads are ready. After they succeed, only decision is ready. If diff
+          fails while the others succeed, no downstream step is ready. Succeeded means the read returned its
+          valid result, not that CI or deployment is healthy.
+        hold: 0.7
+        visual_cues:
+          - id: aa-plan-runtime-1
+            phrase: The local graph has independent CI, diff and health reads. Decision needs all three; effect needs
+              decision. Initially all three reads are ready. After they succeed, only decision is ready. If
+              diff fails while the others succeed, no downstream step is ready. Succeeded means the read
+              returned its valid result, not that CI or deployment is healthy.
+            targets:
+              - aa-plan-runtime-mechanism
+            color: cyan
+            linger: 0.4
+          - id: plan-three-ready
+            phrase: Initially all three reads are ready
+            targets:
+              - aa-plan-runtime-mechanism
+            color: cyan
+            linger: 0.4
+          - id: plan-decision-ready
+            phrase: only decision is ready
+            targets:
+              - aa-plan-runtime-mechanism
+            color: cyan
+            linger: 0.4
+          - id: plan-failure
+            phrase: If diff fails while the others succeed
+            targets:
+              - aa-plan-runtime-mechanism
+            color: cyan
+            linger: 0.4
+      - say: Reject duplicate or empty step IDs, missing dependencies and cycles. A plan may also be a serial list.
+          The fixture reports readiness and performs no concurrent scheduling. In a real scheduler, resource
+          capacity and access must permit independent work to overlap. A ready effect still requires the
+          separate authorization boundary.
+        hold: 0.7
+        visual_cues:
+          - id: aa-plan-runtime-2
+            phrase: Reject duplicate or empty step IDs, missing dependencies and cycles. A plan may also be a serial list.
+              The fixture reports readiness and performs no concurrent scheduling. In a real scheduler,
+              resource capacity and access must permit independent work to overlap. A ready effect still
+              requires the separate authorization boundary.
+            targets:
+              - aa-plan-runtime-mechanism
+            color: cyan
+            linger: 0.4
+          - id: plan-duplicate
+            phrase: duplicate or empty step IDs
+            targets:
+              - aa-plan-runtime-mechanism
+            color: cyan
+            linger: 0.4
+          - id: plan-missing
+            phrase: missing dependencies
+            targets:
+              - aa-plan-runtime-mechanism
+            color: cyan
+            linger: 0.4
+          - id: plan-cycle
+            phrase: and cycles
+            targets:
+              - aa-plan-runtime-mechanism
+            color: cyan
+            linger: 0.4
+  - id: critical-path
+    title: Overlap independent work on the same clock
+    visual: The same3read jobs occupy parallel lanes before the dependent decision. Their total work is unchanged
+      while the join moves from870to520ms; an explicit2read comparison retains its separate720ms serial
+      baseline.
+    beats:
+      - say: "For the reader edition’s supplied times, planning takes one hundred twenty milliseconds; CI, diff and
+          health reads take two hundred, three hundred fifty and one hundred fifty; the join takes fifty. With
+          all three reads able to start together, ideal completion is one hundred twenty plus the maximum read
+          duration plus fifty: five hundred twenty milliseconds."
+        hold: 0.7
+        visual_cues:
+          - id: aa-critical-path-0
+            phrase: "For the reader edition’s supplied times, planning takes one hundred twenty milliseconds; CI, diff and
+              health reads take two hundred, three hundred fifty and one hundred fifty; the join takes fifty.
+              With all three reads able to start together, ideal completion is one hundred twenty plus the
+              maximum read duration plus fifty: five hundred twenty milliseconds."
+            targets:
+              - aa-critical-path-mechanism
+            color: cyan
+            linger: 0.4
+          - id: schedule-parallel
+            phrase: five hundred twenty milliseconds
+            targets:
+              - aa-critical-path-mechanism
+            color: cyan
+            linger: 0.4
+      - say: Running the same three reads serially gives eight hundred seventy milliseconds. The reference checkpoint
+          compares only the first two reads and therefore has a different serial total, seven hundred twenty.
+          A general DAG is bounded by its longest dependency path and available resources, with queues,
+          retries and synchronization adding time. This is a supplied schedule, not a measured ReAct speedup.
+        hold: 0.7
+        visual_cues:
+          - id: aa-critical-path-1
+            phrase: Running the same three reads serially gives eight hundred seventy milliseconds. The reference
+              checkpoint compares only the first two reads and therefore has a different serial total, seven
+              hundred twenty. A general DAG is bounded by its longest dependency path and available resources,
+              with queues, retries and synchronization adding time. This is a supplied schedule, not a
+              measured ReAct speedup.
+            targets:
+              - aa-critical-path-mechanism
+            color: cyan
+            linger: 0.4
+          - id: schedule-serial
+            phrase: eight hundred seventy milliseconds
+            targets:
+              - aa-critical-path-mechanism
+            color: cyan
+            linger: 0.4
+          - id: schedule-two-read
+            phrase: seven hundred twenty
+            targets:
+              - aa-critical-path-mechanism
+            color: cyan
+            linger: 0.4
+  - id: replan
+    title: Invalidate work when an assumption breaks
+    visual: The plan sets aside the Art Museum after a gallery closure and chooses another venue. The
+      replacement activates a travel dependency for that venue.
+    beats:
+      - say: The first gallery is closed, and we choose a different museum for this plan. Its previously
+          estimated journey time may be accurate, but it leads to the venue we have set aside. Mark that
+          branch unusable for this plan and identify the dependent work that must change before continuing
+          toward a recommendation.
+        hold: 0.55
+        visual_cues:
+          - id: replan-b1-1
+            phrase: first gallery is closed
+            targets:
+              - venue-receipt
+            linger: 0.45
+          - id: replan-b1-2
+            phrase: branch unusable for this plan
+            targets:
+              - venue-status
+            linger: 0.45
+      - say: Choose a replacement venue and fetch its current hours. Then compute travel for that venue. Reusing the
+          old travel result because it occupies the same checklist position would attach evidence to the wrong
+          resource. Stable step and resource identities make that mistake visible.
+        hold: 0.75
+        visual_cues:
+          - id: replan-b2-1
+            phrase: travel for that venue
+            targets:
+              - travel-receipt
+            linger: 0.45
+      - say: "Try predicting another change: the replacement opens late enough, but the train is cancelled. Which
+          dependency should be refreshed? The hours receipt can remain valid while the journey branch needs
+          new evidence. Replanning should preserve useful work and invalidate the assumptions that actually
+          broke."
+        hold: 0.55
+        motion_check:
+          region:
+            - 150
+            - 300
+            - 1620
+            - 660
+          minimumChangedFraction: 0.002
+        visual_cues:
+          - id: replan-b3-1
+            phrase: train is cancelled
+            targets:
+              - travel-status
+            linger: 0.45
+          - id: replan-b3-2
+            phrase: hours receipt can remain valid
+            targets:
+              - venue-status
+            linger: 0.45
+          - id: replan-predict
+            phrase: Which dependency should be refreshed?
+            targets:
+              - travel-status
+            color: cyan
+            linger: 0.4
+          - id: replan-payoff
+            phrase: hours receipt can remain valid while the journey branch needs new evidence
+            targets:
+              - venue-status
+              - travel-status
+            color: cyan
+            linger: 0.4
+  - id: receipt-expiry
+    title: A conclusion inherits its inputs’ validity
+    visual: At t1100 the sameci/diff receipts remain valid to1200. Health ends exactly1100, making its descendant
+      decision unusable despite that decision’s own later expiry; only health enters the rerun queue.
+    beats:
+      - say: "Open the actual release graph’s freshness fixture. CI and diff for c eighteen forty-two remain valid
+          until time twelve hundred. Health expires at eleven hundred. The decision also says twelve hundred,
+          but it consumed health. Expiry is exclusive: now equal to valid-until is already too late."
+        hold: 0.7
+        visual_cues:
+          - id: aa-receipt-expiry-0
+            phrase: "Open the actual release graph’s freshness fixture. CI and diff for c eighteen forty-two remain valid
+              until time twelve hundred. Health expires at eleven hundred. The decision also says twelve
+              hundred, but it consumed health. Expiry is exclusive: now equal to valid-until is already too
+              late."
+            targets:
+              - aa-receipt-expiry-mechanism
+            color: cyan
+            linger: 0.4
+          - id: expiry-at
+            phrase: now equal to valid-until is already too late
+            targets:
+              - aa-receipt-expiry-mechanism
+            color: cyan
+            linger: 0.4
+      - say: At time eleven hundred, CI and diff remain reusable. Health is invalid, so decision is invalid and effect
+          stays blocked. Only health is ready to rerun. Checking each row’s own timestamp would incorrectly
+          reuse the decision. Traverse dependencies in topological order so a result is valid only when all
+          required parents are valid too.
+        hold: 0.7
+        visual_cues:
+          - id: aa-receipt-expiry-1
+            phrase: At time eleven hundred, CI and diff remain reusable. Health is invalid, so decision is invalid and
+              effect stays blocked. Only health is ready to rerun. Checking each row’s own timestamp would
+              incorrectly reuse the decision. Traverse dependencies in topological order so a result is valid
+              only when all required parents are valid too.
+            targets:
+              - aa-receipt-expiry-mechanism
+            color: cyan
+            linger: 0.4
+          - id: expiry-health
+            phrase: Health is invalid
+            targets:
+              - aa-receipt-expiry-mechanism
+            color: cyan
+            linger: 0.4
+          - id: expiry-decision
+            phrase: decision is invalid
+            targets:
+              - aa-receipt-expiry-mechanism
+            color: cyan
+            linger: 0.4
+          - id: expiry-ready
+            phrase: Only health is ready to rerun
+            targets:
+              - aa-receipt-expiry-mechanism
+            color: cyan
+            linger: 0.4
+      - say: After refreshing health, delete the old decision and recompute it from the new receipt. The reader
+          fixture verifies this same rule recursively on its fixed DAG. Changing the requested revision to c
+          eighteen forty-three invalidates every old receipt; CI, diff and health become ready again.
+          Replanning preserves useful evidence only while its identity and validity still match.
+        hold: 0.7
+        visual_cues:
+          - id: aa-receipt-expiry-2
+            phrase: After refreshing health, delete the old decision and recompute it from the new receipt. The reader
+              fixture verifies this same rule recursively on its fixed DAG. Changing the requested revision to
+              c eighteen forty-three invalidates every old receipt; CI, diff and health become ready again.
+              Replanning preserves useful evidence only while its identity and validity still match.
+            targets:
+              - aa-receipt-expiry-mechanism
+            color: cyan
+            linger: 0.4
+          - id: expiry-refresh
+            phrase: After refreshing health
+            targets:
+              - aa-receipt-expiry-mechanism
+            color: cyan
+            linger: 0.4
+          - id: expiry-recompute
+            phrase: recompute it from the new receipt
+            targets:
+              - aa-receipt-expiry-mechanism
+            color: cyan
+            linger: 0.4
+          - id: expiry-revision
+            phrase: Changing the requested revision to c eighteen forty-three
+            targets:
+              - aa-receipt-expiry-mechanism
+            color: cyan
+            linger: 0.4
+  - id: consumed-versions
+    title: Replacing an input must invalidate its old conclusion
+    visual: A health receipt version1 becomes version2 at the same graph position. The existing decision keeps a
+      visible consumed-version1 link and remains invalid until a new decision consumes version2.
+    beats:
+      - say: A refreshed source must not silently revive a conclusion made from the previous source. Production graphs
+          should record the exact receipt versions each derived result consumed. Updating health under the
+          same step ID invalidates its descendants even if its new expiry extends beyond the current time.
+        hold: 0.7
+        visual_cues:
+          - id: aa-consumed-versions-0
+            phrase: A refreshed source must not silently revive a conclusion made from the previous source. Production
+              graphs should record the exact receipt versions each derived result consumed. Updating health
+              under the same step ID invalidates its descendants even if its new expiry extends beyond the
+              current time.
+            targets:
+              - aa-consumed-versions-mechanism
+            color: cyan
+            linger: 0.4
+          - id: version-health
+            phrase: Updating health under the same step ID
+            targets:
+              - aa-consumed-versions-mechanism
+            color: cyan
+            linger: 0.4
+          - id: version-invalid
+            phrase: invalidates its descendants
+            targets:
+              - aa-consumed-versions-mechanism
+            color: cyan
+            linger: 0.4
+      - say: Splice replacement pending work into the graph only after checking IDs, dependencies, cycles, tools and
+          policy again. A shared resource or changed task can require a wider invalidation than the drawn
+          descendants suggest. A completed external effect survives removal of its plan node; retain its
+          operation identity and reconcile any unknown outcome instead of replaying it.
+        hold: 0.7
+        visual_cues:
+          - id: aa-consumed-versions-1
+            phrase: Splice replacement pending work into the graph only after checking IDs, dependencies, cycles, tools
+              and policy again. A shared resource or changed task can require a wider invalidation than the
+              drawn descendants suggest. A completed external effect survives removal of its plan node; retain
+              its operation identity and reconcile any unknown outcome instead of replaying it.
+            targets:
+              - aa-consumed-versions-mechanism
+            color: cyan
+            linger: 0.4
+          - id: version-effect
+            phrase: completed external effect survives removal of its plan node
+            targets:
+              - aa-consumed-versions-mechanism
+            color: cyan
+            linger: 0.4
+  - id: router-dispatch
+    title: Classify once when the categories are already known
+    visual: The exact keyword fixture routes deployment, schema and documentation queries through one host-owned
+      handler map. A query containingCIand schema activates two matches and stops at review rather than a
+      guessed route.
+    beats:
+      - say: A router-delegator selects a known intent category and hands off to its registered specialist or
+          workflow. The local keyword fixture recognizes CI or deployment, migration or schema, and
+          documentation or handbook. Exactly one matching category dispatches; no match or multiple matches
+          returns needs review.
+        hold: 0.7
+        visual_cues:
+          - id: aa-router-dispatch-0
+            phrase: A router-delegator selects a known intent category and hands off to its registered specialist or
+              workflow. The local keyword fixture recognizes CI or deployment, migration or schema, and
+              documentation or handbook. Exactly one matching category dispatches; no match or multiple
+              matches returns needs review.
+            targets:
+              - aa-router-dispatch-mechanism
+            color: cyan
+            linger: 0.4
+      - say: CI failed during a schema migration matches two categories and is held. Read the documentation matches
+          one and reaches the read-only handler. This is not an LLM confidence estimator. A model’s
+          self-reported confidence is not automatically calibrated, and a proposed handler name must not
+          become arbitrary executable code. Choose an evaluated acceptance and fallback rule.
+        hold: 0.7
+        visual_cues:
+          - id: aa-router-dispatch-1
+            phrase: CI failed during a schema migration matches two categories and is held. Read the documentation matches
+              one and reaches the read-only handler. This is not an LLM confidence estimator. A model’s
+              self-reported confidence is not automatically calibrated, and a proposed handler name must not
+              become arbitrary executable code. Choose an evaluated acceptance and fallback rule.
+            targets:
+              - aa-router-dispatch-mechanism
+            color: cyan
+            linger: 0.4
+          - id: router-ambiguous
+            phrase: matches two categories and is held
+            targets:
+              - aa-router-dispatch-mechanism
+            color: cyan
+            linger: 0.4
+          - id: router-docs
+            phrase: matches one and reaches the read-only handler
+            targets:
+              - aa-router-dispatch-mechanism
+            color: cyan
+            linger: 0.4
+  - id: search-tree
+    title: Keep alternatives within a real branch-state contract
+    visual: Sandboxedrollback/diff/retry branches share a root but own distinct state snapshots. Selection follows
+      one branch, expansion adds alternatives, environment results assign feedback and failure notes remain
+      attached to their trajectory.
+    beats:
+      - say: Language Agent Tree Search keeps candidate states in a tree. It selects a branch, expands alternatives,
+          evaluates them, simulates toward a terminal outcome, backs up the return and reflects on
+          unsuccessful trajectories. LATS uses environment interaction; an imagined observation in generated
+          text is not that feedback.
+        hold: 0.7
+        visual_cues:
+          - id: aa-search-tree-0
+            phrase: Language Agent Tree Search keeps candidate states in a tree. It selects a branch, expands
+              alternatives, evaluates them, simulates toward a terminal outcome, backs up the return and
+              reflects on unsuccessful trajectories. LATS uses environment interaction; an imagined
+              observation in generated text is not that feedback.
+            targets:
+              - aa-search-tree-mechanism
+            color: cyan
+            linger: 0.4
+      - say: The paper’s value procedure combines model evaluation with a self-consistency heuristic, so it can
+          misjudge a branch. Our article’s small cell implements only UCT selection and return backup using
+          supplied statistics. It does not execute the full LATS algorithm or measure a deployed recovery
+          policy.
+        hold: 0.7
+        visual_cues:
+          - id: aa-search-tree-1
+            phrase: The paper’s value procedure combines model evaluation with a self-consistency heuristic, so it can
+              misjudge a branch. Our article’s small cell implements only UCT selection and return backup
+              using supplied statistics. It does not execute the full LATS algorithm or measure a deployed
+              recovery policy.
+            targets:
+              - aa-search-tree-mechanism
+            color: cyan
+            linger: 0.4
+      - say: Text replay can restore a language context but cannot restore a changed filesystem or undo a production
+          action. Exploratory mutable branches need isolated snapshots or resettable simulations. Read-only
+          branches may reuse still-valid evidence. Keep consequential external effects outside exploration and
+          authorize any final selected proposal separately.
+        hold: 0.7
+        visual_cues:
+          - id: aa-search-tree-2
+            phrase: Text replay can restore a language context but cannot restore a changed filesystem or undo a
+              production action. Exploratory mutable branches need isolated snapshots or resettable
+              simulations. Read-only branches may reuse still-valid evidence. Keep consequential external
+              effects outside exploration and authorize any final selected proposal separately.
+            targets:
+              - aa-search-tree-mechanism
+            color: cyan
+            linger: 0.4
+  - id: uct-construction
+    title: Build the value and exploration terms
+    visual: Three supplied children retainN/Wstatistics. Mean-return bars and exploration bars stack separately,
+      making low-mean retry win on its larger exploration bonus before any outcome is claimed.
+    beats:
+      - say: For a visited child, UCT adds mean return Q to an exploration term. To construct that term, divide the
+          natural log of parent visits by child visits, take the square root, then multiply by exploration
+          weight c. Q is total backed-up return W divided by child visits N. Increasing child visits shrinks
+          that bonus when the parent count is fixed.
+        hold: 0.7
+        visual_cues:
+          - id: aa-uct-construction-0
+            phrase: For a visited child, UCT adds mean return Q to an exploration term. To construct that term, divide the
+              natural log of parent visits by child visits, take the square root, then multiply by exploration
+              weight c. Q is total backed-up return W divided by child visits N. Increasing child visits
+              shrinks that bonus when the parent count is fixed.
+            targets:
+              - aa-uct-construction-mechanism
+            color: cyan
+            linger: 0.4
+      - say: The supplied parent has ten visits. Rollback has four visits and total return one point two, diff has
+          five and four point five, and retry has one and point one. With c equal to square root of two, the
+          three scores are about one point three seven three, one point eight six zero and two point two four
+          six. Retry wins despite its lower mean.
+        hold: 0.7
+        visual_cues:
+          - id: aa-uct-construction-1
+            phrase: The supplied parent has ten visits. Rollback has four visits and total return one point two, diff has
+              five and four point five, and retry has one and point one. With c equal to square root of two,
+              the three scores are about one point three seven three, one point eight six zero and two point
+              two four six. Retry wins despite its lower mean.
+            targets:
+              - aa-uct-construction-mechanism
+            color: cyan
+            linger: 0.4
+          - id: uct-scores
+            phrase: one point three seven three, one point eight six zero and two point two four six
+            targets:
+              - aa-uct-construction-mechanism
+            color: cyan
+            linger: 0.4
+          - id: uct-winner
+            phrase: Retry wins despite its lower mean
+            targets:
+              - aa-uct-construction-mechanism
+            color: cyan
+            linger: 0.4
+      - say: The fixture assigns infinite selection score to an unvisited child, prioritizing eligible unvisited
+          children at that point. A finite search budget, terminal stop or expansion policy can still leave
+          branches unexplored. Holding a child’s count fixed while increasing the parent’s count increases its
+          exploration term. Neither bonus is a calibrated probability of a correct recovery.
+        hold: 0.7
+        visual_cues:
+          - id: aa-uct-construction-2
+            phrase: The fixture assigns infinite selection score to an unvisited child, prioritizing eligible unvisited
+              children at that point. A finite search budget, terminal stop or expansion policy can still
+              leave branches unexplored. Holding a child’s count fixed while increasing the parent’s count
+              increases its exploration term. Neither bonus is a calibrated probability of a correct recovery.
+            targets:
+              - aa-uct-construction-mechanism
+            color: cyan
+            linger: 0.4
+          - id: uct-unvisited
+            phrase: infinite selection score to an unvisited child
+            targets:
+              - aa-uct-construction-mechanism
+            color: cyan
+            linger: 0.4
+  - id: return-backup
+    title: A backed-up return changes search statistics
+    visual: The selectedretry edge owns1visit/W.1. A suppliedreturn1 adds one visit and one return to both
+      selected node and root, then recomputes its mean. Model parameter tiles remain fixed.
+    beats:
+      - say: Back up a supplied terminal return of one along the selected root-to-retry path. Retry’s visit count
+          rises from one to two, total return from point one to one point one, and mean becomes point five
+          five. The parent count and total return also increment. These are tree statistics, not gradient
+          updates to model weights.
+        hold: 0.7
+        visual_cues:
+          - id: aa-return-backup-0
+            phrase: Back up a supplied terminal return of one along the selected root-to-retry path. Retry’s visit count
+              rises from one to two, total return from point one to one point one, and mean becomes point five
+              five. The parent count and total return also increment. These are tree statistics, not gradient
+              updates to model weights.
+            targets:
+              - aa-return-backup-mechanism
+            color: cyan
+            linger: 0.4
+          - id: backup-count
+            phrase: one to two
+            targets:
+              - aa-return-backup-mechanism
+            color: cyan
+            linger: 0.4
+          - id: backup-return
+            phrase: point one to one point one
+            targets:
+              - aa-return-backup-mechanism
+            color: cyan
+            linger: 0.4
+          - id: backup-mean
+            phrase: point five five
+            targets:
+              - aa-return-backup-mechanism
+            color: cyan
+            linger: 0.4
+          - id: backup-parent
+            phrase: parent count and total return also increment
+            targets:
+              - aa-return-backup-mechanism
+            color: cyan
+            linger: 0.4
+      - say: The cell limits returns to the interval zero through one and validates finite statistics and visit
+          counts. Real value scales and exploration weight require tuning to the task and budget. A
+          high-scoring proposed path still needs valid branch state, reliable task evaluation and current
+          effect permission before it can leave a sandbox.
+        hold: 0.7
+        visual_cues:
+          - id: aa-return-backup-1
+            phrase: The cell limits returns to the interval zero through one and validates finite statistics and visit
+              counts. Real value scales and exploration weight require tuning to the task and budget. A
+              high-scoring proposed path still needs valid branch state, reliable task evaluation and current
+              effect permission before it can leave a sandbox.
+            targets:
+              - aa-return-backup-mechanism
+            color: cyan
+            linger: 0.4
+  - id: strict-tool-contract
+    title: Shape, access and observation are separate
+    visual: The actual optionalinclude_logs field branches through Boolean validation and actor-run lookup. R1842
+      reaches the backend; a yes string and unauthorizedR9999 stop before any additional backend read.
+    beats:
+      - say: The CI-tool fixture requires a string run ID and accepts an optional Boolean include-logs value, default
+          false. Extra fields or a string yes in that Boolean slot reject. An unauthorized run ID is denied
+          before the backend is read. The actual output contains one backend read, for R eighteen forty-two.
+        hold: 0.7
+        visual_cues:
+          - id: aa-strict-tool-contract-0
+            phrase: The CI-tool fixture requires a string run ID and accepts an optional Boolean include-logs value,
+              default false. Extra fields or a string yes in that Boolean slot reject. An unauthorized run ID
+              is denied before the backend is read. The actual output contains one backend read, for R
+              eighteen forty-two.
+            targets:
+              - aa-strict-tool-contract-mechanism
+            color: cyan
+            linger: 0.4
+          - id: tool-shape
+            phrase: Boolean slot reject
+            targets:
+              - aa-strict-tool-contract-mechanism
+            color: cyan
+            linger: 0.4
+          - id: tool-denied
+            phrase: denied before the backend is read
+            targets:
+              - aa-strict-tool-contract-mechanism
+            color: cyan
+            linger: 0.4
+          - id: tool-one
+            phrase: one backend read
+            targets:
+              - aa-strict-tool-contract-mechanism
+            color: cyan
+            linger: 0.4
+      - say: That is an application-level schema. OpenAI strict schemas require every property in required; a nullable
+          type can represent a conceptually optional value. Provider shape constraints still leave semantic
+          validation, read permission, current scope and budgets to the host. Host-held credentials, timeouts
+          and bounded results complete the external round trip.
+        hold: 0.7
+        visual_cues:
+          - id: aa-strict-tool-contract-1
+            phrase: That is an application-level schema. OpenAI strict schemas require every property in required; a
+              nullable type can represent a conceptually optional value. Provider shape constraints still
+              leave semantic validation, read permission, current scope and budgets to the host. Host-held
+              credentials, timeouts and bounded results complete the external round trip.
+            targets:
+              - aa-strict-tool-contract-mechanism
+            color: cyan
+            linger: 0.4
+  - id: lost-reply
+    title: An unknown reply does not erase an accepted effect
+    visual: A rollback-proposal operation17 createsRB2041 in a local ledger. The reply disappears while the ledger
+      stays. A same-key replay returns the old ID, and a changed approved payload conflicts instead of
+      appending.
+    beats:
+      - say: The article’s local write creates a rollback proposal, not a rollback. The service accepts the approved R
+          eighteen forty-two request under operation seventeen, creates R B twenty forty-one, and then the
+          demonstration deliberately loses the reply. To the caller the result is unknown, even though the
+          proposal record exists.
+        hold: 0.7
+        visual_cues:
+          - id: aa-lost-reply-0
+            phrase: The article’s local write creates a rollback proposal, not a rollback. The service accepts the
+              approved R eighteen forty-two request under operation seventeen, creates R B twenty forty-one,
+              and then the demonstration deliberately loses the reply. To the caller the result is unknown,
+              even though the proposal record exists.
+            targets:
+              - aa-lost-reply-mechanism
+            color: cyan
+            linger: 0.4
+          - id: proposal-create
+            phrase: creates R B twenty forty-one
+            targets:
+              - aa-lost-reply-mechanism
+            color: cyan
+            linger: 0.4
+          - id: proposal-lost
+            phrase: loses the reply
+            targets:
+              - aa-lost-reply-mechanism
+            color: cyan
+            linger: 0.4
+      - say: Retry the same request with the same key. The local service returns replay R B twenty forty-one without
+          another proposal. Reusing that key for an approved R twenty ninety-nine payload raises a mismatch
+          conflict. The final proposal count is one. Authorization is checked on every call, including a
+          replay.
+        hold: 0.7
+        visual_cues:
+          - id: aa-lost-reply-1
+            phrase: Retry the same request with the same key. The local service returns replay R B twenty forty-one
+              without another proposal. Reusing that key for an approved R twenty ninety-nine payload raises a
+              mismatch conflict. The final proposal count is one. Authorization is checked on every call,
+              including a replay.
+            targets:
+              - aa-lost-reply-mechanism
+            color: cyan
+            linger: 0.4
+          - id: proposal-replay
+            phrase: replay R B twenty forty-one
+            targets:
+              - aa-lost-reply-mechanism
+            color: cyan
+            linger: 0.4
+          - id: proposal-change-input
+            phrase: "Reusing that key for an approved R twenty ninety-nine payload"
+            targets:
+              - aa-lost-reply-mechanism
+            color: cyan
+            linger: 0.4
+          - id: proposal-conflict
+            phrase: mismatch conflict
+            targets:
+              - aa-lost-reply-mechanism
+            color: cyan
+            linger: 0.4
+          - id: proposal-count
+            phrase: proposal count is one
+            targets:
+              - aa-lost-reply-mechanism
+            color: cyan
+            linger: 0.4
+      - say: A production key must bind actor or tenant scope and the complete intended payload under a supported
+          service contract. Recording the key and applying the effect must be atomic and durable. An
+          in-progress request may return pending rather than a final response. If deduplication is unsupported
+          or its retention window has expired, reconcile instead of inventing a new identity and assuming
+          failure.
+        hold: 0.7
+        visual_cues:
+          - id: aa-lost-reply-2
+            phrase: A production key must bind actor or tenant scope and the complete intended payload under a supported
+              service contract. Recording the key and applying the effect must be atomic and durable. An
+              in-progress request may return pending rather than a final response. If deduplication is
+              unsupported or its retention window has expired, reconcile instead of inventing a new identity
+              and assuming failure.
+            targets:
+              - aa-lost-reply-mechanism
+            color: cyan
+            linger: 0.4
+  - id: bounded-context
+    title: Stop loops and select the evidence each call needs
+    visual: A repeated action signature stalls a progress marker; context strips expose repeated submitted history
+      and a runtime step limit.
+    beats:
+      - say: Another request for the same unhelpful page can leave the evidence unchanged. Compare canonical action
+          records with a progress marker. Repetition without new information can trigger another strategy or
+          stop the run before a further dispatch.
+        hold: 0.65
+        visual_cues:
+          - id: bounded-context-b1-1
+            phrase: canonical action records
+            targets:
+              - repeated-actions
+            linger: 0.45
+      - say: The reference runtime counts failed calls too and enforces its attempt budget. A production runtime
+          must also enforce run deadlines and per-call timeouts. The fixture injects a timeout error, so it
+          demonstrates error handling rather than elapsed-time enforcement. Keep complete receipts outside the
+          prompt, then select the relevant records for the next model turn.
+        hold: 0.65
+        visual_cues:
+          - id: bounded-context-b2-1
+            phrase: complete receipts
+            targets:
+              - stored-receipts
+            linger: 0.45
+          - id: bounded-context-b2-2
+            phrase: relevant records
+            targets:
+              - selected-context
+            linger: 0.45
+      - say: If every request resubmits all earlier observations, the input total grows faster than the number of
+          steps. These supplied counts make that accumulation visible. A compact state can reduce it while
+          preserving the source details needed for the next decision.
+        hold: 0.9
+        visual_cues:
+          - id: bounded-context-b3-1
+            phrase: input total grows
+            targets:
+              - submitted-tokens
+            linger: 0.45
+  - id: budget-reservation
+    title: Reserve capacity before another dispatch
+    visual: Read/writeattempt pools decrement at admission. A timeout retains the consumed attempt. A separate
+      token request120+80 reaches a150remaining pool and stops before any transport begins.
+    beats:
+      - say: The local budget has two read attempts and one write attempt. Reserve a read and a write, then a second
+          write request stops because its write pool is zero. One read remains. Failed and timed-out
+          dispatches still consume reserved attempts. The registry defines which tool is a write; the model
+          cannot relabel it.
+        hold: 0.7
+        visual_cues:
+          - id: aa-budget-reservation-0
+            phrase: The local budget has two read attempts and one write attempt. Reserve a read and a write, then a
+              second write request stops because its write pool is zero. One read remains. Failed and
+              timed-out dispatches still consume reserved attempts. The registry defines which tool is a
+              write; the model cannot relabel it.
+            targets:
+              - aa-budget-reservation-mechanism
+            color: cyan
+            linger: 0.4
+          - id: budget-admit
+            phrase: Reserve a read and a write
+            targets:
+              - aa-budget-reservation-mechanism
+            color: cyan
+            linger: 0.4
+          - id: budget-no-write
+            phrase: write pool is zero
+            targets:
+              - aa-budget-reservation-mechanism
+            color: cyan
+            linger: 0.4
+      - say: "Reserve after validation and authorization, immediately before dispatch. A run with one hundred fifty
+          tokens left cannot admit a call reserving one hundred twenty input and eighty output tokens: the
+          needed two hundred exceeds the remaining pool. Include applicable reasoning usage and output caps.
+          Concurrent workers need atomic reservations against the same budget."
+        hold: 0.7
+        visual_cues:
+          - id: aa-budget-reservation-1
+            phrase: "Reserve after validation and authorization, immediately before dispatch. A run with one hundred fifty
+              tokens left cannot admit a call reserving one hundred twenty input and eighty output tokens: the
+              needed two hundred exceeds the remaining pool. Include applicable reasoning usage and output
+              caps. Concurrent workers need atomic reservations against the same budget."
+            targets:
+              - aa-budget-reservation-mechanism
+            color: cyan
+            linger: 0.4
+          - id: budget-twohundred
+            phrase: needed two hundred exceeds the remaining pool
+            targets:
+              - aa-budget-reservation-mechanism
+            color: cyan
+            linger: 0.4
+      - say: Keep step, token, wall-clock and effect controls separate. A per-call timeout does not establish that
+          remote work stopped. A stopped loop may have an unfinished investigation or an unresolved write.
+          Report the observed state and stop reason rather than turning a budget limit into a diagnosis or
+          completion claim.
+        hold: 0.7
+        visual_cues:
+          - id: aa-budget-reservation-2
+            phrase: Keep step, token, wall-clock and effect controls separate. A per-call timeout does not establish that
+              remote work stopped. A stopped loop may have an unfinished investigation or an unresolved write.
+              Report the observed state and stop reason rather than turning a budget limit into a diagnosis or
+              completion claim.
+            targets:
+              - aa-budget-reservation-mechanism
+            color: cyan
+            linger: 0.4
+  - id: cycle-and-progress
+    title: Recognize repeated actions without discarding real progress
+    visual: CanonicalJSON fields align despite key order, while spaces inside query strings remain visible. AA
+      andABAB action tiles repeat under one fixed progress marker; a page1→page2 cursor change breaks the
+      no-progress condition.
+    beats:
+      - say: "Canonicalize already validated action JSON with stable key order and compact separator whitespace.
+          Preserve whitespace inside string values: team space id and teamid are different query values.
+          Reject nonfinite numbers rather than treating unstable serialized values as action identities."
+        hold: 0.7
+        visual_cues:
+          - id: aa-cycle-and-progress-0
+            phrase: "Canonicalize already validated action JSON with stable key order and compact separator whitespace.
+              Preserve whitespace inside string values: team space id and teamid are different query values.
+              Reject nonfinite numbers rather than treating unstable serialized values as action identities."
+            targets:
+              - aa-cycle-and-progress-mechanism
+            color: cyan
+            linger: 0.4
+          - id: cycle-string-space
+            phrase: team space id and teamid are different query values
+            targets:
+              - aa-cycle-and-progress-mechanism
+            color: cyan
+            linger: 0.4
+      - say: The article’s detector compares repeated recent suffix patterns of periods one through three, paired with
+          host-checked progress markers. Identical calls and A B A B both trigger when the relevant markers
+          stay unchanged. Repeating a call while progress moves from p zero to p one to p two does not trigger
+          this no-progress test.
+        hold: 0.7
+        visual_cues:
+          - id: aa-cycle-and-progress-1
+            phrase: The article’s detector compares repeated recent suffix patterns of periods one through three, paired
+              with host-checked progress markers. Identical calls and A B A B both trigger when the relevant
+              markers stay unchanged. Repeating a call while progress moves from p zero to p one to p two does
+              not trigger this no-progress test.
+            targets:
+              - aa-cycle-and-progress-mechanism
+            color: cyan
+            linger: 0.4
+          - id: cycle-periodic
+            phrase: Identical calls and A B A B both trigger
+            targets:
+              - aa-cycle-and-progress-mechanism
+            color: cyan
+            linger: 0.4
+          - id: cycle-progress
+            phrase: does not trigger this no-progress test
+            targets:
+              - aa-cycle-and-progress-mechanism
+            color: cyan
+            linger: 0.4
+      - say: It catches exact bounded patterns, not every semantic equivalent or longer cycle. A marker based on
+          irrelevant new text can falsely call stagnation progress. Keep hard budgets and completion checks
+          even when this heuristic finds no loop. Useful pagination advances a verified cursor; another copy
+          of the same log with a new display timestamp need not.
+        hold: 0.7
+        visual_cues:
+          - id: aa-cycle-and-progress-2
+            phrase: It catches exact bounded patterns, not every semantic equivalent or longer cycle. A marker based on
+              irrelevant new text can falsely call stagnation progress. Keep hard budgets and completion
+              checks even when this heuristic finds no loop. Useful pagination advances a verified cursor;
+              another copy of the same log with a new display timestamp need not.
+            targets:
+              - aa-cycle-and-progress-mechanism
+            color: cyan
+            linger: 0.4
+  - id: incident-recovery
+    title: Match the recovered state to the affected incident
+    visual: R2099’shealthy eu-west observation is separated from affectedus-east. The host checks
+      region/revision/age/finitep95/closureapproval, and the incident remains open through each failed
+      predicate.
+    beats:
+      - say: The article’s bad R twenty ninety-nine trace closes an incident after seeing a healthy region on an older
+          commit, while the affected region remains slow. A valid tool sequence can still reach an unsupported
+          conclusion. Add a host-enforced recovery precondition for the actual incident resource, not a prompt
+          reminder to be careful.
+        hold: 0.7
+        visual_cues:
+          - id: aa-incident-recovery-0
+            phrase: The article’s bad R twenty ninety-nine trace closes an incident after seeing a healthy region on an
+              older commit, while the affected region remains slow. A valid tool sequence can still reach an
+              unsupported conclusion. Add a host-enforced recovery precondition for the actual incident
+              resource, not a prompt reminder to be careful.
+            targets:
+              - aa-incident-recovery-mechanism
+            color: cyan
+            linger: 0.4
+      - say: The local closure fixture requires matching region and expected revision, observation age at least zero
+          and strictly below sixty seconds, finite nonnegative p ninety-five no greater than two hundred
+          milliseconds, and exact incident/revision approval. These thresholds are supplied policy examples
+          rather than sufficient production recovery criteria.
+        hold: 0.7
+        visual_cues:
+          - id: aa-incident-recovery-1
+            phrase: The local closure fixture requires matching region and expected revision, observation age at least
+              zero and strictly below sixty seconds, finite nonnegative p ninety-five no greater than two
+              hundred milliseconds, and exact incident/revision approval. These thresholds are supplied policy
+              examples rather than sufficient production recovery criteria.
+            targets:
+              - aa-incident-recovery-mechanism
+            color: cyan
+            linger: 0.4
+      - say: Wrong-region and high-latency observations leave the incident open. Matching fresh healthy evidence
+          without approval also blocks. With both evidence and exact approval it closes. Real policy may
+          require sustained health, errors and rollout convergence, with checks atomic against incident
+          updates. A single healthy sample cannot establish those additional facts.
+        hold: 0.7
+        visual_cues:
+          - id: aa-incident-recovery-2
+            phrase: Wrong-region and high-latency observations leave the incident open. Matching fresh healthy evidence
+              without approval also blocks. With both evidence and exact approval it closes. Real policy may
+              require sustained health, errors and rollout convergence, with checks atomic against incident
+              updates. A single healthy sample cannot establish those additional facts.
+            targets:
+              - aa-incident-recovery-mechanism
+            color: cyan
+            linger: 0.4
+          - id: recovery-region
+            phrase: Wrong-region and high-latency observations leave the incident open
+            targets:
+              - aa-incident-recovery-mechanism
+            color: cyan
+            linger: 0.4
+          - id: recovery-no-approval
+            phrase: without approval also blocks
+            targets:
+              - aa-incident-recovery-mechanism
+            color: cyan
+            linger: 0.4
+          - id: recovery-close
+            phrase: With both evidence and exact approval it closes
+            targets:
+              - aa-incident-recovery-mechanism
+            color: cyan
+            linger: 0.4
+          - id: recovery-high-latency
+            phrase: high-latency observations
+            targets:
+              - aa-incident-recovery-mechanism
+            color: cyan
+            linger: 0.4
+  - id: durable-session
+    title: Stored state is available only when the next policy sees it
+    visual: A durable event log survives a failed harness. A new harness fetches selected events and remaining
+      budget; an unresolved effect retains its operation ID instead of becoming a fresh task.
+    beats:
+      - say: A handoff should carry scope, allowed tools, valid result IDs, remaining budgets and pending operation
+          identities. Leave credentials in their protected service, and keep full results outside bounded
+          prompts. A receipt in storage does not influence the next decision unless the selected model context
+          actually includes the relevant evidence.
+        hold: 0.7
+        visual_cues:
+          - id: aa-durable-session-0
+            phrase: A handoff should carry scope, allowed tools, valid result IDs, remaining budgets and pending operation
+              identities. Leave credentials in their protected service, and keep full results outside bounded
+              prompts. A receipt in storage does not influence the next decision unless the selected model
+              context actually includes the relevant evidence.
+            targets:
+              - aa-durable-session-mechanism
+            color: cyan
+            linger: 0.4
+      - say: Anthropic’s April twenty-twenty-six Managed Agents design separates a durable session event log, the
+          model harness and the execution sandbox. A restarted harness can fetch session events; selected
+          events become model context. That dated implementation illustrates the ownership split. It does not
+          establish that any arbitrary handoff preserves all needed evidence or that a finished tool result
+          remains valid.
+        hold: 0.7
+        visual_cues:
+          - id: aa-durable-session-1
+            phrase: Anthropic’s April twenty-twenty-six Managed Agents design separates a durable session event log, the
+              model harness and the execution sandbox. A restarted harness can fetch session events; selected
+              events become model context. That dated implementation illustrates the ownership split. It does
+              not establish that any arbitrary handoff preserves all needed evidence or that a finished tool
+              result remains valid.
+            targets:
+              - aa-durable-session-mechanism
+            color: cyan
+            linger: 0.4
+          - id: session-fetch
+            phrase: restarted harness can fetch session events
+            targets:
+              - aa-durable-session-mechanism
+            color: cyan
+            linger: 0.4
+          - id: session-context
+            phrase: selected events become model context
+            targets:
+              - aa-durable-session-mechanism
+            color: cyan
+            linger: 0.4
+  - id: architecture-evaluation
+    title: Complexity earns its place through matched tasks
+    visual: The same held-out cases branch throughworkflow/router/ReAct/plan/reflection/search while a
+      total-resource ledger stays fixed. Outcomes, unsupported conclusions, unauthorized attempts and tool
+      failures remain separate rows.
+    beats:
+      - say: Test an early supported answer, an ambiguous log, unavailable health, an expired dependency, a policy
+          denial and a repeated no-progress sequence. Keep expected answers out of the policy prompt. Compare
+          architectures under the same tasks, tools, permissions, model settings and total budget.
+        hold: 0.7
+        visual_cues:
+          - id: aa-architecture-evaluation-0
+            phrase: Test an early supported answer, an ambiguous log, unavailable health, an expired dependency, a policy
+              denial and a repeated no-progress sequence. Keep expected answers out of the policy prompt.
+              Compare architectures under the same tasks, tools, permissions, model settings and total budget.
+            targets:
+              - aa-architecture-evaluation-mechanism
+            color: cyan
+            linger: 0.4
+          - id: evaluation-case-0
+            phrase: an early supported answer
+            targets:
+              - aa-architecture-evaluation-mechanism
+            color: cyan
+            linger: 0.4
+          - id: evaluation-case-1
+            phrase: an ambiguous log
+            targets:
+              - aa-architecture-evaluation-mechanism
+            color: cyan
+            linger: 0.4
+          - id: evaluation-case-2
+            phrase: unavailable health
+            targets:
+              - aa-architecture-evaluation-mechanism
+            color: cyan
+            linger: 0.4
+          - id: evaluation-case-3
+            phrase: an expired dependency
+            targets:
+              - aa-architecture-evaluation-mechanism
+            color: cyan
+            linger: 0.4
+          - id: evaluation-case-4
+            phrase: a policy denial
+            targets:
+              - aa-architecture-evaluation-mechanism
+            color: cyan
+            linger: 0.4
+          - id: evaluation-case-5
+            phrase: a repeated no-progress sequence
+            targets:
+              - aa-architecture-evaluation-mechanism
+            color: cyan
+            linger: 0.4
+      - say: Measure correct completion, unsupported claims, unauthorized-effect attempts, useful recovery, latency
+          and actual model/tool cost. A larger tree can spend more work and look more capable without a better
+          cost-quality tradeoff. Plans help explicit dependencies and coverage; a router helps known
+          categories; reflection needs useful feedback; search needs valid branch state. Combine them only
+          where that comparison supports it.
+        hold: 0.7
+        visual_cues:
+          - id: aa-architecture-evaluation-1
+            phrase: Measure correct completion, unsupported claims, unauthorized-effect attempts, useful recovery, latency
+              and actual model/tool cost. A larger tree can spend more work and look more capable without a
+              better cost-quality tradeoff. Plans help explicit dependencies and coverage; a router helps
+              known categories; reflection needs useful feedback; search needs valid branch state. Combine
+              them only where that comparison supports it.
+            targets:
+              - aa-architecture-evaluation-mechanism
+            color: cyan
+            linger: 0.4
+  - id: transfer
+    title: Earn a concrete recommendation from the evidence
+    visual: The retained History hours and refreshed bus receipt move into a ledger. A computed departure, journey
+      and ninety-minute visit finish at16:05 before the17:00 deadline and18:00 closing; the recommendation
+      binds both source IDs.
+    beats:
+      - say: Bring the surviving evidence into one ledger. The History Museum is open until six, and a current bus
+          route replaces the cancelled train. Both records name the same venue and today’s visit. We can now
+          calculate a recommendation from them.
+        hold: 0.65
+        motion_check:
+          region:
+            - 130
+            - 300
+            - 1660
+            - 620
+          minimumChangedFraction: 0.002
+        visual_cues:
+          - id: transfer-b1-1
+            phrase: open until six
+            targets:
+              - hours-evidence
+            linger: 0.45
+          - id: transfer-b1-2
+            phrase: current bus route
+            targets:
+              - route-evidence
+            linger: 0.45
+      - say: The bus leaves at ten past two and arrives twenty-five minutes later. Watch the timeline add a
+          ninety-minute visit. It finishes at five past four, before both the user’s five o’clock deadline and
+          the six o’clock museum closing. The hours receipt supplies the opening and closing times, and the route receipt
+          supplies departure and travel duration. The task supplies the ninety-minute visit and five oclock
+          deadline.
+        hold: 0.65
+        motion_check:
+          region:
+            - 130
+            - 300
+            - 1660
+            - 620
+          minimumChangedFraction: 0.002
+        visual_cues:
+          - id: transfer-b2-1
+            phrase: twenty-five minutes later
+            targets:
+              - journey-duration
+            linger: 0.45
+          - id: transfer-b2-2
+            phrase: add a ninety-minute visit
+            targets:
+              - visit-duration
+            linger: 0.45
+          - id: transfer-finish
+            phrase: finishes at five past four
+            targets:
+              - visit-duration
+            color: cyan
+            linger: 0.4
+          - id: transfer-limits
+            phrase: before both the user’s five o’clock deadline and the six o’clock museum closing
+            targets:
+              - visit-duration
+            color: cyan
+            linger: 0.4
+      - say: Take the ten-past-two bus to the History Museum and plan to leave at five past four. The recommendation
+          carries the hours and route references that support it. Feedback found a replacement, the plan
+          preserved valid work, and a completion check established that this visit fits.
+        hold: 0.9
+        visual_cues:
+          - id: transfer-b3-1
+            phrase: leave at five past four
+            targets:
+              - visit-duration
+            linger: 0.45
+  - id: fresh-itinerary
+    title: Predict whether the changed visit still fits
+    visual: The original16:05museum finish remains as a quiet reference. A separate current15:20bus keeps25-minute
+      journey/90-minute visit and pushes finish to17:15; reducing only visit to70minutes yields16:55 after the
+      spoken repair.
+    beats:
+      - say: Return to the museum with a fresh supplied route. History still opens until eighteen hundred, and the
+          user still needs to finish by seventeen hundred. The new bus leaves at fifteen twenty, takes
+          twenty-five minutes, and the visit still needs ninety minutes. Predict the finish and whether the
+          unchanged hours receipt is enough to recommend it. Pause.
+        hold: 1.8
+        visual_cues:
+          - id: aa-fresh-itinerary-0
+            phrase: Return to the museum with a fresh supplied route. History still opens until eighteen hundred, and the
+              user still needs to finish by seventeen hundred. The new bus leaves at fifteen twenty, takes
+              twenty-five minutes, and the visit still needs ninety minutes. Predict the finish and whether
+              the unchanged hours receipt is enough to recommend it. Pause.
+            targets:
+              - aa-fresh-itinerary-mechanism
+            color: cyan
+            linger: 0.4
+      - say: Arrival is fifteen forty-five and finish is seventeen fifteen. Museum closing is satisfied but the user
+          deadline fails. Keep the current route and valid hours; the recommendation is not ready under the
+          original task. A model saying the plan is done cannot change that arithmetic.
+        hold: 0.7
+        visual_cues:
+          - id: aa-fresh-itinerary-1
+            phrase: Arrival is fifteen forty-five and finish is seventeen fifteen. Museum closing is satisfied but the
+              user deadline fails. Keep the current route and valid hours; the recommendation is not ready
+              under the original task. A model saying the plan is done cannot change that arithmetic.
+            targets:
+              - aa-fresh-itinerary-mechanism
+            color: cyan
+            linger: 0.4
+          - id: fresh-arrival
+            phrase: Arrival is fifteen forty-five
+            targets:
+              - aa-fresh-itinerary-mechanism
+            color: cyan
+            linger: 0.4
+          - id: fresh-finish
+            phrase: finish is seventeen fifteen
+            targets:
+              - aa-fresh-itinerary-mechanism
+            color: cyan
+            linger: 0.4
+          - id: fresh-failed
+            phrase: user deadline fails
+            targets:
+              - aa-fresh-itinerary-mechanism
+            color: cyan
+            linger: 0.4
+      - say: "In a separate user-approved comparison, shorten the requested visit to seventy minutes. The same arrival now gives sixteen fifty-five and satisfies both limits. Changing the task required real authority; replanning itself did not supply it. Preserve the receipts, changed premise and computed finish. Next, guardrails put checks at the host boundaries that control which proposals may retrieve data, release output or perform an action."
+        hold: 0.7
+        visual_cues:
+          - id: aa-fresh-itinerary-2
+            phrase: "In a separate user-approved comparison, shorten the requested visit to seventy minutes. The same arrival now gives sixteen fifty-five and satisfies both limits. Changing the task required real authority; replanning itself did not supply it. Preserve the receipts, changed premise and computed finish. Next, guardrails put checks at the host boundaries that control which proposals may retrieve data, release output or perform an action."
+            targets:
+              - aa-fresh-itinerary-mechanism
+            color: cyan
+            linger: 0.4
+          - id: fresh-approved
+            phrase: separate user-approved comparison
+            targets:
+              - aa-fresh-itinerary-mechanism
+            color: cyan
+            linger: 0.4
+          - id: fresh-short
+            phrase: shorten the requested visit to seventy minutes
+            targets:
+              - aa-fresh-itinerary-mechanism
+            color: cyan
+            linger: 0.4
+          - id: fresh-repaired
+            phrase: sixteen fifty-five
+            targets:
+              - aa-fresh-itinerary-mechanism
+            color: cyan
+            linger: 0.4
+          - id: fresh-repair-pass
+            phrase: and satisfies both limits
+            targets:
+              - aa-fresh-itinerary-mechanism
+            color: cyan
+            linger: 0.4

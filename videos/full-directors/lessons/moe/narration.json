@@ -1,0 +1,497 @@
+[
+  {
+    "id": "c01",
+    "title": "Which networks run for this word?",
+    "sourceChapters": ["c01"],
+    "beats": [
+      {
+        "id": "c01-b01",
+        "say": "Follow the word return up to this bank of eight expert networks. Its router opens two routes. Trace the copper lines. Which two networks receive the word's hidden vector?",
+        "hold": 2.2
+      },
+      {
+        "id": "c01-b02",
+        "say": "Experts one and three each run their own learned transformation. Their weighted outputs meet back at return. The other six networks still occupy their sockets. Can we take those six out before the next word arrives?",
+        "hold": 2.2
+      },
+      {
+        "id": "c01-b03",
+        "say": "Here comes total. It needs experts two and eight. Both were idle a moment ago. This mixture of experts keeps eight learned functions available while each token pays for two expert calls. Let's follow one of those calls from its input through training and serving.",
+        "hold": 1.3
+      }
+    ]
+  },
+  {
+    "id": "c02",
+    "title": "Where does the expert bank fit?",
+    "sourceChapters": ["c02"],
+    "beats": [
+      {
+        "id": "c02-b01",
+        "say": "A Transformer represents each token with a vector called its hidden state. Attention mixes information across positions. A feed-forward network then transforms each position using the same learned function. Follow return after it has gathered context from the earlier positions.",
+        "hold": 0.5
+      },
+      {
+        "id": "c02-b02",
+        "say": "Open the feed-forward part into several networks. A small router chooses which expert functions process this token. Attention stays shared, while the feed-forward transformation takes a selected path.",
+        "hold": 0.55
+      },
+      {
+        "id": "c02-b03",
+        "say": "Combine the selected outputs into one vector for the surrounding residual connection and later layers. Another token, or the same position at another layer, can take a different route.",
+        "hold": 0.55
+      }
+    ]
+  },
+  {
+    "id": "c03",
+    "title": "Which scores come from this hidden state?",
+    "sourceChapters": ["c03"],
+    "beats": [
+      {
+        "id": "c03-b01",
+        "say": "The highlighted token has four coordinates. Multiply its hidden state by the router's learned matrix. Only the first coordinate is one, so the first column gives all four logits. These signed scores rank the expert networks.",
+        "hold": 0.8
+      },
+      {
+        "id": "c03-b02",
+        "say": "Subtract the largest logit from each score, then exponentiate. For expert one, the difference is zero. The exponential of zero is one, the largest mass on the chart. Together the four masses add up to about one point nine two. Divide each mass by that total. Expert one's share is about fifty-two percent, and the four probabilities sum to one. Raising one logit relative to the others would raise that expert's share.",
+        "hold": 0.8
+      },
+      {
+        "id": "c03-b03",
+        "say": "Read the row labels, E one through E four. Each identifies a different neural network. To claim that one specializes in mathematics or code, we need evidence from a trained model. Compare matched prompts and intervene on the selected expert. Here we have just one token. Which two experts have the highest probabilities?",
+        "hold": 2.6
+      }
+    ]
+  },
+  {
+    "id": "c04",
+    "title": "How much weight survives top two?",
+    "sourceChapters": ["c04"],
+    "beats": [
+      {
+        "id": "c04-b01",
+        "say": "Keep experts one and three. They have the largest two probabilities in this four-expert example. Experts two and four stay stored and skip this token. The retained probability mass is about zero point seven eight. How do we make the chosen pair sum to one?",
+        "hold": 0.8
+      },
+      {
+        "id": "c04-b02",
+        "say": "Divide each surviving probability by their combined mass. The selected weights now fill one whole bar, with roughly two thirds assigned to the first expert. We use the unrounded logits in this calculation.",
+        "hold": 0.8
+      },
+      {
+        "id": "c04-b03",
+        "say": "Each expert returns four coordinates, just like the input. Look at the first two. Expert one returns two, zero. Expert three returns zero, three. Both have zeros in the last two places. After weighting them, the first two coordinates are about one point three three six and zero point nine nine five. The last two stay zero. This four-coordinate update adds to the four-coordinate residual.",
+        "hold": 0.8
+      }
+    ]
+  },
+  {
+    "id": "c05",
+    "title": "Where will the tip of t4 land?",
+    "sourceChapters": ["c05"],
+    "beats": [
+      {
+        "id": "c05-b01",
+        "say": "Now try a two-dimensional example with token t four. Its selected gates are six tenths for expert one and four tenths for expert three. Both experts receive the same two-coordinate hidden state. This time the two axes show the entire update.",
+        "hold": 0.8
+      },
+      {
+        "id": "c05-b02",
+        "say": "Start with expert three. Four tenths of three lifts the tip one point two units straight up. Keep your eye on that height. Expert one returns two units horizontally. Where will its weighted contribution put the tip?",
+        "hold": 2.5
+      },
+      {
+        "id": "c05-b03",
+        "say": "Slide the tip one point two units to the right. The vertical contribution stays in place. The diagonal from the origin is t four's complete routed update. Real experts use large nonlinear networks. Their outputs still share the dimensions needed for this addition.",
+        "hold": 0.8
+      }
+    ]
+  },
+  {
+    "id": "c06",
+    "title": "What does normalizing a lone gate do?",
+    "sourceChapters": ["c06"],
+    "beats": [
+      {
+        "id": "c06-b01",
+        "say": "Mixtral selects two experts from eight at each layer. Our four-expert picture is a smaller teaching example. A checkpoint's routing rule determines the function its trained weights implement.",
+        "hold": 0.5
+      },
+      {
+        "id": "c06-b02",
+        "say": "Switch Transformer selects one expert and retains its original softmax probability. Hold the winner fixed. Suppose that expert returns two and its probability is three quarters. The output is one and a half. As the router changes the gate, the task loss can train the router through that output.",
+        "hold": 0.8
+      },
+      {
+        "id": "c06-b03",
+        "say": "Now divide the sole gate by itself. What happens to the output if the probability moves a little?",
+        "hold": 2.3
+      },
+      {
+        "id": "c06-b04",
+        "say": "The normalized gate stays one. Raise the probability to four fifths. The retained gate now gives one point six, while the normalized gate still gives two. Away from a selection boundary the local task gradient through this constant gate is zero. The expert still learns from the task. Look up the selection and weighting rules together before you change a checkpoint.",
+        "hold": 0.8
+      }
+    ]
+  },
+  {
+    "id": "c06-family",
+    "title": "Which score chooses, and which score blends?",
+    "sourceChapters": ["c06"],
+    "beats": [
+      {
+        "id": "c06-family-b01",
+        "say": "Expert count alone does not tell us the work. Mixtral selects two of eight per layer. DeepSeek V two starts with a dense layer, then chooses six of one hundred sixty smaller routed experts and always runs two shared experts. Shared outputs join every token's update.",
+        "hold": 0.8
+      },
+      {
+        "id": "c06-family-b02",
+        "say": "DeepSeek V three starts with three dense layers. A later layer chooses eight of two hundred fifty-six routed experts and adds one shared expert. Here is a three-expert toy version of its bias rule. Add the load bias for selection. Which pair wins now?",
+        "hold": 2.4
+      },
+      {
+        "id": "c06-family-b03",
+        "say": "Experts three and one win. Read their original sigmoid affinities to weight the outputs. Three's corrected score is point seven, but its original affinity is point four. With one's point six, the normalized weights are point four and point six before routed scaling. Load feedback can change who wins while keeping these two operations distinct.",
+        "hold": 0.8
+      },
+      {
+        "id": "c06-family-b04",
+        "say": "The checkpoint specifies the rest. In the article's GLM five point three configuration, three initial dense layers precede routed layers with a scale of two point five. V four Flash zero seven three one starts with three hash-routed layers. In those layers the token ID selects the experts, and the hidden state supplies their blend weights. Qwen's sparse checkpoint interleaves sequence mixers. Its attention or recurrent state is a separate memory cost from the expert weights.",
+        "hold": 0.8
+      }
+    ]
+  },
+  {
+    "id": "c07",
+    "title": "Can we change the order of the work?",
+    "sourceChapters": ["c07"],
+    "beats": [
+      {
+        "id": "c07-b01",
+        "say": "Give every assignment a token address and a gate. These three token vectors make five assignments in this example. Follow token zero. One copy goes to the half-scale expert, the other to the expert that negates its input.",
+        "hold": 0.8
+      },
+      {
+        "id": "c07-b02",
+        "say": "Group the rows by expert. A network can now apply its matrix to several hidden states together. The token address and gate travel with the row. Find both copies of token zero in their new positions.",
+        "hold": 0.8
+      },
+      {
+        "id": "c07-b03",
+        "say": "The negative expert returns minus one, minus two. Its gate is three quarters. The half-scale expert returns one half, one. Its gate is one quarter. Multiply each return by its own gate. At address zero, what vector do these two signed contributions add up to?",
+        "hold": 3
+      },
+      {
+        "id": "c07-b04",
+        "say": "Add by coordinate. Minus three quarters plus one eighth gives minus five eighths. Minus one and a half plus one quarter gives minus one and a quarter. Those are the two coordinates of the update at address zero. Overwriting the address loses a return. Skipping the gates also changes the answer. Scatter-add restores one weighted output per original token.",
+        "hold": 0.8
+      }
+    ]
+  },
+  {
+    "id": "c07-choice",
+    "title": "Can full expert buckets miss a token?",
+    "sourceChapters": ["c07"],
+    "beats": [
+      {
+        "id": "c07-choice-b01",
+        "say": "Reverse the choice. Each expert takes its two highest-scoring tokens from this batch. Read across each row, then look down each token column. Can equal expert loads leave a token uncovered?",
+        "hold": 2.3
+      },
+      {
+        "id": "c07-choice-b02",
+        "say": "Token four gets zero returns. Every expert has two rows of work, and token zero appears twice. The uncovered token still has its residual path. Count assignments per token as well as per expert.",
+        "hold": 0.8
+      },
+      {
+        "id": "c07-choice-b03",
+        "say": "Try a one-slot expert with only a prefix available. The earlier token scores point six and wins. Hold its hidden state and score fixed. What if the batch also contains a future token scoring point nine?",
+        "hold": 2.2
+      },
+      {
+        "id": "c07-choice-b04",
+        "say": "The future token takes the slot. The earlier token loses its expert output even with causal attention. The comparison happened in the router. Test that each prefix has the same routes in full-sequence and incremental decoding.",
+        "hold": 0.8
+      }
+    ]
+  },
+  {
+    "id": "c08",
+    "title": "Who gets to learn from this batch?",
+    "sourceChapters": ["c08"],
+    "beats": [
+      {
+        "id": "c08-b01",
+        "say": "During training, a router can favor one expert early. This top-one batch sends most tokens to the first expert. Many examples contribute to its task gradient; quieter experts receive fewer.",
+        "hold": 0.55
+      },
+      {
+        "id": "c08-b02",
+        "say": "Collect the task-gradient contributions and update the selected experts. Twelve examples contributed to the first expert, just one to the fourth. These counts describe opportunities to learn. The gradient vectors can differ in size and direction.",
+        "hold": 0.8
+      },
+      {
+        "id": "c08-b03",
+        "say": "In later batches a better-performing expert can become more attractive to the jointly trained router. Repeating that loop can starve quieter experts. Compare assignments, executed rows and held-out quality over time. A single skewed batch gives you a place to look.",
+        "hold": 0.8
+      }
+    ]
+  },
+  {
+    "id": "c09",
+    "title": "What does the balance loss measure?",
+    "sourceChapters": ["c09"],
+    "beats": [
+      {
+        "id": "c09-b01",
+        "say": "Switch adds an auxiliary term combining assignment frequency with mean router probability. Their product grows when an expert is both heavily assigned and strongly favored. The rectangles show those products.",
+        "hold": 0.6
+      },
+      {
+        "id": "c09-b02",
+        "say": "The width is assignment frequency. The height is mean router probability. Multiply, sum, then multiply by four experts. The score is one point six zero two before the loss coefficient. For fixed assignments, the gradient flows through the probabilities. A busy expert gets a larger coefficient.",
+        "hold": 0.8
+      },
+      {
+        "id": "c09-b03",
+        "say": "The language-modeling loss still rewards accurate predictions. Tune balance pressure alongside it. Perfectly uniform fractions and probabilities give a reference of one. Can the score fall below one even if an expert gets no work?",
+        "hold": 2.4
+      },
+      {
+        "id": "c09-b04",
+        "say": "Look at this separate top-one batch. Each token gives its winner point five one. The third expert gets point four from both tokens but wins neither. Its frequency is zero. The scaled dot product is point nine. Diagnose coverage from the assignments and answer quality, even when the scalar looks small.",
+        "hold": 0.8
+      }
+    ]
+  },
+  {
+    "id": "c09-z",
+    "title": "Can the scores move while the route stays put?",
+    "sourceChapters": ["c09"],
+    "beats": [
+      {
+        "id": "c09-z-b01",
+        "say": "These two logits are the logs of three quarters and one quarter. Exponentiating gives a total mass of one. Add the same three to both logits. Which changes, the probabilities or the log of the total mass?",
+        "hold": 2.4
+      },
+      {
+        "id": "c09-z-b02",
+        "say": "Both masses gain the same factor. Their shares stay three quarters and one quarter. The log of the total mass rises from zero to three. The router z-loss squares that log partition, so the penalty goes from zero to nine before its coefficient. It controls logit scale separately from expert coverage.",
+        "hold": 0.8
+      }
+    ]
+  },
+  {
+    "id": "c10",
+    "title": "Which part of t4 makes it through?",
+    "sourceChapters": ["c10"],
+    "beats": [
+      {
+        "id": "c10-b01",
+        "say": "A fixed-size implementation gives each expert a buffer. Eight tokens each choose two of four experts. Multiply the average assignments per expert by a capacity factor of one and round up. That gives four slots in each queue.",
+        "hold": 0.8
+      },
+      {
+        "id": "c10-b02",
+        "say": "Follow t four's two arrivals. Four tokens already stand in expert one's line. At expert three just one token is ahead of it. With four slots and gates kept at their original selected weights, what returns to t four?",
+        "hold": 2.6
+      },
+      {
+        "id": "c10-b03",
+        "say": "Stop the fifth arrival at expert one. Its horizontal contribution is missing. Expert three accepts its second arrival and returns zero, three. Its four-tenths gate gives a routed update of zero, one point two. Add this update to t four's residual stream. The whole token continues to the next layer.",
+        "hold": 0.8
+      },
+      {
+        "id": "c10-b04",
+        "say": "Finish counting the batch. Eight rows requested expert one. Four overflow. The other experts have spare slots, but a slot across the room cannot execute expert one's function. Capacity counts assignments, so a skipped contribution can belong to a token whose other route succeeded.",
+        "hold": 0.8
+      }
+    ]
+  },
+  {
+    "id": "c11",
+    "title": "What changes if the fifth row runs?",
+    "sourceChapters": ["c11"],
+    "beats": [
+      {
+        "id": "c11-b01",
+        "say": "Replay the same batch. The queue positions, gates, expert functions and token input stay fixed. Under dropping we saw only the vertical update. What would a dropless schedule restore?",
+        "hold": 2.2
+      },
+      {
+        "id": "c11-b02",
+        "say": "Run every assignment. The hot expert processes eight rows. Its six-tenths gate restores the one-point-two horizontal step. MegaBlocks uses block-sparse operations for variable workloads. Keeping every contribution avoids fixed-buffer drops, while the busiest device can still delay the layer.",
+        "hold": 0.8
+      },
+      {
+        "id": "c11-b03",
+        "say": "Return to the four-slot buffers. Try rerouting only t four's overflow to expert four, which has space. Keep its gate. This expert returns five along the first axis. Predict the new update.",
+        "hold": 2.7
+      },
+      {
+        "id": "c11-b04",
+        "say": "The horizontal step is now three. The vertical step stays one point two. Rerouting changed the learned function. A replica with identical weights could compute the same function elsewhere. Check each policy's quality and time in the configured system.",
+        "hold": 0.8
+      }
+    ]
+  },
+  {
+    "id": "c12",
+    "title": "Will fourteen gigabytes hold this model?",
+    "sourceChapters": ["c12"],
+    "beats": [
+      {
+        "id": "c12-b01",
+        "say": "Consider a hypothetical model with three billion shared parameters and eight two-billion expert partitions. Each partition summarizes one expert position across its layers. The full model stores every partition.",
+        "hold": 0.55
+      },
+      {
+        "id": "c12-b02",
+        "say": "Each token uses the shared parameters plus two partitions. Count the highlighted blocks. Seven billion participate in this token's computation. If each weight takes two bytes, could we load this model in fourteen gigabytes?",
+        "hold": 2.6
+      },
+      {
+        "id": "c12-b03",
+        "say": "Count all nineteen billion parameters. Their raw weights need thirty-eight decimal gigabytes. The active-only budget is short by twenty-four gigabytes before cache and workspace. Pool size drives storage while per-token expert arithmetic depends on the selected count and expert width.",
+        "hold": 0.8
+      },
+      {
+        "id": "c12-b04",
+        "say": "Sharding gives weights different owners. Quantization changes bytes per weight. Offloading fetches weights from another tier. Budget extra memory for scales, replicas, cache and workspace. If a load fails before any prompt arrives, shrinking the context cannot shrink the weight file.",
+        "hold": 0.8
+      }
+    ]
+  },
+  {
+    "id": "c13",
+    "title": "Which assignments cross the wire?",
+    "sourceChapters": ["c13"],
+    "beats": [
+      {
+        "id": "c13-b01",
+        "say": "Expert parallelism assigns expert networks to different devices. When a selected expert lives elsewhere, the hidden state travels to its owner. The output then returns to the original token position.",
+        "hold": 0.55
+      },
+      {
+        "id": "c13-b02",
+        "say": "Two assignments stay local and three cross the link. Packets move while expert weights stay in place. Distributed runtimes commonly organize the exchange as all-to-all dispatch followed by all-to-all combine.",
+        "hold": 0.8
+      },
+      {
+        "id": "c13-b03",
+        "say": "Each remote assignment sends four thousand ninety-six coordinates at two bytes each and returns a vector of the same size. Three round trips at eight kibibytes each way carry forty-eight kibibytes of payload. The labels count token states here. Metadata and collective overhead are extra.",
+        "hold": 0.8
+      },
+      {
+        "id": "c13-b04",
+        "say": "Tensor parallelism shards the matrices themselves. It can work with expert parallelism or on its own. Routing chooses functions. Parallel layout determines where their weights and operations live.",
+        "hold": 0.6
+      }
+    ]
+  },
+  {
+    "id": "c13-wire",
+    "title": "How many copies cross one link?",
+    "sourceChapters": ["c13"],
+    "beats": [
+      {
+        "id": "c13-wire-b01",
+        "say": "Now one token selects two experts on the same remote device. At the owner, we show only the first two coordinates of each output. Every arrow carries all four thousand ninety-six coordinates, two bytes each. A separate round trip for each expert moves four eight-kibibyte vectors. If the owner combines the outputs, how many vectors need to cross the link?",
+        "hold": 2.3
+      },
+      {
+        "id": "c13-wire-b02",
+        "say": "Send the input once. Both experts run at the destination. Apply each gate there and add the vectors coordinate by coordinate. The sum starts with two, one point eight. Send one combined result home. One full vector in each direction cuts the payload from thirty-two to sixteen kibibytes. Synchronization and overlap still affect latency.",
+        "hold": 0.8
+      },
+      {
+        "id": "c13-wire-b03",
+        "say": "With offloading, expert weight pages can move from storage to the accelerator. Suppose token forty-two is known while its next hidden state is still being computed. A router that ranks hidden-state scores needs that state to identify the experts. Fetching pages earlier means guessing, and a guess can miss. A token-ID table can identify the experts now. In this toy table, forty-two selects experts three and four. Stage their pages while the hidden state is being computed. In the hash-routed layers we saw earlier, the blend weights still depend on that state.",
+        "hold": 0.8
+      }
+    ]
+  },
+  {
+    "id": "c14",
+    "title": "What do four positions cost?",
+    "sourceChapters": ["c14"],
+    "beats": [
+      {
+        "id": "c14-b01",
+        "say": "Execution also includes routing, grouping, and combining, plus remote communication when experts are elsewhere. Small decode batches can expose these coordination costs again for every new token the model produces.",
+        "hold": 0.55
+      },
+      {
+        "id": "c14-b02",
+        "say": "Watch four dependent decode steps from one request. If each visits this expert once, the runtime launches four one-row calls. The next token depends on the previous result. In a prefill, four known positions that choose this expert can share a four-row call at this layer.",
+        "hold": 0.8
+      },
+      {
+        "id": "c14-b03",
+        "say": "Compare with a dense baseline on matching hardware and requests. Record precision, concurrency, prompt length, quality, peak memory, throughput and tail latency. Break out expert and rank loads at the time of the delay. A long-run histogram can hide a burst on one device. Here, both devices process eight rows in total. Look at the first step on each device. Which one could hold up that step if all rows cost the same?",
+        "hold": 2.1
+      },
+      {
+        "id": "c14-b04",
+        "say": "GPU zero has six rows against two on GPU one. The next step reverses the skew, so the totals conceal both bursts. Measure the wait at the combine and the work on each owner before changing the router.",
+        "hold": 0.8
+      }
+    ]
+  },
+  {
+    "id": "c14-gate",
+    "title": "Would you serve this candidate?",
+    "sourceChapters": ["c14"],
+    "beats": [
+      {
+        "id": "c14-gate-b01",
+        "say": "Here are synthetic measurements for matched requests. Require quality of at least point eight two, at least a thousand tokens a second and p ninety-five latency at most sixty milliseconds. Check each candidate against all three requirements.",
+        "hold": 2.1
+      },
+      {
+        "id": "c14-gate-b02",
+        "say": "The mixture clears all three. The dense candidate misses throughput. The mixture processes about thirty-four percent more tokens per second here, but its p ninety-five is seven milliseconds slower. Aggregate throughput and an interactive user's wait measure different things.",
+        "hold": 0.8
+      },
+      {
+        "id": "c14-gate-b03",
+        "say": "Now tighten only the latency budget to fifty milliseconds. Keep every measured value. Which candidate clears all three requirements?",
+        "hold": 2.4
+      },
+      {
+        "id": "c14-gate-b04",
+        "say": "Neither clears all three. Fifty-five milliseconds exceeds the revised limit, and the dense candidate still misses throughput. Test the actual request mix before deploying. Use peak memory to check residency and trace the slow request to find where the time went.",
+        "hold": 0.8
+      }
+    ]
+  },
+  {
+    "id": "c14-practice",
+    "title": "Can you recover the missing coordinate?",
+    "sourceChapters": ["c14"],
+    "beats": [
+      {
+        "id": "c14-practice-b01",
+        "say": "One last batch. Six tokens choose two of four experts. The capacity factor is one. Token three picks experts one and three. Its gates are one quarter and three quarters. Read the two queues. Which contribution returns if we drop overflow and keep each surviving gate?",
+        "hold": 2.7
+      },
+      {
+        "id": "c14-practice-b02",
+        "say": "Three slots per expert. Token three is fourth at expert one and second at expert three. Only the vertical update returns, three quarters times three. That gives zero, two point two five. Across the batch two assignments overflow.",
+        "hold": 0.8
+      },
+      {
+        "id": "c14-practice-b03",
+        "say": "Raise only the capacity factor to one and a half. Twelve assignments divided across four experts gives three on average. Multiply by one and a half, then round up. Is there room for the missing coordinate now?",
+        "hold": 2.6
+      },
+      {
+        "id": "c14-practice-b04",
+        "say": "Five slots fit every assignment. Restore one quarter of expert one's horizontal two. Token three now gets point five, two point two five, before the residual addition. The router chose the same pair both times. The buffer determined which learned outputs reached the token.",
+        "hold": 0.8
+      }
+    ]
+  }
+]

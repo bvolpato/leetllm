@@ -1,0 +1,455 @@
+[
+  {
+    "id": "c01",
+    "title": "Which ticket goes to latency?",
+    "sourceChapters": [
+      "c01"
+    ],
+    "beats": [
+      {
+        "id": "c01-b01",
+        "say": "The dispatch machine has one instruction. Look for the seven letters in timeout. Here are two reports of a delay. Which one will the machine send to latency?",
+        "hold": 2.1
+      },
+      {
+        "id": "c01-b02",
+        "say": "Start the scan. The first head stops at timeout. That report goes to latency. On the next report the same head runs all the way to the last window. No match. The machine sends it to manual review.",
+        "hold": 0.8
+      },
+      {
+        "id": "c01-b03",
+        "say": "Rewind both strips. Install a second head with exactly the same key. Both workers can scan in one round. Before they finish, call the destination of “tokens arrive slowly.”",
+        "hold": 2.8
+      },
+      {
+        "id": "c01-b04",
+        "say": "Manual review again. Two workers finish sooner. They still look for the same seven letters. A learner can train on more examples. A search can try more choices. Both can use extra compute to change the decision. That’s the idea behind Rich Sutton’s Bitter Lesson.",
+        "hold": 1.15
+      }
+    ]
+  },
+  {
+    "id": "c02",
+    "title": "Six reports through three checks",
+    "sourceChapters": [
+      "c02"
+    ],
+    "beats": [
+      {
+        "id": "c02-b01",
+        "say": "Here’s the whole rulebook. Alongside timeout for latency, the developer wrote two more checks. Citation sends a report to quality. Password sends it to access. Anything left over goes to manual review.",
+        "hold": 0.8
+      },
+      {
+        "id": "c02-b02",
+        "say": "Run the batch. Read the phrase on each strip and compare its destination with the reviewer's label. Three have a literal match. The others describe a delay, a bad citation, or an access problem with different words.",
+        "hold": 1
+      },
+      {
+        "id": "c02-b03",
+        "say": "That gives us three correct queue assignments out of six. Each report has a reviewed destination we can compare with the output. Running these checks again leaves the same three reports waiting. Let’s give the developer a chance to change the rulebook.",
+        "hold": 0.8
+      }
+    ]
+  },
+  {
+    "id": "c03",
+    "title": "Four edits to the rulebook",
+    "sourceChapters": [
+      "c03"
+    ],
+    "beats": [
+      {
+        "id": "c03-b01",
+        "say": "Suppose the developer repairs the rulebook using those six reports. Add the key tokens. Now “tokens arrive slowly” reaches latency. Add cites and the wrong-document report reaches quality.",
+        "hold": 1
+      },
+      {
+        "id": "c03-b02",
+        "say": "Now add stale source. Look at the report it matches. Citation already sent that one to quality, so the score stays at five. Add authenticate and the last report goes to access. All six reviewed reports now pass.",
+        "hold": 1.1
+      },
+      {
+        "id": "c03-b03",
+        "say": "Set those reports aside. Here are three fresh ones, including “T T F T spiked today.” T T F T means time to first token. Read each report against the seven keys. Which fresh reports contain a listed key?",
+        "hold": 2.2
+      },
+      {
+        "id": "c03-b04",
+        "say": "All three go to manual review. A new sentence containing password could still reach access. These three were chosen to expose a blind spot. To estimate the cost of that blind spot in production, draw a fresh sample from the queue.",
+        "hold": 1
+      }
+    ]
+  },
+  {
+    "id": "c04",
+    "title": "How does a report earn a route?",
+    "sourceChapters": [
+      "c04"
+    ],
+    "beats": [
+      {
+        "id": "c04-b01",
+        "say": "Here is one of six labeled training reports. For every occurrence of a word, add one to its count for the labeled queue. A fresh report says “unsupported citation answer.” Which words can cast a vote?",
+        "hold": 1.7
+      },
+      {
+        "id": "c04-b02",
+        "say": "Unsupported contributes one point to quality. Citation adds a second. Answer adds a third. Quality has the only positive top score, so the report goes to quality.",
+        "hold": 0.85
+      },
+      {
+        "id": "c04-b03",
+        "say": "Here’s “tokens arrive slowly” beside a report labeled latency. They share one word, tokens. That earns the one point needed to route it to latency.",
+        "hold": 0.85
+      },
+      {
+        "id": "c04-b04",
+        "say": "Now try “the site loads slowly.” None of its words occurred in the six training reports. All three scores are zero, so the learner sends this one to manual review.",
+        "hold": 1
+      },
+      {
+        "id": "c04-b05",
+        "say": "A reviewer confirms latency. Keep that label with its report and fit the counts again. The same four words now give the corrected report four latency points. This shows the correction took. We just used that report for training.",
+        "hold": 1
+      },
+      {
+        "id": "c04-b06",
+        "say": "Keep the updated counts and open a fresh report. It says “pages arrive slowly.” Neither pages nor arrive appeared in training. Where should this report go?",
+        "hold": 2.2
+      },
+      {
+        "id": "c04-b07",
+        "say": "Slowly supplies one point. That sends the new report to latency. This is one word carrying over. A phrase like “responses take ages” still scores zero. Test the release on untouched, labeled issues to learn how often these matches help.",
+        "hold": 1
+      },
+      {
+        "id": "c04-b08",
+        "say": "One more ticket says “timeout password.” Each word was seen once with a different queue. Latency and access tie at one. The learner sends the tie to manual review. Picking whichever queue comes first would turn the order of the labels into a routing decision.",
+        "hold": 0.9
+      }
+    ]
+  },
+  {
+    "id": "c05",
+    "title": "Which action wins the search?",
+    "sourceChapters": [
+      "c05"
+    ],
+    "beats": [
+      {
+        "id": "c05-b01",
+        "say": "Open the evaluation record for run R forty-two. Citation precision measures how often citations support the answer. This check failed. The deployed model stays fixed. On this request we can spend more time considering candidate actions. That's search.",
+        "hold": 0.8
+      },
+      {
+        "id": "c05-b02",
+        "say": "Start with two candidates from a list we wrote in advance. A quality action gets one point for each distinct ID it cites from the trusted record. Repeated IDs count once. Made-up IDs earn nothing. A promotion proposal gets minus one because this is a quality incident. With these two choices, retry wins with zero.",
+        "hold": 1
+      },
+      {
+        "id": "c05-b03",
+        "say": "Open the next two slips. One cites the run. Follow the two citations on the other slip. One goes to run R forty-two, the other to its failed metric. Hold promotion until it recovers now wins with two points.",
+        "hold": 0.95
+      },
+      {
+        "id": "c05-b04",
+        "say": "Add a proposal to mark the issue resolved. Follow its citations. Same run, same failed metric, same two points. On a tie the checker keeps the first proposal. Swap those two slips. Before we lift the selector, which action will it choose?",
+        "hold": 2.5
+      },
+      {
+        "id": "c05-b05",
+        "say": "Marking the issue resolved now wins. Both proposals cite the failed check. Closing the issue would take different evidence, such as a passing rerun. Before an action can run, check that the evidence supports it and that the caller has permission. Search also depends on which actions the generator can propose.",
+        "hold": 1
+      }
+    ]
+  },
+  {
+    "id": "c06",
+    "title": "Can this build move forward?",
+    "sourceChapters": [
+      "c06"
+    ],
+    "beats": [
+      {
+        "id": "c06-b01",
+        "say": "“Ship this build.” The model reads that note as a request to promote. Ordinary tickets can go straight to latency, quality or access. Unknown routes go to review. A release proposal goes through a gate.",
+        "hold": 0.8
+      },
+      {
+        "id": "c06-b02",
+        "say": "The evaluation report is listed. The team set the cutoff at point nine five. At point nine one the build goes to review.",
+        "hold": 1
+      },
+      {
+        "id": "c06-b03",
+        "say": "Move the score to point nine eight. Now it passes the score check.",
+        "hold": 1
+      },
+      {
+        "id": "c06-b04",
+        "say": "Take the report marker off the request. Keep the score at point nine eight. What does the gate do now?",
+        "hold": 1.7
+      },
+      {
+        "id": "c06-b05",
+        "say": "It requests the report. The gate checks for that marker first, so it stops there.",
+        "hold": 0.9
+      },
+      {
+        "id": "c06-b06",
+        "say": "Put the report marker back. What counts as a score? A finite number from zero to one.",
+        "hold": 1
+      },
+      {
+        "id": "c06-b07",
+        "say": "Try a string, a Boolean and then NaN, a value that stands for not a number. Each goes to review. In Python, test the type and range before converting an integer to a float. A huge integer can otherwise overflow during the finiteness check.",
+        "hold": 1
+      },
+      {
+        "id": "c06-b08",
+        "say": "Try a score right on the line. Point nine five passes. Before deployment, the release service authenticates the report, matches it to the build and evaluation cohort, and checks the caller’s permission.",
+        "hold": 0.9
+      }
+    ]
+  },
+  {
+    "id": "c07",
+    "title": "What did the extra computation buy?",
+    "sourceChapters": [
+      "c07"
+    ],
+    "beats": [
+      {
+        "id": "c07-b01",
+        "say": "Deep Blue beat Garry Kasparov in nineteen ninety-seven. Experts supplied features for scoring a chess position. To see what deeper search adds, try this little position. White takes a pawn with the rook. Look one reply further. Black's rook can take the white rook. Searching the reply changes the value of that capture.",
+        "hold": 1
+      },
+      {
+        "id": "c07-b02",
+        "say": "Look at the edge in this image patch. A hand-designed descriptor like SIFT records how brightness changes across a patch. AlexNet learned filters from labeled images. Its designers chose their size. This illustrative filter adds brightness on the right and subtracts brightness on the left. It responds strongly where dark gives way to light. Training adjusts which edges or textures a filter picks up.",
+        "hold": 0.9
+      },
+      {
+        "id": "c07-b03",
+        "say": "The base network took five to six days to train on two GPUs. For the winning ImageNet entry in twenty twelve, the team combined predictions from seven networks. Each contributed to the final prediction.",
+        "hold": 1
+      },
+      {
+        "id": "c07-b04",
+        "say": "A speech recording varies even when two people say the same word. Early recognizers used expert knowledge of sounds and the vocal tract. Hidden Markov models fitted statistical patterns in sequences of sounds. Later, deep networks learned features from recordings as well.",
+        "hold": 0.9
+      },
+      {
+        "id": "c07-b05",
+        "say": "AlphaZero combined learning and search in chess and Go. Its designers supplied the rules, a board encoding and a network. Playing against itself taught it which moves to explore first. Watch the search follow the favored move. A learned value estimates how promising the new position is.",
+        "hold": 0.3
+      },
+      {
+        "id": "c07-b06",
+        "say": "That’s what Rich Sutton called the Bitter Lesson. Across seventy years of AI research, methods that could learn from more experience or search more possibilities kept overtaking shortcuts that experts had spent years designing.",
+        "hold": 1
+      }
+    ]
+  },
+  {
+    "id": "c08",
+    "title": "One training budget, two ways to spend it",
+    "sourceChapters": [
+      "c08"
+    ],
+    "beats": [
+      {
+        "id": "c08-b01",
+        "say": "Take a dense Transformer. The width of this rectangle stands for the number of non-embedding parameters. Its height stands for the training tokens. Each parameter costs roughly six floating-point operations per training token, so six times the area gives us an estimate of the training work.",
+        "hold": 1
+      },
+      {
+        "id": "c08-b02",
+        "say": "Try seven billion parameters and a hundred and forty billion tokens. That works out to five point eight eight zettaFLOPs. One zettaFLOP is ten to the twenty-first floating-point operations. To turn work into elapsed time we’d also need to know how quickly the hardware sustains it.",
+        "hold": 0.9
+      },
+      {
+        "id": "c08-b03",
+        "say": "Keep the training budget fixed. Mark the new width at fourteen billion parameters. Before we reshape the rectangle, which height would preserve its area?",
+        "hold": 2.8
+      },
+      {
+        "id": "c08-b04",
+        "say": "Seventy billion tokens. We doubled the work per token, so we can afford half as many. The rectangle gives us two plans with the same estimated work. We still need an experiment to find out which plan learns more.",
+        "hold": 1
+      }
+    ]
+  },
+  {
+    "id": "c09",
+    "title": "How would you choose a training run?",
+    "sourceChapters": [
+      "c09"
+    ],
+    "beats": [
+      {
+        "id": "c09-b01",
+        "say": "Where did that six come from? A forward pass takes roughly two operations per parameter per token. The backward pass takes about twice as much again. That gives us six in total. This estimate counts dense projections and leaves out embeddings. It works best when sequence-dependent attention is a small share of the work.",
+        "hold": 0.95
+      },
+      {
+        "id": "c09-b02",
+        "say": "Hold some text out of training. Suppose our two actual next tokens each got probability one half. Each contributes minus the natural log of one half, about point six nine. Average those costs across the held-out tokens. That's cross-entropy loss. Lower means the model assigned more probability to what actually followed.",
+        "hold": 0.3
+      },
+      {
+        "id": "c09-b03",
+        "say": "At a fixed training budget, the split with the lowest held-out loss is training-optimal. Kaplan and colleagues saw smooth power-law trends in loss as their models, data and compute grew.",
+        "hold": 0.9
+      },
+      {
+        "id": "c09-b04",
+        "say": "Watch one evaluation answer slip into training. A model that remembers the word out might give it probability point nine nine. Its loss on that word drops close to zero. Put that example aside. Compare the runs on text that stayed outside both training sets. The release gate still has to check the evidence and the caller.",
+        "hold": 1
+      },
+      {
+        "id": "c09-b05",
+        "say": "Kaplan’s twenty twenty fit favored putting more of each budget increase into model size. Parameters grew as compute to the power of point seven three, and training tokens as compute to point two seven. For four times the compute, that fit gives nearly three times as many parameters and less than twice as many tokens. Hoffmann and colleagues tested more than four hundred models.",
+        "hold": 0.3
+      },
+      {
+        "id": "c09-b06",
+        "say": "Their fits favored growing the two together, with somewhat different exponents depending on how they estimated them.",
+        "hold": 0.9
+      },
+      {
+        "id": "c09-b07",
+        "say": "Chinchilla put that idea to the test. It had seventy billion parameters and saw one point four trillion training tokens. Gopher had two hundred and eighty billion parameters and saw three hundred billion tokens. Chinchilla did better across the reported downstream tasks at roughly Gopher’s training compute.",
+        "hold": 0.95
+      },
+      {
+        "id": "c09-b08",
+        "say": "Twenty tokens per parameter describes the Chinchilla run. A different corpus or architecture calls for measuring the trade again. The Llama Three team trained its smaller models longer than its training-optimal prediction because they performed better at the same inference budget. Once we serve a model, we pay for its size again on every request.",
+        "hold": 1
+      }
+    ]
+  },
+  {
+    "id": "c10",
+    "title": "When does the smaller model repay its training?",
+    "sourceChapters": [
+      "c10"
+    ],
+    "beats": [
+      {
+        "id": "c10-b01",
+        "say": "Suppose two dense models meet our quality target. The seven-billion model trains on a hundred and forty billion tokens. The three-billion model trains on four hundred billion. Before the first request comes in, put both training bills on the vertical scale.",
+        "hold": 0.3
+      },
+      {
+        "id": "c10-b02",
+        "say": "The smaller model already owes an extra one point three two zettaFLOPs before either model serves a request.",
+        "hold": 1
+      },
+      {
+        "id": "c10-b03",
+        "say": "Now we have to serve the models. Each processed token costs about twice the parameter count in forward operations. That’s fourteen billion operations for the larger model and six billion for the smaller one. Count uncached prompt tokens and tokens generated along the way. A request can account for many of both.",
+        "hold": 0.85
+      },
+      {
+        "id": "c10-b04",
+        "say": "Now send each model a hundred billion serving tokens. Follow the two cost traces. The seven-billion model climbs faster, but it started lower. At this traffic volume it still uses less work overall.",
+        "hold": 0.9
+      },
+      {
+        "id": "c10-b05",
+        "say": "Read the gap that’s left. The smaller model still owes point five two zettaFLOPs. Each new token saves it eight billion operations. How many more tokens must each model process to close the gap?",
+        "hold": 2.4
+      },
+      {
+        "id": "c10-b06",
+        "say": "Another sixty-five billion. Add those to the first hundred billion and they meet at one hundred sixty-five billion tokens each. Both plans have used about eight point one nine zettaFLOPs. Starting from zero gives the same answer. Divide the full training premium by the saving on each serving token.",
+        "hold": 1
+      },
+      {
+        "id": "c10-b07",
+        "say": "At two hundred billion tokens each, the smaller model now uses less lifetime work. We assumed the same quality and the same number of processed tokens. Before buying capacity, measure both models on the target workload, including latency and cost.",
+        "hold": 1.15
+      }
+    ]
+  },
+  {
+    "id": "c11",
+    "title": "What does one returned answer cost?",
+    "sourceChapters": [
+      "c11"
+    ],
+    "beats": [
+      {
+        "id": "c11-b01",
+        "say": "Here’s a request we can count by hand. Name the color of a clear daytime sky. Suppose this toy tokenizer uses one token for each of those eight words. Keep the weights fixed. The first candidate reads eight uncached input tokens, generates six hidden tokens while reasoning, and writes a two-token answer, sky blue. We processed sixteen tokens and returned two.",
+        "hold": 1.6
+      },
+      {
+        "id": "c11-b02",
+        "say": "Try a second candidate. In this example it reads all eight input tokens again, spends six tokens reasoning, and writes two more. A verifier picks one answer to send. Count both rows. We've processed thirty-two tokens. The user still gets two.",
+        "hold": 0.9
+      },
+      {
+        "id": "c11-b03",
+        "say": "These strips count generator tokens. Difficulty estimation, routing, and verification can add work of their own. Remember the two actions that cited the failed check on run R forty-two. Counting citations gave those actions identical scores. Does the evidence actually support the chosen answer?",
+        "hold": 0.85
+      },
+      {
+        "id": "c11-b04",
+        "say": "Go back to one candidate for a separate run. This time its allowance is eight generated tokens. The input is already paid for. Suppose it needs all eight generated tokens for reasoning. How many tokens are left for its answer?",
+        "hold": 2
+      },
+      {
+        "id": "c11-b05",
+        "say": "Zero. The user can receive an empty answer even though the model did work. A reasoning-effort setting influences that work without specifying an exact FLOP count. Compare settings on the same untouched tasks. Measure useful answers, completion failures, latency and cost at matched quality.",
+        "hold": 0.3
+      },
+      {
+        "id": "c11-b06",
+        "say": "In post-training, supervised examples or reinforcement learning with verifiable rewards can change the next model’s weights. This request used the weights it started with.",
+        "hold": 1
+      }
+    ]
+  },
+  {
+    "id": "c12",
+    "title": "Which model uses less lifetime work?",
+    "sourceChapters": [
+      "c12"
+    ],
+    "beats": [
+      {
+        "id": "c12-b01",
+        "say": "Each model handles the same requests at the required quality and returns the same answer. At two hundred billion serving tokens each, the smaller model leads. Keep the answer and the larger model fixed. Give the smaller one another hundred billion hidden reasoning tokens at six billion operations each. Which plan uses fewer lifetime operations now?",
+        "hold": 3.1
+      },
+      {
+        "id": "c12-b02",
+        "say": "Follow the added work. The extra tokens add six tenths of a zettaFLOP. The smaller model crosses the larger model's cost and stops at nine. The seven-billion model stays at eight point six eight zettaFLOPs and now uses less estimated work. Count every processed token even when both answers look the same.",
+        "hold": 1.2
+      },
+      {
+        "id": "c12-b03",
+        "say": "Suppose the team proposes the seven-billion model for release. The proposal supplies a report marker and an evaluation score of point nine seven. The floor is point nine five. With both inputs, the local gate returns promote.",
+        "hold": 1
+      },
+      {
+        "id": "c12-b04",
+        "say": "Remove just the report marker. The score and the proposed action stay where they were. Which action does the local gate return now?",
+        "hold": 2.1
+      },
+      {
+        "id": "c12-b05",
+        "say": "It requests evidence. That score could belong to yesterday’s build. The release service needs the report for this one.",
+        "hold": 1.15
+      },
+      {
+        "id": "c12-b06",
+        "say": "Read the ticket “can’t authenticate.” Our router counts runs of lowercase letters. The apostrophe splits the first word. That gives us three pieces from two written words. Next we’ll see how a tokenizer chooses pieces and why their IDs must match the model checkpoint.",
+        "hold": 0.85
+      }
+    ]
+  }
+]

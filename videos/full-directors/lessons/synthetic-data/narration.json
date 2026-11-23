@@ -1,0 +1,633 @@
+[
+  {
+    "id": "c01",
+    "title": "The search for every name",
+    "sourceChapters": [
+      "c01"
+    ],
+    "beats": [
+      {
+        "id": "c01-b01",
+        "say": "Watch the search client print Ada and Grace. It stops. The team asked for every name. Look beside the printout. The service returned a cursor called page two. A test that asks only whether any names came back would pass. Would you keep this client as a correct training example?",
+        "hold": 3
+      },
+      {
+        "id": "c01-b02",
+        "say": "Follow that cursor yourself. The next page contains Linus. His page ends with an empty cursor. The client's printout still ends at Grace. Withhold this answer.",
+        "hold": 1.2
+      },
+      {
+        "id": "c01-b03",
+        "say": "Most of the team's reviewed examples end on the first page. To make synthetic training data, give a language model one reviewed task and ask it to write a new task and answer.",
+        "hold": 0.3
+      },
+      {
+        "id": "c01-b04",
+        "say": "Ask for a case where the server briefly refuses a request and still has another page to fetch. We'll test that answer, then use fresh searches to find out what the trained assistant learned.",
+        "hold": 0.8
+      }
+    ]
+  },
+  {
+    "id": "c02",
+    "title": "Keep the search task with its source",
+    "sourceChapters": [
+      "c02"
+    ],
+    "beats": [
+      {
+        "id": "c02-b01",
+        "say": "Keep the team's reviewed starting task. We'll call it seed S twelve. Its source is the search API documentation. Read the rule that would have caught the missing name. Follow each returned cursor until the service sends an empty one.",
+        "hold": 0.8
+      },
+      {
+        "id": "c02-b02",
+        "say": "The same contract caps each request at a hundred names. For a temporary rate limit, our fixture allows two retries of the same cursor. Put those rules beside the source, the pagination family and the specific behavior we want to practice.",
+        "hold": 0.3
+      },
+      {
+        "id": "c02-b03",
+        "say": "Imagine copying a mistaken page limit into a hundred variations. Their agreement would carry the same error. Have a reviewer check the seed against the documentation first.",
+        "hold": 0.8
+      },
+      {
+        "id": "c02-b04",
+        "say": "Assign the seed family to a split before generating variations. Here the family means S twelve and everything derived from it. This family goes into training. Its descendants keep the S twelve ID even if we change the prompt or the generator. Keep the reserved families separate.",
+        "hold": 0.3
+      },
+      {
+        "id": "c02-b05",
+        "say": "They can test the same skill with independently written searches. Later we'll check for copied wording across families.",
+        "hold": 0.9
+      }
+    ]
+  },
+  {
+    "id": "c03",
+    "title": "Ask for coverage that matters",
+    "sourceChapters": [
+      "c03"
+    ],
+    "beats": [
+      {
+        "id": "c03-b01",
+        "say": "Prompt a generator with the reviewed seed and ask for a distinct edge case. Here it proposes empty-cursor termination, bounded retries after a rate limit, and a request for an oversized page. Ask the generator to state the expected behavior so reviewers can compare the candidate with the seed contract.",
+        "hold": 0.55
+      },
+      {
+        "id": "c03-b02",
+        "say": "These candidates exercise different parts of the same client contract. A new sentence can still repeat an old task, so track coverage by behavior and difficulty alongside row counts.",
+        "hold": 0.55
+      },
+      {
+        "id": "c03-b03",
+        "say": "Self-Instruct used a small pool of human tasks to generate instructions and filtered near-duplicates. Add one more paraphrase of the cursor task here. We now have five rows. How many different behaviors do they cover? Still three. Track difficulty within each family when you decide what to generate next.",
+        "hold": 0.75
+      }
+    ]
+  },
+  {
+    "id": "c04",
+    "title": "Construct a task pool from reviewed seeds",
+    "sourceChapters": [
+      "c04"
+    ],
+    "beats": [
+      {
+        "id": "c04-b01",
+        "say": "Historical Self-Instruct shows one way to grow a task pool. Its one hundred seventy-five human-authored seeds expanded into fifty-two thousand four hundred forty-five filtered instructions. Demonstration prompts sampled eight existing tasks, typically six human-written and two model-generated. Those are recipe details from the paper, rather than a required seed count for our API project.",
+        "hold": 0.7
+      },
+      {
+        "id": "c04-b02",
+        "say": "Separate instruction generation from instance generation. For a classification task with a small label set, generate the class labels first, then ask for an input belonging to each label. This output-first ordering counters the tendency to produce mostly easy positive instances. Other tasks use input-first generation.",
+        "hold": 0.3
+      },
+      {
+        "id": "c04-b03",
+        "say": "For our search seed, ask for one rate-limited input and one successful input. A four twenty-nine fits the first label. A successful page fits the second. Both still have to follow the reviewed contract.",
+        "hold": 0.7
+      },
+      {
+        "id": "c04-b04",
+        "say": "The historical filter admitted instructions only when their ROUGE-L similarity to every existing instruction was below zero point seven, alongside instance heuristics. That is the reported filter; MinHash is another design to evaluate. Generating new wording can broaden tasks, while generated repetitions still need screening.",
+        "hold": 0.7
+      }
+    ]
+  },
+  {
+    "id": "c05",
+    "title": "Change the work a task requires",
+    "sourceChapters": [
+      "c05"
+    ],
+    "beats": [
+      {
+        "id": "c05-b01",
+        "say": "An in-depth Evol-Instruct rewrite makes an existing task more demanding. Its five styles add constraints, deepen a question, replace general concepts with concrete ones, add reasoning steps, or complicate the input. In-breadth evolution instead proposes another task. A synonym change may leave the required behavior identical.",
+        "hold": 0.7
+      },
+      {
+        "id": "c05-b02",
+        "say": "For our seed, add a deterministic clock and a bounded retry schedule. After the rate limit, the client must preserve the returned cursor. An answer that silently restarts the search now fails. Each added requirement changes what a reviewer must check.",
+        "hold": 0.3
+      },
+      {
+        "id": "c05-b03",
+        "say": "The article’s three authored string rewrites demonstrate a scheduler; they do not measure a language model generating harder tasks. Verify the rewrite still has a coherent answer before admitting it.",
+        "hold": 0.7
+      },
+      {
+        "id": "c05-b04",
+        "say": "WizardLM’s historical eliminator checked information gain, short responses containing sorry, punctuation-only content and copied evolution scaffolding. These heuristics can remove poor output, but a correct safety refusal may contain sorry. Keep a valid refusal when the target policy requires it, rather than treating a phrase filter as a correctness proof.",
+        "hold": 0.7
+      }
+    ]
+  },
+  {
+    "id": "c06",
+    "title": "What did each client collect?",
+    "sourceChapters": [
+      "c06"
+    ],
+    "beats": [
+      {
+        "id": "c06-b01",
+        "say": "Run the retry client on our two-page search. The service allows up to a hundred names per request. The client may retry a rate-limited request twice. This time the first request gets a four twenty-nine. Watch what the client sends next.",
+        "hold": 0.8
+      },
+      {
+        "id": "c06-b02",
+        "say": "It asks for the same page again. Ada and Grace come back. The service also sends page two as the next cursor. Which cursor belongs in the third request?",
+        "hold": 2.2
+      },
+      {
+        "id": "c06-b03",
+        "say": "It sends page two. Linus comes back with an empty next cursor. The client stops with all three names. It retried once, and each request stayed within the limit.",
+        "hold": 0.95
+      },
+      {
+        "id": "c06-b04",
+        "say": "Now run the other proposal on a fresh copy of that fixture. It asks for ten thousand names in one request. The service rejects that request at the page limit. The client collects zero names. Save this failing case.",
+        "hold": 0.3
+      },
+      {
+        "id": "c06-b05",
+        "say": "Before using generated code in production, isolate its execution and add trusted cases for timeouts and malformed replies.",
+        "hold": 0.9
+      }
+    ]
+  },
+  {
+    "id": "c07",
+    "title": "Keep the verifier independent of the candidate",
+    "sourceChapters": [
+      "c07"
+    ],
+    "beats": [
+      {
+        "id": "c07-b01",
+        "say": "A schema check establishes field shape, a static check inspects code, and a runtime test executes specified cases. A symbolic check can establish a property inside its formal model. Each has a different scope.",
+        "hold": 0.3
+      },
+      {
+        "id": "c07-b02",
+        "say": "The article checks a JSON configuration. It requires page size one hundred, retry limit three and cursor enabled. Our running client has its own fixture with two retries. Inspecting three fields cannot tell us if the client asks for page two. To find that out, execute it and read the trace.",
+        "hold": 0.7
+      },
+      {
+        "id": "c07-b03",
+        "say": "If the generator weakens its own test from a page limit of one hundred to ten thousand, the rewritten test can pass the bad client. Preserve the independent contract and rerun trusted checks.",
+        "hold": 0.3
+      },
+      {
+        "id": "c07-b04",
+        "say": "Llama Three’s historical execution-feedback pipeline produced about one million coding dialogues; about twenty percent of solutions initially failed and were self-corrected. The model could revise the solution or its tests, and the report explicitly did not ensure complete correctness.",
+        "hold": 0.7
+      },
+      {
+        "id": "c07-b05",
+        "say": "Phi One’s 2023 recipe combined about six billion filtered code-language tokens, under one billion synthetic textbook tokens and roughly one hundred eighty million exercise tokens. Its one point three billion parameter model reported HumanEval pass at one of fifty point six percent.",
+        "hold": 0.3
+      },
+      {
+        "id": "c07-b06",
+        "say": "Inventory differs from repeated training exposure, and the result does not isolate testing’s causal effect. Orca’s explanation-trace experiments likewise measured task outcomes; a long explanation is neither proof of validity nor a throughput result.",
+        "hold": 0.7
+      }
+    ]
+  },
+  {
+    "id": "c08",
+    "title": "Screen the wording of C5",
+    "sourceChapters": [
+      "c08"
+    ],
+    "beats": [
+      {
+        "id": "c08-b01",
+        "say": "Suppose the client works. Could we train on its task if the same question is waiting on the exam? Here are the words a private screening service can see. It lowercases them and ignores punctuation. It looks up five consecutive words at a time.",
+        "hold": 0.3
+      },
+      {
+        "id": "c08-b02",
+        "say": "Start at the word please. If the window moves one word to the right, which word will be at its right edge?",
+        "hold": 2.3
+      },
+      {
+        "id": "c08-b03",
+        "say": "Slide past please. The window starts at fetch and ends at the word the. That's five matching words. Advance to every, then to page. Both windows match as well. C five repeats the reserved task, so keep it out of training. Return the screening decision to the admission process.",
+        "hold": 0.3
+      },
+      {
+        "id": "c08-b04",
+        "say": "Keep the exam text out of generator prompts and feedback.",
+        "hold": 0.85
+      },
+      {
+        "id": "c08-b05",
+        "say": "Change the candidate to this wording. Use the cursor to read all remaining results. The task still asks for every page. The same five-word screen finds zero matches. A paraphrase can escape this check, and routine wording can produce a hit.",
+        "hold": 0.3
+      },
+      {
+        "id": "c08-b06",
+        "say": "Review possible paraphrases with semantic retrieval, inspect ambiguous hits in context, and record which index and rule you used.",
+        "hold": 1
+      }
+    ]
+  },
+  {
+    "id": "c09",
+    "title": "Make the accepted set cover different tasks",
+    "sourceChapters": [
+      "c09"
+    ],
+    "beats": [
+      {
+        "id": "c09-b01",
+        "say": "Duplicate wording is only one kind of repetition. Embeddings can flag candidates that occupy a crowded semantic neighborhood, leaving reviewers to judge whether the tasks truly add different coverage.",
+        "hold": 0.3
+      },
+      {
+        "id": "c09-b02",
+        "say": "The embedding model defines what counts as near; a new encoder version can move all candidates in the space. Compute cosine as the dot product divided by the product of both vector norms. Reject zero or nonfinite vectors before normalization.",
+        "hold": 0.55
+      },
+      {
+        "id": "c09-b03",
+        "say": "Compare the two proposed directions with the horizontal reference. In this toy map the cutoff is point nine five. The page reader nearly overlaps the seed direction, so send it for duplicate review. The retry case points away and remains eligible.",
+        "hold": 0.55
+      },
+      {
+        "id": "c09-b04",
+        "say": "Try another reference, straight up at zero, one. The candidate is three, four. Its length is five. The dot product is four. The review cutoff is point seven five. Which side of the cutoff does this pair land on?",
+        "hold": 2.6
+      },
+      {
+        "id": "c09-b05",
+        "say": "Divide four by five. The cosine is point eight. A rule that rejects at or above point seven five rejects this pair. These vectors are hand chosen. Choose thresholds on human-reviewed examples and measure utility after training.",
+        "hold": 1
+      }
+    ]
+  },
+  {
+    "id": "c10",
+    "title": "Calibrate semantic review",
+    "sourceChapters": [
+      "c10"
+    ],
+    "beats": [
+      {
+        "id": "c10-b01",
+        "say": "Some answers need semantic review after the executable tests. Compare the client that follows the documented limit with one that asks for ten thousand names. Call them A and B. In this supplied comparison the judge picks the left answer, A. Keep the response identities with the votes. What would a second left vote mean if we swapped the answers?",
+        "hold": 2.5
+      },
+      {
+        "id": "c10-b02",
+        "say": "Now reverse the display order. The same two responses trade places. The judge picks left again. This time left means B. The winner changed, so send this pair to audit. On reversal, B gets point seven, which leaves point three for A. Averaging A's two scores gives point five five and hides the flip.",
+        "hold": 0.9
+      },
+      {
+        "id": "c10-b03",
+        "say": "Randomize the first display order and retain it for analysis. A single disagreement can come from noise or a close call. Agreement across orders measures stability. Compare answers with independent references and human decisions to test correctness. Check whether irrelevant extra length changes the judge's choice.",
+        "hold": 0.75
+      }
+    ]
+  },
+  {
+    "id": "c11",
+    "title": "Which examples reach the training shard?",
+    "sourceChapters": [
+      "c11"
+    ],
+    "beats": [
+      {
+        "id": "c11-b01",
+        "say": "Keep your eye on the six row IDs. First check the seed on each one. C six has no seed. Now screen the remaining tasks against the private index. C five repeats an exam question. Leave each row where it stopped so we can account for it.",
+        "hold": 0.75
+      },
+      {
+        "id": "c11-b02",
+        "say": "Run the four remaining clients. C four asks for ten thousand names and fails the page limit. Compare the survivors with the reference direction. C three is close enough to need duplicate review. Which two rows still need a judge?",
+        "hold": 2.15
+      },
+      {
+        "id": "c11-b03",
+        "say": "C one and C two. Compare their answers in both display orders using the supplied votes. C two's winner changes when the order flips. C one's answer wins in both orders and passes the last gate. Put that retry example in the proposed training shard.",
+        "hold": 0.3
+      },
+      {
+        "id": "c11-b04",
+        "say": "To find out whether it helps the assistant, we'll still have to train and test on fresh searches.",
+        "hold": 0.95
+      }
+    ]
+  },
+  {
+    "id": "c12",
+    "title": "Which rows reach the next check?",
+    "sourceChapters": [
+      "c12"
+    ],
+    "beats": [
+      {
+        "id": "c12-b01",
+        "say": "The first four checks send just two candidates to the judge. Each comparison uses two display orders. That takes four requests. Judging all six would take twelve before retries. The gates save eight out of twelve requests, or two thirds. Here we use supplied votes.",
+        "hold": 0.3
+      },
+      {
+        "id": "c12-b02",
+        "say": "Four real calls can still cost different amounts if the answers are longer or a request needs a retry. Measure the work each gate costs and how many rows it stops.",
+        "hold": 0.7
+      },
+      {
+        "id": "c12-b03",
+        "say": "A judge that approves all ninety-eight good and two bad reviewed rows agrees with reviewers on ninety-eight percent, yet admits both bad rows. Its observed false-admission rate within the bad class is two out of two. Report class and slice denominators with uncertainty.",
+        "hold": 0.3
+      },
+      {
+        "id": "c12-b04",
+        "say": "If the judge makes the same mistake in both orders, it will appear stable. Compare its decisions with labels from independent reviewers.",
+        "hold": 0.7
+      },
+      {
+        "id": "c12-b05",
+        "say": "Does C add a distinct task? Compare its direction with the directions already in the accepted pool. In this example the cutoff is point eight two. B clears the cutoff against the two original references. Its other checks pass, so B joins the pool.",
+        "hold": 0.3
+      },
+      {
+        "id": "c12-b06",
+        "say": "Now compare C with B. Their directions almost coincide. Under this rule C stops at the diversity check. Two workers checking yesterday's pool could miss that match. Coordinate their updates or check for duplicates again at the end.",
+        "hold": 1
+      },
+      {
+        "id": "c12-b07",
+        "say": "Replay the same two proposals. Change just B's judge decision. Its winner flips, so B is withheld. C was set aside solely for resembling B. Our policy compares against finally accepted rows. Which references should decide C's next comparison?",
+        "hold": 2.7
+      },
+      {
+        "id": "c12-b08",
+        "say": "Use the two original references. With B out of the pool, C's closest match drops below the cutoff. Now C reaches the judge. Its own winner stays the same in both orders, so this time C joins the pool. Rechecking novelty gave C another chance. It still had to pass its own remaining check.",
+        "hold": 1.2
+      }
+    ]
+  },
+  {
+    "id": "c13",
+    "title": "What should the assistant learn to write?",
+    "sourceChapters": [
+      "c13"
+    ],
+    "beats": [
+      {
+        "id": "c13-b01",
+        "say": "To test a privacy boundary, generate a support request that asks to put a customer's email in a failed search log. The approved logging policy allows the request ID and keeps customer email addresses out of the log. Two proposed answers pick one field each. Which answer belongs in the training target?",
+        "hold": 2.2
+      },
+      {
+        "id": "c13-b02",
+        "say": "Choose the request ID. Run each logging example on the same support event. A trusted check reads the field each one recorded. The first uses the permitted field. The second selects the customer email. Keep the same prompt with both answers in a preference record.",
+        "hold": 0.3
+      },
+      {
+        "id": "c13-b03",
+        "say": "The chosen answer rejects the request to bypass the logging rule. The rejected answer returns success after logging the email.",
+        "hold": 0.8
+      },
+      {
+        "id": "c13-b04",
+        "say": "For supervised fine-tuning, copy the chosen answer into the assistant's target. For preference training such as DPO, keep the prompt, chosen answer and rejected answer together. A safe refusal can be a desired answer. Create pairs by ranking samples or by changing one behavior in a verified answer.",
+        "hold": 0.3
+      },
+      {
+        "id": "c13-b05",
+        "say": "Here the lines have the same length in words, so a preference for longer prose can't explain the choice. Calibrate on human-reviewed boundary cases. A red-team tag helps count those cases. Isolate untrusted code before executing it.",
+        "hold": 0.85
+      }
+    ]
+  },
+  {
+    "id": "c14",
+    "title": "Bind each generated column to its dependencies",
+    "sourceChapters": [
+      "c14"
+    ],
+    "beats": [
+      {
+        "id": "c14-b01",
+        "say": "Give the generator our search task and its seed contract. The answer depends on both. The verification column takes that answer and the trusted fixture. Change the answer and its old receipt no longer tells you what this version did.",
+        "hold": 0.3
+      },
+      {
+        "id": "c14-b02",
+        "say": "NeMo Data Designer's preprint describes this dependency-aware generation. Declare which columns read the seed, sampler or another column. Validate a preview and revise the recipe before asking the generator for a full batch.",
+        "hold": 0.9
+      },
+      {
+        "id": "c14-b03",
+        "say": "Preview a small batch before scaling. These two rows descend from the same seed. Read the first request in each row. Now open the receipts. The retry client brought back three names. The oversized request brought back none.",
+        "hold": 0.3
+      },
+      {
+        "id": "c14-b04",
+        "say": "Store the actual responses and receipts alongside the seed, prompt and model versions. That gives a reviewer something to check. Source permissions still need their own evidence.",
+        "hold": 0.9
+      }
+    ]
+  },
+  {
+    "id": "c15",
+    "title": "What can eight draws retain?",
+    "sourceChapters": [
+      "c15"
+    ],
+    "beats": [
+      {
+        "id": "c15-b01",
+        "say": "Recursive training feeds generated samples into later training rounds. Sampling and fitting errors can compound. Imagine this dial is the entire distribution. The orange sector covers five percent and represents a rare retry. Draw eight independent samples. What is the probability that all eight miss the rare category?",
+        "hold": 2.8
+      },
+      {
+        "id": "c15-b02",
+        "say": "Each draw misses the rare category with probability zero point nine five. The chance all eight miss is zero point nine five to the eighth power, about zero point six six three four.",
+        "hold": 0.7
+      },
+      {
+        "id": "c15-b03",
+        "say": "Here are eight supplied draws. Read each position clockwise from zero. Each position leaves one numbered result behind. Look around the dial. Did any draw land in the narrow orange sector? These are fixed inputs to our illustration. Use them as the entire replacement sample. What share of the new dial belongs to retries?",
+        "hold": 2.8
+      },
+      {
+        "id": "c15-b04",
+        "say": "Zero of eight. If the next model exactly fits this replacement sample, its rare sector disappears. Even a draw of point nine nine, inside the original rare sector, now lands on common. Further draws from that model alone cannot recover the missing category.",
+        "hold": 1.1
+      },
+      {
+        "id": "c15-b05",
+        "say": "Count the retries in the first eight draws. All eight were ordinary searches. Replay those same eight positions on the fitted dial. Count the retries as each search lands in the second round. Zero again. Shumailov and colleagues studied how rare cases can disappear when models train on earlier models’ outputs. After each round, test the checkpoint on independently collected searches. Track how often it recovers from a rate limit alongside how often it completes an ordinary search.",
+        "hold": 1.5
+      }
+    ]
+  },
+  {
+    "id": "c16",
+    "title": "Preserve evidence and its effective exposure",
+    "sourceChapters": [
+      "c16"
+    ],
+    "beats": [
+      {
+        "id": "c16-b01",
+        "say": "Compare two ways to make a training pool. Start with three reviewed real IDs. Add two generated IDs in round one, then two more in round two. The accumulated pool holds seven IDs, including all three real ones.",
+        "hold": 0.3
+      },
+      {
+        "id": "c16-b02",
+        "say": "Keep only the latest generated batch. G three and G four are left. Look for H three, the rare retry. It is still in the accumulated pool. The replacement pool has lost that example.",
+        "hold": 0.7
+      },
+      {
+        "id": "c16-b03",
+        "say": "Gerstgrasser and colleagues found that accumulation avoided degeneration in the language models they tested. They also bounded the error in a linear regression model as its training pool grew. Here three of our seven rows are real. We choose how often to draw each row. How often will training see the rare retry?",
+        "hold": 3
+      },
+      {
+        "id": "c16-b04",
+        "say": "Pool membership differs from training exposure. Retaining a rare human row while sampling it once per million updates can still make its influence negligible. Declare mixture probabilities, token exposure and rare-case coverage, and refresh reviewed data as the task changes.",
+        "hold": 0.3
+      },
+      {
+        "id": "c16-b05",
+        "say": "In the categorical toy, giving the retained rare row positive sampling weight restores a possible rare draw; its actual probability follows that chosen weight.",
+        "hold": 0.7
+      }
+    ]
+  },
+  {
+    "id": "c17",
+    "title": "Compare approved bytes with a trusted digest",
+    "sourceChapters": [
+      "c17"
+    ],
+    "beats": [
+      {
+        "id": "c17-b01",
+        "say": "The executable article fixture publishes one accepted JSONL row and records a SHA two hundred fifty-six digest of its exact bytes. The manifest names the seed, generator, prompt, verifier and overlap index. It also records a digest of the final decision log.",
+        "hold": 0.3
+      },
+      {
+        "id": "c17-b02",
+        "say": "Run the same six rows again. Raise just the novelty cutoff from point eight two to point nine. Compare the two logs, row by row. All six decisions stay the same, and both runs produce the same manifest. To audit which cutoff ran, record its value separately. Factual accuracy and permission to use the source each need their own evidence.",
+        "hold": 0.7
+      },
+      {
+        "id": "c17-b03",
+        "say": "Try the article's small byte comparison. Start with an approved line containing just the page size. Change the page size from one hundred to ten thousand. Recompute the writable manifest. The changed payload matches it. Compare the same payload with the separately protected approved digest. The bytes differ, so the approval check fails.",
+        "hold": 1
+      },
+      {
+        "id": "c17-b04",
+        "say": "Hashes identify bytes relative to a reference; a writable file is not inherently immutable.",
+        "hold": 0.7
+      },
+      {
+        "id": "c17-b05",
+        "say": "Keep full digests and actual rights evidence in the release records. A seed identifier records declared lineage; it cannot prove which training row caused every future completion. A remote generation API may also return different text on replay. Record the outputs and contracts that were actually approved instead of promising bit-for-bit regeneration.",
+        "hold": 0.7
+      }
+    ]
+  },
+  {
+    "id": "c18",
+    "title": "Separate admission success from trained capability",
+    "sourceChapters": [
+      "c18"
+    ],
+    "beats": [
+      {
+        "id": "c18-b01",
+        "say": "Accepted rows are ready for a training experiment. Compare real-only with real-plus-synthetic from the same starting weights under a declared token or compute budget. Equal steps and example counts need not process equal tokens. State how synthetic examples change real-data exposure, and include generation and filtering costs when evaluating the full pipeline.",
+        "hold": 0.7
+      },
+      {
+        "id": "c18-b02",
+        "say": "Keep evaluation tasks and answers out of generation prompts, training and generator-facing feedback. A restricted overlap service may index held-out material while keeping its contents hidden from the generator. Exact normalized five-word matches are a screening signal, not complete decontamination.",
+        "hold": 0.3
+      },
+      {
+        "id": "c18-b03",
+        "say": "They can miss paraphrases or short copied spans, and harmless shared terminology needs context. MinHash approximates set similarity rather than proving arbitrary substring freedom.",
+        "hold": 0.7
+      },
+      {
+        "id": "c18-b04",
+        "say": "Declare a release floor and report common, rare, unsafe-behavior, tool-error and unwanted-refusal slices with their sample sizes and uncertainty. Reserve a separate final test from repeated recipe selection. Rising acceptance with flat or declining trained-model utility suggests verifier or judge gaming.",
+        "hold": 0.3
+      },
+      {
+        "id": "c18-b05",
+        "say": "We executed the admission fixtures. The downstream comparison is a proposed experiment. It will take a trained checkpoint and independently scored searches to establish a capability gain.",
+        "hold": 0.7
+      }
+    ]
+  },
+  {
+    "id": "c19",
+    "title": "Would you release this search assistant?",
+    "sourceChapters": [
+      "c19"
+    ],
+    "beats": [
+      {
+        "id": "c19-b01",
+        "say": "Try a fictional release from the same starting checkpoint. Both recipes process twelve million training tokens. The baseline uses real data throughout. In the candidate, four million synthetic tokens replace four million real ones. Generating and screening them takes eighteen extra compute units. What work does the equal token count leave out?",
+        "hold": 2.3
+      },
+      {
+        "id": "c19-b02",
+        "say": "It leaves out the work to generate and screen those rows. Charge it separately. The candidate also saw fewer real tokens. Now use the release rule set before evaluation. On ordinary searches the model must get at least ninety of a hundred right. It gets ninety-two.",
+        "hold": 0.3
+      },
+      {
+        "id": "c19-b03",
+        "say": "On fifty rare searches that need rate-limit recovery and another page, it needs forty correct. It gets thirty-eight. At most two of two hundred safety probes may get an unsafe answer. One does. Which gate, if any, should hold this checkpoint?",
+        "hold": 2.8
+      },
+      {
+        "id": "c19-b04",
+        "say": "Hold this release. The model falls short on rare searches. The other two slices meet their limits. Look at those same fifty cases, grouped here by outcome. How many more correct answers would bring the rare slice exactly to its floor?",
+        "hold": 2.1
+      },
+      {
+        "id": "c19-b05",
+        "say": "Two more. Mark those positions without changing their observed outcomes. Forty out of fifty would meet the floor. We observed thirty-eight. Inspect how often training batches paired a retry with another page. Analyze development failures, revise the mixture, and evaluate the new checkpoint on an untouched test.",
+        "hold": 1.3
+      },
+      {
+        "id": "c19-b06",
+        "say": "In the next lesson, we'll follow an approved answer into supervised fine-tuning.",
+        "hold": 1.2
+      }
+    ]
+  }
+]

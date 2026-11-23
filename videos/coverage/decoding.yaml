@@ -1,0 +1,353 @@
+version: 1
+lesson: decoding
+promise: Compute and audit autoregressive search and sampling, including completed scores, length
+  normalization, temperature, adaptive support, history penalties, constraints, termination and effective
+  runtime contracts; choose a policy from controlled task evidence.
+framing: []
+objectives:
+  - id: intro
+    can: Choose the more likely first word and set up the products for two competing endings
+    scenes:
+      - intro
+  - id: tree
+    can: Compute products and track the changed conditional branch
+    scenes:
+      - tree
+  - id: greedy
+    can: Apply deterministic tie breaking to the supplied local argmax
+    scenes:
+      - greedy
+  - id: beam
+    can: Expand and rank multiple retained prefixes
+    scenes:
+      - beam
+  - id: status-model
+    can: Compute the status-path probabilities and separate likelihood from factual evidence
+    scenes:
+      - status-model
+  - id: pruned-prefix
+    can: Compare the best reachable child with a pruned path and explain when two children per parent suffice for width two
+    scenes:
+      - pruned-prefix
+  - id: completed-score
+    can: Include EOS in completed likelihood and apply the stated truncated-candidate contract
+    scenes:
+      - completed-score
+  - id: length-objective
+    can: Calculate a GNMT normalized score using the declared length convention
+    scenes:
+      - length-objective
+  - id: normalized-stop
+    can: Check an early-stop bound against its actual normalized objective
+    scenes:
+      - normalized-stop
+  - id: search-quality
+    can: Compare model-score search, held-out task quality and actual serving work
+    scenes:
+      - search-quality
+  - id: temperature
+    can: Locate the same supplied draw before and after temperature moves the interval boundaries
+    scenes:
+      - temperature
+  - id: temperature-odds
+    can: Compute temperature odds and explain finite eligible-set limits
+    scenes:
+      - temperature-odds
+  - id: temperature-tail
+    can: Transform individual probabilities and compute their grouped mass afterward
+    scenes:
+      - temperature-tail
+  - id: stable-eligibility
+    can: Apply stable softmax and reject invalid or empty eligible inputs
+    scenes:
+      - stable-eligibility
+  - id: top-k
+    can: Retain and normalize an exact-count support
+    scenes:
+      - top-k
+  - id: tie-contract
+    can: Distinguish exact-k tie breaking from kth-score threshold retention
+    scenes:
+      - tie-contract
+  - id: nucleus
+    can: Include the crossing token in a cumulative support
+    scenes:
+      - nucleus
+  - id: adaptive-support
+    can: Compute exact-k, inclusive top-p and min-p supports for different shapes
+    scenes:
+      - adaptive-support
+  - id: minp-relative
+    can: Derive the relative cutoff and compare before-temperature and after-temperature support
+    scenes:
+      - minp-relative
+  - id: minp-evidence
+    can: Assess a sampler comparison using task scope and matched tuning budgets
+    scenes:
+      - minp-evidence
+  - id: sign-aware
+    can: Compute sign-aware repetition adjustments once per distinct history token
+    scenes:
+      - sign-aware
+  - id: centering-order
+    can: Diagnose why centering before a sign-aware penalty changes selection
+    scenes:
+      - centering-order
+  - id: count-penalties
+    can: Calculate additive frequency and presence adjustments from token counts
+    scenes:
+      - count-penalties
+  - id: ordered-filters
+    can: Identify the crossing token for each filter order using the mass that enters the cumulative test
+    scenes:
+      - ordered-filters
+  - id: grammar-first
+    can: Trace an empty intersection to the filter that discarded the legal token and distinguish an empty grammar
+    scenes:
+      - grammar-first
+  - id: actual-sampler
+    can: Trace the article's penalized logits to a greedy output and locate the seeded draw on the retained distribution
+    scenes:
+      - actual-sampler
+  - id: draw
+    can: Locate categorical draws and compare empirical frequencies
+    scenes:
+      - draw
+  - id: stop-contract
+    can: Distinguish ending-token, length and stop-string termination with returned-text policy
+    scenes:
+      - stop-contract
+  - id: replay-contract
+    can: Diagnose replay differences without equating a seed with identical model computation
+    scenes:
+      - replay-contract
+  - id: hosted-contract
+    can: Verify the effective hosted API contract before interpreting a parameter sweep
+    scenes:
+      - hosted-contract
+  - id: evaluation-protocol
+    can: Count correct drafts and prompts with a correct draft, and identify the work a selector adds
+    scenes:
+      - evaluation-protocol
+  - id: transfer
+    can: Predict when an extra beam slot changes the returned text and which word enters a larger nucleus
+    scenes:
+      - transfer
+      - evaluation-protocol
+  - id: fresh-policy
+    can: Recompute the nucleus after a hard mask and choose the reportable status from a rollout record
+    scenes:
+      - fresh-policy
+sections:
+  - heading: Greedy decoding
+    status: taught
+    note: The fixed two-word dog example illustrates the chain rule. The status assistant uses the article's token table.
+    scenes:
+      - intro
+      - tree
+      - greedy
+      - status-model
+  - heading: The myopic trap and likelihood collapse
+    status: taught
+    scenes:
+      - status-model
+      - search-quality
+  - heading: Beam search
+    status: taught
+    scenes:
+      - beam
+      - pruned-prefix
+      - completed-score
+  - heading: Length penalty
+    status: taught
+    scenes:
+      - length-objective
+      - normalized-stop
+  - heading: Better model score, worse answer
+    status: taught
+    scenes:
+      - search-quality
+      - evaluation-protocol
+  - heading: Temperature scaling
+    status: taught
+    scenes:
+      - temperature
+      - temperature-odds
+      - temperature-tail
+      - stable-eligibility
+  - heading: Top-k sampling
+    status: taught
+    scenes:
+      - top-k
+      - tie-contract
+  - heading: Nucleus (top-p) sampling
+    status: taught
+    scenes:
+      - nucleus
+      - adaptive-support
+      - transfer
+      - fresh-policy
+  - heading: The long-tail failure at high $T$
+    status: taught
+    scenes:
+      - temperature-tail
+      - ordered-filters
+  - heading: "Beyond nucleus: min-p"
+    status: taught
+    scenes:
+      - adaptive-support
+      - minp-relative
+      - minp-evidence
+  - heading: Min-p still depends on temperature and order
+    status: taught
+    scenes:
+      - minp-relative
+  - heading: Repetition penalty
+    status: taught
+    scenes:
+      - sign-aware
+      - centering-order
+  - heading: Frequency and presence penalties
+    status: taught
+    scenes:
+      - count-penalties
+  - heading: Combining strategies in production
+    status: taught
+    note: The two filter orders, grammar intersection and Python seed-zero draw use the article's runnable fixtures.
+    scenes:
+      - ordered-filters
+      - grammar-first
+      - actual-sampler
+      - stop-contract
+      - hosted-contract
+  - heading: Reproducibility is a property of the serving stack
+    status: taught
+    scenes:
+      - draw
+      - replay-contract
+  - heading: Evaluation configurations
+    status: taught
+    scenes:
+      - hosted-contract
+      - evaluation-protocol
+  - heading: Choosing a policy by task
+    status: taught
+    scenes:
+      - transfer
+      - evaluation-protocol
+      - fresh-policy
+  - heading: Decoding trade-offs and audit criteria
+    status: taught
+    scenes:
+      - fresh-policy
+      - evaluation-protocol
+  - heading: Common failures and fixes
+    status: taught
+    scenes:
+      - search-quality
+      - stable-eligibility
+      - grammar-first
+      - hosted-contract
+  - heading: Beam search made chat sound robotic
+    status: taught
+    scenes:
+      - search-quality
+  - heading: Temperature tweak didn't fix hallucinations
+    status: taught
+    note: The final rollout log and status probabilities are a worked example of the article's deployment telemetry check.
+    scenes:
+      - status-model
+      - fresh-policy
+  - heading: High temperature plus top-p pulled in nonsense tail tokens
+    status: taught
+    scenes:
+      - temperature-tail
+      - minp-relative
+      - hosted-contract
+  - heading: Fixed top-k clipped valid options
+    status: taught
+    scenes:
+      - tie-contract
+      - adaptive-support
+  - heading: Same knobs changed behavior after a runtime swap
+    status: taught
+    scenes:
+      - ordered-filters
+      - replay-contract
+  - heading: "`temperature=0` was sent through the sampling math directly"
+    status: taught
+    scenes:
+      - stable-eligibility
+      - actual-sampler
+  - heading: Truncated probabilities no longer sum to one
+    status: taught
+    scenes:
+      - top-k
+      - adaptive-support
+  - heading: Practice drill
+    status: article-only
+    reason: exercise
+    note: Independent mutation and model-backed experiments remain learner work; their mechanisms and evaluation
+      contract are taught in the film.
+quiz:
+  - n: 1
+    status: taught
+    scenes:
+      - greedy
+      - beam
+      - pruned-prefix
+  - n: 2
+    status: taught
+    scenes:
+      - completed-score
+      - length-objective
+  - n: 3
+    status: taught
+    scenes:
+      - temperature-tail
+  - n: 4
+    status: taught
+    scenes:
+      - tie-contract
+  - n: 5
+    status: taught
+    scenes:
+      - ordered-filters
+  - n: 6
+    status: taught
+    scenes:
+      - minp-relative
+  - n: 7
+    status: taught
+    scenes:
+      - sign-aware
+      - count-penalties
+  - n: 8
+    status: taught
+    scenes:
+      - grammar-first
+      - stable-eligibility
+      - fresh-policy
+  - n: 9
+    status: taught
+    scenes:
+      - replay-contract
+      - hosted-contract
+  - n: 10
+    status: taught
+    scenes:
+      - evaluation-protocol
+removed: []
+reviews:
+  closed_book:
+    script: 2b3d9141ed428555
+    taught: 10
+    partial: 0
+    absent: 0
+    reviewer: /root
+    evidence: build/video-delivery-20261106/script-reviews/decoding.json
+  fact_check:
+    script: 2b3d9141ed428555
+    open_findings: 0
+    reviewer: /root
+    evidence: build/video-delivery-20261106/script-reviews/decoding.json

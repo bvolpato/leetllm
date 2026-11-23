@@ -1,0 +1,829 @@
+{
+  "id": "deep-dive-megatron",
+  "script": "b6a7c6903383ecd7",
+  "articleHash": "e91c43c47daab1add13609e2106f62aafbf07d2d301c60316524f996e290d902",
+  "checked": "2026-11-10T11:03:18.500Z",
+  "closedBook": {
+    "taught": 10,
+    "partial": 0,
+    "absent": 0,
+    "answers": [
+      {
+        "n": 1,
+        "option": 2,
+        "coverage": "taught",
+        "quotes": [
+          {
+            "scene": "mesh",
+            "quote": "Factor this dense world into tensor shards, pipeline stages, context lanes and data replicas. Their product assigns every rank once."
+          },
+          {
+            "scene": "mesh",
+            "quote": "Context parallelism adds a sequence axis; sequence parallelism reuses tensor peers for selected activation work and adds no extra world-size factor."
+          }
+        ],
+        "reason": "The model-parallel product is 2×3×2=12. Pure DP is 96/12=8.",
+        "exact": true,
+        "correct": true,
+        "grade": "taught"
+      },
+      {
+        "n": 2,
+        "option": 4,
+        "coverage": "taught",
+        "quotes": [
+          {
+            "scene": "rank-algorithm",
+            "quote": "The numbering helper repeatedly takes the remainder by an axis size, then divides the remaining rank by that size using integer division."
+          },
+          {
+            "scene": "small-lattice",
+            "quote": "Vary one coordinate while retaining the others."
+          }
+        ],
+        "reason": "The supplied ordering gives strides 1,2,4,8. Rank 13 has coordinates (1,0,1,1). Varying TP gives [12,13]; varying PP gives [5,13].",
+        "exact": true,
+        "correct": true,
+        "grade": "taught"
+      },
+      {
+        "n": 3,
+        "option": 1,
+        "coverage": "taught",
+        "quotes": [
+          {
+            "scene": "tensor",
+            "quote": "Other communication appears in backward or sequence-parallel variants, and a final output bias belongs after the partial sums combine."
+          },
+          {
+            "scene": "backward-bias",
+            "quote": "For a bias check, supplied partial outputs are one and two, with one shared output bias of three. Sum the partials and add the bias once: six. Adding that bias on both shards before the sum gives nine."
+          }
+        ],
+        "reason": "The contributions sum to [4,1]. Adding the bias once gives [4.5,1.5]; adding it twice gives [5,2].",
+        "exact": true,
+        "correct": true,
+        "grade": "taught"
+      },
+      {
+        "n": 4,
+        "option": 3,
+        "coverage": "taught",
+        "quotes": [
+          {
+            "scene": "microbatch-budget",
+            "quote": "Microbatches per replica equal global batch divided by the product of microbatch size and pure data degree."
+          },
+          {
+            "scene": "microbatch-budget",
+            "quote": "For equal stages and a non-interleaved idealization, idle fraction is pipeline stages minus one, divided by the quantity microbatches plus pipeline stages minus one."
+          }
+        ],
+        "reason": "Before: 96/(2×4)=12 microbatches and idle fraction 2/(12+2)=1/7. After: 96/(2×8)=6 microbatches and idle fraction 2/(6+2)=1/4.",
+        "exact": true,
+        "correct": true,
+        "grade": "taught"
+      },
+      {
+        "n": 5,
+        "option": 3,
+        "coverage": "taught",
+        "quotes": [
+          {
+            "scene": "context",
+            "quote": "The two partial means need weights proportional to their normalization masses. A shard's normalization mass is the sum of exponentiated scores over its allowed keys. Equal scores make those masses proportional to key counts."
+          }
+        ],
+        "reason": "The local mean is 3 and the remote mean is 9. Key-count weighting gives (2×3+1×9)/3=5. Equal weighting gives (3+9)/2=6.",
+        "exact": true,
+        "correct": true,
+        "grade": "taught"
+      },
+      {
+        "n": 6,
+        "option": 1,
+        "coverage": "taught",
+        "quotes": [
+          {
+            "scene": "optimizer-step",
+            "quote": "Persistent bytes per assigned parameter are six plus twelve divided by the actual sharding degree. One decimal gigabyte is one billion bytes. At data four and context two, one optimizer instance gives degree eight and seven point five bytes. Activations and temporary peaks remain additional."
+          },
+          {
+            "scene": "data-ownership",
+            "quote": "Inspect the actual parameter group, context degree and instance count before applying a memory equation."
+          }
+        ],
+        "reason": "The supplied dense domain has degree 3×2=6. Persistent storage is 6+12/6=8 bytes per parameter, or 200 million×8=1.6 decimal GB per rank, before additional peaks.",
+        "exact": true,
+        "correct": true,
+        "grade": "taught"
+      },
+      {
+        "n": 7,
+        "option": 4,
+        "coverage": "taught",
+        "quotes": [
+          {
+            "scene": "objective-weighting",
+            "quote": "A global token mean weights each local mean by its valid-token count, sums those weighted contributions, then divides by the total valid count."
+          },
+          {
+            "scene": "resume-state",
+            "quote": "The rule sets new velocity to momentum coefficient times old velocity plus the current gradient; new weight is old weight minus learning rate times that new velocity."
+          }
+        ],
+        "reason": "The global token-mean gradient is (2×6+6×−2)/8=0, so SGD leaves weight 1. The equal local mean is (6−2)/2=2, giving weight 1−.1×2=.8.",
+        "exact": true,
+        "correct": true,
+        "grade": "taught"
+      },
+      {
+        "n": 8,
+        "option": 2,
+        "coverage": "taught",
+        "quotes": [
+          {
+            "scene": "folded-grid",
+            "quote": "The article’s attention grid uses tensor four, context two, data eight and pipeline four: two hundred fifty-six ranks. Its expert grid uses expert tensor one, expert sixty-four, expert data one and pipeline four: the same two hundred fifty-six. Expert data means copies of a given expert shard. It need not equal attention’s data degree."
+          },
+          {
+            "scene": "expert-capacity",
+            "quote": "Permutation groups those assignment rows for expert execution; combine restores each source position with its router weights."
+          }
+        ],
+        "reason": "EDP=128/(2×8×4)=2. The restored vector is .25[4,−2]+.75[−2,6]=[−.5,4].",
+        "exact": true,
+        "correct": true,
+        "grade": "taught"
+      },
+      {
+        "n": 9,
+        "option": 1,
+        "coverage": "taught",
+        "quotes": [
+          {
+            "scene": "resume-state",
+            "quote": "The rule sets new velocity to momentum coefficient times old velocity plus the current gradient; new weight is old weight minus learning rate times that new velocity."
+          },
+          {
+            "scene": "resume-state",
+            "quote": "Restoring full state gives velocity one point two and weight one point eight eight. Resetting velocity gives one and weight one point nine."
+          }
+        ],
+        "reason": "Full restore gives velocity .5×.6−1=−.7 and weight 3−.2×(−.7)=3.14. Resetting velocity gives −1 and weight 3.20.",
+        "exact": true,
+        "correct": true,
+        "grade": "taught"
+      },
+      {
+        "n": 10,
+        "option": 2,
+        "coverage": "taught",
+        "quotes": [
+          {
+            "scene": "precision-recipes",
+            "quote": "Four-bit matrix operands do not turn all master weights, gradients and Adam moments into four-bit persistent state."
+          },
+          {
+            "scene": "precision-recipes",
+            "quote": "Keep a BF sixteen baseline. Compare fixed-batch logits, loss and gradients or a complete update within declared tolerances, then validation slices and checkpoint reload. A faster matrix kernel can fail those other conditions."
+          }
+        ],
+        "reason": "B passes because .002≤.01 and its other checks pass. A fails because .04>.01 despite its faster step. Operand precision does not determine persistent-state dtypes, which require their own ledger.",
+        "exact": true,
+        "correct": true,
+        "grade": "taught"
+      }
+    ]
+  },
+  "factCheck": {
+    "scenes": [
+      {
+        "id": "intro",
+        "evidence": "Supported. Communication, smaller local computations, and pipeline bubbles can outweigh added GPU capacity. The pinned README distinguishes Core building blocks, LM reference scripts, and Bridge conversion and recipes. The ownership framing is pedagogical. The promised constructed demonstrations were inspected and recalculated below.",
+        "sourceUrls": [
+          "https://raw.githubusercontent.com/NVIDIA/Megatron-LM/8971d19dda0f2bda87783353dde93a5134422a96/README.md",
+          "https://arxiv.org/html/2104.04473v5",
+          "https://docs.nvidia.com/nemo/megatron-bridge/latest/bridge-guide.html"
+        ]
+      },
+      {
+        "id": "diagnosis",
+        "evidence": "Supported. TP partitions layer arithmetic, PP partitions depth, CP partitions sequence ownership, DP supplies independent examples, and EP distributes experts. Selective recomputation replaces activation storage with repeated computation. DP alone does not divide a sample's layer arithmetic. Choosing a minimal supported configuration and measuring again is advice without a speed guarantee.",
+        "sourceUrls": [
+          "https://docs.nvidia.com/megatron-core/developer-guide/latest/user-guide/parallelism-guide.html",
+          "https://arxiv.org/html/2205.05198v1"
+        ]
+      },
+      {
+        "id": "source-contract",
+        "evidence": "Verified. The commit patch dates 8971d19dda0f2bda87783353dde93a5134422a96 to August 11, 2026. Its initializer defaults gtp_remat_size and expert_gtp_remat_size to one. The project responsibilities are accurate descriptions, without asserting exclusive ownership of tokenizer or data utilities. The inspected CPU fixtures initialize no communicator and provide no GPU-performance evidence.",
+        "sourceUrls": [
+          "https://github.com/NVIDIA/Megatron-LM/commit/8971d19dda0f2bda87783353dde93a5134422a96.patch",
+          "https://raw.githubusercontent.com/NVIDIA/Megatron-LM/8971d19dda0f2bda87783353dde93a5134422a96/megatron/core/parallel_state.py",
+          "https://raw.githubusercontent.com/NVIDIA/Megatron-LM/8971d19dda0f2bda87783353dde93a5134422a96/README.md",
+          "https://docs.nvidia.com/nemo/megatron-bridge/latest/bridge-guide.html"
+        ]
+      },
+      {
+        "id": "small-lattice",
+        "evidence": "Arithmetic verified against meshCoordinate() and the drawing. With r=t+2d+4p, rank 3 is (1,1,0); changing one coordinate gives partners 2, 1, and 7. The larger shape has 4×2×4×2=64 ranks and prefix strides [1,4,8,32], hence r=t+4c+8d+32p. Neither arithmetic nor logical adjacency establishes physical-link speed.",
+        "sourceUrls": [
+          "https://raw.githubusercontent.com/NVIDIA/Megatron-LM/8971d19dda0f2bda87783353dde93a5134422a96/megatron/core/parallel_state.py"
+        ]
+      },
+      {
+        "id": "mesh",
+        "evidence": "Verified from the actual model and independent enumeration of all 64 coordinates. Rank 3 has TP=[0,1,2,3], PP=[3,35], and pure DP=[3,11,19,27]. DP peers hold corresponding shards. SP reuses TP ranks and introduces no additional world-size factor. Rank numbering and device placement remain separate contracts.",
+        "sourceUrls": [
+          "https://raw.githubusercontent.com/NVIDIA/Megatron-LM/8971d19dda0f2bda87783353dde93a5134422a96/megatron/core/parallel_state.py",
+          "https://arxiv.org/html/2205.05198v1"
+        ]
+      },
+      {
+        "id": "rank-algorithm",
+        "evidence": "Verified. Successive quotient/remainder steps are 27=4×6+3, 6=2×3+0, 3=4×0+3, and 0=2×0+0. Reconstruction is 3+4×0+8×3+32×0=27. Actual groups are TP=[24,25,26,27], DP=[3,11,19,27], and PP=[27,59]. The pinned implementation uses equivalent prefix-stride arithmetic and rejects incompatible world divisibility. Pure DP and DP-with-CP have different roles.",
+        "sourceUrls": [
+          "https://raw.githubusercontent.com/NVIDIA/Megatron-LM/8971d19dda0f2bda87783353dde93a5134422a96/megatron/core/parallel_state.py"
+        ]
+      },
+      {
+        "id": "stored-shapes",
+        "evidence": "Verified from largerMlp() and the pinned linear layers. I/TP=16/4=4 gives mathematical up/down shapes [8,4]/[4,8], stored as [4,8]/[8,4]. Independent matrix arithmetic gives rounded output [-0.1782,-0.2062,-0.1582,-0.1862,0,-0.1782,-0.2062,-0.1582]. The model's serial/sharded maximum difference is 2.7755575615628914e-17, below 1e-12. Biases, dropout, SP, backward, and fused GPU behavior are correctly excluded.",
+        "sourceUrls": [
+          "https://raw.githubusercontent.com/NVIDIA/Megatron-LM/8971d19dda0f2bda87783353dde93a5134422a96/megatron/core/tensor_parallel/layers.py",
+          "https://arxiv.org/html/1909.08053v4"
+        ]
+      },
+      {
+        "id": "tensor",
+        "evidence": "Prior issue 3 independently closed. The actual fixture is X=[1,2], A=[[1,0,-1,0.5],[0,1,1,0]], B=[[1,0],[0,1],[1,1],[-1,1]]. XA=[1,2,1,0.5]; tanh-GeLU gives [0.8411919906,1.9545976941,0.8411919906,0.3457140098]. Partials [0.8411919906,1.9545976941] and [0.4954779808,1.1869060004] sum to serial [1.3366699714,3.1415036945], with error 4.440892098500626e-16. Elementwise activation permits the intermediate channel shards to remain local. The shared output bias follows combination.",
+        "sourceUrls": [
+          "https://arxiv.org/html/1909.08053v4",
+          "https://raw.githubusercontent.com/NVIDIA/Megatron-LM/8971d19dda0f2bda87783353dde93a5134422a96/megatron/core/tensor_parallel/layers.py"
+        ]
+      },
+      {
+        "id": "backward-bias",
+        "evidence": "Supported. For column shards Ai and replicated X, dL/dX=Σi(dL/dYi)Aiᵀ, requiring combination of contributions. SP changes the collective arrangement. The bias example is (1+2)+3=6 versus (1+3)+(2+3)=9. The pinned configuration requires query-head divisibility and query-group counts that are a multiple or divisor of TP. The speech appropriately avoids guaranteeing a specialized replication path.",
+        "sourceUrls": [
+          "https://arxiv.org/html/1909.08053v4",
+          "https://arxiv.org/html/2205.05198v1",
+          "https://raw.githubusercontent.com/NVIDIA/Megatron-LM/8971d19dda0f2bda87783353dde93a5134422a96/megatron/core/transformer/transformer_config.py",
+          "https://raw.githubusercontent.com/NVIDIA/Megatron-LM/8971d19dda0f2bda87783353dde93a5134422a96/megatron/core/tensor_parallel/layers.py"
+        ]
+      },
+      {
+        "id": "pipeline",
+        "evidence": "Verified for the explicitly labeled forward-wave model. Across p stages and m microbatches, p(m+p−1) available stage-slots contain pm useful slots. For p=2,m=1, half are idle. At fixed global batch 64 and microbatch 2, increasing DP from 4 to 8 changes m from 8 to 4, increasing idle fraction from 1/9 to 1/5. Real training costs are expressly outside this illustration.",
+        "sourceUrls": [
+          "https://arxiv.org/html/2104.04473v5"
+        ]
+      },
+      {
+        "id": "microbatch-budget",
+        "evidence": "Verified. m=64/(2×4)=8 and token positions=64×2048=131072. Idle/total=(p−1)/(m+p−1)=1/9; bubble/useful=(p−1)/m=1/8. The primary paper describes warmup, 1F1B steady state, drain, and interleaving's communication and scheduling costs. The actual displayed schedule satisfies forward and reverse-stage dependencies. The Python helper rejects fractional microbatch counts and contains no packing or ramp-up simulation.",
+        "sourceUrls": [
+          "https://arxiv.org/html/2104.04473v5"
+        ]
+      },
+      {
+        "id": "data-ownership",
+        "evidence": "Supported. The guide defines optim, optim_grads, and optim_grads_params as successively sharding optimizer state, gradients, and parameters. Hierarchical configurations can combine inner sharding with outer replication; the narration does not claim all outer strategies replicate. The pinned dense inner degree is DP×CP divided by optimizer-instance count. Expert parameters use their own domain. These ownership changes add no ranks and promise no speedup.",
+        "sourceUrls": [
+          "https://docs.nvidia.com/megatron-core/developer-guide/latest/user-guide/parallelism-guide.html",
+          "https://raw.githubusercontent.com/NVIDIA/Megatron-LM/8971d19dda0f2bda87783353dde93a5134422a96/megatron/core/parallel_state.py"
+        ]
+      },
+      {
+        "id": "context",
+        "evidence": "Prior spoken issues 2 and 4 independently closed. Actual values [1,3,9,8]/[2,4,2] give means 21/4 and 8/3. Under the stated equal-score, seven-legal-position assumption, the result is (21+8)/7=29/7≈4.142857; equal averaging gives 95/24≈3.958333. Generally Zj=Σexp(si) and o=ΣZj·oj/ΣZj. At common score ln(2), masses are 8 and 6; subtracting that score gives 4 and 3. Speech is correct. Visual-only issues remain at stages/context.mjs:87 and :101: rename 4/7 and 3/7 normalized weights, and identify unit mass as shifted-score mass from its first appearance.",
+        "sourceUrls": [
+          "https://arxiv.org/html/1706.03762v7",
+          "https://docs.nvidia.com/megatron-core/developer-guide/latest/user-guide/features/context_parallel.html"
+        ]
+      },
+      {
+        "id": "sequence-role",
+        "evidence": "Supported. SP partitions selected sequence-dimension activation work on TP peers. Current guidance recommends SP with TP and requires it for the described nontrivial TP+EP combination. Pinned configuration documents p2p, all_gather, a2a, and a2a+p2p; pinned batch partitioning implements zigzag chunks, including CP2 assignments [0,3]/[1,2]. The 8K recommendation is guidance. Dynamic CP has version, packing, alignment, and group constraints, consistent with the qualification in the speech.",
+        "sourceUrls": [
+          "https://arxiv.org/html/2205.05198v1",
+          "https://docs.nvidia.com/megatron-core/developer-guide/latest/user-guide/parallelism-guide.html",
+          "https://raw.githubusercontent.com/NVIDIA/Megatron-LM/8971d19dda0f2bda87783353dde93a5134422a96/megatron/core/transformer/transformer_config.py",
+          "https://raw.githubusercontent.com/NVIDIA/Megatron-LM/8971d19dda0f2bda87783353dde93a5134422a96/megatron/core/utils.py",
+          "https://docs.nvidia.com/nemo/megatron-bridge/latest/training/dynamic-context-parallel.html"
+        ]
+      },
+      {
+        "id": "experts",
+        "evidence": "Prior issue 5 independently closed. The actual drawing supplies T3's E2/E7 outputs [2,0]/[0,4] and weights 0.75/0.25. Their weighted sum is [1.5,1], versus unweighted [2,4]. T3 selects E2/E7 in both routing populations. Pinned unpermute multiplies by corresponding probabilities and restores source positions through indexed addition. Folding supports different attention/expert factorizations; the narration explicitly requires compatibility beyond equal products.",
+        "sourceUrls": [
+          "https://raw.githubusercontent.com/NVIDIA/Megatron-LM/8971d19dda0f2bda87783353dde93a5134422a96/megatron/core/transformer/moe/moe_utils.py",
+          "https://arxiv.org/abs/2504.14960",
+          "https://docs.nvidia.com/megatron-core/developer-guide/latest/user-guide/features/moe.html"
+        ]
+      },
+      {
+        "id": "expert-capacity",
+        "evidence": "Verified against expertCapacityReceipt() and the actual assignments. Eight tokens selecting two experts produce 16 assignments, with counts [8,3,3,2]. Capacity four drops four E2 assignments for T4–T7, retains 12 assignments, and preserves each affected token's other selected expert. Dropless routing retains uneven work. Capacity, balancing, grouped GEMM, and overlap address different costs. The small-shard and pipeline observations are qualified mechanism-based reasoning.",
+        "sourceUrls": [
+          "https://docs.nvidia.com/megatron-core/developer-guide/latest/user-guide/features/moe.html",
+          "https://arxiv.org/abs/2504.14960"
+        ]
+      },
+      {
+        "id": "folded-grid",
+        "evidence": "Verified. Attention uses 4×2×8×4=256 ranks; experts use 1×64×1×4=256. EDP replicates a given expert shard. The official guide supplies this example. Pinned initialization sets expert-generator CP to one and asserts matching pipeline groups. With PP last, both pipeline strides are 64. The speech correctly treats equal products as insufficient to establish routing, shape, checkpoint, or placement compatibility.",
+        "sourceUrls": [
+          "https://docs.nvidia.com/megatron-core/developer-guide/latest/user-guide/features/moe.html",
+          "https://raw.githubusercontent.com/NVIDIA/Megatron-LM/8971d19dda0f2bda87783353dde93a5134422a96/megatron/core/parallel_state.py",
+          "https://arxiv.org/abs/2504.14960"
+        ]
+      },
+      {
+        "id": "optimizer",
+        "evidence": "Verified for the stated conventional BF16/FP32-main-gradient Adam recipe. Model and gradient buffers cost 2+4=6 bytes; FP32 master weight and two moments cost 4+4+4=12 bytes, producing 6+12/d. The actual objective fixture has local means [10,0] and counts [1,3]: equal averaging gives 5, while the global token mean is (1×10+3×0)/4=2.5. Collective success cannot establish the intended normalization.",
+        "sourceUrls": [
+          "https://docs.nvidia.com/megatron-core/developer-guide/latest/user-guide/features/dist_optimizer.html"
+        ]
+      },
+      {
+        "id": "objective-weighting",
+        "evidence": "Verified independently. For local mean gradients gj over positive valid counts nj, the global mean is Σnjgj/Σnj; blind rank averaging generally differs when supports differ. The actual SGD rows [1,3,5,7] and [3,5,7,9] average to [2,4,6,8]. Thus [1,2,3,4]−0.1[2,4,6,8]=[0.8,1.6,2.4,3.2]. Updating two owned slices and concatenating preserves the result. This establishes CPU ownership arithmetic, with no Adam or NCCL claim.",
+        "sourceUrls": []
+      },
+      {
+        "id": "optimizer-step",
+        "evidence": "Supported. The documented recipe reduce-scatters gradients, updates owned FP32 main weights and moments, casts owned model slices, and all-gathers model parameters. Loss scaling remains a separate objective contract. For DP4, CP2, and one instance, d=4×2/1=8 and storage is 2+4+(4+8)/8=7.5 bytes per assigned parameter; d=1 gives 18. Decimal GB means 10^9 bytes. The exclusions for activations and temporary peaks are appropriate.",
+        "sourceUrls": [
+          "https://docs.nvidia.com/megatron-core/developer-guide/latest/user-guide/features/dist_optimizer.html",
+          "https://raw.githubusercontent.com/NVIDIA/Megatron-LM/8971d19dda0f2bda87783353dde93a5134422a96/megatron/core/parallel_state.py"
+        ]
+      },
+      {
+        "id": "recovery",
+        "evidence": "Prior issue 6 independently closed. The actual model splits [1,2,3,4,5,6,7,8] into four length-two slices at offsets 0,2,4,6. Independent reconstruction in reverse arrival order using those offsets restores the array; destination slices are [1,2,3,4]/[5,6,7,8]. Removing the final source slice leaves [1,2,3,4,5,6] and complete=false. Pinned metadata records global placement and validation checks coverage/overlap. Publication, migration support, and full-resume checks are production requirements, not claimed toy implementations.",
+        "sourceUrls": [
+          "https://raw.githubusercontent.com/NVIDIA/Megatron-LM/8971d19dda0f2bda87783353dde93a5134422a96/megatron/core/dist_checkpointing/mapping.py",
+          "https://raw.githubusercontent.com/NVIDIA/Megatron-LM/8971d19dda0f2bda87783353dde93a5134422a96/megatron/core/dist_checkpointing/validation.py",
+          "https://docs.nvidia.com/nemo/megatron-bridge/latest/training/checkpointing.html"
+        ]
+      },
+      {
+        "id": "resume-state",
+        "evidence": "Verified using the explicitly supplied momentum-SGD rule. Restored velocity is 0.5×0.4+1=1.2, giving 2−0.1×1.2=1.88. Reset velocity is 1, giving 1.9. Both branches begin at weight 2, so a deterministic pre-update forward can agree while updates differ. RNG, scheduler, iteration, and data continuation require separate checks. The example makes no Adam-default assertion.",
+        "sourceUrls": [
+          "https://docs.nvidia.com/nemo/megatron-bridge/latest/training/checkpointing.html"
+        ]
+      },
+      {
+        "id": "checkpoint-formats",
+        "evidence": "Verified. Core 0.18.0 documents buffer-based dp_reshardable with DP-only resharding and parameter-shaped fully_reshardable optimizer state. Bridge documents pure-DP Energon stream files shared by CP peers, an exception when the selected iteration directory exists but its rank file is missing, and restart from the beginning when the root or selected directory is absent. Async initiation differs from completion. Checksums do not establish semantic compatibility or trusted deserialization. Conversion is correctly distinguished from full resume.",
+        "sourceUrls": [
+          "https://docs.nvidia.com/megatron-core/developer-guide/0.18.0/apidocs/core/core.optimizer.distrib_optimizer.html",
+          "https://docs.nvidia.com/nemo/megatron-bridge/latest/training/checkpointing.html",
+          "https://docs.pytorch.org/docs/2.15/notes/serialization.html"
+        ]
+      },
+      {
+        "id": "precision-recipes",
+        "evidence": "Prior spoken issue 7 closed for the narrower checked-examples wording: fresh Node calculations and existing construction checks validate the CPU examples. TE documents historical amax versus current-tensor scaling, MXFP8 scales over 32 values, and NVFP4's finer scaling and safeguards. Operand format does not determine all persistent-state dtypes. BF16 comparisons are validation advice. Visual-only remedy remains at stages/precision-recipes.mjs:84: replace the historical execution footer with the narration's checked-CPU-examples wording.",
+        "sourceUrls": [
+          "https://docs.nvidia.com/deeplearning/transformer-engine/examples/fp8_primer.html",
+          "https://docs.nvidia.com/deeplearning/transformer-engine/features/low_precision_training/fp8_current_scaling/fp8_current_scaling.html",
+          "https://docs.nvidia.com/deeplearning/transformer-engine/features/low_precision_training/fp8_delayed_scaling/fp8_delayed_scaling.html",
+          "https://docs.nvidia.com/deeplearning/transformer-engine/features/low_precision_training/mxfp8/mxfp8.html",
+          "https://docs.nvidia.com/deeplearning/transformer-engine/features/low_precision_training/nvfp4/nvfp4.html"
+        ]
+      },
+      {
+        "id": "mfu-receipt",
+        "evidence": "Verified. The research definition excludes recomputation from model FLOPs while hardware FLOPs count executed recomputation. For a common interval, 40/100=40% and (40+10)/100=50%. The pinned README reports H100 strong scaling from 96 to 4608 GPUs at fixed batch 1152, with MFU decreasing from 47% to 42%. Vocabulary, sequence length, overlap settings, and the absence of convergence measurement are documented. These remain attributed project results, and MFU alone establishes no learning-quality outcome.",
+        "sourceUrls": [
+          "https://arxiv.org/html/2205.05198v1",
+          "https://raw.githubusercontent.com/NVIDIA/Megatron-LM/8971d19dda0f2bda87783353dde93a5134422a96/README.md"
+        ]
+      },
+      {
+        "id": "measured-trace",
+        "evidence": "Prior spoken issue 1 independently closed. NCCL documents asynchronous device execution. NCCL tests define duration t, algorithm bandwidth S/t, and collective-adjusted bus bandwidth, including the all-reduce factor 2(n−1)/n. Nsight Systems supports host/device timelines; Nsight Compute profiles kernel behavior, including occupancy. Active warps alone cannot identify link contention. The bottleneck statements are hypotheses to inspect. Visual-only remedy remains at stages/measured-trace.mjs:62: replace the denominator footer with duration, S/t, and the collective traffic factor.",
+        "sourceUrls": [
+          "https://docs.nvidia.com/deeplearning/nccl/user-guide/docs/usage/streams.html",
+          "https://raw.githubusercontent.com/NVIDIA/nccl-tests/master/doc/PERFORMANCE.md",
+          "https://docs.nvidia.com/nsight-systems/UserGuide/index.html",
+          "https://docs.nvidia.com/nsight-compute/ProfilingGuide/index.html"
+        ]
+      },
+      {
+        "id": "research-ownership",
+        "evidence": "Prior spoken issue 8 independently closed. The papers support paired TP cuts, composed parallelism and schedules, SP/selective recomputation, and folding. The pinned license specifies default redistribution conditions and separate third-party notices. Current policy requires DCO sign-off, prior architectural discussion, and passing CI before ready-for-review status. External assets retain separate terms. Visual-only remedy remains at stages/research-ownership.mjs:48: replace the ambiguous testing tag with 'CI passing before ready for review + DCO sign-off'.",
+        "sourceUrls": [
+          "https://arxiv.org/html/1909.08053v4",
+          "https://arxiv.org/html/2104.04473v5",
+          "https://arxiv.org/html/2205.05198v1",
+          "https://arxiv.org/abs/2504.14960",
+          "https://raw.githubusercontent.com/NVIDIA/Megatron-LM/8971d19dda0f2bda87783353dde93a5134422a96/LICENSE",
+          "https://docs.nvidia.com/megatron-core/developer-guide/latest/developer/contribute.html",
+          "https://docs.nvidia.com/megatron-core/developer-guide/latest/developer/submit.html"
+        ]
+      },
+      {
+        "id": "fit-boundary",
+        "evidence": "Supported as qualified engineering guidance. Core exposes language, MoE, multimodal, and hybrid implementations; Bridge uses architecture-specific mappings. This does not promise arbitrary model compatibility. The one-GPU comparison expresses a possible preference rather than a measured ranking. Compute Sanitizer checks memory-access and synchronization properties; those checks establish neither learning quality nor faster training.",
+        "sourceUrls": [
+          "https://docs.nvidia.com/megatron-core/developer-guide/latest/models/index.html",
+          "https://docs.nvidia.com/nemo/megatron-bridge/latest/bridge-guide.html",
+          "https://docs.nvidia.com/compute-sanitizer/ComputeSanitizer/index.html"
+        ]
+      },
+      {
+        "id": "earned-return",
+        "evidence": "Verified against momentumReceipt() and independent arithmetic. The rank product is 2×2×4×2=32. With w=1.5,x=2,y=2, prediction=3 and gradient=(3−2)×2=2. Restored velocity=0.5×0.8+2=2.4, yielding w'=1.26; reset velocity yields 1.3. For stale x=1,y=2, gradient=−0.5, velocity=−0.1, and w'=1.51. Restoring the correct next example from the saved starting state recovers 1.26. Migration is explicitly assumed. The DeepSpeed preview accurately describes sharded state and temporary parameter collection.",
+        "sourceUrls": [
+          "https://www.deepspeed.ai/tutorials/zero/"
+        ]
+      }
+    ],
+    "findings": [],
+    "limitations": [
+      "No substantive factual error or unsupported guarantee was found in the current spoken narration. This covers all 29 supplied scenes, not publication approval or quiz certification.",
+      "Verified current script hash b6a7c6903383ecd7 and lesson SHA-256 7b6fdfd7fdc30f93e5159d3ba3de62f883663ee5483ec7c1770c856fabfbae50. Only context/1, precision-recipes/2, measured-trace/1, and research-ownership/1 differ from the older lesson.",
+      "All eight prior spoken issues were independently reassessed and closed. The four previously identified visual-source remedies remain open and are specified in the corresponding scene evidence.",
+      "Inspected the actual film model, fixtures, construction functions, validation, and scene drawing sources. The stage-lesson folder has no index.mjs or stage scenes. No rendered frames, playback, measured speech, or cue-timing audit was performed.",
+      "Fresh film-model validation, independent Node arithmetic, and the existing construction tests passed. Rerunning the supplied Python checker through uv was blocked by the read-only sandbox: Operation not permitted while creating a temporary directory. Python snippets were inspected; their arithmetic was independently recalculated in Node.",
+      "The attention result depends on the explicitly stated equal scores and seven legal positions. The film supplies values and assumptions, not Q/K tensors or a production attention execution.",
+      "Checkpoint recovery was checked as in-memory array reconstruction and repartitioning. No checkpoint serialization, distributed migration, asynchronous save completion, or full training resume was executed.",
+      "No GPU training, NCCL communication, profiler capture, low-precision kernel experiment, throughput measurement, or convergence validation was performed. The narration's unrun-lab disclosure is consistent with the supplied production record; historical execution provenance was not independently reconstructed.",
+      "Mutable primary documentation was consulted during this review. Pinned-source conclusions apply to commit 8971d19dda0f2bda87783353dde93a5134422a96; live-guide statements remain version-sensitive.",
+      "The article's broader contribution-policy wording remains an editorial question outside the spoken narration. It was not treated as evidence for the repaired speech.",
+      "No files were edited, no external writes were made, and no subagents were used."
+    ]
+  },
+  "reviewedNarration": {
+    "source": "videos/stage-lessons/deep-dive-megatron/lesson.yaml",
+    "script": "b6a7c6903383ecd7",
+    "scenes": [
+      {
+        "id": "intro",
+        "beats": [
+          {
+            "say": "A training job can gain GPUs and still take longer per update. The work has to be divided along useful boundaries, and every division introduces communication. Megatron begins with ownership: which worker computes a layer shard, which processes another sample, and which holds the next layer range?\n"
+          },
+          {
+            "say": "Megatron Core supplies parallel layers, process groups, schedules and optimizer machinery. Megatron-LM provides reference training recipes around those building blocks. Megatron Bridge connects checkpoint representations and recipes across ecosystems. These projects cooperate, while their interfaces answer different implementation questions.\n"
+          },
+          {
+            "say": "We will place one rank on a mesh, split a small feed-forward calculation, fill a pipeline and exchange remote attention context. Then we will connect optimizer ownership to a recoverable checkpoint. Every calculation uses small constructed inputs so the ownership changes remain visible.\n"
+          }
+        ]
+      },
+      {
+        "id": "diagnosis",
+        "beats": [
+          {
+            "say": "A worker that cannot store one wide matrix needs a different split from a worker waiting for a hot expert. Tensor parallelism divides layer channels; pipeline parallelism divides layer ranges; context parallelism divides sequence positions. Data replicas process independent samples. Expert parallelism distributes sparse networks. Selective recomputation trades stored activations for repeated forward arithmetic."
+          },
+          {
+            "say": "Follow one sample through that choice. Its tensor shards cooperate inside layers, its activation crosses pipeline boundaries, and its queries may consume remote context. Data parallelism supplies other samples rather than shortening this sample’s path. Use the smallest supported combination that removes the measured wall, then inspect the new wait."
+          }
+        ]
+      },
+      {
+        "id": "source-contract",
+        "beats": [
+          {
+            "say": "This tour anchors rank construction to the article’s August twenty twenty-six commit ending four four two two a nine six. Additional generalized-tensor weight-rematerialization factors stay one in our fixtures. That is a declared baseline, not a promise that every newer launch has the same factors. A live guide can change independently of this source."
+          },
+          {
+            "say": "Core owns parallel modules, process groups, schedules and distributed state. The reference trainer owns a runnable experiment’s data, tokenizer, logging and arguments. Bridge supplies conversion and training workflows. Record Core, Bridge, Transformer Engine, CUDA, NCCL and PyTorch identities together. The CPU calculations here initialize no communicator and establish no GPU throughput or convergence."
+          }
+        ]
+      },
+      {
+        "id": "small-lattice",
+        "beats": [
+          {
+            "say": "Begin with eight ranks: two tensor coordinates, two data coordinates and two pipeline coordinates. Tensor varies fastest, then data, then pipeline. Rank three is tensor one, data one, pipeline zero. Its tensor partner is two; its data partner is one; its pipeline partner is seven. Vary one coordinate while retaining the others."
+          },
+          {
+            "say": "For the larger dense fixture, tensor four, context two, data four and pipeline two multiply to sixty-four. The chosen strides are one, four, eight and thirty-two. A global rank equals tensor coordinate plus four times context, plus eight times data, plus thirty-two times pipeline. Logical adjacency still needs a launcher placement receipt before it implies a fast physical link."
+          }
+        ]
+      },
+      {
+        "id": "mesh",
+        "beats": [
+          {
+            "say": "Factor this dense world into tensor shards, pipeline stages, context lanes and data replicas. Their product assigns every rank once. In our chosen ordering, tensor coordinates change fastest. Highlight rank three and follow the nearby tensor peers that cooperate on its layer arithmetic.\n"
+          },
+          {
+            "say": "Change the selected group to pipeline peers. The partner now has a distant global rank number because the pipeline coordinate changes on a larger stride. Rank numbering describes a logical layout. The launcher must still place those ranks on suitable devices and physical links.\n"
+          },
+          {
+            "say": "Finally highlight the data peers. They process independent examples while holding corresponding model shards. Each operation communicates in the group that owns its data. Context parallelism adds a sequence axis; sequence parallelism reuses tensor peers for selected activation work and adds no extra world-size factor.\n"
+          }
+        ]
+      },
+      {
+        "id": "rank-algorithm",
+        "beats": [
+          {
+            "say": "The numbering helper repeatedly takes the remainder by an axis size, then divides the remaining rank by that size using integer division. For rank twenty-seven, the tensor remainder is three. After division, context remainder is zero; data remainder is three; pipeline remainder is zero. Rebuilding gives three plus twenty-four, or twenty-seven."
+          },
+          {
+            "say": "Its tensor group is twenty-four through twenty-seven. Its pure data group is three, eleven, nineteen and twenty-seven. Its pipeline partner is fifty-nine. The pinned rank generator builds groups from these dimensions and rejects a world that does not divide by the model-parallel product. Independent batch count uses pure data replicas; dense gradient ownership can include context peers."
+          }
+        ]
+      },
+      {
+        "id": "stored-shapes",
+        "beats": [
+          {
+            "say": "The article’s larger MLP uses hidden width eight, intermediate width sixteen and four tensor shards. In mathematical input-times-weight notation, each up shard is eight by four and each down shard is four by eight. The source stores linear weights as output features by input features: four by eight, then eight by four. The transpose preserves the same ownership."
+          },
+          {
+            "say": "The article’s standard-library tanh approximation to GeLU computes the serial eight-coordinate output, then sums four sharded partial vectors. Their maximum difference stays below ten to the minus twelve for that supplied calculation. This checks CPU decomposition with biases, dropout, sequence parallelism and backward omitted. Fused GPU kernels have their own rounding and tolerances."
+          }
+        ]
+      },
+      {
+        "id": "tensor",
+        "beats": [
+          {
+            "say": "Split the output channels of a feed-forward layer's first projection. Each rank receives the same input but owns different intermediate channels. Our small matrices calculate the four projected coordinates explicitly. The two highlighted groups are real channel shards, rather than independent data examples.\n"
+          },
+          {
+            "say": "Apply GeLU separately to each local coordinate. An elementwise function needs no neighboring channel values, so these shards can remain local. The following projection owns matching rows. Each rank turns its local activation slice into a partial contribution to the final output vector.\n"
+          },
+          {
+            "say": "Sum the partial output vectors and compare with the serial calculation. They agree within numerical precision. This column-then-row structure avoids gathering intermediate channels between the projections. Other communication appears in backward or sequence-parallel variants, and a final output bias belongs after the partial sums combine.\n"
+          }
+        ]
+      },
+      {
+        "id": "backward-bias",
+        "beats": [
+          {
+            "say": "The forward sum is only part of training communication. In backward, each column shard contributes to the gradient of the same replicated input, so those input-gradient contributions must combine. Sequence-parallel paths can replace some replicated reductions with reduce-scatter and all-gather. Do not count the one-forward-all-reduce drawing as a full training trace."
+          },
+          {
+            "say": "For a bias check, supplied partial outputs are one and two, with one shared output bias of three. Sum the partials and add the bias once: six. Adding that bias on both shards before the sum gives nine. The problem is duplicated model arithmetic, even if the collective succeeds. Query-head and key/value-group divisibility also constrain attention sharding; do not assume a specialized replication path."
+          }
+        ]
+      },
+      {
+        "id": "pipeline",
+        "beats": [
+          {
+            "say": "Pipeline parallelism divides layer depth between stages. With one microbatch, the second stage waits for the first activation, and the first later waits while the second finishes. Our forward-wave demonstration makes that startup and drain visible with equal-duration stages.\n"
+          },
+          {
+            "say": "Feed several independent microbatches through the stages. Useful work overlaps across them and the ideal idle fraction falls. A real training schedule also includes backward, communication and possible stage imbalance. This simple model explains the bubble's denominator before those costs enter.\n"
+          },
+          {
+            "say": "Keep the global batch fixed and double the data replicas. Each replica now receives fewer microbatches, so its pipeline fills less effectively. More GPUs can save memory yet expose a larger bubble. Count independent samples when deriving microbatches; tensor and context copies do not create extra examples.\n"
+          }
+        ]
+      },
+      {
+        "id": "microbatch-budget",
+        "beats": [
+          {
+            "say": "Microbatches per replica equal global batch divided by the product of microbatch size and pure data degree. The article’s sixty-four examples, microbatch two and data degree four give eight. At sequence length two thousand forty-eight, that update contains one hundred thirty-one thousand seventy-two token positions before padding and loss masks. Tensor and context copies add no independent examples."
+          },
+          {
+            "say": "For equal stages and a non-interleaved idealization, idle fraction is pipeline stages minus one, divided by the quantity microbatches plus pipeline stages minus one. Bubble time relative to useful compute instead divides pipeline stages minus one by microbatches. With two stages and eight microbatches these are one ninth and one eighth. Different denominators describe the same idealized schedule."
+          },
+          {
+            "say": "A one-forward-one-backward training schedule also has warmup, steady state and drain. Virtual pipeline chunks can reduce bubbles but add scheduling and communication constraints. Unequal stages, message latency and insufficient compute to overlap change the result. The CPU batch helper rejects fractional microbatches; it does not simulate ramp-up or variable-length packing."
+          }
+        ]
+      },
+      {
+        "id": "data-ownership",
+        "beats": [
+          {
+            "say": "Data parallelism repeats corresponding model shards while processing independent examples. Megatron-FSDP changes ownership inside that existing domain. The named strategies shard optimizer state; then optimizer state and gradients; then optimizer state, gradients and parameters. Those choices add no new ranks to the dense world-size product."
+          },
+          {
+            "say": "Hierarchical optimizer instances can divide a synchronization domain into smaller sharding domains plus outer replication. A dense parameter repeated over data and context peers can therefore have a different optimizer denominator from an expert parameter. Inspect the actual parameter group, context degree and instance count before applying a memory equation. Changing ownership does not by itself prove a shorter update."
+          }
+        ]
+      },
+      {
+        "id": "context",
+        "beats": [
+          {
+            "say": "A long sequence can be partitioned across context peers. Each peer holds only some positions, but a query can still need keys from the whole legal prefix. Our equal-score query exposes the difference between using its local shard alone and using all allowed positions.\n"
+          },
+          {
+            "say": "Bring the remote context into the calculation. The two partial means need weights proportional to their normalization masses. A shard's normalization mass is the sum of exponentiated scores over its allowed keys. Equal scores make those masses proportional to key counts. Subtracting the common score before exponentiating gives each key one unit of mass. The combined result matches attention over the complete seven-position prefix.\n"
+          },
+          {
+            "say": "Preserve global positions and causal masking during that exchange. Actual implementations choose communication layouts and balanced chunks around the workload. Sequence parallelism has a narrower activation-memory role on tensor peers. It does not make full attention valid using only each peer's local tokens.\n"
+          }
+        ]
+      },
+      {
+        "id": "sequence-role",
+        "beats": [
+          {
+            "say": "Sequence parallelism reuses tensor peers for selected sequence-dimension activation work such as LayerNorm and dropout. It adds no world-size factor. Context parallelism adds sequence-owning peers, while attention still consumes remote legal keys and values. Balanced implementations may assign noncontiguous chunks so that causal work is more even than a simple early-half, late-half split."
+          },
+          {
+            "say": "The current guide recommends sequence parallelism with tensor parallelism and requires it for the supported nontrivial tensor-plus-expert combination it describes. Context exchange can use point-to-point, all-gather, all-to-all or hierarchical layouts. An eight-thousand-token recommendation is a workload suggestion, not a minimum length for correctness. Dynamic context degrees need separate shape and performance checks."
+          }
+        ]
+      },
+      {
+        "id": "experts",
+        "beats": [
+          {
+            "say": "Expert parallelism places different expert networks on different ranks. One source token can select several experts, creating several routed assignments. Follow token T-three to two experts. The system must preserve its source identity so returned vectors can be restored to the correct output position.\n"
+          },
+          {
+            "say": "Apply the router weights when combining those vectors. Our unequal weights produce the calculated result below. Returning unweighted expert outputs would change the model. Route skew can also create a hot expert even when the total token count stays fixed, so inspect each expert's work.\n"
+          },
+          {
+            "say": "Attention and experts can factor the same rank world differently. The two products shown here both use the same total workers. Folding can keep an expert's matrix wider while changing expert ownership. This requires compatible model shapes, routing metadata, placement and checkpoint representation rather than multiplying another expert axis into an already complete world.\n"
+          }
+        ]
+      },
+      {
+        "id": "expert-capacity",
+        "beats": [
+          {
+            "say": "Two selected experts create two assignments per token. Permutation groups those assignment rows for expert execution; combine restores each source position with its router weights. Capacity dropping may remove an overflowing assignment, while a dropless dispatcher retains uneven work. The source token can still have other selected or residual paths. Count assignments and affected tokens separately."
+          },
+          {
+            "say": "A hot expert is a queue even when total tokens and total assignments stay fixed. Capacity, balancing loss, grouped GEMM and overlap address different costs. Read per-expert counts alongside dispatch and combine time. A small expert divided into too many tensor shards can lose efficient matrix size while retaining collective cost; changing pipeline depth alone does not repair that imbalance."
+          }
+        ]
+      },
+      {
+        "id": "folded-grid",
+        "beats": [
+          {
+            "say": "The article’s attention grid uses tensor four, context two, data eight and pipeline four: two hundred fifty-six ranks. Its expert grid uses expert tensor one, expert sixty-four, expert data one and pipeline four: the same two hundred fifty-six. Expert data means copies of a given expert shard. It need not equal attention’s data degree."
+          },
+          {
+            "say": "The pinned implementation constructs separate dense and expert rank generators, with context one in the expert generator. Their pipeline groups must match. Folding can break the older expert-degree-at-most-data-degree constraint, but a correct product is only a first check. Expert count, tensor shapes, routing metadata, checkpoint keys and physical placement must also be compatible."
+          }
+        ]
+      },
+      {
+        "id": "optimizer",
+        "beats": [
+          {
+            "say": "Computation ownership and optimizer storage are related choices. In this conventional recipe, model and gradient buffers retain six bytes per assigned parameter. Twelve further bytes belong to the master weight and Adam moments. A distributed optimizer partitions that second block across its actual sharding group.\n"
+          },
+          {
+            "say": "Increase the group size and watch the optimizer-owned share shrink. Dense weights can repeat across context peers as well as data peers, so the group may be larger than the pure data degree. Activations and temporary buffers remain outside this persistent-state formula.\n"
+          },
+          {
+            "say": "Reduction must also preserve the intended objective. One replica averages one valid token while another averages three. An equal average of those local means gives a different gradient from the global token mean. A correct collective and equal tensor shapes cannot detect a wrongly weighted loss.\n"
+          }
+        ]
+      },
+      {
+        "id": "objective-weighting",
+        "beats": [
+          {
+            "say": "A global token mean weights each local mean by its valid-token count, sums those weighted contributions, then divides by the total valid count. Averaging equally weighted local means is valid only under compatible support and normalization. Context pieces of one sample must not become additional independent examples through a blind division by every group dimension."
+          },
+          {
+            "say": "The article’s equal-replica SGD helper reduces corresponding gradients, partitions the reduced buffer, updates each owned slice and concatenates the results. Parameters one through four with replica gradients one, three, five, seven and three, five, seven, nine become point eight, one point six, two point four and three point two at learning rate point one. This is a CPU ownership fixture, not Adam or NCCL."
+          }
+        ]
+      },
+      {
+        "id": "optimizer-step",
+        "beats": [
+          {
+            "say": "Begin with complete local gradient buffers. Reduce-scatter combines corresponding contributions and returns an owned reduced slice. Each owner updates its FP thirty-two main parameters and optimizer moments. It casts the updated model slice to the recipe’s model dtype, then all-gather rebuilds the model-parameter buffer needed by the next forward. Scaling must match the declared objective."
+          },
+          {
+            "say": "For the conventional BF sixteen parameter and FP thirty-two main-gradient recipe, two plus four bytes remain replicated. Four bytes for the master parameter and eight for two Adam moments are shardable. Persistent bytes per assigned parameter are six plus twelve divided by the actual sharding degree. One decimal gigabyte is one billion bytes. At data four and context two, one optimizer instance gives degree eight and seven point five bytes. Activations and temporary peaks remain additional."
+          }
+        ]
+      },
+      {
+        "id": "recovery",
+        "beats": [
+          {
+            "say": "A distributed checkpoint maps rank-local pieces back to global tensors. Our constructed example reconstructs an ordered tensor and repartitions it into fewer shards. The global positions stay the same even though rank-local ownership changes. Real checkpoint formats have their own supported resharding boundaries.\n"
+          },
+          {
+            "say": "Remove one required shard and the checkpoint remains incomplete. A save request and a directory name do not establish a finished recovery artifact. Publish after required pieces and metadata complete, and validate that the selected format supports the intended model and topology change.\n"
+          },
+          {
+            "say": "A successful forward comparison checks reconstructed model behavior. A full resume also compares optimizer history, the next update, random state and data position. Megatron scales a coherent training program when mesh coordinates, tensor math, communication and recovery all preserve the same meaning. Measure the waits introduced by each new axis.\n"
+          }
+        ]
+      },
+      {
+        "id": "resume-state",
+        "beats": [
+          {
+            "say": "A weight-only reload can match a forward and still change the next update. Use a labeled momentum-SGD toy, not a claim about Adam defaults. The rule sets new velocity to momentum coefficient times old velocity plus the current gradient; new weight is old weight minus learning rate times that new velocity."
+          },
+          {
+            "say": "Supply weight two, velocity point four, coefficient one half, gradient one and learning rate point one. Restoring full state gives velocity one point two and weight one point eight eight. Resetting velocity gives one and weight one point nine. The same pre-update weight gave matching forwards, but the next updates differ. Random state, scheduler, iteration and data position are separate recovery predicates."
+          }
+        ]
+      },
+      {
+        "id": "checkpoint-formats",
+        "beats": [
+          {
+            "say": "The versioned optimizer API distinguishes a buffer-based data-parallel-reshardable representation from a parameter-shaped fully-reshardable representation. The first permits its documented data-axis changes; its name does not grant a tensor-degree change. Model architecture and the requested checkpoint format still bound what a full job can migrate."
+          },
+          {
+            "say": "Bridge’s current Energon contract keys stream state by pure data rank. Context peers share that stream file. If the selected saved-state directory exists but the new rank’s file is missing, restoration raises instead of silently changing order. A completely absent state root has a different documented restart-from-beginning behavior. Check the actual selected checkpoint and data cursor rather than inferring them from a weight manifest."
+          },
+          {
+            "say": "Asynchronous save initiation is not completed recovery publication. Required shards and metadata must finish. Checksums test byte integrity; they do not establish layout compatibility or trusted deserialization. Preserve the run configuration and use only trusted checkpoint inputs. Ecosystem weight conversion and full training resume answer different questions."
+          }
+        ]
+      },
+      {
+        "id": "precision-recipes",
+        "beats": [
+          {
+            "say": "BF sixteen, FP sixteen, FP eight and FP four name formats, not complete training recipes. Transformer Engine couples supported operations to scaling, accumulation, hardware and numerical safeguards. Delayed scaling uses preceding absolute-maximum history; current scaling derives a scale from the tensor being quantized. They need not choose the same scale after an outlier changes."
+          },
+          {
+            "say": "The article describes MXFP eight with a scale per thirty-two-value block and NVFP four with finer block scaling and extra training safeguards. They require their supported hardware and kernels. Tensor-level history is not mandatory for every recipe. Four-bit matrix operands do not turn all master weights, gradients and Adam moments into four-bit persistent state."
+          },
+          {
+            "say": "Keep a BF sixteen baseline. Compare fixed-batch logits, loss and gradients or a complete update within declared tolerances, then validation slices and checkpoint reload. A faster matrix kernel can fail those other conditions. The supplied CPU arithmetic and ownership examples have been checked. The separately labeled GPU training experiment remains unrun."
+          }
+        ]
+      },
+      {
+        "id": "mfu-receipt",
+        "beats": [
+          {
+            "say": "Model FLOPs utilization divides useful model FLOPs per second by the selected hardware peak. Useful model arithmetic excludes extra activation recomputation. A hardware-work numerator may count that recomputation. For a supplied toy interval, useful work forty, extra recomputation ten and capacity one hundred give model utilization forty percent and hardware-work utilization fifty percent."
+          },
+          {
+            "say": "The pinned README’s H one hundred strong-scaling study holds one thousand one hundred fifty-two sequences fixed while growing from ninety-six to four thousand six hundred eight GPUs. It reports forty-seven to forty-two percent MFU with its stated vocabulary, sequence and overlap configuration, without training to convergence. These are project-reported results, not measurements from this lecture. Changing precision peak or the FLOP convention changes the ratio; MFU establishes no learning quality."
+          }
+        ]
+      },
+      {
+        "id": "measured-trace",
+        "beats": [
+          {
+            "say": "Freeze global examples, token positions, loss masks, microbatch, precision and code identity before comparing meshes. CUDA stream calls are asynchronous. A host timer around enqueue measures submission, not necessarily completed device work. Use compatible device-event or synchronized timing boundaries, warmup and repeated windows. Record memory high-water marks and the slow communication tail alongside step time."
+          },
+          {
+            "say": "Nsight Systems locates host gaps, streams, launches and overlapping stages. Nsight Compute examines a selected kernel’s memory, arithmetic and occupancy behavior. Active warps alone do not diagnose a link stall. NCCL tests report operation time as a duration. Algorithm bandwidth is payload bytes divided by that time. Bus bandwidth multiplies algorithm bandwidth by a collective-specific traffic factor. Keep operation, payload and rank count beside the number."
+          },
+          {
+            "say": "If every layer slows after raising tensor degree, inspect whether those tensor peers cross a slow physical link. Pipeline idle lanes suggest insufficient independent microbatches or stage imbalance. Context stalls suggest remote-context exchange; expert tails suggest skew or dispatch congestion; a data-state memory win can expose reduce-scatter or all-gather tails. Change one causal input and keep the workload matched."
+          }
+        ]
+      },
+      {
+        "id": "research-ownership",
+        "beats": [
+          {
+            "say": "The tensor-parallel paper pairs column and row cuts to avoid an unnecessary intermediate exchange. Later cluster work composes tensor, pipeline and data parallelism with schedules. Sequence parallelism and selective recomputation address activation memory and redundant work. Parallel folding gives attention and experts different mappings. Use each paper to predict communication, then trace the pinned code that performs it."
+          },
+          {
+            "say": "The repository is NVIDIA-led. Its top-level license applies its stated redistribution terms unless a file says otherwise and retains separate third-party notices. Model weights, tokenizers, datasets and commercial products carry their own terms. Public contributions require Developer Certificate of Origin sign-off. Automated checks must pass before a pull request is marked ready for review. Discuss large architectural changes first. Source access is neither a hosted training endpoint nor permission for every external asset."
+          }
+        ]
+      },
+      {
+        "id": "fit-boundary",
+        "beats": [
+          {
+            "say": "This stack is useful when you control a cluster and need the parallel training and recovery machinery enough to manage its topology. Builders and conversion paths can support new dense, MoE, multimodal or hybrid models, but each model needs compatible shapes and state mapping. Version skew and combinatorial launch choices become real debugging work."
+          },
+          {
+            "say": "A one-GPU adaptation that already fits may value a shorter iteration path more than a larger mesh. Before accepting any faster candidate, compare a fixed batch, a gradient or next update, route and global-position invariants where relevant, a short validation slice and recovery. Compute Sanitizer can test kernel memory and synchronization defects; it does not establish loss quality or a faster training program."
+          }
+        ]
+      },
+      {
+        "id": "earned-return",
+        "beats": [
+          {
+            "say": "Return to a new supplied recovery receipt. Repartition thirty-two ranks as tensor two, context two, data four and pipeline two. Assume this toy tensor migration is supported and all tensor bytes match. Saved weight is one point five, velocity point eight, momentum one half and learning rate point one. The next example has input two and target two. Its half-squared loss gradient is prediction minus target, multiplied by input. Only velocity was lost. Predict both next weights. Pause."
+          },
+          {
+            "say": "The prediction is three, so the gradient is two. Full state gives velocity two point four and next weight one point two six. A velocity reset gives next weight one point three. Matching tensor bytes and a matching initial forward did not preserve the optimizer step. Restore the velocity before declaring full resume."
+          },
+          {
+            "say": "Now keep the repaired velocity but accidentally restart at an older example, input one and target two. The current weight is still the saved one point five. Predict the update and decide whether restoring optimizer state alone repairs the receipt. Pause."
+          },
+          {
+            "say": "That stale example gives gradient minus one half, velocity minus one tenth and next weight one point five one. Restore the saved next-example position to recover one point two six. The rank product, tensor identity, optimizer history and data position were four separate checks. A coherent training program preserves all four, then measures the waits introduced by its mesh. DeepSpeed next asks which rank must retain each training tensor between computations, tracking sharded state, temporary gathers and the exact update a resumed job must reproduce."
+          }
+        ]
+      }
+    ]
+  }
+}

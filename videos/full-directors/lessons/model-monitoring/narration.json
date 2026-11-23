@@ -1,0 +1,693 @@
+[
+  {
+    "id": "c01",
+    "title": "When the queues were measured",
+    "sourceChapters": [
+      "c01"
+    ],
+    "beats": [
+      {
+        "id": "c01-b01",
+        "say": "It’s noon in the scheduler room. Two measurements are pinned to the clock. At nine, the queue held twenty-two jobs. At eleven fifty-five, it held forty. Each pin stays where the scheduler took the reading.",
+        "hold": 0.45
+      },
+      {
+        "id": "c01-b02",
+        "say": "Our model flags jobs at risk of missing a deadline. Sweep back one hour from noon. The model can use a snapshot taken anywhere on that arc, including its endpoints. Which count can it use?",
+        "hold": 3.2
+      },
+      {
+        "id": "c01-b03",
+        "say": "Block the nine o’clock snapshot. The service answered in forty milliseconds, but the count was three hours old. Use the forty jobs measured at eleven fifty-five. That snapshot is five minutes old. At the moment it was taken, the scheduler had been silent for thirty hours.",
+        "hold": 0.65
+      },
+      {
+        "id": "c01-b04",
+        "say": "That job scores point nine one and goes to review. Did it actually miss its deadline? Leave the outcome space open. We checked the inputs when the request arrived. Finding out which misses we caught takes a second kind of evidence.",
+        "hold": 0.8
+      }
+    ]
+  },
+  {
+    "id": "c02",
+    "title": "Which clock measured those two hours?",
+    "sourceChapters": [
+      "c02"
+    ],
+    "beats": [
+      {
+        "id": "c02-b01",
+        "say": "Follow one more job. The scheduler sent a heartbeat at nine fifty. The feature service took a snapshot at eleven fifty. It recorded eighteen jobs in the queue and two hours since the last heartbeat. Those two hours are an input to the model.",
+        "hold": 0.6
+      },
+      {
+        "id": "c02-b02",
+        "say": "The request arrived at noon. From the snapshot to the request is just ten minutes. That is the age we check before scoring. A fresh snapshot can tell us a worker has been silent for a long time.",
+        "hold": 0.65
+      },
+      {
+        "id": "c02-b03",
+        "say": "Keep that trace with the prediction. Version three scored the job at point one eight, below its review threshold of point five. Save the input revisions, model and transform versions, prediction time and deadline. When the verified label arrives, record its arrival time too.",
+        "hold": 0.3
+      },
+      {
+        "id": "c02-b04",
+        "say": "To replay the decision tomorrow, read the saved record as of noon. Ten minutes describes the age of the snapshot. Two hours describes the worker when the snapshot was taken. A recent heartbeat value inside an old snapshot would still fail the freshness check.",
+        "hold": 0.7
+      }
+    ]
+  },
+  {
+    "id": "c03",
+    "title": "Check each request before using its score",
+    "sourceChapters": [
+      "c03"
+    ],
+    "beats": [
+      {
+        "id": "c03-b01",
+        "say": "Here are all six requests. First check the queue count and heartbeat age. Both must be finite, nonnegative numbers. A queue count must also be a whole number. A value of true in that field would stop the request. Next, read the timestamp with its time zone.",
+        "hold": 0.3
+      },
+      {
+        "id": "c03-b02",
+        "say": "Compare the request time with the snapshot time in the same time zone. Accept an age from zero to sixty minutes, including both endpoints. At noon, ten fifty-nine is already sixty-one minutes old. A future timestamp stops the request too.",
+        "hold": 0.55
+      },
+      {
+        "id": "c03-b03",
+        "say": "Five snapshots meet the age limit. Row s-103 is only fifteen minutes old, but its backlog is missing. Row s-104 has a value from one hundred eighty minutes ago, so the system blocks it.",
+        "hold": 0.6
+      },
+      {
+        "id": "c03-b04",
+        "say": "Four jobs reach the model. For the other two, use the fallback and check the queue feed. Even a fresh timestamp can sit on yesterday’s count if the feed stopped updating. Trace the count back to the last update from the scheduler.",
+        "hold": 0.7
+      }
+    ]
+  },
+  {
+    "id": "c04",
+    "title": "Read distribution shift as a clue",
+    "sourceChapters": [
+      "c04"
+    ],
+    "beats": [
+      {
+        "id": "c04-b01",
+        "say": "Set the six live requests aside. These are two separate windows of a hundred accepted requests each. Keep the same four heartbeat-age buckets in both. In the reference window, fifty of the hundred had a heartbeat age under four hours. The current window has thirty percent in that range.",
+        "hold": 0.55
+      },
+      {
+        "id": "c04-b02",
+        "say": "Each pair of bars covers the same range of heartbeat ages. To measure growth as a factor, divide the current share by the reference share in that pair. Which bucket grew by the largest factor?",
+        "hold": 3.2
+      },
+      {
+        "id": "c04-b03",
+        "say": "The oldest bucket quadrupled. Twenty percent divided by five percent is four. Across all four buckets, the population stability index is about zero point three seven. This lab’s inspection threshold is zero point two. Crossing it directs us to inspect traffic mix, instrumentation, and the scheduler. Outcome labels tell us whether decision quality changed.",
+        "hold": 0.7
+      }
+    ]
+  },
+  {
+    "id": "c05",
+    "title": "Accumulate the mismatch, bucket by bucket",
+    "sourceChapters": [
+      "c05"
+    ],
+    "beats": [
+      {
+        "id": "c05-b01",
+        "say": "Open the four fixed heartbeat-age bins. Let e be a reference share and a the current share. For each bin, multiply the quantity a minus e by the natural logarithm of a divided by e, then sum.",
+        "hold": 0.3
+      },
+      {
+        "id": "c05-b02",
+        "say": "In the youngest bin, point three minus point five is minus point two. The natural log of point six is about minus point five one one. Their product is positive point one zero two. Two negative factors give a positive contribution even when mass leaves a bin.",
+        "hold": 0.65
+      },
+      {
+        "id": "c05-b03",
+        "say": "The next bin adds about point zero zero nine. The third adds point zero five one. The oldest adds point two zero eight. Together the four terms give about point three seven zero. Compare the entries in the contribution column. Which bin contributes the most to PSI?",
+        "hold": 3.2
+      },
+      {
+        "id": "c05-b04",
+        "say": "The oldest bin contributes the most. Its share rose by fifteen percentage points, from five percent to twenty percent. Multiply that change, point one five, by the natural log of four. The result is about point two zero eight, over fifty-six percent of the total. For positive shares each term is nonnegative. Equal shares contribute zero.",
+        "hold": 0.65
+      },
+      {
+        "id": "c05-b05",
+        "say": "Add the Kullback-Leibler divergences in both directions and you get Jeffreys divergence. Swapping the two windows leaves the sum unchanged. Try two-bin windows where the first share grows from one tenth to two tenths to three tenths. Directly from A to C, PSI is about point two seven. Through the middle window, the two legs add to just point one three five.",
+        "hold": 0.3
+      },
+      {
+        "id": "c05-b06",
+        "say": "The larger direct value violates the triangle inequality for a distance metric. Historical cutoffs of point one and point two five are rules of thumb. We investigate at point two.",
+        "hold": 0.65
+      },
+      {
+        "id": "c05-b07",
+        "say": "A bucket empty in both windows contributes zero under our contract. Positive mass opposite zero gives infinite divergence. An optional equal pseudocount is added to every bucket before renormalizing; this changes the diagnostic. A window with no observed rows is invalid even with smoothing.",
+        "hold": 0.3
+      },
+      {
+        "id": "c05-b08",
+        "say": "Fixed bins miss within-bin changes and cross-feature relationships. Repeated checks across features and windows also need an alert-volume and false-alarm policy.",
+        "hold": 0.8
+      }
+    ]
+  },
+  {
+    "id": "c06",
+    "title": "Keep shape and distance separate",
+    "sourceChapters": [
+      "c06"
+    ],
+    "beats": [
+      {
+        "id": "c06-b01",
+        "say": "One sample has heartbeat ages of zero and four hours. The other has two jobs at two hours. For each curve, count the fraction of jobs at or below each age. Look at one hour. Half the first sample is already included. None of the second is.",
+        "hold": 0.3
+      },
+      {
+        "id": "c06-b02",
+        "say": "The largest vertical gap is one half. This is the two-sample Kolmogorov-Smirnov statistic. It ranges from zero to one and needs no bins. A standard test p-value assumes independent draws from continuous distributions. Ties, repeated jobs and dependence over time can change that p-value.",
+        "hold": 0.65
+      },
+      {
+        "id": "c06-b03",
+        "say": "How far apart are the samples in hours? Send the observation at zero to two, and the one at four back to two. Each carries half the mass. Moving each half-mass two hours costs two hours in total.",
+        "hold": 0.3
+      },
+      {
+        "id": "c06-b04",
+        "say": "Both samples have a mean of two hours, but it still takes work to match their distributions. That minimum average distance is Wasserstein-one. In one dimension it equals the area between the cumulative curves. For distributions with finite first moments it keeps the feature units.",
+        "hold": 0.3
+      },
+      {
+        "id": "c06-b05",
+        "say": "For equally weighted samples of equal size, sort both lists and pair them in order. The average absolute distance of those pairs gives Wasserstein-one. This pairing compares distributions. The two observations in a pair can belong to different jobs.",
+        "hold": 0.65
+      },
+      {
+        "id": "c06-b06",
+        "say": "A large sample can give a small p-value even for a shift that barely affects the queue. Check the sampling assumptions and the size of the change. PSI compares bucket shares. KS measures the largest vertical gap. Wasserstein measures how far the observations have to move.",
+        "hold": 0.3
+      },
+      {
+        "id": "c06-b07",
+        "say": "To find out whether the shift cost us more missed deadlines, join the outcomes.",
+        "hold": 0.8
+      }
+    ]
+  },
+  {
+    "id": "c07",
+    "title": "Locate the term that changed",
+    "sourceChapters": [
+      "c07"
+    ],
+    "beats": [
+      {
+        "id": "c07-b01",
+        "say": "Start with the inputs. How often do we see a long queue? Then look at outcomes for jobs with the same inputs. How often do those jobs miss? If long queues become more common while the miss rate for each input stays the same, that’s covariate shift.",
+        "hold": 0.3
+      },
+      {
+        "id": "c07-b02",
+        "say": "If the miss rate changes for jobs with the same inputs, that’s concept drift.",
+        "hold": 0.65
+      },
+      {
+        "id": "c07-b03",
+        "say": "Now start with the outcome. Make one group for jobs that missed and another for jobs that finished on time. In pure label shift, the relative sizes of those groups change. Within each group, the input distribution stays the same.",
+        "hold": 0.3
+      },
+      {
+        "id": "c07-b04",
+        "say": "In practice, the mix and the relationships can change together. A broken queue counter could also change the readings. Check the source before attributing the shift to the jobs.",
+        "hold": 0.65
+      },
+      {
+        "id": "c07-b05",
+        "say": "Keep two runner pools with miss rates point one and point four. Their equal traffic mix produces point two five overall. Now send eighty percent of the jobs to the first pool and twenty percent to the second. Which rate changes? Multiply each pool’s traffic share by its own miss rate and add. The result is point one six.",
+        "hold": 0.3
+      },
+      {
+        "id": "c07-b06",
+        "say": "The aggregate rate fell while both within-pool rates stayed unchanged. Compare matched populations before blaming weights.",
+        "hold": 0.65
+      },
+      {
+        "id": "c07-b07",
+        "say": "If raw scores move while monitored feature marginals stay quiet, inspect the deployed model, transforms, serving configuration and unmonitored joint relationships. Changing the decision threshold changes who enters review, while holding raw model scores fixed. Distribution, score, decision and outcome changes need separate records.",
+        "hold": 0.8
+      }
+    ]
+  },
+  {
+    "id": "c08",
+    "title": "One queue, two feature values",
+    "sourceChapters": [
+      "c08"
+    ],
+    "beats": [
+      {
+        "id": "c08-b01",
+        "say": "Try a more direct check on the input. Take one runner pool with twenty jobs in its queue and fifty staffed slots. Send that same row through both transforms. Training divides backlog by staffed capacity. Serving divides backlog by a fixed hundred.",
+        "hold": 0.6
+      },
+      {
+        "id": "c08-b02",
+        "say": "The training feature is point four. Online it’s point two. The weights never entered this calculation. This difference on the same input is training-serving skew.",
+        "hold": 0.65
+      },
+      {
+        "id": "c08-b03",
+        "say": "Open a hundred staffed slots and keep the same queue. Both calculations give point two. A test using only this pool would pass. Now open two hundred slots. Training gives point one. Serving stays at point two. Which divisor must serving read from the source row?",
+        "hold": 3.2
+      },
+      {
+        "id": "c08-b04",
+        "say": "Use the actual staffed capacity in both paths. On this row, both features are now point one. Check that capacity is positive, then rerun all three rows. Compare unrounded values and save the input revision and transform versions. One matching row at a hundred had hidden the bug.",
+        "hold": 0.75
+      }
+    ]
+  },
+  {
+    "id": "c09",
+    "title": "Six deadlines at the noon cutoff",
+    "sourceChapters": [
+      "c09"
+    ],
+    "beats": [
+      {
+        "id": "c09-b01",
+        "say": "These six jobs come from a separate prediction archive. Each brass ring marks the end of one job’s deadline window. Read the rings against the line at noon. Which job still has time before its deadline?",
+        "hold": 3.2
+      },
+      {
+        "id": "c09-b02",
+        "say": "Job six has until one. Leave it open. The other five windows have closed. Those five predictions are the denominator for our noon coverage report. We chose them from their due times, before looking at any labels.",
+        "hold": 0.65
+      },
+      {
+        "id": "c09-b03",
+        "say": "Now join the labels on prediction ID. In this first snapshot all five labels were in storage by eleven. The third and fifth jobs missed their deadlines. The other three met theirs. That gives us five labels for five closed windows. We kept the original score, model and decision threshold with each job.",
+        "hold": 0.8
+      }
+    ]
+  },
+  {
+    "id": "c10",
+    "title": "One label arrives two hours later",
+    "sourceChapters": [
+      "c10"
+    ],
+    "beats": [
+      {
+        "id": "c10-b01",
+        "say": "Keep the same jobs and all six deadlines. Watch job five’s label. Move its arrival from eleven to one. The brass ring stays at eleven because the deadline did not move. At noon, how many labels can you join to the five closed windows?",
+        "hold": 3.2
+      },
+      {
+        "id": "c10-b02",
+        "say": "Four of the five, or eighty percent. Job five still belongs in the denominator. At noon its outcome space is empty. Job six also has a mark at one, but that ring is its deadline. Its outcome window is still open.",
+        "hold": 0.3
+      },
+      {
+        "id": "c10-b03",
+        "say": "If we marked either job as on time, we'd be inventing an outcome for the noon report.",
+        "hold": 0.65
+      },
+      {
+        "id": "c10-b04",
+        "say": "To reproduce this report tomorrow, start with the jobs scored in the original time window. Check when each outcome happened and when its label entered storage. Both timestamps must be at or before the report cutoff.",
+        "hold": 0.3
+      },
+      {
+        "id": "c10-b05",
+        "say": "Here we take the recorded outcome times as given and change only ingestion. If labels can be corrected, keep their revisions. Tomorrow’s report may use a newer revision. Replaying the noon report requires the revision that was available at noon.",
+        "hold": 0.55
+      },
+      {
+        "id": "c10-b06",
+        "say": "With a common deadline horizon, even the last job needs that full horizon after the cohort closes. Here the deadlines vary by job. While labels are coming in, watch the queue, the scores and the review rate.",
+        "hold": 0.3
+      },
+      {
+        "id": "c10-b07",
+        "say": "If failures get reported first, measuring only the early labels overstates the miss rate. An empty mature cohort has no coverage rate yet.",
+        "hold": 0.7
+      }
+    ]
+  },
+  {
+    "id": "c11",
+    "title": "What would a higher review threshold cost?",
+    "sourceChapters": [
+      "c11"
+    ],
+    "beats": [
+      {
+        "id": "c11-b01",
+        "say": "Go back to the fully labeled noon archive. Scores at or above the stored threshold of point five go to review. Three jobs qualify. Look at their deadlines. Jobs three and five really did miss. Job four met its deadline. Two misses in three reviews gives precision of two thirds.",
+        "hold": 0.7
+      },
+      {
+        "id": "c11-b02",
+        "say": "Now start from the two actual misses. We flagged both, so recall is two out of two. Charge two units for a false alert and ten for a miss that slips through. The only charge here belongs to job four. Total error cost is two.",
+        "hold": 0.7
+      },
+      {
+        "id": "c11-b03",
+        "say": "Suppose the review team asks for a threshold of point eight. Keep the recorded outcomes fixed for this replay. Which miss would escape review? Would total error cost fall?",
+        "hold": 3.2
+      },
+      {
+        "id": "c11-b04",
+        "say": "Move the threshold to point eight. Job three scored point six eight and job four scored point seven eight. Both leave review. Dropping job four saves two units. Dropping job three costs ten. Only job five still gets reviewed.",
+        "hold": 0.3
+      },
+      {
+        "id": "c11-b05",
+        "say": "That one review catches a real miss, but we catch only one of the two misses. Total error cost rises to ten.",
+        "hold": 0.65
+      },
+      {
+        "id": "c11-b06",
+        "say": "That is the price of changing the decisions on five recorded outcomes. Reviews can change what actually happens to a job. Before changing a live threshold, log who received help and compare larger, mature cohorts within the same runner pools.",
+        "hold": 0.85
+      }
+    ]
+  },
+  {
+    "id": "c12",
+    "title": "Do the scores match observed miss rates?",
+    "sourceChapters": [
+      "c12"
+    ],
+    "beats": [
+      {
+        "id": "c12-b01",
+        "say": "Put the review line back at point five. We caught two misses, raised one false alert and let two on-time jobs through. Precision counts the two catches out of three alerts. Recall counts the same two catches out of two actual misses.",
+        "hold": 0.3
+      },
+      {
+        "id": "c12-b02",
+        "say": "Either rate is undefined if its denominator is zero. To compare error costs across windows, divide the total cost by the number of evaluated jobs and multiply by one thousand. Track staff time separately. Even a review that catches a miss takes time.",
+        "hold": 0.65
+      },
+      {
+        "id": "c12-b03",
+        "say": "To check calibration, group jobs with similar predicted probabilities. Compare each group's mean score with the fraction that missed. The two low scores average point two three five. Both jobs met their deadlines. The three high scores average point seven nine. Two of those three jobs missed.",
+        "hold": 0.65
+      },
+      {
+        "id": "c12-b04",
+        "say": "Suppose one more high-scoring job misses. Give this new job the current group’s mean score, point seven nine. The mean prediction stays put. The observed miss rate goes from two out of three to three out of four. One job moved it from about sixty-seven percent to seventy-five. Report group size and uncertainty by service tier.",
+        "hold": 0.3
+      },
+      {
+        "id": "c12-b05",
+        "say": "A reviewer might move a waiting job to a free runner in time to meet its deadline. Record which jobs got help. To check a forecast of risk without help, you need comparable jobs that ran without it.",
+        "hold": 0.8
+      }
+    ]
+  },
+  {
+    "id": "c13",
+    "title": "Freeze the evidence, then move a pointer",
+    "sourceChapters": [
+      "c13"
+    ],
+    "beats": [
+      {
+        "id": "c13-b01",
+        "say": "Suppose comparable, fully labeled jobs show a persistent regression after the data path and transforms are fixed. That gives us a reason to train a candidate. Freeze the training inputs through February third and identify the exact model, pipeline and feature contract.",
+        "hold": 0.3
+      },
+      {
+        "id": "c13-b02",
+        "say": "Save the decision threshold, evaluation policy and previous version alongside them. Serializing this manifest in a fixed order gives reproducible bytes to hash. The short digest on screen is a display name. Keep the full digest in the registry.",
+        "hold": 0.65
+      },
+      {
+        "id": "c13-b03",
+        "say": "Suppose the weight reference in that manifest says latest. Today it opens one file. Tomorrow it can open different weights under exactly the same name. The manifest bytes never changed, so its hash stays the same.",
+        "hold": 0.3
+      },
+      {
+        "id": "c13-b04",
+        "say": "Preserve the actual model, transforms, data revisions and policy artifacts under immutable references or content digests. Restrict access to sensitive traces and keep them only as long as the investigation needs.",
+        "hold": 0.65
+      },
+      {
+        "id": "c13-b05",
+        "say": "Keep the immutable bundle separate from the mutable production alias. Candidate evaluation refers to one fixed bundle, while promotion changes which bundle new requests resolve. Save the previous artifact and verify feature and schema compatibility. Without that separation, a rollback pointer may exist yet fail to reconstruct the earlier computation.",
+        "hold": 0.8
+      }
+    ]
+  },
+  {
+    "id": "c14",
+    "title": "Conserve assignment while exposure grows",
+    "sourceChapters": [
+      "c14"
+    ],
+    "beats": [
+      {
+        "id": "c14-b01",
+        "say": "Shadow execution returns the stable prediction to the user while computing a candidate comparison. Isolate candidate side effects so shadow risk scores cannot trigger real reviews. Shared workers, queues, networks and logs can still affect users. Bound the resources and disclosure policy as well as the visible response path.",
+        "hold": 0.65
+      },
+      {
+        "id": "c14-b02",
+        "say": "For a canary, keep all requests from the same job together. Python salts its built-in string hash separately by process, so workers could disagree about a job. Here each worker hashes the same UTF-eight namespace and job ID with SHA two fifty-six.",
+        "hold": 0.3
+      },
+      {
+        "id": "c14-b03",
+        "say": "It reads the first eight bytes as a big-endian integer and takes modulo one hundred. A bucket less than five enters the initial group.",
+        "hold": 0.65
+      },
+      {
+        "id": "c14-b04",
+        "say": "Each dot is one of a thousand jobs. The first five buckets contain forty-eight jobs. Keep those gold dots in sight. Widen the cutoff to twenty-five buckets. Two hundred fifty-seven jobs now qualify. Look for the original forty-eight. Every one remains in the larger group because its hash inputs stayed fixed.",
+        "hold": 0.3
+      },
+      {
+        "id": "c14-b05",
+        "say": "Changing the namespace can reshuffle the assignments. Jobs can share workers and queues even when they have different assignments.",
+        "hold": 0.65
+      },
+      {
+        "id": "c14-b06",
+        "say": "Go back to the original cutoff, buckets below five. Here is a separate request log for four of those jobs. The two selected jobs made seventy and five requests. The other two made ten and fifteen. How many of these hundred requests go to the canary?",
+        "hold": 3.2
+      },
+      {
+        "id": "c14-b07",
+        "say": "Seventy-five requests go to the canary. Only two of the four job identities were selected, but the busiest job sent seventy requests on its own. To measure exposure, count the requests those jobs actually send.",
+        "hold": 0.7
+      },
+      {
+        "id": "c14-b08",
+        "say": "Blue-green keeps an active environment and a prepared replacement, then changes routing after validation. Argo Rollouts supports analysis before and after that switch. Check that the replacement is ready and can read the same features and database.",
+        "hold": 0.3
+      },
+      {
+        "id": "c14-b09",
+        "say": "While routing changes propagate, the old environment may still be finishing requests. Check fresh serving logs to see which version received the next job.",
+        "hold": 0.8
+      }
+    ]
+  },
+  {
+    "id": "c15",
+    "title": "What evidence lets v4 take traffic?",
+    "sourceChapters": [
+      "c15"
+    ],
+    "beats": [
+      {
+        "id": "c15-b01",
+        "say": "Start offline, on a held-out set with a thousand predictions and ten actual misses per model. Check that the identities, eligibility rules, labels and cutoff agree. Under those conditions we can compare the rows. Version three catches eight misses and raises twenty false alerts. That costs sixty per thousand, with recall of point eight.",
+        "hold": 0.6
+      },
+      {
+        "id": "c15-b02",
+        "say": "Version four catches nine misses and raises fifteen false alerts. Cost falls to forty and recall rises to point nine. It catches every priority miss. Its p ninety-five response time is forty-two milliseconds, inside the fifty-millisecond budget. The cohort is nonempty and fully labeled.",
+        "hold": 0.3
+      },
+      {
+        "id": "c15-b03",
+        "say": "The candidate passes these local checks. With only ten misses, a single job changes recall by a tenth. Check the uncertainty and support in each service tier.",
+        "hold": 0.7
+      },
+      {
+        "id": "c15-b04",
+        "say": "Now put the candidate on the canary. This window has the required five hundred requests. The vertical line marks each measurement’s own budget. One request failed. That is two tenths of a percent, below the half-percent budget. The ninety-fifth percentile response time was forty-four milliseconds, inside fifty.",
+        "hold": 0.3
+      },
+      {
+        "id": "c15-b05",
+        "say": "Queued review work used seventy-two percent of capacity, inside the eighty percent limit. All four fast checks pass. We can propose wider exposure. The deadline outcomes still have to come in.",
+        "hold": 0.8
+      }
+    ]
+  },
+  {
+    "id": "c16",
+    "title": "Which failure needs a repair?",
+    "sourceChapters": [
+      "c16"
+    ],
+    "beats": [
+      {
+        "id": "c16-b01",
+        "say": "Recall the two requests that stopped at noon. One queue count was missing. The other snapshot was three hours old. Trace each input back to the scheduler and repair the step where it went missing or became stale. The capacity probe located a different fault. Share the transform so both paths divide by staffed capacity. And the growing tail of old heartbeats?",
+        "hold": 0.3
+      },
+      {
+        "id": "c16-b02",
+        "say": "A distribution change calls for context and source inspection. Here, the growing share of heartbeats at least twenty-four hours old tells us where to inspect. Check whether a different runner pool started sending more jobs. All three alarms can fire on the same day.",
+        "hold": 0.55
+      },
+      {
+        "id": "c16-b03",
+        "say": "With incomplete labels, withhold a quality judgment. If the sources and transforms check out, compare mature outcomes by pool. Check label revisions and changes in who got reviewed. If cost still regresses on adequate evidence, train a candidate. Freeze its data snapshot, model bytes, feature contract, decision threshold, and previous stable release.",
+        "hold": 0.65
+      },
+      {
+        "id": "c16-b04",
+        "say": "Back at version four, the offline and fast checks passed. In the simulation the candidate moves to wider traffic. A later cohort arrives with all five hundred mature predictions labeled. It contains ten false alerts and two unflagged misses.",
+        "hold": 0.3
+      },
+      {
+        "id": "c16-b05",
+        "say": "Their cost is eighty units per thousand against a local limit of fifty. The simulator proposes returning to the previous release. The controller still has to act on that proposal.",
+        "hold": 0.7
+      }
+    ]
+  },
+  {
+    "id": "c17",
+    "title": "Read the release decision in order",
+    "sourceChapters": [
+      "c17"
+    ],
+    "beats": [
+      {
+        "id": "c17-b01",
+        "say": "Try another canary before promotion. This one handled six hundred requests. Three requests failed. That is half a percent, exactly the allowed maximum. The ninety-fifth percentile response time was forty-nine milliseconds, inside fifty. The review queue used eighty-five percent of capacity. Its budget is eighty. Which gate stops promotion? The queue exceeds its budget, so version three stays active. An offline failure would stop promotion here too.",
+        "hold": 0.65
+      },
+      {
+        "id": "c17-b02",
+        "say": "Now suppose both promotion checks passed. Five hundred jobs are mature. Only four hundred ninety-nine labels have joined. Check the counts first. They must be nonnegative integers, with at most one joined label per mature prediction.",
+        "hold": 0.3
+      },
+      {
+        "id": "c17-b03",
+        "say": "Our rule needs at least five hundred mature predictions and all their labels. It returns insufficient evidence. Version four stays active under this rule. Set a timeout for missing labels and a separate response for operational emergencies.",
+        "hold": 0.75
+      },
+      {
+        "id": "c17-b04",
+        "say": "Let the last label arrive. If the cost measurement is missing, negative or nonfinite, the simulator returns an invalid metric. Check how the cost was measured. Now take a separate window with six hundred mature jobs, all labeled. Ten false alerts cost two units each. One unflagged miss costs ten. The rule proposes rollback only above fifty units per thousand jobs. What should it do here?",
+        "hold": 3
+      },
+      {
+        "id": "c17-b05",
+        "say": "Twenty plus ten gives thirty cost units. Across six hundred jobs, that is exactly fifty per thousand. Keep version four. Only a cost above the limit would trigger the proposal. Return to the five hundred fully labeled jobs from our release example. Ten false alerts at two units each make twenty. Two unflagged misses at ten each add another twenty. The two strips have the same width. Forty units across five hundred jobs is eighty per thousand.",
+        "hold": 0.3
+      },
+      {
+        "id": "c17-b06",
+        "say": "That crosses the local limit. The simulator proposes rollback to version three.",
+        "hold": 0.8
+      },
+      {
+        "id": "c17-b07",
+        "say": "That return value sends no traffic. A controller has to resolve the saved artifact, check compatibility, and switch only if the expected candidate is still active. Verify which version actually serves new requests. Version three cost sixty per thousand on the earlier offline data.",
+        "hold": 0.3
+      },
+      {
+        "id": "c17-b08",
+        "say": "Its cost on this later population is still unknown. Measure the restored version on current outcomes. If both versions exceed the budget, the review workflow itself may need to stop or change.",
+        "hold": 0.85
+      }
+    ]
+  },
+  {
+    "id": "c18",
+    "title": "Two jobs got the same score",
+    "sourceChapters": [
+      "c18"
+    ],
+    "beats": [
+      {
+        "id": "c18-b01",
+        "say": "Remember the live job with the thirty-hour heartbeat? Its five-minute-old snapshot passed, it scored point nine one, and the policy sent it to review. The archive also has a job at point nine one. Can its label tell us whether the live job missed?",
+        "hold": 3.2
+      },
+      {
+        "id": "c18-b02",
+        "say": "Read the IDs stamped above the scores. The live request still needs its own outcome. In the late archive, the fifth job’s window closed at eleven, but its label arrived at one. After one, that miss belongs to the archived prediction. Carry the prediction ID, model, source trace, policy and cutoff into the release report.",
+        "hold": 0.8
+      }
+    ]
+  },
+  {
+    "id": "c19",
+    "title": "Should this release stay on v4?",
+    "sourceChapters": [
+      "c19"
+    ],
+    "beats": [
+      {
+        "id": "c19-b01",
+        "say": "You’re on call for version four. Its offline and fast canary checks passed. The feature mix is quiet and the parity probe passes. Four hundred prediction windows have closed. Each mark stands for twenty jobs. Only three hundred eighty labels have joined.",
+        "hold": 0.3
+      },
+      {
+        "id": "c19-b02",
+        "say": "The policy requires at least five hundred mature predictions and complete labels. Can you use this window for a release decision?",
+        "hold": 3.2
+      },
+      {
+        "id": "c19-b03",
+        "say": "Coverage is three hundred eighty out of four hundred, or ninety-five percent. Twenty mature outcomes are missing. Even if they all arrived now, we would still be a hundred jobs short. The simulator returns insufficient evidence. Check the ingestion delay and follow the timeout policy if the labels never arrive.",
+        "hold": 0.6
+      },
+      {
+        "id": "c19-b04",
+        "say": "Take a separate window with eight hundred mature predictions and all eight hundred labels. Eight false alerts cost two units each. Two unflagged misses cost ten each. Our rollback limit is fifty units per thousand predictions. What is the cost per thousand predictions?",
+        "hold": 3.2
+      },
+      {
+        "id": "c19-b05",
+        "say": "Sixteen units from false alerts plus twenty from misses gives thirty-six. To put this cost on the release scale, multiply by a thousand and divide by eight hundred. That gives forty-five units per thousand. It falls below the limit of fifty. The rectangle spans eight hundred jobs. Its height reads the cost per thousand. Keep version four.",
+        "hold": 0.85
+      },
+      {
+        "id": "c19-b06",
+        "say": "One more window. This one has six hundred mature predictions and all six hundred labels. It has exactly the same eight false alerts and two unflagged misses. Both promotion gates passed again. The dotted outline keeps the first window in view. The new base is narrower. What height would give it the same area? Keep version four, or propose a return to version three?",
+        "hold": 3.4
+      },
+      {
+        "id": "c19-b07",
+        "say": "The same thirty-six units now fall on six hundred jobs. That gives sixty units per thousand. The mark crosses fifty. Propose a return to version three. Before switching, check that the saved version is compatible and that version four is still active.",
+        "hold": 0.65
+      },
+      {
+        "id": "c19-b08",
+        "say": "Check which version serves the next requests. Then join their outcomes once their deadlines have passed and measure cost again. That next cohort can tell you whether the rollback helped.",
+        "hold": 1
+      }
+    ]
+  }
+]

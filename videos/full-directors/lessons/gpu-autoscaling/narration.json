@@ -1,0 +1,319 @@
+[
+  {
+    "id": "c01",
+    "title": "Can request 21 start in time?",
+    "sourceChapters": [
+      "c01"
+    ],
+    "beats": [
+      {
+        "id": "arrival",
+        "say": "Your incident summary is request twenty-one. Twenty people are ahead of you. At nine o'clock, all one hundred summaries arrive together. On the only warm GPU, five requests can run at once. Each holds its slot for ten seconds in this example.",
+        "hold": 1
+      },
+      {
+        "id": "refill",
+        "say": "At ten seconds the same five slots take the next five requests. At twenty seconds they refill again. Follow your line underneath the slots. You can still start on the thirty-second tick. Will you get in?",
+        "hold": 3.6
+      },
+      {
+        "id": "deadline",
+        "say": "Here comes the last refill. Sixteen through twenty take the slots. Your next chance would be at forty seconds. Your wait expires. The other nineteen GPUs were ordered at nine, and the first cold worker becomes useful at two hundred seven seconds.",
+        "hold": 1.5
+      },
+      {
+        "id": "trace",
+        "say": "Look at the end of your line. Changing the desired count left that endpoint exactly where it was. A new worker needs a device, a running process, loaded weights, and a healthy warmed engine. Until then, the ready workers carry the queue.",
+        "hold": 1.3
+      }
+    ]
+  },
+  {
+    "id": "c02",
+    "title": "Who can enter this worker?",
+    "sourceChapters": [
+      "c02"
+    ],
+    "beats": [
+      {
+        "id": "load",
+        "say": "Zoom in on one two-slot worker. It has a node and a running process. The model is still loading. A request gets service unavailable, even though the health sidecar answers. Give the startup probe time for measured initialization, and check the actual engine.",
+        "hold": 0.8
+      },
+      {
+        "id": "warm",
+        "say": "Finish loading and check again. Warmup is still incomplete, so the worker remains outside new traffic. A warmup pass exercises the model. When that pass succeeds and the engine is healthy, the router may send work.",
+        "hold": 0.9
+      },
+      {
+        "id": "own",
+        "say": "Admit C, then D. Both start streaming. Now another copy of C arrives, followed by a different request, E. Which check should catch each one?",
+        "hold": 2.8
+      },
+      {
+        "id": "reject",
+        "say": "The duplicate gets a conflict, status four oh nine. Its identifier already owns a slot, so the worker checks identity before checking space. The independent request sees a full worker and gets an overload response, four twenty-nine. Restarting this healthy process would destroy both active replies.",
+        "hold": 1
+      },
+      {
+        "id": "authority",
+        "say": "Admission also checks whose model variation the caller may use. Cora presents a verified identity, current tenant C membership, and an approved adapter compatible with the loaded base. That combination selects C's adapter. Now revoke her membership. Can an incoming tenant B header select a replacement?",
+        "hold": 2.6
+      },
+      {
+        "id": "revoke",
+        "say": "Deny the request. The verified identity and compatible artifact remain, but the membership check has failed. The caller's header grants no access. Leave the adapter unselected and report the denial explicitly.",
+        "hold": 1
+      }
+    ]
+  },
+  {
+    "id": "c03",
+    "title": "How early must warming begin?",
+    "sourceChapters": [
+      "c03"
+    ],
+    "beats": [
+      {
+        "id": "chain",
+        "say": "Trace the worker from its order to its first legal admission. Provision the node. Pull the image. Load the weights. Warm the engine. In this serial trace the four phases take ninety-five, twenty-two, seventy-eight, and twelve seconds. Only the last boundary makes the replica ready.",
+        "hold": 1
+      },
+      {
+        "id": "two",
+        "say": "Start the same chain two minutes before nine. The burst arrives at zero. Thirty seconds later the last start closes. Where will the end of the chain fall?",
+        "hold": 2.8
+      },
+      {
+        "id": "late",
+        "say": "It finishes eighty-seven seconds after nine. That is fifty-seven seconds past the last start. A scheduled pod can still be loading the weights while requests are aging out. A cached image saves only the image time on this path.",
+        "hold": 1.1
+      },
+      {
+        "id": "four",
+        "say": "Try a four-minute lead with the same phase lengths. This time the worker is ready thirty-three seconds before nine. Compare the two endpoints. Use measured end-to-end startup traces to choose your lead. Node supply can fail, and simultaneous loads can contend. Adding unrelated phase percentiles would not establish a percentile for the complete path.",
+        "hold": 1.3
+      }
+    ]
+  },
+  {
+    "id": "c04",
+    "title": "Which requests does a warm pool save?",
+    "sourceChapters": [
+      "c04"
+    ],
+    "beats": [
+      {
+        "id": "one",
+        "say": "Return to the hundred summaries. Keep their order, ten-second service, five slots per replica and the inclusive thirty-second last start. Each mark is one request. With one warm GPU, twenty start in time and eighty expire. Keep those eighty in the population.",
+        "hold": 1
+      },
+      {
+        "id": "three",
+        "say": "Replay the same arrivals with three warm workers. Fifteen requests start immediately. Find request twenty-one. When the same fifteen slots refill, what happens to that summary?",
+        "hold": 2.8
+      },
+      {
+        "id": "three-result",
+        "say": "At ten seconds it starts. Its reply finishes at twenty. At thirty seconds the fourth wave takes the final fifteen places. Sixty requests have started, and forty miss the deadline. Cold workers still arrive at two hundred seven seconds in both runs.",
+        "hold": 1.1
+      },
+      {
+        "id": "twenty",
+        "say": "Put twenty warm workers at the entrance before nine. All one hundred requests start immediately. You pay for that idle buffer between bursts. A longer waiting budget could let fewer workers empty a finite queue. The cheapest pool that starts everyone on time can be smaller than the pool that starts everyone at once.",
+        "hold": 1.2
+      }
+    ]
+  },
+  {
+    "id": "c05",
+    "title": "Should the next poll order six more?",
+    "sourceChapters": [
+      "c05"
+    ],
+    "beats": [
+      {
+        "id": "sample",
+        "say": "On a fresh poll, four workers are ready and all twenty of their slots are busy. Thirty more requests are waiting. The controller divides total demand by five slots per matching worker, rounds up, and caps the target at twenty. How many workers should be on order, including the ones already here?",
+        "hold": 2.8
+      },
+      {
+        "id": "order",
+        "say": "Ten in total. Keep the four ready workers and request six more. In this snapshot, three of the six are waiting for GPU nodes. The other three have nodes and are starting their engines. The four ready workers are serving twenty requests. The next waiting request can enter one of those workers when a slot frees up.",
+        "hold": 1
+      },
+      {
+        "id": "poll",
+        "say": "Poll again with the same fifty requests. The six pending workers are already in the order. What target should this poll write?",
+        "hold": 3
+      },
+      {
+        "id": "hold",
+        "say": "Keep ten desired. The second poll adds zero. The replica controller sets an absolute target. The node controller supplies hardware for unschedulable pods. Neither changes the local admission checks while users wait.",
+        "hold": 1
+      },
+      {
+        "id": "gap",
+        "say": "Remove the demand sample. The controller still knows which workers are ready. The running and waiting counts are now unknown. It holds the order at ten and alerts on the gap. A stale sample also triggers a hold. Start a fresh quiet interval once valid demand readings return.",
+        "hold": 1
+      },
+      {
+        "id": "quiet",
+        "say": "Now take a separate fleet with seven requested and seven ready. Low demand begins at second twenty. This policy needs three hundred uninterrupted seconds of fresh low readings and removes one eligible worker per boundary. At second three hundred nineteen, can it drain one?",
+        "hold": 2.6
+      },
+      {
+        "id": "boundary",
+        "say": "Only two hundred ninety-nine seconds have elapsed. Keep seven. At second three hundred twenty the interval reaches three hundred seconds. Select one worker for drain and lower the order to six. A quiet period protects against buying another long startup after a brief lull.",
+        "hold": 1.2
+      }
+    ]
+  },
+  {
+    "id": "c06",
+    "title": "How much memory does a slot need?",
+    "sourceChapters": [
+      "c06"
+    ],
+    "beats": [
+      {
+        "id": "short",
+        "say": "A five-request capacity assumption describes a particular workload. For each retained token, this full-attention model stores a key and a value in each of thirty-two layers, with eight KV heads, width one hundred twenty-eight, and two bytes per scalar. Each short history uses half a gibibyte. All five fit inside the eight-gibibyte cache pool.",
+        "hold": 1
+      },
+      {
+        "id": "stretch",
+        "say": "Keep all five requests, the same model and the same cache pool. Let each history grow from four thousand ninety-six tokens to four times that length. Follow the fifth history as it approaches the pool boundary.",
+        "hold": 0.9
+      },
+      {
+        "id": "fit",
+        "say": "Each now needs two gibibytes. Four fill the pool. The fifth needs memory beyond its end. The pool here already excludes weights and runtime overhead. Queue age, active allocation, rejections, first output and stream stalls help distinguish a memory limit from useful GPU activity.",
+        "hold": 1.1
+      },
+      {
+        "id": "pages",
+        "say": "Real engines can page that history. Here a page holds sixteen token positions and belongs to one sequence. Seventeen, thirty-three and sixty-five tokens end on three different pages. With no sharing or lookahead, count the partly used pages separately. How much space remains unused?",
+        "hold": 2.8
+      },
+      {
+        "id": "slack",
+        "say": "Forty-five token positions remain unused. The sequences need two, three and five pages. Ten pages reserve one hundred sixty positions for one hundred fifteen tokens. The engine can map each logical page to free physical storage while keeping each request's tokens in order.",
+        "hold": 1
+      },
+      {
+        "id": "hybrid",
+        "say": "Now size a different model. Six requests retain two thousand forty-eight positions. Only its twelve full-attention layers append keys and values. Four KV heads of width sixty-four, with two bytes per scalar, give twenty-four mebibytes per request. Each also owns sixteen mebibytes of fixed recurrent state.",
+        "hold": 0.9
+      },
+      {
+        "id": "sum",
+        "say": "The six histories use one hundred forty-four mebibytes of growing state. The fixed part adds ninety-six, for two hundred forty mebibytes of payload. Longer histories grow only the KV part here. Reserve weights, page slack and runtime space separately before promising concurrency.",
+        "hold": 1.1
+      }
+    ]
+  },
+  {
+    "id": "c07",
+    "title": "When is it safe to remove the worker?",
+    "sourceChapters": [
+      "c07"
+    ],
+    "beats": [
+      {
+        "id": "streams",
+        "say": "Return to the worker that owns C and D. Both callers are reading their incident summaries. A scale-down selects this worker. Watch the entrance while you keep an eye on both replies.",
+        "hold": 1
+      },
+      {
+        "id": "close",
+        "say": "Close local admission and withdraw readiness. A late arrival, F, still finds the old endpoint and gets service unavailable, five oh three. Both original replies keep typing. Closing the entrance leaves their KV state here and their connections open.",
+        "hold": 1.1
+      },
+      {
+        "id": "first",
+        "say": "C finishes its last word. Release C's slot. D still owns the other slot, and its reply keeps growing. A free slot on a draining worker stays closed to new arrivals. Is it safe to terminate yet?",
+        "hold": 2.7
+      },
+      {
+        "id": "last",
+        "say": "D reaches the end of its reply. Release D's slot. The active set is empty. This worker can now shut down without abandoning either caller.",
+        "hold": 1.1
+      },
+      {
+        "id": "budget",
+        "say": "A spot notice may shorten the time you have. Suppose shutdown is seventy seconds away and cleanup needs fifteen seconds. Three replies are running together. Their estimated remaining times are thirty, fifty-five and fifty-six seconds. The longest has already streamed output. Your policy keeps every reply that can finish by the cleanup boundary. Which replies do you keep?",
+        "hold": 3
+      },
+      {
+        "id": "interrupt",
+        "say": "The first two fit the fifty-five-second budget if the estimates hold. The third runs into cleanup. Interrupt that stream explicitly, or use a supported resumption protocol. Appending a fresh sample to an already delivered answer can change its meaning. Unstarted work can retry within its original budget.",
+        "hold": 1.2
+      }
+    ]
+  },
+  {
+    "id": "c08",
+    "title": "What warm pool would you pay for?",
+    "sourceChapters": [
+      "c08"
+    ],
+    "beats": [
+      {
+        "id": "compare",
+        "say": "Bring the original hundred summaries back. With one, three and twenty warm GPUs, respectively twenty, sixty and one hundred start in time. Every cold worker misses this burst. How few workers could get the hundredth request into a slot on the thirty-second tick?",
+        "hold": 3.1
+      },
+      {
+        "id": "minimum",
+        "say": "Five warm workers suffice. Each supplies five slots on four legal start ticks. Four workers could cover only eighty. With five, the hundredth summary starts right at thirty seconds and finishes ten seconds later. That last group used the full waiting budget.",
+        "hold": 1.3
+      },
+      {
+        "id": "events",
+        "say": "How would you test the deadlines your callers experience? Start with the client clock. The client sends a request at zero. It records one token at two hundred fifty milliseconds, two together at three hundred, and two together at four hundred ten. The first wait is two hundred fifty milliseconds. Can you recover every individual gap?",
+        "hold": 2.4
+      },
+      {
+        "id": "timing",
+        "say": "You can measure two event gaps, fifty and one hundred ten milliseconds. Across five delivered tokens there are four token intervals. Divide the one hundred sixty milliseconds from first event to last by four for a mean of forty. Bundled delivery hides individual token timings.",
+        "hold": 1.1
+      },
+      {
+        "id": "trials",
+        "say": "Hold the workload, quality checks and first-token and streaming deadlines fixed. In equal twenty-second trials, A qualifies a hundred forty-eight of a hundred sixty offered requests. B qualifies a hundred seventy-eight of two hundred. Count every offered request. Which tested rate passed the ninety percent target?",
+        "hold": 3
+      },
+      {
+        "id": "goodput",
+        "say": "A passed at eight offered requests per second. Seven point four per second qualified, or ninety-two point five percent of all arrivals. B offered ten per second and qualified eight point nine per second. At eighty-nine percent, B fell short. To see whether A can sustain its rate, repeat the test over longer runs.",
+        "hold": 1.3
+      },
+      {
+        "id": "slot-trace",
+        "say": "To size the warm pool, measure each ready worker while a representative workload meets its deadlines. Record when each request takes a slot and when it releases it. Here are two such intervals on one worker. How many slots were busy at second four?",
+        "hold": 2.6
+      },
+      {
+        "id": "slot-overlap",
+        "say": "Both requests were running then. Trace each bar from admission to release. The first request held a slot for six seconds, the second for three. Collect these in-flight counts and holding times across the workload to estimate how many requests a worker can serve on time.",
+        "hold": 1.2
+      },
+      {
+        "id": "practice",
+        "say": "Try a hypothetical burst. At time zero, fifty-four requests arrive together at idle warm workers. Assume each worker has three slots and every request holds one for five seconds. Cold capacity takes two minutes. How many warm workers do you need if starts at ten seconds count? What if the deadline moves just one second earlier?",
+        "hold": 3.8
+      },
+      {
+        "id": "ten",
+        "say": "At ten seconds, six workers suffice. Each starts three requests at zero, five, and ten. Now move only the deadline to nine seconds. Keep those six workers and follow the last group of requests.",
+        "hold": 2.5
+      },
+      {
+        "id": "nine",
+        "say": "The final eighteen lose their start. Only the waves at zero and five count now. Nine workers give each of those waves twenty-seven places. The last request gets a slot at five seconds. For your own burst, use your callers' deadline, the concurrency each ready worker sustains, and the time each request holds its slot.",
+        "hold": 1.8
+      }
+    ]
+  }
+]

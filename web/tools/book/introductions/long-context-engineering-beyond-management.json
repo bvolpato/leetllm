@@ -1,0 +1,15 @@
+{
+  "framing": "Build the exact context the next decision needs",
+  "paragraphs": [
+    "Expanded token budgets solve capacity limits, yet larger windows frequently degrade reasoning accuracy rather than improving it. When hundreds of thousands of tokens accumulate across file reads, test logs, and tool schemas, models systematically underweight evidence buried in the middle of the sequence, remain anchored to early hypotheses after later evidence refutes them, and spend attention capacity on tools unrelated to the step ahead.",
+    "Context engineering treats each model call as an explicit information design problem rather than an append-only transcript. Across multi-turn debugging workflows, engineers apply four operations between turns: selecting active artifacts, writing verified findings outside the window to reload concisely, compressing bulky logs into dense state, and isolating noisy sub-tasks behind clean subagent interfaces.",
+    "This chapter illustrates these mechanics using a Transformer debugging pull request (PR-418) in which a causal mask shape mismatch breaks attention decode caching while stale tokenizer rumors linger in earlier messages. Instead of leaving raw pytest output and disproven claims in play, structured curation removes noise at the step transition and keeps only what verifies the mask patch.",
+    "Effective context systems extend these four operations into reusable workflows, separating stable prefix instructions for prompt caching from volatile workspace state, loading domain skills progressively on demand, and persisting verification records across checkpoints so every resume continues from confirmed evidence."
+  ],
+  "outcomes": [
+    "Diagnose how mid-window attention decay, unpruned tool definitions, stale claims, and distracting traces silently degrade multi-turn model performance even when the token count fits comfortably inside the model limit.",
+    "Implement the four core context operations (Select, Write, Compress, and Isolate) in Python with explicit token budgets, reloaded verification notes, and safe checkpoint resumption.",
+    "Structure agent prompts, tool definitions, and multi-tier skills around prefix cache reuse and progressive disclosure so cost stays low and working memory stays clean across long tasks."
+  ],
+  "question": "When an append-only transcript still has plenty of room below the token limit yet keeps steering an agent back toward a refuted hypothesis on step twelve, is the bottleneck missing memory or unpruned noise competing inside the prompt?"
+}

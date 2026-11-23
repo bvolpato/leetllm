@@ -1,0 +1,1845 @@
+version: 1
+id: calling-llm-apis-production
+title: Follow One LLM Request Through Its Production Boundary
+source: preparation/calling-llm-apis-production/content.md
+opening: lesson
+voice: af_heart
+rate: +12%
+sources:
+  - title: Timeouts, retries, and backoff with jitter
+    url: https://aws.amazon.com/builders-library/timeouts-retries-and-backoff-with-jitter/
+  - title: HTTP Semantics, RFC 9110
+    url: https://www.rfc-editor.org/rfc/rfc9110.html
+  - title: OpenAI Structured Outputs guide
+    url: https://platform.openai.com/docs/guides/structured-outputs
+  - title: OpenTelemetry GenAI semantic conventions
+    url: https://opentelemetry.io/docs/specs/semconv/gen-ai/
+  - title: Server-sent events
+    url: https://developer.mozilla.org/en-US/docs/Web/API/Server-sent_events/Using_server-sent_events
+scenes:
+  - id: opening
+    title: Calling a model from an app
+    visual: >-
+      The caller’s stopwatch advances from three seconds to its four-second deadline. Hold the
+      dial there as two possible provider histories play beside it. On a second read, compare
+      the model reply with the age marker and policy line.
+    beats:
+      - say: >-
+          Three seconds on the clock. Your app is still waiting for the model. Four seconds. The
+          app times out. Did the model finish?
+        hold: 2.3
+        caption_starts:
+          - "Four seconds"
+          - "Did the model finish"
+        visual_cues:
+          - id: caller-wait
+            phrase: >-
+              Your app is still waiting for the model. Four seconds
+            targets: [caller-clock]
+            linger: 0.25
+      - say: >-
+          Here’s one possibility. The model finished in three seconds and its reply got lost.
+          Here’s another. Six seconds in, the model is still working. Both look the same from
+          the app. Record the timeout. The provider can confirm later how the request ended and
+          how many tokens it used.
+        hold: 1
+        caption_starts:
+          - "Here’s another"
+        visual_cues:
+          - id: finished-history
+            phrase: >-
+              The model finished in three seconds and its reply got lost
+            targets: [provider-one]
+            linger: 0.25
+          - id: running-history
+            phrase: >-
+              Six seconds in, the model is still working
+            targets: [provider-two]
+            linger: 0.25
+          - id: timeout-receipt
+            phrase: "Record the timeout"
+            targets: [caller-clock]
+            linger: 0.25
+            caption_boundary: true
+      - say: >-
+          On the next check, the model says this stale key is ineligible for rotation. The
+          account puts its age at forty-five days. Policy sets the minimum at thirty days. Would
+          you return the model's answer?
+        hold: 2.2
+        caption_starts:
+          - "The account puts its age"
+          - "Policy sets the minimum"
+          - "Would you return"
+        visual_cues:
+          - id: opening-candidate
+            phrase: "The model says this stale key is ineligible for rotation"
+            targets: [candidate-record]
+          - id: opening-age
+            phrase: "Forty-five days"
+            targets: [key-ruler]
+            linger: 0.25
+          - id: opening-policy
+            phrase: "Thirty days"
+            targets: [key-ruler]
+            linger: 0.25
+      - say: >-
+          Reject it. Forty-five days puts this stale key past the thirty-day mark. To check a
+          reply like this, the server needs trusted account facts and access to the policy.
+        hold: 0.9
+        visual_cues:
+          - id: opening-reject
+            phrase: "Reject it"
+            targets: [candidate-record]
+            linger: 0.25
+            caption_boundary: true
+  - id: secret-probe
+    title: Who can spend the organization's quota?
+    visual: >-
+      A local startup check reads a server setting and prints only its status. Follow a placeholder
+      through a public frontend build. Then keep the real credential on the server and trace a
+      caller as far as its permission allows.
+    beats:
+      - say: >-
+          Before the server can ask about this account, it needs a provider credential. Calls
+          made with that key use the organization's quota. Try the startup check with no key in the settings.
+          It stops. A blank value stops it too. Give it the local placeholder and it prints loaded.
+          The server found a value. To find out whether the key grants access to the model, the
+          provider has to check it.
+        hold: 0.8
+        visual_cues:
+          - id: empty-setting
+            phrase: "It stops"
+            targets: [startup-check]
+          - id: present-setting
+            phrase: "Give it the local placeholder and it prints loaded"
+            targets: [startup-check]
+      - say: >-
+          Now follow that placeholder through a frontend build. The browser downloads the bundle.
+          If the build inlined the key there, who can read it? The browser can. Encryption protects
+          delivery, and the receiving client gets the bytes. Next JS can inline referenced settings
+          with the public prefix shown here. Vite normally exposes settings with its own public
+          prefix. Keep provider credentials out of both, and out of mobile packages.
+        hold: 0.8
+        visual_cues:
+          - id: bundle-delivery
+            phrase: "The browser downloads the bundle"
+            targets: [delivery-path]
+          - id: client-can-read
+            phrase: "The browser can"
+            targets: [delivery-path]
+            caption_boundary: true
+      - say: >-
+          Put the credential back on the server, injected from an authorized secret store. Keep
+          staging and production credentials separate and revoke a leaked one. Now a signed-out
+          caller asks this server to check the same account. The browser has no key.
+          Can this caller still spend your quota if the route forwards every request?
+        hold: 2.1
+        visual_cues:
+          - id: server-secret
+            phrase: "injected from an authorized secret store"
+            targets: [server-key]
+          - id: anonymous-request
+            phrase: "a signed-out caller asks this server"
+            targets: [caller-request]
+      - say: >-
+          Yes. The server would make a billable call on that caller's behalf. Stop the request
+          at sign-in. For a signed-in user, also check access to the tenant and account, then
+          enforce the usage limit before the provider call. The local check only tested the
+          setting. Try those access checks against the deployed route separately.
+        hold: 0.8
+        visual_cues:
+          - id: proxy-spend
+            phrase: "The server would make a billable call on that caller's behalf"
+            targets: [server-key]
+            caption_boundary: true
+          - id: enforce-sign-in
+            phrase: "Stop the request at sign-in"
+            targets: [caller-request]
+  - id: contract-boundary
+    title: Put provider calls behind one server wrapper
+    visual: A caller request passes authorization, a task wrapper, and a provider adapter. The server
+      injects its credential and sends back a typed, validated result.
+    beats:
+      - say: >
+          The browser sends intent and an account identifier. The server authenticates the caller
+          and checks tenant access before it loads key age and policy.
+        hold: 0.7
+        visual_cues:
+          - id: authenticated-server-b1-1
+            phrase: authenticates the caller
+            targets:
+              - authenticated-server
+            color: cyan
+            linger: 0.6
+          - id: ap-contract-boundary-0
+            phrase: >
+              The browser sends intent and an account identifier. The server authenticates the
+              caller and checks tenant access before it loads key age and policy.
+            targets:
+              - ap-contract-boundary-trace
+            color: blue
+            linger: 0.4
+      - say: >
+          A shared wrapper maps the task to the provider format, keeps the API key server-side, and
+          records the prompt version and trace identifier.
+        hold: 0.7
+        visual_cues:
+          - id: server-secret-b2-1
+            phrase: API key server-side
+            targets:
+              - server-secret
+            color: yellow
+            linger: 0.6
+          - id: ap-contract-boundary-1
+            phrase: >
+              A shared wrapper maps the task to the provider format, keeps the API key server-side,
+              and records the prompt version and trace identifier.
+            targets:
+              - ap-contract-boundary-trace
+            color: cyan
+            linger: 0.4
+      - say: >
+          The adapter returns a candidate to one validation path. Every route can share timeouts,
+          retry rules, privacy scrubbing, and operational telemetry. Connect, first-text, read, and
+          total deadlines cover different waits.
+        hold: 0.75
+        visual_cues:
+          - id: validated-api-result-b3-1
+            phrase: one validation path
+            targets:
+              - validated-api-result
+            color: blue
+            linger: 0.6
+          - id: ap-contract-boundary-2
+            phrase: >
+              The adapter returns a candidate to one validation path. Every route can share
+              timeouts, retry rules, privacy scrubbing, and operational telemetry. Connect,
+              first-text, read, and total deadlines cover different waits.
+            targets:
+              - ap-contract-boundary-trace
+            color: yellow
+            linger: 0.4
+  - id: domain-wire
+    title: Keep application intent distinct from provider bytes
+    visual: Construct LLMTask fields one at a time from server-authorized facts; attach trace7e3b and
+      promptversion, then explicitly map internal fields to actual Responses text.format. Keep
+      legacy minimum-age interpretation beside field.
+    beats:
+      - say: >-
+          Does this stale key qualify for rotation? The task object carries that question, the
+          account, the policy IDs, a trace ID and the prompt version. It also sets the
+          connection and read timeouts, the total deadline and the retry cap. The Python
+          dataclass and its type annotations describe those fields.
+        hold: 0.6
+        visual_cues:
+          - id: ap-domain-wire-0
+            phrase: >-
+              Does this stale key qualify for rotation? The task object carries that question,
+              the account, the policy IDs, a trace ID and the prompt version. It also sets the
+              connection and read timeouts, the total deadline and the retry cap. The Python
+              dataclass and its type annotations describe those fields.
+            targets:
+              - ap-domain-wire-trace
+            color: blue
+            linger: 0.4
+      - say: >-
+          At the server, check the caller’s access and the allowed task. Timeouts must be finite
+          and positive, and the retry count must be zero or more. Now build the task. Its list
+          of required fields tells the adapter what the app expects. The adapter puts those
+          requirements into the schema the provider accepts.
+        hold: 0.6
+        visual_cues:
+          - id: ap-domain-wire-1
+            phrase: >-
+              At the server, check the caller’s access and the allowed task. Timeouts must be
+              finite and positive, and the retry count must be zero or more. Now build the task.
+              Its list of required fields tells the adapter what the app expects. The adapter
+              puts those requirements into the schema the provider accepts.
+            targets:
+              - ap-domain-wire-trace
+            color: cyan
+            linger: 0.4
+      - say: >-
+          One field is easy to misread. Rotation window days means the minimum age of a stale
+          key. On this ruler, eligibility starts at thirty days. Give the field that name in the
+          app. The server checks the proposed answer against the account, then asks for separate
+          authorization before creating a job.
+        hold: 0.6
+        visual_cues:
+          - id: ap-domain-wire-2
+            phrase: >-
+              One field is easy to misread. Rotation window days means the minimum age of a
+              stale key. On this ruler, eligibility starts at thirty days. Give the field that
+              name in the app. The server checks the proposed answer against the account, then
+              asks for separate authorization before creating a job.
+            targets:
+              - ap-domain-wire-trace
+            color: yellow
+            linger: 0.4
+  - id: candidate-validation
+    title: Check the response against policy and facts
+    visual: The same P-7 threshold and account age test three structured model candidates. A conflicting
+      answer, changed threshold, and grounded decision take distinct branches.
+    beats:
+      - say: >
+          First, the candidate says the forty-five-day-old key is not eligible. Its fields parse,
+          but that decision conflicts with the trusted age and thirty-day threshold.
+        hold: 0.75
+        visual_cues:
+          - id: candidate-field-comparison-b1-1
+            phrase: decision conflicts
+            targets:
+              - candidate-field-comparison
+            color: pink
+            linger: 0.6
+          - id: ap-candidate-validation-0
+            phrase: >
+              First, the candidate says the forty-five-day-old key is not eligible. Its fields
+              parse, but that decision conflicts with the trusted age and thirty-day threshold.
+            targets:
+              - ap-candidate-validation-trace
+            color: blue
+            linger: 0.4
+      - say: >
+          Next, the candidate cites P-7 while changing its threshold to ninety days. The source ID
+          exists, yet the number fails the policy check.
+        hold: 0.75
+        visual_cues:
+          - id: candidate-field-comparison-b2-1
+            phrase: threshold to ninety days
+            targets:
+              - candidate-field-comparison
+            color: pink
+            linger: 0.6
+          - id: ap-candidate-validation-1
+            phrase: >
+              Next, the candidate cites P-7 while changing its threshold to ninety days. The source
+              ID exists, yet the number fails the policy check.
+            targets:
+              - ap-candidate-validation-trace
+            color: cyan
+            linger: 0.4
+      - say: >
+          The final candidate says eligible, names thirty days, and cites P-7. The server accepts it
+          only after field types, evidence, and the comparison agree. Extra fields and duplicate
+          keys also need explicit handling.
+        hold: 0.8
+        visual_cues:
+          - id: candidate-verdict-b3-1
+            phrase: server accepts it
+            targets:
+              - candidate-verdict
+            color: green
+            linger: 0.6
+          - id: ap-candidate-validation-2
+            phrase: >
+              The final candidate says eligible, names thirty days, and cites P-7. The server
+              accepts it only after field types, evidence, and the comparison agree. Extra fields
+              and duplicate keys also need explicit handling.
+            targets:
+              - ap-candidate-validation-trace
+            color: yellow
+            linger: 0.4
+  - id: parser-layers
+    title: Reject ambiguous bytes before comparing policy
+    visual: Use raw ordered JSON key pairs, including identical duplicate decision keys, then
+      exactfield/type checks and trusted age/stale inputs. A visible conjunction stale AND
+      age>=threshold computes eligible/noteligible in both directions.
+    beats:
+      - say: A complete candidate must first survive parsing. Python JSON parsing can otherwise accept
+          duplicate keys by retaining one value and can accept nonstandard NaN or Infinity. This
+          parser observes object pairs before dictionary conversion, rejects any duplicate field and
+          nonstandard number, and turns excessive nesting into a named rejection. A response-size
+          bound is still needed around the parser.
+        hold: 0.6
+        visual_cues:
+          - id: ap-parser-layers-0
+            phrase: A complete candidate must first survive parsing. Python JSON parsing can otherwise accept
+              duplicate keys by retaining one value and can accept nonstandard NaN or Infinity. This
+              parser observes object pairs before dictionary conversion, rejects any duplicate field
+              and nonstandard number, and turns excessive nesting into a named rejection. A
+              response-size bound is still needed around the parser.
+            targets:
+              - ap-parser-layers-trace
+            color: blue
+            linger: 0.4
+      - say: Next require exactly decision, rotation-window-days and source-line-IDs. The decision is one of
+          two strings; the threshold is an actual integer, so Boolean true is rejected even though
+          Python treats Boolean as an integer subclass. Evidence must be a string list matching the
+          supported P seven line, and its numeric threshold must equal the trusted value.
+        hold: 0.6
+        visual_cues:
+          - id: ap-parser-layers-1
+            phrase: Next require exactly decision, rotation-window-days and source-line-IDs. The decision is one
+              of two strings; the threshold is an actual integer, so Boolean true is rejected even
+              though Python treats Boolean as an integer subclass. Evidence must be a string list
+              matching the supported P seven line, and its numeric threshold must equal the trusted
+              value.
+            targets:
+              - ap-parser-layers-trace
+            color: cyan
+            linger: 0.4
+      - say: >-
+          Check the account record too. The key age and policy threshold must both be
+          nonnegative integers, and the stale flag must be Boolean. A stale key qualifies on the
+          day it reaches the threshold. A younger key or a key marked current fails that check.
+          If the record is missing, report the lookup failure. Calling that key ineligible would
+          give the user a made-up answer.
+        hold: 0.6
+        visual_cues:
+          - id: ap-parser-layers-2
+            phrase: >-
+              Check the account record too. The key age and policy threshold must both be
+              nonnegative integers, and the stale flag must be Boolean. A stale key qualifies on
+              the day it reaches the threshold. A younger key or a key marked current fails that
+              check. If the record is missing, report the lookup failure. Calling that key
+              ineligible would give the user a made-up answer.
+            targets:
+              - ap-parser-layers-trace
+            color: yellow
+            linger: 0.4
+  - id: failure-receipt
+    title: A rejected call still emits its real outcome
+    visual: Execute actual parser wrapper success and failure receipts with fake clock, preserving trace
+      ID. Unknown account stops before providerstub; finally writes failed rather than success or
+      invented negative decision.
+    beats:
+      - say: >-
+          Watch the status field. It starts at failed. The wrapper loads the account, calls the
+          local provider stub and checks the answer. Only then does it change the status to
+          okay. Its finally block records elapsed time on either path. Here the test clock
+          advances by five hundredths of a millisecond.
+        hold: 0.6
+        visual_cues:
+          - id: ap-failure-receipt-0
+            phrase: >-
+              Watch the status field. It starts at failed. The wrapper loads the account, calls
+              the local provider stub and checks the answer. Only then does it change the status
+              to okay. Its finally block records elapsed time on either path. Here the test
+              clock advances by five hundredths of a millisecond.
+            targets:
+              - ap-failure-receipt-trace
+            color: blue
+            linger: 0.4
+      - say: >-
+          Now the stub gives a wrong answer about a known account. Validation fails. Try an
+          unknown account and the lookup fails before the provider call. Two failures, one
+          provider call. Both leave a status record, and the test restores the original stub
+          when it finishes.
+        hold: 0.6
+        caption_starts: ["Two failures, one provider call"]
+        visual_cues:
+          - id: ap-failure-receipt-1
+            phrase: >-
+              Now the stub gives a wrong answer about a known account. Validation fails.
+            targets:
+              - ap-failure-receipt-trace
+            color: cyan
+            linger: 0.4
+      - say: >-
+          Give each attempt its own record with the provider request ID and any reported usage.
+          If the caller times out, return a timeout to the user. Leave usage open until the
+          provider reports it. The task record tells you what the user received.
+        hold: 0.6
+        visual_cues:
+          - id: ap-failure-receipt-2
+            phrase: >-
+              Give each attempt its own record with the provider request ID and any reported
+              usage. If the caller times out, return a timeout to the user. Leave usage open
+              until the provider reports it. The task record tells you what the user received.
+            targets:
+              - ap-failure-receipt-trace
+            color: yellow
+            linger: 0.4
+  - id: timeout-contract
+    title: Connection activity can outlive useful progress
+    visual: Shared wall-clock shows separate connect/read/firsttext/overall timers. Heartbeat arrivals
+      reset only readgap; firsttext timer expires independently. Separate cooperative cancellation
+      cleanup extends actual wait while remote state remains unknown.
+    beats:
+      - say: >-
+          A call can stall in four places. The client can wait for a pooled connection, open a
+          new one, write the request or wait for the next chunk of the reply. Give each wait its
+          own limit. Connection reuse, name resolution, proxies and the TLS handshake affect the
+          time it takes to connect.
+        hold: 0.6
+        visual_cues:
+          - id: ap-timeout-contract-0
+            phrase: >-
+              A call can stall in four places. The client can wait for a pooled connection, open
+              a new one, write the request or wait for the next chunk of the reply. Give each
+              wait its own limit. Connection reuse, name resolution, proxies and the TLS
+              handshake affect the time it takes to connect.
+            targets:
+              - ap-timeout-contract-trace
+            color: blue
+            linger: 0.4
+      - say: >-
+          Here come six heartbeats. Each one delivers bytes, so the read timer resets. The user
+          is still waiting for the first words. Give that wait its own deadline. Keep a total
+          deadline running through retrieval, attempts, waits and validation. Set each limit
+          from the delays you measure and the time the user can wait.
+        hold: 0.6
+        visual_cues:
+          - id: ap-timeout-contract-1
+            phrase: >-
+              Here come six heartbeats. Each one delivers bytes, so the read timer resets. The
+              user is still waiting for the first words. Give that wait its own deadline. Keep a
+              total deadline running through retrieval, attempts, waits and validation. Set each
+              limit from the delays you measure and the time the user can wait.
+            targets:
+              - ap-timeout-contract-trace
+            color: cyan
+            linger: 0.4
+      - say: >-
+          Give a sleeping coroutine one millisecond to answer. It needs twenty. When the
+          millisecond is up, wait-for requests cancellation and waits for cleanup. That cleanup
+          can push elapsed time past the deadline. Use an asynchronous transport that can yield
+          to cancellation, and measure overruns. Blocking code holds the event loop. For remote
+          work, check the outcome with the provider.
+        hold: 0.6
+        visual_cues:
+          - id: ap-timeout-contract-2
+            phrase: >-
+              Give a sleeping coroutine one millisecond to answer. It needs twenty. When the
+              millisecond is up, wait-for requests cancellation and waits for cleanup. That
+              cleanup can push elapsed time past the deadline. Use an asynchronous transport
+              that can yield to cancellation, and measure overruns. Blocking code holds the
+              event loop. For remote work, check the outcome with the provider.
+            targets:
+              - ap-timeout-contract-trace
+            color: yellow
+            linger: 0.4
+  - id: timeout-retry
+    title: Share one deadline across attempts and waits
+    visual: A supplied timeline lays a fourteen-second attempt, a Retry-After floor plus jitter, and a
+      three-second retry inside one twenty-second task budget.
+    beats:
+      - say: >
+          Give the whole task twenty seconds. When its first attempt uses fourteen, six seconds
+          remain for any wait, another call, and final validation.
+        hold: 0.75
+        visual_cues:
+          - id: retry-budget-b1-1
+            phrase: six seconds remain
+            targets:
+              - retry-budget
+            color: yellow
+            linger: 0.6
+          - id: ap-timeout-retry-0
+            phrase: >
+              Give the whole task twenty seconds. When its first attempt uses fourteen, six seconds
+              remain for any wait, another call, and final validation.
+            targets:
+              - ap-timeout-retry-trace
+            color: blue
+            linger: 0.4
+      - say: >
+          This rate-limit response requests two seconds. Full jitter adds a half-second in our
+          constructed trace, so the next attempt starts after two and a half seconds.
+        hold: 0.75
+        visual_cues:
+          - id: retry-clock-b2-1
+            phrase: two and a half seconds
+            targets:
+              - retry-clock
+            color: cyan
+            linger: 0.6
+          - id: ap-timeout-retry-1
+            phrase: >
+              This rate-limit response requests two seconds. Full jitter adds a half-second in our
+              constructed trace, so the next attempt starts after two and a half seconds.
+            targets:
+              - ap-timeout-retry-trace
+            color: cyan
+            linger: 0.4
+      - say: >
+          The three-second retry ends at nineteen and a half, inside the budget. With only one point
+          two seconds left, the requested wait cannot fit, so stop. Use a monotonic clock to measure
+          remaining time.
+        hold: 0.8
+        visual_cues:
+          - id: retry-clock-b3-1
+            phrase: nineteen and a half
+            targets:
+              - retry-clock
+            color: green
+            linger: 0.6
+          - id: ap-timeout-retry-2
+            phrase: >
+              The three-second retry ends at nineteen and a half, inside the budget. With only one
+              point two seconds left, the requested wait cannot fit, so stop. Use a monotonic clock
+              to measure remaining time.
+            targets:
+              - ap-timeout-retry-trace
+            color: yellow
+            linger: 0.4
+  - id: admission-limits
+    title: Classify the failure before spending another attempt
+    visual: Map request and token admission buckets separately, then route exact
+      normalized429codes,503,401 and completed refusal to bounded retry/quota/request/inspect
+      destinations. Keep tenant quota separate from providerhealth.
+    beats:
+      - say: Providers may limit requests per minute, tokens per minute and concurrent work at different
+          scopes. An average request rate can hide bursts. Long inputs, reserved output allowances
+          and repeated retries can consume token admission differently from a final invoice. Inspect
+          the chosen provider’s actual accounting instead of deriving one universal quota from a
+          token count.
+        hold: 0.6
+        visual_cues:
+          - id: ap-admission-limits-0
+            phrase: Providers may limit requests per minute, tokens per minute and concurrent work at different
+              scopes. An average request rate can hide bursts. Long inputs, reserved output
+              allowances and repeated retries can consume token admission differently from a final
+              invoice. Inspect the chosen provider’s actual accounting instead of deriving one
+              universal quota from a token count.
+            targets:
+              - ap-admission-limits-trace
+            color: blue
+            linger: 0.4
+      - say: >-
+          Two requests get the same status: four twenty-nine. The first hit a temporary rate
+          limit. A safe read can retry within budget, just as it can after a transient
+          five-oh-three. The second ran out of credit. An operator has to fix the quota. For a
+          four hundred, fix the request. For four-oh-one or four-oh-three, check credentials and
+          access. Inspect an unfamiliar error code before choosing a retry.
+        hold: 0.6
+        visual_cues:
+          - id: ap-admission-limits-1
+            phrase: >-
+              Two requests get the same status: four twenty-nine. The first hit a temporary rate
+              limit. A safe read can retry within budget, just as it can after a transient
+              five-oh-three. The second ran out of credit. An operator has to fix the quota. For
+              a four hundred, fix the request. For four-oh-one or four-oh-three, check
+              credentials and access. Inspect an unfamiliar error code before choosing a retry.
+            targets:
+              - ap-admission-limits-trace
+            color: cyan
+            linger: 0.4
+      - say: >-
+          Even a two hundred can carry a refusal, a partial reply or a decision that fails
+          policy. Record the specific failure. Let the adapter translate provider errors, and
+          apply a tenant’s spending limit to that tenant. Other accounts may still be getting
+          answers.
+        hold: 0.6
+        visual_cues:
+          - id: ap-admission-limits-2
+            phrase: >-
+              Even a two hundred can carry a refusal, a partial reply or a decision that fails
+              policy. Record the specific failure. Let the adapter translate provider errors,
+              and apply a tenant’s spending limit to that tenant. Other accounts may still be
+              getting answers.
+            targets:
+              - ap-admission-limits-trace
+            color: yellow
+            linger: 0.4
+  - id: jitter-geometry
+    title: When will the workers come back?
+    visual: >-
+      Six worker tracks share an elapsed-time axis. Hold the failure time fixed while the retry
+      marks spread. Then put two successive random draws inside their actual windows.
+    beats:
+      - say: >-
+          Six workers hit a temporary limit together. Ignore request duration for a moment. Each
+          worker waits one second, retries, then waits two more. Watch their arrivals at one and
+          three seconds. The provider sees two bursts. Now give each worker its own random waits.
+          See how much less work lands at the same instant? Two arrivals can still coincide.
+        hold: 0.9
+        visual_cues:
+          - id: fixed-arrivals
+            phrase: "Each worker waits one second, retries, then waits two more"
+            targets: [arrival-tracks]
+            linger: 0.25
+          - id: spread-arrivals
+            phrase: "give each worker its own random waits"
+            targets: [arrival-tracks]
+            linger: 0.25
+      - say: >-
+          Look at one worker. Start with a one-second base and an eight-second cap. For full jitter,
+          double the ceiling on each retry up to that cap. Pick a point anywhere between zero and
+          the ceiling. Our supplied draw is halfway across the first window. That's half a second.
+          Double the window for retry two. The same draw now gives one second.
+        hold: 0.8
+        visual_cues:
+          - id: full-first
+            phrase: "halfway across the first window. That's half a second"
+            targets: [jitter-windows]
+            linger: 0.25
+          - id: full-second
+            phrase: "Double the window for retry two. The same draw now gives one second"
+            targets: [jitter-windows]
+            linger: 0.25
+      - say: >-
+          Try a different rule with the same half draw. Start with a previous sleep of one second.
+          Draw between the base and three times the previous sleep, then cap the result. Halfway
+          from one to three gives two seconds. That sleep sets the next upper endpoint at six.
+          Halfway from one to six gives three and a half seconds. This is decorrelated jitter. The
+          lab prints these alternatives and takes the full-jitter waits. Independent draws spread
+          traffic, although a cap can bunch workers together again.
+        hold: 0.8
+        visual_cues:
+          - id: decor-first
+            phrase: "Halfway from one to three gives two seconds"
+            targets: [jitter-windows]
+            linger: 0.25
+          - id: decor-second
+            phrase: "Halfway from one to six gives three and a half seconds"
+            targets: [jitter-windows]
+            linger: 0.25
+  - id: deadline-floor
+    title: Is there time for another attempt?
+    visual: >-
+      Keep a retry reservation on one scale. Stack the header floor, its sampled jitter, the call,
+      and the validation allowance. Move only the deadline on replay. Then count provider attempts
+      inside nested retry loops.
+    beats:
+      - say: >-
+          Return to the rate-limited read with six seconds left. The Retry-After header asks for two
+          seconds. That's the earliest this wrapper will retry. Its first jitter window is one
+          second wide, and we drew the midpoint. Add half a second above the floor. A header can
+          also give an HTTP date. Convert a past date to zero delay and give malformed values an
+          explicit fallback.
+        hold: 0.7
+        visual_cues:
+          - id: reserve-floor
+            phrase: "asks for two seconds"
+            targets: [retry-ruler]
+            linger: 0.25
+          - id: reserve-jitter
+            phrase: "Add half a second above the floor"
+            targets: [retry-ruler]
+            linger: 0.25
+      - say: >-
+          Place the three-second allowance for the next call after that wait. Leave four tenths of a
+          second for validation. The whole reservation takes five point nine seconds. With six
+          seconds left, the wrapper can schedule this retry. After the wait it must read the
+          monotonic clock again and enforce the time still available.
+        hold: 0.9
+        visual_cues:
+          - id: reserve-call
+            phrase: "three-second allowance for the next call"
+            targets: [retry-ruler]
+            linger: 0.25
+          - id: reserve-check
+            phrase: "four tenths of a second for validation"
+            targets: [retry-ruler]
+            linger: 0.25
+          - id: reserve-admit
+            phrase: "the wrapper can schedule this retry"
+            targets: [reservation-verdict]
+            linger: 0.25
+            caption_boundary: true
+      - say: >-
+          Replay the same read. This time the first attempt ran half a second longer. Five and a
+          half seconds remain. The wait, call allowance and validation reserve are unchanged. Can
+          the wrapper schedule this retry?
+        hold: 2.2
+        visual_cues:
+          - id: reserve-less
+            phrase: "Five and a half seconds remain"
+            targets: [retry-ruler]
+            linger: 0.25
+      - say: >-
+          Stop before the wait. The call alone would use every remaining moment after backoff.
+          Validation would cross the deadline. The wait helper returns two and a half seconds in
+          both cases. It rejects a wait that reaches or exceeds the time left, but the wrapper must
+          also budget for the work after it.
+        hold: 0.9
+        visual_cues:
+          - id: reserve-deny
+            phrase: "Stop before the wait"
+            targets: [reservation-verdict]
+            linger: 0.25
+            caption_boundary: true
+      - say: >-
+          One more way to spend the same budget twice. Suppose the wrapper allows three attempts,
+          and each SDK call can make three attempts of its own. Count the provider calls across
+          those three rows. Up to nine. Let the wrapper own the retry policy here. The SDK example
+          sets max retries to zero, so each invocation makes one attempt.
+        hold: 0.8
+        caption_starts:
+          - "Up to nine"
+          - "Let the wrapper own"
+        visual_cues:
+          - id: retry-count
+            phrase: "Up to nine"
+            targets: [attempt-grid]
+          - id: nested-calls
+            phrase: "Count the provider calls across those three rows"
+            targets: [attempt-grid]
+            linger: 0.25
+          - id: single-owner
+            phrase: "sets max retries to zero"
+            targets: [attempt-grid]
+            linger: 0.25
+  - id: circuit-breaker
+    title: Stop loading a failing provider
+    visual: Two 503 responses move the circuit from closed to open. A cooldown admits one half-open
+      probe, while error classes choose retry, quota repair, or credential repair.
+    beats:
+      - say: >
+          A mapped rate-limit response can receive a bounded retry. Credit exhaustion needs an
+          operator to fix quota, and an unauthorized response needs credential or access repair.
+        hold: 0.75
+        visual_cues:
+          - id: provider-failure-map-b1-1
+            phrase: Credit exhaustion
+            targets:
+              - provider-failure-map
+            color: yellow
+            linger: 0.6
+          - id: ap-circuit-breaker-0
+            phrase: >
+              A mapped rate-limit response can receive a bounded retry. Credit exhaustion needs an
+              operator to fix quota, and an unauthorized response needs credential or access repair.
+            targets:
+              - ap-circuit-breaker-trace
+            color: blue
+            linger: 0.4
+      - say: >
+          When repeated server failures reach this breaker’s two-failure threshold, it opens. New
+          requests fail quickly or use an approved fallback with matching checks.
+        hold: 0.75
+        visual_cues:
+          - id: breaker-first-receipt
+            phrase: When repeated server failures
+            targets:
+              - breaker-failure-one
+            color: pink
+            linger: 0.6
+          - id: breaker-failure-two-b2-1
+            phrase: two-failure threshold
+            targets:
+              - breaker-failure-one
+              - breaker-failure-two
+              - breaker-failure-count
+              - breaker-state-open
+            color: pink
+            linger: 0.6
+          - id: ap-circuit-breaker-1
+            phrase: >
+              When repeated server failures reach this breaker’s two-failure threshold, it opens.
+              New requests fail quickly or use an approved fallback with matching checks.
+            targets:
+              - ap-circuit-breaker-trace
+            color: cyan
+            linger: 0.4
+      - say: >
+          After ten seconds, one probe enters the half-open state. Success closes the circuit, while
+          another failure opens it again and leaves recovery controlled. Fallbacks need compatible
+          behavior, permission, capacity, and the same validator.
+        hold: 0.8
+        visual_cues:
+          - id: breaker-probe-b3-1
+            phrase: one probe
+            targets:
+              - breaker-probe
+            color: cyan
+            linger: 0.6
+          - id: ap-circuit-breaker-2
+            phrase: >
+              After ten seconds, one probe enters the half-open state. Success closes the circuit,
+              while another failure opens it again and leaves recovery controlled. Fallbacks need
+              compatible behavior, permission, capacity, and the same validator.
+            targets:
+              - ap-circuit-breaker-trace
+            color: yellow
+            linger: 0.4
+  - id: breaker-clock
+    title: Two arrivals at the recovery gate
+    visual: >-
+      Match each primary request to its numbered failure receipt. The receipt at 103 seconds starts
+      the cooldown. At 114 seconds, A sits in the only primary probe slot when B arrives. Route B,
+      process the probe receipts, and rerun B with an unapproved fallback.
+    beats:
+      - say: >-
+          The first request goes to the primary. Its failure comes back here. The breaker stays
+          closed, so the second request gets through. Its failure opens the breaker. The next
+          request goes to the backup. Start the ten-second cooldown at that second failure, at
+          one hundred three. At one hundred thirteen the primary can take one test request.
+        hold: 0.8
+        visual_cues:
+          - id: gate-first
+            phrase: >-
+              Its failure comes back here
+            targets: [failure-marks]
+            linger: 0.25
+          - id: gate-request-two
+            phrase: >-
+              the second request gets through
+            targets: [failure-marks]
+            linger: 0.25
+          - id: gate-second
+            phrase: >-
+              Its failure opens the breaker
+            targets: [failure-marks]
+            linger: 0.25
+          - id: gate-fallback
+            phrase: >-
+              The next request goes to the backup
+            targets: [failure-marks]
+            linger: 0.25
+          - id: gate-cooldown
+            phrase: >-
+              Start the ten-second cooldown at that second failure
+            targets: [failure-marks]
+            linger: 0.25
+      - say: >-
+          A takes the only probe slot. The breaker is now half-open. B arrives at the same
+          instant, while A is waiting for a reply. Where can B go?
+        hold: 2.4
+        caption_starts:
+          - "Where can B go"
+        visual_cues:
+          - id: permit-a
+            phrase: >-
+              A takes the only probe slot
+            targets: [primary-permit]
+            linger: 0.25
+          - id: arrival-b
+            phrase: >-
+              B arrives at the same instant
+            targets: [waiting-request]
+            linger: 0.25
+      - say: >-
+          B takes the fallback. A is still testing the primary. A’s failure starts another
+          cooldown. The next request takes the backup too. When the cooldown ends, C gets the
+          probe slot. This one succeeds. The breaker clears its failure count. Now D can go
+          straight to the primary.
+        hold: 0.9
+        caption_starts:
+          - "A’s failure starts another cooldown"
+          - "When the cooldown ends"
+        visual_cues:
+          - id: route-b
+            phrase: "B takes the fallback"
+            targets: [fallback-route]
+            linger: 0.25
+            caption_boundary: true
+          - id: fallback-travel
+            phrase: "A is still testing the primary"
+            targets: [fallback-route]
+            linger: 0.25
+          - id: probe-fails
+            phrase: >-
+              A’s failure starts another cooldown
+            targets: [primary-permit]
+            linger: 0.25
+          - id: gate-116
+            phrase: >-
+              The next request takes the backup too
+            targets: [fallback-route]
+            linger: 0.25
+          - id: next-probe
+            phrase: >-
+              C gets the probe slot
+            targets: [primary-permit]
+            linger: 0.25
+          - id: probe-success
+            phrase: "This one succeeds"
+            targets: [primary-permit]
+            linger: 0.25
+            caption_boundary: true
+          - id: normal-arrival
+            phrase: >-
+              D can go straight to the primary
+            targets: [primary-permit]
+            linger: 0.25
+      - say: >-
+          Replay B’s arrival with one change. This account allows requests to be kept for one
+          day. The backup keeps them for seven days. B stays at the router. Return a routing
+          failure. Approve a backup for the account’s data, check its capacity and schema
+          support, and validate its replies. For regional failover, select a supported
+          deployment in another region. Two zones in one region still share that region.
+        hold: 0.8
+        caption_starts:
+          - "The backup keeps them for seven days"
+          - "B stays at the router"
+          - "For regional failover"
+        visual_cues:
+          - id: account-retention
+            phrase: "kept for one day"
+            targets: [waiting-request]
+          - id: retention-change
+            phrase: >-
+              The backup keeps them for seven days
+            targets: [fallback-route]
+            linger: 0.25
+          - id: hold-at-router
+            phrase: >-
+              Return a routing failure
+            targets: [waiting-request]
+            linger: 0.25
+            caption_boundary: true
+          - id: regional-deployment
+            phrase: "For regional failover"
+            targets: [regions]
+      - say: >-
+          The local example picks route labels one arrival at a time. With two router workers, both
+          could see the slot empty. Grant it atomically. Give the permit an expiry so a crashed
+          probe can release it. If an old reply comes back after a newer probe has taken over, check
+          which generation owns the slot before changing the breaker.
+        hold: 0.8
+        visual_cues:
+          - id: atomic-grant
+            phrase: "Grant it atomically"
+            targets: [primary-permit]
+            linger: 0.25
+          - id: lease-expiry
+            phrase: "Give the permit an expiry"
+            targets: [primary-permit]
+            linger: 0.25
+          - id: old-reply
+            phrase: "an old reply comes back"
+            targets: [waiting-request]
+            linger: 0.25
+  - id: idempotency
+    title: Give each write intent a durable identity
+    visual: One authorized intent creates JOB-001. After a lost response, repeating its key returns the
+      same job and leaves the created-job count at one.
+    beats:
+      - say: >
+          Eligibility is a read. Creating a rotation job is a separate write that needs fresh
+          authorization and current account state.
+        hold: 0.7
+        visual_cues:
+          - id: write-authorization-b1-1
+            phrase: fresh authorization
+            targets:
+              - write-authorization
+            color: blue
+            linger: 0.6
+          - id: ap-idempotency-0
+            phrase: >
+              Eligibility is a read. Creating a rotation job is a separate write that needs fresh
+              authorization and current account state.
+            targets:
+              - ap-idempotency-trace
+            color: blue
+            linger: 0.4
+      - say: >
+          The first authorized request stores intent key 7e3b and creates job JOB-001. A timeout
+          leaves the caller unsure whether the remote action completed.
+        hold: 0.75
+        visual_cues:
+          - id: durable-intent-key-b2-1
+            phrase: intent key 7e3b
+            targets:
+              - durable-intent-key
+            color: yellow
+            linger: 0.6
+          - id: ap-idempotency-1
+            phrase: >
+              The first authorized request stores intent key 7e3b and creates job JOB-001. A timeout
+              leaves the caller unsure whether the remote action completed.
+            targets:
+              - ap-idempotency-trace
+            color: cyan
+            linger: 0.4
+      - say: >
+          Retry the same intent with the same key, and the service returns JOB-001. Durable
+          idempotency prevents a duplicate job, while permissions remain a separate check. The
+          downstream service must honor that key or support status reconciliation.
+        hold: 0.8
+        visual_cues:
+          - id: same-job-retry-b3-1
+            phrase: returns JOB-001
+            targets:
+              - same-job-retry
+            color: green
+            linger: 0.6
+          - id: ap-idempotency-2
+            phrase: >
+              Retry the same intent with the same key, and the service returns JOB-001. Durable
+              idempotency prevents a duplicate job, while permissions remain a separate check. The
+              downstream service must honor that key or support status reconciliation.
+            targets:
+              - ap-idempotency-trace
+            color: yellow
+            linger: 0.4
+  - id: write-uncertainty
+    title: A local claim cannot establish a remote write outcome
+    visual: Holdonejobandintentledger while acknowledgmentpacketisphysicallylost.
+      Restartsequentialinmemorydictlosesrecord;separate durabletenant/keyclaim
+      retainsargumentsbutremoteunknownstillneedsdestinationidempotency/status. Newintentgetsnewkey.
+    beats:
+      - say: >-
+          Send the same intent twice. The second request finds job zero-zero-one in the server’s
+          dictionary and returns it with created set to false. Now restart the server. The entry
+          is gone. Two workers could also check the dictionary at the same time and both see an
+          empty slot.
+        hold: 0.6
+        visual_cues:
+          - id: ap-write-uncertainty-0
+            phrase: >-
+              Send the same intent twice. The second request finds job zero-zero-one in the
+              server’s dictionary and returns it with created set to false. Now restart the
+              server. The entry is gone. Two workers could also check the dictionary at the same
+              time and both see an empty slot.
+            targets:
+              - ap-write-uncertainty-trace
+            color: blue
+            linger: 0.4
+      - say: >-
+          Claim the tenant and intent key together in one database operation. Store the
+          arguments’ fingerprint and whether the job is pending, completed or failed. Reject
+          reuse with different arguments. Now suppose the server crashes just after dispatch.
+          The ledger still says pending. Ask the destination for the job, or resend the same key
+          if the destination deduplicates it.
+        hold: 0.6
+        visual_cues:
+          - id: ap-write-uncertainty-1
+            phrase: >-
+              Claim the tenant and intent key together in one database operation. Store the
+              arguments’ fingerprint and whether the job is pending, completed or failed. Reject
+              reuse with different arguments. Now suppose the server crashes just after
+              dispatch. The ledger still says pending. Ask the destination for the job, or
+              resend the same key if the destination deduplicates it.
+            targets:
+              - ap-write-uncertainty-trace
+            color: cyan
+            linger: 0.4
+      - say: >-
+          A retry keeps the original key and arguments. Next month the same account may need
+          another rotation. Check permission and the current account state, then give that new
+          intent its own key. Both jobs can now have their own history.
+        hold: 0.6
+        visual_cues:
+          - id: ap-write-uncertainty-2
+            phrase: >-
+              A retry keeps the original key and arguments. Next month the same account may need
+              another rotation. Check permission and the current account state, then give that
+              new intent its own key. Both jobs can now have their own history.
+            targets:
+              - ap-write-uncertainty-trace
+            color: yellow
+            linger: 0.4
+  - id: format-contract
+    title: Shape constraints stop before policy truth
+    visual: Samecandidatepasses strictsupportedJSONschema butfailsP7semanticcomparison. Contrast
+      JSONmodekeysunchecked;refusal/incompletebranchesbypassbusinessparser.
+      RecursivegrammartoydifferentfromfiniteFSMexplicit.
+    beats:
+      - say: >-
+          Both decision labels fit the schema. Which one fits this account? The server has to
+          look up the key’s age and stale flag. JSON mode asks for valid JSON. Strict Structured
+          Outputs also enforces the supported schema on a successful completion. In either mode,
+          check the completion status, handle refusals and validate the decision.
+        hold: 0.6
+        caption_starts:
+          - "The server has to look up"
+        visual_cues:
+          - id: ap-format-contract-0
+            phrase: >-
+              Both decision labels fit the schema. Which one fits this account? The server has
+              to look up the key’s age and stale flag. JSON mode asks for valid JSON. Strict
+              Structured Outputs also enforces the supported schema on a successful completion.
+              In either mode, check the completion status, handle refusals and validate the
+              decision.
+            targets:
+              - ap-format-contract-trace
+            color: blue
+            linger: 0.4
+      - say: >-
+          In the Responses request, text dot format carries the strict schema. Require a
+          decision, an integer minimum age and a list of source IDs. Set additional properties
+          to false to reject extra fields. The server checks each citation and looks up the age
+          threshold in the policy. For recursive schemas, a grammar can track nested structures
+          beyond the reach of a simple finite-state machine.
+        hold: 0.6
+        visual_cues:
+          - id: ap-format-contract-1
+            phrase: >-
+              In the Responses request, text dot format carries the strict schema. Require a
+              decision, an integer minimum age and a list of source IDs. Set additional
+              properties to false to reject extra fields. The server checks each citation and
+              looks up the age threshold in the policy. For recursive schemas, a grammar can
+              track nested structures beyond the reach of a simple finite-state machine.
+            targets:
+              - ap-format-contract-trace
+            color: cyan
+            linger: 0.4
+      - say: >-
+          Sort the replies before parsing. A refusal goes back as a refusal. An incomplete or
+          empty reply gets its own failure. Send completed, nonempty decision text to the
+          parser. Check support for your schema on the model and endpoint that will serve the
+          request.
+        hold: 0.6
+        visual_cues:
+          - id: ap-format-contract-2
+            phrase: >-
+              Sort the replies before parsing. A refusal goes back as a refusal. An incomplete
+              or empty reply gets its own failure. Send completed, nonempty decision text to the
+              parser. Check support for your schema on the model and endpoint that will serve
+              the request.
+            targets:
+              - ap-format-contract-trace
+            color: yellow
+            linger: 0.4
+  - id: sdk-wire
+    title: Exercise the actual adapter with a local transport
+    visual: BuildrealSDK3.16.2request /v1/responses text.format locallyandinspecttrustedfacts
+      inMockTransport.
+      Fouractualrepliesyieldeligible/wrongthreshold/refusal/incomplete;separateTLS/systemCAandstorageflags
+      remainoutsideexecutedmock.
+    beats:
+      - say: >-
+          Send the same forty-five-day account through the SDK. A local mock transport receives
+          the outgoing Responses request. Inspect it and you can see both the account’s age and
+          the strict schema. The mock uses a placeholder key and model and serves four prepared
+          replies locally.
+        hold: 0.6
+        visual_cues:
+          - id: ap-sdk-wire-0
+            phrase: >-
+              Send the same forty-five-day account through the SDK. A local mock transport
+              receives the outgoing Responses request. Inspect it and you can see both the
+              account’s age and the strict schema. The mock uses a placeholder key and model and
+              serves four prepared replies locally.
+            targets:
+              - ap-sdk-wire-trace
+            color: blue
+            linger: 0.4
+      - say: >-
+          Thirty days matches the cited policy. That reply becomes a typed decision. Change the
+          number to ninety and the validator rejects it. The next reply is a refusal. The last
+          runs out of output tokens. Those two reach the caller as distinct failures. You can
+          exercise all four paths with the same adapter.
+        hold: 0.6
+        visual_cues:
+          - id: ap-sdk-wire-1
+            phrase: >-
+              Thirty days matches the cited policy. That reply becomes a typed decision. Change
+              the number to ninety and the validator rejects it. The next reply is a refusal.
+              The last runs out of output tokens. Those two reach the caller as distinct
+              failures. You can exercise all four paths with the same adapter.
+            targets:
+              - ap-sdk-wire-trace
+            color: cyan
+            linger: 0.4
+      - say: >-
+          To connect that adapter to the provider, check which certificates the client trusts.
+          This SDK version uses HTTP X two by default, with the operating system’s trust store.
+          Check the certificates in your container and the trust chain through any corporate
+          proxy. Reuse the connection pool. Let one layer handle retries and give the whole task
+          its own deadline above the five-second transport timeout.
+        hold: 0.6
+        visual_cues:
+          - id: ap-sdk-wire-2
+            phrase: >-
+              To connect that adapter to the provider, check which certificates the client
+              trusts. This SDK version uses HTTP X two by default, with the operating system’s
+              trust store. Check the certificates in your container and the trust chain through
+              any corporate proxy. Reuse the connection pool. Let one layer handle retries and
+              give the whole task its own deadline above the five-second transport timeout.
+            targets:
+              - ap-sdk-wire-trace
+            color: yellow
+            linger: 0.4
+      - say: >-
+          For this foreground text request, setting store to false opts out of Responses
+          application-state storage. Check the organization’s abuse-monitoring settings and Zero
+          Data Retention approval separately. Tools and caches have their own retention rules.
+          Follow the request through those services before sending sensitive data.
+        hold: 0.6
+        visual_cues:
+          - id: ap-sdk-wire-3
+            phrase: >-
+              For this foreground text request, setting store to false opts out of Responses
+              application-state storage. Check the organization’s abuse-monitoring settings and
+              Zero Data Retention approval separately. Tools and caches have their own retention
+              rules. Follow the request through those services before sending sensitive data.
+            targets:
+              - ap-sdk-wire-trace
+            color: yellow
+            linger: 0.4
+  - id: streaming
+    title: Treat streamed text as provisional
+    visual: Metadata appears before the first text delta. A checked event timeline fills the response
+      buffer and marks completion before the full result reaches validation.
+    beats:
+      - say: >
+          A stream may send metadata before a person sees any words. Measure time to first visible
+          text separately from connection activity and total completion time.
+        hold: 0.75
+        visual_cues:
+          - id: streaming-timing-b1-1
+            phrase: first visible text
+            targets:
+              - streaming-timing
+            color: yellow
+            linger: 0.6
+          - id: ap-streaming-0
+            phrase: >
+              A stream may send metadata before a person sees any words. Measure time to first
+              visible text separately from connection activity and total completion time.
+            targets:
+              - ap-streaming-trace
+            color: blue
+            linger: 0.4
+      - say: >
+          In this illustrative trace, text begins at three seconds and arrives in several deltas.
+          The client can show progress while buffering the full response. Event spacing measures
+          received chunks, not necessarily individual model tokens.
+        hold: 0.75
+        visual_cues:
+          - id: streamed-api-draft-b2-1
+            phrase: several deltas
+            targets:
+              - streamed-api-draft
+            color: blue
+            linger: 0.6
+          - id: ap-streaming-1
+            phrase: >
+              In this illustrative trace, text begins at three seconds and arrives in several
+              deltas. The client can show progress while buffering the full response. Event spacing
+              measures received chunks, not necessarily individual model tokens.
+            targets:
+              - ap-streaming-trace
+            color: cyan
+            linger: 0.4
+      - say: >
+          At five seconds, a terminal completion event arrives. The complete object can move into
+          schema and policy checks; earlier text remains a provisional draft.
+        hold: 0.8
+        visual_cues:
+          - id: streamed-api-draft-b3-1
+            phrase: terminal completion event
+            targets:
+              - streamed-api-draft
+            color: green
+            linger: 0.6
+          - id: ap-streaming-2
+            phrase: >
+              At five seconds, a terminal completion event arrives. The complete object can move
+              into schema and policy checks; earlier text remains a provisional draft.
+            targets:
+              - ap-streaming-trace
+            color: yellow
+            linger: 0.4
+  - id: stream-events
+    title: Separate byte, event and token boundaries
+    visual: >-
+      Two network reads split the final letter of café between its UTF-8 bytes. The parser
+      completes the event at a blank line. Compare how two clients receive events, then route
+      each item to its own buffer.
+    beats:
+      - say: >-
+          The last letter in café takes two bytes in UTF eight. The first network read ends
+          halfway through that letter. The parser keeps the first byte. The next read supplies
+          the other byte and a blank line. Now the parser can dispatch an event with café in its
+          data field. An SDK parser also handles fields like the event type and ID across reads
+          like these.
+        hold: 0.6
+        caption_starts:
+          - "The next read supplies"
+          - "Now the parser can dispatch"
+        visual_cues:
+          - id: ap-stream-events-0
+            phrase: >-
+              The next read supplies the other byte and a blank line
+            targets:
+              - ap-stream-events-trace
+            color: blue
+            linger: 0.4
+      - say: >-
+          In the browser, EventSource normally opens a GET request and can reconnect. A provider
+          SDK can read an event stream in a POST response. Each API defines its own completion
+          signal. Chat Completions uses the bracketed DONE marker. Responses sends typed events
+          for text deltas and completion.
+        hold: 0.6
+        visual_cues:
+          - id: ap-stream-events-1
+            phrase: >-
+              In the browser, EventSource normally opens a GET request and can reconnect. A
+              provider SDK can read an event stream in a POST response. Each API defines its own
+              completion signal. Chat Completions uses the bracketed DONE marker. Responses
+              sends typed events for text deltas and completion.
+            targets:
+              - ap-stream-events-trace
+            color: cyan
+            linger: 0.4
+      - say: >-
+          A stream can carry metadata, text, tool arguments and a terminal status. Here, only
+          text for item A belongs in this buffer. Give each item its own size limit. Record when
+          you first receive text for that item. Several tokens can travel together, so the gaps
+          you measure tell you when chunks reached the client.
+        hold: 0.6
+        visual_cues:
+          - id: ap-stream-events-2
+            phrase: >-
+              A stream can carry metadata, text, tool arguments and a terminal status. Here,
+              only text for item A belongs in this buffer. Give each item its own size limit.
+              Record when you first receive text for that item. Several tokens can travel
+              together, so the gaps you measure tell you when chunks reached the client.
+            targets:
+              - ap-stream-events-trace
+            color: yellow
+            linger: 0.4
+  - id: stream-failures
+    title: Did the stream finish?
+    visual: >-
+      Fill one draft from four normalized deltas. Compare the same 41 characters under two
+      endings. Then interrupt a replay after the second delta and keep the exact partial buffer.
+    beats:
+      - say: >-
+          Follow one output item through the stream. The first event is metadata. Here comes the
+          text in four pieces. Spaces count too. The buffer grows to eight characters, then
+          nineteen, thirty-one, and forty-one. Now the provider sends its completion event. The
+          client has a completed draft to check against its schema and policy. A write still needs
+          authorization.
+        hold: 0.9
+        visual_cues:
+          - id: eight-chars
+            phrase: "eight characters"
+            targets: [draft-bytes]
+            linger: 0
+          - id: nineteen-chars
+            phrase: "then nineteen"
+            targets: [draft-bytes]
+            linger: 0
+          - id: thirty-one-chars
+            phrase: "thirty-one"
+            targets: [draft-bytes]
+            linger: 0
+          - id: forty-one-chars
+            phrase: "and forty-one"
+            targets: [draft-bytes]
+            linger: 0.25
+          - id: draft-terminal
+            phrase: "the provider sends its completion event"
+            targets: [stream-ending]
+            linger: 0.25
+      - say: >-
+          Replay the same four pieces. Put the two buffers side by side. Every character matches,
+          including the final period. This time the connection ends right there. Can the client mark
+          the second stream complete?
+        hold: 2.2
+        visual_cues:
+          - id: draft-repeat
+            phrase: "Replay the same four pieces"
+            targets: [draft-bytes]
+            linger: 0.25
+          - id: draft-eof
+            phrase: "the connection ends right there"
+            targets: [stream-ending]
+            linger: 0.25
+      - say: >-
+          Mark the second stream failed. The first received a successful terminal event. The second
+          received only end of file. Now try a dropped connection after just two pieces. The client
+          keeps the nineteen characters it actually saw and records a failed draft. Neither failed
+          draft supplies a rotation decision.
+        hold: 1
+        visual_cues:
+          - id: draft-failed
+            phrase: "Mark the second stream failed"
+            targets: [stream-ending]
+            linger: 0.25
+            caption_boundary: true
+          - id: draft-dropped
+            phrase: "a dropped connection after just two pieces"
+            targets: [draft-bytes]
+            linger: 0.25
+      - say: >-
+          This fixture starts after the SDK has parsed and normalized the events. On a real stream,
+          identify the output item, bound its buffer, and inspect refusal, incomplete and failure
+          signals. Show a provisional draft only when the product can safely show it. Validate the
+          complete typed result before returning an eligibility decision.
+        hold: 0.8
+        visual_cues:
+          - id: draft-validate
+            phrase: "Validate the complete typed result"
+            targets: [stream-ending]
+            linger: 0.25
+  - id: cost-privacy
+    title: Measure useful work and protect customer text
+    visual: Input and output usage divide a fictional per-call cost. The monthly estimate then gives way
+      to an actual allowlisted telemetry object. A scoped HMAC replaces question text, private
+      identifiers and credentials stay excluded, and unreported usage remains unknown.
+    beats:
+      - say: >
+          At fictional rates of two dollars per million input tokens and six per million output
+          tokens, this request costs just under one tenth of a cent.
+        hold: 0.75
+        visual_cues:
+          - id: request-cost-calculation-b1-1
+            phrase: request costs
+            targets:
+              - request-cost-calculation
+            color: yellow
+            linger: 0.6
+          - id: ap-cost-privacy-0
+            phrase: >
+              At fictional rates of two dollars per million input tokens and six per million output
+              tokens, this request costs just under one tenth of a cent.
+            targets:
+              - ap-cost-privacy-trace
+            color: blue
+            linger: 0.4
+      - say: >
+          Two hundred thousand calls a day for thirty days produce an illustrated base estimate of
+          five thousand eight hundred eighty dollars, before retries or other charges.
+        hold: 0.8
+        visual_cues:
+          - id: monthly-api-cost-b2-1
+            phrase: five thousand eight hundred eighty
+            targets:
+              - monthly-api-cost
+            color: yellow
+            linger: 0.6
+          - id: ap-cost-privacy-1
+            phrase: >
+              Two hundred thousand calls a day for thirty days produce an illustrated base estimate
+              of five thousand eight hundred eighty dollars, before retries or other charges.
+            targets:
+              - ap-cost-privacy-trace
+            color: cyan
+            linger: 0.4
+      - say: >
+          Record model, prompt version, latency, token counts, and outcome. A scoped fingerprint can
+          help correlate requests while the raw customer prompt stays out of logs. Keep missing
+          usage unknown until provider reconciliation.
+        hold: 0.8
+        motion_check:
+          region:
+            - 870
+            - 500
+            - 880
+            - 450
+          minimumChangedFraction: 0.002
+        visual_cues:
+          - id: scrubbed-api-record-b3-1
+            phrase: raw customer prompt stays out of logs
+            targets:
+              - scrubbed-api-record
+            color: blue
+            linger: 0.6
+          - id: ap-cost-privacy-2
+            phrase: >
+              Record model, prompt version, latency, token counts, and outcome. A scoped fingerprint
+              can help correlate requests while the raw customer prompt stays out of logs. Keep
+              missing usage unknown until provider reconciliation.
+            targets:
+              - ap-cost-privacy-trace
+            color: yellow
+            linger: 0.4
+  - id: usage-subsets
+    title: What changes the price of the same token count?
+    visual: >-
+      Keep the total input strip fixed at 2,000 tokens. Partition it into ordinary input, cache reads
+      and cache writes. In a second receipt, move 400 tokens from ordinary to cached input. Keep
+      the output and the fictional rates fixed while the two prices are compared.
+    beats:
+      - say: >-
+          This receipt lists two thousand input tokens. Twelve hundred came from the cache, and a
+          hundred were cache writes. Peel those two groups away. That leaves seven hundred ordinary
+          input tokens. The two hundred output tokens include eighty for reasoning. The other
+          hundred and twenty are visible output. Check these relationships in the provider's usage
+          record before pricing it.
+        hold: 0.8
+        visual_cues:
+          - id: split-cached
+            phrase: "Twelve hundred came from the cache"
+            targets: [input-strip]
+          - id: split-writes
+            phrase: "a hundred were cache writes"
+            targets: [input-strip]
+          - id: ordinary-input
+            phrase: "That leaves seven hundred ordinary input tokens"
+            targets: [input-strip]
+            caption_boundary: true
+          - id: output-includes
+            phrase: "The two hundred output tokens include eighty for reasoning"
+            targets: [output-total]
+          - id: split-output
+            phrase: "The other hundred and twenty are visible output"
+            targets: [output-total]
+      - say: >-
+          Read across the receipt. Per million tokens, the fictional rates are two dollars for
+          ordinary input, fifty cents for cache reads, and two dollars fifty for writes. Price the
+          output once at six dollars per million. Reasoning is already in that row. Multiply each
+          count by its rate, add the products, and divide by a million. The request costs point
+          zero zero three four five dollars.
+        hold: 0.9
+        visual_cues:
+          - id: input-rates
+            phrase: "two dollars for ordinary input, fifty cents for cache reads, and two dollars fifty for writes"
+            targets: [input-strip]
+          - id: output-rate
+            phrase: "six dollars per million"
+            targets: [output-total]
+          - id: price-divisor
+            phrase: "divide by a million"
+            targets: [price]
+          - id: baseline-price
+            phrase: "The request costs point zero zero three four five dollars"
+            targets: [price]
+            caption_boundary: true
+      - say: >-
+          Run the same prompt again. This time the provider reports four hundred more cached input
+          tokens. They came out of the ordinary group. Everything else stays the same, including
+          total input and output. Look at which boundary moved. What happens to the price?
+        hold: 2.3
+        visual_cues:
+          - id: cache-shift
+            phrase: "four hundred more cached input tokens. They came out of the ordinary group"
+            targets: [input-strip]
+      - say: >-
+          The price drops to point zero zero two eight five dollars. Those four hundred tokens now
+          cost fifty cents per million instead of two dollars per million. Reusing a cached prefix
+          can also save work processing those input positions. Cache eligibility and prices depend
+          on the provider and model. Tools or media can add charges. If a timed-out attempt has no
+          usage record, leave its cost unknown until billing confirms it.
+        hold: 0.9
+        visual_cues:
+          - id: replay-price
+            phrase: "The price drops to point zero zero two eight five dollars"
+            targets: [price]
+            caption_boundary: true
+  - id: telemetry-scope
+    title: Retain useful evidence without copying private prompts
+    visual: One roottrace ownslookup/providerattempts/validation children.
+      ConstructallowlistedrecordfromactualHMACquestionfingerprint,neverrawkey.
+      Requested/reportedmodelandunknownusagecellsstaydistinct;scopekeytenant/environment explicitly.
+    beats:
+      - say: >-
+          Start a trace with the provider and operation, then record which model you asked for
+          and which one answered. Include the finish reason and reported token usage. Price that
+          usage under the provider’s accounting rules. The OpenTelemetry convention used here
+          has Development status, so pin its version along with the instrumentation.
+        hold: 0.6
+        visual_cues:
+          - id: ap-telemetry-scope-0
+            phrase: >-
+              Start a trace with the provider and operation, then record which model you asked
+              for and which one answered. Include the finish reason and reported token usage.
+              Price that usage under the provider’s accounting rules. The OpenTelemetry
+              convention used here has Development status, so pin its version along with the
+              instrumentation.
+            targets:
+              - ap-telemetry-scope-trace
+            color: blue
+            linger: 0.4
+      - say: Link fact lookup, model work and validation to the same application trace, while retaining
+          attempt identities and the task’s overall outcome. Record status, latency, prompt revision
+          and available provider request ID. Failed validation should not disappear because an
+          earlier HTTP response was successful. Enforce log access and retention alongside the
+          provider data policy.
+        hold: 0.6
+        visual_cues:
+          - id: ap-telemetry-scope-1
+            phrase: Link fact lookup, model work and validation to the same application trace, while retaining
+              attempt identities and the task’s overall outcome. Record status, latency, prompt
+              revision and available provider request ID. Failed validation should not disappear
+              because an earlier HTTP response was successful. Enforce log access and retention
+              alongside the provider data policy.
+            targets:
+              - ap-telemetry-scope-trace
+            color: cyan
+            linger: 0.4
+      - say: >-
+          To find repeated questions, fingerprint each one with a separate H M A C key. Leave
+          the customer text, account and provider credential out of the log. Thirty-two
+          hexadecimal characters hold one hundred twenty-eight bits. Two fingerprints can
+          collide, and matching fingerprints let you link records. Scope the key to a tenant and
+          environment and limit who can read those records and for how long.
+        hold: 0.6
+        visual_cues:
+          - id: ap-telemetry-scope-2
+            phrase: >-
+              To find repeated questions, fingerprint each one with a separate H M A C key.
+              Leave the customer text, account and provider credential out of the log.
+              Thirty-two hexadecimal characters hold one hundred twenty-eight bits. Two
+              fingerprints can collide, and matching fingerprints let you link records. Scope
+              the key to a tenant and environment and limit who can read those records and for
+              how long.
+            targets:
+              - ap-telemetry-scope-trace
+            color: yellow
+            linger: 0.4
+  - id: execution-shapes
+    title: Choose the work shape and preserve result identity
+    visual: Sameintentbecomesbufferedobject,streameddraft,queuedjoborbatchcustomID.
+      Threebatchrowsreturnoutoforderwithoneexpiry;joinbyID,cacheprefixoptimizationseparatefromexecutionshape.
+      Endonexplicitlocal-v-liveevidenceboundary.
+    beats:
+      - say: Buffer one structured eligibility object when the caller needs an immediate decision. Stream a
+          long human-readable draft when provisional progress is useful. For work exceeding the
+          interactive route budget, use durable background state, polling, bounded retries and
+          checkpoints. Prompt caching is an optimization that can accompany more than one execution
+          shape.
+        hold: 0.6
+        visual_cues:
+          - id: ap-execution-shapes-0
+            phrase: Buffer one structured eligibility object when the caller needs an immediate decision. Stream
+              a long human-readable draft when provisional progress is useful. For work exceeding
+              the interactive route budget, use durable background state, polling, bounded retries
+              and checkpoints. Prompt caching is an optimization that can accompany more than one
+              execution shape.
+            targets:
+              - ap-execution-shapes-trace
+            color: blue
+            linger: 0.4
+      - say: >-
+          Look at this expired batch. The first result belongs to C, the third request. Match
+          the custom IDs and you can see that B and C finished and A expired. Read both the
+          output and error files this way. For supported work that can wait, the Batch API in
+          this example offers a twenty-four-hour window and a fifty-percent discount over
+          synchronous calls.
+        hold: 0.6
+        visual_cues:
+          - id: ap-execution-shapes-1
+            phrase: >-
+              Look at this expired batch. The first result belongs to C, the third request.
+              Match the custom IDs and you can see that B and C finished and A expired. Read
+              both the output and error files this way. For supported work that can wait, the
+              Batch API in this example offers a twenty-four-hour window and a fifty-percent
+              discount over synchronous calls.
+            targets:
+              - ap-execution-shapes-trace
+            color: cyan
+            linger: 0.4
+      - say: >-
+          Put the shared policy text at the start of both requests, then check the reported
+          cache usage. Before opening the live route, test it with a signed-out caller, the
+          wrong tenant and a caller over quota. Exercise slow connections, cancellation,
+          simultaneous requests and provider failures through that same route.
+        hold: 0.6
+        visual_cues:
+          - id: ap-execution-shapes-2
+            phrase: >-
+              Put the shared policy text at the start of both requests, then check the reported
+              cache usage. Before opening the live route, test it with a signed-out caller, the
+              wrong tenant and a caller over quota. Exercise slow connections, cancellation,
+              simultaneous requests and provider failures through that same route.
+            targets:
+              - ap-execution-shapes-trace
+            color: yellow
+            linger: 0.4
+  - id: fresh-request
+    title: What can we tell account B?
+    visual: >-
+      Check the returned minimum age against a new policy. Build a fresh reservation alongside the
+      remaining time. Finally follow a separate, authorized write through a lost reply and a
+      read-only status lookup by its original key.
+    beats:
+      - say: >-
+          Try another account. B has a stale key that's twenty-eight days old. Its copy of P seven
+          sets the minimum age at twenty-one. The model cites P seven and says eligible. Look at the
+          minimum age it sent back. Thirty days. Can the server return this candidate?
+        hold: 2.2
+        visual_cues:
+          - id: fresh-age
+            phrase: "twenty-eight days old"
+            targets: [account-facts]
+            linger: 0.25
+          - id: fresh-policy
+            phrase: "twenty-one"
+            targets: [account-facts]
+            linger: 0.25
+          - id: fresh-label
+            phrase: "The model cites P seven and says eligible"
+            targets: [candidate-record]
+            linger: 0.25
+          - id: fresh-field
+            phrase: "Thirty days"
+            targets: [candidate-record]
+            linger: 0.25
+      - say: >-
+          Reject the candidate. The eligibility word agrees with the account record. But compare
+          the two minimum ages. P seven says twenty-one days. The model returned thirty. Report
+          that validation failure to the caller.
+        hold: 0.8
+        visual_cues:
+          - id: ap-fresh-candidate-rejected
+            phrase: "Reject the candidate"
+            targets: [candidate-record]
+            linger: 0.25
+            caption_boundary: true
+      - say: >-
+          Separately, a safe read on B gets a temporary rate limit. Ten seconds for the task, six
+          already spent. The provider wants a one-second wait. The jitter window is two seconds
+          wide. Take a quarter of it. Allow two seconds for the call and seven tenths for
+          validation. With four seconds left, can you schedule the retry?
+        hold: 2.4
+        visual_cues:
+          - id: fresh-budget
+            phrase: "six already spent"
+            targets: [fresh-budget]
+            linger: 0.25
+          - id: fresh-draw
+            phrase: "Take a quarter of it"
+            targets: [fresh-budget]
+            linger: 0.25
+          - id: fresh-allowances
+            phrase: "two seconds for the call and seven tenths for validation"
+            targets: [fresh-budget]
+            linger: 0.25
+      - say: >-
+          A quarter of two adds half a second to the floor, so the wait is one and a half seconds.
+          Place the call after it. Now add validation. Four point two seconds in all. The last two
+          tenths extend past the four-second deadline. Stop before dispatch. The wrapper sends zero
+          more calls. The rate limit and the earlier policy rejection each keep their own receipt.
+        hold: 1
+        visual_cues:
+          - id: fresh-stop
+            phrase: "Stop before dispatch"
+            targets: [fresh-budget]
+            linger: 0.25
+            caption_boundary: true
+          - id: ap-fresh-wait
+            phrase: "the wait is one and a half seconds"
+            targets: [fresh-budget]
+            linger: 0.25
+            caption_boundary: true
+          - id: fresh-call
+            phrase: "Place the call after it"
+            targets: [fresh-budget]
+            linger: 0.25
+          - id: fresh-check
+            phrase: "Now add validation"
+            targets: [fresh-budget]
+            linger: 0.25
+          - id: fresh-total
+            phrase: "Four point two seconds in all"
+            targets: [fresh-budget]
+            linger: 0.25
+            caption_boundary: true
+      - say: >-
+          Later, B passes a fresh check and the user authorizes rotation. The caller sends the
+          write with action key R B and loses its reply. The screen still needs a job number.
+          How could you find it with just a read?
+        hold: 2.2
+        caption_starts:
+          - "How could you find it"
+        visual_cues:
+          - id: fresh-send
+            phrase: "The caller sends the write"
+            targets: [write-path]
+            linger: 0.25
+          - id: fresh-lost
+            phrase: "loses its reply"
+            targets: [write-path]
+            linger: 0.25
+      - say: >-
+          Look up the original action key at the job service. The lookup returns job forty-two.
+          The caller can show that job after just one write. In the next lesson we’ll save the
+          request trace so the user can find that confirmation again after a refresh.
+        hold: 1.1
+        caption_starts:
+          - "The caller can show that job"
+          - "In the next lesson"
+        visual_cues:
+          - id: fresh-lookup
+            phrase: >-
+              Look up the original action key at the job service
+            targets: [write-path]
+            linger: 0.25
+          - id: fresh-job
+            phrase: "the lookup returns job forty-two"
+            targets: [write-path]
+            linger: 0.25
+            caption_boundary: true
+          - id: show-confirmation
+            phrase: "The caller can show that job"
+            targets: [write-path]

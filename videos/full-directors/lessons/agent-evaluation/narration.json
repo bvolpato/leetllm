@@ -1,0 +1,634 @@
+[
+  {
+    "id": "c01",
+    "title": "Did Lena get her reservation?",
+    "sourceChapters": [
+      "c01"
+    ],
+    "beats": [
+      {
+        "id": "c01-b01",
+        "say": "“Your book is reserved.” Lena asked for one copy of River Stories. Keep your finger on its catalog number, B seven. Which record would you open to check the assistant’s claim?",
+        "hold": 3
+      },
+      {
+        "id": "c01-b02",
+        "say": "Open Lena’s account. Look for book B7, the catalog number on the cover. How many matching holds do you see?",
+        "hold": 2.1
+      },
+      {
+        "id": "c01-b03",
+        "say": "Zero. Fail this run. Lena asked for one hold on B7. Her account is empty.",
+        "hold": 0.8
+      }
+    ]
+  },
+  {
+    "id": "c02",
+    "title": "Set the starting account",
+    "sourceChapters": [
+      "c02"
+    ],
+    "beats": [
+      {
+        "id": "c02-b01",
+        "say": "For this test episode, Lena wants one hold on book B7. Here’s the account we inherited from a previous run. There’s a hold on B8, and the assistant remembers that old lookup and its approval. Restarting the assistant would leave the library row in place.",
+        "hold": 0.6
+      },
+      {
+        "id": "c02-b02",
+        "say": "Restore the library snapshot. Clear the assistant’s memory and invalidate the old approval. Now we start at version two, with an empty account. Freeze the request, permitted tools, budget and checks so that each repetition starts with the same task.",
+        "hold": 0.9
+      }
+    ]
+  },
+  {
+    "id": "c03",
+    "title": "Follow the reservation",
+    "sourceChapters": [
+      "c03"
+    ],
+    "beats": [
+      {
+        "id": "c03-b01",
+        "say": "The assistant looks up River Stories. The catalog returns B7. That number identifies the book even if another title looks similar.",
+        "hold": 0.55
+      },
+      {
+        "id": "c03-b02",
+        "say": "Here is operation seventeen. It asks the library to place a hold for Lena on B7. The host checks the authenticated reader and permits this call. Look across at the account. How many holds has that permission created?",
+        "hold": 2
+      },
+      {
+        "id": "c03-b03",
+        "say": "None yet. Dispatch operation seventeen. The library adds hold seventeen and commits version three. Its receipt names the reader, the book and the saved hold. What would a separate reader find?",
+        "hold": 2
+      }
+    ]
+  },
+  {
+    "id": "c04",
+    "title": "Does the read verify the write?",
+    "sourceChapters": [
+      "c04"
+    ],
+    "beats": [
+      {
+        "id": "c04-b01",
+        "say": "Ask a separate reader for Lena’s holds on B7. The library returns a snapshot. Compare it to the permitted operation on the left. Both records come from the test environment.",
+        "hold": 0.6
+      },
+      {
+        "id": "c04-b02",
+        "say": "Lena, B seven, one matching hold. The read followed the write and reached the committed version. This run passes. Try changing just the book to B eight. The read now describes a different book. Put B seven back and change just the read version to two. Even a matching row from that snapshot is too old to verify this commit.",
+        "hold": 0.9
+      },
+      {
+        "id": "c04-b03",
+        "say": "Restore the matching read. Keep the same hold and add one forbidden attempt to the trace. The host denies the private-account read and returns no private data. Our policy fails a run for making the attempt. That tells us something different from finding an unauthorized effect.",
+        "hold": 0.85
+      }
+    ]
+  },
+  {
+    "id": "c05",
+    "title": "The reply goes missing",
+    "sourceChapters": [
+      "c05"
+    ],
+    "beats": [
+      {
+        "id": "c05-b01",
+        "say": "A catalog read times out. Our policy allows one more read, so charge a second dispatch. This time B7 comes back. Now lose the reply to a write. What does the assistant know? The library might already have committed the hold.",
+        "hold": 1.1
+      },
+      {
+        "id": "c05-b02",
+        "say": "From the evaluator’s side we can see what happened. Operation seventeen reached the library once. Both copies of Lena’s account start here. This library saves a receipt under each operation key. On the left, reuse seventeen. On the right, choose eighteen. Which retry will leave exactly one B7 hold?",
+        "hold": 2.6
+      },
+      {
+        "id": "c05-b03",
+        "say": "Send seventeen again. The library returns its saved receipt. Watch the version and the row on the left. Both stay put. Now send eighteen on the right. The library treats it as a new request and creates a second hold. Read both accounts independently.",
+        "hold": 0.85
+      },
+      {
+        "id": "c05-b04",
+        "say": "Both runs made two write attempts. Only the left run passes the exactly-one check. After a timeout, check the account and the original operation’s status. If the hold is confirmed, stop.",
+        "hold": 0.3
+      },
+      {
+        "id": "c05-b05",
+        "say": "A retry needs a service guarantee. The same key and payload must return the saved result. If permission has expired, stop before dispatch. Test stale reads, malformed calls and budget exhaustion as separate cases.",
+        "hold": 1
+      }
+    ]
+  },
+  {
+    "id": "c06",
+    "title": "Which task passes every time?",
+    "sourceChapters": [
+      "c06"
+    ],
+    "beats": [
+      {
+        "id": "c06-b01",
+        "say": "These are invented results for three tasks. Run each task three times from a clean start. Each row follows one task across all three tries. A check marks a pass and a cross marks a failure. Seven of the nine runs pass. Which task passed on every try?",
+        "hold": 2.35
+      },
+      {
+        "id": "c06-b02",
+        "say": "Only the catalog search. For each task, mark the row if all three attempts passed. One task out of three earns that mark. This is all-three reliability for this sample. Seven out of nine measures success per attempt.",
+        "hold": 1
+      },
+      {
+        "id": "c06-b03",
+        "say": "Keep the model, tools, environment and sampling settings fixed across repeats. Average the result by task. If you ran the hard task extra times, it still gets one vote in this equal-weight comparison.",
+        "hold": 0.75
+      }
+    ]
+  },
+  {
+    "id": "c07",
+    "title": "What was the cost per successful run?",
+    "sourceChapters": [
+      "c07"
+    ],
+    "beats": [
+      {
+        "id": "c07-b01",
+        "say": "Keep those nine runs. Add every charge, including run five. That failed hold cost four cents. Run nine failed too. Both belong in the numerator. Count the seven successful runs for the denominator.",
+        "hold": 0.3
+      },
+      {
+        "id": "c07-b02",
+        "say": "Twenty point three cents divided by seven gives two point nine cents per success. Longer prompts or more retries can raise spend even if the number of passing runs stays at seven.",
+        "hold": 0.85
+      },
+      {
+        "id": "c07-b03",
+        "say": "Use the same run IDs for latency. Put the nine durations in ascending order. For the nearest-rank ninety-fifth percentile, multiply nine by point nine five and round up. The ninth time is eight seconds. If your product promises a response within six seconds, a completed run that takes longer still misses its deadline.",
+        "hold": 0.85
+      },
+      {
+        "id": "c07-b04",
+        "say": "For a product comparison, match the budgets and sample tasks from the workload. Keep the cost of crashes and exhausted attempts. Counting distinct task names would give us three in the denominator, although we delivered seven successful runs.",
+        "hold": 0.8
+      },
+      {
+        "id": "c07-b05",
+        "say": "Try four new runs. They cost two, four, five and seven cents. The first three pass. In the fourth, the host denies a forbidden read. What was the cost per successful run? Would the suite clear its safety gate?",
+        "hold": 2.8
+      },
+      {
+        "id": "c07-b06",
+        "say": "Eighteen cents across three successes gives six cents per success. No private data left the library. This suite fails any forbidden attempt, so the safety gate still blocks release.",
+        "hold": 1
+      }
+    ]
+  },
+  {
+    "id": "c08",
+    "title": "What can this grader see?",
+    "sourceChapters": [
+      "c08"
+    ],
+    "beats": [
+      {
+        "id": "c08-b01",
+        "say": "Suppose our grader can see only this web page. The text confirms that the website displayed a message. That might be exactly what a browser task asks for. WebArena, for example, has tasks scored from page state. What if our product promises a real reservation?",
+        "hold": 1.2
+      },
+      {
+        "id": "c08-b02",
+        "say": "Open the database. There’s Lena’s hold. Tau-Bench checks final database changes against a goal while an assistant deals with a simulated user and a policy. A final row can establish an outcome. Does either record show permission for this particular write?",
+        "hold": 2.3
+      },
+      {
+        "id": "c08-b03",
+        "say": "Fetch the host’s decision for operation seventeen. Match the reader, book and permitted action before dispatch. Keep this trace alongside the final read, repeated outcomes and incurred cost. Put the library’s own permission cases in its release suite, including cases the developers have never seen.",
+        "hold": 0.85
+      }
+    ]
+  },
+  {
+    "id": "c09",
+    "title": "What goes in the trace?",
+    "sourceChapters": [
+      "c09"
+    ],
+    "beats": [
+      {
+        "id": "c09-b01",
+        "say": "Here’s what we need to record. The library implements the tools. A harness puts the account back at its starting state and enforces the budget. A scorer reads the evidence. Follow the lookup, the permission decision, the committed hold and the independent read.",
+        "hold": 0.3
+      },
+      {
+        "id": "c09-b02",
+        "say": "Together the actions and returned observations form a trajectory through the account’s states. A read or a denied write can leave the account unchanged. The harness can inspect records that the assistant never sees.",
+        "hold": 0.8
+      },
+      {
+        "id": "c09-b03",
+        "say": "Which parts of this event help us verify the hold? The book and operation IDs link it to the library record. Check the required fields and scan the field names inside the tool arguments. Drop the email field. Now check the values.",
+        "hold": 0.3
+      },
+      {
+        "id": "c09-b04",
+        "say": "The observation contains a contact detail. Redact that detail before saving the trace. Use an allowlist for exported fields, apply the same redaction to final messages and set a retention limit. The run, event, time and permission decision let us trace who authorized the hold.",
+        "hold": 0.9
+      }
+    ]
+  },
+  {
+    "id": "c10",
+    "title": "What did the host permit?",
+    "sourceChapters": [
+      "c10"
+    ],
+    "beats": [
+      {
+        "id": "c10-b01",
+        "say": "Start with a straightforward case. The contract requires a lookup, a write and a verification, each exactly once and in that order. Reverse them and it fails. Repeat the lookup and it fails too. In a recovery test, a timeout followed by one successful lookup is allowed.",
+        "hold": 0.3
+      },
+      {
+        "id": "c10-b02",
+        "say": "That makes four dispatches, and all four count. Choose the sequence that describes this task before you score it.",
+        "hold": 0.75
+      },
+      {
+        "id": "c10-b03",
+        "say": "Now look at a promotion request. The permit and the write must name the same call, operation, candidate and target. Change the candidate on the right. It’s the right tool, but the permit was for somebody else. Restore the candidate and change just the call ID.",
+        "hold": 0.3
+      },
+      {
+        "id": "c10-b04",
+        "say": "That also breaks the match. Restore the call, then move the permit to time thirteen. The write started at twelve. Permission came too late. These comparisons assume trusted runtime records. The host still has to authenticate the actor and check expiry and revocation.",
+        "hold": 0.85
+      },
+      {
+        "id": "c10-b05",
+        "say": "Go back to the library trace. A write gets a successful read. Add a second write after that read. Which event checks the second write? It needs its own later, successful read. This process policy also flags more than two timeouts.",
+        "hold": 0.3
+      },
+      {
+        "id": "c10-b06",
+        "say": "A later read can still be wrong. Here’s one for the wrong book. Here’s the right book at an older version. Here’s a newer version with zero holds. Check the same resource, a comparable version at least as new as the commit, and the intended outcome.",
+        "hold": 0.9
+      }
+    ]
+  },
+  {
+    "id": "c11",
+    "title": "Which groups count?",
+    "sourceChapters": [
+      "c11"
+    ],
+    "beats": [
+      {
+        "id": "c11-b01",
+        "say": "Each row here is a different task. Only the catalog row has three passes. To estimate the chance that every one of k reruns passes, count groups within a single row. The denominator counts all groups of k you can choose from n runs.",
+        "hold": 0.3
+      },
+      {
+        "id": "c11-b02",
+        "say": "The numerator counts groups you can make from the passes alone. If fewer than k passes exist, that row contributes zero. Average the three task contributions with equal weight. This calculation assumes independent reruns with the same conditions within each task.",
+        "hold": 1
+      },
+      {
+        "id": "c11-b03",
+        "say": "Change the job. Someone will inspect three candidate patches and wants at least one that works. In these five samples, patches two and five pass. Lay out all ten groups of three. Look for the group that misses both winners.",
+        "hold": 0.3
+      },
+      {
+        "id": "c11-b04",
+        "say": "One, three and four is the only miss. Nine groups out of ten contain a pass. That’s pass at three. In general, subtract the fraction of all-failure groups from one. A deployed selector still needs a way to recognize a good patch without the hidden tests.",
+        "hold": 0.3
+      },
+      {
+        "id": "c11-b05",
+        "say": "An attempt that uses feedback from a previous patch changes the sampling protocol. Record that dependency before interpreting these group estimates.",
+        "hold": 1
+      },
+      {
+        "id": "c11-b06",
+        "say": "Try the same reservation three times, each time from a clean account. Suppose the runs are independent. The first bar shows a seventy percent chance of success on one run. To pass twice, keep seven tenths of the first bar. That leaves forty-nine percent. What fraction passes all three?",
+        "hold": 2.2
+      },
+      {
+        "id": "c11-b07",
+        "say": "Take seven tenths once more. The chance of three passes is point three four three. The rest of the bar is the chance of at least one failure, point six five seven. Each extra required success can shrink the all-pass group.",
+        "hold": 0.3
+      },
+      {
+        "id": "c11-b08",
+        "say": "In a patch search, each extra try can add a winning patch. Now give two tasks equal weight. One always passes and the other always fails. Half the tasks pass all three. Pool them first and cube the average, and you get one eighth.",
+        "hold": 0.3
+      },
+      {
+        "id": "c11-b09",
+        "say": "Pooling lost the identity of the task being repeated. A simulated user can also change the trajectory. Keep the simulator version and the random seed with each trial so you can reconstruct its starting conditions.",
+        "hold": 0.9
+      },
+      {
+        "id": "c11-b10",
+        "say": "Try a new row. Four of six independent trials pass. There are fifteen ways to choose two. Which pairs count toward pass at two? Which count toward all two?",
+        "hold": 2.4
+      },
+      {
+        "id": "c11-b11",
+        "say": "Only the pair of failures misses both chances. Fourteen of fifteen pairs have at least one pass. The four passing runs make six all-pass pairs, giving six out of fifteen. Keep those two numerators separate.",
+        "hold": 1
+      },
+      {
+        "id": "c11-b12",
+        "say": "For two equally weighted tasks, the single-run probabilities are point eight and point four. Assume independent repeats within a task. Square each probability first, then average. Point six four and point one six average to point four. Squaring the pooled rate of point six would give point three six. That shortcut draws a new task for each attempt.",
+        "hold": 1.2
+      }
+    ]
+  },
+  {
+    "id": "c12",
+    "title": "How much evidence clears the floor?",
+    "sourceChapters": [
+      "c12"
+    ],
+    "beats": [
+      {
+        "id": "c12-b01",
+        "say": "Suppose we sampled three independent cases from the workload we plan to serve. Two pass. To put an approximate ninety-five percent interval around the pass rate, use a Wilson score interval with z equal to one point nine six.",
+        "hold": 0.3
+      },
+      {
+        "id": "c12-b02",
+        "say": "Put two thirds in for p and three in for n. The center lands here. The radius sets the distance to either end. Extend that distance in both directions. Three observations leave a wide range.",
+        "hold": 0.85
+      },
+      {
+        "id": "c12-b03",
+        "say": "The yellow line is our predeclared floor. The lower endpoint has to reach it. The pilot interval runs from point two zero eight to point nine three nine. Now take a new sample of thirty cases. Twenty-seven pass.",
+        "hold": 0.3
+      },
+      {
+        "id": "c12-b04",
+        "say": "Their interval runs from point seven four four to point nine six five. The observed rate is ninety percent, but the lower endpoint falls short of the eighty-five percent floor.",
+        "hold": 1
+      },
+      {
+        "id": "c12-b05",
+        "say": "Try a fresh sample. All twenty-one cases pass. With all successes, the Wilson lower endpoint simplifies to n divided by n plus z squared. Put twenty-one in both places for n. Does the lower endpoint clear point eight five?",
+        "hold": 2.6
+      },
+      {
+        "id": "c12-b06",
+        "say": "It falls just short. The lower endpoint is about point eight four five. Compare that with a planned sample of twenty-two independent cases. If all twenty-two pass, the lower endpoint rises to point eight five one. That clears the same floor.",
+        "hold": 0.9
+      },
+      {
+        "id": "c12-b07",
+        "say": "Check how the cases were chosen. These twelve runs repeat three tasks. Four repeats share one task, so treat the task as a cluster when estimating uncertainty. Hand-picked regressions answer whether a known problem came back. Sample the workload independently to estimate performance on new cases.",
+        "hold": 0.3
+      },
+      {
+        "id": "c12-b08",
+        "say": "Keep crashes and exhausted attempts in the denominator unless you set a separate infrastructure policy in advance. A forbidden action still fails its own gate.",
+        "hold": 0.8
+      }
+    ]
+  },
+  {
+    "id": "c13",
+    "title": "Would the judge pick the same reply?",
+    "sourceChapters": [
+      "c13"
+    ],
+    "beats": [
+      {
+        "id": "c13-b01",
+        "say": "After checking permissions and state, we can judge clarity. A person chose the clearer reply in four pairs. Compare the judge’s first choices with those labels. Three out of four agree. In pair two, reply A says “Done.” Reply B tells Lena where to find her hold. The human chose B. If we exchange their positions, will the judge stick with B?",
+        "hold": 2.7
+      },
+      {
+        "id": "c13-b02",
+        "say": "In the original order the judge picked B in the second slot. Swap the replies. Watch the letters travel with their words. The judge picks the second slot again. That slot now holds A. Compare identities on all four pairs. Two choices flip.",
+        "hold": 0.3
+      },
+      {
+        "id": "c13-b03",
+        "say": "Our example asks for ninety percent agreement and at most five percent flips. This judge misses both thresholds.",
+        "hold": 0.95
+      },
+      {
+        "id": "c13-b04",
+        "say": "Keep the judge advisory. Four pairs leave a lot of uncertainty. A judge can consistently pick the wrong reply, or change its choice by chance. To test for a position preference, repeat both orders on a larger, independently labeled set. Look closely at sensitive cases.",
+        "hold": 0.3
+      },
+      {
+        "id": "c13-b05",
+        "say": "Even a beautifully worded answer leaves a forbidden attempt in the trace. Grade the wording separately unless the product explicitly requires particular wording.",
+        "hold": 0.8
+      },
+      {
+        "id": "c13-b06",
+        "say": "The assistant also wrote the text the judge reads. The Berkeley audit in April twenty twenty-six found that candidate text could influence evaluators in the versions of CAR-bench and WebArena it tested. Quote the message in a fixed field.",
+        "hold": 0.3
+      },
+      {
+        "id": "c13-b07",
+        "say": "Give the judge a text-rating task and keep release tools out of its reach. Send sensitive decisions to a person. Quoting a candidate identifies the source. Its words still carry no authority over the grader.",
+        "hold": 0.85
+      }
+    ]
+  },
+  {
+    "id": "c14",
+    "title": "Choose a verifier for the job",
+    "sourceChapters": [
+      "c14"
+    ],
+    "beats": [
+      {
+        "id": "c14-b01",
+        "say": "Suppose the product changes a repository. SWE-bench runs repository tests and interprets the results for the patch. For a browser product, WebArena has checks on answers, URLs and page state. Some answer checks use a model judge.",
+        "hold": 0.3
+      },
+      {
+        "id": "c14-b02",
+        "say": "For a desktop action, OSWorld can inspect a file, a setting or application data. Its original main suite uses Ubuntu. The library needs its own permission tests in each of these settings.",
+        "hold": 0.8
+      },
+      {
+        "id": "c14-b03",
+        "say": "GAIA compares a normalized answer with a reference, including numbers, strings or ordered lists. Terminal-Bench uses task-specific verifiers and resource limits for terminal work. Tau-Bench compares the final database changes with a goal in a simulated user interaction.",
+        "hold": 0.3
+      },
+      {
+        "id": "c14-b04",
+        "say": "Imagine the database looks right, but the agent skipped required user confirmation. That final-state reward can miss the omission. AgentBench spans several interactive environments. Pick the verifier that can actually see the failure your users care about.",
+        "hold": 0.8
+      },
+      {
+        "id": "c14-b05",
+        "say": "Save the configuration with the score. Record the task IDs and split, environment image, permissions and budget. Pin the harness and scorer revisions. Save the exact model snapshot. The prompt, tools, action loop and stopping rule around that model make up its scaffold. Record those too, along with the trial count, simulator settings and date.",
+        "hold": 0.3
+      },
+      {
+        "id": "c14-b06",
+        "say": "Hold these fixed to compare models, or identify what changed if you compare whole systems. In the article’s October twenty twenty-six snapshot, the Terminal-Bench catalog listed version four. If you have results for two point one, rerun with the new tasks, verifier and limits before comparing.",
+        "hold": 0.3
+      },
+      {
+        "id": "c14-b07",
+        "say": "OSWorld-Verified is also a distinct suite.",
+        "hold": 0.8
+      }
+    ]
+  },
+  {
+    "id": "c15",
+    "title": "Where does the next run start?",
+    "sourceChapters": [
+      "c15"
+    ],
+    "beats": [
+      {
+        "id": "c15-b01",
+        "say": "Here the next candidate gets a fresh container. Lena’s old hold is still on the library server. Restore the remote database and files too. Clear remembered messages, cached lookups and approvals tied to earlier calls.",
+        "hold": 0.3
+      },
+      {
+        "id": "c15-b02",
+        "say": "The harness loads the frozen task, starts a disposable environment, limits each run from the outside, collects independent evidence, scores it and tears it down. A lightweight virtual machine such as Firecracker, or a userspace application kernel such as gVisor, supplies only the isolation you actually configure.",
+        "hold": 0.8
+      },
+      {
+        "id": "c15-b03",
+        "say": "Now look at who can read or change the grader’s materials. Move reference answers beyond the candidate’s reach. Protect the verifier’s dependencies and its result collector too. In the configurations covered by the April Berkeley audit, exposure of answers affected WebArena and verifier integrity affected Terminal-Bench.",
+        "hold": 0.3
+      },
+      {
+        "id": "c15-b04",
+        "say": "Check the actual filesystem, network and tool permissions under the candidate’s identity.",
+        "hold": 0.8
+      },
+      {
+        "id": "c15-b05",
+        "say": "This fixture compares path components. It fails the layout with the reference under the candidate mount. Move the reference to the absolute harness path and the layout check passes. The checker rejects ambiguous parent paths and leaves symbolic links unresolved.",
+        "hold": 0.3
+      },
+      {
+        "id": "c15-b06",
+        "say": "To check isolation, test which files the running candidate can actually open and which remote accounts it can reach.",
+        "hold": 0.85
+      }
+    ]
+  },
+  {
+    "id": "c16",
+    "title": "Would you release this candidate?",
+    "sourceChapters": [
+      "c16"
+    ],
+    "beats": [
+      {
+        "id": "c16-b01",
+        "say": "A reviewer needs to know which candidate produced each result. Attach the model, prompt and tools to the report. Record which tasks informed development and which stayed untouched. Keep the outcome, permission decision, grouped repeats, latency, spend, judge calibration and links to failure traces.",
+        "hold": 0.3
+      },
+      {
+        "id": "c16-b02",
+        "say": "Before applying thresholds, validate the fields. Counts must be nonnegative integers. A Boolean is a different type. Rates must be finite and between zero and one. Suppose the all-three rate is NaN. Comparing it with the floor cannot give a valid decision. Reject the report at validation.",
+        "hold": 0.8
+      },
+      {
+        "id": "c16-b03",
+        "say": "Here is the article’s fictional promotion suite. Its local policy requires every regression to pass, zero critical failures, all-three reliability of at least ninety-five percent and at most eight cents per success. Read across the rows. Two of three episodes pass. One write bypasses approval.",
+        "hold": 0.3
+      },
+      {
+        "id": "c16-b04",
+        "say": "One of three tasks passes every rerun. Eleven point one cents of total spend divided by two successes gives five point five five cents per success. Cost passes. The other three gates block release. A good communication score cannot authorize that write.",
+        "hold": 1
+      },
+      {
+        "id": "c16-b05",
+        "say": "A report can have valid numbers and still be built from bad evidence. Check who produced the records, what authorized each effect, how the workload was sampled and whether the holdout stayed untouched. If you cannot trace a claim back to trusted evidence, send it back for that evidence.",
+        "hold": 0.8
+      }
+    ]
+  },
+  {
+    "id": "c17",
+    "title": "What did the repair establish?",
+    "sourceChapters": [
+      "c17"
+    ],
+    "beats": [
+      {
+        "id": "c17-b01",
+        "say": "Change the failing fixture so that it looks up the candidate, opens a security review and verifies the result. Run the same scorer. All three regression rows pass. The repaired row costs six point one cents, inside its eight-cent budget. Now reverse its required actions.",
+        "hold": 0.3
+      },
+      {
+        "id": "c17-b02",
+        "say": "Restore their order and raise the cost to nine cents. Then try a cost of NaN. The original scorer rejects all three variants. We’ve checked that the repair preserves the rules that caught the failure.",
+        "hold": 0.9
+      },
+      {
+        "id": "c17-b03",
+        "say": "How many new agent trials did that produce? We changed a record by hand. The number is zero. A new run ID on a copy would still leave us with the same record. Keep the known case for regression testing.",
+        "hold": 0.3
+      },
+      {
+        "id": "c17-b04",
+        "say": "To support a release, run the frozen candidate against untouched episodes with clean starting state and the declared budget. Retain every outcome and check permission and redaction independently.",
+        "hold": 0.9
+      }
+    ]
+  },
+  {
+    "id": "c18",
+    "title": "Which reservation can you verify?",
+    "sourceChapters": [
+      "c18"
+    ],
+    "beats": [
+      {
+        "id": "c18-b01",
+        "say": "Back to Lena. Operation seventeen has a receipt for B7 at version three. The verifier comes back with B8 at version two. Lena’s assistant still says the book is reserved. Which would you change first, the write or the read?",
+        "hold": 2.4
+      },
+      {
+        "id": "c18-b02",
+        "say": "Keep the receipt. Ask the independent reader for Lena and B7 after the write, at version three or later. There’s hold seventeen, and it’s the only match. That verifies one intended hold. Keep the wrong-book and stale reads as regression cases.",
+        "hold": 0.95
+      },
+      {
+        "id": "c18-b03",
+        "say": "Now Mira wants one hold on The Night Garden, book B9. Her permitted write commits at version eight. Here’s a successful read of her B9 holds at version nine. Count the rows. Does this read verify the requested outcome?",
+        "hold": 2.7
+      },
+      {
+        "id": "c18-b04",
+        "say": "Fail the outcome check. Both holds belong to Mira and both are for B9. The read was fresh enough to show the duplicate. To find its cause, look up the second hold in the runtime trace. After a timeout, the retry used key forty-two and created that second row.",
+        "hold": 1
+      },
+      {
+        "id": "c18-b05",
+        "say": "Keep this duplicate as a known regression. If we repair this case, how many untouched trials will we have run? Zero. For a release decision, freeze the candidate, run untouched tasks within the declared limits, count failures and report grouped repeats with uncertainty.",
+        "hold": 1
+      },
+      {
+        "id": "c18-b06",
+        "say": "Reset Mira’s test to version seven. Use the same request for one hold on B nine. Dispatch key forty-one. The write commits at version eight and the reply goes missing again. This time reuse key forty-one with the same payload. The library returns its saved receipt. Predict the account before we open it.",
+        "hold": 2.8
+      },
+      {
+        "id": "c18-b07",
+        "say": "Read Mira’s B nine holds independently. There’s hold forty-one at version eight. Two dispatches, one saved hold. This run passes the exactly-one check.",
+        "hold": 2.3
+      }
+    ]
+  }
+]

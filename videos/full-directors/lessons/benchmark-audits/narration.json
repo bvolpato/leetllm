@@ -1,0 +1,912 @@
+[
+  {
+    "id": "c01",
+    "title": "Which assistant should take the renewal desk?",
+    "sourceChapters": [
+      "c01"
+    ],
+    "beats": [
+      {
+        "id": "c01-b01",
+        "say": "Two hundred answer marks, one hundred for each library assistant. Both assistants scored ninety. The gold strip at the bottom of each sheet holds the ten renewal questions. Who should take renewals?",
+        "hold": 1.7
+      },
+      {
+        "id": "c01-b02",
+        "say": "Line up the same ten questions for both assistants. On the other ninety questions, A got eighty-eight right. B got eighty-one. Which one answered more renewals correctly?",
+        "hold": 2.4
+      },
+      {
+        "id": "c01-b03",
+        "say": "Open A's ten renewals. Two passed. Open B's row underneath. Nine passed. Choose who takes the renewal desk. Put your finger on question ninety-three. A missed it. B got that same request right.",
+        "hold": 1.2
+      },
+      {
+        "id": "c01-b04",
+        "say": "For these ten cases, B is the better choice. A benchmark combines tasks with a scoring rule. Follow a score back to its cases, test the rule against the evidence, and decide whether the result clears the gate for the task you need.",
+        "hold": 0.7
+      }
+    ]
+  },
+  {
+    "id": "c02",
+    "title": "Keep the comparison contract visible",
+    "sourceChapters": [
+      "c02"
+    ],
+    "beats": [
+      {
+        "id": "c02-b01",
+        "say": "Imagine changing the model inside a library assistant. Both candidates should receive the same questions, available evidence, response requirements, and scoring rules. Record the prompt, tools, sampling settings, and attempt budget as well. Each model still needs its own correct chat formatting.",
+        "hold": 0.6
+      },
+      {
+        "id": "c02-b02",
+        "say": "Now give the second system five retrieved passages where the first received three. Its answers may improve, and that is useful to measure. The experiment now compares two complete systems. Retrieval changed along with the model, so the report must describe both changes.",
+        "hold": 0.7
+      },
+      {
+        "id": "c02-b03",
+        "say": "Public benchmarks also have distinct contracts. Multiple-choice knowledge, executable programs, and human preferences score different units. Use those results to choose promising candidates, then compare them on the task your application actually needs.",
+        "hold": 0.65
+      }
+    ]
+  },
+  {
+    "id": "c03",
+    "title": "Validate the questions before grading the answers",
+    "sourceChapters": [
+      "c03"
+    ],
+    "beats": [
+      {
+        "id": "c03-b01",
+        "say": "Open the answer key. Each row pairs a question with the policy that supplies its answer. In this example, a deployment freeze requires commander approval, a threshold breach calls for the rollback runbook, and exposed tokens must be revoked within fifteen minutes. Keep the required facts and forbidden claims with each source.",
+        "hold": 0.7
+      },
+      {
+        "id": "c03-b02",
+        "say": "Give each row a unique identity. Duplicating an identity can attach a score to the wrong question. The validator checks for repeated IDs and looks for required phrases in the source. A reviewer then compares each gold requirement with the policy that governs the case. Does the policy actually say what the answer key demands?",
+        "hold": 0.7
+      },
+      {
+        "id": "c03-b03",
+        "say": "The source says to use the rollback runbook. Suppose the answer key says to keep deploying. An assistant could follow the policy and lose the point. Repair the gold row first. Record the reviewed answer and how serious a mistake would be.",
+        "hold": 0.3
+      },
+      {
+        "id": "c03-b04",
+        "say": "If the source cannot answer the request, give the reviewer a way to mark a justified refusal as correct. Keep the critical cases in the set. Record how much harm an invented rule could cause.",
+        "hold": 0.7
+      }
+    ]
+  },
+  {
+    "id": "c04",
+    "title": "Would the checker accept this deadline?",
+    "sourceChapters": [
+      "c04"
+    ],
+    "beats": [
+      {
+        "id": "c04-b01",
+        "say": "The library rule says borrowed books are due on Friday. Here's our first answer, word for word. The checker looks for two pieces of text, books and Friday. It ignores capitalization. Both pieces are there. A reviewer also accepts this deadline.",
+        "hold": 0.65
+      },
+      {
+        "id": "c04-b02",
+        "say": "Now move the deadline. Books are due after Friday. Will the checker accept that answer?",
+        "hold": 2.1
+      },
+      {
+        "id": "c04-b03",
+        "say": "It passes. Both search terms survived. The word after lets the borrower return the book too late. The reviewer rejects it. That's a false positive.",
+        "hold": 0.75
+      },
+      {
+        "id": "c04-b04",
+        "say": "Try an abbreviation. The answer still says to return the books by Friday. The weekday is written with just three letters, F, R, I. The reviewer accepts the abbreviation. What will the same checker do?",
+        "hold": 2
+      },
+      {
+        "id": "c04-b05",
+        "say": "It fails. The letters needed for Friday end too soon. That is a false negative. Both columns finish with two passes out of three. Which two rows did they disagree on? After Friday moved the deadline, and Fri. preserved it. Keep exact checks for exact fields. Test meaning against independent labels.",
+        "hold": 1.2
+      }
+    ]
+  },
+  {
+    "id": "c05",
+    "title": "Locate the first missing policy fact",
+    "sourceChapters": [
+      "c05"
+    ],
+    "beats": [
+      {
+        "id": "c05-b01",
+        "say": "Follow the commander-approval fact through the actual request. First inspect the final context sent to the model, after permissions, ranking and token-budget selection. If that clause is absent there, the response never received the required evidence. A relevant document retrieved earlier but dropped during assembly does not count as evidence the model saw.",
+        "hold": 0.7
+      },
+      {
+        "id": "c05-b02",
+        "say": "Now follow a second request. This time the final input includes the commander approval clause. Read the reply. It substitutes an on-call engineer for the commander. The condition reached the model, so the first observed failure in this trace is in generation or instruction following.",
+        "hold": 0.3
+      },
+      {
+        "id": "c05-b03",
+        "say": "The article’s literal classifier reports bad retrieval, bad generation or pass by checking required phrases in that order. It inherits the same negation and paraphrase limits as its checker.",
+        "hold": 0.7
+      },
+      {
+        "id": "c05-b04",
+        "say": "Here are three claims. In the first, the approval rule and the page both match. In the second, the right rule points to an unrelated page. In the third, the page is right but the answer makes approval optional. Verify the page identifier, then ask whether that page supports the claim.",
+        "hold": 0.3
+      },
+      {
+        "id": "c05-b05",
+        "say": "Preserve context, answer and source versions so a repair targets the observed boundary and then repeats the complete regression path.",
+        "hold": 0.7
+      }
+    ]
+  },
+  {
+    "id": "c06",
+    "title": "Measure what arrived and what was said",
+    "sourceChapters": [
+      "c06"
+    ],
+    "beats": [
+      {
+        "id": "c06-b01",
+        "say": "Retrieval precision and recall answer different questions. In a supplied ranked list with relevance flags one, zero, one, precision at the first relevant rank is one, and at the third is two thirds. Averaging those precisions gives five sixths, about point eight three three.",
+        "hold": 0.3
+      },
+      {
+        "id": "c06-b02",
+        "say": "That score rewards useful context appearing early. To find a fact missing from every chunk, look at recall.",
+        "hold": 0.7
+      },
+      {
+        "id": "c06-b03",
+        "say": "The reference needs three facts. The freeze is in effect, this release is in scope, and commander approval is required. Only the first two reach the model. Divide the two covered facts by the three required facts for context recall. The answer repeats just those two facts. Its faithfulness is two supported claims divided by two claims, or one.",
+        "hold": 0.3
+      },
+      {
+        "id": "c06-b04",
+        "say": "The engineer still needs to know who approves the release. Faithfulness uses the claims the answer actually made. It can reach one for an incomplete answer or an answer that repeats an outdated source.",
+        "hold": 0.7
+      },
+      {
+        "id": "c06-b05",
+        "say": "Ragas can also score how closely an answer addresses the question. It generates questions from the answer and compares their embeddings with the original question, averaging cosine similarities. An answer about deployments can stay on topic while leaving out who approves the change.",
+        "hold": 0.3
+      },
+      {
+        "id": "c06-b06",
+        "say": "Use independent reviewer labels to check how well the model-based scores capture those distinctions.",
+        "hold": 0.7
+      }
+    ]
+  },
+  {
+    "id": "c07",
+    "title": "Keep the task and parser attached to the score",
+    "sourceChapters": [
+      "c07"
+    ],
+    "beats": [
+      {
+        "id": "c07-b01",
+        "say": "Public benchmarks help shortlist capabilities. MMLU covers fifty-seven subjects with four choices per question. One choice is correct, so a uniform guess has a one-in-four chance. Over many guesses the expected fraction correct is one fourth.",
+        "hold": 0.3
+      },
+      {
+        "id": "c07-b02",
+        "say": "A common MMLU protocol gives five demonstrations and compares choice-token probabilities. Another harness parses a generated letter. Suppose the reported score rises from eighty-one to eighty-five when the team changes the model and switches parsers. Rerun both models on the same pinned questions with one parser before attributing the four points to the new model.",
+        "hold": 0.7
+      },
+      {
+        "id": "c07-b03",
+        "say": "MMLU-Pro adds reviewed, reasoning-focused questions with up to ten choices. Exactly ten choices give a one-tenth guessing expectation. Its reported chain-of-thought advantage belongs to the tested models and protocol.",
+        "hold": 0.3
+      },
+      {
+        "id": "c07-b04",
+        "say": "GPQA instead uses expert biology, physics and chemistry: Extended has five hundred forty-six questions, main four hundred forty-eight, and Diamond one hundred ninety-eight. Validator-based filtering changes the subsets, so name the actual split.",
+        "hold": 0.7
+      },
+      {
+        "id": "c07-b05",
+        "say": "The original GPQA study’s non-expert validators scored about thirty-four percent on Extended with internet access in that study. HELM evaluates several dimensions, including accuracy, calibration, robustness, fairness and bias. The framework accepts custom scenarios. To measure compliance with your own policy, give it cases from your application.",
+        "hold": 0.7
+      }
+    ]
+  },
+  {
+    "id": "c08",
+    "title": "An answer parser and a dataset version change the experiment",
+    "sourceChapters": [
+      "c08"
+    ],
+    "beats": [
+      {
+        "id": "c08-b01",
+        "say": "GSM8K contains about eight and a half thousand grade-school word problems, typically two to eight arithmetic steps. In this example, six shelves hold four books each. Its reference would mark the final number, twenty-four, after four hash characters. The harness decides whether model outputs need that delimiter.",
+        "hold": 0.3
+      },
+      {
+        "id": "c08-b02",
+        "say": "MATH has twelve thousand five hundred competition problems with worked solutions. This candidate starts with three x equals twelve, writes x equals twelve minus three, and submits four. Which scoring rule gives this submission credit? The final answer passes. Three times four is twelve. The derivation fails. Twelve minus three gives nine, and three times nine is twenty-seven. Record which rule graded the work and which tools the solver could use.",
+        "hold": 0.7
+      },
+      {
+        "id": "c08-b03",
+        "say": "Harder suites also need exact versions. Humanity’s Last Exam finalized its original twenty-five-hundred-question public set in April twenty-twenty-five and retains a private holdout. Its site lists Rolling in October twenty-twenty-five and Diamond in September twenty-twenty-six. FrontierMath spans advanced-undergraduate through research-level tiers.",
+        "hold": 0.3
+      },
+      {
+        "id": "c08-b04",
+        "say": "Its Tiers One through Four page reports a June twelfth twenty-twenty-six version-two release addressing errors in forty-two percent of problems. A comparison across that revision needs both models scored on the same version.",
+        "hold": 0.7
+      },
+      {
+        "id": "c08-b05",
+        "say": "ARC-AGI-two asks a system to infer a rule from example input and output grids, then apply it to a new grid. In our little grid, the blue square extends to the right until it reaches the edge.",
+        "hold": 0.3
+      },
+      {
+        "id": "c08-b06",
+        "say": "ARC tasks can require several rules together, with the choice depending on the symbols around a cell. Record which split you used. The public, semi-private and private sets have different exposure histories.",
+        "hold": 0.7
+      }
+    ]
+  },
+  {
+    "id": "c09",
+    "title": "Which library tests did this patch pass?",
+    "sourceChapters": [
+      "c09"
+    ],
+    "beats": [
+      {
+        "id": "c09-b01",
+        "say": "HumanEval asks for a function that passes tests. It has one hundred sixty-four handwritten Python problems. SWE-bench starts with an issue in a repository and asks for a patch. Its original collection had two thousand two hundred ninety-four issue-based tasks across twelve Python repositories.",
+        "hold": 0.3
+      },
+      {
+        "id": "c09-b02",
+        "say": "For either kind of benchmark, ask which tests the scorer actually ran.",
+        "hold": 0.65
+      },
+      {
+        "id": "c09-b03",
+        "say": "Here is a small library example. The new-release loan period should be seven days. The old function gives it twenty-one. Ordinary books already get the right twenty-one days. Our harness selects those two checks.",
+        "hold": 0.3
+      },
+      {
+        "id": "c09-b04",
+        "say": "In a repository repair benchmark, a failing check that the patch must fix is called fail to pass. A working check that must keep passing is called pass to pass.",
+        "hold": 0.75
+      },
+      {
+        "id": "c09-b05",
+        "say": "Apply this patch. It gives new releases seven days and every other item twenty-one. Run the two selected checks. Both pass. Under the selected tests, this issue is resolved.",
+        "hold": 0.95
+      },
+      {
+        "id": "c09-b06",
+        "say": "Look at the third case. A textbook loan should last twenty-eight days. What does the patched function return for a textbook?",
+        "hold": 2.2
+      },
+      {
+        "id": "c09-b07",
+        "say": "Twenty-one days. Textbooks took their own branch in the old function. The patch removed it. Keep the omitted failure beside the selected result so a reviewer can see what resolved covered. In SWE-bench, record the Docker environment, selected tests and parser.",
+        "hold": 0.3
+      },
+      {
+        "id": "c09-b08",
+        "say": "Compare agents with the same prompt loop, tools and attempt budget, or report the differences. Ten attempts can each make several model and tool calls. Retain timeouts, costs and the patch that actually came back.",
+        "hold": 0.85
+      }
+    ]
+  },
+  {
+    "id": "c10",
+    "title": "Keep the audited subset inside its real denominator",
+    "sourceChapters": [
+      "c10"
+    ],
+    "beats": [
+      {
+        "id": "c10-b01",
+        "say": "Start with the five hundred human-reviewed tasks in SWE-bench Verified. In February twenty-twenty-six, OpenAI examined one hundred thirty-eight tasks that o three did not consistently solve. Enlarge that selected band. Its reported fifty-nine point four percent with material test or description problems corresponds to about eighty-two of the audited tasks. The remaining tasks have no verdict from that audit. OpenAI stopped reporting Verified.",
+        "hold": 0.7
+      },
+      {
+        "id": "c10-b02",
+        "say": "The same audit found signs that tested frontier models could reproduce human fixes or verbatim task details for some tasks. A public test may therefore mix engineering ability with exposure.",
+        "hold": 0.3
+      },
+      {
+        "id": "c10-b03",
+        "say": "OpenAI initially recommended SWE-bench Pro, then retracted that recommendation in July twenty-twenty-six after auditing its seven hundred thirty-one public tasks and estimating that about thirty percent were broken.",
+        "hold": 0.7
+      },
+      {
+        "id": "c10-b04",
+        "say": "For your own benchmark, inspect what the actual verifier accepts, where the tests run, and which cases the system may have seen. Then run the candidate on reviewed private cases through the same path your users take. Keep the answers that failed.",
+        "hold": 0.7
+      }
+    ]
+  },
+  {
+    "id": "c11",
+    "title": "A modeled preference is a different axis from factual accuracy",
+    "sourceChapters": [
+      "c11"
+    ],
+    "beats": [
+      {
+        "id": "c11-b01",
+        "say": "MT-Bench uses an LLM judge on fixed multi-turn conversations. In Chatbot Arena, renamed Arena in January twenty-twenty-six, people vote between anonymous answers. The Bradley-Terry model fits a logistic relationship to those votes. On this graph, move right as A gains rating points over B. The curve gives A's fitted preference score.",
+        "hold": 0.3
+      },
+      {
+        "id": "c11-b02",
+        "say": "To read the curve, take ten to the power of B's rating minus A's, divided by four hundred. Add one to that value and take its reciprocal. With equal ratings the power of ten is one.",
+        "hold": 0.7
+      },
+      {
+        "id": "c11-b03",
+        "say": "Equal ratings give one half. Move A four hundred points ahead. The curve climbs to ten elevenths, about ninety-one percent.",
+        "hold": 0.7
+      },
+      {
+        "id": "c11-b04",
+        "say": "Arena awards one point per ballot. An outright win gives that point to the winner. On a tie or a vote that both answers are bad, each model gets half a point. Here A wins twice, one voter calls a tie, and one rejects both answers. What share of the four points did A earn?",
+        "hold": 2.1
+      },
+      {
+        "id": "c11-b05",
+        "say": "The two outright wins give A one point each. The tie adds half a point. The vote against both answers adds another half. A won two of the four ballots outright. To find A's share of the credit, add the points on all four ballots and divide by four.",
+        "hold": 0.3
+      },
+      {
+        "id": "c11-b06",
+        "say": "Three quarters of the available credit went to A. The ratings fit that vote credit across many matchups. Who voted and which prompts they saw affect the fit. A twenty-twenty-five study also found providers testing many private variants and releasing selected winners.",
+        "hold": 0.3
+      },
+      {
+        "id": "c11-b07",
+        "say": "Keep the sampling uncertainty with the rating. To check factual accuracy, read the answers against their sources.",
+        "hold": 0.7
+      }
+    ]
+  },
+  {
+    "id": "c12",
+    "title": "Where did the seven extra renewal passes come from?",
+    "sourceChapters": [
+      "c12"
+    ],
+    "beats": [
+      {
+        "id": "c12-b01",
+        "say": "Back at the library desk, A and B both passed ninety questions. Lay their renewal results on top of the same ten question numbers. On questions ninety-one and ninety-two both assistants pass. On one hundred both miss.",
+        "hold": 0.7
+      },
+      {
+        "id": "c12-b02",
+        "say": "Slide your eye from ninety-three through ninety-nine. Each of those questions changed from a miss under A to a pass under B. Seven gains on renewals. Where did the overall gain go?",
+        "hold": 2
+      },
+      {
+        "id": "c12-b03",
+        "say": "Look at the ordinary questions. A passed eighty-eight there, and B passed eighty-one. Seven fewer. Put the two groups back together and the net change is zero.",
+        "hold": 0.8
+      },
+      {
+        "id": "c12-b04",
+        "say": "The library set the renewal requirement at eight passes in these ten cases. A has two. B has nine. Only B clears this check. Keep question one hundred in the report. It tells the renewal desk where both assistants still need help.",
+        "hold": 0.85
+      }
+    ]
+  },
+  {
+    "id": "c13",
+    "title": "Which program reaches the user?",
+    "sourceChapters": [
+      "c13"
+    ],
+    "beats": [
+      {
+        "id": "c13-b01",
+        "say": "A coding assistant produced eight programs for one problem. Programs two and six pass the benchmark tests. Suppose we draw two distinct programs from this pool, with every pair equally likely. How often does the pair contain a pass?",
+        "hold": 1.4
+      },
+      {
+        "id": "c13-b02",
+        "say": "Put the smaller index down the side and the larger one across the top. Each square is one possible pair. One with two gets a square. Two with one would be the very same draw. There are twenty-eight pairs.",
+        "hold": 0.65
+      },
+      {
+        "id": "c13-b03",
+        "say": "Count the pairs that miss. Both indices must come from the six failing programs. Six times five, divided by two because order does not matter, gives fifteen. The other thirteen contain a pass. Count the pair containing both two and six just once. Thirteen out of twenty-eight is the pass-at-two estimate for this problem.",
+        "hold": 0.65
+      },
+      {
+        "id": "c13-b04",
+        "say": "Now the service has to return one program. It always sends the lower index. Draw one and two. The pair contains program two, which passes. Which program reaches the user?",
+        "hold": 2.1
+      },
+      {
+        "id": "c13-b05",
+        "say": "Program one goes out. It fails. The passing program stayed behind. Try two and three instead. Two is still the only passing program in the pair. This time the lower index is two. The user gets a pass.",
+        "hold": 0.85
+      },
+      {
+        "id": "c13-b06",
+        "say": "Apply that selector to the whole map. Only the rows that return two or six can succeed. Row two has six partners to its right. Row six has two. Eight of the twenty-eight pairs return a pass. Compare the dots with the thirteen checks. Record the returned program, what the tests cover, and the cost of both attempts.",
+        "hold": 1.5
+      }
+    ]
+  },
+  {
+    "id": "c14",
+    "title": "What happens if we mix samples from different problems?",
+    "sourceChapters": [
+      "c14"
+    ],
+    "beats": [
+      {
+        "id": "c14-b01",
+        "say": "Try the same problem twice. Each attempt independently passes half the time. The four outcomes are equally likely. Only the last pair misses both times. The other three pairs contain a pass. Now let p be the pass probability on each try.",
+        "hold": 0.3
+      },
+      {
+        "id": "c14-b02",
+        "say": "One miss has probability one minus p. For all k attempts to miss, multiply that failure probability across the k draws. Subtract the result from one to get the chance of at least one pass.",
+        "hold": 0.6
+      },
+      {
+        "id": "c14-b03",
+        "say": "In a benchmark run, we estimate that chance from the programs we collected. Here twenty of a hundred programs passed. Call the pass count c and the pool size n. Substituting one fifth for p and asking about ten attempts gives about point eight nine two six.",
+        "hold": 0.3
+      },
+      {
+        "id": "c14-b04",
+        "say": "Across repeated pools this shortcut is biased low for k greater than one. The all-failure power bends upward, so variation in the observed rate raises its average failure estimate.",
+        "hold": 0.7
+      },
+      {
+        "id": "c14-b05",
+        "say": "Instead, remove each index as you draw it. To miss ten times you must draw a failure from eighty of a hundred, then from seventy-nine of ninety-nine. After nine misses, only seventy-one failures remain among ninety-one programs for the last draw.",
+        "hold": 0.3
+      },
+      {
+        "id": "c14-b06",
+        "say": "Subtract the product of all ten failure fractions from one. The result is about point nine zero four nine. Equivalently, count the ways to choose ten failures from eighty and divide by the ways to choose ten indices from a hundred. Subtract that fraction from one. You can repeat the same construction for any allowed sample size.",
+        "hold": 0.3
+      },
+      {
+        "id": "c14-b07",
+        "say": "Under our independent sampling model, the resulting estimate is unbiased across fresh pools. With fewer failures than draws, every subset contains a pass. Identical program text can occupy distinct indices. Correlated or adaptive attempts need their own sampling model.",
+        "hold": 0.7
+      },
+      {
+        "id": "c14-b08",
+        "say": "Try two problems. All four programs for X pass. All four for Y fail. A user asks for Y. Could a program written for X count as a success on that request?",
+        "hold": 1.9
+      },
+      {
+        "id": "c14-b09",
+        "say": "It belongs to the wrong problem. At two attempts, X always has a pass and Y never does. Average those problem scores and you get one half. Pool all eight and you also count pairs that contain one answer to each problem.",
+        "hold": 0.3
+      },
+      {
+        "id": "c14-b10",
+        "say": "Each of the sixteen mixed pairs contains a passing program for X. Pooling counts all sixteen, plus the six within X, for twenty-two successes among twenty-eight pairs. That is about point seven eight six. A pair with answers to two different requests is useless for this comparison.",
+        "hold": 0.85
+      }
+    ]
+  },
+  {
+    "id": "c15",
+    "title": "Map every verdict back to answer identity",
+    "sourceChapters": [
+      "c15"
+    ],
+    "beats": [
+      {
+        "id": "c15-b01",
+        "say": "Both answers mention commander approval. One says it briefly, the other in a friendlier style. To check an LLM judge, start with reviewed labels, a rubric, and a rule for disagreements. In MT-Bench, changing the order or repeating material affected some judges' scores.",
+        "hold": 0.3
+      },
+      {
+        "id": "c15-b02",
+        "say": "The evidence for judges favoring their own answers was inconclusive. JudgeLM also studied the effects of knowledge and formatting.",
+        "hold": 0.7
+      },
+      {
+        "id": "c15-b03",
+        "say": "Our judge counts required facts and picks slot A on a tie. With the concise answer first, concise wins. Swap them. Now the friendly answer is in slot A, and friendly wins. Follow the names. The winner changed, so the report records an unresolved pair.",
+        "hold": 0.3
+      },
+      {
+        "id": "c15-b04",
+        "say": "If the judge samples its answers, repeat the swap to see how often the winner follows the slot.",
+        "hold": 0.7
+      },
+      {
+        "id": "c15-b05",
+        "say": "Now compare the grounded answer with one missing approval. The same named answer wins both orders. Check its words against the policy to see whether it kept the approval rule. Calibrate the judge on independent human labels that include negations and paraphrases.",
+        "hold": 0.3
+      },
+      {
+        "id": "c15-b06",
+        "say": "Score instructions in a candidate answer as text. When checking for a length preference, keep the facts fixed so the shorter version still contains the condition it needs.",
+        "hold": 0.7
+      }
+    ]
+  },
+  {
+    "id": "c16",
+    "title": "Preserve case identity through development",
+    "sourceChapters": [
+      "c16"
+    ],
+    "beats": [
+      {
+        "id": "c16-b01",
+        "say": "A holdout supplies useful evidence about examples kept outside development. Suppose a team froze its tuning run at the end of March. These four cases have creation dates and an exposure record. Two were used to choose prompts or adjust the evaluator.",
+        "hold": 0.6
+      },
+      {
+        "id": "c16-b02",
+        "say": "Move those exposed cases into regression. They remain useful for catching old mistakes. Notice the April case following the same route as the February case. The team used that April case to adjust the evaluator. Its next job is to catch the same mistake again.",
+        "hold": 0.7
+      },
+      {
+        "id": "c16-b03",
+        "say": "The remaining cases are candidates for a fresh holdout after provenance checks. Keep their questions and keys out of the retrieval index. A private answer in the final context exposes the answer during evaluation, even if nobody tuned on that case. The underlying library rules still belong in retrieval.",
+        "hold": 0.7
+      }
+    ]
+  },
+  {
+    "id": "c17",
+    "title": "A screen reports its own detection boundary",
+    "sourceChapters": [
+      "c17"
+    ],
+    "beats": [
+      {
+        "id": "c17-b01",
+        "say": "Training exposure puts test material or solutions into model learning. Development exposure uses holdout results to choose prompts, examples or judges. Optimizing a proxy can improve the intended skill, exploit a shortcut, or both. A rising score alone does not distinguish those outcomes.",
+        "hold": 0.3
+      },
+      {
+        "id": "c17-b02",
+        "say": "Once a case guides a choice, preserve it as regression and find genuinely untouched evaluation evidence.",
+        "hold": 0.7
+      },
+      {
+        "id": "c17-b03",
+        "say": "GPT three’s analysis used an approximately thirteen-gram overlap criterion with special handling for short examples. A match can be background text; inspect what overlaps. A non-match can miss paraphrases, renamed variables and translations.",
+        "hold": 0.3
+      },
+      {
+        "id": "c17-b04",
+        "say": "BIG-bench asks contributors to include a recognizable canary string so collectors can exclude the material. Collectors must honor it, and copies can lose it. Investigate the case history when either signal turns up.",
+        "hold": 0.7
+      },
+      {
+        "id": "c17-b05",
+        "say": "LiveCodeBench dates contest tasks so an evaluation can select items after a known model-checkpoint cutoff. LiveBench refreshes several capability tests and uses objective answers. Record the release, task window, exact checkpoint and tool access. For a dated task, check when model training ended, what went into later post-training, and whether retrieval supplied a published solution.",
+        "hold": 0.7
+      }
+    ]
+  },
+  {
+    "id": "c18",
+    "title": "Ask how easily a small perfect sample can occur",
+    "sourceChapters": [
+      "c18"
+    ],
+    "beats": [
+      {
+        "id": "c18-b01",
+        "say": "Suppose a system succeeds on eighty percent of independent cases. To pass three in a row it needs three successes. Multiply point eight by itself three times. The chance is point five one two. A perfect result on just three cases happens more than half the time at this proposed rate.",
+        "hold": 0.65
+      },
+      {
+        "id": "c18-b02",
+        "say": "Keep the hypothetical success rate fixed and expand to thirty cases. Follow the dot along the curve. Point eight to the thirtieth power is about point zero zero one two four. A perfect thirty is much rarer. We still need an estimation procedure to learn about the actual system's unknown rate.",
+        "hold": 0.7
+      },
+      {
+        "id": "c18-b03",
+        "say": "The article develops Wilson intervals for that estimation step. Choose the interval and release rule before inspecting results, and check the assumptions behind them. Repeated paraphrases, biased case selection, and an incorrect checker each need their own investigation.",
+        "hold": 0.7
+      }
+    ]
+  },
+  {
+    "id": "c19",
+    "title": "How much does a perfect sample tell us?",
+    "sourceChapters": [
+      "c19"
+    ],
+    "beats": [
+      {
+        "id": "c19-b01",
+        "say": "Three cases out of three passed. The usual Wald interval puts the observed rate into its variance formula. At one hundred percent that variance is zero. Both ends land on one hundred percent. Could the data really pin down the pass rate that closely?",
+        "hold": 1.65
+      },
+      {
+        "id": "c19-b02",
+        "say": "Could these three passes have come from a system with a pass rate of eighty percent? Use the proposed rate to calculate the standard error. Multiply point eight by point two, divide by three, and take the square root. The standard error is about point two three one. Divide the gap between the observed rate of one and the proposed rate of point eight by that standard error. The distance is about point eight seven standard errors.",
+        "hold": 0.3
+      },
+      {
+        "id": "c19-b03",
+        "say": "At eighty percent the distance is less than one. That's inside the limit of one point nine six.",
+        "hold": 0.75
+      },
+      {
+        "id": "c19-b04",
+        "say": "Slide the proposed rate down. The distance grows. At about forty-three point eight percent the curve meets the limit. Lower rates fall outside. The rates we keep form the Wilson interval. Squaring the score inequality gives a quadratic. Its roots give the endpoints.",
+        "hold": 0.3
+      },
+      {
+        "id": "c19-b05",
+        "say": "For an all-pass sample the lower root simplifies to n over n plus z squared. Here n is three. When some cases fail, use the full lower root. It takes the observed fraction and sample size, with the same z we chose at the start.",
+        "hold": 0.8
+      },
+      {
+        "id": "c19-b06",
+        "say": "Suppose a release rule requires the lower end to reach ninety-five percent. The next run passed forty-nine of fifty. A larger run passed nine hundred ninety of a thousand. Which lower end will clear the line?",
+        "hold": 2
+      },
+      {
+        "id": "c19-b07",
+        "say": "Forty-nine out of fifty gives about eighty-nine point five percent at the lower end. The larger run reaches ninety-eight point two percent. Only the larger run clears this floor. These are two-sided intervals with nominal ninety-five percent coverage over repeated samples.",
+        "hold": 0.3
+      },
+      {
+        "id": "c19-b08",
+        "say": "A one-sided ninety-five percent bound uses a different z, about one point six four five. Choose the procedure in advance. Biased cases and correlated repeats still need investigation.",
+        "hold": 0.9
+      }
+    ]
+  },
+  {
+    "id": "c20",
+    "title": "Which disagreements count in a paired comparison?",
+    "sourceChapters": [
+      "c20"
+    ],
+    "beats": [
+      {
+        "id": "c20-b01",
+        "say": "Put the two library answers to question ninety-three side by side. A missed it and B passed. That makes one fix. Sort all hundred questions the same way. Questions both systems pass or both fail stay in the report. They contribute nothing to the change in pass rate.",
+        "hold": 0.65
+      },
+      {
+        "id": "c20-b02",
+        "say": "Seven questions improved and seven broke. That's how these two totals tie. For an exact paired test, count just the disagreements and keep their directions. Assume independent case pairs sampled from one target population under a fixed protocol.",
+        "hold": 0.3
+      },
+      {
+        "id": "c20-b03",
+        "say": "If the marginal pass rates are equal, a disagreement favors either system with probability one half. Conditional on how many disagreed, the number of fixes then follows a fair-coin binomial distribution. This is the exact McNemar test.",
+        "hold": 0.65
+      },
+      {
+        "id": "c20-b04",
+        "say": "Take a different sample with nine fixes and one break. The horizontal axis counts fixes among those ten disagreements. To be at least this lopsided in either direction, the ten coin flips must give zero or one fix, or nine or ten.",
+        "hold": 0.3
+      },
+      {
+        "id": "c20-b05",
+        "say": "Each tail has one extreme sequence and ten with a single flip the other way. That makes eleven of the thousand twenty-four equally likely sequences. Both tails together give a p-value of about point zero two one five.",
+        "hold": 0.8
+      },
+      {
+        "id": "c20-b06",
+        "say": "For three fixes and one break there are only four disagreements. Each tail now contains five of sixteen sequences, so the two-sided p-value is point six two five. A three-to-one split is common with so few cases. Try five fixes and zero breaks instead. At a five percent cutoff, is five out of five enough?",
+        "hold": 2.2
+      },
+      {
+        "id": "c20-b07",
+        "say": "All fixes is one sequence. All breaks is another. Two out of thirty-two gives point zero six two five. It misses the cutoff. In general, double the smaller binomial tail and cap the result at one.",
+        "hold": 0.3
+      },
+      {
+        "id": "c20-b08",
+        "say": "A small p-value measures evidence against equal pass rates under these assumptions. The importance of the change depends on what broke.",
+        "hold": 0.7
+      },
+      {
+        "id": "c20-b09",
+        "say": "Back at the library, the seven broken questions are eighty-two through eighty-eight. Read those answers before deciding what the renewal gains are worth. Keep critical gates separate. If cases cluster or come from fixed strata, check the sampling model.",
+        "hold": 0.3
+      },
+      {
+        "id": "c20-b10",
+        "say": "For a variable hosted model, declare how repeated answers become a pass or a fail for each case and retain the repeats.",
+        "hold": 0.75
+      }
+    ]
+  },
+  {
+    "id": "c21",
+    "title": "Check quality and operational limits together",
+    "sourceChapters": [
+      "c21"
+    ],
+    "beats": [
+      {
+        "id": "c21-b01",
+        "say": "Here are three candidates for the same interactive route. The horizontal axis is policy pass rate. The vertical axis is p ninety-five latency, the time within which ninety-five percent of requests finish. The policy floor is ninety-eight percent. Fast falls to its left. Balanced and Specialist clear this first gate.",
+        "hold": 0.65
+      },
+      {
+        "id": "c21-b02",
+        "say": "Add the interactive latency limit. Specialist lies above it, while balanced stays inside the permitted region. Every point keeps its identity as the boundaries appear. A different workflow could justify different limits and would need a fresh evaluation of its own.",
+        "hold": 0.7
+      },
+      {
+        "id": "c21-b03",
+        "say": "Finally inspect schema validity and cost. Balanced clears all four supplied checks. This is an eligibility result for the displayed measurements. A release report must still include critical categories, sampling uncertainty, and evidence from the actual request path.",
+        "hold": 0.75
+      }
+    ]
+  },
+  {
+    "id": "c22",
+    "title": "Validate the evidence before applying the release rule",
+    "sourceChapters": [
+      "c22"
+    ],
+    "beats": [
+      {
+        "id": "c22-b01",
+        "say": "Read these measurements as Python values. The policy rate is point nine nine and the schema rate is one. Latency and cost must be finite, nonnegative numbers. The validator rejects Booleans even though Python treats them as integers in arithmetic. It also rejects missing values, infinities, and integers too large for its floating-point validation.",
+        "hold": 0.3
+      },
+      {
+        "id": "c22-b02",
+        "say": "Which rows survive? Zero time and zero cost are valid measurements. False is a Boolean, the third row's cost is not a number, and the last latency is negative. Only row A gets as far as the threshold checks.",
+        "hold": 0.7
+      },
+      {
+        "id": "c22-b03",
+        "say": "Ordered comparisons such as NaN less than a quality floor and NaN greater than a latency ceiling are both false. A naive reject-if-bad rule can therefore admit a report with neither measurement. The reference validator rejects that invalid record. The finiteness check catches NaN.",
+        "hold": 0.3
+      },
+      {
+        "id": "c22-b04",
+        "say": "The type and range checks catch different errors, such as a rate above one.",
+        "hold": 0.7
+      },
+      {
+        "id": "c22-b05",
+        "say": "Valid metrics still face separate gates. Balanced meets the quality, schema, latency and cost limits on this route. Look at Specialist. Its quality score is one, but eighteen hundred milliseconds is twice the latency limit. A slower route would need its own evaluation.",
+        "hold": 0.3
+      },
+      {
+        "id": "c22-b06",
+        "say": "Keep the measured telemetry with the decision so a reviewer can trace each number back to the run.",
+        "hold": 0.7
+      }
+    ]
+  },
+  {
+    "id": "c23",
+    "title": "Bind the score to the evidence that produced it",
+    "sourceChapters": [
+      "c23"
+    ],
+    "beats": [
+      {
+        "id": "c23-b01",
+        "say": "Preserve dataset version and case IDs, the final input context and policy versions, model identity, prompt and decoding settings, tools, output schema and scorer version. Keep actual outputs, failed cases, timing and cost boundaries. Record all attempt work, including timeouts.",
+        "hold": 0.3
+      },
+      {
+        "id": "c23-b02",
+        "say": "A scalar score or a matching manifest cannot recreate missing evidence or establish that a run really occurred.",
+        "hold": 0.7
+      },
+      {
+        "id": "c23-b03",
+        "say": "For hosted models, pin a dated snapshot when available and record the run date. Outputs can still vary under deterministic-looking settings, so repeat under a fixed protocol and rerun the baseline contemporaneously.",
+        "hold": 0.3
+      },
+      {
+        "id": "c23-b04",
+        "say": "The article’s suspicious report changes model and top-three retrieval to top-five, tunes its judge on holdout cases and accepts negated approval. Freeze the full system and validated evaluator, move exposed cases to regression and repeat an untouched matched comparison.",
+        "hold": 0.7
+      }
+    ]
+  },
+  {
+    "id": "c24",
+    "title": "What would you write beside ninety percent?",
+    "sourceChapters": [
+      "c24"
+    ],
+    "beats": [
+      {
+        "id": "c24-b01",
+        "say": "Imagine you inherit the library report. The first line says that B passed ninety percent. A colleague asks whether B can handle renewals. What would you put beside that number?",
+        "hold": 1.7
+      },
+      {
+        "id": "c24-b02",
+        "say": "Start with the ten renewal questions. B passed nine. The library required eight. Open the one miss, question one hundred. In our case file the reader asks to renew a reserved book. The policy gives the waiting reader priority, but B offers another loan period. Keep the actual reply so a reviewer can check that mark.",
+        "hold": 0.8
+      },
+      {
+        "id": "c24-b03",
+        "say": "That settles the point estimate on these ten questions. To repeat the comparison, the next reviewer also needs the input, the actual output, the frozen scoring rule, and the cost of the attempts. A case used to improve the scorer goes into regression.",
+        "hold": 0.3
+      },
+      {
+        "id": "c24-b04",
+        "say": "Let's take that method to a different desk with a different release rule.",
+        "hold": 0.75
+      }
+    ]
+  },
+  {
+    "id": "c25",
+    "title": "Would you sign the archive release?",
+    "sourceChapters": [
+      "c25"
+    ],
+    "beats": [
+      {
+        "id": "c25-b01",
+        "say": "The archive has its own release rule. Every permission decision needs staff approval under this example policy. Before the run, the team set a floor for the permission pass rate. The lower end of a two-sided ninety-five percent Wilson interval must reach eighty-five percent.",
+        "hold": 0.65
+      },
+      {
+        "id": "c25-b02",
+        "say": "Both systems answered the same two hundred new cases under a pinned protocol. Assume the pairs were sampled independently from one target population. Count the changes. Ten cases went from fail to pass. Two went from pass to fail. That takes the baseline's one hundred eighty passes to one hundred eighty-eight for the candidate.",
+        "hold": 0.75
+      },
+      {
+        "id": "c25-b03",
+        "say": "Under equal marginal pass rates, each of the twelve disagreements is equally likely to point either way. Count zero, one or two breaks, and the matching tail for fixes. The exact two-sided p-value is about point zero three eight six. That's evidence of a difference at the five percent level under these assumptions.",
+        "hold": 0.7
+      },
+      {
+        "id": "c25-b04",
+        "say": "Now open the candidate's ten permission cases. Nine passed. The dot marks ninety percent. The interval runs from just under sixty percent to just over ninety-eight. For this gate, would you sign or hold? Point to the end of the interval that decides.",
+        "hold": 2.7
+      },
+      {
+        "id": "c25-b05",
+        "say": "Use the lower end. It's fifty-nine point six percent. It falls short. Hold this release. The paired improvement covered all two hundred cases. This rule asks how well the candidate handles permission questions.",
+        "hold": 0.85
+      },
+      {
+        "id": "c25-b06",
+        "say": "Keep both regressions, F zero thirty-one and F one eighteen. Open the permission miss, F zero thirty-one. Here's the context the model received. Staff approval is required. Its answer says staff approval is optional. Where would you investigate first?",
+        "hold": 2.1
+      },
+      {
+        "id": "c25-b07",
+        "say": "The rule reached the model. Inspect how the answer was generated. Check the prompt and run the repaired system end to end on this case. Once it guides that work, keep it as a regression test.",
+        "hold": 0.3
+      },
+      {
+        "id": "c25-b08",
+        "say": "For a new release decision, freeze the repair and draw untouched permission cases. F zero thirty-one stays in regression. It can catch this error again. The new cases measure how the repair handles permission requests it has never seen. In the next lesson we will follow the role markers in a chat template and identify the reply tokens used for training.",
+        "hold": 0.9
+      }
+    ]
+  }
+]

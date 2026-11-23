@@ -1,0 +1,445 @@
+[
+  {
+    "id": "c01",
+    "title": "How far can the ink go?",
+    "sourceChapters": [
+      "c01"
+    ],
+    "beats": [
+      {
+        "id": "c01-b01",
+        "say": "The bird. Sang, softly, today. Watch those three faint words run ahead of the reader. A cheap draft model guessed them one at a time. For each guess, it used the words to its left.",
+        "hold": 1
+      },
+      {
+        "id": "c01-b02",
+        "say": "The expensive target can score those guesses together. Suppose sang passes and softly fails. How far along the pencil line can you ink the draft?",
+        "hold": 3.1
+      },
+      {
+        "id": "c01-b03",
+        "say": "Ink sang. Lift the other two words. Today was a guess about what follows softly. We now need a word drawn for the space after sang. This draft, verify and correct procedure is speculative decoding. We will work out which word can fill it, what the target has already computed, and when guessing ahead saves time.",
+        "hold": 1.2
+      }
+    ]
+  },
+  {
+    "id": "weights",
+    "title": "One trip through the weights",
+    "sourceChapters": [
+      "c01"
+    ],
+    "beats": [
+      {
+        "id": "weights-b01",
+        "say": "Why guess ahead? An ordinary decoder needs its last sample before it can take the next step. Picture thirty billion active matrix weights, two bytes apiece. One trip through memory carries sixty gigabytes even when we process just one position.",
+        "hold": 0.65
+      },
+      {
+        "id": "weights-b02",
+        "say": "Suppose the chip can read three point three five terabytes a second. Moving the weights alone takes at least seventeen point nine milliseconds. At the assumed dense arithmetic peak, the multiply and add at each weight take only about six hundredths of a millisecond altogether. The larger of the two floors is the weight read.",
+        "hold": 1
+      },
+      {
+        "id": "weights-b03",
+        "say": "Now feed six known positions through the same matrices. If a tile is fetched once and used for all six columns, its traffic stays fixed. The work rises sixfold. That makes six operations per byte, up from one. We can use that room to verify a block. Cache traffic, attention, communication and kernel shape still affect the time we measure.",
+        "hold": 1.2
+      }
+    ]
+  },
+  {
+    "id": "c02",
+    "title": "Which word did the draft sample?",
+    "sourceChapters": [
+      "c02"
+    ],
+    "beats": [
+      {
+        "id": "c02-b01",
+        "say": "Start a separate, one-word example. The child saw a blank. Our vocabulary contains bird, dog and cat. The top strip shows the target distribution, p. The lower strip shows the actual proposal distribution, q. Each strip covers one whole unit of probability.",
+        "hold": 0.8
+      },
+      {
+        "id": "c02-b02",
+        "say": "Draw a number uniformly from zero up to one. Our proposal draw is point three five. Trace it to the lower strip. Which word sits there?",
+        "hold": 2.5
+      },
+      {
+        "id": "c02-b03",
+        "say": "Dog. Its interval runs from point two up to point seven. Half the draft samples land there. The same word takes three tenths of the target strip. We will use those two widths when we decide whether dog survives.",
+        "hold": 1
+      }
+    ]
+  },
+  {
+    "id": "filter",
+    "title": "What did the sampler actually use?",
+    "sourceChapters": [
+      "c02"
+    ],
+    "beats": [
+      {
+        "id": "filter-b01",
+        "say": "Start a new example with a different target and a different proposer. This proposer gives dog thirty five percent. The raw target gives dog thirty percent. Now filter the target alone. It keeps its two most likely words and drops cat. What happens to the target shares for bird and dog?",
+        "hold": 2.1
+      },
+      {
+        "id": "filter-b02",
+        "say": "Remove cat and divide the surviving shares by their sum, point eight five. Dog now gets point three divided by point eight five. The served target gives dog about thirty five point three percent. The draft still gives dog thirty five percent. The target now wants slightly more dog than the draft supplies. A proposed dog can always stay. Cat has zero target mass, so a draft cat must be rejected.",
+        "hold": 1
+      },
+      {
+        "id": "filter-b03",
+        "say": "Temperature, penalties and truncation all belong in the normalized law that each side actually uses. The events must match too. Imagine token forty twelve means cat on the draft but house on the target. Compare cat with the target's cat, ID seventeen, when both encode that same single event. Different segmentations need a valid mapping of events and their probabilities.",
+        "hold": 1.2
+      }
+    ]
+  },
+  {
+    "id": "c03",
+    "title": "Two draws for the same dog",
+    "sourceChapters": [
+      "c03"
+    ],
+    "beats": [
+      {
+        "id": "c03-b01",
+        "say": "Return to our original strips. The proposal draw already selected dog. To decide whether it survives, use a fresh uniform draw. Accept a sampled word with probability equal to the smaller of one and its target probability divided by its proposal probability. A sampled word has positive proposal probability.",
+        "hold": 0.8
+      },
+      {
+        "id": "c03-b02",
+        "say": "The draft supplies five tenths of a unit of dog. We need three tenths. Keep three fifths of the proposed dogs. The acceptance draw is point five eight. Which side of the cutoff does it reach?",
+        "hold": 2.6
+      },
+      {
+        "id": "c03-b03",
+        "say": "Keep dog. Its acceptance draw is below point six. Replay the same proposal with a fresh acceptance draw of point eight. Reject dog on this draw. Bird is the target's most likely word on both trials. The decision follows the sampled word and the draw.",
+        "hold": 1.2
+      }
+    ]
+  },
+  {
+    "id": "c04",
+    "title": "Where can the replacement land?",
+    "sourceChapters": [
+      "c04"
+    ],
+    "beats": [
+      {
+        "id": "c04-b01",
+        "say": "Lay the draft width over the target width for each word. Both start at the same edge. The part they share is the probability of proposing and accepting that word. On the trial where dog was rejected, look for bare paper inside a target outline. Which word is short?",
+        "hold": 3
+      },
+      {
+        "id": "c04-b02",
+        "say": "Only bird. It has two tenths of accepted mass and needs five tenths. Dog and cat already have their full target shares. Take the positive part of target minus draft at each word. The missing pieces sum to point three, exactly the probability of rejection.",
+        "hold": 0.9
+      },
+      {
+        "id": "c04-b03",
+        "say": "On rejection, use just those missing pieces for a new draw. Here the entire replacement strip reads bird. If the laws match exactly, every target outline is covered. Rejection has probability zero, so the sampler skips the residual draw and the division by zero.",
+        "hold": 1.1
+      }
+    ]
+  },
+  {
+    "id": "c05",
+    "title": "Can both paths rebuild the target?",
+    "sourceChapters": [
+      "c05"
+    ],
+    "beats": [
+      {
+        "id": "c05-b01",
+        "say": "Return to the original pair. The draft gives dog five tenths and the target gives it three tenths. Imagine taking a fresh sample from the entire target after each rejection. Dog already has three tenths from acceptance. On the three tenths of rounds that reject, this extra lottery gives dog three tenths of those rounds too. Where would its total land?",
+        "hold": 2.1
+      },
+      {
+        "id": "c05-b02",
+        "say": "Point three nine. The extra nine hundredths pushes dog past its target mark. Undo the redraw. Direct the missing mass to bird instead. Now accepted overlap plus the chance of rejection times the residual probability equals the target share for every word.",
+        "hold": 1
+      },
+      {
+        "id": "c05-b03",
+        "say": "Change only the draft strip. This time bird is short two tenths and dog one tenth. Divide each gap by their total. Of all replacements, two thirds must be bird and one third dog. A word with zero proposal probability can get its entire target share through this path.",
+        "hold": 1
+      },
+      {
+        "id": "c05-b04",
+        "say": "The identity holds for normalized laws at each correct prefix in exact arithmetic. Applying it again at each new prefix gives the target sequence law when masks, positions, cache and stopping also agree. A finite histogram checks an implementation on its inputs. Different samplers can consume different numbers of random draws and still have the same distribution.",
+        "hold": 1
+      }
+    ]
+  },
+  {
+    "id": "c06",
+    "title": "Read the row one place to the left",
+    "sourceChapters": [
+      "c06"
+    ],
+    "beats": [
+      {
+        "id": "c06-b01",
+        "say": "Return to the bird sentence. The draft extends its own prefix three times and saves the proposal law at each step. The target already has state for The. Feed it the pending word bird and the three guesses together. Causal attention sees each input and its past. Every output row predicts the following word.",
+        "hold": 0.75
+      },
+      {
+        "id": "c06-b02",
+        "say": "The row after bird scores sang. Its target share is point six and its draft share is point four, so every proposed sang survives. Which row supplies the target probability for softly?",
+        "hold": 2.5
+      },
+      {
+        "id": "c06-b03",
+        "say": "Read after sang. The target assigns softly point three and the draft assigns it point six. Half survive. Our draw of point eight rejects softly. Skip the row for today. It was computed after softly, on a history the reader will never have. Both models must resume from the corrected history.",
+        "hold": 1.2
+      }
+    ]
+  },
+  {
+    "id": "c07",
+    "title": "Where does the cache end?",
+    "sourceChapters": [
+      "c07"
+    ],
+    "beats": [
+      {
+        "id": "c07-b01",
+        "say": "Keep the reader at The bird sang. The target has computed a key and a value for each input it just processed. Clear the rejected suffix. Both columns disappear together. Keep the entries through sang.",
+        "hold": 0.8
+      },
+      {
+        "id": "c07-b02",
+        "say": "Commit nearby. At this prefix it is the only word whose target share exceeds its draft share. The reader can see it. Where does the usable target cache end right now?",
+        "hold": 3
+      },
+      {
+        "id": "c07-b03",
+        "say": "Under sang. Sampling nearby gave us a token ID. The next pass processes nearby on that retained prefix. Its key and value now exist. The draft may also need to catch up. Include that work, and the cost of trimming or gathering cache entries, when timing a round.",
+        "hold": 1.1
+      }
+    ]
+  },
+  {
+    "id": "stop",
+    "title": "Which word ends the round?",
+    "sourceChapters": [
+      "c07"
+    ],
+    "beats": [
+      {
+        "id": "stop-b01",
+        "say": "Replay with a smaller acceptance draw for softly. All three guesses now pass. The row after today already contains the target law for one more token. Draw a bonus from that row. In this run it is an end token. The bonus was sampled and has no computed state of its own.",
+        "hold": 1
+      },
+      {
+        "id": "stop-b02",
+        "say": "Now try a separate verified block. It reads sang, end token, today. A server checks end tokens, stop strings and the output limit in emitted order. This interface hides the end token. What reaches the reader?",
+        "hold": 2.5
+      },
+      {
+        "id": "stop-b03",
+        "say": "Deliver sang. Stop at the end token. The later today never reaches the reader. A length cap can also cut a verified block short. Count the tokens the client actually receives when measuring yield.",
+        "hold": 1
+      }
+    ]
+  },
+  {
+    "id": "table-round",
+    "title": "Which history selects the next row?",
+    "sourceChapters": [
+      "c06"
+    ],
+    "beats": [
+      {
+        "id": "table-round-b01",
+        "say": "Try a sampler you can check without running a transformer. Fix three possible tokens, noon, dawn and dusk. The draft proposes noon twice. The target has one table for the empty prefix and another for a prefix ending in noon. Force a rejection at the first position. Which table supplies the correction?",
+        "hold": 2.3
+      },
+      {
+        "id": "table-round-b02",
+        "say": "Use the empty-prefix row. Only dawn has a deficit, so this round emits dawn. In a second run let the first noon pass and reject the second. Now the row after noon has deficits on dawn and dusk. Our correction draw of point nine five selects dusk. With both noons accepted, a bonus draw of point two from the final target row gives dawn.",
+        "hold": 1
+      },
+      {
+        "id": "table-round-b03",
+        "say": "Check pairs of output words as well. Noon has probability point four at the start. Dawn after noon has probability point six. Multiply to get point two four for that ordered pair. The article's fixed-seed run observed it about twenty four point four percent of the time over sixty thousand trials. Check the other eight pairs too.",
+        "hold": 1
+      },
+      {
+        "id": "table-round-b04",
+        "say": "If results drift, feed fixed tables to the sampler first. Exercise identical and disjoint laws, rejection at each position, the bonus and stopping. If those checks pass, compare serial and verification logits for the same input, mask, position and cache with a stated tolerance. Quantization and batch-dependent rounding can move a model row even when the probability sampler is correct.",
+        "hold": 1
+      }
+    ]
+  },
+  {
+    "id": "tree",
+    "title": "Which branches can this word see?",
+    "sourceChapters": [
+      "c06"
+    ],
+    "beats": [
+      {
+        "id": "tree-b01",
+        "say": "A draft can offer alternatives in a tree. Here the cached prefix ends at position nine. There is no pending input. Node zero is sang, node one is flew. Softly extends sang and away extends flew. The target scores the four candidates together. Which candidate keys may softly read?",
+        "hold": 2.5
+      },
+      {
+        "id": "tree-b02",
+        "say": "Trace the branch through sang to softly. That row can use the shared prefix, its ancestor and itself. Mask the other two candidate keys before softmax. Both roots use position ten and both children use eleven. Depth sets the position. A flat array index would put softly at twelve.",
+        "hold": 1
+      },
+      {
+        "id": "tree-b03",
+        "say": "Try changing a value on the flew branch from one hundred to ten thousand. With the tree mask, softly's attention result stays fixed. A flat causal mask admits its earlier sibling branch and the result jumps. These toy attention values test isolation. An exact stochastic tree sampler still needs a valid proposal and correction rule for the branches.",
+        "hold": 1.25
+      },
+      {
+        "id": "tree-b04",
+        "say": "What the verifier tests matters too. In a token-wise run, A passes and B fails, so it keeps A. In a separate block-verification run, the tests cover whole prefixes. A fails its prefix test, A B passes, and A B C fails. The block method can keep A B and must use the correction rule for that method.",
+        "hold": 1.2
+      }
+    ]
+  },
+  {
+    "id": "proposers",
+    "title": "What did the proposer change?",
+    "sourceChapters": [
+      "c02"
+    ],
+    "beats": [
+      {
+        "id": "proposers-b01",
+        "say": "A proposer can simply copy. The prompt ends with The train. Find the same two words earlier. They continue with arrives at. Lookup copies that span. At the first position it always proposes arrives, so its proposal probability is one. Suppose the target gives arrives half its mass and the uniform draw is point seven. Keep it?",
+        "hold": 2.4
+      },
+      {
+        "id": "proposers-b02",
+        "say": "Reject arrives. Remove that word from the correction strip. The two other words divide the remaining half in the ratio two to three. On rejection they get forty and sixty percent. Lookup spends time on search and verification and uses no extra neural weights.",
+        "hold": 1
+      },
+      {
+        "id": "proposers-b03",
+        "say": "Learned proposers change the cost. Medusa adds heads to the target. Medusa one freezes the backbone. Medusa two trains it jointly. Keep track of two choices. Which weights define the target, and which sampler accepts the guesses? A frozen baseline with exact correction preserves its law in exact arithmetic. A changed backbone defines a different target, and typical acceptance gives no such guarantee.",
+        "hold": 1
+      },
+      {
+        "id": "proposers-b04",
+        "say": "Original EAGLE predicts target features, then uses the target head to propose words. EAGLE two adapts its tree to draft confidence. EAGLE three combines early, middle and late target features to train for token prediction. Native multi-token heads or a separate parallel drafter can also propose several positions. Each needs compatible weights, state and a verifier for its proposal scheme.",
+        "hold": 1
+      }
+    ]
+  },
+  {
+    "id": "c08",
+    "title": "How many words did the round buy?",
+    "sourceChapters": [
+      "c08"
+    ],
+    "beats": [
+      {
+        "id": "c08-b01",
+        "say": "Suppose a hundred rounds each draft two words. Ninety accept the first word. Of those ninety, one tenth accept the second. How many rounds keep both words?",
+        "hold": 2.3
+      },
+      {
+        "id": "c08-b02",
+        "say": "Nine rounds. Count one correction or bonus per round before any stopping limit, plus every accepted proposal. That gives a hundred plus ninety plus nine tokens. Reverse the two conditional rates. Ten now reach the second test, and nine still survive it. The yield falls from one point nine nine to one point one nine tokens per round.",
+        "hold": 1
+      },
+      {
+        "id": "c08-b03",
+        "say": "For depth five with a constant conditional acceptance rate of point eight, add one and each successive prefix survival probability. Expect about three point six nine tokens per round before stopping. At one tenth of an ordinary step per draft token, a flat verification cost of one step gives about two point four six times ordinary decoding speed in this model.",
+        "hold": 1
+      },
+      {
+        "id": "c08-b04",
+        "say": "Keep the yield fixed and raise verification time to one and a quarter steps. The gain falls to about two point one one. A longer draft costs more even when an early rejection wastes the later rows. At depth ten with verification time one and a half steps, the expected yield rises to four point five seven, yet the modeled speedup falls again.",
+        "hold": 1.1
+      }
+    ]
+  },
+  {
+    "id": "budget",
+    "title": "Will the verification block fit?",
+    "sourceChapters": [
+      "c08"
+    ],
+    "beats": [
+      {
+        "id": "budget-b01",
+        "say": "The scheduler reserves inputs before the sampler knows what will survive. Give twelve streams one pending token and three draft positions apiece. The step can hold forty input positions. How many positions do the twelve streams need? What is the largest draft depth at which all twelve fit?",
+        "hold": 4
+      },
+      {
+        "id": "budget-b02",
+        "say": "They need forty eight positions. The last eight spill over the limit. Shorten each draft to two. Keep the pending position in every stream. The new request is thirty six positions. Four slots remain. Another proposal per stream would need twelve slots, so two is the largest depth that fits. Acceptance can change delivered output only after those inputs have been scheduled.",
+        "hold": 1
+      },
+      {
+        "id": "budget-b03",
+        "say": "Batching already reuses weights across streams. Suppose the serving step is compute limited and each verification position costs one ordinary step. At depth two, pay three steps for verification and two tenths for drafting. With eighty percent conditional acceptance, expect two point four four tokens. That gives only about three quarters of ordinary decoding speed. Measure latency, queueing and throughput at the offered load.",
+        "hold": 1
+      }
+    ]
+  },
+  {
+    "id": "service",
+    "title": "Which load can the client use?",
+    "sourceChapters": [
+      "c08"
+    ],
+    "beats": [
+      {
+        "id": "service-b01",
+        "say": "Pair runs with the same prompts, target, quantization, sampler settings and hardware at each offered load. Watch delivery at the client. Tokens arrive at three hundred, three hundred one, three hundred two and five hundred milliseconds. The average gap is about sixty seven milliseconds. Look at the last gap. The reader waited one hundred ninety eight milliseconds.",
+        "hold": 1
+      },
+      {
+        "id": "service-b02",
+        "say": "Use twenty-second trials. A request qualifies if it meets the latency requirement. At least ninety five percent of all offered requests must qualify. Trial A qualifies a hundred seventy four of a hundred eighty. B qualifies two hundred four of two hundred twenty. Which is the highest passing offered load we tested?",
+        "hold": 3
+      },
+      {
+        "id": "service-b03",
+        "say": "A passes. Divide each qualified count by all the offers in its trial. A reaches ninety six point seven percent. B reaches ninety two point seven percent, below the threshold. Over twenty seconds, A's nine offers per second yield eight point seven qualifying responses per second. B delivers ten point two qualifying responses per second, but too many of its offers miss the requirement. Include failures and cancellations in the offered count. Repeat paired trials, recording first-token time, tail gaps, completion lengths, verification work, peak memory and uncertainty.",
+        "hold": 1.25
+      }
+    ]
+  },
+  {
+    "id": "c09",
+    "title": "Work the space after sang",
+    "sourceChapters": [
+      "c09"
+    ],
+    "beats": [
+      {
+        "id": "c09-b01",
+        "say": "The draft already had sang accepted. Its next candidate is softly. The target assigns it probability 0.30, the draft assigns 0.60, and the acceptance draw is 0.80. Predict whether softly is committed, then find the word with positive target-minus-draft mass.",
+        "hold": 3
+      },
+      {
+        "id": "c09-b02",
+        "say": "The ratio is one half. Reject softly and discard today. Nearby is short three tenths, and every other gap is zero. Commit nearby. Keep the state through sang until the next pass processes nearby.",
+        "hold": 1
+      },
+      {
+        "id": "c09-b03",
+        "say": "Try a fresh round after the same sang. The draft still proposes softly then today. The new tables are on the page. Softly's target share is one quarter and its draft share is point three five. Use the same draw, point eight. Which word fills the space? Can you reuse the state already computed for that word?",
+        "hold": 3.4
+      },
+      {
+        "id": "c09-b04",
+        "say": "Reject softly. One quarter divided by point three five is five sevenths. Only today has a shortfall, so commit today directly after sang. The old today followed softly. Its saved state includes that extra word. Roll back to sang.",
+        "hold": 1.35
+      },
+      {
+        "id": "c09-b05",
+        "say": "Trace the difference with a toy history. Start at eight for sang. Appending two for softly and three for today gave eight hundred twenty three. The next pass appends three directly to eight. That makes eighty three. Use the state built on the words that reached the reader. Keeping that state within a long context's memory budget is our next lesson.",
+        "hold": 1.5
+      }
+    ]
+  }
+]

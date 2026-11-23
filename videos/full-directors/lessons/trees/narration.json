@@ -1,0 +1,463 @@
+[
+  {
+    "id": "c01",
+    "title": "How does moving the split change the queue?",
+    "sourceChapters": ["c01"],
+    "beats": [
+      {
+        "id": "c01-b01",
+        "say": "Each jewel is an access request. Farther right means the request and its evidence disagree more. We call that feature ambiguity. A circle was routine. A diamond needed a reviewer. Every request gets the usual access checks. The amber pane adds a human review. Which diamond did this split miss?",
+        "hold": 2.6
+      },
+      {
+        "id": "c01-b02",
+        "say": "R3. Its ambiguity score is only two. Imagine moving the seam left until R3 joins the review pane. Before we move it, point to the routine requests the seam would sweep across.",
+        "hold": 3
+      },
+      {
+        "id": "c01-b03",
+        "say": "Slide the seam. Watch the circles at three point two and two point eight. R8 and R7 now join R3 in the review queue. Catching one missed review added two unnecessary reviews. Later we'll grow a branch around R3 and try it on a fresh request.",
+        "hold": 1
+      }
+    ]
+  },
+  {
+    "id": "c02",
+    "title": "What happens between two training values?",
+    "sourceChapters": ["c02"],
+    "beats": [
+      {
+        "id": "c02-b01",
+        "say": "Lift each request to its policy support score. Higher means the policy gives stronger evidence for automatic handling. Now ambiguity runs across and support runs up. A tree tests one feature at a time. Its cuts run straight up or straight across. Suppose the true boundary followed this diagonal.",
+        "hold": 0.3
+      },
+      {
+        "id": "c02-b02",
+        "say": "A linear model can draw it with one line. The tree has to build a staircase. Each extra split divides the available training examples between smaller patches.",
+        "hold": 0.9
+      },
+      {
+        "id": "c02-b03",
+        "say": "A numeric split uses the order of the training values. There's usually no need to standardize them for distance. Look at a separate gap between one and four. Its midpoint is two and a half. An unseen request at two point eight goes right.",
+        "hold": 0.3
+      },
+      {
+        "id": "c02-b04",
+        "say": "Square the feature before fitting. The training endpoints are now one and sixteen. Their midpoint is eight and a half. Where does the same request go?",
+        "hold": 2.2
+      },
+      {
+        "id": "c02-b05",
+        "say": "It goes left. Two point eight squared is seven point eight four, below the new midpoint. Both training rows kept their sides. A strictly increasing transform preserves their order in exact arithmetic, but choosing a midpoint inside a gap can change the route for a new row.",
+        "hold": 0.3
+      },
+      {
+        "id": "c02-b06",
+        "say": "Rounding and histogram bins can change the candidate gaps too.",
+        "hold": 1
+      }
+    ]
+  },
+  {
+    "id": "c03",
+    "title": "How mixed is this leaf?",
+    "sourceChapters": ["c03"],
+    "beats": [
+      {
+        "id": "c03-b01",
+        "say": "Before we cut, all eight requests share one leaf, the region where a tree stores a prediction. Pick a request, put it back, and pick again. The first pick chooses a row of glass squares. The second chooses a column. Light a square when their labels disagree. R1 with R3 counts.",
+        "hold": 0.3
+      },
+      {
+        "id": "c03-b02",
+        "say": "R3 with R1 counts too. Thirty-two of the sixty-four ordered pairs disagree.",
+        "hold": 0.8
+      },
+      {
+        "id": "c03-b03",
+        "say": "That fraction, one half, is the Gini impurity. The chance of drawing two reviews is the review share squared. For two routine requests, square the routine share. Subtract both match probabilities from one. For two classes that's twice the product of the two shares.",
+        "hold": 0.3
+      },
+      {
+        "id": "c03-b04",
+        "say": "A pure leaf has zero disagreement. An even split has the most.",
+        "hold": 0.8
+      },
+      {
+        "id": "c03-b05",
+        "say": "The amber curve measures entropy in bits. Weight each class by the negative base-two logarithm of its share. A class with zero share contributes zero. Entropy also falls to zero at either pure end. It reaches one bit in the middle. Those different curves can favor different cuts on the same labels.",
+        "hold": 0.8
+      }
+    ]
+  },
+  {
+    "id": "c04",
+    "title": "Which cut wins on the same labels?",
+    "sourceChapters": ["c04"],
+    "beats": [
+      {
+        "id": "c04-b01",
+        "say": "Try two ways to split a separate group of twenty-four, half review and half routine. Cut A peels off four routine cases. Its other leaf still holds twenty rows. Cut B makes two leaves of twelve, with nine reviews in one and three in the other.",
+        "hold": 0.3
+      },
+      {
+        "id": "c04-b02",
+        "say": "When you score a cut, give each child its share of the twenty-four rows.",
+        "hold": 1
+      },
+      {
+        "id": "c04-b03",
+        "say": "Start with the parent score and subtract the weighted child scores. With Gini, cut B wins. It removes one eighth of a unit of disagreement. Cut A removes one tenth. Keep the groups exactly where they are and switch to entropy.",
+        "hold": 0.3
+      },
+      {
+        "id": "c04-b04",
+        "say": "Now cut A wins, by about two thousandths of a bit. The choice of impurity changed which split we would fit.",
+        "hold": 1.1
+      },
+      {
+        "id": "c04-b05",
+        "say": "Now predict handling time for three requests. Ten, twenty and sixty minutes average to thirty. Square the three gaps from that mean and average them. The mean squared error is about four hundred sixty-seven square minutes. Split off the sixty-minute request. Its error goes to zero.",
+        "hold": 0.3
+      },
+      {
+        "id": "c04-b06",
+        "say": "The other two now share a prediction of fifteen, with squared errors of twenty-five each. Across all three requests, the average falls to sixteen and two thirds. The split saves four hundred fifty square minutes of mean squared error.",
+        "hold": 0.3
+      },
+      {
+        "id": "c04-b07",
+        "say": "Each leaf uses its row count as the divisor, even when it has just one row.",
+        "hold": 1
+      }
+    ]
+  },
+  {
+    "id": "c05",
+    "title": "Which gap buys the most agreement?",
+    "sourceChapters": ["c05"],
+    "beats": [
+      {
+        "id": "c05-b01",
+        "say": "Back to the eight requests. A tree with just one split is a stump. Sort the distinct ambiguity values. Try one midpoint in each gap. Within a gap every cut gives the same training partition. Equal values travel together. Watch the left group grow as the cut moves.",
+        "hold": 0.8
+      },
+      {
+        "id": "c05-b02",
+        "say": "Stop between R8 at three point two and R4 at three point five. We tried this gap at the start. On the right, all three requests needed review. On the left, R3 is the only review among five.",
+        "hold": 0.3
+      },
+      {
+        "id": "c05-b03",
+        "say": "It gives that leaf a review score of one fifth, and a Gini impurity of point three two. The right leaf's impurity is zero.",
+        "hold": 0.8
+      },
+      {
+        "id": "c05-b04",
+        "say": "The mixed leaf holds five of the eight training rows. Multiply its impurity by five eighths. Add zero from the pure leaf. The children retain point two units of disagreement. Subtract that from the parent's one half and the gain is point three.",
+        "hold": 0.3
+      },
+      {
+        "id": "c05-b05",
+        "say": "Test the other feature too. The best policy-support cut gains only about one sixth. Keep the ambiguity cut at three point three five.",
+        "hold": 0.9
+      }
+    ]
+  },
+  {
+    "id": "c06",
+    "title": "How does a deeper tree route later requests?",
+    "sourceChapters": ["c06"],
+    "beats": [
+      {
+        "id": "c06-b01",
+        "say": "Keep the cut at three point three five. Work inside its left leaf. A cut at one point seven five removes R1 and R2. Another at two point four puts R7 and R8 on the far side. R3 has a leaf all to itself.",
+        "hold": 0.3
+      },
+      {
+        "id": "c06-b02",
+        "say": "All eight training predictions are now correct, but just one row supports that little review region.",
+        "hold": 1
+      },
+      {
+        "id": "c06-b03",
+        "say": "Freeze those branches. Here comes V2, a later request with ambiguity two point one. At a routing cutoff of one half, what does R3's branch do with V2?",
+        "hold": 2.1
+      },
+      {
+        "id": "c06-b04",
+        "say": "It sends V2 to review. Turn the jewel over. V2 was routine. That's an eighteen-dollar extra review. Now try V8 at two point eight. It falls outside the little review region and goes through automatically. V8 actually needed review, a hundred-and-twenty-dollar miss.",
+        "hold": 1
+      },
+      {
+        "id": "c06-b05",
+        "say": "On all eight later requests, those are the deep tree's only errors. A hundred thirty-eight dollars beats the stump's two hundred forty at the same cutoff. A perfect training score alone couldn't tell us that. Compare depth, minimum leaf size and pruning on representative validation requests. We'll try changing the cutoff too.",
+        "hold": 1.1
+      }
+    ]
+  },
+  {
+    "id": "c07",
+    "title": "Which trees can score R3?",
+    "sourceChapters": ["c07"],
+    "beats": [
+      {
+        "id": "c07-b01",
+        "say": "Give each tree eight draws from the original eight requests. Put a request back after every draw. Tree one can draw R7 again, while tree two can draw R3 three times. That's a bootstrap sample. The trees can fit independently. Each split also gets a random choice of features. Here it gets just one.",
+        "hold": 1.1
+      },
+      {
+        "id": "c07-b02",
+        "say": "Send R3 through all three trees. Its ambiguity is two and its policy support is three. The outside trees test ambiguity. Both send it to an all-routine leaf. The middle tree tests support. R3 clears its cut and lands among reviews. Average the three leaf scores. What score goes to the routing policy?",
+        "hold": 2.3
+      },
+      {
+        "id": "c07-b03",
+        "say": "One third. Only the middle tree contributed a one. A hard majority vote would call R3 routine. Averaging the leaf frequencies gives the routing policy a score between zero and one. That average can steady predictions when trees vary in different ways.",
+        "hold": 0.3
+      },
+      {
+        "id": "c07-b04",
+        "say": "Averaging helps most when the trees make different errors. An error they all share survives the average. Changing which features or rows they can use can shift their average prediction too. Check these scores on later examples before treating them as calibrated probabilities.",
+        "hold": 0.9
+      },
+      {
+        "id": "c07-b05",
+        "say": "Now score R3 as if each contributing tree had never trained on it. Look for its ID in the samples. Which tree has to come out?",
+        "hold": 2.4
+      },
+      {
+        "id": "c07-b06",
+        "say": "Tree two. Cover the tree that trained on R3. Its score and its place in the denominator both come out. Two trees remain. Their mean is zero. That's R3's out-of-bag score. Both eligible trees missed a real review. Some rows in a small forest can have no eligible tree. To test future requests or new users, hold out a period or a group that matches that question.",
+        "hold": 1.2
+      }
+    ]
+  },
+  {
+    "id": "c08",
+    "title": "How far should the next tree move the prediction?",
+    "sourceChapters": ["c08"],
+    "beats": [
+      {
+        "id": "c08-b01",
+        "say": "Here are the same handling times, ten, twenty and sixty minutes. Start by predicting their average, thirty minutes for each. On each scale, the fixed brass mark is the observed time. The light mark is the prediction. The distance between them is the residual, with a sign telling us which way to move.",
+        "hold": 0.9
+      },
+      {
+        "id": "c08-b02",
+        "say": "Fit the next tree to those gaps. For half squared error, target minus prediction is the negative gradient. The first two requests share a leaf. Their errors are minus twenty and minus ten, so the leaf proposes minus fifteen for both. The other leaf proposes plus thirty.",
+        "hold": 0.3
+      },
+      {
+        "id": "c08-b03",
+        "say": "Our learning rate is one tenth. Where will the sixty-minute request's prediction land?",
+        "hold": 2.2
+      },
+      {
+        "id": "c08-b04",
+        "say": "At thirty-three minutes. The tree proposed thirty more minutes and we kept three. The other two predictions fall by a minute and a half, to twenty-eight and a half. Now measure the gaps again. The last request still needs twenty-seven minutes. That becomes a target for the next tree.",
+        "hold": 1
+      },
+      {
+        "id": "c08-b05",
+        "say": "Repeat the fit four times in all. Each round starts from the line the last one left behind. This is gradient boosting. Work within a round can run in parallel. The next round needs the updated predictions. Choose the learning rate, depth and stopping round together on held-out data.",
+        "hold": 1.1
+      }
+    ]
+  },
+  {
+    "id": "c09",
+    "title": "How does boosting change the two leaf scores?",
+    "sourceChapters": ["c09"],
+    "beats": [
+      {
+        "id": "c09-b01",
+        "say": "Return to the eight review labels. Half needed review, so start every score at one half. The logit is the log of the odds, which is zero here. For binary log loss, subtract each row's probability from its label. That's the negative gradient. R3 contributes plus a half, pulling the logit up.",
+        "hold": 0.3
+      },
+      {
+        "id": "c09-b02",
+        "say": "The four routine neighbors in its leaf each contribute minus a half, pulling it down.",
+        "hold": 0.8
+      },
+      {
+        "id": "c09-b03",
+        "say": "Add those five requests for change. The total is minus one and a half. The curvature tells us how quickly the gradient changes as the logit moves. Each row contributes its probability times one minus that probability, a quarter here. Five quarters go in the denominator.",
+        "hold": 0.3
+      },
+      {
+        "id": "c09-b04",
+        "say": "Divide the residual sum by that curvature sum. What's the full step for this leaf?",
+        "hold": 2.4
+      },
+      {
+        "id": "c09-b05",
+        "say": "Minus one point two. That's one approximate Newton step in logit units. On the right, three reviews all pull upward. Their residuals sum to one and a half. Divide by three quarters and the step is plus two.",
+        "hold": 0.9
+      },
+      {
+        "id": "c09-b06",
+        "say": "Keep one tenth of each step. Add it to the old logit and convert back to probability with the sigmoid. R3's region slips just below one half. The other clears it. From round one through round four, the same split wins and validation log loss falls.",
+        "hold": 0.3
+      },
+      {
+        "id": "c09-b07",
+        "say": "At a review cutoff of one half, V3 and V8 still get missed. Check which requests actually change route when you compare boosters. Their split scores and regularizers can differ.",
+        "hold": 1.1
+      }
+    ]
+  },
+  {
+    "id": "c10",
+    "title": "What do the routing errors cost?",
+    "sourceChapters": ["c10"],
+    "beats": [
+      {
+        "id": "c10-b01",
+        "say": "Freeze the one-split tree and bring in eight later requests. Read down a column. The observed label is at the top, then the leaf score, then what the policy did. Send scores of one half or more to review. Find the two required reviews that went through automatically.",
+        "hold": 2.1
+      },
+      {
+        "id": "c10-b02",
+        "say": "V3 and V8. Each miss costs a fictional hundred and twenty dollars. The two misses cost two hundred and forty. Now lower just the routing threshold to one fifth. Equality counts. Follow those same two columns.",
+        "hold": 1
+      },
+      {
+        "id": "c10-b03",
+        "say": "Both now go to review. So do all four routine requests. At eighteen dollars per extra review, the bill is seventy-two dollars. F1 counts hits and both kinds of error. It gives these two policies the same score, two thirds. One sends two requests to the queue and the other sends eight. Price the mistakes and check that the reviewers can handle the load.",
+        "hold": 1.1
+      },
+      {
+        "id": "c10-b04",
+        "say": "Compare the other models on those same eight labels and prices. The deep tree fixes a miss and adds an extra review. The forest at one fifth costs fifty-four dollars. The earlier logistic model costs thirty-six. Keep that simpler candidate in the comparison.",
+        "hold": 0.3
+      },
+      {
+        "id": "c10-b05",
+        "say": "These eight labels helped us choose, so test the frozen choice on a fresh batch.",
+        "hold": 1
+      },
+      {
+        "id": "c10-b06",
+        "say": "We can also ask what the stump uses. Return to its half cutoff. Leave the labels and policy support with their requests. Reverse the ambiguity column and score the rows again. V5 and V7 lose their high scores. V2 and V4 pick them up.",
+        "hold": 0.3
+      },
+      {
+        "id": "c10-b07",
+        "say": "The bill rises from two hundred forty dollars to five hundred sixteen. This one permutation tests the fitted stump's reliance on ambiguity on these rows.",
+        "hold": 1.1
+      }
+    ]
+  },
+  {
+    "id": "c11",
+    "title": "What explains a score of one fifth?",
+    "sourceChapters": ["c11"],
+    "beats": [
+      {
+        "id": "c11-b01",
+        "say": "There's another way to rank features. Give each feature credit for the impurity its splits removed during fitting. Weight each split by the fraction of training rows that reached it. That's mean decrease in impurity. Watch what it rewards here.",
+        "hold": 0.3
+      },
+      {
+        "id": "c11-b02",
+        "say": "Forty training examples have a weak binary predictor and a continuous noise feature. Noise offers many possible cut points, just as a nearly unique numeric ID would.",
+        "hold": 0.9
+      },
+      {
+        "id": "c11-b03",
+        "say": "Noise gets ninety-two percent of the training credit. Now shuffle each feature separately on two thousand held-out rows, keeping the fitted forest fixed. Shuffling noise barely changes F1. Shuffling the binary predictor costs nearly a tenth of a point. The spread across shuffles describes this fixed batch.",
+        "hold": 0.3
+      },
+      {
+        "id": "c11-b04",
+        "say": "Refit on new samples to study variation across datasets. Correlated features can cover for one another, and shuffling can make unusual combinations.",
+        "hold": 1
+      },
+      {
+        "id": "c11-b05",
+        "say": "How did the stump give R3 one fifth? Fill both features from each training row and average the scores. That's our baseline of one half. Now fix ambiguity at R3's value of two. Every row goes to the left leaf. The score falls by three tenths.",
+        "hold": 0.3
+      },
+      {
+        "id": "c11-b06",
+        "say": "Fixing policy support contributes zero in either order because the stump only tests ambiguity. Shapley contributions average each feature's change across the orders in which you fix them. With our training rows as the replacement background, the two contributions reconstruct R3's low score. Its observed label is still a diamond. This request needed review.",
+        "hold": 1.1
+      }
+    ]
+  },
+  {
+    "id": "c12",
+    "title": "What can change a tree’s prediction?",
+    "sourceChapters": ["c12"],
+    "beats": [
+      {
+        "id": "c12-b01",
+        "say": "One request arrived with an empty support field. Another arrived with a stored zero. In our toy rule, missing support goes to review. A number of one or less goes through automatically. A larger number gets a review. Trace the empty cell and the stored zero. They take different branches.",
+        "hold": 0.3
+      },
+      {
+        "id": "c12-b02",
+        "say": "An estimator might learn a default branch for missing values, or reject them. Our hand-built trainer expects complete numeric inputs.",
+        "hold": 1
+      },
+      {
+        "id": "c12-b03",
+        "say": "Densify the first record and fill its empty cell with zero. Follow that request again. It now takes the same branch as the stored zero. Before migrating libraries, decide how the pipeline represents absence.",
+        "hold": 0.3
+      },
+      {
+        "id": "c12-b04",
+        "say": "You might impute it, add an indicator, or use the estimator's documented missing route. Replay an absent value, a stored zero and an ordinary value through the pinned version.",
+        "hold": 1
+      },
+      {
+        "id": "c12-b05",
+        "say": "Representation can move a prediction even with a fixed tree. Now hold the input fixed and change the training sample instead. Suppose three fits are equally likely. Their predictions average to one half, while the true mean is point four. That gap squared is the squared bias.",
+        "hold": 0.3
+      },
+      {
+        "id": "c12-b06",
+        "say": "The spread of the predictions around their average gives the variance. With independent zero-mean outcome noise, expected squared error adds squared bias, variance and noise variance. Perfect training accuracy on our eight requests tells us none of those three quantities.",
+        "hold": 1.1
+      }
+    ]
+  },
+  {
+    "id": "c13",
+    "title": "Where does the next request go?",
+    "sourceChapters": ["c13"],
+    "beats": [
+      {
+        "id": "c13-b01",
+        "say": "A fresh request has ambiguity exactly three point three five. The tree sends equality left. Look at the training requests on that side. What review score does the tree give this request?",
+        "hold": 2.6
+      },
+      {
+        "id": "c13-b02",
+        "say": "One fifth. One of those five needed review. Keep that score on the request. We'll choose a policy using the eight validation rows. Suppose we now price a missed review at forty dollars. An unnecessary review still costs eighteen. Assume the queue can take all eight.",
+        "hold": 0.9
+      },
+      {
+        "id": "c13-b03",
+        "say": "Price the two policies on the eight validation requests. Four extra reviews cost seventy-two dollars. Two misses cost eighty. The cheaper cutoff is one fifth. Our fresh request meets it exactly, so it goes to review. Keep the tree, the eight labels, and the queue capacity fixed.",
+        "hold": 1.1
+      },
+      {
+        "id": "c13-b04",
+        "say": "Replay that request. Change only the price of a miss, from forty dollars to thirty. Between these same two cutoffs, which has the smaller validation bill now? Where does it send the request?",
+        "hold": 2.8
+      },
+      {
+        "id": "c13-b05",
+        "say": "Two misses cost sixty dollars. Four extra reviews still cost seventy-two. The half cutoff wins. The request still scores one fifth. That's below a half, so it goes through automatically.",
+        "hold": 1.2
+      },
+      {
+        "id": "c13-b06",
+        "say": "Open the label. This one needed review. Record a thirty-dollar miss at the half cutoff. At the one-fifth cutoff, this request would have reached a reviewer. Keep both bills running as fresh labels come in.",
+        "hold": 1.5
+      }
+    ]
+  }
+]

@@ -1,0 +1,394 @@
+[
+  {
+    "id": "c01",
+    "title": "Read the queue before accepting the call",
+    "sourceChapters": ["c01"],
+    "beats": [
+      {
+        "id": "c01-arrive",
+        "say": "An employee asks the gateway to summarize some notes. Access is current and the team has quota. The gateway has set aside a quarter of a second of the first-token budget for waiting. Look at the work already promised to the worker.",
+        "hold": 0.8
+      },
+      {
+        "id": "c01-measure",
+        "say": "A has one unit left. B has four. Each unit is ten thousand prompt tokens. At our assumed rate of a hundred twenty-five thousand tokens a second, each takes eighty milliseconds. Put your finger where our request could start. Can it join?",
+        "hold": 2.6
+      },
+      {
+        "id": "c01-refuse",
+        "say": "Four hundred milliseconds. The worker would still be reading B's prompt when our wait budget ran out. Return five oh three for shared overload. Keep the estimate and the limit with the request ID. The employee's quota check still passed.",
+        "hold": 1.4
+      }
+    ]
+  },
+  {
+    "id": "c02",
+    "title": "Find the owner on the request trace",
+    "sourceChapters": ["c02"],
+    "beats": [
+      {
+        "id": "c02-trace",
+        "say": "Start with a server-generated request ID, even for a request that will be rejected. Authentication answers who supplied the key. Authorization answers which model and data that caller may use. Quota reservation checks the tenant's budget before shared capacity becomes relevant.",
+        "hold": 0.8
+      },
+      {
+        "id": "c02-route",
+        "say": "Follow the trace to admission. The scheduler declines R one oh five before it reaches a provider. Look at the empty provider span. What can support say about the model's response time for this request?",
+        "hold": 2.2
+      },
+      {
+        "id": "c02-receipt",
+        "say": "There was no model call. Support can show the caller its request ID and a stable cause. In the access-controlled trace, keep the chosen route, policy version, quota decision, estimated queue wait and provider outcome. Release an unused token reservation when the rejection is confirmed.",
+        "hold": 1
+      },
+      {
+        "id": "c02-control",
+        "say": "Who sets those rules? The control plane publishes version seven with the model entitlement, route and quota bucket. The gateway reads that policy on the request path. A provider outage can justify an alternate route only if the customer authorized it. A missing entitlement keeps a private model closed.",
+        "hold": 1
+      }
+    ]
+  },
+  {
+    "id": "quota",
+    "title": "Settle a stream exactly once",
+    "sourceChapters": ["c02"],
+    "beats": [
+      {
+        "id": "quota-reserve",
+        "say": "Now follow a stream the gateway serves. There are ten thousand tokens in the team's bucket. Atomically reserve the prompt and maximum allowed output. Eighteen hundred tokens move out of the available balance. Why do the check and deduction together? Two callers could otherwise both spend the last tokens.",
+        "hold": 0.8
+      },
+      {
+        "id": "quota-settle",
+        "say": "The meter confirms fifteen hundred twenty tokens for that request. Refund the unused two hundred eighty. The same completion event arrives again. How many more tokens can we put back?",
+        "hold": 2.3
+      },
+      {
+        "id": "quota-duplicate",
+        "say": "Zero. Settlement is keyed by request ID and recorded atomically with the refund. The balance stays at eight thousand four hundred eighty. Compare an independent stream from the same starting balance that loses its final usage record. Keep its eighteen hundred pending until you can reconcile it. For a money cap, also price the selected route, tools and permitted retries.",
+        "hold": 1.1
+      }
+    ]
+  },
+  {
+    "id": "c03",
+    "title": "Size a loaded replica",
+    "sourceChapters": ["c03"],
+    "beats": [
+      {
+        "id": "c03-weights",
+        "say": "If the gateway calls a hosted model, size provider quota and latency. If your team must run the model, start with the loaded weights. Eight billion parameters at two bytes each occupy sixteen decimal gigabytes. Each request on this replica uses those same weights.",
+        "hold": 0.9
+      },
+      {
+        "id": "c03-heads",
+        "say": "Now look inside the cache for one token. Each layer stores a key and a value for every stored head. With thirty-two layers, eight heads, a width of one hundred twenty-eight, and two bytes per value, one token costs one hundred twenty-eight kibibytes. For unequal histories, add up all retained prompt and output tokens before multiplying.",
+        "hold": 1
+      },
+      {
+        "id": "c03-compare",
+        "say": "Sixteen independent requests each retain two thousand forty-eight tokens. Compare two compatible checkpoints, one with thirty-two stored heads, the other with eight. Which memory bar changes when four query heads share each key and value head?",
+        "hold": 2
+      },
+      {
+        "id": "c03-budget",
+        "say": "The cache falls from about seventeen point two decimal gigabytes to four point three. The weight estimate stays fixed under our equal parameter-count assumption. Reserve extra room for activations, workspace, block rounding and quantization metadata. Prefix sharing or a sliding window changes how many positions you actually store.",
+        "hold": 1.1
+      },
+      {
+        "id": "c03-histories",
+        "say": "Try two unequal histories in the eight-head checkpoint. One request keeps five hundred twelve tokens. The other keeps fifteen hundred thirty-six. Add the lengths first. Together they retain two thousand forty-eight tokens. At one hundred twenty-eight kibibytes each, that's a quarter of a gibibyte. Divide bytes by two to the thirtieth for gibibytes, or by a billion for decimal gigabytes. The loaded weights still belong to the replica.",
+        "hold": 1.1
+      }
+    ]
+  },
+  {
+    "id": "placement",
+    "title": "Fit the model across devices",
+    "sourceChapters": ["c03"],
+    "beats": [
+      {
+        "id": "placement-split",
+        "say": "Suppose the replica does not fit a device. Tensor parallelism can divide a layer across two devices. Follow the partial results. To produce the layer output the shards must communicate, and every decode step pays for that exchange. Which link carries it?",
+        "hold": 2.1
+      },
+      {
+        "id": "placement-link",
+        "say": "A slow network crossing can erase the latency gain from fitting the model. Measure that crossing. Pipeline parallelism puts layers one and two on A and the next two on B. Follow one microbatch. B waits for A to finish. Send the activation across. B can now run its layers, and A sits idle until another microbatch arrives. Expert parallelism uses a router. Here it picks one of four experts for token T zero. Which expert has the highest score? Send the token to expert three on B. The other experts have no work for this token. Trace the split across the physical links before choosing a cluster scheduler.",
+        "hold": 0.8
+      }
+    ]
+  },
+  {
+    "id": "c04",
+    "title": "Change the average answer length",
+    "sourceChapters": ["c04"],
+    "beats": [
+      {
+        "id": "c04-mix",
+        "say": "Capacity starts with the request mix. Four thousand requests arrive each minute. Each brings twelve hundred input tokens and uses four hundred fifty output tokens on average. Multiply, then divide by sixty. Together they need one hundred ten thousand tokens a second.",
+        "hold": 1
+      },
+      {
+        "id": "c04-spare",
+        "say": "At the assumed fleet rate of a hundred twenty-five thousand, fifteen thousand tokens a second are spare. That's twelve percent of capacity. Leave arrivals and prompt length alone. If the average answer doubles, does the fleet still fit?",
+        "hold": 2.2
+      },
+      {
+        "id": "c04-longer",
+        "say": "Double the answer length to nine hundred tokens. The output portion doubles. The input portion stays at eighty thousand tokens a second. Together they need one hundred forty thousand, a deficit of fifteen thousand. Prompt processing and generation have different costs. Benchmark the intended mix, arrivals and concurrency. Record model, precision, hardware, software, warmup, baseline and answer correctness.",
+        "hold": 1
+      }
+    ]
+  },
+  {
+    "id": "c05",
+    "title": "Watch R-104 take the worker",
+    "sourceChapters": ["c05"],
+    "beats": [
+      {
+        "id": "c05-lighter",
+        "say": "Try a lighter queue at the same rate. A is running and B is waiting. Each has one ten-thousand-token unit left. Where can R one oh four start, and which event will stop its wait clock?",
+        "hold": 2.3
+      },
+      {
+        "id": "c05-admit",
+        "say": "At a hundred sixty milliseconds, the worker should be free. That fits the same quarter-second budget. Admit R one oh four behind B. Its five thousand tokens take another forty milliseconds once it has the worker.",
+        "hold": 0.9
+      },
+      {
+        "id": "c05-serve-a",
+        "say": "Run the first unit. At eighty milliseconds A finishes. B takes the slot. R one oh four is still waiting and owns no cache blocks.",
+        "hold": 1
+      },
+      {
+        "id": "c05-serve-b",
+        "say": "Run the second unit. At a hundred sixty milliseconds B finishes. R one oh four takes the worker and two cache blocks. Freeze its queue clock here. The service clock starts now.",
+        "hold": 1.3
+      },
+      {
+        "id": "c05-complete",
+        "say": "Run the last forty milliseconds. At two hundred the response succeeds. The slot and both blocks are free. Its receipt still says a hundred sixty milliseconds of waiting. The queue estimate excluded its own prompt processing and the network trip.",
+        "hold": 1.1
+      },
+      {
+        "id": "c05-contrast",
+        "say": "Compare that completed request with the opening call. Five units ahead put R one oh five past the wait limit. Its five oh three came from shared capacity. Give another team an idle worker but an exhausted caller quota. That team gets four twenty-nine before it enters the queue.",
+        "hold": 1
+      }
+    ]
+  },
+  {
+    "id": "capacity",
+    "title": "Claim a slot and its memory together",
+    "sourceChapters": ["c05"],
+    "beats": [
+      {
+        "id": "capacity-resources",
+        "say": "A real scheduler also checks decode slots and free cache blocks. Two arrivals each see ten thousand prefill tokens ahead at eighty thousand per second. Both fit the wait budget. Both read one free slot and sixteen free blocks. Each needs the whole remainder. Can both start?",
+        "hold": 2.3
+      },
+      {
+        "id": "capacity-atomic",
+        "say": "Claim the slot and blocks together for R two oh one. R two oh two checks again and finds neither resource. It gets five oh three. Replay that second decision with sixteen free cache blocks. Every decode slot is still busy. Can the scheduler admit it now?",
+        "hold": 2.3
+      },
+      {
+        "id": "capacity-pages",
+        "say": "The replay still gets five oh three. The wait fits and the memory is available, but every decode slot is busy. During a spike, bound the queue and share turns fairly across teams. Now return to the original pair. Release the first claim at completion. A new request, R two oh three, has finished prefill and needs two blocks. Must it wait for the other sixty-three sequences to finish? On the next iteration it takes the free slot and two blocks. The longer sequences keep running. That is continuous batching. Open its page table. Its first two logical blocks map to physical pages two and six. The worker reads them in logical order. Keep each page until its last permitted user releases it. Batching schedules turns. Paging finds memory.",
+        "hold": 1
+      }
+    ]
+  },
+  {
+    "id": "stream",
+    "title": "Read latency from the client clock",
+    "sourceChapters": ["c05"],
+    "beats": [
+      {
+        "id": "stream-timestamps",
+        "say": "Prefill reads the available prompt history to choose a first token. Decode then extends the answer. Here a different request arrives at zero. Watch four tokens reach the reader. Which two arrivals leave the longest pause?",
+        "hold": 2.3
+      },
+      {
+        "id": "stream-gaps",
+        "say": "The last gap takes two hundred eighty milliseconds. The first token took two hundred milliseconds from arrival, including queue, prefill and transport. After it, the three gaps average one hundred milliseconds. A one-token answer has no inter-token gap to average. Count successful requests meeting both latency targets per second and report rejections separately.",
+        "hold": 1
+      },
+      {
+        "id": "stream-chunk",
+        "say": "If a long prefill blocks decode, split the prefill into chunks and give the active stream a turn between them. Measure both the new request's first token and the old stream's gaps. Separate prefill and decode pools place the two phases on different workers. Send the prompt's keys and values across the link. Decode can continue when the cache arrives. Time that handoff under load. With speculative decoding, a small model drafts three tokens. Read its proposal. Meet at noon. In this greedy example the target checks all three positions in one pass. How much of the draft can we keep? Keep Meet and at. Replace noon with two. The saved target steps have to cover both drafting and verification.",
+        "hold": 1
+      }
+    ]
+  },
+  {
+    "id": "c06",
+    "title": "Choose which source can cross",
+    "sourceChapters": ["c06"],
+    "beats": [
+      {
+        "id": "c06-candidates",
+        "say": "An employee asks about access. Inside the trusted index the finance plan scores highest, followed by the old handbook and the public access policy. Read the grant and deletion mark on each version. Which source can go to an external reranker?",
+        "hold": 2.4
+      },
+      {
+        "id": "c06-eligible",
+        "say": "Send the public access policy. The finance plan needs a grant the employee lacks. The old handbook was deleted. Rank and cite only the eligible version. Record the document and chunk IDs, permission version and citation on the authorized support trace.",
+        "hold": 1
+      },
+      {
+        "id": "c06-fresh",
+        "say": "Suppose a sensitive lookup uses a snapshot five seconds old with a forty-five-second limit. A current check says the finance grant was revoked a second ago. Deny access. At eighty seconds the snapshot itself is stale. Fail closed until it refreshes. Apply this boundary before cached answers or private text reach a model.",
+        "hold": 1
+      }
+    ]
+  },
+  {
+    "id": "reuse",
+    "title": "Check a private prefix twice",
+    "sourceChapters": ["c06"],
+    "beats": [
+      {
+        "id": "reuse-match",
+        "say": "A cached private prefix belongs to tenant T four and includes document D nine. Reuse requires identical token IDs and positions, model and adapter revision, and cache configuration. Shift the positions by one. Even with a current grant, the old keys and values describe a different computation.",
+        "hold": 0.9
+      },
+      {
+        "id": "reuse-grant",
+        "say": "Restore the original positions. Numerical identity now matches. The document owner has revoked the grant. Can the gateway reuse the entry?",
+        "hold": 2.2
+      },
+      {
+        "id": "reuse-reuse",
+        "say": "Deny reuse. Only the case with both a full identity match and a current tenant-scoped grant can reuse the private prefix. Treat invalidation delay and retention as part of the policy. A fallback provider may have different cache rules.",
+        "hold": 1
+      }
+    ]
+  },
+  {
+    "id": "c07",
+    "title": "Recover the missing commit reply",
+    "sourceChapters": ["c07"],
+    "beats": [
+      {
+        "id": "c07-intent",
+        "say": "An employee asks a coding agent to edit a repository. Save a scoped task, attempt ID and write intent before sending a tool call from the sandbox. The repository accepts one commit. The worker restarts before it records the reply. Is another write safe?",
+        "hold": 2.2
+      },
+      {
+        "id": "c07-reconcile",
+        "say": "Look up the original attempt at the receiver. There is commit C forty-two. Attach the receipt to that attempt. A timeout left the outcome uncertain. If the receiver has no durable idempotency record and the outcome is unknown, reconcile or send it for review.",
+        "hold": 1.1
+      },
+      {
+        "id": "c07-cancel",
+        "say": "The user presses cancel. Persist cancel intent and stop new calls. The sandbox is still running. Once it confirms exit, mark the attempt canceled. Keep its logs and artifacts. A late commit receipt still belongs to the same attempt, and stopping a worker leaves its earlier commit intact.",
+        "hold": 1.1
+      }
+    ]
+  },
+  {
+    "id": "claims",
+    "title": "Choose a legal recovery",
+    "sourceChapters": ["c07"],
+    "beats": [
+      {
+        "id": "claims-edge",
+        "say": "Try two independent updates against an attempt stored in review. Both workers expect review. One asks for complete, the other asks for failed. Our state machine allows review to resume running, complete or cancel. Which update may commit?",
+        "hold": 2.2
+      },
+      {
+        "id": "claims-compare",
+        "say": "Only complete is a legal destination here. Compare the expected state and apply the legal change atomically. A stale expectation also loses. Complete, failed and canceled are terminal. Start later work with a new attempt ID.",
+        "hold": 0.9
+      },
+      {
+        "id": "claims-retry",
+        "say": "For a transient error, assume authorization and retry budget remain. A repository read can retry. A commit or sandbox creation can replay automatically only with verified Boolean true for receiver-enforced idempotency. The receiver must deduplicate the key and payload through the retry window. A string spelling true leaves a write in reconciliation or review.",
+        "hold": 1.1
+      }
+    ]
+  },
+  {
+    "id": "c08",
+    "title": "Does the citation support the answer?",
+    "sourceChapters": ["c08"],
+    "beats": [
+      {
+        "id": "c08-recall",
+        "say": "On a labeled set, the candidate finds the runbook among ninety-four of a hundred relevant documents. The release policy requires ninety-two. Recall passes. Open the retrieved runbook and read the instruction.",
+        "hold": 0.9
+      },
+      {
+        "id": "c08-claim",
+        "say": "The runbook says to ask an owner before resuming the job. Read the sentence that cites section four. It says the job resumes automatically. Does the cited passage support that sentence?",
+        "hold": 2.4
+      },
+      {
+        "id": "c08-citations",
+        "say": "On a separate set of one hundred scored citations, ninety-three support the associated claim. The minimum is ninety-five. Two more would have to be supported. What does that do to the release, given zero permission leaks observed in this sample?",
+        "hold": 2.1
+      },
+      {
+        "id": "c08-hold",
+        "say": "Hold the candidate. Finding a document and supporting an answer are different checks. Fix the unsupported claims and rerun the evaluation on the pinned dataset and critical slices. The release service owns its thresholds. An evaluator that lowers its own minimum cannot promote the candidate.",
+        "hold": 1.2
+      }
+    ]
+  },
+  {
+    "id": "canary",
+    "title": "Decide whether to expand",
+    "sourceChapters": ["c08"],
+    "beats": [
+      {
+        "id": "canary-packet",
+        "say": "Try a new candidate whose scores clear both host minima. The host expects a two-number tuple for each metric, a finite observation between zero and one and the exact policy minimum. Both numbers must be finite and their types must exclude Booleans. A missing pair or changed minimum blocks launch. The final field asks for a measured leak count. Would Boolean false do?",
+        "hold": 2.1
+      },
+      {
+        "id": "canary-count",
+        "say": "Require an integer zero. False and a missing field both leave the count unverified. Pin policy and dataset versions, calibrate judges and check sample sizes. This packet passes the offline checks for a small canary. Copy the packet. Change the evaluator's recall minimum to point nine zero. The scores, leak count and host policy stay the same. What should the host do with the copy?",
+        "hold": 2.5
+      },
+      {
+        "id": "canary-windows",
+        "say": "Hold the copy. Recall still clears the host minimum, but the report names a different threshold. For the original passing packet, read three independent, fresh canary windows with enough samples. The limits are one percent errors and nine hundred milliseconds at the ninety-fifth percentile. The first is exactly on both limits. The second crosses the error limit. The third reports a confirmed permission leak before latency or errors arrive. Call each decision.",
+        "hold": 2.5
+      },
+      {
+        "id": "canary-controller",
+        "say": "Expand the first. Hold the second. Roll back the third and contain the exposure. A confirmed leak takes priority over missing metrics. Otherwise a missing or invalid measurement holds expansion. Rollback stops more users seeing the data. Investigate what already reached a user and add the incident to the regression set.",
+        "hold": 1.1
+      }
+    ]
+  },
+  {
+    "id": "practice",
+    "title": "Defend three decisions for R-205",
+    "sourceChapters": ["c08"],
+    "beats": [
+      {
+        "id": "practice-exercise",
+        "say": "Take the board yourself. For R two oh five, divide the work ahead by the worker rate. Check the remaining slot and blocks. In a separate retrieval check, compare the age of the permission snapshot with its limit. Then read the candidate packet. Which decisions can the three owners make?",
+        "hold": 3.6
+      },
+      {
+        "id": "practice-answers",
+        "say": "Capacity accepts. Two hundred milliseconds fits, one slot is free, and sixteen blocks cover the request. Retrieval holds private sources because seventy-five seconds exceeds sixty. Release holds because the leak count is missing, even though both quality scores pass.",
+        "hold": 1.3
+      },
+      {
+        "id": "practice-repair",
+        "say": "Refresh the snapshot to ten seconds and recover a measured integer zero. The snapshot is usable. The candidate can enter a canary. Capacity has the same evidence as before. One last decision. The caller has only the employees grant. May the answer cite the finance plan?",
+        "hold": 2.7
+      },
+      {
+        "id": "practice-finish",
+        "say": "Exclude the finance plan. Write the missing grant beside its document ID on the request receipt. In an interview, leave that kind of evidence at each boundary. In a rehearsal, start with the user and promise. Size a bottleneck. Draw the API and ownership path, trace one failure, then test rollback. If route B later promises a hundred milliseconds in line, give it its own queue budget and revisit shared queue placement. Name the owner, the measurement and the change that would make you choose differently.",
+        "hold": 1.6
+      }
+    ]
+  }
+]

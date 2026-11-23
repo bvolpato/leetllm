@@ -1,0 +1,826 @@
+[
+  {
+    "id": "c01",
+    "title": "Which call fixes this ticket’s route?",
+    "sourceChapters": [
+      "c01"
+    ],
+    "beats": [
+      {
+        "id": "c01-b01",
+        "say": "Checkout is down. The ticket says escalate. Our router gives it two scores, one for each queue. Both are zero. A tie goes to standard. Watch the pointer. It measures the escalation score minus the standard score.",
+        "hold": 0.9
+      },
+      {
+        "id": "c01-b02",
+        "say": "Train on this outage and one routine ticket. Run backward. The gradient buffer fills. Score the outage again with the same weights. Where will the pointer land?",
+        "hold": 2.1
+      },
+      {
+        "id": "c01-b03",
+        "say": "Still at zero. The buffer tells us how to change the weights. The weights themselves have stayed at zero. Which call can move them?",
+        "hold": 1.8
+      },
+      {
+        "id": "c01-b04",
+        "say": "Take one optimizer step. The weights change. Now score the same ticket. Standard scores minus point two and escalation scores plus point two. Escalation wins by four tenths. That is the distance to the right of the tie.",
+        "hold": 1.1
+      }
+    ]
+  },
+  {
+    "id": "c02",
+    "title": "A batch is a pair of aligned tensors",
+    "sourceChapters": [
+      "c02"
+    ],
+    "beats": [
+      {
+        "id": "c02-b01",
+        "say": "Each ticket is two floating point features and one integer target. The target identifies the standard queue or specialist escalation. A batch stacks feature rows into a matrix and targets into a matching vector, so row identity must stay aligned through shuffling and loading.",
+        "hold": 0.6
+      },
+      {
+        "id": "c02-b02",
+        "say": "Before batching, the shapes are six by two for features and six for labels. Set the batch size to four. Follow the ticket IDs into the first batch. Four rows arrive with four targets. The final batch has two of each. Count the rows again before you average the losses.",
+        "hold": 0.8
+      }
+    ]
+  },
+  {
+    "id": "c03",
+    "title": "A shape match does not validate the objective",
+    "sourceChapters": [
+      "c03"
+    ],
+    "beats": [
+      {
+        "id": "c03-b01",
+        "say": "Each ticket has two floating point features. The model produces one raw score per class. For hard labels, cross entropy needs one long integer per ticket. Five tickets and three classes give logits shaped five by three and targets of length five. A five by one target or a floating class index violates that contract.",
+        "hold": 0.3
+      },
+      {
+        "id": "c03-b02",
+        "say": "A different soft-target contract uses floating distributions with the same batch-by-class shape as the logits; PyTorch does not validate those distributions for you.",
+        "hold": 0.65
+      },
+      {
+        "id": "c03-b03",
+        "say": "Pass raw logits to cross entropy. It computes negative target logit plus log-sum-exp over class logits. Subtract the maximum score inside the exponential calculation for stability.",
+        "hold": 0.3
+      },
+      {
+        "id": "c03-b04",
+        "say": "Taking log of a separately rounded softmax can turn an underflowed probability into minus infinity; feeding softmax probabilities to cross entropy makes them be treated as logits and changes the objective.",
+        "hold": 0.65
+      },
+      {
+        "id": "c03-b05",
+        "say": "The integer labels and feature rows must stay paired through one shared shuffle. Before scaling up, print and decode a real batch, inspect targets and shapes, and verify its loss. A falling number cannot validate a different objective or a mismatched ticket identity.",
+        "hold": 0.65
+      }
+    ]
+  },
+  {
+    "id": "c04",
+    "title": "Raw scores become a classification loss",
+    "sourceChapters": [
+      "c04"
+    ],
+    "beats": [
+      {
+        "id": "c04-b01",
+        "say": "Try two different tickets. On the password reset, the target is standard. Its scores are two and minus one. They are logits, so they can be negative. Cross entropy takes log softmax and reads the entry for the target. Here the negative log probability costs about five hundredths of a nat.",
+        "hold": 0.6
+      },
+      {
+        "id": "c04-b02",
+        "say": "On the failed payment, the target is escalation. The scores are minus a half and one and a half. The target still wins, but by a smaller margin. Its loss is about thirteen hundredths. Average these two ticket losses. You get about nine hundredths of a nat. Both tickets count once.",
+        "hold": 1
+      }
+    ]
+  },
+  {
+    "id": "c05",
+    "title": "Two tickets, one weight update",
+    "sourceChapters": [
+      "c05"
+    ],
+    "beats": [
+      {
+        "id": "c05-b01",
+        "say": "Go back to the first step. Clear the buffer. Ticket A has two positive features and belongs in escalation. B has two negative features and belongs in standard. The forward pass reads the zero weights. Both tickets give their target half the probability, so each costs about point six nine three nats.",
+        "hold": 0.8
+      },
+      {
+        "id": "c05-b02",
+        "say": "Follow the urgency weight for escalation. On A, take the probability minus its target indicator. Half minus one is minus a half. Multiply by A's urgency, plus one. B gives half minus zero, times minus one.",
+        "hold": 0.3
+      },
+      {
+        "id": "c05-b03",
+        "say": "Both tickets contribute minus a half, so their mean is minus a half. Calling backward writes that mean into the gradient buffer, in the escalation row under urgency. The weights still read zero.",
+        "hold": 1.1
+      },
+      {
+        "id": "c05-b04",
+        "say": "Plain SGD subtracts the stored gradient times point two. Subtracting a negative raises the escalation weight to point one. Severity gets the same update. The standard weights move the other way. Run A through those weights again. Its escalation score leads by four tenths, just as it did on the opening ruler.",
+        "hold": 0.95
+      }
+    ]
+  },
+  {
+    "id": "c06",
+    "title": "Will a weight move with a zero gradient?",
+    "sourceChapters": [
+      "c06"
+    ],
+    "beats": [
+      {
+        "id": "c06-b01",
+        "say": "Clear the gradients before the next independent backward pass. You can do this on either side of forward. Backward adds derivatives to the trainable leaves it reaches. An unused weight can still have an empty gradient field. Forward has state of its own.",
+        "hold": 0.3
+      },
+      {
+        "id": "c06-b02",
+        "say": "In training mode, BatchNorm can update its running statistics as it reads the batch. The optimizer has a separate history. Follow one of its momentum buffers through two steps.",
+        "hold": 0.65
+      },
+      {
+        "id": "c06-b03",
+        "say": "Setting a gradient to None releases the parameter's reference to that tensor. Other references or the allocator can keep the storage. Now take one SGD step from weight one with gradient one and learning rate one tenth.",
+        "hold": 0.3
+      },
+      {
+        "id": "c06-b04",
+        "say": "The weight reaches point nine, and its momentum buffer holds one. Make two copies. Give one an empty gradient field and the other a zero. Which weight will move on the next step?",
+        "hold": 2
+      },
+      {
+        "id": "c06-b05",
+        "say": "SGD skips the weight with no gradient. It stays at point nine. With a zero gradient, SGD multiplies the old momentum by nine tenths and adds zero. The buffer now holds point nine. At a learning rate of one tenth, subtract nine hundredths.",
+        "hold": 0.3
+      },
+      {
+        "id": "c06-b06",
+        "say": "The weight moves to point eight one. Clearing the gradient leaves the momentum history in place. Weight decay can also move a parameter with a zero gradient.",
+        "hold": 0.65
+      }
+    ]
+  },
+  {
+    "id": "c07",
+    "title": "What is still in w.grad?",
+    "sourceChapters": [
+      "c07"
+    ],
+    "beats": [
+      {
+        "id": "c07-b01",
+        "say": "Hold the weight at one. Square it. The slope here is two. Run backward once and the buffer holds two. Keep the weight fixed, build the same square again, and call backward a second time. It adds another two. The buffer now holds four, even though the slope here is still two.",
+        "hold": 1
+      },
+      {
+        "id": "c07-b02",
+        "say": "Start a fresh update. Set the gradient to None. The buffer is empty. The weight is still one. If you build that same square and run backward once more, what will you read in the buffer?",
+        "hold": 1.95
+      },
+      {
+        "id": "c07-b03",
+        "say": "Two. Only this last backward pass contributed. Clear before a fresh update. When several microbatches belong to one update, keep their contributions together. You still have to decide how much each microbatch counts.",
+        "hold": 0.8
+      }
+    ]
+  },
+  {
+    "id": "c08",
+    "title": "How much weight does ticket C get?",
+    "sourceChapters": [
+      "c08"
+    ],
+    "beats": [
+      {
+        "id": "c08-b01",
+        "say": "Reset the router to zero weights and keep them fixed. A and B fit in the first chunk. Ticket C runs alone. It also needs escalation, but its urgency is two. Follow the standard route's urgency weight.",
+        "hold": 0.3
+      },
+      {
+        "id": "c08-b02",
+        "say": "At these weights, either A or B on its own gives a gradient of a half. C gives one. If we weight the two chunk means equally, what fraction multiplies C's loss?",
+        "hold": 2
+      },
+      {
+        "id": "c08-b03",
+        "say": "C gets half. A and B share the other half, one quarter each. That makes the gradient three quarters. C alone contributed one half to that total. Now give each ticket the same width. The first chunk gets two thirds and C gets one third.",
+        "hold": 0.3
+      },
+      {
+        "id": "c08-b04",
+        "say": "The gradient becomes two thirds, exactly the mean of the three contributions. Severity stays at a half in both runs.",
+        "hold": 1
+      },
+      {
+        "id": "c08-b05",
+        "say": "Apply those fractions to the mean losses before backward. A fraction applied only to a logged number leaves the buffer untouched. For equal chunks, dividing each mean loss by the number of chunks works. Skipping the division multiplies the gradient by that count.",
+        "hold": 0.3
+      },
+      {
+        "id": "c08-b06",
+        "say": "For plain SGD alone that scales the step. Clipping, momentum history and Adam can change the effect. For ignored targets or class weights, use each chunk's share of the loss denominator.",
+        "hold": 0.75
+      },
+      {
+        "id": "c08-b07",
+        "say": "Accumulate at the same weights, then step once. BatchNorm can use different statistics in smaller chunks, and Dropout can draw different masks. With distributed data parallel, put both forward and backward of the early chunks inside no sync. Let the final backward synchronize the accumulated gradients.",
+        "hold": 0.3
+      },
+      {
+        "id": "c08-b08",
+        "say": "Ranks need the same schedule. Other communication can still occur. With loss scaling, keep one scale for the window. Unscale once after the last backward, then clip, step, and update the scale.",
+        "hold": 0.85
+      }
+    ]
+  },
+  {
+    "id": "c09",
+    "title": "Weight an epoch loss by its rows",
+    "sourceChapters": [
+      "c09"
+    ],
+    "beats": [
+      {
+        "id": "c09-b01",
+        "say": "Suppose the first four tickets each cost point two nats. The final two each cost point five. Those are also the means of the two batches. Each row should get one vote. If you average the two batch means, which tickets get extra weight?",
+        "hold": 2
+      },
+      {
+        "id": "c09-b02",
+        "say": "The two tickets in the last batch do. With equal batch weights, each ticket in the first batch gets one eighth. Each ticket in the last batch gets one quarter. Now weight by row count. Each of the six tickets gets one sixth. The four contribute point eight nats in total and the two contribute one. Divide the total by six. The row mean is point three. Equal weight for each batch would give point three five.",
+        "hold": 2.4
+      }
+    ]
+  },
+  {
+    "id": "c10",
+    "title": "Memorize a clean batch to test the wiring",
+    "sourceChapters": [
+      "c10"
+    ],
+    "beats": [
+      {
+        "id": "c10-b01",
+        "say": "Before loading a large dataset, ask whether the model and loop can memorize a small, clean batch. This seeded two-layer ticket classifier starts with a measured loss of 0.6521.",
+        "hold": 0.3
+      },
+      {
+        "id": "c10-b02",
+        "say": "As SGD changes the weights, we reevaluate all eight tickets and plot each measured loss from the same current model state. Across 120 updates, the loss reaches 0.0056 and all eight routes are correct.",
+        "hold": 0.6
+      },
+      {
+        "id": "c10-b03",
+        "say": "All eight tickets now go to the right queues. That's a quick check on the shapes, labels, loss and update order. Freeze these weights and try tickets the model has never seen.",
+        "hold": 0.8
+      }
+    ]
+  },
+  {
+    "id": "c11",
+    "title": "Layer behavior and graph recording are separate controls",
+    "sourceChapters": [
+      "c11"
+    ],
+    "beats": [
+      {
+        "id": "c11-b01",
+        "say": "Training-mode Dropout zeroes sampled entries and scales survivors by one divided by one minus its probability. At one half, surviving activations double. In this layer, evaluation is identity. If two outputs match, check the layer's training flag. Two training calls can draw the same mask.",
+        "hold": 0.3
+      },
+      {
+        "id": "c11-b02",
+        "say": "Linear and ReLU layers by themselves have the same computation in train and eval.",
+        "hold": 0.65
+      },
+      {
+        "id": "c11-b03",
+        "say": "With default running-statistics tracking, BatchNorm training uses the current batch and updates persistent running buffers; evaluation reads those buffers. Disabling that tracking uses batch statistics in both modes. LayerNorm itself applies the same trailing-dimension normalization in either mode. Even inside no-grad, a BatchNorm layer in training mode can update its running statistics.",
+        "hold": 0.65
+      },
+      {
+        "id": "c11-b04",
+        "say": "For ordinary held-out loss evaluation, choose eval and no-grad and omit backward and optimizer step. To find which inputs influence a score, keep the layers in eval and turn gradient recording on. We use four validation tickets to choose a checkpoint. Save a separate set of tickets for its final test.",
+        "hold": 0.65
+      }
+    ]
+  },
+  {
+    "id": "c12",
+    "title": "Validation reads weights without updating them",
+    "sourceChapters": [
+      "c12"
+    ],
+    "beats": [
+      {
+        "id": "c12-b01",
+        "say": "Training mode and evaluation mode configure layers such as Dropout and BatchNorm. Separately, no-grad prevents validation from recording an autograd graph. During evaluation, compute held-out loss and accuracy without calling backward or optimizer step.",
+        "hold": 0.6
+      },
+      {
+        "id": "c12-b02",
+        "say": "The lowest validation loss in the seeded run is point zero one one eight at epoch sixty. Save that model. A state dictionary refers to live tensors. Try it on a zero weight. Take a deep copy, then add one to the live value. The plain view follows it to one. The copy still reads zero.",
+        "hold": 1
+      }
+    ]
+  },
+  {
+    "id": "c13",
+    "title": "Can the optimizer pick up where it left off?",
+    "sourceChapters": [
+      "c13"
+    ],
+    "beats": [
+      {
+        "id": "c13-b01",
+        "say": "Open the model's state dictionary. It holds named parameters and persistent buffers. A module can add extra state. To put the router back together, you also need the architecture, what the two features mean, and which column means escalation.",
+        "hold": 0.3
+      },
+      {
+        "id": "c13-b02",
+        "say": "Ordinary Python attributes and parameter gradients sit outside that dictionary. Saving the whole module still leaves a dependency on its Python class and import path.",
+        "hold": 0.7
+      },
+      {
+        "id": "c13-b03",
+        "say": "To continue training, save the optimizer state, the scheduler's position and the loss scaler if you use them. Save the current random generator states for Python, NumPy, PyTorch on CPU and accelerator, and any loader generator. Keep the step and split identity. A seed restarts a sequence.",
+        "hold": 0.3
+      },
+      {
+        "id": "c13-b04",
+        "say": "Resuming mid-epoch may also need the sampler position or buffered stream data. In the middle of accumulation, save the pending gradients or replay the window.",
+        "hold": 0.8
+      },
+      {
+        "id": "c13-b05",
+        "say": "Try restoring one weight. Both copies start at point nine and see the same next gradient, minus one. SGD uses a learning rate of a tenth and a momentum coefficient of nine tenths. The first copy restores a momentum buffer of one. The other starts fresh. Which copy takes the larger step?",
+        "hold": 1.9
+      },
+      {
+        "id": "c13-b06",
+        "say": "Work out the restored copy first. Nine tenths of the old buffer cancels most of the new gradient. Momentum becomes minus a tenth. The weight rises by one hundredth to point nine one.",
+        "hold": 0.3
+      },
+      {
+        "id": "c13-b07",
+        "say": "With fresh momentum, the whole minus one goes into the buffer. The weight rises by a tenth to one. The fresh copy took the larger step.",
+        "hold": 0.85
+      },
+      {
+        "id": "c13-b08",
+        "say": "Now try the article's ticket router after eighty updates. Reload its weights in both copies. Their scores agree before training resumes. Take one more step on the same batch and compare every parameter with uninterrupted training. Restoring the optimizer matches. Weights alone give a different next update.",
+        "hold": 0.3
+      },
+      {
+        "id": "c13-b09",
+        "say": "This check covers that fixed batch. To test shuffled or stochastic training, restore and check the actual data order and random state as well. Exact replay also depends on compatible software, hardware and deterministic operations.",
+        "hold": 1
+      }
+    ]
+  },
+  {
+    "id": "c14",
+    "title": "Which checkpoint can a reader open?",
+    "sourceChapters": [
+      "c14"
+    ],
+    "beats": [
+      {
+        "id": "c14-b01",
+        "say": "A reader opens router dot p t while an update is being saved. Follow that name. It points to the complete checkpoint from step eighty. Open a unique staging file beside it in the same directory. Write the new model and its optimizer state there.",
+        "hold": 0.8
+      },
+      {
+        "id": "c14-b02",
+        "say": "Finish serializing the bundle. Flush Python's buffers, then sync the staging file. All of the new data is ready. If a reader opens the live name right now, which step will it see?",
+        "hold": 2
+      },
+      {
+        "id": "c14-b03",
+        "say": "Still eighty. Now replace the live path. New opens see step eighty one. On a local POSIX filesystem, that single rename switches from one complete file to the other. On a first save the live name first appears here.",
+        "hold": 1
+      },
+      {
+        "id": "c14-b04",
+        "say": "Pause just after replacement. Suppose the process stops before the directory sync. New opens already see the complete replacement. This controlled exception cannot tell us what survives power loss. To persist the name change on Linux, sync the parent directory. Check the storage contract, coordinate concurrent writers, and keep an older checkpoint.",
+        "hold": 0.8
+      },
+      {
+        "id": "c14-b05",
+        "say": "Try a separate save from step eighty. The writer fails halfway through the staging file. Open the live name again. Every byte still matches step eighty. A reader never opens the partial replacement through that name.",
+        "hold": 0.85
+      },
+      {
+        "id": "c14-b06",
+        "say": "Load a trusted checkpoint with weights-only loading enabled. Store the optimizer and random generator states in types the restricted loader accepts. Review any custom type before adding it to the trusted list.",
+        "hold": 0.65
+      }
+    ]
+  },
+  {
+    "id": "c15",
+    "title": "Would you take this step?",
+    "sourceChapters": [
+      "c15"
+    ],
+    "beats": [
+      {
+        "id": "c15-b01",
+        "say": "At a weight of three, squaring gives nine. Add a constant offset of zero. The loss is nine, and backward gives six. Both finite checks pass. Now change just the offset to positive infinity. It has no gradient of its own. The weight still starts at three.",
+        "hold": 0.3
+      },
+      {
+        "id": "c15-b02",
+        "say": "If backward gives six again, would you take the step? Inspect both the loss and the derivative.",
+        "hold": 2.1
+      },
+      {
+        "id": "c15-b03",
+        "say": "Hold the step. The loss is infinite. Backward still gives six. Adding a constant changes the forward value and leaves the derivative of the square alone. A scaler that checks only the gradient can miss this failure. Inspect the offset that entered the loss before tuning the learning rate.",
+        "hold": 1.1
+      },
+      {
+        "id": "c15-b04",
+        "say": "On a real batch, check the inputs, then the logits. If both are finite, inspect the loss, including targets, masks, class weights and the reduction. Ignoring every target can make a mean undefined. Even finite extreme logits can overflow a difference.",
+        "hold": 0.3
+      },
+      {
+        "id": "c15-b05",
+        "say": "A hard target outside the class range usually raises an indexing error. After backward and any unscaling, check each gradient that exists. If the step proceeds, check the updated parameters too.",
+        "hold": 0.8
+      },
+      {
+        "id": "c15-b06",
+        "say": "For a scalar log, item gives you a Python number. On CUDA that read can wait for device work. Detach drops the history and keeps the tensor on its device. Ordinary backward releases saved tensors, but keeping the loss tensor can still keep graph references alive. Choose how often you need the report.",
+        "hold": 0.7
+      }
+    ]
+  },
+  {
+    "id": "c16",
+    "title": "One norm rescales every gradient component together",
+    "sourceChapters": [
+      "c16"
+    ],
+    "beats": [
+      {
+        "id": "c16-b01",
+        "say": "Global norm clipping views every selected parameter gradient as one concatenated vector. Sum all squared components, take the square root, and compare that total with the chosen bound. For a finite nonzero vector above the bound, multiply every component by the same bound-over-norm factor, up to the implementation’s small denominator epsilon.",
+        "hold": 0.65
+      },
+      {
+        "id": "c16-b02",
+        "say": "Draw the vector six across and eight up. Its length is ten. With a bound of five, halve both components. You land at three, four. The API returns the original norm, ten. Measure the stored gradient now and its norm is about five. Clamping each coordinate separately would land at five, five and change the direction.",
+        "hold": 0.65
+      },
+      {
+        "id": "c16-b03",
+        "say": "Error-if-nonfinite rejects a nonfinite total norm, including overflow while combining otherwise finite components. Clipping bounds the gradient, not every optimizer’s parameter displacement: momentum, Adam and weight decay transform it. Inspect the actual update as well.",
+        "hold": 0.65
+      }
+    ]
+  },
+  {
+    "id": "c17",
+    "title": "An inference tensor may not cross into a trainable head",
+    "sourceChapters": [
+      "c17"
+    ],
+    "beats": [
+      {
+        "id": "c17-b01",
+        "say": "No-grad suppresses reverse-mode graph recording while producing ordinary tensors that can later be constants in a recorded computation. Inference mode removes additional view and version tracking and disables forward-mode automatic differentiation too. Neither context calls eval.",
+        "hold": 0.65
+      },
+      {
+        "id": "c17-b02",
+        "say": "The actual router’s frozen inference logits are minus point two seven and point two seven. Feeding that inference tensor to a trainable head whose backward needs to save it raises the inference-tensor restriction. Clone the tensor outside inference mode, then the head can backpropagate.",
+        "hold": 0.3
+      },
+      {
+        "id": "c17-b03",
+        "say": "That clone does not recreate a gradient path through the frozen router.",
+        "hold": 0.65
+      },
+      {
+        "id": "c17-b04",
+        "say": "Use no-grad when extracted features feed training, or respect the inference tensor boundary and repair it explicitly. Benchmark any speed benefit on the actual workload instead of assuming the stricter mode is faster.",
+        "hold": 0.65
+      }
+    ]
+  },
+  {
+    "id": "c18",
+    "title": "Which operations change precision?",
+    "sourceChapters": [
+      "c18"
+    ],
+    "beats": [
+      {
+        "id": "c18-b01",
+        "say": "For this autocast recipe, keep stored parameters in float32. On CUDA, the matrix multiply can run in float16 or BF16, then cross entropy can run in float32. Autocast picks a dtype for each eligible operation. Explicit dtypes, unlisted operations and in-place calls follow their own rules. Leave the autocast region before backward.",
+        "hold": 0.65
+      },
+      {
+        "id": "c18-b02",
+        "say": "A float16 or BF16 activation uses two bytes per value, half the float32 payload. Count weights, gradients and optimizer state separately. On the ruler, float16's smallest positive normal is about six times ten to the minus five.",
+        "hold": 0.3
+      },
+      {
+        "id": "c18-b03",
+        "say": "Subnormals extend down to about six times ten to the minus eight. Ten to the minus five lands between those marks. It can survive as a subnormal, or go to zero on a path that flushes subnormals.",
+        "hold": 0.65
+      },
+      {
+        "id": "c18-b04",
+        "say": "BF16 uses the same number of exponent bits as float32, with fewer bits for precision. Its wider range than float16 usually lets us train without loss scaling. Follow the CPU branch in this example. It switches AMP off. The optimizer takes an ordinary step on the unscaled gradients.",
+        "hold": 0.65
+      }
+    ]
+  },
+  {
+    "id": "c19",
+    "title": "A norm limit of two, in which units?",
+    "sourceChapters": [
+      "c19"
+    ],
+    "beats": [
+      {
+        "id": "c19-b01",
+        "say": "Start with gradient components three and four. Their norm is five. Multiply the loss by eight before backward. The stored components become twenty-four and thirty-two, and their norm becomes forty. Scaling can rescue small backward values. Keep the same scale until the accumulation window is complete.",
+        "hold": 0.8
+      },
+      {
+        "id": "c19-b02",
+        "say": "You want the final gradient norm to be two. In the upper run, clip while the numbers are still scaled. The norm is now two in scaled units. What will the optimizer get when you divide by eight?",
+        "hold": 1.9
+      },
+      {
+        "id": "c19-b03",
+        "say": "One quarter. That is the norm in optimizer units. Replay the same gradient below. Divide first and its norm returns to five. Now clip to two. The lower run lands at the intended limit. Both rulers use the units seen by the optimizer. Clipping first effectively divided the bound by the loss scale.",
+        "hold": 1.1
+      },
+      {
+        "id": "c19-b04",
+        "say": "After the last backward, unscale once per optimizer, then inspect or clip. Check the loss separately. A scaler can take a step with finite gradients even when the loss is infinite. Once the loss passes your check, call scaler step. It skips this standard optimizer if gradients are nonfinite. The gradient fields remain until you clear them. Then update the scale.",
+        "hold": 0.3
+      },
+      {
+        "id": "c19-b05",
+        "say": "By default it starts at sixty-five thousand five hundred thirty-six, halves after a nonfinite event and doubles after two thousand consecutive successful iterations. Otherwise it stays put. The settings can change, and repeated overflows can bring the scale below one.",
+        "hold": 0.8
+      }
+    ]
+  },
+  {
+    "id": "c20",
+    "title": "What happens at a graph break?",
+    "sourceChapters": [
+      "c20"
+    ],
+    "beats": [
+      {
+        "id": "c20-b01",
+        "say": "First run the loop in eager mode and check its outputs. Then torch compile uses TorchDynamo to capture regions of tensor operations. The default Inductor backend can fuse those operations and generate kernels, including CPU code. Time the compiled loop after warmup. Startup cost, changing shapes and graph breaks all affect what you gain.",
+        "hold": 0.65
+      },
+      {
+        "id": "c20-b02",
+        "say": "Use the eager backend with full graph enabled to check capture. This forward fits in one graph and runs ordinary PyTorch operations. Both paths read the same parameters. Try the one-weight example on screen. Double its weight and repeat both forwards. Their scores change together.",
+        "hold": 0.65
+      },
+      {
+        "id": "c20-b03",
+        "say": "At a graph break, partial capture hands control back to Python. Full graph raises an error there. If the logits differ, line up random draws, layer modes, dtypes and tolerances. Try the eager backend first, then the code-generating backend to locate the difference.",
+        "hold": 0.3
+      },
+      {
+        "id": "c20-b04",
+        "say": "If you train with AMP, check the compiled backward autocast policy for your installed version.",
+        "hold": 0.65
+      }
+    ]
+  },
+  {
+    "id": "c21",
+    "title": "The same loop can learn one character’s next-token row",
+    "sourceChapters": [
+      "c21"
+    ],
+    "beats": [
+      {
+        "id": "c21-b01",
+        "say": "The reader example uses the same learning handoffs for a next-character model. Pair each character with the next, so the string the gives t predicting h and h predicting e. A vocabulary-sized table has one row per current character and one logit per possible successor. Every zero-initialized row starts uniform.",
+        "hold": 0.65
+      },
+      {
+        "id": "c21-b02",
+        "say": "For one selected row, cross entropy has logit gradient predicted probability minus the one-hot target, with the appropriate batch reduction. Gradient descent raises the true successor’s logit and lowers competitors. Other input-character rows receive no contribution from that pair. This bigram model conditions on one character rather than the whole earlier text.",
+        "hold": 0.65
+      },
+      {
+        "id": "c21-b03",
+        "say": "The plain-Python fixture uses twenty-one vocabulary characters from its declared train and validation text, so uniform initial loss is natural log of twenty-one, about three point zero four five.",
+        "hold": 0.3
+      },
+      {
+        "id": "c21-b04",
+        "say": "Its PyTorch variant defines sixteen training-only characters, so initial loss is natural log of sixteen, about two point seven seven three, and the table has two hundred fifty-six parameters. It also uses AdamW without weight decay instead of the first program’s gradient descent.",
+        "hold": 0.3
+      },
+      {
+        "id": "c21-b05",
+        "say": "Adam keeps exponential moving averages of each gradient and its square. Form a denominator by taking the square root of the bias-corrected second moment, then adding epsilon. Divide the bias-corrected first moment by that denominator to scale each coordinate’s gradient update. AdamW applies weight decay separately.",
+        "hold": 0.3
+      },
+      {
+        "id": "c21-b06",
+        "say": "Here decay is zero. Each coordinate gets its own step size. Correlations between coordinates can still slow learning.",
+        "hold": 0.65
+      }
+    ]
+  },
+  {
+    "id": "c22",
+    "title": "How low can this row’s loss go?",
+    "sourceChapters": [
+      "c22"
+    ],
+    "beats": [
+      {
+        "id": "c22-b01",
+        "say": "Read the four characters that followed the same input. A, A, A, B. At each occurrence the model looks up the very same row. If A gets all the probability, the model gives B a probability of zero. How should that row divide its probability between A and B?",
+        "hold": 2.2
+      },
+      {
+        "id": "c22-b02",
+        "say": "Three quarters for A and one quarter for B. Those are their observed frequencies. Each A contributes the negative log of three quarters. The B contributes the negative log of one quarter. Add the four costs and divide by four. Each card gets one vote in the mean. The lowest mean loss is about point five six two nats.",
+        "hold": 3.2
+      },
+      {
+        "id": "c22-b03",
+        "say": "If every input had just one successor, the model could give that successor nearly all the probability and approach zero loss.",
+        "hold": 2
+      },
+      {
+        "id": "c22-b04",
+        "say": "Apply the same count to all one hundred eight training pairs. Their best possible mean loss is about one point zero one five. The two training runs finish close to that floor, at one point zero three three and one point zero one nine.",
+        "hold": 0.3
+      },
+      {
+        "id": "c22-b05",
+        "say": "Each mini-batch samples just a few pairs, so its loss can bounce around. Score the whole set at fixed weights to compare it with the floor.",
+        "hold": 0.65
+      }
+    ]
+  },
+  {
+    "id": "c23",
+    "title": "Which character table would you keep?",
+    "sourceChapters": [
+      "c23"
+    ],
+    "beats": [
+      {
+        "id": "c23-b01",
+        "say": "Each point scores the entire set of character pairs at one update. Cyan follows the training text. Pink follows the same seventy-five validation pairs each time. Watch them fall together. Leave a mark at update one hundred eleven. Keep training the same table to one thousand.",
+        "hold": 0.85
+      },
+      {
+        "id": "c23-b02",
+        "say": "The cyan trace keeps falling. On the pink trace, compare the two dots. Each pink reading is the average cost of predicting the next character in the held-out text. A smaller cost is better. Which update do you copy?",
+        "hold": 2.1
+      },
+      {
+        "id": "c23-b03",
+        "say": "Copy update one hundred eleven. Its mean validation loss is about two point one zero five nats per pair. By one thousand that has climbed to two point three nine two. Twenty-four of those seventy-five validation pairs never occurred in training.",
+        "hold": 0.3
+      },
+      {
+        "id": "c23-b04",
+        "say": "The model can pay dearly for putting less and less probability on a successor that actually turns up.",
+        "hold": 1
+      },
+      {
+        "id": "c23-b05",
+        "say": "The sample from that copy contains recognizable fragments, like the letters t, h, e. Read a little farther and the words fall apart. Validation helped choose these weights. Use an untouched test set for the final estimate, and measure the behavior you care about in deployment.",
+        "hold": 0.3
+      },
+      {
+        "id": "c23-b06",
+        "say": "If validation keeps getting worse, more training data or regularization may help.",
+        "hold": 0.8
+      }
+    ]
+  },
+  {
+    "id": "c24",
+    "title": "Can you reproduce the saved router’s decision?",
+    "sourceChapters": [
+      "c24"
+    ],
+    "beats": [
+      {
+        "id": "c24-b01",
+        "say": "Save the architecture and optimizer settings with the checkpoint. Keep the feature order and label map so the next reader knows which column means escalation. Record the source data, split IDs, both loss curves and the metric you used to pick these weights.",
+        "hold": 0.65
+      },
+      {
+        "id": "c24-b02",
+        "say": "A training epoch averages losses from batches scored while the weights were changing. To score the saved checkpoint, freeze its weights and run the evaluation rows through it again. Record which rows you used. Check how you split the data so that a document and its copies stay on the same side.",
+        "hold": 0.65
+      },
+      {
+        "id": "c24-b03",
+        "say": "Reload the checkpoint and give it the same ticket. Compare both route scores with the ones you saved. To check that training resumes, give both copies the same next batch. In our two-ticket example, take a second plain SGD step on A and B. Compare every updated weight against the uninterrupted run.",
+        "hold": 0.65
+      }
+    ]
+  },
+  {
+    "id": "c25",
+    "title": "Before the next backward call",
+    "sourceChapters": [
+      "c25"
+    ],
+    "beats": [
+      {
+        "id": "c25-b01",
+        "say": "Return to the ticket router. Read down the urgency column. On the clean step, the standard gradient was positive and the escalation gradient was negative. Starting at zero, subtracting those gradients pushed the weights in opposite directions. Severity had the same values.",
+        "hold": 0.9
+      },
+      {
+        "id": "c25-b02",
+        "say": "Now compare two snapshots of one buffer. Before backward the standard urgency entry reads minus one. After backward it reads minus a half. Subtract the first reading from the second. This batch contributed plus a half, just as before. Which gradient will the optimizer actually use?",
+        "hold": 2
+      },
+      {
+        "id": "c25-b03",
+        "say": "It uses the stored minus a half. Compare the weight before and after the step. Once the clean batch fits, score a separate validation set to see how far that result carries.",
+        "hold": 0.9
+      }
+    ]
+  },
+  {
+    "id": "c26",
+    "title": "Route a ticket that was held out",
+    "sourceChapters": [
+      "c26"
+    ],
+    "beats": [
+      {
+        "id": "c26-b01",
+        "say": "This ticket was held out. Its urgency is one and a half, its severity is one, and its label says escalate. Train on A and B again from zero weights. This time inspect the buffer before backward. Both standard weights already have a gradient of minus one.",
+        "hold": 0.3
+      },
+      {
+        "id": "c26-b02",
+        "say": "Both escalation weights have plus one. Keep those entries. A and B contribute their usual plus a half to each standard entry and minus a half to each escalation entry. With a learning rate of point two, which queue will get the held-out ticket?",
+        "hold": 2.4
+      },
+      {
+        "id": "c26-b03",
+        "say": "The old buffer reverses both signs. Standard stores minus a half and escalation stores plus a half. Subtract those with plain SGD. Each standard weight becomes plus point one, and each escalation weight becomes minus point one. Score the held-out ticket. Both positive features now favor standard. Standard wins.",
+        "hold": 0.3
+      },
+      {
+        "id": "c26-b04",
+        "say": "Multiply each weight by its feature and add. For standard, that is a tenth times one and a half, plus a tenth times one. Standard scores a quarter and escalation scores minus a quarter. Their difference puts the mark half a unit left of zero.",
+        "hold": 0.3
+      },
+      {
+        "id": "c26-b05",
+        "say": "Escalation gets about a thirty-eight percent share of the model's probability.",
+        "hold": 1.35
+      },
+      {
+        "id": "c26-b06",
+        "say": "Leave that mark there. Rewind to the same zero weights and the same old buffer. Clear the buffer before backward. Now run backward on A and B. The held-out ticket stays out of training. With just the fresh gradient, where should its new mark land?",
+        "hold": 2.4
+      },
+      {
+        "id": "c26-b07",
+        "say": "Now the buffer holds only the fresh contributions. SGD gives the escalation weights plus point one each. On the same held-out ticket, standard scores minus a quarter and escalation scores plus a quarter. Escalation wins by half a unit. Mark the new route.",
+        "hold": 0.3
+      },
+      {
+        "id": "c26-b08",
+        "say": "Escalation probability rises to about sixty-two percent. For two classes, take the negative score gap and exponentiate it. Add one, then take the reciprocal. The same calculation gave thirty-eight percent on the left. Clearing the buffer flipped this ticket to its labeled queue.",
+        "hold": 0.3
+      },
+      {
+        "id": "c26-b09",
+        "say": "To measure accuracy, divide the number routed correctly by the total number of tickets in a separate labeled set.",
+        "hold": 1.4
+      }
+    ]
+  }
+]

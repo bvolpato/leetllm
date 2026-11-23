@@ -1,0 +1,270 @@
+[
+  {
+    "id": "c01",
+    "title": "Which finish moves when arithmetic doubles?",
+    "sourceChapters": [
+      "c01"
+    ],
+    "beats": [
+      {
+        "id": "prompt",
+        "say": "Watch the code assistant read a prompt. The highlighted request supplies four thousand ninety-six token rows. Seven other prompts join it. In this prefill batch, the projection applies the same weights to thirty-two thousand seven hundred sixty-eight rows.",
+        "hold": 0.8
+      },
+      {
+        "id": "token",
+        "say": "Now the assistant takes its latest generated token, return, as input for the next step. Each of the other seven requests also supplies one row. Those eight rows go through the very same weight matrix. This projection produces features for later layers. Where does each pass finish?",
+        "hold": 1.5
+      },
+      {
+        "id": "predict",
+        "say": "Read the two marks on each timing track. Divide the operation count by the arithmetic rate. Divide the byte count by bandwidth. The circle marks the arithmetic finish. The diamond marks the last byte. A processor needs both operands and time to combine them. With perfect overlap, the later mark gives the earliest possible finish. Keep bandwidth fixed. If arithmetic speed doubles, point to the marks that can move. Which request phase gains?",
+        "hold": 3
+      },
+      {
+        "id": "upgrade",
+        "say": "Double the arithmetic rate. Both circles move left. Prefill drops from about fourteen point eight to seven point four milliseconds. In decode, arithmetic finishes in about two microseconds, but the last byte still arrives at ninety. The memory diamond sets the same floor. Real timings also include scheduling, synchronization, and work outside this projection.",
+        "hold": 1.3
+      }
+    ]
+  },
+  {
+    "id": "c02",
+    "title": "What does one weight read buy?",
+    "sourceChapters": [
+      "c02"
+    ],
+    "beats": [
+      {
+        "id": "cells",
+        "say": "A matrix projection transforms input features into output features. Each output combines an input row with a column of weights. Look inside a small weight-stationary array. Each square holds one weight. Send one and two across the two rows. Products from the upper cells pass down as partial sums. What should come out of the first column?",
+        "hold": 2.5
+      },
+      {
+        "id": "sum",
+        "say": "Add fourteen to five. Nineteen comes out on the left. The second column adds sixteen to six and produces twenty-two. The weights stay in place for the next row of activations. Passing partial sums between neighbors saves trips to large memory. This sketch illustrates dataflow on a matrix engine.",
+        "hold": 1
+      },
+      {
+        "id": "reuse",
+        "say": "Return to the assistant. Each row has four thousand ninety-six input features and eleven thousand and eight output features. At two bytes per weight, the fixed matrix weighs eighty-six mebibytes. During decode, eight active requests contribute one new token row each. Count a multiply and an add per weight per row. Divide that work by bytes moved.",
+        "hold": 0.7
+      },
+      {
+        "id": "intensity",
+        "say": "During prefill, many prompt positions can be processed together. Increase the row count while the weights stay in place. Arithmetic grows with the number of rows. Input reads and output writes grow too. Work per byte rises from about eight to twenty-seven hundred thirty-six. This model reads each input and weight once and writes a materialized output in BF sixteen. Fusion, caches, quantization, and repeated tile loads change the actual traffic.",
+        "hold": 0.8
+      },
+      {
+        "id": "padding",
+        "say": "Suppose our decode kernel pads eight rows to a tile of a hundred twenty-eight. Count the colored rows. Six and a quarter percent carry useful inputs. To estimate utilization of the whole chip, also measure tile scheduling, other engines, and achieved throughput. Try more concurrent rows or a small-row kernel and measure latency on the real workload.",
+        "hold": 1
+      }
+    ]
+  },
+  {
+    "id": "c03",
+    "title": "What happens to the bytes that do not fit?",
+    "sourceChapters": [
+      "c03"
+    ],
+    "beats": [
+      {
+        "id": "resident",
+        "say": "Capacity becomes a latency question when some weights must travel from host memory during each step. Follow sixteen decimal gigabytes for the full model. A resident read takes about four point eight milliseconds at the supplied rate. Move just one percent of the bytes to a slower host path. How much of the transfer time will that slice take?",
+        "hold": 2.6
+      },
+      {
+        "id": "split",
+        "say": "Move one percent to the host. The upper strip measures bytes. The lower strip measures time. Divide each portion by its own bandwidth. The host slice alone takes two and a half milliseconds, about a third of the total. Add the times because these reads are sequential.",
+        "hold": 0.9
+      },
+      {
+        "id": "ten",
+        "say": "Now move ten percent to the host. One point six gigabytes take twenty-five milliseconds on that path. Add the resident part for twenty-nine point three milliseconds, over six times the all-resident baseline. Offload can let a model fit. Test repeated transfers under load. Prefetching, compression, or overlap may change this result.",
+        "hold": 0.9
+      },
+      {
+        "id": "pool",
+        "say": "On an Apple silicon Mac the CPU and GPU share one finite physical memory pool. Fit the weights, histories, temporary buffers, operating system, and other applications inside it. Here twenty-nine of thirty-two gigabytes are occupied. Look above the pool. PyTorch dispatches its Metal operations to the GPU.",
+        "hold": 0.7
+      },
+      {
+        "id": "fallback",
+        "say": "With fallback enabled, this unsupported operation runs on the CPU. The GPU waits for synchronization before it can continue. Both processors still use the same pool. Check the trace for CPU work and command gaps. A separate request to allocate a double-precision tensor on this MPS backend still fails. Fallback changes execution for supported cases. It cannot supply a missing allocation type.",
+        "hold": 1
+      }
+    ]
+  },
+  {
+    "id": "c04",
+    "title": "Which values reached the wave sum?",
+    "sourceChapters": [
+      "c04"
+    ],
+    "beats": [
+      {
+        "id": "unfold",
+        "say": "Unfold one physical wave. Each lane holds its own value and the group executes an instruction together. NVIDIA warps contain thirty-two threads. The AMD CDNA target here uses a sixty-four-thread wavefront. Our wave owns the values from one through sixty-four and must publish their complete sum.",
+        "hold": 0.9
+      },
+      {
+        "id": "sweep",
+        "say": "Run the inherited helper. Its sweep stops after the first thirty-two lanes. It returns five hundred twenty-eight. Which values on this same wave still need an owner in the final addition?",
+        "hold": 2.7
+      },
+      {
+        "id": "repair",
+        "say": "Sweep the remaining lanes into a second partial sum. They contribute fifteen hundred fifty-two. Combine both halves to get two thousand eighty. A mask, shuffle width, and final combination must agree about who participates. Two explicit half-wave reductions work when both partials reach the output exactly once.",
+        "hold": 1
+      },
+      {
+        "id": "boundary",
+        "say": "Test sixty-three, sixty-four, and sixty-five inputs. The sixty-fifth starts a new physical wave. Even the faulty helper includes that value, but it still drops the upper half of wave one. Compare every result with a reference. Record the exact GPU target, compiler and libraries before you time a port.",
+        "hold": 1
+      },
+      {
+        "id": "occupancy",
+        "say": "Correctness also comes before tuning a CUDA port. Ship native code or compatible intermediate code for the target. Hopper's architecture-specific ninety-a intermediate code cannot run on Blackwell. Once a build runs correctly, count blocks on one streaming multiprocessor. With a hundred ninety-two kibibytes available, three blocks can each reserve sixty-four. What happens if we stage a larger tile?",
+        "hold": 2
+      },
+      {
+        "id": "larger",
+        "say": "Give each block ninety-six kibibytes. Two blocks now fit by shared memory alone. A larger tile may reduce device reads and still reduce resident work. Compare traffic, eligible warps, and elapsed kernel time before choosing the tile.",
+        "hold": 1
+      }
+    ]
+  },
+  {
+    "id": "c05",
+    "title": "Which tile makes the return trip?",
+    "sourceChapters": [
+      "c05"
+    ],
+    "beats": [
+      {
+        "id": "tile-enter",
+        "say": "On TPU, a Pallas BlockSpec maps each grid position to the slices a program sees in vector memory. Follow that copper weight tile into its slot. Four kibibytes of weights meet one kibibyte of activations. Look over to the right. Multiplying them fills one patch of the ripple.",
+        "hold": 0.8
+      },
+      {
+        "id": "tile-across",
+        "say": "Move one patch to the right. Same row, same blue activation tile. The next column needs fresh weights. Now watch the copper slot as we start the second row.",
+        "hold": 0.8
+      },
+      {
+        "id": "tile-return",
+        "say": "There is weight zero again. The slot held only one weight tile, so weight one evicted it. Finish the row. Four copper reads and two blue reads cost eighteen kibibytes.",
+        "hold": 1
+      },
+      {
+        "id": "tile-choice",
+        "say": "Empty the slots. Start again in the same corner. Keep the first read trace. Which patch can we fill next with the weight tile that is already here?",
+        "hold": 2.9
+      },
+      {
+        "id": "tile-down",
+        "say": "Try the patch below. Weight zero stays put while the blue tile changes. Cross to the next column and go down again.",
+        "hold": 1
+      },
+      {
+        "id": "tile-trace",
+        "say": "Each route produces the same ripple. Look at what came through twice. Across repeated two large reads. Down repeated two small ones. That saves six kibibytes of input. For a real Pallas grid, choose legal block shapes, mask padding and keep all reduction updates to an output slice consecutive.",
+        "hold": 1
+      },
+      {
+        "id": "psum",
+        "say": "Trainium's NKI exposes the buffers directly. The tensor engine accumulates into PSUM. Other live tiles occupy SBUF. Extend the accumulator lifetime until six tiles need four PSUM slots. Two tiles need somewhere to go. Look at the two free slots in SBUF. Which link will carry the excess tiles, and will either need HBM?",
+        "hold": 2.3
+      },
+      {
+        "id": "spill",
+        "say": "The transfer ends in SBUF. The HBM spill counter stays at zero. Now fuse another operation so two more intermediates must stay live in SBUF. That buffer overflows too. A spill write and a later refill now cross the HBM boundary. Fewer launches can still mean more transfer work. Shrink the tile or split the fusion, then compare traces.",
+        "hold": 1
+      }
+    ]
+  },
+  {
+    "id": "c06",
+    "title": "What does a rank send on this route?",
+    "sourceChapters": [
+      "c06"
+    ],
+    "beats": [
+      {
+        "id": "ring",
+        "say": "Four devices hold partial results. A ring all-reduce combines them and gives each rank the complete sum. In this dense tensor-parallel example, eight rows times eight thousand one hundred ninety-two features times two bytes makes a logical payload of a hundred twenty-eight kibibytes. Split it into four equal chunks. Watch the outgoing link from rank zero.",
+        "hold": 0.8
+      },
+      {
+        "id": "sends",
+        "say": "In reduce-scatter, each rank sends one chunk in each of three rounds. In all-gather, it sends one chunk in each of three more rounds. Count the six sends on the highlighted link. Six times thirty-two gives a hundred ninety-two kibibytes sent by one rank in one call. For a ring of P ranks, multiply the logical payload by twice P minus two, divided by P.",
+        "hold": 1
+      },
+      {
+        "id": "startup",
+        "say": "In one classic dense layout, attention and the feed-forward block each need a reduction in every layer. Eighty layers mean a hundred sixty calls per decode iteration. Suppose exposed startup costs five microseconds on the local route and twenty across nodes. If all those starts are serialized, how much time do the routes spend starting calls?",
+        "hold": 2.6
+      },
+      {
+        "id": "routes",
+        "say": "Count all the starts. The local route spends eight tenths of a millisecond. The cross-node route spends three point two. These totals count startup alone. Payload transfer, scheduling, and overlap need a trace of the selected ranks on their physical links.",
+        "hold": 0.9
+      },
+      {
+        "id": "pipeline",
+        "say": "Keep tensor-parallel exchanges inside each fast domain and send activations across nodes at a pipeline boundary instead. That reduces the frequency of cross-node exchanges in this example. A stage can wait for the preceding stage, and an uneven split can leave it idle. Compare complete traces, memory fit, request latency, and useful throughput under the same load.",
+        "hold": 1
+      }
+    ]
+  },
+  {
+    "id": "c07",
+    "title": "Which requests can pay for this accelerator?",
+    "sourceChapters": [
+      "c07"
+    ],
+    "beats": [
+      {
+        "id": "quality",
+        "say": "Start with a known answer. Our reference cell produced nineteen. With an absolute tolerance of one hundredth and a relative tolerance of two thousandths, the allowed error is forty-eight thousandths. Nineteen point zero four passes. Nineteen point zero eight falls outside. Investigate unexpected nonfinite values and check representative tasks before timing a lower precision.",
+        "hold": 0.8
+      },
+      {
+        "id": "fit",
+        "say": "Next check peak allocations on each device at serving concurrency. Count the allocated cache pool once, including the live histories it holds. Here weights, pool, and workspace fit into twenty-four gigabytes. Raise workspace during a burst and they cross the limit. Include graph captures and communication buffers. Set a reserve from measured peaks and test admission.",
+        "hold": 0.9
+      },
+      {
+        "id": "pair",
+        "say": "Now take a configuration that passed correctness and fit. Keep the request IDs under your finger. Each column records the time to first token, including queue and delivery, and the mean of that request's later gaps. R one waited five hundred milliseconds for its first token. R two averaged sixty milliseconds per later token. Which requests meet both strict limits?",
+        "hold": 2.8
+      },
+      {
+        "id": "holes",
+        "say": "Punch out the failing requests. R one leaves a hole in the first column. R two leaves another in the second. Eighteen of twenty meet both limits. Rank nineteen gives a passing ninety-fifth percentile in each separate row, but a ninety-five percent joint target needs nineteen complete requests. Inspect individual gaps too. An average can hide a long pause.",
+        "hold": 1
+      },
+      {
+        "id": "goodput",
+        "say": "Each request produced a hundred tokens. The eligible requests contributed eighteen hundred in the full ten-second window. That gives a hundred eighty useful tokens per second. Move the long generation gaps from R two to R one. The individual timing distributions stay the same. How many requests now contribute?",
+        "hold": 2.6
+      },
+      {
+        "id": "recount",
+        "say": "Exclude R one once. Nineteen requests qualify. Over the same ten seconds the goodput rises to a hundred ninety tokens per second. Count retries, cancellations, and idle time in the observation window and its cost.",
+        "hold": 1
+      },
+      {
+        "id": "candidates",
+        "say": "Try a fresh pair of machines. Each serves ten requests of forty output tokens. Both pass the quality, fit, and later-gap checks. A finishes in eight seconds. Nine first tokens arrive at two hundred milliseconds and the tenth at four hundred. B takes ten seconds, with every first token at two hundred fifty milliseconds. Which candidate meets the three hundred millisecond deadline at the ninety-fifth percentile?",
+        "hold": 3
+      },
+      {
+        "id": "select",
+        "say": "Take rank ten, the largest time in each sample. A misses the deadline despite its fifty raw tokens per second. Select B. All four hundred tokens qualify in ten seconds, or forty per second. The whole window costs two cents. Four hundred divided by two cents gives twenty thousand useful tokens per dollar. Start at the model graph. Move to a custom kernel when a repeatable trace identifies work the higher layer cannot fix. Change one factor at a time. Keep the workload, software versions, rank placement, and trace with that decision.",
+        "hold": 1.6
+      }
+    ]
+  }
+]

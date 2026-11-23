@@ -1,0 +1,264 @@
+version: 1
+lesson: language-modeling
+promise: Follow a token from its prefix through prediction, scoring and generation. Decide which row to score,
+  which token to feed back and why a run stopped.
+objectives:
+  - id: counts-and-sharing
+    can: Estimate complete count rows and explain learned shared-feature training and its conditional entropy
+      floor.
+    scenes:
+      - counts
+      - full-vocabulary
+      - sparse-history
+      - context
+      - neural-forward
+      - neural-gradient
+      - conditional-floor
+  - id: objective-and-loss
+    can: Score the observed path under its causal prefixes. Align labels once, count supervised targets and
+      choose a common unit when tokenization changes.
+    scenes:
+      - tokens
+      - sequence
+      - teacher-forcing
+      - objective-boundary
+      - shift-contract
+      - loss
+      - pooled-evaluation
+      - fresh-budgeted-rollout
+  - id: generation
+    can: Read the conditional row for a chosen prefix, apply temperature and filtering, and compare the
+      probabilities of two-token paths before choosing a decoding rule.
+    scenes:
+      - intro
+      - temperature-filter
+      - generation
+      - greedy-branch
+      - transfer
+      - fresh-budgeted-rollout
+  - id: serving
+    can: Identify the consumed prefix and stop reason from a run, check cache parity and calculate the work
+      and storage implied by head, page and context policies.
+    scenes:
+      - cache-lifecycle
+      - cached-parity
+      - work-and-bandwidth
+      - cache-budget
+      - architecture-memory
+      - context-policy
+      - fresh-budgeted-rollout
+  - id: evidence
+    can: Check a policy answer against the retrieved version and test a code completion against execution on
+      changed inputs and operations.
+    scenes:
+      - evidence-failure
+sections:
+  - heading: Next-token scores build a sequence
+    status: taught
+    scenes:
+      - intro
+      - sequence
+  - heading: Next-token distributions after a prompt
+    status: taught
+    scenes:
+      - intro
+      - tokens
+  - heading: Reading the distribution before sampling
+    status: taught
+    scenes:
+      - intro
+      - context
+      - generation
+  - heading: Softmax probabilities from raw logits
+    status: taught
+    scenes:
+      - vocabulary-softmax
+  - heading: Estimating probabilities from observed n-gram counts
+    status: taught
+    scenes:
+      - counts
+      - full-vocabulary
+  - heading: Counting bigram events in code comments
+    status: taught
+    scenes:
+      - full-vocabulary
+  - heading: The sparsity collapse and Laplace smoothing
+    status: taught
+    scenes:
+      - full-vocabulary
+      - sparse-history
+  - heading: Neural language models and distributed representations
+    status: taught
+    scenes:
+      - context
+      - neural-forward
+  - heading: Training a tiny neural n-gram with gradient descent
+    status: taught
+    scenes:
+      - neural-forward
+      - neural-gradient
+      - conditional-floor
+  - heading: Temperature scaling on output logits
+    status: taught
+    scenes:
+      - temperature-filter
+  - heading: Causal versus masked language modeling
+    status: taught
+    scenes:
+      - objective-boundary
+  - heading: Teacher forcing and parallel causal training
+    status: taught
+    scenes:
+      - teacher-forcing
+  - heading: The causal attention mask and parallel GEMM
+    status: taught
+    scenes:
+      - teacher-forcing
+      - work-and-bandwidth
+  - heading: Exposure bias and the train-inference gap
+    status: taught
+    scenes:
+      - generation
+      - transfer
+      - evidence-failure
+  - heading: Shifting tokens into inputs and target labels
+    status: taught
+    scenes:
+      - teacher-forcing
+      - shift-contract
+  - heading: Cross-entropy loss across sequence positions
+    status: taught
+    scenes:
+      - loss
+      - conditional-floor
+      - pooled-evaluation
+  - heading: Perplexity as an effective branching factor
+    status: taught
+    scenes:
+      - loss
+      - pooled-evaluation
+  - heading: The autoregressive generation loop
+    status: taught
+    scenes:
+      - generation
+      - cache-lifecycle
+      - fresh-budgeted-rollout
+  - heading: A deterministic generation loop in code
+    status: taught
+    scenes:
+      - generation
+      - transfer
+  - heading: Greedy selection versus temperature sampling
+    status: taught
+    scenes:
+      - temperature-filter
+      - greedy-branch
+  - heading: Context window limits and memory growth
+    status: taught
+    scenes:
+      - context-policy
+      - cache-budget
+      - fresh-budgeted-rollout
+  - heading: "Production serving: prefill, decode, and the KV cache"
+    status: taught
+    scenes:
+      - cache-lifecycle
+  - heading: Count the work before and after caching
+    status: taught
+    scenes:
+      - work-and-bandwidth
+  - heading: The KV cache and memory bandwidth bottlenecks
+    status: taught
+    scenes:
+      - work-and-bandwidth
+      - cached-parity
+  - heading: Check the cache against a full pass
+    status: taught
+    scenes:
+      - cached-parity
+  - heading: Sizing the KV cache in high bandwidth memory
+    status: taught
+    scenes:
+      - cache-budget
+      - architecture-memory
+  - heading: How next-token predictions can reflect structure
+    status: taught
+    scenes:
+      - evidence-failure
+  - heading: Failure modes and debugging
+    status: taught
+    scenes:
+      - evidence-failure
+      - context-policy
+      - shift-contract
+  - heading: Treating probabilities as ground-truth facts
+    status: taught
+    scenes:
+      - vocabulary-softmax
+      - evidence-failure
+  - heading: Why an LLM isn't a live database
+    status: taught
+    scenes:
+      - evidence-failure
+  - heading: Stress-testing prefix distributions and cache budgets
+    status: taught
+    scenes:
+      - full-vocabulary
+      - conditional-floor
+      - architecture-memory
+quiz:
+  - n: 1
+    status: taught
+    scenes:
+      - intro
+      - sequence
+  - n: 2
+    status: taught
+    scenes:
+      - full-vocabulary
+  - n: 3
+    status: taught
+    scenes:
+      - neural-forward
+      - neural-gradient
+  - n: 4
+    status: taught
+    scenes:
+      - shift-contract
+  - n: 5
+    status: taught
+    scenes:
+      - pooled-evaluation
+  - n: 6
+    status: taught
+    scenes:
+      - temperature-filter
+  - n: 7
+    status: taught
+    scenes:
+      - cache-lifecycle
+      - cache-budget
+      - fresh-budgeted-rollout
+  - n: 8
+    status: taught
+    scenes:
+      - work-and-bandwidth
+  - n: 9
+    status: taught
+    scenes:
+      - cache-budget
+      - architecture-memory
+  - n: 10
+    status: taught
+    scenes:
+      - evidence-failure
+removed: []
+reviews:
+  closed_book:
+    script: 076da00e08dc2068
+    taught: 10
+    partial: 0
+    absent: 0
+  fact_check:
+    script: 076da00e08dc2068
+    open_findings: 0

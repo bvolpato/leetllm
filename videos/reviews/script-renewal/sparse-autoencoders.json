@@ -1,0 +1,350 @@
+{
+  "id": "sparse-autoencoders",
+  "script": "a18b8178303cc9f4",
+  "articleHash": "8588a084141743340742da3881182cf110c47d87f0a9642270262dcc1f181e84",
+  "checked": "2026-11-10T20:18:37.380438+00:00",
+  "closedBook": {
+    "taught": 10,
+    "partial": 0,
+    "absent": 0,
+    "answers": [
+      {
+        "n": 1,
+        "option": 3,
+        "coverage": "taught",
+        "quotes": [
+          {
+            "scene": "packing-bound",
+            "quote": "Johnson-Lindenstrauss instead concerns a finite set of N points: a suitable linear map with dimension on the order of epsilon to minus two times log N approximately preserves all pairwise squared distances within one plus or minus epsilon. It does not certify every map, a transformer’s learned features, or recovery of arbitrary mixtures."
+          }
+        ],
+        "reason": "The result guarantees approximate distances for the finite point set. Recovering sparse transformer features requires additional assumptions and evidence.",
+        "exact": true,
+        "correct": true,
+        "grade": "taught"
+      },
+      {
+        "n": 2,
+        "option": 2,
+        "coverage": "taught",
+        "quotes": [
+          {
+            "scene": "dictionary",
+            "quote": "This supplied dictionary has more entries than the two-dimensional activation space has axes, making it overcomplete."
+          },
+          {
+            "scene": "dictionary",
+            "quote": "A trained sparse autoencoder adds an encoder that estimates the code from an observed activation and a decoder whose columns reconstruct it. Detection and reconstruction weights can be untied. Match the model checkpoint, layer, token positions, and normalization convention before applying an existing dictionary at a hook. For width D and M latent slots, the encoder matrix is M by D and the decoder D by M."
+          }
+        ],
+        "reason": "The encoder maps 512 activation coordinates into 4096 latent slots. The decoder's 4096 columns are candidate directions in the original 512-dimensional space.",
+        "exact": true,
+        "correct": true,
+        "grade": "taught"
+      },
+      {
+        "n": 3,
+        "option": 1,
+        "coverage": "taught",
+        "quotes": [
+          {
+            "scene": "dictionary",
+            "quote": "Tied weights force decoder to equal encoder transpose throughout training; tied initialization starts them aligned but permits independent later updates. These are different constraints."
+          }
+        ],
+        "reason": "Initial alignment permits later differences when subsequent updates are independent.",
+        "exact": true,
+        "correct": true,
+        "grade": "taught"
+      },
+      {
+        "n": 4,
+        "option": 4,
+        "coverage": "taught",
+        "quotes": [
+          {
+            "scene": "shrinkage",
+            "quote": "Even with the correct feature selected, an L-one penalty favors reducing its coefficient. For a fixed unit decoder and a positive target, minimizing squared reconstruction error plus the coefficient penalty gives the target minus half the penalty weight, clipped at zero."
+          },
+          {
+            "scene": "shrinkage",
+            "quote": "The support stays unchanged until the coefficient reaches zero, yet its magnitude shrinks throughout."
+          }
+        ],
+        "reason": "The optimum is max(0, 2 - 1/2) = 1.5. It remains positive, so the one-entry support stays active.",
+        "exact": true,
+        "correct": true,
+        "grade": "taught"
+      },
+      {
+        "n": 5,
+        "option": 3,
+        "coverage": "taught",
+        "quotes": [
+          {
+            "scene": "training-evidence",
+            "quote": "Loss Recovered equals one minus reconstruction-substitution loss damage divided by the chosen ablation-baseline damage, using the same hooks and positions."
+          },
+          {
+            "scene": "training-evidence",
+            "quote": "Report raw losses, activation MSE, support, semantic counterexamples and targeted or collateral task effects together."
+          }
+        ],
+        "reason": "Substitution damage is 3.5 - 3 = 0.5; ablation damage is 8 - 3 = 5. Loss Recovered is 1 - 0.5/5 = 90%. The raw substitution damage remains 0.5.",
+        "exact": true,
+        "correct": true,
+        "grade": "taught"
+      },
+      {
+        "n": 6,
+        "option": 2,
+        "coverage": "taught",
+        "quotes": [
+          {
+            "scene": "ablation",
+            "quote": "To test a feature edit, subtract its contribution from the original activation. This preserves the residual and isolates the specified direction's removal at this hook."
+          },
+          {
+            "scene": "feature-audit",
+            "quote": "The original activation is two, point zero four, reconstruction two, zero, and the removed feature contributes two, zero. A score fifty times coordinate two is two before the edit. Predict error-preserving removal: zero, point zero four still scores two. Reconstruction-only removal gives zero and falsely blames the feature for losing that score."
+          }
+        ],
+        "reason": "Subtracting [3,0] from [3,0.06] gives [0,0.06], whose score is 50 × 0.06 = 3. Reconstruction-only removal would discard the residual.",
+        "exact": true,
+        "correct": true,
+        "grade": "taught"
+      },
+      {
+        "n": 7,
+        "option": 1,
+        "coverage": "taught",
+        "quotes": [
+          {
+            "scene": "coverage",
+            "quote": "A sparse representation can absorb a general feature into a more specific direction. Our combined direction reconstructs two coordinates with one active entry. Reconstruction stays exact while the detector for the general feature remains silent. Pure-looking top examples can therefore coexist with incomplete semantic recall."
+          }
+        ],
+        "reason": "The specialized sparrow direction absorbs the broader bird contribution, allowing exact reconstruction while hiding failures of the generic bird detector.",
+        "exact": true,
+        "correct": true,
+        "grade": "taught"
+      },
+      {
+        "n": 8,
+        "option": 4,
+        "coverage": "taught",
+        "quotes": [
+          {
+            "scene": "selection",
+            "quote": "AuxK selects inactive latents to reconstruct the main residual error, with a separate auxiliary gradient while preserving main-path support selection."
+          }
+        ],
+        "reason": "The described auxiliary residual-reconstruction gradient and preserved main support rule match AuxK.",
+        "exact": true,
+        "correct": true,
+        "grade": "taught"
+      },
+      {
+        "n": 9,
+        "option": 3,
+        "coverage": "taught",
+        "quotes": [
+          {
+            "scene": "steering",
+            "quote": "Steering adds a scaled decoder direction to the activation at its matching hook, then continues the model's computation."
+          }
+        ],
+        "reason": "Twice the decoder direction is [0,1,1,0]. Adding it to the activation gives [0.2,0.9,1.0,0.4].",
+        "exact": true,
+        "correct": true,
+        "grade": "taught"
+      },
+      {
+        "n": 10,
+        "option": 2,
+        "coverage": "taught",
+        "quotes": [
+          {
+            "scene": "training-evidence",
+            "quote": "Distinct low-error seeds need not identify the same dictionary."
+          },
+          {
+            "scene": "coverage",
+            "quote": "Combine them with support counts, semantic counterexamples, matched controls, and intervention results at the exact hook."
+          }
+        ],
+        "reason": "Low reconstruction error does not determine dictionary identity. Comparing directions, activation contexts, and controlled interventions provides additional evidence.",
+        "exact": true,
+        "correct": true,
+        "grade": "taught"
+      }
+    ]
+  },
+  "factCheck": {
+    "scenes": [
+      {
+        "id": "intro",
+        "evidence": "Supported. Read fixtures.mjs, model.mjs and intro.mjs. The mixture is 1.5[1,0] + 1[0.8,0.6] = [2.3,0.6]. Coordinate one increases by 0.8 while the first contribution remains 1.5. Both directions have unit norm and their dot product is 0.8. Mixed coordinates do not establish an overcomplete representation: the orthogonal pair [0.8,0.6] and [0.6,-0.8] also contributes to the same coordinate. The narration correctly distinguishes a residual coordinate from a neuron with a coordinate-specific nonlinearity. Its separation of reconstruction evidence from computational explanation is consistent with the primary SAE research.",
+        "sourceUrls": [
+          "https://arxiv.org/html/2309.08600v3"
+        ]
+      },
+      {
+        "id": "packing-bound",
+        "evidence": "Supported under the stated independent fair-sign assumptions and the usual positive distortion tolerance. Orthogonal nonzero vectors are linearly independent, so there can be at most D. Johnson–Lindenstrauss Lemma 1 and its random-projection proof support finite-set dimension reduction, not arbitrary-mixture recovery. Independently derived the sign bound: D(d_i·d_j) is a sum of D independent fair signs. Its moment-generating function is cosh(t)^D ≤ exp(Dt²/2). Optimizing the Chernoff bound gives 2exp(-Dε²/2) for two tails. Multiplying by M(M-1)/2 unordered pairs gives the spoken bound. Pair events need not be independent. For fixed ε and failure tolerance, this permits exponentially many directions. Independently executed the scene's sampling functions: its 28 squared-distance ratios range from 0.708786 to 1.334770, within [0.5,1.5]. The displayed bounds for D=16,64,256 are 74.7051, 0.185175 and 6.99×10^-12. The repaired 13-dimensional construction has unit active directions, probe overlaps 0.1 and active-active overlaps 0.01. Its projected sum is [1.2,0]. The coherence inequality follows directly from the triangle inequality, and 1.2 exceeds threshold 1.",
+        "sourceUrls": [
+          "https://web.stanford.edu/class/cs114/readings/JL-Johnson.pdf"
+        ]
+      },
+      {
+        "id": "dictionary",
+        "evidence": "Supported. Executed encoderFixture() from the actual model. Its pre-activations are approximately [1.5,1,-2.3,-0.6,-2.9], so ReLU produces [1.5,1,0,0,0] and reconstructs [2.3,0.6]. Five decoder directions in two dimensions are overcomplete. The code is supplied by construction, which does not establish uniqueness. The M×D encoder and D×M decoder dimensions follow from matrix multiplication. Bricken's architecture documents shared decoder-bias subtraction and addition. Sonnet's published formulation supplies an example without pre-encoder subtraction. A trained reference is not constrained to equal the data mean. Gao Appendix A.1 explicitly distinguishes aligned initialization from ongoing weight tying. The hook-compatibility instructions are appropriate prerequisites, not guarantees of feature validity.",
+        "sourceUrls": [
+          "https://transformer-circuits.pub/2023/monosemantic-features/index.html?trk=public_post_comment-text",
+          "https://transformer-circuits.pub/2024/scaling-monosemanticity/index.html",
+          "https://arxiv.org/html/2406.04093v1"
+        ]
+      },
+      {
+        "id": "objective",
+        "evidence": "Supported. Read and executed the stage's actual objectiveTerms(), rather than substituting the separate legacy candidateLoss() fixture. Here D=2 and M=5. The dense code [1.5,1,0,0,0] reconstructs [2.3,0.6], with loss 0.5λ. The sparse code [1.5,0,0,0,0] reconstructs [1.5,0], with MSE (0.8²+0.6²)/2=0.5 and loss 0.5+0.3λ. They cross at λ=2.5. At λ=1 their losses are 0.5 and 0.8. At λ=4 they are 2 and 1.7. For a positive latent, differentiating λΣ|z_i|/M gives λ/M. Encoder updates also include the encoder Jacobian. For positive scale s, replacing z_i by z_i/s and d_i by sd_i preserves reconstruction while dividing an unweighted L1 contribution by s. Unit columns prevent this reciprocal scaling, and |z_i|‖d_i‖ is invariant to it.",
+        "sourceUrls": [
+          "https://arxiv.org/html/2407.14435v1",
+          "https://transformer-circuits.pub/2024/scaling-monosemanticity/index.html"
+        ]
+      },
+      {
+        "id": "shrinkage",
+        "evidence": "Supported for the isolated objective shown. Differentiating (a-z)²+λz for z>0 gives 2(z-a)+λ=0. Applying z≥0 yields max(0,a-λ/2). The scene uses a=1 and no dimension-averaging factor in this scalar objective. Its optima at λ=0.4,1.2,1.9,2.4 are 0.8,0.4,0.05,0. Support remains unchanged until λ reaches 2, although magnitude decreases earlier. This establishes the distinction between support count and magnitude regularization. The narration correctly notes that other loss reductions change the coefficient.",
+        "sourceUrls": [
+          "https://arxiv.org/html/2404.16014v2"
+        ]
+      },
+      {
+        "id": "selection",
+        "evidence": "Spoken mechanisms and recipe settings are supported. The actual TopK function maps [0.1,2.4,0.3,1.7,0.05] to [0,2.4,0,1.7,0]. Rectification permits fewer than k nonzeros. Threshold 1.65 retains two entries in the first supplied context and one in the second. Executed selectionHistory(): the four-context firing counts are [0,3,0,0,1], demonstrating why a short silent window can miss a rare activation. Gao Appendix A.2 specifies residual reconstruction with selected dead latents, typically a 10-million-token window and auxiliary weight 1/32. The primary Bricken resampling appendix specifies loss-weighted input sampling, parameter and optimizer-state resets, and possible loss spikes. JumpReLU's positive threshold and specialized training estimator are documented in its paper. The resampling visual conflicts with the input-vector procedure, as recorded in findings.",
+        "sourceUrls": [
+          "https://arxiv.org/html/2406.04093v1",
+          "https://arxiv.org/html/2407.14435v1",
+          "https://transformer-circuits.pub/2023/monosemantic-features/index.html?curius=856"
+        ]
+      },
+      {
+        "id": "gated-learning",
+        "evidence": "Supported, including the repaired bias qualification. Gated SAE Equations 6–8 specify binary detection, rectified magnitudes, shared projection directions with positive row rescaling, separate biases, and L1 on rectified gate pre-activations. Appendix G computes x_center=x-b_dec before reconstructing through stopped output weights and bias. That leaves a live centering-bias path. Independently checked the scalar auxiliary loss [0.4ReLU(2(2-b))-2]² with the output path fixed. At b=0 its derivative is 2(-0.4)(-0.8)=0.64. A central difference gives 0.640000000024. Stopping the input-centering path removes that derivative. No direct magnitude penalty does not imply immunity to shared-parameter updates. JumpReLU Sections 3–4 document strict positive thresholds, L0 regularization and windowed estimators. Narrow bandwidth increases noise, while broad bandwidth increases bias. The proposed matched comparisons and rejection of universal recovery claims are justified limits.",
+        "sourceUrls": [
+          "https://arxiv.org/html/2404.16014v2",
+          "https://arxiv.org/html/2407.14435v1"
+        ]
+      },
+      {
+        "id": "ablation",
+        "evidence": "Supported. Read ablationState(), ablation.mjs and residualTest(). Here x=[1,0.1], reconstruction=[1,0], residual=[0,0.1], and score=100x₂. Original score is 10. Subtracting [1,0] from the original gives [0,0.1], still scoring 10. Subtracting it from the reconstruction gives [0,0], scoring 0. Reconstruction MSE is 0.1²/2=0.005, despite losing the entire readout. Algebraically, x-z_fd_f retains the cached residual, decoder bias and other cached contributions. This isolates the specified vector edit, without proving that a semantic concept has been removed.",
+        "sourceUrls": [
+          "https://arxiv.org/html/2403.19647v2",
+          "https://arxiv.org/html/2409.14507v1"
+        ]
+      },
+      {
+        "id": "steering",
+        "evidence": "Spoken claims are supported. Read the actual baseline, direction, readouts and stage implementation. With x=[0.2,0.1] and d=[0,1], the edited activation is [0.2,0.1+α]. Candidate, horizontal and overlapping readouts are respectively 0.1+α, 0.2 and 0.2+0.8α. Thus the horizontal readout is invariant and collateral movement equals α(r·d). This geometrical control establishes only that readout's invariance, which the narration appropriately supplements with held-out behavioral checks. Sonnet's primary study documents decoder-direction interventions. The cached-clamp warning is demonstrated independently in the following scene. However, this scene's final bar labels confuse coefficient changes with full re-encoded coefficients, as recorded in findings.",
+        "sourceUrls": [
+          "https://transformer-circuits.pub/2024/scaling-monosemanticity/index.html"
+        ]
+      },
+      {
+        "id": "clamp-and-gradient",
+        "evidence": "Supported. Read CLAMP and GRADIENT from the scene. Replacing one cached coefficient changes x by (c-z_f)d_f and leaves the original residual unchanged. The encoder gives ReLU(1+2×0.5)=2. Requesting 3 with decoder [0,1] adds [0,1], producing [1,1.5]. Re-encoding gives 1+2×1.5=4. The sum readout changes from 1.5 to 2.5. For the gradient fixture, [3,100]·[1,0.1]=13. With live e(z)=x-z[1,0], the derivative of z[1,0]+e(z) is zero. With cached e=[0,0.1] held constant, the score is 3z+10 and its derivative is 3. Recomputing e after an edit cancels the edit. Marks Appendix A.3 explicitly describes both error stop-gradients and pass-through gradients needed to restore upstream paths.",
+        "sourceUrls": [
+          "https://arxiv.org/html/2403.19647v2"
+        ]
+      },
+      {
+        "id": "coverage",
+        "evidence": "Supported. Executed coverageFixture(). At x=[1,1], the general detector is ReLU(x₁-x₂)=0. The unit combined direction [1,1]/√2 has coefficient √2 and reconstructs [1,1] with one active entry. This is a supplied absorption example, not an empirical learned result. Chanin's study independently documents seemingly clean latents with missing recall. Loss recovery changes from 1-0.4/(6-2)=0.90 to 1-0.4/(10-2)=0.95 despite identical substitution damage. Gao's downstream-loss discussion supports the warning about destructive baselines. The closing experimental protocol is appropriate, but success would support the specified edit and prediction rather than establish complete semantic recovery.",
+        "sourceUrls": [
+          "https://arxiv.org/html/2409.14507v1",
+          "https://arxiv.org/html/2406.04093v1"
+        ]
+      },
+      {
+        "id": "hook-and-circuit",
+        "evidence": "Supported. The hook descriptions distinguish accumulated residual state from branch outputs, and matching width alone cannot establish matching coordinates or distributions. The authored score is 0.9×1.2+0.8×0.1+0.7×0=1.08+0.08=1.16. Removing the first product leaves 0.08, while removing the zero product leaves 1.16. These are construction facts, not measured circuit evidence. The cited induction, IOI and greater-than studies exist and concern particular models and tasks. Circuit Tracing's architecture section confirms same-layer reads and separate same/later-layer MLP writes, with attention retained. Its local model freezes attention patterns and normalization denominators and adds prompt-specific errors, producing baseline agreement by construction. Its attribution definitions use source activation times a direct-path derivative of target pre-activation, stopping intervening nonlinear components. They exclude unrestricted mediation through other MLPs and changes to attention patterns. The stated pruning, error-node and inactive-path limitations are consistent with the method.",
+        "sourceUrls": [
+          "https://transformer-circuits.pub/2025/attribution-graphs/methods.html",
+          "https://transformer-circuits.pub/2022/in-context-learning-and-induction-heads/index.html",
+          "https://arxiv.org/abs/2211.00593",
+          "https://arxiv.org/abs/2305.00586"
+        ]
+      },
+      {
+        "id": "training-evidence",
+        "evidence": "The trainer description is supported by direct code inspection. It generates 768 noisy mixtures using 24 normalized directions in eight dimensions, selects 2–4 directions per sample, and trains a 64-latent uncentered ReLU SAE for 300 full-batch steps. Its reconstruction derivative is 2(x_hat-x)/(N D). The L1 derivative is 5sign(z)/(N M), followed by the ReLU mask. Decoder columns are renormalized after updates. Streaming, AuxK and learned thresholds are absent. The completed-run numbers remain independently unverified, as recorded in findings. Conditional on those values, support around 19 exceeds the generator's 2–4, and an absolute-cosine change of 0.001 provides little recovery evidence. Absolute matching loses sign information and permits repeated use of a learned column by definition. Sonnet documents splitting with width. Independently checked loss recovery: 90% and 95% follow from the stated raw losses. With clean=2 and ablation=4, substitution=5 gives -0.5 and substitution=1.9 gives 1.05. A zero denominator is undefined. Storage is 200000×4096×4=3,276,800,000 bytes=3.0517578125 GiB.",
+        "sourceUrls": [
+          "https://arxiv.org/html/2406.04093v1",
+          "https://transformer-circuits.pub/2024/scaling-monosemanticity/index.html"
+        ]
+      },
+      {
+        "id": "feature-audit",
+        "evidence": "Spoken external claims are supported. Sonnet reports particular semantic and steering examples alongside incomplete coverage. Cunningham Section 6.2 documents downstream degradation from reconstruction substitution. Heap's ICLR 2026 proceedings and paper confirm comparisons across trained, re-randomized and step-zero Pythia models, often yielding similar aggregate explanation and reconstruction metrics. This challenges the metrics as sufficient evidence, not every feature's meaning. Anthropic's May 7, 2026 NLA paper describes activation-to-text-to-activation modules, observed confabulation and possible inference beyond encoded information. The fresh arithmetic is correct: x=[2,0.04], reconstruction=[2,0], residual=[0,0.04], and score=50x₂=2. Error-preserving removal retains score 2, while reconstruction-only removal gives 0. Its MSE is 0.04²/2=0.0008. The audit instructions are reasonable experimental criteria, not a proof of safety. questions.ts places the decoding lesson immediately after this lesson. The study-comparison bars lack substantiated quantitative provenance, as recorded in findings.",
+        "sourceUrls": [
+          "https://transformer-circuits.pub/2024/scaling-monosemanticity/index.html",
+          "https://arxiv.org/html/2309.08600v3",
+          "https://proceedings.iclr.cc/paper_files/paper/2026/hash/7ab63a5314680e2f083cb288abeaeb8e-Abstract-Conference.html",
+          "https://proceedings.iclr.cc/paper_files/paper/2026/file/7ab63a5314680e2f083cb288abeaeb8e-Paper-Conference.pdf",
+          "https://transformer-circuits.pub/2026/nla/index.html"
+        ]
+      }
+    ],
+    "findings": [],
+    "limitations": [
+      "Reviewed all supplied narration and the current 14-scene lesson.yaml. Its SHA-256 is eec80b222635daeb783a81efbcf975e93a8544576593173d86765aea055dfbcd. Prior repair notes were treated as hypotheses.",
+      "The numerical CPU training results were not independently reproduced. NumPy is unavailable in the checked interpreter, and no dependencies were installed.",
+      "Visual findings come from scene source and executed mathematical fixtures. No rendered frames, continuous playback, synthesized speech, timing or audiovisual synchronization were reviewed.",
+      "Published experimental claims were checked against primary reports. Their original large-model experiments were not independently replicated.",
+      "The Gated SAE bias conclusion concerns the published pseudocode and an independent derivative calculation. Original and downstream trainer implementations were not exhaustively inspected.",
+      "The full 2023 Bricken page exceeded the web reader's size limit. Its detailed resampling appendix was verified through search-indexed text from the primary page.",
+      "Article-only claims, captions, quizzes and software-version statements outside the narration were not exhaustively audited.",
+      "No edits, external writes or subagents were used."
+    ],
+    "resolvedFindings": [
+      {
+        "scene": "steering",
+        "quote": "Clamping a coefficient in a cached decomposition also needn't make the re-encoded coefficient equal the requested value.",
+        "problem": "Confirmed visual arithmetic/label error accompanying a correct spoken statement. The final comparison labels α as “the edit asks for” and 2α as “the encoder reads back”. The scene's encoder reader is [1,2], baseline is [0.2,0.1], and edited activation is [0.2,0.1+α]. Its actual re-encoded coefficient is 0.4+2α. At α=0.7 the bar shows 1.4, but the coefficient is 1.8. The displayed values are changes, not full coefficients.",
+        "correction": "Label the bars “requested coefficient change” and “actual encoded coefficient change”, or include the baseline and display requested coefficient 0.4+α versus re-encoded coefficient 0.4+2α. The spoken warning can remain.",
+        "source": "[steering.mjs, final comparison](../../../videos/stage-lessons/sparse-autoencoders/scenes/steering.mjs#L117), plus steeringBaseline and steeringDirection in fixtures.mjs. Independently evaluated the displayed and actual formulas."
+      },
+      {
+        "scene": "selection",
+        "quote": "Anthropic’s earlier resampling instead samples high-loss input vectors, resets selected directions, biases and modified optimizer state; it can cause a loss spike.",
+        "problem": "Confirmed mismatch between the correct narration and its visual mechanism. The resampling animation explicitly computes unitResidual from history.residual=[-1,-0.5] and rotates the reset column toward that residual. The residual arrow and label remain visible. Bricken's documented procedure instead samples an input vector according to squared per-input loss and normalizes that input. The animation therefore illustrates residual-directed resetting while the narration distinguishes input-based resampling.",
+        "correction": "Show a sampled high-loss input vector and reset toward its normalized direction. Keep it visually distinct from the reconstruction residual used for the auxiliary-loss explanation.",
+        "source": "[selection.mjs](../../../videos/stage-lessons/sparse-autoencoders/scenes/selection.mjs#L254), construction.mjs selectionHistory(), and [Bricken, Neuron Resampling, steps 3–6](https://transformer-circuits.pub/2023/monosemantic-features/index.html?curius=856)."
+      },
+      {
+        "scene": "training-evidence",
+        "quote": "Its supplied completed run reduces reconstruction MSE from one point four two six to point one two eight. Average active support is eighteen point nine out of sixty-four on training samples and nineteen point five held out, much denser than the generator. Held-out fraction of variance unexplained is point one six nine, while median best absolute cosine changes only from point seven nine eight to point seven nine nine.",
+        "problem": "Unverified numerical result, not a demonstrated falsehood. The scene's RUN object copies these endpoints, and the article contains a matching output transcript. Neither independently establishes that the supplied trainer produces them. I inspected the trainer and diagnostics but could not reproduce the run because the available Python interpreter raises ModuleNotFoundError for numpy. No independent saved trained weights or run output was established.",
+        "correction": "Keep these values classified as supplied results pending a reproducible execution of the exact trainer, held-out evaluation and alignment diagnostic. If publication must precede verification, explicitly describe them as an unverified supplied log and make the recovery conclusion conditional.",
+        "source": "[training-evidence.mjs, RUN](../../../videos/stage-lessons/sparse-autoencoders/scenes/training-evidence.mjs#L34) and [actual trainer](../../../web/src/content/fundamentals/mechanistic-interpretability-sparse-autoencoders/content.md#L610)."
+      },
+      {
+        "scene": "training-evidence",
+        "quote": "The article’s CPU lab draws mixtures of two to four of twenty-four known directions in eight dimensions. It trains an uncentered ReLU encoder, decoder bias and sixty-four unit-normalized decoder columns with full-batch gradient descent.",
+        "problem": "The accompanying activity display is an independently authored illustration, not the stated trainer's activations. lab() generates different directions with seededRandom(11), uses unit mixture coefficients, and selects latent masks randomly with a count near 18.9. It never runs the trained encoder. The projected chains also filter samples to fit the plane. No visible qualification identifies these masks as illustrative, so the display can be mistaken for evidence from the CPU run.",
+        "correction": "Add a persistent qualification such as “schematic mixtures and illustrative latent activity”. Alternatively, drive both the projected mixtures and latent masks from the actual generator and trained encoder outputs.",
+        "source": "[training-evidence.mjs, lab()](../../../videos/stage-lessons/sparse-autoencoders/scenes/training-evidence.mjs#L47), especially the random active set at line 68, compared with the article's actual NumPy trainer."
+      },
+      {
+        "scene": "feature-audit",
+        "quote": "A 2026 Pythia study found that aggregate explanation and reconstruction scores often looked similar for trained and randomized or initialization models.",
+        "problem": "The spoken summary is supported, but its quantitative visual is unverified. The scene labels the bars “aggregate scores, in one study” while assigning hard-coded lengths 0.94 and 0.9. It specifies no metric, model size, layer, randomization variant or figure that substantiates those lengths. The paper reports several different metrics and conditions, so these bars cannot be treated as a verified study result.",
+        "correction": "Label the comparison explicitly as schematic, or replace it with a sourced metric for a named Pythia size, layer and randomization condition, including its scale and figure reference.",
+        "source": "[feature-audit.mjs](../../../videos/stage-lessons/sparse-autoencoders/scenes/feature-audit.mjs#L121) and [Heap et al., ICLR 2026, Figures 1–2 and appendices](https://proceedings.iclr.cc/paper_files/paper/2026/file/7ab63a5314680e2f083cb288abeaeb8e-Paper-Conference.pdf)."
+      }
+    ],
+    "verification": "An independent reviewer checked the revised steering comparison, sampled high-loss input, conditional narration and schematic diagrams against all five findings. The reviewer confirmed that all 15 quoted passages still support the ten quiz answers. The training log has not been independently reproduced."
+  }
+}

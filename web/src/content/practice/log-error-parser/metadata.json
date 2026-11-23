@@ -1,0 +1,218 @@
+{
+  "id": "log-error-parser",
+  "slug": "log-error-parser",
+  "title": "Log Error Parser",
+  "difficulty": "Easy",
+  "category": "Parsing",
+  "language": "python3",
+  "timeEstimateMinutes": 20,
+  "timeLimitMs": 2000,
+  "memoryLimitMb": 128,
+  "order": 70,
+  "tags": [
+    "Counter",
+    "splitlines",
+    "sorting",
+    "logs"
+  ],
+  "source": "Company prep",
+  "summary": "Summarize top error messages from noisy logs with deterministic tie-breaking.",
+  "starterCode": [
+    "def top_errors(log_text: str, limit: int = 3) -> list[tuple[str, int]]:",
+    "    pass"
+  ],
+  "testCases": [
+    {
+      "name": "counts errors and sorts ties",
+      "visibility": "sample",
+      "setup": [
+        "from solution import top_errors",
+        "log_text = \"\"\"",
+        "2026-01-01 INFO start",
+        "2026-01-01 ERROR timeout",
+        "2026-01-01 ERROR bad gateway",
+        "2026-01-01 ERROR timeout",
+        "2026-01-01 ERROR auth failed",
+        "2026-01-01 INFO done",
+        "\"\"\""
+      ],
+      "input": "log_text = \"\"\"\n2026-01-01 INFO start\n2026-01-01 ERROR timeout\n2026-01-01 ERROR bad gateway\n2026-01-01 ERROR timeout\n2026-01-01 ERROR auth failed\n2026-01-01 INFO done\n\"\"\"\ntop_errors(log_text, limit=2)",
+      "expected": "[(\"timeout\", 2), (\"auth failed\", 1)]",
+      "expression": "top_errors(log_text, limit=2)"
+    },
+    {
+      "name": "ignores continuations and blank lines",
+      "visibility": "hidden",
+      "setup": [
+        "from solution import top_errors",
+        "log_text = \"\"\"",
+        "2026-01-01 ERROR failed request",
+        "    stack line one",
+        "    stack line two",
+        "    nested ERROR should ignore",
+        "",
+        "2026-01-01 ERROR failed request",
+        "2026-01-01 ERROR zeta",
+        "2026-01-01 ERROR alpha",
+        "\"\"\""
+      ],
+      "input": "log_text = \"\"\"\n2026-01-01 ERROR failed request\n    stack line one\n    stack line two\n    nested ERROR should ignore\n2026-01-01 ERROR failed request\n2026-01-01 ERROR zeta\n2026-01-01 ERROR alpha\n\"\"\"\ntop_errors(log_text, limit=10)",
+      "expected": "[(\"failed request\", 2), (\"alpha\", 1), (\"zeta\", 1)]",
+      "expression": "top_errors(log_text, limit=10)"
+    },
+    {
+      "name": "returns empty when no error lines exist",
+      "visibility": "sample",
+      "setup": [
+        "from solution import top_errors"
+      ],
+      "input": "top_errors(\"INFO boot\\nWARN retry\\nERRORish not a marker\")",
+      "expected": "[]"
+    },
+    {
+      "name": "requires space delimited error marker",
+      "visibility": "hidden",
+      "setup": [
+        "from solution import top_errors",
+        "logs = \"ERROR disk full\\n2026ERROR disk full\\n2026 ERROR disk full\""
+      ],
+      "input": "logs = \"ERROR disk full\\n2026ERROR disk full\\n2026 ERROR disk full\"\ntop_errors(logs)",
+      "expected": "[(\"disk full\", 1)]",
+      "expression": "top_errors(logs)"
+    },
+    {
+      "name": "keeps message text after the first marker",
+      "visibility": "hidden",
+      "setup": [
+        "from solution import top_errors",
+        "logs = \"t ERROR first ERROR nested\\nt ERROR first ERROR nested\""
+      ],
+      "input": "logs = \"t ERROR first ERROR nested\\nt ERROR first ERROR nested\"\ntop_errors(logs, limit=1)",
+      "expected": "[(\"first ERROR nested\", 2)]",
+      "expression": "top_errors(logs, limit=1)"
+    },
+    {
+      "name": "counts one error with the default limit",
+      "visibility": "sample",
+      "description": "A single valid error line produces one count without an explicit limit.",
+      "setup": [
+        "from solution import top_errors"
+      ],
+      "input": "top_errors(\"2026-01-01 ERROR disk full\")",
+      "expected": "[(\"disk full\", 1)]",
+      "feedback": "Use the message after the space-delimited ERROR marker as the key."
+    },
+    {
+      "name": "ignores empty error messages",
+      "visibility": "hidden",
+      "description": "A marker with only whitespace after it should not create an empty key.",
+      "setup": [
+        "from solution import top_errors"
+      ],
+      "input": "top_errors(\"t ERROR   \\nt ERROR useful\")",
+      "expected": "[(\"useful\", 1)]",
+      "feedback": "Strip the extracted message and count it only when text remains."
+    },
+    {
+      "name": "zero limit returns no rows",
+      "visibility": "hidden",
+      "description": "A zero result limit is an empty output boundary.",
+      "setup": [
+        "from solution import top_errors"
+      ],
+      "input": "top_errors(\"t ERROR a\\nt ERROR b\", limit=0)",
+      "expected": "[]",
+      "feedback": "Apply the limit after deterministic count sorting."
+    },
+    {
+      "name": "negative limit returns no rows",
+      "visibility": "hidden",
+      "description": "A negative result limit is also an empty output boundary.",
+      "feedback": "Treat non-positive limits as an empty result before slicing.",
+      "setup": [
+        "from solution import top_errors"
+      ],
+      "input": "top_errors(\"t ERROR a\", limit=-1)",
+      "expected": "[]"
+    },
+    {
+      "name": "default limit truncates after three distinct errors",
+      "visibility": "hidden",
+      "description": "Without an explicit limit, return at most three rows after count/message sort.",
+      "feedback": "Default limit is 3; apply it after sorting by count desc then message asc.",
+      "setup": [
+        "from solution import top_errors"
+      ],
+      "input": "top_errors(\"t ERROR d\\nt ERROR c\\nt ERROR b\\nt ERROR a\\nt ERROR d\")",
+      "expected": "[(\"d\", 2), (\"a\", 1), (\"b\", 1)]"
+    },
+    {
+      "name": "tabs continuations CRLF and exact internal spaces",
+      "visibility": "hidden",
+      "setup": [
+        "from solution import top_errors"
+      ],
+      "input": "top_errors(\"t ERROR  alpha  beta  \\r\\n\\tt ERROR ignored\\r\\nt\\tERROR\\tignored\\r\\nt ERROR alpha beta\\r\\nt ERROR alpha  beta\", limit=5)",
+      "expected": "[(\"alpha  beta\", 2), (\"alpha beta\", 1)]"
+    },
+    {
+      "name": "nonbreaking indentation and message edges are whitespace",
+      "visibility": "hidden",
+      "setup": [
+        "from solution import top_errors"
+      ],
+      "input": "top_errors(\"\\u00a0t ERROR ignored\\nt ERROR \\u00a0fact\\u00a0\\nt ERROR fact\")",
+      "expected": "[(\"fact\", 2)]"
+    }
+  ],
+  "clarifyingQuestions": [
+    "Can error messages span multiple lines?",
+    "Should the timestamp or request ID be part of the grouping key?",
+    "Should matching be exact, regex-based, or structured JSON parsing?"
+  ],
+  "followUps": [
+    "Add rolling-window counts by minute.",
+    "Group similar errors by normalized template.",
+    "Track top errors per service or tenant."
+  ],
+  "followUpGuide": [
+    "For rolling windows, parse the timestamp bucket first and maintain `Counter` objects keyed by minute. Evict old buckets as the window moves.",
+    "",
+    "For templates, normalize variable fragments before counting. Good clarifying questions: which fields are request IDs, UUIDs, numbers, or tenant-specific values?",
+    "",
+    "For per-service counts, extract service as a separate dimension and keep `dict[service, Counter]`. Sorting stays the same inside each counter."
+  ],
+  "complexityAnalysis": [
+    "- Supplied parser: scan n input characters and sort u distinct messages. Time: O(n + u log u) expected if string comparisons are bounded; otherwise add the actual character work of comparing tied messages. Space: O(n + u), since splitlines materializes line strings, message keys consume characters, and sorting materializes u rows.",
+    "- Streaming parser follow-up: retain distinct-message characters s and a partial-line buffer b. Time: O(n + u log u) expected with the same comparison assumption. Space: O(s + u + b), plus output.",
+    "- Bounded top-k follow-up: after counting, select q = min(limit, u) results with a heap. Time: O(n + u log(q + 1)) expected with bounded comparisons. Space: O(s + u + q), excluding input/line materialization."
+  ],
+  "solutionGuide": [
+    "Use [`splitlines()`](https://docs.python.org/3/library/stdtypes.html#str.splitlines), reject indented lines, and look for the first literal delimiter `\" ERROR \"`. The trimmed suffix is the grouping key; preserve internal whitespace.",
+    "",
+    "A `Counter` handles counts. Sorting by `(-count, message)` gives deterministic output.",
+    "",
+    "```python",
+    "from collections import Counter",
+    "",
+    "",
+    "def top_errors(log_text: str, limit: int = 3) -> list[tuple[str, int]]:",
+    "    if limit <= 0:",
+    "        return []",
+    "    counts = Counter()",
+    "    for line in log_text.splitlines():",
+    "        if line[:1].isspace():",
+    "            continue",
+    "        marker = \" ERROR \"",
+    "        if marker not in line:",
+    "            continue",
+    "        message = line.split(marker, 1)[1].strip()",
+    "        if message:",
+    "            counts[message] += 1",
+    "",
+    "    return sorted(counts.items(), key=lambda item: (-item[1], item[0]))[:limit]",
+    "```",
+    "",
+    "For production logs, clarify whether request IDs, variable IDs, or stack traces should be normalized out before counting."
+  ]
+}

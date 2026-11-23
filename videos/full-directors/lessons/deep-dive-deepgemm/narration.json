@@ -1,0 +1,352 @@
+[
+  {
+    "id": "c01",
+    "title": "One row crosses a tile boundary",
+    "sourceChapters": [
+      "c01"
+    ],
+    "beats": [
+      {
+        "id": "c01-b01",
+        "say": "A mixture-of-experts model sends token rows to different networks. Look at the four stacks on this GPU. Teal marks the rows that arrived. Each expert gets storage in blocks of a hundred and twenty-eight rows. Where is there room for one more row?",
+        "hold": 2.4
+      },
+      {
+        "id": "c01-b02",
+        "say": "The first three stacks each have room. Count the outlines. The four experts need five blocks for four hundred and sixteen assignments. That reserves six hundred and forty rows. The hatched space is padding. Look at expert three, on the right. Its next assignment is waiting. How much more storage will that one row need?",
+        "hold": 2.8
+      },
+      {
+        "id": "c01-b03",
+        "say": "One whole block. Slide the row into place. Expert three now needs two blocks. The new total is seven hundred and sixty-eight reserved rows for four hundred and seventeen assignments. The other three stacks keep their boundaries. Four separate launches avoid this pack, although each multiply can still have a partial edge tile. One grouped kernel shares a launch across experts. Include the cost of packing the rows when you compare them.",
+        "hold": 1.4
+      },
+      {
+        "id": "c01-b04",
+        "say": "DeepGEMM supplies specialized GPU operations within a larger model runtime. The caller routes and packs these rows. The kernel computes expert projections, and the caller restores token order. Request admission and batching stay with the serving system. Follow one row into the multiply, then back to the token that sent it.",
+        "hold": 1
+      },
+      {
+        "id": "c01-b05",
+        "say": "Lay those reserved segments end to end. Token seven owns the first valid row in expert two. To find it in the packed array, skip the reservations for experts zero and one. Their widths add to three hundred and eighty-four. Follow the marker to packed row three hundred and eighty-four. Save its source ID and router weight for the return trip.",
+        "hold": 1.5
+      }
+    ]
+  },
+  {
+    "id": "c02",
+    "title": "Build one cell of the output",
+    "sourceChapters": [
+      "c02"
+    ],
+    "beats": [
+      {
+        "id": "c02-b01",
+        "say": "Start with the smallest useful operation. An output element pairs one row from the activation matrix with one row from the stored weight matrix. Read down the first coordinate. One times three gives three. Move right. Two times four adds eight. What goes in the first cell?",
+        "hold": 2
+      },
+      {
+        "id": "c02-b02",
+        "say": "Eleven. Write it at the intersection. The next activation row reuses the same weight row and produces a different output. Zero times three contributes zero. Negative one times four gives negative four. Write that below eleven. Repeat both pairings with the second weight row to finish the tile.",
+        "hold": 1.6
+      },
+      {
+        "id": "c02-b03",
+        "say": "GEMM means general matrix multiplication. In the NT interface, the caller stores the weights by rows and transposes B in the formula. A has M rows, B has N, and each row has K coordinates. Count a multiply and an add separately at each coordinate. With the dimensions on screen, what shape does D have, and how many operations do the dot products take?",
+        "hold": 2.6
+      },
+      {
+        "id": "c02-b04",
+        "say": "The output has five hundred and twelve rows and four thousand ninety-six columns. Each cell uses four thousand ninety-six multiply-add pairs. Counting two operations per pair gives two M N K, about seventeen point two billion operations. An optional C adds one more value per output cell. A thread block computes a tile of these outputs. It stages input rectangles close to the arithmetic and reuses them across several pairings. Tensor cores accelerate the inner products when operand formats and layouts match. One input row leaves most of a tall tile idle. A larger tile can improve reuse but consume enough shared memory or registers to reduce the number of resident blocks. Measure the layer with its actual shapes.",
+        "hold": 1.3
+      }
+    ]
+  },
+  {
+    "id": "c03",
+    "title": "Scale each group before adding",
+    "sourceChapters": [
+      "c03"
+    ],
+    "beats": [
+      {
+        "id": "c03-b01",
+        "say": "Low-precision values travel with scale factors that recover their intended magnitude. Here the blue row holds activations and the copper row holds weights. In each group of thirty-two, only the first two coordinate pairs are nonzero. Read down each pair. The raw dots are four and five. How much of each belongs in the answer?",
+        "hold": 2.4
+      },
+      {
+        "id": "c03-b02",
+        "say": "The first scale pair multiplies to one. Keep all four units. The second pair is two times one quarter. That passes half of the five units. Mark the two and a half that survive. Each scale belongs to its own group inside the reduction.",
+        "hold": 1.5
+      },
+      {
+        "id": "c03-b03",
+        "say": "Adding four and two and a half gives six and a half. Write that in the cell. Explicitly dequantizing every coordinate gives the same reference answer. Borrow the second group's factor for the whole dot and you would halve all nine units. That gives four and a half. The first four units need their own scale product of one.",
+        "hold": 1.1
+      },
+      {
+        "id": "c03-b04",
+        "say": "The group width belongs to the kernel contract. On the selected Blackwell path the activations are eight-bit floats, in E four M three format. Two E two M one four-bit weights fit in a byte. Each group of thirty-two has a power-of-two scale. Four eight-bit scales fit in a word. A common Hopper FP8 path uses thirty-two-bit floating-point scales and groups of a hundred and twenty-eight. Check the scale type and physical layout before dispatch.",
+        "hold": 1.3
+      }
+    ]
+  },
+  {
+    "id": "c04",
+    "title": "When can this tile multiply?",
+    "sourceChapters": [
+      "c04"
+    ],
+    "beats": [
+      {
+        "id": "c04-b01",
+        "say": "Follow one selected Blackwell block-scaled tile. The tensor memory accelerator uses shape and stride to copy a rectangle from global storage to shared memory. Stage the operands and their scales together. The blue and copper rows have arrived. The accumulator is still empty. Which input does the matrix instruction need next?",
+        "hold": 2.5
+      },
+      {
+        "id": "c04-b02",
+        "say": "The operands stay in shared memory, while scales take an additional path into tensor memory. Follow both pairs across the gap. The instruction waits until that copy finishes. Now both inputs are ready. Issue the multiply. Its partial sums stay in the tensor-memory accumulator until completion.",
+        "hold": 1.2
+      },
+      {
+        "id": "c04-b03",
+        "say": "The matrix instruction is in flight. When it completes, the accumulator holds six and a half. Read six and a half into the output. The producer must wait for the last consumer before it can refill a reusable stage. A copy arriving, a matrix operation completing, and an output being read are three different events.",
+        "hold": 1.3
+      },
+      {
+        "id": "c04-b04",
+        "say": "What if the descriptor points to the wrong element? This view has four rows and three columns. Its strides are nine and two elements. For row two, column one, add twice the row stride to one column stride. Which address will the view read, counting from zero?",
+        "hold": 2.5
+      },
+      {
+        "id": "c04-b05",
+        "say": "The view reads element twenty. Mark that address. A packed reader assumes strides of three and one. It would read element seven. Mark the second address. Equal shapes can give different physical reads. Materialize the expected layout or reject the call before issuing the copy.",
+        "hold": 1.3
+      }
+    ]
+  },
+  {
+    "id": "c04-jit",
+    "title": "Which call compiles a new kernel?",
+    "sourceChapters": [
+      "c04"
+    ],
+    "beats": [
+      {
+        "id": "c04-jit-b01",
+        "say": "A tile shape and scale format can change the generated program. A just-in-time compiler builds a GPU binary on its first use. The July implementation published a complete binary with an atomic rename. The October snapshot uses DeepJIT. Its cache tracks source and included files, compiler version, effective flags, dependencies, and the post-hook. Hold these inputs fixed for two calls, except for a runtime row count.",
+        "hold": 1.4
+      },
+      {
+        "id": "c04-jit-b02",
+        "say": "Start with an empty cache. Call A compiles the first binary. File it under the original flags. Call B changes the row count but generates exactly the same source. It hits the existing entry. Watch which binary B takes. Warm the signatures the workload actually generates.",
+        "hold": 1.3
+      },
+      {
+        "id": "c04-jit-b03",
+        "say": "Call C changes an effective compiler flag. It compiles a second binary. File it separately. Call D repeats C and asks for a missing PTX dump. The dump switch acts only during compilation and leaves the tracked inputs alone. What happens on D?",
+        "hold": 2.5
+      },
+      {
+        "id": "c04-jit-b04",
+        "say": "D hits the second binary. Follow the saved entry. The missing dump stays missing. Two builds served four calls. Pin the dependency and record implicit compiler inputs such as include paths. Separate cold compilation from warm kernel timings when diagnosing a slow first request.",
+        "hold": 1.4
+      }
+    ]
+  },
+  {
+    "id": "c05",
+    "title": "Count the full tiles",
+    "sourceChapters": [
+      "c05"
+    ],
+    "beats": [
+      {
+        "id": "c05-b01",
+        "say": "Return to the original four groups. The extra row from our boundary experiment is gone. Now vary only the alignment. In this packing experiment we compare three tile sizes. An actual kernel sets its own legal alignment. At sixty-four rows per block, count one, three, one and two blocks. The teal rows and hatched space share the same stack. How many reserved rows do those seven blocks buy?",
+        "hold": 2
+      },
+      {
+        "id": "c05-b02",
+        "say": "Four hundred and forty-eight. Each group rounds up independently. Double the alignment. At a hundred and twenty-eight rows per block our opening layout returns. Four hundred and sixteen useful assignments occupy six hundred and forty reserved rows. Padding takes two hundred and twenty-four out of six hundred and forty, or thirty-five percent of the reservation.",
+        "hold": 1.3
+      },
+      {
+        "id": "c05-b03",
+        "say": "Try blocks of two hundred and fifty-six. Each expert gets one full tile. Useful rows stay fixed and reserved rows rise to one thousand and twenty-four. For hidden width H and intermediate width I, the gate and up projection costs four M H I operations and the down projection costs two M H I. The full tiles estimate counts all their rows. A kernel can skip invalid work.",
+        "hold": 1.3
+      },
+      {
+        "id": "c05-b04",
+        "say": "M counts token-expert assignments. In the Flash example each source token routes to six experts. Each rank here controls one GPU. With eight ranks and five hundred and twelve source tokens per rank, that gives twenty-four thousand five hundred and seventy-six assignments across the node. Balanced routing averages three thousand and seventy-two per rank. The four stacks we packed cover four of the thirty-two experts on one rank. A skewed route changes which rank waits.",
+        "hold": 1.1
+      },
+      {
+        "id": "c05-b05",
+        "say": "With counts available to the caller, pack contiguous aligned segments and save the map for unpacking. During decode, counts can live only on the GPU. A fixed-shape masked launch can use those counts there and avoid a host synchronization. To find which layout is faster on this traffic, where would you start and stop the clock?",
+        "hold": 2.1
+      }
+    ]
+  },
+  {
+    "id": "c05-time",
+    "title": "Put the clock around the whole layer",
+    "sourceChapters": [
+      "c05"
+    ],
+    "beats": [
+      {
+        "id": "c05-time-b01",
+        "say": "First check that both versions give the reference output for each source token. Then use identical route histograms, precision and hardware. Start the clock before packing and casting. Include communication, the kernel and restoring output order. Synchronize at the end. Keep cold compilation separate, warm the measured signatures and repeat.",
+        "hold": 1.1
+      },
+      {
+        "id": "c05-time-b02",
+        "say": "Here is a smaller timing example with just preparation and compute. All other costs are zero in this example. The baseline kernel takes a hundred microseconds. The candidate takes seventy. Divide a hundred by seventy. That is about one point four three times as fast in the kernel. Before we move the start of the clock, which stage still needs a time for each run?",
+        "hold": 2.5
+      },
+      {
+        "id": "c05-time-b03",
+        "say": "Include preparation. The baseline needs twenty more microseconds, and the candidate needs sixty. The totals are one hundred and twenty and one hundred and thirty. Read both endpoints. The candidate takes ten microseconds longer. A process trace can locate the extra preparation. A kernel profile can then test a specific memory or compute bottleneck.",
+        "hold": 1.3
+      },
+      {
+        "id": "c05-time-b04",
+        "say": "For scale, the historical Flash comparison averaged eight ranks. At five hundred and twelve source tokens per rank, Mega MoE took about a hundred and forty-six and a half microseconds, or one point seven three times as fast as its legacy baseline. The reported work rate divides estimated operations by elapsed time. To reproduce it, record the device, topology, software, warmup, route histogram and correctness run. A printed timing can survive a skipped reference check.",
+        "hold": 1.1
+      },
+      {
+        "id": "c05-time-b05",
+        "say": "Keep the same source tokens and routing count. Now switch to the Pro shape in that comparison. The expert matrices grow wider, and there are more experts. The Pro measurement was about three hundred and seventy microseconds per layer, averaged across the eight ranks. Read its own legacy comparison. The reported speedup is one point five four. Carry the shape and baseline with each time.",
+        "hold": 1.3
+      }
+    ]
+  },
+  {
+    "id": "c06",
+    "title": "Which cache token does this column name?",
+    "sourceChapters": [
+      "c06"
+    ],
+    "beats": [
+      {
+        "id": "c06-b01",
+        "say": "Another DeepGEMM family scores candidate context positions. Our tiny reference dequantizes a shared stored key, two and minus one, with scale one half. The first query head reads its first coordinate, one. The second reads minus one half. Apply ReLU to each head. The negative head becomes zero. Weight the surviving values by point four and point six. Their sum is point four. That score helps the indexer select positions for attention.",
+        "hold": 1.1
+      },
+      {
+        "id": "c06-b02",
+        "say": "Now rank a different compressed score row. It represents cache tokens forty and forty-one. The end of the range, forty-two, is excluded. We planted ninety-nine in the unwritten third slot. An unrestricted maximum picks column two. Look where it points. Which column should a caller take instead?",
+        "hold": 2.6
+      },
+      {
+        "id": "c06-b03",
+        "say": "Mask the third slot. Only columns zero and one are eligible. The larger legal score is point nine in column one. Follow its wire back to the cache. Add the start offset of forty. The result is token forty-one. Return that cache position to the attention stage.",
+        "hold": 1.3
+      },
+      {
+        "id": "c06-b04",
+        "say": "Now the valid span is empty. Mask every slot. Return an empty list, even if the caller asks for two positions. The September thirtieth API change removed the old cleanup argument. For the compressed output, keep the span and the start offset with each row. An empty row has no key to send downstream.",
+        "hold": 1.4
+      },
+      {
+        "id": "c06-b05",
+        "say": "For sparse blocks, one more map sits between a column and its key. The valid blocks here are two and five, four tokens apiece. Look at compressed column five. It is the second position in the second listed block. Which absolute position does that select?",
+        "hold": 2.3
+      },
+      {
+        "id": "c06-b06",
+        "say": "Block five starts at token twenty. Add the within-block offset of one. It selects token twenty-one. Follow the marked position. Keep the valid block list in order, with each block listed once. A paged decoder also needs its block table to find the underlying key data.",
+        "hold": 1.3
+      }
+    ]
+  },
+  {
+    "id": "c07",
+    "title": "Lease each slot until combine finishes",
+    "sourceChapters": [
+      "c07"
+    ],
+    "beats": [
+      {
+        "id": "c07-b01",
+        "say": "Mega MoE joins dispatch, two expert projections, the gated activation and combine in a specialized distributed path. The first projection produces gate and up values. SwiGLU gates the up values before the second projection restores hidden width. Combine uses the router weights and returns the result to the source token. Move two independent chunks through that sequence.",
+        "hold": 1.1
+      },
+      {
+        "id": "c07-b02",
+        "say": "Each chunk needs one unit to dispatch on the wire, two to compute, and one to combine on the wire. Start with one storage slot. Run A through combine before B can take its place. Then dispatch B, compute, and combine. The two chunks finish at eight units. Read the endpoint. A free wire alone could not accept B while the slot still belonged to A.",
+        "hold": 1.3
+      },
+      {
+        "id": "c07-b03",
+        "say": "Replay with two slots and the same stage times. Start A. Once its dispatch finishes, its compute unit is busy and the wire is free. B has its own slot. What can B do while A computes?",
+        "hold": 2.5
+      },
+      {
+        "id": "c07-b04",
+        "say": "Dispatch B on the wire. Later, combine A while B computes. Wait for B to finish computing, then combine B. Its return completes at six units. Read the two lanes together. Each chunk still waits for its own inputs. Only its last consumer releases the slot.",
+        "hold": 1.2
+      },
+      {
+        "id": "c07-b05",
+        "say": "On a real rank, symmetric storage lets peers address the corresponding buffers. The ranks must agree on the group, capacity and layout, and reach matching synchronization points. Replay at three and a half units. This time the peer for combine A is late. Both slots are still leased, and another producer must wait. Check topology, barriers and ready work before expecting the illustrated overlap.",
+        "hold": 1.2
+      },
+      {
+        "id": "c07-b06",
+        "say": "A locality domain is a part of one GPU. Follow expert two's two weight matrices inside its rank. Split the columns evenly between two domains. Both halves still belong to expert two. Localize the gate and up weights and the down weights consistently. The split dimension must divide by the domain count. If the hardware mapping probe is unstable, record the even mapping fallback and measure again.",
+        "hold": 1.2
+      },
+      {
+        "id": "c07-b07",
+        "say": "Once the multiply completes, the epilogue writes its output. In the October SM100 interface a call selects one epilogue. Consider stochastic rounding when the kernel writes a BF sixteen output directly. With no accumulation input, that choice fits the contract. Now add an existing C matrix. Can the same rounding path run?",
+        "hold": 2.4
+      },
+      {
+        "id": "c07-b08",
+        "say": "Reject this call. The stochastic rounding path requires direct BF16 output with C absent. Change the requested epilogue or change the call to match the intended math. In the final practice, we will change the addition order while keeping the rounding rule fixed.",
+        "hold": 1.1
+      }
+    ]
+  },
+  {
+    "id": "c07-practice",
+    "title": "Which expert run would you keep?",
+    "sourceChapters": [
+      "c07"
+    ],
+    "beats": [
+      {
+        "id": "c07-practice-b01",
+        "say": "Try a fresh routing batch. The three experts receive ninety-six, two hundred and fifty-seven, and zero assignments. At a hundred and twenty-eight rows per block, how many rows must all three reserve? Pay attention to the one row beyond the second boundary and to the empty expert.",
+        "hold": 2.6
+      },
+      {
+        "id": "c07-practice-b02",
+        "say": "Five hundred and twelve. Outline the full tiles. One expert needs one block and the next needs three. Zero rows reserve zero. A wider block size of two hundred and fifty-six reserves seven hundred and sixty-eight for the same three hundred and fifty-three assignments. Keep the source IDs attached while packing.",
+        "hold": 1.3
+      },
+      {
+        "id": "c07-practice-b03",
+        "say": "Replay the opening batch. Follow token seven back from expert two at packed row three hundred and eighty-four. That expert returns eight with weight three quarters. Expert zero returns four with weight one quarter. Token nine has a different pair of returns and weights. Multiply each expert's return by the weight on its own branch. What value should combine write at each source token?",
+        "hold": 2.6
+      },
+      {
+        "id": "c07-practice-b04",
+        "say": "Token seven gets seven. Its two branches contribute one and six. Token nine gets three, from one and a half on each branch. Floating-point reduction order can also change an output. Use FP32 and round to nearest after each addition. At two to the twenty-fifth, adding one rounds back to the same large value. Cancel it afterward and the result is zero. Cancel first and then add one, and the result is one. Keep the seed and inputs fixed. The September release made deterministic algorithms opt-in. Test the same token alone and in mixed batches, with the intended deterministic kernel mode and output rounding.",
+        "hold": 1.2
+      },
+      {
+        "id": "c07-practice-b05",
+        "say": "Now compare two illustrative runs of the fresh batch. The narrow pack takes a hundred and twenty microseconds, the wider pack a hundred and five. The reference gives five for token four and nine for token six. Both runs return values totaling fourteen. Compare the rows. Which run would you keep?",
+        "hold": 2.8
+      },
+      {
+        "id": "c07-practice-b06",
+        "say": "Keep the narrow pack. Trace the two returns. Only that run sends five to token four and nine to token six. The wider pack swaps their owners. Repair the map, compare each token to the reference, then time the corrected layer again. The next lesson follows the collectives that move these activations between GPUs.",
+        "hold": 2
+      }
+    ]
+  }
+]

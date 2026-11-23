@@ -1,0 +1,900 @@
+version: 1
+id: design-conversational-ai-support-bot
+title: What Can the Support Bot Tell Alex?
+source: system-design/design-conversational-ai-support-bot/content.md
+sources:
+  - title: Stripe API idempotent requests
+    url: https://docs.stripe.com/api/idempotent_requests
+  - title: PostgreSQL transaction isolation
+    url: https://www.postgresql.org/docs/current/transaction-iso.html
+  - title: WHATWG server-sent events
+    url: https://html.spec.whatwg.org/multipage/server-sent-events.html
+  - title: LangChain Human-in-the-loop
+    url: https://docs.langchain.com/oss/python/langchain/human-in-the-loop
+  - title: Large Language Models Cannot Self-Correct Reasoning Yet
+    url: https://arxiv.org/abs/2310.01798
+  - title: Distributed Locks with Redis
+    url: https://redis.io/docs/latest/develop/clients/patterns/distributed-locks/
+scenes:
+  - id: intro
+    title: "Can the bot credit the second charge?"
+    visual: "A second $900 GPU charge slides out beneath the first beside Alex’s message. Billing verifies the duplicate. The viewer compares the amount with the published US review threshold before choosing a route."
+    beats:
+      - say: >-
+          “I was charged nine hundred dollars twice. Can you credit the second one?” Open the invoice
+          through Alex’s account. Billing confirms a duplicate GPU charge from nine days ago.
+        hold: 0.8
+        visual_cues:
+          - id: invoice-read
+            phrase: "Open the invoice"
+            targets: [invoice-record]
+          - id: verified-duplicate
+            phrase: "Billing confirms a duplicate"
+            targets: [invoice-record]
+      - say: >-
+          The US policy gives Alex thirty days. Specialist review starts at five hundred dollars.
+          Should the app queue the credit or send it for review?
+        hold: 2.6
+        visual_cues:
+          - id: policy-window
+            phrase: "The US policy"
+            targets: [published-policy]
+          - id: review-limit
+            phrase: "Specialist review starts"
+            targets: [review-boundary]
+          - id: choose-route
+            phrase: "Should the app queue the credit or send it for review"
+            targets: [action-boundary]
+      - say: >-
+          Send it for specialist review. Nine days is inside the window. Nine hundred dollars crosses
+          the review threshold. Tell Alex, “Your invoice shows a duplicate. A billing specialist needs
+          to review it.” When the specialist queue accepts the case, Alex can get a reference.
+        hold: 0.8
+        visual_cues:
+          - id: review-answer
+            phrase: "Send it for specialist review"
+            targets: [disposition]
+            caption_boundary: true
+          - id: customer-reply
+            phrase: "Your invoice shows a duplicate"
+            targets: [customer-reply]
+  - id: channels-and-fences
+    title: "Two workers on one ticket"
+    visual: "Follow a customer turn, a returning progress event and two lease tokens to the protected database."
+    beats:
+      - say: >-
+          Alex submits a correction while the invoice lookup is running. The correction comes in on an HTTP
+          request. The service can stream progress back through server-sent events. A WebSocket can carry
+          messages both ways. If a ticketing webhook delivers the same event twice, count the event ID once.
+          Rate-limit by authenticated tenant and serialize accepted updates. A request for public policy, a
+          private invoice read and a credit request each need different permissions.
+        hold: 0.8
+        visual_cues:
+          - id: incoming-turn
+            phrase: "an HTTP request"
+            targets: [incoming-turn]
+          - id: outgoing-sse
+            phrase: "stream progress back"
+            targets: [outgoing-sse]
+          - id: dedup-event
+            phrase: "count the event ID once"
+            targets: [dedup-event]
+      - say: >-
+          Suppose the old worker’s lease expires while it’s still running. Its replacement gets a higher
+          token and the database records that token. When the old worker comes back, the database rejects
+          its lower token. That comparison is called fencing. Keep financial uniqueness in shared storage. A
+          row lock protects a selected row. An advisory lock works across the paths that honor it, and a
+          transaction-level lock ends with the transaction. Commit a case update before waiting for a model
+          or a customer.
+        hold: 0.8
+        visual_cues:
+          - id: lease-expiry
+            phrase: "the old worker’s lease expires"
+            targets: [lease-expiry]
+          - id: fencing-token
+            phrase: "Its replacement gets a higher token"
+            targets: [fencing-token]
+          - id: reject-fence
+            phrase: "the database rejects its lower token"
+            targets: [reject-fence]
+      - say: >-
+          One supervisor owns the case. Give each reader a narrow job, scoped credentials, a deadline and a
+          bounded result. The supervisor checks the identity, revision, source and success of each read
+          before accepting it. Separate model contexts still need access checks. For a short sequential
+          workflow, start with one agent. If you add workers, measure the time they save and the tokens
+          and queue capacity they use on your own tickets.
+        hold: 0.8
+        visual_cues:
+          - id: scoped-jobs
+            phrase: "Give each reader a narrow job"
+            targets: [scoped-jobs]
+          - id: merge-jobs
+            phrase: "before accepting it"
+            targets: [merge-jobs]
+  - id: state
+    title: "Which invoice came back?"
+    visual: "Compare invoice A10236 at revision five with a successful receipt for A10234 at revision four. Return to the $90 summary and $900 owned charge."
+    beats:
+      - say: >-
+          Alex’s original GPU charge is nine hundred dollars. We store the money as integer cents alongside
+          the authenticated customer, invoice and item. Watch the invoice number and revision on the two
+          copies. One belongs to the supervisor. The other travels with the worker.
+        hold: 0.8
+        visual_cues:
+          - id: typed-invoice
+            phrase: "integer cents"
+            targets: [current-invoice]
+      - say: >-
+          Alex switches to the storage invoice. The supervisor moves to revision five and clears any earlier
+          confirmation. The worker finishes the GPU lookup successfully. Compare its invoice number and
+          revision with the current pair. The supervisor discards the stale result.
+        hold: 0.8
+        visual_cues:
+          - id: invoice-switch
+            phrase: "switches to the storage invoice"
+            targets: [current-invoice]
+          - id: reject-stale
+            phrase: "discards the stale result"
+            targets: [merge-fence]
+      - say: >-
+          Read the storage invoice again. This time both copies say revision five and name the same customer
+          and invoice. The supervisor can accept the twenty-dollar charge. Workers return what they
+          observed. Only the supervisor updates the case.
+        hold: 0.8
+        visual_cues:
+          - id: fresh-receipt
+            phrase: "both copies say revision five"
+            targets: [worker-receipt]
+      - say: >-
+          Go back to the GPU invoice. This summary says ninety dollars. The owned invoice and validated
+          request say nine hundred. The gate uses nine hundred. A shape check would accept ninety dollars as
+          a well-formed number. Compare it with billing before putting it on the confirmation form. Use
+          dialogue for wording and history for context. A chat buffer can disappear on disconnect. Bind
+          durable case and action records to the tenant and customer, and get identity and region from
+          server records. The lab uses decimal dollars to the cent. Reject nonfinite amounts, fractions of a
+          cent, zero and negative requests.
+        hold: 0.8
+        visual_cues:
+          - id: summary-conflict
+            phrase: "This summary says ninety dollars"
+            targets: [summary-conflict]
+          - id: trusted-amount
+            phrase: "The gate uses nine hundred"
+            targets: [trusted-amount]
+          - id: schema-shape
+            phrase: "A shape check"
+            targets: [schema-shape]
+          - id: verify-invoice
+            phrase: "Compare it with billing"
+            targets: [verify-invoice]
+  - id: contract-and-fallback
+    title: "What follows a request into fallback?"
+    visual: "The request contract moves intact to the fallback lane. A version change invalidates a cached public answer."
+    beats:
+      - say: >-
+          Before any lookup or draft, compile the gateway rules and the billing rules for this ticket. Carry
+          its identity, privacy class, policy versions, required citations, reply format, review requirement
+          and generation limit. The published words and the rule the executor runs must describe the same
+          reviewed version. A digest can detect changed bytes. A trusted publisher has to establish which
+          version governs.
+        hold: 0.8
+        visual_cues:
+          - id: compile-contract
+            phrase: "compile the gateway rules"
+            targets: [compile-contract]
+          - id: version-content
+            phrase: "same reviewed version"
+            targets: [version-content]
+      - say: >-
+          The lab declares half a cent per generation. Its routing stub returns a lane name. A real gateway
+          has to check the processor, returned output and actual usage. Move the same contract into the
+          fallback lane. The replacement still handles a private, cited reply for a case that needs review.
+          Every attempt draws on the same time and spend budget. A status poll can legitimately return no
+          change. Give polls a cadence and a stopping point.
+        hold: 0.8
+        visual_cues:
+          - id: stub-ceiling
+            phrase: "half a cent per generation"
+            targets: [stub-ceiling]
+          - id: fallback-contract
+            phrase: "Move the same contract into the fallback lane"
+            targets: [fallback-contract]
+      - say: >-
+          Alex’s private write bypasses the public reply cache. A public policy answer can be cached for a
+          particular region, version and access scope. Change the policy version and the old entry no longer
+          matches. Minimize private fields and protect the mapping if you use reversible placeholders.
+          Screen incoming text for unsafe instructions and outgoing replies for harmful content. Before
+          a private write, the application checks whether this customer may act on this invoice.
+        hold: 0.8
+        visual_cues:
+          - id: private-cache
+            phrase: "private write bypasses the public reply cache"
+            targets: [private-cache]
+          - id: cache-version
+            phrase: "Change the policy version"
+            targets: [cache-version]
+          - id: screen-authority
+            phrase: "the application checks whether this customer may act on this invoice"
+            targets: [screen-authority]
+  - id: evidence
+    title: "Which record governs the credit?"
+    visual: "Read the source checks down four records. Recompute a changed digest, restore the corpus and check the region on a Canadian ticket."
+    beats:
+      - say: >-
+          Search for US duplicate-charge policy. Check region, topic and current version across the four
+          hits. Now check who published each record. The private note can mention the right customer and
+          still have no policy authority. Compare the content digest with the trusted copy. Only the current
+          published US record passes all five checks.
+        hold: 0.8
+        visual_cues:
+          - id: admit-policy
+            phrase: "Check region, topic and current version"
+            targets: [governing-document]
+          - id: published-check
+            phrase: "who published each record"
+            targets: [trusted-publisher]
+          - id: content-check
+            phrase: "Compare the content digest"
+            targets: [policy-bytes]
+      - say: >-
+          Keep the record ID and the old digest. Edit the document. The freshly computed digest changes. The
+          published bytes no longer match, so the gate has no admitted policy. Send the discrepancy for
+          review. Matching digests establish which content you have. Publication and subject review
+          establish that it governs.
+        hold: 0.8
+        visual_cues:
+          - id: changed-bytes
+            phrase: "Edit the document"
+            targets: [policy-bytes]
+          - id: digest-fails
+            phrase: "no longer match"
+            targets: [digest-check]
+      - say: >-
+          Restore the original documents. Now the account is Canadian. The US policy is still authentic. The
+          region column tells you why it cannot answer this ticket. Preserve the missing Canadian policy as
+          the reason for review and abstain from promising a credit.
+        hold: 0.8
+        visual_cues:
+          - id: original-corpus
+            phrase: "Restore the original documents"
+            targets: [policy-corpus]
+          - id: missing-region
+            phrase: "the account is Canadian"
+            targets: [regional-evidence]
+          - id: region-disposition
+            phrase: "abstain from promising a credit"
+            targets: [regional-evidence]
+  - id: policy
+    title: "What did Alex sign?"
+    visual: "An application proposal and a signed copy expose the one changed field. The $35 signature stays put when the request becomes $40. A separately signed $500 request tests the inclusive limit."
+    beats:
+      - say: >-
+          Back on the US ticket, nine days is inside the window. Nine hundred dollars takes the original
+          request to a specialist. For this next example, keep the same invoice. The queue policy permits
+          one partial request up to the verified duplicate.
+        hold: 0.8
+        visual_cues:
+          - id: specialist-threshold
+            phrase: "takes the original request to a specialist"
+            targets: [specialist-route]
+      - say: >-
+          Alex now asks for thirty-five dollars. Put the exact proposal on a form the application controls.
+          Ask Alex to confirm it. The form names the customer, invoice, item, request type, amount, policy
+          version and case revision.
+        hold: 0.8
+        visual_cues:
+          - id: small-proposal
+            phrase: "now asks for thirty-five dollars"
+            targets: [proposed-amount]
+          - id: bind-confirmation
+            phrase: "Ask Alex to confirm it"
+            targets: [confirmation-form]
+      - say: >-
+          Alex signs the displayed form. Keep that copy on the right. With every field matching, the request
+          is eligible for the queue. The executor will check current state again when it writes. Change just
+          the proposed amount to forty dollars. Does the signed thirty-five cover the new amount?
+        hold: 2.3
+        visual_cues:
+          - id: compare-confirmation
+            phrase: "Alex signs the displayed form"
+            targets: [signed-form]
+          - id: queue-eligible
+            phrase: "eligible for the queue"
+            targets: [action-boundary]
+          - id: change-proposal
+            phrase: "Change just the proposed amount to forty dollars"
+            targets: [proposed-amount]
+          - id: amount-question
+            phrase: "Does the signed thirty-five cover the new amount"
+            targets: [signed-form]
+      - say: >-
+          Ask Alex to confirm forty dollars. Both amounts are below the threshold, but the signed copy still
+          says thirty-five. Now try a separate proposal for exactly five hundred dollars. Give it its own
+          matching signature. Five hundred still needs a specialist. Confirmation records what Alex wants.
+          The policy sets the limit. The reader’s shorter helper requires a full duplicate match. A system
+          that accepts multiple partial credits also needs to track the remaining balance.
+        hold: 0.8
+        visual_cues:
+          - id: new-consent
+            phrase: "Ask Alex to confirm forty dollars"
+            targets: [action-boundary]
+            caption_boundary: true
+          - id: boundary-input
+            phrase: "a separate proposal for exactly five hundred dollars"
+            targets: [proposed-amount]
+          - id: boundary-sign
+            phrase: "Give it its own matching signature"
+            targets: [signed-form]
+          - id: inclusive-boundary
+            phrase: "Five hundred still needs a specialist"
+            targets: [specialist-route]
+          - id: two-amount-contracts
+            phrase: "requires a full duplicate match"
+            targets: [amount-rule]
+  - id: parallel
+    title: "When can the supervisor merge the reads?"
+    visual: "The serial and parallel schedules share a time axis. A pair of receipt slots shows what the supervisor holds at tick two, at tick three and at the invoice deadline."
+    beats:
+      - say: >-
+          Fix the customer, invoice and revision before starting either lookup. On this illustrative clock
+          the policy read takes two units. The invoice takes three more if it waits for policy. Merging the
+          two receipts takes one more. The serial run finishes at six.
+        hold: 0.8
+        visual_cues:
+          - id: serial-policy
+            phrase: "the policy read takes two units"
+            targets: [policy-clock]
+          - id: serial-invoice
+            phrase: "The invoice takes three more"
+            targets: [invoice-clock]
+          - id: serial-merge
+            phrase: "Merging the two receipts"
+            targets: [merge-clock]
+          - id: serial-total
+            phrase: "finishes at six"
+            targets: [serial-clock]
+      - say: >-
+          Start both reads together on the lower clock. At tick two the policy is back. The same invoice
+          still needs three units from its own start. At tick two, can the supervisor start the merge?
+        hold: 2.4
+        visual_cues:
+          - id: start-together
+            phrase: "Start both reads together"
+            targets: [read-clock]
+          - id: join-question
+            phrase: "At tick two, can the supervisor start the merge"
+            targets: [receipt-dock]
+      - say: >-
+          Wait for the invoice. It arrives at three. Both receipts now report success for this case and
+          revision. Merge them. The parallel run finishes at four. We saved the two units that the reads
+          overlapped. We still owe Alex the same authorization check.
+        hold: 0.8
+        visual_cues:
+          - id: wait-invoice
+            phrase: "Wait for the invoice"
+            targets: [invoice-clock]
+            caption_boundary: true
+          - id: both-receipts
+            phrase: "It arrives at three"
+            targets: [receipt-dock]
+          - id: complete-merge
+            phrase: "Merge them"
+            targets: [merge-clock]
+          - id: parallel-total
+            phrase: "finishes at four"
+            targets: [parallel-clock]
+      - say: >-
+          Replay the lower run. Policy still comes back at two. This time the invoice hits its deadline at
+          three. The merge lane stays empty. Keep the policy receipt and hand off the missing invoice read.
+          Bound the retries, time and spend across the whole request so one missing receipt can’t tie up the
+          worker pool.
+        hold: 0.8
+        visual_cues:
+          - id: deadline-run
+            phrase: "Replay the lower run"
+            targets: [read-clock]
+          - id: invoice-deadline
+            phrase: "hits its deadline at three"
+            targets: [receipt-dock]
+          - id: missing-invoice
+            phrase: "hand off the missing invoice read"
+            targets: [merge-clock]
+  - id: ledger
+    title: "The reply disappears"
+    visual: "The caller and queue hold separate copies. A lost acknowledgment leaves the $35 row intact. The same key recovers it, a changed amount conflicts, and a second ticket meets the invoice constraint."
+    beats:
+      - say: >-
+          Return to the signed thirty-five-dollar proposal and the two successful reads. The executor checks
+          the current facts and inserts one pending request. The queue sends back an acknowledgment. The
+          reply disappears before it reaches the app. Look at the two sides. Billing has the row. Alex’s app
+          has no receipt. Should it start a new operation or retry the original one?
+        hold: 2.5
+        visual_cues:
+          - id: insert-credit
+            phrase: "inserts one pending request"
+            targets: [queue-entry]
+          - id: return-ack
+            phrase: "sends back an acknowledgment"
+            targets: [acknowledgment]
+          - id: lose-reply
+            phrase: "disappears before it reaches the app"
+            targets: [lost-acknowledgment]
+          - id: retry-question
+            phrase: "start a new operation or retry the original one"
+            targets: [operation-key]
+      - say: >-
+          Retry the original operation with the same key and identical parameters. The queue returns its
+          stored acknowledgment. Once that receipt reaches the app, Alex can be told the thirty-five-dollar
+          request is pending and given its reference. Look at the number of rows. A second attempt recovered
+          the first row. A billing worker would still have to apply the credit.
+        hold: 0.8
+        visual_cues:
+          - id: retry-payload
+            phrase: "Retry the original operation"
+            targets: [operation-key]
+            caption_boundary: true
+          - id: recover-entry
+            phrase: "returns its stored acknowledgment"
+            targets: [queue-entry]
+          - id: receipt-arrived
+            phrase: "that receipt reaches the app"
+            targets: [customer-receipt]
+      - say: >-
+          Keep the ticket key. Change the amount to forty dollars. The queue compares it with the stored
+          thirty-five and returns a conflict.
+        hold: 1.5
+        caption_starts:
+          - "Change the amount to forty dollars"
+          - "returns a conflict"
+        visual_cues:
+          - id: changed-payload
+            phrase: "Change the amount to forty dollars"
+            targets: [incoming-payload]
+          - id: key-conflict
+            phrase: "returns a conflict"
+            targets: [payload-comparison]
+      - say: >-
+          Now switch tickets and put the amount back to thirty-five. The invoice is already claimed.
+          This queue allows one request per invoice. Both attempts leave the same thirty-five dollars pending.
+        hold: 0.8
+        caption_starts:
+          - "The invoice is already claimed"
+        visual_cues:
+          - id: other-ticket
+            phrase: "Now switch tickets"
+            targets: [operation-key]
+          - id: invoice-unique-fence
+            phrase: "The invoice is already claimed"
+            targets: [invoice-fence]
+      - say: >-
+          Our dictionary shows serial calls. Two processes can both read an empty queue. In shared storage,
+          commit the request and an outbox entry together. The outbox is the work record the billing worker
+          will pick up. Enforce key and invoice uniqueness and recheck the balance in that transaction. The
+          billing worker must revalidate before applying money. For a remote API, check its retry contract.
+          Stripe’s version one retains the first executed response, including errors, while it keeps the
+          key. Keys can be pruned after at least twenty-four hours. Version two handles failed work
+          differently. Reconcile an old, uncertain operation before starting another.
+        hold: 0.8
+        visual_cues:
+          - id: local-race
+            phrase: "Two processes can both read an empty queue"
+            targets: [shared-database]
+          - id: atomic-outbox
+            phrase: "commit the request and an outbox entry together"
+            targets: [atomic-outbox]
+          - id: destination-version
+            phrase: "Version two handles failed work differently"
+            targets: [destination-contract]
+  - id: repair-and-status
+    title: "Which sentence can Alex receive?"
+    visual: "Compare a literal promise and a cited paraphrase with the original $900 case. The status sentence comes from the record. A timeout and failed fallback exhaust the two attempts."
+    beats:
+      - say: >-
+          Return to the original nine-hundred-dollar request. Its credit queue is empty. Now read the
+          assistant’s first draft. It says, “I’ve credited nine hundred dollars back to your account!” In the
+          reader’s small checker, the word credited and the empty citation list trigger two errors. Try
+          another draft with a valid citation ID. It says, “Your refund is on the way.” This wording passes the
+          phrase list. Read what the cited passage actually allows. It requires specialist review. There’s
+          no support for a refund on its way.
+        hold: 0.8
+        visual_cues:
+          - id: bad-promise
+            phrase: "first draft"
+            targets: [candidate-text]
+          - id: phrase-catch
+            phrase: "trigger two errors"
+            targets: [reply-check]
+          - id: phrase-miss
+            phrase: "Your refund is on the way"
+            targets: [alternate-text]
+          - id: semantic-support
+            phrase: "no support for a refund on its way"
+            targets: [evidence-link]
+      - say: >-
+          Let the application render the money and status sentence from the case record. The model can
+          explain why a specialist is needed. Check even that explanation for privacy and support. For a
+          restricted reply, use the template and the admitted passage alone. Keep tool calls from a rejected
+          draft away from dispatch.
+        hold: 0.8
+        visual_cues:
+          - id: state-template
+            phrase: "render the money and status sentence"
+            targets: [status-template]
+          - id: no-dispatch
+            phrase: "away from dispatch"
+            targets: [dispatch]
+      - say: >-
+          Give a failed draft at most one revision. Show the writer the violation codes and the original
+          evidence. Keep the same permissions, then rerun all the checks. If policy or access changed,
+          rebuild the contract first. A revision also needs a generation attempt, time and spend left on
+          this ticket. The first call times out. The fallback uses the second attempt on a draft that
+          fails the checks. With no revision left, the app can abstain or send Alex’s case for review
+          and wait for a receipt.
+        hold: 0.8
+        visual_cues:
+          - id: one-revision
+            phrase: "at most one revision"
+            targets: [repair-limit]
+          - id: same-authority
+            phrase: "Keep the same permissions"
+            targets: [repair-contract]
+          - id: primary-timeout
+            phrase: "The first call times out"
+            targets: [shared-attempts]
+          - id: fallback-rejected
+            phrase: "a draft that fails the checks"
+            targets: [shared-attempts]
+          - id: no-attempts
+            phrase: "no revision left"
+            targets: [shared-attempts]
+  - id: handoff
+    title: "Has a specialist received Alex’s case?"
+    visual: "A packet crosses into the specialist queue. A matching receipt supports the customer’s reference. Removing identity changes which fields the destination can see."
+    beats:
+      - say: >-
+          Build Alex’s review packet. Include the requested nine hundred dollars, the verified invoice, the
+          policy version and the reason a specialist must decide. At this point support can say the case
+          needs review. Send the packet. How will the app know the specialist queue has it?
+        hold: 2
+        visual_cues:
+          - id: prepare-packet
+            phrase: "Build Alex’s review packet"
+            targets: [specialist-packet]
+          - id: send-packet
+            phrase: "Send the packet"
+            targets: [specialist-packet]
+      - say: >-
+          The specialist queue returns a receipt for this exact packet. Check the destination, success and
+          packet identity against the outgoing copy. The reference on that receipt is what Alex can use for
+          follow-up. Now the app can say the review is queued. The specialist still has a decision to make.
+        hold: 0.8
+        visual_cues:
+          - id: matching-ack
+            phrase: "returns a receipt for this exact packet"
+            targets: [review-acknowledgment]
+          - id: review-queued
+            phrase: "the app can say the review is queued"
+            targets: [customer-receipt]
+      - say: >-
+          Try the handoff with identity unverified. Remove the private fields from the outgoing copy. The
+          server keeps its case record on the left. The destination gets a ticket reference and the reason
+          it needs to verify identity. Give each destination its own access and delivery checks.
+        hold: 0.8
+        visual_cues:
+          - id: restrict-output
+            phrase: "Remove the private fields"
+            targets: [restricted-packet]
+          - id: restricted-complete
+            phrase: "needs to verify identity"
+            targets: [identity-next-step]
+      - say: >-
+          Return to the authenticated case. An approval would come from the review service, bound to the
+          exact action. Check the reviewer’s permission, the expiry and whether the approval was already
+          consumed. Track waiting, accepted, resolved and expired tasks. On resume, recheck ownership,
+          evidence, balance and current policy. A framework checkpoint locates the paused thread. The
+          application still has to authorize the write. If a submission times out, its effect stays unknown
+          until the original operation is reconciled.
+        hold: 0.8
+        visual_cues:
+          - id: return-authenticated
+            phrase: "Return to the authenticated case"
+            targets: [review-service]
+          - id: approval-scope
+            phrase: "bound to the exact action"
+            targets: [review-binding]
+          - id: approval-permissions
+            phrase: "the expiry and whether the approval was already consumed"
+            targets: [approval-authority]
+          - id: resume-current
+            phrase: "recheck ownership, evidence, balance and current policy"
+            targets: [resumed-action]
+          - id: unknown-effect
+            phrase: "its effect stays unknown"
+            targets: [unknown-effect]
+  - id: ticket-budget
+    title: "What did the two drafts cost?"
+    visual: "Reconcile the first draft and its longer revision at the three token rates. Keep an unresolved reservation alongside the known charge in a separate fallback run."
+    beats:
+      - say: >-
+          Use the reader’s separate budget example. Each generation has a one-cent ceiling and a
+          three-hundred-token output cap. The whole ticket has two attempts, two cents and twenty-five
+          hundred milliseconds. The rates beside the rows are the example’s prices per million tokens.
+          Cached reads are already in the input total. Subtract them to find fresh input. Multiply each
+          count by its own rate. Add the three products and divide by one million to get dollars.
+        hold: 0.8
+        visual_cues:
+          - id: budget-inputs
+            phrase: "prices per million tokens"
+            targets: [price-column]
+          - id: fresh-minus-cache
+            phrase: "Subtract them to find fresh input"
+            targets: [fresh-input]
+          - id: multiply-products
+            phrase: "Multiply each count by its own rate"
+            targets: [token-products]
+          - id: add-products
+            phrase: "divide by one million to get dollars"
+            targets: [token-charge]
+      - say: >-
+          Start with two thousand input tokens. Twelve hundred eighty come from cache, leaving seven hundred
+          twenty fresh. Price those two groups and the hundred thirty output tokens. The first draft costs
+          about four tenths of a cent. The revision includes the rejected draft and feedback. Its input
+          grows to twenty-one hundred seventy tokens, but only two hundred fifty are fresh. Output stays at
+          a hundred thirty. Which draft costs less at these rates?
+        hold: 2.1
+        visual_cues:
+          - id: first-tokens
+            phrase: "Twelve hundred eighty come from cache"
+            targets: [first-draft-tokens]
+          - id: first-bill
+            phrase: "costs about four tenths of a cent"
+            targets: [first-draft-charge]
+          - id: revision-tokens
+            phrase: "only two hundred fifty are fresh"
+            targets: [revision-tokens]
+          - id: budget-question
+            phrase: "Which draft costs less at these rates"
+            targets: [charge-ledger]
+      - say: >-
+          The revision costs less. Its larger cached share brings it down to about three tenths of a cent.
+          Together the calls cost just over seven tenths of a cent. Before each call, reserve enough for all
+          its input at the fresh rate and all three hundred output tokens. Each reservation fits under one
+          cent. The reads take a hundred eighty milliseconds. Two drafts at nine forty and two
+          ten-millisecond checks leave four hundred twenty milliseconds. Fifty revisions a day for thirty
+          days add about four dollars fifty-eight at these rates.
+        hold: 0.8
+        visual_cues:
+          - id: revision-bill
+            phrase: "about three tenths of a cent"
+            targets: [revision-charge]
+            caption_boundary: true
+          - id: total-bill
+            phrase: "just over seven tenths of a cent"
+            targets: [ticket-charge]
+          - id: reserve-bill
+            phrase: "Each reservation fits under one cent"
+            targets: [reservations]
+          - id: budget-time
+            phrase: "leave four hundred twenty milliseconds"
+            targets: [ticket-time]
+          - id: monthly-bill
+            phrase: "about four dollars fifty-eight"
+            targets: [monthly-charge]
+      - say: >-
+          Now the first call times out. Keep its reservation until the provider reports usage. Give the
+          fallback a cold cache. The same two thousand inputs and hundred thirty outputs now cost just under
+          seven tenths of a cent. The unresolved reservation plus that known charge uses about one point six
+          five cents of the two-cent cap. The reads, timeout, fallback and final check take twenty-two
+          hundred thirty milliseconds. Both attempts are gone. Caching can reduce prefill work while a busy
+          queue still delays the reply. Price the tools, storage, embeddings and specialist’s time
+          separately.
+        hold: 0.8
+        visual_cues:
+          - id: unknown-reserve
+            phrase: "Keep its reservation"
+            targets: [unresolved-reserve]
+          - id: fallback-bill
+            phrase: "cost just under seven tenths of a cent"
+            targets: [fallback-charge]
+          - id: fallback-total
+            phrase: "about one point six five cents"
+            targets: [combined-spend]
+          - id: fallback-time
+            phrase: "twenty-two hundred thirty milliseconds"
+            targets: [fallback-clock]
+  - id: evaluation
+    title: "The test that reads the queue"
+    visual: "Keep all twelve label results fixed. Compare the independent $35 expectation with a queue that gains a $10 row, then with a clean replay that loses the expected row."
+    beats:
+      - say: >-
+          Replay the twelve tickets. Six need a human, three abstain, one answers a policy question and one
+          asks for confirmation. Only the confirmed thirty-five-dollar request should enter the queue.
+          Compare each reported outcome and then compare the full stored row with an independent expected
+          record. Billing and the test agree on Alex’s pending request.
+        hold: 0.8
+        visual_cues:
+          - id: twelve-cases
+            phrase: "Replay the twelve tickets"
+            targets: [regression-cases]
+          - id: expected-effects
+            phrase: "independent expected record"
+            targets: [effect-accounting]
+      - say: >-
+          Keep all twelve reported outcomes. Add a ten-dollar row for another invoice. Its amount is small
+          and its invoice is different. The high-value check and the duplicate-invoice check both stay
+          quiet. Which row holds the release?
+        hold: 2.1
+        visual_cues:
+          - id: unexpected-write
+            phrase: "Add a ten-dollar row"
+            targets: [actual-effect]
+          - id: extra-question
+            phrase: "Which row holds the release"
+            targets: [effect-accounting]
+      - say: >-
+          The ten-dollar row has no expected counterpart. Hold release. Now restore the clean queue and
+          remove Alex’s expected entry. The ticket still says queued. The empty slot is the evidence that
+          the thirty-five-dollar write is missing. Hold this run too.
+        hold: 0.8
+        visual_cues:
+          - id: extra-verdict
+            phrase: "The ten-dollar row has no expected counterpart"
+            targets: [release-verdict]
+            caption_boundary: true
+          - id: reset-ledger
+            phrase: "restore the clean queue"
+            targets: [actual-effect]
+          - id: missing-effect
+            phrase: "remove Alex’s expected entry"
+            targets: [actual-effect]
+          - id: missing-verdict
+            phrase: "the thirty-five-dollar write is missing"
+            targets: [release-verdict]
+            caption_boundary: true
+      - say: >-
+          Those fixtures exercise control logic. To measure resolution, independently check what happened to
+          the customer’s task. A closed chat can be abandonment. Look for repeat contacts and reopened
+          tickets within a stated time window. Report satisfaction alongside who answered the survey. To
+          measure escalation precision, start with everyone the bot escalated. How many actually needed
+          review? For recall, start with everyone who needed review. How many did we send? On the clock,
+          separate first useful output from an acknowledgment and from full resolution. Include queue wait
+          and specialist delay. Count unfinished cases, retries, fan-out and tokens by case type under a
+          stated arrival load. Before enabling writes, replay concurrent tickets and lost replies against the
+          shared database. Sample the replies customers would receive.
+        hold: 0.8
+        visual_cues:
+          - id: outcome-metrics
+            phrase: "To measure resolution"
+            targets: [outcome-metrics]
+          - id: containment-metric
+            phrase: "A closed chat can be abandonment"
+            targets: [containment-metric]
+          - id: satisfaction-metric
+            phrase: "who answered the survey"
+            targets: [satisfaction-metric]
+          - id: precision-recall
+            phrase: "To measure escalation precision"
+            targets: [precision-recall]
+          - id: recall-metric
+            phrase: "For recall"
+            targets: [recall-metric]
+          - id: latency-metric
+            phrase: "separate first useful output"
+            targets: [latency-metric]
+          - id: queueing-metric
+            phrase: "Include queue wait and specialist delay"
+            targets: [queueing-metric]
+          - id: arrival-load
+            phrase: "under a stated arrival load"
+            targets: [arrival-load]
+  - id: fresh-case
+    title: "What can each customer be told?"
+    visual: "Keep Maya’s signed $240 request fixed while invoice age moves from 31 to 30 days. Rewind consent separately. Close on two actual records, Alex’s acknowledged review and Maya’s pending credit request."
+    beats:
+      - say: >-
+          Maya owns this invoice. Billing verified a two-hundred-forty-dollar duplicate, and she wants that
+          exact amount. The same published policy gives her thirty days, with review starting at five hundred dollars.
+          Her invoice is thirty-one days old. Maya has signed the exact request. Can the app queue Maya’s
+          credit?
+        hold: 2.8
+        visual_cues:
+          - id: maya-rules
+            phrase: "the same published policy"
+            targets: [governing-policy]
+          - id: maya-age
+            phrase: "thirty-one days old"
+            targets: [invoice-age]
+          - id: maya-given-confirmation
+            phrase: "Maya has signed"
+            targets: [signed-form]
+          - id: maya-predict
+            phrase: "Can the app queue Maya’s credit"
+            targets: [action-boundary]
+      - say: >-
+          Send it for review. Her signature and the amount still match. The date is outside the window.
+          Change just the invoice age to thirty days. Keep the signed request. Day thirty is
+          inside, so the request is eligible.
+        hold: 0.8
+        visual_cues:
+          - id: maya-expired
+            phrase: "Send it for review"
+            targets: [review-route]
+            caption_boundary: true
+          - id: maya-replay
+            phrase: "the invoice age to thirty days"
+            targets: [invoice-age]
+          - id: maya-eligible
+            phrase: "the request is eligible"
+            targets: [current-decision]
+      - say: >-
+          Rewind to before Maya signed, keeping the invoice at day thirty. What does the app need now?
+        hold: 2
+        visual_cues:
+          - id: maya-rewind
+            phrase: "before Maya signed"
+            targets: [signed-form]
+      - say: >-
+          Ask Maya to confirm the two hundred forty dollars on this invoice. When she signs, compare the
+          customer, invoice, item, request type, amount and policy version with the current proposal. Every
+          field matches. Recheck and insert the request. The queue acknowledges one pending entry.
+        hold: 0.8
+        visual_cues:
+          - id: maya-confirm
+            phrase: "Ask Maya to confirm"
+            targets: [confirmation-form]
+            caption_boundary: true
+          - id: maya-match
+            phrase: "Every field matches"
+            targets: [signed-form]
+          - id: maya-pending
+            phrase: "The queue acknowledges one pending entry"
+            targets: [queue-entry]
+      - say: >-
+          Retry the same key and payload. The same reference comes back. Compare the full retained record
+          against the expected entry. They match and there’s still just one row. Maya asks, “Is the
+          money back?” What can you tell her from this receipt?
+        hold: 2.6
+        caption_starts:
+          - "What can you tell her from this receipt"
+        visual_cues:
+          - id: maya-recover
+            phrase: "The same reference comes back"
+            targets: [recovered-reference]
+          - id: maya-effects
+            phrase: "They match"
+            targets: [expected-effect]
+          - id: maya-status-question
+            phrase: "Maya asks"
+            targets: [queue-entry]
+      - say: >-
+          “Your credit request is pending.” Give her the reference. A billing worker still has to apply the
+          credit. For Alex’s original nine hundred dollars, the specialist queue acknowledged the review
+          packet. Alex can use the review reference. Maya can use the credit request reference.
+          Which record would show that either customer got the money?
+        hold: 2.2
+        visual_cues:
+          - id: maya-reply
+            phrase: "Your credit request is pending"
+            targets: [customer-reply]
+            caption_boundary: true
+          - id: alex-reference
+            phrase: "Alex can use the review reference"
+            targets: [review-receipt]
+          - id: maya-reference
+            phrase: "Maya can use the credit request reference"
+            targets: [credit-receipt]
+          - id: billing-question
+            phrase: "Which record would show that either customer got the money"
+            targets: [billing-record]
+      - say: >-
+          Look for a posted credit on the invoice. Both invoices still show zero applied credits.
+          In the next lesson, you’ll use a delivery scan to tell a customer when to expect a package.
+        hold: 1.8
+        visual_cues:
+          - id: billing-proof
+            phrase: "Look for a posted credit on the invoice"
+            targets: [billing-record]
+            caption_boundary: true
+          - id: applied-counts
+            phrase: "zero applied credits"
+            targets: [billing-record]

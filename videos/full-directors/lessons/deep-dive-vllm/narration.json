@@ -1,0 +1,334 @@
+[
+  {
+    "id": "c01",
+    "title": "Who gets the next GPU step?",
+    "sourceChapters": [
+      "c01"
+    ],
+    "beats": [
+      {
+        "id": "c01-stream",
+        "say": "The little bird sat on the green branch. A second prompt arrives while those last letters are still appearing. In this example, each word stands for one token. The GPU step has six input positions. The live answer needs one. How many can the nine-word prompt use if its memory fits?",
+        "hold": 3.1
+      },
+      {
+        "id": "c01-share",
+        "say": "Five positions fit beside the decode. Count the places under the prompt. The next four words will have to wait. Processing the prompt is called prefill. Decoding feeds a sampled token back into the model to predict another. Both jobs need memory for attention as their histories grow.",
+        "hold": 1.2
+      },
+      {
+        "id": "c01-owners",
+        "say": "Who decides what runs? In online serving, the API server tokenizes the input and streams the reply. An engine core schedules the work and reserves its cache blocks. A GPU worker turns that schedule into model execution. The offline Python interface can send work to the engine too. A familiar interface still needs a supported model and runner.",
+        "hold": 0.7
+      },
+      {
+        "id": "c01-topology",
+        "say": "Count the owners in this online deployment. Four data parallel ranks have one engine core each. Four API servers route requests to those cores. Each core has two GPU workers. A coordinator balances the ranks. That gives seventeen main serving processes. If you set the API server count explicitly, use that count. Add the coordinator when there is more than one data parallel rank.",
+        "hold": 1
+      },
+      {
+        "id": "c01-one-page",
+        "say": "Go back to the opening step. The live decode already has storage. This time R one has just one free block with four cells. It could use five compute positions. Can the word on take the fifth?",
+        "hold": 2.6
+      },
+      {
+        "id": "c01-two-pages",
+        "say": "Only four words fit. The fifth input has nowhere to write its key and value. Add a second free block. Now on fits beside the first four words. The worker has storage for each input it receives.",
+        "hold": 1.1
+      }
+    ]
+  },
+  {
+    "id": "c02",
+    "title": "Where does green live in the block pool?",
+    "sourceChapters": [
+      "c02"
+    ],
+    "beats": [
+      {
+        "id": "c02-layout",
+        "say": "Each earlier token has a key and a value that attention will read again. If every request reserves space for its longest possible answer, an early finish leaves unused space inside its reservation. That is internal fragmentation. Separate gaps between live reservations can also be too small for the next request. Those scattered holes are external fragmentation. Watch what changes when the unit of allocation is a fixed block.",
+        "hold": 0.7
+      },
+      {
+        "id": "c02-address",
+        "say": "Here four token positions fit in a block. Read the bird sentence from left to right. The request table sends the first group to physical block twelve and the next group to forty-one. Select the word green, at position six counting from zero. Which block and which offset will attention read?",
+        "hold": 2.5
+      },
+      {
+        "id": "c02-lookup",
+        "say": "Block forty-one, offset two. Follow the index down. Divide six by four. The quotient selects entry one in the table. The remainder selects the third cell in that physical block. The next block can sit anywhere in the pool, so growing a sequence takes another free block instead of a longer contiguous reservation.",
+        "hold": 1
+      },
+      {
+        "id": "c02-kernel",
+        "say": "The kernel reads the key and value at that address. Paged addressing specifies the mapping. The model, device, data type and enabled features determine which attention implementation can consume it. The original paper measured two to four times the throughput on its workloads at comparable latency. A new workload needs its own comparison on matched hardware, with output checks and a warmed measurement window.",
+        "hold": 1
+      },
+      {
+        "id": "c02-source",
+        "say": "That paper came out of Berkeley’s Sky Computing Lab. Contributors developed the block allocator, scheduler and model runners in the vLLM repository. Suppose you ship that engine with a bird model. The pinned engine source carries Apache two point zero. Check the weight and tokenizer licenses separately. The project’s maintainers review the engine code. Model artifacts have their own publishers and terms.",
+        "hold": 0.9
+      }
+    ]
+  },
+  {
+    "id": "c03",
+    "title": "What did the prefix hit actually save?",
+    "sourceChapters": [
+      "c03"
+    ],
+    "beats": [
+      {
+        "id": "c03-match",
+        "say": "Align the two prompts. Six words match before green branch becomes stone wall. For this full-attention example the cache holds complete four-position blocks. Both requests use the Finch adapter, the same earlier context and the same trust namespace. Which of the two physical blocks can the new request borrow?",
+        "hold": 2.6
+      },
+      {
+        "id": "c03-hit",
+        "say": "Only block twelve qualifies. Follow the four joined positions. Block forty-one contains green branch, so the two matching words on and the still need fresh work along with stone, wall and today. Prefill computes five positions. The cached four bring no prediction for what the bird will do next.",
+        "hold": 1
+      },
+      {
+        "id": "c03-miss",
+        "say": "Try the identical prompt under the Wren adapter. Keep the text lined up with the Finch request. Which Finch blocks can Wren reuse?",
+        "hold": 2.4
+      },
+      {
+        "id": "c03-verdict",
+        "say": "Wren gets zero Finch blocks. Its nine positions all need prefill in this empty Wren cache. The key includes token IDs, the preceding block identity and execution context, including the adapter and any media identity. A trusted gateway can assign a cache namespace from the authenticated group. The namespace limits reuse across groups. The gateway still checks access to each request.",
+        "hold": 0.8
+      },
+      {
+        "id": "c03-output",
+        "say": "Return to Finch. After its five remaining prompt inputs run, the final logits let the sampler choose and. Now feed and through a decode step. In this example the model samples sings. The hit saved four prompt inputs. It supplied neither of these output words.",
+        "hold": 1
+      },
+      {
+        "id": "c03-edge",
+        "say": "What if a prompt ends exactly on a matching block boundary? In the pinned version zero point twenty-eight full-attention path, reserve at least the last input for logits, then round the eligible length down to whole blocks. With eight matching inputs in an eight-token prompt, four can be skipped and four run again. Add a ninth, different input and all eight matches can be skipped.",
+        "hold": 0.9
+      },
+      {
+        "id": "c03-manifest",
+        "say": "Adapter identity also depends on the source revision. Keep the name Finch and change only its path from oak to ash. The older extra-key function records the name, so its input stays Finch. Version zero point thirty-one records a tagged name and path, so its input changes. A path is metadata. Verifying the actual weight bytes is a separate check.",
+        "hold": 1
+      }
+    ]
+  },
+  {
+    "id": "c04",
+    "title": "How far does the prompt move each pass?",
+    "sourceChapters": [
+      "c04"
+    ],
+    "beats": [
+      {
+        "id": "c04-reset",
+        "say": "Replay the two requests with prefix caching off and enough cache space. R zero needs one decode input each step. R one has all nine prompt inputs left. Six positions fit per step. Reserve the live decode first. Which words will cross the first time, and where will the next slice begin?",
+        "hold": 2.7
+      },
+      {
+        "id": "c04-first",
+        "say": "The first five prompt words fit. Run that slice beside the decode. The word on is the fifth. Once the step returns, four words remain on the same request. R zero can stream another token while R one still waits for its first.",
+        "hold": 1
+      },
+      {
+        "id": "c04-second",
+        "say": "Reserve one decode again. The last four fit. Run the second slice. One place stays empty. The worker finishes all nine prompt inputs. Its final logits give R one its first sample, and. It appears even though R one spent this step entirely on prompt inputs.",
+        "hold": 1
+      },
+      {
+        "id": "c04-third",
+        "say": "Both requests now decode. Feed the sampled and back as R one's input. Each request needs just one place, leaving four unused. This is continuous batching. The scheduler can change the mix between steps as requests start, finish or need different amounts of work.",
+        "hold": 0.9
+      },
+      {
+        "id": "c04-clock",
+        "say": "Would a larger slice help both readers? Use an illustrative step clock with two milliseconds of setup and one per computed input. The six-place steps take eight and seven milliseconds. The first reader gets an update at eight, the new reader at fifteen. With a ten-place cap, both get a result at twelve. A shorter wait for the new reader can lengthen the gap in a live stream.",
+        "hold": 1.3
+      }
+    ]
+  },
+  {
+    "id": "c05",
+    "title": "Which physical block can change hands?",
+    "sourceChapters": [
+      "c05"
+    ],
+    "beats": [
+      {
+        "id": "c05-owners",
+        "say": "Return to the Finch cache after the nine prompt tokens have run. The shorter request owns two blocks. The longer one owns three, and both tables point to twelve. All four physical slots in this small pool have a live reader. If R zero finishes, which slot can a third request take?",
+        "hold": 2.9
+      },
+      {
+        "id": "c05-release",
+        "say": "Forty-one loses its last reader. Release the table and follow the pointers that remain. Twelve still has a reader. Forty-one joins the free queue with its old full-block cache entry intact. Its bytes can still satisfy a matching lookup until someone reclaims that slot.",
+        "hold": 1.1
+      },
+      {
+        "id": "c05-write",
+        "say": "The new writer takes forty-one. Reserve the slot and remove its old hash before writing new keys and values. Now write the first two positions for R two. R one can still read twelve, seventy-three and ninety. Its live references protect those slots.",
+        "hold": 1.2
+      },
+      {
+        "id": "c05-queue",
+        "say": "Try another queue. Its head is seventy-one, followed by fifty-five and nine. All three have zero readers. Two requests in turn look up the cached block nine. A third needs fresh space. What happens to the queue?",
+        "hold": 2.6
+      },
+      {
+        "id": "c05-touch",
+        "say": "The first touch unlinks nine. Give it one reader. The second touch adds another reader without removing anything else. The fresh allocation takes the head. Fifty-five is left in the queue, seventy-one has one reader, and nine has two.",
+        "hold": 1.1
+      },
+      {
+        "id": "c05-order",
+        "say": "Return to the bird requests. R two keeps forty-one. Now R one finishes. Release its table from the end. Ninety is partial and has no cache hash. In the pinned pool it goes to the head. The full cached blocks join the tail, suffix seventy-three first, then prefix twelve. Which two slots will a fresh request get?",
+        "hold": 2.7
+      },
+      {
+        "id": "c05-reclaim",
+        "say": "The writer gets ninety and seventy-three. Remove the suffix hash as you reserve its slot. Look at twelve. It is still free and still holds the common prefix. A matching request can find it by its hash.",
+        "hold": 1
+      }
+    ]
+  },
+  {
+    "id": "c06",
+    "title": "Can the worker accept these two inputs?",
+    "sourceChapters": [
+      "c06"
+    ],
+    "beats": [
+      {
+        "id": "c06-wait",
+        "say": "Two new input positions are waiting on the same request. Its current block has space for just one more position. The step has four input places left, but the physical pool has no free block. Watch the cursor at the edge of the page. Can the scheduler send this whole slice?",
+        "hold": 2.7
+      },
+      {
+        "id": "c06-deny",
+        "say": "The slice waits. The two positions fit the step, but the second position needs a new page. A worker must receive both the schedule and storage for every input. A busy cache can leave compute capacity idle.",
+        "hold": 0.8
+      },
+      {
+        "id": "c06-reserve",
+        "say": "One block becomes free. Reserve it for this request. Now the same two positions enter. One fills the old page, the other starts the new one. The cursor advances only after that reservation succeeds.",
+        "hold": 1
+      },
+      {
+        "id": "c06-reverse",
+        "say": "Rewind to just before reservation. Keep the same four available input places, the one tail cell and the free four-position block. This time propose five inputs together. They fit in memory. Can you dispatch the whole slice in this step?",
+        "hold": 2.4
+      },
+      {
+        "id": "c06-budget",
+        "say": "The step is one place short. Hold the five-input proposal here. A smaller slice could run. Under sustained KV pressure, the engine may preempt a request, release its pages and recompute missing state later. Frequent recomputation spends worker time on old inputs. Check free blocks, preemptions, active requests and queue wait together before changing a kernel.",
+        "hold": 1.2
+      },
+      {
+        "id": "c06-active",
+        "say": "There can be another admission limit. In version zero point thirty-one an operator can cap the number of running requests. Set that cap to three. With three running, a fourth waits even when its token and memory checks pass. One request finishes. Its place opens and the waiting request enters. A cap can contain live KV growth, at the cost of queue time. Recompute preemption rebuilds missing state by running inputs again. Configured offload moves stored state to another memory tier.",
+        "hold": 1.1
+      }
+    ]
+  },
+  {
+    "id": "c07",
+    "title": "Which run served more readers on time?",
+    "sourceChapters": [
+      "c07"
+    ],
+    "beats": [
+      {
+        "id": "c07-offers",
+        "say": "Count requests over the same hundred seconds. Candidate A gets a thousand offers. B gets eight hundred. A successful reply must also reach the reader within both promises. Here those are under three hundred milliseconds to first token and under fifty for that request's ninety-ninth percentile gap between tokens. Which run delivers more qualifying completions each second?",
+        "hold": 2.6
+      },
+      {
+        "id": "c07-rate",
+        "say": "B delivers seven point five two per second. Compare the green lengths on the same scale. A delivered five hundred fifty qualifying replies in the full window. B delivered seven hundred fifty-two. The rest include late completions and offers that failed or were still open at the cutoff. Keep all three groups in the account.",
+        "hold": 1.1
+      },
+      {
+        "id": "c07-bias",
+        "say": "For A, five hundred fifty of six hundred successful completions passed. Multiply that fraction by ten offers a second and you get nine point one seven. That estimate applies the completers' pass fraction to all arrivals. Use all thousand offers in the fraction and the estimate returns to five point five. Replay matched traffic and preserve output quality when judging a tuning change.",
+        "hold": 0.8
+      },
+      {
+        "id": "c07-events",
+        "say": "Can your timestamps measure the promise? Here four tokens leave the engine in three reported events. The first event contains two tokens. The others arrive at twelve and twenty-four milliseconds on this clock. You can measure the event gaps. Can you recover the ninety-ninth percentile of the individual token gaps?",
+        "hold": 2.3
+      },
+      {
+        "id": "c07-spacing",
+        "say": "The first pair has no individual timestamps. The two observed event gaps are twelve milliseconds each. The request mean time per output token, measured after the first event, divides twenty-four milliseconds by three token intervals. That gives eight milliseconds. The token-level tail is still unknown. Use measurements at the boundary your service promises.",
+        "hold": 1.2
+      }
+    ]
+  },
+  {
+    "id": "c08",
+    "title": "Where did the first token spend its time?",
+    "sourceChapters": [
+      "c08"
+    ],
+    "beats": [
+      {
+        "id": "c08-trace",
+        "say": "Follow R one from arrival to its first output. Input handling takes twenty milliseconds, queueing takes eighty, prefill takes forty and delivery takes ten. Which interval would you investigate first?",
+        "hold": 2.5
+      },
+      {
+        "id": "c08-diagnose",
+        "say": "Start with the engine queue. Eighty of the hundred fifty milliseconds elapsed before dispatch, after input handling. Read the admission attempt for this same request. Could it obtain token budget and KV blocks? If both fit, compare scheduler CPU time with the dispatch timestamp. A long input interval would send you to tokenization or media handling at the API server instead.",
+        "hold": 0.9
+      },
+      {
+        "id": "c08-worker",
+        "say": "Inspect the handoff for R one. Four cached inputs and five scheduled inputs cover its nine-token prompt. Its block table travels with its ID, assigned count and sampling settings. The worker makes tensors, selects a compatible backend and returns a sample. In the pinned V1 engine, the worker configuration chooses a model runner. A runner called V2 still runs inside that V1 engine. For hybrid models, check the installed cache implementation before applying our full-attention block rule.",
+        "hold": 1
+      },
+      {
+        "id": "c08-workers",
+        "say": "What crosses the link between two GPUs? Tensor parallel workers split a layer and exchange partial results inside it. Pipeline workers split layers and pass activations to the next stage. An empty stage can wait for its input. Data parallel replicas route whole requests, with a copy of the dense weights per replica. Expert parallel workers route tokens to the experts they hold. When worker time dominates a trace, measure the exchange your topology actually uses.",
+        "hold": 1
+      },
+      {
+        "id": "c08-private",
+        "say": "Trace the network boundary too. Admit public requests through an authenticated gateway that checks every permitted route, including aliases. Restrict direct access to the server so callers have to use that gateway. Keep internal worker traffic on an isolated network with only the required peers allowed. The HTTP credential and the worker network policy protect different connections.",
+        "hold": 0.7
+      },
+      {
+        "id": "c08-media",
+        "say": "The bird app also accepts images. Try a tiny test image. Two encoded runs describe six red pixels and six blue pixels. The download fits the byte limit. Expand the runs and count the pixels. Twelve exceed this service’s ten-pixel limit. Stop at the API server, before scheduling any GPU work. Allow approved media sources, restrict redirects and check both incoming size and decoded size. For audio, bound duration as well. Record these checks on the request that experienced the delay.",
+        "hold": 1
+      },
+      {
+        "id": "c08-practice",
+        "say": "Try a new admission. Thirteen prompt tokens, ten leading token IDs matching a live prefix under adapter Finch, three free four-position blocks. The step cap is fourteen and one active decode has its own storage. The new request asks for Wren. Can the entire prompt join the decode?",
+        "hold": 2.8
+      },
+      {
+        "id": "c08-practice-miss",
+        "say": "It needs a fourth block. All thirteen prompt inputs and the decode fit the step, but only twelve new KV positions fit. Keep that result. In a separate replay with the same pool and budget, a caller asks for Finch instead. How much new work does that request bring?",
+        "hold": 2.7
+      },
+      {
+        "id": "c08-practice-hit",
+        "say": "Five prompt inputs remain. Two full matching blocks cover eight of the ten matching IDs. Run those five inputs beside the decode and reserve two new blocks. One free block remains. The caller chose the adapter in each replay.",
+        "hold": 1
+      },
+      {
+        "id": "c08-last-clock",
+        "say": "Now take a separate Finch request with measured times of seven, sixty-five, twenty-four and six milliseconds. Point to the first observation you want. Which process would you open for this reader?",
+        "hold": 2.8
+      },
+      {
+        "id": "c08-end",
+        "say": "The engine queue takes the longest. Inspect admission and scheduler delay for this request before opening its worker trace. That connects a reader waiting at a cursor to a specific measurement you can make.",
+        "hold": 1.5
+      }
+    ]
+  }
+]

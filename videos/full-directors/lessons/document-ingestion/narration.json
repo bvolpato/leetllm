@@ -1,0 +1,513 @@
+[
+  {
+    "id": "c01",
+    "title": "What did the assistant read?",
+    "sourceChapters": [
+      "c01"
+    ],
+    "beats": [
+      {
+        "id": "c01-b01",
+        "say": "Page seven of the release runbook is on the glass. A rollback failed after deploy pay seven forty-two. The assistant cites this page and says to archive it within fourteen days. Find the instruction that belongs to the failed rollback.",
+        "hold": 1.9
+      },
+      {
+        "id": "c01-b02",
+        "say": "The first line says to page on-call within fifteen minutes and include the deploy ID. Watch the archive line while we switch to the saved text. Back to the page. Now the saved text again. Where did the paging instruction first disappear?",
+        "hold": 2.6
+      },
+      {
+        "id": "c01-b03",
+        "say": "The saved extract already lost it. Search can return every word in that extract and still give you just the archive note. Now give the parser a second try. This time both lines survive. If search still returns only the archive note, which handoff would you inspect next?",
+        "hold": 2
+      },
+      {
+        "id": "c01-b04",
+        "say": "Open the indexed chunk, then the passage that search returned. That comparison tells you whether the rule disappeared during chunking or during retrieval.",
+        "hold": 0.8
+      }
+    ]
+  },
+  {
+    "id": "c02",
+    "title": "Choose a parser from the source",
+    "sourceChapters": [
+      "c02"
+    ],
+    "beats": [
+      {
+        "id": "c02-b01",
+        "say": "To repair a missing line, first find out how it was put on the page. This PDF draws letters at positions. A photographed note gives you pixels. A web page has a navigation bar around the rule.",
+        "hold": 0.3
+      },
+      {
+        "id": "c02-b02",
+        "say": "A Markdown file marks the section and fences off the command inside it. Those clues tell you what each parser has to preserve.",
+        "hold": 0.55
+      },
+      {
+        "id": "c02-b03",
+        "say": "For the PDF, reconstruct the reading order from the positioned text. For the photograph, ask the software to read the characters in the image. That’s optical character recognition, or OCR. For HTML, find the main content. In Markdown, keep the heading and the command fence. You’ll check each result against its source.",
+        "hold": 0.7
+      },
+      {
+        "id": "c02-b04",
+        "say": "Give each result a record you can trace. This one names the PDF, its revision and page, and the text that came out. Record which parser produced it, the review decision and a checksum, a fingerprint of the saved bytes. Now the four adapters can hand the same fields to the index.",
+        "hold": 0.55
+      }
+    ]
+  },
+  {
+    "id": "c03",
+    "title": "Test the actual text layer against the page",
+    "sourceChapters": [
+      "c03"
+    ],
+    "beats": [
+      {
+        "id": "c03-b01",
+        "say": "Start with three pages. Read the left column on page three from top to bottom. It gives a complete rollback rule. Now read straight across both columns. That’s how this native extractor read the page. The extractor returned sixty-four, zero and one hundred ten characters.",
+        "hold": 0.3
+      },
+      {
+        "id": "c03-b02",
+        "say": "Page three returned the most text. Both deadlines survived, but the actions sit next to each other and the windows have lost their conditions.",
+        "hold": 0.7
+      },
+      {
+        "id": "c03-b03",
+        "say": "Page two is blank in this file. On a new source, zero characters could mean a blank, a scan or a parser failure. Inspect what a person can see. A photograph may even have an old OCR text layer behind it.",
+        "hold": 0.3
+      },
+      {
+        "id": "c03-b04",
+        "say": "You can copy that text and still get a letter where the page has a digit. Hold pages with encoding damage for review. PDF tags can identify the reading order, if the tags are right and the extractor uses them. Layout mode approximates the printed spacing.",
+        "hold": 0.3
+      },
+      {
+        "id": "c03-b05",
+        "say": "Try a table, two columns and a short valid note. A four-character note that says Done can be perfectly faithful. The character count tells you where to look.",
+        "hold": 0.8
+      },
+      {
+        "id": "c03-b06",
+        "say": "The article uses thirty characters to help choose a parser and forty in a check for one known sentence. Those thresholds tell you which pages to inspect. For cleanup, match the exact header on the first line.",
+        "hold": 0.3
+      },
+      {
+        "id": "c03-b07",
+        "say": "Keep the safety warning even when it repeats on every page. If you also remove a printed footer, the page number must survive in the record. That’s how you’ll find this rule again.",
+        "hold": 0.7
+      }
+    ]
+  },
+  {
+    "id": "c04",
+    "title": "Can we release this transcription?",
+    "sourceChapters": [
+      "c04"
+    ],
+    "beats": [
+      {
+        "id": "c04-b01",
+        "say": "Here’s the line on the scan. The second digit of fifteen is a five. Look at the text made from those pixels. The five came back as the letter S. Everything else, right down to the deploy ID, survived. Would you release that deadline to search?",
+        "hold": 2
+      },
+      {
+        "id": "c04-b02",
+        "say": "Hold the candidate for review. Enlarge the same spot on the retained page. Trace the flat top of the five. Read the whole rule around it. This page says fifteen minutes with the deploy ID. Save a reviewed correction alongside the first reading. Another runbook might really use one S as a part number.",
+        "hold": 0.8
+      },
+      {
+        "id": "c04-b03",
+        "say": "Now test the surrounding words. On the left is the approved sentence. On the right, a new extract contains that sentence word for word. Read the extra line at the top. Would you accept this version as the current paging rule?",
+        "hold": 2.2
+      },
+      {
+        "id": "c04-b04",
+        "say": "Hold it. The prefix calls the rule obsolete. In the article’s check, we collapse whitespace, then compare the whole candidate with the approved sentence. The clean copy passes. The prefixed copy goes to review. An extra rollback rule with a different deadline also needs review. Keep the original so someone can see why.",
+        "hold": 0.8
+      },
+      {
+        "id": "c04-b05",
+        "say": "The next scan may need a better image. Skew, contrast, segmentation and resolution all change what the engine reads. Tesseract recommends an input target of at least three hundred dots per inch. Record the engine version, preprocessing and any confidence score.",
+        "hold": 0.3
+      },
+      {
+        "id": "c04-b06",
+        "say": "Use that score to choose what a person checks first. Even a vision parser can invent text on a blank page. The olmOCR project documented a fix for that failure and reports its own benchmark results. Test your critical fields on your own pages.",
+        "hold": 0.7
+      }
+    ]
+  },
+  {
+    "id": "c05",
+    "title": "Which window belongs to rollback?",
+    "sourceChapters": [
+      "c05"
+    ],
+    "beats": [
+      {
+        "id": "c05-b01",
+        "say": "Suppose page seven prints the same two rules in a table. Find rollback failure on the first row. Follow it to the Window column. Now read what the parser saved below. It used a real window from this page. Which cell did it take that window from?",
+        "hold": 2.4
+      },
+      {
+        "id": "c05-b02",
+        "say": "Fourteen days came from the archive row. Watch the path drop one row at the window, then jump back for the deploy ID. Every character in that deadline is legible. To repair the association, read straight across the reviewed rollback row.",
+        "hold": 0.3
+      },
+      {
+        "id": "c05-b03",
+        "say": "Page on-call within fifteen minutes with the deploy ID. Save the row and its column headers alongside the sentence.",
+        "hold": 0.8
+      },
+      {
+        "id": "c05-b04",
+        "say": "Move down one row. This time it’s routine deploy notes. Follow the cells across again. Archive within fourteen days. There’s no required ID on this row. A citation to table one, row two takes you back to those cells.",
+        "hold": 0.3
+      },
+      {
+        "id": "c05-b05",
+        "say": "Keep the cells as well as the sentence. A merged header can cover several columns, and a footnote can qualify a whole row. If you save a cell position, record its units and where the coordinates start so the reviewer can reopen that cell.",
+        "hold": 0.8
+      }
+    ]
+  },
+  {
+    "id": "c06",
+    "title": "What survives HTML extraction?",
+    "sourceChapters": [
+      "c06"
+    ],
+    "beats": [
+      {
+        "id": "c06-b01",
+        "say": "Look at the digits in the HTML. The one is plain text. The five is in bold. The emphasis tag ends, and the number is still fifteen. Join those two characters. Between paragraphs, insert a space so the next sentence starts cleanly.",
+        "hold": 0.3
+      },
+      {
+        "id": "c06-b02",
+        "say": "Finally, read just the main region. The archive instruction belongs to navigation and stays out of the extract.",
+        "hold": 0.7
+      },
+      {
+        "id": "c06-b03",
+        "say": "Try those boundaries separately. The three extracts keep a number whole, separate two sentences, and leave navigation out. The next two inputs have a missing or empty main region. Send both to review. These are well-formed static pages.",
+        "hold": 0.3
+      },
+      {
+        "id": "c06-b04",
+        "say": "For a live site you also have to account for browser parsing, visibility and JavaScript. Preserve tables and preformatted blocks separately, since flattening their spaces can change a command.",
+        "hold": 0.7
+      },
+      {
+        "id": "c06-b05",
+        "say": "Both of these pages were transcribed accurately. The training manual quotes a phrase on the application’s marker list. This gate sets the quotation aside for review. The second page has no marker match. It stays untrusted source data. Would either page get permission to use a tool?",
+        "hold": 1.8
+      },
+      {
+        "id": "c06-b06",
+        "say": "The application decides which tools it can call. A document supplies evidence. A literal marker can catch a harmless quotation and miss unfamiliar wording, so its label and its transcription quality need separate checks.",
+        "hold": 0.7
+      }
+    ]
+  },
+  {
+    "id": "c07",
+    "title": "Preserve repeated headings and exact fences",
+    "sourceChapters": [
+      "c07"
+    ],
+    "beats": [
+      {
+        "id": "c07-b01",
+        "say": "Find both headings called Agent command. The first starts on line five and contains a shell command. The second starts on line eleven and tells you what to include in the report.",
+        "hold": 0.3
+      },
+      {
+        "id": "c07-b02",
+        "say": "Use the parser’s heading tokens to keep four ordered records, including the preamble at the top. A map keyed by heading would lose the first command. Inside the fence, the line starting with a hash is a shell comment. Keep it with its command.",
+        "hold": 0.7
+      },
+      {
+        "id": "c07-b03",
+        "say": "Slice the original lines at those boundaries. Look at the four spaces before the comment and the closing fence below the command. Copy those bytes. The two spaces at the end of the report line can mark a line break. You can normalize line endings separately.",
+        "hold": 0.3
+      },
+      {
+        "id": "c07-b04",
+        "say": "The two sections have distinct line locators in this version. After an edit moves the lines, use the section identity and its heading path to find it again.",
+        "hold": 0.7
+      }
+    ]
+  },
+  {
+    "id": "c08",
+    "title": "Open the citation",
+    "sourceChapters": [
+      "c08"
+    ],
+    "beats": [
+      {
+        "id": "c08-b01",
+        "say": "Here is the reviewed sentence from revision seven, page seven. Its text hash matches. Follow the citation. Read the edition printed on the page it opens and compare the deadline. Which part of this record needs repair?",
+        "hold": 2.4
+      },
+      {
+        "id": "c08-b02",
+        "say": "Repair the link. It landed on revision six, where the deadline was thirty minutes. The bytes in the extract still pass their check. Point the link at the immutable revision seven file. Open it again and compare the two rules.",
+        "hold": 0.8
+      },
+      {
+        "id": "c08-b03",
+        "say": "Now the condition, deadline and deploy ID agree. Keep the source file’s hash alongside the extract hash so you can check each one independently.",
+        "hold": 0.8
+      },
+      {
+        "id": "c08-b04",
+        "say": "Save the parser version and settings so you can repeat the extraction. Compare the deadline and deploy ID on both sides. The reviewer can approve this wording. To show the quote, check the reader’s access to page seven. To send a pager alert, check the application’s tool permissions.",
+        "hold": 0.7
+      },
+      {
+        "id": "c08-b05",
+        "say": "Two sources can even yield identical bytes. Take the shorter sentence here. Collapsing spaces in ordinary prose gives the same text hash for a PDF, a reviewed scan and an HTML page. Each citation still leads to its own source.",
+        "hold": 0.3
+      },
+      {
+        "id": "c08-b06",
+        "say": "For a Markdown command, normalize line endings and keep the original indentation, fences and trailing spaces. Changing those bytes can change the command.",
+        "hold": 0.7
+      }
+    ]
+  },
+  {
+    "id": "c09",
+    "title": "Chunking must preserve the locator",
+    "sourceChapters": [
+      "c09"
+    ],
+    "beats": [
+      {
+        "id": "c09-b01",
+        "say": "Search works on shorter passages called chunks. Here’s our runbook again. Take the rollback sentence as one chunk. Keep the condition and action alongside the full window and the deploy ID requirement. Save the file version, heading and page with it so a reader can reopen the original.",
+        "hold": 0.55
+      },
+      {
+        "id": "c09-b02",
+        "say": "The second chunk starts just before the first one ends, at the ID requirement. That overlap means you can see the phrase in both passages. Follow the first chunk’s locator back to page seven.",
+        "hold": 0.3
+      },
+      {
+        "id": "c09-b03",
+        "say": "Suppose the next sentence adds an exception for a rollback drill. A cut before the exception changes what a reader would do. Include the exception or link the qualifying passage so the reader can recover it with the rule.",
+        "hold": 0.7
+      },
+      {
+        "id": "c09-b04",
+        "say": "Make the cut in the units your source gives you. Two identical Markdown headings can have different line ranges and different commands. Keep the whole fence. In a PDF, retain the page in the record even when you remove the printed footer. The reader can then check exactly which revision supplied the passage.",
+        "hold": 0.55
+      }
+    ]
+  },
+  {
+    "id": "c10",
+    "title": "Publish membership, content and access changes together",
+    "sourceChapters": [
+      "c10"
+    ],
+    "beats": [
+      {
+        "id": "c10-b01",
+        "say": "Compare two editions of the same runbook. Read page seven on each side. Thirty minutes became fifteen. Page eight still gives the archive rule. Page nine is gone and page ten has appeared. Compare the page keys first, then the text on the pages they share.",
+        "hold": 0.3
+      },
+      {
+        "id": "c10-b02",
+        "say": "Page ten is added, page nine is removed, and page seven has changed. In a corpus, each of those keys also needs the document identity.",
+        "hold": 0.7
+      },
+      {
+        "id": "c10-b03",
+        "say": "Now take an unchanged paragraph and move it from page seven to page nine. If page number is your only key, you’ll see a deletion and an addition. Give the paragraph a stable section identity, or record how the old section corresponds to the new one.",
+        "hold": 0.3
+      },
+      {
+        "id": "c10-b04",
+        "say": "Update its locator when it moves. Once all the new records are ready, switch the published version at once. A reader can now get a coherent edition, including its deletions.",
+        "hold": 0.7
+      },
+      {
+        "id": "c10-b05",
+        "say": "Here the keys are section names. Freeze is new, pager-test is gone and the archive text changed. Look at rollback. Its text hash stays the same, but its owner removed the security group. Compare access separately. The next request from a security reader must be denied.",
+        "hold": 0.3
+      },
+      {
+        "id": "c10-b06",
+        "say": "Check cached evidence against current permissions too. Changes can overlap. Suppose rollback also changes to ten minutes in the next release, while its remaining grant moves from ops to incident commanders. That same key belongs in both the text and access change lists.",
+        "hold": 1
+      }
+    ]
+  },
+  {
+    "id": "c11",
+    "title": "Searching a page image",
+    "sourceChapters": [
+      "c11"
+    ],
+    "beats": [
+      {
+        "id": "c11-b01",
+        "say": "Some pages carry meaning in where the words sit. A diagram or a dense table can fall apart when we try to read it as a paragraph. Try searching the page image instead. Here are three patches from one page.",
+        "hold": 0.3
+      },
+      {
+        "id": "c11-b02",
+        "say": "For each query word, compare its vector with each patch vector. These example dot products are the match scores. Which patch wins for each word?",
+        "hold": 2.2
+      },
+      {
+        "id": "c11-b03",
+        "say": "The policy line wins both times. For fifteen, keep the largest score in the first row. For minutes, keep the largest in the second. Add those two numbers. The page scores one point seven nine. That’s late interaction. Each query vector picks its own best patch before we sum the matches.",
+        "hold": 0.75
+      },
+      {
+        "id": "c11-b04",
+        "say": "Now try a time log with the same query. On this page, fifteen is a section number in the header. Minutes is a unit in the log entry. Look at the scores again. Does moving the strongest match for fifteen into the header change the sum?",
+        "hold": 2.25
+      },
+      {
+        "id": "c11-b05",
+        "say": "The winners are on different parts of the page. Fifteen still gets point nine one. Minutes still gets point eight eight. The sum is still one point seven nine. Open the page and try to quote the deadline. The time log gives you no such rule.",
+        "hold": 0.3
+      },
+      {
+        "id": "c11-b06",
+        "say": "Retain the original image, version, locator and access scope. Compare this path with text search on page recall, answer grounding, latency and index size.",
+        "hold": 0.85
+      },
+      {
+        "id": "c11-b07",
+        "say": "How much space do the vectors take for one example page? Count a grid of thirty-two by thirty-two image patches and six text vectors. Each vector has one hundred twenty-eight coordinates, two bytes apiece. Work out the storage before the image and index overhead.",
+        "hold": 2.3
+      },
+      {
+        "id": "c11-storage-sum",
+        "say": "Two hundred fifty-seven and a half kibibytes per page. That is the vector payload for these dimensions.",
+        "hold": 1
+      },
+      {
+        "id": "c11-b08",
+        "say": "Images and the search index take additional space. The original ColPali paper reports its storage per page and compares search rankings on ViDoRe. On your own pages, compare the space each method takes and how often it finds the page you need.",
+        "hold": 0.3
+      },
+      {
+        "id": "c11-b09",
+        "say": "To try this with the Sentence Transformers multi-vector encoder, choose a checkpoint trained for page images. Encode the queries and pages separately, then compute their similarity.",
+        "hold": 0.8
+      }
+    ]
+  },
+  {
+    "id": "c12",
+    "title": "Admit records only after their checks",
+    "sourceChapters": [
+      "c12"
+    ],
+    "beats": [
+      {
+        "id": "c12-b01",
+        "say": "Four versions of the rollback rule reach the index writer. The native PDF passed its source check. The scan still says one S. The HTML adapter kept the main passage and the Markdown adapter kept its section and code fence. Which records have the evidence they need?",
+        "hold": 1.4
+      },
+      {
+        "id": "c12-b02",
+        "say": "Send the three reviewed records to the index. Keep the suspect scan in the review queue. A reviewer can find it by source and page, inspect the critical character and release a corrected record. Until then, the index excludes that reading.",
+        "hold": 0.7
+      },
+      {
+        "id": "c12-b03",
+        "say": "Work backward from the next wrong answer. Compare the claim with the passage that reader actually received. If the two disagree, inspect generation. If the passage is missing the rule, open the indexed chunk, the saved extract and the original page. The first handoff that lost the sentence tells you where to investigate.",
+        "hold": 0.55
+      },
+      {
+        "id": "c12-b04",
+        "say": "Now give the HTML record a quarantine label. Its transcription is still accurate. In this manifest, the writer checks the supplied quality and trust labels. Two records pass and two wait. A production writer also checks for empty text, required fields, checksums and provenance.",
+        "hold": 0.3
+      },
+      {
+        "id": "c12-b05",
+        "say": "Preserve the access scope and check it again for each reader. Before changing parsers, run reviewed examples through the actual adapters. If more pages from one source start piling up in review, reopen a recent example and check whether its format changed.",
+        "hold": 0.7
+      }
+    ]
+  },
+  {
+    "id": "c13",
+    "title": "Protect the parser before reviewing its output",
+    "sourceChapters": [
+      "c13"
+    ],
+    "beats": [
+      {
+        "id": "c13-b01",
+        "say": "Before opening an upload, check the allowed file type and size. Run the parser in an isolated worker with limits on pages, time and memory. Here the compressed file is four mebibytes. Its expanded contents could take a gibibyte.",
+        "hold": 0.3
+      },
+      {
+        "id": "c13-b02",
+        "say": "Count expanded bytes as the decoder produces them and stop at the cap of one hundred twenty-eight mebibytes. Keep the restricted original and the rejection reason. A later check on extracted text would come too late to protect the worker.",
+        "hold": 0.7
+      },
+      {
+        "id": "c13-b03",
+        "say": "A web fetch has another boundary. Our document service allows its public documentation host. A redirect proposes a different destination. Check the destination host and resolved address before the next request. This destination falls outside the policy, so the worker stops.",
+        "hold": 0.3
+      },
+      {
+        "id": "c13-b04",
+        "say": "For a page the worker can fetch, the later checks still apply. Verify the quality, trust label and current access before returning its evidence.",
+        "hold": 0.7
+      }
+    ]
+  },
+  {
+    "id": "c14",
+    "title": "Can the reader use this restore rule?",
+    "sourceChapters": [
+      "c14"
+    ],
+    "beats": [
+      {
+        "id": "c14-b01",
+        "say": "A backup restore fails at three twelve. Its restore ID is B forty-one. Page four of the backup runbook gives the rule. Enlarge the deadline on the scan, then compare it with the saved transcription. The ops reader already has access. Can this candidate enter search?",
+        "hold": 2.6
+      },
+      {
+        "id": "c14-b02",
+        "say": "Keep it in review. The candidate says two S. Compare the whole rule with the scan. It says to notify storage on-call within twenty-five minutes of a restore failure and include the restore ID. Save that source-verified correction.",
+        "hold": 0.3
+      },
+      {
+        "id": "c14-b03",
+        "say": "Tie the new expectation to this revision of the backup runbook and keep the first reading for the audit. With the other writer checks passed, the corrected record can enter the index. The ops reader can now retrieve it.",
+        "hold": 0.85
+      },
+      {
+        "id": "c14-b04",
+        "say": "Now the owner restricts this same page to incident commanders. The words, the text hash and the ops reader stay the same. On the next request, can that reader still receive the rule?",
+        "hold": 2.2
+      },
+      {
+        "id": "c14-b05",
+        "say": "No. Retrieval must withhold it from ops. An old search result needs the current access check too. Now an incident commander asks the same question. The rule can be returned to this reader. Look back at the failure time. By what time should the commander notify storage on-call, and which ID goes with the message?",
+        "hold": 2.4
+      },
+      {
+        "id": "c14-b06",
+        "say": "Start at three twelve and add the twenty-five minutes printed on page four. Three thirty-seven is the deadline. Notify storage on-call with restore ID B forty-one. In the next lesson, you will choose chunk boundaries. Keep this whole rule together so a search for the deadline also returns the contact and the ID requirement.",
+        "hold": 1.5
+      }
+    ]
+  }
+]

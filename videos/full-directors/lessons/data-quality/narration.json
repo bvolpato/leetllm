@@ -1,0 +1,902 @@
+[
+  {
+    "id": "c01",
+    "title": "Which label will the router give the second ticket?",
+    "sourceChapters": [
+      "c01"
+    ],
+    "beats": [
+      {
+        "id": "c01-b01",
+        "say": "“Build is still failing.” These two tickets came from conversation c-fifty-one. Ticket one oh one went into training with a reviewed escalation label. Ticket one oh two landed in evaluation. Fold case and trim the spaces. The two impressions now coincide. On an exact match the router copies the training label. On a miss it predicts standard. What will it call ticket one oh two?",
+        "hold": 3.2
+      },
+      {
+        "id": "c01-b02",
+        "say": "Escalate. Trace that prediction back along the line to training ticket one oh one. Across all three evaluation tickets, the router gets the build ticket and the standard ticket right. It misses the other escalation. Two correct out of three.",
+        "hold": 1
+      },
+      {
+        "id": "c01-b03",
+        "say": "Slide the training copy out. The other training ticket is about the deploy policy. The three evaluation tickets stay put. What will the router predict for the build message now?",
+        "hold": 2.8
+      },
+      {
+        "id": "c01-b04",
+        "say": "Standard. The matching entry is gone. Only one of the three predictions is now correct. That extra point came from splitting a conversation. To test on new conversations, keep all the tickets from each one in the same split.",
+        "hold": 1.4
+      }
+    ]
+  },
+  {
+    "id": "c02",
+    "title": "Give every row a clear contract",
+    "sourceChapters": [
+      "c02"
+    ],
+    "beats": [
+      {
+        "id": "c02-b01",
+        "say": "Read across the support export. The ticket ID identifies a row. The conversation key connects related turns. The message supplies the input, and a reviewer supplies the target label. Downstream, a repeated ID must be caught across rows. Can you find the row we already have to hold at intake?",
+        "hold": 2
+      },
+      {
+        "id": "c02-b02",
+        "say": "Ticket one hundred four has a message and no label. A structural check can see the missing value; a domain check can reject a label outside the approved set. Both decisions belong at the intake boundary.",
+        "hold": 0.6
+      },
+      {
+        "id": "c02-b03",
+        "say": "Batch checks ask a broader question. A sudden rise in missing labels or a changed class mix may point to a source or annotation change, even when each surviving row passes its local checks.",
+        "hold": 0.65
+      }
+    ]
+  },
+  {
+    "id": "c03",
+    "title": "A valid row can still carry a changed meaning",
+    "sourceChapters": [
+      "c03"
+    ],
+    "beats": [
+      {
+        "id": "c03-b01",
+        "say": "The article’s intake function accepts a dictionary containing four required fields. It requires a positive integer ticket ID, a nonblank trimmed conversation key, nonblank text, and an allowed string label. Python treats a Boolean as an integer subclass, so the exact type check deliberately rejects true.",
+        "hold": 0.3
+      },
+      {
+        "id": "c03-b02",
+        "say": "The string nine is rejected too. An extra locale field is permitted by this particular open schema.",
+        "hold": 0.65
+      },
+      {
+        "id": "c03-b03",
+        "say": "Keep the columns and their types fixed, but change what annotators mean by escalate. Every local check can pass while the target changes. In our supplied batch, three of four labels were standard before the policy change and only one of four is standard afterward.",
+        "hold": 0.3
+      },
+      {
+        "id": "c03-b04",
+        "say": "Its share changes from three quarters to one quarter. The columns still fit the schema. Check the source and annotation instructions to find out why the mix shifted.",
+        "hold": 0.65
+      },
+      {
+        "id": "c03-b05",
+        "say": "Pydantic offers strict validation, Pandera offers table schemas and checks, and Great Expectations records validation results and supports configured actions. Their exact contracts differ. Strict typing and rejection of extra fields are separate settings. Connect a failed result to an explicit stop or quarantine branch.",
+        "hold": 0.3
+      },
+      {
+        "id": "c03-b06",
+        "say": "An allowed word in the label field supplies no evidence that a human reviewed its meaning.",
+        "hold": 0.65
+      }
+    ]
+  },
+  {
+    "id": "c04",
+    "title": "Define which text differences matter",
+    "sourceChapters": [
+      "c04"
+    ],
+    "beats": [
+      {
+        "id": "c04-b01",
+        "say": "The strings “Build is still failing” and “ BUILD is still failing ” represent the same message under a rule that folds case and collapses whitespace. Follow each text field through the transformation. Its ticket, conversation, and reviewed label stay attached, while the raw version remains available for inspection.",
+        "hold": 0.55
+      },
+      {
+        "id": "c04-b02",
+        "say": "Try the same transformation on the ligature in “file.” Unicode compatibility normalization turns that single printed character into the two letters f and i. This helps match these spellings. Code and case-sensitive identifiers need their own counterexamples before you adopt the rule.",
+        "hold": 0.6
+      },
+      {
+        "id": "c04-b03",
+        "say": "The two records now share one normalized string and one SHA-256 lookup key. “Build is not failing” remains different text. To find messages with similar meaning, compare text features or embeddings after exact matching.",
+        "hold": 0.65
+      }
+    ]
+  },
+  {
+    "id": "c05",
+    "title": "Construct the exact comparison key",
+    "sourceChapters": [
+      "c05"
+    ],
+    "beats": [
+      {
+        "id": "c05-b01",
+        "say": "The reference Python recipe first applies Unicode NFKC, then full case folding, then whitespace collapse. Compatibility decomposition and composition turn the fi ligature into two letters, superscript two into two, and a full-width A into A. Case folding maps the German sharp s to two s letters.",
+        "hold": 0.3
+      },
+      {
+        "id": "c05-b02",
+        "say": "After NFKC and full casefold, a ligature in file and a superscript two give file two with no gap before the digit. An internal space survives whitespace collapse. The string with a gap before the digit keeps a different key.",
+        "hold": 0.65
+      },
+      {
+        "id": "c05-b03",
+        "say": "Apply that recipe to Straße and STRASSE: both become strasse. That key is useful only if this distinction is irrelevant to the task. Prod and prod also collapse, even when they name different case-sensitive resources. Keep the raw source beside the transformed text and test meaningful counterexamples.",
+        "hold": 0.3
+      },
+      {
+        "id": "c05-b04",
+        "say": "Negation and environment names must survive the intended comparison rule.",
+        "hold": 0.65
+      },
+      {
+        "id": "c05-b05",
+        "say": "Hash the resulting UTF-8 bytes with SHA-256. Each pair of hex digits above the digest represents one byte of the message. The digest below has sixty-four hex digits. Use the full digest to look up a message, then compare the normalized strings to confirm a match.",
+        "hold": 0.3
+      },
+      {
+        "id": "c05-b06",
+        "say": "To reproduce the same bytes, save the recipe with the Python and Unicode versions.",
+        "hold": 0.65
+      }
+    ]
+  },
+  {
+    "id": "c06",
+    "title": "Quarantine conflicting copies",
+    "sourceChapters": [
+      "c06"
+    ],
+    "beats": [
+      {
+        "id": "c06-b01",
+        "say": "The three migration tickets normalize to the same words. Check the two conversation keys and read the labels before selecting a copy. Two say escalate and one says standard. Which label could you defend? The whole group needs review before release.",
+        "hold": 1.6
+      },
+      {
+        "id": "c06-b02",
+        "say": "Keep all three IDs together in the review record. Identical text across conversations may come from a copied template or from overlap across a split. Preserve both conversation keys and both labels so a reviewer can determine which explanation fits.",
+        "hold": 0.6
+      },
+      {
+        "id": "c06-b03",
+        "say": "Tickets one hundred one and one hundred two repeat inside conversation c-fifty-one, and both carry the escalate label. The artifact keeps 101 as the representative and removes 102 as its duplicate. The cross-conversation group remains quarantined.",
+        "hold": 0.65
+      }
+    ]
+  },
+  {
+    "id": "c07",
+    "title": "Keep connected examples together",
+    "sourceChapters": [
+      "c07"
+    ],
+    "beats": [
+      {
+        "id": "c07-b01",
+        "say": "Decide what a held-out prediction is meant to represent. For new conversations, assign the conversation as a unit. A random ticket-level split can put neighboring turns on both sides and let shared details carry across.",
+        "hold": 0.55
+      },
+      {
+        "id": "c07-b02",
+        "say": "Hash the versioned seed, a colon, and the conversation key. Read the first eight hexadecimal digits, convert them to an integer, and take the remainder after division by a hundred. Our three retained groups land one each in train, validation, and test.",
+        "hold": 0.6
+      },
+      {
+        "id": "c07-b03",
+        "say": "If several conversations describe one incident, conversation IDs may still be too narrow. Group at the level named by the evaluation claim, and add a time cutoff when the real question concerns future traffic.",
+        "hold": 0.65
+      }
+    ]
+  },
+  {
+    "id": "c08",
+    "title": "Stable assignment is a rule about groups",
+    "sourceChapters": [
+      "c08"
+    ],
+    "beats": [
+      {
+        "id": "c08-b01",
+        "say": "The earlier eight-row film fixture hashes a versioned seed and conversation key. The article’s executable reference uses the conversation key alone. These are different declared policies. In that reference, tickets three hundred one and three hundred fifteen both belong to build-zero-zero-one and both enter train.",
+        "hold": 0.3
+      },
+      {
+        "id": "c08-b02",
+        "say": "Build-zero-zero-five enters validation. Build-zero-zero-six enters test. Another group can arrive tomorrow without changing any of those assignments. What if we keep the thresholds and hash a different field?",
+        "hold": 2.3
+      },
+      {
+        "id": "c08-b03",
+        "say": "Change only the hash input to the ticket ID. Three hundred one now enters train while three hundred fifteen enters validation, although both turns describe the same conversation. The leakage is visible before training a model.",
+        "hold": 0.3
+      },
+      {
+        "id": "c08-b04",
+        "say": "Group sizes and class mixtures still determine row proportions: seventy, fifteen and fifteen percent thresholds on hash buckets do not guarantee those exact row counts or balanced labels.",
+        "hold": 0.65
+      },
+      {
+        "id": "c08-b05",
+        "say": "For future traffic, impose a declared prediction-time cutoff as well. A feature calculated from tomorrow’s incident resolution is unavailable today, even in a chronologically partitioned table. Reconstruct features as known at decision time, account for label delays, and fit learned preprocessing on training data.",
+        "hold": 0.3
+      },
+      {
+        "id": "c08-b06",
+        "say": "Decide explicitly what happens to a conversation crossing the time cutoff; neither grouping nor time order silently resolves that conflict.",
+        "hold": 0.65
+      }
+    ]
+  },
+  {
+    "id": "c09",
+    "title": "Use near matches as review signals",
+    "sourceChapters": [
+      "c09"
+    ],
+    "beats": [
+      {
+        "id": "c09-b01",
+        "say": "Exact matching misses edited copies. Compare word pairs in “build has not passed” and “my build has not passed”. Three of their four unique pairs overlap, giving Jaccard similarity three quarters.",
+        "hold": 0.55
+      },
+      {
+        "id": "c09-b02",
+        "say": "MinHash signatures estimate set similarity, while locality-sensitive hashing forms candidate pairs from matching bands. FineWeb documents one configuration with one hundred twelve hashes in fourteen bands of eight rows.",
+        "hold": 0.6
+      },
+      {
+        "id": "c09-b03",
+        "say": "Under the ideal independent-hash model, similarity point seven five yields about a seventy-seven percent candidate probability with that banding rule. Some such pairs are missed, and other pairs become candidates. Inspect matched spans before choosing what to remove.",
+        "hold": 0.7
+      }
+    ]
+  },
+  {
+    "id": "c10",
+    "title": "Why a minimum can estimate overlap",
+    "sourceChapters": [
+      "c10"
+    ],
+    "beats": [
+      {
+        "id": "c10-b01",
+        "say": "Let a, b and c name the three shared word pairs. The extra pair my build is d, present only in the longer message. For one random ordering of the union, keep the earliest shingle in each set.",
+        "hold": 0.3
+      },
+      {
+        "id": "c10-b02",
+        "say": "If the earliest union member is a, b or c, both sets choose it. If that earliest member is d, the longer message chooses d and the shorter message cannot.",
+        "hold": 0.65
+      },
+      {
+        "id": "c10-b03",
+        "say": "There are twenty-four equally likely permutations of these four distinct shingles. Eighteen put a shared member first, so the minima agree in eighteen divided by twenty-four cases: three quarters, exactly their Jaccard similarity. This is the ideal uniform-permutation argument.",
+        "hold": 0.3
+      },
+      {
+        "id": "c10-b04",
+        "say": "With several independent orderings, the fraction of matching signature positions estimates that probability; a short signature can fluctuate.",
+        "hold": 0.65
+      },
+      {
+        "id": "c10-b05",
+        "say": "Each ordering is a different ranking. Read from left to right until you meet a shingle that belongs to the message. Store that shingle in the next signature position. In the ordering starting with d, A skips d and stores a. B stores d. Practical hash functions approximate these rankings. Correlation and collisions can affect the estimate.",
+        "hold": 0.3
+      },
+      {
+        "id": "c10-b06",
+        "say": "A one-word message contributes that word. An empty message has no minimum. The shingler assigns two empty inputs a similarity of zero, and the intake gate rejects blanks before this step.",
+        "hold": 0.65
+      }
+    ]
+  },
+  {
+    "id": "c11",
+    "title": "Which pairs enter review?",
+    "sourceChapters": [
+      "c11"
+    ],
+    "beats": [
+      {
+        "id": "c11-b01",
+        "say": "Compare the upper and lower signatures at each position. Two of the four positions match, so the MinHash estimate is one half. Now read the two positions in each band together. In the first band, both the one and the four agree. That whole band admits the pair to review.",
+        "hold": 0.3
+      },
+      {
+        "id": "c11-b02",
+        "say": "Now change the lower signature. It still matches twice. With the same two band boundaries, does this pair enter review?",
+        "hold": 2.8
+      },
+      {
+        "id": "c11-b03",
+        "say": "Neither band is complete. The matches are in columns one and three. The index skips this pair even though the match count stayed at two. Now suppose the true similarity is one half and the four rows are independent.",
+        "hold": 0.3
+      },
+      {
+        "id": "c11-b04",
+        "say": "Each square stands for one of sixteen equally likely outcomes. Read the two symbols on an edge as the results of the two rows in that band. The right column gives the first band two matches. That's one quarter of the square.",
+        "hold": 0.3
+      },
+      {
+        "id": "c11-b05",
+        "say": "The bottom row adds the outcomes where the second band matches. Nine squares miss both bands. That leaves seven out of sixteen chances to become a candidate. For any similarity, raise it to the rows per band for one band to match.",
+        "hold": 0.3
+      },
+      {
+        "id": "c11-b06",
+        "say": "Subtract from one for a miss. Raise that miss probability to the number of independent bands, then take its complement.",
+        "hold": 1.1
+      },
+      {
+        "id": "c11-b07",
+        "say": "Keep four signature positions and true similarity one half. With four bands of one, even a single match gets the pair into review. With one band of four, all four must match. The bars show how much more comparison work the permissive rule can admit.",
+        "hold": 0.3
+      },
+      {
+        "id": "c11-b08",
+        "say": "FineWeb used one hundred twelve positions, in fourteen bands of eight. At similarity three quarters, that rule finds about seventy-seven percent of pairs under the ideal model. It misses the other twenty-three percent. A crowded bucket can still produce quadratically many pairs.",
+        "hold": 0.3
+      },
+      {
+        "id": "c11-b09",
+        "say": "The next decision is what to do with the pairs you find.",
+        "hold": 1.1
+      }
+    ]
+  },
+  {
+    "id": "c12",
+    "title": "A connected cluster is not pairwise agreement",
+    "sourceChapters": [
+      "c12"
+    ],
+    "beats": [
+      {
+        "id": "c12-b01",
+        "say": "Read the two-word shingles under each message. The first two share “build has” and “has failed.” Between them they contain three different shingles, so their overlap is two thirds. The last two share “has failed” and “failed again,” also two thirds. Our threshold is point six. If both neighbors match, will the two outer messages match each other?",
+        "hold": 3
+      },
+      {
+        "id": "c12-b02",
+        "say": "Bring the outer messages together. Count the shingles that remain in the same column. Only one, “has failed,” appears in both. Across their union there are three shingles. One third falls below the threshold. The neighboring pairs pass, but A and C fail the direct comparison.",
+        "hold": 1.8
+      },
+      {
+        "id": "c12-b03",
+        "say": "A connected-component policy nevertheless joins all three through B. Keeping A as the representative would remove C even though A and C fail that pairwise threshold. FineWeb’s published twenty-twenty-four description formed such transitive clusters and kept one randomly chosen document.",
+        "hold": 0.3
+      },
+      {
+        "id": "c12-b04",
+        "say": "Our ticket policy instead queues candidates for review. Record both the matching rule and the retention rule; they answer different questions.",
+        "hold": 0.65
+      },
+      {
+        "id": "c12-b05",
+        "say": "Ten thousand documents have forty-nine million nine hundred ninety-five thousand unordered pairs before comparing their sets. Candidate indexing can avoid most of that work in suitable workloads, but a single huge bucket restores the expensive case.",
+        "hold": 0.3
+      },
+      {
+        "id": "c12-b06",
+        "say": "Lee and colleagues reported less memorized output after deduplication in their experiments. FineWeb’s aggressive global deduplication underperformed independent per-crawl deduplication in its controlled recipe. Dolma used Bloom filters for URL, document and paragraph deduplication, with possible false-positive matches. Measure deletion effects for the actual corpus and task.",
+        "hold": 0.65
+      }
+    ]
+  },
+  {
+    "id": "c13",
+    "title": "Checking the locked evaluation set",
+    "sourceChapters": [
+      "c13"
+    ],
+    "beats": [
+      {
+        "id": "c13-b01",
+        "say": "Suppose every conversation stayed on its own side of the split. A crawler could still have picked up part of a locked evaluation set. Here are two training messages and two messages reserved for evaluation. Which locked message already occurs in training?",
+        "hold": 2.4
+      },
+      {
+        "id": "c13-b02",
+        "say": "Normalize the text and compare its fingerprints. The migration message shows up on both sides. Capitalizing the first word didn't change its key. The incident review message has no exact match in this snapshot. Set the matching item aside and record where the copy came from.",
+        "hold": 1.15
+      },
+      {
+        "id": "c13-b03",
+        "say": "That overlap weakens a claim about performance on unseen material. A crawler might also collect an answer inside a longer page. The next search keeps the actual words in view so we can see what each check found.",
+        "hold": 0.7
+      }
+    ]
+  },
+  {
+    "id": "c14",
+    "title": "How much of the answer did the search find?",
+    "sourceChapters": [
+      "c14"
+    ],
+    "beats": [
+      {
+        "id": "c14-b01",
+        "say": "The library return box stays open on Sunday while the building is closed. Those thirteen words are the locked answer. Put “notes” before the answer and “archive” after it in the training document. Would a fingerprint of the whole message still match?",
+        "hold": 2.5
+      },
+      {
+        "id": "c14-b02",
+        "say": "The whole message misses. Its bytes now include two extra words. Lay a window over the first thirteen words. It starts at “notes” and stops at “is.” Slide it one word to the right. Now it starts at “the” and ends at “closed.” All thirteen words match.",
+        "hold": 0.3
+      },
+      {
+        "id": "c14-b03",
+        "say": "Save the source snapshot and the positions of those thirteen words, from word two through word fourteen. A reviewer can now inspect the copied span with the surrounding “notes” and “archive” still attached.",
+        "hold": 1.3
+      },
+      {
+        "id": "c14-b04",
+        "say": "Try a second document. It says, “Use the outdoor returns slot when the library shuts.” You can still work out where to leave the book. Which of the two searches will flag those words?",
+        "hold": 2.6
+      },
+      {
+        "id": "c14-b05",
+        "say": "Both searches miss. The rewrite has nine words, so it cannot fill a thirteen-word window. Yet both passages tell you where to return the book. Compare their meaning when you review a possible copy. If the matching words are common boilerplate, read the surrounding passage before excluding it.",
+        "hold": 1.2
+      },
+      {
+        "id": "c14-b06",
+        "say": "GPT-three's initial filter used thirteen-word matches on lowercased, whitespace-separated words with punctuation removed. Its later audit generally used eight to thirteen words for non-synthetic tasks. A filtering bug left overlap in long documents. The authors omitted several benchmarks where almost every example overlapped.",
+        "hold": 0.3
+      },
+      {
+        "id": "c14-b07",
+        "say": "Record the rule, dated sources, matched passages and decisions. Keep locked items out of pretraining, fine-tuning, retrieval, prompt examples and judge construction.",
+        "hold": 1.1
+      },
+      {
+        "id": "c14-b08",
+        "say": "Now suppose another model's training snapshot is unavailable. Look at the new row. Can you fill in either match result?",
+        "hold": 2.4
+      },
+      {
+        "id": "c14-b09",
+        "say": "Neither search ran. Both need the training text. A membership score looks for signs of exposure in the way the model predicts words. A common phrase can be easy to predict on a first reading, and a rewrite can change the score.",
+        "hold": 0.3
+      },
+      {
+        "id": "c14-b10",
+        "say": "Samuel and colleagues found that detectors disagreed. To measure performance on new material, give the model a fresh private task.",
+        "hold": 1.2
+      }
+    ]
+  },
+  {
+    "id": "c15",
+    "title": "Review sensitive data by layer",
+    "sourceChapters": [
+      "c15"
+    ],
+    "beats": [
+      {
+        "id": "c15-b01",
+        "say": "Open the support message. Alex asks about a private incident timeline and includes a contact address. The name, address and incident context can require different handling. Which spans would a simple address pattern recognize?",
+        "hold": 2.2
+      },
+      {
+        "id": "c15-b02",
+        "say": "A pattern scanner can flag email-like strings. An entity model can propose names and addresses. A release policy then decides whether to mask a span, drop a record, or restrict access.",
+        "hold": 0.6
+      },
+      {
+        "id": "c15-b03",
+        "say": "Each layer misses some cases and can flag harmless text. Preserve the source reference and reviewer decision, minimize what the training job needs, and keep the open privacy review visible in the artifact status.",
+        "hold": 0.65
+      }
+    ]
+  },
+  {
+    "id": "c16",
+    "title": "What happens when a scanner finds private text?",
+    "sourceChapters": [
+      "c16"
+    ],
+    "beats": [
+      {
+        "id": "c16-b01",
+        "say": "Scan these two tickets for an email address. One mentions a private incident timeline. The other asks for updates at alex at example dot com. The scanner flags the address in ticket five oh two and queues it for redaction review. The text stays intact.",
+        "hold": 0.3
+      },
+      {
+        "id": "c16-b02",
+        "say": "Ticket five oh one goes past the email check with the private timeline still in it.",
+        "hold": 0.65
+      },
+      {
+        "id": "c16-b03",
+        "say": "Mask the address in ticket five oh two. The email marker takes its place, and the rest of the sentence stays readable. To find names, add a name recognizer. To find credentials, use patterns for those formats. Presidio lets you combine recognizers.",
+        "hold": 0.3
+      },
+      {
+        "id": "c16-b04",
+        "say": "Test them on reviewed examples from the languages you serve to see which private spans they miss and which harmless words they flag.",
+        "hold": 0.65
+      },
+      {
+        "id": "c16-b05",
+        "say": "Dolma’s original web filter counted the sensitive spans it detected on a page. With five, it masked those spans. A sixth span changed the decision. At six or more, the filter dropped the whole page.",
+        "hold": 0.3
+      },
+      {
+        "id": "c16-b06",
+        "say": "For support tickets, keep only the content you need and restrict access to the raw records, rejects and manifest. Provenance records where the data came from and who could use it. Lineage connects the source to each transformation and output.",
+        "hold": 0.3
+      },
+      {
+        "id": "c16-b07",
+        "say": "OpenLineage can record those connections when a pipeline emits the events.",
+        "hold": 0.65
+      }
+    ]
+  },
+  {
+    "id": "c17",
+    "title": "A prose filter can remove useful technical data",
+    "sourceChapters": [
+      "c17"
+    ],
+    "beats": [
+      {
+        "id": "c17-b01",
+        "say": "Web-scale selection applies the same gates to many more records. A length rule, symbol ratio, common-word count or repeated-line rule can remove broken extraction. Apply a prose symbol rule to an otherwise useful command log and it can reject the very technical evidence the target model needs.",
+        "hold": 0.3
+      },
+      {
+        "id": "c17-b02",
+        "say": "A repeated error line may be either scraper noise or the structure of an incident. The threshold alone cannot tell those explanations apart.",
+        "hold": 0.65
+      },
+      {
+        "id": "c17-b03",
+        "say": "Keep a reviewed sample and count removals by source, language and domain. In our supplied selection worksheet, a filter removes eight of ten logs but only one of ten prose pages. The retained mix changes from one-half logs to two of eleven documents, about eighteen percent.",
+        "hold": 0.3
+      },
+      {
+        "id": "c17-b04",
+        "say": "That measurable change opens a coverage question, even if every retained document passes the local rules.",
+        "hold": 0.65
+      },
+      {
+        "id": "c17-b05",
+        "say": "The filter leaves two logs beside nine prose pages. Would a model trained on that mix handle incident logs better? Train one model on the original mix and another on the filtered mix. Match the model settings, token budget and evaluation tasks.",
+        "hold": 0.3
+      },
+      {
+        "id": "c17-b06",
+        "say": "Record the sampling rule and seeds. Compare their answers on the same held-out tasks. FineWeb used controlled comparisons like this to choose its data recipe.",
+        "hold": 0.65
+      }
+    ]
+  },
+  {
+    "id": "c18",
+    "title": "What makes a log line hard to predict?",
+    "sourceChapters": [
+      "c18"
+    ],
+    "beats": [
+      {
+        "id": "c18-b01",
+        "say": "A fixed reference model scores two tokens. Use each token’s conditional probability given the preceding text. Negative natural log probability turns the less likely token into the taller loss bar. Average those losses over the scored tokens and exponentiate. That gives perplexity under this model and tokenizer.",
+        "hold": 0.3
+      },
+      {
+        "id": "c18-b02",
+        "say": "For two tokens with probabilities one half and one quarter, their product is one eighth. The inverse geometric mean is the square root of eight, about two point eight three.",
+        "hold": 0.65
+      },
+      {
+        "id": "c18-b03",
+        "say": "Keep the scorer, tokenizer and scored positions fixed when comparing perplexity. Changing tokenizers changes the unit. CCNet used a Wikipedia-based reference model to help select web text. A line about losing quorum on shard seven can surprise a prose model.",
+        "hold": 0.3
+      },
+      {
+        "id": "c18-b04",
+        "say": "Four repetitions of “Welcome” can be easy to predict. Which passage would help you diagnose an incident?",
+        "hold": 2.4
+      },
+      {
+        "id": "c18-b05",
+        "say": "The log tells you which shard lost quorum and whether rollback has started. Now read the rewrite. “The system had a problem.” The shard number is gone. So is the rollback status. Before adopting a filter, review what it removes in each language and format. Test the resulting model on tasks that need those details.",
+        "hold": 0.65
+      }
+    ]
+  },
+  {
+    "id": "c19",
+    "title": "What does this generated function count?",
+    "sourceChapters": [
+      "c19"
+    ],
+    "beats": [
+      {
+        "id": "c19-b01",
+        "say": "A teacher model supplied a function to count nonnegative numbers. Its response has the required fields. Keep the teacher and generation settings in the record, and keep locked evaluation examples out of its prompt. Now read the return line. On an empty list, the length is zero.",
+        "hold": 0.3
+      },
+      {
+        "id": "c19-b02",
+        "say": "That test passes. On minus three and two, what will the function return?",
+        "hold": 2.4
+      },
+      {
+        "id": "c19-b03",
+        "say": "It returns two. It counted minus three as well. Only one value qualifies. A reviewer might like how clearly this answer is written. The mixed list gives us a reason to send it back for repair.",
+        "hold": 1.2
+      },
+      {
+        "id": "c19-b04",
+        "say": "Change the return line to count each value that is greater than or equal to zero. Run both lists again. The empty list gives zero and the mixed list gives one. Try zero by itself. It counts once because the comparison includes equality.",
+        "hold": 0.3
+      },
+      {
+        "id": "c19-b05",
+        "say": "Save the inputs, outputs and checker version. For a math answer, check the stated mathematical result. For a model judge, compare its ratings with human or verifiable labels. The teacher and judge can share a mistake. These three inputs tell us exactly which behavior we checked.",
+        "hold": 1.1
+      }
+    ]
+  },
+  {
+    "id": "c20",
+    "title": "Make the dataset reproducible",
+    "sourceChapters": [
+      "c20"
+    ],
+    "beats": [
+      {
+        "id": "c20-b01",
+        "say": "Start with eight ticket rows. One lacks a reviewed label, three share conflicting normalized text and stay quarantined, and two agreeing copies keep one representative. The candidate contains tickets one hundred one, one hundred three, and one hundred seven.",
+        "hold": 0.55
+      },
+      {
+        "id": "c20-b02",
+        "say": "A versioned group hash assigns one row to each split. Read the reviewed label next to each destination. Training gets the deploy-policy question, labeled standard. The only escalation goes to validation. Which routing behavior could you learn from the training split alone?",
+        "hold": 2.4
+      },
+      {
+        "id": "c20-b03",
+        "say": "The final rows retain their message, reviewed label, conversation, and split. The artifact digest covers those records and assignments. A byte change produces a new digest; a trusted release record identifies the supplier. Keep the exclusions and the open coverage review alongside this candidate.",
+        "hold": 0.7
+      }
+    ]
+  },
+  {
+    "id": "c21",
+    "title": "Where does each rejected ticket go?",
+    "sourceChapters": [
+      "c21"
+    ],
+    "beats": [
+      {
+        "id": "c21-b01",
+        "say": "Start a new candidate with twelve raw tickets. The last example had eight. First count repeated integer IDs and check each row's fields. A repeated ID disqualifies every otherwise valid row with that ID. Here all twelve IDs are distinct.",
+        "hold": 0.3
+      },
+      {
+        "id": "c21-b02",
+        "say": "Ticket four oh four has a message, but its label is missing. Log that reason beside its ID. Now open these two matching messages. They belong to the same conversation. Can you keep just one of them?",
+        "hold": 2.4
+      },
+      {
+        "id": "c21-b03",
+        "say": "Both go to review. One label says standard and the other says escalate. Keeping the lower ID would silently choose a label. The builder checks for that conflict first. Try the next pair. Here the text matches and both labels say standard. Look at the conversation keys. Keep one copy or send both to review?",
+        "hold": 2.5
+      },
+      {
+        "id": "c21-b04",
+        "say": "Send both to review. These are two different conversations. A shared template could explain the repeated words. Now look at the build messages. Their normalized text, conversation and reviewed label all agree. Which ticket represents this conversation?",
+        "hold": 2.4
+      },
+      {
+        "id": "c21-b05",
+        "say": "Keep four oh one, the lower ID. Four oh two goes into the rejection log as its duplicate. The other five distinct, valid tickets stay. Six kept plus six rejected accounts for all twelve inputs. A reviewer can still find every excluded ticket and its reason.",
+        "hold": 1.1
+      },
+      {
+        "id": "c21-b06",
+        "say": "Assign the kept rows by conversation. The first seventy hash buckets go to train, the next fifteen to validation, and the last fifteen to test. Read the split column. Three tickets went to train, two to validation and one to test.",
+        "hold": 0.3
+      },
+      {
+        "id": "c21-b07",
+        "say": "Write sorted JSON fields as UTF-eight, with a line feed after each record. Save the rejection log separately. The manifest records both file digests, the source and pipeline versions, runtime and Unicode versions, split rule, counts and pending reviews.",
+        "hold": 0.3
+      },
+      {
+        "id": "c21-b08",
+        "say": "The dataset and rejection log each have their own digest. Load the six retained records and check those two files against the manifest. Can a change to a rejected ticket slip past a verifier that counts only the total?",
+        "hold": 2.2
+      }
+    ]
+  },
+  {
+    "id": "c22",
+    "title": "Which part of the artifact changed?",
+    "sourceChapters": [
+      "c22"
+    ],
+    "beats": [
+      {
+        "id": "c22-b01",
+        "say": "The downstream verifier checks six visible families of invariants: conversation isolation and exact split adherence; artifact and rejection-log digests; row schema; recomputed normalized-text fingerprints; unique IDs and normalized strings; and manifest accounting. Compare total rows, split counts and the counts in each rejection-reason category with the manifest.",
+        "hold": 0.3
+      },
+      {
+        "id": "c22-b02",
+        "say": "All six pass on this candidate. We have checked its rows, assignments, bytes and accounting. To decide whether a permitted label is correct, we still need the annotation record and review policy.",
+        "hold": 0.65
+      },
+      {
+        "id": "c22-b03",
+        "say": "Copy the first retained row in memory, give it ID nine hundred ninety-nine and put it in test. Its conversation now crosses train and test; normalized text is no longer unique; seven loaded rows disagree with the manifest’s six. Multiple checks catch the same intervention.",
+        "hold": 0.3
+      },
+      {
+        "id": "c22-b04",
+        "say": "Restore the original rows in memory. After loading them, append one newline byte to the dataset file. The rows already in memory stay the same. The digest of the file on disk changes.",
+        "hold": 0.65
+      },
+      {
+        "id": "c22-b05",
+        "say": "Restore the original dataset file. This time edit just ticket four oh four in the rejection log. Change its reason from invalid label to label conflict and leave the manifest as it was. Six rows are still rejected. Which digest should the loader flag? Will the reason counts still agree?",
+        "hold": 2.6
+      },
+      {
+        "id": "c22-b06",
+        "say": "The rejection log digest changes. The dataset digest still matches. Look at the reasons underneath. Invalid label drops from one to zero. Label conflict goes from two to three. The total of six conceals both changes. Stop the load and reconcile the log with the recorded source before rebuilding the candidate.",
+        "hold": 1.1
+      },
+      {
+        "id": "c22-b07",
+        "say": "Which rejection log belongs to this release? Get the expected digest from the signed release record and verify the signature with the publisher’s trusted key. Compare the log on disk with that recorded digest. The edited log differs, even though the total still says six.",
+        "hold": 0.3
+      },
+      {
+        "id": "c22-b08",
+        "say": "The signature tells you who signed the record. Label review, privacy checks and benchmark checks still have their own evidence.",
+        "hold": 0.65
+      }
+    ]
+  },
+  {
+    "id": "c23",
+    "title": "Passing the loader does not supply missing examples",
+    "sourceChapters": [
+      "c23"
+    ],
+    "beats": [
+      {
+        "id": "c23-b01",
+        "say": "Put the six retained rows into a split-by-label table. Train contains three escalate examples and no standard examples. Validation contains two standard examples and no escalate examples. Test contains one standard example and no escalate examples.",
+        "hold": 0.3
+      },
+      {
+        "id": "c23-b02",
+        "say": "The reference coverage audit fails in all three splits, although every structural verifier just passed. Validation accuracy on these records cannot evaluate escalation detection.",
+        "hold": 0.65
+      },
+      {
+        "id": "c23-b03",
+        "say": "Compare source shares, label counts, lengths and quantiles. On these two length axes, the three observations at one, two and three shift to two, three and four. Each equal mass moves one unit. The Wasserstein distance here is one. Population Stability Index also measures discrepancy. Neither measure provides a calibrated hypothesis test by itself.",
+        "hold": 0.3
+      },
+      {
+        "id": "c23-b04",
+        "say": "Ordinary chi-square approximations need adequate expected counts; this six-row table is too sparse. A two-sample KS test assumes independent samples from continuous distributions, so repeated conversation turns and tied token counts require appropriate handling.",
+        "hold": 0.65
+      },
+      {
+        "id": "c23-b05",
+        "say": "For a coverage failure, collect more reviewed groups or design a stratified grouped split before comparing models. Unequal group sizes and mixed labels can prevent perfect balance. Future deployment may legitimately differ from past training, and very large samples can make tiny effects statistically significant.",
+        "hold": 0.3
+      },
+      {
+        "id": "c23-b06",
+        "say": "Keep the deployment target and group boundary explicit. Moving examples after inspecting test performance converts that test into development data and requires a new evaluation plan.",
+        "hold": 0.65
+      }
+    ]
+  },
+  {
+    "id": "c24",
+    "title": "Retain the bytes a version promises",
+    "sourceChapters": [
+      "c24"
+    ],
+    "beats": [
+      {
+        "id": "c24-b01",
+        "say": "The article’s one-row version has digest prefix six zero four five five nine. Adding the second row creates a two-row version beginning five five one three six nine. A different digest identifies changed bytes; it does not show that the data change caused any later accuracy difference.",
+        "hold": 0.3
+      },
+      {
+        "id": "c24-b02",
+        "say": "Hold model settings, seeds and evaluation policy fixed to test that causal question.",
+        "hold": 0.65
+      },
+      {
+        "id": "c24-b03",
+        "say": "The local builder overwrites its v1 filenames when rerun. A hash does not prevent that write. Retain source snapshots, assign new release identifiers or content-addressed locations, and keep trusted release records.",
+        "hold": 0.3
+      },
+      {
+        "id": "c24-b04",
+        "say": "DVC uses content-addressed cache entries and small tracking files; an optional S3 remote follows that layout rather than making S3 inherently content-addressed. Hugging Face dataset cache fingerprints support reuse, and non-hashable transforms can receive random fingerprints with a warning. Store the published artifact’s cryptographic digest explicitly.",
+        "hold": 0.65
+      },
+      {
+        "id": "c24-b05",
+        "say": "Delta and Iceberg table history also depends on retention. Delta time travel needs both its log and referenced data files; VACUUM can remove needed files. Expiring an Iceberg snapshot removes that historical query target. Record which bytes remain accessible.",
+        "hold": 0.3
+      },
+      {
+        "id": "c24-b06",
+        "say": "A dataset datasheet adds motivation, composition, collection, annotation policy, permissions, intended uses, limitations and maintenance responsibilities to the operational manifest. This makes a candidate reviewable while keeping unfinished release decisions visible.",
+        "hold": 0.65
+      }
+    ]
+  },
+  {
+    "id": "c25",
+    "title": "Can we measure escalation on new conversations?",
+    "sourceChapters": [
+      "c25"
+    ],
+    "beats": [
+      {
+        "id": "c25-b01",
+        "say": "Four tickets just arrived. The first two have the same conversation and the same reviewed label. The third has different text. Look closely at the last ticket's ID. Apply the same builder we used before. Which two tickets survive?",
+        "hold": 2.9
+      },
+      {
+        "id": "c25-b02",
+        "say": "The Boolean ID fails the positive integer rule. Fold case and trim the spaces in the first two messages. They now share a key. Within their conversation the labels agree, so keep the lower ID, seven oh one. Seven oh three keeps its own entry. Two kept and two rejected accounts for all four inputs.",
+        "hold": 1.3
+      },
+      {
+        "id": "c25-b03",
+        "say": "Hash the two conversation IDs. Their buckets are sixty-five and fifty-four. The ranges below are fixed. Which splits receive the tickets?",
+        "hold": 2.6
+      },
+      {
+        "id": "c25-b04",
+        "say": "Both go to train. Both labels are present there, but validation and test are empty. Hold this candidate. Suppose two more reviewed conversations arrive before any model comparison. Use the same split rule for the next version. Bucket seventy-two goes to validation. Ninety-six goes to test. Both new tickets carry the standard label.",
+        "hold": 1.1
+      },
+      {
+        "id": "c25-b05",
+        "say": "Try a router that always predicts standard. It gets the validation ticket right. Follow that one green check back to the reviewer’s label. One correct out of one. Which validation conversation could you use to test detection of an escalation?",
+        "hold": 3.2
+      },
+      {
+        "id": "c25-b06",
+        "say": "There are zero reviewed escalations in validation. Ticket seven oh five, from build zero zero five, requested the rollback guide. Its reviewer chose standard. The denominator for escalation recall is the number of reviewed escalations. With zero eligible conversations, recall is undefined. Collect reviewed escalation conversations for the next version.",
+        "hold": 0.3
+      },
+      {
+        "id": "c25-b07",
+        "say": "Keep each conversation together and check the split counts before comparing routers. Privacy, license and benchmark reviews stay open. When you build the router's features, use only the facts available when each ticket arrived.",
+        "hold": 1.8
+      }
+    ]
+  }
+]

@@ -1,0 +1,331 @@
+{
+  "id": "worker-lease-registry",
+  "slug": "worker-lease-registry",
+  "title": "Worker Lease Registry",
+  "difficulty": "Medium",
+  "category": "Scheduling",
+  "language": "python3",
+  "timeEstimateMinutes": 40,
+  "timeLimitMs": 2500,
+  "memoryLimitMb": 128,
+  "order": 115,
+  "tags": [
+    "leases",
+    "workers",
+    "fencing token",
+    "heartbeats"
+  ],
+  "source": "Frontier coding prep",
+  "summary": "Coordinate worker ownership with TTL leases, heartbeat extension, stale-worker rejection, and fencing tokens.",
+  "starterCode": [
+    "class LeaseRegistry:",
+    "    def __init__(self, ttl_seconds: float):",
+    "        pass",
+    "",
+    "    def acquire(self, run_id: str, worker_id: str, now: float) -> dict | None:",
+    "        pass",
+    "",
+    "    def heartbeat(self, lease_id: str, fencing_token: int, now: float) -> bool:",
+    "        pass",
+    "",
+    "    def validate(self, run_id: str, lease_id: str, fencing_token: int, now: float) -> bool:",
+    "        pass",
+    "",
+    "    def release(self, lease_id: str, fencing_token: int) -> bool:",
+    "        pass"
+  ],
+  "testCases": [
+    {
+      "name": "public active lease blocks another worker",
+      "visibility": "sample",
+      "setup": [
+        "from solution import LeaseRegistry",
+        "registry = LeaseRegistry(ttl_seconds=10)",
+        "lease = registry.acquire(\"run-1\", \"worker-a\", now=0)"
+      ],
+      "checks": [
+        {
+          "input": "registry = LeaseRegistry(ttl_seconds=10)\nlease = registry.acquire(\"run-1\", \"worker-a\", now=0)\nlease[\"lease_id\"]",
+          "expression": "lease[\"lease_id\"]",
+          "operator": "==",
+          "expected": "\"run-1:worker-a:1\""
+        },
+        {
+          "input": "registry = LeaseRegistry(ttl_seconds=10)\nlease = registry.acquire(\"run-1\", \"worker-a\", now=0)\nlease[\"lease_id\"]\nlease[\"fencing_token\"]",
+          "expression": "lease[\"fencing_token\"]",
+          "operator": "==",
+          "expected": "1"
+        },
+        {
+          "input": "registry = LeaseRegistry(ttl_seconds=10)\nlease = registry.acquire(\"run-1\", \"worker-a\", now=0)\nlease[\"lease_id\"]\nlease[\"fencing_token\"]\nregistry.acquire(\"run-1\", \"worker-b\", now=5)",
+          "expression": "registry.acquire(\"run-1\", \"worker-b\", now=5)",
+          "operator": "is",
+          "expected": "None"
+        }
+      ]
+    },
+    {
+      "name": "public expired lease can be stolen",
+      "visibility": "sample",
+      "setup": [
+        "from solution import LeaseRegistry",
+        "registry = LeaseRegistry(ttl_seconds=10)",
+        "old = registry.acquire(\"run-1\", \"worker-a\", now=0)",
+        "new = registry.acquire(\"run-1\", \"worker-b\", now=10)"
+      ],
+      "checks": [
+        {
+          "input": "registry = LeaseRegistry(ttl_seconds=10)\nold = registry.acquire(\"run-1\", \"worker-a\", now=0)\nnew = registry.acquire(\"run-1\", \"worker-b\", now=10)\nnew[\"worker_id\"]",
+          "expression": "new[\"worker_id\"]",
+          "operator": "==",
+          "expected": "\"worker-b\""
+        },
+        {
+          "input": "registry = LeaseRegistry(ttl_seconds=10)\nold = registry.acquire(\"run-1\", \"worker-a\", now=0)\nnew = registry.acquire(\"run-1\", \"worker-b\", now=10)\nnew[\"worker_id\"]\nnew[\"fencing_token\"]",
+          "expression": "new[\"fencing_token\"]",
+          "operator": "==",
+          "expected": "2"
+        },
+        {
+          "input": "registry = LeaseRegistry(ttl_seconds=10)\nold = registry.acquire(\"run-1\", \"worker-a\", now=0)\nnew = registry.acquire(\"run-1\", \"worker-b\", now=10)\nnew[\"worker_id\"]\nnew[\"fencing_token\"]\nregistry.validate(\"run-1\", old[\"lease_id\"], old[\"fencing_token\"], now=10)",
+          "expression": "registry.validate(\"run-1\", old[\"lease_id\"], old[\"fencing_token\"], now=10)",
+          "operator": "is",
+          "expected": "False"
+        }
+      ]
+    },
+    {
+      "name": "hidden heartbeat extends current lease",
+      "visibility": "hidden",
+      "setup": [
+        "from solution import LeaseRegistry",
+        "registry = LeaseRegistry(ttl_seconds=10)",
+        "lease = registry.acquire(\"run\", \"worker\", now=0)"
+      ],
+      "checks": [
+        {
+          "input": "registry = LeaseRegistry(ttl_seconds=10)\nlease = registry.acquire(\"run\", \"worker\", now=0)\nregistry.heartbeat(lease[\"lease_id\"], lease[\"fencing_token\"], now=9)",
+          "expression": "registry.heartbeat(lease[\"lease_id\"], lease[\"fencing_token\"], now=9)",
+          "operator": "==",
+          "expected": "True"
+        },
+        {
+          "input": "registry = LeaseRegistry(ttl_seconds=10)\nlease = registry.acquire(\"run\", \"worker\", now=0)\nregistry.heartbeat(lease[\"lease_id\"], lease[\"fencing_token\"], now=9)\nregistry.acquire(\"run\", \"other\", now=18)",
+          "expression": "registry.acquire(\"run\", \"other\", now=18)",
+          "operator": "is",
+          "expected": "None"
+        },
+        {
+          "input": "registry = LeaseRegistry(ttl_seconds=10)\nlease = registry.acquire(\"run\", \"worker\", now=0)\nregistry.heartbeat(lease[\"lease_id\"], lease[\"fencing_token\"], now=9)\nregistry.acquire(\"run\", \"other\", now=18)\nregistry.acquire(\"run\", \"other\", now=19)[\"worker_id\"]",
+          "expression": "registry.acquire(\"run\", \"other\", now=19)[\"worker_id\"]",
+          "operator": "==",
+          "expected": "\"other\""
+        }
+      ]
+    },
+    {
+      "name": "hidden stale worker heartbeat fails after steal",
+      "visibility": "hidden",
+      "setup": [
+        "from solution import LeaseRegistry",
+        "registry = LeaseRegistry(ttl_seconds=5)",
+        "old = registry.acquire(\"run\", \"a\", now=0)",
+        "new = registry.acquire(\"run\", \"b\", now=5)"
+      ],
+      "checks": [
+        {
+          "input": "registry = LeaseRegistry(ttl_seconds=5)\nold = registry.acquire(\"run\", \"a\", now=0)\nnew = registry.acquire(\"run\", \"b\", now=5)\nregistry.heartbeat(old[\"lease_id\"], old[\"fencing_token\"], now=6)",
+          "expression": "registry.heartbeat(old[\"lease_id\"], old[\"fencing_token\"], now=6)",
+          "operator": "is",
+          "expected": "False"
+        },
+        {
+          "input": "registry = LeaseRegistry(ttl_seconds=5)\nold = registry.acquire(\"run\", \"a\", now=0)\nnew = registry.acquire(\"run\", \"b\", now=5)\nregistry.heartbeat(old[\"lease_id\"], old[\"fencing_token\"], now=6)\nregistry.heartbeat(new[\"lease_id\"], new[\"fencing_token\"], now=6)",
+          "expression": "registry.heartbeat(new[\"lease_id\"], new[\"fencing_token\"], now=6)",
+          "operator": "is",
+          "expected": "True"
+        }
+      ]
+    },
+    {
+      "name": "hidden release requires current token",
+      "visibility": "hidden",
+      "setup": [
+        "from solution import LeaseRegistry",
+        "registry = LeaseRegistry(ttl_seconds=10)",
+        "lease = registry.acquire(\"run\", \"worker\", now=0)"
+      ],
+      "checks": [
+        {
+          "input": "registry = LeaseRegistry(ttl_seconds=10)\nlease = registry.acquire(\"run\", \"worker\", now=0)\nregistry.release(lease[\"lease_id\"], lease[\"fencing_token\"] + 1)",
+          "expression": "registry.release(lease[\"lease_id\"], lease[\"fencing_token\"] + 1)",
+          "operator": "is",
+          "expected": "False"
+        },
+        {
+          "input": "registry = LeaseRegistry(ttl_seconds=10)\nlease = registry.acquire(\"run\", \"worker\", now=0)\nregistry.release(lease[\"lease_id\"], lease[\"fencing_token\"] + 1)\nregistry.release(lease[\"lease_id\"], lease[\"fencing_token\"])",
+          "expression": "registry.release(lease[\"lease_id\"], lease[\"fencing_token\"])",
+          "operator": "is",
+          "expected": "True"
+        },
+        {
+          "input": "registry = LeaseRegistry(ttl_seconds=10)\nlease = registry.acquire(\"run\", \"worker\", now=0)\nregistry.release(lease[\"lease_id\"], lease[\"fencing_token\"] + 1)\nregistry.release(lease[\"lease_id\"], lease[\"fencing_token\"])\nregistry.acquire(\"run\", \"other\", now=1)[\"worker_id\"]",
+          "expression": "registry.acquire(\"run\", \"other\", now=1)[\"worker_id\"]",
+          "operator": "==",
+          "expected": "\"other\""
+        }
+      ]
+    },
+    {
+      "name": "hidden validate respects expiry boundary",
+      "visibility": "hidden",
+      "setup": [
+        "from solution import LeaseRegistry",
+        "registry = LeaseRegistry(ttl_seconds=3)",
+        "lease = registry.acquire(\"run\", \"worker\", now=2)"
+      ],
+      "checks": [
+        {
+          "input": "registry = LeaseRegistry(ttl_seconds=3)\nlease = registry.acquire(\"run\", \"worker\", now=2)\nregistry.validate(\"run\", lease[\"lease_id\"], lease[\"fencing_token\"], now=4.999)",
+          "expression": "registry.validate(\"run\", lease[\"lease_id\"], lease[\"fencing_token\"], now=4.999)",
+          "operator": "==",
+          "expected": "True"
+        },
+        {
+          "input": "registry = LeaseRegistry(ttl_seconds=3)\nlease = registry.acquire(\"run\", \"worker\", now=2)\nregistry.validate(\"run\", lease[\"lease_id\"], lease[\"fencing_token\"], now=4.999)\nnot registry.validate(\"run\", lease[\"lease_id\"], lease[\"fencing_token\"], now=5)",
+          "expression": "not registry.validate(\"run\", lease[\"lease_id\"], lease[\"fencing_token\"], now=5)",
+          "operator": "==",
+          "expected": "True"
+        }
+      ]
+    },
+    {
+      "name": "public release allows immediate reacquisition",
+      "visibility": "sample",
+      "setup": [
+        "from solution import LeaseRegistry",
+        "registry = LeaseRegistry(ttl_seconds=10)",
+        "first = registry.acquire(\"run\", \"worker-a\", now=0)",
+        "released = registry.release(first[\"lease_id\"], first[\"fencing_token\"])",
+        "second = registry.acquire(\"run\", \"worker-b\", now=0)"
+      ],
+      "input": "(released, second[\"worker_id\"], second[\"fencing_token\"])",
+      "expected": "(True, \"worker-b\", 2)"
+    },
+    {
+      "name": "hidden release permits expired current lease",
+      "visibility": "hidden",
+      "setup": [
+        "from solution import LeaseRegistry",
+        "registry = LeaseRegistry(ttl_seconds=3)",
+        "lease = registry.acquire(\"run\", \"worker-a\", now=0)"
+      ],
+      "input": "(registry.validate(\"run\", lease[\"lease_id\"], lease[\"fencing_token\"], now=3), registry.release(lease[\"lease_id\"], lease[\"fencing_token\"]), registry.acquire(\"run\", \"worker-b\", now=3)[\"worker_id\"])",
+      "expected": "(False, True, \"worker-b\")"
+    },
+    {
+      "name": "hidden unknown lease operations fail safely",
+      "visibility": "hidden",
+      "setup": [
+        "from solution import LeaseRegistry",
+        "registry = LeaseRegistry(ttl_seconds=10)"
+      ],
+      "input": "(registry.heartbeat(\"missing\", 1, now=0), registry.validate(\"run\", \"missing\", 1, now=0), registry.release(\"missing\", 1))",
+      "expected": "(False, False, False)"
+    },
+    {
+      "name": "hidden different runs acquire independent leases",
+      "visibility": "hidden",
+      "setup": [
+        "from solution import LeaseRegistry",
+        "registry = LeaseRegistry(ttl_seconds=10)",
+        "first = registry.acquire(\"run-a\", \"worker-a\", now=0)",
+        "second = registry.acquire(\"run-b\", \"worker-b\", now=0)"
+      ],
+      "input": "(first[\"worker_id\"], second[\"worker_id\"], first[\"fencing_token\"] < second[\"fencing_token\"])",
+      "expected": "(\"worker-a\", \"worker-b\", True)"
+    }
+  ],
+  "clarifyingQuestions": [
+    "Should expiry at exactly `expires_at` count as expired?",
+    "Can a lease be stolen automatically after expiry?",
+    "Does every state mutation need both lease ID and fencing token?",
+    "Should release accept expired leases?"
+  ],
+  "followUps": [
+    "Add worker labels and capability routing.",
+    "Add drain mode for deploys and scale-down.",
+    "Persist leases with transactional compare-and-swap."
+  ],
+  "followUpGuide": [
+    "For labels, store worker capabilities separately and let the scheduler choose candidate workers before calling `acquire`.",
+    "",
+    "For drain mode, prevent new leases for draining workers but allow current leases to finish or expire.",
+    "",
+    "For persistence, atomically check the current token and expiry while updating a unique lease row per run. Acquire only an absent or expired lease, and allocate registry-wide tokens durably so restart can't reuse them. Validate ownership in the same transaction as protected writes, or have the storage sink enforce fencing."
+  ],
+  "complexityAnalysis": [
+    "- `acquire`, `heartbeat`, `validate`, and `release`. Time: O(1) average with dictionaries. Space: O(1) per operation.",
+    "- Stored lease table. Space: O(r), where r is unreleased runs, including expired entries: the supplied solution retains expired rows until release or reacquisition.",
+    "- Durable-store follow-up adds transaction cost. Time: O(database transaction) while preserving the same key shape: run ID plus fencing token."
+  ],
+  "solutionGuide": [
+    "The fencing token identifies the ownership generation. A stale worker may still be alive, but registry validation rejects it after takeover. For real protected writes, enforce that check atomically at the storage boundary; this in-memory registry alone can't stop an external write.",
+    "",
+    "```python",
+    "class LeaseRegistry:",
+    "    def __init__(self, ttl_seconds: float):",
+    "        self.ttl = ttl_seconds",
+    "        self.by_run = {}",
+    "        self.by_lease = {}",
+    "        self.next_token = 1",
+    "",
+    "    def acquire(self, run_id: str, worker_id: str, now: float) -> dict | None:",
+    "        current = self.by_run.get(run_id)",
+    "        if current and current[\"expires_at\"] > now:",
+    "            return None",
+    "        if current:",
+    "            self.by_lease.pop(current[\"lease_id\"], None)",
+    "        token = self.next_token",
+    "        self.next_token += 1",
+    "        lease = {",
+    "            \"run_id\": run_id,",
+    "            \"worker_id\": worker_id,",
+    "            \"lease_id\": f\"{run_id}:{worker_id}:{token}\",",
+    "            \"fencing_token\": token,",
+    "            \"expires_at\": now + self.ttl,",
+    "        }",
+    "        self.by_run[run_id] = lease",
+    "        self.by_lease[lease[\"lease_id\"]] = lease",
+    "        return dict(lease)",
+    "",
+    "    def heartbeat(self, lease_id: str, fencing_token: int, now: float) -> bool:",
+    "        lease = self.by_lease.get(lease_id)",
+    "        if not lease:",
+    "            return False",
+    "        if not self.validate(lease[\"run_id\"], lease_id, fencing_token, now):",
+    "            return False",
+    "        lease[\"expires_at\"] = now + self.ttl",
+    "        return True",
+    "",
+    "    def validate(self, run_id: str, lease_id: str, fencing_token: int, now: float) -> bool:",
+    "        lease = self.by_run.get(run_id)",
+    "        return bool(",
+    "            lease",
+    "            and lease[\"lease_id\"] == lease_id",
+    "            and lease[\"fencing_token\"] == fencing_token",
+    "            and lease[\"expires_at\"] > now",
+    "        )",
+    "",
+    "    def release(self, lease_id: str, fencing_token: int) -> bool:",
+    "        lease = self.by_lease.get(lease_id)",
+    "        if not lease or lease[\"fencing_token\"] != fencing_token:",
+    "            return False",
+    "        if self.by_run.get(lease[\"run_id\"]) is not lease:",
+    "            return False",
+    "        del self.by_run[lease[\"run_id\"]]",
+    "        del self.by_lease[lease_id]",
+    "        return True",
+    "```"
+  ]
+}

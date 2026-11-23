@@ -1,0 +1,1999 @@
+version: 1
+id: deep-dive-pytorch
+title: PyTorch from Shared Storage to a Recoverable Training Step
+source: projects/deep-dive-pytorch/content.md
+sources:
+  - title: PyTorch tensor views
+    url: https://docs.pytorch.org/docs/2.14/tensor_view.html
+  - title: PyTorch autograd mechanics
+    url: https://docs.pytorch.org/docs/2.14/notes/autograd.html
+  - title: PyTorch scaled dot-product attention
+    url: https://docs.pytorch.org/docs/2.14/generated/torch.nn.functional.scaled_dot_product_attention.html
+  - title: PyTorch Adam
+    url: https://docs.pytorch.org/docs/2.14/generated/torch.optim.Adam.html
+  - title: PyTorch compilation and recompilation
+    url: https://docs.pytorch.org/docs/2.14/compile/programming_model.recompilation.html
+  - title: PyTorch DTensor placements
+    url: https://docs.pytorch.org/docs/2.14/distributed.tensor.html
+  - title: PyTorch fully_shard parameter lifecycle
+    url: https://docs.pytorch.org/docs/2.14/distributed.fsdp.fully_shard.html
+  - title: PyTorch distributed checkpoint
+    url: https://docs.pytorch.org/docs/2.14/distributed.checkpoint.html
+scenes:
+  - id: intro
+    title: Which tensor can PyTorch flatten with a view?
+    visual: A gold read head leaps across six fixed storage cells, then doubles back. The original
+      and transposed matrices stay beside the two jump distances as a blue reader walks the
+      original rows.
+    beats:
+      - say: Watch the gold cursor jump from zero to three. Those numbers are neighbors in the first row
+          of the transpose. To start the next row, it jumps back to one. The six values stay put
+          in memory. Transposing changes the order we read them.
+        hold: 0.8
+        visual_cues:
+          - id: jump-out
+            phrase: Watch the gold cursor jump from zero to three.
+            targets:
+              - storage-readers
+            color: yellow
+            linger: 0.25
+            caption_boundary: true
+          - id: jump-back
+            phrase: To start the next row, it jumps back to one.
+            targets:
+              - storage-readers
+            color: yellow
+            linger: 0.25
+            caption_boundary: true
+      - say: Now read the original tensor row by row. Follow the blue cursor across all six cells. It
+          moves one cell to the right each time, even when it crosses from the first row to the
+          second. A flat view needs one fixed step through memory. Which tensor can you flatten
+          that way?
+        hold: 2.5
+        caption_starts:
+          - Which tensor can you flatten that way?
+        visual_cues:
+          - id: blue-walk
+            phrase: Follow the blue cursor across all six cells.
+            targets:
+              - storage-readers
+            color: blue
+            linger: 0.25
+            caption_boundary: true
+      - say: The original flattens with stride one. The transpose needs two different steps. Three cells
+          forward and two back. A flat view has one stride. PyTorch rejects that
+          call. How could we put all six values side by side in the transposed order?
+        hold: 1.4
+        caption_starts:
+          - The transpose needs two different steps.
+          - How could we put all six values side by side
+        visual_cues:
+          - id: view-blue
+            phrase: The original flattens with stride one.
+            targets:
+              - stride-test
+            color: blue
+            linger: 0.25
+            caption_boundary: true
+          - id: view-gold
+            phrase: PyTorch rejects that call.
+            targets:
+              - stride-test
+            color: yellow
+            linger: 0.25
+            caption_boundary: true
+  - id: strides
+    title: Follow the write to element three
+    visual: The original six-cell allocation stays in place. A reshape fills a second strip in
+      transposed order. An alias write changes the first strip while the copied three remains visible
+      below.
+    beats:
+      - say: Keep your eye on the three. In the original matrix it sits at row one, column zero. In the
+          transpose it sits at row zero, column one. Both addresses land three elements from the
+          start. Each integer takes eight bytes, so the three starts at byte twenty-four.
+        hold: 0.8
+        visual_cues:
+          - id: locate-three
+            phrase: Both addresses land three elements from the start.
+            targets:
+              - addresses
+            color: cyan
+            linger: 0.25
+            caption_boundary: true
+          - id: byte-offset
+            phrase: at byte twenty-four
+            targets:
+              - addresses
+            color: cyan
+            linger: 0.25
+            caption_boundary: true
+      - say: Ask reshape for a flat tensor in gold order. Watch it fill a second allocation. The second box
+          down there now holds a three of its own. If I write thirty through the transposed matrix,
+          which of these two threes will change?
+        hold: 2.4
+        visual_cues:
+          - id: flat-copy
+            phrase: Watch it fill a second allocation.
+            targets:
+              - storage-copy
+            color: cyan
+            linger: 0.25
+            caption_boundary: true
+          - id: alias-question
+            phrase: which of these two threes will change
+            targets:
+              - storage-copy
+            color: cyan
+            linger: 0.25
+            caption_boundary: true
+      - say: Write thirty to the shared cell. Read it through the original matrix and you get thirty. Read
+          the copy and you still get three. For a slow attention call, check the strides going in,
+          then look for a copy in the profiler around that call. Include the conversion when you time
+          the path.
+        hold: 1.1
+        visual_cues:
+          - id: alias-write
+            phrase: Write thirty to the shared cell.
+            targets:
+              - addresses
+            color: cyan
+            linger: 0.25
+            caption_boundary: true
+          - id: alias-read
+            phrase: Read it through the original matrix
+            targets:
+              - addresses
+            color: cyan
+            linger: 0.25
+            caption_boundary: true
+          - id: flat-read
+            phrase: Read the copy and you still get three.
+            targets:
+              - storage-copy
+            color: cyan
+            linger: 0.25
+            caption_boundary: true
+  - id: tensor-contract
+    title: An index map and a data allocation have different owners
+    visual: The same six physical cells retain their identity while sizes/strides/offset/dtype become
+      separate metadata; a later consumer performs an explicit ordered copy into a second
+      allocation.
+    beats:
+      - say: Rewind to the six original values. For an ordinary dense strided tensor, the Python handle reaches a TensorImpl object with sizes,
+          element strides, storage offset, dtype, device and autograd metadata. Storage owns the
+          allocation and its byte region. Add offset to the sum of each logical index times its
+          stride, then multiply by element size for a byte offset. Different metadata can reach the
+          same physical cell.
+        hold: 0.7
+        visual_cues:
+          - id: pt-tensor-contract-0
+            phrase: For an ordinary dense strided tensor, the Python handle reaches a TensorImpl object with
+              sizes, element strides, storage offset, dtype, device and autograd metadata. Storage
+              owns the allocation and its byte region. Add offset to the sum of each logical index
+              times its stride, then multiply by element size for a byte offset. Different metadata
+              can reach the same physical cell.
+            targets:
+              - pt-tensor-contract-mechanism
+            color: cyan
+            linger: 0.2
+      - say: View requires compatible strides. Reshape can share storage or allocate a copy; contiguous
+          returns the same tensor when it is already contiguous and otherwise copies into the
+          requested contiguous order. The transpose itself leaves our six cells in place. The later
+          kernel may require a conversion. Inspect allocation or profiler events at that consumer,
+          and include the copy in the measured path.
+        hold: 0.7
+        visual_cues:
+          - id: pt-tensor-contract-1
+            phrase: View requires compatible strides. Reshape can share storage or allocate a copy; contiguous
+              returns the same tensor when it is already contiguous and otherwise copies into the
+              requested contiguous order. The transpose itself leaves our six cells in place. The
+              later kernel may require a conversion. Inspect allocation or profiler events at that
+              consumer, and include the copy in the measured path.
+            targets:
+              - pt-tensor-contract-mechanism
+            color: cyan
+            linger: 0.2
+      - say: This storage picture has a domain. Sparse tensors use other representations, and meta tensors
+          describe data without allocating its values. Device and dtype affect implementation
+          selection. Supported Apple M P S operations run on Apple’s GPU, often with unified memory;
+          a discrete CUDA device commonly needs an explicit CPU-to-device transfer. Coverage,
+          capacity and numerical behavior require the actual backend test.
+        hold: 0.7
+        visual_cues:
+          - id: pt-tensor-contract-2
+            phrase: This storage picture has a domain. Sparse tensors use other representations, and meta
+              tensors describe data without allocating its values. Device and dtype affect
+              implementation selection. Supported Apple M P S operations run on Apple’s GPU, often
+              with unified memory; a discrete CUDA device commonly needs an explicit CPU-to-device
+              transfer. Coverage, capacity and numerical behavior require the actual backend test.
+            targets:
+              - pt-tensor-contract-mechanism
+            color: cyan
+            linger: 0.2
+  - id: dispatch-layers
+    title: An operator contract survives several dispatch layers
+    visual: One retained matrix call carries schema fields and alias identity through
+      backend/autograd/functionalization/fake-mode selections; a wrong stride result fails a
+      downstream view even when numbers initially agree.
+    beats:
+      - say: An operator schema describes names, overloads, argument and return types, defaults, aliases and
+          mutation. Many generated Python and C-plus-plus bindings reach an A Ten operator. A custom
+          implementation must preserve those semantics, including device, dtype and strides. Correct
+          immediate numbers with a false alias or stride description can fail when the next view or
+          compiler uses that description.
+        hold: 0.7
+        visual_cues:
+          - id: pt-dispatch-layers-0
+            phrase: An operator schema describes names, overloads, argument and return types, defaults, aliases
+              and mutation. Many generated Python and C-plus-plus bindings reach an A Ten operator.
+              A custom implementation must preserve those semantics, including device, dtype and
+              strides. Correct immediate numbers with a false alias or stride description can fail
+              when the next view or compiler uses that description.
+            targets:
+              - pt-dispatch-layers-mechanism
+            color: cyan
+            linger: 0.2
+      - say: >-
+          The dispatcher combines the tensor’s backend with the active modes, chooses the
+          highest-priority applicable key, and can pass the call on to the next layer. An autograd
+          layer can record the operation before a CPU or CUDA backend handles the data. Batching,
+          functionalization and tracing also use this shared operator interface. Look in the
+          profiler to see which kernel ran.
+        hold: 0.7
+        visual_cues:
+          - id: pt-dispatch-layers-1
+            phrase: >-
+              The dispatcher combines the tensor’s backend with the active modes, chooses the
+              highest-priority applicable key, and can pass the call on to the next layer. An
+              autograd layer can record the operation before a CPU or CUDA backend handles the data.
+              Batching, functionalization and tracing also use this shared operator interface. Look
+              in the profiler to see which kernel ran.
+            targets:
+              - pt-dispatch-layers-mechanism
+            color: cyan
+            linger: 0.2
+      - say: >-
+          Functionalization gives a transformation an out-of-place version of an operation that
+          mutates its input. A fake tensor carries shape, dtype and device metadata, so tracing can
+          work out the next shape without allocating values. Python fake and tracing modes intercept
+          calls in Python. The pinned source also has a Fake key for C-plus-plus fake-tensor mode.
+          Both routes still have to return the metadata promised by the operator.
+        hold: 0.7
+        visual_cues:
+          - id: pt-dispatch-layers-2
+            phrase: >-
+              Functionalization gives a transformation an out-of-place version of an operation that
+              mutates its input. A fake tensor carries shape, dtype and device metadata, so tracing
+              can work out the next shape without allocating values. Python fake and tracing modes
+              intercept calls in Python. The pinned source also has a Fake key for C-plus-plus
+              fake-tensor mode. Both routes still have to return the metadata promised by the
+              operator.
+            targets:
+              - pt-dispatch-layers-mechanism
+            color: cyan
+            linger: 0.2
+  - id: tape-lifecycle
+    title: The reverse graph follows the branch that actually ran
+    visual: A supplied scalar first scales then squares, saves an intermediate and runs its reverse
+      derivatives in order; an unexecuted branch stays absent and a leaf update fails at its own
+      boundary.
+    beats:
+      - say: >-
+          Eager autograd records the differentiable operations that run while gradient tracking is
+          enabled and an input requires gradients. If Python takes the square branch, the square
+          goes on the tape. Each backward node keeps the values or metadata its derivative will
+          need. Backward follows the nodes in reverse, accumulates gradients into leaves and
+          releases saved intermediates as it goes, unless you ask to retain the graph.
+        hold: 0.7
+        visual_cues:
+          - id: pt-tape-lifecycle-0
+            phrase: >-
+              Eager autograd records the differentiable operations that run while gradient tracking
+              is enabled and an input requires gradients. If Python takes the square branch, the
+              square goes on the tape. Each backward node keeps the values or metadata its
+              derivative will need. Backward follows the nodes in reverse, accumulates gradients
+              into leaves and releases saved intermediates as it goes, unless you ask to retain the
+              graph.
+            targets:
+              - pt-tape-lifecycle-mechanism
+            color: cyan
+            linger: 0.2
+      - say: "Try a separate scalar path: y equals two times x, and loss equals y squared. At x three, y is
+          six. The square gives derivative twelve with respect to y, then the scale multiplies by
+          two, so the input gradient is twenty-four. A detached alias of the saved intermediate can
+          invalidate it even if the original leaf’s bytes never changed."
+        hold: 0.7
+        visual_cues:
+          - id: pt-tape-lifecycle-1
+            phrase: "Try a separate scalar path: y equals two times x, and loss equals y squared. At x three, y
+              is six. The square gives derivative twelve with respect to y, then the scale
+              multiplies by two, so the input gradient is twenty-four. A detached alias of the saved
+              intermediate can invalidate it even if the original leaf’s bytes never changed."
+            targets:
+              - pt-tape-lifecycle-mechanism
+            color: cyan
+            linger: 0.2
+          - id: pt-tape-gradient
+            phrase: The square gives derivative twelve with respect to y, then the scale multiplies by two, so
+              the input gradient is twenty-four.
+            targets:
+              - pt-tape-lifecycle-mechanism
+            color: green
+            linger: 0.35
+      - say: Some unsafe writes fail immediately, such as an in-place write to a grad-requiring leaf in
+          enabled grad mode. Others fail only when a saved version is checked. No-grad removes
+          recording; inference mode has stricter metadata and later-use rules, and its newly created
+          tensors do not track version counters. Neither is a repair for mutating training values
+          that backward needs.
+        hold: 0.7
+        visual_cues:
+          - id: pt-tape-lifecycle-2
+            phrase: Some unsafe writes fail immediately, such as an in-place write to a grad-requiring leaf in
+              enabled grad mode. Others fail only when a saved version is checked. No-grad removes
+              recording; inference mode has stricter metadata and later-use rules, and its newly
+              created tensors do not track version counters. Neither is a repair for mutating
+              training values that backward needs.
+            targets:
+              - pt-tape-lifecycle-mechanism
+            color: cyan
+            linger: 0.2
+  - id: autograd
+    title: Backward needs the value that forward actually used
+    visual: A square at three saves version zero and differentiates to six. A detached alias mutation
+      increments the shared version and blocks backward; an independent clone leaves the saved value
+      intact.
+    beats:
+      - say: >
+          For the square function at three, forward produces nine and backward needs the original
+          input to calculate the derivative. The plotted curve and tangent show the local slope.
+          Autograd saves the required value together with version information, so the reverse
+          calculation can check that its input still means the same thing.
+        hold: 0.6
+        visual_cues:
+          - id: autograd-beat-1-focus-1
+            phrase: Autograd saves the required value together with version information
+            targets:
+              - autograd-saved-for-backward-x-3-version-0
+            color: cyan
+            linger: 0.65
+          - id: autograd-beat-1-focus-2
+            phrase: The plotted curve and tangent show the local slope
+            targets:
+              - autograd-curve-autograd
+            color: yellow
+            linger: 0.65
+          - id: pt-autograd-0
+            phrase: For the square function at three, forward produces nine and backward needs the original
+              input to calculate the derivative. The plotted curve and tangent show the local slope.
+              Autograd saves the required value together with version information, so the reverse
+              calculation can check that its input still means the same thing.
+            targets:
+              - pt-autograd-mechanism
+            color: cyan
+            linger: 0.2
+      - say: >
+          Now mutate the input through a detached alias before backward. Detaching stops gradient
+          history, but this alias still reaches the same bytes. The current version advances while
+          the saved version stays unchanged. Backward rejects the stale saved value rather than
+          calculating a derivative from the modified input.
+        hold: 0.6
+        visual_cues:
+          - id: autograd-beat-2-focus-1
+            phrase: The current version advances while the saved version stays unchanged
+            targets:
+              - autograd-saved-for-backward-x-3-version-0
+            color: cyan
+            linger: 0.65
+          - id: autograd-beat-2-focus-2
+            phrase: Detaching stops gradient history, but this alias still reaches the same bytes
+            targets:
+              - autograd-detached-alias
+            color: yellow
+            linger: 0.65
+          - id: pt-autograd-1
+            phrase: Now mutate the input through a detached alias before backward. Detaching stops gradient
+              history, but this alias still reaches the same bytes. The current version advances
+              while the saved version stays unchanged. Backward rejects the stale saved value rather
+              than calculating a derivative from the modified input.
+            targets:
+              - pt-autograd-mechanism
+            color: cyan
+            linger: 0.2
+      - say: >
+          Make an independent clone before writing. The clone changes to four while the original
+          stays at three, and the original gradient is six. Views, detachment and copying answer
+          different questions. For a custom derivative, a small double-precision numerical gradient
+          check adds evidence that the reverse rule matches the forward operation.
+        hold: 0.6
+        visual_cues:
+          - id: autograd-beat-3-focus-1
+            phrase: Make an independent clone before writing
+            targets:
+              - autograd-axes-autograd
+            color: cyan
+            linger: 0.65
+          - id: autograd-beat-3-focus-2
+            phrase: Views, detachment and copying answer different questions
+            targets:
+              - autograd-axes-autograd
+            color: yellow
+            linger: 0.65
+          - id: pt-autograd-2
+            phrase: Make an independent clone before writing. The clone changes to four while the original stays
+              at three, and the original gradient is six. Views, detachment and copying answer
+              different questions. For a custom derivative, a small double-precision numerical
+              gradient check adds evidence that the reverse rule matches the forward operation.
+            targets:
+              - pt-autograd-mechanism
+            color: cyan
+            linger: 0.2
+  - id: attention
+    title: Which values reach this query?
+    visual: Two keys sit at absolute positions zero and one. Probability mass divides between them and
+      scales two perpendicular value vectors. A mask closes one gate. Moving the query to the cached
+      end changes the eligible keys on the same strip.
+    beats:
+      - say: One query has two places to look. Its first key points the same way as the query. The second
+          points at a right angle. Their dot products are one and zero. Each key has two features, so
+          divide both scores by the square root of two. Softmax gives about two thirds of the weight
+          to the first key. Watch the two value vectors add. The first carries the output to the
+          right. The second carries it up.
+        hold: 0.9
+        visual_cues:
+          - id: dot-pair
+            phrase: Their dot products are one and zero.
+            targets:
+              - key-strip
+            color: cyan
+            linger: 0.25
+            caption_boundary: true
+          - id: scale-pair
+            phrase: divide both scores by the square root of two
+            targets:
+              - key-strip
+            color: cyan
+            linger: 0.25
+            caption_boundary: true
+          - id: mix-shares
+            phrase: Softmax gives about two thirds of the weight to the first key.
+            targets:
+              - share
+            color: cyan
+            linger: 0.25
+            caption_boundary: true
+          - id: mix-vectors
+            phrase: Watch the two value vectors add.
+            targets:
+              - vector
+            color: cyan
+            linger: 0.25
+            caption_boundary: true
+          - id: horizontal-value
+            phrase: The first carries the output to the right.
+            targets: [vector]
+            color: blue
+          - id: vertical-value
+            phrase: The second carries it up.
+            targets: [vector]
+            color: pink
+      - say: Keep the query, keys and values fixed. Give the second key a false entry in the boolean
+          attention mask. PyTorch excludes it. The first key gets all the weight. Follow the output
+          back to the horizontal axis. It lands at ten, zero, exactly the first value.
+        hold: 1.1
+        visual_cues:
+          - id: block-second
+            phrase: Give the second key a false entry
+            targets:
+              - key-strip
+            color: cyan
+            linger: 0.25
+            caption_boundary: true
+          - id: remix-one
+            phrase: The first key gets all the weight.
+            targets:
+              - share
+            color: cyan
+            linger: 0.25
+            caption_boundary: true
+          - id: axis-output
+            phrase: Follow the output back to the horizontal axis.
+            targets:
+              - vector
+            color: cyan
+            linger: 0.25
+            caption_boundary: true
+      - say: Now imagine these keys are a cached prefix. The call still has one query row and two keys.
+          Upper-left causal alignment treats that row as position zero, so only the first key is
+          visible. But our query belongs at position one. Which keys should it be allowed to read?
+        hold: 2.3
+        visual_cues:
+          - id: cached-question
+            phrase: our query belongs at position one
+            targets:
+              - key-strip
+            color: cyan
+            linger: 0.25
+            caption_boundary: true
+      - say: Let the second key through as well. At position one, both keys are in the prefix.
+          The upward contribution returns.
+          Both runs produced two output coordinates, yet only this mask implements the requested
+          position. With dropout set to zero, check the output against this mixture before comparing
+          kernels. The device, dtype, strides and mask affect which kernel can run. A profiler trace
+          tells you which one did.
+        hold: 1.2
+        visual_cues:
+          - id: attention-cached-position
+            phrase: Let the second key through as well.
+            targets:
+              - key-strip
+            color: cyan
+            linger: 0.25
+            caption_boundary: true
+          - id: cached-mix
+            phrase: The upward contribution returns.
+            targets:
+              - vector
+            color: cyan
+            linger: 0.25
+            caption_boundary: true
+  - id: attention-selector
+    title: How much space do the scores take?
+    visual: Two score planes keep the same query and key lengths. A head-width change doubles the
+      products per score while the cell count stays fixed. A working tile crosses the plane in the
+      fused example. Four query heads then connect to two stored key/value heads.
+    beats:
+      - say: Keep one batch and two heads. Each head compares every query to every key. At a length of eight
+          thousand one hundred ninety-two on both sides, count the cells in both squares. Stored at
+          two bytes per score, that one tensor takes two hundred fifty-six mebibytes. Double the head
+          width. Each dot product now needs twice as many products. There are still just as many
+          places to put the answers.
+        hold: 1.1
+        visual_cues:
+          - id: score-count
+            phrase: count the cells in both squares
+            targets:
+              - score-planes
+            color: cyan
+            linger: 0.25
+            caption_boundary: true
+          - id: score-bytes
+            phrase: at two bytes per score
+            targets:
+              - score-planes
+            color: cyan
+            linger: 0.25
+            caption_boundary: true
+          - id: head-width
+            phrase: Double the head width.
+            targets:
+              - score-planes
+            color: cyan
+            linger: 0.25
+            caption_boundary: true
+      - say: A fused kernel can work on one tile at a time. As the tile moves along the keys it updates
+          running sums for these query rows. That lets it avoid writing the whole score and
+          probability matrices to device memory. Device, dtype, shape, strides and mask all affect
+          eligibility. The documented choices include FlashAttention two, memory-efficient, math and,
+          in some builds, cuDNN. Record the implementation your profiler sees.
+        hold: 0.8
+        visual_cues:
+          - id: score-tile
+            phrase: As the tile moves along the keys
+            targets:
+              - score-planes
+            color: cyan
+            linger: 0.25
+            caption_boundary: true
+          - id: score-path
+            phrase: Record the implementation your profiler sees.
+            targets:
+              - score-planes
+            color: cyan
+            linger: 0.25
+            caption_boundary: true
+      - say: Here four query heads share two key and value heads. Each pair reads the same stored head.
+          Grouped-query attention requires equally sized groups and matching key and value head
+          counts. The cited API excludes nested tensors. Check your installed CUDA backend for
+          support. For a numerical reference, the math backend accepts double precision and uses
+          thirty-two-bit intermediates with half or brain-float sixteen inputs.
+        hold: 0.8
+        visual_cues:
+          - id: group-heads
+            phrase: Each pair reads the same stored head.
+            targets:
+              - score-planes
+            color: cyan
+            linger: 0.25
+            caption_boundary: true
+  - id: mask-modes
+    title: Which keys do these flags let through?
+    visual: A padding flag stays attached to its value of 1000. Copying the boolean mask passes only
+      that value to the mixer. Inverting the flags exchanges it for the two real values. A second pass
+      sets dropout to zero.
+    beats:
+      - say: The last key is padding. Its value is a thousand, so we'll notice if it slips in. All three
+          scores are zero and dropout is off for this test. The padding mask marks just the last key
+          true. Pass those flags straight into scaled dot-product attention. Which value comes out?
+        hold: 2.3
+        visual_cues:
+          - id: pass-padding
+            phrase: Pass those flags straight into scaled dot-product attention.
+            targets:
+              - mask-flags
+            color: cyan
+            linger: 0.25
+            caption_boundary: true
+      - say: One thousand. This call reads true as keep. Flip the boolean flags. Four and eight now share
+          the weight equally, so the result is six. Align the key axis when you broadcast the mask.
+          For an additive mask, use zero on the allowed scores and negative infinity on the blocked
+          ones.
+        hold: 1.1
+        visual_cues:
+          - id: wrong-padding
+            phrase: One thousand.
+            targets:
+              - mask-mix
+            color: cyan
+            linger: 0.25
+            caption_boundary: true
+          - id: invert-padding
+            phrase: Flip the boolean flags.
+            targets:
+              - mask-flags
+            color: cyan
+            linger: 0.25
+            caption_boundary: true
+          - id: mix-real
+            phrase: Four and eight now share the weight equally
+            targets:
+              - mask-mix
+            color: cyan
+            linger: 0.25
+            caption_boundary: true
+          - id: bias-mask
+            phrase: For an additive mask
+            targets:
+              - mask-flags
+            color: cyan
+            linger: 0.25
+            caption_boundary: true
+      - say: Back in the evaluation module, its old dropout argument is still point two. The functional call
+          uses that probability even in evaluation mode with gradients off. Pass zero for inference.
+          Now the same two keys give six on every call in this example.
+        hold: 0.8
+        visual_cues:
+          - id: old-dropout
+            phrase: its old dropout argument is still point two
+            targets:
+              - mask-mix
+            color: cyan
+            linger: 0.25
+            caption_boundary: true
+          - id: zero-dropout
+            phrase: Pass zero for inference.
+            targets:
+              - mask-mix
+            color: cyan
+            linger: 0.25
+            caption_boundary: true
+      - say: The article checks the CPU math backend against the formula in both directions, including
+          gradients for the query, keys and values. Testing a fused CUDA kernel takes a separate run.
+          FlexAttention is another API. Its score modifier edits a score, and its block mask
+          identifies regions the kernel can skip.
+        hold: 0.7
+        visual_cues:
+          - id: mask-reference
+            phrase: checks the CPU math backend against the formula
+            targets:
+              - mask-check
+            color: cyan
+            linger: 0.25
+            caption_boundary: true
+          - id: flex-contract
+            phrase: Its score modifier edits a score
+            targets:
+              - mask-check
+            color: cyan
+            linger: 0.25
+            caption_boundary: true
+  - id: compile
+    title: A guarded graph can be reused until its assumptions change
+    visual: A small specialization cache processes three calls with Python scales two, two and three.
+      The same signature reuses one graph; the changed scalar creates a second entry, while outputs
+      are calculated from the current scale.
+    beats:
+      - say: >
+          Compilation begins by capturing a region and its assumptions. Our reference function
+          squares a two-element input and multiplies by a Python scale. The first call creates a
+          specialization for that scale and input metadata. Its output still has to agree with the
+          eager expression.
+        hold: 0.6
+        visual_cues:
+          - id: compile-beat-1-focus-1
+            phrase: The first call creates a specialization for that scale and input metadata
+            targets:
+              - compile-call-scale
+            color: cyan
+            linger: 0.65
+          - id: pt-compile-0
+            phrase: Compilation begins by capturing a region and its assumptions. Our reference function squares
+              a two-element input and multiplies by a Python scale. The first call creates a
+              specialization for that scale and input metadata. Its output still has to agree with
+              the eager expression.
+            targets:
+              - pt-compile-mechanism
+            color: cyan
+            linger: 0.2
+      - say: >-
+          Repeat the same call. The guard matches, so the existing specialization is reused. Change
+          the scale and a second specialization appears. With scale two the outputs were two and
+          eight. With scale three they become three and twelve.
+        hold: 0.6
+        visual_cues:
+          - id: compile-beat-2-focus-1
+            phrase: Change the scale and a second specialization appears
+            targets:
+              - compile-call-scale
+            color: cyan
+            linger: 0.65
+          - id: pt-compile-1
+            phrase: >-
+              Repeat the same call. The guard matches, so the existing specialization is reused.
+              Change the scale and a second specialization appears. With scale two the outputs were
+              two and eight. With scale three they become three and twelve.
+            targets:
+              - pt-compile-mechanism
+            color: cyan
+            linger: 0.2
+      - say: >
+          Dynamo captures Python regions, AOTAutograd can stage forward and backward, and Inductor
+          lowers suitable regions into device code. An unsupported region can cause a graph break. A
+          failed guard can cause recompilation. Inspect those events separately, and compare losses
+          and gradients under the actual precision and distributed configuration.
+        hold: 0.6
+        visual_cues:
+          - id: compile-beat-3-focus-1
+            phrase: and compare losses and gradients under the actual precision and distributed configuration
+            targets:
+              - compile-call-scale
+            color: cyan
+            linger: 0.65
+          - id: pt-compile-2
+            phrase: Dynamo captures Python regions, AOTAutograd can stage forward and backward, and Inductor
+              lowers suitable regions into device code. An unsupported region can cause a graph
+              break. A failed guard can cause recompilation. Inspect those events separately, and
+              compare losses and gradients under the actual precision and distributed configuration.
+            targets:
+              - pt-compile-mechanism
+            color: cyan
+            linger: 0.2
+  - id: compiler-regions
+    title: Separate capture, staging and generated execution
+    visual: The existing actual guarded-call cache gains explicit predicate evaluation, a Python
+      graph-break segment, a staged forward/backward boundary and a separate unexecuted
+      optimized-kernel box.
+    beats:
+      - say: Dynamo observes Python bytecode and captures graph regions with guards on Python values and
+          tensor metadata. Functionalization and decomposition can rewrite mutation or compound
+          operators into transformable operations. Ahead-of-time autograd can stage forward and
+          backward together. Inductor lowers suitable regions, fuses compatible work and generates
+          device code, often Triton for GPUs or C-plus-plus for CPUs.
+        hold: 0.7
+        visual_cues:
+          - id: pt-compiler-regions-0
+            phrase: Dynamo observes Python bytecode and captures graph regions with guards on Python values and
+              tensor metadata. Functionalization and decomposition can rewrite mutation or compound
+              operators into transformable operations. Ahead-of-time autograd can stage forward and
+              backward together. Inductor lowers suitable regions, fuses compatible work and
+              generates device code, often Triton for GPUs or C-plus-plus for CPUs.
+            targets:
+              - pt-compiler-regions-mechanism
+            color: cyan
+            linger: 0.2
+      - say: A graph break leaves an unsupported region in Python and may capture later regions again. A
+          failed guard instead invalidates a cached specialization. Shape polymorphism can reduce
+          recompilation, while varied shapes can still produce many variants. A supplied guard key
+          containing dtype, stride and a Python scalar must be checked on each new call; merely
+          changing tensor values does not change that declared metadata key.
+        hold: 0.7
+        visual_cues:
+          - id: pt-compiler-regions-1
+            phrase: A graph break leaves an unsupported region in Python and may capture later regions again. A
+              failed guard instead invalidates a cached specialization. Shape polymorphism can
+              reduce recompilation, while varied shapes can still produce many variants. A supplied
+              guard key containing dtype, stride and a Python scalar must be checked on each new
+              call; merely changing tensor values does not change that declared metadata key.
+            targets:
+              - pt-compiler-regions-mechanism
+            color: cyan
+            linger: 0.2
+      - say: >-
+          The counting backend runs each captured graph eagerly. Three calls with scales two, two
+          and three use two graphs. In a separate test, A O T eager stages the backward pass so we
+          can compare its loss and gradients with eager execution. Use graph-break and recompile
+          logs to see where Python took over or a guard failed. Fullgraph mode can pinpoint a break.
+          To measure speed, time the optimized backend after warmup and record startup separately.
+        hold: 0.7
+        visual_cues:
+          - id: pt-compiler-regions-2
+            phrase: >-
+              The counting backend runs each captured graph eagerly. Three calls with scales two,
+              two and three use two graphs. In a separate test, A O T eager stages the backward pass
+              so we can compare its loss and gradients with eager execution. Use graph-break and
+              recompile logs to see where Python took over or a guard failed. Fullgraph mode can
+              pinpoint a break. To measure speed, time the optimized backend after warmup and record
+              startup separately.
+            targets:
+              - pt-compiler-regions-mechanism
+            color: cyan
+            linger: 0.2
+  - id: autocast-boundary
+    title: Compiled backward needs the precision context it assumed
+    visual: The same BF16 forward leads to two explicit backward contexts; the compiler assumption is
+      matched to the actual outside-autocast backward before loss and gradients are compared.
+    beats:
+      - say: >-
+          Start with a stable piece of model code, such as the top-level module or a training step
+          outside the data-loading loop. In the D D P example, PyTorch compiles the inner module
+          before wrapping it. With F S D P two, follow the hooks around each block. Check that its
+          parameter gather runs before the compiled block uses the weights.
+        hold: 0.7
+        visual_cues:
+          - id: pt-autocast-boundary-0
+            phrase: >-
+              Start with a stable piece of model code, such as the top-level module or a training
+              step outside the data-loading loop. In the D D P example, PyTorch compiles the inner
+              module before wrapping it. With F S D P two, follow the hooks around each block. Check
+              that its parameter gather runs before the compiled block uses the weights.
+            targets:
+              - pt-autocast-boundary-mechanism
+            color: cyan
+            linger: 0.2
+      - say: >-
+          Look at the two precision settings. Forward and loss use autocast. Backward runs outside
+          it. The compiler guide’s default assumes backward uses the same autocast context as
+          forward. Here that would give the compiler the wrong precision for backward, and gradients
+          could change. Set the documented backward-pass autocast assumption to off for this case.
+        hold: 0.7
+        visual_cues:
+          - id: pt-autocast-boundary-1
+            phrase: >-
+              Look at the two precision settings. Forward and loss use autocast. Backward runs
+              outside it. The compiler guide’s default assumes backward uses the same autocast
+              context as forward. Here that would give the compiler the wrong precision for
+              backward, and gradients could change. Set the documented backward-pass autocast
+              assumption to off for this case.
+            targets:
+              - pt-autocast-boundary-mechanism
+            color: cyan
+            linger: 0.2
+      - say: >-
+          Keep that setting in effect through compilation and backward. In the article’s PyTorch two
+          point thirteen CPU run, forward uses brain-float sixteen for the matrix operation. With A
+          O T eager and the corrected backward setting, both the loss and the gradients match eager
+          execution. On a CUDA training job, repeat the comparison with its own kernels, gradient
+          scaling and parallel setup.
+        hold: 0.7
+        visual_cues:
+          - id: pt-autocast-boundary-2
+            phrase: >-
+              Keep that setting in effect through compilation and backward. In the article’s PyTorch
+              two point thirteen CPU run, forward uses brain-float sixteen for the matrix operation.
+              With A O T eager and the corrected backward setting, both the loss and the gradients
+              match eager execution. On a CUDA training job, repeat the comparison with its own
+              kernels, gradient scaling and parallel setup.
+            targets:
+              - pt-autocast-boundary-mechanism
+            color: cyan
+            linger: 0.2
+  - id: placement
+    title: Where does each sum belong?
+    visual: Two rank-local contributions stay aligned under each global coordinate. Both sums form at
+      the center before copies travel to both ranks or one reduced coordinate travels to each.
+    beats:
+      - say: Two ranks each hold two numbers. Look down the first column. One and ten are contributions to
+          the same coordinate. In the second column, two and twenty contribute to the other
+          coordinate. The placement is called sum-partial. What complete vector do those four numbers
+          represent?
+        hold: 2.1
+        visual_cues:
+          - id: partial-columns
+            phrase: In the second column
+            targets:
+              - partials
+            color: cyan
+            linger: 0.25
+            caption_boundary: true
+      - say: Add down the columns. Eleven belongs in slot zero. Twenty-two belongs in slot one. Suppose both
+          ranks need the whole vector. Send both sums to both ranks. That's an all-reduce. Every
+          participant has to enter the same collective in the same order with compatible tensors.
+        hold: 0.8
+        caption_starts:
+          - Eleven belongs in slot zero
+          - Twenty-two belongs in slot one.
+        visual_cues:
+          - id: sum-columns
+            phrase: Add down the columns.
+            targets:
+              - sums
+            color: cyan
+            linger: 0.25
+            caption_boundary: true
+          - id: first-sum
+            phrase: Eleven
+            targets: [sums]
+            color: yellow
+          - id: second-sum
+            phrase: Twenty-two
+            targets: [sums]
+            color: yellow
+          - id: replicate-cells
+            phrase: Send both sums to both ranks.
+            targets:
+              - destinations
+            color: cyan
+            linger: 0.25
+            caption_boundary: true
+      - say: Start from the same partials. This time each rank needs only its own slice. Deliver eleven to
+          rank zero and twenty-two to rank one. That's a reduce-scatter. The global vector hasn't
+          changed. DTensor records how its values are placed along this DeviceMesh axis. The next
+          operation tells you which placement it needs.
+        hold: 0.9
+        visual_cues:
+          - id: scatter-cells
+            phrase: Deliver eleven to rank zero and twenty-two to rank one.
+            targets:
+              - destinations
+            color: cyan
+            linger: 0.25
+            caption_boundary: true
+  - id: process-groups
+    title: What happens on the seventh collective?
+    visual: Follow two workers into their seventh collective. Keep their inputs in view as the
+      exchange changes, then replay the mismatched call with a sum on both ranks.
+    beats:
+      - say: Rank zero calls all-reduce to add these two pairs of numbers. Rank one calls all-gather to
+          collect the pairs side by side. Both calls can stall here. The workers belong to the
+          same process group. Each has a number called its rank. At call seven, their Python
+          branches asked the group to do different things.
+        hold: 0.7
+        visual_cues:
+          - id: other-call
+            phrase: Rank one calls all-gather
+            targets:
+              - rank-calls
+            color: cyan
+            linger: 0.25
+            caption_boundary: true
+          - id: stalled
+            phrase: Both calls can stall here.
+            targets:
+              - rank-calls
+            color: cyan
+            linger: 0.25
+            caption_boundary: true
+      - say: Run those same two pairs through each collective. All-reduce gives both ranks the sum.
+          Reduce-scatter splits that sum, eleven on rank zero and twenty-two on rank one.
+          All-gather gives both ranks all four inputs in order. All-to-all sends the first entry
+          of each pair to rank zero and the second to rank one. Broadcast from rank zero gives
+          everyone its pair, one and two.
+        hold: 0.7
+        visual_cues:
+          - id: reduce-both
+            phrase: All-reduce
+            targets:
+              - rank-calls
+            color: cyan
+            linger: 0.25
+            caption_boundary: true
+          - id: scatter-sum
+            phrase: Reduce-scatter
+            targets:
+              - rank-calls
+            color: cyan
+            linger: 0.25
+            caption_boundary: true
+          - id: gather-slices
+            phrase: All-gather
+            targets:
+              - rank-calls
+            color: cyan
+            linger: 0.25
+            caption_boundary: true
+          - id: exchange-slices
+            phrase: All-to-all
+            targets:
+              - rank-calls
+            color: cyan
+            linger: 0.25
+            caption_boundary: true
+          - id: broadcast-zero
+            phrase: Broadcast from rank zero
+            targets:
+              - rank-calls
+            color: cyan
+            linger: 0.25
+            caption_boundary: true
+      - say: Replay call seven. This time both ranks call all-reduce. Each supplies two floats and
+          requests a sum. Both receive eleven and twenty-two. An average would halve those
+          numbers. If training stalls, compare each rank’s log at the first call where they
+          disagree. Check the group, order, operation, shapes and types. Set a timeout and try
+          that one collective on both ranks. N C C L commonly handles CUDA collectives, and Gloo
+          is a common choice on CPU.
+        hold: 0.7
+        visual_cues:
+          - id: same-branch
+            phrase: This time both ranks call all-reduce.
+            targets:
+              - rank-calls
+            color: cyan
+            linger: 0.25
+            caption_boundary: true
+          - id: returned-sum
+            phrase: Both receive eleven and twenty-two.
+            targets:
+              - rank-calls
+            color: cyan
+            linger: 0.25
+            caption_boundary: true
+  - id: mesh-shapes
+    title: A placement belongs to a named mesh dimension
+    visual: A two-dimensional dp/tp grid carries explicit local coordinate slices and repeated copies;
+      Partial, Replicate and Shard transitions operate on one axis while the other remains fixed.
+    beats:
+      - say: DeviceMesh gives a named multidimensional arrangement of devices and derives groups and
+          submeshes. A distributed tensor adds a global logical tensor plus a placement on each mesh
+          dimension. Replicate means the same value across that dimension, Shard splits a tensor
+          dimension using chunk semantics, and Partial holds contributions awaiting a specified
+          reduction. Another mesh axis can still have a different placement.
+        hold: 0.7
+        visual_cues:
+          - id: pt-mesh-shapes-0
+            phrase: DeviceMesh gives a named multidimensional arrangement of devices and derives groups and
+              submeshes. A distributed tensor adds a global logical tensor plus a placement on each
+              mesh dimension. Replicate means the same value across that dimension, Shard splits a
+              tensor dimension using chunk semantics, and Partial holds contributions awaiting a
+              specified reduction. Another mesh axis can still have a different placement.
+            targets:
+              - pt-mesh-shapes-mechanism
+            color: cyan
+            linger: 0.2
+      - say: For a mesh with data-parallel size two and tensor-parallel size four, a
+          four-thousand-ninety-six by sixteen-thousand-three-hundred-eighty-four weight can shard
+          its second dimension across tensor-parallel ranks. Each local slice is
+          four-thousand-ninety-six square. The data-parallel copies hold the same corresponding
+          slice. Mesh labels alone do not choose that operation or guarantee communication
+          efficiency.
+        hold: 0.7
+        visual_cues:
+          - id: pt-mesh-shapes-1
+            phrase: For a mesh with data-parallel size two and tensor-parallel size four, a
+              four-thousand-ninety-six by sixteen-thousand-three-hundred-eighty-four weight can
+              shard its second dimension across tensor-parallel ranks. Each local slice is
+              four-thousand-ninety-six square. The data-parallel copies hold the same corresponding
+              slice. Mesh labels alone do not choose that operation or guarantee communication
+              efficiency.
+            targets:
+              - pt-mesh-shapes-mechanism
+            color: cyan
+            linger: 0.2
+          - id: pt-mesh-local
+            phrase: Each local slice is four-thousand-ninety-six square.
+            targets:
+              - pt-mesh-shapes-mechanism
+            color: green
+            linger: 0.35
+      - say: Redistributing Shard to Replicate uses all-gather. Sum-Partial to Replicate uses all-reduce;
+          sum-Partial to Shard uses reduce-scatter. These are different results for one logical
+          tensor. Apply the transformation on the chosen mesh axis while preserving the other axis’s
+          placement. Then account for the actual communication and memory cost.
+        hold: 0.7
+        visual_cues:
+          - id: pt-mesh-shapes-2
+            phrase: Redistributing Shard to Replicate uses all-gather. Sum-Partial to Replicate uses all-reduce;
+              sum-Partial to Shard uses reduce-scatter. These are different results for one logical
+              tensor. Apply the transformation on the chosen mesh axis while preserving the other
+              axis’s placement. Then account for the actual communication and memory cost.
+            targets:
+              - pt-mesh-shapes-mechanism
+            color: cyan
+            linger: 0.2
+  - id: tensor-split
+    title: The stored Linear weight fixes the sharded dimension
+    visual: A retained [out,in] weight is physically sliced by output rows, then its second projection
+      consumes input slices and reduces the actual partial sums; a separate FSDP gather reconstructs
+      rather than parallelizes the operator.
+    beats:
+      - say: Tensor parallelism splits one operator’s computation. A transformer’s first M L P projection
+          can split output features and keep those activations sharded. Its second projection can
+          split input features and reduce partial outputs. The two operators’ layouts and
+          collectives must compose, rather than gathering everything between every operation.
+        hold: 0.7
+        visual_cues:
+          - id: pt-tensor-split-0
+            phrase: Tensor parallelism splits one operator’s computation. A transformer’s first M L P projection
+              can split output features and keep those activations sharded. Its second projection
+              can split input features and reduce partial outputs. The two operators’ layouts and
+              collectives must compose, rather than gathering everything between every operation.
+            targets:
+              - pt-tensor-split-mechanism
+            color: cyan
+            linger: 0.2
+      - say: A Linear module stores its weight as output features by input features. ColwiseParallel splits
+          output features, so it shards stored weight dimension zero. For an eight-by-four stored
+          weight on two tensor-parallel ranks, each rank keeps four-by-four and computes its
+          output-feature slice. A right-hand matrix in the mathematical expression X W would use a
+          different visual orientation.
+        hold: 0.7
+        visual_cues:
+          - id: pt-tensor-split-1
+            phrase: A Linear module stores its weight as output features by input features. ColwiseParallel
+              splits output features, so it shards stored weight dimension zero. For an
+              eight-by-four stored weight on two tensor-parallel ranks, each rank keeps four-by-four
+              and computes its output-feature slice. A right-hand matrix in the mathematical
+              expression X W would use a different visual orientation.
+            targets:
+              - pt-tensor-split-mechanism
+            color: cyan
+            linger: 0.2
+          - id: pt-stored-slice
+            phrase: each rank keeps four-by-four and computes its output-feature slice.
+            targets:
+              - pt-tensor-split-mechanism
+            color: green
+            linger: 0.35
+      - say: F S D P two can also shard stored dimension zero, but it gathers across its data-parallel axis
+          for computation. Tensor parallelism leaves the layer’s operator split across its tensor
+          axis. A common storage dimension does not make these parallelism strategies equivalent.
+          Combining them requires coherent mesh axes, parameter layouts and collective order.
+        hold: 0.7
+        visual_cues:
+          - id: pt-tensor-split-2
+            phrase: F S D P two can also shard stored dimension zero, but it gathers across its data-parallel
+              axis for computation. Tensor parallelism leaves the layer’s operator split across its
+              tensor axis. A common storage dimension does not make these parallelism strategies
+              equivalent. Combining them requires coherent mesh axes, parameter layouts and
+              collective order.
+            targets:
+              - pt-tensor-split-mechanism
+            color: cyan
+            linger: 0.2
+  - id: pipeline-schedule
+    title: Depth splitting moves activations between stages
+    visual: Two stages retain microbatch identities through fill, concurrent forward/backward use and
+      drain; stage idle slots remain explicit as the microbatch count changes.
+    beats:
+      - say: Pipeline parallelism assigns consecutive model stages to devices. Stage zero can process an
+          earlier-layer computation for microbatch two while stage one processes later layers for
+          microbatch one. Activations travel forward between stages and their gradients travel
+          backward. Tensor-parallel communication inside a stage remains a different dependency.
+        hold: 0.7
+        visual_cues:
+          - id: pt-pipeline-schedule-0
+            phrase: Pipeline parallelism assigns consecutive model stages to devices. Stage zero can process an
+              earlier-layer computation for microbatch two while stage one processes later layers
+              for microbatch one. Activations travel forward between stages and their gradients
+              travel backward. Tensor-parallel communication inside a stage remains a different
+              dependency.
+            targets:
+              - pt-pipeline-schedule-mechanism
+            color: cyan
+            linger: 0.2
+      - say: Compare the pink backward passes. GPipe finishes the forward passes before starting
+          backward. After warmup, one-forward-one-backward alternates ready forward and backward
+          work on each stage. PyTorch also has interleaved and looped breadth-first schedules.
+          The pipeline package grew out of PiPPy. The two point fourteen docs mark it as alpha,
+          so check the schedule API for your installed version.
+        hold: 0.7
+        visual_cues:
+          - id: pt-pipeline-schedule-1
+            phrase: Compare the pink backward passes. GPipe finishes the forward passes before starting
+              backward. After warmup, one-forward-one-backward alternates ready forward and backward
+              work on each stage.
+            targets:
+              - pt-pipeline-schedule-mechanism
+            color: cyan
+            linger: 0.2
+      - say: >-
+          Look at the empty slots at the ends. Stage one waits for the first activation. Stage zero
+          finishes its last forward while stage one still has work to do. Send four microbatches
+          through the same two stages. The two empty slots now occupy a smaller share of the grid.
+          More microbatches can cost activation memory and scheduling work.
+        hold: 0.7
+        visual_cues:
+          - id: pt-pipeline-schedule-2
+            phrase: Look at the empty slots at the ends.
+            targets:
+              - pt-pipeline-schedule-mechanism
+            color: cyan
+            linger: 0.2
+          - id: four-batches
+            phrase: Send four microbatches through the same two stages.
+            targets:
+              - pt-pipeline-schedule-mechanism
+            color: cyan
+            linger: 0.2
+  - id: pipeline-scaling
+    title: Scale the full-batch gradient once
+    visual: Four equal-sized microbatch gradients add to one retained accumulator; a single schedule
+      division yields their mean and an added manual division visibly shrinks the same gradient
+      again.
+    beats:
+      - say: With equal-sized microbatches and a mean-reduced loss inside each, add the microbatch gradients
+          and divide by the number of microbatches to recover the full-batch mean. In the inspected
+          schedule API, scale-grads True performs this division. For sum-reduced losses, use
+          scale-grads False to preserve the full sum.
+        hold: 0.7
+        visual_cues:
+          - id: pt-pipeline-scaling-0
+            phrase: With equal-sized microbatches and a mean-reduced loss inside each, add the microbatch
+              gradients and divide by the number of microbatches to recover the full-batch mean. In
+              the inspected schedule API, scale-grads True performs this division. For sum-reduced
+              losses, use scale-grads False to preserve the full sum.
+            targets:
+              - pt-pipeline-scaling-mechanism
+            color: cyan
+            linger: 0.2
+      - say: In a supplied four-microbatch worksheet, gradients two, four, six and eight add to twenty.
+          Divide once by four to get five. If code first divides each mean loss by four and the
+          schedule divides the accumulated gradients again, the result becomes one point two five.
+          The model can still run while its update magnitude silently changes.
+        hold: 0.7
+        visual_cues:
+          - id: pt-pipeline-scaling-1
+            phrase: In a supplied four-microbatch worksheet, gradients two, four, six and eight add to twenty.
+              Divide once by four to get five. If code first divides each mean loss by four and the
+              schedule divides the accumulated gradients again, the result becomes one point two
+              five. The model can still run while its update magnitude silently changes.
+            targets:
+              - pt-pipeline-scaling-mechanism
+            color: cyan
+            linger: 0.2
+          - id: pt-micro-sum
+            phrase: gradients two, four, six and eight add to twenty.
+            targets:
+              - pt-pipeline-scaling-mechanism
+            color: green
+            linger: 0.35
+          - id: pt-micro-mean
+            phrase: Divide once by four to get five.
+            targets:
+              - pt-pipeline-scaling-mechanism
+            color: green
+            linger: 0.35
+          - id: pt-micro-double
+            phrase: the result becomes one point two five.
+            targets:
+              - pt-pipeline-scaling-mechanism
+            color: green
+            linger: 0.35
+      - say: Unequal microbatch sizes require weighting by their sample counts rather than averaging their
+          means equally. Declare whether the loss represents a sum or mean, inspect the schedule’s
+          scaling and compare with a tiny unsplit full-batch gradient. This is a numerical contract
+          independent of whether the timing diagram looks well utilized.
+        hold: 0.7
+        visual_cues:
+          - id: pt-pipeline-scaling-2
+            phrase: Unequal microbatch sizes require weighting by their sample counts rather than averaging
+              their means equally. Declare whether the loss represents a sum or mean, inspect the
+              schedule’s scaling and compare with a tiny unsplit full-batch gradient. This is a
+              numerical contract independent of whether the timing diagram looks well utilized.
+            targets:
+              - pt-pipeline-scaling-mechanism
+            color: cyan
+            linger: 0.2
+  - id: residency
+    title: Parameter shards gather around module execution
+    visual: A selected rank begins with two of eight parameter elements, gathers the full parameter for
+      computation and reshards after forward under an explicit policy. The retained alternative is
+      shown as a separate live allocation.
+    beats:
+      - say: >
+          FSDP2 applies placement to model state. Our selected rank owns a two-element shard of an
+          eight-element parameter at rest. Before the managed module computes, its hooks gather the
+          full parameter across the data-parallel shard group. Call the module through its normal
+          call path so those hooks execute.
+        motion_check:
+          region:
+            - 155
+            - 375
+            - 1610
+            - 300
+          minimumChangedFraction: 0.002
+        hold: 0.6
+        visual_cues:
+          - id: residency-beat-1-focus-1
+            phrase: Our selected rank owns a two-element shard of an eight-element parameter at rest
+            targets:
+              - residency-grid-2-i-1-2-i-2-155-i-420-400-350-85-i-c-blue-c-cyan
+            color: cyan
+            linger: 0.65
+          - id: pt-residency-0
+            phrase: FSDP2 applies placement to model state. Our selected rank owns a two-element shard of an
+              eight-element parameter at rest. Before the managed module computes, its hooks gather
+              the full parameter across the data-parallel shard group. Call the module through its
+              normal call path so those hooks execute.
+            targets:
+              - pt-residency-mechanism
+            color: cyan
+            linger: 0.2
+      - say: >
+          The gather creates the compute parameter shown on screen. Peak memory includes the local
+          shard and other live state as well as that full parameter. Activations, prefetched
+          parameters and temporary buffers can coexist, so dividing total weights by the rank count
+          gives an incomplete peak estimate.
+        hold: 0.6
+        visual_cues:
+          - id: residency-beat-2-focus-1
+            phrase: so dividing total weights by the rank count gives an incomplete peak estimate
+            targets:
+              - residency-grid-2-i-1-2-i-2-155-i-420-400-350-85-i-c-blue-c-cyan
+            color: cyan
+            linger: 0.65
+          - id: residency-beat-2-focus-2
+            phrase: The gather creates the compute parameter shown on screen
+            targets:
+              - residency-grid-array-from-length-8-i-i-s-parameter-length-s-parameter-i-200-56
+            color: yellow
+            linger: 0.65
+          - id: pt-residency-1
+            phrase: The gather creates the compute parameter shown on screen. Peak memory includes the local
+              shard and other live state as well as that full parameter. Activations, prefetched
+              parameters and temporary buffers can coexist, so dividing total weights by the rank
+              count gives an incomplete peak estimate.
+            targets:
+              - pt-residency-mechanism
+            color: cyan
+            linger: 0.2
+      - say: >
+          Under our explicit reshard-after-forward policy, release the full compute copy and return
+          to the shard. A policy that retains full parameters instead spends more memory to avoid a
+          later gather. Gradients also follow their reduction and sharding lifecycle before the
+          optimizer updates the state owned by this rank.
+        hold: 0.6
+        visual_cues:
+          - id: residency-beat-3-focus-1
+            phrase: release the full compute copy and return to the shard
+            targets:
+              - residency-grid-2-i-1-2-i-2-155-i-420-400-350-85-i-c-blue-c-cyan
+            color: cyan
+            linger: 0.65
+          - id: residency-beat-3-focus-2
+            phrase: A policy that retains full parameters instead spends more memory to avoid a later gather
+            targets:
+              - residency-grid-array-from-length-8-i-i-s-parameter-length-s-parameter-i-200-56
+            color: yellow
+            linger: 0.65
+          - id: pt-residency-2
+            phrase: Under our explicit reshard-after-forward policy, release the full compute copy and return to
+              the shard. A policy that retains full parameters instead spends more memory to avoid a
+              later gather. Gradients also follow their reduction and sharding lifecycle before the
+              optimizer updates the state owned by this rank.
+            targets:
+              - pt-residency-mechanism
+            color: cyan
+            linger: 0.2
+  - id: fsdp-hooks
+    title: The normal call path owns gather and reshard hooks
+    visual: The retained rank shard flows through actual call/prehook/gather/compute/posthook states;
+      bypassing __call__ leaves the parameter unavailable, then a registered entry restores the
+      lifecycle.
+    beats:
+      - say: Apply fully-shard bottom-up to transformer blocks and then the root to form smaller parameter
+          communication groups than a single root-only group. Default placement is dimension-zero
+          sharding on a one-dimensional mesh, or replicated and dimension-zero-sharded on a hybrid
+          mesh. The placement hook can override that policy. Size the actual groups and live state.
+        hold: 0.7
+        visual_cues:
+          - id: pt-fsdp-hooks-0
+            phrase: Apply fully-shard bottom-up to transformer blocks and then the root to form smaller
+              parameter communication groups than a single root-only group. Default placement is
+              dimension-zero sharding on a one-dimensional mesh, or replicated and
+              dimension-zero-sharded on a hybrid mesh. The placement hook can override that policy.
+              Size the actual groups and live state.
+            targets:
+              - pt-fsdp-hooks-mechanism
+            color: cyan
+            linger: 0.2
+      - say: Use model of input through the module’s call path. Calling model dot forward directly bypasses
+          the hooks that gather parameters. A direct forward requires deliberate unsharding first; a
+          different entry method such as encode can be registered with the documented F S D P
+          forward-method helper. Manual unsharding is not recursive and does not reproduce every
+          hook’s lifecycle.
+        hold: 0.7
+        visual_cues:
+          - id: pt-fsdp-hooks-1
+            phrase: Use model of input through the module’s call path. Calling model dot forward directly
+              bypasses the hooks that gather parameters. A direct forward requires deliberate
+              unsharding first; a different entry method such as encode can be registered with the
+              documented F S D P forward-method helper. Manual unsharding is not recursive and does
+              not reproduce every hook’s lifecycle.
+            targets:
+              - pt-fsdp-hooks-mechanism
+            color: cyan
+            linger: 0.2
+      - say: Reshard-after-forward True frees full parameters and gathers again for backward. False retains
+          them until backward. None uses True for non-root modules and False for the root in the
+          cited API. An integer requests a smaller shard-group size under documented divisibility
+          constraints. With tensor parallelism, a compute parameter can remain tensor-sharded on its
+          other mesh axis.
+        hold: 0.7
+        visual_cues:
+          - id: pt-fsdp-hooks-2
+            phrase: Reshard-after-forward True frees full parameters and gathers again for backward. False
+              retains them until backward. None uses True for non-root modules and False for the
+              root in the cited API. An integer requests a smaller shard-group size under documented
+              divisibility constraints. With tensor parallelism, a compute parameter can remain
+              tensor-sharded on its other mesh axis.
+            targets:
+              - pt-fsdp-hooks-mechanism
+            color: cyan
+            linger: 0.2
+  - id: live-peak
+    title: Will the next gather fit on this rank?
+    visual: A fixed 36-element allowance crosses a single rack of simultaneous allocations. Four owned
+      elements, sixteen for compute and twelve activations fit. Eight more elements of prefetch cross
+      the line. Delaying the prefetch changes the subtotal at module entry.
+    beats:
+      - say: This rank has room for thirty-six elements in our worksheet. Its parameter has sixteen elements
+          split across four ranks. Put its four owned elements on the ruler. At module entry it needs
+          a separate sixteen-element compute buffer. Twelve activation elements are still live. How
+          much room is left for the next block?
+        hold: 2
+        visual_cues:
+          - id: peak-shard
+            phrase: Put its four owned elements on the ruler.
+            targets:
+              - live-set
+            color: cyan
+            linger: 0.25
+            caption_boundary: true
+          - id: peak-full
+            phrase: a separate sixteen-element compute buffer
+            targets:
+              - live-set
+            color: cyan
+            linger: 0.25
+            caption_boundary: true
+          - id: peak-acts
+            phrase: Twelve activation elements are still live.
+            targets:
+              - live-set
+            color: cyan
+            linger: 0.25
+            caption_boundary: true
+      - say: There are four slots left. Prefetch the next eight elements while the current block is live.
+          Four land beyond the allowance. The subtotal is forty. The owned shard is still four
+          elements. It was the overlap at module entry that put this run over budget.
+        hold: 1
+        visual_cues:
+          - id: peak-prefetch
+            phrase: Prefetch the next eight elements
+            targets:
+              - live-set
+            color: cyan
+            linger: 0.25
+            caption_boundary: true
+          - id: peak-over
+            phrase: Four land beyond the allowance.
+            targets:
+              - peak-verdict
+            color: cyan
+            linger: 0.25
+            caption_boundary: true
+      - say: Replay that instant with the prefetch delayed. The current block uses thirty-two elements,
+          within this allowance. Delaying a gather can also leave compute waiting. Profile allocation
+          lifetimes and communication together. A real peak includes any gradients, optimizer state
+          and temporary buffers that are live at the same time.
+        hold: 1
+        visual_cues:
+          - id: peak-delay
+            phrase: with the prefetch delayed
+            targets:
+              - live-set
+            color: cyan
+            linger: 0.25
+            caption_boundary: true
+          - id: peak-room
+            phrase: within this allowance
+            targets:
+              - peak-verdict
+            color: cyan
+            linger: 0.25
+            caption_boundary: true
+  - id: recovery
+    title: Which way will the next Adam update go?
+    visual: Three branches load the same scalar weight. The signs of their first moments determine
+      opposing directions on one weight scale. The uninterrupted and fully restored endpoints coincide
+      while a fresh optimizer sends the same weight upwards.
+    beats:
+      - say: Start at weight one. Adam takes a step with a positive gradient of one half. Save the new
+          weight, along with Adam's running averages of the gradient and its square, and the number of
+          updates so far. Now the gradient turns negative, to minus one quarter. If you load just the
+          weight into a fresh optimizer, will it take the same next step?
+        hold: 2.3
+        visual_cues:
+          - id: save-adam
+            phrase: Save the new weight
+            targets:
+              - adam-start
+            color: cyan
+            linger: 0.25
+            caption_boundary: true
+          - id: next-grad
+            phrase: Now the gradient turns negative
+            targets:
+              - adam-lanes
+            color: cyan
+            linger: 0.25
+            caption_boundary: true
+      - say: Run the complete checkpoint beside the uninterrupted run. Both move left. Their first moment
+          stays positive because some of the earlier gradient survives. Try the same gradient with a
+          fresh optimizer. Its first moment starts at zero and turns negative. Watch the weight go
+          right. The starting weight alone couldn't tell us which way it would go.
+        hold: 1.3
+        visual_cues:
+          - id: complete-step
+            phrase: Both move left.
+            targets:
+              - adam-lanes
+            color: cyan
+            linger: 0.25
+            caption_boundary: true
+          - id: reset-step
+            phrase: Try the same gradient with a fresh optimizer.
+            targets:
+              - adam-branches
+            color: cyan
+            linger: 0.25
+            caption_boundary: true
+          - id: reset-moment
+            phrase: and turns negative.
+            targets: [adam-branches]
+            color: pink
+            linger: 0.25
+          - id: reset-direction
+            phrase: Watch the weight go right.
+            targets:
+              - adam-lanes
+            color: cyan
+            linger: 0.25
+            caption_boundary: true
+      - say: Compare the first update after loading, using the same next data item and learning rate. Here
+          the complete restore lands on the uninterrupted result. For a distributed restart, rebuild
+          the groups, construct the destination shards and load the latest complete durable
+          checkpoint. Restore the scheduler, scaler, random state and data cursor too, so the
+          comparison tests the same training step.
+        hold: 0.9
+        visual_cues:
+          - id: compare-resume
+            phrase: the complete restore lands on the uninterrupted result
+            targets:
+              - adam-lanes
+            color: cyan
+            linger: 0.25
+            caption_boundary: true
+  - id: dcp-load
+    title: Construct the destination before filling it
+    visual: Canonical logical parameter IDs from a complete checkpoint map into newly constructed
+      model/optimizer storage; actual CPU second-update receipts match, while the diagram labels
+      multi-rank resharding as unexecuted.
+    beats:
+      - say: Distributed Checkpoint, or D C P, coordinates rank-parallel writes and reads. It fills tensor
+          destination storage in place. Construct the logical model, optimizer and process groups
+          first, then execute matching save or load calls on all ranks. State-dict helpers expose
+          canonical parameter names across supported wrappers; the target placement and planner
+          define supported resharding.
+        hold: 0.7
+        visual_cues:
+          - id: pt-dcp-load-0
+            phrase: Distributed Checkpoint, or D C P, coordinates rank-parallel writes and reads. It fills
+              tensor destination storage in place. Construct the logical model, optimizer and
+              process groups first, then execute matching save or load calls on all ranks.
+              State-dict helpers expose canonical parameter names across supported wrappers; the
+              target placement and planner define supported resharding.
+            targets:
+              - pt-dcp-load-mechanism
+            color: cyan
+            linger: 0.2
+      - say: >-
+          Look at the middle file. It holds elements four through seven. After restart, rank zero
+          needs four and five, and rank one needs six and seven. The load planner uses the new
+          layout to find each range. Apply both the model state and optimizer state through the
+          state-dict helpers so the next update uses the loaded values.
+        hold: 0.7
+        visual_cues:
+          - id: pt-dcp-load-1
+            phrase: >-
+              Look at the middle file. It holds elements four through seven. After restart, rank
+              zero needs four and five, and rank one needs six and seven. The load planner uses the
+              new layout to find each range. Apply both the model state and optimizer state through
+              the state-dict helpers so the next update uses the loaded values.
+            targets:
+              - pt-dcp-load-mechanism
+            color: cyan
+            linger: 0.2
+      - say: >-
+          The article runs a disk round trip in one CPU process. It saves a tiny Linear model and
+          Adam after one update, then loads them into a fresh model and optimizer. Give both runs
+          the same next input. The next fixed-input update matches uninterrupted loss, parameters,
+          moments and counters exactly.
+        hold: 0.7
+        visual_cues:
+          - id: pt-dcp-load-2
+            phrase: >-
+              The article runs a disk round trip in one CPU process. It saves a tiny Linear model
+              and Adam after one update, then loads them into a fresh model and optimizer. Give both
+              runs the same next input. The next fixed-input update matches uninterrupted loss,
+              parameters, moments and counters exactly.
+            targets:
+              - pt-dcp-load-mechanism
+            color: cyan
+            linger: 0.2
+          - id: pt-dcp-match
+            phrase: The next fixed-input update matches uninterrupted loss, parameters, moments and counters
+              exactly.
+            targets:
+              - pt-dcp-load-mechanism
+            color: green
+            linger: 0.35
+  - id: elastic-identity
+    title: A restarted rank is a new endpoint
+    visual: A failed worker group is replaced, rank labels are reassigned, a latest-complete checkpoint
+      retains step and next-data identity, and the application loads that state before progress
+      resumes.
+    beats:
+      - say: Torchrun manages worker lifecycle. When a worker fails, its elastic agent stops and restarts
+          the group up to its configured limit. The application must load saved progress. Rank
+          assignments are not stable across restarts, and elastic membership can change world size.
+          Read the new environment and rebuild groups rather than deriving ownership from an old
+          rank filename.
+        hold: 0.7
+        visual_cues:
+          - id: pt-elastic-identity-0
+            phrase: Torchrun manages worker lifecycle. When a worker fails, its elastic agent stops and restarts
+              the group up to its configured limit. The application must load saved progress. Rank
+              assignments are not stable across restarts, and elastic membership can change world
+              size. Read the new environment and rebuild groups rather than deriving ownership from
+              an old rank filename.
+            targets:
+              - pt-elastic-identity-mechanism
+            color: cyan
+            linger: 0.2
+      - say: Save the scheduler position, gradient-scaler state, global step, random state and enough
+          sampler or data-cursor state to define the next examples, beside model and optimizer
+          tensors. Keep code and configuration identity too. Identical restored weights can precede
+          a different update when the learning rate, random draw or next batch changed.
+        hold: 0.7
+        visual_cues:
+          - id: pt-elastic-identity-1
+            phrase: Save the scheduler position, gradient-scaler state, global step, random state and enough
+              sampler or data-cursor state to define the next examples, beside model and optimizer
+              tensors. Keep code and configuration identity too. Identical restored weights can
+              precede a different update when the learning rate, random draw or next batch changed.
+            targets:
+              - pt-elastic-identity-mechanism
+            color: cyan
+            linger: 0.2
+      - say: The latest complete durable checkpoint defines recoverable progress. Work after that point may
+          need replay; a failed or delayed save can extend the window. A distributed drill must
+          actually fail a worker, rebuild the group, restore supported target shards and compare the
+          next data item and first resumed update. Launcher retries alone cannot recover work that
+          was never saved.
+        hold: 0.7
+        visual_cues:
+          - id: pt-elastic-identity-2
+            phrase: The latest complete durable checkpoint defines recoverable progress. Work after that point
+              may need replay; a failed or delayed save can extend the window. A distributed drill
+              must actually fail a worker, rebuild the group, restore supported target shards and
+              compare the next data item and first resumed update. Launcher retries alone cannot
+              recover work that was never saved.
+            targets:
+              - pt-elastic-identity-mechanism
+            color: cyan
+            linger: 0.2
+  - id: optimizer-counter
+    title: How far does Adam move the weight?
+    visual: A supplied gradient feeds the two running averages. Their startup corrections recover a
+      normalized direction at the first update. A second pair of weights shares a different supplied
+      direction and separates only when its two learning rates are applied.
+    beats:
+      - say: Let's work through that first update. The weight starts at one. A positive gradient
+          of one half enters Adam. The first average keeps ninety percent of its previous value and
+          adds a tenth of the gradient. The second keeps ninety-nine point nine percent and adds a
+          thousandth of the squared gradient. Both started at zero. The update counter advances to
+          one.
+        hold: 0.9
+        visual_cues:
+          - id: adam-mean
+            phrase: adds a tenth of the gradient
+            targets:
+              - adam-moments
+            color: cyan
+            linger: 0.25
+            caption_boundary: true
+          - id: adam-square
+            phrase: adds a thousandth of the squared gradient
+            targets:
+              - adam-moments
+            color: cyan
+            linger: 0.25
+            caption_boundary: true
+          - id: adam-count
+            phrase: counter advances to one
+            targets:
+              - adam-moments
+            color: cyan
+            linger: 0.25
+            caption_boundary: true
+      - say: Starting from zero pulls these early averages toward zero. To correct each average, divide
+          it by one minus its decay factor raised to the update count.
+          On step one, dividing the first average by one tenth gives one half. The corrected second
+          average is one quarter. Take its square root. Divide the corrected first average by that
+          scale plus a tiny epsilon. The direction is nearly one, so a learning rate of one hundredth
+          takes the weight from one to about point nine nine.
+        hold: 1.1
+        visual_cues:
+          - id: correct-mean
+            phrase: dividing the first average by one tenth
+            targets:
+              - adam-moments
+            color: cyan
+            linger: 0.25
+            caption_boundary: true
+          - id: correct-square
+            phrase: The corrected second average is one quarter.
+            targets:
+              - adam-moments
+            color: cyan
+            linger: 0.25
+            caption_boundary: true
+          - id: adam-direction
+            phrase: Divide the corrected first average by that scale
+            targets:
+              - adam-distance
+            color: cyan
+            linger: 0.25
+            caption_boundary: true
+          - id: adam-displace
+            phrase: takes the weight from one
+            targets:
+              - adam-distance
+            color: cyan
+            linger: 0.25
+            caption_boundary: true
+      - say: Try a different step. The weight now starts at two, and both branches have the same normalized
+          direction of one half. The saved scheduler supplies a rate of one hundredth. The reset
+          scheduler supplies twice that. Which branch moves farther?
+        hold: 2.2
+        visual_cues:
+          - id: rate-pair
+            phrase: The saved scheduler supplies a rate of one hundredth.
+            targets:
+              - adam-distance
+            color: cyan
+            linger: 0.25
+            caption_boundary: true
+      - say: Apply the saved rate. It subtracts five thousandths. Apply the reset rate. It subtracts a full
+          hundredth. The weights agreed before the update, so a forward pass there would miss this
+          scheduler error. Compare the learning rate used at the first resumed step.
+        hold: 0.9
+        caption_starts:
+          - It subtracts five thousandths.
+          - It subtracts a full hundredth.
+        visual_cues:
+          - id: pt-rate-saved
+            phrase: Apply the saved rate.
+            targets:
+              - adam-distance
+            color: cyan
+            linger: 0.25
+            caption_boundary: true
+          - id: pt-rate-reset
+            phrase: Apply the reset rate.
+            targets:
+              - adam-distance
+            color: cyan
+            linger: 0.25
+            caption_boundary: true
+  - id: owners-debug
+    title: Hold the input fixed while locating the first changed boundary
+    visual: The original data/layout/mask/state identities feed a concrete step trace; a copy event,
+      guard failure, gather peak and missing cursor each select the responsible owner without
+      erasing earlier receipts.
+    beats:
+      - say: A transformer training step moves token IDs through embedding, attention, M L P and
+          normalization operators. F S D P hooks gather before managed operators use their
+          parameters. Autograd executes backward, gradient collectives complete, then the owning
+          optimizer updates. Checkpoint code records state and application progress. Each transition
+          needs a coherent value and ownership contract.
+        hold: 0.7
+        visual_cues:
+          - id: pt-owners-debug-0
+            phrase: A transformer training step moves token IDs through embedding, attention, M L P and
+              normalization operators. F S D P hooks gather before managed operators use their
+              parameters. Autograd executes backward, gradient collectives complete, then the owning
+              optimizer updates. Checkpoint code records state and application progress. Each
+              transition needs a coherent value and ownership contract.
+            targets:
+              - pt-owners-debug-mechanism
+            color: cyan
+            linger: 0.2
+      - say: Native inference removes the gradient tape and training update path. A serving engine such as v
+          L L M or S G Lang may own batching, key-value blocks and sampling. PyTorch can supply
+          tensor operators, export paths or custom model components while another system owns H T T
+          P and request scheduling. Research flexibility, compiler startup, irregular shapes and
+          backend coverage create different benefits and limits.
+        hold: 0.7
+        visual_cues:
+          - id: pt-owners-debug-1
+            phrase: Native inference removes the gradient tape and training update path. A serving engine such
+              as v L L M or S G Lang may own batching, key-value blocks and sampling. PyTorch can
+              supply tensor operators, export paths or custom model components while another system
+              owns H T T P and request scheduling. Research flexibility, compiler startup, irregular
+              shapes and backend coverage create different benefits and limits.
+            targets:
+              - pt-owners-debug-mechanism
+            color: cyan
+            linger: 0.2
+      - say: For a failure, fix the input, seed, dtype, layout and expected result on one device. Inspect
+          tensor metadata and copy evidence, compare eager with a stable compiled region, name the
+          selected attention path and check saved versions. Then reduce the distributed world,
+          inspect each rank’s collective order, profile memory and communication, and drill restart.
+          Choose the first receipt that changed rather than treating a logged metric as a diagnosis.
+        hold: 0.7
+        visual_cues:
+          - id: pt-owners-debug-2
+            phrase: For a failure, fix the input, seed, dtype, layout and expected result on one device. Inspect
+              tensor metadata and copy evidence, compare eager with a stable compiled region, name
+              the selected attention path and check saved versions. Then reduce the distributed
+              world, inspect each rank’s collective order, profile memory and communication, and
+              drill restart. Choose the first receipt that changed rather than treating a logged
+              metric as a diagnosis.
+            targets:
+              - pt-owners-debug-mechanism
+            color: cyan
+            linger: 0.2
+  - id: project-source
+    title: Keep the source pin, executed wheel and documentation distinct
+    visual: Follow a tensor operation through the pinned August source. Compare that revision with the
+      2.13 CPU wheel, the 2.14 reference pages and the separately dated compiler and distributed guides.
+    beats:
+      - say: PyTorch grew from Torch-community work beginning in twenty sixteen, with substantial Meta
+          funding and broad collaborators. The Linux Foundation hosts its foundation. Technical
+          authority follows individual maintainers and project governance, with public issues, pull
+          requests and code review. The pinned main source uses a BSD three-clause license;
+          distributed packages include other component notices. That license does not grant model,
+          dataset or service rights.
+        hold: 0.7
+        visual_cues:
+          - id: pt-project-source-0
+            phrase: PyTorch grew from Torch-community work beginning in twenty sixteen, with substantial Meta
+              funding and broad collaborators. The Linux Foundation hosts its foundation. Technical
+              authority follows individual maintainers and project governance, with public issues,
+              pull requests and code review. The pinned main source uses a BSD three-clause license;
+              distributed packages include other component notices. That license does not grant
+              model, dataset or service rights.
+            targets:
+              - pt-project-source-mechanism
+            color: cyan
+            linger: 0.2
+      - say: The article keeps an August second source snapshot, a two point thirteen CPU wheel and two
+          point fourteen documentation as separate records. Moving compiler and distributed guidance
+          here was inspected November seventh, twenty twenty-six. A source checkout explains its
+          revision; a real wheel and exact backend determine execution. The twenty-nineteen paper’s
+          design history is separate from those current implementation contracts.
+        hold: 0.7
+        visual_cues:
+          - id: pt-project-source-1
+            phrase: The article keeps an August second source snapshot, a two point thirteen CPU wheel and two
+              point fourteen documentation as separate records. Moving compiler and distributed
+              guidance here was inspected November seventh, twenty twenty-six. A source checkout
+              explains its revision; a real wheel and exact backend determine execution. The
+              twenty-nineteen paper’s design history is separate from those current implementation
+              contracts.
+            targets:
+              - pt-project-source-mechanism
+            color: cyan
+            linger: 0.2
+      - say: >-
+          Pick a question to follow through the source. For a stride, start at the Python tensor and
+          open TensorImpl. For a kernel, follow an operator schema through native-functions and its
+          generator to Dispatcher and DispatchKey. A backward error takes you to the autograd engine
+          and its saved-variable check. For compiled attention, follow the call into Dynamo, A O T
+          autograd and Inductor. For a distributed restart, trace placement through DeviceMesh,
+          parallel layers and fully-shard, then follow checkpoint loading and the worker launcher.
+        hold: 0.7
+        visual_cues:
+          - id: pt-project-source-2
+            phrase: >-
+              Pick a question to follow through the source. For a stride, start at the Python tensor
+              and open TensorImpl. For a kernel, follow an operator schema through native-functions
+              and its generator to Dispatcher and DispatchKey. A backward error takes you to the
+              autograd engine and its saved-variable check. For compiled attention, follow the call
+              into Dynamo, A O T autograd and Inductor. For a distributed restart, trace placement
+              through DeviceMesh, parallel layers and fully-shard, then follow checkpoint loading
+              and the worker launcher.
+            targets:
+              - pt-project-source-mechanism
+            color: cyan
+            linger: 0.2
+  - id: fresh-counter
+    title: Replay a step with a zero gradient
+    visual: Two branches use the weight and moments from step two and the same zero gradient. A missing
+      counter changes the distance traveled on parallel fixed scales. Repair rewinds to the checkpoint
+      before replaying the step.
+    beats:
+      - say: Pick up the scalar we saved after two updates. The first gradient was one half. The second was
+          negative one quarter. The uninterrupted run has counted two updates. Its restored copy
+          loads the same weight and both running averages, but starts its count at zero.
+          Give them both a zero gradient. Will their next weights agree?
+        hold: 2.6
+        visual_cues:
+          - id: fresh-zero
+            phrase: Give them both a zero gradient.
+            targets:
+              - fresh-ruler
+            color: cyan
+            linger: 0.25
+            caption_boundary: true
+      - say: >-
+          Both runs still remember a positive first moment. The zero gradient lets that average
+          decay, and it still pulls the weight down. Advance the counters. The complete run corrects
+          its averages for three updates. The reset run corrects the very same averages for just
+          one. Mark the complete step. Now mark the reset step. The reset travels farther.
+        hold: 1.2
+        caption_starts:
+          - The reset travels farther.
+        visual_cues:
+          - id: fresh-counts
+            phrase: Advance the counters.
+            targets:
+              - fresh-history
+            color: cyan
+            linger: 0.25
+            caption_boundary: true
+          - id: pt-fresh-correct
+            phrase: Mark the complete step.
+            targets:
+              - fresh-ruler
+            color: cyan
+            linger: 0.25
+            caption_boundary: true
+          - id: pt-fresh-wrong
+            phrase: Now mark the reset step.
+            targets:
+              - fresh-ruler
+            color: cyan
+            linger: 0.25
+            caption_boundary: true
+      - say: >-
+          Go back to the saved weight and moments. Put the missing count of two back, then replay
+          the zero gradient. The marks line up. To check a restart, give both runs the same next
+          batch and compare their first update. If the weights separate, check the learning rate,
+          the two moments and Adam’s step count.
+        hold: 1.2
+        caption_starts:
+          - The marks line up.
+        visual_cues:
+          - id: fresh-rewind
+            phrase: Go back to the saved weight and moments.
+            targets:
+              - fresh-ruler
+            color: cyan
+            linger: 0.25
+            caption_boundary: true
+          - id: fresh-recount
+            phrase: Put the missing count of two back
+            targets:
+              - fresh-history
+            color: cyan
+            linger: 0.25
+            caption_boundary: true
+          - id: pt-fresh-restored
+            phrase: then replay the zero gradient.
+            targets:
+              - fresh-ruler
+            color: cyan
+            linger: 0.25
+            caption_boundary: true

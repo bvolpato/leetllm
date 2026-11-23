@@ -1,0 +1,787 @@
+[
+  {
+    "id": "c01",
+    "title": "Which pixel trips the alert?",
+    "sourceChapters": [
+      "c01"
+    ],
+    "beats": [
+      {
+        "id": "c01-b01",
+        "say": "Zoom in on this little notification badge. Each corner has a brightness reading. An alert lights when a reading is brighter than point nine. Compare the two lower corners with the cutoff. Which corner trips it?",
+        "hold": 2.7
+      },
+      {
+        "id": "c01-b02",
+        "say": "The bottom right. It reads point nine two. The bottom left reads exactly point nine, so it stays quiet. Remember those two readings as we pack the crop into two numbers.",
+        "hold": 0.9
+      },
+      {
+        "id": "c01-b03",
+        "say": "Our hand-built encoder takes the average of the four badge pixels. Its second number averages the two pixels just below them. This pair is the latent code. The decoder has to rebuild the picture from that pair. Together these two maps form an autoencoder. Will the rebuilt badge still tell us which corner to flag?",
+        "hold": 1.8
+      }
+    ]
+  },
+  {
+    "id": "c02",
+    "title": "Two averages remember regions",
+    "sourceChapters": [
+      "c02"
+    ],
+    "beats": [
+      {
+        "id": "c02-b01",
+        "say": "Brightness runs from zero to one. Our first coordinate watches these four center pixels. Add their brightness values, then divide the sum by four. That average is the first dial. A learned encoder would discover its own weights across many crops.",
+        "hold": 0.5
+      },
+      {
+        "id": "c02-b02",
+        "say": "The second dial averages these two lower pixels. Add them and divide by two. Now the decoder receives this pair. Its weights turn the regional brightness values into the reconstructed badge. The code is the only path carrying information about this particular input.",
+        "hold": 0.5
+      },
+      {
+        "id": "c02-b03",
+        "say": "Exchange the brightest and dimmest selected center pixels. We have changed their arrangement. Predict the new code before I uncover it. Will either dial change?",
+        "hold": 1.5
+      },
+      {
+        "id": "c02-b04",
+        "say": "The pair stays the same. The sum is unchanged, so both averages survive the exchange. The decoder therefore produces the same reconstruction for two different inputs. We have found a precise detail that this bottleneck loses.",
+        "hold": 0.5
+      }
+    ]
+  },
+  {
+    "id": "c03",
+    "title": "Paint the badge from two numbers",
+    "sourceChapters": [
+      "c03"
+    ],
+    "beats": [
+      {
+        "id": "c03-b01",
+        "say": "Start with the original badge on the left. The fixed decoder gives each of its four center pixels the same weight on the first number. Take the center average and add the background brightness, point zero eight. Each center pixel comes out just under point nine seven. How many would our rule flag now?",
+        "hold": 1.9
+      },
+      {
+        "id": "c03-b02",
+        "say": "All four. Only the bottom right crossed the line in the original. The reconstruction puts a badge in the right place, but it would give us three extra flags. Its four values are inside the allowed brightness range, so clipping changes none of them.",
+        "hold": 0.8
+      },
+      {
+        "id": "c03-b03",
+        "say": "Now follow the lower number to the pixel just left of the lower strip. This neighbor receives thirty-five percent of that number, on top of the same background. That gives a much dimmer pixel. The weight tells us how far the lower strip brightens its surroundings.",
+        "hold": 0.6
+      },
+      {
+        "id": "c03-b04",
+        "say": "Here are the squared misses for all twenty-five pixels. They’re hard to see at this scale. Turn up the display gain by a factor of thirty-five. Now you can see where the misses are, while the measured mean squared error stays put.",
+        "hold": 0.8
+      }
+    ]
+  },
+  {
+    "id": "c04",
+    "title": "Build the error one pixel at a time",
+    "sourceChapters": [
+      "c04"
+    ],
+    "beats": [
+      {
+        "id": "c04-b01",
+        "say": "Let's measure that reconstruction at the upper left of the badge. Subtract its decoded value from its input value. This time the difference is negative because the decoder painted it too bright. Square the difference. A miss in either direction now counts toward the error, and a larger miss costs more.",
+        "hold": 0.7
+      },
+      {
+        "id": "c04-b02",
+        "say": "Repeat this for every pixel and add the squared errors. Finally, divide the total by twenty-five. That is mean squared error, or MSE. Training adjusts both functions to reduce it. This score describes our one reconstruction; let's also test what changing the code actually does.",
+        "hold": 0.5
+      }
+    ]
+  },
+  {
+    "id": "c05",
+    "title": "Change the message, then inspect the picture",
+    "sourceChapters": [
+      "c05"
+    ],
+    "beats": [
+      {
+        "id": "c05-b01",
+        "say": "Here is a second constructed crop with its brightness lower down. Our encoder gives it a different pair. Keep the original badge on the left, and replace its code with this lower-region code. Predict where the decoder will put the bright region.",
+        "hold": 1.2
+      },
+      {
+        "id": "c05-b02",
+        "say": "The output moves downward, and its error against the original badge rises. The decoder uses the message we send. Plain reconstruction training evaluates the codes reached by training inputs. A random draw asks it to work elsewhere too. A VAE connects those jobs by defining a distribution over codes.",
+        "hold": 0.5
+      }
+    ]
+  },
+  {
+    "id": "c06",
+    "title": "Compare a learned bottleneck with the constant baseline",
+    "sourceChapters": [
+      "c06"
+    ],
+    "beats": [
+      {
+        "id": "c06-b01",
+        "say": "Now let training choose the weights. Follow the crop through twenty-five inputs, eight hidden units, a two-number code, then eight hidden units and twenty-five outputs. The hidden layers use tanh. A sigmoid on the output keeps the decoded brightness in range. Adam updates both encoder and decoder to reduce mean squared error.",
+        "hold": 0.6
+      },
+      {
+        "id": "c06-b02",
+        "say": "The supplied data are forty-eight noisy versions of one crop. On the executed CPU run, two hundred fifty updates reduce training MSE from about point one five three seven to point zero zero zero six. A constant predictor that repeats the mean crop also obtains about point zero zero zero six on those same rows.",
+        "hold": 0.6
+      },
+      {
+        "id": "c06-b03",
+        "say": "Both predictors can paint the badge in the same place every time. Give them a new challenge, a held-out crop with the bright patch lower down. The constant predictor has just one answer. For the learned decoder, swap the codes and measure whether its output follows the patch. That experiment would tell us more than the training score.",
+        "hold": 0.7
+      },
+      {
+        "id": "c06-b04",
+        "say": "For generation, we also need to know where to draw a new code.",
+        "hold": 0.6
+      }
+    ]
+  },
+  {
+    "id": "c07",
+    "title": "The crop selects a cloud",
+    "sourceChapters": [
+      "c07"
+    ],
+    "beats": [
+      {
+        "id": "c07-b01",
+        "say": "A variational autoencoder begins with a generative model: draw a code from a prior, then draw a picture from the decoder distribution. Given an observed crop, its encoder selects an approximate posterior: a distribution of possible codes for that crop. Here we use supplied Gaussian parameters.",
+        "hold": 0.5
+      },
+      {
+        "id": "c07-b02",
+        "say": "Change the input to the lower crop. Its mean moves, while the gray standard-normal prior stays fixed at zero with unit variance. Our diagonal Gaussian treats its coordinates as independent for this input.",
+        "hold": 0.5
+      },
+      {
+        "id": "c07-b03",
+        "say": "Return to the badge and start the first width at one. The encoder predicts log variance. Halve that value and exponentiate to get standard deviation. Watch the first axis narrow. This positive standard deviation is the scale we will use to sample.",
+        "hold": 0.5
+      }
+    ]
+  },
+  {
+    "id": "c08",
+    "title": "Separate the posterior for one crop from the mixture",
+    "sourceChapters": [
+      "c08"
+    ],
+    "beats": [
+      {
+        "id": "c08-b01",
+        "say": "A VAE declares a generative model: draw a latent from a prior, then an image from a decoder distribution. Given an observed crop, its true posterior asks which latent values could have produced that crop. The encoder predicts a tractable approximate posterior instead.",
+        "hold": 0.3
+      },
+      {
+        "id": "c08-b02",
+        "say": "One shared encoder amortizes this inference across inputs rather than solving a separate optimization for every crop.",
+        "hold": 0.6
+      },
+      {
+        "id": "c08-b03",
+        "say": "A diagonal Gaussian has independent coordinates conditional on this crop. That does not make the codes independent after mixing crops. For a separate supplied example, equally mix Gaussians centered at one, one and minus one, minus one, each with identity covariance.",
+        "hold": 0.3
+      },
+      {
+        "id": "c08-b04",
+        "say": "Within either crop the coordinates are independent. The combined covariance has diagonal two and off-diagonal one.",
+        "hold": 0.6
+      },
+      {
+        "id": "c08-b05",
+        "say": "The encoder emits means and log variances. Exponentiate half a log variance for standard deviation; exponentiating the full value gives variance. Finite log variance does not guarantee a usable floating-point scale: exponentiation can underflow to zero or overflow to infinity. Check numerical values and gradients. Softplus is another positive parameterization, with its own finite-precision limits.",
+        "hold": 0.6
+      }
+    ]
+  },
+  {
+    "id": "c09",
+    "title": "Compute what prior mismatch charges",
+    "sourceChapters": [
+      "c09"
+    ],
+    "beats": [
+      {
+        "id": "c09-b01",
+        "say": "Kullback-Leibler divergence, or KL, measures how much this crop’s posterior differs from the prior. Each row compares one Gaussian coordinate with a standard normal. Square its mean, add its variance, subtract one, then subtract its log variance. Halve each row and add the rows together.",
+        "hold": 0.3
+      },
+      {
+        "id": "c09-b02",
+        "say": "That sum is the KL for one crop. For a batch, average the crop totals.",
+        "hold": 0.6
+      },
+      {
+        "id": "c09-b03",
+        "say": "Our two coordinate contributions are about point one seven eight three and point zero two two six, totaling point two zero zero nine nats. A mean of zero and variance one contributes zero. Moving a mean or changing a variance can increase the charge.",
+        "hold": 0.3
+      },
+      {
+        "id": "c09-b04",
+        "say": "For log variance near zero, the equivalent expression uses expm1 of log variance minus log variance to reduce cancellation.",
+        "hold": 0.6
+      },
+      {
+        "id": "c09-b05",
+        "say": "For a Gaussian prior, subtract its mean from the posterior mean and divide by the prior variance. That gives the mean derivative of the prior KL. Our standard normal has mean zero and variance one, so this derivative equals the posterior mean. The log-variance derivative is half the quantity variance minus one. Reconstruction gradients travel through a different path.",
+        "hold": 0.3
+      },
+      {
+        "id": "c09-b06",
+        "say": "Log both terms and check the reductions rather than interpreting a small total in isolation.",
+        "hold": 0.6
+      }
+    ]
+  },
+  {
+    "id": "c10",
+    "title": "Freeze the noise and move the sample",
+    "sourceChapters": [
+      "c10"
+    ],
+    "beats": [
+      {
+        "id": "c10-b01",
+        "say": "Pin this one draw of standard-normal noise. Its coordinates are one half and minus one. Scale each coordinate by its encoder standard deviation, then add the mean. The new point is a sample from this crop’s posterior. Leave the noise pinned where you can see it.",
+        "hold": 0.7
+      },
+      {
+        "id": "c10-b02",
+        "say": "Slide the mean seven tenths to the right. Before changing the scale, compare the two tracks. How far does the sample travel?",
+        "hold": 1.8
+      },
+      {
+        "id": "c10-b03",
+        "say": "Compare the ends of the two tracks. Both moved seven tenths to the right. The offset between the mean and sample stayed fixed. Now increase the scales. Start from the translated sample. The first noise coordinate is positive, so the sample moves farther right. The second is negative, so it moves down. Reconstruction can send a gradient through both operations. This is reparameterization.",
+        "hold": 0.9
+      },
+      {
+        "id": "c10-b04",
+        "say": "For generation, draw directly from the prior. Send this new pair through the same hand-built decoder. Both regions light up. In a trained VAE, we would inspect many prior draws to see whether this route produces useful pictures.",
+        "hold": 0.8
+      }
+    ]
+  },
+  {
+    "id": "c11",
+    "title": "Keep the reconstruction gradient attached to the encoder",
+    "sourceChapters": [
+      "c11"
+    ],
+    "beats": [
+      {
+        "id": "c11-b01",
+        "say": "Reparameterization writes a draw as mean plus standard deviation times a parameter-free standard-normal noise value. Hold that noise fixed while differentiating. The sample’s derivative with respect to its mean is one. Its derivative with respect to log variance is one-half times standard deviation times noise, equivalently one-half times the quantity sample minus mean.",
+        "hold": 0.6
+      },
+      {
+        "id": "c11-b02",
+        "say": "The actual PyTorch exercise compares Normal sample and rsample. Sample returns a detached draw; rsample keeps the reparameterized path. Detaching the draw blocks the reconstruction gradient into the encoder, while decoder weights can still receive gradients. An independently calculated analytic KL can still update the encoder. The exercise checks those separate routes on CPU.",
+        "hold": 0.6
+      },
+      {
+        "id": "c11-b03",
+        "say": "For a separate scalar decoder, let the output be weight times a supplied draw, and use half the squared difference from a target. The weight derivative is output minus target, multiplied by the draw.",
+        "hold": 0.3
+      },
+      {
+        "id": "c11-b04",
+        "say": "With draw point eight, weight one point five and target point two, the output is one point two and the weight gradient is point eight, even if the draw was detached.",
+        "hold": 0.6
+      }
+    ]
+  },
+  {
+    "id": "c12",
+    "title": "Give both jobs a place in the loss",
+    "sourceChapters": [
+      "c12"
+    ],
+    "beats": [
+      {
+        "id": "c12-b01",
+        "say": "Reconstruction asks the code to preserve the crop. Kullback-Leibler divergence, or KL, penalizes posterior mismatch from the prior. Match the means and variances and KL is zero. Move them away and the penalty grows. Its closed form sums the contributions from our two latent coordinates.",
+        "hold": 0.5
+      },
+      {
+        "id": "c12-b02",
+        "say": "Hold reconstruction fixed. Increase the KL coefficient and its contribution grows. During training, both terms can change. Log them separately so you can see the compromise.",
+        "hold": 0.5
+      },
+      {
+        "id": "c12-b03",
+        "say": "Mean squared error divides the summed squared misses by the pixel count. Suppose the decoder scores the pixels independently given the latent, each with the same Gaussian observation variance. Divide the sum by twice that variance and add the normalization constant. Average this negative log likelihood over posterior draws. With a KL weight of one, the expected reconstruction cost plus the prior KL is the negative evidence lower bound. One draw estimates its reconstruction term.",
+        "hold": 0.6
+      }
+    ]
+  },
+  {
+    "id": "c13",
+    "title": "Which gap can the encoder close?",
+    "sourceChapters": [
+      "c13"
+    ],
+    "beats": [
+      {
+        "id": "c13-b01",
+        "say": "Take a model small enough that we can check the answer. Draw a latent from a standard normal. Add independent normal noise with variance one to get a pixel. We observed point three. Across draws, the pixel has variance two.",
+        "hold": 0.3
+      },
+      {
+        "id": "c13-b02",
+        "say": "At point three, its log density is the model’s log evidence. We’ll pin that value to the ruler.",
+        "hold": 0.7
+      },
+      {
+        "id": "c13-b03",
+        "say": "Start the encoder’s approximation right on the prior. Its KL to the prior is zero. To form the evidence lower bound, take the expected decoder log likelihood and subtract that prior KL. The bound, often called the E L B O, lands below the pin.",
+        "hold": 0.3
+      },
+      {
+        "id": "c13-b04",
+        "say": "If the prior charge is zero, what accounts for the space between them?",
+        "hold": 2.1
+      },
+      {
+        "id": "c13-b05",
+        "say": "That space is a different KL. It compares the approximation to the true posterior for this pixel. Here we can calculate that posterior exactly. Its mean is point one five and its variance is one half. Move the approximation onto that narrower curve. Watch the bound as the curves come together.",
+        "hold": 0.7
+      },
+      {
+        "id": "c13-b06",
+        "say": "The bound reaches the pin. Add the gap to the bound and you get the log evidence. That gap is a KL, so it can’t be negative. Here it’s zero, even though the KL charge to the prior has gone up. The data, prior and decoder stayed fixed. Only the encoder’s approximation improved.",
+        "hold": 0.8
+      }
+    ]
+  },
+  {
+    "id": "c14",
+    "title": "What happens if we count the pixels twice?",
+    "sourceChapters": [
+      "c14"
+    ],
+    "beats": [
+      {
+        "id": "c14-b01",
+        "say": "Look at four observed pixels and the brightnesses the decoder predicted. At the first pixel it painted too bright. At the next two it painted too dark. Square each difference, then add the four misses. For a Gaussian decoder, the same misses cost more when the decoder claims greater precision.",
+        "hold": 0.6
+      },
+      {
+        "id": "c14-b02",
+        "say": "Here the observation variance is one quarter. Divide the sum by twice that variance. That gives the error part of the negative log likelihood. The Gaussian also charges a normalization term for each pixel. Add those terms to get about point nine one seven for this draw.",
+        "hold": 0.3
+      },
+      {
+        "id": "c14-b03",
+        "say": "The normalization stays constant as we train the weights if the observation variance stays fixed.",
+        "hold": 0.6
+      },
+      {
+        "id": "c14-b04",
+        "say": "Keep that variance. Copy all four observations and their predictions into four more positions. Conditional on the latent, the decoder scores each position separately, including each copy. What happens to the likelihood’s error term? What happens to the mean squared error?",
+        "hold": 2.3
+      },
+      {
+        "id": "c14-b05",
+        "say": "The likelihood error doubles. Each squared miss enters the sum twice. The mean stays put. Its divisor doubles too. Each added pixel also contributes the same Gaussian normalization as its twin.",
+        "hold": 0.7
+      },
+      {
+        "id": "c14-b06",
+        "say": "Look at the two divisors for the same four misses. Gaussian error divides their sum by one half. Mean squared error divides it by four. The Gaussian error is eight times as large. To switch to the mean, divide both terms by eight.",
+        "hold": 0.3
+      },
+      {
+        "id": "c14-b07",
+        "say": "A KL weight of one becomes one eighth. The same weights still minimize the loss. We can leave out the fixed normalization when fitting those weights.",
+        "hold": 0.7
+      },
+      {
+        "id": "c14-b08",
+        "say": "There’s another way to repeat work. Keep just the original four pixels and draw a fresh latent for each decoder call. Average four independent draws for this same input and model. The estimate of the expected reconstruction cost now has one quarter of the single-draw variance.",
+        "hold": 0.3
+      },
+      {
+        "id": "c14-b09",
+        "say": "We paid for four decoder calls. The analytic KL needs no draws.",
+        "hold": 0.7
+      }
+    ]
+  },
+  {
+    "id": "c15",
+    "title": "Which number moves the badge?",
+    "sourceChapters": [
+      "c15"
+    ],
+    "beats": [
+      {
+        "id": "c15-b01",
+        "say": "Now give the VAE a choice between two patterns. Half of these sixty-four noisy crops have a center badge. The other half have a bright lower strip. The encoder uses twelve hidden units to predict two means and two log variances.",
+        "hold": 0.3
+      },
+      {
+        "id": "c15-b02",
+        "say": "The decoder takes a sampled pair through twelve hidden units to twenty-five pixel brightnesses. Four hundred Adam updates use mean squared error plus point zero two times KL.",
+        "hold": 0.5
+      },
+      {
+        "id": "c15-b03",
+        "say": "Freeze the weights. Give each crop its own posterior mean so the test has no sampling noise. Both patterns come back. The mean squared error across all sixty-four crops is about five ten-thousandths. Now suppose we exchange just the first number between families. Will the badge move?",
+        "hold": 2
+      },
+      {
+        "id": "c15-b04",
+        "say": "Exchange the first numbers. Keep the second numbers with their original crops. The badge stays in the center. The lower strip stays down below. Across the batch, the error still rounds to the same value.",
+        "hold": 0.8
+      },
+      {
+        "id": "c15-b05",
+        "say": "Put the first numbers back. Read the two original pairs and decode them again. Both patterns return with the baseline error. This time we’ll exchange just the second number. Where do you expect the decoder to put the badge?",
+        "hold": 2
+      },
+      {
+        "id": "c15-b06",
+        "say": "Exchange the second numbers. Look at the output beside the center crop. Its bright patch is down on the lower strip. The other output now has the center badge. The error across the batch jumps to about point one two eight.",
+        "hold": 0.3
+      },
+      {
+        "id": "c15-b07",
+        "say": "Leave the second numbers where they are. Exchange the first numbers too. Each crop now has the other crop’s entire pair. The new outputs still trade places, and the error is almost the same as in the second-only test. On these examples the second coordinate controls which pattern we get.",
+        "hold": 1
+      },
+      {
+        "id": "c15-b08",
+        "say": "The second coordinate also accounts for almost all the KL. We can interpret that number because we changed the coordinate and saw the patch move. Sampling from the prior asks a different question. Here are three draws with no input crop.",
+        "hold": 0.3
+      },
+      {
+        "id": "c15-b09",
+        "say": "The first has a bright strip, the second a bright center, and the third a softer center. To test recovery on new inputs, we’d still need held-out crops.",
+        "hold": 0.8
+      }
+    ]
+  },
+  {
+    "id": "c16",
+    "title": "Ask the decoder whether it uses the code",
+    "sourceChapters": [
+      "c16"
+    ],
+    "beats": [
+      {
+        "id": "c16-b01",
+        "say": "These two fixed probes produce different pictures. Now reduce only the decoder’s sensitivity to zero. The outputs converge to their average in this squared-error toy. The encoder still has the same KL. Move its means and log variances toward zero in a separate step. Both crops now have the standard-normal prior as their posterior. You can see the encoder KL fall even though the decoder pictures stay still.",
+        "hold": 0.5
+      },
+      {
+        "id": "c16-b02",
+        "say": "Swap the codes again. The pictures stay identical. That measures the decoder’s response. The zero posterior KL tells us the encoder has also lost input-specific information. Together those measurements illustrate posterior collapse. A richer decoder can produce varied pictures while still ignoring its global code.",
+        "hold": 0.5
+      }
+    ]
+  },
+  {
+    "id": "c17",
+    "title": "Prior matching can coexist with informative codes",
+    "sourceChapters": [
+      "c17"
+    ],
+    "beats": [
+      {
+        "id": "c17-b01",
+        "say": "Average KL to the prior contains two pressures: mutual information between inputs and codes, plus KL between the aggregate code distribution and the prior. Mutual information measures how much a code tells us about its input under the data and encoder distribution. A large average KL can contain useful information, aggregate mismatch, or both.",
+        "hold": 0.6
+      },
+      {
+        "id": "c17-b02",
+        "say": "In a separate binary worksheet, inputs zero and one are equally likely and the code exactly copies the input. Use a uniform binary prior. The aggregate codes match the prior, so aggregate KL is zero.",
+        "hold": 0.3
+      },
+      {
+        "id": "c17-b03",
+        "say": "Each input-specific posterior concentrates on its own code, so average posterior KL and mutual information both equal the natural log of two.",
+        "hold": 0.6
+      },
+      {
+        "id": "c17-b04",
+        "say": "Now make both inputs produce a uniform code instead. The aggregate still matches the same prior, but the code no longer distinguishes input identity. Mutual information and average KL are both zero. Matching every input’s posterior to the prior removes input information; matching their mixture alone need not. Use this identity alongside actual sensitivity tests.",
+        "hold": 0.6
+      }
+    ]
+  },
+  {
+    "id": "c18",
+    "title": "Did the code or the history change the picture?",
+    "sourceChapters": [
+      "c18"
+    ],
+    "beats": [
+      {
+        "id": "c18-b01",
+        "say": "This decoder gets a global code and one bit of history from an earlier pixel. Leave the history at zero and change the code. Now leave that code in place and change the history to one. Which change moved the bright patch?",
+        "hold": 1.8
+      },
+      {
+        "id": "c18-b02",
+        "say": "Only the history moved it. This decoder makes two different pictures while ignoring its global code entirely. An autoregressive decoder can do something similar with previous pixels or words. To test for collapse, keep that context fixed and change the code. Check the output alongside the KL for each coordinate.",
+        "hold": 0.6
+      },
+      {
+        "id": "c18-b03",
+        "say": "Return to our original two probes. Turn their decoder’s sensitivity halfway down. The two patches grow more alike, but you can still tell them apart. One quiet coordinate can mean spare capacity. Tiny KL in every coordinate gives us a reason to test.",
+        "hold": 0.3
+      },
+      {
+        "id": "c18-b04",
+        "say": "If changing the code also leaves the predictions unchanged, that’s stronger evidence of collapse.",
+        "hold": 0.7
+      },
+      {
+        "id": "c18-b05",
+        "say": "One repair gives the code time to become useful. Start with a low KL weight, then raise it gradually. Bowman’s sentence model raised it from zero to one with a likelihood-scaled loss. Choose the endpoint for your own loss scale.",
+        "hold": 0.3
+      },
+      {
+        "id": "c18-b06",
+        "say": "Another repair drops some of the previous words during training. A weaker history gives the decoder a reason to use the code. Repeat the code swap and check output quality afterward. Weakening the decoder can hurt that quality.",
+        "hold": 0.7
+      }
+    ]
+  },
+  {
+    "id": "c19",
+    "title": "Average the group before applying its floor",
+    "sourceChapters": [
+      "c19"
+    ],
+    "beats": [
+      {
+        "id": "c19-b01",
+        "say": "Think of one nat as the minimum KL charge for a group of coordinates. Average the group’s KL across the batch. Charge that average or the floor, whichever is higher. Add the charges across groups.",
+        "hold": 0.3
+      },
+      {
+        "id": "c19-b02",
+        "say": "Below its floor, a group can carry more information at the same price. The charge stays flat, so its gradient is zero for every example. Reconstruction determines whether the extra information helps.",
+        "hold": 0.6
+      },
+      {
+        "id": "c19-b03",
+        "say": "Now two examples share a group. Their KL values are point two and two point two nats. The floor is one. What happens if we average first, and what happens if we floor each example first?",
+        "hold": 1.8
+      },
+      {
+        "id": "c19-b04",
+        "say": "Average first: one point two is above the floor, so the charged value is one point two and derivatives with respect to both KL values are one-half. Flooring each example first instead charges one point six, with derivatives zero and one-half.",
+        "hold": 0.6
+      },
+      {
+        "id": "c19-b05",
+        "say": "Under the group rule, each example gets half the gradient here. Under the other rule, the first example gets zero because its own KL is below the floor. These are gradients with respect to the two KL values. The chain rule carries them back to the encoder weights. Natural logs give us nats.",
+        "hold": 0.6
+      }
+    ]
+  },
+  {
+    "id": "c20",
+    "title": "What does the halfway code draw?",
+    "sourceChapters": [
+      "c20"
+    ],
+    "beats": [
+      {
+        "id": "c20-b01",
+        "say": "The left code draws a badge. The right code draws a lower strip. Give each code half the weight. What will the decoder draw in the middle?",
+        "hold": 2.1
+      },
+      {
+        "id": "c20-b02",
+        "say": "Both regions light up. Average the two codes coordinate by coordinate and send that pair to the decoder. Here it paints the badge and the strip at the same brightness. If a real crop lights just one region, you can see the mismatch right here.",
+        "hold": 1
+      },
+      {
+        "id": "c20-b03",
+        "say": "Slide the rest of the way. The center fades as the strip brightens. Our decoder has continuous layers, so its picture changes continuously along the path. A Gaussian can reach codes all along this path, even where training examples are scarce. Compare the blends with held-out crops to see which ones look realistic.",
+        "hold": 0.8
+      }
+    ]
+  },
+  {
+    "id": "c21",
+    "title": "Choose a code, then route its gradients",
+    "sourceChapters": [
+      "c21"
+    ],
+    "beats": [
+      {
+        "id": "c21-b01",
+        "say": "A vector-quantized autoencoder gives the decoder a learned codebook entry. The encoder proposes a vector. Compare the three squared distances, then send the nearest entry to the decoder. A learned prior over code combinations supplies useful discrete samples after training.",
+        "hold": 0.5
+      },
+      {
+        "id": "c21-b02",
+        "say": "Nearest-entry assignment is piecewise constant. Reconstruction uses an approximate straight-through path to the encoder, and trains the decoder. The codebook loss moves the selected entry toward the proposal. Commitment pulls the proposal toward its entry. Follow these separate gradients from the same forward values. The other entries stay fixed.",
+        "hold": 0.5
+      },
+      {
+        "id": "c21-b03",
+        "say": "On an image, repeat the lookup at each position of a smaller grid. At stride eight, an eight by eight patch corresponds to one latent position. A five-hundred-twelve-square image gives sixty-four by sixty-four positions. The channel count and precision will matter when we measure storage. First, follow one lookup backward.",
+        "hold": 0.6
+      }
+    ]
+  },
+  {
+    "id": "c22",
+    "title": "Who should move after the lookup?",
+    "sourceChapters": [
+      "c22"
+    ],
+    "beats": [
+      {
+        "id": "c22-b01",
+        "say": "Follow the selected entry into a decoder that returns it unchanged. We can check each derivative by hand. Start with the first coordinate. The proposal was point seven two. The selected entry is point six five, and the target is point five.",
+        "hold": 0.3
+      },
+      {
+        "id": "c22-b02",
+        "say": "With half squared error, the reconstruction derivative is the prediction minus the target. Which parameter gets that signal through the lookup?",
+        "hold": 2
+      },
+      {
+        "id": "c22-b03",
+        "say": "The encoder gets it. The straight-through rule passes the difference back as though the lookup were the identity. Here that difference is point one five. The discrete choice itself has no such derivative. The reconstruction path gives the codebook entry no gradient in this setup.",
+        "hold": 0.6
+      },
+      {
+        "id": "c22-b04",
+        "say": "Now give the proposal a reason to stay near its entry. Freeze the entry for this loss. Our commitment weight is one quarter. Twice that weight times proposal minus entry adds point zero three five to the encoder’s gradient. For the codebook loss, freeze the proposal instead.",
+        "hold": 0.3
+      },
+      {
+        "id": "c22-b05",
+        "say": "Twice the gap in the other direction gives minus point one four to the selected entry. A descent step of point one subtracts that gradient times point one. The entry rises from point six five to point six six four, toward the proposal.",
+        "hold": 0.8
+      },
+      {
+        "id": "c22-b06",
+        "say": "Try the second coordinate. Read the highlighted component of the proposal, entry and target. Work out the three gradients. Which two should you add for the encoder? Which one belongs to the selected entry?",
+        "hold": 2.2
+      },
+      {
+        "id": "c22-b07",
+        "say": "Start with the sign of each difference. Follow the gradients. Reconstruction and commitment go to the encoder. The entry is below the target, so reconstruction contributes minus point one five. The proposal is below the entry, so commitment adds minus point zero two five. Their sum is minus point one seven five. The selected entry gets the positive codebook gradient, point one. Every unselected entry gets zero in this check.",
+        "hold": 0.9
+      }
+    ]
+  },
+  {
+    "id": "c23",
+    "title": "Learn how valid code sequences fit together",
+    "sourceChapters": [
+      "c23"
+    ],
+    "beats": [
+      {
+        "id": "c23-b01",
+        "say": "In the original VQ-VAE training formulation, the code prior is uniform and the discrete posterior selects one entry. Its KL contribution is a constant log K, so it does not drive the code assignment.",
+        "hold": 0.3
+      },
+      {
+        "id": "c23-b02",
+        "say": "After learning the representation, a separate autoregressive prior models the code patterns for generation. Independent random code IDs need not form combinations the decoder learned to use.",
+        "hold": 0.6
+      },
+      {
+        "id": "c23-b03",
+        "say": "The displayed gradient check uses the original codebook and commitment losses. Moving-average codebook updates are a separate alternative. Track entry usage: selecting only a few entries can waste a large codebook. That codebook-usage problem is distinct from a continuous VAE matching every posterior to its prior. Keep code identity, update rule and sampling prior explicit.",
+        "hold": 0.6
+      }
+    ]
+  },
+  {
+    "id": "c24",
+    "title": "What survives a smaller latent grid?",
+    "sourceChapters": [
+      "c24"
+    ],
+    "beats": [
+      {
+        "id": "c24-b01",
+        "say": "A spatial latent keeps a grid of vectors rather than one global pair. Downsample a five-hundred-twelve-square image by eight on each axis to obtain a sixty-four-square grid: sixty-four times fewer positions. With three original channels and four latent channels, the scalar count shrinks forty-eight-fold.",
+        "hold": 0.3
+      },
+      {
+        "id": "c24-b02",
+        "say": "Now count raw bytes. Suppose the image stores each channel in four bytes and the latent stores each channel in two. The forty-eight-fold reduction in values becomes a ninety-six-fold reduction in bytes. Encoded file size and elapsed time need their own measurements.",
+        "hold": 0.8
+      },
+      {
+        "id": "c24-b03",
+        "say": "Latent diffusion trains two models. First, the compressor learns to preserve visible detail. The original work uses perceptual and patch-adversarial losses with weak KL or vector quantization. Then a diffusion model learns the distribution of those compressed images. Follow the noise through the denoiser.",
+        "hold": 0.3
+      },
+      {
+        "id": "c24-b04",
+        "say": "The resulting latent grid goes into the decoder, which paints the pixels.",
+        "hold": 0.6
+      },
+      {
+        "id": "c24-b05",
+        "say": "Look at the four center pixels again. A smaller grid saves the denoiser work, but our decoder paints all four corners alike. To choose a grid size, compare details like this in the original and the reconstruction. Use the same frozen decoder to inspect generated samples, and time the full pipeline to measure the speedup.",
+        "hold": 0.6
+      }
+    ]
+  },
+  {
+    "id": "c25",
+    "title": "Could you report the original alert?",
+    "sourceChapters": [
+      "c25"
+    ],
+    "beats": [
+      {
+        "id": "c25-b01",
+        "say": "Two new crops go under the same magnifier. Start with A, then look at B. Read each four-pixel badge. Both lower strips contain point two and point four. The other pixels sit at the background brightness. Work out the two averages. Would these crops send different messages?",
+        "hold": 2.6
+      },
+      {
+        "id": "c25-b02",
+        "say": "Each badge sums to two point eight. Divide by four and the first number is point seven. The lower pair averages to point three. Feed the pair into the fixed decoder. All four center pixels read point seven eight. Toggle the original from A to B. Watch the reconstruction stay still.",
+        "hold": 1.2
+      },
+      {
+        "id": "c25-b03",
+        "say": "Which crop does that picture fit better? Look at the top left of each badge. A has point four and B has point six. Compare each with the same decoded value, point seven eight. The decoder misses A by point three eight and B by point one eight at this pixel. Now average the squared misses over all twenty-five pixels. B has the smaller error.",
+        "hold": 0.3
+      },
+      {
+        "id": "c25-b04",
+        "say": "Now bring back the opening rule. Can you use that shared reconstruction to tell whether any original badge pixel exceeded point nine?",
+        "hold": 2.1
+      },
+      {
+        "id": "c25-b05",
+        "say": "Go back to A. Its bottom right reads one, so A lights the alert. Switch to B. Its peak is point eight, so the alert goes dark. Both sent point seven, point three. To report whether the original crossed the cutoff, keep its peak or its flag.",
+        "hold": 1.1
+      },
+      {
+        "id": "c25-b06",
+        "say": "Compare A and B once more. The alert changes sides of the cutoff while the decoded badge stays at point seven eight. To report which pixels crossed, save their positions too. Applying the cutoff to the reconstruction would miss A. In the next lesson, a transformer keeps a separate vector at each token position.",
+        "hold": 1.4
+      }
+    ]
+  }
+]

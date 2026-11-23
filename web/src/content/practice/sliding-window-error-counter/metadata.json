@@ -1,0 +1,319 @@
+{
+  "id": "sliding-window-error-counter",
+  "slug": "sliding-window-error-counter",
+  "title": "Sliding Window Error Counter",
+  "difficulty": "Easy",
+  "category": "Observability",
+  "language": "python3",
+  "timeEstimateMinutes": 25,
+  "timeLimitMs": 2500,
+  "memoryLimitMb": 128,
+  "order": 100,
+  "tags": [
+    "deque",
+    "counter",
+    "rolling window",
+    "observability"
+  ],
+  "source": "AI lab prep",
+  "summary": "Track top recent errors while every read path lazily removes expired events.",
+  "starterCode": [
+    "class ErrorCounter:",
+    "    def __init__(self, window_seconds: float, now):",
+    "        self.window_seconds = window_seconds",
+    "        self.now = now",
+    "",
+    "    def record(self, message: str) -> None:",
+    "        pass",
+    "",
+    "    def count(self) -> int:",
+    "        pass",
+    "",
+    "    def top(self, k: int) -> list[tuple[str, int]]:",
+    "        pass"
+  ],
+  "testCases": [
+    {
+      "name": "counts recent errors and top messages",
+      "visibility": "sample",
+      "setup": [
+        "from solution import ErrorCounter",
+        "clock = {\"t\": 0.0}",
+        "counter = ErrorCounter(10, now=lambda: clock[\"t\"])",
+        "counter.record(\"timeout\")",
+        "counter.record(\"rate_limit\")",
+        "counter.record(\"timeout\")"
+      ],
+      "checks": [
+        {
+          "input": "clock = {\"t\": 0.0}\ncounter = ErrorCounter(10, now=lambda: clock[\"t\"])\ncounter.record(\"timeout\")\ncounter.record(\"rate_limit\")\ncounter.record(\"timeout\")\ncounter.count()",
+          "expression": "counter.count()",
+          "operator": "==",
+          "expected": "3"
+        },
+        {
+          "input": "clock = {\"t\": 0.0}\ncounter = ErrorCounter(10, now=lambda: clock[\"t\"])\ncounter.record(\"timeout\")\ncounter.record(\"rate_limit\")\ncounter.record(\"timeout\")\ncounter.count()\ncounter.top(2)",
+          "expression": "counter.top(2)",
+          "operator": "==",
+          "expected": "[(\"timeout\", 2), (\"rate_limit\", 1)]"
+        },
+        {
+          "input": "clock = {\"t\": 0.0}\ncounter = ErrorCounter(10, now=lambda: clock[\"t\"])\ncounter.record(\"timeout\")\ncounter.record(\"rate_limit\")\ncounter.record(\"timeout\")\ncounter.count()\ncounter.top(2)\nclock[\"t\"] = 10.0\ncounter.count()",
+          "expression": "counter.count()",
+          "operator": "==",
+          "expected": "0",
+          "before": "clock[\"t\"] = 10.0"
+        },
+        {
+          "input": "clock = {\"t\": 0.0}\ncounter = ErrorCounter(10, now=lambda: clock[\"t\"])\ncounter.record(\"timeout\")\ncounter.record(\"rate_limit\")\ncounter.record(\"timeout\")\ncounter.count()\ncounter.top(2)\nclock[\"t\"] = 10.0\ncounter.count()\ncounter.top(2)",
+          "expression": "counter.top(2)",
+          "operator": "==",
+          "expected": "[]"
+        }
+      ]
+    },
+    {
+      "name": "purges on every read and sorts ties",
+      "visibility": "hidden",
+      "setup": [
+        "from solution import ErrorCounter",
+        "clock = {\"t\": 5.0}",
+        "counter = ErrorCounter(4, now=lambda: clock[\"t\"])",
+        "counter.record(\"zeta\")",
+        "counter.record(\"alpha\")",
+        "clock[\"t\"] = 8.9",
+        "counter.record(\"beta\")"
+      ],
+      "checks": [
+        {
+          "input": "clock = {\"t\": 5.0}\ncounter = ErrorCounter(4, now=lambda: clock[\"t\"])\ncounter.record(\"zeta\")\ncounter.record(\"alpha\")\nclock[\"t\"] = 8.9\ncounter.record(\"beta\")\ncounter.top(5)",
+          "expression": "counter.top(5)",
+          "operator": "==",
+          "expected": "[(\"alpha\", 1), (\"beta\", 1), (\"zeta\", 1)]"
+        },
+        {
+          "input": "clock = {\"t\": 5.0}\ncounter = ErrorCounter(4, now=lambda: clock[\"t\"])\ncounter.record(\"zeta\")\ncounter.record(\"alpha\")\nclock[\"t\"] = 8.9\ncounter.record(\"beta\")\ncounter.top(5)\nclock[\"t\"] = 9.0\ncounter.count()",
+          "expression": "counter.count()",
+          "operator": "==",
+          "expected": "1",
+          "before": "clock[\"t\"] = 9.0"
+        },
+        {
+          "input": "clock = {\"t\": 5.0}\ncounter = ErrorCounter(4, now=lambda: clock[\"t\"])\ncounter.record(\"zeta\")\ncounter.record(\"alpha\")\nclock[\"t\"] = 8.9\ncounter.record(\"beta\")\ncounter.top(5)\nclock[\"t\"] = 9.0\ncounter.count()\ncounter.top(5)",
+          "expression": "counter.top(5)",
+          "operator": "==",
+          "expected": "[(\"beta\", 1)]"
+        }
+      ]
+    },
+    {
+      "name": "expires events exactly at the window boundary",
+      "visibility": "sample",
+      "setup": [
+        "from solution import ErrorCounter",
+        "clock = {\"t\": 0.0}",
+        "counter = ErrorCounter(window_seconds=10, now=lambda: clock[\"t\"] )",
+        "counter.record(\"timeout\")",
+        "clock[\"t\"] = 10.0"
+      ],
+      "checks": [
+        {
+          "input": "clock = {\"t\": 0.0}\ncounter = ErrorCounter(window_seconds=10, now=lambda: clock[\"t\"] )\ncounter.record(\"timeout\")\nclock[\"t\"] = 10.0\ncounter.count()",
+          "expression": "counter.count()",
+          "operator": "==",
+          "expected": "0"
+        },
+        {
+          "input": "clock = {\"t\": 0.0}\ncounter = ErrorCounter(window_seconds=10, now=lambda: clock[\"t\"] )\ncounter.record(\"timeout\")\nclock[\"t\"] = 10.0\ncounter.count()\ncounter.top(3)",
+          "expression": "counter.top(3)",
+          "operator": "==",
+          "expected": "[]"
+        }
+      ]
+    },
+    {
+      "name": "top handles empty and oversized k",
+      "visibility": "hidden",
+      "setup": [
+        "from solution import ErrorCounter",
+        "clock = {\"t\": 0.0}",
+        "counter = ErrorCounter(window_seconds=5, now=lambda: clock[\"t\"] )"
+      ],
+      "checks": [
+        {
+          "input": "clock = {\"t\": 0.0}\ncounter = ErrorCounter(window_seconds=5, now=lambda: clock[\"t\"] )\ncounter.top(10)",
+          "expression": "counter.top(10)",
+          "operator": "==",
+          "expected": "[]"
+        },
+        {
+          "input": "clock = {\"t\": 0.0}\ncounter = ErrorCounter(window_seconds=5, now=lambda: clock[\"t\"] )\ncounter.top(10)\ncounter.record(\"b\")\ncounter.record(\"a\")\ncounter.top(10)",
+          "expression": "counter.top(10)",
+          "operator": "==",
+          "expected": "[(\"a\", 1), (\"b\", 1)]",
+          "before": "counter.record(\"b\")\ncounter.record(\"a\")"
+        }
+      ]
+    },
+    {
+      "name": "record purges stale events before adding new ones",
+      "visibility": "hidden",
+      "setup": [
+        "from solution import ErrorCounter",
+        "clock = {\"t\": 0.0}",
+        "counter = ErrorCounter(window_seconds=10, now=lambda: clock[\"t\"] )",
+        "counter.record(\"a\")",
+        "clock[\"t\"] = 1.0",
+        "counter.record(\"b\")",
+        "clock[\"t\"] = 11.0",
+        "counter.record(\"c\")"
+      ],
+      "checks": [
+        {
+          "input": "clock = {\"t\": 0.0}\ncounter = ErrorCounter(window_seconds=10, now=lambda: clock[\"t\"] )\ncounter.record(\"a\")\nclock[\"t\"] = 1.0\ncounter.record(\"b\")\nclock[\"t\"] = 11.0\ncounter.record(\"c\")\ncounter.count()",
+          "expression": "counter.count()",
+          "operator": "==",
+          "expected": "1"
+        },
+        {
+          "input": "clock = {\"t\": 0.0}\ncounter = ErrorCounter(window_seconds=10, now=lambda: clock[\"t\"] )\ncounter.record(\"a\")\nclock[\"t\"] = 1.0\ncounter.record(\"b\")\nclock[\"t\"] = 11.0\ncounter.record(\"c\")\ncounter.count()\ncounter.top(3)",
+          "expression": "counter.top(3)",
+          "operator": "==",
+          "expected": "[(\"c\", 1)]"
+        }
+      ]
+    },
+    {
+      "name": "reports one recorded message",
+      "visibility": "sample",
+      "setup": [
+        "from solution import ErrorCounter",
+        "counter = ErrorCounter(10, now=lambda: 0)",
+        "counter.record(\"timeout\")"
+      ],
+      "input": "(counter.count(), counter.top(1))",
+      "expected": "(1, [(\"timeout\", 1)])"
+    },
+    {
+      "name": "top zero returns no messages",
+      "visibility": "hidden",
+      "setup": [
+        "from solution import ErrorCounter",
+        "counter = ErrorCounter(10, now=lambda: 0)",
+        "counter.record(\"timeout\")"
+      ],
+      "input": "counter.top(0)",
+      "expected": "[]"
+    },
+    {
+      "name": "top negative returns no messages",
+      "visibility": "hidden",
+      "description": "A negative result count returns no messages.",
+      "feedback": "Treat every non-positive top limit as an empty result before slicing.",
+      "setup": [
+        "from solution import ErrorCounter",
+        "counter = ErrorCounter(10, now=lambda: 0)",
+        "counter.record(\"timeout\")"
+      ],
+      "input": "counter.top(-1)",
+      "expected": "[]"
+    },
+    {
+      "name": "keeps events just inside the window",
+      "visibility": "hidden",
+      "setup": [
+        "from solution import ErrorCounter",
+        "clock = {\"t\": 0.0}",
+        "counter = ErrorCounter(10, now=lambda: clock[\"t\"])",
+        "counter.record(\"oldest\")",
+        "clock[\"t\"] = 3.0",
+        "counter.record(\"newer\")",
+        "clock[\"t\"] = 9.999"
+      ],
+      "input": "(counter.count(), counter.top(2))",
+      "expected": "(2, [(\"newer\", 1), (\"oldest\", 1)])"
+    },
+    {
+      "name": "top alone purges expired occurrences of a repeated message",
+      "visibility": "hidden",
+      "setup": [
+        "from solution import ErrorCounter",
+        "clock = {\"t\": 0.0}",
+        "counter = ErrorCounter(10, now=lambda: clock[\"t\"])",
+        "counter.record(\"same\")",
+        "clock[\"t\"] = 3.0",
+        "counter.record(\"same\")",
+        "counter.record(\"\")",
+        "clock[\"t\"] = 10.0"
+      ],
+      "checks": [
+        {"input": "counter.top(3)", "expression": "counter.top(3)", "operator": "==", "expected": "[(\"\", 1), (\"same\", 1)]"},
+        {"input": "counter.count()", "expression": "counter.count()", "operator": "==", "expected": "2"},
+        {"input": "clock[\"t\"] = 13.0\ncounter.top(3)", "before": "clock[\"t\"] = 13.0", "expression": "counter.top(3)", "operator": "==", "expected": "[]"}
+      ]
+    }
+  ],
+  "clarifyingQuestions": [
+    "Should the window include events exactly `window_seconds` old?",
+    "Should messages be normalized before counting?",
+    "What tie-break order should top errors use?"
+  ],
+  "followUps": [
+    "Track counts by `(service, error)` alongside the current message-only summary.",
+    "Return top errors for multiple windows such as 1m, 5m, and 1h.",
+    "Make recording and reading thread-safe under concurrent workers."
+  ],
+  "followUpGuide": [
+    "For dimensions, store tuples such as `(service, message)` in the deque and counter. Keep the purge logic identical.",
+    "",
+    "For multiple windows, maintain one counter per window or keep one event log and derive windows during reads. The first approach costs more memory but makes reads predictable.",
+    "",
+    "For thread safety, protect both the deque and counter with one lock. Purge plus count update must be atomic."
+  ],
+  "complexityAnalysis": [
+    "- Full log approach: keep all events and filter on every query. Time: O(n) per query. Space: O(n).",
+    "- Deque guide: a call that removes e expired events pays O(e). Each occurrence is appended and removed once, so total purge work is linear in recorded events. After purging, count sums u distinct live message counts in O(u); len(events) could give the same total in O(1). top with positive k sorts in O(u log u) comparisons; comparing long message strings adds character work. Space is O(w + u) records for w retained events, excluding message character storage, and top uses O(u) temporary space.",
+    "- Bucketed follow-up: a total-only counter can store b active time buckets in O(b) space and scan them in O(b) time. Per-message ranking needs per-message counts inside buckets as well. Whole-second/minute expiry is approximate at partial-bucket boundaries unless individual event times are retained."
+  ],
+  "solutionGuide": [
+    "Use a `deque` for event order and a `Counter` for message counts. Purge from the left while the oldest event is expired.",
+    "",
+    "Run purge from count, top, and recording. Sample time once per operation and use that timestamp both for purging and recording a new occurrence. Removing one old occurrence decrements its message count; delete the Counter key only when no live occurrences remain. That keeps reads correct after time advances without writes.",
+    "",
+    "```python",
+    "from collections import Counter, deque",
+    "",
+    "",
+    "class ErrorCounter:",
+    "    def __init__(self, window_seconds: float, now):",
+    "        self.window_seconds = window_seconds",
+    "        self.now = now",
+    "        self.events = deque()",
+    "        self.counts = Counter()",
+    "",
+    "    def _purge(self, timestamp) -> None:",
+    "        while self.events and timestamp - self.events[0][0] >= self.window_seconds:",
+    "            _, message = self.events.popleft()",
+    "            self.counts[message] -= 1",
+    "            if self.counts[message] == 0:",
+    "                del self.counts[message]",
+    "",
+    "    def record(self, message: str) -> None:",
+    "        timestamp = self.now()",
+    "        self._purge(timestamp)",
+    "        self.events.append((timestamp, message))",
+    "        self.counts[message] += 1",
+    "",
+    "    def count(self) -> int:",
+    "        self._purge(self.now())",
+    "        return sum(self.counts.values())",
+    "",
+    "    def top(self, k: int) -> list[tuple[str, int]]:",
+    "        self._purge(self.now())",
+    "        if k <= 0:",
+    "            return []",
+    "        ranked = sorted(self.counts.items(), key=lambda item: (-item[1], item[0]))",
+    "        return ranked[:k]",
+    "```"
+  ]
+}

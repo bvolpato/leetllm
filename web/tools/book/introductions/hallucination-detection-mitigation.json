@@ -1,0 +1,15 @@
+{
+  "framing": "A response can read smoothly, cite a real document, and still fabricate the critical detail",
+  "paragraphs": [
+    "When a documentation assistant answers a question about PyTorch compiler behavior, it may retrieve the exact page for custom autograd functions, quote a valid version header, and then append a confident sentence claiming that fullgraph=True silently falls back to eager execution on Python hooks. In fact, the retrieved chunk states the opposite: fullgraph=True raises an error on graph breaks, while silent fallback belongs to fullgraph=False. Evaluating the reply as a single aggregate block allows surface fluency and one valid citation to mask a direct contradiction.",
+    "Detecting hallucinations requires separating two questions that evaluations often collapse: whether a statement is faithful to retrieved context, and whether it is accurate in the wider world. A claim can copy an outdated index chunk verbatim, or state a generally true fact from model weights without any support in the prompt context. Decomposing generated prose into atomic claims turns holistic grading into structured verification, letting a system separate grounded statements from missing evidence and direct contradictions.",
+    "This chapter builds detection and verification signals from the ground up using token predictive entropy, sequence perplexity, multi-sample semantic consistency, and calibrated natural language inference scoring. You will measure where uncertainty and multi-sample consensus catch spontaneous fabrications, see why shared parametric misconceptions still pass agreement checks confidently, and trace precision-recall and conformal risk-coverage curves to govern abstention thresholds.",
+    "Earlier chapters examined counterfactual fairness across prompt slices and retrieval evaluation. Here, you convert per-claim support scores into concrete routing actions: serve intact, prune unsupported clauses, trigger corrective retrieval, or abstain. In the following chapter on observability and monitoring, those claim-level scores, pruned counts, and abstention decisions become live traces for diagnosing silent quality degradation."
+  ],
+  "outcomes": [
+    "Decompose model outputs into atomic claims and separate context faithfulness from world accuracy.",
+    "Evaluate token entropy, perplexity, and multi-sample semantic consistency alongside NLI verification.",
+    "Calibrate verifier scores and set conformal abstention thresholds along empirical risk-coverage curves."
+  ],
+  "question": "When can a pipeline safely prune an unsupported clause and serve the rest, and when must it retrieve fresh context or abstain?"
+}

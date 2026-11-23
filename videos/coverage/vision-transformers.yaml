@@ -1,0 +1,180 @@
+version: 1
+lesson: vision-transformers
+promise: Trace a change in the incident screenshot from pixels to language inputs and decide what evidence would verify its request ID.
+framing: []
+objectives:
+  - id: exact-reading
+    can: Compare the processed identifier with a native crop, check a proposed reading against its label, and locate the first stage that erases a known difference.
+    scenes:
+      - intro
+      - processor-evidence
+      - projection-rank
+      - candidate-ranking
+      - fresh-detail-boundary
+  - id: representation
+    can: Rebuild an image from patch rows, compare convolution and projection values under two channel orders, and predict which pixel changes a matrix retains.
+    scenes:
+      - processor-evidence
+      - patches
+      - convolution-equivalence
+      - projection
+      - projection-rank
+  - id: encoder
+    can: Compute position and residual updates, follow a later patch into an attention output, and predict how masks and grid size affect that computation.
+    scenes:
+      - positions
+      - resolution-grid
+      - rotary-grid
+      - attention
+      - preln-block
+      - budget
+      - padding-readout
+  - id: supervision
+    can: Compare CLIP and SigLIP losses, recompute a candidate’s score after a duplicate is added, and explain what teacher features, Gram targets, and registers contribute.
+    scenes:
+      - alignment
+      - candidate-ranking
+      - siglip-pairs
+      - variable-resolution
+      - dense-feature-learning
+      - inductive-bias
+  - id: handoff
+    can: Count encoder and bridge outputs separately, compute raw decoder KV storage with text fixed, and decide which cache an input change invalidates.
+    scenes:
+      - bridge-families
+      - prefix-kv-budget
+      - bridge
+      - fresh-detail-boundary
+sections:
+  - heading: From pixels to patches
+    status: taught
+    scenes:
+      - patches
+      - convolution-equivalence
+      - projection
+      - projection-rank
+      - budget
+  - heading: Position information
+    status: taught
+    scenes:
+      - positions
+  - heading: Resolution scaling and 2D position embeddings
+    status: taught
+    scenes:
+      - resolution-grid
+      - rotary-grid
+  - heading: Encoder attention
+    status: taught
+    scenes:
+      - attention
+      - preln-block
+  - heading: The ViT architecture in full
+    status: taught
+    scenes:
+      - preln-block
+  - heading: Inductive biases and pretraining scale
+    status: taught
+    scenes:
+      - inductive-bias
+  - heading: CLIP and image-text training
+    status: taught
+    scenes:
+      - alignment
+      - candidate-ranking
+  - heading: Zero-shot open-vocabulary classification
+    status: taught
+    scenes:
+      - candidate-ranking
+  - heading: From image encoder to VLM
+    status: taught
+    scenes:
+      - bridge-families
+      - bridge
+  - heading: Token budget economics in VLMs
+    status: taught
+    scenes:
+      - prefix-kv-budget
+      - bridge
+      - processor-evidence
+  - heading: Encoder variants change supervision and token budgets
+    status: taught
+    scenes:
+      - siglip-pairs
+      - variable-resolution
+      - dense-feature-learning
+  - heading: "SigLIP: independent pair losses"
+    status: taught
+    scenes:
+      - siglip-pairs
+  - heading: Variable resolution and dense features
+    status: taught
+    scenes:
+      - variable-resolution
+      - padding-readout
+      - dense-feature-learning
+  - heading: Trace an encoder boundary
+    status: taught
+    scenes:
+      - intro
+      - processor-evidence
+      - convolution-equivalence
+      - projection-rank
+      - bridge
+      - fresh-detail-boundary
+quiz:
+  - n: 1
+    status: taught
+    scenes:
+      - patches
+      - projection
+  - n: 2
+    status: taught
+    scenes:
+      - budget
+  - n: 3
+    status: taught
+    scenes:
+      - projection-rank
+      - fresh-detail-boundary
+  - n: 4
+    status: taught
+    scenes:
+      - resolution-grid
+  - n: 5
+    status: taught
+    scenes:
+      - preln-block
+  - n: 6
+    status: taught
+    scenes:
+      - candidate-ranking
+  - n: 7
+    status: taught
+    scenes:
+      - siglip-pairs
+  - n: 8
+    status: taught
+    scenes:
+      - padding-readout
+  - n: 9
+    status: taught
+    scenes:
+      - prefix-kv-budget
+  - n: 10
+    status: taught
+    scenes:
+      - dense-feature-learning
+reviews:
+  closed_book:
+    script: 8035decde08177f0
+    taught: 10
+    partial: 0
+    absent: 0
+    reviewer: /root/upgrade_shard5
+    evidence: build/video-delivery-20261106/script-reviews/vision-transformers.json
+  fact_check:
+    script: 8035decde08177f0
+    open_findings: 0
+    reviewer: /root/upgrade_shard5
+    evidence: build/video-delivery-20261106/script-reviews/vision-transformers.json
+removed: []

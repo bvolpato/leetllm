@@ -1,0 +1,842 @@
+[
+  {
+    "id": "c01",
+    "title": "Which photo gets the next inspection?",
+    "sourceChapters": [
+      "c01"
+    ],
+    "beats": [
+      {
+        "id": "c01-b01",
+        "say": "Two photographs reach intake. The dark carton scores point nine four for damage, the mailer point eight three. Both clear the priority threshold of point seven. A specialist has one slot.",
+        "hold": 0.55
+      },
+      {
+        "id": "c01-b02",
+        "say": "Both parcels are in frame and in focus. The minimum brightness is point two. The carton stops at point one two, the mailer at point six four. Which photo gets the inspection slot?",
+        "hold": 3.1
+      },
+      {
+        "id": "c01-b03",
+        "say": "Inspect the mailer. You can follow the split in its folded seam. For the dark carton, ask for a retake in better light. Keep its original score with the request.",
+        "hold": 0.9
+      }
+    ]
+  },
+  {
+    "id": "c02",
+    "title": "Who decides what happens to the return?",
+    "sourceChapters": [
+      "c02"
+    ],
+    "beats": [
+      {
+        "id": "c02-b01",
+        "say": "A retake request goes back to the uploader. It tells them to improve the light, steady the camera or get the whole parcel in frame. Normal and priority photos go to a specialist. The specialist inspects the parcel. A separate order policy governs refunds, replacements and restocking.",
+        "hold": 0.7
+      },
+      {
+        "id": "c02-b02",
+        "say": "The left photo scores point nine one for damage, and the right photo of the same crushed box scores point eight eight. We can run them through the router and check where each photo goes. To train a classifier, we'd need photographs of damaged and clear parcels. Here the only training case is damaged, photographed twice. The validation set has no usable damaged parcel.",
+        "hold": 0.7
+      },
+      {
+        "id": "c02-b03",
+        "say": "For a real classifier, obtain permission to use the photographs and record what that permission covers. Restrict access and remove personal shipping details from portfolio images. In the model card, record the uses you evaluated, the uses you excluded, your thresholds and the errors you found for each group of parcels.",
+        "hold": 0.7
+      }
+    ]
+  },
+  {
+    "id": "c03",
+    "title": "Define the question the image can answer",
+    "sourceChapters": [
+      "c03"
+    ],
+    "beats": [
+      {
+        "id": "c03-b01",
+        "say": "Follow the tear across the folded seam. A torn seam, crushed corner or puncture can establish visible external packaging damage. The photograph cannot tell us whether the contents survived. Keep uncertain judgments and unusable images explicit. Turning a missing judgment into a negative label teaches the model the wrong target.",
+        "hold": 0.75
+      },
+      {
+        "id": "c03-b02",
+        "say": "Our product makes a review-queue decision. It can ask for another photo, retain an ordinary review or request priority inspection. These actions preserve specialist judgment. The label guide should explain ambiguous cases and record reviewer disagreement before any neural architecture enters the experiment.",
+        "hold": 0.85
+      }
+    ]
+  },
+  {
+    "id": "c04",
+    "title": "One physical parcel owns all its views",
+    "sourceChapters": [
+      "c04"
+    ],
+    "beats": [
+      {
+        "id": "c04-b01",
+        "say": "These are two views of one crushed box. Trace the crease on the left corner in both photographs. Splitting the photographs independently puts that same crease and barcode in training and evaluation. Recognizing a familiar parcel can make a model look better on new returns than it really is.",
+        "hold": 0.75
+      },
+      {
+        "id": "c04-b02",
+        "say": "Group alternate views and reuploads by the physical case first. Then apply time boundaries, keeping an entire case together or quarantining a case that spans the boundary. Exact file hashes catch identical bytes; recompressed photographs still need the same physical-case grouping.",
+        "hold": 0.85
+      }
+    ]
+  },
+  {
+    "id": "c05",
+    "title": "Which records belong to one physical parcel?",
+    "sourceChapters": [
+      "c05"
+    ],
+    "beats": [
+      {
+        "id": "c05-b01",
+        "say": "Read each strip as one physical return. The letters identify its uploads. In training, four oh one has two uploads. In test, four oh four does too. Count the uploads first and the physical parcels second.",
+        "hold": 0.3
+      },
+      {
+        "id": "c05-b02",
+        "say": "Training has two photos from one case, validation has two from two, and test has seven from six. That's eleven photos but only nine physical parcels.",
+        "hold": 0.7
+      },
+      {
+        "id": "c05-b03",
+        "say": "Keep the image location and hash with the case ID, capture time, source and packaging. Keep human usability, damage label, reviewer and guideline too. A hash identifies the file bytes. Recompression changes the bytes while the parcel can stay the same.",
+        "hold": 0.6
+      },
+      {
+        "id": "c05-b04",
+        "say": "Try a new parcel. Its first view is from day eight and its second is from day thirteen. The split and the historical training cutoff are both on day ten. Its label becomes available on day fourteen. Where do those two views belong, and can this training run use the label?",
+        "hold": 3.2
+      },
+      {
+        "id": "c05-b05",
+        "say": "Quarantine both views. This physical case spans the split. The label arrived after the training cutoff, so exclude the label too. Group K Fold keeps a group together. You still have to impose chronological boundaries and check label availability. Apply training augmentation after splitting to keep transformed siblings together.",
+        "hold": 0.8
+      }
+    ]
+  },
+  {
+    "id": "c06",
+    "title": "Reject malformed records before routing",
+    "sourceChapters": [
+      "c06"
+    ],
+    "beats": [
+      {
+        "id": "c06-b01",
+        "say": "The fixture validates its inputs before choosing a route. IDs must be nonblank strings with no outside whitespace. Capture day must be a positive integer rather than a Boolean. A usable photo needs a literal Boolean damage label; an unusable photo must instead retain an unknown label.",
+        "hold": 0.7
+      },
+      {
+        "id": "c06-b02",
+        "say": "Each damage, blur and brightness value must be a finite integer or float in the closed interval zero through one; Boolean values are rejected despite Python treating them as integer-like. The package-visible flag must itself be a literal Boolean. The range is checked before converting an arbitrarily large integer to a float.",
+        "hold": 0.7
+      },
+      {
+        "id": "c06-b03",
+        "say": "Trace the two inputs that reach the router. The capture record identifies the upload. The model output supplies its scores and visibility flag. The human label goes to offline evaluation. A reviewer compares it with the recorded route to find dark photos that slipped through and usable photos sent back for a retake.",
+        "hold": 0.7
+      }
+    ]
+  },
+  {
+    "id": "c07",
+    "title": "What did the camera actually capture?",
+    "sourceChapters": [
+      "c07"
+    ],
+    "beats": [
+      {
+        "id": "c07-b01",
+        "say": "Back to the dark carton. Its brightness is point one two, below the point two minimum. The score of point nine four stays in the record, and the router requests a new photo. A human also marked this image unusable.",
+        "hold": 0.55
+      },
+      {
+        "id": "c07-b02",
+        "say": "Keep those exact pixels. Change only the reported brightness to point three. The parcel is visible and the blur reading is within the limit. What route does that change produce?",
+        "hold": 3
+      },
+      {
+        "id": "c07-b03",
+        "say": "Now it goes to priority review. The specialist would still open the same dark picture. Comparing the route with the human label catches an unusable photo in the priority queue. Also check the opposite error. Rejecting a usable photo can delay a genuinely damaged parcel.",
+        "hold": 0.65
+      },
+      {
+        "id": "c07-b04",
+        "say": "Try the empty frame. It has plenty of light and a low blur score. In this example, a larger blur score means more blur. The first check asks whether the parcel is visible. Here the uploader needs to put the parcel in the frame.",
+        "hold": 0.85
+      }
+    ]
+  },
+  {
+    "id": "c08",
+    "title": "What does this edge detector measure?",
+    "sourceChapters": [
+      "c08"
+    ],
+    "beats": [
+      {
+        "id": "c08-b01",
+        "say": "Think of this five by five grid as a strip across a parcel edge. Dark pixels have intensity zero. Bright pixels have intensity one. The yellow cross is a discrete Laplacian. It adds the four neighbors and subtracts four times the center.",
+        "hold": 0.5
+      },
+      {
+        "id": "c08-b02",
+        "say": "Put the cross just left of the edge. The center is dark. Only the neighbor on the right is bright. Add the neighbors, then subtract four times the center. What value goes in the first response cell?",
+        "hold": 2.8
+      },
+      {
+        "id": "c08-b03",
+        "say": "The first response is plus one. Its sign tells us we sampled the dark side of this edge. Now step across the edge to the bright center. Three neighbors are bright and the one on the left is dark. Three minus four gives minus one. Use signed or floating point arithmetic to keep that sign.",
+        "hold": 0.7
+      },
+      {
+        "id": "c08-b04",
+        "say": "Repeat that operation at every interior center. The border has no complete cross, so we leave it out. Each row reads one, minus one, zero. The nine responses average to zero.",
+        "hold": 0.5
+      },
+      {
+        "id": "c08-b05",
+        "say": "Square each difference from the mean. Six squares are one and three are zero. Divide six by all nine retained centers. The population variance is two thirds. Fix the region, resize and border rule when comparing images. Smoothing first can suppress noise. Texture and contrast can also change this statistic.",
+        "hold": 0.8
+      }
+    ]
+  },
+  {
+    "id": "c09",
+    "title": "What changes if we turn down the contrast?",
+    "sourceChapters": [
+      "c09"
+    ],
+    "beats": [
+      {
+        "id": "c09-b01",
+        "say": "Keep the edge exactly where it is. Halve every intensity in the same grid, with no blur and the same nine centers. Each sum and subtraction scales by one half, so the signed responses become a half, minus a half, and zero in each row. What happens to the variance?",
+        "hold": 3
+      },
+      {
+        "id": "c09-b02",
+        "say": "The mean is still zero. Six responses now contribute one quarter each. Divide their sum by nine and you get one sixth. Halving contrast cut the variance to a quarter of what it was. In general, scaling intensities by a factor scales variance by that factor squared.",
+        "hold": 0.7
+      },
+      {
+        "id": "c09-b03",
+        "say": "The edge stayed sharp. Compare sharp low-contrast images and blurred images with human usability labels before using this statistic for focus. Our router uses a separate blur score. Larger values mean blurrier images. The fixture supplies that score directly, so its point four five cutoff applies only to that scale.",
+        "hold": 0.8
+      }
+    ]
+  },
+  {
+    "id": "c10",
+    "title": "Measure the parcel region and retain its small cue",
+    "sourceChapters": [
+      "c10"
+    ],
+    "beats": [
+      {
+        "id": "c10-b01",
+        "say": "A bright shipping label can lift the average brightness of a dark frame. Look just at the parcel region. Enlarge twenty example pixels and count their intensities. The histogram shows nine at zero and one at full brightness. Ten of twenty samples sit at the limits. That clipped fraction describes this region of the image.",
+        "hold": 0.3
+      },
+      {
+        "id": "c10-b02",
+        "say": "Those readings use the camera's pixel scale. To estimate illumination in lux, you also need a calibrated sensor.",
+        "hold": 0.7
+      },
+      {
+        "id": "c10-b03",
+        "say": "Shrink the frame from one thousand twenty-four pixels wide to two hundred twenty-four. A four-pixel tear shrinks by the same ratio. It now spans point eight seven five output pixels, less than one pixel wide.",
+        "hold": 0.7
+      },
+      {
+        "id": "c10-b04",
+        "say": "To see which input preserves a useful trace of the tear, compare a whole-frame input, a parcel crop and higher resolution on labeled small defects. Check parcel presence, exposure and focus as well. To relate pixel width to centimeters, you need a physical scale. Time the quality checks and classifier together on the intended device.",
+        "hold": 0.7
+      }
+    ]
+  },
+  {
+    "id": "c11",
+    "title": "A photo at all three limits",
+    "sourceChapters": [
+      "c11"
+    ],
+    "beats": [
+      {
+        "id": "c11-b01",
+        "say": "Here is a visible parcel right on all three limits. Brightness is point two, blur is point four five, and damage is point seven. At these limits, where does this photo go?",
+        "hold": 3
+      },
+      {
+        "id": "c11-b02",
+        "say": "The parcel is visible, so the first gate passes. Brightness fails only below its minimum. Blur fails only above its maximum. Both quality checks pass. Damage at the threshold qualifies for priority review.",
+        "hold": 0.65
+      },
+      {
+        "id": "c11-b03",
+        "say": "Replace just the damage score with the Boolean value True. Python can use True as a number in arithmetic. Can this record enter the first gate?",
+        "hold": 3
+      },
+      {
+        "id": "c11-b04",
+        "say": "Input validation rejects it. The score must be a finite number between zero and one, and this validator excludes Booleans. The record produces no route. With valid input, a visibility failure asks for the parcel in frame. A quality failure asks for better light or focus. An accepted score below threshold stays in normal review.",
+        "hold": 0.55
+      },
+      {
+        "id": "c11-b05",
+        "say": "On the seven test photos, the router sends three to priority, two to normal review, and asks for two retakes. These counts measure photo attempts. A learned parcel detector also takes inference time, so measure the whole path before claiming that checking quality first saves time.",
+        "hold": 0.8
+      }
+    ]
+  },
+  {
+    "id": "c12",
+    "title": "Which accepted photos go to priority?",
+    "sourceChapters": [
+      "c12"
+    ],
+    "beats": [
+      {
+        "id": "c12-b01",
+        "say": "Here are four accepted photos from the test set, one view per parcel. Place each score against the same frozen cutoff of point seven. Which photos get priority?",
+        "hold": 3
+      },
+      {
+        "id": "c12-b02",
+        "say": "The first two cross the line and go to priority. The last two stay in normal review. The warehouse photo scored point six three. Keep its normal route on file so we can check it against the specialist's verdict.",
+        "hold": 0.6
+      },
+      {
+        "id": "c12-b03",
+        "say": "For each case, damage still needs a specialist judgment. To choose a cutoff for a real model, agree on a review budget and the cost of missed damage, then use validation cases. Freeze that choice before measuring the final holdout.",
+        "hold": 0.8
+      }
+    ]
+  },
+  {
+    "id": "c13",
+    "title": "How far can the specialist queue stretch?",
+    "sourceChapters": [
+      "c13"
+    ],
+    "beats": [
+      {
+        "id": "c13-b01",
+        "say": "The fixture's validation split has no usable damaged case, so it can't tell us which cutoff to use. Try a separate invented worksheet. Each ticket is one case, with its score and specialist label together. Four of these six cases are damaged. We can inspect four cases and must recover at least three damaged ones.",
+        "hold": 0.7
+      },
+      {
+        "id": "c13-b02",
+        "say": "Try a cutoff of point eight. The first two tickets get slots. Only one says damaged. That's one true positive, one false positive and three missed cases. Recall is one out of four.",
+        "hold": 0.6
+      },
+      {
+        "id": "c13-b03",
+        "say": "Lower the cutoff to point seven. Two more damaged cases move up, including the one exactly on the line. Now three of the four slots hold damaged cases, and three of the four damaged cases have slots. Precision and recall are both three quarters.",
+        "hold": 0.6
+      },
+      {
+        "id": "c13-b04",
+        "say": "Try point three. The last damaged case comes in, and the clear case at point four eight comes along too. All four damaged cases have slots, but we'd need six inspections. Which cutoff meets both requirements?",
+        "hold": 3.2
+      },
+      {
+        "id": "c13-b05",
+        "say": "Choose point seven. The last two tickets stay out and the four available slots are enough. Freeze this choice before opening the holdout. These six invented cases taught us how to choose a threshold. A camera model needs that comparison on real labeled cases.",
+        "hold": 0.8
+      }
+    ]
+  },
+  {
+    "id": "c14",
+    "title": "Which pixels reach the classifier?",
+    "sourceChapters": [
+      "c14"
+    ],
+    "beats": [
+      {
+        "id": "c14-b01",
+        "say": "Find the jagged tear at the left end of the mailer's fold. The yellow window covers it. The square on the right shows those exact pixels at model-input size. When the window moves to the center, which detail falls outside?",
+        "hold": 3
+      },
+      {
+        "id": "c14-b02",
+        "say": "Move it to the center. Part of the shipping label comes into view, and the torn corner is gone. The classifier sees only that square. Other features could still give a high score. To learn whether the lost corner matters, compare transforms on labeled parcels with small tears.",
+        "hold": 0.7
+      },
+      {
+        "id": "c14-b03",
+        "say": "A pretrained encoder can turn those pixels into features. Train a head for the agreed damage label, then compare frozen features with further tuning on the same held-out cases. If you also want to name the defect, collect a separate annotation for each category and mask any unknown ones.",
+        "hold": 0.8
+      }
+    ]
+  },
+  {
+    "id": "c15",
+    "title": "Two views of the same torn corner",
+    "sourceChapters": [
+      "c15"
+    ],
+    "beats": [
+      {
+        "id": "c15-b01",
+        "say": "Start with the documented ResNet eighteen weights transform. For this wide image, resizing the short side to two hundred fifty-six gives a width of five hundred twelve. Take the center two hundred twenty-four pixels on each axis. Rescale the color channels to zero through one. For each channel, subtract its documented mean and divide by its standard deviation.",
+        "hold": 0.7
+      },
+      {
+        "id": "c15-b02",
+        "say": "Try fitting the whole frame inside the same square. The padding leaves the torn corner in view. Look how much smaller the tear becomes. Compare the complete alternatives on validation photos before choosing which pixels to serve.",
+        "hold": 0.65
+      },
+      {
+        "id": "c15-b03",
+        "say": "Save the chosen transform with the weights, numerical precision, label guide, thresholds and route policy. The weights can stay fixed while a change in the serving crop changes their input. Training augmentation can vary. Use the evaluated deterministic transform for serving.",
+        "hold": 0.8
+      }
+    ]
+  },
+  {
+    "id": "c16",
+    "title": "How does an encoder pick up a seam?",
+    "sourceChapters": [
+      "c16"
+    ],
+    "beats": [
+      {
+        "id": "c16-b01",
+        "say": "Start with a ResNet trained on ImageNet. Freeze its encoder and train a new head on labeled parcel photos. The encoder supplies features. The head learns which features predict visible damage. For a second experiment, fine-tune the encoder too.",
+        "hold": 0.7
+      },
+      {
+        "id": "c16-b02",
+        "say": "ConvNeXt slides a seven by seven filter over each feature channel, then mixes channels. Its blocks use an inverted bottleneck, LayerNorm and GELU. A vision transformer divides the image into patches. Each patch becomes a token through a learned linear projection. Look at just two adjacent pixels.",
+        "hold": 0.3
+      },
+      {
+        "id": "c16-b03",
+        "say": "Read the two pixel pairs from left to right. Both pairs average one half. Suppose one projection coordinate takes the right pixel minus the left, with all other weights and the bias set to zero. Dark to light gives plus one. Light to dark gives minus one. That coordinate keeps the direction of this edge.",
+        "hold": 0.3
+      },
+      {
+        "id": "c16-b04",
+        "say": "A feature inside a patch can reach the token this way. The original vision transformer adds position embeddings and uses global self-attention to mix information across patch tokens.",
+        "hold": 0.7
+      },
+      {
+        "id": "c16-b05",
+        "say": "Test the encoders on the same held-out parcels with the same number of priority slots. Which one catches more damaged parcels, including the small tears? Record each training budget, checkpoint, resolution and preprocessing. Measure latency on the target device at the batch size and precision you plan to serve.",
+        "hold": 0.7
+      }
+    ]
+  },
+  {
+    "id": "c17",
+    "title": "How does the head turn two features into a score?",
+    "sourceChapters": [
+      "c17"
+    ],
+    "beats": [
+      {
+        "id": "c17-b01",
+        "say": "Suppose a head gets two features. We'll supply their values directly so you can follow the arithmetic. The first feature is two. Its weight is a quarter, so its contribution is one half. The next feature is minus one. Its weight is a half, so its contribution is minus one half.",
+        "hold": 0.65
+      },
+      {
+        "id": "c17-b02",
+        "say": "The two products cancel. Add the bias of minus one and the logit is minus one. To turn that into a probability, take one divided by one plus the exponential of the negative logit. Here sigmoid gives about point two six eight nine.",
+        "hold": 0.6
+      },
+      {
+        "id": "c17-b03",
+        "say": "Our example has a known damaged target of one. Binary cross-entropy charges the negative natural log of the probability assigned to that target. Here the loss is about one point three one three three. With a frozen encoder, learning can still change those weights and the bias. Fine-tuning would change the feature mapping as well.",
+        "hold": 0.8
+      }
+    ]
+  },
+  {
+    "id": "c18",
+    "title": "Which weight goes down on this update?",
+    "sourceChapters": [
+      "c18"
+    ],
+    "beats": [
+      {
+        "id": "c18-b01",
+        "say": "The head put too little probability on the damaged label. For binary cross-entropy with a sigmoid, the logit gradient is probability minus target. Subtract one from the probability we just got. The gradient is about minus point seven three one one.",
+        "hold": 0.65
+      },
+      {
+        "id": "c18-b02",
+        "say": "Multiply that gradient by each feature to get its weight gradient. The first multiplier is two, the second is minus one, and the bias has a multiplier of one. Now subtract a tenth of each gradient from its parameter. Which weight goes down?",
+        "hold": 3
+      },
+      {
+        "id": "c18-b03",
+        "say": "The second weight goes down because its gradient is positive. The first weight and the bias both go up. Read each new value beside the gradient that moved it. Reuse the original features, two and minus one.",
+        "hold": 0.3
+      },
+      {
+        "id": "c18-b04",
+        "say": "Multiply by the new weights, add the new bias, and the logit is about minus point five six one four.",
+        "hold": 0.65
+      },
+      {
+        "id": "c18-b05",
+        "say": "The probability of damage rises to about point three six three two. The loss on this one damaged example drops to about one point zero one two seven. To learn whether that step helps other parcels, measure discrimination and calibration on unseen positive and negative cases.",
+        "hold": 0.8
+      }
+    ]
+  },
+  {
+    "id": "c19",
+    "title": "Which defect labels can train the head?",
+    "sourceChapters": [
+      "c19"
+    ],
+    "beats": [
+      {
+        "id": "c19-b01",
+        "say": "A parcel can have a torn seam and a crushed corner at the same time. Give each defined defect its own sigmoid output. They can share a backbone and co-occur. Define tasks such as substance identification or label readability separately.",
+        "hold": 0.5
+      },
+      {
+        "id": "c19-b02",
+        "say": "Here a reviewer marked the seam present and the corner absent. They didn't assess the third defect. For a present target, use minus the log of its probability. For an absent target, use minus the log of one minus its probability.",
+        "hold": 0.3
+      },
+      {
+        "id": "c19-b03",
+        "say": "The three logits are zero, two and minus one. For the two assessed targets, the losses are about point six nine three one and two point one two six nine. How many terms belong in the mean?",
+        "hold": 3
+      },
+      {
+        "id": "c19-b04",
+        "say": "Take just the two assessed terms. Add them and divide by two. The mean loss is about one point four one. A third slot in the head doesn't give us a third judgment. If every target is unknown, skip that supervised contribution.",
+        "hold": 0.7
+      },
+      {
+        "id": "c19-b05",
+        "say": "For each observed logit, subtract its target from its probability and divide by the same count of two. The unassessed logit gets zero gradient. Use a combined cross-entropy operator that takes logits so rounding a probability cannot spoil the logarithm. Before changing a review queue, measure each category's precision, recall and workload on annotated cases.",
+        "hold": 0.8
+      }
+    ]
+  },
+  {
+    "id": "c20",
+    "title": "Keep score calibration separate from operating-point choice",
+    "sourceChapters": [
+      "c20"
+    ],
+    "beats": [
+      {
+        "id": "c20-b01",
+        "say": "The dark carton goes back for a retake. Now take a group of usable photos with scores near point eight. If those probabilities are well calibrated, about eight in ten should have confirmed damage. Compare the scores with the fraction the specialist confirms.",
+        "hold": 0.3
+      },
+      {
+        "id": "c20-b02",
+        "say": "Fit the calibrator on held-out validation cases and reserve the final test for evaluation.",
+        "hold": 0.7
+      },
+      {
+        "id": "c20-b03",
+        "say": "Temperature scaling divides a logit by a positive temperature before applying sigmoid. Keep the logit at two. At temperature one the probability is about point eight eight zero eight. At temperature two it falls to point seven three one one. Both clear a point five threshold.",
+        "hold": 0.3
+      },
+      {
+        "id": "c20-b04",
+        "say": "At a cutoff of point eight, only the first qualifies.",
+        "hold": 0.7
+      },
+      {
+        "id": "c20-b05",
+        "say": "Choose quality and damage thresholds against the whole intended workflow. Report the fraction rejected, the human-usable images incorrectly rejected, and damaged-case recovery. An accepted-only classifier table can look strong while the quality gate discards the evidence needed to detect a miss.",
+        "hold": 0.7
+      }
+    ]
+  },
+  {
+    "id": "c21",
+    "title": "Can we reproduce the route for R-408?",
+    "sourceChapters": [
+      "c21"
+    ],
+    "beats": [
+      {
+        "id": "c21-b01",
+        "say": "Parcel four oh eight entered normal review on day ten. On the left, the saved capture, supplied output and original bundle rebuild the decision. On the right is the recorded trace. Both put point six three below point seven. With all twenty fields intact, the replay returns True.",
+        "hold": 0.6
+      },
+      {
+        "id": "c21-b02",
+        "say": "Suppose the active threshold later falls to point six. Someone edits three fields in the trace on the right. The threshold becomes point six, the action becomes priority and the reason becomes damage threshold. Together they describe a consistent decision under the new rule. Does it replay the original attempt?",
+        "hold": 3
+      },
+      {
+        "id": "c21-b03",
+        "say": "The replay returns False. The reference still has the day-ten threshold, the normal route and its original reason. The check needs all twenty fields, including the bundle and prior target, transform and guideline, capture metadata, policy limits, scores and decision. A missing field or a Boolean slipped into a numeric score also fails validation.",
+        "hold": 0.55
+      },
+      {
+        "id": "c21-b04",
+        "say": "Those saved Python dictionaries can still be edited. In a service, retain the original event with access controls. Give a later attempt its own ID, its actual time and a bundle that resolves to runnable artifacts. This fixture assumes one attempt per photo per bundle and uses capture day as route day.",
+        "hold": 0.8
+      }
+    ]
+  },
+  {
+    "id": "c22",
+    "title": "Count a parcel once when labels arrive",
+    "sourceChapters": [
+      "c22"
+    ],
+    "beats": [
+      {
+        "id": "c22-b01",
+        "say": "Now join later specialist outcomes by physical case. Two priority photos of the same parcel still represent one decision unit. In our four usable cases, one priority decision is confirmed, one is a false alarm, one damaged case stayed in normal review, and one clear case did too.",
+        "hold": 0.75
+      },
+      {
+        "id": "c22-b02",
+        "say": "Compute precision and recall from those case decisions. Both are one half in this fixture. Cases with no human-usable image need a separate quality report. Collect outcomes outside the priority queue as well, or the evaluation cannot discover damaged cases the router failed to prioritize.",
+        "hold": 0.85
+      }
+    ]
+  },
+  {
+    "id": "c23",
+    "title": "Join only matching specialist evidence available at readout",
+    "sourceChapters": [
+      "c23"
+    ],
+    "beats": [
+      {
+        "id": "c23-b01",
+        "say": "Each specialist record names a physical case, reviewer, guideline, review day and availability day. At the day-twelve readout, accept only a routed usable test case with an available outcome, the bundle’s guideline, and review strictly after that case’s last capture. Capture time and label availability are different clocks.",
+        "hold": 0.7
+      },
+      {
+        "id": "c23-b02",
+        "say": "A review completed on day twelve but available on day thirteen cannot enter a day-twelve report. A new guideline cannot silently replace the old label contract. Unknown case IDs do not become evaluation evidence, and duplicate outcomes raise an error instead of overwriting the first record.",
+        "hold": 0.7
+      },
+      {
+        "id": "c23-b03",
+        "say": "The one-outcome fixture is deliberately limited. Corrections need versioned history and an explicit selection rule; real evaluation must retain the served route and append the later outcome. Auditing only priority cases cannot discover the damaged cases left in ordinary review or rejected by quality.",
+        "hold": 0.7
+      },
+      {
+        "id": "c23-b04",
+        "say": "Try three specialist records at the day thirty-two readout. All three cases have usable photos and the matching guideline. Case A was reviewed on its last capture day. Case B was reviewed later, but its label arrives on day thirty-three. Case C was reviewed the day after capture and its label is already available. Which records join?",
+        "hold": 3.2
+      },
+      {
+        "id": "c23-b05",
+        "say": "Only case C joins. Its review came strictly after capture and the outcome reached us by day thirty-two. The specialist confirmed damage. Keep the normal route that was actually served. That gives us one false negative.",
+        "hold": 1.1
+      }
+    ]
+  },
+  {
+    "id": "c24",
+    "title": "Reduce photo actions once and preserve conditional evaluation",
+    "sourceChapters": [
+      "c24"
+    ],
+    "beats": [
+      {
+        "id": "c24-b01",
+        "say": "The case reducer gives priority precedence if any of its photo routes requests priority. Otherwise any normal route makes the case normal; only an all-new-photo case stays at request new photo. An unsupported action raises an error. A second priority photograph does not create a second physical decision unit.",
+        "hold": 0.7
+      },
+      {
+        "id": "c24-b02",
+        "say": "The damage table includes test cases with at least one human-usable image and an eligible specialist label. That human quality label chooses the conditional evaluation cohort; it never changes what the router actually served. A genuinely damaged usable case incorrectly asked for a new photo is still a false negative.",
+        "hold": 0.7
+      },
+      {
+        "id": "c24-b03",
+        "say": "Count priority and damaged as true positive, priority and clear as false positive, nonpriority and damaged as false negative, and nonpriority and clear as true negative. Precision divides true positives by true plus false positives. Recall divides true positives by true positives plus false negatives. A zero denominator is undefined, not perfect.",
+        "hold": 0.7
+      }
+    ]
+  },
+  {
+    "id": "c25",
+    "title": "Repair an incomplete join without rewriting the served route",
+    "sourceChapters": [
+      "c25"
+    ],
+    "beats": [
+      {
+        "id": "c25-b01",
+        "say": "Delay only parcel four oh eight's label availability from day twelve to thirteen. The served routes and specialist judgments stay fixed. At day twelve, only three cases join. The observed table has one true positive, one false positive and no observed false negative. Its precision is one half. What happened to observed recall?",
+        "hold": 2.8
+      },
+      {
+        "id": "c25-b02",
+        "say": "Observed recall is one because the missing record belongs to the missed damaged case. The availability and completeness checks fail. Advancing the permitted readout to day thirteen restores the same missed case, and recall returns to one half. The model made exactly the same decisions on both days.",
+        "hold": 0.7
+      },
+      {
+        "id": "c25-b03",
+        "say": "With no outcomes at all, both metric denominators are empty and the helper returns unknown metrics. Hold the report until eligible evidence arrives. A future label, duplicate label or different guideline cannot repair the report by changing what the specialist originally received.",
+        "hold": 0.7
+      }
+    ]
+  },
+  {
+    "id": "c26",
+    "title": "Which source produced the missed case?",
+    "sourceChapters": [
+      "c26"
+    ],
+    "beats": [
+      {
+        "id": "c26-b01",
+        "say": "Split the four joined cases by where their photos came from. Both phone cases got priority. Only one was damaged. That's one correct priority call in two, and we found the one damaged phone case. Phone precision is one half and recall is one.",
+        "hold": 0.6
+      },
+      {
+        "id": "c26-b02",
+        "say": "Both warehouse cases went to normal review. One was damaged. We recovered zero of one, so recall is zero. How many priority calls came from this source? Zero. There's no denominator for warehouse precision.",
+        "hold": 0.8
+      },
+      {
+        "id": "c26-b03",
+        "say": "Pool the four cases. We found one of the two damaged parcels and one of the two priority calls was correct. Overall recall and precision are both one half. Two cases per source show how to count. They tell us little about which camera works better.",
+        "hold": 0.6
+      },
+      {
+        "id": "c26-b04",
+        "say": "A parcel photographed by both sources can appear in both source reports. Count it only once overall. For a real comparison, define packaging, lighting and defect-size groups before evaluation. Inspect transformed tears and harmless wrinkles, count quality rejections, and report uncertainty with the case counts.",
+        "hold": 0.8
+      }
+    ]
+  },
+  {
+    "id": "c27",
+    "title": "Require the evidence layer that the proposed action needs",
+    "sourceChapters": [
+      "c27"
+    ],
+    "beats": [
+      {
+        "id": "c27-b01",
+        "say": "Read the receipt for this run. The case split holds, the quality checks catch unusable photos, and every recorded route replays. The outcomes join to the expected parcels, and the metrics include the source and packaging groups. Those checks pass on the invented records. The fixture stays on hold.",
+        "hold": 0.7
+      },
+      {
+        "id": "c27-b02",
+        "say": "The receipt names the previous bundle. Follow that name in a recovery drill. Retrieve its code, transforms, weights and policy, load them, and check that a known photo gets its original route again.",
+        "hold": 0.7
+      },
+      {
+        "id": "c27-b03",
+        "say": "For a shadow comparison, pin a runnable model and obtain permission to process representative new photos. Set the quality and service targets before scoring the photos. Compare the model's routes with the specialist outcomes and exercise the recovery path.",
+        "hold": 0.7
+      }
+    ]
+  },
+  {
+    "id": "c28",
+    "title": "React to new pixels before their delayed accuracy label exists",
+    "sourceChapters": [
+      "c28"
+    ],
+    "beats": [
+      {
+        "id": "c28-b01",
+        "say": "A new warehouse camera starts sending dark photos. Check brightness, blur, parcel visibility, unreadable uploads and service latency as the photos arrive. If retake requests spike, inspect the camera and offer manual intake while you fix the capture problem.",
+        "hold": 0.7
+      },
+      {
+        "id": "c28-b02",
+        "say": "When specialist outcomes arrive, count damaged cases the router missed. For example, the two warehouse cases in our original fixture include one missed damaged parcel. Compare precision and priority rates by source and packaging. If the new camera needs a model change, train a candidate and evaluate it before switching weights. Send unsupported escalations for manual review and keep order decisions with the order policy.",
+        "hold": 0.7
+      },
+      {
+        "id": "c28-b03",
+        "say": "Keep the original bundle and route with each outcome. You can then trace a missed parcel back to the camera input, the transform, the score and the rule in force that day.",
+        "hold": 0.7
+      }
+    ]
+  },
+  {
+    "id": "c29",
+    "title": "What happened to R-408?",
+    "sourceChapters": [
+      "c29"
+    ],
+    "beats": [
+      {
+        "id": "c29-b01",
+        "say": "Open the warehouse return from day ten. The package was in frame and the photo passed quality. The saved bundle used a threshold of point seven. Its point six three score put it in normal review. You can trace that decision back to the original input and policy.",
+        "hold": 0.6
+      },
+      {
+        "id": "c29-b02",
+        "say": "Now a specialist marks the parcel damaged. Check the date and guideline. The review came after the last capture, it was available on day twelve, and its guideline matches. Join it to parcel four oh eight. The original normal route and the later damage confirmation give us one missed case.",
+        "hold": 0.8
+      },
+      {
+        "id": "c29-b03",
+        "say": "That gives the next comparison an actual failure to investigate in this fixture. On real cases, inspect the transformed pixels, compare by source and packaging, and keep the complete earlier bundle for a tested restoration. Now try the same reasoning on a return with two photos.",
+        "hold": 0.8
+      }
+    ]
+  },
+  {
+    "id": "c30",
+    "title": "Two uploads from parcel R-520",
+    "sourceChapters": [
+      "c30"
+    ],
+    "beats": [
+      {
+        "id": "c30-b01",
+        "say": "One last return, parcel five twenty. On day twenty its first upload gets a damage score of point nine seven, with brightness point one eight. The second upload shows the same parcel in better light. Its brightness is point six and its damage score is point six nine.",
+        "hold": 0.6
+      },
+      {
+        "id": "c30-b02",
+        "say": "Use the same limits. Both views show the parcel and both have blur point one. Brightness must reach point two. For a usable view, priority starts at point seven. Which queue gets this case?",
+        "hold": 3.2
+      },
+      {
+        "id": "c30-b03",
+        "say": "For the dark view, request a new photo. The clearer view goes to normal review. There's a normal route and no priority route, so the case goes to normal review. Keep both photo decisions.",
+        "hold": 0.75
+      },
+      {
+        "id": "c30-b04",
+        "say": "Open the day twenty-one report. Four other cases already have outcomes. Two priority cases were damaged, a third was clear, and the normal case was clear. A specialist reviewed five twenty on day twenty-one and confirmed damage. That record becomes available on day twenty-two.",
+        "hold": 0.3
+      },
+      {
+        "id": "c30-b05",
+        "say": "Today only four of five cases join. Observed precision is two out of three and observed recall is two out of two. Hold the incomplete report.",
+        "hold": 0.7
+      },
+      {
+        "id": "c30-b06",
+        "say": "Tomorrow the same reviewer record will be available under the matching guideline. Keep every route fixed. Decide which count changes. Does a case join the priority queue, or does a confirmed damaged case enter the recall denominator?",
+        "hold": 3.3
+      },
+      {
+        "id": "c30-b07",
+        "say": "Advance to day twenty-two. The fifth case joins. The same three parcels got priority, so precision stays at two out of three. Now three parcels have confirmed damage. Only two reached priority. Recall is now two out of three. The new arrival is one missed damaged parcel.",
+        "hold": 0.3
+      },
+      {
+        "id": "c30-b08",
+        "say": "We found it by following up on normal reviews.",
+        "hold": 1.25
+      }
+    ]
+  }
+]

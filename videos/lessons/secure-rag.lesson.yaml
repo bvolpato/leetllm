@@ -1,0 +1,2158 @@
+version: 1
+id: secure-rag
+title: Retrieving Only the Evidence a User May See
+source: retrieval/enterprise-rag-security-rbac-access-control/content.md
+voice: en-US-AndrewNeural
+rate: +0%
+sources:
+  - title: OWASP authorization guidance
+    url: https://cheatsheetseries.owasp.org/cheatsheets/Authorization_Cheat_Sheet.html
+  - title: OWASP LLM application security risks
+    url: https://genai.owasp.org/llmrisk/llm01-prompt-injection/
+  - title: PostgreSQL row security policies
+    url: https://www.postgresql.org/docs/current/ddl-rowsecurity.html
+scenes:
+  - id: subject-intro
+    title: How do I rotate the signing key?
+    visual: >-
+      The runbook and checklist start in score order, each with its readers and a score
+      bar. Only a passage the verified reader can read crosses its gate into the prompt.
+    beats:
+      - say: >-
+          The signing-key runbook is the closest match. Look across its row. It’s for the security group.
+          Our reader works in operations. Everyone in tenant A can read the checklist.
+          Which passage can the assistant give the model?
+        hold: 2.1
+        visual_cues:
+          - id: intro-runbook
+            phrase: "The signing-key runbook is the closest match"
+            targets: [runbook]
+            linger: 0.35
+          - id: intro-reader
+            phrase: "Our reader works in operations"
+            targets: [request, runbook]
+            linger: 0.35
+          - id: intro-checklist
+            phrase: "Everyone in tenant A can read the checklist"
+            targets: [request, checklist]
+            linger: 0.35
+          - id: intro-question
+            phrase: "Which passage can the assistant give the model"
+            targets: [request, runbook, checklist, prompt]
+            linger: 0.35
+      - say: >-
+          Only the checklist. Watch its passage cross into the prompt. The runbook stays in the store.
+          Looking up passages to help a model answer is called retrieval-augmented generation.
+          The service checks the reader’s permissions before handing over the text.
+        hold: 0.65
+        visual_cues:
+          - id: intro-first-answer
+            phrase: "Only the checklist"
+            targets: [checklist, prompt]
+            caption_boundary: true
+            linger: 0.35
+          - id: intro-list-copy
+            phrase: "Watch its passage cross into the prompt"
+            targets: [prompt]
+            linger: 0.35
+      - say: >-
+          Same question, same scores. The directory now lists our reader in the security group too.
+          Which extra passage can enter?
+        hold: 1.8
+        visual_cues:
+          - id: intro-membership
+            phrase: "The directory now lists our reader in the security group too"
+            targets: [request, runbook]
+            linger: 0.35
+      - say: >-
+          Now the runbook can enter too. Follow the second copy across. The reader’s new group
+          matches the grant on the runbook.
+        hold: 0.8
+        visual_cues:
+          - id: intro-second-answer
+            phrase: "Now the runbook can enter too"
+            targets: [runbook, prompt]
+            caption_boundary: true
+            linger: 0.35
+          - id: intro-key-copy
+            phrase: "Follow the second copy across"
+            targets: [prompt]
+            linger: 0.35
+  - id: permission-models
+    title: Trace the grant that permits this reader
+    visual: Four named source objects build a role/attribute/relationship permission map under a mandatory tenant
+      boundary.
+    beats:
+      - say: Return to the operations-only reader. Our small corpus contains a tenant-wide checklist, an operations FAQ, a security-only signing-key runbook
+          and an executive acquisition plan. Public here means authenticated employees inside one tenant. The
+          operations analyst may use the first two; relevance cannot substitute for either missing grant.
+        hold: 0.7
+        visual_cues:
+          - id: sr-permission-models-0
+            phrase: Our small corpus contains a tenant-wide checklist, an operations FAQ, a security-only signing-key
+              runbook and an executive acquisition plan
+            targets:
+              - sr-permission-models-mechanism
+            color: cyan
+            linger: 0.4
+          - id: sr-permission-models-corpus
+            phrase: Our small corpus contains a tenant-wide checklist, an operations FAQ, a security-only signing-key
+              runbook and an executive acquisition plan
+            targets:
+              - sr-permission-models-mechanism
+            color: cyan
+            linger: 0.4
+          - id: sr-permission-models-eligible
+            phrase: The operations analyst may use the first two
+            targets:
+              - sr-permission-models-mechanism
+            color: cyan
+            linger: 0.4
+      - say: "Role-based control assigns permissions to job roles. Attribute-based control evaluates declared
+          properties, such as department and clearance. Relationship-based control follows membership,
+          inheritance and ownership edges. Trace user to child team, parent team, then its document: the grant
+          comes from that trusted relationship path."
+        hold: 0.7
+        visual_cues:
+          - id: sr-permission-models-1
+            phrase: Role-based control assigns permissions to job roles
+            targets:
+              - sr-permission-models-mechanism
+            color: yellow
+            linger: 0.4
+          - id: sr-permission-models-path
+            phrase: Trace user to child team, parent team, then its document
+            targets:
+              - sr-permission-models-mechanism
+            color: yellow
+            linger: 0.4
+          - id: sr-permission-models-path-grant
+            phrase: the grant comes from that trusted relationship path
+            targets:
+              - sr-permission-models-mechanism
+            color: yellow
+            linger: 0.4
+      - say: User namespaces, metadata filters, trusted late-bound ID authorization and a permission graph are four
+          enforcement approaches. Choose one that preserves the source rules and revocation. A permission
+          graph decides access; a GraphRAG content graph describes facts. Its edges and reports still need
+          their own authorization.
+        hold: 0.7
+        visual_cues:
+          - id: sr-permission-models-2
+            phrase: User namespaces, metadata filters, trusted late-bound ID authorization and a permission graph are four
+              enforcement approaches
+            targets:
+              - sr-permission-models-mechanism
+            color: green
+            linger: 0.4
+          - id: sr-permission-models-four
+            phrase: User namespaces, metadata filters, trusted late-bound ID authorization and a permission graph are four
+              enforcement approaches
+            targets:
+              - sr-permission-models-mechanism
+            color: green
+            linger: 0.4
+  - id: resolve-principal
+    title: Begin with trusted identity state
+    visual: The authenticated caller resolves to tenant A and the operations group during the first mapping
+      clause. A separate requested read and current resource-grant record expose R6's operations grant, live
+      source revision, and actual authorization result; request-supplied identity fields stay outside that
+      trust path.
+    beats:
+      - say: >
+          The request reaches the retrieval service with an authenticated principal. Trusted server state maps
+          that identity to tenant A and the operations group. Request text can name a tenant or group, while
+          authenticated identity and server-side membership establish the caller's scope.
+        hold: 0.55
+        visual_cues:
+          - id: resolve-principal-b1-1
+            phrase: authenticated principal
+            targets:
+              - authenticated-caller
+            linger: 0.45
+          - id: resolve-principal-b1-2
+            phrase: tenant A
+            targets:
+              - tenant-scope
+            linger: 0.45
+          - id: resolve-principal-group
+            phrase: operations group
+            targets:
+              - group-scope
+            color: green
+            linger: 0.45
+      - say: >
+          Authorization combines the caller, the requested read, and the document's current grants. Tenant,
+          deletion state, validity window, group, role, or explicit user permission can each affect the
+          result. The policy must say which fields provide a real grant.
+        hold: 0.7
+        visual_cues:
+          - id: resolve-principal-read
+            phrase: requested read
+            targets:
+              - requested-resource-read
+            color: cyan
+            linger: 0.45
+          - id: resolve-principal-b2-1
+            phrase: current grants
+            targets:
+              - document-current-grant
+            linger: 0.45
+      - say: >
+          Resolve a clear allow or deny for every request. Missing identity or policy state keeps protected
+          retrieval paused. This gives the search system an explicit eligible set to work with.
+        hold: 0.55
+        visual_cues:
+          - id: resolve-principal-b3-1
+            phrase: Missing identity
+            targets:
+              - missing-identity
+            linger: 0.45
+  - id: external-join
+    title: Join candidate IDs before exporting text
+    visual: Four actual candidate identities join a tenant-qualified policy relation; only the local operations
+      FAQ crosses into application context.
+    beats:
+      - say: "The actual first program stores four ranked candidates inside its trusted service: the key runbook, the
+          local operations FAQ, another tenant’s FAQ and a record without policy. It joins each
+          tenant-qualified document ID to its allowed groups before returning candidate objects."
+        hold: 0.7
+        visual_cues:
+          - id: sr-external-join-0
+            phrase: "The actual first program stores four ranked candidates inside its trusted service: the key runbook,
+              the local operations FAQ, another tenant’s FAQ and a record without policy"
+            targets:
+              - sr-external-join-mechanism
+            color: cyan
+            linger: 0.4
+          - id: sr-external-join-join
+            phrase: It joins each tenant-qualified document ID to its allowed groups before returning candidate objects
+            targets:
+              - sr-external-join-mechanism
+            color: cyan
+            linger: 0.4
+      - say: The analyst’s operations membership intersects only the local FAQ’s grant. The runbook misses that group,
+          the other FAQ misses the tenant, and the missing policy supplies an empty grant. Only the local FAQ
+          returns. Removing all user groups returns none.
+        hold: 0.7
+        visual_cues:
+          - id: sr-external-join-1
+            phrase: The analyst’s operations membership intersects only the local FAQ’s grant
+            targets:
+              - sr-external-join-mechanism
+            color: yellow
+            linger: 0.4
+          - id: sr-external-join-grant
+            phrase: The analyst’s operations membership intersects only the local FAQ’s grant
+            targets:
+              - sr-external-join-mechanism
+            color: yellow
+            linger: 0.4
+          - id: sr-external-join-only
+            phrase: Only the local FAQ returns
+            targets:
+              - sr-external-join-mechanism
+            color: yellow
+            linger: 0.4
+          - id: sr-external-join-empty
+            phrase: Removing all user groups returns none
+            targets:
+              - sr-external-join-mechanism
+            color: yellow
+            linger: 0.4
+      - say: This late-bound join avoids copying resolved user memberships onto every chunk. It is still responsible
+          for current source semantics and freshness. The local program holds all fixture text in one process;
+          production privileges and data flow determine the actual trusted boundary.
+        hold: 0.7
+        visual_cues:
+          - id: sr-external-join-2
+            phrase: This late-bound join avoids copying resolved user memberships onto every chunk
+            targets:
+              - sr-external-join-mechanism
+            color: green
+            linger: 0.4
+  - id: filter-before-rank
+    title: Constrain the searchable set first
+    visual: The ACL predicate filters seven candidates inside the trusted store; only the permitted subset enters
+      ranking and crosses the boundary.
+    beats:
+      - say: >
+          Inside the trusted store, the index holds seven candidate records. Five restricted candidates match
+          the words in the query strongly. Two records are within the analyst's grants. The identity and ACL
+          predicate is applied before the result set leaves this boundary.
+        hold: 0.65
+        visual_cues:
+          - id: filter-before-rank-b1-1
+            phrase: seven candidate records
+            targets:
+              - candidate-metadata
+            linger: 0.45
+          - id: filter-before-rank-b1-2
+            phrase: identity and ACL predicate
+            targets:
+              - candidate-metadata
+            linger: 0.45
+      - say: >
+          The ranking stage receives only eligible candidates. It orders the incident checklist and operations
+          runbook by relevance, then returns those permitted passages. The key-rotation text remains in the
+          protected corpus and never reaches prompt assembly.
+        hold: 0.7
+        visual_cues:
+          - id: filter-before-rank-b2-1
+            phrase: only eligible candidates
+            targets:
+              - ranked-queue
+            linger: 0.45
+          - id: filter-before-rank-b2-2
+            phrase: orders the incident checklist
+            targets:
+              - ranked-queue
+            linger: 0.45
+      - say: >
+          Some stores combine filtering with approximate nearest-neighbor search. The filter semantics and
+          search budget depend on the backend. Design the query so permission controls the returned candidate
+          set, then evaluate recall and underfill on the chosen engine.
+        hold: 0.55
+        visual_cues:
+          - id: filter-before-rank-b3-1
+            phrase: returned candidate set
+            targets:
+              - ranked-queue
+            linger: 0.45
+  - id: copy-leak
+    title: What did the reranker receive?
+    visual: Two synthetic runs return the same FAQ. A reviewer opens the reranker input receipts and counts the forbidden passages that crossed in each run.
+    beats:
+      - say: >-
+          Put two test runs side by side. Our operations analyst can read the FAQ. The key runbook
+          requires security. Both runs return only the FAQ. Each also recorded which passages its
+          reranker received. That reranker is ordinary application code with permission to handle this
+          reader's results. Can the final results tell us what the reranker saw?
+        hold: 2.05
+        visual_cues:
+          - id: copies-reader
+            phrase: "Our operations analyst can read the FAQ"
+            targets: [access]
+          - id: copies-returned
+            phrase: "Both runs return only the FAQ"
+            targets: [captures]
+          - id: copies-question
+            phrase: "Can the final results tell us what the reranker saw"
+            targets: [access, captures, witness]
+      - say: >-
+          We need the input receipts. Open the first capture. The reranker received the runbook and the
+          FAQ. The application removed the runbook later. Open the second capture. Here the store
+          checked the document IDs before it handed over text, so the reranker received only the FAQ.
+          Count the forbidden passages at that handoff. One in A, zero in B.
+        hold: 0.8
+        visual_cues:
+          - id: copies-a
+            phrase: "The reranker received the runbook and the FAQ"
+            targets: [captures]
+          - id: copies-b
+            phrase: "the reranker received only the FAQ"
+            targets: [captures]
+          - id: copies-count
+            phrase: "One in A, zero in B"
+            targets: [captures, witness]
+            caption_boundary: true
+      - say: >-
+          Follow the copy in run A. A cache, trace, or crash report could still hold it after the answer
+          has gone out. Inspect those destinations. In run B the check happened inside trusted
+          handling. A trusted service can inspect a candidate internally. Its privileges and the next
+          recipient determine where the boundary lies. Keep denied IDs and titles in a restricted
+          audit channel because even a document's existence can be sensitive.
+        hold: 0.7
+        visual_cues:
+          - id: copies-repair
+            phrase: "In run B the check happened inside trusted handling"
+            targets: [captures, witness]
+  - id: typed-policy
+    title: Evaluate the complete local predicate
+    visual: The actual document row passes mandatory tenant, literal tombstone and aware-time gates before its
+      declared grant paths are evaluated.
+    beats:
+      - say: The larger in-memory exercise uses lexical word matching, despite its vector-store interface name.
+          Authorization runs first. Its mandatory gates require the caller’s tenant, an is-deleted value that
+          is literally false, and valid time fields. Missing or malformed required fields deny the row.
+        hold: 0.7
+        visual_cues:
+          - id: sr-typed-policy-0
+            phrase: The larger in-memory exercise uses lexical word matching, despite its vector-store interface name
+            targets:
+              - sr-typed-policy-mechanism
+            color: cyan
+            linger: 0.4
+          - id: sr-typed-policy-required
+            phrase: Its mandatory gates require the caller’s tenant, an is-deleted value that is literally false, and
+              valid time fields
+            targets:
+              - sr-typed-policy-mechanism
+            color: cyan
+            linger: 0.4
+          - id: sr-typed-policy-deny
+            phrase: Missing or malformed required fields deny the row
+            targets:
+              - sr-typed-policy-mechanism
+            color: cyan
+            linger: 0.4
+      - say: "The runtime clock and bounded endpoints must be timezone-aware datetimes. None explicitly means an
+          unbounded endpoint; an absent endpoint does not. A string timestamp must be decoded before this
+          predicate. The validity interval includes its start and excludes its end: exactly at expiry, the row
+          is denied."
+        hold: 0.7
+        visual_cues:
+          - id: sr-typed-policy-1
+            phrase: The runtime clock and bounded endpoints must be timezone-aware datetimes
+            targets:
+              - sr-typed-policy-mechanism
+            color: yellow
+            linger: 0.4
+          - id: sr-typed-policy-interval
+            phrase: The validity interval includes its start and excludes its end
+            targets:
+              - sr-typed-policy-mechanism
+            color: yellow
+            linger: 0.4
+          - id: sr-typed-policy-expiry
+            phrase: exactly at expiry, the row is denied
+            targets:
+              - sr-typed-policy-mechanism
+            color: yellow
+            linger: 0.4
+      - say: Only after those gates does this fictional source policy accept any matching public, owner, department,
+          explicit-user, group or role grant. These are deliberately alternative grants. A real source may
+          require conjunctions, explicit denies or inheritance; copying this OR expression would change that
+          policy.
+        hold: 0.7
+        visual_cues:
+          - id: sr-typed-policy-2
+            phrase: Only after those gates does this fictional source policy accept any matching public, owner,
+              department, explicit-user, group or role grant
+            targets:
+              - sr-typed-policy-mechanism
+            color: green
+            linger: 0.4
+          - id: sr-typed-policy-or
+            phrase: this fictional source policy accept any matching public, owner, department, explicit-user, group or
+              role grant
+            targets:
+              - sr-typed-policy-mechanism
+            color: green
+            linger: 0.4
+  - id: grant-paths
+    title: Remove every grant that still authorizes the row
+    visual: The same FAQ loses its group edge while its department edge remains; removing the remaining applicable
+      paths actually changes its authorization.
+    beats:
+      - say: Follow the operations FAQ through a revocation. Clearing its operations-group field alone leaves its
+          operations-department grant active under this toy policy. The result stays allowed. Revocation must
+          remove every applicable permission path that the intended source decision withdrew.
+        hold: 0.7
+        visual_cues:
+          - id: sr-grant-paths-0
+            phrase: Follow the operations FAQ through a revocation
+            targets:
+              - sr-grant-paths-mechanism
+            color: cyan
+            linger: 0.4
+          - id: sr-grant-paths-remove
+            phrase: Clearing its operations-group field alone leaves its operations-department grant active under this toy
+              policy
+            targets:
+              - sr-grant-paths-mechanism
+            color: cyan
+            linger: 0.4
+          - id: sr-grant-paths-still
+            phrase: The result stays allowed
+            targets:
+              - sr-grant-paths-mechanism
+            color: cyan
+            linger: 0.4
+      - say: "The denial program executes eight cases: wrong tenant, deletion, malformed deletion, future start, exact
+          expiry, string time, naive time and missing grant. Four missing mandatory fields also deny, and
+          removing the caller’s department, group and role memberships denies the FAQ."
+        hold: 0.7
+        visual_cues:
+          - id: sr-grant-paths-1
+            phrase: "The denial program executes eight cases: wrong tenant, deletion, malformed deletion, future start,
+              exact expiry, string time, naive time and missing grant"
+            targets:
+              - sr-grant-paths-mechanism
+            color: yellow
+            linger: 0.4
+          - id: sr-grant-paths-cases
+            phrase: The denial program executes eight cases
+            targets:
+              - sr-grant-paths-mechanism
+            color: yellow
+            linger: 0.4
+      - say: The checklist remains tenant-wide only while its mandatory gates pass. Expire that last allowed record
+          and the authorized set becomes empty. Refuse or request permitted evidence. An unfiltered retry
+          would turn missing recall into a disclosure.
+        hold: 0.7
+        visual_cues:
+          - id: sr-grant-paths-2
+            phrase: The checklist remains tenant-wide only while its mandatory gates pass
+            targets:
+              - sr-grant-paths-mechanism
+            color: green
+            linger: 0.4
+          - id: sr-grant-paths-expire
+            phrase: Expire that last allowed record and the authorized set becomes empty
+            targets:
+              - sr-grant-paths-mechanism
+            color: green
+            linger: 0.4
+  - id: metadata-receipt
+    title: Keep source identity attached to each child
+    visual: A source receipt is copied onto two identified chunks, with typed times decoded before policy
+      evaluation and classification kept separate from grants.
+    beats:
+      - say: Each child needs a tenant-qualified source and chunk identity, source revision, policy version, deletion
+          state, validity and a live grant decision. Classification and compliance tags describe the document;
+          they grant access only if the source policy explicitly says so.
+        hold: 0.7
+        visual_cues:
+          - id: sr-metadata-receipt-0
+            phrase: Each child needs a tenant-qualified source and chunk identity, source revision, policy version,
+              deletion state, validity and a live grant decision
+            targets:
+              - sr-metadata-receipt-mechanism
+            color: cyan
+            linger: 0.4
+          - id: sr-metadata-receipt-identity
+            phrase: Each child needs a tenant-qualified source and chunk identity, source revision, policy version,
+              deletion state, validity and a live grant decision
+            targets:
+              - sr-metadata-receipt-mechanism
+            color: cyan
+            linger: 0.4
+      - say: The actual schema records the signing-key source at content revision seven and policy version forty-two.
+          Its allowed groups are security and platform. Conversion preserves these fields and emits an ISO
+          timestamp, which the earlier Python predicate cannot use until the adapter decodes it.
+        hold: 0.7
+        visual_cues:
+          - id: sr-metadata-receipt-1
+            phrase: The actual schema records the signing-key source at content revision seven and policy version
+              forty-two
+            targets:
+              - sr-metadata-receipt-mechanism
+            color: yellow
+            linger: 0.4
+          - id: sr-metadata-receipt-source
+            phrase: The actual schema records the signing-key source at content revision seven and policy version
+              forty-two
+            targets:
+              - sr-metadata-receipt-mechanism
+            color: yellow
+            linger: 0.4
+          - id: sr-metadata-receipt-grants
+            phrase: Its allowed groups are security and platform
+            targets:
+              - sr-metadata-receipt-mechanism
+            color: yellow
+            linger: 0.4
+          - id: sr-metadata-receipt-iso
+            phrase: Conversion preserves these fields and emits an ISO timestamp
+            targets:
+              - sr-metadata-receipt-mechanism
+            color: yellow
+            linger: 0.4
+      - say: Type annotations do not validate incoming values. Validate at ingestion and test the real backend’s
+          supported filter syntax. The local resolved-ACL object and valid-at adapter fields are teaching
+          glue, not portable Pinecone, Weaviate or PostgreSQL query operators.
+        hold: 0.7
+        visual_cues:
+          - id: sr-metadata-receipt-2
+            phrase: Type annotations do not validate incoming values
+            targets:
+              - sr-metadata-receipt-mechanism
+            color: green
+            linger: 0.4
+          - id: sr-metadata-receipt-validate
+            phrase: Validate at ingestion and test the real backend’s supported filter syntax
+            targets:
+              - sr-metadata-receipt-mechanism
+            color: green
+            linger: 0.4
+  - id: runtime-rls
+    title: Test the role that actually runs the query
+    visual: The same SQL policy is viewed through ordinary, owner, forced-owner and bypass identities; the role
+      determines whether the row gate applies.
+    beats:
+      - say: "An available filter option is not authentication: a privileged client may omit it. PostgreSQL row
+          security, when enabled without an applicable policy, gives ordinary access a default deny. Policies
+          operate inside the database query path."
+        hold: 0.7
+        visual_cues:
+          - id: sr-runtime-rls-0
+            phrase: "An available filter option is not authentication: a privileged client may omit it"
+            targets:
+              - sr-runtime-rls-mechanism
+            color: cyan
+            linger: 0.4
+          - id: sr-runtime-rls-default
+            phrase: PostgreSQL row security, when enabled without an applicable policy, gives ordinary access a default
+              deny
+            targets:
+              - sr-runtime-rls-mechanism
+            color: cyan
+            linger: 0.4
+      - say: Table owners normally bypass row security. Force row-level security subjects the owner to its policies,
+          but superusers and roles with BYPASS RLS still bypass them. Changing a query string cannot repair an
+          overprivileged runtime connection.
+        hold: 0.7
+        visual_cues:
+          - id: sr-runtime-rls-1
+            phrase: Table owners normally bypass row security
+            targets:
+              - sr-runtime-rls-mechanism
+            color: yellow
+            linger: 0.4
+          - id: sr-runtime-rls-owner
+            phrase: Table owners normally bypass row security
+            targets:
+              - sr-runtime-rls-mechanism
+            color: yellow
+            linger: 0.4
+          - id: sr-runtime-rls-force
+            phrase: Force row-level security subjects the owner to its policies
+            targets:
+              - sr-runtime-rls-mechanism
+            color: yellow
+            linger: 0.4
+          - id: sr-runtime-rls-bypass
+            phrase: superusers and roles with BYPASS RLS still bypass them
+            targets:
+              - sr-runtime-rls-mechanism
+            color: yellow
+            linger: 0.4
+      - say: Use the intended constrained connection identity and exercise every search path, including exact lookup,
+          ANN, cache hits and citation previews. A local Python allow-list does not establish that a real RLS
+          connection, vector API or alternate endpoint enforces the same rule.
+        hold: 0.7
+        visual_cues:
+          - id: sr-runtime-rls-2
+            phrase: Use the intended constrained connection identity and exercise every search path, including exact
+              lookup, ANN, cache hits and citation previews
+            targets:
+              - sr-runtime-rls-mechanism
+            color: green
+            linger: 0.4
+          - id: sr-runtime-rls-paths
+            phrase: exercise every search path, including exact lookup, ANN, cache hits and citation previews
+            targets:
+              - sr-runtime-rls-mechanism
+            color: green
+            linger: 0.4
+  - id: recall-tradeoff
+    title: Where does the search stop?
+    visual: >-
+      A yellow rail advances below seven fixed, scored records in the trusted store. Two output slots
+      show which members of the exact allowed pair each successive scan limit can reach.
+    beats:
+      - say: >-
+          Back to the seven records, in score order. The request asks for two passages. Exact search finds
+          both eligible records, R six and R seven. Let's keep that pair as our reference. First, stop after
+          the five highest scores. Every one of those records is restricted. Both result slots are empty.
+        hold: 0.7
+        motion_check:
+          region: [115, 595, 1700, 145]
+          minimumChangedFraction: 0.002
+        visual_cues:
+          - id: recall-reference
+            phrase: "Exact search finds both eligible records, R six and R seven"
+            targets: [rack, slots]
+            linger: 0.35
+          - id: recall-five
+            phrase: "stop after the five highest scores"
+            targets: [rack]
+            linger: 0.35
+          - id: recall-zero
+            phrase: "Both result slots are empty"
+            targets: [slots]
+            caption_boundary: true
+            linger: 0.35
+      - say: >-
+          Keep the same reader and grants. Move the stop one place to the right. We can now inspect six
+          candidates inside the store. Which passages fill the two slots at this stop?
+        hold: 2.2
+        visual_cues:
+          - id: recall-six
+            phrase: "Move the stop one place to the right"
+            targets: [rack]
+            linger: 0.35
+          - id: recall-question
+            phrase: "Which passages fill the two slots at this stop"
+            targets: [rack, slots]
+            linger: 0.35
+      - say: >-
+          Only R six makes it. R seven also has a grant, but the search stopped just before it. We recovered
+          one of the two passages in the exact result. That's the authorized recall for this search. The
+          empty slot tells us nothing by itself about whether a grant is missing.
+        hold: 0.75
+        visual_cues:
+          - id: recall-one
+            phrase: "Only R six makes it"
+            targets: [rack, slots]
+            caption_boundary: true
+            linger: 0.35
+      - say: >-
+          Let the search visit the seventh record. Both passages now fit. We changed how far the store
+          looked. It applied the same permission check every time. These supplied scores give us a
+          repeatable test. On a real index, compare filtered results with exact authorized search, then
+          measure how much latency a larger budget or an exact fallback costs.
+        hold: 0.8
+        visual_cues:
+          - id: recall-seven
+            phrase: "Let the search visit the seventh record"
+            targets: [rack]
+            linger: 0.35
+          - id: recall-two
+            phrase: "Both passages now fit"
+            targets: [slots]
+            caption_boundary: true
+            linger: 0.35
+  - id: ann-backends
+    title: How many permitted rows will the search find?
+    visual: >-
+      Two possible forty-candidate scans share a match probability. One continues to a cap of fifty.
+      A separate allow-list admits only eligible IDs from a three-visit example path.
+    beats:
+      - say: >-
+          Suppose one candidate in ten matches the reader's access rules on average, and each match is
+          independent. You ask for ten passages. The index examines forty candidates. How many eligible rows
+          would you expect on average?
+        hold: 1.8
+        visual_cues:
+          - id: ann-premise
+            phrase: "The index examines forty candidates"
+            targets: [samples]
+            linger: 0.35
+      - say: >-
+          Four, on average. Multiply forty by one tenth. Here is one possible scan with two matches. Here is
+          another with six. The green squares show which candidates passed. On a real query, records with
+          similar wording can also share a grant, so the matching fraction along the search path can differ
+          from the fraction in the whole index.
+        hold: 0.75
+        visual_cues:
+          - id: ann-mean
+            phrase: "Four, on average"
+            targets: [samples]
+            caption_boundary: true
+            linger: 0.35
+          - id: ann-left
+            phrase: "one possible scan with two matches"
+            targets: [samples]
+            caption_boundary: true
+            linger: 0.35
+          - id: ann-right
+            phrase: "another with six"
+            targets: [samples]
+            caption_boundary: true
+            linger: 0.35
+      - say: >-
+          In pgvector's approximate index example, the database applies the SQL filter after index
+          exploration. Take scan A and set a cap of fifty candidates for this example. An iterative scan
+          can examine ten more candidates. Only one more matches. At the cap, three of our ten slots are
+          filled. With a larger budget the scan could keep looking until it fills the request or hits a
+          limit. A partial index, a partition, or exact search over permitted rows can also help.
+        hold: 0.65
+        visual_cues:
+          - id: ann-filter
+            phrase: "the database applies the SQL filter after index exploration"
+            targets: [engine]
+            linger: 0.35
+          - id: ann-iterate
+            phrase: "examine ten more candidates"
+            targets: [engine]
+            linger: 0.35
+          - id: ann-cap
+            phrase: "At the cap, three of our ten slots are filled"
+            targets: [engine]
+            linger: 0.35
+      - say: >-
+          Return to the original forty candidates. Weaviate can build an allow-list before it searches the
+          neighbor graph. Our list contains three and twenty-seven. Suppose one path visits two, three,
+          then eight. Only three can enter the result along that path. Weaviate's ACORN strategy targets
+          restrictive filters that correlate poorly with the query. A small allowed set can instead use
+          flat search. On the real engine, measure authorized recall, how often the request fills, and latency.
+        hold: 0.8
+        visual_cues:
+          - id: ann-list
+            phrase: "Our list contains three and twenty-seven"
+            targets: [engine]
+            linger: 0.35
+          - id: ann-walk
+            phrase: "one path visits two, three, then eight"
+            targets: [engine]
+            linger: 0.35
+          - id: ann-flat
+            phrase: "A small allowed set can instead use flat search"
+            targets: [engine]
+            linger: 0.35
+  - id: keep-grants-current
+    title: Retrieval needs current permission state
+    visual: A source grant is revoked; the old index revision is held behind a version gate while all document
+      chunks update.
+    beats:
+      - say: >
+          Suppose the source owner removes the operations group's grant. An index webhook can be delayed,
+          leaving old metadata on several chunks. If the store trusts that stale copy, a revoked grant may
+          still admit the text.
+        hold: 0.55
+        visual_cues:
+          - id: keep-grants-current-b1-1
+            phrase: removes the operations group's grant
+            targets:
+              - source-revocation
+            linger: 0.45
+      - say: >
+          A safer design combines authenticated change events with reconciliation against the source system.
+          Apply a monotonic policy revision to every chunk or hold reads behind a trusted document-version
+          check while updates complete.
+        hold: 0.7
+        visual_cues:
+          - id: keep-grants-current-b2-1
+            phrase: every chunk
+            targets:
+              - chunk-revisions
+            linger: 0.45
+          - id: keep-grants-current-b2-2
+            phrase: document-version check
+            targets:
+              - current-version
+            linger: 0.45
+      - say: >
+          Set a revocation objective for the data and threat model. When the current decision is unavailable,
+          fail closed for that content. Measure full revocation latency from source change to blocked read,
+          alongside the cache bound.
+        hold: 0.55
+        visual_cues:
+          - id: keep-grants-current-b3-1
+            phrase: fail closed
+            targets:
+              - request-decision
+            linger: 0.45
+  - id: sync-two-chunks
+    title: Replay a missed event in source order
+    visual: The actual two-chunk tenant-A fixture advances revision1→2→3 while the same document ID in tenant B
+      stays unchanged.
+    beats:
+      - say: Follow the two chunks of this runbook. Tenant B has a runbook with the same name and two chunks
+          of its own. The owner removes tenant A's security grant at revision two. The change event never
+          arrives. Both copies in A still say revision one and security. Reconciliation reads the
+          authoritative revision two and updates both to no groups.
+        hold: 0.7
+        visual_cues:
+          - id: sr-sync-two-chunks-0
+            phrase: Follow the two chunks of this runbook
+            targets:
+              - sr-sync-two-chunks-mechanism
+            color: cyan
+            linger: 0.4
+          - id: sr-sync-two-chunks-stale
+            phrase: The owner removes tenant A's security grant at revision two
+            targets:
+              - sr-sync-two-chunks-mechanism
+            color: cyan
+            linger: 0.4
+          - id: sr-sync-two-chunks-reconcile
+            phrase: Reconciliation reads the authoritative revision two and updates both to no groups
+            targets:
+              - sr-sync-two-chunks-mechanism
+            color: cyan
+            linger: 0.4
+      - say: Replaying the old revision-one grant updates zero chunks. Repeating revision two is idempotent. Deletion
+          revision three updates both again, while tenant B keeps revision one and operations access. The
+          dictionary loop is sequential and local; atomic publication or a trusted version gate is still
+          required in a serving store.
+        hold: 0.7
+        visual_cues:
+          - id: sr-sync-two-chunks-1
+            phrase: Replaying the old revision-one grant updates zero chunks
+            targets:
+              - sr-sync-two-chunks-mechanism
+            color: yellow
+            linger: 0.4
+          - id: sr-sync-two-chunks-old
+            phrase: Replaying the old revision-one grant updates zero chunks
+            targets:
+              - sr-sync-two-chunks-mechanism
+            color: yellow
+            linger: 0.4
+          - id: sr-sync-two-chunks-delete
+            phrase: Deletion revision three updates both again
+            targets:
+              - sr-sync-two-chunks-mechanism
+            color: yellow
+            linger: 0.4
+          - id: sr-sync-two-chunks-other
+            phrase: tenant B keeps revision one and operations access
+            targets:
+              - sr-sync-two-chunks-mechanism
+            color: yellow
+            linger: 0.4
+      - say: The reader’s program would accept a supplied newer revision-four grant and even clear the deleted flag
+          and restore the record. It does not enforce terminal tombstones. Source ordering, authorized
+          restoration and deletion policy therefore need a real contract. A tombstone denies reads; erasing
+          vectors, reports, logs and backups is a separate retention process.
+        hold: 0.7
+        visual_cues:
+          - id: sr-sync-two-chunks-2
+            phrase: The reader’s program would accept a supplied newer revision-four grant and even clear the deleted flag
+              and restore the record
+            targets:
+              - sr-sync-two-chunks-mechanism
+            color: green
+            linger: 0.4
+          - id: sr-sync-two-chunks-restore
+            phrase: clear the deleted flag and restore the record
+            targets:
+              - sr-sync-two-chunks-mechanism
+            color: green
+            linger: 0.4
+  - id: snapshot-clock
+    title: Check both exact version and authoritative age
+    visual: A protected snapshot carries one version and fetched clock; old, future and unexpectedly different
+      versions stop the same read before export.
+    beats:
+      - say: The snapshot helper requires equality with the authoritative required version. A freshly fetched version
+          forty-one still fails when forty-two is required. A supposedly newer version forty-three also fails
+          that exact contract; version numbers cannot be guessed from a request.
+        hold: 0.7
+        visual_cues:
+          - id: sr-snapshot-clock-0
+            phrase: The snapshot helper requires equality with the authoritative required version
+            targets:
+              - sr-snapshot-clock-mechanism
+            color: cyan
+            linger: 0.4
+          - id: sr-snapshot-clock-mismatch
+            phrase: A freshly fetched version forty-one still fails when forty-two is required
+            targets:
+              - sr-snapshot-clock-mechanism
+            color: cyan
+            linger: 0.4
+          - id: sr-snapshot-clock-newer
+            phrase: A supposedly newer version forty-three also fails that exact contract
+            targets:
+              - sr-snapshot-clock-mechanism
+            color: cyan
+            linger: 0.4
+      - say: Compute age as now minus the successful authoritative fetch time. Require age from zero through the
+          supplied maximum, inclusive. In the article’s five-minute worksheet, equality is acceptable; six
+          minutes or a future fetch time fails. Retimestamping a cached old ACL does not refresh its policy.
+        hold: 0.7
+        visual_cues:
+          - id: sr-snapshot-clock-1
+            phrase: Compute age as now minus the successful authoritative fetch time
+            targets:
+              - sr-snapshot-clock-mechanism
+            color: yellow
+            linger: 0.4
+          - id: sr-snapshot-clock-age
+            phrase: Compute age as now minus the successful authoritative fetch time
+            targets:
+              - sr-snapshot-clock-mechanism
+            color: yellow
+            linger: 0.4
+          - id: sr-snapshot-clock-inclusive
+            phrase: equality is acceptable
+            targets:
+              - sr-snapshot-clock-mechanism
+            color: yellow
+            linger: 0.4
+          - id: sr-snapshot-clock-invalid
+            phrase: six minutes or a future fetch time fails
+            targets:
+              - sr-snapshot-clock-mechanism
+            color: yellow
+            linger: 0.4
+      - say: Document and directory-membership freshness both matter. A signed, unexpired token may retain a revoked
+          group. A cache TTL bounds one cache’s age; detection, queues, replicas and derived copies also
+          affect end-to-end revocation delay. Set and measure the objective rather than promising instant
+          revocation.
+        hold: 0.7
+        visual_cues:
+          - id: sr-snapshot-clock-2
+            phrase: Document and directory-membership freshness both matter
+            targets:
+              - sr-snapshot-clock-mechanism
+            color: green
+            linger: 0.4
+          - id: sr-snapshot-clock-end-to-end
+            phrase: detection, queues, replicas and derived copies also affect end-to-end revocation delay
+            targets:
+              - sr-snapshot-clock-mechanism
+            color: green
+            linger: 0.4
+  - id: tenant-and-scope
+    title: Carry tenant scope through every stage
+    visual: Two tenants contain a similarly named runbook; tenant qualification keeps their records and source
+      grants on separate paths.
+    beats:
+      - say: >
+          Tenant A and tenant B can each have a document called the incident checklist. Document names can
+          recur across tenants, so qualify record IDs by tenant and preserve the same scope on every child
+          chunk.
+        hold: 0.55
+        visual_cues:
+          - id: tenant-and-scope-b1-1
+            phrase: Tenant A and tenant B
+            targets:
+              - tenant-a-document
+              - tenant-b-document
+            linger: 0.45
+      - say: >
+          Apply tenant, source version, deletion status, validity, and grants within one trusted query path.
+          Keep the policy decision available for audit so an incident review can explain why a record was
+          allowed or blocked.
+        hold: 0.7
+        visual_cues:
+          - id: tenant-and-scope-b2-1
+            phrase: one trusted query path
+            targets:
+              - tenant-a-chunk
+              - tenant-b-chunk
+            linger: 0.45
+      - say: >
+          Graphs and summaries need the same treatment as leaf chunks. An authorized vector result can still
+          connect to an unauthorized community report or derived artifact. Check access on every
+          representation that can carry protected facts.
+        hold: 0.55
+        visual_cues:
+          - id: tenant-and-scope-b3-1
+            phrase: derived artifact
+            targets:
+              - tenant-a-report
+              - tenant-b-report
+            linger: 0.45
+  - id: tenant-layouts
+    title: Tenant boundaries in search and storage
+    visual: The same three rows appear in two namespaces and then in one shared index. The tenant check
+      sets aside the other company's page. The group check admits one local page. A mismatched request stops at the entrance.
+    beats:
+      - say: >-
+          Both companies have a page called Escalation. Our reader works in operations at company A.
+          With a namespace or database per tenant, the service searches A's records. With a shared
+          index, it filters every query by that same verified tenant. Which of A's two pages can this reader open?
+        hold: 1.8
+        visual_cues:
+          - id: layout-pages
+            phrase: "Both companies have a page called Escalation"
+            targets: [stored-pages]
+          - id: layout-reader
+            phrase: "Our reader works in operations at company A"
+            targets: [reader]
+          - id: layout-route
+            phrase: "the service searches A's records"
+            targets: [stored-pages, decisions]
+          - id: layout-shared
+            phrase: "With a shared index"
+            targets: [stored-pages]
+          - id: layout-question
+            phrase: "Which of A's two pages can this reader open"
+            targets: [reader, stored-pages, decisions]
+      - say: >-
+          Only A's escalation page. Operations has a grant there. A's rotation page requires security.
+          Now suppose the request names tenant B. The service stops the search because the reader belongs
+          to A. A missing or empty tenant also stops the request.
+        hold: 0.7
+        visual_cues:
+          - id: layout-allow
+            phrase: "Only A's escalation page"
+            targets: [stored-pages, decisions]
+            caption_boundary: true
+          - id: layout-hold
+            phrase: "A's rotation page requires security"
+            targets: [stored-pages, decisions]
+          - id: layout-mismatch
+            phrase: "the request names tenant B"
+            targets: [reader]
+          - id: layout-stop
+            phrase: "The service stops the search"
+            targets: [reader, decisions]
+          - id: layout-missing
+            phrase: "A missing or empty tenant"
+            targets: [reader, decisions]
+      - say: >-
+          A separate collection isolates each tenant's records. A dedicated cluster also
+          isolates infrastructure and costs more to run. In either layout, encrypt stored data, verify
+          incoming documents, and check shared resources for timing leaks.
+          A SOC 2 review examines the service's controls. Where HIPAA applies, teams need
+          administrative, physical and technical safeguards.
+        hold: 0.7
+        visual_cues:
+          - id: layout-infrastructure
+            phrase: "A dedicated cluster also isolates infrastructure and costs more to run"
+            targets: [infrastructure]
+          - id: layout-controls
+            phrase: "encrypt stored data"
+            targets: [controls]
+          - id: layout-service
+            phrase: "A SOC 2 review examines the service's controls"
+            targets: [controls]
+          - id: layout-safeguards
+            phrase: "administrative, physical and technical safeguards"
+            targets: [controls]
+  - id: report-provenance
+    title: Who can read the incident report?
+    visual: >-
+      Two report manifests line up with the live grants and source revisions that govern them. The
+      reader gains a group, then one source loses its grant. The original mixed report stays held when
+      its replacement is built.
+    beats:
+      - say: >-
+          A report can repeat a fact from any page that went into it. Look down the first report. It draws
+          on the incident checklist and the operations FAQ. The mixed report also draws on the key runbook.
+          Those source lists come from the trusted service that built the reports. For our operations
+          reader, only the first report may enter the map step, where the model reads each report.
+        hold: 0.65
+        visual_cues:
+          - id: report-ops-list
+            phrase: "It draws on the incident checklist and the operations FAQ"
+            targets: [sources, reports]
+            linger: 0.35
+          - id: report-mixed-list
+            phrase: "The mixed report also draws on the key runbook"
+            targets: [sources, reports]
+            linger: 0.35
+          - id: report-first-decision
+            phrase: "only the first report may enter the map step"
+            targets: [reports]
+            caption_boundary: true
+            linger: 0.35
+      - say: >-
+          Give the reader a verified security membership too. Both reports can now enter. Watch the last
+          source on the left. The owner removes the key runbook's read grant. The runbook is still version
+          seven and the reader still belongs to both groups. Which report may still enter the map step?
+        hold: 2.15
+        visual_cues:
+          - id: report-membership
+            phrase: "Give the reader a verified security membership too"
+            targets: [sources]
+            linger: 0.35
+          - id: report-both-admit
+            phrase: "Both reports can now enter"
+            targets: [reports]
+            caption_boundary: true
+            linger: 0.35
+          - id: sr-report-provenance-revoke
+            phrase: "The owner removes the key runbook's read grant"
+            targets: [sources]
+            linger: 0.35
+          - id: report-which
+            phrase: "Which report may still enter the map step"
+            targets: [sources, reports]
+            linger: 0.35
+      - say: >-
+          Only the operations report can enter. Read across the key row. The mixed report still carries a
+          contribution from version seven, and this reader has lost access to it. We hold the whole report
+          before the model can read it. A missing source list, a different tenant, a deleted source, or an
+          old revision also fails that check.
+        hold: 0.8
+        visual_cues:
+          - id: report-held
+            phrase: "Only the operations report can enter"
+            targets: [sources, reports]
+            caption_boundary: true
+            linger: 0.35
+      - say: >-
+          Build a new report using just the checklist and FAQ. Its two source revisions still match, and the
+          reader can use both. The new report may enter. The old one stays held. Apply the same rule to a
+          graph edge. Even if both names are public, the source that established their relationship may be
+          restricted. When provenance is incomplete, fall back to sources the reader can use.
+        hold: 0.75
+        visual_cues:
+          - id: report-rebuild
+            phrase: "Build a new report using just the checklist and FAQ"
+            targets: [sources, reports]
+            linger: 0.35
+          - id: report-new-admit
+            phrase: "The new report may enter"
+            targets: [reports]
+            caption_boundary: true
+            linger: 0.35
+  - id: rewrite-scope
+    title: Change the query while retaining its authority
+    visual: A query string changes while trusted tenant, principal and current permission edges remain fixed; a
+      cached rewrite with a different owner scope is rejected.
+    beats:
+      - say: A rewrite may clarify signing-key rotation, but adding a security group or dropping the tenant cannot
+          increase the caller’s authority. History, documents and tool outputs are untrusted inputs. Apply the
+          same principal to every retrieval branch and parent expansion.
+        hold: 0.7
+        visual_cues:
+          - id: sr-rewrite-scope-0
+            phrase: A rewrite may clarify signing-key rotation, but adding a security group or dropping the tenant cannot
+              increase the caller’s authority
+            targets:
+              - sr-rewrite-scope-mechanism
+            color: cyan
+            linger: 0.4
+          - id: sr-rewrite-scope-rewrite
+            phrase: A rewrite may clarify signing-key rotation
+            targets:
+              - sr-rewrite-scope-mechanism
+            color: cyan
+            linger: 0.4
+          - id: sr-rewrite-scope-fixed
+            phrase: adding a security group or dropping the tenant cannot increase the caller’s authority
+            targets:
+              - sr-rewrite-scope-mechanism
+            color: cyan
+            linger: 0.4
+      - say: HyDE and rewrite caches need query and technique configuration plus tenant, principal or a proven
+          equivalent scope, current policy and relevant source versions. Matching role names alone does not
+          establish matching owner, explicit-user or group grants.
+        hold: 0.7
+        visual_cues:
+          - id: sr-rewrite-scope-1
+            phrase: HyDE and rewrite caches need query and technique configuration plus tenant, principal or a proven
+              equivalent scope, current policy and relevant source versions
+            targets:
+              - sr-rewrite-scope-mechanism
+            color: yellow
+            linger: 0.4
+          - id: sr-rewrite-scope-key
+            phrase: HyDE and rewrite caches need query and technique configuration plus tenant, principal or a proven
+              equivalent scope, current policy and relevant source versions
+            targets:
+              - sr-rewrite-scope-mechanism
+            color: yellow
+            linger: 0.4
+      - say: Reauthorize protected cached evidence at use time. A complete key and short TTL still do not enforce a
+          source revocation. Keep caches, rerankers, judges, citation previews and tracing destinations within
+          their permitted handling boundaries.
+        hold: 0.7
+        visual_cues:
+          - id: sr-rewrite-scope-2
+            phrase: Reauthorize protected cached evidence at use time
+            targets:
+              - sr-rewrite-scope-mechanism
+            color: green
+            linger: 0.4
+          - id: sr-rewrite-scope-recheck
+            phrase: Reauthorize protected cached evidence at use time
+            targets:
+              - sr-rewrite-scope-mechanism
+            color: green
+            linger: 0.4
+  - id: external-fetch
+    title: Keep external fallback inside the network policy
+    visual: An allowed public destination and a blocked private address share one fetch request; redirect and
+      resolved-address checks stay outside model control.
+    beats:
+      - say: An external fallback needs allowed domains, enforced private-network restrictions, sandboxed fetching and
+          server-side request-forgery defenses. Validate destinations and the actual resolved addresses and
+          redirect behavior under that policy. An attractive retrieved link is not permission to fetch an
+          internal service.
+        hold: 0.7
+        visual_cues:
+          - id: sr-external-fetch-0
+            phrase: An external fallback needs allowed domains, enforced private-network restrictions, sandboxed fetching
+              and server-side request-forgery defenses
+            targets:
+              - sr-external-fetch-mechanism
+            color: cyan
+            linger: 0.4
+          - id: sr-external-fetch-destination
+            phrase: Validate destinations and the actual resolved addresses and redirect behavior under that policy
+            targets:
+              - sr-external-fetch-mechanism
+            color: cyan
+            linger: 0.4
+          - id: sr-external-fetch-deny
+            phrase: An attractive retrieved link is not permission to fetch an internal service
+            targets:
+              - sr-external-fetch-mechanism
+            color: cyan
+            linger: 0.4
+      - say: Treat returned HTML as observations, not new system instructions. Strict policy can refuse or escalate
+          instead of opening the web. Log the permitted rewrite and destination decision without copying
+          protected response bodies into ordinary diagnostics.
+        hold: 0.7
+        visual_cues:
+          - id: sr-external-fetch-1
+            phrase: Treat returned HTML as observations, not new system instructions
+            targets:
+              - sr-external-fetch-mechanism
+            color: yellow
+            linger: 0.4
+          - id: sr-external-fetch-html
+            phrase: Treat returned HTML as observations, not new system instructions
+            targets:
+              - sr-external-fetch-mechanism
+            color: yellow
+            linger: 0.4
+  - id: verified-token
+    title: Validate the credential intended for this API
+    visual: A token receipt passes issuer/key/algorithm/audience/time checks before identity is mapped into the
+      retrieval policy; an ID token cannot substitute for API authority.
+    beats:
+      - say: Authenticate with a supported server-side mechanism. Caller-written tenant or role headers are untrusted.
+          Gateway identity headers need a protected channel that removes caller substitutes. The API validates
+          its intended access token; an OpenID Connect ID token authenticates sign-in to a client.
+        hold: 0.7
+        visual_cues:
+          - id: sr-verified-token-0
+            phrase: Authenticate with a supported server-side mechanism
+            targets:
+              - sr-verified-token-mechanism
+            color: cyan
+            linger: 0.4
+          - id: sr-verified-token-headers
+            phrase: Caller-written tenant or role headers are untrusted
+            targets:
+              - sr-verified-token-mechanism
+            color: cyan
+            linger: 0.4
+          - id: sr-verified-token-access
+            phrase: The API validates its intended access token
+            targets:
+              - sr-verified-token-mechanism
+            color: cyan
+            linger: 0.4
+      - say: Access tokens may be signed JWTs or opaque tokens with an issuer-supported validation path. For JWTs, use
+          trusted issuer keys and an algorithm allow-list. Validate issuer, audience, expiry, applicable
+          not-before, token type and permitted actor or scopes. Do not follow an arbitrary token-provided key
+          URL.
+        hold: 0.7
+        visual_cues:
+          - id: sr-verified-token-1
+            phrase: Access tokens may be signed JWTs or opaque tokens with an issuer-supported validation path
+            targets:
+              - sr-verified-token-mechanism
+            color: yellow
+            linger: 0.4
+          - id: sr-verified-token-keys
+            phrase: use trusted issuer keys and an algorithm allow-list
+            targets:
+              - sr-verified-token-mechanism
+            color: yellow
+            linger: 0.4
+          - id: sr-verified-token-claims
+            phrase: Validate issuer, audience, expiry, applicable not-before, token type and permitted actor or scopes
+            targets:
+              - sr-verified-token-mechanism
+            color: yellow
+            linger: 0.4
+      - say: The verified identity still needs mapping into current application policy. A signature establishes
+          integrity under the accepted key, not current membership, permission to every document or
+          correctness of a runbook. A valid credential can therefore reach a denied read.
+        hold: 0.7
+        visual_cues:
+          - id: sr-verified-token-2
+            phrase: The verified identity still needs mapping into current application policy
+            targets:
+              - sr-verified-token-mechanism
+            color: green
+            linger: 0.4
+          - id: sr-verified-token-denied
+            phrase: A valid credential can therefore reach a denied read
+            targets:
+              - sr-verified-token-mechanism
+            color: green
+            linger: 0.4
+  - id: directory-identity
+    title: Resolve omitted groups without granting them
+    visual: Issuer-qualified subjects and Entra tenant/object identities map to server policy; a group-overage
+      indicator routes to a trusted directory lookup or a denied dependent read.
+    beats:
+      - say: Interpret subject IDs within their issuer contract. Entra’s subject is application-specific; its tenant
+          and object-ID pair supports cross-application directory identity. Its tenant claim is
+          provider-specific, so verify the accepted tenant and data-partition mapping.
+        hold: 0.7
+        visual_cues:
+          - id: sr-directory-identity-0
+            phrase: Interpret subject IDs within their issuer contract
+            targets:
+              - sr-directory-identity-mechanism
+            color: cyan
+            linger: 0.4
+          - id: sr-directory-identity-pair
+            phrase: its tenant and object-ID pair supports cross-application directory identity
+            targets:
+              - sr-directory-identity-mechanism
+            color: cyan
+            linger: 0.4
+      - say: Group and role claims also have provider-specific meaning. Entra can omit the group list and supply an
+          overage indicator. Resolve it through the documented trusted directory flow, or deny access that
+          depends on that membership. An absent group list does not mean unrestricted.
+        hold: 0.7
+        visual_cues:
+          - id: sr-directory-identity-1
+            phrase: Group and role claims also have provider-specific meaning
+            targets:
+              - sr-directory-identity-mechanism
+            color: yellow
+            linger: 0.4
+          - id: sr-directory-identity-overage
+            phrase: Entra can omit the group list and supply an overage indicator
+            targets:
+              - sr-directory-identity-mechanism
+            color: yellow
+            linger: 0.4
+          - id: sr-directory-identity-resolve
+            phrase: Resolve it through the documented trusted directory flow, or deny access that depends on that
+              membership
+            targets:
+              - sr-directory-identity-mechanism
+            color: yellow
+            linger: 0.4
+      - say: Revocation after token issuance can leave old membership claims inside an unexpired signed token. Apply
+          the selected live-policy or freshness check before returning text. Authentication and document
+          authorization remain separate decisions even when one identity library supplies both inputs.
+        hold: 0.7
+        visual_cues:
+          - id: sr-directory-identity-2
+            phrase: Revocation after token issuance can leave old membership claims inside an unexpired signed token
+            targets:
+              - sr-directory-identity-mechanism
+            color: green
+            linger: 0.4
+          - id: sr-directory-identity-revoked
+            phrase: Revocation after token issuance can leave old membership claims inside an unexpired signed token
+            targets:
+              - sr-directory-identity-mechanism
+            color: green
+            linger: 0.4
+  - id: task-hmac
+    title: Bind and consume one retrieval capability
+    visual: The actual structured HMAC payload owns tenant, user, query digest, audience, expiry and nonce; a
+      failed request leaves the nonce available, while the first valid one consumes it.
+    beats:
+      - say: This token is good for one retrieval request. One JSON payload binds the tenant, user, query
+          digest and intended service. It also carries an expiry time and a nonce, a value used once.
+          HMAC authenticates all six fields with a shared secret. It stands for hash-based message
+          authentication code. Each verifier holds the same secret and can issue tokens too.
+        hold: 0.7
+        visual_cues:
+          - id: sr-task-hmac-0
+            phrase: This token is good for one retrieval request
+            targets:
+              - sr-task-hmac-mechanism
+            color: cyan
+            linger: 0.4
+          - id: sr-task-hmac-fields
+            phrase: One JSON payload binds the tenant, user, query digest and intended service. It also carries an
+              expiry time and a nonce
+            targets:
+              - sr-task-hmac-mechanism
+            color: cyan
+            linger: 0.4
+          - id: sr-task-hmac-mac
+            phrase: HMAC authenticates all six fields with a shared secret
+            targets:
+              - sr-task-hmac-mechanism
+            color: cyan
+            linger: 0.4
+      - say: The verifier checks integrity, expiry and all request bindings before adding the nonce to its used set. A
+          wrong tenant, user, query or audience fails without consuming it. The first matching request before
+          expiry succeeds; replay and exact-expiry use fail.
+        hold: 0.7
+        visual_cues:
+          - id: sr-task-hmac-1
+            phrase: The verifier checks integrity, expiry and all request bindings before adding the nonce to its used set
+            targets:
+              - sr-task-hmac-mechanism
+            color: yellow
+            linger: 0.4
+          - id: sr-task-hmac-check
+            phrase: The verifier checks integrity, expiry and all request bindings before adding the nonce to its used set
+            targets:
+              - sr-task-hmac-mechanism
+            color: yellow
+            linger: 0.4
+          - id: sr-task-hmac-wrong
+            phrase: A wrong tenant, user, query or audience fails without consuming it
+            targets:
+              - sr-task-hmac-mechanism
+            color: yellow
+            linger: 0.4
+          - id: sr-task-hmac-first
+            phrase: The first matching request before expiry succeeds
+            targets:
+              - sr-task-hmac-mechanism
+            color: yellow
+            linger: 0.4
+          - id: sr-task-hmac-replay
+            phrase: replay and exact-expiry use fail
+            targets:
+              - sr-task-hmac-mechanism
+            color: yellow
+            linger: 0.4
+      - say: A distributed service needs atomic nonce consumption, durable expiry handling and authorized issuance. A
+          stolen bearer can win the first-use race. Even an accepted task token then reaches the document ACL
+          gate; it cannot grant the operations analyst security clearance.
+        hold: 0.7
+        visual_cues:
+          - id: sr-task-hmac-2
+            phrase: A distributed service needs atomic nonce consumption, durable expiry handling and authorized issuance
+            targets:
+              - sr-task-hmac-mechanism
+            color: green
+            linger: 0.4
+          - id: sr-task-hmac-acl
+            phrase: it cannot grant the operations analyst security clearance
+            targets:
+              - sr-task-hmac-mechanism
+            color: green
+            linger: 0.4
+  - id: jit-approval
+    title: Activate only the grant the task requires
+    visual: An exceptional approval changes an explicit source-policy grant; short credential duration and
+      ordinary retrieval approval remain separate controls.
+    beats:
+      - say: Zero standing privileges aims to avoid persistent elevated access. Just-in-time grants activate when
+          policy permits them. A short token lifetime alone does not achieve that if an agent can repeatedly
+          renew broad privileges.
+        hold: 0.7
+        visual_cues:
+          - id: sr-jit-approval-0
+            phrase: Zero standing privileges aims to avoid persistent elevated access
+            targets:
+              - sr-jit-approval-mechanism
+            color: cyan
+            linger: 0.4
+          - id: sr-jit-approval-renew
+            phrase: an agent can repeatedly renew broad privileges
+            targets:
+              - sr-jit-approval-mechanism
+            color: cyan
+            linger: 0.4
+      - say: A human gate is appropriate when policy requires exceptional access or approval for a high-risk action.
+          The article’s bulk threshold and approver examples are organizational choices, not universal
+          standards. Approval must establish the relevant grant before retrieval, while normal allowed reads
+          need no invented confirmation step.
+        hold: 0.7
+        visual_cues:
+          - id: sr-jit-approval-1
+            phrase: A human gate is appropriate when policy requires exceptional access or approval for a high-risk action
+            targets:
+              - sr-jit-approval-mechanism
+            color: yellow
+            linger: 0.4
+          - id: sr-jit-approval-grant
+            phrase: Approval must establish the relevant grant before retrieval
+            targets:
+              - sr-jit-approval-mechanism
+            color: yellow
+            linger: 0.4
+          - id: sr-jit-approval-ordinary
+            phrase: normal allowed reads need no invented confirmation step
+            targets:
+              - sr-jit-approval-mechanism
+            color: yellow
+            linger: 0.4
+  - id: draft-reauthorize
+    title: Recheck the complete context before sending
+    visual: A buffered draft cites only the FAQ while its complete manifest still carries the key source;
+      revocation invalidates the whole draft before any bytes leave.
+    beats:
+      - say: The send gate checks every source supplied to the draft, including uncited context. If the FAQ and key
+          runbook both entered generation, an FAQ-only citation does not prove the key source had no
+          influence.
+        hold: 0.7
+        visual_cues:
+          - id: sr-draft-reauthorize-0
+            phrase: The send gate checks every source supplied to the draft, including uncited context
+            targets:
+              - sr-draft-reauthorize-mechanism
+            color: cyan
+            linger: 0.4
+          - id: sr-draft-reauthorize-manifest
+            phrase: The send gate checks every source supplied to the draft, including uncited context
+            targets:
+              - sr-draft-reauthorize-mechanism
+            color: cyan
+            linger: 0.4
+      - say: Revoke the key grant after retrieval. The actual output helper rejects that draft even when its only
+          citation names the still-allowed FAQ. Discard the whole draft, retrieve current authorized evidence
+          and regenerate or refuse. Replacing the citation does not erase its copied facts.
+        hold: 0.7
+        visual_cues:
+          - id: sr-draft-reauthorize-1
+            phrase: Revoke the key grant after retrieval
+            targets:
+              - sr-draft-reauthorize-mechanism
+            color: yellow
+            linger: 0.4
+          - id: sr-draft-reauthorize-revoke
+            phrase: Revoke the key grant after retrieval
+            targets:
+              - sr-draft-reauthorize-mechanism
+            color: yellow
+            linger: 0.4
+          - id: sr-draft-reauthorize-deny
+            phrase: The actual output helper rejects that draft even when its only citation names the still-allowed FAQ
+            targets:
+              - sr-draft-reauthorize-mechanism
+            color: yellow
+            linger: 0.4
+          - id: sr-draft-reauthorize-repair
+            phrase: Discard the whole draft, retrieve current authorized evidence and regenerate or refuse
+            targets:
+              - sr-draft-reauthorize-mechanism
+            color: yellow
+            linger: 0.4
+      - say: A whole-answer gate requires buffering because already delivered tokens cannot be recalled. Even a
+          buffered answer has a final-check race; define the authorized policy snapshot and revocation
+          objective. The local helper takes a supplied allowed-ID set, so the caller must establish current
+          authorization through the trusted policy system.
+        hold: 0.7
+        visual_cues:
+          - id: sr-draft-reauthorize-2
+            phrase: A whole-answer gate requires buffering because already delivered tokens cannot be recalled
+            targets:
+              - sr-draft-reauthorize-mechanism
+            color: green
+            linger: 0.4
+          - id: sr-draft-reauthorize-buffer
+            phrase: already delivered tokens cannot be recalled
+            targets:
+              - sr-draft-reauthorize-mechanism
+            color: green
+            linger: 0.4
+  - id: output-checks
+    title: What does the output check catch?
+    visual: An email disappears from a buffered draft. Then one draft keeps its incorrect review time
+      through three citation checks. The source stays beside it while the number is corrected.
+    beats:
+      - say: >-
+          This draft contains an email address. Its FAQ passed the read check. Before release, the service
+          redacts the address and reads the draft's classification label. At clearance two, this reader
+          can receive confidential text at level two. A restricted draft at level three stays blocked.
+        hold: 0.7
+        visual_cues:
+          - id: output-address
+            phrase: "This draft contains an email address"
+            targets: [draft]
+          - id: output-redact
+            phrase: "redacts the address"
+            targets: [draft]
+          - id: output-clearance
+            phrase: "can receive confidential text at level two"
+            targets: [clearance]
+          - id: output-restricted
+            phrase: "A restricted draft at level three stays blocked"
+            targets: [clearance]
+      - say: >-
+          The FAQ says the review takes three days. The draft says ninety. With no citation, the checker
+          holds the draft. An ID outside the context also fails. Now attach the FAQ's own ID to the
+          same sentence. Will the citation check pass?
+        hold: 1.8
+        visual_cues:
+          - id: output-source
+            phrase: "The FAQ says the review takes three days"
+            targets: [source]
+          - id: output-missing
+            phrase: "the checker holds the draft"
+            targets: [draft, check]
+          - id: output-unknown
+            phrase: "An ID outside the context"
+            targets: [draft]
+          - id: output-invalid
+            phrase: "also fails"
+            targets: [check]
+          - id: output-faq
+            phrase: "attach the FAQ's own ID"
+            targets: [draft]
+          - id: output-question
+            phrase: "Will the citation check pass"
+            targets: [source, draft, check]
+      - say: >-
+          It passes. The FAQ was in the context. Compare the two durations. Change ninety days to three.
+          Test source support alongside privacy and clearance. Include drafts with credentials or
+          personal details, and cases where access changes before release. Check traces and evaluation
+          requests for copies of protected text.
+        hold: 0.7
+        visual_cues:
+          - id: output-pass
+            phrase: "It passes"
+            targets: [check]
+            caption_boundary: true
+          - id: output-compare
+            phrase: "Compare the two durations"
+            targets: [source, draft]
+          - id: output-correct
+            phrase: "change ninety days to three"
+            targets: [source, draft]
+          - id: output-test
+            phrase: "Test source support alongside privacy and clearance"
+            targets: [source, draft, check]
+  - id: destination-policy
+    title: Authorize the recipient and the protected effect
+    visual: The same allowed source reaches a draft, a junior recipient and a deployment request; independent
+      destination and action gates stop the latter two paths.
+    beats:
+      - say: A senior reader’s document permission does not authorize sending its summary to a junior colleague or
+          outside channel. Check the actual destination’s policy before export. Caches, reviewer datasets and
+          external evaluation judges are destinations too.
+        hold: 0.7
+        visual_cues:
+          - id: sr-destination-policy-0
+            phrase: A senior reader’s document permission does not authorize sending its summary to a junior colleague or
+              outside channel
+            targets:
+              - sr-destination-policy-mechanism
+            color: cyan
+            linger: 0.4
+          - id: sr-destination-policy-recipient
+            phrase: Check the actual destination’s policy before export
+            targets:
+              - sr-destination-policy-mechanism
+            color: cyan
+            linger: 0.4
+          - id: sr-destination-policy-other
+            phrase: Caches, reviewer datasets and external evaluation judges are destinations too
+            targets:
+              - sr-destination-policy-mechanism
+            color: cyan
+            linger: 0.4
+      - say: A signed, authorized document can contain unsafe or malicious instructions. Treat it as reference data.
+          Enforce requested operation, target, arguments, credentials, destinations and any required approval
+          outside the model. Delimiters help organize a prompt; they cannot authorize an upload or deployment.
+        hold: 0.7
+        visual_cues:
+          - id: sr-destination-policy-1
+            phrase: A signed, authorized document can contain unsafe or malicious instructions
+            targets:
+              - sr-destination-policy-mechanism
+            color: yellow
+            linger: 0.4
+          - id: sr-destination-policy-effect
+            phrase: Enforce requested operation, target, arguments, credentials, destinations and any required approval
+              outside the model
+            targets:
+              - sr-destination-policy-mechanism
+            color: yellow
+            linger: 0.4
+  - id: read-vs-action
+    title: Keep read permission separate from tool permission
+    visual: A permitted runbook reaches the model as evidence; a separate operation policy holds a deployment tool
+      until an action-specific grant exists.
+    beats:
+      - say: >
+          The analyst may read an operations runbook that describes a deployment command. The read grant
+          defines which text the assistant may see. Execution requires a separate action grant for the
+          requested command.
+        hold: 0.55
+        visual_cues:
+          - id: read-vs-action-b1-1
+            phrase: read grant
+            targets:
+              - read-grant
+            linger: 0.45
+      - say: >
+          A tool executor checks the authenticated principal, requested operation, target, arguments, and any
+          required approval. Keep that decision near the protected effect. The retrieval decision and
+          operation decision answer different questions.
+        hold: 0.7
+        visual_cues:
+          - id: read-vs-action-b2-1
+            phrase: operation, target, arguments
+            targets:
+              - operation-contract
+            linger: 0.45
+      - say: >
+          Output review can catch remaining disclosure risks, and prompt-injection defenses can reduce model
+          mistakes. These checks complement retrieval authorization. The data boundary still has to control
+          which protected passages enter context.
+        hold: 0.55
+        visual_cues:
+          - id: read-vs-action-b3-1
+            phrase: data boundary
+            targets:
+              - read-grant
+            linger: 0.45
+  - id: audit-receipt
+    title: Record the decision without copying the corpus
+    visual: The actual allow and block events append two restricted receipts; only the blocked request emits a
+      simulated alert, with no protected passage body.
+    beats:
+      - say: A useful receipt records authenticated tenant and principal, source and policy revisions, returned IDs,
+          decision reason, filter fingerprint, rewrite or cache context and redaction events. Keep denied
+          identifiers restricted as needed. Raw prompts, chunks and answers would create another sensitive
+          corpus.
+        hold: 0.7
+        visual_cues:
+          - id: sr-audit-receipt-0
+            phrase: A useful receipt records authenticated tenant and principal, source and policy revisions, returned
+              IDs, decision reason, filter fingerprint, rewrite or cache context and redaction events
+            targets:
+              - sr-audit-receipt-mechanism
+            color: cyan
+            linger: 0.4
+          - id: sr-audit-receipt-fields
+            phrase: A useful receipt records authenticated tenant and principal, source and policy revisions, returned
+              IDs, decision reason, filter fingerprint, rewrite or cache context and redaction events
+            targets:
+              - sr-audit-receipt-mechanism
+            color: cyan
+            linger: 0.4
+      - say: The first request was allowed. The second was blocked. Both decisions go in the audit log.
+          Look at the request ID on the simulated alert. It points back to the blocked request.
+          This rule would also alert on access to restricted material.
+        hold: 0.7
+        visual_cues:
+          - id: sr-audit-receipt-1
+            phrase: The first request was allowed
+            targets:
+              - sr-audit-receipt-mechanism
+            color: yellow
+            linger: 0.4
+          - id: sr-audit-receipt-two
+            phrase: The second was blocked
+            targets:
+              - sr-audit-receipt-mechanism
+            color: yellow
+            linger: 0.4
+          - id: sr-audit-receipt-alert
+            phrase: the request ID on the simulated alert
+            targets:
+              - sr-audit-receipt-mechanism
+            color: yellow
+            linger: 0.4
+      - say: Restrict audit readers, encrypt sensitive identifiers, enforce retention and prevent the application from
+          rewriting prior events where required. Predictable query hashes can be guessed; use keyed
+          correlation when needed. If durable audit is required before release, delivery failure needs an
+          explicit hold policy.
+        hold: 0.7
+        visual_cues:
+          - id: sr-audit-receipt-2
+            phrase: Restrict audit readers, encrypt sensitive identifiers, enforce retention and prevent the application
+              from rewriting prior events where required
+            targets:
+              - sr-audit-receipt-mechanism
+            color: green
+            linger: 0.4
+          - id: sr-audit-receipt-delivery
+            phrase: If durable audit is required before release, delivery failure needs an explicit hold policy
+            targets:
+              - sr-audit-receipt-mechanism
+            color: green
+            linger: 0.4
+  - id: threat-surfaces
+    title: Two claims in a proposed guide
+    visual: >-
+      A proposed guide changes a review desk's opening time and asks for a calendar edit. The trusted
+      schedule provides a fact to compare, and the calendar role determines whether anything can change.
+    beats:
+      - say: >-
+          Suppose the reviewed schedule says the desk opens at nine. A proposed incident guide gives eleven.
+          Adding the false time to the searchable collection would poison the evidence. The same page also
+          asks the assistant to change the calendar. An instruction reaching the assistant through retrieved
+          text is called indirect prompt injection. A single page can create both problems.
+        hold: 0.7
+        visual_cues:
+          - id: guide-hour
+            phrase: "A proposed incident guide gives eleven"
+            targets: [desk-hours]
+            linger: 0.35
+          - id: guide-poison
+            phrase: "poison the evidence"
+            targets: [desk-hours]
+            linger: 0.35
+          - id: guide-request
+            phrase: "asks the assistant to change the calendar"
+            targets: [calendar]
+            linger: 0.35
+      - say: >-
+          A valid author signature tells you who signed these bytes. A reviewer can still find the wrong
+          time. Even a reader who may open this guide needs separate authority to edit the calendar. Here
+          the assistant can read it. The calendar service holds the edit.
+        hold: 0.7
+        visual_cues:
+          - id: guide-signer
+            phrase: "A valid author signature tells you who signed these bytes"
+            targets: [desk-hours]
+            linger: 0.35
+          - id: guide-effect
+            phrase: "The calendar service holds the edit"
+            targets: [calendar]
+            caption_boundary: true
+            linger: 0.35
+      - say: >-
+          Quarantine this guide while you verify the account and the proposed change against the schedule.
+          Ingestion review and scanning govern which material enters search. Document grants govern who can
+          read it. The calendar service governs changes to the calendar. OWASP groups these risks into
+          categories. Their numbers identify the categories within an edition.
+        hold: 0.7
+        visual_cues:
+          - id: guide-quarantine
+            phrase: "Quarantine this guide while you verify the account"
+            targets: [desk-hours]
+            linger: 0.35
+  - id: embedding-risk
+    title: What can an embedding backup reveal?
+    visual: A backup holds vectors for individual passages. A bar shows the published exact-match rate for
+      short Wikipedia passages. A separate clinical-note result identifies what kind of detail survived.
+    beats:
+      - say: >-
+          This backup contains just the search vectors. Could it reveal the words on a page?
+          In one Vec2Text test, researchers studied GTR embeddings of thirty-two-token Wikipedia passages.
+          They counted word-for-word matches and divided by the number tested. Ninety-two percent matched
+          exactly. Longer passages matched less often.
+        hold: 0.7
+        visual_cues:
+          - id: embedding-backup
+            phrase: "This backup contains just the search vectors"
+            targets: [backup]
+          - id: embedding-study
+            phrase: "GTR embeddings of thirty-two-token Wikipedia passages"
+            targets: [study]
+          - id: embedding-fraction
+            phrase: "counted word-for-word matches and divided by the number tested"
+            targets: [study]
+          - id: embedding-rate
+            phrase: "Ninety-two percent matched exactly"
+            targets: [study]
+          - id: embedding-length
+            phrase: "Longer passages matched less often"
+            targets: [study]
+      - say: >-
+          In a separate test, researchers inserted made-up names into clinical notes. They recovered
+          some of those names from the embeddings. Restrict access to the live index, its backups and
+          vector exports. To assess exposure in your system, consider the encoder, passage length,
+          training data and who has access.
+        hold: 0.7
+        visual_cues:
+          - id: embedding-names
+            phrase: "inserted made-up names into clinical notes"
+            targets: [study]
+          - id: embedding-found
+            phrase: "recovered some of those names from the embeddings"
+            targets: [study]
+          - id: embedding-protect
+            phrase: "the live index, its backups and vector exports"
+            targets: [backup]
+  - id: regression-matrix
+    title: Inspect every route a copy can take
+    visual: One changed identity or policy field is replayed across actual returned text, reranking, judge,
+      prompt, cache, trace and response sinks while an irrelevant allowed record remains eligible.
+    beats:
+      - say: Test missing or forged tenant scope, expiry, deletion, stale memberships and policy-service failure.
+          Inspect returned text, reranker inputs, judge requests, prompt, cache, trace and response. A clean
+          response establishes only one of those surfaces.
+        hold: 0.7
+        visual_cues:
+          - id: sr-regression-matrix-0
+            phrase: Test missing or forged tenant scope, expiry, deletion, stale memberships and policy-service failure
+            targets:
+              - sr-regression-matrix-mechanism
+            color: cyan
+            linger: 0.4
+          - id: sr-regression-matrix-rows
+            phrase: Test missing or forged tenant scope, expiry, deletion, stale memberships and policy-service failure
+            targets:
+              - sr-regression-matrix-mechanism
+            color: cyan
+            linger: 0.4
+          - id: sr-regression-matrix-sinks
+            phrase: Inspect returned text, reranker inputs, judge requests, prompt, cache, trace and response
+            targets:
+              - sr-regression-matrix-mechanism
+            color: cyan
+            linger: 0.4
+      - say: "Also test an allowed but irrelevant record: it should pass eligibility and fail usefulness. Then let an
+          allowed source request an unauthorized upload and verify the action gate holds it. Measure
+          revocation delay and authorized-search recall separately, preserving the same protected passage
+          identity through each copy."
+        hold: 0.7
+        visual_cues:
+          - id: sr-regression-matrix-1
+            phrase: "Also test an allowed but irrelevant record: it should pass eligibility and fail usefulness"
+            targets:
+              - sr-regression-matrix-mechanism
+            color: yellow
+            linger: 0.4
+          - id: sr-regression-matrix-irrelevant
+            phrase: it should pass eligibility and fail usefulness
+            targets:
+              - sr-regression-matrix-mechanism
+            color: yellow
+            linger: 0.4
+          - id: sr-regression-matrix-upload
+            phrase: let an allowed source request an unauthorized upload and verify the action gate holds it
+            targets:
+              - sr-regression-matrix-mechanism
+            color: yellow
+            linger: 0.4
+  - id: transfer
+    title: Read the decision receipt
+    visual: >-
+      Three requests sit under the same tenant-qualified key source and revision. Adding security
+      membership changes the read receipt. Requesting a deployment produces a separate approval
+      decision.
+    beats:
+      - say: >-
+          Return to the signing-key question. Read the receipt for tenant A's runbook. It names the source,
+          version seven, and the read policy used for this request. The operations analyst has no matching
+          grant, so the service withholds the passage. The receipt gives a reviewer the reason without
+          copying the runbook into a log.
+        hold: 0.7
+        visual_cues:
+          - id: trace-source
+            phrase: "Read the receipt for tenant A's runbook"
+            targets: [case-source]
+            linger: 0.35
+          - id: trace-denied
+            phrase: "the service withholds the passage"
+            targets: [receipts]
+            linger: 0.35
+      - say: >-
+          Replay the read with the security membership we checked earlier. Same source revision. Same
+          policy. This time the runbook can enter the prompt. If a useful passage is missing, check the
+          decision for that source. A missing grant points to policy. An eligible passage beyond the scan
+          limit points to search.
+        hold: 0.7
+        visual_cues:
+          - id: trace-replay
+            phrase: "Replay the read with the security membership we checked earlier"
+            targets: [receipts]
+            linger: 0.35
+          - id: trace-allowed
+            phrase: "This time the runbook can enter the prompt"
+            targets: [receipts]
+            linger: 0.35
+      - say: >-
+          Keep that reader. Suppose the requested operation changes to a production deployment, which
+          requires an approval the reader lacks. The executor holds the deployment. The earlier receipt
+          still records a permitted read. Keep the source and revision with any buffered answer, because
+          policy can change between that read and the moment you send it.
+        hold: 0.8
+        visual_cues:
+          - id: trace-operation
+            phrase: "the requested operation changes to a production deployment"
+            targets: [receipts]
+            linger: 0.35
+          - id: trace-held
+            phrase: "The executor holds the deployment"
+            targets: [receipts]
+            linger: 0.35
+  - id: fresh-release
+    title: Which copy can leave?
+    visual: >-
+      Two old copies keep their complete input lists beside current source rows. A revision change and a
+      revoked grant block those copies. Two current sources form a replacement manifest. Comparing the
+      buffered reply with its source exposes one unsupported verb. The corrected quote can leave.
+    beats:
+      - say: >-
+          Our reader still belongs to operations and security. On the left are the live sources. Line them
+          up with two saved copies. The report used the checklist and the FAQ. The buffered draft saw the
+          FAQ and the key runbook. It cites only the key. Now the checklist moves to version two. The FAQ
+          loses its read grant. The key stays at version seven with its grant intact. The task token and
+          policy snapshot both pass. Which old copy may leave now?
+        hold: 2.3
+        visual_cues:
+          - id: sr-fresh-release-reader
+            phrase: "Our reader still belongs to operations and security"
+            targets: [live-records]
+            linger: 0.35
+          - id: sr-fresh-release-report
+            phrase: "The report used the checklist and the FAQ"
+            targets: [old-copies]
+            linger: 0.35
+          - id: sr-fresh-release-draft
+            phrase: "The buffered draft saw the FAQ and the key runbook"
+            targets: [old-copies]
+            linger: 0.35
+          - id: fresh-version
+            phrase: "the checklist moves to version two"
+            targets: [live-records]
+            linger: 0.35
+          - id: sr-fresh-release-changes
+            phrase: "The FAQ loses its read grant"
+            targets: [live-records]
+            linger: 0.35
+          - id: sr-fresh-release-token
+            phrase: "The task token and policy snapshot both pass"
+            targets: [live-records]
+            linger: 0.35
+          - id: fresh-question
+            phrase: "Which old copy may leave now"
+            targets: [live-records, old-copies]
+            linger: 0.35
+      - say: >-
+          Hold both copies. In the report column, the checklist revision is old and the FAQ grant is gone.
+          In the draft column, the key citation is valid. Look one row above it. That uncited FAQ was also
+          in the draft's context. Discard the draft. Editing the citation would leave the same words and the
+          same exposure.
+        hold: 0.8
+        visual_cues:
+          - id: sr-fresh-release-hold
+            phrase: "Hold both copies"
+            targets: [old-copies]
+            caption_boundary: true
+            linger: 0.35
+          - id: fresh-report-reason
+            phrase: "the checklist revision is old and the FAQ grant is gone"
+            targets: [live-records, old-copies]
+            linger: 0.35
+          - id: fresh-draft-reason
+            phrase: "That uncited FAQ was also in the draft's context"
+            targets: [live-records, old-copies]
+            linger: 0.35
+      - say: >-
+          Start again from the current sources. Copy checklist version two and key version seven into a new
+          report manifest. Both versions and both grants match. Admit the new report. Use those same two
+          sources for a new buffered draft addressed to this reader. We can test the send decision with one
+          fixed sentence.
+        hold: 0.75
+        visual_cues:
+          - id: sr-fresh-release-rebuild
+            phrase: "Copy checklist version two and key version seven into a new report manifest"
+            targets: [new-manifest]
+            linger: 0.35
+          - id: sr-fresh-release-report-admit
+            phrase: "Admit the new report"
+            targets: [new-manifest]
+            caption_boundary: true
+            linger: 0.35
+          - id: fresh-new-draft
+            phrase: "Use those same two sources for a new buffered draft"
+            targets: [new-manifest]
+            linger: 0.35
+      - say: >-
+          The example runbook says the security desk reviews rotation requests. Read the verb in the draft
+          below it. The draft cites the right runbook. Its context, privacy, clearance, and citation checks
+          pass. Would you send this sentence as written?
+        hold: 2.1
+        visual_cues:
+          - id: fresh-local-checks
+            phrase: "Its context, privacy, clearance, and citation checks pass"
+            targets: [quote-check]
+            linger: 0.35
+          - id: fresh-support-question
+            phrase: "Would you send this sentence as written"
+            targets: [quote-check]
+            linger: 0.35
+      - say: >-
+          Hold this draft. Approving a request promises an outcome. The passage only promises a review.
+          Change that one word to “reviews.” Now the two sentences match word for word. Send this reply
+          to the requesting reader. For a paraphrase, check the meaning against the source. The next lesson
+          takes up the shape that answer needs for software to use it.
+        hold: 0.9
+        visual_cues:
+          - id: fresh-mismatch
+            phrase: "Hold this draft"
+            targets: [quote-check]
+            caption_boundary: true
+            linger: 0.35
+          - id: fresh-correct
+            phrase: "Change that one word to “reviews.”"
+            targets: [quote-check]
+            linger: 0.35
+          - id: fresh-match
+            phrase: "Now the two sentences match word for word"
+            targets: [quote-check]
+            caption_boundary: true
+            linger: 0.35
+          - id: fresh-send
+            phrase: "Send this reply to the requesting reader"
+            targets: [quote-check]
+            caption_boundary: true
+            linger: 0.35

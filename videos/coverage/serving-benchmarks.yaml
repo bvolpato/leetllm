@@ -1,0 +1,176 @@
+version: 1
+lesson: serving-benchmarks
+promise: Decide which offered rate a benchmark supports by checking the arrival schedule, the client’s ordered events, every request outcome, and the stability and uncertainty rules.
+framing: []
+objectives:
+  - id: load
+    can: Freeze the workload, choose the arrival clock for a capacity test, and detect when a client cap or a late send changes the offered load.
+    scenes:
+      - intro
+      - workload-freeze
+      - arrival-schedule
+      - generator-clock
+      - rate-and-concurrency
+      - arrival-families
+      - run-window
+  - id: events
+    can: Identify which client events support token and chunk timing, including the one-token case.
+    scenes:
+      - stream-timing
+      - single-token
+      - chunk-boundaries
+      - adapter-contract
+  - id: read-deadlines-by-token
+    can: Match each observed token to its own playback deadline, identify the first miss and its duration, and explain how earlier arrivals can cover a long gap.
+    scenes:
+      - stream-timing
+      - playback-deadlines
+  - id: account
+    can: Retain failures through drain, calculate attainment and useful completions per second, and interpret the scorer’s exit code.
+    scenes:
+      - request-denominator
+      - scorer-contract
+      - scorer-repair
+      - goodput-capacity
+      - wrap
+      - fresh-receipt
+  - id: capacity
+    can: Choose the highest tested rate that meets the lag, backlog and attainment rules, then use its uncertainty and quality evidence to justify a conditional replica budget.
+    scenes:
+      - capacity-sweep
+      - replica-budget
+      - percentile-populations
+      - uncertainty-and-quality
+      - confidence-selection
+      - quality-provenance
+      - fresh-receipt
+sections:
+  - heading: Freeze what arrives and when
+    status: taught
+    scenes:
+      - workload-freeze
+  - heading: Don't let a slow server turn down its own test
+    status: taught
+    scenes:
+      - intro
+      - arrival-schedule
+  - heading: Rate, concurrency, and burstiness aren't interchangeable
+    status: taught
+    scenes:
+      - rate-and-concurrency
+      - arrival-families
+  - heading: Measure the generator's lateness
+    status: taught
+    scenes:
+      - generator-clock
+      - adapter-contract
+  - heading: Give the run an arrival window and a drain policy
+    status: taught
+    scenes:
+      - run-window
+      - request-denominator
+  - heading: Time what the protocol actually reveals
+    status: taught
+    scenes:
+      - stream-timing
+      - single-token
+  - heading: A streaming chunk isn't necessarily a token
+    status: taught
+    scenes:
+      - chunk-boundaries
+      - adapter-contract
+  - heading: Smoothness needs the order of events
+    status: taught
+    scenes:
+      - stream-timing
+      - playback-deadlines
+  - heading: Keep the denominator visible
+    status: taught
+    scenes:
+      - request-denominator
+      - goodput-capacity
+      - wrap
+      - fresh-receipt
+  - heading: Run a strict local scorer
+    status: taught
+    scenes:
+      - scorer-contract
+      - scorer-repair
+  - heading: Find a boundary without overstating the evidence
+    status: taught
+    scenes:
+      - capacity-sweep
+      - replica-budget
+  - heading: A percentile needs a population and enough observations
+    status: taught
+    scenes:
+      - percentile-populations
+      - confidence-selection
+  - heading: What does 190 of 200 actually support?
+    status: taught
+    scenes:
+      - uncertainty-and-quality
+      - confidence-selection
+  - heading: Join performance and quality before release
+    status: taught
+    scenes:
+      - quality-provenance
+      - wrap
+      - fresh-receipt
+quiz:
+  - n: 1
+    status: taught
+    scenes:
+      - stream-timing
+  - n: 2
+    status: taught
+    scenes:
+      - request-denominator
+      - fresh-receipt
+  - n: 3
+    status: taught
+    scenes:
+      - chunk-boundaries
+      - adapter-contract
+  - n: 4
+    status: taught
+    scenes:
+      - generator-clock
+  - n: 5
+    status: taught
+    scenes:
+      - scorer-repair
+  - n: 6
+    status: taught
+    scenes:
+      - capacity-sweep
+  - n: 7
+    status: taught
+    scenes:
+      - confidence-selection
+  - n: 8
+    status: taught
+    scenes:
+      - percentile-populations
+  - n: 9
+    status: taught
+    scenes:
+      - replica-budget
+  - n: 10
+    status: taught
+    scenes:
+      - quality-provenance
+reviews:
+  closed_book:
+    script: 1ba576028f4a3e0d
+    taught: 10
+    partial: 0
+    absent: 0
+    reviewer: /root/upgrade_shard5
+    evidence: build/video-delivery-20261106/script-reviews/serving-benchmarks.json
+  fact_check:
+    script: 1ba576028f4a3e0d
+    open_findings: 0
+    reviewer: /root/upgrade_shard5
+    evidence: build/video-delivery-20261106/script-reviews/serving-benchmarks.json
+removed: []

@@ -1,0 +1,909 @@
+[
+  {
+    "id": "c01",
+    "title": "At the access desk",
+    "sourceChapters": [
+      "c01"
+    ],
+    "beats": [
+      {
+        "id": "c01-b01",
+        "say": "Two calls come in. Listen to the first caller. “I’m asking again. Where’s the key rotation guide?” The next caller says, “Could you restore my key during the freeze?” You have a documentation line and a human desk. Which caller needs the human desk?",
+        "hold": 3.2
+      },
+      {
+        "id": "c01-b02",
+        "say": "Send the freeze request to a person. A specialist has to review an exception before anyone can restore the key. The frustrated caller wants a document. Connect that caller to the guarded agent, where the key rotation guide is within reach.",
+        "hold": 1.2
+      },
+      {
+        "id": "c01-b03",
+        "say": "Look at the access setting. The key is still disabled. Routing handed each call to someone who can handle it. We’ll train a classifier for that choice, count the exceptions it misses and see how many routine calls it sends to people.",
+        "hold": 1.2
+      }
+    ]
+  },
+  {
+    "id": "c02",
+    "title": "What should the classifier learn from these tickets?",
+    "sourceChapters": [
+      "c02"
+    ],
+    "beats": [
+      {
+        "id": "c02-b01",
+        "say": "Give the same two tickets to two reviewers. Each works alone with the same label guide. A one means someone must review the ticket now. A zero sends it to the guarded agent. In this example, the reviewers agree on the freeze request.",
+        "hold": 0.3
+      },
+      {
+        "id": "c02-b02",
+        "say": "One reviewer heard the frustration in the guide request and marked one. The other marked zero. Compare their two forms. On how many tickets do their marks agree?",
+        "hold": 3.1
+      },
+      {
+        "id": "c02-b03",
+        "say": "One of the two tickets got matching labels. Keep both original marks. For the guide question, ask support operations what in the request would require an exception. The writer wants a document. The reviewed label is zero. Save the reason and the label guide version so future reviewers can apply the same distinction.",
+        "hold": 1
+      },
+      {
+        "id": "c02-b04",
+        "say": "Use those same labels and ticket texts for every candidate. Next, decide which accounts to keep for evaluation. An earlier message from the same account could give a model a preview of the incident, even if the wording changed.",
+        "hold": 0.8
+      }
+    ]
+  },
+  {
+    "id": "c03",
+    "title": "Keep an account’s history on one side of the boundary",
+    "sourceChapters": [
+      "c03"
+    ],
+    "beats": [
+      {
+        "id": "c03-b01",
+        "say": "The article’s eight-row manifest gives four training tickets to Acme and North in months one and two. Summit’s two validation tickets arrive in month three, and Harbor’s two test tickets in month four.",
+        "hold": 0.3
+      },
+      {
+        "id": "c03-b02",
+        "say": "Account sets are disjoint, ticket IDs are unique, and the latest training month precedes the earliest validation month. The same check separates validation from test.",
+        "hold": 0.7
+      },
+      {
+        "id": "c03-b03",
+        "say": "Now construct a failure: account Delta has one January ticket and one April ticket, and April is reserved for later unseen accounts. A date-only split would place Delta on both sides. Reserve the evaluation account as a group and exclude its earlier ticket from training.",
+        "hold": 0.3
+      },
+      {
+        "id": "c03-b04",
+        "say": "The dates tell us when a ticket arrived. The account name tells us whether we have seen this customer before. Check both before calling April an evaluation on new accounts.",
+        "hold": 0.7
+      },
+      {
+        "id": "c03-b05",
+        "say": "Freeze the normalized text, account identity, timestamps and label version for every candidate. Use development data for features and checkpoints. Choose the threshold on a separate selection set, then open the untouched gate. Check for copied messages and shared incidents across accounts.",
+        "hold": 0.3
+      },
+      {
+        "id": "c03-b06",
+        "say": "Also check when the labels became available and which future accounts these tickets represent.",
+        "hold": 0.7
+      }
+    ]
+  },
+  {
+    "id": "c04",
+    "title": "A phrase rule reads two freeze requests",
+    "sourceChapters": [
+      "c04"
+    ],
+    "beats": [
+      {
+        "id": "c04-b01",
+        "say": "Start with a cheap rule. It looks for the exact phrase key disabled, along with two other phrases. Take the first freeze ticket. Its words key and disabled touch. On the next freeze ticket there’s one extra word between them. Will that ticket reach a person under this rule?",
+        "hold": 3.1
+      },
+      {
+        "id": "c04-b02",
+        "say": "The rule misses the second freeze ticket. The word was breaks the exact match. Across all four examples it catches one of the two requests that needed a person. Try fitting a model before moving to a larger encoder.",
+        "hold": 1
+      },
+      {
+        "id": "c04-b03",
+        "say": "Fit a logistic regression on word and two-word TF-IDF features from six training tickets. Learn the vocabulary and the word weights from training only. Then predict on the same four held-out strings. Both freeze requests reach review. Both routine requests go to the agent. The held-out wording closely resembles training, so this checks the implementation.",
+        "hold": 1
+      },
+      {
+        "id": "c04-b04",
+        "say": "Keep this baseline. A pair of words can carry some order. A contextual encoder can use more of the sentence. Test both on negated requests, later accounts and the same label guide. Measure their latency, cost and review load.",
+        "hold": 0.3
+      },
+      {
+        "id": "c04-b05",
+        "say": "Imagine sending all four to review. Both freeze requests would arrive, but both routine requests would consume a person’s time. Keep that second count.",
+        "hold": 1
+      }
+    ]
+  },
+  {
+    "id": "c05",
+    "title": "Follow text into a decision score",
+    "sourceChapters": [
+      "c05"
+    ],
+    "beats": [
+      {
+        "id": "c05-b01",
+        "say": "Look up key and disabled in a tiny embedding table. Their vectors are two, zero and zero, two. Add the live rows and divide by two. That mean, one, one, is the representation the head reads. Each class has its own weight row and bias. The two resulting numbers are logits. Softmax converts them into scores. A separate cutoff will turn the review score into a route.",
+        "hold": 0.75
+      },
+      {
+        "id": "c05-b02",
+        "say": "Averaging loses word order: swapping these tokens leaves the pooled representation unchanged. Contextual encoders can represent broader relationships, but their advantage still needs measurement on the same task. Keep a fitted word-feature baseline in the comparison before assuming a pretrained model is the winner.",
+        "hold": 0.85
+      }
+    ]
+  },
+  {
+    "id": "c06",
+    "title": "Normalize the logits and retain the positive-class index",
+    "sourceChapters": [
+      "c06"
+    ],
+    "beats": [
+      {
+        "id": "c06-b01",
+        "say": "The linear head computes one logit per class by multiplying each weight row by the pooled vector, summing its feature contributions and adding that class’s bias. Class zero means guarded agent and class one means immediate human review.",
+        "hold": 0.3
+      },
+      {
+        "id": "c06-b02",
+        "say": "Subtract the larger logit from both entries. Its shifted value is zero, so its exponential is one. Exponentiate the other shifted logit and add both terms. Divide each term by that same sum. Subtracting the maximum preserves the score ratio and keeps a large positive logit from overflowing the exponential.",
+        "hold": 0.7
+      },
+      {
+        "id": "c06-b03",
+        "say": "For the article’s supplied logits minus one and two, the human-review score is about point nine five. Logits one and minus one give about point one two. On each ticket, the two class scores sum to one. Calling them probabilities requires held-out calibration evidence.",
+        "hold": 0.3
+      },
+      {
+        "id": "c06-b04",
+        "say": "The winning score can belong to the routine class. Read column one to get the score for human review.",
+        "hold": 0.7
+      },
+      {
+        "id": "c06-b05",
+        "say": "Return to our two words, key and disabled. Their pooled vector is one, one and their logits are two, one. The review score is about point two six nine. Reversing the words keeps that mean fixed. The router will apply its cutoff to the same review column in either order.",
+        "hold": 0.7
+      }
+    ]
+  },
+  {
+    "id": "c07",
+    "title": "Let the reviewed label shape the score",
+    "sourceChapters": [
+      "c07"
+    ],
+    "beats": [
+      {
+        "id": "c07-b01",
+        "say": "This freeze ticket has reviewed label one. The current head gives that class about point two six nine. Cross-entropy charges minus the natural log of that score, about one point three one three. What happens to the loss if we increase the correct class score?",
+        "hold": 3.1
+      },
+      {
+        "id": "c07-b02",
+        "say": "For each one, subtract the target indicator from its softmax score, then subtract the learning rate times that difference from the logit. Watch the urgent score climb as the loss falls. Next we’ll trace that same error into the parameters that produced the logits.",
+        "hold": 0.75
+      },
+      {
+        "id": "c07-b03",
+        "say": "In a full encoder training loop, gradients can also update the representation. A pretrained candidate starts with learned features and adapts them to the label guide. Saving its weights still requires the tokenizer, architecture and label mapping so a reload computes the same task.",
+        "hold": 0.85
+      }
+    ]
+  },
+  {
+    "id": "c08",
+    "title": "Which token vectors move on one training step?",
+    "sourceChapters": [
+      "c08"
+    ],
+    "beats": [
+      {
+        "id": "c08-b01",
+        "say": "Rewind the two-word example to its original weights. Both word vectors are trainable. We use unweighted softmax cross-entropy for this one ticket. The target is human review. The logits are two and one, so the model gives the correct class about point two six nine.",
+        "hold": 0.3
+      },
+      {
+        "id": "c08-b02",
+        "say": "Taking minus the natural log of that score gives a loss of about one point three one three. Subtract the target from the two scores. To find what reaches the pooled vector, multiply that pair by the transpose of the original head weights.",
+        "hold": 0.95
+      },
+      {
+        "id": "c08-b03",
+        "say": "The first coordinate receives about point seven three one. The second feeds both logits with equal weights, so the two signed contributions cancel. The forward mean divided by two live words. Follow the signal back. What share belongs to each word, and what share belongs to padding?",
+        "hold": 3.1
+      },
+      {
+        "id": "c08-b04",
+        "say": "Each live word gets half. Look at the two equal branches. Each carries about point three six six in the first coordinate and zero in the second. Padding and the unused word get zero. Take one step at a learning rate of point one. Subtract the scaled gradient. Key moves to about one point nine six three, zero. Disabled moves to about minus point zero three seven, two.",
+        "hold": 1.15
+      },
+      {
+        "id": "c08-b05",
+        "say": "Compare two runs from the same starting point. Give both the same updated head and bias. Freeze the token vectors in the first run. Its pooled vector stays at one, one, and the new review score is about point three six three. Keep that frozen result for comparison.",
+        "hold": 0.3
+      },
+      {
+        "id": "c08-b06",
+        "say": "Let the word vectors move in the other run. The shift in their mean raises its score a little further, to about point three seven zero. Next we’ll train eight-dimensional vectors on six whole tickets.",
+        "hold": 1.15
+      }
+    ]
+  },
+  {
+    "id": "c09",
+    "title": "Execute the complete small training path",
+    "sourceChapters": [
+      "c09"
+    ],
+    "beats": [
+      {
+        "id": "c09-b01",
+        "say": "Now use the actual article program. Seed seven initializes a vocabulary with padding and unknown IDs, eight-dimensional word embeddings, and a two-output linear head. The final training row, show access policy, has three live tokens and padding to the batch width.",
+        "hold": 0.3
+      },
+      {
+        "id": "c09-b02",
+        "say": "Multiply by the nonpadding mask, sum the live vectors and divide by their live count. Padding must not dilute the mean.",
+        "hold": 0.7
+      },
+      {
+        "id": "c09-b03",
+        "say": "The program uses cross-entropy on unnormalized logits and Adam at learning rate point zero five for eighty updates. Each update clears gradients, runs backward and changes parameters.",
+        "hold": 0.3
+      },
+      {
+        "id": "c09-b04",
+        "say": "Embedding rows used by this training batch can receive signal; absent vocabulary rows have no path through it, and the designated padding row stays fixed. The actual run decreases loss and changes the head, producing a six-by-two logit array.",
+        "hold": 0.7
+      },
+      {
+        "id": "c09-b05",
+        "say": "The tiny encoder catches both urgent tickets and sends both routine tickets to the agent. All four use wording close to the training examples. Reloading the saved weights with the same vocabulary and architecture reproduces the logits in this CPU run.",
+        "hold": 0.3
+      },
+      {
+        "id": "c09-b06",
+        "say": "Swapping token order still gives the same scores. Later we’ll try both fitted models on six different tickets.",
+        "hold": 0.7
+      }
+    ]
+  },
+  {
+    "id": "c10",
+    "title": "Replace the representation while keeping the task",
+    "sourceChapters": [
+      "c10"
+    ],
+    "beats": [
+      {
+        "id": "c10-b01",
+        "say": "Now start with an encoder that already knows relationships between words. This DistilBERT checkpoint has six transformer layers and supports five hundred twelve positions. Its classification head selects the first token’s contextual vector, passes it through a dense layer, ReLU and dropout, then produces the two class logits.",
+        "hold": 0.7
+      },
+      {
+        "id": "c10-b02",
+        "say": "In DistilBERT, a word can draw on words before and after it. A causal decoder’s final input token can also see the preceding ticket and summarize it for classification. Full encoder fine-tuning permits gradients to change the pretrained representation. Freeze the encoder and only the head learns, just as in our two-word example.",
+        "hold": 0.7
+      },
+      {
+        "id": "c10-b03",
+        "say": "DeBERTa version three is another candidate. It uses disentangled attention, replaced-token detection and gradient-disentangled embedding sharing in pretraining. For this project we’ll use the DistilBERT recipe. To compare it with the two models we trained on the CPU, fit it on reviewed tickets and score it on the same gate.",
+        "hold": 0.7
+      }
+    ]
+  },
+  {
+    "id": "c11",
+    "title": "Reject data coercion and lost evidence before training",
+    "sourceChapters": [
+      "c11"
+    ],
+    "beats": [
+      {
+        "id": "c11-b01",
+        "say": "Read the original JSON lines before loading them into a training library. Each ticket needs text, a unique trimmed ID and an integer label of zero or one. Reject a Boolean such as true before the library turns it into a one.",
+        "hold": 0.3
+      },
+      {
+        "id": "c11-b02",
+        "say": "Check for repeated IDs and for repeated text after normalizing case and spaces. Both training and checkpoint development need examples of both classes. Check account separation and dates in the split manifest.",
+        "hold": 0.7
+      },
+      {
+        "id": "c11-b03",
+        "say": "Before fitting, use the pinned tokenizer to count the entire stripped ticket. Two hundred fifty-four content tokens plus two special tokens fit the limit exactly. The model has more positions, but our input policy allows two hundred fifty-six. The training batch pads admitted rows as needed.",
+        "hold": 0.3
+      },
+      {
+        "id": "c11-b04",
+        "say": "Append the word exception to the log. That makes two hundred fifty-seven tokens. The validator raises a value error and stops dataset preparation before fitting. Cutting from the right would lose the exception. Cutting from the left could lose the key’s identity. At serving time, the same oversized ticket goes to a person in full, before the model scores it.",
+        "hold": 0.7
+      },
+      {
+        "id": "c11-b05",
+        "say": "Training tickets supply gradient updates. Development tickets select the checkpoint. Set aside separate tickets for threshold selection and the final gate. The recipe sets the seed before creating the new head. Save the tokenizer, label mapping and length rule with the weights so the scorer reads tickets the same way.",
+        "hold": 0.7
+      }
+    ]
+  },
+  {
+    "id": "c12",
+    "title": "A selected checkpoint still needs a routing policy",
+    "sourceChapters": [
+      "c12"
+    ],
+    "beats": [
+      {
+        "id": "c12-b01",
+        "say": "Start with three epochs, batches of sixteen and a learning rate of two times ten to the minus five. Save each epoch and restore the checkpoint with minimum development loss. Record its path. The recall shown during training uses the winning class.",
+        "hold": 0.3
+      },
+      {
+        "id": "c12-b02",
+        "say": "A checkpoint can win on development loss and still send the wrong calls to people. Training recall used the winning class. At serving time we will use a fixed cutoff on column one. Evaluate the two rules separately.",
+        "hold": 0.7
+      },
+      {
+        "id": "c12-b03",
+        "say": "Preserve the project lock, Python version and resolved package versions. The article’s Trainer recipe uses Transformers five point seventeen. Run it from the saved lock. If the project and lock disagree, the locked command stops.",
+        "hold": 0.3
+      },
+      {
+        "id": "c12-b04",
+        "say": "Give the checkpoints and model export a new versioned directory. The recipe stops if that run directory already exists, so the previous experiment keeps its files.",
+        "hold": 0.7
+      },
+      {
+        "id": "c12-b05",
+        "say": "The saved export joins model and tokenizer with the label mapping, length rule, input policy and package versions. Record the base revision, selected checkpoint, seed and development-file hashes. A revision identifies a source snapshot. File digests identify the bytes to reload.",
+        "hold": 0.3
+      },
+      {
+        "id": "c12-b06",
+        "say": "Keep the approved manifest and those bytes outside the scorer’s write access. Keep the training and evaluation records with them so you can trace the run.",
+        "hold": 0.7
+      }
+    ]
+  },
+  {
+    "id": "c13",
+    "title": "Verify the whole export before selecting score column one",
+    "sourceChapters": [
+      "c13"
+    ],
+    "beats": [
+      {
+        "id": "c13-b01",
+        "say": "The local scorer requires this recipe’s complete flat export, including configuration, safetensors weights and tokenizer JSON. It rejects path separators, malformed digests, symbolic links, extra or missing files, then compares every retained digest. A sharded model would need a different inventory contract.",
+        "hold": 0.3
+      },
+      {
+        "id": "c13-b02",
+        "say": "Files must remain fixed through verification and use; sequential hash checks do not stop a concurrent writer.",
+        "hold": 0.7
+      },
+      {
+        "id": "c13-b03",
+        "say": "Reload locally and verify two labels with guarded agent at zero and human review at one. Run evaluation mode and inference mode, and take the softmax score at column one.",
+        "hold": 0.3
+      },
+      {
+        "id": "c13-b04",
+        "say": "If a generic pipeline returns point eight eight confidence for routine, the human-review score is point one two in a two-class case. Treating the winning confidence as urgent would reverse the policy input.",
+        "hold": 0.7
+      },
+      {
+        "id": "c13-b05",
+        "say": "The scorer reads evaluator-owned fixture IDs and text, counts the full input length, and writes one ID and review score per ticket. In a separate metadata file it writes the fixture and manifest digests, input policy and library versions. The evaluator keeps the approved manifest independently. The scorer can read that reference.",
+        "hold": 0.3
+      },
+      {
+        "id": "c13-b06",
+        "say": "If the worker could replace both an export and its manifest, the two could still agree. The evaluator needs a reference outside the worker’s write access. Even a matching digest in editable metadata leaves a question. Which model actually ran?",
+        "hold": 0.7
+      }
+    ]
+  },
+  {
+    "id": "c14",
+    "title": "Which tickets switch queues?",
+    "sourceChapters": [
+      "c14"
+    ],
+    "beats": [
+      {
+        "id": "c14-b01",
+        "say": "Return to the access desk. Suppose the freeze exception gets a review score of point four two. In this two-ticket example, the angry guide question scores a little higher, at point four four. The reviewed labels are beside the tickets.",
+        "hold": 0.3
+      },
+      {
+        "id": "c14-b02",
+        "say": "At a cutoff of one half, both go to the guarded agent. The freeze request was missed.",
+        "hold": 1.1
+      },
+      {
+        "id": "c14-b03",
+        "say": "A score at or above the cutoff sends a ticket to a person. Suppose we lower the cutoff to point three five. Which tickets would enter review? Would both belong there?",
+        "hold": 3.1
+      },
+      {
+        "id": "c14-b04",
+        "say": "Move the line down from one half. It reaches point four four first. The guide question enters review, using an extra slot. The freeze request still waits. Move to point four two. The freeze request enters review too. Continue to point three five. Did either score change?",
+        "hold": 3.1
+      },
+      {
+        "id": "c14-b05",
+        "say": "We caught the exception and added one routine ticket to the human queue. Both scores stayed fixed. Sending everything to a person would catch every exception here, but it would leave people doing all the intake.",
+        "hold": 1.3
+      }
+    ]
+  },
+  {
+    "id": "c15",
+    "title": "Which cutoff can the review queue afford?",
+    "sourceChapters": [
+      "c15"
+    ],
+    "beats": [
+      {
+        "id": "c15-b01",
+        "say": "Now open the six-ticket selection set. These are hand-authored scores. Here the angry guide question scores point seven one. At point three five, all three required cases reach a person, and so does that guide question. That’s one extra review. Keep your eye on those two rows as we try the next cutoff.",
+        "hold": 0.85
+      },
+      {
+        "id": "c15-b02",
+        "say": "Raise the cutoff to one half. The freeze request drops out. The guide question stays in review because its score still clears the line. Raise the cutoff again to point seven five. Now the takeover case drops out too, along with the guide question.",
+        "hold": 0.3
+      },
+      {
+        "id": "c15-b03",
+        "say": "At point seven five, only the override remains in review. The queue saves one routine review and misses a second required case.",
+        "hold": 1.15
+      },
+      {
+        "id": "c15-b04",
+        "say": "Look back across all three cutoffs. If we must catch every required case here and can afford one extra review, which cutoff would you take to an independent gate?",
+        "hold": 3.1
+      },
+      {
+        "id": "c15-b05",
+        "say": "Take point three five. It’s the only candidate shown that meets both limits. Freeze that choice with the model. Choosing a cutoff used these six labels, so we need different tickets to evaluate it.",
+        "hold": 1.1
+      },
+      {
+        "id": "c15-b06",
+        "say": "What if we knew the chance that a ticket really needs a person? Here’s a separate cost calculation. Suppose a needless review costs two units, a missed escalation costs six, and a correct decision costs zero. Call the calibrated chance of escalation p.",
+        "hold": 0.3
+      },
+      {
+        "id": "c15-b07",
+        "say": "Reviewing costs two times the chance the ticket is routine. Passing it to the agent costs six times the chance it’s urgent.",
+        "hold": 1
+      },
+      {
+        "id": "c15-b08",
+        "say": "Find where the lines meet. Two times one minus p equals six times p. That gives p equal to one quarter. In general, divide the cost of an extra review by the sum of the two mistake costs. Try a ticket with a thirty percent chance. Which lane costs less on average?",
+        "hold": 3.1
+      },
+      {
+        "id": "c15-b09",
+        "say": "Choose human review. Its expected cost is one point four units, against one point eight for the guarded agent. That calculation assumes constant costs and calibrated probabilities. Our six selection scores came with labels and a queue limit. We chose their cutoff by counting the actual routing errors on those examples.",
+        "hold": 1.1
+      }
+    ]
+  },
+  {
+    "id": "c16",
+    "title": "What does the frozen gate establish?",
+    "sourceChapters": [
+      "c16"
+    ],
+    "beats": [
+      {
+        "id": "c16-b01",
+        "say": "Set the selection tickets aside. These six new tickets belong to the evaluator. The three urgent ones cover an override, a freeze and a takeover. The review queue can absorb one extra routine ticket, and every required case must reach a person. The scores in this exercise are supplied to test the evaluator.",
+        "hold": 0.9
+      },
+      {
+        "id": "c16-b02",
+        "say": "Compare two bundles whose cutoffs were declared in advance. Version one uses one half. Find the freeze-window ticket at point four one. It falls short, so version one is held. Keep that result on the record.",
+        "hold": 1
+      },
+      {
+        "id": "c16-b03",
+        "say": "Apply version two at point three five to the same supplied scores. The freeze ticket now goes to review. One routine rotation ticket also reaches a person. With zero required misses and one extra review, this receipt passes the arithmetic gate. Its return value is eligible for shadow.",
+        "hold": 1.25
+      },
+      {
+        "id": "c16-b04",
+        "say": "For an actual shadow run, the team still needs scores from the retained model, adequate coverage of each required slice, and approval to handle the data. If someone uses these gate labels to tune the cutoff, save them as development evidence and collect new independent tickets.",
+        "hold": 0.3
+      },
+      {
+        "id": "c16-b05",
+        "say": "Check for shared accounts, incidents and copied text even when the ticket IDs differ.",
+        "hold": 1
+      }
+    ]
+  },
+  {
+    "id": "c17",
+    "title": "The evaluator owns labels, slices and policy",
+    "sourceChapters": [
+      "c17"
+    ],
+    "beats": [
+      {
+        "id": "c17-b01",
+        "say": "A scoring worker may submit only a fixture ID and its score. The evaluator keeps the ticket text, gold label, required slice and trusted bundle threshold. Require a complete exact inventory: no missing ticket, easy extra or duplicate. Pin dataset, label guide, split manifest, model, selection set and gate-policy identity before calculating results.",
+        "hold": 0.7
+      },
+      {
+        "id": "c17-b02",
+        "say": "The actual article program holds missing takeover evidence, an extra easy-status row, a repeated status row, dataset drift and a changed submitted threshold. It rejects added gold and slice fields before calculating any metric.",
+        "hold": 0.3
+      },
+      {
+        "id": "c17-b03",
+        "say": "Scores must be numeric but not Boolean and lie in the inclusive unit interval; NaN, infinity, numeric-looking strings and missing values fail this contract.",
+        "hold": 0.7
+      },
+      {
+        "id": "c17-b04",
+        "say": "Start with the valid six-row fixture at point three five. Now give every routine case a score of point eight in a capacity test. All three routine lines now ring, and the desk has room for one. The three required lines still ring. The candidate is two routine reviews over budget.",
+        "hold": 0.7
+      }
+    ]
+  },
+  {
+    "id": "c18",
+    "title": "Which part of the gate did we test?",
+    "sourceChapters": [
+      "c18"
+    ],
+    "beats": [
+      {
+        "id": "c18-b01",
+        "say": "Give the evaluator a known answer in a unit test. Use one for every required case and zero for every routine case. The arithmetic gate passes. Which model earned that result? These scores came from the answer key. This run tests counting and threshold logic. To judge a model, collect scores it actually produced from ticket text.",
+        "hold": 0.7
+      },
+      {
+        "id": "c18-b02",
+        "say": "The evaluator keeps its labels in a read-only mapping. That protects entries against updates through the mapping. To establish which model produced a score, verify the scoring process and check the model bytes against an independently trusted digest.",
+        "hold": 0.7
+      },
+      {
+        "id": "c18-b03",
+        "say": "Use an evaluator-owned execution harness to load the approved fixed export, score the owned ticket text and bind the outputs to that execution. Producer authentication and ticket/configuration binding address provenance, while the label and slice gate still checks behavior. An authenticated wrong prediction remains wrong. Keep those two questions separate when interpreting a passing report.",
+        "hold": 0.7
+      }
+    ]
+  },
+  {
+    "id": "c19",
+    "title": "Which fitted model clears the gate?",
+    "sourceChapters": [
+      "c19"
+    ],
+    "beats": [
+      {
+        "id": "c19-b01",
+        "say": "Put the six gate calls on the switchboard. Each has a score from the fitted word-feature baseline and one from the tiny encoder trained for eighty updates. Each positive in the top bank belongs to a required slice. The bottom bank holds the three routine calls. Both models face the same cutoff of point three five.",
+        "hold": 0.3
+      },
+      {
+        "id": "c19-b02",
+        "say": "Read the scores. A line at or above the cutoff rings at the human desk. All three required calls must ring. The team can spare one extra review for the routine bank. Which classifier, if either, meets both conditions?",
+        "hold": 3.1
+      },
+      {
+        "id": "c19-b03",
+        "say": "Connect the baseline. All six ring. The three required calls arrive, but look at the routine bank. Three routine calls fill a queue with one spare slot. Hold the baseline for capacity. The freeze request made it through with a score of about point six zero six.",
+        "hold": 1.2
+      },
+      {
+        "id": "c19-b04",
+        "say": "Switch to the tiny encoder. Only recovery rings. Freeze now scores about point zero five one. It stays at the guarded agent, along with the after-hours override. Hold the encoder for those two required misses. Its quiet routine bank saves work and leaves both errors on the record.",
+        "hold": 1.2
+      },
+      {
+        "id": "c19-b05",
+        "say": "Both models passed their earlier check on four tickets with familiar wording. Keep these six new results, including both failures. Inspect the missed wording and the encoder’s vocabulary on development data. Test any revision on fresh accounts and later tickets.",
+        "hold": 0.3
+      },
+      {
+        "id": "c19-b06",
+        "say": "These measurements belong to the two small fitted models. The pretrained recipe still needs its own run.",
+        "hold": 1.1
+      }
+    ]
+  },
+  {
+    "id": "c20",
+    "title": "A score transform can change a threshold route",
+    "sourceChapters": [
+      "c20"
+    ],
+    "beats": [
+      {
+        "id": "c20-b01",
+        "say": "Look at the shorter bar. The review score is point three zero. It falls below our cutoff of point three five, so the ticket goes to the agent. Temperature scaling divides logits by the same positive number. That preserves the winning class. Watch the distance between the bars as we change the temperature.",
+        "hold": 0.75
+      },
+      {
+        "id": "c20-b02",
+        "say": "Now divide both logits by a positive temperature of two. The bars move closer. The review score reaches about point four zero. It crosses the cutoff, so a person gets the ticket. The routine bar is still taller.",
+        "hold": 0.3
+      },
+      {
+        "id": "c20-b03",
+        "say": "To choose a temperature for the real model, fit it on held-out development data, then test the new scores and cutoff together on fresh tickets.",
+        "hold": 0.85
+      }
+    ]
+  },
+  {
+    "id": "c21",
+    "title": "A bucket rate is an observed fraction with a sample count",
+    "sourceChapters": [
+      "c21"
+    ],
+    "beats": [
+      {
+        "id": "c21-b01",
+        "say": "Calibration asks whether enough held-out tickets near a stated score have a matching label frequency. The article’s low bucket contains point two three and point one eight, both routine. Its mean score is point two zero five and its observed positive fraction zero out of two.",
+        "hold": 0.3
+      },
+      {
+        "id": "c21-b02",
+        "say": "The middle bucket averages point five three with two positives out of two.",
+        "hold": 0.7
+      },
+      {
+        "id": "c21-b03",
+        "say": "In the high bucket, the mean score is point eight zero. One of its two tickets needed a person. Put those numbers side by side. The average score is eight tenths. The observed share is one half. Both tickets came from the selection set.",
+        "hold": 0.3
+      },
+      {
+        "id": "c21-b04",
+        "say": "To find out how often a score near eight tenths means human review, count the outcomes on a larger set of fresh tickets.",
+        "hold": 0.7
+      },
+      {
+        "id": "c21-b05",
+        "say": "Fit a positive temperature on separate held-out development logits by minimizing their negative log likelihood, then evaluate the transformed scores and pinned threshold together on untouched evidence. Dividing logits by a positive temperature preserves their ordering in exact arithmetic.",
+        "hold": 0.3
+      },
+      {
+        "id": "c21-b06",
+        "say": "A route using a non-halfway cutoff can nevertheless change, as our supplied temperature-two example already showed. For a binary review score p, the logit difference is the natural logarithm of the ratio p over the quantity one minus p.",
+        "hold": 0.3
+      },
+      {
+        "id": "c21-b07",
+        "say": "Divide that difference by the positive temperature, then compute one divided by one plus the exponential of its negative.",
+        "hold": 0.7
+      }
+    ]
+  },
+  {
+    "id": "c22",
+    "title": "Handle missing and invalid inference explicitly",
+    "sourceChapters": [
+      "c22"
+    ],
+    "beats": [
+      {
+        "id": "c22-b01",
+        "say": "Input failures need their own path. Empty text, an oversized ticket, unavailable inference and a nonfinite score all need explicit handling. A silent truncation could discard the phrase that matters most. Count the complete input with the trusted tokenizer before deciding whether the model may process it.",
+        "hold": 0.75
+      },
+      {
+        "id": "c22-b02",
+        "say": "Send each invalid case to a person. An unchecked comparison such as NaN greater than or equal to the cutoff evaluates false in Python. A routine else branch could take the ticket. Validate the pinned policy and the input, then compare only a usable score.",
+        "hold": 0.85
+      }
+    ]
+  },
+  {
+    "id": "c23",
+    "title": "When do we apply the cutoff?",
+    "sourceChapters": [
+      "c23"
+    ],
+    "beats": [
+      {
+        "id": "c23-b01",
+        "say": "Both tickets fit the token limit. One returns point one eight. The second returned NaN, meaning the calculation produced no usable score. Try the raw comparison in Python. Is each value at least point three five? Both comparisons give false. Should both tickets go to the agent?",
+        "hold": 3.1
+      },
+      {
+        "id": "c23-b02",
+        "say": "Point one eight passes validation. It falls below point three five, so the ticket enters the guarded agent. NaN fails validation. Send that ticket to a person before applying the cutoff.",
+        "hold": 1
+      },
+      {
+        "id": "c23-b03",
+        "say": "A Boolean or a missing score also takes fallback. A timeout or worker exception is different. The caller has to catch that failure before there is a score to validate. In the routing example, None stands in for unavailable inference.",
+        "hold": 0.9
+      },
+      {
+        "id": "c23-b04",
+        "say": "Now check a ticket before scoring. The trusted tokenizer counted two special tokens and two hundred fifty-four content tokens. That fits exactly. Append one more content token, the word exception in this example. The new total is two hundred fifty-seven. What happens before inference?",
+        "hold": 2.4
+      },
+      {
+        "id": "c23-b05",
+        "say": "Right truncation that preserves both special tokens would drop that word. Keep the full ticket and send it to a person before inference. Count that review in the queue workload.",
+        "hold": 1.1
+      }
+    ]
+  },
+  {
+    "id": "c24",
+    "title": "Validate the complete policy before a finite-score route",
+    "sourceChapters": [
+      "c24"
+    ],
+    "beats": [
+      {
+        "id": "c24-b01",
+        "say": "The serving function first compares the complete editable bundle with its trusted teaching policy, including each field’s type. Missing or extra fields, a different threshold or a changed fallback make the bundle invalid and return immediate human review. Matching weights alone cannot preserve routing if the tokenizer, preprocessing, cutoff or fallback changes.",
+        "hold": 0.7
+      },
+      {
+        "id": "c24-b02",
+        "say": "Then require nonblank text and a positive integer token count from the trusted full tokenizer. Counts above two hundred fifty-six take the manual route before a score matters. Missing inference and invalid scores also take the fallback.",
+        "hold": 0.3
+      },
+      {
+        "id": "c24-b03",
+        "say": "Only numeric, non-Boolean scores in the inclusive range zero to one reach the threshold; equality with point three five goes to human review.",
+        "hold": 0.7
+      },
+      {
+        "id": "c24-b04",
+        "say": "The actual examples route a valid point one eight policy question to the guarded agent and invalid empty, unavailable, NaN, Boolean and oversized cases to people. These calls supply scores and counts to test the routing layer; they do not run tokenization or serving infrastructure.",
+        "hold": 0.3
+      },
+      {
+        "id": "c24-b05",
+        "say": "Record how the endpoint handles a timeout, which policy it verified and the time from arrival to route. Include fallback traffic when you measure the work that reaches people.",
+        "hold": 0.7
+      }
+    ]
+  },
+  {
+    "id": "c25",
+    "title": "Matching strings are weaker than authenticated provenance",
+    "sourceChapters": [
+      "c25"
+    ],
+    "beats": [
+      {
+        "id": "c25-b01",
+        "say": "The article’s downstream demonstration requires a nonblank ticket ID, active bundle version two and guarded-agent route. Ticket r one zero four matches both strings. Ticket r one zero five requests human review and r one zero six names the stale version-one bundle, so both block.",
+        "hold": 0.3
+      },
+      {
+        "id": "c25-b02",
+        "say": "During a rolling update, an old version does not silently become the active intake policy.",
+        "hold": 0.7
+      },
+      {
+        "id": "c25-b03",
+        "say": "A local test record with matching strings also passes. No classifier sent this record. In production, verify the source over an authenticated channel or check a trusted issuer’s signature. Bind the decision to the current ticket and approved configuration. Even a valid signature on an older ticket answers the wrong request.",
+        "hold": 0.7
+      },
+      {
+        "id": "c25-b04",
+        "say": "Try three records for ticket r one zero four. All three name the active bundle and propose guarded intake. A trusted producer signed the first for this ticket and the second for an older ticket. The third names this ticket but its producer is unverified. Which records admit the agent, and how many access changes do they authorize?",
+        "hold": 3.5
+      },
+      {
+        "id": "c25-b05",
+        "say": "Admit only the first. The signature on the second belongs to a different ticket. The third has no trusted producer. The admitted agent can draft a reply with permitted evidence and request approval for a restore. Access changes approved here are zero. A separate gate still needs to catch routing errors from a verified producer.",
+        "hold": 1.25
+      }
+    ]
+  },
+  {
+    "id": "c26",
+    "title": "Shadow routing and rollback",
+    "sourceChapters": [
+      "c26"
+    ],
+    "beats": [
+      {
+        "id": "c26-b01",
+        "say": "Keep the label guide, data card and split manifest with the release. They show what urgent means and which accounts the model saw. Save the gate tickets, baseline report, training configuration, scoring output and evaluator result.",
+        "hold": 0.3
+      },
+      {
+        "id": "c26-b02",
+        "say": "Those records let a teammate trace a missed ticket back to the run and serving bundle that produced its score.",
+        "hold": 0.7
+      },
+      {
+        "id": "c26-b03",
+        "say": "Once data handling is approved, people keep routing the tickets. The shadow classifier scores a copy of each one. Save its proposed route and score. When the human outcome arrives, record it and its time. Ticket C is still waiting for a label. Keep it pending.",
+        "hold": 0.3
+      },
+      {
+        "id": "c26-b04",
+        "say": "Before rollout, check how many outcomes you have for each required slice, which escalations you missed and how many reviews the queue can handle.",
+        "hold": 0.7
+      },
+      {
+        "id": "c26-b05",
+        "say": "If monitoring finds a breach or critical evidence goes missing, hold the candidate or send tickets back to people under the agreed policy. Roll back model, tokenizer, preprocessing, calibrator, threshold and fallback together. Restoring the old weights with a newer cutoff can send the same ticket to a different queue.",
+        "hold": 0.7
+      }
+    ]
+  },
+  {
+    "id": "c27",
+    "title": "What belongs in the release record?",
+    "sourceChapters": [
+      "c27"
+    ],
+    "beats": [
+      {
+        "id": "c27-b01",
+        "say": "Keep both reports. An operator looking at the baseline needs the three routine tickets that filled the review queue. An operator investigating the tiny encoder needs the two required requests it missed. Save the exact gate tickets and the scoring run with each report so someone else can reproduce the decision.",
+        "hold": 0.85
+      },
+      {
+        "id": "c27-b02",
+        "say": "The consumer needs the same model, tokenizer, threshold and fallback that you evaluated. When a route arrives, verify the producer and bind the decision to the current ticket and bundle. The agent can then look up permitted evidence and request approval. Now try that reasoning with one more ticket.",
+        "hold": 1
+      }
+    ]
+  },
+  {
+    "id": "c28",
+    "title": "The last gate ticket",
+    "sourceChapters": [
+      "c28"
+    ],
+    "beats": [
+      {
+        "id": "c28-b01",
+        "say": "One more call. “Someone changed my recovery email.” The trusted tokenizer counted thirty-two tokens. The verified score is point three four, bound to ticket S five oh one and the active bundle. The frozen cutoff is point three five. Will the human desk ring?",
+        "hold": 3.1
+      },
+      {
+        "id": "c28-b02",
+        "say": "The guarded agent gets the call. Listen to what the evaluator required. Human review. This takeover case needed a person. The desk stayed quiet. The gate allows zero required misses. Would you release this candidate?",
+        "hold": 3.1
+      },
+      {
+        "id": "c28-b03",
+        "say": "Hold the candidate. Keep that missed call on the desk. A gap of one hundredth put it in the wrong queue. That’s a false negative even though the score came from the verified run. Access changes still require a person’s approval. This route approved zero.",
+        "hold": 1.2
+      },
+      {
+        "id": "c28-b04",
+        "say": "Replay the same call with a cutoff of point three four. Equality sends it to human review. Keep the first receipt beside the replay. We changed the threshold after seeing this ticket’s label. Can the replay establish that the new policy will work on unseen tickets?",
+        "hold": 3.1
+      },
+      {
+        "id": "c28-b05",
+        "say": "Keep the original hold. This ticket helped choose the new cutoff and now belongs to development. Freeze the revised policy and open a new independent gate. In the next capstone, you’ll ask the same question about a research result on an independent run.",
+        "hold": 1.7
+      }
+    ]
+  }
+]

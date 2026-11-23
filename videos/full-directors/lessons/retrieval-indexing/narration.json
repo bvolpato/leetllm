@@ -1,0 +1,887 @@
+[
+  {
+    "id": "c01",
+    "title": "How do I make soup?",
+    "sourceChapters": [
+      "c01"
+    ],
+    "beats": [
+      {
+        "id": "c01-b01",
+        "say": "Today's lunch menu says soup twice. Put the recipe next to it and count again. If the only score is the number of times a page says soup, which page wins?",
+        "hold": 3
+      },
+      {
+        "id": "c01-b02",
+        "say": "The menu wins, two to one. Now choose a page you could use to cook supper. Look for a step you can actually follow.",
+        "hold": 3
+      },
+      {
+        "id": "c01-b03",
+        "say": "The recipe tells you to simmer the ingredients until tender. Open page two. Cook beans and vegetables together until soft. Can you find either word from the query make soup?",
+        "hold": 2.8
+      },
+      {
+        "id": "c01-b04",
+        "say": "Neither word appears. Keep that page number. We will follow useful instructions through word search, vector search and the final shortlist to find where they disappear.",
+        "hold": 1
+      }
+    ]
+  },
+  {
+    "id": "c02",
+    "title": "How a word points to a page",
+    "sourceChapters": [
+      "c02"
+    ],
+    "beats": [
+      {
+        "id": "c02-b01",
+        "say": "Begin with four document IDs and a simple analyzer that lowercases words, removes a small stopword list, and keeps alphabetic runs. In the recipe, soup and make each appear once. A posting list records which documents contain each term.",
+        "hold": 0.55
+      },
+      {
+        "id": "c02-b02",
+        "say": "Read the index in the other direction. Look up make and you get d1. Look up soup and you get d1 and d4. Page two, our bean instruction, has an empty space under each of those terms.",
+        "hold": 0.55
+      },
+      {
+        "id": "c02-b03",
+        "say": "The menu says soup twice, yet d4 appears once in soup's posting list. Counts and token positions can be stored alongside that ID when scoring or phrase search needs them. The term-to-documents direction is what makes the index inverted.",
+        "hold": 0.7
+      }
+    ]
+  },
+  {
+    "id": "c03",
+    "title": "Query terms traverse only their lists",
+    "sourceChapters": [
+      "c03"
+    ],
+    "beats": [
+      {
+        "id": "c03-b01",
+        "say": "The analyzer turns the question into make and soup. Start with make: its posting list points to d1. The useful passage says “cook beans and vegetables,” so its words never enter that list.",
+        "hold": 0.55
+      },
+      {
+        "id": "c03-b02",
+        "say": "An OR query takes either list. It reaches d1 and d4. Now require both terms with AND. Only d1 survives. Which of these routes reaches the instruction on page two? Neither route includes it.",
+        "hold": 0.6
+      },
+      {
+        "id": "c03-b03",
+        "say": "The work follows the lists touched by the query, roughly the sum of their lengths before skipping and top-result selection. A common word may still point to most documents, so the index changes the work pattern without making every query equally cheap.",
+        "hold": 0.7
+      }
+    ]
+  },
+  {
+    "id": "c04",
+    "title": "BM25 turns matches into a score",
+    "sourceChapters": [
+      "c04"
+    ],
+    "beats": [
+      {
+        "id": "c04-b01",
+        "say": "Once the lists give us candidates, how should we rank them? BM25 weighs each matching term. Count the documents that contain it, count its mentions on this page, and compare the page length with the collection average.",
+        "hold": 0.55
+      },
+      {
+        "id": "c04-b02",
+        "say": "Count the four dots under soup. Two pages contain it. In this version of inverse document frequency, N counts all the pages and d f counts the pages with the word. Add a half to each count on the fraction bar. Two pages lack soup and two contain it, so the ratio is two and a half over two and a half. Add one, then take the natural log. The result is the log of two, about point six nine three. Now look at the recipe.",
+        "hold": 0.6
+      },
+      {
+        "id": "c04-b03",
+        "say": "The recipe has eleven analyzed terms and the average is eight and a quarter. With b at point seven five, its length factor is one and a quarter. For one mention and k one of one point two, the reference term-frequency weight is two point two over two point five, or point eight eight. Multiply that weight by the IDF for soup. Soup contributes about point six one zero. Make occurs in just one of the four pages. Its larger IDF gives it a contribution of about one point zero five nine. Both words occur once in the recipe. The difference comes from the other pages.",
+        "hold": 0.65
+      }
+    ]
+  },
+  {
+    "id": "c05",
+    "title": "Ranking exposes the vocabulary mismatch",
+    "sourceChapters": [
+      "c05"
+    ],
+    "beats": [
+      {
+        "id": "c05-b01",
+        "say": "Scoring every passage gives d1 about 1.669 and the soup menu d4 about 0.899. Documents d2 and d3 receive zero because they share no analyzed query terms. The lexical ranking has done exactly what its representation permits.",
+        "hold": 0.55
+      },
+      {
+        "id": "c05-b02",
+        "say": "Read the zero beside the bean instruction. It tells us something precise: the page has no analyzed words in common with the question. A cook can still follow it. The posting lookup worked, and the useful passage is missing.",
+        "hold": 0.6
+      },
+      {
+        "id": "c05-b03",
+        "say": "A synonym map or query expansion could connect make soup with cook beans and vegetables. A dense retrieval lane can also represent paraphrases. Each option changes the candidate-generation path, so compare its judged results and cost on the same queries.",
+        "hold": 0.7
+      }
+    ]
+  },
+  {
+    "id": "c06",
+    "title": "Which page stays in the heap?",
+    "sourceChapters": [
+      "c06"
+    ],
+    "beats": [
+      {
+        "id": "c06-b01",
+        "say": "d1 arrives first with a score of about 1.669 and fills one slot. A bounded min-heap keeps the weakest retained candidate at its root, ready for the next score.",
+        "hold": 0.55
+      },
+      {
+        "id": "c06-b02",
+        "say": "d2 arrives with a score of zero and fills the second slot. Put d2 at the root. Now d3 is about to arrive with the same score. Our tie rule prefers the lower document number. Which one stays?",
+        "hold": 2.7
+      },
+      {
+        "id": "c06-b03",
+        "say": "Now d3 arrives with the same zero score. The lower-ID tie rule keeps d2 ahead of d3, so d3 never joins the heap and d2 stays at the root.",
+        "hold": 0.6
+      },
+      {
+        "id": "c06-b04",
+        "say": "d4 scores about 0.899, so it replaces the zero-score root. The final two are the soup recipe d1 and the lunch menu d4. For a large candidate set and small k, bounded selection avoids sorting every score while preserving the chosen winners and tie rule.",
+        "hold": 0.7
+      }
+    ]
+  },
+  {
+    "id": "c07",
+    "title": "Index layout shapes the cost",
+    "sourceChapters": [
+      "c07"
+    ],
+    "beats": [
+      {
+        "id": "c07-b01",
+        "say": "Real inverted indexes keep postings ordered and often store document frequency, term counts, or positions. Ordered IDs let query execution merge lists, skip ranges, and decode compressed blocks without scanning every stored passage.",
+        "hold": 0.55
+      },
+      {
+        "id": "c07-b02",
+        "say": "The three ordered IDs are twelve, twenty and twenty-five. Starting from zero, record the jumps instead of the destinations. The gaps are twelve, eight and five. Add them back in order and you recover the IDs. Small gaps can take fewer bytes under a suitable integer encoding.",
+        "hold": 0.6
+      },
+      {
+        "id": "c07-b03",
+        "say": "Indexes also have a build and update cost. New or changed documents must be analyzed and represented, then merged into searchable segments or another storage layout. Measure query latency together with freshness, storage, and indexing throughput.",
+        "hold": 0.7
+      }
+    ]
+  },
+  {
+    "id": "c08",
+    "title": "Judge the returned evidence",
+    "sourceChapters": [
+      "c08"
+    ],
+    "beats": [
+      {
+        "id": "c08-b01",
+        "say": "Our relevance labels mark d1 and the paraphrased d2 as useful. The top-two lexical results contain d1 and d4, so recall at two is one useful passage out of two. The lunch menu consumed a slot that could have carried the cooking instructions.",
+        "hold": 0.6
+      },
+      {
+        "id": "c08-b02",
+        "say": "Add a lane that finds the bean instruction. The candidate set grows to three pages. In this example the reranker picks the recipe and the bean instruction for the two slots. Read the steps now in reach. Both useful pages reached the cook.",
+        "hold": 0.6
+      },
+      {
+        "id": "c08-b03",
+        "say": "Trace the whole path when a retrieval result fails. Follow the analyzer, posting traversal, score, top-k selection, and evaluation. This separates a missed term from a weak score and from a shortlist that is too small for the next stage.",
+        "hold": 0.75
+      }
+    ]
+  },
+  {
+    "id": "c09",
+    "title": "Change the question and retain exact term identity",
+    "sourceChapters": [
+      "c09"
+    ],
+    "beats": [
+      {
+        "id": "c09-b01",
+        "say": "How do I rotate an API key? Document one calls it key rotation. Document two calls it replacing a credential. Both give the reader steps to follow. The other pages cover display names and API key quotas. Watch what happens to the two guides when we search by word.",
+        "hold": 0.75
+      },
+      {
+        "id": "c09-b02",
+        "say": "The reference analyzer lowercases text and keeps runs of English letters. The question becomes rotate, API, key. Rotate has no exact match, while API and key each reach documents one and four.",
+        "hold": 0.3
+      },
+      {
+        "id": "c09-b03",
+        "say": "A posting can carry a document ID and a count. Add positions to test a phrase or nearby words. Apply compatible analysis to queries and documents. Searching for rotate still misses rotation under these rules.",
+        "hold": 0.75
+      },
+      {
+        "id": "c09-b04",
+        "say": "Watch an identifier failure. AUTH underscore four zero one and AUTH underscore four zero three both become auth, so distinct error codes collide. Rotate underscore API underscore key becomes three terms.",
+        "hold": 0.3
+      },
+      {
+        "id": "c09-b05",
+        "say": "Keep a keyword field when complete identifier identity matters, and a separate analyzed field for ordinary text. Changing case or punctuation rules also changes the index and the queries that can reach it.",
+        "hold": 0.75
+      }
+    ]
+  },
+  {
+    "id": "c10",
+    "title": "How much weight do three mentions of “key” get?",
+    "sourceChapters": [
+      "c10"
+    ],
+    "beats": [
+      {
+        "id": "c10-b01",
+        "say": "The rotation guide says API once and key three times. In the BM25 fraction, multiply the count by k one plus one. Divide by the count plus k one times the length factor. Why do later mentions earn less? The count grows in the denominator too.",
+        "hold": 0.3
+      },
+      {
+        "id": "c10-b02",
+        "say": "The IDF multiplier looks across the whole collection and gives a rare term more weight. Add a contribution for each matching query term. A word missing from the passage contributes zero.",
+        "hold": 0.7
+      },
+      {
+        "id": "c10-b03",
+        "say": "This guide has eleven analyzed words. The average is eight. API contributes about point six to the guide's score. Now add the three mentions of key. Together they add just over one point. The total puts the guide ahead of the quota page.",
+        "hold": 0.3
+      },
+      {
+        "id": "c10-b04",
+        "say": "To isolate repetition, use an average-length passage and hold IDF at one. Look across the pairs. One mention earns one point. Twenty mentions still earn less than two point one. With k one set to one point two, the weight approaches two point two.",
+        "hold": 0.8
+      },
+      {
+        "id": "c10-b05",
+        "say": "Lower k one and the curve flattens sooner. Bring k one all the way to zero. Now every present term gets weight one. The other knob, b, controls length. At zero it ignores length, and at one it uses the full length ratio.",
+        "hold": 0.3
+      },
+      {
+        "id": "c10-b06",
+        "say": "Suppose a term occurs on three of our four pages. One page lacks it. Add a half to each count and the ratio becomes one and a half over three and a half. Its log is negative. Adding one inside the log gives a positive IDF of about point three five seven. Lucene ten point five point one uses this shifted IDF and the same default settings. Its scorer omits the common numerator factor and encodes length norms.",
+        "hold": 0.3
+      },
+      {
+        "id": "c10-b07",
+        "say": "Keep IDF and the length factor at one. This time set k one to two. The weight is three times the count divided by the count plus two. At two mentions, six divided by four gives one and a half. At eight mentions, twenty-four divided by ten gives two point four. The count quadrupled. The weight grew much less. Where will this curve level off?",
+        "hold": 2.7
+      },
+      {
+        "id": "c10-b08",
+        "say": "The weight approaches three. Divide the top and bottom by the count. As the count grows, two divided by the count shrinks toward zero. That leaves three over one. In the reference formula the limiting weight is k one plus one.",
+        "hold": 1.2
+      }
+    ]
+  },
+  {
+    "id": "c11",
+    "title": "Which guide points toward the query?",
+    "sourceChapters": [
+      "c11"
+    ],
+    "beats": [
+      {
+        "id": "c11-b01",
+        "say": "The credential guide never used the words API or key. Let's try a search that can compare it anyway. Encode each passage once and store its vector. When the question arrives, encode just the question. A bi-encoder learns representations that can be compared this way.",
+        "hold": 0.3
+      },
+      {
+        "id": "c11-b02",
+        "say": "The two encoders can have different weights, as they do in Dense Passage Retrieval. For this example we chose the coordinates by hand.",
+        "hold": 0.7
+      },
+      {
+        "id": "c11-b03",
+        "say": "The yellow arrow is the question. Put the rotation guide and the credential guide at the same origin. All three have zero in the third coordinate, so you can see their directions on this plane. Look at the two angles from yellow.",
+        "hold": 0.3
+      },
+      {
+        "id": "c11-b04",
+        "say": "If the score rewards pointing the same way, which of these guides should come first?",
+        "hold": 2.6
+      },
+      {
+        "id": "c11-b05",
+        "say": "The credential guide. It needs the smaller turn. Divide its dot product with the question by both vector lengths. Its cosine is about point nine nine four. The rotation guide scores about point nine five seven. Rank all four passages using every coordinate, including the third.",
+        "hold": 0.8
+      },
+      {
+        "id": "c11-b06",
+        "say": "A different encoder can put the same sentence somewhere else. If the query encoder changes, verify that it still works with the stored passage vectors or rebuild them. A new tokenizer, chunk boundary or normalization can change them too. Keep exact identifiers and source versions.",
+        "hold": 0.3
+      },
+      {
+        "id": "c11-b07",
+        "say": "Judge whether the extra search finds useful, current, eligible passages on real questions.",
+        "hold": 0.8
+      }
+    ]
+  },
+  {
+    "id": "c12",
+    "title": "Separate direction from magnitude",
+    "sourceChapters": [
+      "c12"
+    ],
+    "beats": [
+      {
+        "id": "c12-b01",
+        "say": "A dot product sums coordinatewise products. Cosine divides that dot product by the product of the two Euclidean lengths, where each length is the square root of the sum of squared coordinates. With nonzero unit vectors, dot product equals cosine.",
+        "hold": 0.3
+      },
+      {
+        "id": "c12-b02",
+        "say": "Normalizing documents makes their norms equal; for one fixed query, its remaining positive length factor cannot change the rank. A zero vector has no cosine direction, so define a rejection or fallback rather than silently dividing by zero.",
+        "hold": 0.75
+      },
+      {
+        "id": "c12-b03",
+        "say": "Hold query one, point eight, zero fixed. Candidate A points exactly with it, so its dot product is one point six four and cosine one. Candidate B is six, zero, zero. Its dot product six wins, but its cosine is about point seven eight one and loses.",
+        "hold": 0.3
+      },
+      {
+        "id": "c12-b04",
+        "say": "Stretch B along the same ray. Its raw dot grows with its length. Its cosine stays put. If your model was trained to reward direction, A is the closer match.",
+        "hold": 0.75
+      },
+      {
+        "id": "c12-b05",
+        "say": "Normalization is a model decision. An inner-product model such as DPR can intentionally use magnitudes, so changing to cosine is not an automatic repair. Match the metric, normalization, model version and preprocessing in the stored index and the query.",
+        "hold": 0.3
+      },
+      {
+        "id": "c12-b06",
+        "say": "Compare any change on the same judged query set, with thresholds calibrated for the actual score definition.",
+        "hold": 0.75
+      }
+    ]
+  },
+  {
+    "id": "c13",
+    "title": "How the two searches vote",
+    "sourceChapters": [
+      "c13"
+    ],
+    "beats": [
+      {
+        "id": "c13-b01",
+        "say": "Follow the credential guide, passage two. Find it in each ranked list. Dense search puts it first. The word list has no entry for it. One vote is one divided by the constant plus the rank, taken together. Set the fusion constant to sixty. How much does first place contribute?",
+        "hold": 2.5
+      },
+      {
+        "id": "c13-b02",
+        "say": "One over sixty-one. The word list contributes zero. Write those votes on passage two's ticket. For every other ID, use the same rule: one divided by the sum of sixty and its one-based rank in that list. Then add its two votes.",
+        "hold": 0.7
+      },
+      {
+        "id": "c13-b03",
+        "say": "The rotation guide gets one over sixty-one from word search and one over sixty-two from dense search. The quota page gets one over sixty-two and one over sixty-three. Each of those pages collected two votes. Compare their totals with the credential guide's single vote.",
+        "hold": 0.3
+      },
+      {
+        "id": "c13-b04",
+        "say": "If we pass just two IDs to the reranker, which passage gets left behind?",
+        "hold": 3
+      },
+      {
+        "id": "c13-b05",
+        "say": "The credential guide falls below the cut. Two modest votes for the quota page outweigh the credential guide's single first place. Keep the votes exactly as they are and widen the shortlist to three. Now the reranker can read the credential guide too.",
+        "hold": 1
+      },
+      {
+        "id": "c13-b06",
+        "say": "Try a different change. Go back to two slots. Hold both lane rankings fixed and set the constant to zero. First place now earns a whole point. That lets the credential guide pass the quota page. Sixty came from the original paper's pilot.",
+        "hold": 0.3
+      },
+      {
+        "id": "c13-b07",
+        "say": "Zero is a mathematical comparison here. Elasticsearch requires a constant of at least one. Test the constant, each lane's depth and the fused cutoff separately on judged queries.",
+        "hold": 0.85
+      }
+    ]
+  },
+  {
+    "id": "c14",
+    "title": "What happens to a score of four?",
+    "sourceChapters": [
+      "c14"
+    ],
+    "beats": [
+      {
+        "id": "c14-b01",
+        "say": "There is another way to combine the two searches. If we want to blend their scores, what does one unit mean on each scale? Cosine measures direction and runs from minus one to one for nonzero vectors.",
+        "hold": 0.3
+      },
+      {
+        "id": "c14-b02",
+        "say": "Our BM25 score depends on the corpus, the terms and their weights. Each term has a finite bound for this query and these settings. A BM25 point and a cosine point can carry very different evidence.",
+        "hold": 0.7
+      },
+      {
+        "id": "c14-b03",
+        "say": "In a separate example, the word lane returns scores of one, two and four. Passage P scores four. Give the smallest score zero and the largest one. That is min-max normalization. Subtract the minimum and divide by the span. Three over three is one. Keep the passage and its raw score fixed.",
+        "hold": 0.3
+      },
+      {
+        "id": "c14-b04",
+        "say": "A fourth candidate arrives with a score of one hundred. On this same zero-to-one ruler, where will the passage scoring four land?",
+        "hold": 2.8
+      },
+      {
+        "id": "c14-b05",
+        "say": "It lands near zero. The numerator is still three. The span is now ninety-nine, so the normalized word score is three over ninety-nine, about point zero three. The raw score stayed at four. If all the scores in a lane tie, its span is zero. Choose a tie rule before dividing.",
+        "hold": 0.3
+      },
+      {
+        "id": "c14-b06",
+        "say": "Follow passage P into both lanes. Its normalized word score is still three over ninety-nine. Suppose its normalized dense score is point eight. Give the word score one quarter of the weight and the dense score three quarters. What score will P take into the combined ranking?",
+        "hold": 2.8
+      },
+      {
+        "id": "c14-b07",
+        "say": "One quarter of three over ninety-nine plus three quarters of point eight gives about point six zero eight. Most of the score comes from the dense lane. Decide how to score a missing lane, too. Tune those rules and weights on development queries and evaluate on held-out queries. Reading the combined score as a probability takes separate calibration.",
+        "hold": 1
+      }
+    ]
+  },
+  {
+    "id": "c15",
+    "title": "What can the reranker read?",
+    "sourceChapters": [
+      "c15"
+    ],
+    "beats": [
+      {
+        "id": "c15-b01",
+        "say": "A bi-encoder can store a passage vector for future queries. A multi-vector retriever can store vectors for individual tokens. Now watch a BERT cross-encoder read the question and passage together. Join them in one sequence, with a separator after each part.",
+        "hold": 0.3
+      },
+      {
+        "id": "c15-b02",
+        "say": "The query word rotate can attend to the passage word revoke, and revoke can attend back to rotate. The scoring head reads the first token, the classification token, to score this pair. Change the passage and BERT reads a new pair.",
+        "hold": 0.7
+      },
+      {
+        "id": "c15-b03",
+        "say": "Count the nine words and three special tokens. Twelve positions can each attend to twelve positions. That's one hundred forty-four entries in one attention matrix. Now shorten the input budget to nine positions, keeping the separators. The words revoke old key drop out.",
+        "hold": 0.3
+      },
+      {
+        "id": "c15-b04",
+        "say": "Nine positions leave eighty-one attention entries in this head. The passage ID survived, but the instruction to revoke the old key is outside the input. Even with the same number of pairs, width, layers, batching and kernels affect runtime.",
+        "hold": 0.85
+      },
+      {
+        "id": "c15-b05",
+        "say": "Restore the full input budget. This time the limit is the number of passages. Start with fusion's two-slot shortlist. The rotation guide and the quota page reach the scorer. Give those pairs the example scores shown. The rotation guide comes first.",
+        "hold": 0.3
+      },
+      {
+        "id": "c15-b06",
+        "say": "Dense search found the credential guide earlier. Where would you change the pipeline to give that guide a chance?",
+        "hold": 3
+      },
+      {
+        "id": "c15-b07",
+        "say": "Widen the fused shortlist to three. Only the credential guide needs a new pair in this replay. It scores point nine six and takes first place. The other scores stayed fixed. Now both useful guides outrank the quota page.",
+        "hold": 0.3
+      },
+      {
+        "id": "c15-b08",
+        "say": "To use a score like this as a probability, check how often passages at that score actually answer the question.",
+        "hold": 1
+      }
+    ]
+  },
+  {
+    "id": "c16",
+    "title": "How much evidence made the cutoff?",
+    "sourceChapters": [
+      "c16"
+    ],
+    "beats": [
+      {
+        "id": "c16-b01",
+        "say": "Imagine we're answering three questions. Freeze the questions and their relevance judgments before comparing systems. Each row shows what we need and what came back. Draw a line after the first two results. For the rotation question, we found one of the two guides.",
+        "hold": 0.3
+      },
+      {
+        "id": "c16-b02",
+        "say": "That counts as a hit, but how much of the evidence did we recover?",
+        "hold": 2.5
+      },
+      {
+        "id": "c16-b03",
+        "say": "We recovered half of the useful guides. For the replacement question the needed guide is in third place, just outside the cut. That row gets zero. The quota question gets its one needed page. Two of our three questions have a hit.",
+        "hold": 0.3
+      },
+      {
+        "id": "c16-b04",
+        "say": "To get macro recall, average the three fractions in the last column. Half, zero and one average to one half. If a run returns nothing for a question, keep its row and score it as empty.",
+        "hold": 0.8
+      },
+      {
+        "id": "c16-b05",
+        "say": "Now ask how far we read before the first relevant page. Extend the cutoff to three. The replacement guide is third, so it earns a reciprocal rank of one third. The other two rows earn one each.",
+        "hold": 0.3
+      },
+      {
+        "id": "c16-b06",
+        "say": "Average those three contributions and mean reciprocal rank is seven ninths. Pull the cutoff back to two. The middle row now contributes zero, and the mean falls to two thirds.",
+        "hold": 0.8
+      },
+      {
+        "id": "c16-b07",
+        "say": "Some judgments have grades. Here the same three passages have grades three, one and two in returned order. Convert each grade to a gain by raising two to the grade and subtracting one. Discount each gain by dividing by the base-two logarithm of rank plus one.",
+        "hold": 0.3
+      },
+      {
+        "id": "c16-b08",
+        "say": "Add the discounted gains. To normalize, divide by the score of the ideal order at the same cutoff, with the best grades first. That gives normalized discounted cumulative gain. Decide how to handle empty judgments and zero ideal gain. Check for duplicate IDs and invalid cutoffs.",
+        "hold": 0.3
+      },
+      {
+        "id": "c16-b09",
+        "say": "A high first-place score tells us where a reader starts. If the answer needs two guides, check whether both reached the cutoff. Incomplete judgments can hide useful passages. Read the answer against the passages it used.",
+        "hold": 1
+      }
+    ]
+  },
+  {
+    "id": "c17",
+    "title": "How much data does one scan read?",
+    "sourceChapters": [
+      "c17"
+    ],
+    "beats": [
+      {
+        "id": "c17-b01",
+        "say": "Each row holds a passage vector. An exact dot-product search visits every row. A million rows with fifteen hundred thirty-six coordinates each give us one point five three six billion coordinate multiplications per query, plus roughly as many additions. Each float takes four bytes. The coordinates alone occupy six point one four four decimal gigabytes.",
+        "hold": 0.75
+      },
+      {
+        "id": "c17-b02",
+        "say": "Suppose two hundred queries each read the full matrix separately every second. That would require one point two two eight eight decimal terabytes per second just for coordinates. Now batch two queries. Read the same block once and multiply it by both query vectors.",
+        "hold": 0.3
+      },
+      {
+        "id": "c17-b03",
+        "say": "Caching and compression can also reduce traffic. Keep exact search as the reference when you try an approximate index. Compare the returned passages, throughput and tail latency on your workload, alongside memory, build time and freshness.",
+        "hold": 0.75
+      }
+    ]
+  },
+  {
+    "id": "c18",
+    "title": "Which passages does one probe get to see?",
+    "sourceChapters": [
+      "c18"
+    ],
+    "beats": [
+      {
+        "id": "c18-b01",
+        "say": "Let's put three passages on a number line. Put a center at zero and another at ten. Store each passage with the nearer center. Generic API goes on the left. Key rotation and quota go on the right. That's an inverted-file index, or IVF.",
+        "hold": 0.3
+      },
+      {
+        "id": "c18-b02",
+        "say": "In an index trained with Euclidean k-means, the region nearest each center is its Voronoi cell. Here we chose the centers by hand. The number of lists is called n list. The number we open for a query is called n probe.",
+        "hold": 0.8
+      },
+      {
+        "id": "c18-b03",
+        "say": "Set the query to four point nine. Look at the enlarged strip. Key rotation sits at five point one, just across the boundary. We get one probe. First choose the nearer center, then compare the query with the passages in its list. Which passage will the search return?",
+        "hold": 3
+      },
+      {
+        "id": "c18-b04",
+        "say": "It returns generic API. Center zero is four point nine away. Center ten is five point one away. The left list wins, and generic API is its only passage. Look across the line. Key rotation was just two tenths away, but its list stayed closed.",
+        "hold": 0.3
+      },
+      {
+        "id": "c18-b05",
+        "say": "An exact scan would pick key rotation at a distance of point two. The coordinates stayed fixed. Which decision kept it out of reach? We opened only the list belonging to center zero.",
+        "hold": 1.2
+      },
+      {
+        "id": "c18-b06",
+        "say": "Keep the query at four point nine. Open the second list as well. Now key rotation is the nearest visited passage. Count the distance checks. One probe cost two centers and one passage. Two probes cost two centers and all three passages.",
+        "hold": 0.3
+      },
+      {
+        "id": "c18-b07",
+        "say": "Flat search checks just the three passages. Visiting every list in unrestricted IVF Flat gives the exact result. If we compress the vectors too, checking every code can still leave distance error.",
+        "hold": 1
+      }
+    ]
+  },
+  {
+    "id": "c19",
+    "title": "Why visit a point farther from the query?",
+    "sourceChapters": [
+      "c19"
+    ],
+    "beats": [
+      {
+        "id": "c19-b01",
+        "say": "Another index connects nearby vectors with links. This is a hierarchical navigable small world graph, or HNSW. Every vector appears at the bottom. Randomly chosen subsets also appear in the layers above. Follow the upper link from S to A. A is closer to our query.",
+        "hold": 0.3
+      },
+      {
+        "id": "c19-b02",
+        "say": "Descend to the same A in the bottom layer. Here the search keeps a set of promising neighbors and a frontier of candidates it can still explore.",
+        "hold": 0.8
+      },
+      {
+        "id": "c19-b03",
+        "say": "A is one unit from the query. Its only neighbor, S, is farther away. With room to keep just one candidate, the search stops at A. Look at the links to G. Which point would we have to keep long enough to leave A's neighborhood?",
+        "hold": 2.5
+      },
+      {
+        "id": "c19-b04",
+        "say": "Keep S. Give this search a budget of two. Now it can expand S. From S it finds B, and from B it reaches G. G is just a tenth of a unit from the query. We changed the query budget on the same graph.",
+        "hold": 0.3
+      },
+      {
+        "id": "c19-b05",
+        "say": "We asked for one neighbor both times. With room for one candidate, we got A. With room for two, we got G. The hnswlib guide recommends setting query e f at least as high as k, the requested number of neighbors. Version zero point eight point zero uses the larger of the configured e f and k as its search width at the base layer. From the candidates it retains, it returns the best k it found.",
+        "hold": 1
+      },
+      {
+        "id": "c19-b06",
+        "say": "Two other settings belong to construction. M controls connectivity and link memory. Individual nodes can have different degrees. Construction e f controls how broadly the builder searches when it inserts a vector. Raising it for a future build won't change this search on the existing graph.",
+        "hold": 0.3
+      },
+      {
+        "id": "c19-b07",
+        "say": "Wider query exploration often improves recall at a cost. Its scaling depends on the graph and data. Measure recall and latency for the index you'll actually use.",
+        "hold": 0.8
+      }
+    ]
+  },
+  {
+    "id": "c20",
+    "title": "Which codebook owns each pair?",
+    "sourceChapters": [
+      "c20"
+    ],
+    "beats": [
+      {
+        "id": "c20-b01",
+        "say": "Product quantization splits a vector into M subvectors and learns a separate codebook for each subspace. Each subvector is represented by one codeword index. With eight bits, each subspace has two hundred fifty six choices. Standard equal-sized PQ requires M to divide the dimension.",
+        "hold": 0.3
+      },
+      {
+        "id": "c20-b02",
+        "say": "Each half of our four-coordinate example has its own codebook. A vector stores an index into the first book and an index into the second. Keep the two owners in order when you decode.",
+        "hold": 0.75
+      },
+      {
+        "id": "c20-b03",
+        "say": "For a concrete supplied two-subspace example, vector one point one, point nine, minus point eight, minus one point two chooses representatives one, one and minus one, minus one. Its reconstruction is one, one, minus one, minus one.",
+        "hold": 0.3
+      },
+      {
+        "id": "c20-b04",
+        "say": "The squared reconstruction error is point zero one plus point zero one plus point zero four plus point zero four, totaling point one. Approximate comparisons can now reorder close neighbors even if every code is scanned.",
+        "hold": 0.75
+      },
+      {
+        "id": "c20-b05",
+        "say": "At dimension fifteen thirty six and ninety six eight-bit subquantizers, each subvector has sixteen coordinates and the vector code occupies ninety six bytes. Uncompressed float thirty two coordinates occupy sixty one forty four bytes.",
+        "hold": 0.3
+      },
+      {
+        "id": "c20-b06",
+        "say": "That saves about ninety-eight point four four percent of this vector's coordinate payload. For a packed code, multiply subquantizers by bits per index, then divide by eight for bytes. Count codebooks, IDs, links and retained originals separately. Test the reconstruction on the data you will search.",
+        "hold": 0.75
+      }
+    ]
+  },
+  {
+    "id": "c21",
+    "title": "Routing loss and compression loss can coexist",
+    "sourceChapters": [
+      "c21"
+    ],
+    "beats": [
+      {
+        "id": "c21-b01",
+        "say": "IVF chooses which lists to open. HNSW chooses which graph links to follow. Both decide where to look. PQ changes the coordinates used to score what we find. IVF-PQ and HNSW-PQ can use both routing and compression. Open every list.",
+        "hold": 0.3
+      },
+      {
+        "id": "c21-b02",
+        "say": "Every code is now in reach. Look at the first subvector from our earlier example. Its first coordinate was one point one. Book one decodes the stored index as the pair one, one. Even with both lists open, that first coordinate comes back as one.",
+        "hold": 0.75
+      },
+      {
+        "id": "c21-b03",
+        "say": "Coarse centroids, codebooks and graph links take memory and time to build. When documents change, measure how long it takes for the updated versions to reach search. If you change the encoder, normalization or metric, check the stored index against the new query representation.",
+        "hold": 0.3
+      },
+      {
+        "id": "c21-b04",
+        "say": "Compare recall, latency and update cost on the hardware that serves your queries.",
+        "hold": 0.75
+      }
+    ]
+  },
+  {
+    "id": "c22",
+    "title": "Which pages survive the version filter?",
+    "sourceChapters": [
+      "c22"
+    ],
+    "beats": [
+      {
+        "id": "c22-b01",
+        "say": "We need two pages for version two. Look at the scores. The first two pages both describe version one. Take those two first and the version filter throws both away. Now filter all four pages before taking the top two.",
+        "hold": 0.3
+      },
+      {
+        "id": "c22-b02",
+        "say": "The version-two pages scoring point nine seven and point nine six fill the two slots. Only the order of filtering and selection changed. Every page kept its score.",
+        "hold": 0.75
+      },
+      {
+        "id": "c22-b03",
+        "say": "What if the search engine filters after retrieval? Read the first three rows and one page qualifies. Read all four and both qualify. A query with more old pages at the top would need a deeper scan. A filter-aware index can use the version as it searches.",
+        "hold": 0.3
+      },
+      {
+        "id": "c22-b04",
+        "say": "Test its cost and recall on the filters your readers use. Check permission before releasing a passage. Judge whether its instructions answer the question.",
+        "hold": 0.75
+      },
+      {
+        "id": "c22-b05",
+        "say": "To compare approximate and exact search, give both the same version-two pages. Use the same query, vectors, metric, normalization and tie rule. Compare the returned IDs. If fewer than K eligible items exist, decide how you'll score that case before averaging recall across queries.",
+        "hold": 0.75
+      }
+    ]
+  },
+  {
+    "id": "c23",
+    "title": "Which reference are you comparing with?",
+    "sourceChapters": [
+      "c23"
+    ],
+    "beats": [
+      {
+        "id": "c23-b01",
+        "say": "Back to the rotation question. An exact scan of our example vectors puts the credential guide first. Suppose an approximate search returns the other useful guide, the rotation guide. At a cutoff of one, compare that returned ID with the exact ID.",
+        "hold": 0.3
+      },
+      {
+        "id": "c23-b02",
+        "say": "Now compare it with the two passages a human marked useful. What fraction did each comparison recover?",
+        "hold": 2.8
+      },
+      {
+        "id": "c23-b03",
+        "say": "Zero of one exact neighbors, but one of two useful passages. ANN recall counts shared IDs in the approximate and exact top K, divided by K when at least K passages are eligible. Task recall counts useful IDs out of the judged relevant set.",
+        "hold": 0.3
+      },
+      {
+        "id": "c23-b04",
+        "say": "A different ID can still answer the question. Use the same eligible corpus, metric and tie rule for the exact comparison. Equal-distance vectors can otherwise trade places.",
+        "hold": 0.85
+      },
+      {
+        "id": "c23-b05",
+        "say": "Now look at the article's four queries. Keep each exact neighbor fixed. The first supplied result list agrees on the middle two rows. Two matches out of four give a mean recall at one of one half. Try the second supplied list. All four IDs agree.",
+        "hold": 0.3
+      },
+      {
+        "id": "c23-b06",
+        "say": "Those two lists were supplied for the arithmetic. The second list matched all four exact IDs. To learn how long either setting takes, run the searches and record their request timings.",
+        "hold": 1
+      },
+      {
+        "id": "c23-b07",
+        "say": "Use development questions to choose the candidate depth, fusion weights and search budget. Freeze your choices and run them on held-out questions. Keep query IDs, filters, judgments, ranked results and request timings together. If the needed evidence made it all the way through, check how the answer used it.",
+        "hold": 0.8
+      }
+    ]
+  },
+  {
+    "id": "c24",
+    "title": "Where did the credential guide disappear?",
+    "sourceChapters": [
+      "c24"
+    ],
+    "beats": [
+      {
+        "id": "c24-b01",
+        "say": "A reader says the credential guide never made it into the answer. Here is the trace for that question. Look for passage two. Dense search found it. Word search didn't. Follow the guide forward from the lane that succeeded. At which stage would you try a change first?",
+        "hold": 3
+      },
+      {
+        "id": "c24-b02",
+        "say": "Try the fused cutoff. Keep both lane rankings fixed. At two slots, only passages one and four leave fusion. Open the third slot. Follow passage two into the new pair. Its example score is point nine six. Watch it move from third in fusion to first after reranking.",
+        "hold": 0.3
+      },
+      {
+        "id": "c24-b03",
+        "say": "If the guide had already reached the model, the next check would be whether truncation removed its instructions or the answer ignored them.",
+        "hold": 1
+      },
+      {
+        "id": "c24-b04",
+        "say": "Save the ranked IDs alongside the query and its judgments. Record the source version, encoder, tokenizer, metric, normalization, index settings, filters and tie rule so you can replay the search. Run both cutoffs on the same eligible passages and time each request.",
+        "hold": 0.9
+      }
+    ]
+  },
+  {
+    "id": "c25",
+    "title": "Spend a second probe?",
+    "sourceChapters": [
+      "c25"
+    ],
+    "beats": [
+      {
+        "id": "c25-b01",
+        "say": "Back to our three passages. Earlier, one probe missed key rotation. Move only the query, from four point nine to five point two. You still get one probe. Which passage will it return, and how many distances will it check, including the centers?",
+        "hold": 4
+      },
+      {
+        "id": "c25-b02",
+        "say": "It returns key rotation in four checks. The distances to the centers are five point two and four point eight, so the right list opens. Two passages live there. Key rotation is a tenth away. Quota is three point eight away.",
+        "hold": 0.3
+      },
+      {
+        "id": "c25-b03",
+        "say": "That's two center checks and two passage checks. A flat scan would find the same passage in three.",
+        "hold": 1
+      },
+      {
+        "id": "c25-b04",
+        "say": "Compare the two queries. For which one would opening a second list change the returned page?",
+        "hold": 3
+      },
+      {
+        "id": "c25-b05",
+        "say": "Only the query at four point nine changes its answer. There, opening the other list recovers key rotation. At five point two the extra probe adds a distance check and returns the same guide. Compare each result with a flat scan of the same eligible passages.",
+        "hold": 0.3
+      },
+      {
+        "id": "c25-b06",
+        "say": "Then use relevance judgments and measured latency on held-out questions to decide which setting to keep. The next lesson starts with those passages in hand and follows the model's choice of the next token.",
+        "hold": 1.3
+      }
+    ]
+  }
+]

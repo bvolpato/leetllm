@@ -1,0 +1,15 @@
+{
+  "framing": "Every chosen token changes what the model sees next",
+  "paragraphs": [
+    "The operation that chooses tokens determines repetition, lexical variety, search cost, and whether a generated reply preserves a constrained schema. It belongs in system design and automated evaluation alongside model weights.",
+    "The single highest-probability next word can begin a weak full sentence, and even the globally highest-scoring sequence may miss the user's goal. These distinctions separate local argmax, beam search, and stochastic sampling.",
+    "Trace one natural sentence prefix, \"The autumn light is\", through greedy decoding, beam search, temperature scaling, top-k, top-p, min-p, and repetition penalties. Small numerical examples show how transform order can empty a candidate pool that originally contained a legal token.",
+    "Compare each sampler setting directly on the serving path before shipping a configuration. Hosted APIs increasingly restrict or ignore sampling parameters, so verify which controls remain available and test alternatives through schema constraints and verification."
+  ],
+  "outcomes": [
+    "Tell greedy choices, beam paths, and sampled continuations apart, and know when each one fits.",
+    "Compute how temperature and each candidate filter change a row of probabilities.",
+    "Explain how processing order, stopping rules, and seeds affect what you serve."
+  ],
+  "question": "Which order of processing steps could remove every legal next token, even though the original row contained one?"
+}

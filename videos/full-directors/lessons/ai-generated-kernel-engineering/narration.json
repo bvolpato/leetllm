@@ -1,0 +1,340 @@
+[
+  {
+    "id": "c01",
+    "title": "What should five features produce?",
+    "sourceChapters": [
+      "c01"
+    ],
+    "beats": [
+      {
+        "id": "row",
+        "say": "Five values enter the kernel. Watch where the reads stop. This tile has eight lanes, but the caller supplied just five values. If you square each of those five, what sum should the reference use?",
+        "hold": 2
+      },
+      {
+        "id": "squares",
+        "say": "Square each value. One square, four, nine, sixteen, twenty-five. Together they make fifty-five. Divide by the five real features. The mean square is eleven.",
+        "hold": 1.2
+      },
+      {
+        "id": "normalize",
+        "say": "Add a small positive epsilon before taking the square root. Even a row of zeros then has a positive denominator. Divide each input by that same root. With unit weights, the last feature goes from five to about one point five zero eight.",
+        "hold": 1
+      },
+      {
+        "id": "weights",
+        "say": "Now give only the last feature a weight of two. Which outputs change?",
+        "hold": 2.3
+      },
+      {
+        "id": "weighted",
+        "say": "Only the fifth output doubles. The first four keep their values. Write all five into fresh storage. The input row still belongs to the caller. That is weighted root mean square normalization, or RMSNorm.",
+        "hold": 1
+      },
+      {
+        "id": "choice",
+        "say": "A generated kernel was reported to run one point four times as fast on two rows of width four thousand ninety-six. It failed when the width changed to one thousand nine. Return to unit weights and our five-feature test. The three spare lanes need a fill value. Zero or one? Which would preserve the answer?",
+        "hold": 2.7
+      }
+    ]
+  },
+  {
+    "id": "c02",
+    "title": "Why did the output needle move?",
+    "sourceChapters": [
+      "c02"
+    ],
+    "beats": [
+      {
+        "id": "control",
+        "say": "Start with zero in each masked lane. Here is the reference for the fifth output. Beside it is the generated kernel's reading. Both point to the same value. What happens if the load still reads just five addresses, but the three spare lanes each contribute one?",
+        "hold": 2.5
+      },
+      {
+        "id": "ones",
+        "say": "Count the three extra squares. Each one adds one to the sum. Fifty-eight divided by five gives eleven point six. The larger root pushes the fifth output down to about one point four six eight. The reference stays put.",
+        "hold": 1.5
+      },
+      {
+        "id": "repair",
+        "say": "Restore the zero fill. The sum returns to fifty-five, the divisor stays five, and the needles meet. A load mask protects the read addresses. Zero is the additive identity the reduction needs. A full tile could conceal the mistake. Try widths one below and one above a tile boundary, prime widths, different alignments and different scales.",
+        "hold": 1
+      },
+      {
+        "id": "order",
+        "say": "A correct sum can also depend on when a thread reads. Two threads in one CUDA block share a slot. This reader arrives before the producer writes seven. Which checker would you run?",
+        "hold": 2
+      },
+      {
+        "id": "checker",
+        "say": "Use racecheck for the shared-memory ordering hazard. Put a valid block barrier between the write and read and the reader can use seven. If only some threads reach that block barrier, use synccheck to investigate invalid synchronization. Follow the ordering rules of the kernel language.",
+        "hold": 1
+      },
+      {
+        "id": "bounds",
+        "say": "On an eight-slot allocation, index eight is outside the allocation. Start with memcheck for invalid or misaligned accesses. An unwritten slot at index three is a different case. Use initcheck with the intended address space and tool version. Keep reports, exit codes, timeouts and exercised paths. Clean runs cover the schedules you exercised.",
+        "hold": 1
+      }
+    ]
+  },
+  {
+    "id": "c03",
+    "title": "Which route owns this call?",
+    "sourceChapters": [
+      "c03"
+    ],
+    "beats": [
+      {
+        "id": "domain",
+        "say": "Write the public contract before asking for code. The feature width must be positive. The weight has one entry per feature. Input and weight share a supported floating dtype and device. Accumulate in float thirty-two, cast back, and return fresh storage. Empty outer batches and ordinary strided views are valid. For epsilon, this operator accepts an ordinary Python int or float and excludes bool. After conversion to float thirty-two, epsilon must still be positive and finite.",
+        "hold": 1
+      },
+      {
+        "id": "pick",
+        "say": "Here are three calls. Both tensors are packed on the tested CUDA target, with gradients off. The fast kernel needs a width divisible by one hundred twenty-eight. A has width three hundred eighty-four. B adds one feature. C uses the first width and passes true for epsilon. Route each call.",
+        "hold": 2.6
+      },
+      {
+        "id": "routes",
+        "say": "A takes the fast path. Three full tiles fit. B takes the reference path. Its extra feature is valid. C raises the public error before dispatch. A Boolean is outside the scalar contract. CPU calls use the reference, as do valid calls that need a backward pass. A transposed view also needs a path that understands its strides.",
+        "hold": 1
+      },
+      {
+        "id": "gap",
+        "say": "Look at two rows of four. Neighboring features are adjacent, yet there are two unused storage slots between rows. If you flatten this input as packed, where would the second row begin?",
+        "hold": 2.3
+      },
+      {
+        "id": "layout",
+        "say": "Packed indexing lands in the first gap at offset four. The actual row begins at offset six. Check the entire layout of input and weight before flattening, or calculate addresses from their strides. Registration and fake-tensor checks test the library integration. Compare actual values against a differentiable reference as a separate check.",
+        "hold": 1.2
+      }
+    ]
+  },
+  {
+    "id": "c04",
+    "title": "Which test can expose a false pass?",
+    "sourceChapters": [
+      "c04"
+    ],
+    "beats": [
+      {
+        "id": "smoke",
+        "say": "A developer submits this RMSNorm candidate with one public fixture, two packed rows of four. Scale the public values up, scale them down, or negate them. All four runs pass against the reference. Suppose the candidate has a special case for this packed shape. What could you change to exercise another branch?",
+        "hold": 2
+      },
+      {
+        "id": "stride",
+        "say": "Freeze the source, dispatch, reference and comparison policy. Keep the eight stored numbers. Change only the strides. The first feature of row zero still lives at offset zero. Advance two storage positions per feature. Which four values will the reference normalize?",
+        "hold": 2.4
+      },
+      {
+        "id": "gather",
+        "say": "Read one, three, five and seven. Their squares sum to eighty-four, so the mean square is twenty-one. Divide five by the root of that mean plus epsilon. The third reference output is about one point zero nine one. Can the four packed runs tell us whether the frozen candidate matches that value on this view?",
+        "hold": 2.1
+      },
+      {
+        "id": "mismatch",
+        "say": "Those runs left this layout untested. Run the frozen candidate on the view. For the third feature we observe zero. That mismatch exposes a branch that returns zeros whenever the shape or strides differ from the public fixture. Three packed rows of five expose it by changing shape instead. Valid calls like these need a verified fallback if the specialization cannot handle them. Hold this unguarded build.",
+        "hold": 1
+      },
+      {
+        "id": "holdout",
+        "say": "Suppose the team uses that private failure to repair the code. That case is now development evidence. Freeze the revision and open a fresh holdout. If only public compiler feedback guided the repair, an untouched private suite is still available. A benchmark's pass rate depends on its harness, budget and baseline.",
+        "hold": 1
+      },
+      {
+        "id": "witness",
+        "say": "We can also test the checker. For six injected defects we have inputs that expose each defect and pass the unmodified reference. Two more proposed defects still lack a witness. If the checker catches four, what fraction of the witnessed defects did it detect?",
+        "hold": 2.5
+      },
+      {
+        "id": "witnessScore",
+        "say": "Four out of six. Only the six witnessed defects had cases that could expose them. The two misses identify gaps in the checker. The two pending defects still need distinguishing inputs.",
+        "hold": 1
+      },
+      {
+        "id": "ownership",
+        "say": "An accurate answer can still damage the next layer. Compare the input bytes before and after the call. A temporary write restored between snapshots escapes this audit. Now follow the returned view to its storage. Compare its storage base with each input's storage base. Here the output shares the input allocation. Reject the alias even though the numbers match. A nonempty functional output needs its own storage.",
+        "hold": 1
+      }
+    ]
+  },
+  {
+    "id": "c05",
+    "title": "What must scale with the row?",
+    "sourceChapters": [
+      "c05"
+    ],
+    "beats": [
+      {
+        "id": "base",
+        "say": "Now test the evaluator itself. Take a row with plus and minus one thousandth and unit weights. Look at the positive feature. The mean square is one millionth. Epsilon is ten times larger. The normalized output is about zero point three zero two.",
+        "hold": 1
+      },
+      {
+        "id": "enlarge",
+        "say": "Multiply both inputs by one hundred. Keep epsilon fixed. The squared inputs grow by ten thousand. Will the positive output land on its original mark?",
+        "hold": 2.8
+      },
+      {
+        "id": "fixed",
+        "say": "It moves close to one. Epsilon is small beside the new mean square. A test that demands the original value would reject the trusted reference. Keep this trial in view and repeat the enlarged row. What change to epsilon would make the two terms grow together?",
+        "hold": 2.6
+      },
+      {
+        "id": "scaled",
+        "say": "Multiply epsilon by ten thousand too. It becomes one tenth. The root grows by one hundred, just like the positive numerator. The two normalized outputs coincide. With unchanged weights, this equality holds in exact arithmetic for a positive multiplier.",
+        "hold": 1.4
+      },
+      {
+        "id": "negative",
+        "say": "Reverse the input signs on that last trial. The denominator keeps its magnitude and the output reverses sign. For a zero multiplier the proposed scaled epsilon would be zero, which the contract rejects. Verify the relation on the reference and allow for rounding, underflow and overflow.",
+        "hold": 1
+      },
+      {
+        "id": "band",
+        "say": "For finite values, set a tolerance before testing. Start from a reference of zero point zero zero two. The absolute allowance is one ten-thousandth. Add one percent of the reference magnitude. How far from the reference may a candidate land?",
+        "hold": 2.8
+      },
+      {
+        "id": "interval",
+        "say": "The relative term adds two hundred-thousandths to the ten we started with. The allowance is twelve hundred-thousandths. Center the interval on the reference and extend it by that amount in each direction. Which candidate mark falls inside?",
+        "hold": 2.6
+      },
+      {
+        "id": "tolerance",
+        "say": "A differs by eleven hundred-thousandths and passes. B differs by fifteen hundred-thousandths and fails. Test small and large magnitudes. Check NaN positions and infinity signs separately.",
+        "hold": 1.3
+      },
+      {
+        "id": "overflow",
+        "say": "Consider a single finite input, two times ten to the nineteenth, with unit weight. Square it in float thirty-two. Four times ten to the thirty-eighth exceeds the largest finite value. The square overflows to infinity, so the reciprocal root becomes zero and the direct result is zero. In float sixty-four the square fits, and the normalized result is close to one. Declare which arithmetic the operator promises.",
+        "hold": 1
+      }
+    ]
+  },
+  {
+    "id": "c06",
+    "title": "Which clock and which bytes?",
+    "sourceChapters": [
+      "c06"
+    ],
+    "beats": [
+      {
+        "id": "clock",
+        "say": "Time the build that passed the numerical and safety checks. Inspect the loaded artifact, its target, register and shared-memory use, spills and actual dispatch. A host launch can return while the GPU is still working. For a stream interval, record CUDA events around the ordered work and wait for completion. For application latency, measure completed wall time.",
+        "hold": 1
+      },
+      {
+        "id": "wrapper",
+        "say": "Compare a supplied pair on a common clock. The baseline kernel takes eight microseconds and the candidate six. The wrapper costs one microsecond on the baseline and five on the candidate. The intervals are sequential. What completed time would you report for each call?",
+        "hold": 2.6
+      },
+      {
+        "id": "total",
+        "say": "The baseline finishes in nine microseconds. The candidate takes eleven. Match the deployed baseline, precision, inputs, layouts and cache policy. Separate cold compilation and loading from warm calls. Interleave paired rounds and keep individual completed samples for tail latency. Measure outside the sanitizer.",
+        "hold": 1
+      },
+      {
+        "id": "sectors",
+        "say": "Now follow thirty-two active lanes loading four bytes each. Start at a thirty-two-byte aligned base. Neighboring loads start eight bytes apart. Each dot marks one load, and each labeled strip covers thirty-two bytes. Count the strips that contain at least one load.",
+        "hold": 2.6
+      },
+      {
+        "id": "repack",
+        "say": "Four loads fit per strip, so the spaced loads touch eight sectors. Keep the base and the payload. Move the starts four bytes apart so the loads sit side by side. How many sectors does the same instruction touch now?",
+        "hold": 2.5
+      },
+      {
+        "id": "packed",
+        "say": "The packed loads touch four sectors. The useful payload stays at one hundred twenty-eight bytes. This counts addresses in an instruction. Cache reuse, rereads and spills can change what reaches device memory.",
+        "hold": 1
+      },
+      {
+        "id": "bytes",
+        "say": "Take one completed interval of twelve microseconds. In this example, input reads, per-row weight reads and output writes request sixty-two point four million bytes. The supplied device-memory count is thirty million. What rate should you compare with the device-memory bandwidth ceiling?",
+        "hold": 2
+      },
+      {
+        "id": "rates",
+        "say": "Use the device-memory count. It gives two point five decimal terabytes per second. The requested rate is five point two over the same interval. For a real run, measure the counter at the level you compare.",
+        "hold": 1.3
+      },
+      {
+        "id": "roof",
+        "say": "For a roofline estimate, count operations and bytes at the same memory level. Suppose the intensity there is two thirds of an operation per byte. Nine hundred gigabytes per second could feed six hundred billion operations per second. The scalar instructions top out at five hundred billion. Which ceiling limits this example?",
+        "hold": 2.5
+      },
+      {
+        "id": "limit",
+        "say": "The scalar ceiling limits this kernel to five hundred billion operations per second. Even if memory delivers operands faster, those instructions can only consume them at that rate. Test a profiler hypothesis by changing access spacing and rechecking outputs, traffic and completed time.",
+        "hold": 1.2
+      }
+    ]
+  },
+  {
+    "id": "c07",
+    "title": "Can this build serve the next request?",
+    "sourceChapters": [
+      "c07"
+    ],
+    "beats": [
+      {
+        "id": "isolate",
+        "say": "Compile in an isolated worker with a pinned toolchain, bounded resources and a timeout. It can read the source and write the artifact. The evaluator, private inputs, credentials and production traffic stay outside. Run device tests in a disposable worker with its own recovery boundary. A pointer type in source cannot confine a device binary.",
+        "hold": 1
+      },
+      {
+        "id": "shadow",
+        "say": "After scoped lab checks, let the trusted path serve the request while a shadow copy goes to the candidate. With ten execution slots, eight already busy, how many of three shadow copies can start?",
+        "hold": 2
+      },
+      {
+        "id": "budget",
+        "say": "Two start and one waits. Sample only approved inputs. Separate streams still share compute, cache, memory and allocator capacity. Measure request latency and distinguish live memory from reserved memory and specialization growth. In a canary the candidate serves real responses. Ramp eligible traffic under latency, device-health and downstream-quality tripwires.",
+        "hold": 1
+      },
+      {
+        "id": "canary",
+        "say": "Follow one canary response into greedy decoding. Token B leads by one ten-thousandth. Raise only A by two ten-thousandths. A takes the lead. This caller receives a different token. Measure downstream quality alongside operator error.",
+        "hold": 1.2
+      },
+      {
+        "id": "fault",
+        "say": "Rehearse a canary fault. Request one is in worker seventeen. Its input and retry key also live outside the worker. An illegal-address fault leaves the process unhealthy. Disable candidate routing. A new request can go straight to a healthy reference. To finish the interrupted request, what would you replay, and where?",
+        "hold": 2.5
+      },
+      {
+        "id": "recover",
+        "say": "Request one still needs recovery. Terminate the failed worker and start a healthy replacement. Under this policy one retry is allowed. Replay the saved input with the same key on worker eighteen. The reference returns the result. Measure flag propagation and account for work submitted before the switch.",
+        "hold": 1.2
+      },
+      {
+        "id": "receipt",
+        "say": "A signed release record binds source, loaded binary, dispatch rule, reference, test policy, toolchain and target to the reviewed measurements and recovery evidence. Compare the proposed dispatch with the signed rule. D two changes the route. Revalidate and sign the new payload before using it. A hash lets a reviewer identify the bytes and check the evidence.",
+        "hold": 1
+      },
+      {
+        "id": "practice",
+        "say": "Your turn. Storage holds five, eight, twelve, fifteen. Row zero has two features, two offsets apart, with weights one and two. Which path handles this valid view, and what will it write?",
+        "hold": 2.7
+      },
+      {
+        "id": "answer",
+        "say": "Read five and twelve. Use the reference path. Their mean square is eighty-four point five. Add epsilon, divide both features by the root and double the second result. The fresh output row is about zero point five four four and two point six one one. The caller's four numbers stay in place.",
+        "hold": 1
+      },
+      {
+        "id": "release",
+        "say": "Now a packed width of one hundred twenty-eight satisfies the fast predicate on the tested GPU with gradients off. The loaded build still has no device safety report. Would you enable it for live requests?",
+        "hold": 2.5
+      },
+      {
+        "id": "hold",
+        "say": "Keep live requests on the trusted path. Exercise the device checks on this binary and dispatch rule, resolve any hazards, and attach the report for review. Passing the shape check tells you which kernel could run. The release record tells you what evidence you have for running it.",
+        "hold": 1.8
+      }
+    ]
+  }
+]

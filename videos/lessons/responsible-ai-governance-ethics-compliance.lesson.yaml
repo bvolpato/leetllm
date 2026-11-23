@@ -1,0 +1,1438 @@
+version: 1
+id: responsible-ai-governance-ethics-compliance
+title: Responsible AI Governance Through Replayable Evidence
+source: llmops/responsible-ai-governance-ethics-compliance/content.md
+voice: en-US-AndrewNeural
+rate: +0%
+sources:
+  - title: NIST AI Risk Management Framework 1.0
+    url: https://www.nist.gov/itl/ai-risk-management-framework
+  - title: NIST Generative AI Profile
+    url: https://doi.org/10.6028/NIST.AI.600-1
+  - title: European Commission AI Act overview
+    url: https://digital-strategy.ec.europa.eu/en/policies/regulatory-framework-ai
+  - title: Model Cards for Model Reporting
+    url: https://arxiv.org/abs/1810.03993
+  - title: Datasheets for Datasets
+    url: https://arxiv.org/abs/1803.09010
+  - title: ISO/IEC42001:2023 public overview
+    url: https://www.iso.org/standard/42001
+  - title: EU AI Act amended Article2, official Commission Service Desk
+    url: https://ai-act-service-desk.ec.europa.eu/en/ai-act/article-2
+  - title: EU AI Act amended Article5, official Commission Service Desk
+    url: https://ai-act-service-desk.ec.europa.eu/en/ai-act/article-5
+  - title: EU AI Act amended Article6, official Commission Service Desk
+    url: https://ai-act-service-desk.ec.europa.eu/en/ai-act/article-6
+  - title: EU AI Act amended Article14, official Commission Service Desk
+    url: https://ai-act-service-desk.ec.europa.eu/en/ai-act/article-14
+  - title: EU AI Act amended Article26, official Commission Service Desk
+    url: https://ai-act-service-desk.ec.europa.eu/en/ai-act/article-26
+  - title: EU AI Act amended Article50, official Commission Service Desk
+    url: https://ai-act-service-desk.ec.europa.eu/en/ai-act/article-50
+  - title: EU AI Act amended Article51, official Commission Service Desk
+    url: https://ai-act-service-desk.ec.europa.eu/en/ai-act/article-51
+  - title: EU AI Act amended Article52, official Commission Service Desk
+    url: https://ai-act-service-desk.ec.europa.eu/en/ai-act/article-52
+  - title: EU AI Act amended Article53, official Commission Service Desk
+    url: https://ai-act-service-desk.ec.europa.eu/en/ai-act/article-53
+  - title: EU AI Act amended Article55, official Commission Service Desk
+    url: https://ai-act-service-desk.ec.europa.eu/en/ai-act/article-55
+  - title: EU AI Act amended Article111, official Commission Service Desk
+    url: https://ai-act-service-desk.ec.europa.eu/en/ai-act/article-111
+  - title: EU AI Act amended Article113, official Commission Service Desk
+    url: https://ai-act-service-desk.ec.europa.eu/en/ai-act/article-113
+  - title: EU AI Act AnnexIII
+    url: https://ai-act-service-desk.ec.europa.eu/en/ai-act/annex-3
+  - title: EU AI Act Article3 definitions
+    url: https://ai-act-service-desk.ec.europa.eu/en/ai-act/article-3
+  - title: EU AI Act Article86 explanation scope
+    url: https://ai-act-service-desk.ec.europa.eu/en/ai-act/article-86
+scenes:
+  - id: intro
+    title: Can this rollout go ahead?
+    visual: >-
+      A pen signs the release line on a rollout form. The required security line stays blank. The decision and executor record open separately. The four NIST functions describe who owns this decision and how to review it.
+    beats:
+      - say: >-
+          The release reviewer signs. This rollout needs two signatures because the recommendation came from an untrusted evaluation note. Look at the security line. Can this rollout go ahead?
+        hold: 2.1
+        caption_starts:
+          - Look at the security line
+        motion_check:
+          region: [330, 390, 1250, 420]
+          minimumChangedFraction: 0.002
+        visual_cues:
+          - id: intro-beat-1-focus-1
+            phrase: "The release reviewer signs"
+            targets: [approval-form]
+            linger: 0.25
+          - id: gov-intro-policy
+            phrase: "needs two signatures"
+            targets: [approval-form]
+            linger: 0.25
+          - id: gov-intro-lookup
+            phrase: "Look at the security line"
+            targets: [approval-form]
+            linger: 0.25
+      - say: >-
+          Hold the rollout. Security still has to sign. Now open the executor record. It shows zero traffic changes. The owner can appeal if a signature was missed. An independent reviewer checks the original request, policy and receipts, then adds the decision and its reason to the file.
+        hold: 0.8
+        caption_starts:
+          - Hold the rollout
+          - It shows zero traffic changes
+          - The owner can appeal
+        visual_cues:
+          - id: gov-original-hold
+            phrase: "Hold the rollout"
+            targets: [approval-form]
+            linger: 0.25
+          - id: gov-original-effect
+            phrase: "It shows zero traffic changes"
+            targets: [effect-record]
+            linger: 0.25
+          - id: gov-original-appeal
+            phrase: "An independent reviewer checks the original request, policy and receipts"
+            targets: [appeal-record]
+            linger: 0.25
+      - say: >-
+          Who could a bad rollout hurt? The workflow map names the people who will use the new model. Measure what happened on both unauthorized and legitimate requests. Manage the risk by holding an unsafe change or repairing a mistaken denial. The release owner decides who can accept the remaining risk.
+        hold: 0.6
+        visual_cues:
+          - id: gov-map-case
+            phrase: "The workflow map names the people"
+            targets: [framework-records]
+            linger: 0.25
+          - id: gov-measure-case
+            phrase: "Measure what happened"
+            targets: [framework-records]
+            linger: 0.25
+          - id: gov-manage-case
+            phrase: "Manage the risk"
+            targets: [framework-records]
+            linger: 0.25
+      - say: >-
+          These are the four functions in NIST's voluntary AI Risk Management Framework. Govern applies throughout Map, Measure and Manage. As of late twenty twenty-six, version one is under revision. The Generative AI Profile covers risks including harmful outputs, information integrity, privacy and security. ISO forty-two thousand and one, published in twenty twenty-three, uses Plan, Do, Check, Act for an organization's AI management system. The team documents safety evidence and legal review for each release.
+        hold: 0.7
+        visual_cues:
+          - id: gov-framework-scope
+            phrase: "Govern applies throughout"
+            targets: [framework-records]
+            linger: 0.25
+          - id: gov-iso-system
+            phrase: "Plan, Do, Check, Act"
+            targets: [framework-records]
+            linger: 0.25
+  - id: workflow
+    title: Review follows the workflow and the people it affects
+    visual: Four workflow records run through an explicit engineering triage function. Checked false flags remain
+      distinct from unknown intake facts.
+    beats:
+      - say: >
+          The same model can summarize public documents, help assess credit, or propose production changes.
+          Start with intended use and affected people. Our intake asks about credit, worker management, direct
+          interaction and executable effects. Checked facts determine an engineering review route.
+        hold: 0.6
+        visual_cues:
+          - id: gov-workflow-b1
+            phrase: The same model can summarize public documents, help assess credit, or propose production changes
+            targets:
+              - workflow-mechanism
+            color: blue
+            linger: 0.6
+      - say: >
+          The credit example reaches specialized risk review. The promotion assistant reaches interaction and
+          effect review. Public summarization reaches the baseline route. These labels organize investigation;
+          qualified reviewers determine the applicable legal classification from jurisdiction, role and use.
+        hold: 0.6
+        visual_cues:
+          - id: gov-workflow-b2
+            phrase: The credit example reaches specialized risk review
+            targets:
+              - workflow-mechanism
+            color: blue
+            linger: 0.6
+          - id: gov-credit-route
+            phrase: The credit example reaches specialized risk review
+            targets:
+              - gov-workflow-mechanism
+            color: cyan
+            linger: 0.5
+          - id: gov-effect-route
+            phrase: The promotion assistant reaches interaction and effect review
+            targets:
+              - gov-workflow-mechanism
+            color: cyan
+            linger: 0.5
+          - id: gov-baseline-route
+            phrase: Public summarization reaches the baseline route
+            targets:
+              - gov-workflow-mechanism
+            color: cyan
+            linger: 0.5
+      - say: >
+          An incomplete intake reaches facts review. Unknown answers stay visible until established. Record
+          the legal basis and its review date beside the workflow. Model-provider responsibilities and
+          application responsibilities can coexist, so a replacement model needs a workflow assessment.
+        hold: 0.6
+        visual_cues:
+          - id: gov-workflow-b3
+            phrase: An incomplete intake reaches facts review
+            targets:
+              - workflow-mechanism
+            color: blue
+            linger: 0.6
+          - id: gov-unknown-route
+            phrase: An incomplete intake reaches facts review
+            targets:
+              - gov-workflow-mechanism
+            color: cyan
+            linger: 0.5
+  - id: legal-scope
+    title: Classify the workflow and identify each actor
+    visual: One model connects to several persistent workflow silhouettes. Territorial-scope and actor branches
+      attach to each actual use; transparency overlays rather than replacing high-risk status.
+    beats:
+      - say: Begin the EU assessment with territorial scope and actor role. Article two includes providers placing
+          systems or general-purpose models on the Union market, EU deployers, and certain non-EU providers
+          and deployers where system output is used in the Union. Record the actual deployment and affected
+          people rather than inferring scope from a vendor name. The legal orientation here was checked
+          against the amended official text on November sixth, twenty twenty-six; a launch still needs its
+          dated classification and qualified signoff.
+        hold: 0.7
+        visual_cues:
+          - id: gov-legal-scope-b1
+            phrase: Begin the EU assessment with territorial scope and actor role
+            targets:
+              - legal-scope-mechanism
+            color: blue
+            linger: 0.6
+          - id: gov-eu-output
+            phrase: where system output is used in the Union
+            targets:
+              - gov-legal-scope-mechanism
+            color: cyan
+            linger: 0.5
+      - say: An application developer can be the provider of an AI system even when another organization supplies its
+          general-purpose model. Provider in the Act concerns developing, or having developed, a system or
+          model and placing it on the market or into service under its own name; a deployer uses a system
+          under its authority. Which actor you are depends on the facts. A credit application can be a
+          high-risk system built on a general-purpose model with separate model-provider duties.
+        hold: 0.7
+        visual_cues:
+          - id: gov-legal-scope-b2
+            phrase: An application developer can be the provider of an AI system even when another organization supplies
+              its general-purpose model
+            targets:
+              - legal-scope-mechanism
+            color: blue
+            linger: 0.6
+          - id: gov-application-role
+            phrase: An application developer can be the provider of an AI system even when another organization supplies
+              its general-purpose model
+            targets:
+              - gov-legal-scope-mechanism
+            color: cyan
+            linger: 0.5
+      - say: >-
+          The four-level intake map asks about prohibited practices, high-risk systems, particular transparency duties, and minimal or no risk. A high-risk assistant can also have transparency obligations. The local triage checks unknown facts first, then credit or worker management, then direct interaction or executable effects, then baseline. A staff scheduling proposal with a checked worker-management flag goes to specialized risk review. An unanswered flag stays facts review. The intake sends that workflow to a qualified reviewer for legal classification.
+        hold: 0.7
+        visual_cues:
+          - id: gov-legal-scope-b3
+            phrase: The four-level intake map asks about prohibited practices, high-risk systems, particular transparency
+              duties, and minimal or no risk
+            targets:
+              - legal-scope-mechanism
+            color: blue
+            linger: 0.6
+          - id: gov-staff-route
+            phrase: A staff scheduling proposal with a checked worker-management flag goes to specialized risk review
+            targets:
+              - gov-legal-scope-mechanism
+            color: cyan
+            linger: 0.5
+          - id: gov-staff-unknown
+            phrase: "An unanswered flag stays facts review"
+            targets:
+              - gov-legal-scope-mechanism
+            color: cyan
+            linger: 0.5
+  - id: prohibited-practices
+    title: A prohibited-use screen needs conditions and exceptions
+    visual: A use record passes through precise Article5 predicates. Conditions illuminate with their associated
+      harms; a prohibited result stops the path before any paperwork can green-light it.
+    beats:
+      - say: Screen prohibited practices before building a release checklist. Article five addresses specified
+          manipulative or vulnerability-exploiting techniques that meet significant-harm conditions, and
+          social scoring producing specified unrelated, unjustified or disproportionate adverse treatment. A
+          score by itself does not establish those conditions. State the behavior, affected person and harm in
+          the intake record. A signed risk memo cannot authorize a prohibited practice.
+        hold: 0.7
+        visual_cues:
+          - id: gov-prohibited-practices-b1
+            phrase: Screen prohibited practices before building a release checklist
+            targets:
+              - prohibited-practices-mechanism
+            color: blue
+            linger: 0.6
+          - id: gov-prohibition-conditions
+            phrase: specified manipulative or vulnerability-exploiting techniques that meet significant-harm conditions
+            targets:
+              - gov-prohibited-practices-mechanism
+            color: cyan
+            linger: 0.5
+          - id: gov-score-alone
+            phrase: A score by itself does not establish those conditions
+            targets:
+              - gov-prohibited-practices-mechanism
+            color: cyan
+            linger: 0.5
+      - say: Other provisions concern untargeted facial-image scraping to build recognition databases, specified
+          sensitive biometric categorization, and individual criminal-risk prediction based solely on
+          profiling or personality. The criminal-risk provision distinguishes support for a human assessment
+          already based on objective, verifiable facts directly linked to criminal activity. Workplace and
+          education emotion inference has a medical or safety exception. Read each condition rather than
+          turning these into a ban on every biometric or emotion-related tool.
+        hold: 0.7
+        visual_cues:
+          - id: gov-prohibited-practices-b2
+            phrase: Other provisions concern untargeted facial-image scraping to build recognition databases, specified
+              sensitive biometric categorization, and individual criminal-risk prediction based solely on
+              profiling or personality
+            targets:
+              - prohibited-practices-mechanism
+            color: blue
+            linger: 0.6
+          - id: gov-objective-facts
+            phrase: support for a human assessment already based on objective, verifiable facts directly linked to
+              criminal activity
+            targets:
+              - gov-prohibited-practices-mechanism
+            color: cyan
+            linger: 0.5
+          - id: gov-medical-exception
+            phrase: Workplace and education emotion inference has a medical or safety exception
+            targets:
+              - gov-prohibited-practices-mechanism
+            color: cyan
+            linger: 0.5
+      - say: Real-time remote biometric identification in publicly accessible spaces for law enforcement has narrow
+          necessary objectives and authorization safeguards. They include targeted victim or missing-person
+          searches, specified serious threats and certain serious-offence suspects. They are not a general
+          exception for convenient surveillance. Record the objective, permitted scope and applicable
+          authorization before determining whether the use fits an exception.
+        hold: 0.7
+        visual_cues:
+          - id: gov-prohibited-practices-b3
+            phrase: Real-time remote biometric identification in publicly accessible spaces for law enforcement has narrow
+              necessary objectives and authorization safeguards
+            targets:
+              - prohibited-practices-mechanism
+            color: blue
+            linger: 0.6
+          - id: gov-biometric-objective
+            phrase: targeted victim or missing-person searches, specified serious threats and certain serious-offence
+              suspects
+            targets:
+              - gov-prohibited-practices-mechanism
+            color: cyan
+            linger: 0.5
+          - id: gov-biometric-scope
+            phrase: Record the objective, permitted scope and applicable authorization before determining whether the use
+              fits an exception
+            targets:
+              - gov-prohibited-practices-mechanism
+            color: cyan
+            linger: 0.5
+      - say: The July twenty twenty-six amendment adds prohibitions involving nonconsensual intimate material and
+          child sexual abuse material from December second, twenty twenty-six. Market and service restrictions
+          distinguish intended generation from reasonably foreseeable, reproducible generation without
+          adequate safeguards. The use restriction concerns the deployer's purpose. Detailed definitions and
+          exceptions, including the child-material provision's national-law defence condition, matter. Keep a
+          dated legal decision for the actual use rather than assigning a blanket rule to every
+          general-purpose model.
+        hold: 0.7
+        visual_cues:
+          - id: gov-prohibited-practices-b4
+            phrase: The July twenty twenty-six amendment adds prohibitions involving nonconsensual intimate material and
+              child sexual abuse material from December second, twenty twenty-six
+            targets:
+              - prohibited-practices-mechanism
+            color: blue
+            linger: 0.6
+          - id: gov-dated-prohibition
+            phrase: from December second, twenty twenty-six
+            targets:
+              - gov-prohibited-practices-mechanism
+            color: cyan
+            linger: 0.5
+          - id: gov-generation-conditions
+            phrase: intended generation from reasonably foreseeable, reproducible generation without adequate safeguards
+            targets:
+              - gov-prohibited-practices-mechanism
+            color: cyan
+            linger: 0.5
+          - id: gov-use-purpose
+            phrase: The use restriction concerns the deployer's purpose
+            targets:
+              - gov-prohibited-practices-mechanism
+            color: cyan
+            linger: 0.5
+  - id: high-risk-branches
+    title: Follow both high-risk routes and test the exception
+    visual: A two-condition product AND gate sits beside the AnnexIII use branch. Only the AnnexIII branch reaches
+      an exception test; a profiling override preserves high risk.
+    beats:
+      - say: Article six has two high-risk routes. The product route requires both an Annex one product or its safety
+          component, and the relevant third-party conformity assessment for health and safety. Solely
+          non-safety assistance, efficiency or convenience does not make a safety component. Failure that
+          endangers health and safety can. A conformity check solely for unrelated risks does not satisfy the
+          second condition. Preserve both inputs of this AND test.
+        hold: 0.7
+        visual_cues:
+          - id: gov-high-risk-branches-b1
+            phrase: Article six has two high-risk routes
+            targets:
+              - high-risk-branches-mechanism
+            color: blue
+            linger: 0.6
+          - id: gov-product-inputs
+            phrase: both an Annex one product or its safety component, and the relevant third-party conformity assessment
+              for health and safety
+            targets:
+              - gov-high-risk-branches-mechanism
+            color: cyan
+            linger: 0.5
+          - id: gov-convenience
+            phrase: Solely non-safety assistance, efficiency or convenience does not make a safety component
+            targets:
+              - gov-high-risk-branches-mechanism
+            color: cyan
+            linger: 0.5
+          - id: gov-safety-failure
+            phrase: Failure that endangers health and safety can
+            targets:
+              - gov-high-risk-branches-mechanism
+            color: cyan
+            linger: 0.5
+          - id: gov-unrelated-assessment
+            phrase: A conformity check solely for unrelated risks does not satisfy the second condition
+            targets:
+              - gov-high-risk-branches-mechanism
+            color: cyan
+            linger: 0.5
+      - say: Annex three is a separate listed-use route. It includes specified biometrics, educational assessment,
+          employment and essential-service decisions. Its creditworthiness entry expressly excludes
+          financial-fraud detection. For a supplied intake, distinguish an applicant's creditworthiness
+          decision from a transaction-fraud detector, then check other applicable duties. A model swap leaves
+          the applicant decision's intended use intact.
+        hold: 0.7
+        visual_cues:
+          - id: gov-high-risk-branches-b2
+            phrase: Annex three is a separate listed-use route
+            targets:
+              - high-risk-branches-mechanism
+            color: blue
+            linger: 0.6
+          - id: gov-credit-fraud
+            phrase: Its creditworthiness entry expressly excludes financial-fraud detection
+            targets:
+              - gov-high-risk-branches-mechanism
+            color: cyan
+            linger: 0.5
+          - id: gov-credit-comparison
+            phrase: distinguish an applicant's creditworthiness decision from a transaction-fraud detector
+            targets:
+              - gov-high-risk-branches-mechanism
+            color: cyan
+            linger: 0.5
+      - say: The Annex three exception requires no significant risk to health, safety or fundamental rights, including
+          no material influence on decision outcomes. At least one of four conditions must also apply. These
+          are a narrow procedural task, improving a completed human activity, detecting decision patterns or
+          deviations without replacing or influencing the completed assessment without proper human review, or
+          a preparatory task. A provider relying on it documents the assessment before marketing or service
+          and registers the system. Annex three profiling of natural persons remains high risk despite that
+          exception test.
+        hold: 0.7
+        visual_cues:
+          - id: gov-high-risk-branches-b3
+            phrase: The Annex three exception requires no significant risk to health, safety or fundamental rights,
+              including no material influence on decision outcomes
+            targets:
+              - high-risk-branches-mechanism
+            color: blue
+            linger: 0.6
+          - id: gov-narrow-exception
+            phrase: These are a narrow procedural task, improving a completed human activity, detecting decision patterns
+              or deviations without replacing or influencing the completed assessment without proper human
+              review, or a preparatory task
+            targets:
+              - gov-high-risk-branches-mechanism
+            color: cyan
+            linger: 0.5
+          - id: gov-profiling-override
+            phrase: Annex three profiling of natural persons remains high risk despite that exception test
+            targets:
+              - gov-high-risk-branches-mechanism
+            color: cyan
+            linger: 0.5
+      - say: For covered high-risk systems, Articles nine through fifteen concern risk management, data governance,
+          documentation, logging, transparency, human oversight, accuracy, robustness and cybersecurity. Check
+          the responsible actor and sector route. Article two gives Annex one Section B products a special
+          integration regime through sector legislation. The same direct compliance checklist does not fit
+          every regulated product. Our promotion assistant's local controls do not by themselves declare it an
+          Annex three high-risk system.
+        hold: 0.7
+        visual_cues:
+          - id: gov-high-risk-branches-b4
+            phrase: For covered high-risk systems, Articles nine through fifteen concern risk management, data governance,
+              documentation, logging, transparency, human oversight, accuracy, robustness and cybersecurity
+            targets:
+              - high-risk-branches-mechanism
+            color: blue
+            linger: 0.6
+          - id: gov-sector-route
+            phrase: Article two gives Annex one Section B products a special integration regime through sector legislation
+            targets:
+              - gov-high-risk-branches-mechanism
+            color: cyan
+            linger: 0.5
+  - id: gpai-layer
+    title: Model duties coexist with application duties
+    visual: A model layer retains Article53 duties while the overlaid credit-system layer remains classified by
+      use. A compute threshold branch gains a separate Commission designation route.
+    beats:
+      - say: Keep the general-purpose model layer visible below the application. Article fifty-three covers technical
+          model documentation, information for downstream integrators, a copyright policy and a sufficiently
+          detailed public summary of training content. Qualifying open-source models have a limited exception
+          from the first two duties, not from copyright policy or the public summary. That exception does not
+          apply to models with systemic risk.
+        hold: 0.7
+        visual_cues:
+          - id: gov-gpai-layer-b1
+            phrase: Keep the general-purpose model layer visible below the application
+            targets:
+              - gpai-layer-mechanism
+            color: blue
+            linger: 0.6
+          - id: gov-open-exception
+            phrase: Qualifying open-source models have a limited exception from the first two duties
+            targets:
+              - gov-gpai-layer-mechanism
+            color: cyan
+            linger: 0.5
+          - id: gov-systemic-override
+            phrase: That exception does not apply to models with systemic risk
+            targets:
+              - gov-gpai-layer-mechanism
+            color: cyan
+            linger: 0.5
+      - say: "Articles fifty-one and fifty-two address high-impact capabilities and Commission designation. More than
+          ten to the twenty-fifth training FLOPs creates a presumption of high-impact capabilities, with an
+          exceptional rebuttal procedure. It is not the only route: the Commission can designate a model based
+          on equivalent capabilities or impact under the specified criteria. Being below the compute threshold
+          alone does not prove the model is outside systemic-risk duties."
+        hold: 0.7
+        visual_cues:
+          - id: gov-gpai-layer-b2
+            phrase: Articles fifty-one and fifty-two address high-impact capabilities and Commission designation
+            targets:
+              - gpai-layer-mechanism
+            color: blue
+            linger: 0.6
+          - id: gov-compute-presumption
+            phrase: More than ten to the twenty-fifth training FLOPs creates a presumption of high-impact capabilities,
+              with an exceptional rebuttal procedure
+            targets:
+              - gov-gpai-layer-mechanism
+            color: cyan
+            linger: 0.5
+          - id: gov-commission-route
+            phrase: the Commission can designate a model based on equivalent capabilities or impact under the specified
+              criteria
+            targets:
+              - gov-gpai-layer-mechanism
+            color: cyan
+            linger: 0.5
+      - say: Article fifty-five adds state-of-the-art model evaluation and documented adversarial testing, assessment
+          and mitigation of Union-level systemic risks, serious-incident reporting and cybersecurity. Known or
+          estimated training energy consumption belongs in Annex eleven documentation under Article
+          fifty-three; that is not a separate energy-efficiency duty unique to systemic-risk models. The model
+          provider's documentation helps an integrator, while the integrator still assesses its application's
+          intended use, permissions and affected people.
+        hold: 0.7
+        visual_cues:
+          - id: gov-gpai-layer-b3
+            phrase: Article fifty-five adds state-of-the-art model evaluation and documented adversarial testing,
+              assessment and mitigation of Union-level systemic risks, serious-incident reporting and
+              cybersecurity
+            targets:
+              - gpai-layer-mechanism
+            color: blue
+            linger: 0.6
+          - id: gov-energy-documentation
+            phrase: Known or estimated training energy consumption belongs in Annex eleven documentation under Article
+              fifty-three
+            targets:
+              - gov-gpai-layer-mechanism
+            color: cyan
+            linger: 0.5
+  - id: dated-obligations
+    title: A legal date belongs to one obligation
+    visual: Parallel date rails keep prohibitions, general transparency, specific marking transitions, GPAI and
+      the two high-risk routes separate; moving one date leaves the others fixed.
+    beats:
+      - say: Attach a legal-basis check date, source and required signoff to the workflow memo. Regulation twenty
+          twenty-six slash seventeen forty-four entered into force on July twenty-seventh, twenty twenty-six.
+          Under the amended schedule, Annex three high-risk rules apply from December second, twenty
+          twenty-seven, and the Article six paragraph one product-related rules from August second, twenty
+          twenty-eight. Each date sits on its own line in the release memo.
+        hold: 0.7
+        visual_cues:
+          - id: dated-obligations-b1
+            phrase: Attach a legal-basis check date, source and required signoff to the workflow memo
+            targets:
+              - dated-obligations-mechanism
+            color: blue
+            linger: 0.8
+      - say: Article fifty transparency duties generally apply from August second, twenty twenty-six. Paragraph one
+          concerns informing people of direct AI interaction, with conditions and exceptions including when it
+          is obvious in context. Paragraph two concerns machine-readable marking and detection of synthetic
+          outputs. Paragraph four gives deployers distinct rules for deepfakes and certain public-interest
+          text, including its conditions and exceptions. The workflow determines which of these disclosures applies.
+        hold: 0.7
+        visual_cues:
+          - id: dated-obligations-b2
+            phrase: Article fifty transparency duties generally apply from August second, twenty twenty-six
+            targets:
+              - dated-obligations-mechanism
+            color: blue
+            linger: 0.8
+      - say: For systems already on the market before August second, twenty twenty-six, Article one hundred eleven
+          paragraph four gives until December second that year for the specific Article fifty paragraph two
+          marking and detection obligation. That gives an older system time to add machine-readable marks. Check direct interaction and deployer disclosures against their own dates.
+        hold: 0.7
+        visual_cues:
+          - id: dated-obligations-b3
+            phrase: For systems already on the market before August second, twenty twenty-six, Article one hundred eleven
+              paragraph four gives until December second that year for the specific Article fifty paragraph
+              two marking and detection obligation
+            targets:
+              - dated-obligations-mechanism
+            color: blue
+            linger: 0.8
+      - say: General-purpose model-provider duties began applying August second, twenty twenty-five. Models already on
+          the market before that date have the Article one hundred eleven paragraph three transition to August
+          second, twenty twenty-seven. Existing high-risk systems have their own significant-design-change and
+          public-authority transition rules. Record market date and material changes, then recheck current
+          official text and guidance before launch or feature changes. Our interface identifies itself as AI
+          as a local design choice regardless of a possible exception.
+        hold: 0.7
+        visual_cues:
+          - id: dated-obligations-b4
+            phrase: General-purpose model-provider duties began applying August second, twenty twenty-five
+            targets:
+              - dated-obligations-mechanism
+            color: blue
+            linger: 0.8
+  - id: ownership
+    title: A risk record connects a judgment to evidence
+    visual: An executable risk-row validator identifies missing evidence, then accepts a supplied completed record
+      for review. Estimated ordinal risk scores retain their explicit likelihood and impact inputs.
+    beats:
+      - say: >
+          Our risk is unauthorized promotion through retrieved instructions. Name a release owner and the
+          application authorization control. The initial record lacks evidence, so its review stays open. A
+          control's name becomes useful when someone can inspect a test and replay its result.
+        hold: 0.6
+        visual_cues:
+          - id: ownership-beat-1-focus-1
+            phrase: Name a release owner and the application authorization control
+            targets:
+              - ownership-object-owner-13
+              - ownership-object-review-authorization-g7-15
+            color: blue
+            linger: 0.6
+      - say: >
+          Attach the supplied attack report and approval replay. A reviewer estimates lower residual
+          likelihood while retaining the same impact. The grid shows both ordinal judgments. Their products
+          help prioritize attention; they describe an assessment rather than measured probabilities or
+          financial loss.
+        hold: 0.6
+        visual_cues:
+          - id: ownership-beat-2-focus-1
+            phrase: A reviewer estimates lower residual likelihood while retaining the same impact
+            targets:
+              - ownership-risk-grid
+            color: blue
+            linger: 0.6
+          - id: gov-residual-estimate
+            phrase: A reviewer estimates lower residual likelihood while retaining the same impact
+            targets:
+              - gov-ownership-mechanism
+            color: cyan
+            linger: 0.5
+      - say: >
+          The row is ready for review, with its owner, remaining risk and review date. A material tool change
+          triggers another assessment. Pair the system card describing the shipped behavior with a dataset
+          record describing its examples, provenance and retention.
+        hold: 0.6
+        visual_cues:
+          - id: ownership-beat-3-focus-1
+            phrase: with its owner
+            targets:
+              - ownership-object-owner-13
+            color: blue
+            linger: 0.6
+          - id: ownership-beat-3-focus-2
+            phrase: The row is ready for review
+            targets:
+              - ownership-object-review-authorization-g7-15
+            color: blue
+            linger: 0.6
+      - say: A risk-row validator checks shape, not whether evidence is true. Require nonblank owner, control and
+          residual-risk text, a nonempty list of evidence references, and an ISO review date strictly after
+          the assessment date. A review due today is due, so it holds review. Reviewers may accept remaining
+          risk, reduce the rollout or hold it within their authority, recording scope and reasons. A new tool,
+          dataset, policy or incident can trigger reassessment before that date.
+        hold: 0.7
+        visual_cues:
+          - id: ownership-extension-4
+            phrase: A risk-row validator checks shape, not whether evidence is true
+            targets:
+              - ownership-extension-4
+            color: blue
+            linger: 0.8
+          - id: gov-due-today
+            phrase: A review due today is due, so it holds review
+            targets:
+              - gov-ownership-mechanism
+            color: cyan
+            linger: 0.5
+  - id: evaluation-integrity
+    title: A safe-looking score can come from a broken measurement
+    visual: "The team moves a failed signature check from the private set into regression tests when it uses the case to fix the gate. A fresh private case tests the repair on another request. A version change then separates the old report from the new dataset."
+    beats:
+      - say: "Protect the measurement that feeds the gate. The first risk row covers unauthorized promotion. A second
+          row covers contaminated evaluation evidence: holdout leakage into training, correct answers exposed
+          through agent-readable harness paths, and judge prompt injection. Any can inflate a score while
+          leaving the candidate unsafe. The evaluation and release owner owns this risk separately from the
+          authorization implementation."
+        hold: 0.7
+        visual_cues:
+          - id: gov-evaluation-integrity-b1
+            phrase: Protect the measurement that feeds the gate
+            targets:
+              - evaluation-integrity-mechanism
+            color: blue
+            linger: 0.6
+          - id: gov-measurement-risk
+            phrase: A second row covers contaminated evaluation evidence
+            targets:
+              - gov-evaluation-integrity-mechanism
+            color: cyan
+            linger: 0.5
+          - id: gov-gold-exposure
+            phrase: correct answers exposed through agent-readable harness paths
+            targets:
+              - gov-evaluation-integrity-mechanism
+            color: cyan
+            linger: 0.5
+      - say: >-
+          Case H one caught the gate accepting a request with a missing signature. The team used that case to fix the gate. Move H one into the regression suite. Run it again whenever the gate changes. Use a fresh private case to see whether the fix works on another request. Keep private cases out of training and their answers out of the assistant's reach. Check for exact and near duplicates. Audit access to the answer key. Test how the judge handles untrusted text and whether swapping the answers changes its score. If a case has leaked, hold the release.
+        hold: 0.7
+        caption_starts:
+          - "Move H one into the regression suite"
+          - "Use a fresh private case"
+          - "Keep private cases out of training"
+        visual_cues:
+          - id: gov-evaluation-integrity-b2
+            phrase: "Case H one caught the gate accepting a request with a missing signature"
+            targets:
+              - evaluation-integrity-mechanism
+            color: blue
+            linger: 0.6
+          - id: gov-holdout-isolation
+            phrase: "Keep private cases out of training and their answers out of the assistant's reach"
+            targets:
+              - gov-evaluation-integrity-mechanism
+            color: cyan
+            linger: 0.5
+          - id: gov-seen-regression
+            phrase: "Move H one into the regression suite"
+            targets:
+              - gov-evaluation-integrity-mechanism
+            color: cyan
+            linger: 0.5
+          - id: gov-new-private
+            phrase: "Use a fresh private case to see whether the fix works on another request"
+            targets:
+              - gov-evaluation-integrity-mechanism
+            color: cyan
+            linger: 0.5
+      - say: "The system card describes what shipped: model snapshot, prompts, policies, enabled tools, effect gates,
+          tests, limitations and rollback owner. The dataset record describes the cases that produced a score:
+          provenance, labeling, sensitive fields, split and retention. A schema can catch blanks and missing
+          lists while saying nothing about label quality, actual evaluation execution or retention
+          enforcement. A dataset version or labeling change must remain linked to the matching report and
+          accepted deployment evidence."
+        hold: 0.7
+        visual_cues:
+          - id: gov-evaluation-integrity-b3
+            phrase: "The system card describes what shipped: model snapshot, prompts, policies, enabled tools, effect
+              gates, tests, limitations and rollback owner"
+            targets:
+              - evaluation-integrity-mechanism
+            color: blue
+            linger: 0.6
+          - id: gov-dataset-binding
+            phrase: A dataset version or labeling change must remain linked to the matching report and accepted deployment
+              evidence
+            targets:
+              - gov-evaluation-integrity-mechanism
+            color: cyan
+            linger: 0.5
+  - id: results
+    title: What do the test results establish?
+    visual: >-
+      Three attack traces share a row, and two eligible requests share a second row. Outcomes change on the same case IDs during a retest. Removing the eligible requests leaves their rate unknown. A separate independent-trial experiment constructs the zero-failure bound.
+    beats:
+      - say: >-
+          Follow these five test requests all the way to the recorded effect. The first three asked for a change the gate should stop. Trace A three ends with a forbidden promotion. The other two requests were eligible. The gate wrongly blocked R two. One forbidden effect is enough to hold release. One false rejection out of two also exceeds this suite's ten-percent ceiling. The release owner now has two different failures to investigate.
+        hold: 0.7
+        visual_cues:
+          - id: gov-results-b1
+            phrase: "Follow these five test requests"
+            targets: [results-mechanism]
+            linger: 0.25
+          - id: gov-results-attack
+            phrase: "Trace A three ends with a forbidden promotion"
+            targets: [attack-traces]
+            linger: 0.25
+          - id: gov-results-eligible
+            phrase: "The gate wrongly blocked R two"
+            targets: [eligible-traces]
+            linger: 0.25
+      - say: >-
+          After a repair, run the same five cases again. This time none of the three attack traces changes traffic, and both eligible requests get through. Both checks pass on this retest. These cases were chosen to probe known failures. Now suppose a report drops the two eligible requests. What false rejection rate can we report?
+        hold: 2
+        visual_cues:
+          - id: gov-results-b2
+            phrase: "run the same five cases again"
+            targets: [results-mechanism]
+            linger: 0.25
+          - id: gov-retest-attack
+            phrase: "none of the three attack traces changes traffic"
+            targets: [attack-traces]
+            linger: 0.25
+          - id: gov-retest-eligible
+            phrase: "both eligible requests get through"
+            targets: [eligible-traces]
+            linger: 0.25
+          - id: gov-retest-pass
+            phrase: "Both checks pass on this retest"
+            targets: [results-mechanism]
+            linger: 0.25
+            caption_boundary: true
+          - id: gov-missing-coverage
+            phrase: "drops the two eligible requests"
+            targets: [eligible-traces]
+            linger: 0.25
+      - say: >-
+          There's no denominator. Leave the rate unknown and hold for missing coverage. Keep the case IDs, evaluation version and remediation owner with each report so the next reviewer can reproduce the check.
+        hold: 0.7
+        visual_cues:
+          - id: gov-results-b3
+            phrase: "Leave the rate unknown"
+            targets: [results-mechanism]
+            linger: 0.25
+            caption_boundary: true
+      - say: "Reconstruct the rates: attack success is forbidden effects divided by attack traces, while false
+          rejection is wrongly blocked eligible requests divided by eligible requests. The first suite gives
+          one third and one half. With zero observed failures in three independent fixed-distribution trials,
+          the exact one-sided ninety-five-percent upper bound is one minus point zero five to the power one
+          third, about sixty-three point two percent. Targeted curated attacks are not that random sample.
+          Preserve seen development regressions separately from held-out evaluation."
+        hold: 0.7
+        visual_cues:
+          - id: gov-results-b4
+            phrase: "Reconstruct the rates: attack success is forbidden effects divided by attack traces, while false
+              rejection is wrongly blocked eligible requests divided by eligible requests"
+            targets:
+              - results-mechanism
+            color: blue
+            linger: 0.6
+          - id: gov-complete-bound
+            phrase: about sixty-three point two percent
+            targets:
+              - gov-results-mechanism
+            color: cyan
+            linger: 0.5
+          - id: gov-first-suite
+            phrase: The first suite gives one third and one half
+            targets:
+              - gov-results-mechanism
+            color: cyan
+            linger: 0.5
+          - id: gov-independent-trials
+            phrase: With zero observed failures in three independent fixed-distribution trials
+            targets:
+              - gov-results-mechanism
+            color: cyan
+            linger: 0.5
+          - id: gov-bound-construction
+            phrase: the exact one-sided ninety-five-percent upper bound is one minus point zero five to the power one
+              third, about sixty-three point two percent
+            targets:
+              - gov-results-mechanism
+            color: cyan
+            linger: 0.5
+  - id: slices
+    title: Which path needs investigation?
+    visual: >-
+      One ticket stands for one eligible request. A bracket narrows from all 28 to eight screen-reader cases. Extra passing web cases change the combined rate while the same four tickets stay blocked. The retest returns to the original 28.
+    beats:
+      - say: >-
+          Each ticket is an eligible promotion request. Twenty came through the web console and eight through the screen-reader path. Four requests were blocked by mistake. Count all twenty-eight and the false rejection rate is fourteen point three percent. Our team investigates any supported path above twenty-five percent. Look at the eight tickets on the right. Which path needs investigation?
+        hold: 2.2
+        visual_cues:
+          - id: gov-slice-misses
+            phrase: "Four requests were blocked by mistake"
+            targets: [ticket-roll]
+            linger: 0.25
+          - id: gov-slice-pooled
+            phrase: "the false rejection rate is fourteen point three percent"
+            targets: [rate-rulers]
+            linger: 0.25
+            caption_boundary: true
+          - id: gov-slice-bracket
+            phrase: "Look at the eight tickets on the right"
+            targets: [ticket-roll]
+            linger: 0.25
+      - say: >-
+          The screen-reader path does. All four blocked requests are in that group of eight. Half were blocked, twice our ceiling. The web console had zero blocked out of twenty. Give the interface team those four case IDs. Replay each one. Could the requester reach confirmation? If so, did the policy gate receive the right scope? The counts tell us where to look. We still need the trace to identify the cause.
+        hold: 0.8
+        visual_cues:
+          - id: gov-path-threshold
+            phrase: "Half were blocked, twice our ceiling"
+            targets: [rate-rulers]
+            linger: 0.25
+            caption_boundary: true
+          - id: gov-slice-trace
+            phrase: "those four case IDs"
+            targets: [ticket-roll]
+            linger: 0.25
+      - say: >-
+          Try adding twenty successful web requests to the original run. Watch the combined rate as each one arrives. Four out of forty-eight is eight point three percent. Look back at the four marked tickets. The very same requests are still blocked. The screen-reader path is still at fifty percent.
+        hold: 0.8
+        visual_cues:
+          - id: gov-slice-extra
+            phrase: "Watch the combined rate as each one arrives"
+            targets: [ticket-and-rates]
+            linger: 0.25
+      - say: >-
+          Put the extra web cases aside. After a repair, rerun the original twenty-eight cases. This time the four blocked requests get through. That closes these four test failures. Keep their IDs and the evaluation version so a reviewer can replay them. Eight screen-reader cases tell us little about other people or barriers. Check with users and accessibility specialists. A team can also set a maximum gap between paths and report uncertainty and missing groups. If it needs sensitive group data, establish a lawful purpose and use only what's necessary. GDPR Article nine restricts special-category processing to its listed exceptions.
+        hold: 0.8
+        visual_cues:
+          - id: gov-slice-reset
+            phrase: "Put the extra web cases aside"
+            targets: [ticket-and-rates]
+            linger: 0.25
+          - id: gov-path-repair
+            phrase: "This time the four blocked requests get through"
+            targets: [ticket-and-rates]
+            linger: 0.25
+  - id: audit
+    title: A protected anchor exposes a rewritten decision chain
+    visual: Each event's full SHA-256 output connects to the next previous-digest input. Editing the gate breaks
+      verification, then recomputation propagates through those links. A physically separate protected-head
+      fixture retains its original digest while the mutable head changes.
+    beats:
+      - say: >
+          Preserve the proposal, gate result and observed effect with identities. Our code hashes each event
+          together with the previous digest. It copies the original head into a separate protected-anchor
+          fixture. The diagram abbreviates hashes while comparison uses their complete values.
+        hold: 0.6
+        visual_cues:
+          - id: audit-beat-1-focus-1
+            phrase: Our code hashes each event together with the previous digest
+            targets:
+              - audit-simulation-21
+            color: blue
+            linger: 0.6
+          - id: audit-beat-1-focus-2
+            phrase: The diagram abbreviates hashes while comparison uses their complete values
+            targets:
+              - audit-simulation-27
+            color: blue
+            linger: 0.6
+      - say: >
+          Change the gate event from held to approved. The stored digests stop matching their events.
+          Recompute every digest and the mutable chain becomes internally consistent again. Its final digest
+          still differs from the original protected anchor, exposing the changed history.
+        hold: 0.6
+        motion_check:
+          region:
+            - 710
+            - 430
+            - 1070
+            - 420
+          minimumChangedFraction: 0.002
+        visual_cues:
+          - id: audit-beat-2-focus-1
+            phrase: Change the gate event from held to approved
+            targets:
+              - audit-simulation-21
+            color: blue
+            linger: 0.6
+      - say: >
+          Hashes support integrity checks. Authenticated writers, protected storage and truthful event capture
+          supply other necessary evidence. Minimize private content, restrict access and define retention. A
+          reviewer needs observable business facts and an appeal reference to reconstruct the decision.
+        hold: 0.6
+        visual_cues:
+          - id: audit-beat-3-focus-1
+            phrase: protected storage and truthful event capture supply other necessary evidence
+            targets:
+              - audit-simulation-21
+            color: blue
+            linger: 0.6
+          - id: audit-beat-3-focus-2
+            phrase: Hashes support integrity checks
+            targets:
+              - audit-simulation-27
+            color: blue
+            linger: 0.6
+  - id: replay-privacy
+    title: Keep replay facts without copying every private input
+    visual: C17 business-event fields are selected from a larger private source. A keyed actor pseudonym links
+      requests from that actor, while an external anchor protects sequence and scope; access and retention
+      remain distinct.
+    beats:
+      - say: For C seventeen's challenge, preserve event ID and time, actor, proposal and scope, model snapshot,
+          prompt and policy versions, source trust label, gate and reviewer decisions, reason, appeal
+          reference and observed effect. Keep controlled source references or redacted excerpts when needed.
+          Raw credentials, full private prompts and hidden model reasoning do not become default audit-log
+          fields. Different reviewers need different access to those records.
+        hold: 0.7
+        visual_cues:
+          - id: gov-replay-privacy-b1
+            phrase: For C seventeen's challenge, preserve event ID and time, actor, proposal and scope, model snapshot,
+              prompt and policy versions, source trust label, gate and reviewer decisions, reason, appeal
+              reference and observed effect
+            targets:
+              - replay-privacy-mechanism
+            color: blue
+            linger: 0.6
+          - id: gov-redacted-reference
+            phrase: Keep controlled source references or redacted excerpts when needed
+            targets:
+              - gov-replay-privacy-mechanism
+            color: cyan
+            linger: 0.5
+          - id: gov-private-fields
+            phrase: Raw credentials, full private prompts and hidden model reasoning do not become default audit-log
+              fields
+            targets:
+              - gov-replay-privacy-mechanism
+            color: cyan
+            linger: 0.5
+      - say: >-
+          Read the two request IDs. They end in different numbers. Can you tell whether the same person made both requests? Compare the actor labels. They match. Each label contains ninety-six bits from a keyed HMAC of the user ID. The same user and key produce the same label, so access to these logs still matters. Change the key and the label changes. In production, protect the key, define its scope and plan for rotation. Authenticate the service that writes each event. For systems to compare digests, they must agree on the exact bytes they hash, including how they encode and sort JSON fields.
+        hold: 0.7
+        caption_starts:
+          - "Can you tell whether"
+          - "Compare the actor labels"
+          - "They match"
+          - "Each label contains ninety-six bits"
+          - "Change the key"
+        visual_cues:
+          - id: gov-replay-privacy-b2
+            phrase: "Read the two request IDs"
+            targets:
+              - replay-privacy-mechanism
+            color: blue
+            linger: 0.6
+          - id: gov-actor-linkable
+            phrase: "They match"
+            targets:
+              - gov-replay-privacy-mechanism
+            color: cyan
+            linger: 0.5
+          - id: gov-key-scope
+            phrase: "Change the key and the label changes"
+            targets:
+              - gov-replay-privacy-mechanism
+            color: cyan
+            linger: 0.5
+          - id: gov-pseudonym-value
+            phrase: "ninety-six bits from a keyed HMAC of the user ID"
+            targets:
+              - gov-replay-privacy-mechanism
+            color: cyan
+            linger: 0.5
+      - say: A protected anchor must be outside the log writer's authority, with sequence or scope and time.
+          Recomputing a forged chain can restore internal consistency, while the protected original anchor
+          exposes the rewrite. If an administrator can replace both chain and anchor, matching them supplies
+          no independent evidence of unchanged history. Authentication, write protection and truthful event
+          instrumentation answer separate questions; a hash cannot prove an event was true or that omitted
+          events were captured.
+        hold: 0.7
+        visual_cues:
+          - id: gov-replay-privacy-b3
+            phrase: A protected anchor must be outside the log writer's authority, with sequence or scope and time
+            targets:
+              - replay-privacy-mechanism
+            color: blue
+            linger: 0.6
+          - id: gov-anchor-authority
+            phrase: A protected anchor must be outside the log writer's authority, with sequence or scope and time
+            targets:
+              - gov-replay-privacy-mechanism
+            color: cyan
+            linger: 0.5
+          - id: gov-mutable-anchor
+            phrase: If an administrator can replace both chain and anchor, matching them supplies no independent evidence
+              of unchanged history
+            targets:
+              - gov-replay-privacy-mechanism
+            color: cyan
+            linger: 0.5
+      - say: Retention depends on purpose and law. The dataset fixture's ninety-day rule is not a default for every
+          audit log. Article twenty-six paragraph six, for covered high-risk deployers, concerns automatically
+          generated logs under their control for an appropriate period of at least six months unless
+          applicable law provides otherwise. Pseudonymization does not remove access and privacy duties.
+          Preserve the right evidence with a justified retention schedule and protected access.
+        hold: 0.7
+        visual_cues:
+          - id: gov-replay-privacy-b4
+            phrase: Retention depends on purpose and law
+            targets:
+              - replay-privacy-mechanism
+            color: blue
+            linger: 0.6
+          - id: gov-dataset-retention
+            phrase: The dataset fixture's ninety-day rule is not a default for every audit log
+            targets:
+              - gov-replay-privacy-mechanism
+            color: cyan
+            linger: 0.5
+          - id: gov-deployer-retention
+            phrase: an appropriate period of at least six months unless applicable law provides otherwise
+            targets:
+              - gov-replay-privacy-mechanism
+            color: cyan
+            linger: 0.5
+  - id: oversight
+    title: Which receipts does C17 need?
+    visual: >-
+      The same receipt ruler expands C17’s requested share to 25%. Three required rows distinguish a missing security receipt, a denial and a fresh approved set. A separate return to 10% tests the exception boundary.
+    beats:
+      - say: >-
+          Return to C seventeen. The owner now wants twenty-five percent of production traffic. The untrusted note still calls for security review. Above ten percent, G seven also calls for an exception. Release has signed this larger request. Which receipts does the gate still need?
+        hold: 2
+        visual_cues:
+          - id: gov-larger-target
+            phrase: "The owner now wants twenty-five percent of production traffic"
+            targets: [request-file]
+            linger: 0.25
+          - id: gov-extra-role
+            phrase: "G seven also calls for an exception"
+            targets: [receipt-lines]
+            linger: 0.25
+          - id: gov-larger-release
+            phrase: "Release has signed this larger request"
+            targets: [receipt-lines]
+            linger: 0.25
+      - say: >-
+          Security and exception are missing. Now an exception reviewer signs, but security denies the request. A required denial holds the rollout. Give the owner the reason and an appeal that reaches a reviewer who took no part in the denial. That person needs time, the original evidence and authority to stop or correct the decision.
+        hold: 0.75
+        visual_cues:
+          - id: gov-oversight-missing
+            phrase: "Security and exception are missing"
+            targets: [gate-record]
+            linger: 0.25
+            caption_boundary: true
+          - id: gov-exception-signed
+            phrase: "an exception reviewer signs"
+            targets: [receipt-lines]
+            linger: 0.25
+          - id: gov-denied-review
+            phrase: "security denies the request"
+            targets: [receipt-lines]
+            linger: 0.25
+            caption_boundary: true
+      - say: >-
+          Try a second set of decisions for that same twenty-five percent. All three reviewers approve the exact request. The executor may now revalidate it. Check the candidate, model artifact, environment, traffic share, policy and evaluation version again at the moment of action. So far there are zero recorded traffic changes. A separate executor event would show whether traffic actually moved.
+        hold: 0.7
+        visual_cues:
+          - id: gov-new-decisions
+            phrase: "Try a second set of decisions"
+            targets: [receipt-lines]
+            linger: 0.25
+          - id: gov-receipts-ready
+            phrase: "All three reviewers approve the exact request"
+            targets: [receipt-lines]
+            linger: 0.25
+          - id: gov-executor-eligible
+            phrase: "The executor may now revalidate it"
+            targets: [gate-record]
+            linger: 0.25
+            caption_boundary: true
+          - id: gov-oversight-effect
+            phrase: "there are zero recorded traffic changes"
+            targets: [gate-record]
+            linger: 0.25
+            caption_boundary: true
+      - say: >-
+          Compare Monday's ten-percent request. Release is required on every promotion. The untrusted instruction adds security. Exactly ten percent stays on the boundary, so these are the two required roles. The instruction flag is supplied test data. The application still enforces authorization when the flag is false. Here a person has to decide before the effect. That's human in the loop. Human on the loop allows bounded action with a tested way to intervene. Human in command sets the purpose and limits of that authority. These are operational choices, separate from legal risk classification.
+        hold: 0.7
+        visual_cues:
+          - id: gov-oversight-boundary
+            phrase: "Exactly ten percent stays on the boundary"
+            targets: [receipt-lines]
+            linger: 0.25
+          - id: gov-oversight-types
+            phrase: "Human on the loop allows bounded action"
+            targets: [receipt-lines]
+            linger: 0.25
+  - id: appeal-replay
+    title: Replay the original hold before deciding an appeal
+    visual: C17 at10percent remains held with an empty effect ledger. A second reviewer opens the exact historical
+      case and receipts, compares correction alternatives and writes a new decision without rewriting history.
+    beats:
+      - say: Now make the appeal path concrete. C seventeen was held at ten percent because its required security
+          review was missing. The owner receives that reason, the policy version and a usable challenge
+          reference. A reviewer who took no part in the original decision opens the original proposal,
+          evaluation package, policy and configuration versions, approval receipts and effect record. The
+          empty effect ledger confirms that the proposal did not move traffic in this constructed replay.
+        hold: 0.7
+        visual_cues:
+          - id: gov-appeal-replay-b1
+            phrase: Now make the appeal path concrete
+            targets:
+              - appeal-replay-mechanism
+            color: blue
+            linger: 0.6
+          - id: gov-appeal-record
+            phrase: A reviewer who took no part in the original decision opens the original proposal, evaluation package,
+              policy and configuration versions, approval receipts and effect record
+            targets:
+              - gov-appeal-replay-mechanism
+            color: cyan
+            linger: 0.5
+      - say: The reviewer first reconstructs the original decision under the policy then in force. If the security
+          review really was absent, uphold that hold and explain what evidence is needed. If a valid,
+          authorized receipt already covered that exact proposal but the gate failed to read it, record a
+          factual correction and assign the gate defect. The historical hold stays in the log. A later policy
+          change is a new basis for a new decision, not a rewrite of Monday's facts.
+        hold: 0.7
+        visual_cues:
+          - id: gov-appeal-replay-b2
+            phrase: The reviewer first reconstructs the original decision under the policy then in force
+            targets:
+              - appeal-replay-mechanism
+            color: blue
+            linger: 0.6
+          - id: gov-appeal-uphold
+            phrase: If the security review really was absent, uphold that hold and explain what evidence is needed
+            targets:
+              - gov-appeal-replay-mechanism
+            color: cyan
+            linger: 0.5
+          - id: gov-appeal-correct
+            phrase: If a valid, authorized receipt already covered that exact proposal but the gate failed to read it,
+              record a factual correction and assign the gate defect
+            targets:
+              - gov-appeal-replay-mechanism
+            color: cyan
+            linger: 0.5
+      - say: A newly supplied approval can complete the current case only if it is authoritative, fresh, unrevoked and
+          bound to the current candidate, environment, target, policy and evidence. Revalidate at the executor
+          boundary so the proposal cannot change between check and effect. An appeal result or APPROVED FOR
+          EXECUTOR is not an executed promotion. Record the actual effect separately; a lost response leaves
+          an uncertain outcome that needs reconciliation before retry.
+        hold: 0.7
+        visual_cues:
+          - id: gov-appeal-replay-b3
+            phrase: A newly supplied approval can complete the current case only if it is authoritative, fresh, unrevoked
+              and bound to the current candidate, environment, target, policy and evidence
+            targets:
+              - appeal-replay-mechanism
+            color: blue
+            linger: 0.6
+          - id: gov-appeal-current
+            phrase: authoritative, fresh, unrevoked and bound to the current candidate, environment, target, policy and
+              evidence
+            targets:
+              - gov-appeal-replay-mechanism
+            color: cyan
+            linger: 0.5
+          - id: gov-appeal-executor
+            phrase: Revalidate at the executor boundary so the proposal cannot change between check and effect
+            targets:
+              - gov-appeal-replay-mechanism
+            color: cyan
+            linger: 0.5
+          - id: gov-appeal-uncertain
+            phrase: a lost response leaves an uncertain outcome that needs reconciliation before retry
+            targets:
+              - gov-appeal-replay-mechanism
+            color: cyan
+            linger: 0.5
+      - say: Effective oversight gives people time, evidence, expertise and authority to disagree, override within
+          their remit or halt safely. Article fourteen for covered high-risk systems addresses understanding
+          limitations, automation bias, interpreting output, overriding it and safe intervention. A person's
+          name on an org chart does not supply those abilities. Appeal outcomes can point to bad data, unclear
+          policy, missing evidence or an explanation that needs repair.
+        hold: 0.7
+        visual_cues:
+          - id: gov-appeal-replay-b4
+            phrase: Effective oversight gives people time, evidence, expertise and authority to disagree, override within
+              their remit or halt safely
+            targets:
+              - appeal-replay-mechanism
+            color: blue
+            linger: 0.6
+          - id: gov-oversight-authority
+            phrase: time, evidence, expertise and authority to disagree, override within their remit or halt safely
+            targets:
+              - gov-appeal-replay-mechanism
+            color: cyan
+            linger: 0.5
+      - say: "The local appeal is an organizational control. Article eighty-six has a narrower legal scope: a deployer
+          decision based on an Annex three high-risk system, excluding point two, must produce legal or
+          similarly significant effects considered adverse to health, safety or fundamental rights. The right
+          concerns a clear, meaningful explanation of the AI role and main decision elements, subject to
+          lawful exceptions or restrictions and only where that right is not otherwise provided by Union law.
+          Assess its applicability separately; our promotion case does not automatically establish it."
+        hold: 0.7
+        visual_cues:
+          - id: gov-appeal-replay-b5
+            phrase: The local appeal is an organizational control
+            targets:
+              - appeal-replay-mechanism
+            color: blue
+            linger: 0.6
+          - id: gov-appeal-legal-scope
+            phrase: a deployer decision based on an Annex three high-risk system, excluding point two, must produce legal
+              or similarly significant effects considered adverse to health, safety or fundamental rights
+            targets:
+              - gov-appeal-replay-mechanism
+            color: cyan
+            linger: 0.5
+  - id: package
+    title: Which configuration did the reviewers see?
+    visual: >-
+      The host reads a six-field manifest. Eight review slots share a recorded digest. A missing dataset record, findings, and required legal signoff have separate places on the sheet. One policy change leaves the signed sheet intact while the current digest changes.
+    beats:
+      - say: >-
+          Here is the deployment file the team is reviewing for C seventeen. Read the sheet on the right. We have a workflow memo, a risk row and a system card. The dataset record is missing. Without it, how could the reviewer tell which cases and labels produced the score? The audit replay, red-team report, accessibility report and oversight runbook are present. One unsafe effect and one accessibility finding also remain open. The reviewer has three things to follow up.
+        hold: 0.8
+        visual_cues:
+          - id: gov-draft-artifacts
+            phrase: "The dataset record is missing"
+            targets: [review-sheet]
+            linger: 0.25
+          - id: gov-draft-findings
+            phrase: "One unsafe effect and one accessibility finding"
+            targets: [package-checks]
+            linger: 0.25
+      - say: >-
+          The data owner supplies the reviewed dataset record. The retest closes both findings. Required legal signoff is on file. Each accepted review names C seventeen and the digest of its deployment manifest. All eight now match. This package is eligible for release approval. Keep the signed sheet. On the left, change only policy G seven to G eight. The candidate, model, prompt, tools, evaluation and environment stay the same. Can the release reviewer use the eight signatures on the right for the configuration on the left?
+        hold: 2.1
+        visual_cues:
+          - id: gov-package-dataset
+            phrase: "supplies the reviewed dataset record"
+            targets: [review-sheet]
+            linger: 0.25
+          - id: gov-package-close-findings
+            phrase: "The retest closes both findings"
+            targets: [package-checks]
+            linger: 0.25
+          - id: gov-package-eligible
+            phrase: "This package is eligible for release approval"
+            targets: [package-checks]
+            linger: 0.25
+            caption_boundary: true
+          - id: gov-package-edit
+            phrase: "change only policy G seven to G eight"
+            targets: [current-manifest]
+            linger: 0.25
+      - say: >-
+          The manifest digest changes, and the old reviews stop matching. All eight still describe the earlier deployment. Keep that sheet as the record for G seven. Collect and review the affected evidence for G eight, then check the package again.
+        hold: 0.8
+        visual_cues:
+          - id: gov-package-changed
+            phrase: "The manifest digest changes, and the old reviews stop matching"
+            targets: [manifest-and-reviews, package-checks]
+            linger: 0.25
+            caption_boundary: true
+      - say: >-
+          In this example the reviews came from trusted reviewers. A digest lets us match their decisions to particular inputs. Someone still has to verify who made those decisions. A clean finding count and a successful replay each answer a question. Neither supplies the missing reviews.
+        hold: 0.8
+        visual_cues:
+          - id: gov-package-reviewer-identity
+            phrase: "verify who made those decisions"
+            targets: [review-sheet]
+            linger: 0.25
+  - id: earned-transfer
+    title: What can the executor do with C29?
+    visual: >-
+      The original receipt ruler returns with C29. The target mark moves from 10% to 15%. Both signed marks stay at 10%. Deployment evidence still matches its unchanged manifest. The executor decision and observed effects remain distinct.
+    beats:
+      - say: >-
+          Take a new file. Candidate C twenty-nine has eight accepted deployment reviews. Release and security both signed for ten percent of traffic. The untrusted evaluation note is still there. Our rule adds exception review above ten percent. Now the owner asks for fifteen percent. That's the only edit. Can the two receipts in the file authorize this request, and who needs to sign?
+        hold: 2.2
+        caption_starts:
+          - "Now the owner asks for fifteen percent"
+          - "Can the two receipts in the file"
+        visual_cues:
+          - id: gov-fresh-signed
+            phrase: "Release and security both signed for ten percent of traffic"
+            targets: [receipt-lines]
+            linger: 0.25
+          - id: gov-fresh-target
+            phrase: "the owner asks for fifteen percent"
+            targets: [request-file]
+            linger: 0.25
+      - say: >-
+          They cannot. Look where the signed marks end. Both reviewers approved ten percent. The gate compares the whole request with the one each person signed. The exact proposal binding changes, and fifteen is above ten, so our local rule also requires exception review. Release, security and exception must each sign for fifteen. The software manifest stayed the same, so its eight evidence reviews still match that configuration. Check what those reviews cover and whether they set a rollout limit.
+        hold: 0.8
+        caption_starts:
+          - "Release, security and exception must each sign for fifteen"
+        visual_cues:
+          - id: gov-fresh-cannot
+            phrase: "They cannot"
+            targets: [gate-record]
+            linger: 0.25
+            caption_boundary: true
+          - id: gov-fresh-binding-and-exception
+            phrase: "The exact proposal binding changes, and fifteen is above ten, so our local rule also requires exception review"
+            targets: [receipt-lines]
+            linger: 0.25
+            caption_boundary: true
+          - id: gov-fresh-manifest
+            phrase: "its eight evidence reviews still match that configuration"
+            targets: [deployment-record]
+            linger: 0.25
+      - say: >-
+          The owner appeals. An independent reviewer reads the target on each receipt. Both say ten percent. The reviewer upholds the hold and adds the reason to the file. The effect record shows zero traffic changes. Release, security and the exception reviewer each need to sign for fifteen percent. The executor checks those signatures again just before it can act.
+        hold: 1.2
+        caption_starts:
+          - "Both say ten percent"
+          - "Release, security and the exception reviewer each need to sign for fifteen percent"
+        visual_cues:
+          - id: gov-fresh-appeal
+            phrase: "The reviewer upholds the hold and adds the reason to the file"
+            targets: [gate-record]
+            linger: 0.25
+            caption_boundary: true
+          - id: gov-fresh-effect
+            phrase: "The effect record shows zero traffic changes"
+            targets: [gate-record]
+            linger: 0.25
+            caption_boundary: true
+          - id: gov-fresh-next
+            phrase: "Release, security and the exception reviewer each need to sign for fifteen percent"
+            targets: [receipt-lines]
+            linger: 0.25

@@ -1,0 +1,339 @@
+version: 1
+lesson: query-expansion
+promise: Choose the smallest search repair that recovers the sources a question needs, then test whether the answer and the route meet their evidence, access and latency requirements.
+framing: []
+objectives:
+  - id: subject-intro
+    can: Predict which page a search of the last turn alone will retrieve.
+    scenes:
+      - subject-intro
+  - id: rewrite-for-context
+    can: Use the earlier turn to repair a search and compare matches on the same pages.
+    scenes:
+      - rewrite-for-context
+  - id: vocabulary-expansion
+    can: Retain the original query and admit distinct vocabulary variants within a search budget.
+    scenes:
+      - vocabulary-expansion
+  - id: merge-ranked-lists
+    can: Use one-based positions to explain why a page found twice outranks a single first-place result.
+    scenes:
+      - merge-ranked-lists
+  - id: inspect-recall
+    can: Distinguish a top-three hit from finding both pages a two-part answer requires.
+    scenes:
+      - inspect-recall
+  - id: decomposition-topology
+    can: Separate independent fact lookups from searches that need an identity returned by an earlier lookup.
+    scenes:
+      - decomposition-topology
+  - id: preserve-trust-boundaries
+    can: Apply the caller’s scope before passing matched text to the answer model.
+    scenes:
+      - preserve-trust-boundaries
+  - id: step-back
+    can: Join a request trace to the policy for its endpoint, tier, client and time window.
+    scenes:
+      - step-back
+  - id: hyde-vectors
+    can: Average paired proxy coordinates and identify the vector that enters corpus search.
+    scenes:
+      - hyde-vectors
+  - id: hyde-drift
+    can: Trace a change in the proxy text to a displaced required page with the corpus and result limit fixed.
+    scenes:
+      - hyde-drift
+  - id: self-rag-tokens
+    can: Distinguish a retrieved passage, a generated claim and the trained generator’s judgments.
+    scenes:
+      - self-rag-tokens
+  - id: self-rag-branches
+    can: Normalize support within its token family, compare weighted continuations and check the winning claim against its source.
+    scenes:
+      - self-rag-branches
+  - id: crag-routing
+    can: Route on the best document score and apply a separate permission check to any external lookup.
+    scenes:
+      - crag-routing
+  - id: knowledge-refinement
+    can: Recompose relevant strips in source order and trace each claim back to its original strip.
+    scenes:
+      - knowledge-refinement
+  - id: correction-boundaries
+    can: Keep private queries inside the approved boundary and distinguish cached rewrites by history and effective scope.
+    scenes:
+      - correction-boundaries
+  - id: latency-waterfall
+    can: Calculate a serial request total, the nearest-rank p95 of request totals and a joint deadline under independence.
+    scenes:
+      - latency-waterfall
+  - id: route-release
+    can: Select or block a route using both supported accuracy and end-to-end latency on the same questions.
+    scenes:
+      - route-release
+  - id: exactness-and-budget
+    can: Distinguish retrieval calls, returned entries and distinct pages, then cite the incident named in the original conversation.
+    scenes:
+      - exactness-and-budget
+sections:
+  - heading: The problem with naive RAG
+    status: taught
+    scenes:
+      - subject-intro
+      - route-release
+  - heading: Query rewriting and decomposition
+    status: taught
+    scenes:
+      - rewrite-for-context
+      - vocabulary-expansion
+      - decomposition-topology
+  - heading: 1. Rewrite for disambiguation
+    status: taught
+    scenes:
+      - rewrite-for-context
+      - exactness-and-budget
+  - heading: 2. Multi-query expansion
+    status: taught
+    scenes:
+      - vocabulary-expansion
+      - merge-ranked-lists
+      - inspect-recall
+  - heading: 3. Query decomposition (least-to-most)
+    status: taught
+    scenes:
+      - decomposition-topology
+  - heading: 4. Step-back prompting (abstraction)
+    status: taught
+    scenes:
+      - step-back
+  - heading: HyDE (Hypothetical Document Embeddings)
+    status: taught
+    scenes:
+      - hyde-vectors
+      - hyde-drift
+  - heading: How HyDE works
+    status: taught
+    scenes:
+      - hyde-vectors
+      - hyde-drift
+  - heading: When to use HyDE
+    status: taught
+    scenes:
+      - hyde-vectors
+      - hyde-drift
+  - heading: Self-RAG (Self-reflective RAG)
+    status: taught
+    scenes:
+      - self-rag-tokens
+      - self-rag-branches
+  - heading: Reflection tokens
+    status: taught
+    scenes:
+      - self-rag-tokens
+      - self-rag-branches
+  - heading: Architecture and segment-level beam search
+    status: taught
+    scenes:
+      - self-rag-tokens
+      - self-rag-branches
+  - heading: Implementation note
+    status: taught
+    scenes:
+      - self-rag-tokens
+      - self-rag-branches
+  - heading: CRAG (Corrective RAG)
+    status: taught
+    scenes:
+      - crag-routing
+      - correction-boundaries
+  - heading: The evaluator and 3-way confidence routing
+    status: taught
+    scenes:
+      - crag-routing
+      - correction-boundaries
+  - heading: Fallback security and data governance
+    status: taught
+    scenes:
+      - crag-routing
+      - correction-boundaries
+  - heading: Knowledge refinement (decompose-then-recompose)
+    status: taught
+    scenes:
+      - knowledge-refinement
+  - heading: Agentic and iterative retrieval
+    status: taught
+    scenes:
+      - decomposition-topology
+  - heading: Comparison of advanced techniques
+    status: taught
+    scenes:
+      - route-release
+  - heading: What rewrite, HyDE, and CRAG can break
+    status: taught
+    scenes:
+      - rewrite-for-context
+      - hyde-drift
+      - crag-routing
+      - correction-boundaries
+      - exactness-and-budget
+  - heading: "Symptom: the query is vague, but the answer needs history"
+    status: taught
+    scenes:
+      - rewrite-for-context
+  - heading: "Symptom: rewrite or history poisons retrieval intent"
+    status: taught
+    scenes:
+      - preserve-trust-boundaries
+      - correction-boundaries
+  - heading: "Symptom: HyDE improves recall on policy questions but breaks exact lookups"
+    status: taught
+    scenes:
+      - hyde-vectors
+      - hyde-drift
+      - exactness-and-budget
+  - heading: "Symptom: CRAG web fallback becomes SSRF or untrusted-source injection"
+    status: taught
+    scenes:
+      - crag-routing
+      - correction-boundaries
+  - heading: "Symptom: rewrite or HyDE cache bleeds across tenants"
+    status: taught
+    scenes:
+      - preserve-trust-boundaries
+      - correction-boundaries
+  - heading: "Symptom: multi-query / agentic loops become a cost DoS"
+    status: taught
+    scenes:
+      - vocabulary-expansion
+      - decomposition-topology
+      - exactness-and-budget
+  - heading: "Symptom: prompting imitates the loop without training its retrieval policy"
+    status: taught
+    scenes:
+      - self-rag-tokens
+  - heading: "Symptom: accuracy rises, but users feel the product is slow"
+    status: taught
+    scenes:
+      - latency-waterfall
+      - route-release
+  - heading: Latency waterfall economics and deployment gates
+    status: taught
+    scenes:
+      - latency-waterfall
+      - route-release
+  - heading: Trace the request before estimating a percentile
+    status: taught
+    scenes:
+      - latency-waterfall
+      - route-release
+  - heading: Tail latency hazards and fan-out variance
+    status: taught
+    scenes:
+      - latency-waterfall
+      - route-release
+  - heading: Adding controls incrementally
+    status: taught
+    scenes:
+      - route-release
+  - heading: Stable baseline
+    status: taught
+    scenes:
+      - route-release
+  - heading: Add reranking
+    status: taught
+    scenes:
+      - route-release
+  - heading: Specialized handling (HyDE / router)
+    status: taught
+    scenes:
+      - hyde-vectors
+      - hyde-drift
+  - heading: Add correction loops
+    status: taught
+    scenes:
+      - route-release
+  - heading: "Hands-on diagnostics: evaluating query transforms on live misses"
+    status: taught
+    scenes:
+      - inspect-recall
+      - route-release
+  - heading: "Exercise: Build a query rewriter for a developer-support assistant"
+    status: article-only
+    reason: exercise
+    note: The page asks learners to collect development queries and implement a retriever; the film teaches the
+      diagnostics, metrics and held-out release boundary.
+  - heading: "Architecture decisions: matching retrieval rungs to failure modes"
+    status: taught
+    scenes:
+      - route-release
+  - heading: When does HyDE justify its latency cost?
+    status: taught
+    scenes:
+      - hyde-vectors
+      - hyde-drift
+      - route-release
+  - heading: Cases where Self-RAG adds cost without improving answer quality
+    status: taught
+    scenes:
+      - self-rag-tokens
+      - self-rag-branches
+      - route-release
+  - heading: Can you combine HyDE and Self-RAG?
+    status: taught
+    scenes:
+      - route-release
+      - self-rag-tokens
+quiz:
+  - n: 1
+    status: taught
+    scenes:
+      - rewrite-for-context
+      - exactness-and-budget
+  - n: 2
+    status: taught
+    scenes:
+      - merge-ranked-lists
+  - n: 3
+    status: taught
+    scenes:
+      - hyde-vectors
+  - n: 4
+    status: taught
+    scenes:
+      - self-rag-tokens
+  - n: 5
+    status: taught
+    scenes:
+      - self-rag-branches
+  - n: 6
+    status: taught
+    scenes:
+      - crag-routing
+  - n: 7
+    status: taught
+    scenes:
+      - decomposition-topology
+  - n: 8
+    status: taught
+    scenes:
+      - correction-boundaries
+      - preserve-trust-boundaries
+  - n: 9
+    status: taught
+    scenes:
+      - latency-waterfall
+  - n: 10
+    status: taught
+    scenes:
+      - crag-routing
+      - correction-boundaries
+removed: []
+reviews:
+  closed_book:
+    taught: 10
+    partial: 0
+    absent: 0
+    script: cfc012b7f5961ec8
+  fact_check:
+    open_findings: 0
+    script: cfc012b7f5961ec8

@@ -1,0 +1,995 @@
+[
+  {
+    "id": "c01",
+    "title": "Routing by score",
+    "sourceChapters": [
+      "c01"
+    ],
+    "beats": [
+      {
+        "id": "c01-b01",
+        "say": "Take this access request. Its model score is point six two four. The brass gate marks the review cut at point eight. Requests at the gate or to its right need a reviewer. This request goes through automatically.",
+        "hold": 0.7
+      },
+      {
+        "id": "c01-b02",
+        "say": "Keep the request pinned there. Bring the gate toward it. We’re moving the cut to one half. Before the gate passes the pin, call the route the request will take.",
+        "hold": 2.8
+      },
+      {
+        "id": "c01-b03",
+        "say": "Slide past the pin. The request now sits on the review side. Its score stayed at point six two four. How did two pieces of policy evidence put it there?",
+        "hold": 1
+      }
+    ]
+  },
+  {
+    "id": "c02",
+    "title": "Where did the score come from?",
+    "sourceChapters": [
+      "c02"
+    ],
+    "beats": [
+      {
+        "id": "c02-b01",
+        "say": "We’ll use constructed requests and prices throughout this lesson. The file records ambiguity three and support for automatic handling five. Our positive label means review was required. We’ll round the fitted weights for this calculation. Set the starting mark at the intercept, minus four point nine.",
+        "hold": 0.65
+      },
+      {
+        "id": "c02-b02",
+        "say": "Add three times three point four for ambiguity. That takes us right by ten point two. Now subtract five times point nine six for policy support. Where will that last move put the mark?",
+        "hold": 1.8
+      },
+      {
+        "id": "c02-b03",
+        "say": "Half a unit above zero. This signed sum is the logit. The sigmoid turns that rounded sum into about point six two two. The original fitted weights retain more digits, giving our displayed score of point six two four.",
+        "hold": 1.5
+      }
+    ]
+  },
+  {
+    "id": "c03",
+    "title": "The same logit step can have a different effect",
+    "sourceChapters": [
+      "c03"
+    ],
+    "beats": [
+      {
+        "id": "c03-b01",
+        "say": "Zero logit puts the pin halfway up the sigmoid. Negative logits sit below halfway. Positive ones sit above it. Move the middle pin from minus one to one. Watch the change in height.",
+        "hold": 0.7
+      },
+      {
+        "id": "c03-b02",
+        "say": "Give the tail pin the same two-unit push, from four to six. Its height changes by only one point six percentage points. The middle pin gained forty-six points. The curve flattens near one. We need later outcomes to check whether its heights predict frequencies.",
+        "hold": 0.8
+      },
+      {
+        "id": "c03-b03",
+        "say": "The logit is the natural logarithm of the odds that review is required. At a zero logit, the probability is one half and the odds are one to one. Adding one to the logit multiplies the odds by e. Logistic regression models these log odds as a linear combination of the evidence features.",
+        "hold": 0.55
+      }
+    ]
+  },
+  {
+    "id": "c04",
+    "title": "Measure the score in the feature plane",
+    "sourceChapters": [
+      "c04"
+    ],
+    "beats": [
+      {
+        "id": "c04-b01",
+        "say": "A binary label does not force us to use logistic regression. Least squares can fit zero and one labels, but its linear prediction can leave the probability interval. Bernoulli conditional variance is p times one minus p, so it can change with features.",
+        "hold": 0.3
+      },
+      {
+        "id": "c04-b02",
+        "say": "Squared error on bounded probabilities is the legitimate Brier scoring loss. The sigmoid supplies a different model: linear log odds.",
+        "hold": 0.65
+      },
+      {
+        "id": "c04-b03",
+        "say": "Sigmoid divides one by the quantity one plus the exponential of the negative logit. Keep the intercept separate from the feature coefficients. For a nonzero vector beta of feature coefficients, the boundary at threshold one half satisfies beta dot x plus intercept equals zero.",
+        "hold": 0.3
+      },
+      {
+        "id": "c04-b04",
+        "say": "Beta points across the line toward larger scores. Take an intercept of one, feature weights three and minus four, and the point two, one. The logit is three. Divide by the length of beta, five, to get the perpendicular distance, six tenths in these units.",
+        "hold": 0.8
+      },
+      {
+        "id": "c04-b05",
+        "say": "A threshold t between zero and one changes the required logit to the natural logarithm of the ratio t over the quantity one minus t. It shifts a parallel boundary while holding the coefficients fixed.",
+        "hold": 0.3
+      },
+      {
+        "id": "c04-b06",
+        "say": "A zero second coefficient can produce a vertical line; if every feature coefficient is zero, the classifier is constant and has no separating hyperplane. Rescaling feature units changes this geometric distance.",
+        "hold": 0.65
+      }
+    ]
+  },
+  {
+    "id": "c05",
+    "title": "Which outcome did the model make unlikely?",
+    "sourceChapters": [
+      "c05"
+    ],
+    "beats": [
+      {
+        "id": "c05-b01",
+        "say": "Suppose this case required review. The model assigned probability p to that outcome. For a routine case, we'd use one minus p. Take the negative log of the probability assigned to what happened. These losses add across independent training cases.",
+        "hold": 0.3
+      },
+      {
+        "id": "c05-b02",
+        "say": "For the case that needed review, which prediction gets the bigger loss, one tenth or nine tenths?",
+        "hold": 2.3
+      },
+      {
+        "id": "c05-b03",
+        "say": "Move the prediction down toward one tenth. The model gave what happened just one chance in ten. The loss climbs to about two point three nats. Move up toward nine tenths. The loss falls to about a tenth of a nat.",
+        "hold": 0.85
+      },
+      {
+        "id": "c05-b04",
+        "say": "Extreme scores expose a numerical trap. A negative logit of a thousand can round the positive probability to zero. Taking its logarithm then fails. The stable softplus expression works directly from the finite logit and keeps the positive case's loss at about a thousand.",
+        "hold": 0.7
+      }
+    ]
+  },
+  {
+    "id": "c06",
+    "title": "Select the probability of each actual label",
+    "sourceChapters": [
+      "c06"
+    ],
+    "beats": [
+      {
+        "id": "c06-b01",
+        "say": "For a Bernoulli row, the probability of its actual label is p raised to y, times the quantity one minus p, raised to the quantity one minus y. A positive label selects p; a negative label selects one minus p.",
+        "hold": 0.3
+      },
+      {
+        "id": "c06-b02",
+        "say": "Assuming conditional independence across the training rows, multiply those selected probabilities to obtain the likelihood of the complete observed label vector.",
+        "hold": 0.65
+      },
+      {
+        "id": "c06-b03",
+        "say": "Taking natural logs changes that product into a sum. Negate it and divide by the number of rows to obtain mean binary cross-entropy. That normalization matters: replacing the mean with a sum multiplies the gradient by the batch size.",
+        "hold": 0.3
+      },
+      {
+        "id": "c06-b04",
+        "say": "The linear-regression chapter used mean squared error, whose gradient has an additional factor of two; half-squared error removes that factor.",
+        "hold": 0.65
+      },
+      {
+        "id": "c06-b05",
+        "say": "For one observed hard label, the target distribution puts all its mass on that label. Its entropy is zero, so its cross-entropy equals the K L divergence with the target as its first argument and the prediction as its second.",
+        "hold": 0.3
+      },
+      {
+        "id": "c06-b06",
+        "say": "Our whole population can still have uncertain labels and positive marginal entropy. Expected log loss is minimized by the true conditional probability when the model family can represent it; one sampled label is not that entire distribution.",
+        "hold": 0.65
+      }
+    ]
+  },
+  {
+    "id": "c07",
+    "title": "Inspect the learning signal before trusting convexity",
+    "sourceChapters": [
+      "c07"
+    ],
+    "beats": [
+      {
+        "id": "c07-b01",
+        "say": "Take a request that needed review. At a logit of minus eight, the model gives that outcome almost no chance. Binary cross-entropy has a slope of p minus y, nearly minus one. The red bar extends almost one unit to the left of zero. Now compare squared error after the sigmoid.",
+        "hold": 0.3
+      },
+      {
+        "id": "c07-b02",
+        "say": "Its slope has an extra factor of two p times one minus p. That shrinks the blue bar to less than a thousandth of a unit. Using half the squared error drops the factor of two.",
+        "hold": 0.65
+      },
+      {
+        "id": "c07-b03",
+        "say": "For the mean linear-logit loss, the Hessian is X transpose, times a diagonal matrix of p times one minus p, times X, divided by the number of rows. Every diagonal factor is positive at finite real logits.",
+        "hold": 0.3
+      },
+      {
+        "id": "c07-b04",
+        "say": "The Hessian is positive definite when the design has full column rank; duplicate columns create directions that leave every training score unchanged.",
+        "hold": 0.65
+      },
+      {
+        "id": "c07-b05",
+        "say": "These two cases have feature values of minus one and plus one. Turn up the coefficient. The negative logit falls and the positive logit rises. Their review probabilities approach their labels, zero and one. Every finite coefficient leaves room for a larger one to lower the loss. A squared-weight penalty gives that growth a cost.",
+        "hold": 0.3
+      },
+      {
+        "id": "c07-b06",
+        "say": "Return to the eight training requests. Both runs start with all three weights at zero. Keep the feature scales fixed. Take one step of size point two. Both feature weights rise, and mean loss falls slightly. Now restart from zero and take a step of size two. Both weights move ten times as far. Will the loss fall further? It jumps above two. The larger step overshoots. Changing the feature scales would also change the gradient.",
+        "hold": 0.65
+      }
+    ]
+  },
+  {
+    "id": "c08",
+    "title": "The chain rule leaves a residual",
+    "sourceChapters": [
+      "c08"
+    ],
+    "beats": [
+      {
+        "id": "c08-b01",
+        "say": "Follow the derivative backward. The loss contributes prediction minus label divided by p times one minus p. The sigmoid contributes p times one minus p. Cancel the shared factor. What remains is the residual, p minus y. Multiply by each feature to get that coefficient’s derivative.",
+        "hold": 0.7
+      },
+      {
+        "id": "c08-b02",
+        "say": "Work one row. At zero weights, the probability is one half. This row needed review, so its residual is minus one half. Multiply by the intercept feature, ambiguity three point five, and support six. Subtracting these negative contributions raises the next score for similar cases.",
+        "hold": 0.65
+      }
+    ]
+  },
+  {
+    "id": "c09",
+    "title": "Collect every row before updating",
+    "sourceChapters": [
+      "c09"
+    ],
+    "beats": [
+      {
+        "id": "c09-b01",
+        "say": "One row gives a direction, but this update uses the whole batch. Every case starts at probability one half. Positive labels contribute a negative residual; routine labels contribute a positive one. The columns keep the intercept, ambiguity and support contributions separate.",
+        "hold": 0.55
+      },
+      {
+        "id": "c09-b02",
+        "say": "Bring in all eight contributions, one request at a time. Keep each sign attached to its row while the column totals accumulate. Wait for the eighth row. Now divide the totals by eight to get the mean gradient.",
+        "hold": 0.7
+      },
+      {
+        "id": "c09-b03",
+        "say": "Subtract the mean gradient, scaled by a learning rate of point two. The intercept stays zero, while both feature weights rise on this first step. That initial direction reflects the batch averages. Later steps can separate the two features' conditional effects.",
+        "hold": 0.65
+      }
+    ]
+  },
+  {
+    "id": "c10",
+    "title": "Keep one label paired with one logit",
+    "sourceChapters": [
+      "c10"
+    ],
+    "beats": [
+      {
+        "id": "c10-b01",
+        "say": "Our trainer uses a design of shape eight by three, weights of length three, and labels and logits both of length eight. Importing labels as eight by one can broadcast multiplication against eight logits into an eight-by-eight matrix.",
+        "hold": 0.3
+      },
+      {
+        "id": "c10-b02",
+        "say": "Its scalar mean can look plausible while pairing every label with every request score. Reject the mismatch before fitting.",
+        "hold": 0.65
+      },
+      {
+        "id": "c10-b03",
+        "say": "Reject empty designs, nonfinite features and labels outside zero and one. If the target really is a single column, select that column explicitly. Compare the class means of ambiguity and support. Both are higher among the positive rows, so both weights rise on the first update.",
+        "hold": 0.6
+      },
+      {
+        "id": "c10-b04",
+        "say": "The eventual negative support coefficient concerns the conditional fit, rather than that first marginal direction.",
+        "hold": 0.65
+      },
+      {
+        "id": "c10-b05",
+        "say": "Each printed loss is evaluated after the same update as its printed weights. Keep that boundary explicit when comparing trainers. Match the design, loss reduction, penalty, intercept handling and stopping rule. A row gradient, a batch mean and an already-updated coefficient vector are different states, even when they come from the same eight requests.",
+        "hold": 0.65
+      }
+    ]
+  },
+  {
+    "id": "c11",
+    "title": "Fit a compromise among the observed cases",
+    "sourceChapters": [
+      "c11"
+    ],
+    "beats": [
+      {
+        "id": "c11-b01",
+        "say": "Repeat the prediction, residual, average and update. Watch the boundary turn while training loss falls. The ambiguity coefficient settles positive and policy support settles negative. Both rose initially, yet their fitted roles differ once the model accounts for the features together.",
+        "hold": 0.7
+      },
+      {
+        "id": "c11-b02",
+        "say": "This required-review case still lies on the automatic side. A straight line cannot carve out every isolated exception. Check labels and missing features before reaching for a more flexible model. The training table explains how we fitted; new cases must test how the fit travels.",
+        "hold": 0.65
+      }
+    ]
+  },
+  {
+    "id": "c12",
+    "title": "Loss can fall while weights keep growing",
+    "sourceChapters": [
+      "c12"
+    ],
+    "beats": [
+      {
+        "id": "c12-b01",
+        "say": "Return to the two separable cases. Double the coefficient. Both logits move farther from zero. The review probability falls for the routine case and rises for the required case. Double it again. Both predictions get closer to their labels. Without a penalty, every larger coefficient lowers the log loss, so there is no finite optimum here.",
+        "hold": 0.65
+      },
+      {
+        "id": "c12-b02",
+        "say": "Add a squared-weight penalty. Large coefficients now have a rising cost, so the combined objective has a finite preferred scale. The linear-logit loss is convex; redundant features can still create flat directions. Regularization addresses the objective, while held-out evaluation addresses future behavior.",
+        "hold": 0.6
+      }
+    ]
+  },
+  {
+    "id": "c13",
+    "title": "Move the policy while the model stays fixed",
+    "sourceChapters": [
+      "c13"
+    ],
+    "beats": [
+      {
+        "id": "c13-b01",
+        "say": "Freeze the fitted weights. Place eight reserved requests on the same feature axes. A threshold of one half asks for a logit of zero. That level is a straight line in our two-feature plane. The shaded side goes to review. Color inside each point still records its observed outcome.",
+        "hold": 0.65
+      },
+      {
+        "id": "c13-b02",
+        "say": "Suppose we lower the threshold from one half to one fifth. Which points will join the queue? Keep the dots fixed. Slide the line toward smaller logits. Every point the line passes now goes to review, including routine requests. We changed the action rule and kept the model weights.",
+        "hold": 0.9
+      }
+    ]
+  },
+  {
+    "id": "c14",
+    "title": "Every count has a request behind it",
+    "sourceChapters": [
+      "c14"
+    ],
+    "beats": [
+      {
+        "id": "c14-b01",
+        "say": "These eight earlier requests were reserved from fitting. Their closed outcomes are now available. Start with a high threshold. Route each request into its matching cell. A required review caught is a true positive; a required review passed through is a false negative.",
+        "hold": 0.7
+      },
+      {
+        "id": "c14-b02",
+        "say": "Moving the threshold changes the queue and the errors together. Watch the crossed requests travel into their new cells. Their later labels stay attached. At the lower cut, all four required reviews are caught, along with two routine requests that add unnecessary queue work.",
+        "hold": 0.75
+      },
+      {
+        "id": "c14-b03",
+        "say": "Each correct route adds zero dollars to this mistake bill. An unnecessary review costs eighteen dollars. A missed required review costs a hundred and twenty. Calculate total cost at several thresholds. Multiply each kind of error by its own cost. More reviews have reduced this mistake bill, but we still have to staff the queue.",
+        "hold": 0.7
+      }
+    ]
+  },
+  {
+    "id": "c15",
+    "title": "Precision and recall collect different groups",
+    "sourceChapters": [
+      "c15"
+    ],
+    "beats": [
+      {
+        "id": "c15-b01",
+        "say": "Which fraction of the review queue actually needed review? Collect the four true positives and two false positives. Four of six gives precision, about two thirds. The denominator follows the action we took: every request sent to review.",
+        "hold": 0.7
+      },
+      {
+        "id": "c15-b02",
+        "say": "Recall starts with every case that required review. Collect true positives and false negatives. Here all four were caught, so recall is four out of four. Their harmonic mean, F one, is point eight. Keep these counts beside the summaries, especially when required reviews are rare.",
+        "hold": 0.7
+      }
+    ]
+  },
+  {
+    "id": "c16",
+    "title": "Keep a small recall from hiding inside a large average",
+    "sourceChapters": [
+      "c16"
+    ],
+    "beats": [
+      {
+        "id": "c16-b01",
+        "say": "Precision and recall answer different denominator questions. For positive values, F one is two times precision times recall, divided by their sum. Equivalently, it is two divided by the sum of their reciprocals. A small component therefore has a large reciprocal and pulls this mean downward.",
+        "hold": 0.65
+      },
+      {
+        "id": "c16-b02",
+        "say": "In the article’s separate limiting example, one selected request is truly positive, but there are one hundred positives overall. Precision is one and recall one hundredth. Their arithmetic mean is point five zero five. F one is only about point zero one nine eight. The summary cannot hide ninety-nine misses behind one pure review.",
+        "hold": 0.65
+      },
+      {
+        "id": "c16-b03",
+        "say": "The equivalent count form is two true positives divided by the quantity two true positives plus false positives plus false negatives. It avoids separately dividing by an empty precision or recall denominator, except when its own denominator is zero.",
+        "hold": 0.3
+      },
+      {
+        "id": "c16-b04",
+        "say": "Keep a declared zero-division convention and the class and queue counts visible; a numerical convention does not create an observed rate.",
+        "hold": 0.65
+      }
+    ]
+  },
+  {
+    "id": "c17",
+    "title": "Which review queue can we staff?",
+    "sourceChapters": [
+      "c17"
+    ],
+    "beats": [
+      {
+        "id": "c17-b01",
+        "say": "Sort the eight closed requests by score. At point eight, V seven and V five occupy two review slots. Open the first two files. Both required review. Leave V four and V three sealed. Open the other four automatic files. V eight needed review and carries a miss charge. The batch report counts two misses at a hundred and twenty dollars each, for two hundred and forty dollars. Use that bill as the baseline.",
+        "hold": 0.7
+      },
+      {
+        "id": "c17-b02",
+        "say": "Lower the cut to one half. Follow V three and V four as they take the next two slots. Now open their outcomes. V three required review, so its miss charge clears. V four was routine and adds eighteen dollars. V eight still costs a hundred and twenty. What do the four occupied slots leave on the bill? Add the two tags you can see. A hundred and thirty-eight dollars. Record that bill for comparison.",
+        "hold": 1
+      },
+      {
+        "id": "c17-b03",
+        "say": "Lower the cut past V six. This routine file adds an eighteen-dollar charge when it reaches the review queue. V eight is still on the automatic rail. Keep going to point two. V eight joins the queue. Reviewing it would clear the last miss. With enough staff, the two unnecessary reviews would cost thirty-six dollars, a saving of a hundred and two. Which of the three policies costs least with only four slots?",
+        "hold": 2.6
+      },
+      {
+        "id": "c17-b04",
+        "say": "Choose one half. Thirty-six dollars would be cheaper, but those six files need six slots. Four reviews fit at one half, and two reviews at point eight cost more. Freeze the model and the cut. Measure them on new requests, because these eight helped us choose.",
+        "hold": 0.8
+      },
+      {
+        "id": "c17-b05",
+        "say": "Give the desk a fifth slot. Four files are already seated at the half cut. Read the scores on the automatic rail, highest first. If the cut drops to point two, which file will take slot five and which one will have to wait?",
+        "hold": 3.5
+      },
+      {
+        "id": "c17-b06",
+        "say": "Lower the cut again. At point three, routine V six takes slot five. Keep lowering the cut to point two. V eight also qualifies and has to wait for a sixth slot. Its miss charge would clear if we could staff that review.",
+        "hold": 1
+      },
+      {
+        "id": "c17-b07",
+        "say": "With five slots, keep one half. That leaves one seat empty, but lowering the cut admits both files.",
+        "hold": 0.8
+      },
+      {
+        "id": "c17-b08",
+        "say": "Open the sixth slot. Lower the cut past V six. That routine review adds eighteen dollars. Continue to point two. This time V eight gets a staffed slot. Catching it clears the hundred-and-twenty-dollar miss. Six reviews now fit and save a hundred and two dollars against the half cut. Enforce authorization independently and test this frozen choice on fresh traffic.",
+        "hold": 1
+      }
+    ]
+  },
+  {
+    "id": "c18",
+    "title": "Which route costs less before the case closes?",
+    "sourceChapters": [
+      "c18"
+    ],
+    "beats": [
+      {
+        "id": "c18-b01",
+        "say": "Those eight cases were already closed. Suppose a new request has a calibrated probability of point two. Among many similar requests, we'd expect one in five to need review. Correct decisions cost nothing here.",
+        "hold": 0.3
+      },
+      {
+        "id": "c18-b02",
+        "say": "Send the request through automatically and a miss costs a hundred and twenty dollars. Weight that price by one chance in five. The expected bill is twenty-four dollars.",
+        "hold": 0.65
+      },
+      {
+        "id": "c18-b03",
+        "say": "Keep the probe on this same request. On the review route, the only charge is eighteen dollars when the case turns out to be routine. That happens four times in five on average here. The expected bill for review is fourteen dollars forty. Which route costs less?",
+        "hold": 2
+      },
+      {
+        "id": "c18-b04",
+        "say": "Choose human review. Now take a second request. Its chance of needing review is just five percent. Slide the probe to point zero five. Keep both prices. Which route would you choose for this one?",
+        "hold": 2.25
+      },
+      {
+        "id": "c18-b05",
+        "say": "Automatic handling. A five percent chance of a hundred-and-twenty-dollar miss costs six dollars on average. Review would cost seventeen dollars ten. Between those two requests, the cheaper route changes. Bring the probe to where the lines cross. Both actions have the same expected cost here.",
+        "hold": 0.55
+      },
+      {
+        "id": "c18-b06",
+        "say": "At the crossing, a hundred and twenty times p equals eighteen times one minus p. Solving gives eighteen over a hundred and thirty-eight, about point one three zero.",
+        "hold": 0.3
+      },
+      {
+        "id": "c18-b07",
+        "say": "When correct decisions cost zero, the break-even probability is the false-positive cost divided by the sum of the two error costs. With calibrated probabilities and an open review slot, review above that cut. Right at the cut the two routes cost the same on average.",
+        "hold": 0.65
+      },
+      {
+        "id": "c18-b08",
+        "say": "Apply that cut to the eight validation scores and seven requests qualify. Our desk has four slots. A cheaper action for an individual request can still produce a queue we can't staff. That's why we tested the size of each candidate queue before freezing the policy.",
+        "hold": 0.75
+      }
+    ]
+  },
+  {
+    "id": "c19",
+    "title": "Which request scores higher?",
+    "sourceChapters": [
+      "c19"
+    ],
+    "beats": [
+      {
+        "id": "c19-b01",
+        "say": "Look at V three. Its closed case required review. V four was routine. If the model ranks these two correctly, V three should score higher. Read the two marked bars. Does V three beat V four?",
+        "hold": 2.3
+      },
+      {
+        "id": "c19-b02",
+        "say": "No. Point five nine five falls below point six two four. Enter zero in that cell. Keep V three and switch its opponent to V six. What goes in this cell?",
+        "hold": 2.1
+      },
+      {
+        "id": "c19-b03",
+        "say": "One win. V three scores above point three two five. Compare each required request with every routine request. Four of each makes sixteen pairs. Give a tie half credit.",
+        "hold": 0.7
+      },
+      {
+        "id": "c19-b04",
+        "say": "Thirteen wins in sixteen comparisons. That fraction is point eight one two five, the area under the ROC curve. Pick a required request and a routine one at random from these eight, and that's how often the required one ranks higher.",
+        "hold": 0.3
+      },
+      {
+        "id": "c19-b05",
+        "say": "Sweep the cut down the score list. A required case moves the ROC point up by one quarter. A routine case moves it right by one quarter. The axes count caught positives per positive and false positives per negative. To predict queue size we still need a cutoff and the incoming class mix.",
+        "hold": 0.75
+      }
+    ]
+  },
+  {
+    "id": "c20",
+    "title": "Change the population while keeping the score model fixed",
+    "sourceChapters": [
+      "c20"
+    ],
+    "beats": [
+      {
+        "id": "c20-b01",
+        "say": "Of these hundred requests, the four pink ones needed review. Send every request through automatically. Ninety-six decisions were correct, giving ninety-six percent accuracy. We missed all four pink cases. Review recall is zero. Precision has an empty denominator because we sent nobody to review.",
+        "hold": 0.3
+      },
+      {
+        "id": "c20-b02",
+        "say": "Recall has an empty denominator when there are no positive cases. If a helper returns zero for an empty denominator, show the count beside it.",
+        "hold": 0.65
+      },
+      {
+        "id": "c20-b03",
+        "say": "At one fixed threshold, recall and false-positive rate normalize within their own true classes. Changing prevalence while preserving both class-conditional score distributions leaves the population ROC point unchanged.",
+        "hold": 0.3
+      },
+      {
+        "id": "c20-b04",
+        "say": "On our actual eight-score fixture, uniformly repeating every negative score twenty-five times preserves F P R point five and A U C point eight one two five, but precision falls from two thirds to about point zero seven four one.",
+        "hold": 0.65
+      },
+      {
+        "id": "c20-b05",
+        "say": "Adding one hundred extra negatives all scored zero is a different change. It leaves the selected queue unchanged, lowers F P R to about point zero one nine two and raises A U C to about point nine nine two eight. Precision remains two thirds.",
+        "hold": 0.3
+      },
+      {
+        "id": "c20-b06",
+        "say": "Every positive outranks all one hundred new cases. Those easy wins lift the ranking score while the same six requests reach the desk.",
+        "hold": 0.65
+      }
+    ]
+  },
+  {
+    "id": "c21",
+    "title": "Collect threshold groups before scoring precision",
+    "sourceChapters": [
+      "c21"
+    ],
+    "beats": [
+      {
+        "id": "c21-b01",
+        "say": "The R O C false-positive denominator is every negative label, whereas precision divides caught positives by the selected queue. A precision-recall curve follows both queue membership and caught positives as the cut moves. Precision can fall when a negative enters and rise when the next positive enters. The empty-queue precision endpoint is a plotting convention.",
+        "hold": 0.65
+      },
+      {
+        "id": "c21-b02",
+        "say": "Average precision sums the precision at each threshold multiplied by the increase in recall there. With distinct scores, each positive contributes one over the number of positives times its rank precision.",
+        "hold": 0.3
+      },
+      {
+        "id": "c21-b03",
+        "say": "Our four positives enter at ranks one, two, four and six, giving precisions one, one, three quarters and two thirds. Their average is about point eight five four.",
+        "hold": 0.65
+      },
+      {
+        "id": "c21-b04",
+        "say": "Tied scores enter together at one threshold; do not choose a favorable order within the tie. Positive-negative A U C gives a tied pair half credit. Average precision uses the whole tied threshold group before its recall increment.",
+        "hold": 0.3
+      },
+      {
+        "id": "c21-b05",
+        "say": "Trapezoidal P R area interpolates between points and can differ from A P. Name the statistic, counts and sampling design alongside the result.",
+        "hold": 0.65
+      }
+    ]
+  },
+  {
+    "id": "c22",
+    "title": "A new scale can preserve every ordering",
+    "sourceChapters": [
+      "c22"
+    ],
+    "beats": [
+      {
+        "id": "c22-b01",
+        "say": "Square every score. On this zero-to-one interval the transformation preserves order. Watch the same request bars shrink without overtaking one another. Every positive-negative verdict stays the same, so the ranking metric is unchanged.",
+        "hold": 0.7
+      },
+      {
+        "id": "c22-b02",
+        "say": "The old one-half cut corresponds to one quarter on this new scale. Moving the numeric cut preserves the same selected cases. The displayed percentages have changed. To judge their meaning, we need to compare forecasts with later frequencies.",
+        "hold": 0.65
+      }
+    ]
+  },
+  {
+    "id": "c23",
+    "title": "Let the later labels build the frequency",
+    "sourceChapters": [
+      "c23"
+    ],
+    "beats": [
+      {
+        "id": "c23-b01",
+        "say": "Return to the original scores. Group these reserved predictions into four bins. Each teal bar is the group's average forecast. Leave the outcome covers on for a moment: the forecast existed before anyone could see how these requests ended.",
+        "hold": 0.7
+      },
+      {
+        "id": "c23-b02",
+        "say": "Open the outcome covers one at a time. Count the required reviews in each bin. Once every cover is open, divide each count by the number of requests in that bin. One of the three lowest scores needed review. Near our opening score, one of two needed review, against a mean forecast near point six one.",
+        "hold": 0.7
+      },
+      {
+        "id": "c23-b03",
+        "say": "Two cases give a fragile fraction. Change just one label and half becomes all. More representative later labels must test the probability claim. If we fit a calibration map, reserve separate labels for verification, and reassess the numeric action cut on suitable validation data.",
+        "hold": 0.65
+      }
+    ]
+  },
+  {
+    "id": "c24",
+    "title": "Weight each bin gap before adding it",
+    "sourceChapters": [
+      "c24"
+    ],
+    "beats": [
+      {
+        "id": "c24-b01",
+        "say": "Binary positive-class E C E groups the review probabilities, rather than the confidence in whichever class won. In each populated bin, subtract the observed positive frequency from the average prediction, take the absolute value, multiply by that bin’s fraction of all rows, and add.",
+        "hold": 0.3
+      },
+      {
+        "id": "c24-b02",
+        "say": "Our lowest bin contributes three eighths times its roughly point one seven five gap.",
+        "hold": 0.65
+      },
+      {
+        "id": "c24-b03",
+        "say": "The four calculated contributions total about point one three nine. For Brier, return to individual rows. V four scored point six two four and its label was zero. Square their difference to get about point three eight nine. Average all eight squared errors for a Brier score of about point one five eight.",
+        "hold": 0.3
+      },
+      {
+        "id": "c24-b04",
+        "say": "Brier also depends on discrimination and outcome uncertainty. A lower Brier score alone cannot establish better calibration. Change from four bins to eight. Three bins are empty. We cannot estimate a forecast, an observed frequency, or a gap from an empty bin. Its weight is zero, so it contributes zero. The eight-bin E C E is about point one five four.",
+        "hold": 0.65
+      },
+      {
+        "id": "c24-b05",
+        "say": "Return to four bins. Change V four's label from routine to required. Keep every score and the half cut fixed. That review now counts as a true positive. F one rises from point seven five to about point eight eight nine. Look at the two cases in its bin.",
+        "hold": 0.3
+      },
+      {
+        "id": "c24-b06",
+        "say": "Both now needed review, even though the mean forecast was near point six one. The gap grows, and four-bin E C E rises to about point two zero nine.",
+        "hold": 0.65
+      }
+    ]
+  },
+  {
+    "id": "c25",
+    "title": "Keep the label sets and ranking contracts separate",
+    "sourceChapters": [
+      "c25"
+    ],
+    "beats": [
+      {
+        "id": "c25-b01",
+        "say": "A post-hoc calibrator maps a trained classifier’s output to an estimated conditional event probability. Fit it on labels separate from the classifier’s fitting data, then verify it on fresh labels. Platt scaling fits a one-dimensional sigmoid. Isotonic regression fits a nondecreasing step function. Here we fit both maps to these eight labeled examples so we can see their shapes. Their fit on these rows still needs a fresh verification sample.",
+        "hold": 0.65
+      },
+      {
+        "id": "c25-b02",
+        "say": "A strictly increasing map preserves binary ordering, while isotonic’s flat steps can merge previously distinct scores into ties and change A U C. Positive temperature scaling divides logits by a positive learned scalar. It preserves their ordering and the sign of a binary logit, so the binary one-half boundary stays unchanged.",
+        "hold": 0.65
+      },
+      {
+        "id": "c25-b03",
+        "say": "Other numerical thresholds can need reassessment after calibration. Learn that policy on appropriate validation data, with the final test labels still reserved. Even a calibrated probability concerns whether review is required; the actual routing action follows the chosen threshold. Model labels also do not grant permission to change access or freeze credentials.",
+        "hold": 0.65
+      }
+    ]
+  },
+  {
+    "id": "c26",
+    "title": "Let each class receive its own residual",
+    "sourceChapters": [
+      "c26"
+    ],
+    "beats": [
+      {
+        "id": "c26-b01",
+        "say": "For three routing labels, give every class a coefficient vector including its intercept. For one feature column x, the class logits are W transpose times x; across request rows the logits are X times W. Softmax exponentiates each class score and divides by the sum, giving a class distribution.",
+        "hold": 0.3
+      },
+      {
+        "id": "c26-b02",
+        "say": "The heads propose routes. The workflow still has to check whether each action is authorized.",
+        "hold": 0.6
+      },
+      {
+        "id": "c26-b03",
+        "say": "Categorical cross-entropy selects the negative log probability of the actual class. For each class head, its logit residual is predicted probability minus the one-hot target.",
+        "hold": 0.3
+      },
+      {
+        "id": "c26-b04",
+        "say": "Multiply those residuals by features and average across rows: the batch gradient is X transpose times predicted-minus-target distributions, divided by the row count. The actual six-row, thousand-update toy fit reaches loss about point zero zero five five on its training rows.",
+        "hold": 0.65
+      },
+      {
+        "id": "c26-b05",
+        "say": "For two classes, the probability of class one is the sigmoid of class-one logit minus class-zero logit. Pinning the reference logit to zero recovers binary logistic regression. Adding the same coefficient vector to every class head shifts every row’s logits equally and changes no probability.",
+        "hold": 0.3
+      },
+      {
+        "id": "c26-b06",
+        "say": "A reference class or constraint removes that redundancy; the unrestricted weight matrix is not uniquely identified.",
+        "hold": 0.65
+      }
+    ]
+  },
+  {
+    "id": "c27",
+    "title": "Keep an extremely wrong class expensive",
+    "sourceChapters": [
+      "c27"
+    ],
+    "beats": [
+      {
+        "id": "c27-b01",
+        "say": "Calculate softmax by subtracting the largest finite logit from every class before exponentiating. The shared exponential factor cancels. With representable finite differences, each shifted score is nonpositive and the largest exponential is one.",
+        "hold": 0.3
+      },
+      {
+        "id": "c27-b02",
+        "say": "For the first row, the last class is correct. Subtract one thousand and one. The shifted scores are zero, minus one and minus two. Sum their exponentials and divide each by that sum. The target gets about nine percent probability. Its loss is two point four zero eight nats and its residual is minus point nine one zero.",
+        "hold": 0.65
+      },
+      {
+        "id": "c27-b03",
+        "say": "The negative log probability of a target class is the log of that exponential sum minus its shifted target logit. In the supplied extreme row, logits are one thousand, zero and minus one thousand, and the last class is correct.",
+        "hold": 0.3
+      },
+      {
+        "id": "c27-b04",
+        "say": "Shifting gives zero, minus one thousand and minus two thousand. The log normalizer is approximately zero, so the loss remains two thousand nats.",
+        "hold": 0.65
+      },
+      {
+        "id": "c27-b05",
+        "say": "Clipping the target probability at ten to the minus fifteen would cap that penalty near thirty-four point five four, hiding how wrong the logit was. Finite-precision probabilities can underflow to zero despite the mathematical distribution. Invalid inputs and subtraction overflow need explicit handling.",
+        "hold": 0.3
+      },
+      {
+        "id": "c27-b06",
+        "say": "Rounded training output one, zero, zero is not calibrated certainty or evidence of generalization.",
+        "hold": 0.65
+      }
+    ]
+  },
+  {
+    "id": "c28",
+    "title": "Compare two losses on the same signed margin",
+    "sourceChapters": [
+      "c28"
+    ],
+    "beats": [
+      {
+        "id": "c28-b01",
+        "say": "A support vector classifier uses labels minus one and plus one. Multiply the label by its decision score to get the functional margin. Hinge loss is the larger of zero and one minus that margin.",
+        "hold": 0.3
+      },
+      {
+        "id": "c28-b02",
+        "say": "Our positive score point four is classified correctly but still has hinge loss point six. At score one point four, hinge loss is zero while logistic loss remains about point two two zero.",
+        "hold": 0.65
+      },
+      {
+        "id": "c28-b03",
+        "say": "A usual soft-margin objective adds one half the squared feature-weight norm to C times the sum of hinge violations. Support vectors lie on or inside the margin, or beyond it on the wrong side. Rows safely beyond the margin supply no hinge-loss pressure.",
+        "hold": 0.3
+      },
+      {
+        "id": "c28-b04",
+        "say": "Take a negative label and a positive score of point three. The predicted sign is wrong, so zero-one loss counts one error. The signed margin is minus point three. Hinge loss is one point three. Divide the functional margin by the feature-weight norm to get geometric margin. With a norm of two, that distance is minus point one five.",
+        "hold": 0.65
+      },
+      {
+        "id": "c28-b05",
+        "say": "To compare implementations, check the loss, intercept treatment, penalty and normalization. For example, squared hinge squares each violation. A margin score needs held-out calibration before we can read it as a probability. A linear margin still leaves us with a straight boundary.",
+        "hold": 0.65
+      }
+    ]
+  },
+  {
+    "id": "c29",
+    "title": "Use the same similarity for two different predictive jobs",
+    "sourceChapters": [
+      "c29"
+    ],
+    "beats": [
+      {
+        "id": "c29-b01",
+        "say": "For the R B F kernel, divide squared distance by twice the squared length scale, negate that quotient, then exponentiate. It equals one at identical inputs. With length scale one, distances one and three give similarities about point six zero seven and point zero one one.",
+        "hold": 0.3
+      },
+      {
+        "id": "c29-b02",
+        "say": "An R B F S V M can build nonlinear margins from such similarities without explicitly materializing the feature expansion. Feature units and length scale still matter.",
+        "hold": 0.65
+      },
+      {
+        "id": "c29-b03",
+        "say": "Switch to continuous regression. Observe value two at input zero, with zero prior mean, unit prior variance, length scale one and Gaussian noise variance point zero four. Read the horizontal axis as the test input. Minus two and plus two are both two units from the observation and have the same similarity.",
+        "hold": 0.3
+      },
+      {
+        "id": "c29-b04",
+        "say": "If k is the similarity to the observed input, posterior mean is two k divided by one point zero four. Latent variance is one minus k squared divided by one point zero four.",
+        "hold": 0.65
+      },
+      {
+        "id": "c29-b05",
+        "say": "For this one-observation unit-variance model, replace two by the observed value and one point zero four by one plus noise variance. At the observed input the mean is about one point nine two three and latent standard deviation about point one nine six.",
+        "hold": 0.3
+      },
+      {
+        "id": "c29-b06",
+        "say": "Far from this observation, mean returns toward zero and standard deviation toward one under these assumptions. A new noisy observation adds point zero four to latent variance. These regression equations do not apply unchanged to classification.",
+        "hold": 0.3
+      },
+      {
+        "id": "c29-b07",
+        "say": "Exact dense G P fitting costs roughly cubic time and quadratic storage in observation count; other kernels and observation layouts can change the distance pattern.",
+        "hold": 0.65
+      }
+    ]
+  },
+  {
+    "id": "c30",
+    "title": "What changes when we refit the same eight rows?",
+    "sourceChapters": [
+      "c30"
+    ],
+    "beats": [
+      {
+        "id": "c30-b01",
+        "say": "Fit the same eight rows twice, once with our gradient loop and once with scikit-learn. Both use the intercept column we supplied. Turn off the library's extra intercept and set C to infinity so both fits minimize the same loss. Compare the three weights.",
+        "hold": 0.3
+      },
+      {
+        "id": "c30-b02",
+        "say": "The solvers stop at slightly different values, but they rank the requests in the same order.",
+        "hold": 0.65
+      },
+      {
+        "id": "c30-b03",
+        "say": "Now change only the penalty. With C set to one, large weights cost extra during fitting. Watch all three weights shrink toward zero. Look at the same request, R three. Its score moves from about point two seven to point five two. At a cut of one half, it now goes to review.",
+        "hold": 0.65
+      },
+      {
+        "id": "c30-b04",
+        "say": "Return to the unpenalized loss on the eight training requests. Start both runs with zero weights, at a loss near point six nine. Take one update. With a learning rate of two, loss jumps above two. With point two, loss falls slightly. Try a smaller step when loss jumps.",
+        "hold": 0.3
+      },
+      {
+        "id": "c30-b05",
+        "say": "If scores cluster near the base rate, compare them with a constant prediction. For good rankings but poor probability estimates, check the labels and counts in each calibration bin.",
+        "hold": 0.65
+      }
+    ]
+  },
+  {
+    "id": "c31",
+    "title": "Price a new batch before the labels arrive",
+    "sourceChapters": [
+      "c31"
+    ],
+    "beats": [
+      {
+        "id": "c31-b01",
+        "say": "Suppose a different desk has two review slots. Here are four new requests and their calibrated probabilities of needing review. A miss costs a hundred and eight dollars. For automatic handling, multiply that price by the chance the request needs review.",
+        "hold": 0.3
+      },
+      {
+        "id": "c31-b02",
+        "say": "That gives a hundred and eight times p. An unnecessary review costs twelve dollars, so review costs twelve times one minus p in expectation. Correct decisions cost zero.",
+        "hold": 0.65
+      },
+      {
+        "id": "c31-b03",
+        "say": "Start with the cut at point three. Review a request if its probability reaches the cut. Choose automatic handling or review for each request. Which amount from each row goes on the bill?",
+        "hold": 3
+      },
+      {
+        "id": "c31-b04",
+        "say": "The first two go through automatically. The last two go to review. For the first two, five dollars forty plus nineteen forty-four gives twenty-four dollars eighty-four. For the two reviews, six sixty plus three dollars gives nine sixty. Together those four choices cost thirty-four dollars forty-four in expectation. Keep this bill for comparison.",
+        "hold": 0.9
+      },
+      {
+        "id": "c31-b05",
+        "say": "Lower the cut to point one. Only N two switches to review. Its expected charge falls from nineteen forty-four to nine eighty-four. That brings the bill down to twenty-four dollars eighty-four, and puts three requests in a two-slot queue.",
+        "hold": 0.8
+      },
+      {
+        "id": "c31-b06",
+        "say": "Go back to point three. Now raise the cut to point six. N three goes through automatically. Its charge rises from six sixty to forty-eight sixty. That leaves one review and an expected bill of seventy-six dollars forty-four. Which tested cut is cheapest among the ones we can staff?",
+        "hold": 2.8
+      },
+      {
+        "id": "c31-b07",
+        "say": "Choose point three. The last two requests take the two slots. The expected bill is thirty-four dollars forty-four. When the cases close, count the actual misses and unnecessary reviews.",
+        "hold": 0.9
+      }
+    ]
+  },
+  {
+    "id": "c32",
+    "title": "What goes on the mistake bill?",
+    "sourceChapters": [
+      "c32"
+    ],
+    "beats": [
+      {
+        "id": "c32-b01",
+        "say": "Return to the four-slot desk with the cut frozen at one half. Find V four, the access request we followed. Its score of point six two four earned it a slot. Open V four. Routine. Attach eighteen dollars to this unnecessary review.",
+        "hold": 0.9
+      },
+      {
+        "id": "c32-b02",
+        "say": "Which automatic file carries the miss? Remember the required file that had to wait when the desk had five slots. Find its score on the automatic rail. Open V eight on the automatic side. Its closed label says review required. Attach a hundred and twenty dollars there. Add the two charges. Together they make a hundred and thirty-eight dollars. The four review slots are still full. Keep the cut frozen and tally fresh cases as they close.",
+        "hold": 1.1
+      },
+      {
+        "id": "c32-b03",
+        "say": "One training case also slipped through. Next, we’ll try a decision tree on R three, the required review our straight line missed.",
+        "hold": 1
+      }
+    ]
+  }
+]

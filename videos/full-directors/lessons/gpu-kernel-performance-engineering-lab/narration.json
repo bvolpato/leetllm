@@ -1,0 +1,268 @@
+[
+  {
+    "id": "c01",
+    "title": "Did this launch write all four words?",
+    "sourceChapters": [
+      "c01"
+    ],
+    "beats": [
+      {
+        "id": "c01-b01",
+        "say": "One word already matches. Watch the stores as the transpose copies this row of four words into the first output column. Each word keeps its bits. Did this launch write all four words?",
+        "hold": 2.6
+      },
+      {
+        "id": "c01-b02",
+        "say": "Three stores landed. The cross stayed where the previous run left it. All four words match, so checking their bits alone misses the skipped store. How could we expose it? Fill the output with all ones. Those bits represent a NaN, and every input in this run is finite. Replay the same three stores and watch the third destination.",
+        "hold": 1.4
+      },
+      {
+        "id": "c01-b03",
+        "say": "One word still holds the poison. We expected the cross. Restore the missing store. Fill the output again. Run the repaired copy and follow the cross into the third slot. Now all four destinations match their own sources. The lab checks each word before it accepts a timing, including on shapes that end partway through a tile.",
+        "hold": 0.9
+      },
+      {
+        "id": "c01-b04",
+        "say": "A transpose performs no floating-point arithmetic. Consider a separate exact-copy test that admits NaNs. Both words on screen decode as NaN. Should the checker accept this copy? Compare the last bit of each word. It fails. The expected word ends in zero. The returned word ends in one. The recorded CUDA harness used distinct finite integers. That run leaves NaN payloads untested.",
+        "hold": 0.9
+      }
+    ]
+  },
+  {
+    "id": "c02",
+    "title": "How much of each sector does the warp use?",
+    "sourceChapters": [
+      "c02"
+    ],
+    "beats": [
+      {
+        "id": "c02-b01",
+        "say": "A warp has thirty-two lanes. Each active lane requests one four-byte float. On this aligned row the lanes read adjacent words. Group eight words under each thirty-two-byte sector. Four sectors carry all one hundred twenty-eight useful bytes.",
+        "hold": 0.8
+      },
+      {
+        "id": "c02-b02",
+        "say": "Keep that payload fixed. For the naive transpose at width four thousand ninety-six, the next lane stores one entire row farther on. Spread the stores out. Now the warp touches thirty-two sectors, with only one word used in each. Do you expect these addresses to tell us how many bytes reach device memory?",
+        "hold": 1.8
+      },
+      {
+        "id": "c02-b03",
+        "say": "They predict coverage at the access stage. Cache policy, merging and write behavior affect downstream traffic. Now try row one of a matrix with thirty-three columns. Start at word thirty-three and end at sixty-four. Count every touched sector, including the one with just the final word.",
+        "hold": 2.2
+      },
+      {
+        "id": "c02-b04",
+        "say": "Five sectors cover those thirty-two words. The payload fills one hundred twenty-eight of one hundred sixty bytes. Move to the next tile in the same row. Lane zero takes column thirty-two, the last column in bounds. Which sector supplies that word?",
+        "hold": 2.4
+      },
+      {
+        "id": "c02-b05",
+        "say": "Sector eight. Row one starts at word thirty-three. Add column thirty-two to reach word sixty-five, the second word in that sector. One active lane uses four of its thirty-two bytes.",
+        "hold": 1
+      }
+    ]
+  },
+  {
+    "id": "c03",
+    "title": "Who supplies the word at the edge?",
+    "sourceChapters": [
+      "c03"
+    ],
+    "beats": [
+      {
+        "id": "c03-b01",
+        "say": "A shared-memory tile lets threads exchange positions. Load adjacent input words into tile rows. After the block barrier, read down the second column. Where will those four values go? Write them side by side in output row one. Another set of lanes can now store to adjacent addresses. At full scale, an aligned warp can store thirty-two adjacent words in four sectors.",
+        "hold": 0.9
+      },
+      {
+        "id": "c03-b02",
+        "say": "At width thirty-three, the tile starting at column thirty-two admits just one input column. Our block has thirty-two lanes across and eight warp rows. Each thread visits four rows, eight apart. How many values fit at this edge, and who has to reach the barrier?",
+        "hold": 2.4
+      },
+      {
+        "id": "c03-b03",
+        "say": "Thirty-two values fit. Lane zero of each warp loads four of them. All two hundred fifty-six threads reach the barrier outside the bounds checks. Follow sixty-five from input row one, column thirty-two. Warp one produces the shared word. Warp zero consumes it and writes output row thirty-two, column one. The source has changed owners.",
+        "hold": 1.1
+      },
+      {
+        "id": "c03-b04",
+        "say": "Try the next edge yourself. Change the width to sixty-seven and start the tile at column sixty-four. Three columns remain. How many inputs will the block bring through, and what happens to the number of barrier arrivals?",
+        "hold": 2.6
+      },
+      {
+        "id": "c03-b05",
+        "say": "Ninety-six words fit. Each of thirty-two rows contributes three. The block still has two hundred fifty-six threads, so its barrier count stays fixed. Trace input row one, column sixty-four. Its value is one hundred thirty-one. Warp one loads it and warp zero writes it at row sixty-four, column one. Multiply the output row by sixty-seven and add one to find its linear address.",
+        "hold": 1.1
+      }
+    ]
+  },
+  {
+    "id": "c04",
+    "title": "Which bank serves the next lane?",
+    "sourceChapters": [
+      "c04"
+    ],
+    "beats": [
+      {
+        "id": "c04-b01",
+        "say": "Inside shared memory, number the four-byte words from zero. The bank is the word number modulo thirty-two. For a full warp reading column zero, leave the lanes fixed. With thirty-two words per row, the first three addresses are zero, thirty-two and sixty-four. Trace the column read.",
+        "hold": 0.7
+      },
+      {
+        "id": "c04-b02",
+        "say": "Every lane needs a different word from bank zero. That bank must serve thirty-two groups in this scalar model. Multiple readers of the very same word could use a broadcast. Now give each row one spare word. Before the next read, which banks will serve lanes one and two?",
+        "hold": 2.6
+      },
+      {
+        "id": "c04-b03",
+        "say": "Send the requests again. Words thirty-three and sixty-six reach banks one and two. Each bank supplies one word in the same group. The extra column costs one hundred twenty-eight shared bytes per block. The logical tile still holds the same values. A service-group count predicts a conflict, while repeated timings measure the benefit.",
+        "hold": 0.9
+      },
+      {
+        "id": "c04-b04",
+        "say": "Try two spare words per row instead. Stride thirty-four advances by two banks per lane. Predict where lane sixteen lands.",
+        "hold": 2.3
+      },
+      {
+        "id": "c04-b05",
+        "say": "Trace it back to bank zero. Sixteen even banks each serve two distinct words. To test another stride, count distinct addresses per bank and multiply the physical row width by thirty-two rows and four bytes.",
+        "hold": 1.1
+      }
+    ]
+  },
+  {
+    "id": "c05",
+    "title": "Can the late write repair the read?",
+    "sourceChapters": [
+      "c05"
+    ],
+    "beats": [
+      {
+        "id": "c05-b01",
+        "say": "Return to the edge tile and its word sixty-five. Remove the barrier. In this possible schedule, warp zero reads early. It captures the old shared bits in its register. Warp one writes sixty-five later. Which value will the consumer store?",
+        "hold": 2.5
+      },
+      {
+        "id": "c05-b02",
+        "say": "The store uses the old register. A later write to the shared slot cannot change bits already read. Replay the same late producer with the block barrier restored. Hold the consumer here. When the final producer arrives, release the block. Only now does the consumer read sixty-five and store it.",
+        "hold": 1
+      },
+      {
+        "id": "c05-b03",
+        "say": "The recorded broken run at width thirty-three kept every address in bounds. Memcheck reported zero address errors. Racecheck reported four shared-memory hazards. Synccheck reported zero invalid barrier uses. A matching output on another schedule would still leave the hazard. Reject the broken timing. After repair, repeat exact output and sanitizer checks on full and partial tiles before timing again.",
+        "hold": 1
+      }
+    ]
+  },
+  {
+    "id": "c06",
+    "title": "Where should a failing index land?",
+    "sourceChapters": [
+      "c06"
+    ],
+    "beats": [
+      {
+        "id": "c06-b01",
+        "say": "Tiling is one implementation technique. The required output decides the broader algorithm. A transpose preserves values in a new layout. Our checker has a different job. Each one here marks a mismatch. Fold the flags into one total. Four failures. A reduction can also give the maximum absolute error when we specify how to handle nonfinite values.",
+        "hold": 0.8
+      },
+      {
+        "id": "c06-b02",
+        "say": "Keep the same flags and collect the original failing indices in order. Number both the input and output slots from zero. Look at index four. How many failures come before it? That number is its output slot.",
+        "hold": 2.3
+      },
+      {
+        "id": "c06-b03",
+        "say": "Count only earlier flags. The exclusive prefix at index four is two. Scatter the failing indices to their prefix slots. Index four lands third in the list. The reduction tells us how much space to reserve. The scan tells each writer where to go.",
+        "hold": 1.1
+      }
+    ]
+  },
+  {
+    "id": "c07a",
+    "title": "What does unrolling change?",
+    "sourceChapters": [
+      "c07"
+    ],
+    "beats": [
+      {
+        "id": "c07a-b01",
+        "say": "A useful optimization experiment changes one mechanism while keeping its operation and workload fixed. Watch one thread visit offsets zero, eight, sixteen and twenty-four. Unroll that loop. Independent loads could issue before their dependent stores. The compiler might already have made exactly that change. Compare generated instructions before you credit a new schedule.",
+        "hold": 0.9
+      },
+      {
+        "id": "c07a-b02",
+        "say": "Suppose both builds emit the same instructions. Here are three clean batch averages per build. The candidate has the quickest run. Look at its slowest. Do these runs establish a benefit from unrolling?",
+        "hold": 2.3
+      },
+      {
+        "id": "c07a-b03",
+        "say": "The samples overlap. A lower median alone leaves the benefit unresolved. Extra live words can cost registers or spill into local memory. Save compiler register and spill reports with your measurements. Now pack blocks onto a toy streaming multiprocessor. For this calculation ignore allocation rounding and other limits.",
+        "hold": 0.7
+      },
+      {
+        "id": "c07a-b04",
+        "say": "At forty registers per thread, a block of two hundred fifty-six threads needs ten thousand two hundred forty registers. Count whole blocks against each limit. Registers fit six, shared storage fits fifteen, and warp slots fit eight. Take the smallest. Six blocks give forty-eight of sixty-four warp slots. That is capacity. More resident warps can hide latency while others wait. Measure achieved occupancy and throughput on the target launch.",
+        "hold": 1
+      }
+    ]
+  },
+  {
+    "id": "c07b",
+    "title": "What did the timer actually measure?",
+    "sourceChapters": [
+      "c07"
+    ],
+    "beats": [
+      {
+        "id": "c07b-b01",
+        "say": "Build for the target GPU and keep the source and checker hashes, compiler options, tool versions and resource report. For each normal variant, check a freshly poisoned output and warm up five times. Start the CUDA event interval. Run one hundred launches. Stop the interval, then validate again with fresh poison. Allocation, copies and checks sit outside the bracket.",
+        "hold": 0.8
+      },
+      {
+        "id": "c07b-b02",
+        "say": "Divide the interval by one hundred for a batch average. Individual call times would be needed for a tail percentile. At width four thousand ninety-six, each launch reads and writes one float per element. That is one hundred twenty-eight mebibytes of logical work. For an illustrative average of point two milliseconds, divide bytes by seconds to get about six hundred seventy-one decimal gigabytes per second.",
+        "hold": 0.9
+      },
+      {
+        "id": "c07b-b03",
+        "say": "To identify a physical bottleneck, match the profile to the timed kernel, source, shape and launch. A copy profile measures another operation. In the recorded lab, permission to collect counters was denied. The sector prediction stands. The limiting memory stage is still open. With access, select one matching launch after validation and warmup, inspect load and store sectors separately, then follow traffic through the caches to device memory. Time a separate unprofiled run.",
+        "hold": 1
+      }
+    ]
+  },
+  {
+    "id": "c07",
+    "title": "Would you keep the extra column?",
+    "sourceChapters": [
+      "c07"
+    ],
+    "beats": [
+      {
+        "id": "c07-b01",
+        "say": "These are recorded batch averages on one RTX fifty seventy Ti. All three transpose variants passed the output checks at this shape. Five rounds used separate processes and alternated the order. Compare the dots. Even the slowest tiled batch finished ahead of the fastest naive batch. Keep tiling for this setup. Now compare padding with tiling within each round.",
+        "hold": 1
+      },
+      {
+        "id": "c07-b02",
+        "say": "Subtract the tiled time from the padded time. Left of zero means padding saved time. Follow rounds one and four. The same extra word moves time in opposite directions. Has padding earned a speedup claim?",
+        "hold": 2.4
+      },
+      {
+        "id": "c07-b03",
+        "say": "Three rounds favored padding and two favored the unpadded tile. Keep the bank mapping result. The speed benefit is unresolved. Keep raw samples, exact checks, sanitizer logs, profiles or collection errors, hardware identity and source hashes together so the next run can test the same change.",
+        "hold": 0.9
+      },
+      {
+        "id": "c07-b04",
+        "say": "One final experiment. Suppose a team adds padding and doubles the block rows. Time falls from one hundred to ninety-four in the same units. To isolate padding first, which kernel belongs between those two runs?",
+        "hold": 2.5
+      },
+      {
+        "id": "c07-b05",
+        "say": "Run stride thirty-three with the original eight block rows. Compare it with stride thirty-two at eight rows to test padding. Then hold stride fixed and compare eight rows with sixteen. Validate each kernel and repeat the timings. The missing middle run lets each comparison answer one question.",
+        "hold": 1.7
+      }
+    ]
+  }
+]

@@ -1,0 +1,1307 @@
+version: 1
+id: retrieval-indexing
+title: How an Index Finds the Right Documents
+source: foundations/core-retrieval-algorithms/content.md
+voice: af_heart
+rate: +12%
+sources:
+  - title: "Manning, Raghavan, and Schütze: Introduction to Information Retrieval, Chapter 1"
+    url: https://nlp.stanford.edu/IR-book/html/htmledition/an-example-information-retrieval-problem-1.html
+  - title: "Robertson and Zaragoza: The Probabilistic Relevance Framework, BM25 and Beyond"
+    url: https://www.staff.city.ac.uk/~sbrp622/papers/foundations_bm25_review.pdf
+  - title: Apache Lucene10.5.1 BM25Similarity and pinned scorer
+    url: https://lucene.apache.org/core/10_5_1/core/org/apache/lucene/search/similarities/BM25Similarity.html
+  - title: Lucene10.5.1 scorer source
+    url: https://raw.githubusercontent.com/apache/lucene/releases/lucene/10.5.1/lucene/core/src/java/org/apache/lucene/search/similarities/BM25Similarity.java
+  - title: Dense Passage Retrieval§3.1
+    url: https://arxiv.org/abs/2004.04906
+  - title: Cormack etal2009 reciprocal rank fusion
+    url: https://cormack.uwaterloo.ca/cormacksigir09-rrf.pdf
+  - title: BERT passage reranking§2
+    url: https://arxiv.org/abs/1901.04085
+  - title: HNSW original algorithms1/2/5 and complexity limits
+    url: https://arxiv.org/abs/1603.09320
+  - title: Faiss index composition and payloads
+    url: https://github.com/facebookresearch/faiss/wiki/Faiss-indexes
+  - title: Faiss ProductQuantizer implementation
+    url: https://raw.githubusercontent.com/facebookresearch/faiss/main/faiss/impl/ProductQuantizer.cpp
+  - title: hnswlib parameter contracts
+    url: https://raw.githubusercontent.com/nmslib/hnswlib/master/ALGO_PARAMS.md
+  - title: Current Elasticsearch RRF parameters
+    url: https://www.elastic.co/docs/reference/elasticsearch/rest-apis/reciprocal-rank-fusion
+scenes:
+  - id: opening
+    title: "How do I make soup?"
+    visual: "A mark runs under the word soup on a recipe card and a lunch menu. The two counts stay beside the pages. A third slip offers a cooking instruction that neither query word can find."
+    beats:
+      - say: "You want to make soup. Count the word soup on the recipe and the lunch menu. If search sends the page with the most matches, which one do you get?"
+        hold: 3
+        caption_starts: ["Count the word soup", "If search sends"]
+        visual_cues:
+          - id: open-count
+            phrase: "Count the word soup on the recipe and the lunch menu"
+            targets: [open-counts]
+          - id: open-ask
+            phrase: "which one do you get"
+            targets: [open-question, open-counts, open-recipe, open-menu]
+      - say: "The lunch menu wins. It says soup twice. The recipe says it once. Now read this cooking instruction. Cook beans and vegetables together until soft. Which words from “make soup” appear here?"
+        hold: 2.5
+        caption_starts: ["Now read this cooking instruction", "Which words from"]
+        visual_cues:
+          - id: open-menu
+            phrase: "The lunch menu wins"
+            targets: [open-menu]
+            caption_boundary: true
+          - id: open-read
+            phrase: "Now read this cooking instruction"
+            targets: [open-instruction]
+          - id: open-match
+            phrase: "Which words from “make soup” appear here"
+            targets: [open-question, open-instruction]
+      - say: "Neither word appears. Both the recipe and this instruction give the cook a step to follow. Let's see which pages the index can reach from the words make and soup."
+        hold: 1
+        visual_cues:
+          - id: open-neither
+            phrase: "Neither word appears"
+            targets: [open-instruction]
+            caption_boundary: true
+          - id: open-judged
+            phrase: "give the cook a step to follow"
+            targets: [open-recipe, open-instruction]
+  - id: postings
+    title: Terms point to documents
+    visual: Words from the recipe and menu are counted in a small grid, then the terms connect to sorted lists of
+      document IDs.
+    beats:
+      - say: Begin with four document IDs and a simple analyzer that lowercases words, removes a small stopword list,
+          and keeps alphabetic runs. In the recipe, soup and make each appear once. A posting list records
+          which documents contain each term.
+        hold: 0.55
+        visual_cues:
+          - id: postings-documents
+            phrase: Begin with four document IDs
+            targets:
+              - postings-document-terms
+            color: cyan
+            linger: 0.6
+          - id: postings-recipe-counts
+            phrase: soup and make each appear once
+            targets:
+              - postings-document-terms
+            color: cyan
+            linger: 0.6
+      - say: The index maps each term to an ordered list of document IDs. Here, make points to d1 and soup points to
+          d1 and d4. The useful paraphrase d2 contains neither query word, so both lists leave it out.
+        hold: 0.55
+        visual_cues:
+          - id: postings-ids
+            phrase: make points to d1 and soup points to d1 and d4
+            targets:
+              - postings-simulation-7
+            color: cyan
+            linger: 0.6
+      - say: The menu says soup twice, yet d4 appears once in soup's posting list. Counts and token positions can be
+          stored alongside that ID when scoring or phrase search needs them. The term-to-documents direction
+          is what makes the index inverted.
+        hold: 0.7
+        visual_cues:
+          - id: postings-beat-3-focus-1
+            phrase: The menu says soup twice
+            targets:
+              - postings-d4-occurrences
+              - postings-simulation-7
+            color: blue
+            linger: 0.6
+          - id: postings-position-metadata
+            phrase: Counts and token positions can be stored alongside that ID
+            targets:
+              - postings-d4-occurrences
+            color: yellow
+            linger: 0.5
+  - id: query
+    title: Query terms traverse only their lists
+    visual: The query terms make and soup address their own posting lists. The lists merge into candidate
+      documents d1 and d4, while the paraphrased d2 remains outside the sparse route.
+    beats:
+      - say: "The analyzer turns the question into make and soup. Start with make: its posting list points to d1. The
+          useful passage says “cook beans and vegetables,” so its words never enter that list."
+        hold: 0.55
+        visual_cues:
+          - id: query-make
+            phrase: "Start with make: its posting list points to d1"
+            targets:
+              - query-object-make-15
+            color: cyan
+            linger: 0.6
+      - say: An OR query merges the lists and visits d1 and d4. An AND query intersects them and keeps d1, where both
+          words appear. The useful cooking paraphrase d2 stays outside both routes.
+        hold: 0.6
+        visual_cues:
+          - id: query-beat-2-focus-1
+            phrase: The useful cooking paraphrase d2 stays outside both routes
+            targets:
+              - query-object-d2-useful-cooking-paraphrase-absent-from-both-rout-21
+            color: blue
+            linger: 0.6
+      - say: The work follows the lists touched by the query, roughly the sum of their lengths before skipping and
+          top-result selection. A common word may still point to most documents, so the index changes the work
+          pattern without making every query equally cheap.
+        hold: 0.7
+        visual_cues:
+          - id: query-beat-3-focus-1
+            phrase: The work follows the lists touched by the query
+            targets:
+              - query-object-beat-0-candidate-snapshot-combined-join-or-union-u-16
+            color: blue
+            linger: 0.6
+  - id: bm25
+    title: BM25 turns matches into a score
+    visual: A computed BM25 term contribution shows document frequency, word count, document length, and the
+      recipe's score building term by term.
+    beats:
+      - say: Candidate generation answers which passages can be scored. BM25 then weights matching terms using
+          document frequency, term frequency, and document length. A rare query term can carry more evidence
+          than a word appearing in most passages.
+        hold: 0.55
+        visual_cues:
+          - id: bm25-beat-1-focus-1
+            phrase: BM25 then weights matching terms using document frequency
+            targets:
+              - bm25-simulation-24
+            color: blue
+            linger: 0.6
+          - id: bm25-beat-1-focus-2
+            phrase: BM25 then weights matching terms using document frequency
+            targets:
+              - bm25-equation-string-raw-mathrm-term-mathrm-idf-frac-f-1-2-1-f-1-27
+            color: yellow
+            linger: 0.6
+      - say: In our four-document corpus, soup appears in two passages, so its Lucene-style IDF is about 0.693. The
+          recipe has eleven analyzed terms, compared with an average of about 8.25. Its length factor is 1.25
+          when b is 0.75.
+        hold: 0.6
+        visual_cues:
+          - id: bm25-beat-2-focus-1
+            phrase: In our four-document corpus
+            targets:
+              - bm25-simulation-24
+            color: blue
+            linger: 0.6
+          - id: bm25-numeric-idf
+            phrase: so its Lucene-style IDF is about 0.693
+            targets:
+              - bm25-numeric-idf
+            color: cyan
+            linger: 0.5
+          - id: bm25-length-factor
+            phrase: Its length factor is 1.25 when b is 0.75
+            targets:
+              - bm25-length-factor
+            color: yellow
+            linger: 0.5
+      - say: Make contributes about 1.060 to d1 because it appears in one passage. Soup adds about 0.610. BM25's
+          term-frequency effect saturates, so repeated soup in the menu adds evidence without multiplying the
+          score in direct proportion to its count.
+        hold: 0.65
+        visual_cues:
+          - id: bm25-beat-3-focus-1
+            phrase: Make contributes about 1
+            targets:
+              - bm25-term-contributions
+            color: blue
+            linger: 0.6
+          - id: bm25-saturation
+            phrase: BM25's term-frequency effect saturates, so repeated soup in the menu adds evidence without multiplying
+              the score in direct proportion to its count
+            targets:
+              - bm25-tf-saturation
+            color: yellow
+            linger: 0.5
+  - id: ranking
+    title: Ranking exposes the vocabulary mismatch
+    visual: Live scores sort all four documents. The recipe leads, the soup menu follows, and the labeled useful
+      cooking paraphrase d2 remains at zero.
+    beats:
+      - say: Scoring every passage gives d1 about 1.669 and the soup menu d4 about 0.899. Documents d2 and d3 receive
+          zero because they share no analyzed query terms. The lexical ranking has done exactly what its
+          representation permits.
+        hold: 0.55
+        visual_cues:
+          - id: ranking-beat-1-focus-1
+            phrase: The lexical ranking has done exactly what its representation permits
+            targets:
+              - ranking-object-distribution-ranking-31
+            color: blue
+            linger: 0.6
+          - id: ranking-beat-1-focus-2
+            phrase: Documents d2 and d3 receive zero because they
+            targets:
+              - ranking-object-distribution-ranking-31
+            color: blue
+            linger: 0.6
+      - say: That result teaches two separate questions. Did the index find the matching documents efficiently, and
+          did the representation connect the question to the passages a person needs? A correct posting
+          traversal can still support an incomplete candidate set.
+        hold: 0.6
+        visual_cues:
+          - id: ranking-beat-2-focus-1
+            phrase: That result teaches two separate questions
+            targets:
+              - ranking-object-distribution-ranking-31
+            color: blue
+            linger: 0.6
+          - id: ranking-beat-2-focus-2
+            phrase: Did the index find the matching documents efficiently
+            targets:
+              - ranking-object-distribution-ranking-31
+            color: blue
+            linger: 0.6
+      - say: A synonym map or query expansion could connect make soup with cook beans and vegetables. A dense
+          retrieval lane can also represent paraphrases. Each option changes the candidate-generation path, so
+          compare its judged results and cost on the same queries.
+        hold: 0.7
+        visual_cues:
+          - id: ranking-beat-3-focus-1
+            phrase: A synonym map or query expansion could connect
+            targets:
+              - ranking-object-distribution-ranking-31
+            color: blue
+            linger: 0.6
+  - id: top-k
+    title: Keep a small set of strong candidates
+    visual: A bounded min-heap streams four computed scores, rejects a weaker tied result, and replaces its
+      weakest retained item when d4 arrives.
+    beats:
+      - say: d1 arrives first with a score of about 1.669 and fills one slot. A bounded min-heap keeps the weakest
+          retained candidate at its root, ready for the next score.
+        hold: 0.55
+        visual_cues:
+          - id: top-k-beat-1-focus-1
+            phrase: A bounded min-heap keeps the weakest retained candidate at its root
+            targets:
+              - top-k-simulation-35
+            color: blue
+            linger: 0.6
+      - say: d2 arrives with a score of zero and fills the second slot. It becomes the weaker root, while d1 remains
+          the stronger retained result.
+        hold: 0.55
+        visual_cues:
+          - id: top-k-beat-2-focus-1
+            phrase: It becomes the weaker root
+            targets:
+              - top-k-simulation-35
+            color: blue
+            linger: 0.6
+      - say: Now d3 arrives with the same zero score. The lower-ID tie rule keeps d2 ahead of d3, so d3 leaves the
+          retained set and d2 stays at the root.
+        hold: 0.6
+        visual_cues:
+          - id: top-k-beat-3-focus-1
+            phrase: so d3 leaves the retained set and d2 stays at the root
+            targets:
+              - top-k-simulation-35
+            color: blue
+            linger: 0.6
+      - say: d4 scores about 0.899, so it replaces the zero-score root. The final two are the soup recipe d1 and the
+          lunch menu d4. For a large candidate set and small k, bounded selection avoids sorting every score
+          while preserving the chosen winners and tie rule.
+        motion_check:
+          region:
+            - 160
+            - 350
+            - 1620
+            - 455
+          minimumChangedFraction: 0.002
+        hold: 0.7
+        visual_cues:
+          - id: top-k-beat-4-focus-1
+            phrase: so it replaces the zero-score root
+            targets:
+              - top-k-simulation-35
+            color: blue
+            linger: 0.6
+  - id: storage
+    title: Index layout shapes the cost
+    visual: Sorted posting IDs become gap values and return to their document positions; a common term fans out
+      across many IDs while a rare term stays compact.
+    beats:
+      - say: Real inverted indexes keep postings ordered and often store document frequency, term counts, or
+          positions. Ordered IDs let query execution merge lists, skip ranges, and decode compressed blocks
+          without scanning every stored passage.
+        hold: 0.55
+        visual_cues:
+          - id: storage-ordered
+            phrase: Ordered IDs let query execution merge lists
+            targets:
+              - storage-values
+            color: cyan
+            linger: 0.6
+      - say: If a posting list contains IDs 12, 20, and 25, the gaps are 12, 8, and 5. Gap encoding preserves the
+          order while making small differences compact for suitable integer codecs. Decoding restores the
+          original IDs before candidates are scored.
+        hold: 0.6
+        visual_cues:
+          - id: storage-id-values
+            phrase: If a posting list contains IDs 12, 20, and 25
+            targets:
+              - storage-values
+            color: cyan
+            linger: 0.6
+          - id: storage-gap-values
+            phrase: the gaps are 12, 8, and 5
+            targets:
+              - storage-values
+              - storage-equation
+            color: yellow
+            linger: 0.6
+      - say: Indexes also have a build and update cost. New or changed documents must be analyzed and represented,
+          then merged into searchable segments or another storage layout. Measure query latency together with
+          freshness, storage, and indexing throughput.
+        hold: 0.7
+        visual_cues:
+          - id: storage-decoding
+            phrase: must be analyzed and represented
+            targets:
+              - storage-values
+            color: cyan
+            linger: 0.6
+  - id: evaluation
+    title: Judge the returned evidence
+    visual: The top-two lexical result highlights useful d1 and distractor d4, then an illustrative paraphrase
+      lane adds the missed d2 to the candidate set.
+    beats:
+      - say: Our relevance labels mark d1 and the paraphrased d2 as useful. The top-two lexical results contain d1 and
+          d4, so recall at two is one useful passage out of two. The lunch menu consumed a slot that could
+          have carried the cooking instructions.
+        hold: 0.6
+        visual_cues:
+          - id: evaluation-relevant
+            phrase: Our relevance labels mark d1 and the paraphrased d2 as useful
+            targets:
+              - evaluation-object-relevant-45
+            color: cyan
+            linger: 0.6
+          - id: evaluation-recall
+            phrase: recall at two is one useful passage out of two
+            targets:
+              - evaluation-equation-string-raw-mathrm-recall-k-frac-mathrm-relevant-ca-51
+            color: yellow
+            linger: 0.6
+      - say: A second lane can retrieve d2 from its paraphrase. Add it to the candidates from word search.
+          If the reranker picks the recipe and the cooking instruction, both useful passages reach the cook.
+          For your own search, mark which pages answer each reader's question, then check how many the shortlist contains.
+        hold: 0.6
+        visual_cues:
+          - id: evaluation-beat-2-focus-1
+            phrase: A second lane can retrieve d2 from its paraphrase
+            targets:
+              - evaluation-object-cooking-paraphrase-d2-48
+              - evaluation-candidate-union
+            color: blue
+            linger: 0.6
+          - id: evaluation-fuse-results
+            phrase: If the reranker picks the recipe and the cooking instruction
+            targets:
+              - evaluation-candidate-union
+              - evaluation-reranker
+              - evaluation-ranked-result
+            color: green
+            linger: 0.5
+      - say: Trace the whole path when a retrieval result fails. Follow the analyzer, posting traversal, score, top-k
+          selection, and evaluation. This separates a missed term from a weak score and from a shortlist that
+          is too small for the next stage.
+        hold: 0.75
+        visual_cues:
+          - id: evaluation-beat-3-focus-1
+            phrase: Trace the whole path when a retrieval result fails
+            targets:
+              - evaluation-object-relevant-45
+            color: blue
+            linger: 0.6
+  - id: analyzer-contract
+    title: Change the question and retain exact term identity
+    visual: The credential corpus preserves four named source passages while the analyzer constructs counts, IDs
+      and a collision.
+    beats:
+      - say: "How do I rotate an API key? Document one calls it key rotation. Document two calls it replacing
+          a credential. Both give the reader steps to follow. The other pages cover display names and API key
+          quotas. Watch what happens to the two guides when we search by word."
+        hold: 0.75
+        visual_cues:
+          - id: credential-records
+            phrase: Document one calls it key rotation
+            targets:
+              - analyzer-contract-construction
+            color: cyan
+            linger: 0.5
+          - id: credential-relevance
+            phrase: Both give the reader steps to follow
+            targets:
+              - analyzer-contract-construction
+            color: cyan
+            linger: 0.5
+      - say: The reference analyzer lowercases text and keeps runs of English letters. The question becomes rotate,
+          API, key. Rotate has no exact match, while API and key each reach documents one and four. A posting
+          records the matching document and frequency; optional positions can support phrase and proximity
+          checks. Query and document analysis must use compatible rules. A fast lookup cannot invent the
+          missing rotation synonym.
+        hold: 0.75
+        visual_cues:
+          - id: analyzer-terms
+            phrase: The question becomes rotate, API, key
+            targets:
+              - analyzer-contract-construction
+            color: cyan
+            linger: 0.5
+          - id: analyzer-postings
+            phrase: API and key each reach documents one and four
+            targets:
+              - analyzer-contract-construction
+            color: cyan
+            linger: 0.5
+      - say: Watch an identifier failure. AUTH underscore four zero one and AUTH underscore four zero three both
+          become auth, so distinct error codes collide. Rotate underscore API underscore key becomes three
+          terms. Keep a keyword field when complete identifier identity matters, and a separate analyzed field
+          for ordinary text. Changing case or punctuation rules also changes the index and the queries that
+          can reach it.
+        hold: 0.75
+        visual_cues:
+          - id: identifier-collision
+            phrase: both become auth
+            targets:
+              - analyzer-contract-construction
+            color: cyan
+            linger: 0.5
+          - id: keyword-repair
+            phrase: Keep a keyword field when complete identifier identity matters
+            targets:
+              - analyzer-contract-construction
+            color: cyan
+            linger: 0.5
+  - id: bm25-controls
+    title: "How much weight do three mentions of “key” get?"
+    visual: "The credential guide's term counts feed the reference BM25 formula. API and key build one score bar. A separate fixed-length example changes only frequency, then compares the resulting weights against the saturation limit."
+    beats:
+      - say: "The rotation guide says API once and key three times. Start with one term. Its count, f, appears on both sides of the fraction bar. That's where repeated mentions start to yield less. The length factor compares the guide with an average passage. The IDF multiplier looks across the whole collection and gives a rare term more weight. Add a contribution for each matching query term. A word missing from the passage contributes zero."
+        hold: 0.7
+        visual_cues:
+          - id: bm25-tf-formula
+            phrase: "Its count, f, appears on both sides of the fraction bar"
+            targets: [bm25-controls-construction]
+          - id: bm25-length-formula
+            phrase: "The length factor compares the guide with an average passage"
+            targets: [bm25-controls-construction]
+          - id: bm25-idf-formula
+            phrase: "The IDF multiplier looks across the whole collection"
+            targets: [bm25-controls-construction]
+      - say: "This guide has eleven analyzed words. The average is eight. API contributes about point six to the guide's score. Now add the three mentions of key. Together they add just over one point. The total puts the guide ahead of the quota page. To isolate repetition, use an average-length passage and hold IDF at one. Look across the pairs. One mention earns one point. Twenty mentions still earn less than two point one. With k one set to one point two, the weight approaches two point two."
+        hold: 0.8
+        visual_cues:
+          - id: credential-api
+            phrase: "API contributes about point six"
+            targets: [bm25-controls-construction]
+          - id: credential-key
+            phrase: "Together they add just over one point"
+            targets: [bm25-controls-construction]
+          - id: credential-total
+            phrase: "The total puts the guide ahead of the quota page"
+            targets: [bm25-controls-construction]
+          - id: frequency-weights
+            phrase: "Look across the pairs"
+            targets: [bm25-controls-construction]
+          - id: frequency-limit
+            phrase: "the weight approaches two point two"
+            targets: [bm25-controls-construction]
+      - say: "Lower k one and the curve flattens sooner. Bring k one all the way to zero. Now every present term gets weight one. The other knob, b, controls length. At zero it ignores length, and at one it uses the full length ratio. Our shifted IDF stays positive. The original unshifted form can be negative for very common words. If you check these numbers against Lucene ten point five point one, its defaults are the same, but its scorer drops the common numerator factor and encodes length norms. Compare scores using the same convention."
+        hold: 0.8
+        visual_cues:
+          - id: k1-zero
+            phrase: "Bring k one all the way to zero"
+            targets: [bm25-controls-construction]
+          - id: length-knobs
+            phrase: "At zero it ignores length, and at one it uses the full length ratio"
+            targets: [bm25-controls-construction]
+          - id: lucene-scale
+            phrase: "its scorer drops the common numerator factor and encodes length norms"
+            targets: [bm25-controls-construction]
+  - id: dense-encoding
+    title: "Which guide points toward the query?"
+    visual: "The query and passages are represented separately. Two passage arrows meet the query arrow at a common origin. Arcs measure each turn from the query, and the score table evaluates all three coordinates for all four passages."
+    beats:
+      - say: "The credential guide never used the words API or key. Let's try a search that can compare it anyway. Encode each passage once and store its vector. When the question arrives, encode just the question. A bi-encoder learns representations that can be compared this way. The two encoders can have different weights, as they do in Dense Passage Retrieval. For this example we chose the coordinates by hand."
+        hold: 0.7
+        visual_cues:
+          - id: two-encoders
+            phrase: "Encode each passage once and store its vector"
+            targets: [dense-encoding-construction]
+          - id: encoder-parameters
+            phrase: "The two encoders can have different weights"
+            targets: [dense-encoding-construction]
+      - say: "The yellow arrow is the question. Put the rotation guide and the credential guide at the same origin. All three have zero in the third coordinate, so you can see their directions on this plane. Look at the two angles from yellow. If the score rewards pointing the same way, which of these guides should come first?"
+        hold: 2.6
+        visual_cues:
+          - id: query-coordinates
+            phrase: "The yellow arrow is the question"
+            targets: [dense-encoding-construction]
+          - id: source-coordinates
+            phrase: "Put the rotation guide and the credential guide at the same origin"
+            targets: [dense-encoding-construction]
+          - id: dense-angles
+            phrase: "Look at the two angles from yellow"
+            targets: [dense-encoding-construction]
+      - say: "The credential guide. It needs the smaller turn. Divide its dot product with the question by both vector lengths. That cosine score is about point nine nine four. The rotation guide scores about point nine five seven. The table uses all three coordinates for every passage, including the two off the plane."
+        hold: 0.8
+        visual_cues:
+          - id: dense-winner
+            phrase: "The credential guide. It needs the smaller turn"
+            targets: [dense-encoding-construction]
+            caption_boundary: true
+          - id: cosine-scores
+            phrase: "That cosine score is about point nine nine four"
+            targets: [dense-encoding-construction]
+      - say: "A different encoder can put the same sentence somewhere else. If the query encoder changes, verify that it still works with the stored passage vectors or rebuild them. A new tokenizer, chunk boundary or normalization can change them too. Keep exact identifiers and source versions. Judge whether the extra search finds useful, current, eligible passages on real questions."
+        hold: 0.8
+        visual_cues:
+          - id: embedding-version
+            phrase: "If the query encoder changes"
+            targets: [dense-encoding-construction]
+  - id: similarity-contract
+    title: Separate direction from magnitude
+    visual: Equal-unit vectors expose a raw-dot reversal and an explicit zero-norm guard.
+    beats:
+      - say: A dot product sums coordinatewise products. Cosine divides that dot product by the product of the two
+          Euclidean lengths, where each length is the square root of the sum of squared coordinates. With
+          nonzero unit vectors, dot product equals cosine. Normalizing documents makes their norms equal; for
+          one fixed query, its remaining positive length factor cannot change the rank. A zero vector has no
+          cosine direction, so define a rejection or fallback rather than silently dividing by zero.
+        hold: 0.75
+        visual_cues:
+          - id: cosine-denominator
+            phrase: Cosine divides that dot product by the product of the two Euclidean lengths
+            targets:
+              - similarity-contract-construction
+            color: cyan
+            linger: 0.5
+          - id: unit-dot
+            phrase: With nonzero unit vectors, dot product equals cosine
+            targets:
+              - similarity-contract-construction
+            color: cyan
+            linger: 0.5
+          - id: zero-vector
+            phrase: A zero vector has no cosine direction
+            targets:
+              - similarity-contract-construction
+            color: cyan
+            linger: 0.5
+      - say: Hold query one, point eight, zero fixed. Candidate A points exactly with it, so its dot product is one
+          point six four and cosine one. Candidate B is six, zero, zero. Its dot product six wins, but its
+          cosine is about point seven eight one and loses. Multiplying a document by a positive scale changes
+          the raw dot but preserves its direction. If the embedding contract is directional similarity, that
+          scale created the wrong winner.
+        hold: 0.75
+        visual_cues:
+          - id: aligned-a
+            phrase: its dot product is one point six four and cosine one
+            targets:
+              - similarity-contract-construction
+            color: cyan
+            linger: 0.5
+          - id: scaled-b
+            phrase: Its dot product six wins, but its cosine is about point seven eight one and loses
+            targets:
+              - similarity-contract-construction
+            color: cyan
+            linger: 0.5
+          - id: direction-scale
+            phrase: Multiplying a document by a positive scale changes the raw dot but preserves its direction
+            targets:
+              - similarity-contract-construction
+            color: cyan
+            linger: 0.5
+      - say: Normalization is a model decision. An inner-product model such as DPR can intentionally use magnitudes,
+          so changing to cosine is not an automatic repair. Match the metric, normalization, model version and
+          preprocessing in the stored index and the query. Compare any change on the same judged query set,
+          with thresholds calibrated for the actual score definition.
+        hold: 0.75
+        visual_cues:
+          - id: metric-contract
+            phrase: An inner-product model such as DPR can intentionally use magnitudes
+            targets:
+              - similarity-contract-construction
+            color: cyan
+            linger: 0.5
+  - id: fusion-ranks
+    title: "How the two searches vote"
+    visual: "Each passage has one row. The sparse and dense ranks contribute colored lengths to its total. A cutoff moves between the second and third rows. A separate replay changes the fusion constant."
+    beats:
+      - say: "Follow the credential guide, passage two. Dense search puts it first. Word search misses it. The other two passages appear in both lists. How much is each vote worth? In reciprocal rank fusion, a first place earns one over the constant plus one. A second place earns one over the constant plus two. Add the votes for each passage ID, once per list. A missing entry contributes zero."
+        caption_starts: ["How much is each vote worth", "In reciprocal rank fusion"]
+        hold: 0.7
+        visual_cues:
+          - id: fusion-lists
+            phrase: "Dense search puts it first"
+            targets: [rank-table]
+          - id: fusion-rule
+            phrase: "a first place earns one over the constant plus one"
+            targets: [rank-table]
+          - id: fusion-missing
+            phrase: "A missing entry contributes zero"
+            targets: [rank-d2]
+      - say: "Set the constant to sixty. For the rotation guide, join the blue first-place vote to the green second-place vote. The quota page gets two slightly smaller votes. The credential guide gets the largest green vote, but look at its empty blue slot. If we pass just two IDs to the reranker, which passage gets left behind?"
+        hold: 3
+        visual_cues:
+          - id: fusion-d1
+            phrase: "join the blue first-place vote to the green second-place vote"
+            targets: [rank-d1]
+          - id: fusion-d4
+            phrase: "The quota page gets two slightly smaller votes"
+            targets: [rank-d4]
+          - id: fusion-d2
+            phrase: "The credential guide gets the largest green vote"
+            targets: [rank-d2]
+          - id: fusion-predict
+            phrase: "which passage gets left behind"
+            targets: [rank-question]
+      - say: "The credential guide falls below the cut. Two modest votes for the quota page outweigh the credential guide's single first place. Keep the votes exactly as they are and widen the shortlist to three. Now the reranker can read the credential guide too."
+        hold: 1
+        visual_cues:
+          - id: fusion-cut
+            phrase: "The credential guide falls below the cut"
+            targets: [rank-cut]
+            caption_boundary: true
+          - id: fusion-depth
+            phrase: "widen the shortlist to three"
+            targets: [rank-cut]
+      - say: "Try a different change. Go back to two slots. Hold both lane rankings fixed and set the constant to zero. First place now earns a whole point. That lets the credential guide pass the quota page. Sixty came from the original paper's pilot. Zero is a mathematical comparison here. Elasticsearch requires a constant of at least one. Test the constant, each lane's depth and the fused cutoff separately on judged queries."
+        hold: 0.85
+        visual_cues:
+          - id: fusion-reset
+            phrase: "Go back to two slots"
+            targets: [rank-cut]
+          - id: fusion-zero
+            phrase: "set the constant to zero"
+            targets: [rank-table]
+          - id: fusion-compare
+            phrase: "That lets the credential guide pass the quota page"
+            targets: [rank-cut]
+          - id: fusion-engine
+            phrase: "Elasticsearch requires a constant of at least one"
+            targets: [rank-question]
+  - id: fusion-scale
+    title: "What happens to a score of four?"
+    visual: "A fixed zero-to-one ruler tracks one marked score as a fourth candidate changes the observed maximum from four to one hundred. The numerator stays at three while the denominator changes from three to ninety-nine."
+    beats:
+      - say: "There is another way to combine the two searches. If we want to blend their scores, what does one unit mean on each scale? Cosine measures direction and runs from minus one to one for nonzero vectors. Our BM25 score depends on the corpus, the terms and their weights. Each term has a finite bound for this query and these settings. A BM25 point and a cosine point can carry very different evidence."
+        caption_starts: ["Cosine measures direction", "Our BM25 score depends on the corpus"]
+        hold: 0.7
+        visual_cues:
+          - id: scale-rulers
+            phrase: "what does one unit mean on each scale"
+            targets: [scale-rulers]
+      - say: "Take three raw scores from one lane. They're one, two and four. Give the smallest zero and the largest one. That's min-max normalization. Subtract the minimum and divide by the span. Three over three is one. Keep its raw score fixed. A fourth candidate arrives with a score of one hundred. On this same zero-to-one ruler, where will the passage scoring four land?"
+        hold: 2.8
+        visual_cues:
+          - id: scale-range
+            phrase: "Give the smallest zero and the largest one"
+            targets: [scale-axis]
+          - id: scale-before
+            phrase: "Three over three is one"
+            targets: [scale-calc]
+          - id: scale-extra
+            phrase: "A fourth candidate arrives with a score of one hundred"
+            targets: [scale-inputs]
+          - id: scale-ask
+            phrase: "where will the passage scoring four land"
+            targets: [scale-calc]
+      - say: "It lands near zero, at about point zero three. The numerator is still three. The span grew to ninety-nine. The passage itself didn't change. If every passage ties, the span is zero, so the blend needs an explicit rule for ties. It also needs a rule for a passage missing from one lane. Choose those rules and the blend weights on development queries. Measure on held-out queries. A score scaled to one still needs separate calibration before you can read it as a probability."
+        hold: 1
+        visual_cues:
+          - id: scale-after
+            phrase: "It lands near zero, at about point zero three"
+            targets: [scale-axis]
+            caption_boundary: true
+          - id: scale-span
+            phrase: "The span grew to ninety-nine"
+            targets: [scale-calc]
+          - id: scale-tie
+            phrase: "If every passage ties, the span is zero"
+            targets: [scale-calc]
+  - id: joint-reranker
+    title: "What can the reranker read?"
+    visual: "One query joins a passage in a single BERT input. A word-position grid counts attention pairs and shrinks when a token budget drops the final instruction. A cutoff then admits two passages and, on replay, three to the same scorer."
+    beats:
+      - say: "A bi-encoder can store a passage vector for future queries. A multi-vector retriever can store vectors for individual tokens. Now watch a BERT cross-encoder read the question and passage together. Join them in one sequence, with a separator after each part. The query word rotate can attend to the passage word revoke, and revoke can attend back to rotate. The scoring head reads the first token, the classification token, to score this pair. Change the passage and BERT reads a new pair."
+        hold: 0.7
+        caption_starts: ["Now watch a BERT cross-encoder", "The query word rotate", "The scoring head reads"]
+        visual_cues:
+          - id: joint-input
+            phrase: "Join them in one sequence"
+            targets: [joint-strip]
+          - id: joint-attention
+            phrase: "rotate can attend to the passage word revoke, and revoke can attend back to rotate"
+            targets: [joint-strip]
+          - id: joint-head
+            phrase: "The scoring head reads the first token"
+            targets: [joint-strip]
+      - say: "Count the nine words and three special tokens. Twelve positions can each attend to twelve positions. That's one hundred forty-four entries in one attention matrix. Now shorten the input budget to nine positions, keeping the separators. The words revoke old key drop out. We kept the passage ID and lost the instruction that finishes the job. Width, layers, batching and kernels also affect runtime, even at the same pair count."
+        hold: 0.85
+        caption_starts: ["That's one hundred forty-four", "Now shorten the input budget", "The words revoke old key drop out"]
+        visual_cues:
+          - id: joint-matrix
+            phrase: "Twelve positions can each attend to twelve positions"
+            targets: [joint-matrix]
+          - id: joint-total
+            phrase: "one hundred forty-four entries in one attention matrix"
+            targets: [joint-matrix]
+          - id: joint-trim
+            phrase: "shorten the input budget to nine positions"
+            targets: [joint-strip]
+          - id: joint-tail
+            phrase: "The words revoke old key drop out"
+            targets: [joint-strip]
+      - say: "Restore the full input budget. This time the limit is the number of passages. Start with fusion's two-slot shortlist. The rotation guide and the quota page reach the scorer. Give those pairs the example scores shown. The rotation guide comes first. Dense search found the credential guide earlier. Where would you change the pipeline to give that guide a chance?"
+        hold: 3
+        visual_cues:
+          - id: joint-two
+            phrase: "The rotation guide and the quota page reach the scorer"
+            targets: [joint-admission]
+          - id: joint-score-two
+            phrase: "Give those pairs the example scores shown"
+            targets: [joint-out]
+          - id: joint-ask
+            phrase: "Where would you change the pipeline"
+            targets: [joint-question]
+      - say: "Widen the fused shortlist to three. Only the credential guide needs a new pair in this replay. It scores point nine six and takes first place. The other scores stayed fixed. Now both useful guides outrank the quota page. To use a score like this as a probability, check how often passages at that score actually answer the question."
+        hold: 1
+        visual_cues:
+          - id: joint-widen
+            phrase: "Widen the fused shortlist to three"
+            targets: [joint-admission]
+            caption_boundary: true
+          - id: joint-new-pair
+            phrase: "Only the credential guide needs a new pair in this replay"
+            targets: [joint-admission]
+          - id: joint-third
+            phrase: "It scores point nine six and takes first place"
+            targets: [joint-out]
+            caption_boundary: true
+  - id: metric-evaluation
+    title: "How much evidence made the cutoff?"
+    visual: "The same three returned lists stay next to their judged passages. A cut after rank two moves to rank three. Each query earns its hit, recall and reciprocal rank before the column is averaged. A graded example compares actual and ideal gain."
+    beats:
+      - say: "Imagine we're answering three questions. Freeze the questions and their relevance judgments before comparing systems. Each row shows what we need and what came back. Draw a line after the first two results. For the rotation question, we found one of the two guides. That counts as a hit, but how much of the evidence did we recover?"
+        hold: 2.5
+        visual_cues:
+          - id: metric-two
+            phrase: "Draw a line after the first two results"
+            targets: [metric-table]
+          - id: metric-ask
+            phrase: "how much of the evidence did we recover"
+            targets: [metric-footer]
+      - say: "We recovered half of the useful guides. For the replacement question the needed guide is in third place, just outside the cut. That row gets zero. The quota question gets its one needed page. Two of our three questions have a hit. To get macro recall, average the three fractions in the last column. Half, zero and one average to one half. If a run returns nothing for a question, keep its row and score it as empty."
+        hold: 0.8
+        visual_cues:
+          - id: metric-first
+            phrase: "We recovered half of the useful guides"
+            targets: [metric-row-0]
+            caption_boundary: true
+          - id: metric-middle
+            phrase: "That row gets zero"
+            targets: [metric-row-1]
+          - id: metric-last
+            phrase: "its one needed page"
+            targets: [metric-row-2]
+          - id: metric-mean
+            phrase: "average to one half"
+            targets: [metric-footer]
+            caption_boundary: true
+      - say: "Now ask how far we read before the first relevant page. Extend the cutoff to three. The replacement guide is third, so it earns a reciprocal rank of one third. The other two rows earn one each. Average those three contributions and mean reciprocal rank is seven ninths. Pull the cutoff back to two. The middle row now contributes zero, and the mean falls to two thirds."
+        hold: 0.8
+        visual_cues:
+          - id: metric-three
+            phrase: "Extend the cutoff to three"
+            targets: [metric-table]
+          - id: metric-rr
+            phrase: "it earns a reciprocal rank of one third"
+            targets: [metric-row-1]
+          - id: metric-mrr
+            phrase: "mean reciprocal rank is seven ninths"
+            targets: [metric-footer]
+            caption_boundary: true
+          - id: metric-back
+            phrase: "Pull the cutoff back to two"
+            targets: [metric-table]
+          - id: metric-short
+            phrase: "the mean falls to two thirds"
+            targets: [metric-footer]
+            caption_boundary: true
+      - say: "Some judgments have grades. Here the same three passages have grades three, one and two in returned order. Convert each grade to a gain by raising two to the grade and subtracting one. Discount each gain by dividing by the base-two logarithm of rank plus one. Add the discounted gains. To normalize, divide by the score of the ideal order at the same cutoff, with the best grades first. That gives normalized discounted cumulative gain. Decide how to handle empty judgments and zero ideal gain. Check for duplicate IDs and invalid cutoffs. Incomplete labels can hide useful evidence, and even a well-ranked passage still has to support the generated answer."
+        hold: 1
+        visual_cues:
+          - id: metric-gain
+            phrase: "Convert each grade to a gain"
+            targets: [metric-gains]
+          - id: metric-discount
+            phrase: "Add the discounted gains"
+            targets: [metric-gains]
+          - id: metric-ideal
+            phrase: "divide by the score of the ideal order at the same cutoff"
+            targets: [metric-ideal]
+  - id: dense-scan
+    title: How much data does one scan read?
+    visual: A sweep fills the vector rows. The size of one full read multiplies by the query rate. Two queries in a batch then share a highlighted block.
+    beats:
+      - say: Each row holds a passage vector. An exact dot-product search visits every row. A million rows with
+          fifteen hundred thirty-six coordinates each give us one point five three six billion coordinate
+          multiplications per query, plus roughly as many additions. Each float takes four bytes. The
+          coordinates alone occupy six point one four four decimal gigabytes.
+        hold: 0.75
+        caption_starts: ["Each float takes four bytes"]
+        visual_cues:
+          - id: scan-products
+            phrase: one point five three six billion coordinate multiplications
+            targets:
+              - dense-scan-construction
+            color: cyan
+            linger: 0.5
+          - id: scan-payload
+            phrase: six point one four four decimal gigabytes
+            targets:
+              - dense-scan-construction
+            color: cyan
+            linger: 0.5
+      - say: "Suppose two hundred queries arrive each second and each reads the whole matrix separately.
+          Multiply the size of one read by two hundred. That's one point two two eight eight terabytes per
+          second. Now batch two queries. Read a block once and use it for both. Caching and compression can
+          also reduce traffic. Keep exact search as the reference when you try an approximate index. Compare
+          the returned passages, throughput and tail latency on your workload, alongside memory, build time and freshness."
+        hold: 0.75
+        caption_starts: ["That's one point two two eight eight", "Now batch two queries"]
+        visual_cues:
+          - id: scan-traffic
+            phrase: That's one point two two eight eight terabytes per second
+            targets:
+              - dense-scan-construction
+            color: cyan
+            linger: 0.5
+          - id: scan-reuse
+            phrase: Read a block once and use it for both
+            targets:
+              - dense-scan-construction
+            color: cyan
+            linger: 0.5
+  - id: ivf-probes
+    title: "Which passages does one probe get to see?"
+    visual: "A fixed number line shows the two coarse cells. Passage marks sit at their actual coordinates, and an enlarged strip shows both sides of the boundary. Opening a list enables only its passage comparisons."
+    beats:
+      - say: "Let's put three passages on a number line. Put a center at zero and another at ten. Store each passage with the nearer center. Generic API goes on the left. Key rotation and quota go on the right. That's an inverted-file index, or IVF. In an index trained with Euclidean k-means, the region nearest each center is its Voronoi cell. Here we chose the centers by hand. The number of lists is called n list. The number we open for a query is called n probe."
+        hold: 0.8
+        visual_cues:
+          - id: ivf-build
+            phrase: "Store each passage with the nearer center"
+            targets: [probe-map]
+          - id: ivf-lists
+            phrase: "Key rotation and quota go on the right"
+            targets: [probe-map]
+      - say: "Set the query to four point nine. Look at the enlarged strip. Key rotation sits at five point one, just across the boundary. We get one probe. First choose the nearer center, then compare the query with the passages in its list. Which passage will the search return?"
+        hold: 3
+        visual_cues:
+          - id: ivf-query
+            phrase: "Set the query to four point nine"
+            targets: [probe-inset]
+          - id: ivf-ask
+            phrase: "Which passage will the search return"
+            targets: [probe-map, probe-inset, probe-caption]
+      - say: "It returns generic API. Center zero is four point nine away. Center ten is five point one away. The left list wins, and generic API is its only passage. Look across the line. Key rotation was just two tenths away, but its list stayed closed. An exact scan would pick it. If those two searches disagree on the same vectors, inspect the route first."
+        hold: 1.2
+        visual_cues:
+          - id: ivf-left
+            phrase: "It returns generic API"
+            targets: [probe-caption]
+            caption_boundary: true
+          - id: ivf-centers
+            phrase: "Center ten is five point one away"
+            targets: [probe-map]
+          - id: ivf-gap
+            phrase: "just two tenths away"
+            targets: [probe-inset]
+      - say: "Keep the query at four point nine. Open the second list as well. Now key rotation is the nearest visited passage. Count the distance checks. One probe cost two centers and one passage. Two probes cost two centers and all three passages. Flat search checks just the three passages. Visiting every list in unrestricted IVF Flat gives the exact result. If we compress the vectors too, checking every code can still leave distance error."
+        hold: 1
+        visual_cues:
+          - id: ivf-second
+            phrase: "Open the second list as well"
+            targets: [probe-map]
+          - id: ivf-found
+            phrase: "key rotation is the nearest visited passage"
+            targets: [probe-caption]
+            caption_boundary: true
+          - id: ivf-counts
+            phrase: "Count the distance checks"
+            targets: [probe-cost]
+          - id: ivf-flat
+            phrase: "Flat search checks just the three passages"
+            targets: [probe-cost]
+  - id: hnsw-layers
+    title: "Why visit a point farther from the query?"
+    visual: "The same A appears in both layers of a small proximity graph. At the bottom the search first keeps one candidate. On replay it keeps two, expands S and B, and reaches G. Distances come from the labeled coordinates."
+    beats:
+      - say: "Another index connects nearby vectors with links. This is a hierarchical navigable small world graph, or HNSW. Every vector appears at the bottom. Randomly chosen subsets also appear in the layers above. Follow the upper link from S to A. A is closer to our query. Descend to the same A in the bottom layer. Here the search keeps a set of promising neighbors and a frontier of candidates it can still explore."
+        hold: 0.8
+        visual_cues:
+          - id: hnsw-copies
+            phrase: "Randomly chosen subsets also appear in the layers above"
+            targets: [hnsw-layers-construction]
+          - id: hnsw-upper
+            phrase: "Follow the upper link from S to A"
+            targets: [hnsw-layers-construction]
+          - id: hnsw-descent
+            phrase: "Descend to the same A in the bottom layer"
+            targets: [hnsw-layers-construction]
+      - say: "A is one unit from the query. Its only neighbor, S, is farther away. With room to keep just one candidate, the search stops at A. Look at the links to G. Which point would we have to keep long enough to leave A's neighborhood?"
+        hold: 2.5
+        visual_cues:
+          - id: hnsw-narrow
+            phrase: "the search stops at A"
+            targets: [hnsw-layers-construction]
+          - id: hnsw-ask
+            phrase: "Which point would we have to keep"
+            targets: [hnsw-layers-construction]
+      - say: "Keep S. Give this search a budget of two. Now it can expand S. From S it finds B, and from B it reaches G. G is just a tenth of a unit from the query. We changed the query budget on the same graph. In hnswlib that setting is called e f. It must be at least the number of neighbors requested. A valid budget still needs to be checked against exact results."
+        hold: 1
+        visual_cues:
+          - id: hnsw-answer
+            phrase: "Keep S"
+            targets: [hnsw-layers-construction]
+            caption_boundary: true
+          - id: hnsw-wide
+            phrase: "Give this search a budget of two"
+            targets: [hnsw-layers-construction]
+          - id: hnsw-s
+            phrase: "Now it can expand S"
+            targets: [hnsw-layers-construction]
+          - id: hnsw-b
+            phrase: "From S it finds B"
+            targets: [hnsw-layers-construction]
+          - id: hnsw-g
+            phrase: "from B it reaches G"
+            targets: [hnsw-layers-construction]
+          - id: hnsw-guard
+            phrase: "It must be at least the number of neighbors requested"
+            targets: [hnsw-layers-construction]
+      - say: "Two other settings belong to construction. M controls connectivity and link memory. Individual nodes can have different degrees. Construction e f controls how broadly the builder searches when it inserts a vector. Raising it for a future build won't change this search on the existing graph. Wider query exploration often improves recall at a cost. Its scaling depends on the graph and data. Measure recall and latency for the index you'll actually use."
+        hold: 0.8
+        visual_cues:
+          - id: hnsw-build
+            phrase: "M controls connectivity and link memory"
+            targets: [hnsw-layers-construction]
+          - id: hnsw-limit
+            phrase: "Measure recall and latency"
+            targets: [hnsw-layers-construction]
+  - id: pq-code
+    title: Compress named subvector owners and retain the approximation
+    visual: One vector splits into subspaces, selects learned codewords and becomes byte indices beside actual
+      reconstruction error.
+    beats:
+      - say: Product quantization splits a vector into M subvectors and learns a separate codebook for each subspace.
+          Each subvector is represented by one codeword index. With eight bits, each subspace has two hundred
+          fifty six choices. Standard equal-sized PQ requires M to divide the dimension. The codebook is
+          shared across vectors; the stored per-vector code chooses one representative for each named
+          subspace.
+        hold: 0.75
+        visual_cues:
+          - id: pq-split
+            phrase: splits a vector into M subvectors
+            targets:
+              - pq-code-construction
+            color: cyan
+            linger: 0.5
+          - id: pq-index
+            phrase: Each subvector is represented by one codeword index
+            targets:
+              - pq-code-construction
+            color: cyan
+            linger: 0.5
+          - id: pq-choices
+            phrase: With eight bits, each subspace has two hundred fifty six choices
+            targets:
+              - pq-code-construction
+            color: cyan
+            linger: 0.5
+      - say: For a concrete supplied two-subspace example, vector one point one, point nine, minus point eight, minus
+          one point two chooses representatives one, one and minus one, minus one. Its reconstruction is one,
+          one, minus one, minus one. The squared reconstruction error is point zero one plus point zero one
+          plus point zero four plus point zero four, totaling point one. Approximate comparisons can now
+          reorder close neighbors even if every code is scanned.
+        hold: 0.75
+        visual_cues:
+          - id: pq-original
+            phrase: vector one point one, point nine, minus point eight, minus one point two
+            targets:
+              - pq-code-construction
+            color: cyan
+            linger: 0.5
+          - id: pq-codewords
+            phrase: chooses representatives one, one and minus one, minus one
+            targets:
+              - pq-code-construction
+            color: cyan
+            linger: 0.5
+          - id: pq-error
+            phrase: totaling point one
+            targets:
+              - pq-code-construction
+            color: cyan
+            linger: 0.5
+      - say: At dimension fifteen thirty six and ninety six eight-bit subquantizers, each subvector has sixteen
+          coordinates and the vector code occupies ninety six bytes. Uncompressed float thirty two coordinates
+          occupy sixty one forty four bytes. That is a ninety eight point four four percent vector-payload
+          reduction, excluding codebooks, IDs, graph links and retained originals. Bits and subquantizer count
+          change code size and reconstruction quality; training and evaluation must match the indexed data.
+        hold: 0.75
+        visual_cues:
+          - id: pq-code-bytes
+            phrase: the vector code occupies ninety six bytes
+            targets:
+              - pq-code-construction
+            color: cyan
+            linger: 0.5
+          - id: pq-float-bytes
+            phrase: Uncompressed float thirty two coordinates occupy sixty one forty four bytes
+            targets:
+              - pq-code-construction
+            color: cyan
+            linger: 0.5
+          - id: pq-saving
+            phrase: a ninety eight point four four percent vector-payload reduction
+            targets:
+              - pq-code-construction
+            color: cyan
+            linger: 0.5
+  - id: index-composition
+    title: Routing loss and compression loss can coexist
+    visual: Separate routing doors and encoded coordinates remain independently switchable on the same vectors.
+    beats:
+      - say: IVF chooses which lists to open. HNSW chooses which graph links to follow. Both decide where to look.
+          PQ changes the coordinates used to score what we find. IVF-PQ and HNSW-PQ can use both routing and compression.
+          Open every list. Every code is now in reach, but look at the first coordinate.
+          The original was one point one. The code represents it as one. Scanning every code still uses the codebook coordinates.
+        hold: 0.75
+        visual_cues:
+          - id: routing-compression
+            phrase: IVF-PQ and HNSW-PQ can use both routing and compression
+            targets:
+              - index-composition-construction
+            color: cyan
+            linger: 0.5
+          - id: exhaustive-codes
+            phrase: Open every list
+            targets:
+              - index-composition-construction
+            color: cyan
+            linger: 0.5
+      - say: "Coarse centroids, codebooks and graph links take memory and time to build. When documents change,
+          measure how long it takes for the updated versions to reach search. If you change the encoder,
+          normalization or metric, check the stored index against the new query representation. Compare recall,
+          latency and update cost on the hardware that serves your queries."
+        hold: 0.75
+        visual_cues:
+          - id: index-lifecycle
+            phrase: Coarse centroids, codebooks and graph links take memory and time to build
+            targets:
+              - index-composition-construction
+            color: cyan
+            linger: 0.5
+          - id: index-migration
+            phrase: check the stored index against the new query representation
+            targets:
+              - index-composition-construction
+            color: cyan
+            linger: 0.5
+  - id: filter-scope
+    title: Which pages survive the version filter?
+    visual: The four scores stay in order. Moving the version filter changes which pages fill two slots. Reading a third and then a fourth row shows the cost of filtering after retrieval.
+    beats:
+      - say: We need two pages for version two. Look at the scores. The first two pages both describe version one.
+          Take those two first and the version filter throws both away. Now filter all four pages before taking
+          the top two. The pages scoring point nine seven and point nine six fill the slots. Every score stayed the same.
+        hold: 0.75
+        caption_starts: ["Take those two first", "Now filter all four pages", "The pages scoring"]
+        visual_cues:
+          - id: filter-shortlist
+            phrase: Take those two first and the version filter throws both away
+            targets:
+              - filter-scope-construction
+            color: cyan
+            linger: 0.5
+          - id: filter-first
+            phrase: Now filter all four pages before taking the top two
+            targets:
+              - filter-scope-construction
+            color: cyan
+            linger: 0.5
+      - say: What if the search engine filters after retrieval? Read the first three rows and one page qualifies.
+          Read all four and both qualify. A query with more old pages at the top would need a deeper scan.
+          A filter-aware index can use the version as it searches. Test its cost and recall on the filters
+          your readers use. Check permission before releasing a passage. Judge whether its instructions answer the question.
+        hold: 0.75
+        caption_starts: ["Read the first three rows", "Read all four and both qualify", "Check permission"]
+        visual_cues:
+          - id: filter-overfetch
+            phrase: Read the first three rows
+            targets:
+              - filter-scope-construction
+            color: cyan
+            linger: 0.5
+          - id: filter-four
+            phrase: Read all four
+            targets: [filter-scope-construction]
+          - id: filter-authority
+            phrase: Check permission before releasing a passage
+            targets:
+              - filter-scope-construction
+            color: cyan
+            linger: 0.5
+      - say: To compare approximate and exact search, give both the same version-two pages. Use the same query,
+          vectors, metric, normalization and tie rule. Compare the returned IDs. If fewer than K eligible
+          items exist, decide how you'll score that case before averaging recall across queries.
+        hold: 0.75
+        visual_cues:
+          - id: matched-universe
+            phrase: give both the same version-two pages
+            targets:
+              - filter-scope-construction
+            color: cyan
+            linger: 0.5
+          - id: few-eligible
+            phrase: If fewer than K eligible items exist
+            targets:
+              - filter-scope-construction
+            color: cyan
+            linger: 0.5
+  - id: ann-comparison
+    title: "Which reference are you comparing with?"
+    visual: "The same returned guide is compared with an exact neighbor and with the two judged guides. A second example holds four query IDs fixed and switches only the approximate result list."
+    beats:
+      - say: "Back to the rotation question. An exact scan of our example vectors puts the credential guide first. Suppose an approximate search returns the other useful guide, the rotation guide. At a cutoff of one, compare that returned ID with the exact ID. Now compare it with the two passages a human marked useful. What fraction did each comparison recover?"
+        hold: 2.8
+        visual_cues:
+          - id: ann-pair
+            phrase: "Suppose an approximate search returns the other useful guide"
+            targets: [ann-reference]
+          - id: ann-ask
+            phrase: "What fraction did each comparison recover"
+            targets: [ann-foot]
+      - say: "Zero of one exact neighbors, but one of two useful passages. ANN recall counts shared IDs in the approximate and exact top K, divided by K when at least K passages are eligible. Task recall counts useful IDs out of the judged relevant set. A different ID can still answer the question. Use the same eligible corpus, metric and tie rule for the exact comparison. Equal-distance vectors can otherwise trade places."
+        hold: 0.85
+        visual_cues:
+          - id: ann-result
+            phrase: "Zero of one exact neighbors, but one of two useful passages"
+            targets: [ann-reference]
+            caption_boundary: true
+      - say: "Now look at the article's four queries. Keep each exact neighbor fixed. The first supplied result list agrees on the middle two rows. Two matches out of four give a mean recall at one of one half. Try the second supplied list. All four IDs agree. This computes neighbor agreement from example results. To learn which setting is faster, run the actual searches and time them."
+        hold: 1
+        visual_cues:
+          - id: ann-fast
+            phrase: "agrees on the middle two rows"
+            targets: [ann-array]
+          - id: ann-fast-rate
+            phrase: "mean recall at one of one half"
+            targets: [ann-foot]
+          - id: ann-tuned
+            phrase: "Try the second supplied list"
+            targets: [ann-array]
+          - id: ann-all
+            phrase: "All four IDs agree"
+            targets: [ann-foot]
+      - say: "Use development questions to choose the candidate depth, fusion weights and search budget. Freeze your choices and run them on held-out questions. Keep query IDs, filters, judgments, ranked results and request timings together. If the needed evidence made it all the way through, check how the answer used it."
+        hold: 0.8
+        visual_cues:
+          - id: ann-freeze
+            phrase: "Freeze your choices"
+            targets: [ann-foot]
+  - id: retrieval-review
+    title: "Where did the credential guide disappear?"
+    visual: "A query trace records dense and sparse results, fused candidates and reranked outputs. An audit follows d2 along the rows. A second trace changes only the candidate cutoff so the observer can locate the first changed membership."
+    beats:
+      - say: "A reader says the credential guide never made it into the answer. Here is the trace for that question. Look for passage two. Dense search found it. Word search didn't. Follow the guide forward from the lane that succeeded. At which stage would you try a change first?"
+        hold: 3
+        visual_cues:
+          - id: review-lanes
+            phrase: "Dense search found it"
+            targets: [review-trace]
+          - id: review-ask
+            phrase: "At which stage would you try a change first"
+            targets: [review-question]
+      - say: "Try the fused cutoff. Both lanes together had the guide. The first two fused positions went to passages one and four. Keep the same rankings and scores and allow one more candidate. The guide now reaches the reranker and comes back first. If the guide had already reached the model, the next check would be whether truncation removed its instructions or the answer ignored them."
+        hold: 1
+        visual_cues:
+          - id: review-cut
+            phrase: "Try the fused cutoff"
+            targets: [review-trace]
+            caption_boundary: true
+          - id: review-three
+            phrase: "allow one more candidate"
+            targets: [review-replay]
+          - id: review-back
+            phrase: "comes back first"
+            targets: [review-replay]
+            caption_boundary: true
+      - say: "Save the ranked IDs alongside the query and its judgments. Record the source version, encoder, tokenizer, metric, normalization, index settings, filters and tie rule so you can replay the search. Run both cutoffs on the same eligible passages and time each request."
+        hold: 0.9
+        visual_cues:
+          - id: review-save
+            phrase: "Save the ranked IDs alongside the query"
+            targets: [review-question]
+  - id: fresh-probe
+    title: "Spend a second probe?"
+    visual: "The camera returns to the same full axis and boundary detail. The query crosses the fixed key-rotation mark. A pair of query receipts compares exact results with one and two probes and accounts for each distance check."
+    beats:
+      - say: "Back to our three passages. Earlier, one probe missed key rotation. Move only the query, from four point nine to five point two. You still get one probe. Which passage will it return, and how many distances will it check, including the centers?"
+        hold: 4
+        visual_cues:
+          - id: fresh-move
+            phrase: "from four point nine to five point two"
+            targets: [probe-inset]
+          - id: fresh-ask
+            phrase: "Which passage will it return"
+            targets: [probe-map, probe-inset, probe-caption]
+      - say: "It returns key rotation in four checks. The distances to the centers are five point two and four point eight, so the right list opens. Two passages live there. Key rotation is a tenth away. Quota is three point eight away. That's two center checks and two passage checks. A flat scan would find the same passage in three."
+        hold: 1
+        visual_cues:
+          - id: fresh-answer
+            phrase: "It returns key rotation in four checks"
+            targets: [probe-caption]
+            caption_boundary: true
+          - id: fresh-centers
+            phrase: "so the right list opens"
+            targets: [probe-map]
+          - id: fresh-distances
+            phrase: "Quota is three point eight away"
+            targets: [probe-inset]
+          - id: fresh-count
+            phrase: "two center checks and two passage checks"
+            targets: [probe-cost]
+          - id: fresh-flat
+            phrase: "A flat scan would find the same passage in three"
+            targets: [probe-cost]
+      - say: "Compare the two queries. For which one would opening a second list change the returned page?"
+        hold: 3
+        visual_cues:
+          - id: fresh-compare
+            phrase: "For which one would opening a second list change the returned page"
+            targets: [receipt-run-0, receipt-run-1, receipt-question]
+      - say: "Only the query at four point nine. There, the second probe buys back the missing guide. At five point two it adds one check and returns the same guide. When a search misses evidence, compare the returned IDs with an exact scan of the same eligible passages. Then use relevance judgments and measured latency on held-out questions to decide which setting to keep. The next lesson starts with those passages in hand and follows the model's choice of the next token."
+        hold: 1.3
+        caption_starts: ["At five point two it adds one check", "When a search misses evidence"]
+        visual_cues:
+          - id: fresh-spend
+            phrase: "Only the query at four point nine"
+            targets: [receipt-two-0]
+            caption_boundary: true
+          - id: fresh-extra
+            phrase: "it adds one check and returns the same guide"
+            targets: [receipt-two-1]
+          - id: fresh-decision
+            phrase: "compare the returned IDs with an exact scan"
+            targets: [receipt-question]

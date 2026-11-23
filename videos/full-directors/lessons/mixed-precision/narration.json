@@ -1,0 +1,485 @@
+[
+  {
+    "id": "c01",
+    "title": "One weight, two storage formats",
+    "sourceChapters": ["c01"],
+    "beats": [
+      {
+        "id": "c01-b01",
+        "say": "Both copies of this weight start at one. Take away one ten-thousandth. The gold line marks the requested value on both scales. The upper scale shows two neighboring FP16 ticks. FP32 fits eight thousand one hundred ninety-two intervals in that same gap. Look through the magnifier. Which tick would you choose on each scale?",
+        "hold": 2.6
+      },
+      {
+        "id": "c01-b02",
+        "say": "FP16 rounds back to one. Its next lower tick is farther away. Now read the magnifier. FP32 rounds to the tick just below the pointer, about point nine nine nine eight nine nine nine eight. The stored weight changed.",
+        "hold": 0.9
+      },
+      {
+        "id": "c01-b03",
+        "say": "Give the optimizer the FP32 weight to update. The matrix multiply can still read a sixteen-bit copy. It takes half the operand bytes, and supported kernels can multiply faster. Choosing a format separately for each job is what makes this mixed precision.",
+        "hold": 0.85
+      }
+    ]
+  },
+  {
+    "id": "c02",
+    "title": "The two neighbors of one",
+    "sourceChapters": ["c02"],
+    "beats": [
+      {
+        "id": "c02-b01",
+        "say": "Stay at one and look at the pink ticks. Each is halfway to a stored neighbor. The gap on the left is half as wide as the one on the right. This time, subtract three ten-thousandths on one row and add it on the other. Which sign changes the weight?",
+        "hold": 2.15
+      },
+      {
+        "id": "c02-b02",
+        "say": "The subtraction crosses the left midpoint. It lands on the lower neighbor. The addition stops short of the right midpoint and lands back on one. Compare the change with half the gap in its own direction. Exactly halfway, the tie goes to the value with an even last fraction bit.",
+        "hold": 0.85
+      },
+      {
+        "id": "c02-b03",
+        "say": "One is a power of two. Crossing it changes the binary exponent, so the same set of fraction bits now spans twice the distance. Moving the exponent changes the range you can reach. Adding fraction bits puts more ticks inside each interval. The sign bit chooses the side of zero. Try four ten-thousandths instead. It still crosses only the left midpoint.",
+        "hold": 0.7
+      }
+    ]
+  },
+  {
+    "id": "c03",
+    "title": "Compare range and local resolution",
+    "sourceChapters": ["c03"],
+    "beats": [
+      {
+        "id": "c03-b01",
+        "say": "Both words have sixteen bits. Start with the sign bit. In FP16 the next five bits hold the exponent and the last ten hold the fraction. BF16 gives eight to the exponent and seven to the fraction. That wider exponent field reaches about as far as FP32. Compare the tick marks over the same distance above one. How many FP16 gaps fit in one BF16 gap?",
+        "hold": 0.6
+      },
+      {
+        "id": "c03-b02",
+        "say": "On the same interval, eight FP16 gaps fit into one BF16 gap above one. BF16 can keep very large or tiny values finite yet round two nearby values to the same tick. A dtype choice depends on which of those failures matters for this operation.",
+        "hold": 0.6
+      },
+      {
+        "id": "c03-b03",
+        "say": "Keep the weight and Adam's running moments in FP32. Let the matrix multiply read compact operands. Choose the precision for its partial sums separately. A distributed job can also choose a different dtype to send and reduce gradients. Record all those choices.",
+        "hold": 0.8
+      },
+      {
+        "id": "c03-b04",
+        "say": "In a CUDA autocast region, eligible matrix multiplications can use BF16 operands. Cross entropy runs in FP32. Autocast chooses for each operation. In-place operations and calls with an explicit dtype follow different eligibility rules.",
+        "hold": 0.3
+      },
+      {
+        "id": "c03-b05",
+        "say": "Run backward outside autocast. Its operations follow the corresponding forward dtypes. The gradient buffer on this FP32 parameter still accumulates in FP32. Calling model dot half would also change the stored weights.",
+        "hold": 0.8
+      }
+    ]
+  },
+  {
+    "id": "c04",
+    "title": "Two values at opposite ends of the range",
+    "sourceChapters": ["c04"],
+    "beats": [
+      {
+        "id": "c04-b01",
+        "say": "Move away from one. The yellow pointer on the left is a backward gradient. Its magnitude is one point two times ten to the minus eight. It sits below half the smallest positive FP16 value. Put a forward activation of one hundred thousand on the same ruler. It sits beyond the finite limit of sixty-five thousand five hundred four. What will FP16 store for each?",
+        "hold": 2.1
+      },
+      {
+        "id": "c04-b02",
+        "say": "Round both to FP16. The gradient becomes zero and the activation becomes infinity. They failed on opposite sides of the range. You can scale the loss before backward to help the gradient. By then the activation has already overflowed in the forward pass.",
+        "hold": 0.8
+      },
+      {
+        "id": "c04-b03",
+        "say": "Now cast the original inputs to BF16. Both fit within its range. The gradient stays close to its starting value. The activation comes back as ninety-nine thousand eight hundred forty. A wider exponent range kept it finite, and the fraction bits determined where it landed.",
+        "hold": 0.3
+      },
+      {
+        "id": "c04-b04",
+        "say": "BF16 usually needs no loss scaling for range. Keep checking for non-finite values, especially when you disable the scaler and its skip check.",
+        "hold": 0.8
+      }
+    ]
+  },
+  {
+    "id": "c05",
+    "title": "Follow the gradient through the cast",
+    "sourceChapters": ["c05"],
+    "beats": [
+      {
+        "id": "c05-b01",
+        "say": "Let’s make the tiny gradient exactly a quarter of the first FP16 spacing. The left end is zero. The right end is two to the minus twenty-four, the smallest positive subnormal. The yellow pointer is a quarter of the way across. Which end is closer? The cast stores zero. Multiplying that stored zero later still gives zero.",
+        "hold": 0.85
+      },
+      {
+        "id": "c05-b02",
+        "say": "Run the same backward pass again, but first multiply the loss by two hundred fifty-six. The derivative picks up that factor too. A quarter of a spacing becomes sixty-four whole spacings. The cast stores that point exactly. It is still a subnormal, so this example requires a path that preserves subnormals.",
+        "hold": 0.8
+      },
+      {
+        "id": "c05-b03",
+        "say": "Move that stored value into FP32 and divide by the same scale. We recover the original gradient. The optimizer gets the value we meant to give it. Other inputs can pick up rounding error on the way through, so check the actual kernel if small gradients matter.",
+        "hold": 0.9
+      }
+    ]
+  },
+  {
+    "id": "c06",
+    "title": "Six writes to the same weight",
+    "sourceChapters": ["c06"],
+    "beats": [
+      {
+        "id": "c06-b01",
+        "say": "Go back to the weight that started at one. Write the first subtraction. Now write the second. Each direct FP16 write starts from one and returns to one. The FP32 weight carries its first subtraction into the second. Its compute copy rounds to the nearest FP16 tick. Which weight will the multiply read after one more write?",
+        "hold": 2.4
+      },
+      {
+        "id": "c06-b02",
+        "say": "Take the third step. The FP32 weight crosses the midpoint, so refreshing its FP16 copy picks the next tick down. Multiply the new copy by two thousand forty-eight. The product falls from two thousand forty-eight to two thousand forty-seven. An update that survived in storage has reached the forward pass.",
+        "hold": 0.9
+      },
+      {
+        "id": "c06-b03",
+        "say": "Keep going to six steps. The direct FP16 weight still reads one. With ordinary PyTorch AMP, the optimizer can update the original FP32 parameters. An explicit master-copy recipe keeps a separate FP32 weight. That distinction matters when you count the bytes.",
+        "hold": 0.8
+      }
+    ]
+  },
+  {
+    "id": "c07",
+    "title": "One large gradient in the window",
+    "sourceChapters": ["c07"],
+    "beats": [
+      {
+        "id": "c07-b01",
+        "say": "Keep the scale of two hundred fifty-six. This time the gradient is three hundred. Multiply them. The product is seventy-six thousand eight hundred. Compare it with the FP16 ceiling. What happens at the cast?",
+        "hold": 2.2
+      },
+      {
+        "id": "c07-b02",
+        "say": "The cast gives infinity. One non-finite gradient makes the scaler skip this entire optimizer step. The weight and both Adam moments keep their old values. For the next window, this example cuts the scale to sixty-four. That same gradient would reach nineteen thousand two hundred, safely inside the range.",
+        "hold": 0.6
+      },
+      {
+        "id": "c07-b03",
+        "say": "Suppose we kept the weight fixed but let Adam read that infinity. Both moments would become infinite. Even the next finite gradient would inherit a broken history. This is why the scaler skips the whole step. Make the learning-rate scheduler count the boundary your schedule calls for, attempted updates or successful updates.",
+        "hold": 0.8
+      },
+      {
+        "id": "c07-b04",
+        "say": "There’s another way to get an infinite loss. Take a weight of two. Its square is four. Add a constant infinity and the loss is infinite. The constant contributes zero to the derivative.",
+        "hold": 0.3
+      },
+      {
+        "id": "c07-b05",
+        "say": "The weight derivative is still four, so the scaler alone can still allow a step. Check the loss separately. The scaler can grow its scale after a configured run of finite checks. A non-finite gradient resets that streak. The backoff factor is configurable. The factor of one quarter in our first example was a choice.",
+        "hold": 0.8
+      },
+      {
+        "id": "c07-b06",
+        "say": "Give two ordinary optimizers separate weights. Each makes its own step decision. Start a new example at scale two hundred fifty-six. Both weights start at one. A uses gradient one and a learning rate of one tenth, so its weight moves from one to zero point nine. B has a non-finite gradient and keeps weight one.",
+        "hold": 0.3
+      },
+      {
+        "id": "c07-b07",
+        "say": "Now call the shared scale update once. In this example the backoff halves the scale, from two hundred fifty-six to one hundred twenty-eight. If your algorithm needs both optimizers to move together, implement a joint check. Save the scheduler and scaler state at the complete update boundary.",
+        "hold": 0.8
+      }
+    ]
+  },
+  {
+    "id": "c08",
+    "title": "Which norm reaches the optimizer?",
+    "sourceChapters": ["c08"],
+    "beats": [
+      {
+        "id": "c08-b01",
+        "say": "This gradient has norm point zero two. Scaling by one thousand twenty-four puts twenty point four eight in the buffer. The clipping limit is one in the original units. Clip first and the buffer shrinks to one. Divide by the scale now. The optimizer gets only about point zero zero zero nine seven seven.",
+        "hold": 0.3
+      },
+      {
+        "id": "c08-b02",
+        "say": "Now unscale first and then clip. The original norm is already below one, so the entire gradient survives.",
+        "hold": 0.8
+      },
+      {
+        "id": "c08-b03",
+        "say": "Now use a scale of two hundred fifty-six for a whole window of three microbatches. Watch the two coordinates in the buffer. The first batch adds to the left coordinate. The second adds to the right. The third adds to both. Only now unscale the accumulated buffer.",
+        "hold": 0.3
+      },
+      {
+        "id": "c08-b04",
+        "say": "Both entries are finite. The unscaled norm is about point nine, below the clipping limit of one. Take one optimizer step. Update the scale once for the next window. A non-finite contribution would invalidate the entire window.",
+        "hold": 0.8
+      },
+      {
+        "id": "c08-b05",
+        "say": "Which loss should we scale? For a mean over active tokens, count every active token in the window. Here the batches have two, one and three. Divide their combined loss of five by all six tokens. In code, divide each batch's loss sum by that same window count before scaling and backward. Their gradient contributions add up to the intended mean.",
+        "hold": 0.3
+      },
+      {
+        "id": "c08-b06",
+        "say": "When you checkpoint, save the scaler with the optimizer state and your place in the data.",
+        "hold": 0.8
+      },
+      {
+        "id": "c08-b07",
+        "say": "Work an unequal-token window. One token contributes gradient plus two. Three other tokens each contribute minus two, giving their group sum minus six. The full-token mean is plus two minus six, divided by four, or minus one.",
+        "hold": 0.3
+      },
+      {
+        "id": "c08-b08",
+        "say": "Averaging the two group means gives zero and weights the one-token group too heavily. A short final window uses its actual valid-token count. An all-masked window has zero tokens and must skip or reject before division.",
+        "hold": 0.8
+      }
+    ]
+  },
+  {
+    "id": "c09",
+    "title": "Memory for one training step",
+    "sourceChapters": ["c09"],
+    "beats": [
+      {
+        "id": "c09-b01",
+        "say": "Count the memory for one hundred million parameters and eight hundred million saved activation values. The weights, gradients and two Adam moments all stay in FP32, four bytes per value. The weights and gradients take point four gigabytes each. The two moments take point eight together. The long segment holds the activations.",
+        "hold": 0.3
+      },
+      {
+        "id": "c09-b02",
+        "say": "For this inventory, what share of the original memory would we free by storing just those activations in sixteen bits?",
+        "hold": 2
+      },
+      {
+        "id": "c09-b03",
+        "say": "Store the activations in sixteen bits. Their count stays the same. Each now takes two bytes instead of four. The gap is one point six gigabytes. Compare that gap with the original four point eight. We freed one third of the inventory.",
+        "hold": 0.85
+      },
+      {
+        "id": "c09-b04",
+        "say": "This is a byte count for selected tensors. Real activations can have several dtypes, and casts and kernels may need temporary space. Measure peak allocated and reserved memory on a representative step. Warm up before timing, track overflows and skipped updates, and compare held-out quality at the same training exposure.",
+        "hold": 0.8
+      },
+      {
+        "id": "c09-b05",
+        "say": "Zoom in on one parameter in unsharded Adam. An FP32 weight, its gradient and two moments each cost four bytes. That's sixteen bytes per parameter. Ordinary FP32-model AMP can keep those same sixteen static bytes. Now count a master-copy recipe.",
+        "hold": 0.3
+      },
+      {
+        "id": "c09-b06",
+        "say": "It has two-byte compute weights, two-byte gradients, four-byte master weights and eight-byte moments. The total is sixteen again. An optional four-byte gradient staging buffer makes twenty. Saved activations and temporary workspace still go on a separate line.",
+        "hold": 0.8
+      }
+    ]
+  },
+  {
+    "id": "c10",
+    "title": "Follow one small gradient through FP16",
+    "sourceChapters": ["c10"],
+    "beats": [
+      {
+        "id": "c10-b01",
+        "say": "Here is a fresh trace to read yourself. The yellow mark is two to the minus twenty-six. The pink line marks half the smallest positive FP16 subnormal. Which stored gradient will start the direct path?",
+        "hold": 2.1
+      },
+      {
+        "id": "c10-b02",
+        "say": "The direct cast gives zero. On a second path, scale the loss by two hundred fifty-six first. Its gradient moves eight powers of two, from minus twenty-six to minus eighteen. FP16 stores about three point eight one times ten to the minus six on a path that preserves subnormals.",
+        "hold": 0.5
+      },
+      {
+        "id": "c10-b03",
+        "say": "Divide the stored value by two hundred fifty-six in FP32. We recover our original gradient, two to the minus twenty-six, or about one point four nine times ten to the minus eight. The separate forward input was one point zero zero zero one.",
+        "hold": 0.3
+      },
+      {
+        "id": "c10-b04",
+        "say": "FP16 had already rounded it to one. Scaling the loss comes too late to recover that input.",
+        "hold": 0.6
+      }
+    ]
+  },
+  {
+    "id": "c11",
+    "title": "Keep compute and collective arithmetic separate",
+    "sourceChapters": ["c11"],
+    "beats": [
+      {
+        "id": "c11-b01",
+        "say": "Distributed training adds a communication and reduction dtype. BF16 matrix compute does not require BF16 gradient accumulation. An API may configure parameter compute dtype separately from reduce dtype; record the exact interface and what arithmetic the collective actually performs.",
+        "hold": 1.2
+      },
+      {
+        "id": "c11-b02",
+        "say": "Add three workers’ contributions in a fixed order. Start the sum at two hundred fifty-six. Add one. In BF16, two hundred fifty-seven is halfway to the next tick. Nearest-even rounding takes it back to two hundred fifty-six.",
+        "hold": 0.3
+      },
+      {
+        "id": "c11-b03",
+        "say": "Subtract the last two hundred fifty-six and the sum is zero. FP32 kept the one in its partial sum, so the same subtraction leaves one. Keep BF16 matrix operands if appropriate, but try FP32 for the reduction. Also record the order.",
+        "hold": 0.3
+      },
+      {
+        "id": "c11-b04",
+        "say": "A collective tree can group the additions differently. Pair the positive and negative two hundred fifty-six first. They cancel exactly. Add the remaining one and even BF16 now returns one.",
+        "hold": 0.8
+      },
+      {
+        "id": "c11-b05",
+        "say": "A hundred million gradient values occupy four hundred million bytes at FP32 or two hundred million at BF16. That is the tensor payload, not the network bytes of an all-reduce: worker count, topology, sharding and collective algorithm add their own traffic.",
+        "hold": 0.3
+      },
+      {
+        "id": "c11-b06",
+        "say": "Lower communication precision trades payload against numerical error, so measure quality and the actual bottleneck.",
+        "hold": 0.8
+      }
+    ]
+  },
+  {
+    "id": "c12",
+    "title": "One draw from two versions of a policy",
+    "sourceChapters": ["c12"],
+    "beats": [
+      {
+        "id": "c12-b01",
+        "say": "Suppose a reinforcement learning policy earns less reward after deployment. Replay the same prompt with the same random draw. Here either of two actions can follow. The yellow line is our draw. If it falls below the probability of action zero, the sampler takes action zero.",
+        "hold": 0.3
+      },
+      {
+        "id": "c12-b02",
+        "say": "Otherwise the sampler takes action one. This is a magnified slice of the probability axis. Keep the draw fixed at point four nine nine seven five. Only the probability boundary will change.",
+        "hold": 1.2
+      },
+      {
+        "id": "c12-b03",
+        "say": "Start with logits of one and one point zero zero two. In FP32 the probability of action zero is about point four nine nine five. The draw lies just to its right, so we get action one. Now cast the logits to BF16. Both round to one. Where should the boundary go?",
+        "hold": 1.9
+      },
+      {
+        "id": "c12-b04",
+        "say": "Equal scores split the probability in half. The boundary lands to the right of the same draw. Now we get action zero.",
+        "hold": 0.8
+      },
+      {
+        "id": "c12-b05",
+        "say": "One different action changes what the policy sees next. To find out whether rounding explains a reward drop, compare logits and sampled actions on matched inputs using the training and serving kernels, batch shapes and sampling rules. Then compare held-out reward across seeds.",
+        "hold": 0.3
+      },
+      {
+        "id": "c12-b06",
+        "say": "A different pair of scores can land on different ticks. A backward loss scale can’t recover a difference the forward pass has already erased.",
+        "hold": 0.8
+      }
+    ]
+  },
+  {
+    "id": "c13",
+    "title": "Give each eight-bit path an explicit scale contract",
+    "sourceChapters": ["c13"],
+    "beats": [
+      {
+        "id": "c13-b01",
+        "say": "The OCP FP8 encodings make another range-resolution tradeoff. E-four-M-three has one sign bit, four exponent bits and three fraction bits, reaches finite magnitude four hundred forty-eight and has no infinity encoding.",
+        "hold": 0.3
+      },
+      {
+        "id": "c13-b02",
+        "say": "E-five-M-two uses five exponent and two fraction bits, reaches fifty-seven thousand three hundred forty-four and includes infinity. Similarly named variants can use different special-value rules.",
+        "hold": 1.2
+      },
+      {
+        "id": "c13-b03",
+        "say": "Send one spike of five hundred twelve through two E-four-M-three conversions. The current scale uses the largest magnitude in this tensor, five hundred twelve. Finding it costs a scan. The delayed scale still uses eight, the largest magnitude in its history. Each scale maps its own maximum to the largest finite FP8 value, four hundred forty-eight. Which conversion can bring the spike back?",
+        "hold": 2.1
+      },
+      {
+        "id": "c13-b04",
+        "say": "With the current scale, the decode factor is five hundred twelve divided by four hundred forty-eight. The spike encodes as four hundred forty-eight. Multiply the stored FP8 value by that factor to decode it. The result is five hundred twelve.",
+        "hold": 0.3
+      },
+      {
+        "id": "c13-b05",
+        "say": "With the delayed scale, the decode factor is eight divided by four hundred forty-eight. To carry the spike, division by that factor gives twenty-eight thousand six hundred seventy-two. It clamps to four hundred forty-eight. Multiply by the decode factor and we get eight. These conversions use saturation. A hybrid recipe can use E-four-M-three for forward operands and E-five-M-two for backward gradients, with wider accumulation where required.",
+        "hold": 0.8
+      },
+      {
+        "id": "c13-b06",
+        "say": "MXFP8 shares one E-eight-M-zero power-of-two scale across thirty-two consecutive FP8 values. One such block contains thirty-two element bytes and one scale byte, thirty-three bytes before layout overhead. It is different from one FP32 scale for a whole tensor.",
+        "hold": 0.3
+      },
+      {
+        "id": "c13-b07",
+        "say": "Block dimensions, transposition, rounding and native-kernel support belong in the contract. The stored dtype alone leaves internal arithmetic and operation order unspecified.",
+        "hold": 0.8
+      },
+      {
+        "id": "c13-b08",
+        "say": "Under saturating OCP conversion, a too-large positive E-four-M-three value can clamp to four hundred forty-eight and remain finite but wrong. For the supplied input five hundred, the saturating output is four hundred forty-eight. The absolute error is fifty-two despite a finite result.",
+        "hold": 0.3
+      },
+      {
+        "id": "c13-b09",
+        "say": "Non-saturating conversion can yield NaN. E-five-M-two has its own saturation and infinity behavior. Track saturation, non-finite values, scale history and held-out error. Confirm supported hardware and kernels, then compare full step cost and quality against an already measured BF16 or scaled-FP16 baseline.",
+        "hold": 0.8
+      }
+    ]
+  },
+  {
+    "id": "c14",
+    "title": "Comparing two training runs",
+    "sourceChapters": ["c14"],
+    "beats": [
+      {
+        "id": "c14-b01",
+        "say": "Here are two invented runs on the same GPU. Hold the model, training data, seeds, batch shape, optimizer and evaluation fixed. Both runs finish with finite steps. The vertical line marks the minimum for correctly formatted answers, ninety-eight percent.",
+        "hold": 0.3
+      },
+      {
+        "id": "c14-b02",
+        "say": "The horizontal line marks the minimum for answers that follow the policy, ninety-three percent. Put A on the chart. Now place B.",
+        "hold": 0.6
+      },
+      {
+        "id": "c14-b03",
+        "say": "Use the two coordinates for each run. Which one clears both minimums?",
+        "hold": 2.6
+      },
+      {
+        "id": "c14-b04",
+        "say": "A falls below the policy line. B clears both lines. Now uncover throughput. A handles fifteen hundred examples per second. Only B qualifies, at thirteen hundred examples per second. Running A faster would leave its policy score exactly where it is.",
+        "hold": 0.85
+      },
+      {
+        "id": "c14-b05",
+        "say": "Before you repeat B, record how its sums were computed. Even FP32 tensors can go through a TF32 matrix multiply or convolution. On supported hardware, TF32 uses ten fraction bits of the inputs and accumulates in FP32. Record the kernel, compiler settings and partial-sum precision. On the target GPU, time repeated steps after warm-up and synchronize at the timing boundaries.",
+        "hold": 0.65
+      },
+      {
+        "id": "c14-b06",
+        "say": "Look inside one such sum. Start both accumulators at zero. Add forty thousand to each. Now add forty thousand again. The FP32 partial is eighty thousand. The FP16 partial has overflowed to infinity. Subtract forty thousand. FP32 comes back to forty thousand. FP16 stays at infinity.",
+        "hold": 0.3
+      },
+      {
+        "id": "c14-b07",
+        "say": "The final mathematical answer fits in FP16. It was the intermediate addition that needed more range.",
+        "hold": 1
+      },
+      {
+        "id": "c14-b08",
+        "say": "Back to the two runs. Suppose a repeat of A under those same conditions reaches exactly ninety-three percent on policy. Leave every other result as shown. If you need the fastest run that meets both minimums, which would you choose?",
+        "hold": 2.2
+      },
+      {
+        "id": "c14-b09",
+        "say": "A is on the line, so it qualifies. Both runs meet the minimums. Choose A at fifteen hundred examples per second. In a real comparison, exclude mismatched hardware and invalid metrics first. Check loss curves, saturation, skipped steps, peak memory and held-out slices against the baseline.",
+        "hold": 0.3
+      },
+      {
+        "id": "c14-b10",
+        "say": "If A uses the FP32 state we counted earlier, each parameter still takes sixteen bytes for its weight, gradient and two Adam moments. Which worker holds those bytes? That is what FSDP and ZeRO change in the next lesson.",
+        "hold": 1.2
+      }
+    ]
+  }
+]

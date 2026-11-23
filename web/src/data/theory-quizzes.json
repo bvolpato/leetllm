@@ -1,0 +1,638 @@
+[
+  {
+    "slug": "beginner-ai-systems-foundations",
+    "title": "Beginner AI Systems Foundations",
+    "level": "Beginner",
+    "description": "Core vocabulary and mental models from the early curriculum: reproducibility, tensors, training, validation, tokenization, and embeddings.",
+    "estimatedMinutes": 10,
+    "sections": [
+      "Computing Foundations",
+      "Math & Statistics",
+      "Preparation & Prerequisites",
+      "Core LLM Foundations"
+    ],
+    "questions": [
+      {
+        "section": "Computing Foundations",
+        "question": "A clean clone fails the 2/3 access-request eval because eval/access_requests.jsonl existed only on one laptop. Which repair keeps the gate reproducible?",
+        "options": [
+          "Commit the fixture and setup scripts; inject secrets at runtime, then rerun the clone gate.",
+          "Copy the laptop's virtualenv and shell alias into every clone before running the gate.",
+          "Record 0.667 in the README and skip the fixture check when the file is missing.",
+          "Commit .env and local model caches so each clone inherits the original machine state."
+        ],
+        "answer": "Commit the fixture and setup scripts; inject secrets at runtime, then rerun the clone gate.",
+        "explanation": "The fixture and commands are project inputs, while .env, virtualenvs, and caches are machine state. The integer 2/3 gate avoids treating rounded 0.667 as proof."
+      },
+      {
+        "section": "Computing Foundations",
+        "question": "A Dockerized scorer must run with pinned Python packages, a changing host fixture, and an API key. Which boundary is correct?",
+        "options": [
+          "Bake the fixture and API key into each image so every container starts with identical state.",
+          "Bake the runtime and locked packages, mount changing data read-only, and inject the key at run time.",
+          "Mount the host virtualenv, pass the key through the Dockerfile, and rebuild after every data edit.",
+          "Keep packages on the host, store the fixture in a named volume, and print the key for debugging."
+        ],
+        "answer": "Bake the runtime and locked packages, mount changing data read-only, and inject the key at run time.",
+        "explanation": "Images capture stable runtime inputs. A read-only bind mount suits changing fixtures, and secrets shouldn't enter image layers or build logs."
+      },
+      {
+        "section": "Math & Statistics",
+        "question": "A batch X has shape (32, 128, 768). A projection maps its last axis from 768 to 3072 without changing batch or sequence axes. What shape should the next tensor have?",
+        "options": [
+          "(32, 768, 128)",
+          "(32, 128, 768)",
+          "(32, 128, 3072)",
+          "(128, 32, 3072)"
+        ],
+        "answer": "(32, 128, 3072)",
+        "explanation": "The linear layer acts independently on each of 32 times 128 positions, replacing only the feature width."
+      },
+      {
+        "section": "Math & Statistics",
+        "question": "A CUDA model receives a CPU tensor and then reports a device mismatch. Which first diagnostic preserves useful signal?",
+        "options": [
+          "Cast the input to integer labels so CUDA can infer its target device.",
+          "Move only the model to CPU and continue, even if later layers expect GPU memory.",
+          "Reshape the input until the error disappears; device placement can be checked later.",
+          "Move input to the model's device, then verify shape and dtype before rerunning."
+        ],
+        "answer": "Move input to the model's device, then verify shape and dtype before rerunning.",
+        "explanation": "The operation needs compatible device and dtype contracts. Changing labels or shape can hide the placement error and create a second bug."
+      },
+      {
+        "section": "Preparation & Prerequisites",
+        "question": "Logits [2, 1, 0] overflow in a naive softmax on a low-precision path. What does subtracting the max logit do?",
+        "options": [
+          "It produces [0, -1, -2], preserving probabilities while keeping the largest exponential at 1.",
+          "It sets the winning probability to 1 and removes the other classes before normalization.",
+          "It reverses the ranking because each logit now measures distance from zero.",
+          "It turns logits into labels, so cross-entropy no longer needs a target index."
+        ],
+        "answer": "It produces [0, -1, -2], preserving probabilities while keeping the largest exponential at 1.",
+        "explanation": "Softmax is invariant to adding one constant to every logit. Subtracting the maximum keeps exponentials in a safer range without changing relative probabilities."
+      },
+      {
+        "section": "Preparation & Prerequisites",
+        "question": "With logits [2, 0], target class 0, and probabilities approximately [0.881, 0.119], what is softmax-cross-entropy gradient p - y?",
+        "options": [
+          "[0.881, 0.119], because the gradient equals the predicted distribution.",
+          "[-0.119, 0.119], so the target logit is pushed up and competitor down.",
+          "[0.119, -0.119], so the wrong class receives the positive correction.",
+          "[-1, 1], because cross-entropy ignores the predicted probabilities."
+        ],
+        "answer": "[-0.119, 0.119], so the target logit is pushed up and competitor down.",
+        "explanation": "The one-hot target is [1, 0]. Subtracting it from p gives 0.881 - 1 for the target and leaves 0.119 for the other class."
+      },
+      {
+        "section": "Core LLM Foundations",
+        "question": "A fraud model uses events from future weeks to compute features for earlier validation rows, and validation looks unusually strong. Which redesign tests generalization?",
+        "options": [
+          "Shuffle all rows again and increase folds so future events appear in every training fold.",
+          "Keep the split random but remove the validation labels from the feature table after training.",
+          "Use time-ordered or group-aware splits and compute each feature only from data available then.",
+          "Report training accuracy instead, since validation leakage can't affect the training set."
+        ],
+        "answer": "Use time-ordered or group-aware splits and compute each feature only from data available then.",
+        "explanation": "Validation must mimic the decision boundary at prediction time. Future-derived features leak information, and random rows can also split related entities across folds."
+      },
+      {
+        "section": "Core LLM Foundations",
+        "question": "A tokenizer update gives the same character count but a longer token sequence, breaking an 8,192-token prompt budget. Which contract should the app enforce?",
+        "options": [
+          "Budget by characters only; tokenizers preserve length closely enough for routing and truncation.",
+          "Truncate after generation; input length can't affect the model's context allocation.",
+          "Keep the old tokenizer hidden and let each service choose its own vocabulary version.",
+          "Pin tokenizer version, count tokens before truncation, and reserve output tokens in the budget."
+        ],
+        "answer": "Pin tokenizer version, count tokens before truncation, and reserve output tokens in the budget.",
+        "explanation": "Models consume token IDs, not characters. Versioned tokenization and an input-plus-output budget prevent silent truncation and inconsistent service behavior."
+      },
+      {
+        "section": "Core LLM Foundations",
+        "question": "A support search must find exact error code E042 and paraphrased descriptions. Dense retrieval misses the code in top-k. Which change is defensible?",
+        "options": [
+          "Fuse lexical and dense candidates, then measure candidate recall before reranking.",
+          "Increase generation temperature so the model can reconstruct the missing error code.",
+          "Replace evaluation with embedding cosine similarity because exact codes are semantic.",
+          "Rerank the dense list only; a reranker can recover documents never retrieved."
+        ],
+        "answer": "Fuse lexical and dense candidates, then measure candidate recall before reranking.",
+        "explanation": "Lexical retrieval protects exact identifiers while dense retrieval covers paraphrases. Candidate recall must be high before a reranker can improve ordering."
+      },
+      {
+        "section": "Preparation & Prerequisites",
+        "question": "A service sends a 48K policy prefix plus changing account details on every request. Which statement about context and caching is correct?",
+        "options": [
+          "The context window stores the policy permanently, so later sessions can omit retrieval and freshness checks.",
+          "Reuse only an exact stable prefix when supported; changing details still need fresh policy checks.",
+          "Semantic similarity makes any nearby account request safe to share across tenants.",
+          "A longer context removes the need for token budgeting, freshness checks, and access control."
+        ],
+        "answer": "Reuse only an exact stable prefix when supported; changing details still need fresh policy checks.",
+        "explanation": "A context window is request-scoped working memory. Prefix reuse can reduce repeated prefill, but it doesn't make changing evidence durable, current, or authorized."
+      },
+      {
+        "section": "Math & Statistics",
+        "question": "A model returns valid JSON for a key-rotation request, but the requested 90-day change violates policy P-7. What must happen before any write?",
+        "options": [
+          "Accept it because strict JSON proves the model followed policy and authorization before any server call.",
+          "Ask for a second JSON response and execute whichever response has more fields.",
+          "Run deterministic policy and authorization checks after parsing, then block the side effect.",
+          "Let the browser decide; server checks duplicate the schema already enforced at generation."
+        ],
+        "answer": "Run deterministic policy and authorization checks after parsing, then block the side effect.",
+        "explanation": "A schema constrains shape, not truth or permission. Trusted application code must check policy and authorization before it executes a model-proposed action."
+      },
+      {
+        "section": "ML Algorithms & Evaluation",
+        "question": "A classifier reports 99% accuracy on data with 1% positive cases while predicting negative every time. Which evaluation change exposes the failure?",
+        "options": [
+          "Keep accuracy as the sole gate because its denominator includes every row.",
+          "Use a larger validation set but retain the same accuracy-only release threshold across all classes.",
+          "Lower the learning rate; class imbalance is an optimizer setting, not an evaluation issue.",
+          "Track positive-class precision and recall, choose a threshold, and compare a suitable PR metric."
+        ],
+        "answer": "Track positive-class precision and recall, choose a threshold, and compare a suitable PR metric.",
+        "explanation": "Accuracy hides the missed positive class when negatives dominate. Threshold-aware precision and recall show the errors that matter to the task."
+      }
+    ]
+  },
+  {
+    "slug": "intermediate-llm-product-systems",
+    "title": "Intermediate LLM Product Systems",
+    "level": "Intermediate",
+    "description": "RAG, agents, structured output, hallucination control, evaluation, caching, and observability across product-facing LLM systems.",
+    "estimatedMinutes": 12,
+    "sections": [
+      "Applied LLM Engineering",
+      "Advanced Agents & Retrieval",
+      "Production ML Systems",
+      "Portfolio Capstones"
+    ],
+    "questions": [
+      {
+        "section": "Advanced Agents & Retrieval",
+        "question": "A policy heading and its definition land in separate fixed-size chunks, so retrieval returns a caveat without its scope. Which index design best repairs answerability?",
+        "options": [
+          "Split on document structure, preserve source spans, and expand a matched child chunk to parent context.",
+          "Use smaller random chunks and drop headings so each vector contains one sentence.",
+          "Embed the whole corpus as one vector so every answer sees every policy caveat.",
+          "Ask the generator to infer omitted scope from pretraining and omit provenance metadata."
+        ],
+        "answer": "Split on document structure, preserve source spans, and expand a matched child chunk to parent context.",
+        "explanation": "Chunk boundaries should preserve answerable units. Child retrieval can stay precise while parent expansion restores the heading, definitions, and citation span."
+      },
+      {
+        "section": "Advanced Agents & Retrieval",
+        "question": "A hybrid search query contains exact identifier INC-4821 and the paraphrase failed deploy after secret rotation. Which retrieval path fits?",
+        "options": [
+          "Use dense retrieval only; embedding similarity handles identifiers and paraphrases equally.",
+          "Fuse BM25 or learned sparse results with dense results, then rerank after access filtering.",
+          "Use reranking alone; it generates candidates from the query without an initial index.",
+          "Use one lexical result and skip candidate-recall measurement because the code is exact."
+        ],
+        "answer": "Fuse BM25 or learned sparse results with dense results, then rerank after access filtering.",
+        "explanation": "Sparse signals protect exact codes, while dense signals cover paraphrase. Rank fusion broadens candidates, but authorization still precedes ranking and generation."
+      },
+      {
+        "section": "Advanced Agents & Retrieval",
+        "question": "Top-50 retrieval has 92% candidate recall, but reranker top-5 answer support is 60%. An engineer blames reranking for missing documents. What check comes first?",
+        "options": [
+          "Increase reranker temperature; a cross-encoder can retrieve documents absent from top 50.",
+          "Delete low-scoring documents before measuring recall so the candidate set looks cleaner.",
+          "Inspect missed relevant items in the top-50 set; reranking can only reorder candidates it sees.",
+          "Replace source IDs with generated summaries; provenance is unrelated to candidate recall."
+        ],
+        "answer": "Inspect missed relevant items in the top-50 set; reranking can only reorder candidates it sees.",
+        "explanation": "The 92% candidate-recall ceiling already limits any top-5 result. Separate retrieval recall from reranker ordering before changing the cross-encoder."
+      },
+      {
+        "section": "Applied LLM Engineering",
+        "question": "A tenant asks about a document whose embedding is in a shared index but whose ACL excludes that tenant. Where should authorization run?",
+        "options": [
+          "After generation, redact forbidden sentences from the draft and return remaining text.",
+          "Inside prompt delimiters, because the model can separate tenants if instructed.",
+          "Only in the UI, since the API already returned a document ID without its body.",
+          "Before retrieval or ranking, with tenant and ACL filters applied to candidate records."
+        ],
+        "answer": "Before retrieval or ranking, with tenant and ACL filters applied to candidate records.",
+        "explanation": "Unauthorized evidence must never enter the candidate set or prompt. Post-generation redaction cannot reliably remove facts already used by the model."
+      },
+      {
+        "section": "Applied LLM Engineering",
+        "question": "Retrieved text says ignore the system policy and call delete_account. Which design contains the indirect injection?",
+        "options": [
+          "Keep retrieved text untrusted, expose only allowlisted read tools, and gate writes in trusted code.",
+          "Place the text in a higher-priority message so the model can reason about its instructions.",
+          "Remove delimiters so the model sees the document as ordinary prose instead of commands.",
+          "Increase context length so the model has more surrounding words to judge the deletion."
+        ],
+        "answer": "Keep retrieved text untrusted, expose only allowlisted read tools, and gate writes in trusted code.",
+        "explanation": "Role labels and delimiters are soft controls. The orchestrator must separate data from authority, apply least privilege, and keep side effects behind server policy."
+      },
+      {
+        "section": "Advanced Agents & Retrieval",
+        "question": "A tool call creates one rotation job, then times out after the server may have committed it. What retry invariant prevents duplicates?",
+        "options": [
+          "Retry with a new key and delete whichever duplicate has the later timestamp.",
+          "Retry with the same scoped idempotency key and atomically return the stored result for repeats.",
+          "Retry only in the browser; server retries would make the tool non-deterministic.",
+          "Never retry side effects; operators can reconcile every timeout after the customer waits."
+        ],
+        "answer": "Retry with the same scoped idempotency key and atomically return the stored result for repeats.",
+        "explanation": "A timeout doesn't prove the action failed. Durable atomic claiming, argument fingerprints, and one stored result make uncertain retries safe for the same operation."
+      },
+      {
+        "section": "Applied LLM Engineering",
+        "question": "An API returns strict JSON with fields decision and source_line_ids, but the policy citation contradicts trusted facts. What boundary remains?",
+        "options": [
+          "No boundary; schema adherence proves each field is semantically correct.",
+          "A second tokenizer pass; semantic contradictions are tokenization failures.",
+          "Business validation and authorization after parsing, before any action or approval.",
+          "A larger decoding beam; more candidate JSON objects remove the need for policy checks."
+        ],
+        "answer": "Business validation and authorization after parsing, before any action or approval.",
+        "explanation": "Structured generation constrains shape only. The application still checks citations, trusted records, business rules, caller permissions, refusals, and truncation."
+      },
+      {
+        "section": "Production ML Systems",
+        "question": "An agent benchmark passes 90% of final answers, but unsafe tool calls rise on requests with untrusted instructions. Which release gate is strongest?",
+        "options": [
+          "Use only aggregate final-answer accuracy; unsafe trajectories are rare noise even when action traces regress.",
+          "Increase judge temperature and accept the higher average score as evidence of safety.",
+          "Remove tool traces from evals so the judge can't anchor on implementation details.",
+          "Gate on outcome and safety slices, inspect tool trajectories, and retain cost and latency diagnostics."
+        ],
+        "answer": "Gate on outcome and safety slices, inspect tool trajectories, and retain cost and latency diagnostics.",
+        "explanation": "A final answer can look correct after an unsafe path. Episode traces and targeted slices expose policy violations that aggregate quality hides."
+      },
+      {
+        "section": "Applied LLM Engineering",
+        "question": "Two users ask semantically similar questions about accounts with different ACLs and freshness requirements. When is a semantic response cache unsafe?",
+        "options": [
+          "When similarity can cross authorization, evidence freshness, or tenant boundaries.",
+          "When the first response was expensive; expensive answers are always safer to reuse.",
+          "When embeddings are computed locally; local vectors can't support cache invalidation.",
+          "When normalized text is stored; normalization makes the cache key too deterministic."
+        ],
+        "answer": "When similarity can cross authorization, evidence freshness, or tenant boundaries.",
+        "explanation": "Similar wording doesn't imply equivalent evidence or permission. Cache admission and invalidation must include principal, source freshness, and policy context."
+      },
+      {
+        "section": "Production ML Systems",
+        "question": "A RAG answer is wrong, but the final text alone looks fluent. Which trace lets an engineer localize the fault?",
+        "options": [
+          "Provider name and total prompt tokens; intermediate context and policy state add little to diagnosis or safe replay.",
+          "Redacted request ID, route and model versions, retrieved IDs, selected context, tools, timing, and status.",
+          "Only raw customer text; storing route, model, and retrieval metadata can hide the root cause.",
+          "Only final answer plus temperature; retrieval and authorization are outside generation."
+        ],
+        "answer": "Redacted request ID, route and model versions, retrieved IDs, selected context, tools, timing, and status.",
+        "explanation": "A RAG failure can start in retrieval, filtering, routing, tools, or generation. Intermediate traces make those boundaries observable without retaining raw secrets."
+      },
+      {
+        "section": "Applied LLM Engineering",
+        "question": "Offline ranking improves, but online recommendations use a different definition for recent_clicks and receive stale values. Which fix protects the deployment?",
+        "options": [
+          "Raise model capacity; a stronger scorer can learn around inconsistent feature semantics and stale online values without changing features.",
+          "Tune the ranking loss until offline NDCG compensates for the online feature mismatch.",
+          "Version a feature contract and enforce point-in-time, offline/online parity before trusting the offline gain.",
+          "Hide online traffic from evaluation; production feedback makes the benchmark incomparable."
+        ],
+        "answer": "Version a feature contract and enforce point-in-time, offline/online parity before trusting the offline gain.",
+        "explanation": "A score from one feature definition doesn't predict a service using another. Point-in-time joins, freshness checks, and shared feature semantics prevent training-serving skew."
+      },
+      {
+        "section": "Applied LLM Engineering",
+        "question": "A production ML candidate beats baseline offline, but the canary data-quality gate fails and the registry alias advanced concurrently. What release action is safest?",
+        "options": [
+          "Keep the alias because offline superiority outranks a transient canary gate and data-quality evidence during rollout.",
+          "Roll forward and overwrite the alias; immutable receipts are unnecessary after validation.",
+          "Disable monitoring during rollout so the candidate gets enough traffic to stabilize.",
+          "Hold or roll back using immutable artifact and eval receipts, then resolve alias ownership before retrying."
+        ],
+        "answer": "Hold or roll back using immutable artifact and eval receipts, then resolve alias ownership before retrying.",
+        "explanation": "A canary gate is evidence about the deployed path, not an optional signal. Immutable receipts and alias race checks keep rollback tied to the exact artifact and evaluation."
+      }
+    ]
+  },
+  {
+    "slug": "advanced-training-inference-architecture",
+    "title": "Advanced Training and Inference Architecture",
+    "level": "Advanced",
+    "description": "KV cache, batching, quantization, MoE, PEFT, distributed training, alignment, scaling laws, and long-context inference.",
+    "estimatedMinutes": 12,
+    "sections": [
+      "Transformer Deep Dives",
+      "Advanced Training & Adaptation",
+      "Inference & Production Scale",
+      "System Design Capstones"
+    ],
+    "questions": [
+      {
+        "section": "Inference & Production Scale",
+        "question": "A serving path uses 16 KV-storing layers, 4 KV heads, head dimension 256, 4,096 tokens, and FP16. Using 2 × L × n_kv × d_h × s × p, what is one sequence's cache?",
+        "options": [
+          "About 0.27 GB (0.25 GiB), before runtime buffers and non-attention state.",
+          "About 1.61 GB, because 24 query heads must each store separate K/V tensors.",
+          "About 0.13 GB, because K and V share one tensor at one byte each.",
+          "About 16 GB, because the cache scales with total parameters rather than tokens."
+        ],
+        "answer": "About 0.27 GB (0.25 GiB), before runtime buffers and non-attention state.",
+        "explanation": "The formula gives 2 × 16 × 4 × 256 × 4,096 × 2 bytes. GQA uses four KV heads, not the 24 query heads, and the result is about 0.25 GiB per active sequence."
+      },
+      {
+        "section": "Inference & Production Scale",
+        "question": "A server has three decode slots and output lengths [20, 40, 15, 30, 10]. What's continuous batching's advantage over static batches?",
+        "options": [
+          "It waits for all five requests, then runs one batch in 40 iterations.",
+          "It admits queued requests as slots free, finishing at 45 iterations versus 70 for static groups.",
+          "It always finishes in 15 iterations because all requests share one KV prefix.",
+          "It uses request count only; prompt length and KV growth don't affect admission."
+        ],
+        "answer": "It admits queued requests as slots free, finishing at 45 iterations versus 70 for static groups.",
+        "explanation": "At iteration 15 a slot admits the 30-token request, and at 20 another admits the 10-token request. The longest active path ends at 45, while static groups take 40 plus 30."
+      },
+      {
+        "section": "Inference & Production Scale",
+        "question": "A full-attention prefill grows from 4K to 128K tokens. Which diagnosis is correct?",
+        "options": [
+          "Raw score pairs grow 32x, and FlashAttention makes the growth linear.",
+          "Raw score pairs stay constant because the model reads each token once.",
+          "Raw score pairs grow about 1,024x; FlashAttention cuts memory traffic but not quadratic work.",
+          "Raw score pairs grow 128x, while PagedAttention removes the remaining compute."
+        ],
+        "answer": "Raw score pairs grow about 1,024x; FlashAttention cuts memory traffic but not quadratic work.",
+        "explanation": "Full attention compares token pairs, so 32 times as many tokens creates 32 squared, or 1,024 times, as many raw pairs. FlashAttention changes IO behavior, not the full-attention scaling law."
+      },
+      {
+        "section": "Transformer Deep Dives",
+        "question": "A 70B model's BF16 weights need about 140 GB before runtime memory. A 4-bit candidate is near 35 GB plus scales. Which deployment decision is defensible?",
+        "options": [
+          "Use 4-bit automatically; lower weight bytes guarantee identical quality and throughput.",
+          "Keep BF16 only; quantization changes weights, so it can't improve a memory-bound decode.",
+          "Count only weight bytes; KV cache and activations fit whenever weights fit.",
+          "Benchmark quantized quality, kernels, KV headroom, and latency on the target workload before rollout."
+        ],
+        "answer": "Benchmark quantized quality, kernels, KV headroom, and latency on the target workload before rollout.",
+        "explanation": "Quantization can make weights fit and reduce bandwidth, but scales, KV cache, kernels, activation memory, and task quality still determine whether serving improves."
+      },
+      {
+        "section": "Inference & Production Scale",
+        "question": "An MoE layer has eight experts and top-2 token routing, but one expert repeatedly exceeds capacity. What should the engineer inspect?",
+        "options": [
+          "Router load balance, capacity factor, dropped-token behavior, and expert-parallel communication.",
+          "Tokenizer vocabulary only; expert overload means the subword merges are incorrect.",
+          "Attention softmax temperature; FFN routing is independent of expert capacity.",
+          "Increase every expert's width without checking routing, since capacity can't drop tokens."
+        ],
+        "answer": "Router load balance, capacity factor, dropped-token behavior, and expert-parallel communication.",
+        "explanation": "Sparse routing saves compute only when tokens are distributed well. Capacity limits can drop or reroute tokens, while expert parallelism adds communication and synchronization costs."
+      },
+      {
+        "section": "Advanced Training & Adaptation",
+        "question": "A square projection is 4096 × 4096, and LoRA rank is 16. How many trainable adapter values replace the full update?",
+        "options": [
+          "65,536, because only matrix A is trained and B is implicit.",
+          "131,072, from 16×4096 + 4096×16, versus 16,777,216 full-matrix values.",
+          "262,144, because rank 16 requires four matrices for Q, K, V, and O.",
+          "16,777,216, because freezing the base doesn't reduce update parameters."
+        ],
+        "answer": "131,072, from 16×4096 + 4096×16, versus 16,777,216 full-matrix values.",
+        "explanation": "LoRA learns A with 16×4096 values and B with 4096×16 values. The frozen base still runs in the forward pass, but gradients and optimizer state are needed only for the adapter."
+      },
+      {
+        "section": "Advanced Training & Adaptation",
+        "question": "A 70B FP16 run uses a roughly 16-byte-per-parameter full-training recipe. Why can FSDP or ZeRO help on eight GPUs, and what remains?",
+        "options": [
+          "It removes optimizer state entirely, so no communication or activation memory remains during updates.",
+          "It replicates every state on all GPUs, which trades memory for simpler gradients.",
+          "Shard parameters, gradients, and optimizer state; gathers and activations still cost memory.",
+          "It replaces backprop with retrieval, so model size no longer affects device memory."
+        ],
+        "answer": "Shard parameters, gradients, and optimizer state; gathers and activations still cost memory.",
+        "explanation": "Sharding reduces each rank's resident training state. Forward and backward still require collective communication, and activations plus temporary gathered parameters can remain the peak."
+      },
+      {
+        "section": "Advanced Training & Adaptation",
+        "question": "A team has preference pairs but no separately trained reward model and wants offline alignment. Which choice fits, with what caveat?",
+        "options": [
+          "PPO without a reward model; policy updates can infer preference scores from raw prompts alone and avoid held-out checks.",
+          "DPO plus no held-out safety set; pairwise training guarantees harmless behavior.",
+          "Full supervised fine-tuning on rejected answers; rejection labels are equivalent to targets.",
+          "DPO can use preference pairs directly, but still needs data validation, regression evals, and safety gates."
+        ],
+        "answer": "DPO can use preference pairs directly, but still needs data validation, regression evals, and safety gates.",
+        "explanation": "DPO avoids the same separate reward-model-plus-PPO loop, not the need for reliable preferences or evaluation. Preference optimization can still reward shortcuts or regress unrelated capabilities."
+      },
+      {
+        "section": "Advanced Training & Adaptation",
+        "question": "A fixed compute budget can fund either a huge model with too little data or a smaller model trained on more tokens. Which planning rule matches scaling-law lessons?",
+        "options": [
+          "Balance parameters and data under the compute budget, then validate downstream quality.",
+          "Always maximize parameters, because data quality never limits a large model.",
+          "Always minimize parameters, because inference cost is the only scaling variable.",
+          "Skip a baseline; scaling laws predict exact downstream quality for every architecture and task."
+        ],
+        "answer": "Balance parameters and data under the compute budget, then validate downstream quality.",
+        "explanation": "Compute-optimal guidance balances parameters and training tokens, while data quality, architecture, and downstream transfer still need measurement. Scaling laws guide budgets, not exact guarantees."
+      },
+      {
+        "section": "Inference & Production Scale",
+        "question": "A draft model proposes five tokens, and the target model verifies them. What makes speculative decoding safe, and when can it lose?",
+        "options": [
+          "The target trusts all draft tokens; rejection is only for malformed UTF-8.",
+          "The target verifies proposals; low acceptance can erase draft speed gains.",
+          "The draft replaces target logits; speed comes from skipping target computation.",
+          "The server retrieves cached answers; speculative decoding doesn't run a second model."
+        ],
+        "answer": "The target verifies proposals; low acceptance can erase draft speed gains.",
+        "explanation": "The target model remains the authority for accepted sampling. A draft that poorly matches it causes rejects and extra verification work, so speed depends on acceptance and workload shape."
+      },
+      {
+        "section": "Inference & Production Scale",
+        "question": "A model accepts 128K tokens but misses a needle at middle depth while finding it at the edges. What follows?",
+        "options": [
+          "The context limit is effective because token ingestion succeeded; no retrieval test is needed.",
+          "The tokenizer must have dropped middle tokens; switch to character budgeting.",
+          "Sweep depth and layout, then compare ordered or retrieved evidence.",
+          "PagedAttention makes middle evidence reachable; allocation efficiency fixes position-dependent use."
+        ],
+        "answer": "Sweep depth and layout, then compare ordered or retrieved evidence.",
+        "explanation": "Accepted length proves capacity, not effective use. Depth sweeps expose lost-in-the-middle behavior, while retrieval, ordering, and packed evidence can reduce that failure."
+      },
+      {
+        "section": "Advanced Training & Adaptation",
+        "question": "An FP16 training run overflows after sequence length grows. Which response respects mixed-precision boundaries?",
+        "options": [
+          "Cast labels to strings; overflow comes from tokenization, not the numeric path.",
+          "Disable validation; loss overflow is expected and shouldn't block checkpoint selection.",
+          "Use a larger learning rate so FP16 gradients leave the unstable range quickly.",
+          "Inspect scaler overflow, keep FP32 update state, and compare BF16 support."
+        ],
+        "answer": "Inspect scaler overflow, keep FP32 update state, and compare BF16 support.",
+        "explanation": "FP16 has a narrower exponent range, so scaling and overflow backoff protect gradients. FP32 optimizer state preserves update resolution, while BF16 may offer wider range on supported hardware."
+      }
+    ]
+  },
+  {
+    "slug": "expert-ai-platform-judgment",
+    "title": "Expert AI Platform Judgment",
+    "level": "Expert",
+    "description": "Platform design, rollout judgment, agent safety, multimodal architecture, cost, governance, and operational tradeoffs.",
+    "estimatedMinutes": 12,
+    "sections": [
+      "System Design Capstones",
+      "Inference & Production Scale",
+      "Applied LLM Engineering",
+      "AI Lab Interviewing"
+    ],
+    "questions": [
+      {
+        "section": "System Design Capstones",
+        "question": "A tenant-scoped prefix is identical across two customers, but the packed context includes tenant-specific policy text. Which cache boundary is safe?",
+        "options": [
+          "Key cache entries by tenant and authorization context; shared GPU capacity still needs quotas and eviction.",
+          "Share by text hash across all tenants; identical bytes prove identical permission to reuse.",
+          "Disable authentication on cache hits; prefix reuse already proves the caller saw the same text.",
+          "Cache final answers globally; a shared prefix means account-specific evidence can't matter."
+        ],
+        "answer": "Key cache entries by tenant and authorization context; shared GPU capacity still needs quotas and eviction.",
+        "explanation": "Prefix bytes don't capture principal, ACL, or freshness. Tenant-scoped keys preserve isolation, while quotas and eviction prevent one tenant's cache from exhausting shared capacity."
+      },
+      {
+        "section": "Inference & Production Scale",
+        "question": "A gateway sees 503, 429 rate_limit, 429 credit_balance_exhausted, and 401. Which retry policy fits a bounded user request?",
+        "options": [
+          "Retry every error immediately; repeated attempts make transient and permanent failures equivalent.",
+          "Retry 503 and temporary rate limits with capped jitter and Retry-After; fail billing and auth errors.",
+          "Retry 401 and credit exhaustion after a delay; provider billing state usually repairs itself.",
+          "Fail all errors without classification; retry policy belongs entirely to the provider SDK."
+        ],
+        "answer": "Retry 503 and temporary rate limits with capped jitter and Retry-After; fail billing and auth errors.",
+        "explanation": "Failure codes carry different causes. Respect Retry-After and the application deadline for temporary overload, while authentication and credit failures need correction rather than more traffic."
+      },
+      {
+        "section": "Production ML Systems",
+        "question": "A new model wins offline but its 5% canary increases unsafe completions and p95 latency. What should the rollout controller do?",
+        "options": [
+          "Expand to 100% so more traffic averages away the small canary sample.",
+          "Ignore safety because the offline score is higher and latency can be optimized later.",
+          "Hold or roll back on predefined safety and latency gates, preserving the old version and trace.",
+          "Rewrite prompts in the canary and compare against the old model without recording the change."
+        ],
+        "answer": "Hold or roll back on predefined safety and latency gates, preserving the old version and trace.",
+        "explanation": "Offline quality doesn't override production guardrails. A canary reduces blast radius only when safety, latency, and rollback gates are defined and observed."
+      },
+      {
+        "section": "Applied LLM Engineering",
+        "question": "A benchmark score jumps after a tuning corpus contains near-duplicate benchmark prompts. Which evaluation repair is strongest?",
+        "options": [
+          "Keep the score and add more tuning epochs; duplication proves the model learned the task.",
+          "Replace every hard item with an easier one so contamination has less effect on variance.",
+          "Report only aggregate accuracy; contamination matters only for image benchmarks.",
+          "Decontaminate by exact or n-gram overlap, use private release items, and report corpus and version lineage."
+        ],
+        "answer": "Decontaminate by exact or n-gram overlap, use private release items, and report corpus and version lineage.",
+        "explanation": "Leakage makes a benchmark measure memorization or tuning exposure instead of transfer. Overlap checks and private suites make the release claim harder to game."
+      },
+      {
+        "section": "Advanced Agents & Retrieval",
+        "question": "A write tool times out after the provider may have created the resource. Which invariant should the agent runtime enforce?",
+        "options": [
+          "Reuse one scoped idempotency key and fingerprint to return one durable result after retry.",
+          "Generate a new key per attempt, then remove duplicates with a compensating delete.",
+          "Retry only if the model repeats the same natural-language plan; text is the action identity.",
+          "Never retry writes; uncertain outcomes can be safely left for manual reconciliation."
+        ],
+        "answer": "Reuse one scoped idempotency key and fingerprint to return one durable result after retry.",
+        "explanation": "The network outcome is uncertain, not necessarily the side effect. An atomic durable claim keyed by principal, operation, and arguments turns repeated delivery into one logical action."
+      },
+      {
+        "section": "Advanced Agents & Retrieval",
+        "question": "An agent can read account data and submit an irreversible rotation. Where should human approval sit?",
+        "options": [
+          "Before every read, because retrieving evidence is as irreversible as changing the account.",
+          "Approve after policy and authorization checks, before the irreversible write.",
+          "After the write, so the reviewer can approve the exact external state that already changed.",
+          "Never; approval breaks automation even when the action is costly or externally visible."
+        ],
+        "answer": "Approve after policy and authorization checks, before the irreversible write.",
+        "explanation": "Approval is most useful at a risk boundary. The reviewer should see validated action parameters and evidence before an external, costly, or hard-to-undo change."
+      },
+      {
+        "section": "Advanced Agents & Retrieval",
+        "question": "A support corpus contains contracts with entity relationships and multi-hop obligations, but flat hybrid retrieval already answers single-hop questions. When is GraphRAG justified?",
+        "options": [
+          "Whenever embeddings exist; graph extraction adds value independent of query structure.",
+          "Whenever documents are longer than a context window; a graph removes chunking and freshness work.",
+          "Use GraphRAG when measured multi-hop gains outweigh graph upkeep and storage.",
+          "Only when a language model can't answer any question without graph traversal."
+        ],
+        "answer": "Use GraphRAG when measured multi-hop gains outweigh graph upkeep and storage.",
+        "explanation": "Graphs add entities, edges, extraction errors, and upkeep. Compare them with a flat hybrid baseline on relationship-heavy tasks before accepting that complexity."
+      },
+      {
+        "section": "System Design Capstones",
+        "question": "A VLM must inspect high-resolution screenshots, but projected visual tokens consume most of the context and slow TTFT. Which design tradeoff is appropriate?",
+        "options": [
+          "Send raw pixels as text; text tokenization removes the visual-token budget.",
+          "Drop visual evidence and ask the language model to infer the screenshot from the filename.",
+          "Increase max output tokens; visual prefixes don't affect prefill or KV memory.",
+          "Compress visual tokens, then measure grounding, recall, and latency."
+        ],
+        "answer": "Compress visual tokens, then measure grounding, recall, and latency.",
+        "explanation": "Visual encoders turn pixels into a manageable representation, but compression can lose spatial evidence. Measure grounding and visual recall beside prefill, KV, and end-to-end latency."
+      },
+      {
+        "section": "System Design Capstones",
+        "question": "A diffusion service starts from Gaussian noise and must honor a text condition without copying a training image. Which core path should the design expose?",
+        "options": [
+          "Iterative learned denoising through a schedule, with conditioning guidance and provenance checks.",
+          "Nearest-neighbor image lookup followed by pixel sorting; generation is retrieval with a visual index.",
+          "One deterministic classifier pass from text to pixels; diffusion has no reverse-time loop.",
+          "SQL serialization of pixels before decoding; database rows replace the latent representation."
+        ],
+        "answer": "Iterative learned denoising through a schedule, with conditioning guidance and provenance checks.",
+        "explanation": "The reverse process repeatedly predicts how to remove noise under a conditioning signal. Guidance, sampling schedule, and provenance controls affect product behavior beyond the core denoiser."
+      },
+      {
+        "section": "Applied LLM Engineering",
+        "question": "A trace records 250 input tokens at $2 per million and 80 output tokens at $6 per million. Which estimated per-call cost is correct?",
+        "options": [
+          "Provider rates are charged per request rather than per million tokens, so this call costs $0.98.",
+          "$0.00098, plus fields for model, prompt version, latency, retries, cache usage, and status.",
+          "$0.000098, because output tokens are discounted by their shorter sequence.",
+          "$0.98, because provider rates are charged per request rather than per million tokens."
+        ],
+        "answer": "$0.00098, plus fields for model, prompt version, latency, retries, cache usage, and status.",
+        "explanation": "The calculation is 250×2/1,000,000 plus 80×6/1,000,000, which equals $0.00098. A useful trace also explains retries, cache hits, routing, and privacy without storing raw prompts."
+      },
+      {
+        "section": "Applied LLM Engineering",
+        "question": "A governance review asks why a model release was allowed. Which evidence chain supports an auditable answer?",
+        "options": [
+          "A prompt saying be safe and one aggregate score from the latest benchmark.",
+          "A private spreadsheet with no model or dataset identifiers, plus the launch date.",
+          "Track versions for data, model, eval, policy, approval, and rollout.",
+          "Provider marketing claims and a screenshot of the final answer; internal traces add noise."
+        ],
+        "answer": "Track versions for data, model, eval, policy, approval, and rollout.",
+        "explanation": "Reviewers need to reconstruct what changed, which evidence supported it, who approved the risk, and where the artifact was deployed. Aggregate claims can't provide that chain."
+      },
+      {
+        "section": "AI Lab Interviewing",
+        "question": "An iOS learner app must open lessons and theory quizzes on a flight, then sync progress after login. Which product boundary fits?",
+        "options": [
+          "Fetch every lesson live; offline login can't work, so quizzes should be disabled.",
+          "Bundle only images and metadata; quiz questions can be regenerated when the network returns.",
+          "Require login before reading; syncing progress is more important than offline access.",
+          "Compile static lessons and quizzes; sync progress and bookmarks after login."
+        ],
+        "answer": "Compile static lessons and quizzes; sync progress and bookmarks after login.",
+        "explanation": "Static course content can travel with the app and remain usable offline. Authentication is still useful for syncing progress and bookmarks, but it needn't gate core reading."
+      }
+    ]
+  }
+]

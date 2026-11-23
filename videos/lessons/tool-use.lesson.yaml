@@ -1,0 +1,2225 @@
+version: 1
+id: tool-use
+title: From a Model Request to a Tool Action
+source: agents/function-calling-tool-use-llms/content.md
+voice: en-US-AndrewNeural
+rate: +0%
+sources:
+  - title: Function calling
+    url: https://developers.openai.com/api/docs/guides/function-calling
+  - title: Handle tool calls
+    url: https://platform.claude.com/docs/en/agents-and-tools/tool-use/handle-tool-calls
+  - title: Models
+    url: https://pydantic.dev/docs/validation/latest/concepts/models/
+  - title: Strict Mode
+    url: https://pydantic.dev/docs/validation/latest/concepts/strict_mode/
+  - title: OpenAI Node SDK Chat Completions tool runner
+    url: https://github.com/openai/openai-node/blob/main/src/lib/AbstractChatCompletionRunner.ts
+  - title: Function calling with the Gemini API
+    url: https://ai.google.dev/gemini-api/docs/function-calling
+  - title: "Toolformer: Language Models Can Teach Themselves to Use Tools."
+    url: https://arxiv.org/abs/2302.04761
+  - title: "ReAct: Synergizing Reasoning and Acting in Language Models"
+    url: https://arxiv.org/abs/2210.03629
+  - title: "Not what you've signed up for: Compromising Real-World LLM-Integrated Applications with Indirect
+      Prompt Injection"
+    url: https://arxiv.org/abs/2302.12173
+  - title: Insecure Direct Object Reference Prevention Cheat Sheet
+    url: https://cheatsheetseries.owasp.org/cheatsheets/Insecure_Direct_Object_Reference_Prevention_Cheat_Sheet.html
+  - title: "AgentDojo: A Dynamic Environment to Evaluate Prompt Injection Attacks and Defenses for LLM Agents"
+    url: https://arxiv.org/abs/2406.13352
+  - title: Design Patterns for Securing LLM Agents against Prompt Injections
+    url: https://arxiv.org/abs/2506.08837
+  - title: Idempotent requests
+    url: https://docs.stripe.com/api/idempotent_requests
+  - title: Passing parameters to SQL queries
+    url: https://www.psycopg.org/psycopg3/docs/basic/params.html
+  - title: Server-Side Request Forgery Prevention Cheat Sheet
+    url: https://cheatsheetseries.owasp.org/cheatsheets/Server_Side_Request_Forgery_Prevention_Cheat_Sheet.html
+  - title: "Gorilla: Large Language Model Connected with Massive APIs."
+    url: https://arxiv.org/abs/2305.15334
+  - title: Tool search
+    url: https://developers.openai.com/api/docs/guides/tools-tool-search
+  - title: Tool search tool
+    url: https://platform.claude.com/docs/en/agents-and-tools/tool-use/tool-search-tool
+  - title: Berkeley Function-Calling Leaderboard
+    url: https://github.com/ShishirPatil/gorilla/tree/main/berkeley-function-call-leaderboard
+  - title: "Tau-Bench: A Benchmark for Tool-Agent-User Interaction in Real-World Domains"
+    url: https://arxiv.org/abs/2406.12045
+  - title: Define tools
+    url: https://platform.claude.com/docs/en/agents-and-tools/tool-use/define-tools
+  - title: "json: JSON encoder and decoder"
+    url: https://docs.python.org/3/library/json.html
+  - title: Introducing the Model Context Protocol
+    url: https://www.anthropic.com/news/model-context-protocol
+  - title: The 2026-07-28 Specification
+    url: https://blog.modelcontextprotocol.io/posts/2026-07-28/
+  - title: MCP 2026-07-28 Architecture
+    url: https://modelcontextprotocol.io/specification/2026-07-28/architecture
+  - title: MCP 2026-07-28 Tools
+    url: https://modelcontextprotocol.io/specification/2026-07-28/server/tools
+  - title: MCP 2026-07-28 Base Protocol
+    url: https://modelcontextprotocol.io/specification/2026-07-28/basic
+  - title: MCP servers
+    url: https://developers.openai.com/api/docs/guides/tools-connectors-mcp
+  - title: Security Best Practices
+    url: https://modelcontextprotocol.io/docs/2026-07-28/tutorials/security/security_best_practices
+scenes:
+  - id: subject-intro
+    title: Is River Walk available today?
+    visual: >-
+      A lookup slip slides out beside the book jacket. Follow read-7 to the library catalog and back to
+      Lena’s app. Fill the copy count when the call IDs match. Keep the reservation field separate.
+    beats:
+      - say: >-
+          The model asks for River Walk by its book number, B seven. Can Lena tell how many copies are
+          available yet?
+        hold: 2.2
+        caption_starts: ["Can Lena tell how many copies are available yet?"]
+        visual_cues:
+          - id: intro-request
+            phrase: "The model asks for River Walk"
+            targets: [intro-slip]
+            color: blue
+            linger: 0.35
+          - id: intro-count-question
+            phrase: "Can Lena tell how many copies are available yet"
+            targets: [intro-answer]
+            color: yellow
+            linger: 0.35
+      - say: >-
+          She needs the library’s reply. The lookup tool reads the catalog. Lena’s app checks the book number and
+          her permission to read the entry, then sends the lookup to the library. The catalog shows three copies. The reply
+          carries the same call ID as the request. When those IDs match, the model can tell Lena that three
+          copies are available.
+        hold: 1.1
+        visual_cues:
+          - id: intro-dispatch
+            phrase: "sends the lookup to the library"
+            targets: [intro-slip]
+            color: blue
+            linger: 0.35
+          - id: intro-copies
+            phrase: "The catalog shows three copies"
+            targets: [intro-shelf]
+            color: cyan
+            linger: 0.35
+            caption_boundary: true
+          - id: intro-return
+            phrase: "The reply carries the same call ID as the request"
+            targets: [intro-slip]
+            color: cyan
+            linger: 0.35
+          - id: intro-link
+            phrase: "When those IDs match"
+            targets: [intro-answer, intro-slip]
+            color: cyan
+            linger: 0.35
+      - say: >-
+          Lena wants one of those copies. Look at the reservation field. Did the lookup put a copy aside for her?
+        hold: 2.1
+        visual_cues:
+          - id: intro-hold-question
+            phrase: "Look at the reservation field"
+            targets: [intro-answer]
+            color: yellow
+            linger: 0.35
+      - say: >-
+          The lookup checked availability. A hold is a different tool call. The app checks permission for that
+          write. Lena gets a reservation number when the library records the hold.
+        hold: 1
+        visual_cues:
+          - id: intro-hold
+            phrase: "A hold is a different tool call"
+            targets: [intro-answer]
+            color: yellow
+            linger: 0.35
+            caption_boundary: true
+  - id: release-observation
+    title: Why did the canary fail?
+    visual: >-
+      File the release-status reply against status-1. Place its error budget on a fixed percent ruler before
+      plotting the returned rate and reading the gap.
+    beats:
+      - say: >-
+          Why did the canary for reranker version sixteen fail?
+          The assistant proposes a status lookup. The host checks the arguments and the engineer’s project, reads
+          the release service, and files the reply under the call number, status one.
+        hold: 0.8
+        visual_cues:
+          - id: release-propose
+            phrase: "proposes a status lookup"
+            targets: [release-slip]
+            color: blue
+            linger: 0.35
+          - id: release-read
+            phrase: "reads the release service"
+            targets: [release-slip]
+            color: blue
+            linger: 0.35
+          - id: release-file
+            phrase: "files the reply under the call number, status one"
+            targets: [release-slip]
+            color: cyan
+            linger: 0.35
+      - say: >-
+          Here’s what came back from our example service. The canary failed. The allowed error rate was two
+          percent. Keep your eye on that mark. The observed error rate was eight point one percent. By how many
+          percentage points did the canary exceed its budget?
+        hold: 2
+        caption_starts:
+          - "The observed error rate was eight point one percent."
+          - "By how many percentage points did the canary exceed its budget?"
+        visual_cues:
+          - id: release-status
+            phrase: "The canary failed"
+            targets: [release-slip]
+            color: cyan
+            linger: 0.35
+            caption_boundary: true
+          - id: release-budget
+            phrase: "The allowed error rate was two percent"
+            targets: [release-ruler]
+            color: yellow
+            linger: 0.35
+          - id: release-rate
+            phrase: "The observed error rate was eight point one percent"
+            targets: [release-ruler]
+            color: blue
+            linger: 0.35
+          - id: release-ask
+            phrase: "By how many percentage points did the canary exceed its budget"
+            targets: [release-ruler]
+            color: yellow
+            linger: 0.35
+      - say: >-
+          It exceeded its error budget by six point one percentage points. The second model turn can use those
+          two fields to explain the failure. To find which change caused the errors, the engineer would need more evidence.
+        hold: 1.1
+        visual_cues:
+          - id: release-gap
+            phrase: "It exceeded its error budget by six point one percentage points"
+            targets: [release-ruler]
+            color: cyan
+            linger: 0.35
+            caption_boundary: true
+      - say: >-
+          Here, the application ran the tool with its own service credentials. A provider can run a hosted tool
+          inside its service. Check where the call runs, what data crosses that boundary, and what those
+          credentials can reach. The host also has to handle a direct answer, several proposed calls, an invalid
+          request, or a refusal.
+        hold: 0.9
+        visual_cues:
+          - id: release-host
+            phrase: "A provider can run a hosted tool inside its service"
+            targets: [release-executor]
+            color: blue
+            linger: 0.35
+  - id: request-envelope
+    title: Make the proposal explicit
+    visual: A model turn constructs a complete tool name, book identifier, and call identifier in a bounded envelope.
+    beats:
+      - say: The host starts by describing its available tools. Our lookup needs a tool name and one book identifier.
+          A returned call also has an identifier linking it to its eventual result. Those fields form a
+          proposal that the dispatcher can inspect.
+        hold: 0.55
+        visual_cues:
+          - id: request-envelope-beat-1-focus-1
+            phrase: The host starts by describing its available tools
+            targets:
+              - request-envelope-fields
+              - request-envelope-object-collected-128-bytes-6
+            color: blue
+            linger: 0.6
+      - say: The host waits for a complete call before execution. Streaming text may arrive in fragments, and an early
+          fragment can resemble a valid request while its arguments remain incomplete. Apply size limits while
+          collecting it and handle refusal or malformed output explicitly.
+        hold: 0.75
+        motion_check:
+          region:
+            - 280
+            - 460
+            - 1320
+            - 400
+          minimumChangedFraction: 0.002
+        visual_cues:
+          - id: request-envelope-beat-2-focus-1
+            phrase: Apply size limits while collecting it and handle
+            targets:
+              - request-envelope-fields
+              - request-envelope-object-collected-128-bytes-6
+            color: blue
+            linger: 0.6
+      - say: Tool-call envelopes differ across APIs. Use the fields documented for the actual endpoint, then adapt
+          them into the runtime's internal record. Our displayed envelope is a teaching contract. Guessing a
+          universal text delimiter would make parsing and result linkage fragile.
+        hold: 0.55
+        visual_cues:
+          - id: request-envelope-beat-3-focus-1
+            phrase: Tool-call envelopes differ across APIs
+            targets:
+              - request-envelope-fields
+              - request-envelope-object-collected-128-bytes-6
+            color: blue
+            linger: 0.6
+  - id: provider-linkage
+    title: Attach each observation to its real provider call identity
+    visual: Construct endpoint-specific proposal/result pairs with independent item IDs and call IDs, then swap
+      one identifier and visibly reject the mismatched continuation.
+    beats:
+      - say: In OpenAI Responses, a function-call item has a name, JSON-string arguments, an item I D and a separate
+          call I D. Function-call output links with the call I D. In the article fixture, the item is f c
+          underscore item underscore one, while the call is status dash one. Attaching a result to the item
+          identifier would create the wrong link.
+        hold: 0.7
+        visual_cues:
+          - id: tu-provider-linkage-1
+            phrase: In OpenAI Responses, a function-call item has a name, JSON-string arguments, an item I D and a
+              separate call I D
+            targets:
+              - tu-provider-linkage-mechanism
+            color: cyan
+            linger: 0.4
+          - id: tu-response-call-link
+            phrase: Function-call output links with the call I D
+            targets:
+              - tu-provider-linkage-mechanism
+            color: cyan
+            linger: 0.4
+          - id: tu-response-wrong-id
+            phrase: Attaching a result to the item identifier would create the wrong link
+            targets:
+              - tu-provider-linkage-mechanism
+            color: cyan
+            linger: 0.4
+      - say: Chat Completions instead returns an assistant tool-calls entry with its I D and function arguments. The
+          application replies with a tool message whose tool-call I D matches. Claude Messages returns a
+          tool-use block with object-valued input; a tool-result block names its tool-use I D inside the next
+          user message, before any new text.
+        hold: 0.7
+        visual_cues:
+          - id: tu-provider-linkage-2
+            phrase: Chat Completions instead returns an assistant tool-calls entry with its I D and function arguments
+            targets:
+              - tu-provider-linkage-mechanism
+            color: cyan
+            linger: 0.4
+          - id: tu-chat-call-link
+            phrase: tool-call I D matches
+            targets:
+              - tu-provider-linkage-mechanism
+            color: cyan
+            linger: 0.4
+          - id: tu-claude-result-link
+            phrase: a tool-result block names its tool-use I D inside the next user message, before any new text
+            targets:
+              - tu-provider-linkage-mechanism
+            color: cyan
+            linger: 0.4
+      - say: Gemini Interactions returns a function-call step with object-valued arguments. Return a function-result
+          step with its name, call I D equal to the call step I D, and result content blocks. Stateful
+          continuation can use previous interaction I D; stateless continuation preserves the returned steps,
+          including thoughts. Preserve each endpoint’s required history rather than flattening every API into
+          one tool-message format.
+        hold: 0.7
+        visual_cues:
+          - id: tu-provider-linkage-3
+            phrase: Gemini Interactions returns a function-call step with object-valued arguments
+            targets:
+              - tu-provider-linkage-mechanism
+            color: green
+            linger: 0.4
+          - id: tu-gemini-result-link
+            phrase: call I D equal to the call step I D
+            targets:
+              - tu-provider-linkage-mechanism
+            color: cyan
+            linger: 0.4
+          - id: tu-gemini-history
+            phrase: including thoughts
+            targets:
+              - tu-provider-linkage-mechanism
+            color: cyan
+            linger: 0.4
+  - id: complete-batch
+    title: Collect and validate the whole batch before dispatch
+    visual: Accumulate bounded UTF-8 argument fragments for two calls. Mark response completion and each call
+      completion separately, then reject a batch whose later call is incomplete before dispatching its earlier
+      valid call.
+    beats:
+      - say: The article adapter requires response status completed and each function-call status completed. It
+          rejects missing, empty or duplicate call identifiers, a tool outside the allowlist, and arguments
+          that are not a string within two thousand forty-eight UTF-8 bytes. It then validates arguments with
+          the strict application model. These are independent gates before any authorization or service
+          execution.
+        hold: 0.7
+        visual_cues:
+          - id: tu-complete-batch-1
+            phrase: The article adapter requires response status completed and each function-call status completed
+            targets:
+              - tu-complete-batch-mechanism
+            color: cyan
+            linger: 0.4
+          - id: tu-batch-response-complete
+            phrase: response status completed and each function-call status completed
+            targets:
+              - tu-complete-batch-mechanism
+            color: cyan
+            linger: 0.4
+          - id: tu-batch-byte-limit
+            phrase: two thousand forty-eight UTF-8 bytes
+            targets:
+              - tu-complete-batch-mechanism
+            color: cyan
+            linger: 0.4
+      - say: Watch the second call. Its tool name is complete. Its release ID field stops at the colon, before
+          the value. The adapter rejects the whole batch. The first call never reaches the service.
+          While fragments arrive, the host also caps the number of bytes it collects.
+        hold: 0.7
+        visual_cues:
+          - id: tu-complete-batch-2
+            phrase: Watch the second call
+            targets:
+              - tu-complete-batch-mechanism
+            color: cyan
+            linger: 0.4
+          - id: tu-batch-late-invalid
+            phrase: The adapter rejects the whole batch
+            targets:
+              - tu-complete-batch-mechanism
+            color: cyan
+            linger: 0.4
+      - say: A zero-call response needs ordinary answer or refusal handling. Preserve non-call output items in
+          conversation history where the endpoint requires them. When several calls pass validation, keep
+          their IDs distinct. The host checks permission for each call and schedules the ones it allows.
+        hold: 0.7
+        visual_cues:
+          - id: tu-complete-batch-3
+            phrase: A zero-call response needs ordinary answer or refusal handling
+            targets:
+              - tu-complete-batch-mechanism
+            color: green
+            linger: 0.4
+          - id: tu-batch-zero-calls
+            phrase: A zero-call response needs ordinary answer or refusal handling
+            targets:
+              - tu-complete-batch-mechanism
+            color: cyan
+            linger: 0.4
+  - id: schema-validation
+    title: Check shape before touching a resource
+    visual: A string book ID passes; a numeric ID and a surprise write field take visible rejection branches.
+    beats:
+      - say: A JSON schema describes the shape of accepted arguments. Here book ID must be a nonempty string, and no
+          extra fields are accepted. The runtime parses and validates the model's arguments before trying to
+          resolve that resource.
+        hold: 0.55
+        visual_cues:
+          - id: schema-validation-beat-1-focus-1
+            phrase: A JSON schema describes the shape of accepted arguments
+            targets:
+              - schema-contract
+              - schema-valid
+            color: blue
+            linger: 0.6
+      - say: Watch a numeric identifier fail the type rule. Then watch a request with a surprise place-hold field fail
+          the extra-field rule. Both rejections keep an availability lookup narrow. A model cannot add a new
+          capability by inventing another argument.
+        hold: 0.75
+        visual_cues:
+          - id: schema-validation-beat-2-focus-1
+            phrase: Watch a numeric identifier fail the type rule
+            targets:
+              - schema-numeric
+              - schema-contract
+            color: blue
+            linger: 0.6
+          - id: schema-extra-field
+            phrase: Then watch a request with a surprise place-hold field fail the extra-field rule
+            targets:
+              - schema-extra-field
+              - schema-contract
+            color: pink
+            linger: 0.65
+      - say: Shape validation still leaves meaning to check. A string can name a missing book or a resource outside
+          this caller's account. Keep structured validation errors bounded, and distinguish a correctable
+          argument problem from a policy denial that another spelling will not fix.
+        hold: 0.55
+        visual_cues:
+          - id: schema-validation-beat-3-focus-1
+            phrase: Shape validation still leaves meaning to check
+            targets:
+              - schema-resource-meaning
+              - schema-valid
+            color: blue
+            linger: 0.6
+  - id: strict-contract
+    title: Represent optional values without permitting surprise authority
+    visual: Build the release_id and include_gates schema, then compare omission, null, true, numeric one, an
+      extra field and an invalid identifier through exact Pydantic checks.
+    beats:
+      - say: The complete release contract accepts a release identifier of one to one hundred twenty-eight ASCII
+          letters, digits, periods, underscores or hyphens, beginning with a letter or digit. Pydantic strict
+          mode rejects coercion for these strings and Booleans, while extra forbid rejects unknown fields.
+          Strict behavior is type-specific; JSON date strings can still be valid for date types.
+        hold: 0.7
+        visual_cues:
+          - id: tu-strict-contract-1
+            phrase: The complete release contract accepts a release identifier of one to one hundred twenty-eight ASCII
+              letters, digits, periods, underscores or hyphens, beginning with a letter or digit
+            targets:
+              - tu-strict-contract-mechanism
+            color: cyan
+            linger: 0.4
+          - id: tu-strict-identifier
+            phrase: beginning with a letter or digit
+            targets:
+              - tu-strict-contract-mechanism
+            color: cyan
+            linger: 0.4
+          - id: tu-strict-extra
+            phrase: extra forbid rejects unknown fields
+            targets:
+              - tu-strict-contract-mechanism
+            color: cyan
+            linger: 0.4
+      - say: The logical application model allows include gates to be omitted or null. Only the actual Boolean true
+          requests gate details; numeric one is rejected. In the documented OpenAI strict schema, every
+          property is required, so represent the optional value as Boolean or null and set additional
+          properties false on each object. Generation constraints still leave semantic value and permission
+          checks to the host.
+        hold: 0.7
+        visual_cues:
+          - id: tu-strict-contract-2
+            phrase: The logical application model allows include gates to be omitted or null
+            targets:
+              - tu-strict-contract-mechanism
+            color: cyan
+            linger: 0.4
+          - id: tu-strict-null
+            phrase: allows include gates to be omitted or null
+            targets:
+              - tu-strict-contract-mechanism
+            color: cyan
+            linger: 0.4
+          - id: tu-strict-bool
+            phrase: Only the actual Boolean true requests gate details; numeric one is rejected
+            targets:
+              - tu-strict-contract-mechanism
+            color: cyan
+            linger: 0.4
+          - id: tu-strict-required-null
+            phrase: represent the optional value as Boolean or null and set additional properties false on each object
+            targets:
+              - tu-strict-contract-mechanism
+            color: cyan
+            linger: 0.4
+      - say: The two article parsers have different duplicate-key behavior. The reader’s JSON dispatcher explicitly
+          rejects duplicate argument fields using an object-pairs hook. Do not infer that a strict type schema
+          alone supplies that policy. Default Python JSON keeps the last duplicate value; differing parser
+          policies can make components validate and execute different apparent requests.
+        hold: 0.7
+        visual_cues:
+          - id: tu-strict-contract-3
+            phrase: The two article parsers have different duplicate-key behavior
+            targets:
+              - tu-strict-contract-mechanism
+            color: green
+            linger: 0.4
+          - id: tu-duplicate-reader
+            phrase: explicitly rejects duplicate argument fields using an object-pairs hook
+            targets:
+              - tu-strict-contract-mechanism
+            color: cyan
+            linger: 0.4
+          - id: tu-duplicate-default
+            phrase: Default Python JSON keeps the last duplicate value
+            targets:
+              - tu-strict-contract-mechanism
+            color: cyan
+            linger: 0.4
+  - id: tool-choice
+    title: Let a required call finish as an answer on a later turn
+    visual: Apply auto, required, none and forced-function controls to successive generation turns while leaving
+      runtime permission unchanged.
+    beats:
+      - say: Tool choice controls generation for this turn. Auto permits an answer or one or more calls. Required
+          demands one or more calls. None disables calls, and a forced-function setting names a specific
+          function where supported. Set a required call only on the turn that needs it, then allow an answer;
+          leaving calls required can prevent completion.
+        hold: 0.7
+        visual_cues:
+          - id: tu-tool-choice-1
+            phrase: Tool choice controls generation for this turn
+            targets:
+              - tu-tool-choice-mechanism
+            color: cyan
+            linger: 0.4
+          - id: tu-choice-required-turn
+            phrase: Set a required call only on the turn that needs it, then allow an answer
+            targets:
+              - tu-tool-choice-mechanism
+            color: cyan
+            linger: 0.4
+          - id: tu-choice-loop
+            phrase: leaving calls required can prevent completion
+            targets:
+              - tu-tool-choice-mechanism
+            color: cyan
+            linger: 0.4
+      - say: OpenAI Responses and Chat Completions use different forced-function envelopes. Claude uses a type field
+          with auto, any, tool or none, and some models or thinking settings reject the forcing modes. Check
+          the selected endpoint and model. A generation setting does not dispatch the function or prove that
+          its requested effect is allowed.
+        hold: 0.7
+        visual_cues:
+          - id: tu-tool-choice-2
+            phrase: OpenAI Responses and Chat Completions use different forced-function envelopes
+            targets:
+              - tu-tool-choice-mechanism
+            color: cyan
+            linger: 0.4
+      - say: Parallel tool calls false limits the documented OpenAI generation to zero or one call, rather than making
+          a batch safe to execute. The current OpenAI guide says that when a fine-tuned model calls multiple
+          functions in one turn, strict mode is disabled for those calls. Keep those provider details in
+          adapters and compatibility checks, while the application independently enforces registration,
+          parsing, scope, execution and budgets.
+        hold: 0.7
+        visual_cues:
+          - id: tu-tool-choice-3
+            phrase: Parallel tool calls false limits the documented OpenAI generation to zero or one call, rather than
+              making a batch safe to execute
+            targets:
+              - tu-tool-choice-mechanism
+            color: green
+            linger: 0.4
+          - id: tu-choice-one-call
+            phrase: zero or one call
+            targets:
+              - tu-tool-choice-mechanism
+            color: cyan
+            linger: 0.4
+          - id: tu-choice-ft-limit
+            phrase: strict mode is disabled for those calls
+            targets:
+              - tu-tool-choice-mechanism
+            color: cyan
+            linger: 0.4
+  - id: authorization
+    title: Resolve permission in trusted runtime state
+    visual: A valid request encounters caller, action, and resource checks; private account data stays outside an
+      unauthorized read.
+    beats:
+      - say: The runtime identifies the caller from trusted session state. It resolves the requested resource and
+          checks whether that principal may perform that action. A model-supplied account name or a confident
+          explanation cannot substitute for the authenticated principal.
+        hold: 0.55
+        visual_cues:
+          - id: authorization-beat-1-focus-1
+            phrase: The runtime identifies the caller from trusted session state
+            targets:
+              - authorization-session
+            color: cyan
+            linger: 0.6
+          - id: authorization-check-action
+            phrase: checks whether that principal may perform that action
+            targets:
+              - authorization-policy
+              - authorization-node-req
+              - authorization-outcome
+            color: cyan
+            linger: 0.65
+      - say: Reads need this check too. A book's public availability may be readable, while another reader's borrowing
+          history is private. A valid resource identifier must not become a way to fetch whichever record the
+          host's broad service credentials happen to reach.
+        hold: 0.75
+        visual_cues:
+          - id: authorization-beat-2-focus-1
+            phrase: Reads need this check too
+            targets:
+              - authorization-session
+              - authorization-node-req
+              - authorization-policy
+            color: cyan
+            linger: 0.6
+          - id: authorization-private-history
+            phrase: another reader's borrowing history is private
+            targets:
+              - authorization-node-req
+              - authorization-policy
+              - authorization-outcome
+            color: pink
+            linger: 0.65
+      - say: "The request now passes for our authorized availability lookup. Notice where permission lives: in the
+          runtime's policy inputs and checks. Tool definitions guide what the model may propose; enforcement
+          controls what the application actually allows to happen."
+        hold: 0.55
+        visual_cues:
+          - id: authorization-beat-3-focus-1
+            phrase: The request now passes for our authorized availability lookup
+            targets:
+              - authorization-policy
+              - authorization-outcome
+            color: cyan
+            linger: 0.6
+  - id: scoped-read
+    title: Deny a cross-project read without returning another project’s row
+    visual: Resolve a schema-valid release selector against a trusted session project. Compare a missing release
+      and a foreign release and keep both payloads outside the model observation.
+    beats:
+      - say: This reader belongs to the ads project. The requested release belongs to search. The host looks up
+          the release and compares its project with the trusted session project. They differ, so the release
+          status and owner stay private.
+        hold: 0.7
+        visual_cues:
+          - id: tu-scoped-read-1
+            phrase: This reader belongs to the ads project
+            targets:
+              - tu-scoped-read-mechanism
+            color: cyan
+            linger: 0.4
+          - id: tu-read-resolved-scope
+            phrase: compares its project with the trusted session project
+            targets:
+              - tu-scoped-read-mechanism
+            color: cyan
+            linger: 0.4
+      - say: The fixture returns the same not-found-or-not-authorized code for a missing row and a cross-project row,
+          with no release payload. An operator can see the reason in the private audit log. To check whether
+          the service reveals which releases exist, test response times and its other endpoints too.
+        hold: 0.7
+        visual_cues:
+          - id: tu-scoped-read-2
+            phrase: The fixture returns the same not-found-or-not-authorized code for a missing row and a cross-project
+              row, with no release payload
+            targets:
+              - tu-scoped-read-mechanism
+            color: cyan
+            linger: 0.4
+          - id: tu-read-uniform-denial
+            phrase: with no release payload
+            targets:
+              - tu-scoped-read-mechanism
+            color: cyan
+            linger: 0.4
+      - say: The principal and tenant come from authenticated runtime state, never from model-supplied approved or
+          tenant fields. Broad service credentials can reach more than this caller may access. Check the
+          caller’s action and resolved resource on every request, including after discovery or an earlier
+          successful read. A schema cannot establish ownership.
+        hold: 0.7
+        visual_cues:
+          - id: tu-scoped-read-3
+            phrase: The principal and tenant come from authenticated runtime state, never from model-supplied approved or
+              tenant fields
+            targets:
+              - tu-scoped-read-mechanism
+            color: green
+            linger: 0.4
+          - id: tu-read-current-owner
+            phrase: including after discovery or an earlier successful read
+            targets:
+              - tu-scoped-read-mechanism
+            color: cyan
+            linger: 0.4
+  - id: observation-loop
+    title: Return the result to the request that made it
+    visual: The lookup returns an available-copies observation with the original call ID; a second model turn
+      reads the linked record.
+    beats:
+      - say: The runtime calls the library service and receives the current available-copy count. It records the tool
+          outcome and attaches the same call identifier to the observation. That association matters when
+          several independent reads are outstanding at once.
+        hold: 0.55
+        visual_cues:
+          - id: observation-loop-beat-1-focus-1
+            phrase: The runtime calls the library service
+            targets:
+              - observation-loop-object-lookup-book-b7-12
+              - observation-loop-object-library-service-13
+            color: blue
+            linger: 0.6
+          - id: observation-receive-count
+            phrase: receives the current available-copy count
+            targets:
+              - observation-returned-count
+              - observation-loop-object-library-service-13
+            color: green
+            linger: 0.65
+          - id: observation-record-outcome
+            phrase: It records the tool outcome
+            targets:
+              - observation-returned-count
+              - observation-linked-record
+            color: cyan
+            linger: 0.65
+          - id: observation-attach-call-id
+            phrase: attaches the same call identifier to the observation
+            targets:
+              - observation-linked-record
+              - observation-returned-count
+              - observation-loop-object-lookup-book-b7-12
+            color: yellow
+            linger: 0.65
+      - say: The next model turn can now answer from the returned evidence. A successful lookup means the tool
+          executed successfully, while the content may report an unavailable book. Keep transport status,
+          business result, source identity, and retrieval time distinct.
+        hold: 0.75
+        visual_cues:
+          - id: observation-loop-beat-2-focus-1
+            phrase: The next model turn can now answer from the returned evidence
+            targets:
+              - observation-model-turn-two
+              - observation-linked-record
+              - observation-evidence-answer
+            color: blue
+            linger: 0.6
+          - id: observation-loop-beat-2-focus-2
+            phrase: A successful lookup means the tool executed successfully
+            targets:
+              - observation-transport
+              - observation-business-result
+              - observation-source
+              - observation-retrieval-time
+            color: blue
+            linger: 0.6
+      - say: Treat returned text as data that may be mistaken or attacker controlled. A message inside a book
+          description saying place a hold now supplies no authority. A later proposed write must pass the same
+          runtime policy boundary using trusted inputs.
+        hold: 0.55
+        visual_cues:
+          - id: observation-untrusted-description
+            phrase: A message inside a book description saying place a hold now supplies no authority
+            targets:
+              - observation-book-description
+            color: cyan
+            linger: 0.6
+          - id: observation-write-proposal
+            phrase: A later proposed write
+            targets:
+              - observation-loop-object-model-proposal-place-hold-on-b7-21
+            color: cyan
+            linger: 0.6
+          - id: observation-policy-gate
+            phrase: runtime policy boundary using trusted inputs
+            targets:
+              - observation-loop-object-allowed-trusted-grant-allowed-denied-trusted-grant-22
+            color: cyan
+            linger: 0.6
+  - id: same-suite-reader
+    title: What can these evaluation receipts tell us?
+    visual: Execute the reader’s two get_eval calls, preserve c17/c16 and suite identity, then reject duplicate
+      version keys, an unauthorized version and an invented write tool.
+    beats:
+      - say: These two sample receipts come from the same ranking suite. Version seventeen scored zero point eight four.
+          Version sixteen scored zero point eight one. How far ahead is seventeen? Start with its score and
+          subtract sixteen’s.
+          Seventeen leads by three hundredths on this suite. A deployment decision goes through a separate
+          permission check.
+        hold: 0.7
+        caption_starts:
+          - "Version seventeen scored zero point eight four."
+          - "Version sixteen scored zero point eight one."
+          - "How far ahead is seventeen?"
+          - "Seventeen leads by three hundredths on this suite."
+        visual_cues:
+          - id: tu-same-suite-reader-1
+            phrase: These two sample receipts come from the same ranking suite
+            targets:
+              - tu-same-suite-reader-mechanism
+            color: cyan
+            linger: 0.4
+          - id: tu-eval-reader-inputs
+            phrase: Version seventeen scored zero point eight four
+            targets:
+              - tu-same-suite-reader-mechanism
+            color: cyan
+            linger: 0.4
+          - id: tu-eval-reader-sixteen
+            phrase: Version sixteen scored zero point eight one
+            targets: [tu-same-suite-reader-mechanism]
+            color: cyan
+            linger: 0.4
+          - id: tu-eval-reader-delta
+            phrase: Seventeen leads by three hundredths on this suite
+            targets:
+              - tu-same-suite-reader-mechanism
+            color: cyan
+            linger: 0.4
+      - say: The dispatcher permits only get evaluation, exactly one version field and a version inside the caller’s
+          trusted allowed set. It rejects an invented promote tool, an out-of-scope version, an added approved
+          flag, duplicate version fields and truncated JSON. These five rejections close different paths
+          before the dictionary service returns a result.
+        hold: 0.7
+        visual_cues:
+          - id: tu-same-suite-reader-2
+            phrase: The dispatcher permits only get evaluation, exactly one version field and a version inside the
+              caller’s trusted allowed set
+            targets:
+              - tu-same-suite-reader-mechanism
+            color: cyan
+            linger: 0.4
+          - id: tu-eval-reader-reject
+            phrase: These five rejections close different paths
+            targets:
+              - tu-same-suite-reader-mechanism
+            color: cyan
+            linger: 0.4
+      - say: Retain immutable result identity, suite, suite revision, score and gate through the final answer. Scores
+          from different suites cannot supply the requested like-for-like comparison. A response from an
+          authenticated connector can still contain hostile text. Keep useful observations as evidence without
+          promoting their embedded instructions into policy.
+        hold: 0.7
+        visual_cues:
+          - id: tu-same-suite-reader-3
+            phrase: Retain immutable result identity, suite, suite revision, score and gate through the final answer
+            targets:
+              - tu-same-suite-reader-mechanism
+            color: green
+            linger: 0.4
+  - id: write-gate
+    title: A hold needs an authorized intent
+    visual: An availability read and a hold request split into different effect paths; the hold passes a policy
+      gate only for the permitted reader and book.
+    beats:
+      - say: Now the user asks the assistant to place a hold on this book. The application has a new intended effect.
+          It validates the hold request and checks the caller, target book, account scope, and any approval
+          requirement set by its actual policy.
+        hold: 0.55
+        visual_cues:
+          - id: write-gate-beat-1-focus-1
+            phrase: assistant to place a hold on this book
+            targets:
+              - write-gate-node-request
+            color: cyan
+            linger: 0.6
+          - id: write-gate-beat-1-focus-2
+            phrase: target book
+            targets:
+              - write-gate-node-policy
+            color: cyan
+            linger: 0.6
+      - say: The demonstration supplies a trusted grant for this specific reader and book. Change the target or remove
+          the grant and the operation stops before an effect. The model's proposal remains the same kind of
+          structured object in both outcomes.
+        hold: 0.75
+        motion_check:
+          region:
+            - 150
+            - 420
+            - 1620
+            - 380
+          minimumChangedFraction: 0.002
+        visual_cues:
+          - id: write-gate-beat-2-focus-1
+            phrase: The demonstration supplies a trusted grant for this specific reader and book
+            targets:
+              - write-gate-node-policy
+            color: cyan
+            linger: 0.6
+          - id: write-change-target
+            phrase: Change the target
+            targets:
+              - write-gate-node-request
+              - write-gate-node-policy
+              - write-gate-node-effect
+            color: pink
+            linger: 0.65
+          - id: write-remove-grant
+            phrase: remove the grant
+            targets:
+              - write-gate-node-policy
+              - write-gate-node-effect
+            color: pink
+            linger: 0.65
+          - id: write-gate-beat-2-focus-2
+            phrase: grant and the operation stops before an effect
+            targets:
+              - write-gate-node-effect
+            color: cyan
+            linger: 0.6
+      - say: Keep the approved payload concrete and resource bound. A previous read may become stale, and permission
+          can change before execution. Recheck mutable conditions at the point the effect runs, then verify
+          what the service actually changed before reporting that the hold exists.
+        hold: 0.55
+        visual_cues:
+          - id: write-gate-beat-3-focus-1
+            phrase: and permission can change before execution
+            targets:
+              - write-gate-node-policy
+              - write-gate-node-request
+            color: cyan
+            linger: 0.6
+          - id: write-gate-beat-3-focus-2
+            phrase: Recheck mutable conditions at the point the effect runs
+            targets:
+              - write-gate-node-policy
+            color: cyan
+            linger: 0.6
+          - id: write-verify-result
+            phrase: verify what the service actually changed
+            targets:
+              - write-verified-result
+              - write-gate-node-effect
+            color: green
+            linger: 0.65
+  - id: promotion-policy
+    title: May this promotion go through?
+    visual: >-
+      Keep Alice’s approval and saved op-A receipt fixed. Fail the live release gate, follow the retry up to that
+      gate, then restore it and trace the same request to the saved result.
+    beats:
+      - say: >-
+          The model supplies just the release identifier. Alice’s trusted session supplies the promotion role. The
+          release must belong to her project and pass its current release policy. The host looks up the actual
+          candidate. A human approval on file must bind Alice, the project, this action, this candidate, the
+          policy version, and the operation key. The host checks all of that before it looks for a saved result.
+        hold: 0.8
+        visual_cues:
+          - id: tu-promotion-policy-1
+            phrase: "The model supplies just the release identifier"
+            targets: [tu-promotion-policy-mechanism]
+            color: blue
+            linger: 0.35
+          - id: tu-promote-role
+            phrase: "supplies the promotion role"
+            targets: [tu-promotion-policy-mechanism]
+            color: cyan
+            linger: 0.35
+          - id: tu-promote-project
+            phrase: "must belong to her project"
+            targets: [tu-promotion-policy-mechanism]
+            color: cyan
+            linger: 0.35
+          - id: tu-promote-policy
+            phrase: "pass its current release policy"
+            targets: [tu-promotion-policy-mechanism]
+            color: cyan
+            linger: 0.35
+          - id: tu-promote-approval
+            phrase: "A human approval on file must bind Alice, the project, this action, this candidate, the policy version, and the operation key"
+            targets: [tu-promotion-policy-mechanism]
+            color: cyan
+            linger: 0.35
+          - id: tu-promote-before-ledger
+            phrase: "before it looks for a saved result"
+            targets: [tu-promotion-policy-mechanism]
+            color: yellow
+            linger: 0.35
+      - say: >-
+          Suppose the model adds an approval field. The shape check rejects the extra field. The host obtains
+          approval and the operation key from its own records. Someone else’s approval, or one for different
+          weights, would also fail. This tool requires a human decision. Other tools have their own policies. The
+          host still checks the caller even if a tool result contains a persuasive instruction. If the host spends
+          its own promotion privilege on a caller who lacks it, it becomes a confused deputy.
+        hold: 0.8
+        visual_cues:
+          - id: tu-promotion-policy-2
+            phrase: "Suppose the model adds an approval field"
+            targets: [tu-promotion-policy-mechanism]
+            color: blue
+            linger: 0.35
+          - id: tu-promote-forgery
+            phrase: "The shape check rejects the extra field"
+            targets: [tu-promotion-policy-mechanism]
+            color: yellow
+            linger: 0.35
+            caption_boundary: true
+      - say: >-
+          Alice’s first promotion went through. The service saved its receipt under operation A, but Alice lost
+          the reply. Before her retry, the release gate flips to failed. The approval, the candidate, and the
+          operation key still match. Can the host return that saved success now?
+        hold: 2.3
+        visual_cues:
+          - id: policy-record
+            phrase: "The service saved its receipt under operation A"
+            targets: [policy-ledger]
+            color: cyan
+            linger: 0.35
+          - id: policy-flips
+            phrase: "the release gate flips to failed"
+            targets: [policy-path]
+            color: yellow
+            linger: 0.35
+          - id: policy-retry-question
+            phrase: "Can the host return that saved success now"
+            targets: [policy-path, policy-ledger]
+            color: yellow
+            linger: 0.35
+      - say: >-
+          The retry stops at the failed gate. The service still has the first promotion on file. Now the gate
+          passes again. Alice retries with the same key and approval. This time the checks reach the ledger. She
+          gets the saved receipt, with one promotion in all. The host must recheck any mutable condition at
+          execution, including the caller’s current role. A real approval also binds the relevant parameters and
+          an expiry. When a version can change between checking and writing, make the write conditional on its
+          revision.
+        hold: 1.4
+        visual_cues:
+          - id: policy-block
+            phrase: "The retry stops at the failed gate"
+            targets: [policy-path]
+            color: yellow
+            linger: 0.35
+            caption_boundary: true
+          - id: policy-restore
+            phrase: "Now the gate passes again"
+            targets: [policy-path]
+            color: blue
+            linger: 0.35
+          - id: policy-travel
+            phrase: "This time the checks reach the ledger"
+            targets: [policy-path, policy-ledger]
+            color: cyan
+            linger: 0.35
+          - id: policy-replayed
+            phrase: "She gets the saved receipt, with one promotion in all"
+            targets: [policy-ledger]
+            color: cyan
+            linger: 0.35
+            caption_boundary: true
+  - id: retry-identity
+    title: What happened to Lena’s hold?
+    visual: >-
+      Follow the missing return slip. Fork the saved B7 ledger at the timeout, submit the same book under two
+      different key choices, and reconcile a separate service by submission reference.
+    beats:
+      - say: >-
+          Lena has authorized one hold on River Walk. The library files hold one under operation seventeen. Its
+          receipt starts back across the desk, but the connection drops. Lena’s app times out. From her side of
+          the desk, can she tell whether the library saved the hold?
+        hold: 2.1
+        visual_cues:
+          - id: hold-file
+            phrase: "files hold one under operation seventeen"
+            targets: [hold-target]
+            color: cyan
+            linger: 0.35
+          - id: hold-lost
+            phrase: "Its receipt starts back across the desk, but the connection drops"
+            targets: [hold-return]
+            color: yellow
+            linger: 0.35
+          - id: hold-timeout
+            phrase: "Lena’s app times out"
+            targets: [hold-caller]
+            color: yellow
+            linger: 0.35
+      - say: >-
+          Her app has no receipt. Start both ledgers at that same timeout. Each already holds the record for B
+          seven. Send the same book again. On the left, reuse operation seventeen. On the right, give the retry a
+          fresh key, operation eighteen. This library checks the key and the book before it creates a hold. How
+          many holds will each ledger contain?
+        hold: 2.4
+        visual_cues:
+          - id: hold-same-key
+            phrase: "On the left, reuse operation seventeen"
+            targets: [hold-left]
+            color: blue
+            linger: 0.35
+          - id: hold-new-key
+            phrase: "On the right, give the retry a fresh key, operation eighteen"
+            targets: [hold-right]
+            color: blue
+            linger: 0.35
+          - id: hold-fork-question
+            phrase: "How many holds will each ledger contain"
+            targets: [hold-left, hold-right]
+            color: yellow
+            linger: 0.35
+      - say: >-
+          On the left, the book matches the entry under seventeen. The library sends back hold one. On the right,
+          eighteen has no entry. The library creates hold two for the same book. Both sides received two requests.
+          Only the fresh key placed a second hold. Reusing a key for the same intended write is how this service
+          makes a retry idempotent.
+        hold: 1.3
+        visual_cues:
+          - id: hold-match
+            phrase: "the book matches the entry under seventeen"
+            targets: [hold-left]
+            color: blue
+            linger: 0.35
+          - id: hold-replay
+            phrase: "The library sends back hold one"
+            targets: [hold-left]
+            color: cyan
+            linger: 0.35
+            caption_boundary: true
+          - id: hold-miss
+            phrase: "eighteen has no entry"
+            targets: [hold-right]
+            color: blue
+            linger: 0.35
+          - id: hold-duplicate
+            phrase: "The library creates hold two for the same book"
+            targets: [hold-right]
+            color: cyan
+            linger: 0.35
+            caption_boundary: true
+      - say: >-
+          Reset to the original hold. This time keep seventeen and change just the book to B eight. The service
+          finds B seven filed under that key. It rejects the mismatch and keeps the original hold. To handle
+          simultaneous requests, the library must let just one claim the key and save the hold as one change.
+          A retry for the same book can reuse that entry for as long as the library keeps it.
+        hold: 1.2
+        visual_cues:
+          - id: hold-conflict-input
+            phrase: "change just the book to B eight"
+            targets: [hold-client-request]
+            color: blue
+            linger: 0.35
+          - id: hold-conflict-result
+            phrase: "It rejects the mismatch and keeps the original hold"
+            targets: [hold-target]
+            color: yellow
+            linger: 0.35
+            caption_boundary: true
+          - id: hold-save-together
+            phrase: "claim the key and save the hold as one change"
+            targets: [hold-target]
+            color: cyan
+            linger: 0.35
+      - say: >-
+          Suppose a different library gives Lena a submission reference but offers no guarantee about repeat
+          writes. Her receipt is missing again. She can ask for the status of that same submission. The status
+          read finds hold one. Now she can report the hold. If the read leaves the outcome unclear, keep the
+          request pending.
+        hold: 1.1
+        visual_cues:
+          - id: hold-status-read
+            phrase: "ask for the status of that same submission"
+            targets: [hold-status]
+            color: blue
+            linger: 0.35
+          - id: hold-status-found
+            phrase: "The status read finds hold one"
+            targets: [hold-status, hold-caller]
+            color: cyan
+            linger: 0.35
+            caption_boundary: true
+  - id: intent-ledger
+    title: Separate a replayed operation from a newly approved intent
+    visual: Apply the article target’s project/action/operation key and complete request fingerprint, lose the
+      first response, replay its result, then submit a distinct approval and a corrupted collision.
+    beats:
+      - say: The article mock target keys operations by project, action and trusted operation I D. Its fingerprint
+          binds principal, project, action, release, candidate and policy version. After one recorded
+          promotion loses its reply, retrying the original approved intent returns the saved result. Two
+          requests have still applied one logical effect.
+        hold: 0.7
+        visual_cues:
+          - id: tu-intent-ledger-1
+            phrase: The article mock target keys operations by project, action and trusted operation I D
+            targets:
+              - tu-intent-ledger-mechanism
+            color: cyan
+            linger: 0.4
+          - id: tu-intent-lost-reply
+            phrase: one recorded promotion loses its reply
+            targets:
+              - tu-intent-ledger-mechanism
+            color: cyan
+            linger: 0.4
+          - id: tu-intent-replay
+            phrase: returns the saved result
+            targets:
+              - tu-intent-ledger-mechanism
+            color: cyan
+            linger: 0.4
+          - id: tu-intent-one-effect
+            phrase: Two requests have still applied one logical effect
+            targets:
+              - tu-intent-ledger-mechanism
+            color: cyan
+            linger: 0.4
+      - say: A separate approval for the same target gets a new operation identity and applies a second intended
+          operation. Reusing the first identity for a different candidate is a collision and is rejected
+          without another effect. A new transport call identifier does not make a retry a new approved intent,
+          and a new approval is not a replay.
+        hold: 0.7
+        visual_cues:
+          - id: tu-intent-ledger-2
+            phrase: A separate approval for the same target gets a new operation identity and applies a second intended
+              operation
+            targets:
+              - tu-intent-ledger-mechanism
+            color: cyan
+            linger: 0.4
+          - id: tu-intent-second
+            phrase: applies a second intended operation
+            targets:
+              - tu-intent-ledger-mechanism
+            color: cyan
+            linger: 0.4
+          - id: tu-intent-collision
+            phrase: a collision and is rejected without another effect
+            targets:
+              - tu-intent-ledger-mechanism
+            color: cyan
+            linger: 0.4
+          - id: tu-intent-attempt
+            phrase: "Reusing the first identity for a different candidate"
+            targets:
+              - tu-intent-ledger-mechanism
+            color: cyan
+            linger: 0.4
+      - say: This example keeps its ledger in memory. Suppose the release service promotes the candidate,
+          then the caller crashes before it can save the receipt. The service needs a durable record of that
+          operation, saved along with the promotion, so that concurrent retries find the same result. If the
+          key has expired, use the service’s status record to reconcile the original promotion.
+        hold: 0.7
+        visual_cues:
+          - id: tu-intent-ledger-3
+            phrase: This example keeps its ledger in memory
+            targets:
+              - tu-intent-ledger-mechanism
+            color: green
+            linger: 0.4
+  - id: parameter-boundaries
+    title: Keep validated strings in data positions
+    visual: Move a release ID into a bound SQL parameter and fixed argv slot, then test a redirect destination and
+      a resolved path against their actual boundary checks.
+    beats:
+      - say: A valid string can still become executable syntax if interpolated into a query or shell command. Psycopg
+          takes a fixed SQL statement with a percent s placeholder and a separate parameter tuple. Pass an
+          allowed value through that binding. Do not turn the value into SQL source by formatting it into the
+          query.
+        hold: 0.7
+        visual_cues:
+          - id: tu-parameter-boundaries-1
+            phrase: A valid string can still become executable syntax if interpolated into a query or shell command
+            targets:
+              - tu-parameter-boundaries-mechanism
+            color: cyan
+            linger: 0.4
+          - id: tu-sql-bound-value
+            phrase: a separate parameter tuple
+            targets:
+              - tu-parameter-boundaries-mechanism
+            color: cyan
+            linger: 0.4
+      - say: For a fixed executable, use an argument list with shell false and an allowlist of flags. That avoids
+          shell parsing but does not make arbitrary program options safe. URL tools need allowed schemes and
+          hosts, checked resolved addresses, and disabled redirects or validation at each hop, backed by
+          network restrictions on internal and metadata endpoints.
+        hold: 0.7
+        visual_cues:
+          - id: tu-parameter-boundaries-2
+            phrase: For a fixed executable, use an argument list with shell false and an allowlist of flags
+            targets:
+              - tu-parameter-boundaries-mechanism
+            color: cyan
+            linger: 0.4
+          - id: tu-argv-shell-false
+            phrase: an argument list with shell false
+            targets:
+              - tu-parameter-boundaries-mechanism
+            color: cyan
+            linger: 0.4
+          - id: tu-url-redirect
+            phrase: validation at each hop
+            targets:
+              - tu-parameter-boundaries-mechanism
+            color: cyan
+            linger: 0.4
+      - say: Resolve file paths inside a reviewed root, including symlinks; a substring test for dot dot is
+          insufficient. Cap payload size, calls and concurrent effects. Use short-lived tool-scoped
+          credentials. The host enforces these limits each time it runs a tool.
+        hold: 0.7
+        visual_cues:
+          - id: tu-parameter-boundaries-3
+            phrase: Resolve file paths inside a reviewed root, including symlinks; a substring test for dot dot is
+              insufficient
+            targets:
+              - tu-parameter-boundaries-mechanism
+            color: green
+            linger: 0.4
+          - id: tu-path-resolved
+            phrase: including symlinks
+            targets:
+              - tu-parameter-boundaries-mechanism
+            color: cyan
+            linger: 0.4
+  - id: error-classes
+    title: Choose recovery from the actual failure class
+    visual: Keep validation error, policy denial, transient read failure and unknown write as four typed states
+      with different allowed transitions.
+    beats:
+      - say: A missing field can return as a short structured observation so the model may propose a changed call on a
+          bounded later turn. Revalidate the corrected call from the beginning. Authorization or policy denial
+          waits for trusted state to change; a different spelling or invented identity is not a correction.
+        hold: 0.7
+        visual_cues:
+          - id: tu-error-classes-1
+            phrase: A missing field can return as a short structured observation so the model may propose a changed call
+              on a bounded later turn
+            targets:
+              - tu-error-classes-mechanism
+            color: cyan
+            linger: 0.4
+          - id: tu-error-revalidate
+            phrase: Revalidate the corrected call from the beginning
+            targets:
+              - tu-error-classes-mechanism
+            color: cyan
+            linger: 0.4
+          - id: tu-error-denial-waits
+            phrase: Authorization or policy denial waits for trusted state to change
+            targets:
+              - tu-error-classes-mechanism
+            color: cyan
+            linger: 0.4
+      - say: Transient failure on an idempotent read can retry inside the runtime with backoff under one end-to-end
+          deadline. Do not ask the model to guess a new release I D. A timed-out write has an unknown outcome
+          if the destination may have committed. Reconcile under the original operation identity instead of
+          issuing a fresh write.
+        hold: 0.7
+        visual_cues:
+          - id: tu-error-classes-2
+            phrase: Transient failure on an idempotent read can retry inside the runtime with backoff under one end-to-end
+              deadline
+            targets:
+              - tu-error-classes-mechanism
+            color: cyan
+            linger: 0.4
+          - id: tu-error-unknown-write
+            phrase: A timed-out write has an unknown outcome if the destination may have committed
+            targets:
+              - tu-error-classes-mechanism
+            color: cyan
+            linger: 0.4
+      - say: Return bounded error codes and useful fields, not stack traces or secrets. HTTP success can carry a
+          failed application result, and queued means accepted rather than completed. Preserve status,
+          observation time and source identity. Cap bytes collected and tokens returned, and strip secrets
+          before any model or remote service sees the content.
+        hold: 0.7
+        visual_cues:
+          - id: tu-error-classes-3
+            phrase: Return bounded error codes and useful fields, not stack traces or secrets
+            targets:
+              - tu-error-classes-mechanism
+            color: green
+            linger: 0.4
+          - id: tu-error-queued
+            phrase: queued means accepted rather than completed
+            targets:
+              - tu-error-classes-mechanism
+            color: cyan
+            linger: 0.4
+  - id: repeated-proposal
+    title: A new call ID cannot repair the same rejected action
+    visual: Canonicalize only tool name and arguments for two rejected proposals with different transport IDs.
+      Count model proposals separately from service dispatches and stop before a repeated invalid action
+      executes.
+    beats:
+      - say: The repeated-call fixture fingerprints the tool name and arguments with sorted JSON keys. It excludes the
+          transport identifier. A second proposal with a new call I D but the same rejected action is stopped.
+          Reordering argument keys also leaves that canonical action unchanged.
+        hold: 0.7
+        visual_cues:
+          - id: tu-repeated-proposal-1
+            phrase: The repeated-call fixture fingerprints the tool name and arguments with sorted JSON keys
+            targets:
+              - tu-repeated-proposal-mechanism
+            color: cyan
+            linger: 0.4
+          - id: tu-repeat-no-id
+            phrase: It excludes the transport identifier
+            targets:
+              - tu-repeated-proposal-mechanism
+            color: cyan
+            linger: 0.4
+          - id: tu-repeat-sorted
+            phrase: Reordering argument keys also leaves that canonical action unchanged
+            targets:
+              - tu-repeated-proposal-mechanism
+            color: cyan
+            linger: 0.4
+      - say: Count proposals and dispatched service calls separately. Two invalid proposals can spend two model
+          generations while dispatching zero operations. A tool log alone would miss that generation spend.
+          Set a proposal-turn cap, attempted-call budget, time deadline and cost limit outside the prompt.
+        hold: 0.7
+        visual_cues:
+          - id: tu-repeated-proposal-2
+            phrase: Count proposals and dispatched service calls separately
+            targets:
+              - tu-repeated-proposal-mechanism
+            color: cyan
+            linger: 0.4
+          - id: tu-repeat-two-zero
+            phrase: Two invalid proposals can spend two model generations while dispatching zero operations
+            targets:
+              - tu-repeated-proposal-mechanism
+            color: cyan
+            linger: 0.4
+      - say: A changed request earns at most another bounded validation attempt. It still cannot widen its own
+          permissions. If the same unknown-tool error repeats, investigate whether the catalog can satisfy the
+          task instead of adding a general shell. Stop with a clear unresolved limitation when the available
+          authorized actions cannot finish the request.
+        hold: 0.7
+        visual_cues:
+          - id: tu-repeated-proposal-3
+            phrase: A changed request earns at most another bounded validation attempt
+            targets:
+              - tu-repeated-proposal-mechanism
+            color: green
+            linger: 0.4
+  - id: required-fan-in
+    title: Which release can the engineer select?
+    visual: Keep the two required release slots fixed. Compare the same local reads with a timeout, a complete pair, and a duplicate call ID. Show each returned error rate against the common budget.
+    beats:
+      - say: >-
+          The engineer asks for a comparison of versions sixteen and seventeen. The host marks those two reads as
+          required before either runs. It can launch both authorized reads together. Seventeen comes back clean,
+          with nine errors per thousand requests. The limit is twenty. Sixteen’s lookup times out. Can the
+          engineer pick a candidate from this pair?
+        hold: 2.15
+        visual_cues:
+          - id: join-launch
+            phrase: "launch both authorized reads together"
+            targets: [join-pair]
+            color: blue
+            linger: 0.35
+          - id: join-seventeen
+            phrase: "Seventeen comes back clean, with nine errors per thousand requests"
+            targets: [join-b]
+            color: cyan
+            linger: 0.35
+          - id: join-first-timeout
+            phrase: "Sixteen’s lookup times out"
+            targets: [join-a]
+            color: yellow
+            linger: 0.35
+          - id: join-partial-question
+            phrase: "Can the engineer pick a candidate from this pair"
+            targets: [join-pair, join-decision]
+            color: yellow
+            linger: 0.35
+      - say: >-
+          The comparison has to wait. Seventeen’s low rate tells us nothing about sixteen’s missing result. File
+          the timeout under its own call number. The host records a timeout or a dropped connection as a failed
+          read and lets unexpected programming errors surface. While one read waits, the other can finish.
+        hold: 0.95
+        visual_cues:
+          - id: join-wait
+            phrase: "The comparison has to wait"
+            targets: [join-decision]
+            color: yellow
+            linger: 0.35
+            caption_boundary: true
+      - say: >-
+          Try the same two calls again in a separate run. This time sixteen returns its record. Its canary failed
+          with eighty-one errors per thousand. Seventeen is still clean at nine. With both results in their
+          slots, keep the clean releases within budget, then choose the one with the lowest error rate. Which
+          version qualifies?
+        hold: 2.1
+        caption_starts:
+          - "Its canary failed with eighty-one errors per thousand."
+          - "Which version qualifies?"
+        visual_cues:
+          - id: join-complete
+            phrase: "sixteen returns its record"
+            targets: [join-a]
+            color: blue
+            linger: 0.35
+          - id: join-sixteen
+            phrase: "Its canary failed with eighty-one errors per thousand"
+            targets: [join-a]
+            color: cyan
+            linger: 0.35
+          - id: join-compare
+            phrase: "With both results in their slots"
+            targets: [join-pair]
+            color: cyan
+            linger: 0.35
+      - say: >-
+          Seventeen qualifies. That selects a candidate. Sending a promotion still requires current policy and
+          trusted approval. Now change just the second receipt. Suppose another copy of the first reply arrives
+          in its place. There are still two replies. Can they fill the two required slots?
+        hold: 2
+        visual_cues:
+          - id: join-select
+            phrase: "Seventeen qualifies"
+            targets: [join-decision]
+            color: cyan
+            linger: 0.35
+            caption_boundary: true
+          - id: join-duplicate
+            phrase: "another copy of the first reply arrives in its place"
+            targets: [join-b]
+            color: blue
+            linger: 0.35
+          - id: join-duplicate-question
+            phrase: "Can they fill the two required slots"
+            targets: [join-pair, join-decision]
+            color: yellow
+            linger: 0.35
+      - say: >-
+          Both copies carry call one. The slot for call two is empty. The host checks for exactly one reply per
+          required call, a matching release, and a success flag that is literally Boolean true. An extra
+          exploratory lookup can fail without blocking a comparison that never needed it. Cap concurrency, keep
+          one deadline for the task, and wait for every required read before acting on the result.
+        hold: 1.25
+        visual_cues:
+          - id: join-duplicate-verdict
+            phrase: "The slot for call two is empty"
+            targets: [join-pair, join-decision]
+            color: yellow
+            linger: 0.35
+            caption_boundary: true
+  - id: permission-before-ranking
+    title: Which tools reach this model turn?
+    visual: >-
+      Filter the catalog for a triage session. Project each permitted unit vector onto the query axis, select one
+      tool, and leave the unfilled task requirement visible.
+    beats:
+      - say: >-
+          Here are four tools in the host’s catalog. This caller has triage access. Filter by role and resource
+          scope first. Even a tool description can disclose information. That leaves the status and policy reads.
+          With two slots both reach the model. Check permission again when a call comes back. We’ll use
+          hand-picked coordinates to see what happens when there’s just one slot.
+        hold: 0.9
+        visual_cues:
+          - id: tu-permission-before-ranking-1
+            phrase: "four tools in the host’s catalog"
+            targets: [tu-permission-before-ranking-mechanism]
+            color: blue
+            linger: 0.35
+          - id: tu-rank-permission
+            phrase: "Filter by role and resource scope first"
+            targets: [tu-permission-before-ranking-mechanism]
+            color: cyan
+            linger: 0.35
+      - say: >-
+          Represent a tool and a query as arrows. Cosine similarity compares their directions. Normalize each
+          arrow, then multiply matching coordinates and add. That sum is their dot product. To normalize, divide
+          by the vector’s length, the square root of the sum of its squared coordinates. Our helper takes three
+          finite numbers. It first rescales by the largest absolute coordinate to prevent overflow, and clamps the
+          final cosine to the range from minus one to one. A zero vector has no direction, so the helper rejects
+          it.
+        hold: 1
+        visual_cues:
+          - id: tu-permission-before-ranking-2
+            phrase: "Cosine similarity compares their directions"
+            targets: [tu-permission-before-ranking-mechanism]
+            color: blue
+            linger: 0.35
+          - id: tu-rank-dot
+            phrase: "multiply matching coordinates and add"
+            targets: [tu-permission-before-ranking-mechanism]
+            color: cyan
+            linger: 0.35
+          - id: tu-rank-norm
+            phrase: "the square root of the sum of its squared coordinates"
+            targets: [tu-permission-before-ranking-mechanism]
+            color: cyan
+            linger: 0.35
+          - id: tu-rank-zero
+            phrase: "A zero vector has no direction"
+            targets: [tu-permission-before-ranking-mechanism]
+            color: yellow
+            linger: 0.35
+      - say: >-
+          The query points straight to the right. Both permitted arrows already have length one. Drop a line from
+          A to the horizontal axis. It lands at zero point six. Do the same for B. It lands at zero point eight.
+          Those horizontal distances are the two cosine scores. The write tool points straight along the query,
+          but it was removed before scoring. There’s one slot, and the job needs both reads. Which tool fills the
+          slot, and can the job finish?
+        hold: 2.2
+        caption_starts:
+          - "It lands at zero point six."
+          - "It lands at zero point eight."
+          - "Which tool fills the slot, and can the job finish?"
+        visual_cues:
+          - id: rank-query
+            phrase: "The query points straight to the right"
+            targets: [rank-axis]
+            color: blue
+            linger: 0.35
+          - id: rank-project-a
+            phrase: "Drop a line from A to the horizontal axis"
+            targets: [rank-axis]
+            color: blue
+            linger: 0.35
+          - id: rank-score-a
+            phrase: "It lands at zero point six"
+            targets: [rank-axis]
+            color: cyan
+            linger: 0.35
+          - id: rank-project-b
+            phrase: "Do the same for B"
+            targets: [rank-axis]
+            color: blue
+            linger: 0.35
+          - id: rank-score-b
+            phrase: "It lands at zero point eight"
+            targets: [rank-axis]
+            color: cyan
+            linger: 0.35
+          - id: rank-slot
+            phrase: "Which tool fills the slot, and can the job finish"
+            targets: [rank-options, rank-axis]
+            color: yellow
+            linger: 0.35
+      - say: >-
+          B gets the slot. It can read the policy. The job also needs A to fetch the status. With one required
+          tool missing, the job cannot finish. Check which required tools were retrieved and whether the task
+          completed, alongside the relevance of each result.
+        hold: 1.15
+        visual_cues:
+          - id: tu-rank-top-one
+            phrase: "B gets the slot"
+            targets: [rank-options]
+            color: cyan
+            linger: 0.35
+            caption_boundary: true
+          - id: tu-rank-missing-tool
+            phrase: "the job cannot finish"
+            targets: [rank-options]
+            color: yellow
+            linger: 0.35
+            caption_boundary: true
+  - id: deferred-definitions
+    title: Distinguish request catalog bytes from model-visible definitions
+    visual: Compare eager schemas with provider-specific deferred loading. Keep names/descriptions visible where
+      required and show discovered client-tool definitions entering context before their ordinary call
+      proposals.
+    beats:
+      - say: Each tool description the model sees takes up tokens. In this catalog the model needs a status
+          lookup and a policy lookup. Try loading their definitions on demand. Measure how often the model
+          finds the tools it needs and finishes the task, along with total tokens and latency.
+        hold: 0.7
+        visual_cues:
+          - id: tu-deferred-definitions-1
+            phrase: Each tool description the model sees takes up tokens
+            targets:
+              - tu-deferred-definitions-mechanism
+            color: cyan
+            linger: 0.4
+      - say: In current OpenAI Responses tool search, an individual deferred function still initially exposes its name
+          and description while its parameter schema loads later. Namespaces and MCP servers can group
+          deferred functions behind a shared description. Hosted discovery searches a declared inventory;
+          client-executed discovery can consult the application’s current permitted catalog.
+        hold: 0.7
+        visual_cues:
+          - id: tu-deferred-definitions-2
+            phrase: In current OpenAI Responses tool search, an individual deferred function still initially exposes its
+              name and description while its parameter schema loads later
+            targets:
+              - tu-deferred-definitions-mechanism
+            color: cyan
+            linger: 0.4
+          - id: tu-defer-schema
+            phrase: its parameter schema loads later
+            targets:
+              - tu-deferred-definitions-mechanism
+            color: cyan
+            linger: 0.4
+      - say: Claude’s documented tool search offers regex and BM twenty-five variants. Deferred full definitions are
+          still sent in the request catalog while staying out of the initial model context until discovery. A
+          discovered client tool returns an ordinary tool-use proposal for application execution. Similar
+          feature names do not imply identical visibility, schema or message formats.
+        hold: 0.7
+        visual_cues:
+          - id: tu-deferred-definitions-3
+            phrase: Claude’s documented tool search offers regex and BM twenty-five variants
+            targets:
+              - tu-deferred-definitions-mechanism
+            color: green
+            linger: 0.4
+          - id: tu-defer-claude
+            phrase: while staying out of the initial model context until discovery
+            targets:
+              - tu-deferred-definitions-mechanism
+            color: cyan
+            linger: 0.4
+          - id: tu-defer-proposal
+            phrase: an ordinary tool-use proposal for application execution
+            targets:
+              - tu-deferred-definitions-mechanism
+            color: cyan
+            linger: 0.4
+  - id: trajectory-contract
+    title: Score linkage, success and rendered text together
+    visual: Build the exact call→observation→answer event sequence. Mutate a call link, a Boolean success flag and
+      a free-form answer while preserving plausible status fields.
+    beats:
+      - say: The scorer expects exactly call, observation and answer in that order. The call must use the allowed name
+          and exact release arguments. Its nonempty string identifier must match the observation’s call I D.
+          Observation success must be the actual Boolean true, with the required release and failed-canary
+          status.
+        hold: 0.7
+        visual_cues:
+          - id: tu-trajectory-contract-1
+            phrase: The scorer expects exactly call, observation and answer in that order
+            targets:
+              - tu-trajectory-contract-mechanism
+            color: cyan
+            linger: 0.4
+          - id: tu-trace-link
+            phrase: identifier must match the observation’s call I D
+            targets:
+              - tu-trajectory-contract-mechanism
+            color: cyan
+            linger: 0.4
+          - id: tu-trace-true
+            phrase: Observation success must be the actual Boolean true
+            targets:
+              - tu-trajectory-contract-mechanism
+            color: cyan
+            linger: 0.4
+      - say: The structured answer must agree with the observation’s release and status, and its visible text must
+          equal the renderer applied to those same fields. Changing the text to succeeded while retaining
+          failed status is rejected. A failed-read observation still rejects even if it carries plausible
+          leftover status fields.
+        hold: 0.7
+        visual_cues:
+          - id: tu-trajectory-contract-2
+            phrase: The structured answer must agree with the observation’s release and status, and its visible text must
+              equal the renderer applied to those same fields
+            targets:
+              - tu-trajectory-contract-mechanism
+            color: cyan
+            linger: 0.4
+          - id: tu-trace-render-fail
+            phrase: Changing the text to succeeded while retaining failed status is rejected
+            targets:
+              - tu-trajectory-contract-mechanism
+            color: cyan
+            linger: 0.4
+          - id: tu-trace-ok-fail
+            phrase: A failed-read observation still rejects even if it carries plausible leftover status fields
+            targets:
+              - tu-trajectory-contract-mechanism
+            color: cyan
+            linger: 0.4
+      - say: This deterministic scorer assumes trusted runtime events and a fixed answer format. It does not
+          authenticate a forged log or judge arbitrary prose. Independently inspect authorization, actual
+          resulting state and free-form claim support. BFCL covers tool selection and argument categories;
+          original tau-bench compares final database state with a goal under domain rules. Pin benchmark
+          versions and test your own failure boundaries.
+        hold: 0.7
+        visual_cues:
+          - id: tu-trajectory-contract-3
+            phrase: This deterministic scorer assumes trusted runtime events and a fixed answer format
+            targets:
+              - tu-trajectory-contract-mechanism
+            color: green
+            linger: 0.4
+  - id: typed-release-evidence
+    title: Validate receipts before counting their passes and violations
+    visual: Construct all four article receipt rows and their maxima. Reject truthy pass flags, negative violation
+      counts and nonfinite measurements before the release conjunction runs.
+    beats:
+      - say: The article gate begins with a nonempty receipt list. Passed must be an exact Boolean. Unauthorized reads
+          and unsafe writes are non-negative integers, and rounds are integers at least one. Latency and cost
+          are finite non-negative numeric values, excluding Booleans. Malformed evidence raises an error
+          before aggregation.
+        hold: 0.7
+        visual_cues:
+          - id: tu-typed-release-evidence-1
+            phrase: The article gate begins with a nonempty receipt list
+            targets:
+              - tu-typed-release-evidence-mechanism
+            color: cyan
+            linger: 0.4
+          - id: tu-receipts-types
+            phrase: Malformed evidence raises an error before aggregation
+            targets:
+              - tu-typed-release-evidence-mechanism
+            color: cyan
+            linger: 0.4
+      - say: Its four supplied runs yield three passes, or seventy-five percent, zero safety violations and maximum
+          three rounds. Maximum latency is six hundred eighty milliseconds and maximum cost three point eight
+          cents. The declared caps are six hundred milliseconds and three cents, so this candidate fails
+          despite meeting success, safety and round requirements.
+        hold: 0.7
+        visual_cues:
+          - id: tu-typed-release-evidence-2
+            phrase: Its four supplied runs yield three passes, or seventy-five percent, zero safety violations and maximum
+              three rounds
+            targets:
+              - tu-typed-release-evidence-mechanism
+            color: cyan
+            linger: 0.4
+          - id: tu-receipts-75
+            phrase: three passes, or seventy-five percent
+            targets:
+              - tu-typed-release-evidence-mechanism
+            color: cyan
+            linger: 0.4
+          - id: tu-receipts-rounds
+            phrase: maximum three rounds
+            targets:
+              - tu-typed-release-evidence-mechanism
+            color: cyan
+            linger: 0.4
+          - id: tu-receipts-latency
+            phrase: Maximum latency is six hundred eighty milliseconds
+            targets:
+              - tu-typed-release-evidence-mechanism
+            color: cyan
+            linger: 0.4
+          - id: tu-receipts-cost
+            phrase: maximum cost three point eight cents
+            targets:
+              - tu-typed-release-evidence-mechanism
+            color: cyan
+            linger: 0.4
+          - id: tu-receipts-reject
+            phrase: this candidate fails despite meeting success, safety and round requirements
+            targets:
+              - tu-typed-release-evidence-mechanism
+            color: cyan
+            linger: 0.4
+      - say: Use every offered fixture row for its stated maxima and count failures as work. Negative violation counts
+          must not cancel real incidents, and NaN must not disappear in aggregation. For real release
+          decisions use held-out tasks, actual model calls, controlled tool execution and labeled policy
+          outcomes. Report task completion and policy adherence separately.
+        hold: 0.7
+        visual_cues:
+          - id: tu-typed-release-evidence-3
+            phrase: Use every offered fixture row for its stated maxima and count failures as work
+            targets:
+              - tu-typed-release-evidence-mechanism
+            color: green
+            linger: 0.4
+  - id: mcp-integration
+    title: Reuse protocol plumbing while retaining each permission boundary
+    visual: Construct three hosts by four services as twelve direct pairings, then factor them into three client
+      integrations and four servers. Carry an actual tools/list schema into a tools/call request without
+      granting authority.
+    beats:
+      - say: Connect each of three assistants to each of four services. Trace the lines. That takes twelve
+          separate pair adapters. With the Model Context Protocol, each host uses one client and each service has one server.
+          How many pieces do we maintain now? Count the clients on the left and the servers on the right.
+          Seven integration pieces. All three hosts can now discover and call tools through the same protocol.
+        hold: 0.7
+        caption_starts:
+          - "That takes twelve separate pair adapters."
+          - "How many pieces do we maintain now?"
+          - "Seven integration pieces."
+        visual_cues:
+          - id: tu-mcp-integration-1
+            phrase: Connect each of three assistants to each of four services
+            targets:
+              - tu-mcp-integration-mechanism
+            color: cyan
+            linger: 0.4
+          - id: tu-mcp-direct
+            phrase: Trace the lines. That takes twelve separate pair adapters
+            targets:
+              - tu-mcp-integration-mechanism
+            color: cyan
+            linger: 0.4
+          - id: tu-mcp-factored
+            phrase: seven integration pieces
+            targets:
+              - tu-mcp-integration-mechanism
+            color: cyan
+            linger: 0.4
+          - id: tu-mcp-factor-operation
+            phrase: each host uses one client and each service has one server
+            targets:
+              - tu-mcp-integration-mechanism
+            color: cyan
+            linger: 0.4
+      - say: The host application runs clients that speak to local or remote servers. Tools list returns named
+          definitions with input schema; tools call carries the tool name and argument object in a JSON-RPC
+          request. For the pinned twenty twenty-six July revision in this article, each request includes
+          protocol version and client capabilities metadata. Missing required metadata is invalid; client name
+          and version are recommended.
+        hold: 0.7
+        visual_cues:
+          - id: tu-mcp-integration-2
+            phrase: The host application runs clients that speak to local or remote servers
+            targets:
+              - tu-mcp-integration-mechanism
+            color: cyan
+            linger: 0.4
+          - id: tu-mcp-call
+            phrase: tools call carries the tool name and argument object in a JSON-RPC request
+            targets:
+              - tu-mcp-integration-mechanism
+            color: cyan
+            linger: 0.4
+          - id: tu-mcp-metadata
+            phrase: each request includes protocol version and client capabilities metadata
+            targets:
+              - tu-mcp-integration-mechanism
+            color: cyan
+            linger: 0.4
+      - say: Protocol reuse does not change who decides whether to execute. A server’s read-only annotation is
+          untrusted unless its issuer is trusted, and never replaces caller authorization. Definitions can
+          change after review. Compare approved tool identities and schemas with the current catalog, restrict
+          data shared with remote servers, and review the privileges of any local server program.
+        hold: 0.7
+        visual_cues:
+          - id: tu-mcp-integration-3
+            phrase: Protocol reuse does not change who decides whether to execute
+            targets:
+              - tu-mcp-integration-mechanism
+            color: green
+            linger: 0.4
+          - id: tu-mcp-untrusted-annotation
+            phrase: A server’s read-only annotation is untrusted
+            targets:
+              - tu-mcp-integration-mechanism
+            color: cyan
+            linger: 0.4
+  - id: mcp-exposure
+    title: Review what crosses the remote and local server boundaries
+    visual: Keep context data inside explicit outbound payloads, check token audience and scope at the server, and
+      display the actual local command before a one-click server launch.
+    beats:
+      - say: A remote server receives the data sent to it, and malicious server content can steer later model calls
+          toward sensitive context. Review outbound arguments, prefer trusted service operators and keep the
+          disclosure boundary explicit. Provider-hosted MCP calls execute in that provider service; their
+          approval settings govern data sharing and still require an application policy.
+        hold: 0.7
+        visual_cues:
+          - id: tu-mcp-exposure-1
+            phrase: A remote server receives the data sent to it, and malicious server content can steer later model calls
+              toward sensitive context
+            targets:
+              - tu-mcp-exposure-mechanism
+            color: cyan
+            linger: 0.4
+          - id: tu-mcp-outbound
+            phrase: Review outbound arguments
+            targets:
+              - tu-mcp-exposure-mechanism
+            color: cyan
+            linger: 0.4
+      - say: For local one-click server configuration, the MCP guidance requires showing the exact command and
+          obtaining approval before execution. Run downloaded server code with restricted filesystem, network
+          and process privileges. This is a product boundary for launching external code, separate from the
+          model’s choice among already authorized tools.
+        hold: 0.7
+        visual_cues:
+          - id: tu-mcp-exposure-2
+            phrase: For local one-click server configuration, the MCP guidance requires showing the exact command and
+              obtaining approval before execution
+            targets:
+              - tu-mcp-exposure-mechanism
+            color: cyan
+            linger: 0.4
+          - id: tu-mcp-command-approval
+            phrase: showing the exact command and obtaining approval before execution
+            targets:
+              - tu-mcp-exposure-mechanism
+            color: cyan
+            linger: 0.4
+      - say: Servers must reject tokens not issued for that server rather than passing broad client credentials
+          through to downstream systems. Minimize scopes and verify the audience. A reviewed tool list or a
+          trusted-looking description cannot settle credential authority, data access or execution safety.
+          Keep protocol compatibility and these security checks independently testable.
+        hold: 0.7
+        visual_cues:
+          - id: tu-mcp-exposure-3
+            phrase: Servers must reject tokens not issued for that server rather than passing broad client credentials
+              through to downstream systems
+            targets:
+              - tu-mcp-exposure-mechanism
+            color: green
+            linger: 0.4
+          - id: tu-mcp-audience
+            phrase: reject tokens not issued for that server
+            targets:
+              - tu-mcp-exposure-mechanism
+            color: cyan
+            linger: 0.4
+  - id: transfer
+    title: Keep proposals, execution, and evidence distinct
+    visual: The full request-validation-policy-execution-observation cycle closes with bounded retries and an
+      independently checked final effect.
+    beats:
+      - say: Tool use joins a language model to software through a controlled request boundary. The model chooses a
+          proposal. The runtime validates its structure and permission, performs a bounded operation, and
+          records an observation with the identity needed to continue the conversation.
+        hold: 0.55
+        visual_cues:
+          - id: transfer-beat-1-focus-1
+            phrase: Tool use joins a language model to software
+            targets:
+              - transfer-call-0
+              - transfer-call-1
+              - transfer-call-2
+              - transfer-call-3
+              - transfer-call-4
+            color: blue
+            linger: 0.6
+      - say: Enforce attempt, time, and spending limits outside the prompt. Reserve an attempt before dispatch, count
+          failures as attempts, and make timeout behavior explicit. Independent authorized reads can sometimes
+          run together, while dependent or conflicting writes need deliberate ordering.
+        hold: 0.75
+        visual_cues:
+          - id: transfer-beat-2-focus-1
+            phrase: Enforce attempt, time, and spending limits outside the prompt
+            targets:
+              - transfer-attempts
+              - transfer-clock
+              - transfer-spending
+            color: blue
+            linger: 0.6
+          - id: transfer-reserve-attempt
+            phrase: Reserve an attempt before dispatch
+            targets:
+              - transfer-attempts
+              - transfer-spending
+              - transfer-first-attempt
+            color: blue
+            linger: 0.65
+          - id: transfer-count-failure
+            phrase: count failures as attempts
+            targets:
+              - transfer-first-attempt
+              - transfer-attempts
+              - transfer-clock
+              - transfer-spending
+            color: pink
+            linger: 0.65
+          - id: transfer-timeout
+            phrase: make timeout behavior explicit
+            targets:
+              - transfer-timeout-state
+              - transfer-clock
+              - transfer-attempts
+              - transfer-spending
+            color: pink
+            linger: 0.65
+          - id: transfer-independent-reads
+            phrase: Independent authorized reads can sometimes run together
+            targets:
+              - transfer-parallel-reads
+            color: cyan
+            linger: 0.65
+          - id: transfer-order-writes
+            phrase: dependent or conflicting writes need deliberate ordering
+            targets:
+              - transfer-ordered-writes
+            color: yellow
+            linger: 0.65
+      - say: When reviewing a tool-using assistant, follow one call across the whole round trip. Check what it
+          requested, why the runtime admitted it, what the service returned, and whether the final answer or
+          claimed effect agrees with independently observed state.
+        hold: 0.55
+        visual_cues:
+          - id: transfer-beat-3-focus-1
+            phrase: When reviewing a tool-using assistant
+            targets:
+              - transfer-call-0
+              - transfer-call-2
+              - transfer-call-4
+              - transfer-observed-answer
+            color: blue
+            linger: 0.6
+  - id: fresh-comparison
+    title: Which release scored higher on Q1?
+    visual: >-
+      File immutable score receipts by suite and release. Fill the empty B/Q1 cell with a new authorized read,
+      measure A minus B across that row, then run both promotion proposals through the same read-only session.
+    beats:
+      - say: >-
+          You’re on the release desk. You can read evaluations for A and B. Which release scored higher on suite Q
+          one? File the first receipt under A. It scored zero point eight six on Q one. B scored zero point eight
+          nine on Q two. You have one more read. Which release and suite would you ask for?
+        hold: 2.5
+        caption_starts:
+          - "It scored zero point eight six on Q one."
+          - "B scored zero point eight nine on Q two."
+          - "You have one more read."
+        visual_cues:
+          - id: fresh-a
+            phrase: "It scored zero point eight six on Q one"
+            targets: [fresh-a-cell]
+            color: blue
+            linger: 0.35
+          - id: fresh-b
+            phrase: "B scored zero point eight nine on Q two"
+            targets: [fresh-b-other]
+            color: blue
+            linger: 0.35
+          - id: fresh-ask
+            phrase: "Which release and suite would you ask for"
+            targets: [fresh-grid]
+            color: yellow
+            linger: 0.35
+      - say: >-
+          B’s score on Q two leaves a hole in the Q one row. Read B on Q one. Give the new call its own number,
+          and leave the old receipt where it is. B returns zero point eight three and its gate passed. Subtract
+          B’s score from A’s. A leads by zero point zero three on Q one. That’s the comparison these two receipts
+          support.
+        hold: 1.2
+        visual_cues:
+          - id: tu-fresh-suite-denial
+            phrase: "B’s score on Q two leaves a hole in the Q one row"
+            targets: [fresh-grid]
+            color: yellow
+            linger: 0.35
+            caption_boundary: true
+          - id: tu-fresh-read-repair
+            phrase: "Read B on Q one"
+            targets: [fresh-b-cell]
+            color: blue
+            linger: 0.35
+          - id: tu-fresh-new-score
+            phrase: "B returns zero point eight three and its gate passed"
+            targets: [fresh-b-cell]
+            color: cyan
+            linger: 0.35
+            caption_boundary: true
+          - id: fresh-subtract
+            phrase: "Subtract B’s score from A’s"
+            targets: [fresh-grid]
+            color: cyan
+            linger: 0.35
+          - id: tu-fresh-delta
+            phrase: "A leads by zero point zero three on Q one"
+            targets: [fresh-calculation]
+            color: cyan
+            linger: 0.35
+            caption_boundary: true
+      - say: >-
+          Someone asks the assistant to promote A. Its proposal names the release and adds an argument, approved
+          equals true. The host rejects the extra field. Take that field off. The request now has exactly the
+          shape the promotion tool expects. With this session, can the host send the write?
+        hold: 2.2
+        visual_cues:
+          - id: fresh-proposal
+            phrase: "Its proposal names the release and adds an argument"
+            targets: [fresh-policy]
+            color: blue
+            linger: 0.35
+          - id: tu-fresh-deny-extra
+            phrase: "The host rejects the extra field"
+            targets: [fresh-policy]
+            color: yellow
+            linger: 0.35
+            caption_boundary: true
+          - id: fresh-remove-extra
+            phrase: "Take that field off"
+            targets: [fresh-policy]
+            color: blue
+            linger: 0.35
+          - id: fresh-write-question
+            phrase: "With this session, can the host send the write"
+            targets: [fresh-policy]
+            color: yellow
+            linger: 0.35
+      - say: >-
+          The host stops at the role check. The promotion count stays at zero. Follow the Q one row from
+          receipt C thirty-one to C thirty-three. Those two reads support the answer. A scored higher by three
+          hundredths. Another app can use MCP to call the same evaluation tool with its own reader’s permissions.
+        hold: 1.5
+        caption_starts: ["Follow the Q one row from receipt C thirty-one to C thirty-three."]
+        visual_cues:
+          - id: fresh-deny-role
+            phrase: "The host stops at the role check"
+            targets: [fresh-policy]
+            color: yellow
+            linger: 0.35
+            caption_boundary: true
+          - id: fresh-report
+            phrase: "Follow the Q one row from receipt C thirty-one to C thirty-three"
+            targets: [fresh-grid, fresh-calculation]
+            color: cyan
+            linger: 0.35

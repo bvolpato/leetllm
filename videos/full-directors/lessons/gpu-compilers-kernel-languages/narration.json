@@ -1,0 +1,346 @@
+[
+  {
+    "id": "c01",
+    "title": "The word below register nine",
+    "sourceChapters": [
+      "c01"
+    ],
+    "beats": [
+      {
+        "id": "freeze",
+        "say": "Freeze this thread just after the add. At index one, a quarter plus negative two has landed in register nine. Look directly below it. The test filled all thirty-two bits of the output word with ones. That pattern reads as a floating-point NaN.",
+        "hold": 1
+      },
+      {
+        "id": "choose",
+        "say": "Here are four instructions from the captured kernel. Two loads brought the inputs into registers four and seven. The add wrote register nine. At which instruction should the word in global memory change?",
+        "hold": 2.8
+      },
+      {
+        "id": "store",
+        "say": "At the store. Follow the copy across the gap. The output now reads minus one and three quarters. Register nine keeps its value. If the store were skipped, the test would find the original NaN.",
+        "hold": 1.4
+      },
+      {
+        "id": "evidence",
+        "say": "A kernel is a function launched on a device. This thread could reach its store because the runtime found an executable image for this GPU. Follow the same addition back through the compiler. The last step that succeeded tells us where to look when a build fails or a first call runs slowly.",
+        "hold": 0.8
+      }
+    ]
+  },
+  {
+    "id": "c02",
+    "title": "What did the compiler actually encode?",
+    "sourceChapters": [
+      "c02"
+    ],
+    "beats": [
+      {
+        "id": "package",
+        "say": "In the CUDA file, main runs on the CPU and launches the add kernel on the GPU. The compiler driver builds the host program and packages device images with it. Open that executable with cuobjdump. Select the intended target and kernel before extracting its cubin, the native device binary.",
+        "hold": 0.7
+      },
+      {
+        "id": "forms",
+        "say": "Keep one vector-add lane in view. Load x, load y, add, store. PTX spells that work in a versioned virtual instruction set. Its register names describe virtual values. The target assembler chooses physical registers and schedules instructions. Give the extracted cubin to nvdisasm to see what this build encodes.",
+        "hold": 0.8
+      },
+      {
+        "id": "capture",
+        "say": "Read across the add row. The captured native instruction writes register nine. The resource report for that kernel records twelve registers per thread, zero stack bytes and zero spill bytes. A register name in one instruction cannot tell you the allocation for the kernel.",
+        "hold": 0.8
+      },
+      {
+        "id": "fused",
+        "say": "Try a different expression. This PTX listing multiplies two floats, then adds a third. Neither instruction specifies a rounding modifier, and this example allows the compiler to fuse them. Which file would you open to count the arithmetic instructions encoded for the target?",
+        "hold": 2.4
+      },
+      {
+        "id": "disassemble",
+        "say": "Read the cubin. Its listing shows one instruction, FFMA. It rounds once after the multiply and add. For a rounding check, square four thousand ninety-seven. The exact product lands halfway between two single-precision floats. Subtract the lower neighbor, shown here. The fused result is one. If we round the product first, the nearest-even rule picks the lower neighbor in this example. Subtract that number from itself and we get zero. If two listings disagree about required rounding, check that both belong to the same build and kernel. Compare the kernel output with the intended reference, then time the kernel on the target.",
+        "hold": 1
+      }
+    ]
+  },
+  {
+    "id": "c03",
+    "title": "Can the loader reach the store?",
+    "sourceChapters": [
+      "c03"
+    ],
+    "beats": [
+      {
+        "id": "native",
+        "say": "The captured GPU has compute capability twelve point zero. Build A includes a matching cubin. Native-only mode passes the boundary tests. The package also carries ordinary PTX. Its virtual target sets the minimum compute capability. Compute ninety requires nine point zero or later.",
+        "hold": 0.8
+      },
+      {
+        "id": "ptx-control",
+        "say": "Keep build A. In a fresh process, force the PTX path and turn off the driver disk cache. This run passes too. The driver can read the instruction set version in this PTX and compile it for this GPU.",
+        "hold": 0.8
+      },
+      {
+        "id": "swap",
+        "say": "Return to native-only mode. Change just the cubin, from S M one twenty to S M ninety. Build B now targets a different major architecture with its native code. The native-only run stops before launch. The GPU, driver and PTX are unchanged. In a fresh process, force the PTX path. Can build B run the addition?",
+        "hold": 2.5
+      },
+      {
+        "id": "jit",
+        "say": "Yes. Build B passed the forced run. The driver compiled the same PTX for the same GPU, and the addition ran.",
+        "hold": 0.8
+      },
+      {
+        "id": "ptx-older",
+        "say": "Keep the captured run on the top row. Try a different GPU on paper. Its driver can read the same PTX. The GPU has compute capability eight point six. Can this driver compile the packaged PTX for that GPU?",
+        "hold": 2.5
+      },
+      {
+        "id": "ptx-limits",
+        "say": "Eight point six falls below the nine point zero minimum. This target requires features the older GPU lacks. In the third row, use the original GPU and change only the driver. This driver reads only older PTX instruction set versions. It rejects this PTX even on twelve point zero. This hardware minimum applies to ordinary PTX. Architecture-specific and family-specific targets have their own compatibility rules.",
+        "hold": 1
+      },
+      {
+        "id": "strip",
+        "say": "Remove the fallback from build B on the captured system and restore normal selection. The loader looks first for a compatible cubin, then for usable PTX. Here the only image is the incompatible cubin. It stops before launch. Inventory the package, record the device and driver, and test the native-only and forced-PTX paths in separate processes. There is no executed store to profile on this failed path.",
+        "hold": 1
+      }
+    ]
+  },
+  {
+    "id": "c03-clock",
+    "title": "Which interval did the first request pay for?",
+    "sourceChapters": [
+      "c03"
+    ],
+    "beats": [
+      {
+        "id": "cold",
+        "say": "Allow the fallback again. On this illustrative clock, the five phases run in sequence. Initialization takes ten milliseconds, module loading five, PTX compilation sixty, application cache publication two, and the first launch one. Start at the left and read the full interval. It totals seventy-eight milliseconds.",
+        "hold": 0.8
+      },
+      {
+        "id": "clock-predict",
+        "say": "Replay this clock with a compatible native image. Keep the other four intervals fixed, including the application's publication step. Where will the first request end this time?",
+        "hold": 2.5
+      },
+      {
+        "id": "clock-result",
+        "say": "At eighteen milliseconds. Take out the compilation interval and slide the later work up against the load. A native image can still incur first-use loading. Record the fresh process, driver mode, cache state and timer boundaries with each cold trace.",
+        "hold": 0.8
+      },
+      {
+        "id": "warm",
+        "say": "Warm this exact specialization and synchronize a separate interval. Our example measures three hundredths of a millisecond there. Give that interval its own scale and report what the timer includes. The first request already ended before this measurement began.",
+        "hold": 1
+      }
+    ]
+  },
+  {
+    "id": "c04",
+    "title": "How many whole blocks fit?",
+    "sourceChapters": [
+      "c04"
+    ],
+    "beats": [
+      {
+        "id": "pack",
+        "say": "This model gives one streaming multiprocessor sixty-five thousand five hundred thirty-six registers and room for sixty-four warps. A warp has thirty-two threads. Each block brings eight warps together. At thirty-two registers per thread, each warp fills four allocation units of two hundred fifty-six registers. Pack the blocks one at a time. Eight fit.",
+        "hold": 1
+      },
+      {
+        "id": "grow",
+        "say": "Keep that first packing in view. Give each thread one more register. The warp now requests one thousand fifty-six, which opens a fifth allocation unit. Eight warps at the new width cost ten thousand two hundred forty registers per block. How many complete blocks can we admit?",
+        "hold": 2.6
+      },
+      {
+        "id": "repack",
+        "say": "Six blocks fit. Pack them against the same boundary. The thin strip keeps the eight original block widths in view. The wider blocks leave forty-eight warps resident, or seventy-five percent of the model's limit. The gap holds four thousand ninety-six registers. A seventh block needs all ten thousand two hundred forty before it can enter.",
+        "hold": 1
+      },
+      {
+        "id": "plateau",
+        "say": "Try forty registers per thread. The threads now use the entire fifth unit and all six blocks still fit. At forty-one the warp needs a sixth unit. Only five blocks fit. These are theoretical capacities. On real hardware, shared memory, block limits and the register partitions can constrain residency too.",
+        "hold": 1
+      }
+    ]
+  },
+  {
+    "id": "c04-spills",
+    "title": "What does a register cap cost?",
+    "sourceChapters": [
+      "c04"
+    ],
+    "beats": [
+      {
+        "id": "lifetimes",
+        "say": "Why might the compiler need another register? Read these intervals from left to right. A and C can reuse a slot because A is finished before C starts. Extend A's last use through operation five. Now A, B and C overlap. Three values need space at the same time.",
+        "hold": 0.8
+      },
+      {
+        "id": "spill",
+        "say": "A register cap can push a live value into thread-private local memory. In this loop one four-byte store and one four-byte load run twenty times per thread. How many bytes do those instructions request per thread?",
+        "hold": 2.3
+      },
+      {
+        "id": "requests",
+        "say": "One hundred sixty bytes. Count both directions and multiply by the number of iterations. A static assembler report identifies generated spill operations. Local accesses may hit in cache. Measure external memory traffic, stalls and warmed time before deciding whether the cap helped. A lower-occupancy kernel can still finish sooner.",
+        "hold": 1
+      }
+    ]
+  },
+  {
+    "id": "c05",
+    "title": "Which scale is inside the image?",
+    "sourceChapters": [
+      "c05"
+    ],
+    "beats": [
+      {
+        "id": "original",
+        "say": "Keep this main file open. It adds four and five and multiplies their sum by a scale from an included header. Compile with scale one. Run the image and it writes nine. Save that image so we can replay it.",
+        "hold": 0.8
+      },
+      {
+        "id": "edit",
+        "say": "Change only the included header. Scale is now two. The main file and inputs stay the same. A cache indexed by the main file alone finds its old image. Predict what that image will write when it runs again.",
+        "hold": 2.5
+      },
+      {
+        "id": "stale",
+        "say": "It still writes nine. The image contains the old multiplier. Keep that run on the screen. Look up the same request using a recipe that includes the header bytes. The changed dependency gives a different key. What should the rebuilt image write?",
+        "hold": 2.4
+      },
+      {
+        "id": "rebuild",
+        "say": "It writes eighteen. Follow the new multiplier into the second image. A specialization cache stores compiled work under an identity. Include transitive source and library dependencies, compiler version, ordered flags, target, and every shape, stride, type, alignment or launch parameter that changes the code or its validity.",
+        "hold": 1
+      },
+      {
+        "id": "contracts",
+        "say": "Even a complete recipe describes a request to build. Record the digest of the bytes actually published and the device compatibility metadata separately. A function with the same name can have many valid specializations. Next, two writers will publish files under one recipe.",
+        "hold": 0.7
+      }
+    ]
+  },
+  {
+    "id": "c06",
+    "title": "What can the reader open?",
+    "sourceChapters": [
+      "c06"
+    ],
+    "beats": [
+      {
+        "id": "private",
+        "say": "Several workers can reach the same cache miss. Watch one worker build an eight-byte example in a unique private file. The public name still opens the entire old file. Close and validate the new file. On a filesystem with same-filesystem atomic replacement, a single rename can publish the complete new bytes.",
+        "hold": 0.8
+      },
+      {
+        "id": "pair",
+        "say": "Now the reader needs two files. Start with kernel A and its matching metadata. Replace only the kernel with B. The writer stops before publishing B's metadata. Both files are complete. Should this reader load the pair?",
+        "hold": 2.8
+      },
+      {
+        "id": "reject",
+        "say": "Reject the pair. Compare the digest of the bytes you opened with the digest in the manifest. They differ. Recover a matching set for the intended recipe and device. An atomic replacement covers one name. Crash durability also depends on synchronization of the file and directory and on the storage system.",
+        "hold": 1
+      },
+      {
+        "id": "lock",
+        "say": "Two writers can still build the same missing image. With a cooperating lock, one builds and publishes while the other waits. After acquiring the lock, recheck the exact key. The second worker can then reuse the first result if it sees the same cache and recipe. Plan for writer failure and timeouts. Preserve failed bytes and writer logs before diagnosing a load error.",
+        "hold": 1
+      }
+    ]
+  },
+  {
+    "id": "c07",
+    "title": "Who owns the last two elements?",
+    "sourceChapters": [
+      "c07"
+    ],
+    "beats": [
+      {
+        "id": "ten",
+        "say": "Lay out ten output slots. In this small example a block covers four consecutive indices. A CUDA thread computes one index and checks it. A Triton program makes a vector of offsets and masks its loads and store. Which offsets in the final block may touch memory?",
+        "hold": 2.5
+      },
+      {
+        "id": "eight-nine",
+        "say": "Eight and nine. Ten and eleven have no output slots. The less-than test protects both input reads as well as the write. Only valid offsets participate. The Triton compiler assigns the program's elements to physical threads during lowering.",
+        "hold": 1
+      },
+      {
+        "id": "lower",
+        "say": "Follow a captured Triton vector add through Triton IR, GPU IR, LLVM IR, PTX and a cubin. Its GPU layout assigns two adjacent floats per thread. Thread zero owns offsets zero and one. But its PTX reads each x value with its own predicated load. A contiguous layout describes ownership. Inspect native access widths and profile transactions and bandwidth on the target.",
+        "hold": 1
+      },
+      {
+        "id": "alignment",
+        "say": "Imagine four floats owned by a thread, starting four bytes past a sixteen-byte boundary. Those four floats span sixteen bytes. Their starting address is misaligned for a sixteen-byte access. The layout alone cannot establish a vector load, a transaction count or a speedup.",
+        "hold": 1
+      }
+    ]
+  },
+  {
+    "id": "c07-control",
+    "title": "Choose the decision the author must own",
+    "sourceChapters": [
+      "c07"
+    ],
+    "beats": [
+      {
+        "id": "surfaces",
+        "say": "Begin with framework operations when they meet the workload. For a custom kernel, ask who maps values to threads. In CUDA C plus plus, you write the address calculation for each thread. Triton lets you specify the offsets and mask for a block. Its compiler maps those elements to threads. In CUDA Tile, you specify the operation for each block. Add one to each element. The new tile holds the results and the original keeps its values. The CUDA Tile compiler decides how the threads within the block share that work.",
+        "hold": 0.8
+      },
+      {
+        "id": "cute",
+        "say": "Suppose your NVIDIA matrix kernel needs an exact layout and a particular hardware matrix operation. CuTe exposes the thread and value layout and the copy and multiply-accumulate atoms. CUTLASS builds kernels from those parts. Here the grouping is part of the operation you chose.",
+        "hold": 0.8
+      },
+      {
+        "id": "pallas",
+        "say": "If the kernel lives in JAX, a Pallas grid and block specification can select a slice for each program. Look at the upper left slice. Which transformations and pipelines are available depends on the backend. Save the backend version and inspect its lowering.",
+        "hold": 0.7
+      },
+      {
+        "id": "neuron",
+        "say": "Move the workload to a NeuronCore. It needs an explicit transfer from high-bandwidth memory into the on-chip state buffer. NKI exposes that transfer and the compute engine. Carry the four inputs into the buffer, add one, then write them back to output memory. Test correctness and profile each deployment target.",
+        "hold": 1
+      }
+    ]
+  },
+  {
+    "id": "c07-tail",
+    "title": "Find the first address outside the output",
+    "sourceChapters": [
+      "c07"
+    ],
+    "beats": [
+      {
+        "id": "whole",
+        "say": "Our final image loads. Its inclusive guard allows indices up to and including the length. At length seven hundred sixty-eight with blocks of one hundred twenty-eight threads, all six blocks are full. The last thread accesses index seven hundred sixty-seven. This test passes.",
+        "hold": 0.8
+      },
+      {
+        "id": "partial",
+        "say": "Keep the same block width and guard. Add one output slot. A seventh block starts at index seven hundred sixty-eight. Count from zero. Which index would this guard admit outside the array?",
+        "hold": 3
+      },
+      {
+        "id": "overrun",
+        "say": "Index seven hundred sixty-nine. It equals the length. Thread zero of this block has a real slot and thread one has none. We can find this error by enumerating addresses on a CPU before we run the device kernel.",
+        "hold": 0.9
+      },
+      {
+        "id": "strict",
+        "say": "Use strictly less than on both loads and the store. In the last block only thread zero passes the guard. The other hundred twenty-seven threads skip the accesses. Seven blocks provide eight hundred ninety-six positions. Exactly seven hundred sixty-nine addresses survive, each once. Form large indices in a wide integer type.",
+        "hold": 0.9
+      },
+      {
+        "id": "finish",
+        "say": "Thread zero of block six handles global index seven hundred sixty-eight. On the target, fill the output with NaNs, compare every slot with its finite reference and run a memory checker on this partial block. At the last legal index, our inputs add to one hundred ninety-four. In a missed-store replay the NaN survives. Replay with the store. The word now matches the reference. That check catches missing writes after a successful launch. Next, follow the threads that own a tile of a matrix product.",
+        "hold": 1.3
+      }
+    ]
+  }
+]

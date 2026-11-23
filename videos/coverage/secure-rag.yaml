@@ -1,0 +1,387 @@
+version: 1
+lesson: secure-rag
+promise: Decide which passage, report or buffered answer a reader may receive. Trace its complete sources
+  through current grants, distinguish a search miss from a denial, and check a replacement against its
+  cited passage before sending it.
+framing: []
+objectives:
+  - id: subject-intro
+    can: Predict which passage enters the prompt when a verified group changes and both match scores stay fixed.
+    scenes:
+      - subject-intro
+      - transfer
+  - id: permission-models
+    can: Trace the grant that permits this reader
+    scenes:
+      - permission-models
+  - id: resolve-principal
+    can: Resolve tenant and membership from a verified principal
+    scenes:
+      - resolve-principal
+  - id: external-join
+    can: Join candidate IDs before exporting text
+    scenes:
+      - external-join
+  - id: filter-before-rank
+    can: Authorize candidate identities before exporting their protected text
+    scenes:
+      - filter-before-rank
+  - id: copy-leak
+    can: Identify the unauthorized reranker input when two runs return the same permitted passage.
+    scenes:
+      - copy-leak
+  - id: typed-policy
+    can: Evaluate the complete local predicate
+    scenes:
+      - typed-policy
+  - id: grant-paths
+    can: Remove every grant that still authorizes the row
+    scenes:
+      - grant-paths
+  - id: metadata-receipt
+    can: Keep source identity attached to each child
+    scenes:
+      - metadata-receipt
+  - id: runtime-rls
+    can: Test the role that actually runs the query
+    scenes:
+      - runtime-rls
+  - id: recall-tradeoff
+    can: Find the records returned at scan limits of five, six and seven and measure recall against the exact authorized pair.
+    scenes:
+      - recall-tradeoff
+  - id: ann-backends
+    can: Calculate the expected number of matches and distinguish it from the eligible count in one search.
+    scenes:
+      - ann-backends
+  - id: keep-grants-current
+    can: Advance all copied chunk permissions in source-version order
+    scenes:
+      - keep-grants-current
+  - id: sync-two-chunks
+    can: Identify both stale chunks after a missed revocation and explain why an older replay cannot restore them.
+    scenes:
+      - sync-two-chunks
+  - id: snapshot-clock
+    can: Check both exact version and authoritative age
+    scenes:
+      - snapshot-clock
+  - id: tenant-and-scope
+    can: Bind a search to its authenticated tenant and document scope
+    scenes:
+      - tenant-and-scope
+  - id: tenant-layouts
+    can: Route to the tenant and then check the document
+    scenes:
+      - tenant-layouts
+  - id: report-provenance
+    can: Decide which report may enter the map step after a source loses its grant at the same content revision.
+    scenes:
+      - report-provenance
+      - fresh-release
+  - id: rewrite-scope
+    can: Change the query while retaining its authority
+    scenes:
+      - rewrite-scope
+  - id: external-fetch
+    can: Keep external fallback inside the network policy
+    scenes:
+      - external-fetch
+  - id: verified-token
+    can: Validate the credential intended for this API
+    scenes:
+      - verified-token
+  - id: directory-identity
+    can: Resolve omitted groups without granting them
+    scenes:
+      - directory-identity
+  - id: task-hmac
+    can: Bind and consume one retrieval capability
+    scenes:
+      - task-hmac
+  - id: jit-approval
+    can: Activate only the grant the task requires
+    scenes:
+      - jit-approval
+  - id: draft-reauthorize
+    can: Recheck the complete context before sending
+    scenes:
+      - draft-reauthorize
+  - id: output-checks
+    can: Separate privacy, clearance and source support
+    scenes:
+      - output-checks
+  - id: destination-policy
+    can: Authorize the recipient and the protected effect
+    scenes:
+      - destination-policy
+  - id: read-vs-action
+    can: Separate permission to read from authority to act
+    scenes:
+      - read-vs-action
+  - id: audit-receipt
+    can: Record the decision without copying the corpus
+    scenes:
+      - audit-receipt
+  - id: threat-surfaces
+    can: Distinguish a false source fact, an instruction in retrieved text and permission to change the calendar.
+    scenes:
+      - threat-surfaces
+  - id: embedding-risk
+    can: Treat representations as potentially sensitive
+    scenes:
+      - embedding-risk
+  - id: regression-matrix
+    can: Inspect every route a copy can take
+    scenes:
+      - regression-matrix
+  - id: transfer
+    can: Explain a missing passage from its read receipt and identify the separate permission needed for a deployment.
+    scenes:
+      - transfer
+  - id: fresh-release
+    can: Hold stale or revoked copies, rebuild from current sources and verify an exact quoted reply for its intended reader.
+    scenes:
+      - fresh-release
+sections:
+  - heading: Why RAG has a back door
+    status: taught
+    scenes:
+      - subject-intro
+      - copy-leak
+  - heading: A concrete permission model
+    status: taught
+    note: The opening uses the supplied 0.94 runbook and 0.71 checklist scores from the four-document figure.
+    scenes:
+      - subject-intro
+      - permission-models
+  - heading: The missing permission check in similarity search
+    status: taught
+    scenes:
+      - external-join
+      - copy-leak
+  - heading: Four ways to gate retrieval
+    status: taught
+    scenes:
+      - permission-models
+      - external-join
+      - runtime-rls
+  - heading: "Where to enforce the gate: trusted filtering vs app-side filtering"
+    status: taught
+    scenes:
+      - filter-before-rank
+      - copy-leak
+  - heading: Metadata-filter implementation
+    status: taught
+    scenes:
+      - typed-policy
+      - grant-paths
+  - heading: Filtered ANN semantics are backend-specific
+    status: taught
+    note: The article supplies the 10% match rate and forty candidates. The two scans, fifty-candidate cap
+      and three-visit path are worked examples with supplied IDs.
+    scenes:
+      - ann-backends
+      - recall-tradeoff
+  - heading: Application-side post-filter implementation (unsafe boundary)
+    status: taught
+    scenes:
+      - copy-leak
+  - heading: Keep authorization inside the trusted boundary
+    status: taught
+    scenes:
+      - filter-before-rank
+      - copy-leak
+  - heading: Building document ACLs into vector metadata
+    status: taught
+    scenes:
+      - metadata-receipt
+  - heading: The ACL metadata schema
+    status: taught
+    scenes:
+      - metadata-receipt
+  - heading: Syncing ACLs from source systems
+    status: taught
+    scenes:
+      - keep-grants-current
+      - sync-two-chunks
+      - snapshot-clock
+  - heading: Isolating customers in shared infrastructure
+    status: taught
+    scenes:
+      - tenant-and-scope
+      - tenant-layouts
+  - heading: Authorizing graph and report artifacts
+    status: taught
+    scenes:
+      - report-provenance
+      - fresh-release
+  - heading: "Retrieval control plane: rewrites and external fetch"
+    status: taught
+    scenes:
+      - rewrite-scope
+      - external-fetch
+  - heading: Agents, output checks, and audit trails
+    status: taught
+    scenes:
+      - verified-token
+      - task-hmac
+      - draft-reauthorize
+      - output-checks
+      - audit-receipt
+  - heading: Cryptographically verified principals and scoped agent tokens
+    status: taught
+    scenes:
+      - verified-token
+      - directory-identity
+      - task-hmac
+  - heading: When humans should approve retrieval
+    status: taught
+    scenes:
+      - jit-approval
+  - heading: Output sanitization
+    status: taught
+    note: The article's local output checks accept a factual claim with a valid source ID even when its
+      meaning is wrong. The final scene tests two fixed replies against one example source sentence.
+    scenes:
+      - draft-reauthorize
+      - output-checks
+      - destination-policy
+      - fresh-release
+  - heading: "Three threat vectors: injection, poisoning, and inversion"
+    status: taught
+    note: The false desk hours and requested calendar edit illustrate poisoning and indirect injection.
+    scenes:
+      - threat-surfaces
+      - embedding-risk
+  - heading: Multi-layer defense-in-depth
+    status: taught
+    scenes:
+      - threat-surfaces
+      - draft-reauthorize
+      - destination-policy
+      - regression-matrix
+  - heading: Failures that leak the signing-key runbook
+    status: taught
+    scenes:
+      - grant-paths
+      - snapshot-clock
+      - regression-matrix
+quiz:
+  - n: 1
+    status: taught
+    scenes:
+      - typed-policy
+      - grant-paths
+  - n: 2
+    status: taught
+    scenes:
+      - external-join
+      - copy-leak
+  - n: 3
+    status: taught
+    scenes:
+      - recall-tradeoff
+      - ann-backends
+  - n: 4
+    status: taught
+    scenes:
+      - snapshot-clock
+  - n: 5
+    status: taught
+    scenes:
+      - task-hmac
+      - verified-token
+  - n: 6
+    status: taught
+    scenes:
+      - verified-token
+      - directory-identity
+  - n: 7
+    status: taught
+    scenes:
+      - report-provenance
+      - draft-reauthorize
+      - fresh-release
+  - n: 8
+    status: taught
+    scenes:
+      - output-checks
+      - fresh-release
+  - n: 9
+    status: taught
+    scenes:
+      - destination-policy
+      - read-vs-action
+      - threat-surfaces
+      - transfer
+  - n: 10
+    status: taught
+    scenes:
+      - embedding-risk
+      - threat-surfaces
+removed: []
+reviews:
+  closed_book:
+    script: 4feca309b426dfa0
+    taught: 10
+    partial: 0
+    absent: 0
+    reviewer: /root/upgrade_shard6
+    evidence: build/video-delivery-20261106/script-reviews/secure-rag.json
+  fact_check:
+    script: 4feca309b426dfa0
+    open_findings: 0
+    reviewer: /root/upgrade_shard6
+    evidence: build/video-delivery-20261106/script-reviews/secure-rag.json
+reader_sections:
+  scope: Additional reader-edition core, manually mapped alongside the formal reference-edition section ledger.
+    The coverage CLI validates reference headings only; these outcomes remain narrated and independently
+    reviewable.
+  sections:
+    - heading: Find out who is asking, from a source you trust
+      status: taught
+      scenes:
+        - resolve-principal
+        - verified-token
+        - directory-identity
+    - heading: Check before the text leaves
+      status: taught
+      scenes:
+        - external-join
+        - filter-before-rank
+        - copy-leak
+        - ann-backends
+    - heading: Permissions change, and copies do not know
+      status: taught
+      scenes:
+        - keep-grants-current
+        - sync-two-chunks
+    - heading: How stale may a permission be?
+      status: taught
+      scenes:
+        - snapshot-clock
+    - heading: Summaries inherit their sources' secrets
+      status: taught
+      scenes:
+        - report-provenance
+        - fresh-release
+    - heading: Check again before the answer leaves
+      status: taught
+      scenes:
+        - draft-reauthorize
+        - output-checks
+    - heading: Retrieved text is data
+      status: taught
+      scenes:
+        - read-vs-action
+        - destination-policy
+    - heading: Test every place a copy can go
+      status: taught
+      scenes:
+        - regression-matrix
+    - heading: What you have built
+      status: taught
+      scenes:
+        - transfer
+        - fresh-release

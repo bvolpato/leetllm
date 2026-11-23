@@ -1,0 +1,854 @@
+version: 1
+id: grouped-query-attention
+title: Sharing Memory Across Attention Heads
+source: fundamentals/multi-query-grouped-query-attention/content.md
+voice: en-US-AndrewNeural
+rate: +0%
+sources:
+  - title: "Ainslie et al.: GQA: Training Generalized Multi-Query Transformer Models from Multi-Head Checkpoints"
+    url: https://arxiv.org/abs/2305.13245
+  - title: "FlashAttention: Fast and Memory-Efficient Exact Attention with IO-Awareness"
+    url: https://arxiv.org/abs/2205.14135
+  - title: "FlashInfer: Efficient and Customizable Attention Engine for LLM Inference Serving"
+    url: https://arxiv.org/abs/2501.01005
+  - title: DeepSeek-V2 MLA architecture
+    url: https://arxiv.org/abs/2405.04434
+  - title: PyTorch2.15 SDPA mask alignment
+    url: https://docs.pytorch.org/docs/2.15/generated/torch.nn.functional.scaled_dot_product_attention.html
+  - title: vLLM Llama head partition and replication
+    url: https://github.com/vllm-project/vllm/blob/main/vllm/model_executor/models/llama.py
+  - title: NVIDIA H100 shipping specifications
+    url: https://www.nvidia.com/en-us/data-center/h100/
+  - title: Llama3.1 released architecture
+    url: https://arxiv.org/abs/2407.21783
+  - title: Gemma2 local/global retention
+    url: https://arxiv.org/abs/2408.00118
+  - title: Mistral7Bv0.3 configuration
+    url: https://huggingface.co/mistralai/Mistral-7B-v0.3/blob/main/config.json
+scenes:
+  - id: opening
+    title: Long answers keep growing memory behind the scenes
+    visual: A request moves through decode steps while each attention head appends key and value rows. A compact cache reserves fewer head histories for the same sequence.
+    beats:
+      - say: A language model writes an answer one token at a time. Each new token can look back at the earlier ones, so the server keeps key and value vectors in memory while the answer grows. With many requests, that history becomes a large part of the serving budget.
+        visual_cues:
+          - id: stored-history
+            phrase: keeps key and value vectors in memory
+            targets:
+              - history-volume
+            color: blue
+          - id: history-budget
+            phrase: history becomes a large part of the serving budget
+            targets:
+              - history-volume
+            color: yellow
+        hold: 0.6
+      - say: Attention has query heads that ask different questions of the context. Standard multi-head attention stores a key history and a value history for every query head. Grouped-query attention shares each stored pair among several query heads.
+        visual_cues:
+          - id: separate-queries
+            phrase: query heads that ask different questions
+            targets:
+              - history-volume
+            color: blue
+          - id: shared-history
+            phrase: shares each stored pair among several query heads
+            targets:
+              - history-volume
+            color: green
+        hold: 0.65
+      - say: We will map eight queries onto two memory groups, compute how the queries still produce separate results, and count the cache bytes as the sequence grows. That makes the memory saving and the quality question concrete.
+        visual_cues:
+          - id: map-groups
+            phrase: eight queries onto two memory groups
+            targets:
+              - history-volume
+            color: green
+          - id: cache-growth
+            phrase: count the cache bytes
+            targets:
+              - history-volume
+            color: yellow
+        hold: 0.7
+  - id: attention
+    title: Each query head makes its own weighted reading
+    visual: Two query vectors score two cached keys. Separate softmax weights combine the same value vectors into distinct outputs.
+    beats:
+      - say: At one decoding step, a query compares with the keys stored for earlier words. Dot products give scores. Softmax turns those scores into weights, and the weights combine the corresponding values into a result for that head. Divide scores by the square root of key width, and mask future positions before softmax. At the latest one-token decode query, its own newly appended key is also a valid position.
+        visual_cues:
+          - id: query-keys
+            phrase: a query compares with the keys
+            targets:
+              - attention-readout-3
+              - attention-readout
+            color: blue
+          - id: dot-scores
+            phrase: Dot products give scores
+            targets:
+              - attention-scores
+            color: blue
+          - id: softmax-weights
+            phrase: Softmax turns those scores into weights
+            targets:
+              - attention-weights
+            color: yellow
+          - id: blend-values
+            phrase: weights combine the corresponding values
+            targets:
+              - attention-readout-2
+              - attention-weights
+              - attention-readout-4
+            color: green
+        hold: 0.6
+        motion_check:
+          region:
+            - 1100
+            - 340
+            - 570
+            - 570
+          minimumChangedFraction: 0.002
+      - say: Here one query favors the first cached position, while another favors the second. They read the same two value vectors and still produce different weighted combinations because their query vectors differ.
+        visual_cues:
+          - id: different-queries
+            phrase: one query favors the first cached position, while another favors the second
+            targets:
+              - attention-readout-3
+            color: blue
+          - id: different-combinations
+            phrase: different weighted combinations
+            targets:
+              - attention-readout-4
+            color: yellow
+        hold: 0.7
+      - say: A model keeps separate query projections and separate attention results across heads. The design question is how many key and value histories those query heads need to store.
+        visual_cues:
+          - id: separate-results
+            phrase: separate query projections and separate attention results
+            targets:
+              - attention-readout-3
+              - attention-readout-4
+            color: cyan
+          - id: stored-histories
+            phrase: key and value histories
+            targets:
+              - attention-readout
+              - attention-readout-2
+            color: green
+        hold: 0.65
+  - id: map
+    title: Four queries can share each key and value history
+    visual: Eight query-head tiles retain their identities while four query heads connect to each of two colored key-value groups.
+    beats:
+      - say: With eight query heads and two key-value heads, the group size is eight divided by two, or four. Query heads zero through three use the first stored pair. Heads four through seven use the second.
+        visual_cues:
+          - id: group-size
+            phrase: group size is eight divided by two, or four
+            targets:
+              - map-equation
+            color: yellow
+          - id: first-group
+            phrase: Query heads zero through three
+            targets:
+              - query-group-0
+              - stored-group-0
+            color: blue
+        hold: 0.65
+      - say: The queries remain eight distinct vectors. Sharing changes which keys and values they read from memory, while every query still computes its own scores, softmax weights, and output.
+        visual_cues:
+          - id: distinct-queries
+            phrase: eight distinct vectors
+            targets:
+              - query-group-0
+              - query-group-1
+            color: blue
+          - id: shared-stored-pair
+            phrase: which keys and values they read
+            targets:
+              - stored-group-1
+            color: cyan
+        hold: 0.7
+      - say: The grouping rule is query heads divided by key-value heads. It gives four query readers per stored history here. The mapping is simple to check before we compare model shapes.
+        visual_cues:
+          - id: grouping-rule
+            phrase: query heads divided by key-value heads
+            targets:
+              - map-equation
+            color: yellow
+          - id: four-readers
+            phrase: four query readers per stored history
+            targets:
+              - map-readout
+            color: green
+        hold: 0.65
+  - id: architectures
+    title: Multi-head, grouped-query, and multi-query form a spectrum
+    visual: A head-count control moves from eight stored pairs to two and then one while all eight query heads remain visible.
+    beats:
+      - say: Multi-head attention stores eight key-value pairs for eight query heads. GQA stores an intermediate count, two in this example. Multi-query attention stores one shared pair for all eight.
+        visual_cues:
+          - id: mha-count
+            phrase: eight key-value pairs
+            targets:
+              - architecture-mha
+            color: blue
+          - id: gqa-count
+            phrase: two in this example
+            targets:
+              - architecture-gqa
+            color: green
+          - id: mqa-count
+            phrase: one shared pair for all eight
+            targets:
+              - architecture-mqa
+            color: pink
+        hold: 0.65
+      - say: At equal sequence length and vector width, eight to two reduces raw key-value payload by four times. Eight to one reduces it by eight times. Fewer stored heads usually make each head serve a broader set of query patterns.
+        visual_cues:
+          - id: raw-saving
+            phrase: reduces raw key-value payload by four times
+            targets:
+              - architecture-gqa
+            color: green
+          - id: eightfold-saving
+            phrase: reduces it by eight times
+            targets:
+              - architecture-mqa
+            color: pink
+        hold: 0.7
+      - say: Multi-query attention can save more cache, while GQA keeps several learned key-value subspaces. The architecture choice trades cache size against the behavior learned by those shared projections.
+        visual_cues:
+          - id: several-subspaces
+            phrase: several learned key-value subspaces
+            targets:
+              - architecture-gqa
+            color: green
+          - id: group-tradeoff
+            phrase: trades cache size
+            targets:
+              - architectures-equation
+            color: yellow
+        hold: 0.7
+  - id: tensors
+    title: Count stored heads in the cache shape
+    visual: Query tensors keep eight heads. Key and value tensors change from eight histories to two, with sequence and width axes held fixed.
+    beats:
+      - say: Write each cache as batch, stored heads, sequence positions, and head width. For a batch of one, three positions, and width four, multi-head keys have shape one by eight by three by four.
+        visual_cues:
+          - id: tensor-shape
+            phrase: batch, stored heads, sequence positions, and head width
+            targets:
+              - tensors-equation-2
+            color: blue
+          - id: mha-shape
+            phrase: one by eight by three by four
+            targets:
+              - tensors-equation-2
+            color: blue
+        hold: 0.65
+      - say: The grouped cache has shape one by two by three by four. Values use the same dimensions. Query tensors still carry eight heads, and each query uses the key-value group assigned to it.
+        visual_cues:
+          - id: gqa-shape
+            phrase: one by two by three by four
+            targets:
+              - tensors-equation-2
+            color: green
+          - id: query-shape
+            phrase: Query tensors still carry eight heads
+            targets:
+              - tensors-equation
+            color: cyan
+        hold: 0.7
+      - say: The formula counts two arrays, keys and values, across layers, requests, tokens, stored heads, width, and bytes per number. It describes raw cache payload; other runtime memory has its own budget.
+        visual_cues:
+          - id: payload-formula
+            phrase: two arrays, keys and values
+            targets:
+              - tensors-equation-3
+            color: yellow
+          - id: dimension-product
+            phrase: across layers, requests, tokens, stored heads, width, and bytes per number
+            targets:
+              - tensors-k-and-v-layers-requests-tokens-heads-width-bytes-value
+            color: blue
+        hold: 0.75
+  - id: budget
+    title: Cache bytes grow with each token and stored head
+    visual: Three cache ledgers hold three positions while the highlighted architecture changes. The computed raw payloads are 768, 192, and 96 bytes.
+    beats:
+      - say: Count two layers, one request, three cached positions, head width four, and two bytes per value. With eight key-value heads, keys and values occupy seven hundred sixty-eight bytes.
+        visual_cues:
+          - id: fixture-dimensions
+            phrase: two layers, one request, three cached positions
+            targets:
+              - budget-two-layers-one-request-width-4-two-bytes-per-value
+            color: blue
+          - id: mha-bytes
+            phrase: seven hundred sixty-eight bytes
+            targets:
+              - cache-bytes-mha
+            color: yellow
+        hold: 0.7
+      - say: Keeping two key-value heads reduces that same calculation to one hundred ninety-two bytes. A single shared pair uses ninety-six. Each extra cached token adds bytes in direct proportion to the stored head count. Add a fourth position to the same arrays. The marginal increments are two hundred fifty-six, sixty-four and thirty-two bytes, giving totals one thousand twenty-four, two hundred fifty-six and one hundred twenty-eight.
+        visual_cues:
+          - id: gqa-bytes
+            phrase: one hundred ninety-two bytes
+            targets:
+              - cache-bytes-gqa
+            color: green
+          - id: mqa-bytes
+            phrase: ninety-six
+            targets:
+              - cache-bytes-mqa
+            color: pink
+          - id: budget-fourth-position
+            phrase: Add a fourth position to the same arrays
+            targets:
+              - cache-bytes-mha
+              - cache-bytes-gqa
+              - cache-bytes-mqa
+            color: yellow
+        hold: 0.75
+      - say: These small counts isolate logical cache payload. Model weights, temporary tensors, memory reservations, and physical replication can change what fits on a device, so a real capacity plan measures those parts separately.
+        visual_cues:
+          - id: logical-payload
+            phrase: logical cache payload
+            targets:
+              - cache-bytes-mqa
+            color: blue
+          - id: device-count
+            phrase: what fits on a device
+            targets:
+              - cache-bytes-mqa
+            color: yellow
+        hold: 0.75
+  - id: roofline
+    title: Divide query work by distinct stored bytes
+    visual: Construct the QK and AV products over the same heads, then cancel common dimensions against a single logical K/V read.
+    beats:
+      - say: Count a single attention layer decoding one row for each of B requests. Query-key multiplication uses two times B times query heads times stored positions times key width floating-point operations. The value-weighted sum uses the same count for equal key and value widths. Together they use four times that product. This count omits projections, softmax and other work.
+        hold: 1
+        visual_cues:
+          - id: roofline-0
+            phrase: Count a single attention layer decoding one row for each of B requests.
+            targets:
+              - roofline-operation
+            linger: 0.5
+      - say: "Now read every distinct key and value once, reusing it within its query group. The ideal bytes are two times B times KV heads times positions times width times bytes per element. Cancel common factors: ideal intensity is two divided by bytes per element, multiplied by query heads divided by KV heads. At two bytes, MHA gives one FLOP per byte, sixty-four-query GQA-eight gives eight, and MQA gives sixty-four."
+        hold: 0.8
+        visual_cues:
+          - id: roofline-1
+            phrase: Now read every distinct key and value once, reusing it within its query group.
+            targets:
+              - roofline-operation
+            linger: 0.5
+      - say: This is an ideal cache-read ratio, not measured total kernel traffic. As a historical hardware ceiling, H-one-hundred SXM lists one thousand nine hundred seventy-nine BF16 teraflops with structured sparsity. Halving gives about nine hundred eighty-nine point five dense teraflops. Divide by three point three five terabytes per second to obtain a ridge near two hundred ninety-five point four FLOPs per byte. Comparing rates does not measure idle clock cycles. Profile actual loads, reuse, kernel overhead and service latency.
+        hold: 0.8
+        visual_cues:
+          - id: roofline-2
+            phrase: This is an ideal cache-read ratio, not measured total kernel traffic.
+            targets:
+              - roofline-operation
+            linger: 0.5
+  - id: large-budget
+    title: Carry every multiplicative axis into the budget
+    visual: Unfold K and V across80 layers and131072 retained positions, then partition the same10GiB raw budget into complete requests.
+    beats:
+      - say: "Scale our count to supplied decoder dimensions: eighty uniform full-attention layers, sixty-four queries, width one hundred twenty-eight, two-byte K and V, and thirty-two requests of four thousand ninety-six positions. MHA stores about three hundred forty-three point six decimal gigabytes, GQA-eight forty-two point nine five, and MQA five point three seven. The same total positions can instead belong to one one-hundred-twenty-eight-kibiposition request. A separate seventy-two-billion-parameter two-byte weight estimate adds one hundred forty-four gigabytes."
+        hold: 1
+        visual_cues:
+          - id: large-budget-0
+            phrase: "Scale our count to supplied decoder dimensions: eighty uniform full-attention layers, sixty-four queries, width one hundred twenty-eight, two-byte K and V, and thirty-two requests of four thousand ninety-six positions."
+            targets:
+              - large-budget-operation
+            linger: 0.5
+      - say: In a dedicated ten-gibibyte logical KV budget, one four-thousand-ninety-six-position request uses ten gibibytes with MHA, one point two five with GQA-eight, or point one five six two five with MQA. The ideal whole-request capacities are one, eight and sixty-four. These counts exclude weights, workspaces, fragmentation, future output and latency constraints. Eight admitted requests create a batching opportunity; completed tokens per second still needs measurement.
+        hold: 0.8
+        visual_cues:
+          - id: large-budget-1
+            phrase: In a dedicated ten-gibibyte logical KV budget, one four-thousand-ninety-six-position request uses ten gibibytes with MHA, one point two five with GQA-eight, or point one five six two five with MQA.
+            targets:
+              - large-budget-operation
+            linger: 0.5
+      - say: "Increasing retained positions multiplies each payload linearly. For this worksheet, MHA at thirty-two kibipositions is about eighty-five point nine gigabytes, at one hundred twenty-eight about three hundred forty-three point six, and at one mebiposition about two point seven five terabytes. GQA-eight remains eightfold smaller. Dividing by device capacity gives only a lower bound: a five-device capacity estimate can violate head-sharding divisibility. Check every rank and the supported layout."
+        hold: 0.8
+        visual_cues:
+          - id: large-budget-2
+            phrase: Increasing retained positions multiplies each payload linearly.
+            targets:
+              - large-budget-operation
+            linger: 0.5
+  - id: model-config
+    title: Read the released architecture and retention rules
+    visual: Compare explicit versioned query/KV counts and local/global layer lengths without treating head sharing as a context extension switch.
+    beats:
+      - say: Read the actual checkpoint configuration before assigning dimensions. Published Llama three point one eight-billion, seventy-billion and four-hundred-five-billion models retain eight KV heads while their query counts are thirty-two, sixty-four and one hundred twenty-eight. Their sharing ratios are four, eight and sixteen. Those releases support one hundred twenty-eight K context; the original April twenty-twenty-four Llama three releases used eight K. Head sharing itself does not establish a context limit.
+        hold: 1
+        visual_cues:
+          - id: model-config-0
+            phrase: Read the actual checkpoint configuration before assigning dimensions.
+            targets:
+              - model-config-operation
+            linger: 0.5
+      - say: Retention rules also differ by layer and release. Gemma two alternates four-K sliding-window and eight-K global attention. The Mistral seven-billion version-zero-point-three configuration has no sliding window, despite the original Mistral paper describing one. Sum each layer actual retained length. Hybrid recurrent or latent layers require their own state formula. A family name, parameter count or allocation flag is insufficient.
+        hold: 0.8
+        visual_cues:
+          - id: model-config-1
+            phrase: Retention rules also differ by layer and release.
+            targets:
+              - model-config-operation
+            linger: 0.5
+      - say: MQA and GQA are learned projection choices. A smaller cache allocation alone cannot convert arbitrary MHA weights. Multi-head latent attention changes the parameterization again. Test the trained checkpoint at the intended lengths, positions and retrieval tasks, separately from checking that its storage dimensions fit.
+        hold: 0.8
+        visual_cues:
+          - id: model-config-2
+            phrase: MQA and GQA are learned projection choices.
+            targets:
+              - model-config-operation
+            linger: 0.5
+  - id: physical-heads
+    title: Count physical head copies on the actual ranks
+    visual: Keep eight logical KV identities while sharding over4 or16 ranks and draw every physical copy.
+    beats:
+      - say: The illustrated vLLM Llama head layout requires query heads to divide across tensor-parallel ranks. When ranks do not exceed KV heads, KV heads must divide across ranks too. Sixty-four queries and eight KV heads at four ranks give sixteen queries and two KV heads per rank. The eight logical identities produce eight aggregate physical copies.
+        hold: 1
+        visual_cues:
+          - id: physical-heads-0
+            phrase: The illustrated vLLM Llama head layout requires query heads to divide across tensor-parallel ranks.
+            targets:
+              - physical-heads-operation
+            linger: 0.5
+      - say: Increase tensor parallelism to sixteen ranks. Four queries now live on each rank, but only eight logical KV identities exist. This implementation gives each rank one KV head, repeating each identity on two ranks. Sixteen physical copies double the unreplicated GQA payload. Against sixty-four MHA copies, the aggregate saving is fourfold, rather than eightfold. The stored-head identity stays visible through replication.
+        hold: 0.8
+        visual_cues:
+          - id: physical-heads-1
+            phrase: Increase tensor parallelism to sixteen ranks.
+            targets:
+              - physical-heads-operation
+            linger: 0.5
+      - say: For this replication regime, the rank count must be divisible by the logical KV count. Other attention and distributed layouts can differ. A model with twenty-four queries and six KV heads at four ranks passes query divisibility but fails the KV partition rule. Inspect implementation and allocations, then compare per-rank outputs against a valid reference; communication or other memory may still require a larger parallel degree.
+        hold: 0.8
+        visual_cues:
+          - id: physical-heads-2
+            phrase: For this replication regime, the rank count must be divisible by the logical KV count.
+            targets:
+              - physical-heads-operation
+            linger: 0.5
+  - id: tradeoff
+    title: Smaller cache creates room; a benchmark measures the gain
+    visual: The compact memory ledger sits beside a held-out quality test and a serving profiler, which report different outcomes for a converted model.
+    beats:
+      - say: A converted model can start by averaging groups of existing key and value projection weights, then continue training so the shared heads adapt. Compare the converted outputs and held-out task scores with the original model.
+        visual_cues:
+          - id: pool-projections
+            phrase: averaging groups of existing key and value projection weights
+            targets:
+              - tradeoff-equation
+            color: yellow
+          - id: conversion-check
+            phrase: held-out task scores
+            targets:
+              - conversion-gate-1
+            color: green
+        hold: 0.7
+      - say: Fewer cache bytes can increase the number of requests that fit, or reduce memory traffic during decode. Weight reads, attention kernels, queueing, and parallel layout also affect latency and throughput.
+        visual_cues:
+          - id: lower-payload
+            phrase: Fewer cache bytes
+            targets:
+              - tradeoff-readout-2
+            color: yellow
+          - id: serving-performance
+            phrase: latency and throughput
+            targets:
+              - conversion-gate-2
+            color: pink
+        hold: 0.75
+      - say: Set quality limits before conversion. Measure peak per-device memory, latency, and tokens per second at the target context and batch. Those observations show whether the new grouping helps this workload.
+        visual_cues:
+          - id: quality-gate
+            phrase: Set quality limits before conversion
+            targets:
+              - conversion-gate-1
+            color: green
+          - id: serving-gates
+            phrase: memory, latency, and tokens per second
+            targets:
+              - conversion-gate-2
+            color: pink
+        hold: 0.75
+  - id: pooling-failure
+    title: Pool projections, then measure the changed function
+    visual: Merge opposite keys and values in the same2position state, compare old8.808 outputs with pooled5, and keep adaptation separate from algebra.
+    beats:
+      - say: Mean pooling is an initialization, not output parity. Use a scalar query of one and two fully visible positions. One head has keys one and minus one with values ten and zero; the other reverses both. Each old output is about eight point eight zero eight. Pooling the keys produces zero and zero; pooling values produces five and five. Both new outputs become five. The old behavior has changed even though the means are computed correctly.
+        hold: 1
+        visual_cues:
+          - id: pooling-failure-0
+            phrase: Mean pooling is an initialization, not output parity.
+            targets:
+              - pooling-failure-operation
+            linger: 0.5
+          - id: pooled-output-reveal
+            phrase: Both new outputs become five
+            targets:
+              - pooling-failure-operation
+            color: yellow
+          - id: pooling-progress
+            phrase: Pooling the keys produces zero and zero; pooling values produces five and five
+            targets:
+              - pooling-failure-operation
+            color: yellow
+      - say: Pool compatible key and value projection slices and biases within the same groups. Keep query and output projections at initialization; adaptation can update them later. The original GQA experiment continued the T-five-point-one-point-one pretraining setup and dataset with its Adafactor recipe for five percent of the original steps. That historical budget is a tested recipe, not a universal conversion requirement.
+        hold: 0.8
+        visual_cues:
+          - id: pooling-failure-1
+            phrase: Pool compatible key and value projection slices and biases within the same groups.
+            targets:
+              - pooling-failure-operation
+            linger: 0.5
+      - say: The paper reported average task scores forty-seven point one for GQA-eight versus forty-seven point two for MHA in its T-five-XXL comparison, covering summarization, translation and TriviaQA while excluding GLUE. Those results neither guarantee another checkpoint quality nor prove cached execution correctness. Set allowed quality changes first, then compare held-out tasks and actual serving measurements for the adapted model.
+        hold: 0.8
+        visual_cues:
+          - id: pooling-failure-2
+            phrase: The paper reported average task scores forty-seven point one for GQA-eight versus forty-seven point two for MHA in its T-five-XXL comparison, covering summarization, translation and TriviaQA while excluding GLUE.
+            targets:
+              - pooling-failure-operation
+            linger: 0.5
+  - id: latent-store
+    title: Cache learned content and a separate positional key
+    visual: Down-project hidden state into512 content coordinates, retain64 positional coordinates and count576 stored numbers per token.
+    beats:
+      - say: Multi-head latent attention uses a learned down-projection of each hidden state to one joint content latent. In the DeepSeek-two and three layouts discussed here, that latent has five hundred twelve coordinates, and a separate rotary positional key has sixty-four. Cache five hundred seventy-six numbers per token per layer in the absorbed decode path. Queries remain distinct across one hundred twenty-eight heads; this is a trained low-rank representation, not a lossless cache codec for arbitrary MHA.
+        hold: 1
+        visual_cues:
+          - id: latent-store-0
+            phrase: Multi-head latent attention uses a learned down-projection of each hidden state to one joint content latent.
+            targets:
+              - latent-store-operation
+            linger: 0.5
+      - say: Compare chosen raw layouts with one hundred twenty-eight queries and one-hundred-twenty-eight-wide keys and values. MHA stores thirty-two thousand seven hundred sixty-eight numbers per position, GQA-eight two thousand forty-eight, GQA-four one thousand twenty-four, and MQA two hundred fifty-six. MLA five hundred seventy-six is about fifty-six point nine times smaller than that MHA layout and three point five six times smaller than GQA-eight. MQA is smaller still; these counts do not establish equal functions or task quality.
+        hold: 0.8
+        visual_cues:
+          - id: latent-store-1
+            phrase: Compare chosen raw layouts with one hundred twenty-eight queries and one-hundred-twenty-eight-wide keys and values.
+            targets:
+              - latent-store-operation
+            linger: 0.5
+      - say: The MLA query also has its own learned compression and per-head up-projections. A content query and positional query contribute separate score terms, divided by the square root of their combined widths. For the supplied one-hundred-twenty-eight content and sixty-four positional coordinates, that divisor is the square root of one hundred ninety-two. Prefill or fallback kernels may expand representations; inspect retained state and temporary allocations separately.
+        hold: 0.8
+        visual_cues:
+          - id: latent-store-2
+            phrase: The MLA query also has its own learned compression and per-head up-projections.
+            targets:
+              - latent-store-operation
+            linger: 0.5
+  - id: latent-score
+    title: Move the projection to the current query
+    visual: Compute the same content score through expanded keys and through a transposed projection in the query, then move value projection after weighted accumulation.
+    beats:
+      - say: The content score is query transpose times key-up-projection times cached latent. Regroup it as the transpose-projected query dotted with that latent. The projected query depends on the current query and fixed weights, so compute it once per head and compare directly with every cached latent. This associative regrouping avoids expanding all historical content keys.
+        hold: 1
+        visual_cues:
+          - id: latent-score-0
+            phrase: The content score is query transpose times key-up-projection times cached latent.
+            targets:
+              - latent-score-operation
+            linger: 0.5
+      - say: Compute a two-dimensional fixture. The up-projection has rows one, two and zero, one. The latent is one, two and the query one, zero. Expanding gives key five, two and score five. Transpose the same projection into the query to obtain one, two; dot with the original latent and get five again. Both paths use the same learned parameterization. Floating-point implementations need justified tolerances rather than an assumption of bitwise equality.
+        hold: 0.8
+        visual_cues:
+          - id: latent-score-1
+            phrase: Compute a two-dimensional fixture.
+            targets:
+              - latent-score-operation
+            linger: 0.5
+          - id: latent-expanded-result
+            phrase: Expanding gives key five, two and score five
+            targets:
+              - latent-score-operation
+            color: yellow
+          - id: latent-absorbed-query
+            phrase: Transpose the same projection into the query to obtain one, two
+            targets:
+              - latent-score-operation
+            color: yellow
+          - id: latent-absorbed-result
+            phrase: get five again
+            targets:
+              - latent-score-operation
+            color: yellow
+      - say: Values admit the same linear regrouping. First accumulate attention weights times latent vectors, then apply the value up-projection once to that accumulated result. It can also be fused with the output projection. That changes execution order within MLA; it does not establish equality with the original full-MHA model or remove the distinct query-head computations.
+        hold: 0.8
+        visual_cues:
+          - id: latent-score-2
+            phrase: Values admit the same linear regrouping.
+            targets:
+              - latent-score-operation
+            linger: 0.5
+  - id: position-split
+    title: Keep position dependence out of the reusable content query
+    visual: Apply two different historical rotations to the same key up-projection; show scores5 and−2 and the two required absorbed queries before decoupling.
+    beats:
+      - say: Rotary position encoding is linear at a fixed position. Matrix multiplication remains associative. The difficulty is that a rotation applied to each expanded historical key depends on that cached position. Absorbing it gives up-projection transpose times key-rotation transpose times the rotated current query. That absorbed query now changes for every historical position, so it cannot be reused once across the history.
+        hold: 1
+        visual_cues:
+          - id: position-split-0
+            phrase: Rotary position encoding is linear at a fixed position.
+            targets:
+              - position-split-operation
+            linger: 0.5
+      - say: "Keep the previous two-dimensional projection, latent and query. With identity rotation at cached position zero, the score is five and the absorbed query is one, two. Rotate the expanded key by ninety degrees at a different cached position: five, two becomes minus two, five, and the score becomes minus two. The corresponding absorbed query is zero, minus one. Regrouping is correct at both positions, but a single shared content query cannot produce both scores."
+        hold: 0.8
+        visual_cues:
+          - id: position-split-1
+            phrase: Keep the previous two-dimensional projection, latent and query.
+            targets:
+              - position-split-operation
+            linger: 0.5
+          - id: position-rotated-result
+            phrase: the score becomes minus two
+            targets:
+              - position-split-operation
+            color: yellow
+          - id: position-rotate
+            phrase: Rotate the expanded key by ninety degrees
+            targets:
+              - position-split-operation
+            color: blue
+      - say: Decoupled RoPE solves this by keeping content and position as separate terms. Compare the absorbed content query with the shared cached content latent, and compare the rotated positional query with the cached positional key. Add those dot products, scale by the combined score width, then softmax across valid key positions. The sixty-four positional coordinates remain in the cache beside the five-hundred-twelve content coordinates.
+        hold: 0.8
+        visual_cues:
+          - id: position-split-2
+            phrase: Decoupled RoPE solves this by keeping content and position as separate terms.
+            targets:
+              - position-split-operation
+            linger: 0.5
+  - id: kernel-route
+    title: Read compact storage without repeating every head
+    visual: Map every query to floor(index/group-size), compute its own score, and contrast compact persistent cache with temporary reference expansion.
+    beats:
+      - say: A native grouped computation can map query index i to floor of i divided by queries per group. With eight queries and two KV groups, indices zero through three read KV-zero and four through seven KV-one. In a supplied one-position dot-product fixture, queries one through eight on the first coordinate meet group keys one and ten. Their raw scores are one, two, three, four, fifty, sixty, seventy and eighty. Shared storage has not merged the query results.
+        hold: 1
+        visual_cues:
+          - id: kernel-route-0
+            phrase: A native grouped computation can map query index i to floor of i divided by queries per group.
+            targets:
+              - kernel-route-operation
+            linger: 0.5
+      - say: A reference implementation may repeat compact K and V along the head dimension before calling attention. Materializing eight KV heads as thirty-two query-head copies creates a larger temporary working set even if persistent cache stays compact. Native grouped kernels can accept distinct query and KV counts. Check the dispatched FlashAttention or FlashInfer backend, peak allocations and traffic; the API signature alone does not prove that a particular call avoids materialization.
+        hold: 0.8
+        visual_cues:
+          - id: kernel-route-1
+            phrase: A reference implementation may repeat compact K and V along the head dimension before calling attention.
+            targets:
+              - kernel-route-operation
+            linger: 0.5
+      - say: Every query still computes its own scores and weighted values, so fewer stored heads do not proportionally shrink those attention products. Fewer projections can reduce some parameter and projection costs. Training adds backward kernels, activations and communication, while serving adds weight traffic, scheduling and queues. Measure training and decode separately instead of converting a raw-cache ratio into a claimed speedup.
+        hold: 0.8
+        visual_cues:
+          - id: kernel-route-2
+            phrase: Every query still computes its own scores and weighted values, so fewer stored heads do not proportionally shrink those attention products.
+            targets:
+              - kernel-route-operation
+            linger: 0.5
+  - id: cache-step
+    title: Append at the current request position
+    visual: Carry2storedKV identities through projection,position1rotation,append/read,cursor increment and a stale write rejection.
+    beats:
+      - say: At the next logical position, project the current hidden state into eight queries and two new keys and values in our miniature GQA layer. Apply position-one RoPE to Q and K, leave V unrotated, and retain keys already rotated for earlier positions. Write the new pairs at this request assigned locations. Query the retained positions zero and one, then advance its logical length cursor from one to two.
+        hold: 1
+        visual_cues:
+          - id: cache-step-0
+            phrase: At the next logical position, project the current hidden state into eight queries and two new keys and values in our miniature GQA layer.
+            targets:
+              - cache-step-operation
+            linger: 0.5
+          - id: cache-rotate
+            phrase: Apply position-one RoPE to Q and K, leave V unrotated
+            targets:
+              - cache-step-operation
+            color: yellow
+          - id: cache-write
+            phrase: Write the new pairs at this request assigned locations
+            targets:
+              - cache-step-operation
+            color: green
+          - id: cache-read
+            phrase: Query the retained positions zero and one
+            targets:
+              - cache-step-operation
+            color: cyan
+          - id: cache-advance
+            phrase: advance its logical length cursor from one to two
+            targets:
+              - cache-step-operation
+            color: yellow
+      - say: Now attempt another write using stale cursor one while length is two. The dense append fixture rejects it before overwriting or skipping state. In a batch, each request owns its own cursor, valid length, positions and physical locations. Scheduler reordering must carry those identities too. Paged, sliding-window and latent caches use different physical layouts; logical position is not automatically the buffer offset.
+        hold: 0.8
+        visual_cues:
+          - id: cache-step-1
+            phrase: Now attempt another write using stale cursor one while length is two.
+            targets:
+              - cache-step-operation
+            linger: 0.5
+      - say: Compare cached and full-prefix execution within the same converted model, at every step and at justified absolute and relative tolerances. Include ragged requests and multi-token chunks, and locate the first divergent output. Check positions, append locations, retained values, visible keys and actual stored-head layout. Small logit errors can change a token near an argmax tie. Old-MHA-versus-converted-model quality is a separate test.
+        hold: 0.8
+        visual_cues:
+          - id: cache-step-2
+            phrase: Compare cached and full-prefix execution within the same converted model, at every step and at justified absolute and relative tolerances.
+            targets:
+              - cache-step-operation
+            linger: 0.5
+  - id: causal-repair
+    title: Repair the latest query visibility on the same cache
+    visual: Hold zero scores and values1,2,9 fixed, compare upper-left one-row visibility with the correct complete prefix, then construct two chunk boundaries.
+    beats:
+      - say: Hold all scores at zero and cached values one, two and nine. The latest query is at absolute position two, so all three values are valid. PyTorch SDPA uses upper-left alignment when is-causal is true on a non-square matrix. One query row then exposes only key zero and returns one. This is a mask error, not a failure of shared K and V.
+        hold: 1
+        visual_cues:
+          - id: causal-repair-0
+            phrase: Hold all scores at zero and cached values one, two and nine.
+            targets:
+              - causal-repair-operation
+            linger: 0.5
+      - say: Repair visibility using the query actual position. All three valid values receive one third weight and produce four. Omitting the mask works for this single latest query only when there is no padding or future key. FlashAttention uses a bottom-right non-square causal convention. Match the selected API instead of assuming the same flag implies the same alignment.
+        hold: 0.8
+        visual_cues:
+          - id: causal-repair-1
+            phrase: Repair visibility using the query actual position.
+            targets:
+              - causal-repair-operation
+            linger: 0.5
+          - id: latest-query-mean
+            phrase: produce four
+            targets:
+              - causal-repair-operation
+            color: yellow
+          - id: latest-query-visible
+            phrase: All three valid values receive one third weight
+            targets:
+              - causal-repair-operation
+            color: green
+      - say: For two new queries at positions three and four, the first sees keys zero through three and the second may also see key four. An unmasked first row leaks the later key. Build each row boundary from its absolute position and valid request length. Compare both chunk rows with full-prefix recomputation; one-token parity alone does not test this branch.
+        hold: 0.8
+        visual_cues:
+          - id: causal-repair-2
+            phrase: For two new queries at positions three and four, the first sees keys zero through three and the second may also see key four.
+            targets:
+              - causal-repair-operation
+            linger: 0.5
+  - id: synthesis
+    title: Trace the query map before estimating the cache
+    visual: A query-to-group mapping flows into per-request byte accounting, followed by parity, quality, and serving gates.
+    beats:
+      - say: First identify the query-head count and the key-value-head count. Divide them to get the number of query readers assigned to each stored history, then check the tensor shapes used by the serving kernel.
+        visual_cues:
+          - id: head-counts
+            phrase: query-head count and the key-value-head count
+            targets:
+              - summary-heads
+              - summary-mapping
+            color: blue
+          - id: head-mapping
+            phrase: query readers assigned to each stored history
+            targets:
+              - synthesis-equation
+            color: yellow
+        hold: 0.65
+      - say: Multiply the actual dimensions and precision to estimate raw cache bytes. Add weights, workspaces, runtime reserves, and any replicated heads to the device plan. Keep this accounting tied to the engine's real layout.
+        visual_cues:
+          - id: cache-accounting
+            phrase: estimate raw cache bytes
+            targets:
+              - synthesis-equation
+            color: yellow
+          - id: engine-layout
+            phrase: real layout
+            targets:
+              - summary-shapes
+            color: blue
+        hold: 0.75
+      - say: Grouped-query attention reduces repeated memory while preserving separate query computations. Evaluate the changed model and the serving workload together, then keep the grouping only when quality and operations meet their targets.
+        visual_cues:
+          - id: independent-computation
+            phrase: separate query computations
+            targets:
+              - summary-heads
+            color: cyan
+          - id: quality-operations
+            phrase: quality and operations meet their targets
+            targets:
+              - summary-gate-1
+              - summary-gate-2
+            color: green
+        hold: 0.75
+  - id: earned-transfer
+    title: Predict the map and then count the replicas
+    visual: A new48Q/6KV layout is mapped across12ranks; derive the query19owner and48MiB versus96MiB aggregate footprint before revealing the answer.
+    beats:
+      - say: Try a fresh supplied layout with forty-eight query heads, six logical KV heads and twelve tensor-parallel ranks under the same head-sharding rules. Each history serves eight queries. Which KV group serves query nineteen?
+        hold: 1.6
+        visual_cues:
+          - id: earned-transfer-0
+            phrase: Try a fresh supplied layout with forty-eight query heads, six logical KV heads and twelve tensor-parallel ranks under the same head-sharding rules.
+            targets:
+              - earned-transfer-operation
+            linger: 0.5
+      - say: Integer division by eight gives group two. Query nineteen keeps its own weights and output even though it shares that group history.
+        hold: 0.7
+        visual_cues:
+          - id: earned-owner
+            phrase: gives group two
+            targets:
+              - earned-transfer-operation
+            color: yellow
+      - say: Each rank owns four queries and one physical KV head. Every logical KV identity appears on two ranks, making twelve physical copies. In a new worksheet with thirty-two layers, one request, one thousand twenty-four positions, width sixty-four and two-byte K and V, one physical head costs eight mebibytes. The unreplicated six-head cache would be forty-eight mebibytes; this actual layout sums to ninety-six. Matching forty-eight-head MHA would total three hundred eighty-four mebibytes, so replication leaves fourfold saving.
+        hold: 0.8
+        visual_cues:
+          - id: earned-transfer-1
+            phrase: Each rank owns four queries and one physical KV head.
+            targets:
+              - earned-transfer-operation
+            linger: 0.5
+          - id: earned-bytes
+            phrase: this actual layout sums to ninety-six
+            targets:
+              - earned-transfer-operation
+            color: yellow
+          - id: earned-rank-copies
+            phrase: Every logical KV identity appears on two ranks, making twelve physical copies
+            targets:
+              - earned-transfer-operation
+            color: yellow
+            linger: 0.4
+          - id: earned-head-bytes
+            phrase: one physical head costs eight mebibytes
+            targets:
+              - earned-transfer-operation
+            color: yellow
+            linger: 0.4
+          - id: earned-logical-bytes
+            phrase: The unreplicated six-head cache would be forty-eight mebibytes
+            targets:
+              - earned-transfer-operation
+            color: yellow
+            linger: 0.4
+          - id: earned-mha-bytes
+            phrase: Matching forty-eight-head MHA would total three hundred eighty-four mebibytes
+            targets:
+              - earned-transfer-operation
+            color: yellow
+            linger: 0.4
+          - id: earned-saving
+            phrase: replication leaves fourfold saving
+            targets:
+              - earned-transfer-operation
+            color: yellow
+            linger: 0.4
+      - say: Before accepting that smaller representation, pass cache/full-prefix parity with one-token and chunked queries, validate per-request metadata and the supported context, then compare held-out quality and measured per-rank memory and latency. The next lesson follows how an engine allocates those bytes and manages page reservations. Head identities, physical copies and execution correctness remain visible throughout that allocation.
+        hold: 0.8
+        visual_cues:
+          - id: earned-transfer-2
+            phrase: Before accepting that smaller representation, pass cache/full-prefix parity with one-token and chunked queries, validate per-request metadata and the supported context, then compare held-out quality and measured per-rank memory and latency.
+            targets:
+              - earned-transfer-operation
+            linger: 0.5

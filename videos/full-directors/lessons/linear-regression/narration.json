@@ -1,0 +1,475 @@
+[
+  {
+    "id": "c01",
+    "title": "How long for another hundred tokens?",
+    "sourceChapters": [
+      "c01"
+    ],
+    "beats": [
+      {
+        "id": "c01-b01",
+        "say": "Here's a hundred-token reply. Watch where its pulse lands. Now add a hundred tokens at a time. Each reply takes longer, but the gaps shrink.",
+        "hold": 0.3
+      },
+      {
+        "id": "c01-b02",
+        "say": "The sixth trace is empty. If those gaps keep shrinking in the same way, where would you put the next pulse?",
+        "hold": 3
+      },
+      {
+        "id": "c01-b03",
+        "say": "Fifteen milliseconds more. Each jump is two milliseconds smaller than the last. Add fifteen to a hundred ninety-eight. That puts the forecast at two hundred thirteen milliseconds. We still need a measurement there. A straight line adds the same amount for every hundred tokens. What time would it predict?",
+        "hold": 0.65
+      }
+    ]
+  },
+  {
+    "id": "c02",
+    "title": "What moves when a coefficient changes?",
+    "sourceChapters": [
+      "c02"
+    ],
+    "beats": [
+      {
+        "id": "c02-b01",
+        "say": "Start with the request at three hundred tokens. It took one hundred sixty-two milliseconds. On this axis its input is three, because each unit is a hundred tokens. Our trial line starts at eighty-five and adds ten per unit. Raise the intercept by fifteen. Every prediction rises by fifteen, including the one on our guide.",
+        "hold": 0.55
+      },
+      {
+        "id": "c02-b02",
+        "say": "Now increase the slope from ten to twenty. The intercept stays at one hundred. For this request, three units times twenty adds sixty to that starting value. The line predicts one hundred sixty milliseconds. The reply pulse lands two milliseconds later.",
+        "hold": 0.65
+      },
+      {
+        "id": "c02-b03",
+        "say": "Follow the line back to zero context. That hundred milliseconds is a fitted offset. The shortest request we measured had a hundred tokens. To find out how much of that offset comes from the network, we'd have to measure the network delay separately. At six hundred tokens the same line predicts two hundred twenty. Both zero and six are outside our training range.",
+        "hold": 0.55
+      }
+    ]
+  },
+  {
+    "id": "c03",
+    "title": "Where did the line miss?",
+    "sourceChapters": [
+      "c03"
+    ],
+    "beats": [
+      {
+        "id": "c03-b01",
+        "say": "Subtract the prediction from the observation. The two milliseconds left over are this request's residual. Align the prediction marks at zero and read the same pulses on a finer scale. Above zero, the request took longer than the line predicted. Below zero, the reply came early.",
+        "hold": 0.65
+      },
+      {
+        "id": "c03-b02",
+        "say": "Bring over the other requests. The line reads high at both ends and low in the middle. Try lifting it six milliseconds. Every residual moves downward together. The middle request now misses by four in the other direction, and the ends get worse. Bring the line back.",
+        "hold": 0.3
+      },
+      {
+        "id": "c03-b03",
+        "say": "One observation at each length gives us a reason to test a bend. We'd need fresh requests to decide whether the pattern repeats.",
+        "hold": 0.7
+      }
+    ]
+  },
+  {
+    "id": "c04",
+    "title": "How much error did the line leave?",
+    "sourceChapters": [
+      "c04"
+    ],
+    "beats": [
+      {
+        "id": "c04-b01",
+        "say": "Add the signed misses and you get zero, even though the line missed every request. At each length, use the size of its miss as the side of a square. A two-millisecond miss contributes four times as much area as a one-millisecond miss. Both signs count.",
+        "hold": 0.5
+      },
+      {
+        "id": "c04-b02",
+        "say": "The squares add up to fourteen. Dividing by five gives two point eight milliseconds squared. That's the mean squared error we minimize to fit the line. Taking the square root gives us a length again. The root mean squared error is about one point seven milliseconds.",
+        "hold": 0.65
+      },
+      {
+        "id": "c04-chord",
+        "say": "Keep the outline of each square from our fitted line. Lower the line two milliseconds until it joins the first and last replies. Those two misses disappear. Compare each gold square with its old outline. Which request gained the most area?",
+        "hold": 2.5
+      },
+      {
+        "id": "c04-chord-result",
+        "say": "The middle square grew from four cells to sixteen, a gain of twelve. Each neighbor grew from one cell to nine, a gain of eight. Add the two nines to sixteen and the total is thirty-four. Lift that line two milliseconds. We lose the exact hits at the ends, and the total falls back to fourteen.",
+        "hold": 1
+      },
+      {
+        "id": "c04-b03",
+        "say": "What did knowing the length buy us? Try always predicting the training mean, one hundred sixty milliseconds. The horizontal line misses most at the ends, and its mean squared error is over eight hundred. R squared measures the fraction of that squared error our fitted line removes.",
+        "hold": 0.3
+      },
+      {
+        "id": "c04-b04",
+        "say": "Almost all of it, on these five rows. Fourteen divided by four thousand fourteen is the fraction of squared error left. Subtract that fraction from one and R squared is about point nine nine six five. Look at the arch beside that score. Its shape disappeared in the average.",
+        "hold": 0.7
+      },
+      {
+        "id": "c04-baseline",
+        "say": "We already saw the fifth reply when we drew the line through the endpoints. Use it again to see how a holdout calculation works. Fit the line on just the first four requests. It now predicts two hundred three milliseconds for the fifth. Their mean is a hundred fifty point five. Freeze both forecasts. Now uncover the fifth reply again. At a hundred ninety-eight milliseconds, it is five from the line and forty-seven and a half from the training mean. This split is retrospective. For an independent test, reserve requests before inspecting their outcomes or choosing the model.",
+        "hold": 1
+      }
+    ]
+  },
+  {
+    "id": "c05",
+    "title": "How do the errors move the line?",
+    "sourceChapters": [
+      "c05"
+    ],
+    "beats": [
+      {
+        "id": "c05-b01",
+        "say": "How would we find the line without guessing the numbers? Start both coefficients at zero. For the gradient, subtract each observation from its prediction. Twice the average of those errors tells us how loss changes with the intercept.",
+        "hold": 0.3
+      },
+      {
+        "id": "c05-b02",
+        "say": "For the slope, multiply each error by its input before taking twice the average. Step in the opposite direction at a rate of point zero five. The first step puts the intercept at sixteen and the slope at fifty-two.",
+        "hold": 0.66
+      },
+      {
+        "id": "c05-b03",
+        "say": "Repeat the update. The parameter point and its matching line now show each completed step. The point drops quickly into the valley and moves slowly along its floor. The steep direction limits the safe step.",
+        "hold": 0.3
+      },
+      {
+        "id": "c05-b04",
+        "say": "That leaves a lot of short steps in the shallow direction. Squared error gives us a convex bowl. Its stationary minimum is the best straight-line fit.",
+        "hold": 0.6
+      },
+      {
+        "id": "c05-b05",
+        "say": "For a second run, start just off the minimum and raise the rate to point zero nine. Follow the point as it crosses the minimum again and again. The little chart records the loss after each completed step.",
+        "hold": 0.3
+      },
+      {
+        "id": "c05-b06",
+        "say": "Even close to the bottom, this rate sends the line farther away. Keep those two rates in mind.",
+        "hold": 0.8
+      }
+    ]
+  },
+  {
+    "id": "c06",
+    "title": "Which weights give the shortest miss?",
+    "sourceChapters": [
+      "c06"
+    ],
+    "beats": [
+      {
+        "id": "c06-b01",
+        "say": "A least-squares solver can go straight to the bottom. Write a one next to each context length. Those two columns form our design matrix. The one multiplies the intercept and the length multiplies the slope. Read the predictions one row at a time. With several features, each row gets another input and each input gets its own weight.",
+        "hold": 0.3
+      },
+      {
+        "id": "c06-b02",
+        "say": "The third row gives one times a hundred plus three times twenty. Every pair of coefficients makes a new five-number prediction vector from the same two columns.",
+        "hold": 0.55
+      },
+      {
+        "id": "c06-b03",
+        "say": "Picture the five observations as a target vector. This slice shows the target, the fitted vector, and the gap between them. Project the target onto the space the columns can reach. The shortest miss meets that space at a right angle.",
+        "hold": 0.3
+      },
+      {
+        "id": "c06-b04",
+        "say": "We can check that on all five rows. The residuals sum to zero. Multiply each by its input and those terms sum to zero too. The residual is perpendicular to both columns. Neither a shift nor a tilt can improve this line's squared error.",
+        "hold": 0.65
+      },
+      {
+        "id": "c06-normal",
+        "say": "Set the sum of residuals and the sum of length times residual to zero and collect the coefficients. These are the normal equations. Subtract three copies of the first equation from the second. That leaves ten times the slope equal to two hundred. The slope is twenty. Put it back in the first equation and the intercept is a hundred. Dropping the column of ones would force this line through zero and give much larger misses.",
+        "hold": 0.9
+      },
+      {
+        "id": "c06-b05",
+        "say": "Give the solver both length and double length. Choose another equivalent fit by hand. Watch the weights change while every prediction stays fixed. Four times the length plus eight times double the length still adds up to twenty times the length. A solver can select one pair even when the data cannot tell those two effects apart.",
+        "hold": 0.65
+      }
+    ]
+  },
+  {
+    "id": "c07",
+    "title": "What does the solver have to store?",
+    "sourceChapters": [
+      "c07"
+    ],
+    "beats": [
+      {
+        "id": "c07-b01",
+        "say": "A dense Gram matrix stores a dot product for every pair of design columns. Take the ones column times the length column. Read across all five rows and add their products. Fifteen goes into the cell where the two columns meet. Now scale up to a thousand design columns. Each dot product visits all N rows. Double the columns at fixed row count and you need four times the storage and about four times the formation work.",
+        "hold": 0.3
+      },
+      {
+        "id": "c07-b02",
+        "say": "A dense factorization grows cubically, about eight times the work. Grow the grid again, this time to ten thousand columns. At eight bytes per entry, that last square alone takes eight hundred megabytes.",
+        "hold": 0.3
+      },
+      {
+        "id": "c07-b03",
+        "say": "Double the rows instead and the Gram square stays the same size, but each dot product takes twice the work. These are growth rates for dense arithmetic. Sparsity, memory access and the solver affect elapsed time.",
+        "hold": 0.75
+      },
+      {
+        "id": "c07-b04",
+        "say": "On our two-column design, forming the Gram matrix squares the condition number, from about eight to about seventy. QR and singular-value solvers work with the original design. Run NumPy's least-squares routine on our five requests.",
+        "hold": 0.3
+      },
+      {
+        "id": "c07-b05",
+        "say": "It returns two independent directions, the same weights as the converged gradient run, and the same fitted values. Now add a third column containing double the length. The numerical rank stays at two. The solver returns the shortest weight vector among the solutions.",
+        "hold": 0.3
+      },
+      {
+        "id": "c07-b06",
+        "say": "Check the predictions and the rank together. On nearly dependent columns, the singular-value cutoff can change what counts as a direction.",
+        "hold": 0.7
+      }
+    ]
+  },
+  {
+    "id": "c08",
+    "title": "Which step sizes shrink the error?",
+    "sourceChapters": [
+      "c08"
+    ],
+    "beats": [
+      {
+        "id": "c08-b01",
+        "say": "Return to the bowl from the gradient run. Slice it at one height and look straight down. The long radius points along the shallow direction. In the steep direction, a much shorter move raises the loss just as far. The Hessian measures curvature.",
+        "hold": 0.3
+      },
+      {
+        "id": "c08-b02",
+        "say": "For mean squared error, it is twice the design's Gram matrix divided by the number of requests. Its two eigenvalues give the curvatures along these axes. Divide the steeper curvature by the shallower one to get about seventy. Divide the long radius by the short one and you get the square root of that ratio, about eight point four.",
+        "hold": 0.7
+      },
+      {
+        "id": "c08-b03",
+        "say": "Zero on each rail means we've reached the solution in that direction. Each dot starts one unit to its right. A step multiplies that error by one minus the learning rate times the curvature. Try a rate of point zero five. Both dots land inside the shaded strip.",
+        "hold": 0.3
+      },
+      {
+        "id": "c08-b04",
+        "say": "The steep-direction dot crossed zero and still got closer. Reset both dots to one for a second trial. Now try point two. It lands more than three units from zero. Each step multiplies its distance from zero by about three point seven.",
+        "hold": 0.3
+      },
+      {
+        "id": "c08-b05",
+        "say": "For the error to shrink from every starting point, both multipliers must lie strictly between minus one and one. Here that means a rate above zero and below about point zero eight four five.",
+        "hold": 0.8
+      },
+      {
+        "id": "c08-b06",
+        "say": "Centering this one input and scaling it to unit variance makes the bowl round with the intercept included. Correlated inputs can still leave a long valley. Take the length and also twice the length as features. Trade weight by hand to choose another equivalent fit. The five predictions stay put.",
+        "hold": 0.3
+      },
+      {
+        "id": "c08-b07",
+        "say": "Now compare two gradient runs. Each uses the same small step. Run A starts at zero and converges to the shortest weight vector, the minimum-norm solution. Other starts can carry a component along the flat direction. Run B starts with sixteen on length and minus eight on double length. Those two contributions cancel on every row. Each gradient is perpendicular to that starting offset, so the offset survives every update. Run B ends sixteen higher on length and eight lower on double length than run A. Compare their fitted replies.",
+        "hold": 0.7
+      }
+    ]
+  },
+  {
+    "id": "c09",
+    "title": "How far does the bend move the forecast?",
+    "sourceChapters": [
+      "c09"
+    ],
+    "beats": [
+      {
+        "id": "c09-b01",
+        "say": "Come back to the arch in the residuals. The five gold pulses stay where we measured them. The lower scale magnifies the gap from the model to each pulse. At three hundred tokens we want to add two milliseconds. At each end we want to subtract two.",
+        "hold": 0.3
+      },
+      {
+        "id": "c09-b02",
+        "say": "Give the model one extra input. Subtract three from the length in hundreds, square it, then subtract two. The five new inputs read two, minus one, minus two, minus one, two. Turn its weight from zero to minus one. Watch the fitted trace bend through the five fixed pulses. All five gaps close.",
+        "hold": 0.3
+      },
+      {
+        "id": "c09-b03",
+        "say": "The prediction curves with length, but each coefficient still multiplies an input. At six hundred tokens the new input is seven. Subtracting seven from the line's two hundred twenty gives the two hundred thirteen we guessed at the start. Where would half that correction put the forecast?",
+        "hold": 3
+      },
+      {
+        "id": "c09-b04",
+        "say": "Half the correction puts the forecast at two hundred sixteen and a half milliseconds. We got there by adding a Ridge penalty to the mean squared error. It charges for the square of the bend's weight.",
+        "hold": 0.3
+      },
+      {
+        "id": "c09-b05",
+        "say": "Here a strength of two point eight cuts that weight in half. Look at the rings. We've given up some training accuracy. A Lasso penalty charges for the absolute weight. Increase that charge until the bend reaches zero. Now the forecast lies back on the line.",
+        "hold": 0.3
+      },
+      {
+        "id": "c09-b06",
+        "say": "Only the bend was penalized in this experiment. We've kept the original line and the full curve for the held-out comparison.",
+        "hold": 0.75
+      }
+    ]
+  },
+  {
+    "id": "c10",
+    "title": "Which coefficient pays the penalty?",
+    "sourceChapters": [
+      "c10"
+    ],
+    "beats": [
+      {
+        "id": "c10-b01",
+        "say": "This time use just the straight line and penalize its slope. The green ring marks the mean length and mean latency. With a free intercept, the fitted line keeps passing through that ring. Raise the Ridge strength to two.",
+        "hold": 0.3
+      },
+      {
+        "id": "c10-b02",
+        "say": "The slope falls from twenty to ten, and the intercept rises from a hundred to a hundred thirty. In the normal equations we add the strength times the number of rows to each penalized diagonal entry.",
+        "hold": 0.3
+      },
+      {
+        "id": "c10-b03",
+        "say": "Why does Ridge still work with duplicate features? Add two to the weight on length and subtract one from the weight on double length. The two changes cancel in every prediction. Along that direction the data give us zero curvature, but Ridge charges for both squared weight changes. What about the free intercept? Move it alone and every prediction moves. With at least one row, this leaves no flat direction. The penalized system is positive definite.",
+        "hold": 0.7
+      },
+      {
+        "id": "c10-b04",
+        "say": "Keep that same slope penalty. Now charge the intercept as well. Watch the gap open below the green ring. The mean prediction has moved. When every coefficient pays the same positive Ridge penalty, we add a multiple of the identity.",
+        "hold": 0.3
+      },
+      {
+        "id": "c10-b05",
+        "say": "Every Gram eigenvalue then increases by the strength times the number of rows. Leaving the intercept free uses a different diagonal mask, so that uniform shift argument applies only to the all-coordinate case.",
+        "hold": 0.65
+      },
+      {
+        "id": "c10-b06",
+        "say": "Return to the original line and leave the intercept free again. Switch to Lasso. As we raise the charge on the absolute slope, watch the line go flat. At zero slope the smooth loss derivative here is minus eighty.",
+        "hold": 0.3
+      },
+      {
+        "id": "c10-b07",
+        "say": "The kink in the absolute value lets the penalty supply any slope from minus eighty to plus eighty at this strength. Plus eighty balances the loss derivative exactly. A zero weight tells you about this fit and this charge.",
+        "hold": 0.3
+      },
+      {
+        "id": "c10-b08",
+        "say": "Scale inputs using training data and choose the strength on representative validation requests. To reproduce it in another library, match the loss normalization, including any factor of one half.",
+        "hold": 0.75
+      }
+    ]
+  },
+  {
+    "id": "c11",
+    "title": "What varies if we collect the timings again?",
+    "sourceChapters": [
+      "c11"
+    ],
+    "beats": [
+      {
+        "id": "c11-b01",
+        "say": "Suppose the true line starts at a hundred milliseconds. Let each of the five timings independently land one millisecond above or below that line, like five fair coin tosses. The dots show the intercept estimate for every possible set of tosses. Both rules average to a hundred.",
+        "hold": 0.3
+      },
+      {
+        "id": "c11-b02",
+        "say": "Give the lower rule different weights that keep it unbiased. Its dots spread out. Least squares has the smaller variance. Gauss-Markov gives the general result for a linear model with full column rank, zero conditional mean error, and uncorrelated errors of equal finite variance given the design.",
+        "hold": 0.3
+      },
+      {
+        "id": "c11-b03",
+        "say": "Among unbiased coefficient estimates linear in the observed timings, least squares has minimum covariance. A biased Ridge fit can still have smaller prediction errors on new requests. To compare those errors, score both fits on held-out requests.",
+        "hold": 0.7
+      },
+      {
+        "id": "c11-b04",
+        "say": "Those coin tosses were independent and plainly non-Gaussian. The variance guarantee still held. Familiar exact small-sample t and F inference needs the extra Gaussian assumption. Now look at the fitted residuals from our original five requests. Change the first three timings together, keeping both sums at zero.",
+        "hold": 0.3
+      },
+      {
+        "id": "c11-b05",
+        "say": "The residuals change together even though the fitted line stays put. Fitting ties them together. On a live service, inspect the request order for bursts and the residual spread for rare delays. Heavy tails can make a variance estimate unreliable.",
+        "hold": 0.3
+      },
+      {
+        "id": "c11-b06",
+        "say": "If longer requests arrive when the server is busiest, collecting more of the same traffic still mixes length with load.",
+        "hold": 0.65
+      },
+      {
+        "id": "c11-b07",
+        "say": "At six hundred tokens, do we want the average latency or the time one request will take? Suppose the straight-line mean continues to hold and the errors are independent and Gaussian with the same variance.",
+        "hold": 0.3
+      },
+      {
+        "id": "c11-b08",
+        "say": "On these five rows, the green confidence interval is for the mean at six hundred tokens. Start with that same uncertainty below. Add the variation of one future request. Both intervals use the same ninety-five percent level.",
+        "hold": 0.3
+      },
+      {
+        "id": "c11-b09",
+        "say": "The prediction interval reaches farther on either side because an individual reply can run faster or slower than the mean.",
+        "hold": 0.7
+      },
+      {
+        "id": "c11-b10",
+        "say": "Here's a quieter way to spoil the fit. Keep the predictions in a vector, but put the five target times in a column. Subtraction pairs every prediction with every target. Look across the first row. Even the five-hundred-token prediction is being graded against the hundred-token request.",
+        "hold": 0.3
+      },
+      {
+        "id": "c11-b11",
+        "say": "Flatten the target so each prediction meets its own timing. Only the five matched differences belong in this loss. Check the shapes before taking the mean, or the optimizer will happily minimize the wrong number.",
+        "hold": 0.75
+      }
+    ]
+  },
+  {
+    "id": "c12",
+    "title": "What do the held-out requests say?",
+    "sourceChapters": [
+      "c12"
+    ],
+    "beats": [
+      {
+        "id": "c12-b01",
+        "say": "Take the two original forecasts out to six hundred tokens. Both learned from the same five shorter requests. The straight line adds twenty to its fitted value of two hundred at five hundred tokens. The full curve adds fifteen to its own value of one hundred ninety-eight. Where would you place each forecast on this ruler?",
+        "hold": 2.5
+      },
+      {
+        "id": "c12-b02",
+        "say": "The line lands at two hundred twenty. The curve lands at two hundred thirteen. Keep those marks fixed while we open the replays.",
+        "hold": 0.7
+      },
+      {
+        "id": "c12-b03",
+        "say": "The first timing is two hundred nineteen milliseconds. Read the distance from each forecast to the pulse. The line is one millisecond high. The curve is six milliseconds low. The line came closer on this request, even though the curve hit all five training points.",
+        "hold": 0.9
+      },
+      {
+        "id": "c12-b04",
+        "say": "Here's a second constructed request at the same length. Both forecasts still stand. This request took two hundred fourteen milliseconds. Which forecast is closer this time?",
+        "hold": 3
+      },
+      {
+        "id": "c12-b05",
+        "say": "The curve is closer. It missed by one millisecond. The line overshot by six. Put both replays side by side. Square each signed miss and count each request once. Which model has the lower mean squared error across the two requests?",
+        "hold": 2.1
+      },
+      {
+        "id": "c12-b06",
+        "say": "They tie at eighteen and a half milliseconds squared. Each model pays for one large miss and one small one. We'd need more requests covering the lengths and loads we expect to serve. Use validation requests to choose the model, then score that choice on a separate test set. A replay that appears in both sets leaks information into the test.",
+        "hold": 1
+      },
+      {
+        "id": "c12-b07",
+        "say": "Here comes a five-thousand-token request. Look how far it sits from the training marks. Even the two replays at six hundred sit way over on the left. At this length, queuing or memory pressure could change the timing. Time requests at five thousand tokens under realistic load. Check the fit there before quoting a latency.",
+        "hold": 0.85
+      }
+    ]
+  }
+]

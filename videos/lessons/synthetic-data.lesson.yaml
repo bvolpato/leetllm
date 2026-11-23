@@ -1,0 +1,1120 @@
+version: 1
+id: synthetic-data
+title: Build, Verify and Evaluate Synthetic Training Data
+source: training/synthetic-data-generation-pipelines-llms/content.md
+sources:
+  - title: Wang et al. Self-Instruct
+    url: https://arxiv.org/abs/2212.10560
+  - title: Xu et al. WizardLM Evol-Instruct
+    url: https://arxiv.org/abs/2304.12244
+  - title: Shumailov et al. The Curse of Recursion
+    url: https://arxiv.org/abs/2305.17493
+  - title: Gerstgrasser et al. Accumulating Real and Synthetic Data
+    url: https://arxiv.org/abs/2404.01413
+  - title: Gunasekar et al. Textbooks Are All You Need
+    url: https://arxiv.org/abs/2306.11644
+  - title: The Llama 3 Herd of Models
+    url: https://arxiv.org/abs/2407.21783
+  - title: Orca explanation traces
+    url: https://arxiv.org/abs/2306.02707
+  - title: NeMo Data Designer September 2026 preprint
+    url: https://arxiv.org/abs/2609.17699
+  - title: Epoch conditional June 2024 data forecast
+    url: https://arxiv.org/abs/2211.04325v2
+scenes:
+  - id: intro
+    title: "Would you train on this answer?"
+    visual: "A generated client prints names beside the search result. Follow the yellow cursor to page two and compare the missing name with the stopped output."
+    beats:
+      - say: "Ada and Grace. The generated client stops there. We asked it to fetch every name. See the yellow tab on the search result? That's a cursor for another page. Would you train on this answer?"
+        hold: 2.5
+        caption_starts: ["We asked it to fetch every name", "See the yellow tab", "Would you train on this answer"]
+        visual_cues:
+          - id: client-output
+            phrase: "Ada and Grace"
+            targets: [printed-names]
+            linger: 0.35
+          - id: client-stops
+            phrase: "The generated client stops there"
+            targets: [printed-names]
+            linger: 0.35
+          - id: page-token
+            phrase: "yellow tab"
+            targets: [returned-token]
+            linger: 0.35
+          - id: keep-question
+            phrase: "Would you train on this answer"
+            targets: [printed-names, returned-token]
+            linger: 0.35
+      - say: "Follow that cursor. There's Linus. His page has an empty cursor, so the list ends here. The client missed Linus. Keep its answer out of training."
+        hold: 1.1
+        caption_starts: ["His page has an empty cursor", "The client missed Linus"]
+        visual_cues:
+          - id: follow-token
+            phrase: "Follow that cursor"
+            targets: [next-page]
+            linger: 0.35
+          - id: last-name
+            phrase: "There's Linus"
+            targets: [next-page]
+            linger: 0.35
+            caption_boundary: true
+          - id: end-token
+            phrase: "an empty cursor"
+            targets: [next-page]
+            linger: 0.35
+          - id: withhold-incomplete
+            phrase: "Keep its answer out of training"
+            targets: [printed-names]
+            linger: 0.35
+            caption_boundary: true
+      - say: "Most of our reviewed searches end on the first page. Give a language model one reviewed search task and ask it to write a variation. This time the client must retry a request, then fetch another page. That new task and its answer are synthetic training data. How do we decide whether to use them?"
+        hold: 0.8
+        caption_starts: ["This time the client must retry", "That new task and its answer"]
+        visual_cues:
+          - id: missing-case
+            phrase: "retry a request, then fetch another page"
+            targets: [new-task]
+            linger: 0.35
+  - id: seed
+    title: Keep the search task with its source
+    visual: The reviewed search contract travels under one seed ID. Its generated descendants stay on the training side of a split made by seed family.
+    beats:
+      - say: "Keep the team's reviewed starting task. We'll call it seed S twelve. Its source is the search API documentation. Read the rule that would have caught the missing name. Follow each returned cursor until the service sends an empty one."
+        hold: 0.8
+        visual_cues:
+          - { id: seed-name, phrase: "seed S twelve", targets: [seed-record] }
+          - { id: seed-source, phrase: "the search API documentation", targets: [seed-record] }
+          - { id: seed-cursor, phrase: "Follow each returned cursor", targets: [seed-rules] }
+      - say: "The same contract caps each request at a hundred names. For a temporary rate limit, our fixture allows two retries of the same cursor. Put those rules beside the source, the pagination family and the specific behavior we want to practice. If a rule is wrong here, a generator can repeat it across a whole batch."
+        hold: 0.8
+        visual_cues:
+          - { id: seed-limit, phrase: "a hundred names", targets: [seed-rules] }
+          - { id: seed-retry, phrase: "two retries of the same cursor", targets: [seed-rules] }
+          - { id: seed-slice, phrase: "specific behavior we want to practice", targets: [seed-record] }
+      - say: "Assign the seed family to a split before generating variations. Here the family means S twelve and everything derived from it. This family goes into training. Its descendants keep the S twelve ID even if we change the prompt or the generator. Keep the reserved families separate. They can test the same skill with independently written searches. Later we'll check for copied wording across families."
+        hold: 0.9
+        visual_cues:
+          - { id: family-split, phrase: "Assign the seed family to a split", targets: [training-family, reserved-family] }
+          - { id: keep-lineage, phrase: "descendants keep the S twelve ID", targets: [training-family] }
+          - { id: private-families, phrase: "Keep the reserved families separate", targets: [reserved-family] }
+  - id: generate
+    title: Ask for coverage that matters
+    visual: One seed branches into distinct candidates for cursor termination, rate-limit recovery, and a tempting
+      oversized page request.
+    beats:
+      - say: Prompt a generator with the reviewed seed and ask for a distinct edge case. Here it proposes empty-cursor
+          termination, bounded retries after a rate limit, and a request for an oversized page. Ask the
+          generator to state the expected behavior so reviewers can compare the candidate with the seed
+          contract.
+        hold: 0.55
+        visual_cues:
+          - id: generate-b1-1
+            phrase: distinct edge case
+            targets:
+              - candidate-rows
+            linger: 0.45
+          - id: generate-b1-2
+            phrase: expected behavior
+            targets:
+              - expected-behavior
+            linger: 0.45
+      - say: These candidates exercise different parts of the same client contract. A new sentence can still repeat an
+          old task, so track coverage by behavior and difficulty alongside row counts.
+        hold: 0.55
+        visual_cues:
+          - id: generate-b2-1
+            phrase: coverage by behavior
+            targets:
+              - behavior-coverage
+            linger: 0.45
+      - say: Self-Instruct demonstrated instruction generation from a small human seed pool, followed by filtering for
+          near-duplicates. Its recipe inspires this workflow; use its findings as context, then set scale and
+          thresholds from our coverage tests. Measure coverage by task family; repetitive paraphrases inflate
+          row counts without adding new skills.
+        hold: 0.75
+        visual_cues:
+          - id: generate-b3-1
+            phrase: task family
+            targets:
+              - behavior-coverage
+            linger: 0.45
+  - id: task-growth
+    title: Construct a task pool from reviewed seeds
+    visual: A persistent S12 seed expands into named task families; output-first class generation balances the
+      requested classes.
+    beats:
+      - say: "Self-Instruct started with one hundred seventy-five human-authored tasks. Its prompts showed the generator eight existing tasks, typically six human-written and two model-generated. With repeated rounds of generation and filtering, the pool grew to fifty-two thousand four hundred forty-five instructions."
+        hold: 0.7
+        visual_cues:
+          - id: task-demos
+            phrase: eight existing tasks
+            targets:
+              - task-growth-mechanism
+            linger: 0.5
+          - id: task-total
+            phrase: fifty-two thousand four hundred forty-five
+            targets:
+              - task-growth-mechanism
+            linger: 0.5
+          - id: task-demo-count
+            phrase: six human-written and two model-generated
+            targets:
+              - task-growth-mechanism
+            linger: 0.5
+      - say: "A new instruction still needs examples. For a classification task, choose the class labels first. Ask the generator for an input belonging to each label. That gives a rare class a turn even when most of the obvious examples are positive. For other tasks, Self-Instruct generated the input first."
+        hold: 0.7
+        visual_cues:
+          - id: output-first
+            phrase: class labels first
+            targets:
+              - task-growth-mechanism
+            linger: 0.5
+          - id: labels-first
+            phrase: class labels first
+            targets:
+              - task-growth-mechanism
+            linger: 0.5
+          - id: class-inputs
+            phrase: an input belonging to each label
+            targets:
+              - task-growth-mechanism
+            linger: 0.5
+      - say: "How close is the new instruction to one already in the pool? Self-Instruct kept it only if its highest ROUGE-L similarity was below zero point seven. The authors also checked the generated instances. These filters helped keep repeated wording out of the growing pool."
+        hold: 0.7
+        caption_starts: ["Self-Instruct kept it"]
+        visual_cues:
+          - id: rouge-rule
+            phrase: below zero point seven
+            targets:
+              - task-growth-mechanism
+            linger: 0.5
+          - id: rouge-cutoff
+            phrase: below zero point seven
+            targets:
+              - task-growth-mechanism
+            linger: 0.5
+  - id: evolution
+    title: Change the work a task requires
+    visual: Keep the same API seed and progressively add an explicit retry clock, cursor recovery and verifiable
+      ordering constraint.
+    beats:
+      - say: An in-depth Evol-Instruct rewrite makes an existing task more demanding. Its five styles add constraints,
+          deepen a question, replace general concepts with concrete ones, add reasoning steps, or complicate
+          the input. In-breadth evolution instead proposes another task. A synonym change may leave the
+          required behavior identical.
+        hold: 0.7
+        visual_cues:
+          - id: evolution-styles
+            phrase: five styles
+            targets:
+              - evolution-mechanism
+            linger: 0.5
+          - id: depth-five
+            phrase: five styles
+            targets:
+              - evolution-mechanism
+            linger: 0.5
+      - say: "Give the search client a deterministic clock so we can check how long it waits. Add a bounded retry schedule so we can count the attempts. Now require it to preserve the returned cursor after a rate limit. We can run a client against each of those requirements."
+        hold: 0.7
+        visual_cues:
+          - id: evolution-task
+            phrase: preserve the returned cursor
+            targets:
+              - evolution-mechanism
+            linger: 0.5
+          - id: clock-constraint
+            phrase: deterministic clock
+            targets:
+              - evolution-mechanism
+            linger: 0.5
+          - id: retry-constraint
+            phrase: bounded retry schedule
+            targets:
+              - evolution-mechanism
+            linger: 0.5
+          - id: cursor-constraint
+            phrase: preserve the returned cursor
+            targets:
+              - evolution-mechanism
+            linger: 0.5
+      - say: "WizardLM screened rewrites for information gain, copied instructions, punctuation-only output, and short answers containing the word sorry. A correct safety refusal can also contain that word. Keep a valid refusal when it follows the policy for the request."
+        hold: 0.7
+        visual_cues:
+          - id: refusal-keep
+            phrase: correct safety refusal
+            targets:
+              - evolution-mechanism
+            linger: 0.5
+          - id: valid-refusal
+            phrase: Keep a valid refusal
+            targets:
+              - evolution-mechanism
+            linger: 0.5
+  - id: verifier
+    title: "What did each client collect?"
+    visual: "Run both client functions on fresh copies of the fixture. Carry the returned cursor into the next request and accumulate the names actually delivered."
+    beats:
+      - say: "Run the retry client on our two-page search. The service allows up to a hundred names per request. The client may retry a rate-limited request twice. This time the first request gets a four twenty-nine. Watch what the client sends next."
+        hold: 0.8
+        visual_cues:
+          - id: fixture-limit
+            phrase: "a hundred names per request"
+            targets: [contract]
+            linger: 0.35
+          - id: throttle-reply
+            phrase: "gets a four twenty-nine"
+            targets: [first-call]
+            linger: 0.35
+            caption_boundary: true
+      - say: "It asks for the same page again. Ada and Grace come back. The service also sends page two as the next cursor. Which cursor belongs in the third request?"
+        hold: 2.2
+        visual_cues:
+          - id: same-request
+            phrase: "asks for the same page again"
+            targets: [retry-call]
+            linger: 0.35
+          - id: page-one-names
+            phrase: "Ada and Grace come back"
+            targets: [retry-call]
+            linger: 0.35
+          - id: next-value
+            phrase: "page two as the next cursor"
+            targets: [retry-call]
+            linger: 0.35
+          - id: third-prediction
+            phrase: "Which cursor belongs in the third request"
+            targets: [third-call, retry-call]
+            linger: 0.35
+      - say: "It sends page two. Linus comes back with an empty next cursor. The client stops with all three names. It retried once, and each request stayed within the limit."
+        hold: 0.95
+        visual_cues:
+          - id: third-input
+            phrase: "It sends page two"
+            targets: [third-call]
+            linger: 0.35
+            caption_boundary: true
+          - id: third-response
+            phrase: "Linus comes back with an empty next cursor"
+            targets: [third-call]
+            linger: 0.35
+          - id: complete-client
+            phrase: "stops with all three names"
+            targets: [receipt]
+            linger: 0.35
+            caption_boundary: true
+      - say: "Now run the other proposal on a fresh copy of that fixture. It asks for ten thousand names in one request. The service rejects that request at the page limit. The client collects zero names. Save this failing case. Before using generated code in production, isolate its execution and add trusted cases for timeouts and malformed replies."
+        hold: 0.9
+        visual_cues:
+          - id: other-proposal
+            phrase: "the other proposal"
+            targets: [oversize-call]
+            linger: 0.35
+          - id: oversize-limit
+            phrase: "ten thousand names in one request"
+            targets: [oversize-call]
+            linger: 0.35
+          - id: oversize-status
+            phrase: "rejects that request at the page limit"
+            targets: [oversize-call]
+            linger: 0.35
+            caption_boundary: true
+          - id: empty-result
+            phrase: "collects zero names"
+            targets: [receipt]
+            linger: 0.35
+            caption_boundary: true
+  - id: execution-boundaries
+    title: Keep the verifier independent of the candidate
+    visual: A candidate changes its own assertion; trusted external pagination tests still reject the oversized
+      request.
+    beats:
+      - say: A schema check establishes field shape, a static check inspects code, and a runtime test executes
+          specified cases. A symbolic check can establish a property inside its formal model. Each has a different scope. The article checks a three-field JSON configuration for the exact page size, retry limit and cursor setting. A working client needs a different test. Our two-page search checks which cursor the client actually sends, how it retries and which names come back.
+        hold: 0.7
+        visual_cues:
+          - id: verifier-scopes
+            phrase: different scope
+            targets:
+              - execution-boundaries-mechanism
+            linger: 0.5
+          - id: scope-schema
+            phrase: A schema check
+            targets:
+              - execution-boundaries-mechanism
+            linger: 0.5
+          - id: scope-static
+            phrase: a static check
+            targets:
+              - execution-boundaries-mechanism
+            linger: 0.5
+          - id: scope-runtime
+            phrase: a runtime test
+            targets:
+              - execution-boundaries-mechanism
+            linger: 0.5
+          - id: scope-symbolic
+            phrase: A symbolic check
+            targets:
+              - execution-boundaries-mechanism
+            linger: 0.5
+      - say: If the generator weakens its own test from a page limit of one hundred to ten thousand, the rewritten
+          test can pass the bad client. Preserve the independent contract and rerun trusted checks. Llama
+          Three’s historical execution-feedback pipeline produced about one million coding dialogues; about
+          twenty percent of solutions initially failed and were self-corrected. The model could revise the
+          solution or its tests, and the report explicitly did not ensure complete correctness.
+        hold: 0.7
+        visual_cues:
+          - id: independent-test
+            phrase: independent contract
+            targets:
+              - execution-boundaries-mechanism
+            linger: 0.5
+          - id: edited-test
+            phrase: weakens its own test
+            targets:
+              - execution-boundaries-mechanism
+            linger: 0.5
+          - id: edited-test-result
+            phrase: "the rewritten test can pass the bad client"
+            targets:
+              - execution-boundaries-mechanism
+            color: cyan
+            linger: 0.5
+          - id: trusted-failure
+            phrase: "Preserve the independent contract and rerun trusted checks"
+            targets:
+              - execution-boundaries-mechanism
+            linger: 0.5
+          - id: llama-historical
+            phrase: one million coding dialogues
+            targets:
+              - execution-boundaries-mechanism
+            linger: 0.5
+      - say: Phi One’s 2023 recipe combined about six billion filtered code-language tokens, under one billion
+          synthetic textbook tokens and roughly one hundred eighty million exercise tokens. Its one point
+          three billion parameter model reported HumanEval pass at one of fifty point six percent. Inventory
+          differs from repeated training exposure, and the result does not isolate testing’s causal effect.
+          Orca’s explanation-trace experiments likewise measured task outcomes; a long explanation is neither
+          proof of validity nor a throughput result.
+        hold: 0.7
+        visual_cues:
+          - id: historical-outcomes
+            phrase: task outcomes
+            targets:
+              - execution-boundaries-mechanism
+            linger: 0.5
+          - id: phi-recipe
+            phrase: six billion
+            targets:
+              - execution-boundaries-mechanism
+            linger: 0.5
+          - id: phi-score
+            phrase: fifty point six percent
+            targets:
+              - execution-boundaries-mechanism
+            linger: 0.5
+          - id: orca-scope
+            phrase: task outcomes
+            targets:
+              - execution-boundaries-mechanism
+            linger: 0.5
+  - id: overlap
+    title: "Screen the wording of C5"
+    visual: "Slide a five-word window over a generated instruction and a private evaluation task, then run the same screen on a paraphrase."
+    beats:
+      - say: "Suppose the client works. Could we train on its task if the same question is waiting on the exam? Here are the words a private screening service can see. It lowercases them and ignores punctuation. It looks up five consecutive words at a time. Start at the word please. If the window moves one word to the right, which word will be at its right edge?"
+        hold: 2.3
+        visual_cues:
+          - id: window-start
+            phrase: "Start at the word please"
+            targets: [candidate-window]
+            linger: 0.35
+          - id: window-slide
+            phrase: "moves one word to the right"
+            targets: [candidate-window]
+            linger: 0.35
+          - id: span-question
+            phrase: "which word will be at its right edge"
+            targets: [reference-window, candidate-window]
+            linger: 0.35
+      - say: "Slide past please. The window starts at fetch and ends at the word the. That's five matching words. Slide it twice more. Both windows match as well. C five repeats the reserved task, so keep it out of training. Send the decision to the admission process. Keep the exam text out of generator prompts and feedback."
+        hold: 0.85
+        visual_cues:
+          - { id: align-windows, phrase: "Slide past please", targets: [reference-window, candidate-window] }
+          - { id: following-windows, phrase: "Slide it twice more", targets: [reference-window, candidate-window] }
+          - id: span-hit
+            phrase: "ends at the word the"
+            targets: [reference-window, candidate-window]
+            linger: 0.35
+            caption_boundary: true
+          - id: copy-outcome
+            phrase: "keep it out of training"
+            targets: [screen-receipt]
+            linger: 0.35
+            caption_boundary: true
+      - say: "Read the next candidate. Use the cursor to read all remaining results. The same five-word screen finds zero matches. Both instructions still ask for every page. Use semantic retrieval to find paraphrases like this for review. Routine wording can also produce a match. Inspect it in context and record which index and rule you used."
+        hold: 1
+        visual_cues:
+          - id: paraphrase-start
+            phrase: "Read the next candidate"
+            targets: [candidate-window]
+            linger: 0.35
+          - id: paraphrase-scan
+            phrase: "Use the cursor to read all remaining results"
+            targets: [candidate-window]
+            linger: 0.35
+          - id: no-shared-span
+            phrase: "finds zero matches"
+            targets: [screen-receipt]
+            linger: 0.35
+            caption_boundary: true
+  - id: diversity
+    title: Make the accepted set cover different tasks
+    visual: Candidate embedding points enter a two-dimensional teaching map; a near-duplicate sits beside an
+      accepted instruction while a distinct case remains separated.
+    beats:
+      - say: Duplicate wording is only one kind of repetition. Embeddings can flag candidates that occupy a crowded
+          semantic neighborhood, leaving reviewers to judge whether the tasks truly add different coverage.
+          The embedding model defines what counts as near; a new encoder version can move all candidates in
+          the space. Compute cosine as the dot product divided by the product of both vector norms. Reject
+          zero or nonfinite vectors before normalization.
+        hold: 0.55
+        visual_cues:
+          - id: diversity-b1-1
+            phrase: crowded semantic neighborhood
+            targets:
+              - seed-vector
+            linger: 0.45
+      - say: In this toy map, the new point nearly overlaps the existing pagination cluster, so the chosen threshold
+          sends it to review. A distant point represents another task family and remains eligible.
+        hold: 0.55
+        visual_cues:
+          - id: diversity-b2-1
+            phrase: nearly overlaps
+            targets:
+              - seed-point
+              - candidate-point
+            linger: 0.45
+      - say: "The vectors form a constructed teaching map. Cosine similarity measures their angle: the near copy
+          points almost along the seed, while the new family points in a different direction. A reviewer still
+          checks task meaning. Choose thresholds on reviewed examples and measure utility after training."
+        hold: 0.75
+        visual_cues:
+          - id: diversity-b3-1
+            phrase: Cosine similarity
+            targets:
+              - cosine-near
+            linger: 0.45
+          - id: diversity-b3-2
+            phrase: different direction
+            targets:
+              - cosine-new
+            linger: 0.45
+  - id: judge
+    title: Calibrate semantic review
+    visual: Two candidate answers swap screen positions; the evaluator's probabilities are remapped to response
+      identity before a preference is accepted.
+    beats:
+      - say: Some useful answers need semantic judgment after deterministic checks. A reviewer can compare which
+          candidate follows the documentation and explains the pagination behavior clearly. Randomize
+          candidate order during labeling and retain the original order to diagnose position effects.
+        hold: 0.55
+        visual_cues:
+          - id: judge-b1-1
+            phrase: candidate follows the documentation
+            targets:
+              - answer-a
+            linger: 0.45
+      - say: Now reverse the display order. If the judge follows the left position, remapping its choice reveals
+          disagreement about the response itself and sends the pair to audit.
+        hold: 0.55
+        motion_check:
+          region:
+            - 230
+            - 420
+            - 1460
+            - 400
+          minimumChangedFraction: 0.002
+        visual_cues:
+          - id: judge-b2-1
+            phrase: reverse the display order
+            targets:
+              - answer-a
+              - answer-b
+            linger: 0.45
+          - id: judge-remap-result
+            phrase: "remapping its choice reveals disagreement about the response itself and sends the pair to audit"
+            targets:
+              - remapped-probability
+            color: cyan
+            linger: 0.5
+      - say: Agreement across orders measures stability, while independent references and human review test
+          correctness. Use the task contract as the correctness reference alongside explanation quality and
+          judge scores.
+        hold: 0.75
+        visual_cues:
+          - id: judge-b3-1
+            phrase: Agreement across orders
+            targets:
+              - remapped-probability
+            linger: 0.45
+  - id: evaluate
+    title: "Which examples reach the training shard?"
+    visual: "Six labeled rows cross five gates. Each stops on its first failure. The surviving row earns a training experiment."
+    beats:
+      - say: "Keep your eye on the six row IDs. First check the seed on each one. C six has no seed. Now screen the remaining tasks against the private index. C five repeats an exam question. Leave each row where it stopped so we can account for it."
+        hold: 0.75
+        visual_cues:
+          - id: check-seed
+            phrase: "First check the seed on each one. C six has no seed"
+            targets: [candidate-admission]
+            linger: 0.35
+          - id: check-index
+            phrase: "Now screen the remaining tasks against the private index. C five repeats an exam question"
+            targets: [candidate-admission]
+            linger: 0.35
+      - say: "Run the four remaining clients. C four asks for ten thousand names and fails the page limit. Compare the survivors with the reference direction. C three is close enough to need duplicate review. Which two rows still need a judge?"
+        hold: 2.15
+        visual_cues:
+          - id: check-client
+            phrase: "Run the four remaining clients. C four asks for ten thousand names and fails the page limit"
+            targets: [candidate-admission]
+            linger: 0.35
+          - id: check-novelty
+            phrase: "Compare the survivors with the reference direction. C three is close enough to need duplicate review"
+            targets: [candidate-admission]
+            linger: 0.35
+          - id: judge-queue
+            phrase: "Which two rows still need a judge"
+            targets: [admission-count]
+            linger: 0.35
+      - say: "C one and C two. Compare their answers in both display orders using the supplied votes. C two's winner changes when the order flips. C one's answer wins in both orders and passes the last gate. Put its retry example in the proposed training shard."
+        hold: 0.95
+        caption_starts: ["C one's answer wins", "Put its retry example"]
+        visual_cues:
+          - id: compare-orders
+            phrase: "Compare their answers in both display orders using the supplied votes"
+            targets: [candidate-admission]
+            linger: 0.35
+          - id: unstable-winner
+            phrase: "C two's winner changes when the order flips"
+            targets: [candidate-admission]
+            linger: 0.35
+            caption_boundary: true
+          - id: accept-retry
+            phrase: "passes the last gate"
+            targets: [candidate-admission]
+            linger: 0.35
+            caption_boundary: true
+          - id: enter-shard
+            phrase: "proposed training shard"
+            targets: [admission-count]
+            linger: 0.35
+  - id: admission-economics
+    title: Which rows reach the next check?
+    visual: Count two-order judge requests and compare overall agreement with false admissions. Replay the same novelty decision after the judge withholds its blocking reference.
+    beats:
+      - say: The first four checks send just two candidates to the judge. Each comparison uses two display orders. That would take four requests. Sending all six would take twelve before retries. That would save two thirds of the judge requests. These votes are supplied. Four real calls can still cost different amounts if the answers are longer or a request needs a retry. Measure the work each gate costs and how many rows it stops.
+        hold: 0.7
+        visual_cues:
+          - id: gate-cost
+            phrase: four requests
+            targets:
+              - admission-economics-mechanism
+            linger: 0.5
+          - id: two-judged
+            phrase: two candidates to the judge
+            targets:
+              - admission-economics-mechanism
+            linger: 0.5
+          - id: four-calls
+            phrase: four requests
+            targets:
+              - admission-economics-mechanism
+            linger: 0.5
+          - id: twelve-calls
+            phrase: twelve
+            targets:
+              - admission-economics-mechanism
+            linger: 0.5
+      - say: A judge that approves all ninety-eight good and two bad reviewed rows agrees with reviewers on
+          ninety-eight percent, yet admits both bad rows. Its observed false-admission rate within the bad
+          class is two out of two. Report class and slice denominators with uncertainty. Order stability
+          measures whether the named winner survives reversal, not whether that winner is correct.
+        hold: 0.7
+        visual_cues:
+          - id: bad-class
+            phrase: two out of two
+            targets:
+              - admission-economics-mechanism
+            linger: 0.5
+          - id: bad-denominator
+            phrase: two out of two
+            targets:
+              - admission-economics-mechanism
+            linger: 0.5
+      - say: "Does C add a distinct task? Compare its direction with the directions already in the accepted pool. In this example the cutoff is point eight two. B clears the cutoff against the two original references. Its other checks pass, so B joins the pool. Now compare C with B. Their directions almost coincide. Under this rule C stops at the diversity check. Two workers checking yesterday's pool could miss that match. Coordinate their updates or check for duplicates again at the end."
+        hold: 1
+        visual_cues:
+          - { id: pool-rule, phrase: "the cutoff is point eight two", targets: [pool-scale] }
+          - { id: pool-b-admitted, phrase: "B joins the pool", targets: [pool-members], caption_boundary: true }
+          - { id: pool-c, phrase: "compare C with B", targets: [pool-scale] }
+          - { id: pool-c-rejected, phrase: "C stops at the diversity check", targets: [pool-decision], caption_boundary: true }
+      - say: "Replay those same two proposals. Change just the judge decision for B. Its winner flips when the answers swap places, so B is withheld. The policy lets only finally accepted rows serve as references. C was set aside solely for looking like B. Which references should decide C's next comparison?"
+        hold: 2.5
+        visual_cues:
+          - { id: pool-replay, phrase: "Replay those same two proposals", targets: [pool-members] }
+          - { id: pool-vote-change, phrase: "Its winner flips when the answers swap places", targets: [pool-members] }
+          - { id: pool-withhold, phrase: "B is withheld", targets: [pool-members], caption_boundary: true }
+          - { id: pool-question, phrase: "Which references should decide", targets: [pool-members, pool-scale] }
+      - say: "Use the two original references. With B out of the pool, C's closest match drops below the cutoff. Now C reaches the judge. Its own winner stays the same in both orders, so this time C joins the pool. Rechecking novelty gave C another chance. It still had to pass its own remaining check."
+        hold: 1.2
+        visual_cues:
+          - { id: pool-recheck, phrase: "Use the two original references", targets: [pool-members], caption_boundary: true }
+          - { id: pool-new-score, phrase: "closest match drops below the cutoff", targets: [pool-scale] }
+          - { id: pool-judge, phrase: "C reaches the judge", targets: [pool-decision] }
+          - { id: pool-accept, phrase: "this time C joins the pool", targets: [pool-members, pool-decision], caption_boundary: true }
+  - id: safe-preferences
+    title: "What should the assistant learn to write?"
+    visual: "Two one-line answers to the same support request differ in the field they log. Carry the verified answer into the chosen field and the supervised target."
+    beats:
+      - say: "To test a privacy boundary, generate a support request that asks to put a customer's email in a failed search log. The approved logging policy allows the request ID and keeps customer email addresses out of the log. Two proposed answers pick one field each. Which answer belongs in the training target?"
+        hold: 2.2
+        visual_cues:
+          - id: log-policy
+            phrase: "allows the request ID"
+            targets: [policy]
+            linger: 0.35
+          - id: log-options
+            phrase: "pick one field each"
+            targets: [log-a, log-b]
+            linger: 0.35
+          - id: log-question
+            phrase: "Which answer belongs in the training target"
+            targets: [log-a, log-b]
+            linger: 0.35
+      - say: "Choose the request ID. Run each logging example on the same support event. A trusted check reads the field each one recorded. The first uses the permitted field. The second selects the customer email. Keep the same prompt with both answers in a preference record. The chosen answer rejects the request to bypass the logging rule. The rejected answer returns success after logging the email."
+        hold: 0.8
+        visual_cues:
+          - id: log-winner
+            phrase: "Choose the request ID"
+            targets: [log-a]
+            linger: 0.35
+            caption_boundary: true
+          - id: checked-fields
+            phrase: "second selects the customer email"
+            targets: [log-b]
+            linger: 0.35
+          - id: pair-fields
+            phrase: "both answers in a preference record"
+            targets: [log-a, log-b]
+            linger: 0.35
+          - id: safe-target
+            phrase: "The chosen answer rejects the request to bypass the logging rule"
+            targets: [log-a]
+            caption_boundary: true
+          - id: rejected-function-result
+            phrase: "The rejected answer returns success after logging the email"
+            targets: [log-b]
+            caption_boundary: true
+      - say: "For supervised fine-tuning, copy the chosen answer into the assistant's target. Leave the other answer in the rejected field of the comparison. A safe refusal can also be a desired answer. Create pairs by ranking samples or by changing one behavior in a verified answer. Here the lines have the same length in words, so a preference for longer prose can't explain the choice. Calibrate on human-reviewed boundary cases. A red-team tag helps count those cases. Isolate untrusted code before executing it."
+        hold: 0.85
+        visual_cues:
+          - id: sft-copy
+            phrase: "copy the chosen answer into the assistant's target"
+            targets: [log-a, sft-output]
+            linger: 0.35
+          - id: keep-rejected
+            phrase: "rejected field of the comparison"
+            targets: [log-b]
+            linger: 0.35
+          - id: equal-length
+            phrase: "same length in words"
+            targets: [log-a, log-b]
+            linger: 0.35
+  - id: framework-preview
+    title: Bind each generated column to its dependencies
+    visual: A response depends on its task and seed. Preview the requests and verifier receipts for two actual S12 fixtures side by side.
+    beats:
+      - say: "Give the generator our search task and its seed contract. The answer depends on both. The verification column takes that answer and the trusted fixture. Change the answer and its old receipt no longer tells you what this version did. NeMo Data Designer's September twenty twenty-six preprint describes this kind of dependency-aware generation, with declarative columns, seed and sampler inputs, validation, and a preview you can revise."
+        hold: 0.9
+        visual_cues:
+          - { id: column-contract, phrase: "search task and its seed contract", targets: [framework-preview-mechanism] }
+          - { id: column-verify, phrase: "verification column", targets: [framework-preview-mechanism] }
+          - { id: column-dependencies, phrase: "dependency-aware generation", targets: [framework-preview-mechanism] }
+      - say: "Preview a small batch before scaling. These two rows descend from the same seed. Read the first request in each row. Now open the receipts. The retry client brought back three names. The oversized request brought back none. Store the actual responses and receipts alongside the seed, prompt and model versions. That gives a reviewer something to check. Source permissions still need their own evidence."
+        hold: 0.9
+        visual_cues:
+          - { id: preview-small, phrase: "small batch", targets: [framework-preview-mechanism] }
+          - { id: preview-requests, phrase: "first request in each row", targets: [framework-preview-mechanism] }
+          - { id: preview-receipts, phrase: "open the receipts", targets: [framework-preview-mechanism] }
+          - { id: preview-good, phrase: "retry client brought back three names", targets: [framework-preview-mechanism] }
+          - { id: preview-bad, phrase: "oversized request brought back none", targets: [framework-preview-mechanism] }
+  - id: recursive-tail
+    title: "Can a rare search disappear in one round?"
+    visual: A probability interval and eight explicit draws form a new pool; replacement fitted to that pool
+      removes the rare interval.
+    beats:
+      - say: "Imagine drawing eight searches. In recursive training, one round generates examples for the next. On each independent draw, the chance of a retry case is five percent. That's the pink tip of the strip. What's the chance that all eight draws miss it?"
+        hold: 2.4
+        caption_starts: ["What's the chance"]
+        visual_cues:
+          - id: tail-predict
+            phrase: "all eight draws miss it"
+            targets:
+              - recursive-tail-mechanism
+            linger: 0.5
+          - id: tail-premise
+            phrase: "five percent"
+            targets:
+              - recursive-tail-mechanism
+            linger: 0.5
+      - say: "One draw misses the retry case with probability zero point nine five. For eight independent misses, multiply eight copies of that probability. That's about sixty-six percent, roughly two batches out of three."
+        hold: 0.7
+        caption_starts: ["For eight independent misses", "That's about sixty-six percent"]
+        visual_cues:
+          - id: miss-rule
+            phrase: "One draw misses the retry case"
+            targets:
+              - recursive-tail-mechanism
+            linger: 0.5
+          - id: omission-answer
+            phrase: "about sixty-six percent"
+            targets:
+              - recursive-tail-mechanism
+            linger: 0.5
+      - say: "Watch one batch fill. Each dot marks a draw on the strip. Follow it down into its slot. All eight landed in blue."
+        hold: 1.5
+        caption_starts: ["All eight landed in blue"]
+        visual_cues:
+          - id: sample-eight
+            phrase: "Each dot marks a draw on the strip. Follow it down into its slot"
+            targets:
+              - recursive-tail-mechanism
+            linger: 0.5
+      - say: "This batch has zero retry cases. Replace the training data with this batch and fit its frequencies exactly. The new probability of a retry is zero. Every draw in the next round will be an ordinary search."
+        hold: 0.7
+        caption_starts: ["Replace the training data", "The new probability of a retry is zero"]
+        visual_cues:
+          - id: empirical-zero
+            phrase: "zero retry cases"
+            targets:
+              - recursive-tail-mechanism
+            linger: 0.5
+          - id: replacement-zero
+            phrase: "new probability of a retry is zero"
+            targets:
+              - recursive-tail-mechanism
+            linger: 0.5
+      - say: "Take a draw at point nine nine. In the original model it lands in pink. Follow it down to the new model. The same draw now lands in blue. Shumailov and colleagues studied this loss of rare cases across generations. Test retries separately. A high score on ordinary searches can hide the missing skill."
+        hold: 0.7
+        visual_cues:
+          - id: tail-limit
+            phrase: "Follow it down to the new model"
+            targets:
+              - recursive-tail-mechanism
+            linger: 0.5
+          - id: tail-toy-limit
+            phrase: "Test retries separately"
+            targets:
+              - recursive-tail-mechanism
+            linger: 0.5
+  - id: accumulation-weight
+    title: "Which rows reach the next round?"
+    visual: Three real IDs stay visible across two generated batches; pool membership and sampling weight are
+      shown separately.
+    beats:
+      - say: "Start with three reviewed real IDs. Add two generated IDs in each of two rounds. If we keep every batch, we have seven IDs, including the three originals. If we keep only the last batch, we have two IDs and no original rows."
+        hold: 0.7
+        caption_starts: ["If we keep every batch", "If we keep only the last batch"]
+        visual_cues:
+          - id: pool-accumulate
+            phrase: seven IDs
+            targets:
+              - accumulation-weight-mechanism
+            linger: 0.5
+          - id: real-three
+            phrase: three reviewed real IDs
+            targets:
+              - accumulation-weight-mechanism
+            linger: 0.5
+          - id: add-two
+            phrase: two generated IDs in each
+            targets:
+              - accumulation-weight-mechanism
+            linger: 0.5
+          - id: pool-seven
+            phrase: seven IDs
+            targets:
+              - accumulation-weight-mechanism
+            linger: 0.5
+          - id: replace-two
+            phrase: two IDs and no original
+            targets:
+              - accumulation-weight-mechanism
+            linger: 0.5
+      - say: "Follow the pink curve for replacement. Each generation starts from the last batch. The blue curve shows what happens when earlier data stays in the pool. In their linear regression analysis, Gerstgrasser and colleagues found that accumulation kept the error bounded. They also observed the benefit in the language model settings they tested."
+        hold: 0.7
+        visual_cues:
+          - id: accumulation-scope
+            phrase: "language model settings they tested"
+            targets:
+              - accumulation-weight-mechanism
+            linger: 0.5
+          - id: bounded-study
+            phrase: "pink curve for replacement"
+            targets:
+              - accumulation-weight-mechanism
+            linger: 0.5
+      - say: Pool membership differs from training exposure. Retaining a rare human row while sampling it once per
+          million updates can still make its influence negligible. Declare mixture probabilities, token
+          exposure and rare-case coverage, and refresh reviewed data as the task changes. In the categorical
+          toy, giving the retained rare row positive sampling weight restores a possible rare draw; its actual
+          probability follows that chosen weight.
+        hold: 0.7
+        visual_cues:
+          - id: exposure-weight
+            phrase: positive sampling weight
+            targets:
+              - accumulation-weight-mechanism
+            linger: 0.5
+          - id: weight-negligible
+            phrase: once per million
+            targets:
+              - accumulation-weight-mechanism
+            linger: 0.5
+          - id: weight-positive
+            phrase: positive sampling weight
+            targets:
+              - accumulation-weight-mechanism
+            linger: 0.5
+  - id: shard-identity
+    title: "Is this the row we approved?"
+    visual: "The page-size field changes between two versions. Check the current digest against the separately stored approval, then trace the approved row to its reviewed seed."
+    beats:
+      - say: "Here is one accepted row, including the newline at the end. Hash its exact bytes with SHA two hundred fifty-six. The release manifest stores that digest. It also identifies the seed, model, prompt, filter settings, overlap index and the final decision log so a reviewer can trace the decision."
+        hold: 0.7
+        visual_cues:
+          - id: payload-digest
+            phrase: exact bytes
+            targets:
+              - shard-identity-mechanism
+            linger: 0.5
+          - id: hash-bytes
+            phrase: exact bytes
+            targets:
+              - shard-identity-mechanism
+            linger: 0.5
+          - id: hash-log
+            phrase: final decision log
+            targets:
+              - shard-identity-mechanism
+            linger: 0.5
+      - say: "The approved page size was one hundred. This version says ten thousand. Its file matches the new manifest digest. Compare that digest with the approval stored separately. The two differ, so the release check fails. Keep the approved reference under separate control."
+        hold: 0.7
+        caption_starts: ["Compare that digest", "The two differ"]
+        visual_cues:
+          - id: trusted-reference
+            phrase: "approval stored separately"
+            targets:
+              - shard-identity-mechanism
+            linger: 0.5
+          - id: change-payload
+            phrase: ten thousand
+            targets:
+              - shard-identity-mechanism
+            linger: 0.5
+          - id: mutable-matches
+            phrase: "matches the new manifest digest"
+            targets:
+              - shard-identity-mechanism
+            linger: 0.5
+          - id: approval-fails
+            phrase: "release check fails"
+            targets:
+              - shard-identity-mechanism
+            linger: 0.5
+      - say: "Follow S twelve back to the reviewed pagination task. Store the approved output and its full digest alongside the prompt and model versions. A generator can return a different answer on replay. Keep the source permission record with the release so reviewers can check how the row may be used."
+        hold: 0.7
+        visual_cues:
+          - id: provenance-limit
+            phrase: "S twelve back to the reviewed pagination task"
+            targets:
+              - shard-identity-mechanism
+            linger: 0.5
+          - id: rights-evidence
+            phrase: "source permission record"
+            targets:
+              - shard-identity-mechanism
+            linger: 0.5
+  - id: downstream-trial
+    title: Separate admission success from trained capability
+    visual: Two matched training recipes share initial weights and a fixed token budget; untouched common and rare
+      tests remain outside generation.
+    beats:
+      - say: Accepted rows are ready for a training experiment. Compare real-only with real-plus-synthetic from the
+          same starting weights under a declared token or compute budget. Equal steps and example counts need
+          not process equal tokens. State how synthetic examples change real-data exposure, and include
+          generation and filtering costs when evaluating the full pipeline.
+        hold: 0.7
+        visual_cues:
+          - id: matched-trial
+            phrase: same starting weights
+            targets:
+              - downstream-trial-mechanism
+            linger: 0.5
+          - id: start-weights
+            phrase: same starting weights
+            targets:
+              - downstream-trial-mechanism
+            linger: 0.5
+          - id: budget-match
+            phrase: token or compute budget
+            targets:
+              - downstream-trial-mechanism
+            linger: 0.5
+          - id: generation-cost
+            phrase: generation and filtering costs
+            targets:
+              - downstream-trial-mechanism
+            linger: 0.5
+      - say: "Keep the held-out tasks and answers in a private index. The screening service can return an overlap decision with the contents hidden from the generator. Five-word matches can miss paraphrases and flag routine wording. Review the hits in context. MinHash estimates how much two sets of word sequences overlap."
+        hold: 0.7
+        caption_starts: ["Five-word matches can miss paraphrases"]
+        visual_cues:
+          - id: evaluation-isolation
+            phrase: contents hidden
+            targets:
+              - downstream-trial-mechanism
+            linger: 0.5
+          - id: holdout-private
+            phrase: contents hidden
+            targets:
+              - downstream-trial-mechanism
+            linger: 0.5
+          - id: overlap-limits
+            phrase: miss paraphrases
+            targets:
+              - downstream-trial-mechanism
+            linger: 0.5
+      - say: "Set a release floor before training. Report common, rare, unsafe-behavior, tool-error and unwanted-refusal slices with their sample sizes and uncertainty. Use development cases to tune the recipe and save a separate final test. If more rows pass screening while rare searches keep failing, inspect what the filter rewarded. Now apply those gates to a checkpoint."
+        hold: 0.7
+        visual_cues:
+          - id: measurement-boundary
+            phrase: "rare searches keep failing"
+            targets:
+              - downstream-trial-mechanism
+            linger: 0.5
+          - id: suite-slices
+            phrase: common, rare
+            targets:
+              - downstream-trial-mechanism
+            linger: 0.5
+          - id: selection-separate
+            phrase: separate final test
+            targets:
+              - downstream-trial-mechanism
+            linger: 0.5
+          - id: unrun-comparison
+            phrase: "apply those gates to a checkpoint"
+            targets:
+              - downstream-trial-mechanism
+            linger: 0.5
+  - id: fresh-admission
+    title: "Would you release this search assistant?"
+    visual: "Price two token mixtures, apply three declared gates to fictional held-out counts, and inspect the two-case gap on the same fifty rare searches."
+    beats:
+      - say: "Try a fictional release from the same starting checkpoint. Both recipes process twelve million training tokens. The baseline uses real data throughout. In the candidate, four million synthetic tokens replace four million real ones. Generating and screening them takes eighteen extra compute units. What work does the equal token count leave out?"
+        hold: 2.3
+        visual_cues:
+          - id: fresh-tokens
+            phrase: "twelve million training tokens"
+            targets: [baseline-budget]
+            linger: 0.35
+          - id: fresh-mixture
+            phrase: "four million synthetic tokens replace four million real ones"
+            targets: [candidate-budget]
+            linger: 0.35
+          - id: fresh-generation-premise
+            phrase: "eighteen extra compute units"
+            targets: [prep-cost]
+            linger: 0.35
+          - id: fresh-cost-predict
+            phrase: "What work does the equal token count leave out"
+            targets: [prep-cost]
+            linger: 0.35
+      - say: "It leaves out the work to generate and screen those rows. Charge it separately. The candidate also saw fewer real tokens. Now use the release rule set before evaluation. On ordinary searches the model must get at least ninety of a hundred right. It gets ninety-two. On fifty rare searches that need rate-limit recovery and another page, it needs forty correct. It gets thirty-eight. At most two of two hundred safety probes may get an unsafe answer. One does. Which gate, if any, should hold this checkpoint?"
+        hold: 2.8
+        caption_starts: ["Now use the release rule", "It gets ninety-two", "On fifty rare searches", "It gets thirty-eight", "At most two", "One does", "Which gate"]
+        visual_cues:
+          - id: fresh-extra-cost
+            phrase: "Charge it separately"
+            targets: [prep-cost]
+            linger: 0.35
+          - id: common-rule
+            phrase: "at least ninety of a hundred right"
+            targets: [common-slice]
+            linger: 0.35
+          - id: common-count
+            phrase: "It gets ninety-two"
+            targets: [common-slice]
+            linger: 0.35
+          - id: rare-rule
+            phrase: "it needs forty correct"
+            targets: [rare-slice]
+            linger: 0.35
+          - id: rare-count
+            phrase: "It gets thirty-eight"
+            targets: [rare-slice]
+            linger: 0.35
+          - id: unsafe-rule
+            phrase: "At most two of two hundred safety probes"
+            targets: [unsafe-slice]
+            linger: 0.35
+          - id: fresh-results
+            phrase: "One does"
+            targets: [unsafe-slice]
+            linger: 0.35
+          - id: fresh-gate-predict
+            phrase: "Which gate, if any, should hold this checkpoint"
+            targets: [release-receipt]
+            linger: 0.35
+      - say: "Hold this release. The model falls short on rare searches. The other two slices meet their limits. Look at those same fifty cases. How many more correct answers would bring the rare slice exactly to its floor?"
+        hold: 2.1
+        caption_starts: ["Look at those same fifty cases"]
+        visual_cues:
+          - id: fresh-decision
+            phrase: "Hold this release"
+            targets: [release-receipt]
+            linger: 0.35
+            caption_boundary: true
+          - id: rare-detail
+            phrase: "Look at those same fifty cases"
+            targets: [rare-detail]
+            linger: 0.35
+          - id: gap-question
+            phrase: "How many more correct answers"
+            targets: [rare-detail]
+            linger: 0.35
+      - say: "Two more. Forty out of fifty would meet the floor. We observed thirty-eight. Start by checking whether the training batches actually included enough retries followed by another page. Check failures on development cases, revise the mixture, and evaluate the new checkpoint on an untouched test. In the next lesson, we'll follow an approved answer into supervised fine-tuning."
+        hold: 1.2
+        caption_starts: ["We observed thirty-eight", "Start by checking", "Check failures on development cases", "In the next lesson"]
+        visual_cues:
+          - id: two-more
+            phrase: "Two more"
+            targets: [rare-detail]
+            linger: 0.35
+            caption_boundary: true
+          - id: would-pass
+            phrase: "Forty out of fifty would meet the floor"
+            targets: [rare-detail]
+            linger: 0.35
+          - id: observed-only
+            phrase: "We observed thirty-eight"
+            targets: [rare-detail]
+            linger: 0.35
+          - id: next-action
+            phrase: "checking whether the training batches actually included enough retries followed by another page"
+            targets: [release-receipt]
+            linger: 0.35

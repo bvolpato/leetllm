@@ -1,0 +1,816 @@
+[
+  {
+    "id": "c01",
+    "title": "Calling a model from an app",
+    "sourceChapters": [
+      "c01"
+    ],
+    "beats": [
+      {
+        "id": "c01-b01",
+        "say": "Watch the app's line as it waits for a model reply. Three seconds. Four seconds. The app records a timeout. What could be happening at the other end?",
+        "hold": 2.3
+      },
+      {
+        "id": "c01-b02",
+        "say": "Uncover the first possible history at the provider. The model finished at three seconds, but its reply got lost. Uncover the second history. At six seconds, the model is still working. The app recorded exactly the same timeout in both cases. Leave the remote outcome and token usage unknown until the provider can confirm them.",
+        "hold": 1.2
+      },
+      {
+        "id": "c01-b03",
+        "say": "On the next check, the model says this stale key is ineligible for rotation. The account record says the key is forty-five days old. Policy sets the minimum at thirty days. Would you return the model's answer?",
+        "hold": 2.2
+      },
+      {
+        "id": "c01-b04",
+        "say": "Reject it. Forty-five days puts this stale key past the thirty-day mark. We could do this comparison in ordinary code. Here it gives us a known answer against which to test a model reply. Follow the same account as we decide what to return, when to retry, and when we can confirm a job.",
+        "hold": 0.9
+      }
+    ]
+  },
+  {
+    "id": "c02",
+    "title": "Who can spend the organization's quota?",
+    "sourceChapters": [
+      "c02"
+    ],
+    "beats": [
+      {
+        "id": "c02-b01",
+        "say": "Before the server can ask about this account, it needs a provider credential. Calls made with that key use the organization's quota. Try the startup check with no key in the settings. It stops. A blank value stops it too.",
+        "hold": 0.3
+      },
+      {
+        "id": "c02-b02",
+        "say": "Give it the local placeholder and it prints loaded. The server found a value. To find out whether the key grants access to the model, the provider has to check it.",
+        "hold": 0.8
+      },
+      {
+        "id": "c02-b03",
+        "say": "Now follow that placeholder through a frontend build. The browser downloads the bundle. If the build inlined the key there, who can read it?",
+        "hold": 1.8
+      },
+      {
+        "id": "c02-b04",
+        "say": "The browser can. Encryption protects delivery, and the receiving client gets the bytes. The two prefixes on screen mark public settings. Next J S can inline referenced values with its public prefix. Vite normally exposes its prefixed values through import dot meta dot env. Use a server-only setting for a provider credential. Keep it out of mobile packages, source control and build artifacts too.",
+        "hold": 0.8
+      },
+      {
+        "id": "c02-b05",
+        "say": "Put the credential back on the server, injected from an authorized secret store. Keep staging and production credentials separate and revoke a leaked one. Now a signed-out caller asks this server to check the same account. The browser has no key. Can this caller still spend your quota if the route forwards every request?",
+        "hold": 2.1
+      },
+      {
+        "id": "c02-b06",
+        "say": "Yes. The server forwards the request using its own key. The provider counts one billable call against the organization's quota. Now require sign-in and send the same request again. The server stops the signed-out caller here. This request makes zero provider calls. For a signed-in user, also check access to the tenant and account, then enforce the usage limit before the provider call. The local check only tested the setting. Try those access checks against the deployed route separately.",
+        "hold": 0.8
+      }
+    ]
+  },
+  {
+    "id": "c03",
+    "title": "Put provider calls behind one server wrapper",
+    "sourceChapters": [
+      "c03"
+    ],
+    "beats": [
+      {
+        "id": "c03-b01",
+        "say": "The browser sends an account identifier and a question about eligibility. Follow them to the server. It authenticates the caller, checks access to this tenant, and loads the key's age and the policy from its own records. The browser cannot supply trusted facts about its own account.",
+        "hold": 0.7
+      },
+      {
+        "id": "c03-b02",
+        "say": "A shared wrapper maps the task to the provider format, keeps the API key server-side, and records the prompt version and trace identifier.",
+        "hold": 0.7
+      },
+      {
+        "id": "c03-b03",
+        "say": "The adapter returns a candidate to one validation path. Every route can share timeouts, retry rules, privacy scrubbing, and operational telemetry. Connect, first-text, read, and total deadlines cover different waits.",
+        "hold": 0.75
+      }
+    ]
+  },
+  {
+    "id": "c04",
+    "title": "Keep application intent distinct from provider bytes",
+    "sourceChapters": [
+      "c04"
+    ],
+    "beats": [
+      {
+        "id": "c04-b01",
+        "say": "Does this stale key qualify for rotation? The task object carries that question, the account, the policy IDs, a trace ID and the prompt version. It also sets the connection and read timeouts, the total deadline and the retry cap. The Python dataclass and its type annotations describe those fields.",
+        "hold": 0.6
+      },
+      {
+        "id": "c04-b02",
+        "say": "At the server, check the caller's access and the allowed task. Require finite, positive timeouts and a nonnegative integer retry count. Only then construct the task. Compare the internal field list with the outgoing request. The adapter turns those requirements into the schema this provider accepts.",
+        "hold": 0.6
+      },
+      {
+        "id": "c04-b03",
+        "say": "One field is easy to misread. Rotation window days means the minimum age of a stale key in this contract. On the ruler, eligibility starts at thirty days. A new contract could call the field minimum key age days. Keep the existing wire name until you migrate its consumers. Check the proposed answer against the account, then authorize job creation separately.",
+        "hold": 0.6
+      }
+    ]
+  },
+  {
+    "id": "c05",
+    "title": "Check the response against policy and facts",
+    "sourceChapters": [
+      "c05"
+    ],
+    "beats": [
+      {
+        "id": "c05-b01",
+        "say": "First, the candidate says the forty-five-day-old key is not eligible. Its fields parse, but that decision conflicts with the trusted age and thirty-day threshold.",
+        "hold": 0.75
+      },
+      {
+        "id": "c05-b02",
+        "say": "Try the second candidate. The same stale key is still forty-five days old. The model cites P seven but puts the minimum at ninety days. Compare the two minimum ages on the cards. The citation names the right line, but the number disagrees with what that line says.",
+        "hold": 0.75
+      },
+      {
+        "id": "c05-b03",
+        "say": "The final candidate says eligible, names thirty days, and cites P-7. The server accepts it only after field types, evidence, and the comparison agree. Extra fields and duplicate keys also need explicit handling.",
+        "hold": 0.8
+      }
+    ]
+  },
+  {
+    "id": "c06",
+    "title": "Reject ambiguous bytes before comparing policy",
+    "sourceChapters": [
+      "c06"
+    ],
+    "beats": [
+      {
+        "id": "c06-b01",
+        "say": "A complete candidate must first survive parsing. Python JSON parsing can otherwise accept duplicate keys by retaining one value and can accept nonstandard NaN or Infinity.",
+        "hold": 0.3
+      },
+      {
+        "id": "c06-b02",
+        "say": "This parser observes object pairs before dictionary conversion, rejects any duplicate field and nonstandard number, and turns excessive nesting into a named rejection. A response-size bound is still needed around the parser.",
+        "hold": 0.6
+      },
+      {
+        "id": "c06-b03",
+        "say": "Next require exactly three fields. The decision must be one of two allowed strings. The minimum age must be an integer. Python treats Boolean values as a subclass of integer, so check the exact type to reject true. The evidence must be a list of strings containing exactly the supplied P seven ID. Compare its numeric threshold with the trusted policy.",
+        "hold": 0.6
+      },
+      {
+        "id": "c06-b04",
+        "say": "Check the account record too. The key age and policy threshold must both be nonnegative integers, and the stale flag must be Boolean. At thirty days, a stale key qualifies. It meets the minimum exactly. At twenty-nine days, a stale key is too young. It needs one more day. A current key at forty-five days meets the minimum age but fails the stale check.",
+        "hold": 0.3
+      },
+      {
+        "id": "c06-b05",
+        "say": "If the record is missing, report the lookup failure. Calling that key ineligible would give the user a made-up answer.",
+        "hold": 0.6
+      }
+    ]
+  },
+  {
+    "id": "c07",
+    "title": "A rejected call still emits its real outcome",
+    "sourceChapters": [
+      "c07"
+    ],
+    "beats": [
+      {
+        "id": "c07-b01",
+        "say": "Watch the status field. It starts at failed. The wrapper loads the account, calls the local provider stub and checks the answer. Only then does it change the status to okay. Its finally block records elapsed time on either path. Here the test clock advances by five hundredths of a millisecond.",
+        "hold": 0.6
+      },
+      {
+        "id": "c07-b02",
+        "say": "Now the stub gives a wrong answer about a known account. Validation fails. Try an unknown account. The lookup fails before the stub runs. Count the provider calls across these two failures. Just one. Both paths leave a failed task record, and the test restores the original stub when it finishes.",
+        "hold": 0.6
+      },
+      {
+        "id": "c07-b03",
+        "say": "Give each attempt its own record with the provider request ID and any reported usage. If the caller times out, return a timeout to the user. Leave usage open until the provider reports it. The task record tells you what the user received.",
+        "hold": 0.6
+      }
+    ]
+  },
+  {
+    "id": "c08",
+    "title": "Connection activity can outlive useful progress",
+    "sourceChapters": [
+      "c08"
+    ],
+    "beats": [
+      {
+        "id": "c08-b01",
+        "say": "A call can stall in four places. The client can wait for a pooled connection, open a new one, write the request or wait for the next chunk of the reply. Give each wait its own limit. Connection reuse, name resolution, proxies and the TLS handshake affect the time it takes to connect.",
+        "hold": 0.6
+      },
+      {
+        "id": "c08-b02",
+        "say": "Here come six heartbeats, one second apart. Each delivers bytes and resets a two-second read timer. There is still no visible text. At six seconds our first-text deadline expires. That timer did not reset. Keep a total deadline running through retrieval, attempts, waits and validation. Choose each limit from measured delays and the time the user can wait.",
+        "hold": 0.6
+      },
+      {
+        "id": "c08-b03",
+        "say": "Give a sleeping coroutine one millisecond to answer. It needs twenty. When the millisecond is up, wait-for requests cancellation and waits for cleanup. That cleanup can push elapsed time past the deadline. Use an asynchronous transport that can yield to cancellation, and measure overruns.",
+        "hold": 0.3
+      },
+      {
+        "id": "c08-b04",
+        "say": "If the transport blocks the event loop, cancellation has to wait for it to yield. Even after local cleanup, the provider may still be working. Use a provider receipt to resolve the remote outcome.",
+        "hold": 0.6
+      }
+    ]
+  },
+  {
+    "id": "c09",
+    "title": "Share one deadline across attempts and waits",
+    "sourceChapters": [
+      "c09"
+    ],
+    "beats": [
+      {
+        "id": "c09-b01",
+        "say": "Start the task clock at zero and mark the deadline at twenty seconds. The first attempt occupies fourteen seconds. What remains for a wait, another call and validation?",
+        "hold": 2.2
+      },
+      {
+        "id": "c09-b02",
+        "say": "Six seconds, shared by all three. The rate-limit response requests two seconds. That gives us the earliest retry time. Add half a second of full jitter in this constructed trace. The two pieces together make a two-and-a-half-second wait.",
+        "hold": 0.75
+      },
+      {
+        "id": "c09-b03",
+        "say": "The three-second retry ends at nineteen and a half, inside the budget. With only one point two seconds left, the requested wait cannot fit, so stop. Use a monotonic clock to measure remaining time.",
+        "hold": 0.8
+      }
+    ]
+  },
+  {
+    "id": "c10",
+    "title": "Classify the failure before spending another attempt",
+    "sourceChapters": [
+      "c10"
+    ],
+    "beats": [
+      {
+        "id": "c10-b01",
+        "say": "Quota can count requests, tokens and concurrent work at different scopes. Take five requests with sixteen thousand input tokens each. That's five request slots but eighty thousand input tokens. A burst can hit a short-window limit even if its average rate looks low. Providers may also reserve output capacity. Use the provider's admission rules and headers to understand a limit, then use reported usage for billing.",
+        "hold": 0.6
+      },
+      {
+        "id": "c10-b02",
+        "say": "Two requests get the same status: four twenty-nine. The first hit a temporary rate limit. A safe read can retry within budget, just as it can after a transient five-oh-three. The second ran out of credit. An operator has to fix the quota.",
+        "hold": 0.3
+      },
+      {
+        "id": "c10-b03",
+        "say": "For a four hundred, fix the request. For four-oh-one or four-oh-three, check credentials and access. Inspect an unfamiliar error code before choosing a retry.",
+        "hold": 0.6
+      },
+      {
+        "id": "c10-b04",
+        "say": "Even a two hundred can carry a refusal, a partial reply or a decision that fails policy. Record the specific failure. Let the adapter translate provider errors, and apply a tenant’s spending limit to that tenant. Other accounts may still be getting answers.",
+        "hold": 0.6
+      }
+    ]
+  },
+  {
+    "id": "c11",
+    "title": "When will the workers come back?",
+    "sourceChapters": [
+      "c11"
+    ],
+    "beats": [
+      {
+        "id": "c11-b01",
+        "say": "Six workers hit a temporary limit together. Ignore request duration for a moment. Each worker waits one second, retries, then waits two more. Watch their arrivals at one and three seconds. The provider sees two bursts. Now give each worker its own random waits.",
+        "hold": 0.3
+      },
+      {
+        "id": "c11-b02",
+        "say": "See how much less work lands at the same instant? Two arrivals can still coincide.",
+        "hold": 0.9
+      },
+      {
+        "id": "c11-b03",
+        "say": "Look at one worker. Start with a one-second base and an eight-second cap. For full jitter, double the ceiling on each retry up to that cap. Pick a point anywhere between zero and the ceiling. Our supplied draw is halfway across the first window.",
+        "hold": 0.3
+      },
+      {
+        "id": "c11-b04",
+        "say": "That's half a second. For retry two, double the ceiling to two seconds. Use the same halfway draw. This time the wait is one second.",
+        "hold": 0.8
+      },
+      {
+        "id": "c11-b05",
+        "say": "Try a different rule with the same half draw. Start with a previous sleep of one second. Draw between the base and three times the previous sleep, then cap the result. Halfway from one to three gives two seconds.",
+        "hold": 0.3
+      },
+      {
+        "id": "c11-b06",
+        "say": "That sleep sets the next upper endpoint at six. Halfway from one to six gives three and a half seconds. This is decorrelated jitter. The lab prints these alternatives and takes the full-jitter waits. Independent draws spread traffic, although a cap can bunch workers together again.",
+        "hold": 0.8
+      }
+    ]
+  },
+  {
+    "id": "c12",
+    "title": "Is there time for another attempt?",
+    "sourceChapters": [
+      "c12"
+    ],
+    "beats": [
+      {
+        "id": "c12-b01",
+        "say": "Return to the rate-limited read with six seconds left. The Retry-After header asks for two seconds. That's the earliest this wrapper will retry. Its first jitter window is one second wide, and we drew the midpoint. Add half a second above the floor.",
+        "hold": 0.3
+      },
+      {
+        "id": "c12-b02",
+        "say": "A header can also give an HTTP date. Convert a past date to zero delay and give malformed values an explicit fallback.",
+        "hold": 0.7
+      },
+      {
+        "id": "c12-b03",
+        "say": "Place the three-second allowance for the next call after that wait. Leave four tenths of a second for validation. The whole reservation takes five point nine seconds. With six seconds left, the wrapper can schedule this retry. After the wait it must read the monotonic clock again and enforce the time still available.",
+        "hold": 0.9
+      },
+      {
+        "id": "c12-b04",
+        "say": "Replay the same read. This time the first attempt ran half a second longer. Five and a half seconds remain. The wait, call allowance and validation reserve are unchanged. Can the wrapper schedule this retry?",
+        "hold": 2.2
+      },
+      {
+        "id": "c12-b05",
+        "say": "Stop before the wait. The call alone would use every remaining moment after backoff. Validation would cross the deadline. The wait helper returns two and a half seconds in both cases. It rejects a wait that reaches or exceeds the time left, but the wrapper must also budget for the work after it.",
+        "hold": 0.9
+      },
+      {
+        "id": "c12-b06",
+        "say": "One more way to spend the same budget twice. Suppose the wrapper allows three attempts, and each SDK call can make three attempts of its own. Count the provider calls across those three rows. Up to nine. Let the wrapper own the retry policy here.",
+        "hold": 0.3
+      },
+      {
+        "id": "c12-b07",
+        "say": "The SDK example sets max retries to zero, so each invocation makes one attempt.",
+        "hold": 0.8
+      }
+    ]
+  },
+  {
+    "id": "c13",
+    "title": "Stop loading a failing provider",
+    "sourceChapters": [
+      "c13"
+    ],
+    "beats": [
+      {
+        "id": "c13-b01",
+        "say": "A mapped rate-limit response can receive a bounded retry. Credit exhaustion needs an operator to fix quota, and an unauthorized response needs credential or access repair.",
+        "hold": 0.75
+      },
+      {
+        "id": "c13-b02",
+        "say": "In this trace the primary returns two five-oh-three errors in a row. The first adds one to the count. The second opens the contact. New requests stop here or take an approved fallback. Scope the breaker to the failing dependency, so a tenant spending limit leaves other accounts alone.",
+        "hold": 0.75
+      },
+      {
+        "id": "c13-b03",
+        "say": "After ten seconds, one probe enters the half-open state. Success closes the circuit, while another failure opens it again and leaves recovery controlled. Fallbacks need compatible behavior, permission, capacity, and the same validator.",
+        "hold": 0.8
+      }
+    ]
+  },
+  {
+    "id": "c14",
+    "title": "Two arrivals at the recovery gate",
+    "sourceChapters": [
+      "c14"
+    ],
+    "beats": [
+      {
+        "id": "c14-b01",
+        "say": "The first request goes to the primary. Its failure comes back here. The breaker stays closed, so the second request gets through. Its failure opens the breaker. The next request goes to the backup. Start the ten-second cooldown at that second failure, at one hundred three.",
+        "hold": 0.3
+      },
+      {
+        "id": "c14-b02",
+        "say": "Watch the cooldown expire. At one hundred thirteen seconds, A and B reach the gate together. There is one slot for a primary probe. Watch what happens when A claims it first.",
+        "hold": 1.4
+      },
+      {
+        "id": "c14-b03",
+        "say": "A takes the slot. This is the half-open state. A is waiting for its reply when B asks to enter. With the primary slot occupied, where can B go?",
+        "hold": 2.4
+      },
+      {
+        "id": "c14-b04",
+        "say": "B takes the approved fallback. A keeps the primary slot until its test ends. A's failure starts another cooldown. The next arrival takes the backup. Ten seconds after the failure, C gets the slot. Its probe succeeds. The breaker clears the count and D can go straight to the primary.",
+        "hold": 1.2
+      },
+      {
+        "id": "c14-b05",
+        "say": "Replay B’s arrival with one change. This account allows requests to be kept for one day. The backup keeps them for seven days. B stays at the router. Return a routing failure.",
+        "hold": 0.3
+      },
+      {
+        "id": "c14-b06",
+        "say": "Approve a backup for the account’s data, check its capacity and schema support, and validate its replies. For regional failover, select a supported deployment in another region. Two zones in one region still share that region.",
+        "hold": 0.8
+      },
+      {
+        "id": "c14-b07",
+        "say": "The local example picks route labels one arrival at a time. With two router workers, both could see the slot empty. Grant it atomically. Give the permit an expiry so a crashed probe can release it.",
+        "hold": 0.3
+      },
+      {
+        "id": "c14-b08",
+        "say": "Suppose generation seven's permit expires and generation eight takes over. Now the old reply comes back. Compare the number on the reply with the number in the slot. They differ. Leave the current breaker alone.",
+        "hold": 0.8
+      }
+    ]
+  },
+  {
+    "id": "c15",
+    "title": "Give each write intent a durable identity",
+    "sourceChapters": [
+      "c15"
+    ],
+    "beats": [
+      {
+        "id": "c15-b01",
+        "say": "Eligibility is a read. Creating a rotation job is a separate write that needs fresh authorization and current account state.",
+        "hold": 0.7
+      },
+      {
+        "id": "c15-b02",
+        "say": "The first authorized request carries intent key seven E three B. The service creates job zero zero one and stores the link to that key. Its acknowledgment gets lost on the way back. The caller times out. How many jobs should the next request with this key create?",
+        "hold": 1.8
+      },
+      {
+        "id": "c15-b03",
+        "say": "Retry the same authorized intent with the same key. The service finds the existing entry and returns the same job. This sequential lab uses memory. In production the service needs durable, atomic deduplication, or a way to reconcile an uncertain outcome before another write. Check permissions separately.",
+        "hold": 0.8
+      }
+    ]
+  },
+  {
+    "id": "c16",
+    "title": "A local claim cannot establish a remote write outcome",
+    "sourceChapters": [
+      "c16"
+    ],
+    "beats": [
+      {
+        "id": "c16-b01",
+        "say": "Send the same intent twice. The second request finds job zero-zero-one in the server’s dictionary and returns it with created set to false. Now restart the server. The entry is gone. Two workers could also check the dictionary at the same time and both see an empty slot.",
+        "hold": 0.6
+      },
+      {
+        "id": "c16-b02",
+        "say": "Claim the tenant and intent key together in one database operation. Store the arguments’ fingerprint and whether the job is pending, completed or failed. Reject reuse with different arguments. Now suppose the server crashes just after dispatch. The ledger still says pending.",
+        "hold": 0.3
+      },
+      {
+        "id": "c16-b03",
+        "say": "A local claim tells us who took responsibility for dispatch. To learn what happened at the destination, ask it for the job by the original key. If the destination guarantees deduplication for that key, the caller can also resend the same intent.",
+        "hold": 0.6
+      },
+      {
+        "id": "c16-b04",
+        "say": "A retry keeps the original key and arguments. Next month the same account may need another rotation. Check permission and the current account state, then give that new intent its own key. Both jobs can now have their own history.",
+        "hold": 0.6
+      }
+    ]
+  },
+  {
+    "id": "c17",
+    "title": "Shape constraints stop before policy truth",
+    "sourceChapters": [
+      "c17"
+    ],
+    "beats": [
+      {
+        "id": "c17-b01",
+        "say": "Both decision labels fit the schema. Which one fits this account? The server has to look up the key’s age and stale flag. JSON mode asks for valid JSON. Strict Structured Outputs also enforces the supported schema on a successful completion. In either mode, check the completion status, handle refusals and validate the decision.",
+        "hold": 0.6
+      },
+      {
+        "id": "c17-b02",
+        "say": "In the Responses request, text dot format carries the strict schema. Require a decision, an integer minimum age and a list of source IDs. Set additional properties to false to reject extra fields. The server checks each citation and looks up the age threshold in the policy. A tool call can also carry schema-constrained arguments. It proposes an action. The server still decides whether the caller may execute it.",
+        "hold": 0.3
+      },
+      {
+        "id": "c17-b03",
+        "say": "For recursive schemas, a grammar can track nested structures beyond the reach of a simple finite-state machine.",
+        "hold": 0.6
+      },
+      {
+        "id": "c17-b04",
+        "say": "Sort the replies before parsing. A refusal goes back as a refusal. An incomplete or empty reply gets its own failure. Send completed, nonempty decision text to the parser. Check support for your schema on the model and endpoint that will serve the request.",
+        "hold": 0.6
+      }
+    ]
+  },
+  {
+    "id": "c18",
+    "title": "Exercise the actual adapter with a local transport",
+    "sourceChapters": [
+      "c18"
+    ],
+    "beats": [
+      {
+        "id": "c18-b01",
+        "say": "Ask the SDK to check the same stale key. A local mock transport receives the outgoing Responses request. Its payload gives the account ID, the key age of forty-five days, and the stale flag. It also carries the strict response schema. The mock uses a placeholder key and model and serves four prepared replies locally.",
+        "hold": 0.6
+      },
+      {
+        "id": "c18-b02",
+        "say": "Thirty days matches the cited policy. That reply becomes a typed decision. Change the number to ninety and the validator rejects it. The next reply is a refusal. The last runs out of output tokens. Those two reach the caller as distinct failures. You can exercise all four paths with the same adapter.",
+        "hold": 0.6
+      },
+      {
+        "id": "c18-b03",
+        "say": "The local transport exercised request and response mapping without a TLS handshake. In the article's pinned SDK, the default transport uses the operating system's certificate store. If a container lacks the corporate root, install it in the active trust store or a verified context the client actually loads. Test that deployed connection separately and reuse its pool.",
+        "hold": 0.3
+      },
+      {
+        "id": "c18-b04",
+        "say": "Let one layer handle retries and give the whole task its own deadline above the five-second transport timeout.",
+        "hold": 0.6
+      },
+      {
+        "id": "c18-b05",
+        "say": "For this foreground text request, setting store to false opts out of Responses application-state storage. Check the organization’s abuse-monitoring settings and Zero Data Retention approval separately. Tools and caches have their own retention rules. Follow the request through those services before sending sensitive data.",
+        "hold": 0.6
+      }
+    ]
+  },
+  {
+    "id": "c19",
+    "title": "Treat streamed text as provisional",
+    "sourceChapters": [
+      "c19"
+    ],
+    "beats": [
+      {
+        "id": "c19-b01",
+        "say": "A stream may send metadata before a person sees any words. Measure time to first visible text separately from connection activity and total completion time.",
+        "hold": 0.75
+      },
+      {
+        "id": "c19-b02",
+        "say": "In this illustrative trace, text begins at three seconds and arrives in several deltas. The client can show progress while buffering the full response. Each timestamp marks one chunk arriving at the client.",
+        "hold": 0.75
+      },
+      {
+        "id": "c19-b03",
+        "say": "At five seconds, a successful terminal event arrives in this trace. It adds no text. Inspect the terminal status and any refusal content before parsing. A completed, non-refused result can go through schema and policy checks. Showing text earlier only gave the reader a draft.",
+        "hold": 0.8
+      }
+    ]
+  },
+  {
+    "id": "c20",
+    "title": "Separate byte, event and token boundaries",
+    "sourceChapters": [
+      "c20"
+    ],
+    "beats": [
+      {
+        "id": "c20-b01",
+        "say": "The last letter in café takes two bytes in UTF eight. The first network read ends halfway through that letter. The parser keeps the first byte. The next read supplies the other byte and a blank line.",
+        "hold": 0.3
+      },
+      {
+        "id": "c20-b02",
+        "say": "Now the parser can dispatch an event with café in its data field. An SDK parser also handles fields like the event type and ID across reads like these.",
+        "hold": 0.6
+      },
+      {
+        "id": "c20-b03",
+        "say": "In the browser, EventSource normally opens a GET request and can reconnect. A provider SDK can read an event stream in a POST response. Each API defines its own completion signal. Chat Completions uses the bracketed DONE marker. Responses sends typed events for text deltas and completion.",
+        "hold": 0.6
+      },
+      {
+        "id": "c20-b04",
+        "say": "One stream can carry metadata, text for several output items, tool arguments, and a terminal status. Here only item A's text belongs in this buffer. Bound its size and record when text first meets the product's display rule. A delta can contain whitespace or several tokens. Its arrival time measures a chunk at the client.",
+        "hold": 0.6
+      }
+    ]
+  },
+  {
+    "id": "c21",
+    "title": "Did the stream finish?",
+    "sourceChapters": [
+      "c21"
+    ],
+    "beats": [
+      {
+        "id": "c21-b01",
+        "say": "Follow one output item through the stream. The first event is metadata. Here comes the text in four pieces. Spaces count too. The buffer grows to eight characters, then nineteen, thirty-one, and forty-one. Now the provider sends its completion event.",
+        "hold": 0.3
+      },
+      {
+        "id": "c21-b02",
+        "say": "The client has a completed draft to check against its schema and policy. A write still needs authorization.",
+        "hold": 0.9
+      },
+      {
+        "id": "c21-b03",
+        "say": "Replay the same four pieces. Line up the two strips. Every character matches, including the final period. This time the connection ends right there. Can the client mark the second stream complete?",
+        "hold": 2.2
+      },
+      {
+        "id": "c21-b04",
+        "say": "Mark the second stream failed. The first received a successful terminal event. The second received only end of file. Now try a dropped connection after just two pieces. The client keeps the nineteen characters it actually saw and records a failed draft. Neither failed draft supplies a rotation decision.",
+        "hold": 1
+      },
+      {
+        "id": "c21-b05",
+        "say": "This fixture starts after the SDK has parsed and normalized the events. On a real stream, identify the output item, bound its buffer, and inspect refusal, incomplete and failure signals. Show a provisional draft only when the product can safely show it. Validate the complete typed result before returning an eligibility decision.",
+        "hold": 0.8
+      }
+    ]
+  },
+  {
+    "id": "c22",
+    "title": "Measure useful work and protect customer text",
+    "sourceChapters": [
+      "c22"
+    ],
+    "beats": [
+      {
+        "id": "c22-b01",
+        "say": "Use a fictional meter with rates per million tokens. Two hundred fifty input tokens at two dollars per million cost five hundredths of a cent. Eighty output tokens at six dollars per million cost almost as much. Add the two charges. Together they come to just under a tenth of a cent per request.",
+        "hold": 0.75
+      },
+      {
+        "id": "c22-b02",
+        "say": "Two hundred thousand calls a day for thirty days produce an illustrated base estimate of five thousand eight hundred eighty dollars, before retries or other charges.",
+        "hold": 0.8
+      },
+      {
+        "id": "c22-b03",
+        "say": "Record model, prompt version, latency, token counts, and outcome. A scoped fingerprint can help correlate requests while the raw customer prompt stays out of logs. Keep missing usage unknown until provider reconciliation.",
+        "hold": 0.8
+      }
+    ]
+  },
+  {
+    "id": "c23",
+    "title": "What changes the price of the same token count?",
+    "sourceChapters": [
+      "c23"
+    ],
+    "beats": [
+      {
+        "id": "c23-b01",
+        "say": "This receipt lists two thousand input tokens. Twelve hundred came from the cache, and a hundred were cache writes. Peel those two groups away. That leaves seven hundred ordinary input tokens. The two hundred output tokens include eighty for reasoning.",
+        "hold": 0.3
+      },
+      {
+        "id": "c23-b02",
+        "say": "The other hundred and twenty are visible output. Check these relationships in the provider's usage record before pricing it.",
+        "hold": 0.8
+      },
+      {
+        "id": "c23-b03",
+        "say": "Read across the receipt. Per million tokens, the fictional rates are two dollars for ordinary input, fifty cents for cache reads, and two dollars fifty for writes. Price the output once at six dollars per million. Reasoning is already in that row.",
+        "hold": 0.3
+      },
+      {
+        "id": "c23-b04",
+        "say": "Multiply each count by its rate, add the products, and divide by a million. The request costs point zero zero three four five dollars.",
+        "hold": 0.9
+      },
+      {
+        "id": "c23-b05",
+        "say": "Run the same prompt again. This time the provider reports four hundred more cached input tokens. They came out of the ordinary group. Everything else stays the same, including total input and output. Look at which boundary moved. What happens to the price?",
+        "hold": 2.3
+      },
+      {
+        "id": "c23-b06",
+        "say": "The price drops to point zero zero two eight five dollars. Those four hundred tokens now cost fifty cents per million instead of two dollars per million. Reusing a cached prefix can also save work processing those input positions.",
+        "hold": 0.3
+      },
+      {
+        "id": "c23-b07",
+        "say": "Cache eligibility and prices depend on the provider and model. Tools or media can add charges. If a timed-out attempt has no usage record, leave its cost unknown until billing confirms it.",
+        "hold": 0.9
+      }
+    ]
+  },
+  {
+    "id": "c24",
+    "title": "Retain useful evidence without copying private prompts",
+    "sourceChapters": [
+      "c24"
+    ],
+    "beats": [
+      {
+        "id": "c24-b01",
+        "say": "For each attempt, record the provider, operation, requested model and model that answered. Include the finish reason and reported token usage. Price the usage under this provider's rules. The article uses a pinned Development snapshot of the OpenTelemetry convention. Pin the instrumentation version with it.",
+        "hold": 0.6
+      },
+      {
+        "id": "c24-b02",
+        "say": "Link fact lookup, model work and validation to the same application trace, while retaining attempt identities and the task’s overall outcome. Record status, latency, prompt revision and available provider request ID. Failed validation should not disappear because an earlier HTTP response was successful. Enforce log access and retention alongside the provider data policy.",
+        "hold": 0.6
+      },
+      {
+        "id": "c24-b03",
+        "say": "To find repeated questions, fingerprint each one with a separate H M A C key. Leave the customer text, account and provider credential out of the log. Thirty-two hexadecimal characters hold one hundred twenty-eight bits. Two fingerprints can collide, and matching fingerprints let you link records.",
+        "hold": 0.3
+      },
+      {
+        "id": "c24-b04",
+        "say": "Scope the fingerprint key to a tenant and environment. Try the same question with a second tenant's key. Look at the digits that reached the log. The fingerprint changed. Restrict access to these linkable records and expire them under the retention policy.",
+        "hold": 0.6
+      }
+    ]
+  },
+  {
+    "id": "c25",
+    "title": "Choose the work shape and preserve result identity",
+    "sourceChapters": [
+      "c25"
+    ],
+    "beats": [
+      {
+        "id": "c25-b01",
+        "say": "Buffer one structured eligibility object when the caller needs an immediate decision. Stream a long human-readable draft when provisional progress is useful. For work exceeding the interactive route budget, use durable background state, polling, bounded retries and checkpoints. Prompt caching is an optimization that can accompany more than one execution shape.",
+        "hold": 0.6
+      },
+      {
+        "id": "c25-b02",
+        "say": "This batch expired after some requests finished. The first result belongs to C, the third request. Follow the custom IDs across the output and error files. C and B finished. A expired. The position of a row could have sent C's answer to A.",
+        "hold": 0.3
+      },
+      {
+        "id": "c25-b03",
+        "say": "For supported work that can wait, the Batch API in this example offers a twenty-four-hour window and a fifty-percent discount over synchronous calls.",
+        "hold": 0.6
+      },
+      {
+        "id": "c25-b04",
+        "say": "Put the shared policy text at the start of both requests, then check the reported cache usage. Before opening the live route, test it with a signed-out caller, the wrong tenant and a caller over quota. Exercise slow connections, cancellation, simultaneous requests and provider failures through that same route.",
+        "hold": 0.6
+      }
+    ]
+  },
+  {
+    "id": "c26",
+    "title": "What can we tell account B?",
+    "sourceChapters": [
+      "c26"
+    ],
+    "beats": [
+      {
+        "id": "c26-b01",
+        "say": "Try another account. B has a stale key that's twenty-eight days old. Its copy of P seven sets the minimum age at twenty-one. The model cites P seven and says eligible. Look at the minimum age it sent back. Thirty days. Can the server return this candidate?",
+        "hold": 2.2
+      },
+      {
+        "id": "c26-b02",
+        "say": "Reject the candidate. The eligibility word agrees with the account record. But compare the two minimum ages. P seven says twenty-one days. The model returned thirty. Report that validation failure to the caller.",
+        "hold": 0.8
+      },
+      {
+        "id": "c26-b03",
+        "say": "Separately, a safe read on B gets a temporary rate limit. Ten seconds for the task, six already spent. The provider wants a one-second wait. The jitter window is two seconds wide. Take a quarter of it.",
+        "hold": 0.3
+      },
+      {
+        "id": "c26-b04",
+        "say": "Allow two seconds for the call and seven tenths for validation. With four seconds left, can you schedule the retry?",
+        "hold": 2.4
+      },
+      {
+        "id": "c26-b05",
+        "say": "A quarter of two adds half a second to the floor, so the wait is one and a half seconds. Place the call after it. Now add validation. Four point two seconds in all. The last two tenths extend past the four-second deadline. Stop before dispatch.",
+        "hold": 0.3
+      },
+      {
+        "id": "c26-b06",
+        "say": "The wrapper sends zero more calls. The rate limit and the earlier policy rejection each keep their own receipt.",
+        "hold": 1
+      },
+      {
+        "id": "c26-b07",
+        "say": "Later, B passes a fresh check and the user authorizes rotation. Follow the write with action key R B to the job service. The confirmation disappears on its way back. The caller has sent one write and still has no job number. What read could resolve that uncertainty?",
+        "hold": 2.4
+      },
+      {
+        "id": "c26-b08",
+        "say": "Look up the original action key at the job service. Follow the reply back. The lookup returns job forty-two. Now the caller can show that job. The write count stayed at one. In the next lesson we'll save the request trace so the user can find that confirmation again after a refresh.",
+        "hold": 2
+      }
+    ]
+  }
+]

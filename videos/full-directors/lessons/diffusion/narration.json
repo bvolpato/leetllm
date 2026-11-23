@@ -1,0 +1,468 @@
+[
+  {
+    "id": "c01",
+    "title": "Which end gets the eye?",
+    "sourceChapters": [
+      "c01"
+    ],
+    "beats": [
+      {
+        "id": "c01-b01",
+        "say": "Look at that pale ring. Is the fish facing left or right? Take a guess.",
+        "hold": 2.5
+      },
+      {
+        "id": "c01-b02",
+        "say": "Pull back. This is a close look at a denoiser’s first estimate. Our print shop has just two originals, mirror images of one mackerel. At pure noise they are equally likely. With squared error, the best clean estimate averages the originals in proportion to those odds. Half of each eye shows through.",
+        "hold": 0.8
+      },
+      {
+        "id": "c01-b03",
+        "say": "Watch the right ring as the sampler takes smaller and smaller noise levels. Each new set of pixels gives the denoiser another look. The eye sharpens on the right. The mark on the left resolves into a forked tail.",
+        "hold": 0.8
+      },
+      {
+        "id": "c01-b04",
+        "say": "We can calculate that estimate exactly for two prints. For photographs we learn from many examples. Let’s follow one pixel from a wooden table, check a sampler against a saved exposure, and decide which generated file a service can publish.",
+        "hold": 0.8
+      }
+    ]
+  },
+  {
+    "id": "c02",
+    "title": "Save one exposure",
+    "sourceChapters": [
+      "c02"
+    ],
+    "beats": [
+      {
+        "id": "c02-b01",
+        "say": "Each pixel is a number. Follow the square on the tabletop. Its clean brightness is one. Each square gets its own Gaussian draw. Our square gets negative four tenths.",
+        "hold": 0.8
+      },
+      {
+        "id": "c02-b02",
+        "say": "Shrink the clean image and mix in the grain. At ninety percent retained signal variance, save a copy. Its tabletop pixel reads point eight two two. Keep this exposure for our sampler check.",
+        "hold": 0.8
+      },
+      {
+        "id": "c02-b03",
+        "say": "Now turn the retained variance down to one half. Keep the noise pattern fixed so you can follow the same square. Turn it almost to zero and the legs disappear into the grain. These are samples at selected levels with a shared draw.",
+        "hold": 0.8
+      },
+      {
+        "id": "c02-b04",
+        "say": "In a forward chain each step shrinks the previous state and adds fresh noise. To build a training batch we can skip the intermediate steps. Draw a level and fresh noise independently for each example, then mix its clean image directly to that level.",
+        "hold": 0.8
+      }
+    ]
+  },
+  {
+    "id": "c03",
+    "title": "Build a noisy pixel",
+    "sourceChapters": [
+      "c03"
+    ],
+    "beats": [
+      {
+        "id": "c03-b01",
+        "say": "What does half the signal variance look like in one square? Alpha bar is the fraction retained over all the forward steps so far. Multiply the retained fractions to get it. Two steps that each keep eight tenths leave sixty-four hundredths.",
+        "hold": 0.8
+      },
+      {
+        "id": "c03-b02",
+        "say": "Return to our halfway exposure. Take the square root of one half to get the signal amplitude. The noise amplitude is the square root of the remaining half. Both are about seven tenths. Which way will the noise carry the mark?",
+        "hold": 2.1
+      },
+      {
+        "id": "c03-b03",
+        "say": "Start at zero and add the clean contribution. Now add the negative draw times its amplitude. The mark comes back to point four two four. The squared amplitudes sum to one.",
+        "hold": 0.8
+      },
+      {
+        "id": "c03-b04",
+        "say": "For unit-variance signal and independent unit-variance noise, divide retained variance by the remaining variance. The schedule’s signal-to-noise ratio is one here. At the lightly noisy exposure it was nine. That ratio describes a population, even when one particular draw nearly cancels its pixel.",
+        "hold": 0.8
+      }
+    ]
+  },
+  {
+    "id": "c04",
+    "title": "Which answer does training know?",
+    "sourceChapters": [
+      "c04"
+    ],
+    "beats": [
+      {
+        "id": "c04-b01",
+        "say": "Choose a clean image, a noise level, and fresh Gaussian noise. Construct the noisy input with our equation. We know the target because we generated that noise ourselves.",
+        "hold": 0.8
+      },
+      {
+        "id": "c04-b02",
+        "say": "Give the network the noisy image and timestep. In this two-pixel example its noise estimates miss the recorded draws. Square each error, then average the two squares. For this toy head, take a half step toward each target. Halving both errors cuts the loss to a quarter. In the image model, gradient descent adjusts shared weights over many examples and noise levels.",
+        "hold": 0.8
+      },
+      {
+        "id": "c04-b03",
+        "say": "Some networks predict the clean image directly. Another target, called velocity, rotates the clean and noise coordinates. At our halfway exposure, use the velocity inverse: signal amplitude times the current value, minus noise amplitude times predicted velocity. It recovers one.",
+        "hold": 0.8
+      },
+      {
+        "id": "c04-b04",
+        "say": "Treat the same velocity as noise and the inferred clean value overshoots. The sampler has to know which target trained the network.",
+        "hold": 0.8
+      },
+      {
+        "id": "c04-b05",
+        "say": "There is another reason to learn the reverse step. If we also know the clean cause, the previous noisy value has a Gaussian distribution. Here two equally likely causes give two different centers for the very same observed zero. What spread survives when we hide the cause?",
+        "hold": 2.1
+      },
+      {
+        "id": "c04-b06",
+        "say": "Mix the two curves. Their centers cancel in the mean. Each curve has variance one third. The separation of their centers contributes another two ninths. Add the exact fractions. The total is five ninths, about point five five six. This wider green curve includes the uncertainty about the clean cause. For real images there are too many possible causes to average directly.",
+        "hold": 0.8
+      }
+    ]
+  },
+  {
+    "id": "c05",
+    "title": "Who moves the pixel?",
+    "sourceChapters": [
+      "c05"
+    ],
+    "beats": [
+      {
+        "id": "c05-b01",
+        "say": "Image generators usually start from Gaussian noise. For this arithmetic check, start with a supplied pixel value of one point two five. Our short forward schedule would still retain about ninety-one percent of the signal variance at its last level. Freeze the pixel. At index two, our toy denoiser predicts point six zero two five. Watch the white mark. Has the pixel moved?",
+        "hold": 1.9
+      },
+      {
+        "id": "c05-b02",
+        "say": "Use the schedule to turn that prediction into a reverse mean. Beta is four hundredths. Multiply beta by the predicted noise, then divide by the square root of one minus the cumulative retention. Subtract that correction from the input. Divide by the square root of this step’s retention, point nine six. The mean is about one point one nine two six. Move the mark to the mean. Now add the fresh draw times the square root of beta. The landing becomes the next input.",
+        "hold": 0.8
+      },
+      {
+        "id": "c05-b03",
+        "say": "Predict again from that landing at index one. Read the new prediction. Apply the mean for this level, then add its fresh draw. At index zero the denoiser reads that new landing. Apply the final mean and omit the fresh draw. Each landing supplies the input for the next network evaluation.",
+        "hold": 0.8
+      },
+      {
+        "id": "c05-b04",
+        "say": "Inside one evaluation a U-Net compresses spatial features and expands them again. Skip connections carry fine detail across the bottleneck. A diffusion transformer instead forms patch tokens, mixes them by attention and projects them back. Each backbone returns a prediction for the current level.",
+        "hold": 0.8
+      },
+      {
+        "id": "c05-b05",
+        "say": "The timestep identifies the noise regime. For example, scale a feature of one half by one plus the learned scale, then add the shift. Change the timestep and the same feature changes from point seven to point five four five. Network depth and the number of sampling steps are separate choices.",
+        "hold": 0.8
+      }
+    ]
+  },
+  {
+    "id": "c06",
+    "title": "Which way is uphill?",
+    "sourceChapters": [
+      "c06"
+    ],
+    "beats": [
+      {
+        "id": "c06-b01",
+        "say": "Replace an image’s many coordinates with two. Our clean distribution has three clusters. Gaussian noise broadens them into an overlapping cloud whose density we can calculate exactly.",
+        "hold": 0.8
+      },
+      {
+        "id": "c06-b02",
+        "say": "Put a probe between the clusters. At this noise level each center pulls toward itself. Which pull has the greatest weight at the probe?",
+        "hold": 2
+      },
+      {
+        "id": "c06-b03",
+        "say": "The lower right center is closest. Weight each local direction by the probability of that cluster given the probe. Add the three weighted arrows tip to tail. Their sum points toward increasing log density. That local gradient is the score.",
+        "hold": 0.8
+      },
+      {
+        "id": "c06-b04",
+        "say": "For Gaussian corruption a learned noise estimate gives a score estimate: negate the noise prediction and divide by the noise standard deviation. Here the density is known, so we can follow its exact score without training an image model.",
+        "hold": 0.8
+      }
+    ]
+  },
+  {
+    "id": "c07",
+    "title": "Follow one grain in the cloud",
+    "sourceChapters": [
+      "c07"
+    ],
+    "beats": [
+      {
+        "id": "c07-b01",
+        "say": "Put particles in the broad noisy distribution. Follow the copper one. Every particle follows the same deterministic probability-flow equation, evaluated at its own position. Turn down the added variance and watch the paths start to bend.",
+        "hold": 0.8
+      },
+      {
+        "id": "c07-b02",
+        "say": "Continue to zero added variance. The particles gather around three centers. Their destinations depend on their starting points and the entire changing field. Even the clean clusters have width.",
+        "hold": 0.8
+      },
+      {
+        "id": "c07-b03",
+        "say": "This two-coordinate example integrates a known field. A related training method called flow matching pairs a noise point with a data point. Run time from noise to data. On a straight training segment the target velocity is the end minus the start. The learned average of different pair velocities can still trace a curve. An image route needs a compatible solver and measured quality.",
+        "hold": 0.8
+      }
+    ]
+  },
+  {
+    "id": "c08",
+    "title": "Can the sampler hit the saved square?",
+    "sourceChapters": [
+      "c08"
+    ],
+    "beats": [
+      {
+        "id": "c08-b01",
+        "say": "Bring back the saved exposure. At one half retained variance the working pixel reads point four two four. Our noise oracle supplies the original negative draw. At ninety percent retained variance, where should a deterministic DDIM jump land?",
+        "hold": 2.4
+      },
+      {
+        "id": "c08-b02",
+        "say": "Undo the current mix. Subtract the noise contribution, then divide by the signal amplitude to recover one. Scale that clean value to the destination. The tabletop now looks too smooth. Which term is missing?",
+        "hold": 2
+      },
+      {
+        "id": "c08-b03",
+        "say": "Put back the carried noise direction at the destination amplitude. The grain lines up. Our square lands on the saved reading, point eight two two. Setting eta to zero removes fresh noise. The model’s predicted noise still contributes to the step.",
+        "hold": 0.8
+      },
+      {
+        "id": "c08-b04",
+        "say": "Replay the jump with eta set to one. The schedule gives fresh noise some of the variance and shrinks the carried direction. Start both draws from the resulting center. A draw of minus one lands below it. Plus one lands above it. With zero eta the two draws would coincide.",
+        "hold": 0.8
+      },
+      {
+        "id": "c08-b05",
+        "say": "DDIM can visit widely spaced levels. Here we visit four of twelve levels, so one prediction per visit gives four calls. With fixed initialization and execution, the zero-eta path repeats. Fewer evaluations can cost fine detail. An oracle checks the algebra; on a real model, compare the same prompts and starting noise.",
+        "hold": 0.8
+      }
+    ]
+  },
+  {
+    "id": "c09",
+    "title": "Which words reach this square?",
+    "sourceChapters": [
+      "c09"
+    ],
+    "beats": [
+      {
+        "id": "c09-b01",
+        "say": "Our prompt is an oak dining table. This attention head projects a tabletop feature into a query, and each text token into a key and a value. Look at the three coordinates of the oak key. Multiply matching coordinates of the query and key, then add the products. Their sum is point five three five. Divide by the square root of three, the key width. The oak score is about point three zero nine. Repeat for dining and table before assigning shares.",
+        "hold": 0.8
+      },
+      {
+        "id": "c09-b02",
+        "say": "Exponentiate the scores and divide by their sum. These shares determine how much of each value vector enters the image feature. Add the weighted values component by component. This is one small illustrative head.",
+        "hold": 0.8
+      },
+      {
+        "id": "c09-b03",
+        "say": "Move the query into the shadow. Oak keeps its key. The largest query coordinate now lines up with the small middle coordinate of that key. Multiply the new pairs. Their sum is point one six seven five. Divide by the same square root of three. The oak score falls to about point zero nine seven. Recompute the shares. Dining now gets the largest share, even though all three text keys and values stayed fixed. A new location or denoising step can change what the image reads.",
+        "hold": 0.8
+      },
+      {
+        "id": "c09-b04",
+        "say": "Try a query with three zeros. The keys and values stay fixed. What will the head read? Every score is zero, so all three shares are one third. Take the average of the three value vectors, one coordinate at a time. A word can contribute to several pixels.",
+        "hold": 0.8
+      }
+    ]
+  },
+  {
+    "id": "c10",
+    "title": "Where will the guided prediction land?",
+    "sourceChapters": [
+      "c10"
+    ],
+    "beats": [
+      {
+        "id": "c10-b01",
+        "say": "Keep the noisy image and timestep fixed. Run the denoiser with an empty condition. Run the same weights with the oak-table prompt. During training, dropping the prompt on some examples teaches both cases. Classifier-free guidance can use their difference without a separate classifier.",
+        "hold": 0.8
+      },
+      {
+        "id": "c10-b02",
+        "say": "The blue arrow ends at the empty-prompt prediction. The green one ends at the prompted prediction. Subtract the empty prediction from the prompted one. Start at the blue tip. Where should one copy of that difference land?",
+        "hold": 2.3
+      },
+      {
+        "id": "c10-b03",
+        "say": "At scale one, the guided tip lands on green. Raise the scale to three and carry it beyond green along the same line. Add the scaled difference to the empty-prompt baseline. The coordinates describe predicted noise.",
+        "hold": 0.8
+      },
+      {
+        "id": "c10-b04",
+        "say": "Stronger guidance can improve adherence while reducing variety or introducing oversaturated textures. Compare alignment, diversity, and defects across a prompt set. A negative prompt changes the base condition. An API that disables the second branch at low scales may still run the prompted model at zero. Check the branch it actually executes.",
+        "hold": 0.8
+      }
+    ]
+  },
+  {
+    "id": "c11",
+    "title": "What goes into the decoder?",
+    "sourceChapters": [
+      "c11"
+    ],
+    "beats": [
+      {
+        "id": "c11-b01",
+        "say": "Repeatedly processing a full-resolution image is expensive. In training, an encoder compresses pixels into a continuous latent tensor. Add noise there. The denoiser learns to predict the target from that corrupted latent and its level.",
+        "hold": 0.8
+      },
+      {
+        "id": "c11-b02",
+        "say": "Text-to-image generation starts directly from random latent noise. At each step the sampler combines the current latent and the prediction. Decode the final latent after applying the checkpoint’s scaling convention. Discrete code IDs belong to a different representation.",
+        "hold": 0.8
+      },
+      {
+        "id": "c11-b03",
+        "say": "Multiply the two spatial dimensions by the channels. This image has forty-eight times as many scalars as its latent. A fine stripe lost even in an encode and decode round trip points to the autoencoder. Run that reconstruction by itself before spending more denoising steps.",
+        "hold": 0.8
+      },
+      {
+        "id": "c11-b04",
+        "say": "Text diffusion changes the state being revised. In a masked-token model, a decoder can inspect both sides of a slot in a provisional block. Follow its last word. Retract the draft word and replace it before committing the block. A cached prefix stays fixed while the block changes.",
+        "hold": 0.8
+      },
+      {
+        "id": "c11-b05",
+        "say": "Suppose our sampler requires low mean entropy and two identical consecutive predictions. The second round is confident. It changed the last word. Can the service commit it yet?",
+        "hold": 2
+      },
+      {
+        "id": "c11-b06",
+        "say": "Continue for another round. Now both conditions hold. The finished block can join the prefix for the next block. A confident, stable answer still needs a separate factual check. Measure time to first committed text as well as total throughput.",
+        "hold": 0.8
+      },
+      {
+        "id": "c11-b07",
+        "say": "Replay that last decision with the same words in both rounds. Raise the third round’s mean entropy to point zero one four. Would you commit it now? Keep refining. Matching words satisfy one condition. The new entropy exceeds the stopping threshold.",
+        "hold": 1.2
+      }
+    ]
+  },
+  {
+    "id": "c12",
+    "title": "How many predictions must the service buy?",
+    "sourceChapters": [
+      "c12"
+    ],
+    "beats": [
+      {
+        "id": "c12-b01",
+        "say": "One dot is one denoiser prediction for one image. Fifty levels use fifty dots on a single branch. Add ordinary guidance and each level needs a second prediction. Even when a batch computes both in one network call, the job still pays for both.",
+        "hold": 0.8
+      },
+      {
+        "id": "c12-b02",
+        "say": "A sparse sampler visits fewer levels. A different route uses a distilled model trained to cover more distance in one step. Our six-step preview includes guidance in a single prediction. Each shortcut needs its matching checkpoint and scheduler.",
+        "hold": 0.8
+      },
+      {
+        "id": "c12-b03",
+        "say": "Our preview lane gets twenty jobs a second with four variants each. The quality lane gets two jobs a second, also with four variants. Multiply arrivals by variants, steps and branches. Which lane offers more work?",
+        "hold": 2.1
+      },
+      {
+        "id": "c12-b04",
+        "say": "Quality offers eight hundred predictions a second. Preview offers four hundred eighty. A matched worker sustains one hundred twenty. At full load, four preview workers would have to run flat out. Plan at three quarters capacity. That leaves ninety predictions a second per worker. Divide each load by ninety and round up separately. Reserve six workers for preview and nine for quality under those assumptions.",
+        "hold": 0.8
+      },
+      {
+        "id": "c12-b05",
+        "say": "Bound queues and group compatible shapes, models and schedules. A shorter queue needs reserved capacity to protect it. Measure queueing, decode, safety checks and time to the first released variant. The counts alone cannot establish a tail latency or the cost per accepted image.",
+        "hold": 0.8
+      },
+      {
+        "id": "c12-b06",
+        "say": "Choose the control for the job. A mask lets you repaint just the background. A supplied edge map steers geometry through a compatible control branch. Low-rank weight updates can specialize the look. Check shape alignment and preserved regions alongside speed.",
+        "hold": 0.8
+      }
+    ]
+  },
+  {
+    "id": "c13",
+    "title": "Which bytes may leave the service?",
+    "sourceChapters": [
+      "c13"
+    ],
+    "beats": [
+      {
+        "id": "c13-b01",
+        "say": "A seed selects random draws. Also record the model, encoders, sampler, steps, guidance, and execution environment. Hardware or kernel changes can alter the result. Store final bytes when exact identity matters.",
+        "hold": 0.8
+      },
+      {
+        "id": "c13-b02",
+        "say": "Pause our stochastic sampler after its first landing. Restore the current latent, timestep and any solver history. One copy restores the generator at its saved position. The other resets it to the original seed. Will their next pixels match?",
+        "hold": 2.2
+      },
+      {
+        "id": "c13-b03",
+        "say": "Consume the next draw. The two copies use different numbers. Only the restored stream reproduces the uninterrupted landing. Otherwise restart the whole sample with its original configuration.",
+        "hold": 0.8
+      },
+      {
+        "id": "c13-b04",
+        "say": "Keep a job private while checking it. Bind retries to a tenant, request hash and key. When a worker times out, fence its attempt number. The replacement resizes the image. The old policy and watermark evidence names different bytes. Which attempt and which file can the service release?",
+        "hold": 2.2
+      },
+      {
+        "id": "c13-b05",
+        "say": "The old attempt is stale. Hold the replacement until its final bytes pass policy and watermark checks, with no human review required. Recheck the resized file. Its checked digest now matches. A text string saying true still leaves the manifest uncommitted.",
+        "hold": 0.8
+      },
+      {
+        "id": "c13-b06",
+        "say": "Commit the manifest with a Boolean true and pin the immutable file. Now release those exact bytes with a synthetic label and provenance. A missing watermark leaves origin unresolved. Track detector and policy versions, and send uncertain results to review.",
+        "hold": 0.8
+      },
+      {
+        "id": "c13-b07",
+        "say": "Two signed-in studios ask for the status and file for job forty-two. Cove owns the job. Reed has the same job number. Which studio can retrieve the illustration? Check the authenticated tenant on each read. Cove receives the completed status and the checked file. Deny Reed both reads. The policy and provenance checks cleared this image for use as a synthetic illustration. To claim it shows a real interface or incident, get the authenticated source record for that event.",
+        "hold": 1.5
+      }
+    ]
+  },
+  {
+    "id": "c14",
+    "title": "Try the shadow pixel",
+    "sourceChapters": [
+      "c14"
+    ],
+    "beats": [
+      {
+        "id": "c14-b01",
+        "say": "Move the square into the shadow between the table legs. This clean pixel is negative eight tenths. Its noise draw is positive six tenths. Start at thirty-six percent retained variance. Jump to sixty-four percent with zero eta. Where should the shadow land?",
+        "hold": 3
+      },
+      {
+        "id": "c14-b02",
+        "say": "The two contributions cancel at the starting level. Undo that mix to recover the negative clean pixel. At the destination the clean contribution alone is negative point six four. Which way does the carried noise move it?",
+        "hold": 2
+      },
+      {
+        "id": "c14-b03",
+        "say": "Add the positive noise contribution. The sum lands at negative point two eight, right on an independently mixed shadow pixel. That check works because we know the injected noise. A trained model has to estimate it.",
+        "hold": 0.8
+      },
+      {
+        "id": "c14-b04",
+        "say": "Now try doubling guidance while halving the steps. Which change accounts for a lost detail? Keep the baseline, add a steps-only run and a guidance-only run, then compare the combined run. Match the prompts, starting noise, model and execution. Count the work in each cell.",
+        "hold": 2
+      },
+      {
+        "id": "c14-b05",
+        "say": "Halving steps halves these prediction counts. Doubling the scale keeps two branches. Which images follow the prompt, preserve the lettering and retain variety? Score the images across seeds and prompts, then time the whole release path. Next, live voice adds a deadline for the first audible output.",
+        "hold": 0.8
+      }
+    ]
+  }
+]

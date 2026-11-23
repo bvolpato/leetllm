@@ -1,0 +1,86 @@
+{
+  "id": "leetllm-publication-curation",
+  "version": 1,
+  "title": "Visual explanation and publication curation",
+  "scope": "Judge whether this exact lecture deserves watching as a visual explanation. Prior technical scores are historical evidence and confer no publication recommendation.",
+  "decisions": [
+    "POST",
+    "QUARANTINE"
+  ],
+  "sceneJudgmentEnums": {
+    "visualGrade": ["strong", "adequate", "weak"],
+    "density": ["clear", "crowded", "text-dominant"]
+  },
+  "dimensions": [
+    {
+      "id": "visualExplanation",
+      "maximum": 35,
+      "minimumForPost": 30,
+      "criteria": "A spatial model, simulation, geometric construction or evolving visual state does substantial explanatory work. Learners can reconstruct why the result happens by watching. Diagrams of labeled boxes alone rarely establish this."
+    },
+    {
+      "id": "construction",
+      "maximum": 20,
+      "minimumForPost": 17,
+      "criteria": "Meaningful intermediate states build a mechanism. Objects retain identity; changes have visible consequences. The lesson includes a prediction and payoff, a before/after comparison or a counterexample that the visuals resolve."
+    },
+    {
+      "id": "density",
+      "maximum": 15,
+      "minimumForPost": 13,
+      "criteria": "On-screen prose is limited to short prompts and essential labels. Attention has one clear task. Tables, code and math earn their space through progressive construction and direct explanation. Paragraphs or many competing cards are blockers even when everything fits."
+    },
+    {
+      "id": "teachingArc",
+      "maximum": 15,
+      "minimumForPost": 12,
+      "criteria": "The opening creates an interesting question. The lecture builds intuition and then the mechanism from scratch, connects examples to general principles and earns its ending."
+    },
+    {
+      "id": "narrationDirection",
+      "maximum": 10,
+      "minimumForPost": 8,
+      "criteria": "Visible objects and meaningful changes follow the narrated reasoning. The voice leaves room for inspection and prediction. Repeated numerical lists and label reading reduce the score. Audible performance remains a separate listening judgment."
+    },
+    {
+      "id": "finish",
+      "maximum": 5,
+      "minimumForPost": 4,
+      "criteria": "Clear visual hierarchy, readable typeset math, connected shapes, consistent palette, clean transitions and no observed clipping, overlaps or contradictory states."
+    }
+  ],
+  "acceptance": {
+    "minimumScore": 90,
+    "noMaterialVisualOrTeachingBlockers": true,
+    "allAuthoredScenesReviewed": true,
+    "exactMovieAndSourceBindings": true,
+    "importantRule": "A numeric total is necessary but never sufficient. POST is a positive editorial decision about the whole lecture. Preserve shortcomings and earned scores. Do not inflate scores to meet a floor or quarantine everything to avoid making improvements."
+  },
+  "rework": {
+    "description": "REWORK is an internal recommendation. Its catalog decision remains QUARANTINE until a materially improved encoded movie passes a fresh independent visual review.",
+    "requirements": [
+      "Describe a concrete visual concept and which scenes need replacing.",
+      "Attempt promising bounded redesigns where the visual benefit is high.",
+      "Render and inspect the changed mechanism, complete movie, critical cues and held states before upgrading to POST."
+    ]
+  },
+  "densityDiagnostic": {
+    "note": "Word counts and label area identify candidate frames; they do not establish teaching quality. Mathematical objects, token strings, code and ledgers can be essential when built and explained."
+  },
+  "reviewEvidence": [
+    "Complete narration script read.",
+    "Every registered scene sheet personally viewed.",
+    "At least an opening, dense/central mechanism and payoff native frame personally viewed.",
+    "A scene-by-scene mechanism/density judgment and exact image/movie/source checksums."
+  ],
+  "quarantineReasons": [
+    "text-dominant",
+    "schematic-only",
+    "weak-visual-benefit",
+    "missing-construction",
+    "overloaded-composition",
+    "weak-story-or-payoff",
+    "synchronization-or-correctness",
+    "requires-substantial-redesign"
+  ]
+}

@@ -1,0 +1,1054 @@
+version: 1
+id: state-space-models
+title: Can a State-Space Model Remember the Retry Limit?
+source: fundamentals/state-space-models-mamba-alternatives/content.md
+opening: lesson
+voice: af_heart
+rate: +12%
+sources:
+  - title: "HiPPO: Recurrent Memory with Optimal Polynomial Projections"
+    url: https://arxiv.org/abs/2008.07669
+  - title: Efficiently Modeling Long Sequences with Structured State Spaces
+    url: https://arxiv.org/abs/2111.00396
+  - title: Mamba, Linear-Time Sequence Modeling with Selective State Spaces
+    url: https://arxiv.org/abs/2312.00752
+  - title: Official Mamba selective scan reference
+    url: https://github.com/state-spaces/mamba/blob/e9594ce1c732d97440f0332fdc43170a2294dbfa/mamba_ssm/ops/selective_scan_interface.py
+  - title: Mamba-1 block implementation
+    url: https://github.com/state-spaces/mamba/blob/e9594ce1c732d97440f0332fdc43170a2294dbfa/mamba_ssm/modules/mamba_simple.py
+  - title: Transformers are SSMs, Structured State Space Duality
+    url: https://arxiv.org/abs/2405.21060
+  - title: "Mamba-3: Improved Sequence Modeling using State Space Principles"
+    url: https://arxiv.org/abs/2603.15569
+  - title: "Jamba: A Hybrid Transformer-Mamba Language Model"
+    url: https://arxiv.org/abs/2403.19887
+  - title: "Nemotron-H: A Family of Accurate and Efficient Hybrid Mamba-Transformer Models"
+    url: https://arxiv.org/abs/2504.03624
+scenes:
+  - id: intro
+    title: "What happens to the retry limit?"
+    visual: "A marker moves halfway from the stored state toward each incoming setting. The configuration stays in view when an attention query returns to the retry limit."
+    beats:
+      - say: "Three retries pull the green marker halfway from zero to three. One and a half is now the reader's whole memory. The timeout is one second. The marker moves halfway toward each new number. Where will it land this time?"
+        hold: 2.25
+        caption_starts: ["One and a half is now", "The timeout is one second", "Where will it land this time"]
+        visual_cues:
+          - id: retry-line
+            phrase: "Three retries"
+            targets: [retry-setting]
+            color: blue
+          - id: write-retries
+            phrase: "pull the green marker halfway from zero to three"
+            targets: [state-slot]
+            color: green
+          - id: timeout-line
+            phrase: "The timeout is one second"
+            targets: [timeout-setting]
+            color: pink
+      - say: "One and a quarter. The marker moved back toward one. The file still says three retries, but the state now holds a blend of both settings."
+        hold: 0.7
+        visual_cues:
+          - id: write-timeout
+            phrase: "One and a quarter"
+            targets: [state-slot]
+            color: green
+      - say: "Now ask for the retry limit thirty thousand tokens later. A full attention head keeps a key and a value for every intervening token. Trace the query back to the three. Its key can draw the query's attention, and its value contributes to the answer in proportion to that weight."
+        hold: 1.6
+        visual_cues:
+          - id: later-question
+            phrase: "thirty thousand tokens later"
+            targets: [token-positions]
+            color: yellow
+          - id: kv-entries
+            phrase: "a key and a value for every intervening token"
+            targets: [token-positions]
+            color: blue
+          - id: look-back
+            phrase: "Trace the query back to the three"
+            targets: [token-positions]
+            color: blue
+  - id: collision
+    title: "Read the same two settings in a second file"
+    visual: "Two labeled paths start from distinct first states, meet after the timeout, and carry the same suffix along one path. The files still require different retry counts."
+    beats:
+      - say: "Keep file A. File B allows one retry and gives each try two seconds. Start both readers at zero. After the retry limit, A holds one and a half. B holds a half. Average each state with its own timeout. What goes in the two slots?"
+        hold: 2.4
+        visual_cues:
+          - id: second-file
+            phrase: "File B allows one retry and gives each try two seconds"
+            targets: [file-inputs]
+            color: pink
+          - id: two-slots
+            phrase: "What goes in the two slots"
+            targets: [state-paths]
+            color: yellow
+      - say: "Both slots hold one and a quarter. In A, one and a half plus one gives two and a half before you divide. In B, a half plus two gives the same sum. Give both readers a four, then give both a two. Once the paths meet, identical inputs keep them together."
+        hold: 0.8
+        visual_cues:
+          - id: ssm-collision-equality
+            phrase: "Both slots hold one and a quarter"
+            targets: [state-paths]
+            color: green
+          - id: common-four
+            phrase: "Give both readers a four"
+            targets: [state-paths]
+            color: green
+          - id: common-two
+            phrase: "then give both a two"
+            targets: [state-paths]
+            color: green
+      - say: "Ask for the retry limit. File A needs three. File B needs one. A readout that gets the same state and the same question has no way to tell which file it read. A trained state-space model can use more coordinates and learn its writes. This pair tells us what to test for."
+        hold: 0.85
+        visual_cues:
+          - id: two-answers
+            phrase: "File A needs three. File B needs one"
+            targets: [lookup-consequence]
+            color: yellow
+  - id: recurrence
+    title: "What gets into the state?"
+    visual: "Four writes build a common-scale trace. Each state bar consists of retained old state and the new input contribution."
+    beats:
+      - say: "Change the rule. This time keep nine tenths of the old state and write one fifth of each input. Start at zero. Three puts point six in the slot. On input one, point five four survives and point two comes in. That leaves point seven four. What will the four add?"
+        hold: 1.8
+        visual_cues:
+          - id: first-update
+            phrase: "Three puts point six in the slot"
+            targets: [state-bars]
+            color: pink
+          - id: second-update
+            phrase: "point five four survives and point two comes in"
+            targets: [state-bars]
+            color: blue
+      - say: "Carry nine tenths of point seven four. The four writes eight tenths. Together they give one point four six six. On the last input, keep nine tenths of that and add point four. The final state is one point seven one nine four. All four rows are snapshots of one slot."
+        hold: 0.9
+        visual_cues:
+          - id: third-update
+            phrase: "Carry nine tenths of point seven four. The four writes eight tenths"
+            targets: [state-bars]
+            color: pink
+          - id: fourth-update
+            phrase: "keep nine tenths of that and add point four"
+            targets: [state-bars]
+            color: blue
+      - say: "Here the output reads the whole state, so this last number is also the fourth output. In a wider model, A carries the state, B writes the input, and C reads the updated state. D can send some current input straight to the output. We'll change that readout in a moment."
+        hold: 0.65
+        visual_cues:
+          - id: read-slot
+            phrase: "this last number is also the fourth output"
+            targets: [state-equation]
+            color: green
+  - id: kernel
+    title: "Read the same four inputs by lag"
+    visual: "Contributions at fixed lags reproduce the recurrent output. Increasing only the write for input four changes one bar and breaks the single-kernel rule."
+    beats:
+      - say: Expand the last state by substituting each earlier update. Every input now has a weight determined by how
+          many transitions separate it from the output. Older writes receive more decay. The sum of those
+          weighted contributions exactly reproduces our recurrent calculation from a zero initial state.
+        visual_cues:
+          - id: lag-contributions
+            phrase: Every input now has a weight
+            targets:
+              - lag-contributions
+            color: cyan
+          - id: decayed-sum
+            phrase: sum of those weighted contributions
+            targets:
+              - kernel-readout-6
+            color: green
+        hold: 0.6
+      - say: Slide the readout across the sequence. The same lag weights apply at every position because the
+          coefficients stay fixed. This is a causal convolution. Structured state-space models such as S4 can
+          use a convolution view for full sequences and a recurrent view when generating one position at a
+          time.
+        visual_cues:
+          - id: fixed-kernel
+            phrase: same lag weights apply at every position
+            targets:
+              - kernel-equation-4
+            color: yellow
+          - id: causal-convolution
+            phrase: causal convolution
+            targets:
+              - lag-contributions
+            color: cyan
+        hold: 0.65
+      - say: "Keep all four inputs. Change just the write for a value above three. Raise its coefficient from one fifth to one half. Only the four qualifies. One step later its contribution rises from point seven two to one point eight. All the other bars keep their heights. At the same lag, a one and a four now have different write coefficients. A single lag kernel can't supply both."
+        hold: 0.9
+        visual_cues:
+          - id: content-rule
+            phrase: "Raise its coefficient from one fifth to one half"
+            targets: [content-contributions]
+            color: green
+          - id: fixed-kernel-limit
+            phrase: "At the same lag, a one and a four now have different write coefficients"
+            targets: [kernel-equation-2]
+            color: yellow
+  - id: delta
+    title: Step size controls how much old state survives
+    visual: A moving step-size probe follows exponential retention and compares exact held-input writes with the
+      implemented Mamba input coefficient.
+    beats:
+      - say: State-space equations often begin with continuous dynamics, then convert them into discrete steps. For a
+          scalar decay rate of minus one, the carryover becomes the exponential of negative step size. A small
+          step preserves most of the previous state. A larger step lets much more of it decay.
+        visual_cues:
+          - id: discrete-decay
+            phrase: exponential of negative step size
+            targets:
+              - retention-curve
+            color: green
+          - id: large-step
+            phrase: A larger step lets much more of it decay
+            targets:
+              - retention-probe
+            color: yellow
+        hold: 0.6
+      - say: Watch the probe move while its retention fraction changes. Input writing needs a discretization rule too.
+          With a constant held input, the exact contribution integrates that input over the interval. Mamba's
+          reference update uses the step size times the input map instead, so these coefficients differ for
+          finite steps.
+        visual_cues:
+          - id: probe-retention
+            phrase: Watch the probe move while its retention fraction changes
+            targets:
+              - retention-probe
+            color: yellow
+          - id: exact-write
+            phrase: exact contribution integrates that input
+            targets:
+              - delta-readout-3
+            color: blue
+          - id: mamba-write
+            phrase: Mamba's reference update uses the step size times the input map
+            targets:
+              - delta-readout-4
+            color: pink
+          - id: ssm-delta-exact
+            phrase: With a constant held input, the exact contribution integrates that input over the interval
+            targets:
+              - delta-readout-3
+            color: cyan
+            linger: 0.35
+          - id: ssm-delta-mamba
+            phrase: Mamba's reference update uses the step size times the input map instead
+            targets:
+              - delta-readout-4
+            color: cyan
+            linger: 0.35
+        hold: 0.65
+      - say: "At a unit step, both rules carry about thirty-seven percent of the old state. The held input writes about point six three two. The Mamba rule writes one. Shrink the step to a tenth. The write coefficients move closer together. Which rule to use depends on which system you're reproducing."
+        hold: 0.8
+        visual_cues:
+          - id: unit-step
+            phrase: "At a unit step"
+            targets: [delta-readout-3, delta-readout-4]
+            color: yellow
+          - id: small-step-limit
+            phrase: "Shrink the step to a tenth"
+            targets: [retention-probe]
+            color: yellow
+  - id: held-input
+    title: "How much of a held input survives?"
+    visual: "Integrate decay over one interval, build the four half-carry states, then change the readout and skip while the final state stays fixed."
+    beats:
+      - say: For a held input, the exact discrete transition is the matrix exponential of step size times A. The input
+          coefficient integrates exponential of u times A, multiplied by B, from zero to the step size. For
+          invertible A and a positive step, this equals inverse A times the exponential transition minus
+          identity, then B. A singular matrix still has the integral form.
+        hold: 1.1
+        visual_cues:
+          - id: held-input-b1
+            phrase: For a held input, the exact discrete transition is the matrix exponential of step size times A
+            targets:
+              - held-input-mechanism
+            linger: 0.5
+          - id: ssm-held-integral
+            phrase: The input coefficient integrates exponential of u times A, multiplied by B, from zero to the step size
+            targets:
+              - held-input-mechanism
+            color: cyan
+            linger: 0.35
+          - id: ssm-held-inverse
+            phrase: For invertible A and a positive step, this equals inverse A times the exponential transition minus
+              identity, then B
+            targets:
+              - held-input-mechanism
+            color: cyan
+            linger: 0.35
+      - say: At scalar A equal to minus one, B equal to one and unit step, old state retains about point three six
+          eight. A unit held input contributes one minus that retention, about point six three two. The
+          official Mamba-one-style write uses step size times B, giving one here. Both agree approximately for
+          small steps; they are different finite-step models.
+        hold: 0.7
+        visual_cues:
+          - id: held-input-b2
+            phrase: At scalar A equal to minus one, B equal to one and unit step, old state retains about point three six
+              eight
+            targets:
+              - held-input-mechanism
+            linger: 0.5
+          - id: ssm-held-retention
+            phrase: old state retains about point three six eight
+            targets:
+              - held-input-mechanism
+            color: cyan
+            linger: 0.35
+          - id: ssm-held-exact
+            phrase: A unit held input contributes one minus that retention, about point six three two
+            targets:
+              - held-input-mechanism
+            color: cyan
+            linger: 0.35
+          - id: ssm-held-euler
+            phrase: The official Mamba-one-style write uses step size times B, giving one here
+            targets:
+              - held-input-mechanism
+            color: cyan
+            linger: 0.35
+      - say: Keep the state and readout distinct. In a second hand calculation, use half carry and half write on
+          inputs three, one, four, two. Starting from zero, the successive states are one point five, one
+          point two five, two point six two five and two point three one two five. Readout C selects the state
+          contribution, while D supplies a direct current-input skip.
+        hold: 0.7
+        visual_cues:
+          - id: held-input-b3
+            phrase: Keep the state and readout distinct
+            targets:
+              - held-input-mechanism
+            linger: 0.5
+          - id: ssm-half-first
+            phrase: the successive states are one point five
+            targets:
+              - held-input-mechanism
+            color: cyan
+            linger: 0.35
+          - id: ssm-half-second
+            phrase: one point two five
+            targets:
+              - held-input-mechanism
+            color: cyan
+            linger: 0.35
+          - id: ssm-half-third
+            phrase: two point six two five
+            targets:
+              - held-input-mechanism
+            color: cyan
+            linger: 0.35
+          - id: ssm-half-fourth
+            phrase: two point three one two five
+            targets:
+              - held-input-mechanism
+            color: cyan
+            linger: 0.35
+      - say: "Keep the final state on the screen. The readout coefficient starts at one, so the output equals the state. Double only the readout coefficient. The output doubles and the stored number stays put. Now add half the current input through D. That adds one more to the output. The next token still starts from exactly the same state."
+        hold: 0.8
+        visual_cues:
+          - id: change-readout
+            phrase: "Double only the readout coefficient"
+            targets: [readout-trial]
+            color: blue
+          - id: add-skip
+            phrase: "Now add half the current input through D"
+            targets: [readout-trial]
+            color: pink
+  - id: structured-block
+    title: "What can different coordinates remember?"
+    visual: "Two histories have equal means and opposite trends. A structured transition and fixed lag kernel illustrate S4 before two projection lanes build a selective Mamba block."
+    beats:
+      - say: "One history rises from one to three. The other falls from three to one. Across the whole window they have the same average height. Time runs from minus one to plus one. What sign goes on each trend?"
+        hold: 2.1
+        visual_cues:
+          - id: draw-ramps
+            phrase: "One history rises from one to three. The other falls from three to one"
+            targets: [structured-block-mechanism]
+            color: blue
+          - id: average-height
+            phrase: "they have the same average height"
+            targets: [structured-block-mechanism]
+            color: yellow
+      - say: "Look at their slopes. On this time scale the trend is plus one in the first history and minus one in the second. A constant and a linear term capture these ramps exactly. HiPPO represents history with coefficients of orthogonal polynomials. S4 uses that framework to initialize its continuous transition. The state now has coordinates with different jobs."
+        hold: 0.85
+        visual_cues:
+          - id: trend-signs
+            phrase: "the trend is plus one in the first history and minus one in the second"
+            targets: [structured-block-mechanism]
+            color: pink
+      - say: Original S4 uses bilinear discretization, rather than the exact zero-order hold example we computed. Its
+          diagonal-plus-low-rank transition structure is doing real computational work. An efficient
+          structured transition can process L positions with order L times state-width work for one channel,
+          while a generic dense state-width by state-width matrix costs quadratic work per step.
+        hold: 0.8
+        visual_cues:
+          - id: structured-block-extension-4
+            phrase: Original S4 uses bilinear discretization, rather than the exact zero-order hold example we computed
+            targets:
+              - structured-block-extension-4
+            linger: 0.5
+          - id: ssm-structured-work
+            phrase: An efficient structured transition can process L positions with order L times state-width work for one
+              channel
+            targets:
+              - structured-block-extension-4
+            color: cyan
+            linger: 0.35
+      - say: For zero initial state and fixed coefficients, an FFT can apply the prepared convolution kernel in order
+          L log L work. Kernel construction has a separate cost, and the direct Python convolution in the
+          article is intentionally quadratic. With a nonzero initial state, add its separately propagated
+          readout contribution. These conditions explain when the two execution views implement the same
+          dynamics.
+        hold: 0.8
+        visual_cues:
+          - id: structured-block-extension-5
+            phrase: For zero initial state and fixed coefficients, an FFT can apply the prepared convolution kernel in
+              order L log L work
+            targets:
+              - structured-block-extension-5
+            linger: 0.5
+          - id: ssm-fft-application
+            phrase: an FFT can apply the prepared convolution kernel in order L log L work
+            targets:
+              - structured-block-extension-5
+            color: cyan
+            linger: 0.35
+      - say: The Mamba-one core sits inside a larger block. Project the input into a main lane and a gate lane. The
+          main lane passes through a causal convolution and SiLU activation. That activation determines B, C
+          and a positive step size, then enters the selective recurrence and a D-times-input skip. The learned
+          A and D remain input-independent in this version.
+        hold: 0.7
+        visual_cues:
+          - id: structured-block-b2
+            phrase: The Mamba-one core sits inside a larger block
+            targets:
+              - structured-block-mechanism
+            linger: 0.5
+          - id: ssm-block-project
+            phrase: Project the input into a main lane and a gate lane
+            targets:
+              - structured-block-mechanism
+            color: cyan
+            linger: 0.35
+          - id: ssm-block-convolution
+            phrase: The main lane passes through a causal convolution
+            targets:
+              - structured-block-mechanism
+            color: cyan
+            linger: 0.35
+          - id: ssm-block-activation
+            phrase: SiLU activation
+            targets:
+              - structured-block-mechanism
+            color: cyan
+            linger: 0.35
+          - id: ssm-block-select
+            phrase: That activation determines B, C and a positive step size
+            targets:
+              - structured-block-mechanism
+            color: cyan
+            linger: 0.35
+          - id: ssm-block-recurrence
+            phrase: then enters the selective recurrence and a D-times-input skip
+            targets:
+              - structured-block-mechanism
+            color: cyan
+            linger: 0.35
+      - say: "The separate lane applies SiLU to z and multiplies the readout before output projection. SiLU is z times sigmoid z. Its multiplier can be negative or greater than one. Softplus makes the step size positive. Before you switch to a fused kernel, check the discretization and coefficient shapes. Compare each output and state with the reference at the precision you're using."
+        hold: 0.7
+        visual_cues:
+          - id: structured-block-b3
+            phrase: The separate lane applies SiLU to z and multiplies the readout before output projection
+            targets:
+              - structured-block-mechanism
+            linger: 0.5
+          - id: ssm-block-gate
+            phrase: The separate lane applies SiLU to z
+            targets:
+              - structured-block-mechanism
+            color: cyan
+            linger: 0.35
+          - id: ssm-block-readout
+            phrase: the readout
+            targets:
+              - structured-block-mechanism
+            color: cyan
+            linger: 0.35
+          - id: ssm-block-multiply
+            phrase: multiplies the readout
+            targets:
+              - structured-block-mechanism
+            color: cyan
+            linger: 0.35
+          - id: ssm-block-output
+            phrase: before output projection
+            targets:
+              - structured-block-mechanism
+            color: cyan
+            linger: 0.35
+  - id: selection
+    title: Let the input choose the update
+    visual: Each activation produces its own step size, write, and read coefficients, and those values drive the
+      actual selective state trace.
+    beats:
+      - say: "Follow the yellow input through the block. In Mamba one, the activation after the convolution and SiLU sets the step size, the write map B and the read map C. A stays fixed. We'll use simple maps to trace four inputs."
+        visual_cues:
+          - id: selective-coefficients
+            phrase: "sets the step size, the write map B and the read map C"
+            targets:
+              - selection-readout-2
+            color: yellow
+          - id: input-activation
+            phrase: "Follow the yellow input"
+            targets:
+              - selection-activation
+            color: yellow
+        hold: 0.6
+      - say: "Compare inputs one and four. At one, about two thirds of the old state survives. At four, less than half survives. But look at the pink write. It jumps from about four hundredths to one point two eight. Add that write to the blue carry. The state reaches one point four seven. Now read it out. Four sets C to one point two, so the output is about one point seven six."
+        caption_starts: ["The state reaches one point four seven", "the output is about one point seven six"]
+        visual_cues:
+          - id: selective-carry
+            phrase: "At one, about two thirds of the old state survives"
+            targets:
+              - selection-carry
+              - selection-retention-comparison
+            color: blue
+          - id: selective-write
+            phrase: "But look at the pink write"
+            targets:
+              - selection-write
+              - selection-write-comparison
+            color: pink
+          - id: selective-readout
+            phrase: "Now read it out"
+            targets:
+              - selection-readout-4
+            color: cyan
+          - id: ssm-selective-state
+            phrase: "Add that write to the blue carry"
+            targets:
+              - selection-result
+            color: cyan
+            linger: 0.35
+          - id: ssm-selective-readout
+            phrase: "the output is about one point seven six"
+            targets:
+              - selection-readout-4
+            color: cyan
+            linger: 0.35
+        hold: 0.65
+      - say: "The last input is two. Start with the state the four left behind. About six tenths survives, and the new write adds about a fifth. Together they bring the state down to about one point zero nine. A model can learn a strong write for a retry setting and a light one for the words that follow."
+        visual_cues:
+          - id: preserve-evidence
+            phrase: "Start with the state the four left behind"
+            targets:
+              - selection-old
+            color: green
+          - id: decay-and-replace
+            phrase: "Together they bring the state down to about one point zero nine"
+            targets:
+              - selection-result
+            color: yellow
+        hold: 0.7
+      - say: "Start both trials at one. Send a zero. Its write vanishes, so the blue carry stops short of one. If it grows, check the sign of A and the step size. Reset to one and send a four. Blue still falls short. The pink write takes the state past one. If two inputs give identical coefficients, try more inputs to check the maps. Once the states match the reference, profile the loop and memory copies."
+        hold: 0.85
+        visual_cues:
+          - id: probe-zero
+            phrase: Send a zero
+            targets: [zero-input-check]
+            color: blue
+          - id: probe-four
+            phrase: Reset to one and send a four
+            targets: [zero-input-check]
+            color: pink
+          - id: probe-write
+            phrase: "The pink write takes the state past one"
+            targets: [zero-input-check]
+            color: pink
+  - id: scan
+    title: Compose updates without changing their order
+    visual: Ordered affine pairs combine into subtree summaries and then all inclusive prefix states,
+      demonstrating an associative scan.
+    beats:
+      - say: "For a known sequence, the inputs determine these coefficients before the states are evaluated. Treat
+          each update as an affine function: multiply the incoming state, then add a write. Two updates can be
+          composed into one affine pair, using the second transition to scale the first write."
+        visual_cues:
+          - id: affine-updates
+            phrase: multiply the incoming state, then add a write
+            targets:
+              - affine-input-pairs
+            color: blue
+          - id: compose-two
+            phrase: Two updates can be composed into one affine pair
+            targets:
+              - composed-affine-pairs
+            color: yellow
+        hold: 0.6
+      - say: Composition is associative in exact arithmetic. We can group adjacent updates into a tree while
+          preserving their order. Parallel prefix scan uses this property to recover the state after every
+          prefix. A single reduction would give only the final composition, leaving the earlier outputs
+          unavailable.
+        visual_cues:
+          - id: ordered-tree
+            phrase: group adjacent updates into a tree
+            targets:
+              - composed-affine-pairs
+            color: yellow
+          - id: all-prefix-states
+            phrase: recover the state after every prefix
+            targets:
+              - scan-readout-2
+            color: green
+        hold: 0.65
+        motion_check:
+          region:
+            - 180
+            - 450
+            - 1600
+            - 550
+          minimumChangedFraction: 0.002
+      - say: Fused implementations also control memory traffic so expanded state needn't be written to device memory
+          after every elementary operation. Regrouping can change floating-point rounding, so compare a
+          suitable reference with meaningful tolerances. An arbitrary hidden-state-dependent nonlinear
+          recurrence may lack these precomputable affine pairs.
+        visual_cues:
+          - id: fused-scan
+            phrase: expanded state needn't be written to device memory
+            targets:
+              - affine-input-pairs
+            color: blue
+          - id: scan-reference
+            phrase: compare a suitable reference
+            targets:
+              - scan-readout-2
+            color: yellow
+        hold: 0.7
+  - id: prefix-construction
+    title: Recover every prefix, not only the reduction
+    visual: Retain ordered affine pairs, join adjacent ranges, then distribute earlier-prefix contributions into
+      every leaf output.
+    beats:
+      - say: Construct a tiny inclusive scan from two affine updates. The first maps h to point five h plus two. The
+          second maps h to point two h plus one. From zero, the first prefix gives two. The second applies its
+          decay to that first write, giving point two times two plus one, or one point four.
+        hold: 1.1
+        visual_cues:
+          - id: prefix-construction-b1
+            phrase: Construct a tiny inclusive scan from two affine updates
+            targets:
+              - prefix-construction-mechanism
+            linger: 0.5
+          - id: ssm-prefix-first
+            phrase: From zero, the first prefix gives two
+            targets:
+              - prefix-construction-mechanism
+            color: cyan
+            linger: 0.35
+          - id: ssm-prefix-second
+            phrase: giving point two times two plus one, or one point four
+            targets:
+              - prefix-construction-mechanism
+            color: cyan
+            linger: 0.35
+      - say: The composite pair keeps transition point one and write one point four. A reduction returns only that
+          final pair. A prefix scan also retains the first pair and yields both states, two and one point
+          four. Swap the updates and the answer becomes two point five. Associativity permits changing
+          grouping while preserving order; it never permits swapping the inputs.
+        hold: 0.7
+        visual_cues:
+          - id: prefix-construction-b2
+            phrase: The composite pair keeps transition point one and write one point four
+            targets:
+              - prefix-construction-mechanism
+            linger: 0.5
+          - id: ssm-prefix-composite
+            phrase: The composite pair keeps transition point one and write one point four
+            targets:
+              - prefix-construction-mechanism
+            color: cyan
+            linger: 0.35
+          - id: ssm-prefix-reverse
+            phrase: Swap the updates and the answer becomes two point five
+            targets:
+              - prefix-construction-mechanism
+            color: cyan
+            linger: 0.35
+      - say: For a longer sequence, first combine adjacent ordered ranges. Pass the incoming prefix from the left
+          range into each right range, composing it before that range's own updates. Continue down until each
+          position has its complete prefix. Fused kernels keep expanded recurrent work in fast memory where
+          possible instead of spilling every intermediate state to HBM. Floating-point regrouping still needs
+          a tolerance-based reference comparison.
+        hold: 0.7
+        visual_cues:
+          - id: prefix-construction-b3
+            phrase: For a longer sequence, first combine adjacent ordered ranges
+            targets:
+              - prefix-construction-mechanism
+            linger: 0.5
+          - id: ssm-prefix-tree-up
+            phrase: first combine adjacent ordered ranges
+            targets:
+              - prefix-construction-mechanism
+            color: cyan
+            linger: 0.35
+          - id: ssm-prefix-tree-down
+            phrase: Continue down until each position has its complete prefix
+            targets:
+              - prefix-construction-mechanism
+            color: cyan
+            linger: 0.35
+  - id: ssd-and-refinement
+    title: How Mamba-2 and Mamba-3 use the state
+    visual: Chunk-local outputs and end states combine with propagated boundary state; then a previous-write
+      buffer separates Mamba3 from SSD.
+    beats:
+      - say: "Mamba-two uses structured state space duality, or SSD. Its transition within a head is a scalar times the identity. Pick a cell in the triangle. Its weight combines an earlier write, the decay on the way to this position, and the current read. That factorization gives the green block its low rank and connects the recurrence to a structured form of masked kernel attention."
+        hold: 1.1
+        visual_cues:
+          - id: ssd-and-refinement-b1
+            phrase: Mamba-two uses structured state space duality, or SSD
+            targets:
+              - ssd-and-refinement-mechanism
+            linger: 0.5
+          - id: ssm-ssd-factor
+            phrase: "an earlier write, the decay on the way to this position, and the current read"
+            targets:
+              - ssd-and-refinement-mechanism
+            color: cyan
+            linger: 0.35
+      - say: "Cut the four inputs in half. Start each chunk at zero and compute its two local outputs. The right chunk starts with a four, so its first local result is point eight. What is missing?"
+        hold: 2.25
+        caption_starts: ["What is missing"]
+        visual_cues:
+          - id: ssd-and-refinement-b2
+            phrase: "Cut the four inputs in half"
+            targets: [ssd-and-refinement-mechanism]
+            color: cyan
+          - id: ssm-ssd-local
+            phrase: "Start each chunk at zero and compute its two local outputs"
+            targets: [ssd-and-refinement-mechanism]
+            color: blue
+      - say: "Take the point seven four at the left boundary. Carry it one step to the right. Adding that contribution brings point eight up to one point four six six. Carry it twice for the last position. The four outputs now match the original recurrence. SSD uses batched matrix products inside chunks and propagates state along the shorter chain of boundaries. At width two hundred fifty-six, sixteen thousand three hundred eighty-four inputs fill sixty-four chunks. One extra input opens chunk sixty-five."
+        hold: 0.85
+        caption_starts: ["Take the point seven four at the left boundary", "Adding that contribution"]
+        visual_cues:
+          - id: ssd-incoming
+            phrase: "Take the point seven four at the left boundary"
+            targets: [ssd-and-refinement-mechanism]
+            color: yellow
+          - id: ssd-first-carry
+            phrase: "Carry it one step to the right"
+            targets: [ssd-and-refinement-mechanism]
+            color: yellow
+          - id: ssm-ssd-boundary
+            phrase: "Carry it twice for the last position"
+            targets: [ssd-and-refinement-mechanism]
+            color: green
+          - id: ssm-chunks64
+            phrase: "sixteen thousand three hundred eighty-four inputs fill sixty-four chunks"
+            targets: [ssd-and-refinement-mechanism]
+            color: blue
+          - id: ssm-chunk65
+            phrase: "One extra input opens chunk sixty-five"
+            targets: [ssd-and-refinement-mechanism]
+            color: yellow
+      - say: "Start with the two writes on the left. The Mamba-three block drops the short convolution and saves the previous write. Its exponential-trapezoidal rule mixes the two endpoints. At weight one, the real-coordinate update uses the current endpoint, as in exponential Euler. At one half, both interval endpoints contribute. For second-order accuracy the weight must stay within order delta of one half, and the signal and dynamics must meet the smoothness and stability conditions. Now watch the arrow. In this example a one turns it halfway around, and a zero leaves it pointing the same way. The direction tracks whether the number of ones is odd or even. That's one use for a complex state rotation. On the right, two input directions write two and three into the same state. One read adds them to get five. The other subtracts them to get minus one. Multiple input and output directions let Mamba three do more arithmetic each time it reads the state from memory. To measure generation speed, count the tokens it emits per second."
+        hold: 0.7
+        visual_cues:
+          - id: ssd-and-refinement-b3
+            phrase: "Start with the two writes on the left"
+            targets:
+              - ssd-and-refinement-mechanism
+            linger: 0.5
+          - id: ssm-rotation
+            phrase: "a one turns it halfway around, and a zero leaves it pointing the same way"
+            targets:
+              - ssd-and-refinement-mechanism
+            color: cyan
+            linger: 0.35
+          - id: ssm-mimo
+            phrase: "One read adds them to get five"
+            targets:
+              - ssd-and-refinement-mechanism
+            color: cyan
+            linger: 0.35
+          - id: difference-read
+            phrase: "The other subtracts them to get minus one"
+            targets: [ssd-and-refinement-mechanism]
+            color: pink
+          - id: ssm-trapezoid-half
+            phrase: At one half, both interval endpoints contribute
+            targets:
+              - ssd-and-refinement-mechanism
+            color: cyan
+            linger: 0.35
+  - id: checkpoint
+    title: A rejected branch needs a valid state to return to
+    visual: Provisional inputs overwrite a state, then restoration to the accepted checkpoint precedes the
+      corrected continuation and avoids contamination.
+    beats:
+      - say: Streaming also gives us a state-management responsibility. Suppose two provisional inputs update the
+          summary, and only the first is accepted. The last state already contains the rejected input.
+          Processing a correction from that state would carry rejected evidence into the continued sequence.
+        visual_cues:
+          - id: accepted-state
+            phrase: only the first is accepted
+            targets:
+              - checkpoint-readout
+            color: green
+          - id: rejected-input
+            phrase: last state already contains the rejected input
+            targets:
+              - checkpoint-live
+            color: pink
+        hold: 0.6
+      - say: Restore the accepted checkpoint, then process the correction. The result matches a direct reference run.
+          A full Mamba-one block also needs its convolution buffer restored. Extra snapshots and speculative
+          branches consume memory, even though one live recurrent state stays fixed with respect to processed
+          length.
+        visual_cues:
+          - id: restore-checkpoint
+            phrase: Restore the accepted checkpoint
+            targets:
+              - checkpoint-live
+            color: green
+          - id: apply-correction
+            phrase: then process the correction
+            targets:
+              - checkpoint-input
+            color: pink
+          - id: reference-state
+            phrase: result matches a direct reference run
+            targets:
+              - checkpoint-readout-3
+            color: green
+          - id: ssm-checkpoint-reference
+            phrase: The result matches a direct reference run
+            targets:
+              - checkpoint-live
+            color: cyan
+            linger: 0.35
+        hold: 0.65
+        motion_check:
+          region:
+            - 220
+            - 560
+            - 1510
+            - 390
+          minimumChangedFraction: 0.002
+      - say: "Try the other boundary. Start the correction from the state after the rejected seventy-seven. That gives thirty-three point seven eight one two five. Compare it with the direct run below. Undoing the last step by division can amplify rounding, and a carry that underflows to zero has already erased the old state. Keep an accepted checkpoint or replay from one."
+        hold: 0.9
+        visual_cues:
+          - id: wrong-branch
+            phrase: "That gives thirty-three point seven eight one two five"
+            targets: [boundary-comparison]
+            color: pink
+  - id: complete-buffers
+    title: "Resume the same request twice"
+    visual: "A saved state and three convolution slots are copied. Both copies receive the same suffix while a cleared window changes the very first write."
+    beats:
+      - say: "Each time you save a checkpoint, you keep another copy of the state. Here one copy takes five mebibytes. Save one every one thousand twenty-four positions. After eight thousand one hundred ninety-two positions you have eight snapshots and one live copy. Nine times five gives forty-five mebibytes. At sixty-five thousand five hundred thirty-six positions, sixty-four snapshots plus the live copy take three hundred twenty-five mebibytes."
+        hold: 1.1
+        visual_cues:
+          - id: complete-buffers-b1
+            phrase: "Each time you save a checkpoint"
+            targets:
+              - complete-buffers-mechanism
+            linger: 0.5
+          - id: ssm-snapshots45
+            phrase: forty-five mebibytes
+            targets:
+              - complete-buffers-mechanism
+            color: cyan
+            linger: 0.35
+          - id: ssm-snapshots325
+            phrase: "sixty-four snapshots plus the live copy take three hundred twenty-five mebibytes"
+            targets:
+              - complete-buffers-mechanism
+            color: cyan
+            linger: 0.35
+      - say: "Pause the stream after three and one. This time a short convolution feeds the recurrence. The checkpoint holds state two point one five and the last three input slots. Make two copies. Clear only the lower copy's window. Slide four into both windows. Before either state changes, which copy writes more, and which old values account for the gap?"
+        hold: 2.65
+        visual_cues:
+          - id: complete-buffers-b2
+            phrase: "The checkpoint holds state two point one five and the last three input slots"
+            targets: [complete-buffers-mechanism]
+            color: green
+          - id: clear-window
+            phrase: "Clear only the lower copy's window"
+            targets: [complete-buffers-mechanism]
+            color: pink
+          - id: append-four
+            phrase: "Slide four into both windows"
+            targets: [complete-buffers-mechanism]
+            color: blue
+      - say: "The upper window still has the three and the one. Their weights contribute point six and point three. Both copies get two from the new four. That makes the writes two point nine and two. Add the same carry to each. The states are already apart. Slide in the last input, two. The complete restore matches the uninterrupted run. The lower copy finishes at three point seven three seven five. Save the convolution window with the state, and keep both attached to their request when the batch changes order."
+        hold: 1
+        visual_cues:
+          - id: compare-writes
+            phrase: "That makes the writes two point nine and two"
+            targets: [complete-buffers-mechanism]
+            color: blue
+          - id: ssm-buffer-first
+            phrase: "Add the same carry to each"
+            targets: [complete-buffers-mechanism]
+            color: green
+          - id: append-two
+            phrase: "Slide in the last input, two"
+            targets: [complete-buffers-mechanism]
+            color: pink
+          - id: ssm-buffer-second
+            phrase: "The complete restore matches the uninterrupted run"
+            targets: [complete-buffers-mechanism]
+            color: green
+          - id: ssm-buffer-dropped
+            phrase: "The lower copy finishes at three point seven three seven five"
+            targets: [complete-buffers-mechanism]
+            color: pink
+  - id: earned-transfer
+    title: "What does this request cost?"
+    visual: "Prefill and later decode steps accumulate on a common millisecond scale. A hybrid stack then shows which layers carry a growing KV cache."
+    beats:
+      - say: "Sixteen tokens in the reply. Prefill gives you the first one. On the blue row, attention spends a hundred twenty milliseconds to get started. On the pink row, the SSM spends a hundred fifty. Now pay for the other fifteen tokens. Each costs three point two milliseconds on blue and one point eight on pink. Add each row. The totals are a hundred sixty-eight and a hundred seventy-seven milliseconds. Attention finishes nine milliseconds earlier."
+        hold: 0.9
+        visual_cues:
+          - id: earned-transfer-b1
+            phrase: "Prefill gives you the first one"
+            targets: [earned-transfer-mechanism]
+            color: blue
+          - id: ssm-timing16
+            phrase: "Add each row. The totals are a hundred sixty-eight and a hundred seventy-seven milliseconds"
+            targets: [earned-transfer-mechanism]
+            color: green
+      - say: "Now the reply needs two hundred fifty-six tokens. Keep the startup times and the rates. Prefill still gives you token one. What are the two totals and which model finishes first?"
+        hold: 2.65
+        visual_cues:
+          - id: ssm-timing-input
+            phrase: "two hundred fifty-six tokens"
+            targets: [earned-transfer-mechanism]
+            color: yellow
+      - say: "Two hundred fifty-five later steps. Add them to prefill. Attention takes nine hundred thirty-six milliseconds and the SSM takes six hundred nine. The SSM makes up its thirty extra milliseconds at startup by saving one point four on every later step. Its first win is at output twenty-three. Those are worksheet times. A measured deployment needs the real prompt lengths, output lengths and concurrency."
+        hold: 0.95
+        visual_cues:
+          - id: earned-transfer-b2
+            phrase: "Two hundred fifty-five later steps"
+            targets: [earned-transfer-mechanism]
+            color: yellow
+          - id: ssm-timing256
+            phrase: "Add them to prefill. Attention takes nine hundred thirty-six milliseconds and the SSM takes six hundred nine"
+            targets: [earned-transfer-mechanism]
+            color: green
+          - id: ssm-timing-crossing
+            phrase: "Its first win is at output twenty-three"
+            targets: [earned-transfer-mechanism]
+            color: yellow
+      - say: "Every token passes through the same thirty-two layers. Count the four pink ones. Each keeps keys and values. The other twenty-eight layers carry recurrent state. Four out of thirty-two is one eighth, so the KV cache shrinks from thirty-two gibibytes to four. For the whole memory budget, add recurrent state, snapshots and the memory the engine uses while it runs."
+        hold: 0.8
+        visual_cues:
+          - id: earned-transfer-extension-4
+            phrase: "Every token passes through the same thirty-two layers"
+            targets:
+              - earned-transfer-extension-4
+            linger: 0.5
+          - id: ssm-hybrid-cache
+            phrase: "the KV cache shrinks from thirty-two gibibytes to four"
+            targets:
+              - earned-transfer-extension-4
+            color: cyan
+            linger: 0.35
+      - say: "Look at what one square counts. In the original Jamba stack, each square pairs a mixer with a feed-forward network. Count one attention mixer and seven Mamba mixers. Some feed-forward networks route tokens to experts. Nemotron H counts its feed-forward stages separately. Its eight-billion-parameter recipe has four attention, twenty-four Mamba-two and twenty-four feed-forward sublayers. The two strips count different units. To budget a hybrid, inspect the updates and buffers in the actual stack. An engine can group delta-rule linear attention and selective SSMs under one cache category even though their updates differ."
+        hold: 0.9
+        visual_cues:
+          - id: jamba-mixers
+            phrase: "Count one attention mixer and seven Mamba mixers"
+            targets: [earned-transfer-extension-5]
+            color: pink
+          - id: ssm-hybrid-models
+            phrase: "four attention, twenty-four Mamba-two and twenty-four feed-forward sublayers"
+            targets: [earned-transfer-extension-5]
+            color: blue
+  - id: release-gate
+    title: "Which model would you benchmark?"
+    visual: "Two new configuration files run through the scalar reader. Compare its returned value with the required retry limit in each file, then apply a device budget to three candidates."
+    beats:
+      - say: "Two fresh files. File C allows six retries with a one-second timeout. File D allows two retries with a three-second timeout. Start each state at zero, average in its two numbers, then return the state itself. Which file gets the correct retry limit?"
+        hold: 2.7
+        visual_cues:
+          - id: fresh-first
+            phrase: "File C allows six retries"
+            targets: [test-files]
+            color: blue
+          - id: fresh-second
+            phrase: "File D allows two retries with a three-second timeout"
+            targets: [test-files]
+            color: pink
+          - id: fresh-prediction
+            phrase: "Which file gets the correct retry limit"
+            targets: [returned-values]
+            color: yellow
+      - say: "Both readers return two. Compare that answer with the retry limit in each file. Six was required in C. Two was required in D. Only D matches. A different readout could choose six, but then it would miss D. To get both right, something upstream must preserve the distinction."
+        hold: 0.95
+        visual_cues:
+          - id: return-state
+            phrase: "Both readers return two"
+            targets: [returned-values]
+            color: green
+          - id: score-fields
+            phrase: "Only D matches"
+            targets: [exact-score]
+            color: yellow
+      - say: "Now put the real service on a twenty-four gibibyte card. At sixty-five thousand five hundred thirty-six positions, the full attention cache in our worksheet takes thirty-two gibibytes. A pure SSM uses five mebibytes of live buffers. The hybrid keeps four attention layers, with four gibibytes of keys and values. Which candidate keeps explicit token access within the cache budget?"
+        hold: 2.2
+        visual_cues:
+          - id: kv-budget
+            phrase: "the full attention cache in our worksheet takes thirty-two gibibytes"
+            targets: [memory-budget]
+            color: blue
+          - id: ssm-budget
+            phrase: "A pure SSM uses five mebibytes of live buffers"
+            targets: [memory-budget]
+            color: green
+          - id: hybrid-budget
+            phrase: "with four gibibytes of keys and values"
+            targets: [memory-budget]
+            color: pink
+      - say: "Benchmark the hybrid alongside the trained SSM. Move the retry setting from early in the spec to the middle, then near the end. Keep the question in place. Now add a later amendment that changes six retries to two. Put a six in the timeout field after it. How many retries should both readers report?"
+        hold: 2.3
+        visual_cues:
+          - id: bench-hybrid
+            phrase: "Benchmark the hybrid alongside the trained SSM"
+            targets: [candidate-decision]
+            color: green
+          - id: move-setting
+            phrase: "Move the retry setting from early in the spec"
+            targets: [lookup-trial]
+            color: blue
+          - id: middle-lookup
+            phrase: "to the middle"
+            targets: [lookup-trial]
+            color: blue
+          - id: late-lookup
+            phrase: "then near the end"
+            targets: [lookup-trial]
+            color: blue
+          - id: later-amendment
+            phrase: "a later amendment that changes six retries to two"
+            targets: [lookup-trial]
+            color: blue
+          - id: similar-value
+            phrase: "Put a six in the timeout field"
+            targets: [lookup-trial]
+            color: pink
+          - id: latest-question
+            phrase: "How many retries should both readers report"
+            targets: [expected-limit]
+            color: yellow
+      - say: "Two retries. Six was the old limit, and it's also the current timeout. Only the amendment gives the current retry limit. Score both trained readers against that value. Vary the positions and prompt lengths. Include questions that need two fields and questions the spec leaves unanswered. For the candidates that meet the exact-answer target, measure peak memory and latency with real requests in flight. Choose the reader that meets all three requirements."
+        hold: 1.45
+        visual_cues:
+          - id: reference-answer
+            phrase: "Two retries"
+            targets: [expected-limit]
+            color: green
+          - id: current-field
+            phrase: "Only the amendment gives the current retry limit"
+            targets: [lookup-trial]
+            color: green

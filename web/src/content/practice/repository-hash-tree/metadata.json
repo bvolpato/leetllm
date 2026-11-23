@@ -1,0 +1,370 @@
+{
+  "id": "repository-hash-tree",
+  "slug": "repository-hash-tree",
+  "title": "Repository Hash Tree",
+  "difficulty": "Medium",
+  "category": "Repository Systems",
+  "language": "python3",
+  "timeEstimateMinutes": 45,
+  "timeLimitMs": 2500,
+  "memoryLimitMb": 128,
+  "order": 12,
+  "tags": [
+    "merkle tree",
+    "repository",
+    "hashing",
+    "incremental state"
+  ],
+  "source": "Frontier coding prep",
+  "summary": "Build a deterministic repository hash tree that updates parent directories after file writes and deletes.",
+  "starterCode": [
+    "class RepoHashTree:",
+    "    def set_file(self, path: str, content: bytes) -> None:",
+    "        pass",
+    "",
+    "    def delete_path(self, path: str) -> bool:",
+    "        pass",
+    "",
+    "    def root_hash(self) -> str:",
+    "        pass"
+  ],
+  "testCases": [
+    {
+      "name": "normalizes single backslashes dots and separators on both operations",
+      "visibility": "hidden",
+      "setup": [
+        "from solution import RepoHashTree",
+        "canonical = RepoHashTree()",
+        "canonical.set_file(\"src/app.py\", b\"same\")",
+        "tree = RepoHashTree()",
+        "tree.set_file(\"\\\\src\\\\.\\\\app.py\\\\\", b\"same\")"
+      ],
+      "checks": [
+        {"input": "tree.root_hash()", "expression": "tree.root_hash()", "expected": "canonical.root_hash()"},
+        {"input": "tree.delete_path(\"/src//./app.py/\")", "expression": "tree.delete_path(\"/src//./app.py/\")", "expected": "True"},
+        {"input": "tree.delete_path(\"src\\\\\")", "expression": "tree.delete_path(\"src\\\\\")", "expected": "True"},
+        {"input": "tree.root_hash()", "expression": "tree.root_hash()", "expected": "RepoHashTree().root_hash()"}
+      ]
+    },
+    {
+      "name": "public insertion order does not affect root hash",
+      "visibility": "sample",
+      "setup": [
+        "from solution import RepoHashTree",
+        "left = RepoHashTree()",
+        "left.set_file(\"src/app.py\", b\"print('hi')\")",
+        "left.set_file(\"README.md\", b\"hello\")",
+        "right = RepoHashTree()",
+        "right.set_file(\"README.md\", b\"hello\")",
+        "right.set_file(\"src/app.py\", b\"print('hi')\")"
+      ],
+      "input": "left = RepoHashTree()\nleft.set_file(\"src/app.py\", b\"print('hi')\")\nleft.set_file(\"README.md\", b\"hello\")\nright = RepoHashTree()\nright.set_file(\"README.md\", b\"hello\")\nright.set_file(\"src/app.py\", b\"print('hi')\")\nleft.root_hash()",
+      "expected": "right.root_hash()",
+      "expression": "left.root_hash()"
+    },
+    {
+      "name": "public content change updates root hash",
+      "visibility": "sample",
+      "setup": [
+        "from solution import RepoHashTree",
+        "tree = RepoHashTree()",
+        "empty = tree.root_hash()",
+        "tree.set_file(\"a.txt\", b\"one\")",
+        "first = tree.root_hash()",
+        "tree.set_file(\"a.txt\", b\"two\")",
+        "second = tree.root_hash()"
+      ],
+      "checks": [
+        {
+          "input": "tree = RepoHashTree()\nempty = tree.root_hash()\ntree.set_file(\"a.txt\", b\"one\")\nfirst = tree.root_hash()\ntree.set_file(\"a.txt\", b\"two\")\nsecond = tree.root_hash()\nempty",
+          "expression": "empty",
+          "operator": "!=",
+          "expected": "first"
+        },
+        {
+          "input": "tree = RepoHashTree()\nempty = tree.root_hash()\ntree.set_file(\"a.txt\", b\"one\")\nfirst = tree.root_hash()\ntree.set_file(\"a.txt\", b\"two\")\nsecond = tree.root_hash()\nempty\nfirst",
+          "expression": "first",
+          "operator": "!=",
+          "expected": "second"
+        }
+      ]
+    },
+    {
+      "name": "hidden delete restores matching snapshot hash",
+      "visibility": "hidden",
+      "setup": [
+        "from solution import RepoHashTree",
+        "base = RepoHashTree()",
+        "base.set_file(\"src/app.py\", b\"print('hi')\")",
+        "expected = base.root_hash()",
+        "tree = RepoHashTree()",
+        "tree.set_file(\"src/app.py\", b\"print('hi')\")",
+        "tree.set_file(\"tmp/cache.bin\", b\"cache\")"
+      ],
+      "checks": [
+        {
+          "input": "base = RepoHashTree()\nbase.set_file(\"src/app.py\", b\"print('hi')\")\nexpected = base.root_hash()\ntree = RepoHashTree()\ntree.set_file(\"src/app.py\", b\"print('hi')\")\ntree.set_file(\"tmp/cache.bin\", b\"cache\")\ntree.delete_path(\"tmp\")",
+          "expression": "tree.delete_path(\"tmp\")",
+          "operator": "is",
+          "expected": "True"
+        },
+        {
+          "input": "base = RepoHashTree()\nbase.set_file(\"src/app.py\", b\"print('hi')\")\nexpected = base.root_hash()\ntree = RepoHashTree()\ntree.set_file(\"src/app.py\", b\"print('hi')\")\ntree.set_file(\"tmp/cache.bin\", b\"cache\")\ntree.delete_path(\"tmp\")\ntree.root_hash()",
+          "expression": "tree.root_hash()",
+          "operator": "==",
+          "expected": "expected"
+        },
+        {
+          "input": "base = RepoHashTree()\nbase.set_file(\"src/app.py\", b\"print('hi')\")\nexpected = base.root_hash()\ntree = RepoHashTree()\ntree.set_file(\"src/app.py\", b\"print('hi')\")\ntree.set_file(\"tmp/cache.bin\", b\"cache\")\ntree.delete_path(\"tmp\")\ntree.root_hash()\ntree.delete_path(\"missing\")",
+          "expression": "tree.delete_path(\"missing\")",
+          "operator": "is",
+          "expected": "False"
+        }
+      ]
+    },
+    {
+      "name": "hidden rejects invalid paths",
+      "visibility": "hidden",
+      "code": [
+        "from solution import RepoHashTree",
+        "",
+        "tree = RepoHashTree()",
+        "for path in (\"\", \"../secret\", \"src/../secret\"):",
+        "    try:",
+        "        tree.set_file(path, b\"x\")",
+        "    except ValueError:",
+        "        pass",
+        "    else:",
+        "        raise AssertionError(f\"expected invalid path for set_file {path}\")",
+        "for path in (\"\", \"../x\", \"src/../secret\"):",
+        "    try:",
+        "        tree.delete_path(path)",
+        "    except ValueError:",
+        "        pass",
+        "    else:",
+        "        raise AssertionError(f\"expected invalid path for delete_path {path}\")"
+      ]
+    },
+    {
+      "name": "hidden empty dir remains after leaf delete",
+      "visibility": "hidden",
+      "description": "Deleting only the leaf leaves empty intermediate dirs; deleting the empty dir restores the prior snapshot.",
+      "setup": [
+        "from solution import RepoHashTree",
+        "base = RepoHashTree()",
+        "base.set_file(\"src/app.py\", b\"print('hi')\")",
+        "expected = base.root_hash()",
+        "tree = RepoHashTree()",
+        "tree.set_file(\"src/app.py\", b\"print('hi')\")",
+        "tree.set_file(\"tmp/cache.bin\", b\"cache\")",
+        "deleted_leaf = tree.delete_path(\"tmp/cache.bin\")"
+      ],
+      "checks": [
+        {
+          "input": "tree.delete_path(\"tmp/cache.bin\")",
+          "expression": "deleted_leaf",
+          "expected": "True",
+          "operator": "is"
+        },
+        {
+          "input": "tree.root_hash() after deleting tmp/cache.bin",
+          "expression": "tree.root_hash()",
+          "expected": "expected",
+          "operator": "!=",
+          "feedback": "Deleting a leaf keeps its now-empty intermediate directory in the tree."
+        },
+        {
+          "input": "tree.delete_path(\"tmp\"); tree.root_hash()",
+          "expression": "(deleted_tmp, tree.root_hash())",
+          "expected": "(True, expected)",
+          "operator": "==",
+          "before": "deleted_tmp = tree.delete_path(\"tmp\")"
+        }
+      ]
+    },
+    {
+      "name": "hidden rejects file directory conflicts",
+      "visibility": "hidden",
+      "code": [
+        "from solution import RepoHashTree",
+        "",
+        "tree = RepoHashTree()",
+        "tree.set_file(\"src\", b\"file\")",
+        "try:",
+        "    tree.set_file(\"src/app.py\", b\"nested\")",
+        "except ValueError:",
+        "    pass",
+        "else:",
+        "    raise AssertionError(\"expected file directory conflict\")",
+        "try:",
+        "    tree.delete_path(\"src/app.py\")",
+        "except ValueError:",
+        "    pass",
+        "else:",
+        "    raise AssertionError(\"expected delete file directory conflict\")",
+        "tree = RepoHashTree()",
+        "tree.set_file(\"src/app.py\", b\"nested\")",
+        "try:",
+        "    tree.set_file(\"src\", b\"file\")",
+        "except ValueError:",
+        "    pass",
+        "else:",
+        "    raise AssertionError(\"expected directory file conflict\")"
+      ]
+    },
+    {
+      "name": "hidden replacing file with same content is stable",
+      "visibility": "hidden",
+      "setup": [
+        "from solution import RepoHashTree",
+        "tree = RepoHashTree()",
+        "tree.set_file(\"a/b/c.txt\", b\"same\")",
+        "first = tree.root_hash()",
+        "tree.set_file(\"a/b/c.txt\", b\"same\")"
+      ],
+      "input": "tree.root_hash()",
+      "expected": "first"
+    },
+    {
+      "name": "public empty trees share one root hash",
+      "visibility": "sample",
+      "description": "Fresh trees have the same deterministic empty-directory hash.",
+      "setup": [
+        "from solution import RepoHashTree",
+        "left = RepoHashTree()",
+        "right = RepoHashTree()"
+      ],
+      "input": "left.root_hash() == right.root_hash()",
+      "expected": "True",
+      "feedback": "Initialize every empty root from the same stable directory hash."
+    },
+    {
+      "name": "hidden deleting a file restores empty root",
+      "visibility": "hidden",
+      "description": "Deleting the only file recomputes ancestors back to the empty-tree hash.",
+      "setup": [
+        "from solution import RepoHashTree",
+        "tree = RepoHashTree()",
+        "empty_hash = tree.root_hash()",
+        "tree.set_file(\"a.txt\", b\"data\")"
+      ],
+      "input": "(tree.delete_path(\"a.txt\"), tree.root_hash())",
+      "expected": "(True, empty_hash)",
+      "feedback": "After deletion, recompute every ancestor including the root."
+    }
+  ],
+  "clarifyingQuestions": [
+    "Should path separators be normalized?",
+    "Should file metadata affect the hash or only content and path?",
+    "Should deleting a directory delete all descendants?",
+    "Should rename detection be part of this structure or a separate diff layer?"
+  ],
+  "followUps": [
+    "Add ignore rules for `.git`, generated files, and vendor directories.",
+    "Hash large files from a stream of chunks.",
+    "Persist subtree hashes so changed files invalidate only ancestors."
+  ],
+  "followUpGuide": [
+    "For ignore rules, normalize the path first, then check every prefix against exact directory rules and glob rules.",
+    "",
+    "For streaming files, compute the file content hash from chunks, then update the tree with the final digest. Keep the tree API separate from the file reader.",
+    "",
+    "For persistence, store each node by path with its kind, child names, and hash. A file update only needs to rewrite that file and its ancestor directories."
+  ],
+  "complexityAnalysis": [
+    "- Let P be path characters, B content bytes, d path depth, c_i child count at ancestor i, and N_i the serialized child-name characters there. `set_file` time: O(P + B + sum(c_i log c_i + N_i)) with bounded-size digests. Extra space: O(P + B + d + max(c_i + N_i)) for normalization, content repr, ancestors, and sorting/serialization, besides stored nodes.",
+    "- `delete_path` traverses to the parent and detaches one subtree pointer, then recomputes ancestors. Explicit algorithm time: O(P + sum(c_i log c_i + N_i)). Extra space: O(P + d + max(c_i + N_i)). Python object reclamation adds O(q) work for q removed nodes, separate from the pointer-detach operation.",
+    "- `root_hash` is O(1) after updates maintain hashes."
+  ],
+  "solutionGuide": [
+    "Represent directories and files as nodes. Recompute ancestors from the changed leaf back to the root so `root_hash()` stays constant time.",
+    "",
+    "```python",
+    "def stable_hash(parts: list[str]) -> str:",
+    "    mask = (1 << 64) - 1",
+    "    value = 1469598103934665603",
+    "    for part in parts:",
+    "        for char in str(part):",
+    "            value ^= ord(char)",
+    "            value = (value * 1099511628211) & mask",
+    "        value ^= 255",
+    "        value = (value * 1099511628211) & mask",
+    "    return f\"{value:016x}\"",
+    "",
+    "",
+    "def normalize(path: str) -> list[str]:",
+    "    parts = []",
+    "    for part in path.replace(\"\\\\\", \"/\").split(\"/\"):",
+    "        if part == \"..\":",
+    "            raise ValueError(\"invalid path\")",
+    "        if part and part != \".\":",
+    "            parts.append(part)",
+    "    if not parts:",
+    "        raise ValueError(\"invalid path\")",
+    "    return parts",
+    "",
+    "",
+    "class Node:",
+    "    def __init__(self, kind: str, name: str, node_hash: str):",
+    "        self.kind = kind",
+    "        self.name = name",
+    "        self.children = {}",
+    "        self.hash = node_hash",
+    "",
+    "",
+    "class RepoHashTree:",
+    "    def __init__(self):",
+    "        self.root = Node(\"dir\", \"\", stable_hash([\"dir\"]))",
+    "",
+    "    def set_file(self, path: str, content: bytes) -> None:",
+    "        parts = normalize(path)",
+    "        clean = \"/\".join(parts)",
+    "        node = self.root",
+    "        ancestors = [self.root]",
+    "        for part in parts[:-1]:",
+    "            child = node.children.get(part)",
+    "            if child is None:",
+    "                child = Node(\"dir\", part, stable_hash([\"dir\"]))",
+    "                node.children[part] = child",
+    "            if child.kind != \"dir\":",
+    "                raise ValueError(\"file directory conflict\")",
+    "            node = child",
+    "            ancestors.append(node)",
+    "        existing = node.children.get(parts[-1])",
+    "        if existing is not None and existing.kind == \"dir\":",
+    "            raise ValueError(\"file directory conflict\")",
+    "        content_hash = stable_hash([repr(content)])",
+    "        node.children[parts[-1]] = Node(\"file\", parts[-1], stable_hash([\"file\", clean, content_hash]))",
+    "        self._recompute(ancestors)",
+    "",
+    "    def delete_path(self, path: str) -> bool:",
+    "        parts = normalize(path)",
+    "        node = self.root",
+    "        ancestors = [self.root]",
+    "        for part in parts[:-1]:",
+    "            child = node.children.get(part)",
+    "            if child is None:",
+    "                return False",
+    "            if child.kind != \"dir\":",
+    "                raise ValueError(\"file directory conflict\")",
+    "            node = child",
+    "            ancestors.append(node)",
+    "        if parts[-1] not in node.children:",
+    "            return False",
+    "        del node.children[parts[-1]]",
+    "        self._recompute(ancestors)",
+    "        return True",
+    "",
+    "    def root_hash(self) -> str:",
+    "        return self.root.hash",
+    "",
+    "    def _recompute(self, ancestors) -> None:",
+    "        for node in reversed(ancestors):",
+    "            entries = [",
+    "                f\"{name}:{child.kind}:{child.hash}\"",
+    "                for name, child in sorted(node.children.items())",
+    "            ]",
+    "            node.hash = stable_hash([\"dir\", *entries])",
+    "```"
+  ]
+}

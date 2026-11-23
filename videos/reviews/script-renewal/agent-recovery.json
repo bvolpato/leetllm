@@ -1,0 +1,339 @@
+{
+  "id": "agent-recovery",
+  "script": "92d488cc9f3da03d",
+  "articleHash": "f0da8bef63893515fc49e5506a4e62664a8bbb0f578c81cb21fa411cf16066c2",
+  "checked": "2026-11-10T05:40:25.665Z",
+  "closedBook": {
+    "taught": 10,
+    "partial": 0,
+    "absent": 0,
+    "answers": [
+      {
+        "n": 1,
+        "option": 1,
+        "coverage": "taught",
+        "quotes": [
+          {
+            "scene": "action-boundary",
+            "quote": "First compare the proposed action with the user's task. A status question permits a status read."
+          },
+          {
+            "scene": "action-boundary",
+            "quote": "A rollback changes the world. It needs a separate approval tied to the target and current conditions. A valid tool name and well-formed arguments describe the request; they do not supply that approval."
+          }
+        ],
+        "reason": "The status task authorizes a read. A valid rollback proposal supplies no separate approval, so the runtime must reject the write and retain the existing scope.",
+        "exact": true,
+        "correct": true,
+        "grade": "taught"
+      },
+      {
+        "n": 2,
+        "option": 2,
+        "coverage": "taught",
+        "quotes": [
+          {
+            "scene": "operation-identity",
+            "quote": "Attempt one and attempt two need different tracing identifiers. Both can point to the same operation key."
+          },
+          {
+            "scene": "operation-identity",
+            "quote": "If the controller enforces its idempotency contract, the same key and payload can return the original job. Reusing that key with a different target must produce a conflict."
+          }
+        ],
+        "reason": "Preserve the operation key and exact payload while assigning the new transport attempt its own identifier.",
+        "exact": true,
+        "correct": true,
+        "grade": "taught"
+      },
+      {
+        "n": 3,
+        "option": 3,
+        "coverage": "taught",
+        "quotes": [
+          {
+            "scene": "resume-with-evidence",
+            "quote": "On resume, reconcile the operation key with the controller and check the job's current state. If the trusted observation says queued, report that it was queued when checked. Keep the observation time with the claim."
+          },
+          {
+            "scene": "commit-boundary",
+            "quote": "Completion still requires a later observation from the system executing it."
+          }
+        ],
+        "reason": "Apply the observation-based reporting method to processing: the job was processing when checked. Neither the checkpoint nor that observation establishes completion.",
+        "exact": true,
+        "correct": true,
+        "grade": "taught"
+      },
+      {
+        "n": 4,
+        "option": 3,
+        "coverage": "taught",
+        "quotes": [
+          {
+            "scene": "retry-clock",
+            "quote": "Under this policy, treat a valid Retry-After hint as a minimum wait. Parse either delay seconds or an HTTP date. Add a bounded random offset after that floor if the policy needs to spread a synchronized group, then check the combined delay against the caller's deadline."
+          },
+          {
+            "scene": "retry-clock",
+            "quote": "The deadline is the outside limit for the whole task. When a compliant wait no longer fits, stop and report the unresolved state."
+          }
+        ],
+        "reason": "The combined wait is 1.1 + 0.4 = 1.5 seconds. It exceeds the 1.3 seconds remaining, so stop.",
+        "exact": true,
+        "correct": true,
+        "grade": "taught"
+      },
+      {
+        "n": 5,
+        "option": 1,
+        "coverage": "taught",
+        "quotes": [
+          {
+            "scene": "progress-budget",
+            "quote": "In this fixture, a new relevant page identifier resets the no-progress allowance. A repeated page does not. The hard call budget keeps shrinking in either case, so apparent progress cannot create unlimited work."
+          }
+        ],
+        "reason": "The consecutive stall counts are 0, 1, 0, 1, 2, 0. C resets stalls on the sixth call, but the six-call cap blocks a seventh.",
+        "exact": true,
+        "correct": true,
+        "grade": "taught"
+      },
+      {
+        "n": 6,
+        "option": 2,
+        "coverage": "taught",
+        "quotes": [
+          {
+            "scene": "circuit-breaker",
+            "quote": "Suppose an older request succeeds after a newer failure has opened the circuit. Return that result to its caller, while keeping the newer breaker state. A generation check prevents stale health evidence from replacing current state."
+          }
+        ],
+        "reason": "Return A's successful result, but its generation-4 evidence cannot replace the newer open generation-5 state.",
+        "exact": true,
+        "correct": true,
+        "grade": "taught"
+      },
+      {
+        "n": 7,
+        "option": 3,
+        "coverage": "taught",
+        "quotes": [
+          {
+            "scene": "breaker-contract",
+            "quote": "A canceled half-open probe releases its local slot, reopens for cooldown in this policy and propagates cancellation."
+          },
+          {
+            "scene": "breaker-contract",
+            "quote": "None of these local transitions proves that a remote write was canceled."
+          }
+        ],
+        "reason": "Release the slot, reopen for cooldown and propagate cancellation. The local cancellation does not resolve remote effects.",
+        "exact": true,
+        "correct": true,
+        "grade": "taught"
+      },
+      {
+        "n": 8,
+        "option": 2,
+        "coverage": "taught",
+        "quotes": [
+          {
+            "scene": "fallback-evidence",
+            "quote": "Evidence must come through a trusted adapter, identify the right run and operation, and satisfy the claim’s freshness policy."
+          },
+          {
+            "scene": "recovery-transfer",
+            "quote": "Now suppose a backup only has a completed observation from forty minutes ago and the current-status policy allows one minute. The old state does not establish completion now. Preserve the unresolved operation and report current status unavailable, with a dated prior observation if useful."
+          }
+        ],
+        "reason": "Twenty-five minutes exceeds the 90-second freshness limit. Report current status unavailable and identify the earlier observation by its date or time.",
+        "exact": true,
+        "correct": true,
+        "grade": "taught"
+      },
+      {
+        "n": 9,
+        "option": 4,
+        "coverage": "taught",
+        "quotes": [
+          {
+            "scene": "spend-budget",
+            "quote": "A context window bounds one request, while cumulative tokens bound the run. With a hundred-token fixed prefix and fifty added history tokens per turn, four prompts contain one hundred, one hundred fifty, two hundred and two hundred fifty tokens: seven hundred submitted input tokens. In general it is n times h plus s times n times the quantity n minus one, divided by two."
+          },
+          {
+            "scene": "spend-budget",
+            "quote": "Reserve conservative input plus bounded output before dispatch, then reconcile actual usage. A request needing at most one hundred twenty input and eighty output tokens cannot enter a run with only one hundred fifty left under this policy."
+          }
+        ],
+        "reason": "The three inputs contain 80, 120 and 160 tokens, totaling 360. The next reservation requires 200 + 80 = 280 tokens, exceeding the 250 remaining, so reject it.",
+        "exact": true,
+        "correct": true,
+        "grade": "taught"
+      },
+      {
+        "n": 10,
+        "option": 3,
+        "coverage": "taught",
+        "quotes": [
+          {
+            "scene": "compensation",
+            "quote": "A compensation is a new action on current state."
+          },
+          {
+            "scene": "compensation",
+            "quote": "Inspect the real effects and current permissions before selecting forward repair, compensation or human review."
+          },
+          {
+            "scene": "resume-with-evidence",
+            "quote": "Safe recovery keeps permission, proposal, transport attempt, durable effect, and verification distinct."
+          }
+        ],
+        "reason": "The confirmed refund verifies the payment effect only. Read the independent reservation's current status, then admit any needed cancellation under current authority.",
+        "exact": true,
+        "correct": true,
+        "grade": "taught"
+      }
+    ]
+  },
+  "factCheck": {
+    "scenes": [
+      {
+        "id": "subject-intro",
+        "evidence": "Supported as an authored scenario. Executing the actual film model’s commitScenario('after-commit') produced a lost reply, one operation, and job-1 queued; unchanged replay returned job-1. The stage source separately depicts operator approval before dispatch. A timeout describes the client’s observation, while queue acceptance describes controller state; neither establishes rollout completion. This lost-response mechanism agrees with [AWS’s idempotency guidance](https://aws.amazon.com/builders-library/making-retries-safe-with-idempotent-APIs/). Stage source SHA-256: c69533cf829affe17f83d2b039008748353d0cda8c1efbe5bf8940c461d56c0c.",
+        "sourceUrls": [
+          "https://aws.amazon.com/builders-library/making-retries-safe-with-idempotent-APIs/"
+        ]
+      },
+      {
+        "id": "action-boundary",
+        "evidence": "Supported within the scenario’s status-only authorization policy. Executing the actual Python admission fixture rejected the wrong field, unauthorized tool, and wrong run, then admitted the authorized lookup. Schema validity does not establish permission. A regenerated proposal cannot change trusted authorization and must pass admission again. Separate rollback approval is the policy of this example, not a universal prohibition on preauthorized automation. A status question establishes task scope, not access to arbitrary resources. [OWASP recommends checking permissions on every request](https://cheatsheetseries.owasp.org/cheatsheets/Authorization_Cheat_Sheet.html#validate-the-permissions-on-every-request). Stage source SHA-256: d41a97b26ea407c683d843cefc5f4cbcc4a66a08efdde5093c6faa1d6fef9f0f.",
+        "sourceUrls": [
+          "https://cheatsheetseries.owasp.org/cheatsheets/Authorization_Cheat_Sheet.html#validate-the-permissions-on-every-request"
+        ]
+      },
+      {
+        "id": "operation-identity",
+        "evidence": "Supported for the declared controller contract. dispatchOperation stores a cloned payload with the operation key. Independently executed sends produced lost reply, same-key replay returning job-1, changed-revision conflict, and job-2 after changing the logical key. Attempt tracing identifiers distinguish sends; the operation key identifies intent; the job identifier identifies accepted work. Conflict handling is enforced by this controller, rather than supplied by random-key generation. [AWS documents request identifiers, parameter comparison, and mismatch errors](https://aws.amazon.com/builders-library/making-retries-safe-with-idempotent-APIs/). Stage source SHA-256: 6705bbe9402f2806f69a94dab0d399ea6905dede1e1ff262714e43caf5b6913c.",
+        "sourceUrls": [
+          "https://aws.amazon.com/builders-library/making-retries-safe-with-idempotent-APIs/"
+        ]
+      },
+      {
+        "id": "commit-boundary",
+        "evidence": "Supported under the stated transaction contract. The actual JavaScript model returned zero operation/job records before commit and one of each after commit; after-commit replay retained queued job-1. The Python Controller puts ledger lookup and both inserts inside BEGIN IMMEDIATE. Its before_commit exception occurs inside the connection context; after_commit occurs after successful context exit. A memory-only execution of that Controller confirmed rollback, retained acceptance, replay, and conflict. [Python documents context-manager commit and rollback](https://docs.python.org/3/library/sqlite3.html#how-to-use-the-connection-context-manager). The current visual includes both run and revision in the ledger. JavaScript Maps do not establish disk durability. Stage source SHA-256: 19f8094a5cb0a41c2a255e93e22a1e235bff4f54561a3d5828ccbfe764800cc5.",
+        "sourceUrls": [
+          "https://www.sqlite.org/lang_transaction.html",
+          "https://docs.python.org/3/library/sqlite3.html#how-to-use-the-connection-context-manager"
+        ]
+      },
+      {
+        "id": "retry-clock",
+        "evidence": "Supported. The actual model calculates min(8, 2^(attempt−1)) times the supplied fraction. Windows 1, 2, 4 and fractions 0.3, 0.7, 0.4 give waits 0.3, 1.4, 1.6 and cumulative endpoints 0.3, 1.7, 3.3 seconds. Adding the 1.5-second floor gives waits 1.8, 2.9, 3.1 and endpoints 1.8, 4.7, 7.8; the third retry is rejected against five seconds. These results were executed. The Python synchronization fixture produced one clamped wait versus eight distinct floor-plus-jitter waits. [AWS describes full jitter](https://aws.amazon.com/blogs/architecture/exponential-backoff-and-jitter/); dispersion assumes sufficiently independent choices and does not guarantee collision avoidance. [RFC 9110 specifies HTTP-date or nonnegative integer delay-seconds](https://www.rfc-editor.org/rfc/rfc9110.html#section-10.2.3). The narration explicitly makes minimum-floor treatment local policy, closing the prior wording issue. Stage source SHA-256: 61e580f281ddf26aa93e604b601bb37dc2b4bef2b5d9f2cb7e015e0918a476fd.",
+        "sourceUrls": [
+          "https://aws.amazon.com/blogs/architecture/exponential-backoff-and-jitter/",
+          "https://builder.aws.com/content/3EumjoZascWd1oZiEgL8ORlv3qE/timeouts-retries-and-backoff-with-jitter",
+          "https://www.rfc-editor.org/rfc/rfc9110.html#section-10.2.3"
+        ]
+      },
+      {
+        "id": "progress-budget",
+        "evidence": "Supported as a task-specific heuristic. Executing the actual page-4, page-4, page-5 model sequence produced no-progress counts 0, 1, 0 and remaining calls 7, 6, 5. Executing the Python ProgressBudget fixture stopped after five admitted calls following two consecutive observations without new evidence IDs. New evidence resets stalls without refunding calls. Relevance and authenticity remain responsibilities of the trusted adapter/verifier; the counter cannot establish them. Schema repair changes a proposal, transient-read retry repeats an admitted read, and uncertain-write reconciliation investigates an already dispatched effect. These distinctions agree with [AWS’s separation of retry timing and side-effect safety](https://aws.amazon.com/builders-library/making-retries-safe-with-idempotent-APIs/). Stage source SHA-256: e88d6e8fd2d9066cb1e3683e1a5846948b831901624bef40401b9289bfb0ccaf.",
+        "sourceUrls": [
+          "https://aws.amazon.com/builders-library/making-retries-safe-with-idempotent-APIs/"
+        ]
+      },
+      {
+        "id": "circuit-breaker",
+        "evidence": "Supported for the configured breaker. Executing breakerLifecycle opened generation 2 after two qualifying failures, admitted a recovery probe after cooldown, and closed after probe success. breakerRace returned the older generation-3 result while generation 4 remained open. Executing the Python fixture confirmed second-probe rejection, cancellation propagation, slot release, and later recovery. [Microsoft documents closed/open/half-open states and limited recovery requests](https://learn.microsoft.com/en-us/azure/architecture/patterns/circuit-breaker). The threshold, single probe, qualifying failures, and generation rule are implementation choices. Opening stops new admissions through this breaker; it does not terminate already admitted work. Stage source SHA-256: ae5810091b73a1424b1d23e11902c37d9389bdd09408c8c4a1c301a1e54a867b.",
+        "sourceUrls": [
+          "https://learn.microsoft.com/en-us/azure/architecture/patterns/circuit-breaker",
+          "https://docs.python.org/3/library/asyncio-task.html#asyncio.Task.cancel"
+        ]
+      },
+      {
+        "id": "resume-with-evidence",
+        "evidence": "Supported. The actual recoveryObservation identifies RUN-842, rb-842-1, job-1, queued, controller, and observedAt=990. At now=1000, age=1000−990=10 seconds, within maxAge=30. Executed negative checks rejected stale and future timestamps, another run, another operation key, and a generated source. The stage distinguishes saved checkpoint information from subsequent controller reconciliation. A saved local position cannot establish a remote commit occurring afterward. Reporting queued when checked retains the observation’s temporal limit. [Temporal documents reconstructing workflow state from history](https://docs.temporal.io/encyclopedia/event-history), which differs from obtaining a new external observation. Stage source SHA-256: 6550b5bcd565ea52ea06629cf58dc5b34424454ea7ce4a3ee0ffda4261096e2c.",
+        "sourceUrls": [
+          "https://docs.temporal.io/encyclopedia/event-history"
+        ]
+      },
+      {
+        "id": "replay-contract",
+        "evidence": "Supported by executable-source inspection and primary contracts, with the execution limits below. The actual Python fixture creates a temporary SQLite file, closes/reopens connections, and performs lookup plus both inserts inside BEGIN IMMEDIATE. [SQLite permits only one simultaneous writer and allows SQLITE_BUSY](https://www.sqlite.org/lang_transaction.html). If both competing calls succeed, the first commits job-2 before the second inspects the ledger, so both return it. The stage’s sequential Map calls illustrate this outcome; they are not a concurrency test. [Stripe v1 documentation](https://docs.stripe.com/api/idempotent_requests) confirms executed-response replay including 500, unsaved pre-execution validation/concurrency failures, pruning after at least 24 hours, and a new request after pruning. [Stripe v2 documents retrying failed work where possible and updated responses](https://docs.stripe.com/api-v2-overview#idempotency). [DynamoDB documents stale eventually consistent reads](https://docs.aws.amazon.com/amazondynamodb/latest/developerguide/HowItWorks.ReadConsistency.html), supporting the replica counterexample. Changed targets require new admission under this lesson’s policy. Production safeguards are explicitly requirements to verify, closing the prior implementation-overclaim issue. Stage source SHA-256: c6b01b609f517104e86e95af2851c854cd4e9b3e7483e0220c497f59dde672c9.",
+        "sourceUrls": [
+          "https://www.sqlite.org/lang_transaction.html",
+          "https://docs.python.org/3/library/sqlite3.html#how-to-use-the-connection-context-manager",
+          "https://docs.stripe.com/api/idempotent_requests",
+          "https://docs.stripe.com/api-v2-overview#idempotency",
+          "https://docs.aws.amazon.com/amazondynamodb/latest/developerguide/HowItWorks.ReadConsistency.html",
+          "https://cheatsheetseries.owasp.org/cheatsheets/Authorization_Cheat_Sheet.html"
+        ]
+      },
+      {
+        "id": "workflow-world",
+        "evidence": "Supported. [LangGraph documents thread-scoped super-step checkpoints, pending successful-node writes, and durability modes](https://docs.langchain.com/oss/python/langgraph/checkpointers#durability-modes). Exit mode omits intermediate persistence; async persistence overlaps the next step; sync persistence finishes before that step starts. Putting identity in an earlier step and awaiting successful synchronous persistence therefore closes the prior pre-dispatch durability issue. [Temporal documents history-based reconstruction](https://docs.temporal.io/encyclopedia/event-history) and [Activity re-execution when completion was not reported](https://docs.temporal.io/activity-definition). Recorded completion supplies the replayed result; an arbitrary external effect is not atomically committed with either framework’s history. The stage preserves save-key, dispatch, save-receipt order; executed same-key model replay retained one job. Rechecking approval/preconditions is application policy. Stage source SHA-256: 9df221c8103eb8dbd7d0e4d83a312c236071e12cdb0a8a154bd455c3d5288e0b.",
+        "sourceUrls": [
+          "https://docs.langchain.com/oss/python/langgraph/checkpointers#durability-modes",
+          "https://docs.temporal.io/encyclopedia/event-history",
+          "https://docs.temporal.io/activity-definition"
+        ]
+      },
+      {
+        "id": "spend-budget",
+        "evidence": "All arithmetic checks. Three attempts=1 initial+2 retries. Fully exercised nested policies permit 3×3=9 sends, or (1+3)^3=64 for three retries at each of three layers. These are conditional bounds. Prompt sizes 100+50i for i=0,1,2,3 are 100,150,200,250, summing to 700. Summing h+si gives nh+sn(n−1)/2. Reservation 120+80=200 exceeds 150 by 50. The additional visual’s 100-token reservation leaves 50, insufficient for another 100. Atomic reservations prevent concurrent admissions from independently spending the same balance. Strict enforcement still depends on conservative input estimates and enforced output limits. Compaction changes future input without refunding past usage; output and cache pricing remain separate. [Python documents cancellation as a request that can be suppressed](https://docs.python.org/3/library/asyncio-task.html#asyncio.Task.cancel), closing the prior timeout/cancellation conflation. Local cancellation does not establish remote termination. Stage source SHA-256: 367652c9dc3d82b601e82a4dac4a9713fa70075c8aa12fdc9938af1f6099a432.",
+        "sourceUrls": [
+          "https://builder.aws.com/content/3EumjoZascWd1oZiEgL8ORlv3qE/timeouts-retries-and-backoff-with-jitter",
+          "https://docs.python.org/3/library/asyncio-task.html#asyncio.Task.cancel"
+        ]
+      },
+      {
+        "id": "breaker-contract",
+        "evidence": "Supported within the declared policy. The actual Python breaker uses asyncio.Lock in one event loop, counts TimeoutError/ConnectionError, and admits one probe. Executed tests propagated ordinary cancellation, reopened after a canceled probe, and released the slot while retaining half-open after ValueError. The stage model independently produced open generation 2, canceled generation 3, and newer failure generation 4. Stale results cannot overwrite the newer state. Dependency/tenant/failure-category scope is design guidance. The revised fleet chip explicitly permits shared or distributed control. The current article also permits independent per-worker breakers, closing the prior editorial issue. [Envoy documents uncoordinated distributed circuit breaking](https://www.envoyproxy.io/docs/envoy/latest/intro/arch_overview/upstream/circuit_breaking); its resource limits are a design counterexample, not this exact health-probe machine. Stage source SHA-256: 055d60d0083c1b148692861e9fb0a7ac4735ff58b3d9ae0f94d4829df1b1274d.",
+        "sourceUrls": [
+          "https://learn.microsoft.com/en-us/azure/architecture/patterns/circuit-breaker",
+          "https://www.envoyproxy.io/docs/envoy/latest/intro/arch_overview/upstream/circuit_breaking",
+          "https://docs.python.org/3/library/asyncio-task.html#asyncio.Task.cancel"
+        ]
+      },
+      {
+        "id": "fallback-evidence",
+        "evidence": "Supported as route-validation requirements and evidence reasoning. The narration requires compatibility/data-permission checks; it does not claim that an actual backup integration passed them. Model size alone cannot establish route cost, capability, or authority. Forty minutes=2,400 seconds, outside the illustrated 30-second policy. Executing the Python evidence fixture returned queued at age 10 seconds and unavailable at age 900 or without evidence. Its class and source string do not authenticate a service. The stage explicitly changes from queued to a hypothetical old completed observation at the completed-old cue, then carries that dated observation into the handoff. This is a narrated alternative, not fresh completion evidence. The prior payload omission remains closed: handoff fields derive from the actual operation payload and include run: RUN-842 and revision: rev-17. Caller-specific access rechecks agree with [OWASP](https://cheatsheetseries.owasp.org/cheatsheets/Authorization_Cheat_Sheet.html). Cancellation starts no new fallback under the stated policy. Stage source SHA-256: 3f4ef7fc7ca2654f59b54237d5432421b3f1f1f29f900143cf3a84bd0faa39f6.",
+        "sourceUrls": [
+          "https://cheatsheetseries.owasp.org/cheatsheets/Authorization_Cheat_Sheet.html",
+          "https://docs.aws.amazon.com/amazondynamodb/latest/developerguide/HowItWorks.ReadConsistency.html",
+          "https://docs.python.org/3/library/asyncio-task.html#asyncio.Task.cancel"
+        ]
+      },
+      {
+        "id": "compensation",
+        "evidence": "Supported; the prior Pod-identity defect is closed in both source implementations. The stage fades out A1–A4 and creates distinct R1–R4 elsewhere. The retained canvas independently fades A1/A2 and creates R1/R2 at fixed destinations. Uncordon changes scheduling admission without moving replacements. [Kubernetes documents that an evicted Pod does not survive and replacements have different UIDs](https://kubernetes.io/docs/concepts/workloads/pods/pod-lifecycle/#pod-lifetime), while [uncordon enables scheduling new Pods](https://kubernetes.io/docs/tasks/administer-cluster/safely-drain-node/). Counts, destinations, and ordering illustrate a possible sequence, not scheduler or startup guarantees. Admission supplies no node-health observation. [Microsoft supports domain-specific compensation order, parallel independent steps, recorded progress, repeat safety, and compensation failure](https://learn.microsoft.com/en-us/azure/architecture/patterns/compensating-transaction). Canceling pending work differs from compensating completed effects; notification retraction cannot erase knowledge already acquired. No spoken correction is needed. Stage source SHA-256: 12513a295ced94b77e5a95ee8f0c3b7990bb9829bd12515968d2af48c7c711ef.",
+        "sourceUrls": [
+          "https://kubernetes.io/docs/concepts/workloads/pods/pod-lifecycle/#pod-lifetime",
+          "https://kubernetes.io/docs/tasks/administer-cluster/safely-drain-node/",
+          "https://learn.microsoft.com/en-us/azure/architecture/patterns/compensating-transaction"
+        ]
+      },
+      {
+        "id": "recovery-transfer",
+        "evidence": "Supported. The checked calculation is 1.2+0.3=1.5 seconds, exceeding 1.4 by 0.1, so the selected compliant wait cannot fit. Forty minutes=2,400 seconds exceeds the 60-second freshness policy. Counts total 60+12+18+10=100. Completion=60/100=60%; the separately defined disposition measure=(60+12+18)/100=90%. The latter does not establish full task recovery or eliminate human work. Unique-run denominators and separate pending/cancellation accounting preserve those distinctions. [Prometheus advises against unbounded label dimensions](https://prometheus.io/docs/practices/naming/). Fault injection and withholding expected outcomes are evaluation requirements, not claims that production integrations passed. The [RLM paper](https://arxiv.org/html/2512.24601v1) supports source access through an external REPL variable and sub-calls, without proving exhaustive inspection. Explicit budget/coverage requirements close the prior overclaim. questions.ts places the RLM lesson immediately next. Stage source SHA-256: 2f6fd248128095b60bb87705a8be911919debac6f06c56416466bac8bf021780.",
+        "sourceUrls": [
+          "https://prometheus.io/docs/practices/naming/",
+          "https://arxiv.org/html/2512.24601v1"
+        ]
+      }
+    ],
+    "findings": [],
+    "limitations": [
+      "Review bound to current script 92d488cc9f3da03d. lesson.yaml SHA-256 is 8abd324fcae48b6c071d328b4fd1251fb05c86d7f943fc4320324a690bc30f72. No substantive inaccurate or unsupported narration claim was identified.",
+      "The current checkout differs from the repair record. Current article SHA-256 is f0da8bef63893515fc49e5506a4e62664a8bbb0f578c81cb21fa411cf16066c2; current canvas compensation SHA-256 is 83cc09f89ef4bb5daa876d50b19a4b5081e9935a9003dbd99efa570d28abf1c3. Conclusions use current source, not the record’s historical hashes.",
+      "The filesystem is read-only. The disk-backed SQLite fixture and competing file connections were inspected but not executed. Its expected successful concurrency result follows from the transaction placement and documented serialization. A memory-only adaptation tested transactions and sequential replay; it does not verify file persistence, real concurrent writers, process crashes, or power loss.",
+      "Visual conclusions are source-level checks. No fresh audio, measured cue timing, rendered frames, continuous playback, or geometry review was performed.",
+      "The retry picture omits request durations. The JavaScript model admits a wait ending exactly at its deadline, while the Python helper rejects equality. No supplied worked example reaches that boundary, and the narration does not promise time for a subsequent request merely because its wait fits.",
+      "No live controller, workflow-engine deployment, provider fallback, tenant isolation, authentication, replica behavior, remote cancellation, scheduler, node-health check, or queued-job execution was tested. Statements requiring these safeguards are recommendations or integration requirements.",
+      "The breaker execution covers ordinary task cancellation, not process termination or repeated cancellation during cleanup. Local slot cleanup establishes no remote cancellation result.",
+      "The article’s main LangGraph paragraph still omits the durability-mode qualification. This remains an article clarification outside the supplied narration; the spoken lesson correctly includes the earlier-step and successful synchronous-persistence requirements.",
+      "No edits, external writes, or subagents were used."
+    ]
+  }
+}

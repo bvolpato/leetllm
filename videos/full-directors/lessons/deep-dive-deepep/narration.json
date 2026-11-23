@@ -1,0 +1,472 @@
+[
+  {
+    "id": "c01",
+    "title": "How many rows cross the link?",
+    "sourceChapters": [
+      "c01"
+    ],
+    "beats": [
+      {
+        "id": "c01-fork",
+        "say": "Follow the two numbers in row a. The router has picked experts two and three. Both live on the far GPU. How many copies of this row have to cross the link?",
+        "hold": 3
+      },
+      {
+        "id": "c01-cross",
+        "say": "One copy. Send the row across. There it is at the receiver, with the two expert choices still attached. In this example a rank is a process that controls one GPU.",
+        "hold": 0.8
+      },
+      {
+        "id": "c01-expand",
+        "say": "Now expand the received row. Each expert gets its own slot. The expert weights stay on the GPU that owns them. In a mixture of experts, a router chooses a few of these neural blocks for each token.",
+        "hold": 0.8
+      },
+      {
+        "id": "c01-jobs",
+        "say": "The caller supplies the router choices and runs the expert matrix multiplications. Here each expert multiplies by its number plus one. That gives three and four in the first coordinate. The caller then applies the gate weights. Seven tenths of three and three tenths of four give two point one and one point two. Keep each result with its slot. DeepEP retains the map for the trip home.",
+        "hold": 1
+      }
+    ]
+  },
+  {
+    "id": "c02",
+    "title": "Count ranks, then expert jobs",
+    "sourceChapters": [
+      "c02"
+    ],
+    "beats": [
+      {
+        "id": "c02-base",
+        "say": "Open the route for the full batch. Tokens a and b start on rank zero. Tokens c and d start on rank one. For this first run, a uses experts zero and three. Read across the four lines. Each token visits both ranks. How many destination rows does that make?",
+        "hold": 2.3
+      },
+      {
+        "id": "c02-count",
+        "say": "Eight rows. Count the occupied destinations, including the four local copies. Each token also has two expert jobs. This time the two counts happen to agree.",
+        "hold": 0.7
+      },
+      {
+        "id": "c02-reroute",
+        "say": "Change just the first choice for a to expert two. Expert three stays selected. Both jobs now sit on rank one. An old handle would still send work to expert zero. Rebuild the handle from the new choices. What happens to the two counts?",
+        "hold": 2.5
+      },
+      {
+        "id": "c02-dedup",
+        "say": "Seven destination rows and eight jobs. The two expert names share a single destination on the first line. Now mask the second choice for a with minus one. What disappears?",
+        "hold": 2.5
+      },
+      {
+        "id": "c02-mask",
+        "say": "One expert job disappears. Seven destinations and seven jobs remain. Expert two still needs a on rank one. Its gate stays at zero point seven because this caller keeps the supplied weight. The mask drops an assignment. Alignment, which comes next, changes storage.",
+        "hold": 1.3
+      }
+    ]
+  },
+  {
+    "id": "c03",
+    "title": "Which slots can send a result home?",
+    "sourceChapters": [
+      "c03"
+    ],
+    "beats": [
+      {
+        "id": "c03-pack",
+        "say": "Keep a's first choice, expert two. Restore its second choice, expert three, with gate zero point three. Replay that unmasked route with a fresh handle. Open the single non-expanded row on rank one. The global names are experts two and three. Rank one's expert range starts at two. Subtract two and the received local indices are zero and one. The gates stay in that order. The caller groups the two weighted outputs into one return. Now take a separate expanded buffer with real counts three and one. Without alignment, four slots hold the four assignments. Each real slot has a source identity.",
+        "hold": 0.8
+      },
+      {
+        "id": "c03-align",
+        "say": "Now align each expert segment to a multiple of four slots. Leave the three rows together. Slide the fourth row to the next aligned start. The first valid interval ends at three, the second starts at four and ends at five. Both intervals exclude their endpoint.",
+        "hold": 1.1
+      },
+      {
+        "id": "c03-probe",
+        "say": "Eight slots are allocated and four contain data. Suppose a kernel writes a zero in slot three. Can combine return that zero to a source token?",
+        "hold": 2.5
+      },
+      {
+        "id": "c03-gap",
+        "say": "There is no source entry. Reject that return. Zeroing padding makes the buffer convenient for a kernel. Only real slots have an identity. When the caller skips CPU count synchronization, the expert kernel must use the valid ranges on the device.",
+        "hold": 1.1
+      }
+    ]
+  },
+  {
+    "id": "c04",
+    "title": "Which row receives the second reply?",
+    "sourceChapters": [
+      "c04"
+    ],
+    "beats": [
+      {
+        "id": "c04-raw",
+        "say": "Restore the original route for a, experts zero and three. Each toy expert multiplies both coordinates by its expert number plus one. With input one, zero, the first coordinates come back as one and four. Their raw sum would be five. Which values should actually travel home?",
+        "hold": 2.4
+      },
+      {
+        "id": "c04-weight",
+        "say": "Apply each gate once. Expert zero contributes zero point seven, and expert three contributes one point two. Keep each value with its expert slot. The handle maps both slots to row a. The gate values came separately with the received rows.",
+        "hold": 0.9
+      },
+      {
+        "id": "c04-first",
+        "say": "Reverse the order on the way home. Expert three arrives first. Look up its slot in the saved map and put its contribution in row a. The caller already did the multiplication. What should the accumulator hold after the other slot arrives?",
+        "hold": 2.6
+      },
+      {
+        "id": "c04-second",
+        "say": "Add the local contribution. One point two plus zero point seven gives one point nine. Read both coordinates in the source row. Applying the gates twice would give zero point eight five in the first coordinate. All three answers have the same shape.",
+        "hold": 1.1
+      },
+      {
+        "id": "c04-check",
+        "say": "Check the rest of the batch in reverse order too. The reference requires each expected slot exactly once. It rejects duplicate and missing identities. Keeping the key with its value also matters. A values-only swap can pass the count check and put a contribution from another token into a.",
+        "hold": 1
+      },
+      {
+        "id": "c04-reattach",
+        "say": "Look at the second coordinate of a. That one point eight belongs to c. Reattach each value to its original slot and repeat the reduction. Row a is back to one point nine, zero. A test that checks only the number of returned rows would accept both versions.",
+        "hold": 1.15
+      }
+    ]
+  },
+  {
+    "id": "c04-grad",
+    "title": "What travels backward?",
+    "sourceChapters": [
+      "c04"
+    ],
+    "beats": [
+      {
+        "id": "c04-grad-copy",
+        "say": "Keep a's route fixed. A gradient arrives at the combined source row. A sum sent two contributions into that row, so its backward operation sends the same incoming gradient to both contribution slots. Take a source gradient of one in the first coordinate.",
+        "hold": 1
+      },
+      {
+        "id": "c04-grad-chain",
+        "say": "Carry that one back through each gate multiplication. The two expert outputs receive zero point seven and zero point three. The gate gradients use the raw expert outputs, one and four. Then the expert derivatives scale the two input gradients by one and four. Sum the two paths at the input to get one point nine.",
+        "hold": 1.2
+      },
+      {
+        "id": "c04-grad-sort",
+        "say": "The copy and the sum transpose one another for a fixed route. The caller still differentiates the experts and gates. For debugging, historical V two can sort received rows. Expanded mode sorts within each expert and updates slot pointers. Sorting can make the order repeatable. Only a source-value check tests what the data means.",
+        "hold": 0.8
+      }
+    ]
+  },
+  {
+    "id": "c05",
+    "title": "Which subtotal survives cancellation?",
+    "sourceChapters": [
+      "c05"
+    ],
+    "beats": [
+      {
+        "id": "c05-terms",
+        "say": "Take three already weighted contributions, two hundred fifty-six, one, and minus two hundred fifty-six. Bfloat sixteen can represent each input exactly. A local reduction could save network traffic by sending a subtotal. What happens if we store that first sum in bfloat sixteen?",
+        "hold": 2.3
+      },
+      {
+        "id": "c05-tie",
+        "say": "The exact subtotal is two hundred fifty-seven. Find it halfway between the representable neighbors, two hundred fifty-six and two hundred fifty-eight. At a tie, keep the neighbor whose last retained bit is even. Which value goes into the subtotal?",
+        "hold": 2.3
+      },
+      {
+        "id": "c05-staged",
+        "say": "Two hundred fifty-six. Store that neighbor. Now subtract two hundred fifty-six. The staged result is zero. The middle store lost the small term before the large terms canceled.",
+        "hold": 1.1
+      },
+      {
+        "id": "c05-wide",
+        "say": "Replay the same three inputs. Keep the subtotal in float thirty-two until after the subtraction. One survives. Cast that final result to bfloat sixteen and it still reads one. On a device, check the kernel's actual reduction stages and compare tolerances before attributing an error to routing.",
+        "hold": 1.3
+      }
+    ]
+  },
+  {
+    "id": "c06",
+    "title": "Which GPU owns the row after forwarding?",
+    "sourceChapters": [
+      "c06"
+    ],
+    "beats": [
+      {
+        "id": "c06-direct",
+        "say": "Place four ranks in two nodes. Rank zero is sending to rank three. Direct mode treats the group as a flat logical domain. On this route the two endpoints exchange the row over the network. The physical links inside each node still exist.",
+        "hold": 1
+      },
+      {
+        "id": "c06-rail",
+        "say": "Replay the same route in hybrid mode. Cross the network rail from rank zero to rank two. Where must the row go next?",
+        "hold": 2.3
+      },
+      {
+        "id": "c06-forward",
+        "say": "Forward it over the local NVLink to rank three. Rank two is a rail peer. The metadata still names zero as the source and three as the destination. NCCL Gin lets GPU code issue the network work.",
+        "hold": 0.8
+      },
+      {
+        "id": "c06-visible",
+        "say": "Switch to a flat logical domain with both NVLink and network peers. Watch one rank publish a world-team barrier. First it writes data directly to its NVLink peer. In the flush-stores path, a system-scope fence orders those writes before the rank sends the Gin barrier signal to the world team. Peers observing the barrier need to see the preceding writes. The consumer still needs its own stream dependency. Check both on the deployed fabric.",
+        "hold": 1
+      },
+      {
+        "id": "c06-backend",
+        "say": "Follow the registered memory back to initialization. The application forms a process group. DeepEP queries the NCCL communicator for Gin capability, registers symmetric memory, and gives a device communicator to its kernels. On shutdown, keep that window registered until the final hook has run and all kernels and consumers have finished. A host return alone cannot establish that the hardware has finished.",
+        "hold": 1
+      }
+    ]
+  },
+  {
+    "id": "c06-bytes",
+    "title": "What did the NIC actually carry?",
+    "sourceChapters": [
+      "c06"
+    ],
+    "beats": [
+      {
+        "id": "c06-bytes-traffic",
+        "say": "Take a separate exchange with one hundred mebibytes of logical payload in one millisecond. Half stays on its source GPU. Every remaining block goes to another node and crosses this NIC once in that millisecond. Ignore protocol overhead. How many mebibytes does the NIC carry?",
+        "hold": 2.6
+      },
+      {
+        "id": "c06-bytes-meter",
+        "say": "Fifty mebibytes cross. Count the inter-node blocks at the sending NIC. One mebibyte is one million forty-eight thousand five hundred seventy-six bytes. Divide bytes by elapsed seconds, then by a billion for decimal gigabytes per second.",
+        "hold": 0.8
+      },
+      {
+        "id": "c06-bytes-rates",
+        "say": "The logical rate is about one hundred four point nine. The NIC payload rate is about fifty-two point four. Compare the two readings over the same interval. A hybrid forward can add NVLink traffic, and real counters have direction and protocol conventions. The historical V two benchmark uses logical bytes for its stated hardware and shapes. A V two point five performance claim needs its own run.",
+        "hold": 1.4
+      },
+      {
+        "id": "c06-bytes-bench",
+        "say": "One historical table makes the comparison concrete. Eight GPUs with SM one hundred architecture used NVLink, with eight thousand tokens, hidden width seven thousand one hundred sixty-eight, top eight, FP eight dispatch and bfloat sixteen combine. At twenty-four communication SMs the table reports six hundred forty-three logical gigabytes per second for dispatch. At sixty-four SMs it reports seven hundred twenty-six. The table leaves expert time unmeasured, so it cannot choose the faster complete layer.",
+        "hold": 1.2
+      }
+    ]
+  },
+  {
+    "id": "c07",
+    "title": "What else travels with an FP8 row?",
+    "sourceChapters": [
+      "c07"
+    ],
+    "beats": [
+      {
+        "id": "c07-width",
+        "say": "Lay out a row of seven thousand one hundred sixty-eight coordinates. Bfloat sixteen uses two bytes per value, so the baseline takes fourteen thousand three hundred thirty-six bytes. The FP eight values take half that space. What else must the receiver have to reconstruct an activation?",
+        "hold": 2.4
+      },
+      {
+        "id": "c07-groups",
+        "say": "A scale for each group. Our layout uses one four-byte float for every one hundred twenty-eight values. That makes fifty-six groups. Attach one scale to each group. How many bytes do the scales add?",
+        "hold": 2.2
+      },
+      {
+        "id": "c07-size",
+        "say": "Two hundred twenty-four scale bytes. Together they take the payload to seven thousand three hundred ninety-two bytes. Add any routing header and protocol bytes separately. The value-plus-scale payload shrinks by about a factor of one point nine four.",
+        "hold": 1.1
+      },
+      {
+        "id": "c07-stride",
+        "say": "Zoom in on coordinate forty-two. Its stored value is ten. A wrong stride reads scale two from the next group and decodes twenty. Which scale belongs to this coordinate?",
+        "hold": 2.4
+      },
+      {
+        "id": "c07-decode",
+        "say": "Use group zero. Its scale is one half, so ten decodes to five. The byte count stayed the same. Match the sender's grouping, scale dtype and strides to the expert kernel. The historical combine path takes bfloat sixteen activations. Check numerical error and time the whole layer after a precision change.",
+        "hold": 1.2
+      }
+    ]
+  },
+  {
+    "id": "c08",
+    "title": "Who keeps the results after wait?",
+    "sourceChapters": [
+      "c08"
+    ],
+    "beats": [
+      {
+        "id": "c08-event",
+        "say": "Historical V two dispatch on ElasticBuffer returns five items directly. A fresh dispatch waits on the host for exact receive counts by default. With count synchronization disabled, the caller uses device counts. Knowing the counts does not tell you when a stream can read the output. In the V two point five snapshot, deferred dispatch on EPBuffer returns an event wrapper. Trying to unpack the wrapper as five values raises a type error. The dispatch stream records its event before the copy into the final tensors.",
+        "hold": 0.7
+      },
+      {
+        "id": "c08-firstwait",
+        "say": "Launch independent work on stream A. For the first wrapper wait, make A current. A waits for the dispatch event. The hook then queues a copy into the returned tensors on A. Keep the four objects from that first call together. They are the rows, indices, gates and route handle. Record a ready event on A after the copy. A can queue its own read in stream order. The host can enqueue these steps while the device is still working.",
+        "hold": 0.9
+      },
+      {
+        "id": "c08-askwait",
+        "say": "Stream B needs the same data. Suppose B calls the wrapper again. That call orders B after the original dispatch event. What does it return? Which event must B wait for before reading the saved tensors?",
+        "hold": 2.5
+      },
+      {
+        "id": "c08-none",
+        "say": "The wrapper returns None because A already ran the hook. B still needs the writes from the copy on A. Make B wait for A's ready event. Now B can read the first set. After A finishes, B can still be reading. When may the caller reuse the storage?",
+        "hold": 2.1
+      },
+      {
+        "id": "c08-release",
+        "say": "Keep the first set alive. B finishes its last read. Now the caller may release the storage. Reusing the buffer early would let another dispatch overwrite these rows. An unchanged route permits cached layout reuse only while its referenced storage is valid.",
+        "hold": 1.2
+      }
+    ]
+  },
+  {
+    "id": "c08-setup",
+    "title": "Will the next session fit?",
+    "sourceChapters": [
+      "c08"
+    ],
+    "beats": [
+      {
+        "id": "c08-setup-capacity",
+        "say": "Suppose the allocated buffer can hold twelve equal-size rows. An active session owns eight. A new session asks for five. The size hint helped plan this allocation. Does the second session fit right now?",
+        "hold": 2.5
+      },
+      {
+        "id": "c08-setup-overflow",
+        "say": "Only four slots are free. One row would overrun the window. Wait for an owner to finish or provide sufficient storage. Include scratch space and concurrent sessions when planning symmetric memory. The application forms the process group. NCCL supplies transport primitives, and DeepEP registers the window. Drain consumers before closing either.",
+        "hold": 1.1
+      },
+      {
+        "id": "c08-setup-version",
+        "say": "Pin the interface as well as the size. Archived V one used Buffer and NVSHMEM with separate low-latency methods. Historical V two used ElasticBuffer and NCCL Gin. V two point five split expert, bucket, pipeline and Engram buffers, removed V one and moved runtime kernel compilation to DeepJIT. A pipeline send still needs a scheduler. An indexed embedding fetch still needs its own arrival check.",
+        "hold": 1.1
+      },
+      {
+        "id": "c08-setup-jit",
+        "say": "On a cold worker, installation builds the host extension and first use can still compile a kernel. Match the compiler, GPU target, NCCL headers and loaded runtime. A new alignment can need a new specialization. Warm the actual shapes on each worker before comparing steady-state times.",
+        "hold": 1
+      },
+      {
+        "id": "c08-setup-loaded",
+        "say": "Here is a startup failure you can predict from the historical V two contract. Compile against NCCL two point thirty point four and load two point thirty point five. Both pass the stated minimum. The pre two point thirty-one header branch requires an exact runtime match. Match the loaded library to the build before attributing the failure to routing. Record the versions on the worker that actually ran.",
+        "hold": 1.1
+      }
+    ]
+  },
+  {
+    "id": "c08-shared",
+    "title": "Which work belongs to a replicated expert?",
+    "sourceChapters": [
+      "c08"
+    ],
+    "beats": [
+      {
+        "id": "c08-shared-replicas",
+        "say": "The V two point five snapshot can prefetch redundant expert weights over NVLink. The caller chooses a replication map, reroutes tokens and schedules the experts. Every rank in the collective must join, even a rank with no replica. Keep the weights and scales alive for the consumer.",
+        "hold": 0.8
+      },
+      {
+        "id": "c08-shared-grad",
+        "say": "Start the original expert with a float thirty-two gradient of two, four. A replica supplies one, three. Reduce into the initialized owner. The two coordinates become three and seven. Moving these gradients is a different operation from returning weighted activations to their tokens.",
+        "hold": 1
+      },
+      {
+        "id": "c08-shared-lookup",
+        "say": "A pipeline send moves an activation from one stage to the next. A context copy moves a slice of the sequence between context partitions. The application schedules the stages and defines attention. An experimental Engram lookup uses an index instead. On the local requester, two indices select entries on different remote owners. Fetch the entry data from those owners. The matching scales are already local.",
+        "hold": 0.9
+      },
+      {
+        "id": "c08-shared-tail",
+        "say": "Replay the lookup with empty result cells. The requester has a final get queued for each of two remote owners. The older loop could leave those requests waiting for a NIC doorbell. Watch the requester issue one final unaggregated get per used peer and record an asynchronous flush for each. Both gets have been submitted. The cells are still empty in this snapshot. After completion, check the entries against the requested indices. Include competing sessions in the memory and queue budget.",
+        "hold": 1.1
+      }
+    ]
+  },
+  {
+    "id": "c09",
+    "title": "How many destinations should the buffer plan for?",
+    "sourceChapters": [
+      "c09"
+    ],
+    "beats": [
+      {
+        "id": "c09-pairs",
+        "say": "Choose two distinct experts uniformly from four, with two experts on each rank. There are six unordered pairs. In the picture, trace the owner of each expert in a pair. How many of these pairs use just one rank?",
+        "hold": 2.4
+      },
+      {
+        "id": "c09-mean",
+        "say": "Two pairs stay together and four visit both ranks. That makes ten destination visits across six pairs. The mean is five thirds. Skew or a group-limited router changes the distribution. Measure the expert histogram before using a balanced model to budget communication.",
+        "hold": 1.1
+      },
+      {
+        "id": "c09-queues",
+        "say": "Historical V two turns a communication budget into queue-pair requests. Give it twelve streaming multiprocessors and a pool of one hundred twenty-eight queues. Direct requests the smaller of twelve and nine. Hybrid requests sixteen times twelve plus one. How many hybrid queues can it use?",
+        "hold": 2.4
+      },
+      {
+        "id": "c09-cap",
+        "say": "One hundred twenty-eight. The request for one hundred ninety-three meets the pool limit. Direct uses nine. Extra communication resources can leave less capacity for expert computation. Test a complete layer before choosing the larger setting.",
+        "hold": 1
+      },
+      {
+        "id": "c09-sms",
+        "say": "Where did the SM count come from? In historical V two the helper starts from bandwidth and a balanced route estimate. Try a raw estimate of fifteen point two. Add a quarter, then round nineteen up to twenty. The overlap preference keeps the floor at four. With that preference off, the floor rises to sixty-four. Both choices are limited by the GPU's actual SM count.",
+        "hold": 1
+      }
+    ]
+  },
+  {
+    "id": "c09-time",
+    "title": "Does faster communication finish the layer sooner?",
+    "sourceChapters": [
+      "c09"
+    ],
+    "beats": [
+      {
+        "id": "c09-time-serial",
+        "say": "Compare two warm runs with identical routes and correct outputs. In this fixture the stages run one after another. Setting A takes one millisecond to dispatch, four for the experts and one to combine. It finishes at six milliseconds.",
+        "hold": 0.8
+      },
+      {
+        "id": "c09-time-compare",
+        "say": "Setting B takes zero point seven to dispatch and zero point eight to combine. Expert work takes four point five. Predict where the second run will finish on the same clock.",
+        "hold": 2.6
+      },
+      {
+        "id": "c09-time-finish",
+        "say": "Both finish at six milliseconds. The half millisecond saved on communication went into the experts. When stages overlap, measure elapsed time on the critical path. In a post-training comparison, hold weights, inputs, routes and precision fixed. Record per-expert counts and source outputs before comparing warm layer latency.",
+        "hold": 1.1
+      },
+      {
+        "id": "c09-time-rl",
+        "say": "For post-training, compare the same rollout weight version, prompts and route distribution. A separate trainer has its own process group. Colocated rollout and training can reuse compatible memory only after the prior readers finish. A reward change after a precision switch could come from the activations. Compare the source rows and numerical error before drawing a conclusion about communication speed.",
+        "hold": 1
+      }
+    ]
+  },
+  {
+    "id": "c09-home",
+    "title": "Can this token reuse the saved route?",
+    "sourceChapters": [
+      "c09"
+    ],
+    "beats": [
+      {
+        "id": "c09-home-fresh",
+        "say": "Try a new token, z, with coordinates two and minus one. Its saved choices were experts zero and three. The new choices are one and two. Both routes touch the same two GPUs. The gates are one fifth and four fifths. Would you reuse the handle?",
+        "hold": 2.6
+      },
+      {
+        "id": "c09-home-rebuild",
+        "say": "Rebuild it for experts one and two. The first doubles the input. Weight its output by one fifth. The second triples the input. Weight its output by four fifths. On the way back, read the second slot first. What should land in z?",
+        "hold": 3
+      },
+      {
+        "id": "c09-home-home",
+        "say": "Five point six, minus two point eight. Add each coordinate at the saved source. The cached route with the very same gates would give six point eight, minus three point four. Counting GPUs could never distinguish those answers.",
+        "hold": 1.2
+      },
+      {
+        "id": "c09-home-last",
+        "say": "Use that reference row on the device. Check valid counts, gates, scales and the link path. In deferred dispatch, place the dispatch wait on the expert stream. Its hook copies the rows on that stream. Queue the first expert read after the copy. If another stream reads the rows, have it wait for a ready event recorded after the copy. Then time from dispatch through the combined output.",
+        "hold": 1.6
+      }
+    ]
+  }
+]

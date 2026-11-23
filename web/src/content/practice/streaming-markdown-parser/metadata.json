@@ -1,0 +1,178 @@
+{
+  "id": "streaming-markdown-parser",
+  "slug": "streaming-markdown-parser",
+  "title": "Streaming Markdown Parser",
+  "difficulty": "Medium",
+  "category": "Parsing",
+  "language": "python3",
+  "timeEstimateMinutes": 35,
+  "timeLimitMs": 2500,
+  "memoryLimitMb": 128,
+  "order": 175,
+  "tags": [
+    "streaming",
+    "markdown",
+    "parser",
+    "state machine"
+  ],
+  "source": "Frontier coding prep",
+  "summary": "Parse streamed Markdown chunks into text, inline-code, and fenced-code tokens while preserving delimiter state.",
+  "starterCode": [
+    "def parse_markdown_chunks(chunks: list[str]) -> list[tuple[str, str]]:",
+    "    pass"
+  ],
+  "testCases": [
+    {
+      "name": "public parses inline code across chunks",
+      "visibility": "sample",
+      "setup": [
+        "from solution import parse_markdown_chunks"
+      ],
+      "input": "parse_markdown_chunks([\"Use `he\", \"apq` now\"])",
+      "expected": "[\n    (\"text\", \"Use \"),\n    (\"inline_code\", \"heapq\"),\n    (\"text\", \" now\"),\n]"
+    },
+    {
+      "name": "public parses fenced code across chunks",
+      "visibility": "sample",
+      "setup": [
+        "from solution import parse_markdown_chunks"
+      ],
+      "input": "parse_markdown_chunks([\"before ```py\", \"thon\\nprint(1)\\n`\", \"`` after\"])",
+      "expected": "[\n    (\"text\", \"before \"),\n    (\"fenced_code\", \"python\\nprint(1)\\n\"),\n    (\"text\", \" after\"),\n]"
+    },
+    {
+      "name": "hidden backticks inside fence stay literal",
+      "visibility": "hidden",
+      "setup": [
+        "from solution import parse_markdown_chunks"
+      ],
+      "input": "parse_markdown_chunks([\"```\", \"x = `literal`\\n\", \"```, done\"])",
+      "expected": "[(\"fenced_code\", \"x = `literal`\\n\"), (\"text\", \", done\")]"
+    },
+    {
+      "name": "hidden unclosed inline code flushes at finish",
+      "visibility": "hidden",
+      "setup": [
+        "from solution import parse_markdown_chunks"
+      ],
+      "input": "parse_markdown_chunks([\"start `unfinished\"])",
+      "expected": "[\n    (\"text\", \"start \"),\n    (\"inline_code\", \"unfinished\"),\n]"
+    },
+    {
+      "name": "hidden empty chunks are ignored without losing order",
+      "visibility": "hidden",
+      "setup": [
+        "from solution import parse_markdown_chunks"
+      ],
+      "input": "parse_markdown_chunks([\"\", \"a\", \"\", \"b\"])",
+      "expected": "[(\"text\", \"ab\")]"
+    },
+    {
+      "name": "hidden adjacent code tokens work",
+      "visibility": "hidden",
+      "setup": [
+        "from solution import parse_markdown_chunks"
+      ],
+      "input": "parse_markdown_chunks([\"`a``b`\"])",
+      "expected": "[\n    (\"inline_code\", \"a\"),\n    (\"inline_code\", \"b\"),\n]"
+    },
+    {
+      "name": "public joins plain text chunks",
+      "visibility": "sample",
+      "setup": [
+        "from solution import parse_markdown_chunks"
+      ],
+      "input": "parse_markdown_chunks([\"hello \", \"world\"])",
+      "expected": "[(\"text\", \"hello world\")]"
+    },
+    {
+      "name": "hidden empty stream emits no tokens",
+      "visibility": "hidden",
+      "setup": [
+        "from solution import parse_markdown_chunks"
+      ],
+      "input": "parse_markdown_chunks([])",
+      "expected": "[]"
+    },
+    {
+      "name": "hidden unclosed fence preserves literal short backticks",
+      "visibility": "hidden",
+      "setup": ["from solution import parse_markdown_chunks"],
+      "input": "parse_markdown_chunks([\"`\", \"`\", \"`python\\nbody`\", \"`\"])",
+      "expected": "[(\"fenced_code\", \"python\\nbody``\")]"
+    },
+    {
+      "name": "hidden triple priority switches from inline to fenced mode",
+      "visibility": "hidden",
+      "setup": ["from solution import parse_markdown_chunks"],
+      "input": "parse_markdown_chunks([\"`inline``\", \"`fenced```tail\"])",
+      "expected": "[(\"inline_code\", \"inline\"), (\"fenced_code\", \"fenced\"), (\"text\", \"tail\")]"
+    },
+    {
+      "name": "hidden longer runs consume triples before remaining singles",
+      "visibility": "hidden",
+      "setup": ["from solution import parse_markdown_chunks"],
+      "input": "parse_markdown_chunks([\"````x````\"])",
+      "expected": "[(\"fenced_code\", \"`x\")]"
+    }
+  ],
+  "clarifyingQuestions": [
+    "Should the parser support full Markdown or only code delimiters?",
+    "Should language labels after opening fences be included in fenced content?",
+    "How should unclosed inline or fenced code be emitted at end of stream?",
+    "Should escaped backticks be supported?"
+  ],
+  "followUps": [
+    "Emit each completed token from `feed()` as soon as its delimiter arrives.",
+    "Track fenced-code language separately.",
+    "Support escaped backticks and memory limits."
+  ],
+  "followUpGuide": [
+    "For incremental `feed()`, keep mode, buffer, and up to two pending backticks on an object. Wait for another character or finish() before treating a short pending run as singles: the next chunk might complete a triple. Empty chunks don't resolve that uncertainty. At finish(), interpret remaining short runs using the current mode and flush the final nonempty token.",
+    "",
+    "For language labels, read through the first newline after an opening fence and store that prefix as metadata. Keep following lines as code content.",
+    "",
+    "For memory limits, stream token callbacks and cap the active buffer size. A renderer can still keep a transcript outside the parser."
+  ],
+  "complexityAnalysis": [
+    "- Batch scanner: O(n + c) time, where n is total characters and c is chunk count (even empty chunks are visited). Space is O(n) for the joined input, output, and active character buffer.",
+    "- Incremental follow-up: O(n + c) total work with a character-list buffer. A feed can also pay O(k) to join a token accumulated across earlier chunks; O(chunk length) alone doesn't describe that call. Space is O(k) for the active unfinished token plus up to two pending backticks, excluding output retained by the caller.",
+    "- One pass preserves token order without sorting or backtracking. With callback emission, parser memory follows the largest unfinished token; bound it with a size or fragment policy."
+  ],
+  "solutionGuide": [
+    "The base solution joins the chunks, making every split delimiter contiguous, then scans once with a mode and character-list buffer. It preserves stream order but doesn't emit incrementally. Triple backticks have priority in every mode; in fenced code, shorter runs are literal content. Empty buffers never produce a token.",
+    "",
+    "```python",
+    "def parse_markdown_chunks(chunks: list[str]) -> list[tuple[str, str]]:",
+    "    text = \"\".join(chunks)",
+    "    tokens = []",
+    "    mode = \"text\"",
+    "    buf = []",
+    "    fence = chr(96) * 3",
+    "    backtick = chr(96)",
+    "    i = 0",
+    "",
+    "    def emit():",
+    "        nonlocal buf",
+    "        if buf:",
+    "            tokens.append((mode, \"\".join(buf)))",
+    "            buf = []",
+    "",
+    "    while i < len(text):",
+    "        if text.startswith(fence, i):",
+    "            emit()",
+    "            mode = \"text\" if mode == \"fenced_code\" else \"fenced_code\"",
+    "            i += 3",
+    "            continue",
+    "        if text[i] == backtick and mode != \"fenced_code\":",
+    "            emit()",
+    "            mode = \"text\" if mode == \"inline_code\" else \"inline_code\"",
+    "            i += 1",
+    "            continue",
+    "        buf.append(text[i])",
+    "        i += 1",
+    "    emit()",
+    "    return tokens",
+    "```"
+  ]
+}

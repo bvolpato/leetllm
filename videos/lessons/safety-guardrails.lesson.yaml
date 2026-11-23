@@ -1,0 +1,1731 @@
+version: 1
+id: safety-guardrails
+title: Checking an Action Before It Reaches the World
+source: agents/guardrails-safety-filters-production/content.md
+voice: en-US-AndrewNeural
+rate: +0%
+sources:
+  - title: OWASP Top 10 for LLM Applications 2025
+    url: https://genai.owasp.org/resource/owasp-top-10-for-llm-applications-2025/
+  - title: NIST AI Risk Management Framework
+    url: https://nvlpubs.nist.gov/nistpubs/ai/NIST.AI.100-1.pdf
+  - title: Prompt Injection Attacks and Defenses in LLM-Integrated Applications
+    url: https://arxiv.org/abs/2302.12173
+  - title: Presidio data protection and anonymization
+    url: https://microsoft.github.io/presidio/
+  - title: OpenAI Structured Outputs guide
+    url: https://platform.openai.com/docs/guides/structured-outputs
+  - title: "AWS Builders Library: Making retries safe with idempotent APIs"
+    url: https://aws.amazon.com/builders-library/making-retries-safe-with-idempotent-APIs/
+  - title: SelfCheckGPT
+    url: https://arxiv.org/abs/2303.08896
+  - title: "TRUE: Re-evaluating Factual Consistency Evaluation"
+    url: https://arxiv.org/abs/2204.04991
+  - title: Llama Prompt Guard 2 model card
+    url: https://huggingface.co/meta-llama/Llama-Prompt-Guard-2-86M
+  - title: Llama Guard 4 model card
+    url: https://huggingface.co/meta-llama/Llama-Guard-4-12B
+  - title: Granite Guardian
+    url: https://arxiv.org/abs/2412.07724
+  - title: ShieldGemma 2
+    url: https://arxiv.org/abs/2504.01081
+  - title: Protect AI prompt-injection model card
+    url: https://huggingface.co/protectai/deberta-v3-base-prompt-injection-v2
+  - title: NeMo Guardrails configuration schema
+    url: https://docs.nvidia.com/nemo/guardrails/latest/configure-guardrails/configuration-reference
+  - title: OpenAI moderation contract
+    url: https://developers.openai.com/api/docs/guides/moderation
+  - title: Python asyncio cancellation and timeouts
+    url: https://docs.python.org/3/library/asyncio-task.html
+  - title: EU AI Act legal text
+    url: https://eur-lex.europa.eu/legal-content/EN/TXT/?uri=CELEX:32024R1689
+  - title: European Commission AI Act implementation timeline
+    url: https://digital-strategy.ec.europa.eu/en/policies/regulatory-framework-ai
+scenes:
+  - id: subject-intro
+    title: Where does the request stop?
+    visual: A deployment proposal moves up to an empty approval gate. Production stays idle while a reviewed reply travels to chat and a key request stops at input.
+    beats:
+      - say: The assistant proposes deploying payment-service. Look at the approval record. It’s empty.
+          Can the host start this deployment?
+        hold: 2.1
+        visual_cues:
+          - id: intro-proposal
+            phrase: The assistant proposes deploying payment-service
+            targets: [deploy-route]
+            linger: 0.3
+          - id: intro-record
+            phrase: Look at the approval record. It’s empty
+            targets: [deploy-route, approval-record]
+            linger: 0.3
+          - id: intro-question
+            phrase: Can the host start this deployment
+            targets: [approval-record, deploy-result, deploy-question]
+            linger: 0.3
+            caption_boundary: true
+      - say: The host holds the proposal at the gate. Zero deployments run. The engineer can still get a
+          reviewed message explaining which approval is missing.
+        hold: 0.8
+        visual_cues:
+          - id: intro-held
+            phrase: The host holds the proposal at the gate
+            targets: [deploy-route, approval-record]
+            linger: 0.3
+            caption_boundary: true
+          - id: intro-stop
+            phrase: Zero deployments run
+            targets: [deploy-route, deploy-result]
+            linger: 0.3
+            caption_boundary: true
+      - say: Now the engineer asks how to run the tests. A reply is enough. The host reviews the answer
+          and sends it to chat.
+        hold: 0.7
+        visual_cues:
+          - id: intro-test
+            phrase: asks how to run the tests
+            targets: [test-route]
+            linger: 0.3
+          - id: intro-answer
+            phrase: reviews the answer and sends it to chat
+            targets: [test-route]
+            linger: 0.3
+            caption_boundary: true
+      - say: A request for a production key stops at the input filter, before it reaches the model.
+          The host also denies this assistant permission to export secrets. Each guardrail checks
+          what can cross its own boundary.
+        hold: 0.9
+        visual_cues:
+          - id: intro-key
+            phrase: stops at the input filter
+            targets: [secret-route]
+            linger: 0.3
+            caption_boundary: true
+          - id: intro-vault
+            phrase: denies this assistant permission to export secrets
+            targets: [vault-policy]
+            linger: 0.3
+            caption_boundary: true
+  - id: checks-by-boundary
+    title: Follow the deployment request
+    visual: A single input reaches the model, then branches into a sentence for chat and a tool proposal
+      for production. The host inspects different evidence on the two branches.
+    beats:
+      - say: Go back to the deployment request. The host can inspect the incoming text and minimize sensitive
+          fields before generation. This request passes that first check and reaches the model.
+        hold: 0.5
+        visual_cues:
+          - id: fork-input
+            phrase: passes that first check and reaches the model
+            targets:
+              - input-track
+            linger: 0.3
+            caption_boundary: true
+      - say: The model produces two things. The reply says, “I can prepare the change.” The tool proposal
+          names payment-service. The host checks the reply’s content and any claims that need evidence.
+          Here the reviewed sentence can go to chat.
+        hold: 0.75
+        visual_cues:
+          - id: fork-output
+            phrase: The reply says, “I can prepare the change.” The tool proposal names payment-service
+            targets:
+              - draft-track
+              - proposal-track
+            linger: 0.3
+            caption_boundary: true
+          - id: fork-review
+            phrase: reviewed sentence can go to chat
+            targets:
+              - draft-track
+            linger: 0.3
+            caption_boundary: true
+      - say: Follow the lower branch. The host checks the tool arguments and target, takes the engineer’s
+          identity from the session, and looks for a matching approval. The record is missing, so the
+          executor stays idle. These branches can finish differently on the very same request.
+        hold: 0.8
+        visual_cues:
+          - id: fork-tool
+            phrase: record is missing, so the executor stays idle
+            targets:
+              - proposal-track
+            linger: 0.3
+            caption_boundary: true
+  - id: input-fixtures
+    title: A classifier result has both a label and a score
+    visual: Three requests keep their A, B and C labels. Identical scores appear next to different
+      classifications, followed by each input decision.
+    beats:
+      - say: Look at the three supplied requests. A asks about tests. B asks for a deploy. C asks for
+          restricted keys. The local stub gives C the injection label. It returns point nine one for all
+          three, even when its label says safe. A score only makes sense alongside its label.
+        hold: 0.75
+        visual_cues:
+          - id: input-fixtures-rows
+            phrase: three supplied requests
+            targets:
+              - input-rows
+            linger: 0.45
+          - id: input-fixtures-score
+            phrase: even when its label says safe
+            targets:
+              - input-scores
+            linger: 0.45
+          - id: sg-input-score
+            phrase: point nine one
+            targets:
+              - input-scores
+            linger: 0.45
+      - say: The rule fires when the label matches and the score reaches point eight. A and B therefore pass
+          this fixture’s input checks. C blocks before the model runs. The topic check accepted all
+          three because each mentions a service. The personal-data stub always returns false. B still
+          needs deployment approval. To measure detector quality, we need independently labeled
+          examples.
+        hold: 0.75
+        visual_cues:
+          - id: input-fixtures-threshold
+            phrase: label matches and the score reaches
+            targets:
+              - input-comparison
+            linger: 0.45
+          - id: input-fixtures-result
+            phrase: A and B therefore pass
+            targets:
+              - input-outcomes
+            linger: 0.45
+          - id: sg-input-a
+            phrase: A and B therefore pass this fixture’s input checks
+            targets:
+              - input-outcomes
+            linger: 0.45
+          - id: sg-input-b
+            phrase: B therefore pass this fixture’s input checks
+            targets:
+              - input-outcomes
+            linger: 0.45
+          - id: sg-input-c
+            phrase: C blocks before the model
+            targets:
+              - input-outcomes
+            linger: 0.45
+  - id: detector-contract
+    title: Reject a malformed required result before interpreting risk
+    visual: Label, score type, finite domain and threshold enter independent checks; a Boolean cannot borrow
+      numeric-zero semantics.
+    beats:
+      - say: Validate the detector’s interface before comparing its score. Require a recognized label and a finite
+          numeric score between zero and one. Reject Boolean values, missing scores, NaN, infinity and
+          out-of-range numbers. Python treats Boolean as a kind of integer in many contexts, so this interface
+          explicitly excludes it.
+        hold: 0.75
+        visual_cues:
+          - id: detector-contract-type
+            phrase: Reject Boolean values
+            targets:
+              - detector-type
+            linger: 0.45
+          - id: detector-contract-domain
+            phrase: between zero and one
+            targets:
+              - detector-domain
+            linger: 0.45
+      - say: A valid score tells the host how to apply this detector’s threshold. The signed-in session
+          identifies the caller, the tool policy controls access, and the source passage supports a claim.
+          If this required detector fails or returns an invalid score, the host holds the request. Evaluate
+          its results on reviewed examples, including quotations, multiple languages and long inputs.
+        hold: 0.75
+        visual_cues:
+          - id: detector-contract-hold
+            phrase: holds the request
+            targets:
+              - detector-outcome
+            linger: 0.45
+          - id: detector-contract-scope
+            phrase: signed-in session identifies the caller
+            targets:
+              - detector-authority
+            linger: 0.45
+  - id: text-and-action-paths
+    title: Whose approval is this?
+    visual: The chat reply passes. The host places the validated action beside the approval it found and
+      compares the engineer named in each.
+    beats:
+      - say: The reply has passed text review. Now suppose the deploy proposal carries approval forty-two. Its
+          schema and production target are valid. The host uses that ID to look up a trusted record. The
+          service, environment and action hash all match.
+        hold: 0.7
+        visual_cues:
+          - id: binding-reply
+            phrase: has passed text review
+            targets:
+              - reviewed-reply
+            linger: 0.3
+            caption_boundary: true
+          - id: binding-lookup
+            phrase: look up a trusted record
+            targets:
+              - action-pair
+            linger: 0.3
+            caption_boundary: true
+      - say: Read the engineer on each side. The left value comes from the signed-in session. The right value
+          names the person covered by the approval. Does this approval belong to the caller?
+        hold: 2.15
+        visual_cues:
+          - id: binding-actor
+            phrase: signed-in session
+            targets:
+              - actor-pair
+            linger: 0.3
+            caption_boundary: true
+          - id: binding-compare
+            phrase: Does this approval belong to the caller
+            targets:
+              - actor-pair
+              - binding-verdict
+            linger: 0.3
+            caption_boundary: true
+      - say: Engineer seven is signed in. The grant names engineer nine. The host denies the attempt. Zero
+          deployments run. Supplying an ID lets the host find the record. Permission depends on what the
+          record says. If the lookup times out before dispatch, the host must hold this attempt too.
+        hold: 0.8
+        visual_cues:
+          - id: binding-result
+            phrase: The host denies the attempt. Zero deployments run
+            targets:
+              - binding-verdict
+              - actor-pair
+            linger: 0.3
+            caption_boundary: true
+  - id: output-fixture
+    title: A text predicate sees only the text it inspects
+    visual: A local text checker reviews a proposed release and a glossary entry that quotes the trigger
+      phrase. Both samples stay separate from the tool channel.
+    beats:
+      - say: Read the reply addressed to Alice. The local checker replaces a detected email with a label
+          before release. Its toxicity stub always returns point zero two. The text policy flags the
+          literal phrase deploy payment-service. When those words appear in a proposal, it returns
+          approval required. That string tells us which text rule fired.
+        hold: 0.75
+        visual_cues:
+          - id: output-fixture-redact
+            phrase: replaces a detected email
+            targets:
+              - output-redaction
+            linger: 0.45
+          - id: output-fixture-literal
+            phrase: literal phrase deploy payment-service
+            targets:
+              - output-literal
+            linger: 0.45
+      - say: Compare a draft release plan with a glossary entry. We want the text rule to catch the proposal
+          and allow the definition. The paraphrase passes. The glossary entry quotes the exact trigger
+          and gets held. One miss and one false alarm come from the same phrase test. Tool arguments
+          have their own untrusted channel. The host checks each proposal before execution.
+        hold: 0.75
+        visual_cues:
+          - id: output-fixture-paraphrase
+            phrase: The paraphrase passes
+            targets:
+              - output-counterexamples
+            linger: 0.45
+          - id: output-fixture-separate
+            phrase: own untrusted channel
+            targets:
+              - output-channels
+            linger: 0.45
+  - id: argument-contract
+    title: Bind approval to the action’s exact identity
+    visual: The actual article deployment tuple is canonicalized into bytes and a digest; host session and
+      operation ID remain outside model arguments.
+    beats:
+      - say: Now use the article’s separate deployment fixture. The proposed service is payment-service, environment
+          prod, and artifact is the supplied SHA-256 value made from sixty-four a characters. The
+          authenticated host actor is engineer seven. The host also fixes operation identifier deploy op
+          forty-two. Neither identity comes from a model-written actor field.
+        hold: 0.75
+        visual_cues:
+          - id: argument-contract-tuple
+            phrase: separate deployment fixture
+            targets:
+              - argument-tuple
+            linger: 0.45
+          - id: argument-contract-host
+            phrase: Neither identity comes from
+            targets:
+              - argument-host
+            linger: 0.45
+      - say: The host accepts only the declared action fields and supported targets, then hashes sorted compact JSON
+          describing action, service, environment and artifact. Approval forty-two names that same action
+          digest, actor and expiry, with approved status and a distinct authorized approver, release manager
+          three. The actor cannot approve its own request. Changing a target or artifact changes the operation
+          being approved, even if every resulting JSON field still has the correct type. The model’s approval
+          ID is only a lookup key into the trusted store.
+        hold: 0.75
+        visual_cues:
+          - id: argument-contract-digest
+            phrase: hashes sorted compact JSON
+            targets:
+              - argument-digest
+            linger: 0.45
+          - id: argument-contract-change
+            phrase: Changing a target or artifact
+            targets:
+              - argument-change
+            linger: 0.45
+      - say: The tool name must also be in the host’s capability allowlist. Check semantic targets after parsing. File
+          tools need resolution and confinement at the access boundary; URL tools need an admitted destination
+          through DNS and redirects. An approved internal tool may legitimately use a private address. A
+          generic string rule is not a substitute for enforcing that particular resource boundary.
+        hold: 0.75
+        visual_cues:
+          - id: argument-contract-capability
+            phrase: host’s capability allowlist
+            targets:
+              - argument-capability
+            linger: 0.45
+          - id: argument-contract-resource
+            phrase: resolution and confinement at the access boundary
+            targets:
+              - argument-resource
+            linger: 0.45
+  - id: approval-replay
+    title: Count the deployments
+    visual: An attempt and a trusted approval sit next to the local deployment list. The proposed artifact
+      changes on a retry while the earlier list entry stays in place.
+    beats:
+      - say: Watch the list on the right. Each entry means the local executor recorded one deployment. The
+          first proposal has no approval ID. The host asks for approval, and the list stays empty.
+        hold: 0.75
+        visual_cues:
+          - id: replay-missing
+            phrase: asks for approval, and the list stays empty
+            targets:
+              - replay-verdict
+              - deploy-list
+            linger: 0.3
+            caption_boundary: true
+      - say: Now engineer seven has a matching approval for artifact A. Both action hashes match. The host
+          runs operation forty-two and appends one deployment. It ties the used approval to that
+          operation.
+        hold: 0.8
+        visual_cues:
+          - id: replay-first
+            phrase: appends one deployment
+            targets:
+              - deploy-list
+              - replay-verdict
+            linger: 0.3
+            caption_boundary: true
+      - say: The caller retries the exact request while the grant is still valid. The host verifies it again
+          and finds the completed operation. It returns “already executed.” There is still one entry for
+          payment-service.
+        hold: 0.75
+        visual_cues:
+          - id: replay-same
+            phrase: returns “already executed”
+            targets:
+              - replay-verdict
+              - deploy-list
+            linger: 0.3
+            caption_boundary: true
+      - say: Keep the approval, the engineer and operation forty-two. Change only the proposed artifact to B.
+          Look at the two action hashes. What will the host return this time?
+        hold: 2.2
+        visual_cues:
+          - id: replay-change
+            phrase: Change only the proposed artifact to B
+            targets:
+              - replay-fields
+            linger: 0.3
+            caption_boundary: true
+          - id: replay-predict
+            phrase: What will the host return this time
+            targets:
+              - replay-verdict
+              - replay-fields
+            linger: 0.3
+            caption_boundary: true
+      - say: It denies the changed action. The approval binds the action hash for A. The host compares that
+          hash with the one for B before it looks up the completed operation. The original deployment
+          stays in the list.
+        hold: 0.9
+        visual_cues:
+          - id: replay-changed
+            phrase: denies the changed action
+            targets:
+              - replay-verdict
+              - deploy-list
+            linger: 0.3
+            caption_boundary: true
+      - say: Put A back and try operation forty-three. The hashes match again, but the approval was consumed
+          by forty-two. The host denies reuse for a different operation.
+        hold: 0.65
+        visual_cues:
+          - id: replay-used
+            phrase: denies reuse for a different operation
+            targets:
+              - replay-fields
+              - replay-verdict
+            linger: 0.3
+            caption_boundary: true
+      - say: Return to the exact original operation and advance the clock to the grant’s expiry. The replay is
+          denied because the approval has expired. A completed operation still needs current
+          authorization under this replay policy.
+        hold: 0.7
+        visual_cues:
+          - id: replay-expired
+            phrase: replay is denied because the approval has expired
+            targets:
+              - replay-fields
+              - replay-verdict
+            linger: 0.3
+            caption_boundary: true
+      - say: This list lives in one process. It can disappear in a crash. To make a remote retry safe, we need
+          a record that survives the caller and a way to learn what the executor did.
+        hold: 0.85
+        visual_cues:
+          - id: replay-limit
+            phrase: record that survives the caller
+            targets:
+              - deploy-list
+              - replay-verdict
+            linger: 0.3
+            caption_boundary: true
+  - id: approval-atomic
+    title: How can the host retry a deployment safely?
+    visual: Two workers contend for one durable operation reservation; a lost response produces an unknown outcome
+      instead of an invented failure.
+    beats:
+      - say: Two workers read the same approval. Both see that it’s unused. Give just one worker the right to
+          start by making a single atomic reservation. Store it durably with the scoped operation ID and
+          approved payload, and enforce uniqueness. If the deployment and its record share a transactional
+          system, commit them together. What if a separate service runs the deployment?
+        hold: 0.75
+        visual_cues:
+          - id: approval-atomic-race
+            phrase: Both see that it’s unused
+            targets:
+              - atomic-race
+            linger: 0.45
+          - id: approval-atomic-reserve
+            phrase: atomic reservation
+            targets:
+              - atomic-reservation
+            linger: 0.45
+      - say: When the executor supports idempotency keys, send the same key and payload on each retry.
+          Suppose the deployment starts and its reply gets lost. The caller times out. Record the outcome as
+          unknown. Ask the executor what happened before deciding whether its retry contract lets you send
+          the request again.
+        hold: 0.75
+        visual_cues:
+          - id: approval-atomic-timeout
+            phrase: outcome as unknown
+            targets:
+              - atomic-unknown
+            linger: 0.45
+          - id: approval-atomic-reconcile
+            phrase: Ask the executor what happened
+            targets:
+              - atomic-reconcile
+            linger: 0.45
+  - id: schema-mask
+    title: Structural legality and authority answer different questions
+    visual: A next-token choice set loses schema-illegal branches while a valid unauthorized deployment remains in
+      the surviving set.
+    beats:
+      - say: "Constrained decoding can mask tokens that cannot continue a supported output grammar or schema. Trace
+          the next-token set: an illegal field or value structure loses its branch before sampling. A
+          completed object still needs parsing and validation under the supported schema contract; refusals,
+          incomplete outputs and unsupported schema features need explicit handling."
+        hold: 0.75
+        visual_cues:
+          - id: schema-mask-mask
+            phrase: loses its branch before sampling
+            targets:
+              - schema-choices
+            linger: 0.45
+          - id: schema-mask-parse
+            phrase: still needs parsing and validation
+            targets:
+              - schema-parse
+            linger: 0.45
+      - say: A schema-valid object can request a forbidden target, contain an unsupported claim or carry a fabricated
+          approval ID. Shape checks narrow possible representations. Trusted authorization decides whether the
+          particular actor may perform the particular effect. Required citation fields likewise do not
+          demonstrate that their cited passages support the answer.
+        hold: 0.75
+        visual_cues:
+          - id: schema-mask-valid
+            phrase: A schema-valid object
+            targets:
+              - schema-valid
+            linger: 0.45
+          - id: schema-mask-authority
+            phrase: Trusted authorization decides
+            targets:
+              - schema-authority
+            linger: 0.45
+  - id: untrusted-observations
+    title: What did the connector authenticate?
+    visual: A retrieved runbook supplies a rollback fact. A margin note asking to publish a draft stays on
+      the document side of the host’s permission check.
+    beats:
+      - say: The connector signed in to the runbook repository. What came back remains evidence data. One line
+          says rollback requires manager approval. A margin note asks to publish a draft. Keep the
+          rollback condition as evidence. A document author cannot give the assistant a publishing
+          permission by writing a note.
+        hold: 0.75
+        visual_cues:
+          - id: untrusted-observations-evidence
+            phrase: remains evidence data
+            targets:
+              - observation-source
+            linger: 0.45
+          - id: untrusted-observations-attack
+            phrase: publish a draft
+            targets:
+              - observation-command
+            linger: 0.45
+      - say: Escaping a closing tag keeps the document inside its field. It does not create an
+          instruction-proof parser in the model. The host decides which tools the session may call. A
+          read-only session leaves the draft unpublished. Secret export has its own rule here. The host
+          denies it even with approval when policy forbids it.
+        hold: 0.75
+        visual_cues:
+          - id: untrusted-observations-escape
+            phrase: does not create an instruction-proof parser
+            targets:
+              - observation-escape
+            linger: 0.45
+          - id: untrusted-observations-deny
+            phrase: policy forbids it
+            targets:
+              - observation-denied
+            linger: 0.45
+  - id: canary-stream
+    title: How much of a stream should the matcher remember?
+    visual: A private buffer accumulates the letters of BLUE. The final letter completes the match and the suffix LUE carries forward.
+    beats:
+      - say: Plant the word BLUE in a test draft. We want the reviewer to catch it before the draft reaches
+          chat. The letters arrive one at a time. Watch the buffer keep B, then L, then U. What happens
+          when E arrives?
+        hold: 1.65
+        visual_cues:
+          - id: canary-stream-marker
+            phrase: the word BLUE
+            targets: [canary-bytes]
+            linger: 0.3
+          - id: canary-stream-b
+            phrase: keep B
+            targets: [canary-chunks]
+            linger: 0.3
+          - id: canary-stream-l
+            phrase: then L
+            targets: [canary-chunks]
+            linger: 0.3
+          - id: canary-stream-u
+            phrase: then U
+            targets: [canary-chunks]
+            linger: 0.3
+      - say: The E completes the match. To recognize a four-letter marker across chunks, carry the last
+          three letters into the next check. For an eighteen-character marker, keep seventeen. The next
+          character could finish a match that began seventeen characters back.
+        hold: 0.75
+        visual_cues:
+          - id: canary-stream-join
+            phrase: The E completes the match
+            targets: [canary-chunks, canary-results]
+            linger: 0.3
+            caption_boundary: true
+          - id: canary-stream-overlap
+            phrase: carry the last three letters
+            targets: [canary-overlap]
+            linger: 0.3
+      - say: Finding BLUE tells us the test marker reached this private buffer. Keep the draft private through
+          the required review. If a real credential reached a user, restrict access to the evidence, revoke
+          or rotate that credential, and repair the path that exposed it.
+        hold: 0.75
+        visual_cues:
+          - id: canary-stream-incident
+            phrase: If a real credential reached a user
+            targets: [canary-scope]
+            linger: 0.3
+  - id: minimize-data
+    title: What does the remote reviewer receive?
+    visual: The host keeps the original incident note. A working copy replaces the email and phone, then
+      crosses into the remote classifier inbox with its incident context intact.
+    beats:
+      - say: Incident twenty forty-eight needs follow-up. The local team can use the contact details. The
+          remote classifier is allowed to review the incident text, including its number. It has no use
+          for Alice’s address or phone. Which fields belong in the copy we send?
+        hold: 1.7
+        visual_cues:
+          - id: minimize-record
+            phrase: use the contact details
+            targets:
+              - local-message
+            linger: 0.3
+            caption_boundary: true
+          - id: minimize-question
+            phrase: Which fields belong in the copy we send
+            targets:
+              - privacy-question
+              - outgoing-message
+            linger: 0.3
+            caption_boundary: true
+      - say: Keep the incident number and the request for follow-up. On the outgoing copy, replace the email
+          with an email label. Replace the phone number with a phone label. The original stays with the
+          team allowed to contact Alice.
+        hold: 0.9
+        visual_cues:
+          - id: minimize-email
+            phrase: replace the email with an email label
+            targets:
+              - outgoing-message
+            linger: 0.3
+            caption_boundary: true
+          - id: minimize-phone
+            phrase: Replace the phone number with a phone label
+            targets:
+              - outgoing-message
+            linger: 0.3
+            caption_boundary: true
+        motion_check:
+          region:
+            - 980
+            - 293
+            - 835
+            - 270
+          minimumChangedFraction: 0.002
+      - say: Now send the minimized note across the boundary. The classifier can still tell which incident
+          needs attention. These two replacements cover the formats in this example. Check names,
+          addresses, credentials and other phone formats separately, and restrict how long the host
+          keeps the original.
+        hold: 0.8
+        visual_cues:
+          - id: minimize-send
+            phrase: send the minimized note across the boundary
+            targets:
+              - outgoing-message
+            linger: 0.3
+            caption_boundary: true
+  - id: sensitive-formats
+    title: Match each recognizer to the kind of value
+    visual: Contact spans, a person name, a card checksum and an invented vendor-token pattern retain their
+      positions while recognizer coverage changes.
+    beats:
+      - say: The minimizer keeps incident identifier INC twenty forty-eight. It recognizes the email and
+          phone number by their formats. A person’s name or street address usually needs context. A US
+          Social Security number has rules about valid ranges. The card number has a checksum you can test
+          with Luhn.
+        hold: 0.75
+        visual_cues:
+          - id: sensitive-formats-incident
+            phrase: keeps incident identifier
+            targets:
+              - sensitive-spans
+            linger: 0.45
+          - id: sensitive-formats-types
+            phrase: test with Luhn
+            targets:
+              - sensitive-types
+            linger: 0.45
+      - say: A credential can grant access even when it contains no personal details. Here the first
+          recognizer matches an invented Slack demo format. The second covers a classic GitHub token.
+          Now the service adds a build token. Until you’ve tested a recognizer for that format, keep the
+          token on the host.
+        hold: 0.75
+        visual_cues:
+          - id: sensitive-formats-token
+            phrase: invented Slack demo format
+            targets:
+              - sensitive-token
+            linger: 0.45
+          - id: sensitive-formats-miss
+            phrase: keep the token on the host
+            targets:
+              - sensitive-miss
+            linger: 0.45
+      - say: When you redact several fields using their original positions, replace them from right to left.
+          Shortening the phone number leaves the email exactly where the recognizer found it. With Presidio,
+          configure the recognizers and language engine your data needs, then evaluate their results on
+          reviewed examples.
+        hold: 0.75
+        visual_cues:
+          - id: sensitive-formats-reverse
+            phrase: replace them from right to left
+            targets:
+              - sensitive-offsets
+            linger: 0.45
+          - id: sensitive-formats-path
+            phrase: evaluate their results
+            targets:
+              - sensitive-path
+            linger: 0.45
+  - id: claim-agreement
+    title: How often do the answers agree?
+    visual: Persistent claim IDs occupy three set rows; exact intersection and union counts are contrasted with
+      three identical unsupported answers.
+    beats:
+      - say: Three answers name conditions for restoring API access. Give each distinct claim an ID. How
+          much do the answers agree? Count the IDs that appear in every answer and divide by the number of
+          distinct IDs across all the answers. You need at least two answers and one claim to get a score.
+        hold: 0.75
+        visual_cues:
+          - id: claim-agreement-sets
+            phrase: each distinct claim an ID
+            targets:
+              - agreement-sets
+            linger: 0.45
+          - id: claim-agreement-ratio
+            phrase: IDs that appear in every answer
+            targets:
+              - agreement-ratio
+            linger: 0.45
+      - say: Line up the matching claims. Two answers mention a manager. One adds a freeze condition. The
+          third names a security admin. Three distinct claims, and none appears in every answer. Zero
+          divided by three is zero. Could both approvals be required? The runbook is where we can check.
+        hold: 0.75
+        visual_cues:
+          - id: claim-agreement-align
+            phrase: Line up the matching claims
+            targets: [agreement-sets]
+            linger: 0.3
+          - id: claim-agreement-zero
+            phrase: Zero divided by three is zero
+            targets:
+              - agreement-ratio
+            linger: 0.45
+          - id: claim-agreement-meaning
+            phrase: Could both approvals be required
+            targets:
+              - agreement-scope
+            linger: 0.45
+      - say: Try the same calculation on a different question. How long is the rollback window? All three
+          answers say two hours. One claim appears in every row, so one divided by one gives perfect
+          agreement. We still need the rollback window in the runbook. Let’s look it up.
+        hold: 0.75
+        visual_cues:
+          - id: claim-agreement-repeat
+            phrase: one divided by one gives perfect agreement
+            targets:
+              - agreement-repeated
+            linger: 0.45
+          - id: claim-agreement-source
+            phrase: rollback window in the runbook
+            targets:
+              - agreement-source
+            linger: 0.45
+  - id: evidence-verdict
+    title: What does the runbook support?
+    visual: The runbook stays above the claims. The viewer checks two durations, looks for an on-call schedule, then tests what the word “alone” adds to the approval claim.
+    beats:
+      - say: Open the runbook. Restoring production API access requires manager approval. That first claim
+          follows directly from the text. We call it entailed. Now compare the rollback windows.
+          The draft says two hours. The runbook says thirty minutes. That’s a contradiction. What about
+          the weekly on-call rotation? The runbook gives no schedule, so that claim is neutral.
+        hold: 0.75
+        visual_cues:
+          - id: evidence-verdict-premise
+            phrase: Open the runbook
+            targets: [evidence-premise]
+            linger: 0.3
+          - id: evidence-verdict-entailed
+            phrase: We call it entailed
+            targets: [evidence-premise, evidence-verdict-entailed-row]
+            linger: 0.3
+            caption_boundary: true
+          - id: evidence-verdict-contradiction
+            phrase: That’s a contradiction
+            targets: [evidence-premise, evidence-verdict-contradiction-row]
+            linger: 0.3
+            caption_boundary: true
+          - id: evidence-verdict-neutral
+            phrase: so that claim is neutral
+            targets: [evidence-premise, evidence-verdict-neutral-row]
+            linger: 0.3
+            caption_boundary: true
+      - say: Look at the word “alone” in the new draft. The runbook names one requirement. It leaves open
+          what else the engineer might need, so this stronger claim is unsupported. We labeled the first three
+          comparisons by hand. If the source or claim is missing, or the checker sees an unfamiliar pair,
+          hold the answer for review.
+        hold: 0.75
+        visual_cues:
+          - id: evidence-verdict-direction
+            phrase: this stronger claim is unsupported
+            targets: [evidence-premise, evidence-logic]
+            linger: 0.3
+            caption_boundary: true
+          - id: evidence-verdict-unknown
+            phrase: If the source or claim is missing
+            targets: [evidence-empty]
+            linger: 0.3
+      - say: A natural language inference model reads the claim and passage together. Keep the exact passage,
+          source ID, version and access scope with its verdict. Calibrate its scores on reviewed examples
+          from your application. Across eleven datasets, the TRUE study found that inference and question
+          answering caught different errors. Check that long inputs preserve the decisive words and that the
+          reference labels fit the task.
+        hold: 0.75
+        visual_cues:
+          - id: evidence-verdict-retain
+            phrase: Keep the exact passage
+            targets: [evidence-receipt]
+            linger: 0.3
+          - id: evidence-verdict-limits
+            phrase: Across eleven datasets
+            targets: [evidence-scope]
+            linger: 0.3
+  - id: retrieval-proof
+    title: Retrieval must first supply evidence the caller may use
+    visual: A material rollback claim creates a source lookup; missing, unauthorized, conflicting and sufficient
+      spans enter separate evidence states.
+    beats:
+      - say: Retrieval-augmented verification starts by finding material claim evidence in sources the caller is
+          permitted to access. A high similarity score or a citation string does not establish support.
+          Inspect the returned passage against the claim and its time-sensitive scope. A missing source, a
+          conflicting version or an unauthorized passage must remain visible in the verification outcome.
+        hold: 0.75
+        visual_cues:
+          - id: retrieval-proof-retrieve
+            phrase: sources the caller is permitted
+            targets:
+              - retrieval-access
+            linger: 0.45
+          - id: retrieval-proof-compare
+            phrase: returned passage against the claim
+            targets:
+              - retrieval-pair
+            linger: 0.45
+      - say: An answer can cite an accessible runbook while adding a condition or threshold that the runbook never
+          states. Record support at the claim level, and remove, revise, abstain or escalate according to
+          policy when required support is absent. Agreement among sampled answers cannot fill an empty source
+          slot, and the verifier must not manufacture a clean pass from an empty list of extracted claims.
+        hold: 0.75
+        visual_cues:
+          - id: retrieval-proof-missing
+            phrase: cannot fill an empty source slot
+            targets:
+              - retrieval-missing
+            linger: 0.45
+          - id: retrieval-proof-outcome
+            phrase: remove, revise, abstain or escalate
+            targets:
+              - retrieval-outcome
+            linger: 0.45
+  - id: policy-snapshot
+    title: Two requests on the same score scale
+    visual: Both requests receive the same injection signal. A validated reload moves the threshold for
+      the second request while the first keeps its captured threshold.
+    beats:
+      - say: Suppose the local detector reports an injection label. Revision seven sets the threshold at
+          point eight. The team can change that rule separately from the model. Watch which revision
+          each request captures on arrival.
+        hold: 0.6
+        visual_cues:
+          - id: policy-snapshot-b1-1
+            phrase: change that rule separately from the model
+            targets:
+              - active-policy
+            linger: 0.3
+            caption_boundary: true
+      - say: The first request captures revision seven. It gets a score of point nine one. That lands to the
+          right of its point eight threshold, so the first request blocks.
+        hold: 0.75
+        visual_cues:
+          - id: policy-snapshot-b2-1
+            phrase: captures revision seven
+            targets:
+              - first-policy
+            linger: 0.3
+            caption_boundary: true
+          - id: sg-policy-score
+            phrase: score of point nine one
+            targets:
+              - first-policy
+            linger: 0.3
+            caption_boundary: true
+          - id: policy-snapshot-b2-2
+            phrase: the first request blocks
+            targets:
+              - first-policy
+            linger: 0.3
+            caption_boundary: true
+      - say: Now a validated reload raises the threshold to point nine nine. The next request captures
+          revision eight and gets the same score. Compare the yellow marks. Which request can continue
+          past this filter?
+        hold: 2.1
+        visual_cues:
+          - id: sg-policy-reload
+            phrase: raises the threshold to point nine nine
+            targets:
+              - active-policy
+            linger: 0.3
+            caption_boundary: true
+          - id: sg-policy-newrequest
+            phrase: captures revision eight and gets the same score
+            targets:
+              - second-policy
+            linger: 0.3
+            caption_boundary: true
+          - id: policy-predict
+            phrase: Which request can continue past this filter
+            targets:
+              - first-policy
+              - second-policy
+              - policy-question
+            linger: 0.3
+            caption_boundary: true
+      - say: Only the second request continues. Its score falls below its own threshold. The first request
+          keeps revision seven for its entire check. Either request would still need current
+          authorization before a tool could act.
+        hold: 0.8
+        visual_cues:
+          - id: policy-new-result
+            phrase: Only the second request continues
+            targets:
+              - second-policy
+            linger: 0.3
+            caption_boundary: true
+  - id: policy-reload
+    title: Validate a candidate before publishing its snapshot
+    visual: Two policy fragments have the same threshold and different text hashes. The loader retains the active revision when a replacement fails validation.
+    beats:
+      - say: Look at the two threshold settings. Both say point eight. The loader accepts up to sixty-five
+          thousand five hundred thirty-six decoded characters, rejects duplicate object keys, and validates
+          the fields, actions and thresholds. It hashes the exact text it parsed. Add spaces and the digest
+          changes, even though the threshold stays the same.
+        hold: 0.75
+        visual_cues:
+          - id: policy-reload-validate
+            phrase: rejects duplicate object keys
+            targets:
+              - policy-validation
+            linger: 0.45
+          - id: policy-reload-hash
+            phrase: Add spaces and the digest changes
+            targets:
+              - policy-hash
+            linger: 0.45
+      - say: At startup, the loader needs a valid policy to begin serving requests. During a reload it
+          already has one. If the replacement is invalid, missing or unreadable, the loader keeps the last
+          validated policy. Each request gets a deep copy of its rules. Later reloads leave that copy
+          intact. The copy itself is editable. Concurrent workers also need a coordinated switch to the new
+          revision.
+        hold: 0.75
+        visual_cues:
+          - id: policy-reload-retain
+            phrase: keeps the last validated policy
+            targets:
+              - policy-active
+            linger: 0.45
+          - id: policy-reload-copy
+            phrase: deep copy
+            targets:
+              - policy-copy
+            linger: 0.45
+      - say: Here the host routes an unknown read signal to block. A privileged request with an unknown
+          signal goes for approval. Even with a low detector score, the executor checks the operation
+          against its own permissions. This assistant has no permission to export secrets.
+        hold: 0.75
+        visual_cues:
+          - id: policy-reload-unknown
+            phrase: unknown read signal to block
+            targets:
+              - policy-unknown
+            linger: 0.45
+          - id: policy-reload-write
+            phrase: executor checks the operation
+            targets:
+              - policy-write
+            linger: 0.45
+  - id: policy-live-authority
+    title: A pinned content policy does not pin a grant forever
+    visual: A copied detector policy remains fixed while a separate live approval record expires before the
+      execution boundary.
+    beats:
+      - say: The captured detector policy explains one consistent content decision. Authorization has additional live
+          facts. Immediately before the effect, check the authenticated actor, exact operation, approval
+          validity and current revocation state under the execution contract. An old content-policy snapshot
+          cannot extend an approval’s expiry.
+        hold: 0.75
+        visual_cues:
+          - id: policy-live-authority-separate
+            phrase: additional live facts
+            targets:
+              - live-authority
+            linger: 0.45
+          - id: policy-live-authority-expiry
+            phrase: cannot extend an approval’s expiry
+            targets:
+              - live-expiry
+            linger: 0.45
+      - say: Keep the request’s captured detector revision in its decision record, and record which live authority
+          check decided the effect. A reload may change the rule used by the next request while the earlier
+          request remains internally consistent. If the required authority service fails, keep the effect
+          held; a low content-risk score supplies no replacement permission.
+        hold: 0.75
+        visual_cues:
+          - id: policy-live-authority-record
+            phrase: which live authority check
+            targets:
+              - live-record
+            linger: 0.45
+          - id: policy-live-authority-hold
+            phrase: keep the effect held
+            targets:
+              - live-outcome
+            linger: 0.45
+  - id: order-and-latency
+    title: Measure the safety path without moving the gate
+    visual: Required input and output checks sit before their release points; only an explicitly optional factual
+      audit moves to a later review lane.
+    beats:
+      - say: Safety work uses time from the response budget. Measure the actual input checks, model call, output
+          review, queue, and transport on the path users take.
+        hold: 0.55
+        visual_cues:
+          - id: order-and-latency-b1-1
+            phrase: actual input checks
+            targets:
+              - stage-duration
+            linger: 0.45
+      - say: If policy requires review before text release, hold the full draft until that review completes. A later
+          chunk check cannot recall text already displayed.
+        hold: 0.75
+        visual_cues:
+          - id: order-and-latency-b2-1
+            phrase: review completes
+            targets:
+              - output-review
+            linger: 0.45
+      - say: A required deploy authorization stays before the effect even when latency is tight. Only checks
+          explicitly optional under policy can move to later audit.
+        hold: 0.55
+        visual_cues:
+          - id: order-and-latency-b3-1
+            phrase: deploy authorization
+            targets:
+              - effect-authorization
+            linger: 0.45
+  - id: budget-schedule
+    title: When can the remote check start?
+    visual: A fixed millisecond ruler aligns the two local checks. The remote check starts where the
+      redacted incident note first becomes available.
+    beats:
+      - say: Suppose we allocate three seconds to a text response. The four slices pay for input checks,
+          generation, output review and overhead. Together they add up to three thousand milliseconds.
+          To find the actual ninety-fifth percentile, measure complete requests. Adding the four stage
+          percentiles answers a different question.
+        hold: 0.65
+        visual_cues:
+          - id: budget-schedule-sum
+            phrase: add up to three thousand milliseconds
+            targets:
+              - budget-sum
+            linger: 0.3
+            caption_boundary: true
+          - id: budget-schedule-scope
+            phrase: measure complete requests
+            targets:
+              - budget-scope
+            linger: 0.3
+            caption_boundary: true
+      - say: Zoom in on input checks for our incident note. In this example two local checks start together.
+          The input check needs fifteen milliseconds. Redaction needs six. The remote classifier takes
+          eleven milliseconds and can receive only the redacted copy. When can it start, and when will
+          all three checks finish?
+        hold: 2.05
+        visual_cues:
+          - id: budget-local
+            phrase: two local checks start together
+            targets:
+              - local-lanes
+            linger: 0.3
+            caption_boundary: true
+          - id: budget-remote
+            phrase: can receive only the redacted copy
+            targets:
+              - remote-lane
+            linger: 0.3
+            caption_boundary: true
+          - id: budget-predict
+            phrase: When can it start, and when will all three checks finish
+            targets:
+              - budget-clock
+              - local-lanes
+              - remote-lane
+            linger: 0.3
+            caption_boundary: true
+      - say: At six milliseconds the redacted copy is ready. Start the eleven-millisecond remote review now.
+          Watch the top lane. The local input check finishes at fifteen. The remote check needs two more
+          milliseconds, so all checks finish at seventeen milliseconds. A required check stays on the
+          path to release. Only work that policy allows us to defer can move to a later audit.
+        hold: 0.9
+        visual_cues:
+          - id: budget-redacted
+            phrase: At six milliseconds the redacted copy is ready
+            targets:
+              - local-lanes
+              - remote-lane
+            linger: 0.3
+            caption_boundary: true
+          - id: budget-local-done
+            phrase: The local input check finishes at fifteen
+            targets:
+              - local-lanes
+              - remote-lane
+            linger: 0.3
+            caption_boundary: true
+          - id: budget-answer
+            phrase: all checks finish at seventeen milliseconds
+            targets:
+              - budget-clock
+              - remote-lane
+            linger: 0.3
+            caption_boundary: true
+  - id: streaming-contract
+    title: Generation and release need separate clocks
+    visual: The first generated token remains inside a buffer through full-response review, while an explicitly
+      separate stream-first path leaks before its late verdict.
+    beats:
+      - say: Holding a whole response means the user’s first visible token arrives after full generation and required
+          review. A generation-time first-token measurement is a different clock. Chunk-only checks can miss a
+          split marker or a claim whose meaning depends on neighboring chunks. Even a later correct block
+          cannot retract an earlier displayed secret.
+        hold: 0.75
+        visual_cues:
+          - id: streaming-contract-buffer
+            phrase: after full generation and required review
+            targets:
+              - stream-release
+            linger: 0.45
+          - id: streaming-contract-leak
+            phrase: cannot retract an earlier displayed secret
+            targets:
+              - stream-leak
+            linger: 0.45
+      - say: Read the actual framework configuration. NeMo output streaming is disabled by default in the inspected
+          schema; when enabled, its stream-first option defaults true, allowing output before the guard
+          decision. Configure and test a required hold mode explicitly. The inspected OpenAI integrated
+          streaming moderation contract also returns moderation scores after the full output, rather than a
+          verdict on each partial delta.
+        hold: 0.75
+        visual_cues:
+          - id: streaming-contract-config
+            phrase: stream-first option defaults true
+            targets:
+              - stream-config
+            linger: 0.45
+          - id: streaming-contract-test
+            phrase: test a required hold mode
+            targets:
+              - stream-hold
+            linger: 0.45
+  - id: async-deadline
+    title: One deadline covers the complete guarded response
+    visual: The actual async fixture traces input failure and output timeout, conserving model-call count and
+      held-draft identity across cancellation.
+    beats:
+      - say: Input review, generation and output review share one three-second deadline. Before the host
+          sends a reply, it checks the guard result and the type of the sanitized text. A detector error
+          returns the unavailable message. Running out of time returns the deadline message.
+        hold: 0.75
+        visual_cues:
+          - id: async-deadline-deadline
+            phrase: one three-second deadline
+            targets:
+              - async-clock
+            linger: 0.45
+          - id: async-deadline-type
+            phrase: the type of the sanitized text
+            targets:
+              - async-result
+            linger: 0.45
+      - say: Count the model calls in these two tests. First the input check fails. Zero calls. Now the
+          output check times out. The model ran once. The caller gets the deadline message and the draft
+          stays private.
+        hold: 0.75
+        visual_cues:
+          - id: async-deadline-zero
+            phrase: Zero calls
+            targets:
+              - async-count
+            linger: 0.45
+          - id: async-deadline-one
+            phrase: The model ran once
+            targets:
+              - async-count
+            linger: 0.45
+          - id: async-deadline-held
+            phrase: the draft stays private
+            targets:
+              - async-release
+            linger: 0.45
+      - say: Python cancellation is cooperative. The waiting task receives CancelledError, which passes
+          through an ordinary Exception handler. Follow the lower track. A blocking thread or a remote
+          service that already accepted the work can keep running. Check with the executor to learn what
+          actually happened.
+        hold: 0.75
+        visual_cues:
+          - id: async-deadline-cancel
+            phrase: cancellation is cooperative
+            targets:
+              - async-cancel
+            linger: 0.45
+          - id: async-deadline-effect
+            phrase: Check with the executor
+            targets:
+              - async-scope
+            linger: 0.45
+  - id: model-taxonomy
+    title: Choose a detector for the actual task and modality
+    visual: Input-attack, content-hazard, image and groundedness tasks occupy distinct model contracts; package
+      wrappers remain distinct from their configured detectors.
+    beats:
+      - say: Both Prompt Guard Two models check text for prompt injection. Each block of this support message
+          represents sixty-four input tokens. One window fits eight blocks. That leaves four blocks still
+          to review. The published timings on the card come from an A one hundred. Measure your whole
+          request, including the time to review the rest of the message.
+        hold: 0.75
+        visual_cues:
+          - id: model-taxonomy-input
+            phrase: check text for prompt injection
+            targets:
+              - models-input
+            linger: 0.45
+          - id: model-taxonomy-timing
+            phrase: One window fits eight blocks
+            targets:
+              - models-timing
+            linger: 0.45
+      - say: Now the user attaches a screenshot. Llama Guard Four can check text and multiple images.
+          Granite Guardian can check harm and, for a retrieved answer, whether the passage is relevant,
+          whether it supports the answer, and whether the answer addresses the question. For an image by
+          itself, ShieldGemma Two is an image-content model. Match each check to the input and the question
+          you need answered.
+        hold: 0.75
+        visual_cues:
+          - id: model-taxonomy-tasks
+            phrase: check text and multiple images
+            targets:
+              - models-tasks
+            linger: 0.45
+          - id: model-taxonomy-image
+            phrase: image-content model
+            targets:
+              - models-image
+            linger: 0.45
+      - say: Look at the model card, too. The Protect AI example uses an archived English-oriented model
+          and limits its input to five hundred twelve tokens. Now consider a moderation API that accepts
+          images. Some categories in the OpenAI example apply only to text. For an image alone, those
+          categories return zero. Mark them as unevaluated. When the model changes, check the scores
+          against your policy again.
+        hold: 0.75
+        visual_cues:
+          - id: model-taxonomy-archived
+            phrase: archived English-oriented model
+            targets:
+              - models-maintenance
+            linger: 0.45
+          - id: model-taxonomy-zero
+            phrase: Mark them as unevaluated
+            targets:
+              - models-unsupported
+            linger: 0.45
+      - say: A framework lets you put these checks together. Guardrails AI composes validators. NeMo lets
+          you configure checks at several points, and Presidio runs privacy recognizers. Use a schema
+          library for structure. Pin the versions, templates and thresholds, then run each configuration on
+          the same reviewed workload. How many safe requests did it block? How many harmful requests got
+          through? Compare latency and cost alongside those counts.
+        hold: 0.75
+        visual_cues:
+          - id: model-taxonomy-framework
+            phrase: put these checks together
+            targets:
+              - models-framework
+            linger: 0.45
+          - id: model-taxonomy-measure
+            phrase: same reviewed workload
+            targets:
+              - models-evaluation
+            linger: 0.45
+  - id: measure-errors
+    title: Which requests reach the reviewer?
+    visual: Two labeled populations give the false-positive and false-negative rates. The blocked requests
+      regroup on a common scale to show what a reviewer actually gets.
+    beats:
+      - say: Imagine you review the requests this detector blocks. First we need labeled examples from the
+          workload. On the left are ten thousand safe requests. On the right are one hundred harmful
+          ones. Each square on the left stands for a hundred requests. On the right it stands for one.
+        hold: 0.55
+        visual_cues:
+          - id: measure-errors-b1-1
+            phrase: labeled examples
+            targets:
+              - labeled-populations
+            linger: 0.45
+      - say: In this example, one hundred of ten thousand labeled safe requests are blocked. That gives a one
+          percent false-positive rate. On the other side, ninety of one hundred labeled harmful requests
+          are blocked. Ten harmful requests escape. Divide those ten misses by the hundred harmful
+          requests for a ten percent false-negative rate.
+        hold: 0.75
+        visual_cues:
+          - id: measure-errors-b2-1
+            phrase: false-positive rate
+            targets:
+              - false-positive-rate
+            linger: 0.45
+          - id: measure-errors-b2-2
+            phrase: false-negative rate
+            targets:
+              - false-negative-rate
+            linger: 0.45
+          - id: sg-metrics-safe
+            phrase: one hundred of ten thousand labeled safe requests are blocked
+            targets:
+              - labeled-populations
+            linger: 0.45
+          - id: sg-metrics-harmful
+            phrase: ninety of one hundred labeled harmful requests are blocked
+            targets:
+              - labeled-populations
+            linger: 0.45
+          - id: sg-metrics-escape
+            phrase: Ten harmful requests escape
+            targets:
+              - labeled-populations
+            linger: 0.45
+          - id: sg-metrics-fpr
+            phrase: one percent false-positive rate
+            targets:
+              - false-positive-rate
+            linger: 0.45
+          - id: sg-metrics-fnr
+            phrase: ten percent false-negative rate
+            targets:
+              - false-negative-rate
+            linger: 0.45
+      - say: Now build the reviewer’s queue. Bring the ninety harmful blocks alongside the hundred safe
+          blocks. Each bar uses the same scale. Pick one blocked request at random. What is the chance
+          it is harmful?
+        hold: 2.1
+        visual_cues:
+          - id: measure-errors-b3-1
+            phrase: Bring the ninety harmful blocks alongside the hundred safe blocks
+            targets:
+              - blocked-harmful
+              - blocked-safe
+            linger: 0.3
+            caption_boundary: true
+          - id: measure-predict
+            phrase: What is the chance it is harmful
+            targets:
+              - blocked-precision
+            linger: 0.3
+            caption_boundary: true
+      - say: Ninety of the hundred and ninety blocks are harmful. That’s forty-seven point four percent. The
+          other hundred are safe requests the reviewer still has to inspect. Change the mix of traffic
+          and that share can move, even if the two error rates stay the same.
+        hold: 0.7
+        visual_cues:
+          - id: measure-errors-b3-2
+            phrase: forty-seven point four percent
+            targets:
+              - blocked-precision
+            linger: 0.3
+            caption_boundary: true
+  - id: prevalence-shift
+    title: The blocked pool depends on how common harm is
+    visual: The same false-positive and true-positive rates act on a changed labeled population; equal-unit
+      blocked bars expose the precision consequence.
+    beats:
+      - say: Keep the detector’s error rates fixed and change the traffic. In one hundred thousand requests,
+          suppose just a hundred are harmful. One percent of the safe requests and ninety percent of the
+          harmful ones get blocked. That puts nine hundred ninety-nine safe and ninety harmful requests in
+          the review queue. Divide safe blocks by harmful blocks. That’s eleven point one false alarms for
+          each harmful request we catch.
+        hold: 0.75
+        visual_cues:
+          - id: prevalence-shift-population
+            phrase: one hundred thousand requests
+            targets:
+              - prevalence-population
+            linger: 0.45
+          - id: prevalence-shift-counts
+            phrase: nine hundred ninety-nine safe and ninety harmful
+            targets:
+              - prevalence-blocked
+            linger: 0.45
+          - id: prevalence-shift-ratio
+            phrase: eleven point one
+            targets:
+              - prevalence-ratio
+            linger: 0.45
+      - say: If you review this queue, most of your time goes to safe requests. To measure precision, count
+          how many blocked requests are harmful. Divide by the total number of requests in the queue. For the
+          false-positive rate, start with all labeled safe requests. For the false-negative rate, start with all labeled
+          harmful requests. Appeals can flag mistakes. Estimate those rates from a representative sample of
+          both blocked and allowed traffic, and track the cost and latency of each check.
+        hold: 0.75
+        visual_cues:
+          - id: prevalence-shift-denominators
+            phrase: start with all labeled safe requests
+            targets:
+              - prevalence-metrics
+            linger: 0.45
+  - id: decision-records
+    title: Two receipts for the same draft
+    visual: Two read-only requests generate the same draft. One reaches chat after review. The other times
+      out and sends a fallback. Its receipt records the boundary decision.
+    beats:
+      - say: In this example, two engineers ask whether the tests passed. Each request generates the same
+          private draft. For the first request, the required output check passes in eighteen
+          milliseconds. The reviewed reply reaches chat.
+        hold: 0.8
+        visual_cues:
+          - id: record-first
+            phrase: passes in eighteen milliseconds
+            targets:
+              - trace-pass
+            linger: 0.3
+            caption_boundary: true
+          - id: record-deliver
+            phrase: reviewed reply reaches chat
+            targets:
+              - trace-pass
+            linger: 0.3
+            caption_boundary: true
+      - say: Run the second request with the same draft. This time the required check times out at fifty
+          milliseconds. Look at the empty chat on that row. What should the host send?
+        hold: 2.05
+        visual_cues:
+          - id: record-timeout
+            phrase: times out at fifty milliseconds
+            targets:
+              - trace-timeout
+            linger: 0.3
+            caption_boundary: true
+          - id: record-ask
+            phrase: What should the host send
+            targets:
+              - trace-timeout
+              - decision-event
+            linger: 0.3
+            caption_boundary: true
+      - say: Send the reviewed fallback. “Review unavailable. Try again.” The draft stays private. A missing
+          score or detector error also leaves a required check unfinished. A required authorization
+          failure before dispatch keeps the tool idle.
+        hold: 0.8
+        visual_cues:
+          - id: record-fallback
+            phrase: Review unavailable. Try again
+            targets:
+              - trace-timeout
+            linger: 0.3
+            caption_boundary: true
+      - say: Save the second receipt. Its trace ID, policy revision, detector version, outcome, timing and
+          delivery decision explain what happened. Both engineers asked the same question. A prompt hash
+          would link their records. Store the fields needed for this investigation under its access and
+          retention rules.
+        hold: 0.8
+        visual_cues:
+          - id: record-save
+            phrase: Save the second receipt
+            targets:
+              - decision-event
+            linger: 0.3
+            caption_boundary: true
+  - id: fallback-policy
+    title: Return a scoped alternative without leaking a private draft
+    visual: A required-check failure retains the draft locally while a reviewed fallback offers an admitted
+      read-only action.
+    beats:
+      - say: Graceful degradation follows the declared consequence policy. A benign request can receive a bounded
+          explanation that a required check is unavailable, or an admitted read-only alternative. Do not
+          reveal the private draft, exact evasion thresholds or credentials while explaining a refusal. A
+          deployment remains held until its required authorization succeeds.
+        hold: 0.75
+        visual_cues:
+          - id: fallback-policy-fallback
+            phrase: admitted read-only alternative
+            targets:
+              - fallback-text
+            linger: 0.45
+          - id: fallback-policy-held
+            phrase: deployment remains held
+            targets:
+              - fallback-effect
+            linger: 0.45
+      - say: Test missing scores, timeouts, bad schemas, stale approvals, injected observations, quoted attacks,
+          unsupported facts and formatting variants. Include both unsafe requests that slip through and safe
+          requests that are overblocked. Preserve the real failure evidence and repair the relevant boundary
+          instead of silently disabling its required check to improve a latency or block-rate number.
+        hold: 0.75
+        visual_cues:
+          - id: fallback-policy-cases
+            phrase: both unsafe requests
+            targets:
+              - fallback-tests
+            linger: 0.45
+          - id: fallback-policy-repair
+            phrase: repair the relevant boundary
+            targets:
+              - fallback-repair
+            linger: 0.45
+  - id: governance-logs
+    title: An audit record has a purpose and a retention boundary
+    visual: The incident note produces a three-field event. Two sample request IDs give the same hash for
+      the same test question. The retention rule is scoped to the article’s dated high-risk example.
+    beats:
+      - say: Return to the incident note. The article’s log stores the host’s trace ID, the decision to allow
+          the redacted note, and the policy version. An investigator can add detector versions and
+          needed stage timings under the access rules for that purpose. Now consider our two engineers.
+          Hash their identical question and you get the same digest twice. Someone who can guess the
+          question can also check the guess. Limit access and set retention for those records too.
+        hold: 0.8
+        visual_cues:
+          - id: governance-logs-record
+            phrase: the decision to allow the redacted note, and the policy version
+            targets:
+              - governance-event
+            linger: 0.3
+            caption_boundary: true
+          - id: governance-logs-hash
+            phrase: Hash their identical question and you get the same digest twice
+            targets:
+              - governance-hash
+            linger: 0.3
+            caption_boundary: true
+      - say: How long should a service keep such records? The article gives one dated example. For relevant
+          high-risk systems, the EU AI Act addresses provider and deployer logs under their control. It
+          specifies purpose-appropriate retention of at least six months unless applicable law provides
+          otherwise. The article’s October twenty twenty-six source check places the specified Annex
+          Three rules in December twenty twenty-seven and the Annex One product rules in August twenty
+          twenty-eight. Other duties have their own dates. The NIST risk framework is voluntary
+          guidance. Choose the records for the system and duty that actually apply.
+        hold: 0.8
+        visual_cues:
+          - id: governance-logs-scope
+            phrase: logs under their control
+            targets:
+              - governance-scope
+            linger: 0.3
+            caption_boundary: true
+          - id: governance-logs-retention
+            phrase: at least six months
+            targets:
+              - governance-retention
+            linger: 0.3
+            caption_boundary: true
+          - id: governance-logs-dates
+            phrase: October twenty twenty-six source check
+            targets:
+              - governance-timeline
+            linger: 0.3
+            caption_boundary: true
+  - id: fresh-boundary
+    title: The rollback request
+    visual: One permitted runbook supports part of a private draft. A required review times out and a
+      different artifact reaches the action check. Resolve the chat and deployment outcomes separately.
+    beats:
+      - say: One last request. The team wants a rollback. Their runbook says it requires manager approval and
+          gives a forty-five-minute window. The draft repeats the window and adds that approval alone is
+          enough. The proposed artifact is C. The stored approval covers A. The required output review
+          times out after generation. Which message reaches the caller, and how many deployments run?
+        hold: 2.3
+        visual_cues:
+          - id: fresh-boundary-premises
+            phrase: requires manager approval and gives a forty-five-minute window
+            targets:
+              - fresh-premises
+            linger: 0.3
+            caption_boundary: true
+          - id: fresh-claims
+            phrase: draft repeats the window and adds that approval alone is enough
+            targets:
+              - fresh-support
+            linger: 0.3
+            caption_boundary: true
+          - id: fresh-artifacts
+            phrase: proposed artifact is C. The stored approval covers A
+            targets:
+              - fresh-effect
+            linger: 0.3
+            caption_boundary: true
+          - id: fresh-timeout
+            phrase: required output review times out
+            targets:
+              - fresh-text
+            linger: 0.3
+            caption_boundary: true
+          - id: fresh-boundary-predict
+            phrase: Which message reaches the caller, and how many deployments run
+            targets:
+              - fresh-question
+              - fresh-effect
+              - fresh-fallback
+              - fresh-text
+              - fresh-support
+              - fresh-premises
+            linger: 0.3
+            caption_boundary: true
+      - say: The forty-five-minute claim has support. The runbook requires approval. It never says that
+          approval alone is enough, so the second claim is unsupported. On the tool side, A and C have
+          different action hashes. Zero deployments run. On the text side, the reviewer missed its
+          deadline. The draft stays private.
+        hold: 0.65
+        visual_cues:
+          - id: fresh-boundary-support
+            phrase: forty-five-minute claim has support
+            targets:
+              - fresh-premises
+              - fresh-support
+            linger: 0.3
+            caption_boundary: true
+          - id: fresh-boundary-sufficiency
+            phrase: second claim is unsupported
+            targets:
+              - fresh-support
+            linger: 0.3
+            caption_boundary: true
+          - id: fresh-boundary-effects
+            phrase: Zero deployments run
+            targets:
+              - fresh-effect
+            linger: 0.3
+            caption_boundary: true
+          - id: fresh-boundary-draft
+            phrase: draft stays private
+            targets:
+              - fresh-text
+            linger: 0.3
+            caption_boundary: true
+      - say: The caller gets the reviewed fallback. It reads, “Review unavailable. Try again.” The receipt
+          names the policy, the timeout and the changed action. It explains both decisions without
+          keeping the private conversation. In the next lesson the proposal is runnable code. You’ll
+          decide what a sandbox lets that code touch.
+        hold: 1.05
+        visual_cues:
+          - id: fresh-boundary-fallback
+            phrase: The caller gets the reviewed fallback
+            targets:
+              - fresh-fallback
+            linger: 0.3
+            caption_boundary: true
+          - id: fresh-delivery
+            phrase: It reads, “Review unavailable. Try again.”
+            targets:
+              - fresh-fallback
+            linger: 0.3
+            caption_boundary: true
+          - id: fresh-boundary-record
+            phrase: receipt names the policy, the timeout and the changed action
+            targets:
+              - fresh-record
+            linger: 0.3
+            caption_boundary: true
+          - id: fresh-boundary-final
+            phrase: explains both decisions
+            targets:
+              - fresh-effect
+              - fresh-fallback
+            linger: 0.3
+            caption_boundary: true

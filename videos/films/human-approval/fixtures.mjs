@@ -1,0 +1,105 @@
+export const RELEASE_WINDOW = Object.freeze({ reviewBefore: 200, executeBefore: 220 });
+export const PROPOSAL = Object.freeze({
+  tenant: 'platform',
+  service: 'reranker',
+  version: 3,
+  action: 'promote reranker',
+  model: 'reranker-17',
+  from: 'shadow',
+  to: 'canary',
+  fromTraffic: 0,
+  trafficPercent: 25,
+  revision: 3,
+  evidence: Object.freeze(['run-2026-104', 'eval-881']),
+  operationId: 'op-17',
+});
+export const FRESH_PROPOSAL = Object.freeze({
+  ...PROPOSAL,
+  version: 4,
+  from: 'canary',
+  fromTraffic: 10,
+  revision: 4,
+  evidence: Object.freeze(['run-2026-105', 'eval-882']),
+  operationId: 'op-18',
+});
+export const PRACTICE_PROPOSAL = Object.freeze({
+  ...PROPOSAL,
+  from: 'canary',
+  fromTraffic: 5,
+  trafficPercent: 15,
+  revision: 58,
+  evidence: Object.freeze(['eval-930']),
+  operationId: 'op-58',
+});
+export const EXECUTION_CUES = Object.freeze({
+  claim: 0.27,
+  dispatch: 0.36,
+  apply: 0.65,
+  replyLost: 0.84,
+  timeout: 0.18,
+  query: 0.24,
+  receipt: 0.56,
+});
+export const preparationIntervals = {
+  'choose-review': [14.95, 17.428, 9.982],
+  'durable-pending': [14.854, 11.14, 15.646],
+  'bind-decision': [14.23, 14.38, 13.558],
+};
+export const REVIEW_EXERCISE = Object.freeze(
+  [
+    {
+      id: 'P1',
+      submitted: 0,
+      started: 4,
+      decided: 10,
+      expires: 30,
+      seeded: false,
+      decision: 'approve',
+    },
+    {
+      id: 'P2',
+      submitted: 2,
+      started: 8,
+      decided: 17,
+      expires: 30,
+      seeded: true,
+      decision: 'reject',
+    },
+    {
+      id: 'P3',
+      submitted: 5,
+      started: 9,
+      decided: 14,
+      expires: 30,
+      seeded: true,
+      decision: 'approve',
+    },
+    {
+      id: 'P4',
+      submitted: 7,
+      started: null,
+      decided: null,
+      expires: 20,
+      seeded: false,
+      decision: null,
+    },
+    {
+      id: 'P5',
+      submitted: 10,
+      started: 16,
+      decided: 22,
+      expires: 35,
+      seeded: true,
+      decision: 'reject',
+    },
+    {
+      id: 'P6',
+      submitted: 12,
+      started: 18,
+      decided: 24,
+      expires: 35,
+      seeded: false,
+      decision: 'approve',
+    },
+  ].map(Object.freeze),
+);

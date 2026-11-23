@@ -1,0 +1,654 @@
+[
+  {
+    "id": "c01",
+    "title": "The request at nine o’clock",
+    "sourceChapters": [
+      "c01"
+    ],
+    "beats": [
+      {
+        "id": "c01-b01",
+        "say": "At nine on July first, this access request reached the router. Follow the clock forward. At ten twenty-two, a manager signed the request. Could that signature have helped the router choose a route at nine?",
+        "hold": 2.4
+      },
+      {
+        "id": "c01-b02",
+        "say": "The signature came eighty-two minutes after the decision. Two readings arrived at eight fifty-nine. The request text had high ambiguity, and the user had one prior policy exception. An audit followed on July fifteenth. Which pieces of this finished file could the router read at nine?",
+        "hold": 2.2
+      },
+      {
+        "id": "c01-b03",
+        "say": "Set the audit aside. Wind the clock back from ten twenty-two. As soon as the hands cross the signing time, the signature disappears. Stop at nine. Our example rule sends an ambiguous request with a prior exception to review. Which route will the router record?",
+        "hold": 2.5
+      },
+      {
+        "id": "c01-b04",
+        "say": "Send it to review. Lock that route. Now open the audit for scoring. The auditor found a policy violation and revoked access. In this example the request needed review, so the recorded route matches. What score could we get by feeding that later answer to the router?",
+        "hold": 0.7
+      }
+    ]
+  },
+  {
+    "id": "c02",
+    "title": "Score the same eight requests twice",
+    "sourceChapters": [
+      "c02"
+    ],
+    "beats": [
+      {
+        "id": "c02-b01",
+        "say": "There goes the first red dot, up to review. The next one lands on routine. Keep going across the eight access requests. How many blue rings does the pencil hit?",
+        "hold": 1.5
+      },
+      {
+        "id": "c02-b02",
+        "say": "Eight out of eight. Watch what comes away with the prediction sheet. The rings underneath belong to the auditor. The router traced those later decisions. That’s target leakage.",
+        "hold": 0.65
+      },
+      {
+        "id": "c02-b03",
+        "say": "Slide the cover over the audit. Now replay the moment each request opened. The router had the wording of the request and the policy evidence that came with it. In this batch we call those two readings ambiguity and policy support.",
+        "hold": 0.5
+      },
+      {
+        "id": "c02-b04",
+        "say": "Start with the ambiguity score for the wording. Subtract nine tenths of the policy support. Send a request for review if the result is above zero. Watch the calls go down on a clean sheet.",
+        "hold": 0.6
+      },
+      {
+        "id": "c02-b05",
+        "say": "One request left. Its ambiguity is six tenths and its policy support is one. Six tenths minus nine tenths. Which row gets the dot?",
+        "hold": 2
+      },
+      {
+        "id": "c02-b06",
+        "say": "Routine. The result is below zero. Fix the predictions in place. Now pull the cover away. Look at the two dots on the right.",
+        "hold": 1.7
+      },
+      {
+        "id": "c02-b07",
+        "say": "The first calls for a review the audit says was unnecessary. The next misses a request that needed review. Six of the eight calls match. That’s what the router could do on these requests with the information it had at opening.",
+        "hold": 3
+      },
+      {
+        "id": "c02-b08",
+        "say": "Read the last two requests side by side. Row six has ambiguity of three tenths and no policy support. Its positive margin sent a routine request to review. Row seven has a negative margin and missed a needed review. On a real perfect score, check for duplicate requests, label errors, a small sample, and easy cases. The router chooses a review lane. Mandatory authorization checks still apply.",
+        "hold": 1
+      }
+    ]
+  },
+  {
+    "id": "c03",
+    "title": "Separate fitted error from the target risk",
+    "sourceChapters": [
+      "c03"
+    ],
+    "beats": [
+      {
+        "id": "c03-b01",
+        "say": "Read the losses on these four training requests. Three cost the model zero. The fourth costs it one. Add the losses and divide by four. That average is the fitted model's empirical risk.",
+        "hold": 0.7
+      },
+      {
+        "id": "c03-b02",
+        "say": "The training average is one quarter. Now suppose three quarters of future requests have loss zero and one quarter have loss two. Weight each loss by its probability. The expected loss is one half. That's the population risk.",
+        "hold": 0.3
+      },
+      {
+        "id": "c03-b03",
+        "say": "Subtract the training average and the generalization gap is one quarter. On real traffic, a fresh sample helps us estimate the population risk.",
+        "hold": 0.7
+      },
+      {
+        "id": "c03-b04",
+        "say": "Now change the experiment. Each of four independent draws has a one-in-four chance of a positive label. Try two rules, always zero and always one. Fit whichever makes fewer training errors. Pick zero in a tie. With two positives, how does the training error compare with the population error?",
+        "hold": 2.2
+      },
+      {
+        "id": "c03-b05",
+        "say": "With two positives, it misses half the training cases but only a quarter of the population. That gives the point below zero. Across repeated draws, picking the lowest training error makes it optimistic on average.",
+        "hold": 0.7
+      }
+    ]
+  },
+  {
+    "id": "c04",
+    "title": "Separate fitting, choosing, and reporting",
+    "sourceChapters": [
+      "c04"
+    ],
+    "beats": [
+      {
+        "id": "c04-b01",
+        "say": "Follow candidate A through three jobs. Training fits its parameters and every learned transform. Validation helps choose features, hyperparameters and a decision threshold. Test requests score the frozen candidate under a metric chosen in advance. Find the last point where we can change the threshold.",
+        "hold": 0.6
+      },
+      {
+        "id": "c04-b02",
+        "say": "Imagine fitting on January through June, selecting the threshold in July, and reporting the frozen system on August. July’s labels need to be ready before the August system is locked. A chronological split makes the order visible, while availability checks determine whether the workflow was actually possible.",
+        "hold": 0.6
+      },
+      {
+        "id": "c04-b03",
+        "say": "If August’s errors drive another feature change, August helped design candidate B. Keep the August score with candidate A. Test B on fresh requests.",
+        "hold": 0.75
+      }
+    ]
+  },
+  {
+    "id": "c05",
+    "title": "Refit the pipeline as the held-out role moves",
+    "sourceChapters": [
+      "c05"
+    ],
+    "beats": [
+      {
+        "id": "c05-b01",
+        "say": "Cross-validation rotates the held-out job within development data. In each iteration, fit a fresh model on the other folds and evaluate it on the selected fold. Every held-out prediction comes from a fit that excluded its corresponding validation rows from the training process.",
+        "hold": 0.6
+      },
+      {
+        "id": "c05-b02",
+        "say": "Read the five scores left by those fresh fits. Their mean summarizes this split design. Look at any two training sets. They share three of the five blocks. The spread tells us how much these scores vary across the folds. A population confidence interval needs more information.",
+        "hold": 0.6
+      },
+      {
+        "id": "c05-b03",
+        "say": "Try to distribute three positive cases across five empty folds. Deal one to each of the first three available slots. How many folds still lack a positive? At least two. Stratification tries to preserve class proportions within these integer limits. Time and user boundaries need their own rules. Choose the split to match the claim, then check the label support in each fold.",
+        "hold": 0.75
+      }
+    ]
+  },
+  {
+    "id": "c06",
+    "title": "From a held-out row to a fold score",
+    "sourceChapters": [
+      "c06"
+    ],
+    "beats": [
+      {
+        "id": "c06-b01",
+        "say": "Let's fit one fold. Class zero has observations two and four. Class one has eight and ten. The training mean is six. Subtract six from every value on this ruler. The two blue training points now sit around minus three.",
+        "hold": 0.3
+      },
+      {
+        "id": "c06-b02",
+        "say": "The two pink ones sit around plus three. Our classifier picks the nearer class mean. A tie goes to class zero.",
+        "hold": 0.8
+      },
+      {
+        "id": "c06-b03",
+        "say": "Now place a held-out observation at nine. Subtract the same training mean. It lands at plus three. Which class would you predict?",
+        "hold": 2
+      },
+      {
+        "id": "c06-b04",
+        "say": "Class one. Open the audit for nine and you'll see zero. That's a false positive. Beside it, five is a missed positive. All four predictions were made with the fitted training rule. They give one of each confusion count. Precision and recall are each one half.",
+        "hold": 0.3
+      },
+      {
+        "id": "c06-b05",
+        "say": "F one doubles the true positives and divides by that number plus the false positives and false negatives. Here that's two over four.",
+        "hold": 0.95
+      },
+      {
+        "id": "c06-b06",
+        "say": "Add a second fold containing one request. It needed review and we caught it, so its F one is one. Give each fold equal weight and the mean of one half and one is three quarters. Now pool the predictions.",
+        "hold": 0.3
+      },
+      {
+        "id": "c06-b07",
+        "say": "There are two true positives, one false positive and one miss. Four over six is two thirds. Both summaries use the same predictions. State which one you report. For an average loss per request, weight each fold by its number of requests.",
+        "hold": 1
+      },
+      {
+        "id": "c06-b08",
+        "say": "Here are the five supplied development scores again. Their mean is point seven zero eight. Their sample standard deviation is about point zero nine three. The lowest fold is worth a look. Did its traffic change? How many positives did it contain? Training sets overlap, so this spread alone gives no population confidence interval.",
+        "hold": 0.75
+      },
+      {
+        "id": "c06-b09",
+        "say": "With five equal folds, each fit uses eighty percent of the development rows. With ten, it uses ninety percent. Leave-one-out trains on all but one row and can take one fit per row. Compare two of those fits. Every row except their two held-out rows appears in both.",
+        "hold": 0.3
+      },
+      {
+        "id": "c06-b10",
+        "say": "The resulting variance also depends on the data and the learner. And with just three positive requests, even the best distribution across five folds leaves at least two with none. Stratification can balance proportions. Time and user separation need their own rules.",
+        "hold": 0.8
+      }
+    ]
+  },
+  {
+    "id": "c07",
+    "title": "A repeated person can cross a row boundary",
+    "sourceChapters": [
+      "c07"
+    ],
+    "beats": [
+      {
+        "id": "c07-b01",
+        "say": "Each badge belongs to one user. Each person sends two identical requests with the same review label. File one request per person in training and hold the other for validation. A lookup table remembers the label from the training copy. How well will it do when all eight people return?",
+        "hold": 2
+      },
+      {
+        "id": "c07-b02",
+        "say": "Eight correct. Now keep both requests from each person together. Train on the first four people, then try the other four. The lookup predicts zero for each unknown user. Two of the four new users have label zero, so accuracy falls to one half. The first split measured recognition. This one asks about new users.",
+        "hold": 0.6
+      },
+      {
+        "id": "c07-b03",
+        "say": "Returning users are often a legitimate part of serving traffic, and their earlier history can be useful context. Report new and returning slices when both matter. Dropping an explicit user identifier does not remove other identifying features, and group separation alone does not enforce a future-time boundary.",
+        "hold": 0.75
+      }
+    ]
+  },
+  {
+    "id": "c08",
+    "title": "A transform can peek before the model fits",
+    "sourceChapters": [
+      "c08"
+    ],
+    "beats": [
+      {
+        "id": "c08-b01",
+        "say": "A scaler, imputer, feature selector, or PCA projection learns from data before the final predictor sees it. Fitting that transform on held-out rows crosses an inductive evaluation boundary. The classifier can fit only on training labels and still inherit information from a globally fitted preprocessing step.",
+        "hold": 0.6
+      },
+      {
+        "id": "c08-b02",
+        "say": "Set the ruler using the training partition in each fold. Two, four and six have mean four. Freeze that origin. The held-out value of twenty sits sixteen units above it. The same fit boundary applies to imputation, projections, selected columns and coefficients. A predefined unit conversion has no learned parameter.",
+        "hold": 0.6
+      },
+      {
+        "id": "c08-b03",
+        "say": "Now admit the held-out twenty to the fit. The four values sum to thirty-two. Their mean is eight. The raw observations stay pinned. If we put the origin at eight, what happens to their four centered values?",
+        "hold": 2
+      },
+      {
+        "id": "c08-b04",
+        "say": "Every offset falls by four. Watch the origin slide. The training points now read minus six, minus four and minus two. The held-out point reads twelve. Only the training-only ruler was available before the held-out data arrived. A model with a free intercept can absorb a translation. Next, watch a leaked feature choice change actual predictions.",
+        "hold": 0.75
+      }
+    ]
+  },
+  {
+    "id": "c09",
+    "title": "Where can a label enter the fit?",
+    "sourceChapters": [
+      "c09"
+    ],
+    "beats": [
+      {
+        "id": "c09-b01",
+        "say": "Here the classifier gets just one column. Each row has two candidates, T and L. To choose between them, separate the rows with label one from those with label zero. In each group, count the fraction of ones in the candidate column. Choose the column with the larger absolute difference between those fractions.",
+        "hold": 0.65
+      },
+      {
+        "id": "c09-b02",
+        "say": "Start with the four training rows inside the bracket. For T, both positive rows have a one and neither negative row does. For L, just one of the two positive rows has a one. Which column would you keep?",
+        "hold": 2.1
+      },
+      {
+        "id": "c09-b03",
+        "say": "T wins. Its class means are a full unit apart. L's are only half a unit apart. Freeze T here and the four covered labels can still give us an independent check of this choice.",
+        "hold": 0.75
+      },
+      {
+        "id": "c09-b04",
+        "say": "Now extend the bracket. Let the selector read each held-out label. Watch the fractions as those rows enter. Among the four positive rows, three have L equal to one. Among the negatives, none do. Which column wins this time?",
+        "hold": 2.1
+      },
+      {
+        "id": "c09-b05",
+        "say": "L wins, three quarters to one half. The held-out labels changed a decision before the classifier even started fitting.",
+        "hold": 0.75
+      },
+      {
+        "id": "c09-b06",
+        "say": "Fit both classifiers on the original four training rows. Each predicts whichever class mean is nearer on its chosen column. Compare held rows five and six. Using T, one is a false alarm and the other a miss. Using L reverses both predictions.",
+        "hold": 0.3
+      },
+      {
+        "id": "c09-b07",
+        "say": "The all-row selector gets four out of four on the very labels it used. The training-only selector gets two. Refit the selector inside each training fold and freeze it before scoring. A custom transform that reads the full table can still leak.",
+        "hold": 1.2
+      },
+      {
+        "id": "c09-b08",
+        "say": "Suppose we replace each category with its average target. A appears once. Its target is one, so using A's own row copies the answer into its input. Now cover A's fold. B and D are left. Neither is category A, so we'll use their overall mean. What value goes into A's input?",
+        "hold": 2.2
+      },
+      {
+        "id": "c09-b09",
+        "say": "One half. B contributes one and D contributes zero. We can compute A's input with its target covered. That's cross-fitting. In scikit-learn, the target encoder's fit-transform does this for training rows. Fitting once and transforming those same rows lets A influence its own input.",
+        "hold": 0.3
+      },
+      {
+        "id": "c09-b10",
+        "say": "Use inner splits that respect your time and user boundaries. For a held-out request, apply the mapping learned on the full training partition.",
+        "hold": 0.85
+      }
+    ]
+  },
+  {
+    "id": "c10",
+    "title": "Rehearse the next deployment",
+    "sourceChapters": [
+      "c10"
+    ],
+    "beats": [
+      {
+        "id": "c10-b01",
+        "say": "Turn the development calendar to February. Fit the pipeline on January and February. Latch those two leaves together. Advance to March, then April. Score both months with that same fit. When we reach the end of April, which months supplied the weights and transforms?",
+        "hold": 2
+      },
+      {
+        "id": "c10-b02",
+        "say": "January and February. Now begin the next refit. Extend the training span through April and fit a fresh pipeline. Advance to May, then June. Those are the next two scoring months. Moving the date and refitting at each step is called rolling-origin validation.",
+        "hold": 0.8
+      },
+      {
+        "id": "c10-b03",
+        "say": "Both rehearsals finished inside June. For release, fit the candidate weights and transforms through June. Use July to choose a threshold, then score August with that threshold frozen. If July's audit labels are still pending when you need to freeze, move the reporting window later.",
+        "hold": 0.8
+      },
+      {
+        "id": "c10-b04",
+        "say": "Zoom in on one training candidate. The request opened on June twentieth. Its audit label arrives on August second. Your fit starts on July first. Can you include this request as a labeled training row?",
+        "hold": 2.2
+      },
+      {
+        "id": "c10-b05",
+        "say": "Leave it out of that fit. Knowing the request existed is enough to count prior activity. Learning from its outcome requires the outcome to have arrived. Input features have their own clock too. Let's reconstruct one from the records the router could actually read.",
+        "hold": 0.8
+      }
+    ]
+  },
+  {
+    "id": "c11",
+    "title": "What was available by the cutoff?",
+    "sourceChapters": [
+      "c11"
+    ],
+    "beats": [
+      {
+        "id": "c11-b01",
+        "say": "It's five minutes past midnight on July first. The router counts events from the previous seven days. All three blue dots fall inside that window. If you used just the event timestamps, the count would be three.",
+        "hold": 0.75
+      },
+      {
+        "id": "c11-b02",
+        "say": "Add when the router could read each record. The first two synced a second after their events. The third happened in June but didn't arrive until noon on July first. At five past midnight, how many events could the router count?",
+        "hold": 2.1
+      },
+      {
+        "id": "c11-b03",
+        "say": "Two. The third belongs in the event history, but its value came in after this prediction. Keep its original timestamp and its arrival time. When you rebuild the feature, require both a date inside the window and a record that was readable by the cutoff.",
+        "hold": 0.8
+      },
+      {
+        "id": "c11-b04",
+        "say": "Now consider user two. Their June request has an August audit label. July's model can't learn from that label, but the request already establishes prior activity. If this person returns in July, count them among returning users. Report the genuinely new users separately when both groups matter.",
+        "hold": 0.8
+      },
+      {
+        "id": "c11-b05",
+        "say": "Keep day two, skip day three, and start testing on day twenty. The skipped row sits seventeen days before test. Scikit-learn's time series split counts samples and ignores label dates. Some designs purge training examples whose outcome intervals overlap the test outcomes.",
+        "hold": 0.3
+      },
+      {
+        "id": "c11-b06",
+        "say": "They may also leave a buffer after the test block, called an embargo. Such a design can fit on both sides of the test. To rehearse an actual deployment, use only history available before it.",
+        "hold": 0.85
+      }
+    ]
+  },
+  {
+    "id": "c12",
+    "title": "Protect the evaluator from the selection loop",
+    "sourceChapters": [
+      "c12"
+    ],
+    "beats": [
+      {
+        "id": "c12-b01",
+        "say": "Rule A picks the closer class mean. Rule B always predicts zero. Inside the inner training set, a value of two has label zero. A value of eight has label one. Try the inner validation observations, four and ten. Which rule matches both labels? Keep the outer envelope closed.",
+        "hold": 2
+      },
+      {
+        "id": "c12-b02",
+        "say": "In this inner split, A gets both held-out rows right. B gets one. Choose A and fit it again, this time on all four development rows. Its threshold moves from five to six. In a larger search, inner folds can choose features, hyperparameters and thresholds the same way.",
+        "hold": 0.7
+      },
+      {
+        "id": "c12-b03",
+        "say": "Open the outer labels. A gets two of four right here. Repeat the whole search and refit for each outer fold, keeping the time or user boundaries your task needs. The average scores that procedure at the training sizes you used. If these errors lead you to change A, test the revision on fresh data.",
+        "hold": 0.7
+      }
+    ]
+  },
+  {
+    "id": "c13",
+    "title": "One threshold for August",
+    "sourceChapters": [
+      "c13"
+    ],
+    "beats": [
+      {
+        "id": "c13-b01",
+        "say": "Choose a threshold on six July requests. At or above the cut, a request goes to review. The gold marks show those requests. We want the highest F one. At point three, all three needed reviews and two routine ones qualify. Six over eight gives point seven five.",
+        "hold": 0.8
+      },
+      {
+        "id": "c13-b02",
+        "say": "Raise the threshold to one half. Watch the two routine requests at point three one and point four two drop below the cut. All three needed reviews still qualify. July F one reaches one.",
+        "hold": 0.8
+      },
+      {
+        "id": "c13-b03",
+        "say": "Try point seven. Only one request clears the cut. Two needed reviews drop out, so F one falls to one half. Which threshold would you take into August?",
+        "hold": 2
+      },
+      {
+        "id": "c13-b04",
+        "say": "Freeze the one-half threshold. Its perfect July score helped choose it. We still need to see how it handles fresh requests.",
+        "hold": 0.7
+      },
+      {
+        "id": "c13-b05",
+        "say": "August brings six different scores. Keep the same cut. One request sits just below it, at point four nine. The router processes that one automatically. Record the six decisions before looking at the audit.",
+        "hold": 0.8
+      },
+      {
+        "id": "c13-b06",
+        "say": "Open the labels. That point-four-nine request needed review. The point-five-two request went to review and turned out to be routine. Two true positives, one false alarm and one miss give F one of four over six. The July-to-August drop could reflect selection, small samples or different traffic.",
+        "hold": 0.3
+      },
+      {
+        "id": "c13-b07",
+        "say": "These six cases cannot tell us how much each contributed.",
+        "hold": 0.85
+      }
+    ]
+  },
+  {
+    "id": "c14",
+    "title": "Who got an audit?",
+    "sourceChapters": [
+      "c14"
+    ],
+    "beats": [
+      {
+        "id": "c14-b01",
+        "say": "Keep those same six August requests. The three the router sent to review are on top. Two really needed review, so precision in the queue is two thirds. The previous F one calculation used the audit results from both rows.",
+        "hold": 0.7
+      },
+      {
+        "id": "c14-b02",
+        "say": "Now suppose only the review queue gets audited. Cover the three automatic outcomes. You can still calculate queue precision. Can you tell what fraction of all needed reviews the router caught?",
+        "hold": 2.1
+      },
+      {
+        "id": "c14-b03",
+        "say": "Try a possible completion. Suppose all three hidden outcomes were routine. Then we caught both positives and recall would be two out of two. Those three outcomes are still unobserved.",
+        "hold": 0.7
+      },
+      {
+        "id": "c14-b04",
+        "say": "Keep the top row exactly as it is. There could also be one, two or three missed reviews underneath. Each extra miss adds one to the denominator. The same observed queue is consistent with recall as low as two fifths. An unknown outcome has to stay unknown.",
+        "hold": 0.85
+      },
+      {
+        "id": "c14-b05",
+        "say": "Sample an automatic request for audit. This draw opens the one at point four nine. It reveals one miss and leaves two outcomes unknown. To estimate population recall, record how you sampled and account for unequal chances of being audited. A threshold chooses an action.",
+        "hold": 0.3
+      },
+      {
+        "id": "c14-b06",
+        "say": "Calibration asks a separate question. Among requests assigned a given probability, how often does the outcome occur?",
+        "hold": 0.9
+      }
+    ]
+  },
+  {
+    "id": "c15",
+    "title": "Split three manuals",
+    "sourceChapters": [
+      "c15"
+    ],
+    "beats": [
+      {
+        "id": "c15-b01",
+        "say": "Suppose our assistant must answer questions about new policy manuals. We have two passages from each of three manuals. Put the first passage from every manual into tuning and the second into test. The passages have different text. Look down the rows. How many test manuals has tuning already seen?",
+        "hold": 2.1
+      },
+      {
+        "id": "c15-b02",
+        "say": "All three. Start the split over using the manual as the unit. Slide both access passages and both incident passages into tuning. Bring both admin passages into test. The two test passages share a source with each other. Zero test sources now appear in tuning. A derived question goes with its parent passage.",
+        "hold": 0.9
+      },
+      {
+        "id": "c15-b03",
+        "say": "A different product might answer new questions about an existing library. Retrieving those shared manuals can be exactly what that product should do. Its evaluation questions and reference answers still have to stay out of prompt tuning. To check the split, look at both the wording and where each example came from.",
+        "hold": 0.8
+      }
+    ]
+  },
+  {
+    "id": "c16",
+    "title": "Compare two versions of a retention rule",
+    "sourceChapters": [
+      "c16"
+    ],
+    "beats": [
+      {
+        "id": "c16-b01",
+        "say": "Suppose we search training text for runs of five consecutive words from a test prompt. The top line is a training passage. Read the bottom one. The words inside the two brackets agree.",
+        "hold": 0.55
+      },
+      {
+        "id": "c16-b02",
+        "say": "Slide over one word. These two windows agree too. That makes two shared five-word sequences, so this screen flags the prompt for review. A common piece of boilerplate could also trigger it. The flag tells you where to look.",
+        "hold": 0.8
+      },
+      {
+        "id": "c16-b03",
+        "say": "Try different wording. The test prompt now says to retain audit records for one week. Will any five consecutive words match the training passage?",
+        "hold": 2.1
+      },
+      {
+        "id": "c16-b04",
+        "say": "Slide across again. Zero matches. Both passages still say to keep the records for seven days. MinHash estimates how much two sets of word sequences overlap. Locality-sensitive hashing finds likely matches efficiently. To compare meaning as well as wording, search embeddings, then trace each candidate pair to its sources.",
+        "hold": 0.85
+      },
+      {
+        "id": "c16-b05",
+        "say": "A low loss can flag a familiar prompt for review. If you filter out easy prompts with familiar wording, the remaining test gets harder. The drop by itself cannot tell you what the model saw. Consider a model whose documented training cutoff was June. A problem first released in August came after that cutoff. Could its solution still reach the system?",
+        "hold": 0.3
+      },
+      {
+        "id": "c16-b06",
+        "say": "Check its version, any later training, and whether its tools could retrieve a public solution. Here a browsing tool can fetch the August solution in September. The model's original training cutoff alone cannot settle the exposure question.",
+        "hold": 0.85
+      }
+    ]
+  },
+  {
+    "id": "c17",
+    "title": "Show the outcome the log never observed",
+    "sourceChapters": [
+      "c17"
+    ],
+    "beats": [
+      {
+        "id": "c17-b01",
+        "say": "Follow this request. The old router sent it for review, so the log records the reward for review. What would have happened to that same request on the automatic route? That missing result is a counterfactual. An audit can tell us a request needed review.",
+        "hold": 0.3
+      },
+      {
+        "id": "c17-b02",
+        "say": "An audit label tells us whether review was required. A reward measures what happened after the chosen action, such as getting a correct decision with little delay. To compare routing policies we need evidence about those rewards.",
+        "hold": 0.7
+      },
+      {
+        "id": "c17-b03",
+        "say": "The old router always chose review in this context. Suppose the new router would choose automatic processing one time in five. Importance sampling divides the new action probability by the old one. For automatic processing that would be point two divided by zero. The automatic branch has no logged reward for us to reweight.",
+        "hold": 0.7
+      },
+      {
+        "id": "c17-b04",
+        "say": "For a sequence of actions, multiply the probability ratios along the path. This needs reliable action probabilities, coverage at each step, and comparable states and dynamics. A simulator can predict a missing reward under assumptions you can test. Mark that reward as a prediction. A randomized comparison can measure the effect of the choice directly.",
+        "hold": 0.7
+      }
+    ]
+  },
+  {
+    "id": "c18",
+    "title": "Two answers about retention",
+    "sourceChapters": [
+      "c18"
+    ],
+    "beats": [
+      {
+        "id": "c18-b01",
+        "say": "Our policy assistant has a small tuning library. We want to know how it will answer a question about an unseen manual. Open policy C. Its first passage says to keep records for seven days. Put that passage in tuning.",
+        "hold": 0.3
+      },
+      {
+        "id": "c18-b02",
+        "say": "A second passage says to remove records after a week. Someone turned it into this question. Where should the question go?",
+        "hold": 2.5
+      },
+      {
+        "id": "c18-b03",
+        "say": "Keep the question with its parent in tuning. Give this example assistant one rule. Return the period stored for the policy, or thirty days for a policy it hasn't seen. Tuning on C stores seven days. Follow the entry back to that first passage. Ask the sibling question and the lookup gets seven days right.",
+        "hold": 0.3
+      },
+      {
+        "id": "c18-b04",
+        "say": "Now replay the split from the start. Hold out all of C before fitting. With no entry for C, the lookup uses its default of thirty days. The policy says seven, so this answer is wrong. That replay explains what the stored answer bought us.",
+        "hold": 0.9
+      },
+      {
+        "id": "c18-b05",
+        "say": "Restore the original lookup with C in memory. Freeze the rule. The next manual is D. Keep it closed and ask for its retention period. The lookup has no entry for D. Its default gives thirty days. Lock that answer before opening the policy.",
+        "hold": 0.95
+      },
+      {
+        "id": "c18-b06",
+        "say": "Open D. Its policy really does say thirty days. Now two answers are correct. C gave us seven and D gave us thirty. Which answer belongs in a report about previously unseen sources?",
+        "hold": 2.6
+      },
+      {
+        "id": "c18-b07",
+        "say": "Enter D. It qualifies even though the lookup got there by falling back to its default. C supplied its own answer during tuning. One correct answer on one unseen page is the whole result so far.",
+        "hold": 1
+      },
+      {
+        "id": "c18-b08",
+        "say": "Keep D's result with this version of the assistant. Freeze the rule and the metric, then draw the next page from a new manual your users will ask about. If today's errors guide your next revision, give that revision a new test.",
+        "hold": 1.2
+      }
+    ]
+  }
+]

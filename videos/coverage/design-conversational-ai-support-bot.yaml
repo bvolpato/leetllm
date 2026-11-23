@@ -1,0 +1,174 @@
+version: 1
+lesson: design-conversational-ai-support-bot
+promise: Decide whether a credit request needs confirmation, specialist review or a queue entry, and tell the customer only what the current record supports.
+framing:
+  - intro
+objectives:
+  - id: case-authority
+    can: Use the owned invoice and current regional policy to route a credit. Reject stale reads and request fresh consent when a signed amount changes.
+    scenes:
+      - intro
+      - channels-and-fences
+      - state
+      - evidence
+      - policy
+      - contract-and-fallback
+      - fresh-case
+  - id: recoverable-effects
+    can: Recover a pending request after a lost acknowledgment, and distinguish a credit request receipt from a specialist review receipt.
+    scenes:
+      - ledger
+      - handoff
+      - fresh-case
+  - id: bounded-service
+    can: Bound generation and repair, compare ticket outcomes with independently expected writes, and measure customer resolution under load.
+    scenes:
+      - repair-and-status
+      - ticket-budget
+      - evaluation
+  - id: join-receipts
+    can: Identify the earliest safe merge on a read schedule and retain the failure reason when a required invoice receipt is missing.
+    scenes:
+      - channels-and-fences
+      - state
+      - parallel
+sections:
+  - heading: Ticket `#48291` is the whole product
+    status: taught
+    scenes:
+      - intro
+      - channels-and-fences
+  - heading: Add workers only behind one case supervisor
+    status: taught
+    note: The two-unit policy read and three-unit invoice read can overlap. Only successful receipts for the current case can enter the one-unit merge.
+    scenes:
+      - channels-and-fences
+      - parallel
+  - heading: Represent the case as trusted state
+    status: taught
+    scenes:
+      - state
+  - heading: Keep exact facts outside the conversational summary
+    status: taught
+    scenes:
+      - state
+      - policy
+  - heading: Compile one contract before taking any step
+    status: taught
+    scenes:
+      - contract-and-fallback
+      - policy
+  - heading: Retrieve evidence, not instructions
+    status: taught
+    scenes:
+      - evidence
+      - contract-and-fallback
+  - heading: Let tools read facts; let policy authorize writes
+    status: taught
+    note: The film uses the reference lab's single partial-request rule for Alex. His signed $35 request stays bound to $35 when the proposal changes to $40. The reader helper requires a full duplicate match.
+    scenes:
+      - policy
+      - ledger
+  - heading: Run an auditable action-observation loop
+    status: taught
+    scenes:
+      - contract-and-fallback
+      - evaluation
+  - heading: Make handoff a successful outcome
+    status: taught
+    note: Alex can quote the specialist reference after the queue acknowledges his packet. Maya's acknowledgment identifies a pending credit request.
+    scenes:
+      - handoff
+      - fresh-case
+  - heading: Guard every boundary, not final message text alone
+    status: taught
+    scenes:
+      - evidence
+      - policy
+      - repair-and-status
+  - heading: Repair a rejected draft with bounded feedback
+    status: taught
+    scenes:
+      - repair-and-status
+  - heading: Test outcomes, not conversational polish
+    status: taught
+    note: In each altered replay all twelve reported outcomes still match. The independently expected $35 row exposes both an extra $10 entry and a missing insertion.
+    scenes:
+      - evaluation
+      - ticket-budget
+  - heading: What this design still needs
+    status: taught
+    scenes:
+      - ledger
+      - handoff
+      - evaluation
+  - heading: Evaluation rubric
+    status: taught
+    scenes:
+      - policy
+      - ledger
+      - handoff
+  - heading: Follow-up questions
+    status: taught
+    scenes:
+      - ledger
+      - handoff
+      - fresh-case
+quiz:
+  - n: 1
+    status: taught
+    scenes:
+      - state
+  - n: 2
+    status: taught
+    scenes:
+      - evidence
+  - n: 3
+    status: taught
+    scenes:
+      - policy
+      - intro
+  - n: 4
+    status: taught
+    scenes:
+      - ledger
+      - fresh-case
+  - n: 5
+    status: taught
+    scenes:
+      - policy
+  - n: 6
+    status: taught
+    scenes:
+      - repair-and-status
+  - n: 7
+    status: taught
+    scenes:
+      - repair-and-status
+  - n: 8
+    status: taught
+    scenes:
+      - evaluation
+  - n: 9
+    status: taught
+    scenes:
+      - ticket-budget
+  - n: 10
+    status: taught
+    scenes:
+      - channels-and-fences
+      - state
+removed: []
+reviews:
+  closed_book:
+    script: e26f6d921638e019
+    taught: 10
+    partial: 0
+    absent: 0
+    reviewer: independent closed-book review
+    evidence: videos/reviews/script-renewal/design-conversational-ai-support-bot.json
+  fact_check:
+    script: e26f6d921638e019
+    open_findings: 0
+    reviewer: independent factual review
+    evidence: videos/reviews/script-renewal/design-conversational-ai-support-bot.json

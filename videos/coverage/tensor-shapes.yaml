@@ -1,0 +1,182 @@
+version: 1
+lesson: tensor-shapes
+promise: Preserve axis meanings and value owners through indexing, broadcasting, reductions, memory
+  views, attention multiplication and head splitting, and reject inputs that violate the contract.
+framing:
+  - intro
+objectives:
+  - id: trace-owned-values
+    can: Choose between two head layouts with the same shape by checking one output pair against
+      its original word and feature positions. Use the token-axis stride to find the same feature
+      in the next word. Choose test values that expose a misplaced pair.
+    scenes:
+      - intro
+      - index
+      - reshape-transpose
+      - heads
+  - id: compute-and-debug
+    can: Predict which axis receives a broadcast and which one a reduction removes. Place each
+      dot product in the query row and key column of the score grid for its sentence.
+    scenes:
+      - shape
+      - broadcast
+      - reduce
+      - attention
+      - takeaway
+  - id: compare-mean-dtypes
+    can: When an exact sum falls halfway between two float32 values, use the default ties-to-even
+      rule to choose the stored value. With the same inputs, predict the sum after cancellation
+      and the dtype and rounded value of the returned mean for each calculation.
+    scenes:
+      - precision
+  - id: enforce-contracts
+    can: Predict which array changes after a write to a basic slice, a retrieved selection or the
+      source. Check input rank, feature width and dtype at the model boundary.
+    scenes:
+      - shape
+      - views
+      - contracts
+sections:
+  - heading: Two log snippets, one array
+    status: taught
+    scenes:
+      - intro
+      - shape
+      - attention
+  - heading: Rank, shape, and dtype
+    status: taught
+    scenes:
+      - shape
+  - heading: "Indexing: which axes stay and which disappear"
+    status: taught
+    scenes:
+      - index
+      - takeaway
+  - heading: Inspect the batch
+    status: taught
+    scenes:
+      - index
+  - heading: "Broadcasting: reuse one feature bias"
+    status: taught
+    scenes:
+      - broadcast
+  - heading: Add the feature bias
+    status: taught
+    scenes:
+      - broadcast
+  - heading: When broadcasting succeeds with the wrong meaning
+    status: taught
+    scenes:
+      - broadcast
+  - heading: "Reductions: collapsing the right axis"
+    status: taught
+    scenes:
+      - reduce
+      - precision
+  - heading: Compare two reductions
+    status: taught
+    scenes:
+      - reduce
+  - heading: Subtract a mean without losing its position
+    status: taught
+    scenes:
+      - reduce
+  - heading: "Reshape vs. transpose: regrouping or reordering"
+    status: taught
+    scenes:
+      - reshape-transpose
+  - heading: "Views and copies: who shares memory"
+    status: taught
+    scenes:
+      - views
+  - heading: A transpose can make the next reshape copy
+    status: taught
+    scenes:
+      - views
+  - heading: "Matrix multiplication: compare every pair of tokens"
+    status: taught
+    scenes:
+      - attention
+  - heading: Check the attention scores
+    status: taught
+    scenes:
+      - attention
+      - takeaway
+  - heading: Split each token's features, then move the new axis
+    status: taught
+    scenes:
+      - heads
+  - heading: "Transfer: the same rule on images"
+    status: taught
+    scenes:
+      - contracts
+  - heading: "Common shape bugs: symptoms and fixes"
+    status: taught
+    scenes:
+      - broadcast
+      - reduce
+      - reshape-transpose
+      - views
+      - attention
+      - heads
+      - contracts
+  - heading: Build a shape guard script
+    status: taught
+    scenes:
+      - contracts
+quiz:
+  - n: 1
+    status: taught
+    scenes:
+      - index
+  - n: 2
+    status: taught
+    scenes:
+      - shape
+  - n: 3
+    status: taught
+    scenes:
+      - broadcast
+  - n: 4
+    status: taught
+    scenes:
+      - reduce
+  - n: 5
+    status: taught
+    scenes:
+      - reduce
+  - n: 6
+    status: taught
+    scenes:
+      - heads
+  - n: 7
+    status: taught
+    scenes:
+      - attention
+  - n: 8
+    status: taught
+    scenes:
+      - broadcast
+  - n: 9
+    status: taught
+    scenes:
+      - views
+  - n: 10
+    status: taught
+    scenes:
+      - contracts
+removed: []
+reviews:
+  closed_book:
+    script: 1c93ab729cd0cb35
+    taught: 10
+    partial: 0
+    absent: 0
+    reviewer: independent closed-book review
+    evidence: videos/reviews/script-renewal/tensor-shapes.json
+  fact_check:
+    script: 1c93ab729cd0cb35
+    open_findings: 0
+    reviewer: independent factual review
+    evidence: videos/reviews/script-renewal/tensor-shapes.json
+  evidence: build/video-delivery-20261106/script-reviews/tensor-shapes.json

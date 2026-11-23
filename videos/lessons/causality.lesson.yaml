@@ -1,0 +1,1878 @@
+version: 1
+id: causality
+title: "Causal inference: follow the tickets from assignment to policy value"
+source: foundations/causal-inference-confounding-counterfactuals/content.md
+voice: en-US-AndrewNeural
+rate: +0%
+sources:
+  - title: "Hernán and Robins: Causal Inference, What If"
+    url: https://miguelhernan.org/s/hernanrobins_WhatIf_2jan25.pdf
+  - title: "Pearl: The Seven Tools of Causal Inference"
+    url: https://ftp.cs.ucla.edu/pub/stat_ser/r481-reprint.pdf
+  - title: Doubly Robust Policy Evaluation and Learning
+    url: https://arxiv.org/abs/1103.4601
+  - title: Sequential doubly robust policy evaluation
+    url: https://proceedings.mlr.press/v48/jiang16.html
+  - title: Unbiased learning to rank with biased feedback
+    url: https://arxiv.org/abs/1608.04468
+scenes:
+  - id: intro
+    title: How can both groups improve and the total fall?
+    visual: Assistant and control success bars initially show 54% versus 76%; their hidden risk compositions unfold.
+    beats:
+      - say: An assistant resolves fewer tickets overall than the old workflow. The release report looks discouraging.
+          Then we separate easy and difficult cases, and the assistant’s observed resolution rate is higher in
+          both groups. How can the aggregate comparison point in the opposite direction?
+        hold: 0.6
+        visual_cues:
+          - id: intro-beat-1-focus-1
+            phrase: Then we separate easy and difficult cases
+            targets:
+              - intro-object-distribution-intro-1
+            color: blue
+            linger: 0.6
+      - say: The groups received different mixes of work. Comparing their totals combines workflow performance with
+          the assignment process that chose their cases. Causal inference asks what would happen if a
+          specified population received one workflow or the other, and what evidence can identify that
+          comparison.
+        hold: 0.6
+        visual_cues:
+          - id: intro-beat-2-focus-1
+            phrase: The groups received different mixes of work
+            targets:
+              - intro-object-distribution-intro-1
+            color: blue
+            linger: 0.6
+      - say: We will reconstruct the reversal, draw the assumed assignment mechanism, and separate observing an action
+          from intervening to set it. Then we will see what standardization repairs, why missing alternatives
+          remain hidden, and how overlap determines which comparisons the logged data can support.
+        hold: 0.75
+        visual_cues:
+          - id: intro-beat-3-focus-1
+            phrase: We will reconstruct the reversal
+            targets:
+              - intro-object-distribution-intro-1
+            color: blue
+            linger: 0.6
+  - id: policy-definition
+    title: Define the unit, action and outcome
+    visual: A persistent ticket links pre-routing risk, its versioned assistant workflow and the 24-hour outcome.
+      A prompt change updates the action version. The shared-staff branch connects this routing choice to
+      another ticket’s queue.
+    beats:
+      - say: Our two hundred tickets are synthetic. A unit is one ticket at its routing decision; treatment is a
+          specified assistant workflow, and control is the existing human workflow. Resolution means success
+          within twenty-four hours in both arms. Risk is recorded before routing. Keep that outcome definition
+          and time horizon attached to every rate.
+        hold: 0.65
+        visual_cues:
+          - id: cau-policy-definition-0
+            phrase: Our two hundred tickets are synthetic. A unit is one ticket at its routing decision; treatment is a
+              specified assistant workflow, and control is the existing human workflow. Resolution means
+              success within twenty-four hours in both arms. Risk is recorded before routing. Keep that
+              outcome definition and time horizon attached to every rate.
+            targets:
+              - cau-policy-definition-mechanism
+            color: cyan
+            linger: 0.35
+          - id: cau-risk-recorded
+            phrase: Risk is recorded before routing.
+            targets:
+              - cau-policy-definition-mechanism
+            color: cyan
+            linger: 0.35
+      - say: Consistency says the observed outcome equals the potential outcome under the workflow actually received.
+          Record model, prompt, tool and control versions. A defined stochastic assistant policy can produce
+          different text on different runs without automatically violating consistency. A changed prompt that
+          changes the workflow is a different action version for causal evaluation.
+        hold: 0.65
+        visual_cues:
+          - id: cau-policy-definition-1
+            phrase: Consistency says the observed outcome equals the potential outcome under the workflow actually
+              received. Record model, prompt, tool and control versions. A defined stochastic assistant policy
+              can produce different text on different runs without automatically violating consistency. A
+              changed prompt that changes the workflow is a different action version for causal evaluation.
+            targets:
+              - cau-policy-definition-mechanism
+            color: cyan
+            linger: 0.35
+          - id: cau-new-action-version
+            phrase: A changed prompt that changes the workflow is a different action version for causal evaluation.
+            targets:
+              - cau-policy-definition-mechanism
+            color: cyan
+            linger: 0.35
+      - say: If routing one ticket changes staff availability for others, its effect travels through the shared queue.
+          Define whether the question concerns an individual assignment or a queue-level deployment policy.
+          Randomizing an offer to use a feature and forcing its use are also different actions. The observed
+          comparison cannot choose that intervention definition for us.
+        hold: 0.65
+        visual_cues:
+          - id: cau-policy-definition-2
+            phrase: If routing one ticket changes staff availability for others, its effect travels through the shared
+              queue. Define whether the question concerns an individual assignment or a queue-level deployment
+              policy. Randomizing an offer to use a feature and forcing its use are also different actions.
+              The observed comparison cannot choose that intervention definition for us.
+            targets:
+              - cau-policy-definition-mechanism
+            color: cyan
+            linger: 0.35
+          - id: cau-queue-effect
+            phrase: its effect travels through the shared queue.
+            targets:
+              - cau-policy-definition-mechanism
+            color: cyan
+            linger: 0.35
+  - id: simpson
+    title: Follow the composition into the total
+    visual: Within-risk success bars reveal a ten-point assistant advantage while group-size blocks weight the
+      aggregate in opposite directions.
+    beats:
+      - say: Our synthetic log contains one hundred assistant tickets and one hundred control tickets. The assistant
+          receives mostly difficult cases; control receives mostly easy ones. Within the easy group, the
+          assistant resolves ninety percent and control eighty. Within the difficult group, their rates are
+          fifty and forty percent.
+        hold: 0.6
+        visual_cues:
+          - id: simpson-beat-1-focus-1
+            phrase: Our synthetic log contains one hundred assistant tickets
+            targets:
+              - simpson-cohort-inputs
+            color: blue
+            linger: 0.6
+          - id: simpson-easy-rates
+            phrase: the assistant resolves ninety percent and control eighty
+            targets:
+              - simpson-object-distribution-simpson-10
+            color: cyan
+            linger: 0.6
+          - id: simpson-difficult-rates
+            phrase: their rates are fifty and forty percent
+            targets:
+              - simpson-difficult-rates
+            color: pink
+            linger: 0.6
+      - say: Weight those rates by the different case mixes actually assigned. The assistant’s total becomes
+          fifty-four percent, while control reaches seventy-six. The reversal comes from comparing different
+          populations. Each arm’s aggregate is a weighted average, and the weights move the apparent
+          comparison.
+        hold: 0.6
+        visual_cues:
+          - id: simpson-beat-2-focus-1
+            phrase: Weight those rates by the different case mixes actually assigned
+            targets:
+              - simpson-object-distribution-simpson-10
+              - simpson-difficult-rates
+            color: blue
+            linger: 0.6
+          - id: simpson-beat-2-focus-2
+            phrase: The assistant’s total becomes fifty-four percent
+            targets:
+              - simpson-weighted-totals
+            color: blue
+            linger: 0.6
+      - say: Pause and imagine giving both workflows the same mix. The within-group difference is ten percentage
+          points in each group, so any shared mixture will preserve that difference here. This is Simpson’s
+          paradox in the observed table. A causal interpretation still requires assumptions about how
+          assignment occurred.
+        hold: 0.75
+        visual_cues:
+          - id: simpson-beat-3-focus-1
+            phrase: This is Simpson’s paradox in the observed table
+            targets:
+              - simpson-object-distribution-simpson-10
+            color: blue
+            linger: 0.6
+          - id: simpson-beat-3-focus-2
+            phrase: The within-group difference is ten percentage points in each group
+            targets:
+              - simpson-object-distribution-simpson-10
+              - simpson-difficult-rates
+            color: blue
+            linger: 0.6
+  - id: graph
+    title: Draw the assignment mechanism you assume
+    visual: A causal graph places pre-routing risk above assignment and outcome, exposing the backdoor path.
+    beats:
+      - say: Suppose pre-routing risk influences both workflow assignment and resolution. Draw an arrow from risk to
+          each of those variables. Also draw the possible effect of assignment on resolution. Risk is a common
+          cause, creating a backdoor path between the action and the outcome.
+        hold: 0.6
+        visual_cues:
+          - id: graph-beat-1-focus-1
+            phrase: Suppose pre-routing risk influences both workflow assignment and resolution
+            targets:
+              - graph-node-risk
+            color: cyan
+            linger: 0.6
+      - say: The graph records causal assumptions about how the system works. Its arrows do not emerge automatically
+          from correlations in the table. Under the stated model, conditioning on risk blocks this particular
+          noncausal path. We must also consider whether another common cause remains unmeasured.
+        hold: 0.6
+        visual_cues:
+          - id: graph-beat-2-focus-1
+            phrase: conditioning on risk blocks this particular noncausal path
+            targets:
+              - graph-node-risk
+            color: cyan
+            linger: 0.6
+          - id: graph-beat-2-focus-2
+            phrase: The graph records causal assumptions about how the system works
+            targets:
+              - graph-node-action
+            color: cyan
+            linger: 0.6
+      - say: A variable’s role matters. Adjusting for a common cause differs from adjusting for a consequence of
+          treatment, and conditioning on a common effect can introduce selection bias. Choose an adjustment
+          set from the causal question and the assumed graph, then inspect the information needed to justify
+          it.
+        hold: 0.75
+        visual_cues:
+          - id: graph-beat-3-focus-1
+            phrase: A variable’s role matters
+            targets:
+              - graph-node-risk
+            color: cyan
+            linger: 0.6
+  - id: graph-junctions
+    title: Trace an open path before adjusting
+    visual: Build a chain, fork and collider with named assignment and outcome nodes. Conditioning frames change
+      whether the displayed path is open. A separately labeled symbolic cancellation illustrates why an open
+      path need not yield nonzero association.
+    beats:
+      - say: Path blocking has three basic junctions. In a chain, assignment changes a diagnostic summary, which
+          affects resolution. Conditioning on that mediator blocks this directed route. A total effect
+          includes that route, so adjusting it away changes the comparison. Such conditioning does not
+          automatically identify a direct causal effect.
+        hold: 0.65
+        visual_cues:
+          - id: cau-graph-junctions-0
+            phrase: Path blocking has three basic junctions. In a chain, assignment changes a diagnostic summary, which
+              affects resolution. Conditioning on that mediator blocks this directed route. A total effect
+              includes that route, so adjusting it away changes the comparison. Such conditioning does not
+              automatically identify a direct causal effect.
+            targets:
+              - cau-graph-junctions-mechanism
+            color: cyan
+            linger: 0.35
+          - id: cau-condition-mediator
+            phrase: Conditioning on that mediator blocks this directed route.
+            targets:
+              - cau-graph-junctions-mechanism
+            color: cyan
+            linger: 0.35
+      - say: In a fork, a pre-treatment common cause influences assignment and outcome. Conditioning on that cause
+          blocks this particular backdoor path. In a collider, two arrows meet at a common effect. The path is
+          blocked until we condition on that effect or one of its descendants; other non-colliders can still
+          block a longer path.
+        hold: 0.65
+        visual_cues:
+          - id: cau-graph-junctions-1
+            phrase: In a fork, a pre-treatment common cause influences assignment and outcome. Conditioning on that cause
+              blocks this particular backdoor path. In a collider, two arrows meet at a common effect. The
+              path is blocked until we condition on that effect or one of its descendants; other non-colliders
+              can still block a longer path.
+            targets:
+              - cau-graph-junctions-mechanism
+            color: cyan
+            linger: 0.35
+          - id: cau-condition-fork
+            phrase: Conditioning on that cause blocks this particular backdoor path.
+            targets:
+              - cau-graph-junctions-mechanism
+            color: cyan
+            linger: 0.35
+          - id: cau-condition-collider
+            phrase: The path is blocked until we condition on that effect or one of its descendants
+            targets:
+              - cau-graph-junctions-mechanism
+            color: cyan
+            linger: 0.35
+          - id: cau-collider-shape
+            phrase: In a collider, two arrows meet at a common effect.
+            targets:
+              - cau-graph-junctions-mechanism
+            color: cyan
+            linger: 0.35
+      - say: Check every path to establish d-separation. Under the causal Markov assumption, d-separation implies
+          conditional independence. An open path permits dependence but need not produce a nonzero
+          association, because contributions can cancel. Reading causal structure backward from observed
+          independence needs an additional faithfulness assumption. A graph’s arrows remain assumptions about
+          the data-generating mechanism.
+        hold: 0.65
+        visual_cues:
+          - id: cau-graph-junctions-2
+            phrase: Check every path to establish d-separation. Under the causal Markov assumption, d-separation implies
+              conditional independence. An open path permits dependence but need not produce a nonzero
+              association, because contributions can cancel. Reading causal structure backward from observed
+              independence needs an additional faithfulness assumption. A graph’s arrows remain assumptions
+              about the data-generating mechanism.
+            targets:
+              - cau-graph-junctions-mechanism
+            color: cyan
+            linger: 0.35
+          - id: cau-cancel-paths
+            phrase: because contributions can cancel.
+            targets:
+              - cau-graph-junctions-mechanism
+            color: cyan
+            linger: 0.35
+  - id: backdoor-set
+    title: Block the paths that enter assignment
+    visual: Keep the measured-risk fork and workflow effect. The adjustment chapter applies the same symbolic
+      target shares to the actual four subgroup rates. Adding a hidden customer-tier fork exposes the path
+      that measured-risk adjustment leaves open.
+    beats:
+      - say: "The backdoor criterion is a sufficient graphical condition: the adjustment set contains no descendant of
+          treatment and blocks every path from assignment to outcome that starts with an arrow into
+          assignment. It is not a rule to control every available variable. A treatment-affected summary or
+          selected audit can remove a real route or open a noncausal one."
+        hold: 0.65
+        visual_cues:
+          - id: cau-backdoor-set-0
+            phrase: "The backdoor criterion is a sufficient graphical condition: the adjustment set contains no descendant
+              of treatment and blocks every path from assignment to outcome that starts with an arrow into
+              assignment. It is not a rule to control every available variable. A treatment-affected summary
+              or selected audit can remove a real route or open a noncausal one."
+            targets:
+              - cau-backdoor-set-mechanism
+            color: cyan
+            linger: 0.35
+      - say: With the relevant causal assumptions, positivity and consistency, adjustment averages each
+          treatment-specific outcome rate within an adjustment stratum using one population distribution. For
+          discrete strata, multiply the outcome rate by that stratum’s target probability and sum. Both arms
+          must use the same chosen target rather than their different observed assignment mixes.
+        hold: 0.65
+        visual_cues:
+          - id: cau-backdoor-set-1
+            phrase: With the relevant causal assumptions, positivity and consistency, adjustment averages each
+              treatment-specific outcome rate within an adjustment stratum using one population distribution.
+              For discrete strata, multiply the outcome rate by that stratum’s target probability and sum.
+              Both arms must use the same chosen target rather than their different observed assignment mixes.
+            targets:
+              - cau-backdoor-set-mechanism
+            color: cyan
+            linger: 0.35
+          - id: cau-adjust-common-target
+            phrase: Both arms must use the same chosen target rather than their different observed assignment mixes.
+            targets:
+              - cau-backdoor-set-mechanism
+            color: cyan
+            linger: 0.35
+      - say: Risk-only adjustment is insufficient if a hidden customer tier still changes routing and outcome through
+          an unblocked path. Measuring more rows does not close that path. Conversely, an unrecorded variable
+          need not confound this comparison if the recorded set already blocks its relevant paths. Recording a
+          baseline attribute later does not alone make it treatment-affected.
+        hold: 0.65
+        visual_cues:
+          - id: cau-backdoor-set-2
+            phrase: Risk-only adjustment is insufficient if a hidden customer tier still changes routing and outcome
+              through an unblocked path. Measuring more rows does not close that path. Conversely, an
+              unrecorded variable need not confound this comparison if the recorded set already blocks its
+              relevant paths. Recording a baseline attribute later does not alone make it treatment-affected.
+            targets:
+              - cau-backdoor-set-mechanism
+            color: cyan
+            linger: 0.35
+          - id: cau-hidden-tier
+            phrase: a hidden customer tier still changes routing and outcome through an unblocked path.
+            targets:
+              - cau-backdoor-set-mechanism
+            color: cyan
+            linger: 0.35
+  - id: intervene
+    title: Set the action and remove its incoming arrow
+    visual: The do-operation severs risk-to-assignment while retaining risk-to-outcome and assignment-to-outcome
+      mechanisms.
+    beats:
+      - say: An observational question asks what happened among tickets that received the assistant. An intervention
+          asks what would happen if we assigned a specified population to it. In a structural model, the
+          intervention replaces the assignment mechanism with a fixed action and removes its incoming arrows.
+        hold: 0.6
+        visual_cues:
+          - id: intervene-beat-1-focus-1
+            phrase: the intervention replaces the assignment mechanism with a
+            targets:
+              - graph-node-action
+            color: cyan
+            linger: 0.6
+          - id: intervene-beat-1-focus-2
+            phrase: An observational question asks what happened among tickets that received the assistant
+            targets:
+              - graph-node-risk
+            color: cyan
+            linger: 0.6
+      - say: The other mechanisms remain in place. Risk still influences resolution, while it stops choosing the
+          assigned workflow. This difference explains why conditioning on assistant use can yield a different
+          number from intervening to route everyone to the assistant. The target population must be specified
+          in both questions.
+        hold: 0.6
+        visual_cues:
+          - id: intervene-beat-2-focus-1
+            phrase: Risk still influences resolution
+            targets:
+              - graph-node-risk
+            color: cyan
+            linger: 0.6
+          - id: intervene-beat-2-focus-2
+            phrase: while it stops choosing the assigned workflow
+            targets:
+              - graph-node-action
+            color: cyan
+            linger: 0.6
+      - say: The do notation names the comparison; the graph and evidence determine whether we can identify its value.
+          If routing all tickets changes a shared queue, that interference belongs in the intervention model.
+          A ticket-level estimate and a whole-queue policy effect can therefore answer different questions.
+        hold: 0.75
+        visual_cues:
+          - id: intervene-beat-3-focus-1
+            phrase: If routing all tickets changes a shared queue
+            targets:
+              - graph-node-risk
+            color: cyan
+            linger: 0.6
+          - id: intervene-beat-3-focus-2
+            phrase: The do notation names the comparison
+            targets:
+              - graph-node-action
+            color: cyan
+            linger: 0.6
+  - id: standardize
+    title: Compare both workflows at one target mix
+    visual: A target mixture slider sets both arms to 70% easy and 30% difficult, producing adjusted 78% and 68%
+      rates.
+    beats:
+      - say: Choose a deployment population with seventy percent easy cases and thirty percent difficult cases. Apply
+          those same weights to each workflow’s group-specific success rates. The standardized assistant rate
+          is seventy-eight percent, and control is sixty-eight. The visible case-mix imbalance has been
+          removed from this comparison.
+        hold: 0.6
+        motion_check:
+          region:
+            - 220
+            - 330
+            - 1500
+            - 610
+          minimumChangedFraction: 0.002
+        visual_cues:
+          - id: standardize-beat-1-focus-1
+            phrase: Apply those same weights to each workflow’s group-specific success rates
+            targets:
+              - standardize-object-distribution-standardize-20
+            color: blue
+            linger: 0.6
+          - id: standardize-beat-1-focus-2
+            phrase: The visible case-mix imbalance has been removed from this comparison
+            targets:
+              - standardize-object-250-850-mix-900-13-c-yellow-25
+            color: blue
+            linger: 0.6
+      - say: To interpret that difference causally, assume comparable potential outcomes within the measured groups,
+          positive assignment probabilities for both workflows, well-defined treatment versions, consistent
+          outcomes, and an appropriate interference model. Transfer to deployment also requires the
+          group-specific behavior and target weights to apply there.
+        hold: 0.6
+        visual_cues:
+          - id: standardize-beat-2-focus-1
+            phrase: well-defined treatment versions
+            targets:
+              - standardize-object-exchangeability-overlap-well-defined-outcomes-27
+            color: blue
+            linger: 0.6
+          - id: standardize-beat-2-focus-2
+            phrase: To interpret that difference causally
+            targets:
+              - standardize-object-distribution-standardize-20
+            color: blue
+            linger: 0.6
+      - say: The smallest cells contain only ten tickets. One changed outcome can move the adjusted result
+          substantially. Standardization does not remove sampling noise, unmeasured confounding, or population
+          mismatch. Report uncertainty with a method suited to the design, and keep those identification
+          assumptions attached to the estimate.
+        hold: 0.75
+        visual_cues:
+          - id: standardize-beat-3-focus-1
+            phrase: The smallest cells contain only ten tickets
+            targets:
+              - standardize-object-distribution-standardize-20
+            color: blue
+            linger: 0.6
+  - id: standardize-uncertainty
+    title: Change one small cell and propagate the uncertainty
+    visual: Ten actual low-risk assistant outcome tiles retain their positions while one success becomes failure
+      in a labeled sensitivity case. Recompute the 70/30 result, restore the original counts, then show the
+      four calculated binomial variance contributions and separately held standard error and interval.
+    beats:
+      - say: "The low-risk assistant cell contains nine successes among ten tickets. Change one success to failure in
+          a separately labeled sensitivity case: its rate becomes eighty percent. The seventy-percent target
+          weight multiplies that ten-point drop by point seven, reducing the standardized difference from ten
+          points to three. This is sensitivity arithmetic, not a confidence interval."
+        hold: 0.65
+        visual_cues:
+          - id: cau-standardize-uncertainty-0
+            phrase: "The low-risk assistant cell contains nine successes among ten tickets. Change one success to failure
+              in a separately labeled sensitivity case: its rate becomes eighty percent. The seventy-percent
+              target weight multiplies that ten-point drop by point seven, reducing the standardized
+              difference from ten points to three. This is sensitivity arithmetic, not a confidence interval."
+            targets:
+              - cau-standardize-uncertainty-mechanism
+            color: cyan
+            linger: 0.35
+          - id: cau-cell-change
+            phrase: Change one success to failure
+            targets:
+              - cau-standardize-uncertainty-mechanism
+            color: cyan
+            linger: 0.35
+          - id: cau-sensitivity-three
+            phrase: reducing the standardized difference from ten points to three.
+            targets:
+              - cau-standardize-uncertainty-mechanism
+            color: cyan
+            linger: 0.35
+      - say: Return to the original counts. Under independent tickets, fixed target weights and conditional binomial
+          sampling, estimate variance by summing squared stratum weights times the two cell variances. Each
+          cell contributes its success rate times one minus that rate, divided by its sample size. Take the
+          square root for the standard error.
+        hold: 0.65
+        visual_cues:
+          - id: cau-standardize-uncertainty-1
+            phrase: Return to the original counts. Under independent tickets, fixed target weights and conditional
+              binomial sampling, estimate variance by summing squared stratum weights times the two cell
+              variances. Each cell contributes its success rate times one minus that rate, divided by its
+              sample size. Take the square root for the standard error.
+            targets:
+              - cau-standardize-uncertainty-mechanism
+            color: cyan
+            linger: 0.35
+          - id: cau-counts-restore
+            phrase: Return to the original counts.
+            targets:
+              - cau-standardize-uncertainty-mechanism
+            color: cyan
+            linger: 0.35
+      - say: The actual calculation gives about eight point seven seven percentage points of standard error. The
+          ten-point estimate plus or minus one point nine six standard errors gives a rough interval from
+          minus seven point two to twenty-seven point two points. Sparse cells can make this normal
+          approximation poor. Clustering and estimated target weights need additional treatment; statistical
+          precision does not repair hidden confounding.
+        hold: 0.65
+        visual_cues:
+          - id: cau-standardize-uncertainty-2
+            phrase: The actual calculation gives about eight point seven seven percentage points of standard error. The
+              ten-point estimate plus or minus one point nine six standard errors gives a rough interval from
+              minus seven point two to twenty-seven point two points. Sparse cells can make this normal
+              approximation poor. Clustering and estimated target weights need additional treatment;
+              statistical precision does not repair hidden confounding.
+            targets:
+              - cau-standardize-uncertainty-mechanism
+            color: cyan
+            linger: 0.35
+          - id: cau-se-result
+            phrase: eight point seven seven percentage points of standard error.
+            targets:
+              - cau-standardize-uncertainty-mechanism
+            color: cyan
+            linger: 0.35
+          - id: cau-interval-result
+            phrase: from minus seven point two to twenty-seven point two points.
+            targets:
+              - cau-standardize-uncertainty-mechanism
+            color: cyan
+            linger: 0.35
+  - id: potential
+    title: One ticket reveals one of its alternatives
+    visual: Two potential-outcome columns appear, then each ticket’s actual assignment reveals only one cell;
+      alternative population pairings share the same averages.
+    beats:
+      - say: For each ticket, imagine its outcome under the assistant and its outcome under control. Their difference
+          is the individual treatment effect. At the original decision, the ticket receives one workflow, so
+          we observe only that outcome. The alternative remains missing for that same ticket.
+        hold: 0.6
+        visual_cues:
+          - id: potential-beat-1-focus-1
+            phrase: imagine its outcome under the assistant and its outcome under control
+            targets:
+              - potential-simulation-31
+            color: blue
+            linger: 0.6
+          - id: potential-beat-1-focus-2
+            phrase: For each ticket
+            targets:
+              - potential-simulation-34
+            color: blue
+            linger: 0.6
+      - say: Two hypothetical populations can share assistant success of seventy-eight percent and control success of
+          sixty-eight percent while pairing individual outcomes differently. One population helps ten tickets
+          and harms none; another helps twenty and harms ten. Their average effect is identical, while their
+          individual consequences differ.
+        hold: 0.6
+        visual_cues:
+          - id: potential-beat-2-focus-1
+            phrase: Two hypothetical populations can share assistant success of
+            targets:
+              - potential-object-distribution-potential-38
+            color: blue
+            linger: 0.6
+      - say: Even an ideal randomized experiment can identify marginal outcome rates without revealing every
+          within-ticket pairing. An individual counterfactual asks for additional structure or assumptions. A
+          simulated replay can test an alternative inside its simulator, while its relevance to the historical
+          event needs its own validation.
+        hold: 0.75
+        visual_cues:
+          - id: potential-beat-3-focus-1
+            phrase: Even an ideal randomized experiment can identify marginal
+            targets:
+              - potential-object-distribution-potential-38
+            color: blue
+            linger: 0.6
+  - id: estimands
+    title: Keep the target population in the effect
+    visual: Three population compositions scale the same low- and high-risk effect contributions. Keep the
+      original homogeneous ten-point effects before introducing a separate four/sixteen-point vector. Hold
+      each new sum and its completed geometry until the spoken result.
+    beats:
+      - say: The average treatment effect averages the difference between a ticket’s assistant and control potential
+          outcomes over a specified population. The effect on the treated averages that same difference only
+          among tickets assigned the assistant. Another control ticket does not reveal the missing original
+          outcome for a treated ticket, and replaying later changes its history.
+        hold: 0.65
+        visual_cues:
+          - id: cau-estimands-0
+            phrase: The average treatment effect averages the difference between a ticket’s assistant and control
+              potential outcomes over a specified population. The effect on the treated averages that same
+              difference only among tickets assigned the assistant. Another control ticket does not reveal the
+              missing original outcome for a treated ticket, and replaying later changes its history.
+            targets:
+              - cau-estimands-mechanism
+            color: cyan
+            linger: 0.35
+      - say: "Our original subgroup differences are both ten points, so changing their weights leaves that estimated
+          difference unchanged. Now consider an explicitly different hypothetical effect vector: four points
+          for low risk and sixteen for high risk. A fifty-fifty population averages ten points, while the
+          treated ten-ninety mix averages fourteen point eight."
+        hold: 0.65
+        visual_cues:
+          - id: cau-estimands-1
+            phrase: "Our original subgroup differences are both ten points, so changing their weights leaves that
+              estimated difference unchanged. Now consider an explicitly different hypothetical effect vector:
+              four points for low risk and sixteen for high risk. A fifty-fifty population averages ten
+              points, while the treated ten-ninety mix averages fourteen point eight."
+            targets:
+              - cau-estimands-mechanism
+            color: cyan
+            linger: 0.35
+          - id: cau-effect-vector
+            phrase: four points for low risk and sixteen for high risk.
+            targets:
+              - cau-estimands-mechanism
+            color: cyan
+            linger: 0.35
+          - id: cau-ate-result
+            phrase: A fifty-fifty population averages ten points
+            targets:
+              - cau-estimands-mechanism
+            color: cyan
+            linger: 0.35
+          - id: cau-att-result
+            phrase: the treated ten-ninety mix averages fourteen point eight.
+            targets:
+              - cau-estimands-mechanism
+            color: cyan
+            linger: 0.35
+      - say: The separate seventy-thirty deployment population would average seven point six points for that changed
+          effect vector. This demonstrates why A T E and A T T can differ under selective routing and
+          heterogeneous effects. A common-probability randomized assignment makes their population targets
+          coincide under independence; finite realized treated subsets can still differ by chance.
+        hold: 0.65
+        visual_cues:
+          - id: cau-estimands-2
+            phrase: The separate seventy-thirty deployment population would average seven point six points for that
+              changed effect vector. This demonstrates why A T E and A T T can differ under selective routing
+              and heterogeneous effects. A common-probability randomized assignment makes their population
+              targets coincide under independence; finite realized treated subsets can still differ by chance.
+            targets:
+              - cau-estimands-mechanism
+            color: cyan
+            linger: 0.35
+          - id: cau-deployment-effect
+            phrase: would average seven point six points
+            targets:
+              - cau-estimands-mechanism
+            color: cyan
+            linger: 0.35
+  - id: harm-bounds
+    title: Move the pairing while preserving both margins
+    visual: Recolor a 100-person hypothetical response-type grid while retaining the 78/68 success margins. The
+      four type counts follow h exactly. Reach the 22-harmed endpoint, then impose a separate no-harm
+      assumption and return h to zero.
+    beats:
+      - say: The two success margins constrain individual response types without fixing their pairing. Let h be the
+          number harmed per hundred. With seventy-eight assistant successes and sixty-eight control successes,
+          always-resolves equals sixty-eight minus h, helped equals ten plus h, and never-resolves equals
+          twenty-two minus h.
+        hold: 0.65
+        visual_cues:
+          - id: cau-harm-bounds-0
+            phrase: The two success margins constrain individual response types without fixing their pairing. Let h be the
+              number harmed per hundred. With seventy-eight assistant successes and sixty-eight control
+              successes, always-resolves equals sixty-eight minus h, helped equals ten plus h, and
+              never-resolves equals twenty-two minus h.
+            targets:
+              - cau-harm-bounds-mechanism
+            color: cyan
+            linger: 0.35
+      - say: All four counts must be nonnegative. Harm can therefore range from zero to twenty-two per hundred. At the
+          upper endpoint the counts are forty-six always resolve, thirty-two helped, twenty-two harmed and
+          zero never resolve. Both success margins remain unchanged. In general, binary harm cannot exceed
+          either control success or assistant failure, so its maximum is the smaller of those two rates.
+        hold: 0.65
+        visual_cues:
+          - id: cau-harm-bounds-1
+            phrase: All four counts must be nonnegative. Harm can therefore range from zero to twenty-two per hundred. At
+              the upper endpoint the counts are forty-six always resolve, thirty-two helped, twenty-two harmed
+              and zero never resolve. Both success margins remain unchanged. In general, binary harm cannot
+              exceed either control success or assistant failure, so its maximum is the smaller of those two
+              rates.
+            targets:
+              - cau-harm-bounds-mechanism
+            color: cyan
+            linger: 0.35
+          - id: cau-harm-range
+            phrase: Harm can therefore range from zero to twenty-two per hundred.
+            targets:
+              - cau-harm-bounds-mechanism
+            color: cyan
+            linger: 0.35
+          - id: cau-harm-endpoint
+            phrase: forty-six always resolve, thirty-two helped, twenty-two harmed and zero never resolve.
+            targets:
+              - cau-harm-bounds-mechanism
+            color: cyan
+            linger: 0.35
+      - say: A no-harm assumption removes the harmed category and fixes these four proportions for this binary
+          setting, but not which ticket has each type. Positive average improvement does not establish that
+          assumption, individual benefit or safety on another metric. Even ideal intervention marginals do not
+          reveal the within-ticket pairing needed for an individual counterfactual.
+        hold: 0.65
+        visual_cues:
+          - id: cau-harm-bounds-2
+            phrase: A no-harm assumption removes the harmed category and fixes these four proportions for this binary
+              setting, but not which ticket has each type. Positive average improvement does not establish
+              that assumption, individual benefit or safety on another metric. Even ideal intervention
+              marginals do not reveal the within-ticket pairing needed for an individual counterfactual.
+            targets:
+              - cau-harm-bounds-mechanism
+            color: cyan
+            linger: 0.35
+          - id: cau-no-harm-assumption
+            phrase: A no-harm assumption removes the harmed category
+            targets:
+              - cau-harm-bounds-mechanism
+            color: cyan
+            linger: 0.35
+  - id: overlap
+    title: Weights cannot create an unobserved action
+    visual: Rare assignments expand under inverse-probability weights; a zero-support cell opens a visible hole in
+      the comparison.
+    beats:
+      - say: Inverse-probability weighting gives more influence to assignments that were rare under the logging
+          policy. An assistant ticket with assignment probability one tenth receives weight ten. This can
+          balance measured groups toward a specified population when the relevant identification assumptions
+          and propensity model are appropriate.
+        hold: 0.6
+        visual_cues:
+          - id: overlap-beat-1-focus-1
+            phrase: Inverse-probability weighting gives more influence to assignments that
+            targets:
+              - overlap-object-distribution-overlap-40
+            color: blue
+            linger: 0.6
+      - say: Large weights concentrate the estimate on a few observations. They do not create new independent tickets.
+          If a workflow was impossible for a target group under the logging policy, its outcome for that group
+          is unsupported. Reweighting cannot supply the missing comparison without extrapolation assumptions
+          or new data.
+        hold: 0.6
+        visual_cues:
+          - id: overlap-beat-2-focus-1
+            phrase: Large weights concentrate the estimate on a few observations
+            targets:
+              - overlap-object-distribution-overlap-40
+            color: blue
+            linger: 0.6
+      - say: Inspect support, covariate balance, and weight concentration. Clipping can trade variance for bias, and
+          fitting a propensity model cannot remove hidden common causes by itself. A randomized comparison
+          with well-defined workflows can address assignment confounding, while missing outcomes and shared
+          queues still require careful design.
+        hold: 0.75
+        visual_cues:
+          - id: overlap-beat-3-focus-1
+            phrase: Inspect support
+            targets:
+              - overlap-node-risk
+            color: cyan
+            linger: 0.6
+  - id: weighted-tickets
+    title: Attach each inverse weight to an observed ticket
+    visual: Keep all 200 observed ticket outcomes. The rare and common risk groups contribute computed weight mass
+      without adding observed tickets. Build the two 200-weight totals, then reveal the 140/120 weighted
+      success sums and 70/60 rates.
+    beats:
+      - say: Our logged population is half low risk and half high risk. The empirical probability of assistant
+          assignment is point one for low risk and point nine for high risk. Give each assistant ticket one
+          divided by its assignment probability, and each control ticket one divided by one minus that
+          probability. These are assignment probabilities, not success predictions.
+        hold: 0.65
+        visual_cues:
+          - id: cau-weighted-tickets-0
+            phrase: Our logged population is half low risk and half high risk. The empirical probability of assistant
+              assignment is point one for low risk and point nine for high risk. Give each assistant ticket
+              one divided by its assignment probability, and each control ticket one divided by one minus that
+              probability. These are assignment probabilities, not success predictions.
+            targets:
+              - cau-weighted-tickets-mechanism
+            color: cyan
+            linger: 0.35
+      - say: The ten rare low-risk assistant tickets each receive weight ten, giving total weight one hundred. The
+          ninety high-risk assistant tickets receive ten ninths each, also totaling one hundred. The control
+          arm balances the other way. Each arm has weighted total two hundred while retaining exactly one
+          hundred observed tickets.
+        hold: 0.65
+        visual_cues:
+          - id: cau-weighted-tickets-1
+            phrase: The ten rare low-risk assistant tickets each receive weight ten, giving total weight one hundred. The
+              ninety high-risk assistant tickets receive ten ninths each, also totaling one hundred. The
+              control arm balances the other way. Each arm has weighted total two hundred while retaining
+              exactly one hundred observed tickets.
+            targets:
+              - cau-weighted-tickets-mechanism
+            color: cyan
+            linger: 0.35
+          - id: cau-rare-weight
+            phrase: The ten rare low-risk assistant tickets each receive weight ten, giving total weight one hundred.
+            targets:
+              - cau-weighted-tickets-mechanism
+            color: cyan
+            linger: 0.35
+          - id: cau-common-weight
+            phrase: The ninety high-risk assistant tickets receive ten ninths each, also totaling one hundred.
+            targets:
+              - cau-weighted-tickets-mechanism
+            color: cyan
+            linger: 0.35
+      - say: Weighted successes are one hundred forty for assistant and one hundred twenty for control. Divide by the
+          arm’s weighted total to get seventy and sixty percent. These normalized means target the log’s
+          fifty-fifty mix. The earlier seventy-eight and sixty-eight rates targeted deployment’s
+          seventy-thirty mix. Their differences agree here because both subgroup contrasts equal ten points.
+        hold: 0.65
+        visual_cues:
+          - id: cau-weighted-tickets-2
+            phrase: Weighted successes are one hundred forty for assistant and one hundred twenty for control. Divide by
+              the arm’s weighted total to get seventy and sixty percent. These normalized means target the
+              log’s fifty-fifty mix. The earlier seventy-eight and sixty-eight rates targeted deployment’s
+              seventy-thirty mix. Their differences agree here because both subgroup contrasts equal ten
+              points.
+            targets:
+              - cau-weighted-tickets-mechanism
+            color: cyan
+            linger: 0.35
+          - id: cau-weighted-successes
+            phrase: Weighted successes are one hundred forty for assistant and one hundred twenty for control.
+            targets:
+              - cau-weighted-tickets-mechanism
+            color: cyan
+            linger: 0.35
+          - id: cau-weighted-rates
+            phrase: seventy and sixty percent.
+            targets:
+              - cau-weighted-tickets-mechanism
+            color: cyan
+            linger: 0.35
+  - id: weight-choices
+    title: Distinguish normalization, stabilization and clipping
+    visual: Keep the same observed outcomes while multiplying every weight by one-half. Its normalized means and
+      ESS remain fixed. Reset to the original raw weights for a separately labeled cap of five, then hold the
+      new totals, rates and contrast until their clauses complete.
+    beats:
+      - say: A normalized arm mean divides weighted successes by total arm weight. This is the Hájek ratio form; it is
+          not generally exactly unbiased in a finite sample. A weight-only concentration diagnostic squares
+          the sum of weights and divides by the sum of squared individual weights. The actual arm calculation
+          gives an effective sample size of thirty-six, not two hundred.
+        hold: 0.65
+        visual_cues:
+          - id: cau-weight-choices-0
+            phrase: A normalized arm mean divides weighted successes by total arm weight. This is the Hájek ratio form; it
+              is not generally exactly unbiased in a finite sample. A weight-only concentration diagnostic
+              squares the sum of weights and divides by the sum of squared individual weights. The actual arm
+              calculation gives an effective sample size of thirty-six, not two hundred.
+            targets:
+              - cau-weight-choices-mechanism
+            color: cyan
+            linger: 0.35
+          - id: cau-ess-result
+            phrase: an effective sample size of thirty-six
+            targets:
+              - cau-weight-choices-mechanism
+            color: cyan
+            linger: 0.35
+      - say: Stabilizing these particular weights by multiplying every weight within an arm by one-half leaves its
+          normalized mean unchanged. The same constant cancels in the effective-size diagnostic, so that
+          remains thirty-six too. This algebra does not establish a general outcome variance or a confidence
+          interval.
+        hold: 0.65
+        visual_cues:
+          - id: cau-weight-choices-1
+            phrase: Stabilizing these particular weights by multiplying every weight within an arm by one-half leaves its
+              normalized mean unchanged. The same constant cancels in the effective-size diagnostic, so that
+              remains thirty-six too. This algebra does not establish a general outcome variance or a
+              confidence interval.
+            targets:
+              - cau-weight-choices-mechanism
+            color: cyan
+            linger: 0.35
+          - id: cau-stabilize-half
+            phrase: multiplying every weight within an arm by one-half
+            targets:
+              - cau-weight-choices-mechanism
+            color: cyan
+            linger: 0.35
+      - say: Clipping is a different operation. In a separate supplied calculation, cap the original raw weights at
+          five while keeping common weights at ten ninths. Each arm now totals one hundred fifty. Assistant
+          becomes sixty-three and a third percent, control sixty-six and two thirds, and the contrast becomes
+          minus three and a third points. The cap reduces concentration but changes the effective comparison;
+          predeclare it and inspect bias and sensitivity.
+        hold: 0.65
+        visual_cues:
+          - id: cau-weight-choices-2
+            phrase: Clipping is a different operation. In a separate supplied calculation, cap the original raw weights at
+              five while keeping common weights at ten ninths. Each arm now totals one hundred fifty.
+              Assistant becomes sixty-three and a third percent, control sixty-six and two thirds, and the
+              contrast becomes minus three and a third points. The cap reduces concentration but changes the
+              effective comparison; predeclare it and inspect bias and sensitivity.
+            targets:
+              - cau-weight-choices-mechanism
+            color: cyan
+            linger: 0.35
+          - id: cau-clip-five
+            phrase: cap the original raw weights at five
+            targets:
+              - cau-weight-choices-mechanism
+            color: cyan
+            linger: 0.35
+          - id: cau-clipped-rates
+            phrase: Assistant becomes sixty-three and a third percent, control sixty-six and two thirds
+            targets:
+              - cau-weight-choices-mechanism
+            color: cyan
+            linger: 0.35
+          - id: cau-clipped-difference
+            phrase: the contrast becomes minus three and a third points.
+            targets:
+              - cau-weight-choices-mechanism
+            color: cyan
+            linger: 0.35
+          - id: cau-clip-total
+            phrase: Each arm now totals one hundred fifty.
+            targets:
+              - cau-weight-choices-mechanism
+            color: cyan
+            linger: 0.35
+  - id: support-sampling
+    title: Separate an impossible action from an empty sample
+    visual: Contrast a true zero control probability with a possible all-assistant event in a new independent
+      ten-ticket sample. Retain the empty observed control cell in both cases while the declared policy
+      probabilities differ. Reveal the calculated event probability separately.
+    beats:
+      - say: If the true policy always routes a target group to the assistant, its control probability is zero. That
+          is a structural positivity failure for a comparison requiring control there. Weighting cannot create
+          its missing outcome. Restrict the target, collect supported exploration data or disclose the extra
+          extrapolation assumptions.
+        hold: 0.65
+        visual_cues:
+          - id: cau-support-sampling-0
+            phrase: If the true policy always routes a target group to the assistant, its control probability is zero.
+              That is a structural positivity failure for a comparison requiring control there. Weighting
+              cannot create its missing outcome. Restrict the target, collect supported exploration data or
+              disclose the extra extrapolation assumptions.
+            targets:
+              - cau-support-sampling-mechanism
+            color: cyan
+            linger: 0.35
+          - id: cau-structural-zero
+            phrase: its control probability is zero.
+            targets:
+              - cau-support-sampling-mechanism
+            color: cyan
+            linger: 0.35
+      - say: An empty finite-sample cell alone does not prove structural impossibility. In a new ten-ticket batch with
+          independent assistant probability point nine, the chance all ten receive assistant is point nine to
+          the tenth, about thirty-four point nine percent. The control cell is empty in that event even though
+          the true control probability is positive.
+        hold: 0.65
+        visual_cues:
+          - id: cau-support-sampling-1
+            phrase: An empty finite-sample cell alone does not prove structural impossibility. In a new ten-ticket batch
+              with independent assistant probability point nine, the chance all ten receive assistant is point
+              nine to the tenth, about thirty-four point nine percent. The control cell is empty in that event
+              even though the true control probability is positive.
+            targets:
+              - cau-support-sampling-mechanism
+            color: cyan
+            linger: 0.35
+          - id: cau-sampling-probability
+            phrase: about thirty-four point nine percent.
+            targets:
+              - cau-support-sampling-mechanism
+            color: cyan
+            linger: 0.35
+      - say: The article’s direct stratum arithmetic rejects either kind of zero cell instead of silently
+          extrapolating. Near-zero probabilities can also produce extreme weights and unstable estimates.
+          Check covariate balance after fitting the propensity model; a misspecified model need not balance
+          the measured data. Neither clipping nor stabilization restores unmeasured outcomes or removes hidden
+          confounding.
+        hold: 0.65
+        visual_cues:
+          - id: cau-support-sampling-2
+            phrase: The article’s direct stratum arithmetic rejects either kind of zero cell instead of silently
+              extrapolating. Near-zero probabilities can also produce extreme weights and unstable estimates.
+              Check covariate balance after fitting the propensity model; a misspecified model need not
+              balance the measured data. Neither clipping nor stabilization restores unmeasured outcomes or
+              removes hidden confounding.
+            targets:
+              - cau-support-sampling-mechanism
+            color: cyan
+            linger: 0.35
+  - id: instrument
+    title: Audit how an encouragement reaches the outcome
+    visual: Keep hidden urgency, workflow and resolution fixed while adding the randomized encouragement path.
+      Identify relevance and the exclusion requirement on those routes. A request-latency bypass then creates
+      a visible route from the flag to the outcome outside workflow uptake.
+    beats:
+      - say: Hidden urgency can leave treatment and resolution confounded after measured-risk adjustment. An
+          instrumental variable offers a different route under demanding assumptions. A randomized gateway
+          encouragement must change workflow uptake, be independent of the relevant potential uptake and
+          outcome variables, and affect resolution only through the workflow received.
+        hold: 0.65
+        visual_cues:
+          - id: cau-instrument-0
+            phrase: Hidden urgency can leave treatment and resolution confounded after measured-risk adjustment. An
+              instrumental variable offers a different route under demanding assumptions. A randomized gateway
+              encouragement must change workflow uptake, be independent of the relevant potential uptake and
+              outcome variables, and affect resolution only through the workflow received.
+            targets:
+              - cau-instrument-mechanism
+            color: cyan
+            linger: 0.35
+      - say: The uptake change is relevance. The absence of any bypassing effect is exclusion. Random assignment can
+          justify the independence condition under a sound design, but a strong first stage alone cannot
+          verify exclusion. Removing one direct arrow does not remove another path through latency, model
+          versions or staff behavior.
+        hold: 0.65
+        visual_cues:
+          - id: cau-instrument-1
+            phrase: The uptake change is relevance. The absence of any bypassing effect is exclusion. Random assignment
+              can justify the independence condition under a sound design, but a strong first stage alone
+              cannot verify exclusion. Removing one direct arrow does not remove another path through latency,
+              model versions or staff behavior.
+            targets:
+              - cau-instrument-mechanism
+            color: cyan
+            linger: 0.35
+      - say: For example, a randomized flag that also delays requests can change resolution without changing workflow
+          uptake. Its exclusion restriction fails despite randomization. Define the encouragement and
+          workflows consistently and address interference. The displayed flag is a hypothetical candidate, not
+          a validated instrument or a cure for every unmeasured variable.
+        hold: 0.65
+        visual_cues:
+          - id: cau-instrument-2
+            phrase: For example, a randomized flag that also delays requests can change resolution without changing
+              workflow uptake. Its exclusion restriction fails despite randomization. Define the encouragement
+              and workflows consistently and address interference. The displayed flag is a hypothetical
+              candidate, not a validated instrument or a cure for every unmeasured variable.
+            targets:
+              - cau-instrument-mechanism
+            color: cyan
+            linger: 0.35
+          - id: cau-iv-latency-bypass
+            phrase: a randomized flag that also delays requests can change resolution without changing workflow uptake.
+            targets:
+              - cau-instrument-mechanism
+            color: cyan
+            linger: 0.35
+  - id: wald-late
+    title: Divide the outcome change by the uptake change
+    visual: Compare uptake and resolution between instrument groups, then form their Wald ratio. Under explicit
+      monotonicity, a hypothetical 100-person type grid carries the same positions between flag states; only
+      the complier block changes workflow.
+    beats:
+      - say: "The Wald ratio divides the outcome difference between instrument groups by their workflow-uptake
+          difference. In the supplied example, assistant uptake rises from thirty to seventy percent while
+          resolution rises from sixty-eight to seventy-two. Divide four percentage points by forty percentage
+          points to get point one: a ten-point effect."
+        hold: 0.65
+        visual_cues:
+          - id: cau-wald-late-0
+            phrase: "The Wald ratio divides the outcome difference between instrument groups by their workflow-uptake
+              difference. In the supplied example, assistant uptake rises from thirty to seventy percent while
+              resolution rises from sixty-eight to seventy-two. Divide four percentage points by forty
+              percentage points to get point one: a ten-point effect."
+            targets:
+              - cau-wald-late-mechanism
+            color: cyan
+            linger: 0.35
+          - id: cau-wald-inputs
+            phrase: assistant uptake rises from thirty to seventy percent while resolution rises from sixty-eight to
+              seventy-two.
+            targets:
+              - cau-wald-late-mechanism
+            color: cyan
+            linger: 0.35
+          - id: cau-wald-ratio
+            phrase: a ten-point effect.
+            targets:
+              - cau-wald-late-mechanism
+            color: cyan
+            linger: 0.35
+      - say: With the instrument assumptions and monotonicity, the population ratio identifies the average effect on
+          compliers, whose workflow changes from control to assistant when encouraged. Monotonicity rules out
+          defiers; it does not require everyone to follow the flag. The uptake rates imply thirty percent
+          always-takers, forty percent compliers and thirty percent never-takers.
+        hold: 0.65
+        visual_cues:
+          - id: cau-wald-late-1
+            phrase: With the instrument assumptions and monotonicity, the population ratio identifies the average effect
+              on compliers, whose workflow changes from control to assistant when encouraged. Monotonicity
+              rules out defiers; it does not require everyone to follow the flag. The uptake rates imply
+              thirty percent always-takers, forty percent compliers and thirty percent never-takers.
+            targets:
+              - cau-wald-late-mechanism
+            color: cyan
+            linger: 0.35
+          - id: cau-compliance-groups
+            phrase: thirty percent always-takers, forty percent compliers and thirty percent never-takers.
+            targets:
+              - cau-wald-late-mechanism
+            color: cyan
+            linger: 0.35
+      - say: Assistant use already occurs without encouragement, so this is two-sided noncompliance. The complier
+          effect need not equal the whole-population average, and another instrument can change a different
+          subset. Our sample ratio is an estimate requiring suitable uncertainty; its successful arithmetic
+          does not establish that the instrument assumptions hold.
+        hold: 0.65
+        visual_cues:
+          - id: cau-wald-late-2
+            phrase: Assistant use already occurs without encouragement, so this is two-sided noncompliance. The complier
+              effect need not equal the whole-population average, and another instrument can change a
+              different subset. Our sample ratio is an estimate requiring suitable uncertainty; its successful
+              arithmetic does not establish that the instrument assumptions hold.
+            targets:
+              - cau-wald-late-mechanism
+            color: cyan
+            linger: 0.35
+  - id: weak-instrument
+    title: Hold a bypass fixed while shrinking the first stage
+    visual: A separate algebra worksheet fixes the true effect and a deliberately invalid direct bypass. Shrink
+      the first-stage denominator while retaining the bypass contribution. Compute each numerator and hold its
+      reported ratio until the corresponding result phrase.
+    beats:
+      - say: A small first-stage denominator magnifies noise and exclusion errors. Use a separate algebra worksheet
+          with a true complier effect of point one and an added direct outcome effect of point zero one from
+          the flag. This direct effect deliberately violates exclusion.
+        hold: 0.65
+        visual_cues:
+          - id: cau-weak-instrument-0
+            phrase: A small first-stage denominator magnifies noise and exclusion errors. Use a separate algebra worksheet
+              with a true complier effect of point one and an added direct outcome effect of point zero one
+              from the flag. This direct effect deliberately violates exclusion.
+            targets:
+              - cau-weak-instrument-mechanism
+            color: cyan
+            linger: 0.35
+      - say: With uptake change point four, the mediated outcome change is point zero four. Add the bypass point zero
+          one to get point zero five; dividing by point four reports point one two five instead of point one.
+          With uptake change only point zero four, the numerator becomes point zero one four and the ratio
+          becomes point three five.
+        hold: 0.65
+        visual_cues:
+          - id: cau-weak-instrument-1
+            phrase: With uptake change point four, the mediated outcome change is point zero four. Add the bypass point
+              zero one to get point zero five; dividing by point four reports point one two five instead of
+              point one. With uptake change only point zero four, the numerator becomes point zero one four
+              and the ratio becomes point three five.
+            targets:
+              - cau-weak-instrument-mechanism
+            color: cyan
+            linger: 0.35
+          - id: cau-iv-strong-input
+            phrase: With uptake change point four
+            targets:
+              - cau-weak-instrument-mechanism
+            color: cyan
+            linger: 0.35
+          - id: cau-iv-biased-first
+            phrase: reports point one two five instead of point one.
+            targets:
+              - cau-weak-instrument-mechanism
+            color: cyan
+            linger: 0.35
+          - id: cau-iv-weak-input
+            phrase: With uptake change only point zero four
+            targets:
+              - cau-weak-instrument-mechanism
+            color: cyan
+            linger: 0.35
+          - id: cau-iv-biased-second
+            phrase: the ratio becomes point three five.
+            targets:
+              - cau-weak-instrument-mechanism
+            color: cyan
+            linger: 0.35
+      - say: The same one-point bypass now contributes twenty-five effect points to the ratio rather than two and a
+          half. Weak-instrument inference needs methods suited to that strength. A narrow ordinary interval or
+          a large sample cannot automatically repair invalid exclusion. Assess how the flag actually operates
+          before interpreting its ratio as a causal effect.
+        hold: 0.65
+        visual_cues:
+          - id: cau-weak-instrument-2
+            phrase: The same one-point bypass now contributes twenty-five effect points to the ratio rather than two and a
+              half. Weak-instrument inference needs methods suited to that strength. A narrow ordinary
+              interval or a large sample cannot automatically repair invalid exclusion. Assess how the flag
+              actually operates before interpreting its ratio as a causal effect.
+            targets:
+              - cau-weak-instrument-mechanism
+            color: cyan
+            linger: 0.35
+          - id: cau-iv-bypass-bias
+            phrase: twenty-five effect points to the ratio rather than two and a half.
+            targets:
+              - cau-weak-instrument-mechanism
+            color: cyan
+            linger: 0.35
+  - id: policy-value
+    title: Use the target policy in the likelihood ratio
+    visual: Keep all 200 logged decisions, assign the target-to-log action ratios and sum actual weighted rewards.
+      A target that always selects assistant gives control rows zero weight. Preserve the v1 estimate when a
+      new prompt creates an unsupported v2 target.
+    beats:
+      - say: For one-step offline policy evaluation, retain context, observed action, reward and the probability that
+          the logging policy assigned that action. The target policy can choose the same defined workflows at
+          different rates. Its importance ratio is target action probability divided by logging action
+          probability, multiplied by the logged reward and averaged across records.
+        hold: 0.65
+        visual_cues:
+          - id: cau-policy-value-0
+            phrase: For one-step offline policy evaluation, retain context, observed action, reward and the probability
+              that the logging policy assigned that action. The target policy can choose the same defined
+              workflows at different rates. Its importance ratio is target action probability divided by
+              logging action probability, multiplied by the logged reward and averaged across records.
+            targets:
+              - cau-policy-value-mechanism
+            color: cyan
+            linger: 0.35
+      - say: For a target that always selects assistant, control records receive ratio zero. Assistant records use one
+          divided by their risk-dependent logging probability. The actual two-hundred-row fixture estimates
+          seventy-percent resolution at the log’s fifty-fifty context mix, matching the earlier adjusted
+          assistant rate for that population.
+        hold: 0.65
+        visual_cues:
+          - id: cau-policy-value-1
+            phrase: For a target that always selects assistant, control records receive ratio zero. Assistant records use
+              one divided by their risk-dependent logging probability. The actual two-hundred-row fixture
+              estimates seventy-percent resolution at the log’s fifty-fifty context mix, matching the earlier
+              adjusted assistant rate for that population.
+            targets:
+              - cau-policy-value-mechanism
+            color: cyan
+            linger: 0.35
+          - id: cau-target-policy-weights
+            phrase: control records receive ratio zero.
+            targets:
+              - cau-policy-value-mechanism
+            color: cyan
+            linger: 0.35
+          - id: cau-policy-value-result
+            phrase: estimates seventy-percent resolution
+            targets:
+              - cau-policy-value-mechanism
+            color: cyan
+            linger: 0.35
+      - say: Identification still needs sufficient pre-action context, supported target actions, consistent
+          definitions and stable relevant mechanisms. A new prompt that changes assistant behavior defines a
+          new action version; old-workflow logs do not automatically evaluate it. Log actual action
+          probabilities, eligibility, policy versions, reward windows and missing outcomes at each decision
+          when possible.
+        hold: 0.65
+        visual_cues:
+          - id: cau-policy-value-2
+            phrase: Identification still needs sufficient pre-action context, supported target actions, consistent
+              definitions and stable relevant mechanisms. A new prompt that changes assistant behavior defines
+              a new action version; old-workflow logs do not automatically evaluate it. Log actual action
+              probabilities, eligibility, policy versions, reward windows and missing outcomes at each
+              decision when possible.
+            targets:
+              - cau-policy-value-mechanism
+            color: cyan
+            linger: 0.35
+          - id: cau-value-new-version
+            phrase: A new prompt that changes assistant behavior defines a new action version
+            targets:
+              - cau-policy-value-mechanism
+            color: cyan
+            linger: 0.35
+  - id: dr-correction
+    title: Construct the reward baseline and its weighted residual
+    visual: Use the same per-ticket rewards to construct the reward-model baseline and the weighted residual
+      correction. Change assignment estimates, recompute the correction, and restore matched reward
+      predictions in the actual main operands. Keep each result behind its own spoken clause.
+    beats:
+      - say: Doubly robust evaluation starts with the reward model’s target-policy prediction for each context. Add
+          the target-to-logging probability ratio times the difference between the observed reward and its
+          prediction for the observed action. Then average those corrected values. The immediate-reward
+          formula here is for one step.
+        hold: 0.65
+        visual_cues:
+          - id: cau-dr-correction-0
+            phrase: Doubly robust evaluation starts with the reward model’s target-policy prediction for each context. Add
+              the target-to-logging probability ratio times the difference between the observed reward and its
+              prediction for the observed action. Then average those corrected values. The immediate-reward
+              formula here is for one step.
+            targets:
+              - cau-dr-correction-mechanism
+            color: cyan
+            linger: 0.35
+      - say: The actual fixture shifts both assistant reward predictions up by five points, from ninety and fifty to
+          ninety-five and fifty-five. Its direct target prediction is seventy-five percent. Matched propensity
+          weights make the two risk groups contribute minus five weighted residual units each, so the average
+          correction is minus ten over two hundred, returning seventy percent.
+        hold: 0.65
+        visual_cues:
+          - id: cau-dr-correction-1
+            phrase: The actual fixture shifts both assistant reward predictions up by five points, from ninety and fifty
+              to ninety-five and fifty-five. Its direct target prediction is seventy-five percent. Matched
+              propensity weights make the two risk groups contribute minus five weighted residual units each,
+              so the average correction is minus ten over two hundred, returning seventy percent.
+            targets:
+              - cau-dr-correction-mechanism
+            color: cyan
+            linger: 0.35
+          - id: cau-dr-shifted-baseline
+            phrase: Its direct target prediction is seventy-five percent.
+            targets:
+              - cau-dr-correction-mechanism
+            color: cyan
+            linger: 0.35
+          - id: cau-dr-matched-result
+            phrase: returning seventy percent.
+            targets:
+              - cau-dr-correction-mechanism
+            color: cyan
+            linger: 0.35
+          - id: cau-dr-residuals
+            phrase: minus five weighted residual units each
+            targets:
+              - cau-dr-correction-mechanism
+            color: cyan
+            linger: 0.35
+      - say: Now replace risk-dependent assignment probabilities with the wrong constant point four. The shifted
+          baseline remains seventy-five percent, but the correction is minus twelve point five over two
+          hundred, producing sixty-eight point seven five percent, displayed as sixty-eight point eight.
+          Restoring matched reward predictions yields seventy percent even with those wrong weights in this
+          grouped fixture. Both models wrong can leave error.
+        hold: 0.65
+        visual_cues:
+          - id: cau-dr-correction-2
+            phrase: Now replace risk-dependent assignment probabilities with the wrong constant point four. The shifted
+              baseline remains seventy-five percent, but the correction is minus twelve point five over two
+              hundred, producing sixty-eight point seven five percent, displayed as sixty-eight point eight.
+              Restoring matched reward predictions yields seventy percent even with those wrong weights in
+              this grouped fixture. Both models wrong can leave error.
+            targets:
+              - cau-dr-correction-mechanism
+            color: cyan
+            linger: 0.35
+          - id: cau-dr-wrong-propensity
+            phrase: the wrong constant point four.
+            targets:
+              - cau-dr-correction-mechanism
+            color: cyan
+            linger: 0.35
+          - id: cau-dr-wrong-result
+            phrase: displayed as sixty-eight point eight.
+            targets:
+              - cau-dr-correction-mechanism
+            color: cyan
+            linger: 0.35
+          - id: cau-dr-reward-restore
+            phrase: Restoring matched reward predictions yields seventy percent even with those wrong weights
+            targets:
+              - cau-dr-correction-mechanism
+            color: cyan
+            linger: 0.35
+          - id: cau-dr-wrong-correction
+            phrase: the correction is minus twelve point five over two hundred
+            targets:
+              - cau-dr-correction-mechanism
+            color: cyan
+            linger: 0.35
+  - id: dr-assumptions
+    title: Locate the two error factors before claiming robustness
+    visual: A symbolic product rectangle shrinks to zero as one nuisance-error factor vanishes. Separate model
+      fitting from held-out evaluation, while retaining explicit support and hidden-confounding limits.
+    beats:
+      - say: "The conditional bias for fixed nuisance models contains a product: one minus true logging probability
+          divided by its estimate, multiplied by reward-prediction error, then summed with target-policy
+          probabilities. If either factor is exactly zero on supported actions, that bias vanishes. Two
+          approximate models do not guarantee zero error or minimum variance."
+        hold: 0.65
+        visual_cues:
+          - id: cau-dr-assumptions-0
+            phrase: "The conditional bias for fixed nuisance models contains a product: one minus true logging probability
+              divided by its estimate, multiplied by reward-prediction error, then summed with target-policy
+              probabilities. If either factor is exactly zero on supported actions, that bias vanishes. Two
+              approximate models do not guarantee zero error or minimum variance."
+            targets:
+              - cau-dr-assumptions-mechanism
+            color: cyan
+            linger: 0.35
+          - id: cau-dr-zero-factor
+            phrase: If either factor is exactly zero on supported actions, that bias vanishes.
+            targets:
+              - cau-dr-assumptions-mechanism
+            color: cyan
+            linger: 0.35
+      - say: The exact fixed-model argument evaluates models independently of the outcome sample. With estimated
+          nuisances, correct specification and consistent fitting can give consistency under suitable
+          regularity conditions, rather than automatic exact finite-sample unbiasedness. Split data or
+          cross-fit, and evaluate a learned target policy on held-out data.
+        hold: 0.65
+        visual_cues:
+          - id: cau-dr-assumptions-1
+            phrase: The exact fixed-model argument evaluates models independently of the outcome sample. With estimated
+              nuisances, correct specification and consistent fitting can give consistency under suitable
+              regularity conditions, rather than automatic exact finite-sample unbiasedness. Split data or
+              cross-fit, and evaluate a learned target policy on held-out data.
+            targets:
+              - cau-dr-assumptions-mechanism
+            color: cyan
+            linger: 0.35
+      - say: In our grouped demonstration, matched means reproduce empirical cells and verify the algebra. They do not
+          prove repeated-sample unbiasedness or causal identification. A reward model cannot cure an
+          unsupported action, and double robustness does not close a hidden-confounder path. Keep
+          identification, overlap and uncertainty separate from this protection against nuisance-model error.
+        hold: 0.65
+        visual_cues:
+          - id: cau-dr-assumptions-2
+            phrase: In our grouped demonstration, matched means reproduce empirical cells and verify the algebra. They do
+              not prove repeated-sample unbiasedness or causal identification. A reward model cannot cure an
+              unsupported action, and double robustness does not close a hidden-confounder path. Keep
+              identification, overlap and uncertainty separate from this protection against nuisance-model
+              error.
+            targets:
+              - cau-dr-assumptions-mechanism
+            color: cyan
+            linger: 0.35
+  - id: sequential-policy
+    title: Carry ratios through the changing trajectory
+    visual: Link observed decisions with their histories and target-to-log action ratios. Multiply the two-step
+      ratios, then replace them with a separate identical-policy trajectory whose ratios are all one. Keep
+      future-value and missing-outcome requirements attached to the trajectory.
+    beats:
+      - say: A multi-step agent changes its later state distribution when earlier choices change. A trajectory
+          importance weight can multiply the target-to-logging action ratios across time. In a supplied
+          two-step trace, ratios two and one-half multiply to one; adding them would be the wrong trajectory
+          weight.
+        hold: 0.65
+        visual_cues:
+          - id: cau-sequential-policy-0
+            phrase: A multi-step agent changes its later state distribution when earlier choices change. A trajectory
+              importance weight can multiply the target-to-logging action ratios across time. In a supplied
+              two-step trace, ratios two and one-half multiply to one; adding them would be the wrong
+              trajectory weight.
+            targets:
+              - cau-sequential-policy-mechanism
+            color: cyan
+            linger: 0.35
+          - id: cau-trajectory-product
+            phrase: ratios two and one-half multiply to one
+            targets:
+              - cau-sequential-policy-mechanism
+            color: cyan
+            linger: 0.35
+      - say: Products can concentrate weights and can produce variance growing rapidly with horizon, but this is not
+          inevitable. Identical target and logging policies give ratio one at every supported step. A
+          sequential doubly robust estimator includes future value and per-step corrections; the one-step
+          immediate-reward formula is not automatically an estimator for a whole agent return.
+        hold: 0.65
+        visual_cues:
+          - id: cau-sequential-policy-1
+            phrase: Products can concentrate weights and can produce variance growing rapidly with horizon, but this is
+              not inevitable. Identical target and logging policies give ratio one at every supported step. A
+              sequential doubly robust estimator includes future value and per-step corrections; the one-step
+              immediate-reward formula is not automatically an estimator for a whole agent return.
+            targets:
+              - cau-sequential-policy-mechanism
+            color: cyan
+            linger: 0.35
+          - id: cau-same-policy-ratios
+            phrase: Identical target and logging policies give ratio one at every supported step.
+            targets:
+              - cau-sequential-policy-mechanism
+            color: cyan
+            linger: 0.35
+      - say: Retain the relevant histories, action versions, probabilities and terminal outcomes. A lost outcome is
+          not zero reward merely because it is absent. Decide whether a trajectory-wise or per-decision
+          estimator matches the policy-value question, and use an uncertainty method that reflects dependent
+          trajectories and the actual logging design.
+        hold: 0.65
+        visual_cues:
+          - id: cau-sequential-policy-2
+            phrase: Retain the relevant histories, action versions, probabilities and terminal outcomes. A lost outcome is
+              not zero reward merely because it is absent. Decide whether a trajectory-wise or per-decision
+              estimator matches the policy-value question, and use an uncertainty method that reflects
+              dependent trajectories and the actual logging design.
+            targets:
+              - cau-sequential-policy-mechanism
+            color: cyan
+            linger: 0.35
+  - id: click-exposure
+    title: Follow examination before interpreting a click
+    visual: A declared examination/relevance model constructs the expected click mass. Retain those clicks while
+      changing only the examination probability used by the correction. Gate the changed input and corrected
+      result separately.
+    beats:
+      - say: Search clicks combine exposure and relevance. In a simple position-based model with the stated
+          independence assumptions, click probability is examination probability times relevance probability.
+          A supplied examination probability point two and relevance probability point six therefore give
+          click probability point one two.
+        hold: 0.65
+        visual_cues:
+          - id: cau-click-exposure-0
+            phrase: Search clicks combine exposure and relevance. In a simple position-based model with the stated
+              independence assumptions, click probability is examination probability times relevance
+              probability. A supplied examination probability point two and relevance probability point six
+              therefore give click probability point one two.
+            targets:
+              - cau-click-exposure-mechanism
+            color: cyan
+            linger: 0.35
+          - id: cau-click-product
+            phrase: give click probability point one two.
+            targets:
+              - cau-click-exposure-mechanism
+            color: cyan
+            linger: 0.35
+      - say: Inverse examination weighting divides by point two and recovers point six in expectation under that
+          model. Using the wrong examination probability point four would instead give point three. These are
+          constructed expectations, not a measured ranking experiment or proof of a user’s true preference.
+        hold: 0.65
+        visual_cues:
+          - id: cau-click-exposure-1
+            phrase: Inverse examination weighting divides by point two and recovers point six in expectation under that
+              model. Using the wrong examination probability point four would instead give point three. These
+              are constructed expectations, not a measured ranking experiment or proof of a user’s true
+              preference.
+            targets:
+              - cau-click-exposure-mechanism
+            color: cyan
+            linger: 0.35
+          - id: cau-click-correct-weight
+            phrase: recovers point six in expectation under that model.
+            targets:
+              - cau-click-exposure-mechanism
+            color: cyan
+            linger: 0.35
+          - id: cau-click-wrong-weight
+            phrase: would instead give point three.
+            targets:
+              - cau-click-exposure-mechanism
+            color: cyan
+            linger: 0.35
+          - id: cau-click-wrong-input
+            phrase: Using the wrong examination probability point four
+            targets:
+              - cau-click-exposure-mechanism
+            color: cyan
+            linger: 0.35
+      - say: Joachims and colleagues use observation propensities to correct a ranking objective. Calling position a
+          confounder does not by itself justify that correction. Validate the examination or click model and
+          positive observation support; trust, attractiveness, popularity and selection effects can violate
+          the simple assumptions or remain after this correction.
+        hold: 0.65
+        visual_cues:
+          - id: cau-click-exposure-2
+            phrase: Joachims and colleagues use observation propensities to correct a ranking objective. Calling position
+              a confounder does not by itself justify that correction. Validate the examination or click model
+              and positive observation support; trust, attractiveness, popularity and selection effects can
+              violate the simple assumptions or remain after this correction.
+            targets:
+              - cau-click-exposure-mechanism
+            color: cyan
+            linger: 0.35
+  - id: replay-state
+    title: Recompute the downstream state after replacing a return
+    visual: Start from a declared replay snapshot, then instantiate the spoken deterministic return-value example.
+      Replace only the tool return, withhold the downstream result while recomputing, and contrast the
+      completed repair with a separately labeled invalid frozen branch.
+    beats:
+      - say: For an agent replay, snapshot the environment before the tool result being changed and specify the
+          alternative return. Keep or repeat randomness under a declared policy and prevent unrelated outside
+          drift. Recompute downstream state that depends on the changed return; retaining the old downstream
+          result would block the mechanism being tested.
+        hold: 0.65
+        visual_cues:
+          - id: cau-replay-state-0
+            phrase: For an agent replay, snapshot the environment before the tool result being changed and specify the
+              alternative return. Keep or repeat randomness under a declared policy and prevent unrelated
+              outside drift. Recompute downstream state that depends on the changed return; retaining the old
+              downstream result would block the mechanism being tested.
+            targets:
+              - cau-replay-state-mechanism
+            color: cyan
+            linger: 0.35
+      - say: "A new deterministic toy makes that concrete. Tool two returns two, step four doubles it to four, and
+          step five succeeds only at six or more, so the run fails. Replace the tool return with four and
+          recompute: step four becomes eight and the run succeeds. Freezing its earlier four would incorrectly
+          suppress this effect."
+        hold: 0.65
+        visual_cues:
+          - id: cau-replay-state-1
+            phrase: "A new deterministic toy makes that concrete. Tool two returns two, step four doubles it to four, and
+              step five succeeds only at six or more, so the run fails. Replace the tool return with four and
+              recompute: step four becomes eight and the run succeeds. Freezing its earlier four would
+              incorrectly suppress this effect."
+            targets:
+              - cau-replay-state-mechanism
+            color: cyan
+            linger: 0.35
+          - id: cau-replay-baseline
+            phrase: so the run fails.
+            targets:
+              - cau-replay-state-mechanism
+            color: cyan
+            linger: 0.35
+          - id: cau-replay-change
+            phrase: Replace the tool return with four and recompute
+            targets:
+              - cau-replay-state-mechanism
+            color: cyan
+            linger: 0.35
+          - id: cau-replay-new-result
+            phrase: step four becomes eight and the run succeeds.
+            targets:
+              - cau-replay-state-mechanism
+            color: cyan
+            linger: 0.35
+          - id: cau-replay-frozen
+            phrase: Freezing its earlier four would incorrectly suppress this effect.
+            targets:
+              - cau-replay-state-mechanism
+            color: cyan
+            linger: 0.35
+          - id: cau-replay-model
+            phrase: A new deterministic toy makes that concrete.
+            targets:
+              - cau-replay-state-mechanism
+            color: cyan
+            linger: 0.35
+      - say: This measures the return-value replacement inside the replay environment. Replacing a returned value
+          differs from changing the tool implementation and its side effects. A trace’s order is not itself a
+          causal graph, and one repaired replay does not uniquely identify the historical root cause or
+          reinforcement-learning credit. State that narrower estimand alongside the result.
+        hold: 0.65
+        visual_cues:
+          - id: cau-replay-state-2
+            phrase: This measures the return-value replacement inside the replay environment. Replacing a returned value
+              differs from changing the tool implementation and its side effects. A trace’s order is not
+              itself a causal graph, and one repaired replay does not uniquely identify the historical root
+              cause or reinforcement-learning credit. State that narrower estimand alongside the result.
+            targets:
+              - cau-replay-state-mechanism
+            color: cyan
+            linger: 0.35
+  - id: release-receipt
+    title: Keep observed, adjusted and identified claims separate
+    visual: Retain the risk, assignment and outcome graph and the original adjusted-versus-observed comparison.
+      Conditional randomization keeps the recorded-risk stratum explicit rather than claiming that all
+      assignment dependence disappears.
+    beats:
+      - say: An evidence receipt should identify the target population, both workflows, outcome horizon, assignment
+          probabilities, graph and adjustment set, overlap diagnostics, uncertainty, missing-outcome handling
+          and interference assumptions. Separate a directly observed rate from an effect identified under
+          assumptions and from an unresolved individual counterfactual.
+        hold: 0.65
+        visual_cues:
+          - id: cau-release-receipt-0
+            phrase: An evidence receipt should identify the target population, both workflows, outcome horizon, assignment
+              probabilities, graph and adjustment set, overlap diagnostics, uncertainty, missing-outcome
+              handling and interference assumptions. Separate a directly observed rate from an effect
+              identified under assumptions and from an unresolved individual counterfactual.
+            targets:
+              - cau-release-receipt-mechanism
+            color: cyan
+            linger: 0.35
+      - say: Marginal randomization makes assignment independent of potential outcomes by design; stratified
+          randomization can do so conditional on its strata. Balance is expected over repetitions, not exact
+          in each finite run. Randomization still needs valid outcome measurement and explicit handling of
+          missing data, queue interference and transfer beyond the experimental population.
+        hold: 0.65
+        visual_cues:
+          - id: cau-release-receipt-1
+            phrase: Marginal randomization makes assignment independent of potential outcomes by design; stratified
+              randomization can do so conditional on its strata. Balance is expected over repetitions, not
+              exact in each finite run. Randomization still needs valid outcome measurement and explicit
+              handling of missing data, queue interference and transfer beyond the experimental population.
+            targets:
+              - cau-release-receipt-mechanism
+            color: cyan
+            linger: 0.35
+          - id: cau-randomization-assignment
+            phrase: stratified randomization can do so conditional on its strata.
+            targets:
+              - cau-release-receipt-mechanism
+            color: cyan
+            linger: 0.35
+      - say: The original raw contrast was minus twenty-two points; the standardized contrast was plus ten with broad
+          uncertainty. Neither result proves every ticket benefits. Standardization, weighting, instruments,
+          doubly robust evaluation and randomization answer their specified questions under different
+          assumptions. Choose the design from the estimand and data support, rather than treating one
+          favorable number as a rollout decision.
+        hold: 0.65
+        visual_cues:
+          - id: cau-release-receipt-2
+            phrase: The original raw contrast was minus twenty-two points; the standardized contrast was plus ten with
+              broad uncertainty. Neither result proves every ticket benefits. Standardization, weighting,
+              instruments, doubly robust evaluation and randomization answer their specified questions under
+              different assumptions. Choose the design from the estimand and data support, rather than
+              treating one favorable number as a rollout decision.
+            targets:
+              - cau-release-receipt-mechanism
+            color: cyan
+            linger: 0.35
+  - id: selection
+    title: Selecting an audit can manufacture an advantage
+    visual: A common-effect audit node receives assignment and outcome; filtering to audited tickets changes the
+      observed success comparison.
+    beats:
+      - say: Consider a separate example where both workflows resolve half their tickets. Audit every assistant ticket
+          and every failed control ticket. In the audit log, assistant cases retain successes and failures,
+          while control cases contain only failures. Selection creates an apparent assistant advantage from
+          equal underlying rates.
+        hold: 0.6
+        visual_cues:
+          - id: selection-beat-1-focus-1
+            phrase: Audit every assistant ticket and every failed control ticket
+            targets:
+              - selection-node-a
+              - selection-node-y
+              - selection-node-audit
+            color: cyan
+            linger: 0.6
+          - id: selection-audit-filter
+            phrase: In the audit log, assistant cases retain successes and failures, while control cases contain only
+              failures
+            targets:
+              - selection-audit-population
+            color: yellow
+            linger: 0.6
+          - id: selection-audit-advantage
+            phrase: Selection creates an apparent assistant advantage from equal underlying rates
+            targets:
+              - selection-audit-population
+              - selection-audit-result
+            color: yellow
+            linger: 0.4
+      - say: The audit is a common effect of assignment and outcome. Conditioning on it opens a selection path in the
+          assumed graph. The direction of the resulting bias depends on the audit rule, so recording the
+          mechanism matters more than applying a general slogan about which variables to control.
+        hold: 0.6
+        visual_cues:
+          - id: selection-beat-2-focus-1
+            phrase: The audit is a common effect of assignment and outcome
+            targets:
+              - selection-node-audit
+            color: cyan
+            linger: 0.6
+      - say: You can now separate an observed comparison, an adjusted target-population estimate, and a causal claim
+          supported under explicit assumptions. Start with the action, population, outcome horizon, assignment
+          process, and available alternatives. Those choices determine what evidence the comparison contains
+          and what further experiment would be useful.
+        hold: 0.75
+        visual_cues:
+          - id: selection-beat-3-focus-1
+            phrase: You can now separate an observed comparison
+            targets:
+              - selection-node-a
+            color: cyan
+            linger: 0.6
+  - id: fresh-audit
+    title: Predict the result after changing the audit rule
+    visual: Keep the full forty-ticket ledger beside the selected audit. Preserve every ticket ID and outcome
+      while removing only assistant successes. Hold the control rate, assistant rate and difference for their
+      separate spoken results; the prediction state reveals none of them.
+    beats:
+      - say: "Predict a fresh audit. Both workflows resolve eight of twenty tickets, so the unfiltered success rates
+          are equal at forty percent. Now reverse the earlier selection rule: audit every control ticket, but
+          among assistant tickets audit only failures. Predict both audited resolution rates and their
+          difference, assistant minus control. Pause."
+        hold: 1.8
+        visual_cues:
+          - id: cau-fresh-audit-0
+            phrase: "Predict a fresh audit. Both workflows resolve eight of twenty tickets, so the unfiltered success
+              rates are equal at forty percent. Now reverse the earlier selection rule: audit every control
+              ticket, but among assistant tickets audit only failures. Predict both audited resolution rates
+              and their difference, assistant minus control. Pause."
+            targets:
+              - cau-fresh-audit-mechanism
+            color: cyan
+            linger: 0.35
+      - say: "All twenty control tickets remain, including eight resolutions, so control stays at forty percent. Only
+          the twelve assistant failures remain, giving zero assistant resolutions out of twelve. The audited
+          difference is zero minus forty percent: minus forty percentage points, despite the original equal
+          rates."
+        hold: 0.65
+        visual_cues:
+          - id: cau-fresh-audit-1
+            phrase: "All twenty control tickets remain, including eight resolutions, so control stays at forty percent.
+              Only the twelve assistant failures remain, giving zero assistant resolutions out of twelve. The
+              audited difference is zero minus forty percent: minus forty percentage points, despite the
+              original equal rates."
+            targets:
+              - cau-fresh-audit-mechanism
+            color: cyan
+            linger: 0.35
+          - id: cau-fresh-control
+            phrase: control stays at forty percent.
+            targets:
+              - cau-fresh-audit-mechanism
+            color: cyan
+            linger: 0.35
+          - id: cau-fresh-assistant-count
+            phrase: Only the twelve assistant failures remain
+            targets:
+              - cau-fresh-audit-mechanism
+            color: cyan
+            linger: 0.35
+          - id: cau-fresh-assistant-rate
+            phrase: zero assistant resolutions out of twelve.
+            targets:
+              - cau-fresh-audit-mechanism
+            color: cyan
+            linger: 0.35
+          - id: cau-fresh-audit-difference
+            phrase: minus forty percentage points
+            targets:
+              - cau-fresh-audit-mechanism
+            color: cyan
+            linger: 0.35
+      - say: "The direction changed because the selection rule changed. The removed successes did not become failures, and no workflow outcome changed. Keep the full ticket ledger beside the filtered one to expose that distinction. Before recommending an intervention, ask which assignment, measurement or selection mechanism produced the apparent result. The PyTorch training-loop lesson next follows how weights are actually learned, keeping gradient clearing, validation mode and checkpoint state explicit before their product effect is tested."
+        hold: 0.65
+        visual_cues:
+          - id: cau-fresh-audit-2
+            phrase: The direction changed because the selection rule changed. The removed successes did not become
+              failures, and no workflow outcome changed. Keep the full ticket ledger beside the filtered one
+              to expose that distinction. Before recommending an intervention, ask which assignment,
+              measurement or selection mechanism produced the apparent result.
+            targets:
+              - cau-fresh-audit-mechanism
+            color: cyan
+            linger: 0.35

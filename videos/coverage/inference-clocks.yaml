@@ -1,0 +1,187 @@
+version: 1
+lesson: inference-clocks
+promise: Use a request's token times and reserved pages to decide whether to investigate its first wait, its streaming gaps, its delivery path or its admission budget.
+framing:
+  - intro
+objectives:
+  - id: locate-the-wait
+    can: Compare requests with the same finish, measure their first waits and later gaps, and use matched token identities to locate a client pause.
+    scenes:
+      - intro
+      - first-clock
+      - cadence
+      - delivery
+      - synthesis
+      - earned-transfer
+  - id: price-the-next-position
+    can: Track which tokens have entered the cache, derive bytes per position from stored heads and attention layers, and decide whether a page-rounded reservation fits.
+    scenes:
+      - prefill
+      - decode
+      - cache-payload
+      - page-admission
+      - quantize-capacity
+      - earned-transfer
+  - id: test-a-serving-change
+    can: Choose a hardware, scheduling or precision experiment and compare correctness and latency across the complete offered workload.
+    scenes:
+      - roofline
+      - hardware-ceilings
+      - chunk-and-handoff
+      - quantize-capacity
+      - earned-transfer
+sections:
+  - heading: The two phases of LLM inference
+    status: taught
+    scenes:
+      - prefill
+      - decode
+  - heading: "Phase 1: Prefill (processing the prompt via GEMM)"
+    status: taught
+    scenes:
+      - prefill
+  - heading: "Phase 2: Decode (generating tokens via GEMV)"
+    status: taught
+    scenes:
+      - decode
+  - heading: Why prefill and decode hit different roofs
+    status: taught
+    scenes:
+      - roofline
+      - hardware-ceilings
+  - heading: Four numbers for one request
+    status: taught
+    scenes:
+      - intro
+      - cadence
+      - delivery
+  - heading: TTFT (time to first token)
+    status: taught
+    scenes:
+      - first-clock
+  - heading: TPS (tokens per second)
+    status: taught
+    scenes:
+      - cadence
+  - heading: ITL (inter-token latency)
+    status: taught
+    scenes:
+      - cadence
+      - delivery
+      - synthesis
+  - heading: TPOT (time per output token)
+    status: taught
+    scenes:
+      - cadence
+  - heading: "Back-of-the-envelope: a bandwidth upper bound"
+    status: taught
+    scenes:
+      - roofline
+      - hardware-ceilings
+  - heading: "The KV cache: the dynamic capacity bottleneck"
+    status: taught
+    scenes:
+      - cache-payload
+  - heading: Cached keys and values
+    status: taught
+    scenes:
+      - decode
+      - cache-payload
+  - heading: "Why dynamic allocation exhausts VRAM: fragmentation"
+    status: taught
+    scenes:
+      - page-admission
+  - heading: A raw KV payload formula
+    status: taught
+    scenes:
+      - cache-payload
+  - heading: "Concrete example: Qwen3.6-27B-style GQA sizing"
+    status: taught
+    scenes:
+      - cache-payload
+  - heading: Dynamic token budgeting
+    status: taught
+    scenes:
+      - page-admission
+      - earned-transfer
+  - heading: Stop a new prefill from stalling live streams
+    status: taught
+    scenes:
+      - chunk-and-handoff
+  - heading: "Chunked prefill: mitigating generation stalls"
+    status: taught
+    scenes:
+      - chunk-and-handoff
+  - heading: Prefill-decode disaggregation (Splitwise & DistServe)
+    status: taught
+    scenes:
+      - chunk-and-handoff
+  - heading: KV cache quantization
+    status: taught
+    scenes:
+      - quantize-capacity
+  - heading: Build a serving budget
+    status: taught
+    scenes:
+      - page-admission
+      - quantize-capacity
+      - earned-transfer
+quiz:
+  - n: 1
+    status: taught
+    scenes:
+      - cadence
+      - earned-transfer
+  - n: 2
+    status: taught
+    scenes:
+      - hardware-ceilings
+  - n: 3
+    status: taught
+    scenes:
+      - cache-payload
+  - n: 4
+    status: taught
+    scenes:
+      - hardware-ceilings
+  - n: 5
+    status: taught
+    scenes:
+      - cache-payload
+  - n: 6
+    status: taught
+    scenes:
+      - page-admission
+  - n: 7
+    status: taught
+    scenes:
+      - hardware-ceilings
+  - n: 8
+    status: taught
+    scenes:
+      - chunk-and-handoff
+  - n: 9
+    status: taught
+    scenes:
+      - chunk-and-handoff
+  - n: 10
+    status: taught
+    scenes:
+      - quantize-capacity
+      - earned-transfer
+removed: []
+reviews:
+  closed_book:
+    taught: 10
+    partial: 0
+    absent: 0
+    script: 250b50a69d42f9da
+    reviewer: /root/upgrade_shard5
+    evidence: build/video-delivery-20261106/script-reviews/inference-clocks.json
+    evidence_sha256: c3b5e0f0f3c4b6ac3f47fa3347d194c64d6138011782b499fc86f5021abacfdc
+  fact_check:
+    open_findings: 0
+    script: 250b50a69d42f9da
+    reviewer: /root/upgrade_shard5
+    evidence: build/video-delivery-20261106/script-reviews/inference-clocks.json
+    evidence_sha256: c3b5e0f0f3c4b6ac3f47fa3347d194c64d6138011782b499fc86f5021abacfdc

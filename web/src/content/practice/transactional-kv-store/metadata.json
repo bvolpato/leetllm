@@ -1,0 +1,401 @@
+{
+  "id": "transactional-kv-store",
+  "slug": "transactional-kv-store",
+  "title": "Transactional KV Store",
+  "difficulty": "Medium",
+  "category": "Stateful Design",
+  "language": "python3",
+  "timeEstimateMinutes": 40,
+  "timeLimitMs": 2500,
+  "memoryLimitMb": 128,
+  "order": 25,
+  "tags": [
+    "transactions",
+    "key value store",
+    "rollback",
+    "nested state"
+  ],
+  "source": "Frontier coding prep",
+  "summary": "Implement nested in-memory transactions with read-your-writes, tombstones, commit, and rollback.",
+  "starterCode": [
+    "class TransactionalKV:",
+    "    def __init__(self):",
+    "        pass",
+    "",
+    "    def begin(self) -> None:",
+    "        pass",
+    "",
+    "    def get(self, key: str):",
+    "        pass",
+    "",
+    "    def set(self, key: str, value) -> None:",
+    "        pass",
+    "",
+    "    def delete(self, key: str) -> None:",
+    "        pass",
+    "",
+    "    def commit(self) -> None:",
+    "        pass",
+    "",
+    "    def rollback(self) -> None:",
+    "        pass"
+  ],
+  "testCases": [
+    {
+      "name": "public commit writes through to base store",
+      "visibility": "sample",
+      "setup": [
+        "from solution import TransactionalKV",
+        "store = TransactionalKV()",
+        "store.set(\"model\", \"fast\")",
+        "store.begin()",
+        "store.set(\"model\", \"strong\")"
+      ],
+      "checks": [
+        {
+          "input": "store = TransactionalKV()\nstore.set(\"model\", \"fast\")\nstore.begin()\nstore.set(\"model\", \"strong\")\nstore.get(\"model\")",
+          "expression": "store.get(\"model\")",
+          "operator": "==",
+          "expected": "\"strong\""
+        },
+        {
+          "input": "store = TransactionalKV()\nstore.set(\"model\", \"fast\")\nstore.begin()\nstore.set(\"model\", \"strong\")\nstore.get(\"model\")\nstore.commit()\nstore.get(\"model\")",
+          "expression": "store.get(\"model\")",
+          "operator": "==",
+          "expected": "\"strong\"",
+          "before": "store.commit()"
+        }
+      ]
+    },
+    {
+      "name": "public rollback restores lower layer",
+      "visibility": "sample",
+      "setup": [
+        "from solution import TransactionalKV",
+        "store = TransactionalKV()",
+        "store.set(\"route\", \"cheap\")",
+        "store.begin()",
+        "store.set(\"route\", \"premium\")",
+        "store.delete(\"route\")"
+      ],
+      "checks": [
+        {
+          "input": "store = TransactionalKV()\nstore.set(\"route\", \"cheap\")\nstore.begin()\nstore.set(\"route\", \"premium\")\nstore.delete(\"route\")\nstore.get(\"route\")",
+          "expression": "store.get(\"route\")",
+          "operator": "is",
+          "expected": "None"
+        },
+        {
+          "input": "store = TransactionalKV()\nstore.set(\"route\", \"cheap\")\nstore.begin()\nstore.set(\"route\", \"premium\")\nstore.delete(\"route\")\nstore.get(\"route\")\nstore.rollback()\nstore.get(\"route\")",
+          "expression": "store.get(\"route\")",
+          "operator": "==",
+          "expected": "\"cheap\"",
+          "before": "store.rollback()"
+        }
+      ]
+    },
+    {
+      "name": "hidden nested commit merges into parent only",
+      "visibility": "hidden",
+      "setup": [
+        "from solution import TransactionalKV",
+        "store = TransactionalKV()",
+        "store.set(\"a\", 1)",
+        "store.begin()",
+        "store.set(\"a\", 2)",
+        "store.begin()",
+        "store.set(\"b\", 3)",
+        "store.commit()"
+      ],
+      "checks": [
+        {
+          "input": "store = TransactionalKV()\nstore.set(\"a\", 1)\nstore.begin()\nstore.set(\"a\", 2)\nstore.begin()\nstore.set(\"b\", 3)\nstore.commit()\nstore.get(\"a\")",
+          "expression": "store.get(\"a\")",
+          "operator": "==",
+          "expected": "2"
+        },
+        {
+          "input": "store = TransactionalKV()\nstore.set(\"a\", 1)\nstore.begin()\nstore.set(\"a\", 2)\nstore.begin()\nstore.set(\"b\", 3)\nstore.commit()\nstore.get(\"a\")\nstore.get(\"b\")",
+          "expression": "store.get(\"b\")",
+          "operator": "==",
+          "expected": "3"
+        },
+        {
+          "input": "store = TransactionalKV()\nstore.set(\"a\", 1)\nstore.begin()\nstore.set(\"a\", 2)\nstore.begin()\nstore.set(\"b\", 3)\nstore.commit()\nstore.get(\"a\")\nstore.get(\"b\")\nstore.rollback()\nstore.get(\"a\")",
+          "expression": "store.get(\"a\")",
+          "operator": "==",
+          "expected": "1",
+          "before": "store.rollback()"
+        },
+        {
+          "input": "store = TransactionalKV()\nstore.set(\"a\", 1)\nstore.begin()\nstore.set(\"a\", 2)\nstore.begin()\nstore.set(\"b\", 3)\nstore.commit()\nstore.get(\"a\")\nstore.get(\"b\")\nstore.rollback()\nstore.get(\"a\")\nstore.get(\"b\")",
+          "expression": "store.get(\"b\")",
+          "operator": "is",
+          "expected": "None"
+        }
+      ]
+    },
+    {
+      "name": "hidden committed delete removes base value",
+      "visibility": "hidden",
+      "setup": [
+        "from solution import TransactionalKV",
+        "store = TransactionalKV()",
+        "store.set(\"secret\", \"token\")",
+        "store.begin()",
+        "store.delete(\"secret\")"
+      ],
+      "checks": [
+        {
+          "input": "store = TransactionalKV()\nstore.set(\"secret\", \"token\")\nstore.begin()\nstore.delete(\"secret\")\nstore.get(\"secret\")",
+          "expression": "store.get(\"secret\")",
+          "operator": "is",
+          "expected": "None"
+        },
+        {
+          "input": "store = TransactionalKV()\nstore.set(\"secret\", \"token\")\nstore.begin()\nstore.delete(\"secret\")\nstore.get(\"secret\")\nstore.commit()\nstore.get(\"secret\")",
+          "expression": "store.get(\"secret\")",
+          "operator": "is",
+          "expected": "None",
+          "before": "store.commit()"
+        }
+      ]
+    },
+    {
+      "name": "hidden transaction control requires active transaction",
+      "visibility": "hidden",
+      "code": [
+        "from solution import TransactionalKV",
+        "",
+        "store = TransactionalKV()",
+        "for method in (store.commit, store.rollback):",
+        "    try:",
+        "        method()",
+        "    except ValueError:",
+        "        pass",
+        "    else:",
+        "        raise AssertionError(\"expected active transaction error\")"
+      ]
+    },
+    {
+      "name": "hidden delete of missing key stays harmless",
+      "visibility": "hidden",
+      "setup": [
+        "from solution import TransactionalKV",
+        "store = TransactionalKV()",
+        "store.begin()",
+        "store.delete(\"missing\")"
+      ],
+      "checks": [
+        {
+          "input": "store = TransactionalKV()\nstore.begin()\nstore.delete(\"missing\")\nstore.get(\"missing\")",
+          "expression": "store.get(\"missing\")",
+          "operator": "is",
+          "expected": "None"
+        },
+        {
+          "input": "store = TransactionalKV()\nstore.begin()\nstore.delete(\"missing\")\nstore.get(\"missing\")\nstore.rollback()\nstore.get(\"missing\")",
+          "expression": "store.get(\"missing\")",
+          "operator": "is",
+          "expected": "None",
+          "before": "store.rollback()"
+        }
+      ]
+    },
+    {
+      "name": "public supports base store deletion",
+      "visibility": "sample",
+      "setup": [
+        "from solution import TransactionalKV",
+        "store = TransactionalKV()",
+        "store.set(\"key\", \"value\")",
+        "store.delete(\"key\")"
+      ],
+      "input": "store.get(\"key\")",
+      "expected": "None"
+    },
+    {
+      "name": "hidden nested rollback preserves outer writes",
+      "visibility": "hidden",
+      "setup": [
+        "from solution import TransactionalKV",
+        "store = TransactionalKV()",
+        "store.set(\"value\", \"base\")",
+        "store.begin()",
+        "store.set(\"value\", \"outer\")",
+        "store.begin()",
+        "store.set(\"value\", \"inner\")",
+        "store.rollback()"
+      ],
+      "input": "store.get(\"value\")",
+      "expected": "\"outer\""
+    },
+    {
+      "name": "hidden base writes are readable without a transaction",
+      "visibility": "hidden",
+      "setup": [
+        "from solution import TransactionalKV",
+        "store = TransactionalKV()",
+        "store.set(\"key\", \"value\")"
+      ],
+      "input": "store.get(\"key\")",
+      "expected": "\"value\""
+    },
+    {
+      "name": "hidden set after delete overwrites tombstone",
+      "visibility": "hidden",
+      "setup": [
+        "from solution import TransactionalKV",
+        "store = TransactionalKV()",
+        "store.set(\"route\", \"cheap\")",
+        "store.begin()",
+        "store.delete(\"route\")",
+        "store.set(\"route\", \"premium\")"
+      ],
+      "checks": [
+        {
+          "input": "store = TransactionalKV()\nstore.set(\"route\", \"cheap\")\nstore.begin()\nstore.delete(\"route\")\nstore.set(\"route\", \"premium\")\nstore.get(\"route\")",
+          "expression": "store.get(\"route\")",
+          "operator": "==",
+          "expected": "\"premium\""
+        },
+        {
+          "input": "store = TransactionalKV()\nstore.set(\"route\", \"cheap\")\nstore.begin()\nstore.delete(\"route\")\nstore.set(\"route\", \"premium\")\nstore.get(\"route\")\nstore.commit()\nstore.get(\"route\")",
+          "expression": "store.get(\"route\")",
+          "operator": "==",
+          "expected": "\"premium\"",
+          "before": "store.commit()"
+        }
+      ]
+    },
+    {
+      "name": "hidden stored None shadows lower value",
+      "visibility": "hidden",
+      "setup": [
+        "from solution import TransactionalKV",
+        "store = TransactionalKV()",
+        "store.set(\"key\", \"base\")",
+        "store.begin()",
+        "store.set(\"key\", None)"
+      ],
+      "checks": [
+        {
+          "input": "store.get(\"key\")",
+          "expression": "store.get(\"key\")",
+          "operator": "is",
+          "expected": "None"
+        },
+        {
+          "input": "store.rollback(); store.get(\"key\")",
+          "before": "store.rollback()",
+          "expression": "store.get(\"key\")",
+          "operator": "==",
+          "expected": "\"base\""
+        }
+      ]
+    },
+    {
+      "name": "hidden inner committed delete can be rolled back by parent",
+      "visibility": "hidden",
+      "setup": [
+        "from solution import TransactionalKV",
+        "store = TransactionalKV()",
+        "store.set(\"key\", \"base\")",
+        "store.begin()",
+        "store.begin()",
+        "store.delete(\"key\")",
+        "store.commit()"
+      ],
+      "checks": [
+        {
+          "input": "store.get(\"key\")",
+          "expression": "store.get(\"key\")",
+          "operator": "is",
+          "expected": "None"
+        },
+        {
+          "input": "store.rollback(); store.get(\"key\")",
+          "before": "store.rollback()",
+          "expression": "store.get(\"key\")",
+          "operator": "==",
+          "expected": "\"base\""
+        }
+      ]
+    }
+  ],
+  "clarifyingQuestions": [
+    "Are nested transactions required?",
+    "Should reads inside a transaction see uncommitted writes?",
+    "Should a delete inside a transaction hide lower-layer values?",
+    "What exception should invalid commit or rollback raise?"
+  ],
+  "followUps": [
+    "Add conflict detection for concurrent clients.",
+    "Add snapshot isolation with versioned values.",
+    "Persist committed writes with a write-ahead log."
+  ],
+  "followUpGuide": [
+    "For optimistic conflict detection, version every key identity, including deletions and absent-key observations. Record read versions and validate them atomically with publishing writes. Also decide how to detect write-write conflicts; deleting and recreating a key must not reset its version and hide an intervening change.",
+    "",
+    "For snapshot isolation, assign a snapshot at begin and read the newest value or deletion visible to that snapshot, while giving local writes precedence. Check concurrent writes to the same keys at commit. Snapshot reads alone do not implement isolation, and snapshot isolation can still admit write skew across different keys.",
+    "",
+    "For durability, log the entire outermost transaction with framing and a commit boundary, then flush the committed log to durable storage before acknowledging it or publishing base changes. Recovery replays only complete committed groups; raw set/delete records alone can replay half a transaction after a crash. Inner commits only merge local layers."
+  ],
+  "complexityAnalysis": [
+    "- begin pushes an empty layer. Time: O(1) amortized. Space: O(1) for that layer. rollback logically pops one layer in O(1); freeing a Python dictionary with k entries takes O(k), excluding any additional value finalization.",
+    "- get probes layers newest to oldest, then base. Time: O(d + 1) average, where d is transaction depth. Space: O(1).",
+    "- set and delete update one map. Time: O(1) average. Space: O(1) per distinct key written in a layer. Total retained state is O(B + W + d), with B base entries and W entries across all layers.",
+    "- commit merges one layer with k distinct written keys. Time: O(k) average. Auxiliary iteration space: O(1); the parent or base may allocate O(k) new entries."
+  ],
+  "solutionGuide": [
+    "Use a private tombstone sentinel for deletes. A real `None` value and a deleted value are different states.",
+    "",
+    "```python",
+    "TOMBSTONE = object()",
+    "",
+    "",
+    "class TransactionalKV:",
+    "    def __init__(self):",
+    "        self.base = {}",
+    "        self.layers = []",
+    "",
+    "    def begin(self) -> None:",
+    "        self.layers.append({})",
+    "",
+    "    def get(self, key: str):",
+    "        for layer in reversed(self.layers):",
+    "            if key in layer:",
+    "                value = layer[key]",
+    "                return None if value is TOMBSTONE else value",
+    "        return self.base.get(key)",
+    "",
+    "    def set(self, key: str, value) -> None:",
+    "        target = self.layers[-1] if self.layers else self.base",
+    "        target[key] = value",
+    "",
+    "    def delete(self, key: str) -> None:",
+    "        if self.layers:",
+    "            self.layers[-1][key] = TOMBSTONE",
+    "        else:",
+    "            self.base.pop(key, None)",
+    "",
+    "    def commit(self) -> None:",
+    "        if not self.layers:",
+    "            raise ValueError(\"no active transaction\")",
+    "        layer = self.layers.pop()",
+    "        if self.layers:",
+    "            self.layers[-1].update(layer)",
+    "            return",
+    "        for key, value in layer.items():",
+    "            if value is TOMBSTONE:",
+    "                self.base.pop(key, None)",
+    "            else:",
+    "                self.base[key] = value",
+    "",
+    "    def rollback(self) -> None:",
+    "        if not self.layers:",
+    "            raise ValueError(\"no active transaction\")",
+    "        self.layers.pop()",
+    "```"
+  ]
+}

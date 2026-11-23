@@ -1,0 +1,744 @@
+{
+  "lesson": "agent-orchestration",
+  "oldHash": "e55bc7e3e68982db",
+  "scriptHash": "39725d7d3fff645a",
+  "incomingCandidateHash": "a1001295e4a9e63e",
+  "factualSourceHash": "7dfcce6154210fd4",
+  "status": "ready-for-fresh-quiz-and-fact-review",
+  "checkedAt": "2026-11-10T02:40:30.355Z",
+  "scope": "Only videos/stage-lessons/agent-orchestration source files were edited. Generated validation stills are in the ignored build directory.",
+  "changed": [
+    {
+      "scene": "dependency-graph",
+      "sceneIndex": 1,
+      "beatIndex": 2,
+      "beatNumber": 3,
+      "oldSay": "A pause does not create a cycle. A retry inside a node can also leave the outer graph acyclic. A transition from rejected review back to a revised proposal does create a cycle, making that larger control flow a state machine around the read DAG.",
+      "newSay": "A pause does not create a cycle. A retry inside a node can also leave the outer graph acyclic. An explicitly configured transition from review back to a revised proposal does create a cycle, making that larger control flow a state machine around the read DAG. This is an optional design. The article's review example instead routes reviewer rejection to cancel.",
+      "hold": 0.55
+    },
+    {
+      "scene": "typed-receipts",
+      "sceneIndex": 3,
+      "beatIndex": 0,
+      "beatNumber": 1,
+      "oldSay": "All three workers receive the same trusted request identity, tenant, release, and expected revision. Each writes only its own receipt. The evaluation branch supplies evaluation evidence; it cannot replace the approval field or quietly change the requested traffic amount.",
+      "newSay": "The article's Python workers receive the same trusted request identity, tenant, release, and expected revision through copied read-only views. Each returns only its own receipt through a checked output wrapper. The evaluation branch supplies evaluation evidence; its returned update cannot replace the approval field or quietly change the requested traffic amount.",
+      "hold": 0.55
+    },
+    {
+      "scene": "typed-receipts",
+      "sceneIndex": 3,
+      "beatIndex": 1,
+      "beatNumber": 2,
+      "oldSay": "Types make those shapes understandable, while runtime validation enforces the values and field ownership. A receipt also needs source identity and freshness appropriate to its use. A text claim that the release passed cannot stand in for the source result it describes.",
+      "newSay": "Types make those shapes understandable, while the article's runtime wrapper and merge enforce values and field ownership. A receipt also needs source identity and freshness appropriate to its use. A text claim that the release passed cannot stand in for the source result it describes. The film's smaller model compares supplied scope and time with the request and clock, and hashes branch values from a local registry. That registry has no tenant or revision metadata. Production must authenticate source records and bind them to the intended scope and observation time.",
+      "hold": 0.75
+    },
+    {
+      "scene": "typed-receipts",
+      "sceneIndex": 3,
+      "beatIndex": 2,
+      "beatNumber": 3,
+      "oldSay": "Framework reducers specify how concurrent updates combine. Concatenating lists can retain duplicates and arrival-order differences. Two workers replacing a scalar can conflict. Choose an update rule deliberately, then validate the merged meaning instead of treating successful reduction as trustworthy agreement.",
+      "newSay": "Framework reducers specify how concurrent updates combine. Concatenating lists keeps duplicates and depends on the order of the reducer inputs. That order need not follow network completion. Sort the validated branch identities before constructing the packet. Two workers replacing a scalar can conflict. Choose an update rule deliberately, then validate the merged meaning instead of treating successful reduction as trustworthy agreement.",
+      "hold": 0.55
+    },
+    {
+      "scene": "superstep-join",
+      "sceneIndex": 4,
+      "beatIndex": 1,
+      "beatNumber": 2,
+      "oldSay": "For a default scalar channel, one update replaces its value. Concurrent updates to that unreduced key raise an invalid-concurrent-graph-update error, even when the supplied values agree. A list-add reducer concatenates results; it is associative but not commutative, and it keeps duplicates. Start a new attempt with empty receipts or use an attempt-aware reducer.",
+      "newSay": "For a default scalar channel, one update replaces its value. Concurrent updates to that unreduced key raise an invalid-concurrent-graph-update error, even when the supplied values agree. A list-add reducer concatenates results; it is associative but not commutative, and it keeps duplicates. Adding an empty list leaves the saved receipts in place. For a new full attempt, start a fresh thread, use Overwrite to replace the saved list with an empty one, or use an attempt-aware reducer. When resuming the same failed attempt, keep the successful branches’ saved writes and retry the failed work.",
+      "hold": 1,
+      "incomingSay": "For a default scalar channel, one update replaces its value. Concurrent updates to that unreduced key raise an invalid-concurrent-graph-update error, even when the supplied values agree. A list-add reducer concatenates results; it is associative but not commutative, and it keeps duplicates. Adding an empty list leaves the saved receipts in place. For a new full attempt, start a fresh thread, use Overwrite to replace the saved list with an empty one, or use an attempt-aware reducer. When resuming the same failed attempt, keep the successful branches’ saved writes and retry the failed work."
+    },
+    {
+      "scene": "superstep-join",
+      "sceneIndex": 4,
+      "beatIndex": 2,
+      "beatNumber": 3,
+      "oldSay": "When every required branch runs, one waiting edge from the list of evaluation, health and policy terminal nodes holds merge until all finish. Three separate edges are different: if health has an extra preparation step, evaluation and policy can trigger a partial merge, then health triggers another. A waiting edge naming an unselected branch never completes. For dynamic selected branches, deferred execution can wait for graph-wide pending work, and merge must still validate that selected set.",
+      "newSay": "The article's separate scheduling probe only records which receipts reach merge. It does not validate a release proposal. When every required branch runs, one waiting edge from the list of evaluation, health and policy terminal nodes holds merge until all finish. Three separate edges are different: if health has an extra preparation step, evaluation and policy can trigger a partial merge, then health triggers another. A waiting edge naming an unselected branch never completes. For dynamic selected branches, deferred execution can wait for graph-wide pending work, and merge must still validate that selected set. With the real release validator, the partial merge raises for missing evidence and the invocation fails.",
+      "hold": 1
+    },
+    {
+      "scene": "checkpoint-retry",
+      "sceneIndex": 6,
+      "beatIndex": 0,
+      "beatNumber": 1,
+      "oldSay": "A checkpoint stores enough workflow state to resume a particular thread after interruption. When health times out, completed evaluation and policy work may already be saved. A bounded retry can refresh the failed read without pretending the whole workflow never started.",
+      "newSay": "With a configured checkpointer, a checkpoint stores enough workflow state to resume a particular thread after interruption. When health times out, completed evaluation and policy work may already be saved. A bounded retry can refresh the failed read without pretending the whole workflow never started. The earlier read DAG has no checkpointer; this picture sketches that integration.",
+      "hold": 0.55
+    },
+    {
+      "scene": "checkpoint-retry",
+      "sceneIndex": 6,
+      "beatIndex": 2,
+      "beatNumber": 3,
+      "oldSay": "Authorize access to the thread and its checkpoint data. A thread identifier selects stored state; possession of that identifier does not grant permission to inspect or resume it. Recheck freshness after a long pause because previously valid receipts may have aged out.",
+      "newSay": "Authorize access to the thread and its checkpoint data. A thread identifier selects stored state; possession of that identifier does not grant permission to inspect or resume it. After a long pause, supply current time from a trusted host. Recheck freshness after a long pause because previously valid receipts may have aged out. The film supplies the clock value: receipt age changes from ten to two hundred ten seconds, beyond its sixty-second limit. The article's separate merge uses a three-hundred-second limit.",
+      "hold": 0.55
+    },
+    {
+      "scene": "single-writer",
+      "sceneIndex": 7,
+      "beatIndex": 0,
+      "beatNumber": 1,
+      "oldSay": "The validated merge creates a concrete proposal: this release, this revision, this traffic amount, and these evidence references. A policy-required approval binds an authenticated reviewer to that exact packet. Changing the proposal creates a different decision to review.",
+      "newSay": "The validated merge creates a concrete proposal: this release, this revision, this traffic amount, and a digest of the validated receipts. For a new write, the example requires an approval marked true. Its tenant, request, release, revision, traffic amount and evidence digest must match that exact packet. Changing the proposal creates a different decision to review. The film packet returns the digest without explicit source references. In production, retain the reviewed evidence and its resolvable source references.",
+      "hold": 0.55,
+      "incomingSay": "The validated merge creates a concrete proposal: this release, this revision, this traffic amount, and these evidence references. For a new write, the example requires an approval marked true. Its tenant, request, release, revision, traffic amount and evidence digest must match that exact packet. Changing the proposal creates a different decision to review."
+    },
+    {
+      "scene": "single-writer",
+      "sceneIndex": 7,
+      "beatIndex": 1,
+      "beatNumber": 2,
+      "oldSay": "One writer now rechecks current permissions and live state before applying the approved effect. If the release revision changes during review, the old packet no longer names the current target. Stop and rebuild the evidence and proposal rather than carrying the approval across that change.",
+      "newSay": "Before a new write, the example writer compares the supplied live release revision with the revision in the approved packet. If the release revision changes during review, the old packet no longer names the current target. Stop and rebuild the evidence and proposal, then obtain fresh approval. The film writer trusts supplied packet and approval inputs. It does not fetch live state or repeat evidence validation.",
+      "hold": 0.75,
+      "incomingSay": "Before a new write, the example writer compares the supplied live release revision with the revision in the approved packet. If the release revision changes during review, the old packet no longer names the current target. Stop and rebuild the evidence and proposal, then obtain fresh approval."
+    },
+    {
+      "scene": "single-writer",
+      "sceneIndex": 7,
+      "beatIndex": 2,
+      "beatNumber": 3,
+      "oldSay": "After rebuilding, a fresh approval names the new revision. If this later write loses its reply, preserve its operation identity and reconcile the outcome. A durable target-side contract can return the earlier result without another traffic change. Checkpointing the caller alone cannot close that external crash gap.",
+      "newSay": "For this illustration, assume fresh trusted evidence for revision four has been obtained and validated. The fixture supplies version-four receipt inputs with unchanged branch values. It does not fetch or verify revision-four source records. A fresh approval names the new revision. The target simulates one effect. If this later write loses its reply, preserve its operation identity and reconcile the outcome. While its in-memory entry survives, the example target can return the earlier result without another traffic change. In production, recovery after a crash requires durable target-side state or a way to reconcile with the destination. Checkpointing the caller alone cannot close that external crash gap.",
+      "hold": 0.55,
+      "incomingSay": "After rebuilding, a fresh approval names the new revision. If this later write loses its reply, preserve its operation identity and reconcile the outcome. While its in-memory entry survives, the example target can return the earlier result without another traffic change. In production, recovery after a crash requires durable target-side state or a way to reconcile with the destination. Checkpointing the caller alone cannot close that external crash gap."
+    },
+    {
+      "scene": "single-writer",
+      "sceneIndex": 7,
+      "beatIndex": 3,
+      "beatNumber": 4,
+      "oldSay": "Approval also binds evidence digests, applicable policy revision and expiry. Recheck permissions and independent live dependencies, not only release version. The effect boundary needs the atomic preconditions it supports. The article’s in-memory writer fixture demonstrates deduplication rules; volatile maps do not establish real atomicity or durability. Reusing a key with different arguments is rejected, while an exact replay can return the original result.",
+      "newSay": "In production, authenticate the reviewer and writer, and bind the approval to the exact packet, policy revision and expiry. Before a new effect, recheck current permissions, policy, expiry and independent live dependencies. Use the target’s atomic preconditions and record the operation durably with the effect. Authorize access to saved results as well. In this example, the target looks up the key in memory and compares the packet fingerprint. This lookup comes before new-write approval and revision checks. Reusing the key for a different packet is rejected. An exact replay can return the original result while the entry is in memory.",
+      "hold": 1,
+      "incomingSay": "In production, authenticate the reviewer and bind the approval to the exact packet, policy revision and expiry. Before a new effect, recheck current permissions, policy, expiry and independent live dependencies. Use the target’s atomic preconditions and record the operation durably with the effect. In this example, the target looks up the key in memory and compares the packet fingerprint. Reusing the key for a different packet is rejected. An exact replay can return the original result while the entry is in memory."
+    },
+    {
+      "scene": "transfer",
+      "sceneIndex": 10,
+      "beatIndex": 3,
+      "beatNumber": 4,
+      "oldSay": "A new batch returns evaluation revision three, health revision four and policy revision three. All three report success. Predict the owner of the repair. The join rejects the mixed release revision; refresh the mismatched branch and revalidate freshness before creating a packet. If health instead returns twice under one identity, reject the duplicate rather than counting it as more evidence. The final writer remains unchanged until a valid current packet and its required review exist. The production-agent capstone next makes that separation executable: draft from policy evidence, persist one exact review packet and test a separate writer’s recovery and replay behavior.",
+      "newSay": "A new batch returns evaluation revision three, health revision four and policy revision three. All three report success. Predict the owner of the repair. The join rejects the mixed release revision. Before choosing a repair, get the intended revision from trusted release state. For this example, assume the target is still revision three and fresh health evidence for that revision is available. Refresh the health receipt. Compare every receipt’s digest with the digest recomputed from its trusted source, then recheck revision and freshness before creating a packet. If the target has moved to revision four, refresh evaluation and policy, revalidate all three receipts, and rebuild the proposal for fresh review. If health instead returns twice under one identity, reject the duplicate rather than counting it as more evidence. The final writer remains unchanged until a valid current packet and its required review exist. The next capstone gives you a local exercise: draft from policy evidence, persist one exact review packet and test a separate writer’s recovery and replay behavior.",
+      "hold": 1,
+      "incomingSay": "A new batch returns evaluation revision three, health revision four and policy revision three. All three report success. Predict the owner of the repair. The join rejects the mixed release revision. Before choosing a repair, get the intended revision from trusted release state. For this example, assume the target is still revision three and fresh health evidence for that revision is available. Refresh the health receipt. Compare every receipt’s digest with the digest recomputed from its trusted source, then recheck revision and freshness before creating a packet. If the target has moved to revision four, refresh evaluation and policy, revalidate all three receipts, and rebuild the proposal for fresh review. If health instead returns twice under one identity, reject the duplicate rather than counting it as more evidence. The final writer remains unchanged until a valid current packet and its required review exist. The next capstone gives you a local exercise: draft from policy evidence, persist one exact review packet and test a separate writer’s recovery and replay behavior."
+    }
+  ],
+  "changedFromIncomingCandidate": [
+    {
+      "scene": "dependency-graph",
+      "beatIndex": 2,
+      "beatNumber": 3
+    },
+    {
+      "scene": "typed-receipts",
+      "beatIndex": 0,
+      "beatNumber": 1
+    },
+    {
+      "scene": "typed-receipts",
+      "beatIndex": 1,
+      "beatNumber": 2
+    },
+    {
+      "scene": "typed-receipts",
+      "beatIndex": 2,
+      "beatNumber": 3
+    },
+    {
+      "scene": "superstep-join",
+      "beatIndex": 2,
+      "beatNumber": 3
+    },
+    {
+      "scene": "checkpoint-retry",
+      "beatIndex": 0,
+      "beatNumber": 1
+    },
+    {
+      "scene": "checkpoint-retry",
+      "beatIndex": 2,
+      "beatNumber": 3
+    },
+    {
+      "scene": "single-writer",
+      "beatIndex": 0,
+      "beatNumber": 1
+    },
+    {
+      "scene": "single-writer",
+      "beatIndex": 1,
+      "beatNumber": 2
+    },
+    {
+      "scene": "single-writer",
+      "beatIndex": 2,
+      "beatNumber": 3
+    },
+    {
+      "scene": "single-writer",
+      "beatIndex": 3,
+      "beatNumber": 4
+    }
+  ],
+  "latestRepair": {
+    "fromHash": "a1001295e4a9e63e",
+    "reason": "Complete the implementation contract pass while preserving the visual writer’s improvements.",
+    "cueChanges": [
+      {
+        "scene": "dependency-graph",
+        "beatIndex": 2,
+        "id": "review-cycle",
+        "oldPhrase": "transition from rejected review back to a revised proposal",
+        "newPhrase": "transition from review back to a revised proposal"
+      },
+      {
+        "scene": "dependency-graph",
+        "beatIndex": 2,
+        "id": "review-cancel",
+        "oldPhrase": null,
+        "newPhrase": "routes reviewer rejection to cancel"
+      },
+      {
+        "scene": "typed-receipts",
+        "beatIndex": 0,
+        "id": "owned-branch-results",
+        "oldPhrase": "Each writes only its own receipt",
+        "newPhrase": "Each returns only its own receipt"
+      },
+      {
+        "scene": "typed-receipts",
+        "beatIndex": 1,
+        "id": "fixture-trust",
+        "oldPhrase": null,
+        "newPhrase": "That registry has no tenant or revision metadata"
+      },
+      {
+        "scene": "typed-receipts",
+        "beatIndex": 2,
+        "id": "list-duplicates",
+        "oldPhrase": "Concatenating lists can retain duplicates",
+        "newPhrase": "Concatenating lists keeps duplicates"
+      },
+      {
+        "scene": "typed-receipts",
+        "beatIndex": 2,
+        "id": "reducer-order",
+        "oldPhrase": null,
+        "newPhrase": "the order of the reducer inputs"
+      },
+      {
+        "scene": "typed-receipts",
+        "beatIndex": 2,
+        "id": "arrival-order",
+        "oldPhrase": "arrival-order differences",
+        "newPhrase": null
+      },
+      {
+        "scene": "superstep-join",
+        "beatIndex": 2,
+        "id": "probe-only",
+        "oldPhrase": null,
+        "newPhrase": "The article's separate scheduling probe"
+      },
+      {
+        "scene": "superstep-join",
+        "beatIndex": 2,
+        "id": "release-validator",
+        "oldPhrase": null,
+        "newPhrase": "the partial merge raises for missing evidence"
+      },
+      {
+        "scene": "checkpoint-retry",
+        "beatIndex": 0,
+        "id": "cp-stores",
+        "oldPhrase": "A checkpoint stores enough workflow state",
+        "newPhrase": "a checkpoint stores enough workflow state"
+      },
+      {
+        "scene": "checkpoint-retry",
+        "beatIndex": 2,
+        "id": "host-now",
+        "oldPhrase": null,
+        "newPhrase": "supply current time from a trusted host"
+      },
+      {
+        "scene": "single-writer",
+        "beatIndex": 0,
+        "id": "evidence-digest",
+        "oldPhrase": null,
+        "newPhrase": "a digest of the validated receipts"
+      },
+      {
+        "scene": "single-writer",
+        "beatIndex": 0,
+        "id": "evidence-refs",
+        "oldPhrase": "these evidence references",
+        "newPhrase": null
+      },
+      {
+        "scene": "single-writer",
+        "beatIndex": 2,
+        "id": "fresh-approval",
+        "oldPhrase": "a fresh approval names the new revision",
+        "newPhrase": "A fresh approval names the new revision"
+      },
+      {
+        "scene": "single-writer",
+        "beatIndex": 2,
+        "id": "assumed-v4",
+        "oldPhrase": null,
+        "newPhrase": "assume fresh trusted evidence for revision four"
+      },
+      {
+        "scene": "single-writer",
+        "beatIndex": 2,
+        "id": "supplied-v4",
+        "oldPhrase": null,
+        "newPhrase": "The fixture supplies version-four receipt inputs"
+      }
+    ]
+  },
+  "priorRepairSummary": {
+    "fromHash": "e55bc7e3e68982db",
+    "toHash": "a1001295e4a9e63e",
+    "retained": "All four single-writer factual corrections, transfer trust assumptions, and reset/resume teaching were retained or made more explicit."
+  },
+  "sourceLineage": {
+    "factualReport": "/Users/bruno.volpato/.local/share/vizmatic-landing/leetllm/production/wt-orchestration-order/videos/reviews/script-renewal/agent-orchestration.json",
+    "liveReport": "videos/reviews/script-renewal/agent-orchestration.json",
+    "reportHash": "3dc72331be1b55942af50dd8d089e0ee097bf23ad0bc679d1693d25b42f6c9bb",
+    "candidateBindings": {
+      "videos/stage-lessons/agent-orchestration/lesson.yaml": "804bfd3de11c0da71d6c92eb77d3194a42583c7f42ae2bc30972a13f7e9352f2",
+      "videos/stage-lessons/agent-orchestration/parts.mjs": "42696285116bb46235eb3f93ddddc858f6f35581f7daf805dea975db0c53de28",
+      "videos/stage-lessons/agent-orchestration/index.mjs": "d7bffc057f82b4df6f787a52b43beed4a5e1a2027f99e4b1ea9dbf5df706e7b6",
+      "videos/stage-lessons/agent-orchestration/verify-contract.mjs": "8f82ca84fad2a08a4e31918ddc5b158687a33d30a8d9312a6596a3315475a222",
+      "videos/stage-lessons/agent-orchestration/scenes/checkpoint-retry.mjs": "d69a7a9d346e4395d10390e430403b1ae48785ba86e8ca25ccddaea2e5315865",
+      "videos/stage-lessons/agent-orchestration/scenes/dependency-graph.mjs": "e6e47b74b05787784d3c0c5e816962897e8d4ae2190310019e294806907246b5",
+      "videos/stage-lessons/agent-orchestration/scenes/parallel-clock.mjs": "2c6f32ad48b914b06452c50de1a33bd8e68c488ef92200db12d5252b48adf8c4",
+      "videos/stage-lessons/agent-orchestration/scenes/single-writer.mjs": "1013f1851fc568c2aa883640e51f47705ce2333eb4dcc5ec980284d00029d539",
+      "videos/stage-lessons/agent-orchestration/scenes/subject-intro.mjs": "e8728c0c17422c64bd38a65e53a7fd639bd0977a060628b898877f95b60275f5",
+      "videos/stage-lessons/agent-orchestration/scenes/superstep-join.mjs": "fbde1487cf4437a6364510a05eebbe2b5b5ae4f7a6ee376b0424362183977d4c",
+      "videos/stage-lessons/agent-orchestration/scenes/topology-ownership.mjs": "de3c5cc32c25961fc5b3954b6bf92f76b874fdd560de78d7de5ba6da16095941",
+      "videos/stage-lessons/agent-orchestration/scenes/transfer.mjs": "fd99fa3bbe91e38d8ae1422c30c6cb91d289e3b726c1aa2b13373edc87896fad",
+      "videos/stage-lessons/agent-orchestration/scenes/typed-receipts.mjs": "cb2b50e557ffaa18d0cba4ff9c95f539c57c93acb4a93226e947ddc27422d30d",
+      "videos/stage-lessons/agent-orchestration/scenes/validated-join.mjs": "3000ed6451dfb65541822147d7ea9a01c6a9cb67e987f7a2c0acccaf46a7035a",
+      "videos/stage-lessons/agent-orchestration/scenes/wire-protocols.mjs": "fd4b20370dca7bb5a1cae4225af1197a62d7039c532dd462d6c6004342b86161"
+    },
+    "sourceBindings": {
+      "web/src/content/agents/multi-agent-dags-langgraph-orchestration/content.md": "dc24e6224565c98251e8bc27137dc021bbe9c99d2c29293d31175b3f9f6acf83",
+      "web/src/content/foundations/capstone-production-llm-agent/assets/production_agent.py": "9ba8b58d588ab3c9b4b2ce06447dc9cd9b6ccff3825376ac312b25df48471db7",
+      "videos/films/agent-orchestration/model.mjs": "951b60b9934ab681f2ae37e9fb87d818799519d46286dae6d5aa27d3bb1c7071",
+      "videos/films/agent-orchestration/fixtures.mjs": "08119ab0a29a4ffde663bc15fa0a735376b82383e7895151a1ef491edf30278b",
+      "videos/films/agent-orchestration/arithmetic.mjs": "db944585591a57b3f09ec5d9b15feb7ce99986abe49c5b13a5afc0a54302bfaa"
+    }
+  },
+  "implementationAudit": [
+    {
+      "implementation": "Article Python workers",
+      "evidence": [
+        "web/src/content/agents/multi-agent-dags-langgraph-orchestration/content.md:296-315",
+        "web/src/content/agents/multi-agent-dags-langgraph-orchestration/content.md:355-382"
+      ],
+      "assumedInputs": "The host supplies trusted request fields and a synthetic scoped source registry.",
+      "enforced": "Each branch receives copied request fields through MappingProxyType. checked_update permits exactly one own-branch receipt and no other top-level output key. merge_receipts validates the complete receipt later.",
+      "limits": "Neither copied views nor the wrapper sandbox hostile code. The film uses prebuilt receipts and does not execute these workers.",
+      "production": "Use authenticated producers, scoped tools and credentials, and isolation at the worker boundary."
+    },
+    {
+      "implementation": "Article Python merge and proposal",
+      "evidence": [
+        "web/src/content/agents/multi-agent-dags-langgraph-orchestration/content.md:270-353"
+      ],
+      "assumedInputs": "The host supplies state.now and resolves references through SOURCES. The numerical gates are fictional.",
+      "enforced": "The merge requires one of each expected branch, exact request scope, integer observation time within 300 seconds, an allowlisted reference, exact equality with a receipt reconstructed from its scoped source, and ok is True. It returns an action plus explicit evidence refs and source digests, a packet digest, and an idempotency key.",
+      "limits": "A source digest binds fixture content. It does not authenticate a producer or establish production evidence quality.",
+      "probe": "Changed source content rejects old receipts and changes the proposal digest. Relabeling receipts and the request to revision 999 fails against unchanged scoped sources."
+    },
+    {
+      "implementation": "Film merge and proposal",
+      "evidence": [
+        "videos/films/agent-orchestration/model.mjs:4-42",
+        "videos/films/agent-orchestration/fixtures.mjs:2-36"
+      ],
+      "assumedInputs": "Receipt scope, timestamp, request, clock, and fixed branch values are supplied inputs. The registry contains numerical branch values without tenant or revision metadata.",
+      "enforced": "merge checks exact branch cardinality and known identities, equality with supplied request scope, age between 0 and 60 seconds, fixture-value digest and deep equality, integer traffic in [0,100], and the numerical gates. proposal revalidates at fixed time 1000 and hashes a branch-sorted receipt projection.",
+      "limits": "The returned packet contains tenant, request, release, version, traffic, and evidenceDigest only. It returns no evidence array or resolvable source references. The timestamp type itself is not validated.",
+      "probe": "Consistent tenant/revision relabeling passes against the unscoped registry. Reversed input order produces the same packet. Updating the trusted registry and receipt content together changes its digest."
+    },
+    {
+      "implementation": "Film new-write gate and replay target",
+      "evidence": [
+        "videos/films/agent-orchestration/model.mjs:43-112"
+      ],
+      "assumedInputs": "The caller supplies the packet, approval and live revision. freshPacket copies fixture receipts and changes version to 4 without fetching or verifying revision-four source records.",
+      "enforced": "canWrite requires a hexadecimal evidence digest, approved === true, equality of six packet fields, and equality with the supplied live revision. apply first looks up the key and compares the packet fingerprint. Exact replay returns the saved result before new-write approval/revision checks. Changed-packet key reuse fails.",
+      "limits": "A new key increments a simulated-effect counter and saves a Map entry. There is no real traffic mutation, live lookup, evidence revalidation, actor authentication, policy/expiry check, transaction or crash durability.",
+      "probe": "A denied or stale new write produces no effect. An exact replay with denied approval and revision 999 returns the saved result with one effect. A newly constructed target has no saved ledger."
+    },
+    {
+      "implementation": "Article Python approval and replay-safe writer",
+      "evidence": [
+        "web/src/content/agents/multi-agent-dags-langgraph-orchestration/content.md:553-594",
+        "web/src/content/agents/multi-agent-dags-langgraph-orchestration/content.md:672-788"
+      ],
+      "assumedInputs": "Host-owned permission maps, live state, reviewer names and integer clocks simulate trusted service inputs.",
+      "enforced": "review routes an exact approved digest to approved-for-writer-checks and otherwise cancels. execute checks writer scope and traffic before ledger lookup. A saved exact action reuses its result. A new write additionally checks the digest-bound key, exact approval, reviewer scope/expiry and current release/policy versions, then mutates the fixture and records the result.",
+      "limits": "Existing-result lookup bypasses new-write expiry and version checks, but still checks writer scope. In-memory maps are neither a production authentication service nor an atomic durable transaction.",
+      "probe": "The original writer example executed its rejection and replay assertions. An authorized exact replay after expiry returned reused:promotion-1. A worker identity remained denied."
+    },
+    {
+      "implementation": "Scheduling, reducers and checkpoint integration",
+      "evidence": [
+        "web/src/content/agents/multi-agent-dags-langgraph-orchestration/content.md:355-382",
+        "web/src/content/agents/multi-agent-dags-langgraph-orchestration/content.md:419-472",
+        "web/src/content/agents/multi-agent-dags-langgraph-orchestration/content.md:553-611",
+        "videos/films/agent-orchestration/arithmetic.mjs:4-82"
+      ],
+      "assumedInputs": "Film schedules and durations are constructed arithmetic. The unequal-depth graph uses a recorder-only merge. The release read DAG has no checkpointer.",
+      "enforced": "Pinned LangGraph 1.2.12 executes one waiting-edge merge, a partial then complete recorder merge for separate edges, no merge for a skipped named branch, and a selected-set deferred merge. The article review example uses InMemorySaver and re-enters its interrupted node.",
+      "limits": "The release validator raises on incomplete evidence. List addition retains duplicates and input ordering. An empty list does not clear saved receipts. Pending successful writes require a configured checkpointer. Neither fixture obtains current time automatically.",
+      "production": "Separate a new full attempt from resumption of the same failed attempt. Use a fresh thread, Overwrite or an attempt-aware reducer for a reset. Supply current trusted time and revalidate evidence after a pause."
+    },
+    {
+      "implementation": "Separate production-agent capstone",
+      "evidence": [
+        "web/src/content/foundations/capstone-production-llm-agent/assets/production_agent.py:119-169",
+        "web/src/content/foundations/capstone-production-llm-agent/assets/production_agent.py:172-289"
+      ],
+      "assumedInputs": "The local exercise uses a deterministic planner, fixed policy/account fixtures, host-owned reviewer constants and a supplied clock.",
+      "enforced": "stage_restore persists an exact packet in SQLite. record_approval binds its digest. execute_approved_restore uses BEGIN IMMEDIATE, validates approval, packet binding, current preconditions and expiry, then checks duplicates before inserting one simulated local effect.",
+      "limits": "This is a separate access-restoration example. Expiry precedes duplicate detection, unlike film replay and the article replay-safe writer. It is not an authenticated external service or a real access-restoration effect.",
+      "probe": "A temporary SQLite run blocked an unapproved call, rolled back an injected pre-commit failure, created one local effect, ignored an exact valid duplicate and blocked an expired replay without another effect."
+    }
+  ],
+  "sceneAudit": [
+    {
+      "scene": "subject-intro",
+      "result": "The agent-selection guidance is workload-dependent. The release request and policy are constructed inputs."
+    },
+    {
+      "scene": "dependency-graph",
+      "result": "The read graph is acyclic. The optional revision loop is labeled separately from the article review node, which cancels rejection. No v4 source refresh is depicted here."
+    },
+    {
+      "scene": "parallel-clock",
+      "result": "The 2, 3 and 1 second read durations and 0.5 second merge are supplied arithmetic. Their ideal totals are 6.5 seconds serially and 3.5 seconds in parallel."
+    },
+    {
+      "scene": "typed-receipts",
+      "result": "The narration distinguishes article worker ownership from the film registry. Reducer input order is explicitly separate from network completion order."
+    },
+    {
+      "scene": "superstep-join",
+      "result": "The recorder scheduling probe, real release validator, shallow proxy example, reset semantics and same-attempt resume semantics remain distinct."
+    },
+    {
+      "scene": "validated-join",
+      "result": "The scope rejection, exact branch checks, integer traffic range and numerical gates match the implementations. Alternate source hashes are a computed illustration, supported by a separate executable changed-registry probe."
+    },
+    {
+      "scene": "checkpoint-retry",
+      "result": "Saved read receipts are an integration sketch requiring a checkpointer. A trusted host supplies current time. Film freshness is 60 seconds and article freshness is 300 seconds."
+    },
+    {
+      "scene": "single-writer",
+      "result": "The packet is digest-only, v4 evidence is explicitly assumed, the live revision is supplied, and the effect/replay is simulated in memory. Production requirements remain separately labeled."
+    },
+    {
+      "scene": "topology-ownership",
+      "result": "Manager ownership, handoff control, filtered history, argument-specific authorization and receiver capabilities agree with primary SDK guidance. The visual writer’s handoff baton and validation route remain intact."
+    },
+    {
+      "scene": "wire-protocols",
+      "result": "Capability exposure and independent-agent task boundaries remain distinct. Completion and attached artifacts do not establish correctness, retention or write authority. The visual writer’s stale-receipt rejection keeps the task artifact visible."
+    },
+    {
+      "scene": "transfer",
+      "result": "The intended target revision is explicitly assumed before selecting a repair. The hash table is labeled fixture values. The final v4 replay panel is a separate fixture illustration, and the capstone promise is limited to a local exercise."
+    }
+  ],
+  "cumulativeFindings": [
+    {
+      "finding": "Reducer input order was presented as network arrival order.",
+      "status": "repaired",
+      "beats": [
+        "typed-receipts/2"
+      ],
+      "visual": "The cue is reducer-order, and the packet-sort picture names reducer input order."
+    },
+    {
+      "finding": "The proposal promised explicit evidence references.",
+      "status": "repaired",
+      "beats": [
+        "single-writer/0"
+      ],
+      "visual": "The packet and approval table show its actual evidence digest. Production guidance separately requires retained resolvable evidence."
+    },
+    {
+      "finding": "Revision-four sources appeared fetched and validated on screen.",
+      "status": "repaired",
+      "beats": [
+        "single-writer/2"
+      ],
+      "visual": "The picture says Assumed v4 / Fixture inputs. Cards enter the packet as supplied values without a source-fetch animation."
+    },
+    {
+      "finding": "Worker and source trust boundaries differed across implementations.",
+      "status": "repaired",
+      "beats": [
+        "typed-receipts/0",
+        "typed-receipts/1",
+        "transfer/3"
+      ],
+      "visual": "The production source-authentication note and fixture-value hash table keep trust scope explicit."
+    },
+    {
+      "finding": "An optional review loop could be mistaken for the executable rejection route.",
+      "status": "repaired",
+      "beats": [
+        "dependency-graph/2"
+      ],
+      "visual": "The loop says optional revision. The article rejection route is shown as cancel."
+    },
+    {
+      "finding": "A recorder-only scheduling probe could be mistaken for release validation.",
+      "status": "repaired",
+      "beats": [
+        "superstep-join/2"
+      ],
+      "visual": "Merge recorder / No proposal is distinct from Release merge / Missing → fail."
+    },
+    {
+      "finding": "Checkpoint recovery and advancing time could look built into the read fixture.",
+      "status": "repaired",
+      "beats": [
+        "checkpoint-retry/0",
+        "checkpoint-retry/2"
+      ],
+      "visual": "Integration / Checkpointer changes to Integration / Host clock. The clock is labeled supplied host time."
+    },
+    {
+      "finding": "Earlier factual repairs needed to survive the visual pass.",
+      "status": "retained",
+      "beats": [
+        "superstep-join/1",
+        "transfer/3",
+        "single-writer/0",
+        "single-writer/1",
+        "single-writer/2",
+        "single-writer/3"
+      ],
+      "visual": "All reset/resume cues, explicit target assumptions, separate production checks and in-memory replay teaching remain present."
+    }
+  ],
+  "preservedVisualWork": [
+    "The handoff baton waits on the validation route before transfer.",
+    "Bound and current policy markers, the expiry clock and the next-effect gate remain separate from the fixture ledger.",
+    "The protocol scene retains the completed task and its artifact while rejecting the stale receipt.",
+    "The wider fixture approval table and replay request/reply animations remain intact."
+  ],
+  "primaryReferences": [
+    {
+      "url": "https://docs.langchain.com/oss/python/langgraph/graph-api",
+      "supports": "Supersteps, reducers, Overwrite and empty-value reset semantics."
+    },
+    {
+      "url": "https://docs.langchain.com/oss/python/langgraph/graph-api-control-flow",
+      "supports": "Waiting edges, deferred selected work and parallel-update ordering guidance."
+    },
+    {
+      "url": "https://github.com/langchain-ai/langgraph/blob/1.2.12/libs/langgraph/langgraph/pregel/_algo.py",
+      "supports": "The pinned implementation sorts task writes by task path. Raw network completion does not define reducer input order."
+    },
+    {
+      "url": "https://docs.langchain.com/oss/python/langgraph/checkpointers",
+      "supports": "Configured checkpoint storage and saved successful sibling writes."
+    },
+    {
+      "url": "https://docs.langchain.com/oss/python/langgraph/interrupts",
+      "supports": "Interrupted-node resumption can re-execute preceding code."
+    },
+    {
+      "url": "https://aws.amazon.com/builders-library/making-retries-safe-with-idempotent-APIs/",
+      "supports": "Durable operation identity, changed-intent rejection and atomic recording with the effect."
+    },
+    {
+      "url": "https://openai.github.io/openai-agents-python/handoffs/",
+      "supports": "Generated-argument validation, history filters, enablement and authorization at transfer."
+    },
+    {
+      "url": "https://learn.microsoft.com/en-us/agent-framework/migration-guide/from-autogen/",
+      "supports": "Migration can change routing and typed-message contracts."
+    },
+    {
+      "url": "https://modelcontextprotocol.io/extensions/tasks/overview",
+      "supports": "Long-running operations can use MCP Tasks when supported."
+    },
+    {
+      "url": "https://a2a-protocol.org/latest/specification/",
+      "supports": "Messages, tasks, supported updates and attached artifacts."
+    },
+    {
+      "url": "https://www.anthropic.com/research/multi-agent-research-system",
+      "supports": "Independent research delegation, context cost and the limitations of tightly coupled tasks."
+    }
+  ],
+  "verification": {
+    "commandCwd": "videos",
+    "contractCommand": "node stage-lessons/agent-orchestration/verify-contract.mjs --langgraph",
+    "contractResult": "Passed the film probes, pure article functions, original replay-safe writer, pinned LangGraph 1.2.12 examples and temporary SQLite capstone checks.",
+    "stageCommand": "nice -n 15 node tools/stage-check.mjs agent-orchestration",
+    "stageResult": {
+      "scenes": 11,
+      "beats": 40,
+      "cues": 258,
+      "timing": "estimated",
+      "seconds": 1021.1,
+      "restMoments": 271,
+      "motionFrames": 30632,
+      "errors": 0,
+      "warnings": 0,
+      "notRebuilt": 0
+    },
+    "stillsCommand": "nice -n 15 node tools/stage-stills.mjs agent-orchestration --before --out ../build/agent-orchestration-contract-pass/stills",
+    "stillsResult": {
+      "generated": 526,
+      "width": 1920,
+      "inspectedBeatEnds": [
+        "/Users/bruno.volpato/githubworkspace/leetllm-wt-rebuild/build/agent-orchestration-contract-pass/stills/01-subject-intro/018.83-beat-0-end.png",
+        "/Users/bruno.volpato/githubworkspace/leetllm-wt-rebuild/build/agent-orchestration-contract-pass/stills/01-subject-intro/035.18-beat-1-end.png",
+        "/Users/bruno.volpato/githubworkspace/leetllm-wt-rebuild/build/agent-orchestration-contract-pass/stills/01-subject-intro/052.50-beat-2-end.png",
+        "/Users/bruno.volpato/githubworkspace/leetllm-wt-rebuild/build/agent-orchestration-contract-pass/stills/01-subject-intro/077.93-beat-3-end.png",
+        "/Users/bruno.volpato/githubworkspace/leetllm-wt-rebuild/build/agent-orchestration-contract-pass/stills/02-dependency-graph/018.83-beat-0-end.png",
+        "/Users/bruno.volpato/githubworkspace/leetllm-wt-rebuild/build/agent-orchestration-contract-pass/stills/02-dependency-graph/037.55-beat-1-end.png",
+        "/Users/bruno.volpato/githubworkspace/leetllm-wt-rebuild/build/agent-orchestration-contract-pass/stills/02-dependency-graph/062.93-beat-2-end.png",
+        "/Users/bruno.volpato/githubworkspace/leetllm-wt-rebuild/build/agent-orchestration-contract-pass/stills/03-parallel-clock/016.00-beat-0-end.png",
+        "/Users/bruno.volpato/githubworkspace/leetllm-wt-rebuild/build/agent-orchestration-contract-pass/stills/03-parallel-clock/033.18-beat-1-end.png",
+        "/Users/bruno.volpato/githubworkspace/leetllm-wt-rebuild/build/agent-orchestration-contract-pass/stills/03-parallel-clock/050.93-beat-2-end.png",
+        "/Users/bruno.volpato/githubworkspace/leetllm-wt-rebuild/build/agent-orchestration-contract-pass/stills/04-typed-receipts/022.00-beat-0-end.png",
+        "/Users/bruno.volpato/githubworkspace/leetllm-wt-rebuild/build/agent-orchestration-contract-pass/stills/04-typed-receipts/059.58-beat-1-end.png",
+        "/Users/bruno.volpato/githubworkspace/leetllm-wt-rebuild/build/agent-orchestration-contract-pass/stills/04-typed-receipts/084.53-beat-2-end.png",
+        "/Users/bruno.volpato/githubworkspace/leetllm-wt-rebuild/build/agent-orchestration-contract-pass/stills/05-superstep-join/016.05-beat-0-end.png",
+        "/Users/bruno.volpato/githubworkspace/leetllm-wt-rebuild/build/agent-orchestration-contract-pass/stills/05-superstep-join/056.25-beat-1-end.png",
+        "/Users/bruno.volpato/githubworkspace/leetllm-wt-rebuild/build/agent-orchestration-contract-pass/stills/05-superstep-join/102.05-beat-2-end.png",
+        "/Users/bruno.volpato/githubworkspace/leetllm-wt-rebuild/build/agent-orchestration-contract-pass/stills/05-superstep-join/127.48-beat-3-end.png",
+        "/Users/bruno.volpato/githubworkspace/leetllm-wt-rebuild/build/agent-orchestration-contract-pass/stills/06-validated-join/014.80-beat-0-end.png",
+        "/Users/bruno.volpato/githubworkspace/leetllm-wt-rebuild/build/agent-orchestration-contract-pass/stills/06-validated-join/033.18-beat-1-end.png",
+        "/Users/bruno.volpato/githubworkspace/leetllm-wt-rebuild/build/agent-orchestration-contract-pass/stills/06-validated-join/050.90-beat-2-end.png",
+        "/Users/bruno.volpato/githubworkspace/leetllm-wt-rebuild/build/agent-orchestration-contract-pass/stills/06-validated-join/083.93-beat-3-end.png",
+        "/Users/bruno.volpato/githubworkspace/leetllm-wt-rebuild/build/agent-orchestration-contract-pass/stills/07-checkpoint-retry/023.60-beat-0-end.png",
+        "/Users/bruno.volpato/githubworkspace/leetllm-wt-rebuild/build/agent-orchestration-contract-pass/stills/07-checkpoint-retry/040.35-beat-1-end.png",
+        "/Users/bruno.volpato/githubworkspace/leetllm-wt-rebuild/build/agent-orchestration-contract-pass/stills/07-checkpoint-retry/074.90-beat-2-end.png",
+        "/Users/bruno.volpato/githubworkspace/leetllm-wt-rebuild/build/agent-orchestration-contract-pass/stills/07-checkpoint-retry/098.73-beat-3-end.png",
+        "/Users/bruno.volpato/githubworkspace/leetllm-wt-rebuild/build/agent-orchestration-contract-pass/stills/08-single-writer/031.63-beat-0-end.png",
+        "/Users/bruno.volpato/githubworkspace/leetllm-wt-rebuild/build/agent-orchestration-contract-pass/stills/08-single-writer/058.78-beat-1-end.png",
+        "/Users/bruno.volpato/githubworkspace/leetllm-wt-rebuild/build/agent-orchestration-contract-pass/stills/08-single-writer/103.30-beat-2-end.png",
+        "/Users/bruno.volpato/githubworkspace/leetllm-wt-rebuild/build/agent-orchestration-contract-pass/stills/08-single-writer/145.13-beat-3-end.png",
+        "/Users/bruno.volpato/githubworkspace/leetllm-wt-rebuild/build/agent-orchestration-contract-pass/stills/09-topology-ownership/023.25-beat-0-end.png",
+        "/Users/bruno.volpato/githubworkspace/leetllm-wt-rebuild/build/agent-orchestration-contract-pass/stills/09-topology-ownership/046.65-beat-1-end.png",
+        "/Users/bruno.volpato/githubworkspace/leetllm-wt-rebuild/build/agent-orchestration-contract-pass/stills/09-topology-ownership/072.05-beat-2-end.png",
+        "/Users/bruno.volpato/githubworkspace/leetllm-wt-rebuild/build/agent-orchestration-contract-pass/stills/09-topology-ownership/092.28-beat-3-end.png",
+        "/Users/bruno.volpato/githubworkspace/leetllm-wt-rebuild/build/agent-orchestration-contract-pass/stills/10-wire-protocols/022.05-beat-0-end.png",
+        "/Users/bruno.volpato/githubworkspace/leetllm-wt-rebuild/build/agent-orchestration-contract-pass/stills/10-wire-protocols/045.45-beat-1-end.png",
+        "/Users/bruno.volpato/githubworkspace/leetllm-wt-rebuild/build/agent-orchestration-contract-pass/stills/10-wire-protocols/070.88-beat-2-end.png",
+        "/Users/bruno.volpato/githubworkspace/leetllm-wt-rebuild/build/agent-orchestration-contract-pass/stills/11-transfer/016.00-beat-0-end.png",
+        "/Users/bruno.volpato/githubworkspace/leetllm-wt-rebuild/build/agent-orchestration-contract-pass/stills/11-transfer/034.75-beat-1-end.png",
+        "/Users/bruno.volpato/githubworkspace/leetllm-wt-rebuild/build/agent-orchestration-contract-pass/stills/11-transfer/052.10-beat-2-end.png",
+        "/Users/bruno.volpato/githubworkspace/leetllm-wt-rebuild/build/agent-orchestration-contract-pass/stills/11-transfer/121.53-beat-3-end.png"
+      ],
+      "additionalInspectedFrames": [
+        "/Users/bruno.volpato/githubworkspace/leetllm-wt-rebuild/build/agent-orchestration-contract-pass/stills/02-dependency-graph/050.20-cue-review-cycle.png",
+        "/Users/bruno.volpato/githubworkspace/leetllm-wt-rebuild/build/agent-orchestration-contract-pass/stills/05-superstep-join/081.70-cue-partial-merge.png",
+        "/Users/bruno.volpato/githubworkspace/leetllm-wt-rebuild/build/agent-orchestration-contract-pass/stills/08-single-writer/063.40-cue-assumed-v4.png",
+        "/Users/bruno.volpato/githubworkspace/leetllm-wt-rebuild/build/agent-orchestration-contract-pass/stills/08-single-writer/064.75-before-supplied-v4.png",
+        "/Users/bruno.volpato/githubworkspace/leetllm-wt-rebuild/build/agent-orchestration-contract-pass/stills/08-single-writer/068.20-cue-supplied-v4.png",
+        "/Users/bruno.volpato/githubworkspace/leetllm-wt-rebuild/build/agent-orchestration-contract-pass/stills/08-single-writer/073.15-before-fresh-approval.png",
+        "/Users/bruno.volpato/githubworkspace/leetllm-wt-rebuild/build/agent-orchestration-contract-pass/stills/08-single-writer/076.60-cue-fresh-approval.png",
+        "/Users/bruno.volpato/githubworkspace/leetllm-wt-rebuild/build/agent-orchestration-contract-pass/stills/11-transfer/084.35-cue-revalidate.png",
+        "/Users/bruno.volpato/githubworkspace/leetllm-wt-rebuild/build/agent-orchestration-contract-pass/stills/08-single-writer/114.10-before-recheck-expiry.png",
+        "/Users/bruno.volpato/githubworkspace/leetllm-wt-rebuild/build/agent-orchestration-contract-pass/stills/08-single-writer/116.75-cue-recheck-expiry.png",
+        "/Users/bruno.volpato/githubworkspace/leetllm-wt-rebuild/build/agent-orchestration-contract-pass/stills/09-topology-ownership/063.45-before-transfer-boundary.png",
+        "/Users/bruno.volpato/githubworkspace/leetllm-wt-rebuild/build/agent-orchestration-contract-pass/stills/09-topology-ownership/067.30-cue-transfer-boundary.png",
+        "/Users/bruno.volpato/githubworkspace/leetllm-wt-rebuild/build/agent-orchestration-contract-pass/stills/10-wire-protocols/048.65-before-completed-not-proof.png",
+        "/Users/bruno.volpato/githubworkspace/leetllm-wt-rebuild/build/agent-orchestration-contract-pass/stills/10-wire-protocols/051.30-cue-completed-not-proof.png"
+      ],
+      "motionSampleCommands": [
+        "nice -n 15 node tools/stage-stills.mjs agent-orchestration --scene topology-ownership --cue transfer-boundary --frames 6 --out ../build/agent-orchestration-contract-pass/stills",
+        "nice -n 15 node tools/stage-stills.mjs agent-orchestration --scene single-writer --cue recheck-expiry --frames 6 --out ../build/agent-orchestration-contract-pass/stills",
+        "nice -n 15 node tools/stage-stills.mjs agent-orchestration --scene wire-protocols --cue completed-not-proof --frames 6 --out ../build/agent-orchestration-contract-pass/stills"
+      ],
+      "inspectedMotionSamples": [
+        "/Users/bruno.volpato/githubworkspace/leetllm-wt-rebuild/build/agent-orchestration-contract-pass/stills/08-single-writer/move-recheck-expiry/114.15-move-recheck-expiry.png",
+        "/Users/bruno.volpato/githubworkspace/leetllm-wt-rebuild/build/agent-orchestration-contract-pass/stills/08-single-writer/move-recheck-expiry/114.67-move-recheck-expiry.png",
+        "/Users/bruno.volpato/githubworkspace/leetllm-wt-rebuild/build/agent-orchestration-contract-pass/stills/08-single-writer/move-recheck-expiry/115.19-move-recheck-expiry.png",
+        "/Users/bruno.volpato/githubworkspace/leetllm-wt-rebuild/build/agent-orchestration-contract-pass/stills/08-single-writer/move-recheck-expiry/115.71-move-recheck-expiry.png",
+        "/Users/bruno.volpato/githubworkspace/leetllm-wt-rebuild/build/agent-orchestration-contract-pass/stills/08-single-writer/move-recheck-expiry/116.23-move-recheck-expiry.png",
+        "/Users/bruno.volpato/githubworkspace/leetllm-wt-rebuild/build/agent-orchestration-contract-pass/stills/08-single-writer/move-recheck-expiry/116.75-move-recheck-expiry.png",
+        "/Users/bruno.volpato/githubworkspace/leetllm-wt-rebuild/build/agent-orchestration-contract-pass/stills/09-topology-ownership/move-transfer-boundary/063.50-move-transfer-boundary.png",
+        "/Users/bruno.volpato/githubworkspace/leetllm-wt-rebuild/build/agent-orchestration-contract-pass/stills/09-topology-ownership/move-transfer-boundary/064.26-move-transfer-boundary.png",
+        "/Users/bruno.volpato/githubworkspace/leetllm-wt-rebuild/build/agent-orchestration-contract-pass/stills/09-topology-ownership/move-transfer-boundary/065.02-move-transfer-boundary.png",
+        "/Users/bruno.volpato/githubworkspace/leetllm-wt-rebuild/build/agent-orchestration-contract-pass/stills/09-topology-ownership/move-transfer-boundary/065.78-move-transfer-boundary.png",
+        "/Users/bruno.volpato/githubworkspace/leetllm-wt-rebuild/build/agent-orchestration-contract-pass/stills/09-topology-ownership/move-transfer-boundary/066.54-move-transfer-boundary.png",
+        "/Users/bruno.volpato/githubworkspace/leetllm-wt-rebuild/build/agent-orchestration-contract-pass/stills/09-topology-ownership/move-transfer-boundary/067.30-move-transfer-boundary.png",
+        "/Users/bruno.volpato/githubworkspace/leetllm-wt-rebuild/build/agent-orchestration-contract-pass/stills/10-wire-protocols/move-completed-not-proof/048.70-move-completed-not-proof.png",
+        "/Users/bruno.volpato/githubworkspace/leetllm-wt-rebuild/build/agent-orchestration-contract-pass/stills/10-wire-protocols/move-completed-not-proof/049.22-move-completed-not-proof.png",
+        "/Users/bruno.volpato/githubworkspace/leetllm-wt-rebuild/build/agent-orchestration-contract-pass/stills/10-wire-protocols/move-completed-not-proof/049.74-move-completed-not-proof.png",
+        "/Users/bruno.volpato/githubworkspace/leetllm-wt-rebuild/build/agent-orchestration-contract-pass/stills/10-wire-protocols/move-completed-not-proof/050.26-move-completed-not-proof.png",
+        "/Users/bruno.volpato/githubworkspace/leetllm-wt-rebuild/build/agent-orchestration-contract-pass/stills/10-wire-protocols/move-completed-not-proof/050.78-move-completed-not-proof.png",
+        "/Users/bruno.volpato/githubworkspace/leetllm-wt-rebuild/build/agent-orchestration-contract-pass/stills/10-wire-protocols/move-completed-not-proof/051.30-move-completed-not-proof.png"
+      ],
+      "totalGenerated": 544,
+      "visualResult": "All beat-end stills and the listed cue/motion samples were inspected at full size. The v4 assumption precedes supplied cards and fresh approval. Policy/expiry gating, the handoff validation wait and the stale-receipt bounce remain clear."
+    },
+    "storage": {
+      "budget": "/tmp/agent-orchestration-contract-budget",
+      "baselineRootBytes": 3226357760,
+      "baselineExternalBytes": 4824178688,
+      "stillsReservationBytes": 536870912,
+      "stillsGrowthBytes": 361431040,
+      "standardWrapperError": "Cohort group supervision requires Linux /proc",
+      "fallback": "Used the same reserveStorage/settleStorage APIs with a 500 ms output-growth watcher and a directly owned ChildProcess on macOS. The output stayed within its reservation. The baseline scan was non-atomic and included other retained work.",
+      "motionReservationBytes": 33554432,
+      "motionGrowthBytes": 13389824
+    },
+    "measuredTiming": {
+      "command": "nice -n 15 node tools/stage-check.mjs agent-orchestration --timeline ../build/landing-standard/previews/agent-orchestration/timeline.json",
+      "result": "dependency-graph, beat 2: the recording does not match the current narration.",
+      "status": "The available recording is stale. No word timings were invented."
+    },
+    "independentRefutation": "A read-only independent pass found no remaining source-level contradiction in the revised sections. That pass did not inspect rendered frames or audio.",
+    "environment": {
+      "node": "26.12.0",
+      "uv": "0.13.3",
+      "langgraph": "1.2.12",
+      "vizmatic": "0.8.1",
+      "pythonRunner": "uv --no-config run --no-project --script -"
+    }
+  },
+  "limitations": [
+    "Fresh independent quiz and fact review remain required for script hash 39725d7d3fff645a. Older review grades apply only to their recorded hashes.",
+    "No speech, audio playback, full movie render, publication or commit was produced.",
+    "No live release sources, authenticated remote services, external crash recovery or concurrent production writer behavior were exercised.",
+    "The actual LangGraph read example, separate scheduling probe and review/retry examples ran. The illustrated combination of read-branch checkpointing with fresh host time remains an integration sketch."
+  ],
+  "teachingRetention": {
+    "scenes": 11,
+    "beats": 40,
+    "holdsUnchangedFromIncoming": true,
+    "sceneOrderUnchanged": true,
+    "topics": "Agent selection, graph dependencies, timing, worker ownership, reducers, join validation, checkpoint/retry, approval, replay, topology, protocols and capstone transfer remain taught."
+  },
+  "historicalDeliveryReview": {
+    "path": "videos/reviews/delivery-2026-11-06/agent-orchestration.json",
+    "scope": "The older Canvas delivery review has no listed blockers and did not bind this new stage candidate. Its publication and measured-timing conclusions were not reused."
+  }
+}

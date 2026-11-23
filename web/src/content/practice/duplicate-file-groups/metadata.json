@@ -1,0 +1,173 @@
+{
+  "id": "duplicate-file-groups",
+  "slug": "duplicate-file-groups",
+  "title": "Duplicate File Groups",
+  "difficulty": "Easy",
+  "category": "Repository Systems",
+  "language": "python3",
+  "timeEstimateMinutes": 25,
+  "timeLimitMs": 2500,
+  "memoryLimitMb": 128,
+  "order": 16,
+  "tags": [
+    "repository",
+    "deduplication",
+    "hashing",
+    "deterministic ordering"
+  ],
+  "source": "Cursor coding prep",
+  "summary": "Group duplicate repository files by content with deterministic output and path validation.",
+  "starterCode": [
+    "def find_duplicate_files(files: dict[str, str]) -> list[list[str]]:",
+    "    pass"
+  ],
+  "testCases": [
+    {
+      "name": "public groups identical content",
+      "visibility": "sample",
+      "description": "Two paths share content and one path is unique.",
+      "input": "{\"a.py\":\"x\",\"b.py\":\"x\",\"c.py\":\"y\"}",
+      "expected": "[[\"a.py\", \"b.py\"]]",
+      "feedback": "Group by content, then drop groups with only one file.",
+      "setup": [
+        "from solution import find_duplicate_files",
+        "files = {\"a.py\": \"x\", \"b.py\": \"x\", \"c.py\": \"y\"}"
+      ],
+      "expression": "find_duplicate_files(files)"
+    },
+    {
+      "name": "public sorts groups and paths",
+      "visibility": "sample",
+      "description": "Input order should not affect output order.",
+      "input": "{\"z.txt\":\"1\",\"b.txt\":\"2\",\"a.txt\":\"2\",\"y.txt\":\"1\"}",
+      "expected": "[[\"a.txt\", \"b.txt\"], [\"y.txt\", \"z.txt\"]]",
+      "feedback": "Sort paths within each group, then sort groups by the first path.",
+      "setup": [
+        "from solution import find_duplicate_files",
+        "files = {\"z.txt\": \"1\", \"b.txt\": \"2\", \"a.txt\": \"2\", \"y.txt\": \"1\"}"
+      ],
+      "expression": "find_duplicate_files(files)"
+    },
+    {
+      "name": "hidden empty input",
+      "visibility": "hidden",
+      "setup": [
+        "from solution import find_duplicate_files"
+      ],
+      "input": "find_duplicate_files({})",
+      "expected": "[]"
+    },
+    {
+      "name": "hidden three-way duplicate",
+      "visibility": "hidden",
+      "setup": [
+        "from solution import find_duplicate_files",
+        "files = {\"src/a\": \"same\", \"src/b\": \"same\", \"src/c\": \"same\", \"src/d\": \"other\"}"
+      ],
+      "input": "files = {\"src/a\": \"same\", \"src/b\": \"same\", \"src/c\": \"same\", \"src/d\": \"other\"}\nfind_duplicate_files(files)",
+      "expected": "[[\"src/a\", \"src/b\", \"src/c\"]]",
+      "expression": "find_duplicate_files(files)"
+    },
+    {
+      "name": "hidden ignores unique files",
+      "visibility": "hidden",
+      "setup": [
+        "from solution import find_duplicate_files"
+      ],
+      "input": "find_duplicate_files({\"a\": \"1\", \"b\": \"2\"})",
+      "expected": "[]"
+    },
+    {
+      "name": "hidden rejects invalid paths",
+      "visibility": "hidden",
+      "code": [
+        "from solution import find_duplicate_files",
+        "for path in (\"\", \".\", \"..\", \"../secret\", \"src//app.py\", \"src/./app.py\", \"src/\"):",
+        "    try:",
+        "        find_duplicate_files({path: \"x\"})",
+        "    except ValueError:",
+        "        pass",
+        "    else:",
+        "        raise AssertionError(f\"expected invalid path for {path}\")"
+      ]
+    },
+    {
+      "name": "hidden rejects mixed valid and invalid paths",
+      "visibility": "hidden",
+      "code": [
+        "from solution import find_duplicate_files",
+        "try:",
+        "    find_duplicate_files({\"ok.py\": \"x\", \"src//bad.py\": \"x\"})",
+        "except ValueError:",
+        "    pass",
+        "else:",
+        "    raise AssertionError(\"expected ValueError when any path is invalid\")"
+      ]
+    },
+    {
+      "name": "hidden content case sensitivity",
+      "visibility": "hidden",
+      "setup": [
+        "from solution import find_duplicate_files"
+      ],
+      "input": "find_duplicate_files({\"a\": \"X\", \"b\": \"x\"})",
+      "expected": "[]"
+    },
+    {
+      "name": "public groups empty file contents",
+      "visibility": "sample",
+      "description": "Empty text is valid content and can be duplicated.",
+      "feedback": "Group by exact content even when the content string is empty.",
+      "setup": [
+        "from solution import find_duplicate_files"
+      ],
+      "input": "find_duplicate_files({\"empty-a\": \"\", \"empty-b\": \"\"})",
+      "expected": "[[\"empty-a\", \"empty-b\"]]"
+    }
+  ],
+  "clarifyingQuestions": [
+    "Should duplicate detection use raw bytes, normalized text, or parsed AST?",
+    "Should generated/vendor directories be ignored?",
+    "Should symlinks count as files or links?",
+    "Should output include content hashes or only path groups?"
+  ],
+  "followUps": [
+    "Stream large files and group first by file size.",
+    "Add ignore rules for vendor and generated directories.",
+    "Return content hashes for cache reuse."
+  ],
+  "followUpGuide": [
+    "For large repositories, group candidates by size before hashing content.",
+    "",
+    "For ignore rules, normalize paths first and apply the same filter policy before grouping.",
+    "",
+    "For artifact cleanup, return stable group IDs based on a content hash so raw content stays private. Use equal size and digest to find candidate duplicates, then compare their bytes before deleting anything; a digest match identifies a candidate and the byte comparison confirms exact equality."
+  ],
+  "complexityAnalysis": [
+    "- Building groups. Expected time: O(n + total path length + total content size) with ordinary dictionary hashing, where n is file count. Extra space: O(n) path/key references; this API already receives the content strings and doesn't copy their bytes.",
+    "- Sorting. With d duplicate paths and g duplicate groups, sort each group's paths, then sort the g groups by their first path. There are at most O(d log d + g log g) string comparisons; each comparison can inspect a shared path prefix. Extra space remains O(n).",
+    "- Streaming-hash follow-up keeps the same output shape while reducing peak file-content memory outside this API."
+  ],
+  "solutionGuide": [
+    "Validate every path, including files with unique content. Use exact content strings as grouping keys here. A streaming hash can narrow candidates in a filesystem follow-up, but verify exact bytes before treating a hash match as proof.",
+    "",
+    "```python",
+    "def _validate(path: str) -> None:",
+    "    parts = path.split(\"/\")",
+    "    if not path or any(part in {\"\", \".\", \"..\"} for part in parts):",
+    "        raise ValueError(\"invalid path\")",
+    "",
+    "",
+    "def find_duplicate_files(files: dict[str, str]) -> list[list[str]]:",
+    "    by_content: dict[str, list[str]] = {}",
+    "    for path, content in files.items():",
+    "        _validate(path)",
+    "        by_content.setdefault(content, []).append(path)",
+    "    groups = []",
+    "    for paths in by_content.values():",
+    "        if len(paths) > 1:",
+    "            groups.append(sorted(paths))",
+    "    return sorted(groups, key=lambda group: group[0])",
+    "```"
+  ]
+}

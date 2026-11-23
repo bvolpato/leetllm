@@ -1,0 +1,419 @@
+[
+  {
+    "id": "c01",
+    "title": "Which service slowed after three?",
+    "sourceChapters": [
+      "c01"
+    ],
+    "beats": [
+      {
+        "id": "c01-b01",
+        "say": "One trace crosses another after three o’clock. Follow its markers. Search, Checkout, or Login. Which service got slower?",
+        "hold": 3
+      },
+      {
+        "id": "c01-b02",
+        "say": "Slide the cover off the legend. Match the green diamonds to the green diamond under the plot. What name is beside it?",
+        "hold": 2.4
+      },
+      {
+        "id": "c01-b03",
+        "say": "Checkout. The time axis locates three o’clock. From there, the green diamonds rise from five point two to nine milliseconds. Without the time labels we could see the climb but couldn’t date it. Without the trace we couldn’t measure the change. Cover the legend again. The climb is still there, but this image alone can no longer tell us which service slowed.",
+        "hold": 1
+      },
+      {
+        "id": "c01-b04",
+        "say": "The question arrives as text. An image encoder turns pixels into visual features. A connector adapts those features to the language model. A fusion strategy decides where visual and text information meet. Let’s follow this screenshot through all three.",
+        "hold": 1
+      }
+    ]
+  },
+  {
+    "id": "c02",
+    "title": "How many positions come from the pixels?",
+    "sourceChapters": [
+      "c02"
+    ],
+    "beats": [
+      {
+        "id": "c02-b01",
+        "say": "Lay a grid over a square view of the plot. Each tile covers fourteen by fourteen pixels. This view is two hundred twenty-four pixels wide. How many patch positions reach a direct projector if we keep every tile and omit the special class token?",
+        "hold": 2.6
+      },
+      {
+        "id": "c02-b02",
+        "say": "Sixteen across and sixteen down give two hundred fifty-six. Each patch enters the vision encoder with positional information. The encoder can build context across the patch sequence, so a feature can carry information from both a visible legend and its line.",
+        "hold": 1
+      },
+      {
+        "id": "c02-b03",
+        "say": "Decode a larger view of the same area, three hundred thirty-six pixels on a side. Keep the patch size fixed. Count both axes again.",
+        "hold": 2
+      },
+      {
+        "id": "c02-b04",
+        "say": "Twenty-four squared gives five hundred seventy-six patches. File compression can shrink an upload without changing either axis. Count each decoded view, including extra crops or sampled video frames. A limit on bytes protects admission. A limit on decoded pixels and views controls the encoder’s work.",
+        "hold": 1
+      }
+    ]
+  },
+  {
+    "id": "c03",
+    "title": "What reaches the decoder?",
+    "sourceChapters": [
+      "c03"
+    ],
+    "beats": [
+      {
+        "id": "c03-b01",
+        "say": "Follow one patch through a learned projection. Its four example feature coordinates become six. Every input row has one output row. For our larger view that leaves five hundred seventy-six positions to carry into the decoder.",
+        "hold": 1
+      },
+      {
+        "id": "c03-b02",
+        "say": "A query-based connector takes another route. Give the bridge thirty-two learned queries. Follow the first query. It can mix information from across the entire patch bank. One query returns one state. Across all thirty-two queries, that gives thirty-two output states for this view. BLIP-two uses a Q-Former. Flamingo uses a Perceiver Resampler with its own configured latent count.",
+        "hold": 1
+      },
+      {
+        "id": "c03-b03",
+        "say": "Try the thirty-two-state reader on our chart. In this trial it reads the climb and the time axis, but loses the tiny legend. What can we report? A green trace rose. To name the service, read a verified legend crop from the original.",
+        "hold": 1.4
+      },
+      {
+        "id": "c03-b04",
+        "say": "A video repeats the operation. Try three views per frame and ten frames. How many states does a thirty-two-query bridge send downstream for the clip?",
+        "hold": 2.8
+      },
+      {
+        "id": "c03-b05",
+        "say": "Nine hundred sixty. Each frame contributes ninety-six. Bound the number of admitted frames and views as well as the number of queries, or train and evaluate a reducer that reads a whole clip.",
+        "hold": 1
+      }
+    ]
+  },
+  {
+    "id": "c03-training",
+    "title": "Can a frozen decoder teach the bridge?",
+    "sourceChapters": [
+      "c03"
+    ],
+    "beats": [
+      {
+        "id": "c03-training-b01",
+        "say": "Give the model a picture of a red bus and the caption so far, “a red.” The training target is the next word, “bus.” In the first alignment stage of the original LLaVA recipe, only the projector weights can change.",
+        "hold": 1
+      },
+      {
+        "id": "c03-training-b02",
+        "say": "Suppose we cut the backward path through the entire language model. The caption loss still exists. Can it teach the projector what to change?",
+        "hold": 2.5
+      },
+      {
+        "id": "c03-training-b03",
+        "say": "The projector is trainable, but the cut leaves it without a gradient from the caption loss. Restore the activation gradient. Trace it from the loss back through the frozen decoder to the projector. The optimizer updates the projector alone. In the later instruction stage the original recipe also tunes the language model on image questions and answers.",
+        "hold": 1
+      },
+      {
+        "id": "c03-training-b04",
+        "say": "Joint training can update all three components. Score the starting checkpoint on two held-out sets: twenty chart labels and twenty questions about written passages with no image. It reads thirteen labels and answers eighteen passage questions correctly. After joint tuning, it reads seventeen labels. Is that enough to pick the new checkpoint?",
+        "hold": 2.8
+      },
+      {
+        "id": "c03-training-b05",
+        "say": "On the same passage questions it now gets fifteen right. Four more labels read, three fewer text answers correct. To test the training mixture, start again from the same checkpoint, keep learning rates and token count fixed, and change only the share of text-only examples. Score both sets again. Preference tuning can reward a grounded answer or an honest abstention. When the visual read has lost the label, even a fluent answer needs more evidence to name the service.",
+        "hold": 1.5
+      }
+    ]
+  },
+  {
+    "id": "c04",
+    "title": "Where do pixels and words meet?",
+    "sourceChapters": [
+      "c04"
+    ],
+    "beats": [
+      {
+        "id": "c04-b01",
+        "say": "Find dashboards like this one. Late fusion encodes image and text mostly independently, then compares pooled vectors. A similarity score can rank screenshots. For a question about the green line, the reader still needs the chart region and the legend.",
+        "hold": 1
+      },
+      {
+        "id": "c04-b02",
+        "say": "Early fusion projects visual tokens and places them in the language-model prefix. Self-attention can then combine image and text states throughout the decoder. The tradeoff is a longer shared sequence and its associated cache.",
+        "hold": 1
+      },
+      {
+        "id": "c04-b03",
+        "say": "Cross-attention keeps a visual memory beside the text stream. Selected decoder layers form queries from text and read visual keys and values. How much work does the separate read add to text self-attention?",
+        "hold": 1
+      },
+      {
+        "id": "c04-b04",
+        "say": "Here are the dense score shapes for one head. With twenty-two hundred text states and one hundred sixty visual states, a fusion layer adds three hundred fifty-two thousand text-to-image scores. The text self-attention square stays. These are possible position pairs. Masking, kernels and batching determine actual time and memory.",
+        "hold": 1
+      }
+    ]
+  },
+  {
+    "id": "c05",
+    "title": "How many views fit beside the reply?",
+    "sourceChapters": [
+      "c05"
+    ],
+    "beats": [
+      {
+        "id": "c05-b01",
+        "say": "A screenshot produces five high-resolution views, one global view and four crops. Each uses five hundred seventy-six patch positions. Our prefix route has four thousand ninety-six positions in all. Lay the transcript, template and question down at the left.",
+        "hold": 1
+      },
+      {
+        "id": "c05-b02",
+        "say": "Reserve the reply at the far end. Keep those three hundred positions inside the window. Follow the top ruler from the text to the reply. How many full views can fit between them?",
+        "hold": 3.2
+      },
+      {
+        "id": "c05-b03",
+        "say": "Two full views fit. The third crosses the reply boundary. Lay out all five on the demand ruler below. The prefix alone needs five thousand eighty positions. Including the reply takes five thousand three hundred eighty. That is twelve hundred eighty-four over the window.",
+        "hold": 1.2
+      },
+      {
+        "id": "c05-b04",
+        "say": "Keep the text, the reply and all five views. Replace each full bank with thirty-two queried states. Will the complete request fit now?",
+        "hold": 2.6
+      },
+      {
+        "id": "c05-b05",
+        "say": "It fits at two thousand six hundred sixty positions including the reply. There are fourteen hundred thirty-six left. We have paid for the representation. Check the legend at this setting before returning a service name.",
+        "hold": 1.4
+      }
+    ]
+  },
+  {
+    "id": "c05-crops",
+    "title": "Which detail gets the last view?",
+    "sourceChapters": [
+      "c05"
+    ],
+    "beats": [
+      {
+        "id": "c05-crops-b01",
+        "say": "Which service slowed after three? On this low-latency route the reader can already follow the rising trace and read its time axis. The reserved thumbnail is too small to read the service names. A two-view cap leaves one slot for a sharp crop. Rank these three local regions by score. Which one travels with the thumbnail?",
+        "hold": 2.6
+      },
+      {
+        "id": "c05-crops-b02",
+        "say": "The axis wins. That is useful for reading time. For a service-name question we also need the legend. Use an authorized slower extraction for that crop, or withhold the name. Sequential crop encoding saves frontend memory, but every retained state still needs a downstream budget.",
+        "hold": 1
+      },
+      {
+        "id": "c05-crops-b03",
+        "say": "An audio attachment has a different ruler. Forty seconds at one hundred frontend steps per second gives four thousand steps. Group ten at a time and keep their original sample intervals. That gives four hundred states. A transcript-only request pays for its text. Add the audio states only on a route that actually consumes the recording.",
+        "hold": 1.1
+      }
+    ]
+  },
+  {
+    "id": "c05-reuse",
+    "title": "What work does a cache hit save?",
+    "sourceChapters": [
+      "c05"
+    ],
+    "beats": [
+      {
+        "id": "c05-reuse-b01",
+        "say": "Ask a second question about the same screenshot. A compatible hit on encoder features saves the vision pass. A hit on projected tokens also saves projection. Suppose those tokens are available but no decoder keys or values are cached. What still has to run?",
+        "hold": 2.6
+      },
+      {
+        "id": "c05-reuse-b02",
+        "say": "Prefill the shared prefix, prefill the new question, then decode the answer. The shared prefix here has two thousand two hundred sixty states. A compatible prefix key-value cache can skip its prefill too. The new question and the generated answer still need the decoder.",
+        "hold": 1.2
+      },
+      {
+        "id": "c05-reuse-b03",
+        "say": "Cache identity includes the artifact, preprocessing, encoder, connector, decoder, adapter, token order, positions and masks as applicable to the stage. Check authorization on each read. A second question from someone who has lost case access stops before any cached evidence is returned.",
+        "hold": 1
+      },
+      {
+        "id": "c05-reuse-b04",
+        "say": "On this example decoder, keys and values occupy one hundred twenty-eight kibibytes per token. Multiply by our reduced reservation, including possible output. That is three hundred thirty-two and a half mebibytes of logical cache. Weights, allocator overhead and separate visual memory cost extra. Sparse experts can save feed-forward work while this cache bill stays.",
+        "hold": 1
+      }
+    ]
+  },
+  {
+    "id": "c06",
+    "title": "What does one visual read contribute?",
+    "sourceChapters": [
+      "c06"
+    ],
+    "beats": [
+      {
+        "id": "c06-b01",
+        "say": "Take one text state as a query and three visual memory slots as keys and values. These are invented features. To score a key, multiply matching coordinates, add, and divide by the square root of the key width. Watch the first row. Its dot product is point five seven before scaling.",
+        "hold": 1
+      },
+      {
+        "id": "c06-b02",
+        "say": "Softmax turns those three scaled scores into weights that sum to one. For the first output coordinate, multiply each weight by that slot’s first value. Which slot supplies the biggest piece? Compare the value column as well as the weight column.",
+        "hold": 2.6
+      },
+      {
+        "id": "c06-b03",
+        "say": "The middle slot supplies the most. Place the three contributions end to end. Their sum is about point three two two. Read down the second value column with the same weights. The first slot contributes zero, the second contributes a tenth of its weight, and the third contributes eight tenths of its weight. Their sum rounds to point two seven one. The third value column gives point four zero seven. Those three sums form the visual read.",
+        "hold": 1
+      },
+      {
+        "id": "c06-b04",
+        "say": "A gated residual adds the visual result to the existing text state. A zero gate multiplies this separate read by zero. The base stays put. Now try inserting a zero key and zero value inside the same softmax as one text value of two. Both scores are zero. Does that also preserve two?",
+        "hold": 2.5
+      },
+      {
+        "id": "c06-b05",
+        "say": "Each position gets half the weight. The shared read is one. The zero value contributes nothing, but its unmasked key took a share of the denominator.",
+        "hold": 1.2
+      },
+      {
+        "id": "c06-b06",
+        "say": "Return to the separate residual. Keep the base text vector and the visual read fixed. Raise the gate from zero to point three five. Its hyperbolic tangent now admits about a third of the read. Watch the first text coordinate move from point two to about point three zero eight.",
+        "hold": 1.2
+      },
+      {
+        "id": "c06-b07",
+        "say": "A connector can also tap several levels of the vision encoder. Follow two taps into the bridge. Now follow the projected keys and values into selected late decoder blocks. The first choice sets which visual features we read. The second sets where in the language model those features take part in attention.",
+        "hold": 1.3
+      }
+    ]
+  },
+  {
+    "id": "c07",
+    "title": "Where is the paging badge?",
+    "sourceChapters": [
+      "c07"
+    ],
+    "beats": [
+      {
+        "id": "c07-b01",
+        "say": "Back at the dashboard, which service slowed? A reader can match the rising diamonds to Checkout. For a similar-dashboard search we could have stopped at a ranked candidate. For this answer the reader had to inspect the plot and legend.",
+        "hold": 1
+      },
+      {
+        "id": "c07-b02",
+        "say": "Keep the screenshot fixed. Now the operator asks where the paging badge sits. Point to it. What should the model return so the interface can highlight what you’re pointing at?",
+        "hold": 2.8
+      },
+      {
+        "id": "c07-b03",
+        "say": "The grounding model returns two corners. Draw their rectangle on the original screenshot, with the origin at its top left. A crop would also need a transform back to source coordinates. Optical character recognition can read the printed badge text. The rectangle and the transcription answer different questions.",
+        "hold": 1.2
+      },
+      {
+        "id": "c07-b04",
+        "say": "The badge says paging. Suppose an answer cites that box to support a rise in latency. The coordinates are valid and the viewer can open the image. Does the region support that claim?",
+        "hold": 2.1
+      },
+      {
+        "id": "c07-b05",
+        "say": "It shows paging status. Cite the plot for the rise and the legend for its identity. Treat text inside the screenshot as case evidence. Only the authenticated caller and the service policy can authorize a tool action.",
+        "hold": 1.3
+      }
+    ]
+  },
+  {
+    "id": "c07-case",
+    "title": "Which event came first?",
+    "sourceChapters": [
+      "c07"
+    ],
+    "beats": [
+      {
+        "id": "c07-case-b01",
+        "say": "Open a separate incident with an immutable screenshot and a bridge transcript. On a shared UTC clock, the deploy lies between seconds one hundred five and one hundred thirty-five. The chart rise could lie anywhere from ninety to two hundred seventy. Is the rise strictly after the deploy?",
+        "hold": 2.6
+      },
+      {
+        "id": "c07-case-b02",
+        "say": "The intervals overlap. Either order is possible. A witness spoke at fourteen twenty-two about a rollback. The word timestamp dates the utterance. To narrow the event bounds we need evidence that identifies the event and maps it to this clock.",
+        "hold": 1
+      },
+      {
+        "id": "c07-case-b03",
+        "say": "A verified extraction narrows only the chart interval to one hundred seventy through one hundred ninety. Now the earliest rise is later than the latest deploy. We can report the order. Attributing the rise to the deploy requires separate causal evidence.",
+        "hold": 1.1
+      },
+      {
+        "id": "c07-case-b04",
+        "say": "If the image stage fails, retain the ready transcript and retry only the image with the same case and artifact key. While it is missing, return a labeled partial answer about the recorded words if policy permits it. Withhold the chart claim until the image is ready, authorized, and checked for support.",
+        "hold": 1
+      }
+    ]
+  },
+  {
+    "id": "c08",
+    "title": "Does a cheaper reader still read the legend?",
+    "sourceChapters": [
+      "c08"
+    ],
+    "beats": [
+      {
+        "id": "c08-b01",
+        "say": "Evaluate two chart exports with the same reader, question and token budget. Keep the points and times fixed. In the second export, trade only the names beside the blue square and the green diamond. Predict the answer for that screenshot.",
+        "hold": 2.8
+      },
+      {
+        "id": "c08-b02",
+        "say": "Search. The diamonds still rise from five point two to nine, but the new legend links them to Search. If the reader says Checkout twice, compare its answer from pixels with its answer from a trusted transcription. Hold preprocessing fixed and swap one connector or decoder version at a time.",
+        "hold": 1
+      },
+      {
+        "id": "c08-b03",
+        "say": "Use frozen cases before shadow traffic and a limited canary. Check helpfulness, exact label reads and overlap of predicted and reference regions against their own thresholds. The label score lands exactly on its minimum. The region score is missing. Which measurement holds up this run?",
+        "hold": 2.2
+      },
+      {
+        "id": "c08-b04",
+        "say": "Hold the rollout for the missing region score. A score on its minimum passes. A missing, nonfinite, or out-of-range required score blocks its metric. On the complete rerun, region overlap measures point six eight. Label reading now measures point eight nine. Can this run pass?",
+        "hold": 2.4
+      },
+      {
+        "id": "c08-b05",
+        "say": "Label reading blocks it. The score is finite, but point eight nine falls below its own floor of point nine. Once every score meets its threshold, check claim support separately, then compare latency, memory and cost per grounded answer at the same request shape.",
+        "hold": 1.1
+      }
+    ]
+  },
+  {
+    "id": "c08-practice",
+    "title": "Which claims can the copilot return?",
+    "sourceChapters": [
+      "c08"
+    ],
+    "beats": [
+      {
+        "id": "c08-practice-b01",
+        "say": "Try a fresh incident. Four square views are four hundred forty-eight pixels wide with fourteen-pixel patches. Text and template use eighteen hundred positions. Reserve two hundred fifty-six for the answer in a four thousand ninety-six window. Choose a direct bridge or thirty-two queried states per view.",
+        "hold": 3
+      },
+      {
+        "id": "c08-practice-b02",
+        "say": "Choose the reduced route. Direct patches alone fill the window. The complete direct request needs six thousand one hundred fifty-two positions. Reduction takes the total to two thousand one hundred eighty-four. Now inspect what the admitted route can read.",
+        "hold": 1
+      },
+      {
+        "id": "c08-practice-b03",
+        "say": "The green trace rose, but this view lost its name. Fetch the authorized original legend. It identifies API p ninety-five. On the same clock, the deploy ends by second two hundred twenty and the rise starts at two hundred twenty-one. What ordering can we cite?",
+        "hold": 2
+      },
+      {
+        "id": "c08-practice-b04",
+        "say": "The rise followed the deploy. Now a checked clock correction moves the earliest rise one second earlier. The deploy, legend and admitted request all stay fixed. Can we still report strict order?",
+        "hold": 3
+      },
+      {
+        "id": "c08-practice-b05",
+        "say": "The bounds touch. Both events could have occurred at second two hundred twenty. Return the supported API latency rise with its plot and legend. Hold the order claim pending better timing. You have chosen a route and justified exactly what it can say. The next lesson reverses the direction and generates images from a prompt.",
+        "hold": 1.5
+      }
+    ]
+  }
+]

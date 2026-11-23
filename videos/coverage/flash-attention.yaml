@@ -1,0 +1,363 @@
+version: 1
+lesson: flash-attention
+promise: Decide whether a tiled row preserves the dense blend by checking the weight carried from each tile and the keys its query can read. Use that row to explain backward recomputation, storage, IO, kernel scheduling and the measurements needed to compare backends.
+framing: []
+objectives:
+  - id: intro
+    can: Predict how many slots a full causal score array allocates when both token axes double.
+    scenes:
+      - intro
+  - id: request-lifetime
+    can: Trace which keys the word test can read and what changes when the next query arrives.
+    scenes:
+      - request-lifetime
+  - id: operator
+    can: Pair each score with its value, reconstruct the dense blend and bound it by the input values.
+    scenes:
+      - operator
+  - id: memory
+    can: Follow the scores and probabilities in both directions and count completed full-matrix transfers.
+    scenes:
+      - memory
+  - id: memory-ledger
+    can: Count allocation, logical transfers and retained rows separately
+    scenes:
+      - memory-ledger
+  - id: local-budgets
+    can: Fit logical tiles into distinct local resource budgets
+    scenes:
+      - local-budgets
+  - id: roofline-bound
+    can: Derive a bandwidth roof before interpreting utilization
+    scenes:
+      - roofline-bound
+  - id: tiles
+    can: Stream keys and values past a resident query tile
+    scenes:
+      - tiles
+  - id: online
+    can: Discard a tile after recording its reference, total weight and weighted value sum.
+    scenes:
+      - online
+  - id: rescale
+    can: Convert both saved totals to a new score reference and add the incoming key on that scale.
+    scenes:
+      - rescale
+  - id: generalized-merge
+    can: Diagnose a denominator-only rescale and an equal average of tile outputs, then reconstruct the merge from each tile's share.
+    scenes:
+      - generalized-merge
+  - id: empty-and-overflow
+    can: Handle an empty causal row and a finite-input overflow separately
+    scenes:
+      - empty-and-overflow
+  - id: cpu-correctness
+    can: Verify the recurrence on unequal lengths before requesting a GPU backend
+    scenes:
+      - cpu-correctness
+  - id: backward
+    can: Reconstruct probabilities when gradients need them
+    scenes:
+      - backward
+  - id: backward-algebra
+    can: Predict a score derivative's sign from the value and the blend, then derive the score and value gradients.
+    scenes:
+      - backward-algebra
+  - id: backward-state
+    can: Compare one saved probability matrix with one saved LSE vector
+    scenes:
+      - backward-state
+  - id: complexity-ledger
+    can: Scale mathematical work, auxiliary state and IO on separate axes
+    scenes:
+      - complexity-ledger
+  - id: causal
+    can: Mask the pairs that the objective forbids
+    scenes:
+      - causal
+  - id: absolute-tile-ranges
+    can: Classify causal work by positions before counting tiles
+    scenes:
+      - absolute-tile-ranges
+  - id: loop-order
+    can: Change the loop nest without changing the row
+    scenes:
+      - loop-order
+  - id: warp-ownership
+    can: Keep independent output rows with the warps that own them
+    scenes:
+      - warp-ownership
+  - id: async-pipeline
+    can: Protect a two-slot buffer while copy and compute overlap
+    scenes:
+      - async-pipeline
+  - id: blackwell-reference
+    can: Keep a common reference while reducing exponential overhead
+    scenes:
+      - blackwell-reference
+  - id: benchmark-scopes
+    can: Keep kernel throughput and full-workload time attached to their baselines
+    scenes:
+      - benchmark-scopes
+  - id: prefill-decode
+    can: Count query rows before choosing an inference kernel
+    scenes:
+      - prefill-decode
+  - id: paged-contract
+    can: Follow logical cache positions through a block table
+    scenes:
+      - paged-contract
+  - id: alignment-failure
+    can: Recover the four equal weights for a query at position three and explain why an upper-left mask returns only the first value.
+    scenes:
+      - alignment-failure
+  - id: backend-policy
+    can: Separate eligibility, completed dispatch and measured benefit
+    scenes:
+      - backend-policy
+  - id: transfer
+    can: Predict which part of the state changes when the last value changes and all scores stay fixed.
+    scenes:
+      - transfer
+  - id: fresh-cache-repair
+    can: Repair upper-left and open masks, then predict which valid key drops out when the query moves back one position.
+    scenes:
+      - fresh-cache-repair
+sections:
+  - heading: The memory wall
+    status: taught
+    scenes:
+      - intro
+      - memory
+      - memory-ledger
+      - local-budgets
+      - roofline-bound
+  - heading: Materialized attention first
+    status: taught
+    scenes:
+      - intro
+      - operator
+      - memory
+      - memory-ledger
+  - heading: GPU memory hierarchy
+    status: taught
+    scenes:
+      - local-budgets
+      - roofline-bound
+  - heading: The FlashAttention algorithm
+    status: taught
+    scenes:
+      - tiles
+      - online
+      - rescale
+      - generalized-merge
+      - cpu-correctness
+  - heading: "Core idea: tiling + online softmax"
+    status: taught
+    scenes:
+      - tiles
+      - online
+      - rescale
+  - heading: How tiling fits in SRAM
+    status: taught
+    scenes:
+      - local-budgets
+      - tiles
+  - heading: Online softmax with a concrete example
+    status: taught
+    scenes:
+      - online
+      - rescale
+      - generalized-merge
+      - transfer
+  - heading: The general update rule
+    status: taught
+    scenes:
+      - generalized-merge
+      - empty-and-overflow
+      - loop-order
+  - heading: Pseudocode
+    status: taught
+    scenes:
+      - cpu-correctness
+      - empty-and-overflow
+  - heading: "The backward pass: recomputation can win"
+    status: taught
+    scenes:
+      - backward
+      - backward-algebra
+      - backward-state
+  - heading: Complexity analysis
+    status: taught
+    scenes:
+      - complexity-ledger
+      - memory-ledger
+      - backward-state
+  - heading: Causal masking in FlashAttention
+    status: taught
+    scenes:
+      - causal
+      - absolute-tile-ranges
+      - alignment-failure
+  - heading: Block-level skipping
+    status: taught
+    scenes:
+      - causal
+      - absolute-tile-ranges
+  - heading: Counting skipped tile work
+    status: taught
+    scenes:
+      - absolute-tile-ranges
+  - heading: FlashAttention-2, FlashAttention-3, and FlashAttention-4
+    status: taught
+    scenes:
+      - loop-order
+      - warp-ownership
+      - async-pipeline
+      - blackwell-reference
+  - heading: Generational comparison
+    status: taught
+    scenes:
+      - loop-order
+      - warp-ownership
+      - async-pipeline
+      - blackwell-reference
+  - heading: "FlashAttention-1: the IO-aware foundation"
+    status: taught
+    scenes:
+      - loop-order
+      - generalized-merge
+  - heading: "FlashAttention-2: loop inversion and warp partitioning"
+    status: taught
+    scenes:
+      - loop-order
+      - warp-ownership
+  - heading: "FlashAttention-3: Hopper TMA and warp specialization"
+    status: taught
+    scenes:
+      - async-pipeline
+  - heading: "FlashAttention-4: Blackwell co-design and CuTe-DSL"
+    status: taught
+    scenes:
+      - blackwell-reference
+  - heading: Measured performance
+    status: taught
+    scenes:
+      - benchmark-scopes
+      - backend-policy
+  - heading: Training throughput
+    status: taught
+    scenes:
+      - benchmark-scopes
+      - backward-state
+  - heading: Inference impact
+    status: taught
+    scenes:
+      - prefill-decode
+      - alignment-failure
+      - fresh-cache-repair
+  - heading: Production decode uses a related but distinct kernel contract
+    status: taught
+    scenes:
+      - paged-contract
+      - prefill-decode
+  - heading: Hardware compatibility
+    status: taught
+    scenes:
+      - blackwell-reference
+      - backend-policy
+  - heading: Using FlashAttention in practice
+    status: taught
+    scenes:
+      - cpu-correctness
+      - alignment-failure
+      - backend-policy
+  - heading: Common mistakes
+    status: taught
+    scenes:
+      - empty-and-overflow
+      - complexity-ledger
+      - local-budgets
+      - alignment-failure
+      - backend-policy
+  - heading: '"FlashAttention is an approximation"'
+    status: taught
+    scenes:
+      - rescale
+      - cpu-correctness
+      - async-pipeline
+  - heading: '"FlashAttention reduces the number of compute operations"'
+    status: taught
+    scenes:
+      - complexity-ledger
+      - benchmark-scopes
+  - heading: '"GPU memory is one big pool"'
+    status: taught
+    scenes:
+      - local-budgets
+      - backward-state
+  - heading: '"A backend swap preserves my mask automatically"'
+    status: taught
+    scenes:
+      - alignment-failure
+      - fresh-cache-repair
+quiz:
+  - n: 1
+    status: taught
+    scenes:
+      - memory-ledger
+      - backward-state
+  - n: 2
+    status: taught
+    scenes:
+      - local-budgets
+  - n: 3
+    status: taught
+    scenes:
+      - rescale
+      - generalized-merge
+  - n: 4
+    status: taught
+    scenes:
+      - empty-and-overflow
+  - n: 5
+    status: taught
+    scenes:
+      - backward-algebra
+  - n: 6
+    status: taught
+    scenes:
+      - complexity-ledger
+  - n: 7
+    status: taught
+    scenes:
+      - absolute-tile-ranges
+  - n: 8
+    status: taught
+    scenes:
+      - alignment-failure
+      - fresh-cache-repair
+  - n: 9
+    status: taught
+    scenes:
+      - benchmark-scopes
+      - backend-policy
+  - n: 10
+    status: taught
+    scenes:
+      - async-pipeline
+      - blackwell-reference
+removed: []
+reviews:
+  closed_book:
+    script: 687368f8d2a187c9
+    taught: 10
+    partial: 0
+    absent: 0
+    reviewer: /root
+    evidence: build/video-delivery-20261106/script-reviews/flash-attention.json
+  fact_check:
+    script: 687368f8d2a187c9
+    open_findings: 0
+    reviewer: /root
+    evidence: build/video-delivery-20261106/script-reviews/flash-attention.json

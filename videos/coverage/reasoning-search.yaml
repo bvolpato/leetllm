@@ -1,0 +1,196 @@
+version: 1
+lesson: reasoning-search
+promise: Decide whether to accept a proposed answer, keep searching, or fetch a missing fact. Check the evidence and the cost of the next step.
+framing: []
+objectives:
+  - id: records
+    can: Compare a release record with its source, score its fields and action separately, and request a missing observation.
+    scenes:
+      - policy-decision-record
+      - reasoning-artifacts
+      - typed-observation-handoff
+  - id: vote
+    can: Count all five sampled attempts, apply a support threshold, and measure how much extra generation changes accuracy.
+    scenes:
+      - canonical-answer-vote
+      - sampling-cost-ledger
+      - votes-and-checks
+  - id: search
+    can: Replay an arithmetic proposal, account for each input occurrence, and distinguish a pruned branch from an exhausted search.
+    scenes:
+      - linear-state
+      - branch-state
+      - arithmetic-controller-contract
+      - frontier-control
+      - heuristic-pruning
+      - budget-and-claims
+      - fresh-duplicate-puzzle
+  - id: compute
+    can: Select a reasoning strategy that meets both service limits, or return no strategy if the eligible region is empty.
+    scenes:
+      - scratchpad-compute
+      - prompt-comparison
+      - dependency-and-graph
+      - native-reasoning-training
+      - verifier-boundaries
+      - quality-and-latency-gate
+      - choose-the-controller
+sections:
+  - heading: Start with a failure you can audit
+    status: taught
+    note: The opening compares the wrong scan, corrected scan and tests-only fixtures against the three trusted booleans. The close fetches a missing scan before applying the same rule.
+    scenes:
+      - policy-decision-record
+      - typed-observation-handoff
+  - heading: "Chain-of-thought: give an intermediate result somewhere to go"
+    status: taught
+    scenes:
+      - scratchpad-compute
+      - prompt-comparison
+      - dependency-and-graph
+  - heading: Keep four reasoning artifacts separate
+    status: taught
+    scenes:
+      - reasoning-artifacts
+      - typed-observation-handoff
+  - heading: Zero-shot or few-shot?
+    status: taught
+    scenes:
+      - prompt-comparison
+  - heading: "Self-consistency: sample answers, then vote"
+    status: taught
+    scenes:
+      - canonical-answer-vote
+      - sampling-cost-ledger
+  - heading: Normalize before counting
+    status: taught
+    scenes:
+      - canonical-answer-vote
+  - heading: A leading answer can still lack support
+    status: taught
+    scenes:
+      - canonical-answer-vote
+      - votes-and-checks
+  - heading: Measure gains against call cost
+    status: taught
+    scenes:
+      - sampling-cost-ledger
+      - quality-and-latency-gate
+  - heading: "Tree-of-thoughts: search when branches can dead-end"
+    status: taught
+    scenes:
+      - subject-intro
+      - linear-state
+      - branch-state
+      - frontier-control
+  - heading: Use a problem that actually needs branching
+    status: taught
+    note: The host checks both proposed remaining lists after 6 × 4. The fresh puzzle checks the two eights by occurrence as well as by value.
+    scenes:
+      - arithmetic-controller-contract
+      - linear-state
+      - branch-state
+      - fresh-duplicate-puzzle
+  - heading: Pruning is a source of failure
+    status: taught
+    note: The two-candidate replay holds scores at 0.95 and 0.40. The wider beam admits B for exact continuation. A separate comparison lifts the state cap on A alone.
+    scenes:
+      - heuristic-pruning
+      - budget-and-claims
+  - heading: Native reasoning models and reinforcement learning
+    status: taught
+    scenes:
+      - native-reasoning-training
+  - heading: The shift to verifiable rewards
+    status: taught
+    scenes:
+      - native-reasoning-training
+      - verifier-boundaries
+  - heading: Emergent backtracking and test-time scaling
+    status: taught
+    scenes:
+      - native-reasoning-training
+      - budget-and-claims
+  - heading: Three failure modes of extended reasoning
+    status: taught
+    scenes:
+      - verifier-boundaries
+      - reasoning-artifacts
+  - heading: Choose compute with an eval gate
+    status: taught
+    note: The four strategy measurements stay fixed while the p95 limit changes from 900 ms to 100 ms.
+    scenes:
+      - quality-and-latency-gate
+  - heading: Choose a lighter inference path when it meets the task
+    status: taught
+    scenes:
+      - choose-the-controller
+      - typed-observation-handoff
+  - heading: Where reasoning ends and tools begin
+    status: taught
+    scenes:
+      - typed-observation-handoff
+  - heading: Try to break the controller
+    status: taught
+    scenes:
+      - sampling-cost-ledger
+      - budget-and-claims
+      - quality-and-latency-gate
+quiz:
+  - status: taught
+    scenes:
+      - policy-decision-record
+      - typed-observation-handoff
+    n: 1
+  - status: taught
+    scenes:
+      - prompt-comparison
+    n: 2
+  - status: taught
+    scenes:
+      - canonical-answer-vote
+    n: 3
+  - status: taught
+    scenes:
+      - arithmetic-controller-contract
+      - fresh-duplicate-puzzle
+    n: 4
+  - status: taught
+    scenes:
+      - heuristic-pruning
+    n: 5
+  - status: taught
+    scenes:
+      - quality-and-latency-gate
+    n: 6
+  - status: taught
+    scenes:
+      - dependency-and-graph
+    n: 7
+  - status: taught
+    scenes:
+      - arithmetic-controller-contract
+      - budget-and-claims
+    n: 8
+  - status: taught
+    scenes:
+      - reasoning-artifacts
+    n: 9
+  - status: taught
+    scenes:
+      - native-reasoning-training
+    n: 10
+reviews:
+  closed_book:
+    script: 858a4f81199f45ad
+    taught: 10
+    partial: 0
+    absent: 0
+    reviewer: /root
+    evidence: build/video-delivery-20261106/script-reviews/reasoning-search.json
+  fact_check:
+    script: 858a4f81199f45ad
+    open_findings: 0
+    reviewer: /root
+    evidence: build/video-delivery-20261106/script-reviews/reasoning-search.json
+removed: []

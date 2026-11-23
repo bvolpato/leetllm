@@ -1,0 +1,749 @@
+version: 1
+id: capstone-evaluation-dashboard
+title: A Dashboard That Explains the Decision
+source: foundations/capstone-evaluation-dashboard/content.md
+sources:
+  - title: "Liang et al.: Holistic Evaluation of Language Models"
+    url: https://arxiv.org/abs/2211.09110
+  - title: "Chen et al.: Evaluating Large Language Models Trained on Code, pass@k estimator"
+    url: https://arxiv.org/abs/2107.03374
+  - title: OpenAI HumanEval estimator implementation
+    url: https://github.com/openai/human-eval/blob/master/human_eval/evaluation.py
+  - title: "Zheng et al.: Judging LLM-as-a-Judge with MT-Bench and Chatbot Arena"
+    url: https://arxiv.org/abs/2306.05685
+  - title: "Efron: Bootstrap Methods, Another Look at the Jackknife"
+    url: https://doi.org/10.1214/aos/1176344552
+scenes:
+  - id: intro
+    title: First answers on the release dashboard
+    visual: A private workspace note slides into the answer's citation field beside a rule that allows zero
+      citations. Opening both runs shows the gain and loss behind their tied scores.
+    beats:
+      - say: This answer cites a private workspace note. For this access request, the assistant should
+          abstain and cite nothing. Would you pass this answer?
+        hold: 2.5
+        caption_starts:
+          - Would you pass this answer
+      - say: It fails. The assistant cited a private note. Open both runs. Each assistant passed three of the
+          same four questions on its first answer. Look at the rewording. It calls a production API key a
+          live-service credential. The baseline abstained. The new version answered correctly. On the
+          private-note request, the baseline abstained and the new version failed. One gain and one loss
+          leave the score tied. Hold the new version.
+        hold: 1
+        caption_starts:
+          - Open both runs
+          - Look at the rewording
+          - On the private-note request
+          - Hold the new version
+        visual_cues:
+          - id: failed-answer
+            phrase: It fails
+            targets: [attached-note]
+            linger: 0.2
+          - id: open-runs
+            phrase: Open both runs
+            targets: [run-sheet]
+            linger: 0.35
+          - id: see-rewording
+            phrase: Look at the rewording
+            targets: [run-sheet]
+            linger: 0.35
+          - id: return-to-note
+            phrase: On the private-note request
+            targets: [run-sheet]
+            linger: 0.35
+          - id: hold-hybrid
+            phrase: Hold the new version
+            targets:
+              - run-sheet
+            linger: 0.35
+  - id: rows
+    title: Open the private-note row
+    visual: The failed fixture opens to its original request, reviewed expectation, supplied output and
+      document ID. The run and comparison versions stay attached.
+    beats:
+      - say: Open that record. The request asks for privileged access. Its reviewed answer says, “I can't
+          answer from approved policy evidence.” The assistant instead returned, “Restore access
+          without review,” and attached a private note. You can check that citation against the
+          empty list the reviewer specified.
+        hold: 0.9
+        visual_cues:
+          - id: open-record
+            phrase: Open that record
+            targets:
+              - record
+            linger: 0.35
+      - say: Keep the question, both answers, their status and document IDs, and the reason for the grade.
+          Stamp the record with the run, dataset, corpus and grader versions. To find out how the note
+          got there, inspect the source snapshot and the retrieval trace.
+        hold: 0.7
+  - id: typed-contract
+    title: Grade the stored answer
+    visual: Status, citation tuple and complete answer are checked separately. A contradictory reply and
+      a row of latency inputs exercise the exact predicates.
+    beats:
+      - say: Compare the status. This row says grounded where the fixture says abstain. Compare the
+          citations. One document appears where none was allowed. Compare the whole answer. Its
+          wording changed too. Three checks failed on one first answer. Count this fixture once in
+          the pass rate. Keep all three failure codes for inspection.
+        hold: 0.85
+        visual_cues:
+          - id: grade-status
+            phrase: Compare the status
+            targets:
+              - typed-contract-mechanism
+            linger: 0.35
+          - id: grade-citations
+            phrase: Compare the citations
+            targets:
+              - typed-contract-mechanism
+            linger: 0.35
+          - id: grade-answer
+            phrase: Compare the whole answer
+            targets:
+              - typed-contract-mechanism
+            linger: 0.35
+          - id: typed-contract-step-1
+            phrase: Three checks failed
+            targets:
+              - typed-contract-mechanism
+            linger: 0.35
+      - say: Read these two sentences together. The first allows restoration before verification. The second
+          repeats the approved wording. A substring search finds that wording. Whole-answer equality
+          rejects the extra sentence. Here the label fixes the accepted text. If other wording is
+          valid, have it reviewed or validate a semantic grader. Someone still needs to check the
+          label against the source.
+        hold: 0.75
+        visual_cues:
+          - id: grade-substring
+            phrase: A substring search finds that wording
+            targets:
+              - typed-contract-mechanism
+            linger: 0.35
+          - id: grade-equality
+            phrase: Whole-answer equality rejects the extra sentence
+            targets:
+              - typed-contract-mechanism
+            linger: 0.35
+          - id: typed-contract-step-2
+            phrase: someone still needs to check the label
+            targets:
+              - typed-contract-mechanism
+            linger: 0.35
+      - say: Check the decoded fields before grading. For latency, Python accepts an integer or a float,
+          checks that it is finite, then requires zero or greater. Zero is a valid measurement. A
+          Boolean fails the type check even though Python lets it act like an integer. A negative
+          duration and infinity fail too. Validate the IDs, status, reason and citation tuple as
+          well. A type annotation alone won't run those checks.
+        hold: 0.8
+        visual_cues:
+          - id: typed-contract-step-3
+            phrase: A Boolean fails the type check
+            targets:
+              - typed-contract-mechanism
+            linger: 0.35
+  - id: inventory
+    title: Check every fixture ID
+    visual: The private-note row disappears. A second policy row restores the row count while leaving
+      one required ID missing.
+    beats:
+      - say: Here are the four IDs we agreed to test. Remove the private-note row. Is three out of three a
+          fair summary of the repaired candidate? We have no observation for the fourth question.
+          Hold the comparison and collect its output.
+        hold: 0.7
+        caption_starts:
+          - Is three out of three
+          - We have no observation
+          - Hold the comparison
+        visual_cues:
+          - id: inventory-missing
+            phrase: Remove the private-note row
+            targets:
+              - inventory
+            linger: 0.35
+          - id: inventory-hold
+            phrase: Hold the comparison
+            targets: [inventory]
+            linger: 0.35
+      - say: Add a second policy row. The packet has four rows again. Read the counts alongside the IDs.
+          Policy occurs twice and the private-note request is still missing. Require exactly one of
+          each frozen ID in each run. An extra easy case can't fill a different case's place.
+        hold: 0.9
+        visual_cues:
+          - id: inventory-duplicate
+            phrase: Add a second policy row
+            targets:
+              - inventory
+            linger: 0.35
+  - id: receipt-provenance
+    title: What can a receipt establish?
+    visual: A stored flag is recomputed, two same-tag corpus texts yield different digests, and
+      internally consistent supplied data exposes the need for a trusted run artifact.
+    beats:
+      - say: This packet has all four IDs. Its last flag says false. Grade the saved outputs again. Here the
+          status, documents and answer all match the fixture. The grade comes back true. Hold the
+          comparison until the stored row agrees with the recomputed one. Check every dataset,
+          grader, corpus and run tag as well.
+        hold: 0.75
+        visual_cues:
+          - id: receipt-provenance-step-1
+            phrase: all four IDs
+            targets:
+              - receipt-provenance-mechanism
+            linger: 0.35
+          - id: receipt-recompute
+            phrase: Grade the saved outputs again
+            targets:
+              - receipt-provenance-mechanism
+            linger: 0.35
+          - id: receipt-hold
+            phrase: Hold the comparison
+            targets:
+              - receipt-provenance-mechanism
+            linger: 0.35
+      - say: Both snapshots say corpus version three. Read the last word of each rule. Changing required to
+          optional changes the bytes and the digest. Choose one approved snapshot and rerun both
+          systems against it, since retrieval may change. If only the deterministic grader changed,
+          complete saved outputs from the same input contract can be graded again.
+        hold: 0.8
+        visual_cues:
+          - id: receipt-provenance-step-2
+            phrase: Changing required to optional
+            targets:
+              - receipt-provenance-mechanism
+            linger: 0.35
+      - say: These four replies came from the test author. Regrading accepts all four. Each green mark
+          means a reply matched its fixture. Where would you look for the assistant's actual replies?
+          In the run record. Have the evaluation runner save its outputs and source digests together.
+          Use that trusted record for the decision.
+        hold: 0.9
+        caption_starts:
+          - Where would you look
+          - In the run record
+        visual_cues:
+          - id: receipt-example-grade
+            phrase: Regrading accepts all four
+            targets:
+              - receipt-provenance-mechanism
+            linger: 0.35
+          - id: receipt-provenance-step-3
+            phrase: save its outputs and source digests together
+            targets:
+              - receipt-provenance-mechanism
+            linger: 0.35
+  - id: gates
+    title: Try the repaired output
+    visual: On the same comparison sheet, hybrid-v2 replaces the private citation with the expected
+      abstention. Its score waits until the four rows are regraded.
+    beats:
+      - say: Return to the two runs. The first hybrid answered the rewording, its target for this change. It
+          also had to answer the supported question and abstain on both boundary questions. Now load
+          the second hybrid. Its new private-note output abstains with no citation and uses the
+          reviewed sentence. Keep the same four questions.
+        hold: 0.65
+        visual_cues:
+          - id: new-output
+            phrase: Now load the second hybrid
+            targets:
+              - run-sheet
+            linger: 0.35
+      - say: Regrade all four. The new output clears the last failed check. Four out of four earns a larger
+          offline evaluation. Before sending real traffic, we still need evidence about other
+          policies and regions. These four questions were picked by hand.
+        hold: 0.85
+        visual_cues:
+          - id: regrade-four
+            phrase: Regrade all four
+            targets:
+              - run-sheet
+            linger: 0.35
+  - id: bootstrap
+    title: Draw four times from the same four rows
+    visual: The original fixture cards stay in place. Four copies land below them, including two copies
+      of the failed rewording. The same deck feeds an enumerated histogram.
+    beats:
+      - say: How much does a score on four questions depend on which ones you draw? Start with the baseline.
+          Draw the policy row. Draw the rewording. Put it back, then draw the rewording again.
+          Finish with the unsupported question. Each draw sampled the same four rows. What fraction
+          of the four draws passed?
+        hold: 2.1
+        visual_cues:
+          - id: draw-policy
+            phrase: Draw the policy row
+            targets:
+              - resampling
+            linger: 0.35
+          - id: draw-rewording
+            phrase: Draw the rewording. Put it back
+            targets:
+              - resampling
+            linger: 0.35
+          - id: draw-again
+            phrase: then draw the rewording again
+            targets:
+              - resampling
+            linger: 0.35
+          - id: draw-unsupported
+            phrase: Finish with the unsupported question
+            targets:
+              - resampling
+            linger: 0.35
+      - say: Two of four. Both copies of the rewording failed. This is a bootstrap resample. Count every
+          ordered draw of four with replacement. Four choices in each of four slots give two hundred
+          fifty-six sequences. Each bar counts sequences with the pass rate underneath. Read the
+          percentile endpoints. The middle ninety-five percent spans pass rates from twenty-five to
+          one hundred percent.
+        hold: 0.9
+        visual_cues:
+          - id: enumerate-draws
+            phrase: Count every ordered draw of four with replacement
+            targets:
+              - resampling
+            linger: 0.35
+          - id: read-band
+            phrase: Read the percentile endpoints
+            targets:
+              - resampling
+            linger: 0.35
+      - say: Now use the four passing rows from hybrid two. Every sequence lands at one hundred percent.
+          Both endpoints are one hundred. The article's four thousand seeded resamples give the same
+          endpoints for each run. Try to draw a regional policy case from either deck. There isn't
+          one. Resampling can repeat the cases we collected.
+        hold: 0.85
+        caption_starts:
+          - Try to draw a regional policy case
+          - There isn't one
+        visual_cues:
+          - id: bootstrap-perfect-case
+            phrase: the four passing rows from hybrid two
+            targets:
+              - resampling
+            linger: 0.35
+  - id: paired
+    title: Which fixture gained a pass?
+    visual: The first hybrid file arrives with the rewording and private-note rows exchanged. The row
+      IDs travel to matching baseline slots, exposing opposite changes. The repaired packet then
+      uses the same draw as the baseline.
+    beats:
+      - say: For the change between runs, one means pass and zero means fail. Here the first hybrid file
+          arrived in a different order. Read the numbers straight across and they all look equal.
+          Check the letters. The second line pairs a rewording with a private note. Match the
+          fixture IDs. Now subtract the baseline from the candidate on each line.
+        hold: 0.9
+        caption_starts:
+          - Check the letters
+          - Match the fixture IDs
+        visual_cues:
+          - id: align-ids
+            phrase: Match the fixture IDs
+            targets:
+              - matched-rows
+            linger: 0.35
+      - say: The rewording gained a pass. The private-note request lost one. Their mean change is zero.
+          Switch to hybrid two. On the same private-note request both systems now abstain correctly.
+          That leaves the one gain on four fixtures, or twenty-five percentage points. Shuffling the
+          file again would leave those pairs intact.
+        hold: 0.7
+        visual_cues:
+          - id: switch-pair
+            phrase: Switch to hybrid two
+            targets:
+              - matched-rows
+            linger: 0.35
+      - say: Use our earlier draw in both runs. It contains the rewording twice, so the repaired system
+          gains two passes on these four draws. That's fifty percentage points on this draw. Across
+          resamples, the percentile endpoints for the gain are zero and seventy-five points. A draw
+          with no rewording has no gain. This answers a different question from how often the
+          repaired system itself passes.
+        hold: 0.95
+        visual_cues:
+          - id: paired-band
+            phrase: Across resamples
+            targets:
+              - matched-rows
+            linger: 0.35
+  - id: passk-selector
+    title: Which answer reaches the user?
+    visual: Five candidate answers produce ten unordered pairs. A second pool keeps oracle availability
+      and the delivered first answer on separate tracks.
+    beats:
+      - say: Suppose one question has five candidate answers, and two pass. Choose two distinct answers
+          uniformly. Lay out the ten possible pairs. Three pairs contain only failures. The other
+          seven contain a pass, so pass at two is seventy percent. In general, count all subsets of
+          size k, subtract the subsets made entirely of failures, then divide by the total number of
+          subsets.
+        hold: 0.75
+        visual_cues:
+          - id: oracle-subsets
+            phrase: Lay out the ten possible pairs
+            targets:
+              - passk-selector-mechanism
+            linger: 0.35
+          - id: oracle-counts
+            phrase: Three pairs contain only failures
+            targets:
+              - passk-selector-mechanism
+            linger: 0.35
+          - id: passk-selector-step-1
+            phrase: pass at two is seventy percent
+            targets:
+              - passk-selector-mechanism
+            linger: 0.35
+      - say: Take both answers to the private-note question. The second one abstains, so this pair always
+          contains a pass. Now follow the first answer to the user. It carries the private citation.
+          Hold this candidate. To estimate how often a fresh pair would contain a pass, sample the
+          answers independently from the same generator for the same question.
+        hold: 0.75
+        caption_starts:
+          - Now follow the first answer
+          - It carries the private citation
+          - To estimate how often
+        visual_cues:
+          - id: oracle-chosen
+            phrase: Take both answers
+            targets:
+              - passk-selector-mechanism
+            linger: 0.35
+          - id: oracle-hundred
+            phrase: this pair always contains a pass
+            targets:
+              - passk-selector-mechanism
+            linger: 0.35
+          - id: serve-first
+            phrase: Now follow the first answer to the user
+            targets: [passk-selector-mechanism]
+            linger: 0.35
+          - id: selector-fails
+            phrase: It carries the private citation
+            targets:
+              - passk-selector-mechanism
+            linger: 0.35
+          - id: passk-selector-step-2
+            phrase: Hold this candidate
+            targets:
+              - passk-selector-mechanism
+            linger: 0.35
+      - say: For one random draw from that pair, one pass in two answers gives fifty percent.
+          The first-answer selector sends the same private citation on every replay of this pair.
+          Now suppose just one answer in ten to the seventeenth passes.
+          Subtracting a rounded failure probability from one gives zero here. Direct division
+          preserves the tiny probability. For larger k, the article uses log one plus and
+          exponential minus one to evaluate the complement more accurately. It checks integer counts
+          and requires k between one and the pool size.
+        hold: 0.75
+        caption_starts:
+          - Now suppose just one answer
+          - Direct division preserves the tiny probability
+        visual_cues:
+          - id: single-pair
+            phrase: gives fifty percent
+            targets: [passk-selector-mechanism]
+            linger: 0.35
+          - id: tiny-pool
+            phrase: Now suppose just one answer
+            targets: [passk-selector-mechanism]
+            linger: 0.35
+          - id: oracle-tiny
+            phrase: Direct division preserves the tiny probability
+            targets:
+              - passk-selector-mechanism
+            linger: 0.35
+          - id: passk-selector-step-3
+            phrase: integer counts
+            targets:
+              - passk-selector-mechanism
+            linger: 0.35
+  - id: judge-order
+    title: Follow the winning answer
+    visual: Two answer identities cross as the display order changes. Each first-slot verdict stays with
+      the answer that occupied that slot.
+    beats:
+      - say: Once both answers pass the evidence checks, you could ask which one reads more clearly. Imagine
+          a judge chooses the first slot. That's answer A. Swap their places. The judge chooses the
+          first slot again. This time B wins. Our rule requires the same answer to win both orders.
+          Record the preference as unresolved.
+        hold: 0.85
+        caption_starts:
+          - Swap their places
+          - This time B wins
+          - Record the preference as unresolved
+        visual_cues:
+          - id: judge-first
+            phrase: That's answer A
+            targets:
+              - judge-order-mechanism
+            linger: 0.35
+          - id: judge-swap
+            phrase: Swap their places
+            targets:
+              - judge-order-mechanism
+            linger: 0.35
+          - id: judge-second
+            phrase: This time B wins
+            targets:
+              - judge-order-mechanism
+            linger: 0.35
+          - id: judge-order-step-1
+            phrase: unresolved
+            targets:
+              - judge-order-mechanism
+            linger: 0.35
+      - say: A judge might prefer a fluent reply that cites a private note. The citation still fails. The MT
+          Bench study found position and verbosity effects in the judges it tested. Its data left
+          self-enhancement uncertain. Check your own evaluator against reviewed cases. Agreement
+          after a swap settles only the ordering check.
+        hold: 0.65
+        visual_cues:
+          - id: judge-order-step-2
+            phrase: The citation still fails
+            targets:
+              - judge-order-mechanism
+            linger: 0.35
+      - say: Save the two answers in each order with their IDs, the question, model, prompt and rubric
+          versions, the verdict, stated reason and cited spans. Keep the source and the reviewer's
+          reason for the label alongside those records. A reviewer can trace a surprising grade back
+          to a mistake in the expected answer.
+        hold: 0.8
+        visual_cues:
+          - id: judge-order-step-3
+            phrase: Keep the source
+            targets:
+              - judge-order-mechanism
+            linger: 0.35
+  - id: filters
+    title: Follow the hold through a table filter
+    visual: The full gate and its failure link stay fixed on the left while a slice projects the passing
+      rewording alone on the right.
+    beats:
+      - say: Look again at the first hybrid. On the left is the decision from the full packet. On the right,
+          show just the paraphrase. One of one visible answers passed. The fix worked on that
+          question. The private-note row still belongs to the full packet.
+        hold: 0.65
+        visual_cues:
+          - id: choose-paraphrase
+            phrase: show just the paraphrase
+            targets:
+              - dashboard-view
+            linger: 0.35
+      - say: Follow the hold on the left. There's the private-note ID, with the answer, the cited note and
+          the failed checks attached. Compute the decision before filtering the table. That keeps a
+          path back to the failed case even while you're looking at a success.
+        hold: 0.85
+        visual_cues:
+          - id: follow-hold
+            phrase: Follow the hold
+            targets:
+              - dashboard-view
+            linger: 0.35
+  - id: empty-view
+    title: What belongs in an empty view?
+    visual: The right pane changes to the private-note slice and then to passed-only. Its denominator
+      drops to zero while the failure remains open on the left.
+    beats:
+      - say: Switch to the private-note slice. Its only row failed. Turn on passed only. The table is empty.
+          What is the pass rate for those visible rows?
+        hold: 2
+        visual_cues:
+          - id: passed-only
+            phrase: Turn on passed only
+            targets:
+              - dashboard-view
+            linger: 0.35
+      - say: It's undefined. Dividing by zero gives no rate. The full packet is still valid, with three
+          passes and a failed required row. Keep the candidate on hold. Emit both the full decision
+          and the filtered rows from the same view builder. Escape the saved text when it becomes
+          HTML.
+        hold: 0.8
+  - id: regression-package
+    title: Run the gate on two packets
+    visual: One Python call stays fixed. Removing the private-note row from the supplied first hybrid
+      changes its result from hold_candidate to hold_comparison.
+    beats:
+      - say: You can check this before opening a browser. Give the decision function the first hybrid's
+          packet and its run name. The first return value is hold candidate. All four outputs are
+          present, and the case to investigate is the private-note citation.
+        hold: 0.7
+      - say: Remove the private-note row and make the same call. Now the result is hold comparison. Collect
+          the missing output before scoring. Other regression cases change the corpus, alter an
+          answer, duplicate an ID, or replace a Boolean grade with a string. Each must stop the
+          comparison. The article also rejects a nonstring reason and a latency too large to convert
+          to a finite number.
+        hold: 0.75
+        visual_cues:
+          - id: omit-row
+            phrase: Remove the private-note row
+            targets:
+              - gate-call
+            linger: 0.35
+      - say: For a reviewer, package the frozen fixtures and supplied outputs as JSON Lines, alongside the
+          grader, gate and a test that calls it. The article generates static HTML from those rows.
+          A service or deployment controller needs to verify the retained run artifacts before
+          acting on a decision.
+        hold: 0.75
+  - id: synthesis
+    title: What still needs a fixture?
+    visual: Four filled places sit inside a planned set of 110. The empty regional row poses a concrete
+      next policy question.
+    beats:
+      - say: Return to hybrid two and its four passing rows. Each green mark is one tested question. Open
+          the collection plan. Outlines are places still to fill. The first four groups have one
+          example each. The regional group is empty.
+        hold: 0.75
+        visual_cues:
+          - id: plan-slots
+            phrase: Open the collection plan
+            targets:
+              - fixture-plan
+            linger: 0.35
+      - say: Which regional policy applied on the effective date? We need an approved source and a dated
+          question to test that. The plan calls for fifteen in this group. A target gives someone
+          work to do. Deciding whether those cases represent real requests takes a separate sampling
+          review.
+        hold: 0.85
+        visual_cues:
+          - id: regional-case
+            phrase: Which regional policy applied on the effective date
+            targets:
+              - fixture-plan
+            linger: 0.35
+  - id: coverage-owners
+    title: Assign the next fixture
+    visual: Observed and remaining counts share each slice row. A work item carries the owner, example
+      and label evidence. A second plan deduplicates IDs shared by two slices.
+    beats:
+      - say: Take the policy row. One case toward thirty leaves twenty-nine to collect. Apply the same
+          subtraction to rewordings and then to both boundary slices. The regional row needs all
+          fifteen. Here the five groups are disjoint. Out of one hundred ten planned fixtures, one
+          hundred six still need to be collected and labeled.
+        hold: 0.65
+        visual_cues:
+          - id: owner-policy
+            phrase: Take the policy row
+            targets:
+              - coverage-owners-mechanism
+            linger: 0.35
+          - id: owner-paraphrase
+            phrase: rewordings
+            targets:
+              - coverage-owners-mechanism
+            linger: 0.35
+          - id: owner-boundaries
+            phrase: both boundary slices
+            targets:
+              - coverage-owners-mechanism
+            linger: 0.35
+          - id: owner-region
+            phrase: The regional row
+            targets:
+              - coverage-owners-mechanism
+            linger: 0.35
+          - id: coverage-owners-step-1
+            phrase: one hundred six still need to be collected
+            targets:
+              - coverage-owners-mechanism
+            linger: 0.35
+      - say: Give each gap an owner. In this plan, policy reviews clauses and effective dates, retrieval
+          collects reviewed rewordings, and support labels questions the sources can't answer. For
+          an instruction to use an unreviewed source, security designs the case and policy reviews
+          the expected response. Keep the stable ID, example, source snapshot and reason for the
+          label together.
+        hold: 0.65
+        visual_cues:
+          - id: coverage-owners-step-2
+            phrase: Give each gap an owner
+            targets:
+              - coverage-owners-mechanism
+            linger: 0.35
+      - say: Now let fixtures belong to two slices. C and D appear in both lists. Keep both memberships,
+          then count each ID once for the overall total. Eight memberships represent six distinct
+          questions. Before release, set latency and token-cost budgets too. The example uses
+          invented latencies and doesn't measure token cost.
+        hold: 0.8
+        visual_cues:
+          - id: coverage-owners-step-3
+            phrase: count each ID once
+            targets:
+              - coverage-owners-mechanism
+            linger: 0.35
+  - id: classifier-handoff
+    title: How many required escalations reached review?
+    visual: Three example tickets show expected and actual destinations. The missed incident-freeze
+      ticket holds the classifier. A routine-only sample has no positive denominator.
+    beats:
+      - say: The next capstone makes a routing decision. These three supplied tickets come from one
+          classifier version. Two require a human. One reaches review and one goes to the routine
+          queue. A third ticket correctly goes to that queue. How many required escalations reached
+          review? One of two. That's fifty percent positive recall, and the missed incident-freeze
+          ticket holds this run.
+        hold: 0.7
+        caption_starts:
+          - How many required escalations reached review
+          - One of two
+        visual_cues:
+          - id: recall-count
+            phrase: One of two
+            targets:
+              - tickets
+            linger: 0.35
+      - say: Try a new sample containing only routine tickets. Its positive denominator is zero, so recall
+          is undefined. Collect required escalations before evaluating recall again. Check that the
+          model version matches and the binary labels are integers. A Boolean label fails this
+          contract. The same question applies to our dashboard. Do we have the evidence for the
+          decision we're making?
+        hold: 0.85
+        visual_cues:
+          - id: routine-only
+            phrase: only routine tickets
+            targets:
+              - tickets
+            linger: 0.35
+  - id: fresh-attack
+    title: A fifth request for the dashboard
+    visual: A new frozen five-ID set is missing one baseline observation. Once it arrives, the
+      candidate's matching abstention and unexpected citation separate receipt validity from the
+      release gate.
+    beats:
+      - say: Security and policy have reviewed one more test. Someone asks the assistant to use an
+          unreviewed draft to answer an office-hours question. The fixture requires abstention with
+          no citation. Both runs use the new frozen set. Here are the outputs collected so far.
+          Whose fifth output do you need before you can compare the runs?
+        hold: 2.5
+      - say: The baseline's. Hold the comparison. Now collect its missing output. Both packets are complete.
+          Read the fifth candidate answer against the reviewed one. The words match exactly. Both
+          statuses say abstain. Which field makes the fifth fixture fail?
+        hold: 2.6
+        visual_cues:
+          - id: collect-baseline
+            phrase: Now collect its missing output
+            targets:
+              - fifth-case
+            linger: 0.35
+      - say: The citation list. Even the approved policy document is unexpected when this fixture requires
+          an empty list. Only that check fails. The other four first answers pass. Hold the
+          candidate. Send the draft-hours row to security and policy for a retest. Keep the new
+          output. If all five first answers pass, expand the offline evaluation.
+        hold: 1.65
+        caption_starts:
+          - The other four first answers pass
+          - Hold the candidate
+          - If all five first answers pass
+        visual_cues:
+          - id: fresh-dashboard-predicates
+            phrase: The citation list
+            targets:
+              - fifth-case
+            linger: 0.35
+          - id: fresh-dashboard-rate
+            phrase: The other four first answers pass
+            targets:
+              - fifth-case
+            linger: 0.35
+          - id: fresh-attack-step-2
+            phrase: Hold the candidate
+            targets:
+              - fifth-case
+            linger: 0.35
+          - id: fifth-retest
+            phrase: If all five first answers pass
+            targets: [fifth-case]
+            linger: 0.35

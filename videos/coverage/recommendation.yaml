@@ -1,0 +1,310 @@
+version: 1
+lesson: recommendation
+promise: Trace a checkout search from candidate retrieval to display, and use its judgments, training signals,
+  and exposure records to explain which page earned a place and what changes when access changes.
+framing: []
+objectives:
+  - id: intro
+    can: Choose which of two matching pages the developer may see
+    scenes:
+      - intro
+  - id: eligibility
+    can: Check permission before relevance
+    scenes:
+      - eligibility
+  - id: judgment-contract
+    can: Keep labels outside the serving score
+    scenes:
+      - judgment-contract
+  - id: retrieval-recall
+    can: Retrieve useful candidates before ranking
+    scenes:
+      - retrieval-recall
+  - id: reranking
+    can: Use a richer score to reorder survivors
+    scenes:
+      - reranking
+  - id: ranking-metrics
+    can: Measure which useful answer comes first
+    scenes:
+      - ranking-metrics
+  - id: judgment-universe
+    can: Recalculate recall and both NDCG denominators when a fourth candidate competes for three slots
+    scenes:
+      - judgment-universe
+  - id: reciprocal-precision
+    can: Count the first target and every relevant prefix separately
+    scenes:
+      - reciprocal-precision
+  - id: two-tower-retrieval
+    can: Compare vectors to retrieve a shortlist
+    scenes:
+      - two-tower-retrieval
+  - id: tower-contract
+    can: Freeze compatible vectors and score the actual query
+    scenes:
+      - tower-contract
+  - id: cross-vector
+    can: A shared scalar projection couples every cross feature
+    scenes:
+      - cross-vector
+  - id: cross-matrix
+    can: Moving the bias inside the product changes the layer
+    scenes:
+      - cross-matrix
+  - id: generated-order
+    can: A valid permutation can still make the list worse
+    scenes:
+      - generated-order
+  - id: feed-coldstart
+    can: Change the request evidence without leaking its future outcome
+    scenes:
+      - feed-coldstart
+  - id: pointwise-target
+    can: Use five page grades to form row targets, discard tied pairs, and define a training list
+    scenes:
+      - pointwise-target
+  - id: pair-update
+    can: Predict both weight changes and the signed guide-minus-blog score gap when a preference reverses
+    scenes:
+      - pair-update
+  - id: metric-pair
+    can: Use the NDCG change from a swap to scale a pair's local training step
+    scenes:
+      - metric-pair
+  - id: listwise-contract
+    can: A list distribution couples the candidate scores
+    scenes:
+      - listwise-contract
+  - id: position-bias
+    can: A click mixes interest with exposure
+    scenes:
+      - position-bias
+  - id: anchor-clipping
+    can: Relative exposure does not identify an absolute relevance level
+    scenes:
+      - anchor-clipping
+  - id: coverage-exploration
+    can: Examination correction cannot invent a never-shown item
+    scenes:
+      - coverage-exploration
+  - id: exposure-join
+    can: An outcome must join an actual exposure owner
+    scenes:
+      - exposure-join
+  - id: slate-policy
+    can: Compute the discounted gain lost when a source cap changes slot three
+    scenes:
+      - slate-policy
+  - id: policy-underfill
+    can: Determine how many slots can be filled when all candidates come from one source
+    scenes:
+      - policy-underfill
+  - id: offline-fixture-gate
+    can: The final slate must pass the gate it actually uses
+    scenes:
+      - offline-fixture-gate
+  - id: developer-experiment
+    can: Assignment and aggregation define the experimental unit
+    scenes:
+      - developer-experiment
+  - id: wrap
+    can: Identify the browser impression and join keys needed to connect a proposed result to an outcome
+    scenes:
+      - wrap
+  - id: fresh-permission
+    can: Replay the scored reserve after either the guide or blog loses access and choose the correct ideal for each report
+    scenes:
+      - fresh-permission
+sections:
+  - heading: Separate eligibility, retrieval, and ranking
+    status: taught
+    scenes:
+      - intro
+      - eligibility
+      - judgment-contract
+      - fresh-permission
+  - heading: Measure candidate recall before ordering quality
+    status: taught
+    scenes:
+      - retrieval-recall
+      - judgment-universe
+  - heading: Rerank the surviving candidates
+    status: taught
+    scenes:
+      - reranking
+      - judgment-contract
+  - heading: Evaluate rank order with DCG, NDCG, MRR, and MAP
+    status: taught
+    scenes:
+      - ranking-metrics
+      - reciprocal-precision
+  - heading: Graded relevance and logarithmic discounting (DCG and NDCG)
+    status: taught
+    scenes:
+      - ranking-metrics
+      - judgment-universe
+  - heading: "Single-target and binary metrics: MRR and MAP"
+    status: taught
+    scenes:
+      - reciprocal-precision
+  - heading: Reranker NDCG versus whole-system NDCG
+    status: taught
+    note: The four-candidate exercise keeps the display cutoff at three and the original five eligible judgments fixed.
+    scenes:
+      - ranking-metrics
+      - judgment-universe
+      - fresh-permission
+  - heading: Two-tower retrieval and feature interaction networks
+    status: taught
+    scenes:
+      - two-tower-retrieval
+      - tower-contract
+  - heading: The cross-feature bottleneck
+    status: taught
+    scenes:
+      - tower-contract
+      - cross-matrix
+  - heading: Deep and cross networks for heavy ranking
+    status: taught
+    scenes:
+      - cross-vector
+      - cross-matrix
+  - heading: Evaluate a language-model reranker
+    status: taught
+    scenes:
+      - generated-order
+  - heading: What changes for a recommendation feed?
+    status: taught
+    scenes:
+      - feed-coldstart
+  - heading: "Learning to rank: pointwise, pairwise, and listwise"
+    status: taught
+    scenes:
+      - pointwise-target
+      - pair-update
+      - listwise-contract
+  - heading: The pairwise loss (RankNet)
+    status: taught
+    scenes:
+      - pair-update
+  - heading: "Metric-weighted pairs: LambdaRank and LambdaMART"
+    status: taught
+    note: The guide and blog use the article's first swap weight in a separate linear step from zero. The tree discussion uses the sum of pair derivatives for each page.
+    scenes:
+      - metric-pair
+  - heading: Log exposure before reading clicks
+    status: taught
+    scenes:
+      - exposure-join
+      - wrap
+  - heading: Debias click logs with inverse propensity scoring
+    status: taught
+    scenes:
+      - position-bias
+      - anchor-clipping
+  - heading: An explicit position-based model
+    status: taught
+    scenes:
+      - anchor-clipping
+  - heading: Real-world propensity estimation and clipping
+    status: taught
+    scenes:
+      - anchor-clipping
+      - coverage-exploration
+  - heading: Protect users and enforce slate policies
+    status: taught
+    note: Both display-time replays use the article's ranked pages and two-per-source rule. Each starts from the original permissions and revokes one page.
+    scenes:
+      - slate-policy
+      - policy-underfill
+      - fresh-permission
+  - heading: Gate offline candidates and design online tests
+    status: taught
+    scenes:
+      - offline-fixture-gate
+      - developer-experiment
+  - heading: Common ranking failure modes and debugging
+    status: taught
+    scenes:
+      - retrieval-recall
+      - generated-order
+      - exposure-join
+      - coverage-exploration
+      - fresh-permission
+  - heading: Try changing one assumption
+    status: taught
+    scenes:
+      - judgment-universe
+      - generated-order
+      - pair-update
+      - exposure-join
+  - heading: Check your predictions
+    status: taught
+    scenes:
+      - judgment-universe
+      - generated-order
+      - pair-update
+      - exposure-join
+quiz:
+  - n: 1
+    status: taught
+    scenes:
+      - retrieval-recall
+      - judgment-universe
+  - n: 2
+    status: taught
+    scenes:
+      - reciprocal-precision
+  - n: 3
+    status: taught
+    scenes:
+      - pair-update
+      - metric-pair
+  - n: 4
+    status: taught
+    scenes:
+      - cross-vector
+      - cross-matrix
+  - n: 5
+    status: taught
+    scenes:
+      - anchor-clipping
+  - n: 6
+    status: taught
+    scenes:
+      - generated-order
+  - n: 7
+    status: taught
+    scenes:
+      - exposure-join
+      - wrap
+  - n: 8
+    status: taught
+    scenes:
+      - policy-underfill
+      - fresh-permission
+  - n: 9
+    status: taught
+    scenes:
+      - developer-experiment
+  - n: 10
+    status: taught
+    scenes:
+      - listwise-contract
+removed: []
+reviews:
+  closed_book:
+    script: 0398e6a69f92d6d5
+    reviewer: /root/upgrade_shard6
+    evidence: build/video-delivery-20261106/script-reviews/recommendation.json
+    evidence_sha256: e4992d4e763aeae0d9dd7ba7920a589ebe32d1044ba69625de629fc1536adf97
+    taught: 10
+    partial: 0
+    absent: 0
+  fact_check:
+    script: 0398e6a69f92d6d5
+    reviewer: /root/upgrade_shard6
+    evidence: build/video-delivery-20261106/script-reviews/recommendation.json
+    evidence_sha256: e4992d4e763aeae0d9dd7ba7920a589ebe32d1044ba69625de629fc1536adf97
+    open_findings: 0

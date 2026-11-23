@@ -1,0 +1,911 @@
+version: 1
+id: hallucination-evidence
+title: How to Check an Answer Against Evidence
+source: llmops/hallucination-detection-mitigation/content.md
+sources:
+  - title: FActScore, Fine-grained Atomic Evaluation of Factual Precision
+    url: https://arxiv.org/abs/2305.14251
+  - title: SelfCheckGPT, Zero-Resource Black-Box Hallucination Detection
+    url: https://arxiv.org/abs/2303.08896
+  - title: Ragas Faithfulness metric
+    url: https://docs.ragas.io/en/stable/concepts/metrics/available_metrics/faithfulness/
+  - title: Detecting hallucinations using semantic entropy
+    url: https://www.nature.com/articles/s41586-024-07421-0
+  - title: DoLa
+    url: https://arxiv.org/abs/2309.03883
+  - title: Context-aware decoding
+    url: https://arxiv.org/abs/2305.14739
+  - title: Why Language Models Hallucinate
+    url: https://arxiv.org/abs/2509.04664
+  - title: Chain-of-Verification
+    url: https://arxiv.org/abs/2309.11495
+scenes:
+  - id: subject-intro
+    title: "Embedding API status page"
+    visual: >-
+      A cursor types a recovery time beside the failover time in a draft. The runbook opens beneath it.
+      A line joins the two copies of the failover time. The editor removes the unsupported recovery promise.
+    beats:
+      - say: >-
+          The draft promises recovery by fourteen thirty. Beside it is the time of the database failover.
+        hold: 0.6
+        visual_cues:
+          - id: draft-clock
+            phrase: "recovery by fourteen thirty"
+            targets: [subject-intro-mechanism]
+      - say: >-
+          Open the runbook. It records the failover on May twenty-sixth at eight fourteen UTC.
+          The status is investigating. Which time can we post?
+        hold: 2.7
+        visual_cues:
+          - id: event-clock
+            phrase: "Open the runbook"
+            targets: [subject-intro-mechanism]
+      - say: >-
+          Eight fourteen. Trace it back to the runbook entry for the completed failover.
+        hold: 0.8
+        visual_cues:
+          - id: event-link
+            phrase: "Trace it back to the runbook entry"
+            targets: [subject-intro-mechanism]
+            caption_boundary: true
+      - say: >-
+          Where did fourteen thirty come from? The runbook has no recovery estimate. Drop the recovery
+          promise and keep the failover time.
+        hold: 1
+        caption_starts:
+          - "The runbook has no recovery estimate"
+        visual_cues:
+          - id: estimate-gap
+            phrase: "The runbook has no recovery estimate"
+            targets: [subject-intro-mechanism]
+          - id: remove-estimate
+            phrase: "Drop the recovery promise"
+            targets: [subject-intro-mechanism]
+            caption_boundary: true
+  - id: atomic-claims
+    title: "What exactly are we checking?"
+    visual: >-
+      The four values in the draft spread into separate field rows. Three links reach their matching fields.
+      The fourth ends at the edge of the draft.
+    beats:
+      - say: >-
+          Read the draft as four things you could get wrong separately. Which service? What happened? When
+          did it happen? When is recovery expected? Each of those is an atomic claim.
+        hold: 0.7
+        visual_cues:
+          - id: split-claims
+            phrase: "four things you could get wrong separately"
+            targets: [atomic-claims-mechanism]
+      - say: >-
+          Line up the service, the event, and the event time with their own fields. Change just one word
+          from completed to failed and the event would say the opposite, even though almost every word still
+          matched.
+        hold: 0.7
+        visual_cues:
+          - id: three-matches
+            phrase: "the service, the event, and the event time"
+            targets: [atomic-claims-mechanism]
+      - say: >-
+          Now follow the fourth line. There's no field for the estimate. Three correct details can make the
+          whole paragraph sound convincing. They give you no evidence for that last detail.
+        hold: 0.9
+        visual_cues:
+          - id: missing-field
+            phrase: "There's no field for the estimate"
+            targets: [atomic-claims-mechanism]
+  - id: verdicts
+    title: "What did the record establish?"
+    visual: >-
+      The draft's matching facts, its missing estimate and a separate resolved-status claim get verdicts
+      against one admitted snapshot.
+    beats:
+      - say: >-
+          The service, event and event time are supported. Each matches a field in the runbook that this
+          request was allowed to use. That's what we'll call the admitted record.
+        hold: 0.6
+        visual_cues:
+          - id: entailed-fields
+            phrase: "The service, event and event time are supported"
+            targets: [verdicts-mechanism]
+      - say: >-
+          The recovery estimate is unsupported. It adds something the record can't settle. That's an
+          extrinsic hallucination. Now try a different draft that says resolved. The runbook says
+          investigating. Those statuses conflict. This is an intrinsic hallucination.
+        hold: 0.8
+        visual_cues:
+          - id: absent-eta
+            phrase: "The recovery estimate is unsupported"
+            targets: [verdicts-mechanism]
+          - id: status-alternative
+            phrase: "try a different draft that says resolved"
+            targets: [verdicts-mechanism]
+          - id: contradicted-status
+            phrase: "Those statuses conflict"
+            targets: [verdicts-mechanism]
+      - say: >-
+          The distinction matters on call. For a missing estimate, ask whoever owns the incident for a
+          current estimate. For a conflicting status, resolve the discrepancy before sending the update.
+        hold: 0.7
+        visual_cues:
+          - id: unknown-truth
+            phrase: "For a missing estimate"
+            targets: [verdicts-mechanism]
+  - id: support-versus-truth
+    title: "What if the service recovers after the snapshot?"
+    visual: >-
+      A present-tense claim moves across the truth axis when the hypothetical service recovers. The admitted
+      record stays fixed.
+    beats:
+      - say: >-
+          At ten o'clock the record says investigating. Suppose the service recovers at eleven. The old
+          record still supports what it said at ten. Saying the incident is investigating now would mislead
+          the reader. Imagine instead that recovery really does happen by the guessed time. That lucky guess
+          still had no support when it was issued.
+        hold: 0.7
+        visual_cues:
+          - id: support-versus-truth-b1
+            phrase: "At ten o'clock the record says investigating"
+            targets: [support-versus-truth-mechanism]
+          - id: world-status-changes
+            phrase: "Suppose the service recovers at eleven"
+            targets: [support-versus-truth-mechanism]
+          - id: lucky-guess
+            phrase: "recovery really does happen by the guessed time"
+            targets: [support-versus-truth-mechanism]
+      - say: >-
+          Groundedness asks what the admitted record supports. World factuality asks what actually happened.
+          For a current update, get a fresh record and check that it came from an authorized source for
+          this incident.
+        hold: 0.8
+        visual_cues:
+          - id: support-versus-truth-b2
+            phrase: "World factuality asks what actually happened"
+            targets: [support-versus-truth-mechanism]
+  - id: guessing-incentives
+    title: "What does a lucky guess earn?"
+    visual: >-
+      Ten question slots distinguish the correct answer lost to withholding from the two wrong answers it
+      avoids.
+    beats:
+      - say: >-
+          A recovery estimate is a plausible way to finish an incident update. A model learns likely
+          continuations, including ones drawn from stale reports and common mistakes. Kalai and colleagues
+          connect some generation errors to how hard it is to distinguish valid answers from invalid ones.
+          Their analysis also points to an incentive you can see on a scoreboard.
+        hold: 0.65
+        visual_cues:
+          - id: guessing-incentives-b1
+            phrase: "A model learns likely continuations"
+            targets: [guessing-incentives-mechanism]
+      - say: >-
+          Give one point for a correct answer and zero for a wrong answer or a pass. On these ten practice
+          questions, answering every time earns eight points. Withholding three answers avoids both mistakes
+          but also loses one correct answer. That's seven points. A benchmark scored this way rewards
+          guessing. To reward grounded answers in training, count the cost of unsupported guesses and the
+          useful answers you lose.
+        hold: 0.8
+        visual_cues:
+          - id: guessing-incentives-b2
+            phrase: "Give one point for a correct answer"
+            targets: [guessing-incentives-mechanism]
+  - id: evidence-version
+    title: Bind each claim to the admitted snapshot
+    visual: Claim IDs route to an immutable source ID and version; an outdated
+      citation stops at the admission gate before value comparison.
+    beats:
+      - say: Record the source identity and version with each claim. Resolve the
+          citation first, then compare the requested field and value against
+          that admitted snapshot.
+        hold: 0.6
+        visual_cues:
+          - id: resolve-version
+            phrase: source identity and version
+            targets:
+              - source-identity
+              - source-version
+            color: blue
+            linger: 0.5
+          - id: compare-field
+            phrase: compare the requested field and value
+            targets:
+              - field-check
+              - record-status
+              - draft-status
+            color: pink
+            linger: 0.5
+      - say: For the ETA, the citation points to the right incident version, but no
+          recovery field exists. A citation helps when its source field supports
+          the nearby sentence.
+        hold: 0.7
+        visual_cues:
+          - id: citation-eta
+            phrase: no recovery field exists
+            targets:
+              - source-version
+              - field-check
+              - recovery-field-absent
+              - draft-eta-claim
+            color: yellow
+            linger: 0.5
+      - say: The snapshot is time-scoped. Check freshness and authorization before
+          admission, because a faithful claim about yesterday's status can
+          mislead someone asking about now.
+        hold: 0.7
+        visual_cues:
+          - id: fresh-snapshot
+            phrase: freshness and authorization
+            targets:
+              - source-version
+            color: cyan
+            linger: 0.5
+  - id: strict-claim-contract
+    title: "What part of a claim did the checker read?"
+    visual: >-
+      An old citation stops at the version check. Exact field matching then distinguishes an incompatible
+      status from a harmless paraphrase and separates a typed service value from unchecked prose.
+    beats:
+      - say: >-
+          Start with the citation. The Python example accepts named fields, nonempty text and a fixed set of
+          statuses for the record. It copies the record into a read-only mapping. Look up the cited source.
+          An old version stops here, even if a value looks familiar. An unknown source stops one step
+          earlier. In production, an authenticated feed has to establish who supplied the record.
+        hold: 0.7
+        visual_cues:
+          - id: strict-claim-contract-b1
+            phrase: "Start with the citation"
+            targets: [strict-claim-contract-mechanism]
+          - id: metadata-stops
+            phrase: "An old version stops here"
+            targets: [strict-claim-contract-mechanism]
+      - say: >-
+          With the right version, compare the value. Resolved and investigating cannot both describe the
+          recorded status. But try finished in place of completed. The event can mean the same thing. Exact
+          equality returns unsupported, a false rejection. The example also rejects duplicate claim IDs or
+          fields. With no claims to check, it withholds the update.
+        hold: 0.75
+        visual_cues:
+          - id: strict-claim-contract-b2
+            phrase: "Resolved and investigating cannot both describe the recorded status"
+            targets: [strict-claim-contract-mechanism]
+      - say: >-
+          Watch the two parts of this claim. Its service value matches. The free text adds fully recovered.
+          Only the service value went through the check, so print a fresh service sentence. If a model
+          rewrites that sentence, extract the claims from its new wording and check those too.
+        hold: 0.8
+        visual_cues:
+          - id: strict-claim-contract-b3
+            phrase: "The free text adds fully recovered"
+            targets: [strict-claim-contract-mechanism]
+  - id: safe-rendering
+    title: "What can reach the status page?"
+    visual: >-
+      Two drafts keep the same three supported fields. One has a missing recovery estimate. The other
+      replaces that estimate with a conflicting status. The reader's response is built from the actual
+      routing function.
+    beats:
+      - say: >-
+          Let's put the four claims through the gate. The first three match. The fourth asks for a recovery
+          estimate the source doesn't have. Which facts can the reader receive?
+        hold: 2
+        visual_cues:
+          - id: first-draft
+            phrase: "The first three match"
+            targets: [safe-rendering-mechanism]
+      - say: >-
+          Copy the service, the event and its time into fresh sentences. Add a note explaining that the
+          record gives no support for the estimate. That's a shortened answer. It tells the reader about the
+          failover. It still omits the recorded status, so usefulness needs its own check.
+        hold: 0.9
+        visual_cues:
+          - id: copy-values
+            phrase: "Copy the service, the event and its time"
+            targets: [safe-rendering-mechanism]
+          - id: no-estimate
+            phrase: "the record gives no support for the estimate"
+            targets: [safe-rendering-mechanism]
+      - say: >-
+          Keep those three matching claims. Replace the fourth claim with a status. The draft says resolved.
+          The same record says investigating. Can the three matching facts still go out in this response?
+        hold: 2.5
+        visual_cues:
+          - id: replace-fourth
+            phrase: "Replace the fourth claim with a status"
+            targets: [safe-rendering-mechanism]
+      - say: >-
+          Withhold the whole update. The reader gets a request to review the latest runbook state. This
+          product treats a conflicting status, a missing source or an incorrect citation version as a reason
+          to stop the response. An unsupported detail can be dropped when other verified facts remain.
+        hold: 1
+        visual_cues:
+          - id: withhold-update
+            phrase: "Withhold the whole update"
+            targets: [safe-rendering-mechanism]
+            caption_boundary: true
+  - id: token-confidence
+    title: "What does a token probability measure?"
+    visual: >-
+      A likely next token is compared with a whole recovery claim. A three-token vocabulary supplies every
+      term in the entropy sum.
+    beats:
+      - say: >-
+          Say the next word after fully is recovered with probability point nine eight. That's a prediction
+          about a token, given this prompt, prefix and decoding setup. To assess the incident claim, you
+          still need the record. To measure how spread out the next word is, you need probabilities across
+          the vocabulary. A short list of the top tokens generally leaves that uncertainty undetermined.
+        hold: 0.6
+        visual_cues:
+          - id: token-confidence-b1
+            phrase: "a prediction about a token"
+            targets: [token-confidence-mechanism]
+      - say: >-
+          Take a toy vocabulary with just three choices. Give them one half, one quarter and one quarter.
+          For each token, multiply its probability by the negative natural log of that probability. Add the
+          three contributions. The entropy is about one point zero four nats. Several word choices could
+          describe the very same event. Calibrate any risk score on development cases and check its mistakes
+          on held-out requests.
+        hold: 0.7
+        visual_cues:
+          - id: token-confidence-b2
+            phrase: "Take a toy vocabulary with just three choices"
+            targets: [token-confidence-mechanism]
+          - id: token-distribution
+            phrase: "one half, one quarter and one quarter"
+            targets: [token-confidence-mechanism]
+          - id: token-sum
+            phrase: "The entropy is about one point zero four nats"
+            targets: [token-confidence-mechanism]
+  - id: meaning-entropy
+    title: "How many different answers did the model give?"
+    visual: >-
+      Four status answers form three meaning groups. Four recovery estimates split into two pairs by
+      spelling and merge into one group by meaning. Each vote keeps its number as it moves.
+    beats:
+      - say: >-
+          Now count whole answers. Two say investigating, one says mitigated and one says resolved. Group
+          them by meaning. The groups hold one half, one quarter and one quarter of the samples. Each
+          contributes about point three four seven nats. Add the unrounded contributions for an entropy of
+          about one point zero four nats. A simpler question is how many answers fall outside the largest
+          group. Two out of four do. That's disagreement of one half.
+        hold: 0.8
+        caption_starts:
+          - "Two out of four do"
+          - "That's disagreement of one half"
+        visual_cues:
+          - id: meaning-entropy-b1
+            phrase: "Group them by meaning"
+            targets: [meaning-entropy-mechanism]
+          - id: meaning-masses
+            phrase: "The groups hold one half, one quarter and one quarter"
+            targets: [meaning-entropy-mechanism]
+          - id: meaning-terms
+            phrase: "Each contributes about point three four seven nats"
+            targets: [meaning-entropy-mechanism]
+          - id: meaning-sum
+            phrase: "an entropy of about one point zero four nats"
+            targets: [meaning-entropy-mechanism]
+          - id: meaning-disagreement-result
+            phrase: "That's disagreement of one half"
+            targets: [meaning-entropy-mechanism]
+      - say: >-
+          Switch to estimates. Two answers say fourteen thirty UTC. Two say two thirty PM UTC. How many
+          different times did these four answers give?
+        hold: 2.35
+      - say: >-
+          All four mean the same time. The observed meaning entropy is zero.
+        hold: 1.5
+        visual_cues:
+          - id: time-group
+            phrase: "All four mean the same time"
+            targets: [meaning-entropy-mechanism]
+          - id: meaning-entropy-b2
+            phrase: "The observed meaning entropy is zero"
+            targets: [meaning-entropy-mechanism]
+            caption_boundary: true
+      - say: >-
+          Try grouping by spelling. The four votes split into two pairs. For this question, fourteen thirty
+          UTC implies two thirty PM UTC. The reverse holds too. Merge the pairs again. A semantic entropy
+          system can use that two-way check to group answers in context.
+        hold: 0.75
+        caption_starts:
+          - "The four votes split into two pairs"
+          - "The reverse holds too"
+        visual_cues:
+          - id: spelling-groups
+            phrase: "Try grouping by spelling"
+            targets: [meaning-entropy-mechanism]
+          - id: forward-time
+            phrase: "fourteen thirty UTC implies two thirty PM UTC"
+            targets: [meaning-entropy-mechanism]
+          - id: reverse-time
+            phrase: "The reverse holds too"
+            targets: [meaning-entropy-mechanism]
+          - id: merge-pairs
+            phrase: "Merge the pairs again"
+            targets: [meaning-entropy-mechanism]
+      - say: >-
+          We counted the samples in each group. Another estimator uses the probabilities of the generated
+          sequences. Farquhar and colleagues used this spread to flag confabulations, mistakes that change
+          from one answer to the next. A fifth run could give a different time.
+        hold: 0.7
+        visual_cues:
+          - id: meaning-entropy-b3
+            phrase: "A fifth run could give a different time"
+            targets: [meaning-entropy-mechanism]
+  - id: consistency-signal
+    title: "When should agreement change the route?"
+    visual: >-
+      Four status answers occupy fixed slots. One vote changes at the review threshold. A second draft
+      repeats an unsupported estimate across all four slots.
+    beats:
+      - say: >-
+          Our selected draft says investigating, and the record supports it. Look at the four alternative
+          status answers. In this example we send a supported draft to review when disagreement is greater
+          than one quarter.
+        hold: 0.7
+        visual_cues:
+          - id: first-votes
+            phrase: "the four alternative status answers"
+            targets: [consistency-signal-mechanism]
+      - say: >-
+          Two answers fall outside the largest group. Two out of four is one half. Send this draft to review
+          so someone can inspect why those answers differ.
+        hold: 0.85
+        visual_cues:
+          - id: first-tally
+            phrase: "Send this draft to review"
+            targets: [consistency-signal-mechanism]
+            caption_boundary: true
+      - say: >-
+          Change only the third answer to investigating. Same selected draft, same record, same cutoff. Does
+          it still go to review?
+        hold: 2.6
+        visual_cues:
+          - id: third-vote
+            phrase: "Change only the third answer to investigating"
+            targets: [consistency-signal-mechanism]
+      - say: >-
+          One answer now falls outside the group. One quarter equals the cutoff. The rule says greater than,
+          so this supported draft can go through.
+        hold: 1
+        visual_cues:
+          - id: boundary-tally
+            phrase: "this supported draft can go through"
+            targets: [consistency-signal-mechanism]
+            caption_boundary: true
+      - say: >-
+          Go back to the draft with the added recovery estimate. This time four samples agree on fourteen
+          thirty. The runbook still has no estimate. Can those four votes get the time onto the status page?
+        hold: 2.3
+        visual_cues:
+          - id: four-estimates
+            phrase: "four samples agree on fourteen thirty"
+            targets: [consistency-signal-mechanism]
+      - say: >-
+          Disagreement is zero. Shorten the draft and keep the estimate off the page. Four samples from one
+          model can repeat the same mistake. They give you four guesses and no new entry in the runbook.
+        hold: 1
+        visual_cues:
+          - id: repeat-tally
+            phrase: "Shorten the draft and keep the estimate off the page"
+            targets: [consistency-signal-mechanism]
+            caption_boundary: true
+  - id: consistency-methods
+    title: "What did the checker compare?"
+    visual: >-
+      A checker extracts the service and skips the estimate. Restoring the second claim changes the
+      supported fraction. Two sampled passages supply the inputs to a consistency score. The runbook then
+      supplies the premise for checking a status claim.
+    beats:
+      - say: >-
+          Suppose the checker extracts just the service name. The runbook confirms it. One claim checked,
+          one supported. What did the checker miss?
+        hold: 2.2
+        caption_starts:
+          - "One claim checked"
+        visual_cues:
+          - id: extract-service
+            phrase: "extracts just the service name"
+            targets: [consistency-methods-mechanism]
+          - id: score-service
+            phrase: "one supported"
+            targets: [consistency-methods-mechanism]
+      - say: >-
+          It missed the recovery time. Check that claim too. The runbook gives no estimate. Now only one
+          of the two claims has support. FActScore checks atomic facts against a knowledge source. Its
+          original evaluation also had a label for irrelevant facts. Ragas checks whether the retrieved
+          context supports each extracted statement. Inspect which claims the extractor kept and how the
+          judge scored each one.
+        hold: 0.7
+        caption_starts:
+          - "Now only one of the two claims has support"
+        visual_cues:
+          - id: extract-estimate
+            phrase: "Check that claim too"
+            targets: [consistency-methods-mechanism]
+          - id: score-both
+            phrase: "Now only one of the two claims has support"
+            targets: [consistency-methods-mechanism]
+          - id: knowledge-source
+            phrase: "FActScore checks atomic facts against a knowledge source"
+            targets: [consistency-methods-mechanism]
+          - id: retrieved-context
+            phrase: "Ragas checks whether the retrieved context supports each extracted statement"
+            targets: [consistency-methods-mechanism]
+      - say: >-
+          SelfCheckGPT uses other passages sampled from the model. One variant asks whether each passage
+          supports the sentence. Another uses natural language inference. In this toy example, divide
+          contradiction by entailment plus contradiction for each passage. Neutral is left out. The two
+          scores are point two and point two five. Their mean is point two two five. Other variants compare
+          words, embeddings or answers to questions. All of them depend on the sampled passages.
+        hold: 0.7
+        caption_starts:
+          - "The two scores are point two and point two five"
+          - "Their mean is point two two five"
+        visual_cues:
+          - id: consistency-methods-b2
+            phrase: "other passages sampled from the model"
+            targets: [consistency-methods-mechanism]
+          - id: selfcheck-normalize
+            phrase: "The two scores are point two and point two five"
+            targets: [consistency-methods-mechanism]
+          - id: selfcheck-mean
+            phrase: "Their mean is point two two five"
+            targets: [consistency-methods-mechanism]
+      - say: >-
+          Now use the runbook as the premise. The claim says resolved. The record says investigating.
+          The expected label is contradiction. A matching status would give entailment. For a claim the
+          record leaves open, the label is neutral. Test the judge with a changed date, service name or
+          negation. In a long record, a window can cut a qualifier off its sentence. Check how the judge
+          combines the windows.
+        hold: 0.7
+        caption_starts:
+          - "The expected label is contradiction"
+        visual_cues:
+          - id: consistency-methods-b3
+            phrase: "The expected label is contradiction"
+            targets: [consistency-methods-mechanism]
+          - id: match-status
+            phrase: "A matching status would give entailment"
+            targets: [consistency-methods-mechanism]
+          - id: neutral-estimate
+            phrase: "For a claim the record leaves open, the label is neutral"
+            targets: [consistency-methods-mechanism]
+  - id: contrastive-decoding
+    title: "Which next token gains probability?"
+    visual: >-
+      The same three token rows show two experiments. DoLa chooses an earlier layer, masks a row and
+      normalizes the survivors. Context-aware decoding replaces the earlier layer with a second run and
+      recomputes all three weights.
+    beats:
+      - say: >-
+          Here's a toy model choosing among three status words. Read across the investigating row. Its
+          probability rises between the earlier layers and the final one. DoLa uses changes like these to
+          adjust the next token. In the dynamic version, compare each candidate layer with the final
+          distribution. Pick the largest Jensen-Shannon divergence. Here that's earlier layer two. You need
+          access to those intermediate predictions to do this.
+        hold: 0.8
+        caption_starts:
+          - "Here that's earlier layer two"
+        visual_cues:
+          - id: layer-input
+            phrase: "Read across the investigating row"
+            targets: [contrastive-decoding-mechanism]
+          - id: choose-layer
+            phrase: "Here that's earlier layer two"
+            targets: [contrastive-decoding-mechanism]
+      - say: >-
+          Use that layer for all three rows. First keep final probabilities at least one fifth of the
+          largest. The largest is point seven. The cutoff is point one four, so unknown drops out. The other
+          two qualify.
+        hold: 0.7
+        visual_cues:
+          - id: apply-mask
+            phrase: "The cutoff is point one four, so unknown drops out"
+            targets: [contrastive-decoding-mechanism]
+      - say: >-
+          For investigating, divide point seven by point two. Its weight is three and a half. Resolved gets
+          two thirds. This ratio comes from subtracting earlier log probabilities from final log
+          probabilities. Divide each surviving weight by their sum. Investigating gets eighty-four percent
+          and resolved gets sixteen percent.
+        hold: 1
+        visual_cues:
+          - id: layer-weights
+            phrase: "Resolved gets two thirds"
+            targets: [contrastive-decoding-mechanism]
+          - id: layer-normalize
+            phrase: "Investigating gets eighty-four percent and resolved gets sixteen percent"
+            targets: [contrastive-decoding-mechanism]
+            caption_boundary: true
+      - say: >-
+          Now change the comparison. Keep the model, question and prefix fixed. Run it once with the
+          incident record and once without. That's context-aware decoding. Follow resolved. Subtract the raw
+          probabilities and you'd get negative point six. You can't sample a token with a negative
+          probability.
+        hold: 0.9
+        visual_cues:
+          - id: context-input
+            phrase: "Run it once with the incident record and once without"
+            targets: [contrastive-decoding-mechanism]
+          - id: negative-weight
+            phrase: "negative point six"
+            targets: [contrastive-decoding-mechanism]
+      - say: >-
+          Instead, adjust the logits. Multiply the contextual logit by one plus alpha and subtract alpha
+          times the logit without evidence. Softmax normalizes the result. At alpha zero you get ordinary
+          contextual decoding. At alpha one the equivalent weight is the contextual probability times the
+          ratio between the runs. For investigating that gives four point nine. Divide each weight by the
+          total, five point zero five. Investigating now gets about ninety-seven percent. If the runbook is
+          stale, the same calculation can make yesterday's status more likely. Check the date on the entry
+          before you use it for today's update.
+        hold: 1
+        visual_cues:
+          - id: context-weights
+            phrase: "For investigating that gives four point nine"
+            targets: [contrastive-decoding-mechanism]
+          - id: context-normalize
+            phrase: "Investigating now gets about ninety-seven percent"
+            targets: [contrastive-decoding-mechanism]
+            caption_boundary: true
+  - id: measured-abstention
+    title: "What does withholding an answer cost?"
+    visual: >-
+      The same ten requests supply separate denominators for accuracy, coverage and wrong answers. A
+      supported draft then reaches the disagreement threshold.
+    beats:
+      - say: >-
+          Return to the ten practice questions. The selective policy gets seven right out of ten. It answers
+          seven out of ten, and zero of those seven answers are wrong. The always-answer policy gets eight
+          right, covers all ten, and gives two wrong answers. Is avoiding those two errors worth losing one
+          useful answer? That depends on what people do with a wrong answer and what a withheld answer costs
+          them.
+        hold: 0.7
+        visual_cues:
+          - id: measured-abstention-b1
+            phrase: "The selective policy gets seven right out of ten"
+            targets: [measured-abstention-mechanism]
+      - say: >-
+          Choose your threshold on development data. Then evaluate the whole policy on separate labeled
+          requests. An entropy score needs calibration before you can read it as a probability of error.
+          Here the incident gate checks the source first. A missing estimate can shorten an otherwise
+          supported answer. Only a fully supported draft reaches the sampling check. Missing samples or
+          disagreement above one quarter send it to review.
+        hold: 0.8
+        visual_cues:
+          - id: measured-abstention-b2
+            phrase: "Choose your threshold on development data"
+            targets: [measured-abstention-mechanism]
+          - id: supported-stability
+            phrase: "Only a fully supported draft reaches the sampling check"
+            targets: [measured-abstention-mechanism]
+  - id: score-the-gate
+    title: "Which answers count as unsafe?"
+    visual: >-
+      Each request keeps its claim dots. Two answering policies run down the same four requests, with
+      separate counts for supported claims, unsafe answers and substantive responses.
+    beats:
+      - say: >-
+          Each row is one request. Each dot is one claim. The clean update contributes three matches. The
+          next row has those three plus the invented time. The last two rows each contain one failed claim.
+          Send every draft. Six of nine claims have support, yet three of the four readers get an unsafe
+          answer. One failed claim is enough to spoil a response.
+        hold: 0.8
+        visual_cues:
+          - id: baseline-answers
+            phrase: "Send every draft"
+            targets: [score-the-gate-mechanism]
+      - say: >-
+          Run the evidence gate on the same rows. Send the clean answer. Shorten the estimate answer.
+          Withhold the wrong status and the unknown source. To compute the unsafe-serve rate, how many
+          answers belong in the denominator?
+        hold: 2.5
+        visual_cues:
+          - id: candidate-answers
+            phrase: "Send the clean answer. Shorten the estimate answer. Withhold the wrong status and the unknown source"
+            targets: [score-the-gate-mechanism]
+      - say: >-
+          Two answers reached a reader with incident facts. Neither contains an unsafe claim, so the rate is
+          zero out of two. For response coverage, count all four requests. Two received an answer. One was
+          shortened and two were withheld. If you withhold every answer, coverage is zero and the
+          unsafe-serve rate is undefined.
+        hold: 1
+        visual_cues:
+          - id: candidate-count
+            phrase: "the rate is zero out of two"
+            targets: [score-the-gate-mechanism]
+            caption_boundary: true
+  - id: payload-and-release
+    title: "Would you release this gate?"
+    visual: >-
+      The grader inspects returned text even if the route says shorten. The candidate's counts lead to a
+      release decision with missing held-out evidence and alert ownership.
+    beats:
+      - say: >-
+          Suppose the logger says shorten but the reader still sees fourteen thirty. Grade what the reader
+          got. Relabel all four original drafts this way and three are still unsafe. Withhold all four and
+          nobody gets incident facts. This small grader recognizes exact accepted responses. It catches the
+          leaked estimate but could reject a harmless paraphrase.
+        hold: 0.7
+        visual_cues:
+          - id: log-shorten
+            phrase: "the logger says shorten"
+            targets: [payload-and-release-mechanism]
+          - id: payload-and-release-b1
+            phrase: "Grade what the reader got"
+            targets: [payload-and-release-mechanism]
+          - id: silent-policy
+            phrase: "Withhold all four and nobody gets incident facts"
+            targets: [payload-and-release-mechanism]
+      - say: >-
+          The real candidate keeps the one clean answer and sends a shortened update to one other reader.
+          That's one out of one clean cases kept, two out of four requests answered, and zero unsafe among
+          the two it answered. We chose those four requests to test known failures. To estimate how often
+          readers see an unsafe answer, sample the requests readers actually make.
+        hold: 0.75
+        visual_cues:
+          - id: payload-and-release-b2
+            phrase: "keeps the one clean answer"
+            targets: [payload-and-release-mechanism]
+      - say: >-
+          To release, we need the known failures fixed, the clean case kept, and the admitted versions
+          logged. Those checks pass. We also need a representative held-out set with independently labeled
+          claims, an audited grader and someone responsible for alerts. The holdout and the alert owner are
+          missing. Hold the release. The four requirements in code take actual booleans from trusted
+          records. A missing key or the text string false cannot stand in for a result.
+        hold: 0.9
+        caption_starts:
+          - "The holdout and the alert owner are missing"
+          - "Hold the release"
+        visual_cues:
+          - id: payload-and-release-b3
+            phrase: "the known failures fixed"
+            targets: [payload-and-release-mechanism]
+          - id: missing-records
+            phrase: "The holdout and the alert owner are missing"
+            targets: [payload-and-release-mechanism]
+          - id: release-missing-evidence
+            phrase: "Hold the release"
+            targets: [payload-and-release-mechanism]
+  - id: verification-plans
+    title: "Which question would you ask the draft?"
+    visual: >-
+      A verification plan asks separate questions about the draft. The next check follows the first place
+      the incident workflow failed.
+    beats:
+      - say: >-
+          If the draft says recovery by fourteen thirty, ask which field gives that estimate.
+          Chain-of-Verification starts with a draft, plans checks like that one, answers them separately and
+          revises the draft. The paper tested this on lists, closed-book questions and long-form answers.
+          Asking separately can reduce the influence of an earlier mistake. A model's reply still needs a
+          source before it can justify an incident update.
+        hold: 0.75
+        visual_cues:
+          - id: verification-plans-b1
+            phrase: "plans checks like that one"
+            targets: [verification-plans-mechanism]
+      - say: >-
+          Before adding another model call, find the first failed check. A missing runbook calls for a look
+          at retrieval and admission. A guess added to a valid runbook calls for a look at the generated
+          claims. The request trace lets you tell those cases apart.
+        hold: 0.75
+        visual_cues:
+          - id: verification-plans-b2
+            phrase: "find the first failed check"
+            targets: [verification-plans-mechanism]
+  - id: trace-and-measure
+    title: "Where did this request first fail?"
+    visual: >-
+      Three retained requests expose a missing runbook, an unsupported estimate, and varying alternatives.
+      Two reviewed payloads show the difference between a false accept and a false reject.
+    beats:
+      - say: >-
+          The draft cites a runbook. The request trace shows no snapshot. Start at evidence admission.
+          Check the feed response, the caller's permissions and where the citation came from.
+        hold: 0.7
+        caption_starts:
+          - "Start at evidence admission"
+        visual_cues:
+          - id: missing-trace
+            phrase: "Start at evidence admission"
+            targets: [trace-and-measure-mechanism]
+      - say: >-
+          Here's our opening draft. A snapshot did arrive. The estimate first appears in the draft. That's a
+          claim generation failure. Keep the record version, the estimate and its verdict, the route and the
+          exact text that reached the reader.
+        hold: 0.65
+        caption_starts:
+          - "That's a claim generation failure"
+        visual_cues:
+          - id: eta-trace
+            phrase: "a claim generation failure"
+            targets: [trace-and-measure-mechanism]
+      - say: >-
+          In this request the selected claims pass. The alternatives disagree. Start with generation
+          stability. To replay it, save the sampled answers, the prompt, the model, its temperature and the
+          verifier and policy versions. Protect those artifacts and limit retention according to the
+          sensitivity of the incident.
+        hold: 0.7
+        caption_starts:
+          - "Start with generation stability"
+        visual_cues:
+          - id: vary-trace
+            phrase: "Start with generation stability"
+            targets: [trace-and-measure-mechanism]
+      - say: >-
+          Compare the gate with a human review. Sending an estimate absent from the record is a false
+          accept. Rejecting finished when it means completed is a false reject. Track both, along with
+          coverage and whether the reader got a useful answer. Now try the next runbook entry yourself.
+        hold: 0.8
+        visual_cues:
+          - id: review-errors
+            phrase: "is a false reject"
+            targets: [trace-and-measure-mechanism]
+  - id: fresh-record-repair
+    title: "The next update for INC-48291"
+    visual: >-
+      The opening record returns. Version 2 gains an estimate and changes status. The draft's ETA citation
+      stays on version 1 until the check is repeated against version 2. The response is printed from the two
+      newly verified fields. The successful request opens into a trace showing those exact sentences.
+    beats:
+      - say: >-
+          Back at the status page, a new runbook entry arrives. Version two records a recovery estimate of
+          fifteen ten UTC. It also changes the status to mitigated.
+        hold: 0.9
+        visual_cues:
+          - id: new-record
+            phrase: "Version two records a recovery estimate"
+            targets: [fresh-record-repair-mechanism]
+      - say: >-
+          The draft uses the new time, but its estimate still cites version one. The status claim cites
+          version two. The writer also added the words fully recovered. Can this draft go out with these
+          citations?
+        hold: 2.8
+        visual_cues:
+          - id: cited-version
+            phrase: "its estimate still cites version one"
+            targets: [fresh-record-repair-mechanism]
+      - say: >-
+          Withhold this update. The estimate has the right digits, but the cited version differs from the
+          admitted version. The checker stops before comparing that value. Changing the wording couldn't fix
+          it.
+        hold: 1.05
+        visual_cues:
+          - id: version-stop
+            phrase: "the cited version differs from the admitted version"
+            targets: [fresh-record-repair-mechanism]
+            caption_boundary: true
+      - say: >-
+          Open version two, check the estimate there, and cite that version for the time. The status claim
+          already points there. Both typed values now match. Which sentences can the status page print?
+        hold: 2.7
+        visual_cues:
+          - id: bind-current
+            phrase: "cite that version for the time"
+            targets: [fresh-record-repair-mechanism]
+          - id: recheck-version
+            phrase: "Both typed values now match"
+            targets: [fresh-record-repair-mechanism]
+      - say: >-
+          Recorded recovery estimate, fifteen ten UTC. Recorded status, mitigated. The draft said fully
+          recovered. The reader gets the status from the runbook. Save the sent text with both verdicts
+          and the runbook version. An HTTP two hundred tells you the request succeeded. Open the trace
+          to see what the reader was told.
+        hold: 1.7
+        visual_cues:
+          - id: print-estimate
+            phrase: "Recorded recovery estimate, fifteen ten UTC"
+            targets: [fresh-record-repair-mechanism]
+            caption_boundary: true
+          - id: print-answer
+            phrase: "Recorded status, mitigated"
+            targets: [fresh-record-repair-mechanism]
+            caption_boundary: true
+          - id: save-receipt
+            phrase: "Save the sent text with both verdicts and the runbook version"
+            targets: [fresh-record-repair-mechanism]
+          - id: request-log
+            phrase: "An HTTP two hundred"
+            targets: [fresh-record-repair-mechanism]
+          - id: open-trace
+            phrase: "Open the trace"
+            targets: [fresh-record-repair-mechanism]

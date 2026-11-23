@@ -1,0 +1,391 @@
+[
+  {
+    "id": "c01",
+    "title": "How much space does the longer prompt need?",
+    "sourceChapters": [
+      "c01"
+    ],
+    "beats": [
+      {
+        "id": "c01-b01",
+        "say": "Read the prompt across the top. Fix this test. Now read the same words down the side. Each crossing gets a score. Extend both strips with “and run it.” Before you fill anything in, how many copies of the old square should you reserve?",
+        "hold": 2.5
+      },
+      {
+        "id": "c01-b02",
+        "say": "Four copies fit. Each strip doubled in length, so the nine slots became thirty-six. During causal prefill a word can read itself and earlier words. Shade those crossings. Twenty-one pairs contribute, even though the full allocation still has thirty-six slots.",
+        "hold": 1
+      },
+      {
+        "id": "c01-b03",
+        "say": "Follow the row for test. Its three keys blend into one output vector. FlashAttention can build that same result with two score slots here. We'll see what it has to carry when the third key needs a turn.",
+        "hold": 1
+      }
+    ]
+  },
+  {
+    "id": "c02",
+    "title": "What does the row for test return?",
+    "sourceChapters": [
+      "c02"
+    ],
+    "beats": [
+      {
+        "id": "c02-b01",
+        "say": "Test compares its query with the key for each word it can read. Divide each dot product by the square root of the head dimension. Our example already has scaled scores one, two and three. Follow each word down to its value, ten, twenty or forty.",
+        "hold": 0.7
+      },
+      {
+        "id": "c02-b02",
+        "say": "Use three as the reference. Subtract it from each score and exponentiate. Test has weight one, because three minus three is zero. Divide by the total weight to get the shares. Which value will pull hardest on the blend?",
+        "hold": 1.65
+      },
+      {
+        "id": "c02-b03",
+        "say": "Forty gets about two thirds of the weight. Multiply each value by its share, then add the contributions. They give about thirty-two point four. The shares sum to one and are positive here, so the result lies between ten and forty. A real head applies these shares to every value coordinate.",
+        "hold": 1
+      }
+    ]
+  },
+  {
+    "id": "c03",
+    "title": "Follow one square across the memory bus",
+    "sourceChapters": [
+      "c03"
+    ],
+    "beats": [
+      {
+        "id": "c03-b01",
+        "say": "Take eight prompts, thirty-two heads, and eight thousand one hundred ninety-two tokens per prompt. Multiply the two token axes, then the heads, batch size and bytes per score. In half precision that's thirty-two gibibytes for one score array. The causal mask still leaves the full allocation in this baseline.",
+        "hold": 0.8
+      },
+      {
+        "id": "c03-b02",
+        "say": "Watch that square cross into high-bandwidth memory, or HBM. Write scores out. Softmax reads scores back. It normalizes each row and writes probabilities out. The value multiply reads probabilities back. Count the crossings. How much intermediate data did those operations hand each other?",
+        "hold": 1.8
+      },
+      {
+        "id": "c03-b03",
+        "say": "Four crossings give one hundred twenty-eight gibibytes of logical transfers. That's separate from the space for one array. Inputs and outputs add traffic. Fusion, caches and the actual intermediate precision affect what a hardware counter measures. A tiled kernel can consume each score and probability near the arithmetic units.",
+        "hold": 1
+      }
+    ]
+  },
+  {
+    "id": "c03-fit",
+    "title": "Which two axes make a score tile?",
+    "sourceChapters": [
+      "c03"
+    ],
+    "beats": [
+      {
+        "id": "c03-fit-b01",
+        "say": "Zoom in on one GPU thread block. Lay out sixty-four query rows and ninety-six key rows. Each query, key and value has thirty-two half-precision coordinates. Each output row uses thirty-two single-precision accumulators. Which two axes set the size of the score tile?",
+        "hold": 1.8
+      },
+      {
+        "id": "c03-fit-b02",
+        "say": "Cross query rows with key rows. At four bytes per score, that sheet takes twenty-four kibibytes. The query, key and value strips together need sixteen. Add eight for output and you get forty-eight kibibytes of logical arrays. Each rectangle uses the dimensions of the data it holds.",
+        "hold": 0.9
+      },
+      {
+        "id": "c03-fit-b03",
+        "say": "Try one possible placement. Put the query, key and value buffers in shared memory. Put the output and score fragments in registers. That charges sixteen kibibytes to shared memory and thirty-two to registers. A kernel can distribute or reuse them differently. Check both local budgets, extra buffers for overlapping loads, and the other resident blocks. HBM holds device tensors. Host memory sits across a separate link.",
+        "hold": 1
+      }
+    ]
+  },
+  {
+    "id": "c04",
+    "title": "Which part stays beside the arithmetic?",
+    "sourceChapters": [
+      "c04"
+    ],
+    "beats": [
+      {
+        "id": "c04-b01",
+        "say": "Pin the query for test inside the thread block. Stream the first key and value tile past it. The two score slots fill with one and two. Save what those keys contributed. Once the update finishes, you can clear both slots.",
+        "hold": 0.9
+      },
+      {
+        "id": "c04-b02",
+        "say": "Slide the last key into the same workspace. Test scores three. Both tiles have now contributed to the same query. FlashAttention-two keeps the query block resident through this inner loop. Separate warps can own separate output rows, so those rows need no cross-warp sum.",
+        "hold": 0.8
+      },
+      {
+        "id": "c04-b03",
+        "say": "The original FlashAttention loop held a key and value block while query blocks cycled past it. Partial row state went back to HBM between visits. Both schedules process every permitted pair. Think about what survives a visit. If two tiles return the same average, do they necessarily carry the same total weight?",
+        "hold": 1.6
+      }
+    ]
+  },
+  {
+    "id": "c04-pipe",
+    "title": "When can a slot change hands?",
+    "sourceChapters": [
+      "c04"
+    ],
+    "beats": [
+      {
+        "id": "c04-pipe-b01",
+        "say": "On Hopper, FlashAttention-three lets producer warps copy tiles while consumer warps multiply. Here the consumers still read slot A. Slot B is free. The next key tile is waiting. Where can its copy start?",
+        "hold": 2
+      },
+      {
+        "id": "c04-pipe-b02",
+        "say": "Fill B. While its copy is in flight, consumers keep reading A. Copy complete makes B ready to read. Only a release from the consumers makes A safe to overwrite. Now the consumer takes B, and the producer can fill A again. Those are two different permissions.",
+        "hold": 1
+      },
+      {
+        "id": "c04-pipe-b03",
+        "say": "The tensor memory accelerator handles the copy. Warpgroup matrix instructions can run alongside independent work. Softmax must wait for the scores it uses. Extra slots cost local memory, and a late copy can still make a consumer wait.",
+        "hold": 1
+      }
+    ]
+  },
+  {
+    "id": "c05",
+    "title": "What can survive the first tile?",
+    "sourceChapters": [
+      "c05"
+    ],
+    "beats": [
+      {
+        "id": "c05-b01",
+        "say": "Open the first tile containing scores one and two. Its maximum is two. Measure each width by exponentiating its score minus two. Fix gets about point three six eight. This gets one. The heights are the values ten and twenty. What do the two areas add up to?",
+        "hold": 1.5
+      },
+      {
+        "id": "c05-b02",
+        "say": "Weight times value gives area. The total is about twenty-three point six eight. Level those shapes without losing area. The height settles at seventeen point three one, the blend for this tile. Save the width and area separately so a later key can contribute on the right scale.",
+        "hold": 1
+      },
+      {
+        "id": "c05-b03",
+        "say": "Erase the two scores. The reference, width and area survive. The last key scores three. When we measure the old weights from that higher reference, will the blue edge move left or right? Will the top move with it?",
+        "hold": 2.1
+      }
+    ]
+  },
+  {
+    "id": "c06",
+    "title": "A higher score changes the scale",
+    "sourceChapters": [
+      "c06"
+    ],
+    "beats": [
+      {
+        "id": "c06-b01",
+        "say": "The new maximum is three. Keep your eye on the old top and its right edge. Multiply the saved width and area by the exponential of two minus three. The edge moves left. Both quantities shrink by the same factor, so their ratio, the old blended height, stays put.",
+        "hold": 1
+      },
+      {
+        "id": "c06-b02",
+        "say": "Add the incoming tile at that same reference. Its weight is one and its value is forty. Look at the low side. Where will the surface settle? Only when both pieces have arrived do we divide their total area by their total width. The answer matches the dense row, about thirty-two point four.",
+        "hold": 1
+      },
+      {
+        "id": "c06-b03",
+        "say": "Both saved sums must rescale together. Rescaling only the denominator would change the blend. This recurrence extends to vector values, many query rows, and many tiles. Different floating-point associations can introduce small numerical differences even when the underlying mathematical operator is unchanged.",
+        "hold": 1
+      },
+      {
+        "id": "c06-b04",
+        "say": "Try two summaries with signed values. The old tile has reference four, total weight two and weighted sum ten. The new tile already uses reference five, has unit weight and carries minus three. Put both on the new ruler. Will the combined numerator land above or below zero?",
+        "hold": 2.2
+      },
+      {
+        "id": "c06-b05",
+        "say": "Multiply both old sums by the exponential of four minus five. The old weight becomes about point seven three six and its weighted sum becomes about three point six eight. Add the new tile on that same scale. The weight is about one point seven three six and the numerator is still positive, about point six seven nine. Divide them and the blend is about point three nine one. The negative value subtracts from the numerator while its weight adds to the denominator.",
+        "hold": 1
+      }
+    ]
+  },
+  {
+    "id": "c06-ref",
+    "title": "Which reference is on the ruler?",
+    "sourceChapters": [
+      "c06"
+    ],
+    "beats": [
+      {
+        "id": "c06-ref-b01",
+        "say": "Try a smaller increase. The first score is one, and its value is ten. The incoming score is one point three and its value is twenty. Blackwell's FlashAttention-four can keep an earlier reference for a small increase when its numerical policy permits. If the ruler stays at one, how wide should the new piece be?",
+        "hold": 1.9
+      },
+      {
+        "id": "c06-ref-b02",
+        "say": "Keep one and the new width is the exponential of point three, about one point three five. Or move the ruler to one point three. Then both old sums shrink and the new width is one. Compare the heights after division. Both rulers give the same blend. Keeping one ruler for the numerator and another for the denominator would change it.",
+        "hold": 1
+      },
+      {
+        "id": "c06-ref-b03",
+        "say": "Now cover every key. An empty tile contributes zero weight and zero area. If another tile has a valid key, start from that key. If the whole row stays empty, the course CPU sketch returns zero by convention. A separate range check matters even with visible keys. Two equal scores give unit weights. Two values near the largest finite number can overflow the numerator although their mean fits. The sketch rejects that overflow.",
+        "hold": 1
+      }
+    ]
+  },
+  {
+    "id": "c07",
+    "title": "Which causal tiles can you skip?",
+    "sourceChapters": [
+      "c07"
+    ],
+    "beats": [
+      {
+        "id": "c07-b01",
+        "say": "Cut both axes into four aligned tiles of equal size. Autoregressive attention allows each query to use its own position and earlier keys. Look across the rows. Which whole tiles can the scheduler skip before it multiplies anything?",
+        "hold": 1.8
+      },
+      {
+        "id": "c07-b02",
+        "say": "Skip the six tiles above the diagonal. Six past tiles pass in full. The four diagonal tiles need a test inside each tile. Mask future keys before softmax. Ten tile pairs do work here. For any square grid, count one through the number of tiles to include the diagonal. These are pair counts. Launches, traffic and elapsed time depend on the schedule.",
+        "hold": 1
+      },
+      {
+        "id": "c07-b03",
+        "say": "Try unequal ranges. The queries span positions twenty-four through forty-seven. Keys span twenty-four through thirty-one. Compare their endpoints. Query twenty-four can use only the first key. Query forty-seven can use all eight. This is a boundary tile. Skip only if the first key is later than the last query. Admit all if the last key is no later than the first query.",
+        "hold": 1
+      }
+    ]
+  },
+  {
+    "id": "c07-cache",
+    "title": "Which cached values belong to this query?",
+    "sourceChapters": [
+      "c07"
+    ],
+    "beats": [
+      {
+        "id": "c07-cache-b01",
+        "say": "Prefill evaluates many query rows. Decode appends one query to a history of keys and values. A paged cache uses a block table to find logical positions in physical memory. The read tile can span several pages. Its kernel must accept that page layout. Now inspect five logical slots. Only the first three hold valid tokens.",
+        "hold": 0.8
+      },
+      {
+        "id": "c07-cache-b02",
+        "say": "Our query is at position two. Every score is zero, so every admitted key gets equal weight. The values in order are three, nine, fifteen and two leftover hundreds. An upper-left one-row mask starts at zero. An open mask exposes all five slots. Which keys should this query read?",
+        "hold": 2.1
+      },
+      {
+        "id": "c07-cache-b03",
+        "say": "Use absolute position and valid length together. Keep slots zero through two. Their sum is twenty-seven, so the output is nine. The upper-left mask would return three. Opening every slot would return forty-five point four. For inference, pass dropout probability zero to scaled dot-product attention. That function uses its explicit argument even when the enclosing module is in evaluation mode.",
+        "hold": 1
+      }
+    ]
+  },
+  {
+    "id": "c08",
+    "title": "Can we rebuild one probability?",
+    "sourceChapters": [
+      "c08"
+    ],
+    "beats": [
+      {
+        "id": "c08-b01",
+        "say": "Training needs gradients through the blend. Keep the inputs and output. For each nonempty row, fold the running maximum and denominator into one saved number. Log-sum-exp equals the maximum plus the log of the denominator. For test that's about three point four zero eight. The score slots can be reused.",
+        "hold": 1
+      },
+      {
+        "id": "c08-b02",
+        "say": "Backward needs the probability for this. Recompute its scaled score from query and key. Two. Subtract the saved log-sum-exp and exponentiate. The recovered share is about point two four five, the one we used in the dense blend. Repeat locally for the keys allowed by the mask. Training with dropout also needs the state that reproduces its mask.",
+        "hold": 1
+      },
+      {
+        "id": "c08-b03",
+        "say": "The large example had thirty-two gibibytes in a half-precision probability square. With one four-byte statistic per query row, eight times thirty-two times eight thousand one hundred ninety-two rows need eight mebibytes. Inputs, output and the rest of training still take space. Recomputation adds arithmetic and can save time if it avoids more expensive transfers.",
+        "hold": 1
+      }
+    ]
+  },
+  {
+    "id": "c08-grad",
+    "title": "Which score pushes the blend down?",
+    "sourceChapters": [
+      "c08"
+    ],
+    "beats": [
+      {
+        "id": "c08-grad-b01",
+        "say": "Make a smaller row with two equal scores, values two and ten, and dropout off. Each probability is one half. The blend is six. Suppose the upstream derivative is three. Increasing just the score attached to two shifts weight toward the smaller value. What sign should its score derivative have?",
+        "hold": 2
+      },
+      {
+        "id": "c08-grad-b02",
+        "say": "The low value gets a negative derivative. Multiply the upstream derivative by each value to get six and thirty. The row correction is upstream times output, eighteen. Subtract that correction from each term, then multiply by its probability. The two score derivatives are minus six and plus six.",
+        "hold": 1
+      },
+      {
+        "id": "c08-grad-b03",
+        "say": "For a value derivative, give each value its share of the incoming derivative. Each gets one and a half. For vectors, the correction uses the dot product of upstream gradient and output. Reconstructed score derivatives feed the query and key gradients through the original scaled dot products. A dense reference can check both outputs and gradients across tile sizes and masks.",
+        "hold": 1
+      }
+    ]
+  },
+  {
+    "id": "c08-scale",
+    "title": "Double the context and the fast store",
+    "sourceChapters": [
+      "c08"
+    ],
+    "beats": [
+      {
+        "id": "c08-scale-b01",
+        "say": "In the paper's two-level memory model, hold batch, heads and head width fixed. Fast memory capacity counts scalar elements. Start with a thousand and twenty-four tokens and eight thousand one hundred ninety-two fast slots. Double both. Predict which grows faster, the number of dense products or the modeled transfers.",
+        "hold": 2
+      },
+      {
+        "id": "c08-scale-b02",
+        "say": "Dense work grows fourfold because both token axes doubled. One saved statistic per row grows twofold. When fast capacity in elements lies between the head width and sequence length times head width, tiled transfers scale with sequence length squared times head width squared, divided by fast-memory capacity. Twice the capacity lets the tile reuse more data. Four divided by two gives twice the modeled transfers.",
+        "hold": 1
+      },
+      {
+        "id": "c08-scale-b03",
+        "say": "To connect bytes to speed, count operations per byte. The bandwidth ceiling is that intensity times bandwidth, capped by the relevant compute peak. A kernel doing one operation per byte on a three point three five terabyte per second link can get at most three point three five trillion such operations per second. Actual timings also depend on which units do the work.",
+        "hold": 1
+      }
+    ]
+  },
+  {
+    "id": "c08-time",
+    "title": "How much time does the request save?",
+    "sourceChapters": [
+      "c08"
+    ],
+    "beats": [
+      {
+        "id": "c08-time-b01",
+        "say": "This serial request spends twelve milliseconds in attention and eighteen elsewhere. Suppose we cut the attention segment in half. Where will the end of the request land on this ruler?",
+        "hold": 1.8
+      },
+      {
+        "id": "c08-time-b02",
+        "say": "Six plus eighteen gives twenty-four milliseconds. Thirty divided by twenty-four gives a request speedup of one point two five. Measure prefill time to first token and decode time between tokens separately. During decode, cache reads or model weights can dominate.",
+        "hold": 1
+      },
+      {
+        "id": "c08-time-b03",
+        "say": "Before timing a backend, check the actual device, dtype, dimensions, layout, mask and dropout. Compare its output to a dense reference at that precision. Restrict dispatch if you need to establish which kernel ran. Suppose eligible inputs reach that call and allocation fails. Report the out-of-memory error. Eligibility alone neither completes a call nor establishes a speedup.",
+        "hold": 1
+      }
+    ]
+  },
+  {
+    "id": "c09",
+    "title": "Change the value and locate the new mean",
+    "sourceChapters": [
+      "c09"
+    ],
+    "beats": [
+      {
+        "id": "c09-b01",
+        "say": "Keep the scores fixed and imagine changing the final value from forty to four. Predict which parts of the running summary must change. Look at the three widths. If the orange top falls below both blue tops, where will the mean land?",
+        "hold": 2.3
+      },
+      {
+        "id": "c09-b02",
+        "say": "The final tile replaces its contribution to the numerator. Its width stays one while its value falls to four. Follow the black line. The dense and tiled calculations still agree, at about eight point four five six. Temporary scores disappear after use. The area and width still give the height of the finished row.",
+        "hold": 1.6
+      }
+    ]
+  }
+]

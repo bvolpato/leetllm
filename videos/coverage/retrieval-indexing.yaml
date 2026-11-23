@@ -1,0 +1,187 @@
+version: 1
+lesson: retrieval-indexing
+promise: Follow a useful passage through word search, vector search, fusion and reranking. Locate the first stage that drops it and choose a change to test against exact search, relevance judgments and measured cost.
+objectives:
+  - id: lexical
+    can: Build posting lists, preserve exact identifiers, and use BM25 and bounded selection to explain which word matches survive.
+    scenes:
+      - opening
+      - postings
+      - query
+      - bm25
+      - ranking
+      - top-k
+      - storage
+      - analyzer-contract
+      - bm25-controls
+  - id: geometry
+    can: Use vector direction and length to predict cosine and raw dot-product rankings under the embedding contract.
+    scenes:
+      - dense-encoding
+      - similarity-contract
+  - id: shortlist
+    can: Add reciprocal-rank votes and locate a missing passage by comparing the fused IDs with the pairs that reached the reranker.
+    scenes:
+      - fusion-ranks
+      - fusion-scale
+      - joint-reranker
+      - retrieval-review
+  - id: evaluation
+    can: Calculate hit rate, macro recall, reciprocal rank and graded ranking quality from the same judged queries at stated cutoffs.
+    scenes:
+      - evaluation
+      - metric-evaluation
+      - retrieval-review
+  - id: approximation
+    can: Predict which passages each probe or graph frontier can reach, count routing and scoring separately, and explain how PQ can change a distance.
+    scenes:
+      - dense-scan
+      - ivf-probes
+      - hnsw-layers
+      - pq-code
+      - index-composition
+      - fresh-probe
+  - id: scope
+    can: Compare approximate and exact IDs within the same eligible set, then compare the returned evidence with human judgments.
+    scenes:
+      - filter-scope
+      - ann-comparison
+      - fresh-probe
+sections:
+  - heading: One question, four possible sources
+    status: taught
+    scenes:
+      - analyzer-contract
+      - dense-encoding
+  - heading: Sparse retrieval starts with an inverted index
+    status: taught
+    scenes:
+      - postings
+      - query
+      - top-k
+      - storage
+      - analyzer-contract
+  - heading: BM25 scores lexical evidence
+    status: taught
+    scenes:
+      - bm25
+      - ranking
+      - bm25-controls
+  - heading: Repetition saturates instead of winning automatically
+    status: taught
+    scenes:
+      - bm25-controls
+  - heading: Dense retrieval recovers paraphrases
+    status: taught
+    scenes:
+      - dense-encoding
+  - heading: Similarity must match the embedding contract
+    status: taught
+    scenes:
+      - similarity-contract
+  - heading: Fuse independent retrieval lanes
+    note: The two-slot and three-slot comparisons reuse the article’s lane ranks and fusion constant of 60. The score ruler separately adds a fourth candidate to the same raw scores.
+    status: taught
+    scenes:
+      - fusion-ranks
+      - fusion-scale
+  - heading: Reranking spends compute on the shortlist
+    note: The article supplies the three hypothetical scores. The joint-input example counts its special tokens and shows which words remain after truncation.
+    status: taught
+    scenes:
+      - joint-reranker
+      - retrieval-review
+  - heading: Measure ranking before evaluating answers
+    status: taught
+    scenes:
+      - evaluation
+      - metric-evaluation
+  - heading: Approximate search is a recall decision
+    status: taught
+    scenes:
+      - dense-scan
+      - ivf-probes
+      - hnsw-layers
+      - pq-code
+      - index-composition
+  - heading: Watch an IVF probe miss the nearest passage
+    note: Both query positions use the article’s three passage positions, Euclidean distances and two fixed centers. The flat reference scans all three original coordinates.
+    status: taught
+    scenes:
+      - ivf-probes
+      - fresh-probe
+  - heading: A version filter changes the search problem
+    status: taught
+    scenes:
+      - filter-scope
+  - heading: Put an exact-search gate around ANN settings
+    note: The film compares a hypothetical return of d1 with the article’s exact cosine winner and relevance judgments. The separate four-query comparison uses the article’s supplied ID arrays.
+    status: taught
+    scenes:
+      - ann-comparison
+  - heading: A retrieval review checklist
+    status: taught
+    scenes:
+      - retrieval-review
+  - heading: Practice tasks
+    status: article-only
+    reason: exercise
+    note: The first three exercises remain on the page. The scene fresh-probe works through the fourth exercise at query position 5.2.
+  - heading: Practice guidance
+    status: article-only
+    reason: exercise
+    note: The first three exercises remain on the page. The scene fresh-probe works through the fourth exercise at query position 5.2.
+quiz:
+  - n: 1
+    status: taught
+    scenes:
+      - analyzer-contract
+  - n: 2
+    status: taught
+    scenes:
+      - bm25-controls
+  - n: 3
+    status: taught
+    scenes:
+      - similarity-contract
+  - n: 4
+    status: taught
+    scenes:
+      - fusion-ranks
+      - joint-reranker
+  - n: 5
+    status: taught
+    scenes:
+      - metric-evaluation
+  - n: 6
+    status: taught
+    scenes:
+      - dense-scan
+      - pq-code
+  - n: 7
+    status: taught
+    scenes:
+      - ivf-probes
+      - fresh-probe
+  - n: 8
+    status: taught
+    scenes:
+      - hnsw-layers
+  - n: 9
+    status: taught
+    scenes:
+      - filter-scope
+  - n: 10
+    status: taught
+    scenes:
+      - ann-comparison
+removed: []
+reviews:
+  closed_book:
+    script: 98f29efd5acc7ea6
+    taught: 10
+    partial: 0
+    absent: 0
+  fact_check:
+    script: 98f29efd5acc7ea6
+    open_findings: 0

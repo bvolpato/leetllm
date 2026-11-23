@@ -1,0 +1,28 @@
+diff --git a/dist/index.cjs b/dist/index.cjs
+index 885358ac7e68218c73e35fa43d82d184aa93ebd4..51307d6397fe9ca9e6d44ef23c4f003ec842e952 100644
+--- a/dist/index.cjs
++++ b/dist/index.cjs
+@@ -10285,8 +10285,7 @@ function LineChart({
+   const xStep = maxPoints <= 1 ? 0 : xSpan / (maxPoints - 1);
+   const pointFor = (value, index) => {
+     const x = xStart + index * xStep;
+-    const markerInset = showPoints ? d.g(4) : 2;
+-    const y = clamp(yInPlot(value, domain, plot), plot.y + markerInset, plot.bottom - markerInset);
++    const y = clamp(yInPlot(value, domain, plot), plot.y, plot.bottom);
+     return { x, y };
+   };
+   const pathFor = (points) => points.map((value, index) => {
+diff --git a/dist/index.js b/dist/index.js
+index 774618d6b4b20f3257a740c23dda298dfbe88ad4..1991ca88c9ead0d7d1042a15b474dfbb94664297 100644
+--- a/dist/index.js
++++ b/dist/index.js
+@@ -9134,8 +9134,7 @@ function LineChart({
+   const xStep = maxPoints <= 1 ? 0 : xSpan / (maxPoints - 1);
+   const pointFor = (value, index) => {
+     const x = xStart + index * xStep;
+-    const markerInset = showPoints ? d.g(4) : 2;
+-    const y = clamp(yInPlot(value, domain, plot), plot.y + markerInset, plot.bottom - markerInset);
++    const y = clamp(yInPlot(value, domain, plot), plot.y, plot.bottom);
+     return { x, y };
+   };
+   const pathFor = (points) => points.map((value, index) => {

@@ -1,0 +1,758 @@
+[
+  {
+    "id": "c01",
+    "title": "The loss on the last batch",
+    "sourceChapters": [
+      "c01"
+    ],
+    "beats": [
+      {
+        "id": "c01-b01",
+        "say": "Our last batch has two examples. The first prediction is zero and its target is two. The gap between the marks is two units. Use that segment as the top edge of a square. It covers four unit squares. The second prediction is also zero. Its target is minus one, a unit to the left. Squaring that miss adds one square. We have five unit squares across two examples. Their mean squared error is two point five.",
+        "hold": 0.9
+      },
+      {
+        "id": "c01-b02",
+        "say": "Slide two zero rows into the spare slots. Our JAX function can now take a four-row array. Watch the five squares as the training log counts all four slots. It reports one point two five. Did either prediction get closer to its target?",
+        "hold": 3.3
+      },
+      {
+        "id": "c01-b03",
+        "say": "Both predictions stayed at zero. The two padding rows added nothing to the squared error. Count the two real examples again and the mean returns to two point five. Before training on this padded batch, we'll also check the gradient it sends to the optimizer.",
+        "hold": 1.1
+      }
+    ]
+  },
+  {
+    "id": "c02",
+    "title": "Follow one call through the training loop",
+    "sourceChapters": [
+      "c02"
+    ],
+    "beats": [
+      {
+        "id": "c02-b01",
+        "say": "Find the step that consumes that batch in the research code. It might sit inside Flax, Equinox or Optax. If you know a PyTorch training loop, look for the pieces the model and optimizer usually hold. Here the caller supplies the weights, the optimizer's momentum and a key for drawing random numbers.",
+        "hold": 0.5
+      },
+      {
+        "id": "c02-b02",
+        "say": "Follow the return values into the next call. The weights, momentum and key each get a successor. The loss goes to the log beside the step that produced it. Supply the same old state and batch to replay this numerical function. Write its array operations with JAX NumPy.",
+        "hold": 0.85
+      },
+      {
+        "id": "c02-b03",
+        "say": "JAX can take a derivative of that function, map it over examples or compile it. The article's ordinary-array examples use one CPU. JAX also supports controlled mutation through a separate interface called Ref.",
+        "hold": 0.8
+      }
+    ]
+  },
+  {
+    "id": "c03",
+    "title": "Two checks on the same four examples",
+    "sourceChapters": [
+      "c03"
+    ],
+    "beats": [
+      {
+        "id": "c03-b01",
+        "say": "Here is the full batch. Each row gives two features and a target. Two more examples join the ones from the opening. At zero weights and bias, all four predictions are zero. Their squared errors add to fifteen. Divide by four, and the reference loss is three point seven five.",
+        "hold": 0.8
+      },
+      {
+        "id": "c03-b02",
+        "say": "Try weights two and minus one. Double the first feature and subtract the second. On the bottom row that gives four minus one, exactly the target of three. Apply that rule to the other rows. Every prediction lands on its target. The loss is zero.",
+        "hold": 0.8
+      },
+      {
+        "id": "c03-b03",
+        "say": "A loss function has to pass both checks before its training curve tells us much.",
+        "hold": 0.9
+      }
+    ]
+  },
+  {
+    "id": "c04",
+    "title": "Which row pulls hardest on the first weight?",
+    "sourceChapters": [
+      "c04"
+    ],
+    "beats": [
+      {
+        "id": "c04-b01",
+        "say": "Reset the parameters to zero. Which row pulls hardest on the first weight? Its contribution depends on two things. Multiply twice the signed prediction error by the first feature. On the bottom row we missed by minus three and that feature is two. This row contributes minus twelve.",
+        "hold": 0.8
+      },
+      {
+        "id": "c04-b02",
+        "say": "The second row has no first feature, so it contributes zero. Average all four contributions and the first weight's gradient is minus four point five.",
+        "hold": 0.8
+      },
+      {
+        "id": "c04-b03",
+        "say": "The same calculation gives a gradient for the other weight and the bias. Each has its own line. Subtract five hundredths of each gradient from its parameter.",
+        "hold": 0.3
+      },
+      {
+        "id": "c04-b04",
+        "say": "The first weight moves up to point two two five, the second to point zero seven five, and the bias to point one two five. JAX's value and grad computes the loss and the whole gradient tree in one call.",
+        "hold": 0.9
+      }
+    ]
+  },
+  {
+    "id": "c05",
+    "title": "Choose the artifact that differentiation should return",
+    "sourceChapters": [
+      "c05"
+    ],
+    "beats": [
+      {
+        "id": "c05-b01",
+        "say": "Grad transforms a scalar-valued function into a derivative function. For this ordinary real-valued loss, scalar means shape empty parentheses. A vector of losses, even a length-one array, does not satisfy that contract. Value-and-grad returns both the scalar loss and its gradient from one differentiated computation.",
+        "hold": 0.75
+      },
+      {
+        "id": "c05-b02",
+        "say": "For one loss per row, map grad of loss-one across features and targets while sharing the parameter tree. In-axes None, zero, zero states that ownership. The weight-gradient leaf now has four rows and two columns, and the bias-gradient leaf has four entries. The first column is minus four, zero, minus two and minus twelve.",
+        "hold": 0.75
+      },
+      {
+        "id": "c05-b03",
+        "say": "Differentiating the scalar batch mean instead returns weight shape two and scalar bias. Averaging the per-example gradients agrees for these independent losses, but their retained artifacts differ. For a scalar gradient, its norm is the absolute value.",
+        "hold": 0.3
+      },
+      {
+        "id": "c05-b04",
+        "say": "Try two examples with just one weight, initially zero. The first has input one and target three. Its gradient is minus six. The second has input three and target minus one. Its gradient is plus six. Taking absolute values gives six for each example. Averaging the signed gradients first gives zero. To clip each example, keep that example axis until after you have measured its norm.",
+        "hold": 1.2
+      }
+    ]
+  },
+  {
+    "id": "c06",
+    "title": "Match named paths and leaf shapes",
+    "sourceChapters": [
+      "c06"
+    ],
+    "beats": [
+      {
+        "id": "c06-b01",
+        "say": "Model state usually lives in a nested collection of arrays. JAX calls that structure a pytree. Differentiating with respect to the parameter tree returns corresponding gradient leaves. An update must associate the weight gradient with the weight path and the bias gradient with the bias path.",
+        "hold": 0.8
+      },
+      {
+        "id": "c06-b02",
+        "say": "Rename weight to kernel on the gradient side. The leaf count stays at two, but the named path no longer matches. Restore the name and try a scalar gradient of minus four point five under weight. Array arithmetic could broadcast it to both entries. That would move both weights to point two two five. The second should move to point zero seven five. Check exact leaf shapes before applying the update.",
+        "hold": 0.85
+      }
+    ]
+  },
+  {
+    "id": "c07",
+    "title": "Preserve semantic paths and bounded metadata",
+    "sourceChapters": [
+      "c07"
+    ],
+    "beats": [
+      {
+        "id": "c07-b01",
+        "say": "Open the layer dictionary. Follow the weight key to the two-by-two array. Follow the bias key to its two entries. Both leaves hold thirty-two-bit floats. Match those paths, shapes and data types when you restore the checkpoint. A registered custom class can expose its children in the tree. An unsupported object may arrive as one opaque leaf.",
+        "hold": 0.75
+      },
+      {
+        "id": "c07-b02",
+        "say": "Numerical array leaves can change value under one compiled contract. Small activation choices or architecture settings can instead be static metadata. Changing those settings can require new variants. Marking every changing value static creates a variant problem rather than solving it.",
+        "hold": 0.3
+      },
+      {
+        "id": "c07-b03",
+        "say": "A checkpoint port must preserve axis meaning too. Multiply the row vector one, two by this square projection. The output is seven, ten. Keep that pair for comparison. Transpose the weights and run the same input. What will each column give you now? The output becomes five, eleven. Both copies still have shape two by two.",
+        "hold": 1
+      }
+    ]
+  },
+  {
+    "id": "c08",
+    "title": "Keep the new value returned by an update",
+    "sourceChapters": [
+      "c08"
+    ],
+    "beats": [
+      {
+        "id": "c08-b01",
+        "say": "Keep a reference to the ordinary JAX array ten, twenty, thirty. Set its middle entry to ninety-nine with dot at. The expression returns a second value. Read the middle entry in each row. The original still holds twenty. The returned array holds ninety-nine.",
+        "hold": 0.95
+      },
+      {
+        "id": "c08-b02",
+        "say": "The caller must keep the returned array or tree. Computing an indexed update and discarding its result leaves the old binding unchanged. Compiled execution can reuse buffers while preserving this value contract. If you donate an input buffer explicitly, follow the separate rule that the donated input must no longer be used.",
+        "hold": 0.8
+      }
+    ]
+  },
+  {
+    "id": "c09",
+    "title": "Separate immutable values from checked indices",
+    "sourceChapters": [
+      "c09"
+    ],
+    "beats": [
+      {
+        "id": "c09-b01",
+        "say": "The actual immutable-array cell retains original ten, twenty, thirty and returned ten, ninety-nine, thirty. Item assignment raises a TypeError. Computing an indexed update and discarding its result leaves the original binding unchanged. Waiting on a result cannot turn that lost return value into mutation.",
+        "hold": 0.75
+      },
+      {
+        "id": "c09-b02",
+        "say": "Default indexed behavior does not provide Python bounds checking. Setting index nine on this three-element array drops the out-of-range update; getting index nine clips to the last value, thirty. Validate bounds when they belong to your contract.",
+        "hold": 0.3
+      },
+      {
+        "id": "c09-b03",
+        "say": "Compiled indexed updates can reuse storage, and explicitly donated inputs must no longer be used. Those storage choices preserve their own value and ownership rules.",
+        "hold": 0.75
+      }
+    ]
+  },
+  {
+    "id": "c10",
+    "title": "Trace the keys behind two dropout draws",
+    "sourceChapters": [
+      "c10"
+    ],
+    "beats": [
+      {
+        "id": "c10-b01",
+        "say": "Two calls each draw a single dropout bit, with a fifty percent chance of keeping it. Both say false. From those two bits alone, can you tell whether the programmer reused a key?",
+        "hold": 2.2
+      },
+      {
+        "id": "c10-b02",
+        "say": "Follow the two inputs back. Both calls received child zero from the same split. Sampling leaves the key unchanged. The same key, operation and arguments reproduce the bit exactly.",
+        "hold": 0.9
+      },
+      {
+        "id": "c10-b03",
+        "say": "Keep the first call fixed. Give the second call child one. Its two key words have changed. Does its one-bit draw have to change too?",
+        "hold": 2.8
+      },
+      {
+        "id": "c10-b04",
+        "say": "False again. This time separate keys happened to give the same bit. A bigger draw lets us see both possibilities at once. In these eight-by-eight masks, compare the fifth position in the top row. Only the second call kept it. In the top left both dropped it. Check which child each call received. If the next training step needs randomness, return a separate continuation child with the optimizer state.",
+        "hold": 1.1
+      }
+    ]
+  },
+  {
+    "id": "c11",
+    "title": "Preserve key derivation as well as the seed",
+    "sourceChapters": [
+      "c11"
+    ],
+    "beats": [
+      {
+        "id": "c11-b01",
+        "say": "Typed keys carry their implementation in the dtype. Our pinned Threefry key is a scalar key-fry value wrapping two unsigned thirty-two-bit words. Legacy keys do not carry that implementation tag. Checkpoint conversion must retain the implementation together with raw key data; other implementations can use another layout.",
+        "hold": 0.75
+      },
+      {
+        "id": "c11-b02",
+        "say": "The seed-seven fixture splits three children, retains one and uses two for normal samples. Reusing A repeats its four values. A separate comparison draws three scalars from split keys versus one vector from the parent. Their shown sequences differ.",
+        "hold": 0.3
+      },
+      {
+        "id": "c11-b03",
+        "say": "JAX does not promise sequential equivalence across those two derivations, so preserving only the seed cannot preserve an altered sampler.",
+        "hold": 0.75
+      },
+      {
+        "id": "c11-b04",
+        "say": "Think back to those two False bits from different keys. Each axis represents one of the two independent fair draws. Count the matching regions. Both false is a match, and so is both true. Each of those pairs has probability one quarter. Together they give one half.",
+        "hold": 0.3
+      },
+      {
+        "id": "c11-b05",
+        "say": "For a keep probability p, add p squared for two keeps and the square of one minus p for two drops. Take p equal to one quarter. One sixteenth of the area keeps both. Nine sixteenths drops both. That's ten sixteenths, or point six two five, agreement for independent draws.",
+        "hold": 1.1
+      }
+    ]
+  },
+  {
+    "id": "c12",
+    "title": "Give each random operation an owned input",
+    "sourceChapters": [
+      "c12"
+    ],
+    "beats": [
+      {
+        "id": "c12-b01",
+        "say": "If dropout and augmentation need independent randomness, split at the boundary that owns both operations. Passing the same parent to two helpers that each split it independently can duplicate their child sequence. Retain a continuation child for the next step, and consume each operation child once unless deliberate replay is the experiment.",
+        "hold": 0.75
+      },
+      {
+        "id": "c12-b02",
+        "say": "Fold-in combines an integer identity with a key. Stable globally unique replica and step identities can define a reproducible mapping; local device indices alone can repeat across processes.",
+        "hold": 0.3
+      },
+      {
+        "id": "c12-b03",
+        "say": "The article pins Threefry for its examples. The experimental R B G implementation in that version can generate a mapped batch from its first key. A stateful random wrapper backed by a Ref has its own transformation limits, including loop carries. Check these contracts if you change implementations.",
+        "hold": 0.85
+      }
+    ]
+  },
+  {
+    "id": "c13",
+    "title": "A training step returns the next state explicitly",
+    "sourceChapters": [
+      "c13"
+    ],
+    "beats": [
+      {
+        "id": "c13-b01",
+        "say": "A pure numerical boundary makes changing state visible in its arguments and returns. Parameters, optimizer state, and a key enter the step with a read-only batch. Differentiation produces gradients, the optimizer produces an update, and the caller keeps every returned piece needed for the next call.",
+        "hold": 0.8
+      },
+      {
+        "id": "c13-b02",
+        "say": "The regression trace now applies the actual gradient-descent recurrence to our four rows. Its loss is recomputed after each displayed update. Adam would add moment arrays and a step counter. Stateful layers may add statistics too. Preserve these named values when modifying or resuming an existing research program.",
+        "hold": 0.8
+      }
+    ]
+  },
+  {
+    "id": "c14",
+    "title": "Carry the actual momentum and key into the next call",
+    "sourceChapters": [
+      "c14"
+    ],
+    "beats": [
+      {
+        "id": "c14-b01",
+        "say": "Add the article’s actual momentum and input-dropout state to the same regression. Keep a feature with probability point seven five and divide kept values by point seven five. The executed first mask keeps both features in the middle two rows and none in the fourth.",
+        "hold": 0.3
+      },
+      {
+        "id": "c14-b02",
+        "say": "The first row keeps its first feature. At zero parameters, pre-update loss is still three point seven five.",
+        "hold": 0.75
+      },
+      {
+        "id": "c14-b03",
+        "say": "The masked gradients are weight minus two and zero, bias minus two point five. Velocity starts at zero; new velocity equals point nine times old velocity plus gradient. Subtract point zero five times that velocity, returning weight point one and zero, with bias point one two five.",
+        "hold": 0.3
+      },
+      {
+        "id": "c14-b04",
+        "say": "Compare the first weight with the unmasked gradient-descent step. It moved to point two two five there. Here the dropped features changed the gradient, and the weight moved to point one. Which other returned values will the next call need?",
+        "hold": 2.7
+      },
+      {
+        "id": "c14-b05",
+        "say": "Replay the old state. The same mask, gradient and update come back. For the next step, carry all three across the boundary together. The parameters, the nonzero velocity and the continuation key become the next call's inputs. Split that key for the second mask. The next call returns another key, even if a small mask happens to coincide. To resume training later, keep the data position too.",
+        "hold": 0.9
+      },
+      {
+        "id": "c14-b06",
+        "say": "Look at the loss attached to each call. The first loss, three point seven five, belongs to the zero parameters on entry. The second is about three point four, evaluated with the next mask. For a final fit, evaluate the final returned parameters under the evaluation rule you chose.",
+        "hold": 1
+      }
+    ]
+  },
+  {
+    "id": "c15",
+    "title": "The short batch reaches the compiler",
+    "sourceChapters": [
+      "c15"
+    ],
+    "beats": [
+      {
+        "id": "c15-b01",
+        "say": "Return to the opening weights and bias, all zero. Each of the four rows has two features. JAX can reuse the compiled step when the feature values change and the input contract stays the same. This is just-in-time compilation, or JIT. Create the compiled callable once, outside the training loop.",
+        "hold": 0.7
+      },
+      {
+        "id": "c15-b02",
+        "say": "At the end of the epoch, only the first two rows arrive. The shorter array needs a compatible executable. Check the compilation log to see whether JAX actually built one or reused a cached version.",
+        "hold": 0.7
+      },
+      {
+        "id": "c15-b03",
+        "say": "Pad back to four rows. Pass four validity bits along with the four feature rows. The first two bits are true. The last two are false. With a compatible mask argument on all the calls, the four-row executable fits again. Count the two real examples, and check whether the repair also preserves the update.",
+        "hold": 0.85
+      }
+    ]
+  },
+  {
+    "id": "c16",
+    "title": "Does the padded batch send the same update?",
+    "sourceChapters": [
+      "c16"
+    ],
+    "beats": [
+      {
+        "id": "c16-b01",
+        "say": "This time keep all four real examples and append two zeros. We already know their total squared error is fifteen. The reference gradient for the first weight is minus four point five. A mean over the six slots gives a loss of two point five. It also divides every real row's gradient by six.",
+        "hold": 0.6
+      },
+      {
+        "id": "c16-b02",
+        "say": "Mask the padding in the sum and count the four valid rows. The loss comes back to three point seven five. Read down the two reductions. Counting all six gave minus three for the first weight. Masking restores minus four point five. Both weight entries and the bias gradient agree with the unpadded run.",
+        "hold": 1
+      },
+      {
+        "id": "c16-b03",
+        "say": "Turn off every validity bit. With finite inputs, the masked sum is zero. Clamping the divisor to at least one gives zero loss and zero new gradient. Bring back the first weight from the momentum step. It was point one, with velocity minus two.",
+        "hold": 0.3
+      },
+      {
+        "id": "c16-b04",
+        "say": "With a learning rate of point zero five, where does an empty optimizer step put that first weight?",
+        "hold": 2
+      },
+      {
+        "id": "c16-b05",
+        "say": "The old velocity still contributes ninety percent. Subtracting the new velocity times the learning rate moves the weight to point one nine. Skipping the step keeps it at point one. Choose the empty-batch policy explicitly. Weight decay can move parameters too. Models that share statistics across rows also need to mask those statistics.",
+        "hold": 0.9
+      }
+    ]
+  },
+  {
+    "id": "c17",
+    "title": "Distinguish tracing, lowering and executable reuse",
+    "sourceChapters": [
+      "c17"
+    ],
+    "beats": [
+      {
+        "id": "c17-b01",
+        "say": "Tracing executes the Python function with abstract array properties and records compatible numerical primitives in a Jaxpr. Lowering converts the staged computation to a compiler representation such as Stable H L O. Compilation then builds an executable for the selected backend. A cached compatible call need not repeat the Python trace.",
+        "hold": 0.75
+      },
+      {
+        "id": "c17-b02",
+        "say": "Callable identity, tree structure, shapes, dtypes, scalar weak typing, static settings and placement can affect variants. Keep the callable stable outside the hot loop and inspect compile logs when a short batch pauses. A new contract may already have a cached executable.",
+        "hold": 0.3
+      },
+      {
+        "id": "c17-b03",
+        "say": "File reads, list growth and arbitrary Python branches do not become repeatable device work simply by adding jit.",
+        "hold": 0.75
+      }
+    ]
+  },
+  {
+    "id": "c18",
+    "title": "Make a changed coefficient part of the call",
+    "sourceChapters": [
+      "c18"
+    ],
+    "beats": [
+      {
+        "id": "c18-b01",
+        "say": "This jitted callable sums four float-thirty-two ones and multiplies by a Python global. The first trace captures scale one and returns four. Edit the global to three and repeat the same-shaped call. It still returns four. Look inside the executable. The multiply still contains a one.",
+        "hold": 0.9
+      },
+      {
+        "id": "c18-b02",
+        "say": "Two ones introduce shape two, causing this controlled fixture to trace again and capture scale three. That returns six. The diagnostic Python list records shapes four and two, not one event per device execution. Python print has the same boundary; use returned metrics or a deliberate JAX debug operation for runtime values.",
+        "hold": 0.75
+      },
+      {
+        "id": "c18-b03",
+        "say": "Pass the changing scale as an explicit scalar-array input. Four ones and scale three now return twelve. With compatible dtype, weak typing, shape and static settings, a later array value can flow through the same executable. This fixes the numerical input contract rather than forcing a recompilation on every call.",
+        "hold": 0.75
+      }
+    ]
+  },
+  {
+    "id": "c19",
+    "title": "A scalar’s representation is part of its abstract contract",
+    "sourceChapters": [
+      "c19"
+    ],
+    "beats": [
+      {
+        "id": "c19-b01",
+        "say": "Call the same jitted plus-one function with Python one point zero. It returns two. Now pass one as an explicit float thirty-two scalar. It also returns two. Change the explicit scalar to two. Will this call need a third trace?",
+        "hold": 2.5
+      },
+      {
+        "id": "c19-b02",
+        "say": "Both trace cards say float thirty-two. On card A, the Python float has weak type true. On card B, the explicit one has weak type false. Keep that representation as the value changes from one to two. The last call returns three. Its weak type is still false, so it reuses trace B.",
+        "hold": 2
+      }
+    ]
+  },
+  {
+    "id": "c20",
+    "title": "Two calls after editing a setting",
+    "sourceChapters": [
+      "c20"
+    ],
+    "beats": [
+      {
+        "id": "c20-b01",
+        "say": "A fresh compiled function sums its input and multiplies by a Python global. Three ones at scale two give six. Change the global to four. Call the same function on three ones again, then on five ones for the first time. What will each call return?",
+        "hold": 2.6
+      },
+      {
+        "id": "c20-b02",
+        "say": "The length-three executable already contains a two. Three times two still gives six. Five ones require a new trace in this case. That trace sees four, so five times four gives twenty. Each executable used the coefficient Python supplied when JAX traced that shape.",
+        "hold": 0.95
+      },
+      {
+        "id": "c20-b03",
+        "say": "Pass the coefficient as a float scalar array. Go back to the original three ones and supply four at the call site. The repaired call returns twelve. You can now vary that coefficient with the batch shape held fixed.",
+        "hold": 0.95
+      }
+    ]
+  },
+  {
+    "id": "c21",
+    "title": "Choose control flow from the predicate’s meaning",
+    "sourceChapters": [
+      "c21"
+    ],
+    "beats": [
+      {
+        "id": "c21-b01",
+        "say": "A traced array is not generally a concrete Python Boolean or integer. The actual absolute-value helper uses a Python if on value greater than zero; jit raises TracerBoolConversionError. Shape and dtype may be known while that runtime value is not. Decide whether a predicate describes data or a genuine configuration choice.",
+        "hold": 0.75
+      },
+      {
+        "id": "c21-b02",
+        "say": "Use where to select values element by element. For a scalar predicate that chooses between functions, use lax cond. JAX traces both branches. A scalar call selects one at execution, subject to compiler rewrites. Mapping across predicates can turn that choice into elementwise selection. Our repaired absolute value returns two for minus two and three for plus three.",
+        "hold": 0.9
+      },
+      {
+        "id": "c21-b03",
+        "say": "A small fixed activation mode may be static and create a bounded set of variants. Per-example masks normally remain array data. Returning a metric and doing host I O outside jit preserves the numerical boundary. Neither eager success nor compilability alone establishes a valid gradient through every operation.",
+        "hold": 0.75
+      }
+    ]
+  },
+  {
+    "id": "c22",
+    "title": "What reaches the logarithm?",
+    "sourceChapters": [
+      "c22"
+    ],
+    "beats": [
+      {
+        "id": "c22-b01",
+        "say": "A padding row can expose a different bug before the mean. This function takes a logarithm on positive inputs and returns zero elsewhere. Put zero in the first row. The outer selection returns zero. But the logarithm still saw zero. Differentiate that same call and the gradient comes back as not a number.",
+        "hold": 1
+      },
+      {
+        "id": "c22-b02",
+        "say": "Move the guard to the argument of the logarithm. Feed it one when the row is inactive. The outer selection still gives the intended zero output, and now the gradient there is zero. Check the positive row too.",
+        "hold": 0.3
+      },
+      {
+        "id": "c22-b03",
+        "say": "At two we still get the natural log of two and a slope of one half. Now suppose the intended argument is x minus one, active only above one. Keep that subtraction on the active path. Feed one into the log on the inactive path and keep the outer zero selection. Moving the boundary must preserve the original positive-domain function.",
+        "hold": 1
+      }
+    ]
+  },
+  {
+    "id": "c23",
+    "title": "When should the doubling stop?",
+    "sourceChapters": [
+      "c23"
+    ],
+    "beats": [
+      {
+        "id": "c23-b01",
+        "say": "Both rows double the number they receive. The upper loop checks whether its current value is below eight. The lower loop takes exactly three steps. Start at one. We pass through two, then four, then eight. The programs agree here. Keep the shape and dtype of the carried value fixed on each iteration.",
+        "hold": 0.7
+      },
+      {
+        "id": "c23-b02",
+        "say": "JAX can compile the upper while loop, but ordinary reverse-mode differentiation through that dynamic loop is unsupported. The lower loop uses a fixed-length scan. Its derivative is two times two times two, or eight. Change the starting value to three. Where does each row stop?",
+        "hold": 2.9
+      },
+      {
+        "id": "c23-b03",
+        "say": "The upper loop reaches six, doubles again to twelve, and stops. The fixed scan has one step left and reaches twenty-four. Use a scan when the experiment requires that fixed number of steps. If the stopping condition is part of the model, preserve it and choose a differentiation strategy that supports it.",
+        "hold": 0.95
+      }
+    ]
+  },
+  {
+    "id": "c24",
+    "title": "Separate mapped examples from physical shard ownership",
+    "sourceChapters": [
+      "c24"
+    ],
+    "beats": [
+      {
+        "id": "c24-b01",
+        "say": "Vmap maps array axes; it does not itself assign each lane to a hardware device. It can compose with already-sharded arrays. A mesh names hardware axes and a partition specification describes array placement. Keep the global array shape distinct from each local shard’s shape when reading a distributed program.",
+        "hold": 0.75
+      },
+      {
+        "id": "c24-b02",
+        "say": "For a supplied dot product of one, two, three, four with five, six, seven, eight, the first partition contributes seventeen and the second fifty-three. Their sum seventy is the full dot product. Partitioning the contracting axis requires combining partial sums; an elementwise operation can remain local. This arithmetic diagram does not execute a collective.",
+        "hold": 0.75
+      },
+      {
+        "id": "c24-b03",
+        "say": "In the article's JAX version, shard map lets you write per-shard code and name the collectives it needs. Existing repositories may use the older replica-oriented pmap interface. Keep the repository's wrappers while you verify local shapes, placement, random-key ownership, numerical parity and synchronized timing.",
+        "hold": 0.6
+      },
+      {
+        "id": "c24-b04",
+        "say": "This lesson’s actual programs use one CPU, so they establish none of those multi-device performance results.",
+        "hold": 0.75
+      }
+    ]
+  },
+  {
+    "id": "c25",
+    "title": "Isolate the new term before measuring convergence",
+    "sourceChapters": [
+      "c25"
+    ],
+    "beats": [
+      {
+        "id": "c25-b01",
+        "say": "Preserve the regression oracle while adding the article’s weight-only regularizer: point one times the sum of squared weights. At zero weights its loss and gradient are zero. At weights two and minus one, the penalty is point five and its weight gradient is point four and minus point two. The bias gradient stays zero.",
+        "hold": 0.75
+      },
+      {
+        "id": "c25-b02",
+        "say": "The actual eager and jitted penalty checks agree. Train the changed objective for eighty steps from zero and it reaches about point three nine nine five nine five.",
+        "hold": 0.3
+      },
+      {
+        "id": "c25-b03",
+        "say": "The earlier plain S G D fixture reaches unregularized mean squared error about point zero zero seven six zero five. Those numbers measure different objectives; regularization need not improve the unregularized fit.",
+        "hold": 0.75
+      },
+      {
+        "id": "c25-b04",
+        "say": "For a new coefficient lambda, the weight penalty is lambda times the squared-weight sum and its derivative is twice lambda times each weight. Check the term’s known values and a finite-difference approximation with a dtype-appropriate step. Then compare gradient paths, shapes and finiteness before interpreting a changed learning curve.",
+        "hold": 0.75
+      }
+    ]
+  },
+  {
+    "id": "c26",
+    "title": "When can we stop the warm-call timer?",
+    "sourceChapters": [
+      "c26"
+    ],
+    "beats": [
+      {
+        "id": "c26-b01",
+        "say": "The compiled call is warm and the inputs are already on the accelerator. Python issues the call. Start both clocks together.",
+        "hold": 0.2
+      },
+      {
+        "id": "c26-b02",
+        "say": "At one millisecond, Python receives a handle. Stop the host clock there. Underneath it, the device keeps running. The handle tells us where to find the result. Which event should stop the clock for completed work?",
+        "hold": 3
+      },
+      {
+        "id": "c26-b03",
+        "say": "Wait for all the result leaves. Follow the device trace while the final leaf is still pending.",
+        "hold": 0.4
+      },
+      {
+        "id": "c26-b04",
+        "say": "At twelve milliseconds, the last leaf becomes ready. The completed-work clock stops there. Twelve includes the first millisecond spent dispatching. Time a cold call separately, and say whether you included the input transfer.",
+        "hold": 1.2
+      }
+    ]
+  },
+  {
+    "id": "c27",
+    "title": "Name exactly what a timing interval completed",
+    "sourceChapters": [
+      "c27"
+    ],
+    "beats": [
+      {
+        "id": "c27-b01",
+        "say": "The article’s actual CPU microbenchmark places a five-hundred-twelve by sixty-four float-thirty-two input on the CPU before timing. It computes a sixty-four-square matrix, verifies finite values and matching cold and warm results, and waits on each timed result. The measured milliseconds vary by machine, so they are not a hardware speed claim.",
+        "hold": 0.75
+      },
+      {
+        "id": "c27-b02",
+        "say": "Cold time can include tracing, compilation, dispatch and execution; an existing persistent cache can change that breakdown. Warm synchronized per-call latency still includes Python dispatch and waiting. Enqueueing many independent calls before one wait measures a different throughput-oriented boundary. A tuple or dictionary lacks an array method; JAX’s top-level block-until-ready waits on its array leaves.",
+        "hold": 0.75
+      },
+      {
+        "id": "c27-b03",
+        "say": "Match shapes, dtypes and device placement when comparing frameworks. Default JAX arrays often use thirty-two-bit types while a NumPy baseline may use sixty-four. Declare transfer, loading, evaluation and checkpoint boundaries when they belong to the experiment. This CPU check does not validate GPU, T P U or multi-host timing.",
+        "hold": 0.75
+      }
+    ]
+  },
+  {
+    "id": "c28",
+    "title": "Keep the call that exposed the difference",
+    "sourceChapters": [
+      "c28"
+    ],
+    "beats": [
+      {
+        "id": "c28-b01",
+        "say": "If the training curve changes, replay the smallest call that shows it. Start with the plain loss. Check the gradient paths and shapes, then map the per-example function and compile it. Keep the first call that disagrees with its reference.",
+        "hold": 0.3
+      },
+      {
+        "id": "c28-b02",
+        "say": "If the failure appears only under compilation, make jaxpr or inspect the lowered program to see which operations JAX recorded.",
+        "hold": 0.8
+      },
+      {
+        "id": "c28-b03",
+        "say": "The checkpoint, data order, precision, optimizer and key schedule all help define a paper's experiment. Change one loss or sampler and you can replay that edit on the original inputs. For a framework port, compare the outputs and gradients at named paths. A square matrix can load successfully with its axes swapped.",
+        "hold": 0.8
+      },
+      {
+        "id": "c28-b04",
+        "say": "A deployment requirement can justify a port. Keep the original callable for comparison, run the held-out evaluation, and check the artifacts both paths produce. The next lesson uses a pinned starting checkpoint to test whether continued pretraining helps on domain text while preserving general skills.",
+        "hold": 0.3
+      },
+      {
+        "id": "c28-b05",
+        "say": "Keep that same comparison small enough to rerun after an edit. Our last batch will use one deliberately troublesome padding row.",
+        "hold": 0.85
+      }
+    ]
+  },
+  {
+    "id": "c29",
+    "title": "One last batch",
+    "sourceChapters": [
+      "c29"
+    ],
+    "beats": [
+      {
+        "id": "c29-b01",
+        "say": "Back at the end of the epoch, we have three real examples and one padding slot. Keep the weights at zero. Set the bias to one. Every slot now predicts one, including the padding. Square the difference between each prediction and the target in its slot.",
+        "hold": 0.8
+      },
+      {
+        "id": "c29-b02",
+        "say": "Which errors belong in the sum, and how many examples go in the denominator?",
+        "hold": 3.1
+      },
+      {
+        "id": "c29-b03",
+        "say": "Keep the first three examples. The third prediction is exactly right, so it adds zero error and still counts as one example. The padding missed by one, but nobody supplied that target. Leave its error out. Five divided by three gives a loss of five thirds.",
+        "hold": 1.1
+      },
+      {
+        "id": "c29-b04",
+        "say": "Run the same three examples without padding. Compare the loss and each gradient leaf at the same weights and bias. The two weight derivatives are minus two thirds and four thirds. The bias derivative is two thirds. All four numbers match the masked run. Keep this check beside the loss change. A zero error from a real example still belongs in the count, and a nonzero padding error stays out of the sum.",
+        "hold": 1.2
+      }
+    ]
+  }
+]

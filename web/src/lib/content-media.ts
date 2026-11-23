@@ -1,0 +1,1 @@
+export const MAX_CONTENT_IMAGE_HEIGHT_PX = 800

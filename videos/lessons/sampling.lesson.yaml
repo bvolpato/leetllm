@@ -1,0 +1,1723 @@
+version: 1
+id: sampling
+opening: lesson
+title: Will the Reply Beat the Timer?
+source: foundations/distributions-sampling-simulation/content.md
+sources:
+  - title: "NIST: Lognormal Distribution"
+    url: https://www.itl.nist.gov/div898/handbook/eda/section3/eda3669.htm
+  - title: "SciPy: Numerical Inverse CDF Sampling"
+    url: https://docs.scipy.org/doc/scipy/reference/generated/scipy.stats.sampling.NumericalInverseHermite.html
+  - title: "NumPy: Random Sampling"
+    url: https://numpy.org/doc/stable/reference/random/index.html
+  - title: NIST binomial distribution
+    url: https://www.itl.nist.gov/div898/handbook/eda/section3/eda366i.htm
+  - title: "Python 3.12 random: parameter conventions and reproducibility"
+    url: https://docs.python.org/3.12/library/random.html
+  - title: "Hastings 1970: target ratios, dependent samples and transitions"
+    url: https://doi.org/10.1093/biomet/57.1.97
+  - title: "Stan posterior analysis: split rank diagnostics and effective sample size"
+    url: https://mc-stan.org/docs/reference-manual/analysis.html
+  - title: "MIT Modiano queueing lecture: Little and M/M/1"
+    url: https://web.mit.edu/modiano/www/6.263/lec5-6.pdf
+  - title: "SciPy goodness_of_fit: refitting in Monte Carlo calibration"
+    url: https://docs.scipy.org/doc/scipy/reference/generated/scipy.stats.goodness_of_fit.html
+  - title: "SciPy CensoredData: right censoring"
+    url: https://docs.scipy.org/doc/scipy/reference/generated/scipy.stats.CensoredData.html
+  - title: NumPy SeedSequence spawning
+    url: https://numpy.org/doc/stable/reference/random/parallel.html
+  - title: "Jang et al.: hard Gumbel-Max versus continuous relaxation"
+    url: https://arxiv.org/abs/1611.01144
+  - title: "Holtzman et al.: nucleus sampling"
+    url: https://arxiv.org/abs/1904.09751
+  - title: Pinned vLLM native exponential race and eligible filtered rejection sampler
+    url: https://github.com/vllm-project/vllm/blob/276fbcff2717bd934cfa37c8a2e4c391f3e7237b/vllm/v1/sample/ops/topk_topp_sampler.py
+  - title: NIST Poisson distribution
+    url: https://www.itl.nist.gov/div898/handbook/eda/section3/eda366j.htm
+scenes:
+  - id: intro
+    title: Would ten seconds cover every reply?
+    visual: A stopwatch sits beside two rows of five chat bubbles in finish order. The middle replies match. The
+      last two bubbles in the second row keep their times hidden until the prediction lands.
+    beats:
+      - say: The top row shows five replies from an incident assistant, fastest first. The middle reply took six seconds.
+          Even the slowest, at nine seconds, beat the ten-second timer.
+        hold: 0.65
+        visual_cues:
+          - id: median-half
+            phrase: The middle reply took six seconds
+            targets:
+              - first-median
+            color: cyan
+            linger: 0.45
+            caption_boundary: true
+          - id: intro-last-a
+            phrase: Even the slowest, at nine seconds, beat the ten-second timer
+            targets:
+              - first-slowest
+            color: cyan
+            linger: 0.45
+            caption_boundary: true
+      - say: Now look at the bottom row. The first three times match, so both runs have a six-second median.
+          How many replies in this second run could still miss the timer?
+        hold: 2.2
+        caption_starts:
+          - How many replies in this second run
+        visual_cues:
+          - id: intro-first-three
+            phrase: The first three times match
+            targets:
+              - second-median
+            color: cyan
+            linger: 0.45
+      - say: Two people were still waiting. One reply took twelve seconds. The other took sixteen. To choose a
+          timeout, we need the share of replies that take longer than ten seconds.
+        hold: 0.75
+        visual_cues:
+          - id: intro-last-b
+            phrase: One reply took twelve seconds
+            targets:
+              - fourth-reply
+            color: pink
+            linger: 0.45
+            caption_boundary: true
+          - id: intro-fifth
+            phrase: The other took sixteen
+            targets:
+              - fifth-reply
+            color: pink
+            linger: 0.45
+            caption_boundary: true
+  - id: request-fields
+    title: Follow one rollback request
+    visual: One synthetic rollback request acquires its route, three tool calls and a completion mark on a clock. Its
+      receipt fills from those events and keeps all four fields on the same row.
+    beats:
+      - say: The launch team wants five thousand synthetic requests. Follow just this one. An engineer asks to roll back a
+          deploy. We route it to rollback. The assistant calls three tools, then replies in eight point four
+          seconds. It resolved the request without a human. Those events give us one row we can sample.
+        hold: 0.7
+        visual_cues:
+          - id: sp-request-fields-0
+            phrase: route it to rollback
+            targets:
+              - sp-request-fields-visual
+            color: cyan
+            linger: 0.45
+            caption_boundary: true
+          - id: request-tools
+            phrase: calls three tools
+            targets:
+              - sp-request-fields-visual
+            color: cyan
+            linger: 0.45
+            caption_boundary: true
+          - id: request-finish
+            phrase: then replies in eight point four seconds
+            targets:
+              - sp-request-fields-visual
+            color: cyan
+            linger: 0.45
+            caption_boundary: true
+      - say: A resolution is zero or one. A route is one of four labels. The others are CI failure, access request and log
+          triage. Tool calls come in whole numbers, including zero. Elapsed time can fall between clock ticks. These
+          are the allowed values, or support. To find out whether expensive rollbacks also run late, keep the count
+          and duration on this same row.
+        hold: 0.6
+        visual_cues:
+          - id: sp-request-fields-1
+            phrase: A resolution is zero or one. A route is one of four labels
+            targets:
+              - sp-request-fields-visual
+            color: cyan
+            linger: 0.45
+            caption_boundary: true
+          - id: request-count-support
+            phrase: Tool calls come in whole numbers
+            targets:
+              - sp-request-fields-visual
+            color: cyan
+            linger: 0.45
+          - id: request-time-support
+            phrase: Elapsed time can fall between clock ticks
+            targets:
+              - sp-request-fields-visual
+            color: cyan
+            linger: 0.45
+  - id: mass-and-support
+    title: Build mass, density and cumulative probability separately
+    visual: A binary mass plot, a unit-area uniform rectangle and a cumulative staircase share aligned probability
+      accounting without confusing height with area.
+    beats:
+      - say: Give the assistant a seventy-two percent chance of resolving a request. One means resolved and
+          zero means escalated. The masses at zero and one are the heights of these two bars, point two eight
+          and point seven two. Together they add to one. A probability mass function assigns each possible
+          outcome its share.
+        hold: 0.55
+        visual_cues:
+          - id: sp-mass-and-support-0
+            phrase: masses at zero and one
+            targets:
+              - sp-mass-and-support-visual
+            color: cyan
+            linger: 0.5
+      - say: A continuous density instead integrates over intervals. A uniform duration between zero and one half
+          second has height two per second, yet total area one. Between point one and point three seconds,
+          width point two times height two gives probability point four. An exact point has zero area.
+          A rounded clock reading collects the times in a small interval around the displayed value.
+        hold: 0.55
+        visual_cues:
+          - id: sp-mass-and-support-1
+            phrase: Between point one and point three seconds
+            targets:
+              - sp-mass-and-support-visual
+            color: cyan
+            linger: 0.5
+          - id: sp-uniform-area
+            phrase: gives probability point four
+            targets:
+              - sp-mass-and-support-visual
+            color: yellow
+            linger: 0.6
+      - say: Now add the probabilities as you move from left to right. At zero, the running total jumps to
+          point two eight. At one, it reaches one. This staircase is a cumulative distribution function,
+          or CDF. Each height is the probability of an outcome at or below that value. For a duration,
+          add up the area under the density as you go. In either case, the running total never falls
+          and approaches one as you include the whole distribution.
+        hold: 0.55
+        visual_cues:
+          - id: sp-mass-and-support-2
+            phrase: the running total jumps to point two eight
+            targets:
+              - sp-mass-and-support-visual
+            color: cyan
+            linger: 0.5
+  - id: shape
+    title: Build a positive duration
+    visual: A signed normal coordinate moves through an exponential transformation into positive seconds, with one
+      retained dot and a fixed median.
+    beats:
+      - say: "A random variable describes a quantity whose value will be drawn. Here that quantity is a duration in
+          seconds, so choose positive outcomes. Our supplied lognormal model starts with standard normal
+          noise: a bell-shaped variable centered at zero with standard deviation one."
+        hold: 0.55
+        visual_cues:
+          - id: normal-noise
+            phrase: standard normal noise
+            targets:
+              - normal-axis
+            color: blue
+            linger: 0.5
+      - say: Multiply that noise by the log-space spread, then exponentiate and multiply by six. Watch a negative
+          noise value become a shorter positive time. Zero becomes six seconds. A positive noise value becomes
+          a longer time. Exponentiation stretches the upper side.
+        hold: 0.6
+        visual_cues:
+          - id: duration-low
+            phrase: a negative noise value become a shorter positive time
+            targets:
+              - transform-pair
+            color: blue
+            linger: 0.4
+          - id: duration-center
+            phrase: Zero becomes six seconds
+            targets:
+              - transform-pair
+            color: cyan
+            linger: 0.4
+          - id: duration-high
+            phrase: A positive noise value becomes a longer time
+            targets:
+              - transform-pair
+            color: pink
+            linger: 0.5
+        motion_check:
+          region:
+            - 220
+            - 460
+            - 1440
+            - 330
+          minimumChangedFraction: 0.002
+      - say: This recipe fixes the median at six and uses a log-space spread of point five five. Its mean is about
+          seven seconds because long waits pull the average upward. These are planning assumptions. We will
+          challenge them against a separate constructed request cohort.
+        hold: 0.6
+        visual_cues:
+          - id: shape-mean
+            phrase: Its mean is about seven seconds
+            targets:
+              - duration-density
+            color: pink
+            linger: 0.4
+          - id: shape-density
+            phrase: long waits pull the average upward
+            targets:
+              - duration-density
+            color: pink
+            linger: 0.5
+  - id: area
+    title: Probability is the shaded area
+    visual: A large density plot accumulates area between two movable boundaries before the ten-second completion
+      area is earned.
+    beats:
+      - say: This curve is a probability density. Its horizontal axis is seconds; its height is density per second.
+          Shade the interval from five to seven seconds. The area gives the chance of a reply in that range.
+          The height of the curve alone gives a different quantity.
+        hold: 0.6
+        visual_cues:
+          - id: area-band
+            phrase: Shade the interval from five to seven seconds
+            targets:
+              - density-area
+            color: cyan
+            linger: 0.5
+      - say: Bring the two boundaries together at six. The interval gets narrower, and its probability approaches
+          zero, although the density stays positive. A continuous model assigns probability to ranges. A
+          duration rounded to six seconds represents a small interval determined by the clock's precision.
+        hold: 0.6
+        visual_cues:
+          - id: area-narrow
+            phrase: Bring the two boundaries together at six
+            targets:
+              - density-area
+            color: yellow
+            linger: 0.5
+      - say: "Now sweep from zero to our ten-second deadline. This cumulative area is about eighty-two percent. The
+          remaining area is about eighteen percent: the model's chance that the timer wins. We have an answer
+          under the model. Next, generate individual replies from it."
+        hold: 0.7
+        visual_cues:
+          - id: area-deadline
+            phrase: sweep from zero to our ten-second deadline
+            targets:
+              - density-area
+            color: green
+            linger: 0.5
+          - id: area-result
+            phrase: the model's chance that the timer wins
+            targets:
+              - deadline-probability
+            color: pink
+            linger: 0.5
+  - id: inverse
+    title: Turn a random rank into a duration
+    visual: A uniform rank travels horizontally to the CDF and vertically to a duration, with the endpoint and
+      numerical result withheld until the construction arrives.
+    beats:
+      - say: The cumulative distribution function, or CDF, records the area up to each time. Its height already is a
+          probability. A pseudo-random generator gives us a uniform rank between zero and one. Every
+          equal-width rank interval has equal probability. Use one quarter for our first inspected draw.
+        hold: 0.6
+        visual_cues:
+          - id: rank-quarter
+            phrase: Use one quarter for our first inspected draw
+            targets:
+              - inverse-guide
+            color: yellow
+            linger: 0.5
+      - say: Move horizontally from that rank to the curve, then down to the time axis. The inverse CDF turns the
+          quarter-rank into about four seconds. For this lognormal model, we find a standard normal quantile,
+          scale it, then exponentiate. The displayed value comes from that actual calculation.
+        hold: 0.6
+        visual_cues:
+          - id: inverse-quarter
+            phrase: Move horizontally from that rank to the curve, then down to the time axis
+            targets:
+              - inverse-guide
+            color: cyan
+            linger: 0.5
+          - id: inverse-recipe
+            phrase: find a standard normal quantile, scale it, then exponentiate
+            targets:
+              - inverse-formula
+            color: blue
+            linger: 0.5
+        motion_check:
+          region:
+            - 225
+            - 350
+            - 1000
+            - 470
+          minimumChangedFraction: 0.002
+      - say: "Try a rank of point nine five. Predict a longer or shorter wait. Follow the same route: it reaches about
+          fifteen seconds. The upper five percent of ranks maps into the whole tail beyond this point.
+          Finite-precision generators and quantile calculations approximate this ideal transformation."
+        hold: 0.75
+        caption_starts:
+          - Follow the same route
+          - it reaches about fifteen seconds
+          - The upper five percent
+        visual_cues:
+          - id: rank-tail
+            phrase: Try a rank of point nine five
+            targets:
+              - inverse-guide
+            color: pink
+            linger: 0.4
+          - id: inverse-tail
+            phrase: "Follow the same route: it reaches about fifteen seconds"
+            targets:
+              - inverse-guide
+            color: pink
+            linger: 0.5
+  - id: inverse-contract
+    title: Use the generalized inverse and check the random endpoints
+    visual: A flat-and-jumping CDF reveals the first value reaching a retained uniform rank; an open-uniform guard
+      repairs finite-generator endpoints before logarithms.
+    beats:
+      - say: The general quantile is the smallest value whose cumulative probability reaches the selected rank. This
+          generalized inverse also works when a CDF has flat regions or jumps. In the ideal model, a uniform
+          rank passed through the exact quantile has the target distribution. Going the other way, a
+          continuous draw passed through its own continuous CDF is uniform. These are different directions of
+          the transform.
+        hold: 0.55
+        visual_cues:
+          - id: sp-inverse-contract-0
+            phrase: smallest value whose cumulative probability reaches
+            targets:
+              - sp-inverse-contract-visual
+            color: cyan
+            linger: 0.5
+      - say: For exponential service with rate mu, the quantile is negative log of one minus the rank, divided by mu.
+          Negative log of the rank divided by mu gives the same distribution with a reflected uniform stream.
+          For our lognormal duration, exponentiate the sum of log six and point five five times the standard
+          normal quantile. Its median is six; its ninety-fifth percentile is about fourteen point eight three
+          seconds.
+        hold: 0.55
+        visual_cues:
+          - id: sp-inverse-contract-1
+            phrase: the quantile is negative log
+            targets:
+              - sp-inverse-contract-visual
+            color: cyan
+            linger: 0.5
+      - say: Python random returns finite-precision values from zero inclusive to one exclusive. A logarithm or
+          inverse normal may require a rank strictly inside both endpoints, so the article redraws endpoints
+          where necessary. Numerical quantiles and tail cutoffs approximate the ideal law. In its seeded
+          five-thousand-draw example, the lognormal sample median is six point zero three and the sample
+          ninety-fifth percentile fourteen point eight five; finite samples need not equal the model
+          quantiles.
+        hold: 0.55
+        visual_cues:
+          - id: sp-inverse-contract-2
+            phrase: redraws endpoints
+            targets:
+              - sp-inverse-contract-visual
+            color: cyan
+            linger: 0.5
+  - id: resolution-count
+    title: How many did the assistant resolve?
+    visual: An identified 100-request draw accumulates flags and a running count. A binomial mass plot and six batch
+      totals from the article's separate seeded run show the distinction between a parameter and one realization.
+    beats:
+      - say: Say each request has a seventy-two percent chance of resolving. Draw the first four. Three escalate. Only the
+          fourth adds one to the resolved count. Each zero or one is a Bernoulli draw, with mean p and variance p
+          times one minus p. Fill the rest of the batch. With independent requests and the same chance on every
+          draw, the number resolved in n requests is binomial.
+        hold: 0.75
+        visual_cues:
+          - id: resolution-first-four
+            phrase: Draw the first four. Three escalate. Only the fourth adds one
+            targets:
+              - sp-resolution-count-visual
+            color: cyan
+            linger: 0.45
+            caption_boundary: true
+          - id: sp-resolution-count-0
+            phrase: Fill the rest of the batch. With independent requests and the same chance on every draw
+            targets:
+              - sp-resolution-count-visual
+            color: cyan
+            linger: 0.45
+            caption_boundary: true
+      - say: We got seventy-one. Over repeated batches of a hundred, the expected count is seventy-two. Multiply n by p
+          for the mean, and by one minus p again for the variance. Here the variance is twenty point one six. How
+          likely is exactly seventy-two? Multiply seventy-two factors of p and twenty-eight factors of one minus p.
+          That's the probability of one particular arrangement. The binomial coefficient counts all arrangements
+          with that total. Together they give about a nine percent chance.
+        hold: 0.8
+        caption_starts:
+          - How likely is exactly seventy-two
+          - Multiply seventy-two factors
+          - Together they give about a nine percent chance
+        visual_cues:
+          - id: sp-resolution-count-1
+            phrase: the expected count is seventy-two. Multiply n by p for the mean
+            targets:
+              - sp-resolution-count-visual
+            color: cyan
+            linger: 0.45
+            caption_boundary: true
+      - say: Compare six more batches drawn with a separate recorded seed. Their counts range from sixty-nine to
+          seventy-eight. The line stayed put when the dots moved. Seventy-two percent was supplied to the simulator.
+          A batch measures what happened on that run. If requests arrive in related incident waves, or differ in
+          their chance of resolution, reconsider the binomial model before interpreting the scatter.
+        hold: 0.7
+        visual_cues:
+          - id: sp-resolution-count-2
+            phrase: Compare six more batches drawn with a separate recorded seed
+            targets:
+              - sp-resolution-count-visual
+            color: cyan
+            linger: 0.45
+            caption_boundary: true
+  - id: route-count
+    title: Which route takes the next request?
+    visual: Four probability widths divide one strip. The rank for R18 lands before its label is filled. The same
+      widths supply expected counts for a recorded 500-request run.
+    beats:
+      - say: R seventeen's receipt already had a route. For the next request, R eighteen, we'll draw one. Cumulative
+          widths partition the unit interval. CI failure takes the first forty-five percent. Rollback takes the next
+          twenty, access another twenty, and log triage the rest. Put a uniform rank of point five seven on that
+          strip. Which route will the sampler assign?
+        hold: 2.05
+        visual_cues:
+          - id: sp-route-count-0
+            phrase: Cumulative widths partition the unit interval. CI failure takes the first forty-five percent
+            targets:
+              - sp-route-count-visual
+            color: cyan
+            linger: 0.45
+            caption_boundary: true
+          - id: route-rank
+            phrase: Put a uniform rank of point five seven on that strip
+            targets:
+              - sp-route-count-visual
+            color: yellow
+            linger: 0.45
+            caption_boundary: true
+      - say: Point five seven lies between point four five and point six five. R eighteen gets rollback. That's one
+          categorical draw. Relative weights of forty-five, twenty, twenty and fifteen give the same widths once you
+          divide by their sum. An unfamiliar route coming out of this sampler would be grounds to check its label
+          set.
+        hold: 0.75
+        visual_cues:
+          - id: route-landed
+            phrase: R eighteen gets rollback
+            targets:
+              - sp-route-count-visual
+            color: cyan
+            linger: 0.45
+            caption_boundary: true
+      - say: Repeat the draw independently five hundred times with the same weights. Rollback should get about a hundred
+          requests. The actual article run gives it a few more. Read across both rows. Each still totals five
+          hundred, because moving a request into one route takes it out of another. Those counts together follow a
+          multinomial distribution.
+        hold: 0.7
+        visual_cues:
+          - id: sp-route-count-1
+            phrase: The actual article run gives it a few more
+            targets:
+              - sp-route-count-visual
+            color: cyan
+            linger: 0.45
+            caption_boundary: true
+  - id: poisson-count
+    title: How many tool calls go on one request?
+    visual: Bars show the probability of each tool count. A second plot follows a product through five
+      uniform draws. The first point below the cutoff stops the sampler.
+    beats:
+      - say: Suppose a request takes two point two tool calls on average. Try a Poisson model with that mean.
+          Each bar gives the chance of a whole number of calls. Two calls is the likeliest count, at about
+          twenty-seven percent. Even zero calls gets a bar, at about eleven percent.
+        hold: 0.55
+        visual_cues:
+          - id: sp-poisson-count-0
+            phrase: Each bar gives the chance of a whole number of calls
+            targets:
+              - sp-poisson-count-visual
+            color: cyan
+            linger: 0.5
+      - say: A sixth call costs extra. Add up the bars from six onward. About two and a half percent of requests
+          cross that threshold. A single Poisson rate also predicts a variance equal to the mean. Check both
+          predictions against the tool counts in the log. Retries can send one request back for several more calls.
+        hold: 0.55
+        visual_cues:
+          - id: sp-poisson-count-1
+            phrase: Add up the bars from six onward
+            targets:
+              - sp-poisson-count-visual
+            color: cyan
+            linger: 0.5
+      - say: Let's draw one count. Start at one and multiply by a fresh uniform draw each time. Count each
+          product that stays above the cutoff. The cutoff is e to the minus two point two, about point one one one.
+          Four draws leave the product at point one six eight. The next draw is point four. Will it add a fifth call?
+        hold: 2
+        caption_starts:
+          - The next draw is point four
+        visual_cues:
+          - id: sp-poisson-count-2
+            phrase: Four draws leave the product at point one six eight
+            targets:
+              - sp-poisson-count-visual
+            color: cyan
+            linger: 0.5
+      - say: The product drops to about point zero six seven, below the cutoff. The sampler stops and returns four
+          calls. At rate zero the cutoff is one, so the first draw stops the count at zero. The article uses
+          this loop for rates up to twenty.
+        hold: 0.75
+        caption_starts:
+          - The sampler stops and returns four calls
+        visual_cues:
+          - id: poisson-crossing
+            phrase: The product drops to about point zero six seven, below the cutoff
+            targets:
+              - sp-poisson-count-visual
+            color: pink
+          - id: poisson-return
+            phrase: returns four calls
+            targets:
+              - sp-poisson-count-visual
+            color: yellow
+  - id: bursty-mixture
+    title: Who crosses the five-call budget?
+    visual: Two measured count histograms use identical scales. A sweep collects frequencies above five calls into two
+      running numerators while the sample means stay in place.
+    beats:
+      - say: Finance pays extra when a request needs more than five tool calls. The upper run uses one Poisson rate of two
+          point two. For the lower run, choose a rate of one point two for eighty-eight percent of requests and ten
+          for the rest. Draw the count from the chosen rate each time. That puts the average at two point two five
+          six before sampling. Looking at the two runs, would you give them the same budget?
+        hold: 2
+        visual_cues:
+          - id: sp-bursty-mixture-0
+            phrase: choose a rate of one point two for eighty-eight percent of requests and ten for the rest
+            targets:
+              - sp-bursty-mixture-visual
+            color: cyan
+            linger: 0.45
+            caption_boundary: true
+      - say: Start at six calls and collect every bar to its right as well. Each bar counts whole requests. Mean tool use
+          barely changed. But the lower run sends more than four times as many requests over budget. If you priced
+          these two runs from their means, you'd miss that charge.
+        hold: 0.85
+        caption_starts:
+          - But the lower run sends more than four times
+        visual_cues:
+          - id: sp-bursty-mixture-1
+            phrase: Start at six calls and collect every bar to its right as well
+            targets:
+              - sp-bursty-mixture-visual
+            color: pink
+            linger: 0.45
+            caption_boundary: true
+      - say: Compare the variances. A single Poisson rate ties the variance to the mean. The ratio here goes from about
+          one to four point six five. The changing rate adds variation between request types. Excess variance does
+          not identify a unique replacement. In this example we picked the type afresh on every request. To test a
+          story about retries clustering in time, look for them in the ordered request history.
+        hold: 0.65
+        visual_cues:
+          - id: sp-bursty-mixture-2
+            phrase: Compare the variances
+            targets:
+              - sp-bursty-mixture-visual
+            color: yellow
+            linger: 0.45
+            caption_boundary: true
+  - id: normal-failure
+    title: Let the proposed normal duration reveal impossible values
+    visual: A signed normal draw falls below the zero-second support boundary; clipping visibly deposits mass at
+      zero while a positive-family repair changes the model honestly.
+    beats:
+      - say: A proposed normal duration with mean eight seconds and standard deviation six assigns some probability
+          below zero. In the article’s five thousand draws, roughly nine point five percent are negative, and
+          the smallest is about negative fifteen point seven seconds. A reasonable-looking sample mean of
+          eight point zero nine has not rescued impossible completion times.
+        hold: 0.55
+        visual_cues:
+          - id: sp-normal-failure-0
+            phrase: roughly nine point five percent are negative
+            targets:
+              - sp-normal-failure-visual
+            color: cyan
+            linger: 0.5
+      - say: Clipping negatives to zero puts an extra probability mass at zero and changes the distribution. A
+          justified truncation, positive family or empirical duration model is a different proposal with its
+          own consequences. Our lognormal median is exponential of its log-space center, and its mean is
+          exponential of that center plus half the squared log-space spread. Passing six as the log-space
+          center would give a median near four hundred three seconds, not six.
+        hold: 0.55
+        visual_cues:
+          - id: sp-normal-failure-1
+            phrase: Clipping negatives to zero
+            targets:
+              - sp-normal-failure-visual
+            color: cyan
+            linger: 0.5
+  - id: service-rate
+    title: How much longer will this worker be busy?
+    visual: On an exponential survival curve, a hundred-millisecond bracket slides forward fifty milliseconds.
+      The remaining fraction is measured from the requests still in service.
+    beats:
+      - say: Start the clock when a worker picks up a request. Give service time an exponential distribution with
+          a rate of twenty per second. Mean service time is the reciprocal, fifty milliseconds. The chance service
+          lasts longer than a tenth of a second is e to the minus two, about thirteen and a half percent.
+        hold: 0.55
+        visual_cues:
+          - id: sp-service-rate-0
+            phrase: Mean service time is the reciprocal
+            targets:
+              - sp-service-rate-visual
+            color: cyan
+            linger: 0.5
+      - say: Suppose the worker is still busy after fifty milliseconds. What chance does the request have of
+          taking another tenth of a second?
+        hold: 1.8
+        visual_cues:
+          - id: service-elapsed
+            phrase: still busy after fifty milliseconds
+            targets:
+              - sp-service-rate-visual
+            color: yellow
+      - say: Still thirteen and a half percent. Start the clock again at fifty milliseconds. The time left
+          has the same distribution as it did when service began. That's what memoryless means.
+        hold: 0.55
+        visual_cues:
+          - id: sp-service-rate-1
+            phrase: Still thirteen and a half percent
+            targets:
+              - sp-service-rate-visual
+            color: cyan
+            linger: 0.5
+      - say: Python expovariate takes a rate. NumPy exponential takes a scale equal to mean time. For this model pass
+          twenty as the Python rate or point zero five as the NumPy scale. Passing twenty as the NumPy scale
+          makes the mean four hundred times larger. The article’s seeded sample mean is point zero four nine
+          and the measured share over point one second is point one three two, consistent with finite-sample
+          variation.
+        hold: 0.55
+        visual_cues:
+          - id: sp-service-rate-2
+            phrase: pass twenty as the Python rate
+            targets:
+              - sp-service-rate-visual
+            color: cyan
+            linger: 0.5
+  - id: sample
+    title: Keep the requests as the sample grows
+    visual: Identified seeded draws physically arrive in a duration dot plot; only landed requests enter the
+      denominator and late-request count.
+    beats:
+      - say: Now use a recorded uniform stream. Each rank becomes a duration and keeps its request identity as it
+          lands in the sample. Blue requests beat the timer; pink requests cross ten seconds. Watch the first
+          five arrive. Each completed arrival adds exactly one to the denominator.
+        hold: 0.6
+        visual_cues:
+          - id: sample-five
+            phrase: Watch the first five arrive. Each completed arrival adds exactly one to the denominator
+            targets:
+              - sample-points
+              - sample-count
+            color: cyan
+            linger: 0.5
+      - say: Continue the same stream to twenty requests. The first five stay. Divide the pink count by all twenty to
+          estimate the chance of a late reply. Each late flag is zero or one, a Bernoulli outcome. With
+          independent requests sharing one probability, their total count has a binomial distribution.
+        hold: 0.65
+        visual_cues:
+          - id: sample-twenty
+            phrase: Continue the same stream to twenty requests. The first five stay
+            targets:
+              - sample-points
+              - sample-count
+            color: pink
+            linger: 0.5
+        motion_check:
+          region:
+            - 220
+            - 430
+            - 1450
+            - 400
+          minimumChangedFraction: 0.002
+      - say: Twenty draws are one finite sample from the model, with a rate that can wander. A small sample is
+          especially fragile in the tail. Even when the true p ninety-five is known, twenty independent draws
+          have about a one-in-three chance of containing no value beyond it.
+        hold: 0.7
+        visual_cues:
+          - id: sample-tail-budget
+            phrase: about a one-in-three chance
+            targets:
+              - sample-tail
+            color: yellow
+            linger: 0.5
+  - id: monte-carlo
+    title: Extend the experiment, keep its past
+    visual: The same batch identities move to their actual nested-prefix late rates as each seeded stream grows
+      from 100 to 10000 draws, rather than crossfading unrelated point clouds.
+    beats:
+      - say: Monte Carlo uses repeated draws to approximate a model's consequences. Here each dot is a separate
+          hundred-request experiment. Its height is the fraction that missed the timer. The dots differ even
+          though every experiment uses the same duration model. The horizontal line is its exact late
+          probability.
+        hold: 0.6
+        visual_cues:
+          - id: batch-hundred
+            phrase: each dot is a separate hundred-request experiment
+            targets:
+              - batch-points
+            color: blue
+            linger: 0.5
+      - say: Extend every experiment to ten thousand requests. Keep its original hundred and append new draws. Each
+          dot moves to its own newly computed rate. The cloud usually tightens as more outcomes contribute; a
+          particular dot can briefly move farther from the line. More samples steady the estimate without
+          changing the model.
+        hold: 0.65
+        visual_cues:
+          - id: batch-extend
+            phrase: Extend every experiment to ten thousand requests. Keep its original hundred and append new draws. Each
+              dot moves to its own newly computed rate
+            targets:
+              - batch-points
+              - batch-denominator
+            color: cyan
+            linger: 0.5
+      - say: For independent, identically distributed observations with finite variance, the sample mean's standard
+          error scales as one over the square root of the draw count. A hundred times as many draws gives a
+          tenfold smaller scale. Our binary flags have finite variance. Record the seed, draw order, code, and
+          sampler version so this experiment can be replayed.
+        hold: 0.7
+        visual_cues:
+          - id: batch-error
+            phrase: A hundred times as many draws gives a tenfold smaller scale
+            targets:
+              - batch-error-scale
+            color: yellow
+            linger: 0.5
+          - id: batch-replay
+            phrase: Record the seed, draw order, code, and sampler version
+            targets:
+              - batch-replay
+            color: blue
+            linger: 0.5
+  - id: rare-budget
+    title: How many draws would expose a rare failure?
+    visual: The zero-failure curve stops at the first budget. It extends until it crosses the five-percent miss line.
+      The expected count and the empty-run probability follow the same integer budget.
+    beats:
+      - say: The launch team has one more question. Suppose a rare failure strikes independently once in ten thousand
+          requests on average. For a sample rate, the standard error comes from multiplying p by one minus p,
+          dividing by the draw count, then taking the square root. Start with five thousand draws. Would a run with
+          no failures surprise you?
+        hold: 2
+        visual_cues:
+          - id: sp-rare-budget-0
+            phrase: Start with five thousand draws
+            targets:
+              - sp-rare-budget-visual
+            color: yellow
+            linger: 0.45
+            caption_boundary: true
+      - say: For a run to stay empty, every request must avoid the failure. Multiply that chance by itself five thousand
+          times. It comes to about point six zero seven. More than half the runs can be quiet even though the
+          expected count is half a failure per run.
+        hold: 0.8
+        caption_starts:
+          - It comes to about point six zero seven
+        visual_cues:
+          - id: sp-rare-budget-1
+            phrase: Multiply that chance by itself five thousand times
+            targets:
+              - sp-rare-budget-visual
+            color: cyan
+            linger: 0.45
+            caption_boundary: true
+      - say: Suppose we want a ninety-five percent chance of seeing at least one. The chance of an empty run must drop to
+          five percent. Extend the run until the curve reaches that line. Divide the log of point zero five by the
+          log of one minus the failure probability, then round up to a whole request. It takes twenty-nine thousand
+          nine hundred fifty-six. Even there we expect only about three failures. That budget buys a good chance to
+          detect one. Estimating a tiny rate precisely takes more.
+        hold: 0.8
+        caption_starts:
+          - It takes twenty-nine thousand nine hundred fifty-six
+        visual_cues:
+          - id: sp-rare-budget-2
+            phrase: Extend the run until the curve reaches that line
+            targets:
+              - sp-rare-budget-visual
+            color: yellow
+            linger: 0.45
+            caption_boundary: true
+  - id: replay-streams
+    title: Which run belongs in the average?
+    visual: Four 20-request batch totals appear in order. Restarting A pulls matching totals into a second row one by
+      one. A separate stream supplies the last row.
+    beats:
+      - say: Here's a run worth saving. Sample four batches of twenty requests from stream A. Each number is the count
+          resolved in that batch. Inserting a draw changes what you log. For instance, if the code takes one extra
+          batch before it starts writing, the first logged count comes from the second position.
+        hold: 0.7
+        visual_cues:
+          - id: stream-original
+            phrase: Sample four batches of twenty requests from stream A
+            targets:
+              - sp-replay-streams-visual
+            color: cyan
+            linger: 0.45
+            caption_boundary: true
+          - id: sp-replay-streams-0
+            phrase: the first logged count comes from the second position
+            targets:
+              - sp-replay-streams-visual
+            color: yellow
+            linger: 0.45
+            caption_boundary: true
+      - say: Rewind to A's original seed. Use the same generator, code, parameters and order of calls. Watch the first
+          three counts come back. What goes in the fourth circle?
+        hold: 2.1
+        visual_cues:
+          - id: stream-restart
+            phrase: Watch the first three counts come back
+            targets:
+              - sp-replay-streams-visual
+            color: cyan
+            linger: 0.45
+            caption_boundary: true
+      - say: Read the fourth count from the original run. Twelve comes back too. This is a replay. It will help you debug
+          the result. Counting it again when you calculate a standard error would give one experiment twice the
+          weight.
+        hold: 0.75
+        caption_starts:
+          - Twelve comes back too
+        visual_cues:
+          - id: stream-fourth
+            phrase: Read the fourth count from the original run
+            targets:
+              - sp-replay-streams-visual
+            color: cyan
+            linger: 0.45
+            caption_boundary: true
+      - say: Start B with its own recorded stream. Look down the last column. Twelve of the twenty requests resolved on A,
+          twelve on its replay, and seventeen on B. Count A once and B once when you average the runs. Keep both
+          stream IDs, their seeds, generator and library versions, code and draw order. For parallel replicas, NumPy
+          can spawn child streams designed to be independent with very high probability. A different seed or a
+          different-looking row alone can't establish independence.
+        hold: 0.65
+        visual_cues:
+          - id: sp-replay-streams-1
+            phrase: Start B with its own recorded stream
+            targets:
+              - sp-replay-streams-visual
+            color: blue
+            linger: 0.45
+            caption_boundary: true
+  - id: metropolis-decision
+    title: What goes into the next chain slot?
+    visual: A dot on a posterior density supplies a forward and a reverse move. A comparison draw lands on a
+      probability ruler, and each decision earns one new slot in the state history. A changed proposal shrinks the
+      ruler again.
+    beats:
+      - say: The assistant resolved eight of ten requests. Which resolution rates fit that record? Start with a
+          Beta two, two prior. Add eight resolutions to the first number and two escalations to the second.
+          That gives a Beta ten, four posterior. The height at each rate is proportional to p to the ninth
+          power times the cube of one minus p. We know this curve, so we can check our sampler against it.
+          Start the chain at one half.
+        hold: 0.7
+        visual_cues:
+          - id: sp-metropolis-decision-0
+            phrase: That gives a Beta ten, four posterior
+            targets:
+              - sp-metropolis-decision-visual
+            color: cyan
+            linger: 0.45
+            caption_boundary: true
+      - say: Propose a step to point six. For now the proposal is equally likely in either direction. Divide the height at
+          the new point by the old height. Any common normalizing constant cancels. The new point is about two point
+          six four times as high, so acceptance is one. Move the dot and record point six.
+        hold: 0.7
+        visual_cues:
+          - id: sp-mh-accept
+            phrase: so acceptance is one. Move the dot and record point six
+            targets:
+              - sp-metropolis-decision-visual
+            color: cyan
+            linger: 0.45
+            caption_boundary: true
+      - say: Try stepping back. Reversing gives about point three seven nine for the ratio. Keep the smaller of that ratio
+          and one as the acceptance probability. Put a uniform draw at point four. Does that draw fall inside the
+          blue stretch? What goes into the next slot?
+        hold: 2.1
+        visual_cues:
+          - id: sp-mh-reverse
+            phrase: Reversing gives about point three seven nine for the ratio
+            targets:
+              - sp-metropolis-decision-visual
+            color: cyan
+            linger: 0.45
+            caption_boundary: true
+          - id: mh-uniform
+            phrase: Put a uniform draw at point four
+            targets:
+              - sp-metropolis-decision-visual
+            color: yellow
+            linger: 0.45
+            caption_boundary: true
+      - say: The uniform draw of point four rejects the step. Write point six again. If we dropped that slot, we'd lose
+          how long the chain spent here. This move-or-stay rule is the Metropolis step. A sampler draws a fresh
+          uniform value for each decision.
+        hold: 0.85
+        visual_cues:
+          - id: sp-metropolis-decision-1
+            phrase: Write point six again
+            targets:
+              - sp-metropolis-decision-visual
+            color: yellow
+            linger: 0.45
+            caption_boundary: true
+      - say: Try the same downhill step with a different proposal rule. Suppose it proposes the return direction half as
+          often as the direction we're trying. Multiply by reverse-proposal density divided by forward-proposal
+          density before capping at one. The blue stretch shrinks by half. This time the draw is one quarter. Which
+          state do you keep?
+        hold: 2
+        visual_cues:
+          - id: sp-metropolis-decision-2
+            phrase: The blue stretch shrinks by half
+            targets:
+              - sp-metropolis-decision-visual
+            color: cyan
+            linger: 0.45
+            caption_boundary: true
+          - id: mh-fresh-draw
+            phrase: This time the draw is one quarter
+            targets:
+              - sp-metropolis-decision-visual
+            color: yellow
+            linger: 0.45
+            caption_boundary: true
+      - say: Record point six once more. A quarter would have fitted inside the old stretch. It falls outside the
+          corrected one. That direction correction gives the Metropolis-Hastings rule. Reject proposals outside the
+          target's support. In code, subtract log weights to handle tiny densities and use an inclusive log
+          comparison when the generator can return a comparison value of one. An acceptance probability of one must
+          always move.
+        hold: 0.75
+        visual_cues:
+          - id: mh-record-last
+            phrase: Record point six once more
+            targets:
+              - sp-metropolis-decision-visual
+            color: yellow
+            linger: 0.45
+            caption_boundary: true
+  - id: posterior-chain
+    title: Why is there a flat step?
+    visual: Six actual retained states expose a repeated value after rejection. The wider view adds three chains, the
+      reference mean and separate summaries over all 10,000 retained states per chain.
+    beats:
+      - say: Follow one of those chains for real. This one starts at point one. Each proposal adds normal noise with
+          standard deviation point one five. We discard two thousand warmup steps to reduce the effect of the
+          starting point. The sampler then retains ten thousand states. Here are the first six it kept. What
+          happened between the second and third dots?
+        hold: 1.9
+        visual_cues:
+          - id: sp-posterior-chain-0
+            phrase: Here are the first six it kept
+            targets:
+              - sp-posterior-chain-visual
+            color: cyan
+            linger: 0.45
+            caption_boundary: true
+      - say: The flat step is a rejection. The chain spent both iterations at the same probability. The next proposal took
+          it somewhere else. Leave both copies in when you average the kept states.
+        hold: 0.8
+        visual_cues:
+          - id: chain-repeat
+            phrase: The flat step is a rejection
+            targets:
+              - sp-posterior-chain-visual
+            color: yellow
+            linger: 0.45
+            caption_boundary: true
+      - say: Pull back to the first two hundred forty kept states from each of four starts. Each color has its own
+          history. The numbers on the right average all ten thousand states per chain. They land close to ten
+          fourteenths, the known posterior mean. That's a check you can run on this particular sampler.
+        hold: 0.8
+        visual_cues:
+          - id: sp-posterior-chain-1
+            phrase: Pull back to the first two hundred forty kept states from each of four starts
+            targets:
+              - sp-posterior-chain-visual
+            color: cyan
+            linger: 0.45
+            caption_boundary: true
+      - say: Look at neighboring iterations. Their correlations are around point seven two, even though each chain
+          accepted about sixty-three or sixty-four percent of proposals. Small proposals can accept often and barely
+          move. Large ones can keep bouncing off the target. To estimate a tail, check whether the chains spent
+          enough time there. Four similar means can miss that problem.
+        hold: 0.7
+        visual_cues:
+          - id: sp-posterior-chain-2
+            phrase: Look at neighboring iterations
+            targets:
+              - sp-posterior-chain-visual
+            color: yellow
+            linger: 0.45
+            caption_boundary: true
+  - id: chain-diagnostics
+    title: Where did the chains spend their time?
+    visual: Within-chain and between-chain traces feed split rank diagnostics; an exact two-coordinate conditional
+      sweep visibly changes one variable while holding the other fixed.
+    beats:
+      - say: Each color starts from a different resolution rate. Split each trace in half. If the early half
+          stays low and the late half stays high, the chain has drifted. Rank-normalized split R-hat compares
+          variation within and between those half chains. Nearby steps can carry similar information across
+          many lags. Bulk effective sample size measures how much independent information the chain carries
+          about its center. For a high percentile, check tail effective sample size and the Monte Carlo error
+          of that percentile.
+        hold: 0.55
+        visual_cues:
+          - id: sp-chain-diagnostics-0
+            phrase: Split each trace in half
+            targets:
+              - sp-chain-diagnostics-visual
+            color: cyan
+            linger: 0.5
+      - say: Gibbs sampling updates one coordinate at a time. Hold y fixed and draw x from its conditional
+          distribution. Then use the new x to draw y. In this tilted normal cloud, each coordinate has mean
+          zero and variance one. Their correlation is point eight. Each conditional mean is point eight times
+          the coordinate you held fixed. The conditional standard deviation is point six.
+        hold: 0.55
+        visual_cues:
+          - id: sp-chain-diagnostics-1
+            phrase: Each conditional mean is point eight
+            targets:
+              - sp-chain-diagnostics-visual
+            color: cyan
+            linger: 0.5
+      - say: Start at two, negative two. Let's trace the centers by taking the conditional median on each move.
+          Hold y still. Eight tenths of negative two puts x at negative one point six. Now hold that x still.
+          Eight tenths of it puts y at negative one point two eight. When you sample, draw around each center.
+          The first draw sets the center for the next.
+        hold: 0.55
+        visual_cues:
+          - id: sp-chain-diagnostics-2
+            phrase: Eight tenths of negative two puts x at negative one point six
+            targets:
+              - sp-chain-diagnostics-visual
+            color: cyan
+            linger: 0.5
+          - id: sp-gibbs-y
+            phrase: Eight tenths of it puts y at negative one point two eight
+            targets:
+              - sp-chain-diagnostics-visual
+            color: yellow
+            linger: 0.6
+  - id: queue-burst
+    title: Three requests share one worker
+    visual: Three retained arrivals share one FCFS service lane; occupied intervals push later starts and create
+      visible waiting before unchanged service.
+    beats:
+      - say: Now put service inside a queue. In a supplied three-request burst, arrivals are at zero, ten and twenty
+          milliseconds. One first-come-first-served worker needs fifty milliseconds per request. Service
+          starts at zero, fifty and one hundred; completions are fifty, one hundred and one hundred fifty.
+        hold: 0.55
+        visual_cues:
+          - id: sp-queue-burst-0
+            phrase: Service starts at zero, fifty and one hundred
+            targets:
+              - sp-queue-burst-visual
+            color: cyan
+            linger: 0.5
+      - say: Subtract each request’s own arrival time. Total times are fifty, ninety and one hundred thirty
+          milliseconds. Look at the third request. It waited eighty milliseconds for the worker and needed
+          fifty more for service. Those two pieces add up to the time the user waited for a reply.
+        hold: 0.55
+        visual_cues:
+          - id: sp-queue-burst-1
+            phrase: Total times are fifty, ninety and one hundred thirty
+            targets:
+              - sp-queue-burst-visual
+            color: cyan
+            linger: 0.5
+  - id: queue-stationary
+    title: What happens as the worker fills up?
+    visual: A birth-death occupancy construction earns utilization and steady-state means; the denominator visibly
+      shrinks as arrivals approach service capacity.
+    beats:
+      - say: In a stable system, multiply the arrival rate by the average time spent inside. You get the average
+          number of requests in the system. That's Little's Law. For this curve we also need a model of the
+          queue. Requests arrive as a Poisson process and have independent exponential service times. One
+          worker takes them in order. Everyone waits as long as it takes, with room for any queue length.
+          That's the M M one model. The arrival rate must be smaller than the service rate for the queue
+          to settle.
+        hold: 0.55
+        visual_cues:
+          - id: sp-queue-stationary-0
+            phrase: The arrival rate must be smaller
+            targets:
+              - sp-queue-stationary-visual
+            color: cyan
+            linger: 0.5
+      - say: Utilization is lambda divided by mu. Mean total time is one divided by the quantity mu minus lambda. Mean
+          queue time is that total minus one divided by mu. With fifteen arrivals and twenty services per
+          second, utilization is point seven five, total mean point two seconds and queue mean point one five.
+          The service mean remains point zero five.
+        hold: 0.55
+        visual_cues:
+          - id: sp-queue-stationary-1
+            phrase: total mean point two seconds
+            targets:
+              - sp-queue-stationary-visual
+            color: cyan
+            linger: 0.5
+      - say: Raise arrivals to nineteen per second while service stays at twenty. The worker is busy ninety-five
+          percent of the time. Requests average a full second from arrival to finish. Nine hundred fifty
+          milliseconds of that second are spent waiting. At or above twenty arrivals per second, this queue
+          has no finite steady-state mean wait.
+        hold: 0.55
+        visual_cues:
+          - id: sp-queue-stationary-2
+            phrase: Raise arrivals to nineteen per second
+            targets:
+              - sp-queue-stationary-visual
+            color: cyan
+            linger: 0.5
+          - id: sp-queue-unstable
+            phrase: At or above twenty arrivals
+            targets:
+              - sp-queue-stationary-visual
+            color: yellow
+            linger: 0.6
+  - id: fresh-plan
+    title: Which request misses its own timer?
+    visual: Four request clocks start at their own arrivals. The service bars take equal space while the waiting
+      segments grow. Outlines preserve the one-worker schedule as a second worker changes the waiting times.
+    beats:
+      - say: Here's a separate burst with a forty-millisecond timer. Four requests arrive five milliseconds apart,
+          starting at zero. Each needs twenty milliseconds of work. One worker serves them in arrival order. The
+          ruler starts at each request's own arrival. Which requests will miss their timer?
+        hold: 2.1
+        visual_cues:
+          - id: sp-fresh-plan-0
+            phrase: Four requests arrive five milliseconds apart, starting at zero
+            targets:
+              - sp-fresh-plan-visual
+            color: cyan
+            linger: 0.45
+            caption_boundary: true
+      - say: Run the worker until the last reply leaves. Blue is service. The thin lead before each blue bar is time spent
+          waiting. The third request arrives at ten but starts at forty, after the second finishes. By the time it
+          returns, its own clock reads fifty. Two of four meet the deadline. The work itself took the same time on
+          all four.
+        hold: 0.8
+        caption_starts:
+          - The third request arrives at ten
+          - By the time it returns
+          - Two of four meet the deadline
+        visual_cues:
+          - id: sp-fresh-plan-1
+            phrase: Run the worker until the last reply leaves
+            targets:
+              - sp-fresh-plan-visual
+            color: cyan
+            linger: 0.45
+            caption_boundary: true
+          - id: sp-fresh-one-result
+            phrase: Two of four meet the deadline
+            targets:
+              - sp-fresh-plan-visual
+            color: yellow
+            linger: 0.45
+            caption_boundary: true
+      - say: Change only the worker count to two. Keep the old service bars as outlines. The second worker can pick up the
+          second request as soon as it arrives. Where will that put the last two finishes relative to their timers?
+        hold: 2
+        visual_cues:
+          - id: sp-fresh-plan-2
+            phrase: Change only the worker count to two
+            targets:
+              - sp-fresh-plan-visual
+            color: cyan
+            linger: 0.45
+            caption_boundary: true
+      - say: Follow the blue bars back toward their arrivals. Each worker takes the next request as soon as it's free.
+          Starts are zero, five, twenty and twenty-five on the shared clock. The last two now spend only ten
+          milliseconds waiting and twenty in service. That's four of four on time. Two workers suffice for this
+          burst. Before sizing a real pool, measure the arrival pattern, the admission policy and the time work
+          actually occupies a worker.
+        hold: 0.8
+        caption_starts:
+          - Starts are zero
+          - The last two now spend only ten milliseconds
+        visual_cues:
+          - id: sp-fresh-two-starts
+            phrase: Follow the blue bars back toward their arrivals
+            targets:
+              - sp-fresh-plan-visual
+            color: cyan
+            linger: 0.45
+            caption_boundary: true
+          - id: sp-fresh-two-result
+            phrase: That's four of four on time
+            targets:
+              - sp-fresh-plan-visual
+            color: yellow
+            linger: 0.45
+            caption_boundary: true
+  - id: token-sample
+    title: One more word
+    visual: Four logits become shares of one strip. A recorded uniform draw lands just over the boundary of the
+      largest share. The sentence fills only after the viewer picks its next word.
+    beats:
+      - say: A route sampler picks one label. A language model can pick its next token the same way. Take the unfinished
+          sentence, the sky is. Each candidate has a score called a logit. Subtract the largest logit from all four
+          so exponentiation stays in range. Exponentiate and divide each weight by their sum. That operation,
+          softmax, gives each word a share of one strip.
+        hold: 0.8
+        visual_cues:
+          - id: sp-token-sample-0
+            phrase: Subtract the largest logit from all four
+            targets:
+              - sp-token-sample-visual
+            color: cyan
+            linger: 0.45
+            caption_boundary: true
+          - id: token-share
+            phrase: Exponentiate and divide each weight by their sum
+            targets:
+              - sp-token-sample-visual
+            color: cyan
+            linger: 0.45
+            caption_boundary: true
+      - say: A greedy decoder would choose blue. Its share ends a little past six tenths. Now place the recorded draw on
+          the strip. Read its position against the boundary. Which word goes in the sentence?
+        hold: 2.05
+        visual_cues:
+          - id: token-draw
+            phrase: place the recorded draw on the strip
+            targets:
+              - sp-token-sample-visual
+            color: yellow
+            linger: 0.45
+            caption_boundary: true
+      - say: A categorical sampler can select clear. Our draw landed just beyond blue, inside the second interval. Blue is
+          still the most probable word. If we changed the interval widths, how often would the very same decoder
+          write each word?
+        hold: 0.7
+        visual_cues:
+          - id: sp-token-sample-1
+            phrase: A categorical sampler can select clear
+            targets:
+              - sp-token-sample-visual
+            color: cyan
+            linger: 0.45
+            caption_boundary: true
+  - id: temperature
+    title: Move probability mass while preserving the logit order
+    visual: The same four tokens retain their identities while temperature rescales gaps and reshapes the
+      normalized mass; deterministic and random choices remain distinct.
+    beats:
+      - say: For positive temperature T, divide each logit by T before softmax. Below one, positive logit gaps become
+          larger; above one, they become smaller. This changes relative probabilities while preserving the
+          ordering of finite logits. With T equal to point three, blue gets about point nine one one and clear
+          about point zero eight eight. Sampling is still random.
+        hold: 0.55
+        visual_cues:
+          - id: sp-temperature-0
+            phrase: divide each logit by T
+            targets:
+              - sp-temperature-visual
+            color: cyan
+            linger: 0.5
+      - say: At temperature two, blue falls to about forty-five percent and green rises to seven percent.
+          Turn the temperature higher and the four bars approach equal heights. Turn it toward zero and
+          probability concentrates on the highest score. If two scores tie for first, a greedy decoder needs
+          a rule for choosing between them.
+        hold: 0.55
+        visual_cues:
+          - id: sp-temperature-1
+            phrase: temperature two
+            targets:
+              - sp-temperature-visual
+            color: cyan
+            linger: 0.5
+      - say: Keep the temperature at two. For nucleus sampling, start with the likeliest word and keep adding
+          words until they cover at least ninety percent of the probability. Blue, clear and cloudy get us
+          there. Green drops out. Divide the remaining shares by their sum and draw from those three words.
+        caption_starts:
+          - Blue, clear and cloudy get us there
+        hold: 0.55
+        visual_cues:
+          - id: sp-temperature-2
+            phrase: Blue, clear and cloudy get us there
+            targets:
+              - sp-temperature-visual
+            color: cyan
+            linger: 0.5
+  - id: gumbel-race
+    title: Make one perturbed argmax implement a categorical sample
+    visual: Independent open-uniform values become checked Gumbel offsets on named token logits; a perturbed
+      maximum chooses a sample before implementation-specific costs are compared.
+    beats:
+      - say: Draw one independent open-uniform value for each candidate and compute negative log of negative log of
+          that value. These are standard Gumbel offsets. Add each offset to its logit divided by the decoding
+          temperature, then take the largest perturbed score. In the ideal mathematical model this hard
+          Gumbel-Max operation draws exactly from the softmax categorical probabilities.
+        hold: 0.55
+        visual_cues:
+          - id: sp-gumbel-race-0
+            phrase: Add each offset to its logit
+            targets:
+              - sp-gumbel-race-visual
+            color: cyan
+            linger: 0.5
+      - say: Blue starts ahead. Add point seven seven to blue and two point two five to clear. Their temperature-one
+          scores become two point nine seven and three point seven five, so clear wins. Repeat with fresh noise
+          and each word wins in proportion to its softmax probability. This hard choice returns one token.
+          Gumbel-Softmax uses a smooth relaxation when we need derivatives.
+        caption_starts:
+          - so clear wins
+        hold: 0.55
+        visual_cues:
+          - id: sp-gumbel-race-1
+            phrase: Their temperature-one scores become
+            targets:
+              - sp-gumbel-race-visual
+            color: cyan
+            linger: 0.5
+          - id: sp-gumbel-winner
+            phrase: so clear wins
+            targets:
+              - sp-gumbel-race-visual
+            color: yellow
+            linger: 0.6
+      - say: A GPU can perturb many scores in parallel, then find the largest. The version of vLLM in the
+          article uses an equivalent exponential-noise race in its native sampler. Some filtered CUDA calls
+          use rejection sampling. Both paths can give each word the same odds while drawing different words
+          from a given seed. To compare speed, time the whole draw, including random numbers and the final
+          selection.
+        hold: 0.55
+        visual_cues:
+          - id: sp-gumbel-race-2
+            phrase: equivalent exponential-noise race
+            targets:
+              - sp-gumbel-race-visual
+            color: cyan
+            linger: 0.5
+  - id: launch-report
+    title: What came back from 5,000 simulated requests?
+    visual: One actual five-thousand-request baseline fills supported fields and report denominators; missing
+      arrival and worker state leave queue capacity explicitly uncomputed.
+    beats:
+      - say: This run builds five thousand requests. For each one, draw a resolution, a route, a tool count and
+          a duration independently. About seventy-two percent resolved. Read the two tool rows together.
+          Requests averaged about two point two calls, and two point four percent went over five. That's close
+          to the two and a half percent our Poisson model predicts.
+        hold: 0.55
+        visual_cues:
+          - id: sp-launch-report-0
+            phrase: About seventy-two percent resolved
+            targets:
+              - sp-launch-report-visual
+            color: cyan
+            linger: 0.5
+      - say: Every duration in this run was positive. The median was just over six seconds and the interpolated
+          ninety-fifth percentile was about fifteen point seven. The model puts that percentile at fourteen
+          point eight. The sample percentile moves from run to run. To estimate how many workers you'd need,
+          give those requests arrival times and let them compete for workers.
+        hold: 0.55
+        visual_cues:
+          - id: sp-launch-report-1
+            phrase: interpolated ninety-fifth percentile
+            targets:
+              - sp-launch-report-visual
+            color: cyan
+            linger: 0.5
+      - say: To replay the report, save the settings, seed, generator and draw order with the code. Then compare
+          its rows with requests from a separate log. Did the slow ones also use more tools? If rollbacks
+          behave differently from other routes, draw route first. Then sample counts and durations together
+          using requests from that route.
+        hold: 0.55
+        visual_cues:
+          - id: sp-launch-report-2
+            phrase: draw route first
+            targets:
+              - sp-launch-report-visual
+            color: cyan
+            linger: 0.5
+  - id: joint-relationship
+    title: Which replies are both costly and slow?
+    visual: Four count slips and four duration slips stay fixed. Their wires are disconnected and reattached. Only a
+      wire joining both threshold crossings counts toward joint risk.
+    beats:
+      - say: An incident can be expensive and slow on the very same request. Here are four receipts with their durations
+          detached. Pink marks either a count above five or a time above fifteen seconds. Pair the large counts with
+          long durations. Trace each wire end to end. How many requests would trigger both alarms?
+        hold: 1.3
+        visual_cues:
+          - id: sp-joint-relationship-0
+            phrase: Pair the large counts with long durations
+            targets:
+              - sp-joint-relationship-visual
+            color: pink
+            linger: 0.45
+            caption_boundary: true
+      - say: Two requests trigger both alarms. Now reverse the duration pairing. Leave every count and every duration just
+          where it is. Would the two separate histograms detect that edit? Follow a wire from either six.
+        hold: 1.8
+        visual_cues:
+          - id: joint-first-total
+            phrase: Two requests trigger both alarms
+            targets:
+              - sp-joint-relationship-visual
+            color: pink
+            linger: 0.4
+            caption_boundary: true
+          - id: sp-joint-relationship-1
+            phrase: reverse the duration pairing
+            targets:
+              - sp-joint-relationship-visual
+            color: cyan
+            linger: 0.45
+            caption_boundary: true
+      - say: Each six now leads to two seconds. The joint share becomes zero. The count histogram would still pass, and so
+          would the duration histogram. To test joint risk, keep the original request IDs when you examine real
+          traces.
+        hold: 0.7
+        visual_cues:
+          - id: sp-joint-zero
+            phrase: The joint share becomes zero
+            targets:
+              - sp-joint-relationship-visual
+            color: pink
+            linger: 0.45
+            caption_boundary: true
+      - say: Try exchanging only the two middle connections. Which request would you investigate now?
+        hold: 1.9
+        visual_cues:
+          - id: sp-joint-relationship-2
+            phrase: exchanging only the two middle connections
+            targets:
+              - sp-joint-relationship-visual
+            color: cyan
+            linger: 0.45
+            caption_boundary: true
+      - say: Trace request three. Its six tools and twenty seconds belong to one request. One of four now triggers both
+          alarms. Sampling more rows from any one of these pairings would stabilize its own answer. To decide which
+          pairing belongs in the simulator, look at count and duration together within each route.
+        hold: 0.7
+        visual_cues:
+          - id: joint-last
+            phrase: Trace request three
+            targets:
+              - sp-joint-relationship-visual
+            color: pink
+            linger: 0.45
+            caption_boundary: true
+  - id: ks-geometry
+    title: Which side of the step counts?
+    visual: Four complete observations build a staircase against a uniform candidate. Its first jump admits two
+      different gaps. Two candidate CDFs are then checked against the same 200 complete held-out durations.
+    beats:
+      - say: Here are four fully observed finishes, at two, three, four and five seconds. Each finish lifts the observed
+          fraction by a quarter. The yellow model spreads replies uniformly over the first five seconds. At two
+          seconds it expects forty percent to have finished. On the step, check both the empirical height just
+          before the first finish and the height just after. Which side gives the bigger gap?
+        hold: 2.1
+        visual_cues:
+          - id: ks-steps
+            phrase: four fully observed finishes, at two, three, four and five seconds
+            targets:
+              - sp-ks-geometry-visual
+            color: cyan
+            linger: 0.45
+            caption_boundary: true
+          - id: sp-ks-geometry-0
+            phrase: check both the empirical height just before the first finish and the height just after
+            targets:
+              - sp-ks-geometry-visual
+            color: yellow
+            linger: 0.45
+            caption_boundary: true
+      - say: Just before two seconds, nobody has finished. That's a gap of forty percentage points. Just after the jump,
+          the gap is only fifteen points. Repeat that comparison at every finish. The largest absolute vertical gap
+          anywhere is the Kolmogorov-Smirnov distance, often called the K S distance.
+        hold: 0.8
+        caption_starts:
+          - That's a gap of forty percentage points
+          - Just after the jump
+        visual_cues:
+          - id: ks-left
+            phrase: Just before two seconds, nobody has finished
+            targets:
+              - sp-ks-geometry-visual
+            color: pink
+            linger: 0.45
+            caption_boundary: true
+      - say: Now use two hundred fully observed durations drawn from our lognormal model. Both candidates were specified
+          in advance. A normal curve with the same mean and variance has distance about point one three five.
+          Compare the lognormal curve on those same rows. Its gap is smaller here. Another finite sample could give
+          a different ordering. Check the high quantiles and the actual deadline as well. A rare, costly tail can
+          barely move an overall distance.
+        hold: 0.8
+        visual_cues:
+          - id: sp-ks-geometry-1
+            phrase: Compare the lognormal curve on those same rows
+            targets:
+              - sp-ks-geometry-visual
+            color: yellow
+            linger: 0.45
+            caption_boundary: true
+      - say: The ordinary one-sample K S p-value assumes independent, continuous observations and a candidate fixed before
+          seeing them. If you fit the parameters on these rows, the distance still describes them. For a calibrated
+          test, a parametric bootstrap can refit each replication. In a log that ends while people are still
+          waiting, their finish times need censoring-aware analysis. A timeout records the end of the wait you
+          observed.
+        hold: 0.8
+        visual_cues:
+          - id: sp-ks-geometry-2
+            phrase: refit each replication
+            targets:
+              - sp-ks-geometry-visual
+            color: cyan
+            linger: 0.45
+            caption_boundary: true
+  - id: tail
+    title: Same median, different slow experience
+    visual: A fixed median, moving p95, shaded late area and fixed rank expose exactly what a log-spread
+      intervention changes.
+    beats:
+      - say: Keep the median at six seconds, but increase the log-space spread. Keep this inspected random rank fixed
+          too. Watch the high-percentile duration move right as the curve spreads. The middle stays put while
+          the slow experience changes. Predict what happens to the area beyond our ten-second timer.
+        hold: 0.65
+        visual_cues:
+          - id: tail-spread
+            phrase: increase the log-space spread
+            targets:
+              - tail-density
+              - tail-percentile
+            color: pink
+            linger: 0.5
+      - say: That late area grows. A repeatable simulation can measure either supplied model very precisely. Choosing
+          the shape requires representative observations. Positive support and a plausible median are useful
+          checks; compare the actual deadline fraction and the slow tail as well. Our next cohort will make
+          that distinction concrete.
+        hold: 0.65
+        visual_cues:
+          - id: tail-area
+            phrase: That late area grows
+            targets:
+              - tail-density
+              - tail-result
+            color: pink
+            linger: 0.5
+  - id: audit
+    title: Who belongs in the ten-second report?
+    visual: Fifty hollow marks slide aside as the report counts the 200 completed requests. They rejoin the bracket
+      before the denominator changes to 250. The numerator stays at 160.
+    beats:
+      - say: Set the spread back to the original point five five. Now put that model aside and open a separate,
+          constructed log. Everyone started together. One hundred sixty finish by ten seconds. Forty finish later,
+          by fifteen. Fifty are still unfinished when recording stops. Their completion times are right-censored. We
+          know they exceed fifteen seconds.
+        hold: 0.75
+        visual_cues:
+          - id: audit-timely
+            phrase: One hundred sixty finish by ten seconds
+            targets:
+              - audit-cohort
+            color: cyan
+            linger: 0.45
+            caption_boundary: true
+          - id: audit-later
+            phrase: Forty finish later, by fifteen
+            targets:
+              - audit-cohort
+            color: blue
+            linger: 0.45
+            caption_boundary: true
+          - id: audit-unfinished
+            phrase: Fifty are still unfinished
+            targets:
+              - audit-cohort
+            color: pink
+            linger: 0.45
+            caption_boundary: true
+      - say: The report divides the timely count by two hundred. Its bracket takes in every request with a recorded
+          finish. Eighty percent looks close to our model. Is that the fraction of arrivals who got a reply by ten
+          seconds?
+        hold: 2.05
+        visual_cues:
+          - id: audit-completed-only
+            phrase: divides the timely count by two hundred
+            targets:
+              - audit-fraction
+              - audit-cohort
+            color: yellow
+            linger: 0.45
+            caption_boundary: true
+      - say: Bring back the fifty unfinished requests. Each of those people was already waiting at ten. The numerator
+          stays where it was. Now the bracket covers all two hundred fifty arrivals. Only sixty-four percent got a
+          reply in time.
+        hold: 0.9
+        caption_starts:
+          - Only sixty-four percent got a reply in time
+        visual_cues:
+          - id: audit-denominator
+            phrase: Bring back the fifty unfinished requests
+            targets:
+              - audit-fraction
+              - audit-cohort
+            color: cyan
+            linger: 0.45
+            caption_boundary: true
+      - say: This cohort gives sixty-four percent where the original model gives about eighty-two. Those extra simulation
+          runs can pin down the model's answer as tightly as you like. To explain the gap, check the mixture of
+          requests and the time they spent waiting in representative logs.
+        hold: 0.8
+        visual_cues:
+          - id: audit-compare
+            phrase: This cohort gives sixty-four percent
+            targets:
+              - audit-comparison
+            color: pink
+            linger: 0.45
+            caption_boundary: true
+  - id: takeaway
+    title: Would fifteen seconds cover 95%?
+    visual: The same 250 slots stay in view. An ordered count ruler shows the completions needed for 95 percent. Only
+      the forty known later completions change status when the timer moves. The target rank is still in the censored
+      group.
+    beats:
+      - say: The original model puts its ninety-fifth percentile just under fifteen seconds. Someone wants to set the
+          timer there and promise that nineteen out of twenty people get a reply. Use the same log. For ninety-five
+          percent of two hundred fifty arrivals, you'd need at least two hundred thirty-eight finishes. Would a
+          fifteen-second timer have reached that mark?
+        hold: 2.2
+        visual_cues:
+          - id: transfer-rank
+            phrase: you'd need at least two hundred thirty-eight finishes
+            targets:
+              - transfer-fraction
+            color: yellow
+            linger: 0.45
+            caption_boundary: true
+      - say: Move the deadline and include the forty later completions. Two hundred finished by fifteen seconds. The other
+          fifty still have open clocks. We're thirty-eight finishes short of the mark.
+        hold: 1.35
+        caption_starts:
+          - Two hundred finished by fifteen seconds
+          - We're thirty-eight finishes short of the mark
+        visual_cues:
+          - id: transfer-deadline
+            phrase: Move the deadline and include the forty later completions
+            targets:
+              - transfer-fraction
+              - transfer-cohort
+            color: cyan
+            linger: 0.45
+            caption_boundary: true
+      - say: The two hundred thirty-eighth finish lies beyond fifteen seconds. The log ends before we can put a time on
+          it. I'd decline the fifteen-second promise on this evidence and follow those open requests to completion.
+          In the next lesson, we'll give two systems the same tasks and ask how much of the difference between them
+          could come from sampling.
+        hold: 1.2
+        caption_starts:
+          - I'd decline the fifteen-second promise
+          - In the next lesson
+        visual_cues:
+          - id: transfer-p95
+            phrase: lies beyond fifteen seconds
+            targets:
+              - transfer-tail
+            color: yellow
+            linger: 0.45
+            caption_boundary: true

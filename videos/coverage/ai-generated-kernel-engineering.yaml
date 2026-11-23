@@ -1,0 +1,244 @@
+version: 1
+lesson: ai-generated-kernel-engineering
+promise: Decide whether to run a generated RMSNorm kernel, use the reference for a valid call, or hold a release by checking the row the caller owns and the evidence for the loaded build.
+objectives:
+  - id: contract
+    can: Route a valid view by its width, layout and gradient requirements, and distinguish fallback from a public input error
+    scenes:
+      - intro
+      - dispatch
+      - hidden
+      - domain-contract
+      - library-boundary
+      - fresh-promotion
+  - id: correctness
+    can: Trace a row through storage offsets, a shared RMS scale and separate weights, then check values, tolerances, padding, overflow, ownership and scale relations
+    scenes:
+      - intro
+      - tail
+      - hidden
+      - epsilon
+      - ownership-audit
+      - tolerance-policy
+      - overflow-oracle
+      - fresh-promotion
+  - id: execution
+    can: Count requested sectors from lane addresses and check shared-memory ordering, resource limits, registration and sanitizer coverage separately
+    scenes:
+      - address-order
+      - library-boundary
+      - build-resources
+      - safety-tools
+  - id: performance
+    can: Compare sequential wrapper and kernel costs on a common clock and distinguish logical rates, physical traffic and instruction-appropriate ceilings
+    scenes:
+      - address-order
+      - traffic
+      - timing-clocks
+      - roofline-model
+  - id: evaluation
+    can: Use public feedback without consuming acceptance data and interpret benchmark or mutation scores inside
+      their methods
+    scenes:
+      - hidden
+      - public-refinement
+      - benchmark-boundaries
+      - checker-mutations
+  - id: promotion
+    can: Budget shadow work, trace a changed canary response, recover an in-flight request and verify that the signed release record covers the tested artifact and dispatch
+    scenes:
+      - promotion
+      - shadow-budget
+      - canary-evidence
+      - receipt-binding
+      - fresh-promotion
+sections:
+  - heading: Where generated kernels can go wrong
+    status: taught
+    scenes:
+      - tail
+      - address-order
+      - hidden
+  - heading: Write the operator contract before the prompt
+    status: taught
+    scenes:
+      - dispatch
+      - domain-contract
+      - library-boundary
+  - heading: Isolate generated code and the toolchain
+    status: taught
+    scenes:
+      - library-boundary
+      - promotion
+  - heading: Catch a candidate that only handles the visible shape
+    status: taught
+    scenes:
+      - hidden
+      - domain-contract
+      - fresh-promotion
+  - heading: Six gates before a performance claim
+    status: taught
+    scenes:
+      - ownership-audit
+      - build-resources
+      - safety-tools
+      - timing-clocks
+      - roofline-model
+  - heading: 1. Reference oracle
+    status: taught
+    scenes:
+      - intro
+      - domain-contract
+      - overflow-oracle
+  - heading: 2. Compilation check and static inspection
+    status: taught
+    scenes:
+      - build-resources
+  - heading: 3. Multi-scale numerical verification
+    status: taught
+    scenes:
+      - hidden
+      - ownership-audit
+      - tolerance-policy
+      - overflow-oracle
+  - heading: Test the evaluator's expected relations too
+    status: taught
+    scenes:
+      - epsilon
+  - heading: 4. Compute Sanitizer gating
+    status: taught
+    scenes:
+      - safety-tools
+  - heading: 5. Clean CUDA event benchmarking
+    status: taught
+    scenes:
+      - timing-clocks
+  - heading: 6. Roofline sanity check
+    status: taught
+    scenes:
+      - traffic
+      - roofline-model
+  - heading: "The refinement feedback loop: hardware-guided iteration"
+    status: taught
+    scenes:
+      - public-refinement
+      - checker-mutations
+  - heading: "The promotion ladder: build confidence one stage at a time"
+    status: taught
+    scenes:
+      - promotion
+      - shadow-budget
+      - canary-evidence
+  - heading: "Tier 1: Lab verification"
+    status: taught
+    scenes:
+      - safety-tools
+      - build-resources
+      - shadow-budget
+  - heading: "Tier 2: Shadow execution"
+    status: taught
+    scenes:
+      - shadow-budget
+  - heading: "Tier 3: Canary routing"
+    status: taught
+    scenes:
+      - canary-evidence
+      - promotion
+  - heading: "Tier 4: Production gate"
+    status: taught
+    scenes:
+      - receipt-binding
+      - fresh-promotion
+  - heading: Read benchmark scores within their boundary
+    status: taught
+    scenes:
+      - benchmark-boundaries
+      - checker-mutations
+  - heading: Preserve a promotion receipt
+    status: taught
+    scenes:
+      - receipt-binding
+  - heading: Promotion rubric
+    status: taught
+    scenes:
+      - receipt-binding
+      - fresh-promotion
+  - heading: Mastery check
+    status: taught
+    scenes:
+      - fresh-promotion
+  - heading: Evaluation rubric
+    status: taught
+    scenes:
+      - fresh-promotion
+      - domain-contract
+      - timing-clocks
+  - heading: Diagnose a misleading pass
+    status: taught
+    scenes:
+      - hidden
+      - ownership-audit
+      - traffic
+      - build-resources
+      - canary-evidence
+quiz:
+  - n: 1
+    status: taught
+    scenes:
+      - domain-contract
+      - dispatch
+      - fresh-promotion
+  - n: 2
+    status: taught
+    scenes:
+      - tolerance-policy
+  - n: 3
+    status: taught
+    scenes:
+      - safety-tools
+      - address-order
+  - n: 4
+    status: taught
+    scenes:
+      - address-order
+  - n: 5
+    status: taught
+    scenes:
+      - epsilon
+  - n: 6
+    status: taught
+    scenes:
+      - traffic
+      - roofline-model
+  - n: 7
+    status: taught
+    scenes:
+      - ownership-audit
+  - n: 8
+    status: taught
+    scenes:
+      - public-refinement
+      - hidden
+  - n: 9
+    status: taught
+    scenes:
+      - timing-clocks
+  - n: 10
+    status: taught
+    scenes:
+      - receipt-binding
+      - promotion
+removed: []
+reviews:
+  closed_book:
+    script: 5e150fe5fb360ae1
+    taught: 10
+    partial: 0
+    absent: 0
+    reviewer: /root/upgrade_shard2
+    evidence: build/video-delivery-20261106/script-reviews/ai-generated-kernel-engineering.json
+  fact_check:
+    script: 5e150fe5fb360ae1
+    open_findings: 0
+    reviewer: /root/upgrade_shard2
+    evidence: build/video-delivery-20261106/script-reviews/ai-generated-kernel-engineering.json

@@ -1,0 +1,720 @@
+{
+  "id": "capstone-product-ranking-recommendation",
+  "script": "3e96110c82afd27c",
+  "articleHash": "3e40ad7195df6e05e7d4a533d47771931d3157fbc0053380bee26026974df5b7",
+  "checked": "2026-11-10T03:59:06.306Z",
+  "closedBook": {
+    "taught": 10,
+    "partial": 0,
+    "absent": 0,
+    "answers": [
+      {
+        "n": 1,
+        "option": 3,
+        "coverage": "taught",
+        "quotes": [
+          {
+            "scene": "slate-recheck",
+            "quote": "The lab checks a fictional maximum of two listings per seller in a three-item slate."
+          },
+          {
+            "scene": "eligibility",
+            "quote": "Eligibility rules remove them from the display pool regardless of their match strength. The remaining listings fill the candidate budget, with rejection reasons retained for inspection."
+          },
+          {
+            "scene": "slate-recheck",
+            "quote": "Recheck current eligibility before retaining the response. If P five becomes out of stock after scoring, impression-rows rejects the slate instead of trusting its old score. Rebuild from current eligible candidates under a new pinned snapshot."
+          }
+        ],
+        "reason": "The stated greedy rule selects H1 and H2, skips H3 because S1 has reached two listings, and selects H4. After H2 loses stock, rebuilding selects H1,H3,H4.",
+        "exact": true,
+        "correct": true,
+        "grade": "taught"
+      },
+      {
+        "n": 2,
+        "option": 1,
+        "coverage": "taught",
+        "quotes": [
+          {
+            "scene": "metric-contracts",
+            "quote": "This lab uses gain equal to two raised to the relevance grade, minus one. At one-based position i, divide that gain by the base-two logarithm of the quantity i plus one. Add the first K contributions for D C G. Sort the fixed judgment universe into its ideal order and divide observed D C G by ideal D C G for N D C G."
+          },
+          {
+            "scene": "metric-contracts",
+            "quote": "Binary candidate recall uses a different rule here: relevant means eligible grade at least two. Divide the number of those products retrieved by all relevant eligible judgments in the declared universe."
+          }
+        ],
+        "reason": "DCG is 3+0+7/2=6.5. Ideal DCG is 7+3/log2(3), approximately 8.893. NDCG is approximately 0.731. Both relevant items are retrieved, so recall is 2/2=1.",
+        "exact": true,
+        "correct": true,
+        "grade": "taught"
+      },
+      {
+        "n": 3,
+        "option": 4,
+        "coverage": "taught",
+        "quotes": [
+          {
+            "scene": "pairwise-objective",
+            "quote": "Score is the dot product of weights and features; the preferred margin is the dot product with that difference."
+          },
+          {
+            "scene": "pairwise-objective",
+            "quote": "For one preferred pair, loss is the logarithm of one plus the exponential of the negative margin. Its gradient is negative feature difference times sigmoid of negative margin. At zero weights that sigmoid is one half, giving gradient point zero five, negative point three. Subtract point three times the gradient: weights become negative point zero one five, positive point zero nine, and the preferred margin becomes point zero five five five."
+          }
+        ],
+        "reason": "At zero margin, gradient=-0.5d=[-0.1,0.2]. Subtracting 0.2 times that gradient gives weights [0.02,-0.04]. Their dot product with d is 0.004+0.016=0.020.",
+        "exact": true,
+        "correct": true,
+        "grade": "taught"
+      },
+      {
+        "n": 4,
+        "option": 2,
+        "coverage": "taught",
+        "quotes": [
+          {
+            "scene": "temporal-protocol",
+            "quote": "Serving time chooses the request’s chronological window. Feature availability must be no later than serving, and a judgment cannot be available before its request."
+          },
+          {
+            "scene": "temporal-protocol",
+            "quote": "Every product row of a request stays together. Labels arriving exactly at a strict freeze fail that historical training window."
+          }
+        ],
+        "reason": "A's last label arrives exactly at the strict freeze, so A is excluded from frozen training. B's feature becomes available after serving, violating the feature-availability contract.",
+        "exact": true,
+        "correct": true,
+        "grade": "taught"
+      },
+      {
+        "n": 5,
+        "option": 3,
+        "coverage": "taught",
+        "quotes": [
+          {
+            "scene": "click-model",
+            "quote": "At a fixed context, assume relevance is independent of examination, and examination depends only on position. Then click probability is examination propensity p times relevance probability r."
+          },
+          {
+            "scene": "click-model",
+            "quote": "Divide each click by its positive examination probability: inverse weights one point two five and five give expected weighted clicks point five for both."
+          },
+          {
+            "scene": "click-model",
+            "quote": "Clipping uses the smaller of inverse propensity and the chosen positive cap."
+          }
+        ],
+        "reason": "Expected clicks are [0.6×0.4,0.15×0.4]=[0.24,0.06]. Ordinary IPS divides by the respective propensities, giving [0.4,0.4]. Both inverse propensities exceed 1.5, so clipped expectations are [0.24×1.5,0.06×1.5]=[0.36,0.09].",
+        "exact": true,
+        "correct": true,
+        "grade": "taught"
+      },
+      {
+        "n": 6,
+        "option": 1,
+        "coverage": "taught",
+        "quotes": [
+          {
+            "scene": "probability-value",
+            "quote": "Our pairwise score orders products; it is not a purchase probability. A separate calibrated model may estimate probability of click and probability of purchase given that click. Under one attributed purchase through the measured click path and a fixed price, multiply those two probabilities by price for expected gross purchase value per impression."
+          },
+          {
+            "scene": "probability-value",
+            "quote": "Multiplying an arbitrary rank score by price would not establish that expectation. The feature and outcome definitions must match the probability contract."
+          }
+        ],
+        "reason": "Expected gross value is 0.25×0.4×80=8 currency units per impression. An arbitrary pairwise score cannot replace either probability without a validated probability contract.",
+        "exact": true,
+        "correct": true,
+        "grade": "taught"
+      },
+      {
+        "n": 7,
+        "option": 4,
+        "coverage": "taught",
+        "quotes": [
+          {
+            "scene": "outcome-join",
+            "quote": "It joins by request plus exposed product."
+          },
+          {
+            "scene": "outcome-join",
+            "quote": "A well-shaped event for an unexposed product still fails that join. Occurrence before serving fails the chosen timestamp contract and needs investigation for clock skew or identifier error."
+          },
+          {
+            "scene": "outcome-join",
+            "quote": "At-least-once delivery requires durable deduplication: an identical event replay has no new effect, while the same ID with changed payload needs conflict handling."
+          }
+        ],
+        "reason": "The identical E8 replay is deduplicated. E9 precedes serving and fails time order. E10 names unexposed K9 and fails the exposure join.",
+        "exact": true,
+        "correct": true,
+        "grade": "taught"
+      },
+      {
+        "n": 8,
+        "option": 2,
+        "coverage": "taught",
+        "quotes": [
+          {
+            "scene": "experiment-contract",
+            "quote": "Each shopper stays in one arm even across repeated searches."
+          },
+          {
+            "scene": "experiment-contract",
+            "quote": "Analyze uncertainty at the assignment unit rather than pretending a shopper’s repeated searches are independent."
+          },
+          {
+            "scene": "propensity-contract",
+            "quote": "A fifty-fifty experiment allocation describes assignment to an arm. Action-selection probability describes choosing a product or slate. Examination propensity describes looking at a product already shown. They are different probabilities."
+          }
+        ],
+        "reason": "The assignment units are the 40+40=80 shoppers. Repeated searches do not create additional independent assignment units. Arm allocation does not identify examination propensity.",
+        "exact": true,
+        "correct": true,
+        "grade": "taught"
+      },
+      {
+        "n": 9,
+        "option": 1,
+        "coverage": "taught",
+        "quotes": [
+          {
+            "scene": "offline-gates",
+            "quote": "Its ten supplied scoring samples have nearest-rank p ninety-five of eighteen milliseconds: sort, take the ceiling of sample count times point nine five, then select that one-based rank. Passing the fictional twenty-millisecond threshold proves this synthetic calculation, not measured service latency."
+          }
+        ],
+        "reason": "The nearest rank is ceil(12×0.95)=12, whose value is 27 ms. This exceeds 24 ms, so the worksheet fails its scoring gate. Synthetic inputs supply no measured serving-latency proof.",
+        "exact": true,
+        "correct": true,
+        "grade": "taught"
+      },
+      {
+        "n": 10,
+        "option": 3,
+        "coverage": "taught",
+        "quotes": [
+          {
+            "scene": "online-guardrails",
+            "quote": "Search conversion is therefore purchases divided by searches: point zero four and point zero six. Return rate is returns divided by purchases: zero and one sixth, about point one six seven."
+          },
+          {
+            "scene": "online-guardrails",
+            "quote": "If an arm has zero purchases, its returns-per-purchase denominator is zero. The helper records none and holds the return comparison rather than inventing zero."
+          }
+        ],
+        "reason": "Conversion is [0/200,8/200]=[0,0.04]. Returns per purchase are [undefined,1/8]=[undefined,0.125]. The control denominator is zero, so the worksheet holds the return comparison.",
+        "exact": true,
+        "correct": true,
+        "grade": "taught"
+      }
+    ]
+  },
+  "factCheck": {
+    "scenes": [
+      {
+        "id": "intro",
+        "evidence": "Verified against the executable fixtures. Label-printer retrieval scores are P8=0.98, P11=0.97, P5=0.93, P6=0.86 and P4=0.74. P8 fails policy and stock; P11 fails region. Thus the strongest supplied matches cannot appear. Eligibility, retrieval coverage, ordering and feedback collection are distinct decisions in this authored scenario.",
+        "sourceUrls": []
+      },
+      {
+        "id": "funnel-contract",
+        "evidence": "CATALOG contains ten listings across two queries. retrieve() filters eligibility, sorts supplied scores and truncates; it builds neither embeddings nor an ANN index. The architecture descriptions agree with [TensorFlow](https://www.tensorflow.org/recommenders/examples/basic_retrieval) and [Burges](https://www.microsoft.com/en-us/research/wp-content/uploads/2016/02/MSR-TR-2010-82.pdf). The [original MMR criterion](https://www.cs.cmu.edu/afs/cs/Web/People/jgc/publication/MMR_DiversityBased_Reranking_SIGIR_1998.pdf) supports the worksheet: first values are 0.6×0.96=0.576, 0.6×0.84=0.504 and 0.6×0.45=0.270. After selecting P5, P6 gets 0.504−0.4×0.9=0.144; P4 gets 0.270−0.4×0.1=0.230. P4 therefore wins second. The narration correctly distinguishes this worksheet from the article implementation.",
+        "sourceUrls": [
+          "https://www.tensorflow.org/recommenders/examples/basic_retrieval",
+          "https://www.microsoft.com/en-us/research/wp-content/uploads/2016/02/MSR-TR-2010-82.pdf",
+          "https://www.cs.cmu.edu/afs/cs/Web/People/jgc/publication/MMR_DiversityBased_Reranking_SIGIR_1998.pdf"
+        ]
+      },
+      {
+        "id": "eligibility",
+        "evidence": "P9 and P8 lead their respective raw sorts but fail policy. Filtering also removes sold-out P10 and region-ineligible P11. The surviving sets P1/P2/P3 and P5/P6/P4 each fill budget three, and the rejected dictionary retains reasons. A finite additive penalty is not inherently a hard constraint: an item whose other score advantage exceeds that penalty can still win. Authoritative state, version recording and update policy are explicitly service requirements, not claimed deployed features.",
+        "sourceUrls": []
+      },
+      {
+        "id": "slate-recheck",
+        "evidence": "exclusion_reason() checks policy, stock, then region, so P8 records policy_block despite two failures. Executed Listing probes rejected integer-valued flags, Boolean relevance and infinite scores. Retrieval filters before truncating. The seller predicate checks a maximum of two; the supplied treatment sellers are all distinct. Changing current P5 stock caused impression_rows() to raise 'eligibility changed before display; rebuild the slate', while historical valid_impression() checks still accepted the retained old rows. Rebuilding, refill and new snapshot retention are stated requirements; the fixture does not automatically perform them.",
+        "sourceUrls": []
+      },
+      {
+        "id": "ordering",
+        "evidence": "The previous provenance finding is closed for narration: it now calls the grades authored, matching their literal fixture definitions. Control grades [1,3,2] give DCG=1+7/log2(3)+3/2=6.916508275. Ideal grades [3,2,1] give IDCG=7+3/log2(3)+1/2=9.392789261. Their ratio is 0.736363617; treatment is ideal and scores 1. Product identities and grades remain fixed. Position value here follows the declared metric, not measured shopper value.",
+        "sourceUrls": []
+      },
+      {
+        "id": "metric-contracts",
+        "evidence": "The previous helper-scope finding is closed. Executing the actual helpers confirmed unknown and changed-grade rows each score 1 under default NDCG, but explicit fixed-universe calls reject them. Duplicate rows are rejected. Recall rejects duplicates, wrong-query rows and ineligible rows, but an unknown candidate returns 0 and a changed-grade known relevant ID can return 0.5. No relevant eligible judgments raises; zero ideal gain returns 0. Grade one has exponential gain 1 but fails the binary grade≥2 criterion. [Scikit-learn](https://scikit-learn.org/stable/modules/generated/sklearn.metrics.ndcg_score.html) discounts supplied relevance values directly, supporting the gain-convention warning. [NIST](https://trec.nist.gov/data/qa.html) defines MRR using the first correct result, zero when absent, then a mean; rank three contributes 1/3. Neither metric observes satisfaction or identifies purchase probability.",
+        "sourceUrls": [
+          "https://scikit-learn.org/stable/modules/generated/sklearn.metrics.ndcg_score.html",
+          "https://trec.nist.gov/data/qa.html"
+        ]
+      },
+      {
+        "id": "recall",
+        "evidence": "Removing the grade-two product leaves ideal survivors [3,1]. Their DCG and survivor IDCG both equal 7+1/log2(3)=7.630929754, giving conditional NDCG 1. Against the original IDCG 9.392789261, NDCG becomes 0.812424248. One of two binary-relevant products remains, so recall is 1/2. Reordering a candidate set cannot introduce an absent product. Separate coverage and ordering measurements therefore follow from the example.",
+        "sourceUrls": []
+      },
+      {
+        "id": "offline-gates",
+        "evidence": "Recomputed baseline NDCGs are 0.972121220 and 0.736363617; their equal-query mean is 0.854242418. Both candidate orders score 1. Removing P3 gives conditional NDCG 1, fixed-universe NDCG 0.812424248 and recall 0.5. A mean can hide a failing slice: query scores 0.94 and 1 average 0.97, while the first fails a 0.95 per-query gate. Inspected and executed the stated local predicates. Sorted latency samples are [11,12,12,13,13,14,15,16,17,18]; ceil(10×0.95)=10 selects 18≤20. No timer generated these values.",
+        "sourceUrls": []
+      },
+      {
+        "id": "pairwise",
+        "evidence": "Read and executed model.mjs::update(), rankingResponse() and the projection construction. P4=[0.95,0.30] initially scores 0.95 under [1,0]; P5=[0.85,0.90] scores 0.85. Twelve isolated updates with difference [−0.1,0.6] and step 0.4 produce weights [0.792886810,1.242679138]. P5 then scores 1.792365013 versus P4's 1.126046211. Projection order agrees because the common projection-length denominator is positive. This verifies the illustrated reversal, not generalization.",
+        "sourceUrls": []
+      },
+      {
+        "id": "pairwise-objective",
+        "evidence": "The CSV confirms A2−A1=[0.85−0.95,0.90−0.30]=[−0.10,0.60]. For loss log(1+exp(−w·d)), differentiation gives −d sigmoid(−w·d). At zero, the gradient is [0.05,−0.30]; subtracting 0.3 times it gives [−0.015,0.09]. The margin is (−0.015)(−0.1)+0.09×0.6=0.0555. Averaging gradients and differentiating λ||w||²/2 adds λw. exp(−logaddexp(0,m)) equals 1/(1+exp(m)) without directly evaluating the potentially overflowing positive exponential. The objective and neural-architecture distinction agree with the [original RankNet paper](https://www.microsoft.com/en-us/research/wp-content/uploads/2005/08/icml_ranking.pdf).",
+        "sourceUrls": [
+          "https://www.microsoft.com/en-us/research/wp-content/uploads/2005/08/icml_ranking.pdf"
+        ]
+      },
+      {
+        "id": "training-matrix",
+        "evidence": "Compared film training records directly with the CSV; they match. Each request has grades 1,2,3 and contributes three directed better/worse pairs, totaling nine. Their feature differences sum to [−0.30,2.90]. At zero the average gradient is −0.5[−0.30,2.90]/9=[0.016666667,−0.161111111]; the step-0.3 update is [−0.005,0.048333333]. Executing meanPairGradient() reproduced these values. Pair averaging gives requests influence proportional to pair count. Features in [0,1] imply differences in [−1,1]. Training-only preprocessing follows the documented leakage boundary in [scikit-learn](https://scikit-learn.org/stable/modules/cross_validation.html).",
+        "sourceUrls": [
+          "https://scikit-learn.org/stable/modules/cross_validation.html"
+        ]
+      },
+      {
+        "id": "time",
+        "evidence": "The historical training target requires both chronological grouping and availability checks: an earlier serving timestamp alone does not establish that a later purchase or return label was usable at freeze time. PENDING-4 supplies the concrete counterexample. Validation selects settings before the later test. Repeated query text means the split does not separately establish unseen-query or unseen-product performance. Grouped and temporal evaluation are consistent with [scikit-learn's guidance](https://scikit-learn.org/stable/modules/cross_validation.html).",
+        "sourceUrls": [
+          "https://scikit-learn.org/stable/modules/cross_validation.html"
+        ]
+      },
+      {
+        "id": "temporal-protocol",
+        "evidence": "Independently read all 24 CSV rows in eight three-product requests. Checked bounded finite features, grades, unique products, consistent request metadata and feature_available_at≤served_at≤label_available_at. Inspected the actual loader and executed its utc_time() and window() functions. Windows [May1,May5), [May5,May7), [May7,May9), with strict label freezes May5, May7 and May10, select TRAIN-1/2/3, VALID-5/6 and TEST-7/8. PENDING-4's May5 noon labels miss the training freeze by twelve hours. The '<' comparison excludes equality, and request-wide all() keeps rows together. Selecting only matured outcomes can change cohort composition when delays depend on outcomes.",
+        "sourceUrls": []
+      },
+      {
+        "id": "trained-model",
+        "evidence": "Read and executed the actual JavaScript trainer and independently recomputed the CSV objective with scalar Python. After 600 rate-0.3 steps, λ=0 gives [−0.102408157,8.380027549]; λ=0.1 gives [−0.109289471,1.228977109]. Both score 1 on each validation request, so the declared stronger-regularization tie-break selects 0.1. Test baseline scores are 0.736363617 and 0.972121220, averaging 0.854242418; fitted scores are both 1. Positive quality-only weights already separate the authored grades, verifying separability. No convergence criterion or exhaustive search exists. The negative coefficient is specific to this fit; further test-informed selection would consume the holdout.",
+        "sourceUrls": []
+      },
+      {
+        "id": "exposure",
+        "evidence": "Executed exposureFrame(): P4 has 100 impressions/10 clicks, P5 20/6 and P6 10/4. P4 wins raw clicks and has 100/10=10 times P6's exposure. The constructed first ten-impression cohorts contain 1,3,4 clicks, giving 0.1,0.3,0.4. Equal counts do not equalize positions, examination or selection. The observation-bias mechanism is supported by [Joachims et al.](https://arxiv.org/html/1608.04468); these particular counts are synthetic.",
+        "sourceUrls": [
+          "https://arxiv.org/html/1608.04468"
+        ]
+      },
+      {
+        "id": "click-model",
+        "evidence": "For binary C=OR, the chain rule gives P(C=1)=P(O=1)P(R=1|O=1). Independence is the additional assumption yielding pr. With r=0.5 and p=0.8/0.2, click expectations are 0.4/0.1. Multiplying by inverse weights 1.25/5 gives 0.5/0.5. Capping at two leaves 0.4×1.25=0.5 but changes the second expectation to 0.1×2=0.2, a −0.3 bias relative to r. Actual model execution agrees. Expectation does not guarantee finite-sample equality, and bounding weights supplies no automatic small-error guarantee. [Joachims et al.](https://arxiv.org/html/1608.04468) explicitly discuss noise-free examination models, click noise and trust effects.",
+        "sourceUrls": [
+          "https://arxiv.org/html/1608.04468"
+        ]
+      },
+      {
+        "id": "propensity-contract",
+        "evidence": "Arm assignment, action selection and examination condition on different events; zero exposure support supplies no observed outcome to reweight. [Agarwal et al., sections 3–4](https://arxiv.org/html/1812.05161) require a position-based model, ranker-independent query distribution and informative cross-ranker position variation to estimate relative propensities. Algebraically, cL+λR has the same minimizers as L+(λ/c)R for c>0, verifying the regularization qualification. Absolute relevance remains unidentified: click rates [0.4,0.1] fit both p=[0.8,0.2], r=0.5 and p=[0.4,0.1], r=1. Fixture propensity fields are unset; evaluation_only is metadata, not enforced access control.",
+        "sourceUrls": [
+          "https://arxiv.org/html/1812.05161"
+        ]
+      },
+      {
+        "id": "synthesis",
+        "evidence": "The previous model-identity finding is closed. The narration explicitly returns to the separate twelve-update illustration. stages/synthesis.mjs calls rankingResponse(), whose default is twelve updates. Execution gives P5=1.792365013, P6=1.443347876 and P4=1.126046211, with P8/P11 excluded. These differ from selected temporal-model scores [1.013183348,0.641211531,0.264868135] on the same P5/P6/P4 features, although the order agrees. Saving context and joining later outcomes are prescribed contracts; version names alone do not retain durable artifacts.",
+        "sourceUrls": []
+      },
+      {
+        "id": "response-lineage",
+        "evidence": "The affected narration now correctly identifies a separate hand-entered fixture. Executing the response cells produced REQ-500=P4/P5/P6 and REQ-501=P5/P6/P4, six server-returned rows total. valid_impression() checks configured product-position membership and retained catalog state; complete_slates() checks contiguous unique positions, product uniqueness, size and consistent metadata. No rendering, visibility or examination collection exists. Historical validation remained valid after current stock changed, while a new response was rejected. Dictionaries provide no durable append-only transaction. Candidate, feature, model and rule retention are additional replay requirements, not claimed fixture capabilities.",
+        "sourceUrls": []
+      },
+      {
+        "id": "outcome-join",
+        "evidence": "EVT-900 clicks P5 at 12:00:08, three seconds after REQ-501; EVT-901 purchases P5 at 12:04:18, 253 seconds afterward. The actual join uses request_id plus product_id. Executed probes rejected unexposed P9 and an event at 12:00:04. Duplicate event delivery failed the unique-ID gate; no durable deduplicator or conflict handler is implemented. The original order is not mutated. [Kafka's delivery documentation](https://kafka.apache.org/41/design/design/) confirms that at-least-once delivery permits redelivery and requires coordinated processing for stronger effect guarantees. Attribution windows and pending/finalized labels are correctly presented as further contracts.",
+        "sourceUrls": [
+          "https://kafka.apache.org/41/design/design/"
+        ]
+      },
+      {
+        "id": "experiment-contract",
+        "evidence": "Independent SHA-256 calculation gives SHOP-100 prefix 1c9038db, bucket 1/control, and SHOP-200 prefix 1f02a85c, bucket 0/treatment. Assignment inputs exclude request and product, preserving each shopper's arm for a fixed experiment ID. The fixture rejects missing IDs and hash-inconsistent arms. Cluster-aware uncertainty follows the distinction between assignment and observation units discussed by [Microsoft](https://www.microsoft.com/en-us/research/articles/why-tenant-randomized-a-b-test-is-challenging-and-tenant-pairing-may-not-work/). Its [pre-experiment guidance](https://www.microsoft.com/en-us/research/articles/patterns-of-trustworthy-experimentation-pre-experiment-stage/) supports planning outcomes and power; [SRM guidance](https://www.microsoft.com/en-us/research/articles/diagnosing-sample-ratio-mismatch-in-a-b-testing/) supports checking realized allocation. A balanced hash mapping does not prove balanced observed traffic. Recovery steps are requirements, not an implemented rollback.",
+        "sourceUrls": [
+          "https://www.microsoft.com/en-us/research/articles/why-tenant-randomized-a-b-test-is-challenging-and-tenant-pairing-may-not-work/",
+          "https://www.microsoft.com/en-us/research/articles/patterns-of-trustworthy-experimentation-pre-experiment-stage/",
+          "https://www.microsoft.com/en-us/research/articles/diagnosing-sample-ratio-mismatch-in-a-b-testing/"
+        ]
+      },
+      {
+        "id": "probability-value",
+        "evidence": "A pairwise ordering objective does not make its raw score a purchase probability. Under the stated purchase-path and fixed-price assumptions, the chain rule gives expected gross value P(click)P(purchase|click)×price. Arithmetic is 0.2×0.25=0.05 purchases and 0.05×80=4 currency units per impression. Reliability diagrams compare bin-average predictions with observed positive frequencies, as documented by [scikit-learn](https://scikit-learn.org/stable/modules/calibration.html). The sample-share-weighted absolute-bin-gap ECE agrees with [Guo et al.](https://arxiv.org/html/1706.04599): this single bin gives (10/10)|0.8−6/10|=0.2. Neither finite-bin agreement nor this worksheet proves future calibration.",
+        "sourceUrls": [
+          "https://scikit-learn.org/stable/modules/calibration.html",
+          "https://arxiv.org/html/1706.04599"
+        ]
+      },
+      {
+        "id": "online-guardrails",
+        "evidence": "The previous conversion-denominator finding is closed for narration. Its explicit distinct-search, at-most-one-counted-purchase assumption makes purchase count equal converted-search count: 4/100=0.04 and 6/100=0.06. Returns per purchase are 0/4=0 and 1/6=0.166666667; 1/6>0+0.01 triggers the declared worksheet stop. Executed the zero-purchase branch: return rate becomes None, comparison_defined is false and stop_returns is false. Scoring 20 ms and full-search 120 ms concern different endpoints. The warning about small counts, follow-up and repeated monitoring agrees with [Microsoft's monitoring guidance](https://www.microsoft.com/en-us/research/articles/patterns-of-trustworthy-experimentation-during-experiment-stage/). [Google's converted-session definition](https://developers.google.com/analytics/devguides/reporting/data/v1/api-schema) independently illustrates the converted-unit versus event-count distinction.",
+        "sourceUrls": [
+          "https://www.microsoft.com/en-us/research/articles/patterns-of-trustworthy-experimentation-during-experiment-stage/",
+          "https://developers.google.com/analytics/devguides/reporting/data/v1/api-schema"
+        ]
+      },
+      {
+        "id": "receipt-boundary",
+        "evidence": "Executed the actual receipt and gate cells with independently recomputed temporal artifacts. All seventeen required predicates are true, candidate_decision is fixture_checks_pass and live_experiment_ready is false. Removing REQ-500 and recomputing fails fixture_requests_retained; removing EVT-900 fails fixture_outcomes_retained; duplicating an event fails outcome_event_ids_unique. Independently reproduced p95=18, hand-entered mean 0.854242418→1 and temporal request split 3/2/2. Online totals are separately supplied constants, not an aggregation of six response rows and two events. Runtime benchmarking, power, durable outcome processing, client acknowledgements and rollback remain explicitly proposed work.",
+        "sourceUrls": []
+      },
+      {
+        "id": "fresh-ranking",
+        "evidence": "Checked the actual worksheet and buildCurrentSlate(). With w=[−0.1,1.2], J1=−0.08+0.24=0.16, J2=−0.07+1.08=1.01 and J3=−0.06+0.72=0.66, giving J2>J3>J1. Stock=false removes J3. J5=−0.05+0.36=0.31; constructor execution returns J2/J5/J1. Sellers S2/S5/S1 each occur once, satisfying cap two. Retention and later attribution checks are requirements rather than demonstrated durable storage. The next lesson's actual issued, metrics and signals scenes distinguish frozen forecasts, later mature residuals and advance forecast-versus-capacity warnings, supporting the closing transition.",
+        "sourceUrls": []
+      }
+    ],
+    "findings": [],
+    "limitations": [
+      "No substantive spoken factual error or unsupported guarantee remains in the supplied narration. All four previous narration findings are independently closed. The two article/quiz ambiguities and visual carryovers below remain separate.",
+      "Reviewed lesson.yaml SHA-256 5176cbdc4caffb229619814e9e718fb79bfdfe6975d5600f05042966874d86d9. Parsing confirmed 25 scenes and 142 valid cue phrases. Comparison with the old lesson found changes in exactly five beats: ordering, metric-contracts, synthesis, response-lineage and online-guardrails.",
+      "Visual inspection was source-level only. The stage lesson folder has no index.mjs or rebuilt scenes. No video was rendered or watched, and revised audio, measured timing, cue synchronization and actual displayed frames were not checked.",
+      "Visual carryover: [ordering.mjs:60](/Users/bruno.volpato/githubworkspace/leetllm-wt-rebuild/videos/films/capstone-product-ranking-recommendation/stages/ordering.mjs:60) still says 'Human judgment stays with'. If reused, replace it with 'Authored relevance grade stays with'. The repaired spoken sentence is accurate.",
+      "Visual carryover: [metric-contracts.mjs:123](/Users/bruno.volpato/githubworkspace/leetllm-wt-rebuild/videos/films/capstone-product-ranking-recommendation/stages/metric-contracts.mjs:123) shows an unqualified duplicate/changed-grade/unknown-item rejection box during the recall beat. If reused, label unknown-item and changed-grade rejection as NDCG with an explicit fixed judgment universe, and identify recall's separate guards. The spoken qualification is accurate.",
+      "When rebuilding, keep synthesis's illustration scores 1.792/1.443/1.126 identified with twelve updates; keep REQ-500/501 identified as the separate hand-entered fixture; label the online worksheet's one-counted-purchase-per-search assumption. Existing source arithmetic is compatible with the repaired narration.",
+      "Native NumPy execution was unavailable in the installed default Python. The actual JavaScript trainer was executed, its records were compared directly with the CSV, and an independent scalar Python implementation reproduced both fitted vectors and evaluations. The actual standard-library metric, response, join, gate and receipt cells were executed; the NumPy-dependent loader/trainer cells were inspected rather than run unchanged.",
+      "The unchanged article table and mastery question 10 still call purchase-event count divided by searches conversion without independently stating the distinct-converted-search contract. Their numerical ratios are valid as purchases per search. Preserve these prior article/quiz issues: add the counting assumption or rename the ratio. They do not invalidate the now-qualified narration.",
+      "No real human assessments, shopper outcomes, deployed artifacts, serving latency, propensity estimation, access controls, durable storage or recovery operation were verified. The narration appropriately identifies these as authored examples or production requirements.",
+      "The supplied Stanford IR page timed out. Metric conventions were checked against the actual calculations, scikit-learn documentation, Burges's primary report and NIST's explicit MRR definition instead. No edits, external writes or subagents were used."
+    ]
+  },
+  "reviewedNarration": {
+    "source": "videos/stage-lessons/capstone-product-ranking-recommendation/lesson.yaml",
+    "script": "3e96110c82afd27c",
+    "scenes": [
+      {
+        "id": "intro",
+        "beats": [
+          {
+            "say": "A shopper searches for a label printer. The closest text matches include a blocked listing and a product that cannot ship to their region. A useful ranking system must preserve those constraints while choosing an order that helps the shopper find a suitable item."
+          },
+          {
+            "say": "We will build a small ranking experiment from that problem. First decide what may appear, then measure which relevant items reach the ranker, learn how to order them, and inspect how the displayed list changes the feedback we later collect."
+          }
+        ]
+      },
+      {
+        "id": "funnel-contract",
+        "beats": [
+          {
+            "say": "The catalog has ten authored listings across two searches. Our first stage sorts supplied retrieval scores and filters required eligibility. It builds no embedding model or approximate-neighbor index. A large system can use lexical or two-tower retrieval before a richer query-item ranker. The candidate budget and displayed cutoff have different jobs and need separate measurements."
+          },
+          {
+            "say": "Ranking scores the surviving candidates. LambdaMART is a boosted-tree ranking method whose pairwise updates can be weighted by ranking-metric changes. Our trainer will instead use a two-feature linear pairwise objective. Neither architecture turns a relevance score into permission to display a prohibited or undeliverable listing."
+          },
+          {
+            "say": "Construct the slate after scoring. For a worked M M R worksheet, give relevance weight point six and redundancy weight point four. P five, P six and P four have relevance point nine six, point eight four and point four five. With no selected item, redundancy is zero, so P five wins point five seven six. Then similarity to P five is point nine for P six and point one for P four. Their values become point one four four and point two three: P four wins the second slot. This is a computed diversification worksheet, not an implemented lab component."
+          }
+        ]
+      },
+      {
+        "id": "eligibility",
+        "beats": [
+          {
+            "say": "Look at these retrieval scores. The blocked products would win an ordinary score sort. Eligibility rules remove them from the display pool regardless of their match strength. The remaining listings fill the candidate budget, with rejection reasons retained for inspection."
+          },
+          {
+            "say": "A learned penalty could be outweighed by another feature, so enforce required display rules directly. Recheck the applicable state when constructing the response and record its version. Our in-memory fixture demonstrates the rule; a service also needs an authoritative eligibility source and update policy."
+          }
+        ]
+      },
+      {
+        "id": "slate-recheck",
+        "beats": [
+          {
+            "say": "The eligibility function tests policy approval, then stock, then region. P eight fails policy and stock, but this helper records the first failure, policy block. P eleven fails region. Validation rejects malformed flags, grades and nonfinite scores. Retrieval fills its budget from eligible products rather than letting forbidden high scores consume the entire shortlist."
+          },
+          {
+            "say": "The lab checks a fictional maximum of two listings per seller in a three-item slate. A concentration cap is its own constraint; it does not prove fairness. A real constructor needs an explicit skip, refill, or shorter-slate policy. Sponsored placements and M M R would need their own evaluated contracts rather than being assumed from this three-row check."
+          },
+          {
+            "say": "Recheck current eligibility before retaining the response. If P five becomes out of stock after scoring, impression-rows rejects the slate instead of trusting its old score. Rebuild from current eligible candidates under a new pinned snapshot. Historical replay still needs the old catalog, while a new response must not restore obsolete eligibility merely to reproduce yesterday’s list."
+          }
+        ]
+      },
+      {
+        "id": "ordering",
+        "beats": [
+          {
+            "say": "Our authored relevance grades assign stronger relevance to some surviving products. Showing a weak result first spends the most valuable position poorly. Discounted cumulative gain adds each relevance gain after reducing the value of later positions. The ideal ordering supplies a common reference."
+          },
+          {
+            "say": "Divide the observed gain by that ideal gain to obtain NDCG. Our control places the weakest of these three first; the treatment puts the strongest first. The metric rewards the improved order while preserving the same candidate identities and judged relevance."
+          }
+        ]
+      },
+      {
+        "id": "metric-contracts",
+        "beats": [
+          {
+            "say": "Pin the metric before comparing methods. This lab uses gain equal to two raised to the relevance grade, minus one. At one-based position i, divide that gain by the base-two logarithm of the quantity i plus one. Add the first K contributions for D C G. Sort the fixed judgment universe into its ideal order and divide observed D C G by ideal D C G for N D C G. Some libraries use linear gain, so their number can differ even on the same list."
+          },
+          {
+            "say": "Binary candidate recall uses a different rule here: relevant means eligible grade at least two. Divide the number of those products retrieved by all relevant eligible judgments in the declared universe. Grade one still contributes positive graded gain to N D C G. With an explicitly supplied fixed judgment universe, the N D C G helper rejects duplicate products, unknown items and changed relevance grades. Without that argument, it uses the returned rows as their own universe. The recall helper separately rejects duplicates and query or eligibility violations. No relevant eligible judgments is an error for recall, while zero ideal gain yields N D C G zero."
+          },
+          {
+            "say": "Mean reciprocal rank asks only where the first relevant result appears. Take one divided by that one-based rank, or zero if none appears, then average across query instances. A first relevant item at rank three contributes one third. Pin whether relevance is independently judged or defined by a click. Neither reciprocal rank nor N D C G directly measures shopper satisfaction or establishes a purchase probability."
+          }
+        ]
+      },
+      {
+        "id": "recall",
+        "beats": [
+          {
+            "say": "Now remove a relevant product before ranking. The ranker can perfectly order every survivor and still leave the shopper without that option. Candidate recall asks how many relevant eligible items reached this stage, using the original judgment universe as its denominator."
+          },
+          {
+            "say": "Notice how a score normalized only against survivors can stay perfect. Keeping the full eligible universe in the ranking denominator exposes the loss. Report retrieval coverage and ordering separately, with their cutoffs and relevance criteria, so an excellent second stage cannot hide an incomplete first stage."
+          }
+        ]
+      },
+      {
+        "id": "offline-gates",
+        "beats": [
+          {
+            "say": "The two-query hand-entered fixture has baseline N D C G about point nine seven two for insulated bag and point seven three six for label printer. Their mean is point eight five four. The candidate gives one on both. These are regression scores supplied by the author; the model-fitting exercise is a separate artifact."
+          },
+          {
+            "say": "Now remove P three from the insulated-bag candidate list. Its surviving ideal order still normalizes to one against itself. Keep the original eligible universe, and N D C G falls to about point eight one two; binary recall falls to one half. A per-query gate can also catch a poor ordering hidden by a better mean. Preserve the cutoff, universe and relevance rule with each result."
+          },
+          {
+            "say": "The local gates also check no blocked displays, complete unique slates, known versions, stable assignment, outcome joins and a seller count at most two. Its ten supplied scoring samples have nearest-rank p ninety-five of eighteen milliseconds: sort, take the ceiling of sample count times point nine five, then select that one-based rank. Passing the fictional twenty-millisecond threshold proves this synthetic calculation, not measured service latency."
+          }
+        ]
+      },
+      {
+        "id": "pairwise",
+        "beats": [
+          {
+            "say": "The ranker uses semantic match and listing quality. P5 loses on semantic match, but our judgment prefers its stronger listing quality. The projections favor P4. Predict how learning that preference should turn the scoring direction."
+          },
+          {
+            "say": "The pairwise loss increases the preferred product’s margin. Watch the shared direction turn toward listing quality. P5’s projection moves ahead, and its computed score overtakes P4. We still need later untouched requests to evaluate this learned rule."
+          }
+        ]
+      },
+      {
+        "id": "pairwise-objective",
+        "beats": [
+          {
+            "say": "The rotating arrow was a separate single-preference illustration with twelve visual updates. Now use the actual C S V training rule. A two has features point eight five, point nine zero; A one has point nine five, point three zero. Better minus worse is negative point one, positive point six. Score is the dot product of weights and features; the preferred margin is the dot product with that difference."
+          },
+          {
+            "say": "For one preferred pair, loss is the logarithm of one plus the exponential of the negative margin. Its gradient is negative feature difference times sigmoid of negative margin. At zero weights that sigmoid is one half, giving gradient point zero five, negative point three. Subtract point three times the gradient: weights become negative point zero one five, positive point zero nine, and the preferred margin becomes point zero five five five."
+          },
+          {
+            "say": "The full objective averages every pair loss and adds one half times lambda times squared weight norm. Its gradient averages the negative weighted differences, then adds lambda times weights. The code computes sigmoid of negative margin as exponential of negative log-add-exp of zero and margin, avoiding an unstable direct exponential. This linear model shares RankNet’s preference objective; the original RankNet uses a neural scoring architecture."
+          }
+        ]
+      },
+      {
+        "id": "training-matrix",
+        "beats": [
+          {
+            "say": "Each of three training requests has grades one, two and three. Form a directed pair whenever one grade is larger: three pairs per request, nine total. Equal grades contribute no preference pair. Keep product and request identities on every row. The feature differences all lie between negative one and one in this authored scale."
+          },
+          {
+            "say": "At zero weights, all nine wrong-order probabilities are one half. The average gradient is approximately positive point zero one six six seven in text match and negative point one six one one one in quality. The first full update with step point three is negative point zero zero five, positive point zero four eight three three. It differs from the isolated A two versus A one update because all nine rows contribute."
+          },
+          {
+            "say": "This objective averages pairs, not requests. They have equal weight here because each request supplies three pairs. A request with many more judged pairs would contribute more. Use a per-request average if equal request influence is intended. The features already share the supplied zero-to-one scale; a fitted scaler on real features must learn statistics from training only."
+          }
+        ]
+      },
+      {
+        "id": "time",
+        "beats": [
+          {
+            "say": "Ranking rows from one request belong together. For a model intended to score later traffic, choose chronological windows and check when features and labels became available. A request served yesterday may still have an immature purchase or return outcome when today’s training freezes."
+          },
+          {
+            "say": "Keep the pending request out of that frozen training set. Choose regularization and other settings on development requests, then evaluate the later test window. This design answers a specific future-traffic question; new-query and new-product generalization need their own held-out slices."
+          }
+        ]
+      },
+      {
+        "id": "temporal-protocol",
+        "beats": [
+          {
+            "say": "The downloadable file contains twenty-four rows in eight three-product requests. Serving time chooses the request’s chronological window. Feature availability must be no later than serving, and a judgment cannot be available before its request. The loader requires explicit U T C timestamps, finite bounded features, valid grades, one query and serving time per request, and unique products."
+          },
+          {
+            "say": "Training serves from May first up to but excluding May fifth, with labels strictly before May fifth midnight. Validation serves May fifth and sixth with labels strictly before May seventh. Test serves May seventh and eighth; its labels must be available before May tenth. Every product row of a request stays together. Labels arriving exactly at a strict freeze fail that historical training window."
+          },
+          {
+            "say": "These rules give three training, two validation and two test requests; pending-four is excluded. An immature return outcome is not a finalized negative. Excluding slow outcomes can itself select a biased cohort, so report that selection. The same query can recur across these windows: later traffic, unseen-query transfer and unseen-product transfer require different declared evaluation slices."
+          }
+        ]
+      },
+      {
+        "id": "trained-model",
+        "beats": [
+          {
+            "say": "The actual trainer starts both weights at zero and runs six hundred fixed gradient steps with rate point three, once with lambda zero and once with lambda point one. It does not establish convergence or search every configuration. Both candidates obtain validation N D C G one; the declared tie-break chooses the stronger point-one regularization."
+          },
+          {
+            "say": "The selected weights are approximately negative point one zero nine and positive one point two two nine. They assign a small negative coefficient to text match because this tiny authored dataset gives some high-match listings weak grades. Do not interpret that coefficient as a general marketplace law. On the two later test requests, text-match-only baseline averages point eight five four and this fitted rule averages one."
+          },
+          {
+            "say": "This is real execution on deliberately separable synthetic data, not live shopper evidence. Tuning another choice after seeing the test result would reuse the test as development data. Preserve feature definitions, fitted weights, all windows and their exact data with the comparison. Hand-entered regression scores and this fitted artifact stay separately identified."
+          }
+        ]
+      },
+      {
+        "id": "exposure",
+        "beats": [
+          {
+            "say": "Each dot records one displayed impression. P4 gets a hundred, P5 gets twenty, and P6 gets ten. Yellow dots are clicks. Which product wins by raw click count?"
+          },
+          {
+            "say": "P4 wins ten clicks, but it had ten times P6’s exposure. Compare ten displayed impressions per product: one, three and four clicks. These observed rates still reflect position and selection. An experiment must test a new ordering."
+          }
+        ]
+      },
+      {
+        "id": "click-model",
+        "beats": [
+          {
+            "say": "Construct an explicit toy click model. Let O mean examined, R mean relevant, and click C equal O times R with no click noise. At a fixed context, assume relevance is independent of examination, and examination depends only on position. Then click probability is examination propensity p times relevance probability r. Independence is an assumption, not a consequence of the probability chain rule."
+          },
+          {
+            "say": "Use relevance probability point five at both positions and examination probabilities point eight and point two. Expected click rates are point four and point one. Divide each click by its positive examination probability: inverse weights one point two five and five give expected weighted clicks point five for both. This is an expectation over the toy mechanism; one finite log need not match it."
+          },
+          {
+            "say": "Clipping uses the smaller of inverse propensity and the chosen positive cap. Clip each inverse weight at two. The first stays one point two five and its expectation stays point five. The second falls from five to two, making point one times two equal point two. Clipping bounds weights but introduces bias; neither small bias nor small variance follows automatically. Real clicks can also depend on attractiveness, trust and accidental interaction, so evaluate the observation model."
+          }
+        ]
+      },
+      {
+        "id": "propensity-contract",
+        "beats": [
+          {
+            "say": "A fifty-fifty experiment allocation describes assignment to an arm. Action-selection probability describes choosing a product or slate. Examination propensity describes looking at a product already shown. They are different probabilities. An item with structurally zero exposure probability contributes no behavioral evidence; no finite examination weight creates its missing outcomes. New judgments or approved exploration supply new observations."
+          },
+          {
+            "say": "Estimate the required propensity from identifiable data rather than assuming one divided by position. Randomized position swaps are one approach. Agarwal and colleagues also harvest position variation across multiple historic rankers under their position-based model and assignment/support assumptions. Their model can identify relative propensities; it does not grant an unconditional guarantee for arbitrary historical logs."
+          },
+          {
+            "say": "A common positive rescaling of an unregularized loss preserves its minimizer, but a fixed regularizer changes its relative influence unless adjusted. Relative examination weights do not identify an absolute relevance rate. This fixture performs no propensity study: its fields stay unset and its rows stay evaluation-only. A version string names an estimate; suitable evidence and downstream access controls must validate and enforce its use."
+          }
+        ]
+      },
+      {
+        "id": "synthesis",
+        "beats": [
+          {
+            "say": "Return to the separate twelve-update illustration for our same label-printer request. P5 scores highest, followed by P6 and P4. P8 remains blocked. P11 still cannot ship. Which order should we preserve for this shopper?"
+          },
+          {
+            "say": "Save P5 in the first position, P6 in the second, and P4 in the third. Keep the model, policy and experiment assignment with this response. Later outcomes join this saved slate, even if tomorrow’s ranking changes."
+          }
+        ]
+      },
+      {
+        "id": "response-lineage",
+        "beats": [
+          {
+            "say": "The article’s separate hand-entered response fixture retains two requests: control R E Q five hundred shows P four, P five, P six; treatment R E Q five hundred one shows P five, P six, P four. Keep request, shopper, query, served time, product and position alongside catalog, eligibility, candidate, ranker and experiment versions. These server-side rows are proposals returned by the fixture."
+          },
+          {
+            "say": "Returned, client-rendered, visible and examined are separate events. Collect rendering or viewability acknowledgements separately and join by stable identities; the local code collects none. Keeping a row append-only preserves history only when storage and correction rules implement that contract. Ordinary in-memory dictionaries provide no durable immutability or transaction."
+          },
+          {
+            "say": "Validate complete unique positions from one through slate size, consistent request metadata and exact product-position membership in the configured slate. Validate against the retained historical catalog, not today’s stock, when replaying an old response. New responses still recheck current eligibility. To reproduce scores rather than just order, retain the original candidate set, features, model bytes and rule definitions as well."
+          }
+        ]
+      },
+      {
+        "id": "outcome-join",
+        "beats": [
+          {
+            "say": "The fixture appends E V T nine hundred, a click on P five in request five hundred one, then E V T nine hundred one, a later purchase. Neither changes the original response order. An outcome needs a nonblank event ID, explicit U T C occurrence time, request, product and a permitted outcome type. It joins by request plus exposed product."
+          },
+          {
+            "say": "A well-shaped event for an unexposed product still fails that join. Occurrence before serving fails the chosen timestamp contract and needs investigation for clock skew or identifier error. Occurrence afterward alone does not prove attribution. Declare purchase and return windows, direct versus retargeted paths, missing acknowledgements and label finalization before treating the joined event as a target."
+          },
+          {
+            "say": "At-least-once delivery requires durable deduplication: an identical event replay has no new effect, while the same ID with changed payload needs conflict handling. The local checks require unique named events but implement no stream deduplicator, finalized-label materializer or attribution window. Preserve nonclicked rows and their pending/finalized status; a nonclick under a serving policy is not proof of irrelevance or examination."
+          }
+        ]
+      },
+      {
+        "id": "experiment-contract",
+        "beats": [
+          {
+            "say": "The actual assignment hashes experiment ID and shopper ID, takes a deterministic bucket and maps it to treatment or control. Each shopper stays in one arm even across repeated searches. Missing IDs or an arm inconsistent with that hash fail the fixture. Different products in a slate do not receive independent experiment assignments."
+          },
+          {
+            "say": "Analyze uncertainty at the assignment unit rather than pretending a shopper’s repeated searches are independent. Before exposure, specify the primary purchase-conversion outcome, attribution and follow-up windows, minimum detectable effect, sample-size calculation and sequential stopping method. Check sample-ratio mismatch and missing logs. A deterministic fifty-fifty bucket rule is not evidence that observed arm counts are balanced."
+          },
+          {
+            "say": "The draft also tracks returns per purchase, full-search latency, blocked displays and seller concentration. A conversion estimate cannot cancel a prohibited display or another declared stop. Returning to the previous ranker requires compatible feature and model artifacts, traffic control and verification of current eligibility. A saved name or pointer alone does not execute a recovery."
+          }
+        ]
+      },
+      {
+        "id": "probability-value",
+        "beats": [
+          {
+            "say": "Our pairwise score orders products; it is not a purchase probability. A separate calibrated model may estimate probability of click and probability of purchase given that click. Under one attributed purchase through the measured click path and a fixed price, multiply those two probabilities by price for expected gross purchase value per impression. This excludes fees, returns and other purchase paths."
+          },
+          {
+            "say": "For a supplied worksheet, click probability point two, conditional purchase point two five and price eighty give point zero five purchases and four currency units of expected gross value per impression. Multiplying an arbitrary rank score by price would not establish that expectation. The feature and outcome definitions must match the probability contract."
+          },
+          {
+            "say": "A reliability diagram compares held-out predicted probabilities with observed frequencies in bins. Expected calibration error weights each bin’s absolute prediction-frequency gap by its sample share. Ten authored predictions of point eight with six positives have a point-two single-bin gap. Bin choices and finite samples affect that estimate; it does not prove future calibration or require calibrated scores for an ordering-only metric."
+          }
+        ]
+      },
+      {
+        "id": "online-guardrails",
+        "beats": [
+          {
+            "say": "The synthetic online worksheet gives each arm one hundred searches. Control has four purchases and zero returns; treatment has six purchases and one return. Assume each purchase comes from a different search, with at most one counted purchase per search. Search conversion is therefore purchases divided by searches: point zero four and point zero six. Return rate is returns divided by purchases: zero and one sixth, about point one six seven."
+          },
+          {
+            "say": "The declared illustrative stop is treatment returns per purchase greater than control plus point zero one. One sixth exceeds that cutoff, so this chosen rule stops treatment despite the conversion point estimate. These tiny authored counts do not establish a population effect or a statistically designed monitoring policy. Return cohorts need comparable follow-up windows."
+          },
+          {
+            "say": "If an arm has zero purchases, its returns-per-purchase denominator is zero. The helper records none and holds the return comparison rather than inventing zero. The draft twenty-millisecond scoring gate and one-hundred-twenty-millisecond full-search stop also measure different endpoints. Immediate safety stops and statistical business-metric monitoring need separately declared rules."
+          }
+        ]
+      },
+      {
+        "id": "receipt-boundary",
+        "beats": [
+          {
+            "say": "Assemble the actual receipt. All seventeen required local gates are true, including both named requests and both named outcome events. Deleting a request or event therefore cannot make the report pass by shrinking its denominator. The fixture decision is checks pass; live-experiment readiness remains false."
+          },
+          {
+            "say": "Its synthetic p ninety-five is eighteen milliseconds, its hand-entered two-query mean improves from point eight five four to one, and its temporal fitting record reports the separate three/two/two request split. The online return stop is another independently authored worksheet; it was not aggregated from the six response rows and two events. Preserve those evidence identities."
+          },
+          {
+            "say": "To extend this into a portfolio project, use permissible data and independent judgments, freeze holdouts before tuning, retain one full candidate/feature snapshot and displayed slate, then join deduplicated matured outcomes. Benchmark the real serving path, calculate experiment power and demonstrate rollback with compatible features. Model-version fields and evaluation-only tags do not supply model bytes, access control, real client views or proof of recovery."
+          }
+        ]
+      },
+      {
+        "id": "fresh-ranking",
+        "beats": [
+          {
+            "say": "Finish with a fresh portable-lamp request and supplied rounded weights negative point one, positive one point two. J one has features point eight, point two; J two has point seven, point nine; J three has point six, point six. Predict their order. Reveal the dot products: point one six, one point zero one and point six six. Rank J two, J three, J one. These are new worksheet inputs, not a new production model evaluation."
+          },
+          {
+            "say": "Before response creation, J three becomes out of stock. Keep its old score visible but reject the stale slate. A new eligible fallback J five is then retrieved with features point five, point three. Its supplied-weight score is negative point zero five plus point three six, or point three one. Rebuild the current eligible order as J two, J five, J one, and recheck the declared seller cap under the new snapshot."
+          },
+          {
+            "say": "Retain that rebuilt response with its current catalog, rule and model context. The historical rejected proposal remains separate; no score or cached permission overrides the stock update. A later click can join the retained request and product after its own rendering, time and attribution checks. You can now explain which work selected the candidates, earned their order and preserved the evidence for the next experiment. The demand-forecasting capstone next freezes predictions before labels mature, keeping an advance capacity signal separate from the error calculated after the outcome arrives."
+          }
+        ]
+      }
+    ]
+  }
+}

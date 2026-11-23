@@ -1,0 +1,295 @@
+[
+  {
+    "id": "c01",
+    "title": "Which reply would you replay?",
+    "sourceChapters": [
+      "c01"
+    ],
+    "beats": [
+      {
+        "id": "c01-b01",
+        "say": "Both replies say thirty days. You want to check that against the returns policy. One reply gives you a document you can open. Which request would you replay to investigate the missing citation?",
+        "hold": 3
+      },
+      {
+        "id": "c01-b02",
+        "say": "Replay B. In this local lab, an MLflow run links to a trace, the record of one request. Open the retrieval step in each trace. Look all the way to the end of the question. This little search compares the entire string, including punctuation.",
+        "hold": 1.2
+      },
+      {
+        "id": "c01-b03",
+        "say": "Keep B on the left. Start a fresh run on the right. Use the same code and the same answer function. Restore just the question mark. What will come back from retrieval?",
+        "hold": 3
+      },
+      {
+        "id": "c01-b04",
+        "say": "Document twelve comes back. Look underneath the keys. In this variant the assistant always writes thirty days and copies the retrieved IDs into its citations. Restoring the character changed the source you can open. The reply text stayed the same.",
+        "hold": 1.4
+      },
+      {
+        "id": "c01-b05",
+        "say": "Now take two requests from the release example. Both ran the same commit and model. Between the cited reply and the uncited one, the prompt and the search index both changed. To test the prompt change against the earlier reply, which index belongs in a fresh run?",
+        "hold": 3
+      },
+      {
+        "id": "c01-b06",
+        "say": "Use the earlier index, eight. Keep the model, question and code fixed and change just the prompt to eighteen. Run that comparison and measure the citation. The first two replies tell us which inputs changed. They leave the cause open.",
+        "hold": 1.3
+      }
+    ]
+  },
+  {
+    "id": "c02",
+    "title": "Who reads the checkpoint?",
+    "sourceChapters": [
+      "c02"
+    ],
+    "beats": [
+      {
+        "id": "c02-b01",
+        "say": "One run links two kinds of storage. In this example its searchable record takes four kilobytes. Its checkpoint takes two gigabytes. The tracking server sends run IDs, parameters and metrics to the backend database. The artifact store holds the checkpoint bytes, plots and files.",
+        "hold": 1
+      },
+      {
+        "id": "c02-b02",
+        "say": "Follow a download for run R eight. Its experiment recorded a direct artifact location. The worker reads the object there using its own storage permission. The database still answers searches about the run.",
+        "hold": 1.2
+      },
+      {
+        "id": "c02-b03",
+        "say": "Now create an experiment with proxying enabled. Its checkpoint comes through the tracking server. The server checks the caller's access and reads from storage with its scoped role. The server now carries the large transfer as well as the smaller search traffic.",
+        "hold": 1
+      },
+      {
+        "id": "c02-b04",
+        "say": "Keep both locations. The worker loses its storage grant, while the server keeps its grant. The worker can still request its new checkpoint through the proxy. Can it download the old checkpoint using that same server grant?",
+        "hold": 3
+      },
+      {
+        "id": "c02-b05",
+        "say": "The old read is denied. Its recorded route still goes directly from the worker to storage. Grant the worker access to that object, or migrate it explicitly. Preserve the recorded location and a digest of the file. A new routing default moves no existing bytes.",
+        "hold": 1.4
+      }
+    ]
+  },
+  {
+    "id": "c03",
+    "title": "What can you reconstruct from one run?",
+    "sourceChapters": [
+      "c03"
+    ],
+    "beats": [
+      {
+        "id": "c03-b01",
+        "say": "Follow the inputs into run R eight. The commit identifies the code. A retained dataset snapshot identifies the examples. A resolved prompt identifies the instructions. The run collects parameters, metrics and files. Reading its ranking score back proves the number was stored. Its meaning depends on those inputs and the evaluation design.",
+        "hold": 1
+      },
+      {
+        "id": "c03-b02",
+        "say": "Open the model made by that run. The package carries weights, a loader and its environment. A signature can describe its expected inputs and outputs. The logged model has its own ID. Registering it as version three adds a separate link. Follow that link to the bytes when you compare releases.",
+        "hold": 1.2
+      },
+      {
+        "id": "c03-b03",
+        "say": "Try two edits under the same run ID. Change retrieval depth from forty to fifty, then update the review tag from pending to approved. After handling the first write, which values will you read back?",
+        "hold": 2.8
+      },
+      {
+        "id": "c03-b04",
+        "say": "Retrieval depth stays forty. The tracking store rejected a different value for that existing parameter. The separate tag update succeeds. In the pinned SDK lab you can read both back from SQLite. The source path follows the tracking client into the SQL store that checks the parameter.",
+        "hold": 1.2
+      },
+      {
+        "id": "c03-b05",
+        "say": "One failed request has another identity, trace T one oh four. Save its question and expected citation as case RET one oh four. Keep the dataset contents and scorer version from evaluation. The dataset name can survive edits to what counts as a correct answer.",
+        "hold": 1.4
+      },
+      {
+        "id": "c03-b06",
+        "say": "Before reusing an evaluation, look inside its model package. Two workers load registry version three. In this miniature file, the weight bytes changed on the second worker. Both still answer thirty days on this input. Which worker can reuse the earlier model evaluation?",
+        "hold": 3
+      },
+      {
+        "id": "c03-b07",
+        "say": "The first worker matches the evaluated bytes. Compare the full package digests. The second differs, even though the label, loader and sample answer agree. Retain the actual files with their digest so a reviewer can retrieve what earned the scores.",
+        "hold": 1.2
+      }
+    ]
+  },
+  {
+    "id": "c04",
+    "title": "How much time did the children cover?",
+    "sourceChapters": [
+      "c04"
+    ],
+    "beats": [
+      {
+        "id": "c04-b01",
+        "say": "A trace places one request and its operations on a common clock. This example lasts fourteen hundred and twenty milliseconds. Retrieval, reranking and generation run in sequence. The model call lives inside generation. If you run a finger across this clock once, how much time lies outside all three direct children?",
+        "hold": 3
+      },
+      {
+        "id": "c04-b02",
+        "say": "Sweep the clock. Count an instant once whenever any direct child is active. The model's nine hundred and eighty milliseconds already sit inside the generation interval. The children cover thirteen hundred and eighty-five milliseconds. Thirty-five remain. The uncovered tail is elapsed time outside those spans.",
+        "hold": 1.4
+      },
+      {
+        "id": "c04-b03",
+        "say": "Try overlapping operations. This request lasts eight hundred milliseconds. A runs from zero to three hundred. B starts at two hundred and ends at six fifty, with a model call inside it. How much of the request lies outside A and B?",
+        "hold": 3
+      },
+      {
+        "id": "c04-b04",
+        "say": "One hundred and fifty milliseconds. Trace the shared part once. The two children together cover zero through six fifty. Subtract that interval from the root. To explain a delay, also inspect which operation had to finish before the next could start. The timeline measures elapsed time, not CPU use.",
+        "hold": 1.2
+      },
+      {
+        "id": "c04-b05",
+        "say": "Open the recorded documents for the failed request. Retrieval found document twelve. Reranking kept it among eight results. Read the actual packed context that went to generation. Where did the policy first disappear?",
+        "hold": 2.8
+      },
+      {
+        "id": "c04-b06",
+        "say": "At packing. Generation received documents four, eighteen and twenty-one. It answered thirty days with no citation. Add twelve to the context in a separate replay. Inspect the new claim and citations before scoring them. Sending the source gives the model a chance to use it.",
+        "hold": 1.2
+      }
+    ]
+  },
+  {
+    "id": "c05",
+    "title": "Which assessment is missing?",
+    "sourceChapters": [
+      "c05"
+    ],
+    "beats": [
+      {
+        "id": "c05-b01",
+        "say": "Freeze the failure and give it an expectation. The local lab accepts a citation list when it contains at least one ID and every ID is allowed. Here twelve is the allowed document. Three responses return an empty list, document ninety-nine, and document twelve. Which pass this check?",
+        "hold": 2.8
+      },
+      {
+        "id": "c05-b02",
+        "say": "Only the third passes. The first list is empty and the second names a document outside the allowed set. The score is one out of three. Even a passing ID needs a separate check that the cited text supports the claim.",
+        "hold": 1
+      },
+      {
+        "id": "c05-b03",
+        "say": "Consider a new candidate with three required cases. Two passing scores arrive, C first and then A. Join the scores to the required IDs. The observed mean is perfect. Which case still needs its citation check?",
+        "hold": 3
+      },
+      {
+        "id": "c05-b04",
+        "say": "Run B. Two of three cases had scores. Complete that check on the same candidate. B passes. Now every required case has a passing score. Our release controller checks coverage and outcomes and verifies the candidate bytes against the evaluation before it moves an alias.",
+        "hold": 1.4
+      },
+      {
+        "id": "c05-b05",
+        "say": "Keep the reply fixed and change just the expected source in a copy of the dataset. Its native ID can stay the same. The old snapshot allows document twelve. The edited one allows only ninety-nine. What happens to the same citation?",
+        "hold": 2.5
+      },
+      {
+        "id": "c05-b06",
+        "say": "It passes on the saved snapshot and fails on the edit. Keep the input, expectations and their digest, with the scorer that produced the score. Use separate holdout cases. For judgments such as groundedness, compare a judge with human labels and retain its model and rubric. Track which eligible cases actually received a score.",
+        "hold": 1.3
+      },
+      {
+        "id": "c05-b07",
+        "say": "On the left, we replayed a frozen case offline. On the right, eight customers have already received their replies. All eight support traces are saved and eligible for review. Here we sample every second trace in arrival order. After the requests finish, a configured judge checks the selected replies against their sources. A passing score arrives for trace two, then four, then six. How much of the eligible traffic has the judge scored?",
+        "hold": 3
+      },
+      {
+        "id": "c05-b08",
+        "say": "Three of eight. All three scored replies passed, and the fourth selected trace is still waiting. The other four traces fell outside this sample. That perfect pass rate describes the three completed judgments. The remaining five outcomes are unknown.",
+        "hold": 1.5
+      }
+    ]
+  },
+  {
+    "id": "c06",
+    "title": "Which prompt handled the request?",
+    "sourceChapters": [
+      "c06"
+    ],
+    "beats": [
+      {
+        "id": "c06-b01",
+        "say": "The registry has two numbered templates for support answer. Production is an alias, a name that points to one of them. At tick zero the worker has loaded seventeen, with model M three and temperature point two. Its local copy can serve another request without consulting the registry.",
+        "hold": 1.1
+      },
+      {
+        "id": "c06-b02",
+        "say": "Move production to eighteen. Keep the worker running. In our example the cached entry expires at tick three. At tick two, send the return question to this worker. Which version will its request record show?",
+        "hold": 3
+      },
+      {
+        "id": "c06-b03",
+        "say": "Seventeen. Read its trace. The worker used the prompt in its own memory, model M three and temperature point two. The registry points to eighteen. Both records are accurate because they describe different events.",
+        "hold": 1
+      },
+      {
+        "id": "c06-b04",
+        "say": "At tick three, refresh the entry. The worker loads eighteen when it resolves the alias again. We cache each prompt name and alias together, so refreshing support leaves a separate summary entry alone. Expiry rules depend on the client and configuration.",
+        "hold": 1.2
+      },
+      {
+        "id": "c06-b05",
+        "say": "Replay the same question. Open the new trace beside the first. The replay used eighteen. Both requests used model M three and temperature point two. The earlier trace still identifies the exact object used at tick two.",
+        "hold": 1.4
+      },
+      {
+        "id": "c06-b06",
+        "say": "Now change only eighteen's attached temperature to point eight in the registry. Its template text stays fixed. The worker still holds its earlier copy. If a fresh load serves the next replay, is the version alone enough to distinguish the two requests?",
+        "hold": 2.8
+      },
+      {
+        "id": "c06-b07",
+        "say": "Refresh again and send the same question. The new record reads version eighteen, temperature point eight. The previous eighteen still reads point two. Save the settings used on each call or a digest linked to the retained configuration. A version identifies the template across both requests.",
+        "hold": 1.5
+      }
+    ]
+  },
+  {
+    "id": "c07",
+    "title": "Which worker served the evaluated release?",
+    "sourceChapters": [
+      "c07"
+    ],
+    "beats": [
+      {
+        "id": "c07-b01",
+        "say": "After promotion, follow a live request through the gateway. The preferred provider times out. The fallback returns an answer. Keep the actual responder and the bounded failure status. The application checks the citation and authorizes the action. Disabling prompt capture still leaves exception fields to inspect. Which field should leave this trace before export?",
+        "hold": 2.4
+      },
+      {
+        "id": "c07-b02",
+        "say": "Remove the request body from the exception before export. Keep the status and responder. Scope access to the saved trace and set a retention period. The gateway can centralize provider credentials while the application controls which customer data may be recorded.",
+        "hold": 1
+      },
+      {
+        "id": "c07-b03",
+        "say": "This exporter has two waiting slots. If both slots are full, it drops the incoming trace. A is already waiting. Send one trace. B, C and D arrive in that order before the next send. The application records a response for D. Which trace will be missing from this batch?",
+        "hold": 3
+      },
+      {
+        "id": "c07-b04",
+        "say": "Send A. B takes the first slot. C takes the second. Both slots are full when D arrives. The exporter drops D. The loss ledger keeps its identity. Four arrivals balance against one sent, two waiting and one dropped. Check the store for persistence. A later replay needs its own trace ID.",
+        "hold": 1.3
+      },
+      {
+        "id": "c07-b05",
+        "say": "For the final check, compare East and West against the evaluated configuration. Three required cases passed. Both workers loaded the same model bytes and prompt eighteen at point two. Both reply thirty days and cite document twelve. Here are the indexes each actually searched and the resulting configuration digests. Which worker can reuse the evaluation?",
+        "hold": 3
+      },
+      {
+        "id": "c07-b06",
+        "say": "East matches. West searched index seven. Both indexes contain document twelve, so that one matching reply hid a difference in the release. Reload the evaluated index on West and replay the question. Keep the first West trace for comparison.",
+        "hold": 1.2
+      },
+      {
+        "id": "c07-b07",
+        "say": "Read the new trace. West now matches the evaluated digest. Open its cited revision. The policy gives the customer thirty days from delivery. You can trace the reply to a source, the request to its inputs and the promotion to its scored cases. Next, PyTorch takes us inside the computation the run records.",
+        "hold": 1.8
+      }
+    ]
+  }
+]

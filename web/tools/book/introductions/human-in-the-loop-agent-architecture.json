@@ -1,0 +1,15 @@
+{
+  "framing": "Keep human decisions intact through pauses and state drift",
+  "paragraphs": [
+    "Human approval works only when a reviewer can verify what an action will actually change and the runtime preserves that exact choice until execution finishes.",
+    "Long pauses make that surprisingly fragile. Workers restart between turns, deployment revisions advance under a pending request, arguments get tampered with, and repeated requests race one another in the queue.",
+    "Untrusted tickets or model summaries never grant permission to act. Only a verified human decision does, and enforcing it requires separating the requester, the model, the reviewer, and the executor into distinct roles.",
+    "Through runnable labs on SQLite and stateful workflows, we trace a production model rollout from checkpoint pause through atomic outbox persistence, live compare-and-swap preconditions, and batch timeout recovery."
+  ],
+  "outcomes": [
+    "Classify agent tool calls by blast radius and reversibility cost to avoid rubber-stamping.",
+    "Bind reviewer identity and a canonical payload digest inside one atomic decision transaction.",
+    "Recheck live resource revisions at execution time and reconcile ambiguous batch timeouts safely."
+  ],
+  "question": "What invariants must hold between the moment a reviewer approves an action and the moment the executor writes to production?"
+}

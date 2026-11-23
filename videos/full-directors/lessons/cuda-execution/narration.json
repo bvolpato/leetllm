@@ -1,0 +1,883 @@
+[
+  {
+    "id": "c01",
+    "title": "When can Python print the mean?",
+    "sourceChapters": [
+      "c01"
+    ],
+    "beats": [
+      {
+        "id": "c01-b01",
+        "say": "Follow this ticket from eight values in GPU memory to the number in a Python log. Python asks for their mean. In our example, the call returns a CUDA tensor after two milliseconds. Look at the paper in the printer. Could Python fill in the feature yet?",
+        "hold": 2.5
+      },
+      {
+        "id": "c01-b02",
+        "say": "Python can already queue the next operation on the same stream. The GPU will run it in order. To print a Python number, we call item. Follow the needle while Python waits. The GPU has finished the mean. The scalar still has to reach the caller.",
+        "hold": 1.4
+      },
+      {
+        "id": "c01-b03",
+        "say": "Now the scalar arrives. The mean is two point six two five. Watch the printer enter it on the ticket.",
+        "hold": 1.4
+      }
+    ]
+  },
+  {
+    "id": "c02",
+    "title": "Where are the eight values?",
+    "sourceChapters": [
+      "c02"
+    ],
+    "beats": [
+      {
+        "id": "c02-b01",
+        "say": "Rewind to the copy that put those values on the GPU. Python has the row in CPU memory. Copy the row into device memory and look at token six on both sides. Its value is still one. Its residence changes. On this discrete GPU there are now two allocations, each with the same eight numbers.",
+        "hold": 0.55
+      },
+      {
+        "id": "c02-b02",
+        "say": "Take the mean of the floating-point copy on the device. Python queues the work from the CPU. PyTorch launches a function across threads on the NVIDIA GPU. We call that function a CUDA kernel. This tiny row lets us trace the launch. Larger batches can give the GPU enough parallel arithmetic to pay for launching and copying. First, check what the running Python process can use.",
+        "hold": 0.7
+      }
+    ]
+  },
+  {
+    "id": "c03",
+    "title": "Which CUDA version did you check?",
+    "sourceChapters": [
+      "c03"
+    ],
+    "beats": [
+      {
+        "id": "c03-b01",
+        "say": "Suppose the driver lists your GPU. The CUDA version in the driver header tells you the newest CUDA version this driver supports. If you compile an extension, you also need to know which compiler is on your path. Ask the compiler for its version.",
+        "hold": 0.3
+      },
+      {
+        "id": "c03-b02",
+        "say": "For a prebuilt package, ask PyTorch what it was built with. Those three answers can differ on the same machine.",
+        "hold": 0.6
+      },
+      {
+        "id": "c03-b03",
+        "say": "Now the driver sees the GPU, but Python says CUDA is unavailable. Read the package's build field. None means this copy of PyTorch was built without CUDA. Try the other Python environment. It has a CUDA build and the same failed availability test.",
+        "hold": 2.0
+      },
+      {
+        "id": "c03-b04",
+        "say": "Here you'd check driver compatibility, container access and which devices this process can see.",
+        "hold": 0.7
+      },
+      {
+        "id": "c03-b05",
+        "say": "Say the process gets just the fourth card on this host. Follow physical GPU three inside. The first device the process can see is called CUDA zero. Check the device name there.",
+        "hold": 0.3
+      },
+      {
+        "id": "c03-b06",
+        "say": "If a kernel still fails on that card, compare its compute capability with the hardware targets in the package and any extension. Then run the operation and check its output.",
+        "hold": 0.7
+      }
+    ]
+  },
+  {
+    "id": "c04",
+    "title": "Which tensor does the loss still need?",
+    "sourceChapters": [
+      "c04"
+    ],
+    "beats": [
+      {
+        "id": "c04-b01",
+        "say": "Picture four access tickets, eight token positions per ticket, and sixteen features per position. Average along the token axis. The original eight numbers form one feature column on the first ticket. Pooling leaves sixteen features per ticket. A linear layer turns each ticket into three scores, called logits.",
+        "hold": 0.3
+      },
+      {
+        "id": "c04-b02",
+        "say": "Each score takes sixteen weights and a bias. That's fifty-one parameters for the layer.",
+        "hold": 0.65
+      },
+      {
+        "id": "c04-b03",
+        "say": "These three tensors use FP32. Count four bytes for each input value, each pooled feature and each logit. Now look at the labels. Each of the four class numbers is an eight-byte integer. Together they take thirty-two bytes. Try the loss.",
+        "hold": 0.3
+      },
+      {
+        "id": "c04-b04",
+        "say": "It needs one label for each row of scores. The shapes match. Which tensor would you move?",
+        "hold": 2.0
+      },
+      {
+        "id": "c04-b05",
+        "say": "Copy the four labels to the device holding the scores. Cross-entropy can now use each integer label to pick out its ticket's class. If the features had stayed on the CPU, the forward pass would have failed one operation earlier. A wait can't move either tensor.",
+        "hold": 0.8
+      },
+      {
+        "id": "c04-b06",
+        "say": "Run the loss, work backward, check that the loss and gradients are finite, then take one stochastic gradient descent step. These random features let us test the code through a weight update. To find out whether the classifier routes tickets correctly, we'd need real labeled examples.",
+        "hold": 0.3
+      },
+      {
+        "id": "c04-b07",
+        "say": "Keep the finite checks outside a throughput measurement. Reading their results in Python can make it wait.",
+        "hold": 0.75
+      }
+    ]
+  },
+  {
+    "id": "c05",
+    "title": "Who owns token six?",
+    "sourceChapters": [
+      "c05"
+    ],
+    "beats": [
+      {
+        "id": "c05-b01",
+        "say": "Let's build a small kernel for the ticket. Give each token one thread. Put four threads in a block, and call the set of blocks in the launch a grid. Watch token six as the row separates into two blocks. Which local thread owns it?",
+        "hold": 2.0
+      },
+      {
+        "id": "c05-b02",
+        "say": "Block one starts after four positions. Add local thread two and you reach position six. The same rule works across this one-dimensional grid. Multiply the block index by its width, then add the local thread index. A whole block runs on one streaming multiprocessor, where its threads can cooperate. Either block might run first.",
+        "hold": 0.7
+      },
+      {
+        "id": "c05-b03",
+        "say": "Give the ticket two more tokens. Now three four-thread blocks cover the row. Workers ten and eleven have no input address. A bounds check protects those accesses. Keep those threads in mind when we ask them to cooperate with the rest of their block.",
+        "hold": 0.7
+      }
+    ]
+  },
+  {
+    "id": "c06",
+    "title": "Where does a new warp start?",
+    "sourceChapters": [
+      "c06"
+    ],
+    "beats": [
+      {
+        "id": "c06-b01",
+        "say": "A warp is a group of threads the GPU schedules together. Each row has thirty-two lanes, all for one block. Put the first four threads in the top row. Where does thread zero of the next block go? It starts a new warp. Each block uses four lanes in its own row.",
+        "hold": 0.7
+      },
+      {
+        "id": "c06-b02",
+        "say": "Try one block of thirty-six threads. The first thirty-two fill one warp. The remaining four enter the next. Threads thirty-one and thirty-two are neighbors in the block but sit on opposite sides of that boundary.",
+        "hold": 0.8
+      },
+      {
+        "id": "c06-b03",
+        "say": "A thread can have a lane and still sit out an instruction. Suppose the even lanes take one branch. Watch the odd lanes go quiet on that path. Their slots stay in the same warp. The same mask applies to the four threads in the second row.",
+        "hold": 1.1
+      }
+    ]
+  },
+  {
+    "id": "c07",
+    "title": "How many segments does one warp load touch?",
+    "sourceChapters": [
+      "c07"
+    ],
+    "beats": [
+      {
+        "id": "c07-b01",
+        "say": "Take eight active lanes in one warp on a GPU with compute capability six or newer. In one load instruction they read eight consecutive four-byte words. Start the first word on a thirty-two-byte boundary. Follow the addresses from zero to twenty-eight. They fit in a single segment.",
+        "hold": 0.3
+      },
+      {
+        "id": "c07-b02",
+        "say": "That's coalescing. Suppose we lay out the same values thirty-two words apart. Predict the footprint.",
+        "hold": 2.0
+      },
+      {
+        "id": "c07-b03",
+        "say": "Spread the same eight values down a column. Lane zero still reads byte zero. Lane one used to read byte four. Now it reads byte one hundred twenty-eight, a stride of one hundred twenty-eight bytes from lane zero. Each lane now touches its own segment.",
+        "hold": 0.3
+      },
+      {
+        "id": "c07-b04",
+        "say": "The lanes use thirty-two bytes across two hundred fifty-six bytes of segments. Caches affect how much traffic goes farther.",
+        "hold": 0.7
+      },
+      {
+        "id": "c07-b05",
+        "say": "Restore adjacent requests and the routes converge. A kernel that needs a column can first load convenient rows into a tile, then read the column locally. The useful values survive the rearrangement. Now check the addresses inside the tile.",
+        "hold": 0.7
+      }
+    ]
+  },
+  {
+    "id": "c08",
+    "title": "Which requests can a bank serve together?",
+    "sourceChapters": [
+      "c08"
+    ],
+    "beats": [
+      {
+        "id": "c08-b01",
+        "say": "Shared memory is split into banks. In the standard layout here, successive four-byte words go to successive banks, then wrap at thirty-two. Send these different words to bank zero. Every lane wants a different address from that one bank, so it takes turns serving them. What would one extra column do to the routes?",
+        "hold": 2
+      },
+      {
+        "id": "c08-b02",
+        "say": "Add one padding column to each row. The stride is now thirty-three words. Move each request to its new bank. The lanes still read the same logical column, but now different banks can serve them together. Suppose instead that all eight lanes read exactly the same word.",
+        "hold": 1.4
+      },
+      {
+        "id": "c08-b03",
+        "say": "Trace eight requests for word zero. They meet at a single address. Those requests can broadcast one value to every lane. That's why we counted different words inside each bank. The number of arrows pointing at the bank alone couldn't distinguish the two cases.",
+        "hold": 0.8
+      }
+    ]
+  },
+  {
+    "id": "c09",
+    "title": "Which addresses share the work?",
+    "sourceChapters": [
+      "c09"
+    ],
+    "beats": [
+      {
+        "id": "c09-b01",
+        "say": "Here's the original feature row again, in device global memory where all the streaming multiprocessors can reach it. Load the first four words into a tile. Threads in this block share that copy. A single thread can keep its running sum in registers.",
+        "hold": 0.3
+      },
+      {
+        "id": "c09-b02",
+        "say": "The hardware manages the caches. Moving the tensor to CUDA gave the kernel a global allocation. The kernel chooses which words to bring closer.",
+        "hold": 0.75
+      },
+      {
+        "id": "c09-b03",
+        "say": "Follow lane seven in the global row, starting the row at byte zero. Each word is four bytes wide, so word seven starts at byte twenty-eight. Divide the byte address by thirty-two and round down. That's segment zero.",
+        "hold": 0.3
+      },
+      {
+        "id": "c09-b04",
+        "say": "Now load all eight words into a new shared tile, with word zero in bank zero. To find the bank for word seven, take the word index modulo thirty-two. Seven modulo thirty-two is seven. Lane seven reads bank seven.",
+        "hold": 0.7
+      },
+      {
+        "id": "c09-b05",
+        "say": "Try a full warp. Each of the thirty-two lanes reads one consecutive word. Starting at byte zero, those words fill four segments. Keep all the lanes together and start the row at byte twenty-eight instead. Before we slide it, how many segments will the warp touch?",
+        "hold": 2.0
+      },
+      {
+        "id": "c09-b06",
+        "say": "Slide the window seven words to the right. Now the first segment supplies only its last word, and the row spills into a fifth segment. The lanes still use a hundred twenty-eight bytes. The segments cover a hundred sixty. A cache hit can change how many bytes actually travel to device memory.",
+        "hold": 0.85
+      },
+      {
+        "id": "c09-b07",
+        "say": "Try one more column in shared memory, this time with a stride of thirty-four words. Send the lanes to their banks in order. Each jump advances two banks after wrapping around. Lane sixteen comes back to bank zero carrying a different word from lane zero.",
+        "hold": 0.3
+      },
+      {
+        "id": "c09-b08",
+        "say": "The even banks each have two distinct words to serve, and the odd banks are empty. That's a two-way conflict.",
+        "hold": 0.85
+      }
+    ]
+  },
+  {
+    "id": "c10",
+    "title": "Can thread zero trust the sum?",
+    "sourceChapters": [
+      "c10"
+    ],
+    "beats": [
+      {
+        "id": "c10-b01",
+        "say": "Come back to the first four tokens. The threads write their values to shared slots at different times. Let thread zero read early. Follow the red probe. Some of the writes are still in flight. What can the reader count on when it adds the four slots?",
+        "hold": 2.0
+      },
+      {
+        "id": "c10-b02",
+        "say": "There's no defined sum. Thread zero's reads race with the other threads' writes, even inside one warp. One run could give the expected answer by chance. Replay those same writes. This time each thread writes its value and reaches the block barrier.",
+        "hold": 0.3
+      },
+      {
+        "id": "c10-b03",
+        "say": "Once all four arrive, let the reader through. Now it can safely add the four values.",
+        "hold": 0.9
+      },
+      {
+        "id": "c10-b04",
+        "say": "The second block produces its own subtotal. Its threads have their own shared memory and their own barrier. Put a second kernel after the first in the same stream. It reads both completed outputs, adds them, and divides by eight.",
+        "hold": 0.3
+      },
+      {
+        "id": "c10-b05",
+        "say": "The average now has an address on the GPU. How soon can Python put it in the log?",
+        "hold": 1.1
+      }
+    ]
+  },
+  {
+    "id": "c11",
+    "title": "Which clock can we stop?",
+    "sourceChapters": [
+      "c11"
+    ],
+    "beats": [
+      {
+        "id": "c11-b01",
+        "say": "Here's the opening run again. The short hand stops after Python queues the mean, at two milliseconds. The GPU continues. We could queue the next layer on that same stream right now. Its place in line keeps it behind the mean.",
+        "hold": 0.7
+      },
+      {
+        "id": "c11-b02",
+        "say": "Call item at the two-millisecond mark. Let the device finish. The two marks on the dial are timing events on one CUDA stream. Forty milliseconds passed between them. Now read the scalar. The host clock includes submitting, waiting and getting the number back. That's forty-two milliseconds from its own start.",
+        "hold": 0.9
+      },
+      {
+        "id": "c11-b03",
+        "say": "Here's a fresh series of calls. For a steady-state timing, exclude the setup-heavy first call. Count only completed warmed samples in the mean. Both samples take eight milliseconds here. Use representative shapes on the actual machine, and keep the warmup and the measurement boundaries the same when you compare runs.",
+        "hold": 0.7
+      }
+    ]
+  },
+  {
+    "id": "c12",
+    "title": "What stays in memory for one Adam weight?",
+    "sourceChapters": [
+      "c12"
+    ],
+    "beats": [
+      {
+        "id": "c12-b01",
+        "say": "We got one feature out of the device. What would the GPU have to hold to train the classifier? Follow one full-precision Adam parameter. Four bytes for its weight, four for its gradient, and eight for two moments.",
+        "hold": 0.3
+      },
+      {
+        "id": "c12-b02",
+        "say": "Adam keeps a running average of gradients and another of squared gradients. When all four values are present, they've used sixteen bytes for one parameter.",
+        "hold": 0.7
+      },
+      {
+        "id": "c12-b03",
+        "say": "Scale that ledger to a billion parameters. Sixteen billion bytes is about fourteen point nine gibibytes. To get gibibytes, divide by one thousand twenty-four cubed. Activations and workspaces add to it. Loading the weights only tests the first allocation. Saved activations can exhaust memory later.",
+        "hold": 0.3
+      },
+      {
+        "id": "c12-b04",
+        "say": "PyTorch Adam creates a parameter's two moments on the first step where that parameter has a gradient. For our classifier, that's the first update.",
+        "hold": 0.7
+      }
+    ]
+  },
+  {
+    "id": "c13",
+    "title": "Which change removes more attention scores?",
+    "sourceChapters": [
+      "c13"
+    ],
+    "beats": [
+      {
+        "id": "c13-b01",
+        "say": "Take a larger batch with the dimensions on screen. Multiply the three dimensions by four bytes per float. That's twelve mebibytes just to get the features onto the GPU. Backward still needs some of the activations from forward. Gradients, workspaces and the optimizer also need space.",
+        "hold": 0.3
+      },
+      {
+        "id": "c13-b02",
+        "say": "That's how a model can load and then run out of memory during training.",
+        "hold": 0.65
+      },
+      {
+        "id": "c13-b03",
+        "say": "Our classifier averages its tokens. Now consider an attention layer that saves a score for each pair of positions. Give each example its own grid for one attention head. Make two copies of that batch.",
+        "hold": 0.3
+      },
+      {
+        "id": "c13-b04",
+        "say": "You could take half as many examples, or keep them all and halve their length. Both choices halve the number of input positions. Which removes more scores?",
+        "hold": 2.0
+      },
+      {
+        "id": "c13-b05",
+        "say": "First remove half the examples. Two complete grids disappear. On the other copy, shorten every example. Each query row gets shorter and half the query rows disappear too. The first copy keeps half the scores. The second keeps a quarter. This count applies when the backend actually saves the full score grid.",
+        "hold": 0.85
+      },
+      {
+        "id": "c13-b06",
+        "say": "Now price that stored grid for a batch of thirty-two sequences, each two thousand forty-eight tokens long. Count twelve heads in each of twelve layers and two bytes per score. The scores alone take about thirty-eight point seven decimal gigabytes.",
+        "hold": 0.3
+      },
+      {
+        "id": "c13-b07",
+        "say": "Some attention implementations avoid keeping the full grid. Check the backend and measure a complete step with the longest input the model needs to handle.",
+        "hold": 0.7
+      }
+    ]
+  },
+  {
+    "id": "c14",
+    "title": "Which copy keeps the update?",
+    "sourceChapters": [
+      "c14"
+    ],
+    "beats": [
+      {
+        "id": "c14-b01",
+        "say": "Take two copies of a weight at one. The upper copy uses single precision, FP32. The lower one uses half precision, FP16. Subtract one ten-thousandth from each. The gold mark is our target. Which format keeps the change when we store the result?",
+        "hold": 2.0
+      },
+      {
+        "id": "c14-b02",
+        "say": "Write the candidate into both copies. Read them back on the same magnified scale.",
+        "hold": 1.35
+      },
+      {
+        "id": "c14-b03",
+        "say": "The upper dot moved. The FP32 copy kept almost the whole update. The FP16 copy still reads one. Find the next FP16 value below one. The yellow mark didn't even get halfway there, so rounding picked one again.",
+        "hold": 0.3
+      },
+      {
+        "id": "c14-b04",
+        "say": "BF16 has a wider gap here and loses this update too. A full-precision master weight can keep the change for the next step.",
+        "hold": 0.85
+      },
+      {
+        "id": "c14-b05",
+        "say": "Where do those gaps come from? Each square is a bit. Set aside one bit for the sign, then divide the rest between exponent and fraction. The exponent sets the range. The fraction sets the spacing at that scale. Look just above one this time.",
+        "hold": 0.3
+      },
+      {
+        "id": "c14-b06",
+        "say": "FP16 has ten fraction bits and BF16 has seven, so BF16's step there is eight times as wide. Both take two bytes.",
+        "hold": 0.85
+      },
+      {
+        "id": "c14-b07",
+        "say": "Now look at the other end of the FP16 range. The last finite value is sixty-five thousand five hundred four. Put the input fifteen units past that mark. With round-to-nearest-even, it still rounds back to the last finite value. Move the input one unit farther.",
+        "hold": 0.3
+      },
+      {
+        "id": "c14-b08",
+        "say": "At sixty-five thousand five hundred twenty, we're halfway to the next power of two. The tie rounds up, and that power needs an exponent FP16 can't store. The result is infinity. Every larger positive input overflows too.",
+        "hold": 1
+      },
+      {
+        "id": "c14-b09",
+        "say": "Store seventy thousand in each format. FP16 overflows. BF16 has the range to hold a nearby value. Now compare the small update beside it. Both sixteen-bit weights rounded back to one. Only the FP32 weight moved.",
+        "hold": 1.4
+      }
+    ]
+  },
+  {
+    "id": "c15",
+    "title": "What changes when we split the batch?",
+    "sourceChapters": [
+      "c15"
+    ],
+    "beats": [
+      {
+        "id": "c15-b01",
+        "say": "Now put a price on those two bytes. Your GPU has twenty-four gigabytes. Load seven billion weights at two bytes each. They fit. Before you send in the first batch, would you bet that you can train this model by making the batch small enough?",
+        "hold": 2.3
+      },
+      {
+        "id": "c15-b02",
+        "say": "Add a gradient for every weight. The stack crosses the capacity line during backward, even if the activations cost nothing. Now add Adam's two running averages. That's fifty-six gigabytes of parameter state under the generous assumption that all four arrays use two bytes per value.",
+        "hold": 1
+      },
+      {
+        "id": "c15-b03",
+        "say": "What if autocast chooses half precision for a matrix multiply but keeps the weights in full precision? Give each weight, gradient and moment four bytes. The stack doubles to one hundred twelve gigabytes.",
+        "hold": 0.3
+      },
+      {
+        "id": "c15-b04",
+        "say": "To budget your own run, inspect the optimizer and the dtypes of the tensors it keeps, including extra copies or any state split across devices.",
+        "hold": 0.7
+      },
+      {
+        "id": "c15-b05",
+        "say": "Go back to two-byte storage. Suppose the batch keeps eight gigabytes of activations. Cut those activations in half. The fixed state still crosses the line. For this model we need room for that state first. If we shorten the sequences, we may also lose context the task needs.",
+        "hold": 0.85
+      },
+      {
+        "id": "c15-b06",
+        "say": "Now take a model whose fixed state fits. We can accumulate gradients over smaller batches, then update once. For our ticket mean, each ticket counts once. Switch to a loss that averages valid tokens. Split two tickets into separate microbatches.",
+        "hold": 0.3
+      },
+      {
+        "id": "c15-b07",
+        "say": "The first has one valid token with loss one. The second has three, each with loss three. If we put the tickets back together, what's the mean loss per token?",
+        "hold": 2.0
+      },
+      {
+        "id": "c15-b08",
+        "say": "Count all four valid tokens. Add the losses on each ticket. The first sums to one and the second sums to nine. Divide each sum by four before backward. The two contributions add up to two and a half, the mean loss per token. Accumulate their gradients and take one optimizer step.",
+        "hold": 1
+      },
+      {
+        "id": "c15-b09",
+        "say": "Now give each ticket one integer class label. We're using class-weighted cross-entropy. Both tickets get two equal scores, so each target has probability one half. Its loss before weighting is the natural log of two.",
+        "hold": 0.3
+      },
+      {
+        "id": "c15-b10",
+        "say": "Give the first ticket's class weight zero and the second one's weight one. What does the first ticket contribute to backward?",
+        "hold": 2.0
+      },
+      {
+        "id": "c15-b11",
+        "say": "Ticket A's weighted loss sum is zero. Try its own mean and you get zero divided by zero. Now add the weights of all the targets we keep across the full batch. Here the total weight is one.",
+        "hold": 0.3
+      },
+      {
+        "id": "c15-b12",
+        "say": "Divide each microbatch's weighted loss sum by that same total before backward. Watch the divisor on ticket A. Zero divided by one gives zero. Only the second ticket contributes a gradient. Together the tickets give a mean loss of about point six nine three from ticket B alone.",
+        "hold": 1.2
+      },
+      {
+        "id": "c15-b13",
+        "say": "Keep the scores and class weights. This time ignore the second target. That leaves the first ticket with weight zero. Should the optimizer still take a step?",
+        "hold": 2.0
+      },
+      {
+        "id": "c15-b14",
+        "say": "Check the full batch first. Its total weight is zero, so the mean is undefined. Skip the update. You would do the same if every target were ignored.",
+        "hold": 1.3
+      }
+    ]
+  },
+  {
+    "id": "c16",
+    "title": "Which precision change touched the result?",
+    "sourceChapters": [
+      "c16"
+    ],
+    "beats": [
+      {
+        "id": "c16-b01",
+        "say": "Keep the master weight in full precision. PyTorch autocast can still choose lower precision for individual operations. Look at this tiny gradient. Storing it directly in FP16 rounds it to zero.",
+        "hold": 0.3
+      },
+      {
+        "id": "c16-b02",
+        "say": "Scale the loss, carry that scale through backward, then unscale the gradients in full precision before the update. At this scale the intermediate gradient fits. We still need finite loss, finite gradients and a check on the task itself.",
+        "hold": 0.75
+      },
+      {
+        "id": "c16-b03",
+        "say": "Both calculations end in NaN. Trace the first value that goes wrong in each run. On the left, a product overflows and we subtract infinity from itself. On the right, a tiny value rounds to zero and we divide zero by zero.",
+        "hold": 0.3
+      },
+      {
+        "id": "c16-b04",
+        "say": "Both examples recover in full precision. If turning off mixed precision fixes a run, check the actual dtypes, scaling, kernels and reductions to find which operation failed.",
+        "hold": 0.8
+      },
+      {
+        "id": "c16-b05",
+        "say": "Look at one output of a matrix multiply. Only this weight times one contributes to it. The other products are zero. The input and output tensors both use float32 storage. Switch the multiply inputs to TF32. Watch the bits in the middle.",
+        "hold": 0.3
+      },
+      {
+        "id": "c16-b06",
+        "say": "That small fraction rounds away, even though the accumulator and output still use FP32. On a supported NVIDIA GPU you can choose this TensorFloat mode for eligible operations.",
+        "hold": 0.3
+      },
+      {
+        "id": "c16-b07",
+        "say": "Record the matmul precision setting, use a consistent set of PyTorch controls, and compare the result to your tolerance before accepting a faster run.",
+        "hold": 0.8
+      }
+    ]
+  },
+  {
+    "id": "c17",
+    "title": "Which memory can the allocator give back?",
+    "sourceChapters": [
+      "c17"
+    ],
+    "beats": [
+      {
+        "id": "c17-b01",
+        "say": "Your GPU tool reports eleven gibibytes. Follow the owners. Eight belong to live tensors. Two empty blocks still belong to PyTorch's cache. Together those ten are reserved. The last block belongs to the CUDA context, outside the allocator. A real driver can also see memory held by other processes and libraries.",
+        "hold": 0.7
+      },
+      {
+        "id": "c17-b02",
+        "say": "Call empty cache. Watch which blocks leave. Allocated memory stays at eight because the job still holds those tensors. Reserved memory falls to eight, and the driver sees nine including the context. The job could already reuse the cached blocks. Clearing them after each layer can't free an activation that backward still needs.",
+        "hold": 0.75
+      },
+      {
+        "id": "c17-b03",
+        "say": "Leave the weights in place and wait for the CPU to prepare the next batch. Watch the idle interval and the short burst that follows. The memory count barely budges. A utilization sample can miss that burst entirely. Check the timeline for late batches, copies or a host wait before tuning the kernel.",
+        "hold": 0.7
+      }
+    ]
+  },
+  {
+    "id": "c18",
+    "title": "When can the second batch start?",
+    "sourceChapters": [
+      "c18"
+    ],
+    "beats": [
+      {
+        "id": "c18-b01",
+        "say": "Batch A and batch B are ready in pinned host memory. Pinning keeps those pages in place for the transfer. A nonblocking copy lets Python continue when the hardware and runtime support it. Follow both batches through one stream.",
+        "hold": 0.3
+      },
+      {
+        "id": "c18-b02",
+        "say": "Each copy takes three milliseconds and each kernel takes seven in this example. Where could we put the second copy while the first kernel is running?",
+        "hold": 2.15
+      },
+      {
+        "id": "c18-b03",
+        "say": "Give each batch its own device input buffer. Put the copies on a separate stream with a free copy engine. Record an event after each copy. Have the compute stream wait for A's event before launching A, and for B's event before launching B. Start copying B as soon as A's copy finishes.",
+        "hold": 0.3
+      },
+      {
+        "id": "c18-b04",
+        "say": "Stop at six milliseconds. Both inputs have arrived. Can B's kernel start here?",
+        "hold": 2.0
+      },
+      {
+        "id": "c18-b05",
+        "say": "Look at the compute lane. A still owns it. Let A finish, then run B. A finishes at ten milliseconds and B at seventeen. We saved three milliseconds against the serial schedule. Check the timeline on your GPU to see whether the copy engine and compute actually overlapped.",
+        "hold": 0.85
+      },
+      {
+        "id": "c18-b06",
+        "say": "Replay just the first two copies. Release each pinned source when its copy finishes. If the CPU refills either buffer too soon, the GPU can receive part of the next batch. The input on the device has a different lifetime. Keep it until its kernel finishes reading.",
+        "hold": 0.8
+      },
+      {
+        "id": "c18-b07",
+        "say": "Reverse the direction. This time the CPU wants to read the copied feature. Wait for the device-to-host transfer to finish. Now the host buffer is ready to read.",
+        "hold": 0.8
+      }
+    ]
+  },
+  {
+    "id": "c19",
+    "title": "Can fewer bytes raise the upper bound?",
+    "sourceChapters": [
+      "c19"
+    ],
+    "beats": [
+      {
+        "id": "c19-b01",
+        "say": "Our kernel does a thousand floating-point operations and moves four thousand bytes beyond the caches. Divide operations by bytes. That's a quarter of an operation per byte, its arithmetic intensity. Multiply by the device's forty gigabytes per second.",
+        "hold": 0.3
+      },
+      {
+        "id": "c19-b02",
+        "say": "Even with perfect use of that bandwidth, the work tops out at ten gigaflops per second. The lower of this limit and the compute ceiling is the Roofline bound.",
+        "hold": 0.75
+      },
+      {
+        "id": "c19-b03",
+        "say": "Reuse each load and reduce the bytes moved. Keep the thousand operations. At a thousand bytes the upper bound reaches forty gigaflops per second. If we cut traffic to two hundred fifty bytes, where will the new point land?",
+        "hold": 2.0
+      },
+      {
+        "id": "c19-b04",
+        "say": "Follow the point until it reaches the arithmetic ceiling. The last part of the trip is horizontal. Once compute sets the bound, saving another byte can't raise that roof. A real kernel can still run well below it. Check the output, then measure the whole step to see what the reuse bought you.",
+        "hold": 0.8
+      }
+    ]
+  },
+  {
+    "id": "c20",
+    "title": "How many warps fit on one SM?",
+    "sourceChapters": [
+      "c20"
+    ],
+    "beats": [
+      {
+        "id": "c20-b01",
+        "say": "Each square is a place for a warp on one hypothetical streaming multiprocessor. There are sixty-four places, sixty-four kibibytes of shared memory and sixty-five thousand five hundred thirty-six registers. Put one block of two hundred fifty-six threads on it. That fills eight warp slots.",
+        "hold": 0.3
+      },
+      {
+        "id": "c20-b02",
+        "say": "At thirty-two registers per thread, the block also takes eight thousand one hundred ninety-two registers.",
+        "hold": 0.65
+      },
+      {
+        "id": "c20-b03",
+        "say": "Give each block a sixteen-kibibyte tile. Fill the SM until the shared memory runs out. Four blocks fit, so thirty-two of the sixty-four warp slots are occupied. That fraction is called occupancy. Now double the tile size while keeping the same threads. Two blocks fit.",
+        "hold": 0.3
+      },
+      {
+        "id": "c20-b04",
+        "say": "Occupancy drops from one half to one quarter. Real hardware has allocation granularity and other limits to check as well.",
+        "hold": 0.75
+      },
+      {
+        "id": "c20-b05",
+        "say": "Would you throw out the larger tile? Load our eight values once and read the shared copy twice. Both passes got their inputs from the same eight global loads. Fewer resident warps can make it harder to hide a stall, while reuse can save traffic.",
+        "hold": 0.3
+      },
+      {
+        "id": "c20-b06",
+        "say": "Check the answer and time the whole step. The lower occupancy alone can't tell you which version wins.",
+        "hold": 0.8
+      }
+    ]
+  },
+  {
+    "id": "c21",
+    "title": "Where would you look first?",
+    "sourceChapters": [
+      "c21"
+    ],
+    "beats": [
+      {
+        "id": "c21-b01",
+        "say": "Look at the gap before this GPU copy. Was the CPU still preparing the batch? Nsight Systems puts host work, copies and streams on one timeline. Now select the kernel itself.",
+        "hold": 0.3
+      },
+      {
+        "id": "c21-b02",
+        "say": "Nsight Compute can show which instructions stalled, how many warps were resident and how much data moved. For a device-memory Roofline, use bytes beyond the caches and bandwidth at that same level.",
+        "hold": 0.7
+      },
+      {
+        "id": "c21-b03",
+        "say": "All eight loads in our teaching kernel are in bounds. Compare its sum with a trusted result. Even legally addressed values can add up to the wrong answer if the code adds a one twice.",
+        "hold": 0.3
+      },
+      {
+        "id": "c21-b04",
+        "say": "For a custom kernel, Compute Sanitizer also checks memory access, shared-memory races and synchronization. Use both checks before you interpret a timing improvement.",
+        "hold": 0.75
+      },
+      {
+        "id": "c21-b05",
+        "say": "Now use the corrected sum. Keep the eight logical values and the lanes that read them. In the first layout, consecutive lanes read words thirty-two positions apart. Pack the words side by side in a second layout. Both start on a thirty-two-byte boundary. How many segments does the warp load touch in the second layout?",
+        "hold": 2.15
+      },
+      {
+        "id": "c21-b06",
+        "say": "Trace the segment boundaries. All eight packed words fit in one segment. The strided layout needed eight. Try the layout on your GPU. If you have to repack every batch, include that time.",
+        "hold": 0.3
+      },
+      {
+        "id": "c21-b07",
+        "say": "In NVIDIA's assess, parallelize, optimize and deploy cycle, measure a representative step, change one thing and check the output and whole-step time. Record the shape, device, dtype, precision setting, warmup and timer endpoints.",
+        "hold": 0.85
+      }
+    ]
+  },
+  {
+    "id": "c22",
+    "title": "What is the logging line waiting for?",
+    "sourceChapters": [
+      "c22"
+    ],
+    "beats": [
+      {
+        "id": "c22-b01",
+        "say": "Put all four tickets through one update. Check placement and shapes, take the forward loss through backward, then update the weights. Try the longest input as well as a typical one. Our small classifier used plain SGD.",
+        "hold": 0.3
+      },
+      {
+        "id": "c22-b02",
+        "say": "Switch it to Adam and the first update can allocate two moments per weight. That extra allocation can fail even after backward succeeded.",
+        "hold": 0.75
+      },
+      {
+        "id": "c22-b03",
+        "say": "A profile puts forty milliseconds on the call that reads the loss. Python asks at two. The kernel finishes at forty-one, and the scalar takes one more millisecond to reach Python. This time let Python do other work until thirty-two milliseconds, then read the same loss.",
+        "hold": 0.3
+      },
+      {
+        "id": "c22-b04",
+        "say": "Look at how much of the kernel is left. Nine milliseconds of waiting and one to read. That's ten milliseconds in the call. Python can also queue another operation on the same CUDA stream. The GPU runs that operation after the loss is ready while Python continues.",
+        "hold": 0.3
+      },
+      {
+        "id": "c22-b05",
+        "say": "A kernel error can surface at a later host wait. For debugging, launch blocking can reveal the Python line that submitted the failing work. Turn it off before timing.",
+        "hold": 0.75
+      },
+      {
+        "id": "c22-b06",
+        "say": "One more trap. There are five milliseconds of older work ahead of the step we want. Drain the old work, start the host clock, and stop it after the target finishes.",
+        "hold": 0.3
+      },
+      {
+        "id": "c22-b07",
+        "say": "With CUDA events, count the interval between the two recorded timestamps on the stream, including any gaps. Decide whether the question includes copies and reporting, then keep those boundaries fixed.",
+        "hold": 0.85
+      }
+    ]
+  },
+  {
+    "id": "c23",
+    "title": "Which zeros count in the mean?",
+    "sourceChapters": [
+      "c23"
+    ],
+    "beats": [
+      {
+        "id": "c23-b01",
+        "say": "Add six and zero to the original row. Three blocks of four threads now cover ten inputs. The extra workers skip the array, publish neutral zeros, and still reach the barrier. Look at the last block. Three of its contributions are zero. How many of those came from the ticket? Predict the pooled feature.",
+        "hold": 2.0
+      },
+      {
+        "id": "c23-b02",
+        "say": "Combine the three completed subtotals. Token nine really was zero, so it counts in the average. The two workers beyond it have no token to count. Divide by ten valid values. The exact mean is two point seven. Is that the number Python will get when it reads this FP32 tensor?",
+        "hold": 2
+      },
+      {
+        "id": "c23-b03",
+        "say": "Call item and wait for the device result. Python gets the stored float. It's a little above the exact mean. Format the number to one decimal place for the log. That's where the short spelling comes from.",
+        "hold": 1.1
+      }
+    ]
+  },
+  {
+    "id": "c24",
+    "title": "Which time belongs on ticket 104?",
+    "sourceChapters": [
+      "c24"
+    ],
+    "beats": [
+      {
+        "id": "c24-b01",
+        "say": "Take ticket one hundred four. Keep the original eight numbers and append the five on the right. Launch eight threads per block. Before we fill the two carriers, decide which threads can read the ticket and which must reach the barrier. Predict the pooled feature.",
+        "hold": 2.0
+      },
+      {
+        "id": "c24-b02",
+        "say": "Copy each real input into its thread's slot. See the zero at token nine? It has a source. For the last three threads, write a zero locally. Their indexes fall past the end of the array. Bring all eight threads in each block to its barrier. Each block can now read its complete row.",
+        "hold": 0.9
+      },
+      {
+        "id": "c24-b03",
+        "say": "Gather the first block's sum. That's the original twenty-one. Gather the second block's sum. Those five new inputs add fourteen. For the divisor, count the positions in the input row. Divide thirty-five by thirteen. The device result rounds to about two point six nine two three. Keep that number for the log.",
+        "hold": 1.1
+      },
+      {
+        "id": "c24-b04",
+        "say": "Now put that launch on a fresh clock. The caller logs four decimal places. The host starts at four milliseconds. The call returns at six. If you stop here, your log will say two milliseconds again. Python asks for the scalar.",
+        "hold": 0.75
+      },
+      {
+        "id": "c24-b05",
+        "say": "Watch the stream record its end event. Now follow the scalar back to Python. Both clocks have their end marks. The printer still needs an elapsed time. Which two marks would you subtract for the person waiting for the ticket?",
+        "hold": 2.0
+      },
+      {
+        "id": "c24-b06",
+        "say": "Twenty milliseconds. Subtract the host start at four from the scalar arrival at twenty-four. The stream events ran from five to twenty-three. That's eighteen milliseconds. Use that interval when the question is about the same work on the stream.",
+        "hold": 0.3
+      },
+      {
+        "id": "c24-b07",
+        "say": "Enter the caller's twenty milliseconds beside the feature. The next ticket can be compared on the same terms. On your own run, choose who needs the result, mark where that wait begins and ends, and log the time between those marks.",
+        "hold": 1.8
+      }
+    ]
+  }
+]

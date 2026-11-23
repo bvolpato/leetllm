@@ -1,0 +1,205 @@
+version: 1
+lesson: clustering-pca
+promise: Use the original nearest message as a reference, then decide whether a missed neighbor needs a wider
+  candidate search or a coordinate that PCA discarded.
+framing: []
+objectives:
+  - id: distance-and-clustering
+    can: Compute coordinate distances, assign points and minimize within-group squared error by moving a nonempty
+      mean.
+    scenes:
+      - intro
+      - neighbors
+      - algorithm-contract
+      - kmeans
+  - id: initialization-and-score
+    can: Diagnose empty or poor initialization, compute squared-distance sampling and compare complete silhouette
+      and inertia records.
+    scenes:
+      - initialization
+      - seeding-mass
+      - choose-k
+      - silhouette-ledger
+      - objective-ties
+      - fresh-seed-repair
+  - id: pca-reconstruction
+    can: Center the cloud, recover sample variances from its singular values, and use the retained and discarded
+      squared scores to explain reconstruction error and a change in query distance.
+    scenes:
+      - pca
+      - solver-contract
+      - compression
+      - variance-ledger
+      - takeaway
+  - id: representation-contract
+    can: Apply a permitted fitted transform and distinguish Euclidean, cosine and spherical-center geometry.
+    scenes:
+      - scale
+      - scale-boundary
+      - metric-choice
+      - spherical-centers
+      - centered-cosine
+  - id: search-and-audit
+    can: Count center and document comparisons, use flat search to diagnose an excluded neighbor or a changed
+      distance, choose the corresponding repair, and check relevance on reviewed query-document pairs.
+    scenes:
+      - intro
+      - compression
+      - ivf
+      - ivf-work
+      - takeaway
+      - audit-labels
+sections:
+  - heading: Start with six messages, not six labels
+    status: taught
+    scenes:
+      - intro
+      - neighbors
+      - algorithm-contract
+  - heading: Partition unlabeled vectors with Lloyd's algorithm
+    status: taught
+    scenes:
+      - kmeans
+      - algorithm-contract
+  - heading: Build the k-means loop and prevent initialization traps
+    status: taught
+    scenes:
+      - initialization
+      - fresh-seed-repair
+  - heading: "The initialization trap: why k-means++ matters"
+    status: taught
+    scenes:
+      - initialization
+      - seeding-mass
+  - heading: Evaluate cluster geometry with elbow curves and silhouette scores
+    status: taught
+    scenes:
+      - choose-k
+      - silhouette-ledger
+  - heading: Equal scores can still tell different stories
+    status: taught
+    scenes:
+      - objective-ties
+  - heading: Compress representations with principal component analysis
+    status: taught
+    scenes:
+      - pca
+      - compression
+      - variance-ledger
+  - heading: Covariance eigendecomposition versus singular value decomposition
+    status: taught
+    scenes:
+      - solver-contract
+  - heading: Measure what compression discards
+    status: taught
+    scenes:
+      - compression
+      - variance-ledger
+  - heading: "Connect clustering to vector search: inverted file indexing"
+    status: taught
+    scenes:
+      - ivf
+      - ivf-work
+  - heading: Make the nearest centroid give the wrong answer
+    status: taught
+    scenes:
+      - ivf
+  - heading: "Failure test 1: let units manufacture the clusters"
+    status: taught
+    scenes:
+      - scale
+      - scale-boundary
+  - heading: "Failure test 2: let the similarity rule change neighbors"
+    status: taught
+    scenes:
+      - metric-choice
+      - spherical-centers
+  - heading: "Failure test 3: centering changes cosine geometry"
+    status: taught
+    scenes:
+      - centered-cosine
+  - heading: "Failure test 4: PCA can hide the dimension your query needs"
+    status: taught
+    scenes:
+      - compression
+      - takeaway
+  - heading: Turn every plot into a representation audit
+    status: taught
+    scenes:
+      - audit-labels
+  - heading: "Practice: try to break the representation"
+    status: taught
+    scenes:
+      - initialization
+      - seeding-mass
+      - scale
+      - ivf
+      - takeaway
+      - fresh-seed-repair
+  - heading: What to look for
+    status: taught
+    scenes:
+      - initialization
+      - seeding-mass
+      - scale
+      - ivf-work
+      - takeaway
+      - fresh-seed-repair
+quiz:
+  - n: 1
+    status: taught
+    scenes:
+      - algorithm-contract
+      - kmeans
+  - n: 2
+    status: taught
+    scenes:
+      - seeding-mass
+  - n: 3
+    status: taught
+    scenes:
+      - initialization
+  - n: 4
+    status: taught
+    scenes:
+      - silhouette-ledger
+  - n: 5
+    status: taught
+    scenes:
+      - solver-contract
+      - variance-ledger
+  - n: 6
+    status: taught
+    scenes:
+      - spherical-centers
+  - n: 7
+    status: taught
+    scenes:
+      - centered-cosine
+  - n: 8
+    status: taught
+    scenes:
+      - ivf
+      - ivf-work
+  - n: 9
+    status: taught
+    scenes:
+      - scale
+      - scale-boundary
+  - n: 10
+    status: taught
+    scenes:
+      - pca
+      - variance-ledger
+      - compression
+      - takeaway
+removed: []
+reviews:
+  closed_book:
+    taught: 10
+    partial: 0
+    absent: 0
+    script: 02d9a8ef1418778a
+  fact_check:
+    open_findings: 0
+    script: 02d9a8ef1418778a

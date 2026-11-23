@@ -1,0 +1,244 @@
+version: 1
+lesson: mps-metal-mac-ml-training
+promise: Diagnose a ticket classifier on an Apple silicon Mac by tracing which tensor the next operation reads, where it runs, and when it finishes.
+framing: []
+objectives:
+  - id: opening
+    can: Trace the pooled tensor from the mean call to the linear layer and identify the first operation with incompatible devices.
+    scenes:
+      - opening
+  - id: backend
+    can: Open the Mac's GPU path
+    scenes:
+      - backend
+  - id: release-prerequisites
+    can: Match the Mac and interpreter to a release wheel, then distinguish a build failure from an unavailable runtime.
+    scenes:
+      - release-prerequisites
+  - id: shared-pool
+    can: Read the CPU and MPS device tags in one physical memory pool and identify the operands that must agree at the linear layer.
+    scenes:
+      - shared-pool
+  - id: assignment
+    can: Follow the batch binding to the copy the mean reads and predict whether the linear layer can score the resulting vector.
+    scenes:
+      - assignment
+  - id: device-identity
+    can: Read the tensor’s device rather than guessing its index
+    scenes:
+      - device-identity
+  - id: pooling
+    can: Turn one ticket into one feature vector
+    scenes:
+      - pooling
+  - id: score
+    can: Accumulate a class bias and sixteen signed products, including weights that contribute zero.
+    scenes:
+      - score
+  - id: probabilities
+    can: A near tie means uncertainty
+    scenes:
+      - probabilities
+  - id: batch-update
+    can: Let the batch change a weight
+    scenes:
+      - batch-update
+  - id: shape-and-step
+    can: Check the output shapes, the pre-update loss and the changed weights, then identify what still needs validation.
+    scenes:
+      - shape-and-step
+  - id: fallback
+    can: A missing kernel sends the ticket on a detour
+    scenes:
+      - fallback
+  - id: fallback-accounting
+    can: Calculate the extra time in a supplied serial schedule and choose which alternatives to measure on the Mac.
+    scenes:
+      - fallback-accounting
+  - id: dtype-allocation
+    can: Repair a float64 allocation failure while keeping class-index targets in torch.long.
+    scenes:
+      - dtype-allocation
+  - id: precision
+    can: Use float32 spacing and significand parity to predict which distinctions a nearest-even cast keeps.
+    scenes:
+      - precision
+  - id: autocast
+    can: Apply an inclusive accuracy tolerance to a finite-loss autocast candidate before comparing speed and memory.
+    scenes:
+      - autocast
+  - id: timing
+    can: The clock can stop before the work
+    scenes:
+      - timing
+  - id: measurement-receipt
+    can: Time ten matrix products after warmup on either device. On MPS, synchronize at both clock boundaries. On CPU, use the return of the third warmup and the tenth timed product.
+    scenes:
+      - measurement-receipt
+  - id: profiling
+    can: Align PyTorch operation signposts with GPU activity in Instruments to investigate host waits and gaps between launches.
+    scenes:
+      - profiling
+  - id: crossover
+    can: Give GPU launch overhead enough work
+    scenes:
+      - crossover
+  - id: memory-budget
+    can: Calculate the input bytes saved by halving a batch and identify the other allocations to include in the training budget.
+    scenes:
+      - memory-budget
+  - id: allocator
+    can: Separate live tensors from cached memory
+    scenes:
+      - allocator
+  - id: allocator-limits
+    can: Calculate the allocator cap and distinguish the number of attention pairs from the number of scores a kernel keeps in memory.
+    scenes:
+      - allocator-limits
+  - id: return-ticket
+    can: Return to the refund request
+    scenes:
+      - return-ticket
+  - id: fresh-ticket
+    can: Trace a discarded copy and predict which class receives an edited ticket before and after assigning its corrected features.
+    scenes:
+      - fresh-ticket
+sections:
+  - heading: Metal, MPS, and the `mps` device
+    status: taught
+    scenes:
+      - backend
+  - heading: One memory pool, two PyTorch devices
+    status: taught
+    scenes:
+      - shared-pool
+      - assignment
+      - fresh-ticket
+      - device-identity
+      - memory-budget
+  - heading: Environment prerequisites on macOS
+    status: taught
+    scenes:
+      - release-prerequisites
+  - heading: "Runtime availability: is_built() vs. is_available()"
+    status: taught
+    scenes:
+      - backend
+      - release-prerequisites
+  - heading: The same four tickets on `mps`
+    status: taught
+    scenes:
+      - opening
+      - pooling
+      - score
+      - probabilities
+      - batch-update
+      - shape-and-step
+  - heading: One Mac GPU isn't a CUDA cluster
+    status: taught
+    scenes:
+      - device-identity
+  - heading: Unsupported operations and CPU fallback
+    status: taught
+    scenes:
+      - fallback
+      - fallback-accounting
+  - heading: Keep precision changes measurable
+    status: taught
+    scenes:
+      - dtype-allocation
+      - precision
+      - autocast
+  - heading: Time and profile MPS work
+    status: taught
+    scenes:
+      - timing
+      - measurement-receipt
+      - profiling
+  - heading: When a timer says the step is slow
+    status: taught
+    scenes:
+      - profiling
+  - heading: Memory pressure on Apple GPUs
+    status: taught
+    scenes:
+      - memory-budget
+      - allocator
+      - allocator-limits
+  - heading: Diagnose by symptom, not by backend name
+    status: taught
+    scenes:
+      - opening
+      - assignment
+      - release-prerequisites
+      - device-identity
+      - fallback
+      - dtype-allocation
+      - measurement-receipt
+      - allocator-limits
+  - heading: Dispatch overhead and the MPS crossover point
+    status: taught
+    scenes:
+      - crossover
+quiz:
+  - n: 1
+    status: taught
+    scenes:
+      - shared-pool
+      - assignment
+      - shape-and-step
+      - fresh-ticket
+  - n: 2
+    status: taught
+    scenes:
+      - release-prerequisites
+  - n: 3
+    status: taught
+    scenes:
+      - shape-and-step
+      - fresh-ticket
+  - n: 4
+    status: taught
+    scenes:
+      - fallback-accounting
+  - n: 5
+    status: taught
+    scenes:
+      - dtype-allocation
+      - precision
+  - n: 6
+    status: taught
+    scenes:
+      - measurement-receipt
+      - timing
+  - n: 7
+    status: taught
+    scenes:
+      - profiling
+  - n: 8
+    status: taught
+    scenes:
+      - allocator
+      - allocator-limits
+  - n: 9
+    status: taught
+    scenes:
+      - allocator-limits
+  - n: 10
+    status: taught
+    scenes:
+      - autocast
+removed: []
+reviews:
+  closed_book:
+    script: 658d074e57b12abe
+    taught: 10
+    partial: 0
+    absent: 0
+    reviewer: /root/upgrade_shard5
+    evidence: build/video-delivery-20261106/script-reviews/mps-metal-mac-ml-training.json
+  fact_check:
+    script: 658d074e57b12abe
+    open_findings: 0
+    reviewer: /root/upgrade_shard5
+    evidence: build/video-delivery-20261106/script-reviews/mps-metal-mac-ml-training.json

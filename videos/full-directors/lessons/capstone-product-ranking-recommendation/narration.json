@@ -1,0 +1,842 @@
+[
+  {
+    "id": "c01",
+    "title": "Would you rank this printer?",
+    "sourceChapters": [
+      "c01"
+    ],
+    "beats": [
+      {
+        "id": "c01-b01",
+        "say": "A shopper searches for a label printer. Look at the label coming out of P eight. Its match score is point nine eight, the highest in the catalog for this search. Read the two lines below it. Would you put this printer in the first slot?",
+        "hold": 2.8
+      },
+      {
+        "id": "c01-b02",
+        "say": "Leave the slot open. P eight is blocked by policy and also sold out. We check policy first, so the log says policy block. Inspect the next printer, P eleven. It has stock and approval, but it cannot ship here. Set it aside. Now take P five. P six and P four also pass. Those three enter ranking.",
+        "hold": 1
+      }
+    ]
+  },
+  {
+    "id": "c02",
+    "title": "When does the shortlist fill?",
+    "sourceChapters": [
+      "c02"
+    ],
+    "beats": [
+      {
+        "id": "c02-b01",
+        "say": "What happens if we spend the budget before checking eligibility? Take the first three matches. That gives us P eight, P eleven and P five. Enforce the rules now. Only P five survives. There were two more eligible printers just beyond the cutoff.",
+        "hold": 0.8
+      },
+      {
+        "id": "c02-b02",
+        "say": "Filter the full set first and all three eligible printers fit. A learned penalty could be outweighed by another feature. The hard checks belong in the selection code. Check current eligibility again when building the response and save the policy version. A serving system needs an authoritative source for those checks.",
+        "hold": 0.8
+      }
+    ]
+  },
+  {
+    "id": "c03",
+    "title": "Who gets the second printer slot?",
+    "sourceChapters": [
+      "c03"
+    ],
+    "beats": [
+      {
+        "id": "c03-b01",
+        "say": "This little catalog has ten listings across two searches. We sort supplied retrieval scores. A large catalog might need lexical search or a two-tower model to produce that shortlist. A richer ranker then scores each survivor. This exercise fits two linear weights. LambdaMART is another option.",
+        "hold": 0.3
+      },
+      {
+        "id": "c03-b02",
+        "say": "Its boosted trees can weight pairwise updates by the change in a ranking metric. A separate display cutoff sets how many places we can fill.",
+        "hold": 0.7
+      },
+      {
+        "id": "c03-b03",
+        "say": "Suppose the shopper wants a choice of printers. In this separate worksheet we give a listing sixty percent of its relevance score, then subtract forty percent of its similarity to the most similar printer already chosen. For the first place, the list is empty.",
+        "hold": 0.3
+      },
+      {
+        "id": "c03-b04",
+        "say": "All three similarity penalties are zero. The largest value is point five seven six, so the first printer is P five.",
+        "hold": 0.65
+      },
+      {
+        "id": "c03-b05",
+        "say": "Now compare the two remaining printers with P five. P six is almost a duplicate. Its similarity is point nine. P four's similarity is only point one. Before we subtract the penalties, which one would you put second?",
+        "hold": 2.8
+      },
+      {
+        "id": "c03-b06",
+        "say": "Subtract the penalties. P six loses point three six and has point one four four left. P four loses only point zero four and keeps point two three. Give the second place to P four. This tradeoff is called maximal marginal relevance.",
+        "hold": 0.3
+      },
+      {
+        "id": "c03-b07",
+        "say": "The lab implements a seller limit as its own rule. This calculation illustrates a different way to build the list.",
+        "hold": 0.8
+      }
+    ]
+  },
+  {
+    "id": "c04",
+    "title": "Two calls with the same proposal",
+    "sourceChapters": [
+      "c04"
+    ],
+    "beats": [
+      {
+        "id": "c04-b01",
+        "say": "The treatment ranker proposes these three printers. Each comes from a different seller, so all three fit our limit of two per seller. That limit checks concentration. Fairness needs its own evaluation. The catalog still has all three in stock.",
+        "hold": 0.3
+      },
+      {
+        "id": "c04-b02",
+        "say": "Build the response for request five hundred one. The code checks each proposed printer against the catalog again. All three pass, so it writes three rows, one per position.",
+        "hold": 0.9
+      },
+      {
+        "id": "c04-b03",
+        "say": "Replay the same call as a second case. This time P five sells out after scoring. Can that call still write these three rows?",
+        "hold": 2.8
+      },
+      {
+        "id": "c04-b04",
+        "say": "It rejects the whole proposal. P five still has its old score, but the catalog record changed. For a new response, fetch current candidates and rebuild under the seller limit. If too few pass, the service needs a refill or shorter-list policy.",
+        "hold": 0.3
+      },
+      {
+        "id": "c04-b05",
+        "say": "To audit the first response, keep the catalog that produced it. The loader also rejects malformed flags, grades and nonfinite scores before they enter this pipeline.",
+        "hold": 1
+      }
+    ]
+  },
+  {
+    "id": "c05",
+    "title": "What is the first position worth?",
+    "sourceChapters": [
+      "c05"
+    ],
+    "beats": [
+      {
+        "id": "c05-b01",
+        "say": "All three eligible printers reached the ranker. Here they are in the control order. Our authored judgments give P four grade one, P five grade three and P six grade two. A higher grade earns more gain. Later positions get less credit.",
+        "hold": 0.3
+      },
+      {
+        "id": "c05-b02",
+        "say": "Look at the gain underneath each printer. P five earns about four point four two of its possible seven in second place. Add the three contributions and the control earns six point nine one seven. That sum is discounted cumulative gain.",
+        "hold": 0.3
+      },
+      {
+        "id": "c05-b03",
+        "say": "Which printer gains the most from first place?",
+        "hold": 2.8
+      },
+      {
+        "id": "c05-b04",
+        "say": "Move P five to the top. Its grade stays three, but now it sits in first place and earns the full seven. P six takes second and P four takes third. That ideal order earns nine point three nine three. Divide each total by that same ideal.",
+        "hold": 0.3
+      },
+      {
+        "id": "c05-b05",
+        "say": "Control scores about point seven three six. The treatment matches the ideal and scores one. This ratio is normalized discounted cumulative gain, or N D C G. Both orders still contain both relevant printers. Retrieval recall stays at two out of two.",
+        "hold": 1
+      }
+    ]
+  },
+  {
+    "id": "c06",
+    "title": "Earn the ranking metric and its denominator",
+    "sourceChapters": [
+      "c06"
+    ],
+    "beats": [
+      {
+        "id": "c06-b01",
+        "say": "Pin the metric before comparing methods. For each grade, raise two to that power and subtract one. Divide by log base two of the one-based position plus one. Add the first K contributions. That gives the observed discounted cumulative gain. Sort the fixed eligible judgments from highest to lowest to get the ideal gain. Divide the observed sum by that ideal for N D C G. Some libraries use linear gain, so record which gain you used.",
+        "hold": 0.75
+      },
+      {
+        "id": "c06-b02",
+        "say": "Binary candidate recall uses a different rule here: relevant means eligible grade at least two. Divide the number of those products retrieved by all relevant eligible judgments in the declared universe. Grade one still contributes positive graded gain to N D C G. With an explicitly supplied fixed judgment universe, the N D C G helper rejects duplicate products, unknown items and changed relevance grades.",
+        "hold": 0.3
+      },
+      {
+        "id": "c06-b03",
+        "say": "Without that argument, it uses the returned rows as their own universe. The recall helper separately rejects duplicates and query or eligibility violations. No relevant eligible judgments is an error for recall, while zero ideal gain yields N D C G zero.",
+        "hold": 0.75
+      },
+      {
+        "id": "c06-b04",
+        "say": "Mean reciprocal rank asks where the first relevant result appears. Take one divided by that one-based rank, or zero if none appears, then average across query instances. A first relevant item at rank three contributes one third.",
+        "hold": 0.3
+      },
+      {
+        "id": "c06-b05",
+        "say": "If you define relevance by a click, the result describes clicking under that display order. Independent judgments let you evaluate the order even for items that shoppers have never seen. Use shopper outcomes to measure satisfaction and calibrated probabilities to estimate purchases.",
+        "hold": 0.75
+      }
+    ]
+  },
+  {
+    "id": "c07",
+    "title": "Which stage needs the repair?",
+    "sourceChapters": [
+      "c07"
+    ],
+    "beats": [
+      {
+        "id": "c07-b01",
+        "say": "Keep the three eligible printer judgments pinned at the top. P five and P six meet our recall threshold of grade two. Now suppose retrieval drops P six. P four slides into second place. Could any scoring weights bring P six back?",
+        "hold": 2.1
+      },
+      {
+        "id": "c07-b02",
+        "say": "We have to restore P six to the candidate set. For now the ranker sees just one of the two relevant printers. That is half recall. It puts both survivors in the best possible order.",
+        "hold": 0.3
+      },
+      {
+        "id": "c07-b03",
+        "say": "Their gain is seven plus one divided by log base two of three. Compare that gain with the best among the survivors and both sides are identical. The score is one.",
+        "hold": 0.8
+      },
+      {
+        "id": "c07-b04",
+        "say": "Use the full eligible reference above instead. P six belongs in second place there and P four belongs in third. The returned gain stays at seven point six three one. The ideal rises to nine point three nine three. Their ratio is about point eight one two. That fixed reference exposes the lost option.",
+        "hold": 0.85
+      },
+      {
+        "id": "c07-b05",
+        "say": "For the second run, restore P six to retrieval. Keep the judgments. Lower just its ranking score to point two. P four now outranks it. Look at the returned order. Which stage would you repair this time?",
+        "hold": 2.8
+      },
+      {
+        "id": "c07-b06",
+        "say": "Both relevant printers made it through. Recall is two out of two. P six earns less gain in third place. Against the same ideal, this order scores about point nine seven two. To move P six above P four, restore P six's ranking score.",
+        "hold": 0.3
+      },
+      {
+        "id": "c07-b07",
+        "say": "Comparing recall with fixed-universe N D C G tells us which stage lost the value.",
+        "hold": 1
+      }
+    ]
+  },
+  {
+    "id": "c08",
+    "title": "Two judged searches and a scoring budget",
+    "sourceChapters": [
+      "c08"
+    ],
+    "beats": [
+      {
+        "id": "c08-b01",
+        "say": "The two-query hand-entered fixture has baseline N D C G about point nine seven two for insulated bag and point seven three six for label printer. Their mean is point eight five four. The candidate gives one on both. These are regression scores supplied by the author; the model-fitting exercise is a separate artifact.",
+        "hold": 0.75
+      },
+      {
+        "id": "c08-b02",
+        "say": "Now remove P three from the insulated-bag candidate list. Its surviving ideal order still normalizes to one against itself. Keep the original eligible universe, and N D C G falls to about point eight one two; binary recall falls to one half.",
+        "hold": 0.3
+      },
+      {
+        "id": "c08-b03",
+        "say": "Keep P three missing. Average that bag score with the perfect printer score. The new mean is about point nine zero six, still above the control mean. Yet the bag search falls below our per-query floor of point nine five. Pin the cutoff, universe and relevance rule so someone else can check that gate.",
+        "hold": 0.75
+      },
+      {
+        "id": "c08-b04",
+        "say": "The local gates check for blocked displays, missing or repeated listings, unknown versions and sellers with more than two places. They also check assignment and outcome joins. The worksheet supplies ten synthetic scoring times. Sort them from shortest to longest. For nearest-rank p ninety-five, multiply ten by point nine five and round up. Which time does that select?",
+        "hold": 3
+      },
+      {
+        "id": "c08-b05",
+        "say": "That's the tenth time, eighteen milliseconds. It passes the worksheet's twenty millisecond limit. To apply this check to a service, time it on representative requests.",
+        "hold": 0.75
+      }
+    ]
+  },
+  {
+    "id": "c09",
+    "title": "Learning from a printer preference",
+    "sourceChapters": [
+      "c09"
+    ],
+    "beats": [
+      {
+        "id": "c09-b01",
+        "say": "Put a printer at each point on these axes. Moving right means a stronger text match. Moving up means better listing quality. Start with all the weight on match. P four leads on match, while the higher grade belongs to P five. Drop a perpendicular from each point to the scoring direction. The point farther along that direction scores higher.",
+        "hold": 0.3
+      },
+      {
+        "id": "c09-b02",
+        "say": "Which printer should move ahead if we learn this preference?",
+        "hold": 2.8
+      },
+      {
+        "id": "c09-b03",
+        "say": "Use this single preference for twelve small updates. Watch the direction turn toward quality. The points stay put. As their projections change, P five overtakes P four. A larger margin means the preferred product scores farther ahead. This illustration fits one preference. We still need later requests to find out whether a learned rule transfers.",
+        "hold": 0.9
+      }
+    ]
+  },
+  {
+    "id": "c10",
+    "title": "What does one preference change?",
+    "sourceChapters": [
+      "c10"
+    ],
+    "beats": [
+      {
+        "id": "c10-b01",
+        "say": "Switch from the rotating printer example to a single pair from the training file. In this request the judgments prefer A two over A one. Read the feature columns across. A two gives up a tenth in text match and gains six tenths in quality.",
+        "hold": 0.3
+      },
+      {
+        "id": "c10-b02",
+        "say": "Look below the two products at the row labeled delta features. It shows the features of A two minus those of A one. A score is the dot product of weights and features. With both weights at zero, the scores tie. Which feature should gain weight?",
+        "hold": 2.8
+      },
+      {
+        "id": "c10-b03",
+        "say": "Quality should gain weight. Take the preferred score minus the other score. That gap is the margin. Our pair loss is the log of one plus the exponential of the negative margin. Its gradient is the negative feature difference times the sigmoid of the negative margin.",
+        "hold": 0.3
+      },
+      {
+        "id": "c10-b04",
+        "say": "At a tie the sigmoid is one half. The gradient is half the difference with both signs reversed. That is positive point zero five for match and negative point three for quality. Quality has the larger gradient magnitude.",
+        "hold": 0.7
+      },
+      {
+        "id": "c10-b05",
+        "say": "Subtract point three times that gradient from the starting weights. The match weight becomes negative point zero one five. The quality weight becomes positive point zero nine. Apply those weights to both products. Both scores rise, but A two moves farther. Its lead is now point zero five five five. That gap favors A two.",
+        "hold": 0.8
+      },
+      {
+        "id": "c10-b06",
+        "say": "The full fit averages the losses over all preferred pairs and adds half of lambda times the squared weight norm. Average the gradients the same way and add lambda times the weights. The code evaluates the sigmoid with log-add-exp for numerical stability.",
+        "hold": 0.3
+      },
+      {
+        "id": "c10-b07",
+        "say": "This linear model uses the preference objective from RankNet, which used a neural scoring function.",
+        "hold": 0.75
+      }
+    ]
+  },
+  {
+    "id": "c11",
+    "title": "Build the actual nine-pair average",
+    "sourceChapters": [
+      "c11"
+    ],
+    "beats": [
+      {
+        "id": "c11-b01",
+        "say": "Each of three training requests has grades one, two and three. Form a directed pair whenever one grade is larger: three pairs per request, nine total. Equal grades contribute no preference pair. Keep product and request identities on every row. The feature differences all lie between negative one and one in this authored scale.",
+        "hold": 0.75
+      },
+      {
+        "id": "c11-b02",
+        "say": "At zero weights, all nine wrong-order probabilities are one half. The average gradient is approximately positive point zero one six six seven in text match and negative point one six one one one in quality.",
+        "hold": 0.3
+      },
+      {
+        "id": "c11-b03",
+        "say": "The first full update with step point three is negative point zero zero five, positive point zero four eight three three. It differs from the isolated A two versus A one update because all nine rows contribute.",
+        "hold": 0.75
+      },
+      {
+        "id": "c11-b04",
+        "say": "This objective gives each pair one ninth of the weight. Each request supplies three pairs, so each contributes a third of the total. A request with many more judged pairs would contribute more. To give every request equal weight, average within each request first.",
+        "hold": 0.3
+      },
+      {
+        "id": "c11-b05",
+        "say": "These features share a zero-to-one scale. Fit any scaler for new features on training rows only.",
+        "hold": 0.75
+      }
+    ]
+  },
+  {
+    "id": "c12",
+    "title": "What was available at the training freeze?",
+    "sourceChapters": [
+      "c12"
+    ],
+    "beats": [
+      {
+        "id": "c12-b01",
+        "say": "Here is one request from the training file. Keep its three product rows together. Their features were available at eleven on May fourth. The search ran at noon. Follow the bottom track. The last label arrived the next day at noon, twelve hours after training froze. Can this request enter the May fifth training set?",
+        "hold": 2.8
+      },
+      {
+        "id": "c12-b02",
+        "say": "Leave all three rows out. Serving time still puts the request in the training window. Every label has to arrive strictly before the freeze. A label at midnight would also be too late. Try a new label time. Move all three labels to six on the previous evening.",
+        "hold": 0.3
+      },
+      {
+        "id": "c12-b03",
+        "say": "At the freeze they're mature. Include the request, and the training count rises from three requests to four.",
+        "hold": 0.8
+      },
+      {
+        "id": "c12-b04",
+        "say": "Keep those earlier labels and change one more input. Suppose a feature first became available at three in the afternoon, after the search. Reject that feature record. The scorer could never have used it at noon.",
+        "hold": 0.3
+      },
+      {
+        "id": "c12-b05",
+        "say": "For the fit we'll return to the original file, choose regularization on later validation requests, then evaluate on still later test requests. Holding out new products or new queries tests a different kind of generalization.",
+        "hold": 0.95
+      }
+    ]
+  },
+  {
+    "id": "c13",
+    "title": "Which requests were ready at each cutoff?",
+    "sourceChapters": [
+      "c13"
+    ],
+    "beats": [
+      {
+        "id": "c13-b01",
+        "say": "Each row is one request. Eight requests with three products each give us twenty-four rows. The cyan dot marks when we served the request. The white dot marks when its last label arrived. All three products share the same query and serving time.",
+        "hold": 0.3
+      },
+      {
+        "id": "c13-b02",
+        "say": "The loader checks U T C timestamps, distinct product IDs, valid grades and finite features in range. Features must be available by serving time, and a label can arrive at serving time or later.",
+        "hold": 0.75
+      },
+      {
+        "id": "c13-b03",
+        "say": "The gold lines mark cutoffs at midnight in UTC. The training window runs from May first up to May fifth. Validation takes the next two days. Test serves on May seventh and eighth. Its serving window closes on May ninth, but labels can mature until the May tenth freeze.",
+        "hold": 0.3
+      },
+      {
+        "id": "c13-b04",
+        "say": "For each group, every label has to arrive before its cutoff. A label that lands exactly on the line misses it.",
+        "hold": 0.75
+      },
+      {
+        "id": "c13-b05",
+        "say": "Follow the fourth line across May fifth. The request made the training window. Its labels missed the cutoff by twelve hours, so all three rows stay out. That leaves three training requests, two for validation and two for test. Slow outcomes are easier to lose this way.",
+        "hold": 0.3
+      },
+      {
+        "id": "c13-b06",
+        "say": "If you're tracking returns, record how many are still pending when you freeze the data. These later requests can repeat a query or a product. To test an unfamiliar query or a new product, hold it out as a separate group.",
+        "hold": 0.75
+      }
+    ]
+  },
+  {
+    "id": "c14",
+    "title": "Which fit goes to test?",
+    "sourceChapters": [
+      "c14"
+    ],
+    "beats": [
+      {
+        "id": "c14-b01",
+        "say": "Both fits start at zero. Give each six hundred gradient steps at a learning rate of point three. Blue has no penalty on large weights. Cyan has lambda point one. Watch the quality weight. The blue curve keeps climbing. The penalty keeps the cyan curve much lower.",
+        "hold": 0.3
+      },
+      {
+        "id": "c14-b02",
+        "say": "Both fits put the validation products in ideal order. They tie at one. We specified a tie-break before fitting. Choose the larger penalty. The cyan fit goes to test.",
+        "hold": 0.75
+      },
+      {
+        "id": "c14-b03",
+        "say": "The selected weights are about negative point one zero nine for text match and positive one point two two nine for quality. In these training requests, some strong text matches got low grades. On the two later test requests, sorting by match alone scores point eight five four on average. The fitted model scores one.",
+        "hold": 0.75
+      },
+      {
+        "id": "c14-b04",
+        "say": "Those two requests are our synthetic holdout. If we tune the model again using this result, we need fresh requests to test that choice. Save the feature definitions, weights, dated splits and data together so someone else can rerun the fit. Keep the hand-entered ranking checks with their own fixture.",
+        "hold": 0.75
+      }
+    ]
+  },
+  {
+    "id": "c15",
+    "title": "Clicks on three printers",
+    "sourceChapters": [
+      "c15"
+    ],
+    "beats": [
+      {
+        "id": "c15-b01",
+        "say": "Look at a separate log of displays. Each dot is a displayed impression. Gold means the shopper clicked. Each row holds ten impressions. P four has ten rows. P six has just one. Count the gold dots. Which printer collected the most clicks?",
+        "hold": 2.5
+      },
+      {
+        "id": "c15-b02",
+        "say": "P four wins with ten clicks. It also had a hundred chances. Keep just the first row for each printer. Out of ten displays apiece, P four got one click and P six got four. P five sits between them with three.",
+        "hold": 0.3
+      },
+      {
+        "id": "c15-b03",
+        "say": "We have equalized the display counts. Position and selection still affect those click rates. We need better evidence before using them to learn a new order.",
+        "hold": 0.9
+      }
+    ]
+  },
+  {
+    "id": "c16",
+    "title": "What does a click at position three tell us?",
+    "sourceChapters": [
+      "c16"
+    ],
+    "beats": [
+      {
+        "id": "c16-b01",
+        "say": "Keep these printers in their positions. Give each a relevance probability of one half. Imagine one hundred impressions of each. A click in this toy model requires a look and a relevant item. Within this context we assume examination depends only on position and is independent of relevance.",
+        "hold": 0.3
+      },
+      {
+        "id": "c16-b02",
+        "say": "Position one gets examined on eighty percent of impressions. Position three gets examined on twenty percent. Follow the expected clicks as impressions accumulate. Half of the examined printers earn a click in expectation. By one hundred impressions that gives forty clicks at the top and ten at position three. The expected click rates are point four and point one.",
+        "hold": 0.8
+      },
+      {
+        "id": "c16-b03",
+        "say": "Weight each click by one divided by the chance of examination. The top weight is one and a quarter. The third-position weight is five. Apply those weights to the click counts. Both give fifty weighted clicks per hundred impressions, or one half per impression. An actual sample can differ from that expectation.",
+        "hold": 0.75
+      },
+      {
+        "id": "c16-b04",
+        "say": "Cap each inverse weight at two. Keep the smaller of two and the weight already on the screen. Which position loses weight?",
+        "hold": 2.8
+      },
+      {
+        "id": "c16-b05",
+        "say": "Follow position three. Its raw click probability stays at one tenth. The weight falls from five to two, so its weighted expectation falls to two tenths. Position one keeps its weight and its half.",
+        "hold": 0.3
+      },
+      {
+        "id": "c16-b06",
+        "say": "Clipping limits the influence of an individual click at the cost of bias here. If we lower the cap to one, both weights become one. We're back at the raw click rates. Real clicks can also reflect trust or accidents.",
+        "hold": 0.3
+      },
+      {
+        "id": "c16-b07",
+        "say": "A useful correction needs evidence for the observation model.",
+        "hold": 0.9
+      }
+    ]
+  },
+  {
+    "id": "c17",
+    "title": "Could the shopper see product Z?",
+    "sourceChapters": [
+      "c17"
+    ],
+    "beats": [
+      {
+        "id": "c17-b01",
+        "say": "Follow one shopper. A fifty-fifty split decides which ranker they get. That ranker's selection policy determines which products can appear. Examination propensity describes the chance that the shopper looks at a product in its assigned position. Suppose the policy never shows product Z. There are no clicks for Z to reweight.",
+        "hold": 0.3
+      },
+      {
+        "id": "c17-b02",
+        "say": "Independent judgments can grade Z without exposing it. Approved exploration can give it a chance to appear and produce observations under a documented selection policy.",
+        "hold": 0.75
+      },
+      {
+        "id": "c17-b03",
+        "say": "Look at the same two printers under different rankers. When their positions swap, we can compare how often shoppers click them in each position. Randomized swaps are one way to get that variation. Agarwal and colleagues used changes across historical rankers to estimate relative examination rates.",
+        "hold": 0.3
+      },
+      {
+        "id": "c17-b04",
+        "say": "Their method needs overlapping positions, comparable assignment and a model of how position affects attention.",
+        "hold": 0.75
+      },
+      {
+        "id": "c17-b05",
+        "say": "Relative rates tell us how much more often one position gets examined. To recover an absolute relevance rate, we also need the examination scale. Multiplying the data loss by a positive constant leaves its best unregularized fit in the same place.",
+        "hold": 0.3
+      },
+      {
+        "id": "c17-b06",
+        "say": "With a fixed penalty, the balance changes. Scale the penalty too to preserve the fit. Here the propensity fields stay empty. Keep these rows for evaluation. Before training on clicks, validate the estimate against observations and have the training pipeline enforce the permitted use.",
+        "hold": 0.75
+      }
+    ]
+  },
+  {
+    "id": "c18",
+    "title": "File the printer response",
+    "sourceChapters": [
+      "c18"
+    ],
+    "beats": [
+      {
+        "id": "c18-b01",
+        "say": "Return to the twelve updates on one printer preference. Read the final score printed under each of the three eligible machines. P eight is still blocked and P eleven still cannot ship. Before we save the response, which printer would you put second?",
+        "hold": 2.8
+      },
+      {
+        "id": "c18-b02",
+        "say": "Put the highest score in first place. That is P five. P six takes second place, ahead of P four in third. Save the request with its ranker, policy and experiment arm. When a click arrives later, that record lets us look up what the server returned to this shopper.",
+        "hold": 1
+      }
+    ]
+  },
+  {
+    "id": "c19",
+    "title": "What did the server return?",
+    "sourceChapters": [
+      "c19"
+    ],
+    "beats": [
+      {
+        "id": "c19-b01",
+        "say": "These two saved responses come from the hand-entered fixture. Control R E Q five hundred returns P four, P five, P six. Treatment puts P five first, P six second and P four third.",
+        "hold": 0.3
+      },
+      {
+        "id": "c19-b02",
+        "say": "Each row records the request, shopper, query and serving time, plus the product and its position. Save the catalog, eligibility, candidate, ranker and experiment versions with the list.",
+        "hold": 0.75
+      },
+      {
+        "id": "c19-b03",
+        "say": "Follow one row from the server to the shopper. The server records what it returned. A client render receipt tells us which product the app drew. A visibility event records when that product came into view. Whether the shopper examined it is a further question.",
+        "hold": 0.3
+      },
+      {
+        "id": "c19-b04",
+        "say": "This fixture stores the server rows in memory. For a durable history, write those rows together in one transaction and append corrections as new records.",
+        "hold": 0.75
+      },
+      {
+        "id": "c19-b05",
+        "say": "Validate complete unique positions from one through slate size, consistent request metadata and exact product-position membership in the configured slate. Replay the order against the retained historical catalog. Check current eligibility for a new response. To reproduce the scores, also retain the original candidates, features, model bytes and rule definitions.",
+        "hold": 0.75
+      }
+    ]
+  },
+  {
+    "id": "c20",
+    "title": "Does this event belong to the response?",
+    "sourceChapters": [
+      "c20"
+    ],
+    "beats": [
+      {
+        "id": "c20-b01",
+        "say": "Keep the three returned positions in view. The server saved request five hundred one at five seconds past noon. Three seconds later, a click names that request and P five. A purchase follows at four minutes and eighteen seconds past noon.",
+        "hold": 0.3
+      },
+      {
+        "id": "c20-b02",
+        "say": "Each record has its own event ID, occurrence time in UTC, request, product and outcome type. Both match the product in position one. A purchase still needs an attribution window and a rule for other paths, such as a later email.",
+        "hold": 0.8
+      },
+      {
+        "id": "c20-b03",
+        "say": "Now try an ingestion worksheet. Suppose the click arrives again. Compare both rows. The ID and every field agree. Count it once. Keep the ID and change just the product to P nine. Is this still a replay?",
+        "hold": 2.8
+      },
+      {
+        "id": "c20-b04",
+        "say": "Quarantine the conflict. The same ID now describes two different clicks. P nine also fails a separate check. It was absent from the response. A new ID alone couldn't fix that join.",
+        "hold": 0.75
+      },
+      {
+        "id": "c20-b05",
+        "say": "Try a new event for P six. The product matches, but its clock reads three seconds past noon. That's two seconds before serving. Investigate the clock or request ID. The lab checks unique IDs, membership and time order.",
+        "hold": 0.3
+      },
+      {
+        "id": "c20-b06",
+        "say": "A live stream also needs durable deduplication and finalized attribution windows. Keep the returned rows that never received a click. Until you know what was visible and when follow-up closed, a missing click tells you little about relevance.",
+        "hold": 0.9
+      }
+    ]
+  },
+  {
+    "id": "c21",
+    "title": "Stable assignment must survive repeated searches",
+    "sourceChapters": [
+      "c21"
+    ],
+    "beats": [
+      {
+        "id": "c21-b01",
+        "say": "Combine the experiment ID and shopper ID, then hash them. In this fixture, the first four hash bytes modulo two give a bucket. Zero selects treatment and one selects control. Repeat a search with the same two IDs and it lands in the same arm. Each product in that response shares the assignment. The fixture rejects missing IDs and mismatched arms.",
+        "hold": 0.75
+      },
+      {
+        "id": "c21-b02",
+        "say": "Use the shopper as the assignment unit when you calculate uncertainty. The six searches on screen come from just two shoppers. Before exposure, choose the primary purchase-conversion outcome, attribution and follow-up windows, minimum detectable effect, sample size and sequential stopping method.",
+        "hold": 0.3
+      },
+      {
+        "id": "c21-b03",
+        "say": "Check sample-ratio mismatch by comparing the observed shopper counts with the planned split. Check for missing logs too.",
+        "hold": 0.75
+      },
+      {
+        "id": "c21-b04",
+        "say": "Track returns per purchase, full-search latency, blocked displays and seller concentration. Even if conversion rises, one prohibited display triggers its stop. To roll back, load the previous ranker with its compatible features, reroute traffic, then verify the served version and current eligibility checks.",
+        "hold": 0.75
+      }
+    ]
+  },
+  {
+    "id": "c22",
+    "title": "What is one impression worth?",
+    "sourceChapters": [
+      "c22"
+    ],
+    "beats": [
+      {
+        "id": "c22-b01",
+        "say": "A rank score tells us which printer comes first. What is one impression of an eighty-dollar printer worth? Follow one purchase path. The shopper clicks, then buys. Count at most one purchase through that click. We want gross sales before fees and returns.",
+        "hold": 0.3
+      },
+      {
+        "id": "c22-b02",
+        "say": "Multiply the chance of a click by the chance of a purchase given the click, then by the price. Both factors must estimate probabilities for this purchase path. An arbitrary pairwise score only gives us an order.",
+        "hold": 0.75
+      },
+      {
+        "id": "c22-b03",
+        "say": "Start with a hundred impressions. At a click probability of point two, we'd expect twenty clicks. If one in four clicks leads to a purchase, that's five printers. At eighty dollars each, that's four hundred dollars in gross sales. Divide by the hundred impressions. That's four dollars per impression on average.",
+        "hold": 0.75
+      },
+      {
+        "id": "c22-b04",
+        "say": "Now check a probability against held-out outcomes. Take ten predictions of point eight. We'd expect eight positives. Count the green dots. Six were positive, so the observed rate is point six. The gap is point two. A reliability diagram makes this comparison for each probability bin.",
+        "hold": 0.3
+      },
+      {
+        "id": "c22-b05",
+        "say": "Expected calibration error averages the absolute gaps, weighting each bin by its share of examples. With ten examples, one outcome changes this bin's rate by a tenth. Changing the bin boundaries changes which predictions you compare. Check calibration again when the traffic changes.",
+        "hold": 0.75
+      }
+    ]
+  },
+  {
+    "id": "c23",
+    "title": "Which purchases came back?",
+    "sourceChapters": [
+      "c23"
+    ],
+    "beats": [
+      {
+        "id": "c23-b01",
+        "say": "Here is a separate, invented experiment worksheet. Each dot is one search. A colored dot is a search with one purchase. Four control searches and six treatment searches converted. Out of a hundred searches on each side, that gives four percent and six percent. Treatment leads on conversion.",
+        "hold": 0.65
+      },
+      {
+        "id": "c23-b02",
+        "say": "The return rule asks a different question. Stop if treatment returns per purchase exceed control by more than one percentage point. Keep only the purchases in view. None of the four control purchases came back. One treatment purchase came back. Does the return rule stop treatment?",
+        "hold": 2.8
+      },
+      {
+        "id": "c23-b03",
+        "say": "The treatment rate is one out of six purchases, about sixteen point seven percent. Control is zero out of four. The worksheet says to stop treatment. For a real trial, buyers need comparable follow-up windows. These small counts alone give us little evidence about a population effect.",
+        "hold": 0.8
+      },
+      {
+        "id": "c23-b04",
+        "say": "Try the same rule with zero purchases in control. Its conversion is zero, but its return rate is zero divided by zero. That rate is undefined. Hold the return comparison until both denominators exist. A blocked display can still trigger a separate safety stop.",
+        "hold": 0.3
+      },
+      {
+        "id": "c23-b05",
+        "say": "The worksheet checks synthetic scoring times against a twenty millisecond limit. In a live trial, the hundred and twenty millisecond stop would apply to the whole search.",
+        "hold": 0.9
+      }
+    ]
+  },
+  {
+    "id": "c24",
+    "title": "What would justify a live trial?",
+    "sourceChapters": [
+      "c24"
+    ],
+    "beats": [
+      {
+        "id": "c24-b01",
+        "say": "The local receipt records seventeen passing checks. It requires two particular requests and two particular event IDs. Remove one event. Even if the remaining row is valid, the receipt now fails its retention check. Put it back, and the fixture passes again. The live trial is still off.",
+        "hold": 0.75
+      },
+      {
+        "id": "c24-b02",
+        "say": "Read each number with its source. Ten synthetic scoring times give a p ninety-five of eighteen milliseconds. Two hand-entered rankings lift mean N D C G from point eight five four to one. The fitted model used three training requests, two validation requests and two test requests.",
+        "hold": 0.3
+      },
+      {
+        "id": "c24-b03",
+        "say": "The returns worksheet has its own hundred searches per arm. The six server rows and two events belong to the join test.",
+        "hold": 0.75
+      },
+      {
+        "id": "c24-b04",
+        "say": "For a portfolio project, start with data you can use and independent judgments. Freeze the holdouts before tuning. Save one full candidate and feature snapshot with the returned list. Collect a client receipt for what was displayed, then join deduplicated outcomes after follow-up closes.",
+        "hold": 0.3
+      },
+      {
+        "id": "c24-b05",
+        "say": "Benchmark the real serving path and calculate experiment power. Rehearse the rollback with the previous model and its feature code, then check the version and eligibility on a returned list.",
+        "hold": 0.75
+      }
+    ]
+  },
+  {
+    "id": "c25",
+    "title": "Which lamps go back to the shopper?",
+    "sourceChapters": [
+      "c25"
+    ],
+    "beats": [
+      {
+        "id": "c25-b01",
+        "say": "A shopper asks for a portable lamp. This is a fresh exercise with rounded weights. Multiply text match by negative point one and quality by one point two. For the folded shade, J five, the match term costs five hundredths and quality adds thirty-six hundredths. Its score is point three one. Keep that number with the shade.",
+        "hold": 0.3
+      },
+      {
+        "id": "c25-b02",
+        "say": "Score the other three lamps the same way. Use the match and quality values under each lamp.",
+        "hold": 12
+      },
+      {
+        "id": "c25-b03",
+        "say": "The globe scores one point zero one, the mushroom point six six, and the blue lantern point one six. We need three places, with at most two lamps from any seller. Start with the two highest scores. J two and J three both come from seller A. J five is next by score. Which lamp takes the third place?",
+        "hold": 2.8
+      },
+      {
+        "id": "c25-b04",
+        "say": "Skip the folded shade for now. Two lamps already come from seller A. Take the blue lantern from B for third place. Just before we send the response, the mushroom sells out. Its score stays at point six six. The other scores stay fixed too. Which lamp would you put in the open second place?",
+        "hold": 3
+      },
+      {
+        "id": "c25-b05",
+        "say": "The globe stays first. The blue lantern stays third. There is room for another lamp from seller A. Slide the folded shade into second place. Its score is still point three one. Save this order for request L seventeen at noon, with the current catalog, rules and model. Keep the earlier proposal for the audit.",
+        "hold": 0.75
+      },
+      {
+        "id": "c25-b06",
+        "say": "Two clicks arrive after noon. Both name this request. One names J three and the other names J five. Which click matches the returned order?",
+        "hold": 2.8
+      },
+      {
+        "id": "c25-b07",
+        "say": "J three appears only in the earlier proposal. Reject its click. J five belongs to the returned order. Its click matches position two. File E thirty-two with L seventeen, J five, position two. A client render receipt would tell us what the shopper's app drew. You can now rebuild a ranking when stock changes and join feedback to the exact response. The forecasting capstone uses the same discipline to freeze a prediction before its outcome arrives.",
+        "hold": 1.5
+      }
+    ]
+  }
+]

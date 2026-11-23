@@ -1,0 +1,457 @@
+version: 1
+id: layer-normalization
+title: Which Vector Reaches the Prediction Head?
+source: fundamentals/layer-normalization-pre-ln-post-ln/content.md
+sources:
+  - title: Layer Normalization
+    url: https://arxiv.org/abs/1607.06450
+  - title: On Layer Normalization in the Transformer Architecture
+    url: https://arxiv.org/abs/2002.04745
+  - title: Root Mean Square Layer Normalization
+    url: https://arxiv.org/abs/1910.07467
+  - title: "DeepNet: Scaling Transformers to 1,000 Layers"
+    url: https://arxiv.org/abs/2203.00555
+  - title: "Language Models are Unsupervised Multitask Learners"
+    url: https://cdn.openai.com/better-language-models/language_models_are_unsupervised_multitask_learners.pdf
+  - title: "LayerNorm"
+    url: https://docs.pytorch.org/docs/2.14/generated/torch.nn.LayerNorm.html
+  - title: "ResiDual: Transformer with Dual Residual Connections"
+    url: https://arxiv.org/abs/2304.14802
+  - title: "Peri-LN: Revisiting Normalization Layer in the Transformer Architecture"
+    url: https://arxiv.org/abs/2502.02732
+  - title: "Gemma 2: Improving Open Language Models at a Practical Size"
+    url: https://storage.googleapis.com/deepmind-media/gemma/gemma-2-report.pdf
+scenes:
+  - id: intro
+    title: How much of the stream did one write supply?
+    visual: The same one-unit tile docks against a short blue bar and a long one. Both bars stay on screen as the viewer compares the write's share of each total.
+    beats:
+      - say: Attention adds one to this token's first feature. It goes from one to two. Half the total came from this write.
+        hold: 0.7
+        caption_starts:
+          - Half the total
+        motion_check:
+          region: [260, 310, 580, 240]
+          minimumChangedFraction: 0.002
+        visual_cues:
+          - id: first-write
+            phrase: Attention adds one to this token's first feature
+            targets: [first-write-tile]
+            color: cyan
+          - id: first-share
+            phrase: Half the total
+            targets: [first-fraction]
+            color: cyan
+      - say: The residual stream keeps a running sum for each feature. Seven writes in the same direction brought this one to eight. One more is about to land. What fraction of the new total will it supply?
+        hold: 2.1
+        caption_starts:
+          - One more is about to land
+        visual_cues:
+          - id: existing-stream
+            phrase: brought this one to eight
+            targets: [late-stream]
+            color: blue
+          - id: eighth-waiting
+            phrase: One more is about to land
+            targets: [pending-write]
+            color: yellow
+      - say: One ninth. In a Pre-LN block, the branch reads a normalized copy while the stream keeps growing with these writes. What reaches the prediction head after the last addition?
+        hold: 0.9
+        caption_starts:
+          - In a Pre-LN block
+        visual_cues:
+          - id: eighth-share
+            phrase: One ninth
+            targets: [last-fraction]
+            caption_boundary: true
+            color: yellow
+  - id: center
+    title: Where is zero for this token?
+    visual: Four features move together on a fixed scale as their common mean is subtracted. A common input offset later changes their mean by exactly the same amount.
+    beats:
+      - say: Take a token with four different features. Their sum is eight. Divide by four and the mean is two. Subtract two from every feature. The first point moves from three to one. The last moves from five to three. They are still two units apart.
+        hold: 0.7
+        motion_check:
+          region: [325, 375, 1140, 435]
+          minimumChangedFraction: 0.002
+        visual_cues:
+          - id: center-subtract
+            phrase: Subtract two from every feature
+            targets: [centered-feature-pattern]
+            color: cyan
+      - say: The four points now balance around zero. Those four features supplied every number in the mean. Another token in the sequence gets a separate mean, even if it sits right beside this one.
+        hold: 0.65
+      - say: Now add three to each input. The mean rises by three as well. Subtract the new mean and each feature ends up exactly where it was. Centering removes a shared offset. The next step measures how far the points sit from zero.
+        hold: 0.7
+        visual_cues:
+          - id: center-offset
+            phrase: add three to each input
+            targets: [input-feature-mean]
+            color: yellow
+          - id: center-again
+            phrase: Subtract the new mean
+            targets: [centered-feature-pattern]
+            color: cyan
+  - id: scale
+    title: How much spread is there?
+    visual: The centered features contribute four squares to one sum. A common divisor scales each feature. A flat token tests the role of epsilon.
+    beats:
+      - say: Square the four distances and add the squares. One plus one plus nine plus nine makes twenty. Divide by all four features. That's the population variance, five. Add epsilon and take the square root. Our divisor is about two point two four. Divide each centered coordinate by that number. The first ends up near point four five. The third stays negative.
+        hold: 0.8
+        visual_cues:
+          - id: scale-squares
+            phrase: One plus one plus nine plus nine
+            targets: [centered-square-0, centered-square-1, centered-square-2, centered-square-3]
+            color: yellow
+          - id: scale-divide
+            phrase: Divide each centered coordinate by that number
+            targets: [normalized-feature-pattern]
+            color: green
+      - say: Try a token with four sevens. Every centered value is zero. Positive epsilon keeps the divisor above zero, so every output is zero. In general the variance after this division is the original variance divided by variance plus epsilon. That's close to one when the variance is much larger than epsilon.
+        hold: 0.7
+        visual_cues:
+          - id: scale-constant-vector-denominator-b2-1
+            phrase: Positive epsilon keeps the divisor above zero
+            targets: [constant-vector-denominator]
+            color: yellow
+  - id: affine
+    title: Change one feature at a time
+    visual: A gain doubles the first standardized feature and a shift adds 0.7 to the last. The output mean follows both changes.
+    beats:
+      - say: LayerNorm usually gives each feature its own learned gain and shift. Start every gain at one and every shift at zero. The first feature is still about point four five. Keep your eye on it.
+        hold: 0.7
+        visual_cues:
+          - id: affine-learned-affine-rule-b1-1
+            phrase: learned gain and shift
+            targets: [learned-affine-rule]
+            color: pink
+      - say: Double the first gain. That point is now near point eight nine. Add point seven to the last feature. The middle two stay put. The learned parameters can change both the mean and the variance. The zero mean belonged to the standardized values we started with.
+        hold: 0.8
+        visual_cues:
+          - id: affine-first-feature-gain-b2-1
+            phrase: Double the first gain
+            targets: [first-feature-gain]
+            color: yellow
+          - id: affine-last-feature-bias-b2-2
+            phrase: Add point seven to the last feature
+            targets: [last-feature-bias]
+            color: yellow
+  - id: axes
+    title: Can the next token change this one?
+    visual: A bracket encloses one token or both tokens. The second row gets the same edit in both runs. The first feature of the untouched row is the probe.
+    beats:
+      - say: Put two tokens in the same sentence. The first feature of the first token is one. In the top calculation, only that token's three features set its mean and variance. The bottom calculation uses all six numbers. Suppose we add a hundred to every feature of the later token. Which calculation changes the first token's output?
+        hold: 2.1
+      - say: Change the later token. The top result stays put. Its three inputs never moved. The bottom result changes because the later token pulled up the shared mean and changed the spread. That is a route for future information in a causal decoder, even with a mask on attention.
+        hold: 0.8
+        caption_starts:
+          - The top result stays put
+          - The bottom result changes
+        visual_cues:
+          - id: axes-edit
+            phrase: Change the later token
+            targets: [peer-features]
+            color: yellow
+      - say: For per-token LayerNorm, give normalized shape just the hidden width, three here. Giving it both time and width selects both rows. Training BatchNorm can mix peers too. On batch, channel, time data, it reduces each channel across batch and time. Padding then counts unless excluded. Evaluation normally uses stored statistics. If running statistics are disabled, it uses the current batch again.
+        hold: 0.75
+  - id: placement
+    title: Which vector gets normalized?
+    visual: Two blocks take the same token and branch rule. Each operation leaves its four output bars in place for comparison. The first feature is gold. The second block starts with the first block's actual output.
+    beats:
+      - say: Now place LayerNorm inside a block. Both copies start with the same four features. Follow the gold one. Each branch takes one fifth of whatever it reads and adds a tenth to each feature. The blue wire carries the original token straight to the addition.
+        hold: 0.7
+      - say: On the upper route, normalize the four input features. The gold feature starts at one. The mean is three point seven five, so subtracting it takes that feature below zero. Run that through the branch. It writes a small negative update. Add it to the original one on the blue wire. The gold output is still positive. This is Pre-LN. The branch read a normalized copy.
+        hold: 0.8
+        visual_cues:
+          - id: pre-read
+            phrase: normalize the four input features
+            targets: [pre-readout]
+            color: cyan
+          - id: pre-write
+            phrase: Run that through the branch
+            targets: [pre-readout]
+            color: cyan
+          - id: pre-add
+            phrase: Add it to the original one
+            targets: [pre-readout]
+            color: yellow
+      - say: On the lower route, feed the original token to the branch. Its first update is point three. Add it back. The first feature of the sum is now one point three. Compare it with the other three features in that sum. After LayerNorm, will that first feature be positive or negative?
+        hold: 2.2
+        visual_cues:
+          - id: post-write
+            phrase: feed the original token to the branch
+            targets: [post-readout]
+            color: cyan
+          - id: post-add
+            phrase: Add it back
+            targets: [post-readout]
+            color: yellow
+      - say: Negative. The sum has mean four point six. Normalizing that sum takes the first feature just below minus one. This is Post-LN. Both contributions, including the one from the blue wire, passed through LayerNorm together.
+        hold: 0.9
+        visual_cues:
+          - id: post-sign
+            phrase: Negative
+            targets: [post-verdict]
+            color: yellow
+            caption_boundary: true
+          - id: post-normalize
+            phrase: Normalizing that sum
+            targets: [post-readout]
+            color: yellow
+      - say: Feed each result into a second block of the same kind. Look at the two output means. With unit gains and zero shifts, the bottom sum gets centered again. The top stream has mean three point nine five. In a GPT-two-style checkpoint a final norm sits between that accumulated stream and the prediction head. Keep it when you port the weights. A branch input norm serves a different reader.
+        hold: 1
+        visual_cues:
+          - id: second-block
+            phrase: Feed each result into a second block of the same kind
+            targets: [block-number]
+            color: cyan
+  - id: gradients
+    title: Trace a change back through the fork
+    visual: The two block Jacobians expose the direct route. In a constructed Pre-LN block the branch vector runs back along the direct vector until the sum reaches the origin.
+    beats:
+      - say: Trace the blue wire backward. In Pre-LN it gives a gradient a direct route around the branch. In the block derivative, the Jacobian, that's the additive identity. In Post-LN, even that wire crosses the derivative of the outer norm. To carry a loss gradient backward, use the transpose of each block's Jacobian.
+        hold: 0.65
+        visual_cues:
+          - id: gradients-identity-gradient-vector-b1-1
+            phrase: additive identity
+            targets: [identity-gradient-vector]
+            color: blue
+      - say: Choose a branch that multiplies by a fixed negative number. Its magnitude is this token's forward divisor. The probe has mean zero and is perpendicular to the centered token. Along that direction LayerNorm divides by the divisor, and the branch multiplies by its negative. The skip carries the probe unchanged. The branch sends it exactly the opposite way. Follow the first two components back to the origin. All four components cancel for this probe.
+        hold: 0.8
+        visual_cues:
+          - id: gradients-branch-gradient-vector-b2-1
+            phrase: exactly the opposite way
+            targets: [branch-gradient-vector]
+            color: pink
+      - say: The identity term tells you which route exists. The final norm, the head and the rest of the stack also affect what a loss sends back. To diagnose training, measure the actual gradient and parameter update at each depth.
+        hold: 0.65
+  - id: rms
+    title: What changes when centering is removed?
+    visual: Both outputs for feature three start to the left of zero. The four input features rise by five. The old output positions stay marked as the viewer predicts which dot will cross zero.
+    beats:
+      - say: Follow feature three, minus one. RMSNorm squares all four inputs. Their mean square is nine. Add epsilon and take the square root. The divisor is about three, so this feature comes out near minus a third. RMSNorm usually learns a gain for each feature and leaves out the shift. Its outputs can have a nonzero mean.
+        hold: 0.65
+        visual_cues:
+          - id: rms-rms-divisor-rule-b1-1
+            phrase: Add epsilon and take the square root
+            targets: [rms-divisor-rule]
+            color: pink
+      - say: Add five to all four inputs. Feature three goes from minus one to four. Which output will cross zero?
+        hold: 2
+        caption_starts:
+          - Which output will cross zero
+        visual_cues:
+          - id: rms-offset
+            phrase: Add five to all four inputs
+            targets: [common-offset]
+            color: yellow
+      - say: RMSNorm crosses zero. It divides four by a positive scale. LayerNorm subtracts the new mean, seven. Four minus seven is still minus three. The green dot stays exactly where it started.
+        hold: 0.7
+        caption_starts:
+          - LayerNorm subtracts the new mean
+        visual_cues:
+          - id: rms-crossing
+            phrase: It divides four by a positive scale
+            targets: [rmsnorm-output-values]
+            color: pink
+          - id: ln-centering
+            phrase: Four minus seven is still minus three
+            targets: [layernorm-output-values]
+            color: green
+      - say: Skipping the centering saves arithmetic. Suppose the rest of a step takes ninety-eight milliseconds and normalization takes two. Cut those two milliseconds in half. The whole step goes from a hundred milliseconds to ninety-nine. A fused LayerNorm kernel can compute both statistics in one pass. Benchmark the operator and the full step with matching shapes, precision and backward work.
+        hold: 0.8
+        visual_cues:
+          - id: faster-norm
+            phrase: Cut those two milliseconds in half
+            targets: [faster-operator]
+            color: green
+  - id: norm-backward
+    title: Differentiate one token
+    visual: Each feature holds its column through gain, centering, scale correction and division. Contributions to shared gain and shift then sum down token rows.
+    beats:
+      - say: This token receives four upstream gradients. Multiply each by its feature's gain, here one. Subtract the mean of that product, one half, from all four. Now subtract the normalized input times the mean of its products with the gain-weighted gradient. Divide by the same forward scale. That's the input gradient. Both averages ran across features of this one token.
+        hold: 0.8
+        visual_cues:
+          - id: backward-center
+            phrase: Subtract the mean of that product
+            targets: [backward-feature-0, backward-feature-1, backward-feature-2, backward-feature-3]
+            color: yellow
+          - id: backward-correct
+            phrase: subtract the normalized input times the mean
+            targets: [backward-feature-0, backward-feature-1, backward-feature-2, backward-feature-3]
+            color: yellow
+          - id: backward-divide
+            phrase: Divide by the same forward scale
+            targets: [backward-feature-0, backward-feature-1, backward-feature-2, backward-feature-3]
+            color: yellow
+      - say: Now read down the first column. Two tokens share the same shift. The first contributes one to its gradient. The second contributes a half. Together they give one and a half. For the gain, multiply each upstream gradient by its own token's standardized feature before you sum. Positive epsilon leaves a small sensitivity to the input's scale.
+        hold: 0.75
+        visual_cues:
+          - id: shared-shift-sum
+            phrase: Together they give one and a half
+            targets: [shared-shift]
+            color: yellow
+          - id: shared-gain-sum
+            phrase: before you sum
+            targets: [shared-gain]
+            color: green
+  - id: depth-diagnosis
+    title: What should a depth measurement change?
+    visual: Two layers take different-sized illustrative SGD steps. Warmup reduces both. Aligned writes and uncorrelated writes then follow different growth curves, and a held-out ablation tests the effect of bypassing one late block.
+    beats:
+      - say: Suppose a deeper Post-LN model diverges at startup. Xiong and colleagues studied a particular initialization. Their bound concerned the last feed-forward network's second weight matrix. In that analysis the Pre-LN bound has an extra factor of one over the square root of depth. They found large gradients near the output in their Post-LN setup. Here are two illustrative gradients, one and eight. With plain gradient descent, a tenfold smaller early rate shrinks both updates tenfold. If your top blocks take unusually large early updates, test warmup and keep measuring what the optimizer actually does.
+        hold: 0.8
+        visual_cues:
+          - id: example-steps
+            phrase: Here are two illustrative gradients
+            targets: [step-intro]
+            color: cyan
+          - id: smaller-step
+            phrase: a tenfold smaller early rate
+            targets: [step-lengths]
+            color: yellow
+      - say: Our opening writes all pointed the same way. Each one added a unit to the stream's length. The lower curve starts with variance one. Each write has unit variance and is uncorrelated with the stream, so the variances add. After eight writes the variance is nine, so the standard deviation is three. A branch can learn a larger write from a normalized input. Measure the lengths and directions of its writes to see how the stream grows.
+        hold: 0.75
+        caption_starts:
+          - After eight writes
+        visual_cues:
+          - id: eight-writes
+            phrase: Each one added a unit to the stream's length
+            targets: [aligned-growth]
+            color: pink
+          - id: add-variance
+            phrase: Each write has unit variance and is uncorrelated with the stream
+            targets: [variance-growth]
+            color: cyan
+      - say: If a late write is small compared with the stream, compare the normalized states immediately before and after it. Then bypass that block and measure the change on a held-out task. Similar states can signal the representation-collapse risk reported for some Pre-LN models. The task comparison tells you whether that block helped on your data.
+        hold: 0.8
+        visual_cues:
+          - id: bypass-block
+            phrase: bypass that block
+            targets: [bypassed-block]
+            color: yellow
+  - id: deepnorm
+    title: Where do the two DeepNorm scales act?
+    visual: A 16-layer example scales the skip before adding the branch. A separate initialization view shrinks the selected weight scale by beta.
+    beats:
+      - say: In this sixteen-layer decoder, DeepNorm multiplies the skip input by alpha, adds the branch output, then normalizes the whole sum. That's a Post-LN layout. The fourth root of twice the layer count gives alpha, about two point three eight here. Follow the tall blue skip contribution into the addition.
+        hold: 0.8
+      - say: Beta acts when the weights are initialized. For this decoder it's the inverse fourth root of eight times the layer count. It scales the feed-forward weights and attention's value and output matrices. Query and key keep gain one. Later, if the trained branch writes two, add the full two to the scaled skip. Encoder-decoder stacks use different coefficients. Preserve the initialization and check the schedule, including warmup.
+        hold: 0.8
+        visual_cues:
+          - id: trained-write
+            phrase: if the trained branch writes two
+            targets: [forward-write]
+            color: yellow
+  - id: qk-peri
+    title: Which tensor does each norm control?
+    visual: A second norm changes the write before the add. Inside an attention head equal score shifts preserve probabilities, while opposite keys can produce a strongly preferred score.
+    beats:
+      - say: Keep the blue skip and put two norms on the branch. One controls what the branch reads. The other controls what it writes before the add. The skip still has its direct route. Gemma two uses input and output branch norms. The full Peri-LN recipe also specifies embedding and final norms. The operator in any of these positions can be a separate checkpoint choice.
+        hold: 0.85
+        visual_cues:
+          - id: norm-write
+            phrase: controls what it writes before the add
+            targets: [branch-output]
+            color: green
+      - say: Now look inside attention. Both keys have a score of a thousand. Each gets half the attention. Add eight hundred to both and they still split it equally. Score gaps matter. Normalizing queries and keys before their dot product controls one source of those gaps. The feed-forward writes and the main residual stream have their own paths.
+        hold: 0.75
+        visual_cues:
+          - id: equal-shift
+            phrase: Add eight hundred to both
+            targets: [score-pair]
+            color: yellow
+      - say: Give a query and a key four features each, unit RMS and no learned gain. Their lengths are two. Their dot product is bounded by four, reached when they line up. Divide by the square root of four. One aligned key scores two, and one opposite key scores minus two. Even bounded scores can give the first key about ninety-eight percent of the attention. Learned gains can change the bound itself.
+        hold: 0.8
+        visual_cues:
+          - id: qk-dot-bound
+            phrase: Their dot product is bounded by four
+            targets: [qk-dot]
+            color: yellow
+          - id: qk-opposite
+            phrase: one opposite key scores minus two
+            targets: [opposite-key]
+            color: pink
+          - id: qk-peaked
+            phrase: Even bounded scores
+            targets: [qk-shares]
+            color: pink
+  - id: precision
+    title: Where did the numbers first change?
+    visual: Two RMS calculations place the cast on either side of a square. Four new input marks then snap onto the same FP16 tick, leaving a flat input for a wider LayerNorm reference.
+    beats:
+      - say: Before comparing a port with its checkpoint, give them the same numbers. Take three hundred and minus three hundred. Both fit in half precision. Squaring in half precision overflows, because ninety thousand exceeds its finite limit. Widen those infinities and they stay infinite. On the second path, cast before squaring. Now both squares fit and the root mean square comes back as three hundred.
+        hold: 0.8
+        visual_cues:
+          - id: narrow-square
+            phrase: Squaring in half precision overflows
+            targets: [narrow-path]
+            color: pink
+          - id: wide-square
+            phrase: cast before squaring
+            targets: [wide-path]
+            color: green
+          - id: wide-rms
+            phrase: root mean square comes back as three hundred
+            targets: [wide-path]
+            color: green
+      - say: Here's a different failure. These four features sit close to ten thousand. The big ticks are the values half precision can store here. They're eight apart. If we store this token in half precision, which tick takes each feature?
+        hold: 2
+      - say: All four land on ten thousand. Cast that stored row back to a wider type. Each value is still ten thousand. LayerNorm subtracts their common mean and gets four zeros before gain and shift. The original row had real differences. To check the kernel, run the wide reference on the same stored row. Compare against the original separately to measure what was lost at storage.
+        hold: 1
+        visual_cues:
+          - id: store-half
+            phrase: All four land on ten thousand
+            targets: [storage-grid]
+            color: yellow
+            caption_boundary: true
+          - id: rounded-reference
+            phrase: gets four zeros
+            targets: [stored-reference]
+            color: green
+  - id: normalization-transfer
+    title: Which input belongs at the head?
+    visual: A one-coordinate prediction head reads two final residual vectors five units apart in every feature. Checkpoint scores stay pinned. A repaired port runs both inputs through its final LayerNorm, with an RMSNorm comparison on the same rows.
+    beats:
+      - say: Back at the prediction head. This little head reads the first feature as one logit. Test a GPT-two-style port with these two invented residual vectors. Use unit gains and zero shifts in the norms. On the first vector the port reads two. The reference reads about minus one point three four. Add five to every feature and run both again. The port now reads seven. The reference hasn't moved. Which operation belongs between the last addition and this head?
+        hold: 2.2
+        visual_cues:
+          - id: transfer-offset
+            phrase: Add five to every feature and run both again
+            targets: [shifted-input]
+            color: yellow
+      - say: Restore the checkpoint's final LayerNorm. Take the mean of each row. Two minus five and seven minus ten both give minus three. Both rows have population variance five. Divide by the same scale and the gold marks end up together. Route that feature to the head. Both logits now match the reference with the checkpoint's epsilon, unit gain and zero shift.
+        hold: 0.85
+        visual_cues:
+          - id: fit-final-norm
+            phrase: Restore the checkpoint's final LayerNorm
+            targets: [port-operation]
+            color: green
+            caption_boundary: true
+          - id: head-center
+            phrase: Take the mean of each row
+            targets: [port-operation]
+            color: yellow
+          - id: head-divide
+            phrase: Divide by the same scale
+            targets: [port-operation]
+            color: yellow
+          - id: head-compare
+            phrase: Route that feature to the head
+            targets: [port-scores]
+            color: green
+      - say: Try the same two inputs with RMSNorm instead. Both first features are positive. Dividing by their RMS keeps both logits positive. Put LayerNorm back. Both logits match. In a full port, compare the vectors entering the head across more tokens. The next lesson uses sparse autoencoders to find features in those vectors, then tests what they do by changing their activations.
+        hold: 1
+        caption_starts:
+          - Put LayerNorm back
+          - Both logits match
+          - The next lesson uses sparse autoencoders
+        visual_cues:
+          - id: try-rms
+            phrase: with RMSNorm instead
+            targets: [port-operation]
+            color: pink
+          - id: restore-head
+            phrase: Put LayerNorm back
+            targets: [port-operation]
+            color: green

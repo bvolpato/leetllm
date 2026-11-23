@@ -1,0 +1,1478 @@
+version: 1
+id: prefix-reuse
+title: Reusing the Beginning of a Conversation
+source: fundamentals/prefix-caching-prompt-caching/content.md
+voice: en-US-AndrewNeural
+rate: +0%
+sources:
+  - title: vLLM automatic prefix caching design
+    url: https://docs.vllm.ai/en/latest/design/prefix_caching/
+  - title: SGLang and RadixAttention
+    url: https://arxiv.org/abs/2312.07104
+  - title: OpenAI prompt caching contract
+    url: https://developers.openai.com/api/docs/guides/prompt-caching
+  - title: OpenAI prompt cache diagnostics
+    url: https://developers.openai.com/api/docs/guides/prompt-caching/diagnostics
+  - title: Claude prompt caching contract
+    url: https://platform.claude.com/docs/en/build-with-claude/prompt-caching
+  - title: Mooncake KVCache-centric scheduling
+    url: https://arxiv.org/abs/2407.00079
+  - title: Consistent Hashing with Bounded Loads
+    url: https://arxiv.org/abs/1608.01350
+scenes:
+  - id: intro
+    title: Does the guide need a second pass?
+    visual: >-
+      Squares travel from the folded repository guide into the worker's cache. Each square represents
+      500 guide positions. The login question arrives below the filled strip and reuses its state.
+    beats:
+      - say: >-
+          This question about a failed test comes with a six-thousand-token repository guide.
+          Follow one square into the worker. It stands for five hundred guide tokens.
+          As the worker processes those tokens, each attention layer saves their keys and values.
+          This first pass over the input is called prefill.
+        caption_starts:
+          - "Follow one square into the worker."
+          - "As the worker processes those tokens"
+          - "This first pass"
+        hold: 0.65
+        visual_cues:
+          - { id: store-guide, phrase: "saves their keys and values", targets: [picture] }
+          - { id: entry-ready, phrase: "is called prefill", targets: [picture] }
+      - say: >-
+          Which tests cover login? The team sends the guide back to the worker that cached it.
+          The new question adds thirty-seven tokens. How many input tokens need fresh prefill?
+        caption_starts:
+          - "How many input tokens"
+        hold: 2.2
+        visual_cues:
+          - { id: second-request, phrase: "Which tests cover login", targets: [picture] }
+          - { id: new-tail, phrase: "adds thirty-seven tokens", targets: [picture] }
+          - { id: predict-prefill, phrase: "How many input tokens", targets: [picture] }
+      - say: >-
+          Just the thirty-seven question tokens. They can attend to all six thousand guide positions using
+          the keys and values that the first request left behind. Carrying that state from one request to
+          the next is prefix caching.
+        caption_starts:
+          - "They can attend"
+          - "Carrying that state"
+        hold: 0.6
+        visual_cues:
+          - { id: fresh-tail, phrase: "Just the thirty-seven question tokens", targets: [picture], caption_boundary: true }
+          - { id: read-guide, phrase: "using the keys and values", targets: [picture] }
+      - say: >-
+          The assistant generates its own answer to the login question. That adds sixty-four output tokens.
+          What happens to the saved state if we change one word in the guide?
+        caption_starts:
+          - "What happens to the saved state"
+        hold: 0.7
+        visual_cues:
+          - { id: generate-answer, phrase: "generates its own answer", targets: [picture] }
+          - { id: output-count, phrase: "sixty-four output tokens", targets: [picture], caption_boundary: true }
+  - id: causal-keys
+    title: Each block inherits its history
+    visual: Actual SHA-256 chained keys connect three named blocks. Editing the guide changes its key
+      and the unchanged tools block's descendant key while preserving the system key.
+    beats:
+      - say: >
+          Consider three blocks: instructions, a guide, and a tool description. In causal attention,
+          later positions can depend on everything before them. A useful cache identity therefore
+          includes both the current block and a key representing its preceding history. Follow the
+          chain from left to right.
+        hold: 0.65
+        visual_cues:
+          - id: history-chain
+            phrase: "both the current block and a key representing its preceding history"
+            targets:
+              - causal-keys-readout-2
+            color: blue
+          - id: chained-hash
+            phrase: "chain from left to right"
+            targets:
+              - causal-keys-equation
+            color: yellow
+      - say: >
+          Now change the guide version. The instruction block keeps the same key. The guide receives
+          a different key, and that change flows into the tools block. Its visible text stayed
+          fixed, yet the context that produced its deeper attention state has changed.
+        hold: 0.7
+        visual_cues:
+          - id: edit-guide
+            phrase: "change the guide version"
+            targets:
+              - causal-keys-readout-2
+            color: pink
+          - id: instruction-survives
+            phrase: "The instruction block keeps the same key"
+            targets:
+              - picture
+          - id: guide-digest
+            phrase: "receives a different key"
+            targets:
+              - picture
+          - id: propagated-key
+            phrase: "change flows into the tools block"
+            targets:
+              - causal-keys-readout-3
+            color: pink
+      - say: >
+          The hash combines each block with its parent key. That's how the tools block remembers which
+          guide came before it. The cache namespace also identifies the model, adapter, positions and
+          other inputs that shape attention. Switching adapters can change the keys and values even
+          when every token stays the same.
+        hold: 0.55
+        visual_cues:
+          - id: actual-digest
+            phrase: "The hash combines each block with its parent key"
+            targets:
+              - causal-keys-readout-3
+            color: yellow
+          - id: computation-contract
+            phrase: "The cache namespace"
+            targets:
+              - causal-keys-equation
+            color: blue
+  - id: radix-split
+    title: Split the history without losing its identity
+    visual: One concrete token edge splits at the actual divergence. A bracketed 6005-position match is
+      rounded only for the separate sixteen-token block cache.
+    beats:
+      - say: "Keep the original chain beside a second index. A stored edge contains token IDs eleven,
+          twelve, thirteen, fourteen. A new request begins eleven, twelve, ninety-nine. Compare from
+          the root: two tokens match. Split the edge after twelve. Both branches retain the shared
+          ancestor; their different suffixes acquire separate state."
+        hold: 0.7
+        visual_cues:
+          - id: radix-match
+            phrase: "two tokens match"
+            targets:
+              - radix-match-mark
+            color: cyan
+            linger: 0.55
+          - id: radix-branch
+            phrase: "Split the edge after twelve"
+            targets:
+              - radix-split-geometry
+            color: cyan
+            linger: 0.55
+          - id: radix-query
+            phrase: "A new request begins eleven, twelve, ninety-nine"
+            targets:
+              - picture
+      - say: "This is a compressed radix tree: an edge can hold several token IDs, and a divergence creates
+          a branch inside that edge. The original SGLang paper retains prompt and generated state,
+          searches the longest shared prefix, and protects running paths with reference counts. Its
+          least-recently-used eviction removes eligible leaves before their shared ancestors."
+        hold: 0.7
+        visual_cues:
+          - id: radix-protect
+            phrase: "protects running paths"
+            targets:
+              - radix-protect-mark
+            color: cyan
+            linger: 0.55
+          - id: radix-evict
+            phrase: "eviction removes eligible leaves"
+            targets:
+              - radix-evict-mark
+            color: cyan
+            linger: 0.55
+      - say: Compare a larger match of six thousand and five tokens. A tree that indexes individual tokens
+          can branch right there. A full-block cache with sixteen tokens per block reuses six
+          thousand. Divide the common-prefix length by the block size, discard the fraction, then
+          multiply by block size. Five shared tokens remain outside its reusable boundary. The index
+          and backend decide which boundaries actually exist.
+        hold: 0.7
+        visual_cues:
+          - id: radix-scale
+            phrase: "larger match of six thousand and five tokens"
+            targets:
+              - radix-scale-mark
+            color: cyan
+            linger: 0.55
+          - id: radix-round
+            phrase: "reuses six thousand"
+            targets:
+              - radix-round-mark
+            color: cyan
+            linger: 0.55
+          - id: radix-remainder
+            phrase: "Five shared tokens remain outside its reusable boundary"
+            targets:
+              - radix-round-mark
+            color: cyan
+            linger: 0.55
+  - id: block-boundaries
+    title: Reuse stops at an eligible boundary
+    visual: Two literal token-ID rows share nine positions. A four-token block fixture reuses eight,
+      then an early token edit removes the first block and all downstream hits.
+    beats:
+      - say: >
+          Our small block cache stores four tokens per block. These two requests share their first
+          nine token IDs. Look at the stored row, then at the incoming row. Which matching token
+          will still need fresh computation?
+        caption_starts:
+          - "Which matching token"
+        visual_cues:
+          - id: four-token-block
+            phrase: four tokens per block
+            targets:
+              - block-boundaries-readout-2
+            color: blue
+        hold: 1.8
+      - say: >
+          The ninth token matches, but its block does not. Two complete blocks account for eight
+          reusable positions. The highlighted prefix ends after the second block. The remaining
+          input takes the fresh path. A compressed token trie can split at a divergence. This
+          cache can reuse only entire blocks.
+        caption_starts:
+          - "Two complete blocks account for eight reusable positions."
+        visual_cues:
+          - id: ninth-match
+            phrase: The ninth token matches, but its block does not
+            targets:
+              - block-boundaries-readout-2
+            color: yellow
+          - id: complete-boundaries
+            phrase: Two complete blocks account for eight reusable positions
+            targets:
+              - block-boundaries-readout-5
+            color: green
+          - id: matched-boundary
+            phrase: highlighted prefix ends after the second block
+            targets:
+              - block-boundaries-readout-2
+            color: green
+          - id: fresh-input
+            phrase: remaining input takes the fresh path
+            targets:
+              - block-boundaries-readout-2
+            color: yellow
+        hold: 0.65
+      - say: >
+          Edit the third token and compare again. The first complete block now differs, so the old
+          chain offers no reusable starting block. Even matching words later in the row inherit the
+          changed history. Exact token identity and the boundary together determine this lookup
+          result.
+        visual_cues:
+          - id: early-edit
+            phrase: Edit the third token
+            targets:
+              - block-boundaries-readout-2
+            color: pink
+          - id: miss-chain
+            phrase: no reusable starting block
+            targets:
+              - block-boundaries-readout-5
+            color: pink
+        hold: 0.65
+  - id: prompt-order
+    title: Put stable context before changing detail
+    visual: The same named sections move between a changing-ID-first layout and a stable-first layout. A
+      longest-prefix comparison computes zero versus three matching section units.
+    beats:
+      - say: >
+          Read the two prompts from left to right. Each box is one section. The top request starts
+          with ID A. The bottom one starts with ID B. How many sections match before the first difference?
+        caption_starts:
+          - "The top request starts"
+          - "How many sections match"
+        visual_cues:
+          - id: variable-first
+            phrase: The top request starts with ID A
+            targets:
+              - prompt-order-readout-4
+            color: pink
+        hold: 2
+      - say: >
+          Zero. The IDs differ in the very first box. Move the IDs to the end of both prompts.
+          Now the instructions, guide and tools share their starting history. Three sections match.
+          Only the IDs change between requests. Keep each message in its proper role when you
+          arrange the shared material first.
+        caption_starts:
+          - "The IDs differ"
+          - "Move the IDs"
+          - "Three sections match."
+        visual_cues:
+          - { id: immediate-divergence, phrase: "Zero", targets: [picture], caption_boundary: true }
+          - id: stable-first
+            phrase: Move the IDs to the end of both prompts
+            targets:
+              - prompt-order-readout-3
+            color: blue
+          - id: shared-history
+            phrase: "Three sections match"
+            targets:
+              - picture
+          - id: retained-identities
+            phrase: Only the IDs change between requests
+            targets:
+              - prompt-order-readout-4
+            color: pink
+        hold: 0.7
+      - say: >
+          Deterministic rendering matters here. A timestamp, changed line ending, or reordered JSON
+          field can change token IDs. Inspect the request that actually reached the model. A
+          template file and a similar-looking sentence give weaker evidence than the final
+          serialized token sequence.
+        visual_cues:
+          - id: serialized-order
+            phrase: timestamp, changed line ending, or reordered JSON field
+            targets:
+              - prompt-order-readout-4
+            color: yellow
+          - id: final-input
+            phrase: final serialized token sequence
+            targets:
+              - prompt-order-readout-3
+            color: blue
+        hold: 0.6
+  - id: rendered-identity
+    title: The actual serialization chooses the branch
+    visual: The stored and incoming requests differ by a line ending. Two message lists show how
+      reversing the same words changes a conversation. Identical image placeholders then reveal
+      different pictures.
+    beats:
+      - say: >-
+          These two rows show what the tokenizer receives. The renderer wraps the guide in a message
+          role and adds whitespace, tools and documents. To find a cache miss, compare the rendered
+          requests and record which renderer produced each one.
+        hold: 0.7
+        visual_cues:
+          - id: render-pipeline
+            phrase: "The renderer wraps the guide in a message role"
+            targets:
+              - render-pipeline-mark
+            color: cyan
+            linger: 0.55
+      - say: >-
+          Both guides say policy on one line and retain on the next. Change the incoming line ending
+          to carriage return followed by newline. That extra character can change the token IDs right
+          here. Restore the original line ending. If the worker still holds the entry, it can reuse
+          that prefix again.
+        caption_starts:
+          - "Change the incoming line ending"
+          - "Restore the original line ending."
+        hold: 0.7
+        visual_cues:
+          - id: render-edit
+            phrase: "carriage return followed by newline"
+            targets:
+              - render-edit-mark
+            color: cyan
+            linger: 0.55
+          - id: render-repair
+            phrase: "Restore the original line ending"
+            targets:
+              - render-repair-mark
+            color: green
+            linger: 0.55
+          - id: render-eligible
+            phrase: "it can reuse that prefix again"
+            targets:
+              - picture
+      - say: >-
+          When the order of JSON object keys carries no meaning, sort the keys for a consistent
+          rendering. Now look at these two message lists. The user asks which test failed. The
+          assistant answers, checkout. Reverse the messages in the lower row. Now the answer comes
+          before the question. Keep each message in place with its role. Both requests say image
+          here. One shows a server. The other shows a database. Include the image content when
+          matching the prefix.
+        caption_starts:
+          - "Now look at these two message lists."
+          - "Reverse the messages in the lower row."
+          - "Both requests say image here."
+          - "One shows a server."
+          - "The other shows a database."
+        hold: 0.7
+        visual_cues:
+          - { id: render-object, phrase: "When the order of JSON object keys", targets: [picture] }
+          - { id: render-sort, phrase: "sort the keys", targets: [picture] }
+          - id: render-array
+            phrase: "look at these two message lists"
+            targets:
+              - render-array-mark
+            color: cyan
+            linger: 0.55
+          - { id: render-reverse, phrase: "Reverse the messages in the lower row", targets: [picture] }
+          - id: render-placeholder
+            phrase: "Both requests say image here"
+            targets:
+              - picture
+          - id: render-image
+            phrase: "One shows a server"
+            targets:
+              - render-image-mark
+            color: cyan
+            linger: 0.55
+          - { id: render-database, phrase: "The other shows a database", targets: [picture] }
+  - id: publication
+    title: Which endpoint did the worker store?
+    visual: >-
+      Two requests align at the end of their common 6,000-token guide. The first write is in flight and
+      then completes at 6,048. The second request tests its two candidate endpoints before and after a
+      separate guide-only write.
+    beats:
+      - say: >-
+          Both test questions start with the same guide. We've enlarged the
+          question tails so you can see where each request ends. This cache looks up exact entries at
+          selected endpoints. On this worker the first request is still writing. The second arrives now.
+          With no completed entry, it computes its own input.
+        hold: 0.65
+        visual_cues:
+          - { id: tail-zoom, phrase: "enlarged the question tails", targets: [picture] }
+          - { id: pending-write, phrase: "still writing", targets: [picture] }
+          - { id: early-arrival, phrase: "The second arrives now", targets: [picture] }
+          - { id: early-miss, phrase: "it computes its own input", targets: [picture], caption_boundary: true }
+      - say: >-
+          Let the first write finish. There's one entry, right at the end of the first question. Replay the
+          second request against this snapshot. Its lookup checks the end of its own question and the end of
+          the guide. Which of those two endpoints has a stored entry?
+        caption_starts:
+          - "Which of those two endpoints"
+        hold: 2.2
+        visual_cues:
+          - { id: publish-full, phrase: "first write finish", targets: [picture] }
+          - { id: find-candidates, phrase: "Replay the second request", targets: [picture] }
+          - { id: try-request, phrase: "end of its own question", targets: [picture] }
+          - { id: try-guide, phrase: "and the end of the guide", targets: [picture] }
+          - { id: predict-entry, phrase: "Which of those two endpoints", targets: [picture] }
+      - say: >-
+          Neither one. The only entry ends at six thousand forty-eight. The second request ends at six thousand
+          thirty-seven. It shares the guide, but the worker has no entry at six thousand either. A
+          completed write can still leave this request cold.
+        caption_starts:
+          - "The only entry ends"
+          - "The second request ends"
+        hold: 0.8
+        visual_cues:
+          - { id: no-entry, phrase: "Neither one", targets: [picture], caption_boundary: true }
+          - { id: full-receipt, phrase: "entry ends at six thousand forty-eight", targets: [picture] }
+          - { id: absent-guide, phrase: "no entry at six thousand either", targets: [picture] }
+      - say: >-
+          Keep the second request exactly as it was. This time a warmup writes a second entry right at the
+          end of the guide. Replay the same lookup. It finds six thousand reusable tokens. Only the
+          thirty-seven question tokens need fresh prefill. On a service with explicit markers, mark the
+          stable endpoint on the warmup and select it again on the read.
+        hold: 0.8
+        visual_cues:
+          - { id: reset-lookup, phrase: "Keep the second request exactly as it was", targets: [picture] }
+          - { id: write-guide, phrase: "writes a second entry right at the end of the guide", targets: [picture] }
+          - { id: repeat-lookup, phrase: "Replay the same lookup", targets: [picture] }
+          - { id: available-guide, phrase: "It finds six thousand reusable tokens", targets: [picture], caption_boundary: true }
+          - { id: tail-only, phrase: "thirty-seven question tokens need fresh prefill", targets: [picture], caption_boundary: true }
+  - id: hosted-boundaries
+    title: What does the marker qualify for?
+    visual: >-
+      The same marker selects an endpoint for a write and a later read. A magnifier compares a
+      1,023-token selection with the 1,024-token minimum. A clock compares the existing midnight expiry
+      with a 9:30 p.m. candidate after a read.
+    beats:
+      - say: >-
+          Here's the same guide on a hosted service. In the OpenAI contract the article checked in October
+          twenty twenty-six, eligible developer text can carry an explicit marker. Mark the guide on the
+          warmup. Select the same endpoint on the next request. The changing question stays outside that
+          write. Remove both markers in explicit-only mode and these requests select nothing to read or
+          write.
+        hold: 0.65
+        visual_cues:
+          - { id: host-marker, phrase: "Mark the guide on the warmup", targets: [picture] }
+          - { id: host-endpoint, phrase: "Select the same endpoint", targets: [picture] }
+          - { id: host-none, phrase: "Remove both markers", targets: [picture] }
+          - { id: host-unmarked, phrase: "nothing to read or write", targets: [picture] }
+      - say: >-
+          Try the markers farther left. Now they select one thousand twenty-three visible tokens. The
+          minimum for this model is one thousand twenty-four visible tokens. The question takes the total
+          request length well past the minimum. Can adding more to the question make this marked prefix
+          eligible?
+        hold: 1.9
+        visual_cues:
+          - { id: host-min, phrase: "select one thousand twenty-three visible tokens", targets: [picture] }
+          - { id: host-minimum, phrase: "one thousand twenty-four visible tokens", targets: [picture] }
+          - { id: host-ask, phrase: "Can adding more to the question make this marked prefix eligible", targets: [picture], caption_boundary: true }
+      - say: >-
+          No. The marker still ends one token short. Move it back to the end of the full guide. On supported
+          models, prewarming can write the selected prefix without generating an answer. That write carries
+          a charge. Check eligibility and reporting for the model and API version you actually use.
+        hold: 0.65
+        visual_cues:
+          - { id: host-short, phrase: "The marker still ends one token short", targets: [picture], caption_boundary: true }
+          - { id: host-prewarm, phrase: "Move it back to the end of the full guide", targets: [picture] }
+          - { id: host-write, phrase: "prewarming can write the selected prefix without generating an answer", targets: [picture] }
+      - say: >-
+          One more decision. A write at noon buys twelve hours of coverage, through midnight. At nine that
+          evening, a read requests thirty minutes of coverage. The service keeps the later of the existing
+          expiry and the end of those thirty minutes. When does coverage end?
+        hold: 1.9
+        visual_cues:
+          - { id: host-lifetime, phrase: "A write at noon buys twelve hours of coverage", targets: [picture] }
+          - { id: host-refresh, phrase: "a read requests thirty minutes of coverage", targets: [picture] }
+          - { id: host-clock-question, phrase: "When does coverage end", targets: [picture], caption_boundary: true }
+      - say: >-
+          Midnight. The half hour from the read runs out at nine thirty. The original write already covers
+          those last two and a half hours. A requested cache lifetime tells you about reuse. The service's
+          data retention policy governs deletion.
+        hold: 0.75
+        visual_cues:
+          - { id: host-expiry, phrase: "Midnight", targets: [picture], caption_boundary: true }
+          - { id: host-half, phrase: "runs out at nine thirty", targets: [picture] }
+  - id: lookup-window
+    title: How far back can one marker look?
+    visual: >-
+      A stored endpoint stays at position 15. Moving a marker from 34 to 35 puts that entry one place
+      outside its 20-position window. A direct marker restores access.
+    beats:
+      - say: >-
+          Claude's API accepts automatic placement or explicit markers on content blocks. The service orders
+          tools, system content and messages before lookup. In the contract checked for this lesson, one
+          marker searches twenty eligible positions, counting the marker itself. Consecutive tool-use blocks
+          count as one position. The same grouping applies to consecutive tool results. Each endpoint must
+          also meet the model and platform minimum.
+        hold: 0.7
+        visual_cues:
+          - { id: window-twenty, phrase: "twenty eligible positions", targets: [picture] }
+      - say: >-
+          There's a stored entry at fifteen. A breakpoint at thirty-four can reach it. Count back from the
+          highlighted endpoint, including thirty-four. Fifteen is the twentieth place. Now move only the
+          breakpoint to thirty-five. Can this marker still find the entry at fifteen?
+        hold: 2.1
+        visual_cues:
+          - { id: window-34, phrase: "A breakpoint at thirty-four", targets: [picture], caption_boundary: true }
+          - { id: window-35, phrase: "move only the breakpoint to thirty-five", targets: [picture], caption_boundary: true }
+          - { id: window-question, phrase: "Can this marker still find the entry at fifteen", targets: [picture], caption_boundary: true }
+      - say: >-
+          Slide the window one place. Its left edge now lands on sixteen. The entry at fifteen is still
+          there, just outside the search. A marker at fifteen supplies a direct lookup. With several
+          markers, take the longest compatible available prefix reached. The shorter prefix already sits
+          inside it.
+        hold: 0.7
+        visual_cues:
+          - { id: window-slide, phrase: "Slide the window one place", targets: [picture] }
+          - { id: window-miss, phrase: "Its left edge now lands on sixteen", targets: [picture], caption_boundary: true }
+          - { id: window-repair, phrase: "A marker at fifteen supplies a direct lookup", targets: [picture] }
+          - { id: window-longest, phrase: "take the longest compatible available prefix reached", targets: [picture] }
+      - say: >-
+          There are four breakpoint slots on this API, with automatic placement consuming one. A concurrent
+          reader can use the first write after the first response starts. The ordinary lifetime is five
+          minutes, with a supported one-hour option. Reads refresh it. The clock starts with the request, so
+          generation uses part of that interval. Other providers and platforms have their own readiness and
+          isolation rules.
+        hold: 0.7
+        visual_cues:
+          - { id: window-slots, phrase: "four breakpoint slots", targets: [picture] }
+          - { id: window-auto, phrase: "automatic placement consuming one", targets: [picture] }
+          - { id: window-ready, phrase: "after the first response starts", targets: [picture] }
+          - { id: window-life, phrase: "five minutes, with a supported one-hour option", targets: [picture] }
+  - id: usage-buckets
+    title: Conserve the prompt tokens across billing buckets
+    visual: The same 2600-token input is partitioned into read 2000, write 400 and ordinary 200. OpenAI
+      total and Claude ordinary-input schemas assemble the identical conserved bar.
+    beats:
+      - say: Build one input ledger with two thousand six hundred tokens. Two thousand are read from cache,
+          four hundred are written, and two hundred are processed as ordinary input. These are
+          disjoint portions. Their sum must recover the complete prompt. Retain output tokens in a
+          separate ledger because generating the answer still costs work.
+        hold: 0.7
+        visual_cues:
+          - id: usage-read
+            phrase: "Two thousand are read from cache"
+            targets:
+              - usage-read-mark
+            color: cyan
+            linger: 0.55
+          - id: usage-write
+            phrase: "four hundred are written"
+            targets:
+              - usage-write-mark
+            color: cyan
+            linger: 0.55
+          - id: usage-ordinary
+            phrase: "two hundred are processed as ordinary input"
+            targets:
+              - usage-ordinary-mark
+            color: cyan
+            linger: 0.55
+          - id: usage-total
+            phrase: "sum must recover the complete prompt"
+            targets:
+              - picture
+      - say: In the current OpenAI Responses usage schema, input tokens is the whole two thousand six
+          hundred. Its detail fields supply cached tokens for reads and cache-write tokens for
+          writes. Subtract both from the total to recover two hundred ordinary input tokens. If you use another OpenAI API, map its usage fields before doing this subtraction.
+        hold: 0.7
+        visual_cues:
+          - id: usage-openai
+            phrase: "input tokens is the whole two thousand six hundred"
+            targets:
+              - picture
+          - id: usage-cached
+            phrase: "cached tokens for reads"
+            targets:
+              - picture
+          - id: usage-cache-write
+            phrase: "cache-write tokens for writes"
+            targets:
+              - picture
+          - id: usage-subtract
+            phrase: "Subtract both from the total to recover two hundred ordinary input tokens"
+            targets:
+              - usage-subtract-mark
+            color: cyan
+            linger: 0.55
+      - say: Claude uses cache-read input tokens, cache-creation input tokens, and input tokens for the
+          ordinary portion. Here those fields are two thousand, four hundred, and two hundred. Add
+          all three to recover the same two thousand six hundred. Normalize provider fields into
+          read, write, ordinary, and output buckets, preserving route, model, prompt version, and
+          request identity before pricing them.
+        hold: 0.7
+        visual_cues:
+          - id: usage-claude-read
+            phrase: "cache-read input tokens"
+            targets:
+              - picture
+          - id: usage-claude-write
+            phrase: "cache-creation input tokens"
+            targets:
+              - picture
+          - id: usage-fields
+            phrase: "input tokens for the ordinary portion"
+            targets:
+              - picture
+          - id: usage-claude
+            phrase: "Add all three to recover the same two thousand six hundred"
+            targets:
+              - usage-claude-mark
+            color: cyan
+            linger: 0.55
+  - id: write-economics
+    title: When does writing the guide pay?
+    visual: >-
+      Two running bills price the same guide. The first write costs more than an ordinary pass. A full
+      read adds a small green segment while the ordinary bill doubles. Raising the write price changes
+      how many reads it takes to break even.
+    beats:
+      - say: >-
+          The first request pays more to write the guide. At one unit per token, an ordinary pass costs
+          six thousand. At one and a quarter, writing the guide costs seven thousand five hundred.
+          That's fifteen hundred extra.
+        caption_starts:
+          - "At one and a quarter"
+          - "That's fifteen hundred extra."
+        hold: 0.7
+        visual_cues:
+          - { id: cost-premium, phrase: "fifteen hundred extra", targets: [picture] }
+      - say: >-
+          A second request needs the guide. Another ordinary pass adds six thousand. At a tenth of a unit
+          per token, the green read segment adds just six hundred. The read saves fifty-four hundred.
+          That one read pays back the write premium.
+        caption_starts:
+          - "At a tenth of a unit"
+          - "The read saves fifty-four hundred."
+        hold: 0.7
+        visual_cues:
+          - { id: cost-second-cold, phrase: "Another ordinary pass adds six thousand", targets: [picture] }
+          - { id: cost-read, phrase: "adds just six hundred", targets: [picture] }
+          - { id: cost-saving, phrase: "The read saves fifty-four hundred", targets: [picture] }
+      - say: >-
+          How many full reads pay for a write? Divide the extra write cost by the saving on one read.
+          Fifteen hundred divided by fifty-four hundred comes to about a quarter of a read. Round up
+          to one full read.
+        caption_starts:
+          - "Divide the extra write cost"
+          - "Fifteen hundred divided by fifty-four hundred"
+          - "Round up to one full read."
+        hold: 0.7
+        visual_cues:
+          - { id: cost-rule, phrase: "Divide the extra write cost by the saving on one read", targets: [picture] }
+          - { id: cost-quotient, phrase: "about a quarter of a read", targets: [picture] }
+          - { id: cost-whole-read, phrase: "Round up to one full read", targets: [picture] }
+      - say: >-
+          Raise just the write price to two units per token. One read leaves us six hundred units behind.
+          Each full read still saves fifty-four hundred. Will a second full read cover the difference?
+        caption_starts:
+          - "Will a second full read"
+        hold: 2.2
+        visual_cues:
+          - { id: cost-higher, phrase: "two units per token", targets: [picture] }
+          - { id: cost-shortfall, phrase: "six hundred units behind", targets: [picture] }
+          - { id: cost-predict, phrase: "Will a second full read", targets: [picture] }
+      - say: >-
+          Yes. A second read adds six hundred to the cached bill. Another ordinary pass adds six thousand.
+          The cached bill is now forty-eight hundred units cheaper. Those two reads paid for the higher
+          write price while the guide was still in cache.
+        caption_starts:
+          - "A second read adds"
+          - "Another ordinary pass adds"
+          - "The cached bill is now"
+        hold: 0.7
+        visual_cues:
+          - { id: cost-answer, phrase: "Yes", targets: [picture] }
+          - { id: cost-long, phrase: "adds six hundred to the cached bill", targets: [picture] }
+          - { id: cost-last-cold, phrase: "Another ordinary pass adds six thousand", targets: [picture] }
+          - { id: cost-paid, phrase: "forty-eight hundred units cheaper", targets: [picture] }
+  - id: partial-writes
+    title: Where should the write stop?
+    visual: >-
+      Four requests retain identical 1,024-token fronts and distinct 4,976-token tails. The write
+      markers move from the request ends to the stable boundary. All three reads stay fixed while the
+      input bill changes.
+    beats:
+      - say: >-
+          Return to the short write at one and a quarter units per token. Four requests each contain six
+          thousand input tokens. Only the first thousand and twenty-four repeat. Each question and its
+          supporting material fill the changing tail. For this example the provider can write the entire
+          request.
+        hold: 0.55
+        visual_cues:
+          - { id: partial-rate, phrase: "short write at one and a quarter", targets: [picture] }
+          - { id: partial-rows, phrase: "Four requests each contain six thousand input tokens", targets: [picture] }
+          - { id: partial-share, phrase: "Only the first thousand and twenty-four repeat", targets: [picture] }
+          - { id: partial-end, phrase: "write the entire request", targets: [picture] }
+      - say: >-
+          The first request writes all six thousand tokens. Each later one reads the shared front and writes
+          its own tail. Three requests get a hit. At ordinary prices the four inputs would cost twenty-four
+          thousand units. With all those hits, would you expect a smaller bill?
+        hold: 2.1
+        visual_cues:
+          - { id: partial-full-write, phrase: "first request writes all six thousand tokens", targets: [picture] }
+          - { id: partial-read-front, phrase: "reads the shared front", targets: [picture] }
+          - { id: partial-tail, phrase: "writes its own tail", targets: [picture] }
+          - { id: partial-hits, phrase: "Three requests get a hit", targets: [picture] }
+          - { id: partial-cold, phrase: "twenty-four thousand units", targets: [picture] }
+          - { id: partial-ask, phrase: "would you expect a smaller bill", targets: [picture], caption_boundary: true }
+      - say: >-
+          Look at request two. Reading the shared front costs just over a hundred units. Writing the rest
+          costs six thousand two hundred twenty. The other two hits carry the same charges. Add those three
+          rows to the first write. The total is ten point three percent above the cold bill. We paid a
+          premium to write thousands of tokens nobody read again.
+        hold: 0.9
+        visual_cues:
+          - { id: partial-read, phrase: "costs just over a hundred units", targets: [picture] }
+          - { id: partial-write, phrase: "Writing the rest costs six thousand two hundred twenty", targets: [picture] }
+          - { id: partial-later-total, phrase: "same charges", targets: [picture] }
+          - { id: partial-first, phrase: "the first write", targets: [picture] }
+          - { id: partial-increase, phrase: "ten point three percent above the cold bill", targets: [picture], caption_boundary: true }
+      - say: >-
+          Move the write marker back to the end of the shared front. Assume that endpoint meets the model's
+          minimum. Replay all four requests. Every changing tail is now ordinary input. The first row still
+          pays to write the shared part. The next three still read exactly the same tokens. This time the
+          input bill falls below twenty-four thousand units. The hit count stayed put. The saving came from
+          paying the ordinary rate on the tails.
+        hold: 0.8
+        visual_cues:
+          - { id: partial-repair, phrase: "Move the write marker back to the end of the shared front", targets: [picture] }
+          - { id: partial-ordinary, phrase: "Every changing tail is now ordinary input", targets: [picture] }
+          - { id: partial-repaired-first, phrase: "first row still pays to write the shared part", targets: [picture] }
+          - { id: partial-repaired-later, phrase: "next three still read exactly the same tokens", targets: [picture] }
+          - { id: partial-repaired-total, phrase: "the input bill falls below twenty-four thousand units", targets: [picture], caption_boundary: true }
+  - id: worker-locality
+    title: Route to state that exists without trapping work in a queue
+    visual: Four sequential identified requests travel to three separate cache inventories. Round-robin
+      creates three cold writes; stable affinity creates one, then a capacity guard sends an
+      overloaded request elsewhere.
+    beats:
+      - say: >-
+          Four requests arrive one at a time, each with the same guide. Three workers start empty.
+          Round robin sends the first three requests to separate workers. Each builds its own copy.
+          The fourth request returns to worker zero and reads its copy. Replay with prefix affinity.
+          All four go to worker zero. It writes once and serves three reads.
+        caption_starts:
+          - "Round robin sends"
+          - "The fourth request returns"
+          - "Replay with prefix affinity."
+          - "It writes once and serves three reads."
+        hold: 0.7
+        visual_cues:
+          - id: route-round
+            phrase: "Round robin sends the first three requests to separate workers"
+            targets:
+              - worker-locality-geometry
+            color: cyan
+            linger: 0.55
+          - id: route-hit
+            phrase: The fourth request returns to worker zero
+            targets:
+              - worker-locality-geometry
+            color: cyan
+            linger: 0.55
+          - id: route-affinity
+            phrase: Replay with prefix affinity
+            targets:
+              - worker-locality-geometry
+            color: cyan
+            linger: 0.55
+          - { id: route-tally, phrase: "It writes once and serves three reads", targets: [picture] }
+      - say: >-
+          The router combines the verified sharing scope with the guide's prefix identity to pick a
+          worker. At lookup, the worker checks which entries that team may read. The SGLang paper
+          describes a distributed meta-tree that tracks where prefixes live. When a worker evicts
+          the guide, the routing index needs that update.
+        hold: 0.7
+        visual_cues:
+          - id: route-scope
+            phrase: verified sharing scope
+            targets:
+              - route-scope-mark
+            color: cyan
+            linger: 0.55
+          - id: route-inventory
+            phrase: distributed meta-tree
+            targets:
+              - route-inventory-mark
+            color: cyan
+            linger: 0.55
+      - say: >-
+          Worker zero is at capacity when request five arrives. With bounded-load hashing, it spills
+          to worker one. There's room there to build a copy. Another option is to estimate how soon
+          each worker can serve the request. Mooncake weighs queue time and remaining prefill.
+          Include transfer time if the guide has to move. Add a fourth worker and its cache starts empty.
+        caption_starts:
+          - "With bounded-load hashing"
+          - "Another option"
+          - "Add a fourth worker"
+        hold: 0.7
+        visual_cues:
+          - id: route-spill
+            phrase: "it spills to worker one"
+            targets:
+              - picture
+          - id: route-overload
+            phrase: Worker zero is at capacity
+            targets:
+              - route-overload-mark
+            color: cyan
+            linger: 0.55
+          - id: route-transfer
+            phrase: Include transfer time
+            targets:
+              - route-transfer-mark
+            color: cyan
+            linger: 0.55
+          - id: route-new
+            phrase: Add a fourth worker
+            targets:
+              - route-new-mark
+            color: cyan
+            linger: 0.55
+  - id: latency-path
+    title: Compare the whole first-token path
+    visual: Same-scale stacked clocks construct cold 1220ms and warm 170ms first-token work. Queue
+      lengths then change independently to reveal a 1370ms warm arrival losing to a 1240ms cold
+      arrival; equal 880ms generation remains.
+    beats:
+      - say: >-
+          Send the same prompt to two workers. The cold worker needs twelve hundred and twenty milliseconds
+          of computation to produce its first token. The warm worker has the guide ready. Its first token
+          takes just a hundred and seventy milliseconds of computation. Both spend eight hundred and eighty
+          milliseconds finishing the answer. Give them equal twenty-millisecond queues and the warm worker
+          delivers the first token sooner.
+        hold: 0.7
+        visual_cues:
+          - id: clock-work
+            phrase: "twelve hundred and twenty milliseconds"
+            targets:
+              - latency-path-geometry
+            color: cyan
+            linger: 0.55
+          - id: clock-decode
+            phrase: "eight hundred and eighty milliseconds"
+            targets:
+              - latency-path-geometry
+            color: cyan
+            linger: 0.55
+          - id: clock-queue
+            phrase: "equal twenty-millisecond queues"
+            targets:
+              - latency-path-geometry
+            color: cyan
+            linger: 0.55
+          - id: clock-warm
+            phrase: "a hundred and seventy milliseconds"
+            targets:
+              - picture
+          - id: clock-first
+            phrase: "the warm worker delivers the first token sooner"
+            targets:
+              - picture
+      - say: >-
+          Stretch just the warm queue to twelve hundred milliseconds. Watch it push the blue segment to
+          the right. The warm worker's first token now arrives at thirteen hundred and seventy milliseconds.
+          The cold worker wins by a hundred and thirty. Reuse saved one thousand and fifty milliseconds
+          of computation, but waiting for the warm worker cost even more. With equal time left to
+          generate, the cold worker also finishes first.
+        caption_starts:
+          - "The warm worker's first token"
+          - "The cold worker wins"
+        hold: 0.7
+        visual_cues:
+          - id: clock-change
+            phrase: "to twelve hundred milliseconds"
+            targets:
+              - latency-path-geometry
+            color: cyan
+            linger: 0.55
+          - id: clock-arrival
+            phrase: "first token now arrives at thirteen hundred and seventy"
+            targets:
+              - latency-path-geometry
+            color: cyan
+            linger: 0.55
+          - id: clock-total
+            phrase: "the cold worker also finishes first"
+            targets:
+              - clock-total-mark
+            color: cyan
+            linger: 0.55
+          - id: clock-saving
+            phrase: "one thousand and fifty milliseconds"
+            targets:
+              - picture
+      - say: >-
+          Measure both routes from arrival to first token. Include time spent waiting, moving cached
+          state and processing the question. Even on the warm route, the new tokens attend to the guide.
+          FlashAttention can run that attention with less memory traffic. The light blue segment is
+          still there on both routes. Both workers spend the same eight hundred and eighty milliseconds
+          generating the rest of this answer.
+        hold: 0.7
+        visual_cues:
+          - id: clock-path
+            phrase: "from arrival to first token"
+            targets:
+              - clock-path-mark
+            color: cyan
+            linger: 0.55
+  - id: telemetry-slices
+    title: Weight reuse by tokens, then keep phase evidence beside it
+    visual: Actual request rows accumulate read and total-token bars with conserved identities. Version
+      v6 one large read is compared with v7 two small reads before queue/prefill/decode clocks are
+      aligned.
+    beats:
+      - say: "One hit can reuse six thousand of six thousand and forty-eight input tokens: about ninety-nine
+          point two percent. Another can reuse six hundred of the same total: about nine point nine
+          percent. A dashboard that increments one hit for each loses that difference. Compute
+          volume-weighted reuse by summing reused input tokens, then dividing by summed input tokens
+          across the selected requests."
+        hold: 0.7
+        visual_cues:
+          - id: yield-large
+            phrase: "six thousand of six thousand and forty-eight"
+            targets:
+              - telemetry-slices-geometry
+            color: cyan
+            linger: 0.55
+          - id: yield-a-percent
+            phrase: "about ninety-nine point two percent"
+            targets:
+              - picture
+          - id: yield-small
+            phrase: "six hundred of the same total"
+            targets:
+              - telemetry-slices-geometry
+            color: cyan
+            linger: 0.55
+          - id: yield-c-percent
+            phrase: "about nine point nine percent"
+            targets:
+              - picture
+          - id: yield-rule
+            phrase: "summing reused input tokens"
+            targets:
+              - yield-rule-mark
+            color: cyan
+            linger: 0.55
+      - say: Version six has one hit. It reuses almost the entire prompt. Version seven has two hits,
+          with fifty-four point six percent of its input volume reused. Keep route, model, prompt version, tenant scope,
+          worker, and read/write buckets with each row. Those slices prevent a change in traffic mix
+          from masquerading as a cache improvement.
+        hold: 0.7
+        visual_cues:
+          - id: yield-versions
+            phrase: "version seven has two hits"
+            targets:
+              - yield-versions-mark
+            color: cyan
+            linger: 0.55
+          - id: yield-weighted
+            phrase: "fifty-four point six percent of its input volume reused"
+            targets:
+              - picture
+          - id: yield-slice
+            phrase: "route, model, prompt version, tenant scope, worker"
+            targets:
+              - yield-slice-mark
+            color: cyan
+            linger: 0.55
+      - say: "Place queue, prefill, first-token, decode, and completion times beside token yield and actual
+          priced cost. Compare the same workload or a controlled replay, including cold starts and
+          concurrency. OpenAI's comparison diagnostics can point to a changed boundary or accounting key. A worker
+          can still hold the guide when the accounting key changes. Read the returned usage to find how
+          many tokens earned the discount."
+        hold: 0.7
+        visual_cues:
+          - id: yield-phases
+            phrase: "queue, prefill, first-token, decode, and completion times"
+            targets:
+              - yield-phases-mark
+            color: cyan
+            linger: 0.55
+          - id: yield-accounting
+            phrase: "Read the returned usage"
+            targets:
+              - yield-accounting-mark
+            color: cyan
+            linger: 0.55
+  - id: isolation
+    title: Choose the sharing scope from verified identity
+    visual: Two authenticated sessions produce distinct structured cache keys for identical guide
+      tokens. A forged client tenant label remains visible but cannot select another tenant's lookup
+      scope.
+    beats:
+      - say: >
+          Suppose two tenants submit the same private guide. Reuse can reveal information through
+          content handling or timing, so the service needs an explicit sharing policy. Our gateway
+          derives the scope from a verified session and combines it with model revision, guide
+          version, and token identity.
+        visual_cues:
+          - id: authenticated-scope
+            phrase: scope from a verified session
+            targets:
+              - isolation-scope
+            color: blue
+          - id: scoped-key
+            phrase: combines it with model revision, guide version, and token identity
+            targets:
+              - isolation-readout-2
+            color: yellow
+        hold: 0.65
+      - say: >
+          The label on the second request says A. Watch where it stops. The gateway recognizes session
+          B and uses B's scope to build the key. The two digests differ, so this request misses A's
+          private entry.
+        visual_cues:
+          - id: untrusted-label
+            phrase: The label on the second request
+            targets:
+              - isolation-readout
+            color: pink
+          - id: trusted-session
+            phrase: uses B's scope
+            targets:
+              - isolation-scope
+            color: blue
+          - id: distinct-key
+            phrase: The two digests differ
+            targets:
+              - isolation-readout-2
+            color: pink
+        hold: 0.7
+      - say: >
+          A changed model or guide version also gives B a new key. The hash records those differences.
+          Authentication decides who may share. On a hosted service, use the sharing scope its settings enforce.
+        visual_cues:
+          - id: version-key
+            phrase: changed model or guide version
+            targets:
+              - isolation-readout-2
+            color: pink
+          - id: sharing-authority
+            phrase: Authentication decides who may share
+            targets:
+              - isolation-scope
+            color: blue
+        hold: 0.6
+  - id: isolation-probes
+    title: Whose entry did the worker read?
+    visual: >-
+      The worker holds a test guide in namespace A. The same synthetic input runs under two verified
+      sessions. A reads its own entry, B builds its own, and a later B request can read from B. The
+      audit record includes the owner as well as the read count.
+    beats:
+      - say: >-
+          Both test teams send the same guide to the same worker and model. Only team A has a completed
+          entry. Which session is allowed to read the stored copy?
+        caption_starts:
+          - "Only team A has a completed entry."
+          - "Which session is allowed"
+        hold: 1.8
+        visual_cues:
+          - { id: both-guides, phrase: "Both test teams send the same guide", targets: [picture] }
+          - { id: scope-snapshot, phrase: "only team A has a completed entry", targets: [picture] }
+          - { id: scope-question, phrase: "Which session is allowed", targets: [picture] }
+      - say: >-
+          A can read its own copy. The gateway looks up the entry under A's verified identity. For B the
+          lookup is empty, so the worker builds the guide inside B's namespace. Once that write finishes,
+          send the same request as B again. This time B reads its own entry. The two reads have the same
+          token count. Look at the owner beside each one.
+        hold: 0.7
+        visual_cues:
+          - { id: a-read, phrase: "A can read its own copy", targets: [picture], caption_boundary: true }
+          - { id: b-miss, phrase: "For B the lookup is empty", targets: [picture] }
+          - { id: b-write, phrase: "Once that write finishes", targets: [picture] }
+          - { id: b-repeat, phrase: "send the same request as B again", targets: [picture] }
+          - { id: b-read, phrase: "This time B reads its own entry", targets: [picture], caption_boundary: true }
+          - { id: audit-owner, phrase: "owner beside each one", targets: [picture] }
+      - say: >-
+          Read the owner on each lookup record. A read from A's session used A's entry. B's repeat used
+          B's. That's evidence you can check even when queueing or network time changes. Routing, stored
+          answers and logs each need their own access rules. On a hosted service, check which sharing
+          scope the provider enforces.
+        hold: 0.7
+        visual_cues:
+          - { id: scope-evidence, phrase: "Read the owner on each lookup record", targets: [picture] }
+          - { id: scope-policy, phrase: "their own access rules", targets: [picture] }
+  - id: pool
+    title: Cached blocks can also be available
+    visual: A twenty-block pool distinguishes referenced, cached unreferenced, and uncached free blocks.
+      Allocating five preserves all nine referenced identities and replaces two unreferenced cached
+      blocks after using three uncached blocks.
+    beats:
+      - say: >
+          Keeping a prefix consumes storage, but its ownership can change. This pool contains
+          referenced blocks, cached blocks with no current owner, and uncached free blocks. An
+          unreferenced cached block may still hold useful content while also being available for a
+          future allocation or eviction.
+        hold: 0.65
+        visual_cues:
+          - id: referenced-blocks
+            phrase: "referenced blocks"
+            targets:
+              - pool-field-grid
+            color: blue
+          - id: cached-available
+            phrase: "unreferenced cached block"
+            targets:
+              - pool-readout-2
+            color: yellow
+      - say: >
+          A new request needs five blocks. Our chosen allocator consumes the three uncached blocks
+          first, then replaces two cached entries. Follow their physical identities in the grid.
+          Referenced blocks stay protected, and the total resident pool size stays fixed throughout
+          this allocation.
+        hold: 0.7
+        visual_cues:
+          - id: allocate-five
+            phrase: "new request needs five blocks"
+            targets:
+              - pool-readout-3
+            color: green
+          - id: protect-references
+            phrase: "Referenced blocks stay protected"
+            targets:
+              - pool-readout
+            color: blue
+          - id: pool-free
+            phrase: "three uncached blocks first"
+            targets:
+              - picture
+          - id: pool-replace
+            phrase: "replaces two cached entries"
+            targets:
+              - picture
+      - say: >
+          The replaced entry now misses when requested again, so the engine recomputes its prefix.
+          That is a normal capacity outcome. Track references, available blocks, eviction churn, and
+          reused tokens together. Device allocation can stay flat while the useful contents of its
+          cache change substantially.
+        hold: 0.65
+        visual_cues:
+          - id: evicted-entry
+            phrase: "replaced entry now misses"
+            targets:
+              - pool-readout-4
+            color: pink
+          - id: resident-pool
+            phrase: "Device allocation can stay flat"
+            targets:
+              - pool-20-physical-blocks-fixed-resident-pool
+            color: yellow
+  - id: pool-headroom
+    title: Count allocatable capacity without double-counting cached entries
+    visual: "A scaled 1000-block ownership ledger inherits the earlier physical identities: 450
+      referenced,400 cached unreferenced,150 uncached free. Allocating 200 moves ownership, evicts
+      at least50 cached identities, and leaves350 available."
+    beats:
+      - say: >-
+          How much room is there in this pool of a thousand blocks? Four hundred and fifty are referenced
+          by active requests. Four hundred are cached with no active reference, and one hundred and fifty
+          are uncached free. Both of those last groups can serve a new request. That's five hundred and
+          fifty available blocks.
+        caption_starts:
+          - "Four hundred and fifty are referenced"
+          - "Four hundred are cached"
+          - "Both of those last groups"
+          - "That's five hundred and fifty"
+        hold: 0.7
+        visual_cues:
+          - id: headroom-ref
+            phrase: "Four hundred and fifty are referenced"
+            targets:
+              - pool-headroom-geometry
+            color: cyan
+            linger: 0.55
+          - id: headroom-cached
+            phrase: "four hundred are cached"
+            targets:
+              - pool-headroom-geometry
+            color: cyan
+            linger: 0.55
+          - id: headroom-free
+            phrase: "one hundred and fifty are uncached free"
+            targets:
+              - pool-headroom-geometry
+            color: cyan
+            linger: 0.55
+          - id: headroom-total
+            phrase: "five hundred and fifty"
+            targets:
+              - pool-headroom-geometry
+            color: cyan
+            linger: 0.55
+      - say: >-
+          A request needs two hundred new blocks. First consume all one hundred and fifty uncached blocks.
+          To cover the shortfall, replace fifty cached entries. Now six hundred and fifty blocks have
+          active owners. Cached unreferenced entries fall to three hundred and fifty. The device still
+          holds the same thousand blocks. What changed was who could use them.
+        hold: 0.7
+        visual_cues:
+          - id: headroom-allocate
+            phrase: "consume all one hundred and fifty uncached blocks"
+            targets:
+              - pool-headroom-geometry
+            color: cyan
+            linger: 0.55
+          - id: headroom-evict
+            phrase: "replace fifty cached entries"
+            targets:
+              - headroom-evict-mark
+            color: cyan
+            linger: 0.55
+          - id: headroom-remain
+            phrase: "cached unreferenced entries fall to three hundred and fifty"
+            targets:
+              - picture
+      - say: >-
+          Keep a block protected until active requests and pending device work have finished using it.
+          In vLLM, touching a reusable block raises its reference count and removes it from the free queue.
+          Allocating a cached free block removes its old hash. To decide when to add capacity, track how
+          many blocks are available and how often the worker evicts entries to make room.
+        hold: 0.7
+        visual_cues:
+          - id: headroom-touch
+            phrase: "touching a reusable block raises its reference count"
+            targets:
+              - headroom-touch-mark
+            color: cyan
+            linger: 0.55
+          - id: headroom-protect
+            phrase: "pending device work"
+            targets:
+              - headroom-protect-mark
+            color: cyan
+            linger: 0.55
+  - id: savings
+    title: Three requests on one worker
+    visual: >-
+      A ledger fills from the three request rows. It holds input and output lengths fixed while an
+      eviction before the third request moves 6,000 positions from reused to fresh prefill.
+    beats:
+      - say: >-
+          Here are all three repository questions in arrival order. Their tails have forty-eight,
+          thirty-seven and fifty-one tokens. Follow the guide down these rows. Request one processes
+          the guide and its question. The next two read the guide and process only their own questions. Each
+          row keeps its generated answer on a separate count.
+        hold: 0.8
+        visual_cues:
+          - { id: ledger-first, phrase: "Request one processes the guide and its question", targets: [picture] }
+          - { id: ledger-second, phrase: "The next two read the guide", targets: [picture] }
+          - { id: ledger-third, phrase: "process only their own questions", targets: [picture] }
+          - { id: ledger-output, phrase: "its generated answer on a separate count", targets: [picture] }
+      - say: >-
+          Add the rows. The worker processed six thousand one hundred thirty-six fresh input positions. Two
+          guide reads saved twelve thousand positions compared with three cold requests. The three output
+          lengths still add to two hundred forty tokens.
+        hold: 0.8
+        visual_cues:
+          - { id: ledger-fresh, phrase: "six thousand one hundred thirty-six fresh input positions", targets: [picture], caption_boundary: true }
+          - { id: ledger-read, phrase: "saved twelve thousand positions", targets: [picture], caption_boundary: true }
+          - { id: ledger-generated, phrase: "two hundred forty tokens", targets: [picture], caption_boundary: true }
+      - say: >-
+          Replay just the third row. Its prompt is identical and we hold the answer length fixed. This time
+          the worker evicts the guide before that request arrives. Where do its six thousand guide tokens go
+          in the ledger?
+        hold: 2
+        visual_cues:
+          - { id: ledger-rewind, phrase: "Replay just the third row", targets: [picture] }
+          - { id: ledger-evict, phrase: "evicts the guide", targets: [picture] }
+          - { id: ledger-predict, phrase: "Where do its six thousand guide tokens go", targets: [picture] }
+      - say: >-
+          They move into fresh prefill. Request three now processes six thousand fifty-one positions. Across
+          all three requests, fresh input rises to twelve thousand one hundred thirty-six. Generation still
+          accounts for two hundred forty output tokens in this comparison. To learn what the extra work
+          cost, compare phase times and the provider's read and write charges.
+        hold: 0.8
+        visual_cues:
+          - { id: ledger-move, phrase: "They move into fresh prefill", targets: [picture], caption_boundary: true }
+          - { id: ledger-rerun, phrase: "six thousand fifty-one positions", targets: [picture], caption_boundary: true }
+          - { id: ledger-total, phrase: "fresh input rises to twelve thousand one hundred thirty-six", targets: [picture], caption_boundary: true }
+  - id: diagnose-replay
+    title: Follow the first boundary that actually changed
+    visual: A versioned guide statement is edited in source, renderer, retrieval and final token lanes.
+      Cache counters remain independent of answer text; a second run changes only cache availability
+      to demonstrate a correct cold result.
+    beats:
+      - say: >-
+          The new policy says to rotate keys every thirty days. The assistant still says ninety.
+          Read the rendered input. It says ninety too. Trace that line back through the renderer,
+          the retrieved document and the deployed revision. Once the new line reaches the model,
+          its changed tokens invalidate the old block and everything that depends on it.
+        caption_starts:
+          - "Read the rendered input."
+          - "It says ninety too."
+          - "Once the new line reaches the model"
+        hold: 0.7
+        visual_cues:
+          - id: diagnose-input
+            phrase: Read the rendered input
+            targets:
+              - diagnose-input-mark
+            color: cyan
+            linger: 0.55
+          - id: diagnose-change
+            phrase: changed tokens invalidate the old block
+            targets:
+              - diagnose-change-mark
+            color: cyan
+            linger: 0.55
+      - say: >-
+          Repair the renderer and replay the request. Now the input says thirty days. Check the model,
+          adapter and cache identity, then run with zero prefix reads. The reply still says ninety.
+          An answer cache can return a saved reply. Bypass that cache and generate from the same input
+          with the same model. If the new answer still says ninety, inspect how the model follows the policy.
+        caption_starts:
+          - "Now the input says thirty days."
+          - "The reply still says ninety."
+          - "Bypass that cache"
+        hold: 0.7
+        visual_cues:
+          - id: diagnose-render
+            phrase: Repair the renderer
+            targets:
+              - diagnose-replay-geometry
+            color: cyan
+            linger: 0.55
+          - id: diagnose-cold
+            phrase: run with zero prefix reads
+            targets:
+              - diagnose-cold-mark
+            color: cyan
+            linger: 0.55
+          - id: diagnose-bypass
+            phrase: Bypass that cache
+            targets:
+              - diagnose-bypass-mark
+            color: cyan
+            linger: 0.55
+      - say: >-
+          Now investigate a missing read. The original request shows zero read tokens. Was the entry
+          written at an eligible boundary, within lookup range and still available to this worker
+          and team? Replay with the entry present. The worker reads six thousand tokens. Evict the guide,
+          then repeat the same request. Reads fall to zero. The worker has to rebuild the same guide.
+          Compare the prefill times to see what that cost.
+        caption_starts:
+          - "Was the entry written"
+          - "Replay with the entry present."
+          - "The worker reads six thousand tokens."
+          - "Evict the guide"
+          - "Reads fall to zero."
+        hold: 0.7
+        visual_cues:
+          - id: diagnose-miss
+            phrase: investigate a missing read
+            targets:
+              - diagnose-miss-mark
+            color: pink
+            linger: 0.55
+          - id: diagnose-control
+            phrase: "Replay with the entry present"
+            targets:
+              - picture
+          - id: diagnose-repeat
+            phrase: "repeat the same request"
+            targets:
+              - picture
+          - id: diagnose-eviction
+            phrase: Evict the guide
+            targets:
+              - diagnose-eviction-mark
+            color: cyan
+            linger: 0.55
+  - id: fresh-budget
+    title: Can this request start?
+    visual: >-
+      A two-block magnifier shows a one-token edit move from the last slot of a sixteen-token block to
+      the first slot of the next. A fixed 700-token allowance crosses a common fresh-work scale for both
+      attempts. The question tail and the authorized allowance remain fixed.
+    beats:
+      - say: >-
+          One token changed in a guide that's forty-eight hundred tokens long. This worker has the
+          original in cache for the same team, model and adapter. Add a sixty-four-token question.
+          The scheduler has room for seven hundred fresh input tokens.
+        hold: 0.65
+        visual_cues:
+          - { id: budget-guide, phrase: "forty-eight hundred tokens long", targets: [picture] }
+          - { id: budget-question, phrase: "sixty-four-token question", targets: [picture] }
+          - { id: budget-cap, phrase: "seven hundred fresh input tokens", targets: [picture] }
+      - say: >-
+          Look at the seam between these two blocks. Each holds sixteen tokens. The first change is at position four thousand
+          one hundred seventy-six, counting from one. It's the last token in the left block. Can the
+          scheduler start this request under the limit?
+        caption_starts:
+          - "Can the scheduler start this request under the limit?"
+        hold: 4.5
+        visual_cues:
+          - { id: budget-zoom, phrase: "the seam between these two blocks", targets: [picture] }
+          - { id: edit-left, phrase: "first change is at position four thousand one hundred seventy-six", targets: [picture] }
+          - { id: ask-left, phrase: "Can the scheduler start this request under the limit", targets: [picture] }
+      - say: >-
+          That whole block needs fresh work. The last reusable position is four thousand one hundred sixty.
+          Subtract it from the guide length. That leaves six hundred forty guide tokens. Add the sixty-four
+          question tokens and you get seven hundred four fresh positions. Defer this request. It's four
+          tokens over budget.
+        caption_starts:
+          - "The last reusable position"
+          - "That leaves six hundred forty guide tokens."
+        hold: 1
+        visual_cues:
+          - { id: left-block, phrase: "That whole block needs fresh work", targets: [picture] }
+          - { id: left-end, phrase: "last reusable position is four thousand one hundred sixty", targets: [picture] }
+          - { id: left-guide, phrase: "six hundred forty guide tokens", targets: [picture] }
+          - { id: left-work, phrase: "seven hundred four fresh positions", targets: [picture], caption_boundary: true }
+          - { id: left-verdict, phrase: "Defer this request", targets: [picture], caption_boundary: true }
+      - say: >-
+          Rewind. Restore that token and move the edit one place to the right. Now the first difference is
+          at four thousand one hundred seventy-seven. Same stored guide, same question, same allowance. Does
+          this version fit?
+        caption_starts:
+          - "Does this version fit?"
+        hold: 4
+        visual_cues:
+          - { id: budget-reset, phrase: "Rewind", targets: [picture] }
+          - { id: edit-right, phrase: "move the edit one place to the right", targets: [picture] }
+          - { id: ask-right, phrase: "Does this version fit", targets: [picture] }
+      - say: >-
+          The left block now matches all the way through position four thousand one hundred seventy-six.
+          Those sixteen positions can rejoin the cached prefix. That leaves six hundred twenty-four guide
+          tokens plus the question, or six hundred eighty-eight fresh positions. Admit this version.
+          Moving the edit one place saved a whole block of prefill. Now we have twelve tokens to spare.
+        caption_starts:
+          - "Those sixteen positions can rejoin the cached prefix."
+          - "That leaves six hundred twenty-four guide tokens"
+          - "Now we have twelve tokens to spare."
+        hold: 1.1
+        visual_cues:
+          - { id: right-end, phrase: "through position four thousand one hundred seventy-six", targets: [picture] }
+          - { id: right-block, phrase: "Those sixteen positions can rejoin the cached prefix", targets: [picture] }
+          - { id: right-guide, phrase: "six hundred twenty-four guide tokens", targets: [picture] }
+          - { id: right-work, phrase: "six hundred eighty-eight fresh positions", targets: [picture], caption_boundary: true }
+          - { id: right-verdict, phrase: "Admit this version", targets: [picture], caption_boundary: true }
+          - { id: right-margin, phrase: "twelve", targets: [picture] }

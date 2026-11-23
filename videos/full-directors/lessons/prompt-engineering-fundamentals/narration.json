@@ -1,0 +1,534 @@
+[
+  {
+    "id": "c01",
+    "title": "When is the first page due?",
+    "sourceChapters": [
+      "c01"
+    ],
+    "beats": [
+      {
+        "id": "c01-b01",
+        "say": "Luna's team declares a priority one incident. Start the clock here. Their runbook gives them thirty minutes from declaration to send the first page. Set the green marker there. It stays on thirty.",
+        "hold": 0.8
+      },
+      {
+        "id": "c01-b02",
+        "say": "The assistant cites the same line, IR-7, and gives the team ninety minutes. Follow its hand around the dial. If they wait that long, how far past the green mark will they be?",
+        "hold": 3.6
+      },
+      {
+        "id": "c01-b03",
+        "say": "Sixty minutes late. Open the prompt, the instructions and facts the model received. Did the runbook line reach it? If the line is missing, supply it. If the line is present, try naming the clock origin. Ask for the deadline in minutes since P1 declaration.",
+        "hold": 1.1
+      }
+    ]
+  },
+  {
+    "id": "c02",
+    "title": "What is the probability of this two-token reply?",
+    "sourceChapters": [
+      "c02"
+    ],
+    "beats": [
+      {
+        "id": "c02-b01",
+        "say": "This rectangle holds the possible continuations for one prompt. Under this prompt, the first token has probability six tenths. Given that same prompt and the first token, the next one gets four tenths of the blue region. What fraction of the whole rectangle belongs to the pair?",
+        "hold": 2.4
+      },
+      {
+        "id": "c02-b02",
+        "say": "Multiply the two shares. Twenty-four hundredths is the probability of getting both tokens in that order. For each token, use its probability given the prompt and the tokens already chosen.",
+        "hold": 1
+      },
+      {
+        "id": "c02-b03",
+        "say": "Give the model a different prompt and it can assign different probabilities to those same tokens. The next-token probabilities are conditioned on the prompt. When a Transformer processes a selected token on the next forward pass, it can cache its keys and values for later attention. The prompt changes what the model can attend to. Its learned weights stay fixed.",
+        "hold": 1
+      },
+      {
+        "id": "c02-b04",
+        "say": "Luna is building this on-call assistant. Keep the current rule, time since P1 declaration, and page status in its prompt. Long incident logs can crowd the rule out of the model's finite context window. Check which facts reached the model, then compare its reply with the rule.",
+        "hold": 0.8
+      }
+    ]
+  },
+  {
+    "id": "c03",
+    "title": "Work out the decision before writing the prompt",
+    "sourceChapters": [
+      "c03"
+    ],
+    "beats": [
+      {
+        "id": "c03-b01",
+        "say": "The fictional rule requires a first page within thirty minutes of a P1 declaration. Twelve minutes have passed since this P1 was declared, and nobody has paged. That leaves eighteen minutes.",
+        "hold": 0.8
+      },
+      {
+        "id": "c03-b02",
+        "say": "Watch the clock approach the boundary. Overdue means elapsed time is strictly greater than thirty. Exactly thirty is still on the boundary. Advance one minute and the incident is overdue. The remaining time stops at zero.",
+        "hold": 0.9
+      },
+      {
+        "id": "c03-b03",
+        "say": "A missing rule or unknown page status needs review. Writing down these branches first gives us a reference answer, a fallback, and useful examples before we ask the model anything.",
+        "hold": 0.9
+      }
+    ]
+  },
+  {
+    "id": "c04",
+    "title": "Who put this line in the request?",
+    "sourceChapters": [
+      "c04"
+    ],
+    "beats": [
+      {
+        "id": "c04-b01",
+        "say": "The application sends an incident as a user message. Here are two ways to turn that message into input tokens. Mistral's template wraps it in instruction markers. Zephyr's uses a user marker and a turn ending. Both start from the same message.",
+        "hold": 0.3
+      },
+      {
+        "id": "c04-b02",
+        "say": "Use the selected model's chat template, or send the structured message through its API.",
+        "hold": 0.9
+      },
+      {
+        "id": "c04-b03",
+        "say": "Luna puts the task in the application's instruction message. In an interface that supports the developer role with priority over user requests, those instructions take precedence. An archived note may contain the word system. The application still assigns it the user role. Serialize the note as data so its punctuation stays inside the quoted content.",
+        "hold": 0.9
+      },
+      {
+        "id": "c04-b04",
+        "say": "This ticket has been open for three hundred and thirty minutes. Look at the other clock. The P1 declaration was only twelve minutes ago. That is the clock IR-7 uses. Luna fetches the rule from approved storage and the page status from current incident state.",
+        "hold": 0.3
+      },
+      {
+        "id": "c04-b05",
+        "say": "A role label by itself can't tell her who supplied a fact.",
+        "hold": 1
+      }
+    ]
+  },
+  {
+    "id": "c05",
+    "title": "Assemble the complete prompt",
+    "sourceChapters": [
+      "c05"
+    ],
+    "beats": [
+      {
+        "id": "c05-b01",
+        "say": "Start with the task. Recommend the first page for this incident. Use the supported instruction role for that request and its response rules. Supply the runbook and current incident as clearly separated input facts.",
+        "hold": 0.9
+      },
+      {
+        "id": "c05-b02",
+        "say": "Now add one boundary example. At thirty-one minutes, this unpaged P1 is overdue. Read its JSON reply. The deadline stays at thirty, the overdue flag is true, and the source is the runbook line that sets that deadline.",
+        "hold": 0.9
+      },
+      {
+        "id": "c05-b03",
+        "say": "Finish with the developer's output contract. Ask for one JSON object. Name the action, deadline in minutes, overdue flag and source line IDs as its four keys. The instruction then works without an example. Is this an unpaged P1? Does a runbook line apply? Is the elapsed time in minutes a nonnegative integer? If all three hold, recommend paging on call. Give the deadline in minutes, cite that line, and mark the incident overdue only when elapsed time exceeds its limit. Otherwise request review, with a null deadline, a null overdue flag and an empty source list.",
+        "hold": 1.1
+      }
+    ]
+  },
+  {
+    "id": "c06",
+    "title": "Which ticket belongs with the documentation writers?",
+    "sourceChapters": [
+      "c06"
+    ],
+    "beats": [
+      {
+        "id": "c06-b01",
+        "say": "Luna also routes support tickets. A bug goes to the developers, misleading instructions go to the writers, and a new capability goes to feature planning. Defining the routes without a labeled example is called zero-shot prompting. Look at the three tickets. Which one belongs with the documentation writers?",
+        "hold": 2.8
+      },
+      {
+        "id": "c06-b02",
+        "say": "The first one goes to docs. The program simulates writes exactly as designed. The guide promises something else. In the second ticket the guide is right and the program crashes. That's a bug. The third asks for a new JSON output flag. That's a feature request.",
+        "hold": 0.3
+      },
+      {
+        "id": "c06-b03",
+        "say": "Give the model one labeled pair and you have a one-shot prompt. With two or more, it's few-shot. The model can infer the routing task from those examples while its weights stay fixed. That's in-context learning.",
+        "hold": 1
+      },
+      {
+        "id": "c06-b04",
+        "say": "Keep the labels attached as you move the examples. Does the model favor the last label it saw? Zhao and colleagues found effects from order and label frequency. Start with balanced examples and test several orders on the same cases.",
+        "hold": 0.3
+      },
+      {
+        "id": "c06-b05",
+        "say": "Min and colleagues found that format and the available labels mattered in their studied tasks, sometimes even with randomized pairings. Keep the pairs correct when teaching your own routing rule.",
+        "hold": 1
+      },
+      {
+        "id": "c06-b06",
+        "say": "Set aside a ticket before choosing the examples. If you see its answer, revise the prompt around it, and score that same ticket again, the score measures development work. Keep a separate untouched set to measure how the prompt transfers.",
+        "hold": 1
+      }
+    ]
+  },
+  {
+    "id": "c07",
+    "title": "Where does the deadline start?",
+    "sourceChapters": [
+      "c07"
+    ],
+    "beats": [
+      {
+        "id": "c07-b01",
+        "say": "Read the draft aloud. Give the deadline in minutes. Minutes from when? Start at the current hand and trace the short arc. At minute twelve that gives eighteen minutes left. Start at declaration and trace the whole arc. Which span belongs in the deadline field?",
+        "hold": 2.4
+      },
+      {
+        "id": "c07-b02",
+        "say": "Add the words since P1 declaration. Keep the incident, runbook, example and the rest of the prompt fixed. Now the deadline field has a starting point we can test.",
+        "hold": 0.9
+      },
+      {
+        "id": "c07-b03",
+        "say": "Our supplied revised reply now contains thirty, with overdue false for the current twelve-minute incident. That is the desired behavior. To establish that this wording helps a model, run both prompts on the same untouched incidents.",
+        "hold": 1
+      }
+    ]
+  },
+  {
+    "id": "c08",
+    "title": "What does a longer answer buy Luna?",
+    "sourceChapters": [
+      "c08"
+    ],
+    "beats": [
+      {
+        "id": "c08-b01",
+        "say": "Suppose Luna asks the model to explain its arithmetic. For example, thirty minus twelve gives eighteen minutes left. Each extra token costs another generation step and gives later tokens a partial result to work from. Even a direct answer can take several tokens. Early chain-of-thought experiments showed worked intermediate steps in the prompt and improved performance on some reasoning tasks.",
+        "hold": 1
+      },
+      {
+        "id": "c08-b02",
+        "say": "Look at the last token. The model has selected it. A conventional cached Transformer writes its keys and values when it processes that token on the next forward pass. The earlier tokens already have theirs. Later tokens can attend to those earlier steps.",
+        "hold": 0.9
+      },
+      {
+        "id": "c08-b03",
+        "say": "Start with the direct request for four fields. Some models can spend extra reasoning effort without exposing every step. OpenAI's published guidance for its reasoning models favors direct instructions. A demand for a long explanation can hurt performance. A concise justification that names the evidence gives Luna something she can check.",
+        "hold": 0.3
+      },
+      {
+        "id": "c08-b04",
+        "say": "Hold the prompt fixed and raise the effort setting on the same cases. Measure correct decisions, latency and cost. For a separate explanation experiment, replace the output instruction in both versions with the same JSON wrapper. Put the four fields inside decision. Beside it, use an empty explanation string for the control. Ask the other version for one evidence sentence there. Check the outer object, then score only the nested decision with the same four-field validator.",
+        "hold": 1
+      }
+    ]
+  },
+  {
+    "id": "c09",
+    "title": "What does the vote measure?",
+    "sourceChapters": [
+      "c09"
+    ],
+    "beats": [
+      {
+        "id": "c09-b01",
+        "say": "Here are five supplied replies to the same prompt. Put equivalent answers together first. Ninety minutes and an hour and a half should count as the same deadline. Decide beforehand how to handle invalid answers and ties. Sampling several reasoning paths and aggregating their final answers is called self-consistency.",
+        "hold": 1
+      },
+      {
+        "id": "c09-b02",
+        "say": "Deal the five replies into piles by deadline. Four choose ninety and one chooses thirty. Four out of five gives ninety an eighty percent share of this vote. The largest pile is the plurality winner. Here it also has a majority because it holds more than half.",
+        "hold": 0.3
+      },
+      {
+        "id": "c09-b03",
+        "say": "Several replies can share the same mistake. Compare ninety with IR-7. Four voices repeated a deadline that is sixty minutes too late. To estimate correctness from vote share, compare shares with labeled outcomes on held-out cases. If other fields vary, compare the complete decisions.",
+        "hold": 1
+      }
+    ]
+  },
+  {
+    "id": "c10",
+    "title": "Inspect the reply Luna received",
+    "sourceChapters": [
+      "c10"
+    ],
+    "beats": [
+      {
+        "id": "c10-b01",
+        "say": "Build the reply for Luna's unpaged P1 at minute twelve. Print the action, then the deadline, the overdue flag, and the source line. Even after the source appears, the object is incomplete. The closing brace finishes it.",
+        "hold": 0.9
+      },
+      {
+        "id": "c10-b02",
+        "say": "Parse the text. Check the four fields against the schema. Are these the exact keys? Is the action allowed? Do the deadline, Boolean and list of source IDs fit their constraints? Compare each field with the trusted runbook and incident snapshot. The complete reply passes all three checks. Luna can hand the recommendation to an engineer.",
+        "hold": 1
+      },
+      {
+        "id": "c10-b03",
+        "say": "Change just the deadline digits to ninety. The braces still match. Ninety is still an integer. Follow that field back to IR-7. The runbook says thirty. This is the first check that fails. A real citation can sit next to the wrong number.",
+        "hold": 1.8
+      }
+    ]
+  },
+  {
+    "id": "c11",
+    "title": "What can a grammar enforce?",
+    "sourceChapters": [
+      "c11"
+    ],
+    "beats": [
+      {
+        "id": "c11-b01",
+        "say": "Ask for a JSON object with one integer field, the deadline in minutes. A plain prompt can get a sentence back. JSON mode enforces syntax on a completed response. The word “soon” in quotes is a valid JSON string. A strict schema can require an integer.",
+        "hold": 0.3
+      },
+      {
+        "id": "c11-b02",
+        "say": "Ninety fits that field. Compare it with the runbook. IR-7 says thirty. Route refusals and unfinished responses to review.",
+        "hold": 1
+      },
+      {
+        "id": "c11-b03",
+        "say": "Start a JSON object using this four-character vocabulary. A logit is a score for a possible next token. Softmax turns these scores into probabilities. The opening brace starts at about point six three one. Keep the opening brace and rule out the other three. Their logits go to negative infinity. Only the brace's original probability survives.",
+        "hold": 0.3
+      },
+      {
+        "id": "c11-b04",
+        "say": "Divide that probability by the total retained probability. Both numbers are about point six three one. The brace now has probability one. Stop right there and the parser still has an unfinished object.",
+        "hold": 1
+      },
+      {
+        "id": "c11-b05",
+        "say": "Try another position. X has the largest logit, but only A and B are legal. Mask X. Subtract the largest legal logit, one, from each legal score. Exponentiate. These are unnormalized weights. A has weight one and B about point three six eight. Their sum is about one point three six eight. Divide each weight by that sum.",
+        "hold": 0.3
+      },
+      {
+        "id": "c11-b06",
+        "say": "A gets about point seven three one. B gets about point two six nine. X gets zero. This calculation needs at least one finite legal logit.",
+        "hold": 1.2
+      },
+      {
+        "id": "c11-b07",
+        "say": "One vocabulary token can contain several characters or part of a byte sequence. Check the whole decoded continuation. Here a single token contains two closers. It closes the array first, then the surrounding object. A finite-state machine can enforce regular constraints.",
+        "hold": 0.3
+      },
+      {
+        "id": "c11-b08",
+        "say": "Watch the stack grow as the object opens, then the array. Each opening delimiter adds one entry. Read the next token from left to right. Pop the array when its closer arrives, then pop the object. A stack can keep track of arbitrary nesting depth within the parser's resource limits.",
+        "hold": 1
+      }
+    ]
+  },
+  {
+    "id": "c12",
+    "title": "Run the validator at the deadline",
+    "sourceChapters": [
+      "c12"
+    ],
+    "beats": [
+      {
+        "id": "c12-b01",
+        "say": "Look at the deadline key. It appears twice, even with the same number. Python's usual JSON decoding keeps the last value. Our paging validator inspects the key-value pairs first and rejects every duplicate. It also rejects nonstandard constants such as NaN. Those checks preserve what the sender actually supplied.",
+        "hold": 0.9
+      },
+      {
+        "id": "c12-b02",
+        "say": "Now suppose the deadline is the Boolean true. In Python, true compares equal to one. Test the actual type before treating that value as an integer. A deadline must be a nonnegative integer or null. An overdue flag must be a Boolean or null.",
+        "hold": 0.3
+      },
+      {
+        "id": "c12-b03",
+        "say": "Require exactly the four fields, a permitted action and a list of string source IDs. A page recommendation must cite the applicable line.",
+        "hold": 1
+      },
+      {
+        "id": "c12-b04",
+        "say": "Start with an unpaged P1, a valid elapsed time and the applicable rule. Compare elapsed time with the limit using strictly greater than. Take away the rule. Now the correct response is needs review, two nulls and no sources.",
+        "hold": 0.3
+      },
+      {
+        "id": "c12-b05",
+        "say": "The same fallback applies if severity is outside this contract, elapsed time is invalid, or page status is unknown or already true. A fallback on a fully known, unpaged P1 would be a wrong decision.",
+        "hold": 1
+      },
+      {
+        "id": "c12-b06",
+        "say": "Keep this reply fixed. It recommends a first page under IR-7 and says overdue is false. Run the Python validator at exactly thirty minutes. It accepts the reply. Now call it with thirty-one. Will that same false flag pass?",
+        "hold": 2.6
+      },
+      {
+        "id": "c12-b07",
+        "say": "The second call reports a contradiction. At thirty-one minutes the flag has to be true. Correct it and check the whole response again. These calls test code at a decision boundary. Also test malformed replies, wrong types and missing evidence.",
+        "hold": 0.3
+      },
+      {
+        "id": "c12-b08",
+        "say": "A model's reliability needs an evaluation on its own generated replies.",
+        "hold": 1
+      }
+    ]
+  },
+  {
+    "id": "c13",
+    "title": "Which source owns the deadline?",
+    "sourceChapters": [
+      "c13"
+    ],
+    "beats": [
+      {
+        "id": "c13-b01",
+        "say": "The archived exercise note mentions ninety minutes. Someone pasted it into today's ticket. Keep the note with the user data. It's evidence about the previous exercise.",
+        "hold": 1
+      },
+      {
+        "id": "c13-b02",
+        "say": "For today's decision, fetch the current rule from approved storage. Follow that line down to the comparison. If a reply borrows ninety from the archived exercise, the number fails against IR-7 even though the type is correct.",
+        "hold": 1
+      },
+      {
+        "id": "c13-b03",
+        "say": "Reject that deadline. An ordinary stale note can lead to a wrong answer. In an indirect prompt injection, retrieved text deliberately tries to steer the model. Keeping notes in their own role helps identify them. Recomputing the decision from trusted facts lets the application enforce the boundary.",
+        "hold": 1
+      }
+    ]
+  },
+  {
+    "id": "c14",
+    "title": "Who can send the first page?",
+    "sourceChapters": [
+      "c14"
+    ],
+    "beats": [
+      {
+        "id": "c14-b01",
+        "say": "This reply asks for review. All the facts for this P1 are present. Accepting the fallback would leave an unpaged incident waiting. Compare the decision with the rule. A separate privacy test looks for a harmless marker copied literally into the reply. That test alone tells us nothing about a wrong decision or an encoded copy.",
+        "hold": 1
+      },
+      {
+        "id": "c14-b02",
+        "say": "Give the model no paging credentials. A separate service checks permission and the current rule. Imagine another worker sends the page after Luna checks the snapshot. The original recommendation still describes that snapshot.",
+        "hold": 0.3
+      },
+      {
+        "id": "c14-b03",
+        "say": "To prevent a duplicate, the service must couple its fresh check to an atomic claim or an idempotent send. Two workers could both pass a separate read.",
+        "hold": 1.2
+      },
+      {
+        "id": "c14-b04",
+        "say": "The first page is already recorded. The second worker loses the claim and stops there. Give the dispatcher the incident ID, rule version and validation result so it can check the recommendation against live state.",
+        "hold": 1
+      }
+    ]
+  },
+  {
+    "id": "c15",
+    "title": "Compare revisions case by case",
+    "sourceChapters": [
+      "c15"
+    ],
+    "beats": [
+      {
+        "id": "c15-b01",
+        "say": "A clearer sentence should improve the target case while preserving other useful behavior. Keep the model, sampling settings, tools and incident set fixed when comparing prompt revisions.",
+        "hold": 0.9
+      },
+      {
+        "id": "c15-b02",
+        "say": "Walk through these supplied evaluation outcomes. Count each column. Both revisions finish with four passing cases out of six. Which two incidents traded places?",
+        "hold": 2.5
+      },
+      {
+        "id": "c15-b03",
+        "say": "The prior-page case improves. The overdue case regresses. Inspect those disagreements before choosing a revision. Keep a final set untouched. Track format failures, wrong decisions and missing-facts behavior separately so the next edit addresses a specific problem.",
+        "hold": 1
+      }
+    ]
+  },
+  {
+    "id": "c16",
+    "title": "Which decision changed?",
+    "sourceChapters": [
+      "c16"
+    ],
+    "beats": [
+      {
+        "id": "c16-b01",
+        "say": "Someone already sent the first page. The old prompt recommended another one. The revision sends that case for review. Now look at the unpaged incident at minute thirty-one. The revision says overdue is false. That gives us one field to work on in the next prompt.",
+        "hold": 0.8
+      },
+      {
+        "id": "c16-b02",
+        "say": "Try three versions on the same development incidents. Use the experiment wrapper for all three versions. Put the four paging fields inside decision. Put explanation beside it. Start with instructions alone. In the second version, add a boundary example. Both return an empty explanation string. In the third, use the original instructions and request one evidence sentence in that string. Check the outer object for exactly those two fields, an object and a string. Score the nested decision with the same validator in all three versions. Count malformed replies as format failures in each arm’s total. Fix the model, settings, tools and runbook. Repeat if answers vary. Keep related tickets together when reserving incidents for the final test.",
+        "hold": 0.8
+      }
+    ]
+  },
+  {
+    "id": "c17",
+    "title": "What should Luna test next?",
+    "sourceChapters": [
+      "c17"
+    ],
+    "beats": [
+      {
+        "id": "c17-b01",
+        "say": "Look at the overdue case that the revision lost. At minute thirty-one it said false. What's the last minute when false would have been correct?",
+        "hold": 2.4
+      },
+      {
+        "id": "c17-b02",
+        "say": "Try minute thirty. Exactly at the limit, overdue is false. One minute later it's true. Give the prompt those two examples side by side.",
+        "hold": 1
+      },
+      {
+        "id": "c17-b03",
+        "say": "Use separate development cases to compare that version with the one-example prompt. Keep the settings fixed and record the full decisions. Only after choosing a version should you open the final set. Let's give Luna one incident from another team.",
+        "hold": 1
+      }
+    ]
+  },
+  {
+    "id": "c18",
+    "title": "Luna's next incident",
+    "sourceChapters": [
+      "c18"
+    ],
+    "beats": [
+      {
+        "id": "c18-b01",
+        "say": "Luna helps another team test a paging recommendation. Thirty-seven minutes have passed since P1 declaration, and nobody has paged. First, try the incident under Luna's familiar rule, IR-7. It allows thirty minutes. What action, deadline, overdue flag and source should she hand back?",
+        "hold": 3.2
+      },
+      {
+        "id": "c18-b02",
+        "say": "Recommend paging now. Thirty-seven is past thirty. The deadline is thirty, overdue is true, and the source is IR-7.",
+        "hold": 1.2
+      },
+      {
+        "id": "c18-b03",
+        "say": "Keep this incident and the page status. This time the lookup returns no applicable rule. What can Luna recommend on the evidence she has now?",
+        "hold": 3
+      },
+      {
+        "id": "c18-b04",
+        "say": "Send the case for review. Leave the deadline and overdue flag null, with an empty list of sources. Luna asks the team's runbook service for the missing line.",
+        "hold": 1.4
+      },
+      {
+        "id": "c18-b05",
+        "say": "The other team's service returns IR-9. It allows forty-five minutes from P1 declaration. Follow the green marker to the new limit. The hand stays at thirty-seven and nobody has paged. Which four fields should Luna return?",
+        "hold": 3.6
+      },
+      {
+        "id": "c18-b06",
+        "say": "Recommend paging now. Cite IR-9 and enter forty-five for the deadline. At minute thirty-seven, eight minutes remain, so overdue is false. Give that recommendation to the engineer. Before sending, the authorized dispatcher checks whether anyone has paged since this snapshot.",
+        "hold": 1.5
+      }
+    ]
+  }
+]

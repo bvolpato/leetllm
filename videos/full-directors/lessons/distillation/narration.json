@@ -1,0 +1,721 @@
+[
+  {
+    "id": "c01",
+    "title": "What does one copy of bird tell you?",
+    "sourceChapters": [
+      "c01",
+      "c02"
+    ],
+    "beats": [
+      {
+        "id": "c01-b01",
+        "say": "The child saw a bird. The teacher chose that last word from four possibilities. Make one copy for the student.",
+        "hold": 0.8
+      },
+      {
+        "id": "c01-b02",
+        "say": "Look at the copy. Which word ranked second for the teacher, dog or cat?",
+        "hold": 3
+      },
+      {
+        "id": "c01-b03",
+        "say": "Uncover the teacher’s probabilities. Dog came second at about twenty-seven percent. Cat had eighteen percent. If dog and cat traded places, bird would still come first. The student would get exactly the same copy.",
+        "hold": 1
+      },
+      {
+        "id": "c01-b04",
+        "say": "The saved word gives us a hard target. It puts all the target mass on bird. The teacher’s soft target gives each word its own share. Those shares tell us how strongly the teacher favored dog over cat at this prefix.",
+        "hold": 0.7
+      },
+      {
+        "id": "c01-b05",
+        "say": "Training a student with a signal from another model is called knowledge distillation. Here we can give the student the whole distribution. Other teachers might supply only a written answer, or let us see values inside a layer.",
+        "hold": 0.6
+      }
+    ]
+  },
+  {
+    "id": "c02",
+    "title": "Which word does the student favor too much?",
+    "sourceChapters": [
+      "c02"
+    ],
+    "beats": [
+      {
+        "id": "c02-b01",
+        "say": "Run the student on the same prefix. Look across both pages. Which word gets the largest excess of probability from the student?",
+        "hold": 2.6
+      },
+      {
+        "id": "c02-b02",
+        "say": "Cat. The student puts almost sixty percent on it, while the teacher puts about eighteen percent there. Bird has the opposite problem. The student gives it only eleven percent, against the teacher’s forty-nine.",
+        "hold": 0.6
+      },
+      {
+        "id": "c02-b03",
+        "say": "Each model has one unit of probability to spend across these four words. Moving mass toward bird takes it away from other words. We need a way to change the scores while keeping that total fixed.",
+        "hold": 0.8
+      }
+    ]
+  },
+  {
+    "id": "c03",
+    "title": "Keep the words fixed and turn up the temperature",
+    "sourceChapters": [
+      "c03"
+    ],
+    "beats": [
+      {
+        "id": "c03-b01",
+        "say": "Tree has the smallest share on the teacher’s chart. Before softmax, each word has a score called a logit. Divide each score by the same positive number, then exponentiate and normalize. That number is the temperature. Raise it from one to four. Watch how much of the teacher’s probability reaches tree.",
+        "hold": 0.8
+      },
+      {
+        "id": "c03-b02",
+        "say": "Keep the same temperature for both models. Their underlying scores and their ranking have stayed fixed. We have changed the distribution that the loss will compare. Now imagine turning the temperature up much further. In a four-word vocabulary, where would each probability approach?",
+        "hold": 2.2
+      },
+      {
+        "id": "c03-b03",
+        "say": "One quarter. As the temperature rises, the divided scores draw closer together. Their exponentials approach the same value. At any finite positive temperature the ordering is preserved before rounding. Individual probability gaps can change at different rates and some can widen along the way.",
+        "hold": 0.3
+      },
+      {
+        "id": "c03-b04",
+        "say": "Later we’ll see why the usual soft loss includes a factor of temperature squared.",
+        "hold": 0.8
+      }
+    ]
+  },
+  {
+    "id": "c04",
+    "title": "What does each word add to the loss?",
+    "sourceChapters": [
+      "c04"
+    ],
+    "beats": [
+      {
+        "id": "c04-b01",
+        "say": "Start again at temperature one. Bird gets nearly half the teacher’s probability and only about a tenth of the student’s. For each token, divide the teacher’s probability by the student’s, take the natural log, and weight it by the teacher’s probability. Sum those contributions.",
+        "hold": 0.3
+      },
+      {
+        "id": "c04-b02",
+        "say": "That sum is forward Kullback-Leibler divergence, or forward K L, measured in nats.",
+        "hold": 0.8
+      },
+      {
+        "id": "c04-b03",
+        "say": "Look at cat. The student gives it more probability than the teacher does. That makes the ratio smaller than one, so this contribution is negative. The positive bird term and the negative cat term both count. The full divergence is always at least zero.",
+        "hold": 0.3
+      },
+      {
+        "id": "c04-b04",
+        "say": "Here the distributions differ, so the total is positive. If all four probabilities matched, every log ratio would be zero and the sum would be zero.",
+        "hold": 0.8
+      },
+      {
+        "id": "c04-b05",
+        "say": "If the teacher is fixed, its entropy stays fixed too. Soft-target cross-entropy equals this forward K L plus that entropy. Adding a constant leaves every student gradient unchanged. We can use either loss to find which student score should move next.",
+        "hold": 0.75
+      }
+    ]
+  },
+  {
+    "id": "c05",
+    "title": "Move logits, then normalize again",
+    "sourceChapters": [
+      "c05"
+    ],
+    "beats": [
+      {
+        "id": "c05-b01",
+        "say": "For a fixed temperature of one, the gradient of soft-target cross-entropy with respect to each student logit is student probability minus teacher probability. The difference tells us which scores should rise and which should fall during gradient descent.",
+        "hold": 0.6
+      },
+      {
+        "id": "c05-b02",
+        "say": "Watch one update, then several more. We change the logits and run softmax again. The learning rate here is point eight. Normalization couples the probabilities, keeps each one positive, and preserves a total of one. Bird becomes the first choice. Keep going. Dog passes cat as the divergence shrinks on this prefix.",
+        "hold": 0.6
+      },
+      {
+        "id": "c05-b03",
+        "say": "Stop at update twelve. The student still gives cat a little more mass than the teacher does. Before the next update, should cat’s score rise or fall?",
+        "hold": 3
+      },
+      {
+        "id": "c05-result",
+        "say": "Lower the score. Student minus teacher is positive for cat. Gradient descent subtracts that gradient times the learning rate. The other three scores take their own steps, and softmax gives us the new probabilities.",
+        "hold": 1
+      }
+    ]
+  },
+  {
+    "id": "c06",
+    "title": "What changes when the temperature rises?",
+    "sourceChapters": [
+      "c06"
+    ],
+    "beats": [
+      {
+        "id": "c06-b01",
+        "say": "Take a teacher that favors the first of two tokens, and a student that favors the second. Both sets of scores stay fixed. With a frozen teacher, the gradient on the divided student score is student probability minus teacher probability. We train the original score.",
+        "hold": 0.3
+      },
+      {
+        "id": "c06-b02",
+        "say": "Dividing that score by temperature introduces one more division in the gradient. Multiply the soft loss by temperature squared, and the gradient becomes temperature times the probability gap.",
+        "hold": 0.9
+      },
+      {
+        "id": "c06-b03",
+        "say": "Watch the first token at temperature one. Now move to four. Its unscaled gradient loses most of its magnitude. At four, scaling multiplies that row’s gradient by sixteen. Compare the same column across temperatures.",
+        "hold": 0.7
+      },
+      {
+        "id": "c06-b04",
+        "say": "Multiplying by T squared gives about minus point seven six two and minus point nine eight zero. Try forty. At T forty the scaled gradient approaches minus one. When temperature is large relative to the score spread, the probability gap itself shrinks roughly as one over temperature.",
+        "hold": 0.3
+      },
+      {
+        "id": "c06-b05",
+        "say": "That supplies the other factor. To get the limit, center each model’s scores by its own mean. Take the centered student score minus the centered teacher score and divide by the vocabulary size. Here that gives minus one. Descent raises the first student score.",
+        "hold": 1
+      },
+      {
+        "id": "c06-b06",
+        "say": "Now suppose the first token is also the trusted answer. Ordinary cross-entropy at temperature one uses student probability minus the one-hot label. The other token gets a positive gradient even though its target is zero.",
+        "hold": 0.3
+      },
+      {
+        "id": "c06-b07",
+        "say": "With more than two choices, a hard label leaves the teacher’s ranking among the alternatives unknown. Turn up alpha to give the scaled teacher loss more weight and the trusted-label loss less. If the teacher is wrong, more weight gives that mistake more influence.",
+        "hold": 0.3
+      },
+      {
+        "id": "c06-b08",
+        "say": "Tune the mix on trusted development cases. Train the student and any chosen alignment weights with the teacher frozen in evaluation mode and its targets detached.",
+        "hold": 1
+      }
+    ]
+  },
+  {
+    "id": "c07",
+    "title": "Where does this target belong?",
+    "sourceChapters": [
+      "c07"
+    ],
+    "beats": [
+      {
+        "id": "c07-b01",
+        "say": "What if the two models have the same vocabulary size, but use different IDs? On this prefix the teacher assigns eight tenths to bird in column zero. In the student, column zero means dog. Follow bird to its student column.",
+        "hold": 0.3
+      },
+      {
+        "id": "c07-b02",
+        "say": "Move the probability with the word, then freeze the teacher and train the student. Check every ID, including special tokens, chat formatting and the actual input sequence. Different token splits can break position alignment too.",
+        "hold": 1.1
+      },
+      {
+        "id": "c07-b03",
+        "say": "Now the models share token meanings. Find the prompt slot in this five-token input. Its next token is the first answer. For the hard label, go one slot to the right. For the soft target, stay at the prompt and compare both models there.",
+        "hold": 0.3
+      },
+      {
+        "id": "c07-b04",
+        "say": "Do the same one slot later for the second answer. Those two predictions count in this response-only loss. Keep prompt and padding targets out. A full-sequence recipe can choose a different set. PyTorch cross-entropy can ignore a class ID. For K L, select valid positions explicitly.",
+        "hold": 0.3
+      },
+      {
+        "id": "c07-b05",
+        "say": "The attention mask still has its own job controlling access to padding.",
+        "hold": 1.05
+      },
+      {
+        "id": "c07-b06",
+        "say": "Count the valid targets before averaging. Flatten to valid tokens by vocabulary, so batchmean divides by the token count. On batch by sequence by vocabulary, it divides by the batch size. Here one microbatch contributes one token at point two. Another contributes three at point eight.",
+        "hold": 0.3
+      },
+      {
+        "id": "c07-b07",
+        "say": "Sum the four losses and divide by four. The global token mean is point six five. Averaging the two microbatch means gives point five. That gives the single token too much weight.",
+        "hold": 0.3
+      },
+      {
+        "id": "c07-b08",
+        "say": "With accumulation or distributed training, use the global token count and account for how gradients are averaged.",
+        "hold": 0.9
+      },
+      {
+        "id": "c07-b09",
+        "say": "If every target is masked, there is nothing to average. Skip the optimizer step. Adam W can still apply weight decay to a parameter whose gradient tensor is zero. It skips a parameter with a missing gradient.",
+        "hold": 0.8
+      }
+    ]
+  },
+  {
+    "id": "c08",
+    "title": "Which projection rows need to move?",
+    "sourceChapters": [
+      "c08"
+    ],
+    "beats": [
+      {
+        "id": "c08-b01",
+        "say": "Take one aligned token position in the two models. The student layer has two features and the teacher layer has three. Their layer numbers can differ. Hold the student features at one and two. Each row of this matrix takes a weighted sum of those two numbers.",
+        "hold": 0.3
+      },
+      {
+        "id": "c08-b02",
+        "say": "The middle row takes just the second feature, so its output reaches two. Its teacher tick is at three. The bottom row overshoots its own tick by one. Which row can stay exactly as it is, and what do the three squared gaps cost together?",
+        "hold": 2.5
+      },
+      {
+        "id": "c08-b03",
+        "say": "The top row already hits its tick. The other two each contribute one, for a total of two. Freeze the student state and teacher targets. The gradient for each row is twice its signed gap times the held input.",
+        "hold": 0.3
+      },
+      {
+        "id": "c08-b04",
+        "say": "The middle row’s gradient is minus two, minus four. The bottom row’s gradient is plus two, plus four. A learning rate of point one changes the last two rows to point two, one point four and point eight, point six. Multiply those rows by the same held features again.",
+        "hold": 0.3
+      },
+      {
+        "id": "c08-b05",
+        "say": "The new output is one, three, two.",
+        "hold": 0.8
+      },
+      {
+        "id": "c08-b06",
+        "say": "Both dots are on their ticks now. The middle output has reached three and the bottom output has reached two. All three gaps are closed on this token. During training you can learn the projection alongside the student.",
+        "hold": 0.3
+      },
+      {
+        "id": "c08-b07",
+        "say": "Keep the teacher detached, compare corresponding positions, and mask padding. Averaging the squared gaps over features, tokens, or layers changes the scale of the loss.",
+        "hold": 1
+      },
+      {
+        "id": "c08-b08",
+        "say": "Keep those learned rows. At another token the student features are two and one. Read the middle row again. Where will its dot land this time? Will it reach the teacher tick at three?",
+        "hold": 2.15
+      },
+      {
+        "id": "c08-b09",
+        "say": "One point eight. Two tenths times two gives four tenths. Add one point four. The student falls short of the teacher by one point two on that coordinate alone. Before paying to collect hidden states, compare feature matching with output matching on fresh tasks.",
+        "hold": 0.3
+      },
+      {
+        "id": "c08-b10",
+        "say": "A teacher can even supply improved targets from the same architecture. That’s called self-distillation.",
+        "hold": 1
+      }
+    ]
+  },
+  {
+    "id": "c09",
+    "title": "What can the student learn from a saved sentence?",
+    "sourceChapters": [
+      "c09"
+    ],
+    "beats": [
+      {
+        "id": "c09-b01",
+        "say": "Suppose the teacher gives us text only. After “The child saw a,” we saved “bird in the garden.” A reviewer accepts the continuation. The student can tokenize that text itself. For this simple tokenizer, each word in the answer is one token.",
+        "hold": 0.8
+      },
+      {
+        "id": "c09-b02",
+        "say": "Start at the prompt. The first target is bird. Advance one word. With bird in the context, the next target is in. Then use the prefix ending in “in” to predict “the.” With “the” appended, predict “garden.” Each selected word supplies one hard target. There is no record here of how likely dog was. Supervised fine-tuning on these teacher answers is response distillation.",
+        "hold": 0.85
+      },
+      {
+        "id": "c09-b03",
+        "say": "Several checked responses can give the student other paths to practice. Check each one before accepting it. A wrong answer becomes just as much a training target as a right one. And when the student starts writing for itself, it may take a path that none of those examples followed.",
+        "hold": 0.8
+      }
+    ]
+  },
+  {
+    "id": "c10",
+    "title": "The path the student visits can drift",
+    "sourceChapters": [
+      "c10"
+    ],
+    "beats": [
+      {
+        "id": "c10-b01",
+        "say": "A language model chooses one token, extends the prefix, and predicts again. During training on reference responses, the student receives those reference prefixes. At generation time it receives its own earlier choices, which can lead to contexts absent from the training examples.",
+        "hold": 0.6
+      },
+      {
+        "id": "c10-b02",
+        "say": "Here the student picks dog. Its path continues with “near the gate.” Stop after dog and ask the teacher about that prefix. After bird, the teacher favored “in.” After dog, it favors “near.” Querying the teacher where the student actually goes is the central idea of on-policy distillation.",
+        "hold": 0.6
+      },
+      {
+        "id": "c10-b03",
+        "say": "The training-prefix distribution and divergence direction are independent choices. Forward KL and reverse KL penalize mismatches differently, especially with several plausible continuations. State both choices, along with the sampling and data-collection procedure, when comparing distillation recipes.",
+        "hold": 0.8
+      }
+    ]
+  },
+  {
+    "id": "c11",
+    "title": "Which student fits a two-peaked teacher?",
+    "sourceChapters": [
+      "c11"
+    ],
+    "beats": [
+      {
+        "id": "c11-b01",
+        "say": "Imagine a teacher that gives A and B half the probability each. The student puts everything on A. In forward K L the teacher weights B, but the student gives B zero probability. That term diverges. Turn the comparison around.",
+        "hold": 0.3
+      },
+      {
+        "id": "c11-b02",
+        "say": "The student gives B zero weight, so only A contributes. One times the natural log of one over a half gives log two. In general a fixed positive numerator mass gets arbitrarily expensive as its denominator approaches zero.",
+        "hold": 0.9
+      },
+      {
+        "id": "c11-b03",
+        "say": "Now the teacher has two peaks with a low-probability gap between them. Suppose the student can choose only one of the three shapes shown. The side candidates each put almost everything on one peak.",
+        "hold": 0.3
+      },
+      {
+        "id": "c11-b04",
+        "say": "The center candidate covers both peaks, but spills half its mass into the gap. For each K L direction, which shape would you pick?",
+        "hold": 2.4
+      },
+      {
+        "id": "c11-b05",
+        "say": "Forward K L weights both teacher peaks heavily. It selects the center. Reverse K L weights the student’s choices. The center pays dearly for putting half its mass in the gap. Either side wins. Those scores belong to this restricted family.",
+        "hold": 0.3
+      },
+      {
+        "id": "c11-b06",
+        "say": "If the student could copy the teacher exactly, both losses would reach zero there. Whether any generated answer is correct still requires its own check.",
+        "hold": 0.95
+      }
+    ]
+  },
+  {
+    "id": "c12",
+    "title": "Whose paths reach the second token?",
+    "sourceChapters": [
+      "c12"
+    ],
+    "beats": [
+      {
+        "id": "c12-b01",
+        "say": "Imagine both models write exactly two tokens. Each can be A or B. Each strip is one hundred percent of that model’s probability. Split it at the first token. Four fifths of the teacher strip starts with A. The student splits evenly.",
+        "hold": 0.9
+      },
+      {
+        "id": "c12-b02",
+        "say": "Split the A branch again. The teacher sends nine tenths of that branch to another A. Nine tenths of eighty percent gives seventy-two percent of the whole strip for A A. Do the same under B. The four pieces now give the probabilities of complete paths.",
+        "hold": 0.3
+      },
+      {
+        "id": "c12-b03",
+        "say": "Look at the paths that start with B in each strip. In forward sequence K L, which model supplies the weight for the mismatch after B? What is that weight, and why use that model?",
+        "hold": 3.2
+      },
+      {
+        "id": "c12-b04",
+        "say": "The teacher. Forward K L averages over paths drawn from the teacher. Four percent start with B and end with A. Sixteen percent start with B and end with B. Together they make twenty percent. That puts a weight of point two on the conditional K L after B. At the root, every path counts. After A, the weight is point eight. Add those three terms. The total is about point five one nats, the same as comparing the four complete paths directly.",
+        "hold": 1
+      },
+      {
+        "id": "c12-b05",
+        "say": "Now put the student on the left. Reverse every comparison, and look at how often the student reaches each prefix. Both weights are one half. The reverse total is about point five three nats.",
+        "hold": 1.6
+      },
+      {
+        "id": "c12-b06",
+        "say": "Keep the forward comparisons, but give the two prefixes equal weight. That gives a third answer, about point four two nats. The source of the prefix weights matters. These sequence totals sum over two positions. A mean per position would divide by two.",
+        "hold": 1
+      },
+      {
+        "id": "c12-b07",
+        "say": "For on-policy distillation, ask the teacher to score the prefix the student actually visited. G K D can mix those samples with fixed outputs and treats each sampled sequence as fixed data during its update. The collection fraction and the choice of divergence are separate.",
+        "hold": 0.3
+      },
+      {
+        "id": "c12-b08",
+        "say": "Mini L L M optimizes reverse K L over sequences with policy gradients. Its teacher-to-student log probability ratio gives credit for later tokens. It also mixes in teacher sampling and normalizes for length. In its ablations, divergence could fall while the model repeated itself.",
+        "hold": 0.3
+      },
+      {
+        "id": "c12-b09",
+        "say": "Read the generations when you compare recipes.",
+        "hold": 1
+      }
+    ]
+  },
+  {
+    "id": "c13",
+    "title": "What did the teacher’s cache keep?",
+    "sourceChapters": [
+      "c13"
+    ],
+    "beats": [
+      {
+        "id": "c13-b01",
+        "say": "A text-only teacher can write answers offline. The student tokenizes the checked text itself, so the two tokenizers can differ. A written explanation gives it more tokens to learn from. To recover probabilities at another temperature, we need the complete normalized log probabilities or the logits.",
+        "hold": 0.3
+      },
+      {
+        "id": "c13-b02",
+        "say": "Suppose a cache stores just the teacher’s two favorite IDs and their probabilities. For comparison we read the student at those same IDs.",
+        "hold": 0.7
+      },
+      {
+        "id": "c13-b03",
+        "say": "Here are the full probabilities for three tokens. Keep A and B in both strips. Together they hold ninety percent of the teacher’s mass and just ten percent of the student’s. Inside each bracket, A and B divide their share equally.",
+        "hold": 0.3
+      },
+      {
+        "id": "c13-b04",
+        "say": "If you stretch each bracket to a whole distribution, what discrepancy will the loss see?",
+        "hold": 2.3
+      },
+      {
+        "id": "c13-b05",
+        "say": "Stretch the retained pair until it fills each strip. Now both read half A, half B. Their conditional K L is zero. From just these two normalized strips, can you recover how much mass each model put on C?",
+        "hold": 2.6
+      },
+      {
+        "id": "c13-b06",
+        "say": "You need the original coverage. Restore the full strips. The student put nine tenths of its mass on C, where the teacher put one tenth. Full forward K L is about one point seven six nats. Keep track of what your cache omits when you interpret its loss.",
+        "hold": 0.7
+      },
+      {
+        "id": "c13-b07",
+        "say": "At ten thousand positions, fifty thousand vocabulary values per position, and two bytes per value, the dense payload alone is one decimal gigabyte. Online scoring can avoid that cache. Computing a full-vocabulary loss in chunks reduces peak memory. The teacher still has to score the tokens.",
+        "hold": 0.8
+      },
+      {
+        "id": "c13-b08",
+        "say": "In the October twenty twenty-six T R L guide, Distillation Trainer samples student completions and computes a chunked full-vocabulary generalized Jensen-Shannon loss. In its agent recipe, the tool reply provides context. Only the assistant replies in this example supply targets.",
+        "hold": 0.3
+      },
+      {
+        "id": "c13-b09",
+        "say": "The trainer reads the output-head weights directly, so it rejects head adapters and prompt-learning methods it would bypass. To train that head, the guide lists it under modules to save. Pin the version and check which parameters receive gradients.",
+        "hold": 0.7
+      },
+      {
+        "id": "c13-b10",
+        "say": "The experimental G K D guide gives collection fraction and divergence separate controls. The article also has a small CPU exercise. Its random networks process one position at a time. A falling loss there checks the training step. Transfer to a language task takes a separate evaluation.",
+        "hold": 0.8
+      }
+    ]
+  },
+  {
+    "id": "c14",
+    "title": "Which replies enter the training set?",
+    "sourceChapters": [
+      "c14"
+    ],
+    "beats": [
+      {
+        "id": "c14-b01",
+        "say": "Let’s assemble training targets for the policy assistant. Our stand-in teacher always returns seven days. First comes a disabled production key. Its trusted rule allows seven days. A second prompt differs only in spacing and case. The third is an expired admin key.",
+        "hold": 0.3
+      },
+      {
+        "id": "c14-b02",
+        "say": "Which replies would you train on? One case repeats the first prompt with extra spaces and different capitalization. The other asks about a different kind of key. Use the trusted rule for each one.",
+        "hold": 3
+      },
+      {
+        "id": "c14-decide",
+        "say": "Keep the first reply. Skip the duplicate before generation. Reject the admin reply because its own trusted rule requires “not allowed.”",
+        "hold": 1
+      },
+      {
+        "id": "c14-b03",
+        "say": "One of the two generated replies becomes a training target. For these fixture strings we can lowercase and collapse spaces to find the duplicate. In code or a case-sensitive identifier, that could change the meaning.",
+        "hold": 0.95
+      },
+      {
+        "id": "c14-b04",
+        "say": "Start from reviewed seed prompts. Split whole seed families before expanding them. This seed and its two paraphrases belong together. Generate varied requests within the training split, have the teacher answer, then filter its answers.",
+        "hold": 0.3
+      },
+      {
+        "id": "c14-b05",
+        "say": "A rewritten sibling in the test split would make the student look better on familiar material. Keep final test labels outside generation, filtering, and tuning. Use separate cases for refusals, new constraints, long contexts, and policy boundaries.",
+        "hold": 0.8
+      },
+      {
+        "id": "c14-b06",
+        "say": "Before collecting a corpus, check the teacher-access terms, the base-model license, and the permitted uses of generated data. Check the verifier as well. Inspect answers it accepted that a trusted reviewer would reject.",
+        "hold": 0.3
+      },
+      {
+        "id": "c14-b07",
+        "say": "Filtering can help a student outperform its teacher on a narrow task, while other skills regress. Evaluate each model on its own outputs.",
+        "hold": 0.8
+      }
+    ]
+  },
+  {
+    "id": "c15",
+    "title": "What did the smaller model learn from?",
+    "sourceChapters": [
+      "c15"
+    ],
+    "beats": [
+      {
+        "id": "c15-b01",
+        "say": "Hold the student size and training budget fixed. In this Gemma two experiment, a two-billion-parameter student trains for five hundred billion tokens. In one run it learns from scratch. In the other, a seven-billion-parameter teacher supplies token probabilities. Compare the scores on the same three benchmarks.",
+        "hold": 0.3
+      },
+      {
+        "id": "c15-b02",
+        "say": "Their mean rises from sixty point three to sixty-seven point seven. Those sizes describe this controlled comparison. The released models used a different teacher setup.",
+        "hold": 1
+      },
+      {
+        "id": "c15-b03",
+        "say": "In the January twenty twenty-five DeepSeek R one report, the smaller Qwen and Llama models train on selected responses. About six hundred thousand reasoning examples and two hundred thousand general examples make up the training set. Read the two results for the thirty-two-billion-parameter Qwen student.",
+        "hold": 0.3
+      },
+      {
+        "id": "c15-b04",
+        "say": "On AIME twenty twenty-four, the thirty-two-billion-parameter Qwen student scored seventy-two point six percent pass at one. On MATH five hundred it scored ninety-four point three percent. Pass at one estimates success on one sampled answer. A majority vote over sixty-four answers measures something else. Read the temperature, top p, and generation limit with those scores.",
+        "hold": 1
+      },
+      {
+        "id": "c15-b05",
+        "say": "Orca learns from written explanations. Phi one point five pretrains on a mixture that includes synthetic textbook-like material. Gemma two uses teacher probabilities. Even within GKD, the preferred loss can change with the task. Generalized Jensen-Shannon choices worked well in its smaller-student translation experiments.",
+        "hold": 0.3
+      },
+      {
+        "id": "c15-b06",
+        "say": "Its main on-policy arithmetic comparison used forward KL. When you borrow a result, take its training signal, model family, decoding settings, and evaluation budget with it.",
+        "hold": 1
+      }
+    ]
+  },
+  {
+    "id": "c16",
+    "title": "How far does one fitted prefix take us?",
+    "sourceChapters": [
+      "c16"
+    ],
+    "beats": [
+      {
+        "id": "c16-b01",
+        "say": "Return to “The child saw a.” We can replay the four-word example for forty updates. Keep an eye on cat. The student started out making it the favorite. Its share now moves toward the teacher’s on this prefix.",
+        "hold": 0.7
+      },
+      {
+        "id": "c16-b02",
+        "say": "The small K L below belongs to that one prefix. If you want to teach relative probabilities, check alignment. If the teacher supplies only text, verify the chosen answer. If the student goes somewhere new, get the teacher’s distribution there. Each decision changes the evidence available to the student.",
+        "hold": 0.7
+      },
+      {
+        "id": "c16-b03",
+        "say": "Choose the behavior you need on the device. Compare the model you started with, a student trained on trusted answers, your distilled student, and the teacher. A smaller checkpoint earns its place when the behavior and the cost measured on fresh requests meet the deployment requirements.",
+        "hold": 0.65
+      }
+    ]
+  },
+  {
+    "id": "c17",
+    "title": "Where does the student lose ground?",
+    "sourceChapters": [
+      "c17"
+    ],
+    "beats": [
+      {
+        "id": "c17-b01",
+        "say": "Give the distilled student and the teacher held-out requests from three slices. These are assigned accuracy rates. On familiar kinds of prefixes, the student finishes just one percentage point behind the teacher. Now change the wording. The gap grows to twenty points. Try a new subject. Which slice has the largest accuracy gap?",
+        "hold": 2.1
+      },
+      {
+        "id": "c17-b02",
+        "say": "The new subject has the widest gap, thirty-three percentage points. Pull development examples from that slice. Compare the starting checkpoint and a student trained on trusted answers with the same budget. Check the teacher targets and the student’s context window. These rates tell us where to look. A matched comparison can help tell us why.",
+        "hold": 0.8
+      },
+      {
+        "id": "c17-b03",
+        "say": "Set the mixture of hard labels and teacher targets on development data. Keep a separate final evaluation and match the decoding budgets. Report response lengths, sample counts, and uncertainty.",
+        "hold": 0.3
+      },
+      {
+        "id": "c17-b04",
+        "say": "Count the cost of generating or scoring teacher data, training the student, storing a cache, or fitting a projection. Then measure serving cost and latency on the device you intend to use. Even two models of the same size can take different amounts of time to answer.",
+        "hold": 0.8
+      }
+    ]
+  },
+  {
+    "id": "c18",
+    "title": "Which student can serve these requests?",
+    "sourceChapters": [
+      "c18",
+      "c01"
+    ],
+    "beats": [
+      {
+        "id": "c18-b01",
+        "say": "One more prefix. After “The child saw a bird,” the student writes “beside.” Stop there. We can ask the teacher for one next-word prediction. Which prefix should we send?",
+        "hold": 2.8
+      },
+      {
+        "id": "c18-b02",
+        "say": "Send the whole prefix ending in beside. The student has three possible next tokens, gate, garden and tree. All its scores start at zero, so each gets a third. Ask the teacher now. It gives gate one fifth, garden one half, and tree three tenths. At temperature one and a learning rate of six tenths, which score should rise most?",
+        "hold": 2.7
+      },
+      {
+        "id": "c18-b03",
+        "say": "Garden has the largest shortfall. After one update the new logits are minus point zero eight, point one zero and minus point zero two. Hold the old probabilities while you compare the scores. Now normalize all three. Softmax gives about point three zero seven, point three six seven and point three two six.",
+        "hold": 1
+      },
+      {
+        "id": "c18-b04",
+        "say": "Why did garden gain the most? The teacher gave it half the mass and the student started at a third. Six tenths of that gap added one tenth to its score. The other two scores fell. After normalization, garden gets about thirty-seven percent. That was one update on one visited prefix.",
+        "hold": 0.85
+      },
+      {
+        "id": "c18-key-predict",
+        "say": "Return to the expired admin key. The teacher gives “seven days” a ninety percent chance. The student gives it the same chance. Both give the remaining tenth to “not allowed.” If we train only by matching the teacher, should the seven-day score rise, fall, or stay put?",
+        "hold": 2.8
+      },
+      {
+        "id": "c18-key-rule",
+        "say": "It stays put. Every probability matches, so the teacher supplies no correction. Check the trusted rule. Restoration is forbidden. Both models favor the wrong answer. To decide whether to release a student, we need fresh requests with answers checked against the policy.",
+        "hold": 1
+      },
+      {
+        "id": "c18-b05",
+        "say": "Alder and Birch are two candidate students. These exercise reports give them the same checked accuracy, latency, and monthly serving cost. Compare each reading with its limit. The dots below stand for a separate set of one hundred held-out policy cases per student.",
+        "hold": 0.65
+      },
+      {
+        "id": "c18-b06",
+        "say": "Both candidates clear checked accuracy, latency, and monthly cost. One separate rule allows at most one policy error in a hundred held-out policy cases. Here are the errors for each student. Which candidate clears all four requirements?",
+        "hold": 2.8
+      },
+      {
+        "id": "c18-b07",
+        "say": "Only Birch. Its one error is right on the allowed boundary. Alder made three errors where the same limit allows one. Hold Alder. To investigate, compare the original student and the trusted training targets on a separate development set of policy exceptions.",
+        "hold": 0.3
+      },
+      {
+        "id": "c18-b08",
+        "say": "That helps distinguish a copied answer from an error the student already made. Keep the final holdout for the next release decision.",
+        "hold": 1.25
+      },
+      {
+        "id": "c18-b09",
+        "say": "Matching the teacher on the expired key gave us zero divergence. The trusted rule still caught an error. Here, the independent policy cases separate the two students. The next lesson uses labeled incidents to check the scores of a model built for a bounded decision.",
+        "hold": 1.1
+      }
+    ]
+  }
+]

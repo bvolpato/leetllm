@@ -1,0 +1,1484 @@
+version: 1
+id: gpu-kernel-performance-engineering-lab
+title: Which CUDA Transpose Would You Keep?
+source: fundamentals/gpu-kernel-performance-engineering-lab/content.md
+opening: lesson
+voice: en-US-AndrewNeural
+rate: +0%
+sources:
+  - title: NVIDIA efficient matrix transpose
+    url: https://developer.nvidia.com/blog/efficient-matrix-transpose-cuda-cc/
+  - title: NVIDIA CUDA best practices
+    url: https://docs.nvidia.com/cuda/cuda-c-best-practices-guide/
+  - title: NVIDIA Compute Sanitizer
+    url: https://docs.nvidia.com/compute-sanitizer/ComputeSanitizer/index.html
+  - title: NVIDIA CUDA compiler driver
+    url: https://docs.nvidia.com/cuda/cuda-compiler-driver-nvcc/
+  - title: Nsight Compute profiling guide
+    url: https://docs.nvidia.com/nsight-compute/ProfilingGuide/index.html
+  - title: Nsight Compute CLI
+    url: https://docs.nvidia.com/nsight-compute/NsightComputeCli/index.html
+  - title: NVIDIA performance-counter permission error
+    url: https://developer.nvidia.com/ERR_NVGPUCTRPERM
+scenes:
+  - id: intro
+    title: "Who wrote the six?"
+    visual: >-
+      Open on the final write of a four-by-four transpose. Follow the six from input row one into
+      the empty square. Replay the kernel on the same output and light each of its fifteen new
+      writes.
+    beats:
+      - say: >-
+          Watch the six land. Row one, column two becomes row two, column one. That last write
+          completes the transpose.
+        hold: 0.65
+        caption_starts:
+          - "Row one, column two"
+        visual_cues:
+          - id: copy-six
+            phrase: "Watch the six land"
+            targets: [copy-input, copy-transfer, copy-output]
+            linger: 0.15
+      - say: >-
+          Run it again with the same output buffer. The GPU rewrites fifteen squares and skips the
+          six. How many bit mismatches will the checker find?
+        hold: 2.25
+        caption_starts:
+          - "How many bit mismatches"
+        motion_check:
+          region: [1152, 348, 544, 408]
+          minimumChangedFraction: 0.002
+        visual_cues:
+          - id: skip-store
+            phrase: "The GPU rewrites fifteen squares"
+            targets: [copy-output]
+            linger: 0.15
+      - say: >-
+          Zero mismatches. That six survived from the previous launch. What could we put there before the
+          next run to make the missed store show up?
+        hold: 1.7
+        caption_starts:
+          - "What could we put there"
+        visual_cues:
+          - id: stale-match
+            phrase: "Zero mismatches"
+            targets: [copy-status]
+            caption_boundary: true
+            linger: 0.15
+          - id: stale-retest
+            phrase: "What could we put there"
+            targets: [copy-status]
+            linger: 0.15
+  - id: bit-contract
+    title: "Checking all 32 bits"
+    visual: >-
+      Replay the same omitted store with the entire output poisoned. Repair it and run again. Compare
+      the sign bits of two zeros to explain the exact-copy check.
+    beats:
+      - say: >-
+          Fill every output byte with hexadecimal F F. Now every square holds a NaN. Run those same
+          fifteen stores again. Look at the destination of the six. What will the checker find there?
+        hold: 1.7
+        visual_cues:
+          - id: fresh-poison
+            phrase: "Fill every output byte with hexadecimal F F"
+            targets: [copy-output]
+            linger: 0.15
+          - id: repeat-stores
+            phrase: "Run those same fifteen stores again"
+            targets: [copy-output]
+            linger: 0.15
+      - say: >-
+          The poison is still there. One word differs from the reference. A transpose swaps row and
+          column between two separate arrays. To find a word in row-major order, multiply its row by
+          the width and add its column. Here the value six goes from input word six to output word nine.
+          Every bit has to survive that trip.
+        hold: 0.6
+        visual_cues:
+          - id: poison-verdict
+            phrase: "One word differs from the reference"
+            targets: [copy-status]
+            caption_boundary: true
+            linger: 0.15
+          - id: copy-index
+            phrase: "multiply its row by the width and add its column"
+            targets: [copy-input, copy-output]
+            linger: 0.15
+      - say: >-
+          Restore the skipped store and start from fresh poison. Write the fifteen other squares, then
+          write the six. This time all sixteen words match. A checksum could miss two swapped values.
+          Comparing each destination with its own source catches that mistake.
+        hold: 0.65
+        visual_cues:
+          - id: repair-reset
+            phrase: "start from fresh poison"
+            targets: [copy-output]
+            linger: 0.15
+          - id: repaired-stores
+            phrase: "Write the fifteen other squares, then write the six"
+            targets: [copy-output]
+            linger: 0.15
+          - id: repair-verdict
+            phrase: "all sixteen words match"
+            targets: [copy-status]
+            caption_boundary: true
+            linger: 0.15
+      - say: >-
+          An absolute error can hide a change too. Positive zero and negative zero are the same distance
+          from zero. Their sign bits differ. The mismatch count rejects that copy even though its absolute
+          error is zero. The GPU harness uses distinct finite integers, up to the largest value on screen.
+          They all fit exactly in a float at the largest shape, four thousand ninety-six on a side.
+          Testing other bit patterns, such as NaN payloads, takes other inputs.
+        hold: 0.7
+        visual_cues:
+          - id: zero-bits
+            phrase: "Their sign bits differ"
+            targets: [zero-words]
+            caption_boundary: true
+            linger: 0.15
+  - id: target-build
+    title: Bind every result to the actual target
+    visual: Construct a run identity from source/header hashes, target and tool versions. Attach actual
+      compiler resource cells to the instantiated kernels, then mark the concrete exercised shapes.
+    beats:
+      - say: >-
+          Build the CUDA source alongside its host checker. With pipefail enabled, a failed compile
+          still fails the pipeline that writes the log. Save the source hashes with that log. Here the
+          compiler built native code for an RTX fifty-seventy Ti. The driver and Toolkit versions are on
+          the right. The build uses optimized C plus plus seventeen, line information for the profiler,
+          and a verbose compiler resource report.
+        hold: 0.65
+        visual_cues:
+          - id: gpu-target-build-source
+            phrase: Save the source hashes
+            targets:
+              - gpu-target-build-source
+            color: cyan
+            linger: 0.45
+          - id: gpu-target-build-target
+            phrase: RTX fifty-seventy Ti
+            targets:
+              - gpu-target-build-target
+            color: cyan
+            linger: 0.45
+      - say: >-
+          Read across the tiled and padded rows. The compiler used twenty registers for naive and thirty
+          for tiled and padded, with zero spill loads or stores for all three. Their static shared
+          allocations show what the extra column costs. The two tiled builds each report one barrier.
+          The deliberately broken build uses thirty-two registers and has no barrier. These are
+          allocations per kernel. To find how many warps were resident during a launch, use a profile.
+        hold: 0.65
+        visual_cues:
+          - id: gpu-target-build-registers
+            phrase: twenty registers for naive
+            targets:
+              - gpu-target-build-registers
+            color: cyan
+            linger: 0.45
+          - id: gpu-target-build-shared
+            phrase: Their static shared allocations
+            targets:
+              - gpu-target-build-shared
+            color: cyan
+            linger: 0.45
+          - id: gpu-target-build-barriers
+            phrase: each report one barrier
+            targets:
+              - gpu-target-build-barriers
+            color: green
+            linger: 0.45
+          - id: gpu-target-build-registers30
+            phrase: thirty for tiled and padded
+            targets:
+              - gpu-target-build-registers30
+            color: cyan
+            linger: 0.45
+          - id: gpu-target-build-registers32
+            phrase: broken build uses thirty-two registers
+            targets:
+              - gpu-target-build-registers32
+            color: cyan
+            linger: 0.45
+      - say: >-
+          Start with the boundary shapes on screen. Thirty-one stops just short of a full tile.
+          Thirty-two fills it, and thirty-three adds an edge. The four normal kernels returned zero bit
+          mismatches on every listed shape, including the large timed shape. Copy moves just as many
+          bytes but keeps each value at its original index. A CPU coordinate exercise can check which
+          thread writes each value. Actual GPU runs supply the timing.
+        hold: 0.65
+        visual_cues:
+          - id: gpu-target-build-shapes
+            phrase: "Thirty-one stops just short of a full tile"
+            targets:
+              - gpu-target-build-shapes
+            color: cyan
+            linger: 0.45
+          - id: gpu-target-build-checked
+            phrase: zero bit mismatches
+            targets:
+              - gpu-target-build-checked
+            color: cyan
+            linger: 0.45
+          - id: gpu-target-build-cpu
+            phrase: "CPU coordinate exercise"
+            targets:
+              - gpu-target-build-cpu
+            color: cyan
+            linger: 0.45
+  - id: timing-window
+    title: "Which launches are on the clock?"
+    visual: >-
+      Show the two fresh-poison checks on either side of five warmups and the timed batch. Bracket
+      the hundred timed launches with CUDA events, then alternate the order of the three kernels
+      across five rounds.
+    beats:
+      - say: >-
+          First, check one transpose on freshly poisoned output. Run five warmup launches. Start the
+          CUDA timer, run one hundred launches, then record the stop event and wait for it. Check
+          another transpose on fresh poison. Only those two launches get a bit check. If either
+          fails, the harness leaves the timing blank and exits with code two.
+        hold: 0.65
+        visual_cues:
+          - id: gpu-timing-window-check
+            phrase: "check one transpose on freshly poisoned output"
+            targets:
+              - gpu-timing-window-check
+            color: cyan
+            linger: 0.45
+          - id: gpu-timing-window-warm
+            phrase: five warmup launches
+            targets:
+              - gpu-timing-window-warm
+            color: cyan
+            linger: 0.45
+          - id: gpu-timing-window-batch
+            phrase: "run one hundred launches"
+            targets:
+              - gpu-timing-window-batch
+            color: cyan
+            linger: 0.45
+          - id: gpu-timing-window-post
+            phrase: "Check another transpose on fresh poison"
+            targets:
+              - gpu-timing-window-post
+            color: cyan
+            linger: 0.45
+          - id: gpu-timing-window-unchecked
+            phrase: "Only those two launches get a bit check"
+            targets:
+              - gpu-timing-window-unchecked
+            color: cyan
+            linger: 0.45
+      - say: >-
+          Divide the event interval by one hundred for the average time per launch. Allocation,
+          transfers and validation fall outside the timer. Gaps between launches fall inside and can
+          dominate for a tiny matrix. For a per-call percentile, time individual launches. These
+          runs reuse warm buffers. To study cold streaming, rotate through a working set larger than
+          the cache.
+        hold: 0.65
+        visual_cues:
+          - id: gpu-timing-window-mean
+            phrase: "Divide the event interval by one hundred"
+            targets:
+              - gpu-timing-window-mean
+            color: cyan
+            linger: 0.45
+          - id: gpu-timing-window-outside
+            phrase: Allocation, transfers and validation
+            targets:
+              - gpu-timing-window-outside
+            color: cyan
+            linger: 0.45
+          - id: gpu-timing-window-gaps
+            phrase: "Gaps between launches"
+            targets:
+              - gpu-timing-window-gaps
+            color: cyan
+            linger: 0.45
+          - id: gpu-timing-window-tail
+            phrase: "time individual launches"
+            targets:
+              - gpu-timing-window-tail
+            color: cyan
+            linger: 0.45
+      - say: >-
+          Start a separate unprofiled process for each timing run. Alternate candidate order across
+          rounds so a different kernel goes first. Save every row to see how much the times vary.
+          Keep the shape, precision, block, launch count and output check fixed. Record clocks,
+          temperature and competing work. On this GPU the clocks could change, and browser and
+          remote-desktop processes shared the device.
+        hold: 0.65
+        visual_cues:
+          - id: gpu-timing-window-rounds
+            phrase: alternate candidate order
+            targets:
+              - gpu-timing-window-rounds
+            color: cyan
+            linger: 0.45
+          - id: gpu-timing-window-allrows
+            phrase: Save every row
+            targets:
+              - gpu-timing-window-allrows
+            color: cyan
+            linger: 0.45
+          - id: gpu-timing-window-environment
+            phrase: browser and remote-desktop processes
+            targets:
+              - gpu-timing-window-environment
+            color: cyan
+            linger: 0.45
+  - id: sectors
+    title: A warp can carry the same payload across more sectors
+    visual: Thirty-two lane addresses generate either four adjacent or thirty-two scattered 32-byte
+      sectors. A computed payload fraction changes with the mapping.
+    beats:
+      - say: GPU memory combines neighboring lane accesses into regions. For this scalar float model, a full
+          aligned warp reads adjacent words across four thirty-two-byte sectors. The naive transpose
+          reads that way, then writes with a whole matrix row between neighboring lanes. Its output
+          payload becomes scattered.
+        hold: 0.65
+        visual_cues:
+          - id: sectors-beat-1-focus-1
+            phrase: For this scalar float model, a full aligned warp reads adjacent words across four
+              thirty-two-byte sectors
+            targets:
+              - sectors-array-from-length-4-r-array-from-length-8-c-s-sectors-r-8-c
+            color: cyan
+            linger: 0.65
+          - id: sectors-beat-1-focus-2
+            phrase: a full aligned warp reads adjacent words across four thirty-two-byte sectors
+            targets:
+              - sectors-array-from-length-4-r-array-from-length-8-c-s-sectors-r-8-c
+            color: yellow
+            linger: 0.65
+          - id: sectors-naive-store
+            phrase: then writes with a whole matrix row between neighboring lanes
+            targets:
+              - sectors-s-addresses-slice-0-16-map-i-string-i-s-addresses-slice-16-map-i-str
+              - sectors-array-from-length-4-r-array-from-length-8-c-s-sectors-r-8-c
+            color: yellow
+            linger: 0.65
+      - say: Keep the useful payload fixed as we switch to adjacent output addresses. The sector footprint
+          shrinks even though the operation still reads and writes the same values. This predicts a
+          change at the access stage. Cache policy, merging, and write behavior determine the
+          downstream device-memory traffic, so inspect counters before naming the actual bottleneck.
+        hold: 0.65
+        motion_check:
+          region:
+            - 150
+            - 330
+            - 1610
+            - 610
+          minimumChangedFraction: 0.002
+        visual_cues:
+          - id: sectors-beat-2-focus-1
+            phrase: Keep the useful payload fixed as we switch to adjacent output addresses
+            targets:
+              - sectors-s-addresses-slice-0-16-map-i-string-i-s-addresses-slice-16-map-i-str
+            color: cyan
+            linger: 0.65
+          - id: sectors-beat-2-focus-2
+            phrase: The sector footprint shrinks even though the operation still reads and writes the same
+              values
+            targets:
+              - sectors-array-from-length-4-r-array-from-length-8-c-s-sectors-r-8-c
+            color: yellow
+            linger: 0.65
+  - id: edge-sectors
+    title: Which sectors does this warp touch?
+    visual: Place the same 32 lanes on a byte-address ruler. Move the starting word from 0 to 33,
+      show the sector boundaries, then mask 31 lanes for an edge request.
+    beats:
+      - say: Move the warp to a row that begins partway through a sector. On compute capability six
+          and newer, count the thirty-two-byte sectors touched by the active lanes. For
+          row one at N equal to thirty-three, consecutive input words run from thirty-three through
+          sixty-four. Divide the byte addresses by thirty-two and take the integer sector IDs. The
+          first word is in sector four and the last in sector eight.
+        hold: 0.65
+        visual_cues:
+          - id: gpu-edge-sectors-lanes
+            phrase: consecutive input words run from thirty-three through sixty-four
+            targets:
+              - gpu-edge-sectors-lanes
+            color: cyan
+            linger: 0.45
+          - id: gpu-edge-sectors-first
+            phrase: first word is in sector four
+            targets:
+              - gpu-edge-sectors-first
+            color: cyan
+            linger: 0.45
+          - id: gpu-edge-sectors-last
+            phrase: last in sector eight
+            targets:
+              - gpu-edge-sectors-last
+            color: cyan
+            linger: 0.45
+      - say: That is five sectors holding one hundred twenty-eight useful bytes, so the payload fraction is
+          one hundred twenty-eight divided by one hundred sixty, or eighty percent. At a one-lane
+          edge with a four-byte request, one touched sector gives twelve point five percent. Masked
+          lanes make no request. Alignment and active lanes belong in the address calculation before
+          comparing a counter with an ideal full-warp prediction.
+        hold: 0.65
+        visual_cues:
+          - id: gpu-edge-sectors-five
+            phrase: five sectors holding one hundred twenty-eight useful bytes
+            targets:
+              - gpu-edge-sectors-five
+            color: cyan
+            linger: 0.45
+          - id: gpu-edge-sectors-ratio
+            phrase: eighty percent
+            targets:
+              - gpu-edge-sectors-ratio
+            color: cyan
+            linger: 0.45
+          - id: gpu-edge-sectors-one
+            phrase: one-lane edge
+            targets:
+              - gpu-edge-sectors-one
+            color: cyan
+            linger: 0.45
+          - id: gpu-edge-sectors-edge
+            phrase: twelve point five percent
+            targets:
+              - gpu-edge-sectors-edge
+            color: cyan
+            linger: 0.45
+      - say: >-
+          Now scatter the stores. With a row width of four thousand ninety-six, neighboring lanes
+          write sixteen thousand three hundred eighty-four bytes apart. Thirty-two distinct sectors
+          carry the same one hundred twenty-eight useful bytes. That uses twelve point five percent
+          of their capacity. Cache hits, merging and write policies affect how many bytes reach
+          device memory. Hardware counters let us follow that traffic.
+        hold: 0.65
+        visual_cues:
+          - id: gpu-edge-sectors-stride
+            phrase: sixteen thousand three hundred eighty-four bytes
+            targets:
+              - gpu-edge-sectors-stride
+            color: cyan
+            linger: 0.45
+          - id: gpu-edge-sectors-scatter
+            phrase: Thirty-two distinct sectors
+            targets:
+              - gpu-edge-sectors-scatter
+            color: cyan
+            linger: 0.45
+          - id: gpu-edge-sectors-fraction
+            phrase: twelve point five percent
+            targets:
+              - gpu-edge-sectors-fraction
+            color: green
+            linger: 0.45
+          - id: gpu-edge-sectors-scope
+            phrase: Hardware counters let us follow that traffic
+            targets:
+              - gpu-edge-sectors-scope
+            color: cyan
+            linger: 0.45
+  - id: logical-rate
+    title: Normalize time by the unchanged work
+    visual: Construct two N×N byte planes for one read and one write, sum them, divide by a supplied
+      elapsed time, and keep the effective-rate label separate from an empty physical-traffic
+      counter.
+    beats:
+      - say: >-
+          One logical read and one logical write per float add up to eight bytes per value. At four
+          thousand ninety-six on a side, add the size of the input and the size of the output. Together
+          they come to one hundred twenty-eight mebibytes. Suppose a launch averages a quarter of a
+          millisecond. Convert that time to seconds before you divide. Using decimal gigabytes, the
+          effective rate is five hundred thirty-six point nine gigabytes per second.
+        hold: 0.65
+        caption_starts:
+          - "Together they come to"
+          - "Suppose a launch averages"
+          - "Using decimal gigabytes"
+        visual_cues:
+          - id: gpu-logical-rate-readwrite
+            phrase: One logical read and one logical write per float
+            targets:
+              - gpu-logical-rate-readwrite
+            color: cyan
+            linger: 0.45
+          - id: gpu-logical-rate-bytes
+            phrase: "add the size of the input and the size of the output"
+            targets:
+              - gpu-logical-rate-bytes
+            color: cyan
+            linger: 0.45
+          - id: gpu-logical-rate-mebibytes
+            phrase: "one hundred twenty-eight mebibytes"
+            targets:
+              - gpu-logical-rate-bytes
+            color: cyan
+            linger: 0.45
+          - id: gpu-logical-rate-time
+            phrase: "a quarter of a millisecond"
+            targets:
+              - gpu-logical-rate-time
+            color: cyan
+            linger: 0.45
+          - id: gpu-logical-rate-seconds
+            phrase: "Convert that time to seconds"
+            targets:
+              - gpu-logical-rate-time
+            color: cyan
+            linger: 0.45
+          - id: gpu-logical-rate-rate
+            phrase: five hundred thirty-six point nine
+            targets:
+              - gpu-logical-rate-rate
+            color: green
+            linger: 0.45
+      - say: >-
+          That quarter of a millisecond is a worksheet input. Use each measured batch average when you
+          compare kernels. The logical byte count stays fixed even when a cache hit saves a trip to
+          device memory or scattered stores touch extra sectors. Read the relevant hardware counters to
+          estimate physical traffic or a fraction of peak bandwidth. Copy moves the same number of
+          logical bytes and computes a different output.
+        hold: 0.65
+        visual_cues:
+          - id: gpu-logical-rate-worksheet
+            phrase: "worksheet input"
+            targets:
+              - gpu-logical-rate-worksheet
+            color: cyan
+            linger: 0.45
+          - id: gpu-logical-rate-counter
+            phrase: "hardware counters"
+            targets:
+              - gpu-logical-rate-counter
+            color: cyan
+            linger: 0.45
+          - id: gpu-logical-rate-copy
+            phrase: "same number of logical bytes"
+            targets:
+              - gpu-logical-rate-copy
+            color: cyan
+            linger: 0.45
+  - id: profile-boundary
+    title: Ask whether the profile measures this kernel
+    visual: Select the intended kernel, skip its validation/warmups and trace named report sections to
+      the corresponding launch. Replace the hypothetical report with the actual permission failure
+      while preserving the address hypothesis.
+    beats:
+      - say: "Before editing, profile the intended naive kernel and confirm its name, N, block thirty-two by
+          eight and selected launch. The supplied command skips six launches: one validation plus
+          five warmups. It collects one matching measured launch. Changed warmup counts require
+          changed selection. Full metric sets can replay work and alter timing, so profiler-run time
+          stays separate from clean unprofiled timing."
+        hold: 0.65
+        visual_cues:
+          - id: gpu-profile-boundary-target
+            phrase: confirm its name, N, block thirty-two by eight
+            targets:
+              - gpu-profile-boundary-target
+            color: cyan
+            linger: 0.45
+          - id: gpu-profile-boundary-skip
+            phrase: skips six launches
+            targets:
+              - gpu-profile-boundary-skip
+            color: pink
+            linger: 0.45
+          - id: gpu-profile-boundary-select
+            phrase: one matching measured launch
+            targets:
+              - gpu-profile-boundary-select
+            color: cyan
+            linger: 0.45
+          - id: gpu-profile-boundary-replay
+            phrase: replay work and alter timing
+            targets:
+              - gpu-profile-boundary-replay
+            color: cyan
+            linger: 0.45
+      - say: >-
+          LaunchStats reports launch geometry and resources. MemoryWorkloadAnalysis separates
+          requests, sectors and memory levels. SpeedOfLight compares throughput with target
+          ceilings, and Occupancy reports capacity and limiters. Predict four aligned load sectors
+          and thirty-two naive store sectors per full warp. To compare that prediction with a
+          measurement, match the source, kernel, shape and launch in the report.
+        hold: 0.65
+        visual_cues:
+          - id: gpu-profile-boundary-launch
+            phrase: LaunchStats reports launch geometry
+            targets:
+              - gpu-profile-boundary-launch
+            color: cyan
+            linger: 0.45
+          - id: gpu-profile-boundary-memory
+            phrase: MemoryWorkloadAnalysis separates requests
+            targets:
+              - gpu-profile-boundary-memory
+            color: cyan
+            linger: 0.45
+          - id: gpu-profile-boundary-occupancy
+            phrase: Occupancy reports capacity and limiters
+            targets:
+              - gpu-profile-boundary-occupancy
+            color: cyan
+            linger: 0.45
+          - id: gpu-profile-boundary-predictions
+            phrase: Predict four aligned load sectors and thirty-two naive store sectors
+            targets:
+              - gpu-profile-boundary-predictions
+            color: cyan
+            linger: 0.45
+          - id: gpu-profile-boundary-wrong
+            phrase: "match the source, kernel, shape and launch"
+            targets:
+              - gpu-profile-boundary-wrong
+            color: cyan
+            linger: 0.45
+      - say: >-
+          The profiler stopped at this permission error. The account could run the kernel, but
+          reading its counters required extra permission. The four counter fields are empty. With
+          access, we could compare load and store sectors for this launch and follow the extra
+          traffic through the memory hierarchy to find where it costs time.
+        hold: 0.65
+        visual_cues:
+          - id: gpu-profile-boundary-error
+            phrase: "this permission error"
+            targets:
+              - gpu-profile-boundary-error
+            color: pink
+            linger: 0.45
+          - id: gpu-profile-boundary-none
+            phrase: "The four counter fields are empty"
+            targets:
+              - gpu-profile-boundary-none
+            color: cyan
+            linger: 0.45
+          - id: gpu-profile-boundary-unestablished
+            phrase: "find where it costs time"
+            targets:
+              - gpu-profile-boundary-unestablished
+            color: cyan
+            linger: 0.45
+  - id: tiles
+    title: Use shared storage to exchange the access order
+    visual: Input rows enter a shared four-by-four tile. After producer completion, output columns read
+      that same tile into transposed destination positions.
+    beats:
+      - say: A shared-memory tile lets threads exchange positions. First load adjacent input words into
+          local tile rows. Then wait for the required producers. Finally read the tile with swapped
+          indexes so global output stores can also be adjacent. The same tile supports both access
+          orientations without changing the mathematical output.
+        hold: 0.65
+        visual_cues:
+          - id: tile-load-rows
+            phrase: First load adjacent input words into local tile rows
+            targets:
+              - tile-global-input
+              - tile-shared-storage
+            color: cyan
+            linger: 0.6
+          - id: tile-wait-producers
+            phrase: Then wait for the required producers
+            targets:
+              - tile-shared-storage
+            color: yellow
+            linger: 0.6
+          - id: tile-transposed-reads
+            phrase: Finally read the tile with swapped indexes
+            targets:
+              - tile-shared-storage
+              - tile-global-output
+            color: yellow
+            linger: 0.6
+      - say: Our four-by-four view compresses the larger lab tile. Every output read must have a matching
+          producer, including partial boundary tiles. Bounds checks protect valid data accesses,
+          while the block barrier remains outside those checks so every thread in the block reaches
+          the required synchronization.
+        hold: 0.65
+        visual_cues:
+          - id: tile-matched-producers
+            phrase: Every output read must have a matching producer
+            targets:
+              - tile-shared-storage
+              - tile-global-output
+            color: cyan
+            linger: 0.6
+          - id: tile-all-threads-arrive
+            phrase: every thread in the block reaches the required synchronization
+            targets:
+              - tile-shared-storage
+            color: yellow
+            linger: 0.6
+  - id: edge-ownership
+    title: "How does 65 reach the output?"
+    visual: >-
+      Show the single input column that fits at the right edge. Zoom in on the word 65 as warp one
+      writes the shared slot and warp zero reads it. Then pair each input row with its transposed
+      output column.
+    beats:
+      - say: >-
+          On a matrix thirty-three words wide, the last tile starts at column thirty-two. Look down
+          that last column. Eight rows of threads cover it in four passes, at offsets zero, eight,
+          sixteen and twenty-four. They load thirty-two words into one shared column. All two
+          hundred fifty-six threads reach the barrier, including the ones that skipped the load.
+        hold: 0.65
+        visual_cues:
+          - id: gpu-edge-ownership-block
+            phrase: "the last tile starts at column thirty-two"
+            targets:
+              - edge-column
+            color: cyan
+            linger: 0.45
+          - id: gpu-edge-ownership-offsets
+            phrase: offsets zero, eight, sixteen and twenty-four
+            targets:
+              - edge-column
+            color: cyan
+            linger: 0.45
+          - id: gpu-edge-ownership-writes
+            phrase: "load thirty-two words into one shared column"
+            targets:
+              - edge-column
+            color: cyan
+            linger: 0.45
+          - id: gpu-edge-ownership-barrier
+            phrase: All two hundred fifty-six threads
+            targets:
+              - edge-barrier
+            color: green
+            linger: 0.45
+      - say: >-
+          Zoom in on row one. Its last word is sixty-five. Warp one loads it and writes it into
+          shared row one, column zero. After the barrier, warp zero reads that slot and carries the
+          same word to output row thirty-two, column one.
+        hold: 0.65
+        caption_starts:
+          - "Warp one loads it"
+          - "After the barrier"
+        visual_cues:
+          - id: gpu-edge-ownership-value
+            phrase: "Its last word is sixty-five"
+            targets:
+              - handoff-input
+            color: cyan
+            linger: 0.45
+          - id: gpu-edge-ownership-producer
+            phrase: "writes it into shared row one, column zero"
+            targets: [handoff-write, handoff-shared]
+            color: cyan
+            linger: 0.45
+          - id: gpu-edge-ownership-warp
+            phrase: "Warp one loads it"
+            targets: [handoff-input, handoff-write]
+            color: cyan
+            linger: 0.45
+          - id: gpu-edge-ownership-consumer
+            phrase: "warp zero reads that slot"
+            targets: [handoff-shared, handoff-read]
+            color: cyan
+            linger: 0.45
+          - id: gpu-edge-ownership-output
+            phrase: carries the same word to output row thirty-two, column one
+            targets: [handoff-read, handoff-output]
+            color: cyan
+            linger: 0.45
+      - say: >-
+          Now follow the whole column. Each input row becomes an output column. The same bound that
+          admits an output word admits its input partner when we swap the coordinates. Check each
+          pair and count one write per destination. The bounds test guards the loads and stores.
+          Keep the barrier outside that test so every thread reaches it.
+        hold: 0.65
+        visual_cues:
+          - id: gpu-edge-ownership-pair
+            phrase: "Each input row becomes an output column"
+            targets:
+              - edge-output
+            color: cyan
+            linger: 0.45
+          - id: gpu-edge-ownership-unique
+            phrase: "Check each pair and count one write per destination"
+            targets: [edge-column, edge-output]
+            color: cyan
+            linger: 0.45
+          - id: gpu-edge-ownership-outside
+            phrase: "Keep the barrier outside that test"
+            targets: [edge-summary]
+            color: cyan
+            linger: 0.45
+  - id: banks
+    title: "Where does lane one find 65?"
+    visual: >-
+      Keep the 32 physical bank columns fixed. Route the edge warp’s distinct shared words into the
+      bank below each address. Insert one padding word per row and repeat the same column read.
+    beats:
+      - say: >-
+          Stay with the warp that writes output row thirty-two. Lane one needs the value sixty-five from
+          shared row one, column zero. Each column across this strip is a bank. After thirty-two words the
+          addresses wrap to the next line. Follow the first three lanes. They ask for words zero,
+          thirty-two and sixty-four. Count the other lanes in the same warp. All thirty-two different
+          words land in bank zero. That bank has to serve them in separate groups.
+        hold: 0.8
+        caption_starts:
+          - "Follow the first three lanes"
+          - "Count the other lanes"
+          - "All thirty-two different words land in bank zero"
+        visual_cues:
+          - id: first-three
+            phrase: "They ask for words zero, thirty-two and sixty-four"
+            targets: [bank-addresses]
+            linger: 0.15
+          - id: other-lanes
+            phrase: "Count the other lanes in the same warp"
+            targets: [bank-rack]
+            linger: 0.15
+          - id: old-collision
+            phrase: "All thirty-two different words land in bank zero"
+            targets: [bank-rack]
+            linger: 0.15
+      - say: >-
+          Insert one spare word at the end of every shared row. The stride is now thirty-three words. Keep
+          lane one and its value fixed. Which bank gets that same value when the row begins one word
+          later?
+        hold: 2.15
+        visual_cues:
+          - id: new-stride
+            phrase: "The stride is now thirty-three words"
+            targets: [bank-addresses]
+            linger: 0.15
+      - say: >-
+          Bank one gets word thirty-three. The next row starts one bank farther along again. Follow all
+          thirty-two requests across the strip. Now each bank serves one word. The spare word in each of
+          thirty-two rows costs one hundred twenty-eight extra bytes per block. The global output is
+          identical. Whether that trade buys time is a question for the timer.
+        hold: 0.8
+        visual_cues:
+          - id: new-word
+            phrase: "Bank one gets word thirty-three"
+            targets: [bank-addresses]
+            caption_boundary: true
+            linger: 0.15
+          - id: padded-walk
+            phrase: "Follow all thirty-two requests across the strip"
+            targets: [bank-rack]
+            linger: 0.15
+          - id: padded-result
+            phrase: "costs one hundred twenty-eight extra bytes per block"
+            targets: [bank-detail]
+            linger: 0.15
+  - id: stride-transfer
+    title: "Where does lane sixteen land?"
+    visual: >-
+      Change the shared stride to 34 words. Place the first sixteen requests, hold the second half,
+      then place word 544 at bank zero and finish counting distinct words in all banks.
+    beats:
+      - say: >-
+          You can make the same prediction for any column. Multiply the lane number by the stride and add
+          the column. The remainder after division by thirty-two is the bank. Two lanes reading the very
+          same word can share a broadcast. Here each lane needs a different word. Try a thirty-four-word
+          stride, still in column zero. Count the first sixteen requests. They advance two banks at a
+          time. Lane sixteen needs word five hundred forty-four. Which bank gets it?
+        hold: 2.2
+        visual_cues:
+          - id: stride-34
+            phrase: "Try a thirty-four-word stride"
+            targets: [bank-addresses]
+            linger: 0.15
+          - id: even-banks
+            phrase: "Count the first sixteen requests"
+            targets: [bank-rack]
+            linger: 0.15
+      - say: >-
+          It comes back to bank zero. Five hundred forty-four is exactly seventeen groups of thirty-two.
+          Lane zero already needs word zero there. Send the remaining requests to their banks. Each used
+          bank now holds two distinct requests. For a full warp the greatest common divisor of stride and
+          bank count gives that multiplicity. It is two here and one for stride thirty-three. The wider
+          tile spends another hundred twenty-eight bytes and still leaves a conflict.
+        hold: 0.8
+        visual_cues:
+          - id: wrap-back
+            phrase: "It comes back to bank zero"
+            targets: [bank-addresses]
+            caption_boundary: true
+            linger: 0.15
+          - id: second-half
+            phrase: "Send the remaining requests to their banks"
+            targets: [bank-rack]
+            linger: 0.15
+          - id: two-words
+            phrase: "Each used bank now holds two distinct requests"
+            targets: [bank-detail]
+            linger: 0.15
+  - id: unroll-issue
+    title: What changes when you unroll the loop?
+    visual: Expand the same one-thread loop into four explicit offsets. Show independent loads becoming
+      ready ahead of their dependent stores, then compare authored issue schedules and compiler
+      resource use for the two builds.
+    beats:
+      - say: Two hundred fifty-six threads cover one thousand twenty-four tile values, so each thread
+          handles four rows at offsets zero, eight, sixteen and twenty-four. Independent operations
+          within one thread can help hide latency, alongside work from other resident warps.
+          Expanding a loop can reduce loop control and make independent loads visible before
+          dependent shared stores. The timing of overlap depends on the compiled schedule and
+          target.
+        hold: 0.65
+        visual_cues:
+          - id: gpu-unroll-issue-offsets
+            phrase: offsets zero, eight, sixteen and twenty-four
+            targets:
+              - gpu-unroll-issue-offsets
+            color: cyan
+            linger: 0.45
+          - id: gpu-unroll-issue-loads
+            phrase: independent loads visible before dependent shared stores
+            targets:
+              - gpu-unroll-issue-loads
+            color: cyan
+            linger: 0.45
+      - say: >-
+          Compare these two example builds. On the left the compiler unrolled the four loads on its
+          own. On the right we add an unroll pragma to the same loop. Read down the two columns.
+          Both have the same four loads in the same order. To test an unroll change on your GPU,
+          compare the generated instructions and see whether an independent load can start earlier.
+        hold: 0.65
+        caption_starts:
+          - "On the right"
+          - "Both have the same four loads"
+        visual_cues:
+          - id: gpu-unroll-issue-pragma
+            phrase: "the compiler unrolled the four loads on its own"
+            targets:
+              - gpu-unroll-issue-pragma
+            color: cyan
+            linger: 0.45
+          - id: gpu-unroll-issue-compiler
+            phrase: "we add an unroll pragma"
+            targets:
+              - gpu-unroll-issue-compiler
+            color: cyan
+            linger: 0.45
+          - id: gpu-unroll-issue-assembly
+            phrase: "the same four loads in the same order"
+            targets:
+              - gpu-unroll-issue-assembly
+            color: cyan
+            linger: 0.45
+          - id: gpu-unroll-issue-request
+            phrase: "whether an independent load can start earlier"
+            targets:
+              - gpu-unroll-issue-request
+            color: cyan
+            linger: 0.45
+      - say: >-
+          If a load moves earlier and its store stays put, the value stays live longer. More live values can take more
+          registers, leaving room for fewer resident blocks. If a value spills, local memory holds
+          it in device-backed storage, where it may hit the cache. Keep the edge guards in place.
+          For a new build, compare the register and spill reports, check exact output and time the
+          kernel. The timing tells you whether to keep that build.
+        hold: 0.65
+        visual_cues:
+          - id: gpu-unroll-issue-live
+            phrase: "More live values can take more registers"
+            targets:
+              - gpu-unroll-issue-live
+            color: cyan
+            linger: 0.45
+          - id: gpu-unroll-issue-spills
+            phrase: "If a value spills"
+            targets:
+              - gpu-unroll-issue-spills
+            color: pink
+            linger: 0.45
+          - id: gpu-unroll-issue-measure
+            phrase: "check exact output and time the kernel"
+            targets:
+              - gpu-unroll-issue-measure
+            color: cyan
+            linger: 0.45
+          - id: gpu-unroll-issue-notrun
+            phrase: "compare the register and spill reports"
+            targets:
+              - gpu-unroll-issue-notrun
+            color: cyan
+            linger: 0.45
+  - id: resource-budget
+    title: How many blocks fit?
+    visual: Pack whole blocks against register, shared-memory and warp limits. Raise the example
+      register count from 40 to 56 per thread and show which limit changes.
+    beats:
+      - say: >-
+          Occupancy tells us what fraction of a streaming multiprocessor’s warp slots are in use. A
+          block needs room for all its threads, registers, shared memory and barriers at once. The
+          GPU allocates resources in chunks. An extra hundred twenty-eight shared bytes can push a
+          block into the next chunk. If that crowds out a block, fewer warps can run together.
+        hold: 0.65
+        visual_cues:
+          - id: gpu-resource-budget-limits
+            phrase: "threads, registers, shared memory and barriers"
+            targets:
+              - gpu-resource-budget-limits
+            color: cyan
+            linger: 0.45
+          - id: gpu-resource-budget-granularity
+            phrase: "allocates resources in chunks"
+            targets:
+              - gpu-resource-budget-granularity
+            color: cyan
+            linger: 0.45
+      - say: >-
+          Try the three budgets on screen. Our example has sixty-five thousand five hundred
+          thirty-six registers, sixty-four kibibytes of shared memory and room for sixty-four
+          warps. Count whole blocks of two hundred fifty-six threads, before allocation rounding.
+          At forty registers per thread, each block needs ten thousand two hundred forty registers.
+          Six blocks fit. The padded tile fits fifteen blocks by shared storage, and the warp
+          ceiling permits eight. Take the smallest count. Six blocks give us forty-eight warps, or
+          seventy-five percent of the available warp slots.
+        hold: 0.65
+        caption_starts:
+          - "Six blocks fit"
+          - "Six blocks give us"
+        visual_cues:
+          - id: gpu-resource-budget-worksheet
+            phrase: three budgets on screen
+            targets:
+              - gpu-resource-budget-worksheet
+            color: cyan
+            linger: 0.45
+          - id: gpu-resource-budget-registers
+            phrase: forty registers per thread
+            targets:
+              - gpu-resource-budget-registers
+            color: cyan
+            linger: 0.45
+          - id: gpu-resource-budget-regblocks
+            phrase: Six blocks fit
+            targets:
+              - gpu-resource-budget-regblocks
+            color: cyan
+            linger: 0.45
+          - id: gpu-resource-budget-shared
+            phrase: fifteen blocks by shared storage
+            targets:
+              - gpu-resource-budget-shared
+            color: cyan
+            linger: 0.45
+          - id: gpu-resource-budget-warps
+            phrase: warp ceiling permits eight
+            targets:
+              - gpu-resource-budget-warps
+            color: cyan
+            linger: 0.45
+          - id: gpu-resource-budget-minimum
+            phrase: forty-eight warps
+            targets:
+              - gpu-resource-budget-minimum
+            color: cyan
+            linger: 0.45
+          - id: gpu-resource-budget-fraction
+            phrase: seventy-five percent
+            targets:
+              - gpu-resource-budget-fraction
+            color: green
+            linger: 0.45
+      - say: >-
+          Raise the register count to fifty-six per thread. Now the register budget fits four
+          blocks, or thirty-two warps and fifty percent of the worksheet’s capacity. On the actual
+          GPU, read the occupancy limiter. If shared storage fills first, try a smaller tile. If
+          registers fill first and values spill, shorten their lifetimes. If there are too few
+          blocks, split the work into more blocks. Time each change on its own.
+        hold: 0.65
+        visual_cues:
+          - id: gpu-resource-budget-registers2
+            phrase: fifty-six per thread
+            targets:
+              - gpu-resource-budget-registers2
+            color: cyan
+            linger: 0.45
+          - id: gpu-resource-budget-blocks2
+            phrase: fits four blocks
+            targets:
+              - gpu-resource-budget-blocks2
+            color: cyan
+            linger: 0.45
+          - id: gpu-resource-budget-fraction2
+            phrase: fifty percent
+            targets:
+              - gpu-resource-budget-fraction2
+            color: green
+            linger: 0.45
+          - id: gpu-resource-budget-scope
+            phrase: "read the occupancy limiter"
+            targets:
+              - gpu-resource-budget-scope
+            color: cyan
+            linger: 0.45
+  - id: barrier
+    title: "One shared word, two warps"
+    visual: >-
+      Follow the value 65 in shared slot [1,0], the consuming thread’s register and B[32,1]. Replay the
+      same transfer with the block barrier restored.
+    beats:
+      - say: >-
+          Take the barrier out of the padded kernel. Here is one possible order for the two warps we
+          followed at the edge. Warp zero reads the shared slot first. Its thread keeps whatever it found
+          in a register. Now warp one writes sixty-five into the slot. Look at the register. What value
+          will warp zero store?
+        hold: 2.05
+        visual_cues:
+          - id: early-read
+            phrase: "Warp zero reads the shared slot first"
+            targets: [barrier-register]
+            linger: 0.15
+          - id: late-write
+            phrase: "warp one writes sixty-five into the slot"
+            targets: [barrier-shared]
+            linger: 0.15
+      - say: >-
+          It stores the value it read earlier. The question mark means we cannot predict those bits. A
+          later write to shared memory cannot update a register. Another schedule might produce the right
+          matrix by chance.
+        hold: 0.8
+        visual_cues:
+          - id: early-store
+            phrase: "It stores the value it read earlier"
+            targets: [barrier-output]
+            caption_boundary: true
+            linger: 0.15
+      - say: >-
+          Start the tile again with the barrier restored. Warp one writes sixty-five. All two hundred
+          fifty-six threads reach the barrier, including the threads whose input loads were masked. Warp
+          zero can now read sixty-five. Its store sends sixty-five to the output. Both schedules used
+          valid addresses. To check this repair, inspect shared-memory race reports as well as exact
+          outputs and memory errors.
+        hold: 0.8
+        visual_cues:
+          - id: restart-slot
+            phrase: "Start the tile again with the barrier restored"
+            targets: [barrier-events]
+            linger: 0.15
+          - id: ordered-write
+            phrase: "Warp one writes sixty-five"
+            targets: [barrier-shared]
+            linger: 0.15
+          - id: all-arrive
+            phrase: "All two hundred fifty-six threads reach the barrier"
+            targets: [barrier-events]
+            linger: 0.15
+          - id: ordered-read
+            phrase: "Warp zero can now read sixty-five"
+            targets: [barrier-register]
+            linger: 0.15
+          - id: ordered-store
+            phrase: "Its store sends sixty-five to the output"
+            targets: [barrier-output]
+            linger: 0.15
+  - id: race-recovery
+    title: Keep the failed evidence with its repair
+    visual: Attach actual n33 sanitizer logs to the same shared-slot dependency. Keep memcheck/synccheck
+      zero-error cells beside racecheck hazards and reject timing; restore the barrier, then attach
+      the normal variant validation matrix.
+    beats:
+      - say: >-
+          The broken kernel removes the shared-write to shared-read barrier. Run memcheck before
+          racecheck. The first checks addresses, the second checks how threads share memory. Keep
+          the application status, tool status and hazard messages together. Even when the output
+          happens to match, the harness exits with code two for this variant and leaves its timing
+          blank.
+        hold: 0.65
+        visual_cues:
+          - id: gpu-race-recovery-broken
+            phrase: removes the shared-write to shared-read barrier
+            targets:
+              - gpu-race-recovery-broken
+            color: cyan
+            linger: 0.45
+          - id: gpu-race-recovery-memfirst
+            phrase: Run memcheck before racecheck
+            targets:
+              - gpu-race-recovery-memfirst
+            color: cyan
+            linger: 0.45
+          - id: gpu-race-recovery-notiming
+            phrase: "leaves its timing blank"
+            targets:
+              - gpu-race-recovery-notiming
+            color: pink
+            linger: 0.45
+      - say: >-
+          On the thirty-three by thirty-three matrix, memcheck reported zero errors, yet the output
+          had seven mismatches. Racecheck reported four hazards and returned ninety-nine. That run
+          had one hundred eight mismatches. Synccheck reported zero errors and its run had
+          ninety-five mismatches. Each tool saw a different execution. The addresses were valid.
+          Racecheck caught the shared read and write that could happen in the wrong order.
+        hold: 0.65
+        visual_cues:
+          - id: gpu-race-recovery-mem
+            phrase: memcheck reported zero errors
+            targets:
+              - gpu-race-recovery-mem
+            color: cyan
+            linger: 0.45
+          - id: gpu-race-recovery-memoutput
+            phrase: seven mismatches
+            targets:
+              - gpu-race-recovery-memoutput
+            color: cyan
+            linger: 0.45
+          - id: gpu-race-recovery-race
+            phrase: Racecheck reported four hazards
+            targets:
+              - gpu-race-recovery-race
+            color: pink
+            linger: 0.45
+          - id: gpu-race-recovery-exit
+            phrase: and returned ninety-nine
+            targets:
+              - gpu-race-recovery-race
+            color: pink
+            linger: 0.45
+          - id: gpu-race-recovery-raceoutput
+            phrase: one hundred eight mismatches
+            targets:
+              - gpu-race-recovery-raceoutput
+            color: pink
+            linger: 0.45
+          - id: gpu-race-recovery-sync
+            phrase: Synccheck reported zero errors
+            targets:
+              - gpu-race-recovery-sync
+            color: cyan
+            linger: 0.45
+          - id: gpu-race-recovery-syncoutput
+            phrase: ninety-five mismatches
+            targets:
+              - gpu-race-recovery-syncoutput
+            color: cyan
+            linger: 0.45
+          - id: gpu-race-recovery-different
+            phrase: "a different execution"
+            targets:
+              - gpu-race-recovery-different
+            color: pink
+            linger: 0.45
+      - say: >-
+          Restore the block barrier where every thread can reach it. Run copy, naive, tiled and
+          padded at thirty-three and one thousand twenty-four under all three tools. After the
+          repair, all twenty-four commands were clean. Save the hazard and repair with the source,
+          compiler resources, exact-output checks and new timings. That lets someone rerun the case
+          that exposed the race.
+        hold: 0.65
+        visual_cues:
+          - id: gpu-race-recovery-restore
+            phrase: Restore the block barrier
+            targets:
+              - gpu-race-recovery-restore
+            color: cyan
+            linger: 0.45
+          - id: gpu-race-recovery-matrix
+            phrase: thirty-three and one thousand twenty-four
+            targets:
+              - gpu-race-recovery-matrix
+            color: cyan
+            linger: 0.45
+          - id: gpu-race-recovery-clean
+            phrase: all twenty-four commands were clean
+            targets:
+              - gpu-race-recovery-clean
+            color: green
+            linger: 0.45
+          - id: gpu-race-recovery-limits
+            phrase: "rerun the case that exposed the race"
+            targets:
+              - gpu-race-recovery-limits
+            color: cyan
+            linger: 0.45
+  - id: primitives
+    title: Let the output dependency choose the primitive
+    visual: A mismatch bit vector yields a scalar reduction, then exclusive prefix offsets and a
+      compacted index list, all computed from one shared input.
+    beats:
+      - say: Tiling is one implementation technique. The required output decides the broader algorithm. A
+          transpose preserves values in a new layout. A reduction combines many inputs into a few
+          summaries. For example, total mismatch count and maximum error naturally use reductions
+          because the checker needs only those aggregate results.
+        hold: 0.65
+        visual_cues:
+          - id: primitives-beat-1-focus-1
+            phrase: A reduction combines many inputs into a few summaries
+            targets:
+              - primitives-b-0-reduction-count-s-count-scan-written-lanes-s-visible-s-bits-leng
+            color: cyan
+            linger: 0.65
+      - say: Now collect the locations of mismatches in stable order. Each failing element needs the number
+          of failures before it. An exclusive prefix scan supplies that destination. Watch the same
+          mismatch bits produce offsets and then the compacted index list. A total count alone
+          cannot assign each element its individual output slot.
+        hold: 0.65
+        visual_cues:
+          - id: primitives-beat-2-focus-1
+            phrase: Watch the same mismatch bits produce offsets and then the compacted index list
+            targets:
+              - primitives-b-0-offsets-locate-each-selected-item-compacted-s-indexes-join
+            color: cyan
+            linger: 0.65
+          - id: primitives-beat-2-focus-2
+            phrase: A total count alone cannot assign each element its individual output slot
+            targets:
+              - primitives-b-0-reduction-count-s-count-scan-written-lanes-s-visible-s-bits-leng
+            color: yellow
+            linger: 0.65
+  - id: synthesis
+    title: "What did the extra column buy?"
+    visual: >-
+      Plot all five observed batch averages for each correct transpose. Magnify the difference between
+      padded and tiled within each round on a zero-centered microsecond axis.
+    beats:
+      - say: >-
+          These three kernels passed the recorded output checks. Plot the five rounds for each kernel.
+          Each dot is a batch average from a separate process on the same GPU, with the same shape and one
+          hundred timed launches. The order alternated between rounds. Even the slowest tiled batch took
+          less time than the fastest naive batch. Keep the tiled version for this setup. The medians for
+          tiled and padded are close enough to round to neighboring thousandths of a millisecond.
+        hold: 0.65
+        visual_cues:
+          - id: plot-times
+            phrase: "Plot the five rounds for each kernel"
+            targets: [timing-overview]
+            linger: 0.15
+          - id: tile-gap
+            phrase: "the slowest tiled batch took less time than the fastest naive batch"
+            targets: [timing-overview]
+            linger: 0.15
+          - id: medians
+            phrase: "The medians for tiled and padded"
+            targets: [timing-overview]
+            linger: 0.15
+      - say: >-
+          Compare tiled and padded within each round. Subtract tiled time from padded time and plot the
+          difference in microseconds. Left of zero, padding saved time. Look at round one, then round
+          four. The same extra column moved the time in opposite directions. Do these five rounds
+          establish a speedup from padding?
+        hold: 2.2
+        visual_cues:
+          - id: pair-rounds
+            phrase: "Compare tiled and padded within each round"
+            targets: [timing-pairs]
+            linger: 0.15
+          - id: pair-marks
+            phrase: "plot the difference in microseconds"
+            targets: [timing-pairs]
+            linger: 0.15
+      - say: >-
+          The padding benefit is still unresolved. Padded was faster in three rounds and slower in two.
+          Its lower median sits inside the variation across runs. The address calculation established
+          where the words go. A permitted profile of this kernel and launch could identify which memory
+          stage limits it. Keep the raw times with the source hash, device, build resources, exact checks
+          and sanitizer logs, so the next run can test the same change.
+        hold: 0.8
+        visual_cues:
+          - id: padding-verdict
+            phrase: "The padding benefit is still unresolved"
+            targets: [timing-question]
+            caption_boundary: true
+            linger: 0.15
+          - id: profile-open
+            phrase: "A permitted profile of this kernel and launch"
+            targets: [timing-question]
+            linger: 0.15
+  - id: fresh-trial
+    title: "Which run would you make next?"
+    visual: >-
+      Count the admitted values and block arrivals at N=67. Then use a baseline, a two-edit trial and
+      one missing configuration to design the next timing comparison.
+    beats:
+      - say: >-
+          Try the edge on a different square, sixty-seven on a side. Block two, zero starts at column
+          sixty-four. There are thirty-two rows in the tile and three input columns left. The block still
+          has thirty-two threads across and eight down. How many values get loaded? How many threads reach
+          the barrier?
+        hold: 2.25
+        caption_starts:
+          - "How many values get loaded"
+        visual_cues:
+          - id: gpu-fresh-trial-premises
+            phrase: "three input columns left"
+            targets: [fresh-tile]
+            linger: 0.15
+      - say: >-
+          Ninety-six values get loaded. The first three threads in each of eight warp rows load four
+          values apiece. All two hundred fifty-six threads reach the barrier. An input guard decides who
+          loads. Everyone must take part in the handoff.
+        hold: 0.7
+        visual_cues:
+          - id: gpu-fresh-trial-values
+            phrase: "Ninety-six values get loaded"
+            targets: [fresh-answer]
+            caption_boundary: true
+            linger: 0.15
+          - id: gpu-fresh-trial-barrier
+            phrase: "All two hundred fifty-six threads reach the barrier"
+            targets: [fresh-threads]
+            caption_boundary: true
+            linger: 0.15
+      - say: >-
+          The value at row one, column sixty-four is one hundred thirty-one. Warp one writes it into
+          shared row one, column zero. Warp zero takes it to output row sixty-four, column one. At this
+          width the output index is four thousand two hundred eighty-nine. This is the coordinate check we
+          can do on the CPU.
+        hold: 0.7
+        visual_cues:
+          - id: gpu-fresh-trial-value
+            phrase: "one hundred thirty-one"
+            targets: [fresh-tile]
+            linger: 0.15
+          - id: gpu-fresh-trial-index
+            phrase: "four thousand two hundred eighty-nine"
+            targets: [fresh-answer]
+            linger: 0.15
+      - say: >-
+          One more decision. In this hypothetical trial we give the baseline a time of one hundred. A
+          second kernel adds padding and doubles the block rows. Its time drops to ninety-four. To test
+          padding first, which shared stride and block shape belong in the middle?
+        hold: 2.25
+        caption_starts:
+          - "Its time drops to ninety-four"
+          - "To test padding first"
+        visual_cues:
+          - id: gpu-fresh-trial-geometry
+            phrase: "adds padding and doubles the block rows"
+            targets: [trial-combined]
+            linger: 0.15
+          - id: gpu-fresh-trial-compound
+            phrase: "Its time drops to ninety-four"
+            targets: [trial-combined]
+            linger: 0.15
+      - say: >-
+          Use stride thirty-three. Keep the block at thirty-two by eight. Compare left to
+          middle to measure the effect of padding at eight rows. Hold that padded stride fixed.
+          Compare middle to right to see what changes when you double the block rows. Check exact
+          outputs and races for each version, then repeat the timing rounds. The next kernel to run
+          is the one in the middle.
+        hold: 1
+        caption_starts:
+          - "Keep the block at thirty-two by eight"
+          - "Compare left to middle"
+          - "Hold that padded stride fixed"
+          - "The next kernel to run"
+        visual_cues:
+          - id: gpu-fresh-trial-stride
+            phrase: "Use stride thirty-three"
+            targets: [trial-control]
+            linger: 0.15
+          - id: gpu-fresh-trial-split
+            phrase: "Keep the block at thirty-two by eight"
+            targets: [trial-control]
+            linger: 0.15
+          - id: gpu-fresh-trial-decision
+            phrase: "Hold that padded stride fixed"
+            targets: [trial-decision]
+            linger: 0.15
+          - id: gpu-fresh-trial-next
+            phrase: "The next kernel to run is the one in the middle"
+            targets: [trial-control]
+            linger: 0.15
+      - say: >-
+          In the next lab, the lanes combine eight values. A reduction gives you one sum. A scan
+          gives you a running total at each position.
+        hold: 0.8

@@ -1,0 +1,684 @@
+version: 1
+id: agent-recovery
+title: "Agent Recovery: Preserve Identity, Budget and Evidence"
+source: agents/agent-failure-states-retry-fallback/content.md
+voice: en-US-AndrewNeural
+rate: +0%
+sources:
+  - title: Making retries safe with idempotent APIs
+    url: https://aws.amazon.com/builders-library/making-retries-safe-with-idempotent-APIs/
+  - title: Timeouts, retries, and backoff with jitter
+    url: https://builder.aws.com/content/3EumjoZascWd1oZiEgL8ORlv3qE/timeouts-retries-and-backoff-with-jitter
+  - title: HTTP Semantics, Retry-After
+    url: https://www.rfc-editor.org/rfc/rfc9110.html#section-10.2.3
+  - title: Circuit Breaker pattern
+    url: https://learn.microsoft.com/en-us/azure/architecture/patterns/circuit-breaker
+  - title: SQLite transactions
+    url: https://www.sqlite.org/lang_transaction.html
+  - title: LangGraph checkpointers
+    url: https://docs.langchain.com/oss/python/langgraph/checkpointers
+  - title: Stripe versioned idempotent requests
+    url: https://docs.stripe.com/api/idempotent_requests
+  - title: Compensating transaction pattern
+    url: https://learn.microsoft.com/en-us/azure/architecture/patterns/compensating-transaction
+  - title: Safely drain a node
+    url: https://kubernetes.io/docs/tasks/administer-cluster/safely-drain-node/
+scenes:
+  - id: subject-intro
+    title: The reply vanished after the job was saved
+    visual: A rollback request reaches a controller, which saves one queued job; the reply disappears, leaving the agent's view uncertain.
+    beats:
+      - say: An operator asks an agent to check a deployment. After reviewing the evidence, the operator separately approves a rollback to revision seventeen. The agent sends that approved request to a controller.
+        visual_cues:
+          - id: approved-request
+            phrase: separately approves a rollback
+            targets:
+              - subject-intro-approved
+            color: yellow
+          - id: send-approved-request
+            phrase: sends that approved request to a controller
+            targets:
+              - subject-intro-controller
+            color: blue
+        hold: 0.55
+      - say: The controller saves job one, then the connection drops before its reply arrives. The agent sees a timeout. The controller has a queued job. Those two observations describe different places in the same operation.
+        visual_cues:
+          - id: durable-job
+            phrase: controller saves job one
+            targets:
+              - subject-intro-controller
+            color: green
+          - id: lost-reply
+            phrase: connection drops before its reply arrives
+            targets:
+              - subject-intro-controller
+            color: pink
+          - id: agent-timeout
+            phrase: agent sees a timeout
+            targets:
+              - subject-intro-agent-observation
+            color: pink
+        hold: 0.75
+        motion_check:
+          region:
+            - 700
+            - 420
+            - 1100
+            - 190
+          minimumChangedFraction: 0.002
+      - say: Recovery begins by locating the uncertain boundary. We will track what was allowed, what reached durable state, how a safe retry keeps its identity, and what evidence supports the final status claim.
+        visual_cues:
+          - id: durable-boundary
+            phrase: what reached durable state
+            targets:
+              - subject-intro-controller
+            color: green
+          - id: final-evidence
+            phrase: what evidence supports the final status claim
+            targets:
+              - subject-intro-agent-observation
+            color: yellow
+        hold: 0.55
+  - id: action-boundary
+    title: A proposal passes through an admission check
+    visual: A status-only request allows a read proposal through a policy gate while a rollback proposal is stopped before dispatch.
+    beats:
+      - say: A model can propose a tool call, but application code decides whether to dispatch it. First compare the proposed action with the user's task. A status question permits a status read.
+        visual_cues:
+          - id: proposed-read
+            phrase: compare the proposed action
+            targets:
+              - action-boundary-read
+            color: cyan
+          - id: read-authority
+            phrase: status question permits a status read
+            targets:
+              - action-boundary-gate
+              - action-boundary-allow
+            color: green
+        hold: 0.55
+      - say: A rollback changes the world. It needs a separate approval tied to the target and current conditions. A valid tool name and well-formed arguments describe the request; they do not supply that approval.
+        visual_cues:
+          - id: rollback-proposal
+            phrase: A rollback changes the world
+            targets:
+              - action-boundary-write
+            color: pink
+          - id: separate-approval
+            phrase: a separate approval
+            targets:
+              - action-boundary-gate
+              - action-boundary-deny
+            color: yellow
+        hold: 0.75
+      - say: If a proposal fails its schema, the runtime may ask for a bounded repair and then admit the new proposal again. A permission failure ends that path. Repeating the model call cannot create the missing authority.
+        visual_cues:
+          - id: bounded-repair
+            phrase: a bounded repair
+            targets:
+              - action-boundary-repaired
+            color: cyan
+          - id: readmit-repaired
+            phrase: admit the new proposal again
+            targets:
+              - action-boundary-checked
+            color: green
+          - id: permission-failure
+            phrase: A permission failure ends that path
+            targets:
+              - action-boundary-denied
+              - action-boundary-stopped
+            color: pink
+        hold: 0.55
+  - id: operation-identity
+    title: One operation can have several transport attempts
+    visual: A stable operation key connects two sends to one controller job, while attempt identifiers remain separate and a changed payload conflicts.
+    beats:
+      - say: Give the approved rollback one logical operation key, such as rb-842-1. Keep that key with the exact target payload before sending. It names the action across connection attempts.
+        visual_cues:
+          - id: logical-key
+            phrase: one logical operation key
+            targets:
+              - operation-identity-op
+            color: yellow
+          - id: same-payload
+            phrase: exact target payload
+            targets:
+              - operation-identity-op
+            color: blue
+        hold: 0.55
+      - say: Attempt one and attempt two need different tracing identifiers. Both can point to the same operation key. The controller's job identifier names the work it accepted, so it is a third identity with a different purpose.
+        visual_cues:
+          - id: attempt-traces
+            phrase: Attempt one and attempt two
+            targets:
+              - operation-identity-attempt1
+              - operation-identity-attempt2
+            color: blue
+          - id: accepted-job
+            phrase: job identifier names the work it accepted
+            targets:
+              - operation-identity-job
+            color: green
+        hold: 0.75
+      - say: If the controller enforces its idempotency contract, the same key and payload can return the original job. Reusing that key with a different target must produce a conflict. A random key alone provides no protection.
+        visual_cues:
+          - id: same-key-replay
+            phrase: return the original job
+            targets:
+              - operation-identity-job
+            color: green
+          - id: changed-target
+            phrase: different target must produce a conflict
+            targets:
+              - operation-identity-readout
+            color: pink
+        hold: 0.55
+  - id: commit-boundary
+    title: A lost reply can follow a committed transaction
+    visual: Atomic operation-ledger and job writes roll back together before commit; after commit, a lost reply leaves a queryable queued job.
+    beats:
+      - say: Imagine the controller keeps an operation ledger beside its queued jobs. It records the key, payload, and job together in one transaction. This binds repeat recognition to the work it accepted.
+        visual_cues:
+          - id: atomic-records
+            phrase: ledger beside its queued jobs
+            targets:
+              - before-ledger
+              - before-job
+            color: blue
+          - id: paired-writes
+            phrase: job together in one transaction
+            targets:
+              - after-ledger
+              - after-job
+            color: yellow
+        hold: 0.55
+      - say: A fault before commit leaves neither record. A fault after commit leaves both records even though the sender gets no reply. The failure point changes what the next status lookup can establish.
+        visual_cues:
+          - id: before-commit-fault
+            phrase: fault before commit leaves neither record
+            targets:
+              - before-ledger
+              - before-job
+            color: pink
+          - id: after-commit-fault
+            phrase: fault after commit leaves both records
+            targets:
+              - after-ledger
+              - after-job
+            color: green
+        hold: 0.75
+        motion_check:
+          region:
+            - 150
+            - 390
+            - 1610
+            - 380
+          minimumChangedFraction: 0.002
+      - say: In the after-commit case, the ledger can return job one for the unchanged operation. A status read can confirm that the job is queued. Completion still requires a later observation from the system executing it.
+        visual_cues:
+          - id: reconcile-key
+            phrase: return job one for the unchanged operation
+            targets:
+              - same-key-replay
+            color: green
+          - id: queued-status
+            phrase: job is queued
+            targets:
+              - after-job
+            color: yellow
+        hold: 0.55
+  - id: retry-clock
+    title: Retry timing follows both service and caller limits
+    visual: Exponential retry windows animate sampled waits; a Retry-After floor shifts them, while a caller deadline blocks an ineligible attempt.
+    beats:
+      - say: A retry policy spaces transient requests so a recovering service has room to respond. Full jitter draws each delay from zero to the current exponential window. Different clients then tend to spread across that window.
+        visual_cues:
+          - id: sample-full-jitter
+            phrase: Full jitter draws each delay from zero to the current exponential window
+            targets:
+              - retry-wait-1
+              - retry-wait-2
+              - retry-wait-3
+            color: cyan
+          - id: spread-clients
+            phrase: spread across that window
+            targets:
+              - retry-wait-2
+            color: blue
+        hold: 0.55
+      - say: A Retry-After value supplies a minimum wait. Add a bounded random offset after that floor if the policy needs to spread a synchronized group, then check the combined delay against the caller's deadline.
+        visual_cues:
+          - id: retry-after-floor
+            phrase: A Retry-After value supplies a minimum wait
+            targets:
+              - retry-wait-1
+              - retry-wait-2
+            color: yellow
+          - id: bounded-offset
+            phrase: Add a bounded random offset after that floor if the policy needs to spread a synchronized group
+            targets:
+              - retry-wait-1
+              - retry-wait-2
+              - retry-wait-3
+            color: cyan
+          - id: combined-deadline
+            phrase: then check the combined delay against the caller's deadline
+            targets:
+              - retry-wait-3
+            color: pink
+        hold: 0.75
+      - say: The deadline is the outside limit for the whole task. When a compliant wait no longer fits, stop and report the unresolved state. Timing controls load; it does not make an uncertain write safe to repeat.
+        visual_cues:
+          - id: whole-deadline
+            phrase: outside limit for the whole task
+            targets:
+              - whole-task-deadline
+            color: pink
+          - id: stop-retry
+            phrase: When a compliant wait no longer fits
+            targets:
+              - retry-wait-3
+            color: pink
+        hold: 0.55
+  - id: progress-budget
+    title: Count useful evidence while keeping a hard cap
+    visual: Repeated evidence pages leave the progress counter unchanged; a new relevant page resets its allowance while the total-call budget continues downward.
+    beats:
+      - say: A loop detector should ask whether the task gained useful evidence, not only whether the agent made another call. Calling the same log page again may add cost without changing what the agent knows.
+        visual_cues:
+          - id: useful-evidence
+            phrase: task gained useful evidence
+            targets:
+              - progress-budget-result
+            color: blue
+          - id: repeated-page
+            phrase: Calling the same log page again
+            targets:
+              - progress-evidence
+            color: yellow
+        hold: 0.55
+        motion_check:
+          region:
+            - 180
+            - 350
+            - 1550
+            - 400
+          minimumChangedFraction: 0.002
+      - say: In this fixture, a new relevant page identifier resets the no-progress allowance. A repeated page does not. The hard call budget keeps shrinking in either case, so apparent progress cannot create unlimited work.
+        visual_cues:
+          - id: new-page
+            phrase: new relevant page identifier resets
+            targets:
+              - progress-allowance
+            color: green
+          - id: finite-calls
+            phrase: hard call budget keeps shrinking
+            targets:
+              - hard-call-budget
+            color: yellow
+        hold: 0.75
+      - say: Error type also guides recovery. Repair an admissible proposal after a schema problem, use bounded retry for a transient read, and reconcile a dispatched write whose outcome is unknown. These are separate routes.
+        visual_cues:
+          - id: schema-route
+            phrase: Repair an admissible proposal
+            targets:
+              - progress-budget-target
+            color: yellow
+          - id: unknown-write-route
+            phrase: reconcile a dispatched write whose outcome is unknown
+            targets:
+              - progress-budget-source
+              - progress-budget-target
+            color: pink
+        hold: 0.55
+  - id: circuit-breaker
+    title: A circuit breaker limits calls to an unhealthy dependency
+    visual: The breaker moves from closed to open and then admits a single half-open probe; an older in-flight success cannot close a newer open generation.
+    beats:
+      - say: A circuit breaker watches qualifying dependency failures. In the closed state, calls proceed. After the configured threshold, it opens and rejects new calls for a cooldown instead of adding load to the failing service.
+        visual_cues:
+          - id: closed-calls
+            phrase: closed state, calls proceed
+            targets:
+              - circuit-breaker-readout
+            color: green
+          - id: failure-threshold
+            phrase: After the configured threshold
+            targets:
+              - breaker-probe-slot
+            color: pink
+          - id: open-breaker
+            phrase: opens and rejects new calls
+            targets:
+              - breaker-generation
+            color: pink
+        hold: 0.55
+      - say: When the cooldown ends, a half-open state admits a limited probe. A healthy response can close this breaker; another qualifying failure can reopen it. Cancellation also has to release the local probe slot.
+        visual_cues:
+          - id: half-open-probe
+            phrase: half-open state admits a limited probe
+            targets:
+              - breaker-probe-slot
+            color: yellow
+          - id: healthy-probe
+            phrase: healthy response can close this breaker
+            targets:
+              - breaker-generation
+              - breaker-probe-slot
+            color: green
+        hold: 0.75
+        motion_check:
+          region:
+            - 180
+            - 500
+            - 1540
+            - 270
+          minimumChangedFraction: 0.002
+      - say: Suppose an older request succeeds after a newer failure has opened the circuit. Return that result to its caller, while keeping the newer breaker state. A generation check prevents stale health evidence from replacing current state.
+        visual_cues:
+          - id: older-success
+            phrase: older request succeeds
+            targets:
+              - circuit-breaker-old
+            color: blue
+          - id: caller-result
+            phrase: Return that result to its caller
+            targets:
+              - circuit-breaker-caller
+            color: blue
+          - id: newer-generation
+            phrase: keeping the newer breaker state
+            targets:
+              - circuit-breaker-current
+            color: pink
+        hold: 0.55
+  - id: resume-with-evidence
+    title: Resume from a checkpoint and make a bounded claim
+    visual: A checkpoint and operation ledger join a fresh controller observation; the resulting queued status reaches the report, while execution remains pending.
+    beats:
+      - say: A workflow checkpoint records where orchestration stopped, such as waiting for the rollback job. It can preserve the pending operation key and earlier verified inputs. It cannot show whether a remote write committed after the checkpoint.
+        visual_cues:
+          - id: saved-checkpoint
+            phrase: workflow checkpoint records where orchestration stopped
+            targets:
+              - resume-with-evidence-checkpoint
+            color: blue
+          - id: pending-identity
+            phrase: pending operation key
+            targets:
+              - resume-with-evidence-ledger
+            color: yellow
+        hold: 0.55
+      - say: On resume, reconcile the operation key with the controller and check the job's current state. If the trusted observation says queued, report that it was queued when checked. Keep the observation time with the claim.
+        visual_cues:
+          - id: reconcile-controller
+            phrase: reconcile the operation key with the controller
+            targets:
+              - resume-with-evidence-ledger
+            color: yellow
+          - id: current-status
+            phrase: trusted observation says queued
+            targets:
+              - resume-with-evidence-status
+            color: green
+          - id: bounded-claim
+            phrase: queued when checked
+            targets:
+              - resume-with-evidence-report
+            color: green
+        hold: 0.75
+      - say: Safe recovery keeps permission, proposal, transport attempt, durable effect, and verification distinct. Start with the boundary that failed, preserve the identity needed to reconcile it, then state only what current evidence supports.
+        visual_cues:
+          - id: recovery-identity
+            phrase: preserve the identity needed to reconcile it
+            targets:
+              - resume-with-evidence-ledger
+            color: yellow
+          - id: evidence-claim
+            phrase: state only what current evidence supports
+            targets:
+              - resume-with-evidence-report
+            color: green
+        hold: 0.55
+  - id: replay-contract
+    title: A replay contract has a scope and a lifetime
+    visual: Two attempts preserve the same operation payload while expiry, changed intent and lagging status change admissible recovery.
+    beats:
+      - say: The local article fixture really commits and reopens a SQLite file. One transaction stores the operation key, payload and queued job. Two workers using separate connections compete for a second key; BEGIN IMMEDIATE serializes the writers, and both receive the same second job. Two logical operations own two jobs. A busy database can still return SQLITE BUSY, and any lock retry needs the same key and deadline. This tests database records under injected exceptions, not remote execution or power-loss durability.
+        hold: 1
+        visual_cues:
+          - id: shared-commit
+            phrase: One transaction stores the operation key, payload and queued job
+            targets:
+              - replay-contract-mechanism
+            color: yellow
+          - id: shared-replay
+            phrase: both receive the same second job
+            targets:
+              - replay-contract-mechanism
+            color: yellow
+      - say: Read the destination’s actual key scope, payload comparison, retention window and error rules. Stripe API version one replays the first executed status and response, including a five-hundred error. Validation failures and concurrent conflicts before execution do not save that result. Keys may be pruned after at least twenty-four hours; reusing a pruned key can create a new request. Version two instead tries to complete failed work where possible and returns an updated response. These are versioned service contracts, not universal defaults.
+        hold: 1
+        visual_cues:
+          - id: retention-pruned
+            phrase: Keys may be pruned after at least twenty-four hours
+            targets:
+              - replay-contract-mechanism
+            color: yellow
+      - say: A not-found status from a lagging replica may coexist with an in-flight or committed operation. Without an authoritative absence contract, keep the outcome unknown. Changing the target revision is a new proposal and needs new admission; it is not another transport attempt on the old key. Real services also authenticate callers, scope keys by tenant, and verify access before returning stored results.
+        hold: 1
+        visual_cues:
+          - id: changed-revision
+            phrase: Changing the target revision is a new proposal
+            targets:
+              - replay-contract-mechanism
+            color: yellow
+  - id: workflow-world
+    title: Restore recorded workflow state without erasing remote effects
+    visual: The same remote queued job remains while a local checkpoint rewinds; only a trusted reconciliation updates the local receipt.
+    beats:
+      - say: Persist the operation identity before dispatch, then persist a confirmed result when it arrives. A crash can land between the external effect and that local receipt. Replaying a checkpoint restores the local workflow position; the remote ledger and job remain where the controller committed them. Recheck approval and current execution preconditions after resuming.
+        hold: 1
+        visual_cues:
+          - id: checkpoint-rewind
+            phrase: Replaying a checkpoint restores the local workflow position
+            targets:
+              - workflow-world-mechanism
+            color: yellow
+          - id: reconcile-checkpoint
+            phrase: the remote ledger and job remain where the controller committed them
+            targets:
+              - workflow-world-mechanism
+            color: yellow
+      - say: LangGraph saves thread-scoped state at super-step boundaries; pending writes can preserve successful node results within a failed step. Surviving process restart needs a persistent backend. Temporal reconstructs deterministic workflow state from event history. Recorded Activity completions are replayed from history, but an Activity whose external effect occurred before its completion was recorded can run again. Neither mechanism supplies an exactly-once external-effect guarantee. Preserve repeat safety or reconcile the destination.
+        hold: 1
+        visual_cues:
+          - id: activity-recorded
+            phrase: Recorded Activity completions are replayed from history
+            targets:
+              - workflow-world-mechanism
+            color: yellow
+          - id: activity-gap
+            phrase: an Activity whose external effect occurred before its completion was recorded can run again
+            targets:
+              - workflow-world-mechanism
+            color: yellow
+  - id: spend-budget
+    title: A smaller context does not refund prior work
+    visual: Four prompt rectangles accumulate into one shared spend ledger; simultaneous callers reserve from the same remaining balance.
+    beats:
+      - say: Three attempts means one initial call and at most two retries. If two layers each allow three attempts on the same failures, the bound can be nine transport sends. Three layers each configured for three retries after the initial call can permit four cubed, or sixty-four. These are possible bounds, not observed sends. Give one layer ownership and instrument actual transport work. A model re-ask after invalid output is another proposal that needs admission.
+        hold: 1
+        visual_cues:
+          - id: retry-layers
+            phrase: the bound can be nine transport sends
+            targets:
+              - spend-budget-mechanism
+            color: yellow
+          - id: retry-cube
+            phrase: sixty-four
+            targets:
+              - spend-budget-mechanism
+            color: yellow
+      - say: "A context window bounds one request, while cumulative tokens bound the run. With a hundred-token fixed prefix and fifty added history tokens per turn, four prompts contain one hundred, one hundred fifty, two hundred and two hundred fifty tokens: seven hundred submitted input tokens. In general it is n times h plus s times n times the quantity n minus one, divided by two. Outputs and provider cache pricing need separate accounting."
+        hold: 1
+        visual_cues:
+          - id: token-total
+            phrase: seven hundred submitted input tokens
+            targets:
+              - spend-budget-mechanism
+            color: yellow
+          - id: token-prompts
+            phrase: four prompts contain one hundred, one hundred fifty, two hundred and two hundred fifty tokens
+            targets:
+              - spend-budget-mechanism
+            color: yellow
+      - say: Reserve conservative input plus bounded output before dispatch, then reconcile actual usage. A request needing at most one hundred twenty input and eighty output tokens cannot enter a run with only one hundred fifty left under this policy. Parallel workers need atomic reservations from one balance. An ambiguous timeout can leave usage unknown; keep a conservative reservation until reconciled. Compaction reduces future input and does not refund earlier calls. Cancellation cannot force an I O client that ignores its timeout to stop.
+        hold: 1
+        visual_cues:
+          - id: reserve-total
+            phrase: only one hundred fifty left under this policy
+            targets:
+              - spend-budget-mechanism
+            color: yellow
+  - id: breaker-contract
+    title: A probe result belongs to one generation
+    visual: A single physical probe slot carries a generation token and releases on cancellation or a non-health exception.
+    beats:
+      - say: Only documented dependency failures count toward a breaker’s health threshold. A schema error or permission denial is a different boundary. Scope a circuit to the relevant dependency, tenant and failure category so one exhausted account quota does not reject everyone’s traffic. The article’s breaker is local to one event loop, with one probe and a deliberate failure policy; a fleet needs its own shared or distributed design.
+        hold: 1
+        visual_cues:
+          - id: health-scope
+            phrase: Scope a circuit to the relevant dependency, tenant and failure category
+            targets:
+              - breaker-contract-mechanism
+            color: yellow
+      - say: A canceled half-open probe releases its local slot, reopens for cooldown in this policy and propagates cancellation. A non-health exception also propagates and releases the slot, while leaving the breaker half-open without a health verdict. A caller can receive an old successful result without that old generation resetting a newer open circuit. None of these local transitions proves that a remote write was canceled.
+        hold: 1
+        visual_cues:
+          - id: probe-cancel
+            phrase: reopens for cooldown in this policy and propagates cancellation
+            targets:
+              - breaker-contract-mechanism
+            color: yellow
+          - id: probe-nonhealth
+            phrase: leaving the breaker half-open without a health verdict
+            targets:
+              - breaker-contract-mechanism
+            color: yellow
+          - id: old-result
+            phrase: A caller can receive an old successful result without that old generation resetting a newer open circuit
+            targets:
+              - breaker-contract-mechanism
+            color: yellow
+  - id: fallback-evidence
+    title: A fallback inherits the same uncertainty
+    visual: The queued job, evidence age and unresolved write survive a provider switch; only authenticated observations can change the claim.
+    beats:
+      - say: A backup provider must be allowed to receive the data and support the actual message roles, tool formats, schema, context limits, refusal and incomplete-response behavior. Test the translated route. A narrower task can disable mutation tools and classify an existing log excerpt. Model size alone does not establish cost, capability or safe authority. Routes share the remaining deadline, spend and cancellation state; two providers may share the same failed tool dependency.
+        hold: 1
+        visual_cues:
+          - id: fallback-switch
+            phrase: Test the translated route
+            targets:
+              - fallback-evidence-mechanism
+            color: yellow
+          - id: fallback-processor
+            phrase: allowed to receive the data
+            targets:
+              - fallback-evidence-mechanism
+            color: yellow
+          - id: fallback-format
+            phrase: actual message roles, tool formats, schema, context limits
+            targets:
+              - fallback-evidence-mechanism
+            color: yellow
+          - id: fallback-refusal
+            phrase: refusal and incomplete-response behavior
+            targets:
+              - fallback-evidence-mechanism
+            color: yellow
+      - say: A cache saying job one was queued forty minutes ago can answer what was last observed. It cannot answer whether the rollback finished now. Evidence must come through a trusted adapter, identify the right run and operation, and satisfy the claim’s freshness policy. A generated has-live-evidence flag supplies none of those facts. Even a completed observation can be too old for a current-status claim. A Python evidence object tests wording rules without authenticating a remote service.
+        hold: 1
+        visual_cues:
+          - id: stale-evidence
+            phrase: It cannot answer whether the rollback finished now
+            targets:
+              - fallback-evidence-mechanism
+            color: yellow
+      - say: If no route can meet the requested claim, return unavailable or hand off with the authorized task, operation key, exact payload, last confirmed observation, unresolved state, attempts and stop reason. Copy allowlisted redacted fields, rather than a raw transcript. Scope cached access to the caller and recheck current permission. Do not turn a user cancellation into a new fallback attempt.
+        hold: 1
+  - id: compensation
+    title: Recovery acts on the state that actually exists
+    visual: Evicted pod identities remain on their new nodes while an approved uncordon only changes future scheduling admission.
+    beats:
+      - say: A compensation is a new action on current state. Suppose an authorized maintenance flow cordons a node and evicts pods, then its replacement image is unavailable. Uncordoning permits future scheduling; it does not restore the evicted pods’ previous placement or establish that the node is healthy. Inspect the real effects and current permissions before selecting forward repair, compensation or human review.
+        hold: 1
+        visual_cues:
+          - id: pods-evicted
+            phrase: cordons a node and evicts pods
+            targets:
+              - compensation-mechanism
+            color: yellow
+          - id: image-unavailable
+            phrase: replacement image is unavailable
+            targets:
+              - compensation-mechanism
+            color: yellow
+          - id: uncordon
+            phrase: Uncordoning permits future scheduling
+            targets:
+              - compensation-mechanism
+            color: yellow
+      - say: A Saga-style recovery records each confirmed step and its chosen compensation. Domain rules may favor a different order or independent parallel repairs; reversing the original list is not a universal requirement. Compensations themselves can fail or time out and need durable progress plus destination repeat safety. Canceling a queued job differs from undoing a completed rollout, and retracting a notification does not erase its recipients’ knowledge.
+        hold: 1
+        visual_cues:
+          - id: saga-progress
+            phrase: Compensations themselves can fail or time out
+            targets:
+              - compensation-mechanism
+            color: yellow
+  - id: recovery-transfer
+    title: Measure the result and resolve a fresh boundary
+    visual: A new deadline and a stale cache are applied to the same pending operation, then outcome counts separate task completion from safe disposition.
+    beats:
+      - say: Try a fresh recovery. An approved unchanged operation may be safely replayed under its active server contract. The provider requires a one-point-two-second minimum wait, the selected bounded jitter is point three seconds, and only one point four seconds remain. Predict whether to send.
+        hold: 1.5
+        visual_cues:
+          - id: transfer-wait
+            phrase: a one-point-two-second minimum wait, the selected bounded jitter is point three seconds
+            targets:
+              - recovery-transfer-mechanism
+            color: yellow
+      - say: The combined wait is one point five seconds, so stop under the deadline. Timing permission is separate from the server’s repeat-safety contract.
+        hold: 1
+        visual_cues:
+          - id: transfer-stop
+            phrase: The combined wait is one point five seconds, so stop under the deadline
+            targets:
+              - recovery-transfer-mechanism
+            color: yellow
+      - say: Now suppose a backup only has a completed observation from forty minutes ago and the current-status policy allows one minute. The old state does not establish completion now. Preserve the unresolved operation and report current status unavailable, with a dated prior observation if useful. Never mint a new logical key merely to escape an uncertain first outcome.
+        hold: 1
+        visual_cues:
+          - id: transfer-stale
+            phrase: report current status unavailable
+            targets:
+              - recovery-transfer-mechanism
+            color: yellow
+      - say: For one hundred intervened runs, sixty complete the task, twelve deliver accepted degraded answers, eighteen hand off and ten remain unresolved. Task completion is sixty percent. A separately defined safe-disposition rate can be ninety percent, but that does not erase lost capability or human work. Count unique runs and pending cases, not attempts. Track retries, deduplication, reconciliation time, unknown writes and cancellation separately; keep operation keys in protected traces rather than high-cardinality metric labels.
+        hold: 1
+        visual_cues:
+          - id: completion-rate
+            phrase: Task completion is sixty percent
+            targets:
+              - recovery-transfer-mechanism
+            color: yellow
+          - id: disposition-rate
+            phrase: safe-disposition rate can be ninety percent
+            targets:
+              - recovery-transfer-mechanism
+            color: yellow
+      - say: "Inject faults before and after commit, competing same-key sends, changed payloads, expired keys, lagging reads, canceled probes, stale successes and authorization changes. Keep expected outcomes in the harness, outside the measured agent’s prompt and memory. The local tests establish their own contracts; production partitions, service authentication and queued-job execution require the corresponding integration evidence. Recursive language models next keep a large manual outside the prompt and inspect it through bounded code and sub-calls, preserving source coverage without assuming a summary kept every exception."
+        hold: 1

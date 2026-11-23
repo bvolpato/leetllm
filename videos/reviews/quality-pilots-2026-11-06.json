@@ -1,0 +1,571 @@
+{
+  "schemaVersion": 1,
+  "date": "2026-11-06",
+  "status": "ten-source-drafts-with-encoded-scene-previews",
+  "publicationApproval": false,
+  "summary": {
+    "lessons": 10,
+    "redesignedScenes": 2,
+    "correctedLessons": 8,
+    "renderedSceneClips": 10,
+    "auditedFrames": 13857,
+    "layoutOrFocusIssueFrames": 0,
+    "narrationChanged": false,
+    "publishedMoviesReplaced": 0
+  },
+  "validation": {
+    "commands": [
+      {
+        "command": "npm --prefix videos test",
+        "result": "passed",
+        "evidence": "build/video-quality-20261106/release-video-tests.log",
+        "sha256": "ab6082acabfabb10e2947935996870b3a9d9bb7334fd08590063b8d0e0a8e77f",
+        "limitation": "The optional SQL measured-timing integration case was skipped because SQL_SEMANTIC_MEASURED_TIMELINE was not set."
+      },
+      {
+        "command": "node videos/render.mjs --all --validate",
+        "result": "passed",
+        "evidence": "build/video-quality-20261106/final-video-validate.log",
+        "sha256": "87037b24991595468a14c5b9faf0f4aacf5f9f14cb269cfaaa29fb31a89e38a6",
+        "note": "Final serving/moderation cue and position refinements also passed their scoped lesson validators and complete measured-scene sweeps."
+      },
+      {
+        "command": "git diff --check",
+        "result": "passed"
+      },
+      {
+        "command": "uv run scripts/validate-metadata.py",
+        "result": "failed",
+        "reason": "Fifteen previously expired public blog refreshAfter dates still need factual reverification.",
+        "evidence": "build/video-quality-20261106/metadata-validation.log",
+        "sha256": "f3271d581118ecd5eb3d13feeabadae50e38cdd9e50a836f3ad823b410098353"
+      }
+    ],
+    "independentReview": {
+      "path": "build/video-quality-20261106/group-1/pilot-independent-review.json",
+      "sha256": "e9b2d0b20e732f2831241604615b47b526cebd122ed3dba82d1e9e99847fe08f",
+      "scope": "Seven original source drafts and sampled previews; later tensor, serving and moderation repairs received separate root review and their focused regressions."
+    }
+  },
+  "limits": [
+    "Each MP4 is a bounded changed scene with the existing measured delivered narration, not a complete replacement lesson.",
+    "Every frame of these scene source renders passed geometry/focus checks and every encoded clip decoded with FFmpeg; those checks do not certify editorial quality, factual completeness, sound performance, or Apple native playback.",
+    "The 199 published-video reviews assess published bytes separately from these changed sources.",
+    "Complete lesson quiz/script, full exported movie review, delivery and human full-speed sound-watch gates remain before replacement."
+  ],
+  "lessons": [
+    {
+      "lessonId": "recommendation",
+      "title": "Recommendation filtering",
+      "headline": "Seven candidates become five",
+      "kind": "redesign",
+      "change": "The private and stale candidates leave the same pool while their scores stay visible; the count changes after each exit.",
+      "scene": "eligibility",
+      "source": {
+        "path": "videos/animations/recommendation.mjs",
+        "sha256": "134e83610395e0379253811d5eea6a2e07df4c547adfcb08aff17c15ddada7b9"
+      },
+      "narration": {
+        "path": "videos/lessons/recommendation.lesson.yaml",
+        "sha256": "1529b9f727d61a54fa35bb1cebbfe895a2828302f7bf3acd1856469b76d88ed4",
+        "unchangedFromDeliveredScene": true
+      },
+      "publishedMovie": {
+        "url": "https://videos.leetllm.com/lessons/recommendation/2ed6319908ae5a3bdaec13d9c941f5618bb93db7605254bdd66f2ef12e4fcd66.mp4",
+        "sha256": "2ed6319908ae5a3bdaec13d9c941f5618bb93db7605254bdd66f2ef12e4fcd66",
+        "replaced": false
+      },
+      "sourceEvidence": {
+        "path": "build/video-quality-20261106/pilots/recommendation/technical-report.json",
+        "sha256": "a61c6e1e82388e39c1809c04ae57729490970621a22361865285503d52ef2296"
+      },
+      "encodedSceneEvidence": {
+        "path": "build/video-quality-20261106/pilots/clips/recommendation/technical-evidence.json",
+        "sha256": "b849e5967a8d45608fb8e3b912ed6b8b02eba070b96c6153d3ec0b6778d19765"
+      },
+      "clip": {
+        "path": "build/video-quality-20261106/pilots/clips/recommendation/draft-scene.mp4",
+        "sha256": "337cbfa983cbcb4af479292dab52149888f34668fa6257e0cab66afb21ac4194",
+        "bytes": 1784933,
+        "durationSeconds": 38.267,
+        "fps": "30/1",
+        "hasAudio": true
+      },
+      "poster": {
+        "path": "build/video-quality-20261106/pilots/recommendation/after/at-13_6.png",
+        "sha256": "c806823bbc162a2463f023382564550cf78e33e53d4d5f4abb9b2110e8246087"
+      },
+      "technicalAudit": {
+        "framesObserved": 1148,
+        "expectedFrames": 1148,
+        "issues": [],
+        "fullFfmpegDecode": true
+      }
+    },
+    {
+      "lessonId": "state-space-models",
+      "title": "State-space prefix scan",
+      "headline": "Every prefix earns its own result",
+      "kind": "redesign",
+      "change": "Persistent affine updates compose in order across two distances, producing all four prefix states.",
+      "scene": "scan",
+      "source": {
+        "path": "videos/animations/state-space-models.mjs",
+        "sha256": "ac143eea7bace422684530e4e942291db8828418e9334d5c15c7e9fc1a3d9198"
+      },
+      "narration": {
+        "path": "videos/lessons/state-space-models.lesson.yaml",
+        "sha256": "bf2c82a229cd369f5f3e06cb963b7ff4866fbcaf5a517fc8673f6c3e62db1f31",
+        "unchangedFromDeliveredScene": true
+      },
+      "publishedMovie": {
+        "url": "https://videos.leetllm.com/lessons/state-space-models/79386d867bc3d6849e1a2bb77c4ea2d8e9fee610cc2582dd9dc0dc3f0fdc6753.mp4",
+        "sha256": "79386d867bc3d6849e1a2bb77c4ea2d8e9fee610cc2582dd9dc0dc3f0fdc6753",
+        "replaced": false
+      },
+      "sourceEvidence": {
+        "path": "build/video-quality-20261106/pilots/state-space/technical-evidence.json",
+        "sha256": "15a2b218e6f801dea00f15ebd957026404d7a345c4781bc3831b45bd0116f12c"
+      },
+      "encodedSceneEvidence": {
+        "path": "build/video-quality-20261106/pilots/clips/state-space-models/technical-evidence.json",
+        "sha256": "6509e86b8064446b0f4bc61a22c36130460adc79e73436477bf84e2e903143b3"
+      },
+      "clip": {
+        "path": "build/video-quality-20261106/pilots/clips/state-space-models/draft-scene.mp4",
+        "sha256": "abdf13d88b8848db913d1630fa77d25b0c428be030f03908d39262e9f75c0062",
+        "bytes": 3174263,
+        "durationSeconds": 61.4,
+        "fps": "30/1",
+        "hasAudio": true
+      },
+      "poster": {
+        "path": "build/video-quality-20261106/pilots/state-space/after-32-6.png",
+        "sha256": "205048f9d3edacfcdeed5ec2398f89f298796af6156f0d6c04e16b28c159ab90"
+      },
+      "technicalAudit": {
+        "framesObserved": 1842,
+        "expectedFrames": 1842,
+        "issues": [],
+        "fullFfmpegDecode": true
+      }
+    },
+    {
+      "lessonId": "decoding",
+      "title": "Decoding",
+      "headline": "Multiply the numbers on screen",
+      "kind": "correction",
+      "change": "Path products and beam winners use the same rounded edge probabilities that the viewer sees.",
+      "scene": "transfer",
+      "source": {
+        "path": "videos/animations/decoding.mjs",
+        "sha256": "879dcb7249ec204a14a16e91a9ddcd8200f9e3b2ab50b502ee599c72416d8301"
+      },
+      "narration": {
+        "path": "videos/lessons/decoding.lesson.yaml",
+        "sha256": "471faa0cabae9f12dbd2db535b38c0e6e9896f5ee4a4e592458908fc7d04e481",
+        "unchangedFromDeliveredScene": true
+      },
+      "publishedMovie": {
+        "url": "https://videos.leetllm.com/lessons/decoding/46300c15cfe00827d2fb75ab98f82c3346e9c46fe75a9a631854090ea7122ae7.mp4",
+        "sha256": "46300c15cfe00827d2fb75ab98f82c3346e9c46fe75a9a631854090ea7122ae7",
+        "replaced": false
+      },
+      "sourceEvidence": {
+        "path": "build/video-quality-20261106/pilots/decoding/technical-evidence.json",
+        "sha256": "ffafda3a81c14d12a1848cd2f96ac4e6e55d89e6ba25a456bff5b931ed1ea520"
+      },
+      "encodedSceneEvidence": {
+        "path": "build/video-quality-20261106/pilots/clips/decoding/technical-evidence.json",
+        "sha256": "4ffbca25405922a8c0d82fa4650a884fba697693fc9c3755cc3f7bf03ad4b027"
+      },
+      "clip": {
+        "path": "build/video-quality-20261106/pilots/clips/decoding/draft-scene.mp4",
+        "sha256": "fe23f73c8847a8e73ca8f97c1f2faa0dbc29321a99cefda7a64f0a8812271da1",
+        "bytes": 3062547,
+        "durationSeconds": 59.2,
+        "fps": "30/1",
+        "hasAudio": true
+      },
+      "poster": {
+        "path": "build/video-quality-20261106/pilots/decoding/after-source-at-published-time.png",
+        "sha256": "14a1246bf410ecea072149d8b9d3f04ef39608f4ffa5a96086af42e4aee94051"
+      },
+      "technicalAudit": {
+        "framesObserved": 1776,
+        "expectedFrames": 1776,
+        "issues": [],
+        "fullFfmpegDecode": true
+      }
+    },
+    {
+      "lessonId": "preference-alignment",
+      "title": "Preference alignment",
+      "headline": "Even odds have a neutral caption",
+      "kind": "correction",
+      "change": "A probability of 0.50 is described as even odds; nearby rounded values and negative zero are handled consistently.",
+      "scene": "loss",
+      "source": {
+        "path": "videos/animations/preference-alignment.mjs",
+        "sha256": "30f3d19fe15a13767b6a5f737f4cd53480f285f6ac221cff782c09e78aefc93e"
+      },
+      "narration": {
+        "path": "videos/lessons/preference-alignment.lesson.yaml",
+        "sha256": "e6c575fb37b845b276ca5ee47451a1fff1816ee7cd660edbff3f7dd1d82bd242",
+        "unchangedFromDeliveredScene": true
+      },
+      "publishedMovie": {
+        "url": "https://videos.leetllm.com/lessons/preference-alignment/ae802d6173aaa7a450368666c14ed1a663878e689e77ed48e2f07bd74921f99c.mp4",
+        "sha256": "ae802d6173aaa7a450368666c14ed1a663878e689e77ed48e2f07bd74921f99c",
+        "replaced": false
+      },
+      "sourceEvidence": {
+        "path": "build/video-quality-20261106/pilots/preference-alignment/comparison.json",
+        "sha256": "2207dc7847c0b401f49ed98647a521802c6f0936451d783813498b42f12ba8a7"
+      },
+      "encodedSceneEvidence": {
+        "path": "build/video-quality-20261106/pilots/clips/preference-alignment/technical-evidence.json",
+        "sha256": "dc1abe8e4b1ec06137a3122dcb26d49fddff4f38b82cdec3176ed94badd1c7e8"
+      },
+      "clip": {
+        "path": "build/video-quality-20261106/pilots/clips/preference-alignment/draft-scene.mp4",
+        "sha256": "10f18fdf709ab702b9bb12d0148614b16524c4786d417988a44d6333bf7d5868",
+        "bytes": 2416262,
+        "durationSeconds": 49.667,
+        "fps": "30/1",
+        "hasAudio": true
+      },
+      "poster": {
+        "path": "build/video-quality-20261106/pilots/preference-alignment/after-current-source-frame-191.2667.png",
+        "sha256": "628572fbe5a546a967aa03ac8113a9370525fb94c0b9eea7a11825fd350dc084"
+      },
+      "technicalAudit": {
+        "framesObserved": 1490,
+        "expectedFrames": 1490,
+        "issues": [],
+        "fullFfmpegDecode": true
+      }
+    },
+    {
+      "lessonId": "quantization",
+      "title": "Quantization",
+      "headline": "Output change follows the visible input",
+      "kind": "correction",
+      "change": "The output sensitivity uses displayed input values, with one final rounding and no independent result count-up.",
+      "scene": "output",
+      "source": {
+        "path": "videos/animations/quantization.mjs",
+        "sha256": "4b7b22a8ac88c9a014dfc4fa81d346c8c94d59b4f5d8159968098680643c5b99"
+      },
+      "narration": {
+        "path": "videos/lessons/quantization.lesson.yaml",
+        "sha256": "b26d6a233ea158f5aa99a708442666a8719ea9e576c4957e76b89c2d16837ee7",
+        "unchangedFromDeliveredScene": true
+      },
+      "publishedMovie": {
+        "url": "https://videos.leetllm.com/lessons/quantization/23de2af38886a134a456d362bf6e590097bb24749a0a747c7b39cf24fae4c35b.mp4",
+        "sha256": "23de2af38886a134a456d362bf6e590097bb24749a0a747c7b39cf24fae4c35b",
+        "replaced": false
+      },
+      "sourceEvidence": {
+        "path": "build/video-quality-20261106/pilots/quantization/technical-evidence.json",
+        "sha256": "6eb30005ddbe6734457847ef282dfc992d143495d519491e45fb25b204ce80b2"
+      },
+      "encodedSceneEvidence": {
+        "path": "build/video-quality-20261106/pilots/clips/quantization/technical-evidence.json",
+        "sha256": "a4a9fe10b5413fb8b3aa7fb297c141e0389a2b6e8ab75a8a0cab5fae1d13784c"
+      },
+      "clip": {
+        "path": "build/video-quality-20261106/pilots/clips/quantization/draft-scene.mp4",
+        "sha256": "f22730fe1a7234b52d2fd74075b46935c62b016229167b45dc1e02593f0568dc",
+        "bytes": 1391598,
+        "durationSeconds": 33.333333,
+        "fps": "30/1",
+        "hasAudio": true
+      },
+      "poster": {
+        "path": "build/video-quality-20261106/pilots/quantization/after-source-at-published-time.png",
+        "sha256": "0873496b0b33bf16a6e3401ea87f830351ddc8b6538503974de0815a9a1c2256"
+      },
+      "technicalAudit": {
+        "framesObserved": 1000,
+        "expectedFrames": 1000,
+        "issues": [],
+        "fullFfmpegDecode": true
+      }
+    },
+    {
+      "lessonId": "multimodal-fusion",
+      "title": "Multimodal fusion",
+      "headline": "A partial contribution names its fraction",
+      "kind": "correction",
+      "change": "During accumulation, the product includes its visible reveal fraction; the completed contribution keeps the full equality.",
+      "scene": "attention",
+      "source": {
+        "path": "videos/animations/multimodal-fusion.mjs",
+        "sha256": "19d5c219d877ecee6508bcc243978d105bf6d2a707af3a0008bde7f3b5690315"
+      },
+      "narration": {
+        "path": "videos/lessons/multimodal-fusion.lesson.yaml",
+        "sha256": "c1db9921e23e784fe0c2b185b43629e3b95b8deb0afd20047ddd7a207e1c4bff",
+        "unchangedFromDeliveredScene": true
+      },
+      "publishedMovie": {
+        "url": "https://videos.leetllm.com/lessons/multimodal-fusion/1e2c62c549d351b57ddef1776b08bc5e5a85e23845e8a48099c307c847d6470e.mp4",
+        "sha256": "1e2c62c549d351b57ddef1776b08bc5e5a85e23845e8a48099c307c847d6470e",
+        "replaced": false
+      },
+      "sourceEvidence": {
+        "path": "build/video-quality-20261106/pilots/multimodal-fusion/technical-evidence.json",
+        "sha256": "6cfa2004e2b3ea413b19048ef207546090a6e491cc6a2699f5184d0c82bb922d"
+      },
+      "encodedSceneEvidence": {
+        "path": "build/video-quality-20261106/pilots/clips/multimodal-fusion/technical-evidence.json",
+        "sha256": "b832b003aaae60cdd6d001338c9cbaf0125da8f3f9cc3b767b22b52a22c9953d"
+      },
+      "clip": {
+        "path": "build/video-quality-20261106/pilots/clips/multimodal-fusion/draft-scene.mp4",
+        "sha256": "b96260e012fc72141d884978bef7cc2ef843f956e5fad6944f2517aa0734254a",
+        "bytes": 3220127,
+        "durationSeconds": 42.733333,
+        "fps": "30/1",
+        "hasAudio": true
+      },
+      "poster": {
+        "path": "build/video-quality-20261106/pilots/multimodal-fusion/after-source-at-published-time.png",
+        "sha256": "c1b592ab8a699fca2c762ac9d33441526d2415875dd16b43ec842bd4c207b9ac"
+      },
+      "technicalAudit": {
+        "framesObserved": 1282,
+        "expectedFrames": 1282,
+        "issues": [],
+        "fullFfmpegDecode": true
+      }
+    },
+    {
+      "lessonId": "flash-attention",
+      "title": "FlashAttention",
+      "headline": "One reference controls the rescale",
+      "kind": "correction",
+      "change": "The printed reference, exponential factor and rescaled saved sums use a consistent displayed state.",
+      "scene": "rescale",
+      "source": {
+        "path": "videos/animations/flash-attention.mjs",
+        "sha256": "f834bb276330b974a189dff9a76296562a4df7070b829d908e0bc6f93b577735"
+      },
+      "narration": {
+        "path": "videos/lessons/flash-attention.lesson.yaml",
+        "sha256": "e1d34c8dbe3bc6a17490d55ae65e33b9491c0d0154b7e105b8e4866c1c2b1fbd",
+        "unchangedFromDeliveredScene": true
+      },
+      "publishedMovie": {
+        "url": "https://videos.leetllm.com/lessons/flash-attention/b9323806512b0562927154f9f58c5c0c3b74dfac07cee31b76f79860652f5c3b.mp4",
+        "sha256": "b9323806512b0562927154f9f58c5c0c3b74dfac07cee31b76f79860652f5c3b",
+        "replaced": false
+      },
+      "sourceEvidence": {
+        "path": "build/video-quality-20261106/pilots/flash-attention/technical-evidence.json",
+        "sha256": "cece43ba662a3195c248443aa6455fe23de78864a6f49e4af6331ee649685401"
+      },
+      "encodedSceneEvidence": {
+        "path": "build/video-quality-20261106/pilots/clips/flash-attention/technical-evidence.json",
+        "sha256": "640322f6d73288e6ba399c2c70a4f7a63dce5db34fd1664641a3a1340b8b193d"
+      },
+      "clip": {
+        "path": "build/video-quality-20261106/pilots/clips/flash-attention/draft-scene.mp4",
+        "sha256": "8ffcc592845918ee42c33bb1c7950c0734f79b9b1ef37dbdf28680b82d3b1e3e",
+        "bytes": 2707205,
+        "durationSeconds": 55,
+        "fps": "30/1",
+        "hasAudio": true
+      },
+      "poster": {
+        "path": "build/video-quality-20261106/pilots/flash-attention/after-source-at-published-time.png",
+        "sha256": "2b7e3168881594dd9435e08543e94e2f9b4130e0a1c1bb52b21a0a734dc25641"
+      },
+      "technicalAudit": {
+        "framesObserved": 1650,
+        "expectedFrames": 1650,
+        "issues": [],
+        "fullFfmpegDecode": true
+      }
+    },
+    {
+      "lessonId": "tensor-shapes",
+      "title": "Tensor reductions",
+      "headline": "Highlight the operands being reduced",
+      "kind": "correction",
+      "change": "The highlighted row or column, partial terms, divisor and mean belong to the same selected group in both batches.",
+      "scene": "reduce",
+      "source": {
+        "path": "videos/animations/tensor-shapes.mjs",
+        "sha256": "4220176fdd2b8a9cd06a50bf163654c222608ef7d742405f7be7d0c3cffbf45e"
+      },
+      "narration": {
+        "path": "videos/lessons/tensor-shapes.lesson.yaml",
+        "sha256": "a198dc1f9eb92ef64ac51e968663d5c10f98b05e0a060f86e0e8473d6f3be7f1",
+        "unchangedFromDeliveredScene": true
+      },
+      "publishedMovie": {
+        "url": "https://videos.leetllm.com/lessons/tensor-shapes/9ecb80beee04d38d1ebc0e27d0a49c520b922e55f1bb6edd7274ff9ca572bcb7.mp4",
+        "sha256": "9ecb80beee04d38d1ebc0e27d0a49c520b922e55f1bb6edd7274ff9ca572bcb7",
+        "replaced": false
+      },
+      "sourceEvidence": {
+        "path": "build/video-quality-20261106/pilots/tensor-shapes/technical-evidence.json",
+        "sha256": "d575a181f26b609188f095c3ce63ff4ec7c192164b07ce884c42b0d7dddd273d"
+      },
+      "encodedSceneEvidence": {
+        "path": "build/video-quality-20261106/pilots/clips/tensor-shapes/technical-evidence.json",
+        "sha256": "71a39cb977cddad1d845381533b081d946fddc4fa6fea3ba61603d8f5576e23d"
+      },
+      "clip": {
+        "path": "build/video-quality-20261106/pilots/clips/tensor-shapes/draft-scene.mp4",
+        "sha256": "79c46c05eb4eb0341c16ebd708aae9d99318b5a0336d72fb6120e4b490430a20",
+        "bytes": 2079463,
+        "durationSeconds": 46.167,
+        "fps": "30/1",
+        "hasAudio": true
+      },
+      "poster": {
+        "path": "build/video-quality-20261106/pilots/tensor-shapes/after/published-time.png",
+        "sha256": "1995714744980da546b6f8410a37ba6857722458ba5ad571ec766213ea547512"
+      },
+      "technicalAudit": {
+        "framesObserved": 1385,
+        "expectedFrames": 1385,
+        "issues": [],
+        "fullFfmpegDecode": true
+      }
+    },
+    {
+      "lessonId": "serving-benchmarks",
+      "title": "Serving benchmarks",
+      "headline": "A response determines the next send",
+      "kind": "correction",
+      "change": "Closed-loop send times follow completion; the open-loop schedule stays fixed under the same service slowdown.",
+      "scene": "intro",
+      "source": {
+        "path": "videos/animations/serving-benchmarks.mjs",
+        "sha256": "77ceb1ef11d0f7bc7ce095346fe8c370c3abc4dff4148325edbbf5603e6fba79"
+      },
+      "narration": {
+        "path": "videos/lessons/serving-benchmarks.lesson.yaml",
+        "sha256": "7e285e422cb240988c9e530bd633d5840dce27ae9034acd3728dd07a9f91154d",
+        "unchangedFromDeliveredScene": true
+      },
+      "publishedMovie": {
+        "url": "https://videos.leetllm.com/lessons/serving-benchmarks/b4015b04d425a40bd0e0f22070c084ee8a949422fb3f3bc0860cadb53232e4b2.mp4",
+        "sha256": "b4015b04d425a40bd0e0f22070c084ee8a949422fb3f3bc0860cadb53232e4b2",
+        "replaced": false
+      },
+      "sourceEvidence": {
+        "path": "build/video-quality-20261106/pilots/serving-benchmarks/technical-evidence.json",
+        "sha256": "a2fc3d0204b153b0d4c0d5d91bd9e162348738ac7591ca98cfc41bf5a219c17c"
+      },
+      "encodedSceneEvidence": {
+        "path": "build/video-quality-20261106/pilots/clips/serving-benchmarks/technical-evidence.json",
+        "sha256": "7fc5b34d70eb2fd9d98e9889da1c7dbac8eada5b017f9f515c84d5b3fedfe424"
+      },
+      "clip": {
+        "path": "build/video-quality-20261106/pilots/clips/serving-benchmarks/draft-scene.mp4",
+        "sha256": "71624b44938a3d803bc658b9ce900f0d561b12ab196c172e5a6cf7aba6476b5e",
+        "bytes": 1827575,
+        "durationSeconds": 36.2,
+        "fps": "30/1",
+        "hasAudio": true
+      },
+      "poster": {
+        "path": "build/video-quality-20261106/pilots/serving-benchmarks/after-source-at-published-time.png",
+        "sha256": "c9f3322e6f733f1c5a98bfd827536f859f18af237842dad0cbcde12fe24fdc52"
+      },
+      "technicalAudit": {
+        "framesObserved": 1086,
+        "expectedFrames": 1086,
+        "issues": [],
+        "fullFfmpegDecode": true
+      }
+    },
+    {
+      "lessonId": "design-real-time-content-moderation-system",
+      "title": "Moderation staffing",
+      "headline": "Staffing follows the stated workload",
+      "kind": "correction",
+      "change": "The fixed inputs produce 12,000 busy reviewers and 17,143 staff; the classifier equation remains visible through its active transition cue.",
+      "scene": "cascade",
+      "source": {
+        "path": "videos/animations/design-real-time-content-moderation-system.mjs",
+        "sha256": "19518ecf4543dcf5f701e74332089fca8fb57da4bd2d1e120b5454e5a271fc16"
+      },
+      "narration": {
+        "path": "videos/lessons/design-real-time-content-moderation-system.lesson.yaml",
+        "sha256": "9cf800d1dcb7d018ab8f2c73a43731f9cc27d22d1f1ffb808cc74051119d49c2",
+        "unchangedFromDeliveredScene": true
+      },
+      "publishedMovie": {
+        "url": "https://videos.leetllm.com/lessons/design-real-time-content-moderation-system/c196ff97c7495f591fefd1429df7c9b6291039fdcbad43eeae80ce85e364cdbf.mp4",
+        "sha256": "c196ff97c7495f591fefd1429df7c9b6291039fdcbad43eeae80ce85e364cdbf",
+        "replaced": false
+      },
+      "sourceEvidence": {
+        "path": "build/video-quality-20261106/pilots/moderation-staffing/technical-evidence.json",
+        "sha256": "651e4bc970e3c1410125fbe97a3413ade029d59525e0322abf5ad72a21dc8b8f"
+      },
+      "encodedSceneEvidence": {
+        "path": "build/video-quality-20261106/pilots/clips/design-real-time-content-moderation-system/technical-evidence.json",
+        "sha256": "e065cfe6c5ccc76adbaa591618124d4f71bb5abf91e7edad805ae29fc22fb1a7"
+      },
+      "clip": {
+        "path": "build/video-quality-20261106/pilots/clips/design-real-time-content-moderation-system/draft-scene.mp4",
+        "sha256": "ddf65298dcd5468d830a33abbbfedf74f326e61863cdf8544fcb0d32d005a91c",
+        "bytes": 2705526,
+        "durationSeconds": 39.933333,
+        "fps": "30/1",
+        "hasAudio": true
+      },
+      "poster": {
+        "path": "build/video-quality-20261106/pilots/moderation-staffing/after-source-at-published-time.png",
+        "sha256": "4f54b5c857739b1e972f8b7f12ef09cb98df9d33a4a7d8dd95a26738039b0c47"
+      },
+      "technicalAudit": {
+        "framesObserved": 1198,
+        "expectedFrames": 1198,
+        "issues": [],
+        "fullFfmpegDecode": true
+      }
+    }
+  ],
+  "reviewGallery": {
+    "path": "build/video-quality-20261106/pilots/index.html",
+    "sha256": "45eab3e221ccc9e1f8a305829b0e81dfcb9380b360e6816ba5e5127f2a29f07d",
+    "browserValidation": {
+      "tool": "Playwright MCP",
+      "allTenVideosLoadMetadata": true,
+      "dimensions": [
+        1920,
+        1080
+      ],
+      "mobileWidth": 390,
+      "desktopWidth": 1440,
+      "horizontalOverflow": false,
+      "representativePlayback": {
+        "lessonId": "recommendation",
+        "muted": true,
+        "seekTime": 12,
+        "timeAfterPlayback": 12.310259,
+        "error": null
+      },
+      "limits": "Browser metadata and brief muted playback only; no full-speed sound-watch certification."
+    },
+    "screenshots": [
+      {
+        "path": "build/video-quality-20261106/pilots/gallery-mobile.png",
+        "sha256": "792d921bdfe6273c71ee2819e19b2e9e659ad23537d536b62feeda7a0b5fe3e0"
+      },
+      {
+        "path": "build/video-quality-20261106/pilots/gallery-desktop.png",
+        "sha256": "cb86bafeec64437c188d9e3f46f005a1650c3cc6f9eddd553d8eebf5268cd329"
+      }
+    ]
+  }
+}

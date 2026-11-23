@@ -1,0 +1,742 @@
+version: 1
+id: fairness-audits
+title: How to Audit Fairness in an LLM Routing System
+source: llmops/bias-detection-fairness-llms/content.md
+sources:
+  - title: Equality of Opportunity in Supervised Learning
+    url: https://arxiv.org/abs/1610.02413
+  - title: Fairlearn metrics and assessment guide
+    url: https://fairlearn.org/main/user_guide/assessment/common_fairness_metrics.html
+  - title: Inherent Trade-Offs in the Fair Determination of Risk Scores
+    url: https://arxiv.org/abs/1609.05807
+  - title: Fairness and Machine Learning, an open textbook
+    url: https://fairmlbook.org/
+scenes:
+  - id: subject-intro
+    title: One blender, two requests
+    visual: Two messages slide apart beside one receipt. Their judge scores land on the same scale. Hold both scores and the cutoff in view before naming either route.
+    beats:
+      - say: '“Please replace it under the thirty-day policy.” Or just, “Can you replace it?” Would you send those requests to the same place?'
+        hold: 0.45
+        caption_starts:
+          - Or just
+          - Would you send
+        visual_cues:
+          - id: formal-request
+            phrase: Please replace it under the thirty-day policy
+            targets: [formal]
+            color: yellow
+            linger: 0.25
+          - id: casual-request
+            phrase: Can you replace it
+            targets: [conversational]
+            color: yellow
+            linger: 0.25
+      - say: Both versions use the same receipt. The blender broke on day twelve of a thirty-day policy.
+        hold: 0.45
+        visual_cues:
+          - id: receipt
+            phrase: the same receipt
+            targets: [receipt]
+            color: yellow
+            linger: 0.25
+      - say: A language model scores each claim for readiness. Here, formal gets point seven eight. Conversational gets point six seven. Automatic service starts at point seven. Which request goes to a person?
+        hold: 2.1
+        caption_starts:
+          - Here, formal gets
+          - Conversational gets point six seven
+          - Automatic service starts at point seven
+          - Which request goes to a person
+        visual_cues:
+          - id: formal-score
+            phrase: formal gets point seven eight
+            targets: [formal]
+            color: blue
+            linger: 0.25
+          - id: casual-score
+            phrase: Conversational gets point six seven
+            targets: [conversational]
+            color: pink
+            linger: 0.25
+          - id: cutoff
+            phrase: Automatic service starts at point seven
+            targets: [ruler]
+            color: yellow
+            linger: 0.25
+      - say: The conversational request goes to a person. Its score falls three hundredths short. The formal request gets automatic service. Changing just the wording changed who handles the claim.
+        hold: 0.9
+        caption_starts:
+          - Its score falls three hundredths short
+        visual_cues:
+          - id: casual-route
+            phrase: The conversational request goes to a person
+            targets: [conversational]
+            color: pink
+            linger: 0.25
+            caption_boundary: true
+          - id: shortfall
+            phrase: falls three hundredths short
+            targets: [conversational]
+            color: pink
+            linger: 0.25
+          - id: formal-route
+            phrase: The formal request gets automatic service
+            targets: [formal]
+            color: blue
+            linger: 0.25
+            caption_boundary: true
+  - id: harms-and-outcomes
+    title: What did the customer lose?
+    visual: The route slip for the blender claim records access. A separate reply can stereotype the customer even with the same service route.
+    beats:
+      - say: Look at the customer sent to review. Someone has to pick up that claim. Wording changed access to a service. That is an allocative harm to investigate. To measure its cost, record how long the customer waited and whether the replacement arrived.
+        hold: 0.7
+        visual_cues:
+          - id: queue
+            phrase: Someone has to pick up that claim
+            targets: [service]
+            color: yellow
+            linger: 0.25
+      - say: Now suppose both versions get automatic service. One reply still tells the customer, “You sound uneducated.” Read the words themselves. Stereotyping someone through the reply is a representational harm.
+        hold: 0.75
+        visual_cues:
+          - id: same-route
+            phrase: both versions get automatic service
+            targets: [service]
+            color: yellow
+            linger: 0.25
+          - id: reply
+            phrase: You sound uneducated
+            targets: [reply]
+            color: yellow
+            linger: 0.25
+      - say: Here we compared how the request was written. A demographic audit needs its own group definitions and data. Ask people familiar with the language to review the examples and protect the customers' information.
+        hold: 0.65
+        visual_cues:
+          - id: wording
+            phrase: how the request was written
+            targets: [reply]
+            color: yellow
+            linger: 0.25
+  - id: matched-pairs
+    title: Would you keep this rewrite?
+    visual: Compare the shared eligibility fields in p4. Edit only the purchase date in the draft, judge the pair and restore the original date.
+    beats:
+      - say: Call our blender claim P four. A reviewer checks the two versions against the receipt and the policy. Same product, same defect, same purchase date, same request for a replacement. That's what makes these a matched pair.
+        hold: 0.6
+        visual_cues:
+          - id: match-fields
+            phrase: Same product, same defect
+            targets: [facts]
+            color: yellow
+            linger: 0.25
+      - say: Here's another draft of the conversational version. Change twelve days to thirty-two. Would you keep that draft in a test of wording?
+        hold: 2
+        visual_cues:
+          - id: edit-date
+            phrase: Change twelve days to thirty-two
+            targets: [date]
+            color: yellow
+            linger: 0.25
+      - say: Reject this draft. Thirty-two days puts the purchase outside the policy window. A reviewer could now send it to a different route for a reason that has nothing to do with style.
+        hold: 0.7
+        visual_cues:
+          - id: reject-date
+            phrase: Reject this draft
+            targets: [date]
+            color: red
+            linger: 0.25
+            caption_boundary: true
+      - say: Put twelve days back. Now changing only the wording moves the judge's score by eleven hundredths. To ask whether a protected attribute caused a change, you also need a model of how that attribute affects the other facts.
+        hold: 0.65
+        visual_cues:
+          - id: restore-date
+            phrase: Put twelve days back
+            targets: [date]
+            color: yellow
+            linger: 0.25
+          - id: score-units
+            phrase: eleven hundredths
+            targets: [facts]
+            color: yellow
+            linger: 0.25
+  - id: pair-flips
+    title: Which pairs cross the cutoff?
+    visual: The ten expected case IDs have separate score tracks. Missing p4 leaves an empty slot; restoring both versions puts the three crossings back in view.
+    beats:
+      - say: The audit expects ten pairs. The six round marks in each wording condition stand for ready claims. The four squares stand for claims that need clarification. A blue and a pink mark on opposite sides of the line mean one claim took two routes.
+        hold: 0.75
+        visual_cues:
+          - id: all-pairs
+            phrase: ten pairs
+            targets: [pair-scores]
+            color: yellow
+            linger: 0.25
+          - id: route-flips
+            phrase: opposite sides of the line
+            targets: [pair-scores]
+            color: yellow
+            linger: 0.25
+      - say: Follow P four and P five. Both are ready. Only their formal versions reach automatic service. Now look at N one. It's unclear, yet its formal version also gets through. One cutoff produced two kinds of error.
+        hold: 0.8
+        visual_cues:
+          - id: ready-crossings
+            phrase: P four and P five
+            targets: [ready-crossings]
+            color: yellow
+            linger: 0.25
+          - id: unclear-crossing
+            phrase: Now look at N one
+            targets: [unclear-crossing]
+            color: yellow
+            linger: 0.25
+      - say: Suppose the runner drops both versions of P four. The other nine still come in pairs. The host knows which ten it asked for, so it rejects the incomplete run. Check for duplicated variants, unknown cases, changed facts and mixed judge settings before counting routes.
+        hold: 0.8
+        visual_cues:
+          - id: drop-pair
+            phrase: drops both versions of P four
+            targets: [missing-pair]
+            color: yellow
+            linger: 0.25
+      - say: Restore P four. We have three flips. This is a deterministic test, so even one flip breaks our agreement about equivalent requests. For a judge that varies from run to run, specify repeated trials in advance and compare route frequencies within each pair.
+        hold: 0.7
+        visual_cues:
+          - id: restore-pair
+            phrase: Restore P four
+            targets: [missing-pair]
+            color: yellow
+            linger: 0.25
+  - id: confusion-matrices
+    title: Who belongs in the denominator?
+    visual: Six ready claim IDs occupy fixed columns. Their two wording variants settle on service or review tracks. Repeat with the four unclear claims, then compare the two fractions.
+    beats:
+      - say: Start with the six ready claims. Each column is one claim, shown twice. Slide each version onto the route its score earned. Keep all six columns, including the claims sent to review.
+        hold: 0.55
+        visual_cues:
+          - id: ready-sort
+            phrase: Slide each version onto the route its score earned
+            targets: [routes]
+            color: yellow
+            linger: 0.25
+      - say: Count the claims on the fast path. Five of six with formal wording. Three of six with conversational wording. Follow the two missing places back to P four and P five. Two out of six makes the access gap thirty-three point three percentage points. This ready-case service rate is the true positive rate.
+        hold: 0.7
+        visual_cues:
+          - id: ready-rates
+            phrase: Five of six with formal wording
+            targets: [counts]
+            color: blue
+            linger: 0.25
+          - id: conversational-count
+            phrase: Three of six with conversational wording
+            targets: [counts]
+            color: pink
+            linger: 0.25
+          - id: ready-gap
+            phrase: thirty-three point three percentage points
+            targets: [counts]
+            color: yellow
+            linger: 0.25
+            caption_boundary: true
+      - say: Now set the ready cases aside. Among the four unclear claims, how many versions reached automatic service in each row?
+        hold: 1.9
+        visual_cues:
+          - id: unclear-sort
+            phrase: Among the four unclear claims
+            targets: [routes]
+            color: yellow
+            linger: 0.25
+      - say: Only the formal version of N one got through. One out of four versus zero out of four gives a twenty-five point gap in the false positive rate. That's an unsafe route. Check fulfillment records to find out whether a replacement was actually issued.
+        hold: 0.8
+        visual_cues:
+          - id: unclear-count
+            phrase: Only the formal version of N one got through
+            targets: [counts]
+            color: blue
+            linger: 0.25
+            caption_boundary: true
+          - id: unclear-gap
+            phrase: twenty-five point gap
+            targets: [counts]
+            color: yellow
+            linger: 0.25
+            caption_boundary: true
+  - id: criterion-choice
+    title: What if we move the cutoff?
+    visual: At the two extreme cutoffs, both wordings agree. Track how many ready and unclear cases actually receive service, then load the separate candidate table.
+    beats:
+      - say: Write the rules before testing a candidate. In this example, each rate gap can be at most ten percentage points. Each wording must serve at least eighty percent of ready claims and at most ten percent of unclear claims. First, lower the baseline cutoff to point five.
+        hold: 0.6
+        visual_cues:
+          - id: lenient-cut
+            phrase: lower the baseline cutoff to point five
+            targets: [threshold]
+            color: yellow
+            linger: 0.25
+      - say: Every claim gets through. Both gaps close, but all four unclear claims get automatic service. Now raise the cutoff to point nine five.
+        hold: 0.7
+        visual_cues:
+          - id: all-served
+            phrase: Every claim gets through
+            targets: [rates]
+            color: yellow
+            linger: 0.25
+          - id: strict-cut
+            phrase: raise the cutoff to point nine five
+            targets: [threshold]
+            color: yellow
+            linger: 0.25
+      - say: Everyone goes to review. The gaps still match, and now zero ready claims get service. Put the cutoff back at point seven and load a different set of hand-written candidate scores.
+        hold: 0.7
+        visual_cues:
+          - id: all-review
+            phrase: Everyone goes to review
+            targets: [rates]
+            color: yellow
+            linger: 0.25
+          - id: candidate-table
+            phrase: load a different set of hand-written candidate scores
+            targets: [threshold]
+            color: yellow
+            linger: 0.25
+      - say: Both wordings now serve five of six ready claims and zero of four unclear ones. The four rate checks pass. Each wording still has only six ready and four unclear claims. Our example asks for fifty ready and thirty unclear in each slice.
+        hold: 0.85
+        visual_cues:
+          - id: candidate-rates
+            phrase: Both wordings now serve
+            targets: [rates]
+            color: yellow
+            linger: 0.25
+          - id: support
+            phrase: fifty ready and thirty unclear
+            targets: [support]
+            color: yellow
+            linger: 0.25
+  - id: metric-tradeoffs
+    title: Which cases are you comparing?
+    visual: Change the denominator on the baseline. Two populations of one hundred then show how many ready and unclear claims enter the selected set at identical conditional routing rates.
+    beats:
+      - say: Return to the original ten. Comparing how often each wording gets service across all ten tests selection parity, also called demographic parity when comparing demographic groups. Compare only ready claims and you test equal opportunity. Compare both ready and unclear rates and you test equalized odds.
+        hold: 0.6
+        visual_cues:
+          - id: opportunity
+            phrase: Compare only ready claims
+            targets: [metrics]
+            color: yellow
+            linger: 0.25
+          - id: odds
+            phrase: Compare both ready and unclear rates
+            targets: [metrics]
+            color: yellow
+            linger: 0.25
+      - say: Turn the question around. Of the claims you served, how many were ready? That's precision. Matching that fraction is predictive parity. If you serve nobody, precision has no denominator. In a slice with no ready cases, the true positive rate is undefined for the same reason.
+        hold: 0.7
+        caption_starts:
+          - That's precision
+          - If you serve nobody
+        visual_cues:
+          - id: precision
+            phrase: Of the claims you served
+            targets: [metrics]
+            color: yellow
+            linger: 0.25
+          - id: empty-selected
+            phrase: If you serve nobody
+            targets: [metrics]
+            color: yellow
+            linger: 0.25
+      - say: Imagine two groups of a hundred. In both, serve eighty percent of the ready claims and twenty percent of the unclear ones. Half of group A is ready. Its fast path gets forty ready claims and ten unclear ones. Forty out of fifty gives eighty percent precision.
+        hold: 0.65
+        visual_cues:
+          - id: admit-a
+            phrase: Its fast path gets forty ready claims and ten unclear ones
+            targets: [populations]
+            color: yellow
+            linger: 0.25
+      - say: In group B only twenty are ready. Sixteen ready claims get through, along with sixteen of the eighty unclear ones. Half the selected claims are ready. The two groups use exactly the same conditional routing rates. The mix of incoming claims changed precision.
+        hold: 0.7
+        visual_cues:
+          - id: admit-b
+            phrase: Sixteen ready claims get through
+            targets: [populations]
+            color: yellow
+            linger: 0.25
+      - say: Multiply the number of ready claims by their service rate. In group B, eighty percent of twenty is sixteen. Divide by all thirty-two claims served and you get one half. Even with the same positive true and false positive rates in both groups, a different mix of arrivals changes precision. Try closing the fast path to all unclear claims. Everyone selected is now ready in both groups. One in five ready claims still misses service.
+        hold: 0.7
+        caption_starts:
+          - Try closing the fast path
+          - Everyone selected is now ready
+        visual_cues:
+          - id: remove-false
+            phrase: closing the fast path to all unclear claims
+            targets: [populations]
+            color: yellow
+            linger: 0.25
+      - say: Take two ready claims from each group. Both rows average point six. Put the cutoff at point seven five. Which scores earn automatic service?
+        hold: 2
+        caption_starts:
+          - Put the cutoff at point seven five
+          - Which scores earn automatic service
+        visual_cues:
+          - id: score-means
+            phrase: Both rows average point six
+            targets: [means]
+            color: yellow
+            linger: 0.25
+          - id: score-cut
+            phrase: Put the cutoff at point seven five
+            targets: [means]
+            color: yellow
+            linger: 0.25
+      - say: Only the point eight in group A clears the cutoff. The two averages match, yet one ready claim gets through in group A and neither does in group B.
+        hold: 0.8
+        caption_starts:
+          - The two averages match
+        visual_cues:
+          - id: score-result
+            phrase: Only the point eight in group A clears the cutoff
+            targets: [means]
+            color: blue
+            linger: 0.25
+            caption_boundary: true
+      - say: The score theorem asks for matching averages across groups twice, first among ready claims, then among unclear claims. It also requires calibrated scores in each group. Under those conditions, the groups must have the same share of ready claims or the scores must predict perfectly.
+        hold: 1.3
+        caption_starts:
+          - It also requires calibrated scores
+          - Under those conditions
+        visual_cues:
+          - id: class-means
+            phrase: first among ready claims, then among unclear claims
+            targets: [conditions]
+            color: blue
+            linger: 0.25
+          - id: calibration
+            phrase: calibrated scores in each group
+            targets: [conditions]
+            color: yellow
+            linger: 0.25
+          - id: theorem-result
+            phrase: the same share of ready claims or the scores must predict perfectly
+            targets: [conditions]
+            color: yellow
+            linger: 0.25
+      - say: Our two wordings already share the same six ready claims out of ten.
+        hold: 0.8
+        visual_cues:
+          - id: paired-base-rates
+            phrase: Our two wordings
+            targets: [conditions]
+            color: blue
+            linger: 0.25
+  - id: score-calibration
+    title: How often are claims at this score ready?
+    visual: Keep the claims in the middle score band and compare each wording's mean score to its observed readiness. Split the original ready cases by channel.
+    beats:
+      - say: Suppose a judge intends its score as a probability of readiness. Put the formal scores from point seven up to, but excluding, point nine in one band. Average the five scores inside. Then uncover the readiness labels for those same five claims.
+        hold: 0.6
+        visual_cues:
+          - id: band
+            phrase: Average the five scores inside
+            targets: [bands]
+            color: yellow
+            linger: 0.25
+      - say: Four of five are ready. Their observed fraction is point eight, beside a mean score of point seven nine. Do the same for conversational wording. All three are ready, beside a mean just under point seven eight. Calibration asks whether the predicted probability agrees with observed readiness within a group. Five cases and three cases tell us very little.
+        hold: 0.7
+        visual_cues:
+          - id: observe
+            phrase: Four of five are ready
+            targets: [bands]
+            color: yellow
+            linger: 0.25
+          - id: other-band
+            phrase: Do the same for conversational wording
+            targets: [bands]
+            color: yellow
+            linger: 0.25
+      - say: A rubric can rank claims without promising a probability. If you calibrate its scores, fit on separate data and check held-out cases, including for discrete scores. Check routing rates separately. Now split those original six ready claims by channel. Both wordings serve all three chat cases. In email, formal serves two of three and conversational serves none.
+        hold: 0.8
+        visual_cues:
+          - id: by-channel
+            phrase: split those original six ready claims by channel
+            targets: [channels]
+            color: yellow
+            linger: 0.25
+  - id: uncertainty-and-slices
+    title: How much can one more claim change?
+    visual: Place the two ready-case rates and their Wilson intervals on the same scale. Add a seventh ready pair to both rows and recompute.
+    beats:
+      - say: Return to the six ready pairs across both channels. One decision is a sixth of that sample. Each dot is a ready-case service rate. The line shows a ninety-five percent Wilson interval, the range this procedure gives under independent binomial sampling.
+        hold: 0.7
+        visual_cues:
+          - id: six-ready
+            phrase: Each dot is a ready-case service rate
+            targets: [bounds]
+            color: yellow
+            linger: 0.25
+      - say: Five of six gives a range from about forty-four to ninety-seven percent. Three of six gives about nineteen to eighty-one. Now imagine drawing one more ready pair and serving both versions. Where will the dots move?
+        hold: 1.9
+        visual_cues:
+          - id: another-ready
+            phrase: drawing one more ready pair and serving both versions
+            targets: [bounds]
+            color: yellow
+            linger: 0.25
+      - say: They both move right. Five of six becomes six of seven. Three of six becomes four of seven. One extra claim moves both rates. To estimate the rates for your customers, sample from all incoming claims, including the ones sent to review.
+        hold: 0.75
+        visual_cues:
+          - id: seventh
+            phrase: They both move right
+            targets: [bounds]
+            color: green
+            linger: 0.25
+            caption_boundary: true
+      - say: Split by channel again and each cell has only three ready and two unclear claims. All four cells miss the fifty and thirty support floors. Choose mandatory slices in advance. Channel and wording describe the request. Studying intersecting demographic groups requires approved definitions, access controls and enough independent cases in each group.
+        hold: 0.7
+        visual_cues:
+          - id: four-cells
+            phrase: Split by channel again
+            targets: [cells]
+            color: yellow
+            linger: 0.25
+  - id: uncertainty-gate
+    title: Would this gap interval pass?
+    visual: A zero count retains a Wilson upper bound. Whole matched claims travel together in a resample. Two authored signed intervals then meet the same marked tolerance.
+    beats:
+      - say: What if a rate is zero in six independent trials? The usual Wald calculation puts zero at both ends. Wilson still leaves room for outcomes you haven't seen. With zero successes its upper bound is z squared divided by six plus z squared. At ninety-five percent that's about thirty-nine percent.
+        hold: 0.7
+        caption_starts:
+          - The usual Wald calculation
+          - Wilson still leaves room
+          - At ninety-five percent
+          - about thirty-nine percent
+        visual_cues:
+          - id: wilson-bound
+            phrase: Wilson still leaves room
+            targets: [interval]
+            color: yellow
+            linger: 0.25
+          - id: wilson-value
+            phrase: about thirty-nine percent
+            targets: [interval]
+            color: blue
+            linger: 0.25
+      - say: The two wordings share a claim. To estimate uncertainty on their difference, resample both versions together. If a customer contributed several claims, preserve that cluster. Plan sample size for the gap you care about and account for comparing several slices. More bootstrap draws can't supply customers you never sampled.
+        hold: 0.7
+        visual_cues:
+          - id: resample
+            phrase: resample both versions together
+            targets: [pairs]
+            color: yellow
+            linger: 0.25
+      - say: Use a tolerance of ten points in either direction for the signed gap, formal minus conversational. These two intervals are examples. The first runs from minus seven to plus eight. It fits entirely inside the margin.
+        hold: 0.8
+        visual_cues:
+          - id: example-one
+            phrase: minus seven to plus eight
+            targets: [interval]
+            color: yellow
+            linger: 0.25
+          - id: uncertainty-pass
+            phrase: It fits entirely inside the margin
+            targets: [interval]
+            color: yellow
+            linger: 0.25
+            caption_boundary: true
+      - say: Try minus two to plus twenty-one. Zero is inside the interval. Does the whole interval fit the contract?
+        hold: 2
+        visual_cues:
+          - id: example-two
+            phrase: minus two to plus twenty-one
+            targets: [interval]
+            color: yellow
+            linger: 0.25
+      - say: The upper end sticks out by eleven points. This interval fails the gap check. Even overlapping intervals for individual rates can't answer this paired-gap question. With sparse or identical observations, check that your interval procedure gives meaningful bounds.
+        hold: 0.75
+        caption_starts:
+          - This interval fails the gap check
+          - Even overlapping intervals
+        visual_cues:
+          - id: measure-excess
+            phrase: The upper end sticks out by eleven points
+            targets: [interval]
+            color: yellow
+            linger: 0.25
+          - id: uncertainty-fail
+            phrase: This interval fails the gap check
+            targets: [interval]
+            color: yellow
+            linger: 0.25
+            caption_boundary: true
+  - id: interventions
+    title: Where could the blender score have changed?
+    visual: Trace the pair from the receipt to the router. Make one proposed style penalty explicit in a toy scorer, remove it, and reroute the same two inputs.
+    beats:
+      - say: Pull up P four again. Both versions have the same receipt and policy. The scores first differ at the judge output. On a real trace, compare retrieved text and judge inputs, then check the rubric, score parsing and the cutoff. The scores alone leave the cause open.
+        hold: 0.65
+        visual_cues:
+          - id: trace
+            phrase: The scores first differ at the judge output
+            targets: [trace]
+            color: yellow
+            linger: 0.25
+      - say: Test one possible explanation in a toy judge. Start each version at point seven eight. Give the conversational version a style deduction of point one one. It lands at point six seven, on the review side of the same cutoff.
+        hold: 0.7
+        visual_cues:
+          - id: deduct
+            phrase: a style deduction of point one one
+            targets: [scorer]
+            color: yellow
+            linger: 0.25
+      - say: Remove that deduction and keep every fact fixed. The conversational score returns to point seven eight. Both get automatic service. To test that idea on the real judge, replace the style instruction with a checklist for the receipt date and defect. Evaluate independently reviewed, held-out cases for access and unsafe admissions.
+        hold: 0.75
+        visual_cues:
+          - id: no-deduction
+            phrase: Remove that deduction
+            targets: [scorer]
+            color: yellow
+            linger: 0.25
+          - id: same-score
+            phrase: Both get automatic service
+            targets: [scorer]
+            color: green
+            linger: 0.25
+            caption_boundary: true
+      - say: Reviewed examples and preference training can also change what a judge rewards. Check any rewrite for changed meaning. A new cutoff changes who gets service and needs policy review. At fulfillment, the server must still verify ownership, defect eligibility, current policy and fulfillment details before issuing a replacement.
+        hold: 0.65
+        visual_cues:
+          - id: fulfillment
+            phrase: At fulfillment
+            targets: [fulfillment]
+            color: yellow
+            linger: 0.25
+  - id: benchmark-scope
+    title: Which test actually runs the router?
+    visual: Follow the inputs and outputs of language probes, then send the p4 case through retrieval, the judge and the product route.
+    beats:
+      - say: If the team reports an improved BBQ score, ask what went through that test. BBQ compares answers to ambiguous and disambiguated questions. StereoSet probes sentence preferences and language-modeling ability. CrowS-Pairs compares masked sentence preferences. Using it with a generator changes the protocol.
+        hold: 0.6
+        visual_cues:
+          - id: probe-qa
+            phrase: BBQ compares answers
+            targets: [probe]
+            color: yellow
+            linger: 0.25
+      - say: BOLD and RealToxicityPrompts score generated language. Embedding tests such as WEAT and SEAT measure associations. A labeler or an automated scorer can introduce bias too. Record the dataset and model versions, prompts, scorer and exclusions so someone can reproduce each result.
+        hold: 0.6
+        visual_cues:
+          - id: probe-gen
+            phrase: score generated language
+            targets: [probe]
+            color: yellow
+            linger: 0.25
+      - say: Now send the blender request through the product. Its conversation, retrieval, policy, judge and router all take part. A result on a language probe leaves that route unmeasured. Keep the probes for their own questions and use paired product requests and representative outcomes for this one.
+        hold: 0.75
+        visual_cues:
+          - id: product-run
+            phrase: send the blender request through the product
+            targets: [product]
+            color: yellow
+            linger: 0.25
+  - id: release-gate
+    title: Do these claims clear the gate?
+    visual: Change only the conversational scores of p1 and p6, preserve the aggregate tally and inspect both pair decisions. Restore the first candidate and open the blender service record to see which customer outcomes still need measurement.
+    beats:
+      - say: Back at the release desk, start with the hand-written candidate table. Both wordings serve the same five ready claims. P six goes to review in both. Every unclear claim goes to review. This run passes the individual pair check and all four rate checks.
+        hold: 0.75
+        visual_cues:
+          - id: first-run
+            phrase: Both wordings serve the same five ready claims
+            targets: [ledger]
+            color: yellow
+            linger: 0.25
+      - say: Try a second run. Change just two conversational scores. P one falls to point six. P six rises to point eight. The cutoff is still point seven. Our rule requires each verified pair to keep the same route. Does this run pass?
+        hold: 2.2
+        visual_cues:
+          - id: swap-inputs
+            phrase: Change just two conversational scores
+            targets: [rerun]
+            color: yellow
+            linger: 0.25
+          - id: lower-p-one
+            phrase: P one falls to point six
+            targets: [rerun]
+            color: yellow
+            linger: 0.25
+          - id: swap-complete
+            phrase: P six rises to point eight
+            targets: [rerun]
+            color: yellow
+            linger: 0.25
+      - say: Block this run. P one loses the fast path when it's worded conversationally. P six gains it. Five ready claims still get service in each wording. The two flips cancel in the rate. They count separately in the pair check.
+        hold: 0.9
+        caption_starts:
+          - P one loses the fast path
+          - P six gains it
+          - Five ready claims still get service
+        visual_cues:
+          - id: fail-rerun
+            phrase: Block this run
+            targets: [rerun]
+            color: red
+            linger: 0.25
+            caption_boundary: true
+          - id: lose-place
+            phrase: P one loses the fast path
+            targets: [ledger]
+            color: yellow
+            linger: 0.25
+          - id: gain-place
+            phrase: P six gains it
+            targets: [ledger]
+            color: yellow
+            linger: 0.25
+      - say: Put the first candidate back. Its fixture passes again. To release a real model, we still need a representative model evaluation, enough independent cases in every required slice, and a reviewed interval on the paired gap. Six ready and four unclear examples per wording leave that work open.
+        hold: 0.75
+        visual_cues:
+          - id: original-back
+            phrase: Put the first candidate back
+            targets: [ledger]
+            color: yellow
+            linger: 0.25
+          - id: evidence
+            phrase: representative model evaluation
+            targets: [record]
+            color: yellow
+            linger: 0.25
+      - say: Hold the release until reviewers have representative results, approved group definitions and the privacy review. Back to the blender claim. Both versions get automatic service in the candidate table. How long did either customer actually wait?
+        hold: 1.9
+        visual_cues:
+          - id: release-still-blocked
+            phrase: Hold the release until reviewers have representative results, approved group definitions and the privacy review.
+            targets: [record]
+            color: yellow
+            linger: 0.25
+            caption_boundary: true
+          - id: blender-record
+            phrase: Back to the blender claim
+            targets: [outcomes]
+            color: blue
+            linger: 0.25
+          - id: release-pair-result
+            phrase: Both versions get automatic service in the candidate table.
+            targets: [outcomes]
+            color: yellow
+            linger: 0.25
+            caption_boundary: true
+      - say: We measured neither wait. Name someone to track waiting time and resolution quality across the reviewed slices after deployment. Reopen the audit when the policy, judge, model or customer population changes. Next, check whether the reply follows its evidence.
+        hold: 1.1
+        caption_starts:
+          - Name someone to track
+          - Reopen the audit
+          - Next, check whether
+        visual_cues:
+          - id: missing-outcomes
+            phrase: We measured neither wait
+            targets: [outcomes]
+            caption_boundary: true
+            color: yellow
+            linger: 0.25
+          - id: reply-evidence
+            phrase: Next, check whether the reply follows its evidence
+            targets: [outcomes]
+            color: yellow
+            linger: 0.25

@@ -1,0 +1,256 @@
+{
+  "id": "streaming-token-assembler",
+  "slug": "streaming-token-assembler",
+  "title": "Streaming Token Assembler",
+  "difficulty": "Easy",
+  "category": "Streaming",
+  "language": "python3",
+  "timeEstimateMinutes": 25,
+  "timeLimitMs": 2500,
+  "memoryLimitMb": 128,
+  "order": 230,
+  "tags": [
+    "streaming",
+    "stateful parser",
+    "deltas",
+    "message assembly"
+  ],
+  "source": "AI lab prep",
+  "summary": "Assemble interleaved streaming token deltas into complete message text.",
+  "starterCode": [
+    "class TokenAssembler:",
+    "    def __init__(self):",
+    "        self.parts = {}",
+    "        self.finalized = set()",
+    "",
+    "    def apply(self, event: dict):",
+    "        pass",
+    "",
+    "    def get(self, message_id):",
+    "        pass"
+  ],
+  "testCases": [
+    {
+      "name": "private empty message is distinct from an unseen id",
+      "visibility": "hidden",
+      "setup": [
+        "from solution import TokenAssembler",
+        "assembler = TokenAssembler()"
+      ],
+      "checks": [
+        {"input": "assembler = TokenAssembler()\nassembler.apply({\"id\": \"empty\"})", "expression": "assembler.apply({\"id\": \"empty\"})", "operator": "is", "expected": "None"},
+        {"input": "assembler = TokenAssembler()\nassembler.apply({\"id\": \"empty\"})\nassembler.get(\"empty\")", "expression": "assembler.get(\"empty\")", "operator": "==", "expected": "\"\""},
+        {"input": "assembler.apply({\"id\": \"new\", \"final\": True})", "expression": "assembler.apply({\"id\": \"new\", \"final\": True})", "operator": "==", "expected": "\"\""},
+        {"input": "assembler.get(\"unseen\")", "expression": "assembler.get(\"unseen\")", "operator": "is", "expected": "None"}
+      ]
+    },
+    {
+      "name": "public assembles one message",
+      "visibility": "sample",
+      "setup": [
+        "from solution import TokenAssembler",
+        "assembler = TokenAssembler()"
+      ],
+      "checks": [
+        {
+          "input": "assembler = TokenAssembler()\nassembler.apply({\"id\": \"m\", \"delta\": \"hel\"})",
+          "expression": "assembler.apply({\"id\": \"m\", \"delta\": \"hel\"})",
+          "operator": "is",
+          "expected": "None"
+        },
+        {
+          "input": "assembler = TokenAssembler()\nassembler.apply({\"id\": \"m\", \"delta\": \"hel\"})\nassembler.get(\"m\")",
+          "expression": "assembler.get(\"m\")",
+          "operator": "==",
+          "expected": "\"hel\""
+        },
+        {
+          "input": "assembler = TokenAssembler()\nassembler.apply({\"id\": \"m\", \"delta\": \"hel\"})\nassembler.get(\"m\")\nassembler.apply({\"id\": \"m\", \"delta\": \"lo\", \"final\": True})",
+          "expression": "assembler.apply({\"id\": \"m\", \"delta\": \"lo\", \"final\": True})",
+          "operator": "==",
+          "expected": "\"hello\""
+        }
+      ]
+    },
+    {
+      "name": "public supports interleaved ids",
+      "visibility": "sample",
+      "setup": [
+        "from solution import TokenAssembler",
+        "assembler = TokenAssembler()",
+        "assembler.apply({\"id\": \"a\", \"delta\": \"A\"})",
+        "assembler.apply({\"id\": \"b\", \"delta\": \"B\"})"
+      ],
+      "checks": [
+        {
+          "input": "assembler = TokenAssembler()\nassembler.apply({\"id\": \"a\", \"delta\": \"A\"})\nassembler.apply({\"id\": \"b\", \"delta\": \"B\"})\nassembler.apply({\"id\": \"a\", \"delta\": \"1\", \"final\": True})",
+          "expression": "assembler.apply({\"id\": \"a\", \"delta\": \"1\", \"final\": True})",
+          "operator": "==",
+          "expected": "\"A1\""
+        },
+        {
+          "input": "assembler = TokenAssembler()\nassembler.apply({\"id\": \"a\", \"delta\": \"A\"})\nassembler.apply({\"id\": \"b\", \"delta\": \"B\"})\nassembler.apply({\"id\": \"a\", \"delta\": \"1\", \"final\": True})\nassembler.apply({\"id\": \"b\", \"delta\": \"2\", \"final\": True})",
+          "expression": "assembler.apply({\"id\": \"b\", \"delta\": \"2\", \"final\": True})",
+          "operator": "==",
+          "expected": "\"B2\""
+        }
+      ]
+    },
+    {
+      "name": "private handles final without delta",
+      "visibility": "hidden",
+      "setup": [
+        "from solution import TokenAssembler",
+        "assembler = TokenAssembler()",
+        "assembler.apply({\"id\": \"x\", \"delta\": \"done\"})"
+      ],
+      "input": "assembler = TokenAssembler()\nassembler.apply({\"id\": \"x\", \"delta\": \"done\"})\nassembler.apply({\"id\": \"x\", \"final\": True})",
+      "expected": "\"done\"",
+      "expression": "assembler.apply({\"id\": \"x\", \"final\": True})"
+    },
+    {
+      "name": "private ignores updates after final",
+      "visibility": "hidden",
+      "setup": [
+        "from solution import TokenAssembler",
+        "assembler = TokenAssembler()"
+      ],
+      "checks": [
+        {
+          "input": "assembler = TokenAssembler()\nassembler.apply({\"id\": \"m\", \"delta\": \"ok\", \"final\": True})",
+          "expression": "assembler.apply({\"id\": \"m\", \"delta\": \"ok\", \"final\": True})",
+          "operator": "==",
+          "expected": "\"ok\""
+        },
+        {
+          "input": "assembler = TokenAssembler()\nassembler.apply({\"id\": \"m\", \"delta\": \"ok\", \"final\": True})\nassembler.apply({\"id\": \"m\", \"delta\": \"bad\"})",
+          "expression": "assembler.apply({\"id\": \"m\", \"delta\": \"bad\"})",
+          "operator": "is",
+          "expected": "None"
+        },
+        {
+          "input": "assembler = TokenAssembler()\nassembler.apply({\"id\": \"m\", \"delta\": \"ok\", \"final\": True})\nassembler.apply({\"id\": \"m\", \"delta\": \"bad\"})\nassembler.get(\"m\")",
+          "expression": "assembler.get(\"m\")",
+          "operator": "==",
+          "expected": "\"ok\""
+        },
+        {
+          "input": "assembler = TokenAssembler()\nassembler.apply({\"id\": \"m\", \"delta\": \"ok\", \"final\": True})\nassembler.apply({\"id\": \"m\", \"delta\": \"bad\"})\nassembler.get(\"m\")\nassembler.apply({\"id\": \"m\", \"final\": True})",
+          "expression": "assembler.apply({\"id\": \"m\", \"final\": True})",
+          "operator": "==",
+          "expected": "\"ok\""
+        }
+      ]
+    },
+    {
+      "name": "private preserves empty deltas",
+      "visibility": "hidden",
+      "setup": [
+        "from solution import TokenAssembler",
+        "assembler = TokenAssembler()",
+        "assembler.apply({\"id\": \"m\", \"delta\": \"\"})",
+        "assembler.apply({\"id\": \"m\", \"delta\": \"x\"})"
+      ],
+      "checks": [
+        {
+          "input": "assembler = TokenAssembler()\nassembler.apply({\"id\": \"m\", \"delta\": \"\"})\nassembler.apply({\"id\": \"m\", \"delta\": \"x\"})\nassembler.apply({\"id\": \"m\", \"delta\": \"\", \"final\": True})",
+          "expression": "assembler.apply({\"id\": \"m\", \"delta\": \"\", \"final\": True})",
+          "operator": "==",
+          "expected": "\"x\""
+        },
+        {
+          "input": "assembler = TokenAssembler()\nassembler.apply({\"id\": \"m\", \"delta\": \"\"})\nassembler.apply({\"id\": \"m\", \"delta\": \"x\"})\nassembler.apply({\"id\": \"m\", \"delta\": \"\", \"final\": True})\nassembler.get(\"missing\")",
+          "expression": "assembler.get(\"missing\")",
+          "operator": "is",
+          "expected": "None"
+        }
+      ]
+    },
+    {
+      "name": "public unknown message returns none",
+      "visibility": "sample",
+      "setup": [
+        "from solution import TokenAssembler",
+        "assembler = TokenAssembler()"
+      ],
+      "input": "assembler.get(\"missing\")",
+      "expected": "None"
+    },
+    {
+      "name": "private final first event includes its delta",
+      "visibility": "hidden",
+      "setup": [
+        "from solution import TokenAssembler",
+        "assembler = TokenAssembler()"
+      ],
+      "input": "assembler.apply({\"id\": \"m\", \"delta\": \"done\", \"final\": True})",
+      "expected": "\"done\""
+    },
+    {
+      "name": "private repeated finalization is idempotent",
+      "visibility": "hidden",
+      "setup": [
+        "from solution import TokenAssembler",
+        "assembler = TokenAssembler()",
+        "assembler.apply({\"id\": \"m\", \"delta\": \"done\", \"final\": True})"
+      ],
+      "input": "assembler.apply({\"id\": \"m\", \"delta\": \"ignored\", \"final\": True})",
+      "expected": "\"done\""
+    }
+  ],
+  "clarifyingQuestions": [
+    "Can events for different messages interleave?",
+    "Should late deltas after final be rejected or ignored?",
+    "Should completed messages be kept forever?"
+  ],
+  "followUps": [
+    "Evict completed messages after a TTL.",
+    "Track usage counts or token offsets per delta.",
+    "Return structured completion objects with finish reason."
+  ],
+  "followUpGuide": [
+    "TTL eviction needs an injected clock and purge on reads and writes. Decide how late events for an evicted ID behave: removing the finalized marker would let them recreate the message. Keep a bounded tombstone or require fresh IDs when completed text is discarded.",
+    "",
+    "Offsets help detect duplicate or out-of-order deltas.",
+    "",
+    "Finish reason is metadata stored next to completed text during finalization."
+  ],
+  "complexityAnalysis": [
+    "- Let C be retained characters, D retained delta parts (including empty strings), and M message IDs. Joining one buffer costs O(characters + parts), so empty deltas still contribute time and memory.",
+    "- Concatenate strings naively: repeated immutable-string copies can cost O(C^2) for one message receiving one-character deltas. Time also includes event processing. Space: O(C + M).",
+    "- List buffers without a completed-text cache: Time: O(1) amortized per append, O(characters + parts) per get or finalization. Repeated reads can cost quadratic work as the buffer grows. Space: O(C + D + M).",
+    "- Shipped completed-text cache: Time: O(characters + parts) for first finalization, O(1) for later finalized reads and repeated final events, and O(characters + parts) for an unfinished get. Space: O(C + D + M); cached strings can duplicate retained characters by a constant factor."
+  ],
+  "solutionGuide": [
+    "Keep buffers by ID and a finalized set. Join once on finalization and cache that result; later final events and reads return the cached string. Ignore new deltas after finalization.",
+    "",
+    "```python",
+    "class TokenAssembler:",
+    "    def __init__(self):",
+    "        self.parts = {}",
+    "        self.finalized = set()",
+    "        self.completed = {}",
+    "",
+    "    def apply(self, event: dict):",
+    "        message_id = event[\"id\"]",
+    "        if message_id in self.finalized:",
+    "            return self.completed[message_id] if event.get(\"final\") else None",
+    "        if message_id not in self.parts:",
+    "            self.parts[message_id] = []",
+    "        if \"delta\" in event:",
+    "            self.parts[message_id].append(event[\"delta\"])",
+    "        if event.get(\"final\"):",
+    "            self.finalized.add(message_id)",
+    "            self.completed[message_id] = \"\".join(self.parts[message_id])",
+    "            return self.completed[message_id]",
+    "        return None",
+    "",
+    "    def get(self, message_id):",
+    "        if message_id in self.finalized:",
+    "            return self.completed[message_id]",
+    "        if message_id not in self.parts:",
+    "            return None",
+    "        return \"\".join(self.parts[message_id])",
+    "```"
+  ]
+}

@@ -1,0 +1,153 @@
+version: 1
+lesson: model-routing
+promise: Decide whether the access desk can dispatch a fallback, account for each generation attempt, and hand back the result of a prior grant.
+framing: []
+objectives:
+  - id: intro
+    can: Compare the desk’s required form and review workflow with what a backup can supply. Trace an eligible call from the gateway to the adapter.
+    scenes:
+      - intro
+  - id: contract
+    can: Keep the review threshold, privacy classification, and cited answer requirements together when client hints change.
+    scenes:
+      - contract
+  - id: filter
+    can: Use the field checks and lane capacities to identify the surviving routes as input grows from 24,000 to 70,000 tokens.
+    scenes:
+      - filter
+  - id: rank
+    can: Choose a compatible lane by cost or expected answer time when the local latency estimate changes.
+    scenes:
+      - rank
+  - id: deadline
+    can: Compare a proposed fallback with the time and reservation left after a billed timeout. Count only dispatched calls.
+    scenes:
+      - deadline
+      - transfer
+  - id: publication
+    can: Stop transparent retry after visible output and validate evidence
+    scenes:
+      - publication
+  - id: breaker
+    can: Limit recovery probing without relaxing the contract
+    scenes:
+      - breaker
+  - id: synthesis
+    can: Add both attempt charges to the request and use the verified grant receipt to retry only the explanation.
+    scenes:
+      - synthesis
+  - id: transfer
+    can: Decide whether D can run when its expected finish moves from 2,499 ms to the 2,500 ms deadline.
+    scenes:
+      - transfer
+sections:
+  - heading: What belongs at the gateway boundary
+    status: taught
+    scenes:
+      - intro
+      - rank
+  - heading: Compile requirements before choosing a lane
+    status: taught
+    scenes:
+      - contract
+      - filter
+  - heading: Let learned routing rank only legal lanes
+    status: taught
+    scenes:
+      - rank
+  - heading: Make fallback another contract decision
+    status: taught
+    scenes:
+      - intro
+      - deadline
+      - publication
+      - synthesis
+  - heading: Keep an outage from multiplying
+    status: taught
+    scenes:
+      - breaker
+  - heading: Execute one outage path and record why
+    status: taught
+    scenes:
+      - deadline
+      - synthesis
+      - transfer
+  - heading: Replay policy before promoting it
+    status: taught
+    scenes:
+      - synthesis
+      - rank
+  - heading: Validate the reply returned by each lane
+    status: taught
+    scenes:
+      - publication
+  - heading: A generation retry must leave a completed write alone
+    status: taught
+    scenes:
+      - synthesis
+  - heading: Hand the support agent a policy artifact
+    status: taught
+    scenes:
+      - transfer
+      - synthesis
+quiz:
+  - n: 1
+    status: taught
+    scenes:
+      - contract
+  - n: 2
+    status: taught
+    scenes:
+      - contract
+      - filter
+      - rank
+      - deadline
+  - n: 3
+    status: taught
+    scenes:
+      - publication
+  - n: 4
+    status: taught
+    scenes:
+      - rank
+      - synthesis
+  - n: 5
+    status: taught
+    scenes:
+      - intro
+      - filter
+      - deadline
+  - n: 6
+    status: taught
+    scenes:
+      - breaker
+  - n: 7
+    status: taught
+    scenes:
+      - deadline
+      - synthesis
+  - n: 8
+    status: taught
+    scenes:
+      - filter
+  - n: 9
+    status: taught
+    scenes:
+      - synthesis
+  - n: 10
+    status: taught
+    scenes:
+      - deadline
+      - transfer
+removed: []
+reviews:
+  closed_book:
+    taught: 10
+    partial: 0
+    absent: 0
+    script: 8a000bec3bcdc4b1
+    evidence: build/video-delivery-20261106/script-reviews/model-routing.json
+  fact_check:
+    open_findings: 0
+    script: 8a000bec3bcdc4b1
+    evidence: build/video-delivery-20261106/script-reviews/model-routing.json

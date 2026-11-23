@@ -1,0 +1,1749 @@
+version: 1
+id: continued-pretraining
+title: Teaching a Model a New Domain
+source: training/continued-pretraining-domain-adaptation/content.md
+voice: en-US-AndrewNeural
+rate: +0%
+sources:
+  - title: "Gururangan et al. Don't Stop Pretraining: Adapt Language Models to Domains and Tasks"
+    url: https://arxiv.org/abs/2004.10964
+  - title: Rongali et al. Continual Domain-Tuning for Pretrained Language Models
+    url: https://arxiv.org/abs/2004.02288
+  - title: Perplexity of fixed-length models
+    url: https://huggingface.co/docs/transformers/perplexity
+  - title: Fine-Tuning or Retrieval? Comparing Knowledge Injection in LLMs
+    url: https://aclanthology.org/2024.emnlp-main.15/
+  - title: "Code Llama: Open Foundation Models for Code"
+    url: https://arxiv.org/abs/2308.12950
+  - title: An Empirical Comparison of Vocabulary Expansion and Initialization Approaches for Language Models
+    url: https://arxiv.org/abs/2407.05841
+  - title: "Beyond Initialization Loss: A Systematic Study of Token Embedding Initialization Strategies for LLM
+      Vocabulary Extension"
+    url: https://arxiv.org/abs/2608.03494
+  - title: Simple and Scalable Strategies to Continually Pre-train Large Language Models
+    url: https://openreview.net/forum?id=DimPeeCxKO
+  - title: "Don't Stop Pretraining: Adapt Language Models to Domains and Tasks."
+    url: https://aclanthology.org/2020.acl-main.740/
+  - title: "BloombergGPT: A Large Language Model for Finance"
+    url: https://arxiv.org/abs/2303.17564
+  - title: "QLoRA: Efficient Finetuning of Quantized LLMs"
+    url: https://arxiv.org/abs/2305.14314
+  - title: The Llama 3 Herd of Models.
+    url: https://arxiv.org/abs/2407.21783
+scenes:
+  - id: intro
+    title: What changes when a model learns from one field note?
+    visual: A pencil marks the missing word in a diver’s notebook. Reveal the observed ending, then follow the shared odds as one training update shifts the split on both notes.
+    beats:
+      - say: The tide rises near the ... Reef and tree each get half the probability. Which word did the diver write?
+        hold: 2.1
+        caption_starts:
+          - Which word did the diver write
+        visual_cues:
+          - id: intro-odds
+            phrase: Reef and tree each get half the probability
+            targets:
+              - word-odds
+            linger: 0.35
+            caption_boundary: true
+      - say: The diver wrote reef. The park note ends in tree. In this little model, both notes share one pair of
+          scores. If training on the diver’s note raises the score for reef, what happens to tree in the park note?
+        hold: 2.1
+        visual_cues:
+          - id: intro-open
+            phrase: The diver wrote reef
+            targets:
+              - field-note
+            linger: 0.35
+            caption_boundary: true
+          - id: intro-park
+            phrase: The park note ends in tree
+            targets:
+              - park-note
+            linger: 0.35
+            caption_boundary: true
+      - say: Tree loses some of its share. Raise the reef score by a quarter and keep the tree score at zero.
+          These scores are called logits. Reef now gets about fifty-six percent on either note. A language model
+          can also use the words around the gap. When a pretrained model keeps learning to predict the next token
+          from field notes like these, that’s continued pretraining. How would we tell whether it helped someone
+          do their job?
+        hold: 0.9
+        caption_starts:
+          - Reef now gets about fifty-six percent
+        visual_cues:
+          - id: intro-update
+            phrase: Tree loses some of its share
+            targets:
+              - word-odds
+            linger: 0.35
+            caption_boundary: true
+  - id: incident-controls
+    title: What would fix the incident reply?
+    visual: Add the runbook to the same request. Compare its conditional effect with two matched training recipes.
+    beats:
+      - say: At three in the morning an incident assistant tells the on-call engineer to check the Wi-Fi. This is our
+          fictional payment service. The runbook says the worker pool runs out of connections when the gateway
+          retries. The retry needs jitter, and token reissue needs an idempotency token. What could we change
+          before spending a single training step?
+        hold: 1.9
+        visual_cues:
+          - id: incident-answer
+            phrase: check the Wi-Fi
+            targets:
+              - incident-answer
+            linger: 0.35
+            caption_boundary: true
+          - id: incident-evidence
+            phrase: The runbook says
+            targets:
+              - runbook-excerpt
+            linger: 0.35
+            caption_boundary: true
+      - say: Put the excerpt in the prompt and leave the weights alone. Suppose the answer now follows the runbook. That
+          gives us a retrieval baseline. If it still fails, compare two training paths. One starts supervised
+          fine-tuning immediately. The other first reads unlabeled domain text, then gets the same supervised
+          recipe. Use the same held-out incidents, context and scoring for both. Supervised examples can teach
+          facts and procedures as well as answer format.
+        hold: 0.8
+        visual_cues:
+          - id: incident-supply
+            phrase: Put the excerpt in the prompt
+            targets:
+              - runbook-excerpt
+            linger: 0.35
+            caption_boundary: true
+          - id: incident-reply
+            phrase: the answer now follows the runbook
+            targets:
+              - incident-answer
+            linger: 0.35
+            caption_boundary: true
+          - id: incident-pair
+            phrase: compare two training paths
+            targets:
+              - training-pair
+            linger: 0.35
+            caption_boundary: true
+      - say: Supplying evidence takes context. Triple the prompt length and this square of full-attention pairs grows
+          ninefold at fixed model width. Other work, including projections, feed-forward layers, retrieval and
+          cache reuse, affects the actual latency. Time the supported answer and score its accuracy. Even a name
+          that takes several tokens can make sense in context.
+        hold: 0.85
+        visual_cues:
+          - id: incident-length
+            phrase: Triple the prompt length
+            targets:
+              - attention-pairs
+            linger: 0.35
+            caption_boundary: true
+  - id: diagnose
+    title: Match the training method to the failure
+    visual: A task symptom branches to retrieval, continued pretraining, supervised fine-tuning, and preference
+      optimization with distinct input signals.
+    beats:
+      - say: First identify what fails. Missing current facts may call for retrieval, while trouble modeling domain
+          documents can justify another stretch of next-token training. Retrieval supplies outside evidence at
+          answer time; continued pretraining changes patterns stored in model weights.
+        hold: 0.55
+        visual_cues:
+          - id: diagnose-b1-1
+            phrase: retrieval, while
+            targets:
+              - retrieve-path
+            linger: 0.45
+          - id: diagnose-b1-2
+            phrase: changes patterns stored in model weights
+            targets:
+              - domain-path
+            linger: 0.45
+      - say: When output format fails, supervised fine-tuning provides prompt and response demonstrations. Preference
+          methods address comparisons between acceptable replies.
+        hold: 0.55
+        visual_cues:
+          - id: diagnose-b2-1
+            phrase: supervised fine-tuning
+            targets:
+              - supervised-path
+            linger: 0.45
+          - id: diagnose-preference-comparison
+            phrase: Preference methods address comparisons between acceptable replies
+            targets:
+              - preference-path
+            color: yellow
+            linger: 0.65
+      - say: Each training stage uses a different learning signal. Field notes supply the next word, a supervised
+          example supplies an answer, and a reviewer can tell us which of two answers they prefer.
+        hold: 0.75
+        visual_cues:
+          - id: diagnose-b3-1
+            phrase: different learning signal
+            targets:
+              - domain-path
+              - supervised-path
+              - preference-path
+            color: cyan
+            linger: 0.45
+  - id: prompt-gradient
+    title: Which prompt rows receive a gradient?
+    visual: Follow two prompt embeddings into the one scored response, then trace its derivative back to the input rows.
+    beats:
+      - say: Follow the two blue prompt rows into the sum. They make the hidden vector that the fixed output head uses
+          to predict the response. The head gives the third class the lowest score. That class is our observed
+          response. We score only that response and skip the earlier prompt target. Which input rows will its loss
+          reach?
+        hold: 2
+        visual_cues:
+          - id: prompt-gradient-b1
+            phrase: Follow the two blue prompt rows
+            targets:
+              - prompt-gradient-construction
+            color: cyan
+            linger: 0.5
+      - say: Trace the response gradient back through the sum. Both blue rows feed the prediction, so both receive a
+          gradient. The loss is about one point eight six two nats. The third row was never looked up. Its input
+          gradient is zero here. If we tied the input and output weights, there would be another path through the
+          head.
+        hold: 0.6
+        caption_starts:
+          - Both blue rows feed the prediction
+          - The third row was never looked up
+        visual_cues:
+          - id: prompt-gradient-b2
+            phrase: Trace the response gradient
+            targets:
+              - prompt-gradient-construction
+            color: cyan
+            linger: 0.5
+          - id: cpt-dependency-backward
+            phrase: back through the sum
+            targets:
+              - cpt-dependency-rows
+            color: cyan
+            linger: 0.45
+          - id: cpt-dependency-loss
+            phrase: The loss is about one point eight six two nats
+            targets:
+              - cpt-dependency-loss
+            color: cyan
+            linger: 0.45
+          - id: cpt-dependency-unused
+            phrase: The third row was never looked up
+            targets:
+              - cpt-dependency-unused
+            color: cyan
+            linger: 0.45
+      - say: The mask tells us which predictions to score. The sum tells us which inputs influenced that score. A
+          separate choice tells the optimizer which parameters it may change. This small model uses a sum and a
+          fixed head so we can check those paths directly.
+        hold: 0.85
+        visual_cues:
+          - id: prompt-gradient-b3
+            phrase: The mask tells us which predictions to score
+            targets:
+              - prompt-gradient-construction
+            color: cyan
+            linger: 0.5
+  - id: scored-objective
+    title: How many targets count?
+    visual: Count the positions the chosen causal loss can score.
+    beats:
+      - say: Take a block of seven tokens. With no earlier context, the first token gives us something to read. From
+          there we can score the next six. In general, a block of n tokens scores n minus one positions before
+          padding or boundary masks. Add up the negative log probabilities on the positions you actually score,
+          and divide by their count. You need at least one.
+        hold: 0.6
+        visual_cues:
+          - id: scored-objective-b1
+            phrase: Take a block of seven tokens
+            targets:
+              - scored-objective-construction
+            color: cyan
+            linger: 0.5
+          - id: cpt-objective-shift
+            phrase: scores n minus one positions
+            targets:
+              - cpt-objective-pairs
+            color: cyan
+            linger: 0.45
+      - say: Exponentiate that mean loss and you get perplexity. Compare the same target positions with the same
+          available context. All six are eligible in our continued-pretraining example. A response-only mask
+          leaves four direct targets. The other tokens can still supply context to those predictions.
+        hold: 0.6
+        visual_cues:
+          - id: scored-objective-b2
+            phrase: Exponentiate that mean loss
+            targets:
+              - scored-objective-construction
+            color: cyan
+            linger: 0.5
+          - id: cpt-objective-four
+            phrase: A response-only mask leaves four direct targets
+            targets:
+              - cpt-objective-pairs
+            color: cyan
+            linger: 0.45
+      - say: Runbook text teaches the model which pieces follow each other in a runbook. Supervised replies teach it
+          what to say to the engineer. Their serializer and mask specify which reply positions count. Either
+          objective can update the full model or just an adapter, depending on which parameters you leave
+          trainable.
+        hold: 0.85
+        visual_cues:
+          - id: scored-objective-b3
+            phrase: Runbook text teaches the model
+            targets:
+              - scored-objective-construction
+            color: cyan
+            linger: 0.5
+          - id: cpt-objective-source
+            phrase: Supervised replies teach it what to say
+            targets:
+              - cpt-objective-source
+            color: cyan
+            linger: 0.45
+  - id: fertility-cost
+    title: How many pieces does the timeout code use?
+    visual: A tokenizer inspection measures pieces rather than competence.
+    beats:
+      - say: Try the payment service’s timeout code in this small longest-match tokenizer. It knows lowercase timeout as
+          one piece. In the uppercase identifier it recognizes AUTH, then the underscore. It spells out the rest
+          one letter at a time. That makes nine pieces in this vocabulary. A production tokenizer has its own
+          vocabulary and splitting rules.
+        hold: 0.6
+        visual_cues:
+          - id: fertility-cost-b1
+            phrase: Try the payment service’s timeout code
+            targets:
+              - fertility-cost-construction
+            color: cyan
+            linger: 0.5
+          - id: cpt-fertility-pieces
+            phrase: It spells out the rest one letter at a time
+            targets:
+              - cpt-fertility-pieces
+            color: cyan
+            linger: 0.45
+      - say: Those nine pieces spend more context than one. Measure corpus-wide token lengths with the actual checkpoint
+          tokenizer before assigning a multiplier to all documents. If a whole sequence triples in length, its
+          full-attention pair component grows ninefold at fixed width. Total forward work and measured latency
+          include other operations.
+        hold: 0.6
+        visual_cues:
+          - id: fertility-cost-b2
+            phrase: Those nine pieces spend more context than one.
+            targets:
+              - fertility-cost-construction
+            color: cyan
+            linger: 0.5
+          - id: cpt-fertility-pairs
+            phrase: its full-attention pair component grows ninefold
+            targets:
+              - cpt-fertility-work
+            color: cyan
+            linger: 0.45
+      - say: Keep the tokenizer fixed and the model reads the same nine pieces throughout training. Their IDs and
+          the size of the embedding table stay the same. The model can still learn what that sequence means from
+          the surrounding reports. Check it on unseen text and incident questions.
+        hold: 0.85
+        visual_cues:
+          - id: fertility-cost-b3
+            phrase: the same nine pieces throughout training
+            targets:
+              - fertility-cost-construction
+            color: cyan
+            linger: 0.5
+  - id: vocabulary-shapes
+    title: What changes when we add a token?
+    visual: Adding a row changes both lookup and output support.
+    beats:
+      - say: What would it take to give that identifier its own token? Look at the two tables. The input table needs a
+          row to read the token. The output head needs a row to predict it. Add the new row to both tables and
+          keep the old IDs in place. Update the tokenizer and configuration too. For K new tokens each table gains
+          K rows of the same width. If the tables share weights, preserve that tie. If they are separate,
+          initialize both.
+        hold: 0.6
+        caption_starts:
+          - Look at the two tables
+        visual_cues:
+          - id: vocabulary-shapes-b1
+            phrase: Look at the two tables
+            targets:
+              - vocabulary-shapes-construction
+            color: cyan
+            linger: 0.5
+          - id: cpt-vocab-resize
+            phrase: Add the new row to both tables
+            targets:
+              - cpt-vocab-tables
+            color: cyan
+            linger: 0.45
+      - say: Here the input table has five rows of eight numbers. Build its sixth row from auth, time and out. In each
+          column, average the three old values. Those eight averages form the new input embedding. If the output
+          table is separate, choose its starting row too.
+        hold: 0.6
+        visual_cues:
+          - id: vocabulary-shapes-b2
+            phrase: Build its sixth row from auth, time and out
+            targets:
+              - vocabulary-shapes-construction
+            color: cyan
+            linger: 0.5
+          - id: cpt-vocab-centroid
+            phrase: In each column, average the three old values
+            targets:
+              - cpt-vocab-centroid
+            color: cyan
+            linger: 0.45
+      - say: How should those new rows start? In one Hindi adaptation study with Nemotron, different methods
+          worked well for the input and output rows. The scale of the vectors mattered too. Ranking the methods
+          by starting loss could give a different winner from ranking them on the final task. Try a short run
+          and compare both task performance and retained abilities.
+        hold: 0.85
+        visual_cues:
+          - id: vocabulary-shapes-b3
+            phrase: How should those new rows start
+            targets:
+              - vocabulary-shapes-construction
+            color: cyan
+            linger: 0.5
+          - id: cpt-vocab-evidence
+            phrase: ranking them on the final task
+            targets:
+              - cpt-vocab-evidence
+            color: cyan
+            linger: 0.45
+  - id: vocabulary-denominator
+    title: What happens to an old word’s probability?
+    visual: An unchanged old logit can lose probability after expansion.
+    beats:
+      - say: Keep the two old output rows and the hidden vector fixed. Both dot products are zero. Each old word
+          contributes one unit to the softmax denominator, so the words split the probability evenly. The proposed
+          new row is their mean. Its dot product is also zero. When we add it, what probability will the first
+          word get?
+        hold: 2
+        visual_cues:
+          - id: vocabulary-denominator-b1
+            phrase: Keep the two old output rows
+            targets:
+              - vocabulary-denominator-construction
+            color: cyan
+            linger: 0.5
+      - say: The denominator gains a third unit mass while the old logits remain zero. The old target probability
+          becomes one third. Its negative log probability rises from about zero point six nine three to one point
+          zero nine nine, an increase of natural log three halves, about zero point four zero five.
+        hold: 0.6
+        visual_cues:
+          - id: vocabulary-denominator-b2
+            phrase: The denominator gains a third unit mass while the old logits remain zero.
+            targets:
+              - vocabulary-denominator-construction
+            color: cyan
+            linger: 0.5
+          - id: cpt-vocab-third
+            phrase: The old target probability becomes one third.
+            targets:
+              - cpt-vocab-mass
+            color: cyan
+            linger: 0.45
+            caption_boundary: true
+          - id: cpt-vocab-nll
+            phrase: an increase of natural log three halves
+            targets:
+              - cpt-vocab-loss
+            color: cyan
+            linger: 0.45
+      - say: The new row takes a share of every prediction, even when both old scores stay fixed. That gives us
+          something to measure when we add tokens. Check the initial loss, then train and score both new and
+          familiar tasks. Code Llama kept the existing tokenizer for most of its work and added four markers
+          for a specific job, filling gaps in code.
+        hold: 0.85
+        visual_cues:
+          - id: vocabulary-denominator-b3
+            phrase: The new row takes a share of every prediction
+            targets:
+              - vocabulary-denominator-construction
+            color: cyan
+            linger: 0.5
+  - id: corpus
+    title: Prepare domain text before training
+    visual: Candidate field guides, duplicate pages, contaminated evaluation examples, and clean held-out
+      documents move through separate corpus gates.
+    beats:
+      - say: Start with the documents the model should learn from. Remove boilerplate, corrupted extraction,
+          near-duplicates, and text that the team has no right to use. Keep licensing, provenance, language,
+          and date metadata beside each source so stale material can be removed later.
+        hold: 0.55
+        visual_cues:
+          - id: corpus-b1-1
+            phrase: documents the model should learn from
+            targets:
+              - source-records
+            linger: 0.45
+          - id: corpus-b1-2
+            phrase: near-duplicates
+            targets:
+              - corpus-decisions
+            linger: 0.45
+      - say: Split evaluation material before training and check for overlap with source documents. Deduplication
+          reduces repeated passages, while careful lineage keeps the held-out measurement meaningful.
+        hold: 0.55
+        visual_cues:
+          - id: corpus-b2-1
+            phrase: Split evaluation material
+            targets:
+              - held-out-source
+            linger: 0.45
+          - id: corpus-b2-2
+            phrase: lineage
+            targets:
+              - training-manifest
+            linger: 0.45
+      - say: Tokenize with the checkpoint's tokenizer, inspect how important terms break into pieces, and record the
+          tokenizer version. A vocabulary extension changes embeddings and makes perplexity comparisons more
+          delicate.
+        hold: 0.75
+        visual_cues:
+          - id: corpus-b3-1
+            phrase: terms break into pieces
+            targets:
+              - tokenizer-pieces
+            linger: 0.45
+  - id: grouped-holdout
+    title: Which revisions must stay together?
+    visual: Keep source revisions in one split before tokenization.
+    beats:
+      - say: Two revisions of a runbook can have different file names and almost the same text. Give them one group name
+          before splitting. Hash each group name with SHA two fifty-six and take the remainder after division by
+          four. Bucket zero goes to validation. The other buckets go to training. Every revision carrying that name
+          travels together.
+        hold: 0.6
+        visual_cues:
+          - id: grouped-holdout-b1
+            phrase: Two revisions of a runbook
+            targets:
+              - grouped-holdout-construction
+            color: cyan
+            linger: 0.5
+          - id: cpt-groups-buckets
+            phrase: Hash each group name with SHA two fifty-six
+            targets:
+              - cpt-groups
+            color: cyan
+            linger: 0.45
+      - say: On these inputs the auth and S D K groups go to training. Payments and webhooks go to validation. No group
+          name appears in both. But give two copies different names and this check can pass even when their text
+          leaks across the split. Someone has to identify the revision families first.
+        hold: 0.6
+        visual_cues:
+          - id: grouped-holdout-b2
+            phrase: On these inputs
+            targets:
+              - grouped-holdout-construction
+            color: cyan
+            linger: 0.5
+          - id: cpt-groups-route
+            phrase: the auth and S D K groups go to training
+            targets:
+              - cpt-groups
+            color: cyan
+            linger: 0.45
+          - id: cpt-groups-gap
+            phrase: give two copies different names
+            targets:
+              - cpt-group-leak
+            color: cyan
+            linger: 0.45
+      - say: Hash bucketing targets a fraction across many groups, not exactly one quarter of tokens in a small corpus.
+          Check sizes, topic coverage and residual overlap. A common source, revision family or deduplication
+          group can carry leakage across otherwise distinct filenames. Grouping and content screening protect
+          different evidence paths.
+        hold: 0.85
+        visual_cues:
+          - id: grouped-holdout-b3
+            phrase: Hash bucketing targets a fraction across many groups, not exactly one quarter of tokens in a small
+              corpus.
+            targets:
+              - grouped-holdout-construction
+            color: cyan
+            linger: 0.5
+  - id: manifest-gate
+    title: Which sources can enter training?
+    visual: A clean-looking document still needs every approval flag.
+    beats:
+      - say: Each row describes one possible source. The on-call notes still contain private information. The clean
+          probes are reserved for evaluation. The vendor export lacks training rights. Only the public A P I docs
+          clear all three checks. That leaves eight hundred thousand tokens available for training.
+        hold: 0.6
+        visual_cues:
+          - id: manifest-gate-b1
+            phrase: Each row describes one possible source
+            targets:
+              - manifest-gate-construction
+            color: cyan
+            linger: 0.5
+          - id: cpt-manifest-admit
+            phrase: Only the public A P I docs clear all three checks
+            targets:
+              - cpt-manifest-rows
+            color: cyan
+            linger: 0.45
+      - say: The flags record review decisions someone already made. This function checks their types and values. Put
+          quotation marks around false and you get a string, so the flag is invalid. A token count must be a
+          nonnegative integer. The boolean true also fails that check. License verification and privacy review
+          happen upstream.
+        hold: 0.6
+        visual_cues:
+          - id: manifest-gate-b2
+            phrase: The flags record review decisions
+            targets:
+              - manifest-gate-construction
+            color: cyan
+            linger: 0.5
+          - id: cpt-manifest-type
+            phrase: a string, so the flag is invalid
+            targets:
+              - cpt-manifest-types
+            color: cyan
+            linger: 0.45
+      - say: Preserve access restrictions and a removal path alongside provenance, language, date and source revision. A
+          sensitive domain source may need stronger controls than public text. Quality, rights, privacy and
+          evaluation isolation are separate decisions on the same document owner, before its tokens enter the
+          training stream.
+        hold: 0.85
+        visual_cues:
+          - id: manifest-gate-b3
+            phrase: Preserve access restrictions and a removal path alongside provenance, language, date and source
+              revision.
+            targets:
+              - manifest-gate-construction
+            color: cyan
+            linger: 0.5
+          - id: cpt-manifest-remove
+            phrase: a removal path alongside provenance
+            targets:
+              - cpt-manifest-owner
+            color: cyan
+            linger: 0.45
+  - id: normalized-overlap
+    title: Would this screen catch a copied runbook?
+    visual: A normalized hash screen has a precise comparison policy.
+    beats:
+      - say: For this screen, lowercase each text and collapse its whitespace. Hash the result for comparison. The
+          timeout candidate matches a held-out runbook even though its case and spaces changed. Drop that
+          candidate. Keep the two other original texts, with their original spelling and spacing, for training.
+        hold: 0.6
+        visual_cues:
+          - id: normalized-overlap-b1
+            phrase: lowercase each text and collapse its whitespace
+            targets:
+              - normalized-overlap-construction
+            color: cyan
+            linger: 0.5
+          - id: cpt-normalize-screen
+            phrase: Drop that candidate
+            targets:
+              - cpt-overlap-rows
+            color: cyan
+            linger: 0.45
+      - say: If case distinguishes two service names, normalization can merge different identifiers. Code indentation
+          can carry meaning too. Conversely, a partial copy or paraphrase can escape a whole-document hash. Choose
+          a comparison policy for the source, group near-duplicates and audit what remains.
+        hold: 0.6
+        visual_cues:
+          - id: normalized-overlap-b2
+            phrase: If case distinguishes two service names
+            targets:
+              - normalized-overlap-construction
+            color: cyan
+            linger: 0.5
+          - id: cpt-normalize-collision
+            phrase: normalization can merge different identifiers
+            targets:
+              - cpt-overlap-limits
+            color: cyan
+            linger: 0.45
+      - say: Go back to the field notes. D one survived and will supply the sentence about the tide. D six matches a
+          held-out example, so it stays out of training. That decision belongs with the source record all the way
+          through tokenization.
+        hold: 0.85
+        visual_cues:
+          - id: normalized-overlap-b3
+            phrase: D one survived
+            targets:
+              - normalized-overlap-construction
+            color: cyan
+            linger: 0.5
+          - id: cpt-normalize-lineage
+            phrase: D six matches a held-out example
+            targets:
+              - cpt-overlap-lineage
+            color: cyan
+            linger: 0.45
+  - id: packed-remainder
+    title: Where does the last document go?
+    visual: Move named document tokens and their end markers into six-token blocks. Keep the final document intact
+      as a returned remainder.
+    beats:
+      - say: Each row is one document. Read left to right, then continue on the next row. Append a zero to mark the end
+          of each document. That gives fourteen positions. The packer returns full blocks of six. Will the last
+          document fit into a full block on this call?
+        hold: 2
+        visual_cues:
+          - id: packed-remainder-b1
+            phrase: Each row is one document
+            targets:
+              - packed-remainder-construction
+            color: cyan
+            linger: 0.5
+          - id: cpt-pack-concatenate
+            phrase: Append a zero to mark the end of each document
+            targets:
+              - cpt-pack-stream
+            color: cyan
+            linger: 0.45
+      - say: Fill the first six slots. They take all of the first document, including its end marker, and the first two
+          tokens of the second document. Fill the next six slots. That block starts with the second document’s end
+          marker and holds the whole third document. Carry the last two tokens forward. Forty-one and its end
+          marker start the next packing call.
+        hold: 0.6
+        visual_cues:
+          - id: packed-remainder-b2
+            phrase: Fill the first six slots
+            targets:
+              - packed-remainder-construction
+            color: cyan
+            linger: 0.5
+          - id: cpt-pack-place
+            phrase: Fill the next six slots
+            targets:
+              - cpt-pack-stream
+            color: cyan
+            linger: 0.45
+          - id: cpt-pack-tail
+            phrase: Carry the last two tokens forward
+            targets:
+              - cpt-pack-tail
+            color: cyan
+            linger: 0.45
+      - say: If every shard drops its tail, short or rare sources can disappear. Inside a six-token block, the usual
+          one-position shift gives five targets before other masks. An end marker tells the model it crossed a
+          boundary. To keep documents isolated, restrict attention to the same document and mask the target pairs
+          that cross the boundary.
+        hold: 0.85
+        visual_cues:
+          - id: packed-remainder-b3
+            phrase: If every shard drops its tail
+            targets:
+              - packed-remainder-construction
+            color: cyan
+            linger: 0.5
+          - id: cpt-pack-mask
+            phrase: restrict attention to the same document
+            targets:
+              - cpt-pack-mask
+            color: cyan
+            linger: 0.45
+  - id: objective
+    title: What does the field note teach?
+    visual: Trace the checkpoint tokenizer’s two pieces of reef through the causal context, then follow the
+      probability of each observed ending into its own loss.
+    beats:
+      - say: The field note we kept ends in reef. Our checkpoint tokenizer splits that word into two pieces. The model
+          has read up to the word “the.” Look at the two pieces below. Which one is the next target?
+        hold: 2
+        visual_cues:
+          - id: objective-prefix
+            phrase: has read up to the word
+            targets:
+              - token-stream
+            linger: 0.35
+            caption_boundary: true
+      - say: First it predicts the piece spelled R E. Score the probability it gave that piece, then add the observed
+          piece to the context. Now it predicts E F. The period gets its own turn. Each scored position
+          contributes the negative log probability of the piece that actually came next.
+        hold: 0.8
+        visual_cues:
+          - id: objective-re
+            phrase: the piece spelled R E
+            targets:
+              - token-stream
+            linger: 0.35
+            caption_boundary: true
+          - id: objective-ef
+            phrase: Now it predicts E F
+            targets:
+              - token-stream
+            linger: 0.35
+            caption_boundary: true
+          - id: objective-period
+            phrase: The period gets its own turn
+            targets:
+              - token-stream
+            linger: 0.35
+            caption_boundary: true
+      - say: Return to the two-word model from the opening. Here reef is one outcome and tree is the other. At even
+          odds, each observed word costs about point six nine three nats. If we raise the score for reef again,
+          which note will cost more?
+        hold: 2
+        visual_cues:
+          - id: objective-compare
+            phrase: At even odds
+            targets:
+              - observed-loss
+            linger: 0.35
+            caption_boundary: true
+      - say: Turn the reef score up by a quarter. The same probability moves in both notes. Read the loss under each
+          one. The field note gets cheaper because it ends in reef. The park note gets more expensive because it
+          ends in tree. A single parameter has to serve them both. On a real checkpoint, test that trade on unseen
+          text and on the work people need it to do.
+        hold: 0.9
+        visual_cues:
+          - id: objective-step
+            phrase: Turn the reef score up by a quarter
+            targets:
+              - shared-odds
+            linger: 0.35
+            caption_boundary: true
+          - id: objective-loss
+            phrase: Read the loss under each one
+            targets:
+              - observed-loss
+            linger: 0.35
+            caption_boundary: true
+  - id: optimizer-restart
+    title: What happens to the first update?
+    visual: A new optimizer is a distinct continuation experiment.
+    beats:
+      - say: A released checkpoint might give us just the weights. Restoring a full training run also restores optimizer
+          moments and the scheduler position. Record which state you start from. A tiny learning rate can leave
+          the domain poorly fitted. A large step may damage general performance. The loss curve alone cannot tell
+          you which circuit changed.
+        hold: 0.6
+        visual_cues:
+          - id: optimizer-restart-b1
+            phrase: A released checkpoint might give us just the weights
+            targets:
+              - optimizer-restart-construction
+            color: cyan
+            linger: 0.5
+      - say: With ordinary gradient descent, multiply the gradient by the learning rate and reverse its sign. Adam W
+          also keeps two moving averages, one for the gradient and one for its square. Start them at zero. After
+          the first gradient, bias correction gives back the gradient and its square. Here those are minus a half
+          and a quarter.
+        hold: 0.6
+        visual_cues:
+          - id: optimizer-restart-b2
+            phrase: With ordinary gradient descent
+            targets:
+              - optimizer-restart-construction
+            color: cyan
+            linger: 0.5
+          - id: cpt-optimizer-moments
+            phrase: keeps two moving averages
+            targets:
+              - cpt-optimizer-moments
+            color: cyan
+            linger: 0.45
+          - id: cpt-optimizer-corrected
+            phrase: bias correction gives back the gradient and its square
+            targets:
+              - cpt-optimizer-corrected
+            color: cyan
+            linger: 0.45
+      - say: Divide the corrected gradient by the square root of its corrected square, plus epsilon. Ignoring weight
+          decay, this first coordinate moves up by almost one learning rate. Ordinary gradient descent would move
+          it up by half a learning rate. Zero-initialized moments alone don’t make the step explode. Later updates
+          depend on the history and precision. That makes warmup a choice to test on the new data.
+        hold: 0.85
+        visual_cues:
+          - id: optimizer-restart-b3
+            phrase: Divide the corrected gradient
+            targets:
+              - optimizer-restart-construction
+            color: cyan
+            linger: 0.5
+          - id: cpt-optimizer-update
+            phrase: moves up by almost one learning rate
+            targets:
+              - cpt-optimizer-step
+            color: cyan
+            linger: 0.45
+  - id: schedule
+    title: Choose a learning rate for the new starting point
+    visual: A checkpoint begins at a low residual learning rate, warms to an authored peak, and follows a measured
+      decay while its parameter path remains visible.
+    beats:
+      - say: The base model has already made many updates, so resuming at a tiny final learning rate may adapt too
+          slowly. Teams often test a short warm-up followed by a decay from a selected peak. Warm-up lets
+          optimizer state settle before the largest updates are applied.
+        hold: 0.55
+        visual_cues:
+          - id: schedule-b1-1
+            phrase: short warm-up
+            targets:
+              - learning-rate-curve
+            linger: 0.45
+      - say: The curve here is one authored schedule. Compare peak rates and warm-up lengths while keeping the data
+          and evaluation protocol controlled.
+        hold: 0.55
+        visual_cues:
+          - id: schedule-b2-1
+            phrase: one authored schedule
+            targets:
+              - learning-rate-curve
+            linger: 0.45
+      - say: Larger steps can improve domain fit and also move the model farther from its broad starting behavior. The
+          best checkpoint comes from measured task outcomes and declared regression limits.
+        hold: 0.75
+        visual_cues:
+          - id: schedule-b3-1
+            phrase: Larger steps
+            targets:
+              - schedule-position
+            linger: 0.45
+  - id: exact-schedule
+    title: What rate applies at step nine?
+    visual: Magnify the first fifty updates on the article’s learning-rate schedule. Evaluate step nine, reach the
+      shared peak, then zoom out for the cosine decay.
+    beats:
+      - say: The last curve used display units. This schedule runs for a thousand updates. Zoom in on the first fifty.
+          The scale is in millionths, with a floor of three and a peak of thirty. During warmup we add a fraction
+          of the distance from floor to peak. Step zero takes the first fiftieth. At step nine, what fraction have
+          we used, and what rate does that give?
+        hold: 2.1
+        visual_cues:
+          - id: schedule-numerator
+            phrase: At step nine
+            targets:
+              - rate-formula
+            linger: 0.35
+            caption_boundary: true
+      - say: Step nine takes ten fiftieths of the rise. A fifth of twenty-seven is five point four. Add the floor of
+          three and the rate is eight point four millionths. Step zero used three point five four millionths. By
+          step forty-nine all fifty warmup increments are in, so we reach thirty millionths.
+        hold: 0.85
+        caption_starts:
+          - A fifth of twenty-seven is five point four
+          - Step zero used three point five four millionths
+        visual_cues:
+          - id: schedule-nine
+            phrase: Step nine takes ten fiftieths
+            targets:
+              - rate-curve
+            linger: 0.35
+            caption_boundary: true
+          - id: schedule-nine-result
+            phrase: the rate is eight point four millionths
+            targets:
+              - rate-formula
+            linger: 0.35
+            caption_boundary: true
+          - id: schedule-fifty
+            phrase: By step forty-nine
+            targets:
+              - rate-curve
+            linger: 0.35
+            caption_boundary: true
+      - say: Pull back to the full run. Step fifty starts the cosine decay at the same peak. Follow the curve down to
+          the floor. Its progress runs from zero to one over nine hundred forty-nine step intervals. That puts the
+          final update, step nine hundred ninety-nine, at three millionths.
+        hold: 0.8
+        visual_cues:
+          - id: schedule-decay
+            phrase: Follow the curve down to the floor
+            targets:
+              - rate-curve
+            linger: 0.35
+            caption_boundary: true
+      - say: This five-percent warmup is a worked example. In a small-model study, Ibrahim and colleagues tested half,
+          equal and double the original peak rate with several warmup lengths. The schedules showed different
+          early behavior and similar later losses in those settings. Use matched data to sweep rates for your
+          checkpoint, then compare downstream gain and general regression.
+        hold: 0.8
+        visual_cues:
+          - id: schedule-sweep
+            phrase: half, equal and double
+            targets:
+              - rate-formula
+            linger: 0.35
+            caption_boundary: true
+  - id: dapt-tapt
+    title: Which text would the assistant practice on?
+    visual: Incident reports sit inside a larger collection of domain documents. Select the incoming reports to practice on the task’s own inputs.
+    beats:
+      - say: Read the whole collection of runbooks, API docs and incident reports. That’s domain-adaptive
+          pretraining. Now select just the incident reports that engineers send the assistant. Practicing on the
+          task’s own unlabeled inputs is task-adaptive pretraining. The original Don’t Stop Pretraining study
+          explored both choices with RoBERTa, which predicted masked words, on classification tasks.
+        hold: 0.6
+        caption_starts:
+          - Now select just the incident reports
+          - The original Don’t Stop Pretraining study
+        visual_cues:
+          - id: dapt-tapt-b1
+            phrase: Read the whole collection
+            targets:
+              - dapt-tapt-construction
+            color: cyan
+            linger: 0.5
+          - id: cpt-scope-tapt
+            phrase: select just the incident reports
+            targets:
+              - cpt-data-scope
+            color: cyan
+            linger: 0.45
+      - say: Suppose the on-call team has thousands of reports and few labeled replies. Try next-token training on the reports
+          and score the adapted model on unseen text. Then give both the base model and the adapted model the
+          same supervised tuning. Which assistant handles new incidents better? Score their replies on the same cases.
+        hold: 0.6
+        visual_cues:
+          - id: dapt-tapt-b2
+            phrase: thousands of reports and few labeled replies
+            targets:
+              - dapt-tapt-construction
+            color: cyan
+            linger: 0.5
+          - id: cpt-scope-evaluate
+            phrase: Score their replies on the same cases
+            targets:
+              - cpt-scope-controls
+            color: cyan
+            linger: 0.45
+      - say: If an answer quotes an old retry limit, give the assistant the current runbook. If it knows the
+          limit but omits the required steps, check the chat template and try supervised examples. When both
+          replies are acceptable but engineers prefer one, use their comparison as a training signal. Compare
+          the cost and the improvement on held-out incidents.
+        hold: 0.85
+        visual_cues:
+          - id: dapt-tapt-b3
+            phrase: give the assistant the current runbook
+            targets:
+              - dapt-tapt-construction
+            color: cyan
+            linger: 0.5
+  - id: replay
+    title: Mix in examples from the original distribution
+    visual: Domain and general-data gradients combine on one shared parameter; a replay slider changes their
+      token-weighted contributions.
+    beats:
+      - say: Replay adds a fraction of general text to the new domain stream. Its purpose is to keep selected broad
+          examples contributing to the same next-token objective. A token-counted replay share can differ from
+          a document-counted share when examples have different lengths.
+        hold: 0.55
+        visual_cues:
+          - id: replay-b1-1
+            phrase: fraction of general text
+            targets:
+              - replay-share
+            linger: 0.45
+      - say: Restore this same shared logit to zero before each controlled mixture comparison. In a one-parameter
+          teaching model, domain examples push the logit upward and replay examples push it downward. At a
+          quarter replay, the weighted gradient changes from minus point five to minus point two five.
+        hold: 0.55
+        motion_check:
+          region:
+            - 230
+            - 550
+            - 240
+            - 80
+          minimumChangedFraction: 0.002
+        visual_cues:
+          - id: replay-restore-control
+            phrase: Restore this same shared logit to zero
+            targets:
+              - source-gradients
+            color: cyan
+            linger: 0.5
+          - id: replay-b2-1
+            phrase: domain examples push the logit upward
+            targets:
+              - source-gradients
+            linger: 0.45
+          - id: replay-b2-2
+            phrase: At a quarter replay, the weighted gradient changes from minus point five to minus point two five
+            targets:
+              - replay-mixture
+              - replay-share
+              - mixture-marker
+            linger: 0.45
+      - say: That arithmetic explains the mixture; a useful replay percentage depends on the model and the measured
+          capabilities to preserve. The fraction of scored tokens matters, and separate domain-only and
+          replay-only controls help interpret results.
+        hold: 0.75
+        visual_cues:
+          - id: replay-b3-1
+            phrase: fraction of scored tokens
+            targets:
+              - replay-share
+            linger: 0.45
+          - id: replay-b3-2
+            phrase: domain-only and replay-only controls
+            targets:
+              - source-gradients
+            linger: 0.45
+  - id: fixed-budget
+    title: What does replay replace?
+    visual: Replay replaces domain exposure inside a declared token budget.
+    beats:
+      - say: Fix the window at two million processed tokens. Five percent replay takes a hundred thousand.
+          The remaining one million nine hundred thousand come from field notes. Raise replay to a quarter.
+          That gives replay half a million tokens. How much room is left for field notes?
+        hold: 2.1
+        caption_starts:
+          - Raise replay to a quarter
+          - How much room is left for field notes
+        visual_cues:
+          - id: fixed-budget-b1
+            phrase: Fix the window at two million processed tokens
+            targets:
+              - fixed-budget-construction
+            color: cyan
+            linger: 0.5
+          - id: cpt-budget-quarter
+            phrase: Raise replay to a quarter
+            targets:
+              - cpt-budget-strip
+            color: cyan
+            linger: 0.45
+      - say: One and a half million field tokens fit. The extra four hundred thousand replay tokens displaced
+          exactly that many field tokens.
+        hold: 0.9
+        caption_starts:
+          - One and a half million field tokens fit
+        visual_cues:
+          - id: budget-domain-result
+            phrase: One and a half million field tokens fit
+            targets:
+              - cpt-budget-strip
+            linger: 0.35
+      - say: Choose fifteen domain blocks and five replay blocks. Shuffle that window with a fixed seed. Five out of
+          twenty is also one quarter of the scored targets if every block scores the same number. A real loader
+          must advance its cursors in both sources before taking the next window.
+        hold: 0.6
+        visual_cues:
+          - id: fixed-budget-b2
+            phrase: Choose fifteen domain blocks and five replay blocks
+            targets:
+              - fixed-budget-construction
+            color: cyan
+            linger: 0.5
+          - id: cpt-budget-shuffle
+            phrase: Shuffle that window with a fixed seed
+            targets:
+              - cpt-budget-owners
+            color: cyan
+            linger: 0.45
+      - say: "Python rounds ties to even: one quarter of ten blocks is two point five, so this window function chooses
+          two replay blocks, realizing twenty percent. Log the actual target share. A fractional accumulator or
+          probabilistic source sampler can approach the requested share over time. Equal token budgets are a
+          compute proxy only under comparable model, lengths, masks and execution."
+        hold: 0.85
+        visual_cues:
+          - id: fixed-budget-b3
+            phrase: "Python rounds ties to even: one quarter of ten blocks is two point five, so this window function
+              chooses two replay blocks, realizing twenty percent."
+            targets:
+              - fixed-budget-construction
+            color: cyan
+            linger: 0.5
+          - id: cpt-budget-round
+            phrase: chooses two replay blocks, realizing twenty percent
+            targets:
+              - cpt-budget-round
+            color: cyan
+            linger: 0.45
+      - say: Bloomberg G P T trained from scratch. Its team assembled about seven hundred nine billion tokens,
+          roughly fifty-one percent financial and forty-nine percent public text. Training consumed five hundred
+          sixty-nine billion tokens. The percentages describe what was available. In your own run, record how
+          much of each source the model actually reads.
+        hold: 0.85
+        visual_cues:
+          - id: fixed-budget-inventory
+            phrase: Training consumed five hundred sixty-nine billion tokens
+            targets:
+              - fixed-budget-construction
+            color: cyan
+            linger: 0.5
+  - id: target-weighting
+    title: How much replay reaches the update?
+    visual: Keep twenty blocks in place. Cross out masked replay targets, then give each block a width proportional
+      to its contribution under the chosen average.
+    beats:
+      - say: Keep the same twenty blocks. Five come from replay. Each block starts with six targets after the usual
+          shift. Now mask four targets in every replay block. Each colored cell still counts and each dash is
+          skipped. If you pool the losses from all the colored cells, what fraction comes from replay?
+        hold: 2.2
+        visual_cues:
+          - id: weight-mask
+            phrase: mask four targets in every replay block
+            targets:
+              - scored-blocks
+            linger: 0.35
+            caption_boundary: true
+          - id: weight-count
+            phrase: all the colored cells
+            targets:
+              - scored-blocks
+            linger: 0.35
+            caption_boundary: true
+      - say: Give every colored cell equal weight. The fifteen field blocks contain ninety targets. The five replay
+          blocks have just ten between them. That gives replay one tenth of the weight in the pooled mean. At logit zero the field
+          gradient is minus a half and replay’s is plus a half. Ninety votes one way and ten the other give a mean
+          gradient of minus point four.
+        hold: 0.9
+        visual_cues:
+          - id: weight-pool
+            phrase: Give every colored cell equal weight
+            targets:
+              - scored-blocks
+              - replay-weight
+            linger: 0.35
+            caption_boundary: true
+          - id: weight-gradient
+            phrase: mean gradient of minus point four
+            targets:
+              - replay-weight
+            linger: 0.35
+            caption_boundary: true
+      - say: Suppose we meant replay to have a quarter of the weight. Take the mean within each source, then give replay
+          a quarter and the field notes three quarters. Each target still belongs to the same block. Their influence
+          changes, and the gradient returns to minus a quarter. Giving every block equal weight happens to agree
+          here because blocks within each source have equal target counts. You can also change sampling to deliver
+          the target mix. Check what the trainer averages after masks, including when it accumulates microbatches.
+        hold: 0.9
+        visual_cues:
+          - id: weight-sources
+            phrase: then give replay a quarter
+            targets:
+              - scored-blocks
+              - replay-weight
+            linger: 0.35
+            caption_boundary: true
+          - id: weight-restored
+            phrase: the gradient returns to minus a quarter
+            targets:
+              - replay-weight
+            linger: 0.35
+            caption_boundary: true
+  - id: evaluation
+    title: Does better text prediction help the assistant?
+    visual: Track held-out domain perplexity across five checkpoints. Open the aligned task scores, then compare
+      general text and required case outcomes.
+    beats:
+      - say: Use a held-out set of domain documents. As training proceeds, the domain perplexity falls from forty-two to
+          twenty-six. The model is getting better at predicting that text. At the start, the assistant got
+          sixty-two percent of the incident tasks right. From the new text score alone, can we tell whether it now
+          solves more incidents?
+        hold: 2
+        visual_cues:
+          - id: eval-domain
+            phrase: the domain perplexity falls from forty-two to twenty-six
+            targets:
+              - fit-trace
+            linger: 0.35
+            caption_boundary: true
+      - say: Score the incidents at each checkpoint. The task stays at sixty-two percent all the way across. Text
+          prediction improved, but we have yet to see a task gain here. If the domain text still fits poorly, we
+          may be underfitting it. Check corpus quality, training steps and learning rate before increasing the
+          budget.
+        hold: 0.8
+        visual_cues:
+          - id: eval-probe
+            phrase: Score the incidents at each checkpoint
+            targets:
+              - task-trace
+            linger: 0.35
+            caption_boundary: true
+      - say: Now score general text on those same checkpoints. Its perplexity rises. To find out whether an ability has
+          slipped, test it directly. Set the limits before the run. In this example the last checkpoint solves
+          seven of ten safety cases and six of ten reasoning cases. Both miss their stated minimums. Losing a
+          previously demonstrated ability as the model adapts is called forgetting.
+        hold: 0.9
+        visual_cues:
+          - id: eval-general
+            phrase: score general text
+            targets:
+              - fit-trace
+            linger: 0.35
+            caption_boundary: true
+          - id: eval-cases
+            phrase: the last checkpoint solves
+            targets:
+              - required-cases
+            linger: 0.35
+            caption_boundary: true
+      - say: These perplexity curves used a fixed tokenizer, context, scoring boundaries and target masks. What if one
+          candidate changes the tokenizer? We still want to compare how well both models predict the same text.
+        hold: 0.75
+        visual_cues: []
+  - id: byte-normalization
+    title: Which tokenizer fits these thirty bytes better?
+    visual: Keep the two total losses in place. Replace the ten- and twenty-token divisors with the same thirty-byte
+      divisor before comparing costs in bits.
+    beats:
+      - say: Both reports score the same thirty bytes with the same context, boundaries and target text. The coarse
+          tokenizer uses ten tokens. The fine tokenizer splits them more finely and uses twenty. To get token
+          perplexity, divide each total loss by its own token count, then exponentiate. Which row has the smaller
+          average loss per token?
+        hold: 2
+        visual_cues:
+          - id: byte-tokens
+            phrase: divide each total loss by its own token count
+            targets:
+              - scoring-units
+            linger: 0.35
+            caption_boundary: true
+      - say: Fine wins per token. Eighteen nats over twenty tokens gives a smaller mean than fifteen over ten. Now
+          change the divisor to bytes. Both rows have exactly thirty. Dividing the total loss by thirty gives nats
+          per byte. Divide again by the natural log of two to get bits per byte. Which tokenizer now costs less?
+        hold: 2
+        visual_cues:
+          - id: byte-token-result
+            phrase: Fine wins per token
+            targets:
+              - unit-result
+            linger: 0.35
+            caption_boundary: true
+          - id: byte-divisor
+            phrase: change the divisor to bytes
+            targets:
+              - scoring-units
+            linger: 0.35
+            caption_boundary: true
+      - say: Coarse costs less per byte. It spends about point seven two bits per byte on this text. Fine spends about
+          point eight seven. The finer split had more tokens to spread its loss across, while the number of scored
+          bytes stayed fixed. To choose an actual vocabulary, also test domain tasks and retained abilities after
+          adaptation.
+        hold: 0.85
+        visual_cues:
+          - id: byte-result
+            phrase: Coarse costs less per byte
+            targets:
+              - unit-result
+            linger: 0.35
+            caption_boundary: true
+  - id: corpus-reduction
+    title: How do two documents contribute to perplexity?
+    visual: Sum the log losses before exponentiating the corpus mean.
+    beats:
+      - say: Keep the tokenizer and scoring rules fixed. The first document has sixty nats of loss over twenty targets.
+          The second has one hundred sixty over forty. Give each target the same vote by adding the losses and
+          adding the counts. The pooled mean is two hundred twenty divided by sixty. Exponentiate once to get a
+          corpus perplexity of about thirty-nine point one.
+        hold: 0.6
+        visual_cues:
+          - id: corpus-reduction-b1
+            phrase: Keep the tokenizer and scoring rules fixed
+            targets:
+              - corpus-reduction-construction
+            color: cyan
+            linger: 0.5
+          - id: cpt-corpus-mean
+            phrase: two hundred twenty divided by sixty
+            targets:
+              - cpt-corpus-reduction
+            color: cyan
+            linger: 0.45
+      - say: Suppose we first computed a perplexity for each document and then averaged the two. We’d get about
+          thirty-seven point three. That gives the short document equal weight and averages after exponentiating.
+          Apply the pooled rule separately to domain and general text. In the example on the right, domain
+          perplexity falls while general perplexity rises.
+        hold: 0.6
+        visual_cues:
+          - id: corpus-reduction-b2
+            phrase: Suppose we first computed a perplexity for each document
+            targets:
+              - corpus-reduction-construction
+            color: cyan
+            linger: 0.5
+          - id: cpt-corpus-wrong
+            phrase: about thirty-seven point three
+            targets:
+              - cpt-corpus-comparison
+            color: cyan
+            linger: 0.45
+          - id: cpt-corpus-lanes
+            phrase: general perplexity rises
+            targets:
+              - cpt-corpus-lanes
+            color: cyan
+            linger: 0.45
+      - say: You can also zoom in on the timeout code. Mark every token in the name and sum its losses.
+          A name that splits into more pieces contributes more terms, so record how you weight the names
+          when you combine them. That score tells you how well the model predicts an identifier. For the
+          on-call team, score the answer to a different question. What should the engineer do when that code appears?
+        hold: 0.85
+        caption_starts:
+          - Mark every token in the name
+          - A name that splits into more pieces
+          - For the on-call team
+        visual_cues:
+          - id: corpus-reduction-b3
+            phrase: Mark every token in the name
+            targets:
+              - corpus-reduction-construction
+            color: cyan
+            linger: 0.5
+          - id: corpus-incident-task
+            phrase: For the on-call team
+            targets:
+              - corpus-reduction-construction
+            linger: 0.35
+  - id: retained-outcomes
+    title: Which required abilities survive training?
+    visual: Required abilities need their own outcomes and declared limits.
+    beats:
+      - say: Follow the same ten safety cases and ten reasoning cases across these checkpoints. The team requires nine
+          correct on safety and seven on reasoning. At the start, the model gets all ten safety cases and eight
+          reasoning cases right. By the end, it gets seven and six. The last checkpoint misses both requirements
+          in this example.
+        hold: 0.6
+        visual_cues:
+          - id: retained-outcomes-b1
+            phrase: Follow the same ten safety cases
+            targets:
+              - retained-outcomes-construction
+            color: cyan
+            linger: 0.5
+          - id: cpt-retained-fail
+            phrase: The last checkpoint misses both requirements
+            targets:
+              - cpt-retained-cases
+            color: cyan
+            linger: 0.45
+      - say: General text perplexity is a separate signal from those tasks. Freeze the evaluation texts, tokenizer,
+          masks, available context, prompt format and scoring protocol. Historical benchmarks can supply anchors,
+          but inspect contamination, ceilings and the private tasks required by this product. Safety must be
+          checked by its actual specified suite.
+        hold: 0.6
+        visual_cues:
+          - id: retained-outcomes-b2
+            phrase: General text perplexity is a separate signal from those tasks.
+            targets:
+              - retained-outcomes-construction
+            color: cyan
+            linger: 0.5
+      - say: An accuracy move from seventy percent to sixty-eight percent is two percentage points. The relative
+          reduction is two divided by seventy, about two point eight six percent. Declare the unit when setting a
+          regression budget. Otherwise two thresholds that look numerically similar can select different
+          checkpoints.
+        hold: 0.85
+        visual_cues:
+          - id: retained-outcomes-b3
+            phrase: An accuracy move from seventy percent to sixty-eight percent is two percentage points.
+            targets:
+              - retained-outcomes-construction
+            color: cyan
+            linger: 0.5
+          - id: cpt-retained-pp
+            phrase: two percentage points
+            targets:
+              - cpt-retained-units
+            color: cyan
+            linger: 0.45
+          - id: cpt-retained-relative
+            phrase: about two point eight six percent
+            targets:
+              - cpt-retained-units
+            color: cyan
+            linger: 0.45
+  - id: select
+    title: Choosing a checkpoint under a retention budget
+    visual: Put the base, 1k, 4k and 12k on aligned general-perplexity rulers. Apply the ceiling, rank the surviving
+      task scores and check 4k on a reserved set.
+    beats:
+      - say: Use a different example run for checkpoint selection. Its base general perplexity is nineteen point two. Before looking at candidates we
+          allow a rise of at most one and a half points. Put the ceiling at twenty point seven. A reading right on
+          the line passes.
+        hold: 0.7
+        visual_cues:
+          - id: select-budget
+            phrase: Put the ceiling at twenty point seven
+            targets:
+              - retention-rule
+            color: yellow
+            linger: 0.35
+            caption_boundary: true
+      - say: Here are the three training checkpoints. Each dot shows general perplexity on the same scale. Beside it you
+          can read task accuracy and domain perplexity for that very checkpoint. Which checkpoint exceeds our
+          ceiling?
+        hold: 2.1
+        visual_cues:
+          - id: select-measure
+            phrase: Here are the three training checkpoints
+            targets:
+              - candidate-readings
+            linger: 0.35
+            caption_boundary: true
+      - say: Twelve thousand steps is too far. It has the lowest domain perplexity in the table, but its general
+          perplexity rose by four point seven. Set that row aside. If we want the best task accuracy among the
+          remaining rows, which one do we keep?
+        hold: 2
+        visual_cues:
+          - id: select-gate
+            phrase: Twelve thousand steps is too far
+            targets:
+              - candidate-readings
+            color: pink
+            linger: 0.35
+            caption_boundary: true
+      - say: Keep the four-thousand-step checkpoint. Seventy-two percent beats both earlier task scores, and its general
+          perplexity rose by only point nine. We would consult domain perplexity to break a tie. These scores
+          chose the checkpoint, so we need fresh cases to check it.
+        hold: 0.8
+        visual_cues:
+          - id: select-rank
+            phrase: Keep the four-thousand-step checkpoint
+            targets:
+              - rank-scores
+            color: green
+            linger: 0.35
+            caption_boundary: true
+      - say: Open the reserved set for that one checkpoint. In this example it gets fourteen of twenty cases right. On
+          the reserved general text its perplexity rises by point nine against the base model on that same text.
+          Save the weights with the tokenizer, corpus manifest and hash, token counts, optimizer state and
+          evaluation protocol so another run can reproduce the comparison.
+        hold: 0.85
+        visual_cues:
+          - id: select-reserved
+            phrase: Open the reserved set
+            targets:
+              - reserved-check
+            linger: 0.35
+            caption_boundary: true
+          - id: select-save
+            phrase: Save the weights
+            targets:
+              - checkpoint-record
+            linger: 0.35
+            caption_boundary: true
+  - id: selection-and-stopping
+    title: Has another training step earned its cost?
+    visual: Compare the four selection points on two axes, then count the effect of changing one outcome in a fixed
+      cohort of 500.
+    beats:
+      - say: Plot those same four checkpoints. Moving right means the model fits domain text better. Moving up means it
+          fits general text worse. The horizontal line is our budget. The dot farthest right belongs to the
+          twelve-thousand-step checkpoint. It buys its extra domain gain at a price the team already ruled out.
+        hold: 0.6
+        visual_cues:
+          - id: selection-and-stopping-b1
+            phrase: Plot those same four checkpoints
+            targets:
+              - selection-and-stopping-construction
+            color: cyan
+            linger: 0.5
+      - say: Moving along these four dots always improves one measure at the expense of the other. They form a Pareto
+          frontier. To dominate a dot, another would need to do at least as well on both axes and strictly better
+          on one. Our task-first ranking supplies a decision the frontier alone cannot make. Before ranking, the
+          picker checks for finite perplexities of at least one and accuracy between zero and one.
+        hold: 0.6
+        visual_cues:
+          - id: selection-and-stopping-b2
+            phrase: Moving along these four dots
+            targets:
+              - selection-and-stopping-construction
+            color: cyan
+            linger: 0.5
+          - id: cpt-selection-frontier
+            phrase: They form a Pareto frontier
+            targets:
+              - cpt-selection-frontier
+            color: cyan
+            linger: 0.45
+      - say: Choosing among saved checkpoints is one decision. Deciding to spend another hour training is another.
+          Suppose one more answer turns correct on the same five hundred cases. That moves accuracy by two tenths
+          of a percentage point. Is it worth another hour? Apply the minimum worthwhile gain, patience window and
+          regression limits set before the run. Allow for uncertainty and evaluation cost, then confirm the
+          selected recipe on reserved cases.
+        hold: 0.85
+        visual_cues:
+          - id: selection-and-stopping-b3
+            phrase: Choosing among saved checkpoints
+            targets:
+              - selection-and-stopping-construction
+            color: cyan
+            linger: 0.5
+          - id: cpt-selection-noise
+            phrase: two tenths of a percentage point
+            targets:
+              - cpt-selection-noise
+            color: cyan
+            linger: 0.45
+  - id: objective-and-parameters
+    title: Which weights are allowed to change?
+    visual: An adapter changes the trainable coordinates rather than the teaching signal.
+    beats:
+      - say: LoRA can train on domain next-token text or on supervised prompt-response data. QLoRA additionally stores a
+          frozen quantized base and propagates derivatives into trainable low-rank adapters. Those are parameter
+          and storage choices, while continued pretraining and S F T identify supervision and data choices. Frozen
+          base embeddings stay fixed even when their representations influence a scored prediction.
+        hold: 0.6
+        visual_cues:
+          - id: objective-and-parameters-b1
+            phrase: LoRA can train on domain next-token text or on supervised prompt-response data.
+            targets:
+              - objective-and-parameters-construction
+            color: cyan
+            linger: 0.5
+          - id: cpt-parameters-frozen
+            phrase: a frozen quantized base
+            targets:
+              - cpt-parameter-path
+            color: cyan
+            linger: 0.45
+      - say: Choose the objective from the observed failure, then choose full-weight or parameter-efficient training
+          under the budget and deployment constraints. Code Llama Instruct combined code pretraining with
+          instruction tuning. Llama three’s code expert used continued pretraining, S F T and D P O before helping
+          produce annotations and synthetic data.
+        hold: 0.6
+        visual_cues:
+          - id: objective-and-parameters-b2
+            phrase: Choose the objective from the observed failure, then choose full-weight or parameter-efficient training
+              under the budget and deployment constraints.
+            targets:
+              - objective-and-parameters-construction
+            color: cyan
+            linger: 0.5
+      - say: Save the selected weights with their tokenizer, configuration, corpus manifest and evaluation protocol. To
+          resume exactly, also keep optimizer and scheduler state, random-number state and both loader cursors.
+          In our twenty-block window we used fifteen domain blocks and five replay blocks. Those two cursors
+          tell the loader exactly where to pick up each stream.
+        hold: 0.85
+        visual_cues:
+          - id: objective-and-parameters-b3
+            phrase: Save the selected weights
+            targets:
+              - objective-and-parameters-construction
+            color: cyan
+            linger: 0.5
+          - id: cpt-parameters-resume
+            phrase: random-number state and both loader cursors
+            targets:
+              - cpt-resume-state
+            color: cyan
+            linger: 0.45
+  - id: earned-adaptation
+    title: A fresh run for the on-call assistant
+    visual: First change the reduction on fourteen fixed targets. Then apply the same retention ruler to a fresh set
+      of three candidates and take the eligible tie-break winner to a matched assistant test.
+    beats:
+      - say: Try a smaller training window. Four field blocks each score three targets. Two replay blocks each score
+          one. We start at logit zero again, with gradients of minus a half for field targets and plus a half for
+          replay. Pool the targets. What share belongs to replay, and what mean gradient reaches the logit?
+        hold: 2.2
+        visual_cues:
+          - id: fresh-count
+            phrase: Pool the targets
+            targets:
+              - fresh-window
+            linger: 0.35
+            caption_boundary: true
+      - say: Count the two yellow targets among all fourteen. Replay gets one seventh. Twelve negative halves and two
+          positive halves sum to minus five. Divide by fourteen for the mean gradient. Now average the six block
+          means equally. Each yellow target gets a whole block’s vote. Replay jumps to a third, and the gradient
+          shrinks to minus one sixth. Restore equal weight per target to recover the pooled update.
+        hold: 0.9
+        visual_cues:
+          - id: cpt-fresh-share
+            phrase: Count the two yellow targets
+            targets:
+              - fresh-window
+            linger: 0.35
+            caption_boundary: true
+          - id: cpt-fresh-pooled
+            phrase: Divide by fourteen
+            targets:
+              - fresh-window
+            linger: 0.35
+            caption_boundary: true
+          - id: cpt-fresh-block
+            phrase: Now average the six block means equally
+            targets:
+              - fresh-window
+            linger: 0.35
+            caption_boundary: true
+          - id: cpt-fresh-repair
+            phrase: Restore equal weight per target
+            targets:
+              - fresh-window
+            linger: 0.35
+            caption_boundary: true
+      - say: That calculation tells us how we trained. To choose a checkpoint, we need measurements. For this new run
+          the base general perplexity is eighteen and the allowed rise is one. Here are three candidates. Apply
+          the ceiling, compare task accuracy, and break a tie with lower domain perplexity. Which candidate would
+          you take to the reserved incidents?
+        hold: 2.4
+        visual_cues:
+          - id: fresh-ledger
+            phrase: Here are three candidates
+            targets:
+              - candidate-readings
+              - rank-scores
+            linger: 0.35
+            caption_boundary: true
+      - say: B crosses the ceiling. Its eighty-two percent is tempting, but nineteen point two exceeds the limit of
+          nineteen. A and C both score seventy-eight percent on the task. Which of those two has the lower domain
+          perplexity?
+        hold: 2
+        visual_cues:
+          - id: fresh-gate
+            phrase: B crosses the ceiling
+            targets:
+              - candidate-readings
+            color: pink
+            linger: 0.35
+            caption_boundary: true
+      - say: Choose C. Its domain perplexity is twenty-one against A’s twenty-two. We only needed that column because
+          the eligible task scores tied.
+        hold: 1
+        visual_cues:
+          - id: fresh-winner
+            phrase: Choose C
+            targets:
+              - rank-scores
+            color: green
+            linger: 0.35
+            caption_boundary: true
+      - say: Give the base model and checkpoint C the same supervised tuning, then the same reserved incident and
+          runbook. The runbook calls for jitter and an idempotency token. Here’s a practice reply. “Wait exactly
+          one second. Retry with the same idempotency token.” Which requirement does it meet?
+        hold: 2.1
+        caption_starts:
+          - Here’s a practice reply
+          - Which requirement does it meet
+        visual_cues:
+          - id: fresh-reserved
+            phrase: the same supervised tuning
+            targets:
+              - reserved-assistants
+            linger: 0.35
+            caption_boundary: true
+          - id: reserved-example
+            phrase: Here’s a practice reply
+            targets:
+              - sample-reply
+            linger: 0.35
+      - say: It keeps the idempotency token. The fixed delay misses jitter. Score both assistants this way across
+          the reserved incidents. Keep the extra pretraining if the adapted assistant handles incidents better
+          and still passes the required general checks.
+        hold: 1.4
+        caption_starts:
+          - The fixed delay misses jitter
+          - Score both assistants this way
+          - Keep the extra pretraining
+        visual_cues:
+          - id: reserved-token
+            phrase: It keeps the idempotency token
+            targets:
+              - token-check
+            linger: 0.35
+          - id: reserved-delay
+            phrase: The fixed delay misses jitter
+            targets:
+              - jitter-check
+            linger: 0.35
+          - id: reserved-decision
+            phrase: Keep the extra pretraining if
+            targets:
+              - deployment-check
+            linger: 0.35

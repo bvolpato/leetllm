@@ -1,0 +1,3523 @@
+version: 1
+id: deep-dive-deepgemm
+title: DeepGEMM From One Dot Product to an Expert Pipeline
+source: projects/deep-dive-deepgemm/content.md
+voice: en-US-AndrewNeural
+rate: +0%
+sources:
+  - title: DeepGEMM official repository
+    url: https://github.com/deepseek-ai/DeepGEMM
+  - title: DeepGEMM Mega MoE implementation announcement
+    url: https://github.com/deepseek-ai/DeepGEMM/pull/304
+  - title: DeepGEMM pinned October tenth source contracts
+    url: https://github.com/deepseek-ai/DeepGEMM/tree/057ca5964aae0879ff2e0eb71ee05a3cb0ba3df7
+  - title: DeepGEMM historical EP8 Mega MoE benchmark
+    url: https://github.com/deepseek-ai/DeepGEMM/pull/316
+  - title: DeepJIT exact host submodule cache contract
+    url: https://github.com/deepseek-ai/DeepJIT/blob/2efdab421e1cfb17fe8bc20e11ca72aa6d0e6c43/README.md
+scenes:
+  - id: intro
+    title: >-
+      Where will token seven land?
+    visual: >-
+      A gold token row slides into the compact buffer. Two empty tails push its address from 256 to 384. The four-expert view then shows the total allocation.
+    beats:
+      - say: >-
+          Watch token seven slide into the buffer.
+          Each blue strip holds the rows going to one expert.
+          Token seven is the first row for expert two.
+          Sixty-four rows plus one hundred ninety-two puts it at row two hundred fifty-six, counting from zero.
+          This kernel packs each expert into whole blocks of one hundred twenty-eight rows.
+          Where will token seven land when we add the padding?
+        caption_starts:
+          - "at row two hundred fifty-six"
+        hold: 2.5
+        visual_cues:
+          - id: dg-intro-0-0
+            phrase: >-
+              Watch token seven slide into the buffer.
+            targets: [pack-pin]
+            caption_boundary: true
+          - id: dg-intro-0-1
+            phrase: >-
+              Each blue strip holds the rows going to one expert.
+            targets: [expert-packed-rows]
+            caption_boundary: true
+          - id: dg-intro-0-2
+            phrase: >-
+              Token seven is the first row for expert two.
+            targets: [expert-packed-rows]
+            caption_boundary: true
+          - id: dg-intro-0-3
+            phrase: >-
+              Sixty-four rows plus one hundred ninety-two puts it at row two hundred fifty-six, counting from zero.
+            targets: [pack-pin]
+            caption_boundary: true
+          - id: dg-intro-0-4
+            phrase: >-
+              This kernel packs each expert into whole blocks of one hundred twenty-eight rows.
+            targets: [expert-packed-rows]
+            caption_boundary: true
+          - id: dg-intro-0-5
+            phrase: >-
+              Where will token seven land when we add the padding?
+            targets: [pack-pin]
+            caption_boundary: true
+      - say: >-
+          Give the first expert one block. Its sixty-four rows fill half of it.
+          The second expert has one full block and sixty-four rows left over. Give it a second block.
+          Row three hundred eighty-four. The padding moved token seven, and expert two still owns that row.
+          The thirty-two rows for expert two need a block of their own. The last expert fills its block exactly.
+          Count the blocks from left to right. One, two, one, one.
+          That makes six hundred forty reserved rows for four hundred sixteen assignments. The other two hundred twenty-four rows are padding.
+        caption_starts:
+          - "The padding moved token seven"
+        hold: 1.2
+        visual_cues:
+          - id: dg-intro-1-0
+            phrase: >-
+              Give the first expert one block. Its sixty-four rows fill half of it.
+            targets: [expert-packed-rows]
+            caption_boundary: true
+          - id: dg-intro-1-1
+            phrase: >-
+              The second expert has one full block and sixty-four rows left over. Give it a second block.
+            targets: [expert-packed-rows]
+            caption_boundary: true
+          - id: dg-intro-1-2
+            phrase: >-
+              Row three hundred eighty-four.
+            targets: [pack-pin]
+            caption_boundary: true
+          - id: dg-intro-1-3
+            phrase: >-
+              The thirty-two rows for expert two need a block of their own. The last expert fills its block
+              exactly.
+            targets: [expert-packed-rows]
+            caption_boundary: true
+          - id: dg-intro-1-4
+            phrase: >-
+              Count the blocks from left to right. One, two, one, one.
+            targets: [expert-packed-rows]
+            caption_boundary: true
+          - id: dg-intro-1-5
+            phrase: >-
+              That makes six hundred forty reserved rows for four hundred sixteen assignments. The other two
+              hundred twenty-four rows are padding.
+            targets: [pack-result]
+            caption_boundary: true
+      - say: >-
+          Four separate launches can each start at their own first row. Each multiply may still have a partly filled edge tile.
+          DeepGEMM can run the same projection for all four experts in one launch.
+          To compare the two paths, time the packing, the multiply and the return to source order.
+        hold: 0.8
+        visual_cues:
+          - id: dg-intro-2-0
+            phrase: >-
+              Four separate launches can each start at their own first row. Each multiply may still have a partly filled edge tile.
+            targets: [expert-packed-rows]
+            caption_boundary: true
+          - id: dg-intro-2-1
+            phrase: >-
+              DeepGEMM can run the same projection for all four experts in one launch.
+            targets: [expert-packed-rows]
+            caption_boundary: true
+          - id: dg-intro-2-2
+            phrase: >-
+              To compare the two paths, time the packing, the multiply and the return to source order.
+            targets: [expert-packed-rows]
+            caption_boundary: true
+  - id: project-boundary
+    title: >-
+      Who does the work for this row?
+    visual: Keep the same routed row while model papers, kernel implementation and runtime policy occupy separate
+      physical owners.
+    beats:
+      - say: >-
+          DeepSeek publishes the DeepGEMM kernels under the MIT license.
+          The model defines which experts a token can visit.
+          Its router selects the experts for this token.
+          DeepGEMM can multiply the token row by the selected expert’s weights.
+          The serving runtime loads the model, admits and batches requests, and returns the output. Its clock includes all of that work.
+        hold: 0.6
+        visual_cues:
+          - id: project-boundary-b0
+            phrase: >-
+              DeepSeek publishes the DeepGEMM kernels under the MIT license.
+            targets:
+              - project-boundary-construction
+            color: cyan
+            linger: 0.4
+          - id: dg-project-boundary-0-0
+            phrase: >-
+              DeepSeek publishes the DeepGEMM kernels under the MIT license.
+            targets:
+              - project-boundary-construction
+            color: blue
+            linger: 0.25
+          - id: dg-project-boundary-0-1
+            phrase: >-
+              The model defines which experts a token can visit.
+            targets:
+              - project-boundary-construction
+            color: blue
+            linger: 0.25
+          - id: dg-project-boundary-0-2
+            phrase: >-
+              Its router selects the experts for this token.
+            targets:
+              - project-boundary-construction
+            color: blue
+            linger: 0.25
+          - id: dg-project-boundary-0-3
+            phrase: >-
+              DeepGEMM can multiply the token row by the selected expert’s weights.
+            targets:
+              - project-boundary-construction
+            color: blue
+            linger: 0.25
+          - id: dg-project-boundary-0-4
+            phrase: >-
+              The serving runtime loads the model, admits and batches requests, and returns the output. Its clock includes all of that work.
+            targets:
+              - project-boundary-construction
+            color: green
+            linger: 0.25
+      - say: >-
+          Suppose the grouped multiply takes too long.
+          The model report gives the expert dimensions and describes the lightning indexer.
+          The DeepGEMM wrapper tells you which tensors and layouts the kernel accepts.
+          Inside the kernel, follow the tile from its first load to its last store.
+          Compare the same rows on the grouped and separate paths.
+          Then check how much of the request time those multiplies took.
+          The library also supplies HyperConnection operations for mixing model states.
+        hold: 0.6
+        visual_cues:
+          - id: project-boundary-b1
+            phrase: >-
+              Suppose the grouped multiply takes too long.
+            targets:
+              - project-boundary-construction
+            color: cyan
+            linger: 0.4
+          - id: dg-project-boundary-1-0
+            phrase: >-
+              Suppose the grouped multiply takes too long.
+            targets:
+              - project-boundary-construction
+            color: blue
+            linger: 0.25
+          - id: dg-project-boundary-1-1
+            phrase: >-
+              The model report gives the expert dimensions and describes the lightning indexer.
+            targets:
+              - project-boundary-construction
+            color: blue
+            linger: 0.25
+          - id: dg-project-boundary-1-2
+            phrase: >-
+              The DeepGEMM wrapper tells you which tensors and layouts the kernel accepts.
+            targets:
+              - project-boundary-construction
+            color: blue
+            linger: 0.25
+          - id: dg-project-boundary-1-3
+            phrase: >-
+              Inside the kernel, follow the tile from its first load to its last store.
+            targets:
+              - project-boundary-construction
+            color: blue
+            linger: 0.25
+          - id: dg-project-boundary-1-4
+            phrase: >-
+              Compare the same rows on the grouped and separate paths.
+            targets:
+              - project-boundary-construction
+            color: blue
+            linger: 0.25
+          - id: dg-project-boundary-1-5
+            phrase: >-
+              Then check how much of the request time those multiplies took.
+            targets:
+              - project-boundary-construction
+            color: blue
+            linger: 0.25
+          - id: dg-project-boundary-1-6
+            phrase: >-
+              The library also supplies HyperConnection operations for mixing model states.
+            targets:
+              - project-boundary-construction
+            color: green
+            linger: 0.25
+      - say: >-
+          We’ll use two snapshots of DeepGEMM, July fifteenth and October tenth.
+          The September releases between them changed compilation and the indexer interface.
+          The article’s five CPU examples let you work out a result by hand and check it in Python.
+          For a kernel test, run the matching GPU implementation and compare the rows with that reference.
+          Keep the revision with the test so you can repeat the same call.
+        hold: 0.6
+        visual_cues:
+          - id: project-boundary-b2
+            phrase: >-
+              We’ll use two snapshots of DeepGEMM, July fifteenth and October tenth.
+            targets:
+              - project-boundary-construction
+            color: green
+            linger: 0.4
+          - id: dg-project-boundary-2-0
+            phrase: >-
+              We’ll use two snapshots of DeepGEMM, July fifteenth and October tenth.
+            targets:
+              - project-boundary-construction
+            color: blue
+            linger: 0.25
+          - id: dg-project-boundary-2-1
+            phrase: >-
+              The September releases between them changed compilation and the indexer interface.
+            targets:
+              - project-boundary-construction
+            color: blue
+            linger: 0.25
+          - id: dg-project-boundary-2-2
+            phrase: >-
+              The article’s five CPU examples let you work out a result by hand and check it in Python.
+            targets:
+              - project-boundary-construction
+            color: blue
+            linger: 0.25
+          - id: dg-project-boundary-2-3
+            phrase: >-
+              For a kernel test, run the matching GPU implementation and compare the rows with that reference.
+            targets:
+              - project-boundary-construction
+            color: blue
+            linger: 0.25
+          - id: dg-project-boundary-2-4
+            phrase: >-
+              Keep the revision with the test so you can repeat the same call.
+            targets:
+              - project-boundary-construction
+            color: green
+            linger: 0.25
+  - id: dot
+    title: One output element accumulates matching coordinates
+    visual: Two stored rows reveal pairwise products in order. A running sum follows the highlighted K coordinate
+      and completes at eleven; a second row then produces minus four.
+    beats:
+      - say: >
+          Start with the smallest useful operation. An output element pairs one row from the activation matrix
+          with one row from the stored weight matrix. Matching coordinates multiply, and their products add.
+          Follow the highlighted coordinate as our first output accumulates.
+        hold: 0.6
+        visual_cues:
+          - id: dot-beat-1-focus-1
+            phrase: Matching coordinates multiply, and their products add
+            targets:
+              - dot-s-a
+            color: cyan
+            linger: 0.65
+          - id: dg-dot-0-0
+            phrase: Start with the smallest useful operation.
+            targets:
+              - dot-construction
+            color: blue
+            linger: 0.25
+          - id: dg-dot-0-1
+            phrase: An output element pairs one row from the activation matrix with one row from the stored weight matrix.
+            targets:
+              - dot-construction
+            color: blue
+            linger: 0.25
+          - id: dg-dot-0-2
+            phrase: Matching coordinates multiply, and their products add.
+            targets:
+              - dot-construction
+            color: blue
+            linger: 0.25
+          - id: dg-dot-0-3
+            phrase: Follow the highlighted coordinate as our first output accumulates.
+            targets:
+              - dot-construction
+            color: green
+            linger: 0.25
+      - say: >
+          The next activation row reuses the same weight row and produces a different output. A whole matrix
+          multiplication repeats these row pairings. The common NT interface stores weights by rows and writes
+          the formula with a transpose so the shared inner dimension meets correctly.
+        hold: 0.6
+        visual_cues:
+          - id: dot-beat-2-focus-1
+            phrase: The next activation row reuses the same weight row and produces a different output
+            targets:
+              - dot-s-a
+            color: cyan
+            linger: 0.65
+          - id: dg-dot-1-0
+            phrase: The next activation row reuses the same weight row and produces a different output.
+            targets:
+              - dot-construction
+            color: blue
+            linger: 0.25
+          - id: dg-dot-1-1
+            phrase: A whole matrix multiplication repeats these row pairings.
+            targets:
+              - dot-construction
+            color: blue
+            linger: 0.25
+          - id: dg-dot-1-2
+            phrase: The common NT interface stores weights by rows and writes the formula with a transpose so the shared
+              inner dimension meets correctly.
+            targets:
+              - dot-construction
+            color: green
+            linger: 0.25
+      - say: >
+          A thread block computes a tile of these outputs. It stages input rectangles close to the arithmetic
+          and reuses them across several pairings. Tensor cores accelerate the inner products when operand
+          formats and layouts match. Tile choice therefore connects arithmetic reuse with a finite storage
+          budget.
+        motion_check:
+          region:
+            - 1320
+            - 420
+            - 420
+            - 240
+          minimumChangedFraction: 0.002
+        hold: 0.6
+        visual_cues:
+          - id: dot-beat-3-focus-1
+            phrase: It stages input rectangles close to the arithmetic and reuses them across several pairings
+            targets:
+              - dot-grid-a-180-c-blue-0-1-map-column-row-i-column-fill-c-panel-stroke-c
+            color: cyan
+            linger: 0.65
+          - id: dot-beat-3-focus-2
+            phrase: A thread block computes a tile of these outputs
+            targets:
+              - dot-grid-a-180-c-blue-0-1-map-column-row-i-column-fill-c-panel-stroke-c
+            color: yellow
+            linger: 0.65
+          - id: dg-dot-2-0
+            phrase: A thread block computes a tile of these outputs.
+            targets:
+              - dot-construction
+            color: blue
+            linger: 0.25
+          - id: dg-dot-2-1
+            phrase: It stages input rectangles close to the arithmetic and reuses them across several pairings.
+            targets:
+              - dot-construction
+            color: blue
+            linger: 0.25
+          - id: dg-dot-2-2
+            phrase: Tensor cores accelerate the inner products when operand formats and layouts match.
+            targets:
+              - dot-construction
+            color: blue
+            linger: 0.25
+          - id: dg-dot-2-3
+            phrase: Tile choice therefore connects arithmetic reuse with a finite storage budget.
+            targets:
+              - dot-construction
+            color: green
+            linger: 0.25
+  - id: gemm-contract
+    title: Earn the whole matrix shape and operation count
+    visual: Construct every entry of the existing two-row example before expanding dimensions to the public
+      benchmark-sized product.
+    beats:
+      - say: For the common NT interface, activation A has M rows and K columns. Stored weights B have N rows and K
+          columns. Multiply A by the transpose of B, giving M by N output entries. Each entry multiplies
+          matching coordinates and sums them; an optional C contributes an existing output. The two tiny rows
+          produce eleven and minus four against the same stored weight row.
+        hold: 0.6
+        visual_cues:
+          - id: gemm-contract-b0
+            phrase: For the common NT interface, activation A has M rows and K columns.
+            targets:
+              - gemm-contract-construction
+            color: cyan
+            linger: 0.4
+          - id: dg-gemm-contract-0-0
+            phrase: For the common NT interface, activation A has M rows and K columns.
+            targets:
+              - gemm-contract-construction
+            color: blue
+            linger: 0.25
+          - id: dg-gemm-contract-0-1
+            phrase: Stored weights B have N rows and K columns.
+            targets:
+              - gemm-contract-construction
+            color: blue
+            linger: 0.25
+          - id: dg-gemm-contract-0-2
+            phrase: Multiply A by the transpose of B, giving M by N output entries.
+            targets:
+              - gemm-contract-construction
+            color: blue
+            linger: 0.25
+          - id: dg-gemm-contract-0-3
+            phrase: Each entry multiplies matching coordinates and sums them; an optional C contributes an existing
+              output.
+            targets:
+              - gemm-contract-construction
+            color: blue
+            linger: 0.25
+          - id: dg-gemm-contract-0-4
+            phrase: The two tiny rows produce eleven and minus four against the same stored weight row.
+            targets:
+              - gemm-contract-construction
+            color: green
+            linger: 0.25
+      - say: >-
+          The whole product performs approximately two times M times N times K floating-point operations when a multiply and an add count separately.
+          With M five hundred twelve and N and K both four thousand ninety-six, that is seventeen point one eight billion operations.
+          Suppose that takes ten microseconds.
+          Divide the operation count by those ten microseconds and you get about one thousand seven hundred eighteen tera-operations per second.
+        caption_starts:
+          - "Suppose that takes ten microseconds"
+          - "Divide the operation count"
+        hold: 0.6
+        visual_cues:
+          - id: gemm-contract-b1
+            phrase: The whole product performs approximately two times M times N times K floating-point operations when a
+              multiply and an add count separately.
+            targets:
+              - gemm-contract-construction
+            color: cyan
+            linger: 0.4
+          - id: dg-gemm-contract-1-0
+            phrase: The whole product performs approximately two times M times N times K floating-point operations when a
+              multiply and an add count separately.
+            targets:
+              - gemm-contract-construction
+            color: blue
+            linger: 0.25
+          - id: dg-gemm-contract-1-1
+            phrase: With M five hundred twelve and N and K both four thousand ninety-six, that is seventeen point one
+              eight billion operations.
+            targets:
+              - gemm-contract-construction
+            color: blue
+            linger: 0.25
+          - id: dg-gemm-contract-1-2
+            phrase: >-
+              Suppose that takes ten microseconds.
+            targets:
+              - gemm-contract-construction
+            color: blue
+            linger: 0.25
+          - id: dg-gemm-contract-1-3
+            phrase: >-
+              Divide the operation count by those ten microseconds and you get about one thousand seven hundred eighteen tera-operations per second.
+            targets:
+              - gemm-contract-construction
+            color: green
+            linger: 0.25
+      - say: A block tile is only part of those whole-matrix dimensions. Count useful output rows, reduction
+          coordinates and accumulated partial products before interpreting a throughput figure. Source layout,
+          scale movement, barriers and stores can differ even when two calls have the same arithmetic count.
+          Optional accumulation and output conversion are also part of the selected operation, rather than
+          extra arithmetic inferred from the name alone.
+        hold: 0.6
+        visual_cues:
+          - id: gemm-contract-b2
+            phrase: A block tile is only part of those whole-matrix dimensions.
+            targets:
+              - gemm-contract-construction
+            color: green
+            linger: 0.4
+          - id: dg-gemm-contract-2-0
+            phrase: A block tile is only part of those whole-matrix dimensions.
+            targets:
+              - gemm-contract-construction
+            color: blue
+            linger: 0.25
+          - id: dg-gemm-contract-2-1
+            phrase: Count useful output rows, reduction coordinates and accumulated partial products before interpreting a
+              throughput figure.
+            targets:
+              - gemm-contract-construction
+            color: blue
+            linger: 0.25
+          - id: dg-gemm-contract-2-2
+            phrase: Source layout, scale movement, barriers and stores can differ even when two calls have the same
+              arithmetic count.
+            targets:
+              - gemm-contract-construction
+            color: blue
+            linger: 0.25
+          - id: dg-gemm-contract-2-3
+            phrase: Optional accumulation and output conversion are also part of the selected operation, rather than extra
+              arithmetic inferred from the name alone.
+            targets:
+              - gemm-contract-construction
+            color: green
+            linger: 0.25
+  - id: reuse-budget
+    title: Conserve the values reused by a tile
+    visual: Show the same eight scalar operands feeding eight products, then retain staged copies while four
+      outputs accumulate.
+    beats:
+      - say: >-
+          Consider our two-by-two output with reduction width two.
+          It needs eight scalar multiplies.
+          A naive one-output thread requests two activation values and two weight values for each of four outputs: sixteen operand requests.
+          The complete A and B tiles contain only eight distinct scalars.
+          Staging those tiles can supply the repeated pairings from nearby storage.
+          To see how many bytes reach GPU memory, measure traffic while this tile runs.
+        hold: 0.6
+        visual_cues:
+          - id: reuse-budget-b0
+            phrase: Consider our two-by-two output with reduction width two.
+            targets:
+              - reuse-budget-construction
+            color: cyan
+            linger: 0.4
+          - id: dg-reuse-budget-0-0
+            phrase: Consider our two-by-two output with reduction width two.
+            targets:
+              - reuse-budget-construction
+            color: blue
+            linger: 0.25
+          - id: dg-reuse-budget-0-1
+            phrase: It needs eight scalar multiplies.
+            targets:
+              - reuse-budget-construction
+            color: blue
+            linger: 0.25
+          - id: dg-reuse-budget-0-2
+            phrase: "A naive one-output thread requests two activation values and two weight values for each of four
+              outputs: sixteen operand requests."
+            targets:
+              - reuse-budget-construction
+            color: blue
+            linger: 0.25
+          - id: dg-reuse-budget-0-3
+            phrase: The complete A and B tiles contain only eight distinct scalars.
+            targets:
+              - reuse-budget-construction
+            color: blue
+            linger: 0.25
+          - id: dg-reuse-budget-0-4
+            phrase: Staging those tiles can supply the repeated pairings from nearby storage.
+            targets:
+              - reuse-budget-construction
+            color: blue
+            linger: 0.25
+          - id: dg-reuse-budget-0-5
+            phrase: >-
+              To see how many bytes reach GPU memory, measure traffic while this tile runs.
+            targets:
+              - reuse-budget-construction
+            color: green
+            linger: 0.25
+      - say: Global memory supplies source tensors. Shared memory holds staged tiles for the block, and registers can
+          retain a thread’s partial sums. Tensor cores replace the scalar inner arithmetic with matrix
+          multiply-accumulate instructions using supported fragments. Larger tiles can improve reuse while
+          consuming more shared memory and registers. Register spilling sends values into off-chip local
+          memory, so a bigger tile can also remove the expected benefit.
+        hold: 0.6
+        visual_cues:
+          - id: reuse-budget-b1
+            phrase: Global memory supplies source tensors.
+            targets:
+              - reuse-budget-construction
+            color: cyan
+            linger: 0.4
+          - id: dg-reuse-budget-1-0
+            phrase: Global memory supplies source tensors.
+            targets:
+              - reuse-budget-construction
+            color: blue
+            linger: 0.25
+          - id: dg-reuse-budget-1-1
+            phrase: Shared memory holds staged tiles for the block, and registers can retain a thread’s partial sums.
+            targets:
+              - reuse-budget-construction
+            color: blue
+            linger: 0.25
+          - id: dg-reuse-budget-1-2
+            phrase: Tensor cores replace the scalar inner arithmetic with matrix multiply-accumulate instructions using
+              supported fragments.
+            targets:
+              - reuse-budget-construction
+            color: blue
+            linger: 0.25
+          - id: dg-reuse-budget-1-3
+            phrase: Larger tiles can improve reuse while consuming more shared memory and registers.
+            targets:
+              - reuse-budget-construction
+            color: blue
+            linger: 0.25
+          - id: dg-reuse-budget-1-4
+            phrase: Register spilling sends values into off-chip local memory, so a bigger tile can also remove the
+              expected benefit.
+            targets:
+              - reuse-budget-construction
+            color: green
+            linger: 0.25
+      - say: >-
+          M equals one gives a large tile little useful row work; M equals five hundred twelve can expose more reuse and parallel work.
+          Occupancy describes active warps relative to the hardware maximum.
+          Look for warps ready to issue the next instruction.
+          Compare elapsed time, useful work, register use, memory movement and correctness under the same workload before choosing the tile.
+        hold: 0.6
+        visual_cues:
+          - id: reuse-budget-b2
+            phrase: M equals one gives a large tile little useful row work; M equals five hundred twelve can expose more
+              reuse and parallel work.
+            targets:
+              - reuse-budget-construction
+            color: green
+            linger: 0.4
+          - id: dg-reuse-budget-2-0
+            phrase: M equals one gives a large tile little useful row work; M equals five hundred twelve can expose more
+              reuse and parallel work.
+            targets:
+              - reuse-budget-construction
+            color: blue
+            linger: 0.25
+          - id: dg-reuse-budget-2-1
+            phrase: Occupancy describes active warps relative to the hardware maximum.
+            targets:
+              - reuse-budget-construction
+            color: blue
+            linger: 0.25
+          - id: dg-reuse-budget-2-2
+            phrase: >-
+              Look for warps ready to issue the next instruction.
+            targets:
+              - reuse-budget-construction
+            color: blue
+            linger: 0.25
+          - id: dg-reuse-budget-2-3
+            phrase: Compare elapsed time, useful work, register use, memory movement and correctness under the same
+              workload before choosing the tile.
+            targets:
+              - reuse-budget-construction
+            color: green
+            linger: 0.25
+  - id: scales
+    title: What does each group contribute?
+    visual: >-
+      Pair activation and weight coordinates vertically. Scale only the second partial dot, then check the
+      result by dequantizing the original coordinates in each group.
+    beats:
+      - say: >-
+          These two rows store low-precision values. Each pair of columns shares an activation scale and a
+          weight scale.
+          Match each activation to the weight beneath it. The vertical pairs belong to the same coordinate.
+          In the first group the two products add to four. In the second group, minus three plus eight gives
+          five.
+          The first pair of scales multiplies to one. The second multiplies to one half. What is the scaled
+          dot product?
+        hold: 2.1
+        visual_cues:
+          - id: dg-scales-0-0
+            phrase: >-
+              These two rows store low-precision values. Each pair of columns shares an activation scale
+              and a weight scale.
+            targets: [scales-construction]
+            caption_boundary: true
+          - id: dg-scales-0-1
+            phrase: >-
+              Match each activation to the weight beneath it. The vertical pairs belong to the same
+              coordinate.
+            targets: [scales-construction]
+            caption_boundary: true
+          - id: dg-scales-0-2
+            phrase: >-
+              In the first group the two products add to four. In the second group, minus three plus
+              eight gives five.
+            targets: [scales-construction]
+            caption_boundary: true
+          - id: dg-scales-0-3
+            phrase: >-
+              The first pair of scales multiplies to one. The second multiplies to one half. What is the
+              scaled dot product?
+            targets: [scales-construction]
+            caption_boundary: true
+      - say: >-
+          Leave the first bar at four. On the ruler, shrink the second bar to half its length.
+          That group's raw five contributes two and a half.
+          Four plus two and a half gives six and a half.
+          Borrow the first group's factor for the whole dot and you'd get nine. That counts the last two
+          coordinates at twice their scale.
+        hold: 0.9
+        visual_cues:
+          - id: dg-scales-1-0
+            phrase: >-
+              Leave the first bar at four. On the ruler, shrink the second bar to half its length.
+            targets: [scales-contribution-1]
+            caption_boundary: true
+          - id: dg-scales-1-1
+            phrase: >-
+              That group's raw five contributes two and a half.
+            targets: [scales-contribution-1]
+            caption_boundary: true
+          - id: dg-scales-1-2
+            phrase: >-
+              Four plus two and a half gives six and a half.
+            targets: [scales-construction]
+            caption_boundary: true
+          - id: dg-scales-1-3
+            phrase: >-
+              Borrow the first group's factor for the whole dot and you'd get nine. That counts the last
+              two coordinates at twice their scale.
+            targets: [scales-construction]
+            caption_boundary: true
+      - say: >-
+          Check the answer another way. Dequantize each stored coordinate with its own group's scale, then
+          multiply.
+          Look at the second group. Six times minus a quarter gives minus one and a half. Eight times a half
+          adds four, bringing that group back to two and a half.
+          Both routes give six and a half. The scale belongs with its group inside the sum across K.
+          We used groups of two so you could check the arithmetic by hand. A real kernel needs its own group
+          width, scale type and packing.
+        hold: 0.8
+        visual_cues:
+          - id: dg-scales-2-0
+            phrase: >-
+              Check the answer another way. Dequantize each stored coordinate with its own group's scale,
+              then multiply.
+            targets: [scales-construction]
+            caption_boundary: true
+          - id: dg-scales-2-1
+            phrase: >-
+              Look at the second group. Six times minus a quarter gives minus one and a half. Eight times
+              a half adds four, bringing that group back to two and a half.
+            targets: [scales-contribution-1]
+            caption_boundary: true
+          - id: dg-scales-2-2
+            phrase: >-
+              Both routes give six and a half. The scale belongs with its group inside the sum across K.
+            targets: [scales-construction]
+            caption_boundary: true
+          - id: dg-scales-2-3
+            phrase: >-
+              We used groups of two so you could check the arithmetic by hand. A real kernel needs its
+              own group width, scale type and packing.
+            targets: [scales-construction]
+            caption_boundary: true
+  - id: precision-contracts
+    title: Keep low-bit values attached to their native scales
+    visual: Pack actual named scale bytes into one word while retaining distinct SM90 and SM100 operand contracts.
+    beats:
+      - say: >-
+          The FP8 format discussed here is E four M three: one sign bit, four exponent bits and three mantissa bits.
+          FP4 E two M one packs two four-bit values per byte.
+          BF16 has sixteen bits and an exponent range like FP32, while retaining less precision.
+          The selected BF16 tensor-core paths accumulate matrix products in FP32 before their configured output conversion.
+          Compare the converted output with a higher-precision reference to see how much it changed.
+        hold: 0.6
+        visual_cues:
+          - id: precision-contracts-b0
+            phrase: "The FP8 format discussed here is E four M three: one sign bit, four exponent bits and three mantissa
+              bits."
+            targets:
+              - precision-contracts-construction
+            color: cyan
+            linger: 0.4
+          - id: dg-precision-contracts-0-0
+            phrase: "The FP8 format discussed here is E four M three: one sign bit, four exponent bits and three mantissa
+              bits."
+            targets:
+              - precision-contracts-construction
+            color: blue
+            linger: 0.25
+          - id: dg-precision-contracts-0-1
+            phrase: FP4 E two M one packs two four-bit values per byte.
+            targets:
+              - precision-contracts-construction
+            color: blue
+            linger: 0.25
+          - id: dg-precision-contracts-0-2
+            phrase: BF16 has sixteen bits and an exponent range like FP32, while retaining less precision.
+            targets:
+              - precision-contracts-construction
+            color: blue
+            linger: 0.25
+          - id: dg-precision-contracts-0-3
+            phrase: The selected BF16 tensor-core paths accumulate matrix products in FP32 before their configured output
+              conversion.
+            targets:
+              - precision-contracts-construction
+            color: blue
+            linger: 0.25
+          - id: dg-precision-contracts-0-4
+            phrase: >-
+              Compare the converted output with a higher-precision reference to see how much it changed.
+            targets:
+              - precision-contracts-construction
+            color: green
+            linger: 0.25
+      - say: Scale representation changes with the selected architecture. The discussed SM90 low-bit GEMM uses FP32
+          scales, commonly with K groups of one hundred twenty-eight. SM100 uses native packed UE eight M zero
+          power-of-two scales, four eight-bit encodings in one thirty-two-bit integer. The selected FP8 by FP4
+          Mega MoE recipe uses K groups of thirty-two. Wrapper-accepted input formats and the eventual native
+          representation are separate contracts.
+        hold: 0.6
+        visual_cues:
+          - id: precision-contracts-b1
+            phrase: Scale representation changes with the selected architecture.
+            targets:
+              - precision-contracts-construction
+            color: cyan
+            linger: 0.4
+          - id: dg-precision-contracts-1-0
+            phrase: Scale representation changes with the selected architecture.
+            targets:
+              - precision-contracts-construction
+            color: blue
+            linger: 0.25
+          - id: dg-precision-contracts-1-1
+            phrase: The discussed SM90 low-bit GEMM uses FP32 scales, commonly with K groups of one hundred twenty-eight.
+            targets:
+              - precision-contracts-construction
+            color: blue
+            linger: 0.25
+          - id: dg-precision-contracts-1-2
+            phrase: SM100 uses native packed UE eight M zero power-of-two scales, four eight-bit encodings in one
+              thirty-two-bit integer.
+            targets:
+              - precision-contracts-construction
+            color: blue
+            linger: 0.25
+          - id: dg-precision-contracts-1-3
+            phrase: The selected FP8 by FP4 Mega MoE recipe uses K groups of thirty-two.
+            targets:
+              - precision-contracts-construction
+            color: blue
+            linger: 0.25
+          - id: dg-precision-contracts-1-4
+            phrase: Wrapper-accepted input formats and the eventual native representation are separate contracts.
+            targets:
+              - precision-contracts-construction
+            color: green
+            linger: 0.25
+      - say: Inspect architecture, scale dtype, major order, strides and output shape together. The primary SM90 GEMM
+          interface supports NT; the inspected SM100 family supports several major-layout variants. An
+          SM100-only FP4 path cannot be repaired for SM90 by changing a tile size. Casting and transposition
+          can also cost more than the fast multiplication. Profile them inside the model path and fuse
+          preparation earlier only when the measured workload supports that choice.
+        hold: 0.6
+        visual_cues:
+          - id: precision-contracts-b2
+            phrase: Inspect architecture, scale dtype, major order, strides and output shape together.
+            targets:
+              - precision-contracts-construction
+            color: green
+            linger: 0.4
+          - id: dg-precision-contracts-2-0
+            phrase: Inspect architecture, scale dtype, major order, strides and output shape together.
+            targets:
+              - precision-contracts-construction
+            color: blue
+            linger: 0.25
+          - id: dg-precision-contracts-2-1
+            phrase: The primary SM90 GEMM interface supports NT; the inspected SM100 family supports several major-layout
+              variants.
+            targets:
+              - precision-contracts-construction
+            color: blue
+            linger: 0.25
+          - id: dg-precision-contracts-2-2
+            phrase: An SM100-only FP4 path cannot be repaired for SM90 by changing a tile size.
+            targets:
+              - precision-contracts-construction
+            color: blue
+            linger: 0.25
+          - id: dg-precision-contracts-2-3
+            phrase: Casting and transposition can also cost more than the fast multiplication.
+            targets:
+              - precision-contracts-construction
+            color: blue
+            linger: 0.25
+          - id: dg-precision-contracts-2-4
+            phrase: Profile them inside the model path and fuse preparation earlier only when the measured workload
+              supports that choice.
+            targets:
+              - precision-contracts-construction
+            color: green
+            linger: 0.25
+  - id: movement
+    title: When can this tile start multiplying?
+    visual: >-
+      On the selected SM100 tile, the operands stop in shared memory. A separate copy carries the scales
+      to TMEM, which also holds the accumulator. The epilogue receives the result after completion.
+    beats:
+      - say: >-
+          Follow two input rows and their scales into one block-scaled tile on an SM one hundred Blackwell GPU.
+          The copy engine brings both rows and their scales from global into shared memory.
+          Its descriptor gives the shape and stride of the tile. Our toy copy needs adjacent elements along
+          the inner dimension.
+          Transposing the view keeps the values but changes that stride to three. The base view passes our
+          check and the transposed view fails.
+          Back at the tile, both rows are ready. Look at the empty scale slot in tensor memory. Can the
+          multiply issue yet?
+        hold: 2
+        visual_cues:
+          - id: dg-movement-0-0
+            phrase: >-
+              Follow two input rows and their scales into one block-scaled tile on an SM one hundred Blackwell GPU.
+            targets: [movement-global-a-b]
+            caption_boundary: true
+          - id: dg-movement-0-1
+            phrase: >-
+              The copy engine brings both rows and their scales from global into shared memory.
+            targets: [movement-s-operands-shared-a-b-ready-shared-a-b-waiting]
+            caption_boundary: true
+          - id: dg-movement-0-2
+            phrase: >-
+              Its descriptor gives the shape and stride of the tile. Our toy copy needs adjacent elements
+              along the inner dimension.
+            targets: [movement-copy-descriptors]
+            caption_boundary: true
+          - id: dg-movement-0-3
+            phrase: >-
+              Transposing the view keeps the values but changes that stride to three. The base view
+              passes our check and the transposed view fails.
+            targets: [movement-copy-descriptors]
+            caption_boundary: true
+          - id: dg-movement-0-4
+            phrase: >-
+              Back at the tile, both rows are ready. Look at the empty scale slot in tensor memory. Can
+              the multiply issue yet?
+            targets: [movement-scale-slot]
+            caption_boundary: true
+          - id: movement-beat-1-focus-2
+            phrase: the transposed view fails
+            targets: [movement-copy-descriptors]
+            color: pink
+      - say: >-
+          Copy the scales into that slot. The input rows stay in shared memory.
+          With both inputs ready, a warp can issue the multiply. On Blackwell, this instruction belongs to
+          the T C gen zero five family.
+          The accumulator in tensor memory holds the partial sum while that work is in flight.
+        hold: 0.7
+        visual_cues:
+          - id: dg-movement-1-0
+            phrase: >-
+              Copy the scales into that slot.
+            targets: [movement-scale-transfer]
+            caption_boundary: true
+          - id: dg-movement-1-1
+            phrase: >-
+              With both inputs ready, a warp can issue the multiply.
+            targets: [movement-instruction]
+            caption_boundary: true
+          - id: dg-movement-1-2
+            phrase: >-
+              The accumulator in tensor memory holds the partial sum while that work is in flight.
+            targets: [movement-output-handoff]
+            caption_boundary: true
+      - say: >-
+          When the multiply completes, the output stage can read the accumulator. Follow the result around
+          the right edge.
+          Hopper uses a different instruction and scale format.
+          For each handoff, check which instruction supplies completion on the GPU you selected.
+        hold: 0.8
+        visual_cues:
+          - id: dg-movement-2-0
+            phrase: >-
+              the output stage can read the accumulator. Follow the result around the right edge.
+            targets: [movement-output-handoff]
+            caption_boundary: true
+          - id: dg-movement-2-1
+            phrase: >-
+              Hopper uses a different instruction and scale format.
+            targets: [movement-output-handoff]
+            caption_boundary: true
+          - id: dg-movement-2-2
+            phrase: >-
+              For each handoff, check which instruction supplies completion on the GPU you selected.
+            targets: [movement-output-handoff]
+            caption_boundary: true
+  - id: stage-lifetime
+    title: Make each storage handoff wait for its own completion
+    visual: Address a selected logical coordinate using strides, reject the incompatible descriptor, then follow
+      operand/scales/accumulator lifetimes separately.
+    beats:
+      - say: A physical address follows its strides. Multiply each coordinate by its corresponding stride and add
+          those offsets to the base. In an illustrative three-by-four view with element strides eight and two,
+          row one, column three has offset fourteen. A packed row-major reader would use offset seven instead.
+          Both can describe the same logical shape, yet using the wrong descriptor reads different elements.
+          Materialize the required layout and validate its actual strides.
+        hold: 0.6
+        visual_cues:
+          - id: stage-lifetime-b0
+            phrase: A physical address follows its strides.
+            targets:
+              - stage-lifetime-construction
+            color: cyan
+            linger: 0.4
+          - id: dg-stage-lifetime-0-0
+            phrase: A physical address follows its strides.
+            targets:
+              - stage-lifetime-construction
+            color: blue
+            linger: 0.25
+          - id: dg-stage-lifetime-0-1
+            phrase: Multiply each coordinate by its corresponding stride and add those offsets to the base.
+            targets:
+              - stage-lifetime-construction
+            color: blue
+            linger: 0.25
+          - id: dg-stage-lifetime-0-2
+            phrase: In an illustrative three-by-four view with element strides eight and two, row one, column three has
+              offset fourteen.
+            targets:
+              - stage-lifetime-construction
+            color: blue
+            linger: 0.25
+          - id: dg-stage-lifetime-0-3
+            phrase: A packed row-major reader would use offset seven instead.
+            targets:
+              - stage-lifetime-construction
+            color: blue
+            linger: 0.25
+          - id: dg-stage-lifetime-0-4
+            phrase: Both can describe the same logical shape, yet using the wrong descriptor reads different elements.
+            targets:
+              - stage-lifetime-construction
+            color: blue
+            linger: 0.25
+          - id: dg-stage-lifetime-0-5
+            phrase: Materialize the required layout and validate its actual strides.
+            targets:
+              - stage-lifetime-construction
+            color: green
+            linger: 0.25
+      - say: >-
+          The Tensor Memory Accelerator stages a descriptor-selected rectangle asynchronously from global into shared memory.
+          In our selected SM100 block-scaled path, operands remain in shared storage while scale factors also copy into tensor memory.
+          Tensor memory holds the accumulator and these scales.
+          Ordinary registers are thread-local.
+          Here the multiply reads its operands from shared memory and leaves its partial sum in tensor memory.
+        hold: 0.6
+        visual_cues:
+          - id: stage-lifetime-b1
+            phrase: The Tensor Memory Accelerator stages a descriptor-selected rectangle asynchronously from global into
+              shared memory.
+            targets:
+              - stage-lifetime-construction
+            color: cyan
+            linger: 0.4
+          - id: dg-stage-lifetime-1-0
+            phrase: The Tensor Memory Accelerator stages a descriptor-selected rectangle asynchronously from global into
+              shared memory.
+            targets:
+              - stage-lifetime-construction
+            color: blue
+            linger: 0.25
+          - id: dg-stage-lifetime-1-1
+            phrase: In our selected SM100 block-scaled path, operands remain in shared storage while scale factors also
+              copy into tensor memory.
+            targets:
+              - stage-lifetime-construction
+            color: blue
+            linger: 0.25
+          - id: dg-stage-lifetime-1-2
+            phrase: Tensor memory holds the accumulator and these scales.
+            targets:
+              - stage-lifetime-construction
+            color: blue
+            linger: 0.25
+          - id: dg-stage-lifetime-1-3
+            phrase: Ordinary registers are thread-local.
+            targets:
+              - stage-lifetime-construction
+            color: blue
+            linger: 0.25
+          - id: dg-stage-lifetime-1-4
+            phrase: >-
+              Here the multiply reads its operands from shared memory and leaves its partial sum in tensor memory.
+            targets:
+              - stage-lifetime-construction
+            color: green
+            linger: 0.25
+      - say: >-
+          The consumer waits for the required TMA data and shared-to-tensor-memory scale copy.
+          Matrix work then completes before the epilogue reads its accumulator, converts or stores output and releases reusable storage.
+          Some ordering comes from explicit waits and some from instruction-specific commit semantics.
+          Check which instruction signals completion for this tile.
+          That signal lets the next stage use the storage safely.
+        hold: 0.6
+        visual_cues:
+          - id: stage-lifetime-b2
+            phrase: The consumer waits for the required TMA data and shared-to-tensor-memory scale copy.
+            targets:
+              - stage-lifetime-construction
+            color: green
+            linger: 0.4
+          - id: dg-stage-lifetime-2-0
+            phrase: The consumer waits for the required TMA data and shared-to-tensor-memory scale copy.
+            targets:
+              - stage-lifetime-construction
+            color: blue
+            linger: 0.25
+          - id: dg-stage-lifetime-2-1
+            phrase: Matrix work then completes before the epilogue reads its accumulator, converts or stores output and
+              releases reusable storage.
+            targets:
+              - stage-lifetime-construction
+            color: blue
+            linger: 0.25
+          - id: dg-stage-lifetime-2-2
+            phrase: Some ordering comes from explicit waits and some from instruction-specific commit semantics.
+            targets:
+              - stage-lifetime-construction
+            color: blue
+            linger: 0.25
+          - id: dg-stage-lifetime-2-3
+            phrase: >-
+              Check which instruction signals completion for this tile.
+            targets:
+              - stage-lifetime-construction
+            color: blue
+            linger: 0.25
+          - id: dg-stage-lifetime-2-4
+            phrase: >-
+              That signal lets the next stage use the storage safely.
+            targets:
+              - stage-lifetime-construction
+            color: green
+            linger: 0.25
+  - id: jit-contract
+    title: Publish a complete generated signature
+    visual: Run two compile owners through separate temporary packages and one visible cache entry while retaining
+      the full signature operands.
+    beats:
+      - say: The July JIT creates generated CUDA source, compiles a GPU binary and loads its runtime handle. Its cache
+          signature includes kernel name, compiler signature, effective flags and generated source. Shape and
+          scale choices matter when they change that source or flags. A runtime dimension deliberately kept
+          dynamic need not create a new binary. Warm the signatures the workload actually produces, rather
+          than counting every requested shape as a cache miss.
+        hold: 0.6
+        visual_cues:
+          - id: jit-contract-b0
+            phrase: The July JIT creates generated CUDA source, compiles a GPU binary and loads its runtime handle.
+            targets:
+              - jit-contract-construction
+            color: cyan
+            linger: 0.4
+          - id: dg-jit-contract-0-0
+            phrase: The July JIT creates generated CUDA source, compiles a GPU binary and loads its runtime handle.
+            targets:
+              - jit-contract-construction
+            color: blue
+            linger: 0.25
+          - id: dg-jit-contract-0-1
+            phrase: Its cache signature includes kernel name, compiler signature, effective flags and generated source.
+            targets:
+              - jit-contract-construction
+            color: blue
+            linger: 0.25
+          - id: dg-jit-contract-0-2
+            phrase: Shape and scale choices matter when they change that source or flags.
+            targets:
+              - jit-contract-construction
+            color: blue
+            linger: 0.25
+          - id: dg-jit-contract-0-3
+            phrase: A runtime dimension deliberately kept dynamic need not create a new binary.
+            targets:
+              - jit-contract-construction
+            color: blue
+            linger: 0.25
+          - id: dg-jit-contract-0-4
+            phrase: Warm the signatures the workload actually produces, rather than counting every requested shape as a
+              cache miss.
+            targets:
+              - jit-contract-construction
+            color: green
+            linger: 0.25
+      - say: At that pin NVCC is the default, while the explicit NVRTC option selects the alternate compiler.
+          Compilation writes into a unique temporary directory, closes and synchronizes its files, then
+          atomically renames the completed directory into the cache. Another rank can independently finish the
+          same signature. Publication protects complete visibility under the required filesystem semantics; it
+          neither prevents duplicate compilation nor makes arbitrary storage semantics safe.
+        hold: 0.6
+        visual_cues:
+          - id: jit-contract-b1
+            phrase: At that pin NVCC is the default, while the explicit NVRTC option selects the alternate compiler.
+            targets:
+              - jit-contract-construction
+            color: cyan
+            linger: 0.4
+          - id: dg-jit-contract-1-0
+            phrase: At that pin NVCC is the default, while the explicit NVRTC option selects the alternate compiler.
+            targets:
+              - jit-contract-construction
+            color: blue
+            linger: 0.25
+          - id: dg-jit-contract-1-1
+            phrase: Compilation writes into a unique temporary directory, closes and synchronizes its files, then
+              atomically renames the completed directory into the cache.
+            targets:
+              - jit-contract-construction
+            color: blue
+            linger: 0.25
+          - id: dg-jit-contract-1-2
+            phrase: Another rank can independently finish the same signature.
+            targets:
+              - jit-contract-construction
+            color: blue
+            linger: 0.25
+          - id: dg-jit-contract-1-3
+            phrase: Publication protects complete visibility under the required filesystem semantics; it neither prevents
+              duplicate compilation nor makes arbitrary storage semantics safe.
+            targets:
+              - jit-contract-construction
+            color: green
+            linger: 0.25
+      - say: The July default cache lives under dot deep underscore gemm in the home directory, with a configurable
+          cache root. A new compiler, code-changing flag, architecture or scale contract must not silently
+          load an incompatible old binary. Retain the signature and compilation receipt beside the timing. A
+          process cache hit, a disk cache hit and a cold compile explain different first-call costs, so report
+          cold and warm behavior separately.
+        hold: 0.6
+        visual_cues:
+          - id: jit-contract-b2
+            phrase: The July default cache lives under dot deep underscore gemm in the home directory, with a configurable
+              cache root.
+            targets:
+              - jit-contract-construction
+            color: green
+            linger: 0.4
+          - id: dg-jit-contract-2-0
+            phrase: The July default cache lives under dot deep underscore gemm in the home directory, with a configurable
+              cache root.
+            targets:
+              - jit-contract-construction
+            color: blue
+            linger: 0.25
+          - id: dg-jit-contract-2-1
+            phrase: A new compiler, code-changing flag, architecture or scale contract must not silently load an
+              incompatible old binary.
+            targets:
+              - jit-contract-construction
+            color: blue
+            linger: 0.25
+          - id: dg-jit-contract-2-2
+            phrase: Retain the signature and compilation receipt beside the timing.
+            targets:
+              - jit-contract-construction
+            color: blue
+            linger: 0.25
+          - id: dg-jit-contract-2-3
+            phrase: A process cache hit, a disk cache hit and a cold compile explain different first-call costs, so report
+              cold and warm behavior separately.
+            targets:
+              - jit-contract-construction
+            color: green
+            linger: 0.25
+  - id: deepjit-migration
+    title: Rebuild the cache contract across versions
+    visual: Keep identical generated inputs on a hit, then change one tracked flag and observe a new entry; a dump
+      request on the hit adds no artifact.
+    beats:
+      - say: The October snapshot delegates compilation through the CUDA backend of its pinned DeepJIT submodule and
+          includes a CUTLASS dependency signature. The default cache is now dot d j. Ordered colon-separated
+          cache roots are searched from front to back, and a miss compiles into the first root. An unset D G
+          JIT setting falls back to its D J JIT counterpart. Configure these values before runtime
+          initialization.
+        hold: 0.6
+        visual_cues:
+          - id: deepjit-migration-b0
+            phrase: The October snapshot delegates compilation through the CUDA backend of its pinned DeepJIT submodule
+              and includes a CUTLASS dependency signature.
+            targets:
+              - deepjit-migration-construction
+            color: cyan
+            linger: 0.4
+          - id: dg-deepjit-migration-0-0
+            phrase: The October snapshot delegates compilation through the CUDA backend of its pinned DeepJIT submodule
+              and includes a CUTLASS dependency signature.
+            targets:
+              - deepjit-migration-construction
+            color: blue
+            linger: 0.25
+          - id: dg-deepjit-migration-0-1
+            phrase: The default cache is now dot d j.
+            targets:
+              - deepjit-migration-construction
+            color: blue
+            linger: 0.25
+          - id: dg-deepjit-migration-0-2
+            phrase: Ordered colon-separated cache roots are searched from front to back, and a miss compiles into the
+              first root.
+            targets:
+              - deepjit-migration-construction
+            color: blue
+            linger: 0.25
+          - id: dg-deepjit-migration-0-3
+            phrase: An unset D G JIT setting falls back to its D J JIT counterpart.
+            targets:
+              - deepjit-migration-construction
+            color: blue
+            linger: 0.25
+          - id: dg-deepjit-migration-0-4
+            phrase: Configure these values before runtime initialization.
+            targets:
+              - deepjit-migration-construction
+            color: green
+            linger: 0.25
+      - say: >-
+          DeepJIT’s recorded checksum combines compiler information, effective flags, tracked source and includes, dependency signature and optional post-hook identity.
+          DeepJIT uses that checksum to look up a compiled binary.
+          Implicit compiler environment inputs such as C PATH or NVCC append flags are not all discovered.
+          Make behavior-changing inputs explicit.
+          Pin the actual DeepJIT submodule with its host library instead of independently updating a dependency beneath a tested kernel.
+        hold: 0.6
+        visual_cues:
+          - id: deepjit-migration-b1
+            phrase: DeepJIT’s recorded checksum combines compiler information, effective flags, tracked source and
+              includes, dependency signature and optional post-hook identity.
+            targets:
+              - deepjit-migration-construction
+            color: cyan
+            linger: 0.4
+          - id: dg-deepjit-migration-1-0
+            phrase: DeepJIT’s recorded checksum combines compiler information, effective flags, tracked source and
+              includes, dependency signature and optional post-hook identity.
+            targets:
+              - deepjit-migration-construction
+            color: blue
+            linger: 0.25
+          - id: dg-deepjit-migration-1-1
+            phrase: >-
+              DeepJIT uses that checksum to look up a compiled binary.
+            targets:
+              - deepjit-migration-construction
+            color: blue
+            linger: 0.25
+          - id: dg-deepjit-migration-1-2
+            phrase: Implicit compiler environment inputs such as C PATH or NVCC append flags are not all discovered.
+            targets:
+              - deepjit-migration-construction
+            color: blue
+            linger: 0.25
+          - id: dg-deepjit-migration-1-3
+            phrase: Make behavior-changing inputs explicit.
+            targets:
+              - deepjit-migration-construction
+            color: blue
+            linger: 0.25
+          - id: dg-deepjit-migration-1-4
+            phrase: Pin the actual DeepJIT submodule with its host library instead of independently updating a dependency
+              beneath a tested kernel.
+            targets:
+              - deepjit-migration-construction
+            color: green
+            linger: 0.25
+      - say: PTX and SASS dump options act when compilation occurs. Enabling a dump on a pre-existing hit does not
+          rebuild that entry, so the requested new dump can remain absent. The current no-local-memory and
+          no-spills checks are separate controls; the July check name is historical. Inspect effective
+          settings and actual compile output rather than assuming an environment-variable name from a
+          different version still enforces the intended condition.
+        hold: 0.6
+        visual_cues:
+          - id: deepjit-migration-b2
+            phrase: PTX and SASS dump options act when compilation occurs.
+            targets:
+              - deepjit-migration-construction
+            color: green
+            linger: 0.4
+          - id: dg-deepjit-migration-2-0
+            phrase: PTX and SASS dump options act when compilation occurs.
+            targets:
+              - deepjit-migration-construction
+            color: blue
+            linger: 0.25
+          - id: dg-deepjit-migration-2-1
+            phrase: Enabling a dump on a pre-existing hit does not rebuild that entry, so the requested new dump can
+              remain absent.
+            targets:
+              - deepjit-migration-construction
+            color: blue
+            linger: 0.25
+          - id: dg-deepjit-migration-2-2
+            phrase: The current no-local-memory and no-spills checks are separate controls; the July check name is
+              historical.
+            targets:
+              - deepjit-migration-construction
+            color: blue
+            linger: 0.25
+          - id: dg-deepjit-migration-2-3
+            phrase: Inspect effective settings and actual compile output rather than assuming an environment-variable name
+              from a different version still enforces the intended condition.
+            targets:
+              - deepjit-migration-construction
+            color: green
+            linger: 0.25
+  - id: packing
+    title: Change the block size under the same rows
+    visual: >-
+      A fixed row ruler follows token seven when the same four segments are laid out at alignments of 64,
+      128 and 256. Compute useful work from the original rows and show the full-padding model separately.
+    beats:
+      - say: >-
+          Find token seven again, at the head of expert two. Keep every assignment fixed.
+          Start with blocks of sixty-four rows in this packing example. The first two strips already fit.
+          Only expert two needs an empty tail. Four hundred sixteen useful rows occupy four hundred
+          forty-eight places.
+        hold: 0.8
+        visual_cues:
+          - id: dg-packing-0-0
+            phrase: >-
+              Find token seven again, at the head of expert two. Keep every assignment fixed.
+            targets: [pack-pin]
+            caption_boundary: true
+          - id: dg-packing-0-1
+            phrase: >-
+              Start with blocks of sixty-four rows in this packing example. The first two strips already
+              fit.
+            targets: [expert-packed-rows]
+            caption_boundary: true
+          - id: dg-packing-0-2
+            phrase: >-
+              Only expert two needs an empty tail. Four hundred sixteen useful rows occupy four hundred
+              forty-eight places.
+            targets: [pack-result]
+            caption_boundary: true
+      - say: >-
+          Switch to the opening block size, one hundred twenty-eight rows.
+          The first two tails push token seven to row three hundred eighty-four. That new address must still
+          point back to the same token.
+          Across the four experts, six hundred forty places hold the same four hundred sixteen assignments. A
+          token sent to several experts contributes a row to each.
+        hold: 0.9
+        visual_cues:
+          - id: dg-packing-1-0
+            phrase: >-
+              Switch to the opening block size, one hundred twenty-eight rows.
+            targets: [expert-packed-rows]
+            caption_boundary: true
+          - id: dg-packing-1-1
+            phrase: >-
+              The first two tails push token seven to row three hundred eighty-four. That new address must
+              still point back to the same token.
+            targets: [pack-pin]
+            caption_boundary: true
+          - id: dg-packing-1-2
+            phrase: >-
+              Across the four experts, six hundred forty places hold the same four hundred sixteen
+              assignments. A token sent to several experts contributes a row to each.
+            targets: [pack-result]
+            caption_boundary: true
+      - say: >-
+          Now give each expert blocks of two hundred fifty-six rows.
+          Token seven moves to row five hundred twelve. Each expert fits in one block, so the pack needs one
+          thousand twenty-four places.
+          The two projections still have twenty point nine four billion useful floating-point operations. The
+          larger figure on screen assumes the kernel computes every padded row.
+          A kernel can skip invalid work. Time packing, scale conversion, the kernel and restoration on the
+          same routes to find the actual cost.
+        hold: 1
+        visual_cues:
+          - id: dg-packing-2-0
+            phrase: >-
+              Now give each expert blocks of two hundred fifty-six rows.
+            targets: [expert-packed-rows]
+            caption_boundary: true
+          - id: dg-packing-2-1
+            phrase: >-
+              Token seven moves to row five hundred twelve. Each expert fits in one block, so the pack needs
+              one thousand twenty-four places.
+            targets: [pack-pin]
+            caption_boundary: true
+          - id: dg-packing-2-2
+            phrase: >-
+              The two projections still have twenty point nine four billion useful floating-point
+              operations. The larger figure on screen assumes the kernel computes every padded row.
+            targets: [pack-result]
+            caption_boundary: true
+          - id: dg-packing-2-3
+            phrase: >-
+              A kernel can skip invalid work. Time packing, scale conversion, the kernel and restoration on
+              the same routes to find the actual cost.
+            targets: [pack-result]
+            caption_boundary: true
+  - id: routed-denominators
+    title: >-
+      How many expert rows come from one token?
+    visual: >-
+      One source row fans out to six selected experts. Scale the count to eight ranks, move one assignment between owners, then compare useful and padded projection work for the four-expert subset.
+    beats:
+      - say: >-
+          Follow one token through the router in the Flash benchmark.
+          The router picks six experts for this token.
+          Each selected expert gets a row with the same source token ID.
+          The model has two hundred fifty-six routed experts spread evenly over eight GPU ranks.
+          That gives each rank thirty-two experts to run. The six selections tell us where this token goes.
+        caption_starts:
+          - "The router picks six experts"
+          - "Each selected expert gets a row"
+          - "The model has two hundred fifty-six"
+          - "That gives each rank thirty-two experts"
+        hold: 0.6
+        visual_cues:
+          - id: routed-denominators-b0
+            phrase: >-
+              Follow one token through the router in the Flash benchmark.
+            targets:
+              - routed-denominators-construction
+            color: cyan
+            linger: 0.4
+          - id: dg-routed-denominators-0-0
+            phrase: >-
+              Follow one token through the router in the Flash benchmark.
+            targets:
+              - routed-denominators-construction
+            color: blue
+            linger: 0.25
+          - id: dg-routed-denominators-0-1
+            phrase: >-
+              The router picks six experts for this token.
+            targets:
+              - routed-denominators-construction
+            color: blue
+            linger: 0.25
+          - id: dg-routed-denominators-0-2
+            phrase: >-
+              Each selected expert gets a row with the same source token ID.
+            targets:
+              - routed-denominators-construction
+            color: blue
+            linger: 0.25
+          - id: dg-routed-denominators-0-3
+            phrase: >-
+              The model has two hundred fifty-six routed experts spread evenly over eight GPU ranks.
+            targets:
+              - routed-denominators-construction
+            color: blue
+            linger: 0.25
+          - id: dg-routed-denominators-0-4
+            phrase: >-
+              That gives each rank thirty-two experts to run. The six selections tell us where this token goes.
+            targets:
+              - routed-denominators-construction
+            color: green
+            linger: 0.25
+      - say: >-
+          Start with five hundred twelve source tokens on each of eight ranks. That gives four thousand ninety-six tokens.
+          Six expert selections per token make twenty-four thousand five hundred seventy-six assignments.
+          Divide them evenly across eight ranks and each rank receives three thousand seventy-two rows.
+          Send one assignment to rank one instead of rank zero. One rank gains a row, the other loses one, and the source count stays the same.
+        caption_starts:
+          - "That gives four thousand ninety-six tokens"
+          - "Six expert selections per token"
+          - "Divide them evenly"
+          - "Send one assignment"
+          - "One rank gains a row"
+        hold: 0.6
+        visual_cues:
+          - id: routed-denominators-b1
+            phrase: >-
+              Start with five hundred twelve source tokens on each of eight ranks. That gives four thousand ninety-six tokens.
+            targets:
+              - routed-denominators-construction
+            color: cyan
+            linger: 0.4
+          - id: dg-routed-denominators-1-0
+            phrase: >-
+              Start with five hundred twelve source tokens on each of eight ranks. That gives four thousand ninety-six tokens.
+            targets:
+              - routed-denominators-construction
+            color: blue
+            linger: 0.25
+          - id: dg-routed-denominators-1-1
+            phrase: >-
+              Six expert selections per token make twenty-four thousand five hundred seventy-six assignments.
+            targets:
+              - routed-denominators-construction
+            color: blue
+            linger: 0.25
+          - id: dg-routed-denominators-1-2
+            phrase: >-
+              Divide them evenly across eight ranks and each rank receives three thousand seventy-two rows.
+            targets:
+              - routed-denominators-construction
+            color: blue
+            linger: 0.25
+          - id: dg-routed-denominators-1-3
+            phrase: >-
+              Send one assignment to rank one instead of rank zero. One rank gains a row, the other loses one, and the source count stays the same.
+            targets:
+              - routed-denominators-construction
+            color: green
+            linger: 0.25
+      - say: >-
+          Take the four experts we packed earlier. In the Flash shape, hidden width H is four thousand ninety-six and intermediate width I is two thousand forty-eight.
+          The gated projection produces two vectors of width I, one for the gate and one for the up branch. For M rows, that multiply costs four M H I operations.
+          The return projection costs two M H I. Together the two multiplies cost six M H I.
+          For four hundred sixteen useful rows, that’s twenty point nine four billion operations. Computing all six hundred forty reserved rows would take thirty-two point two one billion.
+          Dispatch, activation and combine add time around those two multiplies.
+        caption_starts:
+          - "The gated projection produces"
+          - "The return projection costs"
+          - "For four hundred sixteen useful rows"
+          - "Computing all six hundred forty reserved rows"
+          - "Dispatch, activation and combine"
+        hold: 0.6
+        visual_cues:
+          - id: routed-denominators-b2
+            phrase: >-
+              Take the four experts we packed earlier. In the Flash shape, hidden width H is four thousand ninety-six and intermediate width I is two thousand forty-eight.
+            targets:
+              - routed-denominators-construction
+            color: green
+            linger: 0.4
+          - id: dg-routed-denominators-2-0
+            phrase: >-
+              Take the four experts we packed earlier. In the Flash shape, hidden width H is four thousand ninety-six and intermediate width I is two thousand forty-eight.
+            targets:
+              - routed-denominators-construction
+            color: blue
+            linger: 0.25
+          - id: dg-routed-denominators-2-1
+            phrase: >-
+              The gated projection produces two vectors of width I, one for the gate and one for the up branch. For M rows, that multiply costs four M H I operations.
+            targets:
+              - routed-denominators-construction
+            color: blue
+            linger: 0.25
+          - id: dg-routed-denominators-2-2
+            phrase: >-
+              The return projection costs two M H I. Together the two multiplies cost six M H I.
+            targets:
+              - routed-denominators-construction
+            color: blue
+            linger: 0.25
+          - id: dg-routed-denominators-2-3
+            phrase: >-
+              For four hundred sixteen useful rows, that’s twenty point nine four billion operations. Computing all six hundred forty reserved rows would take thirty-two point two one billion.
+            targets:
+              - routed-denominators-construction
+            color: blue
+            linger: 0.25
+          - id: dg-routed-denominators-2-4
+            phrase: >-
+              Dispatch, activation and combine add time around those two multiplies.
+            targets:
+              - routed-denominators-construction
+            color: green
+            linger: 0.25
+  - id: grouped-modes
+    title: Choose the packing contract that matches available counts
+    visual: Construct aligned offsets from actual counts, keep zero-count experts empty, then contrast fixed-shape
+      masks and K-grouped backward axes.
+    beats:
+      - say: Align a nonnegative row count by dividing it by the alignment, rounding upward to an integer, and
+          multiplying by that alignment. Zero rows reserve zero in this arithmetic. Round every expert
+          independently, then add the capacities. With the original counts, alignment one hundred twenty-eight
+          reserves six hundred forty; alignment two hundred fifty-six reserves one thousand twenty-four.
+          Padding is unused capacity, while overhead relative to useful rows uses a different denominator.
+        hold: 0.6
+        visual_cues:
+          - id: grouped-modes-b0
+            phrase: Align a nonnegative row count by dividing it by the alignment, rounding upward to an integer, and
+              multiplying by that alignment.
+            targets:
+              - grouped-modes-construction
+            color: cyan
+            linger: 0.4
+          - id: dg-grouped-modes-0-0
+            phrase: Align a nonnegative row count by dividing it by the alignment, rounding upward to an integer, and
+              multiplying by that alignment.
+            targets:
+              - grouped-modes-construction
+            color: blue
+            linger: 0.25
+          - id: dg-grouped-modes-0-1
+            phrase: Zero rows reserve zero in this arithmetic.
+            targets:
+              - grouped-modes-construction
+            color: blue
+            linger: 0.25
+          - id: dg-grouped-modes-0-2
+            phrase: Round every expert independently, then add the capacities.
+            targets:
+              - grouped-modes-construction
+            color: blue
+            linger: 0.25
+          - id: dg-grouped-modes-0-3
+            phrase: With the original counts, alignment one hundred twenty-eight reserves six hundred forty; alignment two
+              hundred fifty-six reserves one thousand twenty-four.
+            targets:
+              - grouped-modes-construction
+            color: blue
+            linger: 0.25
+          - id: dg-grouped-modes-0-4
+            phrase: Padding is unused capacity, while overhead relative to useful rows uses a different denominator.
+            targets:
+              - grouped-modes-construction
+            color: green
+            linger: 0.25
+      - say: Contiguous grouped GEMM concatenates known expert segments along M while N and K stay fixed. Preserve the
+          segment map when restoring original token order. In the inspected October configuration, default
+          alignment is one hundred twenty-eight; the theoretical SM100 helper returns two hundred fifty-six
+          and ignores expected M. That helper result can increase padding on small groups. Consult the
+          configured path instead of interpreting the word theoretical as a universal best choice.
+        hold: 0.6
+        visual_cues:
+          - id: grouped-modes-b1
+            phrase: Contiguous grouped GEMM concatenates known expert segments along M while N and K stay fixed.
+            targets:
+              - grouped-modes-construction
+            color: cyan
+            linger: 0.4
+          - id: dg-grouped-modes-1-0
+            phrase: Contiguous grouped GEMM concatenates known expert segments along M while N and K stay fixed.
+            targets:
+              - grouped-modes-construction
+            color: blue
+            linger: 0.25
+          - id: dg-grouped-modes-1-1
+            phrase: Preserve the segment map when restoring original token order.
+            targets:
+              - grouped-modes-construction
+            color: blue
+            linger: 0.25
+          - id: dg-grouped-modes-1-2
+            phrase: In the inspected October configuration, default alignment is one hundred twenty-eight; the theoretical
+              SM100 helper returns two hundred fifty-six and ignores expected M.
+            targets:
+              - grouped-modes-construction
+            color: blue
+            linger: 0.25
+          - id: dg-grouped-modes-1-3
+            phrase: That helper result can increase padding on small groups.
+            targets:
+              - grouped-modes-construction
+            color: blue
+            linger: 0.25
+          - id: dg-grouped-modes-1-4
+            phrase: Consult the configured path instead of interpreting the word theoretical as a universal best choice.
+            targets:
+              - grouped-modes-construction
+            color: green
+            linger: 0.25
+      - say: "Masked grouped GEMM serves a different launch contract: the CPU may not know each expert count during
+          CUDA-graph decode, so a fixed shape and mask identify valid GPU work. It avoids that host-count
+          synchronization while carrying its own execution cost. K-grouped backward instead groups reduction
+          segments for expert weight gradients while M and N stay fixed. Time packing, masks, scale
+          preparation and output restoration with the intended call."
+        hold: 0.6
+        visual_cues:
+          - id: grouped-modes-b2
+            phrase: "Masked grouped GEMM serves a different launch contract: the CPU may not know each expert count during
+              CUDA-graph decode, so a fixed shape and mask identify valid GPU work."
+            targets:
+              - grouped-modes-construction
+            color: green
+            linger: 0.4
+          - id: dg-grouped-modes-2-0
+            phrase: "Masked grouped GEMM serves a different launch contract: the CPU may not know each expert count during
+              CUDA-graph decode, so a fixed shape and mask identify valid GPU work."
+            targets:
+              - grouped-modes-construction
+            color: blue
+            linger: 0.25
+          - id: dg-grouped-modes-2-1
+            phrase: It avoids that host-count synchronization while carrying its own execution cost.
+            targets:
+              - grouped-modes-construction
+            color: blue
+            linger: 0.25
+          - id: dg-grouped-modes-2-2
+            phrase: K-grouped backward instead groups reduction segments for expert weight gradients while M and N stay
+              fixed.
+            targets:
+              - grouped-modes-construction
+            color: blue
+            linger: 0.25
+          - id: dg-grouped-modes-2-3
+            phrase: Time packing, masks, scale preparation and output restoration with the intended call.
+            targets:
+              - grouped-modes-construction
+            color: green
+            linger: 0.25
+  - id: indexer
+    title: A score column needs its source position
+    visual: A weighted-ReLU indexer dequantizes a two-coordinate key, computes two head dots, clips a negative
+      contribution and combines the remainder. A compressed row then ranks only its valid span and maps column
+      one to cache token forty-one.
+    beats:
+      - say: >
+          Another DeepGEMM family scores candidate context positions. Our tiny reference dequantizes a key and
+          compares it with two query heads. ReLU removes a negative head score, and the head weights combine
+          the surviving contributions. This output is an indexer score used to select positions.
+        hold: 0.6
+        visual_cues:
+          - id: indexer-beat-1-focus-1
+            phrase: ReLU removes a negative head score, and the head weights combine the surviving contributions
+            targets:
+              - indexer-transform-0
+              - indexer-transform-1
+              - indexer-total
+            color: cyan
+            linger: 0.65
+          - id: dg-indexer-0-0
+            phrase: Another DeepGEMM family scores candidate context positions.
+            targets:
+              - indexer-construction
+            color: blue
+            linger: 0.25
+          - id: dg-indexer-0-1
+            phrase: Our tiny reference dequantizes a key and compares it with two query heads.
+            targets:
+              - indexer-construction
+            color: blue
+            linger: 0.25
+          - id: dg-indexer-0-2
+            phrase: ReLU removes a negative head score, and the head weights combine the surviving contributions.
+            targets:
+              - indexer-construction
+            color: blue
+            linger: 0.25
+          - id: dg-indexer-0-3
+            phrase: This output is an indexer score used to select positions.
+            targets:
+              - indexer-construction
+            color: green
+            linger: 0.25
+      - say: >
+          Ranking also needs bounds. This compressed score row represents a short span beginning later in the
+          cache. Its final slot lies outside that span. Give that invalid slot a large sentinel and an
+          unrestricted maximum picks it immediately, even though the valid scores are well formed.
+        hold: 0.6
+        visual_cues:
+          - id: indexer-beat-2-focus-1
+            phrase: This compressed score row represents a short span beginning later in the cache
+            targets:
+              - indexer-s-row-map-string
+            color: cyan
+            linger: 0.65
+          - id: dg-indexer-1-0
+            phrase: Ranking also needs bounds.
+            targets:
+              - indexer-construction
+            color: blue
+            linger: 0.25
+          - id: dg-indexer-1-1
+            phrase: This compressed score row represents a short span beginning later in the cache.
+            targets:
+              - indexer-construction
+            color: blue
+            linger: 0.25
+          - id: dg-indexer-1-2
+            phrase: Its final slot lies outside that span.
+            targets:
+              - indexer-construction
+            color: blue
+            linger: 0.25
+          - id: dg-indexer-1-3
+            phrase: Give that invalid slot a large sentinel and an unrestricted maximum picks it immediately, even though
+              the valid scores are well formed.
+            targets:
+              - indexer-construction
+            color: green
+            linger: 0.25
+      - say: >
+          Restrict selection to the valid span, then add the source offset to the chosen column. The
+          highlighted result names the actual cache token. Kernel APIs evolve, including compressed output
+          contracts. Preserve the version, valid range and column mapping together when integrating an
+          indexer.
+        hold: 0.7
+        visual_cues:
+          - id: indexer-beat-3-focus-1
+            phrase: Preserve the version, valid range and column mapping together when integrating an indexer
+            targets:
+              - indexer-s-row-map-string
+            color: cyan
+            linger: 0.65
+          - id: dg-indexer-2-0
+            phrase: Restrict selection to the valid span, then add the source offset to the chosen column.
+            targets:
+              - indexer-construction
+            color: blue
+            linger: 0.25
+          - id: dg-indexer-2-1
+            phrase: The highlighted result names the actual cache token.
+            targets:
+              - indexer-construction
+            color: blue
+            linger: 0.25
+          - id: dg-indexer-2-2
+            phrase: Kernel APIs evolve, including compressed output contracts.
+            targets:
+              - indexer-construction
+            color: blue
+            linger: 0.25
+          - id: dg-indexer-2-3
+            phrase: Preserve the version, valid range and column mapping together when integrating an indexer.
+            targets:
+              - indexer-construction
+            color: green
+            linger: 0.25
+  - id: indexer-contract
+    title: Carry the valid span through a version migration
+    visual: Contrast invalid zero with valid negative scores, then map an actual compressed row through its source
+      offset.
+    beats:
+      - say: >-
+          The July FP8 indexer reference dequantizes the shared key, takes one dot per query head, applies ReLU separately and then multiplies by each head weight before summing.
+          With stored key two, minus one and scale one-half, the dequantized key is one, minus one-half.
+          Query heads one, zero and zero, one use weights zero point four and zero point six.
+          Our two heads give one and minus one-half before clipping, leaving score zero point four.
+          The indexer uses that score to choose which key positions attention will read.
+          Paged decode additionally obtains key locations through the block table.
+        hold: 0.6
+        visual_cues:
+          - id: indexer-contract-b0
+            phrase: The July FP8 indexer reference dequantizes the shared key, takes one dot per query head, applies ReLU
+              separately and then multiplies by each head weight before summing.
+            targets:
+              - indexer-contract-construction
+            color: cyan
+            linger: 0.4
+          - id: dg-indexer-contract-0-0
+            phrase: The July FP8 indexer reference dequantizes the shared key, takes one dot per query head, applies ReLU
+              separately and then multiplies by each head weight before summing.
+            targets:
+              - indexer-contract-construction
+            color: blue
+            linger: 0.25
+          - id: dg-indexer-contract-0-1
+            phrase: With stored key two, minus one and scale one-half, the dequantized key is one, minus one-half.
+            targets:
+              - indexer-contract-construction
+            color: blue
+            linger: 0.25
+          - id: dg-indexer-contract-0-2
+            phrase: Query heads one, zero and zero, one use weights zero point four and zero point six.
+            targets:
+              - indexer-contract-construction
+            color: blue
+            linger: 0.25
+          - id: dg-indexer-contract-0-3
+            phrase: Our two heads give one and minus one-half before clipping, leaving score zero point four.
+            targets:
+              - indexer-contract-construction
+            color: blue
+            linger: 0.25
+          - id: dg-indexer-contract-0-4
+            phrase: >-
+              The indexer uses that score to choose which key positions attention will read.
+            targets:
+              - indexer-contract-construction
+            color: blue
+            linger: 0.25
+          - id: dg-indexer-contract-0-5
+            phrase: Paged decode additionally obtains key locations through the block table.
+            targets:
+              - indexer-contract-construction
+            color: green
+            linger: 0.25
+      - say: Head weights can make valid combined scores negative. In the article’s range one through two, valid
+          scores minus zero point four and minus zero point two lose to an invalid zero if ranking ignores the
+          bounds. Exclude invalid positions explicitly. At the July pin dense cleanup can fill them with
+          negative infinity, while compressed mode requires caller-managed bounds. An empty valid range
+          returns no selected keys rather than an arbitrary index from equal negative infinities.
+        hold: 0.6
+        visual_cues:
+          - id: indexer-contract-b1
+            phrase: Head weights can make valid combined scores negative.
+            targets:
+              - indexer-contract-construction
+            color: cyan
+            linger: 0.4
+          - id: dg-indexer-contract-1-0
+            phrase: Head weights can make valid combined scores negative.
+            targets:
+              - indexer-contract-construction
+            color: blue
+            linger: 0.25
+          - id: dg-indexer-contract-1-1
+            phrase: In the article’s range one through two, valid scores minus zero point four and minus zero point two
+              lose to an invalid zero if ranking ignores the bounds.
+            targets:
+              - indexer-contract-construction
+            color: blue
+            linger: 0.25
+          - id: dg-indexer-contract-1-2
+            phrase: Exclude invalid positions explicitly.
+            targets:
+              - indexer-contract-construction
+            color: blue
+            linger: 0.25
+          - id: dg-indexer-contract-1-3
+            phrase: At the July pin dense cleanup can fill them with negative infinity, while compressed mode requires
+              caller-managed bounds.
+            targets:
+              - indexer-contract-construction
+            color: blue
+            linger: 0.25
+          - id: dg-indexer-contract-1-4
+            phrase: An empty valid range returns no selected keys rather than an arbitrary index from equal negative
+              infinities.
+            targets:
+              - indexer-contract-construction
+            color: green
+            linger: 0.25
+      - say: At the October pin the old cleanup arguments and old FP8 export names are gone. The output has a positive
+          declared maximum span, and each row’s valid span starts at compressed column zero. Add that row’s
+          original start to each selected column and exclude its unwritten suffix. The SM100 MX input, packed
+          query and key scales, BF16 weights and output differ from the SM90 FP32 weight/output contract. Port
+          paging metadata and scale preparation with the exact API.
+        hold: 0.6
+        visual_cues:
+          - id: indexer-contract-b2
+            phrase: At the October pin the old cleanup arguments and old FP8 export names are gone.
+            targets:
+              - indexer-contract-construction
+            color: green
+            linger: 0.4
+          - id: dg-indexer-contract-2-0
+            phrase: At the October pin the old cleanup arguments and old FP8 export names are gone.
+            targets:
+              - indexer-contract-construction
+            color: blue
+            linger: 0.25
+          - id: dg-indexer-contract-2-1
+            phrase: The output has a positive declared maximum span, and each row’s valid span starts at compressed column
+              zero.
+            targets:
+              - indexer-contract-construction
+            color: blue
+            linger: 0.25
+          - id: dg-indexer-contract-2-2
+            phrase: Add that row’s original start to each selected column and exclude its unwritten suffix.
+            targets:
+              - indexer-contract-construction
+            color: blue
+            linger: 0.25
+          - id: dg-indexer-contract-2-3
+            phrase: The SM100 MX input, packed query and key scales, BF16 weights and output differ from the SM90 FP32
+              weight/output contract.
+            targets:
+              - indexer-contract-construction
+            color: blue
+            linger: 0.25
+          - id: dg-indexer-contract-2-4
+            phrase: Port paging metadata and scale preparation with the exact API.
+            targets:
+              - indexer-contract-construction
+            color: green
+            linger: 0.25
+  - id: sparse-position-map
+    title: Resolve compressed columns through their sparse blocks
+    visual: Retain the identity of every selected block and make the same compressed column land on the mapped
+      original cache coordinate.
+    beats:
+      - say: Sparse scoring adds another map. Its width is the maximum number of sparse blocks times the sparse block
+          width, rather than the full dense cache length. In the inspected non-paged contract, the valid
+          block-index prefix is unique, strictly increasing and inside the query’s KV range. The paged form
+          uses its own logical-block and request-grouping contract. An arbitrary dense column-to-token
+          assumption loses the selected block identity.
+        hold: 0.6
+        visual_cues:
+          - id: sparse-position-map-b0
+            phrase: Sparse scoring adds another map.
+            targets:
+              - sparse-position-map-construction
+            color: cyan
+            linger: 0.4
+          - id: dg-sparse-position-map-0-0
+            phrase: Sparse scoring adds another map.
+            targets:
+              - sparse-position-map-construction
+            color: blue
+            linger: 0.25
+          - id: dg-sparse-position-map-0-1
+            phrase: Its width is the maximum number of sparse blocks times the sparse block width, rather than the full
+              dense cache length.
+            targets:
+              - sparse-position-map-construction
+            color: blue
+            linger: 0.25
+          - id: dg-sparse-position-map-0-2
+            phrase: In the inspected non-paged contract, the valid block-index prefix is unique, strictly increasing and
+              inside the query’s KV range.
+            targets:
+              - sparse-position-map-construction
+            color: blue
+            linger: 0.25
+          - id: dg-sparse-position-map-0-3
+            phrase: The paged form uses its own logical-block and request-grouping contract.
+            targets:
+              - sparse-position-map-construction
+            color: blue
+            linger: 0.25
+          - id: dg-sparse-position-map-0-4
+            phrase: An arbitrary dense column-to-token assumption loses the selected block identity.
+            targets:
+              - sparse-position-map-construction
+            color: green
+            linger: 0.25
+      - say: >-
+          The block list on screen contains blocks three and seven. Each holds four tokens, and the range starts at zero.
+          Column five is one place into the second block on the list.
+          Look up that block’s ID. It’s seven.
+          Seven times four gives its first token, twenty-eight. One place farther along is token twenty-nine.
+          The block list lets us follow a compressed score back to its source.
+        caption_starts:
+          - "Column five is one place"
+          - "Look up that block’s ID"
+          - "Seven times four"
+          - "One place farther along"
+        hold: 0.6
+        visual_cues:
+          - id: sparse-position-map-b1
+            phrase: >-
+              The block list on screen contains blocks three and seven. Each holds four tokens, and the range starts at zero.
+            targets:
+              - sparse-position-map-construction
+            color: cyan
+            linger: 0.4
+          - id: dg-sparse-position-map-1-0
+            phrase: >-
+              The block list on screen contains blocks three and seven. Each holds four tokens, and the range starts at zero.
+            targets:
+              - sparse-position-map-construction
+            color: blue
+            linger: 0.25
+          - id: dg-sparse-position-map-1-1
+            phrase: >-
+              Column five is one place into the second block on the list.
+            targets:
+              - sparse-position-map-construction
+            color: blue
+            linger: 0.25
+          - id: dg-sparse-position-map-1-2
+            phrase: >-
+              Look up that block’s ID. It’s seven.
+            targets:
+              - sparse-position-map-construction
+            color: blue
+            linger: 0.25
+          - id: dg-sparse-position-map-1-3
+            phrase: >-
+              Seven times four gives its first token, twenty-eight. One place farther along is token twenty-nine.
+            targets:
+              - sparse-position-map-construction
+            color: blue
+            linger: 0.25
+          - id: dg-sparse-position-map-1-4
+            phrase: >-
+              The block list lets us follow a compressed score back to its source.
+            targets:
+              - sparse-position-map-construction
+            color: green
+            linger: 0.25
+      - say: >-
+          Keep the configured block width, query range and page map with the scores.
+          The selected October CUDA path requires sparse blocks of eight or sixteen and has additional count/alignment checks.
+          When the query range starts partway through a block, include the offset of that start.
+          Check the GPU result against the reference mapping, including the mask on unused positions.
+        hold: 0.6
+        visual_cues:
+          - id: sparse-position-map-b2
+            phrase: >-
+              Keep the configured block width, query range and page map with the scores.
+            targets:
+              - sparse-position-map-construction
+            color: green
+            linger: 0.4
+          - id: dg-sparse-position-map-2-0
+            phrase: >-
+              Keep the configured block width, query range and page map with the scores.
+            targets:
+              - sparse-position-map-construction
+            color: blue
+            linger: 0.25
+          - id: dg-sparse-position-map-2-1
+            phrase: The selected October CUDA path requires sparse blocks of eight or sixteen and has additional
+              count/alignment checks.
+            targets:
+              - sparse-position-map-construction
+            color: blue
+            linger: 0.25
+          - id: dg-sparse-position-map-2-2
+            phrase: >-
+              When the query range starts partway through a block, include the offset of that start.
+            targets:
+              - sparse-position-map-construction
+            color: blue
+            linger: 0.25
+          - id: dg-sparse-position-map-2-3
+            phrase: >-
+              Check the GPU result against the reference mapping, including the mask on unused positions.
+            targets:
+              - sparse-position-map-construction
+            color: green
+            linger: 0.25
+  - id: overlap
+    title: When can the next chunk use the wire?
+    visual: >-
+      One clock tracks dispatch, compute and combine. The tape pauses after dispatch A with a free
+      communication lane. Replaying it with two slots admits B. With only one slot, B waits for A to
+      finish combining.
+    beats:
+      - say: >-
+          Here are two chunks of expert work in Mega MoE. The upper lane sends the rows out and brings the
+          results back. The lower lane runs the projections and activation.
+          In these invented time units, each chunk takes one to dispatch, two to compute and one to combine.
+          Send A through all three stages, then send B. Both results are back at time eight.
+        hold: 0.8
+        visual_cues:
+          - id: dg-overlap-0-0
+            phrase: >-
+              Here are two chunks of expert work in Mega MoE. The upper lane sends the rows out and brings
+              the results back. The lower lane runs the projections and activation.
+            targets: [overlap-tape]
+            caption_boundary: true
+          - id: dg-overlap-0-1
+            phrase: >-
+              In these invented time units, each chunk takes one to dispatch, two to compute and one to
+              combine.
+            targets: [overlap-tape]
+            caption_boundary: true
+          - id: dg-overlap-0-2
+            phrase: >-
+              Send A through all three stages, then send B. Both results are back at time eight.
+            targets: [overlap-tape]
+            caption_boundary: true
+      - say: >-
+          Replay with two storage slots. Communication and compute can run at the same time, with one job on
+          each lane.
+          Stop at time one. Chunk A has its inputs and starts computing. B is ready to dispatch.
+          Can B leave now, and which slot would hold its rows?
+        hold: 2.2
+        visual_cues:
+          - id: dg-overlap-1-0
+            phrase: >-
+              Replay with two storage slots. Communication and compute can run at the same time, with one
+              job on each lane.
+            targets: [overlap-tape]
+            caption_boundary: true
+          - id: dg-overlap-1-1
+            phrase: >-
+              Stop at time one. Chunk A has its inputs and starts computing. B is ready to dispatch.
+            targets: [overlap-tape]
+            caption_boundary: true
+          - id: dg-overlap-1-2
+            phrase: >-
+              Can B leave now, and which slot would hold its rows?
+            targets: [overlap-tape]
+            caption_boundary: true
+      - say: >-
+          B takes the free slot and dispatches while A computes.
+          At time three, A can combine while B computes. Each chunk still waits for its own inputs.
+          B finishes combining at time six. Keep each slot until its return has finished.
+        hold: 1
+        visual_cues:
+          - id: dg-overlap-2-0
+            phrase: >-
+              B takes the free slot and dispatches while A computes.
+            targets: [overlap-tape]
+            caption_boundary: true
+          - id: dg-overlap-2-1
+            phrase: >-
+              At time three, A can combine while B computes. Each chunk still waits for its own inputs.
+            targets: [overlap-tape]
+            caption_boundary: true
+          - id: dg-overlap-2-2
+            phrase: >-
+              B finishes combining at time six. Keep each slot until its return has finished.
+            targets: [overlap-tape]
+            caption_boundary: true
+      - say: >-
+          Replay time one with a single slot. A still occupies it, even though the wire is free.
+          B has to wait for A to finish combining at time four. Now the slot can change hands.
+          The last return moves back to time eight. On hardware, a busy link or an empty queue can also
+          prevent overlap.
+        hold: 1
+        visual_cues:
+          - id: dg-overlap-3-0
+            phrase: >-
+              Replay time one with a single slot. A still occupies it, even though the wire is free.
+            targets: [overlap-tape]
+            caption_boundary: true
+          - id: dg-overlap-3-1
+            phrase: >-
+              B has to wait for A to finish combining at time four. Now the slot can change hands.
+            targets: [overlap-tape]
+            caption_boundary: true
+          - id: dg-overlap-3-2
+            phrase: >-
+              The last return moves back to time eight. On hardware, a busy link or an empty queue can also
+              prevent overlap.
+            targets: [overlap-tape]
+            caption_boundary: true
+  - id: moe-graph
+    title: Which token gets the expert result?
+    visual: >-
+      The first projection splits into gate and up branches. Pair each expert return with its weight,
+      then compare two restored outputs by token ID. Swapping the two output rows preserves their sum.
+    beats:
+      - say: "Follow a routed row through the complete expert graph. The router chooses expert IDs and weights.
+          Dispatch sends a token-expert assignment to the rank that owns that expert. Linear one maps hidden H
+          to two intermediate I vectors: a gate and an up branch. SwiGLU multiplies SiLU of each gate
+          coordinate by its matching up coordinate. SiLU of a value is that value times its sigmoid."
+        hold: 0.6
+        visual_cues:
+          - id: moe-graph-b0
+            phrase: Follow a routed row through the complete expert graph.
+            targets:
+              - moe-graph-construction
+            color: cyan
+            linger: 0.4
+          - id: dg-moe-graph-0-0
+            phrase: Follow a routed row through the complete expert graph.
+            targets:
+              - moe-graph-construction
+            color: blue
+            linger: 0.25
+          - id: dg-moe-graph-0-1
+            phrase: The router chooses expert IDs and weights.
+            targets:
+              - moe-graph-construction
+            color: blue
+            linger: 0.25
+          - id: dg-moe-graph-0-2
+            phrase: Dispatch sends a token-expert assignment to the rank that owns that expert.
+            targets:
+              - moe-graph-construction
+            color: blue
+            linger: 0.25
+          - id: dg-moe-graph-0-3
+            phrase: "Linear one maps hidden H to two intermediate I vectors: a gate and an up branch."
+            targets:
+              - moe-graph-construction
+            color: blue
+            linger: 0.25
+          - id: dg-moe-graph-0-4
+            phrase: SwiGLU multiplies SiLU of each gate coordinate by its matching up coordinate.
+            targets:
+              - moe-graph-construction
+            color: blue
+            linger: 0.25
+          - id: dg-moe-graph-0-5
+            phrase: SiLU of a value is that value times its sigmoid.
+            targets:
+              - moe-graph-construction
+            color: green
+            linger: 0.25
+      - say: >-
+          The second projection brings each expert output back to hidden width. Combine adds the weighted
+          expert returns for each source token.
+          Take one coordinate of token seven. Expert zero returns four with weight one quarter. Expert two
+          returns eight with weight three quarters.
+          One plus six gives seven for token seven.
+          For token nine the weights are reversed. Three quarters of two plus one quarter of six gives three.
+          Keep those source IDs with the rows when you unpack them.
+        hold: 1
+        visual_cues:
+          - id: dg-moe-graph-1-0
+            phrase: >-
+              The second projection brings each expert output back to hidden width. Combine adds the
+              weighted expert returns for each source token.
+            targets: [moe-graph-construction]
+            caption_boundary: true
+          - id: dg-moe-graph-1-1
+            phrase: >-
+              Take one coordinate of token seven. Expert zero returns four with weight one quarter. Expert
+              two returns eight with weight three quarters.
+            targets: [moe-graph-construction]
+            caption_boundary: true
+          - id: dg-moe-graph-1-2
+            phrase: >-
+              One plus six gives seven for token seven.
+            targets: [moe-graph-construction]
+            caption_boundary: true
+          - id: dg-moe-graph-1-3
+            phrase: >-
+              For token nine the weights are reversed. Three quarters of two plus one quarter of six gives
+              three.
+            targets: [moe-graph-construction]
+            caption_boundary: true
+          - id: dg-moe-graph-1-4
+            phrase: >-
+              Keep those source IDs with the rows when you unpack them.
+            targets: [moe-graph-construction]
+            caption_boundary: true
+      - say: >-
+          Suppose the two combined rows arrive in reverse token order. The copy on the left uses each row's
+          source ID. The copy on the right just writes the next arrival.
+          Compare the two output rows. Both columns add up to ten. Would both copies pass a reference check
+          for each token?
+        hold: 2
+        visual_cues:
+          - id: dg-moe-graph-2-0
+            phrase: >-
+              Suppose the two combined rows arrive in reverse token order. The copy on the left uses each row's
+              source ID. The copy on the right just writes the next arrival.
+            targets: [return-check]
+            caption_boundary: true
+          - id: dg-moe-graph-2-1
+            phrase: >-
+              Compare the two output rows. Both columns add up to ten. Would both copies pass a reference
+              check for each token?
+            targets: [return-check]
+            caption_boundary: true
+      - say: >-
+          Only the copy that follows the source IDs passes. The other gives three to token seven and seven to
+          token nine.
+          Mega MoE fuses dispatch, the two projections, SwiGLU and combine in the selected SM one hundred
+          kernel. NVLink transfers can overlap tensor-core work.
+          The July low-bit path takes packed FP4 expert weights. The October interface also accepts FP8
+          weights in a matching mode, and a BF16 variant uses its own path.
+          Choose the buffer and scale recipe for the actual weight format, then compare the restored rows
+          before timing.
+        hold: 0.9
+        visual_cues:
+          - id: dg-moe-graph-3-0
+            phrase: >-
+              Only the copy that follows the source IDs passes. The other gives three to token seven and
+              seven to token nine.
+            targets: [moe-graph-construction]
+            caption_boundary: true
+          - id: dg-moe-graph-3-1
+            phrase: >-
+              Mega MoE fuses dispatch, the two projections, SwiGLU and combine in the selected SM one
+              hundred kernel. NVLink transfers can overlap tensor-core work.
+            targets: [moe-graph-construction]
+            caption_boundary: true
+          - id: moe-row-verdict
+            phrase: Only the copy that follows the source IDs passes
+            targets: [return-check]
+            color: green
+          - id: dg-moe-graph-3-2
+            phrase: >-
+              The July low-bit path takes packed FP4 expert weights. The October interface also accepts FP8
+              weights in a matching mode, and a BF16 variant uses its own path.
+            targets: [moe-graph-construction]
+            caption_boundary: true
+          - id: dg-moe-graph-3-3
+            phrase: >-
+              Choose the buffer and scale recipe for the actual weight format, then compare the restored
+              rows before timing.
+            targets: [moe-graph-construction]
+            caption_boundary: true
+  - id: ring-ownership
+    title: Lease each reusable slot through its last consumer
+    visual: Send named A/B chunks through bounded symmetric slots, retain each outstanding consumer and block the
+      next producer until all have released.
+    beats:
+      - say: Persistent scheduling keeps resident cooperative thread arrays claiming more work instead of launching a
+          separate grid for every expert block. Warmup and task-publication order determine when a consumer
+          can see valid work. A bounded ring slot is reusable only after every required consumer has finished,
+          including all output N blocks. Producer completion alone is insufficient. An early overwrite can
+          corrupt output while leaving plausible numbers and no immediate crash.
+        hold: 0.6
+        visual_cues:
+          - id: ring-ownership-b0
+            phrase: Persistent scheduling keeps resident cooperative thread arrays claiming more work instead of launching
+              a separate grid for every expert block.
+            targets:
+              - ring-ownership-construction
+            color: cyan
+            linger: 0.4
+          - id: dg-ring-ownership-0-0
+            phrase: Persistent scheduling keeps resident cooperative thread arrays claiming more work instead of launching
+              a separate grid for every expert block.
+            targets:
+              - ring-ownership-construction
+            color: blue
+            linger: 0.25
+          - id: dg-ring-ownership-0-1
+            phrase: Warmup and task-publication order determine when a consumer can see valid work.
+            targets:
+              - ring-ownership-construction
+            color: blue
+            linger: 0.25
+          - id: dg-ring-ownership-0-2
+            phrase: A bounded ring slot is reusable only after every required consumer has finished, including all output
+              N blocks.
+            targets:
+              - ring-ownership-construction
+            color: blue
+            linger: 0.25
+          - id: dg-ring-ownership-0-3
+            phrase: Producer completion alone is insufficient.
+            targets:
+              - ring-ownership-construction
+            color: blue
+            linger: 0.25
+          - id: dg-ring-ownership-0-4
+            phrase: An early overwrite can corrupt output while leaving plausible numbers and no immediate crash.
+            targets:
+              - ring-ownership-construction
+            color: green
+            linger: 0.25
+      - say: The symmetric buffer carries input tokens, scales, routing indices and weights, and intermediate
+          activations. Multi-rank setup rendezvous establishes remote access; one rank can use an ordinary
+          CUDA allocation. The July low-bit recipe is exactly one, one, thirty-two. Its K group is thirty-two,
+          rather than a free tuning value. Transform weights with the required gate/up interleaving and copy
+          fresh routing inputs into the typed buffer before each call.
+        hold: 0.6
+        visual_cues:
+          - id: ring-ownership-b1
+            phrase: The symmetric buffer carries input tokens, scales, routing indices and weights, and intermediate
+              activations.
+            targets:
+              - ring-ownership-construction
+            color: cyan
+            linger: 0.4
+          - id: dg-ring-ownership-1-0
+            phrase: The symmetric buffer carries input tokens, scales, routing indices and weights, and intermediate
+              activations.
+            targets:
+              - ring-ownership-construction
+            color: blue
+            linger: 0.25
+          - id: dg-ring-ownership-1-1
+            phrase: Multi-rank setup rendezvous establishes remote access; one rank can use an ordinary CUDA allocation.
+            targets:
+              - ring-ownership-construction
+            color: blue
+            linger: 0.25
+          - id: dg-ring-ownership-1-2
+            phrase: The July low-bit recipe is exactly one, one, thirty-two.
+            targets:
+              - ring-ownership-construction
+            color: blue
+            linger: 0.25
+          - id: dg-ring-ownership-1-3
+            phrase: Its K group is thirty-two, rather than a free tuning value.
+            targets:
+              - ring-ownership-construction
+            color: blue
+            linger: 0.25
+          - id: dg-ring-ownership-1-4
+            phrase: Transform weights with the required gate/up interleaving and copy fresh routing inputs into the typed
+              buffer before each call.
+            targets:
+              - ring-ownership-construction
+            color: green
+            linger: 0.25
+      - say: >-
+          With independent communication and compute resources, two chunks can overlap their stages.
+          With only one reusable slot leased through combine, a second dispatch must wait and the opportunity disappears.
+          Resource contention or a missing ready chunk can also remove the saving.
+          A trace across ranks can show when each remote transfer runs alongside compute.
+          Verify every rank’s participation, supported dimensions and capacity before launching the distributed test.
+        hold: 0.6
+        visual_cues:
+          - id: ring-ownership-b2
+            phrase: With independent communication and compute resources, two chunks can overlap their stages.
+            targets:
+              - ring-ownership-construction
+            color: green
+            linger: 0.4
+          - id: dg-ring-ownership-2-0
+            phrase: With independent communication and compute resources, two chunks can overlap their stages.
+            targets:
+              - ring-ownership-construction
+            color: blue
+            linger: 0.25
+          - id: dg-ring-ownership-2-1
+            phrase: With only one reusable slot leased through combine, a second dispatch must wait and the opportunity
+              disappears.
+            targets:
+              - ring-ownership-construction
+            color: blue
+            linger: 0.25
+          - id: dg-ring-ownership-2-2
+            phrase: Resource contention or a missing ready chunk can also remove the saving.
+            targets:
+              - ring-ownership-construction
+            color: blue
+            linger: 0.25
+          - id: dg-ring-ownership-2-3
+            phrase: >-
+              A trace across ranks can show when each remote transfer runs alongside compute.
+            targets:
+              - ring-ownership-construction
+            color: blue
+            linger: 0.25
+          - id: dg-ring-ownership-2-4
+            phrase: Verify every rank’s participation, supported dimensions and capacity before launching the distributed
+              test.
+            targets:
+              - ring-ownership-construction
+            color: green
+            linger: 0.25
+  - id: locality-epilogue
+    title: Treat locality and output conversion as contracts
+    visual: Keep expert-rank ownership fixed while a weight dimension partitions into locality domains; select
+      exactly one compatible epilogue.
+    beats:
+      - say: The October locality option partitions a selected weight dimension across GPU locality domains and copies
+          into localized allocations. It leaves expert ownership with the expert-parallel rank. The dimension
+          must divide by the number of domains, and routed first/second projections and any shared-expert
+          weights must agree about localization. If the probed SM mapping is unstable, the implementation
+          warns and falls back to an even mapping. Benchmark that actual selected path.
+        hold: 0.6
+        visual_cues:
+          - id: locality-epilogue-b0
+            phrase: The October locality option partitions a selected weight dimension across GPU locality domains and
+              copies into localized allocations.
+            targets:
+              - locality-epilogue-construction
+            color: cyan
+            linger: 0.4
+          - id: dg-locality-epilogue-0-0
+            phrase: The October locality option partitions a selected weight dimension across GPU locality domains and
+              copies into localized allocations.
+            targets:
+              - locality-epilogue-construction
+            color: blue
+            linger: 0.25
+          - id: dg-locality-epilogue-0-1
+            phrase: It leaves expert ownership with the expert-parallel rank.
+            targets:
+              - locality-epilogue-construction
+            color: blue
+            linger: 0.25
+          - id: dg-locality-epilogue-0-2
+            phrase: The dimension must divide by the number of domains, and routed first/second projections and any
+              shared-expert weights must agree about localization.
+            targets:
+              - locality-epilogue-construction
+            color: blue
+            linger: 0.25
+          - id: dg-locality-epilogue-0-3
+            phrase: If the probed SM mapping is unstable, the implementation warns and falls back to an even mapping.
+            targets:
+              - locality-epilogue-construction
+            color: blue
+            linger: 0.25
+          - id: dg-locality-epilogue-0-4
+            phrase: Benchmark that actual selected path.
+            targets:
+              - locality-epilogue-construction
+            color: green
+            linger: 0.25
+      - say: >-
+          An epilogue determines the final output operation after accumulation.
+          The inspected SM100 GEMM resolves one of Identity, Alpha, FP8 quantization or BF16 stochastic rounding.
+          An explicit epilogue, standalone alpha and FP8 output pair are mutually exclusive choices.
+          Stochastic rounding requires direct BF16 output without accumulation input C.
+          Passing C with that stochastic rounding mode triggers the direct-output assertion.
+        hold: 0.6
+        visual_cues:
+          - id: locality-epilogue-b1
+            phrase: An epilogue determines the final output operation after accumulation.
+            targets:
+              - locality-epilogue-construction
+            color: cyan
+            linger: 0.4
+          - id: dg-locality-epilogue-1-0
+            phrase: An epilogue determines the final output operation after accumulation.
+            targets:
+              - locality-epilogue-construction
+            color: blue
+            linger: 0.25
+          - id: dg-locality-epilogue-1-1
+            phrase: The inspected SM100 GEMM resolves one of Identity, Alpha, FP8 quantization or BF16 stochastic
+              rounding.
+            targets:
+              - locality-epilogue-construction
+            color: blue
+            linger: 0.25
+          - id: dg-locality-epilogue-1-2
+            phrase: An explicit epilogue, standalone alpha and FP8 output pair are mutually exclusive choices.
+            targets:
+              - locality-epilogue-construction
+            color: blue
+            linger: 0.25
+          - id: dg-locality-epilogue-1-3
+            phrase: Stochastic rounding requires direct BF16 output without accumulation input C.
+            targets:
+              - locality-epilogue-construction
+            color: blue
+            linger: 0.25
+          - id: dg-locality-epilogue-1-4
+            phrase: >-
+              Passing C with that stochastic rounding mode triggers the direct-output assertion.
+            targets:
+              - locality-epilogue-construction
+            color: green
+            linger: 0.25
+      - say: >-
+          Keep rounding policy separate from deterministic kernel selection.
+          A faster reduction schedule, an explicit stochastic output conversion and sampling randomness can change results through different mechanisms.
+          Record the exact epilogue and numerical reference.
+          Time the layer on your GPU topology to see whether shorter trips to the weights pay off.
+          The April Mega MoE timings predate these locality and epilogue options.
+        hold: 0.6
+        visual_cues:
+          - id: locality-epilogue-b2
+            phrase: Keep rounding policy separate from deterministic kernel selection.
+            targets:
+              - locality-epilogue-construction
+            color: green
+            linger: 0.4
+          - id: dg-locality-epilogue-2-0
+            phrase: Keep rounding policy separate from deterministic kernel selection.
+            targets:
+              - locality-epilogue-construction
+            color: blue
+            linger: 0.25
+          - id: dg-locality-epilogue-2-1
+            phrase: A faster reduction schedule, an explicit stochastic output conversion and sampling randomness can
+              change results through different mechanisms.
+            targets:
+              - locality-epilogue-construction
+            color: blue
+            linger: 0.25
+          - id: dg-locality-epilogue-2-2
+            phrase: Record the exact epilogue and numerical reference.
+            targets:
+              - locality-epilogue-construction
+            color: blue
+            linger: 0.25
+          - id: dg-locality-epilogue-2-3
+            phrase: >-
+              Time the layer on your GPU topology to see whether shorter trips to the weights pay off.
+            targets:
+              - locality-epilogue-construction
+            color: blue
+            linger: 0.25
+          - id: dg-locality-epilogue-2-4
+            phrase: >-
+              The April Mega MoE timings predate these locality and epilogue options.
+            targets:
+              - locality-epilogue-construction
+            color: green
+            linger: 0.25
+  - id: benchmark-receipt
+    title: Read the historical experiment with its denominators
+    visual: Reconstruct one table ratio and one work-per-time estimate while keeping missing hardware fields
+      visibly unresolved.
+    beats:
+      - say: >-
+          The April benchmark pull request reports eight-rank averages for Flash and Pro shapes.
+          Flash at one source token per rank is fifty-six point five microseconds and one point nine six times faster than the named legacy path.
+          Divide baseline time by Mega MoE time to get the speedup.
+          Turn that ratio around. Mega MoE took about fifty-one percent of the baseline time.
+          That cuts elapsed time by about forty-nine percent.
+        caption_starts:
+          - "Flash at one source token"
+          - "Divide baseline time"
+          - "Turn that ratio around"
+          - "That cuts elapsed time"
+        hold: 0.6
+        visual_cues:
+          - id: benchmark-receipt-b0
+            phrase: The April benchmark pull request reports eight-rank averages for Flash and Pro shapes.
+            targets:
+              - benchmark-receipt-construction
+            color: cyan
+            linger: 0.4
+          - id: dg-benchmark-receipt-0-0
+            phrase: The April benchmark pull request reports eight-rank averages for Flash and Pro shapes.
+            targets:
+              - benchmark-receipt-construction
+            color: blue
+            linger: 0.25
+          - id: dg-benchmark-receipt-0-1
+            phrase: Flash at one source token per rank is fifty-six point five microseconds and one point nine six times
+              faster than the named legacy path.
+            targets:
+              - benchmark-receipt-construction
+            color: blue
+            linger: 0.25
+          - id: dg-benchmark-receipt-0-2
+            phrase: >-
+              Divide baseline time by Mega MoE time to get the speedup.
+            targets:
+              - benchmark-receipt-construction
+            color: blue
+            linger: 0.25
+          - id: dg-benchmark-receipt-0-3
+            phrase: >-
+              Turn that ratio around. Mega MoE took about fifty-one percent of the baseline time.
+            targets:
+              - benchmark-receipt-construction
+            color: blue
+            linger: 0.25
+          - id: dg-benchmark-receipt-0-4
+            phrase: >-
+              That cuts elapsed time by about forty-nine percent.
+            targets:
+              - benchmark-receipt-construction
+            color: green
+            linger: 0.25
+      - say: >-
+          For Flash at five hundred twelve source tokens per rank, the table reports one hundred forty-six point five microseconds.
+          Divide the balanced local three thousand seventy-two expert rows’ two-GEMM operation model by that duration to obtain about one thousand fifty-five tera-operations per second, close to the rounded table.
+          For the bandwidth columns, the benchmark divides estimated memory and interconnect bytes by elapsed time.
+        hold: 0.6
+        visual_cues:
+          - id: benchmark-receipt-b1
+            phrase: For Flash at five hundred twelve source tokens per rank, the table reports one hundred forty-six point
+              five microseconds.
+            targets:
+              - benchmark-receipt-construction
+            color: cyan
+            linger: 0.4
+          - id: dg-benchmark-receipt-1-0
+            phrase: For Flash at five hundred twelve source tokens per rank, the table reports one hundred forty-six point
+              five microseconds.
+            targets:
+              - benchmark-receipt-construction
+            color: blue
+            linger: 0.25
+          - id: dg-benchmark-receipt-1-1
+            phrase: Divide the balanced local three thousand seventy-two expert rows’ two-GEMM operation model by that
+              duration to obtain about one thousand fifty-five tera-operations per second, close to the
+              rounded table.
+            targets:
+              - benchmark-receipt-construction
+            color: blue
+            linger: 0.25
+          - id: dg-benchmark-receipt-1-2
+            phrase: >-
+              For the bandwidth columns, the benchmark divides estimated memory and interconnect bytes by elapsed time.
+            targets:
+              - benchmark-receipt-construction
+            color: green
+            linger: 0.25
+      - say: >-
+          Pro has larger hidden and intermediate dimensions and a different time curve.
+          To reproduce the table, you would also need the GPU model, driver, clocks, topology, warmup and correctness settings.
+          The pinned harness can skip the legacy comparison when dependencies fail to import.
+          If the comparison was skipped, restore the legacy path and compare the outputs.
+          Time the matching outputs on the same workload and record the environment and precision with the result.
+        hold: 0.6
+        visual_cues:
+          - id: benchmark-receipt-b2
+            phrase: Pro has larger hidden and intermediate dimensions and a different time curve.
+            targets:
+              - benchmark-receipt-construction
+            color: green
+            linger: 0.4
+          - id: dg-benchmark-receipt-2-0
+            phrase: Pro has larger hidden and intermediate dimensions and a different time curve.
+            targets:
+              - benchmark-receipt-construction
+            color: blue
+            linger: 0.25
+          - id: dg-benchmark-receipt-2-1
+            phrase: >-
+              To reproduce the table, you would also need the GPU model, driver, clocks, topology, warmup and correctness settings.
+            targets:
+              - benchmark-receipt-construction
+            color: blue
+            linger: 0.25
+          - id: dg-benchmark-receipt-2-2
+            phrase: The pinned harness can skip the legacy comparison when dependencies fail to import.
+            targets:
+              - benchmark-receipt-construction
+            color: blue
+            linger: 0.25
+          - id: dg-benchmark-receipt-2-3
+            phrase: >-
+              If the comparison was skipped, restore the legacy path and compare the outputs.
+            targets:
+              - benchmark-receipt-construction
+            color: blue
+            linger: 0.25
+          - id: dg-benchmark-receipt-2-4
+            phrase: >-
+              Time the matching outputs on the same workload and record the environment and precision with the result.
+            targets:
+              - benchmark-receipt-construction
+            color: green
+            linger: 0.25
+  - id: profile-the-layer
+    title: Where does the layer clock start?
+    visual: >-
+      Locate a kernel in a process trace, then read a roofline. On two illustrative runs, move the clock
+      start from kernel entry back to preparation. The same kernel durations now sit on a common
+      layer ruler.
+    beats:
+      - say: "Use Nsight Systems to find where process time goes: compilation, host launches, transfers, kernels and
+          stream dependencies. Use Nsight Compute for a selected kernel’s launch, memory, occupancy and
+          scheduler evidence. Its collection can replay a kernel. Keep synchronized unprofiled timing for the
+          benchmark, and use profiler reports to diagnose it. Line information supports source correlation
+          when enabled on the compiled signature."
+        hold: 0.6
+        visual_cues:
+          - id: profile-the-layer-b0
+            phrase: "Use Nsight Systems to find where process time goes: compilation, host launches, transfers, kernels
+              and stream dependencies."
+            targets:
+              - profile-the-layer-construction
+            color: cyan
+            linger: 0.4
+          - id: dg-profile-the-layer-0-0
+            phrase: "Use Nsight Systems to find where process time goes: compilation, host launches, transfers, kernels
+              and stream dependencies."
+            targets:
+              - profile-the-layer-construction
+            color: blue
+            linger: 0.25
+          - id: dg-profile-the-layer-0-1
+            phrase: Use Nsight Compute for a selected kernel’s launch, memory, occupancy and scheduler evidence.
+            targets:
+              - profile-the-layer-construction
+            color: blue
+            linger: 0.25
+          - id: dg-profile-the-layer-0-2
+            phrase: Its collection can replay a kernel.
+            targets:
+              - profile-the-layer-construction
+            color: blue
+            linger: 0.25
+          - id: dg-profile-the-layer-0-3
+            phrase: Keep synchronized unprofiled timing for the benchmark, and use profiler reports to diagnose it.
+            targets:
+              - profile-the-layer-construction
+            color: blue
+            linger: 0.25
+          - id: dg-profile-the-layer-0-4
+            phrase: Line information supports source correlation when enabled on the compiled signature.
+            targets:
+              - profile-the-layer-construction
+            color: green
+            linger: 0.25
+      - say: For a roofline bound, multiply sustainable memory bandwidth by operations per byte, then take the smaller
+          of that rate and the compute ceiling. A point below the compute roof can reflect limited intensity,
+          weak reuse or a launch that never feeds the units. Higher occupancy alone chooses no winner. Match
+          route histogram, padded capacity, rank placement and ready dispatch/combine work when testing
+          whether the advertised overlap is present.
+        hold: 0.6
+        visual_cues:
+          - id: profile-the-layer-b1
+            phrase: For a roofline bound, multiply sustainable memory bandwidth by operations per byte, then take the
+              smaller of that rate and the compute ceiling.
+            targets:
+              - profile-the-layer-construction
+            color: cyan
+            linger: 0.4
+          - id: dg-profile-the-layer-1-0
+            phrase: For a roofline bound, multiply sustainable memory bandwidth by operations per byte, then take the
+              smaller of that rate and the compute ceiling.
+            targets:
+              - profile-the-layer-construction
+            color: blue
+            linger: 0.25
+          - id: dg-profile-the-layer-1-1
+            phrase: A point below the compute roof can reflect limited intensity, weak reuse or a launch that never feeds
+              the units.
+            targets:
+              - profile-the-layer-construction
+            color: blue
+            linger: 0.25
+          - id: dg-profile-the-layer-1-2
+            phrase: Higher occupancy alone chooses no winner.
+            targets:
+              - profile-the-layer-construction
+            color: blue
+            linger: 0.25
+          - id: dg-profile-the-layer-1-3
+            phrase: Match route histogram, padded capacity, rank placement and ready dispatch/combine work when testing
+              whether the advertised overlap is present.
+            targets:
+              - profile-the-layer-construction
+            color: green
+            linger: 0.25
+      - say: >-
+          Take two runs that agree on every returned row. The times here are illustrative.
+          Start the clock at kernel entry. The baseline needs one hundred microseconds, and the candidate
+          needs seventy.
+          Now include the work around that kernel. The baseline spends twenty microseconds preparing its rows,
+          and the candidate spends sixty. These runs have no other timed stage.
+          Which run gets its complete layer output back first?
+        hold: 2.2
+        visual_cues:
+          - id: dg-profile-the-layer-2-0
+            phrase: >-
+              Take two runs that agree on every returned row. The times here are illustrative.
+            targets: [time-comparison]
+            caption_boundary: true
+          - id: dg-profile-the-layer-2-1
+            phrase: >-
+              Start the clock at kernel entry. The baseline needs one hundred microseconds, and the
+              candidate needs seventy.
+            targets: [time-comparison]
+            caption_boundary: true
+          - id: dg-profile-the-layer-2-2
+            phrase: >-
+              Now include the work around that kernel. The baseline spends twenty microseconds preparing its
+              rows, and the candidate spends sixty. These runs have no other timed stage.
+            targets: [time-comparison]
+            caption_boundary: true
+          - id: dg-profile-the-layer-2-3
+            phrase: >-
+              Which run gets its complete layer output back first?
+            targets: [time-comparison]
+            caption_boundary: true
+      - say: >-
+          The baseline finishes at one hundred twenty microseconds. The candidate finishes at one hundred
+          thirty.
+          The candidate saves thirty in the kernel and spends forty extra in preparation. Keep the baseline
+          for this workload.
+          On a real expert layer, include casts, packing, communication and restoration through the last
+          dependency. Keep real cold requests in the serving latency distribution.
+        hold: 1
+        visual_cues:
+          - id: dg-profile-the-layer-3-0
+            phrase: >-
+              The baseline finishes at one hundred twenty microseconds. The candidate finishes at one
+              hundred thirty.
+            targets: [time-comparison]
+            caption_boundary: true
+          - id: dg-profile-the-layer-3-1
+            phrase: >-
+              The candidate saves thirty in the kernel and spends forty extra in preparation. Keep the
+              baseline for this workload.
+            targets: [time-comparison]
+            caption_boundary: true
+          - id: dg-profile-the-layer-3-2
+            phrase: >-
+              On a real expert layer, include casts, packing, communication and restoration through the last
+              dependency. Keep real cold requests in the serving latency distribution.
+            targets: [time-comparison]
+            caption_boundary: true
+  - id: determinism
+    title: Distinguish a fixed seed from a fixed reduction schedule
+    visual: Replay the same FP32 values under two explicit associations, then keep input identity fixed while
+      batch context and kernel mode vary.
+    beats:
+      - say: "Floating-point addition depends on order. FP32 has twenty-four binary significand bits including the
+          implicit leading bit. Under round-to-nearest, ties-to-even, take sixteen million seven hundred
+          seventy-seven thousand two hundred sixteen, then add one, then subtract that large value: the result
+          is zero. Cancel the two large opposite values first and then add one: the result is one. This
+          arithmetic illustration requires no sampling random number."
+        hold: 0.6
+        visual_cues:
+          - id: determinism-b0
+            phrase: Floating-point addition depends on order.
+            targets:
+              - determinism-construction
+            color: cyan
+            linger: 0.4
+          - id: dg-determinism-0-0
+            phrase: Floating-point addition depends on order.
+            targets:
+              - determinism-construction
+            color: blue
+            linger: 0.25
+          - id: dg-determinism-0-1
+            phrase: FP32 has twenty-four binary significand bits including the implicit leading bit.
+            targets:
+              - determinism-construction
+            color: blue
+            linger: 0.25
+          - id: dg-determinism-0-2
+            phrase: "Under round-to-nearest, ties-to-even, take sixteen million seven hundred seventy-seven thousand two
+              hundred sixteen, then add one, then subtract that large value: the result is zero."
+            targets:
+              - determinism-construction
+            color: blue
+            linger: 0.25
+          - id: dg-determinism-0-3
+            phrase: "Cancel the two large opposite values first and then add one: the result is one."
+            targets:
+              - determinism-construction
+            color: blue
+            linger: 0.25
+          - id: dg-determinism-0-4
+            phrase: This arithmetic illustration requires no sampling random number.
+            targets:
+              - determinism-construction
+            color: green
+            linger: 0.25
+      - say: The September deterministic-algorithm option defaults to false. Some faster kernel choices can change
+          splitting or reduction order with batch context. The inspected Mega mHC selector fixes its split
+          count in deterministic mode and otherwise uses workload and available SM information. A fixed random
+          seed does not choose that mode. Compare the same token alone and packed with unrelated rows while
+          holding weights, values, layout and the requested mode fixed.
+        hold: 0.6
+        visual_cues:
+          - id: determinism-b1
+            phrase: The September deterministic-algorithm option defaults to false.
+            targets:
+              - determinism-construction
+            color: cyan
+            linger: 0.4
+          - id: dg-determinism-1-0
+            phrase: The September deterministic-algorithm option defaults to false.
+            targets:
+              - determinism-construction
+            color: blue
+            linger: 0.25
+          - id: dg-determinism-1-1
+            phrase: Some faster kernel choices can change splitting or reduction order with batch context.
+            targets:
+              - determinism-construction
+            color: blue
+            linger: 0.25
+          - id: dg-determinism-1-2
+            phrase: The inspected Mega mHC selector fixes its split count in deterministic mode and otherwise uses
+              workload and available SM information.
+            targets:
+              - determinism-construction
+            color: blue
+            linger: 0.25
+          - id: dg-determinism-1-3
+            phrase: A fixed random seed does not choose that mode.
+            targets:
+              - determinism-construction
+            color: blue
+            linger: 0.25
+          - id: dg-determinism-1-4
+            phrase: Compare the same token alone and packed with unrelated rows while holding weights, values, layout and
+              the requested mode fixed.
+            targets:
+              - determinism-construction
+            color: green
+            linger: 0.25
+      - say: Record numerical agreement and throughput, and repeat across the intended hardware/software versions
+          rather than promising cross-platform bitwise identity. September also added Mega Gate for
+          routing/gate work and Mega mHC for connection mixing with RMSNorm. The October Mega Gate accepts its
+          specified square-root-softplus scoring function; older configuration exports were removed. These
+          surrounding fusions have their own output contracts and are absent from the April Mega MoE timing
+          comparison.
+        hold: 0.6
+        visual_cues:
+          - id: determinism-b2
+            phrase: Record numerical agreement and throughput, and repeat across the intended hardware/software versions
+              rather than promising cross-platform bitwise identity.
+            targets:
+              - determinism-construction
+            color: green
+            linger: 0.4
+          - id: dg-determinism-2-0
+            phrase: Record numerical agreement and throughput, and repeat across the intended hardware/software versions
+              rather than promising cross-platform bitwise identity.
+            targets:
+              - determinism-construction
+            color: blue
+            linger: 0.25
+          - id: dg-determinism-2-1
+            phrase: September also added Mega Gate for routing/gate work and Mega mHC for connection mixing with RMSNorm.
+            targets:
+              - determinism-construction
+            color: blue
+            linger: 0.25
+          - id: dg-determinism-2-2
+            phrase: The October Mega Gate accepts its specified square-root-softplus scoring function; older configuration
+              exports were removed.
+            targets:
+              - determinism-construction
+            color: blue
+            linger: 0.25
+          - id: dg-determinism-2-3
+            phrase: These surrounding fusions have their own output contracts and are absent from the April Mega MoE
+              timing comparison.
+            targets:
+              - determinism-construction
+            color: green
+            linger: 0.25
+  - id: bringup-triage
+    title: Reject incompatible inputs before reading a stopwatch
+    visual: Pass an explicit startup contract through versioned toolchain, layout, rank and capacity gates; route
+      distinct symptoms to their first violated dependency.
+    beats:
+      - say: The October snapshot lists SM90 or SM100 hardware, Python three point eight or newer, a C plus plus
+          twenty compiler and library with format support, CUDA toolkit twelve point nine, PyTorch two point
+          three and CUTLASS four. Mega MoE additionally requires PyTorch two point nine and a distributed
+          launch for multiple ranks. Those are this snapshot’s requirements. The July lower minimums are
+          historical, so retain the chosen revision and submodules in the environment receipt.
+        hold: 0.6
+        visual_cues:
+          - id: bringup-triage-b0
+            phrase: The October snapshot lists SM90 or SM100 hardware, Python three point eight or newer, a C plus plus
+              twenty compiler and library with format support, CUDA toolkit twelve point nine, PyTorch two
+              point three and CUTLASS four.
+            targets:
+              - bringup-triage-construction
+            color: cyan
+            linger: 0.4
+          - id: dg-bringup-triage-0-0
+            phrase: The October snapshot lists SM90 or SM100 hardware, Python three point eight or newer, a C plus plus
+              twenty compiler and library with format support, CUDA toolkit twelve point nine, PyTorch two
+              point three and CUTLASS four.
+            targets:
+              - bringup-triage-construction
+            color: blue
+            linger: 0.25
+          - id: dg-bringup-triage-0-1
+            phrase: Mega MoE additionally requires PyTorch two point nine and a distributed launch for multiple ranks.
+            targets:
+              - bringup-triage-construction
+            color: blue
+            linger: 0.25
+          - id: dg-bringup-triage-0-2
+            phrase: Those are this snapshot’s requirements.
+            targets:
+              - bringup-triage-construction
+            color: blue
+            linger: 0.25
+          - id: dg-bringup-triage-0-3
+            phrase: The July lower minimums are historical, so retain the chosen revision and submodules in the
+              environment receipt.
+            targets:
+              - bringup-triage-construction
+            color: green
+            linger: 0.25
+      - say: Check hidden and intermediate widths against the selected low-bit multiples of one hundred twenty-eight,
+          experts divisible by ranks, symmetric-buffer capacity, scales and grouped offsets. For incorrect
+          output, inspect scale packing, major order, accumulation and routed identities against a numerical
+          reference. For a slow first call, inspect a real compile miss. For a hang, inspect rank
+          participation, buffer agreement, routing indices and rendezvous. Communication debug zeroes the
+          buffer, so recopy required inputs.
+        hold: 0.6
+        visual_cues:
+          - id: bringup-triage-b1
+            phrase: Check hidden and intermediate widths against the selected low-bit multiples of one hundred
+              twenty-eight, experts divisible by ranks, symmetric-buffer capacity, scales and grouped offsets.
+            targets:
+              - bringup-triage-construction
+            color: cyan
+            linger: 0.4
+          - id: dg-bringup-triage-1-0
+            phrase: Check hidden and intermediate widths against the selected low-bit multiples of one hundred
+              twenty-eight, experts divisible by ranks, symmetric-buffer capacity, scales and grouped offsets.
+            targets:
+              - bringup-triage-construction
+            color: blue
+            linger: 0.25
+          - id: dg-bringup-triage-1-1
+            phrase: For incorrect output, inspect scale packing, major order, accumulation and routed identities against a
+              numerical reference.
+            targets:
+              - bringup-triage-construction
+            color: blue
+            linger: 0.25
+          - id: dg-bringup-triage-1-2
+            phrase: For a slow first call, inspect a real compile miss.
+            targets:
+              - bringup-triage-construction
+            color: blue
+            linger: 0.25
+          - id: dg-bringup-triage-1-3
+            phrase: For a hang, inspect rank participation, buffer agreement, routing indices and rendezvous.
+            targets:
+              - bringup-triage-construction
+            color: blue
+            linger: 0.25
+          - id: dg-bringup-triage-1-4
+            phrase: Communication debug zeroes the buffer, so recopy required inputs.
+            targets:
+              - bringup-triage-construction
+            color: green
+            linger: 0.25
+      - say: >-
+          For disappearing speedup, include casts, transposes, packing and transport; for drift, retain rank topology, warmup, clocks and power policy.
+          Use Compute Sanitizer to find memory and synchronization errors. Compare the returned rows with the numerical reference to catch wrong values.
+          Read wrappers, compiler signature, one tile, scheduler and reference tests in that order.
+          Reproduce one complete supported contract before a broad performance comparison.
+        hold: 0.6
+        visual_cues:
+          - id: bringup-triage-b2
+            phrase: For disappearing speedup, include casts, transposes, packing and transport; for drift, retain rank
+              topology, warmup, clocks and power policy.
+            targets:
+              - bringup-triage-construction
+            color: green
+            linger: 0.4
+          - id: dg-bringup-triage-2-0
+            phrase: For disappearing speedup, include casts, transposes, packing and transport; for drift, retain rank
+              topology, warmup, clocks and power policy.
+            targets:
+              - bringup-triage-construction
+            color: blue
+            linger: 0.25
+          - id: dg-bringup-triage-2-1
+            phrase: >-
+              Use Compute Sanitizer to find memory and synchronization errors. Compare the returned rows with the numerical reference to catch wrong values.
+            targets:
+              - bringup-triage-construction
+            color: blue
+            linger: 0.25
+          - id: dg-bringup-triage-2-2
+            phrase: Read wrappers, compiler signature, one tile, scheduler and reference tests in that order.
+            targets:
+              - bringup-triage-construction
+            color: blue
+            linger: 0.25
+          - id: dg-bringup-triage-2-3
+            phrase: Reproduce one complete supported contract before a broad performance comparison.
+            targets:
+              - bringup-triage-construction
+            color: green
+            linger: 0.25
+  - id: fresh-contract
+    title: Would you keep this packed run?
+    visual: >-
+      A new three-expert pack includes an empty expert. Change alignment under fixed rows, then compare
+      two illustrative complete-layer timings and compare returned scalars by source token before
+      choosing the run.
+    beats:
+      - say: >-
+          Try three fresh experts. The first has ninety-six rows, the second has two hundred fifty-seven, and
+          the third receives none.
+          Give each expert blocks of one hundred twenty-eight. The second expert has just one more row than
+          two full blocks can hold.
+          How many rows will you reserve across the three experts? What fraction of those places will be
+          empty?
+        hold: 2.5
+        visual_cues:
+          - id: dg-fresh-contract-0-0
+            phrase: >-
+              Try three fresh experts. The first has ninety-six rows, the second has two hundred
+              fifty-seven, and the third receives none.
+            targets: [expert-packed-rows]
+            caption_boundary: true
+          - id: dg-fresh-contract-0-1
+            phrase: >-
+              Give each expert blocks of one hundred twenty-eight. The second expert has just one more row
+              than two full blocks can hold.
+            targets: [expert-packed-rows]
+            caption_boundary: true
+          - id: dg-fresh-contract-0-2
+            phrase: >-
+              How many rows will you reserve across the three experts? What fraction of those places will be
+              empty?
+            targets: [expert-packed-rows]
+            caption_boundary: true
+      - say: >-
+          The extra row opens a third block for the second expert.
+          The capacities are one hundred twenty-eight, three hundred eighty-four and zero. Together they
+          reserve five hundred twelve rows.
+          There are three hundred fifty-three useful rows.
+          The other one hundred fifty-nine places are empty. Divide by five hundred twelve and the padding
+          share is thirty-one point one percent.
+          Divide those same empty places by useful rows instead and the overhead is about forty-five percent.
+          Both ratios describe storage.
+        hold: 1.1
+        visual_cues:
+          - id: dg-fresh-contract-1-0
+            phrase: >-
+              The extra row opens a third block for the second expert.
+            targets: [expert-packed-rows]
+            caption_boundary: true
+          - id: dg-fresh-contract-1-1
+            phrase: >-
+              The capacities are one hundred twenty-eight, three hundred eighty-four and zero. Together they
+              reserve five hundred twelve rows.
+            targets: [expert-packed-rows]
+            caption_boundary: true
+          - id: dg-fresh-contract-1-2
+            phrase: >-
+              There are three hundred fifty-three useful rows.
+            targets: [pack-result]
+            caption_boundary: true
+          - id: dg-fresh-contract-1-3
+            phrase: >-
+              The other one hundred fifty-nine places are empty. Divide by five hundred twelve and the
+              padding share is thirty-one point one percent.
+            targets: [pack-result]
+            caption_boundary: true
+          - id: dg-fresh-contract-1-4
+            phrase: >-
+              Divide those same empty places by useful rows instead and the overhead is about forty-five
+              percent. Both ratios describe storage.
+            targets: [pack-result]
+            caption_boundary: true
+      - say: >-
+          Keep the assignments and double the block size. What happens to the empty expert?
+          The first expert reserves two hundred fifty-six rows, the second five hundred twelve, and the empty
+          expert still reserves zero.
+          Together they reserve seven hundred sixty-eight rows. Each of the three hundred fifty-three
+          assignments still belongs to the same expert.
+          Which run you keep also depends on its returned values and its time through the whole layer.
+        caption_starts:
+          - "and the empty expert still reserves zero"
+        hold: 0.9
+        visual_cues:
+          - id: dg-fresh-contract-2-0
+            phrase: >-
+              Keep the assignments and double the block size. What happens to the empty expert?
+            targets: [expert-packed-rows]
+            caption_boundary: true
+          - id: dg-fresh-contract-2-1
+            phrase: >-
+              The first expert reserves two hundred fifty-six rows, the second five hundred twelve, and the
+              empty expert still reserves zero.
+            targets: [expert-packed-rows]
+            caption_boundary: true
+          - id: dg-fresh-contract-2-2
+            phrase: >-
+              Together they reserve seven hundred sixty-eight rows. Each of the three hundred fifty-three
+              assignments still belongs to the same expert.
+            targets: [pack-result]
+            caption_boundary: true
+          - id: dg-fresh-contract-2-3
+            phrase: >-
+              Which run you keep also depends on its returned values and its time through the whole layer.
+            targets: [pack-result]
+            caption_boundary: true
+      - say: >-
+          Here are two example runs on those same inputs. Both clocks cover preparation through the final
+          return.
+          The wider pack finishes in one hundred five microseconds. The original takes one hundred twenty.
+          Check two source tokens against the reference. Both runs return values that sum to fourteen for this
+          pair.
+          Would you keep the faster run for this layer?
+        hold: 2.4
+        visual_cues:
+          - id: dg-fresh-contract-3-0
+            phrase: >-
+              Here are two example runs on those same inputs. Both clocks cover preparation through the
+              final return.
+            targets: [close-comparison]
+            caption_boundary: true
+          - id: dg-fresh-contract-3-1
+            phrase: >-
+              The wider pack finishes in one hundred five microseconds. The original takes one hundred
+              twenty.
+            targets: [close-comparison]
+            caption_boundary: true
+          - id: dg-fresh-contract-3-2
+            phrase: >-
+              Check two source tokens against the reference. Both runs return values that sum to fourteen
+              for this pair.
+            targets: [close-comparison]
+            caption_boundary: true
+          - id: dg-fresh-contract-3-3
+            phrase: >-
+              Would you keep the faster run for this layer?
+            targets: [close-comparison]
+            caption_boundary: true
+      - say: >-
+          Token four needed five. The faster run gave it nine.
+          Token six received the missing five. The sum hid the swap.
+          Reject this run. Restore the source order, compare each token with the reference, then time the
+          corrected layer again.
+          That comparison includes communication. The next lesson follows it across GPUs with NCCL.
+        caption_starts:
+          - "The faster run gave it nine"
+        hold: 1.5
+        visual_cues:
+          - id: dg-fresh-contract-4-0
+            phrase: >-
+              Token four needed five. The faster run gave it nine.
+            targets: [close-comparison]
+            caption_boundary: true
+          - id: dg-fresh-contract-4-1
+            phrase: >-
+              Token six received the missing five. The sum hid the swap.
+            targets: [close-comparison]
+            caption_boundary: true
+          - id: dg-fresh-contract-4-2
+            phrase: >-
+              Reject this run. Restore the source order, compare each token with the reference, then time
+              the corrected layer again.
+            targets: [close-comparison]
+            caption_boundary: true
+          - id: dg-fresh-contract-4-3
+            phrase: >-
+              That comparison includes communication. The next lesson follows it across GPUs with NCCL.
+            targets: [close-comparison]
+            caption_boundary: true

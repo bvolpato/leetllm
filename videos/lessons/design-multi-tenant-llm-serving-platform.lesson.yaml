@@ -1,0 +1,2586 @@
+version: 1
+id: design-multi-tenant-llm-serving-platform
+title: Share the GPU While Preserving Every Request Contract
+source: system-design/design-multi-tenant-llm-serving-platform/content.md
+sources:
+  - title: PagedAttention
+    url: https://arxiv.org/abs/2309.06180
+  - title: PostgreSQL transaction isolation
+    url: https://www.postgresql.org/docs/current/transaction-iso.html
+  - title: OWASP authorization guidance
+    url: https://cheatsheetseries.owasp.org/cheatsheets/Authorization_Cheat_Sheet.html
+  - title: PostgreSQL row security policies
+    url: https://www.postgresql.org/docs/current/ddl-rowsecurity.html
+  - title: Orca iteration-level scheduling
+    url: https://www.usenix.org/conference/osdi22/presentation/yu
+  - title: vLLM serving metrics
+    url: https://docs.vllm.ai/en/stable/design/metrics/
+scenes:
+  - id: intro
+    title: Should this route deliver another summary?
+    visual: A folded citation slides into Bob’s incident summary. Keep his delivery name beside the source’s
+      permitted reader. Mark the route paused only after the decision.
+    beats:
+      - say: This citation landed in Bob’s incident summary. Look at the two names. Bob received the summary
+          in workspace B. Only Carol can read the postmortem in workspace A. Should this route deliver
+          another summary?
+        hold: 2.6
+        caption_starts:
+          - Look at the two names
+          - Only Carol can read
+          - Should this route deliver another summary
+        visual_cues:
+          - id: intro-delivery
+            phrase: This citation landed in Bob’s incident summary
+            targets: [summary-receipt, cited-source]
+            color: pink
+          - id: intro-citation
+            phrase: Only Carol can read the postmortem in workspace A
+            targets: [summary-receipt, cited-source]
+            color: blue
+          - id: intro-choice
+            phrase: Should this route deliver another summary
+            targets: [summary-receipt, cited-source]
+            color: yellow
+      - say: Pause deliveries on this route. Keep a protected record of who received the summary, which source
+          it cited and who had permission to read it. Trace Bob’s request through retrieval and the cache
+          to find where that check failed. Alice’s long review and Bob’s short summary also waited on the
+          same replica. Use the queue and memory traces to investigate that delay.
+        hold: 1.1
+        caption_starts:
+          - Pause deliveries on this route
+          - Keep a protected record
+          - Trace Bob’s request
+          - Alice’s long review
+        visual_cues:
+          - id: intro-contain
+            phrase: Pause deliveries on this route
+            targets: [summary-receipt, cited-source]
+            color: yellow
+          - id: intro-delay
+            phrase: Alice’s long review and Bob’s short summary also waited on the same replica
+            targets: [summary-receipt]
+            color: cyan
+  - id: sharing-contract
+    title: Follow the boundaries through one shared step
+    visual: A shared immutable weight rectangle sits above two continuously separate request lanes. Move
+      authenticated identity, evidence, page handles and usage receipts through each lane; the common
+      execution step joins work, never ownership.
+    beats:
+      - say: Alice and Bob can run in the same batch. Follow the two rows under the frozen model weights. Each
+          request carries its own reader permissions, evidence, conversation history, adapter revision and
+          usage record. The worker applies the same weights to both rows.
+        hold: 0.8
+        visual_cues:
+          - id: mt-sharing-contract-b0
+            phrase: Alice and Bob can run in the same batch. Follow the two rows under the frozen model weights.
+              Each request carries its own reader permissions, evidence, conversation history, adapter
+              revision and usage record. The worker applies the same weights to both rows.
+            targets:
+              - sharing-contract-packet
+            color: cyan
+            linger: 0.35
+      - say: For our supplied dense model, seventy two billion weights at two bytes each occupy one hundred
+          forty four decimal gigabytes. One hundred copies would occupy fourteen point four terabytes
+          before runtime memory. The fleet still needs replicas for capacity and availability. Each
+          replica checks which requests may use its private state.
+        hold: 0.8
+        visual_cues:
+          - id: mt-sharing-contract-b1
+            phrase: For our supplied dense model, seventy two billion weights at two bytes each occupy one hundred
+              forty four decimal gigabytes. One hundred copies would occupy fourteen point four terabytes
+              before runtime memory. The fleet still needs replicas for capacity and availability. Each
+              replica checks which requests may use its private state.
+            targets:
+              - sharing-contract-mechanism
+            color: cyan
+            linger: 0.35
+          - id: mt-sharing-contract-s1-0
+            phrase: For our supplied dense model, seventy two billion weights at two bytes each occupy one hundred
+              forty four decimal gigabytes.
+            targets:
+              - sharing-contract-mechanism
+            color: yellow
+            linger: 0.35
+          - id: mt-sharing-contract-s1-1
+            phrase: One hundred copies would occupy fourteen point four terabytes before runtime memory.
+            targets:
+              - sharing-contract-mechanism
+            color: yellow
+            linger: 0.35
+      - say: "Begin the design with six promises: trusted identity, scoped state, conserved admission, bounded
+          service shares, replay-safe accounting and recoverable ownership. Put each promise at its
+          enforcing component. A gateway check cannot protect a worker administration endpoint that
+          tenants can reach directly. Deployment and artifact policy belong to the control plane as well."
+        hold: 0.8
+        visual_cues:
+          - id: mt-sharing-contract-b2
+            phrase: "Begin the design with six promises: trusted identity, scoped state, conserved admission,
+              bounded service shares, replay-safe accounting and recoverable ownership. Put each promise
+              at its enforcing component. A gateway check cannot protect a worker administration endpoint
+              that tenants can reach directly. Deployment and artifact policy belong to the control plane
+              as well."
+            targets:
+              - sharing-contract-mechanism
+            color: cyan
+            linger: 0.35
+  - id: stream-clocks
+    title: Measure the events you can actually observe
+    visual: On one 0–240 ms axis, reveal arrival, first token, bundled event and completion sequentially. Four
+      tokens share one 220 ms envelope. Construct the 120 ms event bracket and 35 ms TPOT only after their
+      spoken calculations.
+    beats:
+      - say: Draw one request on a clock. It arrives at zero, emits one token at one hundred milliseconds, emits four
+          more together at two hundred twenty, and completes at two hundred forty. Those four tokens arrived
+          as one observed event. The trace does not contain four separate decoding timestamps for them.
+        hold: 0.8
+        visual_cues:
+          - id: mt-stream-clocks-b0
+            phrase: Draw one request on a clock. It arrives at zero, emits one token at one hundred milliseconds, emits
+              four more together at two hundred twenty, and completes at two hundred forty. Those four tokens
+              arrived as one observed event. The trace does not contain four separate decoding timestamps for
+              them.
+            targets:
+              - stream-clocks-mechanism
+            color: cyan
+            linger: 0.35
+          - id: mt-stream-clocks-s0-1
+            phrase: It arrives at zero, emits one token at one hundred milliseconds, emits four more together at two
+              hundred twenty, and completes at two hundred forty.
+            targets:
+              - stream-clocks-mechanism
+            color: yellow
+            linger: 0.35
+          - id: mt-stream-clocks-first
+            phrase: emits one token at one hundred milliseconds
+            targets:
+              - stream-clocks-mechanism
+            color: cyan
+            linger: 0.35
+          - id: mt-stream-clocks-bundle
+            phrase: emits four more together at two hundred twenty
+            targets:
+              - stream-clocks-mechanism
+            color: cyan
+            linger: 0.35
+          - id: mt-stream-clocks-terminal
+            phrase: completes at two hundred forty
+            targets:
+              - stream-clocks-mechanism
+            color: cyan
+            linger: 0.35
+      - say: The two output events are one hundred twenty milliseconds apart. Completion minus first output is one
+          hundred forty milliseconds. Divide that by four additional tokens and request time per output token
+          is thirty five milliseconds. The final twenty milliseconds is completion overhead; this mean cannot
+          reconstruct the hidden gaps inside the bundle.
+        hold: 0.8
+        visual_cues:
+          - id: mt-stream-clocks-b1
+            phrase: The two output events are one hundred twenty milliseconds apart. Completion minus first output is one
+              hundred forty milliseconds. Divide that by four additional tokens and request time per output
+              token is thirty five milliseconds. The final twenty milliseconds is completion overhead; this
+              mean cannot reconstruct the hidden gaps inside the bundle.
+            targets:
+              - stream-clocks-mechanism
+            color: cyan
+            linger: 0.35
+          - id: mt-stream-clocks-s1-0
+            phrase: The two output events are one hundred twenty milliseconds apart.
+            targets:
+              - stream-clocks-mechanism
+            color: yellow
+            linger: 0.35
+          - id: mt-stream-clocks-s1-1
+            phrase: Completion minus first output is one hundred forty milliseconds.
+            targets:
+              - stream-clocks-mechanism
+            color: yellow
+            linger: 0.35
+          - id: mt-stream-clocks-s1-2
+            phrase: Divide that by four additional tokens and request time per output token is thirty five milliseconds.
+            targets:
+              - stream-clocks-mechanism
+            color: yellow
+            linger: 0.35
+          - id: mt-stream-clocks-s1-3
+            phrase: The final twenty milliseconds is completion overhead; this mean cannot reconstruct the hidden gaps
+              inside the bundle.
+            targets:
+              - stream-clocks-mechanism
+            color: yellow
+            linger: 0.35
+      - say: Our external time to first token starts when the request reaches the platform. It includes admission
+          queueing, adapter loading and prompt processing. A worker metric may start after some of those
+          stages. Compare like boundaries, and label whether a streaming objective constrains event gaps, a
+          request mean or another precisely defined observation.
+        hold: 0.8
+        visual_cues:
+          - id: mt-stream-clocks-b2
+            phrase: Our external time to first token starts when the request reaches the platform. It includes admission
+              queueing, adapter loading and prompt processing. A worker metric may start after some of those
+              stages. Compare like boundaries, and label whether a streaming objective constrains event gaps,
+              a request mean or another precisely defined observation.
+            targets:
+              - stream-clocks-mechanism
+            color: cyan
+            linger: 0.35
+  - id: goodput-contract
+    title: Count successful requests without hiding failures
+    visual: Five supplied request cards carry completion, TTFT and worst observed event gap. Apply a
+      declared per-request gate to each. Keep the failed card in the denominator. The final three-of-five
+      counter appears after the complete conclusion.
+    beats:
+      - say: Five requests arrive. To count as a success, each stream must finish, send its first output within
+          eight hundred milliseconds and keep every output gap within one hundred twenty milliseconds.
+          Request one passes with first output at six hundred milliseconds and a maximum gap of eighty.
+          Request two passes with first output at seven hundred and a maximum gap of one hundred twenty
+          milliseconds. Its longest gap lands exactly on the limit.
+        hold: 0.8
+        visual_cues:
+          - id: mt-goodput-contract-b0
+            phrase: Five requests arrive. To count as a success, each stream must finish, send its first output
+              within eight hundred milliseconds and keep every output gap within one hundred twenty
+              milliseconds. Request one passes with first output at six hundred milliseconds and a maximum
+              gap of eighty. Request two passes with first output at seven hundred and a maximum gap of
+              one hundred twenty milliseconds. Its longest gap lands exactly on the limit.
+            targets:
+              - goodput-contract-mechanism
+            color: cyan
+            linger: 0.35
+          - id: mt-goodput-contract-s0-2
+            phrase: Request one passes with first output at six hundred milliseconds and a maximum gap of eighty.
+            targets:
+              - goodput-contract-mechanism
+            color: yellow
+            linger: 0.35
+          - id: mt-goodput-contract-s0-3
+            phrase: Request two passes with first output at seven hundred and a maximum gap of one hundred twenty
+              milliseconds.
+            targets:
+              - goodput-contract-mechanism
+            color: yellow
+            linger: 0.35
+      - say: Request three reaches its first output at nine hundred milliseconds and fails the first-output
+          condition. Request four starts at four hundred with short gaps, but its stream fails; it also
+          fails the gate. Request five completes successfully. Its first output arrives at five hundred
+          milliseconds and its longest observed gap is one hundred. Three of five arrivals therefore pass,
+          or sixty percent.
+        hold: 0.8
+        caption_starts:
+          - Three of five arrivals therefore pass
+        visual_cues:
+          - id: mt-goodput-contract-b1
+            phrase: Request three reaches its first output at nine hundred milliseconds and fails the first-output
+              condition. Request four starts at four hundred with short gaps, but its stream fails; it
+              also fails the gate. Request five completes successfully. Its first output arrives at five
+              hundred milliseconds and its longest observed gap is one hundred. Three of five arrivals
+              therefore pass, or sixty percent.
+            targets:
+              - goodput-contract-mechanism
+            color: cyan
+            linger: 0.35
+          - id: mt-goodput-contract-s1-0
+            phrase: Request three reaches its first output at nine hundred milliseconds and fails the first-output
+              condition.
+            targets:
+              - goodput-contract-mechanism
+            color: yellow
+            linger: 0.35
+          - id: mt-goodput-contract-s1-1
+            phrase: Request four starts at four hundred with short gaps, but its stream fails; it also fails the
+              gate.
+            targets:
+              - goodput-contract-mechanism
+            color: yellow
+            linger: 0.35
+          - id: mt-goodput-contract-s1-2
+            phrase: Request five completes successfully. Its first output arrives at five hundred milliseconds and
+              its longest observed gap is one hundred.
+            targets:
+              - goodput-contract-mechanism
+            color: yellow
+            linger: 0.35
+          - id: mt-goodput-contract-s1-3
+            phrase: Three of five arrivals therefore pass, or sixty percent.
+            targets:
+              - goodput-contract-mechanism
+            color: yellow
+            linger: 0.35
+      - say: Count each arrival once, including the stream that failed. If you pool the gaps instead, a long
+          stream contributes a gap every time it sends more output. Its gaps carry more weight in the pooled
+          percentile. Compare the pass rate by tenant tier and workload, alongside the arrival rate,
+          completions, failures, latency and throughput.
+        hold: 0.8
+        visual_cues:
+          - id: mt-goodput-contract-b2
+            phrase: Count each arrival once, including the stream that failed. If you pool the gaps instead, a
+              long stream contributes a gap every time it sends more output. Its gaps carry more weight in
+              the pooled percentile. Compare the pass rate by tenant tier and workload, alongside the
+              arrival rate, completions, failures, latency and throughput.
+            targets:
+              - goodput-contract-mechanism
+            color: cyan
+            linger: 0.35
+  - id: identity
+    title: Which workspace can Alice open?
+    visual: Run the same verified identity and grant through the gateway twice. Selecting A opens a route
+      with Alice’s scoped context. Selecting B closes the route before retrieval can receive a lookup.
+    beats:
+      - say: Alice has signed in. Her current grant lists workspace A. The workspace in her request tells the
+          gateway which grant to check. She selects A, and the gateway sends retrieval her authorized
+          context. Even inside A, retrieval still checks which documents Alice can read. Carol’s private
+          postmortem stays with Carol.
+        hold: 0.85
+        visual_cues:
+          - id: identity-principal
+            phrase: Her current grant lists workspace A
+            targets:
+              - identity-request
+            color: cyan
+            linger: 0.25
+          - id: identity-allow-a
+            phrase: the gateway sends retrieval her authorized context
+            targets:
+              - workspace-gate
+            color: cyan
+            linger: 0.25
+      - say: Keep Alice’s credentials and grant exactly as they were. This time she selects B. The worker
+          already has B’s adapter loaded. Should the gateway send a lookup to retrieval?
+        hold: 2.2
+        visual_cues:
+          - id: identity-select-b
+            phrase: This time she selects B
+            targets:
+              - identity-request
+            color: pink
+            linger: 0.25
+          - id: identity-choice
+            phrase: Should the gateway send a lookup to retrieval
+            targets:
+              - identity-request
+              - workspace-gate
+            color: yellow
+            linger: 0.25
+      - say: Deny the selection here. There is no authorized B context to send. A hot adapter saves loading time
+          for people who may use it. Carry Alice’s verified context through admission, workers, caches and
+          usage records. Check service credentials on the worker’s administrative routes too.
+        hold: 0.9
+        visual_cues:
+          - id: identity-deny-b
+            phrase: Deny the selection here
+            targets:
+              - workspace-gate
+            color: yellow
+            linger: 0.25
+            caption_boundary: true
+  - id: trusted-envelope
+    title: Carry authority beyond the gateway
+    visual: Build a request envelope from authenticated principal to selected authorized tenant, immutable
+      revisions, attempt and reservation IDs, deadline and cap. A downstream untrusted body field tries and
+      fails to replace tenant identity.
+    beats:
+      - say: The request envelope begins with authenticated identity, then an authorized workspace choice. Add request
+          and attempt identifiers, policy revision, approved model and adapter revisions, deadline and output
+          cap. The receiving worker must know which service issued that envelope and which operation it
+          authorizes, rather than accepting a tenant name from arbitrary JSON.
+        hold: 0.8
+        visual_cues:
+          - id: mt-trusted-envelope-b0
+            phrase: The request envelope begins with authenticated identity, then an authorized workspace choice. Add
+              request and attempt identifiers, policy revision, approved model and adapter revisions, deadline
+              and output cap. The receiving worker must know which service issued that envelope and which
+              operation it authorizes, rather than accepting a tenant name from arbitrary JSON.
+            targets:
+              - trusted-envelope-mechanism
+            color: cyan
+            linger: 0.35
+          - id: mt-trusted-envelope-s0-0
+            phrase: The request envelope begins with authenticated identity, then an authorized workspace choice.
+            targets:
+              - trusted-envelope-mechanism
+            color: yellow
+            linger: 0.35
+          - id: mt-trusted-envelope-s0-1
+            phrase: Add request and attempt identifiers, policy revision, approved model and adapter revisions, deadline
+              and output cap.
+            targets:
+              - trusted-envelope-mechanism
+            color: yellow
+            linger: 0.35
+      - say: Protect service communication and use narrowly scoped credentials. A signature proves that particular
+          bytes were signed; the receiver still checks issuer, audience, expiry and permission. Preserve the
+          resolved identity through retrieval, worker dispatch and metering. A downstream tenant field cannot
+          overwrite the context simply because its spelling resembles the trusted one.
+        hold: 0.8
+        visual_cues:
+          - id: mt-trusted-envelope-b1
+            phrase: Protect service communication and use narrowly scoped credentials. A signature proves that particular
+              bytes were signed; the receiver still checks issuer, audience, expiry and permission. Preserve
+              the resolved identity through retrieval, worker dispatch and metering. A downstream tenant field
+              cannot overwrite the context simply because its spelling resembles the trusted one.
+            targets:
+              - trusted-envelope-mechanism
+            color: cyan
+            linger: 0.35
+          - id: mt-trusted-envelope-s1-1
+            phrase: A signature proves that particular bytes were signed; the receiver still checks issuer, audience,
+              expiry and permission.
+            targets:
+              - trusted-envelope-mechanism
+            color: yellow
+            linger: 0.35
+          - id: mt-trusted-envelope-s1-3
+            phrase: A downstream tenant field cannot overwrite the context simply because its spelling resembles the
+              trusted one.
+            targets:
+              - trusted-envelope-mechanism
+            color: yellow
+            linger: 0.35
+      - say: Alice has signed in. Her grant opens workspace A. When she chooses B, the gateway denies the
+          request before retrieval. If her grant changes, check that retrieval and inference enforce the
+          change using their own service credentials. Check the administrative routes too.
+        hold: 0.8
+        visual_cues:
+          - id: mt-trusted-envelope-b2
+            phrase: Alice has signed in. Her grant opens workspace A. When she chooses B, the gateway denies the
+              request before retrieval. If her grant changes, check that retrieval and inference enforce
+              the change using their own service credentials. Check the administrative routes too.
+            targets:
+              - trusted-envelope-mechanism
+            color: cyan
+            linger: 0.35
+          - id: mt-trusted-envelope-s2-1
+            phrase: When she chooses B, the gateway denies the request before retrieval
+            targets:
+              - trusted-envelope-mechanism
+            color: yellow
+            linger: 0.35
+  - id: admission-dimensions
+    title: Reserve the resources that can actually run out
+    visual: Present six limits as separate reservoirs with explicit units. One request passes the rate gate but
+      fails a page reservation. Change only page availability to make the contrasting request eligible; retain
+      all other inputs.
+    beats:
+      - say: A requests-per-minute limit controls arrivals. A token window controls a declared token budget. A
+          billing-period quota controls total allowance. A concurrency cap controls outstanding requests, and
+          context or output caps bound one sequence’s growth. None of these quantities tells us how many
+          physical cache pages remain on a particular worker.
+        hold: 0.8
+        visual_cues:
+          - id: mt-admission-dimensions-b0
+            phrase: A requests-per-minute limit controls arrivals. A token window controls a declared token budget. A
+              billing-period quota controls total allowance. A concurrency cap controls outstanding requests,
+              and context or output caps bound one sequence’s growth. None of these quantities tells us how
+              many physical cache pages remain on a particular worker.
+            targets:
+              - admission-dimensions-mechanism
+            color: cyan
+            linger: 0.35
+      - say: Consider a request that passes its rate limit and has spare period allowance, but needs five pages on a
+          worker with only four available. Admission must wait or choose a different eligible placement. If
+          one additional page becomes safely available, that memory condition changes. The user’s permission,
+          quota and concurrency checks still apply independently.
+        hold: 0.8
+        visual_cues:
+          - id: mt-admission-dimensions-b1
+            phrase: Consider a request that passes its rate limit and has spare period allowance, but needs five pages on
+              a worker with only four available. Admission must wait or choose a different eligible placement.
+              If one additional page becomes safely available, that memory condition changes. The user’s
+              permission, quota and concurrency checks still apply independently.
+            targets:
+              - admission-dimensions-mechanism
+            color: cyan
+            linger: 0.35
+          - id: mt-admission-dimensions-s1-0
+            phrase: Consider a request that passes its rate limit and has spare period allowance, but needs five pages on
+              a worker with only four available.
+            targets:
+              - admission-dimensions-mechanism
+            color: yellow
+            linger: 0.35
+          - id: mt-admission-dimensions-s1-1
+            phrase: Admission must wait or choose a different eligible placement.
+            targets:
+              - admission-dimensions-mechanism
+            color: yellow
+            linger: 0.35
+          - id: mt-admission-dimensions-s1-2
+            phrase: If one additional page becomes safely available, that memory condition changes.
+            targets:
+              - admission-dimensions-mechanism
+            color: yellow
+            linger: 0.35
+      - say: Reserve the assembled prompt, including authorized retrieved content, together with the maximum permitted
+          output under the policy. Enforce real context limits before allocation. An admitted request needs
+          both tenant allowance and worker capacity. If those holds live in different services, define
+          recoverable stages so a partial failure cannot strand or double-spend either one.
+        hold: 0.8
+        visual_cues:
+          - id: mt-admission-dimensions-b2
+            phrase: Reserve the assembled prompt, including authorized retrieved content, together with the maximum
+              permitted output under the policy. Enforce real context limits before allocation. An admitted
+              request needs both tenant allowance and worker capacity. If those holds live in different
+              services, define recoverable stages so a partial failure cannot strand or double-spend either
+              one.
+            targets:
+              - admission-dimensions-mechanism
+            color: cyan
+            linger: 0.35
+          - id: mt-admission-dimensions-s2-0
+            phrase: Reserve the assembled prompt, including authorized retrieved content, together with the maximum
+              permitted output under the policy.
+            targets:
+              - admission-dimensions-mechanism
+            color: yellow
+            linger: 0.35
+  - id: quota
+    title: Conserve allowance through reservation and settlement
+    visual: A 1,000-unit quota ledger moves 700 units into a reservation, settles 420 actual units, releases the
+      unused 280, and stays unchanged when completion is delivered twice. Each balance derives from the
+      current transaction state.
+    beats:
+      - say: Before dispatch, reserve the fully assembled input and the maximum permitted output under the declared
+          quota policy. A token quota, concurrency limit, and physical cache-page reservation answer different
+          questions. Atomic check-and-update prevents two gateways from promising the same remaining
+          allowance. Bind the idempotency key to the resolved request fingerprint.
+        hold: 0.65
+        motion_check:
+          region:
+            - 320
+            - 360
+            - 1280
+            - 500
+          minimumChangedFraction: 0.002
+        visual_cues:
+          - id: quota-reserve-before-dispatch
+            phrase: Before dispatch, reserve the fully assembled input and the maximum permitted output
+            targets:
+              - quota-held
+            color: cyan
+            linger: 0.6
+          - id: quota-conserve-allowance
+            phrase: the same remaining allowance
+            targets:
+              - quota-free
+            color: yellow
+            linger: 0.6
+      - say: Follow this fixed-period ledger. Reservation moves allowance from available into held state. Trusted
+          completion charges actual input and output, releasing only unused capacity. Deliver the same
+          completion again and the balance stays unchanged. A conflicting fingerprint or usage report must
+          fail. Distributed durability and execution ownership require additional recoverable coordination
+          beyond this arithmetic.
+        hold: 0.65
+        motion_check:
+          region:
+            - 320
+            - 360
+            - 1280
+            - 500
+          minimumChangedFraction: 0.002
+        visual_cues:
+          - id: quota-into-held
+            phrase: Reservation moves allowance from available into held state
+            targets:
+              - quota-free
+              - quota-held
+            color: cyan
+            linger: 0.6
+          - id: quota-trusted-completion
+            phrase: Trusted completion charges actual input and output, releasing only unused capacity
+            targets:
+              - quota-held
+              - quota-settled
+              - quota-free
+            color: yellow
+            linger: 0.6
+          - id: quota-replay-unchanged
+            phrase: Deliver the same completion again and the balance stays unchanged
+            targets:
+              - quota-completion-receipt
+              - quota-settled
+              - quota-free
+            color: yellow
+            linger: 0.6
+  - id: admission-race
+    title: Make two gateways compete for one allowance
+    visual: Two lanes each request 700 against one 1000-unit ledger. Show both stale reads as a rejected design.
+      Rewind explicitly to the initial ledger and serialize the actual atomic operations; exactly one wins and
+      the loser observes 300.
+    beats:
+      - say: Put two gateways beside the same one thousand unit allowance. Each wants to reserve seven hundred. If
+          both read one thousand before either writes, both can believe admission is safe. Adding their
+          promises produces fourteen hundred units, exceeding the allowance by four hundred. Independent
+          successful reads do not establish a safe combined decision.
+        hold: 0.8
+        visual_cues:
+          - id: mt-admission-race-b0
+            phrase: Put two gateways beside the same one thousand unit allowance. Each wants to reserve seven hundred. If
+              both read one thousand before either writes, both can believe admission is safe. Adding their
+              promises produces fourteen hundred units, exceeding the allowance by four hundred. Independent
+              successful reads do not establish a safe combined decision.
+            targets:
+              - admission-race-mechanism
+            color: cyan
+            linger: 0.35
+          - id: mt-admission-race-s0-2
+            phrase: If both read one thousand before either writes, both can believe admission is safe.
+            targets:
+              - admission-race-mechanism
+            color: yellow
+            linger: 0.35
+          - id: mt-admission-race-s0-3
+            phrase: Adding their promises produces fourteen hundred units, exceeding the allowance by four hundred.
+            targets:
+              - admission-race-mechanism
+            color: yellow
+            linger: 0.35
+      - say: Now explicitly restart at the same initial balance and use one atomic check and update. The first
+          accepted reservation holds seven hundred and leaves three hundred. The second sees three hundred and
+          fails. Which contender wins depends on ordering. The safety property is exactly one admission,
+          rather than a promise about which request finishes first.
+        hold: 0.8
+        visual_cues:
+          - id: mt-admission-race-b1
+            phrase: Now explicitly restart at the same initial balance and use one atomic check and update. The first
+              accepted reservation holds seven hundred and leaves three hundred. The second sees three hundred
+              and fails. Which contender wins depends on ordering. The safety property is exactly one
+              admission, rather than a promise about which request finishes first.
+            targets:
+              - admission-race-ledger
+            color: cyan
+            linger: 0.35
+          - id: mt-admission-race-s1-0
+            phrase: Now explicitly restart at the same initial balance and use one atomic check and update.
+            targets:
+              - admission-race-ledger
+            color: yellow
+            linger: 0.35
+          - id: mt-admission-race-s1-1
+            phrase: The first accepted reservation holds seven hundred and leaves three hundred.
+            targets:
+              - admission-race-ledger
+            color: yellow
+            linger: 0.35
+          - id: mt-admission-race-s1-2
+            phrase: The second sees three hundred and fails.
+            targets:
+              - admission-race-ledger
+            color: yellow
+            linger: 0.35
+      - say: The executable fixture races two threads behind a local lock and verifies that outcome. That lock
+          protects one process. Multiple hosts need a durable conditional operation, transaction or equivalent
+          authority. Keep the reservation record and its identity in the same protected decision, and test the
+          cross-host failure behavior separately from this local demonstration.
+        hold: 0.8
+        visual_cues:
+          - id: mt-admission-race-b2
+            phrase: The executable fixture races two threads behind a local lock and verifies that outcome. That lock
+              protects one process. Multiple hosts need a durable conditional operation, transaction or
+              equivalent authority. Keep the reservation record and its identity in the same protected
+              decision, and test the cross-host failure behavior separately from this local demonstration.
+            targets:
+              - admission-race-mechanism
+            color: cyan
+            linger: 0.35
+  - id: idempotency-binding
+    title: Replay the same operation without changing its meaning
+    visual: One key is paired with one immutable resolved fingerprint. Same-key/same-fingerprint arrows return the
+      existing record. A changed fingerprint stops at a conflict gate. Settlement uses the same attempt
+      identity even when transport delivery IDs differ.
+    beats:
+      - say: An idempotency key means that this tenant is repeating one resolved request. Bind it to the prompt and
+          the relevant immutable execution choices. The same key and same fingerprint return the existing
+          reservation. The same key with a different fingerprint is a conflict, with no new dispatch and no
+          change to the existing balance.
+        hold: 0.8
+        visual_cues:
+          - id: mt-idempotency-binding-b0
+            phrase: An idempotency key means that this tenant is repeating one resolved request. Bind it to the prompt and
+              the relevant immutable execution choices. The same key and same fingerprint return the existing
+              reservation. The same key with a different fingerprint is a conflict, with no new dispatch and
+              no change to the existing balance.
+            targets:
+              - idempotency-binding-packet
+            color: cyan
+            linger: 0.35
+          - id: mt-idempotency-binding-s0-2
+            phrase: The same key and same fingerprint return the existing reservation.
+            targets:
+              - idempotency-binding-mechanism
+            color: yellow
+            linger: 0.35
+          - id: mt-idempotency-binding-s0-3
+            phrase: The same key with a different fingerprint is a conflict, with no new dispatch and no change to the
+              existing balance.
+            targets:
+              - idempotency-binding-mechanism
+            color: yellow
+            linger: 0.35
+      - say: Completion has a separate replay problem. Two transport messages can describe the same tenant,
+          reservation and execution attempt. Their message identifiers may differ, but they must settle one
+          logical usage record. An identical completion is harmless. A conflicting output count is rejected,
+          rather than silently replacing the first trusted settlement.
+        hold: 0.8
+        visual_cues:
+          - id: mt-idempotency-binding-b1
+            phrase: Completion has a separate replay problem. Two transport messages can describe the same tenant,
+              reservation and execution attempt. Their message identifiers may differ, but they must settle
+              one logical usage record. An identical completion is harmless. A conflicting output count is
+              rejected, rather than silently replacing the first trusted settlement.
+            targets:
+              - idempotency-binding-mechanism
+            color: cyan
+            linger: 0.35
+          - id: mt-idempotency-binding-s1-2
+            phrase: Their message identifiers may differ, but they must settle one logical usage record.
+            targets:
+              - idempotency-binding-mechanism
+            color: yellow
+            linger: 0.35
+          - id: mt-idempotency-binding-s1-3
+            phrase: An identical completion is harmless.
+            targets:
+              - idempotency-binding-mechanism
+            color: yellow
+            linger: 0.35
+          - id: mt-idempotency-binding-s1-4
+            phrase: A conflicting output count is rejected, rather than silently replacing the first trusted settlement.
+            targets:
+              - idempotency-binding-mechanism
+            color: yellow
+            linger: 0.35
+      - say: "Use a new allowance example: twelve hundred units, two hundred input tokens, and a five hundred output
+          cap. Admission holds seven hundred and leaves five hundred. Trusted completion reports one hundred
+          fifty output tokens. Settle three hundred fifty, return three hundred fifty, and leave eight hundred
+          fifty available. Replaying completion leaves eight hundred fifty unchanged."
+        hold: 0.8
+        visual_cues:
+          - id: mt-idempotency-binding-b2
+            phrase: "Use a new allowance example: twelve hundred units, two hundred input tokens, and a five hundred
+              output cap. Admission holds seven hundred and leaves five hundred. Trusted completion reports
+              one hundred fifty output tokens. Settle three hundred fifty, return three hundred fifty, and
+              leave eight hundred fifty available. Replaying completion leaves eight hundred fifty unchanged."
+            targets:
+              - idempotency-binding-ledger
+            color: cyan
+            linger: 0.35
+          - id: mt-idempotency-binding-s2-0
+            phrase: "Use a new allowance example: twelve hundred units, two hundred input tokens, and a five hundred
+              output cap."
+            targets:
+              - idempotency-binding-ledger
+            color: yellow
+            linger: 0.35
+          - id: mt-idempotency-binding-s2-1
+            phrase: Admission holds seven hundred and leaves five hundred.
+            targets:
+              - idempotency-binding-ledger
+            color: yellow
+            linger: 0.35
+          - id: mt-idempotency-binding-s2-2
+            phrase: Trusted completion reports one hundred fifty output tokens.
+            targets:
+              - idempotency-binding-ledger
+            color: yellow
+            linger: 0.35
+          - id: mt-idempotency-binding-s2-3
+            phrase: Settle three hundred fifty, return three hundred fifty, and leave eight hundred fifty available.
+            targets:
+              - idempotency-binding-ledger
+            color: yellow
+            linger: 0.35
+          - id: mt-idempotency-binding-s2-4
+            phrase: Replaying completion leaves eight hundred fifty unchanged.
+            targets:
+              - idempotency-binding-ledger
+            color: yellow
+            linger: 0.35
+  - id: dispatch-commit
+    title: Keep a database rollback from becoming free GPU work
+    visual: A reservation transaction commits before a durable dispatch record is delivered. Contrast an
+      explicitly labeled unsafe external GPU call inside a transaction. A lost acknowledgement moves ownership
+      to uncertain instead of refunding.
+    beats:
+      - say: A database transaction can conserve an allowance and record the idempotency decision together. A
+          serialization conflict may require retrying the whole transaction with the same logical identity. Do
+          not publish work from a reservation that has not committed. A recoverable delivery mechanism must
+          connect committed intent to worker acceptance.
+        hold: 0.8
+        visual_cues:
+          - id: mt-dispatch-commit-b0
+            phrase: A database transaction can conserve an allowance and record the idempotency decision together. A
+              serialization conflict may require retrying the whole transaction with the same logical
+              identity. Do not publish work from a reservation that has not committed. A recoverable delivery
+              mechanism must connect committed intent to worker acceptance.
+            targets:
+              - dispatch-commit-mechanism
+            color: cyan
+            linger: 0.35
+          - id: mt-dispatch-commit-s0-2
+            phrase: Do not publish work from a reservation that has not committed.
+            targets:
+              - dispatch-commit-mechanism
+            color: yellow
+            linger: 0.35
+          - id: mt-dispatch-commit-s0-3
+            phrase: A recoverable delivery mechanism must connect committed intent to worker acceptance.
+            targets:
+              - dispatch-commit-mechanism
+            color: yellow
+            linger: 0.35
+      - say: Imagine launching GPU work inside a database transaction and then rolling that transaction back. The
+          database can undo its records; it cannot reach backward and unrun those kernels. We would have
+          execution without its committed allowance. Separate the transactional intent from external delivery,
+          and make both delivery replay and worker ownership explicit.
+        hold: 0.8
+        visual_cues:
+          - id: mt-dispatch-commit-b1
+            phrase: Imagine launching GPU work inside a database transaction and then rolling that transaction back. The
+              database can undo its records; it cannot reach backward and unrun those kernels. We would have
+              execution without its committed allowance. Separate the transactional intent from external
+              delivery, and make both delivery replay and worker ownership explicit.
+            targets:
+              - dispatch-commit-mechanism
+            color: cyan
+            linger: 0.35
+          - id: mt-dispatch-commit-s1-0
+            phrase: Imagine launching GPU work inside a database transaction and then rolling that transaction back.
+            targets:
+              - dispatch-commit-mechanism
+            color: yellow
+            linger: 0.35
+          - id: mt-dispatch-commit-s1-1
+            phrase: The database can undo its records; it cannot reach backward and unrun those kernels.
+            targets:
+              - dispatch-commit-mechanism
+            color: yellow
+            linger: 0.35
+          - id: mt-dispatch-commit-s1-2
+            phrase: We would have execution without its committed allowance.
+            targets:
+              - dispatch-commit-mechanism
+            color: yellow
+            linger: 0.35
+      - say: A missing acknowledgement is different from definite placement failure. If placement definitely failed
+          before execution could begin, release the staged allowance safely. If the worker might have started,
+          preserve the hold and reconcile its attempt. A transport timeout supplies no evidence that the
+          worker stopped or that its generated usage was zero.
+        hold: 0.8
+        visual_cues:
+          - id: mt-dispatch-commit-b2
+            phrase: A missing acknowledgement is different from definite placement failure. If placement definitely failed
+              before execution could begin, release the staged allowance safely. If the worker might have
+              started, preserve the hold and reconcile its attempt. A transport timeout supplies no evidence
+              that the worker stopped or that its generated usage was zero.
+            targets:
+              - dispatch-commit-mechanism
+            color: cyan
+            linger: 0.35
+          - id: mt-dispatch-commit-s2-1
+            phrase: If placement definitely failed before execution could begin, release the staged allowance safely.
+            targets:
+              - dispatch-commit-mechanism
+            color: yellow
+            linger: 0.35
+          - id: mt-dispatch-commit-s2-2
+            phrase: If the worker might have started, preserve the hold and reconcile its attempt.
+            targets:
+              - dispatch-commit-mechanism
+            color: yellow
+            linger: 0.35
+  - id: pages
+    title: Where can B write next?
+    visual: Keep the five interleaved physical pages on one shelf and the two logical page tables above
+      them. In an incremental allocation example, put position 32 in B’s last slot. Hold position 33
+      outside the shelf while P4 still maps to A. The ending uses this exact pool.
+    beats:
+      - say: Here is a worker that adds pages as a conversation grows. Each square holds the attention keys and
+          values for one token position. Sixteen squares make a page. Follow A’s page table from left to
+          right. Its forty-seven positions occupy pages zero, two and four. B’s thirty-one occupy pages
+          one and three. Two squares are empty. Where can B store position thirty-two?
+        hold: 2.4
+        visual_cues:
+          - id: pages-read-tables
+            phrase: Follow A’s page table from left to right
+            targets: &a1
+              - history-tables
+              - worker-pages
+            color: cyan
+            linger: 0.25
+          - id: pages-a-chain
+            phrase: pages zero, two and four
+            targets: *a1
+            color: blue
+            linger: 0.25
+          - id: pages-b-chain
+            phrase: pages one and three
+            targets: *a1
+            color: pink
+            linger: 0.25
+          - id: pages-first-question
+            phrase: Where can B store position thirty-two
+            targets:
+              - history-tables
+              - worker-pages
+              - pending-write
+            color: yellow
+            linger: 0.25
+      - say: Position thirty-two fills the last slot in page three. B already owns that page. Both of its blocks
+          are full now.
+        hold: 1
+        visual_cues:
+          - id: pages-write-thirty-two
+            phrase: Position thirty-two fills the last slot in page three
+            targets:
+              - worker-pages
+              - pending-write
+            color: pink
+            linger: 0.25
+            caption_boundary: true
+      - say: B now needs position thirty-three. There’s still an empty square in page four, and these five pages
+          are the entire pool. Can B use that square?
+        hold: 2.7
+        visual_cues:
+          - id: pages-next-position
+            phrase: B now needs position thirty-three
+            targets:
+              - history-tables
+              - worker-pages
+              - pending-write
+            color: yellow
+            linger: 0.25
+      - say: B has to wait for a whole page. The empty square belongs to A’s last block. Giving it to B would
+          put two private histories behind the same page handle. This worker queues growth until it can
+          assign B a page. A platform that promises the whole output cap up front needs to reserve those
+          pages before dispatch.
+        hold: 1.3
+        visual_cues:
+          - id: pages-no-block
+            phrase: B has to wait for a whole page
+            targets:
+              - history-tables
+              - worker-pages
+              - pending-write
+            color: yellow
+            linger: 0.25
+            caption_boundary: true
+  - id: kv-byte-shape
+    title: Derive the memory hidden behind each token
+    visual: "Construct a dimensional product: K/V × layers × KV heads × head width × bytes. Reveal 327680 bytes,
+      0.3125 MiB and the 4000-token aggregate only after each completed calculation. Keep query-head count in
+      a labeled excluded box."
+    beats:
+      - say: "Our supplied full-attention shape has eighty layers, eight key-value heads, a head dimension of one
+          hundred twenty eight, and two-byte values. Every cached token stores keys and values. Multiply two
+          times eighty times eight times one hundred twenty eight times two: the result is three hundred
+          twenty seven thousand six hundred eighty bytes."
+        hold: 0.8
+        visual_cues:
+          - id: mt-kv-byte-shape-b0
+            phrase: "Our supplied full-attention shape has eighty layers, eight key-value heads, a head dimension of one
+              hundred twenty eight, and two-byte values. Every cached token stores keys and values. Multiply
+              two times eighty times eight times one hundred twenty eight times two: the result is three
+              hundred twenty seven thousand six hundred eighty bytes."
+            targets:
+              - kv-byte-shape-mechanism
+            color: cyan
+            linger: 0.35
+          - id: mt-kv-byte-shape-s0-2
+            phrase: "Multiply two times eighty times eight times one hundred twenty eight times two: the result is three
+              hundred twenty seven thousand six hundred eighty bytes."
+            targets:
+              - kv-byte-shape-mechanism
+            color: yellow
+            linger: 0.35
+      - say: That is zero point three one two five mebibytes per token. Four thousand cached tokens use about one
+          point two two zero seven gibibytes before metadata and other allocations. In grouped-query
+          attention, use the number of key-value heads in this calculation. Substituting the larger query-head
+          count can overstate the cache.
+        hold: 0.8
+        visual_cues:
+          - id: mt-kv-byte-shape-b1
+            phrase: That is zero point three one two five mebibytes per token. Four thousand cached tokens use about one
+              point two two zero seven gibibytes before metadata and other allocations. In grouped-query
+              attention, use the number of key-value heads in this calculation. Substituting the larger
+              query-head count can overstate the cache.
+            targets:
+              - kv-byte-shape-mechanism
+            color: cyan
+            linger: 0.35
+          - id: mt-kv-byte-shape-s1-0
+            phrase: That is zero point three one two five mebibytes per token.
+            targets:
+              - kv-byte-shape-mechanism
+            color: yellow
+            linger: 0.35
+          - id: mt-kv-byte-shape-s1-1
+            phrase: Four thousand cached tokens use about one point two two zero seven gibibytes before metadata and other
+              allocations.
+            targets:
+              - kv-byte-shape-mechanism
+            color: yellow
+            linger: 0.35
+      - say: This product measures aggregate logical storage for our stated layout. A device’s actual share depends on
+          sharding or replication of heads, layer placement and the engine. Weights, adapters, activations,
+          graph buffers and headroom also consume memory. Validate placement on the chosen worker; dividing an
+          aggregate number by GPU count does not prove each device fits.
+        hold: 0.8
+        visual_cues:
+          - id: mt-kv-byte-shape-b2
+            phrase: This product measures aggregate logical storage for our stated layout. A device’s actual share depends
+              on sharding or replication of heads, layer placement and the engine. Weights, adapters,
+              activations, graph buffers and headroom also consume memory. Validate placement on the chosen
+              worker; dividing an aggregate number by GPU count does not prove each device fits.
+            targets:
+              - kv-byte-shape-mechanism
+            color: cyan
+            linger: 0.35
+  - id: kv-growth
+    title: Reserve the next block before promising the next token
+    visual: Use a separate growth branch with input16/output-cap1 and 16-token pages. Fill the first page, show
+      the allowed extra position, then allocate the second. An integer counter demonstrates why floating
+      conversion loses a token at the large regression value.
+    beats:
+      - say: Paging allocates fixed-size token blocks. The page count for a full-cap policy is the ceiling of input
+          plus maximum output, divided by block size. With sixteen input tokens and one permitted output
+          token, seventeen positions cross the boundary of a sixteen-token block. The reservation therefore
+          needs two pages, containing thirty two positions.
+        hold: 0.8
+        visual_cues:
+          - id: mt-kv-growth-b0
+            phrase: Paging allocates fixed-size token blocks. The page count for a full-cap policy is the ceiling of input
+              plus maximum output, divided by block size. With sixteen input tokens and one permitted output
+              token, seventeen positions cross the boundary of a sixteen-token block. The reservation
+              therefore needs two pages, containing thirty two positions.
+            targets:
+              - kv-growth-pages
+            color: cyan
+            linger: 0.35
+          - id: mt-kv-growth-s0-2
+            phrase: With sixteen input tokens and one permitted output token, seventeen positions cross the boundary of a
+              sixteen-token block.
+            targets:
+              - kv-growth-pages
+            color: yellow
+            linger: 0.35
+          - id: mt-kv-growth-s0-3
+            phrase: The reservation therefore needs two pages, containing thirty two positions.
+            targets:
+              - kv-growth-pages
+            color: yellow
+            linger: 0.35
+      - say: For this model, each sixteen-token page uses five mebibytes. Reserving the entire output cap is
+          conservative. Incremental allocation can increase admission, but growth may later fail. Decide
+          whether the platform queues, preempts, swaps, recomputes or terminates before it begins promising a
+          live stream whose next page is unavailable.
+        hold: 0.8
+        visual_cues:
+          - id: mt-kv-growth-b1
+            phrase: For this model, each sixteen-token page uses five mebibytes. Reserving the entire output cap is
+              conservative. Incremental allocation can increase admission, but growth may later fail. Decide
+              whether the platform queues, preempts, swaps, recomputes or terminates before it begins
+              promising a live stream whose next page is unavailable.
+            targets:
+              - kv-growth-pages
+            color: cyan
+            linger: 0.35
+          - id: mt-kv-growth-s1-0
+            phrase: For this model, each sixteen-token page uses five mebibytes.
+            targets:
+              - kv-growth-pages
+            color: yellow
+            linger: 0.35
+      - say: Keep the ceiling operation in integers. The article tests two to the fifty fourth plus one tokens to
+          catch floating-point underreservation. That enormous count is a regression input, far beyond a real
+          context limit. The implementation must reject impossible context sizes before allocation; exact
+          arithmetic protects the calculation but does not authorize unlimited requests.
+        hold: 0.8
+        visual_cues:
+          - id: mt-kv-growth-b2
+            phrase: Keep the ceiling operation in integers. The article tests two to the fifty fourth plus one tokens to
+              catch floating-point underreservation. That enormous count is a regression input, far beyond a
+              real context limit. The implementation must reject impossible context sizes before allocation;
+              exact arithmetic protects the calculation but does not authorize unlimited requests.
+            targets:
+              - kv-growth-mechanism
+            color: cyan
+            linger: 0.35
+          - id: mt-kv-growth-s2-1
+            phrase: The article tests two to the fifty fourth plus one tokens to catch floating-point underreservation.
+            targets:
+              - kv-growth-mechanism
+            color: yellow
+            linger: 0.35
+          - id: mt-kv-growth-s2-2
+            phrase: That enormous count is a regression input, far beyond a real context limit.
+            targets:
+              - kv-growth-mechanism
+            color: yellow
+            linger: 0.35
+  - id: physical-references
+    title: Two readers of the same handbook
+    visual: In a separate pool, an approved immutable handbook has two readers. Trace the four table entries
+      to three pages. Detach A’s pointers, keep B’s read of the handbook through the host close, then
+      detach B’s pointers only after device retirement.
+    beats:
+      - say: Start a separate pair of requests with the same public handbook. Both readers may use every word in
+          it. The model, adapter and token positions match. The worker keeps one immutable prefix for them
+          and gives each request a private suffix. Count the lines from A and B. How many different
+          physical pages do they reach?
+        hold: 2.3
+        visual_cues:
+          - id: mt-physical-references-b0
+            phrase: Start a separate pair of requests with the same public handbook. Both readers may use every word
+              in it. The model, adapter and token positions match. The worker keeps one immutable prefix
+              for them and gives each request a private suffix. Count the lines from A and B. How many
+              different physical pages do they reach?
+            targets:
+              - reference-map
+              - reference-counts
+            color: cyan
+            linger: 0.25
+      - say: Four block entries reach three physical pages. A finishes, and the worker retires both of A’s
+          references. Look at page one on the left and page zero in the middle. Which one can the
+          allocator reclaim?
+        hold: 2.4
+        visual_cues:
+          - id: mt-physical-references-b1
+            phrase: Four block entries reach three physical pages. A finishes, and the worker retires both of A’s
+              references. Look at page one on the left and page zero in the middle. Which one can the
+              allocator reclaim?
+            targets:
+              - reference-map
+              - reference-counts
+            color: cyan
+            linger: 0.25
+          - id: mt-physical-references-s1-0
+            phrase: Four block entries reach three physical pages
+            targets:
+              - reference-map
+              - reference-counts
+            color: cyan
+            linger: 0.25
+            caption_boundary: true
+          - id: mt-physical-references-s1-1
+            phrase: the worker retires both of A’s references
+            targets:
+              - reference-map
+            color: blue
+            linger: 0.25
+      - say: Page one can return to the pool. B still needs the handbook on page zero. Now the host closes B’s
+          stream. One device operation still holds B’s pages. Could a new request overwrite page zero yet?
+        hold: 2.1
+        visual_cues:
+          - id: mt-physical-references-b2
+            phrase: Page one can return to the pool. B still needs the handbook on page zero. Now the host closes
+              B’s stream. One device operation still holds B’s pages. Could a new request overwrite page
+              zero yet?
+            targets:
+              - reference-map
+              - reference-counts
+            color: cyan
+            linger: 0.25
+          - id: mt-physical-references-s2-1
+            phrase: the host closes B’s stream
+            targets:
+              - reference-map
+            color: pink
+            linger: 0.25
+            caption_boundary: true
+      - say: Wait for that device operation. The worker confirms that B’s last reads have finished and retires
+          its references. Page zero can return to the pool along with B’s private suffix. You could charge
+          each tenant for using the handbook. The allocator needed room for just one copy.
+        hold: 1.1
+        visual_cues:
+          - id: mt-physical-references-b3
+            phrase: Wait for that device operation. The worker confirms that B’s last reads have finished and
+              retires its references. Page zero can return to the pool along with B’s private suffix. You
+              could charge each tenant for using the handbook. The allocator needed room for just one
+              copy.
+            targets:
+              - reference-map
+              - reference-counts
+            color: cyan
+            linger: 0.25
+          - id: mt-physical-references-s3-1
+            phrase: B’s last reads have finished and retires its references
+            targets:
+              - reference-map
+              - reference-counts
+            color: cyan
+            linger: 0.25
+  - id: remote-kv
+    title: Fetch the prefix or rebuild it here?
+    visual: Check Alice’s read access and the cached prefix’s execution details. On the same clock, build a
+      remote lookup followed by a transfer above a local rebuild. Keep the deadline in view. In a separate
+      fetch, keep the remote page pinned through a timeout until the worker confirms its last read.
+    beats:
+      - say: Another worker has a copy of Alice’s prefix. Can she reuse it? First check that Alice may read
+          the entire prefix. Then match the model, adapter, tokens, positions and cache layout to her
+          request. This copy passes both checks.
+        hold: 0.8
+        caption_starts:
+          - First check that Alice
+          - Then match the model
+          - This copy passes both checks
+        visual_cues:
+          - id: mt-remote-kv-b0
+            phrase: Another worker has a copy of Alice’s prefix
+            targets: [remote-kv-mechanism]
+            color: cyan
+          - id: remote-reader
+            phrase: First check that Alice may read the entire prefix
+            targets: [remote-reader]
+            color: blue
+          - id: remote-shape
+            phrase: Then match the model, adapter, tokens, positions and cache layout to her request
+            targets: [remote-shape]
+            color: cyan
+          - id: remote-compatible
+            phrase: This copy passes both checks
+            targets: [remote-kv-mechanism]
+            color: green
+      - say: Alice has seventy milliseconds left. Finding the remote pages takes eighteen milliseconds.
+          Moving them takes another forty-two. Her worker could rebuild the prefix in forty-five
+          milliseconds. Which path finishes first?
+        hold: 2.4
+        caption_starts:
+          - Finding the remote pages
+          - Moving them takes
+          - Her worker could rebuild
+          - Which path finishes first
+        visual_cues:
+          - id: mt-remote-kv-b1
+            phrase: Alice has seventy milliseconds left
+            targets: [remote-kv-mechanism]
+          - id: remote-lookup
+            phrase: Finding the remote pages takes eighteen milliseconds
+            targets: [remote-kv-mechanism]
+          - id: remote-transfer
+            phrase: Moving them takes another forty-two
+            targets: [remote-kv-mechanism]
+          - id: remote-rebuild
+            phrase: Her worker could rebuild the prefix in forty-five milliseconds
+            targets: [remote-kv-mechanism]
+      - say: Rebuild it here. Fetching takes sixty milliseconds because the transfer starts after the
+          lookup. Both routes meet the deadline. Rebuilding leaves twenty-five milliseconds to spare.
+        hold: 1.0
+        caption_starts:
+          - Rebuild it here
+          - Fetching takes sixty milliseconds
+          - Rebuilding leaves twenty-five milliseconds to spare
+        visual_cues:
+          - id: mt-remote-kv-b2
+            phrase: Rebuild it here
+            targets: [remote-kv-mechanism]
+            color: green
+          - id: remote-total
+            phrase: Fetching takes sixty milliseconds
+            targets: [remote-kv-mechanism]
+          - id: remote-spare
+            phrase: Rebuilding leaves twenty-five milliseconds to spare
+            targets: [remote-kv-mechanism]
+            color: green
+      - say: Now follow a fetch that’s already in flight. The caller times out. The remote worker still
+          holds a reference to page zero. Keep that page pinned. When the worker confirms its last
+          read has finished, the allocator can release the page.
+        hold: 1.2
+        caption_starts:
+          - The caller times out
+          - Keep that page pinned
+          - When the worker confirms its last read has finished
+          - the allocator can release the page
+        visual_cues:
+          - id: mt-remote-kv-b3
+            phrase: Now follow a fetch that’s already in flight
+            targets: [remote-kv-pages]
+          - id: remote-timeout
+            phrase: The caller times out
+            targets: [remote-kv-mechanism]
+            color: pink
+          - id: remote-retire
+            phrase: When the worker confirms its last read has finished
+            targets: [remote-kv-pages]
+          - id: remote-release
+            phrase: the allocator can release the page
+            targets: [remote-kv-pages]
+            color: green
+  - id: fairness
+    title: How much work fits in A’s next turn?
+    visual: Spend round credit on whole chunks at the fronts of two backlogged queues. Block width measures
+      work. Block boundaries count chunks. Stop after round two with A’s two leftover credits in view.
+    beats:
+      - say: Once both requests have pages, who gets the next turn? Suppose both tenants keep work in the queue.
+          Each round A gets four credits and B gets two. A chunk of prompt work in A costs three credits.
+          A smaller chunk in B costs one. These are invented units of work. Watch what happens to a credit
+          that cannot buy a whole chunk.
+        hold: 0.65
+      - say: In the first round, A buys one chunk and B buys two. A carries one credit forward. In the second
+          round, A again buys one chunk and B buys two. Look at A’s balance. On its third visit A gets
+          four more credits. How many whole chunks can it serve?
+        hold: 2.5
+        visual_cues:
+          - id: fair-round-one
+            phrase: In the first round, A buys one chunk and B buys two
+            targets:
+              - service-round
+            color: cyan
+            linger: 0.25
+          - id: fair-round-two
+            phrase: In the second round, A again buys one chunk and B buys two
+            targets:
+              - service-round
+            color: cyan
+            linger: 0.25
+          - id: fair-predict
+            phrase: How many whole chunks can it serve
+            targets:
+              - service-round
+            color: yellow
+            linger: 0.25
+      - say: Two chunks. A adds four to the two it saved. Spend all six while B spends its next two. Compare the
+          lengths of the colored strips. A received twice as much work as B. Count the seams instead and A
+          finished four chunks to B’s six. This three-round average still leaves a design question. How
+          long may B wait under sustained load?
+        hold: 1.1
+        caption_starts:
+          - Two chunks
+        visual_cues:
+          - id: fair-round-three
+            phrase: Spend all six while B spends its next two
+            targets:
+              - service-round
+            color: cyan
+            linger: 0.25
+  - id: iteration-boundary
+    title: Let a short request join without waiting for a whole answer
+    visual: A horizontal sequence of execution iterations shows A continuing while a completed sequence exits and
+      B enters. A long prefill is then split into bounded chunks interleaved with decode; no token count is
+      labeled GPU time.
+    beats:
+      - say: "A static batch can make a short request wait behind a long generation. Iteration-level batching revisits
+          membership between model steps: finished sequences leave, compatible new work enters, and existing
+          requests continue. The boundary avoids waiting for an entire answer. It still needs memory admission
+          and policy about which queued tenant joins next."
+        hold: 0.8
+        visual_cues:
+          - id: mt-iteration-boundary-b0
+            phrase: "A static batch can make a short request wait behind a long generation. Iteration-level batching
+              revisits membership between model steps: finished sequences leave, compatible new work enters,
+              and existing requests continue. The boundary avoids waiting for an entire answer. It still needs
+              memory admission and policy about which queued tenant joins next."
+            targets:
+              - iteration-boundary-mechanism
+            color: cyan
+            linger: 0.35
+          - id: mt-iteration-boundary-s0-1
+            phrase: "Iteration-level batching revisits membership between model steps: finished sequences leave,
+              compatible new work enters, and existing requests continue."
+            targets:
+              - iteration-boundary-mechanism
+            color: yellow
+            linger: 0.35
+      - say: A large prompt can dominate one prefill step even when the engine batches continuously. Chunked prefill
+          divides that work into smaller pieces so decode and prompt processing can interleave. The token
+          budget per iteration influences first-output delay, streaming delay and throughput. Admission
+          checks the tenant’s allowance before those tokens reach the scheduler.
+        hold: 0.8
+        visual_cues:
+          - id: mt-iteration-boundary-b1
+            phrase: A large prompt can dominate one prefill step even when the engine batches continuously. Chunked
+              prefill divides that work into smaller pieces so decode and prompt processing can interleave.
+              The token budget per iteration influences first-output delay, streaming delay and throughput.
+              Admission checks the tenant’s allowance before those tokens reach the scheduler.
+            targets:
+              - iteration-boundary-mechanism
+            color: cyan
+            linger: 0.35
+          - id: mt-iteration-boundary-s1-1
+            phrase: Chunked prefill divides that work into smaller pieces so decode and prompt processing can interleave.
+            targets:
+              - iteration-boundary-mechanism
+            color: yellow
+            linger: 0.35
+      - say: This step has room for eight tokens. With chunked prefill, vLLM schedules pending decode work
+          first. Three blue slots go to decode. The next five go to prompt tokens, and the rest of the prompt
+          waits for another step. Measure first output and the gaps in each tenant’s stream as you change the
+          budget.
+        hold: 0.8
+        caption_starts:
+          - Three blue slots go to decode
+          - The next five go to prompt tokens
+        visual_cues:
+          - id: mt-iteration-boundary-b2
+            phrase: This step has room for eight tokens. With chunked prefill, vLLM schedules pending decode
+              work first. Three blue slots go to decode. The next five go to prompt tokens, and the rest
+              of the prompt waits for another step. Measure first output and the gaps in each tenant’s
+              stream as you change the budget.
+            targets:
+              - iteration-boundary-mechanism
+            color: cyan
+            linger: 0.35
+          - id: mt-iteration-boundary-s2-0
+            phrase: Three blue slots go to decode
+            targets: [iteration-boundary-mechanism]
+            color: cyan
+          - id: mt-iteration-boundary-s2-1
+            phrase: The next five go to prompt tokens
+            targets:
+              - iteration-boundary-mechanism
+            color: yellow
+            linger: 0.35
+  - id: work-cost
+    title: Charge bounded work rather than counting requests
+    visual: Reconnect the original three-round deficit ledger to a cost-model calibration panel. A long-prefill
+      request and a short decode request have equal nominal token counts but different estimated work. Keep
+      measured and estimated units visually distinct.
+    beats:
+      - say: Our original scheduler gave A four synthetic work units per round and B two. Across three backlogged
+          rounds, A consumed twelve units and B six. A finished four cost-three chunks; B finished six
+          cost-one chunks. The two-to-one work share therefore produced a two-to-three chunk-count ratio.
+          Equal request counts were never the promise.
+        hold: 0.8
+        visual_cues:
+          - id: mt-work-cost-b0
+            phrase: Our original scheduler gave A four synthetic work units per round and B two. Across three backlogged
+              rounds, A consumed twelve units and B six. A finished four cost-three chunks; B finished six
+              cost-one chunks. The two-to-one work share therefore produced a two-to-three chunk-count ratio.
+              Equal request counts were never the promise.
+            targets:
+              - work-cost-mechanism
+            color: cyan
+            linger: 0.35
+          - id: mt-work-cost-s0-1
+            phrase: Across three backlogged rounds, A consumed twelve units and B six.
+            targets:
+              - work-cost-mechanism
+            color: yellow
+            linger: 0.35
+          - id: mt-work-cost-s0-2
+            phrase: A finished four cost-three chunks; B finished six cost-one chunks.
+            targets:
+              - work-cost-mechanism
+            color: yellow
+            linger: 0.35
+          - id: mt-work-cost-s0-3
+            phrase: The two-to-one work share therefore produced a two-to-three chunk-count ratio.
+            targets:
+              - work-cost-mechanism
+            color: yellow
+            linger: 0.35
+      - say: Real scheduling charges need a cost model. Prefill and decode have different compute and memory behavior,
+          longer contexts change attention work, cache reuse changes prompt work, and companions change a
+          shared batch. Two requests with equal token totals need not impose equal GPU work or equal delay on
+          another tenant. Calibrate estimates with measurements.
+        hold: 0.8
+        visual_cues:
+          - id: mt-work-cost-b1
+            phrase: Real scheduling charges need a cost model. Prefill and decode have different compute and memory
+              behavior, longer contexts change attention work, cache reuse changes prompt work, and companions
+              change a shared batch. Two requests with equal token totals need not impose equal GPU work or
+              equal delay on another tenant. Calibrate estimates with measurements.
+            targets:
+              - work-cost-mechanism
+            color: cyan
+            linger: 0.35
+      - say: Carry credit while a queue remains backlogged, reset it according to the declared idle policy, and bound
+          each dispatch chunk and batch-building interval. A fair average over three rounds gives no
+          maximum-wait guarantee. Add aging, reserved service or explicit waiting limits for lower tiers, and
+          declare how the system rejects excess load instead of promising impossible latency.
+        hold: 0.8
+        visual_cues:
+          - id: mt-work-cost-b2
+            phrase: Carry credit while a queue remains backlogged, reset it according to the declared idle policy, and
+              bound each dispatch chunk and batch-building interval. A fair average over three rounds gives no
+              maximum-wait guarantee. Add aging, reserved service or explicit waiting limits for lower tiers,
+              and declare how the system rejects excess load instead of promising impossible latency.
+            targets:
+              - work-cost-mechanism
+            color: cyan
+            linger: 0.35
+          - id: mt-work-cost-s2-0
+            phrase: Carry credit while a queue remains backlogged, reset it according to the declared idle policy, and
+              bound each dispatch chunk and batch-building interval.
+            targets:
+              - work-cost-mechanism
+            color: yellow
+            linger: 0.35
+  - id: extra-work
+    title: Account for verification and preemption before calling capacity free
+    visual: A speculative branch shows proposed positions, verification work and accepted output as distinct
+      counters. A separate preemption branch retains a live block until an actual retirement acknowledgement,
+      then permits the newcomer’s atomic reservation.
+    beats:
+      - say: Speculative decoding proposes tokens and spends target work verifying them. Accepted output alone
+          understates this work and its temporary state. Reserve positions for proposal and verification,
+          enforce the same data permissions, and check target and adapter compatibility. Evaluate its effect
+          while other tenants compete, rather than assuming a single-request speedup becomes a fleet gain.
+        hold: 0.8
+        visual_cues:
+          - id: mt-extra-work-b0
+            phrase: Speculative decoding proposes tokens and spends target work verifying them. Accepted output alone
+              understates this work and its temporary state. Reserve positions for proposal and verification,
+              enforce the same data permissions, and check target and adapter compatibility. Evaluate its
+              effect while other tenants compete, rather than assuming a single-request speedup becomes a
+              fleet gain.
+            targets:
+              - extra-work-mechanism
+            color: cyan
+            linger: 0.35
+          - id: mt-extra-work-s0-0
+            phrase: Speculative decoding proposes tokens and spends target work verifying them.
+            targets:
+              - extra-work-mechanism
+            color: yellow
+            linger: 0.35
+          - id: mt-extra-work-s0-1
+            phrase: Accepted output alone understates this work and its temporary state.
+            targets:
+              - extra-work-mechanism
+            color: yellow
+            linger: 0.35
+      - say: Preemption can reclaim resources only when the allocator and execution agree. Selecting a victim in a
+          list does not free its blocks. Preserve the state needed to resume, complete any required device
+          operations, retire or move the actual blocks, and update ownership before atomically promising that
+          capacity to another request.
+        hold: 0.8
+        visual_cues:
+          - id: mt-extra-work-b1
+            phrase: Preemption can reclaim resources only when the allocator and execution agree. Selecting a victim in a
+              list does not free its blocks. Preserve the state needed to resume, complete any required device
+              operations, retire or move the actual blocks, and update ownership before atomically promising
+              that capacity to another request.
+            targets:
+              - extra-work-pages
+            color: cyan
+            linger: 0.35
+          - id: mt-extra-work-s1-1
+            phrase: Selecting a victim in a list does not free its blocks.
+            targets:
+              - extra-work-pages
+            color: yellow
+            linger: 0.35
+          - id: mt-extra-work-s1-2
+            phrase: Preserve the state needed to resume, complete any required device operations, retire or move the
+              actual blocks, and update ownership before atomically promising that capacity to another
+              request.
+            targets:
+              - extra-work-pages
+            color: yellow
+            linger: 0.35
+      - say: Repeated prefill after preemption costs time and money. Measure recomputation, avoid selecting the same
+          victim indefinitely, and retain bounded lower-tier service. Current vLLM documentation warns that
+          cache-pressure preemption can hurt completion latency. A more aggressive admission limit can
+          increase apparent occupancy while making useful completed work worse.
+        hold: 0.8
+        visual_cues:
+          - id: mt-extra-work-b2
+            phrase: Repeated prefill after preemption costs time and money. Measure recomputation, avoid selecting the
+              same victim indefinitely, and retain bounded lower-tier service. Current vLLM documentation
+              warns that cache-pressure preemption can hurt completion latency. A more aggressive admission
+              limit can increase apparent occupancy while making useful completed work worse.
+            targets:
+              - extra-work-mechanism
+            color: cyan
+            linger: 0.35
+          - id: mt-extra-work-s2-0
+            phrase: Repeated prefill after preemption costs time and money.
+            targets:
+              - extra-work-mechanism
+            color: yellow
+            linger: 0.35
+  - id: cache
+    title: Authorize reuse and preserve live artifact references
+    visual: Request A-1 pins immutable adapter docs-v2, blocks an attempted eviction while its reference is live,
+      then retires the reference before reuse becomes permitted. A later ACL change compares the request key
+      with the retained ACL-v1 prefix and produces a visible miss behind an authorization gate.
+    beats:
+      - say: A hot adapter is an artifact in memory, rather than proof that a caller may load it. Resolve an
+          authorized immutable revision compatible with the base model, then pin it for the request lifetime.
+          An in-flight batch keeps its reference even if another tenant needs the cache slot. Evict only
+          safely retired references.
+        hold: 0.65
+        visual_cues:
+          - id: cache-beat-1-focus-1
+            phrase: An in-flight batch keeps its reference even if another tenant needs the cache slot
+            targets:
+              - cache-s-attempted-s-evictable-eviction-permitted-after-retirement-eviction
+            color: cyan
+            linger: 0.65
+          - id: cache-beat-1-focus-2
+            phrase: Resolve an authorized immutable revision compatible with the base model
+            targets:
+              - cache-immutable-adapter-docs-v2
+            color: yellow
+            linger: 0.65
+      - say: Apply the same discipline to retrieval and prefix reuse. Cache identity includes compatible model,
+          adapter, token state, and permission scope, while cache reads still require authorization. A changed
+          access policy makes stale reuse unreachable under the declared revocation policy. Logical namespaces
+          complement process, device-instance, and host isolation selected from the actual threat model.
+        hold: 0.65
+        visual_cues:
+          - id: cache-beat-2-focus-1
+            phrase: Apply the same discipline to retrieval and prefix reuse
+            targets:
+              - cache-stored-prefix-acl-v1
+            color: cyan
+            linger: 0.65
+          - id: cache-beat-2-focus-2
+            phrase: Cache identity includes compatible model, adapter, token state, and permission scope, while cache
+              reads still require authorization
+            targets:
+              - cache-immutable-adapter-docs-v2
+            color: yellow
+            linger: 0.65
+  - id: adapter-revisions
+    title: Pin the approved artifact while an alias moves
+    visual: A request resolves docs-current to docs-v2, obtains permission and compatibility, and pins a
+      reference. The alias advances to v3 for new work. Keep the old batch on v2 until its actual completion;
+      a cold adapter waits for a free slot.
+    beats:
+      - say: An adapter changes model behavior through learned low-rank matrices added to selected frozen base layers.
+          It does not replace document authorization. Resolve a friendly alias into an approved immutable
+          artifact revision and compatible base revision before dispatch. A hot local copy can save loading
+          time; its presence cannot grant a tenant permission to use it.
+        hold: 0.8
+        visual_cues:
+          - id: mt-adapter-revisions-b0
+            phrase: An adapter changes model behavior through learned low-rank matrices added to selected frozen base
+              layers. It does not replace document authorization. Resolve a friendly alias into an approved
+              immutable artifact revision and compatible base revision before dispatch. A hot local copy can
+              save loading time; its presence cannot grant a tenant permission to use it.
+            targets:
+              - adapter-revisions-mechanism
+            color: cyan
+            linger: 0.35
+          - id: mt-adapter-revisions-s0-1
+            phrase: It does not replace document authorization.
+            targets:
+              - adapter-revisions-mechanism
+            color: yellow
+            linger: 0.35
+          - id: mt-adapter-revisions-s0-2
+            phrase: Resolve a friendly alias into an approved immutable artifact revision and compatible base revision
+              before dispatch.
+            targets:
+              - adapter-revisions-mechanism
+            color: yellow
+            linger: 0.35
+      - say: Let one request pin docs version two while the current alias advances to version three. New requests may
+          resolve to three, but the running request keeps two through its execution and compatible retries.
+          Its key-value state also belongs to that resolved computation. An alias update cannot silently turn
+          existing cached state into the new adapter’s state.
+        hold: 0.8
+        visual_cues:
+          - id: mt-adapter-revisions-b1
+            phrase: Let one request pin docs version two while the current alias advances to version three. New requests
+              may resolve to three, but the running request keeps two through its execution and compatible
+              retries. Its key-value state also belongs to that resolved computation. An alias update cannot
+              silently turn existing cached state into the new adapter’s state.
+            targets:
+              - adapter-revisions-mechanism
+            color: cyan
+            linger: 0.35
+          - id: mt-adapter-revisions-s1-0
+            phrase: Let one request pin docs version two while the current alias advances to version three.
+            targets:
+              - adapter-revisions-mechanism
+            color: yellow
+            linger: 0.35
+          - id: mt-adapter-revisions-s1-1
+            phrase: New requests may resolve to three, but the running request keeps two through its execution and
+              compatible retries.
+            targets:
+              - adapter-revisions-mechanism
+            color: yellow
+            linger: 0.35
+      - say: Before loading, validate ownership, integrity, format, rank, size and base compatibility. Protect runtime
+          load and unload endpoints from tenant access; the current vLLM guidance reserves dynamic loading for
+          an isolated, fully trusted environment. Track references during eviction. If every slot is pinned,
+          wait or choose another worker instead of overwriting a live artifact.
+        hold: 0.8
+        visual_cues:
+          - id: mt-adapter-revisions-b2
+            phrase: Before loading, validate ownership, integrity, format, rank, size and base compatibility. Protect
+              runtime load and unload endpoints from tenant access; the current vLLM guidance reserves dynamic
+              loading for an isolated, fully trusted environment. Track references during eviction. If every
+              slot is pinned, wait or choose another worker instead of overwriting a live artifact.
+            targets:
+              - adapter-revisions-mechanism
+            color: cyan
+            linger: 0.35
+          - id: mt-adapter-revisions-s2-3
+            phrase: If every slot is pinned, wait or choose another worker instead of overwriting a live artifact.
+            targets:
+              - adapter-revisions-mechanism
+            color: yellow
+            linger: 0.35
+  - id: reader-before-ranking
+    title: Choose the best evidence from the authorized candidate set
+    visual: Three document cards carry tenant, reader and relevance. B-secret0.99 and A-private0.95 remain inside
+      the trusted retrieval boundary. Alice sees only A-public0.80. Contrast an explicitly restarted
+      broad-top1-then-filter branch that returns no authorized result.
+    beats:
+      - say: The highest-scored passage in our fixture belongs to B. The next belongs to A but is readable only by
+          Carol. Alice’s permitted A passage has the lowest supplied score. First establish the authorized
+          candidate set for Alice, then rank that set. A relevant forbidden passage cannot enter her model
+          context merely because its score is larger.
+        hold: 0.8
+        visual_cues:
+          - id: mt-reader-before-ranking-b0
+            phrase: The highest-scored passage in our fixture belongs to B. The next belongs to A but is readable only by
+              Carol. Alice’s permitted A passage has the lowest supplied score. First establish the authorized
+              candidate set for Alice, then rank that set. A relevant forbidden passage cannot enter her model
+              context merely because its score is larger.
+            targets:
+              - reader-before-ranking-mechanism
+            color: cyan
+            linger: 0.35
+          - id: mt-reader-before-ranking-s0-0
+            phrase: The highest-scored passage in our fixture belongs to B.
+            targets:
+              - reader-before-ranking-mechanism
+            color: yellow
+            linger: 0.35
+          - id: mt-reader-before-ranking-s0-1
+            phrase: The next belongs to A but is readable only by Carol.
+            targets:
+              - reader-before-ranking-mechanism
+            color: yellow
+            linger: 0.35
+          - id: mt-reader-before-ranking-s0-2
+            phrase: Alice’s permitted A passage has the lowest supplied score.
+            targets:
+              - reader-before-ranking-mechanism
+            color: yellow
+            linger: 0.35
+          - id: mt-reader-before-ranking-s0-3
+            phrase: First establish the authorized candidate set for Alice, then rank that set.
+            targets:
+              - reader-before-ranking-mechanism
+            color: yellow
+            linger: 0.35
+      - say: Fetching the global top result and discarding it afterward can leave no authorized result, even though
+          Alice’s passage exists. More seriously, sending the forbidden identifier, score or text to an
+          untrusted component has already crossed the boundary. Keep the filtering decision inside trusted
+          retrieval, and revalidate at content fetch when grants can change.
+        hold: 0.8
+        visual_cues:
+          - id: mt-reader-before-ranking-b1
+            phrase: Fetching the global top result and discarding it afterward can leave no authorized result, even though
+              Alice’s passage exists. More seriously, sending the forbidden identifier, score or text to an
+              untrusted component has already crossed the boundary. Keep the filtering decision inside trusted
+              retrieval, and revalidate at content fetch when grants can change.
+            targets:
+              - reader-before-ranking-mechanism
+            color: cyan
+            linger: 0.35
+          - id: mt-reader-before-ranking-s1-0
+            phrase: Fetching the global top result and discarding it afterward can leave no authorized result, even though
+              Alice’s passage exists.
+            targets:
+              - reader-before-ranking-mechanism
+            color: yellow
+            linger: 0.35
+          - id: mt-reader-before-ranking-s1-2
+            phrase: Keep the filtering decision inside trusted retrieval, and revalidate at content fetch when grants can
+              change.
+            targets:
+              - reader-before-ranking-mechanism
+            color: yellow
+            linger: 0.35
+      - say: Database policy can reinforce that service boundary. PostgreSQL row security defaults to denying ordinary
+          row access when enabled without a policy, but superusers and bypass roles escape it; owners normally
+          do too unless forced under row security. Verify the real service role and query path. A policy on a
+          table does not prove the application actually uses it.
+        hold: 0.8
+        visual_cues:
+          - id: mt-reader-before-ranking-b2
+            phrase: Database policy can reinforce that service boundary. PostgreSQL row security defaults to denying
+              ordinary row access when enabled without a policy, but superusers and bypass roles escape it;
+              owners normally do too unless forced under row security. Verify the real service role and query
+              path. A policy on a table does not prove the application actually uses it.
+            targets:
+              - reader-before-ranking-mechanism
+            color: cyan
+            linger: 0.35
+  - id: prefix-trust
+    title: Give cache reuse the same permission story as its contents
+    visual: Build a cache identity from trusted tenant/reader or approved sharing group, ACL revision,
+      model/adapter and token context. A caller-provided salt stops at a separate authorization gate. Change
+      only the ACL revision and show an incompatible prior entry staying unavailable.
+    beats:
+      - say: A prefix cache can avoid recomputing compatible prior tokens. Its identity must represent the
+          computation, including prefix token history, model, adapter and applicable layout choices. The
+          permitted reuse group must also cover the prefix’s data. Two people in one tenant can have different
+          document grants, so tenant equality alone is too broad for private retrieval.
+        hold: 0.8
+        visual_cues:
+          - id: mt-prefix-trust-b0
+            phrase: A prefix cache can avoid recomputing compatible prior tokens. Its identity must represent the
+              computation, including prefix token history, model, adapter and applicable layout choices. The
+              permitted reuse group must also cover the prefix’s data. Two people in one tenant can have
+              different document grants, so tenant equality alone is too broad for private retrieval.
+            targets:
+              - prefix-trust-mechanism
+            color: cyan
+            linger: 0.35
+          - id: mt-prefix-trust-s0-1
+            phrase: Its identity must represent the computation, including prefix token history, model, adapter and
+              applicable layout choices.
+            targets:
+              - prefix-trust-mechanism
+            color: yellow
+            linger: 0.35
+          - id: mt-prefix-trust-s0-2
+            phrase: The permitted reuse group must also cover the prefix’s data.
+            targets:
+              - prefix-trust-mechanism
+            color: yellow
+            linger: 0.35
+      - say: The vLLM design includes prefix history, block tokens and extra identity such as adapter and cache salt
+          in its block hashing. A salt partitions reuse among matching groups; it does not authenticate the
+          caller. Resolve that group from trusted policy. Allowing callers to claim somebody else’s salt
+          cannot become permission to read their cache.
+        hold: 0.8
+        visual_cues:
+          - id: mt-prefix-trust-b1
+            phrase: The vLLM design includes prefix history, block tokens and extra identity such as adapter and cache
+              salt in its block hashing. A salt partitions reuse among matching groups; it does not
+              authenticate the caller. Resolve that group from trusted policy. Allowing callers to claim
+              somebody else’s salt cannot become permission to read their cache.
+            targets:
+              - prefix-trust-mechanism
+            color: cyan
+            linger: 0.35
+          - id: mt-prefix-trust-s1-1
+            phrase: A salt partitions reuse among matching groups; it does not authenticate the caller.
+            targets:
+              - prefix-trust-mechanism
+            color: yellow
+            linger: 0.35
+          - id: mt-prefix-trust-s1-3
+            phrase: Allowing callers to claim somebody else’s salt cannot become permission to read their cache.
+            targets:
+              - prefix-trust-mechanism
+            color: yellow
+            linger: 0.35
+      - say: When an access-control revision changes, ensure reuse follows current visibility, using a versioned
+          namespace, invalidation or another explicit revocation mechanism. A cache hit never overrides
+          authorization. Broader sharing between principals is possible when all are allowed the complete
+          prefix and execution context, with a declared response to later revocation.
+        hold: 0.8
+        visual_cues:
+          - id: mt-prefix-trust-b2
+            phrase: When an access-control revision changes, ensure reuse follows current visibility, using a versioned
+              namespace, invalidation or another explicit revocation mechanism. A cache hit never overrides
+              authorization. Broader sharing between principals is possible when all are allowed the complete
+              prefix and execution context, with a declared response to later revocation.
+            targets:
+              - prefix-trust-mechanism
+            color: cyan
+            linger: 0.35
+          - id: mt-prefix-trust-s2-0
+            phrase: When an access-control revision changes, ensure reuse follows current visibility, using a versioned
+              namespace, invalidation or another explicit revocation mechanism.
+            targets:
+              - prefix-trust-mechanism
+            color: yellow
+            linger: 0.35
+  - id: runtime-trust
+    title: Draw the resources that remain shared
+    visual: Use nested boundaries for address space, host kernel/driver and GPU instance memory. Show two compute
+      instances inside one GPU instance sharing that memory. Compare with a separate GPU instance and host
+      pool without inventing a linear security score.
+    beats:
+      - say: Logical tenant names, quotas and cache salts protect particular application paths. They do not create
+          separate operating-system address spaces or GPU security domains. A shared worker process shares its
+          address space and implementation. Separate processes or containers add boundaries while retaining
+          host kernel, device and driver trust. State which adversary each choice addresses.
+        hold: 0.8
+        visual_cues:
+          - id: mt-runtime-trust-b0
+            phrase: Logical tenant names, quotas and cache salts protect particular application paths. They do not create
+              separate operating-system address spaces or GPU security domains. A shared worker process shares
+              its address space and implementation. Separate processes or containers add boundaries while
+              retaining host kernel, device and driver trust. State which adversary each choice addresses.
+            targets:
+              - runtime-trust-mechanism
+            color: cyan
+            linger: 0.35
+          - id: mt-runtime-trust-s0-2
+            phrase: A shared worker process shares its address space and implementation.
+            targets:
+              - runtime-trust-mechanism
+            color: yellow
+            linger: 0.35
+      - say: NVIDIA distinguishes a GPU instance from compute instances inside it. A GPU instance partitions GPU
+          resources and provides a memory quality-of-service boundary. Its compute instances subdivide compute
+          while sharing that parent instance’s memory and engines. Two compute instances inside one GPU
+          instance therefore do not establish two separate GPU-instance memory boundaries.
+        hold: 0.8
+        visual_cues:
+          - id: mt-runtime-trust-b1
+            phrase: NVIDIA distinguishes a GPU instance from compute instances inside it. A GPU instance partitions GPU
+              resources and provides a memory quality-of-service boundary. Its compute instances subdivide
+              compute while sharing that parent instance’s memory and engines. Two compute instances inside
+              one GPU instance therefore do not establish two separate GPU-instance memory boundaries.
+            targets:
+              - runtime-trust-mechanism
+            color: cyan
+            linger: 0.35
+          - id: mt-runtime-trust-s1-1
+            phrase: A GPU instance partitions GPU resources and provides a memory quality-of-service boundary.
+            targets:
+              - runtime-trust-mechanism
+            color: yellow
+            linger: 0.35
+          - id: mt-runtime-trust-s1-2
+            phrase: Its compute instances subdivide compute while sharing that parent instance’s memory and engines.
+            targets:
+              - runtime-trust-mechanism
+            color: yellow
+            linger: 0.35
+      - say: A virtual machine or dedicated pool changes additional trust assumptions, but network, storage, identity
+          and operational access remain relevant. The chosen model must fit the actual partition and
+          placement. Encryption and masking add useful controls; a redacted prompt can still retrieve
+          unauthorized evidence. Choose separation from the real data and threat model, not from a single
+          isolation score.
+        hold: 0.8
+        visual_cues:
+          - id: mt-runtime-trust-b2
+            phrase: A virtual machine or dedicated pool changes additional trust assumptions, but network, storage,
+              identity and operational access remain relevant. The chosen model must fit the actual partition
+              and placement. Encryption and masking add useful controls; a redacted prompt can still retrieve
+              unauthorized evidence. Choose separation from the real data and threat model, not from a single
+              isolation score.
+            targets:
+              - runtime-trust-mechanism
+            color: cyan
+            linger: 0.35
+          - id: mt-runtime-trust-s2-0
+            phrase: A virtual machine or dedicated pool changes additional trust assumptions, but network, storage,
+              identity and operational access remain relevant.
+            targets:
+              - runtime-trust-mechanism
+            color: yellow
+            linger: 0.35
+  - id: cost
+    title: Keep GPU seconds and whole-node prices consistent
+    visual: Four GPUs run one 0.2-second step. The 0.8 GPU-seconds cost about 0.000444444 dollars at the
+      example rate of two dollars per GPU-hour. The 25 and 75 percent shares divide that cost.
+    beats:
+      - say: Usage events, internal allocated cost, and customer prices serve different purposes. Record tenant,
+          logical request, execution attempt, reservation, model revision, token categories, terminal
+          status, and metering policy. A retry is another attempt under the same request, and duplicate
+          delivery must not create another logical charge.
+        hold: 0.65
+        visual_cues:
+          - id: cost-beat-1-focus-1
+            phrase: Usage events, internal allocated cost, and customer prices serve different purposes
+            targets:
+              - cost-s-cost-tofixed-9-total
+            color: cyan
+            linger: 0.65
+      - say: Four GPUs running one shared step consume four times its wall duration in GPU-seconds. Multiply by
+          a per-GPU rate, or multiply node-seconds by the whole-node rate. Using GPU-seconds with a
+          whole-node rate counts the device factor twice. The displayed request shares are an allocation
+          policy that conserves the measured step cost.
+        hold: 0.65
+        visual_cues:
+          - id: cost-beat-2-focus-1
+            phrase: Multiply by a per-GPU rate, or multiply node-seconds by the whole-node rate
+            targets:
+              - cost-s-gpuseconds-tofixed-1-gpu-seconds
+            color: cyan
+            linger: 0.65
+          - id: cost-beat-2-focus-2
+            phrase: Four GPUs running one shared step consume four times its wall duration in GPU-seconds
+            targets:
+              - cost-s-gpuseconds-tofixed-1-gpu-seconds
+            color: yellow
+            linger: 0.65
+  - id: usage-and-bill
+    title: Keep the receipt, allocation and invoice separate
+    visual: One immutable usage receipt retains tenant/request/attempt/reservation/revisions and
+      generated/delivered/billable counts. Three aligned columns distinguish observed usage, policy allocation
+      and customer tariff. Two transport deliveries connect to one logical settlement.
+    beats:
+      - say: Record tenant, logical request, attempt, reservation, model and adapter revisions, input and output
+          counts, cached input, terminal status and the metering-policy revision. A retry creates a new
+          execution attempt. Preserve those attempts separately so repeated delivery of one receipt cannot
+          masquerade as new work, while genuine repeated execution remains visible.
+        hold: 0.8
+        visual_cues:
+          - id: mt-usage-and-bill-b0
+            phrase: Record tenant, logical request, attempt, reservation, model and adapter revisions, input and output
+              counts, cached input, terminal status and the metering-policy revision. A retry creates a new
+              execution attempt. Preserve those attempts separately so repeated delivery of one receipt cannot
+              masquerade as new work, while genuine repeated execution remains visible.
+            targets:
+              - usage-and-bill-mechanism
+            color: cyan
+            linger: 0.35
+          - id: mt-usage-and-bill-s0-0
+            phrase: Record tenant, logical request, attempt, reservation, model and adapter revisions, input and output
+              counts, cached input, terminal status and the metering-policy revision.
+            targets:
+              - usage-and-bill-mechanism
+            color: yellow
+            linger: 0.35
+          - id: mt-usage-and-bill-s0-1
+            phrase: A retry creates a new execution attempt.
+            targets:
+              - usage-and-bill-mechanism
+            color: yellow
+            linger: 0.35
+      - say: After a disconnect, generated output can exceed delivered output. Billable output depends on the
+          contract. Declare these meanings rather than forcing one count to serve every purpose. Queue wait
+          consumes a deadline but is not busy accelerator time. Recomputed attempts, idle replicas, CPU,
+          storage and transfer still cost money and need explicit accounting.
+        hold: 0.8
+        visual_cues:
+          - id: mt-usage-and-bill-b1
+            phrase: After a disconnect, generated output can exceed delivered output. Billable output depends on the
+              contract. Declare these meanings rather than forcing one count to serve every purpose. Queue
+              wait consumes a deadline but is not busy accelerator time. Recomputed attempts, idle replicas,
+              CPU, storage and transfer still cost money and need explicit accounting.
+            targets:
+              - usage-and-bill-mechanism
+            color: cyan
+            linger: 0.35
+          - id: mt-usage-and-bill-s1-0
+            phrase: After a disconnect, generated output can exceed delivered output.
+            targets:
+              - usage-and-bill-mechanism
+            color: yellow
+            linger: 0.35
+          - id: mt-usage-and-bill-s1-1
+            phrase: Billable output depends on the contract.
+            targets:
+              - usage-and-bill-mechanism
+            color: yellow
+            linger: 0.35
+      - say: The shared step’s total cost is a worker-level observation combined with supplied rates. Dividing it
+          between requests is an allocation policy. A customer token tariff is another policy and may differ
+          from allocated cost. Compare them to detect an unsustainable workload mix, while keeping the usage
+          evidence and every policy revision auditable.
+        hold: 0.8
+        visual_cues:
+          - id: mt-usage-and-bill-b2
+            phrase: The shared step’s total cost is a worker-level observation combined with supplied rates. Dividing it
+              between requests is an allocation policy. A customer token tariff is another policy and may
+              differ from allocated cost. Compare them to detect an unsustainable workload mix, while keeping
+              the usage evidence and every policy revision auditable.
+            targets:
+              - usage-and-bill-mechanism
+            color: cyan
+            linger: 0.35
+          - id: mt-usage-and-bill-s2-0
+            phrase: The shared step’s total cost is a worker-level observation combined with supplied rates.
+            targets:
+              - usage-and-bill-mechanism
+            color: yellow
+            linger: 0.35
+          - id: mt-usage-and-bill-s2-1
+            phrase: Dividing it between requests is an allocation policy.
+            targets:
+              - usage-and-bill-mechanism
+            color: yellow
+            linger: 0.35
+          - id: mt-usage-and-bill-s2-2
+            phrase: A customer token tariff is another policy and may differ from allocated cost.
+            targets:
+              - usage-and-bill-mechanism
+            color: yellow
+            linger: 0.35
+      - say: For an hourly rate, divide the seconds by three thousand six hundred before multiplying. The node rate
+          already includes its GPUs, so use node-seconds with that rate. This keeps the shared-step total
+          consistent before any allocation between requests.
+        hold: 0.8
+        visual_cues:
+          - id: mt-usage-and-bill-b3
+            phrase: For an hourly rate, divide the seconds by three thousand six hundred before multiplying. The node rate
+              already includes its GPUs, so use node-seconds with that rate. This keeps the shared-step total
+              consistent before any allocation between requests.
+            targets:
+              - usage-and-bill-mechanism
+            color: cyan
+            linger: 0.35
+          - id: mt-usage-and-bill-s3-0
+            phrase: For an hourly rate, divide the seconds by three thousand six hundred before multiplying.
+            targets:
+              - usage-and-bill-mechanism
+            color: yellow
+            linger: 0.35
+          - id: mt-usage-and-bill-s3-1
+            phrase: The node rate already includes its GPUs, so use node-seconds with that rate.
+            targets:
+              - usage-and-bill-mechanism
+            color: yellow
+            linger: 0.35
+  - id: recovery
+    title: What happened to attempt one?
+    visual: File a usage receipt and a device retirement as separate evidence for A-1. Keep the committed
+      700-unit hold until both arrive. After settlement, leave Alice’s delivered sequence intact and show
+      the terminal partial-result event.
+    beats:
+      - say: Back at A’s one-thousand-unit ledger, the gateway loses the dispatch acknowledgement. Attempt one
+          may still be running. A second worker is ready, but both workers would be spending the same
+          reservation. A trusted receipt reports three hundred input tokens and one hundred twenty output
+          tokens. The device still has a read outstanding. Can we release the hold and start attempt two?
+        hold: 2.4
+        visual_cues:
+          - id: recovery-old-attempt
+            phrase: Attempt one may still be running
+            targets:
+              - recovery-old-owner
+            color: yellow
+            linger: 0.25
+          - id: recovery-usage
+            phrase: A trusted receipt reports three hundred input tokens and one hundred twenty output tokens
+            targets:
+              - recovery-boundary
+            color: cyan
+            linger: 0.25
+      - say: Keep the seven hundred units held. Reconcile the same request, reservation and attempt. Now the
+          worker confirms that the last read has finished and attempt one cannot continue. Settle four
+          hundred twenty units and release the unused two hundred eighty. That leaves A with five hundred
+          eighty available. A replacement attempt would still need a retry budget and its own execution
+          owner.
+        hold: 1.2
+        visual_cues:
+          - id: recovery-retry-fence
+            phrase: Keep the seven hundred units held
+            targets:
+              - recovery-retry-owner
+              - recovery-reservation
+            color: yellow
+            linger: 0.25
+            caption_boundary: true
+          - id: recovery-beat-1-focus-1
+            phrase: Reconcile the same request, reservation and attempt
+            targets:
+              - recovery-reservation
+            color: yellow
+            linger: 0.25
+            caption_boundary: true
+          - id: recovery-quiescence
+            phrase: the last read has finished and attempt one cannot continue
+            targets:
+              - recovery-old-owner
+              - recovery-boundary
+            color: cyan
+            linger: 0.25
+          - id: recovery-release-unused
+            phrase: Settle four hundred twenty units and release the unused two hundred eighty. That leaves A with
+              five hundred eighty available.
+            targets:
+              - recovery-reservation
+            color: blue
+            linger: 0.25
+            caption_boundary: true
+      - say: Alice already saw two events from that stream. They read “The review.” The server has no compatible
+          checkpoint for that prefix. What should Alice receive next?
+        hold: 2
+        visual_cues:
+          - id: recovery-stream-prefix
+            phrase: Alice already saw two events from that stream
+            targets:
+              - recovery-stream
+            color: blue
+            linger: 0.25
+      - say: End the stream with a partial-result error. Alice keeps the two events she received. Resuming at
+          event three would require a protocol that verifies the prefix, its sequence number and
+          compatible execution state. Before the first output, a bounded retry can be transparent once
+          ownership is resolved.
+        hold: 1.2
+        visual_cues:
+          - id: recovery-partial-error
+            phrase: End the stream with a partial-result error
+            targets:
+              - recovery-stream
+            color: yellow
+            linger: 0.25
+            caption_boundary: true
+  - id: rollout-and-streams
+    title: Move new work without changing an existing answer
+    visual: Two immutable model/adapter lanes drain separately during rollout. A partially delivered stream keeps
+      numbered output and a pinned state handle. A retry arrow cannot append an unrelated new generation to
+      the old prefix. Shadow traffic passes its own destination-authorization gate.
+    beats:
+      - say: A rollout resolves model and adapter revisions for new requests, isolates incompatible cache namespaces
+          and drains old references. Old work retains the loaded weights and compatible state it began with.
+          Retain rollback routing for future requests. Changing an alias in the control plane does not replace
+          the state beneath an answer already being generated.
+        hold: 0.8
+        visual_cues:
+          - id: mt-rollout-and-streams-b0
+            phrase: A rollout resolves model and adapter revisions for new requests, isolates incompatible cache
+              namespaces and drains old references. Old work retains the loaded weights and compatible state
+              it began with. Retain rollback routing for future requests. Changing an alias in the control
+              plane does not replace the state beneath an answer already being generated.
+            targets:
+              - rollout-and-streams-mechanism
+            color: cyan
+            linger: 0.35
+          - id: mt-rollout-and-streams-s0-0
+            phrase: A rollout resolves model and adapter revisions for new requests, isolates incompatible cache
+              namespaces and drains old references.
+            targets:
+              - rollout-and-streams-mechanism
+            color: yellow
+            linger: 0.35
+          - id: mt-rollout-and-streams-s0-1
+            phrase: Old work retains the loaded weights and compatible state it began with.
+            targets:
+              - rollout-and-streams-mechanism
+            color: yellow
+            linger: 0.35
+      - say: Shadow requests also carry real data and consume compute. Authorize the destination and declare quota and
+          accounting treatment before copying traffic. Worker readiness alone establishes neither model
+          quality nor tenant isolation. Release evaluation needs those separate checks, including requests
+          with private evidence, adapter churn and revision changes under load.
+        hold: 0.8
+        visual_cues:
+          - id: mt-rollout-and-streams-b1
+            phrase: Shadow requests also carry real data and consume compute. Authorize the destination and declare quota
+              and accounting treatment before copying traffic. Worker readiness alone establishes neither
+              model quality nor tenant isolation. Release evaluation needs those separate checks, including
+              requests with private evidence, adapter churn and revision changes under load.
+            targets:
+              - rollout-and-streams-mechanism
+            color: cyan
+            linger: 0.35
+          - id: mt-rollout-and-streams-s1-1
+            phrase: Authorize the destination and declare quota and accounting treatment before copying traffic.
+            targets:
+              - rollout-and-streams-mechanism
+            color: yellow
+            linger: 0.35
+      - say: Before any output, a bounded retry may be transparent when ownership prevents duplicate execution. After
+          output, restarting may duplicate or contradict the delivered text. Use an explicit resumable
+          protocol with sequence numbers and compatible state, or terminate with a clear partial-result error.
+          Cancellation completes only when execution and its state references have safely retired.
+        hold: 0.8
+        visual_cues:
+          - id: mt-rollout-and-streams-b2
+            phrase: Before any output, a bounded retry may be transparent when ownership prevents duplicate execution.
+              After output, restarting may duplicate or contradict the delivered text. Use an explicit
+              resumable protocol with sequence numbers and compatible state, or terminate with a clear
+              partial-result error. Cancellation completes only when execution and its state references have
+              safely retired.
+            targets:
+              - rollout-and-streams-mechanism
+            color: cyan
+            linger: 0.35
+          - id: mt-rollout-and-streams-s2-0
+            phrase: Before any output, a bounded retry may be transparent when ownership prevents duplicate execution.
+            targets:
+              - rollout-and-streams-mechanism
+            color: yellow
+            linger: 0.35
+          - id: mt-rollout-and-streams-s2-1
+            phrase: After output, restarting may duplicate or contradict the delivered text.
+            targets:
+              - rollout-and-streams-mechanism
+            color: yellow
+            linger: 0.35
+          - id: mt-rollout-and-streams-s2-2
+            phrase: Use an explicit resumable protocol with sequence numbers and compatible state, or terminate with a
+              clear partial-result error.
+            targets:
+              - rollout-and-streams-mechanism
+            color: yellow
+            linger: 0.35
+          - id: mt-rollout-and-streams-s2-3
+            phrase: Cancellation completes only when execution and its state references have safely retired.
+            targets:
+              - rollout-and-streams-mechanism
+            color: yellow
+            linger: 0.35
+  - id: incident-evidence
+    title: Contain foreign evidence before tuning the queue
+    visual: Return to the opening A/B incident. Stop the leaking path and preserve scoped identity/evidence/cache
+      traces. Then separate queue age, KV pressure, preemption, adapter misses and stage timings into
+      competing explanations; capacity is added only for the demonstrated constraint.
+    beats:
+      - say: Return to B receiving A’s private postmortem. Contain the cross-tenant path first, preserve access-scoped
+          audit evidence, and inspect identity propagation, reader predicates and cache ownership. More
+          replicas cannot repair a permission decision. The leaking path needs a corrected authorization
+          boundary and checks against the real retrieval and worker routes.
+        hold: 0.8
+        visual_cues:
+          - id: mt-incident-evidence-b0
+            phrase: Return to B receiving A’s private postmortem. Contain the cross-tenant path first, preserve
+              access-scoped audit evidence, and inspect identity propagation, reader predicates and cache
+              ownership. More replicas cannot repair a permission decision. The leaking path needs a corrected
+              authorization boundary and checks against the real retrieval and worker routes.
+            targets:
+              - incident-evidence-mechanism
+            color: cyan
+            linger: 0.35
+          - id: mt-incident-evidence-s0-0
+            phrase: Return to B receiving A’s private postmortem.
+            targets:
+              - incident-evidence-mechanism
+            color: yellow
+            linger: 0.35
+          - id: mt-incident-evidence-s0-1
+            phrase: Contain the cross-tenant path first, preserve access-scoped audit evidence, and inspect identity
+              propagation, reader predicates and cache ownership.
+            targets:
+              - incident-evidence-mechanism
+            color: yellow
+            linger: 0.35
+      - say: Now investigate why both callers waited. Compare queue age, admitted work, active sequences, physical KV
+          occupancy, preemptions, adapter misses and stage latency by tenant and route. Moderate aggregate
+          utilization can coexist with a memory shortage or policy hold. Add ready capacity only when it
+          addresses the measured constraint; otherwise repair admission, scheduling or state handling.
+        hold: 0.8
+        visual_cues:
+          - id: mt-incident-evidence-b1
+            phrase: Now investigate why both callers waited. Compare queue age, admitted work, active sequences, physical
+              KV occupancy, preemptions, adapter misses and stage latency by tenant and route. Moderate
+              aggregate utilization can coexist with a memory shortage or policy hold. Add ready capacity only
+              when it addresses the measured constraint; otherwise repair admission, scheduling or state
+              handling.
+            targets:
+              - incident-evidence-mechanism
+            color: cyan
+            linger: 0.35
+          - id: mt-incident-evidence-s1-1
+            phrase: Compare queue age, admitted work, active sequences, physical KV occupancy, preemptions, adapter misses
+              and stage latency by tenant and route.
+            targets:
+              - incident-evidence-mechanism
+            color: yellow
+            linger: 0.35
+          - id: mt-incident-evidence-s1-3
+            phrase: Add ready capacity only when it addresses the measured constraint; otherwise repair admission,
+              scheduling or state handling.
+            targets:
+              - incident-evidence-mechanism
+            color: yellow
+            linger: 0.35
+      - say: Run short summaries alongside long prompts. Mix in adapter changes and cache misses, then
+          disconnect a client or take a worker or quota service offline. Record the hardware, engine version,
+          model precision, prompt and output lengths, warmup, arrivals and concurrency. Under the same
+          offered load, compare each tenant’s tail latency and count how many requests finish within its
+          limits.
+        hold: 0.8
+        visual_cues:
+          - id: mt-incident-evidence-b2
+            phrase: Run short summaries alongside long prompts. Mix in adapter changes and cache misses, then
+              disconnect a client or take a worker or quota service offline. Record the hardware, engine
+              version, model precision, prompt and output lengths, warmup, arrivals and concurrency. Under
+              the same offered load, compare each tenant’s tail latency and count how many requests finish
+              within its limits.
+            targets:
+              - incident-evidence-mechanism
+            color: cyan
+            linger: 0.35
+  - id: fresh-design-gate
+    title: Admit a new request for C
+    visual: Size C’s fixed-period hold and separate whole-page reservation. A page tile stands for sixteen
+      positions. Show the last half-filled reservation tile, keep ownership through a usage-only receipt,
+      then release pages and settle once after retirement.
+    beats:
+      - say: Workspace C has fifteen hundred units left this period. Its request has two hundred forty input
+          tokens and room for three hundred sixty output tokens. Count one unit per token. On this worker
+          a page holds sixteen positions, and admission reserves the full cap. How many units must C hold,
+          and how many whole pages must the worker find?
+        hold: 3.5
+        visual_cues:
+          - id: mt-fresh-design-gate-b0
+            phrase: Workspace C has fifteen hundred units left this period. Its request has two hundred forty input
+              tokens and room for three hundred sixty output tokens. Count one unit per token. On this
+              worker a page holds sixteen positions, and admission reserves the full cap. How many units
+              must C hold, and how many whole pages must the worker find?
+            targets:
+              - fresh-design-gate-mechanism
+            color: cyan
+            linger: 0.25
+      - say: Hold six hundred units and leave nine hundred available. On the worker, thirty-seven pages give us
+          only five hundred ninety-two positions. We need eight positions on one more page. Reserve
+          thirty-eight pages. The eight spare positions in that last page still belong to this request.
+        hold: 1.2
+        visual_cues:
+          - id: mt-fresh-design-gate-b1
+            phrase: Hold six hundred units and leave nine hundred available. On the worker, thirty-seven pages give
+              us only five hundred ninety-two positions. We need eight positions on one more page. Reserve
+              thirty-eight pages. The eight spare positions in that last page still belong to this
+              request.
+            targets:
+              - fresh-design-gate-mechanism
+            color: cyan
+            linger: 0.25
+          - id: mt-fresh-design-gate-s1-0
+            phrase: Hold six hundred units and leave nine hundred available
+            targets:
+              - fresh-design-gate-mechanism
+            color: yellow
+            linger: 0.25
+            caption_boundary: true
+          - id: fresh-thirty-seven
+            phrase: thirty-seven pages give us only five hundred ninety-two positions
+            targets:
+              - fresh-design-gate-mechanism
+            color: pink
+            linger: 0.25
+          - id: mt-fresh-design-gate-s1-2
+            phrase: Reserve thirty-eight pages
+            targets:
+              - fresh-design-gate-mechanism
+            color: pink
+            linger: 0.25
+            caption_boundary: true
+      - say: The dispatch acknowledgement goes missing. Keep request nine and attempt two on the reservation. A
+          trusted receipt reports ninety output tokens. Its device read is still pending. Can we release
+          either the held allowance or the pages?
+        hold: 2.5
+        visual_cues:
+          - id: mt-fresh-design-gate-b2
+            phrase: The dispatch acknowledgement goes missing. Keep request nine and attempt two on the reservation.
+              A trusted receipt reports ninety output tokens. Its device read is still pending. Can we
+              release either the held allowance or the pages?
+            targets:
+              - fresh-design-gate-mechanism
+            color: cyan
+            linger: 0.25
+          - id: mt-fresh-design-gate-s2-0
+            phrase: The dispatch acknowledgement goes missing
+            targets:
+              - fresh-design-gate-mechanism
+            color: cyan
+            linger: 0.25
+          - id: mt-fresh-design-gate-s2-2
+            phrase: A trusted receipt reports ninety output tokens
+            targets:
+              - fresh-design-gate-mechanism
+            color: yellow
+            linger: 0.25
+      - say: Keep both reservations. Now the worker confirms that the last device read has finished and the
+          attempt has retired. With the receipt, settle two hundred forty plus ninety, or three hundred
+          thirty units. Return two hundred seventy unused units, leaving eleven hundred seventy available.
+          A second delivery for the same attempt leaves that balance unchanged. A replacement would still
+          need authorization, capacity, a retry budget and a way to handle any output already delivered.
+        hold: 1.2
+        visual_cues:
+          - id: mt-fresh-design-gate-b3
+            phrase: Keep both reservations. Now the worker confirms that the last device read has finished and the
+              attempt has retired. With the receipt, settle two hundred forty plus ninety, or three
+              hundred thirty units. Return two hundred seventy unused units, leaving eleven hundred
+              seventy available. A second delivery for the same attempt leaves that balance unchanged. A
+              replacement would still need authorization, capacity, a retry budget and a way to handle any
+              output already delivered.
+            targets:
+              - fresh-design-gate-mechanism
+            color: cyan
+            linger: 0.25
+          - id: mt-fresh-design-gate-retired
+            phrase: the last device read has finished and the attempt has retired
+            targets:
+              - fresh-design-gate-mechanism
+            color: pink
+            linger: 0.25
+            caption_boundary: true
+          - id: mt-fresh-design-gate-s3-0
+            phrase: settle two hundred forty plus ninety, or three hundred thirty units
+            targets:
+              - fresh-design-gate-mechanism
+            color: blue
+            linger: 0.25
+            caption_boundary: true
+          - id: mt-fresh-design-gate-s3-1
+            phrase: Return two hundred seventy unused units, leaving eleven hundred seventy available
+            targets:
+              - fresh-design-gate-mechanism
+            color: yellow
+            linger: 0.25
+            caption_boundary: true
+          - id: mt-fresh-design-gate-s3-2
+            phrase: A second delivery for the same attempt leaves that balance unchanged
+            targets:
+              - fresh-design-gate-mechanism
+            color: blue
+            linger: 0.25
+          - id: fresh-keep-both
+            phrase: Keep both reservations
+            targets:
+              - fresh-design-gate-mechanism
+            color: yellow
+            linger: 0.25
+            caption_boundary: true
+  - id: boundary-close
+    title: Return to B’s next position
+    visual: Return to the five-page pool with B’s position 33 still pending. Retire A’s mappings only after
+      its last device read. Assign the now-empty P4 to B, then write position 33 into its first slot. The
+      two unaffected B pages remain in view.
+    beats:
+      - say: Come back to B’s thirty-third position. For this run, retrieval has verified Bob’s access to every
+          passage in his summary. B has allowance and a turn on the worker. Its two pages are full. A’s
+          stream has closed, but a device operation still holds A’s page table. Can B take page four now?
+        hold: 2.5
+        visual_cues:
+          - id: close-host
+            phrase: A’s stream has closed, but a device operation still holds A’s page table
+            targets:
+              - history-tables
+              - worker-pages
+            color: cyan
+            linger: 0.25
+          - id: close-decision
+            phrase: Can B take page four now
+            targets:
+              - worker-pages
+              - pending-write
+            color: yellow
+            linger: 0.25
+      - say: Wait. That read still owns a reference. While it’s using A’s page, B’s next position stays in the queue.
+        hold: 0.7
+        caption_starts:
+          - Wait
+          - While it’s using A’s page
+        visual_cues:
+          - id: close-wait
+            phrase: Wait. That read still owns a reference
+            caption_boundary: true
+            targets:
+              - worker-pages
+              - pending-write
+            color: yellow
+            linger: 0.25
+      - say: Now the worker confirms that A’s last read has finished and retires A’s page table. Three whole
+          pages are free. The allocator gives B an empty page four. B writes position thirty-three into
+          its first slot. Follow B’s table again. One, three, four. Only that first slot in page four
+          belongs to B’s history so far.
+        hold: 2.2
+        caption_starts:
+          - Three whole pages are free
+          - The allocator gives B an empty page four
+          - Follow B’s table again
+          - One, three, four
+        visual_cues:
+          - id: close-last-read
+            phrase: A’s last read has finished and retires A’s page table
+            targets:
+              - history-tables
+              - worker-pages
+            color: blue
+            linger: 0.25
+          - id: close-grant-page
+            phrase: The allocator gives B an empty page four
+            targets:
+              - history-tables
+              - worker-pages
+            color: pink
+            linger: 0.25
+          - id: close-write
+            phrase: B writes position thirty-three into its first slot
+            targets:
+              - worker-pages
+              - pending-write
+            color: pink
+            linger: 0.25
+            caption_boundary: true
